@@ -30,6 +30,16 @@ CODIGO = {
     "extras_direto": ("motor/raiz_extras_direto.py", "motor/raiz_extras.py"),
     "flag": ("raiz/flag.py",),
     "terra": ("raiz/terra.py",),
+    "titulo": (
+        "raiz/titulo/regularizacao.py",
+        "raiz/titulo/achados.py",
+        "raiz/titulo/nota.py",
+        "raiz/titulo/geometria.py",
+        "raiz/titulo/cadeia.py",
+        "raiz/titulo/contexto.py",
+        "raiz/titulo/triagem.py",
+        "raiz/titulo/tarefa.py",
+    ),
     "ficha": (
         "raiz/imovel_dados.py",
         "raiz/osm.py",
@@ -48,6 +58,7 @@ DEPENDE = {
     "extras_direto": ("funil",),
     "flag": ("funil", "mapbiomas", "direto"),
     "terra": ("funil", "filtros"),
+    "titulo": ("funil", "filtros", "terra"),
     "ficha": ("funil", "filtros", "mapbiomas", "flag", "terra"),
     "rebanho": ("funil", "mapbiomas", "direto"),
     "desenvolvedor": ("funil", "filtros", "mapbiomas", "direto", "ficha", "terra", "rebanho"),
@@ -60,6 +71,7 @@ SAIDAS = {
     "extras_direto": ("extras_direto_{cod}.csv",),
     "flag": ("flag_{cod}.csv",),
     "terra": ("terra_{cod}.csv",),
+    "titulo": ("titulo_{cod}.csv", "regularizacao_{cod}.csv", "achados_{cod}.csv"),
     "ficha": ("ficha_{cod}.csv", "camadas_{cod}.parquet", "camadas_{cod}.pmtiles"),
     "rebanho": ("rebanho_{cod}.csv",),
     "desenvolvedor": ("desenvolvedor_{cod}.csv",),
@@ -94,6 +106,10 @@ def versao(nome: str) -> str:
         from raiz import restauracao
 
         extra = restauracao.versao()
+    elif nome == "titulo":
+        from raiz.titulo import tarefa
+
+        extra = tarefa.versao()
     return f"{nome}-{_hash_codigo(CODIGO[nome], extra)}"
 
 
@@ -116,6 +132,14 @@ def _rasters_uf(uf: str, tema: str | None = None) -> dict:
     pasta = _cache_motor() / "mapbiomas" / uf
     fs = sorted(pasta.glob(f"{uf}_{tema}_*.tif" if tema else f"{uf}_*.tif")) if pasta.exists() else []
     return {f.name: assinatura_arquivo(f) for f in fs}
+
+
+def _documentos(uf: str, cod: int, tabela: str) -> str | None:
+    """Assinatura da saída de raiz/documentos (certidões conferidas): refaz terra e título quando muda."""
+    from raiz.documentos.config import pasta_dados
+
+    f = pasta_dados() / "saida" / uf / f"{tabela}_{cod}.csv"
+    return assinatura_arquivo(f, conteudo=True) if f.exists() else None
 
 
 def _nacionais() -> dict:
@@ -170,7 +194,13 @@ def externas(nome: str):
 
             cnfp = terra.cnfp_da_uf(uf)
             return {"sigef": assinatura_arquivo(esp / "sigef" / uf / f"{cod}.parquet", conteudo=True),
-                    "cnfp": assinatura_arquivo(cnfp) if cnfp else None, **_nacionais()}  # fmt: skip
+                    "cnfp": assinatura_arquivo(cnfp) if cnfp else None, **_nacionais(),
+                    "matricula": _documentos(uf, cod, "matricula")}  # fmt: skip
+        if nome == "titulo":
+            return {"certidoes": _documentos(uf, cod, "matricula_conferencia"),
+                    "matricula": _documentos(uf, cod, "matricula"),
+                    "cadeia": _documentos(uf, cod, "cadeia"),
+                    "sigef": assinatura_arquivo(esp / "sigef" / uf / f"{cod}.parquet", conteudo=True)}  # fmt: skip
         if nome in ("ficha", "desenvolvedor"):
             return _rasters_uf(uf, "cobertura")
         return {}

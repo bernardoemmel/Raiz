@@ -260,7 +260,7 @@ class Armazem:
         with self.con() as c:
             rows = c.execute(
                 """select cv.*, l.modelo, l.lido_em, l.leitor_versao, l.prompt_versao, l.derivados_json,
-                          l.dados_json, l.arquivo_sha256, l.chave
+                          l.dados_json, l.arquivo_sha256, l.chave, l.registro_hash
                    from conferencia_vigente cv join leitura l on l.id = cv.leitura_id order by cv.id"""
             ).fetchall()
         out = [dict(r) for r in rows]

@@ -168,7 +168,7 @@ def criar_app(
     @app.post("/mensagens/{mensagem_id}/aprovar", dependencies=seguro)
     def aprovar(mensagem_id: int, corpo: Decisao) -> dict:
         from raiz.whatsapp import aprovar as _aprovar
-        from raiz.whatsapp import enviador_pywa, enviar_aprovadas
+        from raiz.whatsapp import enviador_pywa, enviar_aprovadas, pedidor_localizacao_pywa
 
         try:
             _aprovar(app.state.engine, mensagem_id, corpo.quem)
@@ -176,7 +176,9 @@ def criar_app(
             raise HTTPException(409, str(ex)) from ex
         enviadas = 0
         if getattr(app.state, "wa", None) is not None:
-            enviadas = enviar_aprovadas(app.state.engine, enviador_pywa(app.state.wa))
+            enviadas = enviar_aprovadas(
+                app.state.engine, enviador_pywa(app.state.wa), pedir_localizacao=pedidor_localizacao_pywa(app.state.wa)
+            )
         return {"aprovada": mensagem_id, "enviadas": enviadas}
 
     @app.post("/mensagens/{mensagem_id}/descartar", dependencies=seguro)

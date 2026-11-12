@@ -224,6 +224,17 @@ Métodos reescritos, sem copiar código: cadeia dominial com quebras e ônus ati
 E5 passo 7); normal de dois lados nos P10, P50 e P90 e soma ao lado da carteira (E3); regra provisória das faixas
 (faixas-2026a) igual à do back-end (`raiz/regras/padroes/faixas.yaml`).
 
+## Título (`raiz/titulo/`)
+
+Nenhum código de terceiros copiado. Geodésia pelo `pyproj.Geod` (MIT, já dependência do geopandas), o mesmo cálculo do
+GeographicLib; regra da bússola (Bowditch) e escala D1 a D7 escritas pela Raíz. Gerador de memorial próprio: o
+LFTools e o GeoPlanta (plugins do QGIS) são GPL e não entram no produto. Planilha ODS lida com `zipfile` e
+`xml.etree` da biblioteca padrão. Desenhos seguidos, sem código: tabela de achados no formato do CFPB, reprova contra
+confirmar do HMDA, N/A do Pelican, nota com bandeiras do Collateral Underwriter e decisão em quatro saídas da
+subscrição de seguro. Tolerâncias de georreferenciamento do INCRA (0,50 m artificial e 3,00 m natural, como em
+estudo do próprio INCRA; 7,50 m inacessível). Base legal da regularização da posse em
+`raiz/regras/padroes/regularizacao.yaml`, com a marca do que o jurídico ainda não conferiu.
+
 ## Aprendizado no formato do hub (`raiz/aprendizado/hub.py`, `raiz/aprendizado/acerto.py`)
 
 Nenhum código copiado. O formato das pastas e arquivos segue a documentação do hubverse (hubverse-org/hubDocs, esquemas

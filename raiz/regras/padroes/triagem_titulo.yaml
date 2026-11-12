@@ -1,0 +1,41 @@
+# Triagem do título por imóvel (E5 passo 8): checagem rápida ou busca completa, no estilo da subscrição de hipoteca
+# nos EUA (o caso simples e limpo passa por checagem rápida; o resto vai para a busca completa no cartório).
+# Calculada pelo produto (raiz/titulo/triagem.py), gravada em titulo_<mun>.csv com a versão deste arquivo + hash.
+# A chance de problema é a priori e fica congelada como previsão (modelo triagem_titulo); o gabarito vem quando todas
+# as certidões do imóvel forem lidas. A calibrar com as primeiras certidões lidas.
+versao: triagem-titulo-2026a
+
+# caminhos da terra que ainda não têm título a buscar: seguem o passo da regularização (raiz/titulo/regularizacao.py)
+caminhos_regularizacao: [posse_em_titulacao, assentamento]
+caminhos_titulo: [privada_matricula, publica_concessao]
+
+# a checagem rápida vale quando tudo isto é verdade (cada item que falha vira motivo da busca completa)
+rapida:
+  nota_max: 2
+  sem_reprova: true
+  matricula_conferida: true  # todas as matrículas do imóvel lidas e conferidas (raiz/documentos)
+  cadeia_chega_a_origem: true  # achado cadeia.origem (raiz/titulo/cadeia.py); sem leitura conta como falta
+  sem_onus_grave: true
+  geometria_ok: [D1, D2, D3, D4]  # comparação CAR x SIGEF (raiz/titulo/tarefa.py); sem comparação não segura
+
+# chance a priori de a busca completa achar um problema que muda a decisão
+chance_problema:
+  rapida: 0.05
+  completa: 0.35
+
+motivos:
+  nota_max: "nota de título acima de 2"
+  sem_reprova: "achado que reprova sem confirmação"
+  matricula_conferida: "matrícula ainda não lida ou não conferida no cartório"
+  cadeia_chega_a_origem: "a cadeia ainda não chega ao título de origem"
+  sem_onus_grave: "ônus grave na matrícula"
+  geometria_ok: "CAR e SIGEF não batem (classe {classe})"
+  caminho: "caminho da terra sem título a buscar ({caminho})"
+
+# o que pedir na busca completa
+pedir:
+  - "certidão de inteiro teor de cada matrícula do imóvel"
+  - "certidão da cadeia dominial de 20 anos (vintenária), até o título de origem"
+  - "certidão de ônus reais e de ações reipersecutórias"
+pedir_origem: "certidão da matrícula ou transcrição de origem ({ref})"
+pedir_regularizacao: "seguir o passo da regularização da posse: {passo}"
