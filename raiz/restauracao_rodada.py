@@ -25,6 +25,18 @@ OPCOES = ("barata", "segura", "compacta")
 PACOTES = ("raiz_PA.tar.gz", "raiz_geo_PA.tar.gz")
 
 
+def exigir_actions() -> None:
+    if os.environ.get("GITHUB_ACTIONS") != "true" or not os.environ.get("GITHUB_SHA"):
+        raise SystemExit("A rodada integral do Pará só pode rodar no GitHub Actions.")
+
+
+def conferir_modelo(snapshot: dict) -> None:
+    from raiz import restauracao as R
+
+    if snapshot.get("commit") != os.environ.get("GITHUB_SHA") or snapshot.get("modelo_versao") != R.versao():
+        raise ValueError("Código ou premissas divergentes das entradas congeladas.")
+
+
 def _json(arquivo: Path, dado) -> None:
     from raiz.lote import json_seguro
 
@@ -118,6 +130,8 @@ def planejar(pasta: Path, fatias: int = 15) -> list[dict]:
 
 def preparar(destino: Path, repo: str = REPO, fatias: int = 15) -> dict:
     """Baixa IDs imutáveis dos assets, guarda SHA256 e congela a mesma entrada para todos os jobs."""
+    from raiz import restauracao as R
+
     destino.mkdir(parents=True, exist_ok=True)
     rel = json.loads(subprocess.check_output(["gh", "api", f"repos/{repo}/releases/tags/dados"], text=True))
     assets = {a["name"]: a for a in rel["assets"]}
@@ -151,6 +165,8 @@ def preparar(destino: Path, repo: str = REPO, fatias: int = 15) -> dict:
         "repo": repo,
         "release_id": rel["id"],
         "cenario": CENARIO,
+        "commit": os.environ.get("GITHUB_SHA"),
+        "modelo_versao": R.versao(),
         "fontes": fontes,
         "cobertura": cobertura,
         "plano": plano,
@@ -198,6 +214,7 @@ def calcular(entradas: Path, destino: Path, fatia: str) -> dict:
     from raiz.restauracao_validacao import registrar_previsoes, validar_area
 
     snapshot = _ler(entradas / "snapshot.json")
+    conferir_modelo(snapshot)
     plano = next(x for x in snapshot["plano"] if x["fatia"] == fatia)
     cods = set(plano["municipios"])
     destino.mkdir(parents=True, exist_ok=True)
@@ -296,6 +313,8 @@ def calcular(entradas: Path, destino: Path, fatia: str) -> dict:
 def conferir_calculos(pasta: Path, cobertura: dict, modelo: str) -> list[dict]:
     import pandas as pd
 
+    from raiz.privacidade import colunas_pessoais
+
     esperados = set(cobertura["com_imoveis"])
     presentes = {int(f.stem.rsplit("_", 1)[1]) for f in pasta.glob("desenvolvedor_*.csv")}
     if presentes != esperados:
@@ -315,9 +334,17 @@ def conferir_calculos(pasta: Path, cobertura: dict, modelo: str) -> list[dict]:
         for nome, h in m["arquivos"].items():
             if not (pasta / nome).is_file() or sha256(pasta / nome) != h:
                 raise ValueError(f"Arquivo alterado depois do cálculo: {nome}.")
-        df = pd.read_csv(pasta / f"desenvolvedor_{cod}.csv", usecols=["cod_imovel", "restauracao_versao"])
+            if nome.endswith(".csv") and colunas_pessoais(pd.read_csv(pasta / nome, nrows=0).columns):
+                raise ValueError(f"Coluna pessoal no resultado: {nome}.")
+        df = pd.read_csv(pasta / f"desenvolvedor_{cod}.csv", dtype={"cod_imovel": str}, low_memory=False)
         if len(df) != m["imoveis"] or not df.cod_imovel.is_unique or set(df.restauracao_versao) != {modelo}:
             raise ValueError(f"Contagem, identidade ou versão inválida em {cod}.")
+        origem = pd.read_csv(pasta / f"imoveis_{cod}.csv", usecols=["cod_imovel"], dtype=str)
+        if not origem.cod_imovel.is_unique or set(df.cod_imovel) != set(origem.cod_imovel):
+            raise ValueError(f"Os imóveis calculados divergem da fonte em {cod}.")
+        elegiveis = df.loc[df.restauracao_area_ha > 0, "reserva_risco_pct"]
+        if elegiveis.isna().any() or (elegiveis < 20 - 1e-6).any():
+            raise ValueError(f"Reserva contra reversão abaixo do piso de 20% em {cod}.")
         marcas.append(m)
     return marcas
 
@@ -326,9 +353,11 @@ def reunir(entradas: Path, calculados: Path, destino: Path) -> dict:
     from raiz import lote as L
     from raiz import lote_relatorio as LR
     from raiz import restauracao as R
+    from raiz.privacidade import colunas_pessoais
     from raiz.restauracao_validacao import comparar_pastas, confrontar_referencia
 
     snapshot = _ler(entradas / "snapshot.json")
+    conferir_modelo(snapshot)
     trabalho = destino / "trabalho"
     for nome in PACOTES:
         if sha256(entradas / nome) != snapshot["fontes"][nome]["sha256"]:
@@ -360,6 +389,8 @@ def reunir(entradas: Path, calculados: Path, destino: Path) -> dict:
     for nome in OPCOES:
         print(f"Montando a opção {nome}", flush=True)
         lote = L.montar(dados, opcao=nome, c=c, r=r, sensibilidade_ligada=False)
+        if colunas_pessoais(lote["tabela"].columns):
+            raise ValueError(f"Coluna pessoal no lote {nome}; publicação bloqueada.")
         lote["resumo"]["trilha_decisoes_entrada"] = "decisoes_entrada.jsonl, no pacote de previsões da rodada"
         LR.gravar_lote(lote, produto / nome, c=c, r=r)
         resumos[nome] = lote["resumo"]
@@ -380,6 +411,7 @@ def reunir(entradas: Path, calculados: Path, destino: Path) -> dict:
         "municipios_vazios": cobertura["vazios"],
         "imoveis_calculados": sum(x["imoveis"] for x in marcas),
         "modelo_versao": R.versao(),
+        "piso_nao_permanencia": R.RESERVA_MINIMA,
         "commit": os.environ.get("GITHUB_SHA"),
         "execucao": os.environ.get("GITHUB_RUN_ID"),
         "opcoes": list(OPCOES),
@@ -463,6 +495,7 @@ def main() -> None:
     parser.add_argument("--fatia")
     parser.add_argument("--repo", default=REPO)
     args = parser.parse_args()
+    exigir_actions()
     if args.etapa == "preparar":
         resultado = preparar(args.destino, args.repo)
         print(json.dumps({"fatias": len(resultado["plano"]), "cobertura": resultado["cobertura"]}))

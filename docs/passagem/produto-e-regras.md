@@ -53,10 +53,17 @@ contêiner local; não afirmar implantação pública. Configure TLS, vínculo e
 Valkey para limites compartilhados, cofre, assinante, SMTP, provedor Pix e coletor OTLP.
 Não reutilizar segredos dos testes. Não enviar mensagens reais durante validação.
 
-O Pará segue execução exclusiva pelo Actions, em 144 municípios/12 fatias e commit
-congelado, com manifestação dos hashes das fontes/resultados e publicação no Release.
-Não calcular no contêiner e não cancelar workflows de outros chats. Registrar o
-run, o manifesto, os resultados e os PRs efetivamente incorporados após terminar.
+O recálculo usa o workflow `lote-para.yml` da main (PR #49), sem pipeline duplicado.
+A execução43285608189, commit3199052, calculou dez de quinze fatias; foi cancelada
+externamente em12/11 às19:09UTC e o workflow foi desativado manualmente. Nenhuma
+saída parcial foi publicada. A retomada das cinco fatias e publicação aguarda
+esclarecimento do fundador sobre o cancelamento posterior ao pedido deste chat.
+Não recalcular no contêiner e não cancelar workflows de outros chats.
+
+As salvaguardas da API complementam o catálogo da rodada: os bloqueios publicados
+chegam à oferta/PostGIS. Inclusão de programa REDD+ exige recertificar a cobertura
+vigente. Os testes de revisão usam o app real e os gates pagos, inclusive o caminho
+legado por redirecionamento. A cadeia agora é0026prospecção→0027API→0028salvaguardas→0029plataforma.
 
 ---
 

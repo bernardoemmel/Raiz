@@ -2,10 +2,10 @@
 
 A política Raíz usa reserva contra reversão de **pelo menos 20%** em qualquer cenário, mesmo sem série de fogo e
 mesmo quando o simulador recebe um percentual menor. Risco calculado ou cenário acima disso eleva a reserva. O piso
-está em `nao_permanencia.piso`, a versão é `restauracao-2026d` e o cálculo mantém 20% como mínimo mesmo se a configuração
+está em `nao_permanencia.piso_raiz`, a versão é `restauracao-2026d` e o cálculo mantém 20% como mínimo mesmo se a configuração
 for reduzida. Créditos e TIR anteriores precisam de recálculo; resultados da versão anterior não mudam retroativamente.
 
-Esse é o piso conservador escolhido pela Raíz. O [ICVCM, critério 9.4](https://icvcm.org/wp-content/uploads/2024/02/CCP-Section-4-V1.1-FINAL-15May24.pdf)
+Esse é o piso conservador escolhido pela Raíz. O [ICVCM, critério 9.4](https://icvcm.org/wp-content/uploads/2024/05/CCP-Section-4-V3-FINAL-10May24.pdf)
 admite reserva coletiva de 20% **ou** quantidade proporcional ao risco comprovado. Não significa que toda metodologia
 ou todo programa jurisdicional imponha 20% (REDD+ jurisdicional possui critério próprio 9.5).
 
@@ -13,8 +13,8 @@ ou todo programa jurisdicional imponha 20% (REDD+ jurisdicional possui critério
 
 `geo.redd_programa` recebe polígonos em EPSG:4674, UF, período contábil, URL da fonte e hash/data da evidência. Cada
 identificador é imutável e representa um programa/período. O cruzamento usa a interseção dos polígonos reais em
-PostGIS, com área em hectares; não usa apenas sede municipal ou centroide. A API oferece a camada GeoJSON em
-`GET /salvaguardas/redd.geojson` para uma sessão da empresa.
+PostGIS, com área em hectares; não usa apenas sede municipal ou centroide. A função `camada()` entrega o GeoJSON
+para integração com o mapa.
 
 A [Lei 15.042, art. 43](https://www2.camara.leg.br/legin/fed/lei/2024/lei-15042-11-dezembro-2024-796690-normaatualizada-pl.html)
 exige conciliação com o programa jurisdicional e comunicação de exclusão ao CONAREDD+, para evitar dupla contagem.
@@ -25,6 +25,12 @@ Tabela vazia significa `nao_verificado`. Para declarar ausência, a equipe preci
 hash/data e validade de até um ano em `geo.redd_cobertura`. A ausência de geometria também fica não verificada.
 Estimativas preliminares continuam visíveis; a reserva aguarda a conferência documental e territorial. Não há
 polígonos nem atestados inventados ou pré-aprovados no repositório.
+Um programa novo deixa a cobertura da UF pendente de recertificação sem apagar o certificado anterior.
+
+O complemento `jurisdicional_<mun>.csv` também entra na carga e na oferta da API. Seus alertas de sobreposição
+e de território tradicional sobrevivem ao armazenamento da oferta: o catálogo PostGIS ainda vazio não os apaga.
+Um alerta com programa identificado exige exclusão documentada específica; alerta sem identificador permanece
+bloqueado até correção da fonte. Essa ponte preserva as salvaguardas do lote publicadas pelo PR #49.
 
 Rotas internas (token operacional):
 

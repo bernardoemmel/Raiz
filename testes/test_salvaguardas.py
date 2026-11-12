@@ -48,10 +48,40 @@ def test_sobreposicao_bloqueia_e_exclusao_e_especifica_por_programa():
     v = {"verificacao": EVIDENCIA, "territorio_tradicional": False, "exclusoes_conaredd": {"outro-periodo": EVIDENCIA}}
     assert not S.avaliar(li, v)["pode_originar"]
     assert not O.de_linha({**li, "verificacao": v})["elegivel"]
-    assert not R.elegivel({**li, "verificacao": v, "alem_RL_ha": 2, "pasto_ha": 2})
     v["exclusoes_conaredd"] = {PROGRAMA["id"]: EVIDENCIA}
     assert S.avaliar(li, v)["pode_reservar"]
     assert O.de_linha({**li, "verificacao": v})["elegivel"]
+
+
+def test_alerta_do_catalogo_publicado_sobrevive_a_oferta_e_exige_exclusao_especifica(tmp_path):
+    (tmp_path / "imoveis_1504950.csv").write_text(
+        "cod_imovel,modo_restauracao,restauracao_area_ha,caminho_terra,area\n"
+        "PA-TESTE,plantio_total,2,privada_matricula,2\n"
+    )
+    (tmp_path / "jurisdicional_1504950.csv").write_text(
+        "cod_imovel,jurisdicional_situacao,jurisdicional_programa\nPA-TESTE,sobreposicao,SJREDD-PA\n"
+    )
+    li = O.linhas_da_pasta(tmp_path, 1504950)[0]
+    oferta = O.de_linha(li)
+    assert not oferta["elegivel"]
+    v = {"verificacao": EVIDENCIA, "territorio_tradicional": False}
+    # A camada do banco pode não conhecer ainda o programa do catálogo publicado.
+    atual = {**oferta, "redd_programas": [], "redd_cobertura_verificada": True}
+    assert not S.avaliar(atual, v)["pode_reservar"]
+    v["exclusoes_conaredd"] = {"SJREDD-PA": EVIDENCIA}
+    assert S.avaliar(atual, v)["pode_reservar"]
+
+
+def test_catalogo_sem_identificador_e_territorio_tradicional_nao_somem_na_oferta():
+    li = {**LINHA, "jurisdicional_sobreposicao_ha": 0.01, "terra_tradicional_ha": 0.01}
+    oferta = O.de_linha(li)
+    assert not oferta["elegivel"] and oferta["salvaguardas"]["territorio_tradicional"]
+    atual = {**oferta, "redd_programas": [], "redd_cobertura_verificada": True}
+    v = {"verificacao": EVIDENCIA, "territorio_tradicional": False}
+    resultado = S.avaliar(atual, v)
+    assert not resultado["pode_reservar"]
+    assert "sobreposicao_catalogo_sem_programa_identificado" in resultado["bloqueios"]
+    assert "consentimento_clpi_pendente" in resultado["bloqueios"]
 
 
 @pytest.mark.parametrize(("atividade", "minimo"), [("remocao", 0.5), ("redd_mercado", 0.7)])

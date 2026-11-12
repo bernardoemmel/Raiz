@@ -1072,6 +1072,16 @@ def reservar(engine: Engine, pedido_id: str, cliente_id: int, por_agente: str | 
                 {"id": aberta.id},
             )
             aberta = None
+        if aberta is not None:
+            congelados = list(
+                con.execute(
+                    text("select cod_imovel from negocio.reserva_fazenda where reserva_id=:r"),
+                    {"r": aberta.id},
+                ).scalars()
+            )
+            if set(congelados) != set(cods):
+                raise ErroPedido("as fazendas do grupo mudaram: peça revisão antes de preparar a reserva")
+            SG.exigir_para_reserva(engine, congelados)
         if aberta is None:
             ocupadas = {
                 r[0]
