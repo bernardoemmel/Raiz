@@ -26,14 +26,18 @@ E3, E5, E7, E8 e E9 têm a coluna Situação conferida contra a main; E1 e E2 ta
 
 Retomada em 12/11/2026, seguindo a passagem `docs/passagem/raiz-dados-do-brasil.md`.
 
+Validação da entrega de formatos: 1.511 testes na suíte completa com PostGIS, mais as verificações complementares
+da integração com API/MCP e Ficha; 681 licenças conferidas. Os 22 arquivos públicos e 39 canônicos privados tiveram
+bytes e hashes conferidos antes da catalogação. Publicação retroativa e verificação das atestações seguem após CI e merge.
+
 | Ordem | Entrega | Situação |
 |---|---|---|
-| 1 | Limite global de 15 jobs de processamento, sem cancelar os existentes | **feito**: #43 mesclado com CI de push e PR verdes; admissão atômica na ref `raiz-fila-processamento`, incluindo pedidos manuais e continuações; falha de consulta bloqueia novas vagas. Pedidos sem vaga ficam persistidos e são retomados a cada 15 minutos |
-| 2–3 | Fichas Croissant 1.1/schema.org e publicação no Release | a fazer |
-| 4 | Quantis públicos no formato hubverse, com versão do modelo | a fazer |
-| 5 | Cartão do modelo | a fazer |
-| 6 | Atestação dos arquivos publicados pelo Actions | a fazer |
-| 7 | Cronograma dos lotes no vocabulário CAD Trust | a fazer |
+| 1 | Limite global de 15 jobs de processamento, sem cancelar os existentes | **feito**: #43 e #46 mesclados com CI verde; admissão atômica na ref `raiz-fila-processamento`, incluindo pedidos manuais e continuações. A entrega de formatos amplia a mesma reserva ao catálogo e aos dois workflows do Lote PA, mantendo cotas até o fim da rodada e conferindo reruns antes dos dados. A retomada legada auditada ocupa cinco vagas; demais legados desconhecidos bloqueiam novas admissões. Falha de consulta bloqueia novas vagas. Pedidos do motor sem vaga ficam persistidos e são retomados a cada 15 minutos. Nenhum job foi cancelado pela retomada |
+| 2–3 | Fichas Croissant 1.1/schema.org e publicação no Release | **feito no publicador**: `raiz/metadados.py`, baker 0.8.3 e mlcroissant 1.1.1; fichas por pacote CSV, geometria, camadas e controle, com catálogos separados por acesso; o público recebe só fichas básicas, o privado recebe os derivados completos. SHA-256 dos bytes reais, leitura de tar testada e nenhuma licença de dados presumida. Baker e validador trabalham em subprocessos limitados por campos, preservando a ficha integral. A atualização retroativa de todos os assets será conferida na entrega final |
+| 4 | Quantis privados no formato hubverse, com versão do modelo | **feito no publicador**: Parquet longo, hub nativo por UF, tasks v6 e metadados por versão; data/versão ausentes geram diagnóstico. FLAG usa hipótese triangular explícita; P50 legado do desenvolvedor preserva o cenário central. Publicação retroativa pendente de execução |
+| 5 | Cartão do modelo | **feito**: `docs/modelo/cartao.md`, publicado como `cartao_modelo.md`; usos, dados, métodos, versões, métricas ainda sem validação de campo e limites |
+| 6 | Atestação dos arquivos publicados pelo Actions | **feito no workflow**: checksums dos uploads concluídos e `actions/attest-build-provenance@v2`, com OIDC e permissão de atestação. Finalizador da versão atual atende também execuções científicas fixadas em commits antigos. A execução e a verificação dos arquivos existentes serão registradas após o merge |
+| 7 | Cronograma dos lotes no vocabulário CAD Trust | **feito no publicador**: cenários ProFloresta+ privados por UF, incrementos anuais inteiros cuja soma preserva o total P50; `cadt_lotes.json`, proveniência e diagnósticos. Âncora hipotética de 01/01/2027 configurável; não declara registro, certificação ou emissão |
 | 8 | Pendências E1/E2 da passagem, na ordem de dependência | a fazer |
 
 ## E1. Coleta de dados públicos

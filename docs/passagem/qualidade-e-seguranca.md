@@ -1,6 +1,6 @@
 # Qualidade e segurança — passagem
 
-Entrega inicial de 12/11/2026 (#51); revisão de continuidade em 12/11/2026, até a main `88860b6`. Área: CI, E2E, infraestrutura e segurança. Correções em produto são pontuais,
+Entrega inicial de 12/11/2026 (#51); revisão de continuidade em 12/11/2026, até a main `b624b10`. Área: CI, E2E, infraestrutura e segurança. Correções em produto são pontuais,
 com regressões. Mudanças de contrato/arquitetura ficam para os chats responsáveis abaixo.
 
 ## Continuidade desta entrega (12/11/2026)
@@ -19,7 +19,7 @@ com regressões. Mudanças de contrato/arquitetura ficam para os chats responsá
   de **Produto e regras**: o MCP oferece ferramentas de pedidos para agentes externos, sem agente leitor de certidão,
   edital ou arquivo. Não se simula essa leitura nem sua aprovação. A exceção anterior do fundador era somente ausência
   de servidor; com o servidor presente, o runner exige a integração e registra falha explícita do corpus pendente.
-- **Revisão contínua:** PRs #53, #56, #67, #54, #68, #70, #71, #73, #74, #55, #75, a integração #45/#69 e #72 revisados,
+- **Revisão contínua:** PRs #53, #56, #67, #54, #68, #70, #71, #73, #74, #55, #75, a integração #45/#69, #72 e #77 revisados,
   com correções pequenas de privacidade, calendário e idempotência abaixo.
   Scanners e testes rodam a cada push. O fundador optou por manter somente essas checagens por push, sem automação horária.
 
@@ -478,3 +478,31 @@ Corrigida a saída do importador `raiz.executor.publicar_entrada`: não imprime 
 nomes arbitrários de pacotes/membros em erro. Sucesso usa resumo fechado e falha usa mensagem fixa sem traceback.
 **Nove regressões** passaram com canários de dado pessoal/segredo em caminhos, retorno e exceções. Os E2E da API/Pix
 e da aprovação humana passaram após #72, respeitando o limite por empresa; não houve pagamento ou acesso externo.
+
+O [CI do commit integrado 55b923d](https://github.com/bernardoemmel/Raiz/actions/runs/43308020772) aprovou sete dos
+oito jobs, com **1.868 testes Python**, um skip e um xfail herdados. O único job reprovado foi o corpus MCP pendente;
+tempo e carga das sete ferramentas passaram também no runner remoto. Esses resultados precedem a integração do #77.
+
+### Integração do #77 — catálogos, proveniência e cota global
+
+Revisados o catálogo público, a catalogação privada, as atestações e a admissão conjunta dos jobs. As dependências
+de metadados foram incorporadas ao lock; **709 pacotes** passaram na checagem de licenças. Actionlint 1.7.12,
+adotado pela main, foi executado localmente. Não foram iniciados jobs de processamento ou uploads de dados.
+
+Achados pequenos confirmados: nomes de assets privados podiam aparecer em diagnósticos, relatórios e subjects de
+atestação; o validador Croissant também emitia o nome do Dataset em WARNING. Os diagnósticos passam a usar textos
+fixos/identificadores técnicos. A atestação privada usa somente o digest dos bytes, sem nome ou hash do nome;
+o workflow recusa listas legadas antes de chamar a ação de atestação, inclusive em passos `always()`. **Oito
+testes do portão de workflow** passaram com canários de nome/contato e subjects inválidos.
+
+Também foi confirmada uma corrida de admissão: a reserva do catálogo podia continuar vinculada à tentativa
+anterior e ser removida por um snapshot atrasado de término, liberando indevidamente a 16ª vaga. A confirmação
+passa pelo CAS e atualiza o escopo/tentativa, seguindo o protocolo já usado pelos lotes do Pará.
+O conjunto integrado de atestação, portão de workflow, cota e lotes teve **55 testes aprovados**. A suíte completa
+foi iniciada novamente após estabilizar a integração; os resultados finais ficam também no PR #76.
+
+**Raiz dados do Brasil — integração do finalizador histórico a confirmar:** o teste de finalização de um executor
+antigo substitui `conferir_processamento_seguro`. No fluxo real, a própria reserva ainda `in_progress` pode colocar
+a ref antiga na lista de executores proibidos, mesmo após terminar o cálculo. É necessário definir como comprovar
+essa conclusão sem dispensar a verificação dos demais executores antigos ativos. O preflight não foi relaxado;
+esta revisão não declara o fluxo histórico integralmente validado.

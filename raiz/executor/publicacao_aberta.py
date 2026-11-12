@@ -261,8 +261,19 @@ def _validar_csv(nome: str, dados: bytes, uf: str) -> None:
         _saltos(intensidades)
 
 
-def _validar_asset_publico(nome: str, dados: bytes) -> None:
+def _validar_asset_publico(nome: str, dados: bytes, *, repo: str, tag: str) -> None:
     """Falha antes do upload se qualquer arquivo/coluna não pertence à projeção pública."""
+    if nome == "cartao_modelo.md":
+        from raiz import RAIZ_REPO
+
+        if dados != (RAIZ_REPO / "docs" / "modelo" / "cartao.md").read_bytes():
+            raise ValueError("cartão público deve corresponder ao texto metodológico revisado")
+        return
+    if nome == "croissant.json" or nome.startswith("croissant_"):
+        from raiz.metadados import validar_ficha_publica
+
+        validar_ficha_publica(nome, dados, repo=repo, tag=tag)
+        return
     if nome == "estados.json":
         manifesto = _carregar_json(dados)
         validar_json(manifesto)
@@ -330,10 +341,10 @@ def _validar_asset_publico(nome: str, dados: bytes) -> None:
                 _validar_csv(arq, conteudo, uf)
 
 
-def validar_asset_publico(nome: str, dados: bytes) -> None:
+def validar_asset_publico(nome: str, dados: bytes, *, repo: str = "bernardoemmel/Raiz", tag: str = "dados") -> None:
     """Contrato, Pandera e privacidade sobre os bytes enviados, sem ecoar valores dos parsers."""
     try:
-        _validar_asset_publico(nome, dados)
+        _validar_asset_publico(nome, dados, repo=repo, tag=tag)
     except ErroQualidade:
         raise
     except Exception:
