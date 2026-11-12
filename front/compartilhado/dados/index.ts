@@ -13,11 +13,13 @@ export { CATEGORIAS } from "./funil"
 interface Ambiente {
   VITE_RAIZ_API?: string
   VITE_RAIZ_API_TOKEN?: string
+  /** onde estão amostra/ e geo/ quando não é a própria pasta do app (no site, a ficha do produtor lê as do painel) */
+  VITE_RAIZ_DADOS_BASE?: string
   BASE_URL?: string
 }
 
 /** Com VITE_RAIZ_API definida, usa a API do back-end; sem ela, a amostra do motor. */
 export function escolherFonte(env: Ambiente): FonteDeDados {
   if (env.VITE_RAIZ_API) return fonteApi(env.VITE_RAIZ_API, env.VITE_RAIZ_API_TOKEN)
-  return fonteAmostra(env.BASE_URL ?? "/")
+  return fonteAmostra(env.VITE_RAIZ_DADOS_BASE || env.BASE_URL || "/")
 }

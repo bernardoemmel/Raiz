@@ -27,6 +27,8 @@ Painel e detalhes: [`motor/README.md`](../motor/README.md).
 5. O plugin do Vite (`front/compartilhado/vite-dados.ts` e `pasta-dados.ts`) lê `dados/estados/` sozinho quando
    existe (ou a pasta de `RAIZ_DADOS`); sem ela, a amostra. O mapa do Brasil diz, por estado, o que o `estados.json`
    baixado diz (completo, incompleto com a contagem, ainda não processado), sem recontar.
+6. O site público (https://bernardoemmel.github.io/Raiz/) é refeito todo dia pelo workflow `publicar-site.yml`, que
+   baixa este Release no build (ver `front/README.md`, "Site público").
 
 ## Caminho antigo (motor rodado no computador)
 
