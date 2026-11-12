@@ -467,6 +467,10 @@ class ArmazemRelease:
         return {"Authorization": f"Bearer {self.token}", "Accept": "application/vnd.github+json"}
 
     def _subir(self, rel: dict, nome: str, dados: bytes, tipo: str = "application/octet-stream") -> None:
+        if nome.endswith(".json"):
+            from raiz.qualidade_dados import validar_json
+
+            validar_json(json.loads(dados))
         h = self._cabecalhos()
         for a in rel.get("assets", []):
             if a["name"] == nome:  # o Release não troca asset: apaga e sobe de novo
@@ -589,6 +593,20 @@ class ArmazemRelease:
                 geos[arq] = dados
             elif arq.startswith("camadas_"):
                 camadas[arq] = dados
+            else:
+                from raiz.qualidade_dados import ErroQualidade
+
+                raise ErroQualidade("publicação bloqueada: arquivo de saída sem contrato público")
+        from raiz.qualidade_dados import validar_arquivos, validar_json
+
+        marcas = {k.rsplit("/", 1)[1][:-5]: json.loads(self.local.ler(k)) for k in self.local.listar(f"marcas/{u}/")}
+        est = json.loads(self.local.ler(f"estado/{u}.json") or b"{}")
+        controle = json.dumps({"marcas": marcas, "estado": est}, ensure_ascii=False).encode()
+        # O lote completo, inclusive JSON/extra, é conferido antes de qualquer asset ser trocado.
+        validar_arquivos(
+            {**csvs, **geos, **camadas, "_versoes.json": json.dumps(vers).encode(), f"raiz_controle_{u}.json": controle}
+        )
+        validar_json(extra)
         info = dict(estados.get(u, {}))
         versao = hashlib.sha256(b"".join(n.encode() + csvs[n] for n in sorted(csvs))).hexdigest()[:16]
         if csvs and info.get("versao") != versao:
@@ -604,9 +622,6 @@ class ArmazemRelease:
                 p = self._tar(u, grupo)
                 self._subir(rel, nome, p, "application/gzip")
                 info[campo] = {"versao": vg, "tamanho": len(p), "url": self.url(nome), "municipios": len(grupo)}
-        marcas = {k.rsplit("/", 1)[1][:-5]: json.loads(self.local.ler(k)) for k in self.local.listar(f"marcas/{u}/")}
-        est = json.loads(self.local.ler(f"estado/{u}.json") or b"{}")
-        controle = json.dumps({"marcas": marcas, "estado": est}, ensure_ascii=False).encode()
         self._subir(rel, f"raiz_controle_{u}.json", controle, "application/json")
         nomes = list(csvs)
         cont = {t: sum(1 for n in nomes if re.fullmatch(rf"{t}_\d{{7}}\.csv", n)) for t in TABELAS_TODAS}

@@ -161,7 +161,7 @@ try {
     "A ficha bloqueada não expõe os vínculos individuais do calendário.")
   await pagina.getByRole("link", { name: "Calendário", exact: true }).click()
   await pagina.getByRole("heading", { name: "Calendário da Raíz" }).waitFor()
-  await pagina.getByRole("heading", { name: "Leilão fictício para teste do Pages" }).waitFor()
+  await pagina.getByRole("heading", { name: "Leilão de imóvel rural: data do evento" }).waitFor()
   assert.equal(await pagina.locator(".calendario-evento").count(), 1)
   const feed = await pagina.getByRole("link", { name: "Baixar agenda completa (.ics)" }).getAttribute("href")
   const respostaFeed = await pagina.request.get(new URL(feed, base).href)

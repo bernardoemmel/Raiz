@@ -33,8 +33,8 @@ class LimiteCompartilhado:
         if len(chave.encode()) < 32:
             raise ValueError("RAIZ_API_LIMITE_CHAVE precisa de pelo menos 32 bytes")
         from redis.asyncio import Redis
+        from redis.asyncio.retry import Retry
         from redis.backoff import NoBackoff
-        from redis.retry import Retry
 
         self.cliente = cliente or Redis.from_url(
             url,

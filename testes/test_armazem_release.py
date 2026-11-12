@@ -14,6 +14,7 @@ import pytest
 
 from raiz.executor.armazem import ArmazemRelease, do_config, ler_json
 from raiz.executor.executor import Executor, Tarefa
+from testes.dados_publicacao import csv_contrato
 
 REPO, TAG = "bernardoemmel/raiz", "dados"
 
@@ -78,6 +79,7 @@ def _armazem(gh, pasta: Path, token="segredo", **kw) -> ArmazemRelease:
 STUB = """
 from pathlib import Path
 from raiz.executor.executor import Tarefa
+from testes.dados_publicacao import csv_contrato
 
 def tarefas(log: Path, quebrar_em=None):
     def anota(n, c):
@@ -88,11 +90,12 @@ def tarefas(log: Path, quebrar_em=None):
         anota("funil", cod)
         if quebrar_em == cod:
             raise KeyboardInterrupt  # a máquina morre no meio (não é erro de tarefa)
-        (pasta / f"imoveis_{cod}.csv").write_text("cod_imovel,ha\\nx,1\\n")
+        (pasta / f"imoveis_{cod}.csv").write_bytes(csv_contrato("imoveis", {"cod_imovel":"x", "ha":1}))
 
     def filtros(uf, cod, pasta):
         anota("filtros", cod)
-        (pasta / f"filtros_{cod}.csv").write_text("cod_imovel,filtro\\nx,ok\\n")
+        dados = csv_contrato("filtros", {"cod_imovel":"x", "filtro_territorial":"ok"})
+        (pasta / f"filtros_{cod}.csv").write_bytes(dados)
 
     return [Tarefa("funil", (), ("imoveis_{cod}.csv",), lambda: "funil-1", funil, pode_ficar_vazio=True),
             Tarefa("filtros", ("funil",), ("filtros_{cod}.csv",), lambda: "filtros-1", filtros)]
@@ -163,8 +166,11 @@ def test_executor_publica_e_maquina_nova_retoma_do_release(gh, tmp_path, stub):
 
 
 def test_adotar_o_que_ja_foi_publicado(gh, tmp_path, stub):
-    arquivos = {f"imoveis_{C1}.csv": b"cod_imovel\nx\n", f"imoveis_{C2}.csv": b"cod_imovel\ny\n",
-                f"filtros_{C1}.csv": b"cod_imovel\nx\n"}  # fmt: skip
+    arquivos = {
+        f"imoveis_{C1}.csv": csv_contrato("imoveis", {"cod_imovel": "x", "ha": 1}),
+        f"imoveis_{C2}.csv": csv_contrato("imoveis", {"cod_imovel": "x", "ha": 1}),
+        f"filtros_{C1}.csv": csv_contrato("filtros", {"cod_imovel": "x", "filtro_territorial": "ok"}),
+    }
     gh.assets["raiz_PA.tar.gz"] = gh.tar("PA", arquivos)
     log = tmp_path / "chamadas.log"
     ex = Executor(_armazem(gh, tmp_path / "esp"), tmp_path / "trab", stub.tarefas(log))
@@ -262,7 +268,9 @@ def test_adotar_grava_a_caixa_do_municipio(gh, tmp_path, stub):
 
     geo = tmp_path / "geo.parquet"
     gpd.GeoDataFrame({"cod_imovel": ["x"]}, geometry=[box(-50, -5, -49, -4)], crs=4674).to_parquet(geo)
-    gh.assets["raiz_PA.tar.gz"] = gh.tar("PA", {f"imoveis_{C1}.csv": b"cod_imovel\nx\n"})
+    gh.assets["raiz_PA.tar.gz"] = gh.tar(
+        "PA", {f"imoveis_{C1}.csv": csv_contrato("imoveis", {"cod_imovel": "x", "ha": 1})}
+    )
     gh.assets["raiz_geo_PA.tar.gz"] = gh.tar("PA", {f"geo_{C1}.parquet": geo.read_bytes()})
     ex = Executor(_armazem(gh, tmp_path / "esp"), tmp_path / "trab", stub.tarefas(tmp_path / "log"))
     ex.adotar("PA")

@@ -421,7 +421,7 @@ def publicar(destino: Path, repo: str = REPO) -> dict:
     manifesto = _ler(produto / "manifesto.json")
     run_id = os.environ.get("GITHUB_RUN_ID")
     tentativa = os.environ.get("GITHUB_RUN_ATTEMPT", "1")
-    if not run_id or not run_id.isdigit():
+    if not run_id or not run_id.isdigit() or not tentativa.isdigit():
         raise ValueError("A publicação exige uma execução identificada do GitHub Actions.")
     base = f"lote_PA_{CENARIO}_{run_id}_{tentativa}"
     arquivos = []
@@ -446,6 +446,11 @@ def publicar(destino: Path, repo: str = REPO) -> dict:
     }
     imutavel = destino / f"{base}.json"
     _json(imutavel, manifesto)
+    from raiz.qualidade_rodada import validar_publicacao
+
+    # O mesmo manifesto será o ponteiro; ambos e todos os bytes TAR são conferidos
+    # antes do primeiro upload. HTML/propostas individuais sem contrato ficam privados.
+    validar_publicacao(arquivos, destino / "trabalho" / "PA", _ler(imutavel))
     for f in [*arquivos, imutavel]:
         subprocess.run(["gh", "release", "upload", "dados", str(f), "--repo", repo], check=True)
     atual = destino / "lote_PA_central_r11.json"

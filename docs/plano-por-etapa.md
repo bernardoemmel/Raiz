@@ -321,7 +321,7 @@ faz sem back-end.
 |---|---|
 | Auditoria PRs #35–#44 integrados e revisão preventiva #45 ainda aberto; correções pequenas com regressões; Release completo e amostra do site | **feito**; evidência e limites em `docs/passagem/qualidade-e-seguranca.md` |
 | Playwright no CI: link, milhão de créditos no Pará, 3 opções, interesse e Pix de teste com API/PostGIS | **feito**; serviços externos controlados, sem pagamento real |
-| Dependabot, Gitleaks no histórico, licenças Python/npm/Rust obrigatórias, cabeçalhos, limite de chamadas e Presidio nos logs | **feito**; limite por processo e restrições operacionais na passagem |
+| Dependabot, Gitleaks no histórico, licenças Python/npm/Rust obrigatórias, cabeçalhos, limite de chamadas e Presidio nos logs | **feito**; opção Valkey compartilhada, Presidio e restrições operacionais na passagem |
 | CI paralelo com cache uv/npm/Chromium/LanguageTool, build público e coleção completa de testes | **feito**; zero skips ainda **parcial**: falta conjunto real de 144 tabelas desenvolvedor do Pará; demais dependências opcionais instaladas no CI |
 | Instruções para proteger a main | **feito** em `docs/operacao.md`; ativação manual pelo fundador |
 
@@ -344,3 +344,13 @@ faz sem back-end.
 | Agenda no servidor | **feito no código**: `scripts/instalar_cron_alertas.py --tarefa calendario --instalar`, diário com banco, trava e `.env`; instalação em produção depende de acesso ao servidor |
 
 Limites verificados em 12/11/2026: DJEN/CNJ respondeu HTTP 403; diários estaduais começam por PA/MT; PDF escaneado sem texto ainda não tem OCR. Erro de fonte não elimina os eventos anteriores. Testes com trechos oficiais gravados e PostGIS; detalhes em `docs/calendario.md`.
+
+## Continuidade de qualidade e segurança (12/11/2026)
+
+| Entrega | Situação |
+|---|---|
+| Portões de dados/privacidade antes de publicar, Pandera MIT, colunas obrigatórias, faixas, áreas e saltos municipais | **feito**; resultados inválidos e arquivos privados sem contrato ficam bloqueados; Dados corrige/recalcula a origem |
+| Locust MIT no CI com API/PostGIS real, latência, 429/Retry-After e recuperação | **feito**; perfil curto não é capacidade máxima de produção |
+| Logs JSON com Presidio, /saude, limite compartilhado Valkey e GlitchTip próprio MIT | **feito**; testado localmente, configuração de produção documentada em operação |
+| Injeção/latência/carga das ferramentas MCP | **parcial**; auditor/cliente/corpus prontos e função real de calendário testada; servidor MCP/OAuth/agente aguardam Produto e regras |
+| Revisão contínua dos novos merges | PRs #53/#56/#67/#54 revisados e pequenos bugs corrigidos com teste; CI por push ativo, alternativa de revisão semântica horária ainda não ativada |

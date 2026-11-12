@@ -40,7 +40,7 @@ try {
     chamadas.push({ caminho, method: req.method(), token: req.headers().authorization })
     const json = (body, status = 200) => route.fulfill({ status, contentType: "application/json", body: JSON.stringify(body) })
     if (url.pathname === "/teste-api/eventos") return json({
-      eventos: [{ id: "leilao-teste", tipo: "leilao_imovel", titulo: "Leilão fictício para teste da ficha", data: "2099-11-15", prazo: null,
+      eventos: [{ id: "a".repeat(24), tipo: "leilao_imovel", titulo: "Leilão fictício para teste da ficha", data: "2099-11-15", prazo: null,
         uf: "PA", municipio: "1507300", codigos_car: [car], fonte_url: "https://example.test/leilao", fonte_nome: "Fonte fictícia de teste",
         coletado_em: "2026-11-12T12:00:00Z", confianca: 0.9, situacao: "previsto" }],
       total: 1, coletado_em: "2026-11-12T12:00:00Z", fontes: [],

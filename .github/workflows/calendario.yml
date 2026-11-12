@@ -28,6 +28,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
       - name: Dependências
         run: uv sync --frozen
       - name: Recuperar o estado anterior
@@ -48,14 +51,18 @@ jobs:
           [ ! -f dados/calendario/estado.json ] || args+=(--anterior dados/calendario/estado.json)
           [ -z "$FONTES" ] || args+=(--fontes "$FONTES")
           uv run raiz calendario "${args[@]}"
-      - name: Publicar o que foi coletado, mesmo com uma fonte indisponível
+      - name: Validar estado, eventos e feed antes de publicar
+        id: validar
         if: always() && steps.coleta.outputs.gerado == '1'
+        run: uv run --frozen python -m raiz.qualidade_calendario --pasta dados/calendario
+      - name: Publicar o que foi coletado, mesmo com uma fonte indisponível
+        if: always() && steps.validar.outcome == 'success'
         run: |
           gh release view calendario >/dev/null 2>&1 || gh release create calendario --prerelease --target main \
             --title "Calendário da Raíz" --notes "Fontes oficiais e prazos extraídos automaticamente. Sem nomes, CPF/CNPJ ou texto bruto de editais. Consulte a situação de cada fonte no JSON."
           gh release upload calendario dados/calendario/estado.json dados/calendario/eventos.json dados/calendario/eventos.ics --clobber
       - name: Resumo da cobertura
-        if: always() && steps.coleta.outputs.gerado == '1'
+        if: always() && steps.validar.outcome == 'success'
         run: |
           uv run python - <<'PY' >> "$GITHUB_STEP_SUMMARY"
           import json

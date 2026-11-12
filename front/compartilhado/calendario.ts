@@ -1,5 +1,6 @@
 /** Eventos públicos: somente campos do calendário, sem titulares nem texto bruto de editais. */
 import { mascarar } from "./privacidade"
+import FONTES_OFICIAIS from "./calendario-fontes.json"
 
 export const TIPOS_EVENTO = {
   leilao_imovel: "Leilão de imóvel rural",
@@ -36,6 +37,15 @@ export interface Agenda { eventos: Evento[]; total: number; coletado_em: string 
 export interface FiltrosEvento { tipo?: string; estado?: string; inicio?: string; fim?: string; cod_imovel?: string }
 const DIA = /^\d{4}-\d{2}-\d{2}$/
 const CAR = /^[A-Z]{2}-\d{7}-[A-F0-9]{32}$/
+const ID_EVENTO = /^[a-f0-9]{24}$/
+const MARCOS: Record<string, string> = { evento: "data do evento", propostas: "entrega de propostas", inscricoes: "inscrições", consulta: "fim da consulta", vigencia: "início da aplicação", penhora: "registro da penhora" }
+const ESTADOS_FONTE = new Set(["ok", "parcial", "erro", "sem_data"])
+const instante = (v: unknown): string | null => typeof v === "string" && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?(?:Z|[+-]\d{2}:\d{2})$/.test(v) && Number.isFinite(Date.parse(v)) ? v : null
+function tituloEvento(tipo: TipoEvento, marco: unknown, referencia: unknown): string {
+  const rotulo = Object.hasOwn(MARCOS, String(marco)) ? MARCOS[String(marco)] : MARCOS.evento
+  const ref = typeof referencia === "string" && /^\d{1,5}(?:[/.\-]\d{1,4}){0,3}$/.test(referencia) ? `, edital ${referencia}` : ""
+  return `${TIPOS_EVENTO[tipo]}: ${rotulo}${ref}`
+}
 
 export function hojeNoBrasil(agora = new Date()): string {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo", year: "numeric", month: "2-digit", day: "2-digit" }).format(agora)
@@ -49,9 +59,16 @@ export function linkPublico(valor: unknown): string | null {
   if (typeof valor !== "string") return null
   try {
     const u = new URL(valor)
-    if (!["http:", "https:"].includes(u.protocol) || u.username || u.password) return null
-    const decodificado = decodeURIComponent(u.href)
-    if (mascarar(decodificado) !== decodificado) return null
+    if (!["http:", "https:"].includes(u.protocol) || u.username || u.password || !FONTES_OFICIAIS.some((f) => f.hosts.includes(u.hostname))) return null
+    let decodificado = u.href
+    for (let n = 0; n < 3; n++) {
+      const proximo = decodeURIComponent(decodificado)
+      if (proximo === decodificado) break
+      decodificado = proximo
+    }
+    const pessoal = /(?:cpf|cnpj|nome|proprietario|dono|contato|telefone|celular|whatsapp|email|senha|password|token|secret|chave)/i
+    if ([...u.searchParams.keys()].some((k) => pessoal.test(k)) || mascarar(decodificado) !== decodificado || /[\w.+-]+@[\w.-]+\.[a-z]{2,}/i.test(decodificado) || /(?:\+55[\s.-]*)?\(\d{2}\)[\s.-]*9?\d{4}[- ]\d{4}/.test(decodificado)) return null
+    u.hash = ""
     return u.href
   } catch { return null }
 }
@@ -60,25 +77,29 @@ export function lerAgenda(valor: unknown): Agenda {
   if (!valor || typeof valor !== "object" || !Array.isArray((valor as Record<string, unknown>).eventos)) throw new Error("Calendário indisponível.")
   const v = valor as Record<string, unknown>
   const eventos = (v.eventos as Record<string, unknown>[]).flatMap((e): Evento[] => {
-    if (!e || typeof e !== "object" || !Object.hasOwn(TIPOS_EVENTO, String(e.tipo)) || !DIA.test(String(e.data)) || !e.id) return []
+    if (!e || typeof e !== "object" || !Object.hasOwn(TIPOS_EVENTO, String(e.tipo)) || !DIA.test(String(e.data)) || !ID_EVENTO.test(String(e.id))) return []
     const tipo = e.tipo as TipoEvento
+    const link = linkPublico(e.fonte_url)
+    const fonte = FONTES_OFICIAIS.find((f) => f.id === e.fonte_id) ?? FONTES_OFICIAIS.find((f) => link && f.hosts.includes(new URL(link).hostname))
     return [{
-      id: mascarar(String(e.id)), tipo, titulo: mascarar(String(e.titulo || TIPOS_EVENTO[tipo])), data: String(e.data),
+      id: String(e.id), tipo, titulo: tituloEvento(tipo, e.marco, e.referencia), data: String(e.data),
       prazo: DIA.test(String(e.prazo)) ? String(e.prazo) : null,
       uf: typeof e.uf === "string" && /^[A-Z]{2}$/.test(e.uf) ? e.uf : null,
       municipio: typeof e.municipio === "string" && /^\d{7}$/.test(e.municipio) ? e.municipio : null,
       codigos_car: Array.isArray(e.codigos_car) ? e.codigos_car.filter((c): c is string => typeof c === "string" && CAR.test(c)) : [],
-      fonte_url: linkPublico(e.fonte_url), fonte_nome: mascarar(String(e.fonte_nome || "Fonte oficial")),
-      coletado_em: typeof e.coletado_em === "string" ? e.coletado_em : "",
+      fonte_url: link, fonte_nome: fonte?.nome ?? "Fonte oficial",
+      coletado_em: instante(e.coletado_em) ?? "",
       confianca: Math.max(0, Math.min(1, Number(e.confianca) || 0)),
       situacao: e.situacao === "cancelado" || e.situacao === "adiado" ? e.situacao : "previsto",
     }]
   })
-  const fontes = Array.isArray(v.fontes) ? v.fontes.flatMap((f): FonteEvento[] => !f || typeof f !== "object" ? [] : [{
-    id: String(f.id || ""), nome: mascarar(String(f.nome || "Fonte oficial")),
-    coletado_em: typeof f.coletado_em === "string" ? f.coletado_em : null, situacao: String(f.situacao || "desconhecida"),
-  }]) : []
-  return { eventos, total: Math.max(eventos.length, Number(v.total) || 0), coletado_em: typeof v.coletado_em === "string" ? v.coletado_em : null, fontes, disponivel: true }
+  const fontes = Array.isArray(v.fontes) ? v.fontes.flatMap((f): FonteEvento[] => {
+    if (!f || typeof f !== "object") return []
+    const fonte = FONTES_OFICIAIS.find((oficial) => oficial.id === f.id)
+    if (!fonte) return []
+    return [{ id: fonte.id, nome: fonte.nome, coletado_em: instante(f.coletado_em), situacao: ESTADOS_FONTE.has(f.situacao) ? f.situacao : "desconhecida" }]
+  }) : []
+  return { eventos, total: Math.max(eventos.length, Number(v.total) || 0), coletado_em: instante(v.coletado_em), fontes, disponivel: true }
 }
 
 export function filtrarEventos(eventos: Evento[], f: FiltrosEvento): Evento[] {
@@ -88,7 +109,7 @@ export function filtrarEventos(eventos: Evento[], f: FiltrosEvento): Evento[] {
     .sort((a, b) => dataEvento(a).localeCompare(dataEvento(b)) || a.id.localeCompare(b.id))
 }
 export function codigosEmLeilao(eventos: Evento[], hoje = hojeNoBrasil()): Set<string> {
-  return new Set(eventos.filter((e) => e.tipo === "leilao_imovel" && e.situacao === "previsto" && e.data >= hoje).flatMap((e) => e.codigos_car.map(normalizarCar)))
+  return new Set(eventos.filter((e) => e.tipo === "leilao_imovel" && e.situacao === "previsto" && dataEvento(e) >= hoje).flatMap((e) => e.codigos_car.map(normalizarCar)))
 }
 
 const VAZIA: Agenda = { eventos: [], total: 0, coletado_em: null, fontes: [], disponivel: false }

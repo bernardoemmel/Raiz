@@ -10,15 +10,32 @@ from raiz.calendario.feed import ics
 from raiz.calendario.modelos import Evento, FonteEstado, filtrar
 
 
+class ErroSnapshot(ValueError):
+    """Diagnóstico publicável: nunca inclui valores, bytes ou caminho da entrada."""
+
+
 def ler(caminho: Path) -> tuple[list[Evento], list[FonteEstado]]:
+    try:
+        return _ler(caminho)
+    except ErroSnapshot:
+        raise
+    except (ValueError, TypeError, KeyError, AttributeError, OSError):
+        # ValidationError do Pydantic contém input_value; o JSON pode conter texto de dono.
+        # Não deixar o CLI/traceback publicar esse diagnóstico antes do portão de upload.
+        raise ErroSnapshot("snapshot do calendário inválido; conteúdo omitido") from None
+
+
+def _ler(caminho: Path) -> tuple[list[Evento], list[FonteEstado]]:
     dados = json.loads(caminho.read_text(encoding="utf-8"))
+    if not isinstance(dados, dict) or any(not isinstance(dados.get(c), list) for c in ("eventos", "fontes")):
+        raise ErroSnapshot("snapshot do calendário inválido; conteúdo omitido")
     confiaveis = {f["id"]: f for f in fontes()}
     eventos = []
     for item in dados.get("eventos", []):
         e = Evento.model_validate(item)
         f = confiaveis.get(e.fonte_id)
         if f is None or not _permitida(e.fonte_url, f):
-            raise ValueError("snapshot contém fonte fora do manifesto")
+            raise ErroSnapshot("snapshot contém fonte fora do manifesto")
         # Nomes e textos de erro não vêm do arquivo remoto. Só rótulos institucionais
         # revisados no manifesto e mensagens fixas são publicados/importados.
         eventos.append(e.model_copy(update={"fonte_nome": f["nome"]}))
@@ -26,7 +43,7 @@ def ler(caminho: Path) -> tuple[list[Evento], list[FonteEstado]]:
     for item in dados.get("fontes", []):
         s = FonteEstado.model_validate(item)
         if s.id not in confiaveis:
-            raise ValueError("snapshot contém fonte desconhecida")
+            raise ErroSnapshot("snapshot contém fonte desconhecida")
         estados.append(
             s.model_copy(
                 update={

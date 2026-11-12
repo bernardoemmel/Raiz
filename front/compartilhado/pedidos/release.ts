@@ -1,5 +1,4 @@
 /** Projeção pública do ponteiro lote_PA_central_r11.json, de raiz/restauracao_rodada.py. */
-import { mascarar } from "../privacidade"
 import type { CaminhoTerra, DestravadorPublicado, Faixa, IdOpcao, OpcaoPublicada, PublicacaoLote } from "./tipos"
 
 const FONTE = "https://github.com/bernardoemmel/Raiz/releases/tag/dados"
@@ -8,7 +7,7 @@ const CAMINHOS: CaminhoTerra[] = ["matricula_conferida", "matricula_a_conferir",
 type Objeto = Record<string, unknown>
 const objeto = (v: unknown): Objeto => v !== null && typeof v === "object" && !Array.isArray(v) ? v as Objeto : {}
 const numero = (v: unknown): number | null => typeof v === "number" && Number.isFinite(v) ? v : null
-const texto = (v: unknown): string => typeof v === "string" ? mascarar(v).replace(/\b[A-Z]{2}-\d{7}-[A-F\d.-]{32,}\b/gi, "imóvel reservado").slice(0, 1800) : ""
+const versao = (v: unknown): string | null => typeof v === "string" && /^restauracao-\d{4}[a-z]\+[a-f0-9]{8}$/.test(v) ? v : null
 const data = (v: unknown): string | null => typeof v === "string" && /^\d{4}-\d{2}-\d{2}(?:T.*)?$/.test(v) && Number.isFinite(Date.parse(v)) ? v : null
 
 function faixa(v: unknown): Faixa | null {
@@ -41,6 +40,34 @@ const ROTULO_PENDENCIA: Record<string, string> = {
   criterio_reserva_risco: "Completar o histórico e a justificativa da reserva contra reversão.",
 }
 
+// Conteúdo do Release é dado externo. Nem nome de chave nem máscara de CPF prova que um texto é público.
+// Só frases escritas pelo produto e seus campos numéricos podem atravessar o build e a leitura no navegador.
+const PENDENCIA_NAO_RECONHECIDA = "Há uma pendência que precisa de revisão antes da publicação dos detalhes."
+const AVISO_PUBLICADO = "Cenário central_r11 publicado no Release. Créditos, área e fazendas incluem o lote e as reservas. Os filtros deste pedido ainda não foram recalculados; a API autenticada executa o pedido exato. Estimativa de triagem, sem crédito emitido nem venda liberada."
+const OBSERVACAO_BASE = "Oferta com caminho da terra pronta no cenário publicado. P10, P90 e hectares desse recorte não constam do resumo. Não representa o resultado dos novos filtros."
+const OBSERVACAO_COBERTURA = "O total não está disponível: há municípios com dados suprimidos ou valores ainda não publicados. As contagens de municípios e estados permanecem conhecidas."
+const TEXTOS_PUBLICOS = new Set([
+  ...Object.values(ROTULO_REGULARIZACAO), ...Object.values(ROTULO_PENDENCIA), PENDENCIA_NAO_RECONHECIDA,
+  "Conferir a titulação e as autorizações das áreas em espera.",
+  "Conferir o georreferenciamento das áreas em espera.", "Conferir as certidões.",
+])
+const NUMERO_PUBLICO = String.raw`(?:0|[1-9]\d{0,2}(?:\.\d{3})*|[1-9]\d*)(?:,\d{1,2})?`
+const PERCENTUAL_PUBLICO = String.raw`(?:100|[1-9]?\d)%`
+const FRASES_PUBLICAS = [
+  String.raw`Pedir ${NUMERO_PUBLICO} certidões e conferir a cadeia da terra\.`,
+  String.raw`Faltam ${NUMERO_PUBLICO} créditos líquidos até o ano 25 \(P50\) só para cumprir os marcos de ${NUMERO_PUBLICO} créditos: a terra pronta soma ${NUMERO_PUBLICO}\.`,
+  String.raw`Faltam ${NUMERO_PUBLICO} créditos de reserva para ${PERCENTUAL_PUBLICO} de chance de cumprir os marcos \(o lote precisa de ${NUMERO_PUBLICO} no P50 e tem ${NUMERO_PUBLICO}\)\.`,
+  String.raw`Fecha se a terra em espera destravar: ${NUMERO_PUBLICO} fazendas em posse em titulação e assentamento \(${NUMERO_PUBLICO} ha, ${NUMERO_PUBLICO} ha de regeneração\); o lote usaria ${NUMERO_PUBLICO} delas\.`,
+  String.raw`Da terra em espera, ${NUMERO_PUBLICO} fazendas já estão em titulação ou prontas para pedir o título e ${NUMERO_PUBLICO} só precisam do georreferenciamento certificado no SIGEF\.`,
+  String.raw`Nem com a terra em espera destravada fecha: faltariam ${NUMERO_PUBLICO} créditos de reserva; é preciso outro estado ou mais municípios calculados\.`,
+  String.raw`[1-9]\d* municípios? do estado ainda sem o valor para quem restaura calculado\.`,
+  String.raw`Com a reserva a chance de cumprir todos os marcos é ${PERCENTUAL_PUBLICO}, abaixo do alvo de ${PERCENTUAL_PUBLICO}\.`,
+].map((padrao) => new RegExp(`^(?:${padrao})$`))
+function texto(v: unknown): string {
+  if (typeof v !== "string" || !v) return ""
+  return v.length <= 1800 && (TEXTOS_PUBLICOS.has(v) || FRASES_PUBLICAS.some((p) => p.test(v))) ? v : PENDENCIA_NAO_RECONHECIDA
+}
+
 function opcao(id: IdOpcao, v: unknown): OpcaoPublicada | null {
   const r = objeto(v)
   if (!Object.keys(r).length) return null
@@ -49,10 +76,10 @@ function opcao(id: IdOpcao, v: unknown): OpcaoPublicada | null {
   const titulares = numero(r.titulares), reservas = numero(r.reservas)
   const tir = numero(economia.tir_alavancada_pct)
   const destrava: DestravadorPublicado[] = (Array.isArray(r.o_que_destrava) ? r.o_que_destrava.map(objeto) : []).map((x) => ({
-    tipo: "salvaguarda", texto: ROTULO_PENDENCIA[String(x.pendencia)] ?? `Conferir a pendência publicada: ${texto(x.pendencia).replace(/_/g, " ")}.`,
+    tipo: "salvaguarda", texto: Object.hasOwn(ROTULO_PENDENCIA, String(x.pendencia)) ? ROTULO_PENDENCIA[String(x.pendencia)] : PENDENCIA_NAO_RECONHECIDA,
     fazendas: numero(x.fazendas), hectares: numero(x.ha), creditos: null, creditos_faixa: faixa(x.creditos), somavel: false,
   }))
-  const regularizacao: DestravadorPublicado[] = Object.entries(objeto(espera.por_regularizacao)).filter(([classe]) => classe in ROTULO_REGULARIZACAO).map(([classe, valores]) => {
+  const regularizacao: DestravadorPublicado[] = Object.entries(objeto(espera.por_regularizacao)).filter(([classe]) => Object.hasOwn(ROTULO_REGULARIZACAO, classe)).map(([classe, valores]) => {
     const x = objeto(valores)
     return { tipo: "regularizacao", texto: ROTULO_REGULARIZACAO[classe], fazendas: numero(x.fazendas), hectares: numero(x.ha), creditos: numero(x.creditos), creditos_faixa: null, somavel: false }
   })
@@ -91,12 +118,12 @@ export function projetarPublicacaoLote(valor: unknown): PublicacaoLote {
   return {
     estado: publicado ? "publicado" : "ausente",
     aviso: publicado
-      ? "Cenário central_r11 publicado no Release. Créditos, área e fazendas incluem o lote e as reservas. Os filtros deste pedido ainda não foram recalculados; a API autenticada executa o pedido exato. Estimativa de triagem, sem crédito emitido nem venda liberada."
+      ? AVISO_PUBLICADO
       : "As três opções do chat Lote e números ainda não foram publicadas no Release em um conjunto completo. A base territorial continua disponível; créditos, TIR e lotes aguardam o cálculo publicado.",
     fonte: FONTE,
     atualizado_em: publicado ? data(m.publicado_em) ?? data(r.data) : null,
     cenario: "central_r11",
-    modelo_versao: publicado ? texto(m.modelo_versao) || null : null,
+    modelo_versao: publicado ? versao(m.modelo_versao) : null,
     uf: "PA",
     volume_creditos: publicado ? numero(r.volume_creditos) : null,
     preco_contrato_usd: publicado ? numero(r.preco_contrato_usd) : null,
@@ -106,7 +133,7 @@ export function projetarPublicacaoLote(valor: unknown): PublicacaoLote {
       // O contrato informa a área de toda a oferta, não a da parcela com terra pronta. Não misturar os recortes.
       hectares: null,
       creditos: { p10: null, p50: publicado ? numero(oferta.creditos_terra_pronta) : null, p90: null },
-      observacao: "Oferta com caminho da terra pronta no cenário publicado. P10, P90 e hectares desse recorte não constam do resumo. Não representa o resultado dos novos filtros.",
+      observacao: OBSERVACAO_BASE,
     },
     cobertura: {
       municipios: publicado ? numero(m.municipios_calculados) : null,
@@ -138,9 +165,9 @@ export function lerPublicacaoLote(valor: unknown): PublicacaoLote {
   }))
   const base = objeto(p.base), creditos = objeto(base.creditos), cobertura = objeto(p.cobertura)
   return {
-    estado: "publicado", aviso: texto(p.aviso), fonte: FONTE, atualizado_em: data(p.atualizado_em), cenario: "central_r11", modelo_versao: texto(p.modelo_versao) || null, uf: "PA",
+    estado: "publicado", aviso: AVISO_PUBLICADO, fonte: FONTE, atualizado_em: data(p.atualizado_em), cenario: "central_r11", modelo_versao: versao(p.modelo_versao), uf: "PA",
     volume_creditos: numero(p.volume_creditos), preco_contrato_usd: numero(p.preco_contrato_usd), pedido_recalculado: false,
-    base: { fazendas: numero(base.fazendas), hectares: numero(base.hectares), creditos: { p10: numero(creditos.p10), p50: numero(creditos.p50), p90: numero(creditos.p90) }, observacao: texto(base.observacao) },
-    cobertura: { municipios: numero(cobertura.municipios), estados: numero(cobertura.estados), fazendas: numero(cobertura.fazendas), hectares: numero(cobertura.hectares), ...(texto(cobertura.observacao) ? { observacao: texto(cobertura.observacao) } : {}) }, opcoes,
+    base: { fazendas: numero(base.fazendas), hectares: numero(base.hectares), creditos: { p10: numero(creditos.p10), p50: numero(creditos.p50), p90: numero(creditos.p90) }, observacao: OBSERVACAO_BASE },
+    cobertura: { municipios: numero(cobertura.municipios), estados: numero(cobertura.estados), fazendas: numero(cobertura.fazendas), hectares: numero(cobertura.hectares), ...(cobertura.observacao ? { observacao: OBSERVACAO_COBERTURA } : {}) }, opcoes,
   }
 }

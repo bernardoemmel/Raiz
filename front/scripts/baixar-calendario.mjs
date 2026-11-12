@@ -1,34 +1,48 @@
 #!/usr/bin/env node
-/** Publica no site a última coleta do Release calendario, sem inventar uma agenda quando ela ainda não existe. */
+/** Revalida a coleta do Release e refaz JSON/ICS públicos; nunca copia bytes remotos ao site. */
 import fs from "node:fs"
 import path from "node:path"
+import { execFileSync } from "node:child_process"
 import { fileURLToPath } from "node:url"
 
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..")
 const destino = path.join(repo, "front/globo/public/calendario")
 const origem = process.env.RAIZ_CALENDARIO_URL || "https://github.com/bernardoemmel/Raiz/releases/download/calendario"
-function salvar(json, ics) {
-  const agenda = JSON.parse(json)
-  if (!Array.isArray(agenda.eventos) || !Array.isArray(agenda.fontes) || !ics.startsWith("BEGIN:VCALENDAR")) throw new Error("formato da coleta inválido")
+function salvar(json) {
+  let projetado
+  try {
+    if (Buffer.byteLength(json) > 16 * 1024 * 1024) throw new Error("limite")
+    projetado = JSON.parse(execFileSync("python3", ["-m", "raiz.qualidade_calendario"], {
+      cwd: repo, input: json, encoding: "utf8", stdio: ["pipe", "pipe", "pipe"], maxBuffer: 32 * 1024 * 1024,
+    }))
+  } catch {
+    throw new Error("A coleta do calendário não passou na validação de publicação; nenhum conteúdo novo foi copiado.")
+  }
   fs.mkdirSync(destino, { recursive: true })
-  for (const [nome, conteudo] of [["eventos.json", json], ["eventos.ics", ics]]) {
+  for (const [nome, conteudo] of [["eventos.json", JSON.stringify(projetado.agenda)], ["eventos.ics", projetado.ics]]) {
     fs.writeFileSync(path.join(destino, `${nome}.tmp`), conteudo)
     fs.renameSync(path.join(destino, `${nome}.tmp`), path.join(destino, nome))
   }
-  console.log(`[calendário] ${agenda.eventos.length} eventos da última coleta disponíveis no site.`)
+  console.log(`[calendário] ${projetado.agenda.eventos.length} eventos validados; feed reconstruído dos mesmos dados.`)
+}
+function revalidarCopia() {
+  const arquivo = path.join(destino, "eventos.json")
+  if (fs.existsSync(arquivo)) salvar(fs.readFileSync(arquivo, "utf8"))
+  else fs.rmSync(destino, { recursive: true, force: true })
 }
 if (process.env.RAIZ_CALENDARIO_DADOS) {
-  // Um snapshot local explícito permite testar o mesmo build sem buscar dados reais na internet.
-  // Arquivo ausente ou inválido é erro: não substituir a fixture por uma coleta pública ou antiga.
   const local = path.resolve(repo, process.env.RAIZ_CALENDARIO_DADOS)
-  salvar(fs.readFileSync(path.join(local, "eventos.json"), "utf8"), fs.readFileSync(path.join(local, "eventos.ics"), "utf8"))
+  salvar(fs.readFileSync(path.join(local, "eventos.json"), "utf8"))
 } else if (process.env.RAIZ_SEM_DOWNLOAD !== "1") {
+  let json
   try {
-    const respostas = await Promise.all(["eventos.json", "eventos.ics"].map((nome) => fetch(`${origem}/${nome}`, { signal: AbortSignal.timeout(20000) })))
-    if (respostas.some((r) => !r.ok)) throw new Error("coleta ainda não publicada ou fonte indisponível")
-    const [json, ics] = await Promise.all(respostas.map((r) => r.text()))
-    salvar(json, ics)
+    const resposta = await fetch(`${origem}/eventos.json`, { signal: AbortSignal.timeout(20000) })
+    if (!resposta.ok) throw new Error("coleta indisponível")
+    json = await resposta.text()
   } catch {
-    console.warn("[calendário] A coleta não pôde ser baixada. O site mostra a última cópia, se existir, com a data da coleta.")
+    console.warn("[calendário] A coleta não pôde ser baixada. A última cópia só será usada se passar novamente na validação.")
   }
-}
+  // Um arquivo recebido mas inválido interrompe o build. Não é tratado como indisponibilidade de rede.
+  if (json !== undefined) salvar(json)
+  else revalidarCopia()
+} else revalidarCopia()

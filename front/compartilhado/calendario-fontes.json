@@ -1,0 +1,125 @@
+[
+  {
+    "id": "djen",
+    "nome": "Diário de Justiça Eletrônico Nacional (CNJ)",
+    "hosts": [
+      "comunicaapi.pje.jus.br"
+    ]
+  },
+  {
+    "id": "trf2",
+    "nome": "Justiça Federal da 2ª Região",
+    "hosts": [
+      "www.trf2.jus.br"
+    ]
+  },
+  {
+    "id": "fomento_pr",
+    "nome": "Fomento Paraná",
+    "hosts": [
+      "www.fomento.pr.gov.br"
+    ]
+  },
+  {
+    "id": "dou",
+    "nome": "Diário Oficial da União",
+    "hosts": [
+      "www.in.gov.br"
+    ]
+  },
+  {
+    "id": "doe_pa",
+    "nome": "Diário Oficial do Pará",
+    "hosts": [
+      "www.ioepa.com.br"
+    ]
+  },
+  {
+    "id": "doe_mt",
+    "nome": "Diário Oficial de Mato Grosso",
+    "hosts": [
+      "www.iomat.mt.gov.br"
+    ]
+  },
+  {
+    "id": "bndes",
+    "nome": "BNDES Florestas",
+    "hosts": [
+      "florestas.bndes.gov.br"
+    ]
+  },
+  {
+    "id": "profloresta",
+    "nome": "BNDES ProFloresta+",
+    "hosts": [
+      "agenciadenoticias.bndes.gov.br",
+      "florestas.bndes.gov.br",
+      "www.bndes.gov.br"
+    ]
+  },
+  {
+    "id": "fundo_amazonia",
+    "nome": "Fundo Amazônia",
+    "hosts": [
+      "www.fundoamazonia.gov.br"
+    ]
+  },
+  {
+    "id": "sfb",
+    "nome": "Serviço Florestal Brasileiro",
+    "hosts": [
+      "www.gov.br"
+    ]
+  },
+  {
+    "id": "ideflor_bio",
+    "nome": "Ideflor-Bio",
+    "hosts": [
+      "ideflorbio.pa.gov.br"
+    ]
+  },
+  {
+    "id": "bndes_creditos",
+    "nome": "BNDES Créditos de Carbono",
+    "hosts": [
+      "www.bndes.gov.br"
+    ]
+  },
+  {
+    "id": "sbce",
+    "nome": "Ministério da Fazenda (SBCE)",
+    "hosts": [
+      "brasilparticipativo.presidencia.gov.br",
+      "www.gov.br"
+    ]
+  },
+  {
+    "id": "verra",
+    "nome": "Verra",
+    "hosts": [
+      "verra.org"
+    ]
+  },
+  {
+    "id": "icvcm",
+    "nome": "ICVCM",
+    "hosts": [
+      "icvcm.org"
+    ]
+  },
+  {
+    "id": "sbti",
+    "nome": "SBTi",
+    "hosts": [
+      "sciencebasedtargets.org"
+    ]
+  },
+  {
+    "id": "eudr",
+    "nome": "Comissão Europeia (EUDR)",
+    "hosts": [
+      "environment.ec.europa.eu",
+      "green-forum.ec.europa.eu"
+    ]
+  }
+]

@@ -1,9 +1,44 @@
 # Qualidade e segurança — passagem
 
-Entrega de 12/11/2026. Área: CI, E2E, infraestrutura e segurança. Correções em produto são pontuais,
+Entrega inicial de 12/11/2026 (#51); revisão de continuidade em 12/11/2026, até a main `a4c1066`. Área: CI, E2E, infraestrutura e segurança. Correções em produto são pontuais,
 com regressões. Mudanças de contrato/arquitetura ficam para os chats responsáveis abaixo.
 
-## Entregue
+## Continuidade desta entrega (12/11/2026)
+
+- **Qualidade e segurança:** portões de publicação Pandera/privacidade, incluindo formatos e metadados, executor,
+  motor legado, vigilância, busca, calendário e rodada do Pará. Detalhes em [qualidade dos dados](../qualidade-dados.md)
+  e [operação](../operacao.md). Dados inválidos ficam bloqueados; nenhum asset histórico foi apagado ou reescrito.
+- **Qualidade e segurança:** contador Valkey compartilhado e atômico, 429/Retry-After, falha fechada 503; logs JSON
+  com Presidio, saúde genérica e GlitchTip MIT com evento mínimo. Instância temporária real migrou, respondeu saúde
+  e persistiu erro sintético sem a mensagem original. Servidor de produção ainda precisa das variáveis/DNS/TLS do guia.
+- **Qualidade e segurança:** Locust MIT no CI, API/PostGIS reais, três rotas, saturação e recuperação. Ensaio local:
+  70 chamadas normais e 385 na saturação, 355 respostas 429 válidas, zero falhas, máximo 2,864 s. São medidas do ensaio
+  curto, não capacidade máxima de produção. Sete jobs em paralelo; nenhuma suíte existente foi removida.
+- **MCP, parcial:** corpus de seis ataques, auditor com observador independente de efeitos, cliente real de protocolo,
+  latência com prazo estrito e Locust preparados. A função existente `proximos_eventos` passou seis cenários com
+  Postgres e ausência de ações; não há agente LLM nem transporte MCP/OAuth disponíveis na main. **Produto e regras**
+  entrega o servidor; Qualidade conecta a suíte completa. Nenhum skip ou stub é apresentado como MCP aprovado.
+- **Revisão contínua:** PRs #53, #56, #67 e #54 revisados, com correções pequenas de privacidade e calendário abaixo.
+  Scanners e testes rodam a cada push. A alternativa de revisão semântica horária foi perguntada ao fundador porque
+  a ferramenta não oferece evento de merge; ainda não foi ativada.
+
+### Achados de dados agora bloqueados — chat Dados
+
+Amostra `imoveis_1504950.csv`: área SIGEF excede o CAR em 69 linhas (excesso máximo 688,177151 ha); pasto em 18
+(máximo 0,365093 ha). `imoveis_1507300.csv`: SIGEF em 2.210, assentamento em 1.568, embargo em 33, UC em 19 e
+pasto em 1.084 linhas; máximos respectivamente 2.423,632799, 710,894784, 4.368,863691, 56,570659 e 9,078880 ha.
+O pacote real AC tem `data_atualizacao=0` em 648/3.849 linhas de Acrelândia. Falhas verificadas sem expor CAR/dono.
+
+**Dados** precisa conferir união de sobreposições, projeção/raster, ausência como nulo e recalcular. Qualidade não
+alterou ciência nem aplicou clamp. Pacotes legados que violam esses contratos não podem ser republicados. O KML
+URTX real foi validado inteiro (1,26 s); o pacote AC foi bloqueado (4,66 s), não aprovado nem usado como benchmark
+integral de lote válido. **Lote e números / Telas e mapa** precisam separar folhas individuais/HTML privados do
+pacote público da rodada; enquanto o contrato não existir, essa publicação permanece bloqueada.
+
+As demais pendências maiores seguem atribuídas nas seções históricas, reconciliadas pela revisão da main. O dado
+real do Pará e o critério TIR continuam com seus donos; a ativação da proteção da main continua manual.
+
+## Entrega inicial (#51)
 
 - CI em seis jobs paralelos, cache uv/npm/Chromium/LanguageTool, Dependabot semanal, Gitleaks em histórico completo,
   licenças com inventários obrigatórios, build igual ao site e suíte Python integral com PostGIS/PDF/LanguageTool.
@@ -19,22 +54,23 @@ com regressões. Mudanças de contrato/arquitetura ficam para os chats responsá
 Nenhum teste foi retirado ou selecionado parcialmente para acelerar o CI. O teste opcional preexistente
 `test_lote_do_para_inteiro_fecha_ou_diz_o_que_falta` ainda depende das 144 tabelas reais `desenvolvedor` do Pará,
 que não existem no Release atual. Portanto a exigência literal de zero skips **não está concluída**.
-O chat Dados precisa publicar o conjunto versionado; então o CI deverá baixar/conferir/cachear o snapshot.
+O chat **Raiz dados do Brasil**, com **Lote e números**, precisa publicar o conjunto versionado; então o CI deverá baixar/conferir/cachear o snapshot.
 Além disso, permanece o `xfail` preexistente de TIR do plantio (`test_plantio_da_7_a_9_pct_no_central_r11`):
-o teste executa, mas a conta ainda diverge da referência de 7–9%; o chat Produto/regras deve resolver o critério
+o teste executa, mas a conta ainda diverge da referência de 7–9%; o chat **Lote e números**, com **Produto e regras**, deve resolver o critério
 em `docs/restauracao-rodada11.md`. O portão de resultados recusa qualquer outro skip/xfail novo.
 O teste da cena-alvo usa a amostra real do repositório e já roda inteiro, sem esse pré-requisito nacional.
 
-## Integração e operação que exigem outro chat
+## Integração e operação — responsáveis atuais
 
-- **Telas/API:** a fonte de mapas pede `/geo/brasil/*`, mas a API atual só aceita município numérico. A sessão
-  cliente autoriza pedidos, enquanto os dados/mapas ainda exigem o token interno `VITE_RAIZ_API_TOKEN`. Não publicar
-  esse token no build público. O E2E usa token descartável restrito ao ambiente local; não declara mapa nacional
-  autenticado resolvido nem oculta as rotas ausentes.
-- **Operação:** o limite desta entrega é por processo. Antes de vários workers/réplicas, usar controle compartilhado
-  no proxy e testar concorrência. Validar IP real/TLS na terminação HTTPS. O modelo NER pode deixar nomes livres
-  passar; não registrar texto pessoal bruto. Não houve limpeza retroativa de bancos/logs externos nesta entrega.
-- **Dados/operação:** a proteção da main bloqueará o push direto que atualiza `motor/README.md`; migrar para PR,
+- **Telas e mapa / Produto e regras:** a rota interna de mapa `/geo/brasil/*` continua ausente. O #52 publica
+  agregados e abre fichas por autorização específica; o #67 entrega contornos somente de fichas já desbloqueadas
+  pelo mesmo cliente ativo, revalidando reservas. Esses caminhos resolvem o acesso do site, sem tornar público o
+  token interno `VITE_RAIZ_API_TOKEN` nem implementar a rota nacional antiga.
+- **Qualidade e segurança:** o limite do #51 é por processo. Controle compartilhado, concorrência, logs estruturados
+  e GlitchTip estão no escopo da continuação, não são pendências delegadas a outro chat. Validar IP real/TLS na
+  terminação HTTPS. O modelo NER pode deixar nomes livres passar; não registrar texto pessoal bruto. A entrega
+  inicial não limpou retroativamente bancos/logs externos.
+- **Raiz dados do Brasil:** a proteção da main bloqueará o push direto que atualiza `motor/README.md`; migrar para PR,
   sem bypass geral. As regras da conta não foram alteradas.
 
 ## Auditoria dos PRs #35–#45
@@ -53,7 +89,7 @@ Verificação pelo GitHub em 12/11/2026, comparada ao checkout da main (8865c7c 
 | #42 | Diff CI e construção do site | Jobs isolados removiam instalação npm do job de licenças, fazendo o scanner ignorar front. Corrigido pelo trabalho do CI/licenças desta entrega. |
 | #43 | Diff completo do limite do executor | Limite 15 consistente entre planejamento e matriz; sem mudança em dados do dono. |
 | #44 | Diff cascata, confiança, exportação hub e placar | Cortes vazios mantêm votação; a avaliação é sintética e o hub requer API token. Pontos de validação/correção ampla abaixo. |
-| #45 | Diff da API pública, cobrança, privacidade, migração | PR aberto; conflitos e lacunas abaixo devem ser resolvidos pelo chat dono antes do merge. |
+| #45 | Diff da API pública, cobrança, privacidade, migração; rechecado no head `9b7f49f` | Ainda aberto. Migração e estorno corrigidos; persistência de texto livre e implantação do limite compartilhado ainda exigem atenção. MCP está retirado até OAuth. |
 
 ## Correções pequenas e testes
 
@@ -65,12 +101,12 @@ Verificação pelo GitHub em 12/11/2026, comparada ao checkout da main (8865c7c 
 ## Mudanças grandes para os chats responsáveis
 
 1. **#40 — exportações administrativas e artefatos históricos (Telas e mapa / Dados), parcialmente resolvido pelo #52:** o build do site passou a publicar somente agregados, retirando fichas, CAR, CSV e geometrias individuais, inclusive sobras de builds anteriores. A exportação `raiz/fichas_lote.py` foi explicitamente classificada como privada; continua contendo `_cod_imovel`, `_plus_code`, `_omaps` e perímetro. Garantir que seu destino permaneça privado e fora de qualquer upload público. O prefixo `_` não protege arquivos. O Release histórico continua público e exige tratamento separado; a alteração no código do site não torna privados os artefatos já publicados.
-2. **#41 — validade de resultados anteriores (Produto/regras):** o executor inclui hash de código da tarefa e refaz os rebanhos afetados; execução manual `raiz funil` decide pelo hash de premissas/tabela e precisa de `--refazer` para resultados produzidos antes da correção PPM zero. Não alteramos as premissas científicas de limitar lotação/total.
-3. **#44 — calibração da cascata (Vigilância/aprendizado):** o corte é ligado ao nome do modelo, mas não à versão dos pesos, prompt ou gramática. Há alerta posterior de desvio de subida; trocar pesos mantendo alias pode reutilizar um corte inválido. Versionar artefato/prompt no corte e exigir reavaliação real antes de promovê-lo. Sem corte preenchido na main, o caminho continua em votação.
-4. **#45 — conflito de migração (Produto/regras):** nova `0020_api_publica.py` declara revision `0020`/down_revision `0019`, identificador já usado por `0020_alertas_operacao.py` da main. Rebase e renumeração são necessários antes de integrar; não foi alterado o PR de outro chat.
-5. **#45 — sanitização da API pública (Produto/regras):** `sem_dado_pessoal` remove nomes de chaves recursivamente, mas retorna strings livres sem limpeza; `limpar` usa regex e não Presidio, nem reconhece nome livre/CNPJ alfanumérico. Reusar a função central de sanitização desta entrega nas fronteiras de persistência/resposta e cobrir entrada indireta dos modelos, erros e atributos.
-6. **#45 — cobrança com erro imprevisto (Produto/regras):** a dependência cobra antes de executar a rota e a restituição só ocorre depois de `await call_next`; exceção não tratada pode sair antes do estorno. Fazer transação/compensação idempotente testada em falhas de infraestrutura antes de ativar cobrança real.
-7. **#45 — limite por empresa:** armazenamento `memory://` do SlowAPI é por processo; múltiplos workers ou reinícios não compartilham contagem mensal/diária. Para promessa de limite por empresa em produção, usar armazenamento compartilhado e teste concorrente.
+2. **#41 — validade de resultados anteriores (Lote e números / Produto e regras):** o executor inclui hash de código da tarefa e refaz os rebanhos afetados; execução manual `raiz funil` decide pelo hash de premissas/tabela e precisa de `--refazer` para resultados produzidos antes da correção PPM zero. Não alteramos as premissas científicas de limitar lotação/total.
+3. **#44 — calibração da cascata (Documentos, título, vigilância, aprendizado e calendário):** o corte ainda é ligado ao nome do modelo, não automaticamente aos bytes dos pesos/prompt/gramática. O #56 concluiu a avaliação real e rejeitou todos os cortes: 67,92% em intenção e 43,33% em compreensão, abaixo de 95%; a main continua em votação. Há hashes do relatório/GGUF na operação, mas o vínculo automático no carregamento do corte continua pendente. O hash de receita do cache de matrícula do #53 é outro mecanismo; não resolve por si só a cascata.
+4. **#45 — conflito de migração resolvido pelo chat Produto e regras:** no head `9b7f49f`, `0027_api_publica.py` declara revision `0027`/down_revision `0026`. O conflito antigo com `0020_alertas_operacao.py` não existe mais. O PR permanece aberto; a API ainda não tem essa migração na main auditada. **Nova colisão após #54:** a main agora possui `0027_calendario.py`; o chat Produto e regras precisa renumerar novamente a migração da API ao integrar o calendário.
+5. **#45 — sanitização da API pública (Produto e regras, com correção pontual de Qualidade e segurança após integração):** no head `9b7f49f`, o código passou para `raiz/publica/`. A resposta `ok` já aplica `limpar(sem_dado_pessoal(x))`, mas `limpar` continua regex de CPF/CNPJ numérico/e-mail/telefone, sem Presidio ou nomes livres/CNPJ alfanumérico. `chaves.registrar` usa esse filtro em `agente_modelo` e `atributos` antes de persistir; o logger central não protege essas escritas. Reusar sanitização central com domínios fechados nas fronteiras de persistência/resposta, preservando UUIDs de protocolo. A descrição do PR mencionar Presidio não comprova cobertura dessas gravações.
+6. **#45 — cobrança com erro imprevisto corrigida pelo chat Produto e regras:** no head `9b7f49f`, o middleware converte a exceção em 500 genérico e chama o estorno. Há regressão de exceção inesperada, estorno concorrente único e débito concorrente dos três testes. Falha do próprio banco durante o estorno ainda só é registrada; reconciliação durável após indisponibilidade pertence ao desenho de cobrança do chat dono, antes de operação financeira real.
+7. **#45 — limite por empresa (Qualidade e segurança, integração com Produto e regras):** o head `9b7f49f` usa `shared_limit` entre rotas/chaves da empresa, inclusive recusas, e aceita `RAIZ_API_LIMIT_STORAGE_URI`. O padrão `memory://` continua por processo. O teste atual usa uma instância; configurar armazenamento compartilhado e testar duas instâncias concorrentes antes de vários workers. Não confundir esse contador de chamadas com o saldo em PostgreSQL.
 
 O exame de git/segredos, Release `dados` e site é feito separadamente nesta entrega; não concluir ausência absoluta de dado pessoal a partir de revisão estática ou dos formatos de documentos nacionais.
 
@@ -85,7 +121,7 @@ Revisão do diff de #35 (E5 e parte E8), das implementações atuais de título/
 - `raiz/titulo/warc.py`: CPF percent-encoded em URL escapava da verificação anterior, e `motivo` era gravado sem máscara no índice JSONL exibido no laudo. A URL passa por decode antes da verificação; motivo usa mascaramento, `tirar_nomes` existente e Presidio local para nome/contato. Testes verificam recusa antes da rede/arquivo e sanitização antes de escrever o índice. O corpo WARC continua cifrado e sem chave só grava hashes.
 - `testes/test_titulo.py`: teste que dependia de procurar dinamicamente um imóvel e podia dar `pytest.skip` agora usa fixture com a linha real `PA-1504950-0E3B...` e filtros correspondentes da amostra. Verifica entrada SIGEF/matrícula, risco médio antes e baixo após a única entrada simulada (certidão conferida). Não muda dados do produto nem fabrica o retorno da regra.
 
-## Pendências maiores para Documentos, título e aprendizado
+## Pendências maiores para o chat Documentos, título, vigilância, aprendizado e calendário
 
 1. **Achados de matrículas diferentes se sobrepõem na view vigente.** `migracoes/versions/0022_titulo_achados.py:70` usa `DISTINCT ON (cod_imovel, fase, regra)`, mas `cadeia.origem` e achados da certidão são produzidos por matrícula. Para imóvel com duas matrículas, um achado pode esconder o outro no laudo com banco. A confirmação em linhas 74–75 também não compara `registro`/matrícula, propagando uma confirmação a outra matrícula com a mesma regra e valor. Exige nova migração, definição de identidade e regressão de duas matrículas, sem reescrever migração já aplicada.
 2. **Decisão recalculada não acompanha confirmações humanas.** `raiz/titulo/tarefa.py:137–144` calcula nota/triagem exclusivamente dos achados recém-gerados em CSV; não lê confirmações do banco. O laudo com conexão mostra achados confirmados, mas a nota lida de `titulo_<mun>.csv` pode continuar anterior. Definir fonte e atualização da decisão após confirmar/corrigir antes de prometer convergência.
@@ -117,8 +153,8 @@ A amostra HTTP do site também não contém CPF/CNPJ sem máscara, e-mail/telefo
 
 ## Pendências maiores para passagem
 
-1. O portão de publicação (`raiz/executor/armazem.py`, `_publicar_uf`) só rejeita cabeçalhos CSV por uma lista curta de palavras. Geometrias/PMTiles, JSON de controle e `extra` passam sem uma validação equivalente; `motor/publicar_dados.py` também só verifica o cabeçalho CSV. Não houve vazamento confirmado nos artefatos examinados, mas o portão não impede uma coluna nova (ex.: contato/embargado) ou dado pessoal colocado em mensagem de erro. Padronizar um contrato de publicação com allowlist por produto e validação antes de qualquer upload, preservando métricas legítimas, envolve o chat de dados.
-2. Vigilância: `_publicos()` decide o que é público pelo nome do arquivo e `publicar()` envia os bytes sem revalidar o conteúdo. Hoje não há Release para medir exposição. Cobertura de publicação deve verificar dados/erros antes de habilitar a primeira rodada.
+1. O portão de publicação (`raiz/executor/armazem.py`, `_publicar_uf`) só rejeita cabeçalhos CSV por uma lista curta de palavras. Geometrias/PMTiles, JSON de controle e `extra` passam sem uma validação equivalente; `motor/publicar_dados.py` também só verifica o cabeçalho CSV. Não houve vazamento confirmado nos artefatos examinados, mas o portão não impede uma coluna nova (ex.: contato/embargado) ou dado pessoal colocado em mensagem de erro. Padronizar um contrato de publicação com allowlist por produto e validação antes de qualquer upload, preservando métricas legítimas, é agora responsabilidade de **Qualidade e segurança** na continuação, coordenada com **Raiz dados do Brasil** para o contrato.
+2. **Qualidade e segurança — vigilância:** `_publicos()` decide o que é público pelo nome do arquivo e `publicar()` envia os bytes sem revalidar o conteúdo. Hoje não há Release para medir exposição. Cobertura de publicação deve verificar dados/erros antes de habilitar a primeira rodada.
 3. Contrato de localização/consentimento: parcialmente tratado pelo #52 durante a entrega. O site agora publica somente agregados; a exportação administrativa deve permanecer privada. Ver a atualização do item #40 acima, incluindo artefatos históricos.
 4. Teste do Pará inteiro: o pacote publicado `raiz_PA.tar.gz` contém 144 tabelas `imoveis`, 144 `direto`, 144 `filtros`, 144 `mapbiomas`, 143 `certidoes` e nenhum `desenvolvedor`. Baixar esse Release não atende a pré-condição do teste que exige pelo menos 100 CSV `desenvolvedor`.
 
@@ -206,3 +242,67 @@ As entregas de aviso à Verra e lote/números também foram integradas antes de 
 foi resolvido mantendo ambas as passagens. O novo workflow `lote-para.yml` prepara a rodada real do Pará;
 o teste estadual ainda tem a pré-condição dos arquivos desenvolvedor e permanece como pendência até a rodada
 produzir um conjunto utilizável. Não foram disparados envios à Verra nem processamento de produção nesta auditoria.
+
+
+## Revisão contínua — continuação de 12/11/2026
+
+Marco inicial: merge do #51 (`78e13f7`). Main conferida até `a4c1066`; não foram confundidos PRs abertos com
+código integrado. O histórico acima descreve a entrega inicial; esta seção registra mudanças posteriores.
+
+| PR integrado | Diff revisado | Resultado e responsável |
+|---|---|---|
+| #53 (`7e045e1`) | Cache de matrícula, proveniência, captura/arquivo scd2, reexecução, sobrevivência, cron e Dockerfile | Nenhum bug pequeno confirmado nessa revisão. Captura de atributos usa números e categorias fechadas; fontes arquivadas têm allowlist. Cache exige integridade, receita e gabarito vigente, sem liberar simulado. Contatos usados no modelo não incluem nome/documento/contato do dono. Ativação/calibração e reconciliação de achados seguem com Documentos, título, vigilância, aprendizado e calendário. |
+| #56 (`bb6d6c5`) | YAML dos cortes e documentação, após separar a dependência #53 | Resultado real mantém todos os cortes vazios; nenhuma promoção indevida nem resposta bruta de modelo adicionada ao git. O vínculo automático dos pesos à cascata permanece com o chat Documentos, título, vigilância, aprendizado e calendário. |
+| #67 (`d98648f`) | Fonte Release/projeção pública, comparação e mapa, contornos autenticados, Playwright e workflows | Confirmado bug de privacidade: texto livre em `o_que_falta`, pendência desconhecida e versão do modelo atravessa a projeção do site; a máscara só remove documentos. Qualidade e segurança preparou correção pequena com lista fechada de frases e regressões. Nenhum vazamento real em arquivo remoto foi afirmado. Geometrias da API revalidam desbloqueio do cliente ativo e reservas. |
+| #54 (`a4c1066`) | Calendário: coleta, vínculo, API/feed, função para MCP, cron, front, publicação | Texto do edital não é persistido e títulos da coleta são gerados pelo contrato. Confirmadas duas lacunas pequenas: o site copiava JSON/ICS remotos antes de revalidar e o mapa ignorava prazo de propostas iniciado no passado. Qualidade e segurança aplica projeção fechada antes da cópia, rótulos oficiais no navegador e uso do prazo na marca do mapa. Fonte de banco/consulta continua sem transporte MCP. |
+
+A correção do #67 aceita somente frases do produto com posições numéricas controladas, mantém versões no formato
+do motor e substitui conteúdo desconhecido por aviso de revisão. Duas regressões falham na versão integrada;
+13 testes do contrato passam com a correção aplicada após integrar a main na entrega de continuidade.
+A lista de rótulos também rejeita propriedades herdadas (`__proto__`/`constructor`).
+
+Gitleaks 8.24.3 examinou `78e13f7..d98648f` com valores ocultos: 20 commits, 417.485 bytes, nenhum segredo
+reconhecido. `git diff --check` também passou. Essa revisão não repete a auditoria dos 40 assets históricos;
+a evidência de Release/site continua datada e com os limites documentados acima.
+
+### Mudança de fluxo da cena-alvo pelo #67
+
+O chat **Telas e mapa** desabilitou contato na interface até a fase final. O Playwright agora valida esse bloqueio,
+login, pedido e as três opções; aciona interesse pela API do banco descartável para continuar cobrindo ondas e Pix.
+Isso não é o percurso inteiro por cliques originalmente entregue pelo #51. **Produto e regras / Telas e mapa**
+decidem quando reabrir contato na interface; **Qualidade e segurança** mantém a cobertura executável correspondente.
+O ponteiro do lote ainda ausente não substitui as 144 tabelas reais de desenvolvedor exigidas pelo teste estadual.
+
+### MCP ainda não entregue pelo chat dono
+
+Na main `a4c1066` não há servidor MCP. O #54 fornece a função somente leitura `proximos_eventos`, ainda sem transporte. No PR #45 aberto, `raiz/publica/servidor_mcp.py` apenas recusa inicialização
+até OAuth 2.1. **Produto e regras** é responsável pelo servidor, catálogo de ferramentas e autorização. **Qualidade e
+segurança** responde pelas suítes adversariais, latência e carga; não deve inventar um MCP alternativo nem registrar
+um stub como prova de segurança/tempo. A integração dessas suítes exige o servidor real do chat dono.
+
+
+### Revisão do calendário (#54)
+
+O gate de publicação e a cópia para o Pages devem reconstruir JSON e ICS com o mesmo contrato: somente campos
+permitidos, título por tipo/marco/referência numérica, nomes institucionais do manifesto e URL validada. Texto remoto
+em campos conhecidos ou extras não pode atravessar por receber uma chave aparentemente pública. O front também
+reconstrói os rótulos, aceita IDs/timestamps no formato do contrato e limita links aos hosts oficiais. Falha de validação
+de um download interrompe o build; indisponibilidade de rede só reutiliza uma cópia que seja validada novamente.
+Nomes livres em URLs ainda exigem cuidado: padrões de documentos/contato e parâmetros pessoais não provam ausência
+de todo nome em slug. Sem regra de URL por fonte, não declarar anonimização absoluta; contrato por fonte pertence a
+**Documentos, título, vigilância, aprendizado e calendário**, com revisão de **Qualidade e segurança**.
+
+O mapa considera `prazo` quando presente, mantendo o leilão marcado durante propostas/inscrições já iniciadas.
+Regressão cobre o intervalo e o desaparecimento após o prazo. As fixtures conservam a natureza sintética e passam a
+usar identificadores e fontes no formato real, sem uma exceção de validação para testes.
+
+Validação desta revisão: 22 testes Vitest de calendário/Release e o teste de sincronização do manifesto passaram;
+Chromium do calendário (1440/768/360 px) e da prospecção passaram. Gitleaks examinou também `d98648f..a4c1066`:
+13 commits, 150.961 bytes, nenhum segredo reconhecido. Três regressões de integração do build também passaram:
+JSON/ICS reconstruídos sem texto pessoal, cache offline revalidado e download HTTP 200 inválido interrompendo o build.
+
+A validação da URL foi unificada também em `Evento`, antes de persistir ou devolver a fonte pela API. Sete regressões
+falhavam na main: e-mail no nome de arquivo, e-mail com codificação repetida, telefone e parâmetros de contato/nome/
+credencial. A correção recusa esses caminhos e remove fragmentos sem alterar o identificador público do ato. Foram
+34 testes focados de calendário/site/URL aprovados; a rodada focada excluiu seis testes de banco para não disputar o
+PostGIS com a suíte completa em andamento. Não houve skip novo ou retirada desses testes do CI.

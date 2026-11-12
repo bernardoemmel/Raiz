@@ -13,7 +13,11 @@ from raiz.aprendizado.cli_sobrevivencia import registrar as registrar_sobreviven
 from raiz.calendario.cli import app as calendario_cli
 from raiz.privacidade import configurar_log, varrer
 
-app = typer.Typer(help="Raíz: coleta, funil, título, agentes e aprendizado em cima do motor.", no_args_is_help=True)
+app = typer.Typer(
+    help="Raíz: coleta, funil, título, agentes e aprendizado em cima do motor.",
+    no_args_is_help=True,
+    pretty_exceptions_show_locals=False,
+)
 privacidade = typer.Typer(help="Guarda de CPF/CNPJ.", no_args_is_help=True)
 banco = typer.Typer(help="Banco PostgreSQL + PostGIS.", no_args_is_help=True)
 app.add_typer(privacidade, name="privacidade")

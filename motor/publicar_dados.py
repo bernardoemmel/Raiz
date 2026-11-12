@@ -53,14 +53,16 @@ def manifesto_publicado() -> dict:
     return S.ler_manifesto()
 
 
-def empacotar(uf: str, arquivos: list[Path]) -> bytes:
+def empacotar(uf: str, arquivos: list[Path] | dict[str, bytes]) -> bytes:
+    # O upload usa exatamente o snapshot conferido; não reabre fontes depois do portão.
+    conteudos = arquivos if isinstance(arquivos, dict) else {f.name: f.read_bytes() for f in arquivos}
     buf = io.BytesIO()
     with tarfile.open(fileobj=buf, mode="w:gz", compresslevel=6) as tar:
-        for f in sorted(arquivos):
-            info = tar.gettarinfo(str(f), arcname=f"{uf}/{f.name}")
+        for nome, dados in sorted(conteudos.items()):
+            info = tarfile.TarInfo(f"{uf}/{nome}")
+            info.size = len(dados)
             info.mtime, info.uid, info.gid, info.uname, info.gname = 0, 0, 0, "", ""
-            with open(f, "rb") as fh:
-                tar.addfile(info, fh)
+            tar.addfile(info, io.BytesIO(dados))
     return buf.getvalue()
 
 
@@ -76,11 +78,12 @@ def gravar(destino: Path, nome: str, conteudo: bytes, partes: bool = True) -> li
     return out
 
 
-def versao(arquivos: list[Path]) -> str:
+def versao(arquivos: list[Path] | dict[str, bytes]) -> str:
+    conteudos = arquivos if isinstance(arquivos, dict) else {f.name: f.read_bytes() for f in arquivos}
     h = __import__("hashlib").sha256()
-    for f in sorted(arquivos):
-        h.update(f.name.encode())
-        h.update(f.read_bytes())
+    for nome, dados in sorted(conteudos.items()):
+        h.update(nome.encode())
+        h.update(dados)
     return h.hexdigest()[:16]
 
 
@@ -135,10 +138,18 @@ def montar(saida: Path, destino: Path, ufs: list[str], publicado: dict, partes: 
                           "`uv run raiz executor publicar --ufs " + uf + "`; não troco o pacote dele")
             continue
         conferir_privacidade(csvs)
+        from raiz.qualidade_dados import validar_arquivos, validar_json
+        geos = sorted(pasta.glob("geo_*.parquet"))
+        conteudos = {f.name: f.read_bytes() for f in [*csvs, *geos]}
+        validar_arquivos(conteudos)
+        csvs_conferidos = {f.name: conteudos[f.name] for f in csvs}
+        geos_conferidos = {f.name: conteudos[f.name] for f in geos}
+        motor, erros = motor_info(pasta, antigo)
+        validar_json({"motor": motor, "erros": erros})
         info = estado_info(pasta, uf)
-        v = versao(csvs)
+        v = versao(csvs_conferidos)
         if antigo.get("versao") != v:
-            pacote = empacotar(uf, csvs)
+            pacote = empacotar(uf, csvs_conferidos)
             arquivos += gravar(destino, f"raiz_{uf}.tar.gz", pacote, partes)
             info.update(tamanho=len(pacote), atualizado_em=agora)
             print(f"{uf}: raiz_{uf}.tar.gz {len(pacote) / 1e6:.1f} MB ({info['municipios']}/{info['total_ibge']} municípios)")
@@ -148,15 +159,15 @@ def montar(saida: Path, destino: Path, ufs: list[str], publicado: dict, partes: 
         info.update(versao=v, url=f"{BASE}/raiz_{uf}.tar.gz")
         geos = sorted(pasta.glob("geo_*.parquet"))
         if geos:
-            vg = versao(geos)
+            vg = versao(geos_conferidos)
             if (antigo.get("geo") or {}).get("versao") != vg:
-                pg = empacotar(uf, geos)
+                pg = empacotar(uf, geos_conferidos)
                 arquivos += gravar(destino, f"raiz_geo_{uf}.tar.gz", pg, partes)
                 info["geo"] = {"versao": vg, "tamanho": len(pg), "url": f"{BASE}/raiz_geo_{uf}.tar.gz", "municipios": len(geos)}
                 print(f"{uf}: raiz_geo_{uf}.tar.gz {len(pg) / 1e6:.1f} MB")
             else:
                 info["geo"] = antigo["geo"]
-        info["motor"], info["erros"] = motor_info(pasta, antigo)
+        info["motor"], info["erros"] = motor, erros
         novas[uf] = info
     return novas, arquivos
 
@@ -190,6 +201,9 @@ def garantir_release() -> None:
 
 
 def subir(arquivo: Path, tentativas: int = 4) -> None:
+    if arquivo.suffix == ".json":
+        from raiz.qualidade_dados import validar_json
+        validar_json(json.loads(arquivo.read_bytes()))
     for i in range(tentativas):
         r = gh("release", "upload", TAG, str(arquivo), "--clobber", "-R", REPO, check=False)
         if r.returncode == 0:

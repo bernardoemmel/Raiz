@@ -25,6 +25,7 @@ import sys
 from pathlib import Path
 
 from raiz.documentos.privacidade import configurar_log
+from raiz.logs_seguros import sanitizar_log
 
 log = logging.getLogger("raiz.documentos")
 
@@ -104,7 +105,7 @@ def cmd_busca(a) -> int:
     rel = semanal.rodar(usar_firecrawl=not a.sem_firecrawl, so=so)
     for f in rel.fontes:
         estado = f"erro: {f.erro}" if f.erro and not f.itens else f"{len(f.itens)} itens ({f.via})"
-        print(f"{f.fonte}: {estado}")
+        print(sanitizar_log(f"{f.fonte}: {estado}"))
     print(f"{len(rel.novidades)} novidades. Lista: {rel.arquivo_md}")
     if os.environ.get("GITHUB_OUTPUT"):
         with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as f:

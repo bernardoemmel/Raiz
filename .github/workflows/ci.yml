@@ -78,6 +78,8 @@ jobs:
         env:
           RAIZ_PRINTS: ${{ github.workspace }}/front/.cache/teste-site/resultado/prospeccao
         run: cd front/globo && npm run test:prospeccao
+      - name: Calendário no navegador (filtros, feed e celular)
+        run: cd front/globo && npm run test:calendario
       - name: Cena-alvo (Release ausente, publicado e três lotes autorizados)
         run: cd front/globo && npm run test:cena
       - name: Evidências da cena-alvo

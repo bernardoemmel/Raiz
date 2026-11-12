@@ -131,6 +131,11 @@ def test_catalogo_pa_tem144_municipios():
 
 
 def test_publicacao_so_atualiza_ponteiro_apos_todos_os_assets(tmp_path, monkeypatch):
+    # Este caso testa falha de upload/ordem do ponteiro; o portão real tem regressões abaixo.
+    from raiz import qualidade_rodada
+
+    validacoes = []
+    monkeypatch.setattr(qualidade_rodada, "validar_publicacao", lambda *args: validacoes.append(args))
     produto = tmp_path / "produto"
     produto.mkdir()
     (produto / "manifesto.json").write_text(json.dumps({"municipios": 144}))
@@ -158,3 +163,49 @@ def test_publicacao_so_atualiza_ponteiro_apos_todos_os_assets(tmp_path, monkeypa
     assert len(chamadas) == 6
     assert "--clobber" not in [x for cmd in chamadas[:-1] for x in cmd]
     assert chamadas[-1][-1] == "--clobber"
+    assert len(validacoes) == 2
+    assert all(len(pacotes) == 4 for pacotes, _, _ in validacoes)
+
+
+def test_publicacao_falha_antes_primeiro_upload_se_portao_reprova(tmp_path, monkeypatch):
+    from raiz import qualidade_rodada
+    from raiz.qualidade_dados import ErroQualidade
+
+    produto = tmp_path / "produto"
+    produto.mkdir()
+    (produto / "manifesto.json").write_text(json.dumps({"municipios": 144}))
+    for nome in RR.OPCOES:
+        (produto / nome).mkdir()
+        (produto / nome / "lote_PA.json").write_text("{}")
+    monkeypatch.setenv("GITHUB_RUN_ID", "12345")
+    chamadas = []
+    monkeypatch.setattr(RR.subprocess, "run", lambda *args, **kwargs: chamadas.append(args))
+
+    def reprovar(pacotes, referencias, manifesto):
+        assert len(pacotes) == 4
+        assert all(p.is_file() for p in pacotes)
+        assert referencias == tmp_path / "trabalho" / "PA"
+        assert set(manifesto["arquivos"]) == {p.name for p in pacotes}
+        raise ErroQualidade("publicação bloqueada: teste de regressão")
+
+    monkeypatch.setattr(qualidade_rodada, "validar_publicacao", reprovar)
+    with pytest.raises(ErroQualidade):
+        RR.publicar(tmp_path)
+    assert chamadas == []
+    assert not (tmp_path / "lote_PA_central_r11.json").exists()
+
+
+def test_publicacao_real_reprova_manifesto_incompleto_sem_enviar(tmp_path, monkeypatch):
+    from raiz.qualidade_dados import ErroQualidade
+
+    produto = tmp_path / "produto"
+    produto.mkdir()
+    (produto / "manifesto.json").write_text(json.dumps({"municipios": 144}))
+    for nome in RR.OPCOES:
+        (produto / nome).mkdir()
+    monkeypatch.setenv("GITHUB_RUN_ID", "12345")
+    chamadas = []
+    monkeypatch.setattr(RR.subprocess, "run", lambda *args, **kwargs: chamadas.append(args))
+    with pytest.raises(ErroQualidade, match="manifesto sem contrato"):
+        RR.publicar(tmp_path)
+    assert chamadas == []

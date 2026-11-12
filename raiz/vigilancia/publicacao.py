@@ -246,11 +246,19 @@ def publicar(
     arm: Armazem, rel: Release, chave: str | None, resumo: dict | None = None, entradas_lidas: list[str] | None = None
 ) -> dict:
     """Sobe o que mudou; manifesto por último; apaga as entradas da API que já entraram no estado."""
+    from raiz.qualidade_dados import ErroQualidade, validar_arquivos, validar_json
+
+    publicos = _publicos(arm)
+    encontrados = {p.resolve() for p in arm.publico.rglob("*") if p.is_file()}
+    if encontrados != {p.resolve() for p in publicos.values()}:
+        raise ErroQualidade("publicação bloqueada: arquivo público sem contrato")
+    conteudos = {nome: caminho.read_bytes() for nome, caminho in publicos.items()}
+    validar_arquivos(conteudos)
+    validar_json(resumo or {})
     ativos = rel.ativos() if rel.id() is not None else {}
     antigo = json.loads(rel.baixar(ativos[MANIFESTO])) if MANIFESTO in ativos else {}
     arquivos, subidos = {}, []
-    for nome, caminho in _publicos(arm).items():
-        b = caminho.read_bytes()
+    for nome, b in conteudos.items():
         info = {"sha256": _sha(b), "tamanho": len(b)}
         arquivos[nome] = info
         if antigo.get("arquivos", {}).get(nome, {}).get("sha256") != info["sha256"] or nome not in ativos:
@@ -277,6 +285,7 @@ def publicar(
         "privado": privado,
         **({"resumo": resumo} if resumo else {}),
     }
+    validar_json(manifesto)
     rel.subir(MANIFESTO, json.dumps(manifesto, ensure_ascii=False, indent=1).encode(), "application/json")
     apagadas = 0
     if entradas_lidas:
