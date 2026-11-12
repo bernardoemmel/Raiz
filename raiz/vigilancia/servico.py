@@ -346,7 +346,19 @@ class Vigilancia:
         prazo = aviso_verra.prazo_registrado(self.projetos[pid], perda_id)
         if pe is None and prazo is None:
             return None
-        d = aviso_verra.preparar(self.projetos[pid], perda_id, self.regras, hoje, perda=pe, prazo_informado=prazo)
+        ev = self.eventos()
+        confirmado = perdas._ultimo_evento(ev, perda_id, ("verra_avisada",))
+        encerramento = perdas._ultimo_evento(ev, perda_id, ("perda_descartada", "perda_reaberta", "relatorio_enviado"))
+        d = aviso_verra.preparar(
+            self.projetos[pid],
+            perda_id,
+            self.regras,
+            hoje,
+            perda=pe,
+            prazo_informado=prazo,
+            envio_confirmado_em=_data(confirmado["data"]) if confirmado else None,
+            encerrado=bool(encerramento and encerramento["tipo"] in ("perda_descartada", "relatorio_enviado")),
+        )
         if pe is None:
             d["origem_prazo"] = "informado_pelo_cliente_e_registrado_no_projeto"
         return d

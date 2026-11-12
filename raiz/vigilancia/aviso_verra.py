@@ -29,6 +29,8 @@ def preparar(
     hoje: dt.date,
     perda: dict | None = None,
     prazo_informado: dt.date | None = None,
+    envio_confirmado_em: dt.date | None = None,
+    encerrado: bool = False,
 ) -> dict:
     """Sem o estado privado, aceita só o prazo explicitamente informado pelo operador.
 
@@ -45,9 +47,10 @@ def preparar(
     if perda and prazo_informado and prazo != prazo_informado:
         raise ValueError("prazo informado diverge do estado do evento; confira a descoberta antes de preparar")
     pendencias = ["Assinatura, contato e conferência dos fatos: a preencher pelo proponente."]
-    bloqueado = bool(
-        perda and (perda["estado"] in ("descartada", "relatada") or perda["prazo"].get("aviso_verra_feito_em"))
-    )
+    envio_confirmado_em = perda["prazo"].get("aviso_verra_feito_em") if perda else envio_confirmado_em
+    bloqueado = bool(encerrado or envio_confirmado_em or (perda and perda["estado"] in ("descartada", "relatada")))
+    if bloqueado:
+        pendencias.append("Evento encerrado ou aviso já registrado: exportação de novo aviso inicial bloqueada.")
     registro = projeto.get("verra_id")
     if not registro:
         pendencias.append("ID do projeto no registro da Verra: a preencher pelo proponente.")
@@ -67,8 +70,6 @@ def preparar(
             "Monitoring sources: " + "; ".join(FONTES.get(f, (f, f))[1] for f in perda["fontes"]) + ".",
             "Field confirmation, the cause and carbon stock impact remain subject to assessment.",
         ]
-        if bloqueado:
-            pendencias.append("Evento encerrado ou aviso já registrado: exportação de novo aviso inicial bloqueada.")
     else:
         pendencias.append("Descoberta, área, fontes e caracterização: a preencher pelo proponente.")
         linhas += [
@@ -99,11 +100,7 @@ def preparar(
         "regra_versao": regras.versao,
         "estado": "exportacao_bloqueada" if bloqueado else "rascunho_aguardando_conferencia",
         "pode_exportar": not bloqueado,
-        "aviso_registrado_em": (
-            perda["prazo"]["aviso_verra_feito_em"].isoformat()
-            if perda and perda["prazo"].get("aviso_verra_feito_em")
-            else None
-        ),
+        "aviso_registrado_em": envio_confirmado_em.isoformat() if envio_confirmado_em else None,
         "enviado": False,
         "destino_rascunho": "desenvolvedor_cliente",
         "responsavel_pelo_envio": "proponente",

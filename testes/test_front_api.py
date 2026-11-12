@@ -136,6 +136,24 @@ def test_imovel_ficha_e_mascara(cliente):
 
 
 @pytest.mark.banco
+def test_leituras_em_markdown_com_os_mesmos_dados(cliente):
+    cl, alvo = cliente
+    for url, esperado in (
+        ("/municipios", "Nova Esperança do Piriá"),
+        (f"/municipios/{COD}/imoveis", alvo),
+        (f"/imoveis/{alvo}", alvo),
+        (f"/imoveis/{alvo}/ficha", "Contexto"),
+        ("/busca?q=Nova%20Esperança", "Nova Esperança do Piriá"),
+    ):
+        resposta = cl.get(url, headers={"Accept": "text/markdown"})
+        assert resposta.status_code == 200, url
+        assert resposta.headers["content-type"].startswith("text/markdown"), url
+        assert "Accept" in resposta.headers["vary"].split(", "), url
+        assert esperado in resposta.text and fmt_cpf(CPF) not in resposta.text, url
+        assert cl.get(url).headers["content-type"].startswith("application/json"), url
+
+
+@pytest.mark.banco
 def test_certidoes(cliente):
     cl, _ = cliente
     cert = pd.read_csv(AMOSTRA / f"certidoes_{COD}.csv")
