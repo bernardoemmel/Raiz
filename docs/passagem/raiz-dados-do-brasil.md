@@ -174,9 +174,13 @@ uv run python motor/rodar_estado.py --planejar   # o plano da próxima rodada, s
   sem ordenar ou inventar valores. A ficha Croissant permanece byte a byte idêntica após limitar a memória.
 - Baker e mlcroissant são executados em partes, em filhos sequenciais; checagens globais conferem IDs e referências.
   No RO, o pico simultâneo pai+filho foi 314 MiB, ante 1,083 GiB na geração anterior.
+- Escala MG sintética: cabeçalhos reais replicados em 853 municípios, sem linhas de dados; 8.530 CSVs e
+  230.310 campos. Ficha integral de 120.286.760 bytes, 157 partes baker e 158 validações mlcroissant em 840 s.
+  Pico de 519 MiB durante geração/validação e 919 MiB na serialização final, com apenas o processo principal.
 - O registro histórico fechado da regra `restauracao-2026c+421970fd` recupera os YAMLs do commit
   `8eebc6a90bc20bce585520cee81bbebdd1ff93df` e confere hashes integrais. RO gerou 25 estimativas CAD Trust sem
-  diagnósticos, com soma e marcos conferidos. A seleção usa o otimizador atual, identificado separadamente;
+  diagnósticos, com soma e marcos conferidos; repetido em 120 s com as salvaguardas da nova main. A seleção usa
+  o otimizador e as salvaguardas atuais, identificados separadamente;
   previsões individuais e curva histórica são preservadas.
 
 ## Continuidade operacional e pausa externa (12/11, 19h UTC)
