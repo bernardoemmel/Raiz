@@ -127,6 +127,19 @@ mudar na nuvem (ETag novo), o cache dele é refeito.
 - Em Nova Esperança do Piriá (dado real): 880 imóveis, 793 sem problema, 738 aptos (32.848 ha), 41 com matrícula;
   o que mais tira do funil é a matrícula (697); área urbana da sede 182 ha.
 
+## Fichas em lote (E9, passo 1)
+
+- `raiz ficha lote [--uf PA] [--municipios 1504950,1507300] [--destino pasta] [--refazer]` grava, por município, em
+  `RAIZ_FICHAS_DIR` (padrão `dados/fichas/`, fora do git):
+  - `<UF>/<cod_ibge>/fichas/<código do CAR sem traços>.json`: a mesma ficha de `GET /imoveis/{cod}/ficha`, para
+    servir como arquivo estático (qualquer servidor de arquivos ou o Pages);
+  - `<UF>/<cod_ibge>/rows.json`: uma linha por fazenda com os campos do cartão, do vídeo e do texto (os nomes do
+    pedido do Takumi). Campo que começa com `_` é interno: o código do CAR só aparece fora dele depois do aceite;
+  - `<UF>/<cod_ibge>/manifesto.json` e `indice.json` na raiz: rodada, data de corte, quantas fazendas, quantas aptas
+    e quando foi gravado.
+- Só regrava o município cuja rodada vigente mudou. O contexto do município (posição e medianas) é calculado uma vez
+  por município, não por fazenda.
+
 ## Valor para quem restaura (desenvolvedor de crédito de carbono)
 
 Calculado pelo produto, fora do motor (raiz/restauracao.py e raiz/restauracao_geo.py), por município, em

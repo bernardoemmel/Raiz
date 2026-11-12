@@ -914,6 +914,28 @@ def ficha_gerar(
             typer.echo(f"{uf} {cod}: {r}")
 
 
+@ficha_cli.command("lote")
+def ficha_lote(
+    uf: Annotated[str | None, typer.Option(help="só esta UF")] = None,
+    municipios: Annotated[str | None, typer.Option(help="só estes códigos IBGE, separados por vírgula")] = None,
+    destino: Annotated[str | None, typer.Option(help="pasta; padrão: RAIZ_FICHAS_DIR ou dados/fichas")] = None,
+    refazer: Annotated[bool, typer.Option(help="regravar mesmo o município cuja rodada não mudou")] = False,
+) -> None:
+    """Grava a ficha JSON de cada fazenda do banco, o rows.json do cartão e do vídeo e o índice (E9, passo 1)."""
+    from pathlib import Path
+
+    from raiz import fichas_lote
+    from raiz.banco import engine
+
+    cods = [int(x) for x in municipios.split(",")] if municipios else None
+    r = fichas_lote.gravar(
+        engine(), Path(destino) if destino else None, uf, cods, refazer, aviso=lambda t: typer.echo(f"  {t}")
+    )
+    typer.echo(
+        f"{r['gravados']} município(s) gravado(s), {r['fichas']} fichas; {r['iguais']} sem mudança; em {r['destino']}"
+    )
+
+
 mapa_cli = typer.Typer(help="Mapa base do Brasil (recorte do Protomaps, fontes e sprites).", no_args_is_help=True)
 app.add_typer(mapa_cli, name="mapa")
 
