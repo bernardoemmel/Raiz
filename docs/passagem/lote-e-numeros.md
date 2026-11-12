@@ -3,7 +3,9 @@
 ## Entrega de 12/11/2026: cálculo e salvaguardas da rodada 11
 
 Área: `raiz/lote.py`, `raiz/lote_relatorio.py`, `raiz/restauracao*.py`, `raiz/regras/`, testes e documentação.
-Sem alteração na API, no MCP ou no front. O workflow novo é a infraestrutura necessária para rodar o pedido no Actions.
+Sem alteração na API, no MCP ou no código do front. Exceção autorizada pelo fundador: o teste de complementos
+passa a exigir arquivos obrigatórios, excluir `certidoes_` e aceitar novos arquivos de uma linha por imóvel.
+O workflow novo é a infraestrutura necessária para rodar o pedido no Actions.
 
 - Modelo `restauracao-2026d`: reserva contra reversão nunca abaixo de 20%; inclui hash do código e premissas.
   O ICVCM 9.4(a)(5)(i) prevê essa alternativa; 9.4(a)(5)(ii) também permite ajuste proporcional ao risco.
@@ -55,8 +57,10 @@ O módulo aceita projeção local documentada com faixa; não fabrica quantis.
 Referência separada: SMA 32/2014, Anexo I (São Paulo), regenerantes de altura >50 cm e CAP <15 cm: densidade adequada
 >200/>1.000/>2.000/>2.500 indivíduos/ha e riqueza >3/>10/>20/>25 espécies aos 3/5/10/15 anos. Isso não equivale a
 árvores adultas por hectare nem a previsão para o Pará. Embrapa informa 1.667 ou 2.500 mudas/ha no plantio inicial,
-sem sustentar sobrevivência futura nem riqueza por fazenda. O item de previsão ecológica continua **parcial** até
-haver inventário e projeção local verificável.
+sem sustentar sobrevivência futura nem riqueza por fazenda. O fundador confirmou que não há inventário próprio e pediu fontes públicas: IFN/SFB, Rozendaal et al. (2019),
+Poorter et al. (2021)/2ndFOR, idade secundária do MapBiomas, Pacto e Rede de Sementes do Xingu. O item continua
+**parcial**, com investigação das bases abertas para estimativa regional P10/P50/P90, fonte e licença.
+Qualquer resultado regional terá o rótulo “estimativa regional, não medida na fazenda”; fonte insuficiente fica pendente.
 
 ## Validação
 
