@@ -66,7 +66,7 @@ export function MapaFichaTerra({ ficha }: { ficha: FichaTerraDados }) {
     mapa.on("resize", () => mapa.fitBounds(bounds, { padding: 40, maxZoom: 16, duration: 0 }))
     mapa.addControl(new AttributionControl({ compact: false, customAttribution: satelite?.meta.credito }))
     mapa.addControl(new NavigationControl({ showCompass: false }))
-    mapa.addControl(new ScaleControl({ unit: "metric" }))
+    mapa.addControl(new ScaleControl({ unit: "metric" }), "top-left")
     if (import.meta.env.DEV || import.meta.env.VITE_RAIZ_TESTE_MAPA === "1") Object.assign(caixa.current, { __mapa: mapa })
     mapa.once("load", () => {
       if (satelite) {

@@ -38,6 +38,7 @@ const visual = { imovel: colecao([anel]), mascara: colecao([[[-180, -85], [180, 
 const png = new PNG({ width: 4, height: 4 })
 for (let i = 0; i < png.data.length; i += 4) png.data.set([120, 140, 110, 255], i)
 const imagemTeste = PNG.sync.write(png)
+const creditoTeste = "Imagem sintética de teste; legenda de atribuição: Contains modified Copernicus Sentinel data 2026"
 let desbloqueada = false, debitos = 0, contatos = 0
 const chaves = [], chamadas = []
 const totais = { fazendas: 10, area_ha: 300, area_restauravel_ha: 120, credito_p10: 1000, credito_p50: 1500, credito_p90: 2000, com_credito: 10, pequenas: 10, fonte: "Base de teste", data_corte_min: "2026-11-12", data_corte_max: "2026-11-12" }
@@ -58,7 +59,7 @@ try {
     if (caminho.includes("/visual")) {
       assert.ok(desbloqueada && req.headers().authorization === "Bearer cliente-a", "Visual só depois do crédito e com a sessão da conta")
       if (caminho.endsWith("satelite.webp")) return route.fulfill({ status: 200, contentType: "image/png", body: imagemTeste })
-      if (caminho.endsWith("satelite")) return json({ disponivel: true, caixa: [-52.105, -6.705, -52.075, -6.675], data_cena: "2026-10-10", metodo: "cena", satelite: "Sentinel-2", credito: "Imagem sintética para teste; sem dado orbital", largura: 4, altura: 4 })
+      if (caminho.endsWith("satelite")) return json({ disponivel: true, caixa: [-52.105, -6.705, -52.075, -6.675], data_cena: "2026-10-10", metodo: "cena", satelite: "Sentinel-2", credito: creditoTeste, largura: 4, altura: 4 })
       return json(visual)
     }
     if (caminho.startsWith("fichas/")) return desbloqueada && req.headers().authorization === "Bearer cliente-a" ? json(ficha) : json({ detail: "Ficha precisa de crédito pago" }, 402)
@@ -105,6 +106,20 @@ try {
   assert.equal(chaves.length, 2); assert.notEqual(chaves[0], chaves[1])
   await page.setViewportSize({ width: 360, height: 800 })
   await page.locator(".visual-terra").scrollIntoViewIfNeeded()
+  const mapaPrivado = page.locator(".mapa-ficha-terra")
+  const credito = mapaPrivado.locator(".maplibregl-ctrl-attrib-inner")
+  assert.equal(await credito.innerText(), creditoTeste)
+  const caixaMapa = await mapaPrivado.boundingBox(), caixaCredito = await credito.boundingBox()
+  const caixaEscala = await mapaPrivado.locator(".maplibregl-ctrl-scale").boundingBox()
+  assert(caixaMapa && caixaCredito && caixaEscala)
+  assert(caixaEscala.y + caixaEscala.height <= caixaCredito.y, "Escala fica acima da atribuição, sem sobrepor o texto completo")
+  assert(caixaCredito.x >= caixaMapa.x && caixaCredito.x + caixaCredito.width <= caixaMapa.x + caixaMapa.width, "Atribuição cabe na largura do mapa")
+  assert(caixaCredito.y + caixaCredito.height <= caixaMapa.y + caixaMapa.height, "Atribuição inteira permanece visível")
+  assert.equal(await mapaPrivado.locator(".maplibregl-ctrl-attrib-button:visible").count(), 0, "Crédito aberto não exibe botão redundante")
+  for (const botao of await mapaPrivado.locator(".maplibregl-ctrl-group button").all()) {
+    const caixa = await botao.boundingBox()
+    assert(caixa && caixa.width >= 48 && caixa.height >= 48, "Controles do mapa têm área de toque de 48 px no celular")
+  }
   await page.screenshot({ path: path.join(prints, "mapa-ficha-terra-360.png") })
   await print("ficha-terra-360.png")
   await conferirPaginaAcessivel(page, AxeBuilder, "ficha-desbloqueada-360", prints)
