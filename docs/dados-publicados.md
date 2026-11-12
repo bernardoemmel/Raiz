@@ -92,8 +92,15 @@ SHA-256 e ID do GitHub. Novos Releases publicados também entram na varredura.
 A primeira cópia remota concluiu com sucesso no
 [Actions 43286647219](https://github.com/bernardoemmel/Raiz/actions/runs/43286647219):
 40 assets, rebaixamento com SHA-256 idêntico e HTTP 404 sem autenticação. O
-inventário e o comprovante foram guardados no draft. Essa fase não removeu
-originais; o resultado da troca pública será registrado após sua conclusão.
+inventário e o comprovante foram guardados no draft. Essa fase não removeu originais. A troca concluiu no
+[Actions 43288984765](https://github.com/bernardoemmel/Raiz/actions/runs/43288984765):
+40 originais preservados integralmente, 39 canônicos completos no privado e
+22 assets públicos validados (181.847.053 bytes), cobrindo as 12 UFs do manifesto.
+Todos os IDs originais foram substituídos ou retirados. Os endereços antigos sem
+substituto básico responderam 404. O comprovante final está no draft:
+`corte-f53e946687c4f244-concluido-d25320df8bcce9a9.json`.
+A retomada, se necessária, usa `corte-f53e946687c4f244-inventario.json`;
+nunca reconstruir o completo a partir do Release já reduzido.
 
 Artifacts antigos `entradas-congeladas`, `calculado-*` e `github-pages` também
 podem conter dados completos. `scripts/migrar_artifacts_privados.py` seleciona

@@ -26,6 +26,10 @@ privada é rebaixada e comparada por SHA-256; o download anônimo deve responder
 imutáveis ficam privados. Arquivos, contratos, comandos e resultado operacional
 estão em [dados-publicados.md](../dados-publicados.md).
 
+Migração do Release concluída no Actions 43288984765: 40 originais preservados,
+39 canônicos privados e 22 assets básicos públicos (181.847.053 bytes). Prova
+privada `corte-f53e946687c4f244-concluido-d25320df8bcce9a9.json`.
+
 Durante o corte, os workflows antigos de motor, lote do Pará, publicação de dados
 e vigilância foram pausados: uma execução com checkout antigo poderia republicar
 conteúdo completo. Retomar somente depois do CI e da integração do publicador
