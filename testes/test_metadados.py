@@ -14,6 +14,30 @@ mlc = pytest.importorskip("mlcroissant")
 pytest.importorskip("croissant_baker")
 
 
+def test_diagnostico_da_biblioteca_nao_expoe_nome_de_arquivo_privado(caplog):
+    ficha = ficha_arquivo(
+        "Pessoa_de_Teste.csv",
+        "release-github://exemplo/raiz/dados-privados/Pessoa_de_Teste.csv",
+        "a" * 64,
+        escopo="privado",
+    )
+    validar(ficha)
+    assert "Pessoa_de_Teste" not in caplog.text
+    assert "diagnóstico" in caplog.text
+
+
+@pytest.mark.parametrize("nome", ["resumo_PA.csv", "sem_imoveis_PA.csv"])
+def test_catalogo_publico_nao_declara_cabecalho_truncado(nome, tmp_path):
+    (tmp_path / nome).write_text("cod_ibge\n1504950\n")
+    with pytest.raises(ValueError, match="contrato básico público"):
+        croissant_uf(
+            tmp_path,
+            "PA",
+            {"url": "https://github.com/bernardoemmel/Raiz/releases/download/dados/raiz_PA.tar.gz", "sha256": "a" * 64},
+            escopo="publico_basico",
+        )
+
+
 def _entrada(pacote):
     return {
         "url": f"release-github://exemplo/raiz/dados-privados/{pacote.name}",
