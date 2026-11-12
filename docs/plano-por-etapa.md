@@ -207,7 +207,7 @@ Feito na main fora desta tabela: caminho da terra com risco por imóvel (`raiz/t
 
 | Ordem | Entrega | Situação |
 |---|---|---|
-| A | API paga sem plano grátis: 3 testes por empresa, sinal Pix e contrato, cobrança e estorno, limite SlowAPI por empresa, bloqueio de raspagem, CLI e análise sem dados pessoais | implementado e validado no PR #45; main `3b21e78` integrada, aguardando novo CI para merge |
+| A | API paga sem plano grátis: 3 testes por empresa, sinal Pix e contrato, cobrança e estorno, limite SlowAPI por empresa, bloqueio de raspagem, CLI e análise sem dados pessoais | implementado e validado no PR #45; main `3b21e78` integrada e UUIDs preservados no filtro de privacidade; aguardando novo CI para merge |
 | B | MCP oficial Python v2 / especificação 2026-07-28, seis ferramentas e resumo único até 8 KB | em implementação; adaptador antigo retirado |
 | C | OAuth 2.1 com Keycloak; consultar/pedir e reservar desabilitado por padrão, habilitado por administrador da empresa | em implementação |
 | D | Trabalhos persistidos, Idempotency-Key, Standard Webhooks, aprovação humana/Pix/recibo e OpenTelemetry | em implementação |

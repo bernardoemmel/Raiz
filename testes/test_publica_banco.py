@@ -8,6 +8,7 @@ import copy
 import datetime as dt
 import itertools
 import re
+import uuid
 from concurrent.futures import ThreadPoolExecutor
 
 import pytest
@@ -280,11 +281,15 @@ def test_resposta_e_log_nao_expoem_dados_pessoais(eng, cl, empresa, monkeypatch)
     assert K.chamadas(eng, empresa["cliente_id"])[-1]["agente_modelo"] == "<EMAIL>"
 
 
-def test_lote_pago_tres_opcoes_e_isolamento_entre_empresas(eng, cl, empresa):
+def test_lote_pago_tres_opcoes_e_isolamento_entre_empresas(eng, cl, empresa, monkeypatch):
     _liberar(eng, empresa)
+    # Esse UUID tem uma sequência que o reconhecedor de telefone confundia com dado pessoal.
+    pid = uuid.UUID("9a432ea5-eb43-4784-b691-" + "1234567890" + "b7")
+    monkeypatch.setattr(S.uuid, "uuid4", lambda: pid)
     r = cl.post("/v1/pedidos", json=PEDIDO, headers=_h(empresa))
     assert r.status_code == 200, r.text
     p = r.json()
+    assert p["id"] == str(pid)
     assert {o["id"] for o in p["opcoes"]} == {"barata", "segura", "compacta"}
     assert CT.ver(eng, empresa["cliente_id"])["saldo_rs"] == 4600
     r = cl.get(f"/v1/pedidos/{p['id']}/opcoes", headers=_h(empresa))

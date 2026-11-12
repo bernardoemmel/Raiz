@@ -6,7 +6,12 @@ O PR #45 incorporou também a main `3b21e78` (mapa nacional e busca estática).
 O único conflito era a formatação da lista de complementos no teste do front;
 a comparação exata, incluindo regularização, foi preservada. As funcionalidades
 da API paga permaneceram intactas. Ruff, privacidade, licenças e os 80 testes
-do front passaram após essa integração; o CI completo volta a validar o merge.
+do front e a navegação em Chromium passaram após essa integração. A suíte local
+completa (637 aprovados, 2 pulados e 1 xfail) encontrou uma falha intermitente:
+o filtro de privacidade reconhecia números dentro de UUIDs como telefone.
+UUIDs completos agora são preservados; o teste de pedido pago usa um UUID
+fixo que reproduz a falha e verifica o acompanhamento e o isolamento entre empresas.
+Texto com contatos ao redor continua filtrado. O CI completo volta a validar o merge.
 
 O PR #45 foi atualizado com a main. A migração da API passou de 0020 para 0026,
 porque 0020 já pertencia aos alertas da main. Cobrança, estorno idempotente e

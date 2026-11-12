@@ -19,6 +19,7 @@ PADROES = [
     ("<EMAIL>", re.compile(r"\b[\w.+-]+@[\w-]+\.[\w.-]+\b")),
     ("<TELEFONE>", re.compile(r"(?<!\d)(?:\+?55\s?)?\(?\d{2}\)?\s?9?\d{4}[-\s]?\d{4}(?!\d)")),
 ]
+UUID_CANONICO = re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}", re.I)
 
 
 def sem_dado_pessoal(x: Any) -> Any:
@@ -33,6 +34,10 @@ def sem_dado_pessoal(x: Any) -> Any:
 def limpar(x: Any) -> Any:
     """Troca CPF, CNPJ, e-mail e telefone por marcadores em textos (também dentro de dicionários e listas)."""
     if isinstance(x, str):
+        # Um UUID completo é identificador de protocolo. Seus trechos numéricos podem parecer um telefone;
+        # alterá-los quebra o acompanhamento do pedido. Texto livre ao redor continua passando pelo filtro.
+        if UUID_CANONICO.fullmatch(x):
+            return x
         for marca, padrao in PADROES:
             x = padrao.sub(marca, x)
         return x
