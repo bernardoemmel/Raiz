@@ -5,23 +5,40 @@ import json
 import uuid
 
 import pytest
-from fastapi import FastAPI
 from fastapi.testclient import TestClient
+from pydantic import SecretStr
 from sqlalchemy import create_engine, text
 
 from raiz import salvaguardas as SG
-from raiz.pedidos import api, oferta
+from raiz.pedidos import oferta
 from raiz.pedidos import servico as S
+from raiz.publica import chaves as K
 
 pytestmark = pytest.mark.banco
 EV = {"sha256": "b" * 64, "data": "2026-01-01"}
 COD = "PA-SALVAGUARDA-TESTE"
+TOKEN = "token-interno-salvaguardas-teste"
+
+
+@pytest.fixture(autouse=True)
+def configuracao(monkeypatch):
+    import raiz.api as principal
+
+    monkeypatch.setattr(principal, "config", lambda: type("C", (), {"api_token": SecretStr(TOKEN)})())
+    monkeypatch.delenv("RAIZ_ABACATEPAY_CHAVE", raising=False)
+
+
+def _app(eng):
+    from raiz.api import criar_app
+
+    return criar_app(engine=eng, grafo=object(), deps=object(), whatsapp=False)
 
 
 @pytest.fixture(scope="module")
 def eng(banco_url):
     e = create_engine(banco_url)
     with e.begin() as con:
+        con.execute(text("truncate geo.redd_programa, geo.redd_cobertura"))
         con.execute(
             text("""insert into funil.imovel (cod_imovel, uf, geom) values (:c, 'PA',
             ST_Multi(ST_GeomFromText('POLYGON((-50 -3,-49 -3,-49 -2,-50 -2,-50 -3))', 4674)))"""),
@@ -82,7 +99,7 @@ def test_sobreposicao_real_e_reverificacao_da_oferta(eng):
 
 def test_revisao_tem_protocolo_criterios_e_credencial_humana(eng, monkeypatch):
     cid, sessao = S.criar_cliente(eng, "empresa de teste")
-    _, sessao_outro = S.criar_cliente(eng, "outra empresa")
+    outro, sessao_outro = S.criar_cliente(eng, "outra empresa")
     pid = str(uuid.uuid4())
     with eng.begin() as con:
         con.execute(
@@ -91,31 +108,42 @@ def test_revisao_tem_protocolo_criterios_e_credencial_humana(eng, monkeypatch):
             {"p": pid, "c": cid},
         )
         S._salvar_sugestao(con, pid, "teste", {}, [{"id": "segura", "itens": [{"cod_imovel": COD}]}])
-        con.execute(
-            text("""insert into negocio.conta_api (cliente_id, cnpj_hmac, cnpj_mascarado, termos_versao,
-            contrato_aceito_em, sinal_pago_em) values (:c, :h, '**', 'teste', now(), now())"""),
-            {"c": cid, "h": uuid.uuid4().hex},
-        )
-    app = FastAPI()
-    app.include_router(api.roteador_cliente(lambda r: eng))
-    app.include_router(api.roteador_interno(lambda r: eng))
-    with TestClient(app) as cl:
+        for c in (cid, outro):
+            con.execute(
+                text("""insert into negocio.conta_api (cliente_id, cnpj_hmac, cnpj_mascarado, termos_versao,
+                contrato_aceito_em, sinal_pago_em) values (:c, :h, '**', 'teste', now(), now())"""),
+                {"c": c, "h": uuid.uuid4().hex},
+            )
+    chave_agente = K.criar(eng, cid)["chave"]
+    with TestClient(_app(eng)) as cl:
         h = {"Authorization": f"Bearer {sessao}"}
         corpo = {"cod_imovel": COD, "motivo": "nota_de_risco"}
         r = cl.post(f"/pedidos/{pid}/revisoes", headers=h, json=corpo)
-        assert r.status_code == 200
+        assert r.status_code == 200, r.text
+        assert r.history[0].status_code == 307 and r.url.path == f"/v1/pedidos/{pid}/revisoes"
         rid = r.json()["revisao_id"]
         assert r.json()["criterios"]["regra"] == SG.VERSAO
         assert cl.post(f"/pedidos/{pid}/revisoes", headers=h, json=corpo).json()["revisao_id"] == rid
         assert (
             cl.get(f"/pedidos/{pid}/revisoes", headers={"Authorization": f"Bearer {sessao_outro}"}).status_code == 404
         )
+        assert (
+            cl.post(f"/pedidos/{pid}/revisoes", headers={"X-Chave-API": chave_agente}, json=corpo).status_code == 403
+        )  # contestação exige a sessão da pessoa, não a chave do agente
         resolucao = {"revisor_id": str(uuid.uuid4()), "decisao": "corrigir_dados", "evidencia": EV}
         rota = f"/salvaguardas/revisoes/{rid}/resolver"
-        assert cl.post(rota, json=resolucao).status_code == 403
+        interno = {"Authorization": f"Bearer {TOKEN}"}
+        assert cl.post(rota, json=resolucao).status_code == 401
+        assert cl.post(rota, json=resolucao, headers=interno).status_code == 403
         monkeypatch.setenv("RAIZ_REVISAO_HUMANA_TOKEN", "credencial-humana-teste")
-        assert cl.post(rota, json=resolucao).status_code == 403
-        assert cl.post(rota, json=resolucao, headers={"X-Revisao-Humana": "credencial-humana-teste"}).status_code == 200
+        assert cl.post(rota, json=resolucao, headers=interno).status_code == 403
+        assert cl.post(rota, json=resolucao, headers={"X-Revisao-Humana": "credencial-humana-teste"}).status_code == 401
+        assert (
+            cl.post(
+                rota, json=resolucao, headers={**interno, "X-Revisao-Humana": "credencial-humana-teste"}
+            ).status_code
+            == 200
+        )
         lista = cl.get(f"/pedidos/{pid}/revisoes", headers=h).json()
         assert lista[0]["estado"] == "resolvida" and lista[0]["decisao"] == "corrigir_dados"
         assert "revisor_id" not in lista[0]  # cliente não recebe identidade do revisor
@@ -137,11 +165,9 @@ def test_revisao_nao_abre_detalhe_sem_liberacao_ou_vinculo_e_respeita_exclusivid
             values (:c, :h, '**', 'teste')"""),
             {"c": cid, "h": uuid.uuid4().hex},
         )
-    app = FastAPI()
-    app.include_router(api.roteador_cliente(lambda r: eng))
     rota = f"/pedidos/{pid}/revisoes"
     corpo = {"cod_imovel": COD, "motivo": "exclusao_automatica"}
-    with TestClient(app) as cl:
+    with TestClient(_app(eng)) as cl:
         h = {"Authorization": f"Bearer {sessao}"}
         assert cl.post(rota, headers=h, json=corpo).status_code == 403
         assert cl.get(rota, headers=h).status_code == 403
@@ -183,3 +209,118 @@ def test_revisao_nao_abre_detalhe_sem_liberacao_ou_vinculo_e_respeita_exclusivid
         with eng.begin() as con:
             con.execute(text("delete from negocio.reserva_fazenda where reserva_id = :r"), {"r": rid})
             con.execute(text("delete from negocio.reserva where id = :r"), {"r": rid})
+
+
+@pytest.fixture
+def grupo_reserva(eng):
+    """Grupo mínimo sintético: geometria e documentos são necessários, não pressupostos."""
+    cid, _ = S.criar_cliente(eng, "compradora da reserva de teste")
+    pid = str(uuid.uuid4())
+    cod = f"TO-RESERVA-TESTE-{uuid.uuid4().hex}"
+    with eng.begin() as con:
+        con.execute(text("delete from geo.redd_cobertura where uf = 'TO'"))
+        con.execute(text("insert into funil.imovel (cod_imovel, uf) values (:c, 'TO')"), {"c": cod})
+        con.execute(
+            text("""insert into negocio.oferta (cod_imovel, area_restauracao_ha, atributos)
+            values (:c, 2, '{"caminho_terra": "privada_matricula", "uf": "TO"}')"""),
+            {"c": cod},
+        )
+        con.execute(
+            text("""insert into negocio.pedido (id, cliente_id, estado, campos, premissas_versao)
+            values (:p, :c, 'grupo_pronto', '{}', 'teste')"""),
+            {"p": pid, "c": cid},
+        )
+        con.execute(
+            text("insert into negocio.pedido_fazenda (pedido_id, cod_imovel, papel) values (:p, :c, 'lote')"),
+            {"p": pid, "c": cod},
+        )
+    _verificar_grupo(eng, cod)
+    return cid, pid, cod
+
+
+def _verificar_grupo(eng, cod):
+    hoje = dt.datetime.now(dt.UTC).date()
+    ev = SG.Evidencia(sha256="d" * 64, data=hoje)
+    with eng.begin() as con:
+        con.execute(
+            text("""update funil.imovel set geom = ST_Multi(ST_GeomFromText(
+            'POLYGON((-48 -10,-47.99 -10,-47.99 -9.99,-48 -9.99,-48 -10))', 4674))
+            where cod_imovel = :c"""),
+            {"c": cod},
+        )
+    SG.registrar_cobertura(eng, SG.Cobertura(uf="TO", evidencia=ev, valida_ate=hoje))
+    SG.registrar_verificacao(eng, cod, SG.Verificacao(verificacao=ev, territorio_tradicional=False))
+
+
+def _invalidar_grupo(eng, cod, falta):
+    with eng.begin() as con:
+        if falta == "verificacao":
+            con.execute(text("delete from negocio.salvaguarda where cod_imovel = :c"), {"c": cod})
+        elif falta == "cobertura":
+            con.execute(
+                text("""update geo.redd_cobertura set verificada_em = current_date - 2,
+            valida_ate = current_date - 1,
+            evidencia = jsonb_set(evidencia, '{data}', to_jsonb((current_date - 2)::text)) where uf = 'TO'""")
+            )
+        elif falta == "geometria":
+            con.execute(text("update funil.imovel set geom = null where cod_imovel = :c"), {"c": cod})
+        elif falta == "clpi":
+            con.execute(
+                text("""update negocio.salvaguarda set evidencia =
+                jsonb_set(evidencia, '{territorio_tradicional}', 'true') where cod_imovel = :c"""),
+                {"c": cod},
+            )
+        else:
+            raise AssertionError(f"cenário desconhecido: {falta}")
+
+
+@pytest.mark.parametrize("falta", ["verificacao", "cobertura", "geometria", "clpi"])
+def test_preparar_reserva_exige_evidencias_antes_de_qualquer_pix(eng, grupo_reserva, falta):
+    cid, pid, cod = grupo_reserva
+    _invalidar_grupo(eng, cod, falta)
+    for por_agente in (None, "agente-de-teste"):
+        with pytest.raises(SG.ErroSalvaguarda, match="salvaguardas"):
+            S.reservar(eng, pid, cid, por_agente=por_agente)
+    with eng.connect() as con:
+        assert con.execute(text("select count(*) from negocio.reserva where pedido_id = :p"), {"p": pid}).scalar() == 0
+
+
+@pytest.mark.parametrize("falta", ["verificacao", "cobertura", "geometria", "clpi"])
+def test_confirmacao_revalida_grupo_congelado_e_preserva_link_apos_recusa(eng, grupo_reserva, falta, monkeypatch):
+    cid, pid, cod = grupo_reserva
+    enviados = []
+    monkeypatch.setattr(S, "ENVIO_CONFIRMACAO", lambda cliente, token: enviados.append((cliente, token)))
+    preparada = S.reservar(eng, pid, cid, por_agente="agente-de-teste")
+    assert preparada["aguardando_confirmacao"] and preparada["pix"] is None
+    assert enviados[0][0] == cid
+    token = enviados[0][1]
+    _invalidar_grupo(eng, cod, falta)
+    # Alterar a composição atual do pedido não retira o imóvel da reserva já preparada.
+    with eng.begin() as con:
+        con.execute(text("delete from negocio.pedido_fazenda where pedido_id = :p"), {"p": pid})
+    with pytest.raises(SG.ErroSalvaguarda, match="salvaguardas"):
+        S.reservar(eng, pid, cid, por_agente="agente-de-teste")
+    with pytest.raises(SG.ErroSalvaguarda, match="salvaguardas"):
+        S.confirmar_reserva(eng, token)
+    with eng.connect() as con:
+        estado, tem_link, n_pix = con.execute(
+            text("""select r.estado, r.confirmacao_hash is not null,
+            (select count(*) from negocio.cobranca c where c.reserva_id = r.id)
+            from negocio.reserva r where r.pedido_id = :p"""),
+            {"p": pid},
+        ).one()
+    assert (estado, tem_link, n_pix) == ("aguardando_confirmacao", True, 0)
+    _verificar_grupo(eng, cod)
+    confirmada = S.confirmar_reserva(eng, token)
+    assert confirmada["estado"] == "aguardando_pagamento" and confirmada["pix"]
+    with pytest.raises(S.ErroPedido, match="link de confirmação inválido"):
+        S.confirmar_reserva(eng, token)
+    with eng.connect() as con:
+        assert (
+            con.execute(
+                text("""select count(*) from negocio.cobranca c join negocio.reserva r on c.reserva_id = r.id
+            where r.pedido_id = :p"""),
+                {"p": pid},
+            ).scalar()
+            == 1
+        )

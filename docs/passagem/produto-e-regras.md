@@ -34,6 +34,35 @@ Rotas legadas redirecionam à API paga; recusas também contam no limitador.
 PR: https://github.com/bernardoemmel/Raiz/pull/45. Merge condicionado ao CI verde.
 Registrar os resultados do lote/Release na próxima entrega.
 
+## Entrega de salvaguardas e recálculo do Pará
+
+Piso de reversão de 20% aplicado no YAML e no cálculo, inclusive cenários editados.
+Há camada PostGIS de programas REDD+, cobertura por UF com validade, evidências
+por programa/período, CLPI com consentimento prévio e repartição de 50% para
+remoção/70% para REDD+ de mercado. Fonte ausente fica não verificada e impede
+preparação/aprovação da reserva. Ainda não há declaração de cobertura oficial
+carregada; não converter falta de evidência em elegibilidade.
+
+Revisão humana exige vínculo da fazenda ao pedido, conta liberada e acesso da
+própria empresa. Resolver exige credencial humana separada, com trilha auditável.
+Detalhes: `docs/salvaguardas-produto.md`.
+
+O novo workflow `.github/workflows/recalcular-para.yml` processa 12 fatias, até
+12 em paralelo, sujeitas à fila da conta. Congela assets do Release por ID/hash, cobertura MapBiomas,
+camadas geobr e o commit; preserva também as medições geográficas por município
+obtidas dos rasters remotos, com hash no manifesto. Valida
+144 municípios, conservação das fazendas e piso 20%; publica pacote, CSV, JSON,
+HTML e manifesto com SHA256 no Release `dados`, sem sobrescrever os pacotes do
+executor nacional. O script recusa cálculo fora do GitHub Actions.
+
+Os números antigos da rodada11 estão identificados como históricos. A execução
+nova e o resultado ainda precisam ser registrados aqui depois do CI/merge.
+
+Validação desta entrega: 650 testes passaram, 4 foram pulados e 1 é xfail;
+os 5 testes de guardas do recálculo passaram novamente após preservar as entradas
+geográficas. Ruff, formatação, actionlint, privacidade e licenças aprovados.
+O recálculo permanece exclusivo do Actions; nenhum cálculo do lote rodou aqui.
+
 ---
 
 ## Registro anterior (contexto histórico; itens acima prevalecem)

@@ -1,0 +1,122 @@
+name: Recalcular lote do Pará
+run-name: Recálculo do lote do Pará — 144 municípios
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: recalcular-lote-para
+  cancel-in-progress: false
+
+env:
+  RAIZ_SEM_BANCO: "1"
+  PYTHONUNBUFFERED: "1"
+  OGR_GEOJSON_MAX_OBJ_SIZE: "0"
+
+jobs:
+  preparar:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 100
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - run: uv sync --frozen --all-extras
+      - name: Recuperar cobertura e camadas nacionais
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            motor/cache/mapbiomas
+            motor/cache/*.parquet
+          key: recalculo-pa-fontes-${{ github.run_id }}
+          restore-keys: |
+            recalculo-pa-fontes-
+      - name: Congelar pacotes do Release e conferir os 144 municípios
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: uv run python scripts/recalcular_para.py preparar
+      - name: Guardar fontes para a próxima rodada
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            motor/cache/mapbiomas
+            motor/cache/*.parquet
+          key: recalculo-pa-fontes-${{ github.run_id }}
+      - name: Compartilhar as mesmas entradas entre todas as fatias
+        uses: actions/upload-artifact@v4
+        with:
+          name: entradas-pa
+          path: dados/armazem_local/recalculo-pa/entradas
+          compression-level: 0
+          retention-days: 7
+          if-no-files-found: error
+
+  recalcular:
+    needs: preparar
+    runs-on: ubuntu-24.04
+    timeout-minutes: 330
+    strategy:
+      fail-fast: false
+      max-parallel: 12
+      matrix:
+        fatia: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - run: uv sync --frozen --all-extras
+      - uses: actions/download-artifact@v4
+        with:
+          name: entradas-pa
+          path: dados/armazem_local/recalculo-pa/entradas
+      - name: Recalcular caminho da terra, rebanho e restauração (12 municípios)
+        env:
+          FATIA: ${{ matrix.fatia }}
+        run: uv run python scripts/recalcular_para.py recalcular --fatia "$FATIA"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: calculo-pa-${{ matrix.fatia }}
+          overwrite: true
+          path: dados/armazem_local/recalculo-pa/fragmentos
+          retention-days: 7
+          if-no-files-found: warn
+
+  publicar:
+    needs: [preparar, recalcular]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - run: uv sync --frozen --all-extras
+      - uses: actions/download-artifact@v4
+        with:
+          name: entradas-pa
+          path: dados/armazem_local/recalculo-pa/entradas
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: calculo-pa-*
+          merge-multiple: true
+          path: dados/armazem_local/recalculo-pa/fragmentos
+      - name: Validar 144 municípios, privacidade e reserva; montar o lote de 1 milhão
+        run: uv run python scripts/recalcular_para.py consolidar
+      - name: Preservar resultado mesmo se o Release estiver indisponível
+        uses: actions/upload-artifact@v4
+        with:
+          name: lote-pa-publicacao
+          path: dados/armazem_local/recalculo-pa/publicacao
+          retention-days: 30
+          if-no-files-found: error
+      - name: Publicar resultados e manifesto no Release dados
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release upload dados dados/armazem_local/recalculo-pa/publicacao/*.tar.gz \
+            dados/armazem_local/recalculo-pa/publicacao/lote_PA_*.csv \
+            dados/armazem_local/recalculo-pa/publicacao/lote_PA_*.json \
+            dados/armazem_local/recalculo-pa/publicacao/relatorio_lote_PA_*.html
+          gh release upload dados dados/armazem_local/recalculo-pa/publicacao/manifesto_lote_PA_*.json

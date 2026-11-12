@@ -992,6 +992,8 @@ def reservar(engine: Engine, pedido_id: str, cliente_id: int, por_agente: str | 
     quando o pagamento entra). Pedida por um agente de IA (`por_agente`: a chave ou o MCP), a reserva nasce
     "aguardando confirmação": o link de uso único vai para o e-mail da empresa e o Pix só sai quando uma pessoa
     confirma (confirmar_reserva). O agente nunca recebe o link nem conclui o pagamento."""
+    from raiz import salvaguardas as SG
+
     token = None
     with engine.begin() as con:
         p = _linha_pedido(con, pedido_id, cliente_id)
@@ -1004,6 +1006,18 @@ def reservar(engine: Engine, pedido_id: str, cliente_id: int, por_agente: str | 
         ).scalar()
         if aberta is None:
             cods = _grupo(con, p["id"])
+        else:
+            cods = list(
+                con.execute(
+                    text("select cod_imovel from negocio.reserva_fazenda where reserva_id = :r"),
+                    {"r": aberta},
+                ).scalars()
+            )
+        if not cods:
+            raise ErroPedido("a reserva precisa de fazendas no grupo pronto")
+        # Uma repetição também revalida o grupo congelado da reserva já preparada.
+        SG.exigir_para_reserva(engine, cods)
+        if aberta is None:
             ocupadas = {
                 r[0]
                 for r in con.execute(
@@ -1058,6 +1072,8 @@ ENVIO_CONFIRMACAO: Callable[[int, str], None] | None = None  # (cliente, token):
 
 def confirmar_reserva(engine: Engine, token: str, quem: str = "pessoa") -> dict:
     """Uma pessoa da empresa confirma a reserva pedida pelo agente (link de uso único, 48 horas): sai o Pix."""
+    from raiz import salvaguardas as SG
+
     with engine.begin() as con:
         res = con.execute(
             text("""update negocio.reserva set estado = 'aguardando_pagamento', confirmada_em = now(),
@@ -1068,6 +1084,17 @@ def confirmar_reserva(engine: Engine, token: str, quem: str = "pessoa") -> dict:
         ).first()
         if res is None:
             raise ErroPedido("link de confirmação inválido, usado ou vencido: peça a reserva de novo")
+        cods = list(
+            con.execute(
+                text("select cod_imovel from negocio.reserva_fazenda where reserva_id = :r"),
+                {"r": res.id},
+            ).scalars()
+        )
+        if not cods:
+            raise ErroPedido("a reserva precisa de fazendas no grupo pronto")
+        # Mudanças de cobertura ou evidência entre preparação e aprovação impedem o Pix.
+        # Uma falha desfaz o UPDATE acima, preservando o link para depois da revisão.
+        SG.exigir_para_reserva(engine, cods)
         p = _linha_pedido(con, str(res.pedido_id), res.cliente_id)
         _cobrar(con, res.id, p, float(res.valor_rs))
         con.execute(

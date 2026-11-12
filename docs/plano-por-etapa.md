@@ -212,8 +212,8 @@ Feito na main fora desta tabela: caminho da terra com risco por imóvel (`raiz/t
 | C | OAuth 2.1 com Keycloak; consultar/pedir e reservar desabilitado por padrão, habilitado por administrador da empresa | em implementação |
 | D | Trabalhos persistidos, Idempotency-Key, Standard Webhooks, aprovação humana/Pix/recibo e OpenTelemetry | em implementação |
 | E | Gabarito de 20–30 tarefas; meta pass^4 >= 80% e nenhuma chamada proibida | pendente de avaliação |
-| F | Piso de reversão 20%, REDD+ jurisdicional, CLPI e participação territorial, revisão humana | em implementação |
-| G | Recálculo dos 144 municípios do Pará pelo Actions e publicação do lote no Release | preparação; não executado no contêiner |
+| F | Piso de reversão 20%, REDD+ jurisdicional, CLPI e participação territorial, revisão humana | implementado; camada/evidências precisam carga oficial, ausência bloqueia reserva |
+| G | Recálculo dos 144 municípios do Pará pelo Actions e publicação do lote no Release | workflow e validações prontos; execução e resultado pendentes |
 
 ## E8. Aprendizado contínuo
 

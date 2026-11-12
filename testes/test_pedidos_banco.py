@@ -10,6 +10,7 @@ from fastapi.testclient import TestClient
 from pydantic import SecretStr
 from sqlalchemy import create_engine, text
 
+from raiz import salvaguardas as SG
 from raiz.carga import carregar_pasta
 from raiz.pedidos import servico as S
 from raiz.pessoal import gerar_chave
@@ -31,6 +32,23 @@ def eng(banco_url):
         c.execute(text("truncate funil.rodada, funil.imovel, negocio.oferta, negocio.cliente cascade"))
         c.execute(text("truncate negocio.interesse_dono, negocio.interesse_evento"))
     carregar_pasta(e, AMOSTRA, dt.date(2026, 11, 12))  # a carga já refaz a oferta do município
+    # A amostra CSV não contém geometria nem documentos. Apenas neste cenário feliz,
+    # polígonos e evidências sintéticos tornam explícita a revisão prévia à reserva.
+    hoje = dt.datetime.now(dt.UTC).date()
+    ev = SG.Evidencia(sha256="c" * 64, data=hoje)
+    SG.registrar_cobertura(e, SG.Cobertura(uf="PA", evidencia=ev, valida_ate=hoje))
+    verificacao = SG.Verificacao(verificacao=ev, territorio_tradicional=False)
+    with e.begin() as c:
+        c.execute(
+            text("""update funil.imovel set geom = ST_Multi(ST_GeomFromText(
+            'POLYGON((-47 -1,-46.99 -1,-46.99 -0.99,-47 -0.99,-47 -1))', 4674))
+            where geom is null""")
+        )
+        c.execute(
+            text("""insert into negocio.salvaguarda (cod_imovel, evidencia)
+            select cod_imovel, cast(:e as jsonb) from funil.imovel"""),
+            {"e": verificacao.model_dump_json()},
+        )
     yield e
     e.dispose()
 
