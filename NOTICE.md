@@ -34,6 +34,12 @@ fundador em `motor/iovbench/` (EvenOdd, contorno externo menos buracos).
   e cada arquivo gerado ganhou uma linha de cabeçalho dizendo de onde veio. As regras em `raiz/regras/catala/` são
   próprias da Raíz.
 
+## LanguageTool (revisor de estilo, só no servidor)
+
+- Origem: https://languagetool.org, versão 6.6, baixada pelo `infra/languagetool/Dockerfile` ao montar o contêiner.
+- Licença: LGPL-2.1 ou posterior. Roda só como serviço separado no servidor (`revisor` em `infra/docker-compose.yml`);
+  nenhum código dele é copiado para o produto. `raiz/revisor.py` só chama a API HTTP dele.
+
 ## Extensão spatial do DuckDB
 
 - Origem: https://github.com/duckdb/duckdb-spatial (MIT), baixada de extensions.duckdb.org em tempo de execução, não

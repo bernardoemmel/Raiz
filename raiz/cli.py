@@ -1178,9 +1178,10 @@ def legibilidade_medir(
     from pathlib import Path
 
     from raiz.legibilidade import medir, resumo
+    from raiz.revisor import nota_de_envio
 
     texto = Path(arquivo).read_text(encoding="utf-8") if arquivo else sys.stdin.read()
-    m = medir(texto, preparar_texto=not cru)
+    m = medir(texto, preparar_texto=False) if cru else nota_de_envio(texto)
     if como_json:
         typer.echo(json.dumps(m, ensure_ascii=False, indent=2))
         return
@@ -1191,9 +1192,17 @@ def legibilidade_medir(
             f"(nível {m['nivel_languagetool']} de 6)"
         )
         typer.echo(
-            f"  {m['palavras']} palavras, {m['frases']} frases, {m['silabas']} sílabas, {m['complexas']} complexas "
+            f"  {m['palavras']} palavras, {m['frases']} frase(s), {m['silabas']} sílabas, {m['complexas']} complexas "
             f"({m['complexas_criterio']}); medidor {m['versao']}"
         )
+    lt = m.get("languagetool")
+    if lt and lt.get("erro"):
+        typer.echo(f"  revisor: {lt['erro']}")
+    elif lt:
+        typer.echo(f"  revisor (LanguageTool {lt['versao']}): {lt['total']} aviso(s) de estilo")
+        for a in lt["avisos"]:
+            sug = f" → {', '.join(a['sugestoes'])}" if a["sugestoes"] else ""
+            typer.echo(f"    «{a['trecho']}»: {a['mensagem']}{sug}")
 
 
 @legibilidade_cli.command("modelos")
