@@ -204,6 +204,129 @@ def aprendizado_olofsson(sorteio_id: int) -> None:
                    f"previsto {c['area_prevista_ha']:,.0f} ha; acerto do usuário {ua}, do produtor {pa}")  # fmt: skip
 
 
+@aprendizado.command("calibracao")
+def aprendizado_calibracao(
+    modelo: Annotated[str, typer.Option(help="modelo das previsões (ex.: regularizacao, triagem_titulo)")],
+    alvo: Annotated[str, typer.Option(help="alvo de chance 0 a 1 com gabarito sim ou não")],
+) -> None:
+    """A chance prevista bate com o que acontece? No total e por UF e porte (módulos fiscais)."""
+    from raiz.aprendizado import calibracao as C
+    from raiz.banco import engine
+
+    with engine().connect() as con:
+        m = C.medir(C.pontos(con, modelo, alvo))
+    if not m["total"]:
+        typer.echo("sem previsões de chance com gabarito para este modelo e alvo")
+        return
+    for nome, r in [("total", m["total"]), *m["segmentos"].items()]:
+        marca = "  FORA" if r["fora"] else ""
+        typer.echo(f"{nome:22} n={r['n']:5} prevista {100 * r['prevista']:5.1f}% real {100 * r['real']:5.1f}% "
+                   f"diferença {100 * r['diferenca']:+5.1f} pp (95%: {100 * r['ic95'][0]:+.1f} a "
+                   f"{100 * r['ic95'][1]:+.1f}) ECE {r['ece']:.3f} Brier {r['brier']:.3f}{marca}")  # fmt: skip
+
+
+@aprendizado.command("folds")
+def aprendizado_folds(
+    modelo: Annotated[str, typer.Option(help="modelo das previsões")],
+    alvo: Annotated[str, typer.Option(help="alvo de chance 0 a 1")],
+    inicio: Annotated[str, typer.Option(help="primeiro corte, AAAA-MM-DD (um por ano até hoje)")],
+    congelar: Annotated[bool, typer.Option(help="congelar as previsões recalibradas como backtest")] = True,
+    pelo_registro: Annotated[bool, typer.Option(help="só gabarito já registrado na data do corte")] = False,
+) -> None:
+    """Teste por tempo da calibração: em cada corte anual, ajusta só com o passado e testa no ano seguinte."""
+    import datetime as dt
+
+    from raiz.aprendizado import folds as F
+    from raiz.banco import engine
+
+    cortes = F.cortes_anuais(dt.date.fromisoformat(inicio), dt.date.today())
+    with engine().begin() as con:
+        res = F.calibracao_por_tempo(con, modelo, alvo, cortes, congelar, pelo_registro=pelo_registro)
+    for f in res:
+        if f["situacao"] != "ok":
+            typer.echo(f"{f['corte']}: pouco dado (treino {f['n_treino']}, teste {f['n_teste']})")
+            continue
+        typer.echo(f"{f['corte']}: treino {f['n_treino']}, teste {f['n_teste']}; Brier {f['brier_base']:.4f} -> "
+                   f"{f['brier_calibrado']:.4f}, ECE {f['ece_base']:.3f} -> {f['ece_calibrado']:.3f} "
+                   f"(desafiante {f['versao']})")  # fmt: skip
+
+
+@aprendizado.command("campeao")
+def aprendizado_campeao(
+    alvo: Annotated[str, typer.Option(help="alvo")],
+    inicial: Annotated[str | None, typer.Option(help="definir o primeiro campeão: modelo:versao")] = None,
+    quem: Annotated[str, typer.Option(help="identificador do operador, nunca nome")] = "fundador",
+) -> None:
+    """Mostra (ou define) o campeão do alvo."""
+    from raiz.aprendizado import campeao as K
+    from raiz.banco import engine
+
+    with engine().begin() as con:
+        if inicial:
+            m, v = inicial.split(":", 1)
+            K.definir_inicial(con, alvo, m, v, quem)
+        c = K.campeao_atual(con, alvo)
+        trava = K.travado(con, alvo)
+    if c is None:
+        typer.echo("sem campeão: defina com --inicial modelo:versao")
+        return
+    typer.echo(f"{alvo}: {c.modelo} {c.modelo_versao} ({c.acao} por {c.quem} em {c.em:%d/%m/%Y})"
+               f"{' · promoção automática travada' if trava else ''}")  # fmt: skip
+
+
+@aprendizado.command("promover")
+def aprendizado_promover(
+    alvo: Annotated[str, typer.Option(help="alvo")],
+    desafiante: Annotated[str, typer.Option(help="modelo:versao do desafiante")],
+    quem: Annotated[str, typer.Option(help="automatico ou o identificador do operador")] = "automatico",
+    forcar: Annotated[bool, typer.Option(help="passa pela trava e pelo intervalo (só gente; o portão vale)")] = False,
+) -> None:
+    """Compara o desafiante com o campeão nos mesmos imóveis maturados e promove se passar no portão."""
+    from raiz.aprendizado import campeao as K
+    from raiz.banco import engine
+
+    m, v = desafiante.split(":", 1)
+    with engine().begin() as con:
+        r = K.promover(con, alvo, (m, v), quem, forcar)
+    c = r["comparacao"]
+    if c.get("pares"):
+        typer.echo(f"{c['pares']} pares; {c['medida']}: campeão {c['perda_campeao']:.4f}, desafiante "
+                   f"{c['perda_desafiante']:.4f}, diferença {c['diferenca']:+.4f} (95%: {c['ic95'][0]:+.4f} a "
+                   f"{c['ic95'][1]:+.4f})")  # fmt: skip
+    typer.echo("promovido" if r["promovido"] else "não promovido: " + "; ".join(r["motivos"]))
+
+
+@aprendizado.command("voltar")
+def aprendizado_voltar(
+    alvo: Annotated[str, typer.Option(help="alvo")],
+    quem: Annotated[str, typer.Option(help="identificador do operador, nunca nome")],
+    motivo: Annotated[str, typer.Option(help="por que voltar")],
+) -> None:
+    """Volta ao campeão anterior (decisão de gente)."""
+    from raiz.aprendizado import campeao as K
+    from raiz.banco import engine
+
+    with engine().begin() as con:
+        v = K.voltar(con, alvo, quem, motivo)
+    typer.echo(f"campeão de {alvo} volta a {v['modelo']} {v['modelo_versao']}")
+
+
+@aprendizado.command("travar")
+def aprendizado_travar(
+    alvo: Annotated[str, typer.Option(help="alvo")],
+    quem: Annotated[str, typer.Option(help="identificador do operador, nunca nome")],
+    motivo: Annotated[str | None, typer.Option(help="por quê")] = None,
+    destravar: Annotated[bool, typer.Option(help="libera de novo a promoção automática")] = False,
+) -> None:
+    """Trava (ou destrava) a promoção automática de um alvo."""
+    from raiz.aprendizado import campeao as K
+    from raiz.banco import engine
+
+    with engine().begin() as con:
+        K.travar(con, alvo, quem, motivo, travar_=not destravar)
+    typer.echo(f"{alvo}: promoção automática {'liberada' if destravar else 'travada'}")
+
+
 pessoal = typer.Typer(help="Dado pessoal cifrado (telefone e BSUID).", no_args_is_help=True)
 app.add_typer(pessoal, name="pessoal")
 
