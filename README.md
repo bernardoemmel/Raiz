@@ -26,7 +26,7 @@ e comparada com o resultado real.
 
 Desempenho: cerca de 30 a 40 s por município com 3 municípios ao mesmo tempo (4 núcleos, 15 GB); Brasil inteiro em cerca de 2 dias.
 
-**Amostra (`dados/amostra/`)**: resumo do Pará (144 municípios) e os imóveis de Nova Esperança do Piriá (PA).
+**Amostra (`dados/amostra/`)**: resumo do Pará (144 municípios) e, para Nova Esperança do Piriá (1504950) e São Félix do Xingu (1507300), todos os arquivos por município: imoveis, filtros, certidoes, direto, extras, extras_direto e mapbiomas (sem CPF, CNPJ ou nome).
 Os dados completos não ficam no repositório (são grandes); o motor gera de novo.
 
 **Documentação (`docs/`)**: `colunas.md` (o que cada coluna significa; é o contrato entre motor e produto) e
