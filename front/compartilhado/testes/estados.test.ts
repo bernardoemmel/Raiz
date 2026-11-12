@@ -318,7 +318,7 @@ describe("sem RAIZ_DADOS e sem internet: a amostra", () => {
     expect(r.status).toBe(0)
     expect(r.stderr).toMatch(/\[dados\] não consegui ler o estados\.json público/)
     expect(fs.existsSync(destino)).toBe(false)
-    // o plugin com a mesma RAIZ_DADOS: a pasta não existe, então serve a amostra
+    // RAIZ_DADOS explícita nunca cai na amostra se a publicação estiver ausente
     const servir = conectar(dadosRaiz({ repo: REPO, raizDados: destino, cache: path.join(temp, "cache-predev") }))
     const e = JSON.parse((await servir("/amostra/estados.json")).corpo)
     expect(e.pasta).toBe("RAIZ_DADOS")
