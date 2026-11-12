@@ -62,17 +62,20 @@ export default function App() {
   }, [])
   const aoMapaPronto = useCallback(() => setMapaPronto(true), [])
 
-  if (rota.tela === "fazenda") return <Fazenda car={rota.car} />
+  if (rota.tela === "fazenda") return <Fazenda key={rota.car} car={rota.car} />
 
   const comAbertura = estado !== "nunca" && rota.municipio === codAbertura
   const emCurso = estado === "rodando" || estado === "revelando"
   return (
     <>
-      <Principal
-        key={rota.municipio}
-        municipio={rota.municipio}
-        abertura={comAbertura ? { mapa, revelado: estado !== "rodando", aoMapaPronto } : undefined}
-      />
+      {/* durante a abertura o painel fica por baixo e inerte: a busca que vale é a da abertura */}
+      <div inert={emCurso && comAbertura}>
+        <Principal
+          key={rota.municipio}
+          municipio={rota.municipio}
+          abertura={comAbertura ? { mapa, revelado: estado !== "rodando", aoMapaPronto } : undefined}
+        />
+      </div>
       {emCurso && comAbertura && alvo.dado && (
         <Abertura
           local={alvo.dado.local}

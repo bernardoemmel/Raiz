@@ -4,6 +4,7 @@
  *   /amostra/indice.json             lista dos arquivos de dados/amostra/ (um arquivo novo do motor aparece sozinho)
  *   /amostra/<arquivo>.csv           os CSV do motor, como estão
  *   /amostra/fichas/<cod>.json       a ficha leve de uma fazenda (dados/ficha.ts), montada aqui
+ *   /busca?q=                        busca por código do CAR ou município (dados/busca.ts), como o back-end vai fazer
  *   /geo/<arquivo>                   o que front/scripts/geo.py gerou (GeoJSON e PMTiles, com Range)
  *   /geo/fontes/<fonte>/<faixa>.pbf  letras dos rótulos do mapa
  *
@@ -13,10 +14,11 @@
 
 import fs from "node:fs"
 import path from "node:path"
+import { buscar } from "./dados/busca"
 import { complementosDe, juntarComplementos } from "./dados/complementos"
 import { lerCsv } from "./dados/csv"
 import { baseDoMunicipio, montarFicha, type BaseMunicipio } from "./dados/ficha"
-import { lerImovel } from "./dados/funil"
+import { lerFunil, lerImovel } from "./dados/funil"
 import type { Geo, Imovel } from "./dados/tipos"
 
 interface Requisicao {
@@ -96,6 +98,15 @@ export function dadosRaiz(opcoes: { repo: string }) {
     return null
   }
 
+  function baseBusca() {
+    const municipios = listar(amostra)
+      .filter((f) => /^resumo_[A-Z]{2}\.csv$/.test(f))
+      .flatMap((f) => lerCsv(fs.readFileSync(path.join(amostra, f), "utf8")).linhas.map((l) => lerFunil(l, f.slice(7, 9))))
+    const cods = comImoveis()
+    const imoveis = cods.flatMap((c) => municipio(c)?.imoveis ?? [])
+    return { municipios, imoveis, comImoveis: new Set(cods) }
+  }
+
   function enviarArquivo(req: Requisicao, res: Resposta, arq: string) {
     const tamanho = fs.statSync(arq).size
     res.setHeader("Content-Type", TIPOS[path.extname(arq)] ?? "application/octet-stream")
@@ -144,6 +155,10 @@ export function dadosRaiz(opcoes: { repo: string }) {
       server.middlewares.use((req, res, next) => {
         const url = decodeURIComponent((req.url ?? "").split("?")[0])
         let m: RegExpExecArray | null
+        if (url === "/busca") {
+          const q = new URLSearchParams((req.url ?? "").split("?")[1] ?? "").get("q") ?? ""
+          return json(res, buscar(q, baseBusca()))
+        }
         if (url === "/amostra/indice.json") return json(res, { arquivos: listar(amostra).filter((f) => f.endsWith(".csv")) })
         if ((m = /^\/amostra\/fichas\/([\w-]+)\.json$/.exec(url))) {
           const f = ficha(m[1])

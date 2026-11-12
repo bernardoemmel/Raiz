@@ -180,3 +180,79 @@ describe("título e motivos", async () => {
     }
   })
 })
+
+describe("busca por código do CAR ou município (GET /busca?q=)", async () => {
+  const { buscar, normalizarCar } = await import("../dados/busca")
+  const imoveis = [...carregar("1504950").imoveis, ...carregar("1507300").imoveis]
+  const municipios = ler("resumo_PA.csv").map((l) => lerFunil(l, "PA"))
+  const base = { municipios, imoveis, comImoveis: new Set(["1504950", "1507300"]) }
+  const SFX = "PA-1507300-F293CD17B5FE4D4682CB436FF5B136D0"
+
+  it("acha o imóvel pelo código inteiro, em municípios diferentes", () => {
+    for (const [cod, mun] of [
+      ["PA-1504950-508C67099D164E0581650983A8CC2059", "Nova Esperança do Piriá"],
+      [SFX, "São Félix do Xingu"],
+      // código com o município de outro lugar, mas o imóvel está nestes municípios
+      ["PA-1503077-1105FEC8081A45F48E16739A0035CC5E", "Nova Esperança do Piriá"],
+      ["PA-1502764-9686458E866C455FBDF5E41D96D7A614", "São Félix do Xingu"],
+      ["PA-1504208-B000CE16276348319BBA474ACFB35A67", "São Félix do Xingu"],
+    ]) {
+      const r = buscar(cod, base)
+      expect(r.situacao, cod).toBe("ok")
+      expect(r.imoveis.map((i) => i.cod_imovel)).toEqual([cod])
+      expect(r.imoveis[0].municipio).toBe(mun)
+    }
+  })
+
+  it("aceita o código como o recibo do CAR mostra (com pontos), em minúsculas e sem hífen", () => {
+    expect(normalizarCar("pa-1507300-f293.cd17.b5fe.4d46.82cb.436f.f5b1.36d0")).toBe(SFX)
+    expect(buscar("PA-1507300-F293.CD17.B5FE.4D46.82CB.436F.F5B1.36D0", base).imoveis[0]?.cod_imovel).toBe(SFX)
+    expect(buscar("pa1507300f293cd17b5fe4d4682cb436ff5b136d0", base).imoveis[0]?.cod_imovel).toBe(SFX)
+  })
+
+  it("acha pelo começo do código, as maiores áreas aptas primeiro", () => {
+    const r = buscar("PA-1507300-F29", base)
+    expect(r.situacao).toBe("ok")
+    expect(r.imoveis.map((i) => i.cod_imovel)).toContain(SFX)
+    expect(buscar("PA-1507300", base).imoveis.length).toBe(8)
+  })
+
+  it("diz quando o município tem funil mas os imóveis ainda não foram processados (Altamira)", () => {
+    const r = buscar("PA-1500602-70896562BFAF45BCA609AD3EBBE266F1", base)
+    expect(r.situacao).toBe("municipio_sem_imoveis")
+    expect(r.mensagem).toContain("Altamira")
+    expect(r.municipios.map((m) => [m.cod_ibge, m.tem_imoveis])).toEqual([["1500602", false]])
+  })
+
+  it("diz quando o estado ainda não foi processado (Sinop, MT)", () => {
+    const r = buscar("MT-5107909-530857C676404FCEB548A881C0ED8B8A", base)
+    expect(r.situacao).toBe("estado_nao_processado")
+    expect(r.mensagem).toContain("Mato Grosso")
+    expect(r.mensagem).toContain("Pará")
+  })
+
+  it("diz quando o código não existe e quando o formato está errado", () => {
+    const errado = SFX.slice(0, -1) + "1"
+    const r = buscar(errado, base)
+    expect(r.situacao).toBe("nao_encontrado")
+    expect(r.mensagem).toContain("São Félix do Xingu")
+    expect(buscar("PA-9999999-ABC", base).situacao).toBe("nao_encontrado")
+    expect(buscar("XX-1507300", base).situacao).toBe("formato_invalido")
+    expect(buscar("PA-1507300-ZZZ", base).situacao).toBe("formato_invalido")
+    expect(buscar("PA-15", base).situacao).toBe("curta")
+  })
+
+  it("acha município pelo nome, sem acento, e diz quais têm lista por fazenda", () => {
+    const sf = buscar("sao felix", base)
+    expect(sf.municipios[0]).toMatchObject({ cod_ibge: "1507300", tem_imoveis: true })
+    expect(buscar("xingu", base).municipios.map((m) => m.municipio)).toEqual(
+      expect.arrayContaining(["São Félix do Xingu", "Vitória do Xingu"]),
+    )
+    expect(buscar("Altamira", base).municipios[0]).toMatchObject({ cod_ibge: "1500602", tem_imoveis: false })
+    expect(buscar("1504950", base).municipios[0].municipio).toBe("Nova Esperança do Piriá")
+    expect(buscar("al", base).situacao).toBe("curta")
+    const nada = buscar("Curitiba", base)
+    expect(nada.situacao).toBe("nao_encontrado")
+    expect(nada.mensagem).toContain("Pará")
+  })
+})

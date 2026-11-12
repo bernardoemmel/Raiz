@@ -145,7 +145,7 @@ export function Principal({ municipio, abertura }: Props) {
 
   return (
     <>
-      <Cabecalho atual="mapa" imoveis={dados} linkMapa={linkMunicipio(municipio)} />
+      <Cabecalho atual="mapa" linkMapa={linkMunicipio(municipio)} />
       <main className="pagina">
         <div className="cabeca">
           <div>

@@ -32,6 +32,8 @@ O painel abre em `http://localhost:5173/` (São Félix do Xingu primeiro) e a fi
 `http://localhost:5174/?car=<código do CAR>`. Testes da camada de dados: `cd front/globo && npm test`.
 
 - `?sem-abertura` pula a abertura; `?abertura` força. Ela roda uma vez por sessão e nunca com "reduzir movimento".
+- A busca fica no topo da abertura, do painel e da ficha (atalho: tecla `/`). Imóvel achado abre a ficha com o mapa
+  saindo do Brasil, passando pelo município e pousando na fazenda.
 - Rotas do painel: `#/municipio/<código IBGE>` e `#/fazenda/<código do CAR>`.
 
 ## Dados
@@ -52,12 +54,20 @@ Tudo passa por `compartilhado/dados/` (`FonteDeDados`). As telas não sabem de o
 | `GET /imoveis/{cod_imovel}` | um imóvel |
 | `GET /imoveis/{cod_imovel}/ficha` | `FichaJson` (`compartilhado/dados/ficha.ts`): linha, contexto do município e perímetro em polyline |
 | `GET /imoveis/{cod_imovel}/certidoes` | cartório (CNS) e matrícula das parcelas SIGEF |
+| `GET /busca?q=` | `RespostaBusca` (`compartilhado/dados/busca.ts`): `situacao`, `mensagem`, `imoveis`, `municipios` |
 | `GET /geo/{cod_ibge}/{municipio,imoveis,ti,uc,rios}.geojson` | geometrias |
 | `GET /geo/{cod_ibge}/base.pmtiles` | mapa base (precisa responder a `Range`) |
 
+A busca (`GET /busca?q=`) aceita o código do CAR inteiro ou o começo dele, com ou sem os pontos do recibo
+(`PA-1507300-F293.CD17...`), e o nome ou o código IBGE do município. Quando não acha, diz por quê:
+`estado_nao_processado`, `municipio_sem_imoveis` (o município tem funil, mas a lista por fazenda não foi processada),
+`nao_encontrado`, `formato_invalido` ou `curta`. A regra está em `compartilhado/dados/busca.ts`, com testes; o
+back-end pode portar a mesma função. Na amostra, o plugin do Vite responde a rota; no build estático, a mesma função
+roda no navegador.
+
 Colunas que o front já sabe usar quando o motor entregar: `matricula_conferida` (troca o selo "matrícula a
-conferir" por "conferida"), `rebanho_cabecas` (linha de gado na caixa de fatos), `cacau_aptidao` (liga a frente
-Cacau), `mb_fogo_2025_ha` (liga a camada de fogo).
+conferir" por "conferida"), `rebanho_cabecas` (linha de gado na caixa de fatos), `fogo_anos_max` e `mb_fogo_<ano>_ha` (camada de fogo, já ligada). A frente Cacau e o raio do
+frigorífico ficam desligados de propósito, mesmo quando as colunas chegarem.
 
 ## Regras que as telas seguem
 

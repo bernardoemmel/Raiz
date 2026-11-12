@@ -6,6 +6,7 @@
  */
 
 import { n0, texto } from "./colunas"
+import { buscar, type RespostaBusca } from "./busca"
 import { complementosDe, juntarComplementos } from "./complementos"
 import { lerCsv } from "./csv"
 import { buscarJson, buscarTexto, memo, type Certidao, type FonteDeDados } from "./fonte"
@@ -93,6 +94,16 @@ export function fonteAmostra(base = "/"): FonteDeDados {
         }
       }
       return saida
+    },
+    async buscar(q, sinal) {
+      // o plugin do Vite responde GET /busca?q= como o back-end vai responder
+      const r = await fetch(`${raiz}busca?q=${encodeURIComponent(q)}`, { signal: sinal })
+      const tipo = r.headers.get("content-type") ?? ""
+      if (r.ok && tipo.includes("json")) return (await r.json()) as RespostaBusca
+      // build estático, sem servidor: a mesma busca, aqui no navegador
+      const comImoveis = await municipiosComImoveis()
+      const todos = (await Promise.all(comImoveis.map((c) => imoveis(c)))).flatMap((l) => l ?? [])
+      return buscar(q, { municipios: await municipios(""), imoveis: todos, comImoveis: new Set(comImoveis) })
     },
     municipiosComImoveis,
     geo: {

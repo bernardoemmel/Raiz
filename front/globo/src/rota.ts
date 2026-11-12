@@ -27,3 +27,17 @@ export function useRota(): Rota {
   }, [])
   return rota
 }
+
+/**
+ * Pedido de voo do mapa: quem abre a ficha pela busca pede, e a ficha consome uma vez (o mapa sai do Brasil, passa
+ * pelo município e pousa na fazenda). Navegar de outro jeito não pede voo.
+ */
+let vooPedido: string | null = null
+export const pedirVoo = (car: string) => {
+  vooPedido = car
+}
+export function consumirVoo(car: string): boolean {
+  const ok = vooPedido === car
+  if (ok) vooPedido = null
+  return ok
+}
