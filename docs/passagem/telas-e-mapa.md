@@ -68,8 +68,10 @@ Sessão: https://claude.ai/code/session_01VGb88MJumyG9PHt2znaaKE. Branch: `claud
   O CNAME no artefato não configura DNS nem substitui a configuração do Pages.
 - CI executa testes de configuração e duas publicações reais da fixture: `/Raiz/` e `/`, a segunda com o hostname
   reservado `raiz.example`. Playwright e auditoria de agentes verificam ambos; na raiz, também CNAME e canonical.
-- Validação local: 10 testes de configuração, 131 testes de front (13 pulados), os dois builds e Playwright/Lighthouse
-  nos dois caminhos passaram, com zero 404 e sem expor dados individuais. Ruff check e format passaram.
+- Validação integrada das entregas 1 a 5: 10 testes de configuração, 176 testes de front sem skips, os dois builds
+  e Playwright/Lighthouse Agentic nos dois caminhos passaram, com zero 404 e sem expor dados individuais.
+  O formulário nativo do produtor conserva o caminho também com JavaScript desligado. Actionlint aprovou os dois
+  workflows; os seis jobs, E2E com API, cena-alvo e as 15 medições fixas de Lighthouse mobile foram preservados.
 - `robots.txt` e `llms.txt` ficam prontos para a raiz quando o domínio for ativado. O endereço atual de projeto
   continua com a limitação do robots na raiz de `bernardoemmel.github.io`.
 

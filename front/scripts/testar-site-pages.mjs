@@ -170,9 +170,21 @@ try {
   assert(!pedidos.some((u) => new URL(u).pathname.endsWith("/busca")), "A busca estática não pode pedir /busca.")
   assert(!pedidos.some((u) => /\/(?:imoveis_|car_|fichas\/|certidoes_|desenvolvedor_)/.test(new URL(u).pathname)),
     "A navegação aberta não pode requisitar CSV, CAR, geometria ou ficha individuais.")
+  // O formulário nativo do produtor precisa navegar tanto no subcaminho quanto na raiz, sem JavaScript.
+  const contextoSemJs = await navegador.newContext({ javaScriptEnabled: false })
+  const produtor = await contextoSemJs.newPage()
+  produtor.on("response", (r) => { if (r.status() >= 400) erros.push(`${r.status()} ${r.url()}`) })
+  await produtor.goto(new URL("produtor/", base).href)
+  await produtor.getByRole("heading", { name: "Ficha da sua fazenda", exact: true }).waitFor()
+  await produtor.getByLabel("Código do CAR", { exact: false }).fill("CAR-TESTE-DE-NAVEGACAO")
+  await produtor.getByRole("button", { name: "Ver a ficha", exact: true }).click()
+  await produtor.waitForURL((u) => u.searchParams.get("car") === "CAR-TESTE-DE-NAVEGACAO")
+  assert.equal(new URL(produtor.url()).pathname, new URL("produtor/", base).pathname,
+    "O formulário do produtor precisa conservar a base configurada.")
+  await contextoSemJs.close()
   assert.deepEqual(ausentes, [], "Nenhum arquivo pode responder 404.")
   assert.deepEqual(erros, [], "Nenhum erro de rede, JavaScript ou renderização.")
-  console.log("ok: busca por nome e IBGE, acesso pago pelo CAR, publicação sem dados individuais, zero 404 e zero erro no navegador.")
+  console.log("ok: busca por nome e IBGE, acesso pago pelo CAR, produtor sem JavaScript, publicação sem dados individuais, zero 404 e zero erro no navegador.")
 } catch (erro) {
   await pagina.screenshot({ path: path.join(resultado, "falha.png"), fullPage: true }).catch(() => {})
   console.error(JSON.stringify({ ausentes, erros }, null, 2))

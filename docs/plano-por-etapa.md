@@ -284,7 +284,9 @@ compreensão com 30 cartas reais continua pendente e nenhum contato com dono é 
 
 Domínio próprio configurável (entrega 5 de Telas e mapa, 12/11/2026): **feito no código**. `RAIZ_DOMINIO` validado
 gera CNAME, base `/` e URLs canônicas HTTPS do painel, produtor e JSON-LD. Sem domínio, o build deriva o caminho
-do repositório e mantém o Pages atual. CI cobre subcaminho e raiz, com navegação, Range, Markdown, robôs e CNAME.
+do repositório e mantém o Pages atual. CI cobre subcaminho e raiz, com navegação, Range, Markdown, robôs e CNAME;
+o formulário nativo do produtor funciona sem JavaScript nos dois caminhos. Os seis jobs de qualidade e o portão
+mobile de 15 medições são preservados antes da segunda publicação de teste.
 Ativação do domínio, DNS e HTTPS permanece pendente de um domínio real; nenhum foi inventado nem configurado.
 
 Entrega do mapa nacional (12/11/2026): o workflow publica os desenhos de todos os municípios com dados no Release,
