@@ -1,3 +1,4 @@
+import { SITUACOES_BASICAS, type ImovelBasico, type SituacaoBasica } from "../../../compartilhado/dados/basico"
 import {
   AttributionControl,
   LngLatBounds,
@@ -50,6 +51,8 @@ interface Props {
   municipio: string | null
   geoMunicipio: GeoMunicipio | null
   imoveis: Imovel[] | null
+  basicos?: ImovelBasico[] | null
+  situacaoBasica?: SituacaoBasica | null
   foco: Foco
   camada: CamadaAssunto
   destaque: string | null
@@ -174,12 +177,12 @@ function textoPopup(i: Imovel): string {
 }
 
 export function MapaBrasil(props: Props) {
-  const { brasil, estados, processados, comLista, pontos, uf, municipio, geoMunicipio, imoveis, foco, camada, destaque, margemBaixo } =
+  const { brasil, estados, processados, comLista, pontos, uf, municipio, geoMunicipio, imoveis, basicos, situacaoBasica, foco, camada, destaque, margemBaixo } =
     props
   const caixa = useRef<HTMLDivElement>(null)
   const mapaRef = useRef<MapaGL | null>(null)
   const [pronto, setPronto] = useState(false)
-  const atual = useRef({ props, porCod: new Map<string, Imovel>() })
+  const atual = useRef({ props, porCod: new Map<string, Imovel>(), basicosPorCod: new Map<string, ImovelBasico>() })
   const escolhido = useRef<string | null>(null)
   atual.current.props = props
 
@@ -337,7 +340,21 @@ export function MapaBrasil(props: Props) {
   useEffect(() => {
     const m = mapaRef.current
     const g = geoMunicipio?.imoveis
-    if (!m || !pronto || !g || !imoveis) return
+    atual.current.porCod = new Map()
+    atual.current.basicosPorCod = new Map(basicos?.map((i) => [i.cod_imovel, i]) ?? [])
+    if (!m || !pronto || !g) return
+    if (basicos) {
+      for (const f of g.features) {
+        const cod = String(f.properties.cod_imovel)
+        const basico = atual.current.basicosPorCod.get(cod)
+        const codigo = !basico || (situacaoBasica && basico.situacao_basica !== situacaoBasica)
+          ? G.apagada : { apto: G.apta, com_pendencia: G.pendencia, nao_apto: G.naoApta }[basico.situacao_basica]
+        m.setFeatureState({ source: "imoveis", id: cod }, { g: codigo, fogo: 0 })
+      }
+      ;(m.getSource("fogo-recente") as GeoJSONSource).setData(VAZIO as never)
+      return
+    }
+    if (!imoveis) return
     const porCod = new Map(imoveis.map((i) => [i.cod_imovel, i]))
     atual.current.porCod = porCod
     const fogo: Geo["features"] = []
@@ -369,7 +386,7 @@ export function MapaBrasil(props: Props) {
       m.setFeatureState({ source: "imoveis", id: cod }, { g: codigo, fogo: i && camada === "fogo" && noFoco(i, foco) ? (i.fogo_anos_max ?? 0) : 0 })
     }
     ;(m.getSource("fogo-recente") as GeoJSONSource).setData({ type: "FeatureCollection", features: fogo } as never)
-  }, [pronto, geoMunicipio, imoveis, foco, camada])
+  }, [pronto, geoMunicipio, imoveis, basicos, situacaoBasica, foco, camada])
 
   // voo até o município (curva e duração do guia, item 3.2), ou de volta ao Brasil; sem passar por zoom de mundo
   const primeiraVez = useRef(true)
@@ -703,6 +720,16 @@ export function MapaBrasil(props: Props) {
     }
     m.on("click", (e) => {
       const fazenda = m.queryRenderedFeatures(e.point, { layers: ["imoveis"] })[0]
+      const basico = fazenda && atual.current.basicosPorCod.get(String(fazenda.properties.cod_imovel))
+      if (basico) {
+        popup.setLngLat(e.lngLat).setHTML(
+          `<div class="pop-car">CAR ${esc(abreviarCar(basico.cod_imovel))}</div>` +
+          `<div class="pop-titulo">${esc(SITUACOES_BASICAS[basico.situacao_basica])}</div>` +
+          `<p class="pop-sub">Situação básica da terra. As camadas completas são consultadas com créditos pagos.</p>` +
+          `<a class="pop-link" href="${esc(linkFazenda(basico.cod_imovel))}">Abrir ficha completa</a>`
+        ).addTo(m)
+        return
+      }
       const i = fazenda && atual.current.porCod.get(String(fazenda.properties.cod_imovel))
       if (i) {
         popup.setLngLat(e.lngLat).setHTML(textoPopup(i)).addTo(m)
@@ -729,7 +756,7 @@ export function MapaBrasil(props: Props) {
     })
     m.on("mousemove", (e) => {
       const fazenda = m.queryRenderedFeatures(e.point, { layers: ["imoveis"] })[0]
-      if (fazenda && atual.current.porCod.has(String(fazenda.properties.cod_imovel)))
+      if (fazenda && (atual.current.porCod.has(String(fazenda.properties.cod_imovel)) || atual.current.basicosPorCod.has(String(fazenda.properties.cod_imovel))))
         return marcar("imoveis", String(fazenda.properties.cod_imovel))
       const mun = m.queryRenderedFeatures(e.point, { layers: ["brasil-mun"] })[0]
       const { uf, municipio } = atual.current.props

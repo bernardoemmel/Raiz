@@ -1,7 +1,7 @@
 import fs from "node:fs"
 import os from "node:os"
 import path from "node:path"
-import { gzipSync } from "node:zlib"
+import { gunzipSync, gzipSync } from "node:zlib"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { fonteAmostra } from "../dados/fonte-amostra"
 import { dadosRaiz } from "../vite-dados"
@@ -106,6 +106,36 @@ describe("build estático com geometrias comprimidas", () => {
     expect(calculada).toBeNull()
     expect(pedidos).not.toContain("/Raiz/geo/imoveis_1504208.geojson.gz")
     expect(pedidos).not.toContain(`/Raiz/amostra/fichas/${CARS[0]}.json`)
+  })
+
+  it("pacote público novo publica só situação básica e geometria sanitizada, nunca ficha ou medidas", async () => {
+    fs.writeFileSync(path.join(repo, "dados", "estados.json"), JSON.stringify({
+      escopo: "publico_basico", versao_publicacao: 1,
+      estados: { PA: { escopo: "publico_basico", versao_publicacao: 1, municipios: 2, total_ibge: 144, completo: false } },
+    }))
+    for (const cod of MUNICIPIOS) {
+      const cars = CARS.filter((car) => car.includes(cod))
+      fs.writeFileSync(path.join(repo, "dados", "PA", `imoveis_basicos_${cod}.csv`),
+        "cod_imovel,cod_ibge,municipio,uf,situacao_basica\n" + cars.map((car, k) => `${car},${cod},Município,PA,${k ? "nao_apto" : "com_pendencia"}\n`).join(""))
+      const formas = { type: "FeatureCollection", features: cars.map((car, k) => ({ ...poligono(car, -50 + k), properties: { cod_imovel: car, credito_p50: 99999, risco: "privado" } })) }
+      fs.writeFileSync(path.join(geo, `imoveis_${cod}.geojson.gz`), gzipSync(JSON.stringify(formas)))
+    }
+    const lidos = vi.spyOn(fs, "readFileSync")
+    const saida = await construir(3)
+    expect(json(saida, "amostra/estados.json").acesso).toBe("publico_basico")
+    expect(json(saida, "amostra/estados.json").estados.find((e: { uf: string }) => e.uf === "PA").com_lista).toEqual(MUNICIPIOS)
+    expect(lidos.mock.calls.some(([arq]) => /imoveis_\d{7}\.csv$/.test(String(arq)))).toBe(false)
+    for (const cod of MUNICIPIOS) {
+      const csv = gunzipSync(fs.readFileSync(path.join(saida, "amostra", `imoveis_basicos_${cod}.csv.gz`))).toString()
+      expect(csv.split("\n")[0]).toBe("cod_imovel,cod_ibge,municipio,uf,situacao_basica")
+      const forma = JSON.parse(gunzipSync(fs.readFileSync(path.join(saida, "geo", `imoveis_${cod}.geojson.gz`))).toString())
+      expect(forma.features.length).toBeGreaterThan(0)
+      expect(forma.features.every((f: { properties: object }) => Object.keys(f.properties).join() === "cod_imovel")).toBe(true)
+      expect(JSON.stringify(forma)).not.toContain("credito_p50")
+      expect(fs.existsSync(path.join(saida, "amostra", `imoveis_${cod}.csv.gz`))).toBe(false)
+    }
+    expect(fs.existsSync(path.join(saida, "amostra", "fichas"))).toBe(false)
+    expect(json(saida, "amostra/car_PA.json")).toEqual({})
   })
 
   it("variável antiga de limite de fichas não reabre a publicação por fazenda", async () => {

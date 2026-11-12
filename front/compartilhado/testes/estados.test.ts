@@ -276,11 +276,11 @@ describe("sem RAIZ_DADOS e sem internet: a amostra", () => {
   it("RAIZ_DADOS vem do ambiente ou do .env; sem ela, dados/estados se já tiver estado; senão, nada", () => {
     expect(lerRaizDados(repoFalso, {})).toBeNull()
     expect(pastaPadrao(repoFalso, {})).toBeNull()
-    fs.mkdirSync(path.join(repoFalso, "dados", "estados"), { recursive: true })
-    expect(pastaPadrao(repoFalso, {}), "pasta baixada vazia não conta").toBeNull()
-    fs.mkdirSync(path.join(repoFalso, "dados", "estados", "AP"))
-    fs.writeFileSync(path.join(repoFalso, "dados", "estados", "AP", "resumo_AP.csv"), "cod_ibge\n")
-    expect(pastaPadrao(repoFalso, {})).toBe("dados/estados")
+    fs.mkdirSync(path.join(repoFalso, "dados", "publicos"), { recursive: true })
+    expect(pastaPadrao(repoFalso, {}), "pasta pública vazia não volta à amostra").toBe("dados/publicos")
+    fs.mkdirSync(path.join(repoFalso, "dados", "publicos", "AP"))
+    fs.writeFileSync(path.join(repoFalso, "dados", "publicos", "AP", "resumo_AP.csv"), "cod_ibge\n")
+    expect(pastaPadrao(repoFalso, {})).toBe("dados/publicos")
     fs.writeFileSync(path.join(repoFalso, ".env"), 'MAPBIOMAS_ALERTA_EMAIL=x\nRAIZ_DADOS="motor/saida"\n')
     expect(pastaPadrao(repoFalso, {})).toBe("motor/saida")
     expect(pastaPadrao(repoFalso, { RAIZ_DADOS: "/outra" })).toBe("/outra")
@@ -290,7 +290,7 @@ describe("sem RAIZ_DADOS e sem internet: a amostra", () => {
 
   it("sem a variável, com pasta que não existe ou pedindo dados/amostra, lê a amostra como sempre", () => {
     const avisos: string[] = []
-    for (const raizDados of [null, "/pasta/que/nao/existe", "dados/amostra"]) {
+    for (const raizDados of [null, "dados/amostra"]) {
       const p = abrirPasta({ repo: REPO, raizDados, geo: GEO, cache: CACHE, avisar: (m) => avisos.push(m) })
       expect(p.modo).toBe("amostra")
       const e = p.estados()
@@ -303,7 +303,9 @@ describe("sem RAIZ_DADOS e sem internet: a amostra", () => {
       })
       expect(e.estados.filter((x) => x.situacao === "sem_dados")).toHaveLength(26)
     }
-    expect(avisos.join(" ")).toMatch(/não existe/)
+    const vazia = abrirPasta({ repo: REPO, raizDados: "/pasta/que/nao/existe", avisar: (m) => avisos.push(m) })
+    expect(vazia.ufs()).toEqual([])
+    expect(avisos.join(" ")).toMatch(/nenhum dado será servido/)
   })
 
   it("o predev sem internet avisa e segue (sai sem erro), e o front abre com a amostra", async () => {
@@ -314,15 +316,14 @@ describe("sem RAIZ_DADOS e sem internet: a amostra", () => {
       timeout: 30_000,
     })
     expect(r.status).toBe(0)
-    expect(r.stderr).toMatch(/\[dados\] não consegui ler o estados\.json publicado/)
+    expect(r.stderr).toMatch(/\[dados\] não consegui ler o estados\.json público/)
     expect(fs.existsSync(destino)).toBe(false)
     // o plugin com a mesma RAIZ_DADOS: a pasta não existe, então serve a amostra
     const servir = conectar(dadosRaiz({ repo: REPO, raizDados: destino, cache: path.join(temp, "cache-predev") }))
     const e = JSON.parse((await servir("/amostra/estados.json")).corpo)
-    expect(e.pasta).toBe("amostra")
-    expect(e.estados.find((x: { uf: string }) => x.uf === "PA").situacao).toBe("completo")
-    const pontos = JSON.parse((await servir("/amostra/pontos_PA.json")).corpo)
-    expect(pontos.fazendas).toBe(196136)
+    expect(e.pasta).toBe("RAIZ_DADOS")
+    expect(e.estados.find((x: { uf: string }) => x.uf === "PA").situacao).toBe("sem_dados")
+    expect((await servir("/amostra/pontos_PA.json")).status).toBe(404)
   }, 60_000)
 
   it("RAIZ_SEM_DOWNLOAD=1 pula o download sem tentar a rede", () => {

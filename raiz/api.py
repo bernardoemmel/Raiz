@@ -245,9 +245,10 @@ def criar_app(
     app.include_router(pedidos_api.roteador_interno(_engine_do_app), dependencies=seguro)
     app.include_router(pedidos_api.roteador_webhook(_engine_do_app))
     # Ficha da terra: sessão individual e créditos pagos, separados do token operacional da API.
-    from raiz import prospeccao_api
+    from raiz import prospeccao_api, prospeccao_webhook
 
     app.include_router(prospeccao_api.roteador(_engine_do_app))
+    app.include_router(prospeccao_webhook.roteador(_engine_do_app))
     # backoffice do fundador, só leitura (saúde, custo do mês contra orçamento, filas, logs por fazenda) e
     # reconhecimento dos alertas de operação (raiz/operacao/backoffice.py, raiz/operacao/alertas.py)
     from raiz.operacao import backoffice
@@ -285,7 +286,7 @@ def criar_app(
         app.add_middleware(
             CORSMiddleware,
             allow_origins=origens,
-            allow_methods=["GET", "POST"],
+            allow_methods=["GET", "POST", "DELETE"],
             allow_headers=["Authorization", "Range", "Content-Type"],
             expose_headers=["Content-Range", "Accept-Ranges", "Content-Length", "ETag", "Retry-After"],
         )

@@ -240,6 +240,27 @@ class ArmazemS3:
 PADRAO = "release-github://bernardoemmel/raiz/dados"
 
 
+def destino_privado() -> tuple[str, str] | None:
+    """Destino completo por variável; nunca deriva um destino privado do Release aberto."""
+    url = os.environ.get("RAIZ_DADOS_PRIVADOS_URL", "").strip()
+    repo = os.environ.get("RAIZ_DADOS_PRIVADOS_REPO", "").strip()
+    tag = os.environ.get("RAIZ_DADOS_PRIVADOS_TAG", "dados").strip()
+    if url:
+        if not url.startswith("release-github://"):
+            raise ValueError("RAIZ_DADOS_PRIVADOS_URL deve usar release-github://dono/repositorio/tag")
+        partes = url.removeprefix("release-github://").strip("/").split("/")
+        if len(partes) not in (2, 3) or not all(partes):
+            raise ValueError("destino privado inválido")
+        repo, tag = "/".join(partes[:2]), partes[2] if len(partes) == 3 else tag
+    if not repo:
+        return None
+    import re
+
+    if not re.fullmatch(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+", repo) or not re.fullmatch(r"[A-Za-z0-9_.-]+", tag):
+        raise ValueError("repositório ou tag privados inválidos")
+    return repo, tag
+
+
 def do_config(url: str | None = None) -> Armazem:
     """O armazém configurado em RAIZ_ARMAZEM_URL:
     release-github://dono/repo/tag   o Release do GitHub (padrão: o Release "dados" deste repositório);
@@ -252,7 +273,15 @@ def do_config(url: str | None = None) -> Armazem:
     url = url or getattr(c, "armazem_url", None) or PADRAO
     if url.startswith("release-github://"):
         dono, repo, *resto = url[len("release-github://") :].strip("/").split("/")
-        return ArmazemRelease(f"{dono}/{repo}", resto[0] if resto else "dados")
+        aberto = ArmazemRelease(f"{dono}/{repo}", resto[0] if resto else "dados")
+        privado = destino_privado()
+        if privado:
+            if privado[0].lower() == aberto.repo.lower() and privado[1] == aberto.tag:
+                raise ValueError("o Release privado deve ser separado do aberto")
+            return ArmazemRelease(
+                *privado, token=os.environ.get("RAIZ_DADOS_PRIVADOS_TOKEN", ""), privado=True, publico=aberto
+            )
+        return aberto  # sem configuração privada, leitura básica; publicar detalhamento é proibido
     if url and url.startswith("s3://"):
         resto = url[len("s3://") :]
         balde, _, prefixo = resto.partition("/")
@@ -297,11 +326,16 @@ class ArmazemRelease:
 
     def __init__(self, repo: str = "bernardoemmel/raiz", tag: str = "dados", espelho: Path | None = None,
                  token: str | None = None, cliente=None, intervalo_s: float | None = None,
-                 a_cada: int = 20):  # fmt: skip
+                 a_cada: int = 20, *, privado: bool = False,
+                 publico: ArmazemRelease | None = None):  # fmt: skip
         import httpx
 
         self.repo, self.tag = repo, tag
-        self.local = ArmazemLocal(espelho or _espelho_padrao())
+        self.privado, self.publico = privado, publico
+        raiz_espelho = espelho or _espelho_padrao()
+        if privado and espelho is None:
+            raiz_espelho = raiz_espelho.with_name(raiz_espelho.name + "_privado")
+        self.local = ArmazemLocal(espelho or raiz_espelho)
         self.token = token if token is not None else (os.environ.get("GH_TOKEN") or os.environ.get("GITHUB_TOKEN"))
         self.cli = cliente or httpx.Client(timeout=300, follow_redirects=True,
                                             headers={"User-Agent": "raiz-executor"})  # fmt: skip
@@ -322,14 +356,40 @@ class ArmazemRelease:
         return f"https://github.com/{self.repo}/releases/download/{self.tag}/{nome}"
 
     def _baixar_asset(self, nome: str) -> bytes | None:
+        if self.privado:
+            self._exigir_privado()
+            rel = self._release()
+            # O browser_download_url privado não funciona sem sessão; usa o endpoint de assets da API.
+            for pagina in range(1, 100):
+                r = self.cli.get(
+                    f"{self.API}/repos/{self.repo}/releases/{rel['id']}/assets",
+                    headers=self._cabecalhos(),
+                    params={"per_page": 100, "page": pagina},
+                )
+                r.raise_for_status()
+                ativos = r.json()
+                for ativo in ativos:
+                    if ativo.get("name") == nome:
+                        r = self.cli.get(
+                            f"{self.API}/repos/{self.repo}/releases/assets/{ativo['id']}",
+                            headers={**self._cabecalhos(), "Accept": "application/octet-stream"},
+                        )
+                        r.raise_for_status()
+                        return r.content
+                if len(ativos) < 100:
+                    return None
+            raise RuntimeError("Release privado excedeu a paginação de assets")
         r = self.cli.get(self.url(nome))
         if r.status_code == 404:
             return None
         r.raise_for_status()
+        from raiz.executor.publicacao_aberta import validar_asset_publico
+
+        validar_asset_publico(nome, r.content)
         return r.content
 
     def manifesto(self, fresco: bool = False) -> dict:
-        if fresco:  # dentro da trava: sem cache no caminho
+        if fresco and not self.privado:  # dentro da trava: sem cache no caminho
             r = self.cli.get(self.url("estados.json"), params={"t": str(int(time.time()))})
             if r.status_code != 404:
                 r.raise_for_status()
@@ -337,6 +397,22 @@ class ArmazemRelease:
         else:
             b = self._baixar_asset("estados.json")
         return json.loads(b) if b else {"repo": self.repo, "tag": self.tag, "estados": {}}
+
+    def _exigir_privado(self) -> None:
+        if not self.privado:
+            raise PermissionError("dados completos exigem RAIZ_DADOS_PRIVADOS_URL e RAIZ_DADOS_PRIVADOS_TOKEN")
+        r = self.cli.get(f"{self.API}/repos/{self.repo}", headers=self._cabecalhos())
+        r.raise_for_status()
+        if r.json().get("private") is not True and self._release().get("draft") is not True:
+            raise PermissionError("dados completos exigem repositório privado ou Release em rascunho não publicado")
+
+    def verificar_publicacao(self) -> None:
+        """Pré-requisito da rodada: falha antes de processar se o arquivo privado não está disponível."""
+        self._exigir_privado()
+        self._release()
+        if self.publico:
+            self.publico._cabecalhos()
+            self.publico._release()
 
     @staticmethod
     def _uf_da_chave(chave: str) -> str | None:
@@ -351,7 +427,7 @@ class ArmazemRelease:
         uf = self._uf_da_chave(chave)
         if uf:
             self.garantir_uf(uf)
-        elif not self._global:
+        elif not self._global and self.privado:
             self._global = True
             b = self._baixar_asset("raiz_controle.json")
             for k, v in (json.loads(b) if b else {}).items():
@@ -365,16 +441,19 @@ class ArmazemRelease:
         uf = uf.upper()
         if uf in self._ufs and not forcar:
             return
-        self._ufs.add(uf)
         trava = self._trava(f"trava-publicar-{uf}", 1800) if self.token else contextlib.nullcontext()
         with trava:
             self._baixar_uf(uf)
+        self._ufs.add(uf)
 
     def _baixar_uf(self, uf: str) -> None:
         import io
         import tarfile
 
-        for nome in (f"raiz_{uf}.tar.gz", f"raiz_geo_{uf}.tar.gz", f"raiz_camadas_{uf}.tar.gz"):
+        nomes = (f"raiz_{uf}.tar.gz", f"raiz_geo_{uf}.tar.gz")
+        if self.privado:
+            nomes += (f"raiz_camadas_{uf}.tar.gz",)
+        for nome in nomes:
             b = self._baixar_asset(nome)
             if not b:
                 continue
@@ -394,7 +473,7 @@ class ArmazemRelease:
                         continue  # o que esta máquina gravou e ainda não publicou fica (a marca local fica também)
                     meta = {k: str(v) for k, v in (vers.get(arq) or {"versao": "publicado"}).items() if k != "sha256"}
                     self.local.por_bytes(chave, dados, meta)
-        b = self._baixar_asset(f"raiz_controle_{uf}.json")
+        b = self._baixar_asset(f"raiz_controle_{uf}.json") if self.privado else None
         if b:
             ctl = json.loads(b)
             for cod, marca in (ctl.get("marcas") or {}).items():
@@ -456,6 +535,19 @@ class ArmazemRelease:
     def _release(self) -> dict:
         h = self._cabecalhos()
         r = self.cli.get(f"{self.API}/repos/{self.repo}/releases/tags/{self.tag}", headers=h)
+        if r.status_code == 404 and self.privado:
+            # Rascunhos podem não ter referência de tag publicada; continuam listados para o token autorizado.
+            for pagina in range(1, 100):
+                pagina_r = self.cli.get(
+                    f"{self.API}/repos/{self.repo}/releases", headers=h, params={"per_page": 100, "page": pagina}
+                )
+                pagina_r.raise_for_status()
+                releases = pagina_r.json()
+                for release in releases:
+                    if release.get("tag_name") == self.tag:
+                        return release
+                if len(releases) < 100:
+                    break
         r.raise_for_status()
         return r.json()
 
@@ -467,6 +559,12 @@ class ArmazemRelease:
         return {"Authorization": f"Bearer {self.token}", "Accept": "application/vnd.github+json"}
 
     def _subir(self, rel: dict, nome: str, dados: bytes, tipo: str = "application/octet-stream") -> None:
+        if self.privado:
+            self._exigir_privado()
+        else:
+            from raiz.executor.publicacao_aberta import validar_asset_publico
+
+            validar_asset_publico(nome, dados)
         h = self._cabecalhos()
         for a in rel.get("assets", []):
             if a["name"] == nome:  # o Release não troca asset: apaga e sobe de novo
@@ -477,15 +575,17 @@ class ArmazemRelease:
 
     @staticmethod
     def _tar(uf: str, arquivos: dict[str, bytes]) -> bytes:
+        import gzip
         import io
         import tarfile
 
         buf = io.BytesIO()
-        with tarfile.open(fileobj=buf, mode="w:gz", compresslevel=6) as tar:
-            for nome in sorted(arquivos):
-                info = tarfile.TarInfo(f"{uf}/{nome}")
-                info.size, info.mtime = len(arquivos[nome]), 0
-                tar.addfile(info, io.BytesIO(arquivos[nome]))
+        with gzip.GzipFile(fileobj=buf, mode="wb", compresslevel=6, mtime=0) as comprimido:
+            with tarfile.open(fileobj=comprimido, mode="w") as tar:
+                for nome in sorted(arquivos):
+                    info = tarfile.TarInfo(f"{uf}/{nome}")
+                    info.size, info.mtime = len(arquivos[nome]), 0
+                    tar.addfile(info, io.BytesIO(arquivos[nome]))
         return buf.getvalue()
 
     def talvez_publicar(self, uf: str) -> bool:
@@ -510,14 +610,19 @@ class ArmazemRelease:
         que já existe dá erro na API, então só um consegue. Quem espera mais que velha_s considera a trava abandonada
         (job que caiu) e a apaga. Reentrante no mesmo processo. Sem como criar a trava, segue sem ela e confere."""
         nome = nome or self.TRAVA
+        if self.privado:
+            nome = f"{nome}-{self.tag}"
         if nome in self._travas:
             yield
             return
         h = self._cabecalhos()
-        sha = os.environ.get("GITHUB_SHA")
+        # O SHA do workflow pertence ao repositório público, não ao privado de armazenamento.
+        sha = None if self.privado else os.environ.get("GITHUB_SHA")
         if not sha:
             r = self.cli.get(f"{self.API}/repos/{self.repo}/commits/HEAD", headers=h)
             sha = r.json().get("sha") if r.status_code == 200 else None
+        if self.privado and not sha:
+            raise RuntimeError("não foi possível identificar a HEAD do repositório privado para a trava")
         pegou, t0 = False, time.time()
         while sha:
             r = self.cli.post(f"{self.API}/repos/{self.repo}/git/refs", headers=h,
@@ -534,6 +639,8 @@ class ArmazemRelease:
                 time.sleep(random.uniform(5, 15))
                 continue
             log.warning("sem a trava %s (HTTP %s); sigo sem ela e confiro depois", nome, r.status_code)
+            if self.privado:
+                raise RuntimeError("não foi possível adquirir a trava de publicação privada")
             break
         self._travas.add(nome)
         try:
@@ -548,8 +655,7 @@ class ArmazemRelease:
         é relido do Release e regravado dentro da trava, trocando só as entradas destes estados (vários jobs publicam
         ao mesmo tempo no GitHub Actions). extra: campos a mais por estado ({uf: {...}}), ex.: a rodada e os erros que
         o motor/rodar_estado.py anota."""
-        if not self.token:
-            raise PermissionError("sem token do GitHub (GH_TOKEN ou GITHUB_TOKEN): publicar só de dentro do Actions")
+        self.verificar_publicacao()
         ufs = [uf.upper()] if uf else sorted(u for u in self._sujos if u != "_global")
         feito = {}
         for u in ufs:
@@ -557,6 +663,10 @@ class ArmazemRelease:
                 self.garantir_uf(u, forcar=True)  # junta o que outras fatias do estado já publicaram
                 feito[u] = self._publicar_uf(u, (extra or {}).get(u, {}))
                 self._gravar_indice({u: feito[u]})
+                if self.publico:
+                    # Ainda sob a trava privada da UF: outra fatia não consegue publicar dados mais novos
+                    # antes da projeção desta. Snapshot íntegro e manifesto privado já estão confirmados.
+                    self._publicar_aberto(u, feito[u])
         if self._sujos.pop("_global", 0) or not uf:
             glob = {k: json.loads(self.local.ler(k)) for k in self.local.listar("estado/")
                     if self._uf_da_chave(k) is None}  # fmt: skip
@@ -564,6 +674,38 @@ class ArmazemRelease:
                 self._subir(self._release(), "raiz_controle.json", json.dumps(glob, ensure_ascii=False).encode(),
                             "application/json")  # fmt: skip
         return feito
+
+    def _publicar_aberto(self, uf: str, info: dict) -> None:
+        from raiz.executor.publicacao_aberta import ESCOPO, entrada_publica, projetar_csvs, projetar_geo
+
+        aberto = self.publico
+        if aberto is None or aberto.privado:
+            raise ValueError("destino aberto inválido")
+        csvs, geos = {}, {}
+        for chave in self.local.listar(f"saida/{uf}/"):
+            nome = chave.rsplit("/", 1)[1]
+            if nome.endswith(".csv"):
+                csvs[nome] = self.local.ler(chave)
+            elif nome.startswith("geo_") and nome.endswith(".parquet"):
+                geos[nome] = projetar_geo(self.local.ler(chave))
+        basicos = projetar_csvs(uf, csvs)
+        pacote = self._tar(uf, basicos)
+        entrada = entrada_publica(info)
+        entrada.update(url=aberto.url(f"raiz_{uf}.tar.gz"), tamanho=len(pacote), versao=sha256_bytes(pacote)[:16])
+        with aberto._trava(f"trava-publicar-{uf}", 1800):
+            aberto._subir(aberto._release(), f"raiz_{uf}.tar.gz", pacote, "application/gzip")
+            if geos:
+                geo = self._tar(uf, geos)
+                nome = f"raiz_geo_{uf}.tar.gz"
+                aberto._subir(aberto._release(), nome, geo, "application/gzip")
+                entrada["geo"] = {
+                    "url": aberto.url(nome),
+                    "versao": sha256_bytes(geo)[:16],
+                    "tamanho": len(geo),
+                    "municipios": len(geos),
+                    "escopo": ESCOPO,
+                }
+            aberto._gravar_indice({uf: entrada})
 
     def _publicar_uf(self, u: str, extra: dict) -> dict:
         import datetime as dt
@@ -637,6 +779,16 @@ class ArmazemRelease:
             with self._trava():
                 fresco = self.manifesto(fresco=True)
                 est_f = fresco.setdefault("estados", {})
+                if not self.privado:
+                    from raiz.executor.publicacao_aberta import ESCOPO, VERSAO_PUBLICACAO
+
+                    # Não rotular pacotes legados como básicos só porque outra UF já migrou.
+                    est_f = {
+                        u: i
+                        for u, i in est_f.items()
+                        if i.get("escopo") == ESCOPO and i.get("versao_publicacao") == VERSAO_PUBLICACAO
+                    }
+                    fresco = {"versao_publicacao": VERSAO_PUBLICACAO, "escopo": ESCOPO, "estados": est_f}
                 for u, info in feito.items():
                     est_f[u] = _juntar_entrada(est_f.get(u, {}), info)
                 fresco.update(gerado_em=agora, repo=self.repo, tag=self.tag, estados=dict(sorted(est_f.items())))

@@ -2206,3 +2206,11 @@ button.link:hover {
 .fb-partes .parte-so_mostrar::before {
   background: repeating-linear-gradient(45deg, var(--situacao-nao-apta) 0 2px, var(--superficie) 2px 4px);
 }
+
+/* Lista pública: apenas identidade territorial e situação básica. */
+.lista-basica { list-style: none; margin: 0; padding: 0; }
+.lista-basica li { border-top: 1px solid var(--nevoa); }
+.lista-basica a { display: grid; gap: var(--e1); padding: var(--e3) 0; color: var(--tinta); text-decoration: none; }
+.lista-basica a:hover, .lista-basica a:focus-visible { color: var(--mata-texto); }
+.lista-basica a span:first-child { font-family: var(--fonte-codigo); overflow-wrap: anywhere; }
+.lista-basica a small { color: var(--pedra); }

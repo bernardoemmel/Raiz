@@ -13,12 +13,12 @@ CAR = "PA-1504950-" + "A" * 32
 def cliente(monkeypatch):
     eng = object()
     eventos = []
-    monkeypatch.setattr(api.pedidos, "cliente_da_sessao", lambda _eng, t: 7 if t == "sessao-cliente" else None)
+    monkeypatch.setattr(api.servico.pedidos, "cliente_da_sessao", lambda _eng, t: 7 if t == "sessao-cliente" else None)
     monkeypatch.setattr(api.acesso, "limitar", lambda *args: eventos.append(("limite", args[1:])))
-    monkeypatch.setattr(api.front_api, "imoveis_do_municipio", lambda *a, **kw: [{"cod_imovel": CAR}])
-    monkeypatch.setattr(api.front_api, "versao", lambda *a: {"data_corte": "2026-11-12"})
-    monkeypatch.setattr(api.front_api, "do_banco", lambda *a: {})
-    monkeypatch.setattr(api.imovel_dados, "ficha_prospeccao", lambda *a: {"codigo_car": CAR, "area_total": 10})
+    monkeypatch.setattr(api.servico.front_api, "imoveis_do_municipio", lambda *a, **kw: [{"cod_imovel": CAR}])
+    monkeypatch.setattr(api.servico.front_api, "versao", lambda *a: {"data_corte": "2026-11-12"})
+    monkeypatch.setattr(api.servico.front_api, "do_banco", lambda *a: {})
+    monkeypatch.setattr(api.servico.imovel_dados, "ficha_prospeccao", lambda *a: {"codigo_car": CAR, "area_total": 10})
     app = FastAPI()
     app.include_router(api.roteador(lambda _: eng))
     with TestClient(app) as cl:
@@ -30,6 +30,13 @@ def cliente(monkeypatch):
     [
         ("GET", "/busca", None),
         ("GET", "/saldo", None),
+        ("GET", f"/fichas/{CAR}/pdf", None),
+        ("POST", "/comparar", {"codigos_car": [CAR, CAR + "B"]}),
+        ("GET", "/buscas-salvas", None),
+        ("POST", "/buscas-salvas", {"nome": "Pará", "filtros": {"uf": "PA"}}),
+        ("DELETE", "/buscas-salvas/qualquer", None),
+        ("GET", "/avisos", None),
+        ("POST", "/avisos/1/ler", None),
         ("GET", "/compras", None),
         ("GET", f"/fichas/{CAR}", None),
         ("POST", f"/fichas/{CAR}/desbloquear", None),
@@ -73,7 +80,7 @@ def test_ficha_paga_nao_pode_ser_cacheada_publicamente(cliente, monkeypatch):
 def test_falha_ao_montar_nao_consumiu_credito(cliente, monkeypatch):
     cl, _ = cliente
     cl.headers["Authorization"] = "Bearer sessao-cliente"
-    monkeypatch.setattr(api.front_api, "imoveis_do_municipio", lambda *a, **kw: [])
+    monkeypatch.setattr(api.servico.front_api, "imoveis_do_municipio", lambda *a, **kw: [])
     debitos = []
     monkeypatch.setattr(api.acesso, "desbloquear", lambda *a: debitos.append(a))
     assert cl.post(f"/prospeccao/fichas/{CAR}/desbloquear").status_code == 404
@@ -148,3 +155,56 @@ def test_contato_so_registra_pedido_da_sessao(cliente, monkeypatch):
     r = cl.post("/prospeccao/contatos", json={"codigo_car": CAR})
     assert r.status_code == 200 and pedidos == [(7, CAR)]
     assert "telefone" not in r.text and "email" not in r.text
+
+
+def test_comparar_e_pdf_usam_identidade_da_sessao(cliente, monkeypatch):
+    cl, _ = cliente
+    cl.headers["Authorization"] = "Bearer sessao-cliente"
+    chamadas = []
+
+    def comparar(_engine, cid, cars):
+        chamadas.append((cid, cars))
+        return {"fichas": []}
+
+    monkeypatch.setattr(api.servico, "comparar_fichas", comparar)
+    assert cl.post("/prospeccao/comparar", json={"codigos_car": [CAR, CAR + "B"]}).status_code == 200
+    assert chamadas == [(7, [CAR, CAR + "B"])]
+    assert cl.post("/prospeccao/comparar", json={"codigos_car": [CAR] * 6}).status_code == 422
+    assert cl.post("/prospeccao/comparar", json={"codigos_car": [CAR, CAR], "cliente_id": 8}).status_code == 422
+
+    def pdf(_engine, cid, car):
+        assert (cid, car) == (7, CAR)
+        return b"%PDF-1.4"
+
+    monkeypatch.setattr(api.servico, "exportar_ficha_pdf", pdf)
+    resposta = cl.get(f"/prospeccao/fichas/{CAR}/pdf")
+    assert resposta.status_code == 200 and resposta.content == b"%PDF-1.4"
+    assert resposta.headers["Content-Type"] == "application/pdf"
+    assert resposta.headers["Cache-Control"] == "private, no-store"
+    assert resposta.headers["Vary"] == "Authorization"
+    assert "attachment" in resposta.headers["Content-Disposition"]
+
+
+def test_busca_salva_e_avisos_nao_aceitam_outra_identidade(cliente, monkeypatch):
+    cl, _ = cliente
+    cl.headers["Authorization"] = "Bearer sessao-cliente"
+    chamadas = []
+
+    def salvar(_engine, cid, nome, filtros):
+        chamadas.append((cid, nome, filtros.uf))
+        return {"id": "busca-1"}
+
+    monkeypatch.setattr(api.buscas_salvas, "salvar", salvar)
+    corpo = {"nome": "Pará", "filtros": {"uf": "PA"}}
+    assert cl.post("/prospeccao/buscas-salvas", json=corpo).status_code == 200
+    assert chamadas == [(7, "Pará", "PA")]
+    assert cl.post("/prospeccao/buscas-salvas", json={**corpo, "cliente_id": 8}).status_code == 422
+    assert cl.get("/prospeccao/avisos?depois=-1").status_code == 422
+    assert cl.get("/prospeccao/avisos?limite=101").status_code == 422
+
+    def negar(_engine, cid, ident):
+        assert cid == 7 and ident == "de-outra-conta"
+        raise api.acesso.ErroAcesso(404, "Busca salva não encontrada.")
+
+    monkeypatch.setattr(api.buscas_salvas, "excluir", negar)
+    assert cl.delete("/prospeccao/buscas-salvas/de-outra-conta").status_code == 404

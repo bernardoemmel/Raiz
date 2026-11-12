@@ -86,11 +86,35 @@ export interface BuscaProspeccao {
   aviso: string
 }
 export interface PlanosConsulta {
-  planos: { id: string; nome: string; creditos: number; valor_rs: number }[]
+  planos: { id: string; nome: string; creditos: number; valor_rs: number | null; status?: "provisorio" | "aprovado"; aviso_preco?: string }[]
+  status?: "provisorio" | "aprovado"
   custo_ficha: number
   unidade: string
   pagamento_disponivel: boolean
   mensagem: string
+}
+export interface BuscaSalva {
+  id: string
+  nome: string
+  filtros: Partial<Record<keyof FiltrosProspeccao, string | number | null>>
+  criada_em: string
+  verificada_em: string
+}
+export interface AvisoBusca {
+  id: number
+  busca_id: string
+  nome_busca: string
+  codigo_car: string
+  criada_em: string
+  lida_em: string | null
+  mensagem: string
+}
+export interface PaginaAvisos { avisos: AvisoBusca[]; proximo_cursor: number | null }
+
+/** A API guarda filtros numéricos como números; formulários usam strings sem inventar mínimos. */
+export function filtrosDaBuscaSalva(filtros: BuscaSalva["filtros"]): FiltrosProspeccao {
+  const permitidos = ["q", "uf", "cod_ibge", "bioma", "area_min_ha", "area_max_ha", "caminho_terra", "situacao_terra", "credito_min", "credito_max", "risco"]
+  return Object.fromEntries(Object.entries(filtros).filter(([chave, valor]) => permitidos.includes(chave) && valor != null && String(valor).trim() !== "").map(([chave, valor]) => [chave, String(valor)]))
 }
 export interface SaldoConsulta { creditos: number; fichas_desbloqueadas: number }
 export interface CompraConsulta {
@@ -105,7 +129,8 @@ export interface CompraConsulta {
 }
 export class ErroProspeccao extends Error {
   status: number
-  constructor(status: number, mensagem: string) { super(mensagem); this.status = status }
+  retryAfter: number | null
+  constructor(status: number, mensagem: string, retryAfter: number | null = null) { super(mensagem); this.status = status; this.retryAfter = retryAfter }
 }
 export function parametrosProspeccao(filtros: FiltrosProspeccao, pagina = 1): string {
   const params = new URLSearchParams()
@@ -115,12 +140,12 @@ export function parametrosProspeccao(filtros: FiltrosProspeccao, pagina = 1): st
   return params.toString()
 }
 export function fonteProspeccao(api: string | undefined, token: () => string | null) {
-  async function pedir<T>(caminho: string, corpo?: unknown, sinal?: AbortSignal, publica = false): Promise<T> {
-    if (!api) throw new ErroProspeccao(503, "A ficha completa precisa da conexão com a Raíz. O mapa agregado continua aberto.")
+  async function respostaDe(caminho: string, corpo?: unknown, sinal?: AbortSignal, publica = false, metodo?: "DELETE"): Promise<Response> {
+    if (!api) throw new ErroProspeccao(503, "A ficha completa precisa da conexão com a Raíz. O mapa básico continua aberto.")
     const sessao = publica ? null : token()
     if (!publica && !sessao) throw new ErroProspeccao(401, "Entre na Raíz para continuar.")
     const resposta = await fetch(`${api.replace(/\/$/, "")}/prospeccao/${caminho}`, {
-      method: corpo === undefined ? "GET" : "POST",
+      method: metodo ?? (corpo === undefined ? "GET" : "POST"),
       headers: { "Content-Type": "application/json", ...(sessao ? { Authorization: `Bearer ${sessao}` } : {}) },
       body: corpo === undefined ? undefined : JSON.stringify(corpo),
       signal: sinal,
@@ -129,12 +154,29 @@ export function fonteProspeccao(api: string | undefined, token: () => string | n
     if (!resposta.ok) {
       const padrao = resposta.status === 429 ? "Limite de consultas atingido. Aguarde antes de tentar novamente." : resposta.status === 402 ? "Esta ficha precisa ser desbloqueada com um crédito pago." : resposta.status === 401 ? "A sessão acabou. Entre novamente." : "Não foi possível concluir a consulta. Tente novamente."
       const erro = await resposta.json().catch(() => null) as { detail?: unknown } | null
-      throw new ErroProspeccao(resposta.status, typeof erro?.detail === "string" ? erro.detail : padrao)
+      const espera = Number(resposta.headers.get("Retry-After"))
+      const segundos = Number.isFinite(espera) && espera > 0 ? Math.ceil(espera) : null
+      const mensagem = typeof erro?.detail === "string" ? erro.detail : padrao
+      throw new ErroProspeccao(resposta.status, segundos && resposta.status === 429 ? `${mensagem} Tente novamente em ${segundos} segundos.` : mensagem, segundos)
     }
-    return resposta.json() as Promise<T>
+    return resposta
+  }
+  async function pedir<T>(caminho: string, corpo?: unknown, sinal?: AbortSignal, publica = false, metodo?: "DELETE"): Promise<T> {
+    return (await respostaDe(caminho, corpo, sinal, publica, metodo)).json() as Promise<T>
   }
   return {
     disponivel: !!api,
+    comparar: (codigos_car: string[], sinal?: AbortSignal) => pedir<{ fichas: FichaTerraDados[] }>("comparar", { codigos_car }, sinal),
+    pdf: async (car: string, sinal?: AbortSignal) => {
+      const resposta = await respostaDe(`fichas/${encodeURIComponent(car)}/pdf`, undefined, sinal)
+      if (!(resposta.headers.get("content-type") ?? "").includes("application/pdf")) throw new ErroProspeccao(502, "A Raíz não retornou um PDF válido. Tente novamente.")
+      return resposta.blob()
+    },
+    buscasSalvas: (sinal?: AbortSignal) => pedir<BuscaSalva[]>("buscas-salvas", undefined, sinal),
+    salvarBusca: (nome: string, filtros: FiltrosProspeccao, sinal?: AbortSignal) => pedir<BuscaSalva>("buscas-salvas", { nome, filtros: Object.fromEntries(Object.entries(filtros).filter(([, v]) => v?.trim())) }, sinal),
+    excluirBusca: (id: string, sinal?: AbortSignal) => pedir<{ id: string; excluida: boolean }>(`buscas-salvas/${encodeURIComponent(id)}`, undefined, sinal, false, "DELETE"),
+    avisos: (depois = 0, sinal?: AbortSignal) => pedir<PaginaAvisos>(`avisos?depois=${depois}&limite=50`, undefined, sinal),
+    lerAviso: (id: number, sinal?: AbortSignal) => pedir<{ id: number; lida_em: string }>(`avisos/${id}/ler`, {}, sinal),
     agregado: (f: FiltrosProspeccao, sinal?: AbortSignal) => {
       const params = new URLSearchParams(parametrosProspeccao(f))
       params.delete("pagina"); params.delete("limite")

@@ -1,11 +1,9 @@
 /**
- * Fonte da amostra: lê os CSV do motor e as geometrias geradas por front/scripts/geo.py em front/geo/. O plugin do
- * Vite (compartilhado/vite-dados.ts) serve os CSV em /amostra/ (de dados/amostra/ ou, com RAIZ_DADOS no .env, da
- * pasta do motor separada por estado) e diz o que há em /amostra/estados.json e /amostra/indice_<UF>.json. Um arquivo
- * novo do motor (imoveis_1507300.csv, extras_direto_..., uma coluna nova) aparece na tela sem mudar código (ver
- * complementos.ts). Com milhares de municípios, nada é lido de uma vez: cada estado e cada município quando pedido.
+ * Fonte estática: agregados e situação básica do pacote público mínimo. Acesso completo nunca é reconstruído
+ * de arquivos abertos. As listas e os contornos são lidos por município; camadas pagas usam a API de prospecção.
  */
 
+import { lerBasico } from "./basico"
 import { n0, texto } from "./colunas"
 import { buscar, normalizarCar, pareceCar } from "./busca"
 import { complementosDe, juntarComplementos } from "./complementos"
@@ -53,8 +51,18 @@ export function fonteAmostra(base = "/"): FonteDeDados {
     return todos
   })
 
+  const basicos = memo(async (cod: string) => {
+    if ((await estados("")).acesso !== "publico_basico") return null
+    const uf = ufDoCodigo(cod)
+    if (!uf || !(await indice(uf)).includes(`imoveis_basicos_${cod}.csv`)) return null
+    return ((await csv(`imoveis_basicos_${cod}.csv`)) ?? []).flatMap((linha) => {
+      const basico = lerBasico(linha)
+      return basico && basico.cod_ibge === cod && basico.uf === uf ? [basico] : []
+    })
+  })
+
   const imoveis = memo(async (cod: string): Promise<Imovel[] | null> => {
-    if ((await estados("")).acesso === "agregado") return null
+    if ((await estados("")).acesso) return null
     const uf = ufDoCodigo(cod)
     if (!uf) return null
     const arqs = await indice(uf)
@@ -108,6 +116,7 @@ export function fonteAmostra(base = "/"): FonteDeDados {
       return funilDosImoveis(lista, cod, lista[0].municipio, lista[0].uf)
     },
     imoveis,
+    basicos,
     async imovel(cod_imovel) {
       for (const cod of await municipiosDoCar(cod_imovel)) {
         const achado = (await imoveis(cod))?.find((i) => i.cod_imovel === cod_imovel)
@@ -116,7 +125,7 @@ export function fonteAmostra(base = "/"): FonteDeDados {
       return null
     },
     async ficha(cod_imovel) {
-      if ((await estados("")).acesso === "agregado") return null
+      if ((await estados("")).acesso) return null
       // o plugin do Vite monta a ficha de uma fazenda só; no site estático, o build grava as fichas dos municípios com
       // contorno e as outras saem aqui, dos CSV do município (mesma função do plugin e do back-end)
       const prontas = await indiceFichas("")
@@ -135,6 +144,7 @@ export function fonteAmostra(base = "/"): FonteDeDados {
       return null
     },
     async certidoes(cod_imovel) {
+      if ((await estados("")).acesso) return []
       const saida: Certidao[] = []
       for (const cod of await municipiosDoCar(cod_imovel)) {
         const uf = ufDoCodigo(cod)
@@ -162,7 +172,9 @@ export function fonteAmostra(base = "/"): FonteDeDados {
       const lista = (await Promise.all(cods.map((c) => imoveis(c)))).flatMap((l) => l ?? [])
       const cidades = await municipios("")
       sinal?.throwIfAborted()
-      const resultado = buscar(q, { municipios: cidades, imoveis: lista, comImoveis })
+      const basicosDoCar = (await estados("")).acesso === "publico_basico" ? (await Promise.all(cods.map((c) => basicos(c)))).flatMap((l) => l ?? []) : []
+      sinal?.throwIfAborted()
+      const resultado = buscar(q, { municipios: cidades, imoveis: lista, basicos: basicosDoCar, comImoveis })
       const suprimidos = new Set(cidades.filter((m) => m.linha.dados_suprimidos === "true").map((m) => m.cod_ibge))
       return { ...resultado, municipios: resultado.municipios.map((m) => ({ ...m, imoveis: suprimidos.has(m.cod_ibge) ? null : m.imoveis })) }
     },

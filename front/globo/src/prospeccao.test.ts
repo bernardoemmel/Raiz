@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { createElement } from "react"
 import { renderToStaticMarkup } from "react-dom/server"
-import { ErroProspeccao, fonteProspeccao, parametrosProspeccao, type MedidaTerra } from "../../compartilhado/prospeccao"
+import { ErroProspeccao, filtrosDaBuscaSalva, fonteProspeccao, parametrosProspeccao, type MedidaTerra } from "../../compartilhado/prospeccao"
 import { Medida } from "./telas/FichaTerra"
 import { lerRota, linkFazenda, linkProspeccao } from "./rota"
 
@@ -42,6 +42,37 @@ describe("acesso à ficha da terra", () => {
   it("não acrescenta área mínima à consulta e conserva zero quando escolhido", () => {
     expect(parametrosProspeccao({})).toBe("pagina=1&limite=20")
     expect(parametrosProspeccao({ area_min_ha: "0", uf: " PA " }, 2)).toBe("area_min_ha=0&uf=PA&pagina=2&limite=20")
+  })
+  it("comparação, busca salva e exclusão usam somente a sessão e nunca debitam créditos", async () => {
+    const buscar = vi.fn().mockImplementation(() => Promise.resolve(new Response("{}"))); vi.stubGlobal("fetch", buscar)
+    const api = fonteProspeccao("/api", () => "sessao")
+    await api.comparar(["CAR-A", "CAR-B"])
+    await api.salvarBusca("Pará", { uf: "PA", area_min_ha: "0", credito_min: "" })
+    await api.excluirBusca("id-da-busca")
+    await api.lerAviso(7)
+    expect(JSON.parse(buscar.mock.calls[0][1].body)).toEqual({ codigos_car: ["CAR-A", "CAR-B"] })
+    expect(JSON.parse(buscar.mock.calls[1][1].body)).toEqual({ nome: "Pará", filtros: { uf: "PA", area_min_ha: "0" } })
+    expect(buscar.mock.calls[2][1].method).toBe("DELETE")
+    expect(buscar.mock.calls.every(([url, pedido]) => !url.includes("desbloquear") && pedido.headers.Authorization === "Bearer sessao" && pedido.cache === "no-store")).toBe(true)
+  })
+  it("recupera filtros numéricos salvos sem criar mínimo e respeita Retry-After", async () => {
+    expect(filtrosDaBuscaSalva({ uf: "PA", area_min_ha: 0, credito_min: null })).toEqual({ uf: "PA", area_min_ha: "0" })
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("{}", { status: 429, headers: { "Retry-After": "15" } })))
+    const erro = await fonteProspeccao("/api", () => "sessao").avisos().catch((e) => e)
+    expect(erro.retryAfter).toBe(15)
+    expect(erro.message).toContain("15 segundos")
+  })
+  it("PDF exige autorização, mantém o bloqueio pago e recusa resposta que não seja PDF", async () => {
+    const buscar = vi.fn().mockResolvedValueOnce(new Response("{}", { status: 402 }))
+      .mockResolvedValueOnce(new Response("<html>erro</html>", { headers: { "Content-Type": "text/html" } }))
+      .mockResolvedValueOnce(new Response("%PDF-1.4", { headers: { "Content-Type": "application/pdf" } }))
+    vi.stubGlobal("fetch", buscar)
+    const api = fonteProspeccao("/api", () => "sessao")
+    await expect(api.pdf("CAR")).rejects.toMatchObject({ status: 402 })
+    await expect(api.pdf("CAR")).rejects.toMatchObject({ status: 502 })
+    expect(await (await api.pdf("CAR")).text()).toBe("%PDF-1.4")
+    expect(buscar.mock.calls[2][0]).toBe("/api/prospeccao/fichas/CAR/pdf")
+    expect(buscar.mock.calls[2][1]).toMatchObject({ cache: "no-store", headers: { Authorization: "Bearer sessao" } })
   })
   it("rotas antigas da fazenda continuam reconhecidas e há entrada nacional própria", () => {
     expect(lerRota(linkFazenda("PA-1507300-CAR"))).toEqual({ tela: "fazenda", car: "PA-1507300-CAR" })

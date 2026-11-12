@@ -46,6 +46,8 @@ permissions:
 env:
   RAIZ_REPO: ${{ github.repository }}
   RAIZ_ARMAZEM_URL: release-github://${{ github.repository }}/dados # o armazém do executor é o Release "dados"
+  RAIZ_DADOS_PRIVADOS_URL: ${{ vars.RAIZ_DADOS_PRIVADOS_URL || format('release-github://{0}/dados-privados', github.repository) }}
+  RAIZ_DADOS_PRIVADOS_TOKEN: ${{ secrets.RAIZ_DADOS_PRIVADOS_TOKEN || github.token }}
   RAIZ_SEM_BANCO: "1" # sem Postgres no job: a marca do executor guarda o andamento
   # arquivos nacionais (mesma lista no restore e no save, senão o cache não confere)
   CACHE_COMUM: |
@@ -73,6 +75,10 @@ jobs:
           enable-cache: true
       - name: Dependências (produto e motor)
         run: uv sync --frozen --all-extras
+      - name: Conferir arquivo privado antes de planejar a rodada
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: uv run python -c "from raiz.executor.armazem import do_config; do_config().verificar_publicacao()"
       - name: Escolher os estados (lê o estados.json publicado e as versões das tarefas do executor)
         id: plano
         env:
@@ -212,7 +218,7 @@ jobs:
             echo "sem mapas de projetos de carbono (frente ja_tem_projeto fica de fora)"
           fi
 
-      - name: Rodar pelo executor (fontes, adoção, motor e tarefas do produto) e publicar no Release dados
+      - name: Rodar, guardar íntegra privada e publicar somente a projeção básica
         run: uv run python motor/rodar_estado.py "$UNIDADE" --executor
 
       - name: Guardar o cache da unidade

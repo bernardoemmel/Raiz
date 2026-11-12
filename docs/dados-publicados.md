@@ -71,3 +71,48 @@ no Release `vigilancia` (https://github.com/bernardoemmel/raiz/releases/tag/vigi
 (`alertas_AAAA-MM.parquet`), espelho dos embargos do Ibama, situação das fontes e rodadas, abertos; projetos,
 eventos de perda, marcações e rascunhos de relatório num pacote cifrado (`privado.tar.gz.cifrado`, chave
 `RAIZ_VIGILANCIA_CHAVE`). `vigilancia.json` (manifesto) sobe por último. Detalhes em `raiz/vigilancia/README.md`.
+
+## Migração verificável do histórico
+
+`scripts/migrar_dados_privados.py` inventaria todos os Releases **publicados** e seus assets, inclusive arquivos
+históricos fora do manifesto atual. Drafts são excluídos da origem para não copiar o próprio backup de novo. A fase
+`inventariar` baixa os originais para uma pasta fora do git, confere tamanho e SHA256 informado pelo GitHub e registra
+caminho, tamanho, SHA256 e cabeçalho/esquema de cada membro de pacote. Não grava valores de linhas nem extrai tar no
+filesystem; links, dispositivos e caminhos que escapam do pacote são recusados.
+
+O snapshot completo é privado. Arquivos do motor, certidões, caminho da terra, regularização, estimativas de
+restauração/crédito, ficha, MapBiomas, séries e camadas internas não viram públicos pela simples remoção de nomes ou
+CPF. A projeção aberta é separada, definida em `raiz/executor/publicacao_aberta.py`: CSV básico com CAR, município,
+UF e situação básica; geometria com CAR; resumos permitidos com supressão de grupos pequenos. Arquivos desconhecidos
+ficam privados até revisão. Nunca substituir o snapshot pela projeção reduzida.
+
+As fases são separadas e repetíveis, sem sobrescrever backups existentes:
+
+```bash
+uv run python scripts/migrar_dados_privados.py inventariar --origem bernardoemmel/Raiz --diretorio /tmp/raiz-migracao
+uv run python scripts/migrar_dados_privados.py copiar --destino bernardoemmel/Raiz --tag dados-privados --diretorio /tmp/raiz-migracao
+uv run python scripts/migrar_dados_privados.py verificar --destino bernardoemmel/Raiz --tag dados-privados --diretorio /tmp/raiz-migracao
+uv run python scripts/migrar_dados_privados.py remover --destino bernardoemmel/Raiz --tag dados-privados --diretorio /tmp/raiz-migracao
+```
+
+`copiar` e `remover` são **dry-run** sem `--executar`. O repositório e o Release de destino devem ser criados
+explicitamente. O destino precisa ser um repositório privado **ou um Release draft**, conferido novamente antes de
+cada operação. O draft nunca deve ser publicado. Um Release draft é encontrado pela listagem autenticada e pelo ID;
+a rota de Release por tag pode responder 404 mesmo para uma credencial autorizada.
+
+Os backups recebem nomes imutáveis `historico-<release_id>-<asset_id>-<nome>`. `copiar --executar` baixa de novo cada
+backup, confere o SHA256 e exige HTTP 404 no endereço de download sem cabeçalho de autenticação. Essa verificação
+deve rodar no GitHub Actions ou em ambiente sem proxy que injete credenciais: o proxy do ambiente de desenvolvimento
+não comprova anonimato. `verificar` repete as provas e grava `backup-verificado.json`.
+
+A remoção gera primeiro `plano-remocao.json` para revisão. `remover --executar` reconfere **todos** os backups antes do
+primeiro DELETE e recusa alterações de fingerprint da origem, assets novos ou mudança na lista de Releases
+publicados. Cada DELETE usa o ID original e nova leitura de metadados; o progresso fica em
+`remocao-progresso.json`. Se o original já tiver sido removido, ele não é apagado outra vez. A publicação da projeção
+aberta acontece separadamente, após a cópia integral validada. Preserve também `inventario.json` e
+`backup-verificado.json` no armazenamento privado para reconstruir o histórico.
+
+Inventário local inicial em 12/11/2026: um Release publicado (`dados`, ID 442821475), 40 assets e cerca de 1,21 GB.
+Foram encontrados 3.249 membros de camadas pagas, 365 CSV completos do motor, 365 arquivos de geometria básica,
+9 resumos e 23 arquivos de controle ou formatos sem allowlist. Esses números descrevem a leitura daquele instante;
+novas rodadas podem trocar assets. O inventário e os hashes atualizados ficam fora do git, em `/tmp/raiz-migracao/`.

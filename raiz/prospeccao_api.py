@@ -10,9 +10,10 @@ import httpx
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, Response
 from pydantic import BaseModel, ConfigDict, Field
 
-from raiz import busca, front_api, imovel_dados
+from raiz import busca
 from raiz import prospeccao_acesso as acesso
-from raiz.pedidos import servico as pedidos
+from raiz import prospeccao_buscas as buscas_salvas
+from raiz import prospeccao_servico as servico
 
 
 class Compra(BaseModel):
@@ -24,6 +25,17 @@ class Compra(BaseModel):
 class Contato(BaseModel):
     model_config = ConfigDict(extra="forbid")
     codigo_car: str = Field(min_length=3, max_length=80)
+
+
+class Comparacao(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    codigos_car: list[str] = Field(min_length=2, max_length=5)
+
+
+class BuscaSalva(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    nome: str = Field(min_length=1, max_length=80)
+    filtros: busca.FiltrosProspeccao
 
 
 class Consulta(busca.FiltrosProspeccao):
@@ -55,26 +67,13 @@ def roteador(engine_de: Callable) -> APIRouter:
         privado(response)
         if not authorization or not authorization.startswith("Bearer "):
             raise HTTPException(401, "Entre na sua conta para consultar fazendas.")
-        cid = pedidos.cliente_da_sessao(engine_de(request), authorization[7:].strip())
-        if cid is None:
-            raise HTTPException(401, "Sua sessão expirou. Entre novamente.")
-        limite(request, f"cliente:{cid}", "consultas", 60)
-        return cid
+        return _executar(servico.autenticar, engine_de(request), authorization[7:].strip())
 
     def publico(request: Request):
         # Não confiar em X-Forwarded-For enviado pelo cliente. O proxy deve configurar o ASGI corretamente.
         ip = request.client.host if request.client else "desconhecido"
         chave = "ip:" + hashlib.sha256(ip.encode()).hexdigest()
         limite(request, chave, "agregados", 60)
-
-    def montar(request: Request, car: str) -> dict:
-        eng = engine_de(request)
-        linhas = front_api.imoveis_do_municipio(eng, cod_imovel=car)
-        if not linhas:
-            raise HTTPException(404, "Fazenda ainda não disponível na base da Raíz.")
-        linha = linhas[0]
-        codigo = linha["cod_imovel"]
-        return imovel_dados.ficha_prospeccao(linha, front_api.versao(eng, codigo), front_api.do_banco(eng, codigo))
 
     @r.get("/planos")
     def planos(request: Request, _: None = Depends(publico)):
@@ -128,16 +127,54 @@ def roteador(engine_de: Callable) -> APIRouter:
 
     @r.get("/fichas/{car}")
     def ficha(car: str, request: Request, cid: int = Depends(cliente)):
-        _executar(acesso.exigir_desbloqueio, engine_de(request), cid, car)
-        return montar(request, car)
+        return _executar(servico.consultar_ficha, engine_de(request), cid, car)
 
     @r.post("/fichas/{car}/desbloquear")
     def desbloquear(car: str, request: Request, cid: int = Depends(cliente)):
-        limite(request, f"cliente:{cid}", "desbloqueios", 100, 86400)
-        # Montar antes evita cobrar ficha que falhou. O serviço verifica existência e exclusividade na transação.
-        dado = montar(request, car)
-        _executar(acesso.desbloquear, engine_de(request), cid, car)
-        return dado
+        return _executar(servico.consultar_ficha, engine_de(request), cid, car, desbloquear=True)
+
+    @r.get("/fichas/{car}/pdf")
+    def pdf(car: str, request: Request, cid: int = Depends(cliente)):
+        conteudo = _executar(servico.exportar_ficha_pdf, engine_de(request), cid, car)
+        return Response(
+            conteudo,
+            media_type="application/pdf",
+            headers={
+                "Cache-Control": "private, no-store",
+                "Vary": "Authorization",
+                "Content-Disposition": 'attachment; filename="ficha-da-terra.pdf"',
+                "X-Content-Type-Options": "nosniff",
+            },
+        )
+
+    @r.post("/comparar")
+    def comparar(corpo: Comparacao, request: Request, cid: int = Depends(cliente)):
+        return _executar(servico.comparar_fichas, engine_de(request), cid, corpo.codigos_car)
+
+    @r.get("/buscas-salvas")
+    def listar_buscas(request: Request, cid: int = Depends(cliente)):
+        return _executar(buscas_salvas.listar, engine_de(request), cid)
+
+    @r.post("/buscas-salvas")
+    def salvar_busca(corpo: BuscaSalva, request: Request, cid: int = Depends(cliente)):
+        return _executar(buscas_salvas.salvar, engine_de(request), cid, corpo.nome, corpo.filtros)
+
+    @r.delete("/buscas-salvas/{busca_id}")
+    def excluir_busca(busca_id: str, request: Request, cid: int = Depends(cliente)):
+        return _executar(buscas_salvas.excluir, engine_de(request), cid, busca_id)
+
+    @r.get("/avisos")
+    def avisos(
+        request: Request,
+        depois: int = Query(default=0, ge=0),
+        limite: int = Query(default=50, ge=1, le=100),
+        cid: int = Depends(cliente),
+    ):
+        return _executar(buscas_salvas.avisos, engine_de(request), cid, depois=depois, limite=limite)
+
+    @r.post("/avisos/{aviso_id}/ler")
+    def ler_aviso(aviso_id: int, request: Request, cid: int = Depends(cliente)):
+        return _executar(buscas_salvas.ler_aviso, engine_de(request), cid, aviso_id)
 
     @r.post("/contatos")
     def pedir_contato(corpo: Contato, request: Request, cid: int = Depends(cliente)):

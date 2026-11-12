@@ -40,6 +40,7 @@ import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import raiz_situacao as S  # noqa: E402
 
 REPO, TAG, BASE = S.REPO, S.TAG, S.BASE
@@ -117,6 +118,11 @@ def motor_info(pasta: Path, antigo: dict) -> tuple[dict, list[dict]]:
 
 def montar(saida: Path, destino: Path, ufs: list[str], publicado: dict, partes: bool) -> tuple[dict, list[Path]]:
     """Monta os pacotes que mudaram. Devolve as entradas novas do estados.json e os arquivos a subir."""
+    from raiz.executor.armazem import ArmazemRelease
+    from raiz.executor.publicacao_aberta import entrada_publica, projetar_csvs, projetar_geo
+
+    privado = destino / "privado"
+    privado.mkdir(parents=True, exist_ok=True)
     estados = publicado.get("estados", {})
     agora = S.agora()
     novas, arquivos = {}, []
@@ -136,9 +142,13 @@ def montar(saida: Path, destino: Path, ufs: list[str], publicado: dict, partes: 
             continue
         conferir_privacidade(csvs)
         info = estado_info(pasta, uf)
-        v = versao(csvs)
+        completos = {f.name: f.read_bytes() for f in csvs}
+        # A cópia completa fica separada, para o publicador autenticado. Nunca subir esses arquivos ao aberto.
+        gravar(privado, f"raiz_{uf}.tar.gz", empacotar(uf, csvs), partes=False)
+        publicos = projetar_csvs(uf, completos)
+        pacote = ArmazemRelease._tar(uf, publicos)
+        v = __import__("hashlib").sha256(pacote).hexdigest()[:16]
         if antigo.get("versao") != v:
-            pacote = empacotar(uf, csvs)
             arquivos += gravar(destino, f"raiz_{uf}.tar.gz", pacote, partes)
             info.update(tamanho=len(pacote), atualizado_em=agora)
             print(f"{uf}: raiz_{uf}.tar.gz {len(pacote) / 1e6:.1f} MB ({info['municipios']}/{info['total_ibge']} municípios)")
@@ -148,22 +158,25 @@ def montar(saida: Path, destino: Path, ufs: list[str], publicado: dict, partes: 
         info.update(versao=v, url=f"{BASE}/raiz_{uf}.tar.gz")
         geos = sorted(pasta.glob("geo_*.parquet"))
         if geos:
-            vg = versao(geos)
+            gravar(privado, f"raiz_geo_{uf}.tar.gz", empacotar(uf, geos), partes=False)
+            pg = ArmazemRelease._tar(uf, {f.name: projetar_geo(f.read_bytes()) for f in geos})
+            vg = __import__("hashlib").sha256(pg).hexdigest()[:16]
             if (antigo.get("geo") or {}).get("versao") != vg:
-                pg = empacotar(uf, geos)
                 arquivos += gravar(destino, f"raiz_geo_{uf}.tar.gz", pg, partes)
-                info["geo"] = {"versao": vg, "tamanho": len(pg), "url": f"{BASE}/raiz_geo_{uf}.tar.gz", "municipios": len(geos)}
+                info["geo"] = {"versao": vg, "tamanho": len(pg), "url": f"{BASE}/raiz_geo_{uf}.tar.gz",
+                               "municipios": len(geos), "escopo": "publico_basico"}
                 print(f"{uf}: raiz_geo_{uf}.tar.gz {len(pg) / 1e6:.1f} MB")
             else:
                 info["geo"] = antigo["geo"]
         info["motor"], info["erros"] = motor_info(pasta, antigo)
-        novas[uf] = info
+        novas[uf] = {**entrada_publica(info), "url": info["url"], **({"geo": info["geo"]} if info.get("geo") else {})}
     return novas, arquivos
 
 
 def escrever_manifesto(destino: Path, estados: dict) -> Path:
     ordem = {u: i for i, u in enumerate(S.ORDEM)}
-    manifesto = {"gerado_em": S.agora(), "repo": REPO, "tag": TAG,
+    estados = {uf: e for uf, e in estados.items() if e.get("escopo") == "publico_basico"}
+    manifesto = {"gerado_em": S.agora(), "repo": REPO, "tag": TAG, "versao_publicacao": 1, "escopo": "publico_basico",
                  "estados": dict(sorted(estados.items(), key=lambda kv: ordem.get(kv[0], 99)))}
     f = destino / "estados.json"
     f.write_text(json.dumps(manifesto, ensure_ascii=False, indent=1), encoding="utf-8")
@@ -190,6 +203,9 @@ def garantir_release() -> None:
 
 
 def subir(arquivo: Path, tentativas: int = 4) -> None:
+    from raiz.executor.publicacao_aberta import validar_asset_publico
+
+    validar_asset_publico(arquivo.name, arquivo.read_bytes())
     for i in range(tentativas):
         r = gh("release", "upload", TAG, str(arquivo), "--clobber", "-R", REPO, check=False)
         if r.returncode == 0:
@@ -263,14 +279,7 @@ def main() -> None:
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
     flags = {a for a in sys.argv[1:] if a.startswith("--")}
     if "--indice" in flags:
-        if len(args) != 1:
-            raise SystemExit(__doc__)
-        pasta = Path(args[0])
-        local = json.loads((pasta / "estados.json").read_text(encoding="utf-8")).get("estados", {})
-        ufs = {m.group(1) for f in pasta.iterdir() if (m := re.fullmatch(r"raiz_(?:geo_)?([A-Z]{2})\.tar\.gz", f.name))}
-        novas = {uf: local[uf] for uf in sorted(ufs) if uf in local}
-        mesclar_indice(novas, pasta)
-        return
+        raise SystemExit("Publicação isolada do índice foi desativada. Use --subir ou raiz.executor.publicar_entrada.")
     if len(args) < 2:
         raise SystemExit(__doc__)
     saida, destino = Path(args[0]), Path(args[1])
@@ -278,7 +287,10 @@ def main() -> None:
     ufs = [u.upper() for u in args[2:]] or sorted(p.name for p in saida.iterdir() if p.is_dir() and p.name in S.TOTAL_IBGE)
     subir_agora = "--subir" in flags
     if subir_agora:
-        garantir_release()
+        from raiz.executor.publicar_entrada import publicar_pasta
+
+        publicar_pasta(saida, ufs)
+        return
     publicado = S.ler_manifesto()
     novas, arquivos = montar(saida, destino, ufs, publicado, partes=not subir_agora)
     if not novas:

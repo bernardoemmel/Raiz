@@ -1,3 +1,4 @@
+import { BuscasSalvas } from "../partes/BuscasSalvas"
 import { useEffect, useState } from "react"
 import { normalizar, UFS } from "../../../compartilhado/formato"
 import { CAMINHOS, NOME_RISCO, SITUACOES, type Risco } from "../../../compartilhado/terra"
@@ -27,7 +28,7 @@ export function Prospeccao() {
     if (prospeccao.disponivel) {
       const { area_min_ha: _amin, area_max_ha: _amax, credito_min: _cmin, credito_max: _cmax, ...publicos } = consulta.filtros
       const pedido = sessao ? prospeccao.buscar(consulta.filtros, consulta.pagina, abortar.signal) : prospeccao.agregado(publicos, abortar.signal)
-      pedido.then((r) => { setResultado(r); setLendo(false) }, (e: Error) => { if (!abortar.signal.aborted) { setErro(e.message); setLendo(false) } })
+      pedido.then((r) => { if (!abortar.signal.aborted) { setResultado(r); setLendo(false) } }, (e: Error) => { if (!abortar.signal.aborted) { setErro(e.message); setLendo(false) } })
     } else {
       fonte.municipios().then((m) => { if (!abortar.signal.aborted) { setResumos(m); setLendo(false) } }, (e: Error) => { if (!abortar.signal.aborted) { setErro(e.message); setLendo(false) } })
     }
@@ -80,6 +81,7 @@ export function Prospeccao() {
         <p><a href={consulta.filtros.cod_ibge ? linkMunicipio(consulta.filtros.cod_ibge) : "#/"}>Ver este recorte no mapa</a></p>
       </>}
     </section>
+    <BuscasSalvas filtros={consulta.filtros} aoAplicar={(filtros) => { setCampos(filtros); setConsulta({ filtros, pagina: 1 }) }} />
     <CreditosConsulta />
   </main></div>
 }

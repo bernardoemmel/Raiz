@@ -72,6 +72,8 @@ jobs:
           RAIZ_VIGILANCIA_CHAVE: ${{ secrets.RAIZ_VIGILANCIA_CHAVE }}
           RAIZ_PROJETOS_PRIVADO: ${{ secrets.RAIZ_PROJETOS_PRIVADO }}
           GITHUB_TOKEN: ${{ github.token }}
+          RAIZ_DADOS_PRIVADOS_URL: ${{ vars.RAIZ_DADOS_PRIVADOS_URL || format('release-github://{0}/dados-privados', github.repository) }}
+          RAIZ_DADOS_PRIVADOS_TOKEN: ${{ secrets.RAIZ_DADOS_PRIVADOS_TOKEN || github.token }}
           FONTES: ${{ inputs.fontes }}
           UFS: ${{ inputs.ufs }}
         run: |

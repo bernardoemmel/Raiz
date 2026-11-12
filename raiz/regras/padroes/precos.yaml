@@ -1,0 +1,22 @@
+# Proposta de pacotes, sem autorização para venda ou cobrança real.
+versao: precos-2026a-provisorio
+status: provisorio
+aprovado_em: null
+observacao: a definir pelo fundador
+moeda: BRL
+planos:
+  - id: avulsa
+    nome: Ficha avulsa
+    creditos: 1
+    valor_rs: null
+    aviso_preco: a definir pelo fundador
+  - id: pacote_10
+    nome: Pacote de 10 fichas
+    creditos: 10
+    valor_rs: null
+    aviso_preco: a definir pelo fundador
+  - id: pacote_50
+    nome: Pacote de 50 fichas
+    creditos: 50
+    valor_rs: null
+    aviso_preco: a definir pelo fundador

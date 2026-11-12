@@ -62,13 +62,13 @@ export function CreditosConsulta({ revisao = 0 }: { revisao?: number }) {
   }
   return <section className="creditos-consulta" aria-labelledby="creditos-titulo">
     <h2 id="creditos-titulo">Créditos para consultar fichas</h2>
-    <p>O agregado é aberto. Cada ficha completa usa {planos?.custo_ficha ?? 1} crédito de consulta pago. Consultar uma ficha já desbloqueada não cobra outra vez.</p>
+    <p>O agregado e a situação básica no mapa são abertos. Cada ficha completa usa {planos?.custo_ficha ?? 1} crédito de consulta pago. Consultar uma ficha já desbloqueada não cobra outra vez.</p>
     {saldo && <p role="status"><strong>{numeroTerra(saldo.creditos)} créditos disponíveis</strong>. {numeroTerra(saldo.fichas_desbloqueadas)} {saldo.fichas_desbloqueadas === 1 ? "ficha desbloqueada" : "fichas desbloqueadas"}.</p>}
     {!prospeccao.disponivel ? <p>Compras e fichas completas estarão disponíveis quando a conexão com a Raíz estiver ativa.</p> : <>
       {planos?.mensagem && <p>{planos.mensagem}</p>}
       {!!planos?.planos.length && <ul className="planos-consulta">{planos.planos.map((p) => <li key={p.id}>
-        <strong>{p.nome}</strong><span>{numeroTerra(p.creditos)} créditos por {p.valor_rs.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</span>
-        <button className="botao" type="button" disabled={!sessao || !planos.pagamento_disponivel || ocupado} onClick={() => comprar(p.id)}>Comprar pelo Pix</button>
+        <strong>{p.nome}</strong><span>{numeroTerra(p.creditos)} créditos{p.valor_rs == null || p.status === "provisorio" ? ": preço a definir pelo fundador" : ` por ${p.valor_rs.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}`}</span>{p.aviso_preco && <small>{p.aviso_preco}</small>}
+        <button className="botao" type="button" disabled={!sessao || !planos.pagamento_disponivel || p.valor_rs == null || p.status === "provisorio" || ocupado} onClick={() => comprar(p.id)}>Comprar pelo Pix</button>
       </li>)}</ul>}
       {!sessao && <a href="#/entrar">Entrar para comprar créditos</a>}
     </>}
