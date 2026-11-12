@@ -10,8 +10,8 @@ import { n0, texto } from "./colunas"
 import { buscar, normalizarCar, pareceCar, type RespostaBusca } from "./busca"
 import { complementosDe, juntarComplementos } from "./complementos"
 import { lerCsv } from "./csv"
-import { buscarJson, buscarTexto, lerPontos, memo, type Certidao, type FonteDeDados } from "./fonte"
-import { lerFicha, type FichaJson } from "./ficha"
+import { buscarJson, buscarTexto, buscarTextoGz, lerPontos, memo, type Certidao, type FonteDeDados } from "./fonte"
+import { baseDoMunicipio, lerFicha, montarFicha, type FichaJson } from "./ficha"
 import { funilDosImoveis, lerFunil, lerImovel } from "./funil"
 import { ufDoCodigo } from "../formato"
 import type { CamadaGeo, Estados, FunilMunicipio, Geo, Imovel } from "./tipos"
@@ -33,8 +33,9 @@ export function fonteAmostra(base = "/"): FonteDeDados {
   const indiceGeo = async (_: string) => (await indiceCompleto("")).municipios
   const pontos = memo(async (uf: string) => lerPontos(await buscarJson(urlAmostra(`pontos_${uf}.json`))))
 
+  // o site estático guarda os CSV comprimidos (.csv.gz); o servidor de desenvolvimento serve os dois
   const csv = memo(async (arq: string) => {
-    const t = await buscarTexto(urlAmostra(arq))
+    const t = (await buscarTextoGz(urlAmostra(`${arq}.gz`))) ?? (await buscarTexto(urlAmostra(arq)))
     return t === null ? null : lerCsv(t).linhas
   })
 
@@ -62,6 +63,11 @@ export function fonteAmostra(base = "/"): FonteDeDados {
     if (avisos.length) console.warn("Raíz, arquivos que não entraram:", avisos.join("; "))
     return (principais ?? []).filter((l) => l.cod_imovel).map((l) => lerImovel(l, porImovel.get(l.cod_imovel)))
   })
+
+  async function camadaGeo(cod: string, camada: CamadaGeo): Promise<Geo | null> {
+    const item = (await indiceGeo(""))[cod]?.[camada]
+    return item ? buscarJson<Geo>(urlGeo(item.arquivo)) : null
+  }
 
   const municipiosComImoveis = async () => (await estados("")).estados.flatMap((e) => e.com_lista)
 
@@ -98,9 +104,19 @@ export function fonteAmostra(base = "/"): FonteDeDados {
       return null
     },
     async ficha(cod_imovel) {
-      // o plugin do Vite monta a ficha de uma fazenda só (em produção, arquivos gerados no build)
+      // o plugin do Vite monta a ficha de uma fazenda só; no site estático, o build grava as fichas dos municípios com
+      // contorno e as outras saem aqui, dos CSV do município (mesma função do plugin e do back-end)
       const json = await buscarJson<FichaJson>(urlAmostra(`fichas/${encodeURIComponent(cod_imovel)}.json`))
-      return json ? lerFicha(json) : null
+      if (json) return lerFicha(json)
+      for (const cod of await municipiosDoCar(cod_imovel)) {
+        const todos = await imoveis(cod)
+        const alvo = todos?.find((i) => i.cod_imovel === cod_imovel)
+        if (!todos || !alvo) continue
+        const geo = await camadaGeo(cod, "imoveis").catch(() => null)
+        const feicao = geo?.features.find((f) => String(f.properties.cod_imovel) === cod_imovel)
+        return lerFicha(montarFicha(alvo, todos, feicao, baseDoMunicipio(todos)))
+      }
+      return null
     },
     async certidoes(cod_imovel) {
       const saida: Certidao[] = []
@@ -149,10 +165,7 @@ export function fonteAmostra(base = "/"): FonteDeDados {
           .filter(([, c]) => c.imoveis)
           .map(([cod]) => cod)
       },
-      async camada(cod, camada) {
-        const item = (await indiceGeo(""))[cod]?.[camada]
-        return item ? buscarJson<Geo>(urlGeo(item.arquivo)) : null
-      },
+      camada: camadaGeo,
       async base(cod) {
         const item = (await indiceGeo(""))[cod]?.base
         return item ? new URL(urlGeo(item.arquivo), location.href).href : null

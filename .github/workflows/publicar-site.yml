@@ -1,0 +1,108 @@
+# Publica o produto (painel e ficha do produtor) no GitHub Pages: https://bernardoemmel.github.io/Raiz/
+#
+# O site é estático: o build baixa do Release "dados" o que o motor publicou (front/scripts/baixar-dados.mjs) e grava
+# os CSV limpos e comprimidos, os estados, os pontos de cada estado e as fichas prontas (vite-dados.ts). As geometrias
+# do mapa saem de front/scripts/geo.py, guardadas em cache entre as rodadas. Roda a cada mudança do front na main, todo
+# dia (dados novos do motor) e quando alguém dispara (Actions, "Publicar o site").
+#
+# Uma vez só, no repositório: Settings > Pages > Build and deployment > Source: "GitHub Actions". O token do Actions não
+# consegue ligar o Pages sozinho; sem isso, o passo "publicar" falha com o aviso do GitHub.
+name: Publicar o site
+
+on:
+  push:
+    branches: [main]
+    paths: ["front/**", ".github/workflows/publicar-site.yml"]
+  schedule:
+    - cron: "41 10 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: publicar-site
+  cancel-in-progress: false
+
+jobs:
+  construir:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Geometrias do mapa (do cache)
+        uses: actions/cache/restore@v4
+        with:
+          path: front/geo
+          key: geo-${{ hashFiles('front/scripts/geo.py') }}-${{ github.run_id }}
+          restore-keys: geo-
+
+      - name: Gerar as geometrias que faltam (geo.py só baixa o que não existe)
+        id: geo
+        continue-on-error: true
+        run: |
+          pip install --quiet requests shapely pmtiles
+          python front/scripts/geo.py 1507300 1504950
+
+      - name: Guardar as geometrias (mesmo as de uma rodada pela metade: o geo.py só baixa o que falta)
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: front/geo
+          key: geo-${{ hashFiles('front/scripts/geo.py') }}-${{ github.run_id }}
+
+      - name: Conferir o mapa
+        run: |
+          for f in indice.json brasil_municipios.geojson brasil_estados.geojson base_brasil.pmtiles; do
+            if [ ! -f "front/geo/$f" ]; then echo "::warning::falta front/geo/$f: o mapa sai sem essa camada"; fi
+          done
+
+      - name: Dados do motor (Release dados)
+        run: node front/scripts/baixar-dados.mjs
+
+      - name: Dependências
+        run: |
+          (cd front/globo && npm ci --no-audit --no-fund)
+          (cd front/produtor && npm ci --no-audit --no-fund)
+
+      - name: Build do painel (com os dados)
+        env:
+          RAIZ_BASE: /${{ github.event.repository.name }}/
+        run: cd front/globo && npm run build
+
+      - name: Build da ficha do produtor (lê os dados do painel)
+        env:
+          RAIZ_BUILD_DADOS: "0"
+          VITE_RAIZ_DADOS_BASE: "../"
+        run: cd front/produtor && npm run build
+
+      - name: Montar o site
+        run: |
+          rm -rf site
+          cp -r front/globo/dist site
+          cp -r front/produtor/dist site/produtor
+          touch site/.nojekyll
+          echo "Tamanho do site: $(du -sh site | cut -f1), $(find site -type f | wc -l) arquivos"
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  publicar:
+    needs: construir
+    runs-on: ubuntu-24.04
+    environment:
+      name: github-pages
+      url: ${{ steps.publicar.outputs.page_url }}
+    steps:
+      - id: publicar
+        uses: actions/deploy-pages@v4

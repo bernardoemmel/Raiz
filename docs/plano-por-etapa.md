@@ -209,34 +209,38 @@ Feito na main fora desta tabela: aprendizado do valor para quem restaura (`raiz/
 
 ## E9. O que as pessoas veem
 
+Conferido contra a main em 12/11/2026: "feito" quer dizer que o código está na main; "parcial" diz o que existe e o
+que falta, com as horas do que falta. O site público (https://bernardoemmel.github.io/Raiz/) mostra o que o front já
+faz sem back-end.
+
 | Ordem | Passo | Depende de | Horas |
 |---|---|---|---|
 | 1 | Medidor de legibilidade: copiar contagem e fórmulas do ALT (sem PyMuPDF), calcular as três versões do Flesch (ALT, LanguageTool, Martins) e guardar todas | nada | 2 a 4 |
-| 1 | Gerar a ficha de cada fazenda em JSON (rows.json) a partir do funil, com os campos que o vídeo, o cartão e o texto vão usar | E2, E3, E5 | 2 a 4 |
-| 1 | Trocar o cartão da ficha de Satori + resvg para Takumi com saída WebP (manter Satori só onde precisar de SVG) | modelo do cartão já existente | 2 a 4 |
+| 1 | Gerar a ficha de cada fazenda em JSON (rows.json) a partir do funil, com os campos que o vídeo, o cartão e o texto vão usar | E2, E3, E5 | parcial: a ficha JSON existe (front/compartilhado/dados/ficha.ts e GET /imoveis/{cod}/ficha em raiz/front_api.py); falta gravar em lote no back-end (2 a 3) |
+| 1 | Trocar o cartão da ficha de Satori + resvg para Takumi com saída WebP (manter Satori só onde precisar de SVG) | modelo do cartão já existente | parcial: o cartão já sai do Takumi (servicos/cartao/render.mjs); falta a saída WebP (1 a 2) |
 | 2 | Servidor LanguageTool em contêiner, só com as regras de estilo e legibilidade do português, chamado antes de todo envio | passo 1 | 2 a 4 |
-| 2 | Produzir a imagem antes e depois de cada fazenda (Sentinel-2 por STAC, lógica do Sentinel2Timelapse-QGIS) e o mapa do imóvel | E9 passo 1 | 6 a 10 |
-| 2 | Ficha em Preact com 'mapa sob demanda' (padrão Uber Lite): texto, cartão WebP e ThumbHash na primeira abertura; MapLibre e PMTiles só no toque | passo 1 | 4 a 8 |
+| 2 | Produzir a imagem antes e depois de cada fazenda (Sentinel-2 por STAC, lógica do Sentinel2Timelapse-QGIS) e o mapa do imóvel | E9 passo 1 | feito (raiz/satelite.py: Sentinel-2 hoje, Landsat em 1985 e 2008, simulação; testes/test_satelite.py) |
+| 2 | Ficha em Preact com 'mapa sob demanda' (padrão Uber Lite): texto, cartão WebP e ThumbHash na primeira abertura; MapLibre e PMTiles só no toque | passo 1 | parcial: mapa só no toque e contorno pela polyline (front/produtor); faltam o cartão WebP e o ThumbHash (2 a 3) |
 | 3 | Portão no estilo da lei da Flórida: nota mínima calibrada com 30 cartas reais, sem contar termos do glossário e tabelas, nota gravada no laudo | passos 1 e 2 | 3 a 5 |
-| 3 | Escrever o texto por fazenda e por município com frases comparativas por índice (método do Census Reporter) dentro do kit do ONS, com modelo de campos abertos como o do g1 | E9 passo 1 | 6 a 10 |
-| 3 | Gravar no lote anual, por fazenda: ThumbHash da miniatura, perímetro em polyline (6 casas), Plus Code da porteira e link omaps.app | funil E2 com o polígono final | 3 a 5 |
-| 4 | Modelos de texto com campos condicionais no formato do GOV.UK Notify, mais extenso.js ou num2words, pluralizador e verbecc; aviso curto na ordem fonte, fato, fazenda, prazo, o que fazer | passo 3 | 4 a 8 |
-| 4 | Gerar cartão PNG e laudo PDF por fazenda com Takumi (takumi-js e takumi-pdf) a partir do mesmo modelo | E9 passos 2 e 3 | 4 a 6 |
+| 3 | Escrever o texto por fazenda e por município com frases comparativas por índice (método do Census Reporter) dentro do kit do ONS, com modelo de campos abertos como o do g1 | E9 passo 1 | parcial: frases por índice e posição (front/compartilhado/comparacoes.ts) e frase do município (raiz/municipio_dados.py); falta o kit do ONS com campos abertos (4 a 6) |
+| 3 | Gravar no lote anual, por fazenda: ThumbHash da miniatura, perímetro em polyline (6 casas), Plus Code da porteira e link omaps.app | funil E2 com o polígono final | parcial: polyline de 6 casas (raiz/front_api.py, front/compartilhado/polyline.ts), calculada a cada pedido; faltam o lote anual, o ThumbHash, o Plus Code e o link omaps.app (3 a 4) |
+| 4 | Modelos de texto com campos condicionais no formato do GOV.UK Notify, mais extenso.js ou num2words, pluralizador e verbecc; aviso curto na ordem fonte, fato, fazenda, prazo, o que fazer | passo 3 | parcial: o aviso curto na ordem fonte, fato, fazenda, prazo e o que fazer existe (raiz/vigilancia/aviso.py, raiz/agentes/textos.py); faltam os campos condicionais e o número por extenso (3 a 6) |
+| 4 | Gerar cartão PNG e laudo PDF por fazenda com Takumi (takumi-js e takumi-pdf) a partir do mesmo modelo | E9 passos 2 e 3 | parcial: cartões pelo Takumi (raiz/publico.py) e laudo PDF por docxtpl e LibreOffice (raiz/documentos/); falta o mesmo modelo para os dois (2 a 4) |
 | 4 | Gerar KMZ por fazenda (perímetro, reserva legal e APP com cor) e o link do pacote regional do Organic Maps no envio do WhatsApp | passo 3 | 2 a 4 |
-| 5 | Voz: criar uma voz fixa da Raíz no Qwen3-TTS (VoiceDesign) e gerar o áudio de cada carta em lote; Kokoro pf_dora como segunda opção no servidor | passo 4 | 4 a 6 |
+| 5 | Voz: criar uma voz fixa da Raíz no Qwen3-TTS (VoiceDesign) e gerar o áudio de cada carta em lote; Kokoro pf_dora como segunda opção no servidor | passo 4 | parcial: o vídeo é narrado pelo Qwen3-TTS com falante pronto (raiz/voz.py); faltam a voz fixa (VoiceDesign), o lote de cartas e o Kokoro (3 a 5) |
 | 5 | Montar a composição do HyperFrames com data-var-text e data-var-src e rodar render --batch com --strict-variables e manifest.json | E9 passos 1 a 3 | 6 a 10 |
 | 5 | Carga adaptativa: escolher vídeo HyperFrames ou cartão WebP pelo tipo de rede, economia de dados e memória (react-adaptive-hooks via preact/compat) | passo 2 | 2 a 3 |
 | 6 | QR Code em cada documento levando a página com resumo, áudio e três perguntas prontas (desenho do SOFIA) | passo 5 | 2 a 4 |
-| 6 | Envolver o render com cache e trava por CAR e ano (padrão do GitHub Unwrapped) e ligar ao envio por pessoa (padrão de planilha do GOV.UK Notify) | E9 passo 5; E7 | 3 a 5 |
+| 6 | Envolver o render com cache e trava por CAR e ano (padrão do GitHub Unwrapped) e ligar ao envio por pessoa (padrão de planilha do GOV.UK Notify) | E9 passo 5; E7 | parcial: cache por código curto (raiz/publico.py) e trava por imóvel nas imagens de satélite; faltam a trava do cartão e do vídeo, a chave por ano e o envio por pessoa (2 a 3) |
 | 7 | WhatsApp: mensagem com botão para o dono ligar (grátis) e agente de voz no Pipecat atendendo; baixar a tabela CSV em reais no painel da Meta para orçar as chamadas da Raíz | passo 5 | 6 a 10 |
-| 7 | Manter tiles em MVT dentro do PMTiles; reavaliar MLT quando o caminho colunar (#8985) entrar no MapLibre GL JS | nada | 0,5 |
-| 8 | Passo de teach-back no aceite: o dono explica com as próprias palavras, o agente confere prazo, área e pagamento e só então pede a confirmação separada (código ou assinatura) | passo 7 | 3 a 5 |
+| 7 | Manter tiles em MVT dentro do PMTiles; reavaliar MLT quando o caminho colunar (#8985) entrar no MapLibre GL JS | nada | feito (raiz/tiles.py e front/scripts/geo.py gravam MVT); reavaliar o MLT quando entrar no MapLibre |
+| 8 | Passo de teach-back no aceite: o dono explica com as próprias palavras, o agente confere prazo, área e pagamento e só então pede a confirmação separada (código ou assinatura) | passo 7 | feito (raiz/agentes/aceite.py: avaliar_explicacao, reexplicar e pedir_codigo; testes/test_aceite.py), por texto no WhatsApp |
 | 8 | Pacote offline mensal por município para técnicos: pmtiles extract e remendo com zstd --patch-from | PMTiles do Brasil e PWA com Workbox | 4 a 8 |
 | 9 | Opcional: treinar uma voz Piper do zero só com dados CC0 (sem a voz lessac) para rodar em CPU e no celular | passo 5 | 6 a 10 de trabalho, mais o tempo de GPU |
-| 11 | Página de aceite do dono com componentes do gov.br DS, grade de ícones (PyWaffle) e motivos específicos de 'não apto' | Preact | 6 a 10 |
+| 11 | Página de aceite do dono com componentes do gov.br DS, grade de ícones (PyWaffle) e motivos específicos de 'não apto' | Preact | parcial: os motivos específicos de 'não apto' existem (front/compartilhado/motivos.ts, raiz/motivos.py); faltam a página de aceite e a grade de ícones (5 a 8) |
 | 1 | (API do front) Rotas que o front espera (front/README.md, "Depois (API)"): /municipios, /municipios/{cod_ibge}/imoveis, /imoveis/{cod_imovel}, /ficha, /certidoes, /geo/{cod_ibge}/{municipio,imoveis,ti,uc,rios}.geojson e base.pmtiles com Range, servidas do PostGIS com os nomes de coluna dos CSV, CPF/CNPJ mascarados e Bearer; camadas do mapa carregadas por `raiz geo carregar` | carga do motor (fundação) | feito |
 | 2 | (API do front) Cache por rodada (ETag pelo hash da rodada) e lista de imóveis em pedaços ou em formato colunar para município grande (São Félix: 2,8 MB comprimidos, 3,4 s) | passo anterior | 2 a 4 |
-| 2 | (API do front) Divisa, TI, UC e rios vindos da coleta (E1) direto no PostGIS, no lugar dos arquivos do front/scripts/geo.py; um mapa base PMTiles do Brasil servido com Range | E1 | 3 a 5 |
-| 6 | (API do front) Fichas em JSON do lote anual (passo 1) servidas como arquivo estático; a API fica para o painel interno e para o que muda no dia | passo 1 | 1 a 2 |
+| 2 | (API do front) Divisa, TI, UC e rios vindos da coleta (E1) direto no PostGIS, no lugar dos arquivos do front/scripts/geo.py; um mapa base PMTiles do Brasil servido com Range | E1 | parcial: o mapa base do Brasil com Range está feito (raiz/mapa_base.py, /mapa/brasil.pmtiles); as camadas ainda vêm do front/scripts/geo.py (2 a 3) |
+| 6 | (API do front) Fichas em JSON do lote anual (passo 1) servidas como arquivo estático; a API fica para o painel interno e para o que muda no dia | passo 1 | parcial: o site estático grava as fichas dos municípios com contorno e o navegador monta as outras (front/compartilhado/vite-dados.ts); falta o lote anual do back-end (1) |
 | 1 | (busca) Busca nacional pelo código do CAR (inteiro ou começo, com ou sem pontos e traços) e pelo nome do município, no contrato de front/compartilhado/dados/busca.ts; índice por código normalizado; 6,7 milhões de imóveis sintéticos: pior resposta 0,49 s | carga contínua | feito |
 | 1 | (busca) Carga contínua das saídas do motor por estado (`raiz vigiar`), só o município que mudou, com a versão anterior guardada | carga do motor | feito |
