@@ -1,6 +1,6 @@
 # Qualidade e segurança — passagem
 
-Entrega inicial de 12/11/2026 (#51); revisão de continuidade em 12/11/2026, até a main `a4c1066`. Área: CI, E2E, infraestrutura e segurança. Correções em produto são pontuais,
+Entrega inicial de 12/11/2026 (#51); revisão de continuidade em 12/11/2026, até a main `b63c555`. Área: CI, E2E, infraestrutura e segurança. Correções em produto são pontuais,
 com regressões. Mudanças de contrato/arquitetura ficam para os chats responsáveis abaixo.
 
 ## Continuidade desta entrega (12/11/2026)
@@ -18,7 +18,7 @@ com regressões. Mudanças de contrato/arquitetura ficam para os chats responsá
   latência com prazo estrito e Locust preparados. A função existente `proximos_eventos` passou seis cenários com
   Postgres e ausência de ações; não há agente LLM nem transporte MCP/OAuth disponíveis na main. **Produto e regras**
   entrega o servidor; Qualidade conecta a suíte completa. O job MCP pode pular com aviso explícito enquanto ausente, por autorização do fundador; implementação presente exige ensaios verdes.
-- **Revisão contínua:** PRs #53, #56, #67 e #54 revisados, com correções pequenas de privacidade e calendário abaixo.
+- **Revisão contínua:** PRs #53, #56, #67, #54, #68, #70, #71, #73 e #74 revisados, com correções pequenas de privacidade e calendário abaixo.
   Scanners e testes rodam a cada push. O fundador optou por manter somente essas checagens por push, sem automação horária.
 
 ### Achados de dados agora bloqueados — chat Dados
@@ -245,7 +245,7 @@ produzir um conjunto utilizável. Não foram disparados envios à Verra nem proc
 
 ## Revisão contínua — continuação de 12/11/2026
 
-Marco inicial: merge do #51 (`78e13f7`). Main conferida até `a4c1066`; não foram confundidos PRs abertos com
+Marco inicial: merge do #51 (`78e13f7`). Main conferida até `b63c555`; não foram confundidos PRs abertos com
 código integrado. O histórico acima descreve a entrega inicial; esta seção registra mudanças posteriores.
 
 | PR integrado | Diff revisado | Resultado e responsável |
@@ -274,7 +274,7 @@ O ponteiro do lote ainda ausente não substitui as 144 tabelas reais de desenvol
 
 ### MCP ainda não entregue pelo chat dono
 
-Na main `a4c1066` não há servidor MCP. O #54 fornece a função somente leitura `proximos_eventos`, ainda sem transporte. No PR #45 aberto, `raiz/publica/servidor_mcp.py` apenas recusa inicialização
+Na main `b63c555` não há servidor MCP. O #54 fornece a função somente leitura `proximos_eventos`, ainda sem transporte. No PR #45 aberto, `raiz/publica/servidor_mcp.py` apenas recusa inicialização
 até OAuth 2.1. **Produto e regras** é responsável pelo servidor, catálogo de ferramentas e autorização. **Qualidade e
 segurança** responde pelas suítes adversariais, latência e carga; não deve inventar um MCP alternativo nem registrar
 um stub como prova de segurança/tempo. A integração dessas suítes exige o servidor real do chat dono.
@@ -305,3 +305,40 @@ falhavam na main: e-mail no nome de arquivo, e-mail com codificação repetida, 
 credencial. A correção recusa esses caminhos e remove fragmentos sem alterar o identificador público do ato. Foram
 34 testes focados de calendário/site/URL aprovados; a rodada focada excluiu seis testes de banco para não disputar o
 PostGIS com a suíte completa em andamento. Não houve skip novo ou retirada desses testes do CI.
+
+
+### Histórico e últimas integrações (#68, #70, #71, #73 e #74)
+
+- **#68, histórico:** confirmado que texto pessoal em `cod_imovel` passava pela normalização canônica e podia
+  ser salvo/publicado no histórico. A validação central de privacidade agora roda antes de gravar o retrato e na
+  leitura para publicar, inclusive em registros antigos cuja integridade canônica foi recomposta. Quatro regressões
+  cobrem recusa e zero upload. Não foram alterados algoritmos de aprendizado nem retratos históricos remotos.
+- **#70, Release básico/calendário:** mantidos os agregados e o bloqueio de tabelas detalhadas antigas. A ausência
+  do calendário gera JSON/ICS vazios válidos; coleta/cache recebidos passam pela projeção segura. HTTP 200 inválido
+  reprova o build. O teste novo do download foi ajustado para exigir esse bloqueio, sem fallback silencioso.
+- **#71, ficha visual:** rotas de geometria, metadados e imagem exigem desbloqueio do cliente ativo. Resposta
+  geométrica tem propriedades fechadas e imagem usa cache privado. Não houve bug pequeno adicional confirmado.
+- **#73/#74, mobile/domínio:** preservados teclado, axe, Lighthouse e builds em `/Raiz/` e `/`. Domínio/base/URL
+  são validados antes do build; não há credencial no CNAME. A exceção Gitleaks de JDBC foi conferida: aponta para
+  uma única linha histórica sem usuário/senha; não libera outros caminhos/commits ou segredos do serviço.
+
+**Dados** precisa formalizar em `docs/colunas.md` o novo `imoveis_basicos_<IBGE>.csv`, anunciado pelo Release e
+aceito pelo front, mas sem produtor/contrato integrado na main revisada. O portão bloqueia formato sem contrato;
+não inventa colunas de área ou aceita tabelas incompletas como se fossem a tabela técnica `imoveis`.
+A publicação detalhada do motor exige os campos documentados e a correção das áreas já relatadas.
+
+### Ativação automática do MCP e decisão sobre recorrência
+
+Por orientação explícita do fundador, não há servidor/branch alternativo para testar e não foi criada revisão horária.
+O job `mcp` roda em todo PR/push: ausência da implementação produz `::warning`, resumo e artefato com
+`ensaios_executados=false`. O stub exato anterior é reconhecido por hash. Entrada MCP alterada, servidor ou dependência
+MCP ativam a exigência dos ensaios; erro de OAuth, falta de adaptador, tempo, efeitos ou carga falham o job.
+
+**Produto e regras** entrega com o servidor o adaptador `testes.mcp.produto.integracao()`, conforme
+[`testes/mcp/README.md`](../../testes/mcp/README.md), iniciando OAuth/MCP reais e observadores independentes.
+**Qualidade e segurança** fornece corpus, auditor, cliente, limite de 5 s por ferramenta, Locust e runner CI já ligados.
+Uma integração ausente depois da entrada do servidor não será convertida em aviso nem aprovação falsa.
+
+A correção de concorrência do limite compartilhado executa a sanitização/gravação HTTP fora do loop assíncrono,
+sem remover Presidio. O teste usa dois apps, logger JSON real e 50 chamadas concorrentes; exige exatamente sete
+admitidas e 43 recusas 429. Falha do Valkey permanece 503, nunca substituída por contador por processo.

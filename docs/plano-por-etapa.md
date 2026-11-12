@@ -400,7 +400,7 @@ Limites verificados em 12/11/2026: DJEN/CNJ respondeu HTTP 403; diários estadua
 | Locust MIT no CI com API/PostGIS real, latência, 429/Retry-After e recuperação | **feito**; perfil curto não é capacidade máxima de produção |
 | Logs JSON com Presidio, /saude, limite compartilhado Valkey e GlitchTip próprio MIT | **feito**; testado localmente, configuração de produção documentada em operação |
 | Injeção/latência/carga das ferramentas MCP | **parcial**; auditor/cliente/corpus prontos e função real de calendário testada; servidor MCP/OAuth/agente aguardam Produto e regras |
-| Revisão contínua dos novos merges | PRs #53/#56/#67/#54 revisados e pequenos bugs corrigidos com teste; CI por push ativo, revisão horária não ativada por decisão do fundador |
+| Revisão contínua dos novos merges | PRs #53/#56/#67/#54/#68/#70/#71/#73/#74 revisados e pequenos bugs corrigidos com teste; CI por push ativo, revisão horária não ativada por decisão do fundador |
 
 - [x] Integração da entrega mobile com o Calendário: rota sob demanda, quatro links visíveis a 360 px, filtros
   com 48 px e teste CI de teclado/axe em três larguras; 186 testes do front e fluxos de ficha/lote aprovados.
