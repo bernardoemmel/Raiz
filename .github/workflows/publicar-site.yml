@@ -96,6 +96,7 @@ jobs:
           RAIZ_DADOS: dados/publicos
           # Variável vazia mantém o Pages de projeto. Um hostname publica / e grava site/CNAME.
           RAIZ_DOMINIO: ${{ vars.RAIZ_DOMINIO }}
+          RAIZ_ACERTO_URL: ${{ vars.RAIZ_ACERTO_URL }}
         run: front/scripts/construir-site.sh
 
       - uses: actions/upload-pages-artifact@v3
