@@ -64,7 +64,7 @@ carga não substitui data da fonte. Nunca nome, CPF ou contato do dono.
   da resposta; nenhuma compra ocorre implicitamente.
 - PDF gerado no servidor com a mesma ficha, lista positiva em todos os níveis,
   fontes/datas e ausências. Sessão, pagamento, reserva e limite são reavaliados.
-- Até 20 buscas salvas por conta (migração `0028`, após `0027` do calendário). O primeiro snapshot é silencioso; CAR novo que
+- Até 20 buscas salvas por conta (migração `0031`, após `0030` da plataforma de agentes). O primeiro snapshot é silencioso; CAR novo que
   passar pelos filtros gera aviso no painel, uma única vez. Avisos não liberam
   ficha e respeitam reserva de outra conta. Excluir busca remove seu histórico.
 - `raiz prospeccao verificar-buscas` deve rodar após cargas e periodicamente no
