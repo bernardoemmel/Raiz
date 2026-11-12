@@ -206,6 +206,7 @@ def test_rerun_sem_reserva_nao_presume_checkout_pelo_head_do_workflow(tmp_path, 
         ("      - uses: actions/checkout@v4\n        <<: *checkout\n", False),
         ("      - uses: actions/checkout@v4\n      - uses: actions/checkout@v4\n", False),
         ("      - uses: actions/checkout@v5\n", False),
+        ("      - uses: actions/checkout@v4\n      - run: git checkout commit_antigo\n", False),
     ],
 )
 def test_pre_cap_sem_reserva_so_passa_com_checkout_default_comprovado(tmp_path, monkeypatch, checkout, permitido):
@@ -215,6 +216,12 @@ def test_pre_cap_sem_reserva_so_passa_com_checkout_default_comprovado(tmp_path, 
         "jobs:\n  planejar:\n    steps:\n      - uses: actions/checkout@v4\n"
         "  processar:\n    steps:\n" + checkout + "      - run: python motor/rodar_estado.py\n"
     )
+    confiavel = (
+        "jobs:\n  planejar:\n    steps:\n      - uses: actions/checkout@v4\n"
+        "  processar:\n    steps:\n      - uses: actions/checkout@v4\n"
+        "      - run: python motor/rodar_estado.py\n"
+    )
+    monkeypatch.setattr(P, "WORKFLOWS_CHECKOUT_HEAD", {hashlib.sha256(confiavel.encode()).hexdigest()})
     chamadas = []
 
     def api(caminho):
