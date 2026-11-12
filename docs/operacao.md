@@ -137,6 +137,9 @@ mudar na nuvem (ETag novo), o cache dele é refeito.
     pedido do Takumi). Campo que começa com `_` é interno: o código do CAR só aparece fora dele depois do aceite;
   - `<UF>/<cod_ibge>/manifesto.json` e `indice.json` na raiz: rodada, data de corte, quantas fazendas, quantas aptas
     e quando foi gravado.
+- Cada ficha leva a capa (foto de satélite com ThumbHash, quando já foi gerada) e a localização: Plus Code e link curto
+  do Organic Maps (`https://omaps.app/...`, abre o app offline) de um ponto dentro do imóvel. No `rows.json`, o ponto
+  exato só sai fora do campo interno depois do aceite.
 - Só regrava o município cuja rodada vigente mudou. O contexto do município (posição e medianas) é calculado uma vez
   por município, não por fazenda.
 

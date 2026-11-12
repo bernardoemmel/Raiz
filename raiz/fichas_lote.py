@@ -6,7 +6,8 @@ Por município, em <destino>/<UF>/<cod_ibge>/:
                               para servir como arquivo estático (o site e a ficha do produtor leem sem a API)
     rows.json                 uma linha por fazenda com os campos que o cartão, o vídeo e o texto usam (mesmos nomes
                               do pedido do Takumi em servicos/cartao/render.mjs); campo com "_" na frente é interno e
-                              nunca vai para imagem, vídeo ou página antes do aceite do dono
+                              nunca vai para imagem, vídeo ou página antes do aceite do dono (o código do CAR, a foto
+                              de satélite, o Plus Code e o link do Organic Maps, que dão o ponto exato)
     manifesto.json            rodada, data de corte, versão das fichas, quantas fazendas e quando foi gravado
 
 e <destino>/indice.json com um resumo por município. Só regrava o município cuja rodada vigente mudou (ou com
@@ -165,10 +166,15 @@ def linha_do_cartao(ficha: dict) -> dict:
         "aceito": aceito,
         "_cod_imovel": imovel["cod_imovel"],
     }
-    if aceito:  # depois do aceite o código do CAR e a foto de satélite podem aparecer
+    loc = ficha.get("localizacao") or {}
+    if aceito:  # depois do aceite o código do CAR, a foto de satélite e o ponto exato podem aparecer
         linha["cod_imovel"] = imovel["cod_imovel"]
         if ficha.get("capa"):
             linha["capa_thumbhash"] = ficha["capa"]["thumbhash"]
+        if loc:
+            linha.update(plus_code=loc["plus_code"], omaps=loc["omaps"])
+    elif loc:
+        linha.update(_plus_code=loc["plus_code"], _omaps=loc["omaps"])
     return linha
 
 

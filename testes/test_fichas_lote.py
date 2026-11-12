@@ -70,6 +70,8 @@ def test_rows_do_cartao_sem_codigo_do_car_antes_do_aceite(eng, tmp_path):
     rows = json.loads((tmp_path / "PA" / str(COD) / "rows.json").read_text(encoding="utf-8"))
     linha = next(r for r in rows if r["_cod_imovel"] == eng.alvo)
     assert linha["codigo"] == eng.codigo and linha["selo"] in ("bronze", "prata") and "cod_imovel" not in linha
+    # o ponto exato (Plus Code e Organic Maps) só fica no campo interno antes do aceite
+    assert linha["_plus_code"] and linha["_omaps"].startswith("https://omaps.app/") and "plus_code" not in linha
     assert {"municipio", "uf", "hectares", "frase", "frase_curta", "selo"} <= set(linha)
     # o que vai a público não traz o código do CAR nem nada com cara de documento
     publico = json.dumps([{k: v for k, v in r.items() if not k.startswith("_")} for r in rows], ensure_ascii=False)
@@ -81,6 +83,7 @@ def test_rows_do_cartao_sem_codigo_do_car_antes_do_aceite(eng, tmp_path):
         rows = json.loads((tmp_path / "PA" / str(COD) / "rows.json").read_text(encoding="utf-8"))
         linha = next(r for r in rows if r["_cod_imovel"] == eng.alvo)
         assert linha["selo"] == "ouro" and linha["cod_imovel"] == eng.alvo
+        assert linha["plus_code"] and linha["omaps"] and "_plus_code" not in linha
     finally:
         with eng.begin() as c:
             c.execute(text("delete from negocio.aceite where cod_imovel = :c"), {"c": eng.alvo})

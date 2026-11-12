@@ -32,6 +32,7 @@ from sqlalchemy import Engine, text
 
 from raiz import contrato
 from raiz import flag as flag_mod
+from raiz import localizacao as localizacao_mod
 from raiz import motivos as motivos_mod
 from raiz import restauracao as restauracao_mod
 from raiz import terra as terra_mod
@@ -364,6 +365,10 @@ def montar_ficha(
         },
         "perimetro": [polyline(a) for a in aneis] if aneis else None,
         "caixa": [min(xs), min(ys), max(xs), max(ys)] if xs else None,
+        # Plus Code e link do Organic Maps de um ponto dentro do imóvel (achar a fazenda sem internet boa)
+        "localizacao": localizacao_mod.localizacao(
+            geometria, f"Raíz {banco['codigo_curto']}" if banco and banco.get("codigo_curto") else ""
+        ),
         "situacao": motivos_mod.situacao(alvo),
         "motivos": motivos_mod.motivos(alvo),
         # meta FLAG (GHG LSR v1.1) separada de crédito/compensação, com requisitos e versão da regra
