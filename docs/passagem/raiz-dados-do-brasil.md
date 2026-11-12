@@ -2,6 +2,7 @@
 
 Passagem original de 12/11/2026, 13h20 de Brasília. Retomada pelo Codex na mesma data, a partir da main.
 Branch da entrega de formatos e procedência: `codex/dados-croissant`.
+Branch seguinte, com as seis pendências E1/E2: `codex/dados-e1-e2`.
 
 ## O que este chat fez
 
@@ -13,6 +14,7 @@ Branch da entrega de formatos e procedência: `codex/dados-croissant`.
 | #43 | Limite padrão de 15 jobs de processamento (5 máquinas livres para CI e site), mais esta passagem | mesclado em 12/11, 13h30 de Brasília; CI de push e PR verdes |
 | #46 | Teto global de 15, reserva atômica, fila persistente de pedidos e continuações, consulta paginada e bloqueio de admissão se a API falhar | mesclado; os três checks do run `43281492727` passaram |
 | Retomada, entrega 2 | Itens 2–7: Croissant 1.1/schema.org, quantis hubverse, cartão, actions/attest e cronogramas CAD Trust; publicação sob as travas do estado e do índice | implementado; workflow de preenchimento retroativo será executado após CI e merge |
+| Retomada, entrega 3 | As seis pendências E1/E2 do item 8, na ordem de dependência | implementado; integração e testes PostGIS na entrega seguinte |
 
 ## Onde parou
 
@@ -29,8 +31,10 @@ Branch da entrega de formatos e procedência: `codex/dados-croissant`.
   A suíte da entrega passou com PostGIS (711 testes, 2 pulados, 1 xfail); correções adicionais de proveniência e
   os novos formatos passaram em 88 testes focados. A atualização retroativa aguarda também o término natural de
   runs anteriores à trava por UF (MA, run `43239448949`, ainda ativo na conferência), sem cancelar nada.
-- **Plano:** E1/E2 estão em preparação para a entrega seguinte, na ordem de dependência abaixo. Não confundir
-  código preparado no branch com operação agendada: a coleta com PostGIS continua sem servidor permanente.
+- **E1/E2 implementados:** fontes ArcGIS no manifesto e CLI/replicação, assinaturas SIGEF/PRODES, Ibama no SCD2,
+  alertas de qualidade e DuckDB/restrições no funil de produção. Não confundir código com operação agendada:
+  a coleta com PostGIS continua sem servidor permanente. Pendências maiores do plano que não estavam nos seis
+  itens desta passagem continuam explícitas no plano, como changelog oficial Ibama, cubo e grade raster.
 
 ## O que falta, em ordem
 
@@ -81,13 +85,31 @@ Branch da entrega de formatos e procedência: `codex/dados-croissant`.
      - `unitMetric` = "tCO2e";
      - `methodology` = "VCS - VM0047" (texto livre: a VM0047 não está na lista).
    - Publicar `cadt_lotes.json` no Release e registrar o CAD Trust (Apache-2.0, Chia-Network/cadt) no `NOTICE.md`.
-8. **E1 e E2**, pela ordem de dependência do plano:
-   - fontes ArcGIS (Ibama, SFB) no manifesto com `lastEditDate`;
-   - assinatura barata do INCRA (`wfs.mais_novo` por `data_aprovacao`) e do PRODES;
-   - ligar `raiz/coleta/arcgis.py` a um comando e ao estado da replicação;
-   - Ibama no scd2 (`raiz/coleta/rodada.py`, `CAMADAS_HISTORICO`);
-   - alertas de queda de contagem e de coluna vazia;
-   - na E2, usar `raiz/funil/restricoes.py` e `raiz/funil/duck.py` no funil de produção.
+8. **E1 e E2 — feito no código**, pela ordem de dependência do plano:
+   - fontes oficiais ArcGIS: CNFP 2025 e snapshot Ibama no SFB têm `lastEditDate`; PAMGIA não tem e exige releitura;
+   - SIGEF: bbox + contagem + `data_aprovacao`, com filtro FES validado no serviço real; fila independente do CAR
+     e reconciliação por UF. PRODES: hash do catálogo oficial (link/created/enabled), incluindo remoção/desativação;
+   - `raiz coleta arcgis`: fonte/UF/município/bbox explícitos, allowlist, snapshot GeoParquet e replicação. Confere
+     edição, esquema, contagem e OIDs; falha/trava não avança cursor;
+   - Ibama no SCD2 e view vigente, retry mesmo após 304; encerramento vazio só no município indicado. Pacotes
+     pendentes do dlt são aplicados antes da extração atual, sem marcar como carregado um snapshot ignorado;
+   - queda de contagem, coluna removida/vazia e geometria EMPTY produzem eventos/Healthchecks sem valores da fonte.
+     CSV malformado não perde linhas silenciosamente; travas preservam cache, ETag e assinatura. Hash ordenado
+     SHA-256 substitui XOR, que podia anular mudanças uniformes em quantidade par de linhas;
+   - ponte R.ov de produção usa DuckDB/SPATIAL_JOIN + iOverlay, com conexão por município e limpeza em finally.
+     Filtros acrescentam áreas exclusivas `restricao_*_ha`; mantêm sobreposições brutas, evidência legal e pequenas
+     propriedades. Hashes das tarefas incluem os módulos novos, e a assinatura do Ibama usa o espelho municipal.
+
+### Validação da entrega E1/E2
+
+Testes focados passaram com PostGIS em bancos separados: ArcGIS/CLI (32), SIGEF/PRODES/CAR/WFS (49), Ibama/qualidade
+e retomada dlt (23), além dos testes vetoriais e de produção E2. Os conjuntos têm interseções; não somar como total
+de testes únicos. A suíte integrada e o CI do PR registram o resultado da entrega completa.
+
+Os endpoints reais de ArcGIS responderam às allowlists dos três serviços. O INCRA respondeu à consulta FES
+com bbox/`data_aprovacao`; o catálogo PRODES foi lido sem baixar rasters. Testes automatizados usam respostas
+controladas e não dependem da disponibilidade desses serviços. A licença pendente do SFB/INPE continua marcada
+como não habilitada para treino no manifesto.
 
 ## PRs abertos e branches sem merge
 
