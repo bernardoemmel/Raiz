@@ -839,7 +839,8 @@ def api(ctx: typer.Context, porta: int = 8000, host: str = "127.0.0.1") -> None:
 
     from raiz.api import criar_app
 
-    uvicorn.run(criar_app(), host=host, port=porta)
+    # O access log padrão expõe query strings (link de login e segredo do webhook Pix).
+    uvicorn.run(criar_app(), host=host, port=porta, log_config=None, access_log=False)
 
 
 @api_cli.command("licenca")

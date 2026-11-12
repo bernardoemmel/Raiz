@@ -2,6 +2,14 @@
 
 ## Retomada no Codex
 
+Integração mais recente: main `78e13f7` (qualidade e segurança). Mantém o login
+com URL pública configurada, aliases 307 para a política paga, sanitização
+Presidio e `uvicorn` sem access log e sem substituir o formatador seguro.
+O teste de ponta a ponta passa a abrir conta, verificar recusa sem liberação,
+aceitar contrato e confirmar sinal/recarga exclusivamente por Pix local de teste.
+Não há liberação direta no banco nem retorno ao desenho grátis. Os 58 testes
+específicos de API/login/logs e os 141 testes do front passaram após a integração.
+
 Nova integração com a main `3199052`: preserva a ficha da terra paga e a busca
 nacional, a rodada do Pará e as passagens consolidadas dos PRs 48, 49 e 52.
 A migração da API é agora `0027`, depois de `0026_prospeccao_acesso`. A sequência

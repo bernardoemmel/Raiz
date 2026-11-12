@@ -222,7 +222,7 @@ Feito na main fora desta tabela: caminho da terra com risco por imóvel (`raiz/t
 
 | Ordem | Entrega | Situação |
 |---|---|---|
-| A | API paga sem plano grátis: 3 testes por empresa, sinal Pix e contrato, cobrança e estorno, limite SlowAPI por empresa, bloqueio de raspagem, CLI e análise sem dados pessoais | implementado e validado no PR #45; main `3199052` integrada, API em 0027 após a ficha paga e UUIDs preservados; aguardando novo CI para merge |
+| A | API paga sem plano grátis: 3 testes por empresa, sinal Pix e contrato, cobrança e estorno, limite SlowAPI por empresa, bloqueio de raspagem, CLI e análise sem dados pessoais | implementado e validado no PR #45; main `78e13f7` integrada com login seguro e logs sanitizados, API em 0027 e UUIDs preservados; aguardando novo CI para merge |
 | B | MCP oficial Python v2 / especificação 2026-07-28, seis ferramentas e resumo único até 8 KB | em implementação; adaptador antigo retirado |
 | C | OAuth 2.1 com Keycloak; consultar/pedir e reservar desabilitado por padrão, habilitado por administrador da empresa | em implementação |
 | D | Trabalhos persistidos, Idempotency-Key, Standard Webhooks, aprovação humana/Pix/recibo e OpenTelemetry | em implementação |
@@ -317,6 +317,16 @@ faz sem back-end.
 | 1 | (busca) Busca nacional pela API pelo código do CAR (inteiro ou começo, com ou sem pontos e traços) e pelo nome do município, no contrato de front/compartilhado/dados/busca.ts; índice por código normalizado; 6,7 milhões de imóveis sintéticos: pior resposta 0,49 s | carga contínua | feito |
 | 1 | (busca pública) Busca no navegador por nome e código IBGE do município, sem depender de `/busca` no Pages; CAR leva à ficha paga | mapa nacional | feito |
 | 1 | (busca) Carga contínua das saídas do motor por estado (`raiz vigiar`), só o município que mudou, com a versão anterior guardada | carga do motor | feito |
+
+## Qualidade e segurança (12/11/2026)
+
+| Entrega | Situação |
+|---|---|
+| Auditoria PRs #35–#44 integrados e revisão preventiva #45 ainda aberto; correções pequenas com regressões; Release completo e amostra do site | **feito**; evidência e limites em `docs/passagem/qualidade-e-seguranca.md` |
+| Playwright no CI: link, milhão de créditos no Pará, 3 opções, interesse e Pix de teste com API/PostGIS | **feito**; serviços externos controlados, sem pagamento real |
+| Dependabot, Gitleaks no histórico, licenças Python/npm/Rust obrigatórias, cabeçalhos, limite de chamadas e Presidio nos logs | **feito**; limite por processo e restrições operacionais na passagem |
+| CI paralelo com cache uv/npm/Chromium/LanguageTool, build público e coleção completa de testes | **feito**; zero skips ainda **parcial**: falta conjunto real de 144 tabelas desenvolvedor do Pará; demais dependências opcionais instaladas no CI |
+| Instruções para proteger a main | **feito** em `docs/operacao.md`; ativação manual pelo fundador |
 
 ## Continuidade de documentos, vigilância e calendário (12/11/2026)
 
