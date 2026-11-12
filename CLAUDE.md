@@ -11,3 +11,4 @@
 - O motor (`motor/`) é o contrato de dados: ler colunas pelo nome (`docs/colunas.md`) e tolerar colunas novas.
 - Segredos só em variáveis de ambiente (`.env`, nunca no git). Dados grandes não entram no git.
 - Roteiro de construção: `docs/plano-por-etapa.md`.
+- Norte do produto: `docs/cena-alvo.md` (o cliente pede "1 milhão de créditos" e o mapa monta o melhor lote). Todo trabalho deve aproximar essa cena.
