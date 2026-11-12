@@ -15,7 +15,9 @@ A fila aceita cinco operações:
 - `preparar_reserva`: `pedido_id` do lote e `base_url` configurada pelo servidor.
 
 A consulta agregada exige conta válida, mas dispensa sinal e contrato. As demais operações exigem a liberação
-comercial, novamente conferida no worker. Cada submissão debita o preço ou crédito de teste uma vez; falhas estornam.
+comercial, novamente conferida no worker. Antes de preparar uma reserva, o worker também revalida
+`reservar_habilitado`: revogação administrativa anterior à execução impede a preparação. A trava compartilhada da
+conta mantém essa decisão coerente até o commit. Cada submissão debita o preço ou crédito de teste uma vez; falhas estornam.
 Leituras recebem uma chave de idempotência por invocação quando o cliente não fornece uma. O MCP submete o trabalho
 imediatamente e consulta o recibo depois, sem bloquear o transporte esperando agregações ou solver.
 
@@ -37,8 +39,17 @@ sem sair dos contextos Python: o banco reverte o efeito e o worker seguinte recu
 worker recupera a operação. Um worker ainda vivo mantém a trava, mesmo que o prazo expire. Não se repete pedido
 confirmado: a conclusão já está gravada na mesma transação.
 
-`cancelar(engine, cliente_id, pedido_id)` cancela apenas antes do início e estorna na mesma transação. Depois que o
-worker começou, responde conflito; isso não promete desfazer operação em curso nem cancelar uma reserva já criada.
+O cancelamento exige o escopo `pedir` e uma `Idempotency-Key` de 8 a 200 caracteres ASCII visíveis.
+`cancelar_idempotente` guarda somente o hash da chave, a empresa, o ID solicitado e a resposta. A mesma chave para
+outro ID dá 409; repetições devolvem o recibo anterior. Chaves de empresas diferentes são independentes.
+
+Para uma operação de fila, `cancelar` cancela somente o estado `submitted` e estorna na mesma transação.
+Se o worker já começou, a rota devolve `input-required`, sem prometer desfazer trabalho em execução.
+Para um pedido de lote, o cancelamento pode encerrar uma pré-reserva ainda sem cobrança e apaga seu link.
+Qualquer Pix já emitido, reserva ativa ou contrato devolve `input-required`: uma pessoa precisa decidir a questão
+financeira. Ter `pedir` permite interromper essa pré-reserva; não habilita reservar, gerar cobrança ou pagar.
+Estado, estorno, evento e recibo idempotente confirmam juntos, sem duplicar efeitos em chamadas concorrentes.
+
 Falha de negócio estorna o lançamento. `ErroSalvaguarda` devolve `input-required`, com instrução controlada para
 revisão humana e estorno; não vira aprovação nem pagamento. Retentativa com a mesma chave devolve o mesmo estado, inclusive falha e
 cancelamento; uma nova tentativa precisa de outra chave. Mesmo corpo com outra chave é outra operação cobrável.
@@ -75,6 +86,14 @@ CREATE TABLE negocio.trabalho_api (
 CREATE INDEX trabalho_api_fila ON negocio.trabalho_api (criado_em)
     WHERE estado IN ('submitted', 'working');
 CREATE INDEX trabalho_api_cliente ON negocio.trabalho_api (cliente_id, criado_em DESC);
+CREATE TABLE negocio.cancelamento_api (
+    cliente_id bigint NOT NULL REFERENCES negocio.cliente(id) ON DELETE CASCADE,
+    chave_hash char(64) NOT NULL,
+    pedido_id uuid NOT NULL,
+    resposta jsonb NOT NULL,
+    criada_em timestamptz NOT NULL DEFAULT now(),
+    PRIMARY KEY (cliente_id, chave_hash)
+);
 ```
 
 A tabela não guarda a chave de idempotência em texto. O corpo vem do esquema do pedido; os dados da resposta passam
@@ -88,3 +107,18 @@ Os estados públicos dos eventos são: `submitted` → `recebido`, `working` →
 `failed` → `falhou`, `input-required` → `aguardando` e `canceled` → `cancelado`.
 Repetir uma submissão ou cancelamento já aplicado não repete o evento. Se a outbox falhar, a mudança é revertida.
 A migração precisa incluir também `webhook_inscricao` e `webhook_entrega`, descritas em `docs/eventos-agentes.md`.
+
+## Confirmação financeira e exclusividade
+
+A confirmação de pagamento trava pedido, reserva e cobrança, nessa ordem, e registra o fato financeiro na mesma
+transação da decisão de exclusividade. Cobrança repetida não repete evento nem ativa a reserva outra vez.
+Estado cancelado/expirado, preço ou Pix vencido, valor divergente e grupo alterado preservam o pagamento recebido,
+mas devolvem `input-required` e registram `pagamento_revisao`, com um motivo controlado. Nenhuma devolução de dinheiro
+é prometida automaticamente. O pagamento de uma cobrança antiga não reabre pedido cancelado nem modifica contrato.
+
+A restrição de uma única reserva ativa por fazenda arbitra duas confirmações concorrentes. O conflito reverte
+somente a ativação por savepoint; a cobrança permanece paga e a reserva aguardando pagamento passa a `conflito`.
+Painel e `reserva.atualizada` na outbox são gravados na transação, sem envio externo durante a confirmação.
+Erro de infraestrutura reverte a transação inteira, permitindo repetir o aviso de pagamento com segurança.
+Os testes cobrem cancelamento versus pagamento, duas reservas concorrendo pela mesma fazenda, repetição idempotente,
+prazos/valores/grupos divergentes e falha de outbox seguida de nova tentativa.
