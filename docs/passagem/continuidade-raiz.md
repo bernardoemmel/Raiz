@@ -38,14 +38,18 @@ Preparação não registra `verra_avisada`; envio e preenchimento cabem exclusiv
    reler. Confiança declarada alta/média/baixa não prova acerto. MAPIE LTT implementado; ver `docs/cache-matricula.md`. Coletar a amostra real e calibrar antes da ativação.
 3. **E8:** reexecutar motor/outros modelos por fold com scd2 `folds.como_estava`, e sobrevivência do aceite
    (tempo até aceite; lifelines MIT), implementados. Captura automática no executor com banco e seis adaptadores: motor, FLAG, restauração, regularização, triagem e rebanho. Catálogo parcial aceita só modelos com todas as fontes do corte. Actions sem banco também captura retratos imutáveis, publica periodicamente/ao finalizar em Releases `historico-AAAA-MM-DD` e importa na sincronização, sem nomes ou documentos pessoais. Datas observada e registrada são separadas; chegada atrasada preserva intervalos scd2, com deduplicação por hash. O histórico acumula desde as próximas execuções, sem retrodatação de tarefas antigas. Sobrevivência exige 30 contatos reais/5 aceites. Ver `docs/aprendizado-por-tempo.md`. Não usar camadas de hoje nos folds históricos.
-4. **Servidor:** subir llama.cpp/llguidance com GGUF `qwen3-4b-instruct-2507-q4_k_m.gguf`; testar, calibrar 120
-   tarefas x 3 tentativas e comparar Haiku. Os cortes de `cascata_cortes.yaml` ficam vazios até avaliação real.
-   Resultado “sem corte, fica na votação” é válido se o acerto retido não atingir 95%. Build local corrigido e validado (b12300/llguidance, Rust 1.100.0, JSON real Qwen); calibração real concluída em 12/11/2026: 120 tarefas × 3, nenhuma falha técnica, 67,92% de acerto em intenção e 43,33% em compreensão. Nenhum corte atingiu 95%; YAML real mantém cortes vazios e votação. Relatório e hashes em `docs/operacao.md`; evidência bruta fora do git. Produção sem acesso; comparação Haiku pendente por ausência de credencial local.
+4. **Servidor/modelos:** build local de llama.cpp b12300 com llguidance e Rust 1.100.0 corrigido e validado.
+   Avaliação real concluída em 12/11/2026: 120 tarefas × 3, nenhuma falha técnica, 67,92% de acerto em intenção
+   e 43,33% em compreensão. Nenhum corte atingiu 95%; o YAML gerado mantém cortes vazios e votação Qwen + Haiku.
+   Relatório e hashes em `docs/operacao.md`; evidência bruta fora do git. Restam implantação em produção,
+   sem acesso neste ambiente, e comparação com Haiku, sem credencial local. Nova calibração só com avaliação real;
+   não forçar cortes para cumprir a faixa de subida.
 5. **Cron operacional:** `uv run raiz operacao alertas` a cada 15 minutos; sem ntfy/GoAlert, simulado e registrado.
    Este ambiente não tem acesso SSH, banco ou credenciais de produção. Instalador idempotente pronto: `uv run python scripts/instalar_cron_alertas.py` mostra a prévia; `--instalar` aplica no servidor. Preparar o script não equivale a instalar no servidor.
-6. **Segredos pendentes:** `MAPBIOMAS_ALERTA_EMAIL`, `MAPBIOMAS_ALERTA_SENHA`, `RAIZ_VIGILANCIA_CHAVE`,
+6. **Segredos operacionais da passagem:** `MAPBIOMAS_ALERTA_EMAIL`, `MAPBIOMAS_ALERTA_SENHA`, `RAIZ_VIGILANCIA_CHAVE`,
    `RAIZ_PROJETOS_PRIVADO` somente quando existirem projetos privados (não exigido para URTX); opcionais `FIRMS_MAP_KEY`, `RAIZ_NTFY_TOPICO`, `RAIZ_NTFY_TOKEN`, `RAIZ_GOALERT_URL`.
-   Configurar no servidor e nos secrets da vigilância no GitHub. Nunca pedir valores no chat. Envio simulado até lá.
+   O estado dos secrets de produção/GitHub não pôde ser conferido neste ambiente. Configurar os que faltarem
+   no servidor e na vigilância do GitHub, sem pedir valores no chat. Envio externo continua simulado.
 7. **Calendário da Raíz:** implementado com migração 0027, 17 fontes oficiais, coleta diária Actions/Release,
    API `/eventos`, `.ics`, função MCP `proximos_eventos`, aba do site, selos por CAR e avisos de lotes simulados.
    Cancelamentos/retificações preservam UID; nenhuma pessoa ou documento pessoal persistido. CAR inferido por
