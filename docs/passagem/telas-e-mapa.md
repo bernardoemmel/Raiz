@@ -27,7 +27,7 @@ Sessão: https://claude.ai/code/session_01VGb88MJumyG9PHt2znaaKE. Branch: `claud
 ## Continuação no Codex (12/11/2026)
 
 - PR #42 já integrado em 12/11. A regressão esperada do CI foi desfeita antes do merge.
-- PR #47: correção do mapa público (acompanhar CI e merge). `baixar-dados.mjs --geo --exigir` baixa tabelas e polígonos do Release
+- PR #47 integrado com os três jobs do CI verdes: correção do mapa público. `baixar-dados.mjs --geo --exigir` baixa tabelas e polígonos do Release
   antes de `geo.py --dados dados/estados`; não há mais lista fixa de dois municípios. O exportador usa só CAR e
   geometria dos GeoParquet, preserva fazendas pequenas e registra município cujo desenho ainda falta.
 - Polígonos gzip por município: a medição do Pará deu 35 MB para 144 municípios (Parauapebas: 2.194 polígonos,
@@ -50,6 +50,9 @@ Sessão: https://claude.ai/code/session_01VGb88MJumyG9PHt2znaaKE. Branch: `claud
   Lighthouse procura `/llms.txt` na raiz da origem, então o CI audita uma origem local com o artefato na raiz,
   além de conferir os links reais de `/Raiz/`; não é evidência da descoberta na raiz pública.
 - Snapshot real conferido: 365 municípios em 9 UFs, 712.601 desenhos, sem CAR da tabela faltando no GeoParquet.
+  Mapas referenciados: 160,34 MB; build completo: aproximadamente 585 MiB, 13.987 arquivos.
+- Validação da segunda entrega: 627 testes Python passaram com PostGIS (2 pulados e 1 xfail); 104 testes de front;
+  Playwright no Pages e Lighthouse oficial passaram. Relatórios ficam em front/.cache/teste-agentes e nos artefatos do CI.
 - E9 posterior: a calibração do portão depende de 30 cartas reais anonimizadas e avaliação de compreensão,
   sem conjunto pronto segundo resposta do fundador em 12/11. Não usar o corte dos testes sintéticos como calibrado.
 
