@@ -145,10 +145,13 @@ def test_curva_de_captura_da_urtx_custos_do_sfb_e_descontos_em_ordem():
     s = plantio[1]["sim"]
     assert list(s["K"][0][:4]) == pytest.approx([15830, 1772, 1772, 0])
     assert s["op"][5] == pytest.approx(40 + 40 * 5.40)
-    # descontos na ordem: linha de base (nunca abaixo de 10%), vazamento 10%, reserva 12%, incerteza 10%
+    # descontos na ordem: linha de base (nunca abaixo de 10%), vazamento 10%, reserva (a da fazenda, nunca abaixo de
+    # 12%), incerteza 10%
     d = plantio[1]["descontos"]
     assert d["linha_base_medida"] < 0.10 and d["linha_base"] == 0.10
-    assert d["fator"] == pytest.approx(0.9 * 0.9 * 0.88 * 0.9)
+    assert d["reserva_risco"] >= 0.12 and d["fator"] == pytest.approx(0.9 * 0.9 * (1 - d["reserva_risco"]) * 0.9)
+    sem_fogo = {k: v for k, v in _linha().items() if k != "fogo_anos_media"}
+    assert R.calcular(sem_fogo, c)[1]["descontos"]["reserva_risco"] == 0.12  # sem histórico: a do cenário
     assert regen[1]["descontos"]["linha_base"] == pytest.approx(regen[1]["descontos"]["linha_base_medida"])
     assert R.calcular(_linha(mitigacao_vizinha=True), c)[1]["descontos"]["vazamento"] == 0
     # depois do ano 25 o crédito é vendido a US$ 30 (anos 30, 35 e 40)
@@ -564,3 +567,30 @@ def test_nome_do_ladrilho_do_copernicus():
 
     assert G.nome_ladrilho_dem(-2, -48) == ("S02", "W048")
     assert G.nome_ladrilho_dem(0, -50) == ("N00", "W050")
+
+
+def test_reserva_de_nao_permanencia_por_fazenda():
+    """E3 passo 4: frequência vezes severidade do fogo e da derrubada da vegetação secundária, menos a mitigação, mais
+    o risco interno e externo; nunca abaixo da reserva do cenário nem acima do teto."""
+    c = R.cenario(**R11)
+    r = R.regra()
+    npm = r["nao_permanencia"]
+    x = R.nao_permanencia({"fogo_anos_media": 0.28, "taxa_supressao_secundaria_municipio": 0.0085}, c, r)
+    taxa = 0.28 / 40 * npm["severidade_fogo"] * (1 - npm["mitigacao_fogo"]) + 0.0085 * (1 - npm["mitigacao_derrubada"])
+    perda = 1 - np.exp(-40 * taxa)
+    assert x["fonte"] == "fazenda" and x["perda_40a"] == pytest.approx(perda)
+    assert x["reserva"] == pytest.approx(npm["risco_interno_externo"] + perda)
+    calmo = R.nao_permanencia({"fogo_anos_media": 0.0, "taxa_supressao_secundaria_municipio": 0.0}, c, r)
+    assert calmo["reserva"] == c["reserva_risco"]  # o piso do cenário
+    pegando_fogo = R.nao_permanencia({"fogo_anos_media": 40, "taxa_supressao_secundaria_municipio": 0.5}, c, r)
+    assert pegando_fogo["reserva"] == npm["teto"]
+    assert R.nao_permanencia({}, c, r)["fonte"] == "cenario"
+    assert R.nao_permanencia({"fogo_anos_media": 2}, R.cenario("otimista_fundador"), r)["fonte"] == "cenario"
+    # mais fogo, menos crédito líquido e TIR menor
+    o1 = R.por_imovel(_linha(fogo_anos_media=0.1), c)
+    o2 = R.por_imovel(_linha(fogo_anos_media=2.0), c)
+    assert o2["reserva_risco_pct"] > o1["reserva_risco_pct"] and o2["reserva_risco_fonte"] == "fazenda"
+    assert o2["credito_liquido_tco2_ha_contrato_p50"] < o1["credito_liquido_tco2_ha_contrato_p50"]
+    b = R.bloco_ficha({**_linha(fogo_anos_media=2.0), **o2})
+    texto = next(d["texto"] for d in b["descontos"] if d["id"] == "reserva_risco")
+    assert "MapBiomas Fogo" in texto and "Perda esperada em 40 anos" in texto
