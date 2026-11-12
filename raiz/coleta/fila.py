@@ -29,13 +29,13 @@ class Plano:
     desistidos: list[str]
 
 
-def _ultima_reconciliacao(con: Connection, fonte: str) -> dt.datetime | None:
+def _ultima_reconciliacao(con: Connection, fonte: str, recorte: str = "*") -> dt.datetime | None:
     return con.execute(
         text(
-            "select max(em) from coleta.evento where fonte = :f and recorte = '*' "
+            "select max(em) from coleta.evento where fonte = :f and recorte = :r "
             "and detalhe->>'reconciliacao' = 'completa'"
         ),
-        {"f": fonte},
+        {"f": fonte, "r": recorte},
     ).scalar()
 
 
@@ -46,6 +46,7 @@ def planejar(
     agora: dt.datetime | None = None,
     max_por_rodada: int = MAX_POR_RODADA,
     limiar: float = LIMIAR_DISJUNTOR,
+    recorte_reconciliacao: str = "*",
 ) -> Plano:
     agora = agora or dt.datetime.now(dt.UTC)
     est = {
@@ -60,7 +61,7 @@ def planejar(
     desistidos = [r for r in sujos if est[r].tentativas >= MAX_TENTATIVAS]
     candidatos = nunca + [r for r in sujos if r not in desistidos]
     total = len(recortes)
-    ultima = _ultima_reconciliacao(con, fonte)
+    ultima = _ultima_reconciliacao(con, fonte, recorte_reconciliacao)
     if ultima is None or (agora - ultima) >= dt.timedelta(days=DIAS_RECONCILIACAO):
         return Plano("reconciliacao", list(recortes), len(candidatos), total, desistidos)
     if total and len(candidatos) / total > limiar:
@@ -73,7 +74,7 @@ def planejar(
     return Plano("incremental", sorted(candidatos, key=prioridade)[:max_por_rodada], len(candidatos), total, desistidos)
 
 
-def registrar_reconciliacao(con: Connection, fonte: str) -> None:
+def registrar_reconciliacao(con: Connection, fonte: str, recorte: str = "*") -> None:
     from raiz.coleta.replicacao import evento
 
-    evento(con, fonte, "*", "sem_mudanca", detalhe={"reconciliacao": "completa"})
+    evento(con, fonte, recorte, "sem_mudanca", detalhe={"reconciliacao": "completa"})

@@ -212,7 +212,14 @@ Dados lidos todo dia (cada um com seus termos; nenhum com licença não comercia
 | NASA FIRMS, VIIRS 375 m NOAA-20 e NOAA-21 (VJ114IMGTDL_NRT, VJ214IMGTDL_NRT) | dado aberto da NASA, sem restrição de uso | "LANCE FIRMS, NASA EOSDIS" |
 | MapBiomas Alerta (API v2, com conta) | CC BY 4.0 segundo os termos do Alerta (o site geral do MapBiomas cita CC BY-SA; conferir antes de redistribuir derivado) | "MapBiomas Alerta, plataforma.alerta.mapbiomas.org, acesso em <data>" |
 | INPE TerraBrasilis: DETER (Amazônia e Cerrado) e PRODES (Amazônia Legal e Cerrado) | dado público do INPE | "INPE, TerraBrasilis" |
-| Ibama, termos de embargo (dados abertos) | dado público; nome, CPF/CNPJ, nome do imóvel e textos livres são descartados na leitura | "Ibama, dados abertos" |
+| Ibama, termos de embargo (dados abertos) | ODbL 1.0, conforme https://dadosabertos.ibama.gov.br/dataset/termos-de-embargo; nome, CPF/CNPJ, nome do imóvel e textos livres são descartados na leitura | "Ibama, dados abertos" |
+
+As fontes ArcGIS do manifesto distinguem o serviço original PAMGIA/Ibama dos snapshots hospedados pelo SFB.
+O CNFP 2025 e o espelho SFB têm licença de redistribuição/treino pendente de confirmação; ficam desabilitados
+para treino. `editingInfo.lastEditDate` informa edição do serviço, não a data histórica de todas as feições.
+No PRODES, `created` do catálogo TerraBrasilis sinaliza atualização do arquivo; não é data de desmatamento nem
+checksum dos bytes do raster. As integrações da coleta e os filtros E2 foram escritos na Raíz, sem copiar código
+de terceiros; continuam usando as bibliotecas e extensões já atribuídas neste NOTICE.
 
 Estrutura do rascunho do relatório de perda: títulos das seções do Loss Event Report Template v5.0 da Verra
 (modelo obrigatório para quem reporta perda ao VCS), preenchidos com texto próprio. Regra dos prazos: Verra,

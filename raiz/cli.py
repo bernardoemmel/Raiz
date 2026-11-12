@@ -11,6 +11,7 @@ from raiz import RAIZ_REPO
 from raiz.aprendizado.cli_folds import registrar as registrar_folds
 from raiz.aprendizado.cli_sobrevivencia import registrar as registrar_sobrevivencia
 from raiz.calendario.cli import app as calendario_cli
+from raiz.coleta.arcgis_cli import coletar_arcgis
 from raiz.privacidade import configurar_log, varrer
 
 app = typer.Typer(
@@ -500,6 +501,7 @@ def operacao_painel() -> None:
 
 coleta = typer.Typer(help="Coleta de dados públicos (E1).", no_args_is_help=True)
 app.add_typer(coleta, name="coleta")
+coleta.command("arcgis")(coletar_arcgis)
 
 
 @coleta.command("fontes")
@@ -547,7 +549,7 @@ def coleta_car(
     municipio: Annotated[list[int] | None, typer.Option(help="só estes municípios (repita a opção)")] = None,
     historico: Annotated[bool, typer.Option(help="gravar o histórico scd2 no PostGIS")] = True,
 ) -> None:
-    """Rodada do CAR (e do SIGEF dos municípios que mudaram): assinatura, fila, espelho por município, histórico."""
+    """Rodada do CAR e do SIGEF com assinaturas e filas independentes, espelho por município e histórico."""
     import datetime as dt
 
     from raiz.banco import engine
@@ -586,20 +588,53 @@ def coleta_liberar(fonte: str, recorte: str) -> None:
 
 @coleta.command("ibama")
 def coleta_ibama() -> None:
-    """Embargos do Ibama: pedido condicional, sem dado pessoal, espelho por município e CSV limpo para o motor."""
+    """Embargos: espelho sem dado pessoal, CSV do motor e retomada do histórico scd2, inclusive depois de 304."""
+    import datetime as dt
+
     from raiz import MOTOR_DIR
     from raiz.banco import engine
     from raiz.coleta.espelho import Espelho
     from raiz.coleta.http import sessao
     from raiz.coleta.ibama import coletar
+    from raiz.coleta.replicacao import sincronizar_fontes
+    from raiz.coleta.rodada import sincronizar_historico
     from raiz.funil.ponte import espelho_padrao
+    from raiz.operacao.healthchecks import Healthchecks
 
-    with engine().begin() as con:
-        r = coletar(sessao(), con, Espelho(espelho_padrao()), MOTOR_DIR / "cache")
+    eng, esp, hc = engine(), Espelho(espelho_padrao()), Healthchecks()
+    with eng.begin() as con:
+        sincronizar_fontes(con)
+        r = coletar(sessao(), con, esp, MOTOR_DIR / "cache", hc=hc)
+    historico = 0
+    # Varre os retratos aceitos, não só os alterados nesta chamada: uma falha anterior pode estar pendente em 304.
+    municipios: dict[str, list[int]] = {}
+    for f in sorted((esp.raiz / "ibama").glob("*/*.parquet")):
+        municipios.setdefault(f.parent.name, []).append(int(f.stem))
+    for uf, cods in municipios.items():
+        historico += sincronizar_historico(eng, esp, uf, cods, hc, dt.datetime.now(dt.UTC))
     typer.echo(
         f"{r.acao}: {r.linhas} termos, {len(r.municipios)} municípios mudaram; "
-        f"colunas pessoais removidas: {', '.join(r.removidas) or 'nenhuma'}"
+        f"colunas pessoais removidas: {', '.join(r.removidas) or 'nenhuma'}; cargas no histórico: {historico}"
     )
+    if r.acao == "travado":
+        raise typer.Exit(1)
+
+
+@coleta.command("prodes")
+def coleta_prodes() -> None:
+    """Compara o catálogo oficial de downloads do PRODES sem baixar os arquivos grandes."""
+    from dataclasses import asdict
+
+    from raiz.banco import engine
+    from raiz.coleta.http import sessao
+    from raiz.coleta.prodes import verificar
+    from raiz.coleta.replicacao import sincronizar_fontes
+
+    with engine().begin() as con:
+        sincronizar_fontes(con)
+        resultado = verificar(sessao(), con)
+    for r in resultado:
+        typer.echo(asdict(r))
 
 
 @coleta.command("indice")
