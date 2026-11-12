@@ -28,15 +28,19 @@ class Registro:
 
 
 @contextlib.contextmanager
-def lote(engine: Engine, hc: Healthchecks, tarefa: str, uf: str | None, cod_municipio: int | None):
+def lote(engine: Engine | None, hc: Healthchecks, tarefa: str, uf: str | None, cod_municipio: int | None):
+    """Sem banco (engine None, ex.: no GitHub Actions), só pinga o Healthchecks: quem guarda o andamento é a marca do
+    executor no armazém."""
     rid = str(uuid.uuid4())
     slug = hc.slug(tarefa, uf, cod_municipio)
     t0 = time.time()
-    with engine.begin() as con:
-        lote_id = con.execute(
-            text("insert into operacao.lote (tarefa, uf, cod_municipio, rid) values (:t, :u, :c, :r) returning id"),
-            dict(t=tarefa, u=uf, c=cod_municipio, r=rid),
-        ).scalar_one()
+    lote_id = None
+    if engine is not None:
+        with engine.begin() as con:
+            lote_id = con.execute(
+                text("insert into operacao.lote (tarefa, uf, cod_municipio, rid) values (:t, :u, :c, :r) returning id"),
+                dict(t=tarefa, u=uf, c=cod_municipio, r=rid),
+            ).scalar_one()
     hc.inicio(slug, rid, f"{tarefa} {uf} {cod_municipio}")
     reg = Registro()
     try:
@@ -53,9 +57,11 @@ def lote(engine: Engine, hc: Healthchecks, tarefa: str, uf: str | None, cod_muni
         hc.sucesso(slug, rid, f"{tarefa} {uf} {cod_municipio} {estado}\n{json.dumps(reg.detalhe, default=str)}\n{fim}")
 
 
-def _fechar(engine: Engine, lote_id: int, estado: str, reg: Registro, fim: str, t0: float) -> None:
+def _fechar(engine: Engine | None, lote_id: int | None, estado: str, reg: Registro, fim: str, t0: float) -> None:
     from psycopg.types.json import Jsonb
 
+    if engine is None or lote_id is None:
+        return
     with engine.begin() as con:
         con.execute(
             text("""update operacao.lote set estado = :e, detalhe = :d, log_final = :l, terminado_em = now(),

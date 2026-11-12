@@ -96,6 +96,8 @@ class ArmazemLocal:
         if not p.exists():
             return False
         destino = Path(destino)
+        if destino.resolve() == p:  # o espelho é o próprio destino (Release lido para o espelho local)
+            return True
         destino.parent.mkdir(parents=True, exist_ok=True)
         tmp = destino.with_name(destino.name + f".{os.getpid()}.tmp")
         shutil.copyfile(p, tmp)
@@ -228,14 +230,22 @@ class ArmazemS3:
         self.cli.delete_object(Bucket=self.balde, Key=self._k(chave))
 
 
+PADRAO = "release-github://bernardoemmel/raiz/dados"
+
+
 def do_config(url: str | None = None) -> Armazem:
-    """O armazém configurado: RAIZ_ARMAZEM_URL = s3://balde/prefixo (com RAIZ_S3_ENDPOINT para R2 ou SeaweedFS) ou
-    uma pasta; sem nada, dados/armazem."""
+    """O armazém configurado em RAIZ_ARMAZEM_URL:
+    release-github://dono/repo/tag   o Release do GitHub (padrão: o Release "dados" deste repositório);
+    s3://balde/prefixo               compatível com S3 (opção futura: Cloudflare R2; ou SeaweedFS);
+    uma pasta                        local (desenvolvimento e testes)."""
     from raiz import RAIZ_REPO
     from raiz.config import config
 
     c = config()
-    url = url or getattr(c, "armazem_url", None)
+    url = url or getattr(c, "armazem_url", None) or PADRAO
+    if url.startswith("release-github://"):
+        dono, repo, *resto = url[len("release-github://") :].strip("/").split("/")
+        return ArmazemRelease(f"{dono}/{repo}", resto[0] if resto else "dados")
     if url and url.startswith("s3://"):
         resto = url[len("s3://") :]
         balde, _, prefixo = resto.partition("/")
@@ -246,3 +256,310 @@ def do_config(url: str | None = None) -> Armazem:
     if url and url.startswith("file://"):
         url = url[len("file://") :]
     return ArmazemLocal(Path(url) if url else RAIZ_REPO / "dados" / "armazem")
+
+
+# --- Release do GitHub (armazém de produção agora) ---------------------------------------------------------------
+
+TOTAL_IBGE = {
+    "AC": 22, "AL": 102, "AP": 16, "AM": 62, "BA": 417, "CE": 184, "DF": 1, "ES": 78, "GO": 246, "MA": 217, "MT": 142,
+    "MS": 79, "MG": 853, "PA": 144, "PB": 223, "PR": 399, "PE": 185, "PI": 224, "RJ": 92, "RN": 167, "RS": 497,
+    "RO": 52, "RR": 15, "SC": 295, "SP": 645, "SE": 75, "TO": 139,
+}  # fmt: skip  # o mesmo de motor/publicar_dados.py
+TABELAS = ["imoveis", "direto", "filtros", "extras", "extras_direto", "mapbiomas", "certidoes"]
+TABELAS_TODAS = [*TABELAS, "flag", "terra", "ficha", "desenvolvedor"]
+PROIBIDAS = r"(^|_)(cpf|cnpj|nome|proprietario|titular|email|telefone)($|_)"  # a mesma conferência do publicar_dados
+
+
+class ArmazemRelease:
+    """O Release "dados" do GitHub como armazém, no formato de motor/publicar_dados.py (o que o front já baixa):
+
+      raiz_<UF>.tar.gz          todos os CSV do estado, em <UF>/, mais <UF>/_versoes.json (tarefa, versão, data,
+                                município e sha256 de cada arquivo)
+      raiz_geo_<UF>.tar.gz      geo_<mun>.parquet
+      raiz_camadas_<UF>.tar.gz  camadas_<mun>.parquet e .pmtiles (camadas dentro do imóvel)
+      raiz_controle_<UF>.json   marcas de concluído por município e o estado do processamento (retomada)
+      raiz_controle.json        o que não é de um estado (coleção do MapBiomas da última rodada completa)
+      estados.json              manifesto (por último), com versão do motor e de cada tarefa por estado
+
+    Trabalha sobre um espelho local (ArmazemLocal): ler um estado baixa os pacotes dele uma vez; gravar fica no
+    espelho, e `publicar(uf)` empacota e sobe (com o token do GitHub Actions: GH_TOKEN ou GITHUB_TOKEN, só por
+    variável de ambiente). Sem token, só lê."""
+
+    API = "https://api.github.com"
+    UPLOADS = "https://uploads.github.com"
+
+    def __init__(self, repo: str = "bernardoemmel/raiz", tag: str = "dados", espelho: Path | None = None,
+                 token: str | None = None, cliente=None, intervalo_s: float = 900, a_cada: int = 20):  # fmt: skip
+        import httpx
+
+        self.repo, self.tag = repo, tag
+        self.local = ArmazemLocal(espelho or _espelho_padrao())
+        self.token = token if token is not None else (os.environ.get("GH_TOKEN") or os.environ.get("GITHUB_TOKEN"))
+        self.cli = cliente or httpx.Client(timeout=300, follow_redirects=True,
+                                            headers={"User-Agent": "raiz-executor"})  # fmt: skip
+        self.descricao = f"Release {tag} de {repo}"
+        self.intervalo_s, self.a_cada = intervalo_s, a_cada
+        self._ufs: set[str] = set()
+        self._global = False
+        self._sujos: dict[str, int] = {}
+        self._ultima: dict[str, float] = {}
+
+    # --- leitura -------------------------------------------------------------------------------------------------
+
+    def url(self, nome: str) -> str:
+        return f"https://github.com/{self.repo}/releases/download/{self.tag}/{nome}"
+
+    def _baixar_asset(self, nome: str) -> bytes | None:
+        r = self.cli.get(self.url(nome))
+        if r.status_code == 404:
+            return None
+        r.raise_for_status()
+        return r.content
+
+    def manifesto(self) -> dict:
+        b = self._baixar_asset("estados.json")
+        return json.loads(b) if b else {"repo": self.repo, "tag": self.tag, "estados": {}}
+
+    @staticmethod
+    def _uf_da_chave(chave: str) -> str | None:
+        partes = chave.split("/")
+        if len(partes) >= 2 and partes[0] in ("saida", "marcas") and len(partes[1]) == 2:
+            return partes[1].upper()
+        if len(partes) == 2 and partes[0] == "estado" and partes[1][:2].isalpha() and partes[1][2:] == ".json":
+            return partes[1][:2].upper()
+        return None
+
+    def garantir(self, chave: str) -> None:
+        uf = self._uf_da_chave(chave)
+        if uf:
+            self.garantir_uf(uf)
+        elif not self._global:
+            self._global = True
+            b = self._baixar_asset("raiz_controle.json")
+            for k, v in (json.loads(b) if b else {}).items():
+                if not self.local.meta(k):
+                    self.local.por_bytes(k, json.dumps(v, ensure_ascii=False).encode("utf-8"), {"tipo": "json"})
+
+    def garantir_uf(self, uf: str) -> None:
+        """Baixa os pacotes do estado para o espelho (uma vez por sessão; o que já foi gravado aqui fica)."""
+        import io
+        import tarfile
+
+        uf = uf.upper()
+        if uf in self._ufs:
+            return
+        self._ufs.add(uf)
+        for nome in (f"raiz_{uf}.tar.gz", f"raiz_geo_{uf}.tar.gz", f"raiz_camadas_{uf}.tar.gz"):
+            b = self._baixar_asset(nome)
+            if not b:
+                continue
+            with tarfile.open(fileobj=io.BytesIO(b), mode="r:gz") as tar:
+                membros = {m.name: m for m in tar.getmembers() if m.isfile()}
+                vers = {}
+                if f"{uf}/_versoes.json" in membros:
+                    vers = json.loads(tar.extractfile(membros.pop(f"{uf}/_versoes.json")).read())
+                for nome_m, m in membros.items():
+                    arq = Path(nome_m).name
+                    if "/" in arq or arq.startswith(".") or Path(nome_m).parent.name != uf:
+                        continue  # só arquivos diretos da pasta do estado (nada de caminho estranho no pacote)
+                    chave = f"saida/{uf}/{arq}"
+                    dados = tar.extractfile(m).read()
+                    atual = self.local.meta(chave)
+                    if atual and atual.get("sha256") == sha256_bytes(dados):
+                        continue
+                    meta = {k: str(v) for k, v in (vers.get(arq) or {"versao": "publicado"}).items() if k != "sha256"}
+                    self.local.por_bytes(chave, dados, meta)
+        b = self._baixar_asset(f"raiz_controle_{uf}.json")
+        if b:
+            ctl = json.loads(b)
+            for cod, marca in (ctl.get("marcas") or {}).items():
+                k = f"marcas/{uf}/{int(cod)}.json"
+                if not self.local.meta(k):
+                    self.local.por_bytes(k, json.dumps(marca, ensure_ascii=False).encode("utf-8"), {"tipo": "json"})
+            if ctl.get("estado") and not self.local.meta(f"estado/{uf}.json"):
+                self.local.por_bytes(f"estado/{uf}.json", json.dumps(ctl["estado"], ensure_ascii=False).encode("utf-8"))
+
+    def ler(self, chave):
+        self.garantir(chave)
+        return self.local.ler(chave)
+
+    def meta(self, chave):
+        self.garantir(chave)
+        return self.local.meta(chave)
+
+    def baixar(self, chave, destino):
+        self.garantir(chave)
+        return self.local.baixar(chave, destino)
+
+    def listar(self, prefixo):
+        uf = self._uf_da_chave(prefixo if prefixo.count("/") >= 2 else prefixo.rstrip("/") + "/x")
+        if uf:
+            self.garantir_uf(uf)
+        elif prefixo.rstrip("/") in ("saida", "marcas", ""):
+            for u in self.manifesto().get("estados", {}):
+                self.garantir_uf(u)
+        return self.local.listar(prefixo)
+
+    # --- escrita -------------------------------------------------------------------------------------------------
+
+    def _anota(self, chave: str) -> None:
+        uf = self._uf_da_chave(chave)
+        if uf:
+            self._sujos[uf] = self._sujos.get(uf, 0) + 1
+        else:
+            self._sujos["_global"] = self._sujos.get("_global", 0) + 1
+
+    def por(self, chave, arquivo, meta=None):
+        self.garantir(chave)
+        m = self.local.por(chave, arquivo, meta)
+        self._anota(chave)
+        return m
+
+    def por_bytes(self, chave, dados, meta=None):
+        self.garantir(chave)
+        m = self.local.por_bytes(chave, dados, meta)
+        self._anota(chave)
+        return m
+
+    def apagar(self, chave):
+        self.local.apagar(chave)
+        self._anota(chave)
+
+    def _release(self) -> dict:
+        h = self._cabecalhos()
+        r = self.cli.get(f"{self.API}/repos/{self.repo}/releases/tags/{self.tag}", headers=h)
+        r.raise_for_status()
+        return r.json()
+
+    def _cabecalhos(self) -> dict:
+        if not self.token:
+            raise PermissionError(
+                "sem token do GitHub (GH_TOKEN ou GITHUB_TOKEN): o Release só é gravado de dentro do GitHub Actions"
+            )
+        return {"Authorization": f"Bearer {self.token}", "Accept": "application/vnd.github+json"}
+
+    def _subir(self, rel: dict, nome: str, dados: bytes, tipo: str = "application/octet-stream") -> None:
+        h = self._cabecalhos()
+        for a in rel.get("assets", []):
+            if a["name"] == nome:  # o Release não troca asset: apaga e sobe de novo
+                self.cli.delete(f"{self.API}/repos/{self.repo}/releases/assets/{a['id']}", headers=h).raise_for_status()
+        r = self.cli.post(f"{self.UPLOADS}/repos/{self.repo}/releases/{rel['id']}/assets", params={"name": nome},
+                          headers={**h, "Content-Type": tipo}, content=dados)  # fmt: skip
+        r.raise_for_status()
+
+    @staticmethod
+    def _tar(uf: str, arquivos: dict[str, bytes]) -> bytes:
+        import io
+        import tarfile
+
+        buf = io.BytesIO()
+        with tarfile.open(fileobj=buf, mode="w:gz", compresslevel=6) as tar:
+            for nome in sorted(arquivos):
+                info = tarfile.TarInfo(f"{uf}/{nome}")
+                info.size, info.mtime = len(arquivos[nome]), 0
+                tar.addfile(info, io.BytesIO(arquivos[nome]))
+        return buf.getvalue()
+
+    def talvez_publicar(self, uf: str) -> bool:
+        """Publica de tempos em tempos durante a rodada (para a retomada em outra máquina não perder muito)."""
+        import time
+
+        uf = uf.upper()
+        n = self._sujos.get(uf, 0)
+        if not n or not self.token:
+            return False
+        if n >= self.a_cada * 4 or time.time() - self._ultima.get(uf, 0) >= self.intervalo_s:
+            self.publicar(uf)
+            return True
+        return False
+
+    def publicar(self, uf: str | None = None) -> dict:
+        """Empacota o estado a partir do espelho e sobe: pacotes, controle e por último o estados.json."""
+        import datetime as dt
+        import re
+        import time
+
+        if not self.token:
+            raise PermissionError("sem token do GitHub (GH_TOKEN ou GITHUB_TOKEN): publicar só de dentro do Actions")
+        rel = self._release()
+        man = self.manifesto()
+        estados = man.setdefault("estados", {})
+        ufs = [uf.upper()] if uf else sorted(u for u in self._sujos if u != "_global")
+        agora = dt.datetime.now(dt.UTC).isoformat(timespec="seconds")
+        feito = {}
+        for u in ufs:
+            self.garantir_uf(u)
+            chaves = self.local.listar(f"saida/{u}/")
+            csvs, geos, camadas, vers = {}, {}, {}, {}
+            for k in chaves:
+                arq = k.rsplit("/", 1)[1]
+                dados = self.local.ler(k)
+                meta = self.local.meta(k) or {}
+                vers[arq] = {x: meta[x] for x in ("tarefa", "versao", "data", "cod_municipio", "sha256") if x in meta}
+                if arq.endswith(".csv"):
+                    cab = dados.split(b"\n", 1)[0].decode("utf-8", "replace").split(",")
+                    ruins = [c for c in cab if re.search(PROIBIDAS, c.strip().strip('"'), re.I)]
+                    if ruins:
+                        raise ValueError(f"{arq} tem coluna proibida {ruins}: não publico")
+                    csvs[arq] = dados
+                elif arq.startswith("geo_"):
+                    geos[arq] = dados
+                elif arq.startswith("camadas_"):
+                    camadas[arq] = dados
+            info = dict(estados.get(u, {}))
+            versao = hashlib.sha256(b"".join(n.encode() + csvs[n] for n in sorted(csvs))).hexdigest()[:16]
+            if csvs and info.get("versao") != versao:
+                pacote = self._tar(u, {**csvs, "_versoes.json": json.dumps(vers, ensure_ascii=False).encode()})
+                self._subir(rel, f"raiz_{u}.tar.gz", pacote, "application/gzip")
+                info.update(tamanho=len(pacote), atualizado_em=agora)
+            for nome, grupo, campo in ((f"raiz_geo_{u}.tar.gz", geos, "geo"), (f"raiz_camadas_{u}.tar.gz", camadas,
+                                                                                 "camadas")):  # fmt: skip
+                if not grupo:
+                    continue
+                vg = hashlib.sha256(b"".join(n.encode() + grupo[n] for n in sorted(grupo))).hexdigest()[:16]
+                if (info.get(campo) or {}).get("versao") != vg:
+                    p = self._tar(u, grupo)
+                    self._subir(rel, nome, p, "application/gzip")
+                    info[campo] = {"versao": vg, "tamanho": len(p), "url": self.url(nome), "municipios": len(grupo)}
+            marcas = {
+                k.rsplit("/", 1)[1][:-5]: json.loads(self.local.ler(k)) for k in self.local.listar(f"marcas/{u}/")
+            }
+            est = json.loads(self.local.ler(f"estado/{u}.json") or b"{}")
+            controle = json.dumps({"marcas": marcas, "estado": est}, ensure_ascii=False).encode()
+            self._subir(rel, f"raiz_controle_{u}.json", controle, "application/json")
+            nomes = list(csvs)
+            cont = {t: sum(1 for n in nomes if re.fullmatch(rf"{t}_\d{{7}}\.csv", n)) for t in TABELAS_TODAS}
+            total = TOTAL_IBGE.get(u)
+            info.update(
+                municipios=cont["imoveis"],
+                total_ibge=total,
+                completo=total is not None and cont["imoveis"] >= total,
+                tabelas=cont,
+                versao=versao,
+                url=self.url(f"raiz_{u}.tar.gz"),
+                motor_versao=est.get("motor_versao"),
+                versoes=est.get("versoes"),
+                situacao=est.get("situacao"),
+                controle=self.url(f"raiz_controle_{u}.json"),
+            )
+            estados[u] = info
+            self._sujos.pop(u, None)
+            self._ultima[u] = time.time()
+            feito[u] = info
+        if self._sujos.pop("_global", 0) or not uf:
+            glob = {k: json.loads(self.local.ler(k)) for k in self.local.listar("estado/")
+                    if self._uf_da_chave(k) is None}  # fmt: skip
+            if glob:
+                self._subir(
+                    rel, "raiz_controle.json", json.dumps(glob, ensure_ascii=False).encode(), "application/json"
+                )
+        man.update(gerado_em=agora, repo=self.repo, tag=self.tag, estados=dict(sorted(estados.items())))
+        self._subir(rel, "estados.json", json.dumps(man, ensure_ascii=False, indent=1).encode(), "application/json")
+        return feito
+
+
+def _espelho_padrao() -> Path:
+    from raiz import RAIZ_REPO
+    from raiz.config import config
+
+    return Path(getattr(config(), "armazem_espelho_dir", None) or RAIZ_REPO / "dados" / "armazem_local")

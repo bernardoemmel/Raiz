@@ -48,6 +48,7 @@ class Opcoes:
     data_corte: dt.date = field(default_factory=dt.date.today)
     espelho: str | None = None
     banco_url: str | None = None
+    banco: bool = True  # False: sem registro em operacao.lote (o executor no GitHub Actions guarda tudo na marca)
 
 
 _R = None  # módulo raiz_estado (importado depois do chdir)
@@ -99,7 +100,7 @@ def rodar_municipio(cod: int, op: Opcoes, hc=None) -> dict:
 
     R = _R or preparar_motor()
     hc = hc or Healthchecks()
-    eng = _engine(op.banco_url)
+    eng = _engine(op.banco_url) if op.banco else None
     uf = op.uf.upper()
     pasta = Path(f"saida/{uf}")
     pasta.mkdir(parents=True, exist_ok=True)

@@ -195,10 +195,22 @@ class Executor:
     def chave_estado(self, uf: str) -> str:
         return f"estado/{uf.upper()}.json"
 
-    def rodar_uf(self, uf: str, cods: list[int] | None = None, refazer: bool = False, lanes: int = 1,
-                 preparar: Callable[[str, list[str]], None] | None = None) -> dict:  # fmt: skip
-        """Roda o estado inteiro (ou os municípios pedidos). Retoma: município com a marca em dia é pulado."""
+    def rodar_uf(
+        self,
+        uf: str,
+        cods: list[int] | None = None,
+        refazer: bool = False,
+        lanes: int = 1,
+        preparar: Callable[[str, list[str]], None] | None = None,
+        ate_s: float | None = None,
+    ) -> dict:
+        """Roda o estado inteiro (ou os municípios pedidos). Retoma: município com a marca em dia é pulado.
+        ate_s: para de começar municípios novos depois desse tempo (o GitHub Actions corta o job em 6 horas) e publica
+        o que fez; a próxima rodada continua dali."""
         uf = uf.upper()
+        limite = time.time() + ate_s if ate_s is not None else None
+        if hasattr(self.a, "garantir_uf"):
+            self.a.garantir_uf(uf)  # Release: baixa o estado (saídas, marcas e andamento) uma vez
         cods = [int(c) for c in (cods or (self.municipios(uf) if self.municipios else []))]
         estado = {
             "uf": uf,
@@ -232,9 +244,18 @@ class Executor:
                 estado["erros"].append({"cod": r["cod"], **r["erro"]})
             estado["atualizado_em"] = _agora()
             por_json(self.a, self.chave_estado(uf), estado)
+            if hasattr(self.a, "talvez_publicar"):
+                self.a.talvez_publicar(uf)  # Release: publica de tempos em tempos (retomada em outra máquina)
 
+        def no_prazo() -> bool:
+            return limite is None or time.time() < limite
+
+        parou = False
         if lanes <= 1 or len(pendentes) <= 1:
             for c in pendentes:
+                if not no_prazo():
+                    parou = True
+                    break
                 anota(self.processar_municipio(uf, c, refazer))
         else:
             import multiprocessing as mp
@@ -244,6 +265,10 @@ class Executor:
             with mp.get_context("fork").Pool(lanes, maxtasksperchild=20) as pool:
                 for r in pool.imap_unordered(_trabalhador, [(uf, c, refazer) for c in pendentes]):
                     anota(r)
+                    if not no_prazo():
+                        parou = True
+                        pool.terminate()  # os que estavam no meio ficam sem marca e rodam na próxima vez
+                        break
         if self.resumo:
             try:
                 f = self.resumo(uf, self.pasta(uf), cods)
@@ -252,10 +277,50 @@ class Executor:
                     self.a.por(self.chave_saida(uf, Path(f).name), Path(f), meta)
             except Exception as e:  # noqa: BLE001
                 estado["erros"].append({"cod": None, "tarefa": "resumo", "erro": str(e)[:500]})
-        estado["situacao"] = "com_erro" if estado["erros"] else "pronto"
+        estado["situacao"] = "parado_no_prazo" if parou else ("com_erro" if estado["erros"] else "pronto")
         estado["fim"] = _agora()
         por_json(self.a, self.chave_estado(uf), estado)
+        if hasattr(self.a, "publicar") and getattr(self.a, "token", None):
+            self.a.publicar(uf)
         return estado
+
+    def adotar(self, uf: str, cods: list[int] | None = None) -> dict:
+        """Dá marca de concluído às saídas que já estão no armazém sem marca (ex.: o PA publicado antes do executor),
+        como se fossem da versão atual de cada tarefa. Daí em diante só roda o que faltar ou o que mudar."""
+        uf = uf.upper()
+        if hasattr(self.a, "garantir_uf"):
+            self.a.garantir_uf(uf)
+        if cods is None:
+            import re
+
+            cods = sorted({int(m.group(1)) for k in self.a.listar(f"saida/{uf}/")
+                           if (m := re.search(r"/imoveis_(\d{7})\.csv$", k))})  # fmt: skip
+        out = {"adotados": 0, "ja_tinham_marca": 0, "tarefas": {}}
+        for cod in cods:
+            if self.a.meta(self.chave_marca(uf, cod)):
+                out["ja_tinham_marca"] += 1
+                continue
+            m = {"uf": uf, "cod": int(cod), "tarefas": {}, "adotado_em": _agora()}
+            for t in self.tarefas:
+                if any(d not in m["tarefas"] for d in t.depende):
+                    continue
+                saidas = {}
+                for padrao in t.saidas:
+                    arq = padrao.format(cod=cod)
+                    meta = self.a.meta(self.chave_saida(uf, arq))
+                    if meta and meta.get("sha256"):
+                        saidas[arq] = meta["sha256"]
+                if t.saidas[0].format(cod=cod) not in saidas:
+                    continue
+                m["tarefas"][t.nome] = {"versao": self.versoes()[t.nome], "assinatura": self.assinatura(t, uf, cod, m),
+                                        "saidas": saidas, "data": _agora(), "adotado": True}  # fmt: skip
+                out["tarefas"][t.nome] = out["tarefas"].get(t.nome, 0) + 1
+            if m["tarefas"]:
+                por_json(self.a, self.chave_marca(uf, cod), m)
+                out["adotados"] += 1
+        if hasattr(self.a, "publicar") and getattr(self.a, "token", None) and out["adotados"]:
+            self.a.publicar(uf)
+        return out
 
 
 _EXECUTOR: Executor | None = None

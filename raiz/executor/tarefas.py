@@ -179,9 +179,11 @@ def rodar(nome: str):
     precisa é o executor."""
 
     def f(uf: str, cod: int, pasta: Path) -> None:
+        import os
+
         from raiz.funil import rodar as R
 
-        op = R.Opcoes(uf=uf, tarefas=(nome,), refazer=True)
+        op = R.Opcoes(uf=uf, tarefas=(nome,), refazer=True, banco=os.environ.get("RAIZ_SEM_BANCO") != "1")
         r = R.rodar_municipio(int(cod), op)
         estado = r.get(nome, "")
         if estado.startswith("falha"):

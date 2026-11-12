@@ -643,16 +643,53 @@ def executor_rodar(
     municipios: Annotated[str | None, typer.Option(help="só estes códigos do IBGE, separados por vírgula")] = None,
     lanes: Annotated[int, typer.Option(help="municípios ao mesmo tempo")] = 1,
     refazer: Annotated[bool, typer.Option(help="refazer tudo, mesmo o que está em dia (rodada completa)")] = False,
+    ate_minutos: Annotated[
+        float | None, typer.Option(help="parar de começar municípios depois disso e publicar (Actions: 330)")
+    ] = None,
 ) -> None:
-    """Roda os estados retomando de onde parou: município com a marca em dia é pulado; o resto refaz só o que mudou."""
+    """Roda os estados retomando de onde parou: município com a marca em dia é pulado; o resto refaz só o que mudou.
+    No GitHub Actions (processar-estados.yml): RAIZ_ARMAZEM_URL=release-github://bernardoemmel/raiz/dados, GH_TOKEN e
+    RAIZ_SEM_BANCO=1; lê e grava no Release "dados"."""
+    import time
+
     from raiz.executor import tarefas as T
 
     ex = T.executor_producao()
     cods = [int(c) for c in municipios.split(",")] if municipios else None
+    fim = time.time() + ate_minutos * 60 if ate_minutos else None
     for uf in _ufs(ufs):
-        r = ex.rodar_uf(uf, cods, refazer=refazer, lanes=lanes, preparar=T.preparar)
+        resta = None if fim is None else max(fim - time.time(), 0)
+        r = ex.rodar_uf(uf, cods, refazer=refazer, lanes=lanes, preparar=T.preparar, ate_s=resta)
         typer.echo(f"{uf}: {r['situacao']}, {r['feitos']} de {r['total']} municípios, {r['rodados']} rodados, "
                    f"{len(r['erros'])} com erro ({ex.a.descricao})")  # fmt: skip
+
+
+@executor_cli.command("adotar")
+def executor_adotar(
+    ufs: Annotated[str, typer.Option(help="UFs separadas por vírgula, ou brasil")],
+) -> None:
+    """Dá marca de concluído às saídas já publicadas sem marca (ex.: o PA que já está no Release), na versão atual
+    de cada tarefa. Depois disso o executor só roda o que faltar (as tarefas do produto) ou o que mudar."""
+    from raiz.executor import tarefas as T
+
+    ex = T.executor_producao()
+    for uf in _ufs(ufs):
+        r = ex.adotar(uf)
+        typer.echo(f"{uf}: {r['adotados']} municípios adotados, {r['ja_tinham_marca']} já tinham marca; {r['tarefas']}")
+
+
+@executor_cli.command("publicar")
+def executor_publicar(ufs: Annotated[str, typer.Option(help="UFs separadas por vírgula")]) -> None:
+    """Empacota e sobe o estado no Release (precisa de GH_TOKEN ou GITHUB_TOKEN: só de dentro do GitHub Actions)."""
+    from raiz.executor.armazem import do_config
+
+    a = do_config()
+    if not hasattr(a, "publicar"):
+        typer.echo(f"o armazém configurado ({a.descricao}) não publica: grava direto")
+        raise typer.Exit(0)
+    for uf in _ufs(ufs):
+        info = a.publicar(uf).get(uf, {})
+        typer.echo(f"{uf}: {info.get('municipios')} municípios, versão {info.get('versao')}")
 
 
 @executor_cli.command("plano")
