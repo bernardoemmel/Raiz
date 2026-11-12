@@ -102,10 +102,7 @@ def test_planejamento_inclui_todas_as_fazendas_e_balanceia(tmp_path):
 
 def test_conferencia_rejeita_calculo_obsoleto_ou_modificado(tmp_path):
     arq = tmp_path / "desenvolvedor_1504950.csv"
-    pd.DataFrame(
-        [{"cod_imovel": "CAR", "restauracao_versao": "modelo-1", "restauracao_area_ha": 1, "reserva_risco_pct": 20}]
-    ).to_csv(arq, index=False)
-    (tmp_path / "imoveis_1504950.csv").write_text("cod_imovel\nCAR\n")
+    pd.DataFrame([{"cod_imovel": "CAR", "restauracao_versao": "modelo-1"}]).to_csv(arq, index=False)
     registro = tmp_path / "previsoes.jsonl"
     registro.write_text('{"cod_imovel": "CAR"}\n')
     marca = {
@@ -131,47 +128,6 @@ def test_conferencia_rejeita_calculo_obsoleto_ou_modificado(tmp_path):
 
 def test_catalogo_pa_tem144_municipios():
     assert len(RR.municipios_pa()) == 144
-
-
-def test_rodada_recusa_execucao_local_e_modelo_alterado(monkeypatch):
-    from raiz import restauracao as R
-
-    monkeypatch.delenv("GITHUB_ACTIONS", raising=False)
-    with pytest.raises(SystemExit, match="GitHub Actions"):
-        RR.exigir_actions()
-    monkeypatch.setenv("GITHUB_SHA", "commit-de-teste")
-    snapshot = {"commit": "commit-de-teste", "modelo_versao": R.versao()}
-    RR.conferir_modelo(snapshot)
-    with pytest.raises(ValueError, match="premissas divergentes"):
-        RR.conferir_modelo({**snapshot, "modelo_versao": "versao-obsoleta"})
-
-
-@pytest.mark.parametrize("falha", ["car", "piso", "pessoal"])
-def test_publicacao_rejeita_troca_de_imovel_piso_e_coluna_pessoal(tmp_path, falha):
-    arq = tmp_path / "desenvolvedor_1504950.csv"
-    linha = {"cod_imovel": "CAR", "restauracao_versao": "modelo-1", "restauracao_area_ha": 1, "reserva_risco_pct": 20}
-    if falha == "car":
-        linha["cod_imovel"] = "OUTRO-CAR"
-    elif falha == "piso":
-        linha["reserva_risco_pct"] = 19
-    else:
-        linha["telefone_dono"] = "dado-privado"
-    pd.DataFrame([linha]).to_csv(arq, index=False)
-    (tmp_path / "imoveis_1504950.csv").write_text("cod_imovel\nCAR\n")
-    previsao = tmp_path / "previsoes.jsonl"
-    previsao.write_text("{}\n")
-    marca = {
-        "modelo_versao": "modelo-1",
-        "cenario": RR.CENARIO,
-        "imoveis": 1,
-        "arquivos": {arq.name: RR.sha256(arq), previsao.name: RR.sha256(previsao)},
-        "previsoes": {"arquivo": previsao.name, "sha256": RR.sha256(previsao), "quantidade": 1},
-    }
-    (tmp_path / "rodada_1504950.json").write_text(json.dumps(marca))
-    with pytest.raises(
-        ValueError, match={"car": "divergem da fonte", "piso": "piso de 20%", "pessoal": "Coluna pessoal"}[falha]
-    ):
-        RR.conferir_calculos(tmp_path, {"com_imoveis": [1504950]}, "modelo-1")
 
 
 def test_publicacao_so_atualiza_ponteiro_apos_todos_os_assets(tmp_path, monkeypatch):

@@ -8,6 +8,7 @@ import uuid
 from typing import Annotated, Literal
 from urllib.parse import urlsplit
 
+import anyio
 from fastapi import Body, Depends, Header, HTTPException, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
@@ -144,7 +145,7 @@ def instalar(app, engine_de, acesso, limiter, limite: str, verificador=None) -> 
         request.state.acesso = K.Acesso(cid, None, "mcp", frozenset(token.scopes))
         request.state.cliente_id = cid
         if not getattr(request.state, "_rate_limiting_complete", False):
-            limiter._check_request_limit(request, request.scope.get("endpoint"), False)
+            await anyio.to_thread.run_sync(limiter._check_request_limit, request, request.scope.get("endpoint"), False)
             request.state._rate_limiting_complete = True
         return token
 

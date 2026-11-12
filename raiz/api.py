@@ -14,7 +14,7 @@ import hmac
 import logging
 import os
 
-from fastapi import Depends, FastAPI, Header, HTTPException
+from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from pydantic import BaseModel
 from sqlalchemy import Engine, text
 
@@ -301,7 +301,6 @@ def criar_app(
     from raiz.publica.telemetria import TelemetriaMiddleware, configurar_telemetria
 
     configurar_telemetria()
-    app.add_middleware(TelemetriaMiddleware)
 
     @app.get("/llms.txt", response_class=PlainTextResponse, include_in_schema=False)
     def llms():
@@ -347,6 +346,7 @@ def criar_app(
         exclude_content_types=(*DEFAULT_EXCLUDED_CONTENT_TYPES, "application/vnd.pmtiles"),
     )
     origens = [o.strip() for o in getattr(config(), "api_origens", "").split(",") if o.strip()]
+    from raiz.publica.oauth import acesso_interno
     from raiz.seguranca_api import SegurancaAPI
 
     app.add_middleware(
@@ -354,5 +354,8 @@ def criar_app(
         limite=getattr(config(), "api_limite_minuto", 120),
         login_limite=getattr(config(), "api_login_limite_minuto", 10),
         origens=origens,
+        autenticada_interna=lambda scope: acesso_interno(Request(scope)) is not None,
     )
+    # O último middleware fica por fora e registra também recusas do limite global.
+    app.add_middleware(TelemetriaMiddleware)
     return app

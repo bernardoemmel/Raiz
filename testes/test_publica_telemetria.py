@@ -78,3 +78,30 @@ def test_span_webhook_nao_captura_url_ou_falha_textual(coletor):
     assert dict(span.attributes) == {"raiz.cliente_id": 18, "raiz.tentativa": 2}
     assert span.status.status_code == StatusCode.ERROR
     assert not span.events and span.status.description is None
+
+
+def test_app_registra_limite_global_sem_gravar_token_do_caminho(coletor, monkeypatch):
+    from functools import partial
+
+    from fastapi.testclient import TestClient
+
+    from raiz import api
+    from raiz.config import Config
+    from raiz.publica import telemetria
+
+    tracer, exportador = coletor
+    monkeypatch.delenv("RAIZ_OAUTH_ISSUER", raising=False)
+    monkeypatch.delenv("RAIZ_MCP_RESOURCE", raising=False)
+    cfg = Config(_env_file=None, api_limite_minuto=1)
+    monkeypatch.setattr(api, "config", lambda: cfg)
+    monkeypatch.setattr(telemetria, "TelemetriaMiddleware", partial(TelemetriaMiddleware, tracer=tracer))
+    cliente = TestClient(api.criar_app(engine=object(), grafo=object(), whatsapp=False))
+    assert cliente.get("/llms.txt").status_code == 200
+    recusada = cliente.get("/v1/cobrancas/token-privado-do-teste")
+    assert recusada.status_code == 429
+    assert recusada.headers["content-type"] == "application/problem+json"
+    spans = exportador.get_finished_spans()
+    assert len(spans) == 2
+    assert spans[-1].attributes["http.response.status_code"] == 429
+    assert spans[-1].attributes["raiz.acesso_negado"] is True
+    assert "token-privado-do-teste" not in repr([dict(s.attributes) for s in spans])
