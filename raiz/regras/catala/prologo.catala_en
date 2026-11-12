@@ -1,0 +1,39 @@
+# Prólogo: tipos usados pelas regras federais
+
+O Catala ainda não tem dialeto em português; as palavras-chave ficam em inglês e todos os nomes em português.
+Áreas em hectares, faixas em metros, percentuais como fração (0,80 = 80%).
+
+```catala-metadata
+declaration enumeration Vegetacao:
+  -- Floresta
+  -- Cerrado
+  -- CamposGerais
+
+declaration structure Imovel:
+  # Amazônia Legal (art. 3º, I); a lista de UFs fica na tabela de parâmetros
+  data na_amazonia_legal content boolean
+  # fitofisionomia que decide o percentual (art. 12, I)
+  data vegetacao content Vegetacao
+  data area_ha content decimal
+  # tamanho em módulos fiscais em 22/07/2008 (arts. 61-A, 61-B e 67)
+  data modulos_fiscais content decimal
+  # parte do imóvel fora da fitofisionomia de floresta (o motor tira da base da reserva)
+  data nao_floresta_ha content decimal
+  # vegetação nativa de floresta que sobrou
+  data floresta_remanescente_ha content decimal
+  # área aberta (desmatada) no imóvel
+  data area_aberta_ha content decimal
+
+declaration structure Rio:
+  data largura_conhecida content boolean
+  data largura_m content decimal
+
+declaration structure Lago:
+  data superficie_ha content decimal
+
+declaration enumeration CorpoDagua:
+  -- CursoDagua content Rio
+  -- Nascente
+  -- LagoNatural content Lago
+  -- Vereda
+```

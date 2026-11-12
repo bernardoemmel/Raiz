@@ -1,0 +1,13 @@
+# Camada estadual de São Paulo (E2 passo 5).
+versao: regras-2026b
+nivel: estadual
+uf: SP
+norma:
+  nome: "PRA de São Paulo (candidata: Lei estadual 15.684/2015, não confirmada por busca)"
+parametros:
+  pra_estadual:
+    descricao: Programa de Regularização Ambiental do estado (regras próprias de recomposição)
+    unidade: norma
+    valores:
+      - {rotulos: {}, valor: null, artigo: null, urn_frag: null, vigencia_inicio: null, adotado_em: null,
+         pendente: "levantar a lei do PRA de São Paulo, a regra que ela dá para o art. 68 (percentual da lei da época por data de abertura) e o que está suspenso por decisão judicial"}

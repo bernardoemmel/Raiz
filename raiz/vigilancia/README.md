@@ -35,15 +35,16 @@ Sem a chave, a rodada roda, mas a parte privada não é guardada (o resumo da ex
 
 ## Rotas
 
-No back-end (`raiz/api.py`), uma linha inclui as rotas com o mesmo token das outras:
+As rotas já estão no back-end (`raiz/api.py`), com o mesmo token das outras (`RAIZ_API_TOKEN`):
 
 ```python
 from raiz.vigilancia import api as vigilancia_api
-
 app.include_router(vigilancia_api.roteador(), dependencies=seguro)
 ```
 
-Até lá, `python -m raiz.vigilancia servir` sobe só estas rotas, com o mesmo `RAIZ_API_TOKEN`.
+O servidor do back-end lê o estado da pasta `RAIZ_VIGILANCIA_DIR`; `python -m raiz.vigilancia baixar` traz o estado
+publicado no Release (com `RAIZ_VIGILANCIA_CHAVE`, também a parte privada). `python -m raiz.vigilancia servir` sobe
+só estas rotas, sem o resto do back-end, baixando o estado ao subir.
 
 | Rota | Devolve |
 |---|---|
@@ -157,7 +158,7 @@ python -m raiz.vigilancia evento perda URTX_LE1 verra_avisada --quem fundador --
 ```
 
 Outros: `avisos`, `acerto`, `baixar` (traz o estado publicado), `chave` (gera a chave da parte privada), `servir`.
-Testes: `python -m pytest raiz/vigilancia/testes` (sem rede).
+Testes: `python -m pytest raiz/vigilancia/testes` (sem rede); também rodam no `uv run pytest` do CI.
 
 ## Medido em 12/11/2026
 
