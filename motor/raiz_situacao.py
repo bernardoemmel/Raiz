@@ -198,25 +198,75 @@ def com_app(pasta: Path, feitos: set[str]) -> set[str]:
     return ok
 
 
-def municipios_ibge(uf: str) -> set[str] | None:
-    """Códigos IBGE do estado pela lista local (cache/municipios.csv), se já foi baixada."""
-    f = next((x for x in (AQUI / "cache" / "municipios.csv", AQUI.parent / "raiz" / "executor" / "municipios.csv")
+COD_UF = {"RO": 11, "AC": 12, "AM": 13, "RR": 14, "PA": 15, "AP": 16, "TO": 17, "MA": 21, "PI": 22, "CE": 23,
+          "RN": 24, "PB": 25, "PE": 26, "AL": 27, "SE": 28, "BA": 29, "MG": 31, "ES": 32, "RJ": 33, "SP": 35,
+          "PR": 41, "SC": 42, "RS": 43, "MS": 50, "MT": 51, "GO": 52, "DF": 53}
+
+
+def _lista_municipios() -> list[dict]:
+    f = next((x for x in (AQUI.parent / "raiz" / "executor" / "municipios.csv", AQUI / "cache" / "municipios.csv")
               if x.exists()), None)
     if f is None:
-        return None
-    cod_uf = {"RO": 11, "AC": 12, "AM": 13, "RR": 14, "PA": 15, "AP": 16, "TO": 17, "MA": 21, "PI": 22, "CE": 23,
-              "RN": 24, "PB": 25, "PE": 26, "AL": 27, "SE": 28, "BA": 29, "MG": 31, "ES": 32, "RJ": 33, "SP": 35,
-              "PR": 41, "SC": 42, "RS": 43, "MS": 50, "MT": 51, "GO": 52, "DF": 53}[uf]
+        return []
     import csv
     with open(f, encoding="utf-8", newline="") as fh:
-        return {r["codigo_ibge"] for r in csv.DictReader(fh) if r.get("codigo_uf") == str(cod_uf)}
+        return list(csv.DictReader(fh))
 
 
-def pendentes(pasta: Path, uf: str, vazios: set[str] | None = None, produto: bool = False) -> dict[str, set[str]]:
+def municipios_ibge(uf: str) -> set[str] | None:
+    """Códigos IBGE do estado pela lista que vem com o produto (raiz/executor/municipios.csv) ou a do cache."""
+    lista = _lista_municipios()
+    if not lista:
+        return None
+    return {r["codigo_ibge"] for r in lista if r.get("codigo_uf") == str(COD_UF[uf])}
+
+
+# --- fatias: estado grande roda em vários jobs ao mesmo tempo -----------------------------------------------------
+
+LIMITE_FATIA = int(os.environ.get("RAIZ_LIMITE_FATIA", 120))  # municípios por job: cabe numa rodada de 5h30
+
+
+def n_fatias(uf: str) -> int:
+    """Estado com mais de LIMITE_FATIA municípios vira fatias de até LIMITE_FATIA (MG 8, SP 6, RS 5, BA 4...)."""
+    return -(-TOTAL_IBGE[uf] // LIMITE_FATIA) if TOTAL_IBGE[uf] > LIMITE_FATIA else 1
+
+
+def unidades(uf: str) -> list[str]:
+    """Unidades de trabalho do estado: 'PA' (inteiro) ou 'MG-1', 'MG-2'... (fatias)."""
+    k = n_fatias(uf)
+    return [uf] if k == 1 else [f"{uf}-{i}" for i in range(1, k + 1)]
+
+
+def ler_unidade(u: str) -> tuple[str, int, int]:
+    """'MG-3' -> ('MG', 3, 8); 'PA' -> ('PA', 0, 1). Fatia 0 = o estado inteiro."""
+    uf, _, i = u.upper().partition("-")
+    if uf not in TOTAL_IBGE or (i and not i.isdigit()):
+        raise ValueError(f"unidade desconhecida: {u}")
+    return uf, int(i or 0), n_fatias(uf)
+
+
+def municipios_da_fatia(uf: str, i: int) -> list[str]:
+    """Municípios da fatia i (1..k): o estado em faixas de longitude com o mesmo número de municípios, para cada job
+    baixar só os blocos (TerraBrasilis, MapBiomas) da faixa dele. Fatia 0: o estado inteiro."""
+    k = n_fatias(uf)
+    lista = sorted((r for r in _lista_municipios() if r.get("codigo_uf") == str(COD_UF[uf])),
+                   key=lambda r: (float(r.get("longitude") or 0), r["codigo_ibge"]))
+    cods = [r["codigo_ibge"] for r in lista]
+    if i == 0 or k == 1:
+        return sorted(cods)
+    tam = -(-len(cods) // k)
+    return sorted(cods[(i - 1) * tam:i * tam])
+
+
+def pendentes(pasta: Path, uf: str, vazios: set[str] | None = None, produto: bool = False,
+              so: set[str] | None = None) -> dict[str, set[str]]:
     """Municípios que faltam em cada etapa. vazios: municípios sem imóvel que o executor anotou na marca (o motor
-    sozinho anota em sem_imoveis_<UF>.csv). produto: conta também as tabelas do produto (estado feito pelo executor)."""
+    sozinho anota em sem_imoveis_<UF>.csv). produto: conta também as tabelas do produto (estado feito pelo executor).
+    so: só estes municípios (uma fatia)."""
     feitos, sem = cods(pasta, "imoveis"), set(sem_imoveis(pasta, uf)) | {str(x) for x in (vazios or ())}
     lista = municipios_ibge(uf)
+    if so is not None:
+        feitos, lista = feitos & so, (lista & so if lista is not None else set(so))
     out: dict[str, set[str]] = {}
     if lista is not None:
         out["imoveis"] = lista - feitos - sem
@@ -229,10 +279,13 @@ def pendentes(pasta: Path, uf: str, vazios: set[str] | None = None, produto: boo
     return out
 
 
-def situacao(pasta: Path, uf: str, vazios: set[str] | None = None, produto: bool = False) -> dict:
-    """Resumo do estado para o estados.json: feitos, total, o que falta e se está completo."""
+def situacao(pasta: Path, uf: str, vazios: set[str] | None = None, produto: bool = False,
+             so: set[str] | None = None) -> dict:
+    """Resumo do estado para o estados.json: feitos, total, o que falta e se está completo. so: só uma fatia."""
     feitos, sem = cods(pasta, "imoveis"), set(sem_imoveis(pasta, uf)) | {str(x) for x in (vazios or ())}
-    p = pendentes(pasta, uf, vazios, produto)
+    if so is not None:
+        feitos, sem = feitos & so, sem & so
+    p = pendentes(pasta, uf, vazios, produto, so)
     exigidas = ("imoveis",) + OBRIGATORIAS + ("app",) + (PRODUTO if produto else ())
     faltam = {t: len(p[t]) for t in exigidas if p[t]}
     tabelas = {t: len(cods(pasta, t)) for t in TABELAS + (PRODUTO if produto else ())}
@@ -240,7 +293,7 @@ def situacao(pasta: Path, uf: str, vazios: set[str] | None = None, produto: bool
     return {
         "municipios": len(feitos),
         "sem_imoveis": len(sem - feitos),
-        "total_ibge": TOTAL_IBGE.get(uf),
+        "total_ibge": TOTAL_IBGE.get(uf) if so is None else len(so),
         "funil_completo": "imoveis" not in faltam,
         "completo": not faltam,
         "faltam": faltam,
