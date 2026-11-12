@@ -13,8 +13,6 @@ from pathlib import Path
 
 import yaml
 
-from raiz import restauracao as R
-
 PASTA = Path(__file__).parent
 _REGISTROS = {
     "restauracao-2026c+421970fd": "00a4d29577c96fde1a897f52e9e0dab96a300623831bb01b6592d9946be110d5",
@@ -57,8 +55,17 @@ def carregar(versao: str) -> tuple[dict, dict] | None:
         calibracao = pasta / "restauracao_calibracao.yaml"
         if calibracao.exists():
             raise ValueError(_ERRO)
-        # Todos os caminhos são explícitos: a calibração ausente não cai no arquivo padrão da instalação.
-        regra = R.regra(pasta / "restauracao.yaml", calibracao, pasta / "restauracao_cambio.yaml")
+        # O algoritmo desta versão usava somente regra/câmbio. R.regra atual também inclui o código no hash;
+        # reconstruímos o formato dos dados verificados, sem executar o cálculo nem carregar defaults atuais.
+        regra = yaml.safe_load(textos["restauracao.yaml"])
+        regra["cenarios"] = {
+            "padrao": regra.pop("padrao"),
+            "cenarios": regra["cenarios"],
+            "monte_carlo": regra.pop("monte_carlo"),
+        }
+        regra["calibracao"] = {}
+        regra["cambio"] = yaml.safe_load(textos["restauracao_cambio.yaml"])
+        regra["versao_completa"] = f"{regra['versao']}+{combinado[:8]}"
         if regra["versao_completa"] != versao:
             raise ValueError(_ERRO)
         edital = yaml.safe_load(textos["edital_profloresta.yaml"])
@@ -75,3 +82,40 @@ def carregar(versao: str) -> tuple[dict, dict] | None:
         # Não publica valores de arquivos ou mensagens do parser em diagnósticos.
         raise ValueError(_ERRO) from None
     return copy.deepcopy(regra), proveniencia
+
+
+def cenario(nome: str, r: dict) -> dict:
+    """Dados normalizados do central_r11 histórico, sem aplicar o piso ou defaults de modelos novos.
+
+    Este registro fechado tem todos os campos do cenário já declarados no YAML.
+    A normalização só ordena marcos, converte os tipos e aplica a PTAX registrada;
+    não recalcula crédito, reserva, custo ou fluxo individual.
+    """
+    try:
+        if nome != "central_r11" or not isinstance(r, dict):
+            raise ValueError(_ERRO)
+        registro = carregar(r.get("versao_completa"))
+        if registro is None or r != registro[0]:
+            raise ValueError(_ERRO)
+        bruto = r["cenarios"]["cenarios"][nome]
+        c = {k: copy.deepcopy(v["valor"] if isinstance(v, dict) and "valor" in v else v) for k, v in bruto.items()}
+        c["cenario"] = nome
+        prazo = int(c["prazo_anos"])
+        c["horizonte_anos"] = max(int(c["horizonte_anos"]), prazo)
+        marcos = sorted(
+            (int(ano), float(pct))
+            for ano, pct in zip(c["entregas_anos"], c["marcos_pct"], strict=True)
+            if 0 < int(ano) <= prazo
+        )
+        c["entregas_anos"] = [ano for ano, _ in marcos]
+        c["marcos_pct"] = [pct for _, pct in marcos]
+        c["entregas_pos_contrato_anos"] = sorted(
+            int(ano) for ano in c["entregas_pos_contrato_anos"] if prazo < int(ano) <= c["horizonte_anos"]
+        )
+        c["desembolso_custo"] = [float(valor) for valor in c["desembolso_custo"]]
+        if c["cambio_ptax"]:
+            c["cambio_brl_usd"] = float(r["cambio"]["ptax"])
+            c["cambio_data"] = r["cambio"]["data"]
+        return c
+    except (ValueError, TypeError, KeyError):
+        raise ValueError(_ERRO) from None

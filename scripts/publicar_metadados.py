@@ -11,6 +11,7 @@ import argparse
 import base64
 import hashlib
 import json
+import math
 import os
 import re
 import shutil
@@ -18,6 +19,7 @@ import sys
 import tempfile
 import time
 import traceback
+from email.utils import parsedate_to_datetime
 from pathlib import Path
 
 RAIZ = Path(__file__).resolve().parents[1]
@@ -31,6 +33,7 @@ WORKFLOWS_CHECKOUT_HEAD = {
 }
 _COMPATIBILIDADE: dict[tuple[str, str], bool] = {}
 _CHECKOUT_HEAD: dict[tuple[str, str], bool] = {}
+MARGEM_REQUISICOES = 250
 
 
 class ProcessamentoInseguro(RuntimeError):
@@ -75,7 +78,7 @@ def conferir_processamento_seguro(relatorio: dict | None = None) -> dict:
     try:
         _, estado = fila.Repositorio().ler()
         reservas = [r for r in estado["reservas"] if rodar._e_unidade(r["unidade"])]
-        runs = fila.rodadas(repo, "processar-estados.yml", {r["run_id"] for r in reservas})
+        runs = fila.rodadas(repo, "processar-estados.yml", {r["run_id"] for r in reservas}, incluir_jobs=False)
 
         def compativel(sha):
             if not isinstance(sha, str) or not re.fullmatch(r"[a-fA-F0-9]{40}", sha):
@@ -94,22 +97,27 @@ def conferir_processamento_seguro(relatorio: dict | None = None) -> dict:
                 continue
             if not str(run_id).isdigit() or run["status"] not in fila.ESTADOS_ATIVOS:
                 raise ValueError("situação da rodada não confirmada")
-            unidades = sorted({j["name"] for j in run["jobs"] if rodar._e_unidade(j.get("name", ""))})
-            if compativel(run.get("head_sha")):
+            head_compativel = compativel(run.get("head_sha"))
+            padrao = head_compativel and checkout_do_head(repo, run["head_sha"], fila)
+            if not padrao and "jobs" not in run:
+                run["jobs"] = fila.paginas(
+                    f"repos/{repo}/actions/runs/{run_id}/jobs?filter=latest&per_page=100", "jobs"
+                )
+            unidades = sorted({j["name"] for j in run.get("jobs", []) if rodar._e_unidade(j.get("name", ""))})
+            if padrao:
+                resultado["checkouts_head_confirmados"].append(run_id)
+            elif head_compativel:
                 for job in run["jobs"]:
                     if rodar._e_unidade(job.get("name", "")) and job["status"] != "completed":
                         if not any(r["run_id"] == run_id and r["unidade"] == job["name"] for r in reservas):
                             # Um rerun pode repetir matrix.ref depois que a reserva
                             # original saiu da fila; head_sha não prova esse checkout.
-                            if not checkout_do_head(repo, run["head_sha"], fila):
-                                raise ValueError("referência efetiva da matriz não confirmada")
-                            if run_id not in resultado["checkouts_head_confirmados"]:
-                                resultado["checkouts_head_confirmados"].append(run_id)
+                            raise ValueError("referência efetiva da matriz não confirmada")
             refs = {run.get("head_sha")}
             for reserva in reservas:
                 if reserva["run_id"] != run_id:
                     continue
-                jobs = [j for j in run["jobs"] if j.get("name") == reserva["unidade"]]
+                jobs = [j for j in run.get("jobs", []) if j.get("name") == reserva["unidade"]]
                 if jobs and all(j["status"] == "completed" for j in jobs):
                     continue
                 refs.add(reserva["pedido"].get("ref"))
@@ -162,20 +170,47 @@ def modulos_fila():
     return fila_processamento, rodar_estado
 
 
-def contexto_actions() -> str:
-    if os.environ.get("GITHUB_ACTIONS") != "true" or os.environ.get("GITHUB_JOB") != UNIDADE:
-        raise RuntimeError("execute pelo job catalogo do workflow Publicar metadados do Release")
+def contexto_actions(unidade: str = UNIDADE) -> str:
+    job = UNIDADE if unidade == UNIDADE else "processar"
+    if os.environ.get("GITHUB_ACTIONS") != "true" or os.environ.get("GITHUB_JOB") != job:
+        raise RuntimeError(f"execute pelo job {job} autorizado para esta publicação")
+    if unidade != UNIDADE:
+        _, rodar = modulos_fila()
+        if not rodar._e_unidade(unidade) or unidade != os.environ.get("UNIDADE"):
+            raise RuntimeError("unidade de processamento ausente ou incompatível com o job")
     if not os.environ.get("GITHUB_RUN_ID") or not os.environ.get("GITHUB_REPOSITORY"):
         raise RuntimeError("identificação do Actions ausente; não inicio processamento")
     return os.environ["GITHUB_RUN_ID"]
 
 
-def confirmar_reserva() -> None:
-    run_id = contexto_actions()
+def confirmar_reserva(unidade: str = UNIDADE) -> None:
+    run_id = contexto_actions(unidade)
     fila, _ = modulos_fila()
     _, estado = fila.Repositorio().ler()
-    if not any(r["run_id"] == run_id and r["unidade"] == UNIDADE for r in estado["reservas"]):
-        raise RuntimeError("job catalogo sem reserva global; nenhum arquivo será processado")
+    reserva = next((r for r in estado["reservas"] if r["run_id"] == run_id and r["unidade"] == unidade), None)
+    if reserva is None:
+        raise RuntimeError("job sem reserva global para esta unidade; nenhum arquivo será processado")
+    if unidade != UNIDADE:
+        executor = os.environ.get("RAIZ_EXECUTOR_REF", "")
+        publicador = os.environ.get("RAIZ_PUBLICADOR_REF", "")
+        if not all(re.fullmatch(r"[a-fA-F0-9]{40}", ref) for ref in (executor, publicador)):
+            raise RuntimeError("referências do executor e do publicador não confirmadas")
+        if reserva["pedido"].get("ref") != executor:
+            raise RuntimeError("referência do executor diverge da reserva; nenhum arquivo será processado")
+        if fila.comando(["git", "rev-parse", "HEAD"]).strip() != publicador:
+            raise RuntimeError("checkout do publicador diverge do commit do workflow")
+
+
+def minutos_para_finalizar() -> float:
+    """Usa o relógio do job de 345 min, deixando dez minutos para atestar/cache."""
+    try:
+        inicio = float(os.environ["RAIZ_INICIO"])
+        minutos = (inicio + 335 * 60 - time.time()) / 60
+        if not math.isfinite(inicio) or inicio <= 0 or not math.isfinite(minutos) or minutos <= 1:
+            raise ValueError("prazo insuficiente")
+    except (KeyError, ValueError):
+        raise RuntimeError("sem prazo seguro para finalizar metadados; progresso preservado para retomada") from None
+    return min(300.0, minutos)
 
 
 def reservar_vaga() -> None:
@@ -211,11 +246,111 @@ def uf_do_asset(nome: str) -> str | None:
     return resultado[1] if resultado else None
 
 
-def classe_armazem():
+def conferir_orcamento(relatorio: dict) -> bool:
+    """Margem compartilhada, não reserva: cota curta vira checkpoint sem esperar uma hora."""
+    fila, _ = modulos_fila()
+    try:
+        core = fila.api("rate_limit")["resources"]["core"]
+        restantes, reset = core["remaining"], core["reset"]
+        if type(restantes) is not int or type(reset) is not int or min(restantes, reset) < 0:
+            raise ValueError("cota inválida")
+    except Exception:
+        relatorio["adiado_por_cota"] = True
+        relatorio["orcamento_api"] = {"codigo": "consulta_de_cota_nao_confirmada"}
+        salvar_relatorio(relatorio)
+        raise ProcessamentoInseguro(
+            "Cota da API não confirmada; retomada preservada sem iniciar outra unidade."
+        ) from None
+    suficiente = restantes >= MARGEM_REQUISICOES
+    relatorio["orcamento_api"] = {"restantes": restantes, "minimo": MARGEM_REQUISICOES, "reset_epoch": reset}
+    if not suficiente:
+        relatorio["adiado_por_cota"] = True
+        print("Cota da API abaixo da margem; preservando as unidades pendentes para outra execução.", flush=True)
+    salvar_relatorio(relatorio)
+    return suficiente
+
+
+def transporte_com_retry(prazo: float, transporte=None, espera_total: list[float] | None = None):
+    """Repete só respostas de quota; nunca repete DELETE+POST como uma operação inteira."""
+    import httpx
+
+    espera_total = espera_total if espera_total is not None else [0.0]
+
+    class Transporte(httpx.BaseTransport):
+        def __init__(self):
+            self.base = transporte or httpx.HTTPTransport()
+
+        def handle_request(self, request):
+            for tentativa in range(3):
+                resposta = self.base.handle_request(request)
+                quota = resposta_de_cota(resposta)
+                if request.url.host not in {"api.github.com", "uploads.github.com"} or not quota or tentativa == 2:
+                    return resposta
+                try:
+                    if valor := resposta.headers.get("retry-after"):
+                        try:
+                            espera = float(valor)
+                        except ValueError:
+                            espera = parsedate_to_datetime(valor).timestamp() - time.time()
+                    elif valor := resposta.headers.get("x-ratelimit-reset"):
+                        espera = float(valor) - time.time()
+                    else:
+                        espera = 60.0
+                    if not math.isfinite(espera):
+                        return resposta
+                    espera = max(0.0, espera)
+                except (TypeError, ValueError, OverflowError):
+                    return resposta
+                # Nunca monopoliza uma trava durante o reset de uma hora. A
+                # margem de quota é conferida antes de começar cada unidade.
+                if espera_total[0] + espera > 60 or time.monotonic() + espera > prazo:
+                    return resposta
+                resposta.close()
+                if espera:
+                    print(
+                        f"API pediu espera de {math.ceil(espera)} s; repetindo somente a requisição recusada.",
+                        flush=True,
+                    )
+                    time.sleep(espera)  # no máximo 60 s somados em todos os clientes deste job
+                    espera_total[0] += espera
+            raise AssertionError("tentativas de quota sem resposta")
+
+        def close(self):
+            self.base.close()
+
+    return Transporte()
+
+
+def resposta_de_cota(resposta) -> bool:
+    return resposta is not None and (
+        resposta.status_code == 429
+        or (
+            resposta.status_code == 403
+            and (resposta.headers.get("x-ratelimit-remaining") == "0" or "retry-after" in resposta.headers)
+        )
+    )
+
+
+def classe_armazem(prazo: float | None = None):
     from raiz.atestacao import registrar
     from raiz.executor.armazem import ArmazemRelease
 
+    prazo = prazo if prazo is not None else time.monotonic() + 280 * 60
+    espera_total = [0.0]
+
     class ArmazemCatalogo(ArmazemRelease):
+        def __init__(self, *args, **kwargs):
+            if kwargs.get("cliente") is None:
+                import httpx
+
+                kwargs["cliente"] = httpx.Client(
+                    timeout=300,
+                    follow_redirects=True,
+                    headers={"User-Agent": "raiz-catalogo"},
+                    transport=transporte_com_retry(prazo, espera_total=espera_total),
+                )
+            super().__init__(*args, **kwargs)
+
         def _baixar_asset(self, nome, fresco=False):
             dados = super()._baixar_asset(nome, fresco=True)
             if dados is not None:
@@ -223,6 +358,56 @@ def classe_armazem():
                 # nome substitui esse hash pelo dos bytes novos em atestar.txt.
                 registrar(nome, dados)
             return dados
+
+        def _subir(self, rel, nome, dados, tipo="application/octet-stream"):
+            # GitHub substitui um asset com DELETE seguido de POST. Guarda o
+            # original fora do espelho efêmero antes do DELETE, sem acumular
+            # seus bytes na memória. Só o POST confirmado permite descartar.
+            if time.monotonic() >= prazo:
+                raise RuntimeError("prazo de publicação encerrado; nenhum novo arquivo será substituído")
+            recuperacao = Path(os.environ["RUNNER_TEMP"]) / "recuperacao-release"
+            prefixo = hashlib.sha256(nome.encode()).hexdigest()[:24] + "-"
+            original = next((a for a in rel.get("assets", []) if a["name"] == nome), None)
+            identidade = {k: original.get(k) for k in ("id", "digest")} if original else {}
+            pasta = recuperacao / (
+                prefixo + hashlib.sha256(json.dumps(identidade, sort_keys=True).encode()).hexdigest()[:16]
+            )
+            if original and not (pasta / "meta.json").exists():
+                pasta.mkdir(parents=True, exist_ok=True)
+                digest, tamanho = hashlib.sha256(), 0
+                temporario = pasta / "arquivo.tmp"
+                with self.cli.stream("GET", self.url(nome), params={"t": str(time.time_ns())}) as resposta:
+                    resposta.raise_for_status()
+                    with temporario.open("wb") as arquivo:
+                        for bloco in resposta.iter_bytes(chunk_size=1024 * 1024):
+                            arquivo.write(bloco)
+                            digest.update(bloco)
+                            tamanho += len(bloco)
+                esperado = original.get("digest") or ""
+                if esperado and esperado != "sha256:" + digest.hexdigest():
+                    raise RuntimeError("original diverge do digest da API; nenhuma substituição foi autorizada")
+                temporario.replace(pasta / "arquivo")
+                manifesto = pasta / "meta.tmp"
+                manifesto.write_text(
+                    json.dumps(
+                        {
+                            "nome": nome,
+                            "sha256": digest.hexdigest(),
+                            "tamanho": tamanho,
+                            "url": self.url(nome),
+                            "asset_id": original.get("id"),
+                        },
+                        ensure_ascii=False,
+                        indent=2,
+                    ),
+                    encoding="utf-8",
+                )
+                manifesto.replace(pasta / "meta.json")
+            if time.monotonic() >= prazo:
+                raise RuntimeError("prazo encerrado após preservar o original; arquivo remoto não foi removido")
+            super()._subir(rel, nome, dados, tipo)
+            for pasta in recuperacao.glob(prefixo + "*"):
+                shutil.rmtree(pasta)
 
     return ArmazemCatalogo
 
@@ -306,9 +491,21 @@ def registrar_falha(relatorio: dict, unidade: str, etapa: str, arquivo: str | No
         print(f"  {ponto['arquivo']}:{ponto['linha']} em {ponto['funcao']}", flush=True)
 
 
-def publicar(limite_minutos: float = 280, ufs: list[str] | None = None, fabrica=None) -> dict:
-    """Processa um estado por vez. Falhas preservam os estados já publicados."""
-    confirmar_reserva()
+def publicar(
+    limite_minutos: float = 280,
+    ufs: list[str] | None = None,
+    fabrica=None,
+    *,
+    incluir_globais: bool = True,
+    unidade_reservada: str | None = None,
+) -> dict:
+    """Um estado por vez; ufs=None inclui todos, ufs=[] retoma somente os globais."""
+    if unidade_reservada is None:
+        confirmar_reserva()
+    else:
+        confirmar_reserva(unidade_reservada)
+        if incluir_globais or ufs != [unidade_reservada.split("-", 1)[0]]:
+            raise ValueError("o finalizador só pode publicar a UF da unidade reservada")
     if limite_minutos <= 0 or limite_minutos > 300:
         raise ValueError("o limite deve ficar entre zero e 300 minutos, com margem para atestar")
     inicio = time.monotonic()
@@ -322,16 +519,17 @@ def publicar(limite_minutos: float = 280, ufs: list[str] | None = None, fabrica=
         "arquivos_conferidos": {},
         "global_concluido": False,
         "sem_pacote_tabular": [],
+        "escopo": "catalogo" if incluir_globais else "uf_reservada",
     }
     conferir_processamento_seguro(relatorio)
-    armazem_cls = fabrica or classe_armazem()
+    armazem_cls = fabrica or classe_armazem(fim)
     with tempfile.TemporaryDirectory(prefix="raiz-catalogo-", dir=pasta_temp) as temporaria:
         raiz_temp = Path(temporaria)
         geral = armazem_cls(repo, "dados", raiz_temp / "geral")
         try:
             assets = geral._release()["assets"]
             existentes = sorted({uf for a in assets if not eh_ficha(a["name"]) and (uf := uf_do_asset(a["name"]))})
-            escolhidas = existentes if not ufs else sorted(set(ufs))
+            escolhidas = existentes if ufs is None else sorted(set(ufs))
             desconhecidas = set(escolhidas) - set(existentes)
             if desconhecidas:
                 raise ValueError(f"estados sem arquivos no Release: {', '.join(sorted(desconhecidas))}")
@@ -340,8 +538,11 @@ def publicar(limite_minutos: float = 280, ufs: list[str] | None = None, fabrica=
             for uf in escolhidas:
                 if time.monotonic() >= fim:
                     break
-                etapa, arquivo_atual = "espaco_em_disco", None
+                etapa, arquivo_atual = "orcamento_api", None
                 try:
+                    if not conferir_orcamento(relatorio):
+                        break
+                    etapa = "espaco_em_disco"
                     if shutil.disk_usage(raiz_temp).free < 2 * 1024**3:
                         raise RuntimeError("menos de 2 GiB livres para o espelho temporário")
                     print(f"Catalogando {uf}, sem executar geoprocessamento.", flush=True)
@@ -379,14 +580,35 @@ def publicar(limite_minutos: float = 280, ufs: list[str] | None = None, fabrica=
                             armazem.cli.close()
                 except Exception as erro:
                     registrar_falha(relatorio, uf, etapa, arquivo_atual, erro)
-                    if isinstance(erro, ProcessamentoInseguro):
+                    resposta = getattr(erro, "response", None)
+                    relatorio["recuperacao_pendente"] = any((pasta_temp / "recuperacao-release").glob("*/meta.json"))
+                    if (
+                        isinstance(erro, ProcessamentoInseguro)
+                        or relatorio["recuperacao_pendente"]
+                        or getattr(resposta, "status_code", None) in {403, 429}
+                    ):
+                        relatorio["adiado_por_cota"] = relatorio.get("adiado_por_cota", False) or resposta_de_cota(
+                            resposta
+                        )
+                        relatorio["interrompido"] = True
                         salvar_relatorio(relatorio)
                         break
                 relatorio["duracao_segundos"] = round(time.monotonic() - inicio, 1)
                 salvar_relatorio(relatorio)
-            if time.monotonic() < fim and relatorio["seguranca_processamento"]["seguro"]:
-                etapa, arquivo_atual = "trava_global", None
+            if (
+                incluir_globais
+                and time.monotonic() < fim
+                and relatorio["seguranca_processamento"]["seguro"]
+                and not relatorio.get("adiado_por_cota")
+                and not relatorio.get("interrompido")
+            ):
+                etapa, arquivo_atual = "orcamento_api", None
                 try:
+                    if not conferir_orcamento(relatorio):
+                        raise ProcessamentoInseguro(
+                            "Cota insuficiente para os arquivos globais; checkpoint preservado."
+                        )
+                    etapa = "trava_global"
                     with geral._trava():
                         etapa = "seguranca_processamento"
                         conferir_processamento_seguro(relatorio)
@@ -415,18 +637,38 @@ def publicar(limite_minutos: float = 280, ufs: list[str] | None = None, fabrica=
                         relatorio["global_concluido"] = True
                 except Exception as erro:
                     registrar_falha(relatorio, "global", etapa, arquivo_atual, erro)
+                    relatorio["recuperacao_pendente"] = any((pasta_temp / "recuperacao-release").glob("*/meta.json"))
             relatorio["duracao_segundos"] = round(time.monotonic() - inicio, 1)
             relatorio["disco_livre_bytes"] = shutil.disk_usage(raiz_temp).free
             salvar_relatorio(relatorio)
         finally:
             geral.cli.close()
+    situacao_global = "concluídos" if relatorio["global_concluido"] else "pendentes"
+    if not incluir_globais:
+        situacao_global = "fora desta finalização de UF"
     resumo = (
         "\n### Metadados do Release\n\n"
         f"UFs concluídas: {', '.join(relatorio['concluidas']) or 'nenhuma'}.\n\n"
         f"UFs pendentes: {', '.join(relatorio['pendentes']) or 'nenhuma'}.\n\n"
+        f"Arquivos globais: {situacao_global}.\n\n"
         f"Arquivos conferidos: {len(relatorio['arquivos_conferidos'])}. "
         "A assinatura cobre os bytes publicados ou verificados por este job; não certifica créditos de carbono.\n\n"
         "Para retomar, execute o mesmo workflow com as UFs pendentes. As entregas anteriores permanecem no Release.\n"
+        + (
+            "\nSe faltam apenas os arquivos globais, marque somente_globais para evitar reprocessar as UFs.\n"
+            if incluir_globais and not relatorio["pendentes"] and not relatorio["global_concluido"]
+            else ""
+        )
+        + (
+            "\nA cota da API adiou parte da entrega; consulte o relatório e os originais no artefato de recuperação.\n"
+            if relatorio.get("adiado_por_cota")
+            else ""
+        )
+        + (
+            "\nHá originais preservados no artefato recuperacao-release; confira seus hashes antes de retomar.\n"
+            if relatorio.get("recuperacao_pendente")
+            else ""
+        )
     )
     print(resumo, flush=True)
     if caminho := os.environ.get("GITHUB_STEP_SUMMARY"):
@@ -440,13 +682,34 @@ def main() -> int:
     grupo = parser.add_mutually_exclusive_group(required=True)
     grupo.add_argument("--reservar", action="store_true")
     grupo.add_argument("--publicar", action="store_true")
+    grupo.add_argument(
+        "--finalizar-unidade",
+        action="store_true",
+        help="Finaliza a UF no mesmo job do executor, usando sua reserva existente.",
+    )
     parser.add_argument("--limite-minutos", type=float, default=280)
+    parser.add_argument(
+        "--somente-globais",
+        action="store_true",
+        default=os.environ.get("RAIZ_CATALOGO_SOMENTE_GLOBAIS", "").lower() in {"true", "1"},
+        help="Retoma apenas os arquivos globais; não combina com uma lista de UFs.",
+    )
     args = parser.parse_args()
+    ufs = [u.upper() for u in re.split(r"[\s,;]+", os.environ.get("RAIZ_CATALOGO_UFS", "")) if u]
+    if args.somente_globais and ufs:
+        raise ValueError("somente_globais não pode ser combinado com UFs específicas")
+    if args.finalizar_unidade:
+        if args.somente_globais or ufs:
+            raise ValueError("finalizar-unidade usa somente a UF da reserva, sem filtros adicionais")
+        unidade = os.environ.get("UNIDADE", "")
+        relatorio = publicar(
+            minutos_para_finalizar(), [unidade.split("-", 1)[0]], incluir_globais=False, unidade_reservada=unidade
+        )
+        return int(bool(relatorio["pendentes"] or relatorio["falhas"]))
     if args.reservar:
         reservar_vaga()
         return 0
-    ufs = [u.upper() for u in re.split(r"[\s,;]+", os.environ.get("RAIZ_CATALOGO_UFS", "")) if u]
-    relatorio = publicar(args.limite_minutos, ufs)
+    relatorio = publicar(args.limite_minutos, [] if args.somente_globais else ufs or None)
     return int(bool(relatorio["pendentes"] or relatorio["falhas"] or not relatorio["global_concluido"]))
 
 

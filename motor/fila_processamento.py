@@ -46,7 +46,7 @@ def paginas(caminho: str, campo: str) -> list[dict]:
     return [x for p in dados for x in p[campo]]
 
 
-def rodadas(repo: str, workflow: str, adicionais=()) -> dict[str, dict]:
+def rodadas(repo: str, workflow: str, adicionais=(), incluir_jobs: bool = True) -> dict[str, dict]:
     runs = {}
     for status in ESTADOS_ATIVOS:
         for r in paginas(f"repos/{repo}/actions/workflows/{workflow}/runs?status={status}&per_page=100", "workflow_runs"):
@@ -57,7 +57,8 @@ def rodadas(repo: str, workflow: str, adicionais=()) -> dict[str, dict]:
     for identificador, r in runs.items():
         if "status" not in r:
             raise RuntimeError(f"rodada {identificador} sem situação confirmada")
-        r["jobs"] = paginas(f"repos/{repo}/actions/runs/{identificador}/jobs?filter=latest&per_page=100", "jobs")
+        if incluir_jobs:
+            r["jobs"] = paginas(f"repos/{repo}/actions/runs/{identificador}/jobs?filter=latest&per_page=100", "jobs")
     return runs
 
 

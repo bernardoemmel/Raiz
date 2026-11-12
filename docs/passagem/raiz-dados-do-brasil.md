@@ -17,7 +17,7 @@ Branch da entrega de formatos e procedência: `codex/dados-croissant`.
 ## Onde parou
 
 - **#43 fechado e conferido:** os runs `43256751563` (PR) e `43256738203` (push) terminaram com sucesso.
-  Na retomada havia 13 jobs de processamento ativos. Nenhum foi cancelado. A revisão encontrou caminhos que
+  Na retomada havia 13 jobs de processamento ativos. Nenhum foi cancelado pela retomada. A revisão encontrou caminhos que
   ainda furavam o limite (pedidos explícitos, `refazer`, continuações, planejadores concorrentes e falha da API).
   A entrega 1 fecha esses caminhos com `motor/fila_processamento.py` e a ref `raiz-fila-processamento`.
   Reservas só são liberadas depois de o Actions confirmar o job concluído, incluindo seus passos finais.
@@ -178,3 +178,22 @@ uv run python motor/rodar_estado.py --planejar   # o plano da próxima rodada, s
   `8eebc6a90bc20bce585520cee81bbebdd1ff93df` e confere hashes integrais. RO gerou 25 estimativas CAD Trust sem
   diagnósticos, com soma e marcos conferidos. A seleção usa o otimizador atual, identificado separadamente;
   previsões individuais e curva histórica são preservadas.
+
+## Continuidade operacional e pausa externa (12/11, 19h UTC)
+
+- A API registra `processar-estados.yml` como `disabled_manually` desde 19h09min20s UTC. Os runs
+  `43285999423` e `43286899548`, além dos cancelamentos de BA/PI/CE desse intervalo, têm a anotação
+  `The run was canceled by @bernardoemmel.` Isso identifica a conta, sem identificar pessoa, interface ou token.
+  A retomada não solicitou cancelamentos nem desfez a desativação; a intenção da pausa foi perguntada ao fundador.
+- O cancelamento automático de BA-1 em `43256269335`, às 18h42min05s, antecede o merge #46 às 18h43min39s.
+  Não houve evidência de duplicação causada pela fila nova. Reservas canceladas passam a pedidos bloqueados na
+  reconciliação; não devem ser confundidas com solicitações ainda ativas.
+- O publicador retroativo reserva uma vaga global sem consumir pedidos de UF. Confere cota antes de cada UF e
+  dos globais; a margem de 250 requisições adia trabalho com relatório, sem ocupar a vaga esperando uma hora.
+  Repetições de respostas de quota têm limite conjunto de 60 segundos. Falhas comuns de permissão não se repetem.
+- Substituições preservam os bytes originais e metadados antes do DELETE; só removem a cópia após POST confirmado.
+  Se o upload falhar, `recuperacao-release-<tentativa>` guarda os originais por sete dias, e a publicação para.
+  O relatório `catalogo-metadados-<tentativa>` permite retomar UFs pendentes; `somente_globais` retoma apenas o final.
+- Execuções futuras de `processar-estados.yml` com ciência fixada em commit antigo usam o publicador do SHA do
+  workflow em checkout e ambiente separados. O finalizador confere a reserva original e usa a mesma vaga e prazo,
+  preservando a versão científica, o cache e a continuação. Runs já iniciados precisam da retropublicação.

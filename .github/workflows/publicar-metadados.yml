@@ -1,5 +1,5 @@
 name: Publicar metadados do Release
-run-name: Metadados dos dados publicados (${{ inputs.ufs || 'todos os estados' }})
+run-name: Metadados dos dados publicados (${{ inputs.somente_globais && 'somente arquivos globais' || inputs.ufs || 'todos os estados' }})
 
 on:
   workflow_dispatch:
@@ -8,6 +8,11 @@ on:
         description: "UFs para retomar, separadas por espaço. Vazio: todos os pacotes já publicados."
         required: false
         default: ""
+      somente_globais:
+        description: "Retomar só os arquivos globais, sem reprocessar UFs. Não combinar com UFs específicas."
+        type: boolean
+        required: false
+        default: false
 
 permissions:
   contents: write
@@ -26,6 +31,7 @@ jobs:
       RAIZ_SEM_BANCO: "1"
       RAIZ_WORKFLOW: processar-estados.yml
       RAIZ_CATALOGO_UFS: ${{ inputs.ufs }}
+      RAIZ_CATALOGO_SOMENTE_GLOBAIS: ${{ inputs.somente_globais }}
       # Data de cenário, não data de implantação/contrato de um projeto real.
       RAIZ_CADT_INICIO_CENARIO: ${{ vars.RAIZ_CADT_INICIO_CENARIO || '2027-01-01' }}
     steps:
@@ -55,6 +61,15 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: catalogo-metadados
+          name: catalogo-metadados-${{ github.run_attempt }}
           path: ${{ runner.temp }}/catalogo-metadados.json
           if-no-files-found: ignore
+      - name: Preservar originais quando a substituição de um arquivo falhar
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: recuperacao-release-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/recuperacao-release
+          if-no-files-found: ignore
+          compression-level: 0
+          retention-days: 7

@@ -24,9 +24,13 @@ As regras de referência estão em
 [`restauracao.yaml`](https://github.com/bernardoemmel/Raiz/blob/main/raiz/regras/padroes/restauracao.yaml),
 [`ghg_lsr.yaml`](https://github.com/bernardoemmel/Raiz/blob/main/raiz/regras/padroes/ghg_lsr.yaml) e
 [`caminho_terra.yaml`](https://github.com/bernardoemmel/Raiz/blob/main/raiz/regras/padroes/caminho_terra.yaml).
-Os nomes de referência na data deste cartão são `restauracao-2026c`, `ghg-lsr-1.1` e `caminho-terra-2026a`;
+Os nomes de referência atuais são `restauracao-2026d`, `ghg-lsr-1.1` e `caminho-terra-2026a`;
 o hash registrado no arquivo identifica a versão efetivamente usada. Uma atualização do código não altera a
 proveniência de uma previsão antiga.
+
+A restauração `2026d` inclui código e premissas na versão e adota reserva contra reversão de no mínimo **20%**,
+uma política conservadora da Raíz. Previsões históricas `2026c` usavam piso de **12%**; permanecem identificadas
+com sua regra original. A exportação de metadados ou cronogramas não converte esses créditos para a regra nova.
 
 ## 2. Uso pretendido e usuários
 
@@ -116,9 +120,15 @@ cronograma ou premissas válidas gera diagnóstico, sem inventar um projeto.
 CSV do desenvolvedor sem versão/cenário, com versões misturadas ou sem uma regra correspondente verificável impede
 o projeto estadual, mesmo que os números pareçam compatíveis. A versão histórica `restauracao-2026c+421970fd` foi
 recuperada do commit `8eebc6a90bc20bce585520cee81bbebdd1ff93df`; o registro fechado confere hashes integrais da regra,
-do câmbio e do edital. O cronograma conserva o P50 publicado e a curva original, enquanto a seleção do lote usa
-o otimizador atual, identificado separadamente. Não recalcula os fluxos individuais nem atribui a versão nova
-a uma previsão antiga. Outras versões precisam de registro verificável; não são inferidas por prefixo.
+do câmbio e do edital. O construtor histórico preserva o cenário com reserva base de 12%, sem aplicar o
+normalizador atual de 20% aos créditos já publicados. O cronograma conserva o P50 e a curva originais, enquanto
+a seleção usa o otimizador e as salvaguardas atuais. A identidade do projeto inclui as versões do código do lote,
+do cenário de seleção e das salvaguardas; a versão científica da fonte permanece separada.
+
+Sobreposição jurisdicional confirmada e CLPI recusada bloqueiam a seleção também nesse caminho histórico.
+Informação desconhecida mantém uma pendência de diligência, sem liberar venda. O envelope CADT declara a
+comercialização pendente; não publica decisões por imóvel. Não recalcula os fluxos individuais nem atribui a
+versão nova a uma previsão antiga. Outras versões precisam de registro verificável; não são inferidas por prefixo.
 
 ## 5. Avaliação e métricas
 

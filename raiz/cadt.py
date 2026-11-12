@@ -24,7 +24,7 @@ import pandas as pd
 from raiz import lote as L
 from raiz import restauracao as R
 
-VERSAO = "raiz-cadt-cenarios-1.1.0"
+VERSAO = "raiz-cadt-cenarios-1.2.0"
 CADT_COMMIT = "58927db8f4b4fe558842a688d33f173c41944279"
 REFERENCIA = f"https://github.com/Chia-Network/cadt/tree/{CADT_COMMIT}"
 AVISO = (
@@ -75,8 +75,11 @@ def _resumo_cronograma(dados: dict, r: dict, c: dict, *, edital_versao: str | No
     O otimizador usa suas premissas atuais, identificadas separadamente; a curva e o cenário são exatamente os
     da versão das previsões. Evita L.montar, cujo relatório completo recalcula a economia de cada fazenda.
     """
-    from raiz.pedidos.premissas import premissas
-
+    oferta = dados["oferta"]
+    if len(oferta) and not oferta.restauracao_versao.eq(r["versao_completa"]).all():
+        raise CronogramaInvalido("versao_da_fonte_incompativel")
+    if not {"salvaguardas_planejamento", "salvaguardas_comercializavel"} <= set(oferta.columns):
+        raise CronogramaInvalido("salvaguardas_da_oferta_ausentes")
     lt = L.premissas_lote(r)
     volume, chance = float(lt["creditos"]), float(lt["chance_alvo_reserva"])
     precisa50 = R.contrato_para_marcos(volume, c, r)
@@ -87,14 +90,15 @@ def _resumo_cronograma(dados: dict, r: dict, c: dict, *, edital_versao: str | No
     credito = float(lote.credito_p50.sum())
     if credito <= 0:
         return {"cronograma_lote": None}
-    pedidos = premissas()
     municipios = set(lote.cod_ibge.dropna().astype(int))
     return {
         "uf": dados["uf"],
         "data": dt.date.today().isoformat(),
         "cenario": c["cenario"],
         "versao_premissas": r["versao_completa"],
-        "versao_otimizador": f"{pedidos['versao_completa']}+{pedidos['otimizador']['versao']}+{r['versao_completa']}",
+        "versao_otimizador": L.versao_modelo(),
+        "versao_modelo_lote": L.versao_lote(c),
+        "versao_salvaguardas": L.S.regra()["versao_completa"],
         "versao_edital": edital_versao or L.edital(r).get("versao"),
         "cronograma_lote": R.cronograma_lote(credito, c, r, volume),
         "titulares": int(len(tit)),
@@ -221,6 +225,9 @@ def projeto_do_resumo(
     if not cronograma:
         raise CronogramaInvalido("sem_cronograma")
     versoes = {k: resumo.get(k) for k in ("versao_premissas", "versao_otimizador", "versao_edital")}
+    for campo in ("versao_modelo_lote", "versao_salvaguardas"):
+        if resumo.get(campo):
+            versoes[campo] = resumo[campo]
     if not versoes["versao_premissas"] or not versoes["versao_otimizador"]:
         raise CronogramaInvalido("versao_modelo_ausente")
     estimativas, marcos = estimativas_anuais(cronograma, inicio, c["prazo_anos"], R.forma_curva(r))
@@ -317,7 +324,15 @@ def cadt_uf(
                 if historica is None:
                     raise CronogramaInvalido("versao_da_fonte_incompativel")
                 r, proveniencia = historica
-        c = c or R.cenario("central_r11", r=r)
+        if c is None and proveniencia:
+            from raiz.regras.historico import cenario
+
+            try:
+                c = cenario("central_r11", r)
+            except ValueError as ex:
+                raise CronogramaInvalido("registro_historico_invalido") from ex
+        else:
+            c = c or R.cenario("central_r11", r=r)
         if versao_fonte is not None and versao_fonte != r["versao_completa"]:
             raise CronogramaInvalido("versao_da_fonte_incompativel")
         if cenario_fonte is not None and cenario_fonte != c["cenario"]:
@@ -327,7 +342,10 @@ def cadt_uf(
     dados = L.ler_uf(pasta.parent, uf)
     if dados["oferta"].empty:
         return ausente("sem_fazendas_com_estimativa")
-    resumo = _resumo_cronograma(dados, r, c, edital_versao=proveniencia.get("regra_source_edital_versao"))
+    try:
+        resumo = _resumo_cronograma(dados, r, c, edital_versao=proveniencia.get("regra_source_edital_versao"))
+    except CronogramaInvalido as ex:
+        return ausente(str(ex))
     if not resumo.get("cronograma_lote"):
         return ausente("sem_lote_elegivel")
     try:
@@ -338,6 +356,11 @@ def cadt_uf(
         resultado["metadados"]["origem_creditos"] = "P50 dos arquivos publicados; previsões individuais preservadas"
         resultado["metadados"]["selecao_lote"] = "otimizador atual aplicado aos créditos publicados"
         resultado["metadados"]["previsoes_individuais_recalculadas"] = False
+        resultado["metadados"]["comercializacao"] = {
+            "situacao": "pendente",
+            "aviso": "Lote potencial para diligência, sem liberação de venda. Conferir exclusão jurisdicional, "
+            "CLPI, título, aceite e certificação.",
+        }
         return resultado
     except CronogramaInvalido as ex:
         return ausente(str(ex))

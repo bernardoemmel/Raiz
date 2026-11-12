@@ -17,12 +17,24 @@ individuais e objetos Git da regra, câmbio e edital. Não existia arquivo de ca
 versão. O carregador fixa o hash do próprio manifesto e confere todos os arquivos antes
 de interpretar os YAMLs. Não consulta a rede nem executa código recuperado do Git.
 
-A comparação estática com `59847e89f59b7ebbbd9f9872813431a062f74bc5` confirmou igualdade
-das árvores sintáticas de `forma_curva`, `cronograma_lote`, `cenario`, `_normalizar`,
-`contrato_para_marcos`, `fator_captura_alvo`, `_sorteios` e `_dois_lados`. A curva, os marcos,
-o Monte Carlo e o câmbio são iguais. A nova regra acrescentou carteira, parcelas,
-sensibilidade e não permanência, ativando reserva por fazenda no cenário central; por isso
-os hashes completos diferem e não são tratados como versões intercambiáveis.
+A comparação estática foi refeita com a main
+`78e13f7babcbc46d368e291b2a5c74431120d60b`: as árvores sintáticas de `forma_curva`,
+`cronograma_lote`, `contrato_para_marcos`, `fator_captura_alvo`, `_sorteios` e `_dois_lados`
+continuam iguais às históricas. Não executamos código recuperado do Git para comparar.
+
+O construtor atual `restauracao._ler` passou a incluir o código no hash. Por isso, este
+registro interpreta diretamente os YAMLs já verificados e recompõe a versão pelo algoritmo
+histórico, que unia somente regra e câmbio. A normalização atual também impõe reserva mínima
+de 20%; `cenario("central_r11", regra)` mantém os 12% documentados na previsão histórica.
+Todos os campos do cenário central já estão declarados nos dados preservados: o adaptador
+somente ordena marcos, converte tipos e aplica a PTAX histórica, sem importar defaults atuais.
+Ele aceita apenas o cenário central de uma regra idêntica ao registro canônico.
+
+Carteira, parcelas, sensibilidade, não permanência e outras regras posteriores não são
+introduzidas nos dados históricos. O modelo ecológico usa versão e hash próprios; não
+faz parte desta versão de restauração. As versões históricas e atuais não são tratadas
+como intercambiáveis, e recuperar a curva não libera venda nem contorna as salvaguardas
+atuais aplicadas à seleção do lote.
 
 `carregar(versao)` retorna `(regra, proveniencia)` somente para versões cadastradas e
 verificadas. Versão desconhecida retorna `None`; falha de integridade gera erro genérico.

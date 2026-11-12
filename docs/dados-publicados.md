@@ -124,7 +124,15 @@ créditos. Estado sem lote elegível ou cronograma válido recebe diagnóstico.
 Resultados do desenvolvedor com versão científica/cenário ausentes, versões misturadas ou sem regra verificável
 impedem o projeto estadual. O registro em `raiz/regras/historico/` recupera explicitamente a versão
 `restauracao-2026c+421970fd`, com commit e hashes integrais; preserva previsões e curva originais, aplicando o
-otimizador atual aos créditos publicados. A proveniência distingue a regra histórica da seleção atual.
+otimizador e as salvaguardas atuais aos créditos publicados. A regra histórica conserva reserva base de **12%**;
+o piso de **20%** de `restauracao-2026d` exige cálculo novo e não é aplicado retroativamente pela exportação.
+O carregador histórico independe do construtor e do normalizador atuais, validando os bytes originais antes de
+montar o cenário.
+
+A proveniência distingue a regra científica original (`regra_source_versao`, commit e SHA256) das versões atuais
+do otimizador, do código do lote e das salvaguardas. Estas últimas também integram a identidade CADT. Sobreposição
+jurisdicional confirmada e CLPI recusada impedem a seleção; ausência de comprovação não libera comercialização.
+O arquivo declara `comercializacao.situacao: pendente` e não inclui decisões ou identificadores de imóveis.
 
 ## Atestação e atualização dos arquivos existentes
 
@@ -149,6 +157,19 @@ não a apaga por idade. Jobs iniciados com código anterior só adotam essas reg
 O preenchimento retroativo verifica runs, reservas e pedidos pendentes antes de começar: códigos anteriores à
 introdução da trava por UF precisam terminar naturalmente. A verificação é repetida antes de cada publicação;
 uma falha de consulta bloqueia o trabalho, sem cancelar os jobs existentes.
+
+A execução guarda `catalogo-metadados-<tentativa>` com UFs concluídas, pendentes e falhas. Antes de cada UF e dos
+arquivos globais, exige margem de 250 requisições na API; cota insuficiente encerra com progresso preservado.
+Retomar passando somente as UFs pendentes, ou `somente_globais=true` quando falta apenas a etapa global. As duas
+opções não podem ser combinadas. Repetições por quota têm limite de 60 segundos por job.
+
+Antes de substituir um asset, o publicador preserva os bytes originais e seus metadados no runner. A cópia só é
+removida após upload confirmado. Em falha, o artefato `recuperacao-release-<tentativa>` conserva os originais por
+sete dias; conferir seus hashes e o estado atual do Release antes de restaurar um arquivo ausente.
+
+Quando uma execução fixa o código científico em commit antigo, o workflow atual executa o finalizador com seu
+próprio SHA em checkout e ambiente separados. Ele confere a reserva e a referência científica originais, usa a
+mesma vaga e o prazo restante, e mantém versões publicadas, cache e continuação. Não altera runs já iniciados.
 
 ## Release `vigilancia`
 

@@ -229,11 +229,19 @@ def test_catalogo_reune_resultados_ja_persistidos_sem_mutar(pequeno):
         cadt.combinar_estados({"AC": pa})
 
 
-def test_cenario_da_amostra_passando_pelo_lote_real(tmp_path):
-    pasta = tmp_path / "PA"
+@pytest.fixture(scope="module")
+def amostra_atual(tmp_path_factory):
+    """O CI compara o lote atual usando cálculo atual em cópia temporária; fixtures históricas ficam intactas."""
+    pasta = tmp_path_factory.mktemp("cadt_atual") / "PA"
     pasta.mkdir()
     for arquivo in AMOSTRA.glob("*.csv"):
         shutil.copyfile(arquivo, pasta / arquivo.name)
+    R.calcular_municipio(pasta, 1504950, fontes_geo=()).to_csv(pasta / "desenvolvedor_1504950.csv", index=False)
+    return pasta
+
+
+def test_cenario_da_amostra_passando_pelo_lote_real(amostra_atual):
+    pasta = amostra_atual
     out = cadt.cadt_uf(pasta, "PA", data_inicio="2027-01-01", data_referencia="2026-11-12")
     assert not out["diagnosticos"]
     assert len(out["projeto"]["estimations"]) == 25
@@ -246,7 +254,7 @@ def test_cenario_da_amostra_passando_pelo_lote_real(tmp_path):
     assert "cod_imovel" not in json.dumps(out)
 
 
-def test_resumo_cadt_preserva_selecao_p50_e_marcos_do_lote_atual(monkeypatch):
+def test_resumo_cadt_preserva_selecao_p50_e_marcos_do_lote_atual(monkeypatch, amostra_atual):
     selecionar, selecoes = L._selecionar, []
 
     def registrar(*args, **kwargs):
@@ -255,7 +263,7 @@ def test_resumo_cadt_preserva_selecao_p50_e_marcos_do_lote_atual(monkeypatch):
         return sel
 
     monkeypatch.setattr(L, "_selecionar", registrar)
-    dados = L.ler_pasta(AMOSTRA, "PA")
+    dados = L.ler_pasta(amostra_atual, "PA")
     r, c = R.regra(), R.cenario("central_r11")
     completo = L.montar(dados, r=r, c=c, sensibilidade_ligada=False)["resumo"]
     simples = cadt._resumo_cronograma(dados, r, c)
@@ -301,7 +309,9 @@ def test_regra_historica_uniforme_gera_cronograma_sem_recalcular_previsoes(fonte
     m = out["metadados"]
     assert m["regra_source_commit"] == COMMIT_HISTORICO and m["regra_source_sha256"] == SHA_HISTORICO
     assert m["regra_source_versao"] == m["versoes"]["versao_premissas"] == HISTORICA
-    assert m["versoes"]["versao_otimizador"].endswith(HISTORICA)
+    assert m["versoes"]["versao_otimizador"] == L.versao_modelo()
+    assert m["versoes"]["versao_salvaguardas"] == L.S.regra()["versao_completa"]
+    assert m["comercializacao"]["situacao"] == "pendente"
     assert m["previsoes_individuais_recalculadas"] is False
     assert m["selecao_lote"] == "otimizador atual aplicado aos créditos publicados"
     assert "cod_imovel" not in json.dumps(out)
@@ -351,3 +361,49 @@ def test_registro_historico_adulterado_nao_publica_cronograma(fonte_historica, t
     out = cadt.cadt_uf(fonte_historica, "PA", data_inicio="2027-01-01")
     assert out["projeto"] is None and out["diagnosticos"] == [{"codigo": "registro_historico_invalido"}]
     assert "NAO_PUBLICAR" not in json.dumps(out)
+
+
+def test_cenario_historico_preserva_reserva_original_sem_normalizador_atual():
+    from raiz.regras import historico
+
+    r, _ = historico.carregar(HISTORICA)
+    c = historico.cenario("central_r11", r)
+    assert c["reserva_risco"] == 0.12
+    assert R.cenario("central_r11")["reserva_risco"] >= 0.20
+    assert c["prazo_anos"] == 25 and c["horizonte_anos"] == 40
+    assert c["entregas_anos"] == [7, 12, 17, 22, 25]
+    assert c["cambio_brl_usd"] == r["cambio"]["ptax"]
+
+
+@pytest.mark.parametrize(
+    "campos",
+    [
+        {"jurisdicional_situacao": "sobreposicao", "jurisdicional_sobreposicao_ha": 1.0},
+        {"territorio_tradicional": True, "clpi_situacao": "recusada"},
+    ],
+)
+def test_salvaguardas_atuais_bloqueiam_lote_de_creditos_historicos(fonte_historica, campos):
+    for arquivo in fonte_historica.glob("desenvolvedor_*.csv"):
+        ids = pd.read_csv(arquivo, usecols=["cod_imovel"], dtype=str)
+        for campo, valor in campos.items():
+            ids[campo] = valor
+        ids.to_csv(fonte_historica / arquivo.name.replace("desenvolvedor_", "jurisdicional_"), index=False)
+    out = cadt.cadt_uf(fonte_historica, "PA", data_inicio="2027-01-01")
+    assert out["projeto"] is None
+    assert out["diagnosticos"] == [{"codigo": "sem_lote_elegivel"}]
+
+
+def test_oferta_sem_avaliacao_de_salvaguardas_nao_burla_guardas(amostra_atual):
+    dados = L.ler_pasta(amostra_atual, "PA")
+    dados["oferta"] = dados["oferta"].drop(columns=["salvaguardas_planejamento"])
+    with pytest.raises(cadt.CronogramaInvalido, match="salvaguardas_da_oferta_ausentes"):
+        cadt._resumo_cronograma(dados, R.regra(), R.cenario("central_r11"))
+
+
+def test_identidade_cadt_inclui_versao_do_lote_e_salvaguardas(pequeno):
+    resumo, r, c = pequeno
+    base = {**resumo, "versao_modelo_lote": "lote-a", "versao_salvaguardas": "salvaguardas-a"}
+    original = cadt.projeto_do_resumo(base, "PA", data_inicio="2027-01-01", r=r, c=c)
+    for campo in ("versao_modelo_lote", "versao_salvaguardas"):
+        novo = cadt.projeto_do_resumo({**base, campo: "versao-b"}, "PA", data_inicio="2027-01-01", r=r, c=c)
+        assert novo["projeto"]["projectId"] != original["projeto"]["projectId"]
