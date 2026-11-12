@@ -8,6 +8,8 @@ from typing import Annotated
 import typer
 
 from raiz import RAIZ_REPO
+from raiz.aprendizado.cli_folds import registrar as registrar_folds
+from raiz.aprendizado.cli_sobrevivencia import registrar as registrar_sobrevivencia
 from raiz.coleta.arcgis_cli import coletar_arcgis
 from raiz.privacidade import configurar_log, varrer
 
@@ -67,6 +69,8 @@ def carregar(
 
 aprendizado = typer.Typer(help="Previsões congeladas e gabaritos (E8).", no_args_is_help=True)
 app.add_typer(aprendizado, name="aprendizado")
+registrar_folds(aprendizado)
+registrar_sobrevivencia(aprendizado)
 
 
 @aprendizado.command("gabarito")
@@ -539,7 +543,7 @@ def coleta_car(
     municipio: Annotated[list[int] | None, typer.Option(help="só estes municípios (repita a opção)")] = None,
     historico: Annotated[bool, typer.Option(help="gravar o histórico scd2 no PostGIS")] = True,
 ) -> None:
-    """Rodada do CAR (e do SIGEF dos municípios que mudaram): assinatura, fila, espelho por município, histórico."""
+    """Rodada do CAR e do SIGEF com assinaturas e filas independentes, espelho por município e histórico."""
     import datetime as dt
 
     from raiz.banco import engine
@@ -868,7 +872,8 @@ def api(porta: int = 8000, host: str = "127.0.0.1") -> None:
 
     from raiz.api import criar_app
 
-    uvicorn.run(criar_app(), host=host, port=porta)
+    # O access log padrão expõe query strings (link de login e segredo do webhook Pix).
+    uvicorn.run(criar_app(), host=host, port=porta, log_config=None, access_log=False)
 
 
 if __name__ == "__main__":

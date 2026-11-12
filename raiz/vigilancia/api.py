@@ -122,6 +122,28 @@ def roteador(servico: Callable[[], Vigilancia] | None = None, prefixo: str = "/v
             headers={"Content-Disposition": f'attachment; filename="{perda_id}.kml"'},
         )
 
+    @r.get("/projeto/{projeto_id}/perdas/{perda_id}/aviso-verra")
+    def aviso_verra(projeto_id: str, perda_id: str):
+        d = s().aviso_verra(projeto_id, perda_id)
+        if d is None:
+            raise HTTPException(404, "evento de perda não encontrado")
+        return _json(d)
+
+    @r.get("/projeto/{projeto_id}/perdas/{perda_id}/aviso-verra.eml")
+    def aviso_verra_eml(projeto_id: str, perda_id: str):
+        from raiz.vigilancia.aviso_verra import eml
+
+        d = s().aviso_verra(projeto_id, perda_id)
+        if d is None:
+            raise HTTPException(404, "evento de perda não encontrado")
+        if not d["pode_exportar"]:
+            raise HTTPException(409, "evento encerrado ou aviso já registrado: exportação bloqueada")
+        return Response(
+            eml(d),
+            media_type="message/rfc822",
+            headers={"Content-Disposition": 'attachment; filename="aviso-verra.eml"'},
+        )
+
     @r.post("/projeto/{projeto_id}/perdas/{perda_id}/eventos")
     def evento_perda(projeto_id: str, perda_id: str, corpo: Evento):
         if not perda_id.startswith(f"{projeto_id}_LE"):

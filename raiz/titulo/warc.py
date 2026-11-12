@@ -95,10 +95,18 @@ def _cofre(cofre):
 
 def consultar(url: str, cod_imovel: str, motivo: str, cofre=None, base: Path | None = None, timeout: int = 30):
     """Faz a consulta gravando o WARC; devolve a Consulta (também anotada no índice) e o corpo da resposta."""
+    from urllib.parse import unquote
+
+    from raiz.documentos.privacidade import tirar_nomes
+    from raiz.logs_seguros import sanitizar_log
     from raiz.privacidade import mascarar
 
-    if mascarar(url) != url:
+    # O endereço original também vai ao índice e ao laudo. Decodificar antes da
+    # conferência impede que %2E/%2D (ou dígitos codificados) escondam documentos.
+    decodificada = unquote(url)
+    if mascarar(decodificada) != decodificada:
         raise ValueError("URL com CPF ou CNPJ não é consultada")
+    motivo = sanitizar_log(tirar_nomes(mascarar(motivo)))
     import requests
 
     status, corpo, erro, r = None, b"", None, None

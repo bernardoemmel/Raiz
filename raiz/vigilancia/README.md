@@ -197,3 +197,15 @@ aqui por falta de credencial neste ambiente.
 | `perdas.py`, `relatorio.py`, `aviso.py` | regra da Verra, rascunho do relatório e KML, aviso ao cliente |
 | `armazem.py`, `publicacao.py` | estado em arquivos e publicação no Release (privado cifrado) |
 | `rodada.py`, `servico.py`, `api.py`, `servidor.py`, `__main__.py` | rodada diária, respostas das rotas, rotas, servidor avulso, linha de comando |
+
+## Aviso inicial à Verra
+
+O e-mail inicial é separado do relatório de perda. A Raíz prepara o rascunho para o desenvolvedor cliente;
+o preenchimento e o envio cabem ao proponente, nunca à Raíz. A rodada diária grava `<evento>_aviso_verra.eml`
+na pasta dos rascunhos (publicada somente no pacote cifrado). As rotas `GET
+/vigilancia/projeto/{id}/perdas/{evento}/aviso-verra` e `/aviso-verra.eml` usam a autenticação existente.
+`python -m raiz.vigilancia aviso-verra URTX URTX_LE1 --saida /caminho/rascunhos/aviso.eml` usa o prazo
+**15/11/2026** já registrado em `projetos.yaml`, sem exigir estado privado do URTX. Campos ausentes:
+“a preencher pelo proponente”. O prazo também aparece em `avisos_verra_informados` do projeto e nos alertas
+internos. Preparar nunca registra `verra_avisada`; evento encerrado ou com envio confirmado bloqueia nova
+exportação. Ver `docs/pedidos/urtx-le1-aviso-verra.md`.

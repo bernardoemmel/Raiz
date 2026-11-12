@@ -7,6 +7,7 @@ import random
 import shutil
 import threading
 import uuid
+from types import SimpleNamespace
 
 import pandas as pd
 import pytest
@@ -51,6 +52,39 @@ def test_triagem_completa_diz_o_porque_e_o_que_pedir():
     # matrícula não lida e sem cadeia: busca completa
     t = T.triar({**LIMPO, "matricula_conferida": None}, [])
     assert t["titulo_triagem"] == "completa" and "não lida" in t["titulo_triagem_motivos"]
+
+
+@pytest.mark.parametrize("conferida", [False, None, "false"])
+def test_certidao_a_revisar_nao_vira_gabarito_limpo(monkeypatch, conferida):
+    from raiz.aprendizado import registro
+
+    class Consulta:
+        def __init__(self, linha):
+            self.linha = linha
+
+        def all(self):
+            return [(IMOVEL, dt.date(2026, 1, 1))]
+
+        def first(self):
+            return SimpleNamespace(a=self.linha, rodada_id=1)
+
+    class Banco:
+        def execute(self, *_):
+            return Consulta(
+                dict(
+                    matriculas_total=1,
+                    matriculas_lidas=1,
+                    matricula_situacao="revisar",
+                    matricula_conferida=conferida,
+                    matricula_onus_graves=False,
+                    matricula_quebra_cadeia=False,
+                )
+            )
+
+    gravados = []
+    monkeypatch.setattr(registro, "registrar_gabarito", lambda *a, **kw: gravados.append(kw))
+    assert T.gabaritar(Banco(), dt.date(2026, 2, 1)) == {"com_problema": 0, "limpas": 0, "em_aberto": 1}
+    assert gravados == []
 
 
 def test_posse_segue_a_regularizacao():
@@ -102,6 +136,36 @@ def test_consulta_vira_warc_cifrado(servidor, tmp_path):
     assert len(idx) == 1 and idx[0]["sha256_warc"] == reg.sha256_warc and "Fulano" not in str(idx)
     with pytest.raises(ValueError, match="CPF"):
         W.consultar(f"{servidor}/?cpf={cpf_ficticio()}", IMOVEL, "x", cofre=cofre, base=tmp_path)
+
+
+def test_consulta_rejeita_documento_codificado_antes_da_rede(tmp_path, monkeypatch):
+    import requests
+
+    chamados = []
+    monkeypatch.setattr(requests, "get", lambda *a, **kw: chamados.append(a))
+    documento = "".join(f"%{ord(c):02X}" for c in cpf_ficticio())
+    with pytest.raises(ValueError, match="CPF"):
+        W.consultar(f"https://example.com/?cpf={documento}", IMOVEL, "consulta", base=tmp_path)
+    assert chamados == []
+    assert not list(tmp_path.iterdir())
+
+
+def test_motivo_de_consulta_nao_grava_documento_nome_ou_contato(servidor, tmp_path):
+    nome = "Fulano de Tal"
+    documento = cpf_ficticio()
+    contato = "dono.sintetico@example.invalid"
+    reg, _ = W.consultar(
+        servidor,
+        IMOVEL,
+        f"consulta de {nome}, CPF {documento}, contato {contato}",
+        cofre=Cofre(gerar_chave()),
+        base=tmp_path,
+    )
+    bruto = (tmp_path / IMOVEL / "consultas.jsonl").read_text()
+    assert nome not in reg.motivo and documento not in reg.motivo
+    assert nome not in bruto and documento not in bruto
+    assert contato not in reg.motivo and contato not in bruto
+    assert "[nome]" in reg.motivo and "***." in reg.motivo
 
 
 def test_sem_chave_fica_so_o_hash(servidor, tmp_path, monkeypatch):

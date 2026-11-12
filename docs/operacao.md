@@ -27,6 +27,23 @@ olha o resto de 15 em 15 minutos e sobe a escada do que ninguém reconheceu:
 */15 * * * *  uv run raiz operacao alertas   # lotes, orçamento, vigilância, prazo da Verra, filas, grupos
 ```
 
+Para instalar sem depender do diretório e do `PATH` do cron, no servidor e com o usuário da aplicação:
+
+```bash
+uv run python scripts/instalar_cron_alertas.py             # mostra o bloco
+uv run python scripts/instalar_cron_alertas.py --instalar  # ativa a cada 15 minutos
+crontab -l
+```
+
+O instalador preserva os outros trabalhos e substitui apenas o bloco marcado da Raíz; pode ser repetido. Usa o
+caminho absoluto do `uv`, entra na raiz do repositório (onde a configuração lê o `.env`), exige o lockfile com
+`--frozen` e usa `flock` para não sobrepor rodadas. Se existir `.env`, usa `uv run --env-file .env` para exportar
+também as variáveis lidas diretamente por `os.environ` na vigilância; não executa o arquivo como código shell.
+Precisa de `cron` ativo e `flock` (`util-linux`) no servidor.
+Não instala serviços nem preenche credenciais. Sem ntfy e GoAlert, continua em envio simulado; sem banco acessível
+e migrado, a rodada falha. A prévia não ativa nada. Um ambiente de desenvolvimento sem acesso ao servidor não
+comprova que o agendamento esteja ativo em produção.
+
 | O que | Gravidade |
 |---|---|
 | lote que falhou nas últimas 24 h (um alerta por tarefa e dia) | aviso |
@@ -100,10 +117,79 @@ uv run raiz modelos calibrar        # roda o teste no Qwen e grava raiz/regras/p
 uv run raiz modelos avaliar --modelo triagem   # o mesmo teste no Haiku, para comparar
 ```
 
+O GGUF validado para o nome usado no compose é o Q4_K_M de
+[Unsloth/Qwen3-4B-Instruct-2507-GGUF](https://huggingface.co/unsloth/Qwen3-4B-Instruct-2507-GGUF), revisão
+`a06e946bb6b655725eafa393f4a9745d460374c9` (2.497.281.120 bytes), sob Apache-2.0. Salve-o como
+`infra/modelos/qwen3-4b-instruct-2507-q4_k_m.gguf`, fora do git, e confira antes de subir:
+
+```bash
+sha256sum infra/modelos/qwen3-4b-instruct-2507-q4_k_m.gguf
+```
+
+SHA-256 esperado: `3605803b982cb64aead44f6c1b2ae36e3acdb41d8e46c8a94c6533bc4c67e597`.
+O download verificado em 12/11/2026 veio da revisão acima; trocar a quantização ou o conteúdo do arquivo exige
+recalibrar, mesmo que o nome permaneça igual. Guarde esse SHA junto do relatório de avaliação. Antes de rodar as
+360 chamadas, `uv run raiz modelos testar --modelo qwen3-4b-instruct-2507` confere a conexão e a saída JSON.
+
+O Dockerfile fixa Rust 1.100.0 e copia o header da mesma revisão do llguidance depois de compilar o Rust. Isso
+corrige a falha `llguidance.h: No such file or directory` da combinação b12300/llguidance 1.0.1 com o novo layout
+de diretórios do Cargo. Se o ambiente usa proxy TLS, o certificado pode ser montado apenas durante o build:
+
+```bash
+docker build --secret id=proxy_ca,src=/etc/ssl/certs/ca-certificates.crt \
+  -t raiz/llama-server:b12300-llguidance infra/llama
+docker compose -f infra/docker-compose.yml up -d --no-build llama
+```
+
+Sem proxy, o segredo é opcional e o comando normal do compose continua suficiente. A imagem final não recebe o
+certificado do ambiente de construção.
+
+Validação local em 12/11/2026: imagem construída com esse Dockerfile, `llama-server --version` em
+`ccd360f` (b12300), `/health` saudável e teste CLI do Qwen respondendo JSON válido em 1.253 ms. A intenção e a
+explicação amostradas do teste próprio levaram 3.868 e 7.392 ms, com logprobs disponíveis. Isso confirma o build e
+a conexão local; não afirma implantação no servidor nem substitui as 360 respostas da calibração.
+
 O corte só é gravado com o relatório de um modelo local de verdade; se o arquivo do GGUF mudar de nome, os cortes
 antigos deixam de valer. Sem servidor nem chave, `--modelo simulado` roda tudo com regras (linha de base). Cada
 decisão em `operacao.decisao_cascata` guarda rota, confiança, corte e versão da regra e dos cortes. Se a subida real
 sair da faixa por mais de 15 pontos em 7 dias, abre o alerta `cascata_faixa`: recalibrar.
+
+Os 95% exigidos pelo calibrador são o acerto observado no mesmo banco usado para escolher o corte; não há amostra
+independente de validação nem garantia estatística desse acerto em produção. As três tentativas medem repetição e
+consistência, não equivalem a três mensagens independentes. O runtime confere o nome do modelo; conferir também
+SHA do GGUF, versão do llama.cpp e prompt é parte da promoção operacional dos cortes.
+
+### Resultado real do Qwen em 12/11/2026
+
+A rodada terminou às 16h05 de Brasília (19h05 UTC): **120 mensagens do banco próprio, três tentativas por
+mensagem, 360 respostas completas**, todas com confiança numérica e nenhuma falha técnica. São mensagens de
+teste, não contatos reais de produtores. Banco `banco-pt-2026.11a+01697528`, política
+`cascata-2026.11a+fb4a9c2d`, Qwen/llama/GGUF identificados acima, três threads e contexto de 8.192 tokens.
+
+| Tarefa | Mensagens / respostas | Acerto observado | Acerto nas três tentativas | Abstenção correta | Latência mediana |
+|---|---|---|---|---|---|
+| Intenção do aceite | 80 / 240 | 163/240 (67,92%) | 67,50% | 7,14% | 1.914 ms |
+| Compreensão da proposta | 40 / 120 | 52/120 (43,33%) | 42,50% | 25,00% | 5.465 ms |
+
+**Nenhum corte foi aprovado.** No melhor candidato da faixa de subida, a intenção manteria 79,43% de acerto no
+que fica no Qwen, com 27,08% subindo; a compreensão manteria 49,47%, com 20,83% subindo. Ambos ficaram abaixo dos
+95% exigidos. O arquivo `cascata_cortes.yaml` foi gerado pela CLI com os metadados desta rodada e `cortes: {}`;
+as duas tarefas continuam na votação Qwen + Haiku. Não foi ajustado o banco nem forçado um corte para melhorar a
+nota. A interpretação continua sendo empírica, no mesmo banco de escolha do corte, conforme a limitação acima.
+
+A soma do tempo de inferência foi de 24 min 27 s; havia outros testes rodando na máquina, portanto os tempos não
+são um compromisso de desempenho em produção. A comparação com Haiku ficou pendente: o teste real da CLI
+retornou `sem credencial da Anthropic` neste ambiente, sem benchmark simulado nem pedido de chave pelo chat.
+Implantação e agendamento no servidor de produção não foram realizados neste ambiente local.
+
+Evidência fora do git, em `dados/avaliacao/qwen-2026-11-12/`:
+
+- Relatório: `2026-11-12T190503_qwen3-4b-instruct-2507.json`, SHA-256
+  `0f23332758a33238ee48289caa4cb39b93a1f0d5072ecfc3dd3d2b4b1d6f4c87`.
+- Proveniência do peso, imagem, compilador e parâmetros: `proveniencia.json`, SHA-256
+  `35a215f3ece2240d5878182a69de8f9fda421fe97b642790fc08fb026c169abe`.
+- `verificacao.json` registra a conferência dos 120 IDs, três tentativas por ID, versão do banco, modelo, provedor,
+  métricas e decisões do calibrador. As 360 respostas brutas não foram incluídas no repositório.
 
 ## Rodar o motor vigiado
 
@@ -393,3 +479,65 @@ reservas). Responde quantos municípios entraram e, se não fecha 1 milhão com 
   total em 40 anos; comparação com a renda do gado na mesma área (venda de bovinos por ha de pasto no município, Censo
   Agro 2017 corrigido pelo IPCA, e a sobra pela margem de referência da CNA) e com o aluguel do Censo. Sem nome, CPF
   ou CNPJ: só o código do CAR.
+
+## Proteção da main (o fundador ativa à mão)
+
+Depois do primeiro CI desta entrega ficar verde, abra o repositório no GitHub, **Settings → Rules → Rulesets →
+New branch ruleset**. Dê o nome `main protegida`, selecione **Active** e inclua o branch `main`.
+
+1. Exija pull request antes de integrar. Para o fundador trabalhar sozinho, não exija aprovação de uma segunda
+   pessoa; exija resolver todas as conversas abertas. Se houver revisor, pode exigir uma aprovação e invalidá-la
+   quando o código mudar.
+2. Em **Require status checks to pass**, selecione os seis checks do workflow **CI**: `workflows`, `segredos`,
+   `front`, `seguranca`, `checagens` e `e2e`. Prefira a origem **GitHub Actions**, quando disponível. Marque
+   **Require branches to be up to date before merging**. Os nomes só aparecem depois de uma execução.
+3. Ative **Block force pushes** e **Restrict deletions**. Mantenha a lista de bypass vazia, incluindo para
+   administradores, salvo uma política de emergência explícita. Não habilite merge automático do Dependabot
+   sem passar pelos mesmos checks.
+4. Salve. Confira em um PR de teste que merge com check pendente/vermelho e push direto na main são recusados.
+   Para plano sem rulesets, use **Settings → Branches → Add branch protection rule**, padrão `main`, com as
+   mesmas exigências e **Do not allow bypassing the above settings**.
+
+A automação atual do motor atualiza `motor/README.md` por push direto. A proteção impedirá esse push: o chat
+Dados/operação precisa transformar a atualização em PR. Não conceda bypass geral ao token para contornar isso.
+Esta entrega documenta a configuração; não altera as regras da conta do fundador.
+
+Em **Settings → Code security**, habilite **Dependabot alerts**, **Dependabot security updates** e, quando
+oferecidos pelo plano, **Secret scanning** e **Push protection**. `.github/dependabot.yml` já agenda atualizações
+semanais de uv, npm, Cargo, Actions e imagens Docker. Gitleaks varre todo o histórico acessível em cada PR, mesmo
+sem o recurso pago do GitHub; nunca publica o valor encontrado. A única exceção é o nome exato de uma coluna de
+`docs/colunas.md` confundido com chave, restrito ao arquivo. Credencial real encontrada deve ser revogada primeiro;
+retirá-la do último commit não a apaga do histórico.
+
+## CI e controles de segurança
+
+Os seis jobs rodam em paralelo, sem filtro de caminhos nem seleção de testes. `setup-uv` guarda cache pelo
+`uv.lock`, `setup-node` guarda o cache npm pelos locks, e o Chromium/LanguageTool têm caches separados. A instalação
+continua travada (`uv sync --frozen --all-extras`, `npm ci`). Não se reutiliza `node_modules` de outro lock.
+
+- `front` constrói o mesmo site público e executa os testes unitários, com geometrias de teste determinísticas.
+- `checagens` executa toda a coleta pytest, inclusive PostGIS, Rust, cartão, vídeo, PDF e LanguageTool. O portão de resultados recusa novos skips/xfails;
+  preserva somente o conjunto real do Pará ausente e a divergência conhecida de TIR, detalhados na passagem.
+- `e2e` abre Chromium e usa API/PostGIS reais: link de entrada, milhão de créditos no Pará, três opções, interesse
+  e reserva Pix local. E-mail e respostas dos donos são controlados; nenhuma credencial de pagamento real é
+  aceita. Veja `testes/e2e/README.md`. Não há trace com tokens nos artefatos.
+- `seguranca` verifica estilo, CPF/CNPJ e licenças Python instaladas, todos os pacotes dos locks npm e Cargo.
+  Inventário ausente/ilegível falha. AGPL, SSPL, Business Source, EUPL e NC são bloqueadas; `BSL-1.0` é a licença
+  Boost, permitida, enquanto Business Source (`BUSL-1.1`) é proibida. Exceções manuais não liberam licença proibida.
+- `segredos` usa Gitleaks com saída ocultada; `workflows` valida todos os workflows com actionlint.
+
+A API acrescenta cabeçalhos de proteção e `no-store` nas respostas autenticadas e de pedidos. Por padrão, há
+120 chamadas por minuto/IP e 10 chamadas de login por minuto/IP; ajuste `RAIZ_API_LIMITE_MINUTO` e
+`RAIZ_API_LOGIN_LIMITE_MINUTO`. O excesso retorna 429 com `Retry-After`. A contagem é por processo: com vários
+workers/réplicas, configure também limite compartilhado no proxy. O proxy deve preservar corretamente o IP;
+encaminhamentos arbitrários do visitante não devem ser confiados. HSTS depende de HTTPS reconhecido pela API.
+
+Configure `RAIZ_LOGIN_BASE_URL=https://seu-dominio/Raiz/` para o destino canônico do link de entrada; sem ela,
+usa-se a primeira origem de `RAIZ_API_ORIGENS`. O cabeçalho `Origin`/`Host` do visitante não escolhe o destino.
+HTTP só é aceito para desenvolvimento local. O envio real de e-mail ainda depende da integração do produto.
+
+Presidio e o modelo português instalado pelo lock limpam nomes e contatos nos logs, diagnósticos persistidos,
+Healthchecks, Langfuse e erros publicados pelo executor. Se a análise falhar, o texto é suprimido. O access log
+padrão do Uvicorn fica desligado para não gravar tokens de links/webhooks nas URLs. Isso não autoriza registrar
+texto pessoal bruto: o reconhecimento de nomes tem falsos negativos. Mantenha apenas códigos internos e métricas
+nos eventos. Limites da auditoria e pendências estão em `docs/passagem/qualidade-e-seguranca.md`.

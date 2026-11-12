@@ -125,11 +125,11 @@ def inteiros(x: np.ndarray, total: int) -> np.ndarray:
     return base
 
 
-def espalhar(linhas: list[dict], cod_municipio: int, r: dict | None = None) -> list[dict]:
+def espalhar(linhas: list[dict], cod_municipio: int, r: dict | None = None, totais: dict | None = None) -> list[dict]:
     """Rebanho de cada fazenda do município (P10, P50, P90), lotação e metano."""
     r = r or regra()
     e = r["espalhar"]
-    total, total_censo = bovinos_municipio(cod_municipio, r)
+    total, total_censo = bovinos_municipio(cod_municipio, r) if totais is None else (totais["ppm"], totais["ppm_2017"])
     pastos = np.array([pasto(li) for li in linhas], dtype=float)
     prod, fontes = produtividade(linhas, r)
     soma_pasto = float(pastos.sum())
@@ -140,7 +140,9 @@ def espalhar(linhas: list[dict], cod_municipio: int, r: dict | None = None) -> l
                         "sem_pasto"})  # fmt: skip
         return out
     lot_mun = total / soma_pasto
-    lot_mun = min(max(lot_mun, float(e["lotacao_min_cab_ha"])), float(e["lotacao_max_cab_ha"]))
+    # Zero informado pela PPM é ausência de rebanho, não uma lotação pequena a elevar ao piso.
+    if total > 0:
+        lot_mun = min(max(lot_mun, float(e["lotacao_min_cab_ha"])), float(e["lotacao_max_cab_ha"]))
     total_ef = lot_mun * soma_pasto  # com a lotação dentro dos limites
     desenhos = []
     for ex in [float(e["expoente"]), *[float(x) for x in e["expoentes_faixa"]]]:
@@ -148,7 +150,7 @@ def espalhar(linhas: list[dict], cod_municipio: int, r: dict | None = None) -> l
         desenhos.append(w / w.sum() * total_ef if w.sum() > 0 else w)
     p50 = inteiros(desenhos[0], int(round(total_ef)))
     alts = [*desenhos[1:]]
-    censo = censo_2017(cod_municipio, r)
+    censo = censo_2017(cod_municipio, r) if totais is None else totais["censo_2017"]
     fator_censo = censo / total_censo if censo and total_censo else None
     if fator_censo:  # o erro do próprio total: o Censo de 2017 contra a PPM de 2017 no município, levado a hoje
         alts.append(desenhos[0] * fator_censo)

@@ -79,3 +79,32 @@ contagens e versões. Regra completa em `docs/documentos.md`.
 | matricula_<mun>.csv | uma linha por imóvel do certidoes_<mun>.csv. matricula_conferida (True quando todas as matrículas do imóvel foram lidas e conferidas; False quando alguma foi lida e deu divergente, cancelada ou ilegível; vazio quando falta ler; é a coluna que o selo "Matrícula conferida" do front lê), matricula_situacao (a pior: cancelada, divergente, revisar, a_conferir, conferida), matriculas_total, matriculas_lidas, matriculas_conferidas, matricula_area_ha (soma das áreas lidas, em ha), matricula_onus_ativos, matricula_onus_graves (penhora, arresto, sequestro, indisponibilidade, ação judicial ou bloqueio), matricula_quebra_cadeia, matricula_precisa_confirmar, matricula_motivo, matricula_lido_em, matricula_modelo (o modelo que leu; humano quando a leitura foi manual), matricula_leitor_versao (versão do leitor + do prompt) |
 | matricula_conferencia_<mun>.csv | uma linha por (imóvel, cartório, matrícula) do certidoes_<mun>.csv, com a última conferência: situacao (conferida, divergente, cancelada, revisar ou a_conferir), precisa_confirmar, motivo (até 3 motivos, os que decidem primeiro), area_matricula_ha, ha_sobre_car (do motor), onus_ativos, onus_graves, quebra_cadeia, n_transmissoes, matricula_destino (para onde a matrícula encerrada foi transportada), leitura_id, lido_em, modelo, leitor_versao, regras_versao, motivos_json (cada motivo com código, gravidade e texto já limpo: vira achado de título em achados_<mun>.csv) |
 | cadeia_<mun>.csv | cadeia dominial das certidões lidas (raiz/documentos/certidao/cadeia.py), um ato por linha da leitura vigente de cada matrícula do município: registro_cns e registro_matricula (normalizados), leitura_hash, leitura_id, lido_em, modelo, leitor_versao, regras_versao; dados da matrícula repetidos em cada linha: matricula_situacao, conferencia, origem (titulo_publico, transcricao_anterior, matricula_anterior, usucapiao, desconhecida), origem_referencia, origem_matricula (normalizada, quando a origem é matrícula anterior), data_abertura, area_matricula_ha, matricula_destino, georreferenciado, n_transmissoes, quebras, onus_graves, proprietarios_json (rótulo, tipo e documento mascarado); o ato: ordem, ato_numero (R-1, AV-2, ABERTURA), ato_tipo, natureza, afeta, data, fracao_pct, pagina, transmissao, anterior_numero (transmissão anterior na cadeia), cancelado_por, quebra, quebra_motivo, resumo (sem nome), transmitentes_json e adquirentes_json (rótulo, tipo, documento mascarado, instituição só de órgão público e banco). A carga leva para titulo.matricula, titulo.ato e titulo.ato_parte |
+
+## Lote e números — revisão da rodada 11
+
+O modelo `restauracao-2026d` inclui o hash do código de cálculo e piso de reserva de reversão de 20%.
+`desenvolvedor_<mun>.csv` acrescenta:
+
+| Coluna | Significado |
+|---|---|
+| restauracao_area_situacao | `pendente_pasto` quando falta cobertura de pasto; zero calculado não demonstra ausência de potencial |
+| preco_minimo_tir_12_projeto_usd_t | US$/crédito para TIR do projeto de 12%, fluxo P50 |
+| preco_minimo_tir_12_alavancada_usd_t | US$/crédito para TIR alavancada de 12%, dívida recalculada pelo ICSD |
+| preco_minimo_tir_15_projeto_usd_t | US$/crédito para TIR do projeto de 15%, fluxo P50 |
+| preco_minimo_tir_15_alavancada_usd_t | US$/crédito para TIR alavancada de 15%, dívida recalculada pelo ICSD |
+
+Valor nulo de preço indica alvo não atingido no teto de busca, ou falta de área estimável. Não equivale a preço zero.
+As três alternativas de lote são mutuamente exclusivas: créditos e fazendas não se somam entre opções.
+
+A camada opcional `jurisdicional_<mun>.csv`, uma linha por `cod_imovel`, complementa o lote sem alterar o motor:
+`jurisdicional_situacao`, `jurisdicional_programa`, `jurisdicional_sobreposicao_ha`, `jurisdicional_fonte`,
+`jurisdicional_evidencia`, `jurisdicional_exclusao_em` e `creditos_inicio_em` (ver contrato exato em
+`raiz/regras/salvaguardas_lote.py`). Sem evidência, a comercialização permanece pendente. A análise também recebe
+`clpi_situacao`, `clpi_evidencia`, `fracao_creditos_comunidade` e `reparticao_evidencia`; a falta de consulta nunca vira consentimento.
+
+O pacote de cada opção publica `decisoes_PA.jsonl` com critério textual, versão do modelo, identificador da decisão e
+possibilidade de revisão humana. O protocolo de revisão é persistido em SQLite por `pedir_revisao_humana` e não
+libera automaticamente o imóvel. A trilha de entrada é comum às três opções e tem referência no resumo.
+`ecologia_PA.json` tem quatro horizontes por CAR (3, 5, 10 e 15 anos), fontes, unidade de amostragem e incerteza.
+Previsão ausente fica nula: metas de regenerantes de São Paulo não são uma previsão de árvores adultas no Pará;
+riqueza de espécies não é multiplicada pela área da fazenda.

@@ -213,6 +213,28 @@ def test_arquivo_no_armazem_leva_versao_e_data(base):
                                                  "saida/PA/imoveis_1.csv", "saida/PA/terra_1.csv"]  # fmt: skip
 
 
+def test_erros_no_estado_e_marca_sao_sanitizados_antes_de_publicar(base):
+    from testes.test_privacidade import CPF
+
+    def falhar(*args):
+        raise ValueError(f"nome=Pessoa Sintética, contato@example.org, CPF {CPF}")
+
+    ex = Executor(
+        ArmazemLocal(base / "armazem"),
+        base / "trabalho",
+        [Tarefa("funil", (), ("imoveis_{cod}.csv",), lambda: "v1", falhar)],
+        resumo=falhar,
+    )
+    resultado = ex.rodar_uf("PA", [1])
+    marca = ler_json(ex.a, "marcas/PA/1.json")
+    estado = ler_json(ex.a, "estado/PA.json")
+    publicado = json.dumps([resultado, marca, estado], ensure_ascii=False)
+    for pessoal in ("Pessoa Sintética", "contato@example.org", CPF):
+        assert pessoal not in publicado
+    assert resultado["situacao"] == "com_erro"
+    assert {e["tarefa"] for e in resultado["erros"]} == {"funil", "resumo"}
+
+
 def test_armazem_s3_com_moto(tmp_path, monkeypatch):
     import boto3
     from moto import mock_aws
