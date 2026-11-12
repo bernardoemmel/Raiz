@@ -72,7 +72,7 @@ def ler(
         feats = r.json().get("features", [])
         if not feats:
             break
-        g = gpd.read_file(io.BytesIO(r.content)).set_crs(srid, allow_override=True)
+        g = gpd.read_file(io.BytesIO(r.content), engine="pyogrio").set_crs(srid, allow_override=True)
         partes.append(g)
         ultimo = int(g[oid].max())
         if len(feats) < passo:

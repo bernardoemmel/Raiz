@@ -108,7 +108,7 @@ def paginas(
         if isinstance(total, str):
             total = None if total == "unknown" else int(total)
         feats = j.get("features", [])
-        g = gpd.read_file(io.BytesIO(r.content)) if feats else gpd.GeoDataFrame(geometry=[], crs=4674)
+        g = gpd.read_file(io.BytesIO(r.content), engine="pyogrio") if feats else gpd.GeoDataFrame(geometry=[], crs=4674)
         if len(g):
             # GeoJSON sem membro "crs" é lido como 4326; as coordenadas vêm no srsName que pedimos (como no motor)
             g = g.set_crs(c.srs, allow_override=True)

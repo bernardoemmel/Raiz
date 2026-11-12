@@ -369,6 +369,10 @@ def funil_bancada(uf: str, municipio: int, camada: str = "accumulated_deforestat
         f"{r['area_iov_ha']} ha; maior diferença por par {r['maior_dif_m2']} m², pares com mais de 1 m²: "
         f"{r['pares_dif_1m2']}"
     )
+    typer.echo(
+        f"  pares: índice espacial {r['pares_indice_s']} s, DuckDB (SPATIAL_JOIN) {r['pares_duckdb_s']} s; "
+        f"{'iguais' if r['pares_iguais'] else 'DIFERENTES'}"
+    )
 
 
 @banco.command("migrar")
