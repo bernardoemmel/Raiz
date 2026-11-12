@@ -19,6 +19,90 @@ import pandas as pd, geopandas as gpd, numpy as np, rasterio
 from exactextract import exact_extract as _ee
 
 
+def limita_memoria(gb=5):
+    """Teto de memória do processo: um polígono degenerado faz o exactextract pedir memória sem fim; com o teto ele
+    devolve MemoryError (tratado abaixo, imóvel fica vazio) em vez de o sistema matar a fila inteira."""
+    import resource
+    resource.setrlimit(resource.RLIMIT_AS, (int(gb * 2**30), int(gb * 2**30)))
+
+
+def zonal_janela(fonte, g, ops=('count', 'sum', 'max'), include_cols=None, max_pix=16_000_000):
+    """Estatística por imóvel sem exactextract (rodada 9: soma por pixel em vez do motor exato, que pediu memória sem fim
+    em Altamira). Agrupa os imóveis por vizinhança, lê uma janela do raster por grupo (funciona com /vsicurl, só os
+    blocos da janela) e, para cada imóvel, marca os pixels cujo centro cai dentro dele (imóvel menor que um pixel usa
+    os pixels que toca). Imóveis sobrepostos contam cada um por si. Devolve colunas no formato do exactextract:
+    band_<i>_<op>, com op em count, sum, mean, max, majority."""
+    import rasterio
+    from rasterio.windows import from_bounds, Window
+    from rasterio.features import geometry_mask
+    r = rasterio.open(fonte) if isinstance(fonte, str) else fonte
+    g = g.to_crs(r.crs).reset_index(drop=True) if r.crs else g.reset_index(drop=True)
+    nb = r.count; nod = r.nodatavals
+    W, H = r.width, r.height
+    res = {f'band_{i}_{o}': np.full(len(g), np.nan) for i in range(1, nb + 1) for o in ops if o != 'classes'}
+    b = g.geometry.bounds.values
+    cx, cy = (b[:, 0] + b[:, 2]) / 2, (b[:, 1] + b[:, 3]) / 2
+
+    def janela(idx):
+        x0, y0, x1, y1 = b[idx, 0].min(), b[idx, 1].min(), b[idx, 2].max(), b[idx, 3].max()
+        w = from_bounds(x0, y0, x1, y1, r.transform).round_offsets(op='floor').round_lengths(op='ceil')
+        c0, r0 = max(int(w.col_off) - 1, 0), max(int(w.row_off) - 1, 0)
+        c1, r1 = min(int(w.col_off + w.width) + 1, W), min(int(w.row_off + w.height) + 1, H)
+        return Window(c0, r0, max(c1 - c0, 0), max(r1 - r0, 0))
+
+    def processa(idx):
+        if len(idx) == 0: return
+        w = janela(idx)
+        if w.width * w.height > max_pix and len(idx) > 1:  # janela grande demais: divide o grupo ao meio
+            eixo = cx if (b[idx, 2].max() - b[idx, 0].min()) >= (b[idx, 3].max() - b[idx, 1].min()) else cy
+            o = idx[np.argsort(eixo[idx])]; m = len(o) // 2
+            processa(o[:m]); processa(o[m:]); return
+        if w.width == 0 or w.height == 0: return
+        a = r.read(window=w)
+        tr = r.window_transform(w)
+        for k in idx:
+            wk = from_bounds(*b[k], tr).round_offsets(op='floor').round_lengths(op='ceil')
+            c0, r0 = max(int(wk.col_off), 0), max(int(wk.row_off), 0)
+            c1, r1 = min(int(wk.col_off + wk.width) + 1, a.shape[2]), min(int(wk.row_off + wk.height) + 1, a.shape[1])
+            if c1 <= c0 or r1 <= r0: continue
+            trk = tr * tr.translation(c0, r0)
+            geom = [g.geometry.iat[k]]
+            m = ~geometry_mask(geom, (r1 - r0, c1 - c0), trk)
+            if not m.any(): m = ~geometry_mask(geom, (r1 - r0, c1 - c0), trk, all_touched=True)
+            for i in range(nb):
+                v = a[i, r0:r1, c0:c1][m]
+                if nod[i] is not None: v = v[v != nod[i]]
+                v = v[np.isfinite(v)] if v.dtype.kind == 'f' else v
+                n = v.size
+                for o in ops:
+                    if o == 'count': x = n
+                    elif o == 'sum': x = float(v.sum()) if n else 0.0
+                    elif o == 'mean': x = float(v.mean()) if n else np.nan
+                    elif o == 'max': x = float(v.max()) if n else np.nan
+                    elif o == 'classes':  # contagem de pixels por classe (até 255): coluna band_i_c<classe>
+                        if n:
+                            u, c = np.unique(v, return_counts=True)
+                            for uu, cc in zip(u.tolist(), c.tolist()):
+                                res.setdefault(f'band_{i + 1}_c{int(uu)}', np.zeros(len(g)))[k] = cc
+                        continue
+                    elif o == 'majority':
+                        x = float(np.bincount(v.astype(np.int64) - int(v.min())).argmax() + int(v.min())) if n else np.nan
+                    else: raise ValueError(o)
+                    res[f'band_{i + 1}_{o}'][k] = x
+
+    # grupos por vizinhança (grade de 0,25 grau pelo centro do imóvel)
+    chave = np.floor(cx / 0.25).astype(np.int64) * 100000 + np.floor(cy / 0.25).astype(np.int64)
+    for _, idx in pd.Series(np.arange(len(g))).groupby(chave):
+        processa(idx.values)
+    out = pd.DataFrame(res)
+    if nb == 1:  # mesmo nome do exactextract com banda única
+        out.columns = [c.split('_', 2)[2] for c in out.columns]
+        out = out.fillna({c: 0 for c in out.columns if c[:1] == 'c' and c[1:].isdigit()})
+    if include_cols:
+        for c in include_cols: out.insert(0, c, g[c].values)
+    return out
+
+
 def exact_extract(r, g, ops, output='pandas', include_cols=None, lote=300):
     """exactextract em lotes; se um lote falhar ('Never get here' com polígono minúsculo/degenerado), roda um a um
     e deixa vazio só o imóvel problemático, em vez de derrubar o município inteiro."""
@@ -28,10 +112,10 @@ def exact_extract(r, g, ops, output='pandas', include_cols=None, lote=300):
         s = g.iloc[i:i + lote]
         try:
             partes.append(_ee(r, s, ops, include_cols=include_cols, output='pandas'))
-        except RuntimeError:
+        except (RuntimeError, MemoryError):
             for j in range(len(s)):
                 try: partes.append(_ee(r, s.iloc[j:j + 1], ops, include_cols=include_cols, output='pandas'))
-                except RuntimeError:
+                except (RuntimeError, MemoryError):
                     row = {o: float('nan') for o in ops}
                     if include_cols: row.update({c: s.iloc[j][c] for c in include_cols})
                     partes.append(pd.DataFrame([row]))
@@ -81,7 +165,7 @@ def zonal(g, rasters):
         sub = g.cx[b.left:b.right, b.bottom:b.top]
         if len(sub) == 0: continue
         ops = ['count', 'sum', 'max'] + (['majority'] if BANDAS is BANDAS_V2 else [])
-        res = exact_extract(r, sub, ops, include_cols=['cod_imovel'], output='pandas')
+        res = zonal_janela(r, sub, ops, include_cols=['cod_imovel'])
         for _, row in res.iterrows():
             k = row.cod_imovel; d = acc.setdefault(k, {})
             for i, nome in enumerate(BANDAS, 1):
@@ -128,6 +212,7 @@ def persistencia(t):
 
 
 def main():
+    limita_memoria()
     uf = sys.argv[1].upper()
     pasta = f'saida/{uf}'
     global BANDAS
