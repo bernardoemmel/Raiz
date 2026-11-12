@@ -75,14 +75,20 @@ def test_cartoes_tamanho_e_peso(cliente):
         ("previa.jpg", (1200, 630), "image/jpeg", 250),
         ("retrato.jpg", (1080, 1350), "image/jpeg", 600),
         ("adesivo.png", (512, 512), "image/png", 300),
+        # WebP para a ficha e o site: mais leve que o JPEG e o PNG
+        ("previa.webp", (1200, 630), "image/webp", 150),
+        ("retrato.webp", (1080, 1350), "image/webp", 350),
+        ("adesivo.webp", (512, 512), "image/webp", 150),
     ):
         r = cl.get(f"/cartao/{codigo}/{nome}")
         assert r.status_code == 200 and r.headers["content-type"] == tipo, nome
         img = Image.open(io.BytesIO(r.content))
         assert img.size == tam and len(r.content) < max_kb * 1024, (nome, img.size, len(r.content))
-        if nome == "adesivo.png":
+        if nome.startswith("adesivo"):
             assert img.convert("RGBA").getpixel((0, 0))[3] == 0  # fundo transparente
+    assert len(cl.get(f"/cartao/{codigo}/previa.webp").content) < len(cl.get(f"/cartao/{codigo}/previa.jpg").content)
     assert cl.get(f"/cartao/{codigo}/previa.png").status_code == 404
+    assert cl.get(f"/cartao/{codigo}/adesivo.jpg").status_code == 404
     assert cl.get(f"/cartao/{codigo}/outro.jpg").status_code == 404
     # o cartão mostra o selo novo quando o dono aceita (o cache é refeito)
     antes = cl.get(f"/cartao/{codigo}/previa.jpg").content

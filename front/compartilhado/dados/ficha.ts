@@ -23,6 +23,20 @@ export interface ContextoMunicipio {
   mediana_ha: number
 }
 
+/**
+ * Foto de capa da ficha: satélite com o contorno (raiz/satelite.py, "hoje-produtor"), só quando o back-end já gerou.
+ * O ThumbHash (base64, ~25 bytes) vira um borrão com as cores da foto na hora; a foto chega depois.
+ */
+export interface Capa {
+  /** caminho na API (imoveis/{cod}/imagem/hoje-produtor.webp) */
+  caminho: string
+  thumbhash: string
+  largura: number
+  altura: number
+  data_cena: string
+  credito: string
+}
+
 export interface FichaJson {
   versao: 1
   imovel: Linha
@@ -30,6 +44,8 @@ export interface FichaJson {
   /** anéis externos do polígono do CAR, em polyline de 6 casas ([lon, lat]) */
   perimetro: string[] | null
   caixa: [number, number, number, number] | null
+  /** só com o back-end, quando a foto de satélite já existe */
+  capa?: Capa | null
 }
 
 export interface Ficha {
@@ -37,6 +53,7 @@ export interface Ficha {
   contexto: ContextoMunicipio
   aneis: [number, number][][]
   caixa: [number, number, number, number] | null
+  capa: Capa | null
 }
 
 type Feicao = Geo["features"][number]
@@ -122,5 +139,6 @@ export function lerFicha(json: FichaJson): Ficha {
     contexto: json.contexto,
     aneis: (json.perimetro ?? []).map((p) => decodificar(p)),
     caixa: json.caixa,
+    capa: json.capa?.thumbhash && json.capa.caminho ? json.capa : null,
   }
 }

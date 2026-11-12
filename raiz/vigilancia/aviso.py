@@ -21,6 +21,11 @@ from raiz.legibilidade import medir
 from raiz.vigilancia.privacidade import mascarar
 from raiz.vigilancia.regras import Regras
 
+try:  # o revisor (LanguageTool) precisa da config do produto; a vigilância roda com dependências mínimas
+    from raiz.revisor import nota_de_envio
+except ImportError:  # pragma: no cover - só no ambiente mínimo da vigilância
+    nota_de_envio = medir
+
 NOME_FONTE = {
     "mapbiomas_alerta": "MapBiomas Alerta",
     "deter": "DETER do INPE",
@@ -133,7 +138,7 @@ def avisos(
                 "estado": estado,
                 "criado_em": criados[aid],
                 "texto": (t := texto(perda, projeto.nome, m)),
-                "legibilidade": medir(t),
+                "legibilidade": nota_de_envio(t),
             }
         )
     return out

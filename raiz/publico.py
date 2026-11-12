@@ -5,7 +5,8 @@ CAR, polígono exato e imagem de satélite da fazenda só depois do aceite do do
 ou CPF em imagem, arquivo ou log.
 
 - /cartao/{codigo}/previa.jpg (1200 x 630, < 250 KB), retrato.jpg (1080 x 1350), adesivo.png (transparente, < 300 KB),
-  feitos com o Takumi (servicos/cartao/render.mjs, MIT ou Apache-2.0);
+  feitos com o Takumi (servicos/cartao/render.mjs, MIT ou Apache-2.0), e os mesmos em WebP (previa.webp, retrato.webp,
+  adesivo.webp), mais leves, para a ficha e o site; a prévia do WhatsApp (og:image) continua em JPEG;
 - /video/{codigo}.mp4 (1080 x 1920) e /video/{codigo}-720p.mp4: cenas do Takumi (renderAnimation) codificadas pelo
   FFmpeg no servidor, com a voz do Qwen3-TTS quando estiver instalado (sem ele, o vídeo sai mudo e o metadado diz);
 - /p/{codigo}: ficha do produtor em HTML pronto no servidor (até 150 KB), com Open Graph para o WhatsApp.
@@ -29,7 +30,13 @@ from raiz import RAIZ_REPO
 from raiz.config import config
 
 SERVICO = RAIZ_REPO / "servicos" / "cartao"
-CARTOES = {"previa": ("jpg", 250), "retrato": ("jpg", 600), "adesivo": ("png", 300)}
+# tipo -> {extensão: peso máximo em KB}; a primeira extensão é a padrão
+CARTOES = {
+    "previa": {"jpg": 250, "webp": 150},
+    "retrato": {"jpg": 600, "webp": 350},
+    "adesivo": {"png": 300, "webp": 150},
+}
+TIPO_IMAGEM = {"jpg": "image/jpeg", "png": "image/png", "webp": "image/webp"}
 VIDEOS = {"": (1080, 1920), "-720p": (720, 1280)}
 
 
@@ -129,12 +136,14 @@ def _imagens_do_aceite(d: dict) -> dict:
     return out
 
 
-def cartao(d: dict, tipo: str) -> Path:
-    ext, max_kb = CARTOES[tipo]
+def cartao(d: dict, tipo: str, ext: str | None = None) -> Path:
+    ext = ext or next(iter(CARTOES[tipo]))
+    max_kb = CARTOES[tipo][ext]
     f, valido = _cache(d, f"{tipo}.{ext}")
     if valido:
         return f
-    pedido = {**_publico(d), **_imagens_do_aceite(d), "tipo": tipo}
+    formato = {"jpg": "jpeg", "png": "png", "webp": "webp"}[ext]
+    pedido = {**_publico(d), **_imagens_do_aceite(d), "tipo": tipo, "formato": formato}
     for q in (82, 72, 62, 50):
         pedido["qualidade"] = q
         _node(pedido, f)
@@ -190,6 +199,22 @@ def video(d: dict, sufixo: str = "") -> tuple[Path, dict]:
     return f, meta
 
 
+def _foto(d: dict, base: str) -> str:
+    """Satélite com o contorno, com o borrão do ThumbHash de fundo (PNG de ~1 KB embutido) enquanto a foto chega e o
+    tamanho certo para a página não pular."""
+    from raiz import satelite
+    from raiz.thumbhash import para_data_url
+
+    c = satelite.capa(d["_cod_busca"]) or {}
+    tam = f' width="{c["largura"]}" height="{c["altura"]}"' if c.get("largura") else ' width="720"'
+    fundo = f' style="background:url({para_data_url(c["thumbhash"])}) center/cover"' if c.get("thumbhash") else ""
+    legenda = f"<figcaption>{html.escape(c['credito'])}</figcaption>" if c.get("credito") else ""
+    return (
+        f'<figure><img src="{base}/p/{html.escape(d["codigo"])}/satelite.webp" alt="Imagem de satélite da fazenda"'
+        f"{tam}{fundo}>{legenda}</figure>"
+    )
+
+
 def pagina(d: dict, base_url: str) -> str:
     """Ficha do produtor em HTML pronto (sem JavaScript), com Open Graph para o WhatsApp. Até 150 KB."""
     e = html.escape
@@ -200,14 +225,9 @@ def pagina(d: dict, base_url: str) -> str:
     desc = f"{d['hectares']} hectares {d['frase']}. {selo_txt}. Código {d['codigo']}."
     depois = ""
     if d["aceito"]:
-        depois = (
-            f'<p class="car">CAR {e(d["_cod_imovel"])}</p>'
-            + (
-                f'<img src="{base}/p/{e(d["codigo"])}/satelite.webp" alt="Imagem de satélite da fazenda" width="720">'
-                if _imagens_do_aceite(d).get("imagem")
-                else ""
-            )  # fmt: skip
-        )
+        depois = f'<p class="car">CAR {e(d["_cod_imovel"])}</p>'
+        if _imagens_do_aceite(d).get("imagem"):
+            depois += _foto(d, base)
     return f"""<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>{e(titulo)} · Raíz</title>
@@ -221,7 +241,8 @@ def pagina(d: dict, base_url: str) -> str:
 <style>body{{margin:0;font:18px/1.4 system-ui,sans-serif;background:#f4f1ea;color:#1d5a39}}
 main{{max-width:720px;margin:auto;padding:24px}}.ha{{font-size:64px;font-weight:700;margin:8px 0}}
 .selo{{display:inline-block;background:#fff;border-radius:20px;padding:6px 14px}}.car{{font-family:monospace}}
-img{{max-width:100%;height:auto;border-radius:12px;margin-top:16px}}</style></head>
+img{{max-width:100%;height:auto;border-radius:12px;margin-top:16px}}figure{{margin:0}}
+figcaption{{font-size:14px;opacity:.8}}</style></head>
 <body><main><p>{e(d["municipio"])} · {e(d["uf"])}</p><p class="ha">{e(d["hectares"])} ha</p>
 <p>{e(d["frase"]).capitalize()}.</p><p class="selo">{e(selo_txt)}</p><p>Código da fazenda: <b>{e(d["codigo"])}</b></p>
 {depois}<p><small>Raíz · dados do CAR (SICAR/SFB) e do MapBiomas</small></p></main></body></html>"""
@@ -257,11 +278,10 @@ def roteador(engine_de):
     @r.get("/cartao/{codigo}/{nome}")
     def cartao_rota(codigo: str, nome: str, request: Request) -> Response:
         tipo, _, ext = nome.partition(".")
-        if tipo not in CARTOES or CARTOES[tipo][0] != ext:
-            raise HTTPException(404, "cartão desconhecido (previa.jpg, retrato.jpg, adesivo.png)")
-        f = cartao(achar(request, codigo), tipo)
-        return FileResponse(f, media_type="image/png" if ext == "png" else "image/jpeg",
-                            headers={"Cache-Control": "public, max-age=3600"})  # fmt: skip
+        if ext not in CARTOES.get(tipo, {}):
+            raise HTTPException(404, "cartão desconhecido (previa e retrato: .jpg ou .webp; adesivo: .png ou .webp)")
+        f = cartao(achar(request, codigo), tipo, ext)
+        return FileResponse(f, media_type=TIPO_IMAGEM[ext], headers={"Cache-Control": "public, max-age=3600"})
 
     @r.get("/video/{nome}.mp4")
     def video_rota(nome: str, request: Request) -> Response:
