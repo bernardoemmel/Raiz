@@ -2,9 +2,10 @@
 
 Grava na pasta do município:
   regularizacao_<mun>.csv  o que falta para o título da posse (raiz/titulo/regularizacao.py);
-  achados_<mun>.csv        requisitos da regularização, motivos das certidões lidas e a comparação geométrica do CAR
+  achados_<mun>.csv        requisitos da regularização, motivos das certidões lidas, a comparação geométrica do CAR
                            com as parcelas do SIGEF que o cobrem (quando há polígonos: geo_<mun>.parquet e o SIGEF do
-                           espelho);
+                           espelho), a origem da cadeia dominial (raiz/titulo/cadeia.py) e as bandeiras de contexto e
+                           auditoria (raiz/titulo/contexto.py);
   titulo_<mun>.csv         nota de 1 a 5, bandeiras e decisão (raiz/titulo/nota.py), com titulo_versao.
 A versão da tarefa junta a das três regras; mudou alguma, o executor refaz.
 """
@@ -16,6 +17,8 @@ from pathlib import Path
 
 import pandas as pd
 
+from raiz.titulo import cadeia as CA
+from raiz.titulo import contexto as CX
 from raiz.titulo import geometria as G
 from raiz.titulo import nota as N
 from raiz.titulo import regularizacao as RG
@@ -27,7 +30,7 @@ TOLERANCIA_CAR_M = G.TOLERANCIA_M["inacessivel"]  # o CAR é declarado: a toler�
 
 
 def versao() -> str:
-    return f"{RG.versao()}|{N.versao()}|{VERSAO_GEOMETRIA}"
+    return f"{RG.versao()}|{N.versao()}|{VERSAO_GEOMETRIA}|{CA.VERSAO}|{CX.VERSAO}"
 
 
 def geometria_car_sigef(geo, sigef) -> list[Achado]:
@@ -112,7 +115,13 @@ def escrever_municipio(pasta: str | Path, cod: int, espelho: Path | None = None)
     reg, ach = RG.calcular_municipio(pasta, cod)
     geo, sigef = _geometrias(pasta, cod, espelho)
     geom = pd.DataFrame([a.linha() for a in geometria_car_sigef(geo, sigef)], columns=COLUNAS)
-    ach = pd.concat([ach, RG.achados_da_certidao(pasta, cod), geom], ignore_index=True)
+    extras = [
+        RG.achados_da_certidao(pasta, cod),
+        geom,
+        CA.achados_da_cadeia(pasta, cod),
+        CX.achados_de_contexto(pasta, cod),
+    ]
+    ach = pd.concat([ach, *[x for x in extras if len(x)]], ignore_index=True)
     # nota: terra + regularização + matrícula conferida + achados do imóvel
     im = RG.entrada_municipio(pasta, cod).merge(
         reg[["cod_imovel", "regularizacao_classe"]], on="cod_imovel", how="left"

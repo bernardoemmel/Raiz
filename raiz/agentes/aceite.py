@@ -284,6 +284,7 @@ def aceitar(estado: Estado, config) -> dict:
     with _deps(config).engine.begin() as con:
         registrar_consentimento(con, estado["contato_id"])
         _enfileirar(con, estado, "aceito", textos.aceito())
+        _enfileirar(con, estado, "pedido_sede", textos.pedido_sede())  # localização da sede (E5 passo 6)
         _aceite(con, estado["cod_imovel"], estado="aceito", etapa="aceito")
         _gabarito(con, estado["cod_imovel"], "sim")
     return {"etapa": "aceito", "resultado": "aceito", "codigo_hash": None}

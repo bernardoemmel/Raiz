@@ -78,6 +78,48 @@ def receber(
     return {"contato_id": contato_id, "cod_imovel": cod, "acao": "retomada", "etapa": p["etapa"]}
 
 
+def imoveis_da_sede(con, contato_id: int) -> list[str]:
+    """Imóveis do contato com aceite em andamento ou aceito, o do pedido de localização mais recente primeiro."""
+    return list(
+        con.execute(
+            text("""
+            select a.cod_imovel from negocio.aceite a
+            join pessoal.contato_imovel ci on ci.cod_imovel = a.cod_imovel and ci.contato_id = :c
+            left join lateral (select max(m.id) as pedido from pessoal.mensagem_saida m
+                               where m.contato_id = :c and m.cod_imovel = a.cod_imovel and m.tipo = 'pedido_sede') p
+                   on true
+            where a.estado in ('em_andamento', 'aceito')
+            order by p.pedido desc nulls last, a.atualizado_em desc"""),
+            {"c": contato_id},
+        ).scalars()
+    )
+
+
+def receber_localizacao(
+    engine: Engine,
+    bsuid: str,
+    wa_id: str | None,
+    lon: float,
+    lat: float,
+    parent_bsuid: str | None = None,
+    username: str | None = None,
+    cofre: Cofre | None = None,
+) -> dict:
+    """Localização mandada pelo dono: confere se cai dentro de um imóvel dele com aceite (raiz/titulo/sede.py).
+    Só o resultado fica guardado, nunca o ponto. Com mais de um imóvel, vale o que contém o ponto; se nenhum
+    contém, o resultado fica no imóvel do pedido mais recente."""
+    from raiz.titulo import sede
+
+    with engine.begin() as con:
+        contato_id = registrar_contato_whatsapp(con, bsuid, wa_id, parent_bsuid, username, cofre=cofre)
+        cods = imoveis_da_sede(con, contato_id)
+        res = sede.registrar_varios(con, cods, lon, lat) if cods else None
+    if res is None:
+        _sem_conversa(engine, contato_id, "localização de contato sem imóvel com aceite")
+        return {"contato_id": contato_id, "acao": "revisao"}
+    return {"contato_id": contato_id, "cod_imovel": res.cod_imovel, "acao": "sede", "sede": res.situacao}
+
+
 def _sem_conversa(engine: Engine, contato_id: int, motivo: str, cod: str | None = None) -> None:
     from psycopg.types.json import Jsonb
 
@@ -100,8 +142,12 @@ def ligar_webhook(wa, obter: Callable[[], tuple]) -> None:
     def _mensagem(_cliente, msg):  # pragma: no cover - chamado pelo PyWa
         u = msg.from_user
         texto = getattr(msg, "text", None) or ""
+        loc = getattr(msg, "location", None)
         try:
             engine, grafo, deps = obter()
+            if loc is not None and getattr(loc, "latitude", None) is not None:  # localização da sede (E5 passo 6)
+                receber_localizacao(engine, u.bsuid, u.wa_id, loc.longitude, loc.latitude, u.parent_bsuid, u.username)
+                return
             receber(engine, grafo, deps, u.bsuid, u.wa_id, texto, u.parent_bsuid, u.username)
         except Exception:  # noqa: BLE001 - o webhook sempre responde 200; o erro fica no log (mascarado)
             log.exception("falha ao tratar mensagem do WhatsApp")
@@ -130,17 +176,24 @@ def descartar(engine: Engine, mensagem_id: int, quem: str) -> None:
         )
 
 
-def enviar_aprovadas(engine: Engine, enviar: Callable[[str, str], str], cofre: Cofre | None = None) -> int:
-    """Envia as mensagens aprovadas. `enviar(destino, texto)` devolve o id da mensagem no WhatsApp."""
+def enviar_aprovadas(
+    engine: Engine,
+    enviar: Callable[[str, str], str],
+    cofre: Cofre | None = None,
+    pedir_localizacao: Callable[[str, str], str] | None = None,
+) -> int:
+    """Envia as mensagens aprovadas. `enviar(destino, texto)` devolve o id da mensagem no WhatsApp. O pedido da
+    localização da sede sai por `pedir_localizacao` (o botão "Enviar localização"), quando há."""
     with engine.connect() as con:
         pend = con.execute(
-            text("select id, contato_id, texto from pessoal.mensagem_saida where estado = 'aprovada' order by id")
+            text("select id, contato_id, tipo, texto from pessoal.mensagem_saida where estado = 'aprovada' order by id")
         ).all()
     n = 0
     for m in pend:
         with engine.begin() as con:
             try:
-                wid = enviar(destino_whatsapp(con, m.contato_id, cofre), m.texto)
+                f = pedir_localizacao if (m.tipo == "pedido_sede" and pedir_localizacao) else enviar
+                wid = f(destino_whatsapp(con, m.contato_id, cofre), m.texto)
                 con.execute(
                     text(
                         "update pessoal.mensagem_saida set estado = 'enviada', enviada_em = now(), "
@@ -162,3 +215,10 @@ def enviador_pywa(wa) -> Callable[[str, str], str]:
         return wa.send_message(to=destino, text=texto).id
 
     return enviar
+
+
+def pedidor_localizacao_pywa(wa) -> Callable[[str, str], str]:  # pragma: no cover - chama a Cloud API
+    def pedir(destino: str, texto: str) -> str:
+        return wa.request_location(to=destino, text=texto).id
+
+    return pedir

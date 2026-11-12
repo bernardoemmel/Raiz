@@ -86,10 +86,12 @@ def arquivos_do_municipio(pasta: Path, cod: int) -> dict[str, Path]:
     achados["mapbiomas"] = pasta / f"mapbiomas_{cod}.csv"  # motor/raiz_mapbiomas.py (colunas mb_*, opcionais)
     achados["camadas"] = pasta / f"camadas_{cod}.parquet"  # raiz/imovel_dados.py (polígonos dentro do imóvel)
     achados["achados"] = pasta / f"achados_{cod}.csv"  # raiz/titulo: achados de título (várias linhas por imóvel)
-    if not achados["matricula"].exists():  # conferência das certidões: na pasta ou na saída de raiz/documentos
-        from raiz.titulo.regularizacao import arquivo_documentos
+    achados["cadeia"] = pasta / f"cadeia_{cod}.csv"  # raiz/documentos: cadeia dominial das certidões lidas
+    from raiz.titulo.regularizacao import arquivo_documentos
 
-        achados["matricula"] = arquivo_documentos(pasta, cod, "matricula") or achados["matricula"]
+    for t in ("matricula", "cadeia"):  # conferência das certidões: na pasta ou na saída de raiz/documentos
+        if not achados[t].exists():
+            achados[t] = arquivo_documentos(pasta, cod, t) or achados[t]
     return {t: p for t, p in achados.items() if p.exists()}
 
 
@@ -269,7 +271,7 @@ def carregar_municipio(
     leituras = {
         t: contrato.ler(p, t)
         for t, p in arquivos.items()
-        if t not in ("geo", "mapbiomas", "camadas", "serie_uso", "achados")
+        if t not in ("geo", "mapbiomas", "camadas", "serie_uso", "achados", "cadeia")
     }
     im = leituras["imoveis"]
     ufs = im.tipadas["uf"].dropna().unique().tolist()
@@ -295,6 +297,10 @@ def carregar_municipio(
         from raiz.titulo.banco import carregar_achados
 
         carregar_achados(con, rid, arquivos["achados"])
+    if "cadeia" in arquivos:
+        from raiz.titulo.banco import carregar_cadeia
+
+        carregar_cadeia(con, arquivos["cadeia"])
     mb = contrato.ler_mapbiomas(arquivos["mapbiomas"]) if "mapbiomas" in arquivos else None
     if mb is not None and len(mb.longa):
         lg = mb.longa

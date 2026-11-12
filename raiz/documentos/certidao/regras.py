@@ -50,12 +50,14 @@ def normalizar_cns(cns) -> str | None:
 
 def normalizar_matricula(num) -> str | None:
     """'Matrícula nº 5.178' -> '5178'; '005178' -> '5178'; '1234-A' -> '1234A'. Número com casa decimal vindo do
-    pandas (5178.0) também vira '5178'."""
+    pandas (5178.0, ou o texto '5178.0') também vira '5178'; '5.000' é ponto de milhar e vira '5000'."""
     if num is None or (isinstance(num, float) and num != num):
         return None
     if isinstance(num, float) and num.is_integer():
         num = int(num)
-    s = str(num).upper()
+    s = str(num).strip().upper()
+    if re.fullmatch(r"\d+\.0", s):  # número que passou por float no pandas ('5178.0'); '5.000' é milhar e fica
+        s = s[:-2]
     s = re.sub(r"MATR[IÍ]CULA|N[º°O]\.?|N\.", " ", s)
     s = re.sub(r"[^0-9A-Z]", "", s)
     if not s:

@@ -35,6 +35,8 @@ CODIGO = {
         "raiz/titulo/achados.py",
         "raiz/titulo/nota.py",
         "raiz/titulo/geometria.py",
+        "raiz/titulo/cadeia.py",
+        "raiz/titulo/contexto.py",
         "raiz/titulo/tarefa.py",
     ),
     "ficha": (
@@ -189,6 +191,7 @@ def externas(nome: str):
         if nome == "titulo":
             return {"certidoes": _documentos(uf, cod, "matricula_conferencia"),
                     "matricula": _documentos(uf, cod, "matricula"),
+                    "cadeia": _documentos(uf, cod, "cadeia"),
                     "sigef": assinatura_arquivo(esp / "sigef" / uf / f"{cod}.parquet", conteudo=True)}  # fmt: skip
         if nome in ("ficha", "desenvolvedor"):
             return _rasters_uf(uf, "cobertura")
