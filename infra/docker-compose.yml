@@ -56,6 +56,14 @@ services:
     ports:
       - "127.0.0.1:8080:8080"
 
+  # Revisor de estilo e legibilidade do português: LanguageTool 6.6 (LGPL-2.1, só como serviço no servidor), chamado
+  # antes de cada mensagem ao dono (raiz/revisor.py). RAIZ_LANGUAGETOOL_URL=http://localhost:8010 no .env.
+  revisor:
+    build: ./languagetool
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8010:8010"  # só a própria máquina
+
   # Armazenamento compatível com S3 para os arquivos do motor, para quem não usa o Cloudflare R2: SeaweedFS (Apache-2.0).
   # Sobe só com --profile armazem. S3 em http://localhost:8333; RAIZ_ARMAZEM_URL=s3://raiz-motor/producao e
   # RAIZ_S3_ENDPOINT=http://localhost:8333 no .env (crie o balde com: aws --endpoint-url ... s3 mb s3://raiz-motor).

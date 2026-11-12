@@ -1,5 +1,6 @@
 import { Check, CircleAlert, TriangleAlert, WifiOff, X } from "lucide-preact"
-import { useEffect, useRef, useState } from "preact/hooks"
+import { useEffect, useMemo, useRef, useState } from "preact/hooks"
+import { thumbHashToDataURL } from "thumbhash"
 import { BASE_HA, caixaDeFatos, PRAZO_ANOS } from "../../compartilhado/cenario"
 import { boisPorAno, camposDeFutebol } from "../../compartilhado/comparacoes"
 import { escolherFonte, type Ficha as DadosFicha } from "../../compartilhado/dados"
@@ -52,6 +53,68 @@ function Contorno({ aneis }: { aneis: [number, number][][] }) {
       <rect width={L} height={A} fill={MAPA.terra} />
       <path d={d} fill={COR.mata} fill-opacity=".22" stroke={COR.tinta} stroke-width="2.5" stroke-linejoin="round" />
     </svg>
+  )
+}
+
+/** ThumbHash em base64 para os bytes (sem Buffer: roda no navegador). */
+function bytesDe(b64: string): Uint8Array {
+  const s = atob(b64)
+  return Uint8Array.from(s, (c) => c.charCodeAt(0))
+}
+
+/**
+ * Capa (guia, item 6.3, parte 1): a foto de satélite da terra com o contorno, como capa de certificado. Na primeira
+ * abertura aparece o borrão do ThumbHash (cerca de 25 bytes, já dentro da ficha) no tamanho certo; a foto WebP chega
+ * depois, por cima. Sem foto gerada (ou sem back-end), não aparece nada e a ficha segue só com texto.
+ */
+function Capa({ ficha }: { ficha: DadosFicha }) {
+  const capa = ficha.capa
+  const [src, setSrc] = useState<string | null>(null)
+  const [carregou, setCarregou] = useState(false)
+  const borrao = useMemo(() => {
+    try {
+      return capa ? thumbHashToDataURL(bytesDe(capa.thumbhash)) : null
+    } catch {
+      return null
+    }
+  }, [capa?.thumbhash])
+  useEffect(() => {
+    if (!capa) return
+    let vivo = true
+    let criada: string | null = null
+    fonte.imagem(capa.caminho).then(
+      (u) => {
+        if (u?.startsWith("blob:")) criada = u
+        if (vivo) setSrc(u)
+      },
+      () => undefined,
+    )
+    return () => {
+      vivo = false
+      if (criada) URL.revokeObjectURL(criada)
+    }
+  }, [capa?.caminho])
+  if (!capa || (!borrao && !src)) return null
+  const data = capa.data_cena ? new Date(capa.data_cena + "T12:00:00").toLocaleDateString("pt-BR", { month: "long", year: "numeric" }) : ""
+  return (
+    <figure class="capa">
+      <div class="capa-moldura" style={{ aspectRatio: `${capa.largura} / ${capa.altura}`, backgroundImage: borrao ? `url(${borrao})` : undefined }}>
+        {src && (
+          <img
+            src={src}
+            width={capa.largura}
+            height={capa.altura}
+            alt="Sua terra vista do satélite, com o contorno do CAR"
+            decoding="async"
+            class={carregou ? "pronta" : ""}
+            onLoad={() => setCarregou(true)}
+          />
+        )}
+      </div>
+      <figcaption class="miudo">
+        Imagem de satélite{data ? ` de ${data}` : ""}. {capa.credito}
+      </figcaption>
+    </figure>
   )
 }
 
@@ -214,6 +277,7 @@ export function Ficha() {
     <>
       {topo}
       <main>
+        <Capa ficha={ficha} />
         <p class="onde">
           {i.municipio}, {UFS[i.uf] ?? i.uf}. Cadastro Ambiental Rural (CAR) {abreviarCar(i.cod_imovel)}
         </p>

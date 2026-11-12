@@ -87,6 +87,8 @@ export function fonteAmostra(base = "/"): FonteDeDados {
 
   return {
     nome: "amostra",
+    // a amostra não tem foto de satélite (ela sai do back-end)
+    imagem: async () => null,
     municipios: () => municipios(""),
     async municipio(cod) {
       const resumo = (await municipios("")).find((m) => m.cod_ibge === cod)

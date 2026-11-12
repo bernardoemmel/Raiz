@@ -196,8 +196,10 @@ mudar na nuvem (ETag novo), o cache dele é refeito.
 ## Link público, cartão e vídeo (design v1 do front, item 6)
 
 - Sem token, pelo código curto: `/p/{codigo}` (HTML com Open Graph), `/cartao/{codigo}/{previa.jpg|retrato.jpg|
-  adesivo.png}` e `/video/{codigo}.mp4` e `-720p.mp4`. Antes do aceite do dono só saem município, hectares, selo e
-  código curto; o código do CAR e a imagem de satélite da fazenda só depois do aceite.
+  adesivo.png}` e `/video/{codigo}.mp4` e `-720p.mp4`. Os cartões também saem em WebP (`previa.webp`, `retrato.webp`,
+  `adesivo.webp`), com cerca de metade do peso, para a ficha e o site; a prévia do WhatsApp continua em JPEG. Antes do
+  aceite do dono só saem município, hectares, selo e código curto; o código do CAR e a imagem de satélite da fazenda
+  só depois do aceite.
 - Precisa de `npm ci` em `servicos/cartao` (Takumi) e do `ffmpeg` no servidor. A voz do vídeo liga com
   `uv pip install qwen-tts` (traz torch; o modelo de 0,6 B roda em CPU); sem ela o vídeo sai mudo e o cabeçalho
   `X-Raiz-Aviso: sem voz` avisa. Cache em `RAIZ_PUBLICO_DIR` (padrão `dados/publico/`), refeito quando o selo muda.
@@ -211,6 +213,22 @@ mudar na nuvem (ETag novo), o cache dele é refeito.
   sede no OpenStreetMap) e grava em `geo.camada`.
 - Em Nova Esperança do Piriá (dado real): 880 imóveis, 793 sem problema, 738 aptos (32.848 ha), 41 com matrícula;
   o que mais tira do funil é a matrícula (697); área urbana da sede 182 ha.
+
+## Fichas em lote (E9, passo 1)
+
+- `raiz ficha lote [--uf PA] [--municipios 1504950,1507300] [--destino pasta] [--refazer]` grava, por município, em
+  `RAIZ_FICHAS_DIR` (padrão `dados/fichas/`, fora do git):
+  - `<UF>/<cod_ibge>/fichas/<código do CAR sem traços>.json`: a mesma ficha de `GET /imoveis/{cod}/ficha`, para
+    servir como arquivo estático (qualquer servidor de arquivos ou o Pages);
+  - `<UF>/<cod_ibge>/rows.json`: uma linha por fazenda com os campos do cartão, do vídeo e do texto (os nomes do
+    pedido do Takumi). Campo que começa com `_` é interno: o código do CAR só aparece fora dele depois do aceite;
+  - `<UF>/<cod_ibge>/manifesto.json` e `indice.json` na raiz: rodada, data de corte, quantas fazendas, quantas aptas
+    e quando foi gravado.
+- Cada ficha leva a capa (foto de satélite com ThumbHash, quando já foi gerada) e a localização: Plus Code e link curto
+  do Organic Maps (`https://omaps.app/...`, abre o app offline) de um ponto dentro do imóvel. No `rows.json`, o ponto
+  exato só sai fora do campo interno depois do aceite.
+- Só regrava o município cuja rodada vigente mudou. O contexto do município (posição e medianas) é calculado uma vez
+  por município, não por fazenda.
 
 ## Valor para quem restaura (desenvolvedor de crédito de carbono)
 
