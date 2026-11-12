@@ -55,5 +55,6 @@ dados/mapa/
 dados/imagens/
 dados/publico/
 dados/fichas/
+dados/calendario/
 # pacotes montados pelo publicar_dados.py (sobem para o Release; no fluxo antigo, git add -f)
 dados-entrada/
