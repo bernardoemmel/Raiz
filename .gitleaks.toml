@@ -1,0 +1,11 @@
+title = "Segredos da Raíz: regras oficiais e exceções estritas"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Nome de coluna documentada, confundido com chave por conter usucapiao"
+condition = "AND"
+paths = ['''^docs/colunas\.md$''']
+regexTarget = "secret"
+regexes = ['''^regularizacao_chance_12m$''']

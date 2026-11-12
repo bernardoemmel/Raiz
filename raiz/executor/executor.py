@@ -26,6 +26,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from raiz.executor.armazem import Armazem, ler_json, por_json, sha256_arquivo
+from raiz.logs_seguros import sanitizar_log
 
 log = logging.getLogger(__name__)
 
@@ -180,10 +181,11 @@ class Executor:
                 res["rodadas"].append(t.nome)
                 res["vazio"] = res["vazio"] or vazio
             except Exception as e:  # noqa: BLE001 - registra e segue para o próximo município
+                erro = sanitizar_log(f"{type(e).__name__}: {e}")[:500]
                 m["tarefas"][t.nome] = {"versao": self.versoes()[t.nome], "assinatura": a, "saidas": {},
-                                        "data": _agora(), "erro": f"{type(e).__name__}: {e}"[:500]}  # fmt: skip
-                res["erro"] = {"tarefa": t.nome, "erro": f"{type(e).__name__}: {e}"[:500]}
-                log.warning("%s %s %s: %s\n%s", uf, cod, t.nome, e, traceback.format_exc(limit=3))
+                                        "data": _agora(), "erro": erro}  # fmt: skip
+                res["erro"] = {"tarefa": t.nome, "erro": erro}
+                log.warning("%s %s %s: %s\n%s", uf, cod, t.nome, erro, sanitizar_log(traceback.format_exc(limit=3)))
             m["atualizada_em"] = _agora()
             por_json(self.a, self.chave_marca(uf, cod), m)
             if res["erro"]:
@@ -287,7 +289,7 @@ class Executor:
                     meta = {"tarefa": "resumo", "data": _agora(), "uf": uf, "motor_versao": self.motor_versao()}
                     self.a.por(self.chave_saida(uf, Path(f).name), Path(f), meta)
             except Exception as e:  # noqa: BLE001
-                estado["erros"].append({"cod": None, "tarefa": "resumo", "erro": str(e)[:500]})
+                estado["erros"].append({"cod": None, "tarefa": "resumo", "erro": sanitizar_log(str(e))[:500]})
         estado["situacao"] = "parado_no_prazo" if parou else ("com_erro" if estado["erros"] else "pronto")
         estado["fim"] = _agora()
         por_json(self.a, self.chave_estado(uf), estado)

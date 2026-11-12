@@ -28,20 +28,22 @@ from pydantic import BaseModel
 from sqlalchemy import Connection, Engine, text
 
 from raiz.config import config
+from raiz.logs_seguros import sanitizar_estrutura, sanitizar_log
 from raiz.operacao import alertas as A
 from raiz.operacao.custo import custo_por, gasto_do_mes
-from raiz.privacidade import mascarar
 
 log = logging.getLogger(__name__)
 LOG_FIM = 2000
 
 
 def _json(dado) -> Response:
-    return Response(json.dumps(dado, ensure_ascii=False, default=str), media_type="application/json")
+    return Response(
+        json.dumps(sanitizar_estrutura(dado), ensure_ascii=False, default=str), media_type="application/json"
+    )
 
 
 def _texto(v, limite: int = 500):
-    return mascarar(str(v))[-limite:] if v is not None else None
+    return sanitizar_log(str(v))[-limite:] if v is not None else None
 
 
 def _talvez(f: Callable, padrao=None):
@@ -49,7 +51,7 @@ def _talvez(f: Callable, padrao=None):
     try:
         return f()
     except Exception as ex:  # noqa: BLE001
-        log.warning("backoffice: %s", mascarar(str(ex))[:200])
+        log.warning("backoffice: %s", sanitizar_log(str(ex))[:200])
         return padrao if padrao is not None else {"erro": type(ex).__name__}
 
 

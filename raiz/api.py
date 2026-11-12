@@ -86,6 +86,9 @@ def criar_app(
                 yield
 
     app = FastAPI(title="Raíz", lifespan=ciclo)
+    from raiz.privacidade import configurar_log
+
+    configurar_log()
     app.state.engine, app.state.grafo, app.state.deps = engine, grafo, deps
     from raiz.pedidos import servico as pedidos_servico
     from raiz.publica.email_login import enviador
@@ -251,7 +254,13 @@ def criar_app(
     # pagamento do Pix (segredo do webhook)
     from raiz.pedidos import api as pedidos_api
 
-    app.include_router(pedidos_api.roteador_cliente(_engine_do_app))
+    cfg = config()
+    base_login = (
+        getattr(cfg, "login_base_url", None)
+        or os.environ.get("RAIZ_FRONT_URL")
+        or getattr(cfg, "api_origens", "").split(",")[0].strip()
+    )
+    app.include_router(pedidos_api.roteador_cliente(_engine_do_app, base_url=base_login))
     app.include_router(pedidos_api.roteador_interno(_engine_do_app), dependencies=seguro)
     app.include_router(pedidos_api.roteador_webhook(_engine_do_app))
     # Ficha da terra: sessão individual e créditos pagos, separados do token operacional da API.
@@ -338,14 +347,12 @@ def criar_app(
         exclude_content_types=(*DEFAULT_EXCLUDED_CONTENT_TYPES, "application/vnd.pmtiles"),
     )
     origens = [o.strip() for o in getattr(config(), "api_origens", "").split(",") if o.strip()]
-    if origens:  # o front roda em outra origem: o navegador precisa de CORS, com Range e o token liberados
-        from starlette.middleware.cors import CORSMiddleware
+    from raiz.seguranca_api import SegurancaAPI
 
-        app.add_middleware(
-            CORSMiddleware,
-            allow_origins=origens,
-            allow_methods=["GET", "POST"],
-            allow_headers=["Authorization", "Range", "Content-Type"],
-            expose_headers=["Content-Range", "Accept-Ranges", "Content-Length", "ETag", "Retry-After"],
-        )
+    app.add_middleware(
+        SegurancaAPI,
+        limite=getattr(config(), "api_limite_minuto", 120),
+        login_limite=getattr(config(), "api_login_limite_minuto", 10),
+        origens=origens,
+    )
     return app

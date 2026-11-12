@@ -118,4 +118,4 @@ def test_api_cli_preserva_inicio_do_servidor(monkeypatch):
     monkeypatch.setattr("uvicorn.run", lambda *a, **kw: chamadas.append((a, kw)))
     r = CliRunner().invoke(app, ["api", "--porta", "8123"])
     assert r.exit_code == 0, r.output
-    assert chamadas == [(("app",), {"host": "127.0.0.1", "port": 8123})]
+    assert chamadas == [(("app",), {"host": "127.0.0.1", "port": 8123, "log_config": None, "access_log": False})]

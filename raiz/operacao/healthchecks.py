@@ -13,7 +13,7 @@ import logging
 import httpx
 
 from raiz.config import config
-from raiz.privacidade import mascarar
+from raiz.logs_seguros import sanitizar_log
 
 log = logging.getLogger(__name__)
 LIMITE_LOG = 10_000  # o Healthchecks guarda até 100 kB por ping; o fim do log é o que importa
@@ -48,7 +48,7 @@ class Healthchecks:
         url = f"{self.base}/{self.chave}/{slug}" + (f"/{sufixo}" if sufixo else "")
         try:
             r = self._cliente.post(
-                url, params={"create": 1, "rid": rid}, content=mascarar(corpo)[-LIMITE_LOG:].encode("utf-8")
+                url, params={"create": 1, "rid": rid}, content=sanitizar_log(corpo)[-LIMITE_LOG:].encode("utf-8")
             )
             return r.status_code < 300
         except httpx.HTTPError as ex:
