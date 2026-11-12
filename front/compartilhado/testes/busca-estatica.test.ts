@@ -90,4 +90,21 @@ describe("busca do site estático em subdiretório", () => {
     expect(await fonte.geo.camada("1504208", "imoveis")).toBeNull()
     expect(pedidos.some((url) => url.includes("imoveis_1504208"))).toBe(false)
   })
+
+  it("busca CAR público mínimo sem reconstruir métricas nem abrir ficha completa", async () => {
+    arquivos["estados.json"] = { acesso: "publico_basico", estados: [{ uf: "PA", situacao: "incompleto", com_lista: ["1505536"] }] }
+    arquivos["indice_PA.json"] = { arquivos: ["resumo_PA.csv", "imoveis_basicos_1505536.csv", "imoveis_1505536.csv", "certidoes_1505536.csv"] }
+    arquivos["imoveis_basicos_1505536.csv.gz"] = `cod_imovel,cod_ibge,municipio,uf,situacao_basica,ha,credito_p50\n${CAR},1505536,Parauapebas,PA,apto,98765,88888\n${CAR_VIZINHO},1505536,Parauapebas,PA,nao_apto,98765,88888\n`
+    const fonte = fonteAmostra("/Raiz/")
+    for (const car of [CAR, CAR_VIZINHO]) {
+      const resultado = await fonte.buscar(car)
+      expect(resultado.imoveis).toEqual([{ cod_imovel: car, cod_ibge: "1505536", municipio: "Parauapebas", uf: "PA", situacao_basica: car === CAR ? "apto" : "nao_apto" }])
+      expect(await fonte.imovel(car)).toBeNull()
+      expect(await fonte.ficha(car)).toBeNull()
+      expect(await fonte.certidoes(car)).toEqual([])
+    }
+    expect(await fonte.imoveis("1505536")).toBeNull()
+    expect(pedidos.filter((url) => /imoveis_|fichas\/|certidoes_/.test(url))).toEqual(["/Raiz/amostra/imoveis_basicos_1505536.csv.gz"])
+    expect(await fonte.geo.camada("1505536", "imoveis")).toMatchObject({ features: [{ properties: { cod_imovel: CAR } }] })
+  })
 })

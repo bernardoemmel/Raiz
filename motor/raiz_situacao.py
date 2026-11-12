@@ -318,6 +318,10 @@ def _tem_gh() -> bool:
 def ler_manifesto(tentativas: int = 4) -> dict:
     """estados.json publicado no Release. {} se ainda não existe; erro se não conseguir ler (para não tratar o Brasil
     inteiro como vazio por causa de uma falha de rede)."""
+    if os.environ.get("RAIZ_DADOS_PRIVADOS_URL") or os.environ.get("RAIZ_DADOS_PRIVADOS_REPO"):
+        # Planejamento/retomada usam o snapshot completo; o manifesto aberto não carrega marcas privadas.
+        from raiz.executor.armazem import do_config
+        return do_config().manifesto(fresco=True)
     ultimo = None
     for i in range(tentativas):
         if _tem_gh():  # pela API: sempre a versão mais nova, sem cache no caminho

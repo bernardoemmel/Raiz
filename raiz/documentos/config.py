@@ -7,7 +7,7 @@ Variáveis:
   FIRECRAWL_API_KEY            chave do Firecrawl (opcional): páginas que só abrem no navegador ou bloqueiam o servidor
   RAIZ_DOCUMENTOS_DIR          onde ficam o armazém, as saídas e os documentos gerados (padrão dados/documentos)
   RAIZ_DOCUMENTOS_ENTRADA      pastas com as saídas do motor e do produto, separadas por ":" (padrão motor/saida,
-                               dados/estados e dados/amostra)
+                               espelhos locais do armazém, dados/estados e dados/amostra)
   RAIZ_CONTATO                 como o dono fala com a Raíz (aparece na folha do dono)
 """
 
@@ -103,7 +103,16 @@ def pastas_entrada() -> list[Path]:
     v = env("RAIZ_DOCUMENTOS_ENTRADA")
     if v:
         return [Path(x) for x in v.split(os.pathsep) if x]
-    return [REPO / "motor" / "saida", REPO / "dados" / "estados", REPO / "dados" / "amostra"]
+    # A reconferência lê somente cópias locais já obtidas pelo executor autenticado.
+    # O espelho direto do Release privado usa o sufixo; sincronizar grava no destino sem sufixo.
+    espelho = Path(env("RAIZ_ARMAZEM_ESPELHO_DIR") or REPO / "dados" / "armazem_local")
+    return [
+        REPO / "motor" / "saida",
+        espelho.with_name(espelho.name + "_privado") / "saida",
+        espelho / "saida",
+        REPO / "dados" / "estados",
+        REPO / "dados" / "amostra",
+    ]
 
 
 def uf_do_municipio(cod_municipio: int | str) -> str | None:

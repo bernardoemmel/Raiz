@@ -1,8 +1,6 @@
-# Fluxo antigo (pelo git), para quem rodou o motor no computador: publica no Release `dados` os pacotes que
-# motor/publicar_dados.py gravou em dados-entrada/. Depois de publicar, dados-entrada/ sai do branch (os dados grandes
-# ficam só no Release, nunca no main). O caminho normal agora é o processar-estados.yml, que roda e publica sozinho.
-# O estados.json não é sobrescrito: só as entradas dos estados que têm pacote aqui são mescladas no publicado, dentro
-# da mesma trava que o processar-estados.yml usa (motor/publicar_dados.py --indice).
+# Importação administrativa de pacotes: confirma os originais no arquivo privado e publica somente a projeção
+# básica validada no Release aberto. O fluxo normal é processar-estados.yml; ambos usam as mesmas travas.
+# Dados grandes não devem entrar no git. Esta entrada legada é retirada do branch ao terminar.
 name: Publicar dados do motor
 
 on:
@@ -21,8 +19,16 @@ concurrency:
 jobs:
   publicar:
     runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RAIZ_ARMAZEM_URL: release-github://${{ github.repository }}/dados
+      RAIZ_DADOS_PRIVADOS_URL: ${{ vars.RAIZ_DADOS_PRIVADOS_URL || format('release-github://{0}/dados-privados', github.repository) }}
+      RAIZ_DADOS_PRIVADOS_TOKEN: ${{ secrets.RAIZ_DADOS_PRIVADOS_TOKEN || github.token }}
     steps:
       - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - name: Dependências do publicador e da validação geográfica
+        run: uv sync --frozen --all-extras
 
       - name: Ver se há pacotes para publicar
         id: tem
@@ -42,26 +48,5 @@ jobs:
           ls -la
 
       - if: steps.tem.outputs.sim == '1'
-        name: Criar o Release dados se não existir
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          gh release view dados >/dev/null 2>&1 || gh release create dados \
-            --prerelease --target main \
-            --title "Dados do motor (atualizado sozinho)" \
-            --notes "Saídas do motor por estado, só de fontes públicas, sem nome, CPF ou CNPJ. O front baixa sozinho com front/scripts/baixar-dados.mjs. Não editar à mão."
-
-      - if: steps.tem.outputs.sim == '1'
-        name: Subir os pacotes (estados.json por último, mesclado no publicado)
-        env:
-          GH_TOKEN: ${{ github.token }}
-          RAIZ_REPO: ${{ github.repository }}
-        run: |
-          cd dados-entrada
-          for f in *.tar.gz *.kml *.geojson; do
-            [ -e "$f" ] || continue
-            gh release upload dados "$f" --clobber
-          done
-          cd ..
-          [ -e dados-entrada/estados.json ] && python3 motor/publicar_dados.py --indice dados-entrada
-          echo "Publicado:"; gh release view dados --json assets --jq '.assets[] | "\(.name) \(.size)"'
+        name: Arquivar os pacotes completos e publicar somente a projeção validada
+        run: uv run python -m raiz.executor.publicar_entrada dados-entrada

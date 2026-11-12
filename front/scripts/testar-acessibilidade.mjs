@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 /** CI: 360 px, teclado, axe WCAG 2.1 AA e Lighthouse mobile com rede/CPU simuladas. */
 import assert from "node:assert/strict"
+import { configurarPublicacao } from "./configurar-publicacao.mjs"
 import fs from "node:fs"
 import { createRequire } from "node:module"
 import path from "node:path"
@@ -14,7 +15,7 @@ const { chromium } = require("playwright")
 const { default: AxeBuilder } = await import(pathToFileURL(require.resolve("@axe-core/playwright")).href)
 const { default: lighthouse } = await import(pathToFileURL(require.resolve("lighthouse")).href)
 const { launch } = await import(pathToFileURL(require.resolve("chrome-launcher")).href)
-const base = process.env.RAIZ_BASE || "/Raiz/"
+const base = configurarPublicacao(process.env).base
 assert(base.startsWith("/") && base.endsWith("/"), "RAIZ_BASE deve começar e terminar em /.")
 const saida = path.join(repo, "front/.cache/teste-acessibilidade")
 fs.mkdirSync(saida, { recursive: true })
@@ -54,7 +55,7 @@ try {
   await page.keyboard.press("ArrowUp")
   await page.keyboard.press("Enter")
   await page.waitForURL((url) => url.hash === "#/municipio/1505536")
-  await page.locator(".funil-barras").waitFor()
+  await page.locator(".lista-basica").waitFor()
   resumo.axe.push(await conferirPaginaAcessivel(page, AxeBuilder, "municipio-360", saida))
 
   await page.goto(servidor.url + "#/entrar")

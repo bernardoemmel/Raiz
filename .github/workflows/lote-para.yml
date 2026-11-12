@@ -4,12 +4,18 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
+
+env:
+  RAIZ_DADOS_PRIVADOS_URL: ${{ vars.RAIZ_DADOS_PRIVADOS_URL || format('release-github://{0}/dados-privados', github.repository) }}
+  RAIZ_DADOS_PRIVADOS_TOKEN: ${{ secrets.RAIZ_DADOS_PRIVADOS_TOKEN || github.token }}
 
 concurrency:
   group: lote-para-central-r11
   cancel-in-progress: false
 
+# Dados completos nunca entram em artifacts ou cache do Actions de repositório aberto.
+# A entrada congelada e os checkpoints privados são preservados entre tentativas da mesma execução.
 jobs:
   preparar:
     runs-on: ubuntu-24.04
@@ -20,10 +26,15 @@ jobs:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
       - run: uv sync --frozen --extra motor
+      - name: Recuperar a entrada privada congelada desta execução
+        run: >-
+          uv run python -m raiz.executor.transferencia_privada baixar-pasta
+          --nome "lote_PA_entradas_${GITHUB_RUN_ID}.tar.gz" --caminho rodada/entradas --opcional
       - name: Congelar os dados dos 144 municípios
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: uv run python -m raiz.restauracao_rodada preparar --destino rodada/entradas --repo "$GITHUB_REPOSITORY"
+        run: |
+          if [ ! -f rodada/entradas/snapshot.json ]; then
+            uv run python -m raiz.restauracao_rodada preparar --destino rodada/entradas
+          fi
       - name: Distribuir os municípios por quantidade de imóveis
         id: plano
         run: |
@@ -36,13 +47,10 @@ jobs:
           with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
               f.write('matriz=' + json.dumps(matriz) + '\n')
           PY
-      - uses: actions/upload-artifact@v4
-        with:
-          name: entradas-congeladas
-          path: rodada/entradas/
-          compression-level: 0
-          retention-days: 30
-          if-no-files-found: error
+      - name: Guardar a entrada congelada somente no arquivo privado
+        run: >-
+          uv run python -m raiz.executor.transferencia_privada enviar-pasta
+          --nome "lote_PA_entradas_${GITHUB_RUN_ID}.tar.gz" --caminho rodada/entradas --imutavel
 
   calcular:
     needs: preparar
@@ -55,46 +63,41 @@ jobs:
     env:
       OPENBLAS_NUM_THREADS: "1"
       OMP_NUM_THREADS: "1"
+      FATIA: ${{ matrix.fatia }}
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
       - run: uv sync --frozen --extra motor
-      - uses: actions/download-artifact@v4
-        with:
-          name: entradas-congeladas
-          path: rodada/entradas
-      - name: Restaurar municípios já calculados da mesma entrada e versão
-        id: cache
-        uses: actions/cache/restore@v4
-        with:
-          path: rodada/fatia/resultado
-          key: lote-pa-${{ github.sha }}-${{ github.run_id }}-${{ matrix.fatia }}
+      - name: Baixar a entrada congelada com autenticação
+        run: >-
+          uv run python -m raiz.executor.transferencia_privada baixar-pasta
+          --nome "lote_PA_entradas_${GITHUB_RUN_ID}.tar.gz" --caminho rodada/entradas
+      - name: Restaurar municípios concluídos da mesma entrada e versão
+        run: >-
+          uv run python -m raiz.executor.transferencia_privada baixar-pasta
+          --nome "lote_PA_checkpoint_${GITHUB_RUN_ID}_${FATIA}.tar.gz"
+          --caminho rodada/fatia/resultado --opcional
       - name: Calcular todas as fazendas da fatia
-        env:
-          FATIA: ${{ matrix.fatia }}
         run: >-
           uv run python -m raiz.restauracao_rodada calcular
           --entradas rodada/entradas --destino rodada/fatia --fatia "$FATIA"
-      - name: Guardar municípios concluídos mesmo se a fatia parar
-        if: always() && steps.cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
-        with:
-          path: rodada/fatia/resultado
-          key: lote-pa-${{ github.sha }}-${{ github.run_id }}-${{ matrix.fatia }}
-      - uses: actions/upload-artifact@v4
-        with:
-          name: calculado-${{ matrix.fatia }}
-          path: rodada/fatia/calculado_*.tar.gz
-          compression-level: 0
-          retention-days: 30
-          if-no-files-found: error
+      - name: Guardar municípios concluídos no arquivo privado mesmo se a fatia parar
+        if: always()
+        run: |
+          if [ -d rodada/fatia/resultado ]; then
+            uv run python -m raiz.executor.transferencia_privada enviar-pasta \
+              --nome "lote_PA_checkpoint_${GITHUB_RUN_ID}_${FATIA}.tar.gz" --caminho rodada/fatia/resultado
+          fi
+      - name: Guardar a fatia calculada no arquivo privado
+        run: >-
+          uv run python -m raiz.executor.transferencia_privada enviar-arquivo
+          --nome "lote_PA_calculado_${GITHUB_RUN_ID}_${FATIA}.tar.gz"
+          --caminho "rodada/fatia/calculado_${FATIA}.tar.gz"
 
   publicar:
     needs: [preparar, calcular]
     runs-on: ubuntu-24.04
     timeout-minutes: 120
-    permissions:
-      contents: write
     env:
       OPENBLAS_NUM_THREADS: "1"
       OMP_NUM_THREADS: "1"
@@ -102,26 +105,29 @@ jobs:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
       - run: uv sync --frozen --extra motor
-      - uses: actions/download-artifact@v4
-        with:
-          name: entradas-congeladas
-          path: rodada/entradas
-      - uses: actions/download-artifact@v4
-        with:
-          pattern: calculado-*
-          merge-multiple: true
-          path: rodada/calculados
+      - name: Baixar a entrada congelada com autenticação
+        run: >-
+          uv run python -m raiz.executor.transferencia_privada baixar-pasta
+          --nome "lote_PA_entradas_${GITHUB_RUN_ID}.tar.gz" --caminho rodada/entradas
+      - name: Baixar somente as fatias previstas na entrada congelada
+        run: |
+          uv run python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          from raiz.executor.transferencia_privada import arquivo_privado, baixar_arquivo
+          arm = arquivo_privado()
+          plano = json.loads(Path('rodada/entradas/snapshot.json').read_text())['plano']
+          for item in plano:
+              fatia = item['fatia']
+              if not fatia.isdigit():
+                  raise ValueError('Fatia inválida')
+              nome = f"lote_PA_calculado_{os.environ['GITHUB_RUN_ID']}_{fatia}.tar.gz"
+              baixar_arquivo(nome, Path(f'rodada/calculados/calculado_{fatia}.tar.gz'), arm=arm)
+          PY
       - name: Conferir os 144 municípios e montar os três lotes
         run: >-
           uv run python -m raiz.restauracao_rodada reunir
           --entradas rodada/entradas --calculados rodada/calculados --destino rodada/entrega
-      - name: Publicar lotes e previsões versionadas no Release dados
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: uv run python -m raiz.restauracao_rodada publicar --destino rodada/entrega --repo "$GITHUB_REPOSITORY"
-      - uses: actions/upload-artifact@v4
-        with:
-          name: manifesto-lote-para
-          path: rodada/entrega/lote_PA_central_r11.json
-          retention-days: 90
-          if-no-files-found: error
+      - name: Guardar lotes e previsões versionadas somente no arquivo privado
+        run: uv run python -m raiz.restauracao_rodada publicar --destino rodada/entrega

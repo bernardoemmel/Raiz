@@ -47,39 +47,16 @@ describe("publicação dos três lotes", () => {
     expect(p.pedido_recalculado).toBe(false)
   })
 
-  it("lê o contrato imutável da rodada e separa quantis de carteira, TIR de fluxo e base", () => {
-    const p = projetarPublicacaoLote(manifesto())
-    expect(p.estado).toBe("publicado")
-    expect(p.atualizado_em).toBe("2026-11-12T18:00:00Z")
-    expect(p.opcoes.map((o) => o.id)).toEqual(["barata", "segura", "compacta"])
-    expect(p.opcoes[0]).toMatchObject({ creditos: { p10: 12, p50: 21, p90: 32 }, tir_p50: .132, fazendas: 5, pequenas: 4, hectares: 40, reservas: 2 })
-    expect(p.base).toMatchObject({ fazendas: 10, hectares: null, creditos: { p10: null, p50: 70, p90: null } })
-    expect(p.opcoes[0].destrava).toEqual([
-      { tipo: "salvaguarda", texto: "Comprovar ausência de sobreposição ou exclusão do programa jurisdicional.", fazendas: 4, hectares: 100, creditos: null, creditos_faixa: { p10: 4, p50: 10, p90: 14 }, somavel: false },
-      { tipo: "salvaguarda", texto: "Comprovar consentimento em consulta livre, prévia e informada, custeada pelo desenvolvedor.", fazendas: 4, hectares: 100, creditos: null, creditos_faixa: { p10: 4, p50: 10, p90: 14 }, somavel: false },
-      { tipo: "regularizacao", texto: "Concluir o georreferenciamento certificado.", fazendas: 3, hectares: 70, creditos: 11, creditos_faixa: null, somavel: false },
-      { tipo: "certidao", texto: "Pedir 2 certidões e conferir a cadeia da terra.", fazendas: 1, hectares: 12, creditos: null, creditos_faixa: null, somavel: false },
-    ])
-    expect(JSON.stringify(p)).not.toMatch(/PRIVAD|matriculas|folha_proprietario|\.tar\.gz/)
+  it("ignora snapshots financeiros reais, inclusive completos e com campos pessoais", () => {
+    const esperado = projetarPublicacaoLote(null)
+    expect(projetarPublicacaoLote(manifesto())).toEqual(esperado)
+    expect(lerPublicacaoLote({ estado: "publicado", ...manifesto(), opcoes: [{ credito_p50: 999999 }] })).toEqual(esperado)
+    expect(JSON.stringify(esperado)).not.toMatch(/PRIVAD|modelo-teste|\.tar\.gz|13\.2|350000/)
   })
 
-  it("não troca TIR ausente pela média das fazendas nem null por zero", () => {
-    const m = manifesto()
-    m.resumos.barata.economia = { tir_alavancada_pct: null as unknown as number }
-    const p = projetarPublicacaoLote(m)
-    expect(p.opcoes[0].tir_p50).toBeNull()
-    m.resumos.barata.economia = { tir_alavancada_pct: 0 }
-    expect(projetarPublicacaoLote(m).opcoes[0].tir_p50).toBe(0)
-  })
-
-  it("rejeita um conjunto incompleto ou cenário diferente e ignora campos futuros", () => {
-    const m = manifesto()
-    delete (m.resumos as Partial<typeof m.resumos>).segura
-    expect(projetarPublicacaoLote(m).estado).toBe("ausente")
-    expect(projetarPublicacaoLote({ ...manifesto(), cenario: "outro" }).estado).toBe("ausente")
-    const p = projetarPublicacaoLote(manifesto())
-    expect(lerPublicacaoLote({ ...p, dono: "PRIVADO", arquivos: ["PRIVADO"] })).toEqual(p)
-    expect(lerPublicacaoLote({ ...p, opcoes: [p.opcoes[0], p.opcoes[0], p.opcoes[2]] }).estado).toBe("ausente")
+  it("ignora também caches projetados antigos com três opções financeiras", () => {
+    const legado = { ...projetarPublicacaoLote(null), estado: "publicado", opcoes: ["barata", "segura", "compacta"].map((id) => ({ id, creditos: { p10: 10, p50: 20, p90: 30 }, tir_p50: 0.15 })) }
+    expect(lerPublicacaoLote(legado)).toEqual(projetarPublicacaoLote(null))
   })
 })
 
@@ -90,14 +67,14 @@ describe("consulta estática aos lotes", () => {
     { uf: "TO", cod_ibge: "1721000", imoveis: 100, ha_carbono: 1000, linha: { imoveis: "100", ha_carbono: "1000", dados_suprimidos: "false" } },
   ] as FunilMunicipio[]) }) as unknown as FonteDeDados
 
-  it("abre sem login fictício, lê o arquivo com subcaminho e só soma a cobertura territorial real", async () => {
+  it("abre sem login fictício nem download de lotes e só soma a cobertura territorial real", async () => {
     const buscar = vi.fn(async () => new Response(JSON.stringify(projetarPublicacaoLote(null)), { headers: { "content-type": "application/json" } }))
     vi.stubGlobal("fetch", buscar)
     const f = fontePedidosRelease("/Raiz/", fonte())
     expect(f.publica).toBe(true)
     expect(f.sessao()).toBeNull()
     const p = await f.criar(campos)
-    expect(buscar).toHaveBeenCalledWith("/Raiz/amostra/lote_PA_central_r11.json")
+    expect(buscar).not.toHaveBeenCalled()
     expect(p.publicacao?.cobertura).toEqual({ municipios: 1, estados: 1, fazendas: 7, hectares: 20 })
     expect(p.publicacao?.base.creditos.p50).toBeNull()
     expect(p.exemplo).toBe(false)
@@ -108,7 +85,7 @@ describe("consulta estática aos lotes", () => {
     await expect(f.entrar("pessoa@example.com")).rejects.toThrow("fase final")
   })
 
-  it("seleciona o Release sem API e conserva o contrato autenticado quando configurado", () => {
+  it("seleciona cobertura regional sem API e conserva o contrato autenticado quando configurado", () => {
     expect(escolherFontePedidos({ BASE_URL: "/" }, fonte()).publica).toBe(true)
     expect(escolherFontePedidos({ VITE_RAIZ_API: "https://api.exemplo/" }, fonte()).publica).not.toBe(true)
   })

@@ -103,11 +103,13 @@ export interface FazendaDoLote {
   municipio: string
   uf: string
   papel: PapelNoLote
-  hectares: number
-  creditos: Faixa
-  metodo: Metodo
-  caminho: CaminhoTerra
-  custo_usd_credito: number
+  /** A API retém as medidas individuais até o cliente liberar esta ficha. */
+  ficha_liberada: boolean
+  hectares: number | null
+  creditos: Faixa | null
+  metodo: Metodo | null
+  caminho: CaminhoTerra | null
+  custo_usd_credito: number | null
   /** pequena (até 4 módulos fiscais): entra agrupada com as vizinhas, nunca descartada */
   pequena: boolean
   interesse: NivelInteresse

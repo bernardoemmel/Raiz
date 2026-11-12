@@ -2,7 +2,7 @@ import fs from "node:fs"
 import os from "node:os"
 import path from "node:path"
 import { gunzipSync } from "node:zlib"
-import { afterAll, describe, expect, it } from "vitest"
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest"
 import { abrirPasta } from "../pasta-dados"
 import { dadosRaiz } from "../vite-dados"
 import { lerCsv } from "../dados/csv"
@@ -15,7 +15,8 @@ const saida = path.join(repo, "site")
 fs.mkdirSync(dados, { recursive: true })
 fs.mkdirSync(geo, { recursive: true })
 fs.mkdirSync(saida, { recursive: true })
-afterAll(() => fs.rmSync(repo, { recursive: true, force: true }))
+beforeAll(() => vi.stubEnv("RAIZ_GEO", geo))
+afterAll(() => { vi.unstubAllEnvs(); fs.rmSync(repo, { recursive: true, force: true }) })
 
 const car = "PA-1504950-ABCDEF"
 fs.writeFileSync(path.join(dados, "resumo_PA.csv"), `cod_ibge,municipio,imoveis,aptas_carbono,ha_carbono,cod_imovel,observacao\n1504950,Cumaru do Norte,6,6,60,${car},informacao_individual\n1507300,São Félix do Xingu,3,3,30,${car},informacao_individual\n`)

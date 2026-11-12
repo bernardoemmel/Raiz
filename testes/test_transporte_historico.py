@@ -33,7 +33,9 @@ class GitHubHistoricoFalso:
     """Simula APIs de metadados/bytes separadas e paginação curta de propósito."""
 
     def __init__(self):
-        self.releases = {1: {"id": 1, "tag_name": "dados", "draft": False}}
+        self.releases = {1: {"id": 1, "tag_name": "dados-privados", "draft": True}}
+        self.privado = False
+        self.tag_oculta = False
         self.assets = {}
         self.bytes = {}
         self.chamadas = []
@@ -41,9 +43,9 @@ class GitHubHistoricoFalso:
         self.uploads = 0
         self.falhar_upload = False
 
-    def release(self, tag):
+    def release(self, tag, draft=True):
         rid = max(self.releases) + 1
-        self.releases[rid] = {"id": rid, "tag_name": tag, "draft": False}
+        self.releases[rid] = {"id": rid, "tag_name": tag, "draft": draft}
         return rid
 
     def asset(self, rid, nome, dados):
@@ -70,19 +72,26 @@ class GitHubHistoricoFalso:
         return httpx.Response(200, json=itens[ini : ini + 2], headers=cabecalhos)
 
     def __call__(self, req):
-        path = req.url.path.removeprefix("/repos/org/repo/")
+        assert req.headers.get("authorization") == "Bearer teste"
+        path = req.url.path.removeprefix("/repos/org/repo").lstrip("/")
         self.chamadas.append((req.method, path, dict(req.url.params)))
         assert req.method != "DELETE", "histórico não pode apagar assets"
+        if req.method == "GET" and path == "":
+            return httpx.Response(200, json={"private": self.privado})
+        if req.method == "GET" and path.removeprefix("releases/").isdigit():
+            rid = int(path.removeprefix("releases/"))
+            return httpx.Response(200, json=self.releases[rid])
         if req.method == "GET" and path == "releases":
             return self._pagina(req, list(self.releases.values()))
         if req.method == "GET" and path.startswith("releases/tags/"):
             tag = path.removeprefix("releases/tags/")
             rel = next((x for x in self.releases.values() if x["tag_name"] == tag), None)
-            return httpx.Response(200, json=rel) if rel else httpx.Response(404)
+            return httpx.Response(200, json=rel) if rel and not self.tag_oculta else httpx.Response(404)
         if req.method == "POST" and path == "releases":
             payload = json.loads(req.content)
             assert payload["make_latest"] == "false"
-            rid = self.release(payload["tag_name"])
+            assert payload["draft"] is True
+            rid = self.release(payload["tag_name"], draft=payload["draft"])
             return httpx.Response(201, json=self.releases[rid])
         if path.startswith("releases/assets/"):
             aid = int(path.rsplit("/", 1)[1])
@@ -110,6 +119,8 @@ class GitHubHistoricoFalso:
 def _github(tmp_path, falso, token="teste"):
     return ArmazemRelease(
         "org/repo",
+        tag="dados-privados",
+        privado=True,
         espelho=tmp_path / "espelho",
         token=token,
         cliente=httpx.Client(transport=httpx.MockTransport(falso)),
@@ -187,7 +198,8 @@ def test_release_separado_recibos_sem_varrer_historico_e_repeticao_sem_recibo(tm
     assert falso.downloads == 1
     assert T.publicar(spool, a) == {"publicados": 0, "existentes": 1, "pacotes": 0}
     assert falso.downloads == 1 and falso.uploads == 1
-    assert not any(m == "GET" and p == "releases" for m, p, _ in falso.chamadas)
+    # Criar o primeiro draft pode listar metadados, nunca baixa os pacotes antigos.
+    assert not any(p.endswith("/assets") and m == "GET" for m, p, _ in falso.chamadas)
     # Executor novo não baixa histórico inteiro: pacote igual colide e é conferido.
     novo = tmp_path / "novo"
     copia = novo / p.relative_to(spool)
@@ -214,7 +226,7 @@ def test_release_sincroniza_paginas_deduplica_e_baixa_cada_pacote_uma_vez(tmp_pa
     falso.asset(rids[2], "ignorado-a", b"a")
     falso.asset(rids[2], "ignorado-b", b"b")
     falso.pacote(rids[2], "PA", {nome: p.read_bytes(), q.relative_to(spool).as_posix(): q.read_bytes()})
-    a = _github(tmp_path, falso, token="")
+    a = _github(tmp_path, falso)
     destino = tmp_path / "destino"
     caminhos = T.sincronizar(a, destino)
     assert len(caminhos) == 2 and falso.downloads == 2
@@ -355,3 +367,50 @@ def test_envelope_externo_nao_pode_carregar_dados_pessoais(tmp_path, alteracao):
         pacote = gzip.compress(bruto + b"PessoaQueNaoPodePublicar", mtime=0)
     with pytest.raises(ValueError):
         T._abrir_pacote(pacote, "PA")
+
+
+@pytest.mark.parametrize("operacao", ["publicar", "sincronizar"])
+def test_historico_exige_token_e_destino_privado_antes_de_acessar(tmp_path, operacao):
+    spool = tmp_path / "spool"
+    _retrato(spool)
+    falso = GitHubHistoricoFalso()
+    a = _github(tmp_path, falso, token="")
+
+    def rodar():
+        return T.publicar(spool, a) if operacao == "publicar" else T.sincronizar(a, tmp_path / "destino")
+
+    with pytest.raises(PermissionError, match="TOKEN"):
+        rodar()
+    assert not falso.chamadas
+    a.token, a.privado = "teste", False
+    with pytest.raises(PermissionError, match="privado"):
+        rodar()
+    assert not falso.chamadas
+
+
+def test_draft_por_listagem_e_visibilidade_reconferida_no_recibo(tmp_path):
+    spool = tmp_path / "spool"
+    _retrato(spool)
+    falso = GitHubHistoricoFalso()
+    a = _github(tmp_path, falso)
+    T.publicar(spool, a)
+    falso.tag_oculta = True
+    assert T.publicar(spool, a)["existentes"] == 1
+    diario = next(x for x in falso.releases.values() if x["tag_name"].startswith("historico-"))
+    diario["draft"] = False
+    for rodar in (lambda: T.publicar(spool, a), lambda: T.sincronizar(a, tmp_path / "destino")):
+        with pytest.raises(PermissionError, match="aberto"):
+            rodar()
+    assert falso.uploads == 1 and falso.downloads == 1
+    falso.privado = True
+    assert T.publicar(spool, a)["existentes"] == 1
+
+
+def test_erro_de_rede_do_historico_nao_expoe_url_assinada(tmp_path):
+    def falhar(req):
+        raise httpx.ReadError("https://exemplo.invalid?assinatura=conteudo-restrito", request=req)
+
+    a = _github(tmp_path, falhar)
+    with pytest.raises(RuntimeError, match="comunicação") as erro:
+        T.sincronizar(a, tmp_path / "destino")
+    assert "assinatura" not in str(erro.value)

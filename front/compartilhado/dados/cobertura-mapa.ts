@@ -6,7 +6,7 @@ export interface CoberturaMapa {
   dados_publicados_em: string | null
   com_desenho: string[]
   sem_desenho: string[]
-  /** O site aberto só mostra agregados; a geometria individual exige acesso à ficha. */
+  /** Básico aberto: CAR, situação e perímetro; camadas individuais detalhadas exigem ficha paga. */
   acesso: "restrito" | "aberto"
 }
 
