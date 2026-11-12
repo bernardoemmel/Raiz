@@ -404,3 +404,22 @@ A main nova contém seis ferramentas de pedidos, mas nenhuma lê os três tipos 
 inventa um agente que ignora o documento e só chama uma ferramenta, pois isso aprovaria uma defesa não testada.
 O runner grava as evidências de latência/carga e falha separadamente pelo corpus não executado. A decisão sobre
 uma eventual exceção específica para essa dependência foi encaminhada ao fundador; até resposta, falha é falha.
+
+
+### Evidências do MCP integrado
+
+Com logs JSON/Presidio ativos: seis ferramentas entre **0,040 e 0,090 s**; Locust normal **195 requisições**, zero
+falhas, máximo **558 ms**; saturação **374 requisições**, **281 HTTP 429** com Retry-After válido, zero falhas,
+máximo **993 ms**. Todas as ferramentas tiveram respostas válidas em ambas as fases. O orçamento global de teste
+é 18 chamadas por janela de dois segundos na saturação; não altera a configuração do produto. Os ensaios repetem
+intenções idempotentes e medem resposta/admissão na fila, não conclusão do cálculo pesado nem capacidade máxima.
+
+OAuth usa JWT RS256 descartável, JWKS HTTP local e verificador/vínculo de empresa reais; não é ensaio da tela
+ou fluxo de login do Keycloak. Arquivos temporários têm modo 0600; não há .env/credenciais externas, DNS/conexões
+externas são bloqueados. **24 testes** focados de adaptador/cliente/runner passaram. O runner completo gravou
+medições e terminou **exit 1 por corpus pendente**, sem simular leitura/agente. Esses números não aprovam o corpus.
+
+O CI anterior identificou uma fixture do publicador legado sem comprovante `rodada.json`, obrigatório no Actions.
+A fixture passou a criar a rodada sintética e sempre executar com `GITHUB_ACTIONS=true`; a proteção do produto
+permaneceu intacta. Também foram recusados parâmetros libpq de redirecionamento (`host`, `hostaddr`, `dbname`,
+`service`) nas URLs dos bancos descartáveis de carga/E2E, antes de qualquer migração destrutiva.

@@ -666,14 +666,18 @@ O corpus de injeção, os controles limpos, o contrato dos observadores de efeit
 indevida; tentativas recusadas também são examinadas. Cada ferramenta precisa responder em menos de 5 s,
 com o inventário completo de `tools/list`, sem selecionar apenas as rápidas.
 
-A função de calendário adicionada pelo PR #54 não substitui o servidor MCP com OAuth. A integração de transporte
-continua dependendo de **Produto e regras**. Por decisão do fundador, o job `mcp` detecta a ausência e publica
-aviso explícito e relatório `ensaios_executados=false`, sem executar os ensaios. Quando o servidor entrar, a suíte
-é exigida automaticamente: adaptador ausente ou falha de OAuth, ferramenta, prazo e carga reprovam o job.
-Os comandos individuais de avaliação/latência sem integração real terminam com erro, nunca com aprovação.
-As regressões do auditor e do cliente rodam no pytest; elas não comprovam resistência de um agente de produção.
-A carga MCP usa `testes/carga/locust_mcp.py`, com dados descartáveis e
-credenciais de teste; instruções completas em [`testes/carga/README.md`](../testes/carga/README.md).
+A main agora inclui o MCP OAuth dos PRs #45/#69. O job testa HTTP, RS256/JWKS local, vínculo de empresa,
+as seis ferramentas, prazo e carga com PostGIS descartável. Seu retorno rápido pode ser admissão de trabalho
+assíncrono; não é promessa de cálculo completo em cinco segundos. As intenções da carga são idempotentes.
+
+O corpus de certidão/edital/nome de arquivo ainda depende de **Produto e regras**: as ferramentas atuais não
+oferecem agente cliente nem leitura dessas entradas. O runner grava resultados parciais e falha explicitamente
+pelo corpus ausente. A autorização anterior para pular era somente ausência do servidor, que já não se aplica.
+Sem orientação adicional do fundador, essa pendência bloqueia o merge. Não simular agente/leitura para liberar CI.
+
+O código e os requisitos estão em [`testes/mcp/README.md`](../testes/mcp/README.md). As regressões do auditor
+não comprovam resistência de um agente de produção. A carga usa `testes/carga/locust_mcp.py`, com credenciais
+somente de teste; instruções em [`testes/carga/README.md`](../testes/carga/README.md).
 
 ## Portões antes da publicação
 

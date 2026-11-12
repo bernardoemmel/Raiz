@@ -116,7 +116,10 @@ def main(argv=None) -> int:
         codigo = 1
         dado = {
             "estado": "falha",
-            "aviso": "Latência e carga MCP passaram; corpus não executado: agente leitor de documentos pendente de Produto e regras.",
+            "aviso": (
+                "Latência e carga MCP passaram; corpus não executado: "
+                "agente leitor de documentos pendente de Produto e regras."
+            ),
             "ensaios_executados": {"latencia": True, "carga": True, "corpus": False},
         }
         print("::error title=Corpus MCP pendente::" + dado["aviso"])

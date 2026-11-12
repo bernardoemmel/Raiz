@@ -51,3 +51,13 @@ Use o conjunto completo de ferramentas realmente publicadas, IDs e dados descart
 Repita com `RAIZ_CARGA_FASE=limite` e orçamento baixo configurado pelo servidor do sandbox, usando outro arquivo de relatório. Essa fase exige ao menos um 429 com Retry-After positivo (até 60 s) e ao menos uma resposta válida de cada ferramenta; a fase normal recusa qualquer 429. O Locust aplica deadline de 4,9 s por chamada MCP, além do portão de tempo <5 s. O ensaio de latência separado usa deadline de relógio, independente do timeout de inatividade HTTP.
 
 O job MCP completo só deve ser habilitado junto do servidor OAuth, seus dados descartáveis e os casos de todas as ferramentas. O CI atual executa as regressões do transporte e dos critérios de auditoria; isso não é aprovação de um MCP inexistente.
+
+
+## Integração disponível após #45/#69
+
+`testes/mcp/produto.py` agora inicia o MCP e a API reais com PostGIS local, JWT/JWKS descartáveis e logs sanitizados
+ativos. `uv run python scripts/testar_mcp_ci.py` produz medições de todas as ferramentas e as duas fases Locust;
+exige `RAIZ_BANCO_URL_MCP_TESTE` apontando ao banco local `raiz_mcp_teste`, que é apagado/migrado.
+O comando ainda termina com falha explícita pelo corpus AgentDojo sem agente leitor; os relatórios de tempo/carga
+não aprovam esse corpus. Veja `testes/mcp/README.md` para a pendência e a distinção entre tempo de resposta da
+ferramenta e execução assíncrona do cálculo. A carga repete intenções idempotentes, sem pagamentos externos.

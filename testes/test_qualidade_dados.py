@@ -271,6 +271,9 @@ def test_legado_empacota_os_mesmos_bytes_que_passaram_no_portao(tmp_path, monkey
     caminho = pasta / f"imoveis_{MUN}.csv"
     dados = next(iter(csv().values()))
     caminho.write_bytes(dados)
+    # A publicação no Actions exige comprovante de rodada; exercitar o mesmo caminho também localmente.
+    monkeypatch.setenv("GITHUB_ACTIONS", "true")
+    (pasta / "rodada.json").write_text(json.dumps({"commit": "0" * 40, "fim": "2026-11-12T00:00:00Z"}))
     original = qualidade_dados.validar_arquivos
 
     def validar_e_alterar_fonte(arquivos):

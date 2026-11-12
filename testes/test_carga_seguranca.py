@@ -68,3 +68,16 @@ def test_carga_nao_atinge_producao_ou_credencial_na_url(url):
 def test_carga_nao_apaga_banco_de_outro_ensaio(banco):
     with pytest.raises(ValueError):
         banco_local(f"postgresql+psycopg://raiz:raiz@localhost:5432/{banco}")
+
+
+@pytest.mark.parametrize(
+    "query", ["host=remoto.example.invalid", "hostaddr=192.0.2.1", "dbname=raiz", "service=producao"]
+)
+def test_parametros_libpq_nao_podem_redirecionar_banco_descartavel(query, monkeypatch):
+    from testes.e2e.servidor import banco
+
+    with pytest.raises(ValueError):
+        banco_local(f"postgresql+psycopg://localhost/raiz_carga?{query}")
+    monkeypatch.setenv("RAIZ_BANCO_URL_TESTE", f"postgresql+psycopg://localhost/raiz_e2e?{query}")
+    with pytest.raises(RuntimeError):
+        banco()

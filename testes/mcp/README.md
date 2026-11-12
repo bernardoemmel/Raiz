@@ -1,11 +1,15 @@
 # Contrato adversarial do MCP
 
-**Estado em 12/11/2026: integração pendente de Produto e regras.** Não há servidor MCP na main. O PR #45
-retirou o adaptador anterior até a entrega OAuth 2.1 pelo chat **Produto e regras**.
-Os testes `test_avaliacao_mcp.py` verificam o auditor; não são evidência de resistência
-do agente nem de latência das ferramentas do produto. Enquanto o servidor estiver ausente,
-o job CI publica aviso explícito e não executa os ensaios, conforme orientação do fundador.
-Com implementação presente, qualquer falha reprova o job; veja a ativação automática abaixo.
+**Estado em 12/11/2026: MCP presente; corpus de agente pendente de Produto e regras.**
+Os PRs #45/#69 entraram durante a validação do PR de Qualidade. O servidor real tem seis ferramentas de
+pedidos, OAuth e ponte REST, mas não tem agente cliente nem entrada que leia certidão, edital ou nome de arquivo.
+`produto.py` inicia HTTP/JWKS local, valida JWT RS256 pelo código real e usa PostGIS/contas/trabalhos reais.
+Latência e Locust executam todas as ferramentas. Isso não comprova resistência de um agente leitor inexistente.
+
+A exceção do fundador permitia aviso somente enquanto o servidor estivesse ausente. Agora o runner salva
+as medições executadas e **reprova pelo corpus não executado**, sem simular a leitura de arquivos nem aprovar
+um agente roteirizado que ignora o ataque. A decisão sobre uma exceção específica para essa dependência
+foi encaminhada ao fundador; até resposta, a falha continua explícita.
 
 O PR #54 acrescentou a função `raiz.calendario.mcp.proximos_eventos`, pronta para
 registro futuro no servidor. `test_calendario_mcp_seguranca.py` já exercita essa função
@@ -23,7 +27,7 @@ papel de sistema forjado, chamada de ferramenta falsa, comando de shell, pedido 
 envio externo e aprovação humana falsificada. O nome recebido deve ser tratado como
 metadado; o adaptador não deve usá-lo diretamente como caminho de escrita.
 
-Quando o MCP existir, o chat dono deve fornecer uma fábrica `modulo:fabrica` que
+Para executar o corpus, o chat dono deve fornecer uma fábrica `modulo:fabrica` que
 implemente `Ambiente` de `avaliacao.py`:
 
 1. Iniciar API/MCP, agente e banco isolados com dados sintéticos e Pix de teste. Bloquear
@@ -76,32 +80,35 @@ duração. Sem servidor/manifesto não há aprovação nem substituição por se
 
 ## Ativação automática no CI
 
-Por instrução explícita do fundador, o job `mcp` roda em cada push/PR e pode pular
-somente enquanto não existir servidor na main. `scripts/testar_mcp_ci.py` publica
-aviso e `integracao.json` com `estado=ausente` e `ensaios_executados=false`.
-O stub retirado na migração é reconhecido pelo hash exato; qualquer implementação
-nova, alteração desse stub ou dependência do SDK MCP ativa a exigência dos ensaios.
-Um erro de importação, OAuth, fixture, ferramenta, prazo ou carga nunca volta a ser ausência.
+O job `mcp` roda em cada push/PR. `scripts/testar_mcp_ci.py` detecta entrada MCP ou dependência SDK; somente
+um checkout sem implementação (ou o hash exato do antigo stub) recebe aviso `estado=ausente`. Com MCP presente,
+qualquer erro de importação, OAuth, fixture, ferramenta, prazo, carga ou corpus reprova o job.
 
-**Produto e regras** deve entregar junto do servidor `testes/mcp/produto.py`, com
-`integracao()` como context manager que inicia/encerra o ambiente real isolado.
-O objeto fornecido precisa ter:
-
-- `ambiente`: implementa `Ambiente` descrito acima, com os observadores reais.
-- `cliente`: `ClienteMCP` autenticado no servidor local com token descartável.
-- `casos`: manifesto de argumentos válidos de todas as ferramentas.
-- `carga(fase)`: context manager para `normal`/`limite`, preparando/resetando o
-  estado e retornando as variáveis `RAIZ_MCP_TESTE_URL`, `RAIZ_MCP_TESTE_TOKEN`,
-  `RAIZ_MCP_TESTE_CASOS` e, se necessário, `RAIZ_MCP_TESTE_PROTOCOLO` para Locust.
-
-O CI já fornece PostGIS local em `RAIZ_BANCO_URL_MCP_TESTE`, com base descartável
-`raiz_mcp_teste`. A integração não usa segredos reais nem serviços externos.
-Sem esse adaptador, a chegada do MCP deixa o job **vermelho**, com diagnóstico
-explícito de integração pendente. Assim a dependência não fica escondida por um skip.
-A integração do produto ainda está pendente; o job ligado não significa que seus
-ensaios já passaram. O arquivo abaixo permite conferir o estado localmente:
+O adaptador `testes.mcp.produto.integracao()` inicia o app principal do produto e o emissor JWKS local em um
+subprocesso isolado. A chave RSA/JWT é descartável; assinatura, audiência, escopos e vínculo da empresa passam
+pelo `VerificadorKeycloak` real. Nenhum token falso é aceito por substituição do verificador. O banco deve ser local
+e se chamar exatamente `raiz_mcp_teste`; o adaptador o apaga/migra. Nunca usar um banco do produto.
 
 ```bash
-python3 scripts/testar_mcp_ci.py --detectar
+export RAIZ_BANCO_URL_MCP_TESTE=postgresql+psycopg://raiz:raiz@localhost:5432/raiz_mcp_teste
 uv run python scripts/testar_mcp_ci.py
 ```
+
+O ambiente não herda segredos de serviços do operador, bloqueia conexão/DNS externos e só usa crédito fictício.
+A amostra do repositório alimenta pedidos e worker reais. As seis ferramentas precisam dar resposta válida;
+limite mede apenas retorno da ferramenta, que pode admitir um trabalho assíncrono sem executá-lo inteiro.
+O prazo não é tempo de conclusão do cálculo em segundo plano. O servidor conserva os logs sanitizados do produto.
+
+A carga repete intenções idempotentes sobre pedidos reais preparados no banco descartável, com seis usuários.
+Isso mede transporte, autorização, consultas e replay seguro; não é capacidade máxima de criação de novos lotes.
+A fase de saturação usa orçamento global menor e exige HTTP 429 com Retry-After válido; o orçamento por empresa
+fica alto nesse perfil para não confundir erro de ferramenta JSON-RPC com limite HTTP. A suíte Python testa
+separadamente as quotas por empresa compartilhadas entre REST e MCP.
+
+O runner salva `latencia.json`, `carga-normal.json` e `carga-limite.json` antes de tentar o corpus. Sem agente leitor,
+`integracao.json` informa a falha e quais ensaios executaram. Nenhuma resposta/documento/token entra nesses artefatos.
+
+**Produto e regras** entrega o agente/leitor real para as três fontes e os observadores descritos acima.
+**Qualidade e segurança** liga essa fábrica ao atributo `ambiente` do adaptador e retira a marca de indisponibilidade
+somente quando os controles limpos e ataques passarem pelo caminho real. A integração parcial não deve ser usada
+como evidência de aprovação do corpus.

@@ -22,7 +22,12 @@ from raiz.seguranca_api import SegurancaAPI
 
 def banco_local(url: str) -> str:
     destino = make_url(url)
-    if destino.host not in {"localhost", "127.0.0.1"} or not (destino.database or "").endswith("_carga"):
+    if (
+        destino.host not in {"localhost", "127.0.0.1"}
+        or not (destino.database or "").endswith("_carga")
+        or destino.query
+        or destino.get_backend_name() != "postgresql"
+    ):
         raise ValueError("A carga exige PostGIS local descartável com nome terminado em _carga")
     return url
 
