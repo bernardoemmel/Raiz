@@ -49,14 +49,28 @@ SILVICULTURA = {9}
 #  no Pará, a classe 4 soma cerca de 190 mil ha em 2025, coerente com o PRODES)
 
 
-def _get(url, **kw):
-    for t in range(5):
+def _pedido(metodo, url, tentativas=8, **kw):
+    """Pedido à API com espera crescente: 429 (limite de pedidos), 403 e 5xx esperam o Retry-After ou 30 s, 1, 2, 4...
+    até 10 min; cada tentativa fica no log."""
+    ultimo = ''
+    for t in range(tentativas):
+        espera = min(30 * 2 ** t, 600)
         try:
-            r = requests.get(url, headers=H, timeout=120, **kw)
-            if r.status_code < 500: return r
-        except requests.RequestException: pass
-        time.sleep(10 * (t + 1))
-    raise RuntimeError(f'falhou: {url}')
+            r = requests.request(metodo, url, headers=H, timeout=120, **kw)
+            if r.status_code not in (403, 429) and r.status_code < 500: return r
+            ra = r.headers.get('Retry-After', '')
+            if ra.isdigit(): espera = min(int(ra), 900)
+            ultimo = f'HTTP {r.status_code}'
+        except requests.RequestException as ex:
+            ultimo = str(ex)[:120]
+        if t < tentativas - 1:
+            print(f'  API MapBiomas: tentativa {t + 1}/{tentativas} falhou ({ultimo}); espero {espera} s', flush=True)
+            time.sleep(espera)
+    raise RuntimeError(f'API MapBiomas não respondeu ({ultimo}): {url}')
+
+
+def _get(url, **kw):
+    return _pedido('GET', url, **kw)
 
 
 def territorio(nome, uf, cod):
@@ -82,20 +96,38 @@ def estado(uf):
 
 
 def exporta_uf(uf, espera=6 * 3600, temas=None):
-    """Pede os temas do estado de uma vez (todos, ou só os de `temas`), espera e baixa. Devolve {tema: GeoTIFF}."""
+    """Pede os temas do estado de uma vez (todos, ou só os de `temas`), espera e baixa. Devolve {tema: GeoTIFF}.
+    O número de cada pedido fica em cache/mapbiomas/<UF>/pedidos.json: se o job acabar antes de a exportação ficar pronta,
+    a próxima rodada reaproveita o pedido em vez de entrar de novo na fila (e de gastar o limite de pedidos da API).
+    Com RAIZ_PRAZO (segundos desde 1970), para de esperar perto do prazo do job e deixa para a próxima rodada."""
     T = {k: v for k, v in TEMAS.items() if temas is None or k in temas}
     arq = {k: f'{CACHE}/{uf}/{uf}_{k}_{ano}.tif' for k, (ch, ano) in T.items()}
     falta = {k: v for k, v in T.items() if not os.path.exists(arq[k])}
     if not falta: return arq
-    tid = estado(uf); pend = {}
+    os.makedirs(f'{CACHE}/{uf}', exist_ok=True)
+    fp = f'{CACHE}/{uf}/pedidos.json'
+    pedidos = json.load(open(fp)) if os.path.exists(fp) else {}
+
+    def guarda():
+        open(fp + '.tmp', 'w').write(json.dumps(pedidos)); os.replace(fp + '.tmp', fp)
+
+    tid = None; pend = {}
     for k, (ch, ano) in falta.items():
-        r = requests.post(f'{API}/maps/exports', headers=H, timeout=120,
-                          json={'territoryId': tid, 'subthemeKey': ch, 'years': [ano], 'exportType': 'range'})
+        antigo = pedidos.get(k)
+        if antigo and antigo.get('chave') == ch and antigo.get('ano') == ano and time.time() - antigo.get('em', 0) < 30 * 86400:
+            pend[k] = antigo['id']; print(f'  {uf} {k}: reaproveito o pedido {antigo["id"]}', flush=True); continue
+        tid = tid or estado(uf)
+        r = _pedido('POST', f'{API}/maps/exports', json={'territoryId': tid, 'subthemeKey': ch, 'years': [ano], 'exportType': 'range'})
         r.raise_for_status(); pend[k] = r.json()['exports'][0]['id']
+        pedidos[k] = {'id': pend[k], 'chave': ch, 'ano': ano, 'em': time.time()}; guarda()
     t0 = time.time()
+    prazo = float(os.environ.get('RAIZ_PRAZO', 0) or 0)
     while pend:
         for k, eid in list(pend.items()):
-            e = _get(f'{API}/maps/exports/{eid}').json()
+            r = _get(f'{API}/maps/exports/{eid}')
+            if r.status_code == 404:  # pedido velho sumiu do lado deles: pede de novo na próxima rodada
+                pedidos.pop(k, None); guarda(); raise RuntimeError(f'{uf} {k}: pedido {eid} não existe mais')
+            e = r.json()
             if e['status'] == 'READY':
                 b = _get(f'{API}/maps/exports/{eid}/download', allow_redirects=True).content
                 if b[:2] == b'PK':  # às vezes vem em ZIP com o .tif dentro
@@ -103,10 +135,14 @@ def exporta_uf(uf, espera=6 * 3600, temas=None):
                 os.makedirs(os.path.dirname(arq[k]), exist_ok=True)
                 open(arq[k] + '.tmp', 'wb').write(b); os.replace(arq[k] + '.tmp', arq[k])
                 print(f'  {uf} {k}: pronto em {time.time() - t0:.0f} s, {len(b) / 1e6:.0f} MB', flush=True); del pend[k]
+                pedidos.pop(k, None); guarda()
             elif e['status'] in ('FAILED', 'EXPIRED'):
+                pedidos.pop(k, None); guarda()
                 raise RuntimeError(f'{uf} {k}: {e.get("errorMessage")}')
         if pend:
             if time.time() - t0 > espera: raise RuntimeError(f'{uf}: {list(pend)} passaram de {espera} s na fila')
+            if prazo and time.time() > prazo - 120:
+                raise RuntimeError(f'{uf}: {list(pend)} ainda na fila do MapBiomas no fim do prazo; o pedido fica guardado para a próxima rodada')
             time.sleep(30)
     return arq
 
@@ -144,8 +180,10 @@ def main():
     limita_memoria()
     uf = sys.argv[1].upper(); pasta = f'saida/{uf}'
     cods = [int(sys.argv[2])] if len(sys.argv) > 2 else sorted(int(os.path.basename(p)[8:-4]) for p in glob.glob(f'{pasta}/imoveis_*.csv'))
-    print(f'{uf}: {len(cods)} municípios, ano {ANO}', flush=True)
-    arq = exporta_uf(uf)
+    falta = [c for c in cods if not os.path.exists(f'{pasta}/mapbiomas_{c}.csv')]
+    print(f'{uf}: {len(cods)} municípios, {len(falta)} para fazer, ano {ANO}', flush=True)
+    if not falta: return
+    arq = exporta_uf(uf)  # só pede ao MapBiomas se algum município ainda não tem o CSV
     for i, cod in enumerate(cods, 1):
         out = f'{pasta}/mapbiomas_{cod}.csv'
         if os.path.exists(out): continue

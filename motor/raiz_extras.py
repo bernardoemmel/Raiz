@@ -186,9 +186,9 @@ def geometria(uf, cod, pasta):
         return limpa(gpd.read_parquet(f))
     import raiz_estado as R  # baixa o CAR do município de novo (só o perímetro)
     car = R.car_mun(uf, cod)
-    car = car[(car.status_imovel != 'CA') & (car.tipo_imovel == 'IRU')]
+    if len(car): car = car[(car.status_imovel != 'CA') & (car.tipo_imovel == 'IRU')]
     g = gpd.GeoDataFrame({'cod_imovel': car.cod_imovel.values}, geometry=car.geometry.values, crs=car.crs)
-    g.to_parquet(f)
+    g.to_parquet(f + '.tmp'); os.replace(f + '.tmp', f)
     return limpa(g)
 
 
@@ -270,7 +270,7 @@ def main():
             g = geometria(uf, cod, pasta)
             t = zonal(g, rasters)
             if len(t): t = ajustes(t); t['persistencia_nota'] = persistencia(t)
-            t.to_csv(f, index=False)
+            t.to_csv(f + '.tmp', index=False); os.replace(f + '.tmp', f)
             print(f'[{i}/{len(cods)}] {cod}: {len(t)} imóveis')
         except Exception as ex:
             print(f'[{i}/{len(cods)}] {cod}: ERRO {ex}')

@@ -18,7 +18,7 @@ Retoma de onde parou. Cerca de 20 s por município.
 import os, sys, glob, math, warnings
 os.environ.update(GDAL_DISABLE_READDIR_ON_OPEN='EMPTY_LIST', CPL_VSIL_CURL_ALLOWED_EXTENSIONS='.tif',
                   GDAL_HTTP_MULTIRANGE='YES', GDAL_HTTP_MERGE_CONSECUTIVE_RANGES='YES', VSI_CACHE='TRUE',
-                  GDAL_HTTP_MAX_RETRY='4', GDAL_HTTP_RETRY_DELAY='5')
+                  GDAL_HTTP_MAX_RETRY='8', GDAL_HTTP_RETRY_DELAY='10')  # fonte recusando (429/503): GDAL espera e tenta de novo
 warnings.filterwarnings('ignore')
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import pandas as pd

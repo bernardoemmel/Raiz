@@ -20,10 +20,10 @@ O resto das camadas extras não precisa mais do Earth Engine:
 Saída: saida/<UF>/extras_direto_<mun>.csv (cod_imovel, tmf_classe, tmf_floresta_pct, tmf_regeneracao_pct,
   causa_perda). Retoma de onde parou.
 """
-import os, sys, glob, ast, warnings
+import os, sys, glob, ast, time, warnings
 os.environ.update(GDAL_DISABLE_READDIR_ON_OPEN='EMPTY_LIST', CPL_VSIL_CURL_ALLOWED_EXTENSIONS='.tif',
                   GDAL_HTTP_MULTIRANGE='YES', GDAL_HTTP_MERGE_CONSECUTIVE_RANGES='YES', VSI_CACHE='TRUE',
-                  GDAL_HTTP_MAX_RETRY='4', GDAL_HTTP_RETRY_DELAY='5')
+                  GDAL_HTTP_MAX_RETRY='8', GDAL_HTTP_RETRY_DELAY='10')  # fonte recusando (429/503): GDAL espera e tenta de novo
 warnings.filterwarnings('ignore')
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import numpy as np, pandas as pd, geopandas as gpd, requests
@@ -37,12 +37,27 @@ CAUSAS = {1: 'agricultura permanente', 2: 'commodities', 3: 'agricultura itinera
           5: 'incêndio', 6: 'assentamento e infraestrutura', 7: 'perturbação natural'}
 
 
+def _baixa(url, f, tentativas=6):
+    """Baixa url para f (uma vez só), com espera crescente se a fonte recusar (o Zenodo limita pedidos por IP)."""
+    if os.path.exists(f): return f
+    os.makedirs(os.path.dirname(f), exist_ok=True)
+    for i in range(tentativas):
+        try:
+            with requests.get(url, stream=True, timeout=600) as r:
+                r.raise_for_status()
+                with open(f + '.tmp', 'wb') as o:
+                    for b in r.iter_content(1 << 22): o.write(b)
+            os.replace(f + '.tmp', f); return f
+        except Exception as ex:
+            if i == tentativas - 1: raise
+            ra = getattr(getattr(ex, 'response', None), 'headers', {}).get('Retry-After', '')
+            espera = min(int(ra), 900) if str(ra).isdigit() else 30 * 2 ** i
+            print(f'   {os.path.basename(f)}: tentativa {i + 1} falhou ({str(ex)[:120]}); espero {espera} s', flush=True)
+            time.sleep(espera)
+
+
 def tmf_tiles():
-    f = 'cache/tmf/AnnualChange_stac.parquet'
-    if not os.path.exists(f):
-        os.makedirs(os.path.dirname(f), exist_ok=True)
-        r = requests.get(f'{TMF_BASE}/stac/AnnualChange_stac.parquet', timeout=120); r.raise_for_status()
-        open(f + '.tmp', 'wb').write(r.content); os.replace(f + '.tmp', f)
+    f = _baixa(f'{TMF_BASE}/stac/AnnualChange_stac.parquet', 'cache/tmf/AnnualChange_stac.parquet')
     t = gpd.read_parquet(f)
     t = t[t.id.str.endswith(f'AnnualChange_{TMF_ANO}')].copy()
     a = t.assets.apply(lambda x: ast.literal_eval(x) if isinstance(x, str) else x)
@@ -51,14 +66,7 @@ def tmf_tiles():
 
 
 def drivers():
-    if not os.path.exists(DRIVERS):
-        os.makedirs(os.path.dirname(DRIVERS), exist_ok=True)
-        with requests.get(DRIVERS_URL, stream=True, timeout=600) as r:
-            r.raise_for_status()
-            with open(DRIVERS + '.tmp', 'wb') as f:
-                for b in r.iter_content(1 << 22): f.write(b)
-        os.replace(DRIVERS + '.tmp', DRIVERS)
-    return DRIVERS
+    return _baixa(DRIVERS_URL, DRIVERS)
 
 
 def tmf(g, tiles):
@@ -101,8 +109,10 @@ def main():
     uf = sys.argv[1].upper(); pasta = f'saida/{uf}'
     so = [int(x) for x in sys.argv[2:]]
     cods = so or sorted(int(os.path.basename(p)[8:-4]) for p in glob.glob(f'{pasta}/imoveis_*.csv'))
-    tiles, arq = tmf_tiles(), drivers()
-    print(f'{uf}: {len(cods)} municípios (TMF {TMF_ANO}, causas da perda v1.2)', flush=True)
+    falta = [c for c in cods if so or not os.path.exists(f'{pasta}/extras_direto_{c}.csv')]
+    print(f'{uf}: {len(cods)} municípios, {len(falta)} para fazer (TMF {TMF_ANO}, causas da perda v1.2)', flush=True)
+    if not falta: return
+    tiles, arq = tmf_tiles(), drivers()  # só baixa se algum município ainda falta
     for i, cod in enumerate(cods, 1):
         f = f'{pasta}/extras_direto_{cod}.csv'
         if os.path.exists(f) and not so: continue
