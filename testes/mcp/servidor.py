@@ -27,14 +27,29 @@ from raiz.seguranca_api import SegurancaAPI
 def rede_local(tentativas: Path):
     permitidos = {"127.0.0.1", "localhost", "::1"}
     conectar = socket.socket.connect
+    conectar_ex = socket.socket.connect_ex
+    enviar = socket.socket.sendto
     resolver = socket.getaddrinfo
 
-    def somente_local(self, endereco):
+    def exigir_endereco_local(endereco):
         if isinstance(endereco, tuple) and str(endereco[0]) not in permitidos:
             with tentativas.open("a", encoding="utf-8") as f:
                 f.write("conexao_externa_bloqueada\n")
             raise RuntimeError("O ensaio MCP não permite conexão externa")
+
+    def somente_local(self, endereco):
+        exigir_endereco_local(endereco)
         return conectar(self, endereco)
+
+    def somente_local_ex(self, endereco):
+        exigir_endereco_local(endereco)
+        return conectar_ex(self, endereco)
+
+    def enviar_local(self, dados, *args):
+        # sendto aceita (dados, destino) ou (dados, flags, destino).
+        if args:
+            exigir_endereco_local(args[-1])
+        return enviar(self, dados, *args)
 
     def resolver_local(host, *args, **kwargs):
         if host not in permitidos and host is not None:
@@ -43,7 +58,12 @@ def rede_local(tentativas: Path):
             raise RuntimeError("O ensaio MCP não permite DNS externo")
         return resolver(host, *args, **kwargs)
 
-    with patch.object(socket.socket, "connect", somente_local), patch.object(socket, "getaddrinfo", resolver_local):
+    with (
+        patch.object(socket.socket, "connect", somente_local),
+        patch.object(socket.socket, "connect_ex", somente_local_ex),
+        patch.object(socket.socket, "sendto", enviar_local),
+        patch.object(socket, "getaddrinfo", resolver_local),
+    ):
         yield
 
 

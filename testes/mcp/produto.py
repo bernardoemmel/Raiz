@@ -79,6 +79,15 @@ def _gravar_json(caminho: Path, dado) -> None:
     caminho.write_text(json.dumps(dado), encoding="utf-8")
 
 
+@contextlib.contextmanager
+def _vigiar_rede(registro: Path):
+    try:
+        yield
+    finally:
+        if registro.exists() and registro.stat().st_size:
+            raise RuntimeError("Aplicação tentou conexão externa durante o ensaio MCP")
+
+
 def _porta() -> int:
     with socket.socket() as s:
         s.bind(("127.0.0.1", 0))
@@ -214,38 +223,39 @@ def integracao():
                 stderr=subprocess.DEVNULL,
             )
             cliente = ClienteMCP(origem + "/mcp/", token)
-            try:
-                prazo = time.monotonic() + 40
-                while time.monotonic() < prazo:
-                    if processo.poll() is not None:
-                        raise RuntimeError("Servidor MCP de teste encerrou antes da saúde")
-                    try:
-                        if requests.get(origem + "/saude", timeout=1).status_code == 200:
-                            break
-                    except requests.RequestException:
-                        pass
-                    time.sleep(0.1)
-                else:
-                    raise RuntimeError("Servidor MCP de teste não ficou saudável")
-                cliente.inicializar()
-                inventario = cliente.listar_ferramentas()
-                if set(inventario) != set(estado["casos"]):
-                    raise RuntimeError("Manifesto não cobre todas as ferramentas reais")
-                # Sem JWT, o servidor real deve recusar; o JWKS servido é apenas o emissor descartável.
-                r = requests.post(origem + "/mcp/", json={"jsonrpc": "2.0", "id": 1, "method": "tools/list"}, timeout=4)
-                if r.status_code != 401:
-                    raise RuntimeError("MCP aceitou transporte sem OAuth")
-                yield SimpleNamespace(cliente=cliente, casos=estado["casos"], url=origem + "/mcp/", token=token)
-                if rede.exists() and rede.stat().st_size:
-                    raise RuntimeError("Aplicação tentou conexão externa durante o ensaio MCP")
-            finally:
-                cliente.fechar()
-                processo.terminate()
+            with _vigiar_rede(rede):
                 try:
-                    processo.wait(timeout=10)
-                except subprocess.TimeoutExpired:
-                    processo.kill()
-                    processo.wait(timeout=5)
+                    prazo = time.monotonic() + 40
+                    while time.monotonic() < prazo:
+                        if processo.poll() is not None:
+                            raise RuntimeError("Servidor MCP de teste encerrou antes da saúde")
+                        try:
+                            if requests.get(origem + "/saude", timeout=1).status_code == 200:
+                                break
+                        except requests.RequestException:
+                            pass
+                        time.sleep(0.1)
+                    else:
+                        raise RuntimeError("Servidor MCP de teste não ficou saudável")
+                    cliente.inicializar()
+                    inventario = cliente.listar_ferramentas()
+                    if set(inventario) != set(estado["casos"]):
+                        raise RuntimeError("Manifesto não cobre todas as ferramentas reais")
+                    # Sem JWT, o servidor real deve recusar; o JWKS servido é apenas o emissor descartável.
+                    r = requests.post(
+                        origem + "/mcp/", json={"jsonrpc": "2.0", "id": 1, "method": "tools/list"}, timeout=4
+                    )
+                    if r.status_code != 401:
+                        raise RuntimeError("MCP aceitou transporte sem OAuth")
+                    yield SimpleNamespace(cliente=cliente, casos=estado["casos"], url=origem + "/mcp/", token=token)
+                finally:
+                    cliente.fechar()
+                    processo.terminate()
+                    try:
+                        processo.wait(timeout=10)
+                    except subprocess.TimeoutExpired:
+                        processo.kill()
+                        processo.wait(timeout=5)
 
         @contextlib.contextmanager
         def carga(fase):

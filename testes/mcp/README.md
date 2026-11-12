@@ -68,7 +68,7 @@ um ID inventado que só retorna erro não demonstra a latência da operação v�
 Sua ordem é preservada para as dependências entre criação e consulta.
 
 ```bash
-uv run python scripts/medir_latencia_mcp.py
+RAIZ_MCP_TESTE_PROTOCOLO=2026-07-28 uv run python scripts/medir_latencia_mcp.py
 ```
 
 O ensaio faz a negociação e chama todas as ferramentas, sem selecionar só as

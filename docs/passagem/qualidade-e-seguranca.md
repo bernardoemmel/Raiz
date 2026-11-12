@@ -19,7 +19,8 @@ com regressões. Mudanças de contrato/arquitetura ficam para os chats responsá
   de **Produto e regras**: o MCP oferece ferramentas de pedidos para agentes externos, sem agente leitor de certidão,
   edital ou arquivo. Não se simula essa leitura nem sua aprovação. A exceção anterior do fundador era somente ausência
   de servidor; com o servidor presente, o runner exige a integração e registra falha explícita do corpus pendente.
-- **Revisão contínua:** PRs #53, #56, #67, #54, #68, #70, #71, #73 e #74 revisados, com correções pequenas de privacidade e calendário abaixo.
+- **Revisão contínua:** PRs #53, #56, #67, #54, #68, #70, #71, #73, #74, #55, #75 e a integração #45/#69 revisados,
+  com correções pequenas de privacidade, calendário e idempotência abaixo.
   Scanners e testes rodam a cada push. O fundador optou por manter somente essas checagens por push, sem automação horária.
 
 ### Achados de dados agora bloqueados — chat Dados
@@ -66,8 +67,8 @@ O teste da cena-alvo usa a amostra real do repositório e já roda inteiro, sem 
   agregados e abre fichas por autorização específica; o #67 entrega contornos somente de fichas já desbloqueadas
   pelo mesmo cliente ativo, revalidando reservas. Esses caminhos resolvem o acesso do site, sem tornar público o
   token interno `VITE_RAIZ_API_TOKEN` nem implementar a rota nacional antiga.
-- **Qualidade e segurança:** o limite do #51 é por processo. Controle compartilhado, concorrência, logs estruturados
-  e GlitchTip estão no escopo da continuação, não são pendências delegadas a outro chat. Validar IP real/TLS na
+- **Qualidade e segurança:** o limite por processo do #51 foi substituído pela opção compartilhada Valkey desta
+  continuação, com concorrência, logs estruturados e GlitchTip testados. Validar IP real/TLS na
   terminação HTTPS. O modelo NER pode deixar nomes livres passar; não registrar texto pessoal bruto. A entrega
   inicial não limpou retroativamente bancos/logs externos.
 - **Raiz dados do Brasil:** a proteção da main bloqueará o push direto que atualiza `motor/README.md`; migrar para PR,
@@ -106,7 +107,7 @@ Verificação pelo GitHub em 12/11/2026, comparada ao checkout da main (8865c7c 
 4. **#45 — conflito de migração resolvido pelo chat Produto e regras:** no head `9b7f49f`, `0027_api_publica.py` declara revision `0027`/down_revision `0026`. O conflito antigo com `0020_alertas_operacao.py` não existe mais. O PR permanece aberto; a API ainda não tem essa migração na main auditada. **Nova colisão após #54:** a main agora possui `0027_calendario.py`; o chat Produto e regras precisa renumerar novamente a migração da API ao integrar o calendário.
 5. **#45 — sanitização da API pública (Produto e regras, com correção pontual de Qualidade e segurança após integração):** no head `9b7f49f`, o código passou para `raiz/publica/`. A resposta `ok` já aplica `limpar(sem_dado_pessoal(x))`, mas `limpar` continua regex de CPF/CNPJ numérico/e-mail/telefone, sem Presidio ou nomes livres/CNPJ alfanumérico. `chaves.registrar` usa esse filtro em `agente_modelo` e `atributos` antes de persistir; o logger central não protege essas escritas. Reusar sanitização central com domínios fechados nas fronteiras de persistência/resposta, preservando UUIDs de protocolo. A descrição do PR mencionar Presidio não comprova cobertura dessas gravações.
 6. **#45 — cobrança com erro imprevisto corrigida pelo chat Produto e regras:** no head `9b7f49f`, o middleware converte a exceção em 500 genérico e chama o estorno. Há regressão de exceção inesperada, estorno concorrente único e débito concorrente dos três testes. Falha do próprio banco durante o estorno ainda só é registrada; reconciliação durável após indisponibilidade pertence ao desenho de cobrança do chat dono, antes de operação financeira real.
-7. **#45 — limite por empresa (Qualidade e segurança, integração com Produto e regras):** o head `9b7f49f` usa `shared_limit` entre rotas/chaves da empresa, inclusive recusas, e aceita `RAIZ_API_LIMIT_STORAGE_URI`. O padrão `memory://` continua por processo. O teste atual usa uma instância; configurar armazenamento compartilhado e testar duas instâncias concorrentes antes de vários workers. Não confundir esse contador de chamadas com o saldo em PostgreSQL.
+7. **#45 — limite por empresa (Qualidade e segurança, resolvido nesta continuação):** `RAIZ_API_LIMIT_STORAGE_URI` está documentada para Valkey, separadamente do limite global. Duas apps reais de SlowAPI compartilham sete chamadas por empresa sob concorrência, preservam a cota ao reiniciar e mantêm a segunda empresa independente. Recusas são 429 com Retry-After e Problem Details. O teste substitui apenas autenticação/auditoria do banco; o contador usa Valkey real. Falha do backend é 503 sem fallback, coberta pelo conjunto de 13 testes. O padrão `memory://` continua sendo somente para um processo/testes; em produção é necessário configurar as duas URLs compartilhadas. Não confundir esses contadores de chamadas com o saldo em PostgreSQL.
 
 O exame de git/segredos, Release `dados` e site é feito separadamente nesta entrega; não concluir ausência absoluta de dado pessoal a partir de revisão estática ou dos formatos de documentos nacionais.
 
@@ -357,7 +358,7 @@ pelo contrato público. **Lote e números / Dados** continuam responsáveis por 
 resolver os achados de qualidade; a conclusão do cálculo privado não libera a publicação detalhada bloqueada.
 
 
-### Validação final da continuidade
+### Validação da continuidade antes da entrada do MCP
 
 - Suíte Python completa com PostGIS, Valkey e LanguageTool reais: **1.250 passaram**, um skip herdado (tabelas
   reais do Pará ainda ausentes) e um xfail herdado (TIR), em 460,86 s. O conferidor de skips aprovou apenas essas
@@ -423,3 +424,21 @@ O CI anterior identificou uma fixture do publicador legado sem comprovante `roda
 A fixture passou a criar a rodada sintética e sempre executar com `GITHUB_ACTIONS=true`; a proteção do produto
 permaneceu intacta. Também foram recusados parâmetros libpq de redirecionamento (`host`, `hostaddr`, `dbname`,
 `service`) nas URLs dos bancos descartáveis de carga/E2E, antes de qualquer migração destrutiva.
+
+### Validação integrada após #45/#69
+
+A suíte Python completa com PostGIS, Valkey e LanguageTool reais terminou com **1.682 testes aprovados** em
+495,49 s. O conferidor aceitou somente o skip herdado das tabelas reais do Pará e o xfail herdado da TIR; nenhum
+teste novo foi pulado. Os resultados anteriores à entrada do MCP acima permanecem como histórico, não como
+aprovação da versão integrada.
+
+No [CI do commit 59e47cb](https://github.com/bernardoemmel/Raiz/actions/runs/43303892861), **sete dos oito jobs
+passaram**, incluindo **1.686 testes Python** e os dois E2E; somente o job `mcp` reprovou. Latência e carga do MCP
+passaram. O artefato `resultado-mcp` registra as medições e `corpus=false`; o job reprova com a dependência de
+**Produto e regras** explícita. Não há merge enquanto o CI estiver vermelho. A passagem não considera o corpus
+aprovado nem a leitura de documentos entregue.
+
+A revisão final acrescentou regressões do isolamento do ensaio: `connect_ex` e `sendto` também recusam destinos
+externos antes de chamar o sistema, e o registro de tentativas é conferido após encerrar o servidor mesmo quando
+o corpus lança sua falha pendente. Uma tentativa de rede não pode ficar escondida por essa pendência. **30 testes
+focados de MCP** e **13 testes do limite por empresa** passaram; o segundo conjunto usa duas apps e Valkey real.

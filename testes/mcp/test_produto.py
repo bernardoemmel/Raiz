@@ -66,3 +66,42 @@ def test_dns_externo_e_bloqueado_antes_do_resolvedor(tmp_path, monkeypatch):
         socket.getaddrinfo("127.0.0.1", 80)
         assert consultas == [("127.0.0.1", 80)]
     assert arquivo.read_text() == "dns_externo_bloqueado\n"
+
+
+@pytest.mark.parametrize("metodo", ["connect", "connect_ex", "sendto", "sendto_com_flags"])
+def test_destino_externo_e_bloqueado_antes_de_enviar_pacote(metodo, tmp_path, monkeypatch):
+    import socket
+
+    from testes.mcp.servidor import rede_local
+
+    chamadas = []
+    nome_metodo = "sendto" if metodo == "sendto_com_flags" else metodo
+    monkeypatch.setattr(socket.socket, nome_metodo, lambda *args: chamadas.append(args) or 0)
+    arquivo = tmp_path / "rede.txt"
+    with rede_local(arquivo), socket.socket() as s:
+        destino = ("192.0.2.1", 443)
+        argumentos = (b"sintetico", destino) if metodo == "sendto" else (destino,)
+        if metodo == "sendto_com_flags":
+            argumentos = (b"sintetico", 0, destino)
+        with pytest.raises(RuntimeError, match="conexão externa"):
+            getattr(s, nome_metodo)(*argumentos)
+        assert chamadas == []
+    assert arquivo.read_text() == "conexao_externa_bloqueada\n"
+
+
+def test_tentativa_de_rede_nao_se_esconde_atras_do_corpus_pendente(tmp_path):
+    from scripts.testar_mcp_ci import CorpusPendente
+
+    registro = tmp_path / "rede.txt"
+    with pytest.raises(RuntimeError, match="Aplicação tentou conexão externa"):
+        with produto._vigiar_rede(registro):
+            registro.write_text("conexao_externa_bloqueada\n")
+            raise CorpusPendente
+
+
+def test_corpus_pendente_e_preservado_quando_nao_ha_tentativa_de_rede(tmp_path):
+    from scripts.testar_mcp_ci import CorpusPendente
+
+    with pytest.raises(CorpusPendente):
+        with produto._vigiar_rede(tmp_path / "rede.txt"):
+            raise CorpusPendente

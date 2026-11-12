@@ -25,14 +25,15 @@ Execução local em 12/11/2026:
 
 As três rotas tiveram respostas válidas nas duas fases. A recuperação observou 429 com `Retry-After: 1`, seguido de 200 após a espera. Relatórios locais em `/tmp/raiz-resultado-carga/`. As 33 regressões do contrato de carga e transporte MCP passaram.
 
-## Carga MCP (estrutura pronta; bloqueada pelo produto)
+## Carga MCP real
 
-Dono da dependência: **chat Produto/regras**. A main não contém servidor MCP. O PR #45 retirou sua implementação antiga até concluir OAuth; o servidor retirado não foi copiado para simular cobertura. A carga abaixo exige servidor MCP real local, token OAuth descartável e manifesto de argumentos que cubra exatamente o inventário `tools/list`. Sem isso, o comando falha explicitamente. Nenhuma execução do MCP do produto nem latência/carga de suas ferramentas é alegada nesta entrega.
-
-Depois que o chat dono entregar o sandbox sem ações externas:
+O MCP OAuth dos PRs #45/#69 está na main e o adaptador `testes/mcp/produto.py` o exercita com banco, emissor
+JWKS e credenciais descartáveis. A carga exige manifesto que cubra exatamente `tools/list`; o corpus de agente
+leitor continua pendente, conforme a seção de integração abaixo. Para um sandbox local já iniciado:
 
 ```bash
-export RAIZ_MCP_TESTE_URL=http://127.0.0.1:8767/mcp
+export RAIZ_MCP_TESTE_URL=http://127.0.0.1:8767/mcp/
+export RAIZ_MCP_TESTE_PROTOCOLO=2026-07-28
 # Definir RAIZ_MCP_TESTE_TOKEN por variável secreta local, sem gravá-lo no repositório.
 export RAIZ_MCP_TESTE_CASOS=/caminho/privado/casos-mcp.json
 export RAIZ_CARGA_FASE=normal
@@ -50,7 +51,7 @@ Use o conjunto completo de ferramentas realmente publicadas, IDs e dados descart
 
 Repita com `RAIZ_CARGA_FASE=limite` e orçamento baixo configurado pelo servidor do sandbox, usando outro arquivo de relatório. Essa fase exige ao menos um 429 com Retry-After positivo (até 60 s) e ao menos uma resposta válida de cada ferramenta; a fase normal recusa qualquer 429. O Locust aplica deadline de 4,9 s por chamada MCP, além do portão de tempo <5 s. O ensaio de latência separado usa deadline de relógio, independente do timeout de inatividade HTTP.
 
-O job MCP completo só deve ser habilitado junto do servidor OAuth, seus dados descartáveis e os casos de todas as ferramentas. O CI atual executa as regressões do transporte e dos critérios de auditoria; isso não é aprovação de um MCP inexistente.
+O job MCP já executa esse perfil real com todas as ferramentas. A aprovação de tempo/carga não equivale à aprovação do corpus de leitura de documentos, que continua explicitamente pendente.
 
 
 ## Integração disponível após #45/#69
