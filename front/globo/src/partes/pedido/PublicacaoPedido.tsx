@@ -10,10 +10,13 @@ export function AvisoPublicacao({ publicacao: p }: { publicacao: PublicacaoLote 
   return <div className="aviso fontes-pedido" role="status">
     <Info size={20} aria-hidden="true" />
     <div><strong>{p.estado === "publicado" ? "Cenário publicado no Release." : "O lote ainda não foi publicado."}</strong>
-      <p>{p.aviso}</p>
+      {p.estado !== "publicado" && <p>{p.aviso}</p>}
       <p>Os filtros deste pedido ainda não foram recalculados pelo motor. A comparação abaixo mantém os valores do cenário publicado, quando disponíveis.</p>
+      <details><summary>Fonte, data e limites do cenário</summary>
+      {p.estado === "publicado" && <p>{p.aviso}</p>}
       {p.estado === "publicado" && <p>{UFS[p.uf] ?? p.uf}, cenário {p.cenario}. Meta publicada: {numero(p.volume_creditos)} créditos. Preço do contrato: {numero(p.preco_contrato_usd, fmtUsd)} por crédito.</p>}
       <p>Fonte: <a href={p.fonte} target="_blank" rel="noreferrer">Release de dados da Raíz</a>. Atualização: {p.atualizado_em ? dataLonga(p.atualizado_em) : "ainda não informada"}. Modelo: {p.modelo_versao ?? "ainda não informado"}.</p>
+      </details>
     </div>
   </div>
 }

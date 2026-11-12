@@ -155,6 +155,7 @@ try {
   await p.screenshot({ path: path.join(resultado, "lotes-autorizados-comparacao-1440.png") })
   await p.getByRole("tab", { name: "Mais barata", exact: true }).focus()
   await p.keyboard.press("ArrowRight")
+  await p.getByRole("tab", { name: "Mais segura", exact: true }).and(p.locator('[aria-selected="true"]')).waitFor()
   assert.equal(await p.getByRole("tab", { name: "Mais segura", exact: true }).getAttribute("aria-selected"), "true")
   await p.screenshot({ path: path.join(resultado, "lotes-autorizados-1440.png") })
   await p.close()

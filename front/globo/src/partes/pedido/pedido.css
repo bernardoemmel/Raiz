@@ -85,6 +85,21 @@
 .pedido-painel .fontes-pedido {
   overflow-wrap: anywhere;
 }
+.pedido-corpo.pedido-sem-mapa {
+  grid-template-columns: minmax(0, 1fr);
+  max-width: 1200px;
+  margin-inline: auto;
+}
+.pedido-sem-mapa .pedido-painel {
+  max-height: none;
+  overflow: visible;
+}
+.pedido-sem-mapa .pedido-mapa-pendente {
+  position: relative;
+  min-height: 0;
+  height: auto;
+  padding: var(--e5);
+}
 @media (max-width: 1000px) {
   .pedido-corpo {
     grid-template-columns: 1fr;

@@ -122,7 +122,7 @@ export function PedidoTela({ id }: { id: string }) {
   const nivelNoAndamento = escolhida ? andamento?.fazendas.find((f) => f.cod_imovel === escolhida)?.interesse : undefined
   return (
     <Moldura titulo={tituloDoPedido(pedido.campos)}>
-      <div className="pedido-corpo">
+      <div className={`pedido-corpo${!fazendas.length ? " pedido-sem-mapa" : ""}`}>
         <aside className="pedido-painel" aria-label="O pedido">
           <ol className="migalhas" aria-label="Onde você está">
             <li>
