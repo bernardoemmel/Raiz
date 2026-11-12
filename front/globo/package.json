@@ -4,6 +4,8 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
+    "predev": "node ../scripts/baixar-dados.mjs",
+    "dados": "node ../scripts/baixar-dados.mjs",
     "dev": "vite",
     "build": "node ../scripts/verificar-design.mjs && tsc -b && vite build",
     "lint": "oxlint",

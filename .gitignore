@@ -4,6 +4,7 @@
 !.env.example
 # dados grandes e gerados pelo motor (ficam fora do git; só dados/amostra entra)
 motor/saida/
+dados/estados/
 motor/cache/
 motor/extras/
 motor/mapbiomas/
