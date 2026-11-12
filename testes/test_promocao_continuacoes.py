@@ -1,4 +1,4 @@
-"""Troca operacional fechada do publicador, preservando a ciência e os jobs vivos."""
+"""Promoções fechadas com deltas de validação explícitos, sem alterar os jobs vivos."""
 
 import copy
 import json
@@ -11,11 +11,12 @@ from testes.test_processar_estados import F, O, _pedido, _run
 
 ORIGEM = "88860b64ee09f811b66e283f5c57997ebcdb3fd5"
 BASE = "b624b108b0350135003e1099d9c928fa7cc24151"
-DESTINO = "ec2ebd2c5772c6307aa1c3a41e1f97aac54e1b51"
-DESTINO_E1 = "dac754f9d27a61481fdb0db24c496cdea0dd4f35"
+DESTINO = "02c3db8de18ef1fb6f5260803e33f4ac3a73c305"
+DESTINO_E1 = "be452620f868537251fa832a10cb14bfb5c8efe3"
 PROMOCOES = {ORIGEM: DESTINO, BASE: DESTINO,
              "6a53cfbf514f369f694ea0bd3bc594ef8295a3b4": DESTINO_E1,
-             "bea53bd06c7178daf2a53c392e5a9d54c55e7bc7": DESTINO_E1}  # fmt: skip
+             "bea53bd06c7178daf2a53c392e5a9d54c55e7bc7": DESTINO_E1,
+             "436c7b636f6a8867b47403a1dfad4e4c741dc150": DESTINO_E1}  # fmt: skip
 RAIZ = Path(__file__).resolve().parents[1]
 
 
@@ -28,42 +29,58 @@ def _promovido(pedido):
     return {**pedido, "ref": destino, "promocao_publicador": {"origem": pedido["ref"], "destino": destino}}
 
 
-def test_promocao_fechada_versiona_aquisicao_preservando_ciencia_de_cada_grupo():
-    # Evidência arquivada de commits imutáveis: CI tem checkout raso. Cada grupo
-    # preserva sua ciência, sem substituir o destino pela main que incorpora E1.
+def test_promocao_fechada_declara_guardas_e_versoes_reais_de_cada_origem():
+    # Prova de commits imutáveis: o CI raso verifica o artefato sem consultar GitHub.
     prova = json.loads((RAIZ / "docs/passagem/auditoria-promocao-publicador.json").read_text())
+    assert prova["versao_auditoria"] == 2
     assert F.PROMOCOES_CONTINUACAO == PROMOCOES
     assert PROMOCOES == {ref: grupo["destino"] for grupo in prova["grupos"] for ref in grupo["origens"]}
+    pares = {(p["origem"], p["destino"]): p for p in prova["comparacoes"]}
+    assert set(pares) == set(PROMOCOES.items())
     for ref, destino in PROMOCOES.items():
-        depois = prova["commits"][destino]
-        antes = prova["commits"][ref]
-        for campo in ("arquivos", "codigo_preservado_sha256", "pacotes_origem", "dependencias_sha256",
-                      "mapbiomas_formulas_sha256", "mapbiomas_configuracao_sha256"):  # fmt: skip
+        antes, depois = prova["commits"][ref], prova["commits"][destino]
+        par = pares[(ref, destino)]
+        for campo in (
+            "arquivos_nativos", "codigo_nativo_sha256", "arquivos", "codigo_preservado_sha256",
+            "mapbiomas_formulas_sha256", "mapbiomas_configuracao_sha256", "codigo_tarefas", "depende",
+        ):  # fmt: skip
             assert antes[campo] == depois[campo]
         assert antes["mapbiomas_arquivo_sha256"] != depois["mapbiomas_arquivo_sha256"]
         assert antes["versao_motor"] != depois["versao_motor"]
+        assert antes["modulo_temporario_conferido"] and depois["modulo_temporario_conferido"]
         mudaram = {t for t, v in antes["versoes_tarefas"].items() if depois["versoes_tarefas"][t] != v}
-        assert mudaram == {"mapbiomas"}
-    assert prova["commits"][BASE]["versoes_tarefas"]["mapbiomas"] == "mapbiomas-732fe6f08784"
-    assert prova["commits"][DESTINO]["versoes_tarefas"]["mapbiomas"] == "mapbiomas-3ffd6cd150c6"
+        esperadas = {"funil", "mapbiomas"}
+        if destino == DESTINO_E1 and ref != "436c7b636f6a8867b47403a1dfad4e4c741dc150":
+            esperadas.add("filtros")
+        assert mudaram == set(par["tarefas_alteradas"]) == esperadas
+        assert set(par["tarefas_preservadas"]) == set(antes["versoes_tarefas"]) - mudaram
+        dep = par["dependencias"]
+        assert dep["pacotes_origem"] > 200 and dep["origem_sha256"] == dep["origem_no_destino_sha256"]
+        assert dep["projeto_editavel_fora_da_comparacao"] == ["raiz"]
+        legado, adocao, *e1 = par["guardas"]
+        assert legado["tipo"] == "embargo_legado" and adocao["tipo"] == "adocao_comprovada"
+        assert legado["ocorrencias"] == {"helper_antes": 0, "helper_depois": 1, "bloco_antes": 1, "chamada_depois": 1}
+        assert legado["resto_municipio"]["antes_sha256"] == legado["resto_municipio"]["depois_sha256"]
+        assert adocao["canonical_conferido"] and adocao["referencia"] == DESTINO_E1
+        assert set(adocao["resto_plano_execucao_sha256"]) == {"plano", "processar_municipio"}
+        for guarda in par["guardas"]:
+            resto = guarda["resto_modulo"]
+            assert resto["iguais"] and resto["antes_sha256"] == resto["depois_sha256"]
+        assert legado["diff_guardas"] and adocao["diff_guardas"]
+        if destino == DESTINO:
+            assert not e1 and antes["modulos_e1_presentes"] == depois["modulos_e1_presentes"] == []
+            assert depois["codigo_tarefas"]["funil"] == ["motor/raiz_estado.py", "raiz/funil/ponte.py"]
+        else:
+            assert {g["funcao"] for g in e1} == {"_falha", "embargos_ativos"}
+            assert all(g["canonical_conferido"] for g in e1)
+            filtro = next(g for g in e1 if g["funcao"] == "embargos_ativos")
+            assert (filtro["funcao_antes_ast_sha256"] == filtro["funcao_depois_ast_sha256"]) == (
+                ref == "436c7b636f6a8867b47403a1dfad4e4c741dc150"
+            )
     assert (
         prova["commits"][DESTINO]["codigo_preservado_sha256"]
         != prova["commits"][DESTINO_E1]["codigo_preservado_sha256"]
     )
-    assert depois["arquivos"] > 300 and depois["pacotes_origem"] == 213
-    assert set(depois["versoes_tarefas"]) == {
-        "funil",
-        "filtros",
-        "direto",
-        "mapbiomas",
-        "extras_direto",
-        "flag",
-        "terra",
-        "titulo",
-        "ficha",
-        "rebanho",
-        "desenvolvedor",
-    }
     assert prova["escopos"] == ["motor/", "raiz/"]
     assert "raiz/regras/padroes/" not in prova["excluidos_operacionais_ou_aquisicao"]
     assert "raiz/funil/restricoes.py" not in prova["excluidos_operacionais_ou_aquisicao"]
