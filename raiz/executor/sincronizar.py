@@ -63,7 +63,10 @@ def carregar(engine, armazem: Armazem, ufs: list[str] | None = None, destino: Pa
     destino = Path(destino or espelho_local())
     mudou = sincronizar(armazem, destino, ufs)
     r = varrer(engine, destino / "saida", ufs, congelar=congelar, estavel_s=0)
+    from raiz.aprendizado.importacao import receber
+
     r["baixados"] = len(mudou)
+    r["historico_aprendizado"] = receber(engine, armazem, destino / "historico", ufs)
     return r
 
 
