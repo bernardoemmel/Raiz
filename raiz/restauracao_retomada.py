@@ -23,6 +23,7 @@ from raiz import restauracao_rodada as RR
 
 EXECUCAO_ORIGEM = 43285608189
 SHA_ORIGEM = "31990520b842fd665152b2c7931b3556a66ca180"
+REPO_ORIGEM = "bernardoemmel/Raiz"
 MODELO = "restauracao-2026d+a84f9789"
 RELEASE_ID = 443383695
 REPOSITORIO_ID = 1454858834
@@ -44,8 +45,28 @@ COMPROVANTES_MIGRACAO = {
 }
 
 
+def _ambiente_privado() -> dict[str, str]:
+    """Mesmo contrato de configuração do armazém, restrito ao destino das provas históricas."""
+    url = os.environ.get("RAIZ_DADOS_PRIVADOS_URL", "").strip()
+    esperado = f"release-github://{REPO_ORIGEM}/{TAG}"
+    if url.lower() != esperado.lower():
+        raise PermissionError(
+            "A retomada exige RAIZ_DADOS_PRIVADOS_URL apontando ao rascunho histórico dados-privados."
+        )
+    token = os.environ.get("RAIZ_DADOS_PRIVADOS_TOKEN", "").strip()
+    if not token:
+        raise PermissionError("A retomada exige RAIZ_DADOS_PRIVADOS_TOKEN para o arquivo autenticado.")
+    return {**os.environ, "GH_TOKEN": token}
+
+
 def _api_json(argumentos: list[str]):
-    return json.loads(subprocess.check_output(["gh", "api", *argumentos], text=True))
+    try:
+        resposta = subprocess.check_output(
+            ["gh", "api", *argumentos], text=True, stderr=subprocess.PIPE, env=_ambiente_privado()
+        )
+    except subprocess.CalledProcessError as erro:
+        raise RuntimeError(f"Falha na API autenticada da retomada (código {erro.returncode}).") from None
+    return json.loads(resposta)
 
 
 def _api_baixar(endpoint: str, destino: Path) -> None:
@@ -55,7 +76,11 @@ def _api_baixar(endpoint: str, destino: Path) -> None:
     with temporario.open("wb") as f:
         try:
             subprocess.run(
-                ["gh", "api", endpoint, "-H", f"Accept: {aceita}"], stdout=f, stderr=subprocess.PIPE, check=True
+                ["gh", "api", endpoint, "-H", f"Accept: {aceita}"],
+                stdout=f,
+                stderr=subprocess.PIPE,
+                check=True,
+                env=_ambiente_privado(),
             )
         except subprocess.CalledProcessError as erro:
             # gh pode incluir a URL temporária assinada do armazenamento no stderr.
@@ -72,9 +97,10 @@ def _api_subir(endpoint: str, arquivo: Path) -> dict:
 class Privado:
     """Acesso por ID fixo, sempre autenticado e condicionado ao rascunho ainda ser privado."""
 
-    def __init__(self, repo: str = RR.REPO):
-        if repo.lower() != RR.REPO.lower():
+    def __init__(self, repo: str = REPO_ORIGEM):
+        if repo.lower() != REPO_ORIGEM.lower():
             raise ValueError("A retomada pertence ao repositório Raiz da execução original.")
+        _ambiente_privado()
         self.repo = repo
         self.base = f"repos/{repo}"
 
@@ -287,10 +313,10 @@ def _validar_comprovantes(inventario: dict, backup: dict, assets: dict[str, dict
     if (
         inventario.get("versao") != 1
         or inventario.get("tipo") != "actions_artifacts"
-        or inventario.get("origem") != RR.REPO
+        or inventario.get("origem") != REPO_ORIGEM
         or backup.get("versao") != 1
-        or backup.get("origem") != RR.REPO
-        or backup.get("destino") != RR.REPO
+        or backup.get("origem") != REPO_ORIGEM
+        or backup.get("destino") != REPO_ORIGEM
         or backup.get("release_id") != RELEASE_ID
         or backup.get("tag") != TAG
     ):
@@ -620,7 +646,7 @@ def main() -> None:
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("etapa", choices=("verificar", "preparar", "baixar", "calcular", "checkpoint", "publicar"))
     p.add_argument("--destino", type=Path, default=Path("rodada"))
-    p.add_argument("--repo", default=RR.REPO)
+    p.add_argument("--repo", default=REPO_ORIGEM)
     p.add_argument("--retomar-execucao", type=int, default=EXECUCAO_ORIGEM)
     p.add_argument("--plano")
     p.add_argument("--plano-sha256")

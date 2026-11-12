@@ -70,6 +70,10 @@ entrada e saída, modelo, CARs, contagens e a composição exata de cada fatia a
 preservada é validada e reutilizada; não há novo cálculo só porque um passo posterior precisou ser repetido.
 Os arquivos completos irão ao Release
 autenticado `dados-privados` (draft, ID 443383695), sem publicar o draft nem criar novos artifacts/caches públicos.
+O orquestrador usa `RAIZ_DADOS_PRIVADOS_URL` e `RAIZ_DADOS_PRIVADOS_TOKEN`, como o arquivo privado da rodada atual;
+por preservar as provas históricas, recusa outro repositório/tag ou ausência de token. Sua identidade de origem
+fica no próprio orquestrador, sem depender de `REPO` no módulo atual da rodada. O token segue somente no ambiente
+do processo autenticado; erros de API e download não expõem URLs assinadas. Motor e lockfile continuam no SHA original.
 Nenhuma das dez fatias prontas deve ser recalculada. Resultado integral e hashes serão registrados após conclusão.
 O fluxo original permanece desativado enquanto seu publicador ainda expuser dados pagos; a continuação protegida
 usa o mesmo grupo de concorrência, no máximo cinco jobs de cálculo e dispara apenas quando houver vagas.

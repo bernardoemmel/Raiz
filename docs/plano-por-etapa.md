@@ -264,7 +264,7 @@ Continuação de Ficha da fazenda (12/11/2026; validação e operação na passa
 
 | Entrega | Situação |
 |---|---|
-| Contrato aberto com agregado municipal/estadual e CAR/situação básica; camadas exclusivas e retratos históricos do aprendizado no arquivo privado | **feito**: 40 originais preservados no privado e 22 assets básicos publicados; SHA-256 e bloqueio anônimo conferidos, provas em `docs/dados-publicados.md`; 18 artifacts preservados/removidos e 33 caches antigos descartados |
+| Contrato aberto com agregado municipal/estadual e CAR/situação básica; camadas exclusivas e retratos históricos do aprendizado no arquivo privado | **feito**: 40 originais preservados no privado e 22 assets básicos publicados; SHA-256 e bloqueio anônimo conferidos, provas em `docs/dados-publicados.md`; 18 artifacts preservados/removidos e 33 caches antigos descartados; retomada do Pará reutiliza as dez fatias preservadas |
 | Preços em YAML provisório, Pix em teste e roteiro de ativação no servidor | **feito**; valores a definir pelo fundador, venda real fechada |
 | Comparar até cinco fichas pagas, salvar busca/avisos internos e PDF com fontes/datas | **feito** no código; buscas salvas na migração 0028 após 0027 do calendário; agendar verificação no servidor ao implantar |
 | `consultar_ficha` compartilhado pela API e adaptador MCP, alinhado à passagem Produto e regras | **feito**; registro no transporte corporativo permanece com Produto e regras |
