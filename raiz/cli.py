@@ -329,6 +329,42 @@ def coleta_indice(endereco: str, destino: str) -> None:
     typer.echo(f"{len(ind)} blocos, {ind.nivel.nunique()} níveis, {ind.bytes.sum() / 1e9:.2f} GB -> {destino}")
 
 
+modelos = typer.Typer(help="Modelos de linguagem (E7).", no_args_is_help=True)
+app.add_typer(modelos, name="modelos")
+
+
+@modelos.command("testar")
+def modelos_testar(modelo: Annotated[str, typer.Option(help="ex.: claude-haiku-5-5")] = "claude-haiku-5-5") -> None:
+    """Chamada curta pela interface única (saída estruturada, custo, rastro). Mostra de onde veio a chave, nunca o
+    valor. A chave é lida de ANTHROPIC_API_KEY (ou RAIZ_ANTHROPIC_API_KEY), no ambiente ou no .env."""
+    import os
+
+    from raiz.config import config
+    from raiz.modelos import Claude, LlamaCpp, Pedido, chamar
+
+    origem = next((n for n in ("RAIZ_ANTHROPIC_API_KEY", "ANTHROPIC_API_KEY") if os.environ.get(n)), None)
+    if origem is None and config().anthropic_api_key:
+        origem = ".env"
+    typer.echo(f"chave da Anthropic: {'lida de ' + origem if origem else 'não encontrada'}")
+    esquema = {
+        "type": "object",
+        "properties": {"resposta": {"type": "string", "enum": ["ok"]}},
+        "required": ["resposta"],
+        "additionalProperties": False,
+    }
+    p = Pedido("teste.conexao", "Responda só com o JSON pedido.", "Diga ok.", esquema, max_tokens=64)
+    m = LlamaCpp() if modelo.startswith("qwen") else Claude(modelo)
+    r = chamar(m, p)
+    if r.ok:
+        typer.echo(
+            f"ok: {r.modelo} respondeu {r.dados} em {r.duracao_ms} ms; {r.uso.entrada}+{r.uso.saida} tokens; "
+            f"US$ {r.custo_usd} ({r.custo_fonte})"
+        )
+    else:
+        typer.echo(f"falhou: {r.erro}", err=True)
+        sys.exit(1)
+
+
 @banco.command("migrar")
 def banco_migrar(alvo: str = "head") -> None:
     """Aplica as migrações (Alembic) no banco de RAIZ_BANCO_URL."""

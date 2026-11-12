@@ -74,6 +74,12 @@ class Claude:
                 return Resposta(None, self.nome, self.provedor, erro=f"limite de uso: {mascarar(str(ex))[:200]}")
             except anthropic.APIStatusError as ex:
                 return Resposta(None, self.nome, self.provedor, erro=f"API {ex.status_code}: {mascarar(str(ex))[:200]}")
+            except TypeError as ex:  # o SDK levanta TypeError quando não acha credencial nenhuma
+                if "authentication" not in str(ex).lower():
+                    raise
+                return Resposta(
+                    None, self.nome, self.provedor, erro="sem credencial da Anthropic: defina ANTHROPIC_API_KEY"
+                )
             except anthropic.APIConnectionError as ex:
                 return Resposta(None, self.nome, self.provedor, erro=f"conexão: {mascarar(str(ex))[:200]}")
         u = r.usage

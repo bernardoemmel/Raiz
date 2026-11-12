@@ -197,3 +197,10 @@ def test_custo_por_fazenda_e_municipio(banco_url):
         assert gasto_do_mes(con) == pytest.approx(float(sum(r.custo_usd for r in por_fazenda.values())))
         assert gasto_do_mes(con, dt.date.today() + dt.timedelta(days=62)) == 0
     eng.dispose()
+
+
+def test_sem_chave_vira_erro_claro(monkeypatch):
+    for v in ("ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN", "RAIZ_ANTHROPIC_API_KEY"):
+        monkeypatch.delenv(v, raising=False)
+    r = Claude("claude-haiku-5-5", cliente=anthropic.Anthropic(api_key=None)).responder_json(PEDIDO)
+    assert not r.ok and "ANTHROPIC_API_KEY" in r.erro
