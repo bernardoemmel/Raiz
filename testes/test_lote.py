@@ -212,3 +212,51 @@ def test_lote_do_para_inteiro_fecha_ou_diz_o_que_falta():
         assert r["cronograma_lote"]["chance_todos"] >= 0.88
     else:
         assert r["o_que_falta"] and r["falta_reserva"] > 0
+
+
+def test_faixa_do_lote_soma_e_carteira_mme102():
+    """Portaria MME 102/2016 e PRMS: a faixa do conjunto, não a soma das faixas. Com todo o erro comum, a carteira é
+    a soma; com parte própria de cada fazenda, ela fica mais estreita e a soma segue como a régua prudente."""
+    p50 = np.full(300, 4000.0)
+    x = R.faixa_lote(p50 * 0.6, p50, p50 * 1.3)
+    assert x["soma"] == {"p10": pytest.approx(720_000), "p50": 1_200_000, "p90": pytest.approx(1_560_000)}
+    assert x["soma"]["p10"] < x["carteira"]["p10"] < x["carteira"]["p50"] < x["carteira"]["p90"] < x["soma"]["p90"]
+    assert x["fracao_comum"] == R.regra()["carteira"]["fracao_comum"] and x["sorteios"] == 2**13
+    um = R.faixa_lote(p50 * 0.6, p50, p50 * 1.3, fracao_comum=1.0)
+    assert um["carteira"]["p10"] == pytest.approx(720_000, rel=0.01)
+    assert um["carteira"]["p90"] == pytest.approx(1_560_000, rel=0.01)
+    assert R.faixa_lote(p50 * 0.6, p50, p50 * 1.3)["carteira"] == x["carteira"]  # Sobol com semente: reproduz
+    assert R.faixa_lote([], [], [])["fazendas"] == 0
+    # o pedido usa a mesma premissa em conta fechada
+    from raiz.pedidos import otimizador as Z
+
+    fz = Z.faixa_soma(p50 * 0.6, p50, p50 * 1.3)
+    assert fz["p10"] == pytest.approx(x["carteira"]["p10"], rel=0.03)
+    assert fz["p90"] == pytest.approx(x["carteira"]["p90"], rel=0.03)
+
+
+def test_parcelas_de_campo_pelo_ar_tool03():
+    pc = R.parcelas_campo({"regeneracao_assistida": 2000, "plantio_total": 2000})
+    t = 1.6448536269514722
+    n = (t / 0.10) ** 2 * (0.5 * 0.6 + 0.5 * 0.4) ** 2
+    assert pc["t"] == pytest.approx(t, abs=1e-3) and pc["total"] >= int(np.ceil(n))
+    assert pc["por_metodo"]["regeneracao_assistida"] > pc["por_metodo"]["plantio_total"]  # mais heterogênea
+    pequeno = R.parcelas_campo({"plantio_total": 10})
+    assert pequeno["total"] >= 30  # mínimo do lote (MDL)
+    assert R.parcelas_campo({})["total"] == 0
+
+
+def test_lote_traz_faixa_mme102_parcelas_e_sensibilidade(lote):
+    r = lote["resumo"]
+    fl, mm = r["faixa"], r["mme102"]
+    assert fl["soma"]["p10"] <= fl["carteira"]["p10"] <= fl["carteira"]["p50"] == fl["soma"]["p50"]
+    assert mm["p90_excedencia"] == fl["carteira"]["p10"] and mm["revisor_independente"] == "pendente"
+    assert 0 < mm["incerteza_padrao_pct"] < 50
+    assert r["parcelas"]["total"] >= 30 and set(r["parcelas"]["por_metodo"]) <= set(L.METODOS)
+    s = r["sensibilidade"]
+    assert {x["entrada"] for x in s} == {"captura", "custo", "preco", "cambio"}
+    assert [x["amplitude"] for x in s] == sorted([x["amplitude"] for x in s], reverse=True)
+    por = {x["entrada"]: x for x in s}
+    assert por["captura"]["tir_baixo"] < por["captura"]["tir_base"] < por["captura"]["tir_alto"]
+    assert por["custo"]["tir_baixo"] > por["custo"]["tir_alto"]  # custo no P10 dá TIR maior
+    assert por["preco"]["tir_baixo"] == pytest.approx(r["economia"]["tir_alavancada_pct"], abs=0.1)  # US$ 55

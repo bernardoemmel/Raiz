@@ -7,6 +7,7 @@ import pandas as pd
 import pytest
 from docx import Document
 
+from raiz import restauracao as R
 from raiz.documentos.config import REPO
 from raiz.documentos.gerados import checklist_edital, construir_modelos, conversao, folha_dono, relatorio_lote
 from raiz.documentos.gerados import faixas as FX
@@ -72,6 +73,15 @@ def test_faixas_provisorias_e_da_ficha():
     )
     assert f.fonte == "ficha" and f.carbono.p90 == 5 and f.versao == "e3-v1"
     assert FX.do_imovel({}).fonte == "sem_dado"
+    # com o valor para quem restaura, a faixa é a do Monte Carlo (crédito líquido da área para restaurar)
+    vr = {"restauracao_area_ha": 100, "credito_liquido_tco2_ano": 1000, "credito_liquido_tco2_ha_ano_p10": 6,
+          "credito_liquido_tco2_ha_ano_p90": 13, "restauracao_cenario": "central_r11",
+          "restauracao_versao": "restauracao-x", "carbono_tco2_ano_p50": 2}  # fmt: skip
+    f = FX.do_imovel(vr)
+    assert f.fonte == "valor_para_quem_restaura" and (f.carbono.p10, f.carbono.p50, f.carbono.p90) == (600, 1000, 1300)
+    assert f.receita.p50 == pytest.approx(1000 * 55 * R.cenario()["cambio_brl_usd"]) and f.versao == "restauracao-x"
+    # embargo: fica com a conta do motor, que explica por quê
+    assert FX.do_imovel({**vr, "embargo_ha": 3}).fonte == "ficha"
 
 
 def test_carteira_mais_estreita_que_a_soma_e_igual_com_correlacao_1():
@@ -93,12 +103,19 @@ def test_imovel_que_cruza_divisa_e_achado_pelo_arquivo_do_municipio():
 
 
 def test_folha_do_dono_sem_campo_sobrando_e_sem_cpf():
-    cod = _imoveis(frente="carbono")[0]
+    from raiz.documentos.gerados.dados import linha_imovel
+
+    # fazenda que pode gerar crédito: a faixa é a do valor para quem restaura (Monte Carlo da E3), a mesma do pedido
+    # e do lote; com problema no cadastro, embargo ou bloqueio fica a conta do motor, que explica por quê
+    cods = _imoveis(frente="carbono")
+    fontes = {c: FX.do_imovel(linha_imovel(c)).fonte for c in cods[:40]}
+    cod = next(c for c, f in fontes.items() if f == "valor_para_quem_restaura")
+    assert "motor" in fontes.values()  # na amostra também há fazenda com problema no cadastro
     out = folha_dono.gerar(cod, hoje=HOJE)
     t = _texto(out)
     assert "{{" not in t and "{%" not in t
     assert "Sua terra em Nova Esperança do Piriá (PA)" in t and cod in t
-    assert "toneladas de gás carbônico por ano" in t and "faixas-2026a" in t
+    assert "toneladas de gás carbônico por ano" in t and "restauracao-2026c" in t
     assert "CPF" in t  # só na frase de privacidade
     assert "Próximos passos" in t and "Você decide" in t
 
@@ -125,7 +142,7 @@ def test_relatorio_do_lote_mostra_soma_e_carteira():
     assert any("soma" in m for m in medidas) and any("carteira" in m for m in medidas)
     assert len(ctx["imoveis"]) == 8 and "Pequenas entram agrupadas" in ctx["frase_lote"]
     t = _texto(relatorio_lote.gerar(cods, "teste", cod_municipio=1504950, hoje=HOJE))
-    assert "{{" not in t and "Carteira = 20.000 sorteios" in t and "correlação 0,5" in t
+    assert "{{" not in t and "Carteira = 20.000 sorteios" in t and "correlação 0,6" in t  # a mesma do lote
     with pytest.raises(ValueError):
         relatorio_lote.contexto([], "vazio")
 
