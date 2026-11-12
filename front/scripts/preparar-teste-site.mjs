@@ -96,10 +96,12 @@ export function preparar() {
   fs.writeFileSync(path.join(geo, "base_brasil.pmtiles"), basePmtiles())
   const item = (arquivo) => ({ arquivo, bytes: fs.statSync(path.join(geo, arquivo)).size })
   salvar("indice.json", {
+    gerado_em: "2026-11-12T10:41:00Z", dados_publicados_em: "2026-11-11T18:00:00Z",
     brasil: {
       municipios: item("brasil_municipios.geojson"), estados: item("brasil_estados.geojson"), base: item("base_brasil.pmtiles"),
     },
     municipios: { [MUNICIPIO]: { municipio: item(`municipio_${MUNICIPIO}.geojson`), imoveis: item(`imoveis_${MUNICIPIO}.geojson`) } },
+    sem_contorno: { [SEM_DESENHO]: "Ainda não publicado" },
   })
   fs.writeFileSync(path.join(dados, "resumo_PA.csv"),
     "cod_ibge,municipio,imoveis,sem_problema,aptas_carbono,ha_carbono,aptas_com_matricula,ha_carbono_matricula\n" +

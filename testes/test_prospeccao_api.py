@@ -148,3 +148,36 @@ def test_contato_so_registra_pedido_da_sessao(cliente, monkeypatch):
     r = cl.post("/prospeccao/contatos", json={"codigo_car": CAR})
     assert r.status_code == 200 and pedidos == [(7, CAR)]
     assert "telefone" not in r.text and "email" not in r.text
+
+
+@pytest.mark.parametrize("sufixo", ["visual", "visual/satelite", "visual/satelite.webp"])
+def test_visual_exige_sessao_e_desbloqueio_antes_de_ler_dados(cliente, monkeypatch, sufixo):
+    cl, _ = cliente
+    lidas = []
+    monkeypatch.setattr(api.prospeccao_visual, "consultar", lambda *a: lidas.append("mapa"))
+    monkeypatch.setattr(api.prospeccao_visual, "satelite_disponivel", lambda *a: lidas.append("satelite"))
+    monkeypatch.setattr(api.front_api, "_imagem", lambda *a: lidas.append("imagem"))
+    assert cl.get(f"/prospeccao/fichas/{CAR}/{sufixo}").status_code == 401
+    cl.headers["Authorization"] = "Bearer sessao-cliente"
+
+    def negar(*args):
+        raise api.acesso.ErroAcesso(402, "Libere a ficha")
+
+    monkeypatch.setattr(api.acesso, "exigir_desbloqueio", negar)
+    assert cl.get(f"/prospeccao/fichas/{CAR}/{sufixo}").status_code == 402
+    assert not lidas
+
+
+def test_imagem_privada_tem_headers_e_verifica_exclusividade(cliente, monkeypatch, tmp_path):
+    cl, _ = cliente
+    cl.headers["Authorization"] = "Bearer sessao-cliente"
+    checks = []
+    monkeypatch.setattr(api.acesso, "exigir_desbloqueio", lambda *a: checks.append(a[1:]))
+    arq = tmp_path / "hoje.webp"
+    arq.write_bytes(b"imagem-de-teste")
+    monkeypatch.setattr(api.front_api, "_imagem", lambda *a: ({}, arq))
+    r = cl.get(f"/prospeccao/fichas/{CAR}/visual/satelite.webp")
+    assert r.status_code == 200 and r.content == b"imagem-de-teste"
+    assert r.headers["Cache-Control"] == "private, no-store"
+    assert r.headers["Vary"] == "Authorization"
+    assert checks == [(7, CAR)]

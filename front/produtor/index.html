@@ -17,7 +17,26 @@
     </script>
   </head>
   <body>
-    <div id="raiz"></div>
+    <div id="raiz">
+      <header class="topo">
+        <svg width="24" height="24" viewBox="0 0 32 32" aria-hidden="true">
+          <path d="M16 29V12" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" />
+          <path d="M16 15c0-5 3-8.5 9-9 0 5.5-3.5 9-9 9Z" fill="currentColor" />
+          <path d="M16 19c0-4.5-3-7.5-8.5-8 0 5 3.3 8 8.5 8Z" fill="currentColor" opacity=".72" />
+        </svg>
+        Raíz <small>Ficha da sua fazenda</small>
+      </header>
+      <main>
+        <h1>Ficha da sua fazenda</h1>
+        <p class="lead">Abra o link que a Raíz mandou para você, ou digite o código do CAR da fazenda.</p>
+        <form method="get">
+          <label class="miudo" for="cod">Código do CAR (começa com a sigla do estado, por exemplo PA-)</label>
+          <input id="cod" name="car" class="campo" required pattern=".*\S.*" autocomplete="off" />
+          <button class="botao" type="submit">Ver a ficha</button>
+        </form>
+        <p id="erro-abertura" class="aviso" role="alert" hidden>Não deu para abrir a ficha agora. Confira a conexão e tente novamente.</p>
+      </main>
+    </div>
     <script type="module" src="./src/main.tsx"></script>
   </body>
 </html>

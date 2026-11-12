@@ -10,6 +10,7 @@
 export { comoLinha } from "./colunas"
 import type { RespostaBusca } from "./busca"
 import type { Ficha } from "./ficha"
+import type { CoberturaMapa } from "./cobertura-mapa"
 import type { CamadaGeo, Estados, FunilMunicipio, Geo, Imovel, PontoFazenda } from "./tipos"
 
 export interface Certidao {
@@ -44,13 +45,15 @@ export interface FonteDeDados {
   /** quais municípios têm dado por fazenda */
   municipiosComImoveis(): Promise<string[]>
   geo: {
+    /** Contagem e datas do índice leve, sem baixar contornos municipais ou dados individuais. */
+    cobertura(): Promise<CoberturaMapa | undefined>
     camada(cod_ibge: string, camada: CamadaGeo): Promise<Geo | null>
     /** municípios com o contorno de cada fazenda (imoveis_<cod>.geojson) */
     comContorno(): Promise<string[]>
     /** URL do mapa base em PMTiles do município, ou null se ainda não foi gerado */
     base(cod_ibge: string): Promise<string | null>
     /** o Brasil: contorno de todos os municípios, dos 27 estados e o mapa base único (do país ao município) */
-    brasil(): Promise<{ municipios: Geo | null; estados: Geo | null; base: string | null }>
+    brasil(): Promise<{ municipios: Geo | null; estados: Geo | null; base: string | null; cobertura?: CoberturaMapa }>
   }
   /**
    * URL pronta para <img> de um arquivo da fonte (a capa da ficha). Com token, baixa com o cabeçalho e devolve um

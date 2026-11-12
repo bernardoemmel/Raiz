@@ -1,0 +1,28 @@
+import { contarCobertura, type CoberturaMapa } from "../../../compartilhado/dados/cobertura-mapa"
+import { fmtInt, plural } from "../../../compartilhado/formato"
+
+function Data({ valor }: { valor: string }) {
+  return <time dateTime={valor}>{new Date(valor).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", dateStyle: "short", timeStyle: "short" })} (Brasília)</time>
+}
+
+export function PainelCobertura({ cobertura, uf }: { cobertura?: CoberturaMapa; uf?: string | null }) {
+  if (!cobertura) return <p className="legenda-frase">A cobertura dos desenhos e a data de atualização ainda não foram informadas.</p>
+  const n = contarCobertura(cobertura, uf)
+  return (
+    <section className="secao-painel" aria-labelledby="cobertura-titulo">
+      <h2 id="cobertura-titulo">Cobertura do mapa</h2>
+      <p>
+        <strong>{plural(n.municipios, "município", "municípios")}{!uf && ` em ${plural(n.estados, "estado", "estados")}`}</strong>
+        {n.municipios === 1 ? " tem" : " têm"} desenho das fazendas na base.
+        {n.semDesenho > 0 && ` ${fmtInt(n.semDesenho)} ${n.semDesenho === 1 ? "ainda aguarda" : "ainda aguardam"} o desenho.`}
+      </p>
+      {cobertura.acesso === "restrito" && <p className="legenda-frase">Este mapa aberto mostra os agregados municipais. Os desenhos individuais ficam na ficha com acesso pago.</p>}
+      <p className="legenda-frase">
+        Última atualização do mapa: {cobertura.gerado_em ? <Data valor={cobertura.gerado_em} /> : "data não informada"}.
+        <br />
+        Dados publicados no Release: {cobertura.dados_publicados_em ? <Data valor={cobertura.dados_publicados_em} /> : "data não informada"}.
+      </p>
+      <p className="legenda-frase">A publicação diária inclui os municípios novos do processamento.</p>
+    </section>
+  )
+}
