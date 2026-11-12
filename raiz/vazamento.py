@@ -45,6 +45,10 @@ def _vigor(linha: dict) -> int | None:
 
 
 def _pasto(linha: dict) -> float:
+    """Pasto da fazenda: o mesmo que espalhou o rebanho (E4); sem ele, o do motor ou o do MapBiomas."""
+    x = _num(linha, "rebanho_pasto_ha")
+    if x is not None:
+        return max(x, 0.0)
     x = _num(linha, "pasto_ha")
     if x is None:
         x = _num(linha, "mb_pasto_2025_ha")
@@ -52,7 +56,11 @@ def _pasto(linha: dict) -> float:
 
 
 def rebanho(linha: dict, p: dict | None = None) -> tuple[float | None, str]:
-    """Rebanho do imóvel: o do motor (rebanho_cabecas) ou, sem ele, a lotação média do Censo vezes o pasto."""
+    """Rebanho do imóvel: o da E4 (rebanho_cab_p50, a PPM espalhada pelo pasto, raiz/rebanho.py), o do motor
+    (rebanho_cabecas) ou, sem eles, a lotação média do Censo vezes o pasto."""
+    reb = _num(linha, "rebanho_cab_p50")
+    if reb is not None:
+        return reb, str(linha.get("rebanho_fonte") or "ppm_dasimetrico")
     reb = _num(linha, "rebanho_cabecas")
     if reb is not None:
         return reb, "motor"

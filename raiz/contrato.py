@@ -143,7 +143,7 @@ CERTIDOES: dict[str, str] = {
 #  terra = caminho da terra e risco, raiz/terra.py)
 COMPLEMENTOS = (
     "extras", "extras_direto", "direto", "ajustes", "alertas", "flag", "ficha", "desenvolvedor", "terra",
-    "matricula", "regularizacao", "titulo",
+    "rebanho", "matricula", "regularizacao", "titulo",
 )  # fmt: skip
 # matricula = conferência das certidões (raiz/documentos); regularizacao = o que falta para o título da posse
 # (raiz/titulo/regularizacao.py); titulo = nota de risco de título e decisão (raiz/titulo/nota.py)

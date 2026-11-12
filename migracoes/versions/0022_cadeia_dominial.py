@@ -11,15 +11,15 @@ titulo.matricula_imovel: o imóvel de cada matrícula (CAR), pelo certidao_alvo 
 normalizadas pelas mesmas regras do Python (titulo.norm_cns e titulo.norm_matricula).
 titulo.cadeia_origem: segue a matrícula de origem até onde houver leitura (até 12 saltos) e diz onde a cadeia para.
 
-Revision ID: 0021
-Revises: 0020
+Revision ID: 0022
+Revises: 0021
 Create Date: 2026-11-12
 """
 
 from alembic import op
 
-revision = "0021"
-down_revision = "0020"
+revision = "0022"
+down_revision = "0021"
 branch_labels = None
 depends_on = None
 

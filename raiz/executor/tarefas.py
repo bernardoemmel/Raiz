@@ -47,7 +47,8 @@ CODIGO = {
         "raiz/motivos.py",
         "raiz/regras/padroes/faixas.yaml",
     ),  # fmt: skip
-    "desenvolvedor": ("raiz/restauracao.py", "raiz/restauracao_geo.py"),
+    "rebanho": ("raiz/rebanho.py",),
+    "desenvolvedor": ("raiz/restauracao.py", "raiz/restauracao_geo.py", "raiz/vazamento.py"),
 }
 DEPENDE = {
     "funil": (),
@@ -59,7 +60,8 @@ DEPENDE = {
     "terra": ("funil", "filtros"),
     "titulo": ("funil", "filtros", "terra"),
     "ficha": ("funil", "filtros", "mapbiomas", "flag", "terra"),
-    "desenvolvedor": ("funil", "filtros", "mapbiomas", "direto", "ficha", "terra"),
+    "rebanho": ("funil", "mapbiomas", "direto"),
+    "desenvolvedor": ("funil", "filtros", "mapbiomas", "direto", "ficha", "terra", "rebanho"),
 }
 SAIDAS = {
     "funil": ("imoveis_{cod}.csv", "geo_{cod}.parquet", "certidoes_{cod}.csv"),
@@ -71,6 +73,7 @@ SAIDAS = {
     "terra": ("terra_{cod}.csv",),
     "titulo": ("titulo_{cod}.csv", "regularizacao_{cod}.csv", "achados_{cod}.csv"),
     "ficha": ("ficha_{cod}.csv", "camadas_{cod}.parquet", "camadas_{cod}.pmtiles"),
+    "rebanho": ("rebanho_{cod}.csv",),
     "desenvolvedor": ("desenvolvedor_{cod}.csv",),
 }
 
@@ -95,6 +98,10 @@ def versao(nome: str) -> str:
         from raiz import terra
 
         extra = terra.versao()
+    elif nome == "rebanho":
+        from raiz import rebanho
+
+        extra = rebanho.versao()
     elif nome == "desenvolvedor":
         from raiz import restauracao
 

@@ -7,15 +7,15 @@ titulo.confirmacao: quem confirmou, descartou ou corrigiu cada achado e quando. 
 (ex.: fundador, conferente-02), nunca nome; a confirmação vale para a mesma regra do mesmo imóvel nas rodadas
 seguintes enquanto o valor não mudar.
 
-Revision ID: 0020
-Revises: 0019
+Revision ID: 0021
+Revises: 0020
 Create Date: 2026-11-12
 """
 
 from alembic import op
 
-revision = "0020"
-down_revision = "0019"
+revision = "0021"
+down_revision = "0020"
 branch_labels = None
 depends_on = None
 
