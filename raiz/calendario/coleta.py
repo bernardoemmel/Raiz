@@ -369,13 +369,16 @@ def extrair(
         blocos = main.select(seletores)
     if not blocos:
         blocos = main.select("tr, p, li")
-    blocos = [b for b in blocos if not any(p in blocos for p in b.parents)]
+    # Tag.__eq__ compara toda a árvore: usar `p in blocos` torna páginas de
+    # diários com milhares de parágrafos quadráticas. Aqui interessa identidade.
+    ids_blocos = {id(b) for b in blocos}
+    blocos = [b for b in blocos if not any(id(p) in ids_blocos for p in b.parents)]
     out, sem_data = [], 0
     for b in blocos:
         tx = b.get_text(" ", strip=True)
         # Cabeçalho imediato é contexto institucional, usado só em memória.
-        cab = b.find_previous_sibling(["h1", "h2", "h3", "h4"])
-        if cab is not None:
+        cab = b.find_previous_sibling()
+        if cab is not None and cab.name in {"h1", "h2", "h3", "h4"}:
             tx = cab.get_text(" ", strip=True) + " " + tx
         chave = b.get("id") or _chave_bloco(tx)
         link = url

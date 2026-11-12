@@ -400,3 +400,22 @@ def test_enriquecimento_fica_interno_sem_vazar_por_filtro_publico(con, tmp_path,
     assert arquivos.envelope([explicito], [], cod_imovel=cod)["total"] == 1
     banco.gravar(con, [explicito], [], cruzar_imoveis=False)
     assert banco.consultar(con, cod_imovel=cod)["total"] == 1
+
+
+def test_pagina_extensa_nao_compara_arvores_inteiras(monkeypatch):
+    from bs4.element import Tag
+
+    original = Tag.__eq__
+    comparacoes = 0
+
+    def contar(self, outro):
+        nonlocal comparacoes
+        comparacoes += 1
+        return original(self, outro)
+
+    monkeypatch.setattr(Tag, "__eq__", contar)
+    f = fonte("icvcm")
+    pagina = "<main><article>" + "<p>Consultation closes 30 November 2026.</p>" * 2000 + "</article></main>"
+    eventos, _ = coleta.extrair(pagina, f, f["urls"][0], AGORA)
+    assert len(eventos) == 1
+    assert comparacoes < 10  # regressão: a seleção fazia milhões de comparações profundas
