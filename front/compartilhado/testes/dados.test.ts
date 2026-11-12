@@ -128,3 +128,28 @@ describe("ficha e caixa de fatos", () => {
     expect(f.contexto.posicao_carbono).toBeGreaterThan(0.9)
   })
 })
+
+describe("título e motivos", async () => {
+  const { situacaoTitulo } = await import("../titulo")
+  const { motivos } = await import("../motivos")
+  const filtros = new Map(ler("filtros_1504950.csv").map((l) => [l.cod_imovel, l]))
+  const imoveis = ler("imoveis_1504950.csv").map((l) => lerImovel(l, [filtros.get(l.cod_imovel) ?? {}]))
+
+  it("toda matrícula do SIGEF leva o selo 'matrícula a conferir' até alguém conferir", () => {
+    const comMat = imoveis.filter((i) => i.f_matricula >= 0.5)
+    expect(comMat.length).toBeGreaterThan(0)
+    for (const i of comMat) expect(situacaoTitulo(i).selo).toBe("matricula_a_conferir")
+    const conferida = lerImovel({ ...comMat[0].linha, matricula_conferida: "True" })
+    expect(situacaoTitulo(conferida).selo).toBe("matricula_conferida")
+    const semNada = imoveis.find((i) => i.f_matricula === 0 && !i.assentamento)!
+    expect(situacaoTitulo(semNada).selo).toBe("sem_matricula")
+  })
+
+  it("toda fazenda fora do funil tem pelo menos um motivo que bloqueia, e toda apta nenhum", () => {
+    for (const i of imoveis) {
+      const bloqueios = motivos(i).filter((m) => m.bloqueia && !m.ok)
+      if (i.apta) expect(bloqueios, i.cod_imovel).toHaveLength(0)
+      else expect(bloqueios.length, i.cod_imovel).toBeGreaterThan(0)
+    }
+  })
+})

@@ -887,3 +887,352 @@ a {
 .fase-aproximando {
   pointer-events: none;
 }
+
+/* ---------- ficha da fazenda ---------- */
+.ficha .cabeca {
+  align-items: flex-start;
+}
+.ficha .cabeca h1 {
+  font-size: 38px;
+}
+.selos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+.selos .selo {
+  height: 28px;
+  padding: 0 12px;
+  font-size: 13.5px;
+}
+.codigo-car {
+  margin-top: 12px !important;
+  font-size: 13px !important;
+  color: var(--texto-3) !important;
+}
+.codigo-car code {
+  font-size: 12.5px;
+  color: var(--texto-2);
+}
+.ficha-topo {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 400px;
+  gap: 24px;
+  margin-bottom: 24px;
+}
+.mapa-imovel {
+  height: 560px;
+}
+.grandes {
+  padding: 8px 24px;
+}
+.grande {
+  padding: 18px 0;
+}
+.grande + .grande {
+  border-top: 1px solid var(--borda);
+}
+.grande-rotulo {
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--texto-2);
+}
+.grande-valor {
+  margin: 4px 0 4px;
+  font-size: 36px;
+  line-height: 1.1;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+}
+.grande-valor span {
+  font-size: 17px;
+  font-weight: 500;
+  letter-spacing: 0;
+  color: var(--texto-2);
+}
+.grande-concreta {
+  font-size: 15px;
+  font-weight: 550;
+  color: var(--verde-escuro);
+}
+.grande-local {
+  margin-top: 2px;
+  font-size: 14px;
+  color: var(--texto-2);
+}
+
+/* caixa de fatos */
+.fatos {
+  margin-bottom: 24px;
+  border: 2px solid var(--texto);
+  border-radius: var(--raio);
+  background: #fff;
+  overflow: hidden;
+}
+.fatos header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 24px 14px;
+  border-bottom: 6px solid var(--texto);
+}
+.fatos h2 {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 750;
+  letter-spacing: -0.01em;
+}
+.fatos header p {
+  margin: 0;
+  font-size: 15px;
+  color: var(--texto-2);
+}
+.fatos table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+.fatos thead th {
+  padding: 12px 24px;
+  font-size: 13px;
+  font-weight: 650;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  text-align: right;
+  color: var(--texto-2);
+  border-bottom: 1px solid var(--texto);
+}
+.fatos thead th:first-child {
+  width: 44%;
+}
+.fatos th.fatos-restaurar,
+.fatos thead .fatos-restaurar {
+  color: var(--verde);
+}
+.fatos tbody th {
+  padding: 14px 24px;
+  text-align: left;
+  font-size: 16px;
+  font-weight: 600;
+  vertical-align: top;
+}
+.fatos tbody th small {
+  display: block;
+  margin-top: 2px;
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--texto-3);
+}
+.fatos tbody td {
+  padding: 14px 24px;
+  text-align: right;
+  font-size: 22px;
+  font-weight: 650;
+  vertical-align: top;
+}
+.fatos tbody tr + tr > * {
+  border-top: 1px solid var(--borda);
+}
+.fatos td.fatos-restaurar {
+  background: #f2f7f1;
+  color: var(--verde-escuro);
+}
+.fatos-un {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--texto-2);
+}
+.fatos-dif {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+}
+.fatos-dif.dif-mais {
+  color: var(--verde-medio);
+}
+.fatos-dif.dif-menos {
+  color: var(--texto-3);
+}
+.fatos-notas {
+  margin: 0;
+  padding: 14px 24px 16px 40px;
+  border-top: 1px solid var(--texto);
+  font-size: 13px;
+  color: var(--texto-2);
+  line-height: 1.5;
+}
+
+/* motivos e título */
+.ficha-duas {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  margin-bottom: 24px;
+}
+.bloco {
+  padding: 22px 24px;
+}
+.bloco h2 {
+  margin: 0 0 12px;
+  font-size: 19px;
+  font-weight: 650;
+}
+.bloco h3 {
+  margin: 20px 0 8px;
+  font-size: 15px;
+  font-weight: 650;
+}
+.bloco-resumo {
+  margin: 0 0 12px;
+  font-size: 14.5px;
+  line-height: 1.5;
+  color: var(--texto-2);
+}
+.motivos {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.motivos li {
+  display: flex;
+  gap: 12px;
+  padding: 10px 0;
+}
+.motivos li + li {
+  border-top: 1px solid #eef0eb;
+}
+.motivo-icone {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  font-size: 13px;
+  font-weight: 700;
+}
+.motivos .ok .motivo-icone {
+  background: var(--verde-claro);
+  color: var(--verde);
+}
+.motivos .ruim .motivo-icone {
+  background: var(--vermelho-fundo);
+  color: var(--vermelho);
+}
+.motivos .atencao .motivo-icone {
+  background: var(--ambar-fundo);
+  color: var(--ambar-texto);
+}
+.motivo-texto {
+  font-size: 15px;
+  font-weight: 550;
+}
+.motivo-detalhe {
+  font-size: 13.5px;
+  color: var(--texto-2);
+}
+.titulo-situacao .selo {
+  height: 30px;
+  padding: 0 14px;
+  font-size: 14px;
+}
+.barras {
+  margin: 8px 0 0;
+}
+.barras div {
+  display: grid;
+  grid-template-columns: 170px 1fr;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 0;
+  font-size: 14.5px;
+}
+.barras dt {
+  color: var(--texto-2);
+}
+.barras dd {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+}
+.barra {
+  flex: 1;
+  height: 8px;
+  border-radius: 4px;
+  background: #eef0eb;
+  overflow: hidden;
+}
+.barra i {
+  display: block;
+  height: 100%;
+  background: var(--verde-medio);
+}
+.certidoes {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+.certidoes th,
+.certidoes td {
+  padding: 6px 4px;
+  text-align: left;
+  border-bottom: 1px solid var(--borda);
+}
+.outros summary {
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.outros table {
+  width: 100%;
+  margin-top: 14px;
+  border-collapse: collapse;
+  font-size: 13.5px;
+}
+.outros th {
+  padding: 6px 12px 6px 0;
+  text-align: left;
+  font-weight: 500;
+}
+.outros th code {
+  margin-left: 8px;
+  font-size: 12px;
+  color: var(--texto-3);
+}
+.outros th .selo {
+  margin-left: 8px;
+}
+.outros td {
+  padding: 6px 0;
+  text-align: right;
+  color: var(--texto-2);
+  word-break: break-all;
+}
+.outros tr + tr > * {
+  border-top: 1px solid #eef0eb;
+}
+@media (max-width: 1100px) {
+  .ficha-topo,
+  .ficha-duas {
+    grid-template-columns: 1fr;
+  }
+}
+@media (max-width: 700px) {
+  .fatos header {
+    flex-direction: column;
+    padding: 14px 16px;
+  }
+  .fatos thead th,
+  .fatos tbody th,
+  .fatos tbody td {
+    padding: 10px 12px;
+  }
+  .fatos tbody td {
+    font-size: 17px;
+  }
+}
