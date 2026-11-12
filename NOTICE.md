@@ -73,3 +73,13 @@ no script, requests (Apache-2.0), shapely e pmtiles (BSD-3-Clause).
   /mapa/brasil.pmtiles com a atribuição do manifesto.
 - Fontes Noto Sans (SIL Open Font License 1.1) e sprites do protomaps/basemaps-assets, baixados por
   `raiz mapa atualizar` (licença dos sprites a conferir no repositório basemaps-assets antes de publicar).
+
+## Imagens de satélite por fazenda
+
+- Sentinel-2 L2A: "Contains modified Copernicus Sentinel data [ano]" (licença Copernicus, uso livre inclusive
+  comercial), COGs abertos na AWS achados pelo catálogo STAC Earth Search da Element 84. A frase vai em cada imagem
+  (metadados.json, cabeçalho X-Raiz-Credito).
+- Landsat 5 Collection 2 nível 2: domínio público, crédito "Landsat 5, cortesia do USGS", lido pelo Planetary
+  Computer da Microsoft (token anônimo de leitura).
+- Pillow (HPND) para WebP e desenho; fonte DejaVu Sans do sistema para o selo "Simulação". Nada de EOX, Esri, Planet
+  NICFI, Google nem imagem gerada por IA.

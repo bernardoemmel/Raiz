@@ -576,3 +576,40 @@ def mapa_atualizar(
 
     m = mapa_base.atualizar(dia)
     typer.echo(f"mapa base {m['arquivo']}: {m['bytes'] / 1e9:.1f} GB, zoom até {m['zoom_max']}")
+
+
+satelite_cli = typer.Typer(help="Imagens de satélite por fazenda (Sentinel-2 e Landsat).", no_args_is_help=True)
+app.add_typer(satelite_cli, name="satelite")
+
+
+@satelite_cli.command("gerar")
+def satelite_gerar(
+    municipio: Annotated[int, typer.Option(help="código IBGE: gera para os imóveis aptos do município")],
+    tipos: Annotated[str, typer.Option(help="separados por vírgula")] = "hoje,hoje-produtor,hoje-celular,simulacao",
+    limite: Annotated[int, typer.Option(help="no máximo quantos imóveis")] = 50,
+) -> None:
+    """Gera e guarda as imagens dos imóveis aptos de um município (as maiores áreas de carbono primeiro)."""
+    import shapely
+    from sqlalchemy import text
+
+    from raiz import satelite
+    from raiz.banco import engine
+
+    with engine().connect() as con:
+        linhas = con.execute(
+            text("""select v.cod_busca, ST_AsBinary(i.geom),
+                           (select ST_AsBinary(ST_Union(c.geom)) from geo.camada_imovel c
+                            where c.cod_imovel = v.cod_imovel and c.camada = 'pode_voltar')
+                    from funil.vigente v join funil.imovel i on i.cod_imovel = v.cod_imovel
+                    join funil.resultado_imovel r on r.rodada_id = v.rodada_id and r.cod_imovel = v.cod_imovel
+                    where v.cod_municipio_ibge = :m and i.geom is not null
+                    order by r.carbono_ha desc nulls last limit :n"""),
+            {"m": municipio, "n": limite},
+        ).all()
+    for b, g, pv in linhas:
+        try:
+            r = satelite.gerar(b, shapely.from_wkb(bytes(g)), shapely.from_wkb(bytes(pv)) if pv else None,
+                               tipos=[t.strip() for t in tipos.split(",")])  # fmt: skip
+            typer.echo(f"{b}: " + ", ".join(f"{k} {v['bytes'] // 1024} KB" for k, v in r.items()))
+        except LookupError as ex:
+            typer.echo(f"{b}: {ex}")

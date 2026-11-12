@@ -525,6 +525,52 @@ def buscar(engine: Engine, q: str, limite: int = MAX_IMOVEIS) -> dict:
                 "municipios": [mun(m) for m in ms]}  # fmt: skip
 
 
+_TRAVAS: dict[str, object] = {}
+
+
+def _imagem(engine: Engine, cod_imovel: str, tipo: str) -> tuple[dict, object]:
+    """Metadados e arquivo da imagem; gera na hora se ainda não existe (uma geração por imóvel de cada vez)."""
+    import threading
+
+    import shapely
+
+    from raiz import satelite
+
+    if tipo not in satelite.TIPOS:
+        raise HTTPException(404, f"imagem desconhecida: {tipo} (há {', '.join(satelite.TIPOS)})")
+    b = normalizar_codigo(cod_imovel)
+    meta = satelite.metadados(b).get(tipo)
+    f = satelite.pasta() / b / f"{tipo}.webp"
+    if meta and f.exists():
+        return meta, f
+    with engine.connect() as con:
+        g = con.execute(
+            text("""select ST_AsBinary(i.geom),
+                           (select ST_AsBinary(ST_Union(c.geom)) from geo.camada_imovel c
+                            where c.cod_imovel = v.cod_imovel and c.camada = 'pode_voltar')
+                    from funil.vigente v join funil.imovel i on i.cod_imovel = v.cod_imovel
+                    where v.cod_busca = :b and i.geom is not null"""),
+            {"b": b},
+        ).first()
+    if g is None:
+        corpo = nao_achado(engine, cod_imovel)
+        if imoveis_do_municipio(engine, cod_imovel=cod_imovel):
+            corpo = {**corpo, "achado": True, "mensagem": "Este imóvel ainda não tem o polígono carregado."}
+        raise HTTPException(404, corpo)
+    trava = _TRAVAS.setdefault(b, threading.Lock())
+    with trava:
+        meta = satelite.metadados(b).get(tipo)
+        if not (meta and f.exists()):
+            geom = shapely.from_wkb(bytes(g[0]))
+            pv = shapely.from_wkb(bytes(g[1])) if g[1] is not None else None
+            try:
+                satelite.gerar(b, geom, pv, tipos=[tipo])
+            except LookupError as ex:
+                raise HTTPException(404, {"mensagem": f"Sem imagem de satélite boa para esta fazenda: {ex}."}) from ex
+            meta = satelite.metadados(b)[tipo]
+    return meta, f
+
+
 def arquivo_camadas(engine: Engine, cod_ibge: int):
     """camadas_<mun>.pmtiles na pasta saida/<UF>/ do motor (a UF vem da tabela de municípios)."""
     from raiz.funil.rodar import dir_trabalho
@@ -641,6 +687,27 @@ def roteador(engine_de) -> APIRouter:
         if f is None:
             raise HTTPException(404, "camadas do município ainda não geradas (raiz ficha gerar)")
         return FileResponse(f, media_type="application/vnd.pmtiles")
+
+    @r.get("/imoveis/{cod_imovel}/imagem/{tipo}.webp")
+    def imagem(cod_imovel: str, tipo: str, request: Request) -> Response:
+        """Satélite da fazenda (Sentinel-2 hoje, Landsat 1985 e 2008), gerado na primeira vez e guardado."""
+        meta, f = _imagem(engine_de(request), cod_imovel, tipo)
+        return FileResponse(
+            f,
+            media_type="image/webp",
+            headers={
+                "X-Raiz-Data-Cena": meta["data_cena"],
+                "X-Raiz-Satelite": meta["satelite"],
+                "X-Raiz-Credito": meta["credito"],
+                "Cache-Control": "private, max-age=86400",
+            },
+        )
+
+    @r.get("/imoveis/{cod_imovel}/imagem/{tipo}.json")
+    def imagem_meta(cod_imovel: str, tipo: str, request: Request) -> Response:
+        """Data da cena, satélite, frase de crédito, recorte (lon/lat), tamanho e peso da imagem."""
+        meta, _ = _imagem(engine_de(request), cod_imovel, tipo)
+        return _json(meta)
 
     @r.get("/imoveis/{cod_imovel}/certidoes")
     def certidoes(cod_imovel: str, request: Request) -> list[dict]:

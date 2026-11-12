@@ -36,6 +36,8 @@ class Config(BaseSettings):
     geo_dir: str | None = None
     # mapa base do Brasil (recorte do Protomaps, fontes e sprites), servido em /mapa; padrão dados/mapa
     mapa_dir: str | None = None
+    # imagens de satélite por fazenda (WebP e metadados), geradas na primeira chamada; padrão dados/imagens
+    imagens_dir: str | None = None
 
     # Modelos de linguagem (E7). A chave da Anthropic também é aceita com o nome padrão ANTHROPIC_API_KEY.
     anthropic_api_key: SecretStr | None = Field(
