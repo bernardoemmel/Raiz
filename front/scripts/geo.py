@@ -735,7 +735,9 @@ def base_brasil(dia: str | None, cods: list[str] | None = None) -> None:
     base_regiao("base_brasil.pmtiles", BRASIL, dia, 6)
 
 
-def indice(cods: list[str] | None = None, falhas: dict[str, str] | None = None) -> None:
+def indice(
+    cods: list[str] | None = None, falhas: dict[str, str] | None = None, dados_publicados_em: str | None = None
+) -> None:
     itens: dict[str, dict] = {}
     for f in sorted(SAIDA.glob("*_*.*")):
         nome = f.name.removesuffix(".gz")
@@ -766,6 +768,7 @@ def indice(cods: list[str] | None = None, falhas: dict[str, str] | None = None) 
         json.dumps(
             {
                 "gerado_em": dt.datetime.now(dt.UTC).isoformat(timespec="seconds"),
+                "dados_publicados_em": dados_publicados_em,
                 "brasil": brasil,
                 "municipios": itens,
                 "sem_contorno": {cod: motivo for cod, motivo in (falhas or {}).items()},
@@ -784,6 +787,8 @@ def municipios_publicados(dados: Path) -> dict[str, Path]:
     ufs = publicado.get("estados", {})
     if any(uf not in UF_IBGE.values() for uf in ufs):
         raise ValueError("manifesto público contém UF inválida")
+    if any(estado.get("versao_publicacao") != 1 or estado.get("escopo") != "publico_basico" for estado in ufs.values()):
+        raise ValueError("estado exige marca publico_basico v1; pacotes legados não são aceitos")
     return {
         f.stem.removeprefix("imoveis_basicos_"): f
         for uf in sorted(ufs)
@@ -804,10 +809,11 @@ def exportar_geometria(csv_imoveis: Path, cache: dict) -> tuple[int, int]:
     if not origem.exists():
         raise FileNotFoundError("o Release ainda não contém o desenho deste município")
     destino = SAIDA / f"imoveis_{cod}.geojson.gz"
-    if set(pq.read_schema(origem).names) != {"cod_imovel", "geometry"}:
+    colunas_geo = pq.read_schema(origem).names
+    if len(colunas_geo) != 2 or set(colunas_geo) != {"cod_imovel", "geometry"}:
         raise ValueError("GeoParquet público contém campos fora do contrato mínimo")
     with csv_imoveis.open(encoding="utf-8-sig", newline="") as f:
-        if set(csv.DictReader(f).fieldnames or []) != {"cod_imovel", "cod_ibge", "municipio", "uf", "situacao_basica"}:
+        if csv.DictReader(f).fieldnames != ["cod_imovel", "cod_ibge", "municipio", "uf", "situacao_basica"]:
             raise ValueError("CSV público contém campos fora do contrato mínimo")
     assinatura = hashlib.sha256(origem.read_bytes() + csv_imoveis.read_bytes()).hexdigest()
     if cache.get(cod, {}).get("sha256") == assinatura and destino.exists():
@@ -903,7 +909,9 @@ def do_release(dados: Path, sem_base: bool = False) -> None:
     # Retira bases municipais duplicadas do cache antigo. O índice aponta todos para a mesma base estadual.
     for arq in SAIDA.glob("base_???????.pmtiles"):
         arq.unlink()
-    indice(list(publicados), falhas)
+    manifesto = dados / "estados.json"
+    publicado_em = json.loads(manifesto.read_text()).get("gerado_em") if manifesto.exists() else None
+    indice(list(publicados), falhas, dados_publicados_em=publicado_em)
     print(f" {len(publicados) - len(falhas)}/{len(publicados)} municípios com desenho; {total / 1e6:.1f} MB gzip")
 
 

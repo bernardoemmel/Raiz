@@ -105,10 +105,17 @@ rejeita qualquer snapshot financeiro antigo no build público. No retorno de
 pedidos, valores por CAR também exigem liberação da própria conta; `ficha_liberada`
 distingue bloqueio de ausência, e a projeção remove campos inesperados. Totais,
 interesse, reservas e cálculo persistido foram preservados, sem cobrança nova.
-A integração das telas passou em 186 testes do front, build, Pages, prospecção,
+A integração das telas, antes da nova ficha visual, passou em 186 testes do front, build, Pages, prospecção,
 cena-alvo e Lighthouse, preservando também o calendário recém-integrado.
 Onze testes de pedidos com PostGIS e 76 testes da integração de fichas e migrações
 passaram em banco novo, com `0028` como revisão final.
+
+A ficha visual integrada da main preserva mapa, Sentinel-2 e linha do tempo junto
+com a comparação e o PDF. As rotas `/fichas/{car}/visual`, `/visual/satelite` e
+`/visual/satelite.webp` também exigem sessão e desbloqueio da própria conta,
+verificam reserva e retornam conteúdo privado sem cache público. A integração
+HTTP/visual passou em 44 testes com PostGIS; nenhum fallback de lote financeiro
+é incluído no build aberto.
 
 ## Função compartilhada para API e MCP
 

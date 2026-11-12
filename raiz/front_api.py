@@ -585,7 +585,7 @@ def buscar(engine: Engine, q: str, limite: int = MAX_IMOVEIS) -> dict:
 _TRAVAS: dict[str, object] = {}
 
 
-def _imagem(engine: Engine, cod_imovel: str, tipo: str) -> tuple[dict, object]:
+def _imagem(engine: Engine, cod_imovel: str, tipo: str, *, ler=None) -> tuple[dict, object]:
     """Metadados e arquivo da imagem; gera na hora se ainda não existe (uma geração por imóvel de cada vez)."""
     import threading
 
@@ -621,7 +621,7 @@ def _imagem(engine: Engine, cod_imovel: str, tipo: str) -> tuple[dict, object]:
             geom = shapely.from_wkb(bytes(g[0]))
             pv = shapely.from_wkb(bytes(g[1])) if g[1] is not None else None
             try:
-                satelite.gerar(b, geom, pv, tipos=[tipo])
+                satelite.gerar(b, geom, pv, tipos=[tipo], **({"ler": ler} if ler else {}))
             except LookupError as ex:
                 raise HTTPException(404, {"mensagem": f"Sem imagem de satélite boa para esta fazenda: {ex}."}) from ex
             meta = satelite.metadados(b)[tipo]

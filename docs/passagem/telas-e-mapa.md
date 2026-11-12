@@ -87,6 +87,42 @@ Sessão: https://claude.ai/code/session_01VGb88MJumyG9PHt2znaaKE. Branch: `claud
   pixels, teclado, 360 px e zero 404. O E2E com API e PostGIS preserva os testes da fase posterior de interesse/Pix
   por preparação isolada no servidor de teste, mantendo o botão de contato desabilitado na tela do produto.
 
+## Nova entrega 2: cobertura diária do mapa (12/11/2026)
+
+- O cron diário existente (10:41 UTC) continua lendo `estados.json` e os pacotes de todas as UFs do Release.
+  A geração não tem lista fixa de municípios. O teste incremental usa três rodadas com o mesmo cache: acrescenta
+  um município e uma UF; depois acrescenta o desenho que estava faltando, que deixa de aparecer como pendência.
+- `geo/indice.json` preserva `gerado_em` e recebe `dados_publicados_em` do manifesto do Release. O build aberto
+  calcula `cobertura` só dos arquivos anunciados e presentes, com códigos municipais, sem CAR ou caminhos privados.
+  Cache de município fora do manifesto não aumenta a contagem.
+- O painel do Brasil mostra municípios e estados com desenho na base; o painel estadual mostra sua própria
+  contagem. Municípios processados continuam como medida separada. Datas do mapa e do Release são distintas,
+  em horário de Brasília; ausência é escrita como “data não informada”.
+- A main passou a publicar só agregados no PR #52. A cobertura não reabre geometrias individuais: explica que
+  a ficha com acesso pago contém os desenhos. Município com desenho na origem recebe esse aviso; município
+  cujo desenho falta recebe o aviso de indisponibilidade. Não confundir restrição de acesso com falta de dado.
+- Validação local: 9 testes de geometria passaram, 133 testes do front passaram (13 pulados), lint e formato
+  Python passaram. O Playwright do build verifica cobertura, datas e ausência de vazamento de dados individuais.
+- Verificação adicional no navegador com dados reais do Release: a consulta do Pará mostrou 144 municípios,
+  345.870 fazendas lidas e 9.484.092 ha com potencial de restauração, sem 404 ou erro de JavaScript. Créditos e TIR
+  continuam pendentes da publicação dos lotes. O texto do estado ausente agora diferencia explicitamente a base
+  territorial disponível da oferta de créditos e da avaliação da terra que ainda aguardam o lote.
+
+- O Release migrou em 12/11 às 19:25 UTC para `imoveis_basicos_<código>.csv`. O leitor e o exportador aceitam
+  esse contrato; no escopo `publico_basico`, não usam tabelas técnicas antigas. O download remove CSVs retirados
+  do pacote somente após extração bem-sucedida, conservando a geometria da mesma versão. Regressões cobrem
+  migração de formato, município retirado e preservação de fazenda pequena. A falha de publicação após #67
+  preservou o site anterior; esta correção recompõe a rodada diária.
+- O CI encontrou um falso positivo em URL JDBC sem credenciais de outra branch. A exceção em `.gitleaksignore`
+  identifica exatamente commit, arquivo, regra e linha; mantém a varredura de todas as refs e as demais regras.
+
+- A integração com o Calendário da main também publica JSON de ausência explícita quando sua primeira coleta
+  ainda não existe. Isso elimina o 404 observado na navegação real, sem inventar eventos nem data de coleta;
+  falha de atualização preserva os bytes da última coleta disponível. Teste HTTP cobre JSON e ICS em `/Raiz/`.
+- Validação do novo contrato real: 365/365 municípios com desenho, 9 UFs, 74,2 MB de geometrias internas e
+  91 MB no site público agregado. Após incorporar Calendário: 174 testes de front e 12 testes de geometria
+  passaram; as regressões da ausência de agenda também passaram.
+
 ## Referências conferidas para a segunda entrega
 
 - llms.txt: https://llmstxt.org/ (proposta v2; permite subcaminho e `rel="describedby"`).
@@ -160,3 +196,56 @@ cd front/globo && npm test
 ```bash
 RAIZ_BUILD_DADOS=0 front/scripts/construir-site.sh
 ```
+
+## Continuação: ficha visual da terra (entrega 3)
+
+- A rota do CAR continua na `FichaTerra` paga do PR #52. Não reabrir a antiga ficha estática para fornecer o mapa.
+- `GET /prospeccao/fichas/{car}/visual` entrega um contrato fechado: `imovel`, `mascara`, `camadas` (GeoJSON),
+  fonte do perímetro e das camadas, data de corte, data da fonte quando disponível e avisos. Todas as geometrias
+  vêm do banco; as camadas são intersectadas com o CAR, preservando furos. Só `camada` sai nas propriedades.
+- `GET .../visual/satelite` reutiliza o gerador Sentinel-2 existente e devolve a caixa geográfica, fonte e data
+  da cena. Uma ausência conhecida devolve um estado explícito com HTTP 200. `GET .../visual/satelite.webp`
+  serve a imagem com sessão, crédito liberado, exclusividade e `private, no-store`. A URL do blob é revogada ao
+  sair da ficha; token nunca vai na URL ou em um arquivo do site.
+- `MapaFichaTerra` põe a imagem recente sob o perímetro duplo, máscara e hachura diagonal. A hachura só usa
+  `pode_voltar` medido, não a área restaurável da tabela. Sem camada medida, aparece aviso. Fonte e data das
+  camadas ficam consultáveis; a coleção/data ausente não recebe um ano presumido.
+- A linha do tempo reúne cobertura e perdas por ano, com texto e fonte/data além das cores; mantém as tabelas
+  completas e navegação por teclado. O mapa se reenquadra ao mudar a largura da tela, incluindo 360 px.
+- Validação focada: 32 testes Python com PostGIS, incluindo geometrias com furos, recorte e privacidade;
+  Chromium confere satélite de teste explicitamente sintético, camadas, controle de hachura, linha do tempo,
+  acesso antes/depois do crédito, troca de conta e 360 px. `test:prospeccao`, já no CI, guarda as capturas.
+- Teste externo validado com CAR e geometria do Release de Parauapebas: imagem Sentinel-2 de 132.586 bytes,
+  1024 × 938 px, composta pela mediana das cenas de 06/09/2026 a 23/10/2026. O mapa renderizou o recorte,
+  contorno e máscara em 1100 e 360 px. Sem camadas medidas nesse imóvel, exibiu o aviso, sem inventar hachura.
+  A legenda preserva o período inteiro e identifica a composição mediana, em vez de tratá-la como uma foto
+  de data única. Os testes determinísticos do CI continuam identificados como imagem sintética.
+- Em ambiente cujo GDAL não reconheça a CA do proxy, configurar `RAIZ_SATELITE_LEITOR_HTTP=blocos` na API.
+  Só as novas rotas visuais usam então o leitor Range já existente em `raiz.coleta.blocos`, com requests,
+  a CA/proxy herdados e cache de 1 GB em `dados/imagens/.cog`. O gerador e as outras rotas permanecem iguais.
+  A validação real usou esse leitor sem desativar TLS e baixou 95 MB de blocos, sem baixar cenas inteiras.
+- A suíte completa local foi interrompida após 321 testes aprovados para evitar competição com a suíte
+  de integração do chat principal; os testes focados passaram. Rodar a suíte completa no checkout integrado.
+- A imagem real depende da disponibilidade de cena no Sentinel-2 e dos polígonos/camadas carregados na API.
+  A publicação estática mantém apenas agregados. Não transformar o teste de imagem sintética em evidência
+  de disponibilidade orbital para todas as fazendas. O contato com o dono continua na fase final.
+
+### Validação da ficha após integrar as entregas 1 e 2
+
+- Integrada a cobertura do mapa (`fb8c796`), incluindo a cena-alvo e os seis jobs de qualidade do CI.
+  O único conflito estava no plano; todas as entregas e as seções de qualidade e continuidade foram preservadas.
+- A API do pedido continua retornando apenas contornos já desbloqueados pela própria conta, sem nova cobrança.
+  Sugestões antigas perdem a geometria antes de conferir novamente a autorização e a exclusividade.
+- Checagens no ambiente próprio da ficha: Ruff e formatação, TypeScript, 166 testes de front, 53 testes de
+  API/ficha/satélite com PostGIS e dois testes de autorização dos contornos do lote aprovados, sem skips.
+  Chromium conferiu o mapa, hachura, linha do tempo, crédito, troca de conta e 360 px. A suíte Python completa
+  permanece a cargo da integração do chat principal; não foi repetida nesta rodada.
+
+### Integração da ficha com o cadastro básico e o Calendário
+
+- A entrega 3 incorpora a descoberta de `imoveis_basicos_<IBGE>.csv` no Release e a main com o Calendário
+  (`a4c1066`). A ficha mantém o mapa privado, a linha do tempo e o selo de leilão da agenda; imagem e vínculo
+  do calendário só são consultados depois do desbloqueio da ficha.
+- Ruff e formatação passaram em 361 arquivos. TypeScript, 177 testes do front e 91 testes Python focados
+  em visual/satélite/ficha/API/acesso passaram, sem skips. Playwright conferiu a ficha com o calendário
+  e a agenda em 1440, 768 e 360 px, incluindo o aviso de coleta ausente.

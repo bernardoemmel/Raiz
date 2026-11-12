@@ -287,6 +287,20 @@ com portão de 950 MB. Polígonos permanecem por município enquanto couberem; n
 A entrega da ficha mantém as bases e limites do mapa nacional, mas restringe os detalhes por CAR à API paga;
 a publicação pública usa agregados municipais e situação básica por CAR, sem camadas exclusivas.
 
+Cobertura diária do mapa (12/11/2026): **feito no código**. A rodada diária descobre municípios e UFs do Release,
+incluindo os novos sem lista fixa. O painel do Brasil e de cada estado informa quantos municípios têm desenho
+na base e quantos ainda aguardam; separa esses totais dos municípios processados. A data de geração do mapa e
+a data dos dados publicados no Release aparecem separadas, sem substituir data ausente pela data de hoje.
+O manifesto aberto expõe só cobertura por município, mantendo os desenhos individuais no acesso pago.
+Teste incremental cobre município novo, UF nova e chegada posterior do desenho; Playwright confere contagem,
+datas e avisos de acesso restrito ou desenho ausente. A migração do Release para cadastro básico é reconhecida
+pelo leitor e pela geração de geometria; CSVs retirados não sobrevivem no cache da rodada seguinte.
+A agenda ainda sem coleta é publicada como indisponível, evitando 404 na navegação do mapa.
+
+A verificação no navegador com o Release real conferiu a consulta do Pará: 144 municípios, 345.870 fazendas e
+9.484.092 ha com potencial de restauração, zero 404 e zero erro de JavaScript. Oferta de créditos e TIR continuam
+pendentes; o texto da ausência não apresenta o cenário como já publicado.
+
 Conferido contra a main em 12/11/2026: "feito" quer dizer que o código está na main; "parcial" diz o que existe e o
 que falta, com as horas do que falta. O site público (https://bernardoemmel.github.io/Raiz/) mostra o que o front já
 faz sem back-end.
@@ -323,6 +337,17 @@ faz sem back-end.
 | 1 | (busca) Busca nacional pela API pelo código do CAR (inteiro ou começo, com ou sem pontos e traços) e pelo nome do município, no contrato de front/compartilhado/dados/busca.ts; índice por código normalizado; 6,7 milhões de imóveis sintéticos: pior resposta 0,49 s | carga contínua | feito |
 | 1 | (busca pública) Busca no navegador por nome e código IBGE do município, sem depender de `/busca` no Pages; CAR leva à ficha paga | mapa nacional | feito |
 | 1 | (busca) Carga contínua das saídas do motor por estado (`raiz vigiar`), só o município que mudou, com a versão anterior guardada | carga do motor | feito |
+
+## Telas e mapa: ficha visual da terra
+
+Entrega 3 da continuação de 12/11/2026, sobre a ficha paga do PR #52.
+
+| Entrega | Situação |
+|---|---|
+| Mapa do imóvel com Sentinel-2, máscara e restauração hachurada | **feito**: a ficha autorizada carrega perímetro e camadas medidas pela API de prospecção. A máscara respeita furos do CAR e a hachura é recortada ao imóvel. A cena Sentinel-2 usa o gerador existente; composição mediana preserva o período inteiro e o método. Ausência de cena ou camada fica explícita, sem inventar desenho a partir de hectares. Recorte real de Parauapebas validado em 360 px; integração com o cadastro básico do Release e o selo do Calendário validada com 91 testes Python focados, 177 testes de front e Playwright. |
+| Linha do tempo de uso e perdas | **feito**: anos disponíveis, medidas e fontes da ficha paga, além das tabelas completas. Ausência e zero são diferentes; a data de corte não substitui a data da fonte. |
+| Acesso à imagem e ao desenho | **feito**: sessão individual e desbloqueio pago conferidos em todas as rotas, incluindo exclusividade. A imagem é buscada com Bearer, sem token na URL, com `private, no-store`; nenhuma lista ou imagem individual vai ao Pages. |
+| Calibração E9 com cartas reais | **pendente**: ainda não existe o conjunto de 30 cartas anonimizadas com avaliação de compreensão. Esta entrega não inicia contato com proprietários. |
 
 ## Qualidade e segurança (12/11/2026)
 

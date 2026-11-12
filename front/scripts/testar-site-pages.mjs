@@ -128,6 +128,10 @@ try {
   conferirPublicacao()
   console.log("Abrindo o build estático básico no Chromium...")
   await pagina.goto(base)
+  await pagina.getByRole("heading", { name: "Cobertura do mapa", exact: true }).waitFor()
+  await pagina.getByText("1 município em 1 estado", { exact: true }).waitFor()
+  await pagina.locator('time[datetime="2026-11-12T10:41:00Z"]').waitFor()
+  await pagina.locator('time[datetime="2026-11-11T18:00:00Z"]').waitFor()
   await mapaPronto()
   await pagina.waitForFunction(() => {
     const m = document.querySelector(".mapa-brasil .mapa").__mapa
@@ -224,6 +228,7 @@ try {
   await pagina.getByText("A ficha exige créditos pagos e conexão com a Raíz.", { exact: false }).waitFor()
   assert.equal(await pagina.getByRole("button", { name: "Pedir contato", exact: true }).count(), 0,
     "O site aberto não concede acesso à ficha ou ao pedido de contato.")
+  assert.equal(await pagina.locator(".visual-terra").count(), 0, "O perímetro com camadas e o satélite pagos não são servidos pelo Pages.")
   await pagina.waitForLoadState("networkidle")
   assert.equal(await pagina.getByRole("link", { name: "Em leilão: conferir edital e prazo", exact: true }).count(), 0,
     "A ficha bloqueada não expõe os vínculos individuais do calendário.")
@@ -236,7 +241,7 @@ try {
   assert.equal(respostaFeed.status(), 200)
   assert((await respostaFeed.text()).startsWith("BEGIN:VCALENDAR"))
   assert(!pedidos.some((u) => new URL(u).pathname.endsWith("/busca")), "A busca estática não pode pedir /busca.")
-  assert(!pedidos.some((u) => /\/(?:imoveis_\d{7}\.csv|fichas\/|certidoes_|desenvolvedor_)/.test(new URL(u).pathname)),
+  assert(!pedidos.some((u) => /\/(?:imoveis_\d{7}\.csv|fichas\/|certidoes_|desenvolvedor_|visual(?:\/|$))/.test(new URL(u).pathname)),
     "A navegação aberta não pode requisitar camadas ou fichas pagas.")
   assert.deepEqual(ausentes, [], "Nenhum arquivo pode responder 404.")
   assert.deepEqual(erros, [], "Nenhum erro de rede, JavaScript ou renderização.")

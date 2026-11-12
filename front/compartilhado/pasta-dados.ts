@@ -57,7 +57,7 @@ interface Manifesto {
 }
 
 /** Muda quando a montagem dos pontos mudar: o cache antigo deixa de valer sozinho. */
-const VERSAO_PONTOS = 2
+const VERSAO_PONTOS = 3
 /** municípios com imóveis guardados na memória ao mesmo tempo (os mais recentes) */
 const MUNICIPIOS_NA_MEMORIA = 12
 
@@ -186,17 +186,20 @@ export function abrirPasta(opcoes: OpcoesPasta) {
       .sort()
   }
 
+  const publicoBasico = (uf: string) => lerManifesto()?.estados?.[uf]?.escopo === "publico_basico"
+  const arquivoBasico = (nome: string) => /^(imoveis_basicos_\d{7}|resumo_[A-Z]{2})\.csv$/.test(nome)
+
   /** os CSV de um estado (na amostra, os da pasta única que são daquele estado) */
   function arquivos(uf: string): string[] {
     if (!ehUf(uf)) return []
-    return listar(pastaDoEstado(uf)).filter((f) => ufDoArquivo(f) === uf)
+    return listar(pastaDoEstado(uf)).filter((f) => ufDoArquivo(f) === uf && (!publicoBasico(uf) || arquivoBasico(f)))
   }
 
   /** caminho de um CSV pelo nome (o estado sai do próprio nome), ou null */
   function caminho(nome: string): string | null {
     if (!nomeSeguro(nome)) return null
     const uf = ufDoArquivo(nome)
-    if (!uf) return null
+    if (!uf || (publicoBasico(uf) && !arquivoBasico(nome))) return null
     const arq = path.join(pastaDoEstado(uf), nome)
     return fs.existsSync(arq) ? arq : null
   }
@@ -231,9 +234,16 @@ export function abrirPasta(opcoes: OpcoesPasta) {
     (lerArquivo(`resumo_${uf}.csv`) ?? []).filter((l) => l.cod_ibge).map((l) => lerFunil(l, uf))
 
   function comImoveis(uf: string): string[] {
-    return arquivos(uf)
-      .map((f) => /^imoveis_(\d{7})\.csv$/.exec(f)?.[1])
-      .filter((c): c is string => !!c)
+    return [...new Set(arquivos(uf)
+      .map((f) => /^imoveis_(?:basicos_)?(\d{7})\.csv$/.exec(f)?.[1])
+      .filter((c): c is string => !!c))].sort()
+  }
+
+  /** A publicação básica prevalece sobre uma cópia antiga com dados detalhados. */
+  function nomeImoveis(cod: string): string | null {
+    const basico = `imoveis_basicos_${cod}.csv`
+    const completo = `imoveis_${cod}.csv`
+    return caminho(basico) ? basico : caminho(completo) ? completo : null
   }
 
   const municipios = (): FunilMunicipio[] => ufs().flatMap(resumo)
@@ -319,11 +329,15 @@ export function abrirPasta(opcoes: OpcoesPasta) {
   /** imóveis de um município, com os arquivos que o completam; os mais recentes ficam na memória */
   const memoria = new Map<string, { mtime: number; imoveis: Imovel[]; base: BaseMunicipio; geo: Map<string, Feicao> }>()
   function quantidadeImoveis(cod: string): number {
-    return (lerArquivo(`imoveis_${cod}.csv`, false, ["cod_imovel"]) ?? []).filter((l) => l.cod_imovel).length
+    const nome = nomeImoveis(cod)
+    return nome ? (lerArquivo(nome, false, ["cod_imovel"]) ?? []).filter((l) => l.cod_imovel).length : 0
   }
 
   function municipio(cod: string) {
-    const arq = caminho(`imoveis_${cod}.csv`)
+    const nome = nomeImoveis(cod)
+    // O pacote básico não permite reconstruir hectares, matrícula, créditos ou uma ficha individual.
+    if (!nome || nome.startsWith("imoveis_basicos_")) return null
+    const arq = caminho(nome)
     if (!arq) return null
     const mtime = fs.statSync(arq).mtimeMs
     const ja = memoria.get(cod)
@@ -474,9 +488,11 @@ export function abrirPasta(opcoes: OpcoesPasta) {
 
   /** o que entra na conta dos pontos de um estado: se qualquer um mudar (nome, tamanho ou data), refaz */
   function fontesDosPontos(uf: string): string[] {
-    const lista = [path.join(pastaDoEstado(uf), `resumo_${uf}.csv`), path.join(geo, "brasil_municipios.geojson")]
-    for (const cod of comImoveis(uf))
-      lista.push(path.join(pastaDoEstado(uf), `imoveis_${cod}.csv`), arquivoGeo(cod))
+    const lista = [path.join(dir, "estados.json"), path.join(pastaDoEstado(uf), `resumo_${uf}.csv`), path.join(geo, "brasil_municipios.geojson")]
+    for (const cod of comImoveis(uf)) {
+      const nome = nomeImoveis(cod)
+      if (nome) lista.push(path.join(pastaDoEstado(uf), nome), arquivoGeo(cod))
+    }
     return lista
   }
 
@@ -509,7 +525,17 @@ export function abrirPasta(opcoes: OpcoesPasta) {
       else semLugar += n
     }
     const lista = comImoveis(uf)
+    const completos = new Set<string>()
     for (const cod of lista) {
+      const nome = nomeImoveis(cod)!
+      if (nome.startsWith("imoveis_basicos_")) {
+        // Guarda somente o índice interno; as métricas vêm do resumo, sem inferir valores ausentes.
+        for (const l of lerArquivo(nome, false, ["cod_imovel"]) ?? [])
+          if (l.cod_imovel && l.cod_imovel.slice(3, 10) !== cod) fora[l.cod_imovel] = cod
+        await respirar()
+        continue
+      }
+      completos.add(cod)
       // só imoveis_<cod>.csv: apta e matrícula saem das colunas dele, como no resumo do motor
       const feicoes = new Map<string, [number, number]>()
       for (const f of lerGeo(cod)?.features ?? []) {
@@ -536,10 +562,9 @@ export function abrirPasta(opcoes: OpcoesPasta) {
       somar(cod, "apta", soma.apta[0], soma.apta[1])
       somar(cod, "pendencia", soma.pendencia[0], soma.pendencia[1])
     }
-    // município só com o funil (sem lista por fazenda): as aptas dele no meio do município
-    const comLista = new Set(lista)
+    // Sem tabela detalhada, inclusive no Release básico: preserva os agregados publicados do município.
     for (const m of resumo(uf)) {
-      if (comLista.has(m.cod_ibge)) continue
+      if (completos.has(m.cod_ibge)) continue
       somar(m.cod_ibge, "apta", m.aptas_com_matricula, m.ha_carbono_matricula)
       somar(m.cod_ibge, "pendencia", m.aptas_carbono - m.aptas_com_matricula, m.ha_carbono - m.ha_carbono_matricula)
     }
