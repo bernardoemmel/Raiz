@@ -197,4 +197,12 @@ O PR #52 entrou na main imediatamente antes do merge. O conflito em `raiz/api.py
 as novas rotas da ficha paga e o middleware de segurança/CORS. A publicação agregada dessa entrega resolve
 parte do achado #40, atualizado acima. Os testes de Pages, prospecção, Lighthouse e cena-alvo da API passaram
 novamente; a leitura repetida dos CSV da fixture de pedidos foi reaproveitada para evitar timeout sem ampliar
-o limite nem retirar testes. O CI completo foi repetido no novo commit antes do merge.
+o limite nem retirar testes. O CI completo é exigido novamente no commit atualizado antes do merge.
+
+
+### Integração dos PRs #48 e #49
+
+As entregas de aviso à Verra e lote/números também foram integradas antes de concluir o PR. O conflito do plano
+foi resolvido mantendo ambas as passagens. O novo workflow `lote-para.yml` prepara a rodada real do Pará;
+o teste estadual ainda tem a pré-condição dos arquivos desenvolvedor e permanece como pendência até a rodada
+produzir um conjunto utilizável. Não foram disparados envios à Verra nem processamento de produção nesta auditoria.
