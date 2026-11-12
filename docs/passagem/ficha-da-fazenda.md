@@ -1,7 +1,8 @@
 # Passagem do chat "Ficha da fazenda"
 
-Atualização de 12/11/2026, branch `codex/dados-privados-e-prospeccao`.
-PR desta entrega: https://github.com/bernardoemmel/Raiz/pull/72.
+Atualização de 12/11/2026. Entrega integrada na main pelo
+[PR #72](https://github.com/bernardoemmel/Raiz/pull/72), commit `88860b6`.
+Correção de retomada do download público: branch `codex/repetir-download-publico`.
 Entrega anterior integrada: [PR #52](https://github.com/bernardoemmel/Raiz/pull/52).
 
 ## Publicação aberta e arquivo privado
@@ -34,11 +35,13 @@ antigos foram descartados. Caches de dependências e evidências de testes ficar
 A leitura autenticada real confirmou o manifesto completo com 12 UFs. Prova
 privada `corte-f53e946687c4f244-concluido-d25320df8bcce9a9.json`.
 
-Durante o corte, os workflows antigos de motor, lote do Pará, publicação de dados
-e vigilância foram pausados: uma execução com checkout antigo poderia republicar
-conteúdo completo. Retomar somente depois do CI e da integração do publicador
-protegido, usando os checkpoints preservados. CI e testes não foram interrompidos. O workflow do site também foi pausado
-para manter o inventário de artifacts estável; o site já publicado permaneceu no ar.
+Durante o corte, motor, lote do Pará, publicação de dados, vigilância e site
+foram pausados para impedir republicação por checkouts antigos. Os cinco workflows
+foram **reativados após o merge com CI verde**. A fila recebeu o commit protegido
+`88860b6`; as reservas ativas foram preservadas. A rodada 43305564503 retomou
+BA-1 a BA-4, CE-1/2, PI-1/2 e RN-1. RN-2 também foi desbloqueada na fila, pois sua
+execução havia sido cancelada durante o mesmo corte. O planejador confirmou o
+arquivo privado antes de iniciar o preparo dos insumos.
 
 ## Preços e operação
 
@@ -155,27 +158,34 @@ A cobertura nacional significa capacidade de buscar todos os estados processados
 não processamento completo do país. Estimativas não garantem emissão ou retorno.
 Os dados brutos de fontes públicas permanecem públicos nas respectivas origens.
 A implantação do servidor e a venda real dependem do roteiro operacional e dos
-preços aprovados pelo fundador. Verificação local antes da última atualização da main: 1.053 testes Python
-passaram, dois pulados e um xfail existente; mais 47 testes focados passaram após
-proteger logs de URLs assinadas. Front: 161 testes, build, Pages, prospecção,
-Lighthouse e cena-alvo com API/PostGIS reais passaram. Privacidade e 640 licenças
-conferidas; Ruff, formatação e actionlint aprovados. O PR #72 concentra o resultado
-do CI da revisão final; a integração exige todos os jobs verdes. As provas da
-migração remota concluída estão acima e em `dados-publicados.md`.
+preços aprovados pelo fundador.
 
-A atualização da main também trouxe os retratos automáticos do aprendizado. Eles
-seguem a mesma fronteira privada, inclusive os pacotes imutáveis e os recibos:
-nenhum Release diário público de histórico por CAR pode ser criado. O alerta do
-Gitleaks para uma URL JDBC histórica sem credenciais tem exceção restrita ao
-fingerprint já revisado e integrado pela main, conforme `operacao.md`. O CI dessa revisão executou 1.174 testes com sucesso;
-uma asserção antiga contava dois passos finais protegidos, mas agora existem
-três. O teste foi corrigido para conferir a proteção de cada operação, e os
-13 testes de transferência passaram. A suíte completa deve ser reconferida na
-revisão final integrada.
+Validação final do PR #72 no [CI 43303447583](https://github.com/bernardoemmel/Raiz/actions/runs/43303447583):
+os seis jobs passaram, com **1.626 testes Python aprovados**, uma ausência conhecida
+do conjunto real completo do Pará e um xfail já documentado da TIR. A integração
+MCP foi verificada com o SDK oficial; o E2E cobriu conta paga, pedido no Pará e
+aprovação humana com Pix simulado. Foram conferidos 655 pacotes sem licença
+proibida, Ruff, privacidade e Gitleaks.
 
-Após a integração, reativar os cinco workflows pausados, atualizar as refs da fila
-com `scripts/atualizar_fila_privada.py` e retomar as unidades interrompidas com o
-commit protegido: BA-1 a BA-4, CE-1/2, PI-1/2 e RN-1, sem duplicar reservas ativas.
+Front: 213 testes e dez de configuração de publicação passaram, junto de Pages,
+prospecção, calendário, cena-alvo, aprovação humana, axe e Lighthouse. Nas cinco
+telas móveis, desempenho ficou entre 98 e 100 e acessibilidade em 100. O build
+com os dados públicos reais passou: 365 municípios com desenho, 712.601 registros
+básicos, nenhum CSV com coluna paga, nenhuma ficha completa estática; 1.596 arquivos,
+cerca de 175 MB. Nenhum domínio real foi configurado.
+
+Os retratos automáticos do aprendizado também ficam privados, inclusive pacotes
+imutáveis e recibos. Os passos finais do motor conferem a proteção do checkout
+antes de publicar, guardar cache ou continuar a fila.
+
+As duas tentativas iniciais de republicação do site (43305357204) pararam na
+mesma falha de rede ao baixar Rondônia, após processar o pacote maior do Pará.
+O mesmo build real já havia passado localmente. A correção faz até três tentativas para falhas de transporte e HTTP
+transitório. Pacote inválido, JSON malformado, 404 e colunas fora do contrato
+continuam sendo erros; não há alternativa com arquivos legados ou privados.
+A correção passou em 226 testes do front, incluindo 19 cenários locais de download
+(conexão/corpo interrompidos, HTTP transitório, limite, 404 e conteúdo inválido).
+
 O lote do Pará tem retomada específica na main (`retomar-lote-para.yml`, PR #55):
 a execução 43299409156 já foi iniciada, reutilizando dez fatias preservadas e
 calculando só as cinco interrompidas, no privado e com motor/lockfile originais.

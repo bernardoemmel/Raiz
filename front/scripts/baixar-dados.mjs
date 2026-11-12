@@ -96,11 +96,31 @@ function arquivoPermitido(nome, uf, geo) {
   return geo ? new RegExp(`^${uf}/geo_\\d{7}\\.parquet$`).test(nome)
     : new RegExp(`^${uf}/(resumo_${uf}|sem_imoveis_${uf}|imoveis_basicos_\\d{7})\\.csv$`).test(nome)
 }
+/** Repete somente a transferência GET; JSON, tar e o contrato são validados uma única vez depois. */
+async function baixarBytes(url, rotulo) {
+  const endereco = new URL(url)
+  if (!["http:", "https:"].includes(endereco.protocol)) throw new Error(`${rotulo}: endereço de download inválido`)
+  for (let tentativa = 1; tentativa <= 3; tentativa++) {
+    let resposta, falha
+    try {
+      resposta = await fetch(endereco, { redirect: "follow" })
+      if (resposta.ok) return Buffer.from(await resposta.arrayBuffer())
+    } catch (erro) { falha = erro }
+    if (resposta && !resposta.ok) {
+      // Libera a conexão antes de tentar outra vez; o corpo de erro não é um pacote.
+      await resposta.body?.cancel().catch(() => {})
+      falha = new Error(`${rotulo}: HTTP ${resposta.status}`)
+      if (![408, 429].includes(resposta.status) && !(resposta.status >= 500 && resposta.status <= 599)) throw falha
+    }
+    if (tentativa === 3) throw falha
+    console.warn(`[dados] ${rotulo}: transferência interrompida; nova tentativa ${tentativa + 1}/3.`)
+    await new Promise((resolver) => setTimeout(resolver, tentativa * 1000))
+  }
+}
 async function baixarEExtrair(url, uf, destino, geo = false, permiteVazio = false) {
-  const r = await fetch(urlPacote(url, uf, geo), { redirect: "follow" })
-  if (!r.ok) throw new Error(`pacote ${uf}: HTTP ${r.status}`)
+  const bytes = await baixarBytes(urlPacote(url, uf, geo), `pacote ${uf}`)
   const tmp = path.join(destino, `pacote${geo ? "-geo" : ""}.tar.gz`)
-  fs.writeFileSync(tmp, Buffer.from(await r.arrayBuffer()))
+  fs.writeFileSync(tmp, bytes)
   try {
     const nomes = execFileSync("tar", ["-tzf", tmp], { encoding: "utf8", maxBuffer: 16 * 1024 * 1024 }).trim().split("\n").filter(Boolean)
     const detalhes = execFileSync("tar", ["-tvzf", tmp], { encoding: "utf8", maxBuffer: 16 * 1024 * 1024 }).trim().split("\n").filter(Boolean)
@@ -125,9 +145,8 @@ async function main() {
   if (process.env.RAIZ_SEM_DOWNLOAD === "1") return
   let remoto
   try {
-    const r = await fetch(`${URL_BASE}/estados.json`, { redirect: "follow" })
-    if (!r.ok) throw new Error(`HTTP ${r.status}`)
-    remoto = validarManifesto(await r.json())
+    const bytes = await baixarBytes(`${URL_BASE}/estados.json`, "manifesto público")
+    remoto = validarManifesto(JSON.parse(new TextDecoder().decode(bytes)))
   } catch (e) {
     if (exigir) throw e
     console.warn(`[dados] não consegui ler o estados.json público (${e.message}); nenhum pacote legado será baixado.`)

@@ -291,6 +291,11 @@ Continuação de Ficha da fazenda (12/11/2026; validação e operação na passa
 | Comparar até cinco fichas pagas, salvar busca/avisos internos e PDF com fontes/datas | **feito** no código; buscas salvas na migração 0031 após 0030 da plataforma de agentes; agendar verificação no servidor ao implantar |
 | `consultar_ficha` compartilhado pela API e MCP oficial, alinhado à passagem Produto e regras | **feito**; ferramenta registrada no servidor corporativo, com OAuth, gates e releitura de CAR já pago, sem tarifa nova |
 
+Operação da entrega: PR #72 integrado com seis jobs verdes (1.626 testes Python).
+Os cinco publicadores pausados foram reativados e a fila aponta para o commit
+protegido. O site real passou no build básico de 175 MB; sua republicação ganhou
+tentativas limitadas para falhas transitórias de rede, sem relaxar o contrato.
+
 Site legível por agentes (12/11/2026): **feito** — `llms.txt`, `robots.txt`, páginas Markdown do Brasil, estados,
 municípios, produtor, serviço, fontes e privacidade; alternates no HTML; JSON-LD `Dataset`, `Service` e `Offer`
 sem transformar premissa em preço comercial. API aceita `text/markdown` nas leituras, preservando Bearer e
