@@ -17,6 +17,7 @@ motor: apta = sem problema, área de carbono > 0 e até 5 ha desmatados depois d
 
 from __future__ import annotations
 
+import bisect
 import datetime as dt
 import json
 import logging
@@ -31,6 +32,7 @@ from sqlalchemy import Engine, text
 
 from raiz import contrato
 from raiz import flag as flag_mod
+from raiz import localizacao as localizacao_mod
 from raiz import motivos as motivos_mod
 from raiz import restauracao as restauracao_mod
 from raiz import terra as terra_mod
@@ -319,19 +321,36 @@ def linhas_para_contexto(engine: Engine, cod_ibge: int) -> list[dict]:
     return [_linha_banco(r, faltando.get(r["rodada_id"], set())) for r in rs]
 
 
+def contexto_municipio(todos: list[dict]) -> dict:
+    """O que a ficha compara com o município, calculado uma vez para todas as fazendas dele (o lote anual de fichas
+    usa isto; a rota de uma ficha só calcula na hora)."""
+    lidos = [ler_imovel(i) for i in todos]
+    return {
+        "n": len(todos),
+        "carbonos": sorted(x["carbono_ha"] if x["apta"] else 0 for x in lidos),
+        "mediana_carbono_ha_aptas": mediana([x["carbono_ha"] for x in lidos if x["apta"]]),
+        "mediana_ha": mediana([x["ha"] for x in lidos]),
+    }
+
+
 def montar_ficha(
-    alvo: dict, todos: list[dict], geometria: dict | None, versao_dado: dict | None = None, banco: dict | None = None
+    alvo: dict,
+    todos: list[dict],
+    geometria: dict | None,
+    versao_dado: dict | None = None,
+    banco: dict | None = None,
+    contexto: dict | None = None,
 ) -> dict:
     """FichaJson: a linha, o contexto do município e o perímetro em polyline (front/compartilhado/dados/ficha.ts).
-    A mais, para qualquer cliente: situacao (apta ou não, e por quê), motivos item por item e versao_dado (rodada)."""
-    lidos = [ler_imovel(i) for i in todos]
+    A mais, para qualquer cliente: situacao (apta ou não, e por quê), motivos item por item e versao_dado (rodada).
+    `contexto` (de contexto_municipio) evita refazer a conta do município a cada fazenda."""
+    ctx = contexto or contexto_municipio(todos)
     eu = ler_imovel(alvo)
     meu = eu["carbono_ha"] if eu["apta"] else 0
-    carbonos = [x["carbono_ha"] if x["apta"] else 0 for x in lidos]
     aneis = _aneis_externos(geometria)
     xs = [p[0] for a in aneis for p in a]
     ys = [p[1] for a in aneis for p in a]
-    n = len(todos)
+    n = ctx["n"]
     return {
         "versao": 1,
         "imovel": alvo,
@@ -340,12 +359,16 @@ def montar_ficha(
             "municipio": alvo.get("municipio") or "",
             "uf": alvo.get("uf") or "",
             "n_imoveis": n,
-            "posicao_carbono": sum(c < meu for c in carbonos) / n if n else 0,
-            "mediana_carbono_ha_aptas": mediana([x["carbono_ha"] for x in lidos if x["apta"]]),
-            "mediana_ha": mediana([x["ha"] for x in lidos]),
+            "posicao_carbono": bisect.bisect_left(ctx["carbonos"], meu) / n if n else 0,
+            "mediana_carbono_ha_aptas": ctx["mediana_carbono_ha_aptas"],
+            "mediana_ha": ctx["mediana_ha"],
         },
         "perimetro": [polyline(a) for a in aneis] if aneis else None,
         "caixa": [min(xs), min(ys), max(xs), max(ys)] if xs else None,
+        # Plus Code e link do Organic Maps de um ponto dentro do imóvel (achar a fazenda sem internet boa)
+        "localizacao": localizacao_mod.localizacao(
+            geometria, f"Raíz {banco['codigo_curto']}" if banco and banco.get("codigo_curto") else ""
+        ),
         "situacao": motivos_mod.situacao(alvo),
         "motivos": motivos_mod.motivos(alvo),
         # meta FLAG (GHG LSR v1.1) separada de crédito/compensação, com requisitos e versão da regra
@@ -359,6 +382,17 @@ def montar_ficha(
     }
 
 
+def capa_da_ficha(cod_imovel: str) -> dict | None:
+    """A foto de capa (satélite com o contorno) se já existe em cache; a ficha nunca espera o satélite."""
+    from raiz import satelite
+
+    try:
+        return satelite.capa(normalizar_codigo(cod_imovel))
+    except (OSError, ValueError):  # metadados quebrados não derrubam a ficha
+        log.warning("capa da ficha ilegível", exc_info=True)
+        return None
+
+
 def _do_design_v1(alvo: dict, banco: dict) -> dict:
     """Campos do design v1 do front que dependem do banco ou viram lista (docs/design/dados-para-o-front-v1.md)."""
     selo, etapa = selo_e_etapa(alvo, banco)
@@ -369,6 +403,8 @@ def _do_design_v1(alvo: dict, banco: dict) -> dict:
         "etapa_funil": etapa,
         "criterios_aptidao": motivos_mod.criterios(alvo, banco.get("data_corte")),
         "serie_uso": banco.get("serie_uso"),
+        # foto de satélite com o contorno, quando já foi gerada (caminho na API e ThumbHash para o borrão)
+        "capa": banco.get("capa"),
     }
 
 
@@ -790,7 +826,7 @@ def roteador(engine_de) -> APIRouter:
                         where cod_imovel = :c and geom is not null"""),
                 {"c": cod, "t": SIMPLIFICAR_GRAUS},
             ).scalar()
-        banco = do_banco(eng, cod)
+        banco = {**do_banco(eng, cod), "capa": capa_da_ficha(cod)}
         return _json(montar_ficha(alvo[0], todos, json.loads(g) if g else None, versao(eng, cod), banco))
 
     @r.get("/imoveis/{cod_imovel}/flag/simular")

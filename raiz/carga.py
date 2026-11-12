@@ -107,6 +107,11 @@ def _rodada_existente(con: Connection, h: str):
 
 
 def _nova_rodada(con, tipo, uf, cod, origem, hashes, h, data_corte, motor_confirmado) -> int:
+    rv = regras_versao()
+    if not rv.startswith("regras-no-motor"):
+        from raiz.regras import publicar
+
+        publicar(con)  # a versão gravada na rodada e nas previsões existe em regras.versao (com vigência e adoção)
     return con.execute(
         text("""insert into funil.rodada (tipo, uf, cod_municipio, origem, arquivos, hash_entradas, motor_versao,
                 motor_versao_confirmada, motor_commit, regras_versao, data_corte)
@@ -121,7 +126,7 @@ def _nova_rodada(con, tipo, uf, cod, origem, hashes, h, data_corte, motor_confir
             mv=motor_versao(),
             mc=motor_confirmado,
             commit=motor_commit(),
-            rv=regras_versao(),
+            rv=rv,
             dc=data_corte,
         ),
     ).scalar_one()
