@@ -39,6 +39,9 @@ class Valor:
     adotado_em: dt.date | None
     pendente: str | None
     observacao: str | None
+    nivel: str = "federal"  # federal | estadual (camada estadual, E2 passo 5)
+    area: dict | None = None  # área de validade: {"uf": "PI"} ou {"uf": "PA", "zona": "..."}
+    norma: str | None = None
 
 
 def _no_intervalo(x: float, txt: str) -> bool:
@@ -67,8 +70,10 @@ class Parametros:
             doc = yaml.safe_load(arq.read_text(encoding="utf-8"))
             versoes.add(doc["versao"])
             urn_base = (doc.get("lei_base") or {}).get("urn", "")
+            nivel = doc.get("nivel", "federal")
             for nome, p in doc["parametros"].items():
-                self.nomes[nome] = {k: v for k, v in p.items() if k != "valores"}
+                if nivel == "federal" or nome not in self.nomes:
+                    self.nomes[nome] = {k: v for k, v in p.items() if k != "valores"}
                 for v in p["valores"]:
                     frag = v.get("urn_frag")
                     self.valores.append(
@@ -83,13 +88,16 @@ class Parametros:
                             _data(v.get("adotado_em")),
                             v.get("pendente"),
                             v.get("observacao"),
+                            nivel,
+                            v.get("area") or ({"uf": doc["uf"]} if nivel != "federal" else None),
+                            v.get("norma") or (doc.get("norma") or {}).get("nome"),
                         )
                     )
         if len(versoes) != 1:
             raise ValueError(f"arquivos de parâmetros com versões diferentes: {sorted(versoes)}")
         self.versao = f"{versoes.pop()}+{h.hexdigest()[:8]}"
 
-    def candidatos(self, nome: str, data: dt.date | str | None = None) -> list[Valor]:
+    def candidatos(self, nome: str, data: dt.date | str | None = None, nivel: str = "federal") -> list[Valor]:
         if nome not in self.nomes:
             raise ParametroAusente(nome)
         d = _data(data) or dt.date.today()
@@ -97,6 +105,7 @@ class Parametros:
             v
             for v in self.valores
             if v.parametro == nome
+            and v.nivel == nivel
             and not v.pendente
             and v.vigencia_inicio is not None
             and v.vigencia_inicio <= d
@@ -196,8 +205,32 @@ class Parametros:
         v = self._faixa("app_teto_61b", "mf_ate", m_fiscal, data)
         return None if v is None else v.valor / 100
 
+    def estadual(self, nome: str, uf: str, data=None, zona: str | None = None, **rotulos) -> Valor | None:
+        """Regra estadual que vale para a UF (e para a zona, se a regra tiver uma) na data, ou None. Regra pendente
+        nunca vale. Duas regras estaduais para o mesmo caso é erro de tabela."""
+        if nome not in self.nomes:
+            return None
+        bate = [
+            v
+            for v in self.candidatos(nome, data, nivel="estadual")
+            if (v.area or {}).get("uf") == uf.upper()
+            and (v.area or {}).get("zona") in (None, zona)
+            and all(rotulos.get(k) == x for k, x in v.rotulos.items())
+        ]
+        if len(bate) > 1:
+            raise ParametroAusente(f"{nome} {uf} {rotulos}: {len(bate)} regras estaduais")
+        return bate[0] if bate else None
+
+    def estaduais_ativas(self, data=None) -> list[Valor]:
+        """Regras estaduais em vigor (não pendentes). As regras em Catala precisam ter cada uma delas."""
+        return [v for nome in self.nomes for v in self.candidatos(nome, data, nivel="estadual")]
+
     def rl_percentual(self, uf: str, bioma: str, data=None) -> float:
-        """Mesma leitura do motor: na Amazônia Legal, floresta (bioma Amazônia) 80, Cerrado 35, demais 20; fora, 20."""
+        """Mesma leitura do motor: na Amazônia Legal, floresta (bioma Amazônia) 80, Cerrado 35, demais 20; fora, 20.
+        Uma regra estadual em vigor para a UF e o bioma (camada estadual) vem antes da federal."""
+        e = self.estadual("rl_percentual", uf, data, bioma=bioma)
+        if e is not None:
+            return float(e.valor)
         ufs = self.valor("amazonia_legal_ufs", data)
         if uf.upper() not in ufs:
             return float(self.valor("rl_percentual", data, amazonia_legal=False))
@@ -207,7 +240,8 @@ class Parametros:
 
 @lru_cache
 def parametros(pasta: Path = PASTA) -> Parametros:
-    return Parametros(list(pasta.glob("*.yaml")))
+    """Federal (parametros/*.yaml) e camada estadual (parametros/estadual/*.yaml), todos na mesma versão."""
+    return Parametros([*pasta.glob("*.yaml"), *pasta.glob("estadual/*.yaml")])
 
 
 def publicar(con, p: Parametros | None = None) -> tuple[str, bool]:
@@ -230,7 +264,7 @@ def publicar(con, p: Parametros | None = None) -> tuple[str, bool]:
             dict(
                 ve=p.versao,
                 pa=v.parametro,
-                ro=json.dumps(v.rotulos),
+                ro=json.dumps(v.rotulos if v.nivel == "federal" else {**v.rotulos, "nivel": v.nivel, "area": v.area}),
                 va=json.dumps(v.valor, default=str),
                 ar=v.artigo,
                 ur=v.urn,
