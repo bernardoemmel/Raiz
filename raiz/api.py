@@ -235,6 +235,13 @@ def criar_app(
 
     app.include_router(painel.roteador(_engine_do_app, _armazem_do_app), dependencies=seguro)
     app.include_router(painel.roteador_publico())
+    # pedido de lote (docs/cena-alvo.md): rotas do cliente (sessão própria), internas (token da API) e o aviso de
+    # pagamento do Pix (segredo do webhook)
+    from raiz.pedidos import api as pedidos_api
+
+    app.include_router(pedidos_api.roteador_cliente(_engine_do_app))
+    app.include_router(pedidos_api.roteador_interno(_engine_do_app), dependencies=seguro)
+    app.include_router(pedidos_api.roteador_webhook(_engine_do_app))
     # link público, cartão e vídeo pelo código curto: sem token (só município, hectares, selo e código antes do aceite)
     from raiz import publico
 

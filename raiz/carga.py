@@ -318,6 +318,18 @@ def carregar_municipio(
     return ResultadoCarga(rid, True, "municipio", uf, cod, n, novas, faltando, avisos)
 
 
+def depois_da_carga(engine, cod: int) -> int | None:
+    """O que se refaz quando um município entra no banco (depois do commit): a oferta do pedido de lote
+    (negocio.oferta). Falha aqui não desfaz a carga; fica no log."""
+    try:
+        from raiz.pedidos.oferta import atualizar
+
+        return atualizar(engine, int(cod))
+    except Exception as e:  # noqa: BLE001 - a carga já está gravada; a oferta se refaz na próxima
+        log.warning("oferta do município %s não refeita: %s", cod, e)
+        return None
+
+
 def carregar_resumo(
     con: Connection, arquivo: str | Path, uf: str, data_corte: dt.date | None = None, origem: str | None = None
 ) -> ResultadoCarga:
@@ -351,6 +363,7 @@ def carregar_pasta(
                 r.lote_previsoes, novo, n = congelar_rodada(con, r.rodada_id)
                 r.previsoes_novas = n if novo else 0
             res.append(r)
+        depois_da_carga(engine, cod)
     for p in sorted(pasta.glob("resumo_*.csv")):
         m = re.fullmatch(r"resumo_([A-Za-z]{2})\.csv", p.name)
         if m:

@@ -131,7 +131,14 @@ Usados como dado de entrada no servidor (raiz/terra.py, raiz/terra_publica.py); 
 ## Lista dos municípios brasileiros (executor do motor)
 
 `raiz/executor/municipios.csv` (código do IBGE, nome e UF dos 5.571 municípios) vem de
-github.com/kelvins/municipios-brasileiros, licença MIT, Copyright (c) 2016 Kelvin S. do Prado. Só as três colunas.
+github.com/kelvins/municipios-brasileiros, licença MIT, Copyright (c) 2016 Kelvin S. do Prado. Só as colunas de
+código, nome, UF, latitude e longitude da sede (o pedido de lote põe na sede a fazenda que ainda não tem contorno).
+
+## Otimizador do pedido de lote
+
+`raiz/pedidos/otimizador.py` escolhe as fazendas com o HiGHS (MIT, Copyright (c) 2016-2025 Julian Hall, Ivet Galabova,
+Leona Gottwald e Michael Feldmeier; https://highs.dev), pelo `scipy.optimize.milp` do SciPy (BSD-3-Clause), que traz o
+HiGHS dentro. Sem código copiado. A cobrança Pix da reserva usa a API da AbacatePay (serviço, sem SDK; só HTTP).
 
 ## Armazenamento compatível com S3
 

@@ -71,7 +71,7 @@ def sob_demanda(engine, armazem: Armazem, cod_ibge: int, destino: Path | None = 
     """Carrega um município do armazém para o banco na hora em que alguém pede (True se carregou)."""
     import datetime as dt
 
-    from raiz.carga import carregar_municipio
+    from raiz.carga import carregar_municipio, depois_da_carga
     from raiz.executor.tarefas import COD_UF
 
     uf = next((u for u, c in COD_UF.items() if str(cod_ibge).startswith(str(c))), None)
@@ -84,4 +84,5 @@ def sob_demanda(engine, armazem: Armazem, cod_ibge: int, destino: Path | None = 
         return False
     with engine.begin() as con:
         carregar_municipio(con, pasta, int(cod_ibge), dt.date.today())
+    depois_da_carga(engine, int(cod_ibge))
     return bool(mudou) or True

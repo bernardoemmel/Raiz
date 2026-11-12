@@ -22,7 +22,13 @@ from pathlib import Path
 
 from sqlalchemy import Engine, text
 
-from raiz.carga import arquivos_do_municipio, carregar_municipio, carregar_resumo, municipios_na_pasta
+from raiz.carga import (
+    arquivos_do_municipio,
+    carregar_municipio,
+    carregar_resumo,
+    depois_da_carga,
+    municipios_na_pasta,
+)
 
 log = logging.getLogger(__name__)
 
@@ -94,6 +100,8 @@ def varrer(
                             _, _, n = congelar_rodada(con, r.rodada_id)
                             reg.detalhe.update(previsoes=n)
                         _marcar(con, chave, ass, r.rodada_id)
+                    if r.nova:
+                        depois_da_carga(engine, cod)
                     reg.detalhe.update(rodada=r.rodada_id, nova=r.nova, imoveis=r.imoveis)
                 if r.nova:
                     res["carregados"].append(

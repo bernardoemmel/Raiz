@@ -209,3 +209,41 @@ SeaweedFS, sem uso hoje).
   que alguém pede (`/imoveis/{cod}`). Números do Brasil e dos estados: `GET /brasil` e `GET /estados`.
 - Agenda: `raiz executor ciclo` (completa quando a coleção do MapBiomas do motor muda, parcial no resto) ou
   `raiz executor vigiar --intervalo-h 24`, com Healthchecks (raiz-executor). Ver o README para o cron.
+
+## Pedido de lote (docs/cena-alvo.md)
+
+O cliente pede "1 milhão de créditos" e a Raíz monta o melhor lote (raiz/pedidos/, premissas em
+raiz/regras/padroes/pedidos.yaml, cada número com a fonte). O contrato com o front é
+front/compartilhado/pedidos/tipos.ts.
+
+- Oferta: uma linha por fazenda em `negocio.oferta` (crédito líquido até o ano 25 em P10/P50/P90, custo por crédito,
+  TIR, marcos, caminho da terra, onde), refeita sozinha depois da carga de cada município; `raiz pedidos oferta
+  [--ufs PA]` refaz do banco. Fazenda sem contorno fica na sede do município (raiz/executor/municipios.csv).
+- Entrar: `POST /entrar {email}` manda o link (uso único, 30 minutos) e `POST /entrar/confirmar {token}` devolve a
+  sessão (30 dias, `Authorization: Bearer`). O e-mail fica cifrado no esquema pessoal. `raiz pedidos cliente
+  --rotulo "Empresa"` cria um cliente direto.
+- Pedido: `POST /pedidos` responde na hora quanto existe na base (por caminho da terra e por interesse do dono, com o
+  que falta e o que afrouxar) e as 3 opções do solver (HiGHS pelo scipy.optimize.milp: mais barata, mais segura,
+  mais compacta), cada uma com fazendas de reserva (15% da meta). `POST /pedidos/{id}/lote` (ou `PATCH`) tira ou troca
+  uma fazenda e refaz os números. Cada lote sugerido fica em `negocio.pedido_sugestao` com a versão do modelo.
+- Interesse do dono: `negocio.interesse_dono` (nível de agora) e `negocio.interesse_evento` (cada registro com data,
+  canal, motivo e versão do termo); o nível só sobe com a versão do termo; recusa vale um ano. Nome e CPF ficam só no
+  esquema pessoal; a API devolve só o nível. Resposta do dono: `POST /interesse/{cod_imovel}` (token da API) ou
+  `raiz pedidos resposta`.
+- Ondas: `POST /pedidos/{id}/solicitar-interesse {opcao}` contata a 1ª onda (até a soma de chance de aceite vezes
+  crédito dar 1,5 vez a meta; envio simulado por enquanto, WhatsApp quando o dono tem contato, senão carta). `raiz
+  pedidos ciclo` (de hora em hora no cron) vence quem não respondeu em 15 dias, chama a próxima onda, fecha o grupo
+  quando os interessados alcançam a meta (aviso no painel, e-mail e WhatsApp) ou diz o que faltou.
+  `GET /pedidos/{id}/andamento` mostra a meta com interessado, aceite e contrato, as ondas, recusas e motivos.
+- Reserva: `POST /pedidos/{id}/reservar` cria a cobrança Pix pela AbacatePay (`RAIZ_ABACATEPAY_CHAVE`; sem chave,
+  cobrança de teste, paga com `raiz pedidos pagar-teste <id>` ou `POST /pagamentos/teste/{id}/pagar`). O aviso de
+  pagamento chega em `POST /pagamentos/abacatepay?webhookSecret=...` (`RAIZ_ABACATEPAY_WEBHOOK_SEGREDO`). Paga, as
+  fazendas ficam do cliente por 60 dias (`reserva_dias` no pedido) e somem das buscas, contas e pedidos dos outros;
+  uma fazenda nunca está em duas reservas (índice único). Venceu sem contrato, voltam para a base (`raiz pedidos
+  ciclo`). Contrato fechado: `POST /reservas/{id}/converter {ha_assinados}` abate a reserva da conexão por ha.
+  Cada passo fica em `negocio.reserva_evento` (quem, quando, valor e prazo).
+- Vigia: o mesmo `raiz pedidos ciclo` refaz os pedidos salvos e avisa "lote melhorou" ou "fazenda do grupo com
+  problema" (embargo, desmatamento, bloqueio, saiu da base); `GET /pedidos/{id}/alertas`.
+- Aprendizado: cada onda congela a chance de aceite de cada fazenda contatada (aprendizado, alvo `aceite_dono`, com a
+  versão do modelo); o aceite ou a recusa viram gabarito, e a chance por perfil (tamanho, caminho da terra, estado e
+  forma de pagamento) é atualizada a cada contato.
