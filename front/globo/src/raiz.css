@@ -247,164 +247,6 @@
   cursor: not-allowed;
 }
 
-/* ---------- funil (provisório: a etapa 3 do guia troca por barras) ---------- */
-.funil {
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 1px;
-  margin: 0 0 var(--e7);
-  padding: 0;
-  list-style: none;
-  background: var(--nevoa);
-  border-block: var(--linha);
-}
-.etapa {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  width: 100%;
-  height: 100%;
-  min-height: 116px;
-  padding: var(--e4) var(--e4) var(--e5);
-  border: 0;
-  border-top: 3px solid transparent;
-  background: var(--papel);
-  text-align: left;
-  cursor: pointer;
-}
-.etapa:hover {
-  background: var(--superficie);
-}
-.etapa.estatica {
-  cursor: default;
-}
-.etapa.estatica:hover {
-  background: var(--papel);
-}
-.etapa.ativo {
-  border-top-color: var(--tinta);
-  background: var(--superficie);
-}
-.etapa-rotulo {
-  font-size: var(--t-legenda);
-  font-weight: 700;
-  color: var(--pedra);
-}
-.etapa-numero {
-  margin: var(--e1) 0 2px;
-  font-size: var(--t-titulo);
-  font-weight: 700;
-  line-height: 1.1;
-  font-variant-numeric: tabular-nums;
-}
-.etapa-sub {
-  font-size: var(--t-legenda);
-  color: var(--pedra);
-}
-.etapa-barra {
-  position: absolute;
-  left: var(--e4);
-  right: var(--e4);
-  bottom: var(--e3);
-  height: 4px;
-  background: var(--nevoa);
-}
-.etapa-barra i {
-  display: block;
-  height: 100%;
-  background: var(--mata);
-  transform-origin: left;
-  transition: transform 1.2s var(--curva);
-}
-
-.funil-estado {
-  margin-bottom: var(--e7);
-}
-
-/* ---------- corpo: filtros, mapa e lista ---------- */
-.corpo {
-  display: grid;
-  grid-template-columns: 280px minmax(0, 1fr) 360px;
-  gap: var(--e6);
-  align-items: start;
-}
-.filtros fieldset {
-  margin: 0;
-  padding: 0 0 var(--e5);
-  border: 0;
-}
-.filtros fieldset + fieldset {
-  padding-top: var(--e5);
-  border-top: var(--linha);
-}
-/* a legenda do grupo fica dentro da seção, abaixo da linha (sem a linha atravessando o título) */
-.filtros legend {
-  float: left;
-  width: 100%;
-  margin: 0 0 var(--e3);
-  padding: 0;
-  font-weight: 700;
-}
-.filtros legend + * {
-  clear: both;
-}
-.fichas-chip {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--e2);
-}
-.chip {
-  min-height: 36px;
-  padding: 0 var(--e3);
-  border: 1px solid var(--pedra);
-  border-radius: var(--raio-botao);
-  background: var(--superficie);
-  cursor: pointer;
-}
-.chip[aria-pressed="true"] {
-  background: var(--tinta);
-  border-color: var(--tinta);
-  color: var(--superficie);
-  font-weight: 700;
-}
-.chip:disabled {
-  border-style: dashed;
-  border-color: var(--pedra);
-  color: var(--pedra);
-  cursor: not-allowed;
-}
-.marcar {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--e3);
-  margin: 0 0 var(--e2);
-  line-height: 1.35;
-  cursor: pointer;
-}
-.marcar input {
-  flex-shrink: 0;
-  width: 20px;
-  height: 20px;
-  margin: 1px 0 0;
-  accent-color: var(--mata);
-}
-.marcar.desligado {
-  color: var(--pedra);
-  cursor: not-allowed;
-}
-.marcar small {
-  display: block;
-  font-size: var(--t-legenda);
-  color: var(--pedra);
-}
-.texto-tamanho {
-  margin: 0;
-  color: var(--pedra);
-}
-.aviso-filtro {
-  margin-bottom: var(--e5);
-}
-
 /* mapa */
 .mapa-caixa {
   position: relative;
@@ -474,6 +316,14 @@
 .legenda i.vizinho {
   background: var(--situacao-nao-apta);
 }
+.legenda i.imovel-duplo {
+  border: 2px solid var(--tinta);
+  outline: 2px solid var(--superficie);
+  outline-offset: -4px;
+}
+.legenda i.vizinho-linha {
+  border: 1px solid var(--pedra);
+}
 .legenda li.titulo {
   padding-top: var(--e1);
   font-weight: 700;
@@ -527,106 +377,6 @@
   color: var(--mata-texto);
 }
 
-/* lista */
-.lista-cabeca {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  padding-bottom: var(--e2);
-  border-bottom: 1px solid var(--tinta);
-}
-.lista h2 {
-  margin: 0;
-  font-size: var(--t-subtitulo);
-}
-.lista-total {
-  font-size: var(--t-legenda);
-  color: var(--pedra);
-}
-.lista ol {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  max-height: 560px;
-  overflow: auto;
-}
-.lista li + li {
-  border-top: var(--linha);
-}
-.linha-fazenda {
-  display: flex;
-  justify-content: space-between;
-  gap: var(--e3);
-  padding: var(--e3) var(--e1) var(--e3) 0;
-  color: inherit;
-  text-decoration: none;
-}
-.linha-fazenda:hover,
-.linha-fazenda[aria-current="true"] {
-  background: var(--superficie);
-}
-.linha-fazenda:hover .lf-car,
-.linha-fazenda[aria-current="true"] .lf-car {
-  text-decoration: underline;
-}
-.lf-car {
-  font-family: var(--fonte-codigo);
-  font-size: 14px;
-}
-.lf-sub {
-  margin-top: 2px;
-  font-size: var(--t-legenda);
-  color: var(--pedra);
-}
-.lf-dir {
-  text-align: right;
-  flex-shrink: 0;
-}
-.lf-ha {
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-}
-.lf-co2 {
-  margin-top: 2px;
-  font-size: var(--t-legenda);
-  color: var(--pedra);
-  font-variant-numeric: tabular-nums;
-}
-.lista-pe {
-  padding-top: var(--e3);
-  border-top: var(--linha);
-}
-.link {
-  border: 0;
-  padding: 0;
-  background: none;
-  color: var(--mata-texto);
-  font-weight: 700;
-  text-decoration: underline;
-  text-underline-offset: 3px;
-  cursor: pointer;
-}
-.mais {
-  display: block;
-  width: 100%;
-  min-height: 40px;
-  margin-top: var(--e2);
-  border: 1px solid var(--pedra);
-  border-radius: var(--raio-botao);
-  background: var(--superficie);
-  cursor: pointer;
-}
-.vazio-lista p {
-  margin: 0 0 var(--e3);
-}
-.rodape {
-  margin-top: var(--e7);
-  padding-top: var(--e4);
-  border-top: var(--linha);
-  font-size: var(--t-legenda);
-  color: var(--pedra);
-}
-
 /* janela do projeto */
 .janela-fundo {
   position: fixed;
@@ -673,93 +423,6 @@
   margin-top: var(--e5);
 }
 
-/* ---------- abertura (globo) ---------- */
-.abertura {
-  position: fixed;
-  inset: 0;
-  z-index: 100;
-  display: grid;
-  grid-template-rows: 1fr auto auto 1fr;
-  justify-items: center;
-  overflow: hidden;
-}
-.abertura-fundo {
-  position: absolute;
-  inset: 0;
-  background: var(--papel);
-}
-.abertura-marca {
-  position: absolute;
-  top: var(--e4);
-  left: var(--e6);
-  display: flex;
-  align-items: center;
-  gap: var(--e2);
-  font-family: var(--fonte-titulo);
-  font-size: var(--t-subtitulo);
-  font-weight: 600;
-}
-.abertura-marca svg {
-  color: var(--mata);
-}
-.abertura-busca {
-  position: absolute;
-  top: var(--e3);
-  right: 88px;
-  z-index: 3;
-}
-.abertura-globo {
-  grid-row: 2;
-  position: relative;
-  width: min(68vh, 600px, 88vw);
-  pointer-events: none;
-  will-change: transform, opacity;
-}
-/* o rótulo do globo nas cores da Raíz (o componente fica como veio; só a cor muda por fora) */
-.abertura .cg-label--marker {
-  background: var(--mata);
-  font-size: 11px;
-  padding: 3px 8px;
-}
-.abertura .cg-label--marker .cg-label__tip {
-  border-top-color: var(--mata);
-}
-.abertura-legenda {
-  grid-row: 3;
-  position: relative;
-  display: grid;
-  gap: var(--e1);
-  min-height: 56px;
-  margin: var(--e4) var(--e4) 0;
-  text-align: center;
-}
-.abertura-legenda strong {
-  font-family: var(--fonte-titulo);
-  font-size: var(--t-subtitulo);
-  font-weight: 600;
-}
-.abertura-legenda span {
-  color: var(--pedra);
-}
-.abertura-pular {
-  position: absolute;
-  right: var(--e6);
-  bottom: var(--e5);
-}
-.abertura-marca,
-.abertura-legenda,
-.abertura-pular {
-  transition: opacity var(--medio) var(--curva);
-}
-.fase-aproximando .abertura-marca,
-.fase-aproximando .abertura-legenda,
-.fase-aproximando .abertura-pular {
-  opacity: 0;
-}
-.fase-aproximando {
-  pointer-events: none;
-}
-
 /* ---------- ficha da fazenda ---------- */
 .ficha .cabeca {
   align-items: flex-start;
@@ -790,6 +453,18 @@
 }
 .mapa-imovel {
   height: 560px;
+}
+.mapa-figura {
+  margin: 0;
+}
+.mapa-legenda-fixa {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--e1) var(--e4);
+  padding-top: var(--e2);
+  font-size: var(--t-legenda);
+  color: var(--pedra);
 }
 .grande {
   padding: var(--e4) 0;
@@ -1084,17 +759,516 @@
   font-size: var(--t-legenda);
 }
 
+
+/* ---------- tela de entrada: o mapa do Brasil ---------- */
+.explorar {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+}
+.explorar .topo {
+  position: relative;
+  flex-shrink: 0;
+}
+.explorar-corpo {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 440px minmax(0, 1fr);
+}
+.painel-lateral {
+  position: relative;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--superficie);
+  border-right: var(--linha);
+}
+.gaveta-alca {
+  display: none;
+}
+.painel-rolagem {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.painel-conteudo {
+  padding: var(--e5) var(--e5) var(--e7);
+}
+.painel-conteudo h1 {
+  margin: 0;
+  font-size: var(--t-titulo);
+}
+.painel-titulo {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--e3);
+}
+.frase {
+  margin: var(--e3) 0 var(--e5);
+  font-size: var(--t-subtitulo);
+  line-height: 1.4;
+}
+.numeros {
+  display: grid;
+  /* cada coluna do tamanho do próprio número: o número nunca quebra linha */
+  grid-template-columns: repeat(3, auto);
+  justify-content: space-between;
+  gap: var(--e3);
+  margin: 0;
+  padding: var(--e4) 0 0;
+  border-top: var(--linha);
+}
+.numeros dt {
+  font-size: var(--t-legenda);
+  color: var(--pedra);
+}
+.numeros dd {
+  margin: var(--e1) 0 0;
+  white-space: nowrap;
+  font-size: var(--t-subtitulo);
+  font-weight: 700;
+}
+.numeros div:first-child dd {
+  color: var(--urucum);
+}
+.secao-painel {
+  margin-top: var(--e6);
+  padding-top: var(--e5);
+  border-top: var(--linha);
+}
+.secao-painel h2,
+.funil-barras h2 {
+  margin: 0 0 var(--e3);
+  font-size: var(--t-subtitulo);
+}
+.secao-cabeca {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--e3);
+  margin-bottom: var(--e3);
+}
+.secao-cabeca h2 {
+  margin: 0;
+}
+.lista-municipios {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.lista-municipios li + li {
+  border-top: var(--linha);
+}
+.lista-municipios a {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--e3);
+  min-height: 48px;
+  padding: var(--e2) 0;
+  color: inherit;
+  text-decoration: none;
+}
+.lista-municipios a:hover strong {
+  text-decoration: underline;
+}
+.lista-municipios small {
+  display: block;
+  font-size: var(--t-legenda);
+  color: var(--pedra);
+}
+.lista-municipios .num {
+  font-weight: 700;
+  white-space: nowrap;
+}
+.legenda-frase,
+.rodape-painel {
+  margin: var(--e5) 0 0;
+  font-size: var(--t-legenda);
+  color: var(--pedra);
+}
+.legenda-lista {
+  margin: var(--e3) 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--t-legenda);
+}
+.legenda-lista li {
+  display: flex;
+  align-items: center;
+  gap: var(--e2);
+  padding: 2px 0;
+}
+.legenda-lista i,
+.fb-legenda i {
+  flex-shrink: 0;
+  width: 14px;
+  height: 14px;
+  border-radius: var(--raio-imagem);
+}
+.legenda-lista i.cruzada {
+  background: repeating-linear-gradient(45deg, var(--pedra) 0 1.5px, transparent 1.5px 5px),
+    repeating-linear-gradient(-45deg, var(--pedra) 0 1.5px, var(--situacao-nao-apta) 1.5px 5px);
+}
+.legenda-lista i.apagada {
+  background: var(--nevoa);
+  border: 1px solid var(--situacao-nao-apta);
+}
+.legenda-lista i.contorno {
+  border: 2px solid var(--urucum);
+}
+.legenda-lista i.circulo {
+  border-radius: 50%;
+  background: var(--urucum);
+}
+
+/* seletor de assunto do mapa e unidade do funil */
+.camadas,
+.alternar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--e1);
+}
+.camadas button,
+.alternar button {
+  min-height: 40px;
+  padding: 0 var(--e3);
+  border: 1px solid var(--pedra);
+  border-radius: var(--raio-botao);
+  background: var(--superficie);
+  cursor: pointer;
+}
+.camadas button[aria-checked="true"],
+.alternar button[aria-checked="true"] {
+  background: var(--tinta);
+  border-color: var(--tinta);
+  color: var(--superficie);
+  font-weight: 700;
+}
+.camadas button:disabled,
+.alternar button:disabled {
+  border-style: dashed;
+  color: var(--pedra);
+  cursor: not-allowed;
+}
+.alternar button {
+  min-height: 32px;
+  font-size: var(--t-legenda);
+}
+
+/* funil em barras */
+.funil-barras {
+  margin-top: var(--e6);
+  padding-top: var(--e5);
+  border-top: var(--linha);
+}
+.fb-cabeca {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--e3);
+  margin-bottom: var(--e3);
+}
+.fb-cabeca h2 {
+  margin: 0;
+}
+.funil-barras ol {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.funil-barras ol > li {
+  padding: var(--e2) 0 var(--e3);
+}
+/* botão com cara de link: volta o mapa para todas as fazendas */
+button.link {
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--mata-texto);
+  font: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+button.link:hover {
+  color: var(--tinta);
+}
+.fb-titulo {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--e3);
+  margin-bottom: var(--e1);
+}
+.fb-numero {
+  text-align: right;
+  white-space: nowrap;
+}
+.fb-numero strong {
+  font-size: var(--t-subtitulo);
+}
+.fb-numero small {
+  display: block;
+  font-size: var(--t-legenda);
+  color: var(--pedra);
+}
+.fb-trilho {
+  position: relative;
+  height: 28px;
+}
+.fb-fora,
+.fb-dentro {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  padding: 0;
+  border-radius: var(--raio-imagem);
+  cursor: pointer;
+}
+.fb-fora {
+  border: 1.5px dashed var(--pedra);
+  background: transparent;
+}
+.fb-fora[aria-pressed="true"] {
+  border-style: solid;
+  border-color: var(--tinta);
+  background: var(--nevoa);
+}
+.fb-dentro {
+  border: 0;
+  background: none;
+  overflow: hidden;
+}
+.fb-dentro svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.fb-dentro[aria-pressed="true"] {
+  outline: 3px solid var(--tinta);
+  outline-offset: 2px;
+}
+.fb-perdas {
+  margin: var(--e1) 0 0;
+  font-size: var(--t-legenda);
+  color: var(--pedra);
+}
+.fb-legenda {
+  display: grid;
+  gap: 2px;
+  margin: var(--e2) 0 var(--e3);
+  padding: 0;
+  list-style: none;
+  font-size: var(--t-legenda);
+}
+.fb-legenda li {
+  display: flex;
+  align-items: center;
+  gap: var(--e2);
+}
+
+/* tabela de fazendas */
+.tabela-fazendas table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  font-size: 15px;
+}
+.tabela-fazendas th,
+.tabela-fazendas td {
+  padding: var(--e2) var(--e1);
+  text-align: left;
+  vertical-align: top;
+  border-bottom: var(--linha);
+}
+.tabela-fazendas thead th {
+  font-weight: 700;
+  border-bottom: 1px solid var(--tinta);
+}
+.tabela-fazendas thead th:first-child {
+  width: 40%;
+}
+.tabela-fazendas th small {
+  display: block;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--pedra);
+}
+.tabela-fazendas .num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.tabela-fazendas tbody th {
+  font-weight: 400;
+}
+.tabela-fazendas tbody th a {
+  font-family: var(--fonte-codigo);
+  font-size: 13px;
+  color: var(--tinta);
+}
+.tabela-fazendas tbody tr:hover {
+  background: var(--papel);
+}
+.tabela-fazendas tfoot th,
+.tabela-fazendas tfoot td {
+  font-weight: 700;
+  border-top: 2px solid var(--tinta);
+  border-bottom: 0;
+}
+.tabela-fazendas .selo {
+  white-space: normal;
+}
+
+/* mapa da entrada */
+.mapa-brasil {
+  position: relative;
+  min-height: 0;
+  background: var(--nevoa);
+}
+.mapa-brasil .mapa {
+  position: absolute;
+  inset: 0;
+}
+.mapa-brasil .maplibregl-map {
+  font: inherit;
+}
+.mapa-brasil .mapa-carregando {
+  gap: var(--e2);
+  grid-auto-flow: column;
+}
+.mapa-brasil .mapa-aviso {
+  position: absolute;
+  top: var(--e3);
+  left: var(--e3);
+  right: 64px;
+  z-index: 2;
+}
+
+/* mini mapa do Brasil (onde fica) */
+.mini-brasil {
+  flex-shrink: 0;
+  width: 96px;
+  padding: var(--e1);
+  background: var(--superficie);
+}
+.painel-titulo .mini-titulo {
+  width: 76px;
+  padding: 0;
+}
+.mini-brasil svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.mapa-caixa .mini-brasil {
+  position: absolute;
+  top: var(--e3);
+  left: var(--e3);
+  z-index: 2;
+  border: var(--linha);
+  border-radius: var(--raio-imagem);
+}
+
+@media (max-width: 700px) {
+  .explorar-corpo {
+    display: block;
+  }
+  .mapa-brasil {
+    position: absolute;
+    inset: 0;
+  }
+  /* o painel vira gaveta que sobe de baixo */
+  .painel-lateral {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    border-right: 0;
+    border-top: 1px solid var(--pedra);
+    border-radius: var(--raio-botao) var(--raio-botao) 0 0;
+    transition: height var(--medio) var(--curva);
+  }
+  .gaveta-baixa {
+    height: 132px;
+  }
+  .gaveta-meia {
+    height: 48%;
+  }
+  .gaveta-alta {
+    height: 86%;
+  }
+  .gaveta-alca {
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+    width: 100%;
+    height: 32px;
+    padding: 0;
+    border: 0;
+    background: none;
+    cursor: grab;
+    touch-action: none;
+  }
+  .gaveta-alca span {
+    width: 48px;
+    height: 5px;
+    border-radius: var(--raio-selo);
+    background: var(--pedra);
+  }
+  .painel-conteudo {
+    padding: 0 var(--e4) var(--e7);
+  }
+  .painel-conteudo h1 {
+    font-size: 24px;
+  }
+  .frase {
+    font-size: 18px;
+  }
+  .numeros dd {
+    font-size: 18px;
+  }
+  .mini-titulo {
+    width: 64px;
+  }
+  .camadas button,
+  .alternar button {
+    min-height: 48px;
+  }
+  .tabela-fazendas table {
+    font-size: 16px;
+  }
+  .tabela-fazendas thead th:first-child {
+    width: 38%;
+  }
+  .tabela-fazendas tbody th a {
+    font-family: var(--fonte-texto);
+    font-size: 16px;
+  }
+  .tabela-fazendas th small {
+    font-size: 16px;
+  }
+  .fb-trilho {
+    height: 36px;
+  }
+  .mapa-brasil .maplibregl-ctrl-bottom-right {
+    display: none;
+  }
+}
+
 /* ---------- telas menores ---------- */
 @media (max-width: 1240px) {
-  .corpo {
-    grid-template-columns: 260px minmax(0, 1fr);
-  }
-  .lista {
-    grid-column: 1 / -1;
-  }
-  .funil {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
   .menu {
     display: none;
   }
@@ -1121,6 +1295,11 @@
   }
   .busca input {
     height: 48px;
+    font-size: 16px;
+  }
+  /* vazia não tem o indicador de carregando: o texto de ajuda usa a largura toda */
+  .busca input:placeholder-shown {
+    padding-right: var(--e3);
   }
   .busca-girando {
     top: 15px;
@@ -1140,30 +1319,15 @@
     flex-direction: column;
     align-items: stretch;
   }
-  .funil li:last-child:nth-child(odd) {
-    grid-column: 1 / -1;
-  }
   .acoes {
     flex-direction: column;
   }
   .botao,
-  .chip,
   .mais {
     min-height: 48px;
   }
   .botao {
     white-space: normal;
-  }
-  .corpo {
-    grid-template-columns: 1fr;
-    gap: var(--e6);
-  }
-  .funil {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-  .etapa {
-    min-height: 0;
-    padding: var(--e3) var(--e3) var(--e5);
   }
   .mapa-caixa {
     height: 420px;
@@ -1174,12 +1338,6 @@
   .legenda {
     position: static;
     border-width: 1px 0 0;
-  }
-  .lf-car {
-    font-family: var(--fonte-texto);
-  }
-  .linha-fazenda {
-    min-height: 48px;
   }
   .ficha .cabeca h1 {
     font-size: 34px;
@@ -1196,21 +1354,6 @@
   .barras div {
     grid-template-columns: 1fr;
     gap: var(--e1);
-  }
-  .abertura-busca {
-    left: var(--e4);
-    right: var(--e4);
-    top: 60px;
-  }
-  .abertura-busca .busca {
-    width: 100%;
-  }
-  .abertura-marca {
-    left: var(--e4);
-  }
-  .abertura-pular {
-    right: var(--e4);
-    bottom: var(--e4);
   }
   .janela {
     padding: var(--e4);

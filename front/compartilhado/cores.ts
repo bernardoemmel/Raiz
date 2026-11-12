@@ -52,44 +52,94 @@ export const MAPA = {
   },
 } as const
 
-/** Sabor do mapa base do Protomaps em uso (a etapa 2 do guia troca pelo "white" recolorido). */
+/**
+ * Sabor do mapa base: o "white" do Protomaps recolorido com a paleta do guia (item 2.1, parte 1): terra, água, estrada
+ * com miolo branco, rótulos em tinta com halo da cor do fundo. Os rios ganham cor e largura por zoom em estilo.ts.
+ */
 export const SABOR_MAPA = {
-  background: "#dfe7d9",
-  earth: "#e5ebdf",
-  park_a: "#d6e3cf",
-  park_b: "#cfdec7",
-  wood_a: "#d4e1cc",
-  wood_b: "#cbdbc2",
-  scrub_a: "#dbe5d3",
-  scrub_b: "#d6e1cd",
-  water: "#94b4d6",
-  boundaries: "#9ba69b",
-  minor_a: "#f4f2ea",
-  minor_b: "#f4f2ea",
-  other: "#f1efe6",
-  major: "#f7f3e6",
-  highway: "#f6efd8",
-  city_label: "#3f4a42",
-  city_label_halo: "#eef2ea",
-  subplace_label: "#5c675f",
-  subplace_label_halo: "#eef2ea",
-  state_label: "#7d877f",
-  state_label_halo: "#eef2ea",
-  country_label: "#7d877f",
-  roads_label_minor: "#7d877f",
-  roads_label_minor_halo: "#f4f2ea",
-  roads_label_major: "#6a756d",
-  roads_label_major_halo: "#f4f2ea",
-  ocean_label: "#5f86b3",
+  background: MAPA.terra,
+  earth: MAPA.terra,
+  park_a: MAPA.terra,
+  park_b: MAPA.terra,
+  wood_a: MAPA.terra,
+  wood_b: MAPA.terra,
+  scrub_a: MAPA.terra,
+  scrub_b: MAPA.terra,
+  sand: MAPA.terra,
+  beach: MAPA.terra,
+  glacier: MAPA.terra,
+  water: MAPA.agua,
+  boundaries: COR.situacaoNaoApta,
+  other: MAPA.estradaMiolo,
+  minor_service: MAPA.estradaMiolo,
+  minor_a: MAPA.estradaMiolo,
+  minor_b: MAPA.estradaMiolo,
+  link: MAPA.estradaMiolo,
+  major: MAPA.estradaMiolo,
+  highway: MAPA.estradaMiolo,
+  minor_service_casing: MAPA.estrada,
+  minor_casing: MAPA.estrada,
+  link_casing: MAPA.estrada,
+  major_casing_early: MAPA.estrada,
+  major_casing_late: MAPA.estrada,
+  highway_casing_early: MAPA.estrada,
+  highway_casing_late: MAPA.estrada,
+  bridges_other_casing: MAPA.estrada,
+  bridges_minor_casing: MAPA.estrada,
+  bridges_link_casing: MAPA.estrada,
+  bridges_major_casing: MAPA.estrada,
+  bridges_highway_casing: MAPA.estrada,
+  city_label: COR.tinta,
+  city_label_halo: MAPA.terra,
+  subplace_label: COR.pedra,
+  subplace_label_halo: MAPA.terra,
+  state_label: COR.pedra,
+  state_label_halo: MAPA.terra,
+  country_label: COR.pedra,
+  roads_label_minor: COR.pedra,
+  roads_label_minor_halo: MAPA.terra,
+  roads_label_major: COR.pedra,
+  roads_label_major_halo: MAPA.terra,
+  ocean_label: MAPA.rio,
   landcover: {
-    barren: "#e9e6da",
-    farmland: "#e7eadb",
-    forest: "#c9dabf",
-    glacier: "#ffffff",
-    grassland: "#dce6d2",
-    scrub: "#d7e2cd",
-    urban_area: "#e3e1d8",
+    barren: MAPA.terra,
+    farmland: MAPA.terra,
+    forest: MAPA.terra,
+    glacier: MAPA.terra,
+    grassland: MAPA.terra,
+    scrub: MAPA.terra,
+    urban_area: MAPA.terra,
   },
+} as const
+
+/** Situação da fazenda (guia, item 2.2): apta, com pendência (rótulo escuro por cima), não apta (com hachura cruzada). */
+export const SITUACAO = {
+  apta: COR.situacaoApta,
+  pendencia: COR.situacaoPendencia,
+  naoApta: COR.situacaoNaoApta,
+  /** fora do foco do funil: fica em cinza claro, não some */
+  apagada: COR.nevoa,
+} as const
+
+/** Porte por módulos fiscais, em três tons do mesmo verde (guia, item 4.2): os pequenos vão para o projeto agrupado. */
+/** Três tons do mesmo verde no funil (guia, item 4.2): escuro, médio e o médio clareado pela opacidade. */
+export const PORTE = {
+  grande: COR.mataTexto,
+  medio: COR.restaurar,
+  pequeno: COR.restaurar,
+} as const
+export const PORTE_OPACIDADE = { grande: 1, medio: 1, pequeno: 0.45 } as const
+
+/** Motivo que tirou o imóvel de cada etapa do funil, para o mapa e a legenda (sempre com o rótulo escrito). */
+export const MOTIVO = {
+  embargo: COR.urucumTexto,
+  ti: COR.terraTexto,
+  desmate: COR.urucum,
+  alerta: COR.terra,
+  sem_area: COR.pedra,
+  desmate10: COR.situacaoPendencia,
+  assentamento: COR.restaurar,
+  posse: COR.aguaTexto,
 } as const
 
 /** Fogo: dos anos com fogo (1 a 2, 3 a 5, 6 ou mais) ao fogo do ano, na família do urucum. */

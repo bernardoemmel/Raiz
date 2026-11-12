@@ -108,7 +108,8 @@ export function Fazenda({ car }: { car: string }) {
       fonte.geo.camada(cod, "imoveis"),
       fonte.geo.camada(cod, "ti"),
       fonte.geo.camada(cod, "rios"),
-      fonte.geo.base(cod),
+      // o mapa base único do Brasil; sem ele, o recorte do município
+      fonte.geo.brasil().then(async (b) => b.base ?? (await fonte.geo.base(cod))),
     ])
     return { funil, imoveis, municipio, vizinhos, ti, rios, base }
   }, [cod])
@@ -228,6 +229,9 @@ export function Fazenda({ car }: { car: string }) {
             <MapaImovel
               aneis={ficha.dado.aneis}
               cod={i.cod_imovel}
+              ha={i.ha}
+              uf={i.uf}
+              municipioNome={i.municipio}
               municipio={c?.municipio ?? null}
               voar={voar}
               base={c?.base ?? null}

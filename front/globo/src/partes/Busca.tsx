@@ -3,7 +3,7 @@ import { useEffect, useId, useRef, useState } from "react"
 import { CATEGORIAS, type RespostaBusca } from "../../../compartilhado/dados"
 import { abreviarCar, fmtHa, fmtInt } from "../../../compartilhado/formato"
 import { fonte } from "../dados"
-import { linkFazenda, linkMunicipio, pedirVoo } from "../rota"
+import { destinoDaBusca, linkFazenda, linkMunicipio, municipiosSemDados, pedirVoo, type MunicipioDoMapa } from "../rota"
 
 interface Opcao {
   id: string
@@ -27,6 +27,19 @@ function abrirImovel(car: string) {
   pedirVoo(car)
   location.hash = linkFazenda(car)
 }
+
+/** os 5.570 municípios do contorno do Brasil, carregados uma vez (o mapa de entrada já pediu o mesmo arquivo) */
+let mapaBrasil: Promise<MunicipioDoMapa[]> | null = null
+const municipiosDoMapa = () =>
+  (mapaBrasil ??= fonte.geo.brasil().then(
+    (b) =>
+      b.municipios?.features.map((f) => ({
+        cod_ibge: String(f.properties.cod_ibge),
+        nome: String(f.properties.nome),
+        uf: String(f.properties.uf),
+      })) ?? [],
+    () => [],
+  ))
 const abrirMunicipio = (cod: string) => {
   location.hash = linkMunicipio(cod)
 }
@@ -45,6 +58,11 @@ export function Busca({ aoEscolher }: { aoEscolher?: () => void }) {
   const caixa = useRef<HTMLDivElement>(null)
   const entrada = useRef<HTMLInputElement>(null)
   const idLista = useId()
+  const [doMapa, setDoMapa] = useState<MunicipioDoMapa[]>([])
+  const doMapaRef = useRef(doMapa)
+  useEffect(() => {
+    doMapaRef.current = doMapa
+  }, [doMapa])
 
   // busca com espera e cancelamento
   useEffect(() => {
@@ -59,14 +77,11 @@ export function Busca({ aoEscolher }: { aoEscolher?: () => void }) {
           // Enter apertado antes da resposta: abre se houver um só imóvel ou um só resultado
           if (abrirAoChegar.current) {
             abrirAoChegar.current = false
-            const ir =
-              r.imoveis.length === 1
-                ? () => abrirImovel(r.imoveis[0].cod_imovel)
-                : !r.imoveis.length && r.municipios.length === 1
-                  ? () => abrirMunicipio(r.municipios[0].cod_ibge)
-                  : null
-            if (ir) {
-              ir()
+            const semDados = municipiosSemDados(q, doMapaRef.current, new Set(r.municipios.map((m) => m.cod_ibge)))
+            const destino = destinoDaBusca(r, semDados)
+            if (destino) {
+              if (r.imoveis.length === 1) pedirVoo(r.imoveis[0].cod_imovel)
+              location.hash = destino
               fecharRef.current()
             }
           }
@@ -129,11 +144,28 @@ export function Busca({ aoEscolher }: { aoEscolher?: () => void }) {
           fechar()
         },
       })),
+      ...semDados.map((m) => ({
+        id: "s" + m.cod_ibge,
+        rotulo: `${m.nome} (${m.uf})`,
+        detalhe: "Ainda não processado pela Raíz",
+        marca: "ver no mapa",
+        falta: true,
+        ir: () => {
+          abrirMunicipio(m.cod_ibge)
+          fechar()
+        },
+      })),
     ]
   }
   const q = texto.trim()
   const r = estado.fase === "pronto" && estado.q === q ? estado.r : null
+  const semDados = r?.tipo === "texto" ? municipiosSemDados(q, doMapa, new Set(r.municipios.map((m) => m.cod_ibge))) : []
   const opcoes = opcoesDe(r)
+  // o back-end não achou, mas o município existe no mapa: a frase certa é "ainda não processado", não "não achei"
+  const mensagem =
+    r?.situacao === "nao_encontrado" && semDados.length
+      ? `${semDados.length === 1 ? `${semDados[0].nome} ainda não foi processado` : "Estes municípios ainda não foram processados"} pela Raíz. Dá para ver onde ${semDados.length === 1 ? "fica" : "ficam"} no mapa.`
+      : r?.mensagem
   const mostrar = aberta && q.length >= 2
   // ocupado: há consulta e a resposta para ela ainda não chegou (inclui a espera de 250 ms)
   const ocupado = q.length >= 2 && !((estado.fase === "pronto" || estado.fase === "erro") && estado.q === q)
@@ -167,7 +199,10 @@ export function Busca({ aoEscolher }: { aoEscolher?: () => void }) {
           setAtivo(0)
           setAberta(true)
         }}
-        onFocus={() => setAberta(true)}
+        onFocus={() => {
+          setAberta(true)
+          if (!doMapa.length) municipiosDoMapa().then(setDoMapa)
+        }}
         onKeyDown={(e) => {
           if (e.key === "ArrowDown") setAtivo((a) => Math.min(a + 1, opcoes.length - 1))
           else if (e.key === "ArrowUp") setAtivo((a) => Math.max(a - 1, 0))
@@ -193,13 +228,13 @@ export function Busca({ aoEscolher }: { aoEscolher?: () => void }) {
               <span>Não deu para buscar agora. Confira a conexão e tente de novo.</span>
             </p>
           )}
-          {!ocupado && r?.mensagem &&
-            (r.situacao === "curta" ? (
-              <p className="busca-estado">{r.mensagem}</p>
+          {!ocupado && mensagem &&
+            (r?.situacao === "curta" ? (
+              <p className="busca-estado">{mensagem}</p>
             ) : (
               <p className="busca-estado aviso">
                 <Info size={20} aria-hidden="true" />
-                <span>{r.mensagem}</span>
+                <span>{mensagem}</span>
               </p>
             ))}
           {!ocupado && opcoes.length > 0 && (

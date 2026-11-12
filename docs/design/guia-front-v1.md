@@ -3,7 +3,7 @@
 Redesenho do front da Raíz (pesquisa de design, rodada 1). Isto é o resumo do que aplicar, já com as escolhas feitas. Aplicar em front/globo (analista, React) e front/produtor (produtor, Preact). Todo texto da interface em português do Brasil.
 
 OBJETIVO
-Hoje as telas têm cara de "feito por IA": cartões brancos iguais com sombra, Inter em tudo, raio 14 px em tudo, números grandes soltos, tudo com o mesmo peso, e o mapa mostra o polígono sozinho num fundo liso. A direção nova é "Cartografia de campo": a Raíz parece um bom mapa de levantamento de campo, não um painel de software. O globo da abertura está bom; não refazer, só ajustar o ritmo.
+Hoje as telas têm cara de "feito por IA": cartões brancos iguais com sombra, Inter em tudo, raio 14 px em tudo, números grandes soltos, tudo com o mesmo peso, e o mapa mostra o polígono sozinho num fundo liso. A direção nova é "Cartografia de campo": a Raíz parece um bom mapa de levantamento de campo, não um painel de software. A primeira tela é o mapa plano do Brasil, já com fazendas e números, sem animação nem clique (item 3).
 
 1. BASE (fazer primeiro, muda todas as telas de uma vez)
 1.1 Trocar as variáveis de raiz.css e estilo.css por estas (apagar as antigas, inclusive --sombra e --raio 14):
@@ -38,7 +38,7 @@ body { background: var(--papel); color: var(--tinta); font: 400 var(--t-texto)/1
 - Área de toque de pelo menos 48 px no celular. Texto nunca abaixo de 16 px no celular (18 px na ficha do produtor e no aceite).
 - Urucum (#C2521A) é a cor de ação (botão principal com texto branco) e de número grande; nunca em letra pequena (para letra pequena usar --urucum-texto).
 1.4 Verificador automático no repositório (script de lint rodado no build e nos testes) que falha se achar: box-shadow diferente de none, border-left colorido, linear-gradient de enfeite, text-transform: uppercase em rótulo, cor fora das variáveis, a fonte Inter, emoji ou travessão em texto da interface.
-1.5 Ícones: lucide-react no globo e lucide-preact no produtor, importando ícone por ícone (20 px junto de texto, 24 px sozinho, traço 1,75 no computador e 2 no celular, cor currentColor). Gado e campo: SVG solto do Phosphor (Cow, Barn, Farm) ou Health Icons (animal-cow, agriculture, village), redesenhados no traço do Lucide; nunca o componente React do Phosphor. Ícone só ao lado do texto que ele explica, nunca sozinho em cima de cada bloco.
+1.5 Ícones: lucide-react em front/globo e lucide-preact em front/produtor, importando ícone por ícone (20 px junto de texto, 24 px sozinho, traço 1,75 no computador e 2 no celular, cor currentColor). Gado e campo: SVG solto do Phosphor (Cow, Barn, Farm) ou Health Icons (animal-cow, agriculture, village), redesenhados no traço do Lucide; nunca o componente React do Phosphor. Ícone só ao lado do texto que ele explica, nunca sozinho em cima de cada bloco.
 1.6 Números: sempre Intl.NumberFormat("pt-BR") (ponto no milhar, vírgula no decimal). Hectares inteiros a partir de 10 ha, uma casa abaixo de 10. Carbono e dinheiro com 2 algarismos significativos no destaque ("R$ 42 mil por ano", "4.200 t"), valor exato em "Ver como calculamos". Sempre unidade e período. Faixa para o analista: "cerca de 420 t por ano (de 310 a 530)" com barra clara de P10 a P90 e ponto escuro no P50. Faixa para o produtor: "Pelo menos R$ 31 mil por ano. Pode chegar a R$ 55 mil. Não é promessa." Nunca "R$ 42k". No máximo uma comparação por número, local e com fonte (nada de piscina olímpica).
 1.7 Tom de voz: frase curta, ordem direta, voz ativa, número com unidade, nome completo antes da sigla ("Cadastro Ambiental Rural (CAR)"), dizer o que falta sem culpa ("Falta atualizar o CAR."), decisão com o dono ("Você decide. Nada acontece sem o seu aceite."). Evitar "solução inovadora", "potencialize", "jornada", "desbloqueie". Régua: art. 5º da Lei 15.263/2025 (linguagem simples).
 1.8 Estados vazio, carregando e erro desenhados em todas as telas (inclusive "sem internet" na ficha do produtor, que mostra a última versão salva, e "município sem fazendas aptas").
@@ -52,19 +52,21 @@ body { background: var(--papel); color: var(--tinta); font: 400 var(--t-texto)/1
 (5) Contorno duplo do imóvel: linha de fora branca de 6 px a 0,9 de opacidade e linha de dentro de 2,5 px #E9A23B sobre satélite (#15231B sobre base clara). Pode ser uma camada só com line-gap-width.
 (6) Etiquetas em HTML com fundo sólido: nome do imóvel e cidade mais próxima com distância ("A 23 km de São Félix do Xingu"). Rótulos do mapa com halo de 1,5 px da cor do fundo.
 (7) Escala: ScaleControl do MapLibre em km, mais uma linha para leigo: "412 ha, do tamanho de 577 campos de futebol" (1 campo = 0,714 ha); quando houver contorno urbano, preferir "do tamanho de 1,4 vez a área urbana de X".
-(8) Minimapa: SVG estático de 96 a 120 px (Brasil com o estado destacado e um ponto na fazenda), no canto superior esquerdo com fundo sólido; nunca um segundo mapa WebGL. No celular vira uma linha: mini SVG de 64 px e "Fica no Pará, perto de São Félix do Xingu".
+(8) Minimapa "onde fica": SVG estático de 96 a 120 px (contorno dos estados em névoa, o estado destacado e um ponto no município ou na fazenda em urucum), no canto superior esquerdo com fundo sólido; nunca um segundo mapa WebGL. No celular vira uma linha: mini SVG de 64 px e "Fica no Pará, perto de São Félix do Xingu".
 2.2 Cores de uso da terra (MapBiomas adaptado, com crédito "cores adaptadas do MapBiomas"): floresta #1F8D49, savana e campo nativo numa classe só #A9D38F, pasto #EDDE8E, lavoura numa classe só #B8892A com hachura (a legenda oficial pinta lavoura de rosa: proibido), água #2F6FD6, área urbana #8D8F88. Situação no município: apta #1D6B44, com pendência #E3A21A (rótulo escuro por cima), não apta #C9C4BA com hachura cruzada, área a restaurar #5FA36E. Toda cor de situação também tem rótulo ou textura.
 2.3 Seletor de camadas: em vez de lista técnica, botões grandes com nome: Situação, Uso da terra, Título, Vizinhos. Uma camada de assunto por vez; o resto em cinza claro. Cada camada com menu de fonte, data e resolução ("MapBiomas coleção 11, 30 m, 2025").
 2.4 Ícones no mapa: Maki e Temaki (CC0) num sprite feito com spreet, 15 px, #15231B com halo branco de 1 px (cidade, sede, nascente). Padrões do OSM Carto (CC0) para mata e área úmida, se ajudar.
 2.5 Embaixo de todo mapa colorido, uma frase que diz o que a cor significa ("Verde-escuro é mata em pé; as listras são o pasto que pode voltar a ser mata.").
 
-3. ABERTURA COM GLOBO (já é boa; só ritmo e contexto)
-3.1 Durante o carregamento, uma linha que diz o que está sendo lido, com número real do banco ("Lendo 345.870 imóveis do CAR do Pará e 40 anos de mapas do MapBiomas").
-3.2 Voo em dois tempos: o globo gira até o Brasil em 1.200 ms sem mudar o zoom; esperar o evento idle; depois flyTo até o município com speed 1.2, curve 1.42, maxDuration 2.500 ms (acima disso o MapLibre pula direto; cobrir com fusão de opacidade). Do município à fazenda: fitBounds com padding 48 px em 900 a 1.200 ms; só depois do moveend acender máscara e contorno em 250 a 300 ms. Total abaixo de 4 s.
-3.3 Cortar ao toque, botão "Pular" visível desde o início, voo completo só na primeira visita (localStorage com try/catch). Aparelho fraco (deviceMemory até 2, hardwareConcurrency até 4 ou saveData): jumpTo e fusão de 200 ms. Nunca essential: true em animação decorativa. pixelRatio no máximo 2, fadeDuration 150, sem 3D nem inclinação no voo.
-3.4 Quando o voo termina, a primeira coisa na tela é a frase automática do município (item 4.1), antes de qualquer número.
-3.5 Na escala de estado, agrupar as fazendas aptas em círculos com o número dentro (cluster) e só desenhar polígonos a partir do zoom do município.
-3.6 Depois do globo, duas portas: "Sou comprador ou desenvolvedor" e "Sou produtor rural".
+3. TELA DE ENTRADA (mapa do Brasil)
+3.1 A primeira tela é o mapa plano do Brasil (base do item 2.1, Protomaps recolorido) com a busca "Código do CAR ou município" fixa no topo. Quem chega já vê fazendas e números, sem animação nem clique. A Raíz só trabalha no Brasil: a primeira tela não gasta tempo para dizer isso.
+3.2 Sem busca: o Brasil inteiro. Municípios já processados com preenchimento leve em mata; os demais em névoa. Fazendas aptas agrupadas em círculos com o número dentro ("5,4 mil", nunca "5.4k") até a escala do município; polígonos só a partir dela. Ao lado (embaixo, no celular), uma frase com número real do banco ("A Raíz já leu 144 municípios (Pará): 345.870 imóveis do CAR..."), três números e os municípios com mais área para restaurar. Tocar num município faz o mesmo que buscar por ele.
+3.3 Busca de município: o mapa vai até ele com flyTo (speed 1.2, curve 1.42, maxDuration 2.500 ms; acima disso o MapLibre pula direto), sem passar por zoom de mundo. As fazendas aparecem pintadas pela situação (apta, com pendência, não apta com hachura cruzada; item 2.2), o município escolhido perde o preenchimento e os círculos dele somem (quem fala ali é cada fazenda). Abre o painel do município (item 4), com a frase antes de qualquer número e o funil em barras ligado ao mapa. Município só com o resumo mostra o funil sem a lista; município de estado ainda não processado mostra onde fica e diz que ainda não foi lido. A busca acha também os municípios sem dados pelo nome (estão no contorno do Brasil).
+3.4 Busca de código do CAR: direto para a ficha da fazenda. Do município à fazenda: fitBounds com padding 48 px em 900 a 1.200 ms; só depois do moveend acender máscara e contorno em 250 a 300 ms. Total abaixo de 4 s.
+3.5 Movimento: a primeira carga enquadra sem voo (jumpTo). Aparelho fraco (deviceMemory até 2, hardwareConcurrency até 4 ou saveData) ou "reduzir movimento": sempre jumpTo. Nunca essential: true em animação decorativa. pixelRatio no máximo 2, fadeDuration 150, sem 3D nem inclinação.
+3.6 "Onde fica" é o minimapa em SVG do item 2.1 (8), no canto do mapa e ao lado do nome do município.
+3.7 Celular (360 px): busca no topo, mapa no resto da tela, painel como gaveta que sobe de baixo. Sem município, a gaveta fica baixa (só o título); com município, sobe até a metade; tocar ou arrastar a alça leva até quase a tela toda. O voo enquadra o município na parte do mapa que a gaveta não cobre.
+3.8 No cabeçalho, duas portas: "Sou comprador ou desenvolvedor" e "Sou produtor rural".
 
 4. PAINEL DO MUNICÍPIO
 4.1 Topo: frase gerada a partir dos dados, no lugar da fileira de cartões ("Dos 9.703 imóveis no CAR de São Félix do Xingu, 297 estão prontos para conversar; a maior perda está na falta de matrícula."). Testar com dado faltando (nunca "Em {ano}").
@@ -129,7 +131,7 @@ Satélite EOX cloudless 2018 a 2024 (não comercial), Esri World Imagery, Planet
 4) Ficha da fazenda: veredito, caixa de fatos, por que é apta, composição (itens 5.1 a 5.6); depois antes e depois (5.7).
 5) Ficha do produtor e aceite (itens 6 e 7).
 6) Cartão e vídeo (itens 8 e 9).
-7) Abertura: ajuste de ritmo (item 3).
+7) Tela de entrada: mapa do Brasil com a busca no topo (item 3).
 8) Identidade: logotipo e ilustração (item 10).
 Abrir um PR por etapa, com print antes e depois de cada tela (computador 1440 px e celular 360 px).
 
