@@ -17,7 +17,7 @@ import time
 import geopandas as gpd
 import pandas as pd
 
-from raiz.vigilancia import aprendizado, aviso, cruzamento, projetos, publicacao, relatorio
+from raiz.vigilancia import aprendizado, aviso, aviso_verra, cruzamento, projetos, publicacao, relatorio
 from raiz.vigilancia import regras as regras_mod
 from raiz.vigilancia.armazem import Armazem
 from raiz.vigilancia.config import Config, config
@@ -194,6 +194,9 @@ def rodar(
                         relatorio.rascunho(p, pe, regras, hoje, idioma), encoding="utf-8"
                     )
                 (pasta_rel / f"{pe['perda_id']}.kml").write_text(relatorio.kml_da_perda(p, pe), encoding="utf-8")
+                (pasta_rel / f"{pe['perda_id']}_aviso_verra.eml").write_text(
+                    aviso_verra.eml(aviso_verra.preparar(p, pe["perda_id"], regras, hoje, perda=pe)), encoding="utf-8"
+                )
                 avs += aviso.avisos(pe, p, regras, ev, criados, hoje)
             resumo_proj[p.id] = {
                 "perdas_abertas": sum(1 for x in lista_perdas if x["estado"] in ("suspeita", "confirmada")),

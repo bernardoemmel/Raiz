@@ -78,6 +78,12 @@ def main(argv: list[str] | None = None) -> int:
     rel.add_argument("--idioma", default="pt", choices=["pt", "en"])
     rel.add_argument("--kml", action="store_true", help="mostrar o KML da área afetada no lugar do relatório")
 
+    av = sub.add_parser("aviso-verra", help="preparar o e-mail inicial, sem enviar nem quitar o prazo")
+    av.add_argument("projeto")
+    av.add_argument("perda")
+    av.add_argument("--prazo-informado", help="AAAA-MM-DD, somente se o estado privado estiver indisponível")
+    av.add_argument("--saida", help="gravar o rascunho .eml no caminho indicado")
+
     m = sub.add_parser("marcar")
     m.add_argument("alerta_id")
     m.add_argument("resultado", choices=["verdadeiro", "falso"])
@@ -143,6 +149,26 @@ def main(argv: list[str] | None = None) -> int:
     from raiz.vigilancia.servico import Vigilancia
 
     v = Vigilancia()
+    if args.cmd == "aviso-verra":
+        from raiz.vigilancia.aviso_verra import eml, preparar
+        from raiz.vigilancia.servico import hoje_brasil
+
+        if args.projeto not in v.projetos:
+            _imprimir({"erro": "projeto não cadastrado"})
+            return 2
+        try:
+            pe = v._perda(args.projeto, args.perda) if len(v.arm.alertas("projeto", args.projeto)) else None
+            d = preparar(v.projetos[args.projeto], args.perda, v.regras, hoje_brasil(), pe, _data(args.prazo_informado))
+        except ValueError as ex:
+            _imprimir({"erro": str(ex)})
+            return 2
+        if args.saida:
+            destino = Path(args.saida)
+            destino.parent.mkdir(parents=True, exist_ok=True)
+            destino.write_text(eml(d), encoding="utf-8")
+            destino.chmod(0o600)
+        _imprimir(d)
+        return 0
     if args.cmd == "imovel":
         from raiz.vigilancia.api import normalizar_cod
 

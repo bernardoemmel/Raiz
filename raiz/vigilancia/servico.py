@@ -15,7 +15,7 @@ from zoneinfo import ZoneInfo
 import pandas as pd
 import shapely
 
-from raiz.vigilancia import aprendizado, aviso, perdas, projetos, publicacao, relatorio
+from raiz.vigilancia import aprendizado, aviso, aviso_verra, perdas, projetos, publicacao, relatorio
 from raiz.vigilancia import regras as regras_mod
 from raiz.vigilancia.armazem import TIPOS_EVENTO, Armazem
 from raiz.vigilancia.config import Config, config
@@ -260,6 +260,10 @@ class Vigilancia:
                 "en": f"/vigilancia/projeto/{pid}/perdas/{pe['perda_id']}/relatorio?idioma=en",
                 "kml": f"/vigilancia/projeto/{pid}/perdas/{pe['perda_id']}/kml",
             }
+            pe["aviso_verra"] = {
+                "rascunho": f"/vigilancia/projeto/{pid}/perdas/{pe['perda_id']}/aviso-verra",
+                "eml": f"/vigilancia/projeto/{pid}/perdas/{pe['perda_id']}/aviso-verra.eml",
+            }
         al = self.arm.alertas("projeto", pid)
         vig = aprendizado.vigentes(self.marcacoes()).set_index("alerta_id")
         areas_info, avisos_poligono = [], []
@@ -330,6 +334,13 @@ class Vigilancia:
     def kml(self, pid: str, perda_id: str) -> str | None:
         pe = self._perda(pid, perda_id)
         return relatorio.kml_da_perda(self.projetos[pid], pe) if pe else None
+
+    def aviso_verra(self, pid: str, perda_id: str, hoje: dt.date | None = None) -> dict | None:
+        hoje = hoje or hoje_brasil()
+        pe = self._perda(pid, perda_id, hoje)
+        if pe is None:
+            return None
+        return aviso_verra.preparar(self.projetos[pid], perda_id, self.regras, hoje, perda=pe)
 
     def avisos(self, estado: str | None = None, hoje: dt.date | None = None) -> list[dict]:
         hoje = hoje or hoje_brasil()
