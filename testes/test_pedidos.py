@@ -222,3 +222,38 @@ def test_pix_de_teste_e_aviso_de_pagamento(monkeypatch):
     c2 = pix.criar(1234.5, "Reserva Raíz com nome comprido demais para a AbacatePay", 3600, cliente=Cli())
     assert c2.externo_id == "pix_x" and c2.modo == "teste" and c2.copia_e_cola == "000201..."
     assert pix.conferir("pix_x", cliente=Cli()) == "paga"
+
+
+def test_otimizador_prefere_regeneracao_quando_o_preco_nao_paga_o_plantio():
+    """Plantio com custo nivelado menor mas preço de equilíbrio acima do preço do pedido fica para trás da
+    regeneração; quando a regeneração não basta, o lote fecha com o plantio e avisa."""
+    linhas = []
+    for i in range(12):
+        regen = i < 6
+        linhas.append(O.de_linha({
+            "cod_imovel": f"PA-{i}", "uf": "PA", "cod_municipio_ibge": 1504950, "bioma": "Amazônia",
+            "modo_restauracao": "regeneracao_assistida" if regen else "plantio_total",
+            "restauracao_area_ha": 100, "credito_liquido_tco2_ha_contrato_p50": 200,
+            "credito_liquido_tco2_ha_contrato_p10": 150, "credito_liquido_tco2_ha_contrato_p90": 260,
+            "custo_credito_usd": 30 if regen else 25, "preco_equilibrio_usd_t": 48 if regen else 92,
+            "caminho_terra": "privada_matricula", "risco_terra": "medio",
+        }))  # fmt: skip
+    oferta = O.tabela(linhas)
+    c = _pedido(meta={"tipo": "creditos", "valor": 100_000})
+    _, ops, _ = Z.opcoes(oferta, c)
+    for o in ops:
+        lote = {i["cod_imovel"] for i in o["itens"] if i["papel"] == "lote"}
+        assert lote <= {f"PA-{i}" for i in range(6)}, o["id"]  # só regeneração: 5 x 20 mil = 100 mil
+        assert o["abaixo_equilibrio"]["fazendas"] == 0 and o["abaixo_equilibrio"]["aviso"] is None
+    # meta maior que a regeneração: entra plantio, e o aviso diz que só fecha com ele
+    c2 = _pedido(meta={"tipo": "creditos", "valor": 160_000})
+    _, ops2, _ = Z.opcoes(oferta, c2)
+    ab = ops2[0]["abaixo_equilibrio"]
+    assert ops2[0]["alcanca_meta"] and ab["so_fecha_com_elas"] and ab["fazendas"] >= 2
+    assert ab["metodos"] == {"plantio_total": ab["fazendas"]} and ab["preco_equilibrio_medio_usd"] == 92
+    assert ab["base_que_se_paga"] == 120_000 and "só fecha com plantio abaixo do equilíbrio" in ab["aviso"]
+    # preço que paga o plantio: sem aviso, e o custo nivelado volta a mandar
+    c3 = _pedido(meta={"tipo": "creditos", "valor": 100_000}, dinheiro={"preco_venda_usd": 100})
+    _, ops3, _ = Z.opcoes(oferta, c3)
+    assert ops3[0]["abaixo_equilibrio"]["fazendas"] == 0
+    assert {i["cod_imovel"] for i in ops3[0]["itens"] if i["papel"] == "lote"} <= {f"PA-{i}" for i in range(6, 12)}

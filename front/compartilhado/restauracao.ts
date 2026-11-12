@@ -197,7 +197,7 @@ export function lerRestauracao(l: Linha): Restauracao | null {
   }
 }
 
-// --- cenários (raiz/regras/padroes/cenarios_restauracao.yaml) ----------------------------------------------------
+// --- cenários (raiz/regras/padroes/restauracao.yaml, seção 11) -------------------------------------------------
 
 export interface DescricaoCenario {
   nome: string

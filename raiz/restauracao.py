@@ -1,8 +1,8 @@
 """Valor de cada fazenda para quem restaura com crédito de carbono (o desenvolvedor), por imóvel.
 
 Calculado pelo produto, fora do motor (motor/ não se edita): lê as colunas do motor pelo nome e as entradas
-geográficas de raiz/restauracao_geo.py, aplica as premissas de raiz/regras/padroes/restauracao.yaml e o cenário
-de raiz/regras/padroes/cenarios_restauracao.yaml, e grava desenvolvedor_<mun>.csv (docs/colunas.md).
+geográficas de raiz/restauracao_geo.py, aplica as premissas e o cenário de um só arquivo,
+raiz/regras/padroes/restauracao.yaml (rodada 11 unificada), e grava desenvolvedor_<mun>.csv (docs/colunas.md).
 
 Passo a passo por imóvel:
  1. modo de restauração (regeneração assistida, semeadura direta, plantio total) pela regra de pontos, por faixa de
@@ -30,7 +30,6 @@ import yaml
 
 PADROES = Path(__file__).parent / "regras" / "padroes"
 ARQ_REGRA = PADROES / "restauracao.yaml"
-ARQ_CENARIOS = PADROES / "cenarios_restauracao.yaml"
 ARQ_CALIBRACAO = PADROES / "restauracao_calibracao.yaml"
 ARQ_CAMBIO = PADROES / "restauracao_cambio.yaml"
 C2CO2 = 44 / 12
@@ -44,10 +43,12 @@ FAIXAS = ("d0", "d1", "d2", "d3")  # até 100 m, 100 a 300 m, 300 m a 1 km, acim
 
 
 @lru_cache
-def _ler(regra: Path, cenarios: Path, calibracao: Path, cambio: Path | None = None, _marcas: tuple = ()) -> dict:
-    textos = [regra.read_bytes(), cenarios.read_bytes()]
+def _ler(regra: Path, calibracao: Path, cambio: Path | None = None, _marcas: tuple = ()) -> dict:
+    """Um só arquivo de premissas (restauracao.yaml, com os cenários); a calibração e a PTAX gravada são dados que o
+    produto escreve e entram na versão."""
+    textos = [regra.read_bytes()]
     r = yaml.safe_load(textos[0])
-    r["cenarios"] = yaml.safe_load(textos[1])
+    r["cenarios"] = {"padrao": r.pop("padrao"), "cenarios": r["cenarios"], "monte_carlo": r.pop("monte_carlo")}
     r["calibracao"], r["cambio"] = {}, {}
     if calibracao.exists():
         textos.append(calibracao.read_bytes())
@@ -56,7 +57,7 @@ def _ler(regra: Path, cenarios: Path, calibracao: Path, cambio: Path | None = No
         textos.append(cambio.read_bytes())
         r["cambio"] = yaml.safe_load(textos[-1]) or {}
     h = hashlib.sha256(b"\n--\n".join(textos)).hexdigest()[:8]
-    r["versao_completa"] = f"{r['versao']}+{r['cenarios']['versao']}+{h}"
+    r["versao_completa"] = f"{r['versao']}+{h}"
     return r
 
 
@@ -68,12 +69,10 @@ def _marca(p: Path) -> tuple:
     return (str(p), st.st_mtime_ns, st.st_size)
 
 
-def regra(regra: Path | None = None, cenarios: Path | None = None, calibracao: Path | None = None,
-          cambio: Path | None = None) -> dict:  # fmt: skip
-    """As premissas (restauracao.yaml), os cenários, a calibração e a PTAX gravada, com versao_completa = versões +
-    hash dos arquivos. Relê quando um deles muda (a recalibração grava enquanto a API está de pé)."""
-    arqs = (Path(regra or ARQ_REGRA), Path(cenarios or ARQ_CENARIOS), Path(calibracao or ARQ_CALIBRACAO),
-            Path(cambio or ARQ_CAMBIO))  # fmt: skip
+def regra(regra: Path | None = None, calibracao: Path | None = None, cambio: Path | None = None) -> dict:
+    """As premissas (restauracao.yaml, um arquivo só, com os cenários), a calibração e a PTAX gravada, com
+    versao_completa = versão + hash dos arquivos. Relê quando um deles muda (a recalibração grava com a API de pé)."""
+    arqs = (Path(regra or ARQ_REGRA), Path(calibracao or ARQ_CALIBRACAO), Path(cambio or ARQ_CAMBIO))
     return _ler(*arqs, tuple(_marca(a) for a in arqs))
 
 
@@ -115,6 +114,7 @@ PADRAO_CENARIO = {  # o que um cenário antigo (sem a rodada 11) não traz
     "participacao_dono": 0.0, "piso_dono_rs_ha_ano": 0.0, "fase1_rs_ha_ano": 0.0, "fase1_anos": 0,
     "linha_base_piso": 0.0, "vazamento": 0.0, "vazamento_com_mitigacao": 0.0, "reserva_risco": 0.12,
     "incerteza": 0.10, "cambio_ptax": False, "juros_carencia": "pagos", "arrendamento_rs_ha_ano": 0.0,
+    "tolerancia_ultimo_marco": None, "rescisao_atraso_marco_dias": None, "multas_no_fluxo": True,
     "desembolso_custo": [1.0],
 }  # fmt: skip
 
@@ -406,8 +406,8 @@ def custo(linha: dict, m: dict | None = None, r: dict | None = None, c: dict | N
         for md, wi in w.items():
             v = np.array([t[md]["implantacao"], *t[md]["manutencao_inicial"]], dtype=float) * _cal(r, "custo", md)
             vec[: len(v)] += wi * v
-            p10 += wi * float(v.sum()) * t[md]["p10_rel"]
-            p90 += wi * float(v.sum()) * t[md]["p90_rel"]
+            p10 += wi * float(t[md]["p10"]) * _cal(r, "custo", md)
+            p90 += wi * float(t[md]["p90"]) * _cal(r, "custo", md)
         vec *= f
         out = {"p10": p10 * f, "p50": float(vec.sum()), "p90": p90 * f}
     else:
@@ -498,8 +498,8 @@ def linha_base(linha: dict, anos: int, m: dict | None = None, r: dict | None = N
 
 
 def forma_curva(r: dict | None = None) -> np.ndarray:
-    """Forma da curva de captura (fração do total em cada ano, anos 0..N, soma 1): zero até o primeiro ponto, linear
-    entre os pontos e, depois do pico, queda linear até o ano N no ritmo que fecha o total de referência (URTX)."""
+    """Forma da curva de captura (fração do total em cada ano, anos 0..N, soma 1): linear entre os pontos da curva
+    anual oficial da URTX (Anexo 20 da concessão), escalada depois para o total de 40 anos de cada método."""
     r = r or regra()
     cc = r["captura_curva"]
     n_anos = int(cc["anos"])
@@ -509,12 +509,8 @@ def forma_curva(r: dict | None = None) -> np.ndarray:
         for t in range(a0 + 1, a1 + 1):
             v[t] = v0 + (v1 - v0) * (t - a0) / (a1 - a0)
     ap, vp = pts[-1]
-    resto = float(cc["total_referencia"]) - float(v[: ap + 1].sum())
-    k = n_anos - ap
-    if k > 0:
-        queda = (k * vp - resto) / (k * (k + 1) / 2)
-        for i, t in enumerate(range(ap + 1, n_anos + 1), 1):
-            v[t] = max(vp - queda * i, 0.0)
+    if ap < n_anos:  # sem ponto no último ano: fica no último valor
+        v[ap + 1 :] = vp
     return v / v.sum()
 
 
@@ -539,12 +535,11 @@ def captura(linha: dict, m: dict | None = None, r: dict | None = None, c: dict |
         cc = r["captura_curva"]
         forma = forma_curva(r)
         k = min(H, len(forma) - 1)
-        total = sum(w[md] * cc["total_tco2_ha"][md] * _cal(r, "captura", md) for md in w)
-        total *= float(cc["fator_bioma"].get(b, 1.0)) * f
-        bruto[: k + 1] = total * forma[: k + 1]
-        rel10 = sum(w[md] * cc["faixa_rel"][md][0] for md in w)
-        rel90 = sum(w[md] * cc["faixa_rel"][md][1] for md in w)
+        total = sum(w[md] * cc["total_tco2_ha"][md] * _cal(r, "captura", md) for md in w) * f
         teto = float(cc["teto_tco2_ha"].get(b, cc["teto_tco2_ha"]["Amazônia"]))
+        total = min(total, teto)  # vale o menor entre o total do método e o teto do bioma (a forma fica)
+        bruto[: k + 1] = total * forma[: k + 1]
+        rel10, rel90 = float(cc["incerteza_captura"]["p10"]), float(cc["incerteza_captura"]["p90"])
     else:
         p = {q: sum(w[md] * pm[md][q] * _cal(r, "captura", md) for md in w) * f for q in Q}
         bruto[1:] = p["p50"]
@@ -561,7 +556,7 @@ def descontos(linha: dict, cap: dict, lb: dict, c: dict) -> dict:
     vazamento (VMD0054; o do cenário, ou zero com fazenda vizinha de mitigação no lote), reserva e incerteza."""
     medida = lb["tco2_ha_ano"] / cap["p50"] if cap["p50"] > 0 else 0.0
     base = min(max(medida, float(c.get("linha_base_piso") or 0.0)), 1.0)
-    mitig = _verdade(linha.get("mitigacao_vizinha"))
+    mitig = _verdade(linha.get("vazamento_mitigacao")) or _verdade(linha.get("mitigacao_vizinha"))
     vaz = float(c["vazamento_com_mitigacao"] if mitig else c["vazamento"])
     res, inc = float(c["reserva_risco"]), float(c["incerteza"])
     return {
@@ -601,12 +596,26 @@ def _tir(F: np.ndarray) -> np.ndarray:
     ok = cruza.any(axis=1)
     i = np.where(ok, cruza.shape[1] - 1 - np.argmax(cruza[:, ::-1], axis=1), 0)
     lo, hi = g[i].astype(float), g[i + 1].astype(float)
+    rows = np.arange(len(F))
+    vlo, vhi = V[rows, i], V[rows, np.minimum(i + 1, len(g) - 1)]
     t = np.arange(T, dtype=float)
-    for _ in range(26):
-        mid = (lo + hi) / 2
-        pos = (F * (1 + mid[:, None]) ** -t[None, :]).sum(axis=1) > 0
-        lo, hi = np.where(pos, mid, lo), np.where(pos, hi, mid)
-    return np.where(ok, (lo + hi) / 2, np.nan)
+    # falsa posição (Illinois) dentro do intervalo da grade: converge em poucas rodadas, com a mesma garantia de
+    # ficar entre lo e hi da bisseção
+    lado = np.zeros(len(F))
+    for _ in range(8):
+        den = np.where(ok, vlo - vhi, 1.0)
+        mid = np.where(np.abs(den) > 1e-12, lo + (hi - lo) * vlo / np.where(np.abs(den) > 1e-12, den, 1.0),
+                       (lo + hi) / 2)  # fmt: skip
+        mid = np.clip(mid, lo, hi)
+        vm = (F * (1 + mid[:, None]) ** -t[None, :]).sum(axis=1)
+        pos = vm > 0
+        lo, vlo = np.where(pos, mid, lo), np.where(pos, vm, vlo)
+        hi, vhi = np.where(pos, hi, mid), np.where(pos, vhi, vm)
+        # Illinois: o lado que não andou tem o valor cortado pela metade
+        vhi = np.where(pos & (lado > 0), vhi / 2, vhi)
+        vlo = np.where(~pos & (lado < 0), vlo / 2, vlo)
+        lado = np.where(pos, 1.0, -1.0)
+    return np.where(ok, np.where(np.abs(vlo) < np.abs(vhi), lo, hi), np.nan)
 
 
 def divida(c: dict, capex: np.ndarray, caixa: np.ndarray) -> dict:
@@ -701,14 +710,20 @@ def simular_fluxos(custo_ano, m_custo, bruto_ano, m_captura, teto: float, fator_
     peso = V / float(r["agrupamento"]["contrato_creditos"]) if finito else 0.0
     multa_ativa = finito and (float(c["multa_credito_dia_rs"]) > 0 or float(c["multa_marco_dia_rs"]) > 0)
     dias_mes = 365.0 / 12
+    # multa e rescisão no fluxo da fazenda só quando ela fecha o contrato sozinha; no lote, a reserva cobre a falta de
+    # uma fazenda e a multa se mede no lote inteiro (cronograma_lote); a chance de cada marco é calculada igual
+    no_fluxo = bool(c.get("multas_no_fluxo", True))
+    teto_entrega = V if no_fluxo else math.inf
     for i, (e, pct) in enumerate(zip(marcos, pcts, strict=True)):
-        d = np.maximum(np.minimum(N[:, e], V) - entregue, 0.0)
-        receita[:, e] += d * np.where(resc, preco_pos, preco)
+        d = np.maximum(np.minimum(N[:, e], teto_entrega) - entregue, 0.0)
+        receita[:, e] += d * np.where(resc & no_fluxo, preco_pos, preco)
         vendidos[:, e] += d
         entregue += d
         if not finito:
             continue
-        precisa = (1 - float(c["tolerancia_marco"])) * float(pct) / 100 * V
+        ultimo = i == len(marcos) - 1
+        tol = float(c.get("tolerancia_ultimo_marco") or 0.0) if ultimo else float(c["tolerancia_marco"])
+        precisa = (1 - tol) * float(pct) / 100 * V
         falta = N[:, e] < precisa - 1e-9
         atende[:, i] = ~falta & ~resc
         meses = (H - e) * 12
@@ -729,10 +744,14 @@ def simular_fluxos(custo_ano, m_custo, bruto_ano, m_captura, teto: float, fator_
         mt = np.where(resc, 0.0, mt)
         bate = multa_acum + mt >= teto_multa
         mt = np.where(bate & ~resc, np.maximum(teto_multa - multa_acum, 0.0), mt)
+        limite_dias = c.get("rescisao_atraso_marco_dias")
+        if limite_dias is not None:  # marco atrasado demais também rescinde
+            bate |= dias > float(limite_dias)
         resc |= bate
         multa_acum += mt
         paga = np.minimum(np.ceil(e + dias / 365).astype(int), H)
         np.add.at(multas, (np.arange(n), paga), mt)
+    multas_fluxo = multas if no_fluxo else np.zeros_like(multas)
     # depois do contrato: o que sobrou e o que a mata segue capturando, vendido ao preço de mercado
     for e in c["entregas_pos_contrato_anos"]:
         d = np.maximum(N[:, e] - vendidos.sum(axis=1), 0.0)
@@ -761,14 +780,15 @@ def simular_fluxos(custo_ano, m_custo, bruto_ano, m_captura, teto: float, fator_
         op[e] += float(c["verificacao_rs_ha_entrega"])
     prop = receita * (float(c["tributos_receita"]) + float(c["registro_venda_receita"]))
     prop += vendidos * float(c["taxa_registro_usd_t"]) * fx
-    F = -K + receita - prop - dono - op[None, :] - multas
+    F = -K + receita - prop - dono - op[None, :] - multas_fluxo
 
     div = divida(c, K[0], F[0] + K[0])
     L = F + mc[:, None] * div["D"][None, :]
     desc = (1 + float(c["taxa_desconto"])) ** -anos.astype(float)
     return {
         "anos": anos, "F": F, "L": L, "N": N, "G": G, "K": K, "receita": receita, "vendidos": vendidos,
-        "dono": dono, "multas": multas, "op": op, "divida": div, "V": V, "atende": atende, "atraso_dias": atraso_dias,
+        "dono": dono, "multas": multas, "multas_fluxo": multas_fluxo, "op": op, "divida": div, "V": V,
+        "atende": atende, "atraso_dias": atraso_dias,
         "rescindido": resc, "vpl": F @ desc,
         "tir_projeto": _tir(F) if "projeto" in tirs else np.full(n, np.nan),
         "tir_alavancada": _tir(L) if "alavancada" in tirs else np.full(n, np.nan),
@@ -814,17 +834,143 @@ def _dois_lados(z: np.ndarray, p10: float, p50: float, p90: float) -> np.ndarray
 
 
 def arrendamento_censo(linha: dict, c: dict, r: dict | None = None) -> tuple[float | None, str | None]:
-    """Aluguel de referência por ha por ano (Censo Agro 2017): o do município, senão o do estado."""
+    """Aluguel de referência por ha por ano (Censo Agro 2017): o do município, senão o do estado, senão o do Brasil."""
     r = r or regra()
-    t = r["cenarios"].get("arrendamento_censo_2017") or {}
+    t = r.get("dono_aluguel_censo") or {}
     cod = _num(linha, "cod_municipio_ibge")
-    if cod is not None and int(cod) in {int(k) for k in (t.get("municipios") or {})}:
-        v = {int(k): v for k, v in t["municipios"].items()}[int(cod)]
-        return float(v), "municipio"
+    muns = {int(k): float(v) for k, v in (t.get("por_municipio_rs_ha_ano") or {}).items()}
+    if cod is not None and int(cod) in muns:
+        return muns[int(cod)], "municipio"
     uf = str(linha.get("uf") or "").upper()
-    if uf in (t.get("ufs") or {}):
-        return float(t["ufs"][uf]), "uf"
+    if uf in (t.get("por_uf_rs_ha_ano") or {}):
+        return float(t["por_uf_rs_ha_ano"][uf]), "uf"
+    if t.get("brasil_rs_ha_ano") is not None:
+        return float(t["brasil_rs_ha_ano"]), "brasil"
     return None, None
+
+
+@lru_cache
+def _pecuaria(arquivo: str) -> dict[int, tuple[float, float, float]]:
+    import pandas as pd
+
+    f = PADROES / arquivo
+    if not f.exists():
+        return {}
+    t = pd.read_csv(f)
+    return {int(x.cod_ibge): (float(x.pasto_ha), float(x.bovinos_cab), float(x.venda_bovinos_mil_rs))
+            for x in t.itertuples()}  # fmt: skip
+
+
+def renda_pecuaria(linha: dict, r: dict | None = None) -> dict | None:
+    """Âncora de renda do gado no município (Censo Agro 2017, corrigida pelo IPCA): receita bruta da venda de gado por
+    ha de pasto e lotação. Sem o município na tabela, None."""
+    r = r or regra()
+    pc = r.get("pecuaria") or {}
+    cod = _num(linha, "cod_municipio_ibge")
+    if cod is None or not pc.get("arquivo"):
+        return None
+    x = _pecuaria(pc["arquivo"]).get(int(cod))
+    if not x or x[0] <= 0:
+        return None
+    pasto, cab, venda = x
+    bruta = 1000 * venda / pasto * float(pc.get("ipca_fator") or 1.0)
+    margem = float(pc.get("margem_liquida_referencia") or 0.0)
+    return {"receita_bruta_rs_ha_ano": round(bruta, 0), "lotacao_cab_ha": round(cab / pasto, 2),
+            "margem_referencia": margem, "sobra_referencia_rs_ha_ano": round(bruta * margem, 0),
+            "ipca_ate": pc.get("ipca_ate")}  # fmt: skip
+
+
+# --- cronograma do lote (ProFloresta+): chance de cada marco, multa e rescisão no lote inteiro -----------------
+
+
+def cronograma_lote(credito_contrato_p50: float, c: dict | None = None, r: dict | None = None,
+                    volume: float | None = None) -> dict:  # fmt: skip
+    """Chance de cumprir cada marco, multa esperada e chance de rescisão de um lote com `credito_contrato_p50` créditos
+    líquidos até o fim do contrato (P50), contra o volume contratado (padrão: o próprio P50). O erro da captura é um
+    fator comum ao lote inteiro (não se cancela entre fazendas); a multa de R$ 1.000 por dia de marco é do contrato.
+    Trazido da branch claude/premissas-rodada11 (cronograma do Anexo IV), com a curva e o cenário deste arquivo."""
+    r = r or regra()
+    c = c or cenario(r=r)
+    volume = float(volume if volume is not None else credito_contrato_p50)
+    T = int(c["prazo_anos"])
+    forma = forma_curva(r)
+    acum_ano = np.cumsum(forma)
+    acum_ano = acum_ano / acum_ano[min(T, len(acum_ano) - 1)] * credito_contrato_p50
+    passo = 1 / 12
+    tempo = np.arange(0, len(forma) - 1 + passo / 2, passo)
+    acum50 = np.interp(tempo, np.arange(len(forma)), acum_ano)
+    cc = r["captura_curva"]["incerteza_captura"]
+    mc_ = r["cenarios"]["monte_carlo"]
+    _, zk = _sorteios(int(mc_["sorteios"]), int(mc_["semente"]))
+    fk = _dois_lados(zk, float(cc["p10"]), 1.0, float(cc["p90"]))
+    acum = fk[:, None] * acum50[None, :]
+    preco_brl = float(c["preco_usd_t"]) * float(c["cambio_brl_usd"])
+    valor = volume * preco_brl
+    marcos = []
+    multas = np.zeros(len(fk))
+    atraso_max = np.zeros(len(fk))
+    cumpre_todos = np.ones(len(fk), dtype=bool)
+    for i, (ano, pct) in enumerate(zip(c["entregas_anos"], c["marcos_pct"], strict=True)):
+        ultimo = i == len(c["entregas_anos"]) - 1
+        tol = float(c.get("tolerancia_ultimo_marco") or 0.0) if ultimo else float(c["tolerancia_marco"])
+        alvo = volume * float(pct) / 100
+        limiar = alvo * (1 - tol)
+        im = int(round(ano / passo))
+        cumpre = acum[:, im] >= limiar - 1e-9
+        depois = acum[:, im:]
+        chegou = depois >= limiar - 1e-9
+        meses = np.where(chegou.any(axis=1), np.argmax(chegou, axis=1), depois.shape[1])
+        dias = meses * passo * 365
+        falta = np.maximum(alvo - depois, 0.0)
+        dia_mes = np.arange(depois.shape[1]) * passo * 365
+        conta = (dia_mes[None, :] > float(c["multa_carencia_dias"])) & (
+            np.arange(depois.shape[1])[None, :] < meses[:, None]
+        )
+        m_cred = (falta * conta).sum(axis=1) * float(c["multa_credito_dia_rs"]) * passo * 365
+        m_marco = dias * float(c["multa_marco_dia_rs"])
+        mt = np.where(cumpre, 0.0, m_cred + m_marco)
+        multas += mt
+        atraso_max = np.maximum(atraso_max, np.where(cumpre, 0.0, dias))
+        cumpre_todos &= cumpre
+        marcos.append({"ano": int(ano), "fracao": float(pct) / 100, "acumulado_exigido": alvo, "limiar": limiar,
+                       "acumulado_p50": float(acum50[im]), "chance": float(cumpre.mean()),
+                       "multa_esperada_rs": float(mt.mean()),
+                       "atraso_medio_dias_se_falhar": float(dias[~cumpre].mean()) if (~cumpre).any() else 0.0,
+                       })  # fmt: skip
+    limite = c.get("rescisao_atraso_marco_dias")
+    resc = multas >= float(c["rescisao_multa_fracao"]) * valor
+    if limite is not None:
+        resc |= atraso_max > float(limite)
+    return {"marcos": marcos, "chance_todos": float(cumpre_todos.mean()), "multa_esperada_rs": float(multas.mean()),
+            "chance_rescisao": float(resc.mean()), "valor_contrato_rs": valor, "volume": volume,
+            "credito_contrato_p50": credito_contrato_p50}  # fmt: skip
+
+
+def contrato_para_marcos(volume: float, c: dict | None = None, r: dict | None = None, fator: float = 1.0) -> float:
+    """Créditos líquidos até o fim do contrato (P50 do lote) para cumprir TODOS os marcos com a tolerância; o mais
+    apertado costuma ser o do ano 7, porque a curva começa devagar."""
+    r = r or regra()
+    c = c or cenario(r=r)
+    T = int(c["prazo_anos"])
+    acum = np.cumsum(forma_curva(r))
+    acum = acum / acum[min(T, len(acum) - 1)]
+    precisa = 0.0
+    for i, (ano, pct) in enumerate(zip(c["entregas_anos"], c["marcos_pct"], strict=True)):
+        ultimo = i == len(c["entregas_anos"]) - 1
+        tol = float(c.get("tolerancia_ultimo_marco") or 0.0) if ultimo else float(c["tolerancia_marco"])
+        limiar = volume * float(pct) / 100 * (1 - tol)
+        precisa = max(precisa, limiar / max(float(acum[min(ano, len(acum) - 1)]) * fator, 1e-12))
+    return precisa
+
+
+def fator_captura_alvo(chance: float, r: dict | None = None) -> float:
+    """Fator comum da captura que o lote precisa aguentar para cumprir com a chance alvo (P10 para 90%)."""
+    r = r or regra()
+    cc = r["captura_curva"]["incerteza_captura"]
+    mc_ = r["cenarios"]["monte_carlo"]
+    _, zk = _sorteios(int(mc_["sorteios"]), int(mc_["semente"]))
+    fk = _dois_lados(zk, float(cc["p10"]), 1.0, float(cc["p90"]))
+    return float(np.percentile(fk, 100 * (1 - chance)))
 
 
 # --- por imóvel ------------------------------------------------------------------------------------------------
@@ -861,12 +1007,166 @@ def _tir_pct(v: np.ndarray) -> np.ndarray:
     return np.where(np.isnan(v), -1.0, v) * 100  # sem TIR = perde tudo
 
 
+def _equilibrio(s: dict, c: dict) -> float | None:
+    """Preço do contrato (US$/t) que zera o VPL do caminho do P50 na taxa do cenário: o VPL anda em linha reta com o
+    preço (receita menos o que sai em % dela), então basta uma rodada."""
+    fx = float(c["cambio_brl_usd"])
+    prop = float(c["tributos_receita"]) + float(c["registro_venda_receita"])
+    if c["pagamento_dono"] != "arrendamento":
+        prop += float(c["participacao_dono"])
+    T = int(c["prazo_anos"])
+    d = s["desconto"]
+    vend = s["vendidos"][0]
+    dv = float(vend[: T + 1] @ d[: T + 1]) * fx * (1 - prop)  # só a receita do contrato anda com o preço
+    if dv <= 0:
+        return None
+    return float(c["preco_usd_t"]) - float(s["vpl"][0]) / dv
+
+
+def opcoes_metodo(m: dict) -> dict[str, dict]:
+    """Os métodos disputam a fazenda: a regra de pontos (regeneração e semeadura onde a distância e o histórico
+    deixam, plantio no resto), o plantio total na área toda e a regeneração onde a regra deixa com plantio no resto
+    (a semeadura vira plantio). Vence o de menor preço de equilíbrio (custo líquido por crédito)."""
+    area = sum(m["por_modo_ha"].values())
+    out = {"regra": m}
+    if area <= 0:
+        return out
+    reg, sem = m["por_modo_ha"].get("regeneracao_assistida", 0.0), m["por_modo_ha"].get("semeadura_direta", 0.0)
+    if reg + sem > 1e-9:
+        out["plantio"] = {**m, "por_modo_ha": {"regeneracao_assistida": 0.0, "semeadura_direta": 0.0,
+                                                "plantio_total": area}, "modo": "plantio_total"}  # fmt: skip
+    if reg > 1e-9 and sem > 1e-9:
+        rp = {"regeneracao_assistida": reg, "semeadura_direta": 0.0, "plantio_total": area - reg}
+        out["regeneracao_e_plantio"] = {**m, "por_modo_ha": rp, "modo": max(rp, key=rp.get)}
+    return out
+
+
+def _colunas_pecuaria(linha: dict, r: dict) -> dict:
+    pc = renda_pecuaria(linha, r) or {}
+    return {"pecuaria_receita_bruta_rs_ha_ano": pc.get("receita_bruta_rs_ha_ano"),
+            "pecuaria_lotacao_cab_ha": pc.get("lotacao_cab_ha")}  # fmt: skip
+
+
+def escolher_metodo(linha: dict, c: dict, r: dict) -> tuple[str, dict, dict]:
+    """O método que vence a disputa da fazenda (menor preço de equilíbrio), o modo dele e o preço de cada opção."""
+    H = int(c["horizonte_anos"])
+    lb = None
+    disputa = {}
+    escolhido = "regra"
+    ops = opcoes_metodo(modos(linha, r))
+    for nome, mo in ops.items():
+        cu, ca = custo(linha, mo, r, c), captura(linha, mo, r, c)
+        lb = lb or linha_base(linha, H, mo, r)
+        ds = descontos(linha, ca, lb, c)
+        if len(ops) > 1 and c.get("modelo") == "curva":
+            x = simular_fluxos(cu["por_ano_p50"], [], ca["bruto_ano"], [], ca["teto"], ds["fator"], c, r, ())
+            disputa[nome] = _equilibrio(x, c)
+    if disputa:  # empate fica com a regra de pontos (a regeneração onde a mata volta)
+        escolhido = min(disputa, key=lambda k: (disputa[k] if disputa[k] is not None else math.inf, k != "regra"))
+    return escolhido, ops[escolhido], disputa
+
+
+def _parte_do_preco(s: dict, c: dict) -> np.ndarray:
+    """R$/ha que o fluxo do P50 ganha por US$ 1 a mais no preço do contrato, em cada ano (a receita do contrato menos o
+    que sai em % dela: tributos, registro e venda, a parte do dono)."""
+    prop = float(c["tributos_receita"]) + float(c["registro_venda_receita"])
+    if c["pagamento_dono"] != "arrendamento":
+        prop += float(c["participacao_dono"])
+    T = int(c["prazo_anos"])
+    B = np.zeros(len(s["anos"]))
+    B[: T + 1] = s["vendidos"][0][: T + 1] * float(c["cambio_brl_usd"]) * (1 - prop)
+    return B
+
+
+def fluxo_p50(linha: dict, c: dict | None = None, r: dict | None = None) -> dict:
+    """O caminho do P50 da fazenda por ha (o método que venceu a disputa), com a parte que anda com o preço do
+    contrato: F(preço) = F + (preço − preço do cenário) × B. Somado no lote (fluxo_lote) dá a TIR e o preço mínimo do
+    lote inteiro com o mesmo cálculo da ficha."""
+    r = r or regra()
+    c = c or cenario(r=r)
+    if str(linha.get("vazamento_motivo")) in ("mitigacao_vizinha", "sem_gado"):
+        linha = {**linha, "vazamento_mitigacao": True}  # o vazamento por vizinha já foi decidido no município
+    escolhido, m, _ = escolher_metodo(linha, c, r)
+    cus, cap = custo(linha, m, r, c), captura(linha, m, r, c)
+    dsc = descontos(linha, cap, linha_base(linha, int(c["horizonte_anos"]), m, r), c)
+    s = simular_fluxos(cus["por_ano_p50"], [], cap["bruto_ano"], [], cap["teto"], dsc["fator"], c, r, ())
+    return {"area_ha": float(m["area_ha"]), "metodo": escolhido, "modo": m["modo"], "F": s["F"][0], "K": s["K"][0],
+            "B": _parte_do_preco(s, c), "vendidos": s["vendidos"][0],
+            "creditos_contrato_ha": float(s["N"][0, int(c["prazo_anos"])]),
+            "preco_equilibrio_usd": _equilibrio(s, c)}  # fmt: skip
+
+
+def fluxo_lote(partes: list[dict], c: dict, multa_por_ano: dict[int, float] | None = None,
+               volume: float | None = None) -> dict:  # fmt: skip
+    """Soma dos fluxos do P50 das fazendas (R$ no lote inteiro). Com `volume` (o contrato do lote), o crédito entregue
+    além dele sai do preço do contrato e é vendido ao preço depois do contrato na primeira venda seguinte (a reserva
+    do lote não ganha o preço do contrato). A multa esperada do lote entra no ano do pagamento."""
+    H, T = int(c["horizonte_anos"]), int(c["prazo_anos"])
+    F, K, B, vend = (np.zeros(H + 1) for _ in range(4))
+    for x in partes:
+        F += x["area_ha"] * x["F"]
+        K += x["area_ha"] * x["K"]
+        B += x["area_ha"] * x["B"]
+        vend[: T + 1] += x["area_ha"] * x["vendidos"][: T + 1]
+    excesso = 0.0
+    if volume is not None:
+        prop = float(c["tributos_receita"]) + float(c["registro_venda_receita"])
+        if c["pagamento_dono"] != "arrendamento":
+            prop += float(c["participacao_dono"])
+        ganho = float(c["cambio_brl_usd"]) * (1 - prop)  # R$ que fica por crédito e por US$ de preço
+        entregue = np.diff(np.minimum(np.cumsum(vend), float(volume)), prepend=0.0)
+        sobra = vend - entregue
+        excesso = float(sobra.sum())
+        F -= sobra * float(c["preco_usd_t"]) * ganho
+        B = entregue * ganho
+        pos = [int(a) for a in c["entregas_pos_contrato_anos"] if int(a) <= H]
+        if pos and excesso > 0:
+            F[pos[0]] += excesso * float(c["preco_pos_contrato_usd_t"]) * ganho
+    for ano, v in (multa_por_ano or {}).items():
+        F[min(int(ano), H)] -= float(v)
+    return {"F": F, "K": K, "B": B, "preco_usd": float(c["preco_usd_t"]), "creditos_contrato": float(vend.sum()),
+            "excesso_creditos": excesso}  # fmt: skip
+
+
+def tir_lote(fl: dict, c: dict, preco_usd: float | None = None) -> dict:
+    """TIR do projeto e com financiamento do lote a um preço do contrato (a dívida dimensionada no caixa do lote pelo
+    ICSD, como o banco faria com o projeto agrupado)."""
+    preco = fl["preco_usd"] if preco_usd is None else float(preco_usd)
+    F = fl["F"] + (preco - fl["preco_usd"]) * fl["B"]
+    div = divida(c, fl["K"], F + fl["K"])
+    L = F + div["D"]
+    d = (1 + float(c["taxa_desconto"])) ** -np.arange(len(F), dtype=float)
+    tp, ta = _tir(F)[0], _tir(L)[0]
+    return {"preco_usd": preco, "tir_projeto": None if math.isnan(tp) else float(tp),
+            "tir_alavancada": None if math.isnan(ta) else float(ta), "vpl_rs": float(F @ d),
+            "divida_fracao": div["fracao"], "pico_capital_rs": float(max(-np.cumsum(L).min(), 0.0))}  # fmt: skip
+
+
+def preco_para_tir(fl: dict, c: dict, alvo: float, alavancada: bool = True, teto_usd: float = 1000.0) -> float | None:
+    """Menor preço do contrato (US$/t) em que a TIR do lote chega ao alvo (fração ao ano), por bisseção."""
+    chave = "tir_alavancada" if alavancada else "tir_projeto"
+
+    def ok(p: float) -> bool:
+        t = tir_lote(fl, c, p)[chave]
+        return t is not None and t >= alvo
+
+    lo, hi = 0.0, teto_usd
+    if not ok(hi):
+        return None
+    if ok(lo):
+        return 0.0
+    for _ in range(40):
+        mid = (lo + hi) / 2
+        lo, hi = (lo, mid) if ok(mid) else (mid, hi)
+    return round(hi, 2)
+
+
 def calcular(linha: dict, c: dict | None = None, r: dict | None = None) -> tuple[dict, dict]:
     """Colunas de desenvolvedor_<mun>.csv para um imóvel (sem as do lote) e o resultado da simulação (fluxos)."""
     r = r or regra()
     c = c or cenario(r=r)
     H, T = int(c["horizonte_anos"]), int(c["prazo_anos"])
-    m = modos(linha, r)
+    escolhido, m, disputa = escolher_metodo(linha, c, r)
     cus = custo(linha, m, r, c)
     cap = captura(linha, m, r, c)
     lb = linha_base(linha, H, m, r)
@@ -900,12 +1200,10 @@ def calcular(linha: dict, c: dict | None = None, r: dict | None = None) -> tuple
             x = rodar({**c, **muda}, sorteios=False, tirs=("projeto",))
             comp[nome] = _tir_pct(x["tir_projeto"])[0]
     # preço que zera o VPL na taxa do cenário (o VPL é quase linear no preço) e custo nivelado por crédito
-    x1 = rodar({**c, "preco_usd_t": float(c["preco_usd_t"]) + 10}, sorteios=False, tirs=())
-    dv = (x1["vpl"][0] - s["vpl"][0]) / 10
-    preco_eq = float(c["preco_usd_t"]) - s["vpl"][0] / dv if dv > 0 else None
+    preco_eq = _equilibrio(s, c)
     d = s["desconto"]
     pv_cred = float(s["vendidos"][0] @ d)
-    fixos = s["K"][0] + s["op"] + s["multas"][0] + (s["dono"][0] - float(c.get("participacao_dono") or 0) * s[
+    fixos = s["K"][0] + s["op"] + s["multas_fluxo"][0] + (s["dono"][0] - float(c.get("participacao_dono") or 0) * s[
         "receita"][0] * (c["pagamento_dono"] != "arrendamento"))  # fmt: skip
     fixos = fixos + s["vendidos"][0] * float(c["taxa_registro_usd_t"]) * float(c["cambio_brl_usd"])
     custo_credito = float(fixos @ d) / pv_cred / float(c["cambio_brl_usd"]) if pv_cred > 0 else None
@@ -922,6 +1220,8 @@ def calcular(linha: dict, c: dict | None = None, r: dict | None = None) -> tuple
         ),
         **{f"restauracao_{md}_ha": round(v, 4) for md, v in m["por_modo_ha"].items()},
         "distancia_fonte": m["distancia_fonte"],
+        "metodo_escolhido": escolhido,
+        **{f"metodo_{k}_preco_equilibrio_usd": (round(v, 2) if v is not None else None) for k, v in disputa.items()},
         "custo_restauracao_ha_p10": round(cus["p10"], 0),
         "custo_restauracao_ha_p50": round(cus["p50"], 0),
         "custo_restauracao_ha_p90": round(cus["p90"], 0),
@@ -942,6 +1242,11 @@ def calcular(linha: dict, c: dict | None = None, r: dict | None = None) -> tuple
         "reserva_risco_pct": round(100 * dsc["reserva_risco"], 1),
         "incerteza_pct": round(100 * dsc["incerteza"], 1),
         "fator_liquido": round(dsc["fator"], 4),
+        "vazamento_motivo": linha.get("vazamento_motivo")
+        or ("mitigacao_marcada" if dsc["vazamento_mitigacao"] else None),
+        "vazamento_mitigacao_imovel": linha.get("vazamento_mitigacao_imovel"),
+        "cabecas_deslocadas": _num(linha, "cabecas_deslocadas"),
+        "rebanho_fonte": linha.get("rebanho_fonte"),
         "credito_liquido_tco2_ha_ano": round(float(cred_ano[0]), 3),
         "credito_liquido_tco2_ha_ano_p10": round(_p(cred_ano[sd], 10), 3),
         "credito_liquido_tco2_ha_ano_p90": round(_p(cred_ano[sd], 90), 3),
@@ -974,6 +1279,7 @@ def calcular(linha: dict, c: dict | None = None, r: dict | None = None) -> tuple
         "pagamento_dono": c["pagamento_dono"],
         "dono_rs_ha_ano": round(float(s["dono"][0].sum()) / H, 0),
         "arrendamento_referencia_rs_ha_ano": alug,
+        **_colunas_pecuaria(linha, r),
         "arrendamento_referencia_fonte": alug_fonte,
         "tir_projeto_pct_arrendamento": None if comp.get("arrendamento") is None else round(comp["arrendamento"], 1),
         "tir_projeto_pct_duas_fases": None if comp.get("duas_fases") is None else round(comp["duas_fases"], 1),
@@ -1089,6 +1395,72 @@ def linhas_do_municipio(pasta: Path, cod: int):
     return im
 
 
+ENTRADAS_GRAVADAS = ("pasto_d0_ha", "pasto_d1_ha", "pasto_d2_ha", "pasto_d3_ha", "declividade_media_pct",
+                     "chuva_mm_ano", "solo_cec_cmolc_kg", "linha_base_taxa_d0", "linha_base_taxa_d1",
+                     "linha_base_taxa_d2", "linha_base_taxa_d3", "linha_base_fonte", "estrada_acesso_km",
+                     "cidade_proxima_km")  # fmt: skip
+
+
+def _gravado(pasta: Path, cod: int) -> dict[str, dict]:
+    """O desenvolvedor_<mun>.csv anterior, por imóvel (vazio se não existe)."""
+    import pandas as pd
+
+    f = Path(pasta) / f"desenvolvedor_{cod}.csv"
+    if not f.exists():
+        return {}
+    d = pd.read_csv(f, low_memory=False, dtype={"cod_imovel": str, "grupo_id": str})
+    cols = [k for k in (*ENTRADAS_GRAVADAS, "vazamento_motivo", "vazamento_mitigacao_imovel", "cabecas_deslocadas",
+                        "rebanho_fonte", "grupo_id") if k in d.columns]  # fmt: skip
+    return {str(x["cod_imovel"]): x for x in d[["cod_imovel", *cols]].to_dict("records")}
+
+
+def linhas_para_refazer(pasta: str | Path, cod: int, so: set[str] | None = None) -> dict[str, dict]:
+    """As entradas de cada imóvel como o calcular_municipio as viu (as saídas do motor e as entradas geográficas
+    gravadas em desenvolvedor_<mun>.csv, com a vizinha de mitigação já decidida), para refazer o caminho do P50 de
+    uma fazenda sem o raster (fluxo_p50, no lote)."""
+    import pandas as pd
+
+    pasta = Path(pasta)
+    im = linhas_do_municipio(pasta, cod)
+    if so is not None:
+        im = im[im.cod_imovel.isin({str(x) for x in so})]
+    gravadas = _gravado(pasta, cod)
+    out = {}
+    for li in im.to_dict("records"):
+        g = gravadas.get(str(li["cod_imovel"]), {})
+        li = {**li, **{k: v for k, v in g.items() if k in ENTRADAS_GRAVADAS and pd.notna(v)}}
+        if str(g.get("vazamento_motivo")) in ("mitigacao_vizinha", "sem_gado"):
+            li["vazamento_mitigacao"] = True
+        out[str(li["cod_imovel"])] = li
+    return out
+
+
+def entradas_com_cache(geo, geo_f: Path, cod: int, cobertura: Path | None, cache: Path | None,
+                       fontes: tuple[str, ...]) -> tuple[dict, dict]:  # fmt: skip
+    """Entradas geográficas do município (faixas de distância, linha base do YbYrá, declividade, chuva, solo), guardadas
+    em cache/entradas/: a chave muda quando o polígono, a cobertura do MapBiomas ou as fontes mudam. Trocar as
+    premissas não refaz a parte pesada."""
+    import json
+
+    from raiz import restauracao_geo as G
+
+    base = Path(cache or G.pasta_cache())
+    st = Path(geo_f).stat()
+    cob = Path(cobertura).name if cobertura else "-"
+    chave = hashlib.sha256(f"{st.st_size}|{st.st_mtime_ns}|{cob}|{','.join(fontes)}|v1".encode()).hexdigest()[:12]
+    f = base / "entradas" / f"{cod}_{chave}.json"
+    if f.exists():
+        d = json.loads(f.read_text())
+        return d["por"], d["mun"]
+    por, mun = G.entradas_municipio(geo, cod, cobertura, cache, fontes)
+    mun.pop("pontos", None)
+    f.parent.mkdir(parents=True, exist_ok=True)
+    tmp = f.with_suffix(".tmp")
+    tmp.write_text(json.dumps({"por": por, "mun": mun}, default=float))
+    tmp.replace(f)
+    return por, mun
+
+
 def calcular_municipio(
     pasta: str | Path,
     cod: int,
@@ -1100,8 +1472,6 @@ def calcular_municipio(
     """desenvolvedor_<mun>.csv (DataFrame) a partir das saídas do motor e das entradas geográficas."""
     import geopandas as gpd
     import pandas as pd
-
-    from raiz import restauracao_geo as G
 
     pasta = Path(pasta)
     r = regra()
@@ -1120,16 +1490,43 @@ def calcular_municipio(
             uf = pasta.name.upper()
             cob = sorted((Path(cache_motor) / "mapbiomas" / uf).glob(f"{uf}_cobertura_2*.tif")) if cache_motor else []
             cob = [f for f in cob if f.stem.count("_") == 2]  # PA_cobertura_2025.tif (não as séries por ano)
-            por, mun = G.entradas_municipio(geo, cod, cob[-1] if cob else None, cache, fontes_geo)
-            mun.pop("pontos", None)
+            por, mun = entradas_com_cache(geo, geo_f, cod, cob[-1] if cob else None, cache, fontes_geo)
+    # sem o raster ou sem o contorno (a amostra, uma máquina sem o cache): as entradas já medidas e gravadas no
+    # desenvolvedor_<mun>.csv anterior valem, para o recálculo das premissas dar o mesmo que com o raster
+    gravado = _gravado(pasta, cod) if (not por or not pontos) else {}
+    if not por and gravado:
+        geo_k = ENTRADAS_GRAVADAS[:7]
+        por = {c_: {k: g[k] for k in geo_k if k in g and pd.notna(g[k])} for c_, g in gravado.items()}
+        g0 = next(iter(gravado.values()))
+        mun = {k: g0[k] for k in ENTRADAS_GRAVADAS if k.startswith("linha_base_") and k in g0 and pd.notna(g0[k])}
+    acesso = ("estrada_acesso_km", "cidade_proxima_km")
+    registros = []
+    for li in im.to_dict("records"):
+        g = gravado.get(str(li["cod_imovel"]), {})
+        extra = {k: g[k] for k in acesso if pd.isna(li.get(k)) and k in g and pd.notna(g[k])}
+        registros.append({**li, **por.get(li["cod_imovel"], {}), **extra})
+    # vazamento (VMD0054): vizinha a até 15 km que intensifica o pasto recebe o gado e zera o vazamento
+    mit = {}
+    if pontos and r.get("mitigacao"):
+        from raiz import vazamento as V
+
+        mit = V.mitigacoes(registros, pontos, r, area_restauravel, elegivel)
+    elif gravado:  # sem contorno: a vizinha decidida antes
+        vz = ("vazamento_motivo", "vazamento_mitigacao_imovel", "cabecas_deslocadas", "rebanho_fonte")
+        for c_, g in gravado.items():
+            x = {k: g[k] for k in vz if k in g and pd.notna(g[k])}
+            if x:
+                x["vazamento_mitigacao"] = str(x.get("vazamento_motivo")) in ("mitigacao_vizinha", "sem_gado")
+                mit[c_] = x
     linhas = []
-    for linha in im.to_dict("records"):
+    for linha in registros:
         cod_im = linha["cod_imovel"]
-        linha = {**linha, **por.get(cod_im, {}), **{k: v for k, v in mun.items() if k.startswith("linha_base_")}}
+        linha = {**linha, **mit.get(cod_im, {}), **{k: v for k, v in mun.items() if k.startswith("linha_base_")}}
         calc = por_imovel(linha, c, r)
         geo_cols = {k: por.get(cod_im, {}).get(k) for k in (
             "pasto_d0_ha", "pasto_d1_ha", "pasto_d2_ha", "pasto_d3_ha",
             "declividade_media_pct", "chuva_mm_ano", "solo_cec_cmolc_kg")}  # fmt: skip
+        geo_cols.update({k: _num(linha, k) for k in ("estrada_acesso_km", "cidade_proxima_km")})  # acesso, da ficha
         linhas.append({"cod_imovel": cod_im, **geo_cols, **calc, "_elegivel": elegivel(linha)})
     df = pd.DataFrame(linhas)
     for f in FAIXAS:
@@ -1138,6 +1535,9 @@ def calcular_municipio(
     eleg = [(cd, *pontos[cd]) for cd, ok in zip(df.cod_imovel, df._elegivel, strict=True) if ok and cd in pontos]
     rot = agrupar(eleg, r)
     df["grupo_id"] = [f"{cod}-{rot[cd]:04d}" if cd in rot else None for cd in df.cod_imovel]
+    if not pontos and gravado:  # sem contorno: o lote de vizinhas calculado antes
+        df["grupo_id"] = [gravado.get(cd, {}).get("grupo_id") if isinstance(gravado.get(cd, {}).get("grupo_id"), str)
+                          else None for cd in df.cod_imovel]  # fmt: skip
     df = colunas_do_lote(df.drop(columns="_elegivel"), cod, c, r)
     return df
 
@@ -1480,7 +1880,7 @@ def simular(linha: dict, nome_cenario: str | None = None, r: dict | None = None,
         "com_financiamento_rs_ha": lista(s["L"][0]),
         "receita_rs_ha": lista(s["receita"][0]),
         "dono_rs_ha": lista(s["dono"][0]),
-        "multas_rs_ha": lista(s["multas"][0]),
+        "multas_rs_ha": lista(s["multas_fluxo"][0]),
         "divida_rs_ha": lista(s["divida"]["D"]),
         "credito_acumulado_tco2_ha": lista(s["N"][0], 1),
     }

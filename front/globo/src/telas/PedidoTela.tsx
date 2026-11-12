@@ -357,6 +357,7 @@ function NumerosOpcao({ opcao: o, meta, unidade }: { opcao: Opcao; meta: number;
           Esta opção não fecha a meta: faltam {fmtInt(o.falta)} {unidade}.
         </p>
       )}
+      {o.abaixo_equilibrio?.aviso && <p className="aviso-forte">{o.abaixo_equilibrio.aviso}</p>}
       <div className="numero-principal">
         <span className="rotulo">Créditos líquidos</span>
         <span className="valor">{fmtFaixa(o.creditos)}</span>
