@@ -7,6 +7,7 @@ Hoje as telas têm cara de "feito por IA": cartões brancos iguais com sombra, I
 
 1. BASE (fazer primeiro, muda todas as telas de uma vez)
 1.1 Trocar as variáveis de raiz.css e estilo.css por estas (apagar as antigas, inclusive --sombra e --raio 14):
+```css
 :root {
   --papel: #FAFAF7; --superficie: #FFFFFF; --tinta: #15231B; --pedra: #555D56; --nevoa: #E7EAE4;
   --mata: #1D6B44; --mata-texto: #16543A; --urucum: #C2521A; --urucum-texto: #9E3F0E;
@@ -22,6 +23,7 @@ Hoje as telas têm cara de "feito por IA": cartões brancos iguais com sombra, I
 body { background: var(--papel); color: var(--tinta); font: 400 var(--t-texto)/1.5 var(--fonte-texto); }
 .numero, table td.num { font-variant-numeric: tabular-nums; }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition-duration: 0ms !important; animation-duration: 0ms !important; } }
+```
 1.2 Fontes (todas SIL OFL 1.1, servir woff2 só do subconjunto latino, font-display: swap, hospedadas pela própria Raíz, via @fontsource):
 - Familjen Grotesk 500 e 600 nos títulos (letter-spacing -0,01em).
 - Atkinson Hyperlegible Next 400 e 700 no texto e em todos os números (tabular-nums em tabela e caixa de fatos).
