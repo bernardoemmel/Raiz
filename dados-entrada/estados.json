@@ -1,0 +1,103 @@
+{
+ "gerado_em": "2026-11-12T10:52:28+00:00",
+ "repo": "bernardoemmel/raiz",
+ "tag": "dados",
+ "estados": {
+  "AC": {
+   "municipios": 22,
+   "total_ibge": 22,
+   "completo": true,
+   "tabelas": {
+    "imoveis": 22,
+    "direto": 22,
+    "filtros": 22,
+    "extras": 21,
+    "extras_direto": 22,
+    "mapbiomas": 22,
+    "certidoes": 22
+   },
+   "tamanho": 18557169,
+   "atualizado_em": "2026-11-12T10:52:28+00:00",
+   "versao": "8f91a7b527d99e14",
+   "url": "https://github.com/bernardoemmel/raiz/releases/download/dados/raiz_AC.tar.gz",
+   "geo": {
+    "versao": "2130c32f23f10728",
+    "tamanho": 10926541,
+    "url": "https://github.com/bernardoemmel/raiz/releases/download/dados/raiz_geo_AC.tar.gz",
+    "municipios": 22
+   }
+  },
+  "AP": {
+   "municipios": 16,
+   "total_ibge": 16,
+   "completo": true,
+   "tabelas": {
+    "imoveis": 16,
+    "direto": 16,
+    "filtros": 16,
+    "extras": 16,
+    "extras_direto": 16,
+    "mapbiomas": 16,
+    "certidoes": 16
+   },
+   "tamanho": 4384778,
+   "atualizado_em": "2026-11-12T10:52:28+00:00",
+   "versao": "fd9c0b966d669f62",
+   "url": "https://github.com/bernardoemmel/raiz/releases/download/dados/raiz_AP.tar.gz",
+   "geo": {
+    "versao": "3f15e1bbc77b8684",
+    "tamanho": 4135472,
+    "url": "https://github.com/bernardoemmel/raiz/releases/download/dados/raiz_geo_AP.tar.gz",
+    "municipios": 16
+   }
+  },
+  "PA": {
+   "municipios": 144,
+   "total_ibge": 144,
+   "completo": true,
+   "tabelas": {
+    "imoveis": 144,
+    "direto": 144,
+    "filtros": 144,
+    "extras": 144,
+    "extras_direto": 144,
+    "mapbiomas": 144,
+    "certidoes": 143
+   },
+   "tamanho": 107440935,
+   "atualizado_em": "2026-11-12T10:52:28+00:00",
+   "versao": "4318452a0c3c7714",
+   "url": "https://github.com/bernardoemmel/raiz/releases/download/dados/raiz_PA.tar.gz",
+   "geo": {
+    "versao": "b3c47605d3c16b19",
+    "tamanho": 82983280,
+    "url": "https://github.com/bernardoemmel/raiz/releases/download/dados/raiz_geo_PA.tar.gz",
+    "municipios": 144
+   }
+  },
+  "RR": {
+   "municipios": 14,
+   "total_ibge": 15,
+   "completo": false,
+   "tabelas": {
+    "imoveis": 14,
+    "direto": 14,
+    "filtros": 14,
+    "extras": 0,
+    "extras_direto": 14,
+    "mapbiomas": 14,
+    "certidoes": 14
+   },
+   "tamanho": 7012208,
+   "atualizado_em": "2026-11-12T10:52:28+00:00",
+   "versao": "c2532a102d6b1da2",
+   "url": "https://github.com/bernardoemmel/raiz/releases/download/dados/raiz_RR.tar.gz",
+   "geo": {
+    "versao": "f0c375387ee13f67",
+    "tamanho": 4556615,
+    "url": "https://github.com/bernardoemmel/raiz/releases/download/dados/raiz_geo_RR.tar.gz",
+    "municipios": 14
+   }
+  }
+ }
+}
