@@ -4,6 +4,7 @@ import copy
 import hashlib
 import json
 import tarfile
+from fnmatch import fnmatchcase
 
 import pytest
 
@@ -29,6 +30,7 @@ def test_croissant_le_tar_com_esquemas_diferentes_sem_rede(tmp_path, monkeypatch
     (pasta / "imoveis_1504950.csv").write_text("cod_imovel,ha\nCAR-A,3\n", encoding="utf-8")
     (pasta / "imoveis_1504951.csv").write_text("cod_imovel,ha,coluna_nova\nCAR-B,2.5,sim\n", encoding="utf-8")
     (pasta / "extras_direto_1504950.csv").write_text("cod_imovel,tmf_classe\nCAR-A,4\n", encoding="utf-8")
+    (pasta / "extras_1504950.csv").write_text("cod_imovel,fogo_anos\nCAR-A,2\n", encoding="utf-8")
     (pasta / "flag_1504950.csv").write_text("cod_imovel,flag_tco2_ano\n", encoding="utf-8")
     (pasta / "imoveis_1504950.csv.meta.json").write_text('{"segredo":"NAO_PUBLICAR"}', encoding="utf-8")
     (pasta / "geo_1504950.parquet").write_bytes(b"fora do pacote CSV")
@@ -56,7 +58,10 @@ def test_croissant_le_tar_com_esquemas_diferentes_sem_rede(tmp_path, monkeypatch
     assert "geo_1504950" not in serializada
     assert '"examples"' not in serializada.replace(json.dumps(ficha["@context"]), "")
     conjuntos = {d["name"]: d for d in ficha["distribution"] if d["@type"] == "cr:FileSet"}
-    assert conjuntos["imoveis"]["includes"] == ["PA/imoveis_*.csv"]
+    assert conjuntos["imoveis"]["includes"] == ["PA/imoveis_" + "[0-9]" * 7 + ".csv"]
+    padrao_extras = conjuntos["extras"]["includes"][0]
+    assert fnmatchcase("PA/extras_1504950.csv", padrao_extras)
+    assert not fnmatchcase("PA/extras_direto_1504950.csv", padrao_extras)
     assert conjuntos["extras_direto"]["containedIn"] == {"@id": "arquivo"}
     leitor = mlc.Dataset(copy.deepcopy(ficha), mapping={"arquivo": pacote})
     registros = list(leitor.records("imoveis_1504950"))

@@ -224,7 +224,7 @@ def croissant_uf(pasta: str | Path, uf: str, entrada: dict) -> dict:
         tabelas.setdefault(tabela, []).append(nome)
     for tabela, nomes in sorted(tabelas.items()):
         if all(re.fullmatch(re.escape(tabela) + r"_\d{7}\.csv", nome) for nome in nomes):
-            inclui = [f"{uf}/{escape(tabela)}_*.csv"]
+            inclui = [f"{uf}/{escape(tabela)}_{'[0-9]' * 7}.csv"]
         else:
             inclui = [f"{uf}/{escape(nome)}" for nome in sorted(nomes)]
         ficha["distribution"].append(
