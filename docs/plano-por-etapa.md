@@ -130,26 +130,28 @@ Observação do motor atual (12/11): o funil já roda o Brasil por município (m
 
 ## E5. Título e geolocalização
 
-| Ordem | Passo | Depende de | Horas |
-|---|---|---|---|
-| 1 | Montar o conjunto de teste: sortear cerca de 200 parcelas do acervo fundiário, gerar o memorial de cada uma com LFTools ou GeoPlanta e guardar o par polígono e texto. | acervo fundiário já baixado (E1) | 3 a 5 |
-| 1 | Definir o registro e a chave (código do CAR + parcelas SIGEF + matrícula + CNS, o código do cartório no Conselho Nacional de Justiça) e a tabela de achados no formato do CFPB (registro, regra, campo, valor, gravidade, fase) | E1 e E2 | 2 a 3 |
-| 2 | Leitor de memorial em duas camadas: regex em português (vértice, coordenadas, azimute, rumo, distância, confrontante) e modelo de IA só quando a regex falhar, com fila de revisão (desenho do McWillie Deed Sketcher). | passo 1 | 6 a 10 |
-| 2 | Gravar em WARC (warcio capture_http) todas as consultas públicas usadas em cada laudo | coletor dlt existente | 3 a 5 |
-| 2 | Escrever as checagens em Pandera ou Pointblank por fase: formato, validade da geometria, coerência (áreas CAR x SIGEF x matrícula), referência (cartório existe), com N/A quando não se aplica (como o Pelican) | passo 1 | 8 a 12 |
-| 3 | Geometria e fechamento: azimute e distância para coordenadas no elipsoide (GeographicLib, por causa do sistema local do SIGEF), erro de fechamento, precisão relativa e ajuste pela regra da bússola (cogokit). | passo 2 | 4 a 6 |
-| 3 | Separar checagens que reprovam das que pedem confirmação (padrão HMDA) e gravar quem confirmou e quando | passo 2 | 3 a 4 |
-| 4 | Comparar memorial, SIGEF e CAR com as tolerâncias de 0,50 m, 3,00 m e 7,50 m e as classes D1 a D7, e gerar o laudo por imóvel no Pointblank. | passo 3 | 4 a 8 |
-| 4 | Nota de risco 1 a 5 por imóvel com bandeiras (padrão Collateral Underwriter) e decisão em quatro saídas (padrão subscrição de seguro) | passo 3 | 3 a 5 |
-| 5 | Leitor e validador da planilha ODS (colunas do GeoINCRA, zip mais ElementTree). | nenhum | 2 a 4 |
-| 5 | Regras legais em Catala no molde do BCAE7 (reserva legal, APP escadinha, art. 67) ou em Publicodes em camadas (federal, estadual, municipal), com testes de fazendas-modelo e snapshot | passo 1 | 12 a 20 |
-| 6 | Modelo de dados da cadeia dominial em Postgres (ato, imóvel do ato, parte só com tipo e CNPJ, referência ao ato anterior), no molde do ACRIS e do Sistema de Cadeia Dominial. | nenhum | 4 a 6 |
-| 6 | Bandeiras de contexto por dono, cartório e município com quartis e cercas (padrão Cardinal) e testes de auditoria (áreas redondas, soma das glebas) | passo 2 | 4 a 6 |
-| 6 | No robô de aceite, pedir a localização da sede com o botão do WhatsApp e testar se o ponto cai dentro do polígono | robô de aceite (E7) e polígono do imóvel | 3 a 6 |
-| 7 | Extrator de certidão de inteiro teor (OCRmyPDF mais modelo com esquema fixo) que monta a cadeia, marca quebras e buracos e guarda o recorte da página de cada achado (molde do TitleChain). | passo 6 | 8 a 12 |
-| 7 | Laudo HTML ou PDF por imóvel a partir da tabela de achados, da nota e das explicações | passos 4 a 6 | 4 a 6 |
-| 8 | Regra de triagem 'checagem rápida ou busca completa' (estilo Fannie Mae) e registro da previsão para comparar com a certidão depois. | passo 7 | 2 a 3 |
-| 9 | Pedir convênio ao ONR (oficioeletronico@onr.org.br), testar na homologação e ligar o Monitor Registral às matrículas acompanhadas. | nenhum (pode começar no dia 1) | 2 a 3 de trabalho, mais a espera da resposta do ONR |
+| Ordem | Passo | Depende de | Horas | Situação |
+|---|---|---|---|---|
+| 1 | Montar o conjunto de teste: sortear cerca de 200 parcelas do acervo fundiário, gerar o memorial de cada uma com LFTools ou GeoPlanta e guardar o par polígono e texto. | acervo fundiário já baixado (E1) | 3 a 5 | a fazer |
+| 1 | Definir o registro e a chave (código do CAR + parcelas SIGEF + matrícula + CNS, o código do cartório no Conselho Nacional de Justiça) e a tabela de achados no formato do CFPB (registro, regra, campo, valor, gravidade, fase) | E1 e E2 | 2 a 3 | parcial: `titulo.certidao_alvo` já liga CAR, CNS e matrícula (migração 0001); falta a tabela de achados |
+| 2 | Leitor de memorial em duas camadas: regex em português (vértice, coordenadas, azimute, rumo, distância, confrontante) e modelo de IA só quando a regex falhar, com fila de revisão (desenho do McWillie Deed Sketcher). | passo 1 | 6 a 10 | a fazer |
+| 2 | Gravar em WARC (warcio capture_http) todas as consultas públicas usadas em cada laudo | coletor dlt existente | 3 a 5 | a fazer |
+| 2 | Escrever as checagens em Pandera ou Pointblank por fase: formato, validade da geometria, coerência (áreas CAR x SIGEF x matrícula), referência (cartório existe), com N/A quando não se aplica (como o Pelican) | passo 1 | 8 a 12 | parcial: a conferência da certidão (`raiz/documentos/certidao/conferencia.py`) já checa cartório, número e área; faltam as fases e o N/A |
+| 3 | Geometria e fechamento: azimute e distância para coordenadas no elipsoide (GeographicLib, por causa do sistema local do SIGEF), erro de fechamento, precisão relativa e ajuste pela regra da bússola (cogokit). | passo 2 | 4 a 6 | a fazer |
+| 3 | Separar checagens que reprovam das que pedem confirmação (padrão HMDA) e gravar quem confirmou e quando | passo 2 | 3 a 4 | parcial: gravidade reprova, confirmar e info na conferência da certidão; o gabarito guarda fonte e data (`raiz/documentos/aprendizado.py`); falta quem confirmou |
+| 4 | Comparar memorial, SIGEF e CAR com as tolerâncias de 0,50 m, 3,00 m e 7,50 m e as classes D1 a D7, e gerar o laudo por imóvel no Pointblank. | passo 3 | 4 a 8 | a fazer |
+| 4 | Nota de risco 1 a 5 por imóvel com bandeiras (padrão Collateral Underwriter) e decisão em quatro saídas (padrão subscrição de seguro) | passo 3 | 3 a 5 | parcial: `risco_terra` baixo, médio e alto por imóvel (`raiz/terra.py`); falta a nota 1 a 5 e as quatro decisões |
+| 5 | Leitor e validador da planilha ODS (colunas do GeoINCRA, zip mais ElementTree). | nenhum | 2 a 4 | a fazer |
+| 5 | Regras legais em Catala no molde do BCAE7 (reserva legal, APP escadinha, art. 67) ou em Publicodes em camadas (federal, estadual, municipal), com testes de fazendas-modelo e snapshot | passo 1 | 12 a 20 | **feito** na E2 passo 2: `raiz/regras/catala/` (arts. 12, 15, 61-A, 61-B, 67 e 68), gerado para Python e conferido com o motor |
+| 6 | Modelo de dados da cadeia dominial em Postgres (ato, imóvel do ato, parte só com tipo e CNPJ, referência ao ato anterior), no molde do ACRIS e do Sistema de Cadeia Dominial. | nenhum | 4 a 6 | parcial: a cadeia de cada leitura fica no armazém de `raiz/documentos` (SQLite); falta o modelo no Postgres |
+| 6 | Bandeiras de contexto por dono, cartório e município com quartis e cercas (padrão Cardinal) e testes de auditoria (áreas redondas, soma das glebas) | passo 2 | 4 a 6 | a fazer |
+| 6 | No robô de aceite, pedir a localização da sede com o botão do WhatsApp e testar se o ponto cai dentro do polígono | robô de aceite (E7) e polígono do imóvel | 3 a 6 | a fazer |
+| 7 | Extrator de certidão de inteiro teor (OCRmyPDF mais modelo com esquema fixo) que monta a cadeia, marca quebras e buracos e guarda o recorte da página de cada achado (molde do TitleChain). | passo 6 | 8 a 12 | **feito** (PR #24): `raiz/documentos/certidao/`; o modelo da Anthropic lê o PDF, inclusive escaneado, no lugar do OCRmyPDF, e guarda a página de cada ato (não o recorte) |
+| 7 | Laudo HTML ou PDF por imóvel a partir da tabela de achados, da nota e das explicações | passos 4 a 6 | 4 a 6 | a fazer (já existem a folha do dono e o relatório do lote em `raiz/documentos/gerados/`, não o laudo de título) |
+| 8 | Regra de triagem 'checagem rápida ou busca completa' (estilo Fannie Mae) e registro da previsão para comparar com a certidão depois. | passo 7 | 2 a 3 | parcial: a previsão já é registrada para comparar com a certidão (`raiz/documentos/aprendizado.py`: `titulo_matricula_situacao` e `motor_matricula_valida`); falta a regra de triagem |
+| 9 | Pedir convênio ao ONR (oficioeletronico@onr.org.br), testar na homologação e ligar o Monitor Registral às matrículas acompanhadas. | nenhum (pode começar no dia 1) | 2 a 3 de trabalho, mais a espera da resposta do ONR | parcial: pedido pronto em `docs/pedidos/onr-convenio.md`; o envio é do fundador |
+
+Feito na main fora desta tabela: caminho da terra com risco por imóvel (`raiz/terra.py`, `terra_<mun>.csv`), terra pública para restaurar (`raiz/terra_publica.py`) e conferência da certidão com o `certidoes_<mun>.csv` e saída `matricula_<mun>.csv` (`raiz/documentos/`). Situação conferida em 12/11/2026.
 
 ## E6. Quem compra
 
@@ -189,20 +191,22 @@ Observação do motor atual (12/11): o funil já roda o Brasil por município (m
 
 ## E8. Aprendizado contínuo
 
-| Ordem | Passo | Depende de | Horas |
-|---|---|---|---|
-| 1 | Criar o projeto SQLMesh a partir do pipeline dlt (sqlmesh init -t dlt) apontando para o PostGIS | E1 passo 4 | 2 a 4 |
-| 2 | Modelos do funil por município (INCREMENTAL_BY_PARTITION por cod_municipio) e resultados por imóvel (INCREMENTAL_BY_UNIQUE_KEY cod_imovel e ano); interseções caras pré-calculadas em modelo próprio (como o brewgis) | passo 1 | 8 a 12 |
-| 3 | Fila de municípios ou células sujas alimentada pelo diff da E1, job que esvazia a fila em lotes e reconciliação completa semanal (padrão osmpbudynkiv2 e osm2pgsql) | passo 2 e E1 passo 7 | 6 a 10 |
-| 4 | Tabela única de previsões: previsão ao vivo e folds de backtest juntos, com model_version, data de corte, horizonte e hash da receita (padrão OCF e PostHog) | passo 2 | 4 a 6 |
-| 5 | Teste por tempo: folds anuais que só leem dados 'como estavam' na data de corte (filtro _dlt_valid_from <= corte e _dlt_valid_to > corte no scd2) | passo 4 e E1 passo 4 | 8 a 12 |
-| 6 | Campeão e desafiante: portão de promoção com score probabilístico e calibração dentro de tolerância, promoção automática com intervalo, trava e volta atrás manual; nota só quando o horizonte amadurecer | passo 5 | 6 a 10 |
-| 7 | Orquestração: Dagster com sensor de dado novo, partições município x ano, condição de automação 'needs_updating' e memória declarada por asset (ou cron com sqlmesh run, se preferir não usar Dagster) | passos 3 e 6 | 6 a 10 |
-| 10 | Modelo de sobrevivência do aceite do dono (lifelines) e regra de canário para modelos novos no SQLMesh | histórico de contatos | 5 a 8 |
-| 1 | (rodada 10) Gravar a chance de escolha em cada conferência (gabarito), para pesar a amostra | nada | feito no esquema |
-| 6 | (rodada 10) Sorteio das conferências em duas metades: uma aleatória e uma dirigida aos mais duvidosos | passo 4 | 2 a 4 |
-| 6 | (rodada 10) Calibração por UF e faixa de área (MCGrad, conferir licença) | passo 5 | 4 a 6 |
-| 6 | (rodada 10) Área apta com intervalo pelo estimador de Olofsson (mapaccuracy, conferir licença) | sorteio acima | 3 a 5 |
+| Ordem | Passo | Depende de | Horas | Situação |
+|---|---|---|---|---|
+| 1 | Criar o projeto SQLMesh a partir do pipeline dlt (sqlmesh init -t dlt) apontando para o PostGIS | E1 passo 4 | 2 a 4 | a fazer (o back-end seguiu com executor próprio, sem SQLMesh) |
+| 2 | Modelos do funil por município (INCREMENTAL_BY_PARTITION por cod_municipio) e resultados por imóvel (INCREMENTAL_BY_UNIQUE_KEY cod_imovel e ano); interseções caras pré-calculadas em modelo próprio (como o brewgis) | passo 1 | 8 a 12 | parcial: o executor refaz por município só o que mudou e a carga grava por rodada no esquema `funil` (`raiz/executor/`, `raiz/carga.py`), sem SQLMesh |
+| 3 | Fila de municípios ou células sujas alimentada pelo diff da E1, job que esvazia a fila em lotes e reconciliação completa semanal (padrão osmpbudynkiv2 e osm2pgsql) | passo 2 e E1 passo 7 | 6 a 10 | **feito**: `raiz/coleta/fila.py` (sujos primeiro, disjuntor de 15%, reconciliação mensal em vez de semanal), `raiz/funil/manifesto_blocos.py` e `raiz/executor/agenda.py` |
+| 4 | Tabela única de previsões: previsão ao vivo e folds de backtest juntos, com model_version, data de corte, horizonte e hash da receita (padrão OCF e PostHog) | passo 2 | 4 a 6 | **feito**: `aprendizado.previsao` e `aprendizado.lote_previsao` (migração 0002), `raiz/aprendizado/registro.py` e `congelar.py` |
+| 5 | Teste por tempo: folds anuais que só leem dados 'como estavam' na data de corte (filtro _dlt_valid_from <= corte e _dlt_valid_to > corte no scd2) | passo 4 e E1 passo 4 | 8 a 12 | parcial: o histórico scd2 com as duas datas já existe (`raiz/coleta/bruto.py`); faltam os folds anuais |
+| 6 | Campeão e desafiante: portão de promoção com score probabilístico e calibração dentro de tolerância, promoção automática com intervalo, trava e volta atrás manual; nota só quando o horizonte amadurecer | passo 5 | 6 a 10 | a fazer |
+| 7 | Orquestração: Dagster com sensor de dado novo, partições município x ano, condição de automação 'needs_updating' e memória declarada por asset (ou cron com sqlmesh run, se preferir não usar Dagster) | passos 3 e 6 | 6 a 10 | parcial: agenda por cron (`raiz executor vigiar`, `raiz/executor/agenda.py`), sem Dagster |
+| 10 | Modelo de sobrevivência do aceite do dono (lifelines) e regra de canário para modelos novos no SQLMesh | histórico de contatos | 5 a 8 | parcial: chance de aceite por perfil, beta-binomial (`raiz/pedidos/aceite.py`); falta o tempo até o aceite (sobrevivência) |
+| 1 | (rodada 10) Gravar a chance de escolha em cada conferência (gabarito), para pesar a amostra | nada | feito no esquema | **feito** no esquema (migração 0007) |
+| 6 | (rodada 10) Sorteio das conferências em duas metades: uma aleatória e uma dirigida aos mais duvidosos | passo 4 | 2 a 4 | a fazer |
+| 6 | (rodada 10) Calibração por UF e faixa de área (MCGrad, conferir licença) | passo 5 | 4 a 6 | a fazer |
+| 6 | (rodada 10) Área apta com intervalo pelo estimador de Olofsson (mapaccuracy, conferir licença) | sorteio acima | 3 a 5 | a fazer |
+
+Feito na main fora desta tabela: aprendizado do valor para quem restaura (`raiz/restauracao_aprendizado.py`), da vigilância (`raiz/vigilancia/aprendizado.py`) e das leituras de documento (`raiz/documentos/aprendizado.py`), todos gravando no mesmo `aprendizado.previsao`. Situação conferida em 12/11/2026.
 
 ## E9. O que as pessoas veem
 
