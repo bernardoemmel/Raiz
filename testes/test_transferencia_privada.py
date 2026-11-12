@@ -1,9 +1,12 @@
 """Jobs transportam dados completos só pela API privada, com retomada íntegra."""
 
 import io
+import logging
 import tarfile
+import traceback
 from pathlib import Path
 
+import httpx
 import pytest
 
 from raiz.executor.transferencia_privada import arquivo_privado, baixar_arquivo, empacotar, enviar_arquivo, extrair
@@ -123,3 +126,40 @@ def test_motor_cache_privado_e_guard_impedem_ref_legada_de_rodar():
     assert "id: privacidade" in workflow
     assert workflow.count("if: always() && steps.privacidade.outcome == 'success'") == 2
     assert "--selecao-env CACHE_COMUM" in workflow and "--selecao-env CACHE_UF" in workflow
+
+
+@pytest.mark.parametrize("operacao", ["baixar", "preparar", "enviar", "timeout"])
+def test_erro_remoto_privado_nao_revela_url_assinada_em_traceback_ou_log(tmp_path, monkeypatch, caplog, operacao):
+    from raiz import restauracao_rodada as RR
+
+    gh = GitHubFalso()
+    gh.assets["raiz_PA.tar.gz"] = b"dados completos"
+    arm = _armazem(gh, tmp_path / "cache")
+    assinado = "https://arquivo-assinado.invalid/privado?token=SEGREDO-NA-URL"
+
+    def remoto(req):
+        if req.url.host == "arquivo-assinado.invalid":
+            if operacao == "timeout":
+                raise httpx.ReadTimeout(f"falhou em {assinado}", request=req)
+            return httpx.Response(403, text="CORPO-PRIVADO", headers={"X-Privado": "HEADER-PRIVADO"})
+        if "/releases/assets/" in req.url.path or req.url.host == "uploads.github.com":
+            return httpx.Response(307, headers={"Location": assinado})
+        return gh(req)
+
+    arm.cli = httpx.Client(transport=httpx.MockTransport(remoto), follow_redirects=True)
+    monkeypatch.setattr(RR, "arquivo_privado", lambda: arm)
+    caplog.set_level(logging.INFO, logger="httpx")
+    with pytest.raises(RuntimeError) as falha:
+        if operacao == "preparar":
+            RR.preparar(tmp_path / "entradas")
+        elif operacao == "enviar":
+            arquivo = tmp_path / "novo.csv"
+            arquivo.write_text("conteudo privado")
+            enviar_arquivo("novo.csv", arquivo, arm=arm)
+        else:
+            baixar_arquivo("raiz_PA.tar.gz", tmp_path / "pacote", arm=arm)
+    texto = "".join(traceback.format_exception(falha.value)) + caplog.text
+    assert "falha de comunicação" in texto if operacao == "timeout" else "HTTP 403" in texto
+    for segredo in ("SEGREDO-NA-URL", "CORPO-PRIVADO", "HEADER-PRIVADO", "arquivo-assinado.invalid"):
+        assert segredo not in texto
+    assert falha.value.__suppress_context__

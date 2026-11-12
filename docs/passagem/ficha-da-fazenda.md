@@ -81,6 +81,16 @@ Limites persistem no Postgres entre processos: 60 consultas/minuto, 30 fichas/mi
 10 comparações/minuto, 5 PDFs/minuto, 100 tentativas de liberação/dia. HTTP 429 inclui
 `Retry-After`; respostas privadas têm `Cache-Control: private, no-store`.
 
+A busca autenticada também respeita a fronteira paga: crédito, risco, caminho
+detalhado e restauração ficam ocultos até a liberação daquele CAR, inclusive nas
+somas. Os totais informam quantas fichas liberadas contribuíram; a ordenação por
+CAR não revela ranking financeiro. Filtros avançados exigem pagamento real
+comprovado e continuam descobrindo imóveis novos. Eles revelam pertinência à
+faixa escolhida, sem entregar a medida exata; não fazem cobrança adicional.
+CAR combinado com filtro avançado exige código completo já liberado. A mesma
+habilitação vale ao salvar e ao reavaliar buscas; saldo arbitrário ou Pix de teste
+não habilitam filtros pagos.
+
 ## Função compartilhada para API e MCP
 
 A passagem `produto-e-regras.md` foi lida na branch do PR #45, onde estava disponível.
@@ -112,5 +122,9 @@ A cobertura nacional significa capacidade de buscar todos os estados processados
 não processamento completo do país. Estimativas não garantem emissão ou retorno.
 Os dados brutos de fontes públicas permanecem públicos nas respectivas origens.
 A implantação do servidor e a venda real dependem do roteiro operacional e dos
-preços aprovados pelo fundador. Resultado final de CI e migração: registrar antes
-de encerrar a entrega.
+preços aprovados pelo fundador. Verificação local antes da última atualização da main: 1.053 testes Python
+passaram, dois pulados e um xfail existente; mais 47 testes focados passaram após
+proteger logs de URLs assinadas. Front: 161 testes, build, Pages, prospecção,
+Lighthouse e cena-alvo com API/PostGIS reais passaram. Privacidade e 624 licenças
+conferidas; Ruff, formatação e actionlint aprovados. Resultado final de CI e
+migração remota: registrar antes de encerrar a entrega.

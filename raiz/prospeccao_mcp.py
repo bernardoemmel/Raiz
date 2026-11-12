@@ -48,7 +48,7 @@ def ferramentas() -> list[dict]:
         },
         {
             "name": "comparar_fichas",
-            "description": "Compara de duas a cinco fichas já liberadas para a sessão autenticada.",
+            "description": "Compara de duas a cinco fichas já liberadas para a empresa autenticada por OAuth.",
             "inputSchema": Comparar.model_json_schema(),
             "annotations": {"readOnlyHint": True, "openWorldHint": False},
         },

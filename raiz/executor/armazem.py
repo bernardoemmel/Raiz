@@ -12,6 +12,7 @@ Chaves:
 from __future__ import annotations
 
 import contextlib
+import contextvars
 import hashlib
 import json
 import logging
@@ -19,10 +20,36 @@ import os
 import random
 import sys
 import time
+from functools import wraps
 from pathlib import Path
 from typing import Protocol
 
 log = logging.getLogger(__name__)
+
+
+_REDE_PRIVADA = contextvars.ContextVar("raiz_rede_privada", default=False)
+
+
+class _SemLogsDeRedePrivada(logging.Filter):
+    def filter(self, record) -> bool:
+        # HTTPX registra a URL final assinada em INFO; httpcore pode registrar headers em DEBUG.
+        return not _REDE_PRIVADA.get()
+
+
+for _logger_http in ("httpx", "httpcore.connection", "httpcore.http11", "httpcore.http2", "httpcore.proxy"):
+    logging.getLogger(_logger_http).addFilter(_SemLogsDeRedePrivada())
+
+
+def _erro_http_privado(operacao: str):
+    def decorar(funcao):
+        @wraps(funcao)
+        def executar(self, *args, **kwargs):
+            with self._erros_privados(operacao):
+                return funcao(self, *args, **kwargs)
+
+        return executar
+
+    return decorar
 
 
 def sha256_bytes(b: bytes) -> str:
@@ -353,11 +380,30 @@ class ArmazemRelease:
         self._sujos: dict[str, int] = {}
         self._ultima: dict[str, float] = {}
 
+    @contextlib.contextmanager
+    def _erros_privados(self, operacao: str):
+        """Não deixa URL assinada, token, headers ou corpo chegarem aos logs do Actions."""
+        import httpx
+
+        if not self.privado:
+            yield
+            return
+        marca = _REDE_PRIVADA.set(True)
+        try:
+            yield
+        except httpx.HTTPStatusError as ex:
+            raise RuntimeError(f"falha HTTP {ex.response.status_code} no arquivo privado ({operacao})") from None
+        except httpx.HTTPError:
+            raise RuntimeError(f"falha de comunicação com o arquivo privado ({operacao})") from None
+        finally:
+            _REDE_PRIVADA.reset(marca)
+
     # --- leitura -------------------------------------------------------------------------------------------------
 
     def url(self, nome: str) -> str:
         return f"https://github.com/{self.repo}/releases/download/{self.tag}/{nome}"
 
+    @_erro_http_privado("leitura")
     def _baixar_asset(self, nome: str) -> bytes | None:
         if self.privado:
             self._exigir_privado()
@@ -374,6 +420,7 @@ class ArmazemRelease:
         validar_asset_publico(nome, r.content)
         return r.content
 
+    @_erro_http_privado("listar arquivos")
     def _assets(self, rel: dict | None = None) -> list[dict]:
         """Lista todas as páginas, inclusive snapshots e checkpoints no arquivo privado."""
         rel = rel or self._release()
@@ -391,6 +438,7 @@ class ArmazemRelease:
                 return ativos
         raise RuntimeError("Release excedeu a paginação de assets")
 
+    @_erro_http_privado("download")
     def _baixar_ativo(self, ativo: dict) -> bytes:
         """Baixa o ID congelado pela API autenticada; não segue browser_download_url."""
         self._exigir_privado()
@@ -413,6 +461,7 @@ class ArmazemRelease:
             b = self._baixar_asset("estados.json")
         return json.loads(b) if b else {"repo": self.repo, "tag": self.tag, "estados": {}}
 
+    @_erro_http_privado("verificar acesso")
     def _exigir_privado(self) -> None:
         if not self.privado:
             raise PermissionError("dados completos exigem RAIZ_DADOS_PRIVADOS_URL e RAIZ_DADOS_PRIVADOS_TOKEN")
@@ -547,6 +596,7 @@ class ArmazemRelease:
         self.local.apagar(chave)
         self._anota(chave)
 
+    @_erro_http_privado("consultar Release")
     def _release(self) -> dict:
         h = self._cabecalhos()
         r = self.cli.get(f"{self.API}/repos/{self.repo}/releases/tags/{self.tag}", headers=h)
@@ -573,6 +623,7 @@ class ArmazemRelease:
             )
         return {"Authorization": f"Bearer {self.token}", "Accept": "application/vnd.github+json"}
 
+    @_erro_http_privado("upload")
     def _subir(self, rel: dict, nome: str, dados: bytes, tipo: str = "application/octet-stream") -> None:
         if self.privado:
             self._exigir_privado()
@@ -622,6 +673,12 @@ class ArmazemRelease:
 
     @contextlib.contextmanager
     def _trava(self, nome: str | None = None, velha_s: float = 600):
+        with self._erros_privados("trava"):
+            with self._trava_impl(nome, velha_s):
+                yield
+
+    @contextlib.contextmanager
+    def _trava_impl(self, nome: str | None = None, velha_s: float = 600):
         """Só um job por vez relê e regrava o estados.json (trava-publicar-dados) ou o pacote de um estado
         (trava-publicar-<UF>: fatias do mesmo estado rodam em jobs diferentes). A trava é uma tag: criar uma referência
         que já existe dá erro na API, então só um consegue. Quem espera mais que velha_s considera a trava abandonada

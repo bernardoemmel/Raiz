@@ -89,8 +89,19 @@ Inventário inicial do Release `dados`, antes da troca (12/11/2026):
 
 O inventário completo relaciona cada asset e cada membro, colunas, tamanho,
 SHA-256 e ID do GitHub. Novos Releases publicados também entram na varredura.
-O resultado remoto da migração e os comprovantes serão registrados nesta seção
-após a execução verificada; inventário local não comprova remoção do público.
+A primeira cópia remota concluiu com sucesso no
+[Actions 43286647219](https://github.com/bernardoemmel/Raiz/actions/runs/43286647219):
+40 assets, rebaixamento com SHA-256 idêntico e HTTP 404 sem autenticação. O
+inventário e o comprovante foram guardados no draft. Essa fase não removeu
+originais; o resultado da troca pública será registrado após sua conclusão.
+
+Artifacts antigos `entradas-congeladas`, `calculado-*` e `github-pages` também
+podem conter dados completos. `scripts/migrar_artifacts_privados.py` seleciona
+somente essas famílias, confere o digest oficial, preserva ZIPs imutáveis no
+privado e exige rebaixamento/SHA-256/404 antes de remover os IDs originais.
+Evidências de testes (`teste-pages`, `site-agentes`, `resultado-pytest`) não são
+selecionadas. Caches de dados são descartáveis e serão reconstruídos no privado;
+caches de dependências continuam permitidos.
 
 ## Migração verificável do histórico
 
