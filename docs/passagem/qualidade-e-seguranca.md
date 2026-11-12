@@ -207,7 +207,7 @@ foi resolvido mantendo ambas as passagens. O novo workflow `lote-para.yml` prepa
 o teste estadual ainda tem a pré-condição dos arquivos desenvolvedor e permanece como pendência até a rodada
 produzir um conjunto utilizável. Não foram disparados envios à Verra nem processamento de produção nesta auditoria.
 
-## Entrega independente de proveniência e cota — 12/11/2026
+## Entrega independente de proveniência, cota e revisão contínua — 12/11/2026
 
 Revisão dos PRs #72/#77 sobre a main `b624b10`. Esta entrega fecha dois vazamentos pequenos e uma corrida de
 admissão: o importador e o catálogo podiam imprimir nomes/retornos privados ou mensagens de terceiros; nomes de
@@ -229,3 +229,16 @@ Os demais portões de qualidade dos dados, observabilidade, carga e a integraç�
 **PR #76**. O corpus desse PR permanece explicitamente bloqueado: **Produto e regras** precisa entregar o agente
 leitor de certidão, edital e arquivo. Esta entrega independente preserva `ci.yml`, MCP e a política do corpus;
 seu resultado não equivale a uma aprovação dos testes de injeção pendentes.
+
+### Revisão dos PRs #79 e #80
+
+Main atualizada até `bea53bd`, sem conflito. O diagnóstico de falha do SIGEF agora passa pelo sanitizador antes
+de ser persistido ou retornado: mensagens de rede, parser e banco podem conter nome, contato ou credencial.
+O filtro de embargos recusa geometria ausente ou vazia depois de selecionar o município e os termos ativos;
+antes, um WKT inválido convertido em `None` no espelho podia virar área de restrição zero. A guarda aceita
+polígonos reparáveis e mantém a exclusão de cancelados, desembargados e outros municípios.
+
+As regressões falharam antes das correções. **23 testes de SIGEF e E2 passaram**, sem skips; Ruff e formatação
+dos quatro arquivos passaram. O retry de download do #80 não apresentou novo achado confirmado: erros de
+validação continuam fora da repetição. A revisão não encontrou segredo real no diff; não equivale a uma
+auditoria dos novos assets externos ou dos serviços em produção. Não restou achado maior confirmado em #79/#80.

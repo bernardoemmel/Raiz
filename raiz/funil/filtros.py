@@ -24,12 +24,16 @@ def embargos_ativos(df: pd.DataFrame, cod: int) -> gpd.GeoDataFrame:
     ativos = df.loc[(codigos == cod) & (df.SIT_CANCELADO != "S") & (df.SIT_DESEMBARGO != "S")]
     if isinstance(ativos, gpd.GeoDataFrame):
         geoms = ativos.geometry
-        return gpd.GeoDataFrame(geometry=geoms, crs=ativos.crs).to_crs(4674)
-    if "GEOM_AREA_EMBARGADA" not in ativos:
-        raise ValueError("embargos sem geometria")
-    # Erro de WKT não deve produzir um falso zero de restrição.
-    geoms = shapely.from_wkt(ativos.GEOM_AREA_EMBARGADA.where(ativos.GEOM_AREA_EMBARGADA.notna(), None))
-    return gpd.GeoDataFrame(geometry=geoms, crs=4674)
+        g = gpd.GeoDataFrame(geometry=geoms, crs=ativos.crs).to_crs(4674)
+    else:
+        if "GEOM_AREA_EMBARGADA" not in ativos:
+            raise ValueError("embargos sem geometria")
+        # Erro de WKT não deve produzir um falso zero de restrição.
+        geoms = shapely.from_wkt(ativos.GEOM_AREA_EMBARGADA.where(ativos.GEOM_AREA_EMBARGADA.notna(), None))
+        g = gpd.GeoDataFrame(geometry=geoms, crs=4674)
+    if g.geometry.isna().any() or g.geometry.is_empty.any():
+        raise ValueError("embargo ativo com geometria ausente ou vazia; cálculo de restrições bloqueado")
+    return g
 
 
 def calcular(g: gpd.GeoDataFrame, motor_filtros, embargos: gpd.GeoDataFrame, con=None) -> pd.DataFrame:
