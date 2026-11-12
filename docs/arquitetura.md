@@ -91,8 +91,9 @@ LangGraph a partir do agent-service-toolkit (MIT), checkpointer no Postgres.
 
 - **Modelos atrás de uma interface única.** Claude pela API (Sonnet 5.5 para conversa e documento, Haiku 5.5 para
   triagem) e, desde o início, Qwen3-4B-Instruct-2507 (Apache-2.0) no llama.cpp com JSON por gramática.
-- **Cascata ABC:** dois modelos baratos votam; se concordam, vale a resposta; o desacordo sobe para o Claude ou para a
-  fila de revisão.
+- **Cascata ABC:** o Qwen só faz classificação curta; o resto vai ao Haiku (e ao Sonnet de reserva). Na
+  classificação curta, a resposta do Qwen acima do corte de confiança (logprobs, calibrado no teste próprio em
+  português) vale sozinha; abaixo, Qwen e Haiku votam; o desacordo sobe para o Sonnet ou para a fila de revisão.
 - **Custo** por tarefa e por fazenda no Langfuse, com preços do genai-prices.
 - **WhatsApp:** PyWa 4. O BSUID (identificador do usuário por empresa, mudança obrigatória do WhatsApp) fica junto do
   telefone no esquema `pessoal`.

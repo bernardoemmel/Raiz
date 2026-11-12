@@ -1,0 +1,8 @@
+# Cortes de confiança da cascata, gerados por `raiz modelos calibrar` com o teste próprio em português
+# (raiz/modelos/avaliacao/banco.yaml) rodado no modelo local de verdade. Não editar à mão.
+# Tarefa sem corte fica na votação A+B (Qwen e Haiku), como antes.
+nome: cortes
+gerado_em: null
+modelo_local: null
+banco: null
+cortes: {}

@@ -2,6 +2,7 @@
 
 import subprocess
 import sys
+from pathlib import Path
 from typing import Annotated
 
 import typer
@@ -424,6 +425,95 @@ def modelos_testar(modelo: Annotated[str, typer.Option(help="ex.: claude-haiku-5
     else:
         typer.echo(f"falhou: {r.erro}", err=True)
         sys.exit(1)
+
+
+def _modelo_por_nome(nome: str):
+    from raiz.modelos import Claude, LlamaCpp, modelo_conversa, modelo_local, modelo_triagem
+    from raiz.modelos.simulado import Simulado
+
+    atalhos = {"local": modelo_local, "triagem": modelo_triagem, "conversa": modelo_conversa, "simulado": Simulado}
+    if nome in atalhos:
+        return atalhos[nome]()
+    return LlamaCpp(modelo=nome) if nome.startswith("qwen") else Claude(nome)
+
+
+@modelos.command("avaliar")
+def modelos_avaliar(
+    modelo: Annotated[
+        str, typer.Option(help="local (Qwen), triagem (Haiku), conversa (Sonnet), simulado ou o nome")
+    ] = ("local"),
+    tentativas: Annotated[int, typer.Option(help="tentativas seguidas por tarefa")] = 3,
+    tarefa: Annotated[str | None, typer.Option(help="só uma tarefa (ex.: aceite.intencao)")] = None,
+    saida: Annotated[Path, typer.Option(help="pasta do relatório (fora do git)")] = Path("dados/avaliacao"),
+) -> None:
+    """Teste próprio em português (E7 passo 10): 120 tarefas do aceite, 15% sem resposta válida, 3 tentativas cada."""
+    from raiz.modelos import avaliacao as AV
+
+    meta, tarefas = AV.carregar()
+    if tarefa:
+        tarefas = [t for t in tarefas if t.tarefa == tarefa]
+    m = _modelo_por_nome(modelo)
+    typer.echo(f"{meta['versao']}: {len(tarefas)} tarefas x {tentativas} tentativas no {m.nome}")
+    linhas = AV.avaliar(m, tarefas, tentativas, progresso=lambda i, n: i % 20 == 0 and typer.echo(f"  {i}/{n}"))
+    rel = AV.relatorio(meta, m, linhas, tentativas)
+    arq = AV.gravar_relatorio(rel, saida)
+    for t, r in rel["resumo"].items():
+        typer.echo(
+            f"{t}: acerto {r['acerto']:.0%}, nas {tentativas} tentativas {r['acerto_nas_tentativas']:.0%}, "
+            f"consistência {r['consistencia']:.0%}, abstenção correta {r['abstencao_correta'] or 0:.0%}, "
+            f"falhas {r['falhas']}, US$ {r['custo_usd']}"
+        )
+    typer.echo(f"relatório: {arq}")
+
+
+@modelos.command("calibrar")
+def modelos_calibrar(
+    relatorio: Annotated[Path | None, typer.Option(help="relatório do `avaliar`; sem ele, roda o teste no local")] = (
+        None
+    ),
+    cortes: Annotated[Path | None, typer.Option(help="onde gravar (padrão: raiz/regras/padroes/...)")] = None,
+    gravar: Annotated[bool, typer.Option(help="gravar os cortes (sem isso, só mostra)")] = True,
+    saida: Annotated[Path, typer.Option(help="pasta do relatório, quando roda o teste")] = Path("dados/avaliacao"),
+) -> None:
+    """Calibra o corte de confiança da cascata no teste próprio: só os 20 a 30% menos confiantes sobem de modelo.
+    Só grava cortes de um modelo local de verdade (provedor local); o simulado só mostra, salvo com --cortes."""
+    import json
+
+    from raiz.modelos import avaliacao as AV
+    from raiz.modelos import rota
+
+    if relatorio:
+        rel = json.loads(relatorio.read_text())
+    else:
+        meta, tarefas = AV.carregar()
+        m = _modelo_por_nome("local")
+        typer.echo(f"{meta['versao']}: {len(tarefas)} tarefas x 3 tentativas no {m.nome}")
+        linhas = AV.avaliar(m, tarefas, 3, progresso=lambda i, n: i % 20 == 0 and typer.echo(f"  {i}/{n}"))
+        rel = AV.relatorio(meta, m, linhas, 3)
+        typer.echo(f"relatório: {AV.gravar_relatorio(rel, saida)}")
+    pol = rota.politica()
+    c = pol.get("confianca") or {}
+    faixa = tuple(c.get("faixa_subida", (0.2, 0.3)))
+    cal = AV.calibrar(
+        rel["linhas"], faixa, float(c.get("acerto_minimo_aceito", 0.95)), int(c.get("minimo_respostas", 30))
+    )
+    for t, r in cal.items():
+        if r.get("corte") is not None:
+            typer.echo(
+                f"{t}: corte {r['corte']} (sobem {r['subida']:.0%}; acerto do que fica {r['acerto_que_fica']:.0%})"
+            )
+        else:
+            typer.echo(f"{t}: sem corte, fica na votação ({r['motivo']})")
+    if not gravar:
+        return
+    if rel.get("provedor") != "local" and cortes is None:
+        typer.echo(
+            f"não gravei: o relatório é do {rel.get('provedor')}, e o corte vale só para o modelo local", err=True
+        )
+        sys.exit(1)
+    destino = cortes or rota.CORTES
+    AV.gravar_cortes(cal, rel, pol["versao"], destino)
+    typer.echo(f"cortes gravados em {destino}")
 
 
 regras_cli = typer.Typer(help="Parâmetros legais versionados (E2).", no_args_is_help=True)

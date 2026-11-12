@@ -44,6 +44,7 @@ nativo/raiz_iov/target/
 raiz/regras/catala/_build/
 raiz/regras/catala/_target/
 dados/validacao/
+dados/avaliacao/
 dados/cache_osm/
 dados/cache_restauracao/
 dados/terra_publica/

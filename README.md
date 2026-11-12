@@ -53,7 +53,7 @@ desmente). Guia: `docs/documentos.md`.
 | `raiz/licencas.py` | derruba o build se alguma dependência tiver licença proibida pelo CLAUDE.md |
 | `raiz/coleta/` | E1: manifesto de camadas, checagem HEAD, WFS e ArcGIS com conferência de contagem, CAR e SIGEF incrementais no espelho Parquet por município, histórico scd2 no PostGIS, Ibama sem dado pessoal, MapBiomas pela API da Plataforma, índice de blocos de COG |
 | `raiz/funil/` | roda o motor sem editá-lo, lendo CAR e SIGEF do espelho (ponte), com lotes vigiados |
-| `raiz/modelos/` | Claude (Sonnet 5.5, Haiku 5.5) e Qwen3-4B no llama.cpp atrás de uma interface; cascata ABC; custo e Langfuse |
+| `raiz/modelos/` | Claude (Sonnet 5.5, Haiku 5.5) e Qwen3-4B no llama.cpp atrás de uma interface; cascata ABC por confiança e teste próprio em português (`avaliacao/`); custo e Langfuse |
 | `raiz/agentes/`, `raiz/whatsapp.py`, `raiz/api.py` | aceite do dono no WhatsApp (PyWa 4, BSUID), LangGraph com conversa cifrada, mensagens só com aprovação |
 | `raiz/operacao/` | Healthchecks por lote, custo por tarefa, fazenda e município |
 | `migracoes/` | esquemas `coleta`, `bruto`, `funil`, `regras`, `titulo`, `negocio`, `aprendizado`, `pessoal`, `operacao` |
