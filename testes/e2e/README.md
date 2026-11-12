@@ -6,10 +6,12 @@ de uso único, abertura da conta paga com CNPJ sintético e três créditos de t
 recusa **403** antes do sinal e contrato e redirecionamento **307** do caminho
 antigo para `/v1`. Uma pessoa aceita o contrato, gera sinal e recarga e confirma
 somente os Pix locais de teste. Então o cenário continua com o pedido de
-**1 milhão de créditos no Pará**, três opções de lote, busca de interesse,
-grupo pronto, aprovação humana, Pix da reserva e atualização da tela após o pagamento. A assinatura Ed25519 do
-recibo é verificada com a chave pública da API; também são conferidos o QR, o vencimento do Pix e a ausência de
-pagamento/exclusividade antes da confirmação interna.
+**1 milhão de créditos no Pará**, já selecionado no formulário, e três opções
+de lote. O botão de contato permanece desabilitado na tela, sem disparar pedido.
+As etapas posteriores de busca de interesse, grupo pronto e Pix da reserva são
+exercitadas pela API do servidor de teste, com atualização da tela após pagamento.
+A assinatura Ed25519 do recibo é verificada com a chave pública da API; também são
+conferidos o QR, o vencimento e a ausência de exclusividade antes do pagamento.
 
 Somente as entradas externas são simuladas: o envio de e-mail entrega o link em
 arquivo temporário privado, as respostas dos donos entram pelo serviço de

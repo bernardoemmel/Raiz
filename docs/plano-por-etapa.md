@@ -222,7 +222,7 @@ Feito na main fora desta tabela: caminho da terra com risco por imóvel (`raiz/t
 
 | Ordem | Entrega | Situação |
 |---|---|---|
-| A | API paga: 3 testes por empresa, sinal Pix e contrato, cobrança/estorno, limite SlowAPI, CLI e privacidade | implementado e validado no PR #45, integrado à main de qualidade e segurança; migração 0027 após a prospecção |
+| A | API paga: 3 testes por empresa, sinal Pix e contrato, cobrança/estorno, limite SlowAPI, CLI e privacidade | implementado e validado no PR #45, integrado à main de qualidade e segurança; migração 0028 após o calendário |
 | B | MCP oficial Python 2.3.0/protocolo 2026-07-28 no mesmo app, seis ferramentas e resumo único até 8 KiB | implementado; descoberta e chamadas testadas com o cliente oficial |
 | C | OAuth 2.1/Keycloak; consultar/pedir/reservar, reserva desligada até administrador da empresa habilitar | implementado; JWT, emissor, audiência, PKCE e isolamento testados; produção depende da configuração da instalação |
 | D | Fila durável, Idempotency-Key, Standard Webhooks, aprovação humana/Pix/JWS, OpenTelemetry | implementado; testes de concorrência, queda do processo, assinatura e prazo; conta/API/worker precisam da mesma base e cofre |
@@ -348,3 +348,16 @@ faz sem back-end.
 - **Feito:** passagens unificadas em `docs/passagem/continuidade-raiz.md`; PRs #35 e #44 já integrados; migrações do título/aprendizado corrigidas para 0022–0025.
 
 - **Feito:** instalador idempotente de cron dos alertas a cada 15 minutos (`scripts/instalar_cron_alertas.py`), com trava de execução e caminho do ambiente. Instalação real no servidor continua pendente de acesso; nenhuma notificação externa foi enviada.
+
+## Calendário da Raíz
+
+| Entrega | Situação |
+|---|---|
+| Eventos com tipo, data/prazo, UF/município, fonte/link, coleta e confiança | **feito**: esquema `calendario`, migração 0027 após 0022–0025 do título/aprendizado e 0026 da prospecção; histórico, UID e sequência preservados nas retificações |
+| Coleta diária de leilões rurais, penhoras, BNDES, ProFloresta+, Fundo Amazônia, concessões, crédito e SBCE/Verra/ICVCM/SBTi/EUDR | **feito**: 17 fontes oficiais em `raiz/calendario/fontes.yaml`, HTTP/PDF/Firecrawl opcional, workflow diário com snapshot no Release `calendario`; cobertura inicial e falhas explícitas, sem inventar prazos |
+| Vínculo de leilão/penhora ao CAR | **feito**: CAR explícito, CNS+matrícula vigente ou interseção SIGEF; sem corte por tamanho; vínculo insuficiente fica pendente; CAR inferido fica interno, só CAR explícito no edital aparece na consulta pública; nenhum nome ou documento pessoal persistido |
+| API e integração | **feito**: `GET /eventos` com tipo/estado/período/CAR, `GET /eventos.ics` e função Python `proximos_eventos` pronta; o calendário ainda não está registrado no transporte MCP, e o servidor pago mantém suas seis ferramentas |
+| Site e pedidos | **feito**: aba Calendário, filtros, fonte/data de coleta, feed, selos no mapa/ficha/tabela e aviso deduplicado aos lotes; ficha individual mantém acesso por créditos, e-mail/WhatsApp permanecem simulados. Publicação do site após a coleta |
+| Agenda no servidor | **feito no código**: `scripts/instalar_cron_alertas.py --tarefa calendario --instalar`, diário com banco, trava e `.env`; instalação em produção depende de acesso ao servidor |
+
+Limites verificados em 12/11/2026: DJEN/CNJ respondeu HTTP 403; diários estaduais começam por PA/MT; PDF escaneado sem texto ainda não tem OCR. Erro de fonte não elimina os eventos anteriores. Testes com trechos oficiais gravados e PostGIS; detalhes em `docs/calendario.md`.

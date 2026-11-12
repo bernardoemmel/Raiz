@@ -132,7 +132,7 @@ processo, com o mesmo ambiente e banco, rode `uv run raiz api worker`. A opção
 
 | Variável | Uso |
 |---|---|
-| `RAIZ_BANCO_URL` | PostgreSQL/PostGIS do produto, migrado até a revisão 0029 |
+| `RAIZ_BANCO_URL` | PostgreSQL/PostGIS do produto, migrado até a revisão 0030 |
 | `RAIZ_CHAVE_PESSOAL` | Chave do cofre, igual na API e no worker; gere com `uv run raiz pessoal gerar-chave` e guarde fora do git |
 | `RAIZ_API_PUBLICA_URL` | Origem HTTPS pública, sem `/v1`; usada nos links de aprovação |
 | `RAIZ_OAUTH_ISSUER` | URL externa do Keycloak seguida de `/realms/raiz` |

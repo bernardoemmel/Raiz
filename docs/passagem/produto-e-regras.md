@@ -3,11 +3,11 @@
 ## Retomada no Codex: plataforma integrada
 
 A API paga do PR #45 foi migrada e recebeu a main, com a migração de conta renumerada
-para 0027. Conta e três testes são por empresa; saldo não pula sinal Pix/contrato.
+para 0028, após o calendário (0027). Conta e três testes são por empresa; saldo não pula sinal Pix/contrato.
 O caminho legado redireciona para a política paga; recusas contam no SlowAPI.
 A análise usa projeções explícitas e marca ausência de certidão/camada como não verificado.
 
-A integração com a main 78e13f7 mantém login por URL configurada, Presidio e
+A integração com a main a4c1066 preserva calendário, aprendizado e interface. Mantém login por URL configurada, Presidio e
 Uvicorn com formatador seguro. CORS aceita OAuth/MCP e idempotência; a CSP da
 aprovação é preservada. O limite global também gera telemetria e erros RFC 9457;
 a ponte interna autenticada não duplica a contagem por IP. O limite por empresa
@@ -57,7 +57,7 @@ apresentado como detector confiável de nomes próprios.
 Salvaguardas: piso conservador Raíz 20%; art. 47 exige 50% para remoção e 70% para REDD+
 de mercado, além de CLPI; art. 43 exige evidência de exclusão e impede dupla contagem.
 A revisão humana é o compromisso Raíz ao atender LGPD art. 20. Falta de camada/evidência
-bloqueia reserva. A migração 0028 contém essas tabelas; 0029 contém fila, eventos,
+bloqueia reserva. A migração 0029 contém essas tabelas; 0030 contém fila, eventos,
 permissão, aprovação e recibos. Migração nova precisa de banco atualizado, não apenas código novo.
 
 Implantação detalhada: `docs/agentes-ia.md`, `docs/trabalhos-agentes.md`,
@@ -76,8 +76,8 @@ Este chat segue apenas com a API paga e o MCP; não altera o recálculo nem o Re
 As salvaguardas da API complementam o catálogo da rodada: os bloqueios publicados
 chegam à oferta/PostGIS. Inclusão de programa REDD+ exige recertificar a cobertura
 vigente. Os testes de revisão usam o app real e os gates pagos, inclusive o caminho
-legado por redirecionamento. A cadeia de migrações é 0026 (prospecção) → 0027 (API)
-→ 0028 (salvaguardas) → 0029 (plataforma).
+legado por redirecionamento. A cadeia de migrações é 0026 (prospecção) → 0027 (calendário)
+→ 0028 (API) → 0029 (salvaguardas) → 0030 (plataforma).
 
 ---
 
