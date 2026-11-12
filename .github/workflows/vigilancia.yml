@@ -1,0 +1,81 @@
+# Vigilância diária das fazendas e dos projetos (raiz/vigilancia/README.md).
+# Lê MapBiomas Alerta, FIRMS (NOAA-20/21), embargos do Ibama, DETER e PRODES, cruza com os polígonos do Release dados
+# e com os projetos, e publica no Release `vigilancia`: alertas de imóvel abertos; projetos, perdas e marcações
+# cifrados (RAIZ_VIGILANCIA_CHAVE). Fonte com erro deixa a execução vermelha (o GitHub avisa por e-mail), depois de
+# publicar o que deu certo.
+#
+# Segredos do repositório (Settings > Secrets and variables > Actions):
+#   MAPBIOMAS_ALERTA_EMAIL, MAPBIOMAS_ALERTA_SENHA   conta da Plataforma MapBiomas Alerta
+#   RAIZ_VIGILANCIA_CHAVE                             chave Fernet (python -m raiz.vigilancia chave)
+#   RAIZ_PROJETOS_PRIVADO                             (opcional) YAML com os dados comerciais dos projetos
+#   FIRMS_MAP_KEY                                     (opcional) chave da API do FIRMS
+name: Vigilância diária
+
+on:
+  schedule:
+    - cron: "17 9 * * *" # 06:17 em Brasília, todo dia
+  workflow_dispatch:
+    inputs:
+      fontes:
+        description: "Só estas fontes (vírgula): mapbiomas_alerta, firms, ibama_embargo, deter, prodes"
+        required: false
+        default: ""
+      ufs:
+        description: "Só estas UFs do Release dados (vírgula)"
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+
+concurrency:
+  group: vigilancia
+  cancel-in-progress: false
+
+jobs:
+  vigiar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Pastas do estado e do cache (fora do repositório)
+        run: |
+          echo "RAIZ_VIGILANCIA_DIR=$RUNNER_TEMP/vigilancia/estado" >> "$GITHUB_ENV"
+          echo "RAIZ_VIGILANCIA_CACHE=$RUNNER_TEMP/vigilancia/cache" >> "$GITHUB_ENV"
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: raiz/vigilancia/requisitos.txt
+
+      - name: Dependências
+        run: pip install -r raiz/vigilancia/requisitos.txt
+
+      - name: Testes da vigilância
+        run: python -m pytest -q raiz/vigilancia/testes
+
+      # polígonos do Release dados e a versão limpa dos embargos (sem nome nem CPF/CNPJ): só baixa de novo o que mudou
+      - name: Cache dos polígonos e dos embargos
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/vigilancia/cache
+          key: vigilancia-cache-${{ github.run_id }}
+          restore-keys: vigilancia-cache-
+
+      - name: Rodada
+        env:
+          MAPBIOMAS_ALERTA_EMAIL: ${{ secrets.MAPBIOMAS_ALERTA_EMAIL }}
+          MAPBIOMAS_ALERTA_SENHA: ${{ secrets.MAPBIOMAS_ALERTA_SENHA }}
+          FIRMS_MAP_KEY: ${{ secrets.FIRMS_MAP_KEY }}
+          RAIZ_VIGILANCIA_CHAVE: ${{ secrets.RAIZ_VIGILANCIA_CHAVE }}
+          RAIZ_PROJETOS_PRIVADO: ${{ secrets.RAIZ_PROJETOS_PRIVADO }}
+          GITHUB_TOKEN: ${{ github.token }}
+          FONTES: ${{ inputs.fontes }}
+          UFS: ${{ inputs.ufs }}
+        run: |
+          args=(rodar --baixar --publicar --resumo "$GITHUB_STEP_SUMMARY")
+          [ -n "$FONTES" ] && args+=(--fontes "$FONTES")
+          [ -n "$UFS" ] && args+=(--ufs "$UFS")
+          python -m raiz.vigilancia "${args[@]}"
