@@ -7,7 +7,9 @@ import { dadosRaiz } from '../compartilhado/vite-dados'
 const repo = fileURLToPath(new URL('../..', import.meta.url))
 
 // https://vite.dev/config/
+// RAIZ_BASE: o caminho do site (no GitHub Pages, /Raiz/); sem ela, a raiz
 export default defineConfig({
+  base: process.env.RAIZ_BASE || '/',
   plugins: [react(), dadosRaiz({ repo })],
   server: { fs: { allow: [repo] } },
   test: { include: ['../compartilhado/**/*.test.ts', 'src/**/*.test.ts'], root: '.' },

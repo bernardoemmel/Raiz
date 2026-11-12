@@ -12,16 +12,16 @@ está completo quando tem, em todos os municípios, funil, filtros, MapBiomas, d
 escadinha. Os extras do Earth Engine e as certidões ficam de fora dessa conta (ver abaixo).
 
 <!-- painel:inicio -->
-Gerado do `estados.json` de 12/11/2026 11:38 (horário de Brasília). Brasil: 257 de 5.571 municípios com o funil pronto; 3 de 27 estados completos.
+Gerado do `estados.json` de 12/11/2026 11:50 (horário de Brasília). Brasil: 262 de 5.571 municípios com o funil pronto; 4 de 27 estados completos.
 
 | Estado | Municípios feitos/total | Situação | Última atualização | Motor |
 |---|---|---|---|---|
 | PA Pará | 144/144 | completo (APP a conferir na primeira rodada automática) | 12/11/2026 07:52 | manual |
-| RO Rondônia | 52/52 | falta MapBiomas 24, direto 24, FLAG 24, caminho da terra 24, ficha 26, desenvolvedor 27 | 12/11/2026 11:28 | manual |
+| RO Rondônia | 52/52 | completo | 12/11/2026 11:50 | [9365d63](https://github.com/bernardoemmel/Raiz/actions/runs/43230460294) (parte manual) |
 | RR Roraima | 15/15 | completo | 12/11/2026 11:17 | [9365d63](https://github.com/bernardoemmel/Raiz/actions/runs/43230460294) (parte manual) |
 | AC Acre | 22/22 | completo | 12/11/2026 11:38 | [9365d63](https://github.com/bernardoemmel/Raiz/actions/runs/43230460294) (parte manual) |
 | AP Amapá | 16/16 | completo | 12/11/2026 11:29 | [3537575](https://github.com/bernardoemmel/Raiz/actions/runs/43235780981) (parte manual) |
-| TO Tocantins | 8/139 | falta funil 131, filtros 4, MapBiomas 5, direto 5, TMF e causas 5, FLAG 5, caminho da terra 5, ficha 7, desenvolvedor 7 | 12/11/2026 11:34 | manual |
+| TO Tocantins | 13/139 | falta funil 126, TMF e causas 1, FLAG 1, caminho da terra 1, ficha 4, desenvolvedor 4 | 12/11/2026 11:50 | manual |
 | MA Maranhão | 0/217 | não começou | — | — |
 | AM Amazonas | 0/62 | não começou | — | — |
 | MT Mato Grosso | 0/142 | não começou | — | — |

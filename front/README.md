@@ -76,8 +76,27 @@ Tudo passa por `compartilhado/dados/` (`FonteDeDados`). As telas não sabem de o
   refeitos só quando um CSV ou contorno daquele estado muda. Arquivo novo do motor aparece sozinho na tela; coluna nova
   aparece em "Outros dados do motor" na ficha. As geometrias continuam em `front/geo/` (gerado pelo script, fora do git).
 
-  O `vite build` grava tudo em `dist/`, com uma ficha por fazenda (a ficha leve do produtor sem servidor): com os 6
-  estados publicados hoje são 638.754 fichas e 3,1 GB. Com o Brasil inteiro, o caminho é a API (abaixo).
+  O `vite build` grava os dados em `dist/` do jeito que cabe num site estático: os CSV limpos e comprimidos
+  (`.csv.gz`, que o navegador descomprime), os estados, os pontos e os códigos fora do município de cada estado, e as
+  fichas prontas só dos municípios com contorno (as outras o navegador monta dos CSV do município, com a mesma função
+  do plugin e do back-end). Com os 6 estados publicados hoje, o site tem 303 MB e 12.620 arquivos. `RAIZ_BUILD_DADOS=0`
+  não grava dado nenhum; `RAIZ_BASE` muda o caminho do site; `VITE_RAIZ_DADOS_BASE` faz um app ler os dados de outra
+  pasta (a ficha do produtor no site lê os do painel).
+
+## Site público (GitHub Pages)
+
+`.github/workflows/publicar-site.yml` publica o painel em https://bernardoemmel.github.io/Raiz/ e a ficha do produtor
+em https://bernardoemmel.github.io/Raiz/produtor/?car=<código do CAR>. Roda a cada mudança do front na main, todo dia
+(dados novos do motor) e quando alguém dispara. O build baixa o Release "dados" com `baixar-dados.mjs`, gera o que falta
+do mapa com `geo.py` (guardado em cache entre as rodadas; se um servidor público estiver fora, segue com o resto) e
+publica o resultado. Uma vez só, no repositório: Settings, Pages, Source "GitHub Actions" (o token do Actions não liga
+o Pages sozinho).
+
+O que funciona sem back-end: o mapa do Brasil por estado, os estados, os municípios, o funil, a tabela, a ficha da
+fazenda e a do produtor, a busca por CAR e por município, e o pedido de lote com a resposta de exemplo (os pedidos
+ficam no navegador de quem usa). O que precisa do back-end rodando (`raiz/`, FastAPI com PostgreSQL e PostGIS): entrar
+com link de verdade por e-mail, pedidos e reservas guardados no servidor, o otimizador do lote, os contatos com os
+donos, o Pix e o painel do fundador.
 - **Depois (API):** defina `VITE_RAIZ_API` no `.env` do front (nunca no git). Rotas que a fonte da API espera, com
   as mesmas colunas dos CSV:
 

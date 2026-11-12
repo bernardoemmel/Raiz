@@ -78,6 +78,23 @@ export async function buscarJson<T>(url: string): Promise<T | null> {
   return (await r.json()) as T
 }
 
+/**
+ * Texto que pode vir comprimido em gzip (os CSV do site estático ficam em .csv.gz para caber no GitHub Pages): confere
+ * a assinatura do gzip e descomprime no navegador; se o servidor já descomprimiu, lê como texto.
+ */
+export async function buscarTextoGz(url: string): Promise<string | null> {
+  const r = await fetch(url)
+  if (r.status === 404) return null
+  if (!r.ok) throw new Error(`${r.status} ao ler ${url}`)
+  if ((r.headers.get("content-type") ?? "").includes("text/html")) return null
+  const bytes = new Uint8Array(await r.arrayBuffer())
+  if (bytes[0] === 0x1f && bytes[1] === 0x8b) {
+    const fluxo = new Blob([bytes]).stream().pipeThrough(new DecompressionStream("gzip"))
+    return new Response(fluxo).text()
+  }
+  return new TextDecoder().decode(bytes)
+}
+
 export async function buscarTexto(url: string): Promise<string | null> {
   const r = await fetch(url)
   if (r.status === 404) return null

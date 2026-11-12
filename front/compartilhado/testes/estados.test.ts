@@ -5,11 +5,13 @@
  */
 
 import { execFileSync, spawnSync } from "node:child_process"
+import { gunzipSync, gzipSync } from "node:zlib"
 import fs from "node:fs"
 import os from "node:os"
 import path from "node:path"
 import { afterAll, beforeAll, describe, expect, it } from "vitest"
 import { escreverCsv, lerCsv } from "../dados/csv"
+import { buscarTextoGz } from "../dados/fonte"
 import { complementosDe, juntarComplementos } from "../dados/complementos"
 import { lerFunil, lerImovel } from "../dados/funil"
 import { ufDoCodigo } from "../formato"
@@ -383,6 +385,31 @@ describe("o que o plugin serve", () => {
     expect(comeco.imoveis.map((i: { cod_imovel: string }) => i.cod_imovel)).toContain(doVizinho)
   })
 
+  it("o CSV também sai comprimido (.csv.gz, como o site estático guarda), limpo do mesmo jeito", async () => {
+    const r = await servir(`/amostra/extras_${COM_LISTA}.csv.gz`)
+    expect(r.status).toBe(200)
+    expect([r.bruto[0], r.bruto[1]]).toEqual([0x1f, 0x8b])
+    const texto = gunzipSync(r.bruto).toString("utf8")
+    expect(texto).toBe((await servir(`/amostra/extras_${COM_LISTA}.csv`)).corpo)
+    expect(texto).not.toContain(CPF)
+    expect((await servir("/amostra/resumo_XX.csv.gz")).status).toBe(404)
+  })
+
+  it("o navegador lê o CSV comprimido ou já descomprimido pelo servidor", async () => {
+    const original = globalThis.fetch
+    const csv = "cod_imovel,ha\nAP-1600055-A,10\n"
+    try {
+      for (const corpo of [gzipSync(csv), Buffer.from(csv)]) {
+        globalThis.fetch = (async () => new Response(corpo, { headers: { "content-type": "application/gzip" } })) as typeof fetch
+        expect(await buscarTextoGz("/amostra/x.csv.gz")).toBe(csv)
+      }
+      globalThis.fetch = (async () => new Response("", { status: 404 })) as typeof fetch
+      expect(await buscarTextoGz("/amostra/y.csv.gz")).toBeNull()
+    } finally {
+      globalThis.fetch = original
+    }
+  })
+
   it("nome de arquivo com caminho não sai da pasta", async () => {
     expect((await servir("/amostra/..%2F..%2F.env")).status).toBe(404)
     expect((await servir("/amostra/resumo_XX.csv")).status).toBe(404)
@@ -412,14 +439,15 @@ function conectar(plugin: ReturnType<typeof dadosRaiz>) {
   plugin.configureServer({ middlewares: { use: (fn: Middleware) => (middleware = fn) } } as never)
   console.log = log
   return (url: string) =>
-    new Promise<{ status: number; corpo: string }>((ok) => {
+    new Promise<{ status: number; corpo: string; bruto: Buffer }>((ok) => {
       const res = {
         statusCode: 200,
         setHeader() {},
         end(dado?: string | Buffer) {
-          ok({ status: this.statusCode, corpo: String(dado ?? "") })
+          const bruto = Buffer.isBuffer(dado) ? dado : Buffer.from(dado ?? "")
+          ok({ status: this.statusCode, corpo: bruto.toString("utf8"), bruto })
         },
       }
-      middleware!({ url, headers: {} }, res, () => ok({ status: 404, corpo: "" }))
+      middleware!({ url, headers: {} }, res, () => ok({ status: 404, corpo: "", bruto: Buffer.alloc(0) }))
     })
 }
