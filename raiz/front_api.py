@@ -658,6 +658,49 @@ def roteador(engine_de) -> APIRouter:
         """Código do CAR (inteiro ou começo, com ou sem pontos e traços) e nome de município (sem acento)."""
         return _json(buscar(engine_de(request), q, max(1, min(limite, MAX_IMOVEIS))))
 
+    @r.get("/mapa/manifesto.json")
+    def mapa_manifesto() -> Response:
+        """Qual recorte do Protomaps está no ar (build, tamanho, zoom, crédito)."""
+        from raiz import mapa_base
+
+        m = mapa_base.manifesto()
+        if not m:
+            raise HTTPException(404, "mapa base ainda não gerado (raiz mapa atualizar)")
+        return _json(m)
+
+    @r.get("/mapa/brasil.pmtiles")
+    def mapa_brasil() -> Response:
+        """Mapa base do Brasil até o zoom 14, com Range (o leitor do PMTiles pede por faixa de bytes)."""
+        from raiz import mapa_base
+
+        f = mapa_base.arquivo_atual()
+        if f is None:
+            raise HTTPException(404, "mapa base ainda não gerado (raiz mapa atualizar)")
+        return FileResponse(f, media_type="application/vnd.pmtiles")
+
+    @r.get("/mapa/fontes/{fonte}/{faixa}.pbf")
+    def mapa_fonte(fonte: str, faixa: str) -> Response:
+        from raiz import mapa_base
+
+        if fonte not in mapa_base.FONTES or not re.fullmatch(r"\d+-\d+", faixa):
+            raise HTTPException(404, "fonte ou faixa desconhecida")
+        f = mapa_base.pasta() / "fontes" / fonte / f"{faixa}.pbf"
+        if not f.exists():
+            raise HTTPException(404, "faixa de letras não baixada")
+        return FileResponse(f, media_type="application/x-protobuf")
+
+    @r.get("/mapa/sprites/{nome}.{ext}")
+    def mapa_sprite(nome: str, ext: str) -> Response:
+        from raiz import mapa_base
+
+        base = nome.removesuffix("@2x")
+        if base not in mapa_base.SPRITES or ext not in ("json", "png"):
+            raise HTTPException(404, "sprite desconhecido")
+        f = mapa_base.pasta() / "sprites" / f"{nome}.{ext}"
+        if not f.exists():
+            raise HTTPException(404, "sprite não baixado")
+        return FileResponse(f, media_type="application/json" if ext == "json" else "image/png")
+
     @r.get("/geo/{cod_ibge}/base.pmtiles")
     def base(cod_ibge: int) -> Response:
         from raiz.geo import arquivo_base

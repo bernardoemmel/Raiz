@@ -65,3 +65,11 @@ no script, requests (Apache-2.0), shapely e pmtiles (BSD-3-Clause).
   cidade_proxima_km, cidade_proxima_direcao, estrada_acesso, estrada_acesso_km) formam uma base derivada do OSM: quando
   publicadas, levam a atribuição "© colaboradores do OpenStreetMap" e seguem a ODbL (oferecer a base derivada sob a
   mesma licença). Bibliotecas: `pmtiles` (BSD-3) e `mapbox-vector-tile` (MIT), sem copiar código.
+
+## Mapa base do Brasil (Protomaps)
+
+- Recorte do build diário do Protomaps (build.protomaps.com), dados © colaboradores do OpenStreetMap (ODbL 1.0),
+  feito com o `pmtiles extract` do go-pmtiles (BSD-3, instalado à parte, sem código copiado). Servido em
+  /mapa/brasil.pmtiles com a atribuição do manifesto.
+- Fontes Noto Sans (SIL Open Font License 1.1) e sprites do protomaps/basemaps-assets, baixados por
+  `raiz mapa atualizar` (licença dos sprites a conferir no repositório basemaps-assets antes de publicar).

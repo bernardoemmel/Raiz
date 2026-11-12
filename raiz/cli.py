@@ -561,3 +561,18 @@ def ficha_gerar(
                 continue
             r = escrever_municipio(base / uf, cod, dir_trabalho() / "cache", dia)
             typer.echo(f"{uf} {cod}: {r}")
+
+
+mapa_cli = typer.Typer(help="Mapa base do Brasil (recorte do Protomaps, fontes e sprites).", no_args_is_help=True)
+app.add_typer(mapa_cli, name="mapa")
+
+
+@mapa_cli.command("atualizar")
+def mapa_atualizar(
+    dia: Annotated[str | None, typer.Option(help="build AAAAMMDD; padrão: o mais recente")] = None,
+) -> None:
+    """Recorta o Brasil até o zoom 14 do build do Protomaps, baixa fontes e sprites e grava o manifesto."""
+    from raiz import mapa_base
+
+    m = mapa_base.atualizar(dia)
+    typer.echo(f"mapa base {m['arquivo']}: {m['bytes'] / 1e9:.1f} GB, zoom até {m['zoom_max']}")

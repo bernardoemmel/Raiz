@@ -87,3 +87,12 @@ mudar na nuvem (ETag novo), o cache dele é refeito.
 - `manifesto_blocos.sujos(con)` lista os blocos com alguma camada que mudou depois do último cálculo;
   `marcar_calculados` fecha o bloco quando o funil termina. No município 1504950: CAR em 5 blocos, SIGEF em 9,
   embargos em 2; a segunda leitura, sem mudança, leva 4 ms.
+
+## Mapa base do Brasil (design v1 do front, item 5)
+
+- `raiz mapa atualizar` recorta o Brasil até o zoom 14 do build mais recente do Protomaps (go-pmtiles: `go install
+  github.com/protomaps/go-pmtiles@latest`), baixa fontes e sprites e grava `manifesto.json` em `RAIZ_MAPA_DIR`
+  (padrão `dados/mapa/`). O recorte de 11/11/2026 tem 3,07 GB (4,5 milhões de ladrilhos) e saiu em cerca de 2 minutos.
+  Atualizar uma vez por mês basta; o recorte anterior só é apagado depois que o novo terminou.
+- Rotas: `/mapa/manifesto.json`, `/mapa/brasil.pmtiles` (Range, nunca recomprimido),
+  `/mapa/fontes/{fonte}/{faixa}.pbf` e `/mapa/sprites/{nome}.{json|png}`.

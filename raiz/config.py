@@ -34,6 +34,8 @@ class Config(BaseSettings):
     raster_cache_gb: float = 20.0
     # arquivos do front/scripts/geo.py (GeoJSON das camadas e base_<mun>.pmtiles), servidos pela API; padrão front/geo
     geo_dir: str | None = None
+    # mapa base do Brasil (recorte do Protomaps, fontes e sprites), servido em /mapa; padrão dados/mapa
+    mapa_dir: str | None = None
 
     # Modelos de linguagem (E7). A chave da Anthropic também é aceita com o nome padrão ANTHROPIC_API_KEY.
     anthropic_api_key: SecretStr | None = Field(
