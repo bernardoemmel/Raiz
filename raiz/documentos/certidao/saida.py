@@ -39,6 +39,7 @@ COLS_CONF = [
     "modelo",
     "leitor_versao",
     "regras_versao",
+    "motivos_json",
 ]
 
 
@@ -89,6 +90,7 @@ def conferencias_do_municipio(cod_municipio: int, armazem: Armazem | None = None
                 "modelo": c["modelo"],
                 "leitor_versao": f"{c['leitor_versao']}+{c['prompt_versao']}",
                 "regras_versao": c["regras_versao"],
+                "motivos_json": c["motivos_json"],
             }
         )
     return pd.DataFrame(linhas, columns=COLS_CONF)

@@ -883,6 +883,114 @@ def terra_editais() -> None:
     typer.echo(f"{len(r['novos'])} novos, {r['total']} links guardados")
 
 
+titulo_cli = typer.Typer(
+    help="Título (E5): regularização da posse, achados de título e quem confirmou cada um.", no_args_is_help=True
+)
+app.add_typer(titulo_cli, name="titulo")
+
+
+@titulo_cli.command("recalcular")
+def titulo_recalcular(
+    saida: Annotated[
+        str | None, typer.Option(help="pasta saida/ do motor; padrão: a pasta de trabalho do motor")
+    ] = None,
+    ufs: Annotated[str | None, typer.Option(help="só estas UFs, separadas por vírgula")] = None,
+) -> None:
+    """Refaz regularizacao_<mun>.csv e achados_<mun>.csv que faltam ou estão noutra versão da regra."""
+    from pathlib import Path
+
+    from raiz.funil.rodar import dir_trabalho
+    from raiz.titulo import regularizacao as RG
+
+    pasta = Path(saida) if saida else dir_trabalho() / "saida"
+    lista = [u.strip().upper() for u in ufs.split(",")] if ufs else None
+    r = RG.recalcular(pasta, lista)
+    typer.echo(f"regra {RG.versao()}: {len(r['refeitos'])} municípios refeitos, {r['em_dia']} já em dia")
+    for e in r["erros"]:
+        typer.echo(f"  erro {e}")
+
+
+@titulo_cli.command("resumo")
+def titulo_resumo(
+    cod: Annotated[int, typer.Argument(help="código IBGE do município")],
+    saida: Annotated[str | None, typer.Option(help="pasta saida/<UF> do município")] = None,
+) -> None:
+    """Imóveis, hectares e carbono por classe de regularização: o estoque que cada passo destrava."""
+    from pathlib import Path
+
+    from raiz.documentos.config import uf_do_municipio
+    from raiz.funil.rodar import dir_trabalho
+    from raiz.titulo import regularizacao as RG
+
+    pasta = Path(saida) if saida else dir_trabalho() / "saida" / (uf_do_municipio(cod) or "")
+    for linha in RG.resumo(pasta, cod):
+        typer.echo(
+            f"{linha['classe']:28} {linha['imoveis']:6} imóveis {linha['ha']:12,.1f} ha "
+            f"{(linha['carbono_tco2_ano'] or 0):12,.0f} tCO2/ano"
+        )
+
+
+@titulo_cli.command("mutiroes")
+def titulo_mutiroes(
+    cod: Annotated[int, typer.Argument(help="código IBGE do município")],
+    saida: Annotated[str | None, typer.Option(help="pasta saida/<UF> do município")] = None,
+    limite: int = 20,
+) -> None:
+    """Grupos de vizinhas em posse que só precisam do georreferenciamento: uma ida a campo destrava o grupo."""
+    from pathlib import Path
+
+    from raiz.documentos.config import uf_do_municipio
+    from raiz.funil.rodar import dir_trabalho
+    from raiz.titulo import regularizacao as RG
+
+    pasta = Path(saida) if saida else dir_trabalho() / "saida" / (uf_do_municipio(cod) or "")
+    for m in RG.mutiroes(pasta, cod)[:limite]:
+        typer.echo(
+            f"{m['grupo']:24} {m['imoveis']:4} imóveis ({m['pequenas'] or 0} pequenas) {m['ha']:10,.1f} ha "
+            f"{(m['carbono_tco2_ano'] or 0):10,.0f} tCO2/ano"
+        )
+
+
+@titulo_cli.command("pendentes")
+def titulo_pendentes(
+    cod_imovel: Annotated[str | None, typer.Option(help="só este imóvel (código do CAR)")] = None,
+    limite: int = 50,
+) -> None:
+    """Achados que reprovam ou pedem confirmação e ainda não foram confirmados."""
+    from raiz.banco import engine
+    from raiz.titulo import banco as TB
+
+    with engine().begin() as con:
+        for a in TB.pendentes(con, cod_imovel, limite):
+            typer.echo(f"{a.id:8} {a.gravidade:9} {a.cod_imovel} {a.regra}: {a.mensagem}")
+
+
+@titulo_cli.command("confirmar")
+def titulo_confirmar(
+    achado_id: Annotated[int, typer.Argument(help="id do achado (raiz titulo pendentes)")],
+    quem: Annotated[str, typer.Option(help="identificador do operador (ex.: fundador, conferente-02), nunca nome")],
+    decisao: Annotated[str, typer.Option(help="confirmado, descartado ou corrigido")] = "confirmado",
+    nota: Annotated[str | None, typer.Option(help="o que foi visto (sem nome nem CPF)")] = None,
+) -> None:
+    """Registra quem confirmou, descartou ou corrigiu um achado, e quando."""
+    from raiz.banco import engine
+    from raiz.titulo import banco as TB
+
+    with engine().begin() as con:
+        cid = TB.confirmar(con, achado_id, quem, decisao, nota)
+    typer.echo(f"confirmação {cid} gravada")
+
+
+@titulo_cli.command("gabaritar")
+def titulo_gabaritar() -> None:
+    """Gabarito das previsões de título da posse: matrícula apareceu (1) ou o prazo de 12 meses venceu (0)."""
+    from raiz.banco import engine
+    from raiz.titulo import regularizacao as RG
+
+    with engine().begin() as con:
+        typer.echo(RG.gabaritar(con))
+
+
 ficha_cli = typer.Typer(help="Colunas e camadas dentro do imóvel para o front (design v1).", no_args_is_help=True)
 app.add_typer(ficha_cli, name="ficha")
 

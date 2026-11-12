@@ -36,7 +36,8 @@ from raiz.config import config
 log = logging.getLogger(__name__)
 
 TAREFAS = (
-    "funil", "filtros", "direto", "mapbiomas", "extras_direto", "flag", "terra", "ficha", "desenvolvedor", "carga",
+    "funil", "filtros", "direto", "mapbiomas", "extras_direto", "flag", "terra", "titulo", "ficha", "desenvolvedor",
+    "carga",
 )  # fmt: skip
 
 
@@ -200,6 +201,16 @@ def rodar_municipio(cod: int, op: Opcoes, hc=None) -> dict:
             return
         reg.detalhe.update(T.escrever_municipio(pasta, cod, Path("cache")), regra=T.versao())
 
+    def titulo(reg):
+        from raiz.titulo import regularizacao as RG
+
+        f = pasta / f"regularizacao_{cod}.csv"
+        if f.exists() and not op.refazer and RG.versao_do_arquivo(f) == RG.versao():
+            reg.pulado = True
+            reg.nota(f"{f.name} já está na regra {RG.versao()}")
+            return
+        reg.detalhe.update(RG.escrever_municipio(pasta, cod), regra=RG.versao())
+
     def ficha(reg):
         from raiz.imovel_dados import escrever_municipio
 
@@ -224,6 +235,7 @@ def rodar_municipio(cod: int, op: Opcoes, hc=None) -> dict:
     executar("extras_direto", pasta / f"extras_direto_{cod}.csv", extras_direto)
     executar("flag", None, flag)  # refaz quando a versão da regra muda
     executar("terra", None, terra)  # caminho da terra; refaz quando a regra ou as concessões mudam
+    executar("titulo", None, titulo)  # regularização da posse e achados de título; refaz quando a regra muda
     executar("ficha", pasta / f"ficha_{cod}.csv", ficha)
     executar("desenvolvedor", None, desenvolvedor)  # refaz quando a versão das premissas ou do cenário muda
     executar("carga", None, carga)

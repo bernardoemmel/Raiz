@@ -257,6 +257,14 @@ def _em_espera(oferta: pd.DataFrame, uf: str, c: dict, r: dict) -> dict:
         }  # fmt: skip
     out["ha_regeneracao"] = round(sum(v["ha_regeneracao"] for v in out["por_caminho"].values()), 1)
     out["creditos_regeneracao"] = round(sum(v["creditos_regeneracao"] for v in out["por_caminho"].values()), 0)
+    # quão perto do título está cada uma (raiz/titulo/regularizacao.py): o que dá para destravar primeiro
+    out["por_regularizacao"] = {}
+    if "regularizacao_classe" in esp.columns:
+        for cl, x in esp.groupby(esp.regularizacao_classe.fillna("sem_calculo")):
+            out["por_regularizacao"][str(cl)] = {
+                "fazendas": int(len(x)), "ha": round(float(x.area_ha.sum()), 1),
+                "creditos": round(float(x.credito_p50.sum()), 0),
+            }  # fmt: skip
     return {**out, "tabela": esp}
 
 
@@ -386,6 +394,12 @@ def o_que_falta(res: dict) -> list[str]:
             out.append(f"Fecha se a terra em espera destravar: {_br(esp['fazendas'])} fazendas em posse em titulação "
                        f"e assentamento ({_br(esp['ha'])} ha, {_br(esp['ha_regeneracao'])} ha de regeneração); o lote "
                        f"usaria {_br(td['fazendas_destravadas_no_lote'])} delas.")  # fmt: skip
+        pr = esp.get("por_regularizacao") or {}
+        perto = sum(pr.get(k, {}).get("fazendas", 0) for k in ("em_titulacao", "pronta_para_pedir"))
+        geo = pr.get("falta_georreferenciamento", {}).get("fazendas", 0)
+        if perto or geo:
+            out.append(f"Da terra em espera, {_br(perto)} fazendas já estão em titulação ou prontas para pedir o "
+                       f"título e {_br(geo)} só precisam do georreferenciamento certificado no SIGEF.")  # fmt: skip
         else:
             out.append(f"Nem com a terra em espera destravada fecha: faltariam {_br(td['falta_reserva'])} créditos de "
                        "reserva; é preciso outro estado ou mais municípios calculados.")  # fmt: skip

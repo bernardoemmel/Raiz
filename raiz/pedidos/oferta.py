@@ -29,7 +29,7 @@ COLUNAS = (
     "pico_rs", "multa_rs", "marcos", "marcos_todos", "caminho_terra", "caminho", "risco_terra", "grupo_id",
     "mitigacao", "embargo", "terra_indigena", "uc_protecao_integral", "projeto_carbono", "bloqueio", "problema",
     "elegivel", "restauracao_versao", "cambio", "regeneracao_ha", "semeadura_ha", "plantio_ha", "vazamento_motivo",
-    "vazamento_mitigacao_imovel",
+    "vazamento_mitigacao_imovel", "regularizacao_classe",
 )  # fmt: skip
 
 
@@ -94,7 +94,9 @@ def de_linha(linha: dict, lon: float | None = None, lat: float | None = None) ->
               if k.startswith("marco_") and k.endswith("_chance_pct") and _num(v) is not None}  # fmt: skip
     caminho_terra = linha.get("caminho_terra") if isinstance(linha.get("caminho_terra"), str) else None
     caminho = CAMINHO_FRONT.get(caminho_terra or "")
-    if caminho == "matricula_a_conferir" and str(linha.get("etapa_funil") or "") == "titulo_conferido":
+    if caminho == "matricula_a_conferir" and (
+        str(linha.get("etapa_funil") or "") == "titulo_conferido" or _verdade(linha.get("matricula_conferida"))
+    ):
         caminho = "matricula_conferida"
     metodos = [m for m in ("regeneracao_assistida", "semeadura_direta", "plantio_total")
                if (_num(linha.get(f"restauracao_{m}_ha")) or 0) > 0.05] or [modo]  # fmt: skip
@@ -157,6 +159,10 @@ def de_linha(linha: dict, lon: float | None = None, lat: float | None = None) ->
         "vazamento_motivo": linha.get("vazamento_motivo") if isinstance(linha.get("vazamento_motivo"), str) else None,
         "vazamento_mitigacao_imovel": str(linha["vazamento_mitigacao_imovel"])
         if isinstance(linha.get("vazamento_mitigacao_imovel"), str) and linha["vazamento_mitigacao_imovel"]
+        else None,
+        # quão perto do título está a posse ou o assentamento (raiz/titulo/regularizacao.py)
+        "regularizacao_classe": linha.get("regularizacao_classe")
+        if isinstance(linha.get("regularizacao_classe"), str)
         else None,
     }
 

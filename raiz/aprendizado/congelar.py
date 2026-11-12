@@ -102,4 +102,8 @@ def congelar_rodada(con: Connection, rodada_id: int) -> tuple[str, bool, int]:
     from raiz.restauracao_aprendizado import congelar_restauracao
 
     congelar_restauracao(con, rodada_id)
+    # a chance a priori de título da posse, idem (raiz/titulo/regularizacao.py)
+    from raiz.titulo.regularizacao import congelar_regularizacao
+
+    congelar_regularizacao(con, rodada_id)
     return lh, novo, len(previsoes)
