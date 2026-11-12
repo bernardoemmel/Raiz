@@ -10,7 +10,7 @@ Painel e detalhes: [`motor/README.md`](../motor/README.md).
    "Processar estados (motor)"). O plano (`motor/rodar_estado.py --planejar`) lê o `estados.json` publicado e escolhe,
    na ordem do país, os estados que não começaram, os incompletos, os de antes do executor, os que têm tarefa com
    código mudado e os completos que não rodam há 6 dias, em duas filas (estado novo primeiro; manutenção só com o que
-   sobra, até 4). Estado com mais de 120 municípios roda em fatias, em jobs separados. Até 18 jobs ao mesmo tempo,
+   sobra, até 4). Estado com mais de 120 municípios roda em fatias, em jobs separados. Até 15 jobs ao mesmo tempo,
    somando todas as rodadas.
 2. Cada estado roda num job (`motor/rodar_estado.py <UF> --executor`) pelo executor do produto (`raiz executor`): ele
    lê do Release o que já está publicado do estado (pacotes e marcas de retomada), roda o motor e as tarefas do

@@ -4,14 +4,15 @@
 # planejar  -> lê o estados.json publicado e escolhe as unidades: estado inteiro, ou fatia de estado grande (mais de
 #              120 municípios vira fatias de até 120, por faixa de longitude: MG 8, SP 6, RS 5, BA 4, PR 4...). Duas
 #              filas: estado novo (funil incompleto) pega as vagas primeiro; manutenção (tarefa nova em estado feito)
-#              só o que sobra, até 4. Até 18 jobs ao mesmo tempo, contando as outras rodadas em andamento
+#              só o que sobra, até 4. Até 15 jobs ao mesmo tempo, contando as outras rodadas em andamento (o GitHub
+#              dá 20 máquinas ao repositório; 5 ficam livres para o CI dos PRs e o site)
 # preparar  -> baixa uma vez por dia os arquivos nacionais e guarda no cache comum
 # processar -> um job por estado: motor/rodar_estado.py --executor baixa as fontes do estado, adota o que foi publicado
 #              antes do executor (com a APP pela escadinha onde faltava) e chama `raiz executor rodar` (o motor e as
 #              tarefas do produto, município a município, retomando das marcas no Release), que para antes de 5h30 e
 #              publica (fatias do mesmo estado publicam relendo umas às outras, dentro da trava do estado). Se parou
 #              pelo prazo, dispara este workflow de novo só para aquela unidade (continuação); se terminou, passa a vez
-#              ao próximo da fila. Ficam sempre até 18 cadeias rodando, até o Brasil inteiro.
+#              ao próximo da fila. Ficam sempre até 15 cadeias rodando, até o Brasil inteiro.
 name: Processar estados (motor)
 
 run-name: >-
@@ -136,7 +137,7 @@ jobs:
     timeout-minutes: 345 # o executor para sozinho e publica antes; isto é só a rede de segurança
     strategy:
       fail-fast: false
-      max-parallel: 18
+      max-parallel: 15
       matrix:
         unidade: ${{ fromJSON(needs.planejar.outputs.matriz) }}
     concurrency: # nunca dois jobs na mesma unidade (estado inteiro ou fatia) ao mesmo tempo
