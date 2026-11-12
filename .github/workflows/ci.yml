@@ -1,0 +1,37 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  checagens:
+    runs-on: ubuntu-24.04
+    services:
+      banco:
+        image: postgis/postgis:16-3.5
+        env:
+          POSTGRES_USER: raiz
+          POSTGRES_PASSWORD: raiz
+          POSTGRES_DB: raiz_teste
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U raiz"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+    env:
+      RAIZ_BANCO_URL_TESTE: postgresql+psycopg://raiz:raiz@localhost:5432/raiz_teste
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - name: Dependências (produto e motor)
+        run: uv sync --frozen --all-extras
+      - name: Estilo
+        run: |
+          uv run ruff check raiz testes scripts migracoes
+          uv run ruff format --check raiz testes scripts migracoes
+      - name: Sem CPF/CNPJ no repositório
+        run: uv run raiz privacidade varrer
+      - name: Licenças
+        run: uv run python scripts/checar_licencas.py
+      - name: Testes
+        run: uv run pytest -q
