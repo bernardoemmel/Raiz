@@ -92,6 +92,10 @@ do mapa com `geo.py` (guardado em cache entre as rodadas; se um servidor públic
 publica o resultado. Uma vez só, no repositório: Settings, Pages, Source "GitHub Actions" (o token do Actions não liga
 o Pages sozinho).
 
+O build do site é um script só, `front/scripts/construir-site.sh` (npm ci, build do painel e da ficha, pasta `site/`).
+O CI de todo PR roda o mesmo script, sem os dados e sem publicar, e o actionlint em `.github/workflows`: lock fora de
+sincronia, front que não compila ou workflow que não abre deixam o PR vermelho antes do merge.
+
 O que funciona sem back-end: o mapa do Brasil por estado, os estados, os municípios, o funil, a tabela, a ficha da
 fazenda e a do produtor, a busca por CAR e por município, e o pedido de lote com a resposta de exemplo (os pedidos
 ficam no navegador de quem usa). O que precisa do back-end rodando (`raiz/`, FastAPI com PostgreSQL e PostGIS): entrar

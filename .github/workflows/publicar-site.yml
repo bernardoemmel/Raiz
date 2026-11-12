@@ -69,29 +69,11 @@ jobs:
       - name: Dados do motor (Release dados)
         run: node front/scripts/baixar-dados.mjs
 
-      - name: Dependências
-        run: |
-          (cd front/globo && npm ci --no-audit --no-fund)
-          (cd front/produtor && npm ci --no-audit --no-fund)
-
-      - name: Build do painel (com os dados)
+      # o mesmo script do CI de todo PR (lá sem os dados): npm ci, build do painel e da ficha, e a pasta site/
+      - name: Montar o site (painel com os dados e ficha do produtor)
         env:
           RAIZ_BASE: /${{ github.event.repository.name }}/
-        run: cd front/globo && npm run build
-
-      - name: Build da ficha do produtor (lê os dados do painel)
-        env:
-          RAIZ_BUILD_DADOS: "0"
-          VITE_RAIZ_DADOS_BASE: "../"
-        run: cd front/produtor && npm run build
-
-      - name: Montar o site
-        run: |
-          rm -rf site
-          cp -r front/globo/dist site
-          cp -r front/produtor/dist site/produtor
-          touch site/.nojekyll
-          echo "Tamanho do site: $(du -sh site | cut -f1), $(find site -type f | wc -l) arquivos"
+        run: front/scripts/construir-site.sh
 
       - uses: actions/upload-pages-artifact@v3
         with:
