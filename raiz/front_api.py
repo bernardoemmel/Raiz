@@ -657,8 +657,9 @@ def roteador(engine_de) -> APIRouter:
         so_lote_fecha: bool = False,
     ) -> Response:
         """Imóveis do município. Para o painel de quem restaura: ordem=valor_desenvolvedor (ou vpl_ha,
-        tir_alavancada, credito), filtro por modo de restauração, TIR com financiamento mínima (P50, em %) e só os
-        lotes que fecham o contrato de referência. Sem parâmetros, a lista de sempre."""
+        tir_alavancada, credito, custo_credito do mais barato ao mais caro), filtro por modo de restauração, TIR
+        com financiamento mínima (P50, em %) e só os lotes que fecham o contrato de referência. Sem parâmetros, a
+        lista de sempre."""
         lista = imoveis_do_municipio(engine_de(request), cod_ibge=cod_ibge)
         if not lista:
             raise HTTPException(404, "município ainda sem imóveis carregados")
@@ -706,14 +707,16 @@ def roteador(engine_de) -> APIRouter:
 
     @r.get("/restauracao/cenarios")
     def cenarios_restauracao() -> Response:
-        """Cenários do fluxo de caixa (ProFloresta+...), cada parâmetro com a fonte, para o simulador."""
+        """Cenários das premissas da rodada 11 (central, estresse, otimista, só contrato de 25 anos), cada parâmetro
+        com a fonte, para o simulador."""
         return _json(restauracao_mod.cenarios_publicos())
 
     @r.get("/imoveis/{cod_imovel}/restauracao/simular")
     def simular_restauracao(cod_imovel: str, request: Request) -> Response:
-        """Refaz o valor para quem restaura com os parâmetros do cenário editados (preco_usd_t, prazo_anos,
-        entregas_anos=7,12,17, fracao_financiada, juros_ano, carencia_anos, amortizacao_anos, taxa_desconto,
-        cambio_brl_usd, manutencao_rs_ha_ano, arrendamento_rs_ha_ano...), com o fluxo ano a ano."""
+        """Refaz o valor para quem restaura com o cenário (cenario=central, estresse, otimista, so_contrato_25) e os
+        parâmetros editados (preco_contrato_usd_t, venda_apos_contrato_usd_t, fracao_financiada, juros_ano,
+        carencia_anos, icsd_minimo, taxa_desconto, linha_base, vazamento, forma_dono, parte_dono, aluguel_rs_ha_ano,
+        metodo...), com o fluxo ano a ano. Os nomes antigos preco_usd_t e arrendamento_rs_ha_ano ainda valem."""
         eng = engine_de(request)
         alvo = imoveis_do_municipio(eng, cod_imovel=cod_imovel)
         if not alvo:

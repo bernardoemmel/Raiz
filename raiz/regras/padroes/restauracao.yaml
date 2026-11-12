@@ -2,11 +2,14 @@
 # Mombak, Biomas...). Calculado pelo produto em raiz/restauracao.py, fora do motor, e gravado em
 # desenvolvedor_<mun>.csv (docs/colunas.md).
 #
-# TODO número daqui é PREMISSA a calibrar com custo e captura reais de cliente. Cada premissa diz de onde veio
-# (`fonte`). Quando um cliente informa o real (`raiz restauracao informar`), `raiz restauracao recalibrar` compara
+# Desde a rodada 11 (12/11/2026), custo, captura, descontos, receita, financiamento, contrato e pagamento ao dono
+# saem das premissas versionadas em motor/premissas/restauracao_v2026_11.yaml (raiz/desenvolvedor.py). Aqui ficam a
+# regra de pontos que diz onde a regeneração vale, os ajustes de custo e captura, a linha de base MEDIDA no município
+# (para comparar com a do cenário) e o agrupamento de vizinhas. TODO número é PREMISSA a calibrar com dado real de
+# cliente. Cada premissa diz de onde veio (`fonte`). Quando um cliente informa o real (`raiz restauracao informar`), `raiz restauracao recalibrar` compara
 # com o que a Raíz previu e propõe os fatores em restauracao_calibracao.yaml. Cada cálculo grava a versão deste
 # arquivo + hash (restauracao_versao); mudou a versão, `raiz restauracao recalcular` refaz.
-versao: restauracao-2026a
+versao: restauracao-2026b
 aviso: >-
   Estimativa da Raíz para orientar a conversa com o desenvolvedor, não é orçamento nem promessa de crédito. Custos,
   captura e linha de base são premissas a calibrar com dados reais.
@@ -61,26 +64,7 @@ regra_modo:
     Communications, só comparação); encosta íngreme regenera mais (Molin et al. 2018, Journal of Applied Ecology).
     Limiares a calibrar.
 
-# --- 2. Custo de restauração (R$/ha, P10/P50/P90 por modo) --------------------------------------------------------
-custo_rs_ha:
-  regeneracao_assistida:
-    p10: 2000
-    p50: 3500
-    p90: 5000
-    fonte: fundador, 12/11/2026 (faixa de mercado de R$ 2 a 5 mil/ha; cerca, aceiro, controle de capim, enriquecimento)
-  semeadura_direta:
-    p10: 6000
-    p50: 9000
-    p90: 13000
-    fonte: >-
-      premissa Raíz: entre a regeneração e o plantio (o fundador pediu faixa intermediária); a semeadura direta
-      (muvuca) dispensa viveiro e plantio de muda, a conferir com redes de sementes e clientes
-  plantio_total:
-    p10: 14000
-    p50: 20000
-    p90: 30000
-    fonte: fundador, 12/11/2026 (faixa de mercado de R$ 14 a 30 mil/ha, com manutenção dos primeiros anos)
-
+# --- 2. Ajustes do custo (multiplicam o custo do método das premissas da rodada 11) -----------------------------
 ajustes_custo:
   acesso:
     estrada_livre_km: 2  # até aqui da estrada de acesso, sem acréscimo
@@ -103,42 +87,7 @@ ajustes_custo:
     fogo_frequente: 1.05  # fogo_anos_media acima do limite de muito fogo: aceiros e brigada
     fonte: premissa Raíz (MapBiomas Pastagem, vigor; fogo do histórico do motor)
 
-# --- 3. Captura (tCO2/ha/ano, P10/P50/P90 por modo) ---------------------------------------------------------------
-captura_tco2_ha_ano:
-  regeneracao_assistida:
-    # P50 = taxa do motor (taxa_tco2_ha_ano: Heinrich 2021 por região na Amazônia, provisória fora dela) vezes o
-    # ganho da assistência; P10 = Elias et al. 2022 na Amazônia (1,2 tC/ha/ano, com raízes), fator nos outros biomas
-    taxa_do_motor: true
-    ganho_assistencia: 1.10
-    p10_elias_tc_ha_ano: 1.2
-    fator_p10: 0.6
-    fator_p90: 1.4
-    fonte: >-
-      motor (raiz_estado.py: Heinrich et al. 2021, Nature Communications, por região; Elias et al. 2022 no leste do
-      Pará como conservador, raiz_ajustes.py; YbYrá para a idade). Ganho de 10% da assistência é premissa Raíz.
-      Heinrich 2021 é CC BY-NC: só comparação, fora de treino.
-  semeadura_direta:
-    Amazônia: {p10: 6.0, p50: 10.0, p90: 14.0}
-    Cerrado: {p10: 3.0, p50: 5.0, p90: 8.0}
-    Mata Atlântica: {p10: 5.0, p50: 9.0, p90: 13.0}
-    Caatinga: {p10: 1.5, p50: 3.0, p90: 5.0}
-    Pantanal: {p10: 3.0, p50: 5.0, p90: 8.0}
-    Pampa: {p10: 2.0, p50: 4.0, p90: 6.0}
-    fonte: >-
-      premissa Raíz por bioma, entre a regeneração e o plantio; ordem de grandeza a conferir com Bernal et al. 2018
-      (Carbon Balance and Management 13:22) e com medição de cliente
-  plantio_total:
-    Amazônia: {p10: 9.0, p50: 13.0, p90: 18.0}
-    Cerrado: {p10: 4.0, p50: 7.0, p90: 10.0}
-    Mata Atlântica: {p10: 7.0, p50: 11.0, p90: 16.0}
-    Caatinga: {p10: 2.0, p50: 4.0, p90: 6.0}
-    Pantanal: {p10: 4.0, p50: 7.0, p90: 10.0}
-    Pampa: {p10: 3.0, p50: 5.0, p90: 8.0}
-    fonte: >-
-      premissa Raíz por bioma; na Amazônia perto dos 12,8 t/ha/ano do caso de referência do fundador; ordem de
-      grandeza a conferir com Bernal et al. 2018 e com medição de cliente
-  bioma_padrao: Amazônia
-
+# --- 3. Ajustes da captura (multiplicam o total de 40 anos do método; vale o teto do bioma) ------------------
 ajustes_captura:
   chuva:  # CHIRPS v3, média anual 2015 a 2024 no ponto do imóvel
     referencia_mm:
@@ -164,6 +113,7 @@ ajustes_captura:
       (ISRIC, CC BY 4.0)
 
 # --- 4. Linha de base dinâmica (VM0047) -------------------------------------------------------------------------
+# MEDIDA no município, mostrada ao lado da linha de base do cenário (premissas da rodada 11), sem substituí-la.
 # Quanto do pasto viraria mata sozinho, sem projeto. Estimado pelos pixels parecidos do mesmo município (mesma faixa
 # de distância à mata): a fração do pasto que rebrotou e ficou de pé nos últimos `janela_anos` (YbYrá, vegetação
 # secundária com até essa idade) vira uma taxa por ano. Onde a mata volta sozinha o crédito líquido cai: mostrar,
@@ -180,22 +130,13 @@ linha_base:
     taxas medidas no YbYrá-BR v8.1 (vegetação secundária, idade) sobre o MapBiomas cobertura; taxas padrão são
     premissa Raíz para quando faltar o raster
 
-# --- 5. Do bruto ao líquido -------------------------------------------------------------------------------------
-liquido:
-  reserva_risco: 0.12
-  incerteza: 0.10
-  vazamento: 0.0
-  fonte: >-
-    reserva de não permanência e incerteza ex-ante iguais às do motor (raiz_ajustes.py: reserva mínima NPRT v5.0 e
-    VM0047); vazamento (VMD0054, gado deslocado) fica em zero até ser medido e aparece na ficha como pendente
-
-# --- 7. Agrupamento de fazendas vizinhas --------------------------------------------------------------------------
+# --- 5. Agrupamento de fazendas vizinhas --------------------------------------------------------------------------
 agrupamento:
   diametro_max_km: 15  # fazendas cujo ponto central cabe num círculo de ~15 km formam um lote
   contrato_creditos: 1000000
   fonte: >-
-    premissa Raíz (uma equipe de campo e um viveiro atendem um raio curto); contrato de referência do fundador: 1
-    milhão de créditos pede cerca de 3,5 a 4,5 mil ha
+    premissa Raíz (uma equipe de campo e um viveiro atendem um raio curto); contrato de 1 milhão de créditos: cerca de 4,4 mil
+    ha no plantio e 5,9 mil na regeneração (premissas da rodada 11, bloco lote)
   regra: >-
     entra no lote toda fazenda com área para restaurar e sem bloqueio (embargo, terra indígena, desmatamento depois
     de 2020); pequena nunca é descartada, soma com as vizinhas

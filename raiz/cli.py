@@ -752,6 +752,74 @@ def executor_estado() -> None:
                        f"{e['motor_versao']}")  # fmt: skip
 
 
+desenvolvedor_cli = typer.Typer(
+    help="Valor para o desenvolvedor com as premissas da rodada 11 (motor/premissas/restauracao_v2026_11.yaml).",
+    no_args_is_help=True,
+)
+app.add_typer(desenvolvedor_cli, name="desenvolvedor")
+
+
+@desenvolvedor_cli.command("cenarios")
+def desenvolvedor_cenarios(
+    bioma: Annotated[str, typer.Option(help="bioma da fazenda-modelo")] = "Amazônia",
+) -> None:
+    """TIR real do acionista, preço de equilíbrio e hectares por milhão de créditos em cada cenário, por método,
+    numa fazenda-modelo sem ajustes (as premissas puras)."""
+    from raiz import desenvolvedor as D
+
+    p = D.premissas()
+    typer.echo(f"premissas {p['versao_completa']}")
+    for nome in p["cenarios"]:
+        c = D.cenario(nome, p)
+        for md in D.METODOS:
+            op = D.opcao_por_ha({md: 1.0}, bioma, c, p=p)
+            a = D.avaliar(op, c, faixa=False, p=p)
+            tir = a["tir_acionista"]
+            typer.echo(
+                f"{nome:15s} {md:22s} TIR acionista {('%.1f%%' % (100 * tir)) if tir == tir else 'sem TIR':>8s}  "
+                f"projeto {100 * a['tir_projeto']:.1f}%  preço de equilíbrio R$ {a['preco_equilibrio_rs_t']:.0f}/t  "
+                f"dívida {100 * a['fracao_divida']:.0f}%  ha por milhão {D.ha_por_milhao(op['liquido_40'], p):.0f}"
+            )
+
+
+@desenvolvedor_cli.command("lote")
+def desenvolvedor_lote(
+    uf: Annotated[str, typer.Argument(help="estado (área de elegibilidade da Verra)")],
+    saida: Annotated[
+        str | None, typer.Option(help="pasta saida/ do motor; padrão: a pasta de trabalho do motor")
+    ] = None,
+    creditos: Annotated[float, typer.Option(help="créditos do contrato")] = 1_000_000,
+    cenario: Annotated[str | None, typer.Option(help="central, estresse, otimista ou so_contrato_25")] = None,
+    incluir_em_espera: Annotated[bool, typer.Option(help="pôr no lote quem ainda espera a terra ficar pronta")] = False,
+    pasta: Annotated[str | None, typer.Option(help="onde gravar; padrão: saida/<UF>/lote")] = None,
+) -> None:
+    """Monta o lote pelo custo líquido por crédito (titulares, reserva, mitigação), calcula a chance de cumprir os
+    marcos e grava o relatório, o checklist do edital e a folha de cada dono."""
+    from pathlib import Path
+
+    from raiz import desenvolvedor as D
+    from raiz import desenvolvedor_lote as L
+    from raiz import desenvolvedor_relatorio as REL
+    from raiz.funil.rodar import dir_trabalho
+
+    base = Path(saida) if saida else dir_trabalho() / "saida"
+    df = L.ler_uf(base, uf)
+    p = D.premissas()
+    c = D.cenario(cenario, p)
+    res = L.montar(df, creditos, so_pronta=not incluir_em_espera, p=p, c=c)
+    linhas = {str(x["cod_imovel"]): x for x in df.to_dict("records")}
+    out = REL.gravar_lote(res, Path(pasta) if pasta else base / uf.upper() / "lote", linhas, p, c)
+    r = res["resumo"]
+    typer.echo(f"{r['titulares']} titulares ({r['ha_titulares']:.0f} ha), {r['reservas']} reservas, "
+               f"{r['mitigacao']} áreas de mitigação, {r['em_espera']} em espera")  # fmt: skip
+    cron = r.get("cronograma_com_reserva")
+    if cron:
+        typer.echo(f"chance de cumprir todos os marcos com a reserva: {100 * cron['chance_cumprir_todos']:.0f}%; "
+                   f"rescisão: {100 * cron['chance_rescisao']:.0f}%")  # fmt: skip
+    for k, v in out.items():
+        typer.echo(f"  {k}: {v}")
+
+
 terra_cli = typer.Typer(
     help="Caminho da terra por imóvel e camada de terra pública para restaurar (regra em raiz/regras/padroes/).",
     no_args_is_help=True,

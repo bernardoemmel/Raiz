@@ -1,0 +1,694 @@
+# Requisitos que o desenvolvedor entrega numa proposta do ProFloresta+ (e no registro Verra VM0047), da aba "Pacote
+# para o edital" da rodada 11 de pesquisa (12/11/2026). Usado por raiz/desenvolvedor_lote.py para montar o checklist
+# do lote: cada item com gravidade (bloqueia, alta, media, baixa), fonte e, quando dá para conferir com os dados da
+# Raíz, a checagem automática (`checagem`). Os demais ficam "a conferir" com quem faz.
+# Itens marcados "provável na fase 2" vêm dos leilões de energia, porque o edital da fase 2 ainda não saiu.
+versao: edital-profloresta-2026-11
+gravidades:
+- bloqueia
+- alta
+- media
+- baixa
+itens:
+- id: area_de_pelo_menos_3
+  bloco: 1. Terra e direito ao carbono
+  item: 'Área de pelo menos 3.000 ha por projeto (fase 1: só Amazônia; fase 2: bioma e área mínima ainda não publicados)'
+  exigido_por: Edital do ProFloresta+ (especificação técnica, itens C e 2.6)
+  gravidade: bloqueia
+  fonte: https://www.bndes.gov.br/arquivos/bndes-florestas/profloresta-minuta-contratual-especificacao-tecnica.pdf
+  raiz_fornece: Polígono do CAR por imóvel, bioma e área em ha; agrupamento de fazendas em construção
+  falta_construir: Somar só os hectares elegíveis do lote (pasto e área aberta), conferir 100% no bioma e agrupar fazendas
+    por custo líquido por crédito (molde do cerf, BSD-2)
+  de_onde_vem_o_dado: CAR (SICAR), limite de biomas do IBGE, MapBiomas
+  horas: 3 a 5
+  checagem: area_minima
+- id: pelo_menos_5_da_area
+  bloco: 1. Terra e direito ao carbono
+  item: Pelo menos 5% da área homologada na assinatura (150 ha num projeto de 3.000 ha)
+  exigido_por: Edital do ProFloresta+ (minuta, cláusula 3.6.1)
+  gravidade: bloqueia
+  fonte: https://www.bndes.gov.br/arquivos/bndes-florestas/profloresta-minuta-contratual.pdf
+  raiz_fornece: Checagem de título e pedido de aceite do dono
+  falta_construir: Marcar as fazendas da área inicial (título mais limpo, aceite assinado, sem embargo) e mostrar o status
+    do lote
+  de_onde_vem_o_dado: Aceite do dono e laudo de título da Raíz
+  horas: 2 a 3
+  checagem: area_inicial
+- id: prova_do_direito_de_usar
+  bloco: 1. Terra e direito ao carbono
+  item: Prova do direito de usar a terra de cada fazenda (opção, arrendamento, superfície ou servidão assinados, com data
+    e prazo)
+  exigido_por: Edital do ProFloresta+ (minuta, cláusula 15.2); molde da Portaria MME 102/2016 (art. 4º, § 3º, II)
+  gravidade: bloqueia
+  fonte: https://www.bndes.gov.br/arquivos/bndes-florestas/profloresta-minuta-contratual.pdf | https://www.gov.br/mme/pt-br/arquivos/portaria-n-102-2016.pdf
+  raiz_fornece: Checagem de título (SIGEF e CAR) e pedido de aceite
+  falta_construir: 'Aceite em duas fases: opção paga até o resultado do leilão e contrato firme de 40 anos depois (longevidade
+    mínima da Verra), com o instrumento registrável escolhido e pagamento de espera até a primeira entrega'
+  de_onde_vem_o_dado: Dono (assinatura), matrícula, SIGEF e CAR
+  horas: 8 a 14
+- id: cessao_integral_e_irrevogavel_pelos
+  bloco: 1. Terra e direito ao carbono
+  item: Cessão integral e irrevogável, pelos proprietários, dos direitos sobre os créditos de carbono
+  exigido_por: Edital do ProFloresta+ (minuta, cláusula 3.6.2)
+  gravidade: bloqueia
+  fonte: https://www.bndes.gov.br/arquivos/bndes-florestas/profloresta-minuta-contratual.pdf
+  raiz_fornece: Pedido de aceite do dono
+  falta_construir: Termo de cessão por 25 anos ou mais dentro do aceite, com assinatura eletrônica e guarda do documento
+  de_onde_vem_o_dado: Dono e cartório, quando houver registro
+  horas: 4 a 8
+  checagem: cessao_carbono
+- id: individualizacao_dos_proprietarios_e_contratos
+  bloco: 1. Terra e direito ao carbono
+  item: Individualização dos proprietários e contratos que garantem o imóvel e os créditos
+  exigido_por: Edital do ProFloresta+ (especificação técnica, item d)
+  gravidade: media
+  fonte: https://www.bndes.gov.br/arquivos/bndes-florestas/profloresta-minuta-contratual-especificacao-tecnica.pdf
+  raiz_fornece: Cartório (CNS) e número da matrícula das parcelas SIGEF; guarda de CPF e CNPJ
+  falta_construir: Tabela por imóvel com titular mascarado, matrícula e tipo de contrato
+  de_onde_vem_o_dado: Certidão de inteiro teor, SIGEF e contrato assinado
+  horas: 6 a 10
+- id: diligencia_juridica_sobre_proprietarios_e
+  bloco: 1. Terra e direito ao carbono
+  item: Diligência jurídica sobre proprietários e possuidores e regularidade fundiária
+  exigido_por: Edital do ProFloresta+ (minuta, cláusulas 15.2 e 3.1.2)
+  gravidade: bloqueia
+  fonte: https://www.bndes.gov.br/arquivos/bndes-florestas/profloresta-minuta-contratual.pdf
+  raiz_fornece: Laudo de título por imóvel (plano da E5)
+  falta_construir: Pôr no laudo os ônus da matrícula e a sobreposição com outras posses, e exportar o laudo como anexo
+  de_onde_vem_o_dado: Matrícula, SIGEF, CAR e certidões
+  horas: dentro das horas do laudo da E5
+- id: georreferenciamento_das_areas_de_preferencia
+  bloco: 1. Terra e direito ao carbono
+  item: Georreferenciamento das áreas, de preferência certificado no INCRA
+  exigido_por: Edital do ProFloresta+ (especificação técnica, item c.1)
+  gravidade: media
+  fonte: https://www.bndes.gov.br/arquivos/bndes-florestas/profloresta-minuta-contratual-especificacao-tecnica.pdf
+  raiz_fornece: Área no SIGEF e na matrícula por imóvel
+  falta_construir: Aviso "precisa georreferenciar" para fazenda sem SIGEF ou com SIGEF diferente do CAR, com a diferença
+    em ha
+  de_onde_vem_o_dado: SIGEF (INCRA) e CAR
+  horas: 2 a 4
+- id: terreno_exclusivo_e_sem_sobreposicao
+  bloco: 1. Terra e direito ao carbono
+  item: Terreno exclusivo e sem sobreposição com outros projetos ou entre fazendas do lote
+  exigido_por: Verra VM0047 (limites sem sobreposição); lição do PROINFA (terra sem garantia gerou atraso)
+  gravidade: bloqueia
+  fonte: https://verra.org/documents/vm0047-afforestation-reforestation-and-revegetation-v1-1/ | https://gwec.net/wp-content/uploads/2021/01/GWEC_Analysis-of-the-regulatory-framework-in-Brazil_2011.pdf
+  raiz_fornece: Sobreposição com projetos de carbono registrados
+  falta_construir: Marca de exclusividade por fazenda com prazo; checagem de sobreposição dentro do lote e da faixa de 10
+    m entre estratos de abordagens diferentes
+  de_onde_vem_o_dado: Polígonos da Raíz e registros da Verra
+  horas: 3 a 6
+  checagem: sem_sobreposicao
+- id: contrato_com_o_dono_de
+  bloco: 1. Terra e direito ao carbono
+  item: Contrato com o dono de pelo menos 40 anos, a longevidade mínima da Verra; se a fazenda sair antes, o projeto perde
+    todo o crédito já verificado dela ou monitora até o fim
+  exigido_por: Verra VCS Standard v5.0 (3.2.12, 3.2.19 e 3.2.20), para registros a partir de 1/1/2027
+  gravidade: bloqueia
+  fonte: https://verra.org/documents/vcs-standard-v5-0/
+  raiz_fornece: Nada
+  falta_construir: Prazo de 40 anos no modelo de contrato, coluna "risco de saída do dono" e custo de monitorar depois da
+    saída no valor da fazenda
+  de_onde_vem_o_dado: Contrato do dono e Raíz
+  horas: 3 a 4
+  checagem: contrato_40_anos
+- id: tabela_de_evidencias_do_direito
+  bloco: 1. Terra e direito ao carbono
+  item: Tabela de evidências do direito de operar e do direito às remoções de cada fazenda (instrumento, data, registro
+    e base legal)
+  exigido_por: Verra VCS Standard v5.0 (3.6) e guia de direito de operar v5.0
+  gravidade: alta
+  fonte: https://verra.org/documents/vcs-guidance-right-to-operate-sustainable-development-stakeholder-engagement-and-safeguards-v5-0/
+  raiz_fornece: Checagem de título e aceite
+  falta_construir: Exportar a tabela por fazenda no formato do guia da Verra e revisar a cada verificação
+  de_onde_vem_o_dado: Contrato, matrícula e SIGEF
+  horas: 6 a 10
+- id: servidao_ambiental_averbada_ou_direito
+  bloco: 1. Terra e direito ao carbono
+  item: Servidão ambiental averbada ou direito de superfície registrado na matrícula, com memorial georreferenciado
+  exigido_por: Lei 6.938 (arts. 9-A e 9-C) e registro de imóveis
+  gravidade: alta
+  fonte: https://www2.camara.leg.br/legin/fed/lei/2012/lei-12651-25-maio-2012-613076-normaatualizada-pl.html
+  raiz_fornece: Polígono SIGEF e CAR
+  falta_construir: Memorial descritivo no formato do cartório e envio por extrato eletrônico
+  de_onde_vem_o_dado: Cartório, SIGEF e contrato
+  horas: 10 a 16
+- id: desenvolvedor_controlado_por_capital_estrangeiro
+  bloco: 1. Terra e direito ao carbono
+  item: 'Desenvolvedor controlado por capital estrangeiro: os limites da Lei 5.709/71 valem também para o arrendamento (STF,
+    23/04/2026)'
+  exigido_por: Lei 5.709/71, Lei 8.629/93 (art. 23) e decisão do STF (ADPF 342 e ACO 2463)
+  gravidade: alta
+  fonte: https://www.demarest.com.br/stf-reafirma-validade-das-restricoes-a-aquisicao-e-ao-arrendamento-de-imoveis-rurais-por-estrangeiros-e-empresas-brasileiras-equiparadas/
+  raiz_fornece: Nada
+  falta_construir: Campo de controle do capital no cadastro do desenvolvedor, soma de área por município e regra que troca
+    o tipo de contrato sugerido
+  de_onde_vem_o_dado: Desenvolvedor e Raíz
+  horas: 3 a 5
+- id: assinatura_do_dono_com_nivel
+  bloco: 1. Terra e direito ao carbono
+  item: Assinatura do dono com nível aceito pelo registro de imóveis
+  exigido_por: Lei 6.015 (art. 17) e Provimento CNJ 195/2025
+  gravidade: alta
+  fonte: https://www.migalhas.com.br/coluna/migalhas-notariais-e-registrais/440010/retificacao-de-area-e-o-provimento-cnj-195-25--parte-3
+  raiz_fornece: Nada
+  falta_construir: Checar o nível da conta gov.br (prata ou ouro) ou usar o e-Not Assina, e validar o PDF assinado
+  de_onde_vem_o_dado: Assinatura do dono
+  horas: 3 a 6
+- id: salvaguardas_do_contrato_com_o
+  bloco: 1. Terra e direito ao carbono
+  item: 'Salvaguardas do contrato com o dono: minuta entregue 60 dias antes, revisão a cada 5 anos e sem renovação automática'
+  exigido_por: MPF (Recomendações 22/2023 e 30/2025, para arrendamentos de eólica e solar); provável na fase 2
+  gravidade: media
+  fonte: https://www.mayerbrown.com/pt/insights/publications/2026/02/mpf-recommendations-on-land-lease-agreements-for-energy-projects
+  raiz_fornece: Nada
+  falta_construir: Validador de prazos e cláusulas no contrato gerado
+  de_onde_vem_o_dado: Contrato gerado pela Raíz
+  horas: 4 a 6
+- id: regularizacao_ambiental_e_ausencia_de
+  bloco: 2. Meio ambiente e salvaguardas
+  item: Regularização ambiental e ausência de desmatamento ilegal
+  exigido_por: Edital do ProFloresta+ (especificação técnica, item 2.4.5)
+  gravidade: bloqueia
+  fonte: https://www.bndes.gov.br/arquivos/bndes-florestas/profloresta-minuta-contratual-especificacao-tecnica.pdf
+  raiz_fornece: Desmatamento depois de 2008, 2016 e 2020, embargos e alertas por imóvel
+  falta_construir: 'Prova por fazenda para o anexo: recorte do PRODES e do MapBiomas Alerta com datas'
+  de_onde_vem_o_dado: PRODES (INPE), embargos do Ibama, MapBiomas Alerta
+  horas: 2 a 4
+  checagem: sem_desmatamento
+- id: situacao_do_car_e_do
+  bloco: 2. Meio ambiente e salvaguardas
+  item: Situação do CAR e do PRA de cada fazenda
+  exigido_por: BNDES; molde da Portaria MME 102/2016 (art. 4º, § 3º, VIII)
+  gravidade: media
+  fonte: https://www.gov.br/mme/pt-br/arquivos/portaria-n-102-2016.pdf
+  raiz_fornece: Situação do CAR e embargos
+  falta_construir: Campo de situação do PRA ou termo de compromisso e a declaração de situação ambiental do lote
+  de_onde_vem_o_dado: SICAR, Ibama e órgão estadual
+  horas: 4 a 8
+- id: uc_app_reserva_legal_e
+  bloco: 2. Meio ambiente e salvaguardas
+  item: UC, APP, Reserva Legal e ocupações indicadas; APP e RL só entram com adicionalidade
+  exigido_por: Edital do ProFloresta+ (especificação técnica, itens c.1 e 2.4.1)
+  gravidade: media
+  fonte: https://www.bndes.gov.br/arquivos/bndes-florestas/profloresta-minuta-contratual-especificacao-tecnica.pdf
+  raiz_fornece: UC, APP pela escadinha do art. 61-A, déficit de RL, filtros de TI, quilombo e UC
+  falta_construir: Separar em cada fazenda os ha que a lei já obriga a recompor dos ha voluntários
+  de_onde_vem_o_dado: CAR, hidrografia e Código Florestal
+  horas: 3 a 5
+- id: salvaguardas_partes_interessadas_consulta_livre
+  bloco: 2. Meio ambiente e salvaguardas
+  item: 'Salvaguardas: partes interessadas, consulta livre, prévia e informada (Convenção 169 da OIT), ouvidoria e matriz
+    de riscos'
+  exigido_por: Edital do ProFloresta+ (especificação técnica, itens 3.1 a 3.11)
+  gravidade: alta
+  fonte: https://www.bndes.gov.br/arquivos/bndes-florestas/profloresta-minuta-contratual-especificacao-tecnica.pdf
+  raiz_fornece: Filtros de TI, quilombo e UC
+  falta_construir: Distância a TI, quilombo e comunidades, aviso "precisa consulta prévia" e lista de partes interessadas
+  de_onde_vem_o_dado: FUNAI, INCRA, CNUC e IBGE
+  horas: 3 a 5
+- id: certidoes_negativas_e_licencas_do
+  bloco: 2. Meio ambiente e salvaguardas
+  item: Certidões negativas e licenças do desenvolvedor e das fazendas
+  exigido_por: BNDES (análise socioambiental e cadastral)
+  gravidade: media
+  fonte: https://bndes.gov.br/wps/portal/site/home/financiamento/produto/leiloes-infraestrutura/leilao-geracao-2018/
+  raiz_fornece: Embargos do Ibama por fazenda
+  falta_construir: Checklist de certidões com data de validade dentro do dossiê do lote
+  de_onde_vem_o_dado: Bases públicas já coletadas e certidões emitidas pelo desenvolvedor
+  horas: 3 a 5
+- id: integridade_e_sancoes_declaracoes_anticorrupcao
+  bloco: 2. Meio ambiente e salvaguardas
+  item: 'Integridade e sanções: declarações anticorrupção e controles verificáveis pela compradora por até 10 anos'
+  exigido_por: Edital do ProFloresta+ (minuta, cláusula 22)
+  gravidade: bloqueia
+  fonte: https://www.bndes.gov.br/arquivos/bndes-florestas/profloresta-minuta-contratual.pdf
+  raiz_fornece: Nada
+  falta_construir: Checagem do CNPJ do desenvolvedor e das empresas donas de terra em listas públicas de sanção (só pessoa
+    jurídica)
+  de_onde_vem_o_dado: CGU (listas de empresas sancionadas) e embargos
+  horas: 2 a 4
+- id: arr_que_melhora_a_integridade
+  bloco: 2. Meio ambiente e salvaguardas
+  item: ARR que melhora a integridade do ecossistema rumo a uma referência e não fecha campo ou savana nativa
+  exigido_por: Verra VCS Standard v5.0 (V5#23), para início a partir de 1/1/2027
+  gravidade: media
+  fonte: https://verra.org/documents/vcs-version-5-overview-of-vcs-program-updates-and-effective-dates/
+  raiz_fornece: Nada
+  falta_construir: Coluna "ecossistema de referência" por fazenda (floresta ou savana) e alerta quando o plano de plantio
+    fecha campo nativo
+  de_onde_vem_o_dado: MapBiomas e mapa de vegetação do IBGE
+  horas: 3 a 4
+- id: modalidade_de_restauracao_por_area
+  bloco: 3. Restauração no campo
+  item: 'Modalidade de restauração por área: plantio, semeadura direta ou condução da regeneração com adensamento e nucleação'
+  exigido_por: Edital do ProFloresta+ (especificação técnica, itens E, G, H e 1.1)
+  gravidade: alta
+  fonte: https://www.bndes.gov.br/arquivos/bndes-florestas/profloresta-minuta-contratual-especificacao-tecnica.pdf
+  raiz_fornece: Coluna de modo por fazenda em construção; idade da secundária, distância à floresta
+  falta_construir: Polígonos por modo dentro de cada fazenda, com a regra de cobertura florestal de 40% e 60% num raio de
+    4 km (Rito et al. 2022)
+  de_onde_vem_o_dado: YbYrá, MapBiomas e distância à floresta
+  horas: 6 a 10
+  checagem: modalidade
+- id: lista_de_especies_pelo_menos
+  bloco: 3. Restauração no campo
+  item: 'Lista de espécies: pelo menos 30 nativas, 40% de diversidade funcional, 40% zoocóricas e ameaçadas regionais'
+  exigido_por: Edital do ProFloresta+ (especificação técnica, itens 1.3.1 e 1.3.2)
+  gravidade: media
+  fonte: https://www.bndes.gov.br/arquivos/bndes-florestas/profloresta-minuta-contratual-especificacao-tecnica.pdf
+  raiz_fornece: Nada
+  falta_construir: Lista sugerida por fitofisionomia e município, marcando zoocórica e ameaçada
+  de_onde_vem_o_dado: Flora e Funga do Brasil e lista oficial de flora ameaçada
+  horas: 6 a 10
+- id: mudas_e_sementes_de_fornecedores
+  bloco: 3. Restauração no campo
+  item: Mudas e sementes de fornecedores inscritos no RENASEM, de preferência locais
+  exigido_por: Edital do ProFloresta+ (especificação técnica, itens 1.4 e 3.2.1)
+  gravidade: media
+  fonte: https://www.bndes.gov.br/arquivos/bndes-florestas/profloresta-minuta-contratual-especificacao-tecnica.pdf
+  raiz_fornece: Nada
+  falta_construir: Camada de viveiros e coletores do RENASEM com distância por estrada a cada fazenda e frete por muda
+  de_onde_vem_o_dado: RENASEM (só por pedido de LAI ao MAPA), dados de sementes e mudas do SIGEF do MAPA (CC BY), Redário
+    e Rede de Sementes do Xingu; frete pelos pisos da ANTT
+  horas: 8 a 14
+- id: plano_de_manutencao_invasoras_formigas
+  bloco: 3. Restauração no campo
+  item: 'Plano de manutenção: invasoras, formigas cortadeiras, cerca contra gado e replantio em seca'
+  exigido_por: Edital do ProFloresta+ (especificação técnica, itens M e 1.7)
+  gravidade: media
+  fonte: https://www.bndes.gov.br/arquivos/bndes-florestas/profloresta-minuta-contratual-especificacao-tecnica.pdf
+  raiz_fornece: Pasto, idade e vigor do pasto, rebanho
+  falta_construir: Metros de cerca por fazenda, chance de seca forte no ano 1 e sinal de capim invasor
+  de_onde_vem_o_dado: CAR, MapBiomas, CHIRPS ou ERA5-Land
+  horas: 4 a 6
+- id: prevencao_e_combate_a_incendios
+  bloco: 3. Restauração no campo
+  item: Prevenção e combate a incêndios
+  exigido_por: Edital do ProFloresta+ (especificação técnica, item 1.10)
+  gravidade: media
+  fonte: https://www.bndes.gov.br/arquivos/bndes-florestas/profloresta-minuta-contratual-especificacao-tecnica.pdf
+  raiz_fornece: Anos e mês principal de fogo por imóvel
+  falta_construir: Plano de aceiros por perímetro e calendário de vigilância pelo mês de mais fogo
+  de_onde_vem_o_dado: MapBiomas Fogo e CAR
+  horas: 2 a 3
+- id: analise_de_solo_antes_de
+  bloco: 3. Restauração no campo
+  item: Análise de solo antes de adubar e carbono do solo até 30 cm no início e em cada verificação
+  exigido_por: Edital do ProFloresta+ (especificação técnica, item 1.5) e Verra VM0047 (9.2)
+  gravidade: media
+  fonte: https://www.bndes.gov.br/arquivos/bndes-florestas/profloresta-minuta-contratual-especificacao-tecnica.pdf | https://verra.org/documents/vm0047-afforestation-reforestation-and-revegetation-v1-1/
+  raiz_fornece: Carbono do solo estimado por imóvel
+  falta_construir: Desenho de amostragem de solo por estrato com o número de pontos
+  de_onde_vem_o_dado: SoilGrids, MapBiomas Solo e amostras de campo
+  horas: 2 a 4
+- id: plano_de_monitoramento_com_metas
+  bloco: 3. Restauração no campo
+  item: 'Plano de monitoramento com metas por idade: cobertura nativa de 15, 30, 50, 70 e 80% aos 3, 5, 10, 15 e 20 anos;
+    1.000 a 3.000 indivíduos por ha; 5 a 30 espécies'
+  exigido_por: Edital do ProFloresta+ (especificação técnica, item 1.8)
+  gravidade: alta
+  fonte: https://www.bndes.gov.br/arquivos/bndes-florestas/profloresta-minuta-contratual-especificacao-tecnica.pdf
+  raiz_fornece: Vegetação secundária e sua idade
+  falta_construir: Previsão da cobertura aos 3, 5 e 10 anos por fazenda e chance de não bater a meta (pode virar falha relevante)
+  de_onde_vem_o_dado: MapBiomas, YbYrá e dado devolvido pelo desenvolvedor
+  horas: 4 a 8
+- id: saude_e_seguranca_no_trabalho
+  bloco: 3. Restauração no campo
+  item: Saúde e segurança no trabalho rural (NR31) e mão de obra local
+  exigido_por: Edital do ProFloresta+ (especificação técnica, itens 3.8 e 3.2.2)
+  gravidade: baixa
+  fonte: https://www.bndes.gov.br/arquivos/bndes-florestas/profloresta-minuta-contratual-especificacao-tecnica.pdf
+  raiz_fornece: Nada
+  falta_construir: Fora do escopo da Raíz; só aparece no checklist como pendência do desenvolvedor
+  de_onde_vem_o_dado: Desenvolvedor
+  horas: 0,5
+- id: risco_climatico_do_plantio_por
+  bloco: 3. Restauração no campo
+  item: 'Risco climático do plantio por área: seca, veranico depois do plantio e chance de replantio'
+  exigido_por: Edital do ProFloresta+ (itens M e 1.7) e ferramenta de risco AFOLU da Verra
+  gravidade: media
+  fonte: https://www.bndes.gov.br/arquivos/bndes-florestas/profloresta-minuta-contratual-especificacao-tecnica.pdf
+  raiz_fornece: Fogo histórico e vigor do pasto
+  falta_construir: Déficit hídrico, veranico nos 60 dias depois do plantio, água disponível no solo e chance de replantio
+    por fazenda e mês de plantio
+  de_onde_vem_o_dado: CHIRPS v3 (domínio público), BR-DWGD e HiHydroSoil
+  horas: 8 a 12
+- id: metodologia_e_certificadora_aprovadas_pelo
+  bloco: 4. Carbono e crédito
+  item: Metodologia e certificadora aprovadas pelo ICVCM (CCP) ou pelo SBCE; a VM0047 v1.1 tem aprovação CCP
+  exigido_por: Edital do ProFloresta+ (especificação técnica, item 2.7)
+  gravidade: bloqueia
+  fonte: https://www.bndes.gov.br/arquivos/bndes-florestas/profloresta-minuta-contratual-especificacao-tecnica.pdf | https://verra.org/documents/vm0047-afforestation-reforestation-and-revegetation-v1-1/
+  raiz_fornece: Conta baseada na VM0047
+  falta_construir: Guardar a versão da metodologia em cada previsão e avisar quando mudar
+  de_onde_vem_o_dado: Página da metodologia na Verra
+  horas: '1'
+  checagem: metodologia
+- id: creditos_liquidos_ex_ante_com
+  bloco: 4. Carbono e crédito
+  item: Créditos líquidos ex ante com desconto mínimo de 10% de incerteza; o crédito zera se a meia largura do intervalo
+    de 90% passar de 100%
+  exigido_por: Edital do ProFloresta+ (item 3.4) e Verra VM0047 (8.5 a 8.7)
+  gravidade: bloqueia
+  fonte: https://www.bndes.gov.br/arquivos/bndes-florestas/profloresta-minuta-contratual-especificacao-tecnica.pdf | https://verra.org/documents/vm0047-afforestation-reforestation-and-revegetation-v1-1/
+  raiz_fornece: Captura bruta por imóvel; desconto em construção
+  falta_construir: Aplicar em ordem linha de base, vazamento, reserva de risco e incerteza, e mostrar o crédito líquido
+    P10, P50 e P90
+  de_onde_vem_o_dado: Motor da Raíz e regras da VM0047
+  horas: 4 a 6
+  checagem: creditos_liquidos
+- id: linha_de_base_dinamica_com
+  bloco: 4. Carbono e crédito
+  item: Linha de base dinâmica com controles pareados e teste estatístico a cada verificação
+  exigido_por: Edital do ProFloresta+ (itens 2.4.1 e 2.4.2) e Verra VM0047
+  gravidade: alta
+  fonte: https://www.bndes.gov.br/arquivos/bndes-florestas/profloresta-minuta-contratual-especificacao-tecnica.pdf | https://verra.org/documents/vm0047-afforestation-reforestation-and-revegetation-v1-1/
+  raiz_fornece: Desconto de linha de base em construção
+  falta_construir: Pré-cálculo dos controles pareados e controle sintético (SparseSC, MIT) para estimar o desconto e a chance
+    de aprovação antes da proposta
+  de_onde_vem_o_dado: Landsat, HLS e MapBiomas
+  horas: 8 a 14
+  checagem: linha_base
+- id: risco_de_nao_permanencia_e
+  bloco: 4. Carbono e crédito
+  item: Risco de não permanência e reserva de risco (AFOLU Non-Permanence Risk Tool)
+  exigido_por: Edital do ProFloresta+ (item 2.4.3) e Verra
+  gravidade: alta
+  fonte: https://www.bndes.gov.br/arquivos/bndes-florestas/profloresta-minuta-contratual-especificacao-tecnica.pdf
+  raiz_fornece: Fogo de 1985 a 2024, alertas e embargos
+  falta_construir: Pré-preencher a ferramenta de risco por fazenda e estimar a reserva; risco futuro de fogo e seca com
+    xclim e CLIMBra
+  de_onde_vem_o_dado: MapBiomas Fogo, CLIMBra e laudo de título
+  horas: 4 a 6
+  checagem: reserva_risco
+- id: vazamento_pela_vmd0054_que_nao
+  bloco: 4. Carbono e crédito
+  item: Vazamento pela VMD0054, que não pode ser tratado como desprezível
+  exigido_por: Edital do ProFloresta+ (item 2.4.4) e Verra VM0047 (4.2(3))
+  gravidade: alta
+  fonte: https://www.bndes.gov.br/arquivos/bndes-florestas/profloresta-minuta-contratual-especificacao-tecnica.pdf | https://verra.org/documents/vm0047-afforestation-reforestation-and-revegetation-v1-1/
+  raiz_fornece: Rebanho estimado e pasto por imóvel
+  falta_construir: Conta de gado deslocado por fazenda no formato da VMD0054
+  de_onde_vem_o_dado: IBGE (PPM), MapBiomas e rebanho por fazenda da Raíz
+  horas: 4 a 8
+  checagem: vazamento
+- id: foto_de_t_0_tirada
+  bloco: 4. Carbono e crédito
+  item: Foto de t = 0 tirada no máximo 2 anos antes do início
+  exigido_por: Verra VM0047 (4.2(2) e 8.7(1))
+  gravidade: alta
+  fonte: https://verra.org/documents/vm0047-afforestation-reforestation-and-revegetation-v1-1/
+  raiz_fornece: Previsões congeladas com data
+  falta_construir: 'Validade do pacote: aviso quando a foto de t = 0 de uma fazenda passar de 2 anos'
+  de_onde_vem_o_dado: Motor da Raíz
+  horas: 1 a 2
+  checagem: t0
+- id: captura_p50_e_p90_com
+  bloco: 4. Carbono e crédito
+  item: Captura P50 e P90 com incerteza declarada e atestada por terceiro independente
+  exigido_por: Molde da Portaria MME 102/2016 (arts. 5º e 6º); provável na fase 2
+  gravidade: alta
+  fonte: https://www.gov.br/mme/pt-br/arquivos/portaria-n-102-2016.pdf
+  raiz_fornece: Captura P10, P50 e P90 em construção
+  falta_construir: 'Relatório no formato de certificação: P50, P90, incerteza, premissas e quem atesta'
+  de_onde_vem_o_dado: Modelos da E3 e atestado de certificadora ou consultor
+  horas: 10 a 16
+  checagem: faixa_p50_p90
+- id: plano_minimo_de_parcelas_de
+  bloco: 4. Carbono e crédito
+  item: Plano mínimo de parcelas de campo por lote
+  exigido_por: Molde da Portaria MME 102/2016 (medição no local) e Verra VM0047
+  gravidade: media
+  fonte: https://www.gov.br/mme/pt-br/arquivos/portaria-n-102-2016.pdf | https://verra.org/documents/vm0047-afforestation-reforestation-and-revegetation-v1-1/
+  raiz_fornece: Nada de campo, só satélite
+  falta_construir: Quantas parcelas medir por lote, estratificadas e com satélite (no teste sintético, 26 parcelas no lugar
+    de 61)
+  de_onde_vem_o_dado: Inventário do desenvolvedor
+  horas: 6 a 10
+- id: certificacao_de_cobeneficios_ccb_ou
+  bloco: 4. Carbono e crédito
+  item: Certificação de cobenefícios (CCB ou Gold Standard) com níveis progressivos
+  exigido_por: Edital do ProFloresta+ (especificação técnica, itens S, 3.3 e U)
+  gravidade: media
+  fonte: https://www.bndes.gov.br/arquivos/bndes-florestas/profloresta-minuta-contratual-especificacao-tecnica.pdf
+  raiz_fornece: Nota inicial de biodiversidade
+  falta_construir: 'Indicadores pré-preenchidos por fazenda: conectividade com floresta, espécies ameaçadas e comunidades'
+  de_onde_vem_o_dado: MapBiomas, listas de espécies e IBGE
+  horas: 3 a 5
+- id: areas_de_mitigacao_de_vazamento
+  bloco: 4. Carbono e crédito
+  item: 'Áreas de mitigação de vazamento: fazendas vizinhas que intensificam o pasto, com acordo de 5 anos ou mais e laudo
+    de técnico independente'
+  exigido_por: Verra VMD0054 (seção 5.2)
+  gravidade: alta
+  fonte: https://verra.org/documents/vmd0054-arr-leakage-module-v1-1_greenlined
+  raiz_fornece: Rebanho estimado e vigor do pasto
+  falta_construir: Busca de fazendas vizinhas com pasto de baixa lotação e bom vigor, fora de outros projetos, e meta de
+    cabeças que cada uma absorve
+  de_onde_vem_o_dado: Censo Agro 2017 (tabelas 6910 e 6881), PPM e MapBiomas
+  horas: 8 a 12
+  checagem: vazamento_mitigacao
+- id: gado_zero_ou_reduzido_dentro
+  bloco: 4. Carbono e crédito
+  item: Gado zero ou reduzido dentro da área do projeto, conferido a cada verificação
+  exigido_por: Verra VMD0054 (seção 6.2)
+  gravidade: media
+  fonte: https://verra.org/documents/vmd0054-arr-leakage-module-v1-1_greenlined
+  raiz_fornece: Nada
+  falta_construir: Alerta de gado dentro do polígono por imagem de alta resolução ou declaração com foto
+  de_onde_vem_o_dado: Imagem de satélite e desenvolvedor
+  horas: 6 a 10
+- id: projeto_agrupado_uma_area_de
+  bloco: 4. Carbono e crédito
+  item: 'Projeto agrupado: uma área de elegibilidade por estado, uma fazenda inicial em cada área na validação, critérios
+    escritos para fazendas novas e entrada delas só em lote na verificação'
+  exigido_por: Verra VCS Standard v5.0 (3.5.3 a 3.5.11)
+  gravidade: alta
+  fonte: https://verra.org/documents/vcs-standard-v5-0/
+  raiz_fornece: Agrupamento de fazendas em construção
+  falta_construir: Regra que separa o lote por área de elegibilidade, marca a fazenda inicial, testa se a fazenda nova cabe
+    nos critérios e refaz o vazamento do projeto a cada lote
+  de_onde_vem_o_dado: Raíz
+  horas: 11 a 17
+  checagem: projeto_agrupado
+- id: orcamento_com_implantacao_manutencao_e
+  bloco: 5. Dinheiro, preço e garantias
+  item: Orçamento com implantação, manutenção e certificação
+  exigido_por: Edital do ProFloresta+ (especificação técnica, item h.5)
+  gravidade: alta
+  fonte: https://www.bndes.gov.br/arquivos/bndes-florestas/profloresta-minuta-contratual-especificacao-tecnica.pdf
+  raiz_fornece: Custo P10, P50 e P90 por ha em construção
+  falta_construir: Custo por ano e por módulo (preparo, cerca, mudas ou sementes, manutenção, acesso) no molde do SINAPI,
+    com adicionais de terreno e o custo de certificação
+  de_onde_vem_o_dado: 'Serviço Florestal (Bom Futuro e Altamira), Instituto Escolhas, Fundo Clima; componentes por índice
+    regional: salário (CAGED), frete (ANTT), diesel (ANP), semente (Redário)'
+  horas: 12 a 20
+  checagem: orcamento
+- id: preco_por_credito_em_reais
+  bloco: 5. Dinheiro, preço e garantias
+  item: Preço por crédito em reais com reajuste pelo IPCA; lotes de 1, 2 ou 3 milhões; consórcio de até 4 empresas
+  exigido_por: Edital do ProFloresta+ (minuta, cláusulas 6.1.1 e 6.4)
+  gravidade: alta
+  fonte: https://www.bndes.gov.br/arquivos/bndes-florestas/profloresta-minuta-contratual.pdf
+  raiz_fornece: VPL e TIR do desenvolvedor em construção
+  falta_construir: Preço mínimo por lote que dá a TIR alvo, com as multas do contrato como cenário
+  de_onde_vem_o_dado: Conta da Raíz e regras do contrato
+  horas: 4 a 6
+  checagem: preco
+- id: estrutura_de_capital_divida_dimensionada
+  bloco: 5. Dinheiro, preço e garantias
+  item: 'Estrutura de capital: dívida dimensionada pela cobertura das parcelas (ICSD), conta reserva de 6 meses e prazo
+    que termina antes do contrato'
+  exigido_por: BNDES (régua dos leilões de energia) e Fundo Clima
+  gravidade: alta
+  fonte: https://bndes.gov.br/wps/portal/site/home/financiamento/produto/leiloes-infraestrutura/leilao-geracao-2018/ | https://www.gov.br/mma/pt-br/composicao/secex/dfre/fundo-nacional-sobre-mudanca-do-clima/RelatrioFundoClima2025psCG.pdf
+  raiz_fornece: TIR com e sem Fundo Clima e capital próprio de pico
+  falta_construir: Dívida máxima por lote pelo ICSD em cada janela de entrega, com a taxa a 2,3% e a 4,94%
+  de_onde_vem_o_dado: Entregas P90 do lote e Relatório do Fundo Clima 2025
+  horas: 6 a 8
+  checagem: estrutura_capital
+- id: garantia_ao_financiador_cessao_dos
+  bloco: 5. Dinheiro, preço e garantias
+  item: 'Garantia ao financiador: cessão dos recebíveis do contrato (aprovação da Petrobras pedida com 20 dias) e carta-fiança
+    de banco'
+  exigido_por: Edital do ProFloresta+ (minuta, cláusulas 7.1 e 7.1.2); casos Mombak e re.green
+  gravidade: alta
+  fonte: https://www.bndes.gov.br/arquivos/bndes-florestas/profloresta-minuta-contratual.pdf
+  raiz_fornece: Nada direto
+  falta_construir: Anexo que liga cada fazenda às entregas do Anexo IV e anexo financeiro no formato do pedido de financiamento
+  de_onde_vem_o_dado: Captura por fazenda e Anexo IV
+  horas: 3 a 5
+- id: garantia_de_proposta_e_garantia
+  bloco: 5. Dinheiro, preço e garantias
+  item: Garantia de proposta e garantia de fiel cumprimento
+  exigido_por: Molde dos leilões de energia (1% e 10%); provável na fase 2
+  gravidade: media
+  fonte: https://gwec.net/wp-content/uploads/2021/01/GWEC_Analysis-of-the-regulatory-framework-in-Brazil_2011.pdf
+  raiz_fornece: VPL e TIR
+  falta_construir: Linha de custo de garantia no fluxo de caixa
+  de_onde_vem_o_dado: Edital (quando sair) e taxa de fiança do mercado
+  horas: 2 a 4
+- id: seguros_exigidos_por_lei_mantidos
+  bloco: 5. Dinheiro, preço e garantias
+  item: Seguros exigidos por lei mantidos durante o contrato (o pagamento fica suspenso se faltarem)
+  exigido_por: Edital do ProFloresta+ (minuta, cláusulas 15.12 e 15.12.1)
+  gravidade: media
+  fonte: https://www.bndes.gov.br/arquivos/bndes-florestas/profloresta-minuta-contratual.pdf
+  raiz_fornece: Risco de fogo e de seca por fazenda
+  falta_construir: Linha de custo de seguro no fluxo de caixa e resumo de risco por fazenda para a seguradora
+  de_onde_vem_o_dado: Camadas da Raíz e prêmio informado pela seguradora
+  horas: 2 a 4
+- id: valor_justo_do_arrendamento_ou
+  bloco: 5. Dinheiro, preço e garantias
+  item: Valor justo do arrendamento ou da permuta por fazenda, com faixa P10, P50 e P90
+  exigido_por: Proposta de preço do ProFloresta+ (vence o menor preço) e negociação com o dono
+  gravidade: media
+  fonte: https://apisidra.ibge.gov.br/values/t/6899/n6/1507300,1504208,1505502/v/1996/p/all/c829/46302/c210/111957/c218/46502/c12517/113601,111523
+  raiz_fornece: Nada
+  falta_construir: 'Três âncoras por fazenda: aluguel pago no município, renda da pecuária e valor da terra nua'
+  de_onde_vem_o_dado: IBGE (Censo Agro 2017, tabelas 6899, 6753 e 6910), INCRA e IEA-SP
+  horas: 8 a 12
+- id: custo_de_cartorio_por_fazenda
+  bloco: 5. Dinheiro, preço e garantias
+  item: Custo de cartório por fazenda no orçamento
+  exigido_por: Custo real do desenvolvedor
+  gravidade: media
+  fonte: https://ftp.irib.org.br/files/emolumento/Para-Emolumento1551713.pdf
+  raiz_fornece: Nada
+  falta_construir: Tabela de registro, averbação e escritura por faixa de valor e por UF
+  de_onde_vem_o_dado: Tabelas de emolumentos dos estados
+  horas: 4 a 8
+- id: cronograma_que_bata_com_as
+  bloco: 6. Cronograma e prova de capacidade
+  item: 'Cronograma que bata com as entregas acumuladas: 120 mil (ano 7), 300 mil (12), 500 mil (17), 700 mil (22) e 1 milhão
+    (25) por milhão de créditos, com folga de 25%'
+  exigido_por: Edital do ProFloresta+ (minuta, Anexos III e IV)
+  gravidade: alta
+  fonte: https://www.bndes.gov.br/arquivos/bndes-florestas/profloresta-minuta-contratual.pdf
+  raiz_fornece: Captura P10, P50 e P90 em construção
+  falta_construir: Curva de créditos líquidos acumulados do lote contra o Anexo IV, chance de cumprir cada marco e custo
+    esperado de multa (R$ 1.000 por dia por marco; R$ 0,03 por crédito por dia depois de 180 dias)
+  de_onde_vem_o_dado: Captura e desconto calculados pela Raíz
+  horas: 4 a 6
+  checagem: cronograma
+- id: marcos_por_fazenda_com_acompanhamento
+  bloco: 6. Cronograma e prova de capacidade
+  item: Marcos por fazenda com acompanhamento mensal
+  exigido_por: Molde da ANEEL (painel de acompanhamento e prazo por estágio)
+  gravidade: media
+  fonte: https://www.ccee.org.br/documents/80415/31078028/SEI_0292412_Edital_de_Leilao_n__2_2026_ANEEL.pdf/b680ff88-10ca-331a-8d93-2f919a065a0f
+  raiz_fornece: Previsões congeladas por fazenda
+  falta_construir: Marcos por fazenda (aceite, título, preparo, plantio, primeira medição, primeira entrega) e atraso esperado
+    por estágio
+  de_onde_vem_o_dado: Raíz, desenvolvedor e satélite
+  horas: 6 a 10
+- id: prova_de_capacidade_economico_financeira
+  bloco: 6. Cronograma e prova de capacidade
+  item: Prova de capacidade econômico-financeira em até 12 meses
+  exigido_por: Edital do ProFloresta+ (minuta, cláusula 4.1.1)
+  gravidade: alta
+  fonte: https://www.bndes.gov.br/arquivos/bndes-florestas/profloresta-minuta-contratual.pdf
+  raiz_fornece: Valor do lote e capital próprio de pico
+  falta_construir: Pasta de prova do marco com status vermelho, amarelo ou verde por lote
+  de_onde_vem_o_dado: Raíz (aceites, títulos, custo) e desenvolvedor (contratos de mudas e financiamento)
+  horas: 4 a 6
+- id: calendario_de_relatorios_e_verificacoes
+  bloco: 6. Cronograma e prova de capacidade
+  item: Calendário de relatórios e verificações (anos 4, 5, 7, 12, 17, 22 e 24) e relatório anual consolidado
+  exigido_por: Edital do ProFloresta+ (minuta, cláusulas 15.9, 15.13, 20.1 e Anexo III; especificação técnica, item 2.4.6)
+  gravidade: media
+  fonte: https://www.bndes.gov.br/arquivos/bndes-florestas/profloresta-minuta-contratual.pdf
+  raiz_fornece: Previsões congeladas e comparação com o resultado real
+  falta_construir: Calendário com alertas e relatório anual que compara previsão e medição por fazenda
+  de_onde_vem_o_dado: Previsões da Raíz e dados devolvidos pelo desenvolvedor
+  horas: 4 a 6
+- id: historico_e_experiencia_do_proponente
+  bloco: 6. Cronograma e prova de capacidade
+  item: Histórico e experiência do proponente proporcionais ao tamanho do projeto
+  exigido_por: Molde da ANEEL (edital 2/2026, item 11.9); provável na fase 2
+  gravidade: media
+  fonte: https://www.ccee.org.br/documents/80415/31078028/SEI_0292412_Edital_de_Leilao_n__2_2026_ANEEL.pdf/b680ff88-10ca-331a-8d93-2f919a065a0f
+  raiz_fornece: Fichas de desenvolvedores (E6)
+  falta_construir: Área restaurada comprovada e histórico de atrasos; alerta de lote maior que a capacidade do desenvolvedor
+  de_onde_vem_o_dado: Registros da Verra e do BNDES e o próprio desenvolvedor
+  horas: 2 a 3
+- id: prazos_da_verra_junto_com
+  bloco: 6. Cronograma e prova de capacidade
+  item: 'Prazos da Verra junto com os do contrato: listagem em até 1 ano do início do período de crédito, registro em até
+    8 anos e verificação a cada 5 anos no máximo'
+  exigido_por: Verra VCS Standard v5.0 (3.8.2, 3.8.3 e V5#105)
+  gravidade: media
+  fonte: https://verra.org/documents/vcs-standard-v5-0/
+  raiz_fornece: Previsões congeladas com data
+  falta_construir: Calendário único com os prazos da Verra e as entregas do ProFloresta+
+  de_onde_vem_o_dado: Raíz
+  horas: 2 a 3
+- id: proposta_tecnica_em_pdf_a4
+  bloco: 7. Forma da proposta
+  item: Proposta técnica em PDF A4 com no máximo 40 páginas
+  exigido_por: Edital do ProFloresta+ (especificação técnica, item 4.1)
+  gravidade: bloqueia
+  fonte: https://www.bndes.gov.br/arquivos/bndes-florestas/profloresta-minuta-contratual-especificacao-tecnica.pdf
+  raiz_fornece: Ficha da fazenda e saída do motor por imóvel
+  falta_construir: 'Relatório "lote pronto para proposta": resumo do lote com tabela de certeza (molde GRADE) no esqueleto
+    do relatório técnico de mineração (NI 43-101) e anexos por fazenda'
+  de_onde_vem_o_dado: Saída do motor da Raíz
+  horas: 8 a 12
+  checagem: forma_pdf
+- id: mapas_e_poligonos_em_arquivo
+  bloco: 7. Forma da proposta
+  item: Mapas e polígonos em arquivo padrão com tabela de hectares por método
+  exigido_por: Edital do ProFloresta+; molde da Portaria MME 102/2016 (art. 5º, § 1º)
+  gravidade: media
+  fonte: https://www.bndes.gov.br/arquivos/bndes-florestas/profloresta-minuta-contratual-especificacao-tecnica.pdf | https://www.gov.br/mme/pt-br/arquivos/portaria-n-102-2016.pdf
+    | https://verra.org/documents/vcs-standard-v5-0/
+  raiz_fornece: Polígonos do CAR e do SIGEF no PostGIS
+  falta_construir: Exportação por lote em KML, shapefile e GeoJSON com identificador único e hash do polígono por fazenda
+    e hectares por método; a Verra pede o mesmo arquivo na validação e em cada verificação (VCS v5, 3.10)
+  de_onde_vem_o_dado: CAR, SIGEF e funil da Raíz
+  horas: 2 a 4
+- id: checklist_dos_requisitos_do_edital
+  bloco: 7. Forma da proposta
+  item: Checklist dos requisitos do edital legível por máquina, com status por fazenda e por lote
+  exigido_por: Edital do ProFloresta+ (minuta e especificação técnica)
+  gravidade: media
+  fonte: https://www.bndes.gov.br/arquivos/bndes-florestas/profloresta-minuta-contratual.pdf | https://www.bndes.gov.br/arquivos/bndes-florestas/profloresta-minuta-contratual-especificacao-tecnica.pdf
+  raiz_fornece: Nada
+  falta_construir: Verificador de habilitação do lote com todos os itens desta aba e o que falta em cada fazenda
+  de_onde_vem_o_dado: Esta aba e as colunas da Raíz
+  horas: 6 a 10
+  checagem: checklist
+- id: cada_numero_da_proposta_com
+  bloco: 7. Forma da proposta
+  item: Cada número da proposta com etiqueta da sua fonte e somas recalculadas antes de enviar
+  exigido_por: Boa prática (molde do balanço etiquetado Inline XBRL); evita número sem origem
+  gravidade: media
+  fonte: https://github.com/Arelle/Arelle
+  raiz_fornece: Saída do motor
+  falta_construir: Gerador do relatório com etiqueta por número e checagem automática de somas
+  de_onde_vem_o_dado: Motor da Raíz
+  horas: 4 a 6
+- id: creditos_liquidos_por_cenario_regeneracao
+  bloco: 7. Forma da proposta
+  item: Créditos líquidos por cenário (regeneração contra plantio) em gráfico em leque, com o teste estresse menor ou igual
+    a P10, P10 a P50 e P50 a P90
+  exigido_por: Edital do ProFloresta+ (item 3.4); molde da ficha de informação-chave da UE
+  gravidade: media
+  fonte: https://lawplayer.com/eu/act/32017r0653
+  raiz_fornece: Captura P10, P50 e P90 em construção
+  falta_construir: Gráfico em leque e tabela de 4 cenários com teste automático
+  de_onde_vem_o_dado: Motor da Raíz
+  horas: 4 a 8
+- id: folha_de_3_paginas_para
+  bloco: 7. Forma da proposta
+  item: Folha de 3 páginas para o dono e tabela da proposta sem nome de pessoa (só código do CAR e situação do aceite)
+  exigido_por: Edital do ProFloresta+ (individualização dos proprietários) e Lei Geral de Proteção de Dados
+  gravidade: media
+  fonte: https://www.bndes.gov.br/arquivos/bndes-florestas/profloresta-minuta-contratual-especificacao-tecnica.pdf
+  raiz_fornece: Guarda de CPF e CNPJ
+  falta_construir: Folha do dono no molde dos formulários redesenhados do crédito imobiliário dos EUA e tabela mascarada
+    no relatório
+  de_onde_vem_o_dado: Raíz
+  horas: 6 a 10

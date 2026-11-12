@@ -119,7 +119,7 @@ export function lerRestauracao(l: Linha): Restauracao | null {
         }
       : null,
     faltou: (texto(l, "restauracao_faltou") ?? "").split(",").filter(Boolean),
-    cenario: texto(l, "restauracao_cenario") ?? "profloresta_55",
+    cenario: texto(l, "restauracao_cenario") ?? "central",
     versao: texto(l, "restauracao_versao"),
   }
 }

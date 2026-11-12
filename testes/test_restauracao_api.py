@@ -81,7 +81,9 @@ def test_ficha_tem_o_bloco_para_quem_restaura(cliente):
     for k in ("custo_rs_ha", "captura_tco2_ha_ano", "credito_liquido_tco2_ha_ano", "vpl_rs_ha", "tir_projeto_pct",
               "tir_alavancada_pct", "pico_capital_proprio_rs_ha"):  # fmt: skip
         assert b[k]["p10"] <= b[k]["p50"] <= b[k]["p90"], k
-    assert b["versao"] == R.versao() and b["cenario"]["cenario"] == "profloresta_55"
+    assert b["versao"] == R.versao() and b["cenario"]["cenario"] == "central"
+    assert set(b["dono"]["tir_por_forma_pct"]) == {"parte_credito", "aluguel_fixo", "duas_fases"}
+    assert b["premissas"]["versao"].startswith("premissas-2026-11+")
     assert "explicacao" in b["linha_base"] and b["faltou"]  # sem geo na amostra: diz o que faltou
     # FLAG e crédito continuam separados; o bloco novo não soma com a meta FLAG
     assert "flag" in f and "nao_somar" in f["flag"]
@@ -114,11 +116,14 @@ def test_simulador_e_cenarios(cliente):
     cl, _, _ = cliente
     alvo = _um_com_area(cl)
     cods = cl.get("/restauracao/cenarios").json()
-    assert cods["padrao"] == "profloresta_55" and "profloresta_74" in cods["cenarios"]
-    assert cods["cenarios"]["profloresta_55"]["fontes"]["preco_usd_t"].startswith("fundador")
+    assert cods["padrao"] == "central" and set(cods["cenarios"]) == {"central", "estresse", "otimista",
+                                                                      "so_contrato_25"}  # fmt: skip
+    assert cods["fontes"]["preco_contrato_usd_t"] and cods["versao"] == R.versao()
     base = cl.get(f"/imoveis/{alvo['cod_imovel']}/restauracao/simular").json()
     caro = cl.get(f"/imoveis/{alvo['cod_imovel']}/restauracao/simular", params={"preco_usd_t": 74}).json()
-    assert caro["vpl_rs_ha"]["p50"] > base["vpl_rs_ha"]["p50"] and len(base["fluxo_p50"]["anos"]) == 26
+    assert caro["vpl_rs_ha"]["p50"] > base["vpl_rs_ha"]["p50"] and len(base["fluxo_p50"]["anos"]) == 41
+    estresse = cl.get(f"/imoveis/{alvo['cod_imovel']}/restauracao/simular", params={"cenario": "estresse"}).json()
+    assert estresse["tir_alavancada_pct"]["p50"] < base["tir_alavancada_pct"]["p50"]
     r = cl.get(f"/imoveis/{alvo['cod_imovel']}/restauracao/simular", params={"fracao_financiada": 3})
     assert r.status_code == 422 and "fracao_financiada" in r.json()["detail"]["mensagem"]
 
@@ -152,9 +157,9 @@ def test_previsao_congelada_real_do_cliente_e_recalibracao(cliente, tmp_path):
     fator = r["fatores"]["custo"][alvo["modo_restauracao"]]["fator"]
     assert fator == pytest.approx(1 + 0.5 * 1 / 6, rel=1e-3)  # 1 caso: anda 1/6 do caminho
     assert arq.exists()
-    v_antes = R.regra(R.ARQ_REGRA, R.ARQ_CENARIOS, tmp_path / "nada.yaml")["versao_completa"]
-    calibrada = R.regra(R.ARQ_REGRA, R.ARQ_CENARIOS, arq)
+    v_antes = R.regra(R.ARQ_REGRA, tmp_path / "nada.yaml")["versao_completa"]
+    calibrada = R.regra(R.ARQ_REGRA, arq)
     assert calibrada["versao_completa"] != v_antes
     li = {**alvo}
-    p50_antes = R.custo(li, r=R.regra(R.ARQ_REGRA, R.ARQ_CENARIOS, tmp_path / "nada.yaml"))["p50"]
+    p50_antes = R.custo(li, r=R.regra(R.ARQ_REGRA, tmp_path / "nada.yaml"))["p50"]
     assert R.custo(li, r=calibrada)["p50"] > p50_antes

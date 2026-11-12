@@ -1,0 +1,351 @@
+# Premissas do valor para quem restaura (desenvolvedor), versão de novembro de 2026, da rodada 11 de pesquisa.
+#
+# Lidas por raiz/desenvolvedor.py. Cada número tem `fonte`. Cada cálculo grava a versão deste arquivo + o hash
+# (restauracao_versao em desenvolvedor_<mun>.csv); mudou o arquivo, `raiz restauracao recalcular` refaz.
+# Tudo em reais (R$) de dez/2023 a dez/2025, tratado como valor REAL constante: o preço do contrato do ProFloresta+
+# é em reais com reajuste anual pelo IPCA (minuta, cláusulas 6.1.1 e 6.4), então preço e custo andam juntos.
+versao: premissas-2026-11
+pesquisa: rodada 11 de pesquisa da Raíz (12/11/2026)
+aviso: >-
+  Estimativa da Raíz para orientar a proposta do desenvolvedor, não é orçamento nem promessa de crédito. Custo,
+  captura, linha de base e vazamento são premissas a calibrar com dado real de cliente.
+
+fontes:
+  bom_futuro: &bom_futuro >-
+    Serviço Florestal Brasileiro, Relatório de Avaliação Econômico-Financeira Referencial da concessão de restauração
+    da Flona do Bom Futuro (RO), preços de dez/2023, revisado pelo TCU (Acórdão 2285/2025):
+    https://www.gov.br/florestal/pt-br/assuntos/concessoes-e-monitoramento/editais-em-licitacao/floresta-nacional-do-bom-futuro-ro/rel-de-av-economico-fin-ref-vf.pdf
+  altamira: &altamira >-
+    Serviço Florestal Brasileiro e BNDES, Plano de Negócios Referencial da concessão de restauração da Flona de
+    Altamira (PA), set/2026, tabelas 3, 101, 110 e 115:
+    https://www.gov.br/florestal/pt-br/assuntos/concessoes-e-monitoramento/editais-em-consulta-publica/floresta-nacional-de-altamira/plano-de-negocios-referencial-e-avaliacao-economico-financeira.pdf/@@display-file/file
+  urtx: &urtx >-
+    IDEFLOR-Bio, concessão de restauração Unidade de Recuperação Triunfo do Xingu (PA), Anexo 20, tabela 1 (curva
+    anual oficial de remoção por ha):
+    https://ideflorbio.pa.gov.br/wp-content/uploads/2024/11/20.-2024.11.14-ANEXO-20-Mecanismo-de-Calculo-das-Parcelas-Contingentes-Semestrais_v00-limpo.pdf
+  minuta: &minuta >-
+    BNDES, minuta do contrato de compra do ProFloresta+ (Petrobras compradora) e especificação técnica:
+    https://www.bndes.gov.br/arquivos/bndes-florestas/profloresta-minuta-contratual.pdf e
+    https://www.bndes.gov.br/arquivos/bndes-florestas/profloresta-minuta-contratual-especificacao-tecnica.pdf
+  fundo_clima: &fundo_clima >-
+    MMA, Relatório do Fundo Clima 2025 apresentado ao Comitê Gestor (tabelas 6, 15 e 16):
+    https://www.gov.br/mma/pt-br/composicao/secex/dfre/fundo-nacional-sobre-mudanca-do-clima/RelatrioFundoClima2025psCG.pdf
+  vcs5: &vcs5 "Verra, VCS Standard v5.0 (16/12/2025): https://verra.org/documents/vcs-standard-v5-0/"
+  vmd0054: &vmd0054 "Verra, VMD0054 módulo de vazamento de ARR v1.1: https://verra.org/documents/vmd0054-arr-leakage-module-v1-1_greenlined"
+  censo: &censo >-
+    IBGE, Censo Agropecuário 2017, SIDRA tabela 6899 (despesa com arrendamento de terras) dividida pela tabela 6753
+    (área arrendada), valores de 2017 sem correção: https://apisidra.ibge.gov.br/values/t/6899/n6/1507300/v/1996/p/all
+
+# --- 1. Métodos ----------------------------------------------------------------------------------------------------
+# Dois métodos disputam cada fazenda. A regeneração assistida só vale onde a regra de pontos da Raíz deixa
+# (raiz/regras/padroes/restauracao.yaml, regra_modo); no resto da fazenda o método é o plantio total.
+metodos:
+  plantio_total:
+    nome: Plantio total de mudas
+    custo_implantacao_rs_ha:
+      valor: 15830
+      fonte: *bom_futuro
+    manutencao_inicial_rs_ha:
+      valor: 3544
+      anos: [1, 2]
+      fonte: >-
+        2 anos de manutenção depois do plantio, R$ 1.771,88/ha por ano (plano de Altamira, tabela 101: anos 2 e 3
+        do plantio) vezes 2
+    custo_faixa_rs_ha:  # implantação + manutenção inicial, P10 e P90 (o P50 é a soma acima)
+      p10: 14500
+      p90: 24800
+      fonte: >-
+        P10 = Altamira, R$ 14,5 a 15,5 mil/ha em 3 anos (tabelas 101 e 110); P90 = concessão Triunfo do Xingu da
+        Systemica, R$ 24,8 mil/ha (R$ 257 a 258 milhões em 40 anos para 10.346 ha; Agência iNFRA e B3:
+        https://agenciainfra.com/blog/?p=47110). O P90 é investimento total de 40 anos e serve de teto.
+    captura_40_anos_tco2_ha:
+      valor: 588.8
+      fonte: >-
+        Bom Futuro: 588,82 tCO2/ha em 40 anos no plantio total (14,72 por ano em média, já com 23,17% de raiz, 5% de
+        serapilheira e carbono do solo). Altamira dá 583,64 (conferência).
+  regeneracao_assistida:
+    nome: Regeneração assistida (condução da regeneração natural)
+    custo_implantacao_rs_ha:
+      valor: 4230
+      fonte: *bom_futuro
+    manutencao_inicial_rs_ha:
+      valor: 800
+      anos: [1, 2]
+      fonte: fundador, 12/11/2026 (manutenção dos 2 primeiros anos da regeneração assistida)
+    custo_faixa_rs_ha:
+      p10: 2430
+      p90: 6096
+      fonte: >-
+        Instituto Escolhas, Cerrado (preços de 2023, mar/2026): condução da regeneração natural R$ 2.430/ha (P10) e
+        condução com enriquecimento R$ 6.096/ha (P90):
+        https://escolhas.org/wp-content/uploads/2026/03/Restauracao_CERRADO_2025.pdf
+    captura_40_anos_tco2_ha:
+      valor: 442.8
+      fonte: "Bom Futuro: 442,79 tCO2/ha em 40 anos na condução da regeneração natural (11,01 por ano em média)"
+
+# --- 2. Forma da curva no tempo -----------------------------------------------------------------------------------
+# Remoção por ha em cada ano, interpolada em linha reta entre os pontos, e escalada para o total de 40 anos de cada
+# método (o total vem do método; a curva só diz quando o carbono entra).
+curva:
+  pontos_tco2_ha_ano: {1: 0, 2: 0, 7: 13.44, 10: 26.71, 14: 30.29, 20: 26.50, 30: 17.74, 40: 11.04}
+  horizonte_anos: 40
+  fonte: *urtx
+
+# Teto da captura em 40 anos por bioma (tCO2/ha). Vale o menor entre o total do método e o teto do bioma.
+teto_bioma_tco2_ha_40_anos:
+  Amazônia:
+    valor: 588.8
+    publicado: true
+    fonte: Bom Futuro (o próprio total do plantio no sul da Amazônia)
+  Cerrado:
+    valor: 99.8
+    publicado: true
+    fonte: >-
+      cerradão com 22,1 Mg C/ha acima do solo (artigo da UnB, CC BY 4.0:
+      https://repositorio.unb.br/bitstream/10482/48281/1/ARTIGO_CarbonStorageDifferent.pdf) vezes 1,2317 de raiz
+      (Bom Futuro) vezes 44/12. Teto de biomassa, sem solo.
+  Mata Atlântica:
+    valor: 237.2
+    publicado: true
+    fonte: >-
+      floresta de referência em Sergipe com 64,68 Mg C/ha em árvores, raízes, serapilheira e solo (Fernandes et al.
+      2025, Scientia Forestalis: https://www.ipef.br/publicacoes/scientia/v53_2025/2318-1222-scifor-53-e4058.pdf)
+      vezes 44/12
+  Caatinga:
+    valor: 181.2
+    publicado: false
+    fonte: >-
+      sem curva publicada (rodada 11); premissa anterior da Raíz (restauracao-2026a): plantio na Caatinga 4 contra 13
+      t/ha/ano na Amazônia, vezes 588,8
+  Pantanal:
+    valor: 317.0
+    publicado: false
+    fonte: sem curva publicada (rodada 11); premissa anterior da Raíz, 7 contra 13 t/ha/ano, vezes 588,8
+  Pampa:
+    valor: 226.5
+    publicado: false
+    fonte: sem curva publicada (rodada 11); premissa anterior da Raíz, 5 contra 13 t/ha/ano, vezes 588,8
+bioma_padrao: Amazônia
+
+# Faixa da captura (multiplica o total de 40 anos). Sorteio comum ao lote inteiro: erro de curva não se cancela
+# entre fazendas.
+incerteza_captura:
+  p10: 0.6
+  p90: 1.3
+  fonte: >-
+    VCS 665 (Cotriguaçu, MT, 415 parcelas): de 2015 a 2020 mediu cerca de 8,6 tCO2/ha/ano contra o dobro previsto
+    antes (https://onfbrasil.com.br/wp-content/uploads/2026/03/VCS-3rd_Monitoring-Report-Multispecies_ONF_06_09_2024.pdf);
+    faixa anterior da Raíz para a regeneração (0,6 a 1,4)
+
+# --- 3. Do bruto ao líquido (nesta ordem) -----------------------------------------------------------------------
+descontos:
+  ordem: [linha_base, vazamento, reserva_risco, incerteza]
+  linha_base:
+    central: 0.20
+    estresse: 0.40
+    otimista: 0.10
+    fonte: >-
+      fundador, 12/11/2026, a partir da rodada 11: num teste da Chloris num projeto no Brasil a linha de base da
+      VM0047 ficou entre 30% e 60% do ganho (https://emu-piccolo-m9bl.squarespace.com/resources/gettingvm0047right);
+      com a regeneração medida no Pará, cerca de 30%. A taxa medida no YbYrá do município fica ao lado, para
+      comparar (desconto_linha_base_pct).
+  vazamento:
+    central: 0.10
+    estresse: 0.40
+    otimista: 0.10
+    com_area_de_mitigacao: 0.0
+    fonte: >-
+      fundador, 12/11/2026. Com área de mitigação (fazenda vizinha que intensifica o pasto e recebe o gado, VMD0054
+      seção 5.2) o vazamento vai a zero. Numa conta sintética da rodada 11, sem mitigação e no pior caso, chegou a
+      65%. O otimista usa o central porque o fundador não deu outro número.
+  reserva_risco:
+    valor: 0.12
+    fonte: reserva de não permanência mínima da AFOLU Non-Permanence Risk Tool v5.0 (a mesma do motor)
+  incerteza:
+    valor: 0.10
+    fonte: "VM0047 v1.1, seção 8.7(3): desconto mínimo de 10% de incerteza no ex ante"
+
+# --- 4. Receita e custos que se repetem ---------------------------------------------------------------------------
+receita:
+  preco_contrato_usd_t:
+    central: 55
+    estresse: 55
+    otimista: 74
+    fonte: "BNDES, resultado da fase 1 do ProFloresta+ (22/06/2026): US$ 55,33, 55,76 e 73,82 por crédito"
+  venda_apos_contrato_usd_t:
+    valor: 30
+    fonte: >-
+      fundador, 12/11/2026: créditos dos anos 26 a 40 vendidos a US$ 30; perto do preço à vista de ARR com boa nota
+      em 2026 (Regreener cerca de € 26/t; Senken € 33/t)
+  cambio_brl_usd:
+    valor: 5.40
+    fonte: premissa anterior da Raíz (cenarios-2026a); trocar pela PTAX do dia da proposta
+  taxa_registro_receita:
+    valor: 0.10
+    fonte: fundador, 12/11/2026 (registro, emissão e verificação, 10% da receita)
+  manutencao_usd_ha_ano:
+    valor: 40
+    desde_ano: 3
+    fonte: fundador, 12/11/2026 (manutenção e monitoramento depois dos 2 anos de manutenção inicial)
+  taxa_desconto_real:
+    valor: 0.092
+    fonte: "custo médio de capital real do plano de Altamira (9,20% real, set/2026)"
+
+# --- 5. Financiamento --------------------------------------------------------------------------------------------
+financiamento:
+  fracao_investimento:
+    central: 0.50
+    estresse: 0.35
+    otimista: 0.50
+    fonte: >-
+      Fundo Clima Florestas Nativas financiou de 35 a 50% do investimento nos casos lidos (re.green 35,4%; Altamira
+      modela até 50%)
+  juros_ano:
+    central: 0.0494
+    estresse: 0.0494
+    otimista: 0.023
+    fonte: >-
+      central e estresse: 4,94% do plano de Altamira (1,00 de custo + 1,30 do BNDES + 2,57 de risco de crédito);
+      otimista: 2,3%, média final das operações de 2025 do Fundo Clima. Taxa tratada como real (conservador: a do
+      Fundo Clima é nominal)
+  carencia_anos:
+    valor: 8
+    fonte: "Fundo Clima: carência de até 8 anos (Resolução CMN 5.095/2023; Bom Futuro, 96 meses)"
+  juros_na_carencia: capitalizados
+  juros_na_carencia_fonte: >-
+    premissa Raíz: não há receita antes da primeira entrega (ano 7), então os juros da carência entram no saldo
+  ultimo_ano: 25
+  ultimo_ano_fonte: "Fundo Clima: prazo de até 25 anos; a dívida termina com o contrato"
+  sistema: sac
+  icsd_minimo:
+    valor: 1.3
+    fonte: >-
+      BNDES, financiamento dos vencedores de leilão de energia (ICSD 1,3):
+      https://bndes.gov.br/wps/portal/site/home/financiamento/produto/leiloes-infraestrutura/leilao-geracao-2018/
+  janelas: >-
+    a cobertura (ICSD) é medida por janela de entrega: a receita de cada entrega paga as parcelas até a entrega
+    seguinte (anos 7 a 11, 12 a 16, 17 a 21, 22 a 24 e 25)
+
+# --- 6. Contrato do ProFloresta+ (Anexo IV) -----------------------------------------------------------------------
+contrato:
+  creditos: 1000000
+  prazo_anos: 25
+  marcos:  # entregas acumuladas por milhão de créditos
+    - {ano: 7, acumulado: 120000}
+    - {ano: 12, acumulado: 300000}
+    - {ano: 17, acumulado: 500000}
+    - {ano: 22, acumulado: 700000}
+    - {ano: 25, acumulado: 1000000}
+  tolerancia_intermediaria: 0.25
+  multa_credito_dia_rs: 0.03
+  multa_credito_desde_dia: 181
+  multa_marco_dia_rs: 1000
+  rescisao_multas_pct_valor: 0.20
+  rescisao_atraso_marco_dias: 180
+  assinatura:
+    area_homologada_min_pct: 0.05
+    cessao_carbono_dos_donos: true
+  area_minima_ha: 3000
+  fonte: *minuta
+  leitura: >-
+    premissa Raíz sobre o texto: abaixo de 75% do acumulado num marco intermediário (ou abaixo de 100% no ano 25) a
+    falha conta; a multa de R$ 0,03 corre sobre o que falta para o acumulado do marco a partir do 181º dia, e a de
+    R$ 1.000 por dia vale desde o primeiro dia de atraso. Conferir a cláusula 13 com o desenvolvedor.
+
+# --- 7. Pagamento ao dono -----------------------------------------------------------------------------------------
+dono:
+  prazo_contrato_anos:
+    valor: 40
+    fonte: *vcs5
+  forma_padrao: parte_credito
+  formas:
+    parte_credito:
+      nome: Parte do crédito com piso
+      parte:
+        central: 0.15
+        estresse: 0.20
+        otimista: 0.10
+        fonte: fundador, 12/11/2026 (faixa de 10 a 20% do crédito; central no meio da faixa)
+      piso_rs_ha_ano:
+        valor: 24
+        fonte: >-
+          pagamento inicial dos contratos eólicos do Nordeste, R$ 1 a 2 por ha ao mês (estudo do Inesc com o Plano
+          Nordeste Potência, 50 contratos:
+          https://eixos.com.br/contratos-de-arrendamento-para-projetos-eolicos-tem-desequilibrios-mostra-estudo/)
+    aluguel_fixo:
+      nome: Aluguel fixo pelo Censo Agro
+      por_municipio_rs_ha_ano:
+        1507300: 532  # São Félix do Xingu (PA)
+        1504208: 289  # Marabá (PA)
+        1505502: 124  # Paragominas (PA)
+      por_uf_rs_ha_ano: {PA: 212, MT: 349, MS: 560, PR: 1140, SP: 2209}
+      brasil_rs_ha_ano: 727
+      fonte: *censo
+    duas_fases:
+      nome: Aceite em duas fases
+      opcao_rs_ha_mes:
+        valor: 2
+        fonte: o mesmo pagamento inicial dos contratos eólicos (Inesc), R$ 2 por ha ao mês
+      meses_ate_resultado:
+        valor: 12
+        fonte: premissa Raíz (do aceite ao resultado do leilão)
+      depois: parte_credito
+      regra: >-
+        paga-se pouco pela opção até sair o resultado do leilão; ganhou, vira contrato firme de 40 anos na forma
+        parte do crédito; perdeu, o desenvolvedor perde só a opção
+
+# --- 8. Vazamento: área de mitigação vizinha (VMD0054, seção 5.2) -------------------------------------------------
+mitigacao:
+  raio_km: 15
+  lotacao_alvo_cab_ha: 2.19
+  vigor_minimo: 2
+  lotacao_quando_falta_rebanho:  # cab/ha, quando o motor ainda não estimou o rebanho do imóvel (rebanho_cabecas)
+    por_municipio: {1507300: 1.00}
+    por_uf: {PA: 0.99}
+    fonte: >-
+      Censo Agro 2017, tabela 6910 (efetivo de bovinos) sobre o pasto da tabela 6881: Pará 0,99 cab/ha, São Félix do
+      Xingu 1,00 (rodada 11). Toda fazenda do município fica com a lotação média; a coluna rebanho_fonte avisa.
+  fonte: >-
+    raio igual ao do lote (uma equipe atende); lotação alvo = maior lotação da fazenda modal do Campo Futuro 2022 na
+    Amazônia (2,19 UA/ha em Santana do Araguaia, PA, integração lavoura-pecuária:
+    https://cnabrasil.org.br/storage/arquivos/Ebook-Campo-Futuro-2022-Pecuaria-de-Corte.pdf), tratada como
+    cabeças por ha; vigor do pasto médio ou alto (MapBiomas Pastagem). Premissa a calibrar: a vizinha precisa assinar
+    acordo de 5 anos ou mais e ter laudo de técnico independente (VMD0054).
+
+# --- 9. Lote ------------------------------------------------------------------------------------------------------
+lote:
+  ordem: custo_liquido_por_credito
+  chance_alvo_reserva:
+    valor: 0.9
+    fonte: P90 dos leilões de energia e dos bancos (Portaria MME 102/2016; régua do BNDES)
+  ha_referencia_por_milhao:
+    plantio_total: 4400
+    regeneracao_assistida: 5900
+    fonte: fundador, 12/11/2026 (hectares por milhão de créditos líquidos no prazo do contrato)
+
+# --- 10. Cenários -------------------------------------------------------------------------------------------------
+cenarios:
+  central:
+    nome: Central
+    nivel: central
+  estresse:
+    nome: Estresse
+    nivel: estresse
+  otimista:
+    nome: Otimista
+    nivel: otimista
+  so_contrato_25:
+    nome: Só o contrato de 25 anos, sem venda depois
+    nivel: central
+    venda_apos_contrato: false
+padrao: central
+
+monte_carlo:
+  sorteios: 400
+  semente: 2026
+
+# Teste automático (testes/test_desenvolvedor.py): TIR real do acionista, premissas centrais, US$ 55.
+teste:
+  plantio_total_tir_acionista_pct: [7, 9]
+  regeneracao_assistida_tir_acionista_pct: [13, 17]
+  fonte: fundador, 12/11/2026

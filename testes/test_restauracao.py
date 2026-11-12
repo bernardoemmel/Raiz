@@ -1,6 +1,7 @@
-"""Valor para quem restaura: modo pela regra escrita, custo e captura em faixa, linha de base dinâmica (mostrada, não
-escondida), crédito líquido, fluxo de caixa do ProFloresta+, lotes de fazendas vizinhas sem descartar pequenas,
-versão das premissas e as entradas geográficas num raster sintético."""
+"""Valor para quem restaura: modo pela regra escrita, os dois métodos disputando cada fazenda com as premissas da
+rodada 11, custo e captura em faixa, linha de base medida ao lado da do cenário (mostrada, não escondida), crédito
+líquido, simulador, lotes de fazendas vizinhas sem descartar pequenas, versão das premissas e as entradas geográficas
+num raster sintético."""
 
 import shutil
 from pathlib import Path
@@ -11,6 +12,7 @@ import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
+from raiz import desenvolvedor as D
 from raiz import restauracao as R
 from testes.conftest import AMOSTRA
 
@@ -53,27 +55,20 @@ PERTO = {"pasto_d0_ha": 85.0, "pasto_d1_ha": 15.0, "pasto_d3_ha": 0.0, "mb_pasto
          "fogo_anos_media": 0.1}  # fmt: skip
 
 
-def test_fluxo_padrao_reproduz_tir_de_30_com_financiamento():
-    """Caso do fundador: R$ 14 mil/ha, 12,8 t/ha/ano e US$ 55 no ProFloresta+ dão TIR ~30% com financiamento."""
+def test_cenario_vem_das_premissas_da_rodada_11():
+    """Custo, captura, descontos, receita, dívida e dono saem de motor/premissas/restauracao_v2026_11.yaml."""
     c = R.cenario()
-    assert (c["cenario"], c["preco_usd_t"], c["prazo_anos"]) == ("profloresta_55", 55, 25)
-    assert c["entregas_anos"] == [7, 12, 17, 22, 25]
-    assert (c["fracao_financiada"], c["juros_ano"], c["carencia_anos"], c["amortizacao_anos"]) == (0.8, 0.023, 5, 20)
-    f = R.fluxo_caixa(14000, 12.8, c)
-    assert f["tir_alavancada"] == pytest.approx(0.30, abs=0.02)
-    assert f["tir_projeto"] < f["tir_alavancada"]  # o crédito barato é o que dobra a TIR
-    assert f["vpl_rs_ha"] > 0 and c["taxa_desconto"] == 0.12
-    assert 2800 < f["pico_capital_proprio_rs_ha"] < 14000  # entra com 20% e os juros da carência até a 1ª entrega
-    p = f["projeto_rs_ha"]
-    assert p[0] == -14000 and all(p[t] > 0 for t in (7, 12, 17, 22, 25)) and p[6] < 0
-    # financiamento: entra 80% no ano 0 e é pago até o ano 25 (juros na carência, SAC depois)
-    alav = np.array(f["com_financiamento_rs_ha"])
-    assert alav[0] == pytest.approx(-2800)
-    assert sum(alav) < sum(p) - 0.8 * 14000 * 0  # paga juros: sobra menos que sem dívida
-    # preço mais alto, TIR maior; sem financiamento, só a do projeto
-    assert R.fluxo_caixa(14000, 12.8, R.cenario("profloresta_74"))["tir_alavancada"] > f["tir_alavancada"]
-    sem = R.fluxo_caixa(14000, 12.8, R.cenario(fracao_financiada=0.0))
-    assert sem["tir_alavancada"] == pytest.approx(sem["tir_projeto"], abs=1e-6)
+    assert c == D.cenario() and c["cenario"] == "central"
+    assert (c["preco_contrato_usd_t"], c["fracao_financiada"], c["juros_ano"]) == (55, 0.5, 0.0494)
+    assert c["carencia_anos"] == 8
+    r = R.regra()
+    assert r["premissas"]["versao"] == "premissas-2026-11" and r["versao_completa"].startswith("restauracao-2026b+")
+    assert "custo_rs_ha" not in r and "captura_tco2_ha_ano" not in r  # não há duas fontes para o mesmo número
+    longe = R.por_imovel(_linha())
+    assert longe["tir_desenvolvedor"] == longe["metodo_plantio_tir_pct"] == pytest.approx(6.0, abs=0.2)
+    assert longe["tir_alavancada_pct_p10"] <= longe["tir_desenvolvedor"] <= longe["tir_alavancada_pct_p90"]
+    assert longe["icsd_minimo"] >= 1.3 - 1e-6 and 0 < longe["fracao_divida"] <= 0.5
+    assert longe["fator_liquido"] == pytest.approx(0.5702, abs=1e-4) and longe["vazamento_motivo"] == "cenario"
 
 
 def test_fazenda_perto_de_mata_e_regeneracao_assistida_barata_com_linha_de_base_alta():
@@ -81,10 +76,13 @@ def test_fazenda_perto_de_mata_e_regeneracao_assistida_barata_com_linha_de_base_
     longe = R.por_imovel(_linha())
     assert perto["modo_restauracao"] == "regeneracao_assistida"
     assert perto["restauracao_regeneracao_assistida_ha"] == pytest.approx(100)
-    assert perto["custo_restauracao_ha_p50"] <= 5000 and perto["custo_restauracao_ha_p90"] <= 5000
-    # onde a mata volta sozinha o desconto da linha de base é alto e aparece na coluna, não some
-    assert perto["desconto_linha_base_pct"] >= 20
+    assert perto["custo_restauracao_ha_p50"] == pytest.approx(4230 + 800) and perto["custo_restauracao_ha_p90"] <= 6100
+    # onde a mata volta sozinha a linha de base medida é alta e aparece ao lado da do cenário, não some
+    assert perto["desconto_linha_base_pct"] >= 10
     assert perto["desconto_linha_base_pct"] > 10 * longe["desconto_linha_base_pct"]
+    assert perto["linha_base_cenario_pct"] == 20 and not perto["linha_base_medida_acima"]
+    muito = R.por_imovel(_linha(**PERTO, linha_base_taxa_d0=0.06, linha_base_taxa_d1=0.04))
+    assert muito["desconto_linha_base_pct"] > 20 and muito["linha_base_medida_acima"]
     assert perto["linha_base_regenera_pct"] > 30
     assert perto["credito_liquido_tco2_ha_ano"] < perto["captura_tco2_ha_ano_p50"] * 0.88 * 0.9
     assert perto["linha_base_fonte"] == "ybyra_2024_municipio"
@@ -96,7 +94,8 @@ def test_fazenda_longe_de_mata_e_plantio_total():
     assert longe["restauracao_plantio_total_ha"] == pytest.approx(100)
     assert longe["custo_restauracao_ha_p10"] >= 14000
     assert longe["desconto_linha_base_pct"] < 2
-    assert longe["captura_tco2_ha_ano_p50"] == pytest.approx(13.0)  # Amazônia, chuva e solo na referência
+    assert longe["captura_tco2_ha_ano_p50"] == pytest.approx(588.8 / 40, abs=0.01)  # média dos 40 anos da URTX
+    assert longe["teto_bioma_tco2_ha"] == 588.8 and longe["teto_bioma_publicado"]
 
 
 def test_regra_por_pontos_usa_os_cinco_fatores():
@@ -111,10 +110,15 @@ def test_regra_por_pontos_usa_os_cinco_fatores():
     ingreme = R.modos(_linha(pasto_d2_ha=100.0, pasto_d3_ha=0.0, fogo_anos_media=0.5, declividade_media_pct=35))
     assert ingreme["pontos_imovel"] == plano["pontos_imovel"] + 1
     assert R.fator_custo(_linha(declividade_media_pct=35))[0] > R.fator_custo(_linha())[0]
-    # área dividida por faixa: parte perto vira regeneração, parte longe vira plantio
+    # área dividida por faixa: parte perto vira regeneração, o resto é plantio (a semeadura não tem custo oficial e
+    # conta como plantio); os dois métodos disputam a fazenda pelo custo líquido por crédito
     misto = R.por_imovel(_linha(pasto_d0_ha=40.0, pasto_d3_ha=60.0, mb_pasto_idade_anos_media=8, fogo_anos_media=0.1))
+    assert misto["modo_pela_regra"] in ("semeadura_direta", "plantio_total")
+    assert misto["modo_restauracao"] == "regeneracao_assistida"  # 40 ha de regeneração baixam o custo por crédito
     assert misto["restauracao_regeneracao_assistida_ha"] == pytest.approx(40)
-    assert misto["modo_restauracao"] in ("semeadura_direta", "plantio_total")
+    assert misto["restauracao_plantio_total_ha"] == pytest.approx(60) and misto["restauracao_semeadura_direta_ha"] == 0
+    assert misto["metodo_regeneracao_custo_credito"] < misto["metodo_plantio_custo_credito"]
+    assert misto["custo_liquido_por_credito"] == misto["metodo_regeneracao_custo_credito"]
 
 
 def test_ajustes_de_acesso_degradacao_chuva_e_solo():
@@ -126,8 +130,15 @@ def test_ajustes_de_acesso_degradacao_chuva_e_solo():
     )
     seco = R.por_imovel(_linha(chuva_mm_ano=1300))
     fertil = R.por_imovel(_linha(solo_cec_cmolc_kg=25))
-    assert seco["captura_tco2_ha_ano_p50"] < base["captura_tco2_ha_ano_p50"] < fertil["captura_tco2_ha_ano_p50"]
+    assert seco["captura_tco2_ha_ano_p50"] < base["captura_tco2_ha_ano_p50"]
+    # o plantio na Amazônia já está no teto do bioma (588,8 t em 40 anos): solo fértil não passa dele
+    assert fertil["captura_tco2_ha_ano_p50"] == base["captura_tco2_ha_ano_p50"]
     assert fertil["captura_fator_ajuste"] <= 1.10 + 1e-9  # solo mexe pouco (teto de 10%)
+    regen = R.por_imovel(_linha(**PERTO))
+    regen_fertil = R.por_imovel(_linha(**PERTO, solo_cec_cmolc_kg=25))
+    assert regen_fertil["captura_tco2_ha_ano_p50"] > regen["captura_tco2_ha_ano_p50"]
+    cerrado = R.por_imovel(_linha(bioma="Cerrado", chuva_mm_ano=1500))
+    assert cerrado["captura_tco2_ha_ano_p50"] == pytest.approx(99.8 / 40, abs=0.01)  # teto do Cerrado
 
 
 def test_sem_entrada_geografica_usa_premissa_neutra_e_diz_o_que_faltou():
@@ -183,23 +194,29 @@ def test_lote_junta_pequenas_e_nao_descarta_nenhuma():
     assert not R.elegivel(_linha(alem_RL_ha=0))
 
 
-def test_contrato_de_um_milhao_pede_3_5_a_4_5_mil_ha_no_plantio():
-    c = R.por_imovel(_linha())
-    ha = 1e6 / (c["credito_liquido_tco2_ha_ano"] * 25)
-    assert 3500 <= ha <= 4500
+def test_contrato_de_um_milhao_pede_4_4_mil_ha_no_plantio_e_5_9_mil_na_regeneracao():
+    longe, perto = R.por_imovel(_linha()), R.por_imovel(_linha(**PERTO))
+    assert longe["ha_por_milhao_volume"] == pytest.approx(4400, rel=0.05)
+    assert perto["ha_por_milhao_volume"] == pytest.approx(5900, rel=0.05)
+    # os marcos intermediários pedem mais área que o volume do ano 25
+    assert longe["ha_por_milhao_marcos"] > longe["ha_por_milhao_volume"]
 
 
 def test_simulador_e_parametros_da_url():
     li = {**_linha(**PERTO), **R.por_imovel(_linha(**PERTO))}
-    nome, muda = R.parametros_da_consulta({"preco_usd_t": "74", "entregas_anos": "7,12,17,22,25", "juros_ano": "0,05"})
-    assert nome is None and muda == {"preco_usd_t": 74.0, "entregas_anos": [7, 12, 17, 22, 25], "juros_ano": 0.05}
-    s74 = R.simular(li, preco_usd_t=74)
+    nome, muda = R.parametros_da_consulta({"preco_usd_t": "74", "juros_ano": "0,05", "forma_dono": "duas_fases"})
+    assert nome is None and muda == {"preco_contrato_usd_t": 74.0, "juros_ano": 0.05, "forma_dono": "duas_fases"}
+    assert R.parametros_da_consulta({"cenario": "estresse"}) == ("estresse", {})
+    s74 = R.simular(li, preco_contrato_usd_t=74)
     s55 = R.simular(li)
-    assert s74["vpl_rs_ha"]["p50"] > s55["vpl_rs_ha"]["p50"] and s74["cenario"]["preco_usd_t"] == 74
-    assert len(s55["fluxo_p50"]["anos"]) == 26 and s55["aviso"]
-    assert R.simular(li, arrendamento_rs_ha_ano=300)["vpl_rs_ha"]["p50"] < s55["vpl_rs_ha"]["p50"]
-    for ruim in ({"preco_usd_t": "-1"}, {"fracao_financiada": "2"}, {"xyz": "1"}, {"entregas_anos": "a,b"},
-                 {"cenario": "inexistente"}, {"sistema_amortizacao": "outro"}):  # fmt: skip
+    assert s74["vpl_rs_ha"]["p50"] > s55["vpl_rs_ha"]["p50"] and s74["cenario"]["preco_contrato_usd_t"] == 74
+    assert len(s55["fluxo_p50"]["anos"]) == 41 and s55["aviso"]
+    _, alu = R.parametros_da_consulta({"arrendamento_rs_ha_ano": "532"})  # nome antigo vira aluguel fixo ao dono
+    assert alu == {"forma_dono": "aluguel_fixo", "aluguel_rs_ha_ano": 532.0}
+    assert R.simular(li, **alu)["tir_alavancada_pct"]["p50"] < s55["tir_alavancada_pct"]["p50"]
+    assert R.simular(li, "so_contrato_25")["tir_alavancada_pct"]["p50"] < s55["tir_alavancada_pct"]["p50"]
+    for ruim in ({"preco_usd_t": "-1"}, {"fracao_financiada": "2"}, {"xyz": "1"}, {"entregas_anos": "7,12"},
+                 {"cenario": "inexistente"}, {"forma_dono": "outra"}, {"metodo": "semeadura_direta"}):  # fmt: skip
         with pytest.raises(ValueError):
             R.parametros_da_consulta(dict(ruim))
 
@@ -210,11 +227,15 @@ def test_ficha_separa_faixas_e_avisa():
     assert b["disponivel"] and "Estimativa" in b["aviso"]
     assert b["modo"]["id"] == "regeneracao_assistida" and b["modo"]["nome"] == "Regeneração assistida"
     for k in ("custo_rs_ha", "captura_tco2_ha_ano", "credito_liquido_tco2_ha_ano", "vpl_rs_ha", "tir_alavancada_pct",
-              "tir_projeto_pct"):  # fmt: skip
+              "tir_projeto_pct", "custo_liquido_por_credito"):  # fmt: skip
         assert b[k]["p10"] <= b[k]["p50"] <= b[k]["p90"], k
-    assert "viraria mata sozinho" in b["linha_base"]["explicacao"]
-    assert "pendente" in b["do_bruto_ao_liquido"]["vazamento_situacao"]
-    assert b["premissas"]["custo"]["plantio_total"].startswith("fundador")
+    assert "viraria mata sozinho" in b["linha_base"]["explicacao"] and b["linha_base"]["cenario_pct"] == 20
+    assert b["do_bruto_ao_liquido"]["ordem"] == ["linha_base", "vazamento", "reserva_risco", "incerteza"]
+    assert "nenhuma vizinha" in b["do_bruto_ao_liquido"]["vazamento_situacao"]
+    assert set(b["dono"]["tir_por_forma_pct"]) == {"parte_credito", "aluguel_fixo", "duas_fases"}
+    assert b["metodos"]["regeneracao_assistida"]["tir_pct"] > b["metodos"]["plantio_total"]["tir_pct"]
+    assert "SFB" in b["premissas"]["custo_plantio"] or "Bom Futuro" in b["premissas"]["custo_plantio"]
+    assert b["premissas"]["versao"] == D.premissas()["versao_completa"]
     assert not R.bloco_ficha({"cod_imovel": "X"})["disponivel"]
 
 
@@ -237,26 +258,24 @@ def test_ordenar_e_filtrar_painel():
 
 def test_versao_muda_com_as_premissas(tmp_path):
     a = tmp_path / "restauracao.yaml"
-    c = tmp_path / "cenarios.yaml"
+    pr = tmp_path / "premissas.yaml"
     shutil.copy(R.ARQ_REGRA, a)
-    shutil.copy(R.ARQ_CENARIOS, c)
-    v1 = R.regra(a, c, tmp_path / "nao_existe.yaml")["versao_completa"]
-    assert v1.startswith("restauracao-2026a+cenarios-2026a+")
-    c.write_text(c.read_text().replace("valor: 5.40", "valor: 5.10"))
-    assert R.regra(a, c, tmp_path / "nao_existe.yaml")["versao_completa"] != v1
+    shutil.copy(R.ARQ_PREMISSAS, pr)
+    v1 = R.regra(a, tmp_path / "nao_existe.yaml", pr)["versao_completa"]
+    assert v1.startswith("restauracao-2026b+premissas-2026-11+")
+    pr.write_text(pr.read_text(encoding="utf-8").replace("valor: 5.40", "valor: 5.10"), encoding="utf-8")
+    assert R.regra(a, tmp_path / "nao_existe.yaml", pr)["versao_completa"] != v1
 
 
 def test_cada_premissa_tem_fonte():
     r = R.regra()
-    for md in r["modos"]:
-        assert r["custo_rs_ha"][md]["fonte"] and r["captura_tco2_ha_ano"][md]["fonte"]
-    for k in ("regra_modo", "linha_base", "liquido", "agrupamento"):
+    for k in ("regra_modo", "linha_base", "agrupamento"):
         assert r[k]["fonte"]
     for k in ("acesso", "declividade", "degradacao"):
         assert r["ajustes_custo"][k]["fonte"]
     for k in ("chuva", "solo"):
         assert r["ajustes_captura"][k]["fonte"]
-    for nome in r["cenarios"]["cenarios"]:
+    for nome in r["premissas"]["cenarios"]:
         f = R.fontes_cenario(nome)
         assert set(R.CENARIO_EDITAVEL) <= set(f), set(R.CENARIO_EDITAVEL) - set(f)
 
@@ -269,8 +288,16 @@ def test_municipio_da_amostra_sem_geo(tmp_path):
     t = R.calcular_municipio(pasta, 1504950, fontes_geo=())
     im = pd.read_csv(pasta / "imoveis_1504950.csv")
     assert len(t) == len(im) and set(t.cod_imovel) == set(im.cod_imovel.astype(str))  # ninguém sai
-    assert set(t.modo_restauracao) <= set(R.regra()["modos"])
+    assert set(t.modo_restauracao.dropna()) <= set(D.METODOS)
     assert (t.restauracao_versao == R.versao()).all()
+    calc = t[t.restauracao_area_ha > 0]
+    assert len(calc) and calc.custo_liquido_por_credito.notna().all() and calc.tir_desenvolvedor.notna().all()
+    assert (calc.restauracao_area_ha < 5).any()  # sítio pequeno também tem conta
+    # sem o ponto de cada imóvel não dá para procurar a vizinha: o vazamento fica no do cenário e diz por quê
+    # ("cenario" é de quem não entra no lote, por embargo ou outro bloqueio)
+    assert set(calc.vazamento_motivo) <= {"sem_ponto", "sem_gado", "sem_rebanho", "cenario"}
+    assert (calc[calc.elegivel_lote].vazamento_motivo != "cenario").all()
+    assert not t.astype(str).apply(lambda s: s.str.contains(r"\d{3}\.\d{3}\.\d{3}-\d{2}")).any().any()
     # cada coluna gravada está documentada em docs/colunas.md
     doc = (RAIZ / "docs" / "colunas.md").read_text(encoding="utf-8")
 

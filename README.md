@@ -46,6 +46,9 @@ Os dados completos não ficam no repositório (são grandes); o motor gera de no
 | `raiz/modelos/` | Claude (Sonnet 5.5, Haiku 5.5) e Qwen3-4B no llama.cpp atrás de uma interface; cascata ABC; custo e Langfuse |
 | `raiz/agentes/`, `raiz/whatsapp.py`, `raiz/api.py` | aceite do dono no WhatsApp (PyWa 4, BSUID), LangGraph com conversa cifrada, mensagens só com aprovação |
 | `raiz/operacao/` | Healthchecks por lote, custo por tarefa, fazenda e município |
+| `raiz/restauracao.py`, `raiz/desenvolvedor.py` | valor de cada fazenda para quem restaura: plantio e regeneração disputam a fazenda pelo custo líquido por crédito, com TIR real do acionista, pico de caixa, dívida pelo ICSD e as três formas de pagar o dono; premissas versionadas, cada número com fonte, em `motor/premissas/restauracao_v2026_11.yaml` |
+| `raiz/vazamento.py` | vazamento (VMD0054): procura a vizinha que intensifica o pasto e recebe o gado; achou, o vazamento vai a zero e a vizinha entra no lote |
+| `raiz/desenvolvedor_lote.py`, `raiz/desenvolvedor_relatorio.py` | lote do ProFloresta+ por estado (titulares, reservas, mitigação, em espera), chance de cumprir os marcos do Anexo IV com multa e rescisão, checklist do edital, relatório com faixa P10 a P90 e folha de 3 páginas para o dono |
 | `migracoes/` | esquemas `coleta`, `bruto`, `funil`, `regras`, `titulo`, `negocio`, `aprendizado`, `pessoal`, `operacao` |
 
 **Pedidos do dia 1 (`docs/pedidos/`)**: convênio com o ONR e pedidos de LAI ao SFB e ao INCRA, prontos para enviar.
@@ -60,6 +63,9 @@ uv run raiz carregar dados/amostra --data-corte 2026-11-12   # carrega e congela
 uv run raiz aprendizado placar
 uv run raiz coleta fontes                              # o que olhar hoje e o que está pendente no manifesto
 uv run raiz api                                        # aceites, mensagens a aprovar, revisões, webhook do WhatsApp
+uv run raiz restauracao recalcular --saida saida       # valor para quem restaura, por município
+uv run raiz desenvolvedor cenarios                     # central, estresse, otimista e só contrato de 25 anos
+uv run raiz desenvolvedor lote PA --saida saida        # lote, checklist, relatório e folhas do dono
 uv run pytest                                          # com RAIZ_BANCO_URL_TESTE no .env, testa também o banco
 ```
 
