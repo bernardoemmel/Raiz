@@ -945,6 +945,28 @@ def ficha_gerar(
             typer.echo(f"{uf} {cod}: {r}")
 
 
+@ficha_cli.command("lote")
+def ficha_lote(
+    uf: Annotated[str | None, typer.Option(help="só esta UF")] = None,
+    municipios: Annotated[str | None, typer.Option(help="só estes códigos IBGE, separados por vírgula")] = None,
+    destino: Annotated[str | None, typer.Option(help="pasta; padrão: RAIZ_FICHAS_DIR ou dados/fichas")] = None,
+    refazer: Annotated[bool, typer.Option(help="regravar mesmo o município cuja rodada não mudou")] = False,
+) -> None:
+    """Grava a ficha JSON de cada fazenda do banco, o rows.json do cartão e do vídeo e o índice (E9, passo 1)."""
+    from pathlib import Path
+
+    from raiz import fichas_lote
+    from raiz.banco import engine
+
+    cods = [int(x) for x in municipios.split(",")] if municipios else None
+    r = fichas_lote.gravar(
+        engine(), Path(destino) if destino else None, uf, cods, refazer, aviso=lambda t: typer.echo(f"  {t}")
+    )
+    typer.echo(
+        f"{r['gravados']} município(s) gravado(s), {r['fichas']} fichas; {r['iguais']} sem mudança; em {r['destino']}"
+    )
+
+
 mapa_cli = typer.Typer(help="Mapa base do Brasil (recorte do Protomaps, fontes e sprites).", no_args_is_help=True)
 app.add_typer(mapa_cli, name="mapa")
 
@@ -1214,9 +1236,10 @@ def legibilidade_medir(
     from pathlib import Path
 
     from raiz.legibilidade import medir, resumo
+    from raiz.revisor import nota_de_envio
 
     texto = Path(arquivo).read_text(encoding="utf-8") if arquivo else sys.stdin.read()
-    m = medir(texto, preparar_texto=not cru)
+    m = medir(texto, preparar_texto=False) if cru else nota_de_envio(texto)
     if como_json:
         typer.echo(json.dumps(m, ensure_ascii=False, indent=2))
         return
@@ -1227,9 +1250,17 @@ def legibilidade_medir(
             f"(nível {m['nivel_languagetool']} de 6)"
         )
         typer.echo(
-            f"  {m['palavras']} palavras, {m['frases']} frases, {m['silabas']} sílabas, {m['complexas']} complexas "
+            f"  {m['palavras']} palavras, {m['frases']} frase(s), {m['silabas']} sílabas, {m['complexas']} complexas "
             f"({m['complexas_criterio']}); medidor {m['versao']}"
         )
+    lt = m.get("languagetool")
+    if lt and lt.get("erro"):
+        typer.echo(f"  revisor: {lt['erro']}")
+    elif lt:
+        typer.echo(f"  revisor (LanguageTool {lt['versao']}): {lt['total']} aviso(s) de estilo")
+        for a in lt["avisos"]:
+            sug = f" → {', '.join(a['sugestoes'])}" if a["sugestoes"] else ""
+            typer.echo(f"    «{a['trecho']}»: {a['mensagem']}{sug}")
 
 
 @legibilidade_cli.command("modelos")

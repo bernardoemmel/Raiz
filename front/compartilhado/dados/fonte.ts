@@ -52,6 +52,11 @@ export interface FonteDeDados {
     /** o Brasil: contorno de todos os municípios, dos 27 estados e o mapa base único (do país ao município) */
     brasil(): Promise<{ municipios: Geo | null; estados: Geo | null; base: string | null }>
   }
+  /**
+   * URL pronta para <img> de um arquivo da fonte (a capa da ficha). Com token, baixa com o cabeçalho e devolve um
+   * endereço blob:; sem token, devolve o endereço direto (o navegador guarda em cache). null quando não há.
+   */
+  imagem(caminho: string): Promise<string | null>
 }
 
 /** Guarda a promessa de cada chave: a mesma leitura não é feita duas vezes. */

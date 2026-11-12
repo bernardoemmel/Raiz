@@ -52,5 +52,13 @@ def motor_commit() -> str | None:
 
 
 def regras_versao() -> str:
-    """Enquanto a tabela de parâmetros legais (E2 passo 1) não existe, as regras moram no código do motor."""
-    return f"regras-no-motor-{motor_hash()[:12]}"
+    """Versão nomeada das regras (E2 passo 7): 'regras-2026b+<hash dos parâmetros>' (raiz/regras/parametros/), que
+    leva às duas datas de cada valor (vigência legal e quando a Raíz passou a usar) em regras.parametro. O motor usa os
+    mesmos valores (testes/test_regras_parametros.py confere RL, escadinha e teto do 61-B contra o motor); a versão do
+    código do motor vai à parte, em motor_versao. Sem a tabela, cai na versão antiga (as regras no código do motor)."""
+    try:
+        from raiz.regras import parametros
+
+        return parametros().versao
+    except Exception:  # noqa: BLE001
+        return f"regras-no-motor-{motor_hash()[:12]}"

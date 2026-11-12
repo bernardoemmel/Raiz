@@ -106,3 +106,10 @@ def test_publicar_no_banco(banco_url):
             == 10
         )
     eng.dispose()
+
+
+def test_versao_nomeada_vai_em_cada_previsao():
+    """A rodada e as previsões gravam a versão nomeada (vigência e adoção em regras.parametro), não o hash do motor."""
+    from raiz.versoes import regras_versao
+
+    assert regras_versao() == P.versao and regras_versao().startswith("regras-2026b+")
