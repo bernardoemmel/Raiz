@@ -16,7 +16,7 @@ pytest.importorskip("croissant_baker")
 
 def _entrada(pacote):
     return {
-        "url": f"https://example.org/{pacote.name}?v={hashlib.sha256(pacote.read_bytes()).hexdigest()}",
+        "url": f"release-github://exemplo/raiz/dados-privados/{pacote.name}",
         "sha256": hashlib.sha256(pacote.read_bytes()).hexdigest(),
         "tamanho": pacote.stat().st_size,
         "versao": "1.0.0",
@@ -45,7 +45,7 @@ def test_croissant_le_tar_com_esquemas_diferentes_sem_rede(tmp_path, monkeypatch
         pytest.fail("a ficha não deve baixar dados para validar")
 
     monkeypatch.setattr(requests.sessions.Session, "request", sem_rede)
-    ficha = croissant_uf(pasta, "pa", _entrada(pacote))
+    ficha = croissant_uf(pasta, "pa", _entrada(pacote), escopo="privado")
     assert ficha["@type"] == "sc:Dataset"
     assert ficha["conformsTo"] == CONFORMIDADE
     assert "@base" not in ficha["@context"]  # o validador não modifica a ficha
@@ -75,21 +75,35 @@ def test_croissant_le_tar_com_esquemas_diferentes_sem_rede(tmp_path, monkeypatch
 def test_ficha_recusa_coluna_pessoal_antes_de_chamar_baker(tmp_path, monkeypatch):
     (tmp_path / "imoveis_1504950.csv").write_text("cod_imovel,nome_proprietario\nCAR-A,NAO_PUBLICAR\n")
     with pytest.raises(ValueError, match="coluna pessoal proibida"):
-        croissant_uf(tmp_path, "PA", {"url": "https://example.org/a", "sha256": "a" * 64})
+        croissant_uf(
+            tmp_path,
+            "PA",
+            {"url": "release-github://exemplo/raiz/dados-privados/a", "sha256": "a" * 64},
+            escopo="privado",
+        )
 
 
 def test_ficha_recusa_csv_corrompido_sem_copiar_valores(tmp_path):
     (tmp_path / "imoveis_1504950.csv").write_text("cod_imovel,ha\nCAR-A,3\n")
     (tmp_path / "filtros_1504950.csv").write_text("cod_imovel,ha\nCAR-A,3,NAO_PUBLICAR\n")
     with pytest.raises(ValueError, match="baker não descreveu") as erro:
-        croissant_uf(tmp_path, "PA", {"url": "https://example.org/a", "sha256": "a" * 64})
+        croissant_uf(
+            tmp_path,
+            "PA",
+            {"url": "release-github://exemplo/raiz/dados-privados/a", "sha256": "a" * 64},
+            escopo="privado",
+        )
     assert "NAO_PUBLICAR" not in str(erro.value)
 
 
 def test_ficha_arquivo_e_catalogo_sem_fingir_hash_ou_licenca():
     with pytest.raises(ValueError, match="SHA-256"):
-        ficha_arquivo("raiz_PA.tar.gz", "https://example.org/a", "versao-curta")
-    arquivo = ficha_arquivo("URTX.kml", "https://example.org/URTX.kml", "b" * 64, 100)
+        ficha_arquivo(
+            "raiz_PA.tar.gz", "release-github://exemplo/raiz/dados-privados/a", "versao-curta", escopo="privado"
+        )
+    arquivo = ficha_arquivo(
+        "URTX.kml", "release-github://exemplo/raiz/dados-privados/URTX.kml", "b" * 64, 100, escopo="privado"
+    )
     validar(arquivo)
     assert arquivo["recordSet"] == []
     assert "license" not in arquivo
@@ -97,14 +111,17 @@ def test_ficha_arquivo_e_catalogo_sem_fingir_hash_ou_licenca():
         "gerado_em": "2026-11-12T20:00:00Z",
         "estados": {
             "PA": {
-                "croissant": {"url": "https://example.org/croissant_PA.json", "sha256": "c" * 64},
-                "fichas": {"raiz_geo_PA.tar.gz": "https://example.org/croissant_geo_PA.json"},
+                "croissant": {
+                    "url": "release-github://exemplo/raiz/dados-privados/croissant_PA.json",
+                    "sha256": "c" * 64,
+                },
+                "fichas": {"raiz_geo_PA.tar.gz": "release-github://exemplo/raiz/dados-privados/croissant_geo_PA.json"},
             },
             "AM": {"versao": "antigo-sem-ficha"},
         },
-        "fichas": {"URTX.kml": "https://example.org/croissant_URTX.kml.json"},
+        "fichas": {"URTX.kml": "release-github://exemplo/raiz/dados-privados/croissant_URTX.kml.json"},
     }
-    catalogo = croissant_release(indice, "exemplo/raiz", "dados")
+    catalogo = croissant_release(indice, "exemplo/raiz", "dados-privados", escopo="privado")
     validar(catalogo)
     assert len(catalogo["hasPart"]) == 3
     assert {p["name"] for p in catalogo["hasPart"]} == {"raiz_PA.tar.gz", "raiz_geo_PA.tar.gz", "URTX.kml"}
@@ -114,21 +131,35 @@ def test_ficha_arquivo_e_catalogo_sem_fingir_hash_ou_licenca():
 
 def test_ficha_deterministica_sem_horario_da_geracao(tmp_path):
     (tmp_path / "imoveis_1504950.csv").write_text("cod_imovel,ha\nCAR-A,3\n")
-    entrada = {"url": "https://example.org/raiz_PA.tar.gz", "sha256": "a" * 64, "versao": "1.0.0"}
-    assert croissant_uf(tmp_path, "PA", entrada) == croissant_uf(tmp_path, "PA", entrada)
+    entrada = {
+        "url": "release-github://exemplo/raiz/dados-privados/raiz_PA.tar.gz",
+        "sha256": "a" * 64,
+        "versao": "1.0.0",
+    }
+    assert croissant_uf(tmp_path, "PA", entrada, escopo="privado") == croissant_uf(
+        tmp_path, "PA", entrada, escopo="privado"
+    )
 
 
 def test_inferencia_le_tambem_os_blocos_posteriores(tmp_path):
     # Arrow infere pelo primeiro MiB. Um decimal posterior não pode ficar
     # descrito como inteiro, senão o consumidor trunca a área do imóvel.
     (tmp_path / "imoveis_1504950.csv").write_text("cod_imovel,ha\n" + "CAR-A,3\n" * 160_000 + "CAR-B,2.5\n")
-    ficha = croissant_uf(tmp_path, "PA", {"url": "https://example.org/a", "sha256": "a" * 64})
+    ficha = croissant_uf(
+        tmp_path, "PA", {"url": "release-github://exemplo/raiz/dados-privados/a", "sha256": "a" * 64}, escopo="privado"
+    )
     campos = {c["name"]: c for c in ficha["recordSet"][0]["field"]}
     assert campos["ha"]["dataType"] == "cr:Float64"
 
 
 def _ficha_plana():
-    ficha = ficha_arquivo("dados.tar.gz", "https://example.org/dados.tar.gz", "a" * 64, formato="application/x-tar")
+    ficha = ficha_arquivo(
+        "dados.tar.gz",
+        "release-github://exemplo/raiz/dados-privados/dados.tar.gz",
+        "a" * 64,
+        formato="application/x-tar",
+        escopo="privado",
+    )
     ficha["distribution"].extend(
         {
             "@id": nome,
@@ -244,7 +275,7 @@ def test_expansao_jsonld_nao_suportada_em_ficha_grande_e_recusada(monkeypatch, c
 
 def test_contexto_remoto_nunca_e_baixado(monkeypatch):
     ficha = _ficha_plana()
-    ficha["@context"] = "https://example.org/NAO_PUBLICAR"
+    ficha["@context"] = "release-github://exemplo/raiz/dados-privados/NAO_PUBLICAR"
     monkeypatch.setattr(mlc, "Dataset", lambda *a, **kw: pytest.fail("contexto remoto não pode acessar rede"))
     with pytest.raises(ValueError, match="contexto remoto") as erro:
         validar(ficha)
@@ -282,10 +313,10 @@ def test_baker_em_lotes_preserva_ficha_ids_e_origens(tmp_path, monkeypatch):
 
     for i in range(5):
         (tmp_path / f"imoveis_150495{i}.csv").write_text(f"cod_imovel,ha\nCAR-{i},{i + 1}\n")
-    entrada = {"url": "https://example.org/raiz_PA.tar.gz", "sha256": "a" * 64}
-    inteira = croissant_uf(tmp_path, "PA", entrada)
+    entrada = {"url": "release-github://exemplo/raiz/dados-privados/raiz_PA.tar.gz", "sha256": "a" * 64}
+    inteira = croissant_uf(tmp_path, "PA", entrada, escopo="privado")
     monkeypatch.setattr(metadados, "LIMITE_CAMPOS", 4)
-    em_lotes = croissant_uf(tmp_path, "PA", entrada)
+    em_lotes = croissant_uf(tmp_path, "PA", entrada, escopo="privado")
     assert em_lotes == inteira
     for registro in em_lotes["recordSet"]:
         origem = "arquivos/" + registro["@id"] + ".csv"
@@ -302,7 +333,10 @@ def test_grafias_equivalentes_nao_escondem_definicao_duplicada(monkeypatch):
 
 def test_contexto_remoto_dentro_de_termo_tambem_e_recusado(monkeypatch):
     ficha = _ficha_plana()
-    ficha["@context"]["extra"] = {"@id": "sc:extra", "@context": "https://example.org/contexto.json"}
+    ficha["@context"]["extra"] = {
+        "@id": "sc:extra",
+        "@context": "release-github://exemplo/raiz/dados-privados/contexto.json",
+    }
     ficha["extra"] = {"name": "valor"}
     monkeypatch.setattr(mlc, "Dataset", lambda *a, **kw: pytest.fail("o fallback não pode buscar contexto remoto"))
     with pytest.raises(ValueError, match="contexto remoto"):
@@ -352,8 +386,210 @@ def test_contexto_aninhado_nao_pode_mudar_json_literal_para_buscar_rede(monkeypa
     ficha = _ficha_plana()
     ficha["extra"] = {
         "@context": {"examples": "https://schema.org/examples"},
-        "examples": {"@context": "https://example.org/contexto.json", "name": "valor"},
+        "examples": {"@context": "release-github://exemplo/raiz/dados-privados/contexto.json", "name": "valor"},
     }
     monkeypatch.setattr(mlc, "Dataset", lambda *a, **kw: pytest.fail("contextos dinâmicos não chegam ao leitor"))
     with pytest.raises(ValueError, match="contexto remoto ou aninhado"):
         validar(ficha)
+
+
+def test_ficha_privada_declara_acesso_e_preserva_repositorio_do_codigo():
+    url = "release-github://raiz/arquivo-restrito/dados/raiz_PA.tar.gz"
+    ficha = ficha_arquivo("raiz_PA.tar.gz", url, "a" * 64, escopo="privado")
+    validar(ficha)
+    assert ficha["distribution"][0]["contentUrl"] == url
+    assert ficha["isAccessibleForFree"] is False
+    assert "servidor resolve o asset pela API autenticada" in ficha["conditionsOfAccess"]
+    assert ficha["citation"] == "https://github.com/bernardoemmel/Raiz/blob/main/NOTICE.md"
+    assert "arquivo-restrito" not in ficha["creator"]["url"]
+
+
+@pytest.mark.parametrize(
+    ("escopo", "url"),
+    [
+        ("privado", "https://github.com/bernardoemmel/Raiz/releases/download/dados/raiz_PA.tar.gz"),
+        ("publico_basico", "release-github://bernardoemmel/Raiz/dados-privados/raiz_PA.tar.gz"),
+        ("privado", "release-github://segredo@bernardoemmel/Raiz/dados-privados/a.csv"),
+        ("privado", "release-github://bernardoemmel/Raiz/dados-privados/a.csv?token=NAO_PUBLICAR"),
+        ("publico_basico", "https://github.com/bernardoemmel/Raiz/releases/download/dados/a.csv?token=NAO_PUBLICAR"),
+        ("desconhecido", "https://example.org/a.csv"),
+    ],
+)
+def test_escopo_e_credenciais_nao_sao_inferidos_de_url(escopo, url):
+    with pytest.raises(ValueError) as erro:
+        ficha_arquivo("a.csv", url, "a" * 64, escopo=escopo)
+    assert "NAO_PUBLICAR" not in str(erro.value)
+    assert "segredo@" not in str(erro.value)
+
+
+@pytest.mark.parametrize(
+    "referencia",
+    [
+        "release-github://bernardoemmel/Raiz/dados-privados/croissant_PA.json",
+        "https://github.com/bernardoemmel/Raiz/releases/download/dados-privados/croissant_PA.json",
+        "https://github.com/outro/repo/releases/download/dados/croissant_PA.json",
+        "https://github.com/bernardoemmel/Raiz/releases/download/dados/croissant_PA.json?token=segredo",
+    ],
+)
+def test_catalogo_recusa_referencia_de_outro_destino_ou_escopo(referencia):
+    with pytest.raises(ValueError):
+        croissant_release({"estados": {"PA": {"croissant": referencia}}}, escopo="publico_basico")
+
+
+def test_esquema_financeiro_nao_vira_ficha_publica_por_nao_ter_cpf(tmp_path, monkeypatch):
+    from raiz import metadados
+
+    (tmp_path / "desenvolvedor_1504950.csv").write_text("cod_imovel,tir_projeto_pct_p50\nCAR,12\n")
+    monkeypatch.setattr(metadados, "_executar_lote", lambda *a, **k: pytest.fail("recusar antes de ler valores"))
+    with pytest.raises(ValueError, match="públic"):
+        croissant_uf(
+            tmp_path,
+            "PA",
+            {
+                "url": "https://github.com/bernardoemmel/Raiz/releases/download/dados/raiz_PA.tar.gz",
+                "sha256": "a" * 64,
+            },
+            escopo="publico_basico",
+        )
+
+
+@pytest.fixture
+def ficha_basica(tmp_path):
+    (tmp_path / "imoveis_basicos_1504950.csv").write_text(
+        "cod_imovel,cod_ibge,municipio,uf,situacao_basica\nPA-1504950-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA,1504950,Teste,PA,apto\n"
+    )
+    (tmp_path / "resumo_PA.csv").write_text("cod_ibge,municipio,imoveis,ha_carbono\n1504950,Teste,8,12.5\n")
+    (tmp_path / "sem_imoveis_PA.csv").write_text("cod_ibge,municipio,verificado_em\n1504951,Vazio,2026-11-12\n")
+    return croissant_uf(
+        tmp_path,
+        "PA",
+        {
+            "url": "https://github.com/bernardoemmel/Raiz/releases/download/dados/raiz_PA.tar.gz",
+            "sha256": "a" * 64,
+            "tamanho": 123,
+            "versao": "1234567890abcdef",
+            "atualizado_em": "2026-11-12T00:00:00+00:00",
+        },
+        escopo="publico_basico",
+    )
+
+
+def test_guard_publico_aceita_ficha_completa_e_formatos_permitidos(ficha_basica):
+    from raiz.metadados import validar_ficha_publica
+
+    def aceitar(nome, ficha):
+        validar(ficha)
+        validar_ficha_publica(nome, json.dumps(ficha).encode())
+
+    aceitar("croissant_PA.json", ficha_basica)
+    assert ficha_basica["isAccessibleForFree"] is True
+    assert "AAAA" not in json.dumps(ficha_basica)
+    fichas = {
+        "raiz_PA.tar.gz": {
+            "url": "https://github.com/bernardoemmel/Raiz/releases/download/dados/croissant_PA.json",
+            "sha256": "c" * 64,
+        }
+    }
+    for asset, nome, mime in [
+        ("raiz_geo_PA.tar.gz", "croissant_raiz_geo_PA.tar.gz.json", ["application/x-tar", "application/gzip"]),
+        ("estados.json", "croissant_estados.json", "application/json"),
+        ("cartao_modelo.md", "croissant_cartao_modelo.md.json", "text/markdown"),
+    ]:
+        url = f"https://github.com/bernardoemmel/Raiz/releases/download/dados/{asset}"
+        ficha = ficha_arquivo(asset, url, "b" * 64, formato=mime, escopo="publico_basico")
+        aceitar(nome, ficha)
+        fichas[asset] = {"url": url.rsplit("/", 1)[0] + "/" + nome, "sha256": "d" * 64}
+    aceitar("croissant.json", croissant_release({"fichas": fichas}, escopo="publico_basico"))
+
+
+@pytest.mark.parametrize(
+    "ataque", ["texto", "exemplo", "contexto", "draft", "campo_financeiro", "origem", "duplicado", "bool"]
+)
+def test_guard_publico_recusa_reexposicao_em_metadados(ficha_basica, ataque):
+    from raiz.metadados import validar_ficha_publica
+
+    ficha = copy.deepcopy(ficha_basica)
+    if ataque == "texto":
+        ficha["description"] = "NAO_PUBLICAR_DADOS_PRIVADOS"
+    elif ataque == "exemplo":
+        ficha["recordSet"][0]["field"][0]["examples"] = ["NAO_PUBLICAR"]
+    elif ataque == "contexto":
+        ficha["@context"]["campo"] = "https://example.org/privado"
+    elif ataque == "draft":
+        ficha["distribution"][0]["contentUrl"] = ficha["url"].replace("/dados/", "/dados-privados/")
+    elif ataque == "campo_financeiro":
+        ficha["recordSet"][0]["field"][0]["name"] = "tir_projeto_pct_p50"
+    elif ataque == "origem":
+        ficha["recordSet"][0]["field"][0]["source"]["fileObject"]["@id"] = "arquivos/desenvolvedor_1504950.csv"
+    elif ataque == "duplicado":
+        ficha["recordSet"].append(copy.deepcopy(ficha["recordSet"][0]))
+    else:
+        ficha["distribution"][0]["contentSize"] = True
+    with pytest.raises(ValueError, match="público") as erro:
+        validar_ficha_publica("croissant_PA.json", json.dumps(ficha).encode())
+    assert "NAO_PUBLICAR" not in str(erro.value)
+
+
+def test_guard_publico_nao_infere_destino_nem_libera_assets_pagos():
+    from raiz.metadados import validar_ficha_publica
+
+    for nome in (
+        "quantis_PA.parquet",
+        "tasks_PA.json",
+        "modelos_PA.json",
+        "hub_PA.tar.gz",
+        "cadt_lotes.json",
+        "URTX.kml",
+    ):
+        ficha = ficha_arquivo(
+            nome,
+            f"https://github.com/bernardoemmel/Raiz/releases/download/dados/{nome}",
+            "b" * 64,
+            escopo="publico_basico",
+        )
+        with pytest.raises(ValueError, match="público"):
+            validar_ficha_publica(f"croissant_{nome}.json", json.dumps(ficha).encode())
+    ficha = ficha_arquivo(
+        "estados.json",
+        "https://github.com/outro/repo/releases/download/dados/estados.json",
+        "b" * 64,
+        escopo="publico_basico",
+        formato="application/json",
+    )
+    bruto = json.dumps(ficha).encode()
+    with pytest.raises(ValueError, match="público"):
+        validar_ficha_publica("croissant_estados.json", bruto)
+    validar_ficha_publica("croissant_estados.json", bruto, repo="outro/repo")
+    with pytest.raises(ValueError, match="público"):
+        validar_ficha_publica("croissant_estados.json", bruto[:-1] + b',"recordSet":[]}')
+
+
+def test_tar_basico_sem_csv_exige_fingerprint_do_pacote_vazio():
+    import gzip
+    import io
+
+    from raiz.metadados import TAR_VAZIO_SHA256, validar_ficha_publica
+
+    pacote = io.BytesIO()
+    with (
+        gzip.GzipFile(fileobj=pacote, mode="wb", mtime=0, filename="", compresslevel=6) as gz,
+        tarfile.open(fileobj=gz, mode="w"),
+    ):
+        pass
+    assert len(pacote.getvalue()) == 45
+    assert hashlib.sha256(pacote.getvalue()).hexdigest() == TAR_VAZIO_SHA256
+    ficha = ficha_arquivo(
+        "raiz_AM.tar.gz",
+        "https://github.com/bernardoemmel/Raiz/releases/download/dados/raiz_AM.tar.gz",
+        TAR_VAZIO_SHA256,
+        45,
+        escopo="publico_basico",
+        formato=["application/x-tar", "application/gzip"],
+    )
+    validar(ficha)
+    validar_ficha_publica("croissant_AM.json", json.dumps(ficha).encode())
+    for campo, valor in (("sha256", "a" * 64), ("contentSize", "46")):
+        invalida = copy.deepcopy(ficha)
+        invalida["distribution"][0][campo] = valor
+        with pytest.raises(ValueError, match="público"):
+            validar_ficha_publica("croissant_AM.json", json.dumps(invalida).encode())

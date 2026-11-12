@@ -201,3 +201,21 @@ uv run python motor/rodar_estado.py --planejar   # o plano da próxima rodada, s
 - Execuções futuras de `processar-estados.yml` com ciência fixada em commit antigo usam o publicador do SHA do
   workflow em checkout e ambiente separados. O finalizador confere a reserva original e usa a mesma vaga e prazo,
   preservando a versão científica, o cache e a continuação. Runs já iniciados precisam da retropublicação.
+
+## Mudança de contrato coordenada com Ficha da fazenda
+
+Durante a retomada, o fundador determinou no chat “RAIZ - Ficha da fazenda” que cálculos detalhados por CAR
+ficassem privados. A pausa do motor faz parte dessa migração, não de uma falha do teto de jobs.
+O Actions `43288984765` preservou os originais no draft autenticado `dados-privados` (não publicar esse draft) e
+substituiu o Release `dados` por 22 arquivos básicos. A retomada de Dados não reativa os publicadores antigos.
+
+A entrega de metadados passou a ter dois escopos: Croissant básico e cartão metodológico no público; quantis,
+tasks, modelos, diagnósticos, CADT e fichas completas no privado. O catálogo aberto não reescreve o manifesto
+básico, e backups de arquivos privados nunca usam artifacts públicos. A dependência do contrato da Ficha será
+integrada antes do PR e da execução retroativa. A implementação anterior foi validada em 1.141 testes com
+PostGIS (2 skips, 1 xfail), além de 52 testes das atualizações posteriores de calendário/pedidos; a integração
+privada exige nova validação antes da entrega.
+
+O fundador autorizou explicitamente reativar o processamento e retomar os lotes pendentes. A retomada será feita
+após CI e merge do publicador integrado, migrando as referências da fila para esse código, reabrindo os pedidos
+interrompidos e mantendo o teto global de 15. Nenhum job novo usará o publicador que expunha dados completos.

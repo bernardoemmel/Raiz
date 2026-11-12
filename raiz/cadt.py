@@ -39,6 +39,17 @@ class CronogramaInvalido(ValueError):
     """Dado inconsistente; o publicador registra o código, sem publicar um projeto inventado."""
 
 
+def _catalogo_privado(url: str) -> None:
+    from raiz.metadados import _url_acesso
+
+    try:
+        _url_acesso(url, escopo="privado")
+        if not url.endswith("/cadt_lotes.json"):
+            raise ValueError("arquivo de catálogo diferente")
+    except ValueError as ex:
+        raise CronogramaInvalido("catalogo_privado_invalido") from ex
+
+
 def _identificar_fontes(pasta: Path) -> tuple[str | None, str | None]:
     """Exige uma única versão e cenário em todas as linhas, inclusive fora da oferta elegível."""
     campos = (("restauracao_versao", "versao"), ("restauracao_cenario", "cenario"))
@@ -204,12 +215,14 @@ def projeto_do_resumo(
     uf: str,
     *,
     data_inicio: dt.date | str,
+    url_catalogo: str,
     data_referencia: dt.date | str | None = None,
     r: dict | None = None,
     c: dict | None = None,
     repo: str = REPO,
 ) -> dict:
     """Converte somente o resumo agregado do lote, com hipótese temporal explícita."""
+    _catalogo_privado(url_catalogo)
     uf = uf.upper()
     if not re.fullmatch(r"[A-Z]{2}", uf):
         raise CronogramaInvalido("uf_invalida")
@@ -245,7 +258,7 @@ def projeto_do_resumo(
         "originProjectId": identificador,
         "registryOfOrigin": "Raíz — catálogo de cenários",
         "projectName": f"Cenário ProFloresta+ Raíz — {uf} — início hipotético {inicio.isoformat()}",
-        "projectLink": f"https://github.com/{repo}/releases/download/dados/cadt_lotes.json#{quote(identificador)}",
+        "projectLink": f"{url_catalogo}#{quote(identificador)}",
         "projectDeveloper": "Raíz — modelagem de cenário",
         "sector": "Agriculture; forestry and fishing",
         "projectType": "Reforestation and Revegetation",
@@ -259,6 +272,7 @@ def projeto_do_resumo(
     }
     cobertura = resumo.get("municipios") or {}
     metadados = {
+        "escopo": "privado",
         "versao_exportador": VERSAO,
         "referencia_vocabulario": REFERENCIA,
         "cenario": c["cenario"],
@@ -285,6 +299,7 @@ def cadt_uf(
     uf: str,
     *,
     data_inicio: dt.date | str | None,
+    url_catalogo: str,
     data_referencia: dt.date | str | None = None,
     r: dict | None = None,
     c: dict | None = None,
@@ -296,8 +311,14 @@ def cadt_uf(
     projeto com estimativas fabricadas. Erros inesperados de leitura/cálculo não
     são escondidos pelo exportador.
     """
+    _catalogo_privado(url_catalogo)
     pasta, uf = Path(pasta), uf.upper()
-    base = {"uf": uf, "projeto": None, "metadados": {"versao_exportador": VERSAO, "aviso": AVISO}, "diagnosticos": []}
+    base = {
+        "uf": uf,
+        "projeto": None,
+        "metadados": {"escopo": "privado", "versao_exportador": VERSAO, "aviso": AVISO},
+        "diagnosticos": [],
+    }
 
     def ausente(codigo: str) -> dict:
         base["diagnosticos"].append({"codigo": codigo})
@@ -350,7 +371,14 @@ def cadt_uf(
         return ausente("sem_lote_elegivel")
     try:
         resultado = projeto_do_resumo(
-            resumo, uf, data_inicio=data_inicio, data_referencia=data_referencia, r=r, c=c, repo=repo
+            resumo,
+            uf,
+            data_inicio=data_inicio,
+            url_catalogo=url_catalogo,
+            data_referencia=data_referencia,
+            r=r,
+            c=c,
+            repo=repo,
         )
         resultado["metadados"].update(proveniencia)
         resultado["metadados"]["origem_creditos"] = "P50 dos arquivos publicados; previsões individuais preservadas"
@@ -381,6 +409,7 @@ def combinar_estados(estados: Mapping[str, dict]) -> dict:
             "diagnosticos": resultado.get("diagnosticos") or [],
         }
     return {
+        "escopo": "privado",
         "versao_exportador": VERSAO,
         "referencia_vocabulario": REFERENCIA,
         "aviso": AVISO,

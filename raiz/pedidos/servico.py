@@ -293,28 +293,51 @@ def _alertas(con, pedido_id) -> list[dict]:
     ]
 
 
-def _limpar_opcoes(ops: list[dict], nv: dict[str, str], fora: set[str]) -> list[dict]:
-    """Opções na hora de ler: tira fazenda reservada por outro cliente e põe o nível de interesse de agora."""
+_ITEM_BASICO = (
+    "cod_imovel",
+    "cod_ibge",
+    "municipio",
+    "uf",
+    "papel",
+    "pequena",
+    "trocou",
+    "lon",
+    "lat",
+    "local_aproximado",
+)
+_ITEM_PREMIUM = ("hectares", "creditos", "metodo", "caminho", "custo_usd_credito", "risco_terra")
+
+
+def _limpar_opcoes(
+    ops: list[dict], nv: dict[str, str], fora: set[str], liberadas: set[str] | None = None
+) -> list[dict]:
+    """Projeta o DTO atual: reserva, interesse e detalhes pagos; nunca altera a sugestão salva."""
+    liberadas = liberadas or set()
     out = []
     for o in ops:
         o = dict(o)
-        itens = [
-            dict(i, interesse=nv.get(i["cod_imovel"], "sem_contato"))
-            for i in o.get("itens", [])
-            if i["cod_imovel"] not in fora
-        ]
+        itens = []
+        for i in o.get("itens", []):
+            cod = i["cod_imovel"]
+            if cod in fora:
+                continue
+            liberada = cod in liberadas
+            item = {k: i[k] for k in _ITEM_BASICO if k in i}
+            item.update({k: i.get(k) if liberada else None for k in _ITEM_PREMIUM})
+            if isinstance(item["creditos"], dict):
+                item["creditos"] = {q: item["creditos"].get(q) for q in ("p10", "p50", "p90")}
+            item.update(interesse=nv.get(cod, "sem_contato"), ficha_liberada=liberada)
+            itens.append(item)
         if len(itens) != len(o.get("itens", [])):
             o["observacao"] = "Fazendas reservadas por outro cliente saíram desta opção; refaça o pedido para repor."
-        # Geometria é uma autorização atual, nunca algo herdado de uma sugestão antiga.
-        for item in itens:
-            item.pop("geometria", None)
+        # Geometria e dados pessoais/inesperados de sugestões antigas não fazem parte desta projeção.
         o["itens"] = itens
         out.append(o)
     return out
 
 
-def _contornos_desbloqueados(con, cliente_id: int, codigos: list[str]) -> dict:
-    """Somente desenhos já pagos pelo cliente; consultar o lote não debita créditos."""
+def _fichas_desbloqueadas(con, cliente_id: int, codigos: list[str]) -> dict:
+    """Autorização atual por CAR, com desenho quando houver; consultar o lote não debita créditos."""
     if not codigos:
         return {}
     linhas = con.execute(
@@ -323,13 +346,18 @@ def _contornos_desbloqueados(con, cliente_id: int, codigos: list[str]) -> dict:
             join funil.vigente v on v.cod_imovel = i.cod_imovel
             join negocio.prospeccao_desbloqueio d on d.cod_imovel = i.cod_imovel and d.cliente_id = :cliente
             join negocio.cliente c on c.id = d.cliente_id and c.ativo
-            where i.cod_imovel = any(:codigos) and i.geom is not null
+            where i.cod_imovel = any(:codigos)
               and not exists (select 1 from negocio.reserva_fazenda rf
                 join negocio.reserva r on r.id = rf.reserva_id
                 where rf.cod_imovel = i.cod_imovel and rf.ativa and r.cliente_id <> :cliente)"""),
         {"cliente": cliente_id, "codigos": list(set(codigos))},
     )
     return {linha.cod_imovel: linha.geometria for linha in linhas}
+
+
+def _contornos_desbloqueados(con, cliente_id: int, codigos: list[str]) -> dict:
+    """Somente desenhos já pagos pelo cliente, sem exigir geometria para autorizar os demais detalhes."""
+    return {cod: geom for cod, geom in _fichas_desbloqueadas(con, cliente_id, codigos).items() if geom is not None}
 
 
 def obter_pedido(engine: Engine, pedido_id: str, cliente_id: int | None) -> dict:
@@ -339,12 +367,12 @@ def obter_pedido(engine: Engine, pedido_id: str, cliente_id: int | None) -> dict
         cods = [i["cod_imovel"] for o in s["opcoes"] for i in o.get("itens", [])]
         nv = niveis(con, cods)
         fora = fora_para(con, p["cliente_id"])
-        opcoes = _limpar_opcoes(s["opcoes"], nv, fora)
-        contornos = _contornos_desbloqueados(con, p["cliente_id"], [cod for cod in cods if cod not in fora])
+        liberadas = _fichas_desbloqueadas(con, p["cliente_id"], [cod for cod in cods if cod not in fora])
+        opcoes = _limpar_opcoes(s["opcoes"], nv, fora, set(liberadas))
         for opcao in opcoes:
             for item in opcao["itens"]:
-                if item["cod_imovel"] in contornos:
-                    item["geometria"] = contornos[item["cod_imovel"]]
+                if liberadas.get(item["cod_imovel"]) is not None:
+                    item["geometria"] = liberadas[item["cod_imovel"]]
         return {
             "id": str(p["id"]),
             "criado_em": p["criado_em"].isoformat(),

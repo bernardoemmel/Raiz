@@ -1,5 +1,4 @@
-import { useEffect, useState } from "react"
-import { codigosEmLeilao, normalizarCar } from "../../../compartilhado/calendario"
+import { useEffect, useRef, useState } from "react"
 import { ErroProspeccao, type FichaTerraDados, type MedidaTerra } from "../../../compartilhado/prospeccao"
 import { NOME_RISCO, SITUACOES, type Risco } from "../../../compartilhado/terra"
 import { Cabecalho } from "../partes/Cabecalho"
@@ -7,10 +6,8 @@ import { CreditosConsulta } from "../partes/CreditosConsulta"
 import { Estado } from "../partes/Estado"
 import { useSessao } from "../pedidos"
 import { dataTerra, numeroTerra, prospeccao } from "../prospeccao"
-import { linkCalendarioImovel, linkMunicipio, linkProspeccao } from "../rota"
+import { linkMunicipio, linkProspeccao } from "../rota"
 import { Entrar } from "./Entrar"
-import { calendario } from "../calendario"
-import { useCarga } from "../dados"
 
 export function Medida({ dado }: { dado: MedidaTerra }) {
   return <span className="medida-terra">
@@ -31,8 +28,23 @@ export function FichaTerra({ car }: { car: string }) {
   const [ocupado, setOcupado] = useState(false)
   const [contato, setContato] = useState<string | null>(null)
   const [revisao, setRevisao] = useState(0)
-  const leiloes = useCarga(() => ficha ? calendario.leiloes({ cod_imovel: car }) : Promise.resolve(null), [car, ficha])
-  const emLeilao = !!ficha && codigosEmLeilao(leiloes.dado?.eventos ?? []).has(normalizarCar(car))
+  const [exportando, setExportando] = useState(false)
+  const ativo = useRef(true)
+  const pdfAbort = useRef<AbortController | null>(null)
+  useEffect(() => { ativo.current = true; return () => { ativo.current = false; pdfAbort.current?.abort() } }, [])
+  async function exportarPdf() {
+    const controle = new AbortController()
+    pdfAbort.current?.abort(); pdfAbort.current = controle
+    setExportando(true); setErro(null)
+    try {
+      const pdf = await prospeccao.pdf(car, controle.signal)
+      if (!ativo.current || controle.signal.aborted) return
+      const url = URL.createObjectURL(pdf), link = document.createElement("a")
+      link.href = url; link.download = `raiz-ficha-${car.replace(/[^a-zA-Z0-9-]/g, "")}.pdf`; link.click()
+      setTimeout(() => URL.revokeObjectURL(url), 1000)
+    } catch (e) { if (ativo.current && !controle.signal.aborted) setErro((e as Error).message) }
+    finally { if (ativo.current && !controle.signal.aborted) setExportando(false) }
+  }
   useEffect(() => {
     if (!sessao || !prospeccao.disponivel) return
     const abortar = new AbortController()
@@ -67,12 +79,12 @@ export function FichaTerra({ car }: { car: string }) {
       <a href={linkProspeccao}>Buscar fazendas no Brasil</a>
       <h1>Ficha da terra</h1>
       <p className="car-terra">CAR <code>{car}</code></p>
-      {!prospeccao.disponivel ? <Estado tipo="vazio" titulo="Ficha completa na área de clientes"><p>A ficha exige créditos pagos e conexão com a Raíz. Consulte os agregados no <a href="#/">mapa aberto</a>.</p></Estado> : estado === "carregando" ? <Estado tipo="carregando" titulo="Conferindo o acesso à ficha" /> : estado === "bloqueada" ? <section>
+      {!prospeccao.disponivel ? <Estado tipo="vazio" titulo="Ficha completa na área de clientes"><p>A ficha exige créditos pagos e conexão com a Raíz. Consulte a situação básica e os agregados no <a href="#/">mapa aberto</a>.</p></Estado> : estado === "carregando" ? <Estado tipo="carregando" titulo="Conferindo o acesso à ficha" /> : estado === "bloqueada" ? <section>
         <h2>Desbloquear esta ficha</h2><p>Use 1 crédito de consulta para ver os dados da terra, suas fontes e datas. O crédito não é uma tonelada de carbono.</p>
         <button className="botao principal" type="button" disabled={ocupado} onClick={desbloquear}>{ocupado ? "Desbloqueando" : "Desbloquear por 1 crédito"}</button>
       </section> : ficha && <>
-        {emLeilao && <p><a className="selo conferir" href={linkCalendarioImovel(car)}>Em leilão: conferir edital e prazo</a></p>}
         <div className="secao-cabeca"><p className="frase">{ficha.municipio}, {ficha.uf}. {ficha.bioma ?? "Bioma não informado"}.</p>{ficha.cod_ibge && <a className="botao" href={linkMunicipio(String(ficha.cod_ibge))}>Ver município no mapa</a>}</div>
+        <button className="botao" type="button" disabled={exportando} onClick={exportarPdf}>{exportando ? "Preparando PDF" : "Exportar ficha em PDF"}</button>
         <section aria-labelledby="area-terra"><h2 id="area-terra">Área e restauração</h2><dl className="grade-terra"><div><dt>Área da fazenda</dt><dd><Medida dado={ficha.area_total} /></dd></div><div><dt>Quanto pode voltar a ser mata</dt><dd><Medida dado={ficha.area_restauravel} /></dd></div></dl></section>
         <section><h2>Caminho da terra e pendências</h2><p className="frase">{ficha.caminho_terra.rotulo}</p><p>{SITUACOES.find((s) => s.id === ficha.caminho_terra.situacao)?.nome ?? "Situação não informada"}. Fonte: {ficha.caminho_terra.fonte}. {dataTerra(ficha.caminho_terra.data_referencia)}.</p>
           {ficha.pendencias.length ? <ul>{ficha.pendencias.map((p) => <li key={p.codigo}>{p.texto}</li>)}</ul> : <p>Nenhuma pendência registrada nas fontes consultadas.</p>}

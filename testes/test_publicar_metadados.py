@@ -89,6 +89,9 @@ def _ambiente(tmp_path, monkeypatch):
     monkeypatch.setenv("RUNNER_TEMP", str(tmp_path))
     monkeypatch.setenv("GITHUB_REPOSITORY", "bernardoemmel/raiz")
     monkeypatch.setenv("RAIZ_SEM_BANCO", "1")
+    monkeypatch.setenv("GH_TOKEN", "segredo")
+    monkeypatch.setenv("RAIZ_DADOS_PRIVADOS_URL", "release-github://exemplo/privado/dados-privados")
+    monkeypatch.setenv("RAIZ_DADOS_PRIVADOS_TOKEN", "segredo")
     monkeypatch.setenv("RAIZ_CADT_INICIO_CENARIO", "2027-01-01")
     monkeypatch.setattr(P, "confirmar_reserva", lambda: None)
     monkeypatch.setattr(P, "conferir_orcamento", lambda relatorio: True)
@@ -98,6 +101,35 @@ def _ambiente(tmp_path, monkeypatch):
         return relatorio["seguranca_processamento"]
 
     monkeypatch.setattr(P, "conferir_processamento_seguro", seguro)
+
+
+def _fabrica(github, classe=None):
+    from raiz.executor.armazem import ArmazemRelease
+
+    classe = classe or ArmazemRelease
+    if not hasattr(github, "publico"):
+        github.publico = GitHubFalso()
+        github.publico.privado = False
+        github.publico.assets["estados.json"] = json.dumps(
+            {
+                "escopo": "publico_basico",
+                "versao_publicacao": 1,
+                "repo": "bernardoemmel/raiz",
+                "tag": "dados",
+                "gerado_em": "2026-11-12T00:00:00Z",
+                "estados": {},
+            }
+        ).encode()
+
+    def responder(req):
+        privado = "/repos/exemplo/privado/" in req.url.path or req.url.path == "/repos/exemplo/privado"
+        return (github if privado else github.publico)(req)
+
+    def fabricar(repo, tag, espelho, **kw):
+        kw.setdefault("token", "segredo")
+        return classe(repo, tag, espelho, cliente=httpx.Client(transport=httpx.MockTransport(responder)), **kw)
+
+    return fabricar
 
 
 def _preflight(tmp_path, monkeypatch, runs, estado=None, comparacao="ahead"):
@@ -120,9 +152,18 @@ def _preflight(tmp_path, monkeypatch, runs, estado=None, comparacao="ahead"):
 
     def comparar(caminho):
         chamadas.append(caminho)
+        if "contents/raiz/executor/armazem.py" in caminho:
+            if comparacao not in {"ahead", "identical", "behind", "diverged"}:
+                return {"encoding": "desconhecida"}
+            codigo = (
+                (P.RAIZ / "raiz/executor/armazem.py").read_bytes()
+                if comparacao in {"ahead", "identical"}
+                else b"legado"
+            )
+            return {"encoding": "base64", "content": base64.b64encode(codigo).decode()}
         if "/contents/" in caminho:
             return {"encoding": "base64", "content": base64.b64encode(b"workflow com matrix.ref").decode()}
-        return {"status": comparacao}
+        pytest.fail("endpoint inesperado")
 
     monkeypatch.setattr(fila, "api", comparar)
     return fila, chamadas
@@ -138,10 +179,10 @@ def test_preflight_permite_codigo_com_travas_e_cacheia_apenas_commit(tmp_path, m
     _, consultas = _preflight(tmp_path, monkeypatch, runs, comparacao=status)
     assert P.conferir_processamento_seguro()["seguro"]
     assert consultas == [
-        f"repos/exemplo/raiz/compare/{P.COMMIT_TRAVAS_UF}...{'a' * 40}",
+        f"repos/exemplo/raiz/contents/raiz/executor/armazem.py?ref={'a' * 40}",
         f"repos/exemplo/raiz/contents/.github/workflows/processar-estados.yml?ref={'a' * 40}",
     ]
-    # O cache da ancestralidade não transforma um snapshot dos runs em cache.
+    # O cache dos bytes auditados não transforma um snapshot dos runs em cache.
     runs["13"] = _run(sha=None)
     with pytest.raises(P.ProcessamentoInseguro):
         P.conferir_processamento_seguro()
@@ -235,6 +276,11 @@ def test_pre_cap_sem_reserva_so_passa_com_checkout_default_comprovado(tmp_path, 
 
     def api(caminho):
         chamadas.append(caminho)
+        if "contents/raiz/executor/armazem.py" in caminho:
+            return {
+                "encoding": "base64",
+                "content": base64.b64encode((P.RAIZ / "raiz/executor/armazem.py").read_bytes()).decode(),
+            }
         if "/contents/" in caminho:
             return {"encoding": "base64", "content": base64.b64encode(workflow.encode()).decode()}
         return {"status": "ahead"}
@@ -244,7 +290,7 @@ def test_pre_cap_sem_reserva_so_passa_com_checkout_default_comprovado(tmp_path, 
         resultado = P.conferir_processamento_seguro()
         assert resultado["seguro"] and resultado["checkouts_head_confirmados"] == ["123"]
         assert P.conferir_processamento_seguro()["seguro"]
-        assert len([c for c in chamadas if "/contents/" in c]) == 1
+        assert len([c for c in chamadas if "/contents/" in c]) == 2
     else:
         with pytest.raises(P.ProcessamentoInseguro):
             P.conferir_processamento_seguro()
@@ -274,7 +320,7 @@ def test_reconfere_dentro_da_trava_antes_de_publicar_uf(tmp_path, monkeypatch):
     github.assets["raiz_PA.tar.gz"] = github.tar("PA", {"imoveis_1504950.csv": b"cod_imovel,ha\nCAR-A,3\n"})
     snapshots = iter([{}, {"123": _run()}])
     monkeypatch.setattr(fila, "rodadas", lambda *args, **kwargs: next(snapshots))
-    resultado = P.publicar(fabrica=lambda repo, tag, espelho: _armazem(github, espelho))
+    resultado = P.publicar(fabrica=_fabrica(github))
     assert not github.uploads
     assert resultado["pendentes"] == ["PA"] and not resultado["global_concluido"]
     assert resultado["falhas"][0]["etapa"] == "seguranca_processamento"
@@ -288,7 +334,7 @@ def test_reconfere_dentro_da_trava_antes_de_publicar_globais(tmp_path, monkeypat
     github = GitHubFalso()
     snapshots = iter([{}, {"123": _run()}])
     monkeypatch.setattr(fila, "rodadas", lambda *args, **kwargs: next(snapshots))
-    resultado = P.publicar(fabrica=lambda repo, tag, espelho: _armazem(github, espelho))
+    resultado = P.publicar(fabrica=_fabrica(github))
     assert not github.uploads
     assert not resultado["global_concluido"]
     assert resultado["falhas"][0]["etapa"] == "seguranca_processamento"
@@ -305,8 +351,7 @@ def test_retropreenche_csv_controle_orfao_e_kml_sem_refazer_motor(tmp_path, monk
     github.assets["estados.json"] = json.dumps({"estados": {"AM": {"situacao": "em_curso"}}}).encode()
     classe = P.classe_armazem()
 
-    def fabrica(repo, tag, espelho):
-        return classe(repo, tag, espelho, token="segredo", cliente=httpx.Client(transport=httpx.MockTransport(github)))
+    fabrica = _fabrica(github, classe)
 
     relatorio = P.publicar(fabrica=fabrica)
     assert relatorio["falhas"] == []
@@ -320,7 +365,7 @@ def test_retropreenche_csv_controle_orfao_e_kml_sem_refazer_motor(tmp_path, monk
     for nome in ("URTX.kml", "raiz_controle_AM.json"):
         ficha = json.loads(github.assets[f"croissant_{nome}.json"])
         assert ficha["distribution"][0]["sha256"] == hashlib.sha256(github.assets[nome]).hexdigest()
-    assinados = P.checksums()
+    assinados = P.checksums(privado=True)
     assert set(github.assets) <= set(assinados)
     assert all(assinados[n] == hashlib.sha256(d).hexdigest() for n, d in github.assets.items())
     assert not any(n.startswith("croissant_croissant") for n in github.assets)
@@ -341,10 +386,7 @@ def test_falha_de_uma_uf_preserva_anterior_e_continua(tmp_path, monkeypatch):
                 raise RuntimeError("falha simulada")
             return super().publicar(uf, extra)
 
-    def fabrica(repo, tag, espelho):
-        return ComFalha(
-            repo, tag, espelho, token="segredo", cliente=httpx.Client(transport=httpx.MockTransport(github))
-        )
+    fabrica = _fabrica(github, ComFalha)
 
     relatorio = P.publicar(fabrica=fabrica)
     assert relatorio["concluidas"] == ["PA"] and relatorio["pendentes"] == ["AC"]
@@ -381,11 +423,12 @@ def test_workflow_reserva_antes_de_dependencias_e_atesta_mesmo_com_falha():
     assert atestar["with"]["subject-checksums"] == "${{ runner.temp }}/atestar.txt"
     assert workflow["permissions"]["attestations"] == "write"
     assert workflow["permissions"]["id-token"] == "write"
-    recuperacao = next(p for p in passos if p.get("with", {}).get("name", "").startswith("recuperacao-release"))
-    assert recuperacao["if"] == "always()"
-    assert recuperacao["with"]["compression-level"] == 0
-    assert recuperacao["with"]["retention-days"] == 7
-    assert "github.run_attempt" in recuperacao["with"]["name"]
+    assert all(not p.get("uses", "").startswith("actions/upload-artifact") for p in passos)
+    privado = next(p for p in passos if p.get("with", {}).get("subject-checksums", "").endswith("atestar-privado.txt"))
+    assert privado["with"]["show-summary"] is False
+    relatorio = next(p for p in passos if "enviar-arquivo --imutavel" in p.get("run", ""))
+    assert relatorio["if"] == "always()"
+    assert "transferencia_privada" in relatorio["run"]
 
 
 def test_rodadas_preserva_jobs_por_padrao_e_permite_consulta_leve(monkeypatch):
@@ -443,7 +486,7 @@ def test_queda_de_cota_preserva_uf_concluida_e_pendentes(tmp_path, monkeypatch):
     github = GitHubFalso()
     for uf in ("AC", "PA"):
         github.assets[f"raiz_{uf}.tar.gz"] = github.tar(uf, {"imoveis_1504950.csv": b"cod_imovel,ha\nCAR-A,3\n"})
-    resultado = P.publicar(fabrica=lambda repo, tag, espelho: _armazem(github, espelho))
+    resultado = P.publicar(fabrica=_fabrica(github))
     assert resultado["concluidas"] == ["AC"] and resultado["pendentes"] == ["PA"]
     assert resultado["adiado_por_cota"] and not resultado["global_concluido"]
     assert not any("PA" in nome for nome in github.uploads)
@@ -514,62 +557,62 @@ def test_retry_nao_monopoliza_trava_nem_repete_permissao_negada(monkeypatch, sta
     assert chamadas == ["DELETE"]
 
 
+def _armazem_backup(github, tmp_path, responder, prazo=None):
+    classe = P.classe_armazem(prazo)
+    return classe(
+        "exemplo/privado",
+        "dados-privados",
+        tmp_path / "espelho",
+        token="segredo",
+        privado=True,
+        cliente=httpx.Client(transport=httpx.MockTransport(responder)),
+    )
+
+
 def test_backup_sobrevive_post_falho_e_original_ausente_no_retry(tmp_path, monkeypatch):
     _ambiente(tmp_path, monkeypatch)
     github = GitHubFalso()
-    nome = "raiz_PA.tar.gz"
-    original = b"original irrecuperavel"
+    nome, original = "raiz_PA.tar.gz", b"original irrecuperavel"
     github.assets[nome] = original
     chamadas = []
 
     def responder(req):
-        chamadas.append((req.method, req.url.host))
-        if req.method == "POST" and req.url.host == "uploads.github.com":
-            return httpx.Response(429, headers={"Retry-After": "0"})
+        chamadas.append((req.method, req.url.host, req.url.path))
+        if req.method == "POST" and req.url.host == "uploads.github.com" and req.url.params["name"] == nome:
+            return httpx.Response(429)
         return github(req)
 
-    classe = P.classe_armazem()
-    cliente = httpx.Client(transport=P.transporte_com_retry(P.time.monotonic() + 60, httpx.MockTransport(responder)))
-    a = classe("bernardoemmel/raiz", "dados", tmp_path / "espelho", token="segredo", cliente=cliente)
-    with pytest.raises(httpx.HTTPStatusError):
+    a = _armazem_backup(github, tmp_path, responder)
+    with pytest.raises(P.ProcessamentoInseguro):
         a._subir(a._release(), nome, b"novo")
     assert nome not in github.assets
-    backups = list((tmp_path / "recuperacao-release").glob("*/meta.json"))
-    assert len(backups) == 1
-    meta = json.loads(backups[0].read_text())
-    assert meta["nome"] == nome and meta["sha256"] == hashlib.sha256(original).hexdigest()
-    assert backups[0].with_name("arquivo").read_bytes() == original
-    assert chamadas.count(("POST", "uploads.github.com")) == 3
-    assert chamadas.count(("GET", "github.com")) == 1
-    assert chamadas.count(("DELETE", "api.github.com")) == 1
-    assert nome not in P.checksums()
-    # Uma retomada com a lista fresca pode subir o novo arquivo; não tenta
-    # baixar novamente o original que já foi removido nem apaga seu backup antes.
+    marcadores = list((tmp_path / "recuperacao-release").glob("*.json"))
+    assert len(marcadores) == 1
+    meta = json.loads(marcadores[0].read_bytes())
+    assert meta["origem"] == "exemplo/privado/dados-privados/" + nome
+    assert meta["sha256"] == hashlib.sha256(original).hexdigest()
+    assert github.assets[meta["arquivo"]] == original
+    assert not any(host == "github.com" for _, host, _ in chamadas)
+    assert not (tmp_path / "atestar.txt").exists()
+    assert nome not in P.checksums(privado=True)
+    # A retomada não perde o backup remoto nem precisa baixar o original ausente.
     a.cli = httpx.Client(transport=httpx.MockTransport(github))
     a._subir(a._release(), nome, b"novo")
-    assert github.assets[nome] == b"novo"
-    assert not list((tmp_path / "recuperacao-release").glob("*/meta.json"))
-    assert P.checksums()[nome] == hashlib.sha256(b"novo").hexdigest()
+    assert github.assets[nome] == b"novo" and github.assets[meta["arquivo"]] == original
+    assert not list((tmp_path / "recuperacao-release").glob("*.json"))
+    assert P.checksums(privado=True)[nome] == hashlib.sha256(b"novo").hexdigest()
 
 
 def test_backup_divergente_impede_delete_do_original(tmp_path, monkeypatch):
     _ambiente(tmp_path, monkeypatch)
     github = GitHubFalso()
     github.assets["estados.json"] = b'{"estados":{}}'
-    classe = P.classe_armazem()
-    a = classe(
-        "bernardoemmel/raiz",
-        "dados",
-        tmp_path / "espelho",
-        token="segredo",
-        cliente=httpx.Client(transport=httpx.MockTransport(github)),
-    )
+    a = _armazem_backup(github, tmp_path, github)
     rel = a._release()
     rel["assets"][0]["digest"] = "sha256:" + "0" * 64
-    with pytest.raises(RuntimeError, match="original diverge"):
+    with pytest.raises(P.ProcessamentoInseguro):
         a._subir(rel, "estados.json", b"novo")
-    assert github.assets["estados.json"] == b'{"estados":{}}'
-    assert not github.uploads
+    assert github.assets["estados.json"] == b'{"estados":{}}' and not github.uploads
 
 
 def test_backup_preserva_versao_intermediaria_publicada_por_outro_job(tmp_path, monkeypatch):
@@ -578,23 +621,16 @@ def test_backup_preserva_versao_intermediaria_publicada_por_outro_job(tmp_path, 
     nome = "estados.json"
 
     def responder(req):
-        if req.method == "POST" and req.url.host == "uploads.github.com":
+        if req.method == "POST" and req.url.host == "uploads.github.com" and req.url.params["name"] == nome:
             return httpx.Response(429)
         return github(req)
 
-    classe = P.classe_armazem()
-    a = classe(
-        "bernardoemmel/raiz",
-        "dados",
-        tmp_path / "espelho",
-        token="segredo",
-        cliente=httpx.Client(transport=httpx.MockTransport(responder)),
-    )
+    a = _armazem_backup(github, tmp_path, responder)
     for original in (b"original1", b"original2"):
         github.assets[nome] = original
-        with pytest.raises(httpx.HTTPStatusError):
+        with pytest.raises(P.ProcessamentoInseguro):
             a._subir(a._release(), nome, b"novo")
-    preservados = {p.read_bytes() for p in (tmp_path / "recuperacao-release").glob("*/arquivo")}
+    preservados = {b for n, b in github.assets.items() if n.startswith("recuperacao-") and n.endswith(".bin")}
     assert preservados == {b"original1", b"original2"}
     assert nome not in github.assets
 
@@ -625,8 +661,7 @@ def test_checkpoint_global_retoma_sem_reprocessar_ufs(tmp_path, monkeypatch):
             publicadas.append(uf)
             return super().publicar(uf, extra)
 
-    def fabrica(repo, tag, espelho):
-        return Contar(repo, tag, espelho, token="segredo", cliente=httpx.Client(transport=httpx.MockTransport(github)))
+    fabrica = _fabrica(github, Contar)
 
     primeiro = P.publicar(fabrica=fabrica)
     assert primeiro["concluidas"] == ["PA"] and primeiro["pendentes"] == []
@@ -714,7 +749,7 @@ def test_finalizador_atual_completa_executor_antigo_na_mesma_reserva(tmp_path, m
     )
     github.assets["URTX.kml"] = b"<kml/>"
     github.assets["raiz_controle_PA.json"] = b'{"estado":{"situacao":"preservar"}}'
-    (tmp_path / "atestar.txt").write_text("d" * 64 + "  legado.json\n")
+    (tmp_path / "atestar-privado.txt").write_text("d" * 64 + "  legado.json\n")
     classe = P.classe_armazem()
     resultados = []
     publicar = P.publicar
@@ -723,9 +758,7 @@ def test_finalizador_atual_completa_executor_antigo_na_mesma_reserva(tmp_path, m
         resultado = publicar(
             *args,
             **kwargs,
-            fabrica=lambda repo, tag, espelho: classe(
-                repo, tag, espelho, token="segredo", cliente=httpx.Client(transport=httpx.MockTransport(github))
-            ),
+            fabrica=_fabrica(github, classe),
         )
         resultados.append(resultado)
         return resultado
@@ -739,9 +772,9 @@ def test_finalizador_atual_completa_executor_antigo_na_mesma_reserva(tmp_path, m
     assert github.membros("raiz_MG.tar.gz")["MG/flag_3100001.csv"] == fonte
     ficha = json.loads(github.assets["croissant_MG.json"])
     digest = hashlib.sha256(github.assets["raiz_MG.tar.gz"]).hexdigest()
-    assert ficha["distribution"][0]["sha256"] == digest == P.checksums()["raiz_MG.tar.gz"]
+    assert ficha["distribution"][0]["sha256"] == digest == P.checksums(privado=True)["raiz_MG.tar.gz"]
     assert json.loads(github.assets["estados.json"])["estados"]["MG"]["quantis"]["linhas"] == 3
-    assert P.checksums()["legado.json"] == "d" * 64
+    assert P.checksums(privado=True)["legado.json"] == "d" * 64
     assert "croissant_URTX.kml.json" not in github.assets
     assert github.assets["raiz_controle_PA.json"] == b'{"estado":{"situacao":"preservar"}}'
 
@@ -764,22 +797,16 @@ def test_prazo_nao_autoriza_delete_apos_calculo_ou_backup_demorar(tmp_path, monk
     github.assets["estados.json"] = b"original"
 
     def responder(req):
-        if req.method == "GET" and req.url.host == "github.com":
+        if req.method == "GET" and "/releases/assets/" in req.url.path:
             relogio[0] = 101
         return github(req)
 
-    classe = P.classe_armazem(prazo=100)
-    a = classe(
-        "bernardoemmel/raiz",
-        "dados",
-        tmp_path / "espelho",
-        token="segredo",
-        cliente=httpx.Client(transport=httpx.MockTransport(responder)),
-    )
-    with pytest.raises(RuntimeError, match="prazo"):
+    a = _armazem_backup(github, tmp_path, responder, prazo=100)
+    with pytest.raises(P.ProcessamentoInseguro):
         a._subir(a._release(), "estados.json", b"novo")
-    assert github.assets["estados.json"] == b"original" and not github.uploads
-    assert bool(list((tmp_path / "recuperacao-release").glob("*/meta.json"))) is expira_no_backup
+    assert github.assets["estados.json"] == b"original"
+    assert "estados.json" not in github.uploads
+    assert bool(list((tmp_path / "recuperacao-release").glob("*.json"))) is expira_no_backup
 
 
 def test_workflow_finalizador_separa_checkout_e_preserva_executor_e_continuacao():

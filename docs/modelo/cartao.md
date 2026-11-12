@@ -60,9 +60,10 @@ as fontes e sinais de atualização, no
 | Condições locais | Copernicus DEM, CHIRPS, SoilGrids e OpenStreetMap: relevo, chuva, solo e acesso, quando disponíveis. |
 | Premissas econômicas e de carbono | Tabelas de custos, curvas de captura, editais, literatura e dados públicos referenciados no YAML; parâmetros de cenário, câmbio e eventuais fatores de calibração. |
 
-As coleções e datas das fontes são diferentes. O estado do processamento e a cobertura municipal vêm de
+As coleções e datas das fontes são diferentes. A cobertura da projeção básica pública vem de
 [`estados.json`](https://github.com/bernardoemmel/Raiz/releases/download/dados/estados.json), incluindo municípios
-pendentes e etapas incompletas. Um estado publicado pode estar parcialmente processado. Ausência de observação,
+pendentes e etapas incompletas. O manifesto completo, as versões por arquivo e os resultados detalhados ficam no
+armazenamento privado. Um estado publicado pode estar parcialmente processado. Ausência de observação,
 falha de uma fonte e ausência real de uma restrição são situações diferentes.
 
 O CAR é declaratório e seus polígonos podem se sobrepor. Uma parcela no SIGEF e o número de matrícula são evidências
@@ -78,7 +79,7 @@ premissas neutras ou padrões. A existência dessa substituição não elimina a
 ## 4. Quantis e interpretação das saídas
 
 No formato hubverse, `output_type="quantile"` e `output_type_id` igual a `0.1`, `0.5` ou `0.9` identificam os três
-pontos publicados. `location` é o código do imóvel; `target` distingue a grandeza e sua unidade. O `model_id` tem a
+pontos exportados no armazenamento privado. `location` é o código do imóvel; `target` distingue a grandeza e sua unidade. O `model_id` tem a
 forma `raiz-<tarefa>_<hash>`; os metadados preservam `model_version` e as versões de origem.
 
 `reference_date` é a data de execução registrada nos metadados do arquivo de origem. Não é, por si só, a data de
@@ -171,10 +172,21 @@ precisam ser acompanhados nos resultados reais, inclusive por porte e região.
 
 ## 7. Privacidade, licenças e proveniência
 
-Os arquivos públicos não devem conter nome, CPF, CNPJ ou contato de pessoas. CPF/CNPJ são mascarados onde o
-tratamento é necessário; dados pessoais e resultados privados de contato/aceite não integram a exportação pública
-de quantis. O código do CAR é uma chave geográfica pública e não torna o conjunto anônimo: seu uso ainda exige
-considerar possibilidade de associação com outras bases.
+O Release público `dados` contém somente situação básica por CAR, geometria sem atributos pagos e agregados
+municipais permitidos, com supressão de grupos pequenos. Quantis P10/P50/P90, TIR, detalhes da terra, dados do hubverse
+(inclusive listas de CARs em `tasks.json`), diagnósticos e cronogramas CAD Trust ficam no armazenamento privado.
+As fichas Croissant e seus catálogos seguem o mesmo escopo dos arquivos descritos. O cartão metodológico pode ser
+público porque não contém resultados individuais ou agregados privados.
+
+Nome, CPF, CNPJ e contato do dono não integram esses artefatos. CPF/CNPJ são mascarados onde o tratamento é
+necessário. O código do CAR é uma chave geográfica pública e não torna o conjunto anônimo; retirar identificadores
+pessoais também não torna públicos os resultados pagos ou privados.
+
+O destino privado atual é um Release não publicado (`dados-privados`), que deve permanecer em rascunho. As URIs
+`release-github://dono/repositorio/tag/arquivo` das fichas privadas são identificadores lógicos sem credenciais.
+O servidor autorizado resolve o asset pela API autenticada e confere sua privacidade antes do acesso. O leitor
+Croissant recebe um arquivo local autorizado; essas URIs não prometem download público nem autenticação nativa
+do leitor. Fichas públicas apontam somente para os bytes da projeção básica no Release público.
 
 Licenças e atribuições de fontes e bibliotecas estão em
 [`NOTICE.md`](https://github.com/bernardoemmel/Raiz/blob/main/NOTICE.md). A licença de redistribuição dos dados
@@ -183,8 +195,9 @@ Croissant e acesso público ao Release não substituem os termos das fontes. Há
 manifesto; a referência Heinrich et al. 2021, marcada CC BY-NC no NOTICE, permanece fora de treino. Essa restrição
 não é resolvida pela publicação de metadados.
 
-Cada pacote estadual inclui `_versoes.json` com tarefa, versão, data e SHA-256 dos arquivos quando disponíveis.
-`estados.json` identifica o estado da publicação; fichas Croissant descrevem arquivos e campos. SHA-256 identifica
+Cada pacote estadual completo privado inclui `_versoes.json` com tarefa, versão, data e SHA-256 dos arquivos quando
+disponíveis; a projeção pública não contém esse controle. Cada `estados.json` identifica somente seu escopo de
+publicação; fichas Croissant descrevem arquivos e campos do mesmo destino. SHA-256 identifica
 bytes. Uma attestation do GitHub Actions, quando existente e verificada, vincula o artefato à execução que o
 publicou; não certifica a veracidade científica, a qualidade dos dados ou a conformidade de um projeto de carbono.
 
@@ -195,8 +208,9 @@ premissas, calibração, código ou fontes devem gerar nova identificação apro
 Resultados antigos não devem receber retrospectivamente a versão nova. A versão científica da linha, a versão da
 tarefa, o cenário e o commit têm papéis distintos e devem ser consultados em conjunto.
 
-Os assets estaduais do Release `dados` são retratos atuais e podem ser substituídos. `modelos.json` conserva a
-descrição das versões já exportadas; isso não equivale a um arquivo histórico de todos os valores previstos.
+Os assets públicos básicos e os canônicos completos privados são retratos atuais e podem ser substituídos.
+No armazenamento privado, `modelos.json` conserva a descrição das versões já exportadas; isso não equivale a um
+arquivo histórico de todos os valores previstos.
 A conservação longitudinal para aprender com resultados reais pertence ao armazenamento de previsões do módulo
 de aprendizado. Para reproduzir um retrato público, conservar seus arquivos, checksums e atestação.
 

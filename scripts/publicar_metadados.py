@@ -24,14 +24,13 @@ from pathlib import Path
 
 RAIZ = Path(__file__).resolve().parents[1]
 UNIDADE = "catalogo"
-COMMIT_TRAVAS_UF = "1e6d6f61bd8564f0546dbb453339e102b5531f54"
 # SHA-256 dos workflows completos em 1e6d6f6 e c3ec39e (os dois leiautes
 # pré-matrix.ref auditados): checkout padrão, sem troca posterior de commit.
 WORKFLOWS_CHECKOUT_HEAD = {
     "dd0da1a5d2f1af64030ec74316babc284ca23263b2268baff2aee4618632a77c",
     "d804e0b7bb327bc7058ab199691fcfcbb8f5ba8b75d951a135e21e357d6b79d6",
 }
-_COMPATIBILIDADE: dict[tuple[str, str], bool] = {}
+_COMPATIBILIDADE: dict[tuple[str, str, str], bool] = {}
 _CHECKOUT_HEAD: dict[tuple[str, str], bool] = {}
 MARGEM_REQUISICOES = 250
 
@@ -68,7 +67,7 @@ def conferir_processamento_seguro(relatorio: dict | None = None) -> dict:
     fila, rodar = modulos_fila()
     repo = os.environ["GITHUB_REPOSITORY"]
     resultado = {
-        "commit_minimo": COMMIT_TRAVAS_UF,
+        "publicador_sha256": hashlib.sha256((RAIZ / "raiz/executor/armazem.py").read_bytes()).hexdigest(),
         "conferido_em": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         "seguro": False,
         "rodadas_legadas": [],
@@ -83,13 +82,17 @@ def conferir_processamento_seguro(relatorio: dict | None = None) -> dict:
         def compativel(sha):
             if not isinstance(sha, str) or not re.fullmatch(r"[a-fA-F0-9]{40}", sha):
                 raise ValueError("referência do código não confirmada")
-            chave = (repo, sha)
+            # Ancestralidade não prova o contrato após um squash e não impede
+            # regressões em descendentes. Exige os bytes auditados do publicador,
+            # inclusive travas sem expiração e o destino privado autenticado.
+            esperado = resultado["publicador_sha256"]
+            chave = (repo, sha, esperado)
             if chave not in _COMPATIBILIDADE:
-                comparacao = fila.api(f"repos/{repo}/compare/{COMMIT_TRAVAS_UF}...{sha}")
-                status = comparacao.get("status")
-                if status not in {"ahead", "identical", "behind", "diverged"}:
-                    raise ValueError("ancestralidade do código não confirmada")
-                _COMPATIBILIDADE[chave] = status in {"ahead", "identical"}
+                objeto = fila.api(f"repos/{repo}/contents/raiz/executor/armazem.py?ref={sha}")
+                if objeto.get("encoding") != "base64":
+                    raise ValueError("conteúdo do publicador não confirmado")
+                codigo = base64.b64decode("".join(objeto["content"].split()), validate=True)
+                _COMPATIBILIDADE[chave] = hashlib.sha256(codigo).hexdigest() == esperado
             return _COMPATIBILIDADE[chave]
 
         for run_id, run in sorted(runs.items()):
@@ -150,7 +153,7 @@ def conferir_processamento_seguro(relatorio: dict | None = None) -> dict:
             f"{', '.join(r['unidades']) or 'planejamento'} (rodada {r['run_id']})" for r in resultado["rodadas_legadas"]
         )
         mensagem = (
-            "Catálogo bloqueado: processamento sem travas por UF ou segurança não confirmada"
+            "Catálogo bloqueado: processamento sem contrato privado seguro ou segurança não confirmada"
             + (f": {detalhes}" if detalhes else ".")
             + " Aguarde o término natural das rodadas e dos pedidos legados; não cancele os jobs. "
             "Nenhuma publicação foi autorizada por esta conferência."
@@ -356,58 +359,87 @@ def classe_armazem(prazo: float | None = None):
             if dados is not None:
                 # Hash dos bytes efetivamente lidos. Upload posterior com o mesmo
                 # nome substitui esse hash pelo dos bytes novos em atestar.txt.
-                registrar(nome, dados)
+                registrar(nome, dados, privado=self.privado)
             return dados
 
         def _subir(self, rel, nome, dados, tipo="application/octet-stream"):
-            # GitHub substitui um asset com DELETE seguido de POST. Guarda o
-            # original fora do espelho efêmero antes do DELETE, sem acumular
-            # seus bytes na memória. Só o POST confirmado permite descartar.
+            try:
+                self._subir_com_recuperacao(rel, nome, dados, tipo)
+            except Exception:
+                raise ProcessamentoInseguro(
+                    "Publicação interrompida; originais já preservados permanecem no arquivo privado."
+                ) from None
+
+        def _subir_com_recuperacao(self, rel, nome, dados, tipo="application/octet-stream"):
+            # Originais completos nunca entram em artifacts do Actions. Antes
+            # do DELETE, uma cópia imutável é enviada e relida no arquivo privado.
+            from raiz.executor.armazem import destino_privado
+
             if time.monotonic() >= prazo:
                 raise RuntimeError("prazo de publicação encerrado; nenhum novo arquivo será substituído")
-            recuperacao = Path(os.environ["RUNNER_TEMP"]) / "recuperacao-release"
-            prefixo = hashlib.sha256(nome.encode()).hexdigest()[:24] + "-"
-            original = next((a for a in rel.get("assets", []) if a["name"] == nome), None)
-            identidade = {k: original.get(k) for k in ("id", "digest")} if original else {}
-            pasta = recuperacao / (
-                prefixo + hashlib.sha256(json.dumps(identidade, sort_keys=True).encode()).hexdigest()[:16]
-            )
-            if original and not (pasta / "meta.json").exists():
-                pasta.mkdir(parents=True, exist_ok=True)
-                digest, tamanho = hashlib.sha256(), 0
-                temporario = pasta / "arquivo.tmp"
-                with self.cli.stream("GET", self.url(nome), params={"t": str(time.time_ns())}) as resposta:
-                    resposta.raise_for_status()
-                    with temporario.open("wb") as arquivo:
-                        for bloco in resposta.iter_bytes(chunk_size=1024 * 1024):
-                            arquivo.write(bloco)
-                            digest.update(bloco)
-                            tamanho += len(bloco)
-                esperado = original.get("digest") or ""
-                if esperado and esperado != "sha256:" + digest.hexdigest():
-                    raise RuntimeError("original diverge do digest da API; nenhuma substituição foi autorizada")
-                temporario.replace(pasta / "arquivo")
-                manifesto = pasta / "meta.tmp"
-                manifesto.write_text(
-                    json.dumps(
-                        {
-                            "nome": nome,
-                            "sha256": digest.hexdigest(),
-                            "tamanho": tamanho,
-                            "url": self.url(nome),
-                            "asset_id": original.get("id"),
-                        },
-                        ensure_ascii=False,
-                        indent=2,
-                    ),
-                    encoding="utf-8",
+            if self.privado:
+                self._exigir_privado()
+            original = next((a for a in rel["assets"] if a["name"] == nome), None)
+            digest_novo = hashlib.sha256(dados).hexdigest()
+            if original and original.get("digest") == "sha256:" + digest_novo:
+                registrar(nome, dados, privado=self.privado)
+                return
+            identidade = f"{self.repo}/{self.tag}/{nome}"
+            prefixo = hashlib.sha256(identidade.encode()).hexdigest()[:24]
+            marcador = Path(os.environ["RUNNER_TEMP"]) / "recuperacao-release" / (prefixo + ".json")
+            if original:
+                destino = destino_privado()
+                if destino is None:
+                    raise PermissionError("substituição exige destino privado para preservar o original")
+                arquivo = ArmazemRelease(
+                    *destino,
+                    token=os.environ.get("RAIZ_DADOS_PRIVADOS_TOKEN", ""),
+                    cliente=self.cli,
+                    privado=True,
                 )
-                manifesto.replace(pasta / "meta.json")
+                with arquivo._erros_privados("preservar original"):
+                    arquivo._exigir_privado()
+                    anterior = self._baixar_ativo(original) if self.privado else self._baixar_asset(nome, fresco=True)
+                    if anterior is None:
+                        raise RuntimeError("original indisponível; substituição recusada")
+                    digest = hashlib.sha256(anterior).hexdigest()
+                    if original.get("digest") and original["digest"] != "sha256:" + digest:
+                        raise RuntimeError("original diverge do digest da API; substituição recusada")
+                    backup = f"recuperacao-{prefixo}-{digest}"
+                    meta = json.dumps(
+                        {
+                            "origem": identidade,
+                            "asset_id": original["id"],
+                            "sha256": digest,
+                            "tamanho": len(anterior),
+                            "arquivo": backup + ".bin",
+                        },
+                        sort_keys=True,
+                    ).encode()
+                    # Conteúdo + origem identificam um backup; o asset_id pode
+                    # mudar numa regravação idêntica e não substitui o manifesto.
+                    for sufixo, conteudo in ((".bin", anterior), (".json", meta)):
+                        nome_backup = backup + sufixo
+                        with arquivo._trava("trava-" + prefixo, 1800):
+                            existente = arquivo._baixar_asset(nome_backup, fresco=True)
+                            if existente is None:
+                                arquivo._subir(arquivo._release(), nome_backup, conteudo)
+                                existente = arquivo._baixar_asset(nome_backup, fresco=True)
+                            if sufixo == ".bin" and existente != conteudo:
+                                raise RuntimeError("cópia privada não confirmada; substituição recusada")
+                            if sufixo == ".json":
+                                confirmado = json.loads(existente or b"null")
+                                if not confirmado or any(
+                                    confirmado.get(k) != json.loads(meta)[k]
+                                    for k in ("origem", "sha256", "tamanho", "arquivo")
+                                ):
+                                    raise RuntimeError("manifesto privado não confirmado; substituição recusada")
+                    marcador.parent.mkdir(parents=True, exist_ok=True)
+                    marcador.write_bytes(meta)
             if time.monotonic() >= prazo:
                 raise RuntimeError("prazo encerrado após preservar o original; arquivo remoto não foi removido")
             super()._subir(rel, nome, dados, tipo)
-            for pasta in recuperacao.glob(prefixo + "*"):
-                shutil.rmtree(pasta)
+            marcador.unlink(missing_ok=True)
 
     return ArmazemCatalogo
 
@@ -421,8 +453,32 @@ def referencias(indice: dict) -> dict:
     return fichas
 
 
-def checksums() -> dict[str, str]:
-    caminho = Path(os.environ["RUNNER_TEMP"]) / "atestar.txt"
+def arquivos_produto(armazem) -> list[dict]:
+    """Infraestrutura e cópias históricas não geram metadados recursivos."""
+    return [
+        a
+        for a in armazem._assets()
+        if not a["name"].startswith(
+            (
+                "cache_",
+                "historico-",
+                "recuperacao-",
+                "artifact-",
+                "artifacts-",
+                "actions-",
+                "backup-",
+                "corte-",
+                "inventario-",
+                "migracao-",
+                "checkpoint-",
+                "catalogo-relatorio-",
+            )
+        )
+    ]
+
+
+def checksums(*, privado: bool = False) -> dict[str, str]:
+    caminho = Path(os.environ["RUNNER_TEMP"]) / ("atestar-privado.txt" if privado else "atestar.txt")
     if not caminho.exists():
         return {}
     return {nome: digest for digest, nome in (linha.split("  ", 1) for linha in caminho.read_text().splitlines())}
@@ -432,7 +488,7 @@ def conferir_arquivo(armazem, asset: dict, indice: dict) -> str:
     """Confere ficha e bytes sob a trava apropriada; retorna o digest verificado."""
     nome = asset["name"]
     digest_api = (asset.get("digest") or "").removeprefix("sha256:")
-    digest = checksums().get(nome)
+    digest = checksums(privado=armazem.privado).get(nome)
     dados = None
     if not digest or digest != digest_api:
         dados = armazem._baixar_asset(nome, fresco=True)
@@ -444,7 +500,7 @@ def conferir_arquivo(armazem, asset: dict, indice: dict) -> str:
     if eh_ficha(nome):
         return digest
     if nome == "estados.json":
-        referencia = {"url": armazem.url("croissant_estados.json")}
+        referencia = {"url": armazem.url_metadados("croissant_estados.json")}
     else:
         referencia = referencias(indice).get(nome)
     ficha = None
@@ -455,7 +511,8 @@ def conferir_arquivo(armazem, asset: dict, indice: dict) -> str:
         if bruto:
             ficha = json.loads(bruto)
     corresponde = ficha and any(
-        d.get("contentUrl") == armazem.url(nome) and d.get("sha256") == digest for d in ficha.get("distribution", [])
+        d.get("contentUrl") == armazem.url_metadados(nome) and d.get("sha256") == digest
+        for d in ficha.get("distribution", [])
     )
     if not corresponde:
         # A ficha dos CSV precisa conservar os esquemas, não ser substituída
@@ -510,7 +567,13 @@ def publicar(
         raise ValueError("o limite deve ficar entre zero e 300 minutos, com margem para atestar")
     inicio = time.monotonic()
     fim = inicio + limite_minutos * 60
+    from raiz.catalogo_publico import catalogar_publico
+    from raiz.executor.armazem import destino_privado
+
     repo = os.environ["GITHUB_REPOSITORY"]
+    destino = destino_privado()
+    if destino is None:
+        raise PermissionError("catalogação completa exige arquivo privado configurado")
     pasta_temp = Path(os.environ["RUNNER_TEMP"])
     relatorio = {
         "concluidas": [],
@@ -525,9 +588,13 @@ def publicar(
     armazem_cls = fabrica or classe_armazem(fim)
     with tempfile.TemporaryDirectory(prefix="raiz-catalogo-", dir=pasta_temp) as temporaria:
         raiz_temp = Path(temporaria)
-        geral = armazem_cls(repo, "dados", raiz_temp / "geral")
+        geral = armazem_cls(
+            *destino, raiz_temp / "geral", privado=True, token=os.environ.get("RAIZ_DADOS_PRIVADOS_TOKEN", "")
+        )
+        aberto = armazem_cls(repo, "dados", raiz_temp / "basico", privado=False)
         try:
-            assets = geral._release()["assets"]
+            geral._exigir_privado()
+            assets = arquivos_produto(geral)
             existentes = sorted({uf for a in assets if not eh_ficha(a["name"]) and (uf := uf_do_asset(a["name"]))})
             escolhidas = existentes if ufs is None else sorted(set(ufs))
             desconhecidas = set(escolhidas) - set(existentes)
@@ -547,14 +614,16 @@ def publicar(
                         raise RuntimeError("menos de 2 GiB livres para o espelho temporário")
                     print(f"Catalogando {uf}, sem executar geoprocessamento.", flush=True)
                     with tempfile.TemporaryDirectory(prefix=f"{uf}-", dir=raiz_temp) as espelho:
-                        armazem = armazem_cls(repo, "dados", Path(espelho))
+                        armazem = armazem_cls(
+                            *destino, Path(espelho), privado=True, token=os.environ.get("RAIZ_DADOS_PRIVADOS_TOKEN", "")
+                        )
                         try:
                             etapa = "trava_uf"
                             with armazem._trava(f"trava-publicar-{uf}", 1800):
                                 etapa = "seguranca_processamento"
                                 conferir_processamento_seguro(relatorio)
                                 etapa = "consultar_arquivos"
-                                presentes = {a["name"] for a in armazem._release()["assets"]}
+                                presentes = {a["name"] for a in arquivos_produto(armazem)}
                                 if f"raiz_{uf}.tar.gz" in presentes:
                                     etapa, arquivo_atual = "publicar_uf", f"raiz_{uf}.tar.gz"
                                     armazem.publicar(uf)
@@ -566,14 +635,15 @@ def publicar(
                                 etapa, arquivo_atual = "reler_indice", "estados.json"
                                 indice = armazem.manifesto(fresco=True)
                                 etapa, arquivo_atual = "consultar_arquivos", None
-                                for asset in armazem._release()["assets"]:
+                                for asset in arquivos_produto(armazem):
                                     if uf_do_asset(asset["name"]) == uf:
                                         etapa, arquivo_atual = "conferir_arquivo", asset["name"]
-                                        relatorio["arquivos_conferidos"][asset["name"]] = conferir_arquivo(
-                                            armazem, asset, indice
-                                        )
+                                        conferir_arquivo(armazem, asset, indice)
+                                        relatorio["arquivos_conferidos"]["privado/" + asset["name"]] = True
                                         etapa, arquivo_atual = "reler_indice", "estados.json"
                                         indice = armazem.manifesto(fresco=True)
+                            etapa, arquivo_atual = "catalogar_basico", None
+                            catalogar_publico(aberto, uf)
                             relatorio["concluidas"].append(uf)
                             relatorio["pendentes"].remove(uf)
                         finally:
@@ -581,7 +651,7 @@ def publicar(
                 except Exception as erro:
                     registrar_falha(relatorio, uf, etapa, arquivo_atual, erro)
                     resposta = getattr(erro, "response", None)
-                    relatorio["recuperacao_pendente"] = any((pasta_temp / "recuperacao-release").glob("*/meta.json"))
+                    relatorio["recuperacao_pendente"] = any((pasta_temp / "recuperacao-release").glob("*.json"))
                     if (
                         isinstance(erro, ProcessamentoInseguro)
                         or relatorio["recuperacao_pendente"]
@@ -617,12 +687,13 @@ def publicar(
                         etapa = "reler_indice"
                         indice = geral.manifesto(fresco=True)
                         etapa, arquivo_atual = "consultar_arquivos", None
-                        for asset in geral._release()["assets"]:
+                        for asset in arquivos_produto(geral):
                             nome = asset["name"]
                             if uf_do_asset(nome) or eh_ficha(nome) or nome == "estados.json":
                                 continue
                             etapa, arquivo_atual = "conferir_arquivo", nome
-                            relatorio["arquivos_conferidos"][nome] = conferir_arquivo(geral, asset, indice)
+                            conferir_arquivo(geral, asset, indice)
+                            relatorio["arquivos_conferidos"]["privado/" + nome] = True
                             etapa, arquivo_atual = "reler_indice", "estados.json"
                             indice = geral.manifesto(fresco=True)
                         # O índice muda quando a ficha de um arquivo avulso entra;
@@ -630,19 +701,23 @@ def publicar(
                         etapa, arquivo_atual = "reler_indice", "estados.json"
                         indice = geral.manifesto(fresco=True)
                         etapa, arquivo_atual = "consultar_arquivos", None
-                        for asset in geral._release()["assets"]:
+                        for asset in arquivos_produto(geral):
                             if not uf_do_asset(asset["name"]):
                                 etapa, arquivo_atual = "conferir_arquivo", asset["name"]
-                                relatorio["arquivos_conferidos"][asset["name"]] = conferir_arquivo(geral, asset, indice)
+                                conferir_arquivo(geral, asset, indice)
+                                relatorio["arquivos_conferidos"]["privado/" + asset["name"]] = True
+                        etapa, arquivo_atual = "catalogar_basico", None
+                        catalogar_publico(aberto)
                         relatorio["global_concluido"] = True
                 except Exception as erro:
                     registrar_falha(relatorio, "global", etapa, arquivo_atual, erro)
-                    relatorio["recuperacao_pendente"] = any((pasta_temp / "recuperacao-release").glob("*/meta.json"))
+                    relatorio["recuperacao_pendente"] = any((pasta_temp / "recuperacao-release").glob("*.json"))
             relatorio["duracao_segundos"] = round(time.monotonic() - inicio, 1)
             relatorio["disco_livre_bytes"] = shutil.disk_usage(raiz_temp).free
             salvar_relatorio(relatorio)
         finally:
             geral.cli.close()
+            aberto.cli.close()
     situacao_global = "concluídos" if relatorio["global_concluido"] else "pendentes"
     if not incluir_globais:
         situacao_global = "fora desta finalização de UF"
@@ -660,12 +735,14 @@ def publicar(
             else ""
         )
         + (
-            "\nA cota da API adiou parte da entrega; consulte o relatório e os originais no artefato de recuperação.\n"
+            "\nA cota da API adiou parte da entrega; consulte o relatório "
+            "e os originais no arquivo privado de recuperação.\n"
             if relatorio.get("adiado_por_cota")
             else ""
         )
         + (
-            "\nHá originais preservados no artefato recuperacao-release; confira seus hashes antes de retomar.\n"
+            "\nHá originais preservados como assets imutáveis no arquivo privado; "
+            "confira os manifestos autenticados antes de retomar.\n"
             if relatorio.get("recuperacao_pendente")
             else ""
         )

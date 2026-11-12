@@ -2,8 +2,8 @@
 
 import io
 import json
-import subprocess
 import tarfile
+from types import SimpleNamespace
 
 import pandas as pd
 import pytest
@@ -141,20 +141,42 @@ def test_publicacao_so_atualiza_ponteiro_apos_todos_os_assets(tmp_path, monkeypa
     monkeypatch.setenv("GITHUB_RUN_ATTEMPT", "1")
     chamadas = []
 
-    def upload(cmd, **kwargs):
-        chamadas.append(cmd)
-        if len(chamadas) == 2:
-            raise subprocess.CalledProcessError(1, cmd)
+    arm = SimpleNamespace(repo="org/arquivo", tag="privado")
+    monkeypatch.setattr(RR, "arquivo_privado", lambda: arm)
 
-    monkeypatch.setattr(RR.subprocess, "run", upload)
-    with pytest.raises(subprocess.CalledProcessError):
+    def upload(nome, caminho, **kwargs):
+        chamadas.append((nome, kwargs))
+        if len(chamadas) == 2:
+            raise RuntimeError("upload interrompido")
+
+    monkeypatch.setattr(RR, "enviar_arquivo", upload)
+    with pytest.raises(RuntimeError, match="interrompido"):
         RR.publicar(tmp_path)
-    assert not any("--clobber" in c for c in chamadas)
+    assert all(c[1]["imutavel"] for c in chamadas)
     assert not (tmp_path / "lote_PA_central_r11.json").exists()
     chamadas.clear()
-    monkeypatch.setattr(RR.subprocess, "run", lambda cmd, **kwargs: chamadas.append(cmd))
+    monkeypatch.setattr(RR, "enviar_arquivo", lambda nome, caminho, **kw: chamadas.append((nome, kw)))
     manifesto = RR.publicar(tmp_path)
     assert len(manifesto["arquivos"]) == 4
     assert len(chamadas) == 6
-    assert "--clobber" not in [x for cmd in chamadas[:-1] for x in cmd]
-    assert chamadas[-1][-1] == "--clobber"
+    assert all(c[1]["imutavel"] and c[1]["arm"] is arm for c in chamadas[:-1])
+    assert chamadas[-1][0] == "lote_PA_central_r11.json" and not chamadas[-1][1].get("imutavel")
+    assert all(a["acesso"] == "privado" and "url" not in a for a in manifesto["arquivos"].values())
+    anterior = {nome: a["sha256"] for nome, a in manifesto["arquivos"].items()}
+    assert anterior == {nome: a["sha256"] for nome, a in RR.publicar(tmp_path)["arquivos"].items()}
+
+
+def test_preparar_le_ids_imutaveis_do_arquivo_privado(tmp_path, monkeypatch):
+    from testes.test_armazem_release import GitHubFalso, _armazem
+
+    gh = GitHubFalso()
+    gh.assets["raiz_PA.tar.gz"] = gh.tar("PA", {"imoveis_1504950.csv": b"cod_imovel,ha\nCAR-A,10\n"})
+    gh.assets["raiz_geo_PA.tar.gz"] = gh.tar("PA", {})
+    gh.assets["estados.json"] = b'{"estados":{"PA":{}}}'
+    arm = _armazem(gh, tmp_path / "cache")
+    monkeypatch.setattr(RR, "arquivo_privado", lambda: arm)
+    monkeypatch.setattr(RR, "municipios_pa", lambda: {1504950})
+    snapshot = RR.preparar(tmp_path / "entradas", fatias=1)
+    assert snapshot["acesso"] == "privado" and snapshot["cobertura"]["total"] == 1
+    assert set(gh.downloads) == {*RR.PACOTES, "estados.json"}
+    assert all("api.github.com" in f["url"] for f in snapshot["fontes"].values())

@@ -1,7 +1,8 @@
 """Checksums dos uploads concluídos, para a atestação de procedência do Actions.
 
-O Release é mutável: cada nome conserva o último digest enviado por este job.
-A assinatura OIDC é feita pelo actions/attest, nunca pelo processo Python.
+O Release é mutável: cada nome conserva o último digest enviado por este job,
+separado por canal público ou privado. As listas contêm nomes e hashes, nunca os
+dados. A assinatura OIDC é feita pelo actions/attest, nunca pelo processo Python.
 """
 
 from __future__ import annotations
@@ -11,7 +12,7 @@ import os
 from pathlib import Path
 
 
-def registrar(nome: str, dados: bytes) -> None:
+def registrar(nome: str, dados: bytes, *, privado: bool = False) -> None:
     """Registra somente depois do upload bem-sucedido; sem RUNNER_TEMP, não grava."""
     temporaria = os.environ.get("RUNNER_TEMP")
     if not temporaria:
@@ -22,8 +23,9 @@ def registrar(nome: str, dados: bytes) -> None:
 
     pasta = Path(temporaria)
     pasta.mkdir(parents=True, exist_ok=True)
-    destino = pasta / "atestar.txt"
-    with (pasta / "atestar.lock").open("a") as trava:
+    base = "atestar-privado" if privado else "atestar"
+    destino = pasta / f"{base}.txt"
+    with (pasta / f"{base}.lock").open("a") as trava:
         fcntl.flock(trava, fcntl.LOCK_EX)
         checksums = {}
         if destino.exists():

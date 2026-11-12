@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import re
 import shutil
 import tarfile
@@ -61,13 +62,28 @@ def _extrair(pacote: Path, destino: Path) -> None:
 
 class Poligonos:
     def __init__(self, cfg: Config | None = None, ufs: list[str] | None = None):
+        from raiz.executor.armazem import ArmazemRelease, destino_privado
+
         self.cfg = cfg or config()
         self.pasta = self.cfg.cache / "poligonos"
         self.pasta.mkdir(parents=True, exist_ok=True)
         self._so = set(ufs) if ufs else None
+        destino = destino_privado()
+        self._privado = (
+            ArmazemRelease(
+                *destino,
+                espelho=self.pasta / "arquivo_privado",
+                privado=True,
+                token=os.environ.get("RAIZ_DADOS_PRIVADOS_TOKEN") or self.cfg.token_github or "",
+            )
+            if destino
+            else None
+        )
         self.manifesto = self._manifesto()
 
     def _manifesto(self) -> dict:
+        if self._privado:
+            return self._privado.manifesto(fresco=True)
         local = self.pasta / "estados.json"
         try:
             rede.baixar(self.cfg.url_release(self.cfg.tag_dados, "estados.json"), local, condicional=False)
@@ -100,9 +116,17 @@ class Poligonos:
         baixados = self.pasta / "pacotes"
         geo = baixados / f"raiz_geo_{uf}.tar.gz"
         csv = baixados / f"raiz_{uf}.tar.gz"
-        rede.baixar(i["geo"]["url"], geo, condicional=False)
-        if i.get("url"):
-            rede.baixar(i["url"], csv, condicional=False)
+        if self._privado:
+            baixados.mkdir(parents=True, exist_ok=True)
+            for nome, destino in ((f"raiz_geo_{uf}.tar.gz", geo), (f"raiz_{uf}.tar.gz", csv)):
+                dados = self._privado._baixar_asset(nome)
+                if dados is None:
+                    raise FileNotFoundError(f"arquivo privado incompleto: {nome}")
+                destino.write_bytes(dados)
+        else:
+            rede.baixar(i["geo"]["url"], geo, condicional=False)
+            if i.get("url"):
+                rede.baixar(i["url"], csv, condicional=False)
         tmp = self.pasta / f"{uf}.novo"
         _extrair(geo, tmp)
         if csv.exists():

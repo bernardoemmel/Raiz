@@ -27,6 +27,9 @@ class GitHubFalso:
         self._ids: dict[str, int] = {}
         self._proximo_id = 1
         self.refs = set()
+        self.privado = True
+        self.rascunho = False
+        self.downloads: list[str] = []
 
     def tar(self, uf: str, arquivos: dict[str, bytes]) -> bytes:
         buf = io.BytesIO()
@@ -69,15 +72,30 @@ class GitHubFalso:
                     self._ids[n] = self._proximo_id
                     self._proximo_id += 1
             assets = [
-                {"id": self._ids[n], "name": n, "digest": "sha256:" + hashlib.sha256(d).hexdigest()}
+                {
+                    "id": self._ids[n],
+                    "name": n,
+                    "size": len(d),
+                    "digest": "sha256:" + hashlib.sha256(d).hexdigest(),
+                    "updated_at": "2026-11-12T00:00:00Z",
+                }
                 for n, d in self.assets.items()
             ]
+            if "/releases/assets/" in u.path:
+                nome = next(a["name"] for a in assets if a["id"] == int(u.path.rsplit("/", 1)[1]))
+                assert req.headers.get("accept") == "application/octet-stream"
+                self.downloads.append(nome)
+                return httpx.Response(200, content=self.assets[nome])
             if u.path.endswith("/assets"):
                 pagina = int(u.params.get("page", 1))
                 tamanho = int(u.params.get("per_page", 100))
                 return httpx.Response(200, json=assets[(pagina - 1) * tamanho : pagina * tamanho])
-            return httpx.Response(200, json={"id": 7, "assets": assets})
+            if "/releases/" not in u.path:
+                return httpx.Response(200, json={"private": self.privado})
+            return httpx.Response(200, json={"id": 7, "assets": assets, "draft": self.rascunho})
         if u.host == "api.github.com" and req.method == "DELETE":
+            if "/git/refs/" in u.path:
+                return httpx.Response(204)
             aid = int(u.path.rsplit("/", 1)[1])
             nome = next(n for n, i in self._ids.items() if i == aid)
             self.assets.pop(nome, None)
@@ -99,15 +117,15 @@ def gh():
 
 def _armazem(gh, pasta: Path, token="segredo", **kw) -> ArmazemRelease:
     cli = httpx.Client(transport=httpx.MockTransport(gh))
-    return ArmazemRelease(REPO, TAG, pasta, token=token, cliente=cli, **kw)
+    return ArmazemRelease(REPO, TAG, pasta, token=token, cliente=cli, privado=kw.pop("privado", True), **kw)
 
 
 def test_trava_ocupada_nao_e_removida_por_tempo_de_espera(gh, tmp_path):
-    gh.refs.add("refs/tags/trava-publicar-dados")
+    gh.refs.add("refs/tags/trava-publicar-dados-dados")
     a = _armazem(gh, tmp_path / "espelho")
     with pytest.raises(TimeoutError), a._trava(velha_s=0):
         pytest.fail("não pode publicar sem adquirir a trava")
-    assert gh.refs == {"refs/tags/trava-publicar-dados"}
+    assert gh.refs == {"refs/tags/trava-publicar-dados-dados"}
     assert not gh.uploads
 
 
@@ -120,7 +138,7 @@ def test_erro_da_api_da_trava_impede_upload(gh, tmp_path, monkeypatch):
         return gh(req)
 
     a = _armazem(indisponivel, tmp_path / "espelho")
-    with pytest.raises(httpx.HTTPStatusError), a._trava():
+    with pytest.raises(RuntimeError), a._trava():
         pytest.fail("não pode publicar com falha da API")
     assert not gh.uploads
 
@@ -198,7 +216,7 @@ def test_le_o_pacote_publicado_pelo_motor(gh, tmp_path):
     gh.assets["raiz_PA.tar.gz"] = gh.tar("PA", {"imoveis_1504950.csv": b"cod_imovel,ha\nPA-1,10\n",
                                                 "resumo_PA.csv": b"cod_ibge,imoveis\n1504950,1\n"})  # fmt: skip
     gh.assets["estados.json"] = json.dumps({"estados": {"PA": {"municipios": 1, "versao": "x"}}}).encode()
-    a = _armazem(gh, tmp_path / "espelho", token="")  # sem token (o do ambiente não vale aqui)
+    a = _armazem(gh, tmp_path / "espelho")
     assert a.ler("saida/PA/imoveis_1504950.csv") == b"cod_imovel,ha\nPA-1,10\n"
     assert a.meta("saida/PA/imoveis_1504950.csv")["versao"] == "publicado"
     assert a.listar("saida/PA/") == ["saida/PA/imoveis_1504950.csv", "saida/PA/resumo_PA.csv"]
@@ -208,7 +226,8 @@ def test_le_o_pacote_publicado_pelo_motor(gh, tmp_path):
 
     assert sincronizar(a, tmp_path / "espelho", ["PA"]) == ["saida/PA/imoveis_1504950.csv", "saida/PA/resumo_PA.csv"]
     with pytest.raises(PermissionError):
-        a.publicar("PA")  # sem token, só lê
+        _armazem(gh, tmp_path / "sem_token", token="").ler("saida/PA/imoveis_1504950.csv")
+    assert "raiz_PA.tar.gz" in gh.downloads  # endpoint autenticado da API, nunca URL de navegador
 
 
 C1, C2, C3, C4 = 1500001, 1500002, 1500003, 1500004
@@ -273,7 +292,7 @@ def test_ficha_corresponde_ao_pacote_e_catalogo_preserva_outros_estados(gh, tmp_
     man = json.loads(gh.assets["estados.json"])["estados"]["PA"]
     assert man["sha256"] == hashlib.sha256(gh.assets["raiz_PA.tar.gz"]).hexdigest()
     ficha = json.loads(gh.assets["croissant_PA.json"])
-    pacote = next(d for d in ficha["distribution"] if d.get("contentUrl") == a.url("raiz_PA.tar.gz"))
+    pacote = next(d for d in ficha["distribution"] if d.get("contentUrl") == a.url_metadados("raiz_PA.tar.gz"))
     assert pacote["sha256"] == man["sha256"]
     assert man["croissant"]["sha256"] == hashlib.sha256(gh.assets["croissant_PA.json"]).hexdigest()
     a.por_bytes("saida/AC/imoveis_1200001.csv", b"cod_imovel,ha\ny,2\n", {"versao": "funil-1"})

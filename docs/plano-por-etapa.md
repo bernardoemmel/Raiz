@@ -29,11 +29,11 @@ Retomada em 12/11/2026, seguindo a passagem `docs/passagem/raiz-dados-do-brasil.
 | Ordem | Entrega | Situação |
 |---|---|---|
 | 1 | Limite global de 15 jobs de processamento, sem cancelar os existentes | **feito**: #43 e #46 mesclados com CI verde; admissão atômica na ref `raiz-fila-processamento`, incluindo pedidos manuais e continuações; falha de consulta bloqueia novas vagas. Pedidos sem vaga ficam persistidos e são retomados a cada 15 minutos. Nenhum job foi cancelado pela retomada; pausa manual externa registrada na passagem |
-| 2–3 | Fichas Croissant 1.1/schema.org e publicação no Release | **feito no publicador**: `raiz/metadados.py`, baker 0.8.3 e mlcroissant 1.1.1; fichas por pacote CSV, geometria, camadas e controle, catálogo geral e ficha do índice sob as travas existentes. SHA-256 dos bytes reais, leitura de tar testada e nenhuma licença de dados presumida. Baker e validador trabalham em subprocessos limitados por campos, preservando a ficha integral. A atualização retroativa de todos os assets será conferida na entrega final |
-| 4 | Quantis públicos no formato hubverse, com versão do modelo | **feito no publicador**: Parquet longo, hub nativo por UF, tasks v6 e metadados por versão; data/versão ausentes geram diagnóstico. FLAG usa hipótese triangular explícita; P50 legado do desenvolvedor preserva o cenário central. Publicação retroativa pendente de execução |
+| 2–3 | Fichas Croissant 1.1/schema.org e publicação no Release | **feito no publicador**: `raiz/metadados.py`, baker 0.8.3 e mlcroissant 1.1.1; fichas por pacote CSV, geometria, camadas e controle, com catálogos separados por acesso; o público recebe só fichas básicas, o privado recebe os derivados completos. SHA-256 dos bytes reais, leitura de tar testada e nenhuma licença de dados presumida. Baker e validador trabalham em subprocessos limitados por campos, preservando a ficha integral. A atualização retroativa de todos os assets será conferida na entrega final |
+| 4 | Quantis privados no formato hubverse, com versão do modelo | **feito no publicador**: Parquet longo, hub nativo por UF, tasks v6 e metadados por versão; data/versão ausentes geram diagnóstico. FLAG usa hipótese triangular explícita; P50 legado do desenvolvedor preserva o cenário central. Publicação retroativa pendente de execução |
 | 5 | Cartão do modelo | **feito**: `docs/modelo/cartao.md`, publicado como `cartao_modelo.md`; usos, dados, métodos, versões, métricas ainda sem validação de campo e limites |
 | 6 | Atestação dos arquivos publicados pelo Actions | **feito no workflow**: checksums dos uploads concluídos e `actions/attest-build-provenance@v2`, com OIDC e permissão de atestação. Finalizador da versão atual atende também execuções científicas fixadas em commits antigos. A execução e a verificação dos arquivos existentes serão registradas após o merge |
-| 7 | Cronograma dos lotes no vocabulário CAD Trust | **feito no publicador**: cenários ProFloresta+ por UF, incrementos anuais inteiros cuja soma preserva o total P50; `cadt_lotes.json`, proveniência e diagnósticos. Âncora hipotética de 01/01/2027 configurável; não declara registro, certificação ou emissão |
+| 7 | Cronograma dos lotes no vocabulário CAD Trust | **feito no publicador**: cenários ProFloresta+ privados por UF, incrementos anuais inteiros cuja soma preserva o total P50; `cadt_lotes.json`, proveniência e diagnósticos. Âncora hipotética de 01/01/2027 configurável; não declara registro, certificação ou emissão |
 | 8 | Pendências E1/E2 da passagem, na ordem de dependência | a fazer |
 
 ## E1. Coleta de dados públicos
@@ -257,8 +257,17 @@ Entrega do chat **Ficha da fazenda** (12/11/2026; detalhes em
 | Busca nacional combinando estado, município, bioma, área, terra, crédito e risco; pequenas preservadas e agrupamentos indicados | **feito** sobre a cobertura processada; vizinhança do agrupamento ainda precisa de conferência |
 | Botão pedir contato, registro interno na Raíz | **feito**; não envia contato nesta etapa |
 | Créditos pagos, Pix confirmado no provedor, débito atômico/idempotente, limites persistidos contra raspagem | **feito** no código; operação exige catálogo de preços e chave Pix de produção |
-| Agregados abertos no site, nova ficha completa só na API autenticada e paga | **feito** no site e nas rotas novas; Release histórico de dados continua aberto, migração de armazenamento privado deve ser coordenada com dados |
+| Agregados abertos no site, nova ficha completa só na API autenticada e paga | **feito** no site e nas rotas novas; migração do Release histórico e contrato básico descritos na continuação abaixo |
 | Integração da nova ficha com navegação do mapa | **feito**, sem reescrever o mapa; produtor precisa de autenticação própria para voltar a acessar detalhes no site |
+
+Continuação de Ficha da fazenda (12/11/2026; validação e operação na passagem):
+
+| Entrega | Situação |
+|---|---|
+| Contrato aberto com agregado municipal/estadual e CAR/situação básica; camadas exclusivas no arquivo privado | **feito**: 40 originais preservados no privado e 22 assets básicos publicados; SHA-256 e bloqueio anônimo conferidos, provas em `docs/dados-publicados.md`; 18 artifacts preservados/removidos e 33 caches antigos descartados |
+| Preços em YAML provisório, Pix em teste e roteiro de ativação no servidor | **feito**; valores a definir pelo fundador, venda real fechada |
+| Comparar até cinco fichas pagas, salvar busca/avisos internos e PDF com fontes/datas | **feito** no código; agendar verificação no servidor ao implantar |
+| `consultar_ficha` compartilhado pela API e adaptador MCP, alinhado à passagem Produto e regras | **feito**; registro no transporte corporativo permanece com Produto e regras |
 
 Site legível por agentes (12/11/2026): **feito** — `llms.txt`, `robots.txt`, páginas Markdown do Brasil, estados,
 municípios, produtor, serviço, fontes e privacidade; alternates no HTML; JSON-LD `Dataset`, `Service` e `Offer`
@@ -276,7 +285,7 @@ zoom, polígonos coloridos, HTTP Range e zero 404. Build limita fichas pré-gera
 com portão de 950 MB. Polígonos permanecem por município enquanto couberem; não foi necessário tippecanoe nesta rodada.
 
 A entrega da ficha mantém as bases e limites do mapa nacional, mas restringe os detalhes por CAR à API paga;
-a publicação pública usa os agregados municipais.
+a publicação pública usa agregados municipais e situação básica por CAR, sem camadas exclusivas.
 
 Conferido contra a main em 12/11/2026: "feito" quer dizer que o código está na main; "parcial" diz o que existe e o
 que falta, com as horas do que falta. O site público (https://bernardoemmel.github.io/Raiz/) mostra o que o front já

@@ -78,7 +78,7 @@ jobs:
         env:
           RAIZ_PRINTS: ${{ github.workspace }}/front/.cache/teste-site/resultado/prospeccao
         run: cd front/globo && npm run test:prospeccao
-      - name: Cena-alvo (Release ausente, publicado e três lotes autorizados)
+      - name: Cena-alvo (cobertura pública, bloqueio de lote legado e três lotes autorizados)
         run: cd front/globo && npm run test:cena
       - name: Evidências da cena-alvo
         if: always()

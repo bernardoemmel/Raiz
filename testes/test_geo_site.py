@@ -32,12 +32,14 @@ def geo(tmp_path, monkeypatch):
 def escrever_municipio(pasta, uf, cod, com_geo=True):
     destino = pasta / uf
     destino.mkdir(parents=True, exist_ok=True)
-    csv = destino / f"imoveis_{cod}.csv"
-    csv.write_text("cod_imovel,area_ha\nCAR-A,1\nCAR-B,0.000001\n")
+    csv = destino / f"imoveis_basicos_{cod}.csv"
+    csv.write_text(
+        f"cod_imovel,cod_ibge,municipio,uf,situacao_basica\nCAR-A,{cod},Cidade,{uf},apto\nCAR-B,{cod},Cidade,{uf},com_pendencia\n"
+    )
     if com_geo:
-        # A fonte contém campos que nunca podem vazar, um CAR repetido e outro ausente do CSV.
+        # O pacote mínimo pode repetir CAR; um CAR ausente do CSV não é publicado.
         gpd.GeoDataFrame(
-            {"cod_imovel": ["CAR-A", "CAR-B", "CAR-A", "ANTIGO"], "contato": ["privado"] * 4},
+            {"cod_imovel": ["CAR-A", "CAR-B", "CAR-A", "ANTIGO"]},
             geometry=[box(-50, -6, -49.9, -5.9), box(-50, -6, -49.99999999, -5.99999999)] * 2,
             crs=4326,
         ).to_parquet(destino / f"geo_{cod}.parquet")
@@ -58,8 +60,23 @@ def test_exporta_parquet_sem_dados_pessoais_e_sem_perder_fazenda_pequena(geo, tm
     assert all(f["geometry"]["coordinates"] for f in fs)
     assert not antigo.exists()
     # Mesmo com o cache preenchido, uma tabela nova invalida a geometria antiga.
-    csv.write_text("cod_imovel,area_ha\nCAR-B,0.000001\n")
+    csv.write_text("cod_imovel,cod_ibge,municipio,uf,situacao_basica\nCAR-B,1505536,Cidade,PA,com_pendencia\n")
     assert geo.exportar_geometria(csv, cache)[0] == 1
+
+
+def test_geometria_publica_recusa_pacote_legado_e_campos_privados(geo, tmp_path):
+    pasta = tmp_path / "dados"
+    csv = escrever_municipio(pasta, "PA", "1505536")
+    (pasta / "estados.json").write_text(json.dumps({"estados": {"PA": {}}}))
+    with pytest.raises(ValueError, match="publico_basico"):
+        geo.municipios_publicados(pasta)
+    origem = csv.with_name("geo_1505536.parquet")
+    dados = gpd.read_parquet(origem)
+    dados["credito_p50"] = 999999
+    dados.to_parquet(origem)
+    with pytest.raises(ValueError, match="fora do contrato"):
+        geo.exportar_geometria(csv, {})
+    assert not (geo.SAIDA / "imoveis_1505536.geojson.gz").exists()
 
 
 def test_release_descobre_todos_os_municipios_e_indica_desenho_ausente(geo, tmp_path):
@@ -67,7 +84,9 @@ def test_release_descobre_todos_os_municipios_e_indica_desenho_ausente(geo, tmp_
     escrever_municipio(pasta, "PA", "1505536")
     escrever_municipio(pasta, "GO", "5200050", com_geo=False)
     escrever_municipio(pasta, "MG", "3100104")
-    (pasta / "estados.json").write_text(json.dumps({"estados": {"PA": {}, "GO": {}}}))
+    (pasta / "estados.json").write_text(
+        json.dumps({"versao_publicacao": 1, "escopo": "publico_basico", "estados": {"PA": {}, "GO": {}}})
+    )
     fronteiras = [
         {"type": "Feature", "properties": {"cod_ibge": cod, "nome": cod}, "geometry": mapping(box(-50, -6, -49, -5))}
         for cod in ("1505536", "5200050")
@@ -156,7 +175,19 @@ def test_download_estrito_distingue_estado_sem_pacote_de_download_quebrado(tmp_p
             if self.path == "/estados.json":
                 self.send_response(200)
                 self.end_headers()
-                corpo = {"estados": {"AM": {"municipios": municipios, "versao": "v1", "url": url + "/ausente"}}}
+                corpo = {
+                    "versao_publicacao": 1,
+                    "escopo": "publico_basico",
+                    "estados": {
+                        "AM": {
+                            "municipios": municipios,
+                            "versao": "v1",
+                            "versao_publicacao": 1,
+                            "escopo": "publico_basico",
+                            **({"url": url + "/raiz_AM.tar.gz"} if municipios else {}),
+                        }
+                    },
+                }
                 self.wfile.write(json.dumps(corpo).encode())
             else:
                 self.send_response(404)
@@ -179,7 +210,7 @@ def test_download_estrito_distingue_estado_sem_pacote_de_download_quebrado(tmp_p
             timeout=10,
         )
         assert resultado.returncode == saida, resultado.stderr
-        assert pedidos == (["/estados.json"] if municipios == 0 else ["/estados.json", "/ausente"])
+        assert pedidos == (["/estados.json"] if municipios == 0 else ["/estados.json", "/raiz_AM.tar.gz"])
     finally:
         servidor.shutdown()
         servidor.server_close()

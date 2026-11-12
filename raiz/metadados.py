@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import copy
 import csv
+import datetime as dt
 import gc
 import json
 import os
@@ -28,9 +29,19 @@ CONDICOES = (
     "as fontes conservam os termos e créditos registrados no NOTICE.md. Disponibilidade pública não concede "
     "licença adicional."
 )
+CONDICOES_PRIVADAS = (
+    "Arquivo privado, disponível somente a processos autorizados do servidor Raíz. "
+    "A URI release-github identifica repositório, Release e arquivo; o servidor resolve o asset pela API "
+    "autenticada do GitHub e confere repositório privado ou Release não publicado antes do acesso. "
+    "O leitor Croissant precisa receber o arquivo local autorizado; não há download público nativo dessa URI. "
+    "A licença de redistribuição dos dados derivados da Raíz ainda não foi definida; "
+    "as fontes conservam os termos e créditos registrados no NOTICE.md."
+)
 _PROIBIDAS = re.compile(r"(^|_)(cpf|cnpj|nome|proprietario|titular|email|telefone)($|_)", re.I)
 LIMITE_CAMPOS = 1500
 LIMITE_NOS = 6000
+# tar vazio com gzip determinístico (mtime=0), também usado pela projeção pública.
+TAR_VAZIO_SHA256 = "b94b4d079a0a84bdf416bc4a472ccff4775bb999858da78e854446f0d5221b84"
 
 
 def _contexto() -> dict:
@@ -79,7 +90,36 @@ def _contexto() -> dict:
     return contexto
 
 
-def _base(nome: str, url: str, descricao: str, repo: str) -> dict:
+def _escopo(escopo: str) -> None:
+    if escopo not in {"publico_basico", "privado"}:
+        raise ValueError("escopo de acesso inválido")
+
+
+def base_release(repo: str, tag: str, *, escopo: str) -> str:
+    """Endereço lógico sem token; o destino privado é resolvido pelo servidor autorizado."""
+    _escopo(escopo)
+    if not re.fullmatch(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+", repo) or not re.fullmatch(r"[A-Za-z0-9_.-]+", tag):
+        raise ValueError("destino do catálogo inválido")
+    if escopo == "privado":
+        return f"release-github://{repo}/{tag}/"
+    return f"https://github.com/{repo}/releases/download/{tag}/"
+
+
+def _url_acesso(url: str, *, escopo: str) -> None:
+    _escopo(escopo)
+    u = urlparse(url)
+    if u.username or u.password or u.query or u.fragment or not u.netloc:
+        raise ValueError("endereço de acesso inválido ou contém credencial")
+    if escopo == "privado":
+        if not re.fullmatch(r"release-github://[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+", url):
+            raise ValueError("arquivo privado exige URI release-github sem segredo")
+    elif u.scheme != "https":
+        raise ValueError("arquivo público exige URL HTTPS")
+
+
+def _base(nome: str, url: str, descricao: str, repo: str, *, escopo: str) -> dict:
+    repo = REPO if repo.lower() == REPO.lower() else repo
+    _url_acesso(url, escopo=escopo)
     return {
         "@context": _contexto(),
         "@type": "sc:Dataset",
@@ -91,8 +131,8 @@ def _base(nome: str, url: str, descricao: str, repo: str) -> dict:
         "inLanguage": "pt-BR",
         "creator": {"@type": "sc:Organization", "name": "Raíz", "url": f"https://github.com/{repo}"},
         "publisher": {"@type": "sc:Organization", "name": "Raíz", "url": f"https://github.com/{repo}"},
-        "conditionsOfAccess": CONDICOES,
-        "isAccessibleForFree": True,
+        "conditionsOfAccess": CONDICOES if escopo == "publico_basico" else CONDICOES_PRIVADAS,
+        "isAccessibleForFree": escopo == "publico_basico",
         "citation": f"https://github.com/{repo}/blob/main/NOTICE.md",
         "citeAs": f"Raíz. {nome}. {url}. Fontes e créditos: https://github.com/{repo}/blob/main/NOTICE.md.",
         "distribution": [],
@@ -106,6 +146,7 @@ def ficha_arquivo(
     sha256: str,
     tamanho: int | None = None,
     *,
+    escopo: str,
     descricao: str | None = None,
     versao: str | None = None,
     atualizado_em: str | None = None,
@@ -119,9 +160,8 @@ def ficha_arquivo(
     """
     if not re.fullmatch(r"[a-fA-F0-9]{64}", sha256 or ""):
         raise ValueError(f"SHA-256 completo ausente ou inválido para {nome}")
-    if urlparse(url).scheme not in {"http", "https"} or not urlparse(url).netloc:
-        raise ValueError(f"URL pública inválida para {nome}")
-    ficha = _base(nome, url, descricao or f"Arquivo {nome} do conjunto de dados públicos da Raíz.", repo)
+    acesso = "básicos públicos" if escopo == "publico_basico" else "privados"
+    ficha = _base(nome, url, descricao or f"Arquivo {nome} do conjunto de dados {acesso} da Raíz.", repo, escopo=escopo)
     arquivo = {
         "@id": "arquivo",
         "@type": "cr:FileObject",
@@ -478,13 +518,14 @@ def validar(ficha: dict) -> None:
         _validar_parte(ficha)
 
 
-def croissant_uf(pasta: str | Path, uf: str, entrada: dict) -> dict:
+def croissant_uf(pasta: str | Path, uf: str, entrada: dict, *, escopo: str) -> dict:
     """Descreve os CSV diretos de ``pasta`` contidos em ``raiz_<UF>.tar.gz``.
 
     ``entrada`` traz url, sha256, tamanho, versao e atualizado_em do pacote
     efetivamente publicado; repo é opcional. Tipos vêm do croissant-baker
     0.8.3; o padrão não inclui exemplos/valores nem os arquivos .meta.json.
     """
+    _escopo(escopo)
     pasta, uf = Path(pasta), uf.upper()
     if not re.fullmatch(r"[A-Z]{2}", uf):
         raise ValueError("UF deve ter duas letras")
@@ -497,6 +538,8 @@ def croissant_uf(pasta: str | Path, uf: str, entrada: dict) -> dict:
             colunas = next(csv.reader(f), [])
         if not colunas or any(_PROIBIDAS.search(c.strip()) for c in colunas):
             raise ValueError(f"cabeçalho vazio ou coluna pessoal proibida em {arquivo.name}")
+        if escopo == "publico_basico":
+            _cabecalho_publico(arquivo.name, colunas, uf)
         quantidades[arquivo] = len(colunas)
 
     ficha = ficha_arquivo(
@@ -504,15 +547,23 @@ def croissant_uf(pasta: str | Path, uf: str, entrada: dict) -> dict:
         entrada["url"],
         entrada.get("sha256"),
         entrada.get("tamanho"),
+        escopo=escopo,
         descricao=(
-            f"Tabelas da Raíz por imóvel e município de {uf}: cadastro ambiental, restrições territoriais e "
-            "estimativas de restauração. Inferência de tipos pelo croissant-baker; não contém amostras de valores. "
+            (
+                f"Tabelas básicas públicas da Raíz em {uf}: situação básica por CAR e agregados municipais. "
+                if escopo == "publico_basico"
+                else (
+                    f"Tabelas privadas da Raíz por imóvel e município de {uf}: cadastro ambiental, "
+                    "restrições territoriais e estimativas de restauração. "
+                )
+            )
+            + "Inferência de tipos pelo croissant-baker; não contém amostras de valores. "
             "O processamento pode estar parcial; consulte estados.json."
         ),
         versao=entrada.get("versao"),
         atualizado_em=entrada.get("atualizado_em"),
         formato=["application/x-tar", "application/gzip"],
-        repo=entrada.get("repo", REPO),
+        repo=entrada.get("repo_codigo", REPO),
     )
     tabelas = {}
     for grupo in _lotes(arquivos, quantidades.__getitem__, LIMITE_CAMPOS):
@@ -599,7 +650,9 @@ def croissant_uf(pasta: str | Path, uf: str, entrada: dict) -> dict:
     return ficha
 
 
-def croissant_release(indice: dict, repo: str = REPO, tag: str = "dados") -> dict:
+def croissant_release(
+    indice: dict, repo: str = REPO, tag: str = "dados", *, escopo: str, repo_codigo: str = REPO
+) -> dict:
     """Catálogo do Release com links apenas para fichas já publicadas.
 
     Cada ``estados[UF].croissant`` pode ser uma URL ou um objeto com url,
@@ -607,8 +660,14 @@ def croissant_release(indice: dict, repo: str = REPO, tag: str = "dados") -> dic
     ``indice['fichas']`` e ``estados[UF]['fichas']`` (nome do arquivo ->
     referência da sua ficha).
     """
-    base = f"https://github.com/{repo}/releases/download/{quote(tag, safe='')}/"
-    ficha = _base("Dados do Brasil — Raíz", base + "croissant.json", "Catálogo das fichas do Release dados.", repo)
+    base = base_release(repo, tag, escopo=escopo)
+    ficha = _base(
+        "Dados do Brasil — Raíz",
+        base + "croissant.json",
+        f"Catálogo das fichas do Release {tag} ({escopo}).",
+        repo_codigo,
+        escopo=escopo,
+    )
     if indice.get("gerado_em"):
         ficha["dateModified"] = indice["gerado_em"]
     referencias = dict(indice.get("fichas") or {})
@@ -620,6 +679,9 @@ def croissant_release(indice: dict, repo: str = REPO, tag: str = "dados") -> dic
     for nome, referencia in sorted(referencias.items()):
         referencia = {"url": referencia} if isinstance(referencia, str) else referencia
         url = referencia["url"]
+        if not url.startswith(base) or "/" in url.removeprefix(base):
+            raise ValueError("referência de ficha fora do destino e escopo do catálogo")
+        _url_acesso(url, escopo=escopo)
         ficha["hasPart"].append({"@type": "sc:Dataset", "@id": url, "url": url, "name": nome})
         if referencia.get("sha256"):
             arquivo = ficha_arquivo(
@@ -627,11 +689,284 @@ def croissant_release(indice: dict, repo: str = REPO, tag: str = "dados") -> dic
                 url,
                 referencia["sha256"],
                 referencia.get("tamanho"),
+                escopo=escopo,
                 formato="application/ld+json",
+                repo=repo_codigo,
             )["distribution"][0]
             arquivo["@id"] = f"fichas/{quote(nome, safe='_-')}"
             ficha["distribution"].append(arquivo)
     return ficha
+
+
+def _cabecalho_publico(nome: str, colunas: list[str], uf: str) -> None:
+    from raiz.executor.publicacao_aberta import COLUNAS_BASICAS, COLUNAS_RESUMO, COLUNAS_SEM_IMOVEIS
+
+    erro = "cabeçalho fora do contrato básico público"
+    if not colunas or any(not isinstance(c, str) for c in colunas) or len(set(colunas)) != len(colunas):
+        raise ValueError(erro)
+    if re.fullmatch(r"imoveis_basicos_[0-9]{7}\.csv", nome):
+        valido = tuple(colunas) == COLUNAS_BASICAS
+    elif nome in {f"resumo_{uf}.csv", f"sem_imoveis_{uf}.csv"}:
+        permitidas = COLUNAS_RESUMO if nome.startswith("resumo_") else COLUNAS_SEM_IMOVEIS
+        # A projeção usa a ordem da lista positiva, mesmo quando faltam colunas.
+        valido = colunas == [c for c in permitidas if c in colunas]
+    else:
+        valido = False
+    if not valido:
+        raise ValueError(erro)
+
+
+def validar_ficha_publica(nome: str, dados: bytes, *, repo: str = REPO, tag: str = "dados") -> None:
+    """Aceita apenas o documento exato que o gerador público pode produzir.
+
+    Contexto, textos, nomes, IDs, origens e URLs são reconstruídos, não filtrados.
+    Valores/linhas, propriedades extras, aliases JSON-LD e URIs privadas falham.
+    Não é necessário executar mlcroissant: este é o limite de publicação; a
+    validação Croissant independente continua no gerador antes do upload.
+    """
+    erro = "ficha fora do contrato básico público"
+
+    def exigir(condicao):
+        if not condicao:
+            raise ValueError(erro)
+
+    def objeto(pares):
+        resultado = {}
+        for chave, valor in pares:
+            exigir(chave not in resultado)
+            resultado[chave] = valor
+        return resultado
+
+    def constante(_):
+        raise ValueError(erro)
+
+    exigir(isinstance(dados, bytes) and isinstance(nome, str))
+    try:
+        ficha = json.loads(dados, object_pairs_hook=objeto, parse_constant=constante)
+    except (ValueError, TypeError, UnicodeError, RecursionError):
+        raise ValueError(erro) from None
+    exigir(isinstance(ficha, dict))
+    exigir(ficha.get("isAccessibleForFree") is True)
+    exigir(isinstance(repo, str) and re.fullmatch(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+", repo))
+    exigir(isinstance(tag, str) and re.fullmatch(r"[A-Za-z0-9_.-]+", tag))
+    # Sem referência ao destino privado mesmo se um chamador o configurar por engano.
+    exigir("privad" not in tag.lower() and "private" not in tag.lower())
+    ufs = set("AC AL AP AM BA CE DF ES GO MA MT MS MG PA PB PR PE PI RJ RN RS RO RR SC SP SE TO".split())
+
+    def nome_ficha(asset):
+        exigir(isinstance(asset, str))
+        m = re.fullmatch(r"raiz_(geo_)?([A-Z]{2})\.tar\.gz", asset)
+        if m:
+            exigir(m[2] in ufs)
+            return f"croissant_{asset}.json" if m[1] else f"croissant_{m[2]}.json"
+        exigir(asset in {"estados.json", "cartao_modelo.md"})
+        return "croissant_estados.json" if asset == "estados.json" else "croissant_cartao_modelo.md.json"
+
+    def url_publica(valor, asset):
+        exigir(isinstance(valor, str))
+        m = re.fullmatch(
+            r"https://github\.com/([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)/releases/download/([A-Za-z0-9_.-]+)/([^/?#]+)",
+            valor,
+        )
+        exigir(m and m[1].lower() == repo.lower() and m[2] == tag and m[3] == asset)
+        return valor
+
+    def extras_raiz():
+        extra = {}
+        if "version" in ficha:
+            v = ficha["version"]
+            exigir(
+                isinstance(v, str)
+                and re.fullmatch(r"(?:(?:[a-f0-9]{16}|[a-f0-9]{40}|[a-f0-9]{64})|v?[0-9]{1,4}(?:\.[0-9]{1,4}){0,3})", v)
+            )
+            extra["version"] = v
+        if "dateModified" in ficha:
+            v = ficha["dateModified"]
+            exigir(
+                isinstance(v, str)
+                and re.fullmatch(
+                    r"[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\.[0-9]{1,6})?(?:Z|\+00:00)", v
+                )
+            )
+            try:
+                dt.datetime.fromisoformat(v)
+            except ValueError:
+                raise ValueError(erro) from None
+            extra["dateModified"] = v
+        return extra
+
+    def arquivo(recebido, identificador, arquivo_nome, url, formato, pai=None):
+        exigir(isinstance(recebido, dict))
+        digest = recebido.get("sha256")
+        exigir(isinstance(digest, str) and re.fullmatch(r"[a-f0-9]{64}", digest))
+        esperado = {
+            "@id": identificador,
+            "@type": "cr:FileObject",
+            "name": arquivo_nome,
+            "contentUrl": url,
+            "encodingFormat": formato,
+            "sha256": digest,
+        }
+        if "contentSize" in recebido:
+            tamanho = recebido["contentSize"]
+            exigir(isinstance(tamanho, str) and re.fullmatch(r"(?:0|[1-9][0-9]{0,19})", tamanho))
+            esperado["contentSize"] = tamanho
+        if pai:
+            esperado["containedIn"] = {"@id": pai}
+        exigir(recebido == esperado)
+        return esperado
+
+    def base(dataset_nome, url, descricao):
+        esperado = _base(dataset_nome, url, descricao, REPO, escopo="publico_basico")
+        esperado.update(extras_raiz())
+        return esperado
+
+    distribuicoes = ficha.get("distribution")
+    registros = ficha.get("recordSet")
+    exigir(isinstance(distribuicoes, list) and isinstance(registros, list))
+    if nome == "croissant.json":
+        url = url_publica(ficha.get("url"), nome)
+        esperado = base("Dados do Brasil — Raíz", url, f"Catálogo das fichas do Release {tag} (publico_basico).")
+        partes = ficha.get("hasPart")
+        exigir(isinstance(partes, list))
+        por_nome, partes_esperadas = {}, []
+        for parte in partes:
+            exigir(isinstance(parte, dict))
+            asset = parte.get("name")
+            ficha_nome = nome_ficha(asset)
+            endereco = url_publica(parte.get("url"), ficha_nome)
+            exigir(asset not in por_nome)
+            por_nome[asset] = (ficha_nome, endereco)
+            partes_esperadas.append({"@type": "sc:Dataset", "@id": endereco, "url": endereco, "name": asset})
+        exigir(partes == partes_esperadas and not registros)
+        vistas = set()
+        for d in distribuicoes:
+            exigir(isinstance(d, dict) and isinstance(d.get("@id"), str))
+            asset = d["@id"].removeprefix("fichas/")
+            exigir(asset in por_nome and asset not in vistas)
+            vistas.add(asset)
+            ficha_nome, endereco = por_nome[asset]
+            arquivo(d, f"fichas/{asset}", ficha_nome, endereco, "application/ld+json")
+        esperado.update(hasPart=partes_esperadas, distribution=distribuicoes)
+        exigir(ficha == esperado)
+        return
+
+    asset = ficha.get("name")
+    exigir(nome_ficha(asset) == nome)
+    url = url_publica(ficha.get("url"), asset)
+    tabular = re.fullmatch(r"raiz_([A-Z]{2})\.tar\.gz", asset)
+    vazio = bool(
+        tabular
+        and not registros
+        and len(distribuicoes) == 1
+        and isinstance(distribuicoes[0], dict)
+        and distribuicoes[0].get("sha256") == TAR_VAZIO_SHA256
+        and distribuicoes[0].get("contentSize") == "45"
+    )
+    descricao = f"Arquivo {asset} do conjunto de dados básicos públicos da Raíz."
+    if tabular and not vazio:
+        uf = tabular[1]
+        descricao = (
+            f"Tabelas básicas públicas da Raíz em {uf}: situação básica por CAR e agregados municipais. "
+            "Inferência de tipos pelo croissant-baker; não contém amostras de valores. "
+            "O processamento pode estar parcial; consulte estados.json."
+        )
+    esperado = base(asset, url, descricao)
+    formato = (
+        ["application/x-tar", "application/gzip"]
+        if asset.endswith(".tar.gz")
+        else "application/json"
+        if asset == "estados.json"
+        else "text/markdown"
+    )
+    exigir(bool(distribuicoes))
+    arquivo(distribuicoes[0], "arquivo", asset, url, formato)
+    if not tabular or vazio:
+        exigir(len(distribuicoes) == 1 and not registros)
+        esperado["distribution"] = distribuicoes
+        exigir(ficha == esperado)
+        return
+
+    # Cada CSV deve ter exatamente um RecordSet, a origem própria e só os
+    # FileSets determinísticos do gerador. Nunca aceitar uma ficha genérica
+    # sem esquema para o pacote tabular.
+    exigir(bool(registros))
+    csvs, tabelas, campos_ids = {}, {}, set()
+    tipos_numericos = {"sc:Text", "sc:Integer", "sc:Float", "cr:Int64", "cr:Float64"}
+    for r in registros:
+        exigir(isinstance(r, dict) and isinstance(r.get("name"), str) and isinstance(r.get("field"), list))
+        registro = r["name"]
+        csv_nome = registro + ".csv"
+        colunas = [c.get("name") if isinstance(c, dict) else None for c in r["field"]]
+        _cabecalho_publico(csv_nome, colunas, uf)
+        exigir(csv_nome not in csvs)
+        csvs[csv_nome] = r
+        tabela = "imoveis_basicos" if csv_nome.startswith("imoveis_basicos_") else registro
+        tabelas.setdefault(tabela, []).append(csv_nome)
+        for c, coluna in zip(r["field"], colunas, strict=True):
+            tipo = c.get("dataType")
+            permitidos = (
+                {"sc:Text"}
+                if coluna in {"cod_imovel", "cod_ibge", "municipio", "uf", "situacao_basica"}
+                else {"sc:Text", "sc:Date", "sc:DateTime"}
+                if coluna == "verificado_em"
+                else tipos_numericos
+            )
+            exigir(isinstance(tipo, str) and tipo in permitidos)
+            campo_id = f"{registro}/{coluna}"
+            exigir(campo_id not in campos_ids)
+            campos_ids.add(campo_id)
+            exigir(
+                c
+                == {
+                    "@type": "cr:Field",
+                    "@id": campo_id,
+                    "name": coluna,
+                    "description": f"Coluna {coluna}; definição em docs/colunas.md quando documentada.",
+                    "dataType": tipo,
+                    "source": {"fileObject": {"@id": f"arquivos/{csv_nome}"}, "extract": {"column": coluna}},
+                }
+            )
+        exigir(
+            r
+            == {
+                "@type": "cr:RecordSet",
+                "@id": registro,
+                "name": registro,
+                "description": f"Registros de {registro} em {uf}.",
+                "field": r["field"],
+            }
+        )
+    exigir([r["@id"] for r in registros] == sorted(r["@id"] for r in registros))
+    por_id = {}
+    for d in distribuicoes[1:]:
+        exigir(isinstance(d, dict) and isinstance(d.get("@id"), str) and d["@id"] not in por_id)
+        por_id[d["@id"]] = d
+    exigir(set(por_id) == {f"arquivos/{c}" for c in csvs} | {f"tabelas/{t}" for t in tabelas})
+    for csv_nome in csvs:
+        arquivo(
+            por_id[f"arquivos/{csv_nome}"], f"arquivos/{csv_nome}", csv_nome, f"{uf}/{csv_nome}", "text/csv", "arquivo"
+        )
+    for tabela, nomes in tabelas.items():
+        inclui = (
+            [f"{uf}/imoveis_basicos_{'[0-9]' * 7}.csv"]
+            if tabela == "imoveis_basicos"
+            else [f"{uf}/{n}" for n in sorted(nomes)]
+        )
+        exigir(
+            por_id[f"tabelas/{tabela}"]
+            == {
+                "@type": "cr:FileSet",
+                "@id": f"tabelas/{tabela}",
+                "name": tabela,
+                "description": f"Arquivos da tabela {tabela}; o esquema de cada CSV está em seu RecordSet.",
+                "containedIn": {"@id": "arquivo"},
+                "encodingFormat": "text/csv",
+                "includes": inclui,
+            }
+        )
+    esperado.update(distribution=distribuicoes, recordSet=registros)
+    exigir(ficha == esperado)
 
 
 def _trabalhador() -> None:
