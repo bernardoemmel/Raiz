@@ -1,0 +1,3 @@
+# URL JDBC interna sem usuário ou senha; falso positivo histórico de generic-api-key.
+# KC_DB_URL aponta para o serviço banco-oauth, no commit do PR #69.
+be05cee99ee060b5ca2c9e60d7b077d1fa2a51aa:infra/docker-compose.keycloak.yml:generic-api-key:28

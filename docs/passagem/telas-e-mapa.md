@@ -108,6 +108,14 @@ Sessão: https://claude.ai/code/session_01VGb88MJumyG9PHt2znaaKE. Branch: `claud
   continuam pendentes da publicação dos lotes. O texto do estado ausente agora diferencia explicitamente a base
   territorial disponível da oferta de créditos e da avaliação da terra que ainda aguardam o lote.
 
+- O Release migrou em 12/11 às 19:25 UTC para `imoveis_basicos_<código>.csv`. O leitor e o exportador aceitam
+  esse contrato; no escopo `publico_basico`, não usam tabelas técnicas antigas. O download remove CSVs retirados
+  do pacote somente após extração bem-sucedida, conservando a geometria da mesma versão. Regressões cobrem
+  migração de formato, município retirado e preservação de fazenda pequena. A falha de publicação após #67
+  preservou o site anterior; esta correção recompõe a rodada diária.
+- O CI encontrou um falso positivo em URL JDBC sem credenciais de outra branch. A exceção em `.gitleaksignore`
+  identifica exatamente commit, arquivo, regra e linha; mantém a varredura de todas as refs e as demais regras.
+
 ## Referências conferidas para a segunda entrega
 
 - llms.txt: https://llmstxt.org/ (proposta v2; permite subcaminho e `rel="describedby"`).
