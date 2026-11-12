@@ -1,0 +1,25 @@
+versao: ecologia-2026a
+horizontes_anos: [3, 5, 10, 15]
+# Referências de acompanhamento, nunca quantis ou previsões para as fazendas do Pará.
+referencia_monitoramento:
+  fonte: Resolução SMA/SP 32/2014, Anexo I, formações florestais
+  url: https://smastr16.blob.core.windows.net/sare/sites/202/2022/11/res-sma-2014_32-diretrizes-para-restauracao-ecologica.pdf
+  abrangencia: São Paulo; referência comparativa, sem validade normativa automática no Pará
+  populacao: indivíduos nativos regenerantes com altura maior que 50 cm e CAP menor que 15 cm
+  riqueza_unidade: espécies nativas regenerantes distintas no levantamento; não espécies por hectare
+  operador: maior_que
+  adequado:
+    3: {regenerantes_ha: 200, especies: 3}
+    5: {regenerantes_ha: 1000, especies: 10}
+    10: {regenerantes_ha: 2000, especies: 20}
+    15: {regenerantes_ha: 2500, especies: 25}
+plantio_inicial:
+  fonte: Embrapa, Ater+ Digital, Plantio de mudas
+  url: https://www.atermaisdigital.cnptia.embrapa.br/web/restauracao-de-ecossistemas/plantio-de-mudas
+  densidades_usuais_ha: [1667, 2500]
+  espacamentos_m: ['3 x 2', '2 x 2']
+  limite: densidades iniciais usuais; não estimam sobrevivência, recrutamento ou riqueza futura
+recuperacao_diversidade:
+  fonte: Rozendaal et al. (2019), Science Advances 5, eaau3114
+  url: https://doi.org/10.1126/sciadv.aau3114
+  limite: recuperação relativa da riqueza em florestas secundárias neotropicais; não informa espécies absolutas de cada CAR
