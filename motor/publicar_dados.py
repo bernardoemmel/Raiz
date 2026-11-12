@@ -129,8 +129,12 @@ def montar(saida: Path, destino: Path, ufs: list[str], publicado: dict, partes: 
         if os.environ.get("GITHUB_ACTIONS") and not (pasta / "rodada.json").exists():
             S.acao_github("warning", f"publicar {uf}", "sem rodada.json (o motor não chegou a rodar): não publico")
             continue
-        conferir_privacidade(csvs)
         antigo = estados.get(uf, {})
+        if antigo.get("controle"):  # estado do executor: o pacote dele tem as tabelas do produto e o _versoes.json
+            S.acao_github("warning", f"publicar {uf}", "o estado é do executor (raiz executor): publique com "
+                          "`uv run raiz executor publicar --ufs " + uf + "`; não troco o pacote dele")
+            continue
+        conferir_privacidade(csvs)
         info = estado_info(pasta, uf)
         v = versao(csvs)
         if antigo.get("versao") != v:

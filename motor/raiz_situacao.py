@@ -66,10 +66,13 @@ CODIGO_MOTOR = ("raiz_estado.py", "raiz_filtros.py", "raiz_mapbiomas.py", "raiz_
 # Earth Engine) e certidoes (só existe onde há parcela SIGEF com matrícula).
 OBRIGATORIAS = ("filtros", "mapbiomas", "direto", "extras_direto")
 TABELAS = ("imoveis", "direto", "filtros", "extras", "extras_direto", "mapbiomas", "certidoes")
+# tabelas do produto, feitas pelo executor (raiz/executor/tarefas.py) depois das do motor
+PRODUTO = ("flag", "terra", "ficha", "desenvolvedor")
 NOME_TABELA = {"imoveis": "funil", "filtros": "filtros", "mapbiomas": "MapBiomas", "direto": "direto",
-               "extras_direto": "TMF e causas", "app": "APP escadinha", "extras": "extras (Earth Engine)"}
+               "extras_direto": "TMF e causas", "app": "APP escadinha", "extras": "extras (Earth Engine)",
+               "flag": "FLAG", "terra": "caminho da terra", "ficha": "ficha", "desenvolvedor": "desenvolvedor"}
 
-_RE_TAB = {t: re.compile(rf"^{t}_(\d{{7}})\.csv$") for t in TABELAS}
+_RE_TAB = {t: re.compile(rf"^{t}_(\d{{7}})\.csv$") for t in TABELAS + PRODUTO}
 _RE_GEO = re.compile(r"^geo_(\d{7})\.parquet$")
 
 
@@ -197,8 +200,9 @@ def com_app(pasta: Path, feitos: set[str]) -> set[str]:
 
 def municipios_ibge(uf: str) -> set[str] | None:
     """Códigos IBGE do estado pela lista local (cache/municipios.csv), se já foi baixada."""
-    f = AQUI / "cache" / "municipios.csv"
-    if not f.exists():
+    f = next((x for x in (AQUI / "cache" / "municipios.csv", AQUI.parent / "raiz" / "executor" / "municipios.csv")
+              if x.exists()), None)
+    if f is None:
         return None
     cod_uf = {"RO": 11, "AC": 12, "AM": 13, "RR": 14, "PA": 15, "AP": 16, "TO": 17, "MA": 21, "PI": 22, "CE": 23,
               "RN": 24, "PB": 25, "PE": 26, "AL": 27, "SE": 28, "BA": 29, "MG": 31, "ES": 32, "RJ": 33, "SP": 35,
@@ -208,9 +212,10 @@ def municipios_ibge(uf: str) -> set[str] | None:
         return {r["codigo_ibge"] for r in csv.DictReader(fh) if r.get("codigo_uf") == str(cod_uf)}
 
 
-def pendentes(pasta: Path, uf: str) -> dict[str, set[str]]:
-    """Municípios que faltam em cada etapa."""
-    feitos, sem = cods(pasta, "imoveis"), set(sem_imoveis(pasta, uf))
+def pendentes(pasta: Path, uf: str, vazios: set[str] | None = None, produto: bool = False) -> dict[str, set[str]]:
+    """Municípios que faltam em cada etapa. vazios: municípios sem imóvel que o executor anotou na marca (o motor
+    sozinho anota em sem_imoveis_<UF>.csv). produto: conta também as tabelas do produto (estado feito pelo executor)."""
+    feitos, sem = cods(pasta, "imoveis"), set(sem_imoveis(pasta, uf)) | {str(x) for x in (vazios or ())}
     lista = municipios_ibge(uf)
     out: dict[str, set[str]] = {}
     if lista is not None:
@@ -218,22 +223,23 @@ def pendentes(pasta: Path, uf: str) -> dict[str, set[str]]:
     else:  # sem a lista, só dá para saber quantos faltam
         n = TOTAL_IBGE[uf] - len(feitos | sem)
         out["imoveis"] = {f"?{i}" for i in range(max(n, 0))}
-    for t in OBRIGATORIAS + ("extras",):
+    for t in OBRIGATORIAS + ("extras",) + (PRODUTO if produto else ()):
         out[t] = feitos - cods(pasta, t)
     out["app"] = feitos - com_app(pasta, feitos)
     return out
 
 
-def situacao(pasta: Path, uf: str) -> dict:
+def situacao(pasta: Path, uf: str, vazios: set[str] | None = None, produto: bool = False) -> dict:
     """Resumo do estado para o estados.json: feitos, total, o que falta e se está completo."""
-    feitos, sem = cods(pasta, "imoveis"), sem_imoveis(pasta, uf)
-    p = pendentes(pasta, uf)
-    faltam = {t: len(p[t]) for t in ("imoveis",) + OBRIGATORIAS + ("app",) if p[t]}
-    tabelas = {t: len(cods(pasta, t)) for t in TABELAS}
+    feitos, sem = cods(pasta, "imoveis"), set(sem_imoveis(pasta, uf)) | {str(x) for x in (vazios or ())}
+    p = pendentes(pasta, uf, vazios, produto)
+    exigidas = ("imoveis",) + OBRIGATORIAS + ("app",) + (PRODUTO if produto else ())
+    faltam = {t: len(p[t]) for t in exigidas if p[t]}
+    tabelas = {t: len(cods(pasta, t)) for t in TABELAS + (PRODUTO if produto else ())}
     tabelas["app"] = len(feitos) - len(p["app"])
     return {
         "municipios": len(feitos),
-        "sem_imoveis": len(sem),
+        "sem_imoveis": len(sem - feitos),
         "total_ibge": TOTAL_IBGE.get(uf),
         "funil_completo": "imoveis" not in faltam,
         "completo": not faltam,

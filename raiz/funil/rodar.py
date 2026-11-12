@@ -237,11 +237,22 @@ def _trabalhador(args):
 
 def preparar_estado(op: Opcoes) -> None:
     """Downloads do estado feitos uma vez, antes do fork (senão cada processo pediria o mesmo à API):
-    MapBiomas (todos os temas para as colunas mb_*, ou só cobertura e desmatamento para a regeneração do funil), índice
-    do TMF e arquivo das causas da perda. Se a API do MapBiomas falhar aqui, os processos não tentam de novo cada um
-    (RAIZ_MB_BAIXAR=0) e o funil segue sem regeneração, como o motor faz."""
+    MapBiomas Alerta (WFS público, motor/raiz_estado.garantir_alertas), MapBiomas (todos os temas para as colunas mb_*,
+    ou só cobertura e desmatamento para a regeneração do funil), índice do TMF e arquivo das causas da perda.
+    Sem o Alerta ou sem o MapBiomas o funil não roda (as colunas problema e frente sairiam erradas sem aviso), como no
+    motor: o erro sobe e o estado tenta de novo na próxima rodada. RAIZ_ALERTA_OBRIGATORIO=0 e RAIZ_MB_OBRIGATORIO=0
+    deixam seguir sem (no computador). Os processos não pedem de novo cada um (RAIZ_MB_BAIXAR=0)."""
     global _MB_ARQ, _TMF, _CAUSAS
     uf = op.uf.upper()
+    if "funil" in op.tarefas and hasattr(_R, "garantir_alertas"):
+        try:
+            _R.garantir_alertas(uf)
+        except Exception as ex:  # noqa: BLE001
+            if os.environ.get("RAIZ_ALERTA_OBRIGATORIO", "1") == "1":
+                raise RuntimeError(
+                    f"MapBiomas Alerta de {uf} não baixou ({ex}): o funil fica para a próxima rodada"
+                ) from ex
+            log.warning("MapBiomas Alerta falhou para %s: %s", uf, ex)
     if "mapbiomas" in op.tarefas or "funil" in op.tarefas:
         import raiz_mapbiomas
 
@@ -249,7 +260,9 @@ def preparar_estado(op: Opcoes) -> None:
         try:
             arq = raiz_mapbiomas.exporta_uf(uf, temas=temas)
             _MB_ARQ = arq if temas is None else _MB_ARQ
-        except Exception as ex:  # noqa: BLE001 - o motor sabe seguir sem; o lote de cada município registra
+        except Exception as ex:  # noqa: BLE001
+            if os.environ.get("RAIZ_MB_OBRIGATORIO", "1") == "1":
+                raise RuntimeError(f"MapBiomas de {uf} não baixou ({ex}): fica para a próxima rodada") from ex
             log.warning("API do MapBiomas falhou para %s: %s", uf, ex)
         os.environ["RAIZ_MB_BAIXAR"] = "0"
     if "extras_direto" in op.tarefas:

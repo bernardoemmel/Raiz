@@ -206,7 +206,8 @@ class Executor:
     ) -> dict:
         """Roda o estado inteiro (ou os municípios pedidos). Retoma: município com a marca em dia é pulado.
         ate_s: para de começar municípios novos depois desse tempo (o GitHub Actions corta o job em 6 horas) e publica
-        o que fez; a próxima rodada continua dali."""
+        o que fez; a próxima rodada continua dali. Os municípios em curso têm RAIZ_GRACA_MIN (10) minutos para
+        terminar; o que passar disso é interrompido (fica sem marca e roda na próxima vez), para a publicação caber."""
         uf = uf.upper()
         limite = time.time() + ate_s if ate_s is not None else None
         if hasattr(self.a, "garantir_uf"):
@@ -262,8 +263,18 @@ class Executor:
 
             global _EXECUTOR
             _EXECUTOR = self
+            graca = float(os.environ.get("RAIZ_GRACA_MIN", 10)) * 60
             with mp.get_context("fork").Pool(lanes, maxtasksperchild=20) as pool:
-                for r in pool.imap_unordered(_trabalhador, [(uf, c, refazer) for c in pendentes]):
+                it = pool.imap_unordered(_trabalhador, [(uf, c, refazer) for c in pendentes])
+                while True:
+                    try:
+                        r = next(it) if limite is None else it.next(timeout=max(limite + graca - time.time(), 1))
+                    except StopIteration:
+                        break
+                    except mp.TimeoutError:  # passou do prazo e da folga sem nenhum município terminar
+                        parou = True
+                        pool.terminate()
+                        break
                     anota(r)
                     if not no_prazo():
                         parou = True
@@ -301,6 +312,11 @@ class Executor:
                 out["ja_tinham_marca"] += 1
                 continue
             m = {"uf": uf, "cod": int(cod), "tarefas": {}, "adotado_em": _agora()}
+            # a caixa entra na assinatura do funil (alertas na área do município): sem ela, todo alerta novo do estado
+            # refaria o funil de todos os municípios adotados
+            geo = self.chave_saida(uf, f"geo_{int(cod)}.parquet")
+            if self.a.meta(geo) and self.a.baixar(geo, self.pasta(uf) / f"geo_{int(cod)}.parquet"):
+                m["caixa"] = _caixa(self.pasta(uf), cod)
             for t in self.tarefas:
                 if any(d not in m["tarefas"] for d in t.depende):
                     continue
@@ -347,14 +363,15 @@ def _caixa(pasta: Path, cod: int) -> list[float] | None:
 
 
 def assinatura_arquivo(p: Path, conteudo: bool = False) -> str | None:
-    """sha256 (arquivo pequeno do espelho) ou tamanho+data (raster grande), ou None se não existe."""
+    """sha256 (arquivo pequeno do espelho) ou tamanho (raster grande, arquivo nacional), ou None se não existe.
+    Sem a data do arquivo: no GitHub Actions o cache é baixado de novo e a data muda sem o conteúdo mudar, o que
+    refaria o estado inteiro. Coleção ou ano novo muda o nome do arquivo; exportação nova muda o tamanho."""
     p = Path(p)
     if not p.exists():
         return None
     if conteudo:
         return sha256_arquivo(p)
-    st = p.stat()
-    return f"{st.st_size}:{int(st.st_mtime)}"
+    return str(p.stat().st_size)
 
 
 def sha_texto(*partes: str) -> str:

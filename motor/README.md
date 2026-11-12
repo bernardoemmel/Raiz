@@ -48,27 +48,33 @@ Gerado do `estados.json` de 12/11/2026 08:01 (horário de Brasília). Brasil: 25
 ## Como roda sozinho
 
 Workflow [`processar-estados.yml`](../.github/workflows/processar-estados.yml), toda segunda-feira às 02:23 (Brasília)
-e quando alguém dispara à mão:
+e quando alguém dispara à mão. O trabalho município a município é do **executor do produto** (`raiz executor`, em
+[`raiz/executor/`](../raiz/executor/)): ele roda o motor e as tarefas do produto (FLAG, caminho da terra, ficha,
+desenvolvedor), guarda uma marca por município com a versão de cada tarefa, retoma de onde parou e publica no Release.
+O `rodar_estado.py` organiza a rodada em volta dele:
 
-1. **Planejar** (`rodar_estado.py --planejar`): lê o `estados.json` publicado e escolhe os estados que precisam rodar,
-   nesta ordem: PA, RO, RR, AC, AP (completar o que já está publicado), TO, MA, AM, MT (resto da Amazônia Legal), GO, MS,
-   MG, BA, PI, CE, RN, PB, PE, AL, SE, ES, RJ, SP, PR, SC, RS, DF. Entra quem não começou, quem está incompleto, quem foi
-   publicado antes da automação (para conferir o que falta e gravar a versão) e quem tem tabela feita com código antigo.
+1. **Planejar** (`rodar_estado.py --planejar`): lê o `estados.json` publicado e escolhe os estados, nesta ordem: PA,
+   RO, RR, AC, AP (completar o que já está publicado), TO, MA, AM, MT (resto da Amazônia Legal), GO, MS, MG, BA, PI, CE,
+   RN, PB, PE, AL, SE, ES, RJ, SP, PR, SC, RS, DF. Entra quem não começou, quem está incompleto, quem foi publicado
+   antes do executor (para adotar), quem tem tarefa com código mudado e quem está completo mas não roda há 6 dias ou
+   mais (o executor refaz só o que mudou nas fontes: CAR, alertas, MapBiomas). Ficam 4 estados rodando ao mesmo tempo,
+   somando todas as rodadas do workflow.
 2. **Preparar** (`rodar_estado.py --preparar`): baixa uma vez por dia os arquivos nacionais (lista de municípios,
    embargos do Ibama, biomas, geobr, TMF, causas da perda) e guarda no cache comum do Actions.
-3. **Um job por estado**, até 4 ao mesmo tempo. Cada um: instala o `requirements.txt`, recupera o cache (comum e do
-   estado: blocos do TerraBrasilis, MapBiomas, Alerta), baixa do Release o que já está publicado do estado para
-   `saida/<UF>/` (os scripts pulam o município pronto, então retoma de onde parou) e roda `rodar_estado.py <UF>`, que
-   chama, nesta ordem: `raiz_estado.py`, `raiz_filtros.py`, `raiz_mapbiomas.py`, `raiz_direto.py`,
-   `raiz_extras_direto.py`, `raiz_app.py` e, se houver GeoTIFF em `extras/`, `raiz_extras.py`.
-   Variáveis: `OGR_GEOJSON_MAX_OBJ_SIZE=0`, `LANES=3`.
-4. **Prazo de 5h30 por job**: às 5h05 a etapa em curso para (cada arquivo é gravado de uma vez, nada fica pela metade),
-   o job publica o que fez e dispara o próprio workflow de novo só para aquele estado, até completar. Se uma rodada inteira
-   não terminar nenhum município novo, para de se disparar (a rodada semanal tenta de novo).
-5. **Publicar** (`publicar_dados.py motor/saida dados-entrada <UF> --subir`): sobe `raiz_<UF>.tar.gz` e
-   `raiz_geo_<UF>.tar.gz` direto no Release e, por último, regrava o `estados.json` relendo a versão publicada, dentro
-   de uma trava (tag `trava-publicar-dados`), para dois estados que terminam juntos não apagarem a entrada um do outro.
-   Depois atualiza o painel acima.
+3. **Um job por estado** (`rodar_estado.py <UF> --executor`):
+   - baixa as fontes do estado (MapBiomas Alerta, os 5 temas do MapBiomas, geobr, TMF, causas) antes de tudo, para a
+     assinatura de cada município no executor já nascer com elas;
+   - estado publicado antes do executor (sem marcas): roda a APP pela escadinha (`raiz_app.py`) onde ela falta, põe o
+     `imoveis_` novo no armazém e só então adota (`raiz executor adotar`), sem refazer o funil;
+   - chama `raiz executor rodar --ufs <UF> --lanes 3 --ate-minutos <o que sobra>`; o executor para de começar
+     municípios no prazo, dá 10 min de folga aos que estão em curso e publica;
+   - se houver GeoTIFF do Earth Engine em `extras/`, roda `raiz_extras.py` e põe o resultado no armazém;
+   - publica de novo com a rodada (commit, versões, se parou pelo prazo, erros) e atualiza o painel acima.
+   O `estados.json` é relido e regravado dentro de uma trava (tag `trava-publicar-dados`), só com a entrada do estado,
+   para os 4 jobs que publicam ao mesmo tempo não apagarem um ao outro.
+4. **Prazo de 5h30 por job**: se o estado parou pelo prazo e avançou, o job dispara o workflow de novo só para ele; se
+   terminou, passa a vez ao próximo estado da fila. Estado que parou sem avançar nenhum município não se dispara de novo
+   (a rodada semanal tenta outra vez).
 
 ### Quando uma fonte recusa o GitHub
 
@@ -82,30 +88,35 @@ sem eles as colunas `problema` e `frente` sairiam erradas sem aviso: fica para a
 
 ### Versão do motor
 
-Cada tabela guarda no `estados.json` (campo `motor`) o commit que rodou e um hash do código de que ela depende
-(`raiz_situacao.ETAPAS`), sem comentários nem docstrings. Se o código de uma tabela mudar, a próxima rodada apaga essa
-tabela no estado e refaz; mudar só comentário ou texto de ajuda não refaz nada. Mudar o `raiz_estado.py` refaz tudo,
-porque ele grava os polígonos dos imóveis que as outras tabelas usam. Tabelas publicadas antes da automação são
-adotadas como estão e ficam marcadas em `motor.legado`. O aprendizado usa o commit e o hash para comparar previsões
-entre versões.
+Cada município tem uma marca no Release (`raiz_controle_<UF>.json`) com a versão de cada tarefa (hash do código de
+que ela depende, `raiz/executor/tarefas.py`), a assinatura das fontes do município e o sha256 de cada arquivo; cada
+arquivo do pacote leva tarefa, versão e data (`_versoes.json`). O `estados.json` guarda, por estado, as versões das
+tarefas (`versoes`), a versão do motor (`motor_versao`) e, no campo `motor`, o commit que rodou, as tarefas adotadas
+de antes do executor (`legado`) e a rodada. Mudou o código de uma tarefa: o executor refaz só ela, e só onde a saída
+dela muda o que vem depois. O aprendizado compara previsões entre versões por esses campos.
+
+Sem o executor (no computador, `rodar_estado.py <UF>` sem `--executor`), a versão de cada tabela é um hash do código
+sem comentários nem docstrings (`raiz_situacao.ETAPAS`), e uma tabela feita com código antigo é apagada e refeita.
 
 ### Rodar à mão
 
 No GitHub: Actions, "Processar estados (motor)", "Run workflow". Campos:
 
 - `ufs`: estados separados por espaço (ex.: `TO MA`). Vazio: o plano automático.
-- `refazer`: tabelas para apagar e refazer nesses estados (`funil`, `filtros`, `mapbiomas`, `direto`, `extras_direto`,
-  `extras` ou `tudo`; várias com vírgula). Ex.: uma fonte publicou ano novo. Refazer o funil refaz tudo.
+- `refazer`: tarefas para refazer nesses estados (`funil`, `filtros`, `mapbiomas`, `direto`, `extras_direto`, `flag`,
+  `terra`, `ficha`, `desenvolvedor`, `extras` ou `tudo`; várias com vírgula): a marca da tarefa é apagada e o executor
+  a refaz. Ex.: uma fonte publicou ano novo. Refazer o funil refaz tudo. Sem `ufs`, vale para todos os publicados.
 - `continuacao`: uso interno das continuações automáticas.
 
 No computador (da pasta `motor/`):
 
 ```bash
-pip install -r ../requirements.txt
-python rodar_estado.py TO              # o que falta em Tocantins, na ordem das etapas
+uv sync --all-extras
+uv run python rodar_estado.py TO --executor   # como o Actions (sem GH_TOKEN, lê o Release e não publica)
+uv run raiz executor plano --uf TO              # o que o executor rodaria em cada município
+python rodar_estado.py TO              # só o motor, sem o executor, em saida/TO/
 python rodar_estado.py --planejar      # quais estados precisam rodar
 python raiz_estado.py PA 1504950       # só o funil de um município
-python publicar_dados.py saida dados-entrada TO --subir   # publica (precisa do gh com acesso ao repositório)
 python painel.py                       # atualiza o painel deste README com o estados.json publicado
 ```
 
@@ -124,7 +135,7 @@ O MapBiomas Alerta não precisa mais de arquivo: vem do WFS público da platafor
 
 | Script | O que faz |
 |---|---|
-| `rodar_estado.py` | roda um estado inteiro, etapa por etapa, dentro do prazo; planeja, prepara o cache e continua |
+| `rodar_estado.py` | organiza a rodada: planeja, prepara o cache, roda o estado pelo executor (`--executor`) ou só o motor, e continua |
 | `raiz_estado.py` | funil principal: CAR (SICAR), embargos (Ibama), PRODES, TI, UC e hidrografia (TerraBrasilis), SIGEF (INCRA), MapBiomas, MapBiomas Alerta; reserva legal, APP (escadinha), frentes e carbono |
 | `raiz_filtros.py` | quilombos (INCRA), terras indígenas da FUNAI em todas as fases, unidades de conservação do CNUC |
 | `raiz_mapbiomas.py` | MapBiomas (cobertura, desmatamento, fogo, pasto) pela API da Plataforma, sem login |
@@ -133,7 +144,7 @@ O MapBiomas Alerta não precisa mais de arquivo: vem do WFS público da platafor
 | `raiz_app.py` | aplica a escadinha da APP a municípios rodados antes dela |
 | `raiz_extras.py` | histórico exportado uma vez do Earth Engine (só com os GeoTIFFs em `extras/`) |
 | `raiz_situacao.py` | o que cada estado tem e o que falta, versão do código, privacidade das mensagens |
-| `publicar_dados.py` | monta os pacotes e publica no Release `dados` |
+| `publicar_dados.py` | monta os pacotes do motor sozinho e publica no Release `dados` (estado do executor: `raiz executor publicar`) |
 | `painel.py` | painel deste README |
 | `raiz_ajustes.py`, `mapbiomas_alerta.py` | ajustes de pesquisa e API do Alerta com login (fora da rodada automática) |
 | `fila*.sh` | filas antigas para rodar o país num computador só |
