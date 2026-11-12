@@ -102,3 +102,14 @@ def test_situacao_de_uma_fatia(tmp_path):
         (tmp_path / f"imoveis_{c}.csv").write_text("cod_imovel,app_escadinha_ha\nx,0\n")
     sit = S.situacao(tmp_path, "TO", produto=True, so=set(cods))
     assert sit["total_ibge"] == len(cods) and sit["municipios"] == 3 and sit["faltam"]["imoveis"] == len(cods) - 3
+
+
+def test_quinze_jobs_no_maximo_deixando_cinco_maquinas_para_ci_e_site(plano, monkeypatch):
+    """O GitHub dá 20 máquinas ao repositório; o processamento usa até 15. Quem já roda não é interrompido: com 17
+    rodando (de antes do limite), nada novo começa até sobrar vaga."""
+    assert O.VAGAS == 15
+    rodando = {f"BA-{i}" for i in range(1, 5)} | {f"SP-{i}" for i in range(1, 7)} | {f"RS-{i}" for i in range(1, 6)}
+    monkeypatch.setattr(O, "ufs_ativas", lambda: (rodando | {"PR-1", "PR-2"}, 0))  # 17
+    assert O.planejar([], set()) == []
+    monkeypatch.setattr(O, "ufs_ativas", lambda: (set(sorted(rodando)[:14]), 0))
+    assert O.planejar([], set()) == ["MG-1"]

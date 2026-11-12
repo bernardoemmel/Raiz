@@ -18,7 +18,7 @@ Pedidos que só o fundador faz, no dia 1: convênio com o ONR e pedidos por LAI 
 | 9 | No dia 1, em paralelo: pedir convênio ao ONR e fazer os pedidos de LAI ao SFB e ao INCRA | nada | 3 a 5 | Têm prazo de resposta de terceiros; quanto antes, melhor. |
 
 Observação do motor atual (12/11, à tarde): o funil roda o Brasil por município (motor/) pelo executor do produto, no GitHub
-Actions, com até 18 jobs ao mesmo tempo e os estados grandes em fatias; a coleta incremental (dlt scd2 do CAR e do SIGEF)
+Actions, com até 15 jobs ao mesmo tempo e os estados grandes em fatias; a coleta incremental (dlt scd2 do CAR e do SIGEF)
 e o banco (PostGIS, migrações 0001 a 0018) existem, mas a coleta ainda não está agendada. Atualizado no fim do dia 12/11:
 E3, E5, E7, E8 e E9 têm a coluna Situação conferida contra a main; E1 e E2 também (abaixo).
 
@@ -84,7 +84,7 @@ novas da E2 (regras em Catala, restrições, DuckDB) estão testadas mas fora de
 | 6 | Área exata só onde importa: exactextract sobre VRT para imóveis pequenos e para limites legais (APP, reserva legal) perto do corte | passos 4 e 5 | 3 a 5 | a fazer |
 | 7 | Changelog próprio no estilo Overture (added, removed, data_changed, unchanged, columns_changed, tipo de mudança da OS) e lista de imóveis e células sujas para o funil recalcular só elas | passos 3 a 6 | 5 a 8 | parcial: novos, mudaram e sumiram no espelho e em `coleta.evento`; faltam as categorias do Overture e a lista de imóveis sujos que o funil consome |
 | 7 | Versão nomeada das regras (ex.: regras-2026b, como no tz) gravada em cada previsão, com as duas datas do OpenL (vigência legal e quando a Raíz passou a usar) | passo 1 | 2 a 4 | **feito**: `regras_versao()` devolve `regras-2026b+hash` (`raiz/versoes.py`) e a carga publica a versão em `regras.versao` antes de gravar a rodada e as previsões (`raiz/carga.py`) |
-| 7 | Fila retomável e incremental: um alvo por bloco num Makefile gerado em Python (desenho do WSIM) ou no SQLMesh; arquivo 'BUSY_' e pular saída existente (desenho do cropclassification); refazer só blocos cujo CAR ou camada mudou (comparação de versões como no RPG da França) | passos 4 a 6 | 6 a 10 | **feito** por município: o executor (`raiz/executor/`) com marca por tarefa, retomada e refazer só o que mudou, rodando no GitHub Actions em até 18 jobs; falta por bloco |
+| 7 | Fila retomável e incremental: um alvo por bloco num Makefile gerado em Python (desenho do WSIM) ou no SQLMesh; arquivo 'BUSY_' e pular saída existente (desenho do cropclassification); refazer só blocos cujo CAR ou camada mudou (comparação de versões como no RPG da França) | passos 4 a 6 | 6 a 10 | **feito** por município: o executor (`raiz/executor/`) com marca por tarefa, retomada e refazer só o que mudou, rodando no GitHub Actions em até 15 jobs; falta por bloco |
 | 8 | Pasta de reformas: cada projeto de lei ou decreto novo vira um arquivo de diferença (padrão Tax-Calculator) para simular o efeito sobre os imóveis antes de valer | passos 1 e 7 | 3 a 5 | a fazer |
 | 8 | Conferência: comparar flox, 'pixels em polígonos' e exactextract em 1.000 imóveis sorteados e publicar a diferença no painel; checagem de mistura de classes por imóvel (desenho FOI do JRC) | passo 7 | 3 a 5 | a fazer |
 | 7 | (rodada 10) Mudança de geometria menor que 0,5 ha não volta ao funil (entra no changelog, não na lista de sujos) | passo 7 | 1 | a fazer |

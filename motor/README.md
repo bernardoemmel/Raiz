@@ -62,8 +62,8 @@ O `rodar_estado.py` organiza a rodada em volta dele:
    - **manutenção**: funil pronto, mas falta tarefa nova do produto, o código de uma tarefa mudou, o estado é de antes
      do executor (adotar) ou não roda há 6 dias ou mais (o executor refaz só o que mudou nas fontes: CAR, alertas,
      MapBiomas). Só usa as vagas que sobram, e no máximo 4 ao mesmo tempo: nunca segura vaga de estado novo.
-   São até 18 jobs ao mesmo tempo, somando todas as rodadas do workflow (o GitHub dá 20 a repositório público; 2 ficam
-   para o planejamento das rodadas e o CI).
+   São até 15 jobs ao mesmo tempo, somando todas as rodadas do workflow (o GitHub dá no máximo 20 máquinas ao mesmo
+   tempo para o repositório inteiro; 5 ficam livres para o CI dos PRs, o site e o planejamento das rodadas).
 2. **Preparar** (`rodar_estado.py --preparar`): baixa uma vez por dia os arquivos nacionais (lista de municípios,
    embargos do Ibama, biomas, geobr, TMF, causas da perda) e guarda no cache comum do Actions.
 3. **Um job por unidade** (`rodar_estado.py <UF ou fatia, ex. MG-3> --executor`):
