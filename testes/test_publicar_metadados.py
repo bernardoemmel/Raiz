@@ -348,6 +348,14 @@ def test_retropreenche_csv_controle_orfao_e_kml_sem_refazer_motor(tmp_path, monk
     controle_am = b'{"marcas":{},"estado":{"situacao":"em_curso"}}'
     github.assets["raiz_controle_AM.json"] = controle_am
     github.assets["URTX.kml"] = b"<kml><Document/></kml>"
+    infraestrutura = {
+        "retomada_PA_43285608189_entradas_abc.tar.gz": b"entrada privada congelada",
+        "retomada_PA_43285608189_exec_123_fatia_01_checkpoint_abc.tar.gz": b"checkpoint privado",
+        "lote_PA_calculado_123_01.tar.gz": b"fatia intermediaria",
+    }
+    github.assets.update(infraestrutura)
+    produto_lote = "lote_PA_central_r11_retomada_123_1.json"
+    github.assets[produto_lote] = b'{"municipios":1}'
     github.assets["estados.json"] = json.dumps({"estados": {"AM": {"situacao": "em_curso"}}}).encode()
     classe = P.classe_armazem()
 
@@ -362,12 +370,16 @@ def test_retropreenche_csv_controle_orfao_e_kml_sem_refazer_motor(tmp_path, monk
     assert github.membros("raiz_PA.tar.gz")["PA/imoveis_1504950.csv"] == csv_original
     assert github.assets["raiz_controle_AM.json"] == controle_am
     assert json.loads(github.assets["estados.json"])["estados"]["AM"]["situacao"] == "em_curso"
-    for nome in ("URTX.kml", "raiz_controle_AM.json"):
+    for nome in ("URTX.kml", "raiz_controle_AM.json", produto_lote):
         ficha = json.loads(github.assets[f"croissant_{nome}.json"])
         assert ficha["distribution"][0]["sha256"] == hashlib.sha256(github.assets[nome]).hexdigest()
     assinados = P.checksums(privado=True)
-    assert set(github.assets) <= set(assinados)
-    assert all(assinados[n] == hashlib.sha256(d).hexdigest() for n, d in github.assets.items())
+    assert set(github.assets) - infraestrutura.keys() <= set(assinados)
+    assert all(
+        assinados[n] == hashlib.sha256(d).hexdigest() for n, d in github.assets.items() if n not in infraestrutura
+    )
+    assert not infraestrutura.keys() & set(github.downloads)
+    assert all(github.assets[n] == d and f"croissant_{n}.json" not in github.assets for n, d in infraestrutura.items())
     assert not any(n.startswith("croissant_croissant") for n in github.assets)
     assert not list(tmp_path.glob("raiz-catalogo-*"))
     assert (tmp_path / "catalogo-metadados.json").exists()

@@ -472,6 +472,10 @@ def arquivos_produto(armazem) -> list[dict]:
                 "migracao-",
                 "checkpoint-",
                 "catalogo-relatorio-",
+                "retomada_",
+                "lote_PA_entradas_",
+                "lote_PA_checkpoint_",
+                "lote_PA_calculado_",
             )
         )
     ]
