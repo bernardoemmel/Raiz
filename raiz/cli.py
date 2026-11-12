@@ -229,6 +229,36 @@ def coleta_checar() -> None:
         sys.exit(1)
 
 
+@coleta.command("car")
+def coleta_car(
+    ufs: Annotated[list[str] | None, typer.Argument(help="UFs; sem nada, as do rodízio de hoje")] = None,
+    municipio: Annotated[list[int] | None, typer.Option(help="só estes municípios (repita a opção)")] = None,
+    historico: Annotated[bool, typer.Option(help="gravar o histórico scd2 no PostGIS")] = True,
+) -> None:
+    """Rodada do CAR (e do SIGEF dos municípios que mudaram): assinatura, fila, espelho por município, histórico."""
+    import datetime as dt
+
+    from raiz.banco import engine
+    from raiz.coleta.espelho import Espelho
+    from raiz.coleta.http import sessao
+    from raiz.coleta.manifesto import ufs_do_dia
+    from raiz.coleta.municipios import da_uf
+    from raiz.coleta.rodada import rodada_car
+    from raiz.funil.ponte import espelho_padrao
+
+    ufs = [u.upper() for u in (ufs or ufs_do_dia(dt.date.today()))]
+    s_car, s_outros = sessao(tls_legado=True), sessao()
+    muns = {uf: (municipio or da_uf(uf, s_outros)) for uf in ufs}
+    r = rodada_car(engine(), s_car, Espelho(espelho_padrao()), muns, historico=historico, s_sigef=s_outros)
+    typer.echo(
+        f"verificados {r['verificados']}, baixados {r['baixados']}, falhas {r['falhas']}, mudaram {len(r['mudaram'])}"
+    )
+    for uf, modo in r["modo"].items():
+        typer.echo(f"  {uf}: {modo}")
+    if r["falhas"]:
+        sys.exit(1)
+
+
 @banco.command("migrar")
 def banco_migrar(alvo: str = "head") -> None:
     """Aplica as migrações (Alembic) no banco de RAIZ_BANCO_URL."""

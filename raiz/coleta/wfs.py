@@ -93,8 +93,8 @@ def paginas(
             "outputFormat": "application/json",
             "srsName": c.srs,
         }
-        if bbox is not None:
-            extra["bbox"] = ",".join(map(str, bbox)) + f",{c.srs}"
+        if bbox is not None:  # texto pronto (ex.: lat/lon com urn, como o motor faz no SIGEF) ou (x0, y0, x1, y1)
+            extra["bbox"] = bbox if isinstance(bbox, str) else ",".join(map(str, bbox)) + f",{c.srs}"
         r = s.get(c.url, params=_params(c, CQL_FILTER=cql, **extra), timeout=timeout)
         r.raise_for_status()
         j = r.json()

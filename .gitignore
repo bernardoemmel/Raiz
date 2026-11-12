@@ -23,3 +23,8 @@ venv/
 .ipynb_checkpoints/
 # sistema
 .DS_Store
+
+# coleta (dados grandes ficam fora do git)
+dados/espelho/
+dados/dlt/
+dados/cache_http/

@@ -174,4 +174,4 @@ def downgrade() -> None:
     ]:
         op.execute(f"DROP TABLE IF EXISTS {t}")
     for e in reversed(ESQUEMAS):
-        op.execute(f"DROP SCHEMA IF EXISTS {e}")
+        op.execute(f"DROP SCHEMA IF EXISTS {e} CASCADE")  # bruto e pessoal têm tabelas do dlt e do LangGraph
