@@ -113,6 +113,97 @@ def aprendizado_placar() -> None:
         )
 
 
+@aprendizado.command("sortear")
+def aprendizado_sortear(
+    alvo: Annotated[str, typer.Option(help="alvo das previsões (ex.: titulo_problema_na_busca, f_matricula)")],
+    n: Annotated[int, typer.Option(help="quantas conferências, mais ou menos (metade aleatória, metade dirigida)")],
+    quem: Annotated[str, typer.Option(help="identificador do operador (ex.: fundador), nunca nome")],
+    modelo: Annotated[str | None, typer.Option(help="só previsões deste modelo")] = None,
+    uf: Annotated[str | None, typer.Option(help="só imóveis desta UF")] = None,
+    municipio: Annotated[int | None, typer.Option(help="só imóveis deste município (código IBGE)")] = None,
+    semente: Annotated[int | None, typer.Option(help="semente do sorteio (para refazer igual)")] = None,
+    fracao_aleatoria: Annotated[float, typer.Option(help="parte aleatória do sorteio")] = 0.5,
+    saida: Annotated[str | None, typer.Option(help="CSV com os sorteados e as matrículas a pedir")] = None,
+) -> None:
+    """Sorteia as conferências de um alvo: metade aleatória (mede o erro sem viés), metade dirigida às previsões
+    mais duvidosas (aprende onde o modelo erra). A chance de cada imóvel vai para o gabarito."""
+    from raiz.aprendizado import sorteio as S
+    from raiz.banco import engine
+
+    with engine().begin() as con:
+        r = S.sortear(con, alvo, n, quem, semente, modelo, uf.upper() if uf else None, municipio, fracao_aleatoria)
+        if r["sorteio_id"] is None:
+            typer.echo("nenhuma previsão vigente sem gabarito para este alvo e filtro")
+            return
+        mats = {}
+        if saida:
+            from sqlalchemy import text
+
+            for c, cns, m in con.execute(
+                text("""select distinct on (cod_imovel, registro_cns, registro_matricula) cod_imovel, registro_cns,
+                               registro_matricula from titulo.certidao_alvo where cod_imovel = any(:c)"""),
+                {"c": [i["cod_imovel"] for i in r["itens"]]},
+            ):
+                mats.setdefault(c, []).append(f"{cns}/{m}")
+    al = sum(i["desenho"] == "aleatorio" for i in r["itens"])
+    typer.echo(f"sorteio {r['sorteio_id']} (semente {r['semente']}): {len(r['itens'])} de {r['populacao']} imóveis, "
+               f"{al} no aleatório e {len(r['itens']) - al} no dirigido")  # fmt: skip
+    if saida:
+        import pandas as pd
+
+        df = pd.DataFrame(r["itens"])
+        df["matriculas_a_pedir"] = df.cod_imovel.map(lambda c: "; ".join(mats.get(c, [])) or None)
+        df.to_csv(saida, index=False)
+        typer.echo(f"lista em {saida}")
+
+
+def _fmt_est(nome: str, e: dict | None, pct: bool = True) -> str | None:
+    if not e:
+        return None
+    f = (lambda x: f"{100 * x:.1f}%") if pct else (lambda x: f"{x:,.3f}")
+    return f"  {nome}: {f(e['valor'])} (95%: {f(e['ic95'][0])} a {f(e['ic95'][1])}; {e['n']} gabaritos)"
+
+
+@aprendizado.command("estimar")
+def aprendizado_estimar(sorteio_id: int) -> None:
+    """Taxa real, taxa prevista, Brier e acerto da população pelos gabaritos do sorteio (pesados pela chance)."""
+    from raiz.aprendizado import sorteio as S
+    from raiz.banco import engine
+
+    with engine().connect() as con:
+        e = S.estimar(con, sorteio_id)
+    typer.echo(f"sorteio {sorteio_id} ({e['alvo']}): {e['com_gabarito']} gabaritos de {e['sorteados']} sorteados, "
+               f"população {e['populacao']}")  # fmt: skip
+    for linha in (
+        _fmt_est("taxa real", e.get("taxa_real")),
+        _fmt_est("taxa prevista", e.get("taxa_prevista")),
+        _fmt_est("taxa real sem peso (com viés)", e.get("taxa_real_sem_peso")),
+        _fmt_est("Brier", e.get("brier"), pct=False),
+        _fmt_est("acerto", e.get("acerto")),
+        _fmt_est("acerto sem peso (com viés)", e.get("acerto_sem_peso")),
+        _fmt_est("erro médio", e.get("erro_medio"), pct=False),
+        _fmt_est("erro absoluto médio", e.get("erro_abs_medio"), pct=False),
+    ):
+        if linha:
+            typer.echo(linha)
+
+
+@aprendizado.command("olofsson")
+def aprendizado_olofsson(sorteio_id: int) -> None:
+    """Área de cada classe real com intervalo de 95% (Olofsson), estratificada pela classe prevista."""
+    from raiz.aprendizado import sorteio as S
+    from raiz.banco import engine
+
+    with engine().connect() as con:
+        o = S.olofsson(con, sorteio_id)
+    typer.echo(f"sorteio {sorteio_id}: {o['com_gabarito']} gabaritos, área total {o['area_total_ha']:,.0f} ha")
+    for j, c in o["classes"].items():
+        ua = "-" if c["acerto_usuario"] is None else f"{100 * c['acerto_usuario']:.0f}%"
+        pa = "-" if c["acerto_produtor"] is None else f"{100 * c['acerto_produtor']:.0f}%"
+        typer.echo(f"  {j}: {c['area_ha']:,.0f} ha (95%: {c['ic95_ha'][0]:,.0f} a {c['ic95_ha'][1]:,.0f}); "
+                   f"previsto {c['area_prevista_ha']:,.0f} ha; acerto do usuário {ua}, do produtor {pa}")  # fmt: skip
+
+
 pessoal = typer.Typer(help="Dado pessoal cifrado (telefone e BSUID).", no_args_is_help=True)
 app.add_typer(pessoal, name="pessoal")
 
