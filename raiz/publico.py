@@ -5,7 +5,8 @@ CAR, polígono exato e imagem de satélite da fazenda só depois do aceite do do
 ou CPF em imagem, arquivo ou log.
 
 - /cartao/{codigo}/previa.jpg (1200 x 630, < 250 KB), retrato.jpg (1080 x 1350), adesivo.png (transparente, < 300 KB),
-  feitos com o Takumi (servicos/cartao/render.mjs, MIT ou Apache-2.0);
+  feitos com o Takumi (servicos/cartao/render.mjs, MIT ou Apache-2.0), e os mesmos em WebP (previa.webp, retrato.webp,
+  adesivo.webp), mais leves, para a ficha e o site; a prévia do WhatsApp (og:image) continua em JPEG;
 - /video/{codigo}.mp4 (1080 x 1920) e /video/{codigo}-720p.mp4: cenas do Takumi (renderAnimation) codificadas pelo
   FFmpeg no servidor, com a voz do Qwen3-TTS quando estiver instalado (sem ele, o vídeo sai mudo e o metadado diz);
 - /p/{codigo}: ficha do produtor em HTML pronto no servidor (até 150 KB), com Open Graph para o WhatsApp.
@@ -29,7 +30,13 @@ from raiz import RAIZ_REPO
 from raiz.config import config
 
 SERVICO = RAIZ_REPO / "servicos" / "cartao"
-CARTOES = {"previa": ("jpg", 250), "retrato": ("jpg", 600), "adesivo": ("png", 300)}
+# tipo -> {extensão: peso máximo em KB}; a primeira extensão é a padrão
+CARTOES = {
+    "previa": {"jpg": 250, "webp": 150},
+    "retrato": {"jpg": 600, "webp": 350},
+    "adesivo": {"png": 300, "webp": 150},
+}
+TIPO_IMAGEM = {"jpg": "image/jpeg", "png": "image/png", "webp": "image/webp"}
 VIDEOS = {"": (1080, 1920), "-720p": (720, 1280)}
 
 
@@ -129,12 +136,14 @@ def _imagens_do_aceite(d: dict) -> dict:
     return out
 
 
-def cartao(d: dict, tipo: str) -> Path:
-    ext, max_kb = CARTOES[tipo]
+def cartao(d: dict, tipo: str, ext: str | None = None) -> Path:
+    ext = ext or next(iter(CARTOES[tipo]))
+    max_kb = CARTOES[tipo][ext]
     f, valido = _cache(d, f"{tipo}.{ext}")
     if valido:
         return f
-    pedido = {**_publico(d), **_imagens_do_aceite(d), "tipo": tipo}
+    formato = {"jpg": "jpeg", "png": "png", "webp": "webp"}[ext]
+    pedido = {**_publico(d), **_imagens_do_aceite(d), "tipo": tipo, "formato": formato}
     for q in (82, 72, 62, 50):
         pedido["qualidade"] = q
         _node(pedido, f)
@@ -257,11 +266,10 @@ def roteador(engine_de):
     @r.get("/cartao/{codigo}/{nome}")
     def cartao_rota(codigo: str, nome: str, request: Request) -> Response:
         tipo, _, ext = nome.partition(".")
-        if tipo not in CARTOES or CARTOES[tipo][0] != ext:
-            raise HTTPException(404, "cartão desconhecido (previa.jpg, retrato.jpg, adesivo.png)")
-        f = cartao(achar(request, codigo), tipo)
-        return FileResponse(f, media_type="image/png" if ext == "png" else "image/jpeg",
-                            headers={"Cache-Control": "public, max-age=3600"})  # fmt: skip
+        if ext not in CARTOES.get(tipo, {}):
+            raise HTTPException(404, "cartão desconhecido (previa e retrato: .jpg ou .webp; adesivo: .png ou .webp)")
+        f = cartao(achar(request, codigo), tipo, ext)
+        return FileResponse(f, media_type=TIPO_IMAGEM[ext], headers={"Cache-Control": "public, max-age=3600"})
 
     @r.get("/video/{nome}.mp4")
     def video_rota(nome: str, request: Request) -> Response:

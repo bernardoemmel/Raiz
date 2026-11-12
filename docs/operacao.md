@@ -109,8 +109,10 @@ mudar na nuvem (ETag novo), o cache dele é refeito.
 ## Link público, cartão e vídeo (design v1 do front, item 6)
 
 - Sem token, pelo código curto: `/p/{codigo}` (HTML com Open Graph), `/cartao/{codigo}/{previa.jpg|retrato.jpg|
-  adesivo.png}` e `/video/{codigo}.mp4` e `-720p.mp4`. Antes do aceite do dono só saem município, hectares, selo e
-  código curto; o código do CAR e a imagem de satélite da fazenda só depois do aceite.
+  adesivo.png}` e `/video/{codigo}.mp4` e `-720p.mp4`. Os cartões também saem em WebP (`previa.webp`, `retrato.webp`,
+  `adesivo.webp`), com cerca de metade do peso, para a ficha e o site; a prévia do WhatsApp continua em JPEG. Antes do
+  aceite do dono só saem município, hectares, selo e código curto; o código do CAR e a imagem de satélite da fazenda
+  só depois do aceite.
 - Precisa de `npm ci` em `servicos/cartao` (Takumi) e do `ffmpeg` no servidor. A voz do vídeo liga com
   `uv pip install qwen-tts` (traz torch; o modelo de 0,6 B roda em CPU); sem ela o vídeo sai mudo e o cabeçalho
   `X-Raiz-Aviso: sem voz` avisa. Cache em `RAIZ_PUBLICO_DIR` (padrão `dados/publico/`), refeito quando o selo muda.
