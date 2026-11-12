@@ -1,18 +1,22 @@
 """Cabeçalhos e limite por IP, sem guardar IP, corpo, token ou URL em logs.
 
-O limite é por processo: use um worker ou aplique também um limite no proxy quando houver réplicas.
+O limite pode ser compartilhado entre workers pelo Valkey; sem backend, é por processo.
 Só o endereço de conexão é usado; cabeçalhos enviados pelo visitante não mudam a chave.
 """
 
 from __future__ import annotations
 
+import logging
 import math
 import time
+import uuid
 from collections import OrderedDict
 
 from starlette.datastructures import MutableHeaders
 from starlette.middleware.cors import CORSMiddleware
 from starlette.responses import JSONResponse
+
+log = logging.getLogger(__name__)
 
 
 class SegurancaAPI:
@@ -24,11 +28,14 @@ class SegurancaAPI:
         janela: int = 60,
         max_clientes: int = 10000,
         origens: list[str] | None = None,
+        backend=None,
+        erros=None,
     ):
         self.app = app
         self.limite, self.login_limite = limite, login_limite
         self.janela, self.max_clientes = janela, max_clientes
         self.clientes: OrderedDict[str, tuple[float, int, int]] = OrderedDict()
+        self.backend, self.erros = backend, erros
         # Ordem: cabeçalhos de segurança → CORS → limite/erros → aplicação.
         # Assim o navegador lê 429/500 e o preflight também recebe os cabeçalhos de segurança.
         self.atender = (
@@ -62,9 +69,16 @@ class SegurancaAPI:
         if scope["type"] != "http":
             return await self.app(scope, receive, send)
 
+        inicio = time.monotonic()
+        requisicao_id = uuid.uuid4().hex
+        status = 500
+
         async def enviar(mensagem):
+            nonlocal status
             if mensagem["type"] == "http.response.start":
+                status = mensagem["status"]
                 headers = MutableHeaders(scope=mensagem)
+                headers["X-Request-ID"] = requisicao_id
                 headers["X-Content-Type-Options"] = "nosniff"
                 headers["X-Frame-Options"] = "DENY"
                 headers["Referrer-Policy"] = "no-referrer"
@@ -79,7 +93,22 @@ class SegurancaAPI:
                     headers["Cache-Control"] = "no-store"
             await send(mensagem)
 
-        await self.atender(scope, receive, enviar)
+        try:
+            await self.atender(scope, receive, enviar)
+        finally:
+            # A rota vem do roteador, nunca do path/query/header que o visitante controla.
+            rota = getattr(scope.get("route"), "path", "[sem rota]")
+            log.info(
+                "chamada HTTP",
+                extra={
+                    "evento": "http",
+                    "metodo": scope.get("method", ""),
+                    "rota": rota,
+                    "status": status,
+                    "duracao_ms": round((time.monotonic() - inicio) * 1000, 2),
+                    "requisicao_id": requisicao_id,
+                },
+            )
 
     async def _atender(self, scope, receive, send):
         iniciado = False
@@ -91,7 +120,21 @@ class SegurancaAPI:
             await send(mensagem)
 
         ip = (scope.get("client") or ("desconhecido", 0))[0]
-        espera = self._espera(ip, scope["path"].rstrip("/") in {"/entrar", "/entrar/confirmar"})
+        login = scope["path"].rstrip("/") in {"/entrar", "/entrar/confirmar"}
+        try:
+            espera = (
+                await self.backend.espera(ip, login, self.limite, self.login_limite, self.janela)
+                if self.backend is not None
+                else self._espera(ip, login)
+            )
+        except Exception:
+            # Não registrar URL/credencial/mensagem da conexão; não desabilitar o limite em uma falha.
+            log.error("armazenamento do limite de chamadas indisponível")
+            return await JSONResponse(
+                {"detail": "serviço temporariamente indisponível"},
+                status_code=503,
+                headers={"Retry-After": "1", "Cache-Control": "no-store"},
+            )(scope, receive, enviar)
         if espera:
             resposta = JSONResponse(
                 {"detail": "limite de chamadas atingido; tente novamente depois"},
@@ -101,7 +144,12 @@ class SegurancaAPI:
             return await resposta(scope, receive, enviar)
         try:
             await self.app(scope, receive, enviar)
-        except Exception:
+        except Exception as erro:
+            if self.erros is not None:
+                try:
+                    self.erros.capturar(erro)
+                except Exception:
+                    log.error("monitoramento de erros indisponível")
             # O ServerErrorMiddleware externo não passa pelo middleware ao criar o 500.
             if not iniciado:
                 await JSONResponse({"detail": "erro interno"}, status_code=500)(scope, receive, enviar)

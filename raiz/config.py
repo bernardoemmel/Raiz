@@ -100,9 +100,15 @@ class Config(BaseSettings):
     # URL pública canônica do painel (inclua /Raiz/ se houver subpasta); nunca vem do Origin do visitante.
     # Sem ela, o login usa a primeira origem explicitamente permitida em api_origens.
     login_base_url: str | None = None
-    # Limites por IP e por processo, em janelas de 60 segundos; não podem ser desligados por engano.
+    # Limites por IP em janelas de 60 segundos; não podem ser desligados por engano.
     api_limite_minuto: int = Field(default=120, ge=1)
     api_login_limite_minuto: int = Field(default=10, ge=1)
+    # Em produção com vários workers: Valkey compartilhado; a chave HMAC evita guardar IP em claro.
+    # Sem storage_url, o contador é local (desenvolvimento com um processo).
+    api_limite_storage_url: SecretStr | None = None
+    api_limite_chave: SecretStr | None = None
+    # DSN da instância própria do GlitchTip. Ausente = nenhum evento enviado.
+    glitchtip_dsn: SecretStr | None = None
 
 
 @lru_cache

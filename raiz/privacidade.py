@@ -9,10 +9,12 @@
 
 from __future__ import annotations
 
+import json
 import logging
 import re
 from collections.abc import Iterable
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from pathlib import Path
 
 # --- validação ---------------------------------------------------------------------------------------------------
@@ -104,19 +106,49 @@ class FormatadorSeguro(logging.Formatter):
         return sanitizar_log(super().format(record))
 
 
+class FormatadorJSON(logging.Formatter):
+    """Uma linha JSON válida; campos extras livres não entram no log do servidor."""
+
+    def format(self, record: logging.LogRecord) -> str:
+        try:
+            return self._formatar(record)
+        except Exception:
+            # logging.handleError imprimiria record.msg/args em claro se o formatador levantasse erro.
+            return '{"nivel":"ERROR","mensagem":"[log suprimido: formatação indisponível]"}'
+
+    def _formatar(self, record: logging.LogRecord) -> str:
+        from raiz.logs_seguros import sanitizar_log
+
+        dado = {
+            "tempo": datetime.fromtimestamp(record.created, UTC).isoformat(),
+            "nivel": record.levelname,
+            "logger": sanitizar_log(record.name),
+            "mensagem": sanitizar_log(record.getMessage()),
+        }
+        if record.exc_info:
+            dado["excecao"] = sanitizar_log(self.formatException(record.exc_info))
+        for chave in ("evento", "metodo", "rota", "status", "duracao_ms", "requisicao_id"):
+            valor = getattr(record, chave, None)
+            if isinstance(valor, str):
+                dado[chave] = sanitizar_log(valor)
+            elif isinstance(valor, int | float):
+                dado[chave] = valor
+        return json.dumps(dado, ensure_ascii=False, allow_nan=False)
+
+
 def configurar_log(nivel: int = logging.INFO) -> None:
     raiz = logging.getLogger()
     raiz.setLevel(nivel)
     for h in raiz.handlers:
-        h.setFormatter(FormatadorSeguro(h.formatter._fmt if h.formatter else None))
+        h.setFormatter(FormatadorJSON())
     if not raiz.handlers:
         h = logging.StreamHandler()
-        h.setFormatter(FormatadorSeguro("%(asctime)s %(levelname)s %(name)s: %(message)s"))
+        h.setFormatter(FormatadorJSON())
         raiz.addHandler(h)
     # Uvicorn pode ter handlers próprios que não propagam até a raiz.
     for nome in ("uvicorn", "uvicorn.error", "uvicorn.access"):
         for h in logging.getLogger(nome).handlers:
-            h.setFormatter(FormatadorSeguro("%(levelname)s %(name)s: %(message)s"))
+            h.setFormatter(FormatadorJSON())
     for barulhento in ("alembic", "httpx", "httpcore", "urllib3"):
         logging.getLogger(barulhento).setLevel(logging.WARNING)
 

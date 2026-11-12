@@ -65,6 +65,12 @@ def criar_app(
     armazem=None,
 ) -> FastAPI:
     """Com grafo e deps prontos (testes), usa-os; senão abre o checkpointer cifrado no Postgres."""
+    from raiz.limites import do_config as limite_do_config
+    from raiz.observabilidade import do_config as erros_do_config
+
+    cfg = config()
+    limite = limite_do_config(cfg)
+    erros = erros_do_config(cfg)
 
     @contextlib.asynccontextmanager
     async def ciclo(app: FastAPI):
@@ -78,7 +84,13 @@ def criar_app(
                 app.state.engine = app.state.engine or engine_padrao()
                 app.state.grafo = aceite.construir(cp)
                 app.state.deps = aceite.Dependencias(app.state.engine, cascata_padrao())
-            yield
+            try:
+                yield
+            finally:
+                if limite is not None:
+                    await limite.fechar()
+                if erros is not None:
+                    erros.fechar()
 
     app = FastAPI(title="Raíz", lifespan=ciclo)
     from raiz.privacidade import configurar_log
@@ -102,7 +114,7 @@ def criar_app(
                 con.execute(text("select 1"))
             return {"ok": True}
         except Exception as ex:  # noqa: BLE001
-            raise HTTPException(503, f"banco fora do ar: {type(ex).__name__}") from ex
+            raise HTTPException(503, "serviço temporariamente indisponível") from ex
 
     seguro = [Depends(_exigir_token)]
 
@@ -244,7 +256,6 @@ def criar_app(
     # pagamento do Pix (segredo do webhook)
     from raiz.pedidos import api as pedidos_api
 
-    cfg = config()
     base_login = getattr(cfg, "login_base_url", None) or getattr(cfg, "api_origens", "").split(",")[0].strip()
     app.include_router(pedidos_api.roteador_cliente(_engine_do_app, base_url=base_login))
     app.include_router(pedidos_api.roteador_interno(_engine_do_app), dependencies=seguro)
@@ -291,5 +302,7 @@ def criar_app(
         limite=getattr(config(), "api_limite_minuto", 120),
         login_limite=getattr(config(), "api_login_limite_minuto", 10),
         origens=origens,
+        backend=limite,
+        erros=erros,
     )
     return app
