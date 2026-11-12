@@ -5,6 +5,7 @@ import { boisPorAno, camposDeFutebol } from "../../compartilhado/comparacoes"
 import { escolherFonte, type Ficha as DadosFicha } from "../../compartilhado/dados"
 import { abreviarCar, fmtCompacto, fmtDestaque, fmtInt, fmtPct, UFS } from "../../compartilhado/formato"
 import { COR, MAPA } from "../../compartilhado/cores"
+import { svgMiniBrasil } from "../../compartilhado/mini-brasil"
 import { motivos } from "../../compartilhado/motivos"
 import { situacaoTitulo } from "../../compartilhado/titulo"
 
@@ -61,7 +62,10 @@ function MapaSobDemanda({ ficha }: { ficha: DadosFicha }) {
     setEstado("carregando")
     try {
       // MapLibre e PMTiles só chegam aqui, no toque
-      const [{ montarMapa }, base] = await Promise.all([import("./mapa"), fonte.geo.base(ficha.imovel.cod_ibge)])
+      const [{ montarMapa }, base] = await Promise.all([
+        import("./mapa"),
+        fonte.geo.brasil().then(async (b) => b.base ?? (await fonte.geo.base(ficha.imovel.cod_ibge))),
+      ])
       setEstado("aberto")
       requestAnimationFrame(() => caixa.current && montarMapa(caixa.current, ficha.aneis, base))
     } catch {
@@ -78,6 +82,27 @@ function MapaSobDemanda({ ficha }: { ficha: DadosFicha }) {
       </button>
       <p class="miudo">{estado === "erro" ? "Não deu para abrir o mapa agora. Tente de novo com sinal melhor." : "O mapa usa mais internet; o desenho acima não gasta nada."}</p>
     </>
+  )
+}
+
+/** Onde fica, numa linha: o mini mapa do Brasil (64 px) com o ponto no município e a frase (guia, item 2.1, parte 8). */
+function OndeFica({ ficha }: { ficha: DadosFicha }) {
+  const i = ficha.imovel
+  const c = ficha.caixa
+  const svg = svgMiniBrasil({
+    uf: i.uf,
+    lon: c ? (c[0] + c[2]) / 2 : null,
+    lat: c ? (c[1] + c[3]) / 2 : null,
+    titulo: `Mapa do Brasil com o ponto em ${i.municipio}`,
+  })
+  const estado = UFS[i.uf] ?? i.uf
+  return (
+    <p class="onde-fica">
+      <span class="mini-brasil" dangerouslySetInnerHTML={{ __html: svg }} />
+      <span>
+        Fica em {i.municipio}, {estado === "Pará" ? "no Pará" : `em ${estado}`}.
+      </span>
+    </p>
   )
 }
 
@@ -301,6 +326,7 @@ export function Ficha() {
 
         <section class="cartao">
           <h2>Onde fica</h2>
+          <OndeFica ficha={ficha} />
           <MapaSobDemanda ficha={ficha} />
         </section>
 

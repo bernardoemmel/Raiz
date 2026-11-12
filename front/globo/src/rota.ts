@@ -1,26 +1,58 @@
 import { useEffect, useState } from "react"
+import type { RespostaBusca } from "../../compartilhado/dados"
+import { normalizar } from "../../compartilhado/formato"
 
-/** São Félix do Xingu (PA): o primeiro município da abertura. */
-export const MUNICIPIO_INICIAL = "1507300"
-
-export type Rota = { tela: "mapa"; municipio: string } | { tela: "fazenda"; car: string }
+/** Entrada (o Brasil), um município ou a ficha de uma fazenda. */
+export type Rota = { tela: "entrada" } | { tela: "municipio"; municipio: string } | { tela: "fazenda"; car: string }
 
 export function lerRota(hash: string): Rota {
   const partes = hash.replace(/^#\/?/, "").split("/").map(decodeURIComponent)
   if (partes[0] === "fazenda" && partes[1]) return { tela: "fazenda", car: partes[1] }
-  if (partes[0] === "municipio" && /^\d{7}$/.test(partes[1] ?? "")) return { tela: "mapa", municipio: partes[1] }
-  return { tela: "mapa", municipio: MUNICIPIO_INICIAL }
+  if (partes[0] === "municipio" && /^\d{7}$/.test(partes[1] ?? "")) return { tela: "municipio", municipio: partes[1] }
+  return { tela: "entrada" }
 }
 
 export const linkMunicipio = (cod: string) => `#/municipio/${cod}`
 export const linkFazenda = (car: string) => `#/fazenda/${encodeURIComponent(car)}`
 
+/** Município do contorno do Brasil (os 5.570), processado ou não. */
+export interface MunicipioDoMapa {
+  cod_ibge: string
+  nome: string
+  uf: string
+}
+
+/**
+ * Municípios que a busca do back-end não conhece (estado ainda não processado), achados pelo nome no contorno do
+ * Brasil. Escolher um faz o mesmo que tocar nele no mapa: o mapa vai até lá e o painel diz que ainda não foi lido.
+ */
+export function municipiosSemDados(q: string, mapa: MunicipioDoMapa[], conhecidos: Set<string>, max = 5): MunicipioDoMapa[] {
+  const t = normalizar(q)
+  if (t.length < 3 || /\d/.test(t)) return []
+  return mapa
+    .filter((m) => !conhecidos.has(m.cod_ibge) && normalizar(m.nome).includes(t))
+    .sort((a, b) => Number(!normalizar(a.nome).startsWith(t)) - Number(!normalizar(b.nome).startsWith(t)) || a.nome.localeCompare(b.nome, "pt-BR"))
+    .slice(0, max)
+}
+
+/**
+ * Para onde vai um Enter na busca quando há um resultado só: código do CAR direto para a ficha; município (com ou sem
+ * dados) para o mapa dele. Com mais de um resultado, nenhum destino: a pessoa escolhe na lista.
+ */
+export function destinoDaBusca(r: RespostaBusca, semDados: MunicipioDoMapa[] = []): string | null {
+  const municipios = [...r.municipios.map((m) => m.cod_ibge), ...semDados.map((m) => m.cod_ibge)]
+  if (r.imoveis.length === 1 && !municipios.length) return linkFazenda(r.imoveis[0].cod_imovel)
+  if (!r.imoveis.length && municipios.length === 1) return linkMunicipio(municipios[0])
+  return null
+}
+
 export function useRota(): Rota {
   const [rota, setRota] = useState(() => lerRota(location.hash))
   useEffect(() => {
     const mudou = () => {
-      setRota(lerRota(location.hash))
-      window.scrollTo({ top: 0 })
+      const nova = lerRota(location.hash)
+      setRota(nova)
+      if (nova.tela === "fazenda") window.scrollTo({ top: 0 })
     }
     window.addEventListener("hashchange", mudou)
     return () => window.removeEventListener("hashchange", mudou)

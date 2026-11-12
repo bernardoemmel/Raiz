@@ -186,6 +186,23 @@ h1 em {
   color: var(--terra-texto);
 }
 
+/* onde fica: mini mapa do Brasil numa linha */
+.onde-fica {
+  display: flex;
+  align-items: center;
+  gap: var(--e3);
+  margin: 0 0 var(--e4);
+}
+.onde-fica .mini-brasil {
+  flex-shrink: 0;
+  width: 64px;
+}
+.onde-fica svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
 /* mapa só ao tocar */
 .mapa-previa {
   position: relative;

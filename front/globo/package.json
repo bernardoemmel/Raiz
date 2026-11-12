@@ -9,11 +9,11 @@
     "lint": "oxlint",
     "preview": "vite preview",
     "test": "vitest run",
+    "test:e2e": "node ../scripts/testar-entrada.mjs",
     "verificar": "node ../scripts/verificar-design.mjs"
   },
   "dependencies": {
     "@protomaps/basemaps": "5.7.2",
-    "cobe": "2.0.1",
     "maplibre-gl": "6.15.0",
     "pmtiles": "4.5.0",
     "react": "^19.3.1",

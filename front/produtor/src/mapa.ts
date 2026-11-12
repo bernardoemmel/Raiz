@@ -12,15 +12,32 @@ import {
   NavigationControl,
   ScaleControl,
   setWorkerUrl,
+  type LayerSpecification,
   type StyleSpecification,
 } from "maplibre-gl"
 import "maplibre-gl/dist/maplibre-gl.css"
 import workerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?url"
 import { Protocol } from "pmtiles"
-import { COR } from "../../compartilhado/cores"
+import { COR, MAPA } from "../../compartilhado/cores"
 import { ATRIBUICAO_MAPA, CORES_MAPA } from "../../compartilhado/mapa-cores"
 
-const SABOR: Flavor = { ...namedFlavor("light"), ...CORES_MAPA, landcover: { ...CORES_MAPA.landcover } }
+const SABOR: Flavor = { ...namedFlavor("white"), ...CORES_MAPA, landcover: { ...CORES_MAPA.landcover } }
+
+/** O mesmo acabamento do painel (guia, item 2.1): nomes de cidade sem ícone, rio com largura por zoom, halo de 1,5 px. */
+function camadas(): LayerSpecification[] {
+  return layers("protomaps", SABOR, { lang: "pt" }).flatMap((l): LayerSpecification[] => {
+    if (l.id === "pois" || l.id.startsWith("address") || l.id === "buildings") return []
+    if (l.type === "symbol" && l.layout && "icon-image" in l.layout) {
+      if (l.id !== "places_locality") return []
+      const layout = Object.fromEntries(Object.entries(l.layout).filter(([k]) => !k.startsWith("icon-")))
+      return [{ ...l, layout } as LayerSpecification]
+    }
+    if (l.id === "water_river" || l.id === "water_stream")
+      return [{ ...l, paint: { "line-color": MAPA.rio, "line-width": ["interpolate", ["linear"], ["zoom"], 8, 0.6, 12, 1.4, 15, 3] } } as LayerSpecification]
+    if (l.type === "symbol" && l.paint && "text-halo-width" in l.paint) return [{ ...l, paint: { ...l.paint, "text-halo-width": 1.5 } } as LayerSpecification]
+    return [l]
+  })
+}
 
 function estilo(base: string | null): StyleSpecification {
   // as chaves {fontstack} e {range} não podem passar por new URL (viram %7B)
@@ -31,9 +48,7 @@ function estilo(base: string | null): StyleSpecification {
     version: 8,
     glyphs,
     sources: { protomaps: { type: "vector", url: "pmtiles://" + base, attribution: ATRIBUICAO_MAPA } },
-    layers: layers("protomaps", SABOR, { lang: "pt" }).filter(
-      (l) => l.id !== "pois" && !l.id.startsWith("address") && !(l.type === "symbol" && l.layout && "icon-image" in l.layout),
-    ),
+    layers: camadas(),
   }
 }
 
@@ -69,8 +84,10 @@ export function montarMapa(caixa: HTMLElement, aneis: [number, number][][], base
       type: "geojson",
       data: { type: "Feature", properties: {}, geometry: { type: "MultiPolygon", coordinates: aneis.map((a) => [a]) } },
     })
-    m.addLayer({ id: "fazenda", type: "fill", source: "fazenda", paint: { "fill-color": COR.mata, "fill-opacity": 0.2 } })
-    m.addLayer({ id: "fazenda-borda", type: "line", source: "fazenda", paint: { "line-color": COR.tinta, "line-width": 3 } })
+    m.addLayer({ id: "fazenda", type: "fill", source: "fazenda", paint: { "fill-color": COR.mata, "fill-opacity": 0.12 } })
+    // contorno duplo: branco por fora, tinta por dentro (guia, item 2.1, parte 5)
+    m.addLayer({ id: "fazenda-fora", type: "line", source: "fazenda", paint: { "line-color": MAPA.contornoFora, "line-width": 6, "line-opacity": 0.9 } })
+    m.addLayer({ id: "fazenda-borda", type: "line", source: "fazenda", paint: { "line-color": MAPA.contornoClaro, "line-width": 2.5 } })
   })
   return m
 }
