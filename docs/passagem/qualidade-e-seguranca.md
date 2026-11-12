@@ -8,7 +8,7 @@ com regressões. Mudanças de contrato/arquitetura ficam para os chats responsá
 - CI em seis jobs paralelos, cache uv/npm/Chromium/LanguageTool, Dependabot semanal, Gitleaks em histórico completo,
   licenças com inventários obrigatórios, build igual ao site e suíte Python integral com PostGIS/PDF/LanguageTool.
 - Playwright com API/PostGIS reais: link de uso único, milhão de créditos no Pará, três lotes, interesse e Pix local
-  de teste; nenhuma credencial real de pagamento. Front com 81 testes sem skips e geometrias determinísticas.
+  de teste; nenhuma credencial real de pagamento. Front com testes sem skips e geometrias determinísticas.
 - Cabeçalhos HTTP, limite por IP/login, destino canônico do link, Presidio antes dos logs e diagnósticos persistidos,
   inclusive erros publicados no Release. Pix de teste identificado e sem data 1970 quando não tem validade.
 - Correções pequenas encontradas na revisão: rebanho zero, gabarito de certidão em revisão, índice WARC e alertas.
@@ -20,6 +20,9 @@ Nenhum teste foi retirado ou selecionado parcialmente para acelerar o CI. O test
 `test_lote_do_para_inteiro_fecha_ou_diz_o_que_falta` ainda depende das 144 tabelas reais `desenvolvedor` do Pará,
 que não existem no Release atual. Portanto a exigência literal de zero skips **não está concluída**.
 O chat Dados precisa publicar o conjunto versionado; então o CI deverá baixar/conferir/cachear o snapshot.
+Além disso, permanece o `xfail` preexistente de TIR do plantio (`test_plantio_da_7_a_9_pct_no_central_r11`):
+o teste executa, mas a conta ainda diverge da referência de 7–9%; o chat Produto/regras deve resolver o critério
+em `docs/restauracao-rodada11.md`. O portão de resultados recusa qualquer outro skip/xfail novo.
 O teste da cena-alvo usa a amostra real do repositório e já roda inteiro, sem esse pré-requisito nacional.
 
 ## Integração e operação que exigem outro chat
@@ -148,3 +151,29 @@ O chat de Dados deve concluir/publicar o conjunto de 144 desenvolvedor com a ver
 Até isso existir, gerar tudo em todo PR não atende a CI rápido em runner padrão; um primeiro preenchimento em job próprio com quatro processos/BLAS com um thread pode levar mais de vinte minutos e precisa de cache por versão de dados e modelo. Alternativamente, muitas máquinas em paralelo encurtam o relógio mas consomem dezenas de minutos de runner e não foram medidas. Não apresentar nenhuma dessas projeções como execução concluída.
 
 Trocar o teste por dataset sintético de 144 municípios, gravar CSV vazio para satisfazer a pré-condição, reduzir o conjunto ou apenas renomear o benchmark altera sua semântica. Não fiz isso. Sem publicar/gerar os dados reais, a exigência literal de zero testes pulados continua pendente; falhar explicitamente em vez do skip evidencia a pendência, mas deixa o CI vermelho.
+
+
+## Atualização da main durante a entrega
+
+O PR #47 (mapa nacional/Pages) entrou na main durante esta auditoria. Os conflitos de CI e lock npm foram
+resolvidos preservando as duas verificações de navegador: site estático Pages com fixtures e fluxo real da API.
+Playwright foi alinhado em 1.65.0 nas duas ferramentas. O problema de mapa descrito acima refere-se à API
+autenticada, não ao mapa estático corrigido pelo #47.
+
+## Segredos no git
+
+Gitleaks 8.24.3 percorreu todo o histórico disponível e o diff desta entrega com os valores ocultos. A única
+ocorrência inicial era o identificador `regularizacao_chance_12m` em `docs/colunas.md`; a exceção exige ambos
+o identificador exato e esse caminho. Não foi encontrada credencial real que exigisse revogação no material
+verificado. Não foram reescritos commits ou logs remotos.
+
+## Validação local da entrega
+
+- Suíte Python completa com PostGIS e LanguageTool: **649 passaram, 1 skip (dados do Pará), 1 xfail preexistente
+  (TIR)**. Após o merge do #47 e as últimas regressões de segurança/portão, 48 testes focados adicionais passaram.
+- Build completo da fixture Pages (painel + produtor) e **91 testes Vitest passaram, nenhum skip**.
+- Cena-alvo Playwright/API passou antes e depois da correção de destino do link; a versão integrada é novamente
+  executada pelo CI. Teste Pages vindo do #47 permanece no CI, sem remover cobertura anterior.
+- Ruff check/format, actionlint e varredura CPF/CNPJ passaram. **511 pacotes** Python/npm/Rust conferidos, sem
+  licença proibida ou desconhecida. Gitleaks passou no histórico integrado (151 commits analisados) e no diff.
+- O CI remoto deve estar verde no commit da entrega antes de integrar; seu resultado fica no PR.

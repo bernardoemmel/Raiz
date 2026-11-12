@@ -430,7 +430,8 @@ Os seis jobs rodam em paralelo, sem filtro de caminhos nem seleção de testes. 
 continua travada (`uv sync --frozen --all-extras`, `npm ci`). Não se reutiliza `node_modules` de outro lock.
 
 - `front` constrói o mesmo site público e executa os testes unitários, com geometrias de teste determinísticas.
-- `checagens` executa toda a coleta pytest, inclusive PostGIS, Rust, cartão, vídeo, PDF e LanguageTool.
+- `checagens` executa toda a coleta pytest, inclusive PostGIS, Rust, cartão, vídeo, PDF e LanguageTool. O portão de resultados recusa novos skips/xfails;
+  preserva somente o conjunto real do Pará ausente e a divergência conhecida de TIR, detalhados na passagem.
 - `e2e` abre Chromium e usa API/PostGIS reais: link de entrada, milhão de créditos no Pará, três opções, interesse
   e reserva Pix local. E-mail e respostas dos donos são controlados; nenhuma credencial de pagamento real é
   aceita. Veja `testes/e2e/README.md`. Não há trace com tokens nos artefatos.
