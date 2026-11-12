@@ -1,8 +1,14 @@
-"""A exceção autorizada é ausência de implementação, nunca falha da integração."""
+"""Aviso restrito à ausência autorizada; falhas nos ensaios continuam obrigatórias."""
 
 import json
+from contextlib import contextmanager
+from pathlib import Path
+from types import SimpleNamespace
+
+import pytest
 
 from scripts import testar_mcp_ci as ci
+from testes.mcp import avaliacao, latencia, produto
 
 
 def test_ausencia_gera_aviso_sem_alegar_ensaio(tmp_path, monkeypatch, capsys):
@@ -43,7 +49,7 @@ def test_detecao_presente_nao_executa_nem_aprova(tmp_path, monkeypatch):
     assert dado["estado"] == "presente" and dado["ensaios_executados"] is False
 
 
-def test_corpus_ausente_com_servidor_presente_reprova_explicitamente(tmp_path, monkeypatch, capsys):
+def test_excecao_de_corpus_antes_dos_ensaios_nao_alega_medicoes(tmp_path, monkeypatch, capsys):
     monkeypatch.setattr(ci, "disponivel", lambda: True)
 
     def pendente(_):
@@ -51,7 +57,117 @@ def test_corpus_ausente_com_servidor_presente_reprova_explicitamente(tmp_path, m
 
     monkeypatch.setattr(ci, "executar", pendente)
     assert ci.main(["--resultado", str(tmp_path)]) == 1
-    assert "::error title=Corpus MCP pendente" in capsys.readouterr().out
+    assert "::error title=MCP reprovado" in capsys.readouterr().out
     dado = json.loads((tmp_path / "integracao.json").read_text())
     assert dado["estado"] == "falha"
+    assert "ensaios_executados" not in dado
+
+
+@pytest.fixture
+def fluxo_controlado(monkeypatch):
+    """Dublês só das fronteiras externas; executa o encadeamento real do runner."""
+    etapas = []
+    estado = SimpleNamespace(defeito=None, leitor=False)
+
+    @contextmanager
+    def carga(fase):
+        etapas.append(fase)
+        yield {}
+
+    @contextmanager
+    def integracao():
+        etapas.append("oauth")
+        if estado.defeito == "oauth":
+            raise RuntimeError("diagnostico-privado-sintetico")
+        try:
+            yield SimpleNamespace(
+                cliente=object(),
+                casos={"consultar": {"argumentos": {}}},
+                inventario=json.loads(produto.REFERENCIA_SEM_LEITOR.read_text())["ferramentas"],
+                carga=carga,
+                ambiente=object() if estado.leitor else produto.SemAgenteLeitor(),
+                # Uma flag antiga esquecida não pode impedir o corpus do leitor.
+                injecoes_disponiveis=False,
+            )
+        finally:
+            if estado.defeito == "finalizacao":
+                raise RuntimeError("diagnostico-privado-sintetico")
+
+    def medir(*_):
+        etapas.append("latencia")
+        if estado.defeito == "latencia":
+            raise RuntimeError("diagnostico-privado-sintetico")
+        return {"medicoes": [{"ferramenta": "consultar", "segundos": 0.1}]}
+
+    def locust(*_, env, **kwargs):
+        fase = env["RAIZ_CARGA_FASE"]
+        dado = {
+            "fase": fase,
+            "requisicoes": 30,
+            "falhas": 0,
+            "max_ms": 100,
+            "limitadas": 10 if fase == "limite" else 0,
+            "retry_after_invalidos": 1 if estado.defeito == "retry_after" and fase == "limite" else 0,
+            "sucessos": {"consultar": 20},
+        }
+        Path(env["RAIZ_CARGA_RELATORIO"]).write_text(json.dumps(dado))
+        return SimpleNamespace(returncode=1 if estado.defeito == fase else 0)
+
+    async def corpus(_):
+        etapas.append("corpus")
+        if estado.defeito == "corpus":
+            raise avaliacao.FalhaAvaliacao("diagnostico-privado-sintetico")
+        return {"integracao_mcp": True, "resultados": []}
+
+    monkeypatch.setattr(ci, "disponivel", lambda: True)
+    monkeypatch.setattr(produto, "integracao", integracao)
+    monkeypatch.setattr(latencia, "medir_latencia", medir)
+    monkeypatch.setattr(ci.subprocess, "run", locust)
+    monkeypatch.setattr(avaliacao, "avaliar_injecoes", corpus)
+    return estado, etapas
+
+
+def test_aviso_so_apos_latencia_e_ambas_cargas_aprovadas(tmp_path, monkeypatch, capsys, fluxo_controlado):
+    _, etapas = fluxo_controlado
+    resumo = tmp_path / "resumo.md"
+    monkeypatch.setenv("GITHUB_STEP_SUMMARY", str(resumo))
+
+    assert ci.main(["--resultado", str(tmp_path)]) == 0
+
+    assert etapas == ["oauth", "latencia", "normal", "limite"]
+    assert "::warning title=Corpus MCP pendente" in capsys.readouterr().out
+    dado = json.loads((tmp_path / "integracao.json").read_text())
+    assert dado["estado"] == "parcial"
     assert dado["ensaios_executados"] == {"latencia": True, "carga": True, "corpus": False}
+    assert "corpus não aprovado" in resumo.read_text()
+    for nome in ("latencia.json", "carga-normal.json", "carga-limite.json"):
+        assert (tmp_path / nome).is_file()
+
+
+@pytest.mark.parametrize("defeito", ["oauth", "latencia", "normal", "limite", "retry_after", "finalizacao", "corpus"])
+def test_aviso_nao_encobre_falha_obrigatoria(tmp_path, capsys, fluxo_controlado, defeito):
+    estado, etapas = fluxo_controlado
+    estado.defeito = defeito
+    estado.leitor = defeito == "corpus"
+
+    assert ci.main(["--resultado", str(tmp_path)]) == 1
+
+    saida = capsys.readouterr().out
+    assert "::error title=MCP reprovado" in saida
+    assert "::warning" not in saida and "diagnostico-privado-sintetico" not in saida
+    dado = json.loads((tmp_path / "integracao.json").read_text())
+    assert dado["estado"] == "falha"
+    assert "ensaios_executados" not in dado
+    if defeito == "corpus":
+        assert etapas == ["oauth", "latencia", "normal", "limite", "corpus"]
+
+
+def test_leitor_integrado_executa_corpus_sem_aviso(tmp_path, capsys, fluxo_controlado):
+    estado, etapas = fluxo_controlado
+    estado.leitor = True
+
+    assert ci.main(["--resultado", str(tmp_path)]) == 0
+
+    assert etapas == ["oauth", "latencia", "normal", "limite", "corpus"]
+    assert "::warning" not in capsys.readouterr().out
+    assert json.loads((tmp_path / "integracao.json").read_text())["estado"] == "aprovado"

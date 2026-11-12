@@ -18,6 +18,9 @@ O diretório deve conter o conjunto completo de arquivos candidatos, incluindo o
 para cada município com complementos/geometrias. Diretórios extras, links, arquivos desconhecidos e membros TAR
 fora de `<UF>/<arquivo>` impedem a publicação. TAR é lido sem extrair caminhos. O código de saída é 1 em falha.
 A saída de erro mostra a regra e, quando disponível, o nome técnico do arquivo, sem valores das células.
+O contêiner também é conferido integralmente: CRC, término do gzip, cabeçalhos, preenchimento e terminador TAR.
+Streams gzip adicionais, bytes depois do TAR, texto oculto após NUL e metadados livres de dono/link/PAX são
+recusados tanto pela CLI quanto pelo upload. A descompressão usa blocos e arquivo temporário apagado ao sair.
 
 ## Contratos e faixas
 

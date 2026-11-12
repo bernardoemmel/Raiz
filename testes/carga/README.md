@@ -71,5 +71,11 @@ Ensaio local após #72, em 12/11/2026: sete ferramentas responderam pela integra
 foi `consultar_ficha`, em 0,262 s. A fase normal teve 157 requisições, zero falhas e máximo de 0,941 s; a saturação
 teve 251 requisições, 152 respostas 429 esperadas, zero falhas e máximo de 1,748 s. Todas as ferramentas tiveram
 sucesso nas duas fases. Não foi necessário mudar o teto próprio de leitura de fichas nesse ensaio.
-Relatórios locais: `/tmp/raiz-mcp-sete-ferramentas/`. O runner retornou 1 exclusivamente pelo corpus pendente,
+Relatórios históricos, anteriores à autorização do aviso: `/tmp/raiz-mcp-sete-ferramentas/`. O runner retornou 1 exclusivamente pelo corpus pendente,
 com `latencia=true`, `carga=true` e `corpus=false`; estes resultados não são aprovação do agente leitor.
+
+Após a autorização, o ensaio real em `/tmp/raiz-mcp-aviso-final/` terminou com código 0 e `estado=parcial`,
+somente pelo corpus ausente: sete ferramentas, máximo de 0,200 s; 196 chamadas normais, zero falhas/429,
+máximo de 640 ms; 424 chamadas na saturação, 335 respostas 429 válidas, zero falhas, máximo de 953 ms.
+Todas as ferramentas responderam nas duas fases. O inventário HTTP correspondeu à referência auditada sem
+alterá-la. Esses números medem o ensaio curto, não capacidade máxima nem segurança de um agente leitor.

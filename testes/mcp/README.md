@@ -6,10 +6,11 @@ pedidos e ficha, OAuth e ponte REST, mas não tem agente cliente nem entrada que
 `produto.py` inicia HTTP/JWKS local, valida JWT RS256 pelo código real e usa PostGIS/contas/trabalhos reais.
 Latência e Locust executam todas as ferramentas. Isso não comprova resistência de um agente leitor inexistente.
 
-A exceção do fundador permitia aviso somente enquanto o servidor estivesse ausente. Agora o runner salva
-as medições executadas e **reprova pelo corpus não executado**, sem simular a leitura de arquivos nem aprovar
-um agente roteirizado que ignora o ataque. A decisão sobre uma exceção específica para essa dependência
-foi encaminhada ao fundador; até resposta, a falha continua explícita.
+O fundador autorizou **aviso somente para a ausência do agente leitor do corpus**, depois de OAuth, todas as
+ferramentas, latência e as duas fases de carga aprovados. O runner registra `estado=parcial` e `corpus=false`,
+nunca aprovação do corpus. Erro em qualquer ensaio obrigatório ou na vigília de rede continua reprovando.
+A exceção expira automaticamente quando o leitor/adaptador é registrado, ou quando a superfície auditada muda,
+conforme o contrato abaixo. Não há flag para manter o corpus desligado depois da ligação do leitor.
 
 O PR #54 acrescentou a função `raiz.calendario.mcp.proximos_eventos`, pronta para
 registro futuro no servidor. `test_calendario_mcp_seguranca.py` já exercita essa função
@@ -82,7 +83,8 @@ duração. Sem servidor/manifesto não há aprovação nem substituição por se
 
 O job `mcp` roda em cada push/PR. `scripts/testar_mcp_ci.py` detecta entrada MCP ou dependência SDK; somente
 um checkout sem implementação (ou o hash exato do antigo stub) recebe aviso `estado=ausente`. Com MCP presente,
-qualquer erro de importação, OAuth, fixture, ferramenta, prazo, carga ou corpus reprova o job.
+qualquer erro de importação, OAuth, fixture, ferramenta, prazo, carga ou corpus executado reprova o job.
+A falta específica do agente leitor pode produzir `estado=parcial` somente depois dos demais ensaios aprovados.
 
 O adaptador `testes.mcp.produto.integracao()` inicia o app principal do produto e o emissor JWKS local em um
 subprocesso isolado. A chave RSA/JWT é descartável; assinatura, audiência, escopos e vínculo da empresa passam
@@ -112,9 +114,37 @@ fica alto nesse perfil para não confundir erro de ferramenta JSON-RPC com limit
 separadamente as quotas por empresa compartilhadas entre REST e MCP.
 
 O runner salva `latencia.json`, `carga-normal.json` e `carga-limite.json` antes de tentar o corpus. Sem agente leitor,
-`integracao.json` informa a falha e quais ensaios executaram. Nenhuma resposta/documento/token entra nesses artefatos.
+`integracao.json` informa o resultado parcial, a dependência e quais ensaios executaram. Nenhuma resposta,
+documento ou token entra nesses artefatos. Uma exceção lançada cedo pelo adaptador, inclusive `CorpusPendente`,
+nunca é interpretada como prova de aprovação de latência/carga nem transformada em aviso.
+
+### Ligação automática do agente leitor
+
+**Produto e regras** deve registrar a ligação do leitor ao MCP em `raiz.publica.agente_documentos` e entregar
+o adaptador `testes.mcp.leitor_documentos.integracao(engine=..., mcp=...)`. Essa fábrica é um context manager:
+recebe o banco local descartável e o alvo MCP real (`cliente`, `url`, `token`, `casos`, `inventario`), prepara
+o leitor isolado, entrega o `Ambiente` do auditor e encerra seus recursos na saída. Não criar esses módulos como
+stubs para silenciar o CI; o código atual não inventa um leitor.
+
+A presença de **qualquer um** desses módulos desativa o aviso de ausência. Se faltar o adaptador, a importação
+quebrar, a fábrica não existir ou seu retorno não implementar o ambiente, o job falha. Com ambiente real, o corpus
+roda automaticamente e qualquer reprovação falha o CI, mesmo se uma antiga flag `injecoes_disponiveis=False`
+tiver sido esquecida. A flag não decide mais a execução. Somente o tipo exato `SemAgenteLeitor` permite examinar
+a exceção; subclasses percorrem o auditor normalmente.
+
+Como proteção contra uma ligação nova que esqueça o contrato, o aviso também exige a referência auditada
+`sem_leitor_auditado.json`: SHA-256 dos arquivos Python de `raiz/publica/` e `raiz/api.py`, e o inventário completo
+de `tools/list`, incluindo esquemas, descrições e anotações. Arquivo novo/alterado/removido ou mudança nas
+ferramentas invalida o aviso e exige integrar o corpus ou uma revisão de Qualidade que comprove que o leitor
+continua ausente. **O runner nunca renova a referência automaticamente para fazer o CI passar.** Isso é uma guarda
+conservadora: uma mudança legítima nessa superfície também pode exigir revisão. Outros módulos do produto não
+invalidam a referência.
+
+Um agente externo que use as mesmas ferramentas e não deixe registro ou mudança nessa superfície não é
+observável automaticamente pelo repositório. A ligação deve respeitar o ponto canônico; não se afirma detectar
+semanticamente toda integração externa. A referência comprova a ausência auditada atual, não resistência a ataques.
 
 **Produto e regras** entrega o agente/leitor real para as três fontes e os observadores descritos acima.
-**Qualidade e segurança** liga essa fábrica ao atributo `ambiente` do adaptador e retira a marca de indisponibilidade
-somente quando os controles limpos e ataques passarem pelo caminho real. A integração parcial não deve ser usada
-como evidência de aprovação do corpus.
+**Qualidade e segurança** mantém o carregamento automático da fábrica e revisa a referência somente após conferir
+a superfície alterada. Os controles limpos e ataques precisam passar pelo caminho real. A integração parcial não
+deve ser usada como evidência de aprovação do corpus.

@@ -9,6 +9,9 @@ from __future__ import annotations
 
 import contextlib
 import datetime as dt
+import hashlib
+import importlib
+import importlib.util
 import json
 import os
 import secrets
@@ -26,6 +29,7 @@ import jwt
 import requests
 import yaml
 from cryptography.hazmat.primitives.asymmetric import rsa
+from mcp.types import Tool
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import make_url
 
@@ -40,6 +44,9 @@ AVISO_INJECOES = (
     "nem entrada de leitura de certidão, edital ou nome de arquivo. Nenhuma execução de agente foi simulada."
 )
 CAMPOS = {"meta": {"tipo": "creditos", "valor": 1000000}, "onde": {"ufs": ["PA"]}}
+MODULO_LEITOR = "raiz.publica.agente_documentos"
+MODULO_ADAPTADOR = "testes.mcp.leitor_documentos"
+REFERENCIA_SEM_LEITOR = Path(__file__).with_name("sem_leitor_auditado.json")
 
 
 class AgenteAusente(RuntimeError):
@@ -57,6 +64,64 @@ class SemAgenteLeitor:
 
     async def executar(self, *_):
         raise AgenteAusente(AVISO_INJECOES)
+
+
+def _modulos_leitor() -> tuple[bool, bool]:
+    # find_spec distingue ausência do módulo de falha ao importar sua dependência.
+    # Erro de descoberta também reprova, nunca é convertido em ausência.
+    return tuple(importlib.util.find_spec(nome) is not None for nome in (MODULO_LEITOR, MODULO_ADAPTADOR))
+
+
+def _codigo_mcp(raiz: Path) -> dict[str, str]:
+    arquivos = [raiz / "raiz/api.py", *sorted((raiz / "raiz/publica").rglob("*.py"))]
+    if len(arquivos) < 2 or any(p.is_symlink() for p in arquivos):
+        raise RuntimeError("Superfície MCP ausente ou inválida para a referência auditada")
+    return {p.relative_to(raiz).as_posix(): hashlib.sha256(p.read_bytes()).hexdigest() for p in arquivos}
+
+
+def _ferramentas_canonicas(inventario: dict) -> dict:
+    return {
+        nome: Tool.model_validate(ferramenta).model_dump(mode="json", by_alias=True, exclude_none=True)
+        for nome, ferramenta in inventario.items()
+    }
+
+
+def corpus_pendente(ambiente, inventario: dict, *, raiz: Path = RAIZ_REPO) -> bool:
+    """Só a ausência exata e a superfície já auditada permitem o aviso temporário.
+
+    Um leitor novo, inclusive com as mesmas ferramentas, invalida a exceção ao ser
+    registrado no ponto canônico. Mudanças em API/MCP ou em tools/list também exigem
+    revisão antes de renovar a referência; ela nunca é atualizada pelo runner.
+    """
+    if type(ambiente) is not SemAgenteLeitor:
+        return False
+    if any(_modulos_leitor()):
+        raise RuntimeError("Leitor MCP registrado exige adaptador e corpus executado")
+    referencia = json.loads(REFERENCIA_SEM_LEITOR.read_text())
+    if _codigo_mcp(raiz) != referencia["codigo"] or _ferramentas_canonicas(inventario) != referencia["ferramentas"]:
+        raise RuntimeError("Superfície MCP mudou: integrar o leitor ao corpus ou revisar a ausência antes do aviso")
+    return True
+
+
+@contextlib.contextmanager
+def _ambiente_corpus(*, engine, mcp):
+    leitor, adaptador = _modulos_leitor()
+    if not leitor and not adaptador:
+        yield SemAgenteLeitor()
+        return
+    if leitor:
+        importlib.import_module(MODULO_LEITOR)
+    if not adaptador:
+        raise RuntimeError("Leitor MCP registrado sem adaptador do corpus")
+    fabrica = getattr(importlib.import_module(MODULO_ADAPTADOR), "integracao", None)
+    if not callable(fabrica):
+        raise RuntimeError("Adaptador do leitor MCP não oferece a fábrica integracao")
+    with fabrica(engine=engine, mcp=mcp) as ambiente:
+        if type(ambiente) is SemAgenteLeitor or not all(
+            callable(getattr(ambiente, nome, None)) for nome in ("preparar", "efeitos", "executar")
+        ):
+            raise RuntimeError("Adaptador registrado não oferece o ambiente real do corpus")
+        yield ambiente
 
 
 def _url_banco() -> str:
@@ -256,7 +321,9 @@ def integracao():
                     )
                     if r.status_code != 401:
                         raise RuntimeError("MCP aceitou transporte sem OAuth")
-                    yield SimpleNamespace(cliente=cliente, casos=estado["casos"], url=origem + "/mcp/", token=token)
+                    yield SimpleNamespace(
+                        cliente=cliente, casos=estado["casos"], inventario=inventario, url=origem + "/mcp/", token=token
+                    )
                 finally:
                     cliente.fechar()
                     processo.terminate()
@@ -280,12 +347,12 @@ def integracao():
                     "RAIZ_MCP_TESTE_PROTOCOLO": "2026-07-28",
                 }
 
-        with instancia("latencia") as principal:
+        with instancia("latencia") as principal, _ambiente_corpus(engine=engine, mcp=principal) as ambiente:
             yield SimpleNamespace(
-                ambiente=SemAgenteLeitor(),
+                ambiente=ambiente,
                 cliente=principal.cliente,
                 casos=principal.casos,
+                inventario=principal.inventario,
                 carga=carga,
                 aviso_injecoes=AVISO_INJECOES,
-                injecoes_disponiveis=False,
             )

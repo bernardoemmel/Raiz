@@ -11,11 +11,11 @@ import io
 import json
 import math
 import re
-import tarfile
 
 import pandas as pd
 import pandera.pandas as pa
 
+from raiz.pacotes_seguros import abrir_tar_seguro
 from raiz.qualidade_dados import (
     ErroQualidade,
     _carregar_json,
@@ -305,10 +305,7 @@ def _validar_asset_publico(nome: str, dados: bytes, *, repo: str, tag: str) -> N
     geo, uf = m.groups()
     if uf not in _UFS:
         raise ValueError("UF fora do contrato")
-    # Gzip também possui campos livres; a projeção gerada não precisa deles.
-    if len(dados) < 10 or dados[:2] != b"\x1f\x8b" or dados[3] & 0x1C:
-        raise ValueError("cabeçalho gzip fora do contrato")
-    with tarfile.open(fileobj=io.BytesIO(dados), mode="r:gz") as tar:
+    with abrir_tar_seguro(dados) as tar:
         vistos = set()
         for membro in tar:
             partes = membro.name.split("/")

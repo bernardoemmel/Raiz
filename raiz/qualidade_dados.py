@@ -14,7 +14,6 @@ import io
 import json
 import math
 import re
-import tarfile
 import unicodedata
 from collections import defaultdict
 from functools import lru_cache
@@ -25,6 +24,7 @@ import numpy as np
 import pandas as pd
 import pandera.pandas as pa
 
+from raiz.pacotes_seguros import abrir_tar_seguro
 from raiz.privacidade import colunas_pessoais, mascarar
 
 
@@ -34,6 +34,7 @@ class ErroQualidade(ValueError):
 
 # Contrato do produtor, docs/colunas.md. Fonte ausente é nulo, nunca coluna ausente.
 CONTRATO_VERSAO = "colunas-2026-11-12"
+_UFS = frozenset("AC AL AP AM BA CE DF ES GO MA MT MS MG PA PB PR PE PI RJ RN RS RO RR SC SP SE TO".split())
 OBRIGATORIAS = {
     "imoveis": (
         "cod_imovel",
@@ -705,7 +706,7 @@ def validar_tabela(df: pd.DataFrame, tipo: str, areas: pd.Series | None = None) 
     if colunas_pessoais(df.columns) or any(PESSOAL.search(str(c)) for c in df):
         _falhar("coluna proibida")
     dominios = {
-        "uf": set("AC AL AP AM BA CE DF ES GO MA MT MS MG PA PB PR PE PI RJ RN RS RO RR SC SP SE TO".split()),
+        "uf": _UFS,
         "status_imovel": {"AT", "PE", "SU", "CA"},
         "tipo_imovel": {"IRU", "AST", "PCT"},
         "filtro_territorial": {"bloqueio", "atencao", "ok"},
@@ -1079,17 +1080,19 @@ def validar_arquivos(arquivos: dict[str, bytes]) -> dict[str, int]:
         raise ErroQualidade("publicação bloqueada: formato ou conteúdo ilegível; valores omitidos") from None
 
 
-def validar_pacotes(caminhos: list[Path]) -> dict[str, int]:
+def _validar_pacotes(caminhos: list[Path]) -> dict[str, int]:
     """Entrada CLI para Releases prontos; lê TAR sem extrair caminhos do arquivo."""
     arquivos = {}
     for caminho in caminhos:
         if caminho.name.endswith(".tar.gz"):
-            with tarfile.open(caminho, "r:gz") as tar:
+            with abrir_tar_seguro(caminho) as tar:
                 for membro in tar:
                     p = PurePosixPath(membro.name)
                     if membro.isdir():
+                        if membro.name not in _UFS or membro.size:
+                            _falhar("diretório TAR fora do contrato")
                         continue
-                    if not membro.isfile() or len(p.parts) != 2 or not re.fullmatch("[A-Z]{2}", p.parts[0]):
+                    if not membro.isfile() or len(p.parts) != 2 or p.parts[0] not in _UFS:
                         _falhar("membro TAR fora do contrato")
                     if membro.size > 2 * 1024**3:
                         _falhar("membro TAR acima de 2 GiB")
@@ -1107,6 +1110,16 @@ def validar_pacotes(caminhos: list[Path]) -> dict[str, int]:
                 _falhar("arquivo duplicado nos pacotes")
             arquivos[caminho.name] = caminho.read_bytes()
     return validar_arquivos(arquivos)
+
+
+def validar_pacotes(caminhos: list[Path]) -> dict[str, int]:
+    """Também confere contêiner/metadados, sem ecoar caminhos ou erros de parsers."""
+    try:
+        return _validar_pacotes(caminhos)
+    except ErroQualidade:
+        raise
+    except Exception:
+        raise ErroQualidade("publicação bloqueada: contêiner TAR/gzip inválido; valores omitidos") from None
 
 
 def main() -> None:

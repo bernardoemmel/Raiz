@@ -645,6 +645,13 @@ invalidam a exceção, exigindo a integração ou revisão explícita da ausênc
 atualizada automaticamente para obter CI verde. Um agente externo sem registro ou mudança observável no
 repositório/servidor fica fora dessa detecção; sua ligação precisa seguir esse contrato.
 
+**43 regressões passaram**: exceção prematura, OAuth, prazo, ambas as cargas, Retry-After, saída do contexto,
+leitor registrado/importação quebrada, flag antiga e corpus executado com falha não são convertidos em aviso.
+O ensaio HTTP real terminou com código 0 e estado parcial: sete ferramentas, máximo **0,200 s**; carga normal
+com **196 chamadas**, saturação com **424 chamadas e 335 respostas 429 válidas**, zero falhas. Todas as ferramentas
+responderam nas duas fases; o inventário real correspondeu à referência auditada sem alteração. O aviso e os
+JSONs indicam `latencia=true`, `carga=true`, `corpus=false`. Não houve aprovação simulada do corpus.
+
 ### Revisão preventiva do #82 e correção de ZIP
 
 O diff do #82 foi revisado no head `7ab48525084c352e71ffe8c4de603a37a6a035e8`, antes do merge. Gitleaks com
@@ -661,3 +668,18 @@ mas não resolve esse caminho. Reprodução em memória confirmou bloqueio com j
 somente com job `completed`; o teste atual substitui o preflight. O chat dono precisa de teste integrado que permita
 o encerramento da própria reserva e preserve o bloqueio de outros executores antigos ativos. Qualidade não alterou
 esse protocolo de coordenação.
+
+### Conferência integral dos contêineres de publicação
+
+A revisão final reproduziu um desvio no leitor TAR: conteúdo depois do terminador e um segundo stream gzip
+ficavam fora da inspeção, embora os bytes fossem conservados no asset. O portão de upload e a CLI agora usam
+o mesmo leitor seguro, com CRC/término gzip, cabeçalhos USTAR, preenchimento e terminador TAR conferidos.
+Metadados livres, linkname em arquivo regular, texto após NUL e streams/caudas adicionais são recusados antes
+de publicar. A descompressão usa blocos de 64 KiB em arquivo temporário apagado, sem segunda cópia integral
+descompactada em memória. Falhas da CLI e do upload preservam mensagem fixa, sem caminhos ou conteúdo privado.
+Os produtores e os contratos das tabelas foram preservados; não houve correção silenciosa dos dados históricos.
+Diretórios da CLI também precisam ter o nome exato de uma UF real; texto livre ou caminhos normalizados não são
+ignorados. **115 testes de publicação, qualidade, projeção e armazenamento passaram**; após a guarda final de
+diretórios, **85 testes das duas fronteiras passaram**. As regressões reproduziram as aceitações indevidas antes
+das correções. Ruff global, actionlint e a varredura de 953 arquivos por CPF/CNPJ passaram. A suíte integral e os
+dez jobs do commit final são exigidos antes do merge; os resultados ficam no [PR #76](https://github.com/bernardoemmel/Raiz/pull/76).

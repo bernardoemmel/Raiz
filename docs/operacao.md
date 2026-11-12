@@ -738,7 +738,8 @@ A execução real de referência levou **446,2 s (7 min 26 s)**, com pico de RSS
 levaram 9,4 s e 8 s, respectivamente; o conjunto preparado ocupou cerca de 1,42 GB. `testes_python` mantém o limite
 de **30 minutos**; `referencia_para` tem **25 minutos**, em paralelo, e o portão `checagens` tem 5 minutos. A suíte anterior
 levou 13 min 29 s; isolar o caso estadual evita somar seus 7 min 26 s ao caminho dos testes gerais. Essas medições
-locais orientam o orçamento; o CI da entrega precisa confirmar o acesso ao draft e a duração no runner.
+locais orientam o orçamento. O CI do #83 confirmou o acesso ao draft e aprovou o estadual em 336,65 s,
+com os oito jobs então existentes verdes e sem skips no conjunto dos testes.
 
 A API acrescenta cabeçalhos de proteção e `no-store` nas respostas autenticadas e de pedidos. Por padrão, há
 120 chamadas por minuto/IP e 10 chamadas de login por minuto/IP; ajuste `RAIZ_API_LIMITE_MINUTO` e

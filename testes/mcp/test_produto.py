@@ -1,6 +1,10 @@
 """Fronteiras do adaptador: nunca migrar banco alheio nem herdar integrações reais."""
 
+import json
 import os
+import shutil
+from contextlib import contextmanager
+from types import SimpleNamespace
 
 import pytest
 
@@ -105,3 +109,102 @@ def test_corpus_pendente_e_preservado_quando_nao_ha_tentativa_de_rede(tmp_path):
     with pytest.raises(CorpusPendente):
         with produto._vigiar_rede(tmp_path / "rede.txt"):
             raise CorpusPendente
+
+
+def _inventario_auditado():
+    return json.loads(produto.REFERENCIA_SEM_LEITOR.read_text())["ferramentas"]
+
+
+def test_aviso_exige_ausencia_exata_e_superficie_auditada():
+    assert produto.corpus_pendente(produto.SemAgenteLeitor(), _inventario_auditado()) is True
+
+    class LeitorLigado(produto.SemAgenteLeitor):
+        pass
+
+    assert produto.corpus_pendente(LeitorLigado(), _inventario_auditado()) is False
+
+
+@pytest.mark.parametrize("modulos", [(True, False), (False, True), (True, True)])
+def test_presenca_de_qualquer_registro_desativa_aviso(monkeypatch, modulos):
+    monkeypatch.setattr(produto, "_modulos_leitor", lambda: modulos)
+    with pytest.raises(RuntimeError, match="registrado exige"):
+        produto.corpus_pendente(produto.SemAgenteLeitor(), _inventario_auditado())
+
+
+@pytest.mark.parametrize("mudanca", ["api", "arquivo_novo", "esquema", "descricao"])
+def test_superficie_alterada_exige_integracao_ou_revisao(tmp_path, mudanca):
+    arquivos = json.loads(produto.REFERENCIA_SEM_LEITOR.read_text())["codigo"]
+    for relativo in arquivos:
+        destino = tmp_path / relativo
+        destino.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(produto.RAIZ_REPO / relativo, destino)
+    inventario = _inventario_auditado()
+    assert produto.corpus_pendente(produto.SemAgenteLeitor(), inventario, raiz=tmp_path)
+    if mudanca == "api":
+        with (tmp_path / "raiz/api.py").open("a") as arquivo:
+            arquivo.write("\n# nova ligação do MCP\n")
+    elif mudanca == "arquivo_novo":
+        (tmp_path / "raiz/publica/nova_ligacao.py").write_text("def conectar_leitor(): pass\n")
+    elif mudanca == "esquema":
+        inventario["consultar_ficha"]["inputSchema"]["properties"]["documento"] = {"type": "string"}
+    else:
+        inventario["consultar_ficha"]["description"] += " Lê documentos."
+    with pytest.raises(RuntimeError, match="Superfície MCP mudou"):
+        produto.corpus_pendente(produto.SemAgenteLeitor(), inventario, raiz=tmp_path)
+
+
+def test_registro_quebrado_nao_vira_ausencia(monkeypatch):
+    def falhar(_):
+        raise ModuleNotFoundError("dependência interna do leitor", name="dependencia_interna")
+
+    monkeypatch.setattr(produto.importlib.util, "find_spec", falhar)
+    with pytest.raises(ModuleNotFoundError, match="dependência interna"):
+        produto.corpus_pendente(produto.SemAgenteLeitor(), _inventario_auditado())
+
+
+@pytest.mark.parametrize("modulos", [(True, False), (False, True), (True, True)])
+def test_importacao_quebrada_do_registro_nunca_usa_leitor_ausente(monkeypatch, modulos):
+    monkeypatch.setattr(produto, "_modulos_leitor", lambda: modulos)
+
+    def falhar(_):
+        raise ModuleNotFoundError("dependência interna do leitor", name="dependencia_interna")
+
+    monkeypatch.setattr(produto.importlib, "import_module", falhar)
+    with pytest.raises(ModuleNotFoundError, match="dependência interna"):
+        with produto._ambiente_corpus(engine=None, mcp=None):
+            pytest.fail("Registro presente e quebrado não pode produzir ambiente")
+
+
+def test_fabrica_canonica_recebe_mcp_real_e_fecha_ambiente(monkeypatch):
+    monkeypatch.setattr(produto, "_modulos_leitor", lambda: (False, True))
+    banco, mcp = object(), object()
+    chamadas = []
+    ambiente = SimpleNamespace(preparar=lambda: None, efeitos=lambda: None, executar=lambda: None)
+
+    @contextmanager
+    def fabrica(*, engine, mcp):
+        chamadas.append((engine, mcp))
+        try:
+            yield ambiente
+        finally:
+            chamadas.append("fechado")
+
+    monkeypatch.setattr(produto.importlib, "import_module", lambda _: SimpleNamespace(integracao=fabrica))
+    with produto._ambiente_corpus(engine=banco, mcp=mcp) as obtido:
+        assert obtido is ambiente
+        assert produto.corpus_pendente(obtido, _inventario_auditado()) is False
+    assert chamadas == [(banco, mcp), "fechado"]
+
+
+@pytest.mark.parametrize("ambiente", [produto.SemAgenteLeitor(), object()])
+def test_adaptador_registrado_sem_ambiente_real_reprova(monkeypatch, ambiente):
+    monkeypatch.setattr(produto, "_modulos_leitor", lambda: (False, True))
+
+    @contextmanager
+    def fabrica(**kwargs):
+        yield ambiente
+
+    monkeypatch.setattr(produto.importlib, "import_module", lambda _: SimpleNamespace(integracao=fabrica))
+    with pytest.raises(RuntimeError, match="não oferece o ambiente real"):
+        with produto._ambiente_corpus(engine=None, mcp=None):
+            pytest.fail("Registro inválido não pode produzir ambiente")

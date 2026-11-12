@@ -246,3 +246,52 @@ def test_recorte_municipal_admite_nome_atual_sem_reescrever_codigo_car():
         "PA", {"imoveis_1507300.csv": CSV.replace("Nova Esperança do Piriá".encode(), b"Sao Felix do Xingu")}
     )
     validar_asset_publico("raiz_PA.tar.gz", ArmazemRelease._tar("PA", dados))
+
+
+@pytest.mark.parametrize(
+    "defeito",
+    ["cauda_tar", "gzip_extra", "gzip_truncado", "gzip_crc", "padding_membro", "linkname", "nome_apos_nulo"],
+)
+def test_pacote_publico_confere_todos_os_bytes_sem_expor_conteudo(defeito):
+    import gzip
+    import tarfile
+    import traceback
+
+    marcador = b"contato@exemplo.invalid"
+    nome = "sem_imoveis_PA.csv"
+    conteudo = b"cod_ibge,municipio,verificado_em\n"
+    pacote = ArmazemRelease._tar("PA", {nome: conteudo})
+    bruto = bytearray(gzip.decompress(pacote))
+    if defeito == "cauda_tar":
+        pacote = gzip.compress(bruto + marcador)
+    elif defeito == "gzip_extra":
+        pacote += gzip.compress(marcador)
+    elif defeito == "gzip_truncado":
+        pacote = pacote[:-4]
+    elif defeito == "gzip_crc":
+        adulterado = bytearray(pacote)
+        adulterado[-8] ^= 1
+        pacote = bytes(adulterado)
+    elif defeito == "padding_membro":
+        inicio = 512 + len(conteudo)
+        bruto[inicio : inicio + len(marcador)] = marcador
+        pacote = gzip.compress(bruto)
+    elif defeito == "linkname":
+        out = io.BytesIO()
+        with tarfile.open(fileobj=out, mode="w:gz") as tar:
+            membro = tarfile.TarInfo("PA/" + nome)
+            membro.size = len(conteudo)
+            membro.linkname = marcador.decode()
+            tar.addfile(membro, io.BytesIO(conteudo))
+        pacote = out.getvalue()
+    else:
+        inicio = len("PA/" + nome) + 1
+        bruto[inicio : inicio + len(marcador)] = marcador
+        bruto[148:156] = b" " * 8
+        bruto[148:156] = f"{sum(bruto[:512]):06o}\0 ".encode()
+        pacote = gzip.compress(bruto)
+
+    with pytest.raises(ValueError) as erro:
+        validar_asset_publico("raiz_PA.tar.gz", pacote)
+
+    assert marcador.decode() not in "".join(traceback.format_exception(erro.value))

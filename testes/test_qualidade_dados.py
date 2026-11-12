@@ -141,6 +141,107 @@ def test_pacote_nao_extrai_caminhos_ou_links(tmp_path):
     assert not (tmp_path / "fora").exists()
 
 
+@pytest.mark.parametrize(
+    "defeito",
+    [
+        "cauda_tar",
+        "gzip_extra",
+        "gzip_truncado",
+        "gzip_crc",
+        "padding_membro",
+        "nome_apos_nulo",
+        "uname",
+        "gname",
+        "pax",
+        "linkname",
+        "diretorio_com_nome",
+    ],
+)
+def test_cli_confere_container_inteiro_sem_aprovar_metadados_privados(tmp_path, defeito):
+    import gzip
+    import traceback
+
+    marcador = b"contato@exemplo.invalid"
+    conteudo = b"{}"
+    nome = "PA/fontes.json"
+    out = io.BytesIO()
+    with tarfile.open(fileobj=out, mode="w:gz") as tar:
+        if defeito == "diretorio_com_nome":
+            diretorio = tarfile.TarInfo("PA/")
+            diretorio.type = tarfile.DIRTYPE
+            diretorio.uname = marcador.decode()
+            tar.addfile(diretorio)
+        membro = tarfile.TarInfo(nome)
+        membro.size = len(conteudo)
+        if defeito in {"uname", "gname", "linkname"}:
+            setattr(membro, defeito, marcador.decode())
+        elif defeito == "pax":
+            membro.pax_headers = {"comentario": marcador.decode()}
+        tar.addfile(membro, io.BytesIO(conteudo))
+    pacote = out.getvalue()
+    bruto = bytearray(gzip.decompress(pacote))
+    if defeito == "cauda_tar":
+        pacote = gzip.compress(bruto + marcador)
+    elif defeito == "gzip_extra":
+        pacote += gzip.compress(marcador)
+    elif defeito == "gzip_truncado":
+        pacote = pacote[:-4]
+    elif defeito == "gzip_crc":
+        adulterado = bytearray(pacote)
+        adulterado[-8] ^= 1
+        pacote = bytes(adulterado)
+    elif defeito == "padding_membro":
+        inicio = 512 + len(conteudo)
+        bruto[inicio : inicio + len(marcador)] = marcador
+        pacote = gzip.compress(bruto)
+    elif defeito == "nome_apos_nulo":
+        inicio = len(nome) + 1
+        bruto[inicio : inicio + len(marcador)] = marcador
+        bruto[148:156] = b" " * 8
+        bruto[148:156] = f"{sum(bruto[:512]):06o}\0 ".encode()
+        pacote = gzip.compress(bruto)
+    caminho = tmp_path / "raiz_PA.tar.gz"
+    caminho.write_bytes(pacote)
+
+    with pytest.raises(ErroQualidade) as erro:
+        validar_pacotes([caminho])
+
+    assert marcador.decode() not in "".join(traceback.format_exception(erro.value))
+
+
+def test_cli_preserva_pacote_integro_com_diretorio_e_indice(tmp_path):
+    caminho = tmp_path / "raiz_PA.tar.gz"
+    out = io.BytesIO()
+    with tarfile.open(fileobj=out, mode="w:gz") as tar:
+        diretorio = tarfile.TarInfo("PA/")
+        diretorio.type = tarfile.DIRTYPE
+        tar.addfile(diretorio)
+        for nome in ("fontes.json", "_versoes.json"):
+            membro = tarfile.TarInfo("PA/" + nome)
+            membro.size = 2
+            tar.addfile(membro, io.BytesIO(b"{}"))
+    caminho.write_bytes(out.getvalue())
+    assert validar_pacotes([caminho]) == {"arquivos": 1, "tabelas": 0, "linhas": 0}
+
+
+@pytest.mark.parametrize("nome", ["PA/contato@exemplo.invalid/", "ZZ/", "../PA/", "./PA/"])
+def test_cli_diretorio_so_admite_nome_de_uf_real(tmp_path, nome):
+    import traceback
+
+    out = io.BytesIO()
+    with tarfile.open(fileobj=out, mode="w:gz") as tar:
+        membro = tarfile.TarInfo(nome)
+        membro.type = tarfile.DIRTYPE
+        tar.addfile(membro)
+    caminho = tmp_path / "raiz_PA.tar.gz"
+    caminho.write_bytes(out.getvalue())
+
+    with pytest.raises(ErroQualidade) as erro:
+        validar_pacotes([caminho])
+
+    assert nome not in "".join(traceback.format_exception(erro.value))
+
+
 def test_cli_recusa_subdiretorio_extra(tmp_path):
     (tmp_path / "privado").mkdir()
     resultado = subprocess.run([sys.executable, "-m", "raiz.qualidade_dados", str(tmp_path)], capture_output=True)
