@@ -4,6 +4,8 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
+    "predev": "node ../scripts/baixar-dados.mjs",
+    "dados": "node ../scripts/baixar-dados.mjs",
     "dev": "vite --port 5174",
     "build": "node ../scripts/verificar-design.mjs && tsc -b && vite build",
     "preview": "vite preview --port 5174",
