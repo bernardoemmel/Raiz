@@ -206,3 +206,26 @@ As entregas de aviso à Verra e lote/números também foram integradas antes de 
 foi resolvido mantendo ambas as passagens. O novo workflow `lote-para.yml` prepara a rodada real do Pará;
 o teste estadual ainda tem a pré-condição dos arquivos desenvolvedor e permanece como pendência até a rodada
 produzir um conjunto utilizável. Não foram disparados envios à Verra nem processamento de produção nesta auditoria.
+
+## Entrega independente de proveniência e cota — 12/11/2026
+
+Revisão dos PRs #72/#77 sobre a main `b624b10`. Esta entrega fecha dois vazamentos pequenos e uma corrida de
+admissão: o importador e o catálogo podiam imprimir nomes/retornos privados ou mensagens de terceiros; nomes de
+assets privados também podiam chegar ao subject público da atestação; uma reexecução do catálogo podia perder
+sua reserva ao receber o término da tentativa anterior, admitindo indevidamente o 16º trabalho.
+
+As CLIs usam mensagens fixas, e os diagnósticos do validador Croissant preservam nível e falha sem mostrar o nome
+do Dataset. Subjects privados usam somente o SHA256 dos bytes, sem nome nem hash do nome; listas legadas são
+convertidas ou recusadas pelo portão dos workflows antes da atestação, inclusive em passos `always()`. A reserva
+do catálogo confirma por CAS o escopo e a tentativa atual, mantendo a cota global de 15 trabalhos.
+
+Os testes focados exercitam nomes/contatos e segredos sintéticos no retorno, nos caminhos, nas exceções e nos
+warnings; cobrem também listas de atestação legadas, aliases, versões de conteúdo e a corrida de reexecução.
+**190 testes focados passaram, sem skips**, em 31,17 s. Ruff e formatação globais, actionlint 1.7.12 e a conferência
+do diff passaram. O CI integral será exigido no PR antes do merge. Nenhum upload de dados ou processamento de produção foi
+disparado por esta validação.
+
+Os demais portões de qualidade dos dados, observabilidade, carga e a integração adversarial do MCP continuam no
+**PR #76**. O corpus desse PR permanece explicitamente bloqueado: **Produto e regras** precisa entregar o agente
+leitor de certidão, edital e arquivo. Esta entrega independente preserva `ci.yml`, MCP e a política do corpus;
+seu resultado não equivale a uma aprovação dos testes de injeção pendentes.

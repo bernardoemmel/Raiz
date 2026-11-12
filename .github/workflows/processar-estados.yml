@@ -252,7 +252,10 @@ jobs:
         if: always()
         run: |
           if test -s "$RUNNER_TEMP/atestar.txt"; then echo "publico=1" >> "$GITHUB_OUTPUT"; fi
-          if test -s "$RUNNER_TEMP/atestar-privado.txt"; then echo "privado=1" >> "$GITHUB_OUTPUT"; fi
+          if test -s "$RUNNER_TEMP/atestar-privado.txt"; then
+            python3 scripts/conferir_atestacao_privada.py "$RUNNER_TEMP/atestar-privado.txt"
+            echo "privado=1" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Atestar os arquivos básicos públicos
         if: always() && steps.atestar.outputs.publico == '1'
@@ -261,7 +264,7 @@ jobs:
           subject-checksums: ${{ runner.temp }}/atestar.txt
           show-summary: false
 
-      # Nomes, hashes e proveniência ficam públicos; nenhum conteúdo privado é enviado à ação.
+      # Somente hashes, identificadores derivados do conteúdo e proveniência seguem para a ação.
       - name: Atestar os hashes dos arquivos completos mantidos privados
         if: always() && steps.atestar.outputs.privado == '1'
         uses: actions/attest-build-provenance@v2
