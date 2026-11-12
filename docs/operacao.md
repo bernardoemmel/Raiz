@@ -139,12 +139,15 @@ Calculado pelo produto, fora do motor (raiz/restauracao.py e raiz/restauracao_ge
   Copernicus por ladrilho de 1 grau, chuva do CHIRPS por faixa de 5 graus de latitude, solo do SoilGrids por município;
   a distância à mata e a linha de base saem do raster de cobertura do MapBiomas do motor e do YbYrá. Se uma fonte
   falhar, a coluna fica vazia, o cálculo usa a premissa neutra e `restauracao_faltou` diz o que faltou.
-- Cenários (raiz/regras/padroes/cenarios_restauracao.yaml): o padrão é `central_r11` (rodada 11 do fundador: captura
-  em curva na forma da URTX, custos oficiais do SFB, descontos em ordem com piso de 10% na linha de base e vazamento de
-  10%, marcos do ProFloresta+ com multa e rescisão, dono pago por 40 anos, Fundo Clima até 50% pelo ICSD 1,3, venda a
-  US$ 30 depois do ano 25, WACC de 9,2%); `central_r11_74`, `estresse_r11` (linha de base e vazamento de 40%) e as
-  premissas antigas em `otimista_fundador` e `otimista_fundador_74`. Referência (fazenda de 100 ha no leste do PA, US$
-  55, câmbio de R$ 5,40): TIR com financiamento de ~6,8% no plantio e ~14,6% na regeneração assistida.
+- Cenários (no mesmo arquivo das premissas, raiz/regras/padroes/restauracao.yaml, seção 11; um só arquivo e um só
+  cálculo): o padrão é `central_r11` (rodada 11 do fundador: captura na forma oficial da URTX escalada para o total do
+  método e limitada ao teto do bioma, custos oficiais do SFB com P10 e P90 publicados, descontos em ordem com piso de
+  10% na linha de base e vazamento de 10% (zero com vizinha de mitigação), marcos do ProFloresta+ com o último a 100%,
+  multa e rescisão medidas no lote, dono pago por 40 anos com piso de R$ 24/ha, Fundo Clima até 50% pelo ICSD 1,3,
+  venda a US$ 30 depois do ano 25, WACC de 9,2%); `central_r11_74`, `estresse_r11` (linha de base e vazamento de 40%,
+  35% financiado, 20% ao dono), `so_contrato_25` (sem venda depois do contrato) e as premissas antigas em
+  `otimista_fundador` e `otimista_fundador_74`. Referência (fazenda de 100 ha no leste do PA, US$ 55, câmbio de R$
+  5,40): TIR com financiamento de ~5,5% no plantio e ~13,5% na regeneração assistida (docs/restauracao-rodada11.md).
 - Câmbio: `raiz restauracao cambio` mostra a PTAX de venda do Banco Central; `--gravar` grava em
   raiz/regras/padroes/restauracao_cambio.yaml e os cenários com `cambio_ptax` passam a usá-la no lugar dos R$ 5,40 (a
   versão muda e o `recalcular` refaz; rode uma vez por mês, ou quando o câmbio andar).
@@ -224,8 +227,12 @@ front/compartilhado/pedidos/tipos.ts.
   --rotulo "Empresa"` cria um cliente direto.
 - Pedido: `POST /pedidos` responde na hora quanto existe na base (por caminho da terra e por interesse do dono, com o
   que falta e o que afrouxar) e as 3 opções do solver (HiGHS pelo scipy.optimize.milp: mais barata, mais segura,
-  mais compacta), cada uma com fazendas de reserva (15% da meta). `POST /pedidos/{id}/lote` (ou `PATCH`) tira ou troca
-  uma fazenda e refaz os números. Cada lote sugerido fica em `negocio.pedido_sugestao` com a versão do modelo.
+  mais compacta), cada uma com fazendas de reserva (15% da meta). Fazenda cujo preço de equilíbrio passa do preço do
+  pedido (o plantio que o preço não paga) custa a diferença mais US$ 30 por crédito (`abaixo_equilibrio_usd`), então a
+  regeneração vem antes; cada opção traz `abaixo_equilibrio` com o aviso quando o lote só fecha com elas. Os marcos
+  do ProFloresta+ e a multa esperada saem do lote inteiro (`restauracao.cronograma_lote`). `POST /pedidos/{id}/lote`
+  (ou `PATCH`) tira ou troca uma fazenda e refaz os números. Cada lote sugerido fica em `negocio.pedido_sugestao` com a
+  versão do modelo.
 - Interesse do dono: `negocio.interesse_dono` (nível de agora) e `negocio.interesse_evento` (cada registro com data,
   canal, motivo e versão do termo); o nível só sobe com a versão do termo; recusa vale um ano. Nome e CPF ficam só no
   esquema pessoal; a API devolve só o nível. Resposta do dono: `POST /interesse/{cod_imovel}` (token da API) ou
@@ -247,3 +254,32 @@ front/compartilhado/pedidos/tipos.ts.
 - Aprendizado: cada onda congela a chance de aceite de cada fazenda contatada (aprendizado, alvo `aceite_dono`, com a
   versão do modelo); o aceite ou a recusa viram gabarito, e a chance por perfil (tamanho, caminho da terra, estado e
   forma de pagamento) é atualizada a cada contato.
+
+## Lote do ProFloresta+ por estado (relatório para o desenvolvedor e folha do dono)
+
+`raiz lote montar PA [--saida pasta/saida] [--destino pasta] [--creditos 1000000] [--cenario central_r11]` lê os
+`desenvolvedor_<mun>.csv` do estado (só as fazendas com área para restaurar), monta o lote com o mesmo cálculo da ficha
+e do pedido (raiz/lote.py) e grava em `<saida>/<UF>/lote/`: `lote_<UF>.csv` (todas as fazendas com o papel: titular,
+reserva, mitigação, em espera), `lote_<UF>.json` (resumo, marcos, preço mínimo, terra destravada, certidões e
+checklist), `relatorio_lote_<UF>.html` (para imprimir em A4) e `folhas_dono/folha_dono_<cod>.html` (titulares e
+reservas). Responde quantos municípios entraram e, se não fecha 1 milhão com reserva, exatamente o que falta.
+
+- Titulares: o P50 de créditos até o ano 25 que cumpre todos os marcos do Anexo IV com a tolerância (o do ano 7 pede
+  ~1,14 milhão para um contrato de 1 milhão). Reserva: o que falta para 90% de chance (`lote.chance_alvo_reserva`),
+  com o erro da captura comum ao lote (P10 de 0,6): ~1,87 milhão no P50. A escolha é o otimizador dos pedidos
+  (opção mais barata, terra pronta: matrícula e concessão).
+- Fluxo do lote: a soma dos fluxos do P50 das fazendas (`restauracao.fluxo_p50`, refeito a partir das entradas gravadas
+  no `desenvolvedor_<mun>.csv`), com a dívida do Fundo Clima dimensionada no caixa do lote, a multa esperada dos marcos
+  e o crédito além do contrato vendido ao preço depois do contrato. Daí a TIR e o preço mínimo por crédito para 12% e
+  15% (com e sem dívida).
+- O que destrava o lote: posse em titulação e assentamento (fazendas, ha, ha e créditos de regeneração) e o mesmo lote
+  montado como se virassem título ou parceria (custo médio por crédito, TIR e chance dos marcos).
+- Certidões: matrícula com certidão conferida (etapa `titulo_conferido`) separada da matrícula a conferir, e quantas
+  certidões pedir (das maiores áreas por certidão primeiro; cartório e matrícula do `certidoes_<mun>.csv`) para ter 5%
+  da área homologada na assinatura (`lote.area_homologada_assinatura`).
+- Checklist do edital: os 62 itens de raiz/regras/padroes/edital_profloresta.yaml, com a checagem automática quando os
+  dados da Raíz dão conta e "a conferir" no resto.
+- Folha do dono: tudo passa pela Raíz (contato, dúvidas e assinatura); quanto recebe por ha e por ano (P10 a P90) e o
+  total em 40 anos; comparação com a renda do gado na mesma área (venda de bovinos por ha de pasto no município, Censo
+  Agro 2017 corrigido pelo IPCA, e a sobra pela margem de referência da CNA) e com o aluguel do Censo. Sem nome, CPF
+  ou CNPJ: só o código do CAR.

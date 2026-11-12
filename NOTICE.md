@@ -146,6 +146,24 @@ código, nome, UF, latitude e longitude da sede (o pedido de lote põe na sede a
 Leona Gottwald e Michael Feldmeier; https://highs.dev), pelo `scipy.optimize.milp` do SciPy (BSD-3-Clause), que traz o
 HiGHS dentro. Sem código copiado. A cobrança Pix da reserva usa a API da AbacatePay (serviço, sem SDK; só HTTP).
 
+## Lote do ProFloresta+ unificado com a branch claude/premissas-rodada11
+
+- Origem: branch `claude/premissas-rodada11` deste mesmo repositório (outra sessão de trabalho da Raíz, sem PR):
+  `raiz/desenvolvedor.py`, `raiz/desenvolvedor_lote.py`, `raiz/desenvolvedor_relatorio.py`, `raiz/restauracao.py`
+  (vazamento por fazenda vizinha), `raiz/regras/padroes/edital_profloresta.yaml` e
+  `motor/premissas/restauracao_v2026_11.yaml`. Mesmo dono e mesma licença do produto; nada de terceiros.
+- Uso: `raiz/lote.py` (montagem por custo, reserva pela chance alvo, checagens do edital), `raiz/lote_relatorio.py`
+  (CSS, leque em SVG, relatório do lote e folha do dono), `raiz/vazamento.py` (VMD0054 por vizinha),
+  `raiz/restauracao.py` (`cronograma_lote`, `contrato_para_marcos`, `fator_captura_alvo`, curva oficial da URTX, teto
+  por bioma, P10/P90 de custo publicados) e `raiz/regras/padroes/edital_profloresta.yaml` (copiado; o cabeçalho aponta
+  para `raiz/lote.py`). As premissas foram juntadas num só arquivo, `raiz/regras/padroes/restauracao.yaml`, e o
+  cálculo num só motor: a escolha das fazendas passou a ser o otimizador dos pedidos e o fluxo do lote a soma dos
+  fluxos do P50 das fazendas.
+- Fontes dos números (cada uma citada no YAML): IDEFLOR-Bio (URTX, Anexo 20), BNDES (minuta e especificação técnica
+  do ProFloresta+), SFB (Bom Futuro e Altamira), Systemica/B3, Instituto Escolhas, Inesc, IBGE (Censo Agro 2017,
+  SIDRA 6899, 6753, 6910 e 6881), Banco Central (IPCA, série 433; PTAX), CNA (Campo Futuro), Verra (VM0047, VMD0054,
+  VCS v5.0).
+
 ## Armazenamento compatível com S3
 
 boto3 e botocore (Apache-2.0) no produto; moto (Apache-2.0) só nos testes. Servidor próprio, quando não se usa o
