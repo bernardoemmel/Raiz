@@ -1,6 +1,7 @@
 """Alertas de operação com escalonamento (E7 passo 9) e backoffice do fundador (E7 passo 6), só leitura."""
 
 import datetime as dt
+import json
 
 import pytest
 from fastapi.testclient import TestClient
@@ -182,3 +183,34 @@ def test_backoffice_so_leitura_pela_api(eng, monkeypatch):
         assert cl.post(f"/operacao/alertas/{aberto['id']}/resolver", json={}, headers=h).status_code == 404
         # nenhuma rota de escrita no backoffice
         assert cl.post("/backoffice/resumo", headers=h).status_code == 405
+
+
+@pytest.mark.banco
+def test_alerta_sanitiza_antes_de_persistir_e_backoffice_limpa_legado(eng):
+    email = "dono.sintetico@example.invalid"
+    aviso = A.Novo(
+        "teste_privacidade",
+        "alerta_privacidade",
+        "aviso",
+        f"Contato: {email}",
+        f"Falha ao consultar {email}",
+        {"erro": f"Fale com {email}", "email": email, "quantidade": 3},
+    )
+    with eng.begin() as con:
+        A.registrar(con, [aviso], {aviso.origem}, agora=AGORA)
+        salvo = dict(
+            con.execute(
+                text("select id, titulo, texto, detalhe from operacao.alerta where chave = :c"), {"c": aviso.chave}
+            )
+            .mappings()
+            .one()
+        )
+        assert email not in json.dumps(salvo)
+        assert salvo["detalhe"]["quantidade"] == 3
+        A.resolver(con, salvo["id"], "fundador", f"Resolvido com {email}")
+        nota = con.execute(text("select resolucao from operacao.alerta where id = :i"), {"i": salvo["id"]}).scalar()
+        assert email not in nota
+    # Dados antigos também são filtrados na resposta, inclusive valores aninhados.
+    resposta = B._json({"detalhe": {"erro": f"Contato: {email}"}, "quantidade": 3})
+    assert email not in resposta.body.decode()
+    assert json.loads(resposta.body)["quantidade"] == 3

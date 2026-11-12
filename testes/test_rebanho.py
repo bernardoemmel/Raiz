@@ -56,3 +56,16 @@ def test_rebanho_da_amostra_e_o_vazamento():
     dv = pd.read_csv(AMOSTRA / "desenvolvedor_1504950.csv", low_memory=False)
     com = dv[dv.restauracao_area_ha > 0]
     assert (com.rebanho_fonte == "ppm_2025_dasimetrico").all()
+
+
+def test_ppm_zero_nao_inventa_rebanho_nem_metano(monkeypatch):
+    monkeypatch.setattr(RB, "bovinos_municipio", lambda cod, r: (0, 100))
+    monkeypatch.setattr(RB, "censo_2017", lambda cod, r: 200)
+    out = RB.espalhar([{"cod_imovel": "PEQUENA", "pasto_ha": 3}, {"cod_imovel": "GRANDE", "pasto_ha": 1000}], 1504950)
+    assert len(out) == 2
+    for fazenda in out:
+        assert fazenda["rebanho_municipio_ppm"] == 0
+        assert fazenda["rebanho_municipio_lotacao_cab_ha"] == 0
+        for faixa in ("p10", "p50", "p90"):
+            assert fazenda[f"rebanho_cab_{faixa}"] == 0
+            assert fazenda[f"metano_tco2e_ano_{faixa}"] == 0
