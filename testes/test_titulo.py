@@ -177,22 +177,32 @@ def test_achados_da_certidao_entram_no_arquivo(tmp_path, monkeypatch):
 # --- ligações: terra, oferta e lote --------------------------------------------------------------------------------
 
 
-def test_matricula_conferida_baixa_o_risco_da_terra(tmp_path, monkeypatch):
-    monkeypatch.setenv("RAIZ_DOCUMENTOS_DIR", str(tmp_path / "docs"))
+@pytest.fixture
+def municipio_com_matricula_a_conferir(tmp_path):
+    # Caso real da amostra do motor: matrícula cobre 100% dos 300,397519 ha.
+    # Fixar o imóvel e conferir a entrada impede que a cobertura suma por um skip
+    # quando a amostra mudar; a certidão abaixo é a única entrada simulada.
+    cod = "PA-1504950-0E3B6098A40D44F7B85CFB563EB6A45A"
     pasta = tmp_path / "PA"
     pasta.mkdir()
-    for f in (f"imoveis_{COD}.csv", f"filtros_{COD}.csv"):
-        shutil.copy(AMOSTRA / f, pasta / f)
+    for tabela in ("imoveis", "filtros"):
+        dados = pd.read_csv(AMOSTRA / f"{tabela}_{COD}.csv")
+        caso = dados[dados.cod_imovel == cod]
+        assert len(caso) == 1, "o caso real de matrícula precisa continuar na amostra"
+        caso.to_csv(pasta / f"{tabela}_{COD}.csv", index=False)
+        if tabela == "imoveis":
+            im = caso.iloc[0]
+            assert im.f_matricula >= 0.9 and im.sigef_ha >= 0.5 * im.ha
+    return pasta, cod
+
+
+def test_matricula_conferida_baixa_o_risco_da_terra(tmp_path, monkeypatch, municipio_com_matricula_a_conferir):
+    monkeypatch.setenv("RAIZ_DOCUMENTOS_DIR", str(tmp_path / "docs"))
+    pasta, cod = municipio_com_matricula_a_conferir
     antes = terra.calcular_municipio(pasta, COD).set_index("cod_imovel")
-    so_falta_conferir = antes[
-        (antes.caminho_terra == "privada_matricula") & (antes.risco_terra_motivo.str.contains("não conferida"))
-    ]
-    im = pd.read_csv(pasta / f"imoveis_{COD}.csv", usecols=["cod_imovel", "ha", "sigef_ha", "f_matricula"])
-    im = im.set_index("cod_imovel").loc[so_falta_conferir.index]
-    ok = im[(im.f_matricula >= 0.9) & ((im.ha < 101) | (im.sigef_ha >= 0.5 * im.ha))].index
-    if not len(ok):
-        pytest.skip("a amostra não tem matrícula que só falte conferir")
-    cod = ok[0]
+    assert antes.loc[cod, "caminho_terra"] == "privada_matricula"
+    assert antes.loc[cod, "risco_terra"] == "medio"
+    assert "não conferida" in antes.loc[cod, "risco_terra_motivo"]
     doc = tmp_path / "docs" / "saida" / "PA"  # na saída de raiz/documentos, não na pasta do motor
     doc.mkdir(parents=True)
     pd.DataFrame([dict(cod_imovel=cod, matricula_conferida=True)]).to_csv(doc / f"matricula_{COD}.csv", index=False)

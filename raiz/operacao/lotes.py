@@ -13,8 +13,8 @@ from dataclasses import dataclass, field
 
 from sqlalchemy import Engine, text
 
+from raiz.logs_seguros import sanitizar_estrutura, sanitizar_log
 from raiz.operacao.healthchecks import Healthchecks
-from raiz.privacidade import mascarar
 
 
 @dataclass
@@ -46,13 +46,13 @@ def lote(engine: Engine | None, hc: Healthchecks, tarefa: str, uf: str | None, c
     try:
         yield reg
     except Exception:
-        fim = mascarar(reg.saida.getvalue()[-4000:] + "\n" + traceback.format_exc()[-4000:])
+        fim = sanitizar_log(reg.saida.getvalue()[-4000:] + "\n" + traceback.format_exc()[-4000:])
         _fechar(engine, lote_id, "falha", reg, fim, t0)
         hc.falha(slug, rid, f"{tarefa} {uf} {cod_municipio} FALHOU\n{fim}")
         raise
     else:
         estado = "pulado" if reg.pulado else "sucesso"
-        fim = mascarar(reg.saida.getvalue()[-4000:])
+        fim = sanitizar_log(reg.saida.getvalue()[-4000:])
         _fechar(engine, lote_id, estado, reg, fim, t0)
         hc.sucesso(slug, rid, f"{tarefa} {uf} {cod_municipio} {estado}\n{json.dumps(reg.detalhe, default=str)}\n{fim}")
 
@@ -68,8 +68,8 @@ def _fechar(engine: Engine | None, lote_id: int | None, estado: str, reg: Regist
                             duracao_s = :s where id = :i"""),
             dict(
                 e=estado,
-                d=Jsonb(json.loads(json.dumps(reg.detalhe, default=str))),
-                l=fim,
+                d=Jsonb(sanitizar_estrutura(json.loads(json.dumps(reg.detalhe, default=str)))),
+                l=sanitizar_log(fim),
                 s=round(time.time() - t0, 2),
                 i=lote_id,
             ),

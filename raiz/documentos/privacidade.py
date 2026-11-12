@@ -210,18 +210,16 @@ def limpar(obj, chaves_seguras: Iterable[str] = (), permitir: Iterable[str] = ()
 
 
 class FormatadorSeguro(logging.Formatter):
-    """Formata e mascara o resultado final (mensagem, argumentos e traceback)."""
+    """Passa o texto final pelo Presidio, inclusive no comando independente de documentos."""
 
     def format(self, record: logging.LogRecord) -> str:
-        return mascarar(super().format(record))
+        from raiz.logs_seguros import sanitizar_log
+
+        return sanitizar_log(super().format(record))
 
 
 def configurar_log(nivel: int = logging.INFO) -> None:
-    raiz = logging.getLogger()
-    raiz.setLevel(nivel)
-    if not raiz.handlers:
-        raiz.addHandler(logging.StreamHandler())
-    for h in raiz.handlers:
-        h.setFormatter(FormatadorSeguro("%(asctime)s %(levelname)s %(name)s: %(message)s"))
-    for barulhento in ("httpx", "httpcore", "urllib3", "anthropic"):
-        logging.getLogger(barulhento).setLevel(logging.WARNING)
+    from raiz.privacidade import configurar_log as configurar_comum
+
+    configurar_comum(nivel)
+    logging.getLogger("anthropic").setLevel(logging.WARNING)

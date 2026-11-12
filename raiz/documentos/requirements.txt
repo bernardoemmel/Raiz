@@ -8,3 +8,9 @@ numpy>=1.26             # BSD-3-Clause: faixa P10 a P90 da carteira
 requests>=2.31          # Apache-2.0
 beautifulsoup4>=4.12    # MIT: links das páginas de editais
 reportlab>=4.0          # BSD: PDF de exemplo dos testes
+# Mesma proteção de logs do produto na busca semanal independente.
+presidio-analyzer>=2.2.360   # MIT
+presidio-anonymizer>=2.2.360 # MIT
+spacy>=3.8,<3.9             # MIT
+# Modelo português CC BY-SA 4.0, atribuição e fontes no NOTICE.md.
+pt-core-news-sm @ https://github.com/explosion/spacy-models/releases/download/pt_core_news_sm-3.8.0/pt_core_news_sm-3.8.0-py3-none-any.whl
