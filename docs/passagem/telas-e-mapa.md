@@ -233,3 +233,12 @@ RAIZ_BUILD_DADOS=0 front/scripts/construir-site.sh
   API/ficha/satélite com PostGIS e dois testes de autorização dos contornos do lote aprovados, sem skips.
   Chromium conferiu o mapa, hachura, linha do tempo, crédito, troca de conta e 360 px. A suíte Python completa
   permanece a cargo da integração do chat principal; não foi repetida nesta rodada.
+
+### Integração da ficha com o cadastro básico e o Calendário
+
+- A entrega 3 incorpora a descoberta de `imoveis_basicos_<IBGE>.csv` no Release e a main com o Calendário
+  (`a4c1066`). A ficha mantém o mapa privado, a linha do tempo e o selo de leilão da agenda; imagem e vínculo
+  do calendário só são consultados depois do desbloqueio da ficha.
+- Ruff e formatação passaram em 361 arquivos. TypeScript, 177 testes do front e 91 testes Python focados
+  em visual/satélite/ficha/API/acesso passaram, sem skips. Playwright conferiu a ficha com o calendário
+  e a agenda em 1440, 768 e 360 px, incluindo o aviso de coleta ausente.
