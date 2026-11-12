@@ -5,6 +5,7 @@
 # dados grandes e gerados pelo motor (ficam fora do git; só dados/amostra entra)
 motor/saida/
 dados/estados/
+dados/lotes/
 # leituras de certidão, estado da busca e documentos gerados (raiz/documentos): nunca no git
 dados/documentos/
 *.sqlite
@@ -55,8 +56,12 @@ dados/mapa/
 dados/imagens/
 dados/publico/
 dados/fichas/
+dados/calendario/
 # pacotes montados pelo publicar_dados.py (sobem para o Release; no fluxo antigo, git add -f)
 dados-entrada/
 
 # artefato do site público (reconstruído no CI)
 /site/
+
+# retratos imutáveis de entradas do executor (publicados no Release, nunca no git)
+dados/historico_aprendizado/

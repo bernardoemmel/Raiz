@@ -1,0 +1,68 @@
+name: Calendário diário da Raíz
+
+on:
+  schedule:
+    - cron: "11 9 * * *" # 06h11 em Brasília
+  workflow_dispatch:
+    inputs:
+      fontes:
+        description: "IDs de fontes separados por vírgula; vazio consulta todas"
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+
+concurrency:
+  group: calendario-diario
+  cancel-in-progress: false
+
+jobs:
+  coletar:
+    if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      GH_TOKEN: ${{ github.token }}
+      FIRECRAWL_API_KEY: ${{ secrets.FIRECRAWL_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - name: Dependências
+        run: uv sync --frozen
+      - name: Recuperar o estado anterior
+        run: |
+          mkdir -p dados/calendario
+          if gh release view calendario --json tagName >/dev/null 2>/tmp/calendario-release-erro; then
+            gh release download calendario -p estado.json -D dados/calendario
+          elif ! grep -Eqi 'release not found|HTTP 404|Not Found' /tmp/calendario-release-erro; then
+            cat /tmp/calendario-release-erro >&2
+            exit 1
+          fi
+      - name: Coleta das fontes oficiais
+        id: coleta
+        env:
+          FONTES: ${{ inputs.fontes }}
+        run: |
+          args=(coletar --sem-banco --saida dados/calendario)
+          [ ! -f dados/calendario/estado.json ] || args+=(--anterior dados/calendario/estado.json)
+          [ -z "$FONTES" ] || args+=(--fontes "$FONTES")
+          uv run raiz calendario "${args[@]}"
+      - name: Publicar o que foi coletado, mesmo com uma fonte indisponível
+        if: always() && steps.coleta.outputs.gerado == '1'
+        run: |
+          gh release view calendario >/dev/null 2>&1 || gh release create calendario --prerelease --target main \
+            --title "Calendário da Raíz" --notes "Fontes oficiais e prazos extraídos automaticamente. Sem nomes, CPF/CNPJ ou texto bruto de editais. Consulte a situação de cada fonte no JSON."
+          gh release upload calendario dados/calendario/estado.json dados/calendario/eventos.json dados/calendario/eventos.ics --clobber
+      - name: Resumo da cobertura
+        if: always() && steps.coleta.outputs.gerado == '1'
+        run: |
+          uv run python - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import json
+          from pathlib import Path
+          d = json.loads(Path('dados/calendario/eventos.json').read_text())
+          print(f"Calendário: {d['total']} eventos. Envio de avisos externos permanece simulado.\n")
+          print('| Fonte | Situação | Eventos |\n|---|---|---|')
+          for f in d['fontes']:
+              print(f"| {f['nome']} | {f['situacao']} | {f['eventos']} |")
+          PY

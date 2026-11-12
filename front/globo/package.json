@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "predev": "node ../scripts/baixar-dados.mjs",
+    "predev": "node ../scripts/baixar-dados.mjs && node ../scripts/baixar-calendario.mjs",
     "dados": "node ../scripts/baixar-dados.mjs",
     "dev": "vite",
     "build": "node ../scripts/verificar-design.mjs && tsc -b && vite build",
@@ -12,10 +12,12 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:prospeccao": "node ../scripts/testar-prospeccao.mjs",
-    "test:e2e": "node ../scripts/testar-entrada.mjs && node ../scripts/testar-pedido.mjs",
+    "test:e2e": "node ../scripts/testar-entrada.mjs && node ../scripts/testar-cena-alvo.mjs",
     "verificar": "node ../scripts/verificar-design.mjs",
+    "test:calendario": "node ../scripts/testar-calendario.mjs",
     "test:agentes": "node ../scripts/testar-agentes.mjs",
     "test:pages": "node ../scripts/testar-site-pages.mjs",
+    "test:cena": "node ../scripts/testar-cena-alvo.mjs",
     "test:e2e:api": "node ../../testes/e2e/rodar.mjs"
   },
   "dependencies": {

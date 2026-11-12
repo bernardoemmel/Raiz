@@ -59,6 +59,7 @@ jobs:
         env:
           RAIZ_DADOS: front/.cache/teste-site/dados
           RAIZ_GEO: front/.cache/teste-site/geo
+          RAIZ_CALENDARIO_DADOS: front/.cache/teste-site/calendario
           VITE_RAIZ_TESTE_MAPA: "1"
           RAIZ_BASE: /Raiz/
         run: front/scripts/construir-site.sh
@@ -77,6 +78,15 @@ jobs:
         env:
           RAIZ_PRINTS: ${{ github.workspace }}/front/.cache/teste-site/resultado/prospeccao
         run: cd front/globo && npm run test:prospeccao
+      - name: Cena-alvo (Release ausente, publicado e três lotes autorizados)
+        run: cd front/globo && npm run test:cena
+      - name: Evidências da cena-alvo
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cena-alvo
+          path: front/.cache/teste-cena-alvo
+          if-no-files-found: ignore
       - name: Evidências do teste do Pages
         if: always()
         uses: actions/upload-artifact@v4
@@ -225,5 +235,5 @@ jobs:
       - name: Chromium e bibliotecas do sistema
         working-directory: front/globo
         run: npx playwright install --with-deps chromium
-      - name: Login por link, pedido no Pará, três lotes, interesse e Pix de teste
+      - name: Login, pedido no Pará e fase posterior de interesse e Pix isolada no teste
         run: npm --prefix front/globo run test:e2e:api
