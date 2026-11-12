@@ -64,7 +64,7 @@ process.env.RAIZ_DADOS = semInternet
 const servidor = await createServer({ root: GLOBO, configFile: path.join(GLOBO, "vite.config.ts"), server: { port: 0 }, logLevel: "error" })
 await servidor.listen()
 const URL_BASE = servidor.resolvedUrls.local[0]
-const navegador = await chromium.launch({ args: ARGS })
+const navegador = await chromium.launch({ executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE, args: ARGS })
 
 async function pagina(opcoes) {
   const ctx = await navegador.newContext(opcoes)
@@ -89,35 +89,24 @@ try {
   {
     const { p, pedidos, erros } = await pagina({ viewport: { width: 1440, height: 900 } })
     await p.goto(URL_BASE)
-    await p.locator(".mapa-brasil canvas").waitFor({ timeout: 30000 })
+    await p.getByRole("group", { name: "Mapa do Brasil por estado" }).waitFor({ timeout: 30000 })
     await p.locator('aside[aria-label="O Brasil na Raíz"] h1').waitFor()
-    await p.waitForFunction(() => document.querySelector(".mapa-brasil .mapa")?.__mapa?.loaded(), null, { timeout: 30000 })
     conferir(!pedidos.some((u) => /cobe/i.test(u)), "a entrada não baixa o cobe")
     conferir((await p.getByText("Pular abertura").count()) === 0, "não há abertura nem botão de pular")
     conferir(new URL(p.url()).hash === "", "a entrada abre sem nada no endereço")
     conferir(await p.locator(".topo .busca input").isVisible(), "a busca está no topo")
     const estados = await (await p.request.get(URL_BASE + "amostra/estados.json")).json()
     conferir(estados.pasta === "amostra", "sem os dados baixados, o front abre com a amostra")
-    await p.waitForFunction(() => document.querySelector(".mapa-brasil .mapa").__mapa.querySourceFeatures("estados-rotulos").length > 0, null, { timeout: 30000 })
-    const rotulos = await p.evaluate(() =>
-      Object.fromEntries(
-        document
-          .querySelector(".mapa-brasil .mapa")
-          .__mapa.querySourceFeatures("estados-rotulos")
-          .map((f) => [f.properties.uf, f.properties.linha]),
-      ),
-    )
-    conferir(rotulos.PA === "todos os 144 municípios", `o Pará aparece completo no mapa ("${rotulos.PA}")`)
-    conferir(rotulos.GO === "ainda não processado" && Object.keys(rotulos).length === 27, `os outros 26 estados com o aviso "ainda não processado"`)
-    conferir(!pedidos.some((u) => /pontos_/.test(u)), "na entrada, nenhum ponto de fazenda é carregado (só ao tocar num estado)")
-    const processados = await p.evaluate(
-      () =>
-        document
-          .querySelector(".mapa-brasil .mapa")
-          .__mapa.querySourceFeatures("brasil-municipios")
-          .filter((f) => f.properties.p > 0).length,
-    )
-    conferir(processados > 0, `municípios processados pintados em mata no mapa (${processados} pedaços)`)
+    const rotulos = await p.locator(".estado-vetor").evaluateAll((links) => Object.fromEntries(links.map((link) => [link.getAttribute("href").split("/").at(-1), link.getAttribute("aria-label")])))
+    conferir(/144 municípios processados/.test(rotulos.PA), `o Pará aparece com sua cobertura no mapa ("${rotulos.PA}")`)
+    conferir(/ainda não processado/.test(rotulos.GO) && Object.keys(rotulos).length === 27, "os outros 26 estados têm aviso de ausência")
+    conferir(!pedidos.some((u) => /pontos_|maplibre-gl/.test(u)), "na escala nacional, nenhum ponto ou WebGL é carregado")
+    await p.locator('.estado-vetor[href="#/estado/PA"]').click()
+    await p.waitForFunction(() => document.querySelector(".mapa-brasil .mapa")?.__mapa?.loaded(), null, { timeout: 30000 })
+    await p.goto(URL_BASE + "#/")
+    await p.waitForFunction(() => !document.querySelector(".funil-barras"))
+    const processados = await p.evaluate(() => document.querySelector(".mapa-brasil .mapa").__mapa.querySourceFeatures("brasil-municipios").filter((f) => f.properties.p > 0).length)
+    conferir(processados > 0, `municípios processados continuam pintados no mapa detalhado (${processados} pedaços)`)
 
     // 8. sem o rótulo do país em cima do Pará; os vizinhos continuam com nome
     const paises = await p.evaluate(() =>
@@ -252,7 +241,7 @@ try {
   {
     const { p, erros } = await pagina({ viewport: { width: 360, height: 780 }, isMobile: true, hasTouch: true })
     await p.goto(URL_BASE)
-    await p.locator(".mapa-brasil canvas").waitFor({ timeout: 30000 })
+    await p.getByRole("group", { name: "Mapa do Brasil por estado" }).waitFor({ timeout: 30000 })
     const busca = await p.locator(".topo .busca input").boundingBox()
     const mapa = await p.locator(".mapa-brasil").boundingBox()
     const gaveta = await p.locator(".painel-lateral").boundingBox()

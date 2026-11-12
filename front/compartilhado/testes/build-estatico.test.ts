@@ -47,7 +47,7 @@ describe("build estático com geometrias comprimidas", () => {
     fs.writeFileSync(path.join(geo, "exportacao.tmp"), "temporário")
     fs.mkdirSync(path.join(geo, "cache"))
     fs.writeFileSync(path.join(geo, "cache", "fonte.parquet"), "cache de download")
-    fs.writeFileSync(path.join(geo, "indice.json"), JSON.stringify({ municipios }))
+    fs.writeFileSync(path.join(geo, "indice.json"), JSON.stringify({ municipios, gerado_em: "2026-11-12T10:41:00Z", dados_publicados_em: "2026-11-11T18:00:00Z" }))
     vi.stubEnv("RAIZ_GEO", "geo-publicado")
     vi.stubEnv("RAIZ_BUILD_DADOS", "1")
     vi.spyOn(console, "log").mockImplementation(() => {})
@@ -85,6 +85,10 @@ describe("build estático com geometrias comprimidas", () => {
       "base_PA.pmtiles", "indice.json",
     ])
     const indice = json(saida, "geo/indice.json")
+    expect(indice.cobertura).toEqual({
+      gerado_em: "2026-11-12T10:41:00Z", dados_publicados_em: "2026-11-11T18:00:00Z",
+      com_desenho: MUNICIPIOS, sem_desenho: [], acesso: "restrito",
+    })
     for (const cod of MUNICIPIOS) expect(indice.municipios[cod]).toEqual({ base: { arquivo: "base_PA.pmtiles", bytes: 10 } })
     expect(copiar.mock.calls.filter(([origem]) => String(origem).endsWith("base_PA.pmtiles"))).toHaveLength(1)
   })
@@ -123,6 +127,7 @@ describe("build estático com geometrias comprimidas", () => {
     const lidos = vi.spyOn(fs, "readFileSync")
     const saida = await construir(3)
     expect(json(saida, "amostra/estados.json").acesso).toBe("publico_basico")
+    expect(json(saida, "geo/indice.json").cobertura).toMatchObject({ acesso: "aberto", com_desenho: MUNICIPIOS, sem_desenho: [] })
     expect(json(saida, "amostra/estados.json").estados.find((e: { uf: string }) => e.uf === "PA").com_lista).toEqual(MUNICIPIOS)
     expect(lidos.mock.calls.some(([arq]) => /imoveis_\d{7}\.csv$/.test(String(arq)))).toBe(false)
     for (const cod of MUNICIPIOS) {

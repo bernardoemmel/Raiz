@@ -131,7 +131,7 @@ export function Fazenda({ car }: { car: string }) {
     return (
       <>
         <Cabecalho atual="fazenda" />
-        <main className="pagina">
+        <main id="conteudo" tabIndex={-1} className="pagina">
           <Estado tipo="carregando" titulo="Carregando a ficha da fazenda" />
         </main>
       </>
@@ -140,7 +140,7 @@ export function Fazenda({ car }: { car: string }) {
     return (
       <>
         <Cabecalho atual="fazenda" />
-        <main className="pagina">
+        <main id="conteudo" tabIndex={-1} className="pagina">
           {ficha.erro ? (
             <Estado tipo="erro" titulo="Não deu para abrir a ficha agora.">
               <p>Confira a conexão e recarregue a página.</p>
@@ -168,7 +168,7 @@ export function Fazenda({ car }: { car: string }) {
   return (
     <>
       <Cabecalho atual="fazenda" linkMapa={linkMunicipio(cod)} />
-      <main className="pagina ficha">
+      <main id="conteudo" tabIndex={-1} className="pagina ficha">
         <div className="cabeca">
           <div>
             <ol className="migalhas" aria-label="Onde você está">

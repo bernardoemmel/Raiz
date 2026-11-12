@@ -1,9 +1,10 @@
 #!/usr/bin/env node
-/** Testa o site compilado como no Pages: só arquivos, /Raiz/ e HTTP Range, sem API nem fallback do Vite.
+/** Testa o site compilado: só arquivos e HTTP Range, sem API nem fallback do Vite.
  * Antes: preparar-teste-site.mjs e construir-site.sh com RAIZ_DADOS/RAIZ_GEO apontando à fixture,
  * RAIZ_CALENDARIO_DADOS apontando ao calendário da fixture, RAIZ_BASE=/Raiz/ e VITE_RAIZ_TESTE_MAPA=1. PLAYWRIGHT_CHROMIUM_EXECUTABLE é opcional no ambiente local.
  */
 import assert from "node:assert/strict"
+import { configurarPublicacao } from "./configurar-publicacao.mjs"
 import fs from "node:fs"
 import http from "node:http"
 import { createRequire } from "node:module"
@@ -15,6 +16,8 @@ const require = createRequire(path.join(REPO, "front/globo/package.json"))
 const { chromium } = require("playwright")
 const { PNG } = require("pngjs")
 const site = path.join(REPO, "site")
+const prefixo = configurarPublicacao(process.env).base
+assert(prefixo.startsWith("/") && prefixo.endsWith("/"), "RAIZ_BASE precisa começar e terminar em /.")
 const resultado = path.join(REPO, "front/.cache/teste-site/resultado")
 fs.mkdirSync(resultado, { recursive: true })
 const tipos = { ".html": "text/html", ".js": "text/javascript", ".mjs": "text/javascript", ".css": "text/css", ".json": "application/json",
@@ -22,9 +25,10 @@ const tipos = { ".html": "text/html", ".js": "text/javascript", ".mjs": "text/ja
 const ausentes = [], faixas = [], erros = [], pedidos = []
 const servidor = http.createServer((req, res) => {
   const url = new URL(req.url, "http://localhost")
-  const rel = decodeURIComponent(url.pathname).replace(/^\/Raiz\//, "")
-  const arquivo = path.resolve(site, rel || "index.html")
-  if (!url.pathname.startsWith("/Raiz/") || !arquivo.startsWith(site + path.sep) || !fs.existsSync(arquivo) || !fs.statSync(arquivo).isFile()) {
+  const pathname = decodeURIComponent(url.pathname)
+  const rel = pathname.slice(prefixo.length)
+  const arquivo = path.resolve(site, !rel || rel.endsWith("/") ? rel + "index.html" : rel)
+  if (!pathname.startsWith(prefixo) || !arquivo.startsWith(site + path.sep) || !fs.existsSync(arquivo) || !fs.statSync(arquivo).isFile()) {
     ausentes.push(url.pathname)
     res.writeHead(404).end("Arquivo não encontrado")
     return
@@ -44,7 +48,7 @@ const servidor = http.createServer((req, res) => {
   }
 })
 await new Promise((resolve) => servidor.listen(0, "127.0.0.1", resolve))
-const base = `http://127.0.0.1:${servidor.address().port}/Raiz/`
+const base = `http://127.0.0.1:${servidor.address().port}${prefixo}`
 const navegador = await chromium.launch({
   ...(process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE } : {}),
   args: ["--use-gl=angle", "--use-angle=swiftshader", "--enable-unsafe-swiftshader"],
@@ -128,6 +132,12 @@ try {
   conferirPublicacao()
   console.log("Abrindo o build estático básico no Chromium...")
   await pagina.goto(base)
+  await pagina.getByRole("group", { name: "Mapa do Brasil por estado" }).waitFor()
+  await pagina.getByRole("heading", { name: "Cobertura do mapa", exact: true }).waitFor()
+  await pagina.getByText("1 município em 1 estado", { exact: true }).waitFor()
+  await pagina.locator('time[datetime="2026-11-12T10:41:00Z"]').waitFor()
+  await pagina.locator('time[datetime="2026-11-11T18:00:00Z"]').waitFor()
+  await pagina.locator('.mapa-nacional-leve a[href="#/estado/PA"]').click()
   await mapaPronto()
   await pagina.waitForFunction(() => {
     const m = document.querySelector(".mapa-brasil .mapa").__mapa
@@ -224,6 +234,7 @@ try {
   await pagina.getByText("A ficha exige créditos pagos e conexão com a Raíz.", { exact: false }).waitFor()
   assert.equal(await pagina.getByRole("button", { name: "Pedir contato", exact: true }).count(), 0,
     "O site aberto não concede acesso à ficha ou ao pedido de contato.")
+  assert.equal(await pagina.locator(".visual-terra").count(), 0, "O perímetro com camadas e o satélite pagos não são servidos pelo Pages.")
   await pagina.waitForLoadState("networkidle")
   assert.equal(await pagina.getByRole("link", { name: "Em leilão: conferir edital e prazo", exact: true }).count(), 0,
     "A ficha bloqueada não expõe os vínculos individuais do calendário.")
@@ -236,11 +247,23 @@ try {
   assert.equal(respostaFeed.status(), 200)
   assert((await respostaFeed.text()).startsWith("BEGIN:VCALENDAR"))
   assert(!pedidos.some((u) => new URL(u).pathname.endsWith("/busca")), "A busca estática não pode pedir /busca.")
-  assert(!pedidos.some((u) => /\/(?:imoveis_\d{7}\.csv|fichas\/|certidoes_|desenvolvedor_)/.test(new URL(u).pathname)),
+  assert(!pedidos.some((u) => /\/(?:imoveis_\d{7}\.csv|fichas\/|certidoes_|desenvolvedor_|visual(?:\/|$))/.test(new URL(u).pathname)),
     "A navegação aberta não pode requisitar camadas ou fichas pagas.")
+  // O formulário nativo do produtor precisa navegar tanto no subcaminho quanto na raiz, sem JavaScript.
+  const contextoSemJs = await navegador.newContext({ javaScriptEnabled: false })
+  const produtor = await contextoSemJs.newPage()
+  produtor.on("response", (r) => { if (r.status() >= 400) erros.push(`${r.status()} ${r.url()}`) })
+  await produtor.goto(new URL("produtor/", base).href)
+  await produtor.getByRole("heading", { name: "Ficha da sua fazenda", exact: true }).waitFor()
+  await produtor.getByLabel("Código do CAR", { exact: false }).fill("CAR-TESTE-DE-NAVEGACAO")
+  await produtor.getByRole("button", { name: "Ver a ficha", exact: true }).click()
+  await produtor.waitForURL((u) => u.searchParams.get("car") === "CAR-TESTE-DE-NAVEGACAO")
+  assert.equal(new URL(produtor.url()).pathname, new URL("produtor/", base).pathname,
+    "O formulário do produtor precisa conservar a base configurada.")
+  await contextoSemJs.close()
   assert.deepEqual(ausentes, [], "Nenhum arquivo pode responder 404.")
   assert.deepEqual(erros, [], "Nenhum erro de rede, JavaScript ou renderização.")
-  console.log("ok: busca por nome, IBGE e CAR, acesso pago pela lista e pelo CAR, publicação somente básica, calendário e feed ICS, zero 404 e zero erro no navegador.")
+  console.log("ok: busca por nome, IBGE e CAR, acesso pago pela lista e pelo CAR, produtor sem JavaScript, publicação somente básica, calendário e feed ICS, zero 404 e zero erro no navegador.")
 } catch (erro) {
   await pagina.screenshot({ path: path.join(resultado, "falha.png"), fullPage: true }).catch(() => {})
   console.error(JSON.stringify({ ausentes, erros }, null, 2))

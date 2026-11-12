@@ -36,7 +36,7 @@ export function Calendario({ car }: { car?: string }) {
   const antiga = agenda?.coletado_em ? agora - Date.parse(agenda.coletado_em) > 48 * 3600000 : false
   return <>
     <Cabecalho atual="calendario" />
-    <main className="pagina calendario">
+    <main id="conteudo" tabIndex={-1} className="pagina calendario">
       <div className="cabeca"><div><h1>Calendário da Raíz</h1><p>Leilões, editais e prazos para acompanhar a terra e os créditos de carbono.</p></div>
         {agenda?.disponivel && <a className="botao" href={calendario.feed(filtros)} download="raiz-eventos.ics">{calendario.api ? "Baixar seleção (.ics)" : "Baixar agenda completa (.ics)"}</a>}</div>
       {car && <p>Eventos do CAR <code>{abreviarCar(car)}</code>. <a href="#/calendario">Ver todos os imóveis</a></p>}

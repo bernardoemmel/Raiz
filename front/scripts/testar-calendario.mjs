@@ -1,12 +1,17 @@
 #!/usr/bin/env node
 /** Teste da agenda no Chromium com páginas de coleta controladas, sem inventar dados no produto. */
 import assert from "node:assert/strict"
+import fs from "node:fs"
 import { createRequire } from "node:module"
 import path from "node:path"
 import { fileURLToPath, pathToFileURL } from "node:url"
+import { conferirPaginaAcessivel } from "./conferir-acessibilidade.mjs"
 
 const globo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../globo")
 const doGlobo = createRequire(path.join(globo, "package.json"))
+const { default: AxeBuilder } = await import(pathToFileURL(doGlobo.resolve("@axe-core/playwright")).href)
+const evidencias = process.env.RAIZ_CALENDARIO_EVIDENCIAS || path.resolve(globo, "../.cache/teste-site/resultado/calendario")
+fs.mkdirSync(evidencias, { recursive: true })
 const { chromium } = (() => {
   try { return doGlobo("playwright") }
   catch { return createRequire(import.meta.url)("playwright") }
@@ -14,7 +19,8 @@ const { chromium } = (() => {
 const { createServer } = await import(pathToFileURL(doGlobo.resolve("vite")).href)
 const servidor = await createServer({ root: globo, configFile: path.join(globo, "vite.config.ts"), server: { port: 0 }, logLevel: "error" })
 await servidor.listen()
-const navegador = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined, args: ["--no-sandbox", "--use-gl=angle", "--use-angle=swiftshader", "--enable-unsafe-swiftshader"] })
+const executavel = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE || process.env.CHROMIUM_PATH || (fs.existsSync("/usr/bin/chromium") ? "/usr/bin/chromium" : undefined)
+const navegador = await chromium.launch({ executablePath: executavel, args: ["--no-sandbox", "--use-gl=angle", "--use-angle=swiftshader", "--enable-unsafe-swiftshader"] })
 const base = servidor.resolvedUrls.local[0]
 const car = `PA-1504950-${"A".repeat(32)}`
 const eventos = [
@@ -23,13 +29,19 @@ const eventos = [
 ]
 try {
   for (const largura of [1440, 768, 360]) {
-    const pagina = await navegador.newPage({ viewport: { width: largura, height: 900 } })
+    const contexto = await navegador.newContext({ viewport: { width: largura, height: 900 } })
+    const pagina = await contexto.newPage()
     const erros = []
     pagina.on("pageerror", (e) => erros.push(e.message))
     await pagina.route("**/calendario/eventos.json", (rota) => rota.fulfill({ json: { eventos, total: 2, coletado_em: new Date().toISOString(), fontes: [] } }))
     await pagina.goto(`${base}#/calendario`)
     await pagina.getByRole("heading", { name: "Calendário da Raíz" }).waitFor()
     await pagina.locator(".calendario-evento").first().waitFor()
+    await pagina.getByRole("link", { name: "Pular para o conteúdo" }).focus()
+    assert.equal(await pagina.locator(":focus").innerText(), "Pular para o conteúdo")
+    await pagina.keyboard.press("Enter")
+    assert.equal(await pagina.locator(":focus").getAttribute("id"), "conteudo")
+    await conferirPaginaAcessivel(pagina, AxeBuilder, `calendario-${largura}`, evidencias)
     if (process.env.RAIZ_CALENDARIO_CAPTURA) await pagina.screenshot({ path: `${process.env.RAIZ_CALENDARIO_CAPTURA}-${largura}.png`, fullPage: true })
     assert.equal(await pagina.locator(".calendario-evento").count(), 2)
     assert.equal(await pagina.getByRole("link", { name: "Baixar agenda completa (.ics)" }).getAttribute("href"), "/calendario/eventos.ics")
@@ -45,8 +57,8 @@ try {
     assert((await pagina.getByRole("link", { name: /^CAR / }).getAttribute("href")).includes(encodeURIComponent(car)))
     assert((await pagina.evaluate(() => document.documentElement.scrollWidth)) <= largura)
     assert.deepEqual(erros, [])
-    await pagina.close()
-    console.log(`ok calendário, filtros, feed e largura ${largura}px`)
+    await contexto.close()
+    console.log(`ok calendário, filtros, feed, teclado, axe e largura ${largura}px`)
   }
   const pagina = await navegador.newPage()
   await pagina.route("**/calendario/eventos.json", (rota) => rota.fulfill({ status: 404, body: "" }))

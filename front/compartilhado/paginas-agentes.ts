@@ -26,16 +26,30 @@ const PRIVACIDADE = "Nome, CPF, CNPJ e contato do dono não aparecem na ficha de
 const numero = (n: number) => new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 2 }).format(Number.isFinite(n) ? n : 0)
 /** Nomes de lugares são texto; nunca podem criar HTML, links ou quebrar a tabela. */
 const md = (s: string) => mascarar(String(s)).replace(/[\r\n]+/g, " ").replace(/([\\`*_[\]<>|])/g, "\\$1")
-const soma = (ms: FunilMunicipio[], campo: "imoveis" | "aptas_carbono" | "ha_carbono") => ms.reduce((n, m) => n + m[campo], 0)
-const protegido = (m: FunilMunicipio) => m.linha.dados_suprimidos === "true" || !Number.isFinite(m.imoveis) || m.imoveis < 5
-const indicador = (m: FunilMunicipio, valor: number) => protegido(m) ? "Suprimido" : numero(valor)
-const totalPublico = (ms: FunilMunicipio[]) => ms.some(protegido)
-  ? "Os totais deste recorte foram suprimidos porque incluem grupos com menos de cinco imóveis."
-  : `${numero(soma(ms, "imoveis"))} imóveis, ${numero(soma(ms, "aptas_carbono"))} aptos no funil e ${numero(soma(ms, "ha_carbono"))} ha de área de carbono nas fazendas aptas.`
+type Indicador = "imoveis" | "sem_problema" | "aptas_carbono" | "ha_carbono" | "aptas_com_matricula" | "ha_carbono_matricula"
+const semContagem = (m: FunilMunicipio) => num(m.linha, "imoveis") === null
+const soma = (ms: FunilMunicipio[], campo: Indicador) => {
+  const valores = ms.map((m) => semContagem(m) ? null : num(m.linha, campo))
+  return valores.some((v) => v === null) ? null : valores.reduce<number>((total, v) => total + v!, 0)
+}
+const protegido = (m: FunilMunicipio) => {
+  const imoveis = num(m.linha, "imoveis")
+  return m.linha.dados_suprimidos === "true" || (imoveis !== null && imoveis < 5)
+}
+const disponivel = (valor: number | null) => valor === null ? "Ainda não publicado" : numero(valor)
+// Sem contagem conhecida não é possível confirmar o grupo mínimo de cinco imóveis para publicar suas medidas.
+const indicador = (m: FunilMunicipio, campo: Indicador) => protegido(m) ? "Suprimido" : disponivel(semContagem(m) ? null : num(m.linha, campo))
+const totalPublico = (ms: FunilMunicipio[]) => {
+  if (ms.some(protegido)) return "Os totais deste recorte foram suprimidos porque incluem grupos com menos de cinco imóveis."
+  const imoveis = soma(ms, "imoveis"), aptos = soma(ms, "aptas_carbono"), hectares = soma(ms, "ha_carbono")
+  if (imoveis === null || aptos === null || hectares === null)
+    return `Há medidas ainda não publicadas neste recorte. Imóveis: ${disponivel(imoveis)}. Aptos no funil: ${disponivel(aptos)}. Área de carbono nas fazendas aptas (ha): ${disponivel(hectares)}.`
+  return `${numero(imoveis)} imóveis, ${numero(aptos)} aptos no funil e ${numero(hectares)} ha de área de carbono nas fazendas aptas.`
+}
 /** O funil usa zero como padrão de cálculo. Só publicar um indicador opcional se a fonte trouxer um número. */
 const indicadorOpcional = (m: FunilMunicipio, coluna: string, rotulo: string) => {
   const valor = num(m.linha, coluna)
-  return valor === null || protegido(m) ? "" : `| ${rotulo} | ${numero(valor)} |\n`
+  return valor === null || protegido(m) || semContagem(m) ? "" : `| ${rotulo} | ${numero(valor)} |\n`
 }
 
 export function paginasAgentes(opcoes: Opcoes): void {
@@ -50,6 +64,12 @@ export function paginasAgentes(opcoes: Opcoes): void {
     const arq = path.join(saida, p)
     fs.mkdirSync(path.dirname(arq), { recursive: true })
     fs.writeFileSync(arq, texto.trim() + "\n", "utf8")
+  }
+  const htmlCanonico = path.join(saida, "index.html")
+  if (fs.existsSync(htmlCanonico)) {
+    const canonico = absoluto(produtor ? "produtor/" : "").replace(/&/g, "&amp;").replace(/"/g, "&quot;")
+    const anterior = fs.readFileSync(htmlCanonico, "utf8").replace(/\s*<link\b[^>]*rel=["']canonical["'][^>]*>/gi, "")
+    fs.writeFileSync(htmlCanonico, anterior.replace("</head>", `<link rel="canonical" href="${canonico}" />\n</head>`))
   }
   if (produtor) {
     gravar("index.md", `# Raíz: ficha da sua fazenda
@@ -136,7 +156,7 @@ Há ${numero(ms.length)} resumos disponíveis. ${totalPublico(ms)}
 
 | Município | Código IBGE | Imóveis | Aptos | Área de carbono apta (ha) |
 |---|---|---:|---:|---:|
-${ms.map((m) => `| [${md(m.municipio)}](${link(`dados/municipios/${m.cod_ibge}.md`)}) | ${m.cod_ibge} | ${indicador(m, m.imoveis)} | ${indicador(m, m.aptas_carbono)} | ${indicador(m, m.ha_carbono)} |`).join("\n")}
+${ms.map((m) => `| [${md(m.municipio)}](${link(`dados/municipios/${m.cod_ibge}.md`)}) | ${m.cod_ibge} | ${indicador(m, "imoveis")} | ${indicador(m, "aptas_carbono")} | ${indicador(m, "ha_carbono")} |`).join("\n")}
 
 ## Tabelas disponíveis
 
@@ -170,12 +190,12 @@ Código IBGE: ${m.cod_ibge}. Origem do resumo: ${m.origem === "resumo" ? "tabela
 
 | Indicador | Resultado |
 |---|---:|
-| Imóveis analisados | ${indicador(m, m.imoveis)} |
-| Imóveis sem problema no funil | ${indicador(m, m.sem_problema)} |
-| Imóveis aptos para carbono | ${indicador(m, m.aptas_carbono)} |
-| Área de carbono nas fazendas aptas (ha) | ${indicador(m, m.ha_carbono)} |
-${indicadorOpcional(m, "tco2_ano_aptas", "Potencial estimado de carbono nas aptas (tCO₂/ano)")}| Aptos com indicação de matrícula | ${indicador(m, m.aptas_com_matricula)} |
-| Área de carbono das aptas com matrícula (ha) | ${indicador(m, m.ha_carbono_matricula)} |
+| Imóveis analisados | ${indicador(m, "imoveis")} |
+| Imóveis sem problema no funil | ${indicador(m, "sem_problema")} |
+| Imóveis aptos para carbono | ${indicador(m, "aptas_carbono")} |
+| Área de carbono nas fazendas aptas (ha) | ${indicador(m, "ha_carbono")} |
+${indicadorOpcional(m, "tco2_ano_aptas", "Potencial estimado de carbono nas aptas (tCO₂/ano)")}| Aptos com indicação de matrícula | ${indicador(m, "aptas_com_matricula")} |
+| Área de carbono das aptas com matrícula (ha) | ${indicador(m, "ha_carbono_matricula")} |
 ${indicadorOpcional(m, "frente_assentamento_agrupado", "Imóveis na frente de assentamentos para agrupar")}
 Indicadores opcionais sem valor na tabela de origem não são exibidos. Ausência de informação não significa zero.
 

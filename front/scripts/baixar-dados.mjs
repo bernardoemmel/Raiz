@@ -96,7 +96,7 @@ function arquivoPermitido(nome, uf, geo) {
   return geo ? new RegExp(`^${uf}/geo_\\d{7}\\.parquet$`).test(nome)
     : new RegExp(`^${uf}/(resumo_${uf}|sem_imoveis_${uf}|imoveis_basicos_\\d{7})\\.csv$`).test(nome)
 }
-async function baixarEExtrair(url, uf, destino, geo = false) {
+async function baixarEExtrair(url, uf, destino, geo = false, permiteVazio = false) {
   const r = await fetch(urlPacote(url, uf, geo), { redirect: "follow" })
   if (!r.ok) throw new Error(`pacote ${uf}: HTTP ${r.status}`)
   const tmp = path.join(destino, `pacote${geo ? "-geo" : ""}.tar.gz`)
@@ -104,7 +104,7 @@ async function baixarEExtrair(url, uf, destino, geo = false) {
   try {
     const nomes = execFileSync("tar", ["-tzf", tmp], { encoding: "utf8", maxBuffer: 16 * 1024 * 1024 }).trim().split("\n").filter(Boolean)
     const detalhes = execFileSync("tar", ["-tvzf", tmp], { encoding: "utf8", maxBuffer: 16 * 1024 * 1024 }).trim().split("\n").filter(Boolean)
-    if (!nomes.length || new Set(nomes).size !== nomes.length || nomes.some((n) => !arquivoPermitido(n, uf, geo)) || detalhes.length !== nomes.length || detalhes.some((l) => !l.startsWith("-")))
+    if ((!nomes.length && !permiteVazio) || new Set(nomes).size !== nomes.length || nomes.some((n) => !arquivoPermitido(n, uf, geo)) || detalhes.length !== nomes.length || detalhes.some((l) => !l.startsWith("-")))
       throw new Error(`${uf}: pacote contém caminho, link ou arquivo fora do contrato público`)
     // Extração apenas por stdout: nenhum caminho ou link contido no tar pode escrever no workspace.
     for (const nome of nomes) {
@@ -140,7 +140,17 @@ async function main() {
   let mudou = false
   for (const uf of Object.keys(remoto.estados).filter((uf) => !pedidos.length || pedidos.includes(uf))) {
     const r = remoto.estados[uf], l = local.estados[uf]
-    if (!r.url) { local.estados[uf] = r; mudou = true; continue }
+    if (!r.url) {
+      const atual = path.join(DESTINO, uf)
+      if (fs.existsSync(atual) && fs.readdirSync(atual).length && !marcado(l)) {
+        falhas.push(uf)
+        console.warn(`[dados] falhou ${uf}: destino legado preservado; escolha uma pasta vazia para os dados públicos`)
+        continue
+      }
+      // Zero municípios sem pacote também retira a cobertura antiga já marcada como pública.
+      if (marcado(l)) fs.rmSync(atual, { recursive: true, force: true })
+      local.estados[uf] = r; mudou = true; continue
+    }
     if (pastaConforme(uf, l) && l.versao === r.versao && (!comGeo || l.geo?.versao === r.geo?.versao)) continue
     const staging = fs.mkdtempSync(path.join(os.tmpdir(), `raiz-publico-${uf}-`))
     try {
@@ -148,8 +158,9 @@ async function main() {
       if (fs.existsSync(atual) && fs.readdirSync(atual).length && !marcado(l))
         throw new Error(`${uf}: destino legado preservado; escolha uma pasta vazia para os dados públicos`)
       console.log(`[dados] baixando pacote público de ${uf}`)
-      await baixarEExtrair(r.url, uf, staging)
-      if (comGeo && r.geo) await baixarEExtrair(r.geo.url, uf, staging, true)
+      // Pacote vazio só é legítimo quando o manifesto público declara zero municípios.
+      await baixarEExtrair(r.url, uf, staging, false, r.municipios === 0)
+      if (comGeo && r.geo) await baixarEExtrair(r.geo.url, uf, staging, true, r.geo.municipios === 0)
       fs.mkdirSync(DESTINO, { recursive: true })
       // A pasta do estado só é substituída depois de todos os arquivos passarem pelo contrato.
       const proximo = path.join(DESTINO, `.${uf}-${process.pid}`)

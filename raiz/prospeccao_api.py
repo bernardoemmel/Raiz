@@ -8,9 +8,10 @@ from typing import Annotated
 
 import httpx
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, Response
+from fastapi.responses import FileResponse
 from pydantic import BaseModel, ConfigDict, Field
 
-from raiz import busca
+from raiz import busca, prospeccao_visual
 from raiz import prospeccao_acesso as acesso
 from raiz import prospeccao_buscas as buscas_salvas
 from raiz import prospeccao_servico as servico
@@ -129,6 +130,24 @@ def roteador(engine_de: Callable) -> APIRouter:
     @r.get("/fichas/{car}")
     def ficha(car: str, request: Request, cid: int = Depends(cliente)):
         return _executar(servico.consultar_ficha, engine_de(request), cid, car)
+
+    @r.get("/fichas/{car}/visual")
+    def visual(car: str, request: Request, cid: int = Depends(cliente)):
+        _executar(acesso.exigir_desbloqueio, engine_de(request), cid, car)
+        return prospeccao_visual.consultar(engine_de(request), car)
+
+    @r.get("/fichas/{car}/visual/satelite")
+    def satelite(car: str, request: Request, cid: int = Depends(cliente)):
+        _executar(acesso.exigir_desbloqueio, engine_de(request), cid, car)
+        return prospeccao_visual.satelite_disponivel(engine_de(request), car)
+
+    @r.get("/fichas/{car}/visual/satelite.webp")
+    def imagem_satelite(car: str, request: Request, cid: int = Depends(cliente)):
+        _executar(acesso.exigir_desbloqueio, engine_de(request), cid, car)
+        _, arquivo = prospeccao_visual.imagem(engine_de(request), car)
+        return FileResponse(
+            arquivo, media_type="image/webp", headers={"Cache-Control": "private, no-store", "Vary": "Authorization"}
+        )
 
     @r.post("/fichas/{car}/desbloquear")
     def desbloquear(car: str, request: Request, cid: int = Depends(cliente)):

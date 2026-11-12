@@ -3,6 +3,7 @@
  * Nenhum número desta fixture é usado pelo build público. Não inicia contato com proprietários.
  */
 import assert from "node:assert/strict"
+import { conferirPaginaAcessivel } from "./conferir-acessibilidade.mjs"
 import fs from "node:fs"
 import path from "node:path"
 import { createRequire } from "node:module"
@@ -13,6 +14,7 @@ const globo = path.join(REPO, "front/globo")
 const require = createRequire(path.join(globo, "package.json"))
 const { chromium } = require("playwright")
 const { PNG } = require("pngjs")
+const { default: AxeBuilder } = await import(pathToFileURL(require.resolve("@axe-core/playwright")).href)
 const { createServer } = await import(pathToFileURL(require.resolve("vite")).href)
 const resultado = path.join(REPO, "front/.cache/teste-cena-alvo")
 fs.mkdirSync(resultado, { recursive: true })
@@ -89,7 +91,8 @@ async function servidor(api) {
   return { vite, base: vite.resolvedUrls.local[0] }
 }
 async function pagina(base, publicacao, autenticada = false, pedidoApi = pedido) {
-  const p = await navegador.newPage({ viewport: { width: 1440, height: 960 }, reducedMotion: "reduce" })
+  const contexto = await navegador.newContext({ viewport: { width: 1440, height: 960 }, reducedMotion: "reduce" })
+  const p = await contexto.newPage()
   p.on("pageerror", (erro) => erros.push(erro.message))
   p.on("console", (mensagem) => { if (mensagem.type() === "error") erros.push(mensagem.text()) })
   p.on("response", (r) => { if (r.status() >= 400) erros.push(`${r.status()} ${r.url()}`) })
@@ -126,7 +129,7 @@ try {
   assert.match(await p.locator(".tabela-comparacao").innerText(), /Área autenticada/)
   assert(!/US\$ 0|0% ao ano|Resposta de exemplo/.test(await p.locator(".pedido-painel").innerText()))
   await p.screenshot({ path: path.join(resultado, "release-ausente-1440.png") })
-  await p.close()
+  await p.context().close()
   p = await pagina(publico.base, publicado)
   const tabela = await p.locator(".tabela-comparacao").innerText()
   for (const valor of ["900.000", "1.100.000", "1.300.000", "12,5% ao ano", "5.000 ha", "8 fazendas"]) assert(!tabela.includes(valor), `Métrica financeira do snapshot legado exposta: ${valor}`)
@@ -136,8 +139,8 @@ try {
   await p.screenshot({ path: path.join(resultado, "snapshot-legado-ignorado-1440.png") })
   await p.setViewportSize({ width: 360, height: 800 })
   assert(await p.evaluate(() => document.documentElement.scrollWidth <= innerWidth), "A página ultrapassou 360 px.")
-  await p.screenshot({ path: path.join(resultado, "cobertura-publica-360.png"), fullPage: true })
-  await p.close()
+  await conferirPaginaAcessivel(p, AxeBuilder, "cobertura-publica-360", resultado)
+  await p.context().close()
   await publico.vite.close()
   publico = null
 
@@ -173,8 +176,8 @@ try {
   await p.screenshot({ path: path.join(resultado, "lotes-autorizados-1440.png") })
   await p.setViewportSize({ width: 360, height: 800 })
   assert(await p.evaluate(() => document.documentElement.scrollWidth <= innerWidth), "Os lotes autorizados ultrapassaram 360 px.")
-  await p.screenshot({ path: path.join(resultado, "lotes-autorizados-360.png"), fullPage: true })
-  await p.close()
+  await conferirPaginaAcessivel(p, AxeBuilder, "lotes-autorizados-360", resultado)
+  await p.context().close()
 
   p = await pagina(api.base, publicado, true, pedidoComFichaFechada)
   const linhaFechada = p.locator(".aba-conteudo[data-state=active] .tabela-lote tbody tr").last()
@@ -192,8 +195,8 @@ try {
   await p.screenshot({ path: path.join(resultado, "lote-com-ficha-bloqueada-1440.png") })
   await p.setViewportSize({ width: 360, height: 800 })
   assert(await p.evaluate(() => document.documentElement.scrollWidth <= innerWidth), "A ficha bloqueada ultrapassou 360 px.")
-  await p.screenshot({ path: path.join(resultado, "lote-com-ficha-bloqueada-360.png"), fullPage: true })
-  await p.close()
+  await conferirPaginaAcessivel(p, AxeBuilder, "lote-com-ficha-bloqueada-360", resultado)
+  await p.context().close()
   assert.deepEqual(contatos, [], "O teste tentou iniciar contato ou reserva.")
   assert.deepEqual(erros, [], "Há erro HTTP ou JavaScript.")
   fs.writeFileSync(path.join(resultado, "resumo.json"), JSON.stringify({ cenarios: ["cobertura pública", "snapshot financeiro legado ignorado", "API autorizada", "item com ficha paga bloqueada"], cores, erros, contatos }, null, 2))

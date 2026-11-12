@@ -88,7 +88,8 @@ jobs:
       - name: Montar o site (painel com os dados e ficha do produtor)
         env:
           RAIZ_DADOS: dados/publicos
-          RAIZ_BASE: /${{ github.event.repository.name }}/
+          # Variável vazia mantém o Pages de projeto. Um hostname publica / e grava site/CNAME.
+          RAIZ_DOMINIO: ${{ vars.RAIZ_DOMINIO }}
         run: front/scripts/construir-site.sh
 
       - uses: actions/upload-pages-artifact@v3
