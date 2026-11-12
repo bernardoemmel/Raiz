@@ -7,16 +7,19 @@ Nada aqui devolve nome, CPF, CNPJ ou contato do dono."""
 from __future__ import annotations
 
 import hmac
+import os
+import uuid
 from collections.abc import Callable
 from typing import Literal
 from urllib.parse import urlsplit
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request
+from fastapi import APIRouter, Header, HTTPException, Query, Request
+from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
 
+from raiz import salvaguardas as SG
 from raiz.pedidos import pix
 from raiz.pedidos import servico as S
-from raiz.pedidos.campos import CamposPedido
 
 
 class PedidoEntrar(BaseModel):
@@ -27,17 +30,6 @@ class Confirmar(BaseModel):
     token: str
 
 
-class Mudanca(BaseModel):
-    opcao: Literal["barata", "segura", "compacta"]
-    acao: Literal["tirar", "trocar"]
-    cod_imovel: str
-    por: str | None = None
-
-
-class Solicitar(BaseModel):
-    opcao: Literal["barata", "segura", "compacta"] = "segura"
-
-
 class Resposta(BaseModel):
     nivel: Literal["contatado", "interessado", "aceite_fase1", "contrato_firme", "recusou", "sem_resposta"]
     canal: str | None = None
@@ -46,13 +38,24 @@ class Resposta(BaseModel):
     pedido_id: str | None = None
 
 
+class Revisar(BaseModel):
+    cod_imovel: str
+    motivo: Literal["exclusao_automatica", "nota_de_risco", "salvaguarda"]
+
+
+class ResolucaoHumana(BaseModel):
+    revisor_id: uuid.UUID
+    decisao: Literal["mantida", "corrigir_dados", "recalcular"]
+    evidencia: SG.Evidencia
+
+
 class Converter(BaseModel):
     ha_assinados: float
 
 
 def _erro(ex: S.ErroPedido) -> HTTPException:
     msg = str(ex)
-    return HTTPException(404 if "não encontrad" in msg else 422, {"mensagem": msg})
+    return HTTPException(getattr(ex, "status", 404 if "não encontrad" in msg else 422), {"mensagem": msg})
 
 
 def _base_link_login(base_url: str) -> str:
@@ -80,22 +83,26 @@ def _base_link_login(base_url: str) -> str:
 
 
 def roteador_cliente(engine_de: Callable, base_url: str = "") -> APIRouter:
-    r = APIRouter(tags=["pedidos"])
+    """Login por e-mail e aliases do front para a API paga, que concentra a política de acesso.
 
-    def cliente(request: Request, authorization: str | None = Header(default=None)) -> int:
-        token = (authorization or "").removeprefix("Bearer ").strip()
-        cid = S.cliente_da_sessao(engine_de(request), token)
-        if cid is None:
-            raise HTTPException(401, {"mensagem": "entre de novo: sessão inválida ou vencida"})
-        return cid
+    O 307 preserva método, corpo e credencial; só muda o caminho na mesma origem. Não executa
+    serviço nem cobrança aqui. Assim o caminho antigo nunca evita liberação, saldo ou limite.
+    """
+    r = APIRouter(tags=["pedidos"])
 
     @r.post("/entrar")
     def entrar(corpo: PedidoEntrar, request: Request) -> dict:
-        destino = _base_link_login(base_url)
         try:
+            from raiz.publica.email_login import ErroEnvioLogin, origem_front
+
+            if S.ENVIO_LINK is None:
+                raise HTTPException(503, "envio de login por e-mail indisponível")
+            destino = _base_link_login(base_url) if base_url else origem_front()
             S.pedir_link(engine_de(request), corpo.email, destino)
         except S.ErroPedido as ex:
             raise _erro(ex) from ex
+        except (ValueError, ErroEnvioLogin):
+            raise HTTPException(503, "envio de login por e-mail indisponível") from None
         return {"enviado": True}
 
     @r.post("/entrar/confirmar")
@@ -105,73 +112,23 @@ def roteador_cliente(engine_de: Callable, base_url: str = "") -> APIRouter:
         except S.ErroPedido as ex:
             raise HTTPException(401, {"mensagem": str(ex)}) from ex
 
-    @r.get("/pedidos")
-    def listar(request: Request, cid: int = Depends(cliente)) -> list[dict]:
-        return S.pedidos_do_cliente(engine_de(request), cid)
+    def destino(request: Request) -> RedirectResponse:
+        caminho = f"/v1{request.url.path}"
+        if request.url.query:
+            caminho += f"?{request.url.query}"
+        return RedirectResponse(caminho, status_code=307, headers={"Cache-Control": "no-store"})
 
-    @r.post("/pedidos")
-    def criar(campos: CamposPedido, request: Request, cid: int = Depends(cliente)) -> dict:
-        return S.criar_pedido(engine_de(request), cid, campos)
+    @r.api_route("/pedidos", methods=["GET", "POST"], include_in_schema=False)
+    def pedidos(request: Request) -> RedirectResponse:
+        return destino(request)
 
-    @r.get("/pedidos/{pedido_id}")
-    def obter(pedido_id: str, request: Request, cid: int = Depends(cliente)) -> dict:
-        try:
-            return S.obter_pedido(engine_de(request), pedido_id, cid)
-        except S.ErroPedido as ex:
-            raise _erro(ex) from ex
+    @r.api_route("/pedidos/{caminho:path}", methods=["GET", "POST", "PATCH"], include_in_schema=False)
+    def pedido(request: Request, caminho: str) -> RedirectResponse:
+        return destino(request)
 
-    def _mudar(pedido_id: str, m: Mudanca, request: Request, cid: int) -> dict:
-        try:
-            return S.mudar_lote(engine_de(request), pedido_id, cid, m.model_dump())
-        except S.ErroPedido as ex:
-            raise _erro(ex) from ex
-
-    @r.post("/pedidos/{pedido_id}/lote")
-    def lote(pedido_id: str, m: Mudanca, request: Request, cid: int = Depends(cliente)) -> dict:
-        return _mudar(pedido_id, m, request, cid)
-
-    @r.patch("/pedidos/{pedido_id}")
-    def patch(pedido_id: str, m: Mudanca, request: Request, cid: int = Depends(cliente)) -> dict:
-        return _mudar(pedido_id, m, request, cid)
-
-    @r.post("/pedidos/{pedido_id}/solicitar-interesse")
-    def solicitar(pedido_id: str, corpo: Solicitar, request: Request, cid: int = Depends(cliente)) -> dict:
-        try:
-            return S.solicitar_interesse(engine_de(request), pedido_id, cid, corpo.opcao)
-        except S.ErroPedido as ex:
-            raise _erro(ex) from ex
-
-    @r.get("/pedidos/{pedido_id}/andamento")
-    def andamento(pedido_id: str, request: Request, cid: int = Depends(cliente)) -> dict:
-        try:
-            return S.andamento(engine_de(request), pedido_id, cid)
-        except S.ErroPedido as ex:
-            raise _erro(ex) from ex
-
-    @r.post("/pedidos/{pedido_id}/reservar")
-    def reservar(pedido_id: str, request: Request, cid: int = Depends(cliente)) -> dict:
-        try:
-            return S.reservar(engine_de(request), pedido_id, cid)
-        except S.ErroPedido as ex:
-            raise _erro(ex) from ex
-
-    @r.get("/pedidos/{pedido_id}/reserva")
-    def reserva(pedido_id: str, request: Request, cid: int = Depends(cliente)) -> dict:
-        try:
-            return S.cobranca_do_pedido(engine_de(request), pedido_id, cid)
-        except S.ErroPedido as ex:
-            raise _erro(ex) from ex
-
-    @r.get("/pedidos/{pedido_id}/alertas")
-    def alertas(pedido_id: str, request: Request, cid: int = Depends(cliente)) -> list[dict]:
-        try:
-            return S.obter_pedido(engine_de(request), pedido_id, cid)["alertas"]
-        except S.ErroPedido as ex:
-            raise _erro(ex) from ex
-
-    @r.get("/notificacoes")
-    def notificacoes(request: Request, cid: int = Depends(cliente)) -> list[dict]:
-        return S.notificacoes(engine_de(request), cid)
+    @r.get("/notificacoes", include_in_schema=False)
+    def notificacoes(request: Request) -> RedirectResponse:
+        return destino(request)
 
     return r
 
@@ -179,6 +136,36 @@ def roteador_cliente(engine_de: Callable, base_url: str = "") -> APIRouter:
 def roteador_interno(engine_de: Callable) -> APIRouter:
     """Para a equipe e os agentes da Raíz (token da API): resposta do dono, passo das ondas, vigia e reservas."""
     r = APIRouter(tags=["pedidos (interno)"])
+
+    @r.post("/salvaguardas/programas")
+    def programa(corpo: SG.Programa, request: Request) -> dict:
+        SG.registrar_programa(engine_de(request), corpo)
+        return {"programa_id": corpo.id}
+
+    @r.post("/salvaguardas/cobertura")
+    def cobertura(corpo: SG.Cobertura, request: Request) -> dict:
+        SG.registrar_cobertura(engine_de(request), corpo)
+        return {"uf": corpo.uf, "valida_ate": corpo.valida_ate.isoformat()}
+
+    @r.post("/salvaguardas/imoveis/{cod_imovel}")
+    def verificacao(cod_imovel: str, corpo: SG.Verificacao, request: Request) -> dict:
+        SG.registrar_verificacao(engine_de(request), cod_imovel, corpo)
+        return {"cod_imovel": cod_imovel, "registrada": True}
+
+    @r.post("/salvaguardas/revisoes/{revisao_id}/resolver")
+    def resolver(
+        revisao_id: int, corpo: ResolucaoHumana, request: Request, x_revisao_humana: str = Header(default="")
+    ) -> dict:
+        # A credencial do serviço/agente não basta; esta credencial só pertence ao backoffice humano.
+        esperado = os.environ.get("RAIZ_REVISAO_HUMANA_TOKEN", "")
+        if not esperado or not hmac.compare_digest(x_revisao_humana.encode(), esperado.encode()):
+            raise HTTPException(403, "revisão exige autenticação do revisor humano")
+        try:
+            return SG.resolver_revisao(
+                engine_de(request), revisao_id, str(corpo.revisor_id), corpo.decisao, corpo.evidencia
+            )
+        except S.ErroPedido as ex:
+            raise _erro(ex) from ex
 
     @r.post("/interesse/{cod_imovel}")
     def interesse(cod_imovel: str, corpo: Resposta, request: Request) -> dict:

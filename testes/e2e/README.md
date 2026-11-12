@@ -2,14 +2,33 @@
 
 O teste sobe Vite, a API FastAPI real e as migrações reais em PostGIS; carrega
 `dados/amostra` e passa pela interface até a reserva persistida. Confere o link
-de uso único, pedido de **1 milhão de créditos no Pará**, três opções de lote,
-busca de interesse, grupo pronto, Pix local de teste, rejeição do pagamento sem
-token interno e atualização da tela após o pagamento.
+de uso único, abertura da conta paga com CNPJ sintético e três créditos de teste,
+recusa **403** antes do sinal e contrato e redirecionamento **307** do caminho
+antigo para `/v1`. Uma pessoa aceita o contrato, gera sinal e recarga e confirma
+somente os Pix locais de teste. Então o cenário continua com o pedido de
+**1 milhão de créditos no Pará**, já selecionado no formulário, e três opções
+de lote. O botão de contato permanece desabilitado na tela, sem disparar pedido.
+As etapas posteriores de busca de interesse, grupo pronto e Pix da reserva são
+exercitadas pela API do servidor de teste, com atualização da tela após pagamento.
+A assinatura Ed25519 do recibo é verificada com a chave pública da API; também são
+conferidos o QR, o vencimento e a ausência de exclusividade antes do pagamento.
 
 Somente as entradas externas são simuladas: o envio de e-mail entrega o link em
 arquivo temporário privado, as respostas dos donos entram pelo serviço de
-interesse e a confirmação do Pix usa a rota interna de teste. Não há SMTP,
-WhatsApp nem pagamento real. O servidor recusa credenciais da AbacatePay.
+interesse e a confirmação do Pix usa a rota interna de teste. Conta, contrato,
+sinal, recarga, cobrança por chamada e saldo passam pelos serviços reais da API;
+não há liberação direta no banco nem desativação dos limites. O teste confere a
+rejeição da confirmação de pagamento sem o token interno. Não há SMTP, WhatsApp
+nem pagamento real. O servidor recusa credenciais da AbacatePay.
+
+A fixture completa a amostra com polígonos arbitrários e evidências sintéticas de cobertura e verificação
+territorial, registradas pelos serviços de salvaguardas. As validações reais continuam ativas; não se infere ausência
+de sobreposição pela falta de uma camada. Esses polígonos e documentos existem somente no banco descartável do E2E
+e não representam imóveis ou revisões reais. As chaves do cofre e do recibo são efêmeras, geradas ao iniciar o servidor.
+
+As etapas humanas rodam em sequência; se a leitura final da lista atingir o
+limite de 30 chamadas por minuto da empresa, o teste aguarda o `Retry-After`
+antes de repetir. Esse limite permanece ativo durante todo o cenário.
 
 Preparação, a partir da raiz:
 

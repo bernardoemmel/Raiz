@@ -37,6 +37,7 @@ export function Grupo({ id }: { id: string }) {
         setPedido(p)
         setAndamento(a)
         setCobranca(c)
+        setErro(null)
       },
       (e: Error) => setErro(e.message),
     )
@@ -76,7 +77,12 @@ export function Grupo({ id }: { id: string }) {
   if (pedido === undefined || andamento === undefined)
     return (
       <Moldura>
-        <Estado tipo="carregando" titulo="Lendo o grupo" />
+        {erro ? (
+          <Estado tipo="erro" titulo="Não foi possível ler o grupo">
+            <p>{erro.startsWith("429 ") ? "A empresa atingiu o limite de consultas. Aguarde um minuto e tente de novo." : erro}</p>
+            <button type="button" className="botao" onClick={() => { setErro(null); void ler() }}>Tentar de novo</button>
+          </Estado>
+        ) : <Estado tipo="carregando" titulo="Lendo o grupo" />}
       </Moldura>
     )
   if (!pedido)

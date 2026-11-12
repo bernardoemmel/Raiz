@@ -466,6 +466,18 @@ front/compartilhado/pedidos/tipos.ts.
   versão do modelo); o aceite ou a recusa viram gabarito, e a chance por perfil (tamanho, caminho da terra, estado e
   forma de pagamento) é atualizada a cada contato.
 
+## API pública e MCP para os agentes de IA dos clientes (docs/agentes-ia.md)
+
+- API pública em `/v1` (OpenAPI em `/v1/openapi.json`, Swagger em `/v1/docs`) e servidor MCP remoto em `/mcp/`
+  (streamable HTTP, sem estado); local por stdio com `raiz mcp` (RAIZ_API_URL e RAIZ_CHAVE_API).
+- Chave por empresa: `POST /v1/chaves` na sessão do login por e-mail ou `raiz pedidos chave --cliente <id>`; só o hash
+  fica em `negocio.chave_api`; limite por minuto e por dia (429 com Retry-After).
+- Cada chamada fica em `negocio.chamada_api` (empresa, chave, via api/mcp/sessao, ferramenta, pedido, fazenda, status,
+  tempo, versão do modelo e modelo do agente): limite, auditoria (`GET /v1/chamadas`) e aprendizado.
+- Reserva pedida por agente: `negocio.reserva.estado = aguardando_confirmacao`, link de uso único (48 horas) no e-mail
+  da empresa (`/v1/reservas/confirmar/{token}`); sem confirmação, o `raiz pedidos ciclo` cancela (nada foi cobrado).
+- Em produção: `RAIZ_MCP_HOSTS` com os hosts do MCP remoto (liga a proteção contra DNS rebinding).
+
 ## Lote do ProFloresta+ por estado (relatório para o desenvolvedor e folha do dono)
 
 `raiz lote montar PA [--saida pasta/saida] [--destino pasta] [--creditos 1000000] [--cenario central_r11]` lê os

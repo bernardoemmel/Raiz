@@ -5,16 +5,19 @@ uma caixa postal temporária, sem SMTP, e o Pix permanece no modo local de teste
 """
 
 import argparse
+import base64
 import datetime as dt
 import json
 import os
+import secrets
 from pathlib import Path
 
 import uvicorn
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.engine import make_url
 
 from raiz import RAIZ_REPO
+from raiz import salvaguardas as SG
 from raiz.banco import desfazer, migrar
 from raiz.carga import carregar_pasta
 from raiz.pedidos import servico
@@ -43,12 +46,35 @@ def responder_interesses(pedido_id: str) -> None:
         engine.dispose()
 
 
+def evidencias_sinteticas(engine) -> None:
+    """A amostra não tem documentos/limites reais; esta geometria só vale no banco descartável."""
+    hoje = dt.datetime.now(dt.UTC).date()
+    ev = SG.Evidencia(sha256="e" * 64, data=hoje)
+    with engine.begin() as con:
+        # Polígono arbitrário e idêntico para o fixture, nunca publicável como limite cadastral.
+        con.execute(
+            text("""update funil.imovel set geom=ST_Multi(ST_GeomFromText(
+        'POLYGON((-47 -1,-46.99 -1,-46.99 -0.99,-47 -0.99,-47 -1))',4674)) where uf='PA'""")
+        )
+        cods = list(con.execute(text("select cod_imovel from funil.imovel where uf='PA'")).scalars())
+    if not cods:
+        raise RuntimeError("A amostra do E2E precisa de imóveis do Pará")
+    SG.registrar_cobertura(engine, SG.Cobertura(uf="PA", evidencia=ev, valida_ate=hoje))
+    for cod in cods:
+        SG.registrar_verificacao(engine, cod, SG.Verificacao(verificacao=ev, territorio_tradicional=False))
+    # Imóveis da amostra já marcados como tradicionais continuam impedidos sem CLPI;
+    # a reserva valida somente o grupo elegível que o motor de fato selecionou.
+
+
 def servir() -> None:
     if os.environ.get("RAIZ_ABACATEPAY_CHAVE") or os.environ.get("RAIZ_ABACATEPAY_WEBHOOK_SEGREDO"):
         raise RuntimeError("O E2E não aceita credenciais de pagamento")
     url = banco()
     os.environ["RAIZ_CHAVE_PESSOAL"] = gerar_chave()
+    os.environ["RAIZ_RECIBO_CHAVE"] = base64.urlsafe_b64encode(secrets.token_bytes(32)).decode()
     os.environ["RAIZ_API_ORIGENS"] = "http://127.0.0.1:4173"
+    os.environ["RAIZ_FRONT_URL"] = "http://127.0.0.1:4173"
+    os.environ["RAIZ_API_PUBLICA_URL"] = "http://127.0.0.1:8765"
     from raiz.config import config
 
     config.cache_clear()
@@ -56,6 +82,7 @@ def servir() -> None:
     migrar(url)
     engine = create_engine(url)
     carregar_pasta(engine, RAIZ_REPO / "dados" / "amostra", dt.date(2026, 11, 12))
+    evidencias_sinteticas(engine)
 
     pasta = Path(os.environ["RAIZ_E2E_ESTADO"])
     pasta.mkdir(mode=0o700, parents=True, exist_ok=True)
