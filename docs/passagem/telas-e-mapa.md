@@ -58,7 +58,32 @@ Sessão: https://claude.ai/code/session_01VGb88MJumyG9PHt2znaaKE. Branch: `claud
 
 ## O que falta, em ordem
 
-### Entrega 2 da continuação: cobertura diária do mapa
+1. Concluir as cinco entregas solicitadas: cena-alvo, cobertura diária do mapa, ficha visual, celular/acessibilidade
+   com Lighthouse ≥90 nas duas categorias e configuração de domínio próprio. Integrar cada uma com CI verde.
+2. Conferir a chegada do ponteiro `lote_PA_central_r11.json` no Release; a rotina diária já o incorpora quando existir.
+3. E9 passo 3: aguardar as 30 cartas reais anonimizadas e uma avaliação de compreensão, confirmadas como ainda
+   indisponíveis pelo fundador. Depois calibrar o portão e gravar a nota no laudo.
+4. Continuar os itens E9 na ordem do plano: texto por fazenda no kit ONS/campos abertos, condicionais e extenso,
+   KMZ e os demais. A geometria de reserva legal ainda não está nas camadas; não deduzir seu desenho de percentuais.
+
+## Nova entrega 1: cena-alvo ligada ao Release (12/11/2026)
+
+- Contrato conferido no código do chat Lote e números (`4f7c558c`, `raiz/restauracao_rodada.py`): ponteiro
+  `lote_PA_central_r11.json`, com `resumos.barata/segura/compacta`; pacotes por execução ficam no Release.
+- Na conferência desta implementação, o ponteiro ainda não existia. `baixar-lotes.mjs` grava ausência explícita;
+  erro de rede ou formato interrompe a publicação. A data de publicação vem do arquivo remoto, separada da conferência.
+- O build projeta somente agregados conhecidos para `amostra/lote_PA_central_r11.json`, inclusive no servidor de
+  desenvolvimento. Nunca copia os pacotes individuais, CARs ou folhas de contato. O JSON sempre existe no site com dados.
+- Sem API, o site salva os critérios no navegador e mostra o cenário publicado ou sua ausência. Retirado o fluxo
+  de resultados inventados como padrão. O snapshot não finge ter aplicado teto de custo nem outros filtros novos.
+- Comparação e quadro “o que destrava” preservam dados ausentes como desconhecidos. TIR é a do fluxo alavancado do
+  lote, não média das TIRs individuais; P10/P90 de TIR não são fabricados quando só há valor central.
+- Mapa com verde, azul e ocre, e padrões de linha diferentes, permite comparar as três opções. A API acrescenta
+  geometria somente para fichas já desbloqueadas pelo cliente ativo; revalida reserva/exclusividade a cada leitura.
+  O Pages continua agregado. Falta de autorização ou desenho produz aviso, sem abrir detalhes por contorno público.
+- Botão de contato permanece desabilitado nesta fase. As 30 cartas reais ainda não estão disponíveis para E9.
+
+## Nova entrega 2: cobertura diária do mapa (12/11/2026)
 
 - O cron diário existente (10:41 UTC) continua lendo `estados.json` e os pacotes de todas as UFs do Release.
   A geração não tem lista fixa de municípios. O teste incremental usa três rodadas com o mesmo cache: acrescenta
@@ -74,16 +99,6 @@ Sessão: https://claude.ai/code/session_01VGb88MJumyG9PHt2znaaKE. Branch: `claud
   cujo desenho falta recebe o aviso de indisponibilidade. Não confundir restrição de acesso com falta de dado.
 - Validação local: 9 testes de geometria passaram, 133 testes do front passaram (13 pulados), lint e formato
   Python passaram. O Playwright do build verifica cobertura, datas e ausência de vazamento de dados individuais.
-
-### Pendências anteriores
-
-1. Acompanhar os checks e a publicação dos PRs destas duas entregas; merge somente com CI verde.
-2. Configurar a descoberta na raiz de hospedagem quando houver acesso ao site da conta ou domínio próprio,
-   sem presumir que o arquivo em `/Raiz/` equivale a `/robots.txt`.
-3. E9 passo 3: aguardar as 30 cartas reais anonimizadas e uma avaliação de compreensão, confirmadas como ainda
-   indisponíveis pelo fundador. Depois calibrar o portão e gravar a nota no laudo.
-4. Continuar os itens E9 na ordem do plano: texto por fazenda no kit ONS/campos abertos, condicionais e extenso,
-   KMZ e os demais. A geometria de reserva legal ainda não está nas camadas; não deduzir seu desenho de percentuais.
 
 ## Referências conferidas para a segunda entrega
 

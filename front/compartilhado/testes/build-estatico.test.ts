@@ -118,4 +118,29 @@ describe("build estático com geometrias comprimidas", () => {
     expect(json(saida, "amostra/pontos_PA.json").fazendas).toBeNull()
     expect(json(saida, "amostra/estados.json").acesso).toBe("agregado")
   })
+
+  it("publica o aviso de lote ausente como JSON, sem provocar 404 no navegador", async () => {
+    const saida = await construir(0)
+    const lote = json(saida, "amostra/lote_PA_central_r11.json")
+    expect(lote.estado).toBe("ausente")
+    expect(lote.base.creditos.p50).toBeNull()
+    expect(lote.opcoes).toEqual([])
+  })
+
+  it("copia só o resumo dos lotes publicados, sem CAR nem pacotes por fazenda", async () => {
+    const lotes = path.join(repo, "dados/lotes")
+    fs.mkdirSync(lotes, { recursive: true })
+    const resumo = { titulares: 10, reservas: 2, ha_lote: 100, creditos_lote_faixa: { p10: 10, p50: 20, p90: 30 },
+      dados_individuais: [{ cod_imovel: CARS[0], nome_dono: "Dado privado de teste" }] }
+    fs.writeFileSync(path.join(lotes, "lote_PA_central_r11.json"), JSON.stringify({
+      uf: "PA", cenario: "central_r11", resumos: { barata: resumo, segura: resumo, compacta: resumo },
+      arquivos: { privado: { url: "https://exemplo.invalid/individual.tar.gz" } },
+    }))
+    const saida = await construir(0)
+    const lote = json(saida, "amostra/lote_PA_central_r11.json")
+    expect(lote.estado).toBe("publicado")
+    expect(lote.opcoes).toHaveLength(3)
+    expect(lote.opcoes[0].creditos).toEqual({ p10: 10, p50: 20, p90: 30 })
+    expect(JSON.stringify(lote)).not.toMatch(/Dado privado|cod_imovel|individual.tar.gz|nome_dono/)
+  })
 })
