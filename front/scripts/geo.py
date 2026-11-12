@@ -38,6 +38,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 from functools import lru_cache
 from pathlib import Path
+from threading import Lock
 
 import requests
 import shapely
@@ -277,7 +278,8 @@ class Remoto:
 
     def __init__(self, url: str):
         self.url = url
-        self.cache: dict[tuple[int, int], bytes] = {}
+        self.cache: dict[tuple[int, int], list] = {}
+        self.trava = Lock()
         self.header = deserialize_header(self.ler(0, 127))
 
     def ler(self, inicio: int, tamanho: int) -> bytes:
@@ -289,9 +291,11 @@ class Remoto:
     def diretorio(self, inicio: int, tamanho: int):
         # o deserialize_directory do pmtiles já descompacta
         chave = (inicio, tamanho)
-        if chave not in self.cache:
-            self.cache[chave] = self.ler(inicio, tamanho)
-        return deserialize_directory(self.cache[chave])
+        with self.trava:
+            if chave not in self.cache:
+                # Interpretar uma vez: nos estados são milhares de tiles lendo os mesmos diretórios.
+                self.cache[chave] = deserialize_directory(self.ler(inicio, tamanho))
+            return self.cache[chave]
 
     def metadados(self) -> dict:
         h = self.header
@@ -462,8 +466,8 @@ def municipios_brasil() -> None:
                         timeout=900,
                     )
                 except RuntimeError as ex:
-                    print(f"   não veio ({ex}); segue sem {camada}")
-                    break
+                    # Não gravar o começo de uma camada como cache completo: a próxima rodada deve tentar de novo.
+                    raise RuntimeError(f"limites incompletos em {camada}: {ex}") from ex
                 lote = r.json()["features"]
                 fs += lote
                 if len(lote) < 500:
@@ -788,6 +792,25 @@ def exportar_geometria(csv_imoveis: Path, cache: dict) -> tuple[int, int]:
     return len(feicoes), tamanho
 
 
+def conferir_limites(publicados: dict[str, Path], fronteiras: dict, estados: list[dict] | None = None) -> None:
+    """Cache antigo podia ter sido gravado pela metade após uma falha do WFS. Não publicar essa lacuna."""
+    faltantes = set(publicados) - fronteiras.keys()
+    ufs_ausentes = set()
+    if estados is not None:
+        ufs_ausentes = {UF_IBGE[cod[:2]] for cod in publicados} - {f["properties"]["uf"] for f in estados}
+    if not faltantes and not ufs_ausentes:
+        return
+    # Dados gerados, nunca fontes do motor: a rodada seguinte refaz o cache em vez de repetir a lacuna para sempre.
+    for nome in ("brasil_municipios.geojson", "brasil_estados.geojson"):
+        (SAIDA / nome).unlink(missing_ok=True)
+    for _, camada in MUNICIPIOS_BIOMA:
+        (SAIDA / "cache" / f"{camada}.geojson").unlink(missing_ok=True)
+    raise RuntimeError(
+        f"limites nacionais incompletos: municípios {sorted(faltantes)}, UFs {sorted(ufs_ausentes)}; "
+        "cache parcial invalidado para nova tentativa"
+    )
+
+
 def do_release(dados: Path, sem_base: bool = False) -> None:
     """Gera o desenho de todo município publicado, sem repetir o download do CAR feito pelo motor."""
     SAIDA.mkdir(parents=True, exist_ok=True)
@@ -817,6 +840,8 @@ def do_release(dados: Path, sem_base: bool = False) -> None:
         str(f["properties"]["cod_ibge"]): f
         for f in json.loads((SAIDA / "brasil_municipios.geojson").read_text())["features"]
     }
+    estados = json.loads((SAIDA / "brasil_estados.geojson").read_text())["features"]
+    conferir_limites(publicados, fronteiras, estados if not sem_base else None)
     for cod in publicados:
         if cod in fronteiras and not (SAIDA / f"municipio_{cod}.geojson").exists():
             salvar(f"municipio_{cod}.geojson", [fronteiras[cod]])
@@ -824,7 +849,6 @@ def do_release(dados: Path, sem_base: bool = False) -> None:
         fontes()
         dia = None  # só procura um build remoto se alguma base ainda não estiver no cache
         base_brasil(dia)
-        estados = json.loads((SAIDA / "brasil_estados.geojson").read_text())["features"]
         ufs = {UF_IBGE[cod[:2]] for cod in publicados}
         for f in estados:
             uf = f["properties"]["uf"]
