@@ -94,6 +94,7 @@ def test_evento_de_perda_com_prazos_relatorio_kml_e_aviso(regras, lista_projetos
     assert [x.split(":")[0] for x in t] == ["Fonte", "Fato", "Fazenda", "Prazo", "O que fazer"]
     assert avs[0]["estado"] == "aguardando_aprovacao" and avs[0]["cliente"] == "C-0001"
     assert "PTESTE_LE1" in t[1] and "05/12/2026" in t[3]
+    assert avs[0]["legibilidade"]["versao"].startswith("legibilidade-")  # a nota vai junto para quem aprova
 
 
 def test_numero_fixo_descarte_eventos_e_lembrete(regras, lista_projetos, cfg):

@@ -182,6 +182,89 @@ def _bloco_preco(res: dict) -> str:
     return "".join(corpo)
 
 
+def _bloco_faixa(res: dict) -> str:
+    """Faixa do lote lado a lado (soma e carteira), os campos da Portaria MME 102/2016 e as parcelas de campo."""
+    fl, mm, pc = res.get("faixa"), res.get("mme102"), res.get("parcelas") or {}
+    if not fl:
+        return ""
+    corpo = ['<h2>Faixa do lote (Portaria MME 102/2016)</h2><table><tr><th>Créditos até o ano 25</th>'
+             '<th class="n">P10</th><th class="n">P50</th><th class="n">P90</th></tr>']  # fmt: skip
+    for nome, x in (
+        ("Soma das fazendas (todas errando juntas)", fl["soma"]),
+        (f"Carteira ({_n(100 * fl['fracao_comum'])}% do erro comum às fazendas)", fl["carteira"]),
+    ):
+        corpo.append(
+            f'<tr><td>{_e(nome)}</td><td class="n">{_n(x["p10"])}</td><td class="n">{_n(x["p50"])}</td>'
+            f'<td class="n">{_n(x["p90"])}</td></tr>'
+        )
+    corpo.append("</table>")
+    corpo.append(
+        f"<p>P50: {_n(mm['p50'])} créditos. P90 de excedência (o que o lote passa com 90% de chance): "
+        f"{_n(mm['p90_excedencia'])} na carteira e {_n(mm['p90_excedencia_soma'])} na soma. Incerteza padrão: "
+        f"{_n(mm['incerteza_padrao'])} créditos ({_n(mm['incerteza_padrao_pct'], 1)}% do P50). Revisor "
+        "independente: pendente. A reserva do lote é dimensionada pela soma, a mais prudente.</p>"
+    )
+    if pc.get("total"):
+        estratos = ", ".join(f"{_n(v)} em {NOMES_MODO.get(k, k)}" for k, v in pc["por_metodo"].items())
+        corpo.append(
+            f"<p>Parcelas de campo para medir o lote: {_n(pc['total'])} ({estratos}), de "
+            f"{_n(pc['area_parcela_ha'], 1)} ha cada, para {_n(100 * pc['confianca'])}% de confiança e "
+            f"{_n(100 * pc['erro_admissivel'])}% de erro (AR-TOOL03 do MDL, mínimo de 30 no lote).</p>"
+        )
+    return "".join(corpo)
+
+
+def tornado_svg(sens: list[dict], largura: int = 640) -> str:
+    """Barras horizontais da TIR do lote com cada entrada no P10 e no P90 (as outras no P50)."""
+    linhas = [x for x in sens if x.get("tir_baixo") is not None and x.get("tir_alto") is not None]
+    if not linhas:
+        return ""
+    base = linhas[0]["tir_base"] or 0.0
+    vals = [v for x in linhas for v in (x["tir_baixo"], x["tir_alto"])] + [base]
+    lo, hi = min(vals) - 1, max(vals) + 1
+    x0, w, h = 230, largura - 250, 26
+    altura = h * len(linhas) + 24
+
+    def X(v):
+        return x0 + w * (v - lo) / (hi - lo)
+
+    partes = [f'<svg viewBox="0 0 {largura} {altura}" width="100%" role="img" aria-label="TIR do lote com cada '
+              'entrada no P10 e no P90">']  # fmt: skip
+    for i, x in enumerate(linhas):
+        y = 6 + i * h
+        a, b = sorted((x["tir_baixo"], x["tir_alto"]))
+        partes.append(f'<text x="{x0 - 8}" y="{y + 14}" font-size="10" text-anchor="end" fill="#15231B">'
+                      f'{_e(x["nome"])}</text><rect x="{X(a):.1f}" y="{y + 3}" width="{max(X(b) - X(a), 1):.1f}" '
+                      f'height="{h - 10}" fill="#1D6B44" fill-opacity="0.35"/><text x="{X(a) - 4:.1f}" y="{y + 14}" '
+                      f'font-size="9" text-anchor="end" fill="#555D56">{_n(a, 1)}%</text><text x="{X(b) + 4:.1f}" '
+                      f'y="{y + 14}" font-size="9" fill="#555D56">{_n(b, 1)}%</text>')  # fmt: skip
+    partes.append(f'<line x1="{X(base):.1f}" x2="{X(base):.1f}" y1="2" y2="{altura - 18}" stroke="#15231B" '
+                  f'stroke-width="1.5"/><text x="{X(base):.1f}" y="{altura - 4}" font-size="9" text-anchor="middle" '
+                  f'fill="#555D56">TIR no P50: {_n(base, 1)}%</text></svg>')  # fmt: skip
+    return "".join(partes)
+
+
+def _bloco_sensibilidade(res: dict) -> str:
+    sens = res.get("sensibilidade") or []
+    if not sens:
+        return ""
+    corpo = ["<h2>O que mais mexe na TIR do lote</h2>", tornado_svg(sens),
+             '<table><tr><th>Entrada</th><th class="n">P10</th><th class="n">P90</th><th class="n">TIR no P10</th>'
+             '<th class="n">TIR no P90</th></tr>']  # fmt: skip
+    for x in sens:
+
+        def v(z):
+            return _e(z.upper()) if isinstance(z, str) else _n(z, 2)
+
+        corpo.append(
+            f'<tr><td>{_e(x["nome"])}</td><td class="n">{v(x["baixo"])}</td><td class="n">{v(x["alto"])}'
+            f'</td><td class="n">{_pct(x["tir_baixo"])}</td><td class="n">{_pct(x["tir_alto"])}</td></tr>'
+        )
+    corpo.append('</table><p class="pequeno">TIR com Fundo Clima do lote inteiro, refeita fazenda a fazenda com cada '
+                 "entrada no P10 e no P90 e as outras no P50.</p>")  # fmt: skip
+    return "".join(corpo)
+
+
 def _bloco_destrava(res: dict) -> str:
     """Quadro "o que destrava o lote" (item 2b): regeneração em posse em titulação e assentamento e o cenário com a
     terra destravada."""
@@ -342,6 +425,7 @@ def relatorio_lote(lote: dict, c: dict | None = None, r: dict | None = None) -> 
                      f'{cron["chance_rescisao"]:.0%}.</p>')  # fmt: skip
     corpo.append(_bloco_preco(res))
     corpo.append("</div>")
+    corpo.append(f'<div class="pagina">{_bloco_faixa(res)}{_bloco_sensibilidade(res)}</div>')
     corpo.append(f'<div class="pagina">{_bloco_destrava(res)}{_bloco_certidoes(res)}</div>')
     corpo.append('<div class="pagina"><h2>Checklist do edital</h2><table><tr><th>Bloco</th><th>Item</th><th>Gravidade'
                  "</th><th>Situação</th><th>Detalhe</th></tr>")  # fmt: skip
