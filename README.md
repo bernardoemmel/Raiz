@@ -38,6 +38,11 @@ Os dados completos não ficam no repositório (são grandes); o motor gera de no
 | `raiz/aprendizado/` | previsões congeladas (data de corte, horizonte, versões, hash do lote) e previsão contra gabarito |
 | `raiz/privacidade.py` | máscara de CPF/CNPJ (inclusive alfanumérico), log mascarado, varredura do repositório |
 | `raiz/licencas.py` | derruba o build se alguma dependência tiver licença proibida pelo CLAUDE.md |
+| `raiz/coleta/` | E1: manifesto de camadas, checagem HEAD, WFS e ArcGIS com conferência de contagem, CAR e SIGEF incrementais no espelho Parquet por município, histórico scd2 no PostGIS, Ibama sem dado pessoal, MapBiomas pela API da Plataforma, índice de blocos de COG |
+| `raiz/funil/` | roda o motor sem editá-lo, lendo CAR e SIGEF do espelho (ponte), com lotes vigiados |
+| `raiz/modelos/` | Claude (Sonnet 5.5, Haiku 5.5) e Qwen3-4B no llama.cpp atrás de uma interface; cascata ABC; custo e Langfuse |
+| `raiz/agentes/`, `raiz/whatsapp.py`, `raiz/api.py` | aceite do dono no WhatsApp (PyWa 4, BSUID), LangGraph com conversa cifrada, mensagens só com aprovação |
+| `raiz/operacao/` | Healthchecks por lote, custo por tarefa, fazenda e município |
 | `migracoes/` | esquemas `coleta`, `bruto`, `funil`, `regras`, `titulo`, `negocio`, `aprendizado`, `pessoal`, `operacao` |
 
 **Pedidos do dia 1 (`docs/pedidos/`)**: convênio com o ONR e pedidos de LAI ao SFB e ao INCRA, prontos para enviar.
@@ -50,6 +55,8 @@ docker compose --env-file .env -f infra/docker-compose.yml up -d   # PostGIS (ou
 uv run raiz banco migrar
 uv run raiz carregar dados/amostra --data-corte 2026-11-12   # carrega e congela as previsões do motor
 uv run raiz aprendizado placar
+uv run raiz coleta fontes                              # o que olhar hoje e o que está pendente no manifesto
+uv run raiz api                                        # aceites, mensagens a aprovar, revisões, webhook do WhatsApp
 uv run pytest                                          # com RAIZ_BANCO_URL_TESTE no .env, testa também o banco
 ```
 

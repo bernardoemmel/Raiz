@@ -259,6 +259,63 @@ def coleta_car(
         sys.exit(1)
 
 
+@coleta.command("ibama")
+def coleta_ibama() -> None:
+    """Embargos do Ibama: pedido condicional, sem dado pessoal, espelho por município e CSV limpo para o motor."""
+    from raiz import MOTOR_DIR
+    from raiz.banco import engine
+    from raiz.coleta.espelho import Espelho
+    from raiz.coleta.http import sessao
+    from raiz.coleta.ibama import coletar
+    from raiz.funil.ponte import espelho_padrao
+
+    with engine().begin() as con:
+        r = coletar(sessao(), con, Espelho(espelho_padrao()), MOTOR_DIR / "cache")
+    typer.echo(
+        f"{r.acao}: {r.linhas} termos, {len(r.municipios)} municípios mudaram; "
+        f"colunas pessoais removidas: {', '.join(r.removidas) or 'nenhuma'}"
+    )
+
+
+@coleta.command("mapbiomas")
+def coleta_mapbiomas(
+    municipio: Annotated[str, typer.Argument(help="nome do município como na Plataforma")],
+    uf: str,
+    cod_ibge: int,
+    subtema: Annotated[
+        str, typer.Option(help="chave do manifesto (cobertura, fogo_mensal...) ou subthemeKey")
+    ] = "cobertura",
+    anos: Annotated[str, typer.Option(help="separados por vírgula")] = "2023,2024",
+) -> None:
+    """Exporta um subtema do MapBiomas pela API da Plataforma para o espelho (sem Earth Engine)."""
+    from raiz.coleta import mapbiomas as MB
+    from raiz.coleta.http import sessao
+    from raiz.coleta.manifesto import carregar
+    from raiz.funil.ponte import espelho_padrao
+
+    chaves = carregar().fonte(MB.FONTE).model_extra["subtemas"]
+    chave = chaves.get(subtema, subtema)
+    s = sessao()
+    tid = MB.territorio_municipio(s, municipio, uf, cod_ibge)
+    zipb = MB.exportar(s, tid, chave, [int(a) for a in anos.split(",")])
+    tifs = MB.extrair_tifs(zipb, espelho_padrao() / "mapbiomas" / uf.upper() / str(cod_ibge) / subtema)
+    for t in tifs:
+        typer.echo(str(t))
+
+
+@coleta.command("indice")
+def coleta_indice(endereco: str, destino: str) -> None:
+    """Índice de blocos de um GeoTIFF na nuvem (só o cabeçalho é lido) gravado em Parquet."""
+    from pathlib import Path
+
+    from raiz.coleta import blocos
+
+    origem = blocos.ArquivoRemoto(endereco) if endereco.startswith("http") else endereco
+    ind = blocos.indice(origem, Path(endereco).name)
+    blocos.salvar_indice(ind, Path(destino))
+    typer.echo(f"{len(ind)} blocos, {ind.nivel.nunique()} níveis, {ind.bytes.sum() / 1e9:.2f} GB -> {destino}")
+
+
 @banco.command("migrar")
 def banco_migrar(alvo: str = "head") -> None:
     """Aplica as migrações (Alembic) no banco de RAIZ_BANCO_URL."""

@@ -31,10 +31,26 @@ O comando não edita o motor. Ele lê CAR e SIGEF do espelho local da coleta (`d
 lote. Falha num município não para os outros; arquivo pronto é pulado (use `--refazer` para refazer). A carga grava
 a rodada com a versão do motor confirmada e congela as previsões.
 
+## Coleta (E1)
+
+Sugestão de cron no servidor (horário de Brasília); cada comando avisa o Healthchecks:
+
+```
+10 5 * * *  uv run raiz coleta checar     # HEAD nos arquivos do manifesto (sumiu? mudou?)
+20 5 * * *  uv run raiz coleta ibama      # embargos: condicional, sem dado pessoal, CSV limpo para o motor
+40 5 * * *  uv run raiz coleta car        # UFs do rodízio do dia; SIGEF dos municípios que mudaram
+```
+
+A fila baixa até 200 municípios por rodada; se mais de 15% estiver sujo, roda tudo (disjuntor), e uma vez por mês faz
+a reconciliação completa. O espelho fica em `dados/espelho/` (ou `RAIZ_ESPELHO_DIR`), um Parquet por município, e é o
+que o `raiz funil rodar` entrega ao motor. O histórico fica em `bruto.car_imovel`, `bruto.sigef_parcela` e nas views
+`*_vigente`.
+
 ## Onde olhar
 
 | O quê | Onde |
 |---|---|
+| O que mudou na coleta | `coleta.evento` (novos, mudaram, sumiram por município) e `coleta.replicacao` |
 | Lote parado ou com falha | Healthchecks (alerta) e `operacao.lote` (estado, duração, fim do log) |
 | Custo de modelo por tarefa e por fazenda | Langfuse (sessão = código do CAR) e `operacao.chamada_modelo` |
 | Decisões da cascata ABC | `operacao.decisao_cascata` |

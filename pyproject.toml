@@ -33,6 +33,7 @@ dependencies = [
     "dlt[duckdb,postgres]>=1.10",
     "duckdb>=1.4",
     "requests-cache>=1.2",
+    "tifffile>=2024.1",
 ]
 
 [project.optional-dependencies]
