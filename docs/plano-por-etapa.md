@@ -276,7 +276,9 @@ A entrada do produtor já entrega o formulário em HTML e carrega a ficha apenas
 CI verifica axe WCAG 2.1 A/AA, busca e gaveta pelo teclado, novo pedido com filtros, comparação pública,
 lotes autorizados, ficha desbloqueada e prospecção. A contagem do mapa vem de um índice leve, antes de carregar os contornos.
 Lighthouse mobile a 360 px conserva rede/CPU simuladas: três execuções fixas por página (Brasil, entrar, novo pedido, prospecção e produtor),
-mediana de desempenho >= 90 e acessibilidade >= 90 em todas. Relatórios completos e capturas ficam nos artefatos.
+mediana de desempenho >= 90 e acessibilidade >= 90 em todas. A série integrada teve medianas 100/96/98/98/100
+e acessibilidade 100 nas quinze medidas; 175 testes do front, Pages, cena-alvo e ficha/prospecção passaram.
+Relatórios completos (incluindo outliers), axe e capturas ficam nos artefatos.
 As verificações automatizadas não substituem avaliação humana de todos os critérios WCAG; a calibração E9 de
 compreensão com 30 cartas reais continua pendente e nenhum contato com dono é disparado por estes testes.
 
