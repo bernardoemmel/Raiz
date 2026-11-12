@@ -39,6 +39,7 @@ As rotas já estão no back-end (`raiz/api.py`), com o mesmo token das outras (`
 
 ```python
 from raiz.vigilancia import api as vigilancia_api
+
 app.include_router(vigilancia_api.roteador(), dependencies=seguro)
 ```
 
