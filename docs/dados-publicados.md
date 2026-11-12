@@ -154,3 +154,22 @@ Inventário local inicial em 12/11/2026: um Release publicado (`dados`, ID 44282
 Foram encontrados 3.249 membros de camadas pagas, 365 CSV completos do motor, 365 arquivos de geometria básica,
 9 resumos e 23 arquivos de controle ou formatos sem allowlist. Esses números descrevem a leitura daquele instante;
 novas rodadas podem trocar assets. O inventário e os hashes atualizados ficam fora do git, em `/tmp/raiz-migracao/`.
+
+### Resultado dos artifacts e caches
+
+O [Actions 43289212685](https://github.com/bernardoemmel/Raiz/actions/runs/43289212685)
+concluiu a preservação e remoção de 18 artifacts (2.052.697.385 bytes). A consulta
+posterior confirmou zero artifacts dessas famílias. Provas autenticadas no draft:
+`artifacts-inventario-43289212685.json`, `artifacts-backup-43289212685.json` e
+`artifacts-remocao-43289212685.json`. Evidências de testes foram mantidas.
+
+Depois dessa preservação, 33 caches descartáveis antigos de `motor-uf`,
+`motor-comum`, `lote-pa` e `geo` foram removidos (2.798.752.814 bytes). Os caches
+de dependências permanecem; novos caches de dados completos usam o destino privado.
+A publicação do site também foi pausada durante a limpeza para manter o inventário
+estável, sem retirar do ar o site já publicado.
+
+A leitura real do manifesto completo pelo `ArmazemRelease` privado foi conferida
+com token de ambiente: 12 UFs e controles de retomada presentes. O site e o
+publicador rejeitam snapshots antigos de lotes: as telas de comparação permanecem,
+mas medidas detalhadas vêm da API autenticada.

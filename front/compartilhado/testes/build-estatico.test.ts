@@ -153,7 +153,7 @@ describe("build estático com geometrias comprimidas", () => {
     expect(lote.opcoes).toEqual([])
   })
 
-  it("copia só o resumo dos lotes publicados, sem CAR nem pacotes por fazenda", async () => {
+  it("ignora completamente snapshots financeiros de lotes presentes na pasta local", async () => {
     const lotes = path.join(repo, "dados/lotes")
     fs.mkdirSync(lotes, { recursive: true })
     const resumo = { titulares: 10, reservas: 2, ha_lote: 100, creditos_lote_faixa: { p10: 10, p50: 20, p90: 30 },
@@ -162,11 +162,13 @@ describe("build estático com geometrias comprimidas", () => {
       uf: "PA", cenario: "central_r11", resumos: { barata: resumo, segura: resumo, compacta: resumo },
       arquivos: { privado: { url: "https://exemplo.invalid/individual.tar.gz" } },
     }))
+    const lidos = vi.spyOn(fs, "readFileSync")
     const saida = await construir(0)
+    expect(lidos.mock.calls.some(([arquivo]) => String(arquivo) === path.join(lotes, "lote_PA_central_r11.json"))).toBe(false)
     const lote = json(saida, "amostra/lote_PA_central_r11.json")
-    expect(lote.estado).toBe("publicado")
-    expect(lote.opcoes).toHaveLength(3)
-    expect(lote.opcoes[0].creditos).toEqual({ p10: 10, p50: 20, p90: 30 })
+    expect(lote.estado).toBe("ausente")
+    expect(lote.opcoes).toEqual([])
+    expect(lote.base.creditos).toEqual({ p10: null, p50: null, p90: null })
     expect(JSON.stringify(lote)).not.toMatch(/Dado privado|cod_imovel|individual.tar.gz|nome_dono/)
   })
 })

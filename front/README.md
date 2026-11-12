@@ -76,13 +76,14 @@ O painel abre em `http://localhost:5173/` e a ficha do produtor em `http://local
   no mapa. "Fazendas" no menu abre a busca nacional e a entrada direta por CAR. A busca do topo mantém a navegação
   por município, inclusive em estado ainda não processado.
 
-- **Pedidos** (`#/pedidos`): sem API, consultas locais ao cenário real publicado no Release, sem login simulado.
+- **Pedidos** (`#/pedidos`): sem API, critérios locais e cobertura agregada por município/UF, sem login simulado.
   "Novo pedido" parte de um milhão de créditos no Pará e permite um teto de custo. A comparação informa
-  P10/P50/P90, TIR, hectares, fazendas, pendências e o que destrava. Com API, os pedidos usam a sessão do cliente.
+  P10/P50/P90, TIR, hectares, fazendas, pendências e o que destrava somente quando a API autenticada retorna
+  o pedido autorizado. O site aberto não lê cenários financeiros do Release.
   Contato com donos fica para a fase final; nenhum botão desta cena inicia contato agora.
 
 Testes: `cd front/globo && npm test` valida dados e contratos. `npm run test:pages` abre o build estático com
-busca, overzoom e zero 404; `npm run test:cena` verifica Release ausente/presente, três lotes autorizados em cores
+busca, overzoom e zero 404; `npm run test:cena` verifica cobertura pública, rejeição de snapshot financeiro legado e três lotes autorizados em cores
 com pixels reais, teclado e 360 px. As fixtures são isoladas, nunca publicadas como resultados reais.
 `npm run test:e2e` executa a entrada e essa mesma cena. O script antigo `testar-pedido.mjs`, com ondas e Pix
 simulados, permanece como referência da fase posterior e não integra a validação atual.
@@ -179,12 +180,13 @@ O contrato com o back-end está em `compartilhado/pedidos/tipos.ts` (rotas no co
 trocar), `POST /pedidos/{id}/solicitar-interesse`, `GET /pedidos/{id}/andamento`, `POST /pedidos/{id}/reservar` e
 `GET /pedidos/{id}/reserva`, com o token da sessão no cabeçalho. Com `VITE_RAIZ_API`, as telas falam com essas rotas.
 
-Sem API, `scripts/baixar-lotes.mjs` lê o ponteiro `lote_PA_central_r11.json` do Release `dados`, publicado
-pelo fluxo `restauracao_rodada`. `RAIZ_LOTES` escolhe a pasta de entrada (padrão `dados/lotes`, ignorada pelo git).
-O plugin de build projeta somente agregados para `amostra/lote_PA_central_r11.json`: não copia CARs, matrículas,
-folhas de contato ou os pacotes individuais. Ausência de publicação gera aviso com a cobertura territorial real;
-falhas de rede/formato interrompem a publicação. O cenário é uma referência: mudar teto de custo ou outro filtro
-exige recálculo pela API. Dado desconhecido permanece desconhecido, inclusive nos totais suprimidos.
+Sem API, o front salva apenas os critérios no navegador e mostra a cobertura agregada por estado e município.
+O build ignora qualquer `lote_PA_central_r11.json` financeiro encontrado em `RAIZ_LOTES` ou `dados/lotes`;
+publica somente um marcador de acesso privado para clientes estáticos antigos. O navegador também ignora caches
+legados, sem baixar o ponteiro do Release. `scripts/baixar-lotes.mjs` permanece como compatibilidade: não usa
+rede e sobrescreve um arquivo antigo com o marcador privado. O workflow do site não executa esse downloader.
+A comparação real, os ganhos por pendência e os desenhos dos lotes vêm exclusivamente da API autenticada.
+O cenário sintético do teste de navegador é interceptado somente pelo Playwright e nunca entra no build público.
 
 As três opções têm cores e traços diferentes. Na API, a geometria vem junto do item apenas quando a ficha já foi
 desbloqueada pelo mesmo cliente ativo; a autorização e a exclusividade são revalidadas a cada leitura. Consultar

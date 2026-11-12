@@ -27,13 +27,17 @@ imutáveis ficam privados. Arquivos, contratos, comandos e resultado operacional
 estão em [dados-publicados.md](../dados-publicados.md).
 
 Migração do Release concluída no Actions 43288984765: 40 originais preservados,
-39 canônicos privados e 22 assets básicos públicos (181.847.053 bytes). Prova
+39 canônicos privados e 22 assets básicos públicos (181.847.053 bytes).
+O Actions 43289212685 preservou e retirou mais 18 artifacts, e 33 caches de dados
+antigos foram descartados. Caches de dependências e evidências de testes ficaram.
+A leitura autenticada real confirmou o manifesto completo com 12 UFs. Prova
 privada `corte-f53e946687c4f244-concluido-d25320df8bcce9a9.json`.
 
 Durante o corte, os workflows antigos de motor, lote do Pará, publicação de dados
 e vigilância foram pausados: uma execução com checkout antigo poderia republicar
 conteúdo completo. Retomar somente depois do CI e da integração do publicador
-protegido, usando os checkpoints preservados. CI e testes não foram interrompidos.
+protegido, usando os checkpoints preservados. CI e testes não foram interrompidos. O workflow do site também foi pausado
+para manter o inventário de artifacts estável; o site já publicado permaneceu no ar.
 
 ## Preços e operação
 
@@ -94,6 +98,14 @@ faixa escolhida, sem entregar a medida exata; não fazem cobrança adicional.
 CAR combinado com filtro avançado exige código completo já liberado. A mesma
 habilitação vale ao salvar e ao reavaliar buscas; saldo arbitrário ou Pix de teste
 não habilitam filtros pagos.
+
+A integração das telas de lote da main preserva os comparadores e mapas, mas
+rejeita qualquer snapshot financeiro antigo no build público. No retorno de
+pedidos, valores por CAR também exigem liberação da própria conta; `ficha_liberada`
+distingue bloqueio de ausência, e a projeção remove campos inesperados. Totais,
+interesse, reservas e cálculo persistido foram preservados, sem cobrança nova.
+A integração passou em 179 testes do front, build, Pages, prospecção, cena-alvo e
+Lighthouse; 11 testes de pedidos com PostGIS passaram.
 
 ## Função compartilhada para API e MCP
 

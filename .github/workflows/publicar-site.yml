@@ -42,9 +42,6 @@ jobs:
       - name: Pacotes públicos mínimos e polígonos (manifesto publico_basico v1)
         run: node front/scripts/baixar-dados.mjs --geo --exigir
 
-      - name: Conferir os três lotes publicados do Pará
-        run: node front/scripts/baixar-lotes.mjs
-
       - name: Geometrias do mapa (do cache)
         uses: actions/cache/restore@v4
         with:

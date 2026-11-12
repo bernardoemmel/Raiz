@@ -45,8 +45,8 @@ export function dadosRaiz(opcoes: { repo: string; raizDados?: string | null; cac
   const geo = path.resolve(opcoes.repo, process.env.RAIZ_GEO || "front/geo")
   const lotes = path.resolve(opcoes.repo, process.env.RAIZ_LOTES || "dados/lotes")
   function lotePublicado() {
-    const arquivo = path.join(lotes, "lote_PA_central_r11.json")
-    return projetarPublicacaoLote(fs.existsSync(arquivo) ? JSON.parse(fs.readFileSync(arquivo, "utf8")) : null)
+    // Marcador de compatibilidade: nunca ler ou projetar lotes financeiros reais para o site aberto.
+    return projetarPublicacaoLote(null)
   }
   const pasta = abrirPasta({
     repo: opcoes.repo,
