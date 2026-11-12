@@ -9,6 +9,9 @@ a revalidação dos desenhos: só aparecem contornos desbloqueados pela empresa,
 e nunca os reservados por outra empresa. O E2E combina a conta paga com a
 nova cena do lote, mantendo a fase de interesse/reserva isolada no teste.
 O recálculo do Pará pertence ao chat Lote e números; não será executado aqui.
+Validação da integração: 89 testes de API, banco, autorização dos contornos e
+Calendário passaram em banco vazio; 167 testes do front passaram. Ruff,
+formatação, privacidade e licenças de 652 pacotes passaram.
 
 Integração mais recente: main `78e13f7` (qualidade e segurança). Mantém o login
 com URL pública configurada, aliases 307 para a política paga, sanitização

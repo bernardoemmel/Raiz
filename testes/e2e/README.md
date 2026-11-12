@@ -19,7 +19,7 @@ não há liberação direta no banco nem desativação dos limites. O teste conf
 rejeição da confirmação de pagamento sem o token interno. Não há SMTP, WhatsApp
 nem pagamento real. O servidor recusa credenciais da AbacatePay.
 
-As etapas humanas rodam em sequência; se a leitura final da lista atingir o
+As etapas humanas rodam em sequência; se a releitura do grupo ou da lista atingir o
 limite de 30 chamadas por minuto da empresa, o teste aguarda o `Retry-After`
 antes de repetir. Esse limite permanece ativo durante todo o cenário.
 
