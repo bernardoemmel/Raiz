@@ -8,8 +8,8 @@ Uso:
 Fontes (sem chave):
   YbYrá-BR v8.1 (Source Cooperative): idade e incremento da vegetação secundária, 2024
   Global Pasture Watch (OpenGeoHub): altura da vegetação baixa e uGPP (produtividade do pasto), 2024
-  MapBiomas cobertura e Fogo: o bucket público responde 403 (acesso anônimo fechado em 12/11/2026),
-  então seguem no Earth Engine.
+  MapBiomas cobertura, desmatamento e fogo: o bucket público responde 403 (fechado em 12/11/2026); vêm da API da
+  Plataforma MapBiomas (raiz_mapbiomas.py), também sem Earth Engine.
 Saída:
   saida/<UF>/direto_<mun>.csv   cod_imovel, sec_area_ha, sec_idade_media (só onde há vegetação secundária),
                                 sec_nova_ha (rebrotou em 2024), gpw_altura_m, gpw_ugpp

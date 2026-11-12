@@ -14,7 +14,8 @@ e comparada com o resultado real.
 |---|---|
 | `raiz_estado.py` | funil principal: CAR (SICAR), embargos (Ibama), PRODES, TI, UC e hidrografia (TerraBrasilis), SIGEF (INCRA), MapBiomas, MapBiomas Alerta; reserva legal, APP (escadinha), frentes e carbono |
 | `raiz_filtros.py` | quilombos (INCRA), terras indígenas da FUNAI em todas as fases, unidades de conservação do CNUC por grupo |
-| `raiz_extras.py` | camadas exportadas do Earth Engine (`motor/gee/`): vegetação secundária, fogo, pasto, lavoura, TMF, causa da perda |
+| `raiz_extras.py` | histórico exportado uma vez do Earth Engine (`motor/gee/`, não precisa rodar de novo): perdas da secundária e anos de fogo até 2024 |
+| `raiz_extras_direto.py` | JRC TMF 2025 (Source Cooperative) e causas da perda de floresta (Zenodo), sem Earth Engine |
 | `raiz_direto.py` | YbYrá e Global Pasture Watch lidos direto dos arquivos públicos, sem Earth Engine |
 | `raiz_mapbiomas.py` | MapBiomas (cobertura, desmatamento, fogo, pasto) pela API da Plataforma, sem login e sem Earth Engine |
 | `raiz_app.py` | aplica a escadinha da APP a municípios rodados antes dela |
