@@ -123,6 +123,22 @@ export interface Marco {
   chance: number
 }
 
+/** Fazendas da opção que o preço do pedido não paga (preço de equilíbrio acima dele): o plantio abaixo do equilíbrio */
+export interface AbaixoEquilibrio {
+  preco_usd: number
+  fazendas: number
+  creditos: number
+  /** parte dos créditos da opção (0 a 1) */
+  fracao: number
+  preco_equilibrio_medio_usd: number | null
+  metodos: Partial<Record<Metodo, number>>
+  /** créditos da base que o preço paga */
+  base_que_se_paga: number
+  /** a meta só fecha com elas */
+  so_fecha_com_elas: boolean
+  aviso: string | null
+}
+
 export interface Opcao {
   id: IdOpcao
   creditos: Faixa
@@ -140,6 +156,8 @@ export interface Opcao {
   itens: FazendaDoLote[]
   alcanca_meta: boolean
   falta: number
+  /** o otimizador põe a regeneração antes do plantio que o preço não paga e avisa quando só fecha com ele */
+  abaixo_equilibrio?: AbaixoEquilibrio
 }
 
 export type StatusPedido =

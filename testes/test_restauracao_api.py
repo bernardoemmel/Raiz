@@ -84,7 +84,8 @@ def test_ficha_tem_o_bloco_para_quem_restaura(cliente):
     assert b["versao"] == R.versao() and b["cenario"]["cenario"] == "central_r11"
     assert [d["id"] for d in b["descontos"]] == ["linha_base", "vazamento", "reserva_risco", "incerteza"]
     assert b["marcos"]["lista"] and b["pagamento_dono"]["comparacao"][0]["atual"]
-    assert "explicacao" in b["linha_base"] and b["faltou"]  # sem geo na amostra: diz o que faltou
+    # a amostra traz as entradas já medidas (distância à mata, YbYrá, relevo, chuva, solo, acesso): nada faltou
+    assert "explicacao" in b["linha_base"] and b["faltou"] == []
     # FLAG e crédito continuam separados; o bloco novo não soma com a meta FLAG
     assert "flag" in f and "nao_somar" in f["flag"]
 
@@ -158,9 +159,9 @@ def test_previsao_congelada_real_do_cliente_e_recalibracao(cliente, tmp_path):
     fator = r["fatores"]["custo"][alvo["modo_restauracao"]]["fator"]
     assert fator == pytest.approx(1 + 0.5 * 1 / 6, rel=1e-3)  # 1 caso: anda 1/6 do caminho
     assert arq.exists()
-    v_antes = R.regra(R.ARQ_REGRA, R.ARQ_CENARIOS, tmp_path / "nada.yaml")["versao_completa"]
-    calibrada = R.regra(R.ARQ_REGRA, R.ARQ_CENARIOS, arq)
+    v_antes = R.regra(R.ARQ_REGRA, tmp_path / "nada.yaml")["versao_completa"]
+    calibrada = R.regra(R.ARQ_REGRA, arq)
     assert calibrada["versao_completa"] != v_antes
     li = {**alvo}
-    p50_antes = R.custo(li, r=R.regra(R.ARQ_REGRA, R.ARQ_CENARIOS, tmp_path / "nada.yaml"))["p50"]
+    p50_antes = R.custo(li, r=R.regra(R.ARQ_REGRA, tmp_path / "nada.yaml"))["p50"]
     assert R.custo(li, r=calibrada)["p50"] > p50_antes
