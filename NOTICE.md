@@ -270,3 +270,17 @@ Gitleaks 8.24.3 (MIT, https://github.com/gitleaks/gitleaks) e actionlint 1.7.7
 (MIT, https://github.com/rhysd/actionlint) verificam o repositório no CI. Playwright 1.65.0
 (Apache-2.0, https://github.com/microsoft/playwright) executa o navegador de teste. Usados como ferramentas,
 sem código-fonte copiado para o produto.
+
+## Lighthouse e SDK de telemetria
+
+Lighthouse **13.6.0** ([GoogleChrome/lighthouse](https://github.com/GoogleChrome/lighthouse), Apache-2.0) mantém
+as auditorias Agentic Browsing. Seu SDK transitivo de telemetria é fixado, por `overrides` somente na árvore do
+Lighthouse, em **@sentry/node 10.78.0** ([getsentry/sentry-javascript](https://github.com/getsentry/sentry-javascript),
+MIT). Nenhum código desses pacotes foi copiado ou substituído.
+
+A série 11.x solicitada pelo Lighthouse traz `@sentry/bundler-plugins` e a CLI `sentry` sob FSL, licença restritiva
+que não é aceita pelo projeto. A versão 10.78.0 evita essa dependência e mantém as APIs de telemetria usadas por
+`core/lib/sentry.js`: inicialização, tags, contexto, breadcrumbs, mensagens e exceções. O pin fica fora da faixa
+original do Lighthouse; sua compatibilidade é verificada com o teste de agentes e com eventos de telemetria
+capturados em transporte local, sem envio ao Sentry. Ao atualizar o Lighthouse ou esse pin, repetir essas
+verificações e a checagem integral de licenças; não liberar FSL nem instalar a CLI como exceção.

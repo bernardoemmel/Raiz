@@ -171,9 +171,21 @@ verificado. Não foram reescritos commits ou logs remotos.
 
 - Suíte Python completa com PostGIS e LanguageTool: **649 passaram, 1 skip (dados do Pará), 1 xfail preexistente
   (TIR)**. Após o merge do #47 e as últimas regressões de segurança/portão, 48 testes focados adicionais passaram.
-- Build completo da fixture Pages (painel + produtor) e **91 testes Vitest passaram, nenhum skip**.
+  Após integrar #46/#50, mais 65 testes de Markdown/API/executor/cabeçalhos passaram.
+- Build completo da fixture Pages (painel + produtor) e **115 testes Vitest passaram, nenhum skip**,
+  após integrar também os PRs #46 e #50. Pages e Lighthouse Agentic Browsing passaram em origem local.
 - Cena-alvo Playwright/API passou antes e depois da correção de destino do link; a versão integrada é novamente
   executada pelo CI. Teste Pages vindo do #47 permanece no CI, sem remover cobertura anterior.
-- Ruff check/format, actionlint e varredura CPF/CNPJ passaram. **511 pacotes** Python/npm/Rust conferidos, sem
+- Ruff check/format, actionlint e varredura CPF/CNPJ passaram. **624 pacotes** Python/npm/Rust conferidos, sem
   licença proibida ou desconhecida. Gitleaks passou no histórico integrado (151 commits analisados) e no diff.
 - O CI remoto deve estar verde no commit da entrega antes de integrar; seu resultado fica no PR.
+
+
+### Integração dos PRs #46 e #50
+
+As entregas de processamento e páginas para agentes também entraram na main durante a validação. Conflitos
+de package.json/lock resolvidos mantendo todos os scripts. A nova checagem de licenças barrou a CLI `sentry`
+FSL trazida pelo SDK 11 transitivo do Lighthouse. Override restrito usa SDK 10.78.0 MIT; Lighthouse 13.6.0 e
+a categoria Agentic Browsing foram preservados. A telemetria foi testada com transporte em memória (sem envio
+externo); a auditoria do site e todas as licenças passaram. A auditoria Lighthouse local não comprova a presença
+de llms.txt/robots.txt na raiz do domínio público do Pages, como já explica a passagem Telas e mapa.
