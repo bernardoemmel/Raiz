@@ -39,6 +39,9 @@ jobs:
         with:
           node-version: 22
 
+      - name: Dados do motor e polígonos de todos os estados (Release dados)
+        run: node front/scripts/baixar-dados.mjs --geo --exigir
+
       - name: Geometrias do mapa (do cache)
         uses: actions/cache/restore@v4
         with:
@@ -46,12 +49,10 @@ jobs:
           key: geo-${{ hashFiles('front/scripts/geo.py') }}-${{ github.run_id }}
           restore-keys: geo-
 
-      - name: Gerar as geometrias que faltam (geo.py só baixa o que não existe)
-        id: geo
-        continue-on-error: true
+      - name: Desenhos de todos os municípios publicados e fundo compartilhado por estado
         run: |
-          pip install --quiet requests shapely pmtiles
-          python front/scripts/geo.py 1507300 1504950
+          pip install --quiet requests shapely pmtiles geopandas pyarrow
+          python front/scripts/geo.py --dados dados/estados
 
       - name: "Guardar as geometrias (mesmo as de uma rodada pela metade: o geo.py só baixa o que falta)"
         if: always()
@@ -63,11 +64,8 @@ jobs:
       - name: Conferir o mapa
         run: |
           for f in indice.json brasil_municipios.geojson brasil_estados.geojson base_brasil.pmtiles; do
-            if [ ! -f "front/geo/$f" ]; then echo "::warning::falta front/geo/$f: o mapa sai sem essa camada"; fi
+            if [ ! -f "front/geo/$f" ]; then echo "::error::falta front/geo/$f"; exit 1; fi
           done
-
-      - name: Dados do motor (Release dados)
-        run: node front/scripts/baixar-dados.mjs
 
       # o mesmo script do CI de todo PR (lá sem os dados): npm ci, build do painel e da ficha, e a pasta site/
       - name: Montar o site (painel com os dados e ficha do produtor)
