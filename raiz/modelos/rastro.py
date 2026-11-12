@@ -13,20 +13,14 @@ from functools import lru_cache
 from typing import Any
 
 from raiz.config import config
+from raiz.logs_seguros import sanitizar_estrutura
 from raiz.modelos.base import Pedido, Resposta
-from raiz.privacidade import mascarar
 
 log = logging.getLogger(__name__)
 
 
 def _mascara(*, data: Any, **_: Any) -> Any:
-    if isinstance(data, str):
-        return mascarar(data)
-    if isinstance(data, dict):
-        return {k: _mascara(data=v) for k, v in data.items()}
-    if isinstance(data, list | tuple):
-        return [_mascara(data=v) for v in data]
-    return data
+    return sanitizar_estrutura(data)
 
 
 @lru_cache
