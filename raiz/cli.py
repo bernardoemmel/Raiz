@@ -832,15 +832,39 @@ def banco_migrar(alvo: str = "head") -> None:
         typer.echo("sem RAIZ_CHAVE_PESSOAL: tabelas de conversa não criadas")
 
 
-@app.command("api")
-def api(porta: int = 8000, host: str = "127.0.0.1") -> None:
+api_cli = typer.Typer(help="Servidor da API e administração local da licença de dados.", invoke_without_command=True)
+app.add_typer(api_cli, name="api")
+
+
+@api_cli.callback()
+def api(ctx: typer.Context, porta: int = 8000, host: str = "127.0.0.1") -> None:
     """Sobe a API (aceites, mensagens a aprovar, revisões e webhook do WhatsApp em /whatsapp)."""
+    if ctx.invoked_subcommand is not None:
+        return
     import uvicorn
 
     from raiz.api import criar_app
 
     # O access log padrão expõe query strings (link de login e segredo do webhook Pix).
     uvicorn.run(criar_app(), host=host, port=porta, log_config=None, access_log=False)
+
+
+@api_cli.command("licenca")
+def api_licenca(
+    cliente: Annotated[int, typer.Option(help="id da empresa cuja licença o fundador aprovou", min=1)],
+    aprovar: Annotated[bool, typer.Option("--aprovar", help="registrar a aprovação e desbloquear a conta")] = False,
+) -> None:
+    """Administração local pelo fundador; não disponível à chave da empresa nem ao MCP."""
+    from raiz.banco import engine
+    from raiz.publica import conta
+
+    if not aprovar:
+        raise typer.BadParameter("informe --aprovar para registrar a licença de dados")
+    eng = engine()
+    if conta.ver(eng, cliente) is None:
+        raise typer.BadParameter("a empresa ainda não abriu a conta da API")
+    conta.aprovar_licenca(eng, cliente)
+    typer.echo(f"licença de dados aprovada para a empresa {cliente}; limites e cobrança por chamada continuam valendo")
 
 
 if __name__ == "__main__":
@@ -1788,6 +1812,36 @@ def pedidos_cliente(
 
     cid, token = S.criar_cliente(engine(), rotulo, email)
     typer.echo(f"cliente {cid} criado. Token da sessão (guarde agora, não aparece de novo): {token}")
+
+
+@pedidos_cli.command("chave")
+def pedidos_chave(
+    cliente: Annotated[int, typer.Option(help="id do cliente (empresa)")],
+    rotulo: Annotated[str | None, typer.Option(help="qual agente usa a chave")] = None,
+) -> None:
+    """Cria a chave de API da empresa para o agente de IA dela (a chave aparece uma vez só). A própria empresa também
+    cria pela API: POST /v1/chaves, na sessão do login por e-mail. A conta com CNPJ e termos deve estar aberta;
+    os limites e os 3 créditos de teste são por empresa, não por chave."""
+    from raiz.banco import engine
+    from raiz.publica import chaves as K
+    from raiz.publica.conta import ErroConta
+
+    try:
+        k = K.criar(engine(), cliente, rotulo)
+    except ErroConta as ex:
+        raise typer.BadParameter(f"{ex.detalhe}. {ex.corrigir}") from ex
+    typer.echo(f"chave {k['prefixo']}... criada (guarde agora, não aparece de novo): {k['chave']}")
+
+
+@app.command("mcp")
+def mcp_stdio(
+    url: Annotated[str | None, typer.Option(help="endereço da API; padrão RAIZ_API_URL")] = None,
+) -> None:
+    """Servidor MCP da Raíz por stdio, para o Claude Desktop, o Claude Code e outros clientes locais (a chave da
+    empresa vem de RAIZ_CHAVE_API). O remoto, por HTTP, fica em /mcp na própria API (docs/agentes-ia.md)."""
+    from raiz.publica.servidor_mcp import ApiRaiz, criar_servidor
+
+    criar_servidor(ApiRaiz(url=url)).run("stdio")
 
 
 @pedidos_cli.command("ciclo")

@@ -218,6 +218,18 @@ Feito na main fora desta tabela: caminho da terra com risco por imóvel (`raiz/t
 | 10 | (rodada 10) Cascata por confiança: só os 20 a 30% menos confiantes sobem de modelo (corte calibrado no teste acima). Feito: confiança dos logprobs do llama.cpp (raiz/modelos/confianca.py), via confianca na cascata, `raiz modelos calibrar` grava cascata_cortes.yaml (só de modelo local, com acerto mínimo de 95% no que fica), migração 0021 e alerta quando a subida sai da faixa. Rodada real de 12/11/2026 rejeitou todos os cortes: nenhum atingiu 95% no acerto retido. YAML gerado com metadados reais e cortes vazios; mantém votação. Medida empírica no mesmo banco, sem garantia fora da amostra | teste acima | feito |
 | 10 | (rodada 10) llama.cpp compilado com llguidance para a gramática JSON. Feito: infra/llama/Dockerfile (tag b12300, LLAMA_LLGUIDANCE=ON) no serviço llama do docker-compose; build real validado em cloud: corrigido cabeçalho do llguidance, Rust 1.100.0 e CA efêmera; `/health`, versão e JSON Qwen reais passaram. Instalação em produção depende de acesso | passo 1 | feito |
 
+## IA. Plataforma para agentes das empresas
+
+| Ordem | Entrega | Situação |
+|---|---|---|
+| A | API paga sem plano grátis: 3 testes por empresa, sinal Pix e contrato, cobrança e estorno, limite SlowAPI por empresa, bloqueio de raspagem, CLI e análise sem dados pessoais | implementado e validado no PR #45; main `a4c1066` integrada com Calendário/cena do lote, API em 0028, controles pagos e varredura do histórico validados; aguardando novo CI para merge |
+| B | MCP oficial Python v2 / especificação 2026-07-28, seis ferramentas e resumo único até 8 KB | em implementação; adaptador antigo retirado |
+| C | OAuth 2.1 com Keycloak; consultar/pedir e reservar desabilitado por padrão, habilitado por administrador da empresa | em implementação |
+| D | Trabalhos persistidos, Idempotency-Key, Standard Webhooks, aprovação humana/Pix/recibo e OpenTelemetry | em implementação |
+| E | Gabarito de 20–30 tarefas; meta pass^4 >= 80% e nenhuma chamada proibida | pendente de avaliação |
+| F | Piso de reversão 20%, REDD+ jurisdicional, CLPI e participação territorial, revisão humana | em implementação |
+| G | Recálculo dos 144 municípios do Pará pelo Actions e publicação do lote no Release | preparação; não executado no contêiner |
+
 ## E8. Aprendizado contínuo
 
 | Ordem | Passo | Depende de | Horas | Situação |

@@ -187,6 +187,12 @@ HiGHS dentro. Sem código copiado. A cobrança Pix da reserva usa a API da Abaca
   SIDRA 6899, 6753, 6910 e 6881), Banco Central (IPCA, série 433; PTAX), CNA (Campo Futuro), Verra (VM0047, VMD0054,
   VCS v5.0).
 
+## Servidor MCP (SDK oficial do Model Context Protocol)
+
+`raiz/publica/servidor_mcp.py` usa o SDK oficial do Model Context Protocol em Python (pacote `mcp`, versão 2.x,
+licença MIT, Copyright (c) 2024 Anthropic, PBC; https://github.com/modelcontextprotocol/python-sdk) para o servidor
+MCP remoto (/mcp) e local (`raiz mcp`) e para o agente de teste. Sem código copiado.
+
 ## Armazenamento compatível com S3
 
 boto3 e botocore (Apache-2.0) no produto; moto (Apache-2.0) só nos testes. Servidor próprio, quando não se usa o
@@ -277,6 +283,12 @@ O CI usa `@axe-core/playwright` 4.14.0 e seu motor `axe-core` (MPL-2.0), somente
 para verificar WCAG 2.1 A e AA. Origem: https://github.com/dequelabs/axe-core-npm e
 https://github.com/dequelabs/axe-core. Lighthouse 13.6.0 (Apache-2.0, já registrado acima) mede as categorias
 oficiais performance e accessibility em celular de 360 px, com rede e CPU simuladas.
+
+## API paga (`raiz/publica/`)
+
+Limites por empresa implementados com SlowAPI (MIT) e limits (MIT). Nenhum código
+copiado. O SDK oficial MCP Python (MIT) permanece como dependência; o adaptador
+antigo foi retirado até a entrega do servidor com OAuth.
 
 ## Sanitização de logs (`raiz/logs_seguros.py`)
 
