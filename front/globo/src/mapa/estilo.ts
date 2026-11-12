@@ -80,6 +80,15 @@ export function camadasBase(rotulos = true): LayerSpecification[] {
  * Hachura diagonal a 45 graus, linha de 1,5 px a cada 8 px (guia, item 2.1, parte 3), em imagem de 16 px com
  * pixelRatio 2. Com `cruzada`, as duas diagonais (não apta, item 2.2).
  */
+/** Listras deitadas: fazenda de reserva no mapa do pedido (a diagonal é só da área que volta a ser mata, a cruzada da não apta). */
+export function imagemListras(cor: string = COR.mata): { width: number; height: number; data: Uint8Array } {
+  const t = 8
+  const data = new Uint8Array(t * t * 4)
+  const [r, g, b] = [1, 3, 5].map((i) => parseInt(cor.slice(i, i + 2), 16))
+  for (let y = 0; y < t; y++) for (let x = 0; x < t; x++) data.set([r, g, b, y % t < 2 ? 220 : 0], (y * t + x) * 4)
+  return { width: t, height: t, data }
+}
+
 export function imagemHachura(cor: string = COR.mata, cruzada = false): { width: number; height: number; data: Uint8Array } {
   const t = 16
   const data = new Uint8Array(t * t * 4)

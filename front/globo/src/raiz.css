@@ -1374,3 +1374,660 @@ button.link:hover {
 .estado-situacao.completo {
   color: var(--mata);
 }
+
+/* ---------- área logada: entrar, meus pedidos, novo pedido, pedido e grupo (cena-alvo) ---------- */
+.pagina-estreita {
+  max-width: 560px;
+}
+.pagina-media {
+  max-width: 880px;
+}
+.tela-pedidos h1 {
+  margin: var(--e2) 0 var(--e3);
+  font-size: var(--t-titulo);
+}
+.formulario {
+  display: grid;
+  gap: var(--e4);
+}
+.formulario section,
+.formulario > details {
+  padding-top: var(--e5);
+  border-top: var(--linha);
+}
+.formulario h2 {
+  margin: 0 0 var(--e3);
+  font-size: var(--t-subtitulo);
+}
+.formulario h3 {
+  margin: var(--e4) 0 var(--e2);
+  font-size: var(--t-texto);
+}
+.campo {
+  display: grid;
+  gap: var(--e1);
+  min-width: 0;
+}
+.campo > span {
+  font-weight: 700;
+  font-size: var(--t-legenda);
+}
+.campo input,
+.campo select,
+.campo textarea,
+.marcos-proprios input {
+  min-height: 44px;
+  padding: var(--e2) var(--e3);
+  border: 1px solid var(--pedra);
+  border-radius: var(--raio-botao);
+  background: var(--superficie);
+}
+.campo textarea {
+  font-family: var(--fonte-codigo);
+  font-size: var(--t-legenda);
+  resize: vertical;
+}
+.campo input:focus-visible,
+.campo select:focus-visible,
+.campo textarea:focus-visible,
+.opcao input:focus-visible {
+  outline: 2px solid var(--agua);
+  outline-offset: 1px;
+}
+.campos-linha {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--e3);
+  margin-bottom: var(--e3);
+}
+.campo-grupo {
+  margin: 0 0 var(--e3);
+  padding: 0;
+  border: 0;
+}
+.campo-grupo legend {
+  margin-bottom: var(--e2);
+  font-weight: 700;
+  font-size: var(--t-legenda);
+}
+.opcoes-linha {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--e1) var(--e4);
+}
+.opcao {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--e2);
+  min-height: 40px;
+  padding: var(--e2) 0;
+  cursor: pointer;
+}
+.opcao input {
+  width: 20px;
+  height: 20px;
+  margin: 2px 0 0;
+  accent-color: var(--mata);
+  flex-shrink: 0;
+}
+.opcao-dica small {
+  display: block;
+  color: var(--pedra);
+  font-size: var(--t-legenda);
+}
+.erro-campo {
+  margin: 0;
+  color: var(--urucum-texto);
+  font-weight: 700;
+}
+.botao.grande {
+  min-height: 48px;
+  padding: 0 var(--e5);
+  font-size: var(--t-texto);
+}
+.botao:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+.acoes {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--e2);
+  margin-top: var(--e3);
+}
+.fichas-escolhidas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--e2);
+  margin: 0 0 var(--e3);
+  padding: 0;
+  list-style: none;
+}
+.fichas-escolhidas li {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--e1);
+  padding: 2px var(--e1) 2px var(--e3);
+  border: 1px solid var(--pedra);
+  border-radius: var(--raio-selo);
+}
+.fichas-escolhidas button {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  cursor: pointer;
+}
+.mais-filtros summary {
+  min-height: 44px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.marcos-proprios {
+  border-collapse: collapse;
+  margin-bottom: var(--e3);
+}
+.marcos-proprios caption {
+  text-align: left;
+  font-size: var(--t-legenda);
+  font-weight: 700;
+}
+.marcos-proprios input {
+  width: 96px;
+}
+.desenho .mapa-desenho {
+  height: 360px;
+  border: var(--linha);
+  border-radius: var(--raio-imagem);
+}
+.entrar-pronto {
+  display: grid;
+  gap: var(--e3);
+  justify-items: start;
+}
+.aviso-exemplo {
+  margin: var(--e3) 0;
+  font-size: var(--t-legenda);
+}
+.aviso-pronto {
+  margin: var(--e3) 0;
+}
+.aviso-pronto p {
+  margin: var(--e3) 0 0;
+}
+
+/* meus pedidos */
+.lista-pedidos {
+  margin: var(--e4) 0 0;
+  padding: 0;
+  list-style: none;
+  border-top: var(--linha);
+}
+.lista-pedidos li {
+  border-bottom: var(--linha);
+}
+.lista-pedidos a {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--e3);
+  min-height: 64px;
+  padding: var(--e3) 0;
+  color: inherit;
+  text-decoration: none;
+}
+.lista-pedidos a:hover strong {
+  text-decoration: underline;
+}
+.lp-titulo small,
+.lp-status small {
+  display: block;
+  color: var(--pedra);
+  font-size: var(--t-legenda);
+}
+.lp-status {
+  display: grid;
+  justify-items: end;
+  gap: var(--e1);
+}
+.lp-status .lp-alerta {
+  color: var(--urucum-texto);
+  font-weight: 700;
+}
+
+/* o pedido: painel à esquerda, mapa à direita (no celular, o mapa em cima) */
+.pedido-main {
+  min-height: calc(100vh - 64px);
+}
+.pedido-corpo {
+  display: grid;
+  grid-template-columns: minmax(380px, 480px) 1fr;
+  min-height: calc(100vh - 64px);
+}
+/* filho de grade não cresce além da coluna (as tabelas rolam dentro dela) */
+.pedido-corpo > * {
+  min-width: 0;
+}
+.pedido-painel {
+  max-height: calc(100vh - 64px);
+  overflow: auto;
+  padding: var(--e5) var(--e5) var(--e8);
+  border-right: var(--linha);
+  background: var(--superficie);
+}
+.pedido-painel h1 {
+  font-size: var(--t-subtitulo);
+}
+.pedido-mapa {
+  position: sticky;
+  top: 0;
+  display: grid;
+  grid-template-rows: 1fr auto;
+  height: calc(100vh - 64px);
+  padding: var(--e3);
+}
+.pedido-mapa .mapa {
+  min-height: 0;
+  border-radius: var(--raio-imagem);
+}
+.pedido-mapa .mapa-legenda-fixa {
+  justify-content: flex-start;
+}
+.alertas-pedido {
+  margin-top: var(--e3);
+}
+.alertas-pedido .legenda-frase {
+  margin-top: 0;
+}
+.lista-alertas {
+  display: grid;
+  gap: var(--e2);
+  margin: var(--e2) 0 0;
+  padding: 0;
+  list-style: none;
+}
+.lista-alertas li {
+  display: flex;
+  gap: var(--e2);
+  padding: var(--e2) var(--e3);
+  background: var(--nevoa);
+  border-radius: var(--raio-imagem);
+  font-size: var(--t-legenda);
+}
+.lista-alertas .fazenda_com_problema svg {
+  color: var(--urucum-texto);
+}
+
+/* faixa P10 a P90 (guia, item 1.6) */
+.faixa-barra {
+  position: relative;
+  height: 18px;
+  margin: var(--e2) 0;
+}
+.faixa-barra span {
+  position: absolute;
+}
+.faixa-trilho {
+  top: 7px;
+  left: 0;
+  right: 0;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--nevoa);
+}
+.faixa-p10p90 {
+  top: 5px;
+  height: 8px;
+  border-radius: 2px;
+  background: var(--restaurar);
+  opacity: 0.45;
+}
+.faixa-meta {
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  margin-left: -1px;
+  background: var(--urucum-texto);
+}
+.faixa-p50 {
+  top: 4px;
+  width: 10px;
+  height: 10px;
+  margin-left: -5px;
+  border-radius: 50%;
+  background: var(--tinta);
+}
+.falta h3 {
+  margin: var(--e3) 0 var(--e1);
+  font-size: var(--t-texto);
+}
+.lista-afrouxar,
+.lista-motivos,
+.lista-ondas {
+  margin: var(--e1) 0 0;
+  padding-left: var(--e5);
+}
+.lista-afrouxar li,
+.lista-motivos li,
+.lista-ondas li {
+  margin-bottom: var(--e1);
+}
+.base-tabelas {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--e4);
+  margin-top: var(--e4);
+}
+.tabela-simples {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--t-legenda);
+}
+.tabela-lote code {
+  word-break: break-all;
+}
+.tabela-simples caption {
+  margin-bottom: var(--e1);
+  text-align: left;
+  font-weight: 700;
+}
+.tabela-simples th,
+.tabela-simples td {
+  padding: var(--e1) var(--e1) var(--e1) 0;
+  border-bottom: var(--linha);
+  text-align: left;
+  font-weight: 400;
+  vertical-align: top;
+}
+.tabela-simples thead th {
+  color: var(--pedra);
+}
+.tabela-simples .num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.tabela-simples small {
+  display: block;
+  color: var(--pedra);
+}
+.tabela-lote tr[aria-selected="true"] th,
+.tabela-lote tr[aria-selected="true"] td {
+  background: var(--nevoa);
+}
+
+/* abas das 3 opções (Radix Tabs com o estilo do guia) */
+.abas {
+  display: flex;
+  gap: var(--e1);
+  border-bottom: 1px solid var(--pedra);
+}
+.aba {
+  flex: 1;
+  min-height: 44px;
+  padding: 0 var(--e2);
+  border: 1px solid transparent;
+  border-bottom: 0;
+  border-radius: var(--raio-botao) var(--raio-botao) 0 0;
+  background: none;
+  color: var(--pedra);
+  font-weight: 700;
+  cursor: pointer;
+}
+.aba[data-state="active"] {
+  border-color: var(--pedra);
+  background: var(--superficie);
+  color: var(--tinta);
+  margin-bottom: -1px;
+}
+.aba:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.aba:focus-visible {
+  outline: 2px solid var(--agua);
+}
+.aba-conteudo {
+  padding-top: var(--e4);
+}
+.criterio {
+  margin: 0 0 var(--e3);
+  color: var(--pedra);
+}
+.numero-principal .rotulo {
+  display: block;
+  font-size: var(--t-legenda);
+  color: var(--pedra);
+}
+.numero-principal .valor {
+  display: block;
+  font-size: var(--t-subtitulo);
+  font-weight: 700;
+}
+.ficha-numeros {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--e3) var(--e4);
+  margin: var(--e4) 0;
+}
+.ficha-numeros dt {
+  font-size: var(--t-legenda);
+  color: var(--pedra);
+}
+.ficha-numeros dd {
+  margin: 0;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.ficha-numeros dd small {
+  font-weight: 400;
+  color: var(--pedra);
+}
+.ficha-numeros dd.destaque {
+  color: var(--urucum);
+  font-size: var(--t-subtitulo);
+}
+.marcos {
+  margin: var(--e3) 0;
+}
+.mistura {
+  font-size: var(--t-legenda);
+}
+.como-calculamos {
+  margin: var(--e3) 0;
+  font-size: var(--t-legenda);
+  color: var(--pedra);
+}
+.como-calculamos summary {
+  min-height: 40px;
+  color: var(--tinta);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+/* selo de nível (guia, item 4.7): bronze, prata e ouro, sempre escritos */
+.selo-nivel {
+  display: inline-block;
+  padding: 0 var(--e2);
+  border: 1px solid currentColor;
+  border-radius: var(--raio-selo);
+  font-size: var(--t-legenda);
+  white-space: nowrap;
+}
+.selo-nivel.bronze {
+  color: var(--terra-texto);
+}
+.selo-nivel.prata {
+  color: var(--pedra);
+}
+.selo-nivel.ouro {
+  border-color: var(--situacao-pendencia);
+  background: var(--situacao-pendencia);
+  color: var(--tinta);
+}
+.fazenda-escolhida h2 code {
+  font-size: var(--t-texto);
+}
+.lista-trocas {
+  display: grid;
+  gap: var(--e2);
+  margin: var(--e3) 0 0;
+  padding: 0;
+  list-style: none;
+}
+.lista-trocas li {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--e2);
+  padding-bottom: var(--e2);
+  border-bottom: var(--linha);
+}
+.lista-trocas small {
+  display: block;
+  color: var(--pedra);
+}
+
+/* andamento: barra da meta com interessado, aceite e contrato (um dentro do outro) */
+.barra-meta {
+  position: relative;
+  height: 16px;
+  margin: var(--e3) 0;
+  background: var(--nevoa);
+  border-radius: var(--raio-imagem);
+  overflow: hidden;
+}
+.barra-meta span {
+  position: absolute;
+  inset: 0 auto 0 0;
+  transition: width var(--medio) var(--curva);
+}
+.bm-interessado {
+  background: var(--situacao-pendencia);
+}
+.bm-aceite {
+  background: var(--restaurar);
+}
+.bm-contrato {
+  background: var(--mata);
+}
+.numeros-andamento dt i {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  margin-right: var(--e1);
+  border-radius: 2px;
+}
+
+/* legenda do mapa do lote */
+.lg-lote,
+.lg-reserva,
+.lg-nivel,
+.lg-troca {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  margin: 0 var(--e1) -2px var(--e3);
+  border: 1px solid var(--mata);
+  border-radius: 2px;
+}
+.lg-lote {
+  background: var(--mata);
+}
+.lg-reserva {
+  background: repeating-linear-gradient(0deg, var(--mata) 0 2px, var(--superficie) 2px 4px);
+}
+.lg-troca {
+  border: 2px solid var(--urucum);
+}
+.n-sem_contato {
+  background: var(--nevoa);
+}
+.n-contatado {
+  background: var(--agua);
+}
+.n-interessado {
+  background: var(--situacao-pendencia);
+}
+.n-aceite_fase1 {
+  background: var(--restaurar);
+}
+.n-contrato_firme {
+  background: var(--mata);
+}
+.n-recusou {
+  background: repeating-linear-gradient(45deg, var(--pedra) 0 1px, var(--situacao-nao-apta) 1px 4px);
+}
+
+/* reserva e Pix */
+.contagem {
+  display: flex;
+  align-items: center;
+  gap: var(--e2);
+  margin: var(--e3) 0;
+  font-weight: 700;
+  color: var(--mata-texto);
+}
+/* janela do Radix: o fundo e a janela são irmãos, então a janela se posiciona sozinha por cima do fundo */
+.janela-pix {
+  position: fixed;
+  z-index: 51;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(480px, calc(100% - 32px));
+  display: grid;
+  gap: var(--e3);
+}
+.janela-pix h2 {
+  margin: 0;
+}
+.pix-qr {
+  justify-self: center;
+  width: 220px;
+  max-width: 100%;
+}
+.pix-qr svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+@media (max-width: 700px) {
+  .pedido-corpo {
+    grid-template-columns: 1fr;
+  }
+  .pedido-mapa {
+    position: relative;
+    order: -1;
+    height: 46vh;
+    padding: 0;
+  }
+  .pedido-painel {
+    max-height: none;
+    overflow: visible;
+    padding: var(--e4) var(--e4) var(--e8);
+    border-right: 0;
+  }
+  .base-tabelas {
+    grid-template-columns: 1fr;
+  }
+  .campo input,
+  .campo select,
+  .campo textarea {
+    min-height: 48px;
+    font-size: 16px;
+  }
+  .aba {
+    font-size: var(--t-legenda);
+  }
+  .pagina-estreita,
+  .pagina-media {
+    padding: var(--e4) var(--e4) var(--e8);
+  }
+}
