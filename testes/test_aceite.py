@@ -149,6 +149,11 @@ def test_aceite_completo_pelo_whatsapp(ambiente):
             text("select count(*) from pessoal.checkpoint_writes where encode(blob, 'escape') like '%quero saber%'")
         ).scalar()
         assert claro == 0
+        # cada mensagem guarda a nota de legibilidade (todas as versões do Flesch) com a versão do medidor
+        notas = c.execute(text("select legibilidade from pessoal.mensagem_saida where cod_imovel = :c"), {"c": cod})
+        for (nota,) in notas:
+            assert nota["versao"].startswith("legibilidade-")
+            assert {"flesch_alt", "flesch_martins", "flesch_languagetool"} <= set(nota)
         # nenhuma mensagem saiu sem aprovação
         assert (
             c.execute(
