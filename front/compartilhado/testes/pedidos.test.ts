@@ -1,7 +1,7 @@
 /**
- * Pedido de lote (cena-alvo): a resposta de exemplo, no mesmo formato da API, com fazendas aptas de verdade de São
- * Félix do Xingu e Cumaru do Norte (as que têm contorno em front/geo). Confere a base, as 3 opções, tirar e trocar, a
- * busca de interesse em ondas, a reserva, a exclusividade e que nada pessoal do dono aparece.
+ * Pedido de lote (cena-alvo): a resposta de exemplo, no mesmo formato da API, com os atributos da amostra de São
+ * Félix do Xingu e Nova Esperança do Piriá e contornos sintéticos determinísticos. Confere a base, as 3 opções,
+ * tirar e trocar, a busca de interesse, reserva, exclusividade e privacidade sem baixar geometrias de produção.
  */
 
 import fs from "node:fs"
@@ -32,18 +32,25 @@ import type { CamposPedido, Pedido } from "../pedidos/tipos"
 import { mascarar } from "../privacidade"
 import { pontoDentro } from "../rotulos-mapa"
 import { lerRota } from "../../globo/src/rota"
+import { geometriasDeTeste } from "./fixtures/geometrias-pedidos"
 
 const AMOSTRA = path.resolve(__dirname, "../../../dados/amostra")
-const GEO = path.resolve(__dirname, "../../geo")
 const COM_CONTORNO = ["1507300", "1504950"]
-const temGeo = COM_CONTORNO.every((c) => fs.existsSync(path.join(GEO, `imoveis_${c}.geojson`)))
 
 const ler = (a: string) => lerCsv(fs.readFileSync(path.join(AMOSTRA, a), "utf8")).linhas
 const imoveisDe = (cod: string): Imovel[] => {
   const { porImovel } = juntarComplementos(complementosDe(fs.readdirSync(AMOSTRA), cod).map((arquivo) => ({ arquivo, linhas: ler(arquivo) })))
   return ler(`imoveis_${cod}.csv`).map((l) => lerImovel(l, porImovel.get(l.cod_imovel)))
 }
-const geoDe = (cod: string): Geo => JSON.parse(fs.readFileSync(path.join(GEO, `imoveis_${cod}.geojson`), "utf8"))
+const geometrias = new Map<string, Geo>()
+const geoDe = (cod: string): Geo => {
+  let geo = geometrias.get(cod)
+  if (!geo) {
+    geo = geometriasDeTeste(cod, imoveisDe(cod).map((i) => i.cod_imovel))
+    geometrias.set(cod, geo)
+  }
+  return geo
+}
 
 let cands: Candidato[] = []
 const AGORA = new Date("2026-11-12T12:00:00Z")
@@ -59,7 +66,6 @@ const guardado = (campos: CamposPedido = CAMPOS_PADRAO, extra: Partial<PedidoGua
 })
 
 beforeAll(() => {
-  if (!temGeo) return
   for (const cod of COM_CONTORNO) {
     const centro = new Map(geoDe(cod).features.map((f) => [String(f.properties.cod_imovel), pontoDentro(f.geometry)]))
     for (const i of imoveisDe(cod)) {
@@ -78,7 +84,7 @@ function semDadoPessoal(obj: unknown) {
   expect(mascarar(texto)).toBe(texto)
 }
 
-describe.skipIf(!temGeo)("pedido de lote: base e as 3 opções", () => {
+describe("pedido de lote: base e as 3 opções", () => {
   let p: Pedido
   beforeAll(() => {
     p = montarPedido(guardado(), cands, AGORA)
@@ -173,7 +179,7 @@ describe.skipIf(!temGeo)("pedido de lote: base e as 3 opções", () => {
   })
 })
 
-describe.skipIf(!temGeo)("busca de interesse em ondas e reserva", () => {
+describe("busca de interesse em ondas e reserva", () => {
   const onda = PREMISSAS.onda_ms
   const em = (n: number) => new Date(AGORA.getTime() + (n - 1) * onda + 10)
   let opcao: Pedido["opcoes"][number]
@@ -228,7 +234,7 @@ describe.skipIf(!temGeo)("busca de interesse em ondas e reserva", () => {
   })
 })
 
-describe.skipIf(!temGeo)("área logada de exemplo, de ponta a ponta", () => {
+describe("área logada de exemplo, de ponta a ponta", () => {
   /** fonte de dados mínima, lendo a amostra do disco (o navegador lê pelo plugin do Vite) */
   const fonte = {
     geo: { comContorno: async () => COM_CONTORNO, camada: async (cod: string) => geoDe(cod) },
@@ -291,7 +297,7 @@ describe.skipIf(!temGeo)("área logada de exemplo, de ponta a ponta", () => {
   })
 })
 
-describe.skipIf(!temGeo)("exclusividade: reservada por outro cliente some para todo mundo", () => {
+describe("exclusividade: reservada por outro cliente some para todo mundo", () => {
   it("some da lista do município, do contorno no mapa, da ficha, da busca e das certidões", async () => {
     const sfx = imoveisDe("1507300")
     const reservada = sfx.find((i) => reservadaPorOutro(i.cod_imovel))!

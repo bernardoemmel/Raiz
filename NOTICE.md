@@ -251,3 +251,19 @@ como serviço no servidor; nada dele é embutido no produto distribuído. O `inf
 `.devops/cpu.Dockerfile` do llama.cpp (MIT, Copyright (c) 2023-2026 The ggml authors), sem a interface web. A
 confiança dos logprobs, a calibração do corte e o banco de tarefas em português foram escritos para a Raíz, sem
 código copiado.
+
+## Sanitização de logs (`raiz/logs_seguros.py`)
+
+Microsoft Presidio Analyzer e Anonymizer ([microsoft/presidio](https://github.com/microsoft/presidio), MIT) são usados
+como bibliotecas, sem código copiado. O reconhecimento de nomes em português usa spaCy (MIT) e o modelo
+[pt_core_news_sm 3.8.0](https://github.com/explosion/spacy-models/releases/tag/pt_core_news_sm-3.8.0), da Explosion,
+licença **CC BY-SA 4.0**, sem alterações. A atribuição e as licenças das fontes UD Portuguese Bosque e WikiNER
+acompanham o pacote em `LICENSES_SOURCES`; a ficha do modelo está em <https://spacy.io/models/pt#pt_core_news_sm>.
+O modelo roda só no servidor, instalado do Release oficial com hash no `uv.lock`.
+
+## Ferramentas de qualidade e segurança
+
+Gitleaks 8.24.3 (MIT, https://github.com/gitleaks/gitleaks) e actionlint 1.7.7
+(MIT, https://github.com/rhysd/actionlint) verificam o repositório no CI. Playwright 1.58.2
+(Apache-2.0, https://github.com/microsoft/playwright) executa o navegador de teste. Usados como ferramentas,
+sem código-fonte copiado para o produto.

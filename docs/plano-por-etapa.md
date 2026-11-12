@@ -259,3 +259,13 @@ faz sem back-end.
 | 6 | (API do front) Fichas em JSON do lote anual (passo 1) servidas como arquivo estático; a API fica para o painel interno e para o que muda no dia | passo 1 | feito: o back-end grava as fichas em lote (`raiz ficha lote`, arquivos estáticos em dados/fichas/); o site público grava as dos municípios com contorno e o navegador monta as outras (front/compartilhado/vite-dados.ts) |
 | 1 | (busca) Busca nacional pelo código do CAR (inteiro ou começo, com ou sem pontos e traços) e pelo nome do município, no contrato de front/compartilhado/dados/busca.ts; índice por código normalizado; 6,7 milhões de imóveis sintéticos: pior resposta 0,49 s | carga contínua | feito |
 | 1 | (busca) Carga contínua das saídas do motor por estado (`raiz vigiar`), só o município que mudou, com a versão anterior guardada | carga do motor | feito |
+
+## Qualidade e segurança (12/11/2026)
+
+| Entrega | Situação |
+|---|---|
+| Auditoria PRs #35–#44 integrados e revisão preventiva #45 ainda aberto; correções pequenas com regressões; Release completo e amostra do site | **feito**; evidência e limites em `docs/passagem/qualidade-e-seguranca.md` |
+| Playwright no CI: link, milhão de créditos no Pará, 3 opções, interesse e Pix de teste com API/PostGIS | **feito**; serviços externos controlados, sem pagamento real |
+| Dependabot, Gitleaks no histórico, licenças Python/npm/Rust obrigatórias, cabeçalhos, limite de chamadas e Presidio nos logs | **feito**; limite por processo e restrições operacionais na passagem |
+| CI paralelo com cache uv/npm/Chromium/LanguageTool, build público e coleção completa de testes | **feito**; zero skips ainda **parcial**: falta conjunto real de 144 tabelas desenvolvedor do Pará; demais dependências opcionais instaladas no CI |
+| Instruções para proteger a main | **feito** em `docs/operacao.md`; ativação manual pelo fundador |
