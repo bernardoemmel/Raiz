@@ -133,7 +133,7 @@ app.add_typer(funil, name="funil")
 def funil_rodar(
     uf: str,
     municipios: Annotated[list[int] | None, typer.Argument(help="códigos IBGE; sem nada, a UF inteira")] = None,
-    tarefas: Annotated[str, typer.Option(help="separadas por vírgula")] = "funil,filtros,direto,carga",
+    tarefas: Annotated[str, typer.Option(help="separadas por vírgula")] = "funil,filtros,direto,mapbiomas,carga",
     lanes: Annotated[int, typer.Option(help="municípios ao mesmo tempo")] = 3,
     refazer: bool = False,
     data_corte: Annotated[str | None, typer.Option(help="AAAA-MM-DD; padrão: hoje")] = None,
@@ -288,32 +288,6 @@ def coleta_ibama() -> None:
         f"{r.acao}: {r.linhas} termos, {len(r.municipios)} municípios mudaram; "
         f"colunas pessoais removidas: {', '.join(r.removidas) or 'nenhuma'}"
     )
-
-
-@coleta.command("mapbiomas")
-def coleta_mapbiomas(
-    municipio: Annotated[str, typer.Argument(help="nome do município como na Plataforma")],
-    uf: str,
-    cod_ibge: int,
-    subtema: Annotated[
-        str, typer.Option(help="chave do manifesto (cobertura, fogo_mensal...) ou subthemeKey")
-    ] = "cobertura",
-    anos: Annotated[str, typer.Option(help="separados por vírgula")] = "2023,2024",
-) -> None:
-    """Exporta um subtema do MapBiomas pela API da Plataforma para o espelho (sem Earth Engine)."""
-    from raiz.coleta import mapbiomas as MB
-    from raiz.coleta.http import sessao
-    from raiz.coleta.manifesto import carregar
-    from raiz.funil.ponte import espelho_padrao
-
-    chaves = carregar().fonte(MB.FONTE).model_extra["subtemas"]
-    chave = chaves.get(subtema, subtema)
-    s = sessao()
-    tid = MB.territorio_municipio(s, municipio, uf, cod_ibge)
-    zipb = MB.exportar(s, tid, chave, [int(a) for a in anos.split(",")])
-    tifs = MB.extrair_tifs(zipb, espelho_padrao() / "mapbiomas" / uf.upper() / str(cod_ibge) / subtema)
-    for t in tifs:
-        typer.echo(str(t))
 
 
 @coleta.command("indice")

@@ -77,10 +77,15 @@ def test_geometria_e_complementos(engine, tmp_path):
     pd.DataFrame({"cod_imovel": cods, "sec_area_ha": [1.5, 0, 3], "gpw_ugpp": [None, 2.1, 2.2]}).to_csv(
         tmp_path / "direto_1504950.csv", index=False
     )
-    pd.DataFrame({"cod_imovel": [cods[0], cods[0]], "registro_cns": ["067470", "067470"],
-                  "registro_matricula": ["1234", "1235"], "ha_sobre_car": [10.5, 6.0], "parcelas": [1, 2]}).to_csv(
-        tmp_path / "certidoes_1504950.csv", index=False
-    )  # fmt: skip
+    pd.DataFrame(
+        {
+            "cod_imovel": [cods[0], cods[0]],
+            "registro_cns": ["067470", "067470"],
+            "registro_matricula": ["1234", "1235"],
+            "ha_sobre_car": [10.5, 6.0],
+            "parcelas": [1, 2],
+        }
+    ).to_csv(tmp_path / "certidoes_1504950.csv", index=False)
     with engine.begin() as con:
         carregar_municipio(con, tmp_path, 1504950, CORTE)
     assert _n(engine, "select count(*) from funil.imovel where geom is not null") == 3
@@ -94,3 +99,25 @@ def test_geometria_e_complementos(engine, tmp_path):
         engine, "select (atributos->>'gpw_ugpp') is null from funil.complemento_imovel order by cod_imovel limit 1"
     )
     assert _n(engine, "select count(*) from titulo.certidao_alvo") == 2
+
+
+def test_mapbiomas_entra_na_rodada(engine, tmp_path):
+    for f in ("imoveis_1504950.csv",):
+        shutil.copy(AMOSTRA / f, tmp_path / f)
+    cods = pd.read_csv(AMOSTRA / "imoveis_1504950.csv", usecols=["cod_imovel"]).cod_imovel.head(2).tolist()
+    pd.DataFrame(
+        {"cod_imovel": cods, "mb_supressao_primaria_2025_ha": [1.2, 0.0], "mb_pasto_idade_anos_media": [None, 7.5]}
+    ).to_csv(tmp_path / "mapbiomas_1504950.csv", index=False)
+    with engine.begin() as con:
+        r = carregar_municipio(con, tmp_path, 1504950, CORTE)
+    assert r.colunas_novas == []
+    assert _n(engine, "select count(*) from funil.mapbiomas_imovel where rodada_id = :r", r=r.rodada_id) == 3
+    assert (
+        _n(
+            engine,
+            "select valor_num from funil.mapbiomas_imovel where indicador = 'supressao_primaria_ha' "
+            "and ano = 2025 and cod_imovel = :c",
+            c=cods[0],
+        )
+        == 1.2
+    )

@@ -75,3 +75,29 @@ def test_resumo_frentes_em_atributos():
     lt = contrato.ler(AMOSTRA / "resumo_PA.csv")
     assert len(lt) == 144 and lt.colunas_novas == []
     assert "frente_carbono" in lt.atributos[0]
+
+
+def test_mapbiomas_por_nome_e_opcional(tmp_path):
+    f = tmp_path / "mapbiomas_1504950.csv"
+    pd.DataFrame(
+        {
+            "cod_imovel": ["A", "B"],
+            "mb_floresta_2025_ha": ["10.5", "0"],
+            "mb_classe_principal_2025": ["3", "15"],
+            "mb_pasto_vigor_principal": ["2", None],
+            "mb_floresta_2026_ha": ["11", "1"],
+            "mb_indicador_novo_2025": ["x", "y"],
+            "sobra": ["1", "2"],
+        }
+    ).to_csv(f, index=False)
+    lt = contrato.ler_mapbiomas(f)
+    t = lt.longa.set_index(["cod_imovel", "indicador", "ano"], drop=False)
+    assert t.loc[("A", "floresta_ha", 2025)].valor_num == 10.5 and t.loc[("A", "floresta_ha", 2026)].valor_num == 11
+    vigor = lt.longa[lt.longa.indicador == "pasto_vigor_principal"]
+    assert list(vigor.cod_imovel) == ["A"] and vigor.ano.isna().all()  # nulo não vira linha; sem ano fica nulo
+    assert lt.indicadores_novos == ["mb_indicador_novo_2025"]
+    assert lt.longa[lt.longa.indicador == "indicador_novo"].valor_texto.tolist() == ["x", "y"]
+    assert any("sobra" in a for a in lt.avisos)
+    # arquivo sem nenhuma coluna mb_ é aceito (todas opcionais)
+    pd.DataFrame({"cod_imovel": ["A"]}).to_csv(tmp_path / "mapbiomas_1.csv", index=False)
+    assert len(contrato.ler_mapbiomas(tmp_path / "mapbiomas_1.csv").longa) == 0

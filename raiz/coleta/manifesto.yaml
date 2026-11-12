@@ -103,22 +103,26 @@ fontes:
     pendente: confirmar nomes das camadas do DETER Amazônia e Cerrado pelo GetCapabilities
 
   - id: mapbiomas_plataforma
-    nome: MapBiomas pela API da Plataforma (exportação por município, GeoTIFF)
+    nome: MapBiomas pela API da Plataforma (exportação por ESTADO, GeoTIFF), coletado por motor/raiz_mapbiomas.py
     orgao: MapBiomas
     tipo: api_mapbiomas
     url: https://prd.plataforma.mapbiomas.org/api/v1/brazil
     cabecalhos: {tenant-id: mapbiomas}
+    categoria_estado: 214
     categoria_municipio: 230
+    # formato conferido no motor em 12/11/2026: POST /maps/exports -> {"exports":[{"id"}]}; status READY|FAILED|EXPIRED;
+    # download redireciona (302) ao GCS e entrega ZIP ou TIF (conferir os bytes PK). O armazenamento público fechou (403).
     subtemas:
       cobertura: coverage_coverage-30m-droufo
-      secundaria_idade: secondary-vegetation-copy-t41ydh_annual-lfh76u_age
-      pastagem: "pastagem-copia-0dzt61_*"
-      fogo_mensal: fogo-copia-1h7mac_monthly-433exq
       desmatamento: desmatamento-copia-12xxov_annual-c5i7xj
-    recorte: municipio
+      fogo_mensal: fogo-copia-1h7mac_monthly-433exq
+      pasto_idade: pastagem-copia-0dzt61_idade-da-pastagem-drixus
+      pasto_vigor: pastagem-copia-0dzt61_condicao-de-vigor-loj9p9
+    legenda_desmatamento_v5: {1: antrópico, 2: primária, 3: secundária, 4: supressão de primária, 5: recuperação, 6: supressão de secundária, 7: outras}
+    recorte: uf
     sinal: {tipo: calendario}
     calendario: {dias_semana: [0]}
-    alternativa: Earth Engine (motor/gee/*.js), para o que a API não tiver
+    alternativa: idade da vegetação secundária vem do YbYrá (a exportação falha do lado deles)
     licenca: a conferir (MapBiomas)
     pode_treinar: false
 

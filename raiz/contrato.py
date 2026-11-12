@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import json
 import math
+import re
 from dataclasses import dataclass, field
 from datetime import date, datetime
 from pathlib import Path
@@ -284,3 +285,80 @@ def _novas(tipo: str, extras_cols: list[str]) -> list[str]:
 
 def atributos_json(d: dict) -> str:
     return json.dumps(d, ensure_ascii=False, allow_nan=False, default=str)
+
+
+# --- mapbiomas_<mun>.csv (motor/raiz_mapbiomas.py): colunas mb_*, todas opcionais ----------------------------------
+# O ano vem no nome (mb_floresta_2025_ha) e muda a cada coleção: a Raíz guarda em formato longo
+# (cod_imovel, indicador, ano, valor), e coluna mb_* nova ou de outro ano entra sem migração.
+MB_CONHECIDOS = {
+    "floresta_ha",
+    "pasto_ha",
+    "agricultura_ha",
+    "silvicultura_ha",
+    "classe_principal",
+    "supressao_primaria_ha",
+    "supressao_secundaria_ha",
+    "recuperacao_secundaria_ha",
+    "veg_secundaria_ha",
+    "fogo_ha",
+    "fogo_mes_principal",
+    "pasto_idade_anos_media",
+    "pasto_vigor_principal",
+}
+
+
+def indicador_mb(coluna: str) -> tuple[str, int | None] | None:
+    """mb_floresta_2025_ha -> ('floresta_ha', 2025); mb_pasto_idade_anos_media -> ('pasto_idade_anos_media', None)."""
+    if not coluna.startswith("mb_"):
+        return None
+    m = re.match(r"^mb_(.+?)_((?:19|20)\d{2})(_.+)?$", coluna)
+    if m:
+        return m.group(1) + (m.group(3) or ""), int(m.group(2))
+    return coluna[3:], None
+
+
+@dataclass
+class LeituraMapBiomas:
+    arquivo: str
+    longa: pd.DataFrame  # cod_imovel, indicador, ano, valor_num, valor_texto
+    indicadores_novos: list[str] = field(default_factory=list)
+    avisos: list[str] = field(default_factory=list)
+
+
+def ler_mapbiomas(arquivo: str | Path) -> LeituraMapBiomas:
+    df = pd.read_csv(arquivo, dtype=str, low_memory=False)
+    if "cod_imovel" not in df:
+        raise ValueError(f"{Path(arquivo).name}: falta a chave cod_imovel")
+    df, pessoais = remover_colunas_pessoais(df)
+    avisos = [f"coluna pessoal removida na entrada: {c}" for c in pessoais]
+    partes, novos = [], []
+    for c in df.columns:
+        if c == "cod_imovel":
+            continue
+        ind = indicador_mb(c)
+        if ind is None:
+            avisos.append(f"coluna sem prefixo mb_ ignorada: {c}")
+            continue
+        nome, ano = ind
+        if nome not in MB_CONHECIDOS:
+            novos.append(c)
+        num = pd.to_numeric(df[c], errors="coerce")
+        numerica = num.notna().sum() == df[c].notna().sum()
+        partes.append(
+            pd.DataFrame(
+                {
+                    "cod_imovel": df["cod_imovel"],
+                    "indicador": nome,
+                    "ano": ano,
+                    "valor_num": num if numerica else None,
+                    "valor_texto": None if numerica else df[c],
+                }
+            )
+        )
+    longa = (
+        pd.concat(partes, ignore_index=True)
+        if partes
+        else pd.DataFrame(columns=["cod_imovel", "indicador", "ano", "valor_num", "valor_texto"])
+    )
+    longa = longa[longa.valor_num.notna() | longa.valor_texto.notna()].reset_index(drop=True)
+    return LeituraMapBiomas(str(arquivo), longa, novos, avisos)

@@ -25,7 +25,7 @@ from raiz.config import config
 
 log = logging.getLogger(__name__)
 
-TAREFAS = ("funil", "filtros", "direto", "carga")
+TAREFAS = ("funil", "filtros", "direto", "mapbiomas", "carga")
 
 
 @dataclass
@@ -41,6 +41,7 @@ class Opcoes:
 _R = None  # módulo raiz_estado (importado depois do chdir)
 _EMB = None  # embargos do Ibama, carregados uma vez antes do fork
 _ENGINE = None
+_MB_ARQ = None  # GeoTIFFs do MapBiomas do estado (motor/raiz_mapbiomas.exporta_uf), pedidos uma vez antes do fork
 
 
 def dir_trabalho() -> Path:
@@ -142,11 +143,20 @@ def rodar_municipio(cod: int, op: Opcoes, hc=None) -> dict:
             lh, novo, n = congelar_rodada(con, r.rodada_id)
         reg.detalhe.update(rodada=r.rodada_id, nova=r.nova, previsoes=n if novo else 0, colunas_novas=r.colunas_novas)
 
+    def mapbiomas(reg):
+        import raiz_mapbiomas
+
+        arq = _MB_ARQ or raiz_mapbiomas.exporta_uf(uf)
+        t = raiz_mapbiomas.por_imovel(uf, cod, str(pasta), arq)
+        _escrever_csv(t, pasta / f"mapbiomas_{cod}.csv", index=False)
+        reg.detalhe.update(imoveis=len(t), ano=raiz_mapbiomas.ANO)
+
     imoveis = pasta / f"imoveis_{cod}.csv"
     if not executar("funil", imoveis, funil) or not imoveis.exists():
         return res
     executar("filtros", pasta / f"filtros_{cod}.csv", filtros)
     executar("direto", pasta / f"direto_{cod}.csv", direto)
+    executar("mapbiomas", pasta / f"mapbiomas_{cod}.csv", mapbiomas)
     executar("carga", None, carga)
     return res
 
@@ -160,8 +170,13 @@ def rodar(op: Opcoes, cods: list[int] | None = None, lanes: int | None = None) -
     """Roda vários municípios (todos da UF se `cods` vier vazio), `lanes` ao mesmo tempo."""
     import multiprocessing as mp
 
+    global _MB_ARQ
     R = preparar_motor(carregar_embargos="funil" in op.tarefas)
     cods = cods or R.lista_municipios(op.uf.upper())
+    if "mapbiomas" in op.tarefas:  # 5 pedidos por estado, uma vez, antes de repartir os municípios
+        import raiz_mapbiomas
+
+        _MB_ARQ = raiz_mapbiomas.exporta_uf(op.uf.upper())
     lanes = lanes or int(os.environ.get("LANES", "3"))
     if lanes <= 1:
         return {c: rodar_municipio(c, op) for c in cods}

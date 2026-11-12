@@ -78,6 +78,7 @@ def _linhas_leitura(rodada_id: int, leitura: contrato.Leitura, extra_inicio: tup
 def arquivos_do_municipio(pasta: Path, cod: int) -> dict[str, Path]:
     achados = {t: pasta / f"{t}_{cod}.csv" for t in TIPOS_MUNICIPIO}
     achados["geo"] = pasta / f"geo_{cod}.parquet"
+    achados["mapbiomas"] = pasta / f"mapbiomas_{cod}.csv"  # motor/raiz_mapbiomas.py (colunas mb_*, opcionais)
     return {t: p for t, p in achados.items() if p.exists()}
 
 
@@ -120,10 +121,13 @@ def _nova_rodada(con, tipo, uf, cod, origem, hashes, h, data_corte, motor_confir
     ).scalar_one()
 
 
-def _fechar_rodada(con, rodada_id, imoveis, leituras: list[contrato.Leitura]) -> tuple[list, list, list]:
+def _fechar_rodada(con, rodada_id, imoveis, leituras: list[contrato.Leitura], mb=None) -> tuple[list, list, list]:
     novas = sorted({f"{lt.tipo}.{c}" for lt in leituras for c in lt.colunas_novas})
     faltando = sorted({f"{lt.tipo}.{c}" for lt in leituras for c in lt.colunas_faltando})
     avisos = [f"{lt.tipo}: {a}" for lt in leituras for a in lt.avisos]
+    if mb is not None:
+        novas = sorted(set(novas) | {f"mapbiomas.{c}" for c in mb.indicadores_novos})
+        avisos += [f"mapbiomas: {a}" for a in mb.avisos]
     con.execute(
         text("update funil.rodada set imoveis=:n, colunas_novas=:cn, colunas_faltando=:cf, avisos=:av where id=:id"),
         dict(n=imoveis, cn=novas, cf=faltando, av=avisos, id=rodada_id),
@@ -177,7 +181,7 @@ def carregar_municipio(
     if ex := _rodada_existente(con, h):
         return ResultadoCarga(ex.id, False, ex.tipo, ex.uf, ex.cod_municipio, ex.imoveis or 0)
 
-    leituras = {t: contrato.ler(p, t) for t, p in arquivos.items() if t != "geo"}
+    leituras = {t: contrato.ler(p, t) for t, p in arquivos.items() if t not in ("geo", "mapbiomas")}
     im = leituras["imoveis"]
     ufs = im.tipadas["uf"].dropna().unique().tolist()
     uf = ufs[0] if ufs else pasta.name.upper()
@@ -198,6 +202,15 @@ def carregar_municipio(
     if "certidoes" in leituras:
         lc = leituras["certidoes"]
         _copy(con, "titulo.certidao_alvo", ["rodada_id", *lc.tipadas.columns, "atributos"], _linhas_leitura(rid, lc))
+    mb = contrato.ler_mapbiomas(arquivos["mapbiomas"]) if "mapbiomas" in arquivos else None
+    if mb is not None and len(mb.longa):
+        lg = mb.longa
+        _copy(
+            con,
+            "funil.mapbiomas_imovel",
+            ["rodada_id", "cod_imovel", "indicador", "ano", "valor_num", "valor_texto"],
+            ((rid, c, i, _py(a), _py(v), _py(t)) for c, i, a, v, t in lg.itertuples(index=False, name=None)),
+        )
 
     con.execute(
         text("""
@@ -211,7 +224,7 @@ def carregar_municipio(
     if "geo" in arquivos:
         _carregar_geo(con, arquivos["geo"])
 
-    novas, faltando, avisos = _fechar_rodada(con, rid, n, list(leituras.values()))
+    novas, faltando, avisos = _fechar_rodada(con, rid, n, list(leituras.values()), mb)
     log.info("município %s: rodada %s com %s imóveis", cod, rid, n)
     return ResultadoCarga(rid, True, "municipio", uf, cod, n, novas, faltando, avisos)
 
