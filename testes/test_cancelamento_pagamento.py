@@ -8,6 +8,7 @@ from concurrent.futures import ThreadPoolExecutor
 import pytest
 from sqlalchemy import create_engine, text
 
+from raiz import salvaguardas as SG
 from raiz.pedidos import servico as S
 from raiz.publica import conta as CT
 from raiz.publica import trabalhos as T
@@ -43,15 +44,43 @@ def empresa(eng):
         )
     yield cid
     with eng.begin() as con:
+        cods = list(
+            con.execute(
+                text("""select f.cod_imovel from negocio.pedido_fazenda f
+        join negocio.pedido p on p.id=f.pedido_id where p.cliente_id=:c"""),
+                {"c": cid},
+            ).scalars()
+        )
         con.execute(text("delete from negocio.reserva where cliente_id=:c"), {"c": cid})
         con.execute(text("delete from negocio.pedido where cliente_id=:c"), {"c": cid})
         con.execute(text("delete from negocio.cliente where id=:c"), {"c": cid})
+        con.execute(text("delete from funil.imovel where cod_imovel=any(:cs) and uf='ZZ'"), {"cs": cods})
 
 
 def _reserva(eng, cid, *, cobranca=True, cod=None):
     pid, externo = str(uuid.uuid4()), uuid.uuid4().hex
     cod = cod or uuid.uuid4().hex
     with eng.begin() as con:
+        # Evidências sintéticas explícitas; os testes financeiros passam pela salvaguarda real.
+        ev = SG.Evidencia(sha256="a" * 64, data=S._agora().date())
+        verificacao = SG.Verificacao(verificacao=ev, territorio_tradicional=False)
+        con.execute(
+            text("""insert into funil.imovel(cod_imovel,uf,geom) values(:f,'ZZ',
+        ST_Multi(ST_GeomFromText('POLYGON((-47 -1,-46.99 -1,-46.99 -0.99,-47 -0.99,-47 -1))',4674)))
+        on conflict (cod_imovel) do nothing"""),
+            {"f": cod},
+        )
+        con.execute(
+            text("""insert into negocio.salvaguarda(cod_imovel,evidencia) values(:f,cast(:e as jsonb))
+        on conflict (cod_imovel) do nothing"""),
+            {"f": cod, "e": verificacao.model_dump_json()},
+        )
+        con.execute(
+            text("""insert into geo.redd_cobertura(uf,verificada_em,valida_ate,evidencia)
+        values('ZZ',current_date,current_date,cast(:e as jsonb)) on conflict (uf) do update
+        set verificada_em=current_date,valida_ate=current_date,evidencia=excluded.evidencia"""),
+            {"e": ev.model_dump_json()},
+        )
         con.execute(
             text("""insert into negocio.pedido(id,cliente_id,estado,campos)
             values(:p,:c,'grupo_pronto','{}')"""),
@@ -369,3 +398,23 @@ def test_aprovacao_revalida_token_depois_de_aguardar_pedido(eng, empresa, monkey
             assert erro.value.status == 410
     finally:
         event.remove(eng, "before_cursor_execute", observar)
+
+
+def test_pagamento_com_salvaguarda_vencida_apos_aprovacao_exige_revisao(eng, empresa):
+    pid, rid, externo = _reserva(eng, empresa)
+    with eng.connect() as con:
+        grupo = S._grupo(con, pid)
+    SG.exigir_para_reserva(eng, grupo)  # evidência válida quando a pessoa aprovou a cobrança
+    with eng.begin() as con:
+        con.execute(
+            text("""update geo.redd_cobertura set verificada_em=current_date-2,
+        valida_ate=current_date-1 where uf='ZZ'""")
+        )
+    assert S.confirmar_pagamento(eng, externo) == "input-required"
+    assert tuple(_estado(eng, rid)) == ("conflito", "grupo_pronto", "paga", False)
+    with eng.connect() as con:
+        detalhe = con.execute(
+            text("select detalhe from negocio.reserva_evento where reserva_id=:r"), {"r": rid}
+        ).scalar_one()
+    assert detalhe["motivo"] == "salvaguarda_pendente"
+    assert detalhe["pagamento_confirmado"] is True

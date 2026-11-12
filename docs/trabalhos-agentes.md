@@ -112,7 +112,7 @@ A migração precisa incluir também `webhook_inscricao` e `webhook_entrega`, de
 
 A confirmação de pagamento trava pedido, reserva e cobrança, nessa ordem, e registra o fato financeiro na mesma
 transação da decisão de exclusividade. Cobrança repetida não repete evento nem ativa a reserva outra vez.
-Estado cancelado/expirado, preço ou Pix vencido, valor divergente e grupo alterado preservam o pagamento recebido,
+Estado cancelado/expirado, preço ou Pix vencido, valor divergente, grupo alterado e salvaguarda pendente preservam o pagamento recebido,
 mas devolvem `input-required` e registram `pagamento_revisao`, com um motivo controlado. Nenhuma devolução de dinheiro
 é prometida automaticamente. O pagamento de uma cobrança antiga não reabre pedido cancelado nem modifica contrato.
 
@@ -129,3 +129,8 @@ candidatos e revalida as reservas sob trava; a conversão relê o estado depois 
 de pagamento não disputa essas rotinas na ordem inversa. Escritas do grupo travam o pedido antes de alterar fazendas;
 um fechamento atrasado só prossegue se ainda estiver `buscando_interesse`, preservando reserva ou cancelamento
 concluídos enquanto o cálculo rodava.
+
+Antes de conceder exclusividade, a confirmação também executa novamente a verificação real de salvaguardas sobre
+as fazendas congeladas na reserva. Evidência vencida ou revogada depois da aprovação humana exige revisão, mesmo
+quando o Pix foi pago; o fato financeiro permanece registrado. O teste de regressão vence uma cobertura válida
+entre aprovação e pagamento e verifica que nenhuma fazenda se torna exclusiva.
