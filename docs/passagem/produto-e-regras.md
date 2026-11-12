@@ -11,7 +11,10 @@ nova cena do lote, mantendo a fase de interesse/reserva isolada no teste.
 O recálculo do Pará pertence ao chat Lote e números; não será executado aqui.
 Validação da integração: 89 testes de API, banco, autorização dos contornos e
 Calendário passaram em banco vazio; 167 testes do front passaram. Ruff,
-formatação, privacidade e licenças de 652 pacotes passaram.
+formatação, privacidade e licenças de 652 pacotes passaram. O E2E pago também
+passou em Chromium, com os limites ativos. Gitleaks em todo o histórico passou
+com duas exceções por fingerprint: URLs JDBC sem credenciais em commits da
+plataforma. Nenhum arquivo ou tipo de segredo foi liberado genericamente.
 
 Integração mais recente: main `78e13f7` (qualidade e segurança). Mantém o login
 com URL pública configurada, aliases 307 para a política paga, sanitização
