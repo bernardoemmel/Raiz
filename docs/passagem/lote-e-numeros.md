@@ -45,9 +45,28 @@ concluíram com sucesso, cinco foram interrompidas e a publicação não começo
 conta `bernardoemmel` e workflow desativado manualmente. **Publicação integral pendente**; nenhuma saída parcial
 foi promovida ao Release. As dez fatias prontas cobrem 98 municípios e 230.295 imóveis; restam 46 municípios e
 115.575 imóveis nas cinco interrompidas, parte já calculada em cache. Os onze artefatos (entrada e dez resultados)
-estão preservados até 12/12/2026, além dos caches das quinze fatias. A retomada aguarda esclarecimento do fundador
-sobre esse cancelamento: se autorizada, reativar o workflow e repetir somente os jobs cancelados da mesma execução,
-preservando entrada, commit e resultados prontos. Repetir todos os jobs causaria colisão dos nomes de artefatos.
+estão preservados até 12/12/2026, além dos caches das quinze fatias. O fundador esclareceu que o cancelamento não
+era intencional para esta entrega e autorizou retomar somente as cinco fatias, aguardando vagas para respeitar o
+limite de quinze jobs junto ao processamento dos estados, sem cancelar trabalhos em andamento.
+
+**Origem identificada:** o chat **RAIZ - Ficha da fazenda** (`6af60423-79ec-8191-bf64-3a51a8470005`), no comando
+`exec-912e58b0-7e6e-41c0-b64a-931f36538908`, executou `PUT .../actions/workflows/416422657/disable` e
+`POST .../actions/runs/43285608189/cancel`. A ação fazia parte da migração autorizada naquele chat para tirar
+camadas pagas por imóvel do Release público. Não foi cancelamento automático por concorrência do GitHub.
+Para evitar repetição, não pausar em bloco workflows de outros chats: preservar os cálculos e coordenar a troca
+do publicador. A ausência de nome/CPF não torna TIR, risco e crédito por imóvel dados abertos.
+
+Repetir os jobs cancelados pelo mecanismo padrão executaria também o publicador público do commit antigo.
+A continuação usa `.github/workflows/retomar-lote-para.yml` e `raiz/restauracao_retomada.py`: reutiliza a entrada
+e as dez fatias concluídas, restaura os caches parciais originais e calcula apenas `00`, `01`, `02`, `05` e `12`.
+Executa código, amostra e lockfile no commit original, copiando somente o orquestrador privado. Confere hashes de
+entrada e saída, modelo, CARs, contagens e a composição exata de cada fatia antes da reunião. Uma conclusão já
+preservada é validada e reutilizada; não há novo cálculo só porque um passo posterior precisou ser repetido.
+Os arquivos completos irão ao Release
+autenticado `dados-privados` (draft, ID 443383695), sem publicar o draft nem criar novos artifacts/caches públicos.
+Nenhuma das dez fatias prontas deve ser recalculada. Resultado integral e hashes serão registrados após conclusão.
+O fluxo original permanece desativado enquanto seu publicador ainda expuser dados pagos; a continuação protegida
+usa o mesmo grupo de concorrência, no máximo cinco jobs de cálculo e dispara apenas quando houver vagas.
 
 Auditoria do artefato preservado `calculado-03`: 23.023 imóveis em nove municípios, 36 hashes conferidos,
 previsões JSONL consistentes com os CSVs e modelo único `restauracao-2026d+a84f9789`. Nenhuma violação do piso de
@@ -90,7 +109,9 @@ normativas em P10/P50/P90. A referência SMA/SP de regenerantes permanece separa
 ## Validação
 
 Testes específicos de reserva, preço, salvaguardas, três opções, comparação, persistência e workflow.
-Ruff global conferido; na validação final desta passagem, 761 testes locais passaram, 108 dependentes do ambiente
-ficaram ignorados e 1 falha histórica
-esperada permaneceu. O CI com PostGIS, testes do front e workflows passou antes do merge do PR #49.
+Ruff global conferido. A validação local anterior à integração de qualidade teve 761 testes aprovados; depois da
+integração do PR #51, 810 passaram, 109 dependentes do ambiente ficaram ignorados e 1 falha histórica esperada
+permaneceu. A continuação privada acrescenta 28 testes aprovados e revisão independente, incluindo recusa de
+Release público, origem divergente, alteração do conjunto de CARs e recálculo de fatia pronta. O motor e a amostra
+originais foram conferidos em checkout separado. O CI com PostGIS, testes do front e workflows passou antes do merge do PR #49.
 A exceção autorizada no teste do front foi validada em 24 testes; nenhum código de produção do front foi alterado.
