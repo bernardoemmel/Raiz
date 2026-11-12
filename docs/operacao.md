@@ -595,6 +595,7 @@ pelo journald ou coletor de sua operação, restrinja leitura e defina retençã
 Em desenvolvimento, o contador é local ao processo. Antes de usar vários workers/réplicas, configure todos com:
 
 - `RAIZ_API_LIMITE_STORAGE_URL=redis://:<senha>@127.0.0.1:6380/0` (o protocolo chama-se Redis; o servidor é Valkey BSD-3).
+- `RAIZ_API_LIMIT_STORAGE_URI=redis://:<senha>@127.0.0.1:6380/0`: configure também o limite da API paga por empresa (SlowAPI). Sem esta variável, esse contador continua em memória por worker, mesmo com o limite global compartilhado. As duas implementações usam namespaces distintos.
 - `RAIZ_API_LIMITE_CHAVE`: segredo aleatório comum, com pelo menos 32 bytes; gere com `python -c 'import secrets; print(secrets.token_hex(32))'`.
 - `RAIZ_API_LIMITE_MINUTO=120` e `RAIZ_API_LOGIN_LIMITE_MINUTO=10`, ou tetos acordados para a operação.
 

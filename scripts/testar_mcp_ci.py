@@ -37,6 +37,10 @@ def disponivel(raiz: Path = RAIZ) -> bool:
     return False
 
 
+class CorpusPendente(RuntimeError):
+    """Transporte verificado, mas o produto ainda não oferece o agente leitor do corpus."""
+
+
 def executar(resultado: Path) -> dict:
     from testes.carga.contrato import conferir_relatorio
     from testes.mcp.avaliacao import avaliar_injecoes
@@ -46,8 +50,8 @@ def executar(resultado: Path) -> dict:
     # fornecer observadores independentes. Ausência desse módulo REPROVA se há MCP.
     fabrica = importlib.import_module("testes.mcp.produto").integracao
     with fabrica() as produto:
-        injecoes = asyncio.run(avaliar_injecoes(produto.ambiente))
         latencia = medir_latencia(produto.cliente, produto.casos)
+        (resultado / "latencia.json").write_text(json.dumps(latencia, ensure_ascii=False, indent=2))
         cargas = []
         for fase in ("normal", "limite"):
             arquivo = (resultado / f"carga-{fase}.json").resolve()
@@ -82,6 +86,9 @@ def executar(resultado: Path) -> dict:
                 if conferir_relatorio(dado, set(produto.casos)):
                     raise RuntimeError("Contrato da carga MCP reprovou")
                 cargas.append(dado)
+        if getattr(produto, "injecoes_disponiveis", True) is False:
+            raise CorpusPendente
+        injecoes = asyncio.run(avaliar_injecoes(produto.ambiente))
         return {"estado": "aprovado", "injecoes": injecoes, "latencia": latencia, "carga": cargas}
 
 
@@ -105,6 +112,14 @@ def main(argv=None) -> int:
             dado = {"estado": "presente", "ensaios_executados": False}
         else:
             dado = executar(args.resultado)
+    except CorpusPendente:
+        codigo = 1
+        dado = {
+            "estado": "falha",
+            "aviso": "Latência e carga MCP passaram; corpus não executado: agente leitor de documentos pendente de Produto e regras.",
+            "ensaios_executados": {"latencia": True, "carga": True, "corpus": False},
+        }
+        print("::error title=Corpus MCP pendente::" + dado["aviso"])
     except Exception:
         # Não ecoar exceções do adaptador, servidor, OAuth ou Locust.
         codigo = 1

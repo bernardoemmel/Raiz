@@ -123,7 +123,7 @@ def test_http_sdk_nao_exporta_nome_request_id_token_nem_texto_de_excecao(
                     "method": "tools/call",
                     "params": {
                         "name": nome,
-                        "arguments": {"campos": {}},
+                        "arguments": {"campos": {}, "idempotency_key": "consulta-telemetria"},
                         "_meta": {
                             "io.modelcontextprotocol/protocolVersion": "2026-07-28",
                             "io.modelcontextprotocol/clientCapabilities": {},

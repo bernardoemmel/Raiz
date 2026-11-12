@@ -333,7 +333,7 @@ seu código. Versões e licenças conferidas nos arquivos de licença dos wheels
 |---|---|---|
 | Pandera 0.27.1, extra `pandas` | validação dos contratos de entrada e saída de dados | MIT, [pacote oficial](https://pypi.org/project/pandera/0.27.1/) |
 | Locust 2.47.0 | teste de carga local/CI | MIT, [locustio/locust](https://github.com/locustio/locust/blob/master/LICENSE) |
-| redis-py 8.1.0 (`redis` no PyPI) | cliente Python do Valkey para limites compartilhados | MIT, [redis/redis-py](https://github.com/redis/redis-py/blob/master/LICENSE) |
+| redis-py 6.4.0 (`redis` no PyPI) | cliente Python do Valkey para limites compartilhados | MIT, [redis/redis-py](https://github.com/redis/redis-py/blob/master/LICENSE) |
 | sentry-sdk 2.75.0 | cliente Python de eventos para o GlitchTip | MIT, [getsentry/sentry-python](https://github.com/getsentry/sentry-python/blob/master/LICENSE) |
 | zope.event 6.2 e zope.interface 8.7 | dependências do gevent usado pelo Locust | ZPL-2.1, [zope.event](https://github.com/zopefoundation/zope.event/blob/master/LICENSE.txt) e [zope.interface](https://github.com/zopefoundation/zope.interface/blob/master/LICENSE.txt) |
 

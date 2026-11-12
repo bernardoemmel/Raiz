@@ -1,6 +1,6 @@
 # Qualidade e segurança — passagem
 
-Entrega inicial de 12/11/2026 (#51); revisão de continuidade em 12/11/2026, até a main `74ab7fc`. Área: CI, E2E, infraestrutura e segurança. Correções em produto são pontuais,
+Entrega inicial de 12/11/2026 (#51); revisão de continuidade em 12/11/2026, até a main `9d5f591`. Área: CI, E2E, infraestrutura e segurança. Correções em produto são pontuais,
 com regressões. Mudanças de contrato/arquitetura ficam para os chats responsáveis abaixo.
 
 ## Continuidade desta entrega (12/11/2026)
@@ -14,10 +14,11 @@ com regressões. Mudanças de contrato/arquitetura ficam para os chats responsá
 - **Qualidade e segurança:** Locust MIT no CI, API/PostGIS reais, três rotas, saturação e recuperação. Ensaio local:
   70 chamadas normais e 385 na saturação, 355 respostas 429 válidas, zero falhas, máximo 2,864 s. São medidas do ensaio
   curto, não capacidade máxima de produção. Oito jobs em paralelo; nenhuma suíte existente foi removida.
-- **MCP, parcial:** corpus de seis ataques, auditor com observador independente de efeitos, cliente real de protocolo,
-  latência com prazo estrito e Locust preparados. A função existente `proximos_eventos` passou seis cenários com
-  Postgres e ausência de ações; não há agente LLM nem transporte MCP/OAuth disponíveis na main. **Produto e regras**
-  entrega o servidor; Qualidade conecta a suíte completa. O job MCP pode pular com aviso explícito enquanto ausente, por autorização do fundador; implementação presente exige ensaios verdes.
+- **MCP, parcial:** o servidor OAuth entrou na main durante o CI desta entrega (#45/#69). O adaptador de testes
+  agora usa HTTP/JWKS/RS256 e PostGIS reais, todas as seis ferramentas, latência e Locust. O corpus continua dependendo
+  de **Produto e regras**: o MCP oferece ferramentas de pedidos para agentes externos, sem agente leitor de certidão,
+  edital ou arquivo. Não se simula essa leitura nem sua aprovação. A exceção anterior do fundador era somente ausência
+  de servidor; com o servidor presente, o runner exige a integração e registra falha explícita do corpus pendente.
 - **Revisão contínua:** PRs #53, #56, #67, #54, #68, #70, #71, #73 e #74 revisados, com correções pequenas de privacidade e calendário abaixo.
   Scanners e testes rodam a cada push. O fundador optou por manter somente essas checagens por push, sem automação horária.
 
@@ -245,7 +246,7 @@ produzir um conjunto utilizável. Não foram disparados envios à Verra nem proc
 
 ## Revisão contínua — continuação de 12/11/2026
 
-Marco inicial: merge do #51 (`78e13f7`). Main conferida até `74ab7fc`; não foram confundidos PRs abertos com
+Marco inicial: merge do #51 (`78e13f7`). Main conferida até `9d5f591`; não foram confundidos PRs abertos com
 código integrado. O histórico acima descreve a entrega inicial; esta seção registra mudanças posteriores.
 
 | PR integrado | Diff revisado | Resultado e responsável |
@@ -380,3 +381,26 @@ Os números descrevem as execuções locais. O resultado remoto e o commit de in
 Revisado o diff `3546687..74ab7fc`: somente passagem e plano, sem mudança executável, dado pessoal ou segredo
 identificado. Preservadas as notas sobre domínio real, lotes ausentes e publicação coordenada com a migração
 privada. A main foi incorporada antes do merge; os oito jobs foram exigidos novamente no commit atualizado.
+
+
+### Integração da API paga e do MCP (#45/#69)
+
+Os PRs #45/#69 entraram durante a execução do CI do #76. Integração com `9d5f591` preserva os oito jobs, o novo
+Playwright de aprovação humana, OAuth/sentinela da ponte interna, CSP mais estrita, Problem Details e CORS do MCP.
+Os limites globais e por empresa têm variáveis distintas, ambas documentadas para o mesmo Valkey. Redis-py 6.4.0
+satisfaz a interseção das dependências, sob MIT; **683 pacotes** passaram no verificador de licenças.
+
+Foi confirmado e corrigido um bug pequeno de cobrança: consultar disponibilidade, comparar lotes e o fallback de
+acompanhar contato criavam UUID novo em cada tentativa. Após timeout, repetir a ferramenta podia criar outro débito.
+As três ferramentas agora exigem `idempotency_key` reutilizável. **23 testes passaram**, incluindo Postgres isolado,
+504 após commit e repetição da mesma intenção: uma operação, um débito e saldo exato. O GET de acompanhamento não
+vira nova submissão. Não foram alterados preços, critérios de negócio nem o agente de outro chat.
+
+O E2E da API paga passou com conta, contrato/sinal, pedido, três opções, aprovação humana e Pix de teste. Respeitou
+429 e Retry-After sem ampliar tetos. O Playwright da página de aprovação também passou, sem acesso externo.
+
+A main nova contém seis ferramentas de pedidos, mas nenhuma lê os três tipos de entrada do corpus AgentDojo.
+**Produto e regras** deve entregar o agente/leitor e observadores do trajeto real. O adaptador de Qualidade não
+inventa um agente que ignora o documento e só chama uma ferramenta, pois isso aprovaria uma defesa não testada.
+O runner grava as evidências de latência/carga e falha separadamente pelo corpus não executado. A decisão sobre
+uma eventual exceção específica para essa dependência foi encaminhada ao fundador; até resposta, falha é falha.

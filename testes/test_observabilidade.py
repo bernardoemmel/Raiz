@@ -95,7 +95,13 @@ def test_sdk_transporta_apenas_evento_filtrado_e_erro_http_continua_generico():
         cliente = TestClient(app_teste(erros=erros), raise_server_exceptions=False)
         resposta = cliente.get("/erro?token=segredo", headers={"Authorization": "Bearer segredo"})
         assert resposta.status_code == 500
-        assert resposta.json() == {"detail": "erro interno"}
+        assert resposta.json() == {
+            "type": "about:blank",
+            "title": "Erro interno",
+            "status": 500,
+            "detail": "erro interno",
+        }
+        assert resposta.headers["content-type"].startswith("application/problem+json")
         assert len(transporte.eventos) == 1
         evento = transporte.eventos[0]
         assert evento["exception"]["values"][0]["type"] == "ValueError"

@@ -41,3 +41,17 @@ def test_detecao_presente_nao_executa_nem_aprova(tmp_path, monkeypatch):
     assert ci.main(["--detectar", "--resultado", str(tmp_path)]) == 0
     dado = json.loads((tmp_path / "integracao.json").read_text())
     assert dado["estado"] == "presente" and dado["ensaios_executados"] is False
+
+
+def test_corpus_ausente_com_servidor_presente_reprova_explicitamente(tmp_path, monkeypatch, capsys):
+    monkeypatch.setattr(ci, "disponivel", lambda: True)
+
+    def pendente(_):
+        raise ci.CorpusPendente
+
+    monkeypatch.setattr(ci, "executar", pendente)
+    assert ci.main(["--resultado", str(tmp_path)]) == 1
+    assert "::error title=Corpus MCP pendente" in capsys.readouterr().out
+    dado = json.loads((tmp_path / "integracao.json").read_text())
+    assert dado["estado"] == "falha"
+    assert dado["ensaios_executados"] == {"latencia": True, "carga": True, "corpus": False}

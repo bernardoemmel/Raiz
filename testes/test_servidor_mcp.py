@@ -1,20 +1,24 @@
 """MCP v2 real, escopos por ferramenta e HTTP OAuth: nenhuma chave ou texto externo autoriza ações."""
 
+import asyncio
 import contextlib
 import json
 import time
 
 import anyio
+import pytest
 from fastapi import FastAPI, Request
 from fastapi.testclient import TestClient
 from mcp.client.client import Client
 from mcp.server.auth.middleware.auth_context import auth_context_var
 from mcp.server.auth.middleware.bearer_auth import AuthenticatedUser
 from mcp.server.auth.provider import AccessToken
+from sqlalchemy import text
 
 from raiz.publica.oauth import acesso_interno, rotas_metadados
 from raiz.publica.servidor_mcp import ApiRaiz, app_http, criar_servidor
 from testes.test_publica_oauth import assinador, verificador  # noqa: F401
+from testes.test_publica_trabalhos import empresa, eng  # noqa: F401
 
 FERRAMENTAS = {
     "consultar_disponibilidade",
@@ -49,7 +53,8 @@ def test_seis_ferramentas_sdk_estrutura_e_sem_oauth_falha():
             assert "P10/P50/P90" in tools["consultar_disponibilidade"].description
             assert "nunca aprova nem paga" in tools["preparar_reserva"].description
             assert {"campos", "idempotency_key"} <= set(tools["pedir_lote"].input_schema["required"])
-            r = await c.call_tool("consultar_disponibilidade", {"campos": {}})
+            assert all("idempotency_key" in ferramenta.input_schema["required"] for ferramenta in tools.values())
+            r = await c.call_tool("consultar_disponibilidade", {"campos": {}, "idempotency_key": "consulta-sem-oauth"})
             assert r.is_error and '"status":401' in r.content[0].text
 
     anyio.run(executar)
@@ -119,7 +124,11 @@ def test_http_oauth_real_descoberta_e_chave_na_url_rejeitada(assinador, monkeypa
             "jsonrpc": "2.0",
             "id": 2,
             "method": "tools/call",
-            "params": {"_meta": envelope, "name": "consultar_disponibilidade", "arguments": {"campos": {}}},
+            "params": {
+                "_meta": envelope,
+                "name": "consultar_disponibilidade",
+                "arguments": {"campos": {}, "idempotency_key": "consulta-http-oauth"},
+            },
         }
         r = c.post(
             "/mcp/",
@@ -166,13 +175,105 @@ def test_timeout_de_ferramenta_menor_que_cinco_segundos(monkeypatch):
         try:
             t = time.monotonic()
             async with Client(criar_servidor(ApiRaiz(app=app))) as c:
-                r = await c.call_tool("consultar_disponibilidade", {"campos": {}})
+                r = await c.call_tool(
+                    "consultar_disponibilidade", {"campos": {}, "idempotency_key": "consulta-timeout"}
+                )
                 assert r.is_error and "prazo_excedido" in r.content[0].text
             assert time.monotonic() - t < 5
         finally:
             auth_context_var.reset(marcador)
 
     anyio.run(executar)
+
+
+@pytest.mark.banco
+@pytest.mark.parametrize("nome", ["consultar_disponibilidade", "comparar_lotes", "acompanhar_contato"])
+def test_retry_apos_timeout_preserva_operacao_e_debito_no_banco(eng, empresa, nome):  # noqa: F811
+    """A primeira submissão confirma no PostgreSQL, mas a resposta chega depois do prazo MCP."""
+    from raiz.publica import conta as CT
+    from raiz.publica import trabalhos as T
+    from raiz.publica.problemas import problema
+
+    app = FastAPI()
+    recebidas = []
+    with eng.begin() as con:
+        con.execute(text("update negocio.conta_api set testes_restantes=0 where cliente_id=:c"), {"c": empresa})
+
+    @app.get("/v1/operacoes/{pedido_id}")
+    async def nao_e_operacao(pedido_id: str):
+        # Um pedido de negócio vai ao POST de acompanhamento; só o recibo de operação fica no GET.
+        return problema(404, "operacao_nao_encontrada", "operação não encontrada", "confira o identificador")
+
+    @app.post("/v1/agentes/{ferramenta}")
+    async def submeter(ferramenta: str, request: Request):
+        acesso = acesso_interno(request)
+        assert acesso is not None and acesso.cliente_id == empresa
+        chave = request.headers["idempotency-key"]
+        recebidas.append(chave)
+        resultado = T.submeter(eng, empresa, ferramenta, await request.json(), chave)
+        if len(recebidas) == 1:
+            await anyio.sleep(3.2)
+        return resultado
+
+    api = ApiRaiz(app=app)
+    token = AccessToken(token="interno", client_id="agente", scopes=["consultar"], claims={"empresa_id": empresa})
+    argumentos = {"campos": {}} if nome == "consultar_disponibilidade" else {"pedido_id": PID}
+    argumentos["idempotency_key"] = "mesma-intencao-apos-timeout"
+
+    async def executar():
+        marcador = auth_context_var.set(AuthenticatedUser(token))
+        try:
+            async with Client(criar_servidor(api)) as c:
+                primeiro = await c.call_tool(nome, argumentos)
+                assert primeiro.is_error and "prazo_excedido" in primeiro.content[0].text
+                repetido = await c.call_tool(nome, argumentos)
+                assert not repetido.is_error and repetido.structured_content["estado"] == "submitted"
+                # A execução original continua e também precisa concluir sem criar outra operação.
+                with anyio.fail_after(2):
+                    await asyncio.gather(*api._pendentes)
+                assert not api._pendentes
+        finally:
+            auth_context_var.reset(marcador)
+
+    anyio.run(executar)
+    assert recebidas == [argumentos["idempotency_key"]] * 2
+    with eng.connect() as con:
+        assert (
+            con.execute(
+                text("select count(*) from negocio.trabalho_api where cliente_id=:c"), {"c": empresa}
+            ).scalar_one()
+            == 1
+        )
+        assert (
+            con.execute(
+                text("select count(*) from negocio.lancamento_api where cliente_id=:c and tipo='debito'"),
+                {"c": empresa},
+            ).scalar_one()
+            == 1
+        )
+        saldo = con.execute(
+            text("select saldo_rs from negocio.conta_api where cliente_id=:c"), {"c": empresa}
+        ).scalar_one()
+        assert float(saldo) == 2000 - CT.premissas()["precos"][nome]
+
+
+def test_acompanhar_operacao_preserva_get_sem_nova_submissao():
+    app, chamadas = backend()
+    token = AccessToken(token="interno", client_id="agente", scopes=["consultar"], claims={"empresa_id": 42})
+
+    async def executar():
+        marcador = auth_context_var.set(AuthenticatedUser(token))
+        try:
+            async with Client(criar_servidor(ApiRaiz(app=app))) as c:
+                r = await c.call_tool(
+                    "acompanhar_contato", {"pedido_id": PID, "idempotency_key": "acompanhar-operacao"}
+                )
+                assert not r.is_error
+        finally:
+            auth_context_var.reset(marcador)
+
+    anyio.run(executar)
+    assert len(chamadas) == 1 and chamadas[0][0] == f"operacoes/{PID}" and chamadas[0][2] is None
 
 
 def test_deadline_nao_espera_rota_sincrona_e_preserva_execucao_unica_com_chave_original():
