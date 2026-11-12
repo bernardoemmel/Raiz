@@ -18,6 +18,45 @@ Cada município é uma execução do check com seu próprio `rid`: o painel most
 do log (CPF e CNPJ já mascarados). Para um check por UF, use `RAIZ_HEALTHCHECKS_MODELO_SLUG=raiz-{tarefa}-{uf}`; um
 check por município (`raiz-{tarefa}-{cod}`) só vale numa instância própria, porque são mais de 5 mil.
 
+## Alertas com escalonamento (E7 passo 9)
+
+O Healthchecks avisa quando um trabalho para de bater ponto, mesmo com o servidor fora do ar. Por dentro, o servidor
+olha o resto de 15 em 15 minutos e sobe a escada do que ninguém reconheceu:
+
+```
+*/15 * * * *  uv run raiz operacao alertas   # lotes, orçamento, vigilância, prazo da Verra, filas, grupos
+```
+
+| O que | Gravidade |
+|---|---|
+| lote que falhou nas últimas 24 h (um alerta por tarefa e dia) | aviso |
+| lote que começou e não terminou há mais de 6 h | urgente |
+| gasto com modelos a 80% / 100% do orçamento do mês (`RAIZ_ORCAMENTO_MENSAL_USD`) | aviso / urgente |
+| vigilância diária sem rodar há mais de 1 dia; fonte da vigilância com erro | urgente; aviso |
+| aviso à Verra de um evento de perda vencendo (7 dias) ou vencido; relatório de perda vencido | crítico |
+| revisão esperando há mais de 24 h; mensagem para dono esperando aprovação há mais de 12 h | aviso |
+| fazenda com problema num grupo pronto ou reservado | urgente |
+
+A escada (raiz/regras/padroes/alertas.yaml, versionada): nível 0 no ntfy na hora; sem reconhecimento, nível 1 em 30
+minutos (ntfy urgente) para urgente e crítico; nível 2 em 2 horas para crítico, que vai para a segunda pessoa no
+GoAlert quando houver (`RAIZ_GOALERT_URL`) e, sem ela, de novo para o fundador, urgente. O último nível se repete a
+cada 4 horas, até 8 envios. Aviso sai uma vez só. Estado que passou (o lote destravou, a vigilância voltou) fecha
+sozinho; fato (lote que falhou, grupo com problema) fecha quando alguém resolve.
+
+- ntfy: `RAIZ_NTFY_TOPICO` (nome longo e aleatório: ele funciona como senha), `RAIZ_NTFY_URL` (padrão
+  https://ntfy.sh) e, se o servidor do ntfy pedir, `RAIZ_NTFY_TOKEN`. No celular, assinar o mesmo tópico.
+- Sem essas variáveis, o envio é simulado: o texto e o nível ficam registrados no alerta (backoffice), nada sai.
+- `uv run raiz operacao reconhecer ID` para a escada; `uv run raiz operacao resolver ID --nota "..."` fecha.
+
+## Backoffice do fundador (E7 passo 6)
+
+Só leitura, com o mesmo token da API: `/painel/backoffice` (página que pede o token), `/backoffice/resumo` (saúde,
+lotes em 24 h, parados, vigilância, custo do mês contra o orçamento com projeção, filas esperando o fundador, alertas
+abertos), `/backoffice/custos?por=tarefa|fazenda|municipio|modelo`, `/backoffice/lotes?estado=falha`,
+`/backoffice/alertas` e `/backoffice/fazenda/{cod_imovel}` (chamadas de modelo e custo, decisões da cascata,
+revisões, aceite, mensagens só com tipo e estado, pedidos, lotes do município e alertas da vigilância). No terminal:
+`uv run raiz operacao painel`.
+
 ## Rodar o motor vigiado
 
 ```bash
