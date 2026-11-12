@@ -457,3 +457,65 @@ reservas). Responde quantos municípios entraram e, se não fecha 1 milhão com 
   total em 40 anos; comparação com a renda do gado na mesma área (venda de bovinos por ha de pasto no município, Censo
   Agro 2017 corrigido pelo IPCA, e a sobra pela margem de referência da CNA) e com o aluguel do Censo. Sem nome, CPF
   ou CNPJ: só o código do CAR.
+
+## Proteção da main (o fundador ativa à mão)
+
+Depois do primeiro CI desta entrega ficar verde, abra o repositório no GitHub, **Settings → Rules → Rulesets →
+New branch ruleset**. Dê o nome `main protegida`, selecione **Active** e inclua o branch `main`.
+
+1. Exija pull request antes de integrar. Para o fundador trabalhar sozinho, não exija aprovação de uma segunda
+   pessoa; exija resolver todas as conversas abertas. Se houver revisor, pode exigir uma aprovação e invalidá-la
+   quando o código mudar.
+2. Em **Require status checks to pass**, selecione os seis checks do workflow **CI**: `workflows`, `segredos`,
+   `front`, `seguranca`, `checagens` e `e2e`. Prefira a origem **GitHub Actions**, quando disponível. Marque
+   **Require branches to be up to date before merging**. Os nomes só aparecem depois de uma execução.
+3. Ative **Block force pushes** e **Restrict deletions**. Mantenha a lista de bypass vazia, incluindo para
+   administradores, salvo uma política de emergência explícita. Não habilite merge automático do Dependabot
+   sem passar pelos mesmos checks.
+4. Salve. Confira em um PR de teste que merge com check pendente/vermelho e push direto na main são recusados.
+   Para plano sem rulesets, use **Settings → Branches → Add branch protection rule**, padrão `main`, com as
+   mesmas exigências e **Do not allow bypassing the above settings**.
+
+A automação atual do motor atualiza `motor/README.md` por push direto. A proteção impedirá esse push: o chat
+Dados/operação precisa transformar a atualização em PR. Não conceda bypass geral ao token para contornar isso.
+Esta entrega documenta a configuração; não altera as regras da conta do fundador.
+
+Em **Settings → Code security**, habilite **Dependabot alerts**, **Dependabot security updates** e, quando
+oferecidos pelo plano, **Secret scanning** e **Push protection**. `.github/dependabot.yml` já agenda atualizações
+semanais de uv, npm, Cargo, Actions e imagens Docker. Gitleaks varre todo o histórico acessível em cada PR, mesmo
+sem o recurso pago do GitHub; nunca publica o valor encontrado. A única exceção é o nome exato de uma coluna de
+`docs/colunas.md` confundido com chave, restrito ao arquivo. Credencial real encontrada deve ser revogada primeiro;
+retirá-la do último commit não a apaga do histórico.
+
+## CI e controles de segurança
+
+Os seis jobs rodam em paralelo, sem filtro de caminhos nem seleção de testes. `setup-uv` guarda cache pelo
+`uv.lock`, `setup-node` guarda o cache npm pelos locks, e o Chromium/LanguageTool têm caches separados. A instalação
+continua travada (`uv sync --frozen --all-extras`, `npm ci`). Não se reutiliza `node_modules` de outro lock.
+
+- `front` constrói o mesmo site público e executa os testes unitários, com geometrias de teste determinísticas.
+- `checagens` executa toda a coleta pytest, inclusive PostGIS, Rust, cartão, vídeo, PDF e LanguageTool. O portão de resultados recusa novos skips/xfails;
+  preserva somente o conjunto real do Pará ausente e a divergência conhecida de TIR, detalhados na passagem.
+- `e2e` abre Chromium e usa API/PostGIS reais: link de entrada, milhão de créditos no Pará, três opções, interesse
+  e reserva Pix local. E-mail e respostas dos donos são controlados; nenhuma credencial de pagamento real é
+  aceita. Veja `testes/e2e/README.md`. Não há trace com tokens nos artefatos.
+- `seguranca` verifica estilo, CPF/CNPJ e licenças Python instaladas, todos os pacotes dos locks npm e Cargo.
+  Inventário ausente/ilegível falha. AGPL, SSPL, Business Source, EUPL e NC são bloqueadas; `BSL-1.0` é a licença
+  Boost, permitida, enquanto Business Source (`BUSL-1.1`) é proibida. Exceções manuais não liberam licença proibida.
+- `segredos` usa Gitleaks com saída ocultada; `workflows` valida todos os workflows com actionlint.
+
+A API acrescenta cabeçalhos de proteção e `no-store` nas respostas autenticadas e de pedidos. Por padrão, há
+120 chamadas por minuto/IP e 10 chamadas de login por minuto/IP; ajuste `RAIZ_API_LIMITE_MINUTO` e
+`RAIZ_API_LOGIN_LIMITE_MINUTO`. O excesso retorna 429 com `Retry-After`. A contagem é por processo: com vários
+workers/réplicas, configure também limite compartilhado no proxy. O proxy deve preservar corretamente o IP;
+encaminhamentos arbitrários do visitante não devem ser confiados. HSTS depende de HTTPS reconhecido pela API.
+
+Configure `RAIZ_LOGIN_BASE_URL=https://seu-dominio/Raiz/` para o destino canônico do link de entrada; sem ela,
+usa-se a primeira origem de `RAIZ_API_ORIGENS`. O cabeçalho `Origin`/`Host` do visitante não escolhe o destino.
+HTTP só é aceito para desenvolvimento local. O envio real de e-mail ainda depende da integração do produto.
+
+Presidio e o modelo português instalado pelo lock limpam nomes e contatos nos logs, diagnósticos persistidos,
+Healthchecks, Langfuse e erros publicados pelo executor. Se a análise falhar, o texto é suprimido. O access log
+padrão do Uvicorn fica desligado para não gravar tokens de links/webhooks nas URLs. Isso não autoriza registrar
+texto pessoal bruto: o reconhecimento de nomes tem falsos negativos. Mantenha apenas códigos internos e métricas
+nos eventos. Limites da auditoria e pendências estão em `docs/passagem/qualidade-e-seguranca.md`.

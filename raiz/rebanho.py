@@ -140,7 +140,9 @@ def espalhar(linhas: list[dict], cod_municipio: int, r: dict | None = None, tota
                         "sem_pasto"})  # fmt: skip
         return out
     lot_mun = total / soma_pasto
-    lot_mun = min(max(lot_mun, float(e["lotacao_min_cab_ha"])), float(e["lotacao_max_cab_ha"]))
+    # Zero informado pela PPM é ausência de rebanho, não uma lotação pequena a elevar ao piso.
+    if total > 0:
+        lot_mun = min(max(lot_mun, float(e["lotacao_min_cab_ha"])), float(e["lotacao_max_cab_ha"]))
     total_ef = lot_mun * soma_pasto  # com a lotação dentro dos limites
     desenhos = []
     for ex in [float(e["expoente"]), *[float(x) for x in e["expoentes_faixa"]]]:
