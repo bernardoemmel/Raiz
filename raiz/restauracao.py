@@ -37,6 +37,9 @@ RAIZ = 0.24  # raízes / parte aérea, igual ao motor
 Z90 = 1.2815515655446004
 Q = ("p10", "p50", "p90")
 FAIXAS = ("d0", "d1", "d2", "d3")  # até 100 m, 100 a 300 m, 300 m a 1 km, acima de 1 km (limites no YAML)
+# Política conservadora Raíz: alternativa de buffer de ICVCM 9.4(a)(5)(i).
+# O ICVCM também admite buffer ajustado ao risco; 9.3 trata do prazo de compensação.
+RESERVA_MINIMA = 0.20
 
 
 # --- regra, cenário e versão ---------------------------------------------------------------------------------------
@@ -56,6 +59,7 @@ def _ler(regra: Path, calibracao: Path, cambio: Path | None = None, _marcas: tup
     if cambio is not None and cambio.exists():  # PTAX gravada por `raiz restauracao cambio --gravar`
         textos.append(cambio.read_bytes())
         r["cambio"] = yaml.safe_load(textos[-1]) or {}
+    textos.append(Path(__file__).read_bytes())  # a previsão identifica premissas e cálculo, não só o YAML
     h = hashlib.sha256(b"\n--\n".join(textos)).hexdigest()[:8]
     r["versao_completa"] = f"{r['versao']}+{h}"
     return r
@@ -73,7 +77,7 @@ def regra(regra: Path | None = None, calibracao: Path | None = None, cambio: Pat
     """As premissas (restauracao.yaml, um arquivo só, com os cenários), a calibração e a PTAX gravada, com
     versao_completa = versão + hash dos arquivos. Relê quando um deles muda (a recalibração grava com a API de pé)."""
     arqs = (Path(regra or ARQ_REGRA), Path(calibracao or ARQ_CALIBRACAO), Path(cambio or ARQ_CAMBIO))
-    return _ler(*arqs, tuple(_marca(a) for a in arqs))
+    return _ler(*arqs, tuple(_marca(a) for a in (*arqs, Path(__file__))))
 
 
 def versao() -> str:
@@ -112,7 +116,7 @@ PADRAO_CENARIO = {  # o que um cenário antigo (sem a rodada 11) não traz
     "entregas_pos_contrato_anos": [], "fracao_financiada_minima": 0.0, "icsd_minimo": 1.3,
     "manutencao_usd_ha_ano": 0.0, "registro_venda_receita": 0.0, "pagamento_dono": "arrendamento",
     "participacao_dono": 0.0, "piso_dono_rs_ha_ano": 0.0, "fase1_rs_ha_ano": 0.0, "fase1_anos": 0,
-    "linha_base_piso": 0.0, "vazamento": 0.0, "vazamento_com_mitigacao": 0.0, "reserva_risco": 0.12,
+    "linha_base_piso": 0.0, "vazamento": 0.0, "vazamento_com_mitigacao": 0.0, "reserva_risco": RESERVA_MINIMA,
     "incerteza": 0.10, "cambio_ptax": False, "juros_carencia": "pagos", "arrendamento_rs_ha_ano": 0.0,
     "tolerancia_ultimo_marco": None, "rescisao_atraso_marco_dias": None, "multas_no_fluxo": True,
     "reserva_por_fazenda": False,
@@ -127,6 +131,7 @@ def _normalizar(c: dict, r: dict) -> dict:
         if c.get(k) is None and v is not None:
             c[k] = copy.deepcopy(v)
         c.setdefault(k, v)
+    c["reserva_risco"] = _reserva_base(c)
     T = int(c["prazo_anos"])
     c["horizonte_anos"] = max(int(c.get("horizonte_anos") or T), T)
     H = c["horizonte_anos"]
@@ -237,13 +242,19 @@ def _verdade(v) -> bool:
 
 
 def area_restauravel(linha: dict) -> float:
-    """Pasto aberto fora da reserva legal e da APP (o pasto livre da conta FLAG; uso alternativo, nunca somado)."""
+    """Pasto conhecido fora da RL/APP. Sem cobertura, não credita toda a área livre por falta de dado.
+
+    A área física do imóvel limita a estimativa quando conhecida; não há tamanho mínimo.
+    Zero com `pasto_ha` em `restauracao_faltou` é estimativa pendente, não prova de ausência de potencial.
+    """
     alem = _num(linha, "alem_RL_ha") or 0.0
     app = _primeiro(linha, "app_recompor_ha", "app_desmatada_ha") or 0.0
     livre = max(alem - app, 0.0)
     pasto = _num(linha, "pasto_ha")
     pasto = _mb(linha, "pasto") if pasto is None else pasto
-    return max(min(pasto if pasto is not None else livre, livre), 0.0)
+    area = max(min(pasto, livre), 0.0) if pasto is not None else 0.0
+    ha = _num(linha, "ha")
+    return min(area, max(ha, 0.0)) if ha is not None else area
 
 
 def fracoes_distancia(linha: dict) -> tuple[list[float], str]:
@@ -572,6 +583,14 @@ def _texto_reserva(linha: dict, c: dict) -> str:
     return txt[:1].upper() + txt[1:]
 
 
+def _reserva_base(c: dict) -> float:
+    """O piso vale também para cenários antigos e parâmetros passados diretamente ao cálculo."""
+    valor = float(c.get("reserva_risco", RESERVA_MINIMA))
+    if not math.isfinite(valor) or not 0 <= valor <= 1:
+        raise ValueError("reserva_risco precisa ser uma fração finita entre 0 e 1")
+    return max(RESERVA_MINIMA, valor)
+
+
 def _r(x: float | None, mult: float = 1.0, nd: int = 2) -> float | None:
     return None if x is None else round(float(x) * mult, nd)
 
@@ -579,8 +598,8 @@ def _r(x: float | None, mult: float = 1.0, nd: int = 2) -> float | None:
 def nao_permanencia(linha: dict, c: dict, r: dict | None = None) -> dict:
     """Reserva de não permanência da fazenda (E3 passo 4): frequência vezes severidade do fogo (MapBiomas Fogo) e da
     derrubada da vegetação secundária no município (MapBiomas desmatamento), menos a mitigação do projeto, somadas ao
-    risco interno e externo; nunca abaixo da reserva do cenário nem do piso da Verra. Sem dado, a do cenário."""
-    base = float(c["reserva_risco"])
+    risco interno e externo; nunca abaixo de 20% nem da reserva do cenário. Sem dado, mantém o piso."""
+    base = _reserva_base(c)
     out = {"reserva": base, "fonte": "cenario", "fogo_ano": None, "derrubada_ano": None, "perda_40a": None}
     if not c.get("reserva_por_fazenda"):
         return out
@@ -595,7 +614,7 @@ def nao_permanencia(linha: dict, c: dict, r: dict | None = None) -> dict:
     taxa += ld * float(npm["severidade_derrubada"]) * (1 - float(npm["mitigacao_derrubada"]))
     perda = 1 - math.exp(-taxa * float(npm["horizonte_anos"]))
     risco = float(npm["risco_interno_externo"]) + perda
-    res = min(max(risco, base, float(npm["piso_vcs"])), float(npm["teto"]))
+    res = max(base, min(max(risco, float(npm["piso_vcs"])), float(npm["teto"])))
     return {"reserva": res, "fonte": "fazenda", "fogo_ano": lf, "derrubada_ano": ld, "perda_40a": perda}
 
 
@@ -1086,8 +1105,17 @@ def fator_captura_alvo(chance: float, r: dict | None = None) -> float:
 
 
 def faltou(linha: dict) -> list[str]:
-    """Entradas que faltaram e viraram premissa neutra (fator 1, taxa padrão...): a ficha mostra."""
+    """Entradas ausentes ou inconsistentes: a ficha mostra a limitação da estimativa."""
     f = []
+    ha = _num(linha, "ha")
+    if ha is None:
+        f.append("area_imovel")
+    elif ha < 0:
+        f.append("area_imovel_invalida")
+    elif any((_num(linha, c) or 0.0) > ha for c in ("pasto_ha", "alem_RL_ha")) or (_mb(linha, "pasto") or 0.0) > ha:
+        f.append("area_imovel_inconsistente")
+    if _num(linha, "pasto_ha") is None and _mb(linha, "pasto") is None:
+        f.append("pasto_ha")
     if fracoes_distancia(linha)[1] != "raster":
         f.append("distancia_mata")
     for c, nome in (
@@ -1119,14 +1147,7 @@ def _tir_pct(v: np.ndarray) -> np.ndarray:
 def _equilibrio(s: dict, c: dict) -> float | None:
     """Preço do contrato (US$/t) que zera o VPL do caminho do P50 na taxa do cenário: o VPL anda em linha reta com o
     preço (receita menos o que sai em % dela), então basta uma rodada."""
-    fx = float(c["cambio_brl_usd"])
-    prop = float(c["tributos_receita"]) + float(c["registro_venda_receita"])
-    if c["pagamento_dono"] != "arrendamento":
-        prop += float(c["participacao_dono"])
-    T = int(c["prazo_anos"])
-    d = s["desconto"]
-    vend = s["vendidos"][0]
-    dv = float(vend[: T + 1] @ d[: T + 1]) * fx * (1 - prop)  # só a receita do contrato anda com o preço
+    dv = float(_parte_do_preco(s, c) @ s["desconto"])
     if dv <= 0:
         return None
     return float(c["preco_usd_t"]) - float(s["vpl"][0]) / dv
@@ -1178,13 +1199,60 @@ def escolher_metodo(linha: dict, c: dict, r: dict) -> tuple[str, dict, dict]:
 def _parte_do_preco(s: dict, c: dict) -> np.ndarray:
     """R$/ha que o fluxo do P50 ganha por US$ 1 a mais no preço do contrato, em cada ano (a receita do contrato menos o
     que sai em % dela: tributos, registro e venda, a parte do dono)."""
-    prop = float(c["tributos_receita"]) + float(c["registro_venda_receita"])
+    prop = np.full(len(s["anos"]), float(c["tributos_receita"]) + float(c["registro_venda_receita"]))
     if c["pagamento_dono"] != "arrendamento":
-        prop += float(c["participacao_dono"])
+        participa = np.ones(len(prop), dtype=bool)
+        if c["pagamento_dono"] == "duas_fases":
+            participa = s["anos"] > int(c["fase1_anos"])
+        prop += participa * float(c["participacao_dono"])
     T = int(c["prazo_anos"])
     B = np.zeros(len(s["anos"]))
-    B[: T + 1] = s["vendidos"][0][: T + 1] * float(c["cambio_brl_usd"]) * (1 - prop)
+    B[: T + 1] = s["vendidos"][0][: T + 1] * float(c["cambio_brl_usd"]) * (1 - prop[: T + 1])
     return B
+
+
+def precos_minimos_tir(s: dict, c: dict, simular_preco=None, teto_usd: float = 1000.0) -> dict:
+    """Preço do contrato para remunerar o P50 da fazenda a 12%/15%, sem e com dívida.
+
+    Zera o VPL à taxa desejada (mesmo fluxo usado pela TIR), redimensionando a dívida por ICSD a cada preço.
+    No caso linear resolve o projeto diretamente; a dívida usa bisseção até décimo de centavo. Evita repetir
+    Monte Carlo e buscar uma TIR inteira em cada passo. O preço é arredondado para cima ao centavo.
+    Quando há multa/rescisão no fluxo, o chamador fornece a simulação exata de uma única trajetória a cada preço.
+    """
+    F, K = s["F"][0], s["K"][0]
+    B = _parte_do_preco(s, c)
+    preco_base = float(c["preco_usd_t"])
+    resultado = {}
+    for alvo in (12, 15):
+        desconto = (1 + alvo / 100) ** -s["anos"].astype(float)
+        for tipo in ("projeto", "alavancada"):
+            chave = f"preco_minimo_tir_{alvo}_{tipo}_usd_t"
+
+            def vpl(preco, tipo=tipo, desconto=desconto):
+                if simular_preco is not None:
+                    x = simular_preco(preco)
+                    fluxo = x["F"][0] if tipo == "projeto" else x["L"][0]
+                else:
+                    fluxo = F + (preco - preco_base) * B
+                    if tipo == "alavancada":
+                        fluxo = fluxo + divida(c, K, fluxo + K)["D"]
+                return float(fluxo @ desconto)
+
+            if not B.any() or vpl(teto_usd) < 0:
+                resultado[chave] = None
+                continue
+            if vpl(0.0) >= 0:
+                preco = 0.0
+            elif tipo == "projeto" and simular_preco is None:
+                preco = max(0.0, preco_base - float(F @ desconto) / float(B @ desconto))
+            else:
+                lo, hi = 0.0, teto_usd
+                while hi - lo > 0.001:
+                    mid = (lo + hi) / 2
+                    lo, hi = (mid, hi) if vpl(mid) < 0 else (lo, mid)
+                preco = hi
+            resultado[chave] = math.ceil(preco * 100) / 100
+    return resultado
 
 
 def fluxo_p50(linha: dict, c: dict | None = None, r: dict | None = None, fator_captura: float = 1.0,
@@ -1321,12 +1389,21 @@ def calcular(linha: dict, c: dict | None = None, r: dict | None = None) -> tuple
         "receita"][0] * (c["pagamento_dono"] != "arrendamento"))  # fmt: skip
     fixos = fixos + s["vendidos"][0] * float(c["taxa_registro_usd_t"]) * float(c["cambio_brl_usd"])
     custo_credito = float(fixos @ d) / pv_cred / float(c["cambio_brl_usd"]) if pv_cred > 0 else None
+    reprecificar = None
+    if c.get("multas_no_fluxo") and c.get("volume_contratado") is not None:
+        reprecificar = lambda p: rodar({**c, "preco_usd_t": p}, sorteios=False, tirs=())  # noqa: E731
+    precos = (
+        precos_minimos_tir(s, c, reprecificar)
+        if area > 0
+        else {f"preco_minimo_tir_{a}_{t}_usd_t": None for a in (12, 15) for t in ("projeto", "alavancada")}
+    )
 
     marcos = {}
     for i, e in enumerate(c["entregas_anos"]):
         marcos[f"marco_{e}_chance_pct"] = round(100 * float(s["atende"][sd, i].mean()), 1)
     out = {
         "restauracao_area_ha": round(area, 4),
+        "restauracao_area_situacao": "pendente_pasto" if "pasto_ha" in faltou(linha) else "calculada",
         "modo_restauracao": m["modo"],
         "modo_restauracao_pontos": m["pontos_imovel"],
         "modo_restauracao_regra": "; ".join(
@@ -1404,6 +1481,7 @@ def calcular(linha: dict, c: dict | None = None, r: dict | None = None) -> tuple
         "tir_projeto_pct_duas_fases": None if comp.get("duas_fases") is None else round(comp["duas_fases"], 1),
         "custo_credito_usd": None if custo_credito is None else round(custo_credito, 2),
         "preco_equilibrio_usd_t": None if preco_eq is None else round(preco_eq, 2),
+        **precos,
         "valor_desenvolvedor_rs": round(float(s["vpl"][0]) * area, 0),
         "restauracao_faltou": ",".join(faltou(linha)),
         "restauracao_cenario": c["cenario"],
