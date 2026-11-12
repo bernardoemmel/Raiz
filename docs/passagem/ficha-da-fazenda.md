@@ -171,5 +171,10 @@ revisão final integrada.
 Após a integração, reativar os cinco workflows pausados, atualizar as refs da fila
 com `scripts/atualizar_fila_privada.py` e retomar as unidades interrompidas com o
 commit protegido: BA-1 a BA-4, CE-1/2, PI-1/2 e RN-1, sem duplicar reservas ativas.
-O lote do Pará e o site devem rodar novamente na main; a publicação do site passa
-a consumir os 22 assets básicos, sem depender dos originais preservados.
+O lote do Pará tem retomada específica na main (`retomar-lote-para.yml`, PR #55):
+a execução 43299409156 já foi iniciada, reutilizando dez fatias preservadas e
+calculando só as cinco interrompidas, no privado e com motor/lockfile originais.
+Não disparar também o lote genérico de quinze fatias. A compatibilidade do
+orquestrador histórico com o armazém atual deve permanecer coberta nos testes.
+O site deve ser republicado na main com os 22 assets básicos, sem depender dos
+originais preservados.
