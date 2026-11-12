@@ -9,6 +9,7 @@ import { fileURLToPath, pathToFileURL } from "node:url"
 const globo = fileURLToPath(new URL("../globo/", import.meta.url))
 const require = createRequire(path.join(globo, "package.json"))
 const { chromium } = require("playwright")
+const { PNG } = require("pngjs")
 const { createServer } = await import(pathToFileURL(require.resolve("vite")).href)
 process.env.VITE_RAIZ_API = "/teste-api"
 const servidor = await createServer({ root: globo, configFile: path.join(globo, "vite.config.ts"), server: { port: 0 }, logLevel: "error" })
@@ -28,6 +29,12 @@ const ficha = {
   credito: { ...faixas, base: "liquido_contrato", metodo: "Simulação de teste identificada.", versao_modelo: "teste" }, tir: { p10: medida(null, "%/ano"), p50: medida(null, "%/ano"), p90: medida(null, "%/ano"), tipo: "sem_financiamento" },
   risco: { nivel: "medio", fonte: "Regra de teste", data_referencia: "2024", regra_versao: "teste" }, agrupamento: { pequena: true, grupo_id: null, imoveis: medida(null, "fazendas"), area: medida(null) },
 }
+const anel = [[-52.1, -6.7], [-52.08, -6.7], [-52.08, -6.68], [-52.1, -6.68], [-52.1, -6.7]]
+const colecao = (coordinates, properties = {}) => ({ type: "FeatureCollection", features: [{ type: "Feature", properties, geometry: { type: "Polygon", coordinates } }] })
+const visual = { imovel: colecao([anel]), mascara: colecao([[[-180, -85], [180, -85], [180, 85], [-180, 85], [-180, -85]], anel]), camadas: colecao([[[-52.1, -6.7], [-52.09, -6.7], [-52.09, -6.68], [-52.1, -6.68], [-52.1, -6.7]]], { camada: "pode_voltar" }), fonte_perimetro: "Limite sintético de teste", fonte_camadas: "Camada sintética de teste", data_referencia: null, data_corte: "2026-11-12", avisos: [] }
+const png = new PNG({ width: 4, height: 4 })
+for (let i = 0; i < png.data.length; i += 4) png.data.set([120, 140, 110, 255], i)
+const imagemTeste = PNG.sync.write(png)
 let desbloqueada = false, debitos = 0, contatos = 0
 const chaves = [], chamadas = []
 const totais = { fazendas: 10, area_ha: 300, area_restauravel_ha: 120, credito_p10: 1000, credito_p50: 1500, credito_p90: 2000, com_credito: 10, pequenas: 10, fonte: "Base de teste", data_corte_min: "2026-11-12", data_corte_max: "2026-11-12" }
@@ -51,6 +58,12 @@ try {
     if (caminho === "compras" && req.method() === "POST") { chaves.push(req.postDataJSON().chave_idempotencia); return json(compra(chaves.length)) }
     if (caminho.startsWith("compras/")) return json(compra(Number(caminho.split("/")[1]), "paga"))
     if (caminho.endsWith("/desbloquear")) { desbloqueada = true; debitos++; return json(ficha) }
+    if (caminho.includes("/visual")) {
+      assert.ok(desbloqueada && req.headers().authorization === "Bearer cliente-a", "Visual só depois do crédito e com a sessão da conta")
+      if (caminho.endsWith("satelite.webp")) return route.fulfill({ status: 200, contentType: "image/png", body: imagemTeste })
+      if (caminho.endsWith("satelite")) return json({ disponivel: true, caixa: [-52.105, -6.705, -52.075, -6.675], data_cena: "2026-10-10", metodo: "cena", satelite: "Sentinel-2", credito: "Imagem sintética para teste; sem dado orbital", largura: 4, altura: 4 })
+      return json(visual)
+    }
     if (caminho.startsWith("fichas/")) return desbloqueada && req.headers().authorization === "Bearer cliente-a" ? json(ficha) : json({ detail: "Ficha precisa de crédito pago" }, 402)
     if (caminho === "contatos") { contatos++; assert.deepEqual(req.postDataJSON(), { codigo_car: car }); return json({ id: 7, estado: "recebido", criado_em: "2026-11-12", mensagem: "Pedido registrado na Raíz. O contato será tratado depois." }) }
     if (caminho === "busca" || caminho === "agregado") return json({ total: 10, pagina: 1, limite: 20, tem_mais: false, totais, agrupamentos: [{ uf: "PA", cod_ibge: 1507300, municipio: "São Félix do Xingu", bioma: "Amazônia", fazendas: 10, area_ha: 300, credito_p50: 1500, criterio: "Mesmo município e bioma; proximidade a confirmar." }], imoveis: caminho === "agregado" ? undefined : [{ codigo_car: car, uf: "PA", cod_ibge: 1507300, municipio: "São Félix do Xingu", bioma: "Amazônia", area_ha: 30, area_restauravel_ha: 12, caminho_terra: "posse_em_titulacao", risco: "medio", pequena: true, agrupar: true, credito_p50: 150, fonte: "Base de teste", data_corte: "2026-11-12" }], aviso: "Dados controlados de teste." })
@@ -59,10 +72,12 @@ try {
   const page = await ctx.newPage(), erros = []
   const print = async (nome) => { await page.evaluate(() => window.scrollTo(0, 0)); await page.screenshot({ path: path.join(prints, nome), fullPage: true }) }
   page.on("pageerror", (e) => erros.push(e.message))
+  page.on("console", (m) => { if (m.type() === "error" && !m.text().includes("status of 402 (Payment Required)")) erros.push(m.text()) })
   const url = servidor.resolvedUrls.local[0]
   await page.goto(`${url}#/fazenda/${car}`)
   await page.getByRole("button", { name: "Desbloquear por 1 crédito" }).waitFor()
   assert.equal(await page.getByRole("heading", { name: "Uso da terra ao longo dos anos" }).count(), 0)
+  assert.equal(chamadas.filter((c) => c.caminho.includes("/visual")).length, 0)
   assert.equal(await page.getByRole("link", { name: "Em leilão: conferir edital e prazo", exact: true }).count(), 0)
   assert.equal(chamadas.filter((c) => c.caminho === "/teste-api/eventos").length, 0, "Só confere vínculos do calendário após desbloquear a ficha")
   await print("ficha-bloqueada-1440.png")
@@ -71,6 +86,16 @@ try {
   await page.getByRole("link", { name: "Em leilão: conferir edital e prazo", exact: true }).waitFor()
   assert.equal(await page.getByRole("link", { name: "Em leilão: conferir edital e prazo", exact: true }).getAttribute("href"), `#/calendario/${encodeURIComponent(car)}`)
   assert.equal(debitos, 1)
+  await page.waitForFunction(() => {
+    const m = document.querySelector(".mapa-ficha-terra")?.__mapa
+    return m?.loaded() && m?.getLayer("sentinel") && m?.queryRenderedFeatures({ layers: ["pode-voltar"] }).length > 0
+  })
+  await page.getByText("Sentinel-2 em 10/10/2026", { exact: false }).waitFor()
+  assert.ok(await page.locator(".linha-tempo-terra").innerText().then((t) => t.includes("2024") && t.includes("Fonte: Base de teste da terra")))
+  await page.getByLabel("Mostrar área que pode virar mata").uncheck()
+  await page.waitForFunction(() => (() => { const m = document.querySelector(".mapa-ficha-terra")?.__mapa; return m?.getLayer("pode-voltar") && m.getLayoutProperty("pode-voltar", "visibility") === "none" })())
+  await page.getByLabel("Mostrar área que pode virar mata").check()
+  await page.waitForFunction(() => (() => { const m = document.querySelector(".mapa-ficha-terra")?.__mapa; return m?.getLayer("pode-voltar") && m.getLayoutProperty("pode-voltar", "visibility") === "visible" })())
   await page.getByRole("button", { name: "Pedir contato", exact: true }).click()
   await page.getByRole("button", { name: "Pedido de contato recebido" }).waitFor()
   assert.equal(contatos, 1)
@@ -86,6 +111,8 @@ try {
   await page.getByRole("heading", { name: "Pix aguardando pagamento" }).waitFor()
   assert.equal(chaves.length, 2); assert.notEqual(chaves[0], chaves[1])
   await page.setViewportSize({ width: 360, height: 800 })
+  await page.locator(".visual-terra").scrollIntoViewIfNeeded()
+  await page.screenshot({ path: path.join(prints, "mapa-ficha-terra-360.png") })
   await print("ficha-terra-360.png")
   assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), "Ficha cabe no celular")
   await page.evaluate(() => { localStorage.setItem("raiz.sessao", JSON.stringify({ token: "cliente-b", email: "outra@raiz.invalid" })); window.dispatchEvent(new Event("raiz-sessao")) })
@@ -107,5 +134,5 @@ try {
   assert.equal(await page.locator(`a[href*="${car}"]`).count(), 0)
   assert.ok(chamadas.filter((c) => c.caminho === "agregado").every((c) => !c.token))
   assert.deepEqual(erros, [])
-  console.log(`Prospecção conferida no Chromium: débito, contato, compra repetida, troca de conta, agregado e celular. Prints em ${prints}`)
+  console.log(`Prospecção conferida no Chromium: mapa privado, Sentinel-2 simulado, hachura, linha do tempo, débito, contato, compra repetida, troca de conta, agregado e celular. Prints em ${prints}`)
 } finally { await browser.close(); await servidor.close() }

@@ -60,3 +60,17 @@ describe("fonte e data dos números", () => {
     expect(zero).toContain("0 ha")
   })
 })
+
+describe("mapa e imagem privados", () => {
+  it("mantém token e no-store nas três leituras visuais, sem pôr a sessão na URL", async () => {
+    const buscar = vi.fn().mockImplementation(() => Promise.resolve(new Response("{}")))
+    vi.stubGlobal("fetch", buscar)
+    const api = fonteProspeccao("/api", () => "sessao-privada")
+    await api.visual("CAR")
+    await api.satelite("CAR")
+    const imagem = await api.imagemSatelite("CAR")
+    expect(imagem).toBeInstanceOf(Blob)
+    expect(buscar.mock.calls.map((c) => c[0])).toEqual(["/api/prospeccao/fichas/CAR/visual", "/api/prospeccao/fichas/CAR/visual/satelite", "/api/prospeccao/fichas/CAR/visual/satelite.webp"])
+    for (const [, opcoes] of buscar.mock.calls) expect(opcoes).toMatchObject({ headers: { Authorization: "Bearer sessao-privada" }, cache: "no-store" })
+  })
+})

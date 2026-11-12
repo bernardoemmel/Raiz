@@ -2,6 +2,8 @@ import { useEffect, useState } from "react"
 import { codigosEmLeilao, normalizarCar } from "../../../compartilhado/calendario"
 import { ErroProspeccao, type FichaTerraDados, type MedidaTerra } from "../../../compartilhado/prospeccao"
 import { NOME_RISCO, SITUACOES, type Risco } from "../../../compartilhado/terra"
+import { MapaFichaTerra } from "../mapa/MapaFichaTerra"
+import { LinhaTempoTerra } from "../partes/LinhaTempoTerra"
 import { Cabecalho } from "../partes/Cabecalho"
 import { CreditosConsulta } from "../partes/CreditosConsulta"
 import { Estado } from "../partes/Estado"
@@ -73,6 +75,7 @@ export function FichaTerra({ car }: { car: string }) {
       </section> : ficha && <>
         {emLeilao && <p><a className="selo conferir" href={linkCalendarioImovel(car)}>Em leilão: conferir edital e prazo</a></p>}
         <div className="secao-cabeca"><p className="frase">{ficha.municipio}, {ficha.uf}. {ficha.bioma ?? "Bioma não informado"}.</p>{ficha.cod_ibge && <a className="botao" href={linkMunicipio(String(ficha.cod_ibge))}>Ver município no mapa</a>}</div>
+        <MapaFichaTerra ficha={ficha} />
         <section aria-labelledby="area-terra"><h2 id="area-terra">Área e restauração</h2><dl className="grade-terra"><div><dt>Área da fazenda</dt><dd><Medida dado={ficha.area_total} /></dd></div><div><dt>Quanto pode voltar a ser mata</dt><dd><Medida dado={ficha.area_restauravel} /></dd></div></dl></section>
         <section><h2>Caminho da terra e pendências</h2><p className="frase">{ficha.caminho_terra.rotulo}</p><p>{SITUACOES.find((s) => s.id === ficha.caminho_terra.situacao)?.nome ?? "Situação não informada"}. Fonte: {ficha.caminho_terra.fonte}. {dataTerra(ficha.caminho_terra.data_referencia)}.</p>
           {ficha.pendencias.length ? <ul>{ficha.pendencias.map((p) => <li key={p.codigo}>{p.texto}</li>)}</ul> : <p>Nenhuma pendência registrada nas fontes consultadas.</p>}
@@ -83,6 +86,7 @@ export function FichaTerra({ car }: { car: string }) {
         <section><h2>Crédito de carbono estimado</h2><p>{ficha.credito.base === "liquido_contrato" ? "Créditos líquidos ao longo do contrato." : ficha.credito.base === "liquido_anual" ? "Créditos líquidos por ano." : "Créditos líquidos ainda não calculados."}</p><Faixas titulo="Faixa de créditos líquidos" dados={ficha.credito} /><p>{ficha.credito.metodo}</p>{ficha.credito.versao_modelo && <p className="legenda-frase">Versão do modelo: {ficha.credito.versao_modelo}.</p>}
           <Faixas titulo={`TIR ${ficha.tir.tipo === "com_financiamento" ? "com" : "sem"} financiamento`} dados={ficha.tir} />
         </section>
+        <section><h2>Linha do tempo da fazenda</h2><LinhaTempoTerra ficha={ficha} /></section>
         <section><h2>Uso da terra ao longo dos anos</h2>{!ficha.serie_uso.length ? <p>Série anual ainda não disponível.</p> : <div className="tabela-terra"><table className="tabela-simples"><thead><tr><th>Ano</th><th>Mata</th><th>Pasto</th><th>Lavoura</th><th>Água</th></tr></thead><tbody>{ficha.serie_uso.map((s) => <tr key={s.ano}><th scope="row">{s.ano}</th>{(["mata", "pasto", "lavoura", "agua"] as const).map((c) => <td key={c}><Medida dado={s[c]} /></td>)}</tr>)}</tbody></table></div>}</section>
         <section><h2>Perdas ao longo dos anos</h2>{!ficha.perdas.length ? <p>Histórico de perdas ainda não disponível.</p> : <div className="tabela-terra"><table className="tabela-simples"><thead><tr><th>Período</th><th>O que foi observado</th><th>Área</th></tr></thead><tbody>{ficha.perdas.map((p, i) => <tr key={`${p.tipo}-${p.ano}-${i}`}><th scope="row">{p.ano ?? "Período da fonte"}</th><td>{p.rotulo}</td><td><Medida dado={p.area} /></td></tr>)}</tbody></table></div>}</section>
         <section><h2>Agrupar fazendas pequenas</h2><p>{ficha.agrupamento.pequena ? "Esta fazenda pode compor um grupo. A viabilidade depende de confirmar a proximidade e as condições das outras áreas." : ficha.agrupamento.pequena === null ? "Porte ainda não informado. A busca não elimina fazendas pequenas." : "Fazendas de qualquer tamanho podem compor um lote."}</p>{ficha.agrupamento.grupo_id && <dl className="grade-terra"><div><dt>Fazendas no grupo indicado</dt><dd><Medida dado={ficha.agrupamento.imoveis} /></dd></div><div><dt>Área do grupo</dt><dd><Medida dado={ficha.agrupamento.area} /></dd></div></dl>}</section>
