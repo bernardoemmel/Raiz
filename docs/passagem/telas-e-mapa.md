@@ -103,6 +103,10 @@ Sessão: https://claude.ai/code/session_01VGb88MJumyG9PHt2znaaKE. Branch: `claud
   cujo desenho falta recebe o aviso de indisponibilidade. Não confundir restrição de acesso com falta de dado.
 - Validação local: 9 testes de geometria passaram, 133 testes do front passaram (13 pulados), lint e formato
   Python passaram. O Playwright do build verifica cobertura, datas e ausência de vazamento de dados individuais.
+- Verificação adicional no navegador com dados reais do Release: a consulta do Pará mostrou 144 municípios,
+  345.870 fazendas lidas e 9.484.092 ha com potencial de restauração, sem 404 ou erro de JavaScript. Créditos e TIR
+  continuam pendentes da publicação dos lotes. O texto do estado ausente agora diferencia explicitamente a base
+  territorial disponível da oferta de créditos e da avaliação da terra que ainda aguardam o lote.
 
 ## Referências conferidas para a segunda entrega
 

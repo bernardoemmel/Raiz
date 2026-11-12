@@ -286,6 +286,10 @@ O manifesto aberto expõe só cobertura por município, mantendo os desenhos ind
 Teste incremental cobre município novo, UF nova e chegada posterior do desenho; Playwright confere contagem,
 datas e avisos de acesso restrito ou desenho ausente.
 
+A verificação no navegador com o Release real conferiu a consulta do Pará: 144 municípios, 345.870 fazendas e
+9.484.092 ha com potencial de restauração, zero 404 e zero erro de JavaScript. Oferta de créditos e TIR continuam
+pendentes; o texto da ausência não apresenta o cenário como já publicado.
+
 Conferido contra a main em 12/11/2026: "feito" quer dizer que o código está na main; "parcial" diz o que existe e o
 que falta, com as horas do que falta. O site público (https://bernardoemmel.github.io/Raiz/) mostra o que o front já
 faz sem back-end.

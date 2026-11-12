@@ -33,7 +33,7 @@ export function BasePublicada({ publicacao: p }: { publicacao: PublicacaoLote })
       <div><dt>Créditos líquidos P50</dt><dd>{numero(b.creditos.p50)}</dd></div>
       <div><dt>Créditos líquidos P90</dt><dd>{numero(b.creditos.p90)}</dd></div>
     </dl>
-    <p className="legenda-frase">Oferta do cenário publicado. Para saber quanto atende exatamente aos filtros do pedido, falta recalcular o lote.</p>
+    {p.estado === "publicado" && <p className="legenda-frase">Oferta do cenário publicado. Para saber quanto atende exatamente aos filtros do pedido, falta recalcular o lote.</p>}
     <h3>Cobertura dos dados consultados</h3><dl className="ficha-numeros">
       <div><dt>Municípios</dt><dd>{numero(p.cobertura.municipios)}</dd></div>
       <div><dt>Estados</dt><dd>{numero(p.cobertura.estados)}</dd></div>
