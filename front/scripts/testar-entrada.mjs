@@ -7,7 +7,10 @@
  *   3. tocar num município no mapa faz o mesmo que buscar por ele;
  *   4. busca por código do CAR leva direto à ficha;
  *   5. município de estado ainda não processado abre no mapa com o aviso certo;
- *   6. no celular (360 px): busca no topo, mapa no resto, painel como gaveta que sobe com o município.
+ *   6. no celular (360 px): busca no topo, mapa no resto, painel como gaveta que sobe com o município;
+ *   7. sem hachura fora das fazendas (teste visual): com as fazendas escondidas, ligar e desligar toda camada com
+ *      hachura não muda nenhum pixel do mapa; com elas à mostra, muda (prova de que o teste enxerga hachura);
+ *   8. o rótulo "Brasil" do mapa base não aparece.
  *
  * Uso (de front/globo): npm run test:e2e
  * Precisa do Playwright com o Chromium (npx playwright install chromium) e de front/geo/ gerado (python front/scripts/geo.py).
@@ -86,6 +89,15 @@ try {
     )
     conferir(processados > 0, `municípios processados pintados em mata no mapa (${processados} pedaços)`)
 
+    // 8. sem o rótulo do país em cima do Pará; os vizinhos continuam com nome
+    const paises = await p.evaluate(() =>
+      document
+        .querySelector(".mapa-brasil .mapa")
+        .__mapa.queryRenderedFeatures({ layers: ["places_country"] })
+        .map((f) => f.properties.wikidata ?? f.properties["name:en"]),
+    )
+    conferir(paises.length > 0 && !paises.includes("Q155") && !paises.includes("Brazil"), `o rótulo "Brasil" não aparece; os vizinhos sim (${paises.length})`)
+
     // 2. busca por município
     await buscar(p, "são félix", "São Félix do Xingu")
     await p.waitForURL(new RegExp(`#/municipio/${SFX}$`), { timeout: 20000 })
@@ -94,6 +106,53 @@ try {
     conferir((await p.locator(".fb-dentro").count()) === 4, "o funil tem as 4 barras")
     await p.waitForFunction(() => document.querySelector(".mapa-brasil .mapa").__mapa.querySourceFeatures("imoveis").length > 0, null, { timeout: 30000 })
     conferir(true, "as fazendas do município estão no mapa")
+
+    // 7. hachura só dentro das fazendas (teste visual)
+    const mapa = p.locator(".mapa-brasil canvas")
+    const desenhar = async (fazendas, hachuras) => {
+      await p.evaluate(
+        async ([fazendas, hachuras]) => {
+          const m = document.querySelector(".mapa-brasil .mapa").__mapa
+          for (const l of m.getStyle().layers) {
+            const ehFazenda = l.source === "imoveis"
+            const temHachura = l.type === "fill" && l.paint && "fill-pattern" in l.paint
+            const ver = (ehFazenda ? fazendas : true) && (temHachura ? hachuras : true)
+            m.setLayoutProperty(l.id, "visibility", ver ? "visible" : "none")
+          }
+          await new Promise((r) => {
+            m.once("idle", r)
+            m.triggerRepaint()
+          })
+        },
+        [fazendas, hachuras],
+      )
+      await p.waitForTimeout(400)
+      return mapa.screenshot()
+    }
+    const camadas = await p.evaluate(() =>
+      document
+        .querySelector(".mapa-brasil .mapa")
+        .__mapa.getStyle()
+        .layers.filter((l) => l.type === "fill" && l.paint && "fill-pattern" in l.paint)
+        .map((l) => ({ id: l.id, fonte: l.source, desenho: l.paint["fill-pattern"] })),
+    )
+    conferir(
+      camadas.length > 0 && camadas.every((c) => c.fonte === "imoveis"),
+      `toda camada com hachura é de fazenda (${camadas.map((c) => `${c.id}: ${c.fonte}`).join(", ")})`,
+    )
+    conferir(!JSON.stringify(camadas.map((c) => c.desenho)).includes('"hachura"'), "a hachura diagonal (área que pode voltar a ser mata) não pinta nada além dela")
+    const semFazendasCom = await desenhar(false, true)
+    const semFazendasSem = await desenhar(false, false)
+    conferir(semFazendasCom.equals(semFazendasSem), "sem as fazendas, nenhum pixel de hachura no mapa (nem fora do contorno do município)")
+    const comFazendasCom = await desenhar(true, true)
+    const comFazendasSem = await desenhar(true, false)
+    conferir(!comFazendasCom.equals(comFazendasSem), "com as fazendas, a hachura cruzada das não aptas aparece (o teste enxerga hachura)")
+    // devolve o mapa como estava (fogo e círculo de fogo ficam escondidos fora da camada de fogo)
+    await p.evaluate(() => {
+      const m = document.querySelector(".mapa-brasil .mapa").__mapa
+      for (const l of m.getStyle().layers) m.setLayoutProperty(l.id, "visibility", ["imoveis-fogo", "fogo-recente"].includes(l.id) ? "none" : "visible")
+    })
+
 
     // tocar na barra deixa no mapa só quem chegou ali
     await p.locator(".fb-dentro").nth(2).click()

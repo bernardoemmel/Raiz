@@ -117,8 +117,8 @@ export const SITUACAO = {
   apta: COR.situacaoApta,
   pendencia: COR.situacaoPendencia,
   naoApta: COR.situacaoNaoApta,
-  /** fora do foco do funil: fica em cinza claro, não some */
-  apagada: COR.nevoa,
+  /** fora do foco do funil: fica em branco, não some (a névoa é do chão sem imóvel do CAR) */
+  apagada: COR.superficie,
 } as const
 
 /** Porte por módulos fiscais, em três tons do mesmo verde (guia, item 4.2): os pequenos vão para o projeto agrupado. */

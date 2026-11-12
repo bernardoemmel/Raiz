@@ -59,7 +59,7 @@ Tudo passa por `compartilhado/dados/` (`FonteDeDados`). As telas não sabem de o
 | `GET /imoveis/{cod_imovel}/ficha` | `FichaJson` (`compartilhado/dados/ficha.ts`): linha, contexto do município e perímetro em polyline |
 | `GET /imoveis/{cod_imovel}/certidoes` | cartório (CNS) e matrícula das parcelas SIGEF |
 | `GET /busca?q=` | `RespostaBusca` (`compartilhado/dados/busca.ts`): `situacao`, `mensagem`, `imoveis`, `municipios` |
-| `GET /geo/{cod_ibge}/{municipio,imoveis,ti,uc,rios}.geojson` | geometrias |
+| `GET /geo/{cod_ibge}/{municipio,imoveis,ti,uc,rios}.geojson` | geometrias; `ti` e `uc` recortadas na divisa do município, com `nome` |
 | `GET /geo/{cod_ibge}/base.pmtiles` | mapa base (precisa responder a `Range`) |
 | `GET /pontos` | fazendas aptas para os círculos da tela de entrada: `lon`, `lat`, `situacao` (`apta` ou `pendencia`), `ha`, `cod_ibge` |
 | `GET /geo/brasil/municipios.geojson` | os 5.570 municípios do Brasil, simplificados (`cod_ibge`, `nome`, `uf`) |

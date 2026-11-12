@@ -15,6 +15,7 @@ import { COR, FOGO, MAPA, SITUACAO } from "../../../compartilhado/cores"
 import type { Geo, Imovel, PontoFazenda } from "../../../compartilhado/dados"
 import { MOTIVOS, etapaDe, noFoco, situacaoDe, type Foco, type MotivoId } from "../../../compartilhado/funil-etapas"
 import { abreviarCar, fmtHa, fmtInt } from "../../../compartilhado/formato"
+import { rotulosDeAreas } from "../../../compartilhado/rotulos-mapa"
 import { tituloDe } from "../filtros"
 import { linkFazenda } from "../rota"
 import { estiloBase, imagemHachura, prepararMapLibre } from "./estilo"
@@ -26,6 +27,7 @@ export interface GeoMunicipio {
   municipio: Geo | null
   imoveis: Geo | null
   ti: Geo | null
+  uc: Geo | null
   rios: Geo | null
 }
 
@@ -218,6 +220,8 @@ export function MapaBrasil(props: Props) {
     set("municipio", g?.municipio)
     set("mascara", municipio ? mascara(g?.municipio ?? null) : VAZIO)
     set("ti", g?.ti)
+    set("uc", g?.uc)
+    set("nomes", rotulosDeAreas(g?.ti, g?.uc))
     set("rios", g?.rios)
     set("imoveis", g?.imoveis)
     set("fogo-recente", VAZIO)
@@ -314,10 +318,11 @@ export function MapaBrasil(props: Props) {
   function montar(m: MapaGL, municipiosBrasil: Geo | null) {
     const antesDosRotulos = m.getStyle().layers.find((l) => l.type === "symbol")?.id
     const add = (l: LayerSpecification, emCima = false) => m.addLayer(l, emCima ? undefined : antesDosRotulos)
+    // A hachura diagonal quer dizer uma coisa só: área que pode voltar a ser mata, dentro da fazenda (guia, item 2.1,
+    // parte 3). Ela entra quando o back-end entregar esse recorte por fazenda; aqui só a cruzada da fazenda não apta.
     m.addImage("hachura-cruzada", imagemHachura(COR.pedra, true), { pixelRatio: 2 })
-    m.addImage("hachura", imagemHachura(COR.mata), { pixelRatio: 2 })
     m.addSource("brasil-municipios", { type: "geojson", data: (municipiosBrasil ?? VAZIO) as never, promoteId: "cod_ibge" })
-    for (const id of ["municipio", "mascara", "ti", "rios", "fogo-recente"]) m.addSource(id, { type: "geojson", data: VAZIO as never })
+    for (const id of ["municipio", "mascara", "ti", "uc", "nomes", "rios", "fogo-recente"]) m.addSource(id, { type: "geojson", data: VAZIO as never })
     m.addSource("imoveis", { type: "geojson", data: VAZIO as never, promoteId: "cod_imovel" })
     m.addSource("pontos", { type: "geojson", data: VAZIO as never, cluster: true, clusterRadius: 44, clusterMaxZoom: 7 })
 
@@ -357,7 +362,18 @@ export function MapaBrasil(props: Props) {
         ],
       },
     })
-    add({ id: "ti", type: "fill", source: "ti", paint: { "fill-pattern": "hachura", "fill-opacity": 0.5 } })
+    // Dentro do município, o que não é fazenda do CAR fica em névoa lisa: área sem imóvel, terra indígena e unidade de
+    // conservação. Vai embaixo da água e das estradas do mapa base, que continuam aparecendo por cima.
+    const daAgua = m.getStyle().layers.find((l) => l.id === "water")?.id ?? antesDosRotulos
+    m.addLayer({ id: "municipio-fundo", type: "fill", source: "municipio", paint: { "fill-color": COR.nevoa } }, daAgua)
+    // terra indígena e unidade de conservação: só a divisa, fina e tracejada, e o nome por cima (camada "nomes")
+    for (const id of ["ti", "uc"])
+      add({
+        id: `${id}-linha`,
+        type: "line",
+        source: id,
+        paint: { "line-color": COR.pedra, "line-width": 0.8, "line-opacity": 0.6, "line-dasharray": [3, 2] },
+      })
     add({ id: "rios", type: "fill", source: "rios", paint: { "fill-color": MAPA.agua } })
     // fazendas do município: cor pelo estado de feição "g"; não apta também com hachura cruzada (nunca só cor).
     // Sem zoom mínimo: a fonte só tem o município escolhido, e no celular ele cabe num zoom menor.
@@ -380,7 +396,11 @@ export function MapaBrasil(props: Props) {
       id: "imoveis-linha",
       type: "line",
       source: "imoveis",
-      paint: { "line-color": COR.superficie, "line-width": ["interpolate", ["linear"], ["zoom"], 8, 0.2, 13, 1.2] },
+      paint: {
+        // a fazenda apagada é branca: a divisa dela em névoa, para continuar dando para ver uma de cada
+        "line-color": ["case", ["==", ["coalesce", ["feature-state", "g"], -1], G.apagada], COR.nevoa, COR.superficie],
+        "line-width": ["interpolate", ["linear"], ["zoom"], 8, 0.2, 13, 1.2],
+      },
     })
     add({
       id: "imoveis-fogo",
@@ -416,6 +436,23 @@ export function MapaBrasil(props: Props) {
       },
     })
     add({ id: "municipio", type: "line", source: "municipio", paint: { "line-color": COR.tinta, "line-width": 2 } })
+    add(
+      {
+        id: "nomes",
+        type: "symbol",
+        source: "nomes",
+        minzoom: 6,
+        layout: {
+          "text-field": ["get", "rotulo"],
+          "text-font": ["Noto Sans Italic"],
+          "text-size": ["interpolate", ["linear"], ["zoom"], 6, 11, 10, 13],
+          "text-max-width": 8,
+          "text-padding": 4,
+        },
+        paint: { "text-color": COR.pedra, "text-halo-color": COR.nevoa, "text-halo-width": 1.5 },
+      },
+      true,
+    )
     add({
       id: "brasil-mun-escolhido",
       type: "line",

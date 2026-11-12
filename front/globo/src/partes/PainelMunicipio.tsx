@@ -83,7 +83,11 @@ function Legenda({ camada, foco, imoveis }: { camada: CamadaAssunto; foco: Foco;
         ))}
         <li>
           <i className="apagada" />
-          As outras fazendas, em cinza claro
+          As outras fazendas, em branco
+        </li>
+        <li>
+          <i className="nevoa" />
+          Sem imóvel no CAR, terra indígena ou unidade de conservação (com o nome no mapa)
         </li>
       </ul>
     )
@@ -126,9 +130,13 @@ function Legenda({ camada, foco, imoveis }: { camada: CamadaAssunto; foco: Foco;
       {foco && (
         <li>
           <i className="apagada" />
-          Fora da etapa escolhida, em cinza claro
+          Fora da etapa escolhida, em branco
         </li>
       )}
+        <li>
+          <i className="nevoa" />
+          Sem imóvel no CAR, terra indígena ou unidade de conservação (com o nome no mapa)
+        </li>
     </ul>
   )
 }

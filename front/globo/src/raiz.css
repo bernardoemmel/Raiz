@@ -835,7 +835,7 @@
   font-size: var(--t-subtitulo);
   font-weight: 700;
 }
-.numeros div:first-child dd {
+.numeros dd.destaque {
   color: var(--urucum);
 }
 .secao-painel {
@@ -919,8 +919,13 @@
     repeating-linear-gradient(-45deg, var(--pedra) 0 1.5px, var(--situacao-nao-apta) 1.5px 5px);
 }
 .legenda-lista i.apagada {
-  background: var(--nevoa);
+  background: var(--superficie);
   border: 1px solid var(--situacao-nao-apta);
+}
+.legenda-lista i.nevoa,
+.legenda i.nevoa {
+  background: var(--nevoa);
+  border: 1px dashed var(--pedra);
 }
 .legenda-lista i.contorno {
   border: 2px solid var(--urucum);
