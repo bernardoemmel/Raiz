@@ -44,6 +44,21 @@ Não instala serviços nem preenche credenciais. Sem ntfy e GoAlert, continua em
 e migrado, a rodada falha. A prévia não ativa nada. Um ambiente de desenvolvimento sem acesso ao servidor não
 comprova que o agendamento esteja ativo em produção.
 
+O Calendário da Raíz usa um bloco separado no mesmo instalador:
+
+```bash
+uv run raiz banco migrar
+uv run python scripts/instalar_cron_alertas.py --tarefa calendario            # prévia
+uv run python scripts/instalar_cron_alertas.py --tarefa calendario --instalar # diário
+```
+
+Ele executa `uv run raiz calendario coletar` todos os dias às **06:47 no fuso configurado no servidor**, com trava
+própria, sem alterar o fuso dos demais trabalhos. O banco do `.env` precisa estar acessível e migrado (incluindo
+0026). Essa rodada persiste os eventos, cruza CAR/SIGEF, atualiza API/MCP e prepara os avisos do painel; os canais
+externos continuam simulados. A rodada do GitHub Actions com `--sem-banco` publica o Release e não substitui esse
+agendamento do banco. Instalar ou repetir um bloco preserva o outro. Instale no diretório permanente da aplicação:
+`dados/calendario/` guarda o estado da coleta entre as rodadas.
+
 | O que | Gravidade |
 |---|---|
 | lote que falhou nas últimas 24 h (um alerta por tarefa e dia) | aviso |
@@ -582,7 +597,8 @@ não lê a compra. A implementação está coberta por `testes/test_prospeccao_a
 
 ### Avisos de buscas salvas
 
-Depois de migrar o banco até `0027`, executar `uv run raiz prospeccao verificar-buscas` após cada carga do motor,
+Depois de migrar o banco até `0028` (buscas salvas, após `0027` do calendário), executar
+`uv run raiz prospeccao verificar-buscas` após cada carga do motor,
 ou pelo cron do operador. O comando usa `RAIZ_BANCO_URL`, imprime somente as quantidades verificadas e sai com
 erro se a consulta falhar. Para repetir uma única busca: `uv run raiz prospeccao verificar-buscas --busca <UUID>`.
 Esta entrega fornece o comando; não instala uma agenda em produção.

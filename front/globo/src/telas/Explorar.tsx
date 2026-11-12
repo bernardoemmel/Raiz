@@ -1,6 +1,8 @@
 import type { SituacaoBasica } from "../../../compartilhado/dados/basico"
 import { PainelMunicipioBasico } from "../partes/PainelMunicipioBasico"
 import { useEffect, useMemo, useRef, useState } from "react"
+import { codigosEmLeilao } from "../../../compartilhado/calendario"
+import { calendario } from "../calendario"
 import { ufDoCodigo } from "../../../compartilhado/formato"
 import type { Foco } from "../../../compartilhado/funil-etapas"
 import { fonte, useCarga } from "../dados"
@@ -33,6 +35,8 @@ export function Explorar({ municipio, uf }: { municipio: string | null; uf: stri
   const municipios = useCarga(() => fonte.municipios(), [])
   // o estado em foco: o escolhido, ou o do município aberto; os pontos são só dele
   const ufFoco = municipio ? ufDoCodigo(municipio) : uf
+  const leiloes = useCarga(() => municipio ? calendario.leiloes({ estado: ufFoco || undefined }) : Promise.resolve(null), [municipio, ufFoco])
+  const emLeilao = useMemo(() => codigosEmLeilao(leiloes.dado?.eventos ?? []), [leiloes.dado])
   const pontos = useCarga(() => (ufFoco ? fonte.pontos(ufFoco) : Promise.resolve([])), [ufFoco])
   const funil = useCarga(() => (municipio ? fonte.municipio(municipio) : Promise.resolve(null)), [municipio])
   const imoveis = useCarga(() => (municipio ? fonte.imoveis(municipio) : Promise.resolve(null)), [municipio])
@@ -155,6 +159,7 @@ export function Explorar({ municipio, uf }: { municipio: string | null; uf: stri
                 situacao={situacaoBasica}
                 mudarSituacao={setSituacaoBasica}
                 aoPassar={setDestaque}
+                emLeilao={emLeilao}
                 atualizadoEm={estados.dado.estados.find((e) => e.uf === ufFoco)?.atualizado_em ?? estados.dado.gerado_em}
               />
             ) : municipio ? (
@@ -170,6 +175,7 @@ export function Explorar({ municipio, uf }: { municipio: string | null; uf: stri
                 camada={camada}
                 mudarCamada={setCamada}
                 aoPassar={setDestaque}
+                emLeilao={emLeilao}
               />
             ) : (
               <PainelBrasil
@@ -198,6 +204,7 @@ export function Explorar({ municipio, uf }: { municipio: string | null; uf: stri
           foco={foco}
           camada={camada}
           destaque={destaque}
+          emLeilao={emLeilao}
           margemBaixo={margem}
           aoEscolherMunicipio={(cod) => (location.hash = linkMunicipio(cod))}
           aoEscolherEstado={(sigla) => (location.hash = linkEstado(sigla))}

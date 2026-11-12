@@ -62,11 +62,28 @@ function basePmtiles() {
 export function preparar() {
   const geo = path.join(FIXTURE, "geo")
   const dados = path.join(FIXTURE, "dados/PA")
+  const calendario = path.join(FIXTURE, "calendario")
   // Não deixar um arquivo de uma execução anterior mudar o resultado da fixture.
   fs.rmSync(geo, { recursive: true, force: true })
   fs.rmSync(path.join(FIXTURE, "dados"), { recursive: true, force: true })
+  fs.rmSync(calendario, { recursive: true, force: true })
   fs.mkdirSync(geo, { recursive: true })
   fs.mkdirSync(dados, { recursive: true })
+  fs.mkdirSync(calendario, { recursive: true })
+  const evento = {
+    id: "a".repeat(24), tipo: "leilao_imovel", titulo: "Leilão fictício para teste do Pages",
+    data: "2099-11-15", prazo: null, uf: "PA", municipio: MUNICIPIO, codigos_car: [CAR],
+    fonte_url: "https://example.test/leilao", fonte_nome: "Fonte fictícia de teste",
+    coletado_em: "2026-11-12T12:00:00Z", confianca: 0.9, situacao: "previsto",
+  }
+  fs.writeFileSync(path.join(calendario, "eventos.json"), JSON.stringify({
+    eventos: [evento], total: 1, coletado_em: evento.coletado_em, fontes: [],
+  }))
+  fs.writeFileSync(path.join(calendario, "eventos.ics"), [
+    "BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Raiz//Teste//PT-BR", "BEGIN:VEVENT",
+    `UID:${evento.id}@teste.raiz`, "DTSTAMP:20261112T120000Z", "DTSTART;VALUE=DATE:20991115",
+    "DTEND;VALUE=DATE:20991116", `SUMMARY:${evento.titulo}`, "END:VEVENT", "END:VCALENDAR", "",
+  ].join("\r\n"))
   const salvar = (nome, conteudo) => fs.writeFileSync(path.join(geo, nome), JSON.stringify(conteudo))
   const municipio = retangulo([-49.95, -6.15, -49.85, -6.05], { cod_ibge: MUNICIPIO, nome: "Parauapebas", uf: "PA" })
   const semDesenho = retangulo([-49.7, -6.2, -49.6, -6.1], { cod_ibge: SEM_DESENHO, nome: "Curionópolis", uf: "PA" })

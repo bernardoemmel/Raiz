@@ -219,3 +219,24 @@ A simulação antiga continua exportada somente para testes explícitos, sem ser
 Primeira abertura: cerca de 18 KB compactados (HTML, CSS e JS) mais o JSON da fazenda, com o contorno desenhado a
 partir do perímetro em polyline. MapLibre (cerca de 300 KB) e o PMTiles só são baixados quando o produtor toca em
 "ver no mapa". O cartão WebP e o ThumbHash da miniatura entram quando o lote anual do E9 (passos 3 e 4) gerar.
+
+## Calendário
+
+A aba `#/calendario` reúne os eventos públicos coletados diariamente, com filtros por tipo, estado e período,
+paginação, fonte e data da coleta. Eventos nacionais continuam visíveis ao filtrar um estado. O período considera o prazo quando informado, senão a data do evento.
+O feed `.ics` baixa a seleção na API; no site estático, baixa a agenda completa publicada.
+
+Com `VITE_RAIZ_API`, consulta `GET /eventos` e `GET /eventos.ics`. Sem API, lê
+`calendario/eventos.json`: `baixar-calendario.mjs` baixa o JSON e o feed do Release `calendario` no `predev` e no
+build do site (`RAIZ_BUILD_DADOS=0` pula o download no CI). A pasta `globo/public/calendario/` é ignorada pelo git.
+`RAIZ_CALENDARIO_DADOS` fornece uma pasta local com os dois arquivos (a fixture do CI usa esta opção sem rede);
+`RAIZ_CALENDARIO_URL` troca a origem no build; `VITE_RAIZ_EVENTOS_URL` e `VITE_RAIZ_EVENTOS_ICS_URL` permitem
+usar um snapshot publicado em outro endereço. Sem primeira coleta, a tela avisa explicitamente. Coleta com mais de
+dois dias e fontes com falha também aparecem como avisos.
+
+Leilões previstos com data de hoje ou futura marcam os CAR publicados nos editais na ficha desbloqueada.
+Eventos cancelados ou adiados não geram a marca. O mapa aberto permanece agregado, sem polígonos individuais,
+e o calendário não desbloqueia a ficha paga. O selo não altera a aptidão do imóvel nem exclui fazendas pequenas.
+`npm run test:calendario` confere tela, filtros, falta de coleta e celular no Chromium; `test:prospeccao` confere
+o selo depois do desbloqueio e sua remoção ao trocar de conta. A suíte `npm test` cobre o contrato, paginação,
+máscara e seleção dos leilões.
