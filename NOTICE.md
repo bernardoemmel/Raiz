@@ -42,3 +42,23 @@ Métodos reescritos, sem copiar código: frases comparativas por índice no esti
 (`front/compartilhado/comparacoes.ts`) e caixa de fatos no formato das "fact boxes" de comunicação de risco
 (`front/compartilhado/cenario.ts`). Dependências só de desenvolvimento: Vite, TypeScript, Vitest, Oxlint (MIT) e,
 no script, requests (Apache-2.0), shapely e pmtiles (BSD-3-Clause).
+
+## Vigilância (`raiz/vigilancia/`)
+
+Nenhum código de terceiros copiado. Dependências usadas sem alterar (instaladas por `raiz/vigilancia/requisitos.txt`,
+todas no servidor ou no GitHub Actions): pandas, geopandas, shapely, pyproj (BSD-3-Clause), numpy (BSD-3-Clause),
+pyarrow (Apache-2.0), requests (Apache-2.0), PyYAML (MIT), cryptography (Apache-2.0 ou BSD-3-Clause, cifra Fernet da
+parte privada), FastAPI (MIT), uvicorn (BSD-3-Clause); nos testes, pytest (MIT) e httpx (BSD-3-Clause).
+
+Dados lidos todo dia (cada um com seus termos; nenhum com licença não comercial):
+
+| Fonte | Termos | Citação |
+|---|---|---|
+| NASA FIRMS, VIIRS 375 m NOAA-20 e NOAA-21 (VJ114IMGTDL_NRT, VJ214IMGTDL_NRT) | dado aberto da NASA, sem restrição de uso | "LANCE FIRMS, NASA EOSDIS" |
+| MapBiomas Alerta (API v2, com conta) | CC BY 4.0 segundo os termos do Alerta (o site geral do MapBiomas cita CC BY-SA; conferir antes de redistribuir derivado) | "MapBiomas Alerta, plataforma.alerta.mapbiomas.org, acesso em <data>" |
+| INPE TerraBrasilis: DETER (Amazônia e Cerrado) e PRODES (Amazônia Legal e Cerrado) | dado público do INPE | "INPE, TerraBrasilis" |
+| Ibama, termos de embargo (dados abertos) | dado público; nome, CPF/CNPJ, nome do imóvel e textos livres são descartados na leitura | "Ibama, dados abertos" |
+
+Estrutura do rascunho do relatório de perda: títulos das seções do Loss Event Report Template v5.0 da Verra
+(modelo obrigatório para quem reporta perda ao VCS), preenchidos com texto próprio. Regra dos prazos: Verra,
+Registration and Issuance Process v4.4, seção 5.3, e errata de 14/02/2023.

@@ -1,0 +1,137 @@
+# Regras da vigilância da Raíz.
+# Qualquer mudança neste arquivo muda a versão da regra (nome abaixo + 8 primeiros caracteres do sha256 do arquivo).
+# A versão fica gravada em cada alerta, em cada marcação automática e em cada evento de perda: é assim que a Raíz
+# compara depois o acerto de cada versão. Para uma mudança grande, troque também o nome (2026.11a -> 2026.12a).
+nome: vigilancia-2026.11a
+
+# alerta que a Raíz viu pela primeira vez nesta rodada e que a fonte publicou há até N dias conta como "novo"
+# (os mais velhos, achados na primeira leitura de uma fonte, entram como linha de base: ficam guardados e aparecem no
+# imóvel, mas não geram aviso)
+novo_janela_dias: 30
+
+fontes:
+  mapbiomas_alerta:
+    # GraphQL v2, alertas validados em imagem de alta resolução; releitura pela data de publicação (pega troca de status)
+    url: https://plataforma.alerta.mapbiomas.org/api/v2/graphql
+    janela_dias: 35
+    por_pagina: 100
+    # status que tornam o alerta falso (comparação sem caixa e sem acento)
+    status_falso: [rejeitado, recusado, reprovado, cancelado, rejected, refused, canceled, cancelled]
+  deter:
+    # INPE TerraBrasilis (WFS). Chave composta: camada + classe + data da imagem + geometria arredondada
+    url: https://terrabrasilis.dpi.inpe.br/geoserver/ows
+    camadas: [deter-amz:deter_amz, deter-cerrado-nb:deter_cerrado]
+    janela_dias: 45
+    primeira_janela_dias: 90
+    por_pagina: 5000
+  firms:
+    # NASA FIRMS, VIIRS 375 m: NOAA-20 (J1) e NOAA-21 (J2). Sem chave: arquivos públicos da América do Sul (24h, 48h e
+    # 7 dias). Com FIRMS_MAP_KEY: API de área (até 5 dias por pedido)
+    satelites:
+      N20: {pasta: noaa-20-viirs-c2, prefixo: J1, api: VIIRS_NOAA20_NRT}
+      N21: {pasta: noaa-21-viirs-c2, prefixo: J2, api: VIIRS_NOAA21_NRT}
+    janela: 48h
+    primeira_janela: 7d
+    bbox_brasil: [-74.1, -34.0, -28.6, 5.4]
+  ibama_embargo:
+    # CSV dos termos de embargo (dados abertos do Ibama), com pedido condicional (ETag). Nome, CPF/CNPJ, imóvel e
+    # textos livres saem na entrada: só ficam as colunas de LISTA_COLUNAS em fontes/ibama.py
+    url: https://stibamadadosabertosprd.blob.core.windows.net/dados-abertos/dados/TERMOS_DE_EMBARGO/TERMO_EMBARGO/termo_de_embargo.csv
+  prodes:
+    # INPE TerraBrasilis, desmatamento anual. A rodada diária só pergunta se saiu ano novo; quando sai, baixa o ano
+    # inteiro nos estados vigiados
+    url: https://terrabrasilis.dpi.inpe.br/geoserver/ows
+    camadas:
+      prodes-legal-amz:yearly_deforestation: {campo_uf: state, campo_ano: year}
+      # no Cerrado o campo state traz o nome do estado em maiúsculas (MATO GROSSO DO SUL), não a sigla
+      prodes-cerrado-nb:yearly_deforestation: {campo_uf: state, campo_ano: year, uf_por_nome: true}
+    por_pagina: 5000
+
+# classe da fonte -> tipo do alerta (desmatamento, degradacao, fogo, embargo)
+tipos:
+  deter:
+    desmatamento_cr: desmatamento
+    desmatamento_veg: desmatamento
+    mineracao: desmatamento
+    cs_desordenado: degradacao
+    cs_geometrico: degradacao
+    degradacao: degradacao
+    cicatriz_de_queimada: fogo
+  padrao:
+    mapbiomas_alerta: desmatamento
+    prodes: desmatamento
+    firms: fogo
+    ibama_embargo: embargo
+
+# chance de o alerta ser verdadeiro antes de qualquer marcação, como Beta(a, b) (média = a / (a + b)), por estrato.
+# Com as marcações (campo, cliente, imagem nova, fonte oficial), a confiança de cada estrato vira
+# (a + verdadeiros) / (a + b + verdadeiros + falsos). A conta é congelada no alerta quando ele nasce.
+confianca_inicial:
+  mapbiomas_alerta: [19, 1]      # 95%: só publica depois de validar em imagem de alta resolução
+  prodes: [19, 1]                # 95%: mapeamento anual com revisão
+  deter_desmatamento: [17, 3]    # 85%
+  deter_degradacao: [7, 3]       # 70%
+  deter_fogo: [8, 2]             # 80%
+  firms_alta: [8, 2]             # 80%: foco de calor de confiança alta
+  firms_nominal: [6, 4]          # 60%
+  firms_baixa: [3, 7]            # 30%
+  ibama_embargo: [49, 1]         # 98%: ato administrativo publicado
+  padrao: [1, 1]                 # 50% para estrato que ainda não tem regra
+
+gravidade:
+  # alta: dentro da área de carbono de um projeto, embargo, área sobreposta >= area_alta_ha ou >= fracao_alta do alvo
+  # media: área sobreposta >= area_media_ha, >= fracao_media do alvo ou fogo
+  # baixa: o resto e toda sobreposição de borda
+  area_alta_ha: 5
+  area_media_ha: 1
+  # imóvel pequeno: o que conta é a parte dele que foi atingida
+  fracao_alta: 0.2
+  fracao_media: 0.05
+  # sobreposição de borda (provável diferença de traçado entre o polígono do alerta e o do CAR): fica guardada, com
+  # gravidade baixa, mas nunca é descartada. Nenhuma fazenda sai por tamanho: imóvel pequeno com sobreposição pequena
+  # que cobre parte relevante dele não é borda.
+  borda_max_ha: 0.1
+  borda_max_fracao_alerta: 0.01
+  borda_max_fracao_alvo: 0.01
+
+# pixel do VIIRS: quadrado de scan x track (km) em volta do ponto; sem scan/track, 375 m
+firms_pixel_m: 375
+
+marcacao_automatica:
+  # desmatamento (DETER ou MapBiomas Alerta) confirmado por PRODES ou MapBiomas Alerta posterior no mesmo alvo
+  confirma_desmatamento_por: [prodes, mapbiomas_alerta]
+  min_sobreposicao_ha: 0.5
+  min_fracao: 0.1
+  # DETER de desmatamento sem nada do PRODES do mesmo ano no mesmo lugar vira falso só se for maior que a área mínima
+  # mapeada pelo PRODES e o ano do PRODES já tiver sido lido para a UF
+  prodes_area_minima_ha: 6.25
+  # foco de calor confirmado por cicatriz de queimada do DETER no mesmo alvo até N dias depois
+  fogo_confirmado_por_cicatriz_dias: 60
+
+# Regra da Verra para perda em área de projeto
+verra:
+  base: >-
+    Verra, VCS Program, Registration and Issuance Process v4.4, seção 5.3.1: ao descobrir um evento de perda, o
+    proponente avisa a Verra por e-mail em até 30 dias e, se o projeto já emitiu VCU, entrega o relatório de perda
+    (Loss Event Report) em até 2 anos da descoberta; sem o relatório no prazo, o projeto não emite mais VCU (errata de
+    14/02/2023: vale também para os outros projetos do mesmo proponente). Seção 5.3.3: relatório no modelo da Verra,
+    estimativa conservadora da perda com monitoramento de toda a área afetada, declaração assinada e verificação por
+    VVB. Modelo: Loss Event Report Template v5.0 (evento de perda = perda acima de 5% das reduções e remoções já
+    verificadas; plantio, desbaste e colheita previstos no plano não contam).
+  documento: Registration and Issuance Process v4.4, seção 5.3
+  modelo_relatorio: Loss Event Report Template v5.0
+  email: registry@verra.org
+  aviso_verra_dias: 30
+  relatorio_anos: 2
+  limiar_evento_pct: 5
+  # tipos de alerta que podem ser perda de estoque de carbono. Embargo é ato administrativo sobre derrubada passada:
+  # aparece no projeto como alerta de gravidade alta, mas não abre evento de perda sozinho
+  tipos_perda: [desmatamento, degradacao, fogo]
+  # alertas na área de carbono do mesmo projeto a até N metros e N dias um do outro formam o mesmo evento de perda
+  agrupar_distancia_m: 500
+  agrupar_janela_dias: 60
+  # dias que faltam para o prazo do relatório: atenção e urgente
+  prazo_atencao_dias: 180
+  prazo_urgente_dias: 30
+  # dias antes do prazo de aviso à Verra em que sai um novo aviso ao cliente
+  lembrete_aviso_verra_dias: 7
