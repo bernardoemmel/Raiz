@@ -52,6 +52,11 @@ export function fonteApi(api: string, token?: string): FonteDeDados {
 
   return {
     nome: "api",
+    async imagem(caminho) {
+      if (!token) return raiz + caminho
+      const r = await fetch(raiz + caminho, { headers: cabecalhos })
+      return r.ok ? URL.createObjectURL(await r.blob()) : null
+    },
     municipios: () => municipios(""),
     async municipio(cod) {
       const m = (await municipios("")).find((x) => x.cod_ibge === cod)

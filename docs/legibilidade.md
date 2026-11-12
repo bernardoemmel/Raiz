@@ -40,6 +40,20 @@ vinte e seis", "12,5%" vira "doze vírgula cinco por cento" e "art." vira "artig
 palavra sem sílaba e o ponto do milhar como fim de frase. `raiz legibilidade medir --cru` mostra a contagem do ALT sem
 essa preparação.
 
+## Revisor de estilo (LanguageTool)
+
+Com o servidor próprio do LanguageTool no ar, cada mensagem também leva os avisos de estilo e legibilidade dele:
+frase longa, parágrafo difícil, pleonasmo ("subiu para cima"), prolixidade ("a geração de" → "gerar"). Ortografia e
+gramática ficam de fora (o nome da Raíz e as siglas não são erro). O texto vai só para o servidor da Raíz.
+
+```bash
+docker compose --env-file .env -f infra/docker-compose.yml up -d revisor
+```
+
+Depois, `RAIZ_LANGUAGETOOL_URL=http://localhost:8010` no `.env`. Sem ele, a nota sai só com o medidor. Com o servidor
+fora do ar, a nota diz o erro e a mensagem segue para aprovação: quem aprova decide. Os avisos aparecem em
+`raiz legibilidade medir` e ficam em `legibilidade.languagetool` de cada mensagem.
+
 ## O que ainda falta
 
 - Palavra complexa (Gunning Fog): o ALT usa as 5.000 palavras mais comuns de uma lista da Linguateca, sem licença

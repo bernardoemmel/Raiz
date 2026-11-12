@@ -29,10 +29,10 @@ from sqlalchemy import Engine, text
 
 from raiz.agentes import textos
 from raiz.aprendizado.registro import registrar_gabarito
-from raiz.legibilidade import medir
 from raiz.modelos.base import Pedido
 from raiz.modelos.cascata import Cascata
 from raiz.pessoal import registrar_consentimento
+from raiz.revisor import nota_de_envio
 
 ETAPAS_DO_DONO = {"convite", "explicacao", "codigo"}
 MAX_EXPLICACOES = 2
@@ -90,13 +90,14 @@ def _hash_codigo(cod_imovel: str, codigo: str) -> str:
 
 
 def _enfileirar(con, estado: Estado, tipo: str, texto: str) -> None:
-    """A mensagem entra esperando aprovação, com a nota de legibilidade (todas as versões) para quem aprova."""
+    """A mensagem entra esperando aprovação, com a nota de legibilidade (todas as versões do Flesch e, com o servidor
+    configurado, os avisos de estilo do LanguageTool) para quem aprova."""
     from psycopg.types.json import Jsonb
 
     con.execute(
         text("""insert into pessoal.mensagem_saida (contato_id, cod_imovel, tipo, texto, legibilidade)
                         values (:c, :i, :t, :x, :l)"""),
-        dict(c=estado["contato_id"], i=estado["cod_imovel"], t=tipo, x=texto, l=Jsonb(medir(texto))),
+        dict(c=estado["contato_id"], i=estado["cod_imovel"], t=tipo, x=texto, l=Jsonb(nota_de_envio(texto))),
     )
 
 

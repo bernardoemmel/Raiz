@@ -62,7 +62,7 @@ otimizador:
   abaixo_equilibrio_usd: 30.0
   custo_grupo_usd: 25000  # custo fixo de abrir mais um grupo de vizinhas (logística: viveiro, equipe)
   diametro_km_padrao: 15
-  correlacao_captura: 0.6  # sorteios dos créditos entre fazendas: parte comum (clima, preço) e parte de cada uma
+  # a parte comum do erro da captura entre fazendas é a mesma do lote: restauracao.yaml, carteira.fracao_comum
   sorteios: 400
   semente: 2026
   fonte: >-

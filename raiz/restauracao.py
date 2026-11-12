@@ -946,6 +946,64 @@ def cronograma_lote(credito_contrato_p50: float, c: dict | None = None, r: dict 
             "credito_contrato_p50": credito_contrato_p50}  # fmt: skip
 
 
+def faixa_lote(p10, p50, p90, r: dict | None = None, fracao_comum: float | None = None) -> dict:
+    """P10/P50/P90 de uma soma de fazendas, lado a lado (Portaria MME 102/2016 e PRMS):
+    - soma: os P10 e os P90 somados, como se todas errassem juntas (o erro da captura comum ao lote inteiro);
+    - carteira: um fator de Vasicek: parte `fracao_comum` da variância do erro de cada fazenda é comum a todas e o
+      resto é dela. O fator comum sai de uma sequência de Sobol embaralhada; a parte de cada fazenda, de sorteios
+      próprios. Cada fazenda numa normal de dois lados que respeita os seus P10, P50 e P90.
+    Devolve também a incerteza padrão da carteira e a razão P90/P50 (os campos que a Portaria MME 102 pede)."""
+    from scipy.stats import norm, qmc
+
+    r = r or regra()
+    cp = r["carteira"]
+    f = float(cp["fracao_comum"] if fracao_comum is None else fracao_comum)
+    p10, p50, p90 = (np.asarray(x, dtype=float).ravel() for x in (p10, p50, p90))
+    ok = np.isfinite(p50) & (p50 > 0)
+    p10, p50, p90 = np.where(np.isfinite(p10[ok]), p10[ok], p50[ok]), p50[ok], np.where(np.isfinite(p90[ok]),
+                                                                                       p90[ok], p50[ok])  # fmt: skip
+    if not len(p50):
+        vazio = {"p10": 0.0, "p50": 0.0, "p90": 0.0}
+        return {"soma": vazio, "carteira": dict(vazio), "incerteza_padrao": 0.0, "fracao_comum": f, "fazendas": 0}
+    lo, hi = np.maximum(p50 - p10, 0) / Z90, np.maximum(p90 - p50, 0) / Z90
+    m = int(cp["sorteios_log2"])
+    zc = norm.ppf(np.clip(qmc.Sobol(1, scramble=True, seed=int(cp["semente"])).random_base2(m)[:, 0], 1e-9, 1 - 1e-9))
+    g = np.random.default_rng(int(cp["semente"]) + 1)
+    tot = np.zeros(len(zc))
+    for i in range(0, len(p50), 2000):  # em blocos, para caber na memória com o estado inteiro
+        sl = slice(i, i + 2000)
+        z = np.sqrt(f) * zc[:, None] + np.sqrt(1 - f) * g.standard_normal((len(zc), len(p50[sl])))
+        tot += np.maximum(p50[sl] + np.where(z < 0, z * lo[sl], z * hi[sl]), 0.0).sum(axis=1)
+    cart = {"p10": float(np.percentile(tot, 10)), "p50": float(p50.sum()), "p90": float(np.percentile(tot, 90))}
+    soma = {"p10": float(p10.sum()), "p50": float(p50.sum()), "p90": float(p90.sum())}
+    return {"soma": soma, "carteira": cart, "incerteza_padrao": float(tot.std()), "fracao_comum": f,
+            "fazendas": int(len(p50)), "sorteios": int(len(zc)),
+            "p90_sobre_p50": cart["p10"] / cart["p50"] if cart["p50"] > 0 else None}  # fmt: skip
+
+
+def parcelas_campo(ha_por_metodo: dict[str, float], r: dict | None = None) -> dict:
+    """Quantas parcelas medir no lote (AR-TOOL03 do MDL): n = (t x CV / E)^2, estratos por método com alocação
+    proporcional a área x CV, no mínimo 30 no lote e 3 por estrato com área."""
+    from scipy.stats import norm
+
+    r = r or regra()
+    pc = r["parcelas"]
+    t = float(norm.ppf(0.5 + float(pc["confianca"]) / 2))
+    e = float(pc["erro_admissivel"])
+    cv = {k: float(v) for k, v in pc["cv_biomassa"].items()}
+    area = {k: float(v) for k, v in ha_por_metodo.items() if v and v > 0 and k in cv}
+    tot = sum(area.values())
+    if tot <= 0:
+        return {"total": 0, "por_metodo": {}, "t": t, "erro_admissivel": e, "confianca": float(pc["confianca"])}
+    wcv = {k: area[k] / tot * cv[k] for k in area}
+    n = (t / e) ** 2 * sum(wcv.values()) ** 2
+    n = max(n, float(pc["minimo_lote"]))
+    por = {k: max(int(math.ceil(n * wcv[k] / sum(wcv.values()))), int(pc["minimo_estrato"])) for k in area}
+    return {"total": int(sum(por.values())), "por_metodo": por, "t": round(t, 3), "erro_admissivel": e,
+            "confianca": float(pc["confianca"]), "area_parcela_ha": float(pc["area_parcela_ha"]),
+            "ha_medidos": round(sum(por.values()) * float(pc["area_parcela_ha"]), 1)}  # fmt: skip
+
+
 def contrato_para_marcos(volume: float, c: dict | None = None, r: dict | None = None, fator: float = 1.0) -> float:
     """Créditos líquidos até o fim do contrato (P50 do lote) para cumprir TODOS os marcos com a tolerância; o mais
     apertado costuma ser o do ano 7, porque a curva começa devagar."""
@@ -1078,7 +1136,8 @@ def _parte_do_preco(s: dict, c: dict) -> np.ndarray:
     return B
 
 
-def fluxo_p50(linha: dict, c: dict | None = None, r: dict | None = None) -> dict:
+def fluxo_p50(linha: dict, c: dict | None = None, r: dict | None = None, fator_captura: float = 1.0,
+              fator_custo: float | str = 1.0) -> dict:  # fmt: skip
     """O caminho do P50 da fazenda por ha (o método que venceu a disputa), com a parte que anda com o preço do
     contrato: F(preço) = F + (preço − preço do cenário) × B. Somado no lote (fluxo_lote) dá a TIR e o preço mínimo do
     lote inteiro com o mesmo cálculo da ficha."""
@@ -1089,7 +1148,11 @@ def fluxo_p50(linha: dict, c: dict | None = None, r: dict | None = None) -> dict
     escolhido, m, _ = escolher_metodo(linha, c, r)
     cus, cap = custo(linha, m, r, c), captura(linha, m, r, c)
     dsc = descontos(linha, cap, linha_base(linha, int(c["horizonte_anos"]), m, r), c)
-    s = simular_fluxos(cus["por_ano_p50"], [], cap["bruto_ano"], [], cap["teto"], dsc["fator"], c, r, ())
+    if isinstance(fator_custo, str):  # "p10" ou "p90": o custo da própria fazenda nesse ponto da faixa
+        fator_custo = float(cus[fator_custo]) / float(cus["p50"]) if cus["p50"] > 0 else 1.0
+    s = simular_fluxos(np.asarray(cus["por_ano_p50"], dtype=float) * fator_custo, [],
+                       np.asarray(cap["bruto_ano"], dtype=float) * fator_captura, [], cap["teto"], dsc["fator"], c, r,
+                       ())  # fmt: skip
     return {"area_ha": float(m["area_ha"]), "metodo": escolhido, "modo": m["modo"], "F": s["F"][0], "K": s["K"][0],
             "B": _parte_do_preco(s, c), "vendidos": s["vendidos"][0],
             "creditos_contrato_ha": float(s["N"][0, int(c["prazo_anos"])]),

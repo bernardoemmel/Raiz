@@ -268,6 +268,60 @@ def _em_espera(oferta: pd.DataFrame, uf: str, c: dict, r: dict) -> dict:
     return {**out, "tabela": esp}
 
 
+def faixa(lote: pd.DataFrame, r: dict) -> dict:
+    """Créditos do lote até o ano 25: a soma das faixas (todas erram juntas) e a carteira (fator comum de Vasicek)."""
+    x = R.faixa_lote(lote.credito_p10, lote.credito_p50, lote.credito_p90, r)
+    return {"soma": {k: round(v, 0) for k, v in x["soma"].items()},
+            "carteira": {k: round(v, 0) for k, v in x["carteira"].items()},
+            "incerteza_padrao": round(x["incerteza_padrao"], 0), "fracao_comum": x["fracao_comum"],
+            "sorteios": x.get("sorteios")}  # fmt: skip
+
+
+def mme102(fl: dict) -> dict:
+    """Os campos da Portaria MME 102/2016 (certificação de produção): P50, P90 de excedência (o valor que o lote passa
+    com 90% de chance, o nosso P10), incerteza padrão e o revisor independente, que ainda falta."""
+    c = fl["carteira"]
+    p50 = c["p50"] or 0.0
+    return {"p50": c["p50"], "p90_excedencia": c["p10"], "p90_excedencia_soma": fl["soma"]["p10"],
+            "incerteza_padrao": fl["incerteza_padrao"],
+            "incerteza_padrao_pct": round(100 * fl["incerteza_padrao"] / p50, 1) if p50 > 0 else None,
+            "revisor_independente": "pendente"}  # fmt: skip
+
+
+def sensibilidade(lote: pd.DataFrame, linhas: Linhas, c: dict, r: dict, volume: float, cron: dict | None) -> list:
+    """O que mais mexe na TIR do lote (tornado): cada entrada no P10 e no P90 com as outras no P50, o fluxo do lote
+    refeito fazenda a fazenda com o mesmo cálculo."""
+    sz = r["sensibilidade"]
+    cc = r["captura_curva"]["incerteza_captura"]
+    cods = [str(x) for x in lote.cod_imovel]
+    ent = linhas.entradas(cods)
+    multas = {int(m["ano"]) + 1: m["multa_esperada_rs"] for m in (cron or {}).get("marcos", [])}
+
+    def tir(cc_: dict, **kw) -> float | None:
+        partes = [R.fluxo_p50(ent[x], cc_, r, **kw) for x in cods if x in ent]
+        t = R.tir_lote(R.fluxo_lote(partes, cc_, multas, volume=volume), cc_)["tir_alavancada"]
+        return None if t is None else round(100 * t, 1)
+
+    base = tir(c)
+    out = []
+    casos = [
+        ("captura", "captura da floresta (P10 a P90)", float(cc["p10"]), float(cc["p90"]),
+         lambda v: tir(c, fator_captura=v)),
+        ("custo", "custo de restaurar (P10 a P90)", "p10", "p90", lambda v: tir(c, fator_custo=v)),
+        ("preco", "preço do crédito no contrato (US$)", float(sz["preco_usd_t"][0]), float(sz["preco_usd_t"][1]),
+         lambda v: tir({**c, "preco_usd_t": v})),
+        ("cambio", "câmbio (R$ por US$)", float(c["cambio_brl_usd"]) * float(sz["cambio"][0]),
+         float(c["cambio_brl_usd"]) * float(sz["cambio"][1]), lambda v: tir({**c, "cambio_brl_usd": v})),
+    ]  # fmt: skip
+    for k, nome, lo, hi, f in casos:
+        a, b = f(lo), f(hi)
+        vals = [x for x in (a, b) if x is not None]
+        out.append({"entrada": k, "nome": nome, "baixo": lo, "alto": hi, "tir_baixo": a, "tir_alto": b,
+                    "tir_base": base,
+                    "amplitude": round(max(vals) - min(vals), 1) if len(vals) == 2 else None})  # fmt: skip
+    return sorted(out, key=lambda x: -(x["amplitude"] or 0))
+
+
 def _resumo_lote(sel: dict, precisa50: float, precisa_alvo: float, volume: float, c: dict, r: dict,
                  linhas: Linhas, partes_cache: dict) -> dict:  # fmt: skip
     tit, res = sel["tit"], sel["res"]
@@ -285,8 +339,9 @@ def _resumo_lote(sel: dict, precisa50: float, precisa_alvo: float, volume: float
                           (("regeneracao_assistida", "regeneracao_ha"), ("semeadura_direta", "semeadura_ha"),
                            ("plantio_total", "plantio_ha"))} if len(lote) else {},
         "creditos_titulares": round(c_tit, 0), "creditos_lote": round(c_lote, 0),
-        "creditos_lote_faixa": {k: round(v, 0) for k, v in Z.faixa_soma(
-            lote.credito_p10, lote.credito_p50, lote.credito_p90, rho=1.0).items()} if len(lote) else None,
+        "creditos_lote_faixa": (fl := faixa(lote, r))["soma"] if len(lote) else None,
+        "faixa": fl if len(lote) else None,
+        "mme102": mme102(fl) if len(lote) else None,
         "fecha_no_p50": c_tit >= precisa50 - 1e-6, "fecha_com_reserva": c_lote >= precisa_alvo - 1e-6,
         "falta_p50": round(max(precisa50 - c_tit, 0.0), 0), "falta_reserva": round(max(precisa_alvo - c_lote, 0.0), 0),
         "custo_credito_usd_medio": None if (m := _media(lote, "custo_credito_usd")) is None else round(m, 2),
@@ -300,7 +355,7 @@ def _resumo_lote(sel: dict, precisa50: float, precisa_alvo: float, volume: float
 
 
 def montar(dados: dict, volume: float | None = None, c: dict | None = None, r: dict | None = None,
-           chance_alvo: float | None = None) -> dict:  # fmt: skip
+           chance_alvo: float | None = None, sensibilidade_ligada: bool = True) -> dict:  # fmt: skip
     """O lote do estado com reserva, marcos, preço mínimo, o que destrava o lote, certidões e o checklist."""
     r = r or R.regra()
     c = c or R.cenario(r=r)
@@ -332,6 +387,9 @@ def montar(dados: dict, volume: float | None = None, c: dict | None = None, r: d
         destravada["cronograma_lote"] = r2["cronograma_lote"]
         destravada["fazendas_destravadas_no_lote"] = int(usa.sum())
     lote = pd.concat([sel["tit"].assign(papel="titular"), sel["res"].assign(papel="reserva")], ignore_index=True)
+    resumo["parcelas"] = R.parcelas_campo(resumo.get("ha_por_metodo") or {}, r)
+    resumo["sensibilidade"] = (sensibilidade(lote, linhas, c, r, volume, resumo.get("cronograma_lote"))
+                               if len(lote) and sensibilidade_ligada else [])  # fmt: skip
     cert = _certidoes(lote, dados.get("matriculas") or {}, float(lt["area_homologada_assinatura"]))
     # vizinhas que recebem o gado (VMD0054): área de mitigação, sem crédito
     viz = {str(v) for v in lote.vazamento_mitigacao_imovel.dropna() if str(v)} - set(lote.cod_imovel.astype(str))
