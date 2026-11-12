@@ -156,6 +156,36 @@ def funil_rodar(
         sys.exit(1)
 
 
+operacao = typer.Typer(help="Operação: custo dos modelos e lotes.", no_args_is_help=True)
+app.add_typer(operacao, name="operacao")
+
+
+@operacao.command("custo")
+def operacao_custo(
+    por: Annotated[str, typer.Option(help="tarefa, fazenda, municipio ou modelo")] = "tarefa",
+    desde: Annotated[str | None, typer.Option(help="AAAA-MM-DD; padrão: início do mês")] = None,
+) -> None:
+    """Custo dos modelos agrupado e gasto do mês contra o orçamento (RAIZ_ORCAMENTO_MENSAL_USD)."""
+    import datetime as dt
+
+    from raiz.banco import engine
+    from raiz.config import config
+    from raiz.operacao.custo import custo_por, gasto_do_mes
+
+    d = dt.date.fromisoformat(desde) if desde else dt.date.today().replace(day=1)
+    with engine().connect() as con:
+        linhas = custo_por(con, por, d)
+        mes = gasto_do_mes(con)
+    for r in linhas:
+        aviso = f", {r.sem_preco} sem preço" if r.sem_preco else ""
+        typer.echo(
+            f"{r.chave or '-'}: US$ {float(r.custo_usd):.4f} em {r.chamadas} chamadas ({r.falhas} falhas{aviso})"
+        )
+    orc = config().orcamento_mensal_usd
+    uso = f" de US$ {orc:.2f} ({100 * mes / orc:.0f}%)" if orc else " (sem orçamento definido)"
+    typer.echo(f"gasto do mês: US$ {mes:.4f}{uso}")
+
+
 @banco.command("migrar")
 def banco_migrar(alvo: str = "head") -> None:
     """Aplica as migrações (Alembic) no banco de RAIZ_BANCO_URL."""

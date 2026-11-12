@@ -175,3 +175,25 @@ def test_rastro_mascara_e_esconde_pessoal(monkeypatch):
     assert abre["as_type"] == "generation" and "não enviado" in abre["input"]
     assert "não enviado" in fecha["output"] and fecha["usage_details"]["input"] == 120
     assert fecha["cost_details"]["total"] > 0
+
+
+@pytest.mark.banco
+def test_custo_por_fazenda_e_municipio(banco_url):
+    import datetime as dt
+
+    from raiz.operacao.custo import custo_por, gasto_do_mes
+
+    c, _ = _cliente(lambda b: _resposta_anthropic(b["model"], {"intencao": "aceita", "confianca": 0.9}))
+    eng = create_engine(banco_url)
+    with eng.begin() as con:
+        con.execute(text("truncate operacao.chamada_modelo"))
+        for cod in ("PA-1", "PA-1", "PA-2"):
+            p = Pedido("aceite.classificar", "s", "m", ESQUEMA, cod_imovel=cod, cod_municipio=1504950)
+            chamar(Claude("claude-sonnet-5-5", cliente=c), p, con=con)
+        por_fazenda = {r.chave: r for r in custo_por(con, "fazenda")}
+        assert por_fazenda["PA-1"].chamadas == 2 and por_fazenda["PA-1"].custo_usd == 2 * por_fazenda["PA-2"].custo_usd
+        por_mun = custo_por(con, "municipio")
+        assert por_mun[0].chave == "1504950" and por_mun[0].chamadas == 3
+        assert gasto_do_mes(con) == pytest.approx(float(sum(r.custo_usd for r in por_fazenda.values())))
+        assert gasto_do_mes(con, dt.date.today() + dt.timedelta(days=62)) == 0
+    eng.dispose()

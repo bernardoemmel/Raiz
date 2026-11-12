@@ -34,6 +34,7 @@ class Config(BaseSettings):
     anthropic_api_key: SecretStr | None = Field(
         default=None, validation_alias=AliasChoices("RAIZ_ANTHROPIC_API_KEY", "ANTHROPIC_API_KEY")
     )
+    orcamento_mensal_usd: float | None = None  # teto de gasto com modelos; o comando de custo compara com ele
     modelo_conversa: str = "claude-sonnet-5-5"  # conversa e leitura de documento (juiz da cascata)
     modelo_triagem: str = "claude-haiku-5-5"  # triagem (um dos votos baratos)
     modelo_local: str = "qwen3-4b-instruct-2507"  # o outro voto barato, no llama.cpp
