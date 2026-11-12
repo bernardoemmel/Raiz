@@ -252,9 +252,13 @@ O arquivo declara `comercializacao.situacao: pendente` e não inclui decisões o
 
 ## Atestação e atualização dos arquivos existentes
 
-Depois de cada upload concluído, o publicador registra `sha256  nome` em `$RUNNER_TEMP/atestar.txt` (públicos) ou `atestar-privado.txt` (privados). O passo
+Depois de cada upload concluído, o publicador registra `sha256  nome` em `$RUNNER_TEMP/atestar.txt` (públicos).
+No canal privado, `atestar-privado.txt` contém somente `sha256  privado-sha256-<mesmo digest dos bytes>`;
+nem o nome original nem um hash do nome são publicados. O passo
 `actions/attest-build-provenance@v2` usa esse arquivo, OIDC e permissões `id-token: write`/`attestations: write` para
-atestar os bytes. Se um nome mudar várias vezes no mesmo job, a assinatura cobre o último upload desse job.
+atestar os bytes. No público, se um nome mudar várias vezes no mesmo job, a assinatura cobre seu último upload.
+No privado, aliases de bytes iguais compartilham o identificador e versões de conteúdo diferentes permanecem
+atestadas. Um portão sem dependências recusa listas privadas legadas/ambíguas antes da ação, mesmo em falha do job.
 O SHA identifica conteúdo; a atestação vincula esse conteúdo ao workflow, sem certificar a qualidade científica.
 
 Com GitHub CLI atual e o arquivo baixado, verificar, por exemplo:
@@ -278,8 +282,8 @@ progresso preservado para retomada por UF, ou apenas dos globais. Repetições p
 por job. Substituições preservam o original em cópia imutável autenticada antes do DELETE; nenhum original
 privado é enviado como artifact ou cache de Actions público.
 
-A atestação contém nomes de arquivos de produto, SHA-256 e proveniência do build; não contém os valores dos
-arquivos nem CARs. Esses identificadores criptográficos podem ser públicos no serviço de atestação do GitHub,
+A atestação contém nomes somente dos arquivos públicos; para os privados usa identificadores derivados do conteúdo,
+SHA-256 e proveniência do build. Não contém os valores dos arquivos nem CARs. Esses identificadores criptográficos podem ser públicos no serviço de atestação do GitHub,
 mesmo quando os bytes permanecem privados. As listas de checksums são separadas para não confundir arquivos
 homônimos dos dois destinos. Para verificar um arquivo privado, o processo autorizado primeiro o baixa e depois
 executa o verificador acima. A ficha privada usa `release-github://repo/tag/nome`, uma URI lógica resolvida pelo

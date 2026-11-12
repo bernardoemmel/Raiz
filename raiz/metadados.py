@@ -13,6 +13,7 @@ import csv
 import datetime as dt
 import gc
 import json
+import logging
 import os
 import re
 import subprocess
@@ -472,9 +473,21 @@ def _processar_lote(tarefa: str, dados: dict):
 
 
 def _validar_parte(ficha: dict, *, isolado: bool = False) -> None:
+    class DiagnosticoSeguro(logging.Filter):
+        def filter(self, registro):
+            # mlcroissant inclui nomes de datasets/arquivos privados nos warnings.
+            registro.msg = "Validação Croissant emitiu diagnóstico; conteúdo omitido para preservar privacidade."
+            registro.args = ()
+            registro.exc_info = registro.exc_text = registro.stack_info = None
+            return True
+
+    logger = logging.getLogger("absl")
+    filtro = DiagnosticoSeguro()
+    logger.addFilter(filtro)
     try:
         _executar_lote("validar", ficha, isolado=isolado)
     finally:
+        logger.removeFilter(filtro)
         gc.collect()
 
 
@@ -708,8 +721,9 @@ def _cabecalho_publico(nome: str, colunas: list[str], uf: str) -> None:
         valido = tuple(colunas) == COLUNAS_BASICAS
     elif nome in {f"resumo_{uf}.csv", f"sem_imoveis_{uf}.csv"}:
         permitidas = COLUNAS_RESUMO if nome.startswith("resumo_") else COLUNAS_SEM_IMOVEIS
-        # A projeção usa a ordem da lista positiva, mesmo quando faltam colunas.
-        valido = colunas == [c for c in permitidas if c in colunas]
+        obrigatorias = ("cod_ibge", "municipio", "imoveis") if nome.startswith("resumo_") else COLUNAS_SEM_IMOVEIS
+        # A ficha segue o mesmo contrato obrigatório dos bytes efetivamente publicados.
+        valido = set(obrigatorias) <= set(colunas) and colunas == [c for c in permitidas if c in colunas]
     else:
         valido = False
     if not valido:

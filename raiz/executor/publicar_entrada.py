@@ -41,7 +41,7 @@ def publicar_pacotes(pasta: Path) -> dict:
     for pacote in sorted(origem.glob("*.tar.gz")):
         m = re.fullmatch(r"raiz_(?:geo_|camadas_)?([A-Z]{2})\.tar\.gz", pacote.name)
         if not m:
-            raise ValueError(f"pacote desconhecido: {pacote.name}")
+            raise ValueError("pacote fora do contrato de entrada")
         uf = m.group(1)
         ufs.add(uf)
         with tarfile.open(pacote, "r:gz") as tar:
@@ -49,7 +49,7 @@ def publicar_pacotes(pasta: Path) -> dict:
             for membro in tar:
                 partes = membro.name.split("/")
                 if not membro.isfile() or len(partes) != 2 or partes[0] != uf or membro.name in vistos:
-                    raise ValueError(f"membro inválido: {membro.name}")
+                    raise ValueError("membro de pacote fora do contrato de entrada")
                 vistos.add(membro.name)
                 nome = partes[1]
                 if nome == "_versoes.json":
@@ -57,7 +57,7 @@ def publicar_pacotes(pasta: Path) -> dict:
                 if nome.startswith("imoveis_basicos_"):
                     raise ValueError("projeção básica não substitui os dados completos no arquivo privado")
                 if Path(nome).suffix not in (".csv", ".parquet", ".pmtiles"):
-                    raise ValueError(f"arquivo inesperado: {nome}")
+                    raise ValueError("tipo de arquivo fora do contrato de entrada")
                 arm.por_bytes(f"saida/{uf}/{nome}", tar.extractfile(membro).read())
     if not ufs:
         raise ValueError("nenhum pacote completo encontrado")
@@ -67,7 +67,20 @@ def publicar_pacotes(pasta: Path) -> dict:
     return arm.publicar()
 
 
+def main(argv: list[str] | None = None) -> int:
+    """CLI sem conteúdo do armazém privado, caminhos de entrada ou mensagens de terceiros."""
+    argumentos = sys.argv[1:] if argv is None else argv
+    if len(argumentos) != 1:
+        print("uso: python -m raiz.executor.publicar_entrada <pasta-dos-pacotes>", file=sys.stderr)
+        return 2
+    try:
+        publicar_pacotes(Path(argumentos[0]))
+    except Exception:
+        print("Publicação interrompida. Confira a configuração e os pacotes de entrada.", file=sys.stderr)
+        return 1
+    print(json.dumps({"estado": "publicado"}, ensure_ascii=False))
+    return 0
+
+
 if __name__ == "__main__":
-    if len(sys.argv) != 2:
-        raise SystemExit("uso: python -m raiz.executor.publicar_entrada <pasta-dos-pacotes>")
-    print(json.dumps(publicar_pacotes(Path(sys.argv[1])), ensure_ascii=False))
+    raise SystemExit(main())

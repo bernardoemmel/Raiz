@@ -10,6 +10,7 @@ import httpx
 import pytest
 import yaml
 
+from raiz.atestacao import identificador
 from scripts import publicar_metadados as P
 from testes.test_armazem_release import GitHubFalso, _armazem
 
@@ -50,6 +51,7 @@ def test_sem_reserva_nao_cria_armazem_nem_baixa_dados(tmp_path, monkeypatch):
     monkeypatch.setenv("GITHUB_ACTIONS", "true")
     monkeypatch.setenv("GITHUB_JOB", "catalogo")
     monkeypatch.setenv("GITHUB_RUN_ID", "123")
+    monkeypatch.setenv("GITHUB_RUN_ATTEMPT", "1")
     monkeypatch.setenv("GITHUB_REPOSITORY", "exemplo/raiz")
     monkeypatch.setenv("RUNNER_TEMP", str(tmp_path))
     fila, _ = P.modulos_fila()
@@ -430,9 +432,14 @@ def test_retropreenche_csv_controle_orfao_e_kml_sem_refazer_motor(tmp_path, monk
         ficha = json.loads(github.assets[f"croissant_{nome}.json"])
         assert ficha["distribution"][0]["sha256"] == hashlib.sha256(github.assets[nome]).hexdigest()
     assinados = P.checksums(privado=True)
-    assert set(github.assets) - infraestrutura.keys() <= set(assinados)
+    assert {
+        identificador(n, privado=True, digest=hashlib.sha256(github.assets[n]).hexdigest())
+        for n in set(github.assets) - infraestrutura.keys()
+    } <= set(assinados)
     assert all(
-        assinados[n] == hashlib.sha256(d).hexdigest() for n, d in github.assets.items() if n not in infraestrutura
+        assinados[identificador(n, privado=True, digest=hashlib.sha256(d).hexdigest())] == hashlib.sha256(d).hexdigest()
+        for n, d in github.assets.items()
+        if n not in infraestrutura
     )
     assert not infraestrutura.keys() & set(github.downloads)
     assert all(github.assets[n] == d and f"croissant_{n}.json" not in github.assets for n, d in infraestrutura.items())
@@ -477,6 +484,26 @@ def test_diagnostico_nao_registra_mensagem_fonte_nem_variaveis_da_excecao(capsys
     ponto = relatorio["falhas"][0]["rastro"][-1]
     assert set(ponto) == {"arquivo", "linha", "funcao"}
     assert ponto["arquivo"] == "test_publicar_metadados.py" and ponto["linha"] > 0
+
+
+@pytest.mark.parametrize("nome", ["contato@exemplo.invalid.json", "Pessoa de Teste.csv", "documento-00000000000.pdf"])
+def test_nome_de_asset_privado_nao_chega_ao_log_ou_relatorio(nome, capsys):
+    relatorio = {"falhas": []}
+    P.registrar_falha(relatorio, "global", "conferir_arquivo", nome, ValueError("sem detalhe"))
+    texto = json.dumps(relatorio) + capsys.readouterr().out
+    assert nome not in texto
+    assert relatorio["falhas"][0]["arquivo"] == P.nome_no_relatorio(nome)
+    assert relatorio["falhas"][0]["arquivo"].startswith("arquivo-")
+
+
+@pytest.mark.parametrize("tipo", [ValueError, RuntimeError, OSError, KeyError])
+def test_erro_final_da_cli_nao_ecoar_resposta_ou_nome_privado(monkeypatch, capsys, tipo):
+    def falhar():
+        raise tipo("contato@exemplo.invalid")
+
+    monkeypatch.setattr(P, "main", falhar)
+    assert P.executar_cli() == 1
+    assert "contato@" not in capsys.readouterr().err
 
 
 def test_workflow_reserva_antes_de_dependencias_e_atesta_mesmo_com_falha():
@@ -662,13 +689,18 @@ def test_backup_sobrevive_post_falho_e_original_ausente_no_retry(tmp_path, monke
     assert github.assets[meta["arquivo"]] == original
     assert not any(host == "github.com" for _, host, _ in chamadas)
     assert not (tmp_path / "atestar.txt").exists()
-    assert nome not in P.checksums(privado=True)
+    assert identificador(nome, privado=True, digest=hashlib.sha256(b"novo").hexdigest()) not in P.checksums(
+        privado=True
+    )
     # A retomada não perde o backup remoto nem precisa baixar o original ausente.
     a.cli = httpx.Client(transport=httpx.MockTransport(github))
     a._subir(a._release(), nome, b"novo")
     assert github.assets[nome] == b"novo" and github.assets[meta["arquivo"]] == original
     assert not list((tmp_path / "recuperacao-release").glob("*.json"))
-    assert P.checksums(privado=True)[nome] == hashlib.sha256(b"novo").hexdigest()
+    assert (
+        P.checksums(privado=True)[identificador(nome, privado=True, digest=hashlib.sha256(b"novo").hexdigest())]
+        == hashlib.sha256(b"novo").hexdigest()
+    )
 
 
 def test_backup_divergente_impede_delete_do_original(tmp_path, monkeypatch):
@@ -840,9 +872,13 @@ def test_finalizador_atual_completa_executor_antigo_na_mesma_reserva(tmp_path, m
     assert github.membros("raiz_MG.tar.gz")["MG/flag_3100001.csv"] == fonte
     ficha = json.loads(github.assets["croissant_MG.json"])
     digest = hashlib.sha256(github.assets["raiz_MG.tar.gz"]).hexdigest()
-    assert ficha["distribution"][0]["sha256"] == digest == P.checksums(privado=True)["raiz_MG.tar.gz"]
+    assert (
+        ficha["distribution"][0]["sha256"]
+        == digest
+        == P.checksums(privado=True)[identificador("raiz_MG.tar.gz", privado=True, digest=digest)]
+    )
     assert json.loads(github.assets["estados.json"])["estados"]["MG"]["quantis"]["linhas"] == 3
-    assert P.checksums(privado=True)["legado.json"] == "d" * 64
+    assert P.checksums(privado=True)[identificador("legado.json", privado=True, digest="d" * 64)] == "d" * 64
     assert "croissant_URTX.kml.json" not in github.assets
     assert github.assets["raiz_controle_PA.json"] == b'{"estado":{"situacao":"preservar"}}'
 

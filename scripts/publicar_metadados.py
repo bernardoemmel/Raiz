@@ -32,6 +32,7 @@ WORKFLOWS_CHECKOUT_HEAD = {
 }
 _COMPATIBILIDADE: dict[tuple[str, str, str], bool] = {}
 _CHECKOUT_HEAD: dict[tuple[str, str], bool] = {}
+_NOMES_PRIVADOS_RELATORIO: dict[str, str] = {}
 MARGEM_REQUISICOES = 250
 
 
@@ -189,6 +190,28 @@ def contexto_actions(unidade: str = UNIDADE) -> str:
 def confirmar_reserva(unidade: str = UNIDADE) -> None:
     run_id = contexto_actions(unidade)
     fila, _ = modulos_fila()
+    if unidade == UNIDADE:
+        try:
+            tentativa = int(os.environ["GITHUB_RUN_ATTEMPT"])
+            if tentativa < 1:
+                raise ValueError
+        except (KeyError, ValueError):
+            raise RuntimeError("tentativa do catálogo não confirmada; nenhum arquivo será processado") from None
+
+        def confirmar(estado):
+            reservas = [r for r in estado["reservas"] if r["run_id"] == run_id and r["unidade"] == unidade]
+            if len(reservas) != 1:
+                raise RuntimeError("job sem reserva global para esta unidade; nenhum arquivo será processado")
+            pedido = reservas[0]["pedido"]
+            anterior = pedido.get("tentativa", 1)
+            if pedido.get("repetir") is not False or type(anterior) is not int or not 1 <= anterior <= tentativa:
+                raise RuntimeError("reserva do catálogo incompatível com a tentativa; processamento recusado")
+            # O CAS protege também reservas legadas, antes da primeira leitura
+            # pesada. Um snapshot completed da tentativa anterior não libera a vaga.
+            pedido.update(escopo="rodada", tentativa=tentativa)
+
+        fila.transacao(fila.Repositorio(), confirmar)
+        return
     _, estado = fila.Repositorio().ler()
     reserva = next((r for r in estado["reservas"] if r["run_id"] == run_id and r["unidade"] == unidade), None)
     if reserva is None:
@@ -227,7 +250,8 @@ def reservar_vaga() -> None:
     conferir_processamento_seguro()  # não ocupa uma vaga esperando os jobs legados
     _, estado = fila.Repositorio().ler()
     if any(r["run_id"] == run_id and r["unidade"] == UNIDADE for r in estado["reservas"]):
-        return  # nova tentativa do mesmo run; a reserva ainda ocupa uma vaga
+        confirmar_reserva()
+        return  # a tentativa atual foi confirmada por CAS antes de reutilizar a vaga
     # A consulta inclui os runs legados do motor e todos os runs com reserva.
     # Não drena pedidos de UF nem devolve catalogo à matriz após uma falha.
     escolhidos = fila.reservar(
@@ -239,6 +263,7 @@ def reservar_vaga() -> None:
         max_novos=1,
         consumir_fila=False,
         repetir=False,
+        reserva_rodada=True,
     )
     if [p["unidade"] for p in escolhidos] != [UNIDADE]:
         raise RuntimeError("sem vaga entre os 15 jobs de processamento; tente novamente após uma vaga ser liberada")
@@ -495,17 +520,26 @@ def checksums(*, privado: bool = False) -> dict[str, str]:
 
 def conferir_arquivo(armazem, asset: dict, indice: dict) -> str:
     """Confere ficha e bytes sob a trava apropriada; retorna o digest verificado."""
+    from raiz.atestacao import identificador
+
     nome = asset["name"]
-    digest_api = (asset.get("digest") or "").removeprefix("sha256:")
-    digest = checksums(privado=armazem.privado).get(nome)
+    digest_api = (asset.get("digest") or "").removeprefix("sha256:").lower()
+    digest_valido = bool(re.fullmatch(r"[a-f0-9]{64}", digest_api))
+    # Sem digest da API, é necessário reler os bytes; o nome privado nunca é chave pública.
+    assunto = (
+        identificador(nome, privado=armazem.privado, digest=digest_api)
+        if digest_valido or not armazem.privado
+        else None
+    )
+    digest = checksums(privado=armazem.privado).get(assunto)
     dados = None
     if not digest or digest != digest_api:
         dados = armazem._baixar_asset(nome, fresco=True)
         if dados is None:
-            raise RuntimeError(f"arquivo desapareceu durante a leitura: {nome}")
+            raise RuntimeError("arquivo desapareceu durante a leitura")
         digest = hashlib.sha256(dados).hexdigest()
         if digest_api and re.fullmatch(r"[a-fA-F0-9]{64}", digest_api) and digest != digest_api.lower():
-            raise RuntimeError(f"bytes divergentes do digest da API: {nome}")
+            raise RuntimeError("bytes divergentes do digest da API")
     if eh_ficha(nome):
         return digest
     if nome == "estados.json":
@@ -527,10 +561,10 @@ def conferir_arquivo(armazem, asset: dict, indice: dict) -> str:
         # A ficha dos CSV precisa conservar os esquemas, não ser substituída
         # por uma ficha genérica em caso de erro ou publicação legada concorrente.
         if re.fullmatch(r"raiz_[A-Z]{2}\.tar\.gz", nome) or nome == "estados.json":
-            raise RuntimeError(f"ficha desatualizada para {nome}; refaça a catalogação da unidade")
+            raise RuntimeError("ficha desatualizada; refaça a catalogação da unidade")
         dados = dados if dados is not None else armazem._baixar_asset(nome, fresco=True)
         if dados is None:
-            raise RuntimeError(f"arquivo não encontrado: {nome}")
+            raise RuntimeError("arquivo não encontrado")
         armazem.catalogar_arquivo(nome, dados, asset.get("content_type") or "application/octet-stream")
     return digest
 
@@ -543,8 +577,41 @@ def salvar_relatorio(relatorio: dict) -> None:
     novo.replace(destino)
 
 
+def nome_no_relatorio(nome: str | None) -> str | None:
+    """Nomes privados são dados: apenas artefatos de contrato aparecem em logs públicos."""
+    if nome is None:
+        return None
+    basicos = {
+        "estados.json",
+        "croissant.json",
+        "cartao_modelo.md",
+        "modelos.json",
+        "tasks.json",
+        "model-metadata-schema.json",
+        "cadt_lotes.json",
+        "raiz_controle.json",
+        "URTX.kml",
+    }
+    base = nome.removeprefix("croissant_").removesuffix(".json") if nome.startswith("croissant_") else nome
+    if (
+        nome in basicos
+        or base in basicos
+        or re.fullmatch(
+            r"(?:raiz_(?:(?:geo_|camadas_)?[A-Z]{2}\.tar\.gz|controle_[A-Z]{2}\.json)|"
+            r"(?:quantis|diagnosticos_quantis|cadt)_[A-Z]{2}\.(?:parquet|json)|[A-Z]{2})",
+            base,
+        )
+    ):
+        return nome
+    # Identidade somente desta execução, sem um hash adivinhável do nome pessoal.
+    if nome not in _NOMES_PRIVADOS_RELATORIO:
+        _NOMES_PRIVADOS_RELATORIO[nome] = f"arquivo-{len(_NOMES_PRIVADOS_RELATORIO) + 1:06d}"
+    return _NOMES_PRIVADOS_RELATORIO[nome]
+
+
 def registrar_falha(relatorio: dict, unidade: str, etapa: str, arquivo: str | None, erro: Exception) -> None:
     """Guarda pontos do código, nunca str(erro), variáveis locais ou linhas de fonte."""
+    arquivo = nome_no_relatorio(arquivo)
     rastro = [
         {"arquivo": Path(frame.f_code.co_filename).name, "linha": linha, "funcao": frame.f_code.co_name}
         for frame, linha in traceback.walk_tb(erro.__traceback__)
@@ -648,7 +715,9 @@ def publicar(
                                     if uf_do_asset(asset["name"]) == uf:
                                         etapa, arquivo_atual = "conferir_arquivo", asset["name"]
                                         conferir_arquivo(armazem, asset, indice)
-                                        relatorio["arquivos_conferidos"]["privado/" + asset["name"]] = True
+                                        relatorio["arquivos_conferidos"][
+                                            "privado/" + nome_no_relatorio(asset["name"])
+                                        ] = True
                                         etapa, arquivo_atual = "reler_indice", "estados.json"
                                         indice = armazem.manifesto(fresco=True)
                             etapa, arquivo_atual = "catalogar_basico", None
@@ -702,7 +771,7 @@ def publicar(
                                 continue
                             etapa, arquivo_atual = "conferir_arquivo", nome
                             conferir_arquivo(geral, asset, indice)
-                            relatorio["arquivos_conferidos"]["privado/" + nome] = True
+                            relatorio["arquivos_conferidos"]["privado/" + nome_no_relatorio(nome)] = True
                             etapa, arquivo_atual = "reler_indice", "estados.json"
                             indice = geral.manifesto(fresco=True)
                         # O índice muda quando a ficha de um arquivo avulso entra;
@@ -714,7 +783,7 @@ def publicar(
                             if not uf_do_asset(asset["name"]):
                                 etapa, arquivo_atual = "conferir_arquivo", asset["name"]
                                 conferir_arquivo(geral, asset, indice)
-                                relatorio["arquivos_conferidos"]["privado/" + asset["name"]] = True
+                                relatorio["arquivos_conferidos"]["privado/" + nome_no_relatorio(asset["name"])] = True
                         etapa, arquivo_atual = "catalogar_basico", None
                         catalogar_publico(aberto)
                         relatorio["global_concluido"] = True
@@ -799,9 +868,16 @@ def main() -> int:
     return int(bool(relatorio["pendentes"] or relatorio["falhas"] or not relatorio["global_concluido"]))
 
 
-if __name__ == "__main__":
+def executar_cli() -> int:
     try:
-        sys.exit(main())
-    except (RuntimeError, ValueError) as erro:
-        print(f"Não foi possível concluir a catalogação: {erro}", file=sys.stderr)
-        sys.exit(1)
+        return main()
+    except Exception as erro:
+        print(
+            f"Não foi possível concluir a catalogação ({type(erro).__name__}); consulte o relatório seguro.",
+            file=sys.stderr,
+        )
+        return 1
+
+
+if __name__ == "__main__":
+    sys.exit(executar_cli())
