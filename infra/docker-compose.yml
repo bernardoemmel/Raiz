@@ -1,0 +1,38 @@
+# Serviços da Raíz numa máquina (4 núcleos, 15 GB). Arquivos grandes ficam no R2, não aqui.
+# Uso, a partir da raiz do repositório:
+#   docker compose --env-file .env -f infra/docker-compose.yml up -d
+#   uv run raiz banco migrar
+# Os serviços seguintes (API, worker, llama.cpp, Langfuse com Valkey) entram aqui quando cada etapa chegar.
+# Langfuse: NÃO usar Redis (SSPL/RSAL/AGPL) nem MinIO (AGPL); usar Valkey (BSD-3) e R2 ou SeaweedFS (Apache-2.0).
+
+name: raiz
+
+services:
+  banco:
+    image: postgis/postgis:16-3.5  # PostgreSQL (licença PostgreSQL) + PostGIS (GPL-2, só no servidor)
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: raiz
+      POSTGRES_PASSWORD: ${RAIZ_BANCO_SENHA:?defina RAIZ_BANCO_SENHA no .env}
+      POSTGRES_DB: raiz
+    command: >-
+      postgres
+      -c shared_buffers=2GB
+      -c effective_cache_size=6GB
+      -c work_mem=64MB
+      -c maintenance_work_mem=1GB
+      -c max_wal_size=4GB
+      -c random_page_cost=1.1
+    shm_size: 1g
+    ports:
+      - "127.0.0.1:5432:5432"  # só a própria máquina
+    volumes:
+      - banco:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U raiz -d raiz"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  banco:

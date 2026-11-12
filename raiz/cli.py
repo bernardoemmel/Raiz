@@ -11,7 +11,9 @@ from raiz.privacidade import configurar_log, varrer
 
 app = typer.Typer(help="Raíz: coleta, funil, título, agentes e aprendizado em cima do motor.", no_args_is_help=True)
 privacidade = typer.Typer(help="Guarda de CPF/CNPJ.", no_args_is_help=True)
+banco = typer.Typer(help="Banco PostgreSQL + PostGIS.", no_args_is_help=True)
 app.add_typer(privacidade, name="privacidade")
+app.add_typer(banco, name="banco")
 
 
 @app.callback()
@@ -34,6 +36,15 @@ def privacidade_varrer(
         typer.echo(f"{len(achados)} documento(s) encontrado(s). Tire do arquivo antes do commit.", err=True)
         sys.exit(1)
     typer.echo(f"{len(caminhos)} arquivo(s) sem CPF/CNPJ.")
+
+
+@banco.command("migrar")
+def banco_migrar(alvo: str = "head") -> None:
+    """Aplica as migrações (Alembic) no banco de RAIZ_BANCO_URL."""
+    from raiz.banco import migrar
+
+    migrar(alvo=alvo)
+    typer.echo(f"banco migrado até {alvo}")
 
 
 if __name__ == "__main__":
