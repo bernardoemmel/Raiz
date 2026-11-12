@@ -339,6 +339,24 @@ def modelos_testar(modelo: Annotated[str, typer.Option(help="ex.: claude-haiku-5
         sys.exit(1)
 
 
+regras_cli = typer.Typer(help="Parâmetros legais versionados (E2).", no_args_is_help=True)
+app.add_typer(regras_cli, name="regras")
+
+
+@regras_cli.command("publicar")
+def regras_publicar() -> None:
+    """Grava no banco a versão atual dos parâmetros legais (raiz/regras/parametros/*.yaml) e lista as pendências."""
+    from raiz.banco import engine
+    from raiz.regras import parametros, publicar
+
+    with engine().begin() as con:
+        v, nova = publicar(con)
+    typer.echo(f"{v}: {'publicada' if nova else 'já estava publicada'}")
+    for x in parametros().valores:
+        if x.pendente:
+            typer.echo(f"  pendente: {x.parametro} {x.rotulos}: {x.pendente}")
+
+
 @banco.command("migrar")
 def banco_migrar(alvo: str = "head") -> None:
     """Aplica as migrações (Alembic) no banco de RAIZ_BANCO_URL."""
