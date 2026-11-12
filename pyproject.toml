@@ -1,0 +1,52 @@
+[project]
+name = "raiz"
+version = "0.1.0"
+description = "Produto da Raíz: coleta, funil, título, agentes e aprendizado em cima do motor de dados"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "pandas>=2.2",
+    "numpy>=1.26",
+    "pyarrow>=15",
+    "geopandas>=1.0",
+    "shapely>=2.0",
+    "pyogrio>=0.9",
+    "sqlalchemy>=2.0",
+    "psycopg[binary]>=3.2",
+    "alembic>=1.13",
+    "geoalchemy2>=0.15",
+    "pydantic>=2.7",
+    "pydantic-settings>=2.3",
+    "typer>=0.12",
+    "pyyaml>=6",
+]
+
+[project.optional-dependencies]
+# o que o motor (motor/) precisa além do pacote; ver requirements.txt
+motor = ["requests>=2.31", "rasterio>=1.3", "exactextract>=0.2", "scipy>=1.11"]
+
+[dependency-groups]
+dev = ["pytest>=8", "ruff>=0.6"]
+
+[project.scripts]
+raiz = "raiz.cli:app"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["raiz"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+# o motor tem estilo próprio e não é reescrito
+extend-exclude = ["motor"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP"]
+
+[tool.pytest.ini_options]
+testpaths = ["testes"]
+markers = ["banco: precisa de PostgreSQL com PostGIS (RAIZ_BANCO_URL_TESTE)"]
