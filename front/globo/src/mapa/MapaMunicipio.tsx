@@ -174,15 +174,16 @@ export function MapaMunicipio({ cod, imoveis, passa, camadas, frente, destaque, 
   const mapaRef = useRef<MapaGL | null>(null)
   const [montado, setMontado] = useState(false)
   const geo = useCarga(async () => {
-    const [municipio, imoveisGeo, ti, uc, rios, base] = await Promise.all([
+    const [municipio, imoveisGeo, ti, uc, rios, base, terraPublica] = await Promise.all([
       fonte.geo.camada(cod, "municipio"),
       fonte.geo.camada(cod, "imoveis"),
       fonte.geo.camada(cod, "ti"),
       fonte.geo.camada(cod, "uc"),
       fonte.geo.camada(cod, "rios"),
       fonte.geo.base(cod),
+      fonte.geo.camada(cod, "terra_publica").catch(() => null), // só a API tem; a amostra não
     ])
-    return { municipio, imoveisGeo, ti, uc, rios, base }
+    return { municipio, imoveisGeo, ti, uc, rios, base, terraPublica }
   }, [cod])
 
   // o que os eventos do mapa precisam ler na hora (sem recriar o mapa)
@@ -282,6 +283,7 @@ export function MapaMunicipio({ cod, imoveis, passa, camadas, frente, destaque, 
     vis("fogo-recente", camadas.fogo)
     for (const id of ["rios", "rios-linha"]) vis(id, camadas.rios)
     for (const id of ["ti", "ti-borda", "ti-rotulo", "uc", "uc-borda"]) vis(id, camadas.areas)
+    for (const id of ["terra-publica", "terra-publica-borda"]) vis(id, camadas.terraPublica)
   }, [montado, camadas])
 
   // destaque vindo da lista
@@ -331,6 +333,7 @@ export function MapaMunicipio({ cod, imoveis, passa, camadas, frente, destaque, 
     m.addSource("ti", { type: "geojson", data: (g.ti ?? VAZIO) as never })
     m.addSource("uc", { type: "geojson", data: (g.uc ?? VAZIO) as never })
     m.addSource("rios", { type: "geojson", data: (g.rios ?? VAZIO) as never })
+    m.addSource("terra-publica", { type: "geojson", data: (g.terraPublica ?? VAZIO) as never })
     m.addSource("imoveis", {
       type: "geojson",
       data: (g.imoveisGeo ? juntar(g.imoveisGeo, porCod.current, passa) : VAZIO) as never,
@@ -341,6 +344,14 @@ export function MapaMunicipio({ cod, imoveis, passa, camadas, frente, destaque, 
       data: (g.imoveisGeo ? pontosDeFogo(g.imoveisGeo, porCod.current) : VAZIO) as never,
     })
 
+    // terra pública para restaurar: contorno tracejado cor de terra e preenchimento leve; nunca some do mapa
+    add({ id: "terra-publica", type: "fill", source: "terra-publica", paint: { "fill-color": "#A8741A", "fill-opacity": 0.18 } })
+    add({
+      id: "terra-publica-borda",
+      type: "line",
+      source: "terra-publica",
+      paint: { "line-color": "#7E5510", "line-width": 1.4, "line-dasharray": [2, 2] },
+    })
     add({ id: "uc", type: "fill", source: "uc", paint: { "fill-color": "#bcd2b3", "fill-opacity": 0.35 } })
     add({
       id: "uc-borda",
@@ -509,6 +520,12 @@ export function MapaMunicipio({ cod, imoveis, passa, camadas, frente, destaque, 
           <li>
             <i className="hachura" />
             Terra indígena (excluída)
+          </li>
+        )}
+        {camadas.terraPublica && (
+          <li>
+            <i className="contorno" style={{ borderColor: "#7E5510", borderStyle: "dashed" }} />
+            Terra pública para restaurar (candidata a concessão)
           </li>
         )}
         {imoveis && camadas.fogo && (

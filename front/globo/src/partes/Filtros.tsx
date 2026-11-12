@@ -7,6 +7,8 @@ export interface Camadas {
   alertas: boolean
   areas: boolean
   rios: boolean
+  /** terra pública para restaurar (gleba não destinada, floresta nacional ou estadual): candidata a concessão */
+  terraPublica: boolean
 }
 
 interface Props {
@@ -131,6 +133,14 @@ export function Filtros({ filtros, mudar, camadas, mudarCamadas, imoveis }: Prop
         <label className="marcar">
           <input type="checkbox" checked={camadas.areas} onChange={() => mudarCamadas({ ...camadas, areas: !camadas.areas })} />
           Terras indígenas e UCs
+        </label>
+        <label className="marcar" title="Glebas públicas não destinadas (Cadastro Nacional de Florestas Públicas) e UC de uso sustentável de domínio público, com a área desmatada. Não se origina com particular: candidatas a concessão.">
+          <input
+            type="checkbox"
+            checked={camadas.terraPublica}
+            onChange={() => mudarCamadas({ ...camadas, terraPublica: !camadas.terraPublica })}
+          />
+          Terra pública para restaurar
         </label>
         <label className="marcar desligado" title="Falta a lista de frigoríficos com localização">
           <input type="checkbox" disabled checked={false} onChange={() => undefined} />

@@ -154,7 +154,14 @@ export function Principal({ municipio, abertura }: Props) {
   }, [municipio])
 
   const [filtros, setFiltros] = useState<F>(FILTROS_INICIAIS)
-  const [camadas, setCamadas] = useState<Camadas>({ fogo: false, secundaria: false, alertas: true, areas: true, rios: true })
+  const [camadas, setCamadas] = useState<Camadas>({
+    fogo: false,
+    secundaria: false,
+    alertas: true,
+    areas: true,
+    rios: true,
+    terraPublica: false,
+  })
   const [destaque, setDestaque] = useState<string | null>(null)
   const [projeto, setProjeto] = useState(false)
   const [ordem, setOrdem] = useState<OrdemRestauracao>("area")
