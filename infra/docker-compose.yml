@@ -51,5 +51,19 @@ services:
     ports:
       - "127.0.0.1:8080:8080"
 
+  # Armazenamento compatível com S3 para os arquivos do motor, para quem não usa o Cloudflare R2: SeaweedFS (Apache-2.0).
+  # Sobe só com --profile armazem. S3 em http://localhost:8333; RAIZ_ARMAZEM_URL=s3://raiz-motor/producao e
+  # RAIZ_S3_ENDPOINT=http://localhost:8333 no .env (crie o balde com: aws --endpoint-url ... s3 mb s3://raiz-motor).
+  armazem:
+    image: chrislusf/seaweedfs:3.68  # conferir a versão estável mais recente antes de subir
+    profiles: ["armazem"]
+    restart: unless-stopped
+    command: server -s3 -dir=/data -volume.max=0 -s3.port=8333
+    ports:
+      - "127.0.0.1:8333:8333"
+    volumes:
+      - armazem:/data
+
 volumes:
   banco:
+  armazem:

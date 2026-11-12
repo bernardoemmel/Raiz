@@ -41,6 +41,8 @@ dados/validacao/
 dados/cache_osm/
 dados/cache_restauracao/
 dados/terra_publica/
+dados/armazem/
+dados/armazem_local/
 dados/mapa/
 dados/imagens/
 dados/publico/

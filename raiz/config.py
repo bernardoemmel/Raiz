@@ -40,6 +40,19 @@ class Config(BaseSettings):
     imagens_dir: str | None = None
     # cache das entradas do valor para quem restaura (Copernicus, CHIRPS, SoilGrids); padrão dados/cache_restauracao
     cache_restauracao_dir: str | None = None
+    # armazenamento dos arquivos do motor (agente Dados, raiz/executor): s3://balde/prefixo (Cloudflare R2, SeaweedFS ou
+    # outro compatível com S3) ou uma pasta local; padrão dados/armazem. Credenciais só aqui, por variável de ambiente.
+    armazem_url: str | None = None
+    s3_endpoint: str | None = None  # ex.: https://<conta>.r2.cloudflarestorage.com ou http://localhost:8333
+    s3_regiao: str = "auto"
+    s3_access_key_id: SecretStr | None = Field(
+        default=None, validation_alias=AliasChoices("RAIZ_S3_ACCESS_KEY_ID", "AWS_ACCESS_KEY_ID")
+    )
+    s3_secret_access_key: SecretStr | None = Field(
+        default=None, validation_alias=AliasChoices("RAIZ_S3_SECRET_ACCESS_KEY", "AWS_SECRET_ACCESS_KEY")
+    )
+    # pasta local onde o back-end espelha o armazenamento para carregar no banco; padrão dados/armazem_local
+    armazem_espelho_dir: str | None = None
     # cartões, adesivos e vídeos públicos por código curto (cache); padrão dados/publico
     publico_dir: str | None = None
     # voz do vídeo (Qwen3-TTS, liga quando o pacote qwen-tts está instalado no servidor)

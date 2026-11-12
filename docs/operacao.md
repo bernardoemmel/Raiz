@@ -165,3 +165,24 @@ e motivo, em `saida/<UF>/terra_<mun>.csv` (raiz/terra.py; regra em raiz/regras/p
 - Editais: `raiz terra editais` lê as páginas do SFB e do Ideflor-Bio, guarda cada link com a data em que apareceu
   (`dados/terra_publica/editais_vistos.json`) e lista os novos; o que for concessão de verdade entra em
   raiz/regras/padroes/concessoes.yaml com data e link (a versão da regra muda e o `recalcular` refaz).
+
+## Motor dentro do produto (agente Dados)
+
+O executor (raiz/executor/) roda o motor e as tarefas do produto por estado e por município e grava tudo no
+armazenamento configurado (RAIZ_ARMAZEM_URL: Cloudflare R2 ou SeaweedFS pelo protocolo S3, ou pasta local).
+
+- Retomada: depois de CADA tarefa de cada município, a marca `marcas/<UF>/<mun>.json` guarda a versão da tarefa, a
+  assinatura das entradas e o sha256 das saídas. Matar o processo perde no máximo a tarefa em curso; rodar de novo
+  pula o que está em dia. Se a máquina for outra (disco vazio), as entradas de que uma tarefa precisa descem do armazém.
+- O que refazer: a tarefa roda quando muda (1) a versão dela (hash do código de que depende e, quando há, da regra:
+  FLAG, caminho da terra, premissas de restauração), (2) uma fonte do município (CAR, SIGEF e embargos do espelho,
+  alertas na caixa do município, rasters do MapBiomas do estado) ou (3) a saída de uma tarefa anterior. Se uma tarefa
+  roda e a saída sai igual, as seguintes não rodam.
+- Cada arquivo no armazém leva nos metadados: tarefa, versão, data, município, versão do motor e sha256.
+- Andamento por estado em `estado/<UF>.json` (pronto, em andamento, com erro; feitos, erros, versões), lido pelo
+  painel (`/painel/processamento`, `GET /processamento`) e por `raiz executor estado`.
+- O back-end não lê mais a pasta do motor: `raiz executor sincronizar` espelha o armazém em `dados/armazem_local/`
+  e a carga contínua leva ao banco só o que mudou; um imóvel de município ainda não carregado é carregado na hora em
+  que alguém pede (`/imoveis/{cod}`). Números do Brasil e dos estados: `GET /brasil` e `GET /estados`.
+- Agenda: `raiz executor ciclo` (completa quando a coleção do MapBiomas do motor muda, parcial no resto) ou
+  `raiz executor vigiar --intervalo-h 24`, com Healthchecks (raiz-executor). Ver o README para o cron.

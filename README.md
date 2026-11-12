@@ -63,18 +63,56 @@ uv run raiz api                                        # aceites, mensagens a ap
 uv run pytest                                          # com RAIZ_BANCO_URL_TESTE no .env, testa também o banco
 ```
 
-## Rodar o motor
+## Rodar o motor (dentro do produto: agente Dados)
+
+O motor roda pelo produto, município a município, e grava cada arquivo no armazenamento (compatível com S3) com a
+versão da tarefa e a data. A marca de concluído por município guarda a versão de cada tarefa: se a máquina reiniciar,
+ele retoma de onde parou; se o motor ou uma regra mudar, refaz só o que a mudança afeta.
+
+Armazenamento (no `.env`, credenciais só por variável de ambiente):
 
 ```bash
-pip install -r requirements.txt
-cd motor
-python raiz_estado.py PA 1504950      # um município (código IBGE)
-python raiz_estado.py PA              # o estado inteiro
-python raiz_filtros.py PA
-python raiz_direto.py PA
+RAIZ_ARMAZEM_URL=s3://raiz-motor/producao          # Cloudflare R2 (S3, sem taxa de saída) ou SeaweedFS
+RAIZ_S3_ENDPOINT=https://<conta>.r2.cloudflarestorage.com
+RAIZ_S3_ACCESS_KEY_ID=...
+RAIZ_S3_SECRET_ACCESS_KEY=...
 ```
 
-Saída em `motor/saida/<UF>/`. Para o MapBiomas Alerta, copie `.env.example` para `.env` e preencha.
+Sem servidor externo: `docker compose --env-file .env -f infra/docker-compose.yml --profile armazem up -d armazem`
+sobe o SeaweedFS (Apache-2.0) com S3 em `http://localhost:8333`. Sem nada configurado, usa a pasta `dados/armazem`.
+
+Um estado à mão:
+
+```bash
+uv sync --all-extras
+uv run raiz executor plano --uf PA                   # o que rodaria agora, sem rodar
+uv run raiz executor rodar --ufs PA --lanes 3        # roda e retoma; pode matar e rodar de novo
+uv run raiz executor rodar --ufs PA --municipios 1504950,1507300
+uv run raiz executor estado                          # prontos, em andamento, com erro, versão do motor
+uv run raiz executor sincronizar --ufs PA            # o back-end espelha o armazém e carrega no banco
+```
+
+O Brasil inteiro (27 estados, 5.571 municípios):
+
+```bash
+uv run raiz executor rodar --ufs brasil --lanes 3
+```
+
+Agenda: `raiz executor ciclo` faz uma volta. A volta é completa (refaz todos os municípios) quando muda a coleção do
+MapBiomas que o motor usa (uma vez por ano). No resto do tempo é parcial: refaz só o que mudou, seja a versão de
+uma tarefa, seja uma fonte do município (CAR, SIGEF e embargos do espelho, alertas na área dele). Depois de cada
+estado, o back-end carrega no banco. Exemplo no cron do servidor:
+
+```bash
+# todo dia às 2h40: coleta das fontes diárias e a volta do executor
+40 2 * * * cd /srv/raiz && uv run raiz coleta car && uv run raiz coleta ibama && uv run raiz executor ciclo --lanes 3
+```
+
+Ou deixar rodando: `uv run raiz executor vigiar --intervalo-h 24 --lanes 3`. O painel fica em
+`/painel/processamento` (pede o token da API) e os números em `GET /brasil`, `GET /estados` e `GET /processamento`.
+
+Os scripts do motor (`motor/raiz_estado.py` e os outros) continuam rodando sozinhos como antes
+(`cd motor && python raiz_estado.py PA`), mas o que o site mostra vem do executor.
 
 ## Etapas do produto
 

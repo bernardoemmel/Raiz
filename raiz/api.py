@@ -58,7 +58,11 @@ def _exigir_token(authorization: str | None = Header(default=None)) -> None:
 
 
 def criar_app(
-    engine: Engine | None = None, grafo=None, deps: aceite.Dependencias | None = None, whatsapp: bool = True
+    engine: Engine | None = None,
+    grafo=None,
+    deps: aceite.Dependencias | None = None,
+    whatsapp: bool = True,
+    armazem=None,
 ) -> FastAPI:
     """Com grafo e deps prontos (testes), usa-os; senão abre o checkpointer cifrado no Postgres."""
 
@@ -78,6 +82,7 @@ def criar_app(
 
     app = FastAPI(title="Raíz", lifespan=ciclo)
     app.state.engine, app.state.grafo, app.state.deps = engine, grafo, deps
+    app.state.armazem = armazem  # arquivos do motor (raiz/executor/armazem.py); padrão: o da configuração
 
     if whatsapp:
         from raiz.whatsapp import criar_cliente, ligar_webhook
@@ -218,6 +223,18 @@ def criar_app(
         return request.app.state.engine
 
     app.include_router(front_api.roteador(_engine_do_app), dependencies=seguro)
+    # processamento do motor dentro do produto (agente Dados) e números do Brasil e dos estados
+    from raiz.executor import painel
+
+    def _armazem_do_app(request):
+        if request.app.state.armazem is None:
+            from raiz.executor.armazem import do_config
+
+            request.app.state.armazem = do_config()
+        return request.app.state.armazem
+
+    app.include_router(painel.roteador(_engine_do_app, _armazem_do_app), dependencies=seguro)
+    app.include_router(painel.roteador_publico())
     # link público, cartão e vídeo pelo código curto: sem token (só município, hectares, selo e código antes do aceite)
     from raiz import publico
 

@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import datetime as dt
 import json
+import logging
 import math
 import re
 from collections import defaultdict
@@ -36,6 +37,8 @@ from raiz import terra as terra_mod
 from raiz import terra_publica as terra_publica_mod
 from raiz.busca import normalizar_codigo, normalizar_nome
 from raiz.privacidade import colunas_pessoais, mascarar
+
+log = logging.getLogger(__name__)
 
 # nome no banco (minúsculo) -> nome no CSV do motor
 _ORIGINAL = {
@@ -744,10 +747,26 @@ def roteador(engine_de) -> APIRouter:
             raise HTTPException(422, {"mensagem": str(ex)}) from ex
         return _json({"gravados": len(ids), "observado_em": quando.isoformat()})
 
+    def _sob_demanda(request: Request, eng: Engine, cod_imovel: str) -> list[dict]:
+        """Imóvel de município que está no armazém mas ainda não no banco: carrega o município na hora."""
+        m = re.match(r"^[A-Z]{2}(\d{7})", normalizar_codigo(cod_imovel))
+        armazem = getattr(request.app.state, "armazem", None)
+        if not m or armazem is None:
+            return []
+        from raiz.executor.sincronizar import sob_demanda
+
+        try:
+            if sob_demanda(eng, armazem, int(m.group(1))):
+                return imoveis_do_municipio(eng, cod_imovel=cod_imovel)
+        except Exception as ex:  # noqa: BLE001 - sem o armazém, responde como antes (404 que explica)
+            log.warning("carga sob demanda de %s falhou: %s", cod_imovel, ex)
+            return []
+        return []
+
     @r.get("/imoveis/{cod_imovel}")
     def imovel(cod_imovel: str, request: Request) -> Response:
         eng = engine_de(request)
-        lista = imoveis_do_municipio(eng, cod_imovel=cod_imovel)
+        lista = imoveis_do_municipio(eng, cod_imovel=cod_imovel) or _sob_demanda(request, eng, cod_imovel)
         if not lista:
             raise HTTPException(404, nao_achado(eng, cod_imovel))
         linha = lista[0]
@@ -759,7 +778,7 @@ def roteador(engine_de) -> APIRouter:
     @r.get("/imoveis/{cod_imovel}/ficha")
     def ficha(cod_imovel: str, request: Request) -> Response:
         eng = engine_de(request)
-        alvo = imoveis_do_municipio(eng, cod_imovel=cod_imovel)
+        alvo = imoveis_do_municipio(eng, cod_imovel=cod_imovel) or _sob_demanda(request, eng, cod_imovel)
         if not alvo:
             raise HTTPException(404, nao_achado(eng, cod_imovel))
         cod_ibge = alvo[0].get("cod_municipio_ibge")

@@ -37,6 +37,7 @@ dependencies = [
     "pmtiles>=3.8.1",
     "mapbox-vector-tile>=2.2.0",
     "pillow>=13.0.0",
+    "boto3>=1.35",
 ]
 
 [project.optional-dependencies]
@@ -50,6 +51,7 @@ nativo = [
 dev = [
     "hypothesis>=6.100",
     "maturin>=1.7",
+    "moto[s3]>=5.0",
     "pytest>=8",
     "ruff>=0.6",
 ]

@@ -120,3 +120,13 @@ Usados como dado de entrada no servidor (raiz/terra.py, raiz/terra_publica.py); 
 - **CNUC** (MMA), **terras indígenas** (FUNAI) e **quilombos** (INCRA): os mesmos arquivos do cache do motor.
 - **Editais e contratos de concessão**: páginas públicas do SFB (gov.br/florestal) e do Ideflor-Bio
   (ideflorbio.pa.gov.br), guardadas como link e data em raiz/regras/padroes/concessoes.yaml.
+
+## Lista dos municípios brasileiros (executor do motor)
+
+`raiz/executor/municipios.csv` (código do IBGE, nome e UF dos 5.571 municípios) vem de
+github.com/kelvins/municipios-brasileiros, licença MIT, Copyright (c) 2016 Kelvin S. do Prado. Só as três colunas.
+
+## Armazenamento compatível com S3
+
+boto3 e botocore (Apache-2.0) no produto; moto (Apache-2.0) só nos testes. Servidor próprio, quando não se usa o
+Cloudflare R2: SeaweedFS (Apache-2.0). MinIO e Garage ficam de fora (AGPL).

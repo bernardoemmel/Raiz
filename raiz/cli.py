@@ -622,6 +622,136 @@ def restauracao_recalibrar(
     typer.echo(("gravado em " + r["arquivo"]) if r["gravado"] else "nada gravado (use --gravar)")
 
 
+executor_cli = typer.Typer(
+    help="Agente Dados: o motor rodando dentro do produto, por estado e município, com retomada e armazém S3.",
+    no_args_is_help=True,
+)
+app.add_typer(executor_cli, name="executor")
+
+
+def _ufs(ufs: str | None) -> list[str]:
+    from raiz.executor.tarefas import UFS
+
+    if not ufs or ufs.strip().lower() in ("brasil", "br", "todas"):
+        return list(UFS)
+    return [u.strip().upper() for u in ufs.split(",") if u.strip()]
+
+
+@executor_cli.command("rodar")
+def executor_rodar(
+    ufs: Annotated[str, typer.Option(help="UFs separadas por vírgula, ou brasil")],
+    municipios: Annotated[str | None, typer.Option(help="só estes códigos do IBGE, separados por vírgula")] = None,
+    lanes: Annotated[int, typer.Option(help="municípios ao mesmo tempo")] = 1,
+    refazer: Annotated[bool, typer.Option(help="refazer tudo, mesmo o que está em dia (rodada completa)")] = False,
+) -> None:
+    """Roda os estados retomando de onde parou: município com a marca em dia é pulado; o resto refaz só o que mudou."""
+    from raiz.executor import tarefas as T
+
+    ex = T.executor_producao()
+    cods = [int(c) for c in municipios.split(",")] if municipios else None
+    for uf in _ufs(ufs):
+        r = ex.rodar_uf(uf, cods, refazer=refazer, lanes=lanes, preparar=T.preparar)
+        typer.echo(f"{uf}: {r['situacao']}, {r['feitos']} de {r['total']} municípios, {r['rodados']} rodados, "
+                   f"{len(r['erros'])} com erro ({ex.a.descricao})")  # fmt: skip
+
+
+@executor_cli.command("plano")
+def executor_plano(
+    uf: Annotated[str, typer.Option(help="UF")],
+    municipios: Annotated[str | None, typer.Option(help="só estes códigos do IBGE")] = None,
+) -> None:
+    """O que rodaria agora em cada município (sem rodar nada)."""
+    from collections import Counter
+
+    from raiz.executor import tarefas as T
+
+    ex = T.executor_producao()
+    cods = [int(c) for c in municipios.split(",")] if municipios else T.municipios_da_uf(uf)
+    cont = Counter()
+    for c in cods:
+        p = ex.plano(uf.upper(), c)
+        cont.update(p)
+        if municipios:
+            typer.echo(f"{c}: {', '.join(p) or 'em dia'}")
+    typer.echo(f"{uf.upper()}: {len(cods)} municípios; tarefas a rodar: {dict(cont) or 'nenhuma'}")
+
+
+@executor_cli.command("ciclo")
+def executor_ciclo(
+    ufs: Annotated[str, typer.Option(help="UFs separadas por vírgula, ou brasil")] = "brasil",
+    lanes: Annotated[int, typer.Option(help="municípios ao mesmo tempo")] = 1,
+    carregar: Annotated[bool, typer.Option(help="espelhar o armazém e carregar no banco depois de cada estado")] = True,
+) -> None:
+    """Uma volta da agenda: completa se a coleção do MapBiomas mudou, parcial no resto."""
+    from raiz.executor import agenda
+    from raiz.executor import tarefas as T
+
+    ex = T.executor_producao()
+    car = None
+    if carregar:
+        from raiz.banco import engine
+        from raiz.executor.sincronizar import carregar as carregar_armazem
+
+        eng = engine()
+        car = lambda u: {k: len(v) if isinstance(v, list) else v for k, v in carregar_armazem(eng, ex.a, u).items()}  # noqa: E731
+    r = agenda.ciclo(ex, _ufs(ufs), lanes, car, preparar=T.preparar)
+    typer.echo(f"rodada {'completa' if r['completa'] else 'parcial'} (coleção {r['colecao']}):")
+    for uf, e in r["estados"].items():
+        typer.echo(f"  {uf}: {e}")
+
+
+@executor_cli.command("vigiar")
+def executor_vigiar(
+    ufs: Annotated[str, typer.Option(help="UFs separadas por vírgula, ou brasil")] = "brasil",
+    intervalo_h: Annotated[float, typer.Option(help="horas entre uma volta e outra")] = 24.0,
+    lanes: Annotated[int, typer.Option(help="municípios ao mesmo tempo")] = 1,
+) -> None:
+    """Repete o ciclo (completa uma vez por ano, parcial no resto) e carrega no banco."""
+    from raiz.banco import engine
+    from raiz.executor import agenda
+    from raiz.executor import tarefas as T
+    from raiz.executor.sincronizar import carregar as carregar_armazem
+
+    ex = T.executor_producao()
+    eng = engine()
+    agenda.vigiar(ex, _ufs(ufs), intervalo_h, lanes, lambda u: carregar_armazem(eng, ex.a, u), preparar=T.preparar)
+
+
+@executor_cli.command("sincronizar")
+def executor_sincronizar(
+    ufs: Annotated[str | None, typer.Option(help="UFs separadas por vírgula; padrão: todas")] = None,
+    carregar: Annotated[bool, typer.Option(help="carregar no banco o que mudou")] = True,
+) -> None:
+    """O back-end espelha o armazém numa pasta local e carrega no banco o que mudou."""
+    from raiz.executor.armazem import do_config
+    from raiz.executor.sincronizar import carregar as carregar_armazem
+    from raiz.executor.sincronizar import sincronizar
+
+    a = do_config()
+    lista = _ufs(ufs) if ufs else None
+    if carregar:
+        from raiz.banco import engine
+
+        r = carregar_armazem(engine(), a, lista)
+        typer.echo(f"{r['baixados']} arquivos baixados de {a.descricao}; {len(r['carregados'])} municípios carregados")
+    else:
+        typer.echo(f"{len(sincronizar(a, None, lista))} arquivos baixados de {a.descricao}")
+
+
+@executor_cli.command("estado")
+def executor_estado() -> None:
+    """Estados prontos, em andamento e com erro, com a versão do motor de cada um."""
+    from raiz.executor.armazem import do_config
+    from raiz.executor.painel import processamento
+
+    p = processamento(do_config())
+    typer.echo(f"{p['contagem']} (coleção do MapBiomas {p['colecao_mapbiomas']}, feita: {p['colecao_feita']})")
+    for e in p["estados"]:
+        if e["situacao"] != "nao_iniciado":
+            typer.echo(f"  {e['uf']}: {e['situacao']}, {e['feitos']} de {e['total']}, {e['erros']} erros, "
+                       f"{e['motor_versao']}")  # fmt: skip
+
+
 terra_cli = typer.Typer(
     help="Caminho da terra por imóvel e camada de terra pública para restaurar (regra em raiz/regras/padroes/).",
     no_args_is_help=True,
