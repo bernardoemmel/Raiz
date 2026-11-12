@@ -308,3 +308,12 @@ relatórios Lighthouse passaram pelo portão fixo. E9 real não foi calibrado e 
   O estilo dos detalhes da ficha não atinge mais o controle interno do MapLibre, eliminando o botão de informação
   redundante; os botões de zoom têm 48 px. Playwright verifica a legenda Copernicus completa com imagem sintética,
   as caixas sem interseção, o crédito visível e axe/360 px. TypeScript e verificador de design passaram.
+
+### Integração do Calendário com a navegação acessível
+
+- Calendário também usa carregamento por tela, conserva o foco no conteúdo e mantém seus filtros, feed e aviso
+  de coleta ausente. O quarto link do menu continua visível a 360 px, sem rolagem horizontal.
+- A auditoria do Calendário entra no CI: três larguras (1440, 768 e 360 px), teclado e axe WCAG 2.1 AA.
+  TypeScript, design, actionlint, 186 testes do front e Playwright de cena-alvo e ficha passaram após o merge.
+- Os seis jobs do CI e as quinze medições fixas de Lighthouse foram preservados; a integração não reduziu
+  categorias, notas mínimas nem o conjunto de páginas do portão.
