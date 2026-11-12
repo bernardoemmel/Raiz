@@ -37,8 +37,24 @@ por último. Não substitui os pacotes originais do motor e não grava dados gra
 Inspeção inicial: 144 municípios e 345.870 imóveis no pacote publicado; sem tabelas de desenvolvedor e terra,
 APP pela escadinha presente em 81 municípios. Usa somente dados congelados; não executa downloads geográficos novos.
 Piloto de Nova Esperança do Piriá: 880 imóveis reais calculados, três opções e todos os arquivos gerados localmente.
-Execução integral/publicação: **pendente de rodar o workflow depois do merge do código**. Esta passagem será atualizada
-com URL da execução, hashes e números quando a publicação terminar.
+Código mesclado no [PR #49](https://github.com/bernardoemmel/Raiz/pull/49), após os três checks verdes no
+[CI 43284244212](https://github.com/bernardoemmel/Raiz/actions/runs/43284244212). A
+[execução integral 43285608189](https://github.com/bernardoemmel/Raiz/actions/runs/43285608189), no commit
+`31990520b842fd665152b2c7931b3556a66ca180`, foi cancelada externamente às 19:09 UTC: dez das quinze fatias
+concluíram com sucesso, cinco foram interrompidas e a publicação não começou. O GitHub registra cancelamento pela
+conta `bernardoemmel` e workflow desativado manualmente. **Publicação integral pendente**; nenhuma saída parcial
+foi promovida ao Release. As dez fatias prontas cobrem 98 municípios e 230.295 imóveis; restam 46 municípios e
+115.575 imóveis nas cinco interrompidas, parte já calculada em cache. Os onze artefatos (entrada e dez resultados)
+estão preservados até 12/12/2026, além dos caches das quinze fatias. A retomada aguarda esclarecimento do fundador
+sobre esse cancelamento: se autorizada, reativar o workflow e repetir somente os jobs cancelados da mesma execução,
+preservando entrada, commit e resultados prontos. Repetir todos os jobs causaria colisão dos nomes de artefatos.
+
+Auditoria do artefato preservado `calculado-03`: 23.023 imóveis em nove municípios, 36 hashes conferidos,
+previsões JSONL consistentes com os CSVs e modelo único `restauracao-2026d+a84f9789`. Nenhuma violação do piso de
+20% (faixa observada 20–60%), da ordem dos quantis, dos preços mínimos TIR15 ≥ TIR12 ou dos limites de área.
+Foram mantidas 1.099 áreas positivas menores que 1 ha. Há 3.811 entradas com inconsistência de área sinalizada
+e limite físico aplicado; as premissas substitutas de distância, declividade, chuva, solo, acesso e linha de base
+estão identificadas. Essa conferência cobre uma fatia e não substitui a validação integral antes da publicação.
 
 ## Comparação com o real
 
@@ -74,4 +90,7 @@ normativas em P10/P50/P90. A referência SMA/SP de regenerantes permanece separa
 ## Validação
 
 Testes específicos de reserva, preço, salvaguardas, três opções, comparação, persistência e workflow.
-Ruff global conferido. A contagem final de testes e links do CI serão registrados na entrega da execução integral.
+Ruff global conferido; na validação final desta passagem, 761 testes locais passaram, 108 dependentes do ambiente
+ficaram ignorados e 1 falha histórica
+esperada permaneceu. O CI com PostGIS, testes do front e workflows passou antes do merge do PR #49.
+A exceção autorizada no teste do front foi validada em 24 testes; nenhum código de produção do front foi alterado.
