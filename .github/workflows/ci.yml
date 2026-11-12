@@ -232,7 +232,7 @@ jobs:
           curl --fail --silent http://localhost:8010/v2/languages > /dev/null
       - name: Testes Python com PostGIS; o caso estadual roda no job paralelo
         run: uv run pytest -q --deselect=testes/test_lote.py::test_lote_do_para_inteiro_fecha_ou_diz_o_que_falta --junitxml=resultado-pytest.xml
-      - name: Resultado dos testes (sem dados do arquivo privado)
+      - name: Resultado dos testes gerais (sem dados do arquivo privado)
         if: always()
         uses: actions/upload-artifact@v4
         with:

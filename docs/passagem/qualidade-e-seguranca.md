@@ -558,6 +558,10 @@ O verificador não existe nessas referências: procurá-lo sempre na raiz bloque
 finalizador atual. **31 testes de atestação passaram**, incluindo execução real do passo em checkout legado,
 recusa de subject legado e falha fechada quando o checkout atual falha; actionlint e Ruff passaram.
 
+O [PR #81](https://github.com/bernardoemmel/Raiz/pull/81) foi integrado na main `436c7b6` com os seis checks verdes
+no [CI 43315818208](https://github.com/bernardoemmel/Raiz/actions/runs/43315818208): **2.003 testes passaram,
+1 skip estadual herdado e 1 xfail de TIR**. A entrega abaixo elimina a exceção do skip estadual.
+
 ### Estado atualizado da referência real do Pará
 
 A publicação privada integral já foi concluída por **Lote e números**, conforme sua passagem: 144 municípios e
