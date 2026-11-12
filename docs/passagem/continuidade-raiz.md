@@ -48,7 +48,8 @@ Preparação não registra `verra_avisada`; envio e preenchimento cabem exclusiv
    Configurar no servidor e nos secrets da vigilância no GitHub. Nunca pedir valores no chat. Envio simulado até lá.
 7. **Calendário da Raíz:** implementado com migração 0027, 17 fontes oficiais, coleta diária Actions/Release,
    API `/eventos`, `.ics`, função MCP `proximos_eventos`, aba do site, selos por CAR e avisos de lotes simulados.
-   Cancelamentos/retificações preservam UID; nenhuma pessoa ou documento pessoal persistido. Fonte sem chave
+   Cancelamentos/retificações preservam UID; nenhuma pessoa ou documento pessoal persistido. CAR inferido por
+   matrícula/SIGEF fica interno; consulta pública só mostra CAR explícito no edital. Ficha mantém acesso pago. Fonte sem chave
    CAR/CNS/SIGEF fica pendente. DJEN respondeu 403, cobertura de diários inicial PA/MT, sem OCR de PDF escaneado.
    Ver `docs/calendario.md`. Site publica depois da coleta. No servidor, instalar o cron com
    `uv run python scripts/instalar_cron_alertas.py --tarefa calendario --instalar` após migrar o banco;
