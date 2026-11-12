@@ -210,3 +210,14 @@ RAIZ_BUILD_DADOS=0 front/scripts/construir-site.sh
 - A imagem real depende da disponibilidade de cena no Sentinel-2 e dos polígonos/camadas carregados na API.
   A publicação estática mantém apenas agregados. Não transformar o teste de imagem sintética em evidência
   de disponibilidade orbital para todas as fazendas. O contato com o dono continua na fase final.
+
+### Validação da ficha após integrar as entregas 1 e 2
+
+- Integrada a cobertura do mapa (`fb8c796`), incluindo a cena-alvo e os seis jobs de qualidade do CI.
+  O único conflito estava no plano; todas as entregas e as seções de qualidade e continuidade foram preservadas.
+- A API do pedido continua retornando apenas contornos já desbloqueados pela própria conta, sem nova cobrança.
+  Sugestões antigas perdem a geometria antes de conferir novamente a autorização e a exclusividade.
+- Checagens no ambiente próprio da ficha: Ruff e formatação, TypeScript, 166 testes de front, 53 testes de
+  API/ficha/satélite com PostGIS e dois testes de autorização dos contornos do lote aprovados, sem skips.
+  Chromium conferiu o mapa, hachura, linha do tempo, crédito, troca de conta e 360 px. A suíte Python completa
+  permanece a cargo da integração do chat principal; não foi repetida nesta rodada.
