@@ -59,6 +59,7 @@ jobs:
         env:
           RAIZ_DADOS: front/.cache/teste-site/dados
           RAIZ_GEO: front/.cache/teste-site/geo
+          RAIZ_CALENDARIO_DADOS: front/.cache/teste-site/calendario
           VITE_RAIZ_TESTE_MAPA: "1"
           RAIZ_BASE: /Raiz/
         run: front/scripts/construir-site.sh
