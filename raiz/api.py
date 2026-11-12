@@ -1,7 +1,7 @@
 """API da Raíz (FastAPI). Desenho do agent-service-toolkit (MIT): o checkpointer abre no início do serviço e o grafo
 é retomado pelo thread_id quando há pausa pendente.
 
-- /saude e /whatsapp (webhook, assinatura conferida pelo PyWa) não pedem token.
+- /saude, /eventos, /eventos.ics e /whatsapp (webhook com assinatura PyWa) não pedem token.
 - O resto pede `Authorization: Bearer <RAIZ_API_TOKEN>`; sem token configurado, essas rotas ficam fechadas.
 - Rotas do front (raiz/front_api.py): /municipios, /imoveis/..., /geo/... com os nomes de coluna dos CSV do motor.
 Rodar: uv run raiz api
@@ -228,6 +228,10 @@ def criar_app(
         return request.app.state.engine
 
     app.include_router(front_api.roteador(_engine_do_app), dependencies=seguro)
+    # Calendário de fontes oficiais: somente campos públicos, sem a parte privada da vigilância.
+    from raiz.calendario import api as calendario_api
+
+    app.include_router(calendario_api.roteador(_engine_do_app))
     # processamento do motor dentro do produto (agente Dados) e números do Brasil e dos estados
     from raiz.executor import painel
 

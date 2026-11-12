@@ -39,6 +39,12 @@ try {
     const req = route.request(), url = new URL(req.url()), caminho = url.pathname.replace("/teste-api/prospeccao/", "")
     chamadas.push({ caminho, method: req.method(), token: req.headers().authorization })
     const json = (body, status = 200) => route.fulfill({ status, contentType: "application/json", body: JSON.stringify(body) })
+    if (url.pathname === "/teste-api/eventos") return json({
+      eventos: [{ id: "leilao-teste", tipo: "leilao_imovel", titulo: "Leilão fictício para teste da ficha", data: "2099-11-15", prazo: null,
+        uf: "PA", municipio: "1507300", codigos_car: [car], fonte_url: "https://example.test/leilao", fonte_nome: "Fonte fictícia de teste",
+        coletado_em: "2026-11-12T12:00:00Z", confianca: 0.9, situacao: "previsto" }],
+      total: 1, coletado_em: "2026-11-12T12:00:00Z", fontes: [],
+    })
     if (caminho === "planos") return json({ planos: [{ id: "pesquisa", nome: "Pesquisa", creditos: 10, valor_rs: 20 }], custo_ficha: 1, unidade: "crédito de consulta", pagamento_disponivel: true, mensagem: "Valores de teste." })
     if (caminho === "saldo") return json({ creditos: 5 - debitos, fichas_desbloqueadas: debitos })
     if (caminho === "compras" && req.method() === "GET") return json([compra(99)])
@@ -57,9 +63,13 @@ try {
   await page.goto(`${url}#/fazenda/${car}`)
   await page.getByRole("button", { name: "Desbloquear por 1 crédito" }).waitFor()
   assert.equal(await page.getByRole("heading", { name: "Uso da terra ao longo dos anos" }).count(), 0)
+  assert.equal(await page.getByRole("link", { name: "Em leilão: conferir edital e prazo", exact: true }).count(), 0)
+  assert.equal(chamadas.filter((c) => c.caminho === "/teste-api/eventos").length, 0, "Só confere vínculos do calendário após desbloquear a ficha")
   await print("ficha-bloqueada-1440.png")
   await page.getByRole("button", { name: "Desbloquear por 1 crédito" }).click()
   await page.getByRole("heading", { name: "Uso da terra ao longo dos anos" }).waitFor()
+  await page.getByRole("link", { name: "Em leilão: conferir edital e prazo", exact: true }).waitFor()
+  assert.equal(await page.getByRole("link", { name: "Em leilão: conferir edital e prazo", exact: true }).getAttribute("href"), `#/calendario/${encodeURIComponent(car)}`)
   assert.equal(debitos, 1)
   await page.getByRole("button", { name: "Pedir contato", exact: true }).click()
   await page.getByRole("button", { name: "Pedido de contato recebido" }).waitFor()
@@ -82,6 +92,7 @@ try {
   await page.getByRole("button", { name: "Desbloquear por 1 crédito" }).waitFor()
   assert.equal(await page.getByRole("heading", { name: "Uso da terra ao longo dos anos" }).count(), 0)
   assert.equal(await page.getByText("Pedido 7 recebido", { exact: false }).count(), 0)
+  assert.equal(await page.getByRole("link", { name: "Em leilão: conferir edital e prazo", exact: true }).count(), 0)
   await page.goto(`${url}#/prospeccao`)
   await page.getByRole("heading", { name: "Quanto existe na base" }).waitFor()
   await page.getByLabel("Área mínima, ha").fill("0")

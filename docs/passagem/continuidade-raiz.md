@@ -46,10 +46,14 @@ Preparação não registra `verra_avisada`; envio e preenchimento cabem exclusiv
 6. **Segredos pendentes:** `MAPBIOMAS_ALERTA_EMAIL`, `MAPBIOMAS_ALERTA_SENHA`, `RAIZ_VIGILANCIA_CHAVE`,
    `RAIZ_PROJETOS_PRIVADO` somente quando existirem projetos privados (não exigido para URTX); opcionais `FIRMS_MAP_KEY`, `RAIZ_NTFY_TOPICO`, `RAIZ_NTFY_TOKEN`, `RAIZ_GOALERT_URL`.
    Configurar no servidor e nos secrets da vigilância no GitHub. Nunca pedir valores no chat. Envio simulado até lá.
-7. **Calendário da Raíz, depois das pendências:** leilões rurais/penhoras ligados ao CAR/SIGEF, BNDES,
-   ProFloresta+, Fundo Amazônia, concessões, leilões de créditos, SBCE/Verra/ICVCM/SBTi/EUDR; coleta diária, banco,
-   fonte/data/confiança, `GET /eventos`, `.ics`, função MCP `proximos_eventos`, aba do site, marca no mapa e avisos
-   aos lotes. Em desenvolvimento; nunca guardar nome de pessoa, CPF/CNPJ sempre mascarados.
+7. **Calendário da Raíz:** implementado com migração 0027, 17 fontes oficiais, coleta diária Actions/Release,
+   API `/eventos`, `.ics`, função MCP `proximos_eventos`, aba do site, selos por CAR e avisos de lotes simulados.
+   Cancelamentos/retificações preservam UID; nenhuma pessoa ou documento pessoal persistido. CAR inferido por
+   matrícula/SIGEF fica interno; consulta pública só mostra CAR explícito no edital. Ficha mantém acesso pago. Fonte sem chave
+   CAR/CNS/SIGEF fica pendente. DJEN respondeu 403, cobertura de diários inicial PA/MT, sem OCR de PDF escaneado.
+   Ver `docs/calendario.md`. Site publica depois da coleta. No servidor, instalar o cron com
+   `uv run python scripts/instalar_cron_alertas.py --tarefa calendario --instalar` após migrar o banco;
+   não foi instalado em produção por ausência de acesso. Não existe transporte MCP no repositório.
 8. **Decisões já reservadas ao fundador:** SQLMesh/Dagster (o executor próprio continua nos E8 1/2/7); envio do
    convênio ONR (`docs/pedidos/onr-convenio.md`, E5 9); WhatsApp real e chaves de produção continuam adiados.
    MCGrad/mapaccuracy só após licença conferida; calibração e Olofsson próprios já implementados, sem depender deles.
@@ -71,7 +75,8 @@ Preparação não registra `verra_avisada`; envio e preenchimento cabem exclusiv
   Gerar CPF/CNPJ de teste em memória; literal válido derruba a varredura.
 - Cada worktree usa `.venv` próprio (`uv sync --frozen --all-extras`); não compartilhar `UV_PROJECT_ENVIRONMENT`.
 - Antes de cada entrega, buscar main, conferir migrações e `uv run alembic heads`: uma cabeça só. Resolver
-  conflitos, abrir PR e fazer squash merge com CI verde. Sem force-push na main.
+  conflitos, abrir PR e fazer merge com CI verde. Em entregas encadeadas, preservar a ancestralidade evita
+  reapresentar alterações já revisadas. Sem force-push na main.
 - Não cancelar “Processar estados” para liberar CI. “Vigilância diária” roda às 09:17 UTC e publica no Release
   `vigilancia`; “Busca semanal” também já existe. Filas do CI podem levar até 40 minutos.
 
