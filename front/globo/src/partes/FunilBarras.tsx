@@ -1,4 +1,5 @@
 import { MOTIVOS, PORTES, type EtapaFunil, type Foco } from "../../../compartilhado/funil-etapas"
+import { SITUACOES as SITUACOES_TERRA } from "../../../compartilhado/terra"
 import { fmtHa, fmtInt, fmtPct } from "../../../compartilhado/formato"
 
 export type Unidade = "imoveis" | "hectares"
@@ -97,6 +98,15 @@ export function FunilBarras({ etapas, foco, aoFocar, unidade, mudarUnidade }: Pr
                   </svg>
                 </button>
               </div>
+              {e.terra && (
+                <ul className="fb-partes" aria-label="Situação da terra">
+                  {SITUACOES_TERRA.map((s) => (
+                    <li key={s.id} className={"parte-" + s.id}>
+                      <span className="num">{fmt(valor(e.terra![s.id] ?? { n: 0, ha: 0 }))}</span> {s.nome.toLowerCase()}
+                    </li>
+                  ))}
+                </ul>
+              )}
               {k > 0 && e.perdas.length > 0 && (
                 <p className="fb-perdas">
                   {e.perdas

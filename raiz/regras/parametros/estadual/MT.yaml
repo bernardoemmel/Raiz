@@ -1,0 +1,14 @@
+# Camada estadual de Mato Grosso (E2 passo 5).
+versao: regras-2026b
+nivel: estadual
+uf: MT
+norma:
+  nome: "Lei Complementar estadual 592, de 26/05/2017 (PRA e CAR de MT), regulamentada pelo Decreto 1.031/2017"
+parametros:
+  pra_estadual:
+    descricao: Programa de Regularização Ambiental do estado (regras próprias de recomposição)
+    unidade: norma
+    valores:
+      - {rotulos: {}, valor: null, artigo: null, urn_frag: null, vigencia_inicio: null, adotado_em: null,
+         norma: "LC 592/2017 (alterada pela LC 745/2022); Decretos 1.031/2017, 1.491/2018 e 1.199/2021",
+         pendente: "ler os artigos da LC 592/2017 sobre reserva legal e recomposição; o Decreto 1.199/2021 parece reduzir a reserva a 50% só para recompor em município com mais da metade em UC (como o art. 12, § 4º) e exige a reserva registrada no SIMCAR para validar o CAR; conferir também a regra da transição Cerrado/Amazônia"}

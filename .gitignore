@@ -24,4 +24,26 @@ venv/
 .ipynb_checkpoints/
 # sistema
 .DS_Store
+
+# coleta (dados grandes ficam fora do git)
+dados/espelho/
+dados/dlt/
+dados/cache_http/
 motor/iovbench/target/
+dados/cache_raster/
+
+# extensão Rust compilada
+nativo/raiz_iov/target/
+
+# Catala: saídas do clerk (o Python gerado vai para raiz/regras/gerado/)
+raiz/regras/catala/_build/
+raiz/regras/catala/_target/
+dados/validacao/
+dados/cache_osm/
+dados/cache_restauracao/
+dados/terra_publica/
+dados/armazem/
+dados/armazem_local/
+dados/mapa/
+dados/imagens/
+dados/publico/

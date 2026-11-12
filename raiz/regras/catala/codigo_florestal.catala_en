@@ -1,0 +1,375 @@
+# Código Florestal (Lei 12.651/2012): regras federais por imóvel
+
+Fonte: Lei 12.651, de 25 de maio de 2012 (urn:lex:br:federal:lei:2012-05-25;12651), com a redação da Lei 12.727/2012,
+e Decreto 7.830/2012 (art. 19). Transcrição a conferir contra o link arquivado da tabela de parâmetros
+(raiz/regras/parametros/federal.yaml, pendente). Este arquivo é a referência legal; raiz/regras/federal.py é a versão
+vetorizada para milhões de imóveis, e os dois têm de dar o mesmo resultado nos imóveis de teste.
+
+> Module Codigo_florestal
+
+> Include: prologo.catala_en
+
+## Art. 12. Reserva legal
+
+Art. 12. Todo imóvel rural deve manter área com cobertura de vegetação nativa, a título de Reserva Legal, sem prejuízo
+da aplicação das normas sobre as Áreas de Preservação Permanente, observados os seguintes percentuais mínimos em
+relação à área do imóvel, excetuados os casos previstos no art. 68 desta Lei:
+
+I - localizado na Amazônia Legal:
+a) 80% (oitenta por cento), no imóvel situado em área de florestas;
+b) 35% (trinta e cinco por cento), no imóvel situado em área de cerrado;
+c) 20% (vinte por cento), no imóvel situado em área de campos gerais;
+
+II - localizado nas demais regiões do País: 20% (vinte por cento).
+
+```catala-metadata
+declaration scope ReservaLegal:
+  input imovel content Imovel
+  # art. 12, §§ 4º e 5º: o município ou o estado cumpre as condições da redução
+  context reducao_art12_par4_ou_par5 content boolean
+  # art. 15: o imóvel pode computar APP conservada na reserva
+  context computa_app_art15 content boolean
+  context app_conservada_fora_da_floresta_ha content decimal
+  # art. 68: a supressão respeitou o percentual da lei da época
+  context supressao_respeitou_lei_da_epoca content boolean
+  output percentual content decimal
+  output percentual_recomposicao content decimal
+  output area_base_ha content decimal
+  output vegetacao_computada_ha content decimal
+  output deficit_ha content decimal
+  output deficit_reduzido_ha content decimal
+  output art67_pequeno content boolean
+  output deficit_devido_ha content decimal
+  output area_alem_da_reserva_ha content decimal
+```
+
+```catala
+scope ReservaLegal:
+  definition reducao_art12_par4_ou_par5 equals false
+  definition computa_app_art15 equals false
+  definition app_conservada_fora_da_floresta_ha equals 0.0
+  definition supressao_respeitou_lei_da_epoca equals false
+
+  label demais_regioes definition percentual equals 0.20
+
+  exception demais_regioes
+  definition percentual under condition imovel.na_amazonia_legal consequence equals
+    match imovel.vegetacao with pattern
+    -- Floresta: 0.80
+    -- Cerrado: 0.35
+    -- CamposGerais: 0.20
+
+  # O percentual de floresta vale sobre a parte do imóvel em área de floresta.
+  definition area_base_ha equals imovel.area_ha - imovel.nao_floresta_ha
+
+  definition deficit_ha equals
+    Decimal.max of 0.0, (percentual * area_base_ha - vegetacao_computada_ha)
+```
+
+§ 4º Nos casos da alínea a do inciso I, o poder público poderá reduzir a Reserva Legal para até 50% (cinquenta por
+cento), para fins de recomposição, quando o Município tiver mais de 50% (cinquenta por cento) da área ocupada por
+unidades de conservação da natureza de domínio público e por terras indígenas homologadas.
+
+§ 5º Nos casos da alínea a do inciso I, o poder público estadual, ouvido o Conselho Estadual de Meio Ambiente, poderá
+reduzir a Reserva Legal para até 50% (cinquenta por cento), quando o Estado tiver Zoneamento Ecológico-Econômico
+aprovado e mais de 65% (sessenta e cinco por cento) do seu território ocupado por unidades de conservação da natureza
+de domínio público, devidamente regularizadas, e por terras indígenas homologadas.
+
+O motor usa sempre 50% como cenário do lado da oferta (pct_RL_alem); aqui a redução só vale quando quem chama diz que
+as condições do § 4º ou do § 5º estão cumpridas.
+
+```catala
+scope ReservaLegal:
+  label sem_reducao definition percentual_recomposicao equals percentual
+
+  exception sem_reducao
+  definition percentual_recomposicao under condition
+    reducao_art12_par4_ou_par5 and imovel.na_amazonia_legal and
+    (imovel.vegetacao with pattern Floresta)
+  consequence equals 0.50
+
+  definition deficit_reduzido_ha equals
+    Decimal.max of 0.0, (percentual_recomposicao * area_base_ha - vegetacao_computada_ha)
+```
+
+## Art. 15. Cômputo da APP na reserva legal
+
+Art. 15. Será admitido o cômputo das Áreas de Preservação Permanente no cálculo do percentual da Reserva Legal do
+imóvel, desde que:
+I - o benefício previsto neste artigo não implique a conversão de novas áreas para o uso alternativo do solo;
+II - a área a ser computada esteja conservada ou em processo de recuperação, conforme comprovação do proprietário ao
+órgão estadual integrante do Sisnama; e
+III - o proprietário ou possuidor tenha requerido inclusão do imóvel no Cadastro Ambiental Rural - CAR, nos termos
+desta Lei.
+
+A floresta remanescente que o motor mede já inclui a APP com floresta; o art. 15 aqui soma só a APP conservada que
+não é floresta (por exemplo, vegetação nativa de várzea), quando quem chama confirma as três condições.
+
+```catala
+scope ReservaLegal:
+  label sem_app definition vegetacao_computada_ha equals imovel.floresta_remanescente_ha
+
+  exception sem_app
+  definition vegetacao_computada_ha under condition computa_app_art15 consequence equals
+    imovel.floresta_remanescente_ha + app_conservada_fora_da_floresta_ha
+```
+
+## Art. 67. Imóveis de até 4 módulos fiscais
+
+Art. 67. Nos imóveis rurais que detinham, em 22 de julho de 2008, área de até 4 (quatro) módulos fiscais e que
+possuam remanescente de vegetação nativa em percentuais inferiores ao previsto no art. 12, a Reserva Legal será
+constituída com a área ocupada com a vegetação nativa existente em 22 de julho de 2008, vedadas novas conversões para
+uso alternativo do solo.
+
+## Art. 68. Supressão que respeitou a lei da época
+
+Art. 68. Os proprietários ou possuidores de imóveis rurais que realizaram supressão de vegetação nativa respeitando os
+percentuais de Reserva Legal previstos pela legislação em vigor à época em que ocorreu a supressão são dispensados de
+promover a recomposição, compensação ou regeneração para os percentuais exigidos nesta Lei.
+
+O déficit devido é o que a lei manda recompor: o déficit (já com a redução dos §§ 4º e 5º, se valer), zerado pelo
+art. 67 ou pelo art. 68. A área aberta além do déficit devido fica livre para outro uso, inclusive restauração paga.
+
+```catala
+scope ReservaLegal:
+  definition art67_pequeno equals imovel.modulos_fiscais <= 4.0
+
+  label base_devido definition deficit_devido_ha equals deficit_reduzido_ha
+
+  label art67
+  exception base_devido
+  definition deficit_devido_ha under condition art67_pequeno consequence equals 0.0
+
+  exception art67
+  definition deficit_devido_ha under condition supressao_respeitou_lei_da_epoca consequence equals 0.0
+
+  definition area_alem_da_reserva_ha equals
+    Decimal.max of 0.0, (imovel.area_aberta_ha - deficit_devido_ha)
+
+  assertion deficit_devido_ha <= deficit_ha
+  assertion area_alem_da_reserva_ha <= imovel.area_aberta_ha
+```
+
+## Art. 4º. Faixas de APP fora de área consolidada
+
+Art. 4º Considera-se Área de Preservação Permanente, em zonas rurais ou urbanas, para os efeitos desta Lei:
+
+I - as faixas marginais de qualquer curso d'água natural perene e intermitente, excluídos os efêmeros, desde a borda
+da calha do leito regular, em largura mínima de:
+a) 30 (trinta) metros, para os cursos d'água de menos de 10 (dez) metros de largura;
+b) 50 (cinquenta) metros, para os cursos d'água que tenham de 10 (dez) a 50 (cinquenta) metros de largura;
+c) 100 (cem) metros, para os cursos d'água que tenham de 50 (cinquenta) a 200 (duzentos) metros de largura;
+d) 200 (duzentos) metros, para os cursos d'água que tenham de 200 (duzentos) a 600 (seiscentos) metros de largura;
+e) 500 (quinhentos) metros, para os cursos d'água que tenham largura superior a 600 (seiscentos) metros;
+
+II - as áreas no entorno dos lagos e lagoas naturais, em faixa com largura mínima de:
+a) 100 (cem) metros, em zonas rurais, exceto para o corpo d'água com até 20 (vinte) hectares de superfície, cuja
+faixa marginal será de 50 (cinquenta) metros;
+b) 30 (trinta) metros, em zonas urbanas;
+
+IV - as áreas no entorno das nascentes e dos olhos d'água perenes, qualquer que seja sua situação topográfica, no
+raio mínimo de 50 (cinquenta) metros;
+
+XI - em veredas, a faixa marginal, em projeção horizontal, com largura mínima de 50 (cinquenta) metros, a partir do
+espaço permanentemente brejoso e encharcado.
+
+As alíneas do inciso I se encostam nos extremos (10, 50, 200 e 600 m aparecem em duas). A Raíz lê cada extremo na
+faixa de baixo para 10 m ("menos de 10" vai para a alínea a, então 10 m já é b) e na faixa de cima para 50 e 200 m
+(o primeiro número de cada alínea); 600 m fica na alínea d. Sem a largura medida, vale a menor faixa (30 m), como no
+motor.
+
+```catala-metadata
+declaration scope FaixaApp:
+  input corpo content CorpoDagua
+  input modulos_fiscais content decimal
+  # o trecho é área rural consolidada (ocupado antes de 22/07/2008; art. 3º, IV)
+  input area_consolidada content boolean
+  context zona_urbana content boolean
+  output faixa_art4_m content decimal
+  output faixa_m content decimal
+  internal escadinha_m content decimal
+```
+
+```catala
+scope FaixaApp:
+  definition zona_urbana equals false
+
+  definition faixa_art4_m equals
+    match corpo with pattern
+    -- CursoDagua content rio:
+      if not rio.largura_conhecida or rio.largura_m < 10.0 then 30.0
+      else if rio.largura_m < 50.0 then 50.0
+      else if rio.largura_m < 200.0 then 100.0
+      else if rio.largura_m <= 600.0 then 200.0
+      else 500.0
+    -- LagoNatural content lago:
+      if zona_urbana then 30.0
+      else if lago.superficie_ha <= 20.0 then 50.0
+      else 100.0
+    -- Nascente: 50.0
+    -- Vereda: 50.0
+```
+
+## Art. 61-A. Faixas a recompor em área rural consolidada (a escadinha)
+
+Art. 61-A. Nas Áreas de Preservação Permanente, é autorizada, exclusivamente, a continuidade das atividades
+agrossilvipastoris, de ecoturismo e de turismo rural em áreas rurais consolidadas até 22 de julho de 2008.
+
+§ 1º Para os imóveis rurais com área de até 1 (um) módulo fiscal que possuam áreas consolidadas em Áreas de
+Preservação Permanente ao longo de cursos d'água naturais, será obrigatória a recomposição das respectivas faixas
+marginais em 5 (cinco) metros, contados da borda da calha do leito regular, independentemente da largura do curso
+d'água.
+
+§ 2º ... superior a 1 (um) módulo fiscal e de até 2 (dois) módulos fiscais ... em 8 (oito) metros ...
+
+§ 3º ... superior a 2 (dois) módulos fiscais e de até 4 (quatro) módulos fiscais ... em 15 (quinze) metros ...
+
+§ 4º Para os imóveis rurais com área superior a 4 (quatro) módulos fiscais ... será obrigatória a recomposição das
+respectivas faixas marginais: I - (VETADO); e II - nos demais casos, conforme determinação do PRA, observado o mínimo
+de 20 (vinte) e o máximo de 100 (cem) metros, contados da borda da calha do leito regular.
+
+Decreto 7.830/2012, art. 19, § 4º: I - em 20 (vinte) metros, para imóveis com área superior a 4 (quatro) e de até 10
+(dez) módulos fiscais, nos cursos d'água com até 10 (dez) metros de largura; e II - nos demais casos, em extensão
+correspondente à metade da largura do curso d'água, observado o mínimo de 30 (trinta) e o máximo de 100 (cem) metros.
+
+§ 5º ... no entorno de nascentes e olhos d'água perenes ... sendo obrigatória a recomposição do raio mínimo de 15
+(quinze) metros.
+
+§ 6º ... no entorno de lagos e lagoas naturais ... faixa marginal com largura mínima de: I - 5 (cinco) metros, até 1
+(um) módulo fiscal; II - 8 (oito) metros, superior a 1 (um) e de até 2 (dois) módulos fiscais; III - 15 (quinze)
+metros, superior a 2 (dois) e de até 4 (quatro) módulos fiscais; e IV - 30 (trinta) metros, superior a 4 (quatro)
+módulos fiscais.
+
+§ 7º ... em veredas ... faixas marginais, em projeção horizontal, delimitadas a partir do espaço brejoso e encharcado,
+de largura mínima de: I - 30 (trinta) metros, até 4 (quatro) módulos fiscais; e II - 50 (cinquenta) metros, acima de
+4 (quatro) módulos fiscais.
+
+Sem a largura medida, acima de 4 módulos fiscais vale 20 m até 10 módulos e o mínimo de 30 m acima, como no motor.
+
+```catala
+scope FaixaApp:
+  label art4 definition faixa_m equals faixa_art4_m
+
+  exception art4
+  definition faixa_m under condition area_consolidada consequence equals escadinha_m
+
+  label decreto_19_inc2 definition escadinha_m equals
+    match corpo with pattern
+    -- CursoDagua content rio:
+      if rio.largura_conhecida then
+        Decimal.max of 30.0, (Decimal.min of 100.0, (rio.largura_m / 2.0))
+      else 30.0
+    -- LagoNatural content lago: 30.0
+    -- Nascente: 15.0
+    -- Vereda: 50.0
+
+  label decreto_19_inc1
+  exception decreto_19_inc2
+  definition escadinha_m under condition
+    modulos_fiscais <= 10.0 and
+    (match corpo with pattern
+     -- CursoDagua content rio: not rio.largura_conhecida or rio.largura_m <= 10.0
+     -- anything: false)
+  consequence equals 20.0
+
+  label par3
+  exception decreto_19_inc1
+  definition escadinha_m under condition
+    modulos_fiscais <= 4.0 and
+    (corpo with pattern CursoDagua or corpo with pattern LagoNatural)
+  consequence equals 15.0
+
+  label par2
+  exception par3
+  definition escadinha_m under condition
+    modulos_fiscais <= 2.0 and
+    (corpo with pattern CursoDagua or corpo with pattern LagoNatural)
+  consequence equals 8.0
+
+  exception par2
+  definition escadinha_m under condition
+    modulos_fiscais <= 1.0 and
+    (corpo with pattern CursoDagua or corpo with pattern LagoNatural)
+  consequence equals 5.0
+
+  # § 7º, I: vereda em imóvel de até 4 módulos
+  exception decreto_19_inc1
+  definition escadinha_m under condition
+    modulos_fiscais <= 4.0 and corpo with pattern Vereda
+  consequence equals 30.0
+```
+
+## Art. 61-B. Teto da APP a recompor
+
+Art. 61-B. Aos proprietários e possuidores dos imóveis rurais que, em 22 de julho de 2008, detinham até 10 (dez)
+módulos fiscais e desenvolviam as atividades agrossilvipastoris nas áreas consolidadas em Áreas de Preservação
+Permanente é garantido que a exigência de recomposição, nos termos desta Lei, somadas todas as Áreas de Preservação
+Permanente do imóvel, não ultrapassará:
+I - 10% (dez por cento) da área total do imóvel, para imóveis rurais com área de até 2 (dois) módulos fiscais;
+II - 20% (vinte por cento) da área total do imóvel, para imóveis rurais com área superior a 2 (dois) e de até 4
+(quatro) módulos fiscais;
+III - (VETADO).
+
+```catala-metadata
+declaration scope AppARecompor:
+  input imovel content Imovel
+  # soma das faixas da escadinha que estão abertas (o motor mede: app_escadinha_ha)
+  input app_escadinha_ha content decimal
+  context atividade_agrossilvipastoril_em_2008 content boolean
+  output tem_teto content boolean
+  output teto_ha content decimal
+  output app_recompor_ha content decimal
+```
+
+```catala
+scope AppARecompor:
+  definition atividade_agrossilvipastoril_em_2008 equals true
+
+  label sem_teto definition tem_teto equals false
+  exception sem_teto definition tem_teto under condition
+    atividade_agrossilvipastoril_em_2008 and imovel.modulos_fiscais <= 4.0
+  consequence equals true
+
+  definition teto_ha equals
+    if imovel.modulos_fiscais <= 2.0 then 0.10 * imovel.area_ha
+    else 0.20 * imovel.area_ha
+
+  definition app_recompor_ha equals
+    if tem_teto then Decimal.min of app_escadinha_ha, teto_ha else app_escadinha_ha
+
+  assertion app_recompor_ha <= app_escadinha_ha
+```
+
+## Laudo federal do imóvel
+
+Junta a reserva legal e a APP numa saída só, com os mesmos nomes de coluna do motor (docs/colunas.md).
+
+```catala-metadata
+declaration scope LaudoFederal:
+  input imovel content Imovel
+  input app_escadinha_ha content decimal
+  input reducao_art12_par4_ou_par5 content boolean
+  rl scope ReservaLegal
+  app scope AppARecompor
+  output pct_RL content decimal
+  output pct_RL_alem content decimal
+  output deficit_RL_ha content decimal
+  output deficit_RL_alem_ha content decimal
+  output alem_RL_ha content decimal
+  output app_recompor_ha content decimal
+```
+
+```catala
+scope LaudoFederal:
+  definition rl.imovel equals imovel
+  definition rl.reducao_art12_par4_ou_par5 equals reducao_art12_par4_ou_par5
+  definition app.imovel equals imovel
+  definition app.app_escadinha_ha equals app_escadinha_ha
+
+  definition pct_RL equals rl.percentual * 100.0
+  definition pct_RL_alem equals rl.percentual_recomposicao * 100.0
+  definition deficit_RL_ha equals rl.deficit_ha
+  definition deficit_RL_alem_ha equals rl.deficit_reduzido_ha
+  definition alem_RL_ha equals rl.area_alem_da_reserva_ha
+  definition app_recompor_ha equals app.app_recompor_ha
+```
