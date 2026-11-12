@@ -164,8 +164,9 @@ def areas_da_uf(uf: str, cache_motor: Path | None, espelho: Path | None = None, 
         return None
     g = gpd.GeoDataFrame(partes, geometry="geometry", crs=4674)
     g = g[g.geometry.notna() & ~g.geometry.is_empty].reset_index(drop=True)
-    g["id"] = [
-        f"{uf}-{f}-{hashlib.sha1(str(k).encode()).hexdigest()[:10]}" for f, k in zip(g.fonte, g.chave, strict=True)
+    g["id"] = [  # a mesma gleba pode vir em várias partes: a geometria entra no id
+        f"{uf}-{f}-{hashlib.sha1(str(k).encode() + geom.wkb[:4096]).hexdigest()[:12]}"
+        for f, k, geom in zip(g.fonte, g.chave, g.geometry, strict=True)
     ]
     g["uf"] = uf
     g["ha"] = (g.to_crs(5880).area / 1e4).round(2)
@@ -333,6 +334,13 @@ def carregar(engine, arquivo: Path) -> int:
     t = gpd.read_parquet(arquivo)
     uf = str(t.uf.iloc[0])
     t = t.to_crs(4674)
+    # id único mesmo em arquivo antigo (gleba em várias partes com o mesmo nome)
+    vistos: dict[str, int] = {}
+    ids = []
+    for i in t["id"]:
+        vistos[i] = vistos.get(i, 0) + 1
+        ids.append(i if vistos[i] == 1 else f"{i}-{vistos[i]}")
+    t["id"] = ids
     with engine.begin() as con:
         con.execute(text("delete from geo.terra_publica where uf = :u"), {"u": uf})
         for x in t.to_dict("records"):
@@ -341,7 +349,8 @@ def carregar(engine, arquivo: Path) -> int:
             con.execute(
                 text(f"""insert into geo.terra_publica ({", ".join(COLUNAS_BANCO)}, geom)
                          values ({", ".join(":" + c for c in COLUNAS_BANCO)},
-                                 ST_Multi(ST_CollectionExtract(ST_MakeValid(ST_GeomFromWKB(:wkb, 4674)), 3)))"""),
+                                 ST_Multi(ST_CollectionExtract(ST_MakeValid(
+                                     ST_Force2D(ST_GeomFromWKB(:wkb, 4674))), 3)))"""),
                 vals,
             )
     return len(t)
