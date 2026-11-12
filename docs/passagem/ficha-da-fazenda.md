@@ -1,6 +1,7 @@
 # Passagem do chat "Ficha da fazenda"
 
 Atualização de 12/11/2026, branch `codex/dados-privados-e-prospeccao`.
+PR desta entrega: https://github.com/bernardoemmel/Raiz/pull/72.
 Entrega anterior integrada: [PR #52](https://github.com/bernardoemmel/Raiz/pull/52).
 
 ## Publicação aberta e arquivo privado
