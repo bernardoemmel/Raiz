@@ -45,6 +45,242 @@ def _snapshot():
 PRONTAS = {"03", "04", "06", "07", "08", "09", "10", "11", "13", "14"}
 
 
+def _comprovantes():
+    inventario = {"versao": 1, "tipo": "actions_artifacts", "origem": RR.REPO, "assets": []}
+    backup = {
+        "versao": 1,
+        "origem": RR.REPO,
+        "destino": RR.REPO,
+        "release_id": RT.RELEASE_ID,
+        "tag": "dados-privados",
+        "assets": [],
+    }
+    assets = {}
+    nomes = ["entradas-congeladas", *(f"calculado-{f}" for f in sorted(PRONTAS)), "github-pages"]
+    for i, nome in enumerate(nomes, start=1):
+        conteudo = f"arquivo-{nome}".encode()
+        sha = hashlib.sha256(conteudo).hexdigest()
+        digest = "sha256:" + sha
+        origem = {"id": i, "name": nome, "size": len(conteudo), "digest": digest}
+        nome_backup = f"actions-{i}-{nome}.zip"
+        a = {
+            "id": i,
+            "name": nome,
+            "size_in_bytes": len(conteudo),
+            "digest": digest,
+            "expired": False,
+            "workflow_run": {
+                "id": RT.EXECUCAO_ORIGEM if nome != "github-pages" else RT.EXECUCAO_ORIGEM + 1,
+                "head_sha": RT.SHA_ORIGEM,
+                "repository_id": RT.REPOSITORIO_ID,
+                "head_repository_id": RT.REPOSITORIO_ID,
+            },
+        }
+        ref = {"id": 100 + i, "name": nome_backup, "size": len(conteudo), "digest": digest}
+        inventario["assets"].append({"artifact": a, "origem": origem, "nome_backup": nome_backup, "sha256": sha})
+        backup["assets"].append({"origem_id": i, "backup": ref, "sha256": sha})
+        assets[nome_backup] = deepcopy(ref)
+    return inventario, backup, assets
+
+
+def test_comprovantes_ligam_dez_fatias_e_entradas_aos_zips_privados():
+    inventario, backup, assets = _comprovantes()
+    encontrados = RT._validar_comprovantes(inventario, backup, assets)
+    assert set(encontrados) == {"entradas-congeladas", *(f"calculado-{f}" for f in PRONTAS)}
+    for a in encontrados.values():
+        ref = assets[a["nome_backup"]]
+        assert a["backup_asset_id"] == ref["id"]
+        assert "sha256:" + a["sha256"] == ref["digest"]
+        assert a["size_in_bytes"] == ref["size"]
+
+
+@pytest.mark.parametrize(
+    "documento,caminho,valor",
+    [
+        ("inventario", ("origem",), "outro/repositorio"),
+        ("inventario", ("tipo",), "release_assets"),
+        ("backup", ("origem",), "outro/repositorio"),
+        ("backup", ("destino",), "outro/repositorio"),
+        ("backup", ("release_id",), 123),
+        ("backup", ("tag",), "dados"),
+        ("inventario", ("assets", 0, "artifact", "workflow_run", "id"), RT.EXECUCAO_ORIGEM + 1),
+        ("inventario", ("assets", 0, "artifact", "workflow_run", "head_sha"), "0" * 40),
+        ("inventario", ("assets", 0, "artifact", "workflow_run", "repository_id"), 123),
+        ("inventario", ("assets", 0, "artifact", "workflow_run", "head_repository_id"), 123),
+        ("inventario", ("assets", 0, "artifact", "expired"), True),
+        ("inventario", ("assets", 0, "artifact", "size_in_bytes"), 1),
+        ("inventario", ("assets", 0, "artifact", "digest"), "sha256:" + "0" * 64),
+        ("inventario", ("assets", 0, "nome_backup"), "actions-1-substituido.zip"),
+        ("inventario", ("assets", 0, "origem", "id"), 123),
+        ("inventario", ("assets", 0, "origem", "name"), "substituido"),
+        ("inventario", ("assets", 0, "origem", "size"), 1),
+        ("inventario", ("assets", 0, "origem", "digest"), "sha256:" + "0" * 64),
+        ("inventario", ("assets", 0, "sha256"), "0" * 64),
+        ("backup", ("assets", 0, "origem_id"), 123),
+        ("backup", ("assets", 0, "sha256"), "0" * 64),
+        ("backup", ("assets", 0, "backup", "id"), 123),
+        ("backup", ("assets", 0, "backup", "name"), "actions-1-substituido.zip"),
+        ("backup", ("assets", 0, "backup", "size"), 1),
+        ("backup", ("assets", 0, "backup", "digest"), "sha256:" + "0" * 64),
+    ],
+)
+def test_comprovante_adulterado_nao_autoriza_retomada(documento, caminho, valor):
+    inventario, backup, assets = _comprovantes()
+    alvo = {"inventario": inventario, "backup": backup}[documento]
+    for chave in caminho[:-1]:
+        alvo = alvo[chave]
+    alvo[caminho[-1]] = valor
+    with pytest.raises(ValueError):
+        RT._validar_comprovantes(inventario, backup, assets)
+
+
+@pytest.mark.parametrize("documento", ["inventario", "backup", "assets"])
+def test_falta_de_comprovante_ou_zip_privado_bloqueia_retomada(documento):
+    inventario, backup, assets = _comprovantes()
+    if documento == "assets":
+        del assets[next(iter(assets))]
+    else:
+        {"inventario": inventario, "backup": backup}[documento]["assets"].pop(0)
+    with pytest.raises(ValueError):
+        RT._validar_comprovantes(inventario, backup, assets)
+
+
+@pytest.mark.parametrize("documento", ["inventario", "backup"])
+def test_artifact_duplicado_nos_comprovantes_bloqueia_retomada(documento):
+    inventario, backup, assets = _comprovantes()
+    itens = {"inventario": inventario, "backup": backup}[documento]["assets"]
+    itens.append(deepcopy(itens[0]))
+    with pytest.raises(ValueError):
+        RT._validar_comprovantes(inventario, backup, assets)
+
+
+@pytest.mark.parametrize(
+    "campo,valor", [("id", 123), ("name", "substituido.zip"), ("size", 1), ("digest", "sha256:" + "0" * 64)]
+)
+def test_zip_atual_divergente_do_backup_bloqueia_retomada(campo, valor):
+    inventario, backup, assets = _comprovantes()
+    assets[next(iter(assets))][campo] = valor
+    with pytest.raises(ValueError):
+        RT._validar_comprovantes(inventario, backup, assets)
+
+
+def _privado_com_provas(monkeypatch):
+    inventario, backup, assets = _comprovantes()
+    provas = {"inventario": inventario, "backup": backup}
+    corpos, referencias = {}, {}
+    for i, (tipo, prova) in enumerate(provas.items(), start=1000):
+        corpo = json.dumps(prova).encode()
+        sha = hashlib.sha256(corpo).hexdigest()
+        nome = f"{tipo}.json"
+        referencias[tipo] = {"nome": nome, "asset_id": i, "sha256": sha}
+        corpos[nome] = corpo
+        assets[nome] = {"id": i, "name": nome, "size": len(corpo), "digest": "sha256:" + sha}
+    monkeypatch.setattr(RT, "COMPROVANTES_MIGRACAO", referencias)
+    monkeypatch.setattr(RT, "_api_json", lambda *args: pytest.fail("Não consultar artifacts públicos"))
+    monkeypatch.setattr(RT, "_api_baixar", lambda *args: pytest.fail("Não baixar artifacts públicos"))
+
+    class PrivadoComProvas:
+        def __init__(self):
+            self.downloads = []
+
+        def listar(self):
+            return assets
+
+        def baixar(self, nome, destino, sha):
+            assert hashlib.sha256(corpos[nome]).hexdigest() == sha
+            self.downloads.append((nome, sha))
+            destino.write_bytes(corpos[nome])
+
+    return PrivadoComProvas(), referencias, assets
+
+
+def test_recuperacao_baixa_as_duas_provas_por_sha_fixo_sem_actions(monkeypatch):
+    privado, refs, _ = _privado_com_provas(monkeypatch)
+    encontrados = RT._artefatos_origem(privado)
+    assert len(encontrados) == 11
+    assert privado.downloads == [(r["nome"], r["sha256"]) for r in refs.values()]
+
+
+@pytest.mark.parametrize("campo,valor", [("ausente", None), ("id", 123), ("digest", "sha256:" + "0" * 64)])
+def test_prova_privada_ausente_ou_divergente_nao_e_baixada(monkeypatch, campo, valor):
+    privado, refs, assets = _privado_com_provas(monkeypatch)
+    nome = refs["inventario"]["nome"]
+    if campo == "ausente":
+        del assets[nome]
+    else:
+        assets[nome][campo] = valor
+    with pytest.raises(ValueError):
+        RT._artefatos_origem(privado)
+    assert privado.downloads == []
+
+
+@pytest.mark.parametrize("adulteracao", [None, "id", "tamanho", "hash"])
+def test_zip_migrado_so_e_baixado_do_privado_e_conferido(tmp_path, monkeypatch, adulteracao):
+    inventario, backup, assets = _comprovantes()
+    a = RT._validar_comprovantes(inventario, backup, assets)["entradas-congeladas"]
+    corpo = b"arquivo-entradas-congeladas"
+    eventos = []
+    monkeypatch.setattr(RT, "_api_baixar", lambda *args: pytest.fail("Não baixar de Actions"))
+    if adulteracao == "id":
+        assets[a["nome_backup"]]["id"] += 1
+
+    class PrivadoComZip:
+        def listar(self):
+            eventos.append("listar")
+            return assets
+
+        def baixar(self, nome, destino, sha):
+            assert eventos[-1] == "listar"
+            eventos.append("baixar")
+            assert nome == a["nome_backup"] and sha == a["sha256"]
+            dados = corpo + b"extra" if adulteracao == "tamanho" else corpo
+            destino.write_bytes(b"X" * len(corpo) if adulteracao == "hash" else dados)
+
+    destino = tmp_path / "migrado.zip"
+    if adulteracao:
+        with pytest.raises(ValueError):
+            RT._baixar_artifact(PrivadoComZip(), a, destino)
+        if adulteracao == "id":
+            assert eventos == ["listar"]
+    else:
+        RT._baixar_artifact(PrivadoComZip(), a, destino)
+        assert destino.read_bytes() == corpo
+        assert eventos == ["listar", "baixar"]
+
+
+@pytest.mark.parametrize("adulteracao", [None, "ausente", "sha256", "asset_id"])
+def test_plano_hash_integro_ainda_exige_comprovantes_autorizados(tmp_path, monkeypatch, adulteracao):
+    plano = {
+        "execucao_origem": RT.EXECUCAO_ORIGEM,
+        "sha_origem": RT.SHA_ORIGEM,
+        "modelo_versao": RT.MODELO,
+        "release_id": RT.RELEASE_ID,
+        "comprovantes_migracao": deepcopy(RT.COMPROVANTES_MIGRACAO),
+        "reusadas": sorted(PRONTAS),
+        "calcular": sorted(RT.FALTANTES),
+        "fatias": _snapshot()["plano"],
+        "concluidas": {f: {"nome": f"pacote-{f}", "sha256": "a" * 64} for f in PRONTAS},
+    }
+    if adulteracao == "ausente":
+        del plano["comprovantes_migracao"]
+    elif adulteracao:
+        plano["comprovantes_migracao"]["inventario"][adulteracao] = "0" * 64 if adulteracao == "sha256" else 123
+    corpo = json.dumps(plano).encode()
+    digest = hashlib.sha256(corpo).hexdigest()
+    monkeypatch.setattr(RT, "conferir_modelo", lambda: None)
+
+    class PrivadoComPlano:
+        def baixar(self, nome, destino, sha):
+            assert nome == "plano-privado.json" and sha == digest
+            destino.write_bytes(corpo)
+
+    if adulteracao:
+        with pytest.raises(ValueError, match="retomada autorizada"):
+            RT.carregar_plano(PrivadoComPlano(), "plano-privado.json", digest, tmp_path)
+    else:
+        assert RT.carregar_plano(PrivadoComPlano(), "plano-privado.json", digest, tmp_path) == plano
+
+
 @pytest.mark.parametrize(
     "endpoint,accept",
     [
@@ -417,6 +653,7 @@ def test_reuniao_publica_somente_no_destino_privado_e_guarda_proveniencia(tmp_pa
     plano = {
         "concluidas": {f: {"nome": f"pacote-{f}", "sha256": "a" * 64} for f in PRONTAS},
         "fatias": snapshot["plano"],
+        "comprovantes_migracao": RT.COMPROVANTES_MIGRACAO,
     }
     monkeypatch.setenv("GITHUB_RUN_ID", "99")
     monkeypatch.setenv("GITHUB_SHA", "orquestrador-novo")
@@ -467,6 +704,7 @@ def test_reuniao_publica_somente_no_destino_privado_e_guarda_proveniencia(tmp_pa
     manifesto = json.loads((tmp_path / "entrega/manifesto_privado.json").read_text())
     assert manifesto["retomada"]["execucao_origem"] == RT.EXECUCAO_ORIGEM
     assert manifesto["retomada"]["sha_origem"] == RT.SHA_ORIGEM
+    assert manifesto["retomada"]["comprovantes_migracao"] == RT.COMPROVANTES_MIGRACAO
     assert manifesto["destino"] == {
         "tipo": "release_rascunho",
         "id": RT.RELEASE_ID,
@@ -479,15 +717,6 @@ def test_workflow_nao_grava_dados_em_artifact_ou_cache_publico():
     texto = (Path(__file__).resolve().parents[1] / ".github/workflows/retomar-lote-para.yml").read_text()
     workflow = yaml.safe_load(texto)
     actions = [s.get("uses", "") for job in workflow["jobs"].values() for s in job["steps"]]
-    for prefixo in ("actions/upload-artifact", "actions/cache/save", "actions/cache@"):
+    for prefixo in ("actions/upload-artifact", "actions/cache/save", "actions/cache/restore", "actions/cache@"):
         assert not any(a.startswith(prefixo) for a in actions)
     assert any(job.get("strategy", {}).get("max-parallel") == 5 for job in workflow["jobs"].values())
-    assert any(a.startswith("actions/cache/restore") for a in actions)
-    restores = [
-        s
-        for job in workflow["jobs"].values()
-        for s in job["steps"]
-        if s.get("uses", "").startswith("actions/cache/restore")
-    ]
-    assert restores[0]["with"]["path"] == "rodada/fatia/resultado"
-    assert restores[0]["with"]["key"].startswith(f"lote-pa-{RT.SHA_ORIGEM}-{RT.EXECUCAO_ORIGEM}-")

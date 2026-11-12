@@ -44,8 +44,11 @@ Código mesclado no [PR #49](https://github.com/bernardoemmel/Raiz/pull/49), ap�
 concluíram com sucesso, cinco foram interrompidas e a publicação não começou. O GitHub registra cancelamento pela
 conta `bernardoemmel` e workflow desativado manualmente. **Publicação integral pendente**; nenhuma saída parcial
 foi promovida ao Release. As dez fatias prontas cobrem 98 municípios e 230.295 imóveis; restam 46 municípios e
-115.575 imóveis nas cinco interrompidas, parte já calculada em cache. Os onze artefatos (entrada e dez resultados)
-estão preservados até 12/12/2026, além dos caches das quinze fatias. O fundador esclareceu que o cancelamento não
+115.575 imóveis nas cinco interrompidas. Os onze artefatos (entrada e dez resultados) foram depois preservados no
+draft privado pelo Actions `43289212685` e removidos do armazenamento público de artifacts. A mesma migração,
+conduzida pelo chat Ficha da fazenda, removeu 33 caches de dados, incluindo os quinze caches do lote. As dez fatias
+prontas continuam preservadas; os caches parciais das cinco incompletas não estão mais disponíveis.
+O fundador esclareceu que o cancelamento não
 era intencional para esta entrega e autorizou retomar somente as cinco fatias, aguardando vagas para respeitar o
 limite de quinze jobs junto ao processamento dos estados, sem cancelar trabalhos em andamento.
 
@@ -58,7 +61,10 @@ do publicador. A ausência de nome/CPF não torna TIR, risco e crédito por imó
 
 Repetir os jobs cancelados pelo mecanismo padrão executaria também o publicador público do commit antigo.
 A continuação usa `.github/workflows/retomar-lote-para.yml` e `raiz/restauracao_retomada.py`: reutiliza a entrada
-e as dez fatias concluídas, restaura os caches parciais originais e calcula apenas `00`, `01`, `02`, `05` e `12`.
+e as dez fatias concluídas a partir dos ZIPs privados `actions-<id>-<nome>.zip` e calcula apenas `00`, `01`, `02`,
+`05` e `12`. Os comprovantes `artifacts-inventario-43289212685.json` e `artifacts-backup-43289212685.json` vinculam
+IDs, execução original, commit de origem, nomes, tamanhos e SHA256; são conferidos antes de aceitar os ZIPs.
+As cinco incompletas começam sem os caches antigos removidos e preservam os novos checkpoints no draft privado.
 Executa código, amostra e lockfile no commit original, copiando somente o orquestrador privado. Confere hashes de
 entrada e saída, modelo, CARs, contagens e a composição exata de cada fatia antes da reunião. Uma conclusão já
 preservada é validada e reutilizada; não há novo cálculo só porque um passo posterior precisou ser repetido.
@@ -74,6 +80,9 @@ previsões JSONL consistentes com os CSVs e modelo único `restauracao-2026d+a84
 Foram mantidas 1.099 áreas positivas menores que 1 ha. Há 3.811 entradas com inconsistência de área sinalizada
 e limite físico aplicado; as premissas substitutas de distância, declividade, chuva, solo, acesso e linha de base
 estão identificadas. Essa conferência cobre uma fatia e não substitui a validação integral antes da publicação.
+Na entrada congelada completa, as 144 tabelas somam 345.870 linhas e 345.870 CARs únicos, sem vazios nem
+duplicação entre municípios. O ZIP da fatia auditada também corresponde exatamente ao SHA e tamanho dos
+comprovantes privados da migração.
 
 ## Comparação com o real
 
@@ -109,8 +118,9 @@ normativas em P10/P50/P90. A referência SMA/SP de regenerantes permanece separa
 ## Validação
 
 Testes específicos de reserva, preço, salvaguardas, três opções, comparação, persistência e workflow.
-Ruff global conferido. A validação local da continuação, integrada à main até o PR #53, teve 880 testes aprovados,
-117 dependentes do ambiente ignorados e 1 falha histórica esperada. A continuação privada tem 31 testes específicos
+Ruff global conferido. A validação local anterior à leitura dos ZIPs migrados, integrada à main até o PR #53,
+teve 880 testes aprovados, 117 dependentes do ambiente ignorados e 1 falha histórica esperada. A continuação
+privada tem 78 testes específicos
 aprovados e revisão independente, incluindo recusa de
 Release público, origem divergente, alteração do conjunto de CARs e recálculo de fatia pronta. O motor e a amostra
 originais foram conferidos em checkout separado. O CI com PostGIS, testes do front e workflows passou antes do merge do PR #49.

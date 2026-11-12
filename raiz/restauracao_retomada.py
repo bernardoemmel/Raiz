@@ -9,6 +9,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import shutil
 import stat
 import subprocess
@@ -24,10 +25,23 @@ EXECUCAO_ORIGEM = 43285608189
 SHA_ORIGEM = "31990520b842fd665152b2c7931b3556a66ca180"
 MODELO = "restauracao-2026d+a84f9789"
 RELEASE_ID = 443383695
+REPOSITORIO_ID = 1454858834
 TAG = "dados-privados"
 PRONTAS = frozenset({"03", "04", "06", "07", "08", "09", "10", "11", "13", "14"})
 FALTANTES = frozenset({"00", "01", "02", "05", "12"})
 PREFIXO = f"retomada_PA_{EXECUCAO_ORIGEM}"
+COMPROVANTES_MIGRACAO = {
+    "inventario": {
+        "nome": "artifacts-inventario-43289212685.json",
+        "asset_id": 740830767,
+        "sha256": "28870389749999b846045127a975b187f18070a6cf5381d535e6c81fbf646235",
+    },
+    "backup": {
+        "nome": "artifacts-backup-43289212685.json",
+        "asset_id": 740830763,
+        "sha256": "ca8c4da5009ef966f4c1dbb7b42a20ed2ad8ebe24e8bf6679cf37389e0dff559",
+    },
+}
 
 
 def _api_json(argumentos: list[str]):
@@ -268,27 +282,99 @@ def _nome_com_hash(arquivo: Path, tipo: str) -> str:
     return f"{PREFIXO}_{tipo}_{RR.sha256(arquivo)[:16]}{''.join(arquivo.suffixes)}"
 
 
+def _validar_comprovantes(inventario: dict, backup: dict, assets: dict[str, dict]) -> dict[str, dict]:
+    """Liga os ZIPs privados à identidade e ao SHA oficial de cada artifact antes da migração."""
+    if (
+        inventario.get("versao") != 1
+        or inventario.get("tipo") != "actions_artifacts"
+        or inventario.get("origem") != RR.REPO
+        or backup.get("versao") != 1
+        or backup.get("origem") != RR.REPO
+        or backup.get("destino") != RR.REPO
+        or backup.get("release_id") != RELEASE_ID
+        or backup.get("tag") != TAG
+    ):
+        raise ValueError("Comprovantes de migração pertencem a outra origem ou destino.")
+    copias = {}
+    for item in backup.get("assets", []):
+        if item.get("origem_id") in copias:
+            raise ValueError("Artifact duplicado no comprovante de backup.")
+        copias[item.get("origem_id")] = item
+    out, ids = {}, set()
+    for item in inventario.get("assets", []):
+        a = item.get("artifact", {})
+        run = a.get("workflow_run", {})
+        if run.get("id") != EXECUCAO_ORIGEM:
+            continue
+        if (
+            run.get("head_sha") != SHA_ORIGEM
+            or run.get("repository_id") != REPOSITORIO_ID
+            or run.get("head_repository_id") != REPOSITORIO_ID
+            or not isinstance(a.get("id"), int)
+            or a.get("id", 0) <= 0
+            or not isinstance(a.get("size_in_bytes"), int)
+            or a.get("size_in_bytes", 0) <= 0
+            or a.get("id") in ids
+            or a.get("name") in out
+            or a.get("expired") is not False
+        ):
+            raise ValueError("Artifact migrado não corresponde à execução e ao repositório originais.")
+        nome = f"actions-{a['id']}-{a.get('name')}.zip"
+        sha = item.get("sha256", "")
+        digest = "sha256:" + sha
+        origem = item.get("origem", {})
+        copia = copias.get(a["id"], {})
+        ref = copia.get("backup", {})
+        atual = assets.get(nome, {})
+        if (
+            not re.fullmatch(r"[0-9a-f]{64}", sha)
+            or a.get("digest") != digest
+            or item.get("nome_backup") != nome
+            or origem.get("id") != a["id"]
+            or origem.get("name") != a.get("name")
+            or origem.get("size") != a.get("size_in_bytes")
+            or origem.get("digest") != digest
+            or copia.get("sha256") != sha
+            or ref.get("digest") != digest
+            or ref.get("name") != nome
+            or ref.get("size") != a.get("size_in_bytes")
+            or not isinstance(ref.get("id"), int)
+            or atual.get("id") != ref.get("id")
+            or atual.get("name") != nome
+            or atual.get("size") != a.get("size_in_bytes")
+            or atual.get("digest") != digest
+        ):
+            raise ValueError("Identidade, tamanho ou SHA do ZIP privado diverge dos comprovantes da migração.")
+        ids.add(a["id"])
+        out[a["name"]] = {**a, "nome_backup": nome, "sha256": sha, "backup_asset_id": ref["id"]}
+    esperados = {"entradas-congeladas", *(f"calculado-{f}" for f in PRONTAS)}
+    if set(out) != esperados:
+        raise ValueError("Os comprovantes devem conter as entradas e exatamente as dez fatias concluídas.")
+    return out
+
+
 def _artefatos_origem(privado: Privado) -> dict[str, dict]:
-    out, pagina = {}, 1
-    while True:
-        privado.verificar()
-        resposta = _api_json([f"{privado.base}/actions/runs/{EXECUCAO_ORIGEM}/artifacts?per_page=100&page={pagina}"])
-        for a in resposta["artifacts"]:
-            if a["name"] in out or a.get("expired"):
-                raise ValueError("Artifact duplicado ou expirado na execução original.")
-            out[a["name"]] = a
-        if len(out) >= resposta["total_count"]:
-            return out
-        pagina += 1
+    # Os artifacts originais foram removidos depois do backup privado; não há fallback público.
+    documentos = {}
+    with tempfile.TemporaryDirectory() as td:
+        for tipo, ref in COMPROVANTES_MIGRACAO.items():
+            a = privado.listar().get(ref["nome"], {})
+            if a.get("id") != ref["asset_id"] or a.get("digest") != "sha256:" + ref["sha256"]:
+                raise ValueError("Comprovante privado ausente ou diferente do ID e SHA autorizados.")
+            local = Path(td) / f"{tipo}.json"
+            privado.baixar(ref["nome"], local, ref["sha256"])
+            documentos[tipo] = RR._ler(local)
+    return _validar_comprovantes(documentos["inventario"], documentos["backup"], privado.listar())
 
 
 def _baixar_artifact(privado: Privado, a: dict, destino: Path) -> None:
-    privado.verificar()
-    _api_baixar(f"{privado.base}/actions/artifacts/{a['id']}/zip", destino)
-    digest = a.get("digest")
+    atual = privado.listar().get(a["nome_backup"], {})
+    if atual.get("id") != a["backup_asset_id"]:
+        raise ValueError("O ZIP privado não é o asset preservado no comprovante de backup.")
+    privado.baixar(a["nome_backup"], destino, a["sha256"])
     if destino.stat().st_size != a["size_in_bytes"]:
         raise ValueError("Tamanho divergente no artifact da origem.")
-    if digest and digest != "sha256:" + RR.sha256(destino):
+    if a["digest"] != "sha256:" + RR.sha256(destino):
         raise ValueError("SHA256 divergente no artifact da origem.")
 
 
@@ -333,6 +419,7 @@ def preparar(destino: Path, privado: Privado) -> dict:
             "fatias": snapshot["plano"],
             "concluidas": {},
             "artifacts_origem": artefatos,
+            "comprovantes_migracao": COMPROVANTES_MIGRACAO,
         }
     )
     for fatia in sorted(PRONTAS):
@@ -367,6 +454,7 @@ def carregar_plano(privado: Privado, nome: str, sha: str, destino: Path) -> dict
         or plano.get("sha_origem") != SHA_ORIGEM
         or plano.get("modelo_versao") != MODELO
         or plano.get("release_id") != RELEASE_ID
+        or plano.get("comprovantes_migracao") != COMPROVANTES_MIGRACAO
         or set(plano.get("reusadas", [])) != PRONTAS
         or set(plano.get("calcular", [])) != FALTANTES
     ):
@@ -496,6 +584,8 @@ def reunir_publicar(privado: Privado, plano: dict, destino: Path) -> dict:
         "quantidade_reusadas": 10,
         "quantidade_calculadas": 5,
         "fontes_privadas": referencias,
+        "comprovantes_migracao": plano["comprovantes_migracao"],
+        "checkpoints_originais_disponiveis": False,
     }
     manifesto["destino"] = {"tipo": "release_rascunho", "id": RELEASE_ID, "tag": TAG, "publico": False}
     produto = entrega / "produto"

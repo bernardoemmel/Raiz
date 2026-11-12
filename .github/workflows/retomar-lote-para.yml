@@ -89,14 +89,6 @@ jobs:
           uv run python -m raiz.restauracao_retomada baixar
           --destino "$GITHUB_WORKSPACE/rodada" --repo "$GITHUB_REPOSITORY"
           --plano "$PLANO" --plano-sha256 "$PLANO_SHA256"
-      - name: Confirmar privacidade imediatamente antes de recuperar o checkpoint antigo
-        working-directory: motor-origem
-        run: uv run python -m raiz.restauracao_retomada verificar --repo "$GITHUB_REPOSITORY"
-      - name: Restaurar somente o cache existente da execução original
-        uses: actions/cache/restore@v4
-        with:
-          path: rodada/fatia/resultado
-          key: lote-pa-31990520b842fd665152b2c7931b3556a66ca180-43285608189-${{ matrix.fatia }}
       - name: Concluir somente a fatia interrompida e preservar seu resultado privado
         working-directory: motor-origem
         run: >-
