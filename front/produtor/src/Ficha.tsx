@@ -220,7 +220,8 @@ export function Ficha() {
         {i.apta ? (
           <>
             <h1>
-              <em>{fmtInt(i.carbono_ha)} hectares</em> da sua terra podem virar mata de novo
+              <em>{Math.round(i.carbono_ha) === 1 ? "1 hectare" : `${fmtInt(i.carbono_ha)} hectares`}</em> da sua terra{" "}
+              {Math.round(i.carbono_ha) === 1 ? "pode" : "podem"} virar mata de novo
             </h1>
             <p class="lead">
               {maiuscula(camposDeFutebol(i.carbono_ha))}. É pasto perto de floresta, onde a mata volta sozinha se o gado

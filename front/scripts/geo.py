@@ -708,34 +708,14 @@ def indice() -> None:
 def main(cods: list[str]) -> None:
     SAIDA.mkdir(exist_ok=True)
     dia = None
+    falhas = []
     for cod in cods:
-        geom, nome = municipio(cod)
-        print(f"{cod} {nome}")
-        x0, y0, x1, y1 = geom.bounds
-        caixa = (x0 - 0.05, y0 - 0.05, x1 + 0.05, y1 + 0.05)
-        imoveis(cod)
-        camada_tb(
-            cod,
-            "ti",
-            "prodes-legal-amz:indigenous_area_legal_amazon",
-            caixa,
-            {"terrai_nom": "nome", "fase_ti": "fase"},
-            0.0005,
-            dentro=geom,
-        )
-        camada_tb(
-            cod,
-            "uc",
-            "prodes-legal-amz:conservation_units_legal_amazon",
-            caixa,
-            {"nome": "nome", "categoria": "categoria", "grupo": "grupo"},
-            0.0005,
-            dentro=geom,
-        )
-        camada_tb(cod, "rios", "prodes-legal-amz:hydrography", caixa, {}, 0.0002)
-        if not (SAIDA / f"base_{cod}.pmtiles").exists():
-            dia = dia or build_recente()
-            base(cod, caixa, dia)
+        try:
+            dia = um_municipio(cod, dia)
+        except Exception as ex:  # noqa: BLE001
+            # servidor fora (CAR, TerraBrasilis): segue com o resto; na próxima rodada tenta de novo o que faltou
+            print(f"   {cod} não saiu agora: {str(ex)[:160]}")
+            falhas.append(cod)
     fontes()
     municipios_brasil()
     estados_brasil()
@@ -746,6 +726,40 @@ def main(cods: list[str]) -> None:
     if not (SAIDA / "base_brasil.pmtiles").exists():
         base_brasil(dia or build_recente(), cods)
     indice()
+    if falhas:
+        print(f"Faltaram {len(falhas)} município(s): {', '.join(falhas)}")
+
+
+def um_municipio(cod: str, dia):
+    """Divisa, imóveis do CAR, terra indígena, UC, rios e o recorte do mapa base de um município."""
+    geom, nome = municipio(cod)
+    print(f"{cod} {nome}")
+    x0, y0, x1, y1 = geom.bounds
+    caixa = (x0 - 0.05, y0 - 0.05, x1 + 0.05, y1 + 0.05)
+    imoveis(cod)
+    camada_tb(
+        cod,
+        "ti",
+        "prodes-legal-amz:indigenous_area_legal_amazon",
+        caixa,
+        {"terrai_nom": "nome", "fase_ti": "fase"},
+        0.0005,
+        dentro=geom,
+    )
+    camada_tb(
+        cod,
+        "uc",
+        "prodes-legal-amz:conservation_units_legal_amazon",
+        caixa,
+        {"nome": "nome", "categoria": "categoria", "grupo": "grupo"},
+        0.0005,
+        dentro=geom,
+    )
+    camada_tb(cod, "rios", "prodes-legal-amz:hydrography", caixa, {}, 0.0002)
+    if not (SAIDA / f"base_{cod}.pmtiles").exists():
+        dia = dia or build_recente()
+        base(cod, caixa, dia)
+    return dia
 
 
 if __name__ == "__main__":

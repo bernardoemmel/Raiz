@@ -22,7 +22,6 @@ from raiz.pedidos.campos import CAMINHOS, METODOS, CamposPedido
 from raiz.pedidos.premissas import premissas
 
 Z90 = 1.2815515655446004
-PROFLORESTA = ((7, 0.12), (12, 0.30), (17, 0.50), (22, 0.70), (25, 1.0))
 NOMES_CAMINHO = {
     "matricula_conferida": "matrícula conferida",
     "matricula_a_conferir": "matrícula a conferir no cartório",
@@ -303,8 +302,24 @@ def _custo_usd(f: pd.DataFrame) -> np.ndarray:
     return np.where(np.isfinite(c), c, np.nanmax(np.append(c[np.isfinite(c)], 100.0)) * 1.5)
 
 
-def resolver(f: pd.DataFrame, c: CamposPedido, opcao: str, chance: np.ndarray, p: dict | None = None) -> dict:
-    """Escolhe as fazendas da opção (índices de f) e as de reserva. f já filtrada pelo pedido."""
+def _abaixo_equilibrio(f: pd.DataFrame, preco_usd: float) -> np.ndarray:
+    """Fazendas cujo preço de equilíbrio (o que paga a WACC do cenário) passa do preço do pedido."""
+    eq = f.preco_equilibrio_usd.to_numpy(float)
+    return np.isfinite(eq) & (eq > preco_usd + 1e-9)
+
+
+def _penalidade_preco(f: pd.DataFrame, preco_usd: float, p: dict) -> np.ndarray:
+    """US$ por crédito a mais na fazenda que o preço não paga (a diferença até o equilíbrio e a penalidade): todas as
+    opções preferem a regeneração e só usam o plantio abaixo do equilíbrio quando falta crédito."""
+    eq = f.preco_equilibrio_usd.to_numpy(float)
+    ab = _abaixo_equilibrio(f, preco_usd)
+    return np.where(ab, np.nan_to_num(eq - preco_usd) + float(p["otimizador"]["abaixo_equilibrio_usd"]), 0.0)
+
+
+def resolver(f: pd.DataFrame, c: CamposPedido, opcao: str, chance: np.ndarray, p: dict | None = None,
+             reserva_meta: float | None = None) -> dict:  # fmt: skip
+    """Escolhe as fazendas da opção (índices de f) e as de reserva. f já filtrada pelo pedido. A reserva vai até
+    `reserva_meta` (na unidade da meta) quando dada; senão, até a fração de reserva da meta."""
     from scipy.optimize import Bounds, LinearConstraint, milp
     from scipy.sparse import coo_matrix, vstack
 
@@ -313,9 +328,12 @@ def resolver(f: pd.DataFrame, c: CamposPedido, opcao: str, chance: np.ndarray, p
     w = o["pesos"][opcao]
     meta = float(c.meta.valor)
     q = quantidade(f, c.meta.tipo)
-    g = grupos(f, c.forma.distancia_max_km)
+    usa_grupos = w["compacta"] > 0 or c.forma.distancia_max_km is not None or c.forma.area_min_contigua_ha
+    # sem forma pedida, a opção não usa os grupos: não faz o agrupamento (pesado num estado inteiro)
+    g = grupos(f, c.forma.distancia_max_km) if usa_grupos else np.array([f"m{m}" for m in f.cod_ibge], dtype=object)
     cred = f.credito_p50.to_numpy(float)
     unit = w["custo"] * _custo_usd(f) + w["risco"] * _risco_usd(f, chance, p)  # US$ por crédito
+    unit = unit + _penalidade_preco(f, float(c.dinheiro.preco_venda_usd), p)
     # mitigação: grupo com fazenda de mitigação tem vazamento zero (só na opção compacta, onde o grupo é o lote)
     mitig = np.zeros(len(f), dtype=bool)
     if opcao == "compacta" and f.mitigacao.any():
@@ -325,7 +343,6 @@ def resolver(f: pd.DataFrame, c: CamposPedido, opcao: str, chance: np.ndarray, p
         q = np.where(mitig & (c.meta.tipo == "creditos"), q / (1 - vaz), q)
         cred = np.where(mitig, cred / (1 - vaz), cred)
     a = unit * np.maximum(cred, 1e-6)
-    usa_grupos = w["compacta"] > 0 or c.forma.distancia_max_km is not None or c.forma.area_min_contigua_ha
     # pré-seleção: as melhores por unidade da meta (e, na compacta, os melhores grupos inteiros)
     ordem = np.argsort(a / np.maximum(q, 1e-9))
     if usa_grupos:
@@ -412,8 +429,8 @@ def resolver(f: pd.DataFrame, c: CamposPedido, opcao: str, chance: np.ndarray, p
         resto = np.concatenate([resto[mesmos], resto[~mesmos]])
     else:
         resto = resto[np.argsort(a[resto] / np.maximum(q[resto], 1e-9))]
-    alvo_res = float(o["reserva_fracao"]) * meta
-    k = int(np.searchsorted(np.cumsum(q[resto]), alvo_res)) + 1 if len(resto) else 0
+    alvo_res = float(reserva_meta) if reserva_meta is not None else float(o["reserva_fracao"]) * meta
+    k = int(np.searchsorted(np.cumsum(q[resto]), alvo_res)) + 1 if len(resto) and alvo_res > 0 else 0
     return {"sel": sel, "reserva": resto[:k], "estado": estado, "grupos": g, "mitigacao": mitig, "q": q}
 
 
@@ -442,20 +459,26 @@ def fazenda_do_lote(li: dict, papel: str, nivel: str, trocou: str | None = None)
     }  # fmt: skip
 
 
+def cronograma_profloresta(sel: pd.DataFrame, c: CamposPedido) -> dict:
+    """Marcos, multa e rescisão do lote no contrato do ProFloresta+ (restauracao.cronograma_lote): os créditos das
+    fazendas até o fim do contrato (P50) contra o volume pedido."""
+    from raiz import restauracao as R
+
+    total = float(sel.credito_p50.sum())
+    volume = float(c.meta.valor) if c.meta.tipo == "creditos" else total
+    return R.cronograma_lote(total, volume=max(volume, 1e-9))
+
+
 def marcos_do_lote(sel: pd.DataFrame, c: CamposPedido) -> list[dict]:
-    """Chance de cumprir cada marco: a das fazendas, ponderada pelos créditos (cronograma do ProFloresta+); com datas
+    """Chance de cumprir cada marco: no ProFloresta+, a do lote inteiro (cronograma_profloresta); com datas
     próprias, pela forma da curva e a faixa de cada fazenda."""
     if c.cronograma == "livre" or not len(sel):
         return []
     peso = sel.credito_p50.to_numpy(float)
-    if c.cronograma == "profloresta":
-        out = []
-        for ano, fr in PROFLORESTA:
-            ch = np.array([m.get(ano, np.nan) if isinstance(m, dict) else np.nan for m in sel.marcos], dtype=float)
-            ok = np.isfinite(ch) & (peso > 0)
-            chance = float((ch[ok] * peso[ok]).sum() / peso[ok].sum()) if ok.any() else None
-            out.append({"ano": ano, "fracao": fr, "chance": None if chance is None else round(chance, 3)})
-        return out
+    if c.cronograma == "profloresta":  # no lote inteiro, como o contrato mede (o erro da captura é comum às fazendas)
+        cr = cronograma_profloresta(sel, c)
+        return [{"ano": m["ano"], "fracao": m["fracao"], "chance": round(m["chance"], 3),
+                 "multa_esperada_rs": round(m["multa_esperada_rs"], 0)} for m in cr["marcos"]]  # fmt: skip
     from raiz import restauracao as R
 
     forma = R.forma_curva()
@@ -519,7 +542,15 @@ def indicadores(f: pd.DataFrame, sel_idx, res_idx, c: CamposPedido, opcao: str, 
         },
         "pico_caixa_usd": round(float(sel.pico_rs.sum()) / cambio, 0),
         "marcos": marcos_do_lote(sel, c),
-        "multa_esperada_usd": round(float(sel.multa_rs.sum()) / cambio, 0),
+        "multa_esperada_usd": round(
+            (
+                cronograma_profloresta(sel, c)["multa_esperada_rs"]
+                if c.cronograma == "profloresta" and len(sel)
+                else float(sel.multa_rs.sum())
+            )
+            / cambio,
+            0,
+        ),
         "mistura_terra": mistura,
         "metodos": metodos,
         "itens": itens,
@@ -532,7 +563,56 @@ def indicadores(f: pd.DataFrame, sel_idx, res_idx, c: CamposPedido, opcao: str, 
         "aceite_medio": round(float(np.average(ch_sel, weights=np.maximum(peso, 1e-9))), 3) if len(sel) else None,
         "reserva_creditos": round(float(res.credito_p50.sum()), 0),
         "vpl_rs": round(float(sel.vpl_rs.sum()), 0),
+        "abaixo_equilibrio": abaixo_equilibrio(f, sel, c),
     }
+
+
+def abaixo_equilibrio(f: pd.DataFrame, sel: pd.DataFrame, c: CamposPedido) -> dict:
+    """Quanto do lote vem de fazendas que o preço do pedido não paga (preço de equilíbrio acima dele) e se o lote só
+    fecha com elas, com o aviso para o cliente."""
+    preco = float(c.dinheiro.preco_venda_usd)
+    ab = _abaixo_equilibrio(sel, preco) if len(sel) else np.zeros(0, dtype=bool)
+    cred = sel.credito_p50.to_numpy(float) if len(sel) else np.zeros(0)
+    total = float(cred.sum())
+    q_base = quantidade(f, c.meta.tipo) if len(f) else np.zeros(0)
+    pagas = float(q_base[~_abaixo_equilibrio(f, preco)].sum()) if len(f) else 0.0
+    meta = float(c.meta.valor)
+    n, cr = int(ab.sum()), float(cred[ab].sum())
+    eq = sel.preco_equilibrio_usd.to_numpy(float)[ab] if n else np.zeros(0)
+    eq_medio = float(np.average(eq, weights=np.maximum(cred[ab], 1e-9))) if n else None
+    so_fecha = bool(n and pagas < meta)
+    out = {
+        "preco_usd": preco, "fazendas": n, "creditos": round(cr, 0),
+        "fracao": round(cr / total, 3) if total > 0 else 0.0,
+        "preco_equilibrio_medio_usd": round(eq_medio, 2) if eq_medio is not None else None,
+        "metodos": {str(k): int(v) for k, v in sel.modo[ab].value_counts().items()} if n else {},
+        "base_que_se_paga": round(pagas, 0), "so_fecha_com_elas": so_fecha, "aviso": None,
+    }  # fmt: skip
+    if n:
+
+        def br(x: float) -> str:
+            return f"{x:,.0f}".replace(",", ".")
+
+        nomes = ", ".join(f"{v} de {NOMES_METODO.get(k, k)}" for k, v in out["metodos"].items())
+        plantio = sum(v for k, v in out["metodos"].items() if k in ("plantio_total", "semeadura_direta"))
+        oque = (
+            "plantio abaixo do equilíbrio"
+            if plantio == n
+            else "fazendas abaixo do equilíbrio, inclusive plantio"
+            if plantio
+            else "fazendas abaixo do equilíbrio"
+        )
+        if so_fecha:
+            out["aviso"] = (f"O lote só fecha com {oque}: {n} fazendas ({nomes}) somam "
+                            f"{br(cr)} créditos ({out['fracao']:.0%} do lote) e pedem em média US$ {eq_medio:.0f} por "
+                            f"crédito para pagar o retorno do capital; o pedido paga US$ {preco:.0f}. As fazendas que "
+                            f"o preço paga somam {br(pagas)} créditos.")  # fmt: skip
+        else:
+            out["aviso"] = (
+                f"{n} fazendas do lote ({nomes}, {out['fracao']:.0%} dos créditos) ficam abaixo do "
+                f"equilíbrio a US$ {preco:.0f}; a base tem crédito que se paga para trocar por elas."
+            )
+    return out
 
 
 def opcoes(oferta: pd.DataFrame, c: CamposPedido, niveis: dict[str, str] | None = None, fora: set[str] | None = None,
