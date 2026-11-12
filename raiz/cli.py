@@ -343,6 +343,17 @@ regras_cli = typer.Typer(help="Parâmetros legais versionados (E2).", no_args_is
 app.add_typer(regras_cli, name="regras")
 
 
+@regras_cli.command("gerar")
+def regras_gerar(
+    testar: Annotated[bool, typer.Option(help="Rodar os testes em Catala (clerk test) antes de gerar.")] = True,
+) -> None:
+    """Compila as regras em Catala (raiz/regras/catala/) para Python em raiz/regras/gerado/. Precisa do opam."""
+    from raiz.regras.catala_gerar import gerar
+
+    info = gerar(testar=testar)
+    typer.echo(f"{info['catala']}: {len(info['arquivos'])} arquivos em raiz/regras/gerado/")
+
+
 @regras_cli.command("publicar")
 def regras_publicar() -> None:
     """Grava no banco a versão atual dos parâmetros legais (raiz/regras/parametros/*.yaml) e lista as pendências."""

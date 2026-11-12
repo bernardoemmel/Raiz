@@ -1,7 +1,9 @@
 # Parâmetros legais federais (E2 passo 1), formato inspirado no ParamTools: cada valor vale para um conjunto de
 # rótulos e um período. vigencia_* = quando vale na lei; adotado_em = quando a Raíz passou a usar (duas datas, como no
 # OpenL). Um valor sem fim de vigência vale até hoje. "pendente" = falta conferir na fonte antes de usar em laudo.
-versao: regras-2026a
+versao: regras-2026b
+# regras-2026b: faixa dos 20 m e da meia largura atribuída ao Decreto 7.830/2012 (o § 4º, I, do art. 61-A foi vetado);
+# extremos das alíneas do art. 4º, I, explícitos; nascente, lago e vereda (arts. 4º e 61-A).
 publicada_em: "2026-11-12"
 lei_base:
   nome: Lei 12.651/2012 (Código Florestal)
@@ -41,15 +43,23 @@ parametros:
          pendente: "o plano cita um corte de 2002; conferir a norma (candidatos: MP 2.166-67/2001 e Decreto 4.297/2002 do ZEE) antes de usar"}
 
   app_escadinha_m:
-    descricao: Faixa de APP de rio a recompor em área rural consolidada, por tamanho do imóvel em módulos fiscais (art. 61-A, §§ 1º a 4º)
+    descricao: Faixa de APP a recompor em área rural consolidada, por corpo d'água e tamanho do imóvel em módulos fiscais (art. 61-A, §§ 1º a 7º; Decreto 7.830/2012, art. 19, § 4º)
     unidade: metros
     valores:
-      - {rotulos: {mf_ate: 1}, valor: 5, artigo: "art. 61-A, § 1º", urn_frag: "!art61a_par1", vigencia_inicio: "2012-10-17", adotado_em: "2026-11-12"}
-      - {rotulos: {mf_ate: 2}, valor: 8, artigo: "art. 61-A, § 2º", urn_frag: "!art61a_par2", vigencia_inicio: "2012-10-17", adotado_em: "2026-11-12"}
-      - {rotulos: {mf_ate: 4}, valor: 15, artigo: "art. 61-A, § 3º", urn_frag: "!art61a_par3", vigencia_inicio: "2012-10-17", adotado_em: "2026-11-12"}
-      - {rotulos: {mf_ate: 10, largura_rio_ate_m: 10}, valor: 20, artigo: "art. 61-A, § 4º, I", urn_frag: "!art61a_par4_inc1", vigencia_inicio: "2012-10-17", adotado_em: "2026-11-12"}
-      - {rotulos: {mf_acima: 10}, valor: {metade_largura_rio: true, minimo: 30, maximo: 100}, artigo: "art. 61-A, § 4º, II", urn_frag: "!art61a_par4_inc2", vigencia_inicio: "2012-10-17", adotado_em: "2026-11-12",
-         observacao: "sem a largura do rio, o motor usa o mínimo (30 m)"}
+      - {rotulos: {corpo: rio, mf_ate: 1}, valor: 5, artigo: "art. 61-A, § 1º", urn_frag: "!art61a_par1", vigencia_inicio: "2012-10-17", adotado_em: "2026-11-12"}
+      - {rotulos: {corpo: rio, mf_ate: 2}, valor: 8, artigo: "art. 61-A, § 2º", urn_frag: "!art61a_par2", vigencia_inicio: "2012-10-17", adotado_em: "2026-11-12"}
+      - {rotulos: {corpo: rio, mf_ate: 4}, valor: 15, artigo: "art. 61-A, § 3º", urn_frag: "!art61a_par3", vigencia_inicio: "2012-10-17", adotado_em: "2026-11-12"}
+      - {rotulos: {corpo: rio, mf_ate: 10, largura_rio_ate_m: 10}, valor: 20, artigo: "Decreto 7.830/2012, art. 19, § 4º, I (Lei 12.651, art. 61-A, § 4º, II: entre 20 e 100 m conforme o PRA)", urn_frag: null, vigencia_inicio: "2012-10-17", adotado_em: "2026-11-12",
+         observacao: "o inciso I do § 4º do art. 61-A foi vetado; a regra dos 20 m vem do decreto. Sem a largura medida, o motor e a Raíz usam 20 m até 10 MF"}
+      - {rotulos: {corpo: rio, mf_acima: 4}, valor: {metade_largura_rio: true, minimo: 30, maximo: 100}, artigo: "Decreto 7.830/2012, art. 19, § 4º, II", urn_frag: null, vigencia_inicio: "2012-10-17", adotado_em: "2026-11-12",
+         observacao: "vale acima de 4 MF fora do caso dos 20 m; sem a largura do rio, o motor usa o mínimo (30 m)"}
+      - {rotulos: {corpo: nascente}, valor: 15, artigo: "art. 61-A, § 5º", urn_frag: "!art61a_par5", vigencia_inicio: "2012-10-17", adotado_em: "2026-11-12"}
+      - {rotulos: {corpo: lago, mf_ate: 1}, valor: 5, artigo: "art. 61-A, § 6º, I", urn_frag: "!art61a_par6_inc1", vigencia_inicio: "2012-10-17", adotado_em: "2026-11-12"}
+      - {rotulos: {corpo: lago, mf_ate: 2}, valor: 8, artigo: "art. 61-A, § 6º, II", urn_frag: "!art61a_par6_inc2", vigencia_inicio: "2012-10-17", adotado_em: "2026-11-12"}
+      - {rotulos: {corpo: lago, mf_ate: 4}, valor: 15, artigo: "art. 61-A, § 6º, III", urn_frag: "!art61a_par6_inc3", vigencia_inicio: "2012-10-17", adotado_em: "2026-11-12"}
+      - {rotulos: {corpo: lago, mf_acima: 4}, valor: 30, artigo: "art. 61-A, § 6º, IV", urn_frag: "!art61a_par6_inc4", vigencia_inicio: "2012-10-17", adotado_em: "2026-11-12"}
+      - {rotulos: {corpo: vereda, mf_ate: 4}, valor: 30, artigo: "art. 61-A, § 7º, I", urn_frag: "!art61a_par7_inc1", vigencia_inicio: "2012-10-17", adotado_em: "2026-11-12"}
+      - {rotulos: {corpo: vereda, mf_acima: 4}, valor: 50, artigo: "art. 61-A, § 7º, II", urn_frag: "!art61a_par7_inc2", vigencia_inicio: "2012-10-17", adotado_em: "2026-11-12"}
 
   app_teto_61b:
     descricao: Teto da APP a recompor, em % da área do imóvel, para imóveis pequenos (art. 61-B)
@@ -58,15 +68,37 @@ parametros:
       - {rotulos: {mf_ate: 2}, valor: 10, artigo: "art. 61-B, I", urn_frag: "!art61b_inc1", vigencia_inicio: "2012-10-17", adotado_em: "2026-11-12"}
       - {rotulos: {mf_ate: 4}, valor: 20, artigo: "art. 61-B, II", urn_frag: "!art61b_inc2", vigencia_inicio: "2012-10-17", adotado_em: "2026-11-12"}
 
+  # Faixas fora de área consolidada (art. 4º). Intervalos com colchete incluem o extremo, com parêntese não: as
+  # alíneas do inciso I se encostam em 10, 50, 200 e 600 m, e esta é a leitura da Raíz (igual à das regras em Catala).
   app_rio_m:
-    descricao: Faixa de APP de rio fora de área consolidada, pela largura do rio (art. 4º, I)
+    descricao: Faixa de APP de curso d'água fora de área consolidada, pela largura do rio (art. 4º, I)
     unidade: metros
     valores:
-      - {rotulos: {largura_rio_ate_m: 10}, valor: 30, artigo: "art. 4º, I, a", urn_frag: "!art4_inc1_ali1", vigencia_inicio: "2012-05-25", adotado_em: "2026-11-12"}
-      - {rotulos: {largura_rio_ate_m: 50}, valor: 50, artigo: "art. 4º, I, b", urn_frag: "!art4_inc1_ali2", vigencia_inicio: "2012-05-25", adotado_em: "2026-11-12"}
-      - {rotulos: {largura_rio_ate_m: 200}, valor: 100, artigo: "art. 4º, I, c", urn_frag: "!art4_inc1_ali3", vigencia_inicio: "2012-05-25", adotado_em: "2026-11-12"}
-      - {rotulos: {largura_rio_ate_m: 600}, valor: 200, artigo: "art. 4º, I, d", urn_frag: "!art4_inc1_ali4", vigencia_inicio: "2012-05-25", adotado_em: "2026-11-12"}
-      - {rotulos: {largura_rio_acima_m: 600}, valor: 500, artigo: "art. 4º, I, e", urn_frag: "!art4_inc1_ali5", vigencia_inicio: "2012-05-25", adotado_em: "2026-11-12"}
+      - {rotulos: {largura_rio_m: "[0, 10)"}, valor: 30, artigo: "art. 4º, I, a", urn_frag: "!art4_inc1_ali1", vigencia_inicio: "2012-05-25", adotado_em: "2026-11-12"}
+      - {rotulos: {largura_rio_m: "[10, 50)"}, valor: 50, artigo: "art. 4º, I, b", urn_frag: "!art4_inc1_ali2", vigencia_inicio: "2012-05-25", adotado_em: "2026-11-12"}
+      - {rotulos: {largura_rio_m: "[50, 200)"}, valor: 100, artigo: "art. 4º, I, c", urn_frag: "!art4_inc1_ali3", vigencia_inicio: "2012-05-25", adotado_em: "2026-11-12"}
+      - {rotulos: {largura_rio_m: "[200, 600]"}, valor: 200, artigo: "art. 4º, I, d", urn_frag: "!art4_inc1_ali4", vigencia_inicio: "2012-05-25", adotado_em: "2026-11-12"}
+      - {rotulos: {largura_rio_m: "(600, inf)"}, valor: 500, artigo: "art. 4º, I, e", urn_frag: "!art4_inc1_ali5", vigencia_inicio: "2012-05-25", adotado_em: "2026-11-12"}
+
+  app_lago_m:
+    descricao: Faixa de APP no entorno de lago ou lagoa natural fora de área consolidada (art. 4º, II)
+    unidade: metros
+    valores:
+      - {rotulos: {zona: rural, superficie_ha: "[0, 20]"}, valor: 50, artigo: "art. 4º, II, a", urn_frag: "!art4_inc2_ali1", vigencia_inicio: "2012-05-25", adotado_em: "2026-11-12"}
+      - {rotulos: {zona: rural, superficie_ha: "(20, inf)"}, valor: 100, artigo: "art. 4º, II, a", urn_frag: "!art4_inc2_ali1", vigencia_inicio: "2012-05-25", adotado_em: "2026-11-12"}
+      - {rotulos: {zona: urbana}, valor: 30, artigo: "art. 4º, II, b", urn_frag: "!art4_inc2_ali2", vigencia_inicio: "2012-05-25", adotado_em: "2026-11-12"}
+
+  app_nascente_m:
+    descricao: Raio de APP no entorno de nascente e olho d'água perene (art. 4º, IV)
+    unidade: metros
+    valores:
+      - {rotulos: {}, valor: 50, artigo: "art. 4º, IV", urn_frag: "!art4_inc4", vigencia_inicio: "2012-05-25", adotado_em: "2026-11-12"}
+
+  app_vereda_m:
+    descricao: Faixa de APP em vereda, a partir do espaço brejoso e encharcado (art. 4º, XI)
+    unidade: metros
+    valores:
+      - {rotulos: {}, valor: 50, artigo: "art. 4º, XI", urn_frag: "!art4_inc11", vigencia_inicio: "2012-05-25", adotado_em: "2026-11-12"}
 
   amazonia_legal_ufs:
     descricao: UFs da Amazônia Legal (art. 3º, I; o Maranhão entra só a oeste do meridiano 44º)

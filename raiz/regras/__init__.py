@@ -4,7 +4,7 @@
     p = parametros()
     p.valor("rl_percentual", "2026-11-12", amazonia_legal=True, vegetacao="floresta")   # 80
     p.escadinha_m(m_fiscal=1.5)                                                       # 8
-    p.versao  # 'regras-2026a+<hash do arquivo>' -> vai em cada previsão (regras_versao)
+    p.versao  # 'regras-2026b+<hash do arquivo>' -> vai em cada previsão (regras_versao)
 
 Um valor só é devolvido se a data cair na vigência legal; valor marcado como pendente nunca é devolvido.
 """
@@ -39,6 +39,15 @@ class Valor:
     adotado_em: dt.date | None
     pendente: str | None
     observacao: str | None
+
+
+def _no_intervalo(x: float, txt: str) -> bool:
+    """x está no intervalo escrito como "[a, b)", "(a, inf)" etc.?"""
+    txt = txt.strip()
+    a, b = (float(t) for t in txt[1:-1].split(","))
+    acima = x >= a if txt[0] == "[" else x > a
+    abaixo = x <= b if txt[-1] == "]" else x < b
+    return acima and abaixo
 
 
 def _data(v) -> dt.date | None:
@@ -117,18 +126,70 @@ class Parametros:
                 return v
         return None
 
-    def escadinha_m(self, m_fiscal: float, largura_rio_m: float | None = None, data=None) -> float:
-        """Faixa de APP a recompor em área consolidada (art. 61-A). Acima de 4 MF sem largura conhecida: 20 m até
-        10 MF (rio até 10 m) e o mínimo de 30 m acima de 10 MF, como o motor."""
-        v = self._faixa("app_escadinha_m", "mf_ate", m_fiscal, data)
+    def _intervalo(self, nome: str, chave: str, x: float, data=None, **extra) -> Valor:
+        """Valor cujo rótulo `chave` é um intervalo ("[0, 10)", "(600, inf)") que contém x."""
+        for v in self.candidatos(nome, data):
+            if any(v.rotulos.get(k) != w for k, w in extra.items()) or chave not in v.rotulos:
+                continue
+            if _no_intervalo(x, v.rotulos[chave]):
+                return v
+        raise ParametroAusente(f"{nome}: {chave}={x} fora de todos os intervalos")
+
+    def escadinha_m(self, m_fiscal: float, largura_rio_m: float | None = None, data=None, corpo: str = "rio") -> float:
+        """Faixa de APP a recompor em área consolidada (art. 61-A; Decreto 7.830, art. 19, § 4º). Rio acima de 4 MF
+        sem largura conhecida: 20 m até 10 MF e o mínimo de 30 m acima, como o motor."""
+        if corpo == "nascente":
+            return float(self.valor("app_escadinha_m", data, corpo="nascente"))
+        if corpo in ("lago", "vereda"):
+            v = self._faixa("app_escadinha_m", "mf_ate", m_fiscal, data, corpo=corpo)
+            if v is None:
+                v = next(
+                    c for c in self.candidatos("app_escadinha_m", data) if c.rotulos == {"corpo": corpo, "mf_acima": 4}
+                )
+            return float(v.valor)
+        v = self._faixa("app_escadinha_m", "mf_ate", m_fiscal, data, corpo="rio")
         if v is not None and "largura_rio_ate_m" not in v.rotulos:
             return float(v.valor)
         if m_fiscal <= 10 and (largura_rio_m is None or largura_rio_m <= 10):
-            return float(self._faixa("app_escadinha_m", "mf_ate", 10, data).valor)
-        regra = next(c.valor for c in self.candidatos("app_escadinha_m", data) if "mf_acima" in c.rotulos)
+            return float(self._faixa("app_escadinha_m", "mf_ate", 10, data, corpo="rio").valor)
+        regra = next(
+            c.valor for c in self.candidatos("app_escadinha_m", data) if c.rotulos == {"corpo": "rio", "mf_acima": 4}
+        )
         if largura_rio_m is None:
             return float(regra["minimo"])
         return float(min(max(largura_rio_m / 2, regra["minimo"]), regra["maximo"]))
+
+    def app_art4_m(
+        self,
+        corpo: str,
+        largura_rio_m: float | None = None,
+        superficie_ha: float | None = None,
+        urbana: bool = False,
+        data=None,
+    ) -> float:
+        """Faixa de APP fora de área consolidada (art. 4º). Rio sem largura medida: a menor faixa (30 m)."""
+        if corpo == "rio":
+            return float(self._intervalo("app_rio_m", "largura_rio_m", largura_rio_m or 0.0, data).valor)
+        if corpo == "lago":
+            if urbana:
+                return float(self.valor("app_lago_m", data, zona="urbana"))
+            return float(self._intervalo("app_lago_m", "superficie_ha", superficie_ha or 0.0, data, zona="rural").valor)
+        return float(self.valor({"nascente": "app_nascente_m", "vereda": "app_vereda_m"}[corpo], data))
+
+    def faixa_app_m(
+        self,
+        corpo: str,
+        m_fiscal: float,
+        consolidada: bool,
+        largura_rio_m: float | None = None,
+        superficie_ha: float | None = None,
+        urbana: bool = False,
+        data=None,
+    ) -> float:
+        """Faixa de APP de um trecho: escadinha do art. 61-A se for área consolidada, senão o art. 4º."""
+        if consolidada:
+            return self.escadinha_m(m_fiscal, largura_rio_m, data, corpo=corpo)
+        return self.app_art4_m(corpo, largura_rio_m, superficie_ha, urbana, data)
 
     def teto_61b(self, m_fiscal: float, data=None) -> float | None:
         """Teto da APP a recompor em fração da área (art. 61-B); None acima de 4 MF (sem teto)."""

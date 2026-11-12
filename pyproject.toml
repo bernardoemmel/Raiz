@@ -65,7 +65,8 @@ packages = ["raiz"]
 line-length = 120
 target-version = "py312"
 # o motor tem estilo próprio e não é reescrito
-extend-exclude = ["motor"]
+# o código gerado pelo Catala (raiz/regras/gerado) não é formatado nem checado
+extend-exclude = ["motor", "raiz/regras/gerado"]
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "B", "UP"]

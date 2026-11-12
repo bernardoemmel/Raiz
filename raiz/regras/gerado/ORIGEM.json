@@ -1,0 +1,29 @@
+{
+  "catala": "1.3.0",
+  "alvo": "regras_federais",
+  "arquivos": [
+    "Date_en.py",
+    "Date_internal.py",
+    "Decimal_en.py",
+    "Decimal_internal.py",
+    "Duration_en.py",
+    "Integer_en.py",
+    "List_en.py",
+    "List_internal.py",
+    "Money_en.py",
+    "Money_internal.py",
+    "MonthYear_en.py",
+    "Period_en.py",
+    "Period_internal.py",
+    "Stdlib_en.py",
+    "catala_runtime.py",
+    "dates.py",
+    "Codigo_florestal.py"
+  ],
+  "fontes": {
+    "clerk.toml": "8ed8903124aab3349be71f4d3bc3c769d0f71b41ed4ba9875083666b16fffab7",
+    "codigo_florestal.catala_en": "00bf272ca73ee828ecb41cc77c9eca0edc8c28a85cf204765418fbc775fa6daf",
+    "prologo.catala_en": "97b68701c1cdfb36cee5dc2e436579a31a58d634faf6d3ef9b6d8b2bf3c26ec6",
+    "testes/testes_federal.catala_en": "1950ea2ae9c99c96a713260cdc923bfc01d8157f832da731fff22ab934396fe6"
+  }
+}

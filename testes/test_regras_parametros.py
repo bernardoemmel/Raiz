@@ -54,7 +54,7 @@ def motor(tmp_path_factory):
 
 
 def test_versao_nomeada():
-    assert P.versao.startswith("regras-2026a+") and len(P.versao.split("+")[1]) == 8
+    assert P.versao.startswith("regras-2026b+") and len(P.versao.split("+")[1]) == 8
 
 
 def test_reserva_legal_igual_ao_motor(motor):

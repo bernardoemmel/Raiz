@@ -16,3 +16,18 @@ Dependências usadas sem copiar código: `i_overlay` (MIT/Apache-2.0) e `serde_j
 Extensão `nativo/raiz_iov` (Rust, sem código copiado): `i_overlay` (MIT/Apache-2.0), `pyo3` (MIT/Apache-2.0),
 `numpy`/rust-numpy (BSD-2), `ndarray` (MIT/Apache-2.0), `rayon` (MIT/Apache-2.0). A conta da área segue o teste do
 fundador em `motor/iovbench/` (EvenOdd, contorno externo menos buracos).
+
+## Catala (compilador, runtime Python e biblioteca padrão)
+
+- Origem: https://github.com/CatalaLang/catala, versão 1.3.0 (pacote `catala` do opam), Inria e contribuidores.
+- Licença: Apache-2.0. Inclui o `dates.py` da biblioteca Dates_calc (Inria, Apache-2.0).
+- Uso: `raiz/regras/gerado/` tem o runtime Python (`catala_runtime.py`, `dates.py`) e os módulos da biblioteca padrão
+  gerados pelo compilador, copiados por `raiz regras gerar`. Mudança feita: os imports absolutos viraram relativos
+  (`from catala_runtime import *` para `from .catala_runtime import *`, `import dates` para `from . import dates`),
+  e cada arquivo gerado ganhou uma linha de cabeçalho dizendo de onde veio. As regras em `raiz/regras/catala/` são
+  próprias da Raíz.
+
+## Extensão spatial do DuckDB
+
+- Origem: https://github.com/duckdb/duckdb-spatial (MIT), baixada de extensions.duckdb.org em tempo de execução, não
+  copiada para o repositório. Usa GEOS (LGPL-2.1, como biblioteca), PROJ (MIT) e GDAL (MIT).
