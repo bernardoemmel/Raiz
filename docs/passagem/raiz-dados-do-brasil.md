@@ -2,7 +2,7 @@
 
 Passagem original de 12/11/2026, 13h20 de Brasília. Retomada pelo Codex na mesma data, a partir da main.
 Branch da entrega de formatos e procedência: `codex/dados-croissant`.
-Branch seguinte, com as seis pendências E1/E2: `codex/dados-e1-e2`.
+Branch seguinte, com as seis pendências E1/E2: `codex/dados-e1-integracao`.
 
 ## O que este chat fez
 
@@ -104,7 +104,10 @@ Branch seguinte, com as seis pendências E1/E2: `codex/dados-e1-e2`.
 
 Testes focados passaram com PostGIS em bancos separados: ArcGIS/CLI (32), SIGEF/PRODES/CAR/WFS (49), Ibama/qualidade
 e retomada dlt (23), além dos testes vetoriais e de produção E2. Os conjuntos têm interseções; não somar como total
-de testes únicos. A suíte integrada e o CI do PR registram o resultado da entrega completa.
+de testes únicos. A suíte integrada com PostGIS passou em **1.588 testes, 2 pulados e 1 xfail**, no commit `1b0f57c`.
+A atualização posterior da API/MCP/Ficha foi incorporada com os testes complementares registrados abaixo;
+Ruff e a descoberta dos comandos `raiz coleta` também passaram após essa integração.
+Os 21 testes de ArcGIS/CLI e da ponte de produção E2 passaram novamente após integrar a API/MCP final.
 
 Os endpoints reais de ArcGIS responderam às allowlists dos três serviços. O INCRA respondeu à consulta FES
 com bbox/`data_aprovacao`; o catálogo PRODES foi lido sem baixar rasters. Testes automatizados usam respostas

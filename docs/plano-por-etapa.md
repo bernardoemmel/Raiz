@@ -30,6 +30,9 @@ Validação da entrega de formatos: 1.511 testes na suíte completa com PostGIS,
 da integração com API/MCP e Ficha; 681 licenças conferidas. Os 22 arquivos públicos e 39 canônicos privados tiveram
 bytes e hashes conferidos antes da catalogação. Publicação retroativa e verificação das atestações seguem após CI e merge.
 
+A entrega seguinte das seis pendências E1/E2 passou em 1.588 testes com PostGIS (2 pulados e 1 xfail),
+preservando o limite compartilhado e o destino privado. A operação agendada da coleta ainda depende de Postgres permanente.
+
 | Ordem | Entrega | Situação |
 |---|---|---|
 | 1 | Limite global de 15 jobs de processamento, sem cancelar os existentes | **feito**: #43 e #46 mesclados com CI verde; admissão atômica na ref `raiz-fila-processamento`, incluindo pedidos manuais e continuações. A entrega de formatos amplia a mesma reserva ao catálogo e aos dois workflows do Lote PA, mantendo cotas até o fim da rodada e conferindo reruns antes dos dados. A retomada legada auditada ocupa cinco vagas; demais legados desconhecidos bloqueiam novas admissões. Falha de consulta bloqueia novas vagas. Pedidos do motor sem vaga ficam persistidos e são retomados a cada 15 minutos. Nenhum job foi cancelado pela retomada |
