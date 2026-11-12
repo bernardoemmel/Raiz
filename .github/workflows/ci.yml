@@ -10,7 +10,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.event.pull_request.number || github.sha }}
+  group: ci-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -129,9 +129,16 @@ jobs:
         options: >-
           --health-cmd "pg_isready -U raiz -d raiz_teste"
           --health-interval 5s --health-timeout 5s --health-retries 20
+      valkey:
+        image: valkey/valkey:8.1.4
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "valkey-cli ping"
+          --health-interval 5s --health-timeout 5s --health-retries 20
     env:
       RAIZ_BANCO_URL_TESTE: postgresql+psycopg://raiz:raiz@localhost:5432/raiz_teste
       RAIZ_LANGUAGETOOL_URL_TESTE: http://localhost:8010
+      RAIZ_VALKEY_URL_TESTE: redis://localhost:6379/15
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
@@ -227,3 +234,38 @@ jobs:
         run: npx playwright install --with-deps chromium
       - name: Login por link, pedido no Pará, três lotes, interesse e Pix de teste
         run: npm --prefix front/globo run test:e2e:api
+
+  carga:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    services:
+      banco:
+        image: postgis/postgis:16-3.5
+        env:
+          POSTGRES_USER: raiz
+          POSTGRES_PASSWORD: raiz
+          POSTGRES_DB: raiz_carga
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U raiz -d raiz_carga"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+    env:
+      RAIZ_BANCO_URL_CARGA: postgresql+psycopg://raiz:raiz@localhost:5432/raiz_carga
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+      - name: Dependências travadas
+        run: uv sync --frozen --all-extras
+      - name: Locust na API real (latência, saturação e recuperação)
+        run: uv run python -m testes.carga.rodar --resultado resultado-carga
+      - name: Medições de carga sem conteúdo pessoal
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: resultado-carga
+          path: resultado-carga/*.json
+          if-no-files-found: error
+          retention-days: 7

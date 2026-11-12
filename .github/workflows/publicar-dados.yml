@@ -42,6 +42,18 @@ jobs:
           ls -la
 
       - if: steps.tem.outputs.sim == '1'
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+
+      - if: steps.tem.outputs.sim == '1'
+        name: Validar todos os arquivos antes de publicar qualquer pacote
+        run: |
+          uv sync --frozen
+          uv run python -m raiz.qualidade_dados dados-entrada
+
+      - if: steps.tem.outputs.sim == '1'
         name: Criar o Release dados se não existir
         env:
           GH_TOKEN: ${{ github.token }}
@@ -63,5 +75,5 @@ jobs:
             gh release upload dados "$f" --clobber
           done
           cd ..
-          [ -e dados-entrada/estados.json ] && python3 motor/publicar_dados.py --indice dados-entrada
+          [ -e dados-entrada/estados.json ] && uv run python motor/publicar_dados.py --indice dados-entrada
           echo "Publicado:"; gh release view dados --json assets --jq '.assets[] | "\(.name) \(.size)"'
