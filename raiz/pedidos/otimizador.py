@@ -328,7 +328,9 @@ def resolver(f: pd.DataFrame, c: CamposPedido, opcao: str, chance: np.ndarray, p
     w = o["pesos"][opcao]
     meta = float(c.meta.valor)
     q = quantidade(f, c.meta.tipo)
-    g = grupos(f, c.forma.distancia_max_km)
+    usa_grupos = w["compacta"] > 0 or c.forma.distancia_max_km is not None or c.forma.area_min_contigua_ha
+    # sem forma pedida, a opção não usa os grupos: não faz o agrupamento (pesado num estado inteiro)
+    g = grupos(f, c.forma.distancia_max_km) if usa_grupos else np.array([f"m{m}" for m in f.cod_ibge], dtype=object)
     cred = f.credito_p50.to_numpy(float)
     unit = w["custo"] * _custo_usd(f) + w["risco"] * _risco_usd(f, chance, p)  # US$ por crédito
     unit = unit + _penalidade_preco(f, float(c.dinheiro.preco_venda_usd), p)
@@ -341,7 +343,6 @@ def resolver(f: pd.DataFrame, c: CamposPedido, opcao: str, chance: np.ndarray, p
         q = np.where(mitig & (c.meta.tipo == "creditos"), q / (1 - vaz), q)
         cred = np.where(mitig, cred / (1 - vaz), cred)
     a = unit * np.maximum(cred, 1e-6)
-    usa_grupos = w["compacta"] > 0 or c.forma.distancia_max_km is not None or c.forma.area_min_contigua_ha
     # pré-seleção: as melhores por unidade da meta (e, na compacta, os melhores grupos inteiros)
     ordem = np.argsort(a / np.maximum(q, 1e-9))
     if usa_grupos:
