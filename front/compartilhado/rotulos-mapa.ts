@@ -3,7 +3,7 @@
  * dentro dela, com o nome escrito como gente escreve ("Parque Estadual do Xingu", não "PARQUE ESTADUAL DO XINGU").
  */
 
-import type { Geo } from "./dados"
+import type { Geo } from "./dados/tipos"
 
 type Ponto = [number, number]
 type Anel = Ponto[]
