@@ -11,6 +11,7 @@ import http from "node:http"
 import { createRequire } from "node:module"
 import path from "node:path"
 import { fileURLToPath, pathToFileURL } from "node:url"
+import { conferirAuditoriaAgentes } from "./conferir-auditoria-agentes.mjs"
 
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..")
 const require = createRequire(path.join(repo, "front/globo/package.json"))
@@ -146,22 +147,16 @@ try {
   const { lhr, report } = resultado
   fs.writeFileSync(path.join(saida, "lighthouse.json"), report[0])
   fs.writeFileSync(path.join(saida, "lighthouse.html"), report[1])
-  assert(!lhr.runtimeError, `Lighthouse falhou: ${JSON.stringify(lhr.runtimeError)}`)
-  const categoria = lhr.categories["agentic-browsing"]
-  assert(categoria?.auditRefs.length, "A categoria oficial agentic-browsing não rodou.")
-  const erros = categoria.auditRefs.filter(({ id }) => lhr.audits[id]?.scoreDisplayMode === "error")
-  assert.deepEqual(erros, [], "Uma auditoria da categoria falhou ao executar; consulte o relatório.")
-  const auditoriaLlms = lhr.audits["llms-txt"]
-  assert(auditoriaLlms && auditoriaLlms.scoreDisplayMode !== "notApplicable", "llms-txt ausente não pode passar como não aplicável.")
-  assert.equal(auditoriaLlms.score, 1, "llms.txt não passou nas recomendações do Lighthouse.")
+  const categoria = conferirAuditoriaAgentes(lhr)
   const resumo = {
     lighthouse: lhr.lighthouseVersion, navegador: lhr.environment.hostUserAgent,
     categoria: categoria.id, score: categoria.score,
+    portao: { acessibilidade: 1, llms_txt: 1, cls_maximo: 0.1, nota_cls_minima: 0.9 },
     auditorias: categoria.auditRefs.map(({ id }) => ({ id, score: lhr.audits[id].score, modo: lhr.audits[id].scoreDisplayMode })),
     escopo: "Arquivos e links conferidos sob /Raiz/. Lighthouse executado em origem local com site na raiz; não comprova a descoberta dos arquivos na raiz pública do GitHub Pages. WebMCP e ARD apenas relatados.",
   }
   fs.writeFileSync(path.join(saida, "resumo.json"), JSON.stringify(resumo, null, 2) + "\n")
-  console.log(`ok: Lighthouse ${lhr.lighthouseVersion}, categoria experimental agentic-browsing, llms-txt aprovado e nenhum erro de execução.`)
+  console.log(`ok: Lighthouse ${lhr.lighthouseVersion}, categoria experimental agentic-browsing, acessibilidade e llms-txt aprovados, CLS até 0,1 e nenhum erro de execução.`)
   console.log(resumo.escopo)
 } finally {
   await chrome?.kill()

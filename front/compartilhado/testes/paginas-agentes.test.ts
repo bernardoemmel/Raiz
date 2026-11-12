@@ -55,6 +55,42 @@ describe("páginas para pessoas e agentes", () => {
     })
   }
 
+  it.each([undefined, "", "NaN", "NA"])("não transforma indicador opcional ausente (%s) em zero", (vazio) => {
+    const saida = preparar()
+    const linha = { ...municipio.linha }
+    for (const coluna of ["tco2_ano_aptas", "frente_assentamento_agrupado"]) {
+      if (vazio === undefined) delete linha[coluna]
+      else linha[coluna] = vazio
+    }
+    const semIndicadores = lerFunil(linha, "PA")
+    expect(semIndicadores.tco2_ano_aptas).toBe(0) // padrão de cálculo não é evidência de disponibilidade
+    expect(semIndicadores.para_agrupar).toBe(0)
+    paginasAgentes({ saida, base: "/Raiz/", catalogo: { ...catalogo, municipios: [semIndicadores] } })
+    const texto = ler(saida, "dados/municipios/1505536.md")
+    expect(texto).not.toContain("| Potencial estimado de carbono")
+    expect(texto).not.toContain("| Imóveis na frente de assentamentos")
+    expect(texto).toContain("| Imóveis analisados | 11 |")
+    expect(texto).toContain("Ausência de informação não significa zero")
+  })
+
+  it("preserva o zero declarado pela fonte nos indicadores opcionais", () => {
+    const saida = preparar()
+    const zeroConhecido = lerFunil({ ...municipio.linha, tco2_ano_aptas: "0", frente_assentamento_agrupado: "0" }, "PA")
+    paginasAgentes({ saida, base: "/Raiz/", catalogo: { ...catalogo, municipios: [zeroConhecido] } })
+    const texto = ler(saida, "dados/municipios/1505536.md")
+    expect(texto).toContain("| Potencial estimado de carbono nas aptas (tCO₂/ano) | 0 |")
+    expect(texto).toContain("| Imóveis na frente de assentamentos para agrupar | 0 |")
+  })
+
+  it("omite opcionais de soma de imóveis sem evidência na tabela de origem", () => {
+    const saida = preparar()
+    const calculado = { ...municipio, origem: "imoveis" as const, linha: {}, tco2_ano_aptas: 0, para_agrupar: 0 }
+    paginasAgentes({ saida, base: "/Raiz/", catalogo: { ...catalogo, municipios: [calculado] } })
+    const texto = ler(saida, "dados/municipios/1505536.md")
+    expect(texto).not.toContain("| Potencial estimado de carbono")
+    expect(texto).not.toContain("| Imóveis na frente de assentamentos")
+  })
+
   it("não apresenta preços de demonstração como ofertas comerciais", () => {
     const saida = preparar()
     paginasAgentes({ saida, base: "/Raiz/", catalogo })

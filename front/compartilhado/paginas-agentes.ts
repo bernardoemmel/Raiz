@@ -1,6 +1,7 @@
 /** Páginas sem JavaScript, montadas com os mesmos agregados públicos do painel. Só roda no build. */
 import fs from "node:fs"
 import path from "node:path"
+import { num } from "./dados/colunas"
 import type { Estados, FunilMunicipio } from "./dados/tipos"
 import { mascarar } from "./privacidade"
 
@@ -26,6 +27,11 @@ const numero = (n: number) => new Intl.NumberFormat("pt-BR", { maximumFractionDi
 /** Nomes de lugares são texto; nunca podem criar HTML, links ou quebrar a tabela. */
 const md = (s: string) => mascarar(String(s)).replace(/[\r\n]+/g, " ").replace(/([\\`*_[\]<>|])/g, "\\$1")
 const soma = (ms: FunilMunicipio[], campo: "imoveis" | "aptas_carbono" | "ha_carbono") => ms.reduce((n, m) => n + m[campo], 0)
+/** O funil usa zero como padrão de cálculo. Só publicar um indicador opcional se a fonte trouxer um número. */
+const indicadorOpcional = (m: FunilMunicipio, coluna: string, rotulo: string) => {
+  const valor = num(m.linha, coluna)
+  return valor === null ? "" : `| ${rotulo} | ${numero(valor)} |\n`
+}
 
 export function paginasAgentes(opcoes: Opcoes): void {
   const { saida, produtor, catalogo } = opcoes
@@ -160,10 +166,10 @@ Código IBGE: ${m.cod_ibge}. Origem do resumo: ${m.origem === "resumo" ? "tabela
 | Imóveis sem problema no funil | ${numero(m.sem_problema)} |
 | Imóveis aptos para carbono | ${numero(m.aptas_carbono)} |
 | Área de carbono nas fazendas aptas (ha) | ${numero(m.ha_carbono)} |
-| Potencial estimado de carbono nas aptas (tCO₂/ano) | ${numero(m.tco2_ano_aptas)} |
-| Aptos com indicação de matrícula | ${numero(m.aptas_com_matricula)} |
+${indicadorOpcional(m, "tco2_ano_aptas", "Potencial estimado de carbono nas aptas (tCO₂/ano)")}| Aptos com indicação de matrícula | ${numero(m.aptas_com_matricula)} |
 | Área de carbono das aptas com matrícula (ha) | ${numero(m.ha_carbono_matricula)} |
-| Imóveis na frente de assentamentos para agrupar | ${numero(m.para_agrupar)} |
+${indicadorOpcional(m, "frente_assentamento_agrupado", "Imóveis na frente de assentamentos para agrupar")}
+Indicadores opcionais sem valor na tabela de origem não são exibidos. Ausência de informação não significa zero.
 
 ${REGRAS}
 
