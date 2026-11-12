@@ -1,0 +1,35 @@
+versao: salvaguardas-lote-2026a
+verificado_em: '2026-11-12'
+fontes:
+  lei_15042: https://www2.camara.leg.br/legin/fed/lei/2024/lei-15042-11-dezembro-2024-796690-normaatualizada-pl.html
+  lgpd: https://www2.camara.leg.br/legin/fed/lei/2018/lei-13709-14-agosto-2018-787077-normaatualizada-pl.html
+jurisdicional:
+  fundamento: Lei 15.042/2024, art. 43, §§ 6º, 7º, 11 e 13; art. 12, parágrafo único, II, b a d
+  regra: >-
+    A existência do programa não extingue direitos privados. Para não contar ou vender a mesma remoção duas
+    vezes, sobreposição confirmada impede a oferta até documentar a comunicação de exclusão à CONAREDD+,
+    com geração em período posterior. Falta de camada ou documento é pendência, nunca liberação.
+  programas:
+    PA:
+      id: SJREDD-PA
+      situacao_fonte: em_estruturacao
+      fonte: https://semas.pa.gov.br/Home/Noticias/9223/semas-publica-plano-de-consulta-indigena-para-o-sistema-jurisdicional-de-redd/
+      publicado_em: '2026-06-22'
+      observacao: >-
+        Notícia oficial do plano de consulta; não é polígono contábil, registro de emissão nem prova de inclusão
+        de uma fazenda. A sobreposição depende da camada vigente e do período dos créditos.
+tradicional:
+  fundamento: Lei 15.042/2024, art. 47, I, a e b, II e parágrafo único
+  minimo_remocao: 0.50
+  minimo_redd_mercado: 0.70
+  custeio_consulta: desenvolvedor
+  regra: >-
+    Exigir consentimento decorrente da consulta livre, prévia e informada conforme protocolo da comunidade,
+    cláusula de repartição e gestão participativa com conta específica. O mínimo é direito sobre créditos,
+    não desconto físico de carbono. A consulta é custeada pelo desenvolvedor.
+revisao:
+  fundamento: Lei 13.709/2018 (LGPD), art. 20 e § 1º
+  regra: >-
+    Guardar critérios claros e a versão de toda decisão automática ou nota de risco usada no lote.
+    Aceitar pedido de revisão humana sem liberar automaticamente a oferta. A revisão humana é compromisso
+    do produto; a redação vigente do art. 20 assegura revisão, sem especificar pessoa natural.
