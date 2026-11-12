@@ -52,6 +52,7 @@ def test_metadados_sentinel_nao_expoem_caminho_ou_dados_arbitrarios(monkeypatch)
     meta = {
         "caixa": [-50, -10, -49, -9],
         "data_cena": "2026-10-10",
+        "metodo": "cena",
         "satelite": "Sentinel-2",
         "credito": "Contains modified Copernicus Sentinel data 2026",
         "largura": 1000,
@@ -62,7 +63,7 @@ def test_metadados_sentinel_nao_expoem_caminho_ou_dados_arbitrarios(monkeypatch)
     monkeypatch.setattr(front_api, "_imagem", lambda *a: (meta, meta["arquivo"]))
     dado = visual.satelite_disponivel(None, "car")
     assert dado["disponivel"] is True
-    assert set(dado) == {"disponivel", "caixa", "data_cena", "satelite", "credito", "largura", "altura"}
+    assert set(dado) == {"disponivel", "caixa", "data_cena", "metodo", "satelite", "credito", "largura", "altura"}
 
 
 def test_erro_operacional_nao_e_tratado_como_ausencia_de_cena(monkeypatch):
@@ -113,3 +114,29 @@ def test_consulta_carrega_geometrias_do_postgis_e_corte_da_carga(banco_url):
     assert shape(dado["camadas"]["features"][0]["geometry"]).bounds == pytest.approx((-50, -10, -49.5, -9.5))
     assert not visual.consultar(engine, "PA-1504950-" + "F" * 32)["imovel"]["features"]
     engine.dispose()
+
+
+def test_metodo_e_periodo_da_mediana_sao_preservados(monkeypatch):
+    meta = {
+        "caixa": [-50, -10, -49, -9],
+        "data_cena": "2026-09-06 a 2026-10-23",
+        "metodo": "mediana",
+        "satelite": "Sentinel-2",
+        "credito": "Copernicus 2026",
+        "largura": 1024,
+        "altura": 938,
+    }
+    monkeypatch.setattr(front_api, "_imagem", lambda *a: (meta, None))
+    dado = visual.satelite_disponivel(None, "car")
+    assert dado["metodo"] == "mediana"
+    assert dado["data_cena"] == "2026-09-06 a 2026-10-23"
+
+
+def test_leitor_por_blocos_e_opcional_e_restrito_ao_visual(monkeypatch):
+    chamadas = []
+    monkeypatch.setattr(front_api, "_imagem", lambda *a, **kw: chamadas.append(kw))
+    monkeypatch.delenv("RAIZ_SATELITE_LEITOR_HTTP", raising=False)
+    visual.imagem(None, "car")
+    monkeypatch.setenv("RAIZ_SATELITE_LEITOR_HTTP", "blocos")
+    visual.imagem(None, "car")
+    assert chamadas == [{}, {"ler": visual._janela_blocos}]

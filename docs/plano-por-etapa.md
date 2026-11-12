@@ -312,7 +312,7 @@ Entrega 3 da continuação de 12/11/2026, sobre a ficha paga do PR #52.
 
 | Entrega | Situação |
 |---|---|
-| Mapa do imóvel com Sentinel-2, máscara e restauração hachurada | **feito**: a ficha autorizada carrega perímetro e camadas medidas pela API de prospecção. A máscara respeita furos do CAR e a hachura é recortada ao imóvel. A cena Sentinel-2 usa o gerador existente; ausência de cena ou camada fica explícita, sem inventar desenho a partir de hectares. |
+| Mapa do imóvel com Sentinel-2, máscara e restauração hachurada | **feito**: a ficha autorizada carrega perímetro e camadas medidas pela API de prospecção. A máscara respeita furos do CAR e a hachura é recortada ao imóvel. A cena Sentinel-2 usa o gerador existente; composição mediana preserva o período inteiro e o método. Ausência de cena ou camada fica explícita, sem inventar desenho a partir de hectares. Recorte real de Parauapebas validado em 360 px. |
 | Linha do tempo de uso e perdas | **feito**: anos disponíveis, medidas e fontes da ficha paga, além das tabelas completas. Ausência e zero são diferentes; a data de corte não substitui a data da fonte. |
 | Acesso à imagem e ao desenho | **feito**: sessão individual e desbloqueio pago conferidos em todas as rotas, incluindo exclusividade. A imagem é buscada com Bearer, sem token na URL, com `private, no-store`; nenhuma lista ou imagem individual vai ao Pages. |
 | Calibração E9 com cartas reais | **pendente**: ainda não existe o conjunto de 30 cartas anonimizadas com avaliação de compreensão. Esta entrega não inicia contato com proprietários. |

@@ -55,7 +55,7 @@ try {
     if (caminho.includes("/visual")) {
       assert.ok(desbloqueada && req.headers().authorization === "Bearer cliente-a", "Visual só depois do crédito e com a sessão da conta")
       if (caminho.endsWith("satelite.webp")) return route.fulfill({ status: 200, contentType: "image/png", body: imagemTeste })
-      if (caminho.endsWith("satelite")) return json({ disponivel: true, caixa: [-52.105, -6.705, -52.075, -6.675], data_cena: "2026-10-10", satelite: "Sentinel-2", credito: "Imagem sintética para teste; sem dado orbital", largura: 4, altura: 4 })
+      if (caminho.endsWith("satelite")) return json({ disponivel: true, caixa: [-52.105, -6.705, -52.075, -6.675], data_cena: "2026-10-10", metodo: "cena", satelite: "Sentinel-2", credito: "Imagem sintética para teste; sem dado orbital", largura: 4, altura: 4 })
       return json(visual)
     }
     if (caminho.startsWith("fichas/")) return desbloqueada && req.headers().authorization === "Bearer cliente-a" ? json(ficha) : json({ detail: "Ficha precisa de crédito pago" }, 402)

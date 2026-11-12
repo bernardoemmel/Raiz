@@ -44,6 +44,7 @@ export type SateliteTerra = { disponivel: false; aviso: string } | {
   disponivel: true
   caixa: [number, number, number, number]
   data_cena: string
+  metodo: string
   satelite: string
   credito: string
   largura: number

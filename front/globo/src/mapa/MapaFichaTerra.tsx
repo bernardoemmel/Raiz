@@ -2,6 +2,7 @@ import { AttributionControl, LngLatBounds, Map as MapaGL, NavigationControl, Sca
 import "maplibre-gl/dist/maplibre-gl.css"
 import { useEffect, useRef, useState } from "react"
 import { COR, MAPA } from "../../../compartilhado/cores"
+import { legendaCenaSatelite } from "../../../compartilhado/satelite-terra"
 import type { FichaTerraDados, SateliteTerra, VisualTerra } from "../../../compartilhado/prospeccao"
 import { fonte } from "../dados"
 import { dataTerra, prospeccao } from "../prospeccao"
@@ -87,17 +88,19 @@ export function MapaFichaTerra({ ficha }: { ficha: FichaTerraDados }) {
     return () => { mapa.remove() }
   }, [visual, base, foto, mostrarFoto, hachura])
 
+  const temRestauracao = !!visual?.camadas?.features.some((f) => f.properties.camada === "pode_voltar")
+  const temMata = !!visual?.camadas?.features.some((f) => f.properties.camada === "mata_em_pe")
   return <section className="visual-terra" aria-labelledby="mapa-terra-titulo">
     <h2 id="mapa-terra-titulo">A fazenda vista de cima</h2>
     <div className="controles-visual">
-      <label><input type="checkbox" checked={mostrarFoto} disabled={!foto} onChange={(e) => setMostrarFoto(e.target.checked)} /> Mostrar satélite</label>
-      <label><input type="checkbox" checked={hachura} onChange={(e) => setHachura(e.target.checked)} /> Mostrar área que pode virar mata</label>
+      <label><input type="checkbox" checked={mostrarFoto && !!foto} disabled={!foto} onChange={(e) => setMostrarFoto(e.target.checked)} /> Mostrar satélite</label>
+      <label><input type="checkbox" checked={hachura && temRestauracao} disabled={!temRestauracao} onChange={(e) => setHachura(e.target.checked)} /> Mostrar área que pode virar mata</label>
     </div>
     <figure>
       <div className="mapa-caixa mapa-ficha-terra" ref={caixa} role="region" aria-label="Mapa privado da fazenda, com limite e áreas medidas" />
       <figcaption className="mapa-legenda-fixa">
-        {foto && <span>Sentinel-2 em {dataTerra(foto.meta.data_cena)}. {foto.meta.credito}.</span>}
-        <span>Em {ficha.municipio}, verde é mata em pé; listras mostram a área medida que pode voltar a ser mata. O entorno fica apagado.</span>
+        {foto && <span>{legendaCenaSatelite(foto.meta)}. {foto.meta.credito}.</span>}
+        <span>O contorno destaca o imóvel em {ficha.municipio}. O entorno fica apagado.{temMata && " O verde chapado é mata em pé."}{temRestauracao && hachura && " As listras mostram a área medida que pode voltar a ser mata."}</span>
         <span>Limites do CAR são declarados pelo dono e podem ter erro.</span>
       </figcaption>
     </figure>

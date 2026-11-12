@@ -158,9 +158,17 @@ RAIZ_BUILD_DADOS=0 front/scripts/construir-site.sh
 - Validação focada: 32 testes Python com PostGIS, incluindo geometrias com furos, recorte e privacidade;
   Chromium confere satélite de teste explicitamente sintético, camadas, controle de hachura, linha do tempo,
   acesso antes/depois do crédito, troca de conta e 360 px. `test:prospeccao`, já no CI, guarda as capturas.
-- Um teste externo com contorno real de Parauapebas encontrou cenas no STAC, mas a leitura do COG pelo
-  GDAL deste ambiente falhou na validação da cadeia TLS do proxy. TLS não foi desativado; essa tentativa
-  não comprova uma foto real renderizada. Os testes determinísticos usam a imagem sintética identificada.
+- Teste externo validado com CAR e geometria do Release de Parauapebas: imagem Sentinel-2 de 132.586 bytes,
+  1024 × 938 px, composta pela mediana das cenas de 06/09/2026 a 23/10/2026. O mapa renderizou o recorte,
+  contorno e máscara em 1100 e 360 px. Sem camadas medidas nesse imóvel, exibiu o aviso, sem inventar hachura.
+  A legenda preserva o período inteiro e identifica a composição mediana, em vez de tratá-la como uma foto
+  de data única. Os testes determinísticos do CI continuam identificados como imagem sintética.
+- Em ambiente cujo GDAL não reconheça a CA do proxy, configurar `RAIZ_SATELITE_LEITOR_HTTP=blocos` na API.
+  Só as novas rotas visuais usam então o leitor Range já existente em `raiz.coleta.blocos`, com requests,
+  a CA/proxy herdados e cache de 1 GB em `dados/imagens/.cog`. O gerador e as outras rotas permanecem iguais.
+  A validação real usou esse leitor sem desativar TLS e baixou 95 MB de blocos, sem baixar cenas inteiras.
+- A suíte completa local foi interrompida após 321 testes aprovados para evitar competição com a suíte
+  de integração do chat principal; os testes focados passaram. Rodar a suíte completa no checkout integrado.
 - A imagem real depende da disponibilidade de cena no Sentinel-2 e dos polígonos/camadas carregados na API.
   A publicação estática mantém apenas agregados. Não transformar o teste de imagem sintética em evidência
   de disponibilidade orbital para todas as fazendas. O contato com o dono continua na fase final.

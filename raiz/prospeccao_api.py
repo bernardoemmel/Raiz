@@ -145,7 +145,7 @@ def roteador(engine_de: Callable) -> APIRouter:
     @r.get("/fichas/{car}/visual/satelite.webp")
     def imagem_satelite(car: str, request: Request, cid: int = Depends(cliente)):
         _executar(acesso.exigir_desbloqueio, engine_de(request), cid, car)
-        _, arquivo = front_api._imagem(engine_de(request), car, "hoje")
+        _, arquivo = prospeccao_visual.imagem(engine_de(request), car)
         return FileResponse(
             arquivo, media_type="image/webp", headers={"Cache-Control": "private, no-store", "Vary": "Authorization"}
         )
