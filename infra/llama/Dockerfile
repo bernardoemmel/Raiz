@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1
 # llama-server (llama.cpp, MIT) compilado com llguidance (MIT) para a gramática JSON (E7 passo 10).
 #
 # Com LLAMA_LLGUIDANCE=ON, o JSON Schema do response_format vai direto ao llguidance, sem mudar a chamada
@@ -12,25 +13,36 @@ ARG UBUNTU_VERSION=24.04
 
 FROM docker.io/ubuntu:${UBUNTU_VERSION} AS build
 ARG LLAMA_TAG=b12300
+ARG RUST_VERSION=1.100.0
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends build-essential cmake git ca-certificates curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Rust estável para o llguidance (o cargo do apt costuma ser velho demais)
-RUN curl -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain stable
+# Rust fixado na versão validada; o cargo do apt pode ser velho demais. O segredo proxy_ca é opcional: em
+# ambientes com proxy TLS, monte o conjunto de CAs na construção, sem copiá-lo para a imagem final.
+RUN --mount=type=secret,id=proxy_ca,target=/etc/ssl/certs/ca-certificates.crt \
+    curl -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain ${RUST_VERSION}
 ENV PATH=/root/.cargo/bin:${PATH}
 
 WORKDIR /src
-RUN git clone --depth 1 --branch ${LLAMA_TAG} https://github.com/ggml-org/llama.cpp .
+RUN --mount=type=secret,id=proxy_ca,target=/etc/ssl/certs/ca-certificates.crt \
+    git clone --depth 1 --branch ${LLAMA_TAG} https://github.com/ggml-org/llama.cpp .
 
 # Sem interface web (LLAMA_BUILD_UI e LLAMA_USE_PREBUILT_UI desligados) e sem HTTPS para baixar modelo: o GGUF vem
 # do volume. CPU com todas as variantes, carregadas na hora (como a imagem oficial).
-RUN cmake -S . -B build -DCMAKE_BUILD_TYPE=Release \
+RUN --mount=type=secret,id=proxy_ca,target=/etc/ssl/certs/ca-certificates.crt \
+    cmake -S . -B build -DCMAKE_BUILD_TYPE=Release \
         -DLLAMA_LLGUIDANCE=ON \
         -DGGML_NATIVE=OFF -DGGML_BACKEND_DL=ON -DGGML_CPU_ALL_VARIANTS=ON \
         -DLLAMA_BUILD_TESTS=OFF -DLLAMA_BUILD_EXAMPLES=OFF \
         -DLLAMA_BUILD_UI=OFF -DLLAMA_USE_PREBUILT_UI=OFF -DLLAMA_OPENSSL=OFF \
+    && cmake --build build --target llguidance_ext -j"$(nproc)"
+
+# O build.rs do llguidance 1.0.1 supõe o layout antigo de OUT_DIR. Com Cargo 1.100, o header vai para release/build,
+# mas o CMake do llama.cpp b12300 procura em release. Copiar o header da MESMA revisão do código Rust evita depender
+# desse layout interno; não mudar a gramática nem trocar de versão silenciosamente.
+RUN cp build/llguidance/source/parser/llguidance.h build/llguidance/source/target/release/llguidance.h \
     && cmake --build build --target llama-server -j"$(nproc)"
 
 RUN mkdir -p /out \
