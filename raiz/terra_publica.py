@@ -124,6 +124,18 @@ def areas_da_uf(uf: str, cache_motor: Path | None, espelho: Path | None = None, 
                            "destinacao": "uc_uso_sustentavel", "categoria": x.get("categoria"),
                            "esfera": x.get("esfera"), "orgao": x.get("org_gestor"), "bioma": None,
                            "tradicional": x.get("categoria") in UC_TRADICIONAL, "geometry": x.geometry})  # fmt: skip
+    # área exata das concessões do estado (ex.: URTX, união das áreas de restauração)
+    from raiz import terra as T2
+
+    exatas = T2.poligonos_concessoes()
+    if exatas is not None:
+        for _, x in exatas.iterrows():
+            c = T2.concessao(x.concessao) or {}
+            if str(c.get("uf", "")).upper() == uf:
+                partes.append({"fonte": "concessao", "chave": x.concessao, "nome": c.get("nome"),
+                               "destinacao": "concessao", "categoria": c.get("tipo"), "esfera": None,
+                               "orgao": c.get("orgao"), "bioma": None, "tradicional": False,
+                               "geometry": x.geometry})  # fmt: skip
     base = gpd.GeoDataFrame(partes, geometry="geometry", crs=4674) if partes else None
     # glebas públicas do SIGEF do espelho (só as que não repetem uma gleba do CNFP)
     esp = Path(espelho or ponte.espelho_padrao()) / "sigef" / uf
@@ -171,6 +183,8 @@ def concessao_da_area(linha: dict, r: dict | None = None) -> dict | None:
     from raiz import terra as T
 
     r = r or T.regra()
+    if linha.get("fonte") == "concessao":
+        return T.concessao(linha.get("chave") or linha.get("concessao_id"), r)
     nome = str(linha.get("nome") or "").upper()
     for c in r["concessoes"]["concessoes"]:
         v = c.get("vinculo") or {}
@@ -260,7 +274,7 @@ def cruzar(areas, cobertura_tif: Path | None, cache: Path | None = None, reducao
         lat = float(shapely.point_on_surface(x.geometry).y)
         bioma = x.bioma or "Amazônia"
         taxa = TAXA_C.get(_regiao(x.uf, bioma, lat), 1.0) * (1 + RS.RAIZ) * RS.C2CO2
-        conc = concessao_da_area({"nome": x.nome, "fonte": x.fonte})
+        conc = concessao_da_area({"nome": x.nome, "fonte": x.fonte, "chave": x.chave})
         conc = conc or {}
         base = {"id": x.id, "desmatado_ha": x.desmatado_ha, "pasto_ha": x.pasto_ha, "mata_ha": x.mata_ha,
                 "concessao": conc.get("id"), "concessao_situacao": conc.get("situacao"),

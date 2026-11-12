@@ -345,6 +345,52 @@ def area_sobreposta(imoveis, camada) -> dict[str, float]:
     return out
 
 
+def arquivo_concessao(c: dict) -> Path | None:
+    """Arquivo do polígono exato de uma concessão (baixado uma vez do Release dados para dados/terra_publica/)."""
+    import httpx
+
+    from raiz import RAIZ_REPO
+
+    v = c.get("vinculo") or {}
+    if not v.get("arquivo"):
+        return None
+    f = RAIZ_REPO / "dados" / "terra_publica" / "concessoes" / v["arquivo"]
+    if not f.exists() and v.get("url"):
+        f.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            r = httpx.get(v["url"], follow_redirects=True, timeout=120)
+            r.raise_for_status()
+            tmp = f.with_suffix(f.suffix + ".tmp")
+            tmp.write_bytes(r.content)
+            tmp.replace(f)
+        except httpx.HTTPError:
+            return None
+    return f if f.exists() else None
+
+
+def poligonos_concessoes(r: dict | None = None):
+    """Concessões com polígono exato (ex.: URTX): a união das classes de restauração, uma linha por concessão."""
+    import geopandas as gpd
+    import pandas as pd
+    import shapely
+
+    r = r or regra()
+    linhas = []
+    for c in r["concessoes"]["concessoes"]:
+        f = arquivo_concessao(c)
+        if f is None:
+            continue
+        v = c["vinculo"]
+        g = gpd.read_file(f)
+        g = g.set_crs(4326) if g.crs is None else g
+        if v.get("classes"):
+            g = g[g[v.get("campo_classe", "Name")].isin(v["classes"])]
+        if len(g):
+            u = shapely.union_all(shapely.make_valid(g.to_crs(4674).geometry.values))
+            linhas.append({"concessao": c["id"], "geometry": u})
+    return gpd.GeoDataFrame(pd.DataFrame(linhas), geometry="geometry", crs=4674) if linhas else None
+
+
 def camadas_de_terra(caixa, cache_motor: Path | None, cnfp: Path | None, r: dict | None = None) -> dict:
     """Camadas nacionais recortadas na caixa do município: UC por domínio, terra indígena, quilombo, florestas
     públicas não destinadas (CNFP tipo B e C) e as áreas de concessão (UC toda de domínio público com concessão)."""
@@ -380,6 +426,13 @@ def camadas_de_terra(caixa, cache_motor: Path | None, cnfp: Path | None, r: dict
             if len(achadas):  # UC toda de domínio público (Flona): quem está dentro é terra pública concedida
                 conc.append(achadas.assign(concessao=c["id"]))
         out["concessoes"] = pd.concat(conc) if conc else None
+    exatas = poligonos_concessoes(r)
+    if exatas is not None:
+        exatas = exatas.cx[x0:x1, y0:y1]
+        if len(exatas):
+            base = out.get("concessoes")
+            out["concessoes"] = exatas if base is None else gpd.GeoDataFrame(
+                pd.concat([base[["concessao", "geometry"]], exatas]), crs=4674)  # fmt: skip
     ti = recorta(ultimo("indigenouslands_*.parquet"))
     qu = recorta(ultimo("quilombolalands_*.parquet"))
     trad = [g[["geometry"]] for g in (ti, qu, out.get("uc_tradicional")) if g is not None and len(g)]

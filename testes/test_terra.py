@@ -158,7 +158,8 @@ def test_sobreposicoes_sigef_e_camadas():
     assert caminhos == {"A": "privada_matricula", "B": "terra_indigena_ou_tradicional", "C": "assentamento"}
 
 
-def test_camadas_de_terra_e_concessao_na_flona(tmp_path):
+def test_camadas_de_terra_e_concessao_na_flona(tmp_path, monkeypatch):
+    monkeypatch.setattr(T, "poligonos_concessoes", lambda r=None: None)  # a URTX tem teste próprio
     ucs = gpd.GeoDataFrame(
         {"nome_uc": ["FLORESTA NACIONAL DO BOM FUTURO", "ÁREA DE PROTEÇÃO AMBIENTAL TRIUNFO DO XINGU",
                      "RESERVA EXTRATIVISTA X"],
@@ -206,6 +207,7 @@ def test_terra_publica_da_uf(tmp_path, monkeypatch):
                              "geocodigo": ["1"]}, geometry=[gleba], crs=4674)  # fmt: skip
     cnfp.to_parquet(tmp_path / "cnfp_PA.parquet")
     monkeypatch.setattr(TP, "pasta", lambda: tmp_path)
+    monkeypatch.setattr(T, "poligonos_concessoes", lambda r=None: None)  # sem a URTX de verdade neste teste
     a = TP.areas_da_uf("PA", tmp_path, espelho=tmp_path / "espelho", cnfp=tmp_path / "cnfp_PA.parquet")
     assert len(a) == 1 and a.fonte.iloc[0] == "cnfp" and a.destinacao.iloc[0] == "sem_destinacao"
     t = TP.cruzar(
@@ -237,3 +239,29 @@ def test_conferir_editais_guarda_data_e_link(tmp_path):
     assert links == {"https://www.gov.br/florestal/edital-flona-x.pdf", "https://ideflorbio.pa.gov.br/ur/"}
     assert all(n["visto_em"] for n in r["novos"])
     assert TP.conferir_editais(tmp_path / "vistos.json", cliente=cli)["novos"] == []  # já vistos
+
+
+def test_urtx_poligono_exato_classifica_o_imovel(tmp_path, monkeypatch):
+    """A URTX fica dentro de uma APA (que tem terra privada): só o polígono exato das áreas de restauração vira
+    "pública sob concessão"; o resto da APA não."""
+    kml = tmp_path / "URTX.gpkg"
+    gpd.GeoDataFrame(
+        {"Name": ["Plantio área total", "Regeneração passiva", "Estradas"]},
+        geometry=[_quadrado(-53.40, -6.45, 0.02), _quadrado(-53.38, -6.45, 0.02), _quadrado(-53.36, -6.45, 0.02)],
+        crs=4326,
+    ).to_file(kml, driver="GPKG")
+    monkeypatch.setattr(T, "arquivo_concessao", lambda c: kml if c["id"] == "ur_triunfo_do_xingu" else None)
+    g = T.poligonos_concessoes()
+    assert g.concessao.tolist() == ["ur_triunfo_do_xingu"]
+    ha_uniao = g.to_crs(5880).area.iloc[0] / 1e4
+    assert 900 < ha_uniao < 1000  # as duas classes de restauração (a estrada fica de fora)
+    c = T.camadas_de_terra((-53.5, -6.6, -53.2, -6.3), None, None)
+    geoms = [_quadrado(-53.395, -6.445, 0.01), _quadrado(-53.355, -6.445, 0.01)]
+    im = gpd.GeoDataFrame({"cod_imovel": ["DENTRO", "ESTRADA"]}, geometry=geoms, crs=4674)
+    por = T.sobreposicoes(im, None, c)
+    ha = im.to_crs(5880).area.iloc[0] / 1e4
+    dentro = T.caminho({"cod_imovel": "DENTRO", "uf": "PA", "ha": ha, **por["DENTRO"]})
+    assert dentro["caminho_terra"] == "publica_concessao" and dentro["risco_terra"] == "baixo"
+    assert dentro["terra_concessao"] == "ur_triunfo_do_xingu" and dentro["terra_concessao_link"].startswith("https")
+    fora = T.caminho({"cod_imovel": "ESTRADA", "uf": "PA", "ha": ha, **por["ESTRADA"]})
+    assert fora["caminho_terra"] != "publica_concessao"

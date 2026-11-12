@@ -3,7 +3,7 @@
 # vinculo: como achar a área no mapa. uc = nome da unidade de conservação no CNUC (o polígono inteiro, quando a
 # concessão cobre só parte dele, area_exata fica false); cnfp = nome da gleba no Cadastro Nacional de Florestas
 # Públicas. Imóvel do CAR só vira "pública sob concessão" quando a área é exata ou a UC é toda de domínio público.
-versao: concessoes-2026a
+versao: concessoes-2026b
 conferido_em: "2026-11-12"
 fontes:
   sfb: https://www.gov.br/florestal/pt-br/assuntos/concessoes-e-monitoramento/editais-em-licitacao
@@ -22,11 +22,17 @@ concessoes:
       - {data: "2025-04-17", texto: "resultado da licitação no Diário Oficial do Estado"}
       - {data: "2025-07-01", texto: "contrato assinado, 40 anos (mês de julho de 2025)"}
     area_ha: 10346
-    vinculo: {uc: "ÁREA DE PROTEÇÃO AMBIENTAL TRIUNFO DO XINGU"}
-    area_exata: false
+    # polígono exato: intervenções propostas da Systemica (25/04/2025), no Release dados; vale a união das áreas de
+    # restauração (plantio em área total, regeneração ativa e regeneração passiva, ~9.826 ha)
+    vinculo:
+      arquivo: URTX.kml
+      url: https://github.com/bernardoemmel/raiz/releases/download/dados/URTX.kml
+      classes: [Plantio área total, Regeneração ativa, Regeneração passiva]
+      campo_classe: Name
+    area_exata: true
     nota: >-
-      Área pública dentro da APA Triunfo do Xingu (Altamira); a APA tem terra privada, então o polígono da APA não
-      classifica imóveis. Carregar o polígono exato da unidade de recuperação quando o Ideflor-Bio publicar.
+      Área pública dentro da APA Triunfo do Xingu (Altamira). O polígono da APA não classifica imóveis (a APA tem terra
+      privada); o polígono das áreas de restauração da URTX classifica.
     link: https://ideflorbio.pa.gov.br/unidade-de-recuperacao-triunfo-do-xingu/
     link_contrato: https://ideflorbio.pa.gov.br/wp-content/uploads/2025/07/Contrato-de-Concessao-Florestal-na-Unidade-de-Recuperacao-Triunfo-1.pdf
   - id: flona_bom_futuro_um2
