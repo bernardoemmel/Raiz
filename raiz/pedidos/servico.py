@@ -919,35 +919,52 @@ def valor_reserva(ha: float) -> float:
     return round(max(float(r["minimo_rs"]), float(r["fracao_da_conexao"]) * float(r["conexao_rs_ha"]) * ha), 2)
 
 
-def _cobranca_json(pedido_id, valor: float, ha: float, dias: int, cob=None, reserva=None) -> dict:
+def _cobranca_json(pedido_id, valor: float, ha: float, dias: int, cob=None, reserva=None, base_url: str = "") -> dict:
     r = premissas()["reserva"]
+    expira = cob.expira_em if cob is not None else None
+    pendente = bool(cob is not None and cob.estado == "pendente" and expira is not None and expira > _agora())
+    aprovar_url = None
+    if (
+        reserva is not None
+        and reserva.estado == "aguardando_confirmacao"
+        and reserva.confirmacao_expira is not None
+        and reserva.confirmacao_expira > _agora()
+        and reserva.preco_valido_ate is not None
+        and reserva.preco_valido_ate > _agora()
+        and reserva.confirmacao_token_cifrado
+    ):
+        token = _cofre().decifrar(reserva.confirmacao_token_cifrado)
+        aprovar_url = f"{base_url.rstrip('/')}/reservas/confirmar/{token}"
     return {
         "pedido": str(pedido_id),
         "valor_brl": valor,
         "hectares": round(ha, 1),
         "prazo_dias": dias,
+        "preco_valido_ate": reserva.preco_valido_ate.isoformat()
+        if reserva is not None and reserva.preco_valido_ate
+        else None,
+        "exclusividade": {"dias": dias, "inicio": "apos_pagamento_confirmado"},
         "abatimento": (
             f"A reserva é abatida da conexão de R$ {r['conexao_rs_ha']:.0f} por hectare quando o contrato "
             "fecha; se o prazo vencer sem contrato, o grupo volta para a base."
         ),
-        "pix": {"copia_e_cola": cob.pix_copia_cola, "expira_em": None}
-        if cob is not None and cob.estado == "pendente"
+        "pix": {"copia_e_cola": cob.pix_copia_cola, "qr_svg": cob.pix_qr_svg, "expira_em": expira.isoformat()}
+        if pendente
         else None,
         "pago": bool(cob is not None and cob.estado == "paga"),
+        "recibo_aprovacao": reserva.recibo_aprovacao if reserva is not None else None,
+        "aprovacao_url": aprovar_url,
         "reservado_ate": reserva.fim.isoformat() if reserva is not None and reserva.fim else None,
         "modo_teste": bool(cob is not None and cob.modo == "teste"),
         "estado": reserva.estado if reserva is not None else None,
         "aguardando_confirmacao": bool(reserva is not None and reserva.estado == "aguardando_confirmacao"),
-        "confirmacao": (
-            "Uma pessoa da empresa precisa confirmar a reserva pelo link enviado ao e-mail cadastrado; só então sai o "
-            "Pix. O agente de IA não confirma nem paga."
-        )
-        if reserva is not None and reserva.estado == "aguardando_confirmacao"
+        "confirmacao": "Uma pessoa autenticada da empresa aprova pelo link; só então sai o Pix. O agente não paga."
+        if aprovar_url
         else None,
     }
 
 
-def cobranca_do_pedido(engine: Engine, pedido_id: str, cliente_id: int) -> dict:
+def cobranca_do_pedido(engine: Engine, pedido_id: str, cliente_id: int, base_url: str = "") -> dict:
     with engine.connect() as con:
         p = _linha_pedido(con, pedido_id, cliente_id)
         c = CamposPedido.model_validate(p["campos"])
@@ -960,16 +977,46 @@ def cobranca_do_pedido(engine: Engine, pedido_id: str, cliente_id: int) -> dict:
         cob = con.execute(
             text("select * from negocio.cobranca where reserva_id = :r order by id desc limit 1"), {"r": res.id}
         ).first()
-        return _cobranca_json(p["id"], float(res.valor_rs), res.ha, res.dias, cob, res)
+        return _cobranca_json(p["id"], float(res.valor_rs), res.ha, res.dias, cob, res, base_url)
 
 
-def _cobrar(con, rid: int, p, valor: float) -> None:
-    """Cria a cobrança Pix de uma reserva (sempre depois de uma pessoa da empresa: na sessão dela ou pelo link)."""
-    cob = pix.criar(valor, f"Reserva Raíz {str(p['id'])[:8]}", int(premissas()["reserva"]["pix_validade_s"]))
+def _cobrar(con, rid: int, p, valor: float, validade_s: int | None = None) -> None:
+    """Cria Pix somente após aprovação humana. Trava da reserva e registro local impedem repetição local."""
+    if con.execute(text("select 1 from negocio.cobranca where reserva_id=:r"), {"r": rid}).first():
+        return
+    validade = int(premissas()["reserva"]["pix_validade_s"])
+    if validade_s is not None:
+        validade = min(validade, validade_s)
+    if validade <= 0:
+        raise ErroPedido("preço da reserva vencido: prepare uma nova aprovação")
+    cob = pix.criar(valor, f"Reserva Raíz {str(p['id'])[:8]}", validade, chave_idempotencia=f"reserva:{rid}")
+    qr = pix.qr_svg(cob.copia_e_cola)
     con.execute(
         text("""insert into negocio.cobranca (reserva_id, provedor, modo, externo_id, valor_rs, estado,
-                pix_copia_cola) values (:r, 'abacatepay', :m, :x, :v, 'pendente', :pc)"""),
-        {"r": rid, "m": cob.modo, "x": cob.externo_id, "v": valor, "pc": cob.copia_e_cola},
+                pix_copia_cola, expira_em, pix_qr_svg)
+                values (:r, 'abacatepay', :m, :x, :v, 'pendente', :pc, :e, :qr)"""),
+        {
+            "r": rid,
+            "m": cob.modo,
+            "x": cob.externo_id,
+            "v": valor,
+            "pc": cob.copia_e_cola,
+            "e": cob.expira_em,
+            "qr": qr,
+        },
+    )
+
+
+def mensagem_confirmacao_reserva(pedido_id: str, valor: float, ha: float, dias: int, base_url: str, token: str) -> str:
+    """Mensagem humana: formata apenas números, preservando domínio e token do link de aprovação."""
+    trocar = str.maketrans(",.", ".,")
+    dinheiro = f"{valor:,.2f}".translate(trocar)
+    hectares = f"{ha:,.0f}".translate(trocar)
+    link = f"{base_url.rstrip('/')}/reservas/confirmar/{token}"
+    return (
+        f"O agente de IA da sua empresa pediu a reserva do grupo do pedido {str(pedido_id)[:8]} "
+        f"(R$ {dinheiro}, {hectares} ha, {dias} dias). Uma pessoa da empresa precisa "
+        f"confirmar para gerar o Pix: {link} (vale por 48 horas)."
     )
 
 
@@ -988,27 +1035,49 @@ def mensagem_confirmacao_reserva(pedido_id: str, valor: float, ha: float, dias: 
 
 def reservar(engine: Engine, pedido_id: str, cliente_id: int, por_agente: str | None = None,
              base_url: str = "") -> dict:  # fmt: skip
-    """Reserva do grupo pronto. Na sessão de uma pessoa da empresa, cria a cobrança Pix (as fazendas ficam reservadas
-    quando o pagamento entra). Pedida por um agente de IA (`por_agente`: a chave ou o MCP), a reserva nasce
-    "aguardando confirmação": o link de uso único vai para o e-mail da empresa e o Pix só sai quando uma pessoa
-    confirma (confirmar_reserva). O agente nunca recebe o link nem conclui o pagamento."""
+    """Prepara reserva para uma pessoa da empresa. Agente recebe link, nunca aprova nem paga.
+
+    A reserva e o preço aguardam aprovação por 48 horas. A exclusividade começa apenas quando o Pix é confirmado.
+    O caminho legado sem por_agente representa a ação explícita de uma pessoa autenticada e aprova ao final.
+    Nenhum callback externo roda durante a preparação: só a notificação interna, sem o segredo do link.
+    """
+    from raiz import salvaguardas as SG
+    from raiz.publica.aprovacao import aprovar
+
     token = None
     with engine.begin() as con:
         p = _linha_pedido(con, pedido_id, cliente_id)
+        p = con.execute(text("select * from negocio.pedido where id=:p for update"), {"p": p["id"]}).mappings().one()
         if p["estado"] != "grupo_pronto":
             raise ErroPedido("a reserva vale para o grupo pronto (todos os donos com interesse)")
+        cods = _grupo(con, p["id"])
+        if not cods:
+            raise ErroPedido("o grupo não tem fazendas para reservar")
+        SG.exigir_para_reserva(engine, cods)
         aberta = con.execute(
-            text("""select id from negocio.reserva where pedido_id = :p
-                    and estado in ('aguardando_pagamento', 'aguardando_confirmacao')"""),
+            text("""select * from negocio.reserva where pedido_id = :p
+                    and estado in ('aguardando_pagamento', 'aguardando_confirmacao') order by id desc limit 1"""),
             {"p": p["id"]},
-        ).scalar()
+        ).first()
+        if (
+            aberta is not None
+            and aberta.estado == "aguardando_confirmacao"
+            and (
+                aberta.confirmacao_expira <= _agora()
+                or (aberta.preco_valido_ate is not None and aberta.preco_valido_ate <= _agora())
+            )
+        ):
+            con.execute(
+                text("""update negocio.reserva set estado='cancelada', confirmacao_hash=null,
+                confirmacao_token_cifrado=null where id=:id"""),
+                {"id": aberta.id},
+            )
+            aberta = None
         if aberta is None:
-            cods = _grupo(con, p["id"])
             ocupadas = {
                 r[0]
                 for r in con.execute(
-                    text("""select cod_imovel from negocio.reserva_fazenda
-                                                          where ativa and cod_imovel = any(:c)"""),
+                    text("select cod_imovel from negocio.reserva_fazenda where ativa and cod_imovel = any(:c)"),
                     {"c": cods},
                 )
             }
@@ -1017,65 +1086,75 @@ def reservar(engine: Engine, pedido_id: str, cliente_id: int, por_agente: str | 
             c = CamposPedido.model_validate(p["campos"])
             ha = _ha_do_grupo(con, cods)
             valor = valor_reserva(ha)
-            estado = "aguardando_confirmacao" if por_agente else "aguardando_pagamento"
-            if por_agente:
-                token = secrets.token_urlsafe(24)
+            token = secrets.token_urlsafe(24)
+            validade = _agora() + dt.timedelta(hours=48)
             rid = con.execute(
                 text("""insert into negocio.reserva (pedido_id, cliente_id, estado, ha, valor_rs, dias, pedida_por,
-                        confirmacao_hash, confirmacao_expira)
-                        values (:p, :c, :e, :ha, :v, :d, :q, :h, :x) returning id"""),
-                {"p": p["id"], "c": cliente_id, "e": estado, "ha": ha, "v": valor, "d": c.reserva_dias,
-                 "q": por_agente or "pessoa", "h": _hash(token) if token else None,
-                 "x": _agora() + dt.timedelta(hours=48) if token else None},
-            ).scalar_one()  # fmt: skip
+                        confirmacao_hash, confirmacao_expira, confirmacao_token_cifrado, preco_valido_ate)
+                        values (:p, :c, 'aguardando_confirmacao', :ha, :v, :d, :q, :h, :x, :tc, :x) returning id"""),
+                {
+                    "p": p["id"],
+                    "c": cliente_id,
+                    "ha": ha,
+                    "v": valor,
+                    "d": c.reserva_dias,
+                    "q": por_agente or "pessoa",
+                    "h": _hash(token),
+                    "x": validade,
+                    "tc": _cofre().cifrar(token),
+                },
+            ).scalar_one()
             for cod in cods:
                 con.execute(
                     text("insert into negocio.reserva_fazenda (reserva_id, cod_imovel) values (:r, :c)"),
                     {"r": rid, "c": cod},
                 )
-            if not por_agente:
-                _cobrar(con, rid, p, valor)
             con.execute(
                 text("""insert into negocio.reserva_evento (reserva_id, evento, quem, valor_rs, detalhe)
-                                values (:r, 'criada', :q, :v, cast(:d as jsonb))"""),
+                values (:r, 'criada', :q, :v, cast(:d as jsonb))"""),
                 {
                     "r": rid,
                     "q": f"agente:{por_agente}" if por_agente else f"cliente:{cliente_id}",
                     "v": valor,
-                    "d": json.dumps({"dias": c.reserva_dias, "fazendas": len(cods), "ha": ha, "estado": estado}),
+                    "d": json.dumps(
+                        {"dias": c.reserva_dias, "fazendas": len(cods), "ha": ha, "estado": "aguardando_confirmacao"}
+                    ),
                 },
             )
-            if token:
-                mensagem = mensagem_confirmacao_reserva(p["id"], valor, ha, c.reserva_dias, base_url, token)
-                notificar(con, cliente_id, p["id"], "confirmar_reserva", mensagem, canais=("painel", "email"))
-    if token and ENVIO_CONFIRMACAO is not None:
-        ENVIO_CONFIRMACAO(cliente_id, token)
-    return cobranca_do_pedido(engine, pedido_id, cliente_id)
+            con.execute(
+                text("""insert into negocio.notificacao (cliente_id,pedido_id,tipo,canal,texto,estado)
+                values (:c,:p,'confirmar_reserva','painel',:t,'enviada')"""),
+                {
+                    "c": cliente_id,
+                    "p": p["id"],
+                    "t": "Reserva preparada. Uma pessoa da empresa deve abrir "
+                    "a página da reserva para aprovar e gerar o Pix.",
+                },
+            )
+        elif aberta.estado == "aguardando_confirmacao":
+            if not aberta.confirmacao_token_cifrado:
+                raise ErroPedido("reserva antiga sem link recuperável: aguarde vencer ou peça revisão humana")
+            token = _cofre().decifrar(aberta.confirmacao_token_cifrado)
+    if not por_agente and token:
+        return aprovar(engine, token, cliente_id)
+    return cobranca_do_pedido(engine, pedido_id, cliente_id, base_url)
 
 
-ENVIO_CONFIRMACAO: Callable[[int, str], None] | None = None  # (cliente, token): para o teste ver o link
+ENVIO_CONFIRMACAO: Callable[[int, str], None] | None = None  # legado; preparação não executa envio externo
 
 
-def confirmar_reserva(engine: Engine, token: str, quem: str = "pessoa") -> dict:
-    """Uma pessoa da empresa confirma a reserva pedida pelo agente (link de uso único, 48 horas): sai o Pix."""
-    with engine.begin() as con:
-        res = con.execute(
-            text("""update negocio.reserva set estado = 'aguardando_pagamento', confirmada_em = now(),
-                    confirmacao_hash = null
-                    where confirmacao_hash = :h and estado = 'aguardando_confirmacao' and confirmacao_expira > now()
-                    returning id, pedido_id, cliente_id, valor_rs"""),
-            {"h": _hash(token)},
-        ).first()
-        if res is None:
+def confirmar_reserva(engine: Engine, token: str, quem: str = "pessoa", cliente_id: int | None = None) -> dict:
+    """Adaptador interno legado. Rotas públicas usam aprovacao.aprovar com empresa autenticada obrigatória."""
+    from raiz.publica.aprovacao import aprovar
+
+    if cliente_id is None:
+        with engine.connect() as con:
+            cliente_id = con.execute(
+                text("select cliente_id from negocio.reserva where confirmacao_hash=:h"), {"h": _hash(token)}
+            ).scalar()
+        if cliente_id is None:
             raise ErroPedido("link de confirmação inválido, usado ou vencido: peça a reserva de novo")
-        p = _linha_pedido(con, str(res.pedido_id), res.cliente_id)
-        _cobrar(con, res.id, p, float(res.valor_rs))
-        con.execute(
-            text("""insert into negocio.reserva_evento (reserva_id, evento, quem, valor_rs, detalhe)
-                    values (:r, 'confirmada', :q, :v, '{}'::jsonb)"""),
-            {"r": res.id, "q": quem, "v": float(res.valor_rs)},
-        )
-    return cobranca_do_pedido(engine, str(res.pedido_id), res.cliente_id)
+    return aprovar(engine, token, cliente_id)
 
 
 def confirmar_pagamento(engine: Engine, externo_id: str, quando: dt.datetime | None = None, quem: str = "pix") -> str:
@@ -1155,7 +1234,8 @@ def expirar_reservas(engine: Engine, agora: dt.datetime | None = None) -> int:
     agora = agora or _agora()
     with engine.begin() as con:
         for r in con.execute(
-            text("""update negocio.reserva set estado = 'cancelada', confirmacao_hash = null
+            text("""update negocio.reserva set estado = 'cancelada', confirmacao_hash = null,
+                    confirmacao_token_cifrado = null
                     where estado = 'aguardando_confirmacao' and confirmacao_expira < :a returning id"""),
             {"a": agora},
         ).all():
