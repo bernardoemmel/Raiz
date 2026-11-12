@@ -1,8 +1,12 @@
 import { useEffect, useState } from "react"
 import { escolherFonte } from "../../compartilhado/dados"
+import { semReservadasPorOutros } from "../../compartilhado/pedidos/exclusividade"
 
-/** A fonte de dados do painel: a amostra do motor, ou a API se VITE_RAIZ_API estiver definida no .env. */
-export const fonte = escolherFonte(import.meta.env)
+/**
+ * A fonte de dados do painel: a amostra do motor, ou a API se VITE_RAIZ_API estiver definida no .env. Sem a API, a
+ * camada de exclusividade esconde as fazendas reservadas por outro cliente (com a API, o servidor esconde).
+ */
+export const fonte = import.meta.env.VITE_RAIZ_API ? escolherFonte(import.meta.env) : semReservadasPorOutros(escolherFonte(import.meta.env))
 
 export interface Carga<T> {
   dado: T | undefined

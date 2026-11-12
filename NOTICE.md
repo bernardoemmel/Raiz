@@ -7,6 +7,7 @@
 | Desenho da fila de coleta: até 200 unidades por rodada, nova tentativa, disjuntor quando mais de 15% está sujo e reconciliação completa mensal (desenho, sem código copiado) | `raiz/coleta/fila.py` | MIT, osm-geoparquet (nfhl.py) | osm-geoparquet |
 | Regras da escadinha do art. 61-A (`faixa_rio_consolidada`) e do teto do art. 61-B (`limite_61b`), reescritas | `motor/raiz_estado.py`, `motor/raiz_app.py` | MIT, Copyright (c) 2022 GeoOne | https://github.com/OpenGeoOne/GeoCAR |
 | Contorno dos estados do Brasil (Natural Earth 1:50m, admin 1), projetado e simplificado para o minimapa em SVG | `front/compartilhado/brasil-estados.ts` (gerado por `front/scripts/geo.py`) | domínio público | https://www.naturalearthdata.com |
+| Códigos dos 5.571 municípios por estado (IBGE, Divisão Territorial Brasileira 2025, data base 31/12/2025), só os códigos | `front/compartilhado/ibge-municipios.ts` (gerado por `front/scripts/geo.py`) | dado público do IBGE, uso livre com citação da fonte | https://geoftp.ibge.gov.br/organizacao_do_territorio/estrutura_territorial/divisao_territorial/ |
 
 Dados públicos lidos pelo motor (cada um com seus termos): SICAR/SFB, Ibama, INPE TerraBrasilis (PRODES),
 INCRA (SIGEF, quilombolas), FUNAI, MMA/CNUC (via geobr/Ipea), MapBiomas (cobertura, Fogo, Alerta), YbYrá-BR
@@ -50,12 +51,15 @@ Distribuídas dentro do produto (vão no pacote que o navegador baixa), sem alte
 | Preact 10.29.8 | `front/produtor` | MIT |
 | Fontes Familjen Grotesk, Atkinson Hyperlegible Next e IBM Plex Mono (@fontsource 5.3.0, só woff2 latino) | `front/globo`; o produtor usa só a Atkinson | SIL Open Font License 1.1 |
 | Ícones Lucide (lucide-react e lucide-preact 1.62.0, importados um a um) | `front/globo`, `front/produtor` | ISC |
+| Radix Primitives: @radix-ui/react-tabs 1.2.1 e @radix-ui/react-dialog 1.3.1 (abas das opções do lote e janela do Pix; e as dependências deles: aria-hidden, react-remove-scroll, use-callback-ref, use-sidecar, get-nonce, detect-node-es, MIT; tslib, 0BSD) | `front/globo` | MIT |
+| NumberFlow (@number-flow/react 0.6.2 e number-flow, esm-env) nos números do andamento | `front/globo` | MIT |
+| uqr 0.1.3 (código QR do Pix em SVG) | `front/globo` | MIT |
 
 Gerados por `front/scripts/geo.py` e servidos junto (fora do git): recorte do mapa base do build diário do Protomaps,
 com dados © colaboradores do OpenStreetMap (ODbL 1.0, atribuição no canto do mapa); letras dos rótulos Noto Sans
 (SIL Open Font License 1.1) de protomaps/basemaps-assets; polígonos do CAR (SICAR/SFB) e camadas do INPE TerraBrasilis,
 inclusive o contorno dos 5.570 municípios da tela de entrada (camadas de municípios por bioma, juntadas pelo código
-IBGE).
+IBGE) e o dos 27 estados (os mesmos municípios juntados por estado).
 
 Removidos: o globo da abertura saiu do produto em novembro de 2026 (a tela de entrada passou a ser o mapa plano do
 Brasil). Foram apagados a biblioteca `cobe` 2.0.1 (MIT) e os componentes `cobe-globe.tsx` e `cobe-globe-demo.tsx`
@@ -146,3 +150,48 @@ HiGHS dentro. Sem código copiado. A cobrança Pix da reserva usa a API da Abaca
 
 boto3 e botocore (Apache-2.0) no produto; moto (Apache-2.0) só nos testes. Servidor próprio, quando não se usa o
 Cloudflare R2: SeaweedFS (Apache-2.0). MinIO e Garage ficam de fora (AGPL).
+
+## Vigilância (`raiz/vigilancia/`)
+
+Nenhum código de terceiros copiado. Dependências usadas sem alterar (instaladas por `raiz/vigilancia/requisitos.txt`,
+todas no servidor ou no GitHub Actions): pandas, geopandas, shapely, pyproj (BSD-3-Clause), numpy (BSD-3-Clause),
+pyarrow (Apache-2.0), requests (Apache-2.0), PyYAML (MIT), cryptography (Apache-2.0 ou BSD-3-Clause, cifra Fernet da
+parte privada), FastAPI (MIT), uvicorn (BSD-3-Clause); nos testes, pytest (MIT) e httpx (BSD-3-Clause).
+
+Dados lidos todo dia (cada um com seus termos; nenhum com licença não comercial):
+
+| Fonte | Termos | Citação |
+|---|---|---|
+| NASA FIRMS, VIIRS 375 m NOAA-20 e NOAA-21 (VJ114IMGTDL_NRT, VJ214IMGTDL_NRT) | dado aberto da NASA, sem restrição de uso | "LANCE FIRMS, NASA EOSDIS" |
+| MapBiomas Alerta (API v2, com conta) | CC BY 4.0 segundo os termos do Alerta (o site geral do MapBiomas cita CC BY-SA; conferir antes de redistribuir derivado) | "MapBiomas Alerta, plataforma.alerta.mapbiomas.org, acesso em <data>" |
+| INPE TerraBrasilis: DETER (Amazônia e Cerrado) e PRODES (Amazônia Legal e Cerrado) | dado público do INPE | "INPE, TerraBrasilis" |
+| Ibama, termos de embargo (dados abertos) | dado público; nome, CPF/CNPJ, nome do imóvel e textos livres são descartados na leitura | "Ibama, dados abertos" |
+
+Estrutura do rascunho do relatório de perda: títulos das seções do Loss Event Report Template v5.0 da Verra
+(modelo obrigatório para quem reporta perda ao VCS), preenchidos com texto próprio. Regra dos prazos: Verra,
+Registration and Issuance Process v4.4, seção 5.3, e errata de 14/02/2023.
+
+## Documentos (`raiz/documentos/`)
+
+Dependências usadas como biblioteca, sem copiar nem alterar o código (`raiz/documentos/requirements.txt`):
+
+| O quê | Para quê | Licença |
+|---|---|---|
+| anthropic (SDK Python) | leitura de certidão e edital pela API da Anthropic | Apache-2.0 |
+| docxtpl | modelos .docx com campos Jinja (usado como biblioteca, sem alteração) | LGPL-2.1 |
+| python-docx | monta os modelos .docx | MIT |
+| Jinja2 (dependência do docxtpl) | campos dos modelos | BSD-3-Clause |
+| pypdf | conta páginas do PDF | BSD-3-Clause |
+| beautifulsoup4 | links das páginas de editais | MIT |
+| requests | páginas e APIs públicas | Apache-2.0 |
+| pandas, numpy | tabelas do motor e faixa P10 a P90 da carteira | BSD-3-Clause |
+| reportlab | PDF de exemplo dos testes | BSD |
+
+Programas e serviços chamados de fora, sem embutir código: LibreOffice (MPL-2.0) converte .docx em PDF no servidor;
+Firecrawl só pela API hospedada (o código do Firecrawl é AGPL: não instalar nem hospedar). Fontes públicas da busca
+semanal, cada uma com seus termos: registro da Verra (VCS), portal gov.br do Serviço Florestal Brasileiro (API do
+Plone), páginas de licitações e concessões do Ideflor-Bio e busca do Diário Oficial da União (in.gov.br).
+
+Métodos reescritos, sem copiar código: cadeia dominial com quebras e ônus ativos (desenho do TitleChain citado no plano,
+E5 passo 7); normal de dois lados nos P10, P50 e P90 e soma ao lado da carteira (E3); regra provisória das faixas
+(faixas-2026a) igual à do back-end (`raiz/regras/padroes/faixas.yaml`).

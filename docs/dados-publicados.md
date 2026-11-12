@@ -24,6 +24,9 @@ Painel e detalhes: [`motor/README.md`](../motor/README.md).
    e baixa só os estados novos ou mudados para `dados/estados/<UF>/` (fora do git). `npm run dados -- --geo` também
    baixa os polígonos. `RAIZ_SEM_DOWNLOAD=1` pula o download. O back-end espelha o Release com
    `raiz executor sincronizar`.
+5. O plugin do Vite (`front/compartilhado/vite-dados.ts` e `pasta-dados.ts`) lê `dados/estados/` sozinho quando
+   existe (ou a pasta de `RAIZ_DADOS`); sem ela, a amostra. O mapa do Brasil diz, por estado, o que o `estados.json`
+   baixado diz (completo, incompleto com a contagem, ainda não processado), sem recontar.
 
 ## Caminho antigo (motor rodado no computador)
 
@@ -57,3 +60,11 @@ O aprendizado compara previsões entre versões do motor pelo `motor.etapas[tabe
 daquela tabela muda, sem contar comentários) e chega ao código exato pelo `commit`.
 
 São dados de fontes públicas (CAR, MapBiomas, INPE, FUNAI, INCRA, ICMBio), sem nome, CPF ou CNPJ.
+
+## Release `vigilancia`
+
+A vigilância diária (`raiz/vigilancia/`, workflow `.github/workflows/vigilancia.yml`) lê os polígonos daqui e publica
+no Release `vigilancia` (https://github.com/bernardoemmel/raiz/releases/tag/vigilancia): alertas de imóvel por mês
+(`alertas_AAAA-MM.parquet`), espelho dos embargos do Ibama, situação das fontes e rodadas, abertos; projetos,
+eventos de perda, marcações e rascunhos de relatório num pacote cifrado (`privado.tar.gz.cifrado`, chave
+`RAIZ_VIGILANCIA_CHAVE`). `vigilancia.json` (manifesto) sobe por último. Detalhes em `raiz/vigilancia/README.md`.

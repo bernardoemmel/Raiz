@@ -14,9 +14,13 @@ Saída em front/geo/ (fora do git, é dado gerado e pode ser grande):
   base_<cod>.pmtiles        mapa base recortado do build diário do Protomaps (dados © OpenStreetMap, ODbL)
   fontes/<fonte>/<faixa>.pbf  letras dos rótulos do mapa (Noto Sans, licença OFL, do protomaps/basemaps-assets)
   brasil_municipios.geojson todos os municípios do Brasil, simplificados para a escala do país (TerraBrasilis, por bioma)
+  brasil_estados.geojson    os 27 estados (os mesmos municípios juntados), com o ponto do rótulo
   base_brasil.pmtiles       mapa base único da tela de entrada: Brasil até o zoom 6, o estado até o 9 e os municípios
                             com fazendas até o 12 a 14 (Protomaps, dados © OpenStreetMap)
-E grava front/compartilhado/brasil-estados.ts (contorno dos estados para o mini mapa, Natural Earth, domínio público).
+E grava no front (vão para o git, são pequenos):
+  compartilhado/brasil-estados.ts   contorno dos estados para o mini mapa (Natural Earth, domínio público)
+  compartilhado/ibge-municipios.ts  códigos dos municípios de cada estado (DTB do IBGE), para saber se o estado está
+                                    completo
   indice.json               o que já foi gerado, lido pelo front para saber o que existe
 
 Roda de novo sem baixar o que já existe (apague o arquivo para baixar de novo).
@@ -35,6 +39,7 @@ from pathlib import Path
 
 import requests
 import shapely
+import shapely.ops
 from pmtiles.tile import Compression, TileType, deserialize_directory, deserialize_header, find_tile, zxy_to_tileid
 from pmtiles.writer import Writer
 from shapely.geometry import box, mapping, shape
@@ -181,9 +186,13 @@ def imoveis(cod: str, uf: str = "pa") -> None:
 # --- TerraBrasilis: terra indígena, unidade de conservação, rios ---------------------------------------------------
 
 
-def camada_tb(cod: str, nome: str, camada: str, caixa, campos: dict[str, str], tolerancia: float) -> None:
+def camada_tb(cod: str, nome: str, camada: str, caixa, campos: dict[str, str], tolerancia: float, dentro=None) -> None:
+    """Baixa a camada na caixa do município. Com `dentro` (a divisa), recorta no contorno: terra indígena e unidade de
+    conservação não podem aparecer fora do município no mapa (guia, item 3.3)."""
     arq = SAIDA / f"{nome}_{cod}.geojson"
     if arq.exists():
+        if dentro is not None:
+            recortar_no_municipio(arq, dentro)
         return
     print(f" {nome} de {cod}")
     x0, y0, x1, y1 = caixa
@@ -212,10 +221,40 @@ def camada_tb(cod: str, nome: str, camada: str, caixa, campos: dict[str, str], t
         if g.is_empty:
             continue
         g = arredondar(g.simplify(tolerancia, preserve_topology=True), 5)
+        if dentro is not None:
+            g = so_poligonos(arredondar(valido(g).intersection(dentro), 5))
+            if g.is_empty:
+                continue
         props = {novo: f["properties"].get(velho) for velho, novo in campos.items()}
         feicoes.append(feicao(g, props))
     tam = salvar(arq.name, feicoes)
     print(f"   {len(feicoes)} feições, {tam / 1e3:.0f} kB")
+
+
+def so_poligonos(g):
+    """Depois de um recorte, fica só o que tem área (o recorte pode deixar linhas e pontos soltos na divisa)."""
+    if g.is_empty or g.geom_type in ("Polygon", "MultiPolygon"):
+        return g
+    partes = [p for p in getattr(g, "geoms", []) if p.geom_type in ("Polygon", "MultiPolygon")]
+    return shapely.union_all(partes) if partes else shapely.Polygon()
+
+
+def recortar_no_municipio(arq: Path, dentro) -> None:
+    """Recorta no contorno do município um arquivo já baixado (gerado antes do recorte existir). Não baixa nada."""
+    dados = json.loads(arq.read_text())
+    feicoes, mudou = [], False
+    for f in dados["features"]:
+        g = shape(f["geometry"])
+        if dentro.contains(g):
+            feicoes.append(f)
+            continue
+        mudou = True
+        r = so_poligonos(arredondar(valido(g).intersection(dentro), 5))
+        if not r.is_empty:
+            feicoes.append(feicao(r, f["properties"]))
+    if mudou:
+        salvar(arq.name, feicoes)
+        print(f"   {arq.name}: recortado na divisa ({len(feicoes)} feições)")
 
 
 # --- mapa base: recorte do build diário do Protomaps ---------------------------------------------------------------
@@ -437,6 +476,112 @@ def municipios_brasil() -> None:
     print(f"   {len(feicoes)} municípios, {tam / 1e6:.1f} MB")
 
 
+def estados_brasil() -> None:
+    """Contorno dos 27 estados, juntando os municípios do TerraBrasilis (a divisa bate com a dos municípios), com o
+    ponto do rótulo dentro de cada um. O mapa da entrada pinta o estado pela situação e aproxima nele ao tocar."""
+    arq = SAIDA / "brasil_estados.geojson"
+    if arq.exists():
+        return
+    cache = SAIDA / "cache"
+    partes: dict[str, list] = {}
+    for _, camada in MUNICIPIOS_BIOMA:
+        bruto = cache / f"{camada}.geojson"
+        if not bruto.exists():
+            continue
+        for f in json.loads(bruto.read_text())["features"]:
+            cod = str(f["properties"].get("geocodigo") or "")[:7]
+            uf = UF_IBGE.get(cod[:2])
+            if uf and f.get("geometry"):
+                g = valido(shape(f["geometry"]))
+                if not g.is_empty:
+                    partes.setdefault(uf, []).append(g)
+    if not partes:
+        print(" estados: falta o cache dos municípios (rode sem apagar front/geo/cache)")
+        return
+    feicoes = []
+    for uf, gs in sorted(partes.items()):
+        # as divisas dos municípios do mesmo estado coincidem: a união fecha sem fresta; o pequeno buffer cola o que
+        # sobrar de diferença entre as camadas de bioma
+        g = valido(shapely.union_all(gs).buffer(0.0005).buffer(-0.0005))
+        g = arredondar(g.simplify(0.01, preserve_topology=True), 3)
+        p = shapely.ops.polylabel(max(getattr(g, "geoms", [g]), key=lambda x: x.area), tolerance=0.01)
+        feicoes.append(feicao(g, {"uf": uf, "cod": next(c for c, u in UF_IBGE.items() if u == uf), "rotulo": [round(p.x, 3), round(p.y, 3)]}))
+    tam = salvar(arq.name, feicoes)
+    print(f"   {len(feicoes)} estados, {tam / 1e6:.1f} MB")
+
+
+DTB = "https://geoftp.ibge.gov.br/organizacao_do_territorio/estrutura_territorial/divisao_territorial/"
+
+
+def lista_ibge() -> None:
+    """Lista oficial dos municípios por estado (Divisão Territorial Brasileira do IBGE, a mais recente), gravada no
+    front: é com ela que o plugin de dados diz se o motor já processou o estado inteiro. Só códigos, sem nome."""
+    import io
+    import re
+    import xml.etree.ElementTree as ET
+    import zipfile
+
+    destino = SAIDA.parent / "compartilhado" / "ibge-municipios.ts"
+    anos = sorted(set(re.findall(r'href="(\d{4})/"', baixar(DTB, timeout=120).text)))
+    for ano in reversed(anos):
+        pasta = baixar(DTB + ano + "/", timeout=120).text
+        nome = next(iter(re.findall(r'href="(DTB_\d{4}\.zip)"', pasta)), None)
+        if nome:
+            break
+    else:
+        raise RuntimeError("nenhuma DTB na pasta do IBGE")
+    zipado = SAIDA / "cache" / nome
+    if not zipado.exists():
+        zipado.write_bytes(baixar(DTB + ano + "/" + nome, timeout=600).content)
+    z = zipfile.ZipFile(zipado)
+    planilha = next(n for n in z.namelist() if re.search(r"MUNICIPIOS\.ods$", n))
+    ods = zipfile.ZipFile(io.BytesIO(z.read(planilha)))
+    t = "{urn:oasis:names:tc:opendocument:xmlns:table:1.0}"
+    por_uf: dict[str, list[str]] = {}
+    data_base = ""
+    for linha in ET.fromstring(ods.read("content.xml")).iter(t + "table-row"):
+        celulas: list[str] = []
+        for c in linha.findall(t + "table-cell"):
+            celulas += ["".join(c.itertext())] * min(int(c.get(t + "number-columns-repeated", "1")), 20)
+        if celulas and celulas[0].startswith("DATA BASE"):
+            data_base = celulas[0].split(":", 1)[1].strip()
+        # colunas pelo nome do cabeçalho seriam o certo, mas a planilha repete a linha de título; o código completo
+        # do município é a única célula de 7 números da linha
+        cod = next((c for c in celulas if re.fullmatch(r"\d{7}", c)), None)
+        if cod and cod[:2] in UF_IBGE:
+            por_uf.setdefault(UF_IBGE[cod[:2]], []).append(cod)
+    total = sum(len(v) for v in por_uf.values())
+    if total < 5500:
+        raise RuntimeError(f"a DTB {ano} veio com {total} municípios; esperava uns 5.570")
+    linhas = [
+        "/**",
+        f" * Municípios de cada estado pela Divisão Territorial Brasileira do IBGE ({nome[:-4].replace('_', ' ')}, data base",
+        f" * {data_base}): {total:,} municípios.".replace(",", ".") + " Gerado por front/scripts/geo.py; não editar à mão. O plugin de dados compara",
+        " * com o que o motor processou para dizer se o estado está completo. Só os códigos: os 2 primeiros números são os",
+        " * do estado e ficam de fora para o arquivo ficar pequeno.",
+        " */",
+        "",
+        f'export const LISTA_IBGE = "{nome[:-4].replace("_", " ")} (data base {data_base})"',
+        "",
+        "const CODIGOS: Record<string, string> = {",
+        *[f'  {uf}: "{" ".join(c[2:] for c in sorted(cs))}",' for uf, cs in sorted(por_uf.items())],
+        "}",
+        "",
+        "const UF_COD: Record<string, string> = {",
+        *[f'  {uf}: "{cs[0][:2]}",' for uf, cs in sorted(por_uf.items())],
+        "}",
+        "",
+        "/** os códigos IBGE (7 números) dos municípios do estado, ou [] se a sigla não existe */",
+        "export function municipiosDoEstado(uf: string): string[] {",
+        "  const lista = CODIGOS[uf]",
+        '  return lista ? lista.split(" ").map((c) => UF_COD[uf] + c) : []',
+        "}",
+        "",
+    ]
+    destino.write_text("\n".join(linhas))
+    print(f" lista do IBGE: {total} municípios ({nome}), {destino.stat().st_size / 1e3:.0f} kB em {destino.name}")
+
+
 NATURAL_EARTH = "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_50m_admin_1_states_provinces.geojson"
 
 
@@ -546,7 +691,11 @@ def indice() -> None:
         itens.setdefault(resto, {})[tipo] = {"arquivo": f.name, "bytes": f.stat().st_size}
     brasil = {
         nome: {"arquivo": arq, "bytes": (SAIDA / arq).stat().st_size}
-        for nome, arq in (("municipios", "brasil_municipios.geojson"), ("base", "base_brasil.pmtiles"))
+        for nome, arq in (
+            ("municipios", "brasil_municipios.geojson"),
+            ("estados", "brasil_estados.geojson"),
+            ("base", "base_brasil.pmtiles"),
+        )
         if (SAIDA / arq).exists()
     }
     (SAIDA / "indice.json").write_text(
@@ -572,6 +721,7 @@ def main(cods: list[str]) -> None:
             caixa,
             {"terrai_nom": "nome", "fase_ti": "fase"},
             0.0005,
+            dentro=geom,
         )
         camada_tb(
             cod,
@@ -580,6 +730,7 @@ def main(cods: list[str]) -> None:
             caixa,
             {"nome": "nome", "categoria": "categoria", "grupo": "grupo"},
             0.0005,
+            dentro=geom,
         )
         camada_tb(cod, "rios", "prodes-legal-amz:hydrography", caixa, {}, 0.0002)
         if not (SAIDA / f"base_{cod}.pmtiles").exists():
@@ -587,6 +738,9 @@ def main(cods: list[str]) -> None:
             base(cod, caixa, dia)
     fontes()
     municipios_brasil()
+    estados_brasil()
+    if not (SAIDA.parent / "compartilhado" / "ibge-municipios.ts").exists():
+        lista_ibge()
     if not (SAIDA.parent / "compartilhado" / "brasil-estados.ts").exists():
         estados_svg()
     if not (SAIDA / "base_brasil.pmtiles").exists():

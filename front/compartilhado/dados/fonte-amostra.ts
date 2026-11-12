@@ -1,56 +1,60 @@
 /**
- * Fonte da amostra: lê os CSV do motor em dados/amostra/ e as geometrias geradas por front/scripts/geo.py em
- * front/geo/. O plugin do Vite (compartilhado/vite-dados.ts) serve as duas pastas em /amostra/ e /geo/ e lista os
- * arquivos em /amostra/indice.json, então um arquivo novo do motor (imoveis_1507300.csv, extras_direto_..., uma
- * coluna nova) aparece na tela sem mudar código (ver complementos.ts).
+ * Fonte da amostra: lê os CSV do motor e as geometrias geradas por front/scripts/geo.py em front/geo/. O plugin do
+ * Vite (compartilhado/vite-dados.ts) serve os CSV em /amostra/ (de dados/amostra/ ou, com RAIZ_DADOS no .env, da
+ * pasta do motor separada por estado) e diz o que há em /amostra/estados.json e /amostra/indice_<UF>.json. Um arquivo
+ * novo do motor (imoveis_1507300.csv, extras_direto_..., uma coluna nova) aparece na tela sem mudar código (ver
+ * complementos.ts). Com milhares de municípios, nada é lido de uma vez: cada estado e cada município quando pedido.
  */
 
 import { n0, texto } from "./colunas"
-import { buscar, type RespostaBusca } from "./busca"
+import { buscar, normalizarCar, pareceCar, type RespostaBusca } from "./busca"
 import { complementosDe, juntarComplementos } from "./complementos"
 import { lerCsv } from "./csv"
-import { buscarJson, buscarTexto, memo, type Certidao, type FonteDeDados } from "./fonte"
+import { buscarJson, buscarTexto, lerPontos, memo, type Certidao, type FonteDeDados } from "./fonte"
 import { lerFicha, type FichaJson } from "./ficha"
 import { funilDosImoveis, lerFunil, lerImovel } from "./funil"
-import type { CamadaGeo, FunilMunicipio, Geo, Imovel } from "./tipos"
+import { ufDoCodigo } from "../formato"
+import type { CamadaGeo, Estados, FunilMunicipio, Geo, Imovel } from "./tipos"
 
 interface IndiceGeo {
-  brasil?: Partial<Record<"municipios" | "base", { arquivo: string; bytes: number }>>
+  brasil?: Partial<Record<"municipios" | "estados" | "base", { arquivo: string; bytes: number }>>
   municipios: Record<string, Partial<Record<CamadaGeo | "base", { arquivo: string; bytes: number }>>>
 }
+
 
 export function fonteAmostra(base = "/"): FonteDeDados {
   const raiz = base.endsWith("/") ? base : base + "/"
   const urlAmostra = (arq: string) => `${raiz}amostra/${arq}`
   const urlGeo = (arq: string) => `${raiz}geo/${arq}`
 
-  const indice = memo(async () => (await buscarJson<{ arquivos: string[] }>(urlAmostra("indice.json")))?.arquivos ?? [])
+  const estados = memo(async (): Promise<Estados> => (await buscarJson<Estados>(urlAmostra("estados.json"))) ?? { pasta: "amostra", lista_ibge: "", estados: [] })
+  const indice = memo(async (uf: string) => (await buscarJson<{ arquivos: string[] }>(urlAmostra(`indice_${uf}.json`)))?.arquivos ?? [])
   const indiceCompleto = memo(async () => (await buscarJson<IndiceGeo>(urlGeo("indice.json"))) ?? { municipios: {} })
   const indiceGeo = async (_: string) => (await indiceCompleto("")).municipios
-  const pontos = memo(async () => {
-    const r = await buscarJson<{ pontos: [number, number, "apta" | "pendencia", number, string][] }>(urlAmostra("pontos.json"))
-    return (r?.pontos ?? []).map(([lon, lat, situacao, ha, cod_ibge]) => ({ lon, lat, situacao, ha, cod_ibge }))
-  })
+  const pontos = memo(async (uf: string) => lerPontos(await buscarJson(urlAmostra(`pontos_${uf}.json`))))
 
   const csv = memo(async (arq: string) => {
     const t = await buscarTexto(urlAmostra(arq))
     return t === null ? null : lerCsv(t).linhas
   })
 
-  const arquivosDe = async (prefixo: string) =>
-    (await indice("")).filter((a) => a.startsWith(prefixo + "_") && a.endsWith(".csv"))
-
+  /** só os estados com algum município processado; o resumo de cada um num pedido */
   const municipios = memo(async () => {
+    const comDado = (await estados("")).estados.filter((e) => e.situacao !== "sem_dados")
+    const listas = await Promise.all(
+      comDado.map(async (e) => ((await indice(e.uf)).includes(`resumo_${e.uf}.csv`) ? ((await csv(`resumo_${e.uf}.csv`)) ?? []) : [])),
+    )
     const todos: FunilMunicipio[] = []
-    for (const arq of await arquivosDe("resumo")) {
-      const uf = arq.slice(7, -4)
-      for (const l of (await csv(arq)) ?? []) todos.push(lerFunil(l, uf))
-    }
+    comDado.forEach((e, k) => {
+      for (const l of listas[k]) if (l.cod_ibge) todos.push(lerFunil(l, e.uf))
+    })
     return todos
   })
 
   const imoveis = memo(async (cod: string): Promise<Imovel[] | null> => {
-    const arqs = await indice("")
+    const uf = ufDoCodigo(cod)
+    if (!uf) return null
+    const arqs = await indice(uf)
     if (!arqs.includes(`imoveis_${cod}.csv`)) return null
     const nomes = complementosDe(arqs, cod)
     const [principais, ...tabelas] = await Promise.all([csv(`imoveis_${cod}.csv`), ...nomes.map((a) => csv(a))])
@@ -59,8 +63,21 @@ export function fonteAmostra(base = "/"): FonteDeDados {
     return (principais ?? []).filter((l) => l.cod_imovel).map((l) => lerImovel(l, porImovel.get(l.cod_imovel)))
   })
 
-  const municipiosComImoveis = async () =>
-    (await arquivosDe("imoveis")).map((a) => a.slice(8, -4)).filter((c) => /^\d{7}$/.test(c))
+  const municipiosComImoveis = async () => (await estados("")).estados.flatMap((e) => e.com_lista)
+
+  // códigos do CAR que o motor pôs no arquivo de outro município (o plugin monta junto com os pontos do estado)
+  const fora = memo(async (uf: string) => (await buscarJson<Record<string, string>>(urlAmostra(`car_${uf}.json`))) ?? {})
+
+  /** onde procurar um código do CAR (inteiro ou o começo com os 7 números): o município do código e as exceções */
+  async function municipiosDoCar(car: string): Promise<string[]> {
+    const m = /^([A-Z]{2})-(\d{7})/.exec(car)
+    const uf = m ? ufDoCodigo(m[2]) : null
+    if (!m || !uf) return []
+    const cods = new Set([m[2]])
+    for (const [c, mun] of Object.entries(await fora(uf))) if (c.startsWith(car)) cods.add(mun)
+    const comLista = new Set((await estados("")).estados.find((e) => e.uf === uf)?.com_lista ?? [])
+    return [...cods].filter((c) => comLista.has(c))
+  }
 
   return {
     nome: "amostra",
@@ -74,7 +91,7 @@ export function fonteAmostra(base = "/"): FonteDeDados {
     },
     imoveis,
     async imovel(cod_imovel) {
-      for (const cod of await municipiosComImoveis()) {
+      for (const cod of await municipiosDoCar(cod_imovel)) {
         const achado = (await imoveis(cod))?.find((i) => i.cod_imovel === cod_imovel)
         if (achado) return achado
       }
@@ -87,8 +104,10 @@ export function fonteAmostra(base = "/"): FonteDeDados {
     },
     async certidoes(cod_imovel) {
       const saida: Certidao[] = []
-      for (const arq of await arquivosDe("certidoes")) {
-        for (const l of (await csv(arq)) ?? []) {
+      for (const cod of await municipiosDoCar(cod_imovel)) {
+        const uf = ufDoCodigo(cod)
+        if (!uf || !(await indice(uf)).includes(`certidoes_${cod}.csv`)) continue
+        for (const l of (await csv(`certidoes_${cod}.csv`)) ?? []) {
           if (l.cod_imovel !== cod_imovel) continue
           saida.push({
             cod_imovel,
@@ -106,20 +125,29 @@ export function fonteAmostra(base = "/"): FonteDeDados {
       const r = await fetch(`${raiz}busca?q=${encodeURIComponent(q)}`, { signal: sinal })
       const tipo = r.headers.get("content-type") ?? ""
       if (r.ok && tipo.includes("json")) return (await r.json()) as RespostaBusca
-      // build estático, sem servidor: a mesma busca, aqui no navegador
-      const comImoveis = await municipiosComImoveis()
-      const todos = (await Promise.all(comImoveis.map((c) => imoveis(c)))).flatMap((l) => l ?? [])
-      return buscar(q, { municipios: await municipios(""), imoveis: todos, comImoveis: new Set(comImoveis) })
+      // build estático, sem servidor: a mesma busca, aqui no navegador, lendo só o município do código digitado
+      const comImoveis = new Set(await municipiosComImoveis())
+      const car = pareceCar(q) ? normalizarCar(q) : null
+      const cods = car ? await municipiosDoCar(car) : []
+      const lista = (await Promise.all(cods.map((c) => imoveis(c)))).flatMap((l) => l ?? [])
+      return buscar(q, { municipios: await municipios(""), imoveis: lista, comImoveis })
     },
-    pontos: () => pontos(""),
+    estados: () => estados(""),
+    pontos: (uf) => pontos(uf),
     municipiosComImoveis,
     geo: {
       async brasil() {
         const b = (await indiceCompleto("")).brasil ?? {}
-        return {
-          municipios: b.municipios ? await buscarJson<Geo>(urlGeo(b.municipios.arquivo)) : null,
-          base: b.base ? new URL(urlGeo(b.base.arquivo), location.href).href : null,
-        }
+        const [municipios, estados] = await Promise.all([
+          b.municipios ? buscarJson<Geo>(urlGeo(b.municipios.arquivo)) : null,
+          b.estados ? buscarJson<Geo>(urlGeo(b.estados.arquivo)) : null,
+        ])
+        return { municipios, estados, base: b.base ? new URL(urlGeo(b.base.arquivo), location.href).href : null }
+      },
+      async comContorno() {
+        return Object.entries(await indiceGeo(""))
+          .filter(([, c]) => c.imoveis)
+          .map(([cod]) => cod)
       },
       async camada(cod, camada) {
         const item = (await indiceGeo(""))[cod]?.[camada]

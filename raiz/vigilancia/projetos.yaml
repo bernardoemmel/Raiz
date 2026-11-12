@@ -1,0 +1,37 @@
+# Projetos vigiados pela Raíz.
+#
+# O repositório é público: aqui só entra o que já é público (polígono publicado, padrão, ID na Verra). O que é
+# comercial (código do cliente, total já verificado, estoque de carbono por hectare, se já emitiu VCU) vem do arquivo
+# privado em RAIZ_PROJETOS_PRIVADO (segredo do GitHub Actions), no mesmo formato, juntado pelo id. Projeto que só
+# existe no arquivo privado (por exemplo, grupo de fazendas de um cliente) é vigiado do mesmo jeito e nunca aparece
+# no Release aberto.
+#
+# Campos:
+#   id                identificador usado na rota /vigilancia/projeto/{id} e no número do evento de perda (URTX_LE1)
+#   nome_projeto      nome do projeto (nunca nome de pessoa)
+#   padrao            VCS (Verra) por enquanto; a regra de prazo é a de raiz/vigilancia/regras.yaml (verra)
+#   verra_id          ID do projeto no registro da Verra
+#   inicio            data de início do projeto (AAAA-MM-DD); perda antes dela não conta. Sem data, toda perda conta
+#   poligono          {release, arquivo, campo_classe} (KML ou GeoJSON publicado num Release), {url} ou {caminho}
+#   imoveis           lista de códigos do CAR: o projeto é a união desses imóveis (grupo de fazendas pequenas)
+#   classes_projeto   classes do polígono que são área de carbono do projeto (perda aqui = evento de perda)
+#   classes_entorno   classes que só avisam (aceiro, estrada): fogo ali é risco, mas não é perda do projeto
+#                     classe fora das duas listas (ex.: área não disponível) não é do projeto
+#   vcus_emitidos     true quando o projeto já emitiu VCU (aí o relatório de perda em 2 anos é obrigatório)
+#   cliente           código do cliente (sem nome); o contato fica no esquema pessoal do back-end
+#   verificado_tco2e  reduções e remoções líquidas já verificadas (para a magnitude da perda, limiar de 5%)
+#   estoque_tco2e_ha  estoque de carbono por hectare do projeto: um número ou {classe: número}
+#   monitoramento     {inicio, fim} do período de monitoramento em curso (cabeçalho do relatório de perda)
+projetos:
+  - id: URTX
+    nome_projeto: URTX
+    padrao: VCS
+    verra_id: null
+    inicio: null
+    poligono:
+      release: dados
+      arquivo: URTX.kml
+      campo_classe: Class_Refl
+    classes_projeto: [Plantio área total, Regeneração ativa, Regeneração passiva]
+    classes_entorno: [Aceiro 10m, Estrada]
+    vcus_emitidos: null

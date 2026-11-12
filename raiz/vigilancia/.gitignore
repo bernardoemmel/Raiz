@@ -1,0 +1,2 @@
+# estado e cache locais da vigilância (alertas, marcações, polígonos baixados): ficam fora do git
+.dados/

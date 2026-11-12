@@ -242,6 +242,12 @@ def criar_app(
     app.include_router(pedidos_api.roteador_cliente(_engine_do_app))
     app.include_router(pedidos_api.roteador_interno(_engine_do_app), dependencies=seguro)
     app.include_router(pedidos_api.roteador_webhook(_engine_do_app))
+    # vigilância das fazendas e dos projetos (raiz/vigilancia): alertas por imóvel, perdas de projeto com o prazo da
+    # Verra, rascunho do relatório de perda, avisos e marcação verdadeiro/falso. Lê o estado publicado no Release
+    # vigilancia (parte privada com RAIZ_VIGILANCIA_CHAVE), não o PostGIS
+    from raiz.vigilancia import api as vigilancia_api
+
+    app.include_router(vigilancia_api.roteador(), dependencies=seguro)
     # link público, cartão e vídeo pelo código curto: sem token (só município, hectares, selo e código antes do aceite)
     from raiz import publico
 

@@ -1,0 +1,58 @@
+{
+  "_leia": "Fontes da busca semanal (python -m raiz.documentos busca semanal). Para acrescentar uma página, ponha em paginas: nome, url e palavras. Chaves que começam com _ são comentário.",
+  "verra": {
+    "pais": "Brazil",
+    "api": "https://registry.verra.org/uiapi/resource/resource/search?maxResults=2000&$count=true&$skip=0&$top=2000",
+    "pagina": "https://registry.verra.org/app/search/VCS/All%20Projects"
+  },
+  "sfb": {
+    "api": "https://www.gov.br/florestal/++api++/pt-br",
+    "editais": "assuntos/concessoes-e-monitoramento/editais-em-licitacao",
+    "termos": [
+      "edital",
+      "chamada pública",
+      "concessão florestal",
+      "restauração florestal",
+      "Floresta+"
+    ],
+    "dias": 60
+  },
+  "ideflor_bio": {
+    "paginas": [
+      "https://ideflorbio.pa.gov.br/licitacoes-e-contratos/",
+      "https://ideflorbio.pa.gov.br/concessao-florestal/"
+    ]
+  },
+  "dou": {
+    "busca": "https://www.in.gov.br/consulta/-/buscar/dou",
+    "periodo": "mes",
+    "termos": [
+      "\"concessão florestal\"",
+      "\"restauração florestal\"",
+      "\"Serviço Florestal Brasileiro\" edital",
+      "\"crédito de carbono\"",
+      "\"chamamento público\" restauração",
+      "\"Cota de Reserva Ambiental\"",
+      "\"recomposição da vegetação nativa\"",
+      "\"Restaura Amazônia\""
+    ]
+  },
+  "paginas": [],
+  "palavras": [
+    "edital",
+    "concorr",
+    "chamament",
+    "chamada",
+    "concess",
+    "licita",
+    "aviso",
+    "restaura",
+    "carbono",
+    "resultado",
+    "pregão",
+    "pregao",
+    "consulta pública",
+    "audiência",
+    "credenciamento"
+  ]
+}
