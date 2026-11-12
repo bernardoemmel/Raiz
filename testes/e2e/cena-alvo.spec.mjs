@@ -135,7 +135,21 @@ test("login único → conta paga, sinal e contrato → milhão no Pará → int
   await expect(page.getByRole("timer")).toContainText("Reservado até")
   await page.reload()
   await expect(page.getByRole("heading", { name: "Grupo reservado" })).toBeVisible()
+  const listar = () => page.waitForResponse((r) => r.url() === `${API}/v1/pedidos` && r.request().method() === "GET")
+  const listaInicial = listar()
   await page.goto("/#/pedidos")
+  let lista = await listaInicial
+  if (lista.status() === 429) {
+    // As etapas humanas são executadas em sequência no teste; o limite real continua ativo.
+    const espera = Number(lista.headers()["retry-after"])
+    expect(espera).toBeGreaterThan(0)
+    expect(espera).toBeLessThanOrEqual(60)
+    await page.waitForTimeout(espera * 1000)
+    const novaLista = listar()
+    await page.reload()
+    lista = await novaLista
+  }
+  expect(lista.status()).toBe(200)
   await expect(page.locator(".lista-pedidos .selo", { hasText: /Reservado até/ })).toBeVisible()
   expect(erros).toEqual([])
 })

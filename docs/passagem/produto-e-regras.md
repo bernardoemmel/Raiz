@@ -9,6 +9,9 @@ O teste de ponta a ponta passa a abrir conta, verificar recusa sem liberação,
 aceitar contrato e confirmar sinal/recarga exclusivamente por Pix local de teste.
 Não há liberação direta no banco nem retorno ao desenho grátis. Os 58 testes
 específicos de API/login/logs e os 141 testes do front passaram após a integração.
+O teste Chromium de conta paga até reserva passou, respeitando `Retry-After`
+sem desligar limites; 636 pacotes Python/npm/Rust foram conferidos sem problema.
+O CI reforçado da main executa a suíte completa, E2E, Gitleaks e licenças.
 
 Nova integração com a main `3199052`: preserva a ficha da terra paga e a busca
 nacional, a rodada do Pará e as passagens consolidadas dos PRs 48, 49 e 52.
