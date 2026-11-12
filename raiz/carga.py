@@ -40,6 +40,8 @@ class ResultadoCarga:
     colunas_novas: list[str] = field(default_factory=list)
     colunas_faltando: list[str] = field(default_factory=list)
     avisos: list[str] = field(default_factory=list)
+    lote_previsoes: str | None = None  # lote de previsões congeladas desta rodada
+    previsoes_novas: int = 0
 
 
 def _py(v):
@@ -204,14 +206,21 @@ def carregar_resumo(con: Connection, arquivo: str | Path, uf: str, data_corte: d
     return ResultadoCarga(rid, True, "resumo_uf", uf.upper(), None, n, novas, faltando, avisos)
 
 
-def carregar_pasta(engine, pasta: str | Path, data_corte: dt.date | None = None,
-                   motor_confirmado: bool = False) -> list[ResultadoCarga]:  # fmt: skip
-    """Carrega todos os municípios e o resumo de uma pasta saida/<UF>/ (cada município na sua transação)."""
+def carregar_pasta(engine, pasta: str | Path, data_corte: dt.date | None = None, motor_confirmado: bool = False,
+                   congelar: bool = True) -> list[ResultadoCarga]:  # fmt: skip
+    """Carrega todos os municípios e o resumo de uma pasta saida/<UF>/ (cada município na sua transação) e congela
+    as previsões do motor de cada rodada (E8 passo 1)."""
+    from raiz.aprendizado.congelar import congelar_rodada
+
     pasta = Path(pasta)
     res = []
     for cod in municipios_na_pasta(pasta):
         with engine.begin() as con:
-            res.append(carregar_municipio(con, pasta, cod, data_corte, motor_confirmado=motor_confirmado))
+            r = carregar_municipio(con, pasta, cod, data_corte, motor_confirmado=motor_confirmado)
+            if congelar:
+                r.lote_previsoes, novo, n = congelar_rodada(con, r.rodada_id)
+                r.previsoes_novas = n if novo else 0
+            res.append(r)
     for p in sorted(pasta.glob("resumo_*.csv")):
         m = re.fullmatch(r"resumo_([A-Za-z]{2})\.csv", p.name)
         if m:
