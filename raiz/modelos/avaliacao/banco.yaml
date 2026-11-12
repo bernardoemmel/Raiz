@@ -1,0 +1,146 @@
+# Teste próprio em português (E7 passo 10): mensagens de produtor rural no estilo do WhatsApp, escritas para o teste
+# (nenhuma é de conversa real; sem nome, telefone, CPF ou CNPJ). Cada tarefa usa o mesmo prompt de produção do agente de
+# aceite (raiz/agentes/aceite.py: pedido_intencao e pedido_explicacao).
+#
+# sem_resposta: true marca as tarefas sem resposta válida (15% do banco). Nelas o modelo tem de dizer que não sabe:
+#   na intenção, "outro"; no entendimento, nada entendido e sem desistência.
+# Rótulos da intenção (SISTEMA_INTENCAO): aceita = quer seguir ou saber mais; recusa = não quer; duvida = fez uma
+# pergunta; outro = assunto diferente ou não dá para saber. Casos que caberiam em dois rótulos ficaram de fora.
+nome: banco-pt-2026.11a
+
+propostas:
+  p1: {area_ha: 12, prazo_anos: 30, pagamento: "R$ 1.200 por hectare por ano, pago a cada seis meses"}
+  p2: {area_ha: 4.5, prazo_anos: 20, pagamento: "R$ 900 por hectare no plantio e mais R$ 300 por hectare por ano depois"}
+  p3: {area_ha: 60, prazo_anos: 40, pagamento: "40% do que a Raíz receber pela venda dos créditos de carbono, pago uma vez por ano"}
+
+intencao:
+  aceita:
+    - "Tenho interesse sim, pode mandar a proposta."
+    - "Quero sim, pode seguir."
+    - "bora, manda os papel"
+    - "Aceito. Pode vir conversar aqui na fazenda."
+    - "sim"
+    - "Pode contar comigo, tenho uma área de grota que não serve pra nada."
+    - "tenho interesse em saber mais"
+    - "Quero participar sim senhor"
+    - "Fechado, manda o que precisa."
+    - "Gostei da ideia, quero seguir."
+    - "Opa, interessa sim. Me manda os detalhes."
+    - "pode mandar a proposta que eu olho com calma"
+    - "meu pai concordou, pode seguir com a gente"
+    - "Sim, quero. A beira do rio já tá mesmo sem uso."
+    - "Interessado. Aguardo contato."
+    - "Topo"
+    - "Se for como vocês falaram, pode seguir que eu aceito."
+    - "Quero saber mais sobre esse pagamento por carbono, me manda o material."
+    - "Pode marcar a visita, quero conhecer o projeto."
+    - "Aceito sim, obrigado pelo convite."
+  recusa:
+    - "Não tenho interesse."
+    - "não"
+    - "Obrigado, mas não quero mexer na minha terra."
+    - "Não, a área é toda de pasto e não vou tirar o gado."
+    - "Agradeço mas não."
+    - "nao quero nao"
+    - "Já tenho contrato com outra empresa, não posso."
+    - "Não me manda mais mensagem."
+    - "Tô fora."
+    - "Prefiro não participar."
+    - "Não tenho área sobrando pra isso, obrigado."
+    - "Meu irmão e eu decidimos que não vamos entrar."
+    - "Isso aí não é pra mim."
+    - "Não acredito nesse negócio de carbono, não quero."
+    - "Dispenso."
+    - "Agora não, obrigado. Não tenho interesse."
+    - "Não vou plantar mato onde dá pra plantar soja."
+    - "Pode tirar meu número da lista."
+  duvida:
+    - "Quanto vocês pagam por hectare?"
+    - "Isso tem algum custo pra mim?"
+    - "Vou perder o direito de usar a área?"
+    - "Quem paga o plantio das mudas?"
+    - "Quantos anos dura o contrato?"
+    - "Como vocês conseguiram meu número?"
+    - "Precisa ter o CAR em dia?"
+    - "E se eu vender a fazenda depois, como fica?"
+    - "Posso continuar soltando o gado lá?"
+    - "Vocês são de onde?"
+    - "o dinheiro cai todo ano ou só no final?"
+    - "precisa ir no cartório?"
+    - "A área de reserva que já tenho conta?"
+    - "Tem que cercar a área?"
+    - "Quem fica responsável se pegar fogo?"
+    - "Isso é do governo ou é empresa particular?"
+    - "Qual o tamanho mínimo da área?"
+    - "Posso plantar árvore de fruta junto?"
+    - "Vocês pagam adiantado alguma parte?"
+    - "Minha terra é arrendada, mesmo assim dá?"
+  outro:
+    - "Bom dia! Aqui choveu bastante essa semana, graças a Deus."
+    - "Tô vendendo 30 bezerros desmamados, se souber de alguém me avisa."
+    - "Feliz Natal pra toda a equipe!"
+    - "Aqui é da loja agropecuária, segue a tabela de preços da ração deste mês."
+    - "A estrada da comunidade tá intransitável depois da chuva."
+    - "Recebi o boleto do sindicato, já paguei."
+    - "Meu trator quebrou de novo, tô esperando a peça."
+    - "Bom dia, Deus abençoe o dia de todos."
+  # sem resposta válida: não dá para saber a intenção; a resposta certa é "outro"
+  sem_resposta:
+    - ""
+    - "[mensagem apagada]"
+    - "[áudio de 1:12 não transcrito]"
+    - "[figurinha]"
+    - "?"
+    - "..."
+    - "kkkk"
+    - "Hoje não dá, tô na colheita, depois a gente conversa."
+    - "Vou ver com a minha esposa e te falo."
+    - "Recebi."
+    - "Mandou pro número errado, aqui é de uma oficina."
+    - "[imagem]"
+    - "Hum"
+    - "Vou pensar."
+
+# Entendimento da proposta (teach-back). esperado: área, prazo, pagamento, desistiu (1 = sim, 0 = não).
+explicacao:
+  - {proposta: p1, esperado: "1110", mensagem: "São 12 hectares por 30 anos, e vocês me pagam 1.200 por hectare todo ano, dividido em duas vezes."}
+  - {proposta: p1, esperado: "1110", mensagem: "Doze hectare, trinta anos e recebo por ano por hectare."}
+  - {proposta: p1, esperado: "1010", mensagem: "Entendi que é uns 12 hectares e o pagamento é por ano."}
+  - {proposta: p1, esperado: "1000", mensagem: "Vou deixar a área de 12 hectares fechada pra mata crescer."}
+  - {proposta: p1, esperado: "0100", mensagem: "É por 30 anos."}
+  - {proposta: p1, esperado: "0010", mensagem: "Vocês pagam mil e duzentos por hectare a cada ano."}
+  - {proposta: p1, esperado: "0110", mensagem: "São 20 hectares por 30 anos, pagando por ano por hectare."}
+  - {proposta: p1, esperado: "1010", mensagem: "12 hectares por 10 anos e recebo 1.200 por ano por hectare."}
+  - {proposta: p1, esperado: "1111", mensagem: "Entendi tudo, 12 hectares, 30 anos e 1.200 por hectare ao ano. Mas pensei melhor e não quero mais."}
+  - {proposta: p1, esperado: "0001", mensagem: "Pensando bem, desisto. Não vou entrar."}
+  - {proposta: p1, esperado: "1110", mensagem: "Uns doze hectares, umas três décadas, e cai dinheiro duas vezes por ano, 1.200 por hectare no ano."}
+  - {proposta: p1, esperado: "1100", mensagem: "Vocês me pagam uma vez só no começo, 12 hectares por 30 anos."}
+  - {proposta: p2, esperado: "1110", mensagem: "Quatro hectares e meio, vinte anos, 900 por hectare no plantio e depois 300 por hectare todo ano."}
+  - {proposta: p2, esperado: "1100", mensagem: "Uns 4 hectares e pouco, por 20 anos."}
+  - {proposta: p2, esperado: "0010", mensagem: "Recebo 900 no plantio e depois 300 por ano, por hectare."}
+  - {proposta: p2, esperado: "0100", mensagem: "45 hectares por 20 anos."}
+  - {proposta: p2, esperado: "1110", mensagem: "Quatro e meio hectare, vinte anos, um dinheiro no plantio e outro menor todo ano, por hectare."}
+  - {proposta: p2, esperado: "1000", mensagem: "São 4,5 hectares pra sempre."}
+  - {proposta: p2, esperado: "0100", mensagem: "Entendi o prazo de 20 anos, o resto não lembro."}
+  - {proposta: p2, esperado: "1111", mensagem: "Vinte anos, quatro hectares e meio, 900 por hectare no plantio mais 300 por ano. Mas minha mulher não quer, então desisto."}
+  - {proposta: p2, esperado: "0001", mensagem: "Não quero mais, obrigado."}
+  - {proposta: p2, esperado: "1010", mensagem: "4,5 hectares, 2 anos, 900 por hectare no plantio e 300 por hectare por ano."}
+  - {proposta: p2, esperado: "0000", mensagem: "Vocês pagam 300 por mês."}
+  - {proposta: p2, esperado: "1000", mensagem: "Área de quatro hectares e meio."}
+  - {proposta: p3, esperado: "1110", mensagem: "60 hectares, 40 anos e eu fico com 40% do que vender de carbono, pago uma vez por ano."}
+  - {proposta: p3, esperado: "1110", mensagem: "Sessenta hectares por quarenta anos, e recebo 40 por cento da venda dos créditos todo ano."}
+  - {proposta: p3, esperado: "1000", mensagem: "60 hectares e vocês me pagam um valor fixo por hectare."}
+  - {proposta: p3, esperado: "0110", mensagem: "São 40 anos e ganho 40 por cento da venda dos créditos."}
+  - {proposta: p3, esperado: "0110", mensagem: "6 hectares, 40 anos, 40% da venda do carbono."}
+  - {proposta: p3, esperado: "1000", mensagem: "60 hectares por 4 anos."}
+  - {proposta: p3, esperado: "0010", mensagem: "Recebo 40% do carbono vendido, uma vez por ano."}
+  - {proposta: p3, esperado: "1111", mensagem: "Sessenta hectares, quarenta anos, quarenta por cento da venda do carbono. Pensei e não vou fazer."}
+  - {proposta: p3, esperado: "0001", mensagem: "Não tenho mais interesse, pode cancelar."}
+  - {proposta: p3, esperado: "1100", mensagem: "60 hectares, 40 anos, e vocês ficam com 40% e eu com o resto."}
+  - {proposta: p3, esperado: "1100", mensagem: "uns 60 ha, 40 anos"}
+  - {proposta: p3, esperado: "0010", mensagem: "a parte do pagamento entendi: 40% do que vender de crédito, todo ano"}
+  # sem resposta válida: o dono não explicou nada; a resposta certa é nada entendido e sem desistência
+  - {proposta: p1, esperado: "0000", sem_resposta: true, mensagem: "[áudio de 0:48 não transcrito]"}
+  - {proposta: p2, esperado: "0000", sem_resposta: true, mensagem: "Ainda não li, depois eu vejo."}
+  - {proposta: p3, esperado: "0000", sem_resposta: true, mensagem: "ok"}
+  - {proposta: p1, esperado: "0000", sem_resposta: true, mensagem: "Manda de novo que não abriu aqui."}

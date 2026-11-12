@@ -32,3 +32,5 @@ regras:
   revisao_parada: {gravidade: aviso, horas: 24}
   mensagem_esperando_aprovacao: {gravidade: aviso, horas: 12}
   pedido_fazenda_com_problema: {gravidade: urgente}
+  # cascata por confiança subindo fora da faixa calibrada (20 a 30%) com folga de 15 pontos (E7 passo 10)
+  cascata_fora_da_faixa: {gravidade: aviso, dias: 7, minimo: 50, margem: 0.15}

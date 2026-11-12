@@ -1,7 +1,10 @@
 """Modelo local no llama.cpp (llama-server, MIT): Qwen3-4B-Instruct-2507 (Apache-2.0), roda em CPU.
 
-O JSON sai por gramática: o servidor converte o JSON Schema do pedido numa gramática GBNF e só deixa o modelo gerar
-texto que cabe nela (response_format json_schema). Temperatura 0 para o voto ser reprodutível.
+O JSON sai por gramática: o servidor converte o JSON Schema do pedido (response_format json_schema) em gramática e só
+deixa o modelo gerar texto que cabe nela. Compilado com llguidance (infra/llama/Dockerfile), o esquema vai direto ao
+llguidance; sem ele, vira GBNF. Temperatura 0 para o voto ser reprodutível.
+A resposta traz os logprobs de cada token: a confiança (raiz/modelos/confianca.py) decide na cascata se a resposta
+fica no Qwen ou sobe de modelo.
 Subir o servidor: ver infra/docker-compose.yml (serviço llama).
 """
 
@@ -13,6 +16,7 @@ import httpx
 
 from raiz.config import config
 from raiz.modelos.base import Cronometro, Pedido, Resposta, Uso, valida_esquema
+from raiz.modelos.confianca import confianca
 from raiz.modelos.custo import custo
 
 
@@ -36,6 +40,8 @@ class LlamaCpp:
             "messages": [{"role": "system", "content": pedido.sistema}, {"role": "user", "content": pedido.mensagem}],
             "max_tokens": pedido.max_tokens,
             "temperature": 0,
+            "logprobs": True,
+            "top_logprobs": 3,
             "response_format": {
                 "type": "json_schema",
                 "json_schema": {"name": "saida", "strict": True, "schema": pedido.esquema},
@@ -65,4 +71,5 @@ class LlamaCpp:
             return Resposta(None, erro=f"resposta ilegível: {ex}", **base)
         if err := valida_esquema(dados, pedido.esquema):
             return Resposta(None, erro=f"fora do esquema: {err}", **base)
-        return Resposta(dados, **base)
+        tokens = (escolha.get("logprobs") or {}).get("content")
+        return Resposta(dados, confianca=confianca(tokens, dados), **base)

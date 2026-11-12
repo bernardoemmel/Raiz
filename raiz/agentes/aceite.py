@@ -156,17 +156,38 @@ def ouvir(estado: Estado) -> dict:
     return {"resposta": resposta}
 
 
-def classificar(estado: Estado, config) -> dict:
-    d = _deps(config)
-    p = Pedido(
-        "aceite.intencao",
-        SISTEMA_INTENCAO,
-        str(estado.get("resposta") or ""),
-        ESQ_INTENCAO,
-        cod_imovel=estado["cod_imovel"],
-        max_tokens=200,
+def pedido_intencao(resposta: str, cod_imovel: str | None = None) -> Pedido:
+    """O pedido de classificação da resposta ao convite (o mesmo do teste próprio, raiz/modelos/avaliacao)."""
+    return Pedido(
+        "aceite.intencao", SISTEMA_INTENCAO, resposta, ESQ_INTENCAO, cod_imovel=cod_imovel, max_tokens=200, pessoal=True
+    )
+
+
+def sistema_explicacao(proposta: dict) -> str:
+    return (
+        "Um produtor rural recebeu uma proposta e explicou com as próprias palavras o que entendeu. Diga se ele "
+        f"entendeu cada ponto. Proposta: área de {proposta['area_ha']} hectares; prazo de {proposta['prazo_anos']} "
+        f"anos; pagamento: {proposta['pagamento']}. Considere entendido se o sentido estiver certo, mesmo com palavras "
+        "simples ou números arredondados. Marque desistiu=true só se ele disser que não quer mais."
+    )
+
+
+def pedido_explicacao(proposta: dict, resposta: str, cod_imovel: str | None = None) -> Pedido:
+    """O pedido que confere o teach-back (o mesmo do teste próprio, raiz/modelos/avaliacao)."""
+    return Pedido(
+        "aceite.explicacao",
+        sistema_explicacao(proposta),
+        resposta,
+        ESQ_ENTENDIMENTO,
+        cod_imovel=cod_imovel,
+        max_tokens=300,
         pessoal=True,
     )
+
+
+def classificar(estado: Estado, config) -> dict:
+    d = _deps(config)
+    p = pedido_intencao(str(estado.get("resposta") or ""), estado["cod_imovel"])
     with d.engine.begin() as con:
         r = d.cascata.decidir(p, con)
     intencao = r.dados["intencao"] if r.dados else "sem_acordo"
@@ -202,22 +223,7 @@ def apresentar_proposta(estado: Estado, config) -> dict:
 
 def avaliar_explicacao(estado: Estado, config) -> dict:
     d = _deps(config)
-    p_ = estado["proposta"]
-    sistema = (
-        "Um produtor rural recebeu uma proposta e explicou com as próprias palavras o que entendeu. Diga se ele "
-        f"entendeu cada ponto. Proposta: área de {p_['area_ha']} hectares; prazo de {p_['prazo_anos']} anos; "
-        f"pagamento: {p_['pagamento']}. Considere entendido se o sentido estiver certo, mesmo com palavras simples "
-        "ou números arredondados. Marque desistiu=true só se ele disser que não quer mais."
-    )
-    p = Pedido(
-        "aceite.explicacao",
-        sistema,
-        str(estado.get("resposta") or ""),
-        ESQ_ENTENDIMENTO,
-        cod_imovel=estado["cod_imovel"],
-        max_tokens=300,
-        pessoal=True,
-    )
+    p = pedido_explicacao(estado["proposta"], str(estado.get("resposta") or ""), estado["cod_imovel"])
     with d.engine.begin() as con:
         r = d.cascata.decidir(p, con)
     return {"entendimento": r.dados, "resposta": None, "tentativas": estado.get("tentativas", 0) + 1}

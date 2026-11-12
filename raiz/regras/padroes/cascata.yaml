@@ -1,0 +1,29 @@
+# Rota e confiança da cascata de modelos (E7 passo 10). Versão = nome + hash deste arquivo; vai em cada decisão.
+nome: cascata-2026.11a
+
+# O modelo local (Qwen3-4B no llama.cpp) só faz classificação curta: saída com poucos campos, todos de lista
+# fechada (enum) ou sim/não, resposta curta e entrada que cabe com folga no contexto. O resto vai para a nuvem.
+local:
+  max_tokens: 400
+  max_campos: 6
+  max_caracteres_entrada: 4000
+  campos_aceitos: [enum, boolean]
+  # tarefas que nunca vão ao modelo local, mesmo cabendo nas regras acima
+  so_nuvem: []
+
+# Tarefa que não cabe no local (várias chamadas de ferramenta, leitura longa, texto livre): responde o Haiku
+# (triagem) sozinho; se o Haiku falhar ou recusar, o Sonnet (juiz); sem resposta, a fila de revisão.
+nuvem:
+  primeiro: triagem
+  reserva: juiz
+
+# Cascata por confiança: o Qwen responde com a confiança tirada dos logprobs. Acima do corte da tarefa, vale a
+# resposta dele; abaixo, sobe para a votação com o Haiku (e o Sonnet no desempate). O corte é calibrado no teste
+# próprio em português (`raiz modelos calibrar`) e fica em cascata_cortes.yaml. Tarefa sem corte fica na votação.
+confianca:
+  # fração das respostas que sobe de modelo no teste
+  faixa_subida: [0.20, 0.30]
+  # acerto mínimo das respostas que ficam no Qwen; se nenhum corte da faixa chega lá, a tarefa fica na votação
+  acerto_minimo_aceito: 0.95
+  # respostas mínimas no teste (tarefas x tentativas) para calibrar
+  minimo_respostas: 30
