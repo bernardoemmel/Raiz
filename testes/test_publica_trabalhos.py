@@ -212,6 +212,8 @@ def test_workers_pulam_trava_e_cancelamento_nao_promete_desfazer(eng, empresa, m
 
 
 def test_reserva_so_prepara_para_pessoa(eng, empresa, monkeypatch):
+    with eng.begin() as con:
+        con.execute(text("update negocio.conta_api set reservar_habilitado=true where cliente_id=:c"), {"c": empresa})
     pedido = str(uuid.uuid4())
     recebido = []
 
