@@ -19,6 +19,26 @@ Todo chat que constrói a Raíz confere se o seu trabalho aproxima esta cena. Se
 6. A Raíz aborda os donos, colhe o aceite e cobra a conexão por hectare. O pedido salvo vira **alerta**: quando surge
    fazenda que melhora o lote, ou quando uma do lote tem desmatamento, embargo ou matrícula cancelada, o cliente é avisado.
 
+## Interesse do dono: filtro e busca de aceite
+
+Cada fazenda tem um **nível de interesse do dono**, que só sobe com registro (data, canal e versão do termo):
+`sem_contato` → `contatado` → `interessado` → `aceite_fase1` (pagamento pequeno até o resultado do leilão) →
+`contrato_firme`; ou `recusou` / `sem_resposta` (com motivo).
+
+1. **Filtro:** o cliente pode pedir "só fazendas com dono interessado" (ou com aceite). O lote sai só delas, com o
+   aviso do quanto falta para a meta.
+2. **Busca de aceite (botão "buscar o interesse dos donos"):** com o lote montado, a Raíz contata os donos na ordem
+   do lote. Quem recusa ou não responde no prazo sai, o otimizador recalcula e puxa a próxima fazenda (primeiro as de
+   reserva, depois novas), e a Raíz contata essa. O ciclo segue **até o grupo com interesse fechar a meta** ou até
+   esgotar as opções, quando o cliente recebe o quanto faltou e o que afrouxar no pedido.
+3. O cliente acompanha o andamento: % da meta com dono interessado, com aceite e com contrato; quantos contatados,
+   quantos recusaram e por quê (sem nome nem CPF).
+4. Quem contata: o agente de contato da Raíz (WhatsApp, carta e e-mail, com roteiro e termo LGPD) e, quando precisa de
+   visita, parceiro local credenciado com o app da Raíz. Nunca o cliente direto: o contato passa pela Raíz.
+5. Cobrança: a conexão por hectare é cobrada sobre o grupo que aceitou.
+6. Aprendizado: cada contato guarda o resultado; a chance de aceite por perfil de fazenda (tamanho, caminho da terra,
+   região, pagamento oferecido) entra no otimizador, que passa a preferir lotes com mais chance de fechar.
+
 ## O pedido (campos)
 
 | Campo | Exemplos |
@@ -30,6 +50,7 @@ Todo chat que constrói a Raíz confere se o seu trabalho aproxima esta cena. Se
 | Métodos aceitos | regeneração assistida, semeadura direta, plantio total, agrofloresta/cacau, silvipastoril (FLAG) |
 | Terra aceita | níveis de risco do caminho da terra (ex.: só matrícula conferida e concessão; ou também posse em titulação) |
 | Forma do lote | distância máxima entre fazendas, número máximo de donos, área mínima contígua |
+| Interesse do dono | qualquer, só interessados, só com aceite |
 | Exclusões | embargo, terra indígena, UC de proteção integral, sobreposição com projeto de carbono existente |
 
 ## Como escolher o lote
