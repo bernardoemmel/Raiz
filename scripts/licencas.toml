@@ -4,7 +4,7 @@
 # [gpl_no_servidor]: pacote GPL permitido porque roda só no servidor (nunca no produto distribuído); escrever o motivo.
 
 [conferidas]
-croissant-baker = "MIT; licença do pacote 0.8.3 em croissant_baker-0.8.3.dist-info/licenses/LICENSE; https://github.com/MIT-LCP/croissant-baker/blob/main/LICENSE"
-mlcroissant = "Apache-2.0; https://github.com/mlcommons/croissant/blob/main/LICENSE.md (conferida em 12/11/2026)"
+croissant-baker = "MIT (conferido no pacote 0.8.3, croissant_baker-0.8.3.dist-info/licenses/LICENSE; https://github.com/MIT-LCP/croissant-baker/blob/main/LICENSE)"
+mlcroissant = "Apache-2.0 (conferido em https://github.com/mlcommons/croissant/blob/main/LICENSE.md, em 12/11/2026)"
 
 [gpl_no_servidor]
