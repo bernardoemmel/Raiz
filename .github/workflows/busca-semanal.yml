@@ -1,0 +1,64 @@
+# Busca semanal de registros e editais (raiz/documentos/busca): Verra, SFB, Ideflor-Bio e Diário Oficial da União.
+# Toda segunda de manhã: roda a busca, guarda o estado (o que já foi visto) no Release `busca`, mostra a lista no resumo
+# do workflow e abre uma issue quando aparece coisa nova. Só dado público (título, link, data, órgão); as leituras de
+# certidão nunca passam por aqui.
+# Segredo opcional FIRECRAWL_API_KEY: abre o registro novo da Verra e o Diário Oficial quando o acesso direto falha.
+name: Busca semanal de registros e editais
+
+on:
+  schedule:
+    - cron: "23 11 * * 1" # segunda, 8h23 em Brasília
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  issues: write
+
+concurrency:
+  group: busca-semanal
+  cancel-in-progress: false
+
+jobs:
+  buscar:
+    runs-on: ubuntu-latest
+    env:
+      RAIZ_DOCUMENTOS_DIR: dados/documentos
+      FIRECRAWL_API_KEY: ${{ secrets.FIRECRAWL_API_KEY }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Instalar
+        run: pip install -r raiz/documentos/requirements.txt
+
+      - name: Trazer o estado da semana passada
+        run: |
+          mkdir -p dados/documentos/busca
+          gh release download busca -p busca.sqlite -D dados/documentos/busca 2>/dev/null || echo "Primeira rodada: sem estado anterior."
+
+      - name: Buscar
+        id: busca
+        run: python -m raiz.documentos busca semanal
+
+      - name: Guardar o estado e a lista no Release busca
+        run: |
+          gh release view busca >/dev/null 2>&1 || gh release create busca --prerelease --target main \
+            --title "Busca semanal de registros e editais" \
+            --notes "Estado da busca semanal (raiz/documentos/busca). Só dado público. Não editar à mão."
+          gh release upload busca dados/documentos/busca/busca.sqlite --clobber
+          gh release upload busca "${{ steps.busca.outputs.arquivo_md }}" "${{ steps.busca.outputs.arquivo_csv }}" --clobber
+
+      - name: Resumo
+        run: cat "${{ steps.busca.outputs.arquivo_md }}" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Abrir issue com as novidades
+        if: steps.busca.outputs.tem_novidade == '1'
+        run: |
+          gh label create busca-semanal --color 2E7D32 --description "Registros e editais novos" --force
+          gh issue create --label busca-semanal \
+            --title "Registros e editais novos: semana de $(date +%d/%m/%Y)" \
+            --body-file "${{ steps.busca.outputs.arquivo_md }}"

@@ -168,3 +168,28 @@ Dados lidos todo dia (cada um com seus termos; nenhum com licença não comercia
 Estrutura do rascunho do relatório de perda: títulos das seções do Loss Event Report Template v5.0 da Verra
 (modelo obrigatório para quem reporta perda ao VCS), preenchidos com texto próprio. Regra dos prazos: Verra,
 Registration and Issuance Process v4.4, seção 5.3, e errata de 14/02/2023.
+
+## Documentos (`raiz/documentos/`)
+
+Dependências usadas como biblioteca, sem copiar nem alterar o código (`raiz/documentos/requirements.txt`):
+
+| O quê | Para quê | Licença |
+|---|---|---|
+| anthropic (SDK Python) | leitura de certidão e edital pela API da Anthropic | Apache-2.0 |
+| docxtpl | modelos .docx com campos Jinja (usado como biblioteca, sem alteração) | LGPL-2.1 |
+| python-docx | monta os modelos .docx | MIT |
+| Jinja2 (dependência do docxtpl) | campos dos modelos | BSD-3-Clause |
+| pypdf | conta páginas do PDF | BSD-3-Clause |
+| beautifulsoup4 | links das páginas de editais | MIT |
+| requests | páginas e APIs públicas | Apache-2.0 |
+| pandas, numpy | tabelas do motor e faixa P10 a P90 da carteira | BSD-3-Clause |
+| reportlab | PDF de exemplo dos testes | BSD |
+
+Programas e serviços chamados de fora, sem embutir código: LibreOffice (MPL-2.0) converte .docx em PDF no servidor;
+Firecrawl só pela API hospedada (o código do Firecrawl é AGPL: não instalar nem hospedar). Fontes públicas da busca
+semanal, cada uma com seus termos: registro da Verra (VCS), portal gov.br do Serviço Florestal Brasileiro (API do
+Plone), páginas de licitações e concessões do Ideflor-Bio e busca do Diário Oficial da União (in.gov.br).
+
+Métodos reescritos, sem copiar código: cadeia dominial com quebras e ônus ativos (desenho do TitleChain citado no plano,
+E5 passo 7); normal de dois lados nos P10, P50 e P90 e soma ao lado da carteira (E3); regra provisória das faixas
+(faixas-2026a) igual à do back-end (`raiz/regras/padroes/faixas.yaml`).

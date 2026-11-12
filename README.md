@@ -29,6 +29,12 @@ Desempenho: cerca de 30 a 40 s por município com 3 municípios ao mesmo tempo (
 **Amostra (`dados/amostra/`)**: resumo do Pará (144 municípios) e, para Nova Esperança do Piriá (1504950) e São Félix do Xingu (1507300), todos os arquivos por município: imoveis, filtros, certidoes, direto, extras, extras_direto e mapbiomas (sem CPF, CNPJ ou nome).
 Os dados completos não ficam no repositório (são grandes); o motor gera de novo.
 
+**Documentos (`raiz/documentos/`)**: leitor de certidão de matrícula pela API da Anthropic, conferido com o
+`certidoes_<mun>.csv` do motor (conferida, divergente ou cancelada), busca semanal de registros e editais (Verra, SFB,
+Ideflor-Bio, Diário Oficial), documentos em .docx (folha de 3 páginas para o dono, relatório do lote com faixa P10 a
+P90, checklist do edital) e aprendizado (cada leitura com a versão do modelo, marcada quando a certidão real confirma ou
+desmente). Guia: `docs/documentos.md`.
+
 **Documentação (`docs/`)**: `colunas.md` (o que cada coluna significa; é o contrato entre motor e produto) e
 `plano-por-etapa.md` (o que construir, em que ordem, com horas estimadas).
 
