@@ -18,13 +18,14 @@ concurrency:
   cancel-in-progress: false
 
 env:
+  GH_TOKEN: ${{ github.token }}
   RAIZ_DADOS_PRIVADOS_URL: ${{ vars.RAIZ_DADOS_PRIVADOS_URL || format('release-github://{0}/dados-privados', github.repository) }}
   RAIZ_DADOS_PRIVADOS_TOKEN: ${{ secrets.RAIZ_DADOS_PRIVADOS_TOKEN || github.token }}
   SHA_ORIGEM: 31990520b842fd665152b2c7931b3556a66ca180
   OPENBLAS_NUM_THREADS: "1"
   OMP_NUM_THREADS: "1"
 
-# A operação dispara somente quando há vaga para os cinco jobs, sem cancelar estados em execução.
+# Reserva até cinco cotas globais e ajusta a concorrência, sem cancelar estados em execução.
 # Entradas, checkpoints e resultados completos ficam exclusivamente no Release DRAFT dados-privados.
 # Nenhum upload-artifact ou cache/save recebe dados desta retomada.
 jobs:
@@ -32,11 +33,15 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 40
     outputs:
+      vagas: ${{ steps.reserva.outputs.vagas }}
       matriz: ${{ steps.plano.outputs.matriz }}
       plano: ${{ steps.plano.outputs.plano }}
       plano_sha256: ${{ steps.plano.outputs.plano_sha256 }}
     steps:
       - uses: actions/checkout@v4
+      - name: Reservar capacidade global antes de preparar os dados
+        id: reserva
+        run: python scripts/reservar_lote.py --reservar 5
       - name: Motor e amostra congelados na versão original
         uses: actions/checkout@v4
         with:
@@ -66,7 +71,7 @@ jobs:
     timeout-minutes: 240
     strategy:
       fail-fast: false
-      max-parallel: 5
+      max-parallel: ${{ fromJSON(needs.preparar.outputs.vagas) }}
       matrix: ${{ fromJSON(needs.preparar.outputs.matriz) }}
     env:
       PLANO: ${{ needs.preparar.outputs.plano }}
@@ -74,6 +79,11 @@ jobs:
       FATIA: ${{ matrix.fatia }}
     steps:
       - uses: actions/checkout@v4
+      - name: Confirmar as cotas globais antes dos dados e das dependências
+        id: reserva
+        env:
+          VAGAS: ${{ needs.preparar.outputs.vagas }}
+        run: python scripts/reservar_lote.py --confirmar "$VAGAS"
       - uses: actions/checkout@v4
         with:
           ref: ${{ env.SHA_ORIGEM }}
@@ -97,7 +107,7 @@ jobs:
           --destino "$GITHUB_WORKSPACE/rodada" --repo "$GITHUB_REPOSITORY"
           --plano "$PLANO" --plano-sha256 "$PLANO_SHA256" --fatia "$FATIA"
       - name: Guardar progresso exclusivamente no rascunho privado
-        if: always()
+        if: always() && steps.reserva.outcome == 'success'
         working-directory: motor-origem
         run: >-
           uv run python -m raiz.restauracao_retomada checkpoint
@@ -112,6 +122,11 @@ jobs:
       PLANO_SHA256: ${{ needs.preparar.outputs.plano_sha256 }}
     steps:
       - uses: actions/checkout@v4
+      - name: Confirmar as cotas globais antes dos dados e das dependências
+        id: reserva
+        env:
+          VAGAS: ${{ needs.preparar.outputs.vagas }}
+        run: python scripts/reservar_lote.py --confirmar "$VAGAS"
       - uses: actions/checkout@v4
         with:
           ref: ${{ env.SHA_ORIGEM }}

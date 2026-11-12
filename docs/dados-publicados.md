@@ -174,3 +174,113 @@ A leitura real do manifesto completo pelo `ArmazemRelease` privado foi conferida
 com token de ambiente: 12 UFs e controles de retomada presentes. O site e o
 publicador rejeitam snapshots antigos de lotes: as telas de comparação permanecem,
 mas medidas detalhadas vêm da API autenticada.
+
+A continuação Dados do Brasil acrescenta os formatos abaixo sem ampliar o contrato aberto. Fichas públicas
+só descrevem pacotes básicos, geometrias básicas, manifesto e o cartão metodológico revisado; rejeitam campos,
+referências e textos fora desse perfil. `isAccessibleForFree` distingue a projeção aberta dos derivados privados.
+As condições de acesso continuam separadas da licença de redistribuição, ainda não definida para os dados da Raíz.
+
+## Fichas Croissant 1.1 e schema.org nos dois destinos
+
+O publicador do executor gera `croissant_<UF>.json` com o SHA-256 do `raiz_<UF>.tar.gz` efetivamente publicado,
+um `FileObject` por CSV e `FileSet` por tabela. Cada CSV preserva seu próprio esquema, inclusive quando um município
+tem colunas mais novas que outro. O baker 0.8.3 infere os tipos percorrendo o CSV; o mlcroissant 1.1.1 valida a ficha
+sem baixar o pacote. Um teste também carrega registros reais de um tar local pelo mlcroissant. Geração e validação
+trabalham em partes de até 1.500 campos, com processos isolados e checagem global de IDs/referências; a ficha
+publicada continua integral. Isso limita a memória sem retirar campos nem aceitar grafos inconsistentes.
+
+Pacotes de geometria, camadas e arquivos de controle recebem `croissant_<nome-do-arquivo>.json`; esses arquivos
+não tabulares são descritos como distribuições, sem prometer um leitor de registros para formatos não suportados.
+`croissant.json` reúne as fichas publicadas. `croissant_estados.json` descreve os bytes do índice, e seu hash
+fica apenas no catálogo para evitar autorreferência. As próprias fichas não geram novas fichas recursivamente.
+
+Os pacotes e suas fichas são preparados antes do upload e publicados na mesma trava de UF. No destino privado, o catálogo é gerado
+na trava global, com `estados.json` por último. Somente o índice privado passa a trazer `sha256` (pacote comprimido),
+`proveniencia_sha256` (versões/datas dos arquivos), `croissant` e `fichas`; os consumidores antigos podem ignorar
+essas colunas adicionais. No público, as fichas e o catálogo são separados e não alteram o manifesto básico. A atualização retroativa usa o arquivo privado completo e a projeção pública já validada, em espelhos distintos.
+
+A licença dos dados derivados da Raíz ainda não foi definida. As fichas registram essa condição e remetem aos
+créditos e termos das fontes em `NOTICE.md`; não atribuem automaticamente a licença do código ou a do baker aos dados.
+
+## Quantis privados, versão do modelo e cartão metodológico
+
+Cada UF tem `quantis_<UF>.parquet` com `reference_date`, `location`, `target`, `output_type`, `output_type_id`,
+`value` e as colunas de proveniência `model_id`, `model_version`, `source_model_version`, `task_version`,
+`quantile_method` e `source_file`. Os quantis são números `0.1`, `0.5` e `0.9`; cada alvo informa sua unidade em
+`tasks_<UF>.json`. `model_id` segue `raiz-<tarefa>_<hash-da-versao>`.
+
+`hub_<UF>.tar.gz` contém um hub nativo: Parquet com as seis colunas padrão dentro de `model-output/<model_id>/`,
+metadados YAML por modelo e `hub-config/` com tasks/admin v6 e o schema de metadados. `modelos_<UF>.json` registra
+versões, arquivos de entrada e SHA-256; `diagnosticos_quantis_<UF>.json` aponta dados que não puderam ser exportados,
+sem reproduzir valores pessoais. Os arquivos globais `tasks.json`, `modelos.json` e `model-metadata-schema.json`
+unem as configurações e identificações estaduais.
+
+A data é o dia UTC da execução registrada na origem, não a data de publicação nem um corte histórico inferido
+para todas as fontes. Sem versão ou data confiável, a linha não recebe uma versão inventada. Os P10/P50/P90 do
+desenvolvedor são preservados; o P50 legado é o cenário central, que pode diferir da mediana da simulação. FLAG
+tem mínimo, central e máximo: o exportador define uma distribuição triangular provisória, versionada e sem
+calibração empírica, da qual calcula os quantis. O [cartão do modelo](modelo/cartao.md), também publicado como
+`cartao_modelo.md`, detalha métodos, premissas, uso, avaliação e limites.
+
+Os assets privados da UF são retratos mutáveis. O catálogo de versões conserva metadados, mas não é um histórico completo
+de valores previstos. O módulo de aprendizado conserva previsões para comparação longitudinal no seu próprio
+armazenamento; para reproduzir um retrato, conservar em armazenamento autorizado arquivos, hashes e atestação correspondentes.
+
+## Cronogramas CAD Trust, no arquivo privado
+
+`cadt_<UF>.json` descreve o cenário estadual ProFloresta+; `cadt_lotes.json` reúne os estados disponíveis. O objeto
+`projeto` usa campos e listas do CAD Trust; proveniência, premissas e diagnósticos ficam no envelope da Raíz.
+Cada `estimation` informa `creditingPeriodStart`, `creditingPeriodEnd` e `unitCount` anual em `tCO2e`. Os incrementos
+derivam da curva de captura e dos marcos acumulados P50; o arredondamento conserva o total inteiro.
+
+No Actions, `RAIZ_CADT_INICIO_CENARIO` usa **2027-01-01** por padrão e pode ser definida nas variáveis do repositório.
+É uma âncora hipotética para comparar cronogramas. `Listed` representa a listagem neste catálogo de cenários;
+VM0047 é referência metodológica. O arquivo não afirma registro no CAD Trust/Verra, certificação ou emissão de
+créditos. Estado sem lote elegível ou cronograma válido recebe diagnóstico.
+Resultados do desenvolvedor com versão científica/cenário ausentes, versões misturadas ou sem regra verificável
+impedem o projeto estadual. O registro em `raiz/regras/historico/` recupera explicitamente a versão
+`restauracao-2026c+421970fd`, com commit e hashes integrais; preserva previsões e curva originais, aplicando o
+otimizador e as salvaguardas atuais aos créditos publicados. A regra histórica conserva reserva base de **12%**;
+o piso de **20%** de `restauracao-2026d` exige cálculo novo e não é aplicado retroativamente pela exportação.
+O carregador histórico independe do construtor e do normalizador atuais, validando os bytes originais antes de
+montar o cenário.
+
+A proveniência distingue a regra científica original (`regra_source_versao`, commit e SHA256) das versões atuais
+do otimizador, do código do lote e das salvaguardas. Estas últimas também integram a identidade CADT. Sobreposição
+jurisdicional confirmada e CLPI recusada impedem a seleção; ausência de comprovação não libera comercialização.
+O arquivo declara `comercializacao.situacao: pendente` e não inclui decisões ou identificadores de imóveis.
+
+## Atestação e atualização dos arquivos existentes
+
+Depois de cada upload concluído, o publicador registra `sha256  nome` em `$RUNNER_TEMP/atestar.txt` (públicos) ou `atestar-privado.txt` (privados). O passo
+`actions/attest-build-provenance@v2` usa esse arquivo, OIDC e permissões `id-token: write`/`attestations: write` para
+atestar os bytes. Se um nome mudar várias vezes no mesmo job, a assinatura cobre o último upload desse job.
+O SHA identifica conteúdo; a atestação vincula esse conteúdo ao workflow, sem certificar a qualidade científica.
+
+Com GitHub CLI atual e o arquivo baixado, verificar, por exemplo:
+
+```bash
+gh attestation verify quantis_PA.parquet --repo bernardoemmel/Raiz
+```
+
+O workflow `publicar-metadados.yml` preenche os metadados dos dois destinos. Os CSV e as versões completos
+são lidos somente do arquivo autenticado; nunca se tenta reconstruí-los a partir do Release básico. O catálogo
+público descreve os bytes públicos existentes e não altera `estados.json`. Quantis, configuração do hub, catálogo
+de modelos, diagnósticos, CADT e as fichas desses derivados ficam privados. Fichas não geram fichas recursivas.
+
+A execução reserva uma das 15 vagas globais antes do trabalho pesado e usa as travas de UF e do índice. Código
+anterior ao contrato privado não pode executar o motor; o guard roda antes do cache e do cálculo. Uma falha de
+consulta bloqueia a publicação, sem cancelar os jobs existentes. Reservas concluídas ou canceladas não autorizam
+novas execuções.
+
+Antes de cada UF e dos arquivos globais, o publicador confere a margem da API. Cota insuficiente encerra com
+progresso preservado para retomada por UF, ou apenas dos globais. Repetições por quota têm limite de 60 segundos
+por job. Substituições preservam o original em cópia imutável autenticada antes do DELETE; nenhum original
+privado é enviado como artifact ou cache de Actions público.
+
+A atestação contém nomes de arquivos de produto, SHA-256 e proveniência do build; não contém os valores dos
+arquivos nem CARs. Esses identificadores criptográficos podem ser públicos no serviço de atestação do GitHub,
+mesmo quando os bytes permanecem privados. As listas de checksums são separadas para não confundir arquivos
+homônimos dos dois destinos. Para verificar um arquivo privado, o processo autorizado primeiro o baixa e depois
+executa o verificador acima. A ficha privada usa `release-github://repo/tag/nome`, uma URI lógica resolvida pelo
+back-end via API autenticada; o leitor genérico mlcroissant não autentica esse protocolo sozinho.

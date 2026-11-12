@@ -49,6 +49,8 @@ env:
   RAIZ_DADOS_PRIVADOS_URL: ${{ vars.RAIZ_DADOS_PRIVADOS_URL || format('release-github://{0}/dados-privados', github.repository) }}
   RAIZ_DADOS_PRIVADOS_TOKEN: ${{ secrets.RAIZ_DADOS_PRIVADOS_TOKEN || github.token }}
   RAIZ_SEM_BANCO: "1" # sem Postgres no job: a marca do executor guarda o andamento
+  # Âncora HIPOTÉTICA do cenário CAD Trust, sem afirmar data de implantação/contrato de projeto real.
+  RAIZ_CADT_INICIO_CENARIO: ${{ vars.RAIZ_CADT_INICIO_CENARIO || '2027-01-01' }}
   # Fontes nacionais selecionadas para o cache autenticado; nunca enviadas ao cache público do Actions.
   CACHE_COMUM: |
     motor/cache/municipios.csv
@@ -123,6 +125,11 @@ jobs:
 
   processar:
     name: ${{ matrix.unidade }}
+    permissions:
+      contents: write
+      actions: write
+      id-token: write
+      attestations: write
     needs: [planejar, preparar]
     if: ${{ !cancelled() && needs.planejar.outputs.tem == '1' }}
     runs-on: ubuntu-latest
@@ -211,11 +218,67 @@ jobs:
       - name: Rodar pelo executor (fontes, adoção, motor e tarefas do produto) e publicar no Release dados
         run: uv run python motor/rodar_estado.py "$UNIDADE" --executor
 
+      - name: Buscar o publicador do workflow para finalizar executores de versões anteriores
+        id: publicador_checkout
+        if: ${{ !cancelled() && steps.privacidade.outcome == 'success' && matrix.ref != github.workflow_sha }}
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.workflow_sha }}
+          path: publicador-atual
+
+      - name: Dependências do publicador atual em ambiente separado
+        id: publicador_dependencias
+        if: ${{ !cancelled() && steps.publicador_checkout.outcome == 'success' }}
+        working-directory: publicador-atual
+        run: uv sync --frozen --all-extras
+
+      - name: Finalizar metadados da UF com a mesma reserva do executor
+        if: ${{ !cancelled() && steps.publicador_dependencias.outcome == 'success' }}
+        working-directory: publicador-atual
+        env:
+          RAIZ_EXECUTOR_REF: ${{ matrix.ref }}
+          RAIZ_PUBLICADOR_REF: ${{ github.workflow_sha }}
+        run: uv run --all-extras python scripts/publicar_metadados.py --finalizar-unidade
+
       - name: Preservar retratos imutáveis somente no arquivo privado
         if: always() && steps.privacidade.outcome == 'success'
         run: |
           if [ -f raiz/aprendizado/transporte.py ]; then
             uv run raiz aprendizado publicar-retratos --uf "$UF"
+          fi
+
+      - name: Conferir listas separadas dos bytes públicos e privados
+        id: atestar
+        if: always()
+        run: |
+          if test -s "$RUNNER_TEMP/atestar.txt"; then echo "publico=1" >> "$GITHUB_OUTPUT"; fi
+          if test -s "$RUNNER_TEMP/atestar-privado.txt"; then echo "privado=1" >> "$GITHUB_OUTPUT"; fi
+
+      - name: Atestar os arquivos básicos públicos
+        if: always() && steps.atestar.outputs.publico == '1'
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-checksums: ${{ runner.temp }}/atestar.txt
+          show-summary: false
+
+      # Nomes, hashes e proveniência ficam públicos; nenhum conteúdo privado é enviado à ação.
+      - name: Atestar os hashes dos arquivos completos mantidos privados
+        if: always() && steps.atestar.outputs.privado == '1'
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-checksums: ${{ runner.temp }}/atestar-privado.txt
+          show-summary: false
+
+      - name: Guardar o relatório somente no arquivo privado
+        if: always() && steps.privacidade.outcome == 'success'
+        env:
+          RODADA: ${{ github.run_id }}
+          TENTATIVA: ${{ github.run_attempt }}
+        run: |
+          if test -f "$RUNNER_TEMP/catalogo-metadados.json"; then
+            uv run python -m raiz.executor.transferencia_privada enviar-arquivo --imutavel \
+              --nome "catalogo-relatorio-${RODADA}-${TENTATIVA}-${UNIDADE}.json" \
+              --caminho "$RUNNER_TEMP/catalogo-metadados.json"
           fi
 
       - name: Guardar o cache da unidade somente no arquivo privado

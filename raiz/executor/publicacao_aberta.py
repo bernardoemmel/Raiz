@@ -192,8 +192,19 @@ def _validar_csv(nome: str, dados: bytes, uf: str) -> None:
         raise ValueError(f"{nome}: CSV ambíguo")
 
 
-def validar_asset_publico(nome: str, dados: bytes) -> None:
+def validar_asset_publico(nome: str, dados: bytes, *, repo: str = "bernardoemmel/Raiz", tag: str = "dados") -> None:
     """Falha antes do upload se qualquer arquivo/coluna não pertence à projeção pública."""
+    if nome == "cartao_modelo.md":
+        from raiz import RAIZ_REPO
+
+        if dados != (RAIZ_REPO / "docs" / "modelo" / "cartao.md").read_bytes():
+            raise ValueError("cartão público deve corresponder ao texto metodológico revisado")
+        return
+    if nome == "croissant.json" or nome.startswith("croissant_"):
+        from raiz.metadados import validar_ficha_publica
+
+        validar_ficha_publica(nome, dados, repo=repo, tag=tag)
+        return
     if nome == "estados.json":
         manifesto = json.loads(dados)
         if set(manifesto) - {"escopo", "versao_publicacao", "gerado_em", "repo", "tag", "estados"}:

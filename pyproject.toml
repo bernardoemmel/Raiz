@@ -66,6 +66,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+metadados = ["croissant-baker==0.8.3", "mlcroissant==1.1.1"]
 # o que o motor (motor/) precisa além do pacote; ver requirements.txt
 motor = ["requests>=2.31", "rasterio>=1.3", "exactextract>=0.2", "scipy>=1.11"]
 nativo = [

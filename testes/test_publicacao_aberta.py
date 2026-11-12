@@ -69,7 +69,17 @@ def test_dupla_publicacao_guarda_integra_antes_de_expor_basico(tmp_path, monkeyp
     privado.publicar("PA")
     assert "PA/desenvolvedor_1504950.csv" in gh_privado.membros("raiz_PA.tar.gz")
     assert set(gh_publico.membros("raiz_PA.tar.gz")) == {"PA/imoveis_basicos_1504950.csv"}
-    assert set(gh_publico.assets) == {"raiz_PA.tar.gz", "estados.json"}
+    assert set(gh_publico.assets) == {
+        "raiz_PA.tar.gz",
+        "estados.json",
+        "croissant_PA.json",
+        "croissant_estados.json",
+        "croissant_cartao_modelo.md.json",
+        "cartao_modelo.md",
+        "croissant.json",
+    }
+    for nome, dados in gh_publico.assets.items():
+        validar_asset_publico(nome, dados)
     validar_asset_publico("estados.json", gh_publico.assets["estados.json"])
     assert json.loads(gh_publico.assets["estados.json"])["escopo"] == "publico_basico"
 

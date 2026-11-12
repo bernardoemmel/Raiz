@@ -25,6 +25,8 @@ class GitHubFalso:
         self.assets: dict[str, bytes] = {}
         self.uploads: list[str] = []
         self._ids: dict[str, int] = {}
+        self._proximo_id = 1
+        self.refs = set()
         self.privado = True
         self.rascunho = False
         self.downloads: list[str] = []
@@ -50,31 +52,47 @@ class GitHubFalso:
         tok = req.headers.get("authorization") == "Bearer segredo"
         if not tok:
             return httpx.Response(401)
+        if u.path.endswith("/commits/HEAD"):
+            return httpx.Response(200, json={"sha": "a" * 40})
+        if "/git/refs" in u.path:
+            if req.method == "POST":
+                ref = json.loads(req.content)["ref"]
+                if ref in self.refs:
+                    return httpx.Response(422, json={"message": "Reference already exists"})
+                self.refs.add(ref)
+                return httpx.Response(201)
+            if req.method == "DELETE":
+                self.refs.discard("refs/" + u.path.split("/git/refs/", 1)[1])
+                return httpx.Response(204)
         if u.host == "api.github.com" and req.method == "GET":
+            import hashlib
+
+            for n in self.assets:
+                if n not in self._ids:
+                    self._ids[n] = self._proximo_id
+                    self._proximo_id += 1
             assets = [
                 {
-                    "id": self._ids.setdefault(n, max(self._ids.values(), default=0) + 1),
+                    "id": self._ids[n],
                     "name": n,
-                    "size": len(self.assets[n]),
+                    "size": len(d),
+                    "digest": "sha256:" + hashlib.sha256(d).hexdigest(),
                     "updated_at": "2026-11-12T00:00:00Z",
                 }
-                for n in self.assets
+                for n, d in self.assets.items()
             ]
-            if u.path.endswith("/commits/HEAD"):
-                return httpx.Response(200, json={"sha": "a" * 40})
             if "/releases/assets/" in u.path:
                 nome = next(a["name"] for a in assets if a["id"] == int(u.path.rsplit("/", 1)[1]))
                 assert req.headers.get("accept") == "application/octet-stream"
                 self.downloads.append(nome)
                 return httpx.Response(200, content=self.assets[nome])
-            if u.path.endswith("/releases/7/assets"):
-                inicio = (int(u.params.get("page", 1)) - 1) * 100
-                return httpx.Response(200, json=assets[inicio : inicio + 100])
+            if u.path.endswith("/assets"):
+                pagina = int(u.params.get("page", 1))
+                tamanho = int(u.params.get("per_page", 100))
+                return httpx.Response(200, json=assets[(pagina - 1) * tamanho : pagina * tamanho])
             if "/releases/" not in u.path:
                 return httpx.Response(200, json={"private": self.privado})
             return httpx.Response(200, json={"id": 7, "assets": assets, "draft": self.rascunho})
-        if u.host == "api.github.com" and req.method == "POST" and u.path.endswith("/git/refs"):
-            return httpx.Response(201)
         if u.host == "api.github.com" and req.method == "DELETE":
             if "/git/refs/" in u.path:
                 return httpx.Response(204)
@@ -100,6 +118,57 @@ def gh():
 def _armazem(gh, pasta: Path, token="segredo", **kw) -> ArmazemRelease:
     cli = httpx.Client(transport=httpx.MockTransport(gh))
     return ArmazemRelease(REPO, TAG, pasta, token=token, cliente=cli, privado=kw.pop("privado", True), **kw)
+
+
+def test_trava_ocupada_nao_e_removida_por_tempo_de_espera(gh, tmp_path):
+    gh.refs.add("refs/tags/trava-publicar-dados-dados")
+    a = _armazem(gh, tmp_path / "espelho")
+    with pytest.raises(TimeoutError), a._trava(velha_s=0):
+        pytest.fail("não pode publicar sem adquirir a trava")
+    assert gh.refs == {"refs/tags/trava-publicar-dados-dados"}
+    assert not gh.uploads
+
+
+def test_erro_da_api_da_trava_impede_upload(gh, tmp_path, monkeypatch):
+    monkeypatch.setenv("GITHUB_SHA", "a" * 40)
+
+    def indisponivel(req):
+        if req.method == "POST" and req.url.path.endswith("/git/refs"):
+            return httpx.Response(503)
+        return gh(req)
+
+    a = _armazem(indisponivel, tmp_path / "espelho")
+    with pytest.raises(RuntimeError), a._trava():
+        pytest.fail("não pode publicar com falha da API")
+    assert not gh.uploads
+
+
+def test_csv_identico_atualiza_versao_remota_sem_sobrescrever_trabalho_local(gh, tmp_path):
+    nome = "desenvolvedor_1504950.csv"
+    chave = f"saida/PA/{nome}"
+    dados = b"cod_imovel,valor\nPA-1504950-x,1\n"
+
+    def pacote(versao, data):
+        return gh.tar(
+            "PA",
+            {
+                nome: dados,
+                "_versoes.json": json.dumps(
+                    {nome: {"versao": versao, "data": data, "tarefa": "desenvolvedor"}}
+                ).encode(),
+            },
+        )
+
+    gh.assets["raiz_PA.tar.gz"] = pacote("tarefa-1", "2026-11-10T00:00:00+00:00")
+    a = _armazem(gh, tmp_path / "espelho")
+    assert a.meta(chave)["versao"] == "tarefa-1"
+    gh.assets["raiz_PA.tar.gz"] = pacote("tarefa-2", "2026-11-11T00:00:00+00:00")
+    a.garantir_uf("PA", forcar=True)
+    assert a.meta(chave)["versao"] == "tarefa-2"
+    assert a.meta(chave)["data"].startswith("2026-11-11")
+    a.por_bytes(chave, dados, {"versao": "tarefa-local", "data": "2026-11-12T00:00:00+00:00"})
+    a.garantir_uf("PA", forcar=True)
+    assert a.meta(chave)["versao"] == "tarefa-local"
 
 
 STUB = """
@@ -212,6 +281,52 @@ def test_nao_publica_coluna_proibida(gh, tmp_path):
     with pytest.raises(ValueError, match="proibida"):
         a.publicar("PA")
     assert "raiz_PA.tar.gz" not in gh.assets
+
+
+def test_ficha_corresponde_ao_pacote_e_catalogo_preserva_outros_estados(gh, tmp_path):
+    import hashlib
+
+    a = _armazem(gh, tmp_path / "esp")
+    a.por_bytes(f"saida/PA/imoveis_{C1}.csv", b"cod_imovel,ha\nx,1\n", {"versao": "funil-1"})
+    a.publicar("PA")
+    man = json.loads(gh.assets["estados.json"])["estados"]["PA"]
+    assert man["sha256"] == hashlib.sha256(gh.assets["raiz_PA.tar.gz"]).hexdigest()
+    ficha = json.loads(gh.assets["croissant_PA.json"])
+    pacote = next(d for d in ficha["distribution"] if d.get("contentUrl") == a.url_metadados("raiz_PA.tar.gz"))
+    assert pacote["sha256"] == man["sha256"]
+    assert man["croissant"]["sha256"] == hashlib.sha256(gh.assets["croissant_PA.json"]).hexdigest()
+    a.por_bytes("saida/AC/imoveis_1200001.csv", b"cod_imovel,ha\ny,2\n", {"versao": "funil-1"})
+    a.publicar("AC")
+    catalogo = json.dumps(json.loads(gh.assets["croissant.json"]))
+    assert "croissant_PA.json" in catalogo and "croissant_AC.json" in catalogo
+    assert gh.uploads[-1] == "estados.json"
+    # Publicar de novo sem mudar o CSV não troca os bytes que a ficha identifica.
+    pacote_antes = gh.assets["raiz_PA.tar.gz"]
+    a.publicar("PA")
+    assert gh.assets["raiz_PA.tar.gz"] == pacote_antes
+
+
+def test_falha_na_ficha_nao_publica_pacote_parcial(gh, tmp_path, monkeypatch):
+    from raiz import metadados
+
+    def falhar(*args, **kwargs):
+        raise ValueError("ficha inválida")
+
+    a = _armazem(gh, tmp_path / "esp")
+    a.por_bytes(f"saida/PA/imoveis_{C1}.csv", b"cod_imovel,ha\nx,1\n")
+    monkeypatch.setattr(metadados, "croissant_uf", falhar)
+    with pytest.raises(ValueError, match="ficha inválida"):
+        a.publicar("PA")
+    assert not gh.uploads
+
+
+def test_publicacao_recupera_asset_ausente_sem_alteracao_dos_dados(gh, tmp_path):
+    a = _armazem(gh, tmp_path / "esp")
+    a.por_bytes(f"saida/PA/imoveis_{C1}.csv", b"cod_imovel,ha\nx,1\n")
+    a.publicar("PA")
+    del gh.assets["raiz_PA.tar.gz"]  # falha de upload após DELETE, com índice da publicação anterior
+    a.publicar("PA")
+    assert f"PA/imoveis_{C1}.csv" in gh.membros("raiz_PA.tar.gz")
 
 
 def test_armazem_padrao_e_o_release(monkeypatch):
