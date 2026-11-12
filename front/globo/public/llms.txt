@@ -6,14 +6,14 @@ Os números representam a base processada disponível nesta publicação, não t
 
 Uma fazenda é apta no funil quando não tem problema, tem área de carbono maior que zero e no máximo 5 hectares desmatados depois de 2016. Sem a coluna de problema, o motor considera embargo, terra indígena, desmatamento ou alerta depois de 2020, cada um acima de 1 hectare. A indicação de matrícula exige aptidão e pelo menos 50% do CAR coberto por parcela particular do SIGEF com matrícula. Fazendas pequenas são agrupadas, nunca descartadas pelo tamanho.
 
-CPF e CNPJ são mascarados. Nome e contato do dono não são publicados: o contato passa pela Raíz. A ficha pública por código curto só revela o CAR, o polígono exato e a imagem de satélite depois do aceite. Não tente inferir pessoas, consentimento ou disponibilidade comercial a partir dos dados geográficos.
+O site aberto publica somente agregados. A ficha completa exige conta de cliente e créditos pagos, com limites de consulta. Nome, CPF, CNPJ e contato do dono não aparecem na ficha de prospecção: o contato passa pela Raíz. Grupos com menos de cinco imóveis têm números suprimidos na publicação aberta. Não tente inferir pessoas, consentimento ou disponibilidade comercial a partir dos dados geográficos.
 
 ## Páginas
 
 - [Brasil e cobertura dos dados](index.md): números desta publicação e acesso aos resumos por estado e município.
 - [Catálogo dos estados](dados/index.md): dados disponíveis, suas versões e fontes.
 - [Ficha do produtor](produtor/index.md): leitura da ficha e diferença entre aptidão e aceite.
-- [Serviço e reserva](servico.md): conexão por hectare, reserva e limites do site demonstrativo.
+- [Serviço e reserva](servico.md): fichas com créditos pagos, conexão por hectare e reserva.
 - [Privacidade](privacidade.md): dados pessoais, consentimento e regras de divulgação.
 - [Fontes e interpretação](fontes.md): origem dos dados e limites das estimativas.
 

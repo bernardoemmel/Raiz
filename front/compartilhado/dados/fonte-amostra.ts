@@ -54,6 +54,7 @@ export function fonteAmostra(base = "/"): FonteDeDados {
   })
 
   const imoveis = memo(async (cod: string): Promise<Imovel[] | null> => {
+    if ((await estados("")).acesso === "agregado") return null
     const uf = ufDoCodigo(cod)
     if (!uf) return null
     const arqs = await indice(uf)
@@ -82,6 +83,7 @@ export function fonteAmostra(base = "/"): FonteDeDados {
 
   /** onde procurar um código do CAR (inteiro ou o começo com os 7 números): o município do código e as exceções */
   async function municipiosDoCar(car: string): Promise<string[]> {
+    if ((await estados("")).acesso === "agregado") return []
     const m = /^([A-Z]{2})-(\d{7})/.exec(car)
     const uf = m ? ufDoCodigo(m[2]) : null
     if (!m || !uf) return []
@@ -114,6 +116,7 @@ export function fonteAmostra(base = "/"): FonteDeDados {
       return null
     },
     async ficha(cod_imovel) {
+      if ((await estados("")).acesso === "agregado") return null
       // o plugin do Vite monta a ficha de uma fazenda só; no site estático, o build grava as fichas dos municípios com
       // contorno e as outras saem aqui, dos CSV do município (mesma função do plugin e do back-end)
       const prontas = await indiceFichas("")
@@ -157,9 +160,11 @@ export function fonteAmostra(base = "/"): FonteDeDados {
       const car = pareceCar(q) ? normalizarCar(q) : null
       const cods = car ? await municipiosDoCar(car) : []
       const lista = (await Promise.all(cods.map((c) => imoveis(c)))).flatMap((l) => l ?? [])
-      const todos = await municipios("")
+      const cidades = await municipios("")
       sinal?.throwIfAborted()
-      return buscar(q, { municipios: todos, imoveis: lista, comImoveis })
+      const resultado = buscar(q, { municipios: cidades, imoveis: lista, comImoveis })
+      const suprimidos = new Set(cidades.filter((m) => m.linha.dados_suprimidos === "true").map((m) => m.cod_ibge))
+      return { ...resultado, municipios: resultado.municipios.map((m) => ({ ...m, imoveis: suprimidos.has(m.cod_ibge) ? null : m.imoveis })) }
     },
     estados: () => estados(""),
     pontos: (uf) => pontos(uf),

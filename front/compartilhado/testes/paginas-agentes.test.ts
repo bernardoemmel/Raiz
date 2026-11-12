@@ -46,6 +46,7 @@ describe("páginas para pessoas e agentes", () => {
       expect(dados[0].distribution[0].contentUrl).toBe(`https://bernardoemmel.github.io${base}amostra/resumo_PA.csv.gz`)
       expect(dados[0].dateModified).toBe("2026-11-11T10:00:00.000Z")
       expect(dados[0].version).toBe("abc123")
+      expect(ler(saida, "dados/estados/PA.md")).not.toContain("imoveis_1505536.csv")
       for (const arquivo of ["index.md", "dados/index.md", "dados/estados/PA.md", "dados/municipios/1505536.md", "servico.md", "privacidade.md", "fontes.md"]) {
         const links = [...ler(saida, arquivo).matchAll(/\]\(([^)]+)\)/g)].map((m) => m[1])
         for (const href of links.filter((l) => l.startsWith(base) && l.endsWith(".md") && !l.includes("produtor/"))) {
@@ -54,6 +55,39 @@ describe("páginas para pessoas e agentes", () => {
       }
     })
   }
+
+  it("mantém a supressão de grupos pequenos no município, estado e total do Brasil", () => {
+    const saida = preparar()
+    const pequena = lerFunil({ ...municipio.linha, cod_ibge: "1504208", municipio: "Marabá", imoveis: "3", ha_carbono: "987.65" }, "PA")
+    paginasAgentes({ saida, base: "/Raiz/", catalogo: { ...catalogo, municipios: [municipio, pequena] } })
+    const local = ler(saida, "dados/municipios/1504208.md")
+    expect(local).toContain("| Imóveis analisados | Suprimido |")
+    expect(local).not.toContain("987,65")
+    expect(local).not.toContain("| Imóveis analisados | 3 |")
+    for (const arq of ["index.md", "dados/index.md", "dados/estados/PA.md"]) {
+      expect(ler(saida, arq)).toContain("totais deste recorte foram suprimidos")
+      expect(ler(saida, arq)).not.toContain("14 imóveis")
+    }
+    const dados = schema(saida)["@graph"].filter((g: Record<string, unknown>) => g["@type"] === "Dataset")
+    expect(dados[0].distribution).toHaveLength(1)
+    expect(dados[0].distribution[0].name).toBe("resumo_PA.csv")
+  })
+
+  it("não anuncia estados que tenham somente listas privadas de fazendas", () => {
+    const saida = preparar()
+    paginasAgentes({ saida, base: "/Raiz/", catalogo: { ...catalogo, arquivos: { PA: ["imoveis_1505536.csv"] } } })
+    expect(schema(saida)["@graph"].some((g: Record<string, unknown>) => g["@type"] === "Dataset")).toBe(false)
+    expect(fs.existsSync(path.join(saida, "dados/estados/PA.md"))).toBe(false)
+    expect(ler(saida, "index.md")).not.toContain("11 imóveis")
+  })
+
+  it("preserva a marca de supressão mesmo quando o leitor normalizou vazios para zero", () => {
+    const saida = preparar()
+    const suprimido = lerFunil({ ...municipio.linha, dados_suprimidos: "true", imoveis: "", ha_carbono: "" }, "PA")
+    paginasAgentes({ saida, base: "/Raiz/", catalogo: { ...catalogo, municipios: [suprimido] } })
+    expect(ler(saida, "dados/municipios/1505536.md")).toContain("| Imóveis analisados | Suprimido |")
+    expect(ler(saida, "dados/municipios/1505536.md")).not.toContain("| Imóveis analisados | 0 |")
+  })
 
   it.each([undefined, "", "NaN", "NA"])("não transforma indicador opcional ausente (%s) em zero", (vazio) => {
     const saida = preparar()
