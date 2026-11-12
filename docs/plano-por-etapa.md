@@ -219,7 +219,7 @@ faz sem back-end.
 
 | Ordem | Passo | Depende de | Horas |
 |---|---|---|---|
-| 1 | Medidor de legibilidade: copiar contagem e fórmulas do ALT (sem PyMuPDF), calcular as três versões do Flesch (ALT, LanguageTool, Martins) e guardar todas | nada | 2 a 4 |
+| 1 | Medidor de legibilidade: copiar contagem e fórmulas do ALT (sem PyMuPDF), calcular as três versões do Flesch (ALT, LanguageTool, Martins) e guardar todas | nada | feito (raiz/legibilidade.py, docs/legibilidade.md; nota guardada em cada mensagem ao dono e em cada aviso; `raiz legibilidade`); falta uma lista aberta de palavras comuns para o Gunning Fog |
 | 1 | Gerar a ficha de cada fazenda em JSON (rows.json) a partir do funil, com os campos que o vídeo, o cartão e o texto vão usar | E2, E3, E5 | parcial: a ficha JSON existe (front/compartilhado/dados/ficha.ts e GET /imoveis/{cod}/ficha em raiz/front_api.py); falta gravar em lote no back-end (2 a 3) |
 | 1 | Trocar o cartão da ficha de Satori + resvg para Takumi com saída WebP (manter Satori só onde precisar de SVG) | modelo do cartão já existente | parcial: o cartão já sai do Takumi (servicos/cartao/render.mjs); falta a saída WebP (1 a 2) |
 | 2 | Servidor LanguageTool em contêiner, só com as regras de estilo e legibilidade do português, chamado antes de todo envio | passo 1 | 2 a 4 |
