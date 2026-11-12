@@ -1170,3 +1170,51 @@ def lote_montar(
         typer.echo(f"  aviso: {res['abaixo_equilibrio']['aviso']}")
     for k, v in out.items():
         typer.echo(f"  {k}: {v}")
+
+
+legibilidade_cli = typer.Typer(help="Medidor de legibilidade dos textos ao dono (ALT, Martins, LanguageTool).")
+app.add_typer(legibilidade_cli, name="legibilidade")
+
+
+@legibilidade_cli.command("medir")
+def legibilidade_medir(
+    arquivo: Annotated[str | None, typer.Argument(help="arquivo de texto; sem nada, lê da entrada")] = None,
+    cru: Annotated[bool, typer.Option(help="conta como o ALT, sem passar números e datas para palavras")] = False,
+    como_json: Annotated[bool, typer.Option("--json", help="todas as contagens e notas em JSON")] = False,
+) -> None:
+    """Mede um texto: as três versões do Flesch, os índices do ALT e as contagens."""
+    import json
+    from pathlib import Path
+
+    from raiz.legibilidade import medir, resumo
+
+    texto = Path(arquivo).read_text(encoding="utf-8") if arquivo else sys.stdin.read()
+    m = medir(texto, preparar_texto=not cru)
+    if como_json:
+        typer.echo(json.dumps(m, ensure_ascii=False, indent=2))
+        return
+    typer.echo(resumo(m))
+    if m.get("palavras"):
+        typer.echo(
+            f"  Flesch: ALT {m['flesch_alt']}, Martins {m['flesch_martins']}, LanguageTool {m['flesch_languagetool']} "
+            f"(nível {m['nivel_languagetool']} de 6)"
+        )
+        typer.echo(
+            f"  {m['palavras']} palavras, {m['frases']} frases, {m['silabas']} sílabas, {m['complexas']} complexas "
+            f"({m['complexas_criterio']}); medidor {m['versao']}"
+        )
+
+
+@legibilidade_cli.command("modelos")
+def legibilidade_modelos() -> None:
+    """Mede cada modelo de mensagem ao dono (raiz/agentes/textos.py), preenchido com um exemplo."""
+    from raiz.agentes.textos import exemplos
+    from raiz.legibilidade import medir
+
+    typer.echo(f"{'modelo':14} {'palavras':>8} {'p/frase':>7} {'ALT':>6} {'Martins':>7} {'LT':>6} {'resultado':>9}")
+    for nome, texto in exemplos().items():
+        m = medir(texto)
+        typer.echo(
+            f"{nome:14} {m['palavras']:8} {m['palavras_por_frase']:7.1f} {m['flesch_alt']:6.1f} "
+            f"{m['flesch_martins']:7.1f} {m['flesch_languagetool']:6.1f} {m['resultado_alt']:9.1f}"
+        )
