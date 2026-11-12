@@ -261,6 +261,127 @@ def test_vigia_avisa_lote_melhorou_e_fazenda_com_problema(eng, chave):
     assert atualizar(eng, 1504950) == 880  # a oferta se refaz do banco
 
 
+def _canais(eng, pedido_id, tipo):
+    with eng.connect() as con:
+        return sorted(
+            (r.canal, r.estado)
+            for r in con.execute(
+                text("select canal, estado from negocio.notificacao where pedido_id = :p and tipo = :t"),
+                {"p": pedido_id, "t": tipo},
+            )
+        )
+
+
+def test_vigia_avisa_fato_novo_do_grupo_em_todos_os_canais_sem_repetir(eng, chave):
+    from raiz.vigilancia.pedidos import Fato
+
+    c, _ = S.criar_cliente(eng, "Cliente G")
+    p = S.criar_pedido(eng, c, {**CAMPOS, "meta": {"tipo": "creditos", "valor": 150_000}})
+    lote = [i["cod_imovel"] for i in next(o for o in p["opcoes"] if o["id"] == "barata")["itens"]
+            if i["papel"] == "lote"]  # fmt: skip
+    hoje = dt.date.today()
+    fatos = [
+        Fato(lote[0], "desmatamento", "vigilancia:t1", hoje, "Fazenda do grupo com derrubada: 3,0 ha.",
+             {"fonte": "deter", "area_ha": 3.0}),
+        Fato(lote[1], "embargo", "vigilancia:t2", hoje, "Fazenda do grupo com embargo novo do Ibama.",
+             {"fonte": "ibama_embargo"}),
+        Fato(lote[0], "matricula_cancelada", f"matricula:{lote[0]}:x", hoje,
+             "Fazenda do grupo com matrícula encerrada ou cancelada.", {"fonte": "certidao"}),
+    ]  # fmt: skip
+    pedidos_e_datas = []
+
+    def fatos_de(cods, desde):
+        cods = set(cods)
+        if lote[0] in cods:
+            pedidos_e_datas.append(desde)
+        return [f for f in fatos if f.cod_imovel in cods]
+
+    S.vigiar(eng, fatos_de=fatos_de)
+    assert pedidos_e_datas and all(d <= hoje for d in pedidos_e_datas)  # desde quando o pedido foi salvo
+    al = [a for a in S.obter_pedido(eng, p["id"], c)["alertas"] if a["tipo"] == "fazenda_com_problema"]
+    assert {(a["cod_imovel"], a["motivo"]) for a in al} == {
+        (lote[0], "desmatamento"),
+        (lote[1], "embargo"),
+        (lote[0], "matricula_cancelada"),
+    }
+    assert next(a for a in al if a["motivo"] == "desmatamento")["detalhe"] == {"fonte": "deter", "area_ha": 3.0}
+    _sem_pessoal(al)
+    # lote ainda sem grupo: painel e e-mail (simulado)
+    assert set(_canais(eng, p["id"], "fazenda_com_problema")) == {("painel", "enviada"), ("email", "simulada")}
+    # o mesmo fato nunca volta, mesmo depois de visto
+    with eng.begin() as con:
+        con.execute(text("update negocio.alerta_pedido set visto_em = now() where pedido_id = :p"), {"p": p["id"]})
+    S.vigiar(eng, fatos_de=fatos_de)
+    assert len([a for a in S.obter_pedido(eng, p["id"], c)["alertas"] if a["tipo"] == "fazenda_com_problema"]) == 3
+    # grupo em formação: fato novo vai também por WhatsApp (simulado)
+    S.solicitar_interesse(eng, p["id"], c, "barata")
+    fatos.append(Fato(lote[1], "desmatamento", "vigilancia:t3", hoje, "Fazenda do grupo com derrubada: 1,0 ha.",
+                      {"fonte": "mapbiomas_alerta"}))  # fmt: skip
+    S.vigiar(eng, fatos_de=fatos_de)
+    novos = [x for x in _canais(eng, p["id"], "fazenda_com_problema") if x[0] == "whatsapp"]
+    assert novos == [("whatsapp", "simulada")]
+
+
+def test_vigia_le_a_vigilancia_e_as_certidoes(eng, chave, tmp_path, monkeypatch):
+    """Sem trocar a fonte: o vigia lê o estado da vigilância (RAIZ_VIGILANCIA_DIR) e as certidões lidas
+    (matricula_<mun>.csv em RAIZ_DOCUMENTOS_DIR)."""
+    import json
+
+    import pandas as pd
+
+    from raiz.vigilancia.armazem import Armazem
+    from raiz.vigilancia.cruzamento import COLUNAS_ALERTA, alerta_id
+
+    c, _ = S.criar_cliente(eng, "Cliente H")
+    p = S.criar_pedido(eng, c, {**CAMPOS, "meta": {"tipo": "creditos", "valor": 150_000}})
+    lote = [i["cod_imovel"] for i in next(o for o in p["opcoes"] if o["id"] == "barata")["itens"]
+            if i["papel"] == "lote"]  # fmt: skip
+    hoje = dt.date.today()
+    monkeypatch.setenv("RAIZ_VIGILANCIA_DIR", str(tmp_path / "vigilancia"))
+    linha = dict.fromkeys(COLUNAS_ALERTA)
+    linha.update(alerta_id=alerta_id("deter", "d9", "imovel", lote[0]), fonte="deter", chave="d9",
+                 classe="desmatamento_cr", tipo="desmatamento", alvo_tipo="imovel", alvo_id=lote[0], uf="PA",
+                 data_evento=hoje, publicado_em=hoje, visto_em=hoje, area_sobreposta_ha=2.5, borda=False,
+                 gravidade="alta", estrato="deter_desmatamento", confianca=0.85, regra_versao="teste", novo=True,
+                 atributos=json.dumps({}))  # fmt: skip
+    Armazem(tmp_path / "vigilancia").gravar_alertas(pd.DataFrame([linha], columns=COLUNAS_ALERTA))
+    monkeypatch.setenv("RAIZ_DOCUMENTOS_DIR", str(tmp_path / "documentos"))
+    pasta = tmp_path / "documentos" / "saida" / "PA"
+    pasta.mkdir(parents=True)
+    mun = lote[1].split("-")[1]
+    cert = {"cod_imovel": [lote[1]], "matricula_situacao": ["cancelada"], "matricula_lido_em": ["2026-11-12T10:00"]}
+    pd.DataFrame(cert).to_csv(pasta / f"matricula_{mun}.csv", index=False)
+    S.vigiar(eng)
+    al = {(a["cod_imovel"], a["motivo"]) for a in S.obter_pedido(eng, p["id"], c)["alertas"]}
+    assert (lote[0], "desmatamento") in al and (lote[1], "matricula_cancelada") in al
+
+
+def test_vigia_diz_quais_fazendas_novas_melhoram_o_lote(eng, chave):
+    c, _ = S.criar_cliente(eng, "Cliente I")
+    p = S.criar_pedido(eng, c, {**CAMPOS, "meta": {"tipo": "creditos", "valor": 100_000}})
+    barata = next(o for o in p["opcoes"] if o["id"] == "barata")
+    no_lote = {i["cod_imovel"] for i in barata["itens"]}
+    with eng.begin() as con:  # fazendas de fora do lote ficam muito mais baratas (dado novo na oferta)
+        fora = [r[0] for r in con.execute(text("""select cod_imovel from negocio.oferta
+                 where (atributos->>'elegivel')::boolean and (atributos->>'credito_p50')::float > 5000
+                 order by cod_imovel""")) if r[0] not in no_lote][:15]  # fmt: skip
+        barato = """update negocio.oferta set atualizado_em = now(),
+                    atributos = atributos || '{"custo_credito_usd": 0.01, "preco_equilibrio_usd": 0.01}'::jsonb
+                    where cod_imovel = any(:c)"""
+        con.execute(text(barato), {"c": fora})
+    S.vigiar(eng)
+    al = [a for a in S.obter_pedido(eng, p["id"], c)["alertas"] if a["tipo"] == "lote_melhorou"]
+    assert al, "o lote devia melhorar com as fazendas mais baratas"
+    novas = al[0]["detalhe"]["fazendas_novas"]
+    assert novas and {n["cod_imovel"] for n in novas} <= set(fora)
+    assert all(n["nova_na_base"] for n in novas) and "Fazendas novas no lote" in al[0]["texto"]
+    from raiz.pedidos.oferta import atualizar
+
+    with eng.begin() as con:
+        con.execute(text("delete from negocio.oferta"))
+    assert atualizar(eng, 1504950) == 880
+
+
 def test_api_no_contrato_do_front(eng, chave, monkeypatch):
     from raiz.api import criar_app
 

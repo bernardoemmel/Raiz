@@ -1144,13 +1144,16 @@ def pedidos_cliente(
 @pedidos_cli.command("ciclo")
 def pedidos_ciclo() -> None:
     """Um passo de tudo o que anda sozinho: ondas (vence quem não respondeu, chama a próxima onda, fecha o grupo),
-    reservas vencidas voltam para a base e o vigia dos pedidos salvos. Rodar de hora em hora (cron)."""
+    reservas vencidas voltam para a base e o vigia dos pedidos salvos, que antes traz o estado publicado da
+    vigilância diária (desmatamento e embargo novos nas fazendas do grupo). Rodar de hora em hora (cron)."""
     from raiz.banco import engine
     from raiz.pedidos import servico as S
+    from raiz.vigilancia.pedidos import atualizar_estado
 
     eng = engine()
     estados = {pid: S.avancar(eng, pid) for pid in S.pedidos_abertos(eng)}
     exp = S.expirar_reservas(eng)
+    atualizar_estado()
     vig = S.vigiar(eng)
     typer.echo(f"ondas: {estados or 'nenhum pedido buscando interesse'}; reservas vencidas: {exp}; vigia: {vig}")
 
