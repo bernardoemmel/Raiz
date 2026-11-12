@@ -9,6 +9,7 @@ from __future__ import annotations
 import hmac
 from collections.abc import Callable
 from typing import Literal
+from urllib.parse import urlsplit
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request
 from pydantic import BaseModel
@@ -54,7 +55,31 @@ def _erro(ex: S.ErroPedido) -> HTTPException:
     return HTTPException(404 if "não encontrad" in msg else 422, {"mensagem": msg})
 
 
-def roteador_cliente(engine_de: Callable) -> APIRouter:
+def _base_link_login(base_url: str) -> str:
+    """Aceita só destino explícito da configuração, com HTTPS (HTTP apenas no desenvolvimento local)."""
+    try:
+        partes = urlsplit(base_url)
+        seguro = partes.scheme == "https" or (
+            partes.scheme == "http" and partes.hostname in {"localhost", "127.0.0.1", "::1"}
+        )
+        if (
+            not seguro
+            or not partes.hostname
+            or "*" in partes.hostname
+            or partes.username is not None
+            or partes.password is not None
+            or partes.query
+            or partes.fragment
+            or any(c.isspace() or c == "\\" for c in base_url)
+        ):
+            raise ValueError("destino de login inválido")
+        _ = partes.port  # porta inválida também deve falhar antes de criar/enviar o token
+    except ValueError as ex:
+        raise HTTPException(503, "configure a URL pública segura do painel para enviar links de entrada") from ex
+    return base_url.rstrip("/") + "/"
+
+
+def roteador_cliente(engine_de: Callable, base_url: str = "") -> APIRouter:
     r = APIRouter(tags=["pedidos"])
 
     def cliente(request: Request, authorization: str | None = Header(default=None)) -> int:
@@ -66,8 +91,9 @@ def roteador_cliente(engine_de: Callable) -> APIRouter:
 
     @r.post("/entrar")
     def entrar(corpo: PedidoEntrar, request: Request) -> dict:
+        destino = _base_link_login(base_url)
         try:
-            S.pedir_link(engine_de(request), corpo.email, str(request.headers.get("origin") or ""))
+            S.pedir_link(engine_de(request), corpo.email, destino)
         except S.ErroPedido as ex:
             raise _erro(ex) from ex
         return {"enviado": True}

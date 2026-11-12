@@ -185,6 +185,10 @@ def gabaritar(con, hoje: dt.date | None = None) -> dict:
             or bool(_verdade(a.get("matricula_quebra_cadeia")))
             or bool(_verdade(a.get("matricula_onus_graves")))
         )
+        # Uma leitura pode pedir revisão (ilegível, incompleta ou de baixa confiança).
+        # Ausência de problema confirmado ainda não é evidência de título limpo.
+        if not problema and not _verdade(a.get("matricula_conferida")):
+            continue
         registrar_gabarito(
             con,
             cod,
