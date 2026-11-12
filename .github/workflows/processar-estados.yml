@@ -240,6 +240,13 @@ jobs:
           RAIZ_PUBLICADOR_REF: ${{ github.workflow_sha }}
         run: uv run --all-extras python scripts/publicar_metadados.py --finalizar-unidade
 
+      - name: Preservar retratos imutáveis somente no arquivo privado
+        if: always() && steps.privacidade.outcome == 'success'
+        run: |
+          if [ -f raiz/aprendizado/transporte.py ]; then
+            uv run raiz aprendizado publicar-retratos --uf "$UF"
+          fi
+
       - name: Conferir listas separadas dos bytes públicos e privados
         id: atestar
         if: always()

@@ -159,6 +159,7 @@ export function Explorar({ municipio, uf }: { municipio: string | null; uf: stri
                 situacao={situacaoBasica}
                 mudarSituacao={setSituacaoBasica}
                 aoPassar={setDestaque}
+                emLeilao={emLeilao}
                 atualizadoEm={estados.dado.estados.find((e) => e.uf === ufFoco)?.atualizado_em ?? estados.dado.gerado_em}
               />
             ) : municipio ? (

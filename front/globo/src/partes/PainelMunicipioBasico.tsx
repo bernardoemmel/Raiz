@@ -1,9 +1,10 @@
 import { useState } from "react"
+import { normalizarCar } from "../../../compartilhado/calendario"
 import { SITUACAO } from "../../../compartilhado/cores"
 import { SITUACOES_BASICAS, type ImovelBasico, type SituacaoBasica } from "../../../compartilhado/dados/basico"
 import type { FunilMunicipio } from "../../../compartilhado/dados"
 import { abreviarCar, fmtHa, fmtInt, UFS } from "../../../compartilhado/formato"
-import { linkEstado, linkFazenda } from "../rota"
+import { linkCalendarioImovel, linkEstado, linkFazenda } from "../rota"
 import { MiniBrasil } from "./MiniBrasil"
 import { Estado } from "./Estado"
 
@@ -11,11 +12,12 @@ const CORES = { apto: SITUACAO.apta, com_pendencia: SITUACAO.pendencia, nao_apto
 const POR_PAGINA = 50
 
 /** A lista aberta só recebe o contrato básico, sem acesso ao objeto completo de um imóvel. */
-export function PainelMunicipioBasico({ nome, uf, centro, funil, imoveis, situacao, mudarSituacao, aoPassar, atualizadoEm }: {
+export function PainelMunicipioBasico({ nome, uf, centro, funil, imoveis, situacao, mudarSituacao, aoPassar, atualizadoEm, emLeilao }: {
   nome: string; uf: string; centro: [number, number] | null; funil: FunilMunicipio | null
   imoveis: ImovelBasico[] | null | undefined; situacao: SituacaoBasica | null
   mudarSituacao: (s: SituacaoBasica | null) => void; aoPassar: (cod: string | null) => void
   atualizadoEm?: string
+  emLeilao?: Set<string>
 }) {
   const [pagina, setPagina] = useState(0)
   const [ultimaSituacao, setUltimaSituacao] = useState(situacao)
@@ -39,8 +41,10 @@ export function PainelMunicipioBasico({ nome, uf, centro, funil, imoveis, situac
           <option value="">Todas as situações</option>{Object.entries(SITUACOES_BASICAS).map(([id, rotulo]) => <option key={id} value={id}>{rotulo}</option>)}
         </select></label></div>
         <p>{fmtInt(lista.length)} fazendas nesta seleção. A ficha completa exige conta e créditos pagos.</p>
+        {!!emLeilao?.size && <p className="legenda-frase">Contorno tracejado no mapa: imóvel em leilão. <a href="#/calendario">Conferir no calendário</a>.</p>}
         <ul className="lista-basica">{lista.slice(pagina * POR_PAGINA, (pagina + 1) * POR_PAGINA).map((i) => <li key={i.cod_imovel} onMouseEnter={() => aoPassar(i.cod_imovel)} onMouseLeave={() => aoPassar(null)}>
           <a href={linkFazenda(i.cod_imovel)} onFocus={() => aoPassar(i.cod_imovel)} onBlur={() => aoPassar(null)} title={i.cod_imovel}><span>CAR {abreviarCar(i.cod_imovel)}</span><span>{SITUACOES_BASICAS[i.situacao_basica]}</span><small>Abrir ficha completa</small></a>
+          {emLeilao?.has(normalizarCar(i.cod_imovel)) && <a className="selo conferir" href={linkCalendarioImovel(i.cod_imovel)}>Em leilão</a>}
         </li>)}</ul>
         {lista.length > POR_PAGINA && <nav className="acoes" aria-label="Páginas das fazendas"><button className="botao" disabled={!pagina} onClick={() => setPagina(pagina - 1)}>Anterior</button><span>{pagina + 1} de {Math.ceil(lista.length / POR_PAGINA)}</span><button className="botao" disabled={(pagina + 1) * POR_PAGINA >= lista.length} onClick={() => setPagina(pagina + 1)}>Próxima</button></nav>}
       </section>

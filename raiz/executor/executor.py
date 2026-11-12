@@ -248,7 +248,16 @@ class Executor:
             estado["atualizado_em"] = _agora()
             por_json(self.a, self.chave_estado(uf), estado)
             if hasattr(self.a, "talvez_publicar"):
-                self.a.talvez_publicar(uf)  # Release: publica de tempos em tempos (retomada em outra máquina)
+                if self.a.talvez_publicar(uf):  # os retratos usam a mesma cadência, em pacotes separados
+                    from raiz.aprendizado.retratos import pasta_padrao
+                    from raiz.aprendizado.transporte import publicar
+
+                    try:
+                        publicar(pasta_padrao(), self.a, uf)
+                    except Exception as ex:  # noqa: BLE001 - o passo final do Actions tenta novamente e expõe falha
+                        log.warning(
+                            "histórico pendente de publicação (%s); retratos locais preservados", type(ex).__name__
+                        )
 
         def no_prazo() -> bool:
             return limite is None or time.time() < limite

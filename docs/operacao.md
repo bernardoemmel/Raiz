@@ -597,7 +597,8 @@ não lê a compra. A implementação está coberta por `testes/test_prospeccao_a
 
 ### Avisos de buscas salvas
 
-Depois de migrar o banco até `0027`, executar `uv run raiz prospeccao verificar-buscas` após cada carga do motor,
+Depois de migrar o banco até `0028` (buscas salvas, após `0027` do calendário), executar
+`uv run raiz prospeccao verificar-buscas` após cada carga do motor,
 ou pelo cron do operador. O comando usa `RAIZ_BANCO_URL`, imprime somente as quantidades verificadas e sai com
 erro se a consulta falhar. Para repetir uma única busca: `uv run raiz prospeccao verificar-buscas --busca <UUID>`.
 Esta entrega fornece o comando; não instala uma agenda em produção.
@@ -646,8 +647,12 @@ Esta entrega documenta a configuração; não altera as regras da conta do funda
 Em **Settings → Code security**, habilite **Dependabot alerts**, **Dependabot security updates** e, quando
 oferecidos pelo plano, **Secret scanning** e **Push protection**. `.github/dependabot.yml` já agenda atualizações
 semanais de uv, npm, Cargo, Actions e imagens Docker. Gitleaks varre todo o histórico acessível em cada PR, mesmo
-sem o recurso pago do GitHub; nunca publica o valor encontrado. A única exceção é o nome exato de uma coluna de
-`docs/colunas.md` confundido com chave, restrito ao arquivo. Credencial real encontrada deve ser revogada primeiro;
+sem o recurso pago do GitHub; nunca publica o valor encontrado. As exceções verificadas são o nome exato de uma
+coluna de `docs/colunas.md`, restrito ao arquivo, e uma ocorrência histórica de `KC_DB_URL` em
+`infra/docker-compose.keycloak.yml:28`, commit `be05cee99ee060b5ca2c9e60d7b077d1fa2a51aa`. Esta última contém
+somente esquema JDBC, serviço interno, porta e banco, sem usuário, senha ou parâmetros; as credenciais são
+variáveis obrigatórias separadas. `.gitleaksignore` restringe a exceção ao fingerprint dessa ocorrência na branch
+antiga, sem liberar outras URLs, arquivos ou commits. Credencial real encontrada deve ser revogada primeiro;
 retirá-la do último commit não a apaga do histórico.
 
 ## CI e controles de segurança

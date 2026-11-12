@@ -1,4 +1,5 @@
 import { SITUACOES_BASICAS, type ImovelBasico, type SituacaoBasica } from "../../../compartilhado/dados/basico"
+import { normalizarCar } from "../../../compartilhado/calendario"
 import {
   AttributionControl,
   LngLatBounds,
@@ -19,7 +20,7 @@ import { abreviarCar, fmtHa, fmtInt, ufDoCodigo } from "../../../compartilhado/f
 import { rotulosDeAreas } from "../../../compartilhado/rotulos-mapa"
 import { fonteMapaBase } from "../../../compartilhado/mapa-base"
 import { tituloDe } from "../filtros"
-import { linkFazenda } from "../rota"
+import { linkCalendarioImovel, linkFazenda } from "../rota"
 import { camadasBase, estiloBase, imagemHachura, prepararMapLibre } from "./estilo"
 
 /** O que o mapa pinta nas fazendas do município: a situação (padrão), o título da terra ou o fogo. */
@@ -56,6 +57,7 @@ interface Props {
   foco: Foco
   camada: CamadaAssunto
   destaque: string | null
+  emLeilao?: Set<string>
   /** espaço que a gaveta ocupa embaixo, no celular (o voo enquadra o município acima dela) */
   margemBaixo: number
   aoEscolherMunicipio: (cod: string) => void
@@ -163,12 +165,13 @@ function aparelhoFraco(): boolean {
 
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`)
 
-function textoPopup(i: Imovel): string {
+function textoPopup(i: Imovel, emLeilao = false): string {
   const s = situacaoDe(i)
   const titulo = s === "nao_apta" ? "Não apta agora" : `${fmtHa(i.carbono_ha)} podem voltar a ser mata`
   const { motivo } = etapaDe(i)
   const por = motivo && s === "nao_apta" ? MOTIVOS[motivo].rotulo : s === "pendencia" ? "falta o título" : "com matrícula no SIGEF"
   return (
+    (emLeilao ? `<a class="selo conferir" href="${esc(linkCalendarioImovel(i.cod_imovel))}">Em leilão</a>` : "") +
     `<div class="pop-car">CAR ${esc(abreviarCar(i.cod_imovel))}</div>` +
     `<div class="pop-titulo">${esc(titulo)}</div>` +
     `<p class="pop-sub">Imóvel de ${esc(fmtHa(i.ha))}, ${esc(por.charAt(0).toLowerCase() + por.slice(1))}.</p>` +
@@ -177,7 +180,7 @@ function textoPopup(i: Imovel): string {
 }
 
 export function MapaBrasil(props: Props) {
-  const { brasil, estados, processados, comLista, pontos, uf, municipio, geoMunicipio, imoveis, basicos, situacaoBasica, foco, camada, destaque, margemBaixo } =
+  const { brasil, estados, processados, comLista, pontos, uf, municipio, geoMunicipio, imoveis, basicos, situacaoBasica, foco, camada, destaque, margemBaixo, emLeilao } =
     props
   const caixa = useRef<HTMLDivElement>(null)
   const mapaRef = useRef<MapaGL | null>(null)
@@ -349,7 +352,7 @@ export function MapaBrasil(props: Props) {
         const basico = atual.current.basicosPorCod.get(cod)
         const codigo = !basico || (situacaoBasica && basico.situacao_basica !== situacaoBasica)
           ? G.apagada : { apto: G.apta, com_pendencia: G.pendencia, nao_apto: G.naoApta }[basico.situacao_basica]
-        m.setFeatureState({ source: "imoveis", id: cod }, { g: codigo, fogo: 0 })
+        m.setFeatureState({ source: "imoveis", id: cod }, { g: codigo, emLeilao: !!emLeilao?.has(normalizarCar(cod)), fogo: 0 })
       }
       ;(m.getSource("fogo-recente") as GeoJSONSource).setData(VAZIO as never)
       return
@@ -383,10 +386,10 @@ export function MapaBrasil(props: Props) {
           }
         }
       }
-      m.setFeatureState({ source: "imoveis", id: cod }, { g: codigo, fogo: i && camada === "fogo" && noFoco(i, foco) ? (i.fogo_anos_max ?? 0) : 0 })
+      m.setFeatureState({ source: "imoveis", id: cod }, { g: codigo, emLeilao: !!emLeilao?.has(normalizarCar(cod)), fogo: i && camada === "fogo" && noFoco(i, foco) ? (i.fogo_anos_max ?? 0) : 0 })
     }
     ;(m.getSource("fogo-recente") as GeoJSONSource).setData({ type: "FeatureCollection", features: fogo } as never)
-  }, [pronto, geoMunicipio, imoveis, basicos, situacaoBasica, foco, camada])
+  }, [pronto, geoMunicipio, imoveis, basicos, situacaoBasica, foco, camada, emLeilao])
 
   // voo até o município (curva e duração do guia, item 3.2), ou de volta ao Brasil; sem passar por zoom de mundo
   const primeiraVez = useRef(true)
@@ -562,6 +565,17 @@ export function MapaBrasil(props: Props) {
       },
     })
     add({
+      id: "imoveis-leilao",
+      type: "line",
+      source: "imoveis",
+      paint: {
+        "line-color": COR.urucumTexto,
+        "line-width": 3,
+        "line-dasharray": [2, 2],
+        "line-opacity": ["case", ["boolean", ["feature-state", "emLeilao"], false], 1, 0],
+      },
+    })
+    add({
       id: "imoveis-fogo",
       type: "line",
       source: "imoveis",
@@ -723,6 +737,7 @@ export function MapaBrasil(props: Props) {
       const basico = fazenda && atual.current.basicosPorCod.get(String(fazenda.properties.cod_imovel))
       if (basico) {
         popup.setLngLat(e.lngLat).setHTML(
+          (atual.current.props.emLeilao?.has(normalizarCar(basico.cod_imovel)) ? `<a class="selo conferir" href="${esc(linkCalendarioImovel(basico.cod_imovel))}">Em leilão</a>` : "") +
           `<div class="pop-car">CAR ${esc(abreviarCar(basico.cod_imovel))}</div>` +
           `<div class="pop-titulo">${esc(SITUACOES_BASICAS[basico.situacao_basica])}</div>` +
           `<p class="pop-sub">Situação básica da terra. As camadas completas são consultadas com créditos pagos.</p>` +
@@ -732,7 +747,7 @@ export function MapaBrasil(props: Props) {
       }
       const i = fazenda && atual.current.porCod.get(String(fazenda.properties.cod_imovel))
       if (i) {
-        popup.setLngLat(e.lngLat).setHTML(textoPopup(i)).addTo(m)
+        popup.setLngLat(e.lngLat).setHTML(textoPopup(i, atual.current.props.emLeilao?.has(normalizarCar(i.cod_imovel)))).addTo(m)
         return
       }
       const grupo = m.queryRenderedFeatures(e.point, { layers: ["pontos-grupo"] })[0]
