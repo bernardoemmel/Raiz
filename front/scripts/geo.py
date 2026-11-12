@@ -12,6 +12,7 @@ Saída em front/geo/ (fora do git, é dado gerado e pode ser grande):
   uc_<cod>.geojson          unidades de conservação na caixa do município (TerraBrasilis)
   rios_<cod>.geojson        hidrografia do PRODES na caixa do município (a mesma que o motor usa para a APP)
   base_<cod>.pmtiles        mapa base recortado do build diário do Protomaps (dados © OpenStreetMap, ODbL)
+  fontes/<fonte>/<faixa>.pbf  letras dos rótulos do mapa (Noto Sans, licença OFL, do protomaps/basemaps-assets)
   indice.json               o que já foi gerado, lido pelo front para saber o que existe
 
 Roda de novo sem baixar o que já existe (apague o arquivo para baixar de novo).
@@ -330,6 +331,20 @@ def base(cod: str, caixa, dia: str) -> None:
     print(f"   {arq.name}: {arq.stat().st_size / 1e6:.1f} MB")
 
 
+FONTES = "https://protomaps.github.io/basemaps-assets/fonts/{}/{}.pbf"
+
+
+def fontes() -> None:
+    """Letras dos rótulos: Latim básico, Latim estendido e pontuação bastam para os nomes de lugar do Brasil."""
+    for fonte in ("Noto Sans Regular", "Noto Sans Medium", "Noto Sans Italic"):
+        pasta = SAIDA / "fontes" / fonte
+        pasta.mkdir(parents=True, exist_ok=True)
+        for faixa in ("0-255", "256-511", "7680-7935", "8192-8447"):
+            arq = pasta / f"{faixa}.pbf"
+            if not arq.exists():
+                arq.write_bytes(baixar(FONTES.format(fonte.replace(" ", "%20"), faixa)).content)
+
+
 def indice() -> None:
     itens: dict[str, dict] = {}
     for f in sorted(SAIDA.glob("*_*.*")):
@@ -371,6 +386,7 @@ def main(cods: list[str]) -> None:
         if not (SAIDA / f"base_{cod}.pmtiles").exists():
             dia = dia or build_recente()
             base(cod, caixa, dia)
+    fontes()
     indice()
 
 

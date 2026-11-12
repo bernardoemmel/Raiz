@@ -5,6 +5,7 @@
  *   /amostra/<arquivo>.csv           os CSV do motor, como estão
  *   /amostra/fichas/<cod>.json       a ficha leve de uma fazenda (dados/ficha.ts), montada aqui
  *   /geo/<arquivo>                   o que front/scripts/geo.py gerou (GeoJSON e PMTiles, com Range)
+ *   /geo/fontes/<fonte>/<faixa>.pbf  letras dos rótulos do mapa
  *
  * No `vite build`, copia tudo para dist/ e grava uma ficha por fazenda. Sem dependência de pacote: os tipos do Vite
  * ficam de fora para este arquivo poder morar fora dos projetos.
@@ -38,6 +39,7 @@ const TIPOS: Record<string, string> = {
   ".json": "application/json; charset=utf-8",
   ".geojson": "application/geo+json; charset=utf-8",
   ".pmtiles": "application/octet-stream",
+  ".pbf": "application/x-protobuf",
 }
 
 export function dadosRaiz(opcoes: { repo: string }) {
@@ -150,6 +152,10 @@ export function dadosRaiz(opcoes: { repo: string }) {
           const arq = path.join(amostra, m[1])
           return seguro(m[1]) && fs.existsSync(arq) ? enviarArquivo(req, res, arq) : naoAchou(res)
         }
+        if ((m = /^\/geo\/fontes\/([\w ]+)\/(\d+-\d+)\.pbf$/.exec(url))) {
+          const arq = path.join(geo, "fontes", m[1], `${m[2]}.pbf`)
+          return fs.existsSync(arq) ? enviarArquivo(req, res, arq) : naoAchou(res)
+        }
         if ((m = /^\/geo\/([^/]+)$/.exec(url))) {
           const arq = path.join(geo, m[1])
           return seguro(m[1]) && fs.existsSync(arq) ? enviarArquivo(req, res, arq) : naoAchou(res)
@@ -180,6 +186,8 @@ export function dadosRaiz(opcoes: { repo: string }) {
       const dGeo = path.join(saida, "geo")
       fs.mkdirSync(dGeo, { recursive: true })
       for (const f of listar(geo)) fs.copyFileSync(path.join(geo, f), path.join(dGeo, f))
+      if (fs.existsSync(path.join(geo, "fontes")))
+        fs.cpSync(path.join(geo, "fontes"), path.join(dGeo, "fontes"), { recursive: true })
       console.log(`raiz-dados: ${csvs.length} CSV, ${n} fichas e ${listar(geo).length} arquivos de geometria em ${saida}`)
     },
   }
