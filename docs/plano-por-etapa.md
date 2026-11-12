@@ -393,3 +393,6 @@ Limites verificados em 12/11/2026: DJEN/CNJ respondeu HTTP 403; diários estadua
 
 - [x] Integração da entrega mobile com o Calendário: rota sob demanda, quatro links visíveis a 360 px, filtros
   com 48 px e teste CI de teclado/axe em três larguras; 186 testes do front e fluxos de ficha/lote aprovados.
+
+- [x] Domínio integrado ao Calendário e ao cadastro básico: builds em `/Raiz/` e `/` e Playwright com feed ICS
+  passaram sem 404; 187 testes do front e 10 de configuração aprovados. Domínio real continua não configurado.

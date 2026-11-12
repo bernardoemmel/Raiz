@@ -75,15 +75,23 @@ Sessão: https://claude.ai/code/session_01VGb88MJumyG9PHt2znaaKE. Branch: `claud
 - `robots.txt` e `llms.txt` ficam prontos para a raiz quando o domínio for ativado. O endereço atual de projeto
   continua com a limitação do robots na raiz de `bernardoemmel.github.io`.
 
-## O que falta, em ordem
+## Situação das cinco entregas e próximos passos
 
-1. Concluir as cinco entregas solicitadas: cena-alvo, cobertura diária do mapa, ficha visual, celular/acessibilidade
-   com Lighthouse ≥90 nas duas categorias e configuração de domínio próprio. Integrar cada uma com CI verde.
-2. Conferir a chegada do ponteiro `lote_PA_central_r11.json` no Release; a rotina diária já o incorpora quando existir.
+As cinco entregas estão implementadas e verificadas localmente: cena-alvo ligada ao Release, cobertura diária
+sem lista fixa, ficha visual com acesso controlado, navegação mobile com portão Lighthouse e domínio configurável.
+Os PRs e a publicação final ainda precisam ter seus resultados de CI e integração conferidos; esta descrição não
+antecipa o merge de uma entrega que ainda esteja em revisão.
+
+1. Acompanhar o CI de cada PR e a publicação final; conferir o site no ar, as datas da cobertura e os caminhos
+   públicos após a integração. Registrar aqui os links e resultados dos PRs ao fechar cada entrega.
+2. Aguardar o ponteiro `lote_PA_central_r11.json` no Release; a rotina diária já o incorpora quando existir.
+   Enquanto faltar, a tela mantém o aviso e não inventa os três lotes nem suas faixas de crédito/TIR.
 3. E9 passo 3: aguardar as 30 cartas reais anonimizadas e uma avaliação de compreensão, confirmadas como ainda
-   indisponíveis pelo fundador. Depois calibrar o portão e gravar a nota no laudo.
-4. Continuar os itens E9 na ordem do plano: texto por fazenda no kit ONS/campos abertos, condicionais e extenso,
-   KMZ e os demais. A geometria de reserva legal ainda não está nas camadas; não deduzir seu desenho de percentuais.
+   indisponíveis pelo fundador. Depois calibrar o portão e gravar a nota no laudo. Contato com o dono somente na fase final.
+4. Quando houver domínio real, configurar DNS e Pages e preencher `RAIZ_DOMINIO`; conferir HTTPS, CNAME,
+   `robots.txt` e `llms.txt` na raiz. Nenhum domínio real foi escolhido ou ativado nesta entrega.
+5. Continuar os demais itens E9 na ordem do plano: texto por fazenda no kit ONS/campos abertos, condicionais e
+   extenso, KMZ e os demais. A geometria de reserva legal ainda não está nas camadas; não deduzir seu desenho de percentuais.
 
 ## Nova entrega 1: cena-alvo ligada ao Release (12/11/2026)
 
@@ -317,3 +325,10 @@ relatórios Lighthouse passaram pelo portão fixo. E9 real não foi calibrado e 
   TypeScript, design, actionlint, 186 testes do front e Playwright de cena-alvo e ficha passaram após o merge.
 - Os seis jobs do CI e as quinze medições fixas de Lighthouse foram preservados; a integração não reduziu
   categorias, notas mínimas nem o conjunto de páginas do portão.
+
+### Domínio após integrar Calendário e cadastro básico
+
+- As duas bases, `/Raiz/` e `/`, passaram pelo build e pelo Playwright com calendário/feed ICS, busca,
+  acesso pago por CAR, overzoom e formulário do produtor sem JavaScript; zero 404 nas duas publicações.
+- Dez testes de configuração e 187 testes do front passaram. Actionlint aprovou os workflows.
+  A fixture de calendário é usada também no segundo build do CI, sem depender da agenda remota.
