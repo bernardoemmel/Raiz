@@ -1,7 +1,7 @@
 # Passagem do chat "Raíz · Dados do Brasil" (processamento de dados)
 
 Passagem original de 12/11/2026, 13h20 de Brasília. Retomada pelo Codex na mesma data, a partir da main.
-Branch da primeira entrega da retomada: `codex/dados-metadados`.
+Branch da entrega Croissant: `codex/dados-croissant`.
 
 ## O que este chat fez
 
@@ -12,6 +12,7 @@ Branch da primeira entrega da retomada: `codex/dados-metadados`.
 | #38 | Situação de E1 e E2 no `docs/plano-por-etapa.md`; versão nomeada das regras (`regras-2026b+hash`) em cada previsão (`raiz/versoes.py`, `raiz/carga.py`); manifesto com os 4 produtos do YbYrá e os subtemas da API do MapBiomas | mesclado |
 | #43 | Limite padrão de 15 jobs de processamento (5 máquinas livres para CI e site), mais esta passagem | mesclado em 12/11, 13h30 de Brasília; CI de push e PR verdes |
 | Retomada, entrega 1 | Teto global de 15, reserva atômica, fila persistente de pedidos e continuações, consulta paginada e bloqueio de admissão se a API falhar | implementado; testes e CI registrados no PR da entrega |
+| Retomada, entrega 2 | Croissant 1.1/schema.org, validação/leitura com mlcroissant e publicação sob as travas do estado e do índice | implementado; o preenchimento retroativo do Release será conferido ao final |
 
 ## Onde parou
 
@@ -21,17 +22,16 @@ Branch da primeira entrega da retomada: `codex/dados-metadados`.
   A entrega 1 fecha esses caminhos com `motor/fila_processamento.py` e a ref `raiz-fila-processamento`.
   Reservas só são liberadas depois de o Actions confirmar o job concluído, incluindo seus passos finais.
   A agenda de 15 minutos apenas drena pedidos pendentes; a rodada semanal mantém seu escopo.
-- **Pedido do fundador ainda não começado no código:** ficha Croissant 1.1 + schema.org Dataset por arquivo do
-  Release (croissant-baker), P10/P50/P90 em colunas de quantil no formato hubverse com a versão do modelo, cartão do
-  modelo, assinatura dos arquivos com `actions/attest`, e o cronograma dos lotes no vocabulário do CAD Trust. Só a
-  pesquisa foi feita (resultados em "Decisões e cuidados").
+- **Croissant implementado:** o executor prepara e valida fichas antes de subir os arquivos, publica sob a trava
+  da UF e monta o catálogo sob a trava do índice. Faltam quantis, cartão, atestação, CAD Trust e a atualização
+  retroativa de todos os arquivos do Release. As próximas entregas seguem a lista abaixo.
 - **Plano:** E1 e E2 conferidos. Os próximos passos de E1 e E2 estão na lista abaixo e não foram começados.
 
 ## O que falta, em ordem
 
 1. **Fechar o #43 — feito.** Merge e os dois CIs conferidos. O complemento da retomada torna 15 um teto global,
    inclusive com pedidos simultâneos, e preserva na fila os pedidos que ainda não cabem. Não cancelar os jobs.
-2. **Croissant.**
+2. **Croissant — feito no código.**
    - Criar `raiz/metadados.py` com `croissant_uf(pasta, uf, entrada)`. Ele roda o `croissant-baker` (0.8.3, MIT) na
      pasta do espelho do estado (`dados/armazem_local/saida/<UF>/`) e troca a `distribution` por um `FileObject` do
      `raiz_<UF>.tar.gz` (url do Release, sha256), mais `FileSet` por tabela (`<UF>/imoveis_*.csv`, `filtros_*`, ...)
@@ -39,7 +39,7 @@ Branch da primeira entrega da retomada: `codex/dados-metadados`.
    - Validar com o `mlcroissant` 1.1.1 (Apache-2.0).
    - Pôr o `croissant-baker` num extra do `pyproject.toml`. Ele traz h5py, nibabel, pydicom, wfdb, pillow, openpyxl e
      xlrd. Rodar `uv run python scripts/checar_licencas.py`.
-3. **Publicar a ficha junto do pacote.** Em `raiz/executor/armazem.py`, `ArmazemRelease._publicar_uf`, subir também
+3. **Publicar a ficha junto do pacote — feito no código.** Em `raiz/executor/armazem.py`, `ArmazemRelease._publicar_uf`, subir também
    `croissant_<UF>.json`, dentro da trava do estado. Depois, um `croissant.json` geral do Release, que aponta para as
    fichas de cada estado (subir dentro da trava do `estados.json`, `_gravar_indice`).
 4. **Quantis hubverse.**
@@ -126,6 +126,16 @@ Branch da primeira entrega da retomada: `codex/dados-metadados`.
 - **MapBiomas e YbYrá:** a API da Plataforma não separa os 9 produtos do Fogo Col. 5. O YbYrá é CC BY 4.0.
 - **Croissant:** a licença dos dados da Raíz no Release não foi decidida. Na ficha, citar as licenças das fontes
   (`NOTICE.md`) e deixar a da Raíz para o fundador escolher.
+- **Croissant 1.1 confirmado em leitura:** `containedIn` usa o vocabulário `cr:`. O mlcroissant 1.1.1 lê os CSV
+  contidos no tar com `FileObject` por CSV; os `FileSet` por tabela continuam para descoberta. Cada CSV tem seu
+  próprio RecordSet, preservando colunas diferentes entre municípios. O baker presume CC BY por padrão: essa
+  licença é removida, e `conditionsOfAccess` explica a pendência. Nenhum exemplo de valores entra na ficha.
+- **Hashes do Release:** `sha256` identifica os bytes do pacote comprimido; `versao` mantém a assinatura de
+  conteúdo anterior. `proveniencia_sha256` detecta mudanças de versão/data mesmo quando o CSV é igual. Asset
+  ausente é republicado, e digests da API prevalecem sobre o índice quando jobs antigos ainda publicam.
+- **Quantis a seguir:** FLAG tem mínimo/central/máximo provisórios, não P10/P50/P90. Não renomear esses limites
+  como quantis: definir explicitamente uma distribuição versionada. Desenvolvedor já tem P10/P50/P90; o P50 de
+  crédito anual é `credito_liquido_tco2_ha_ano`, sem sufixo. Data da execução não é data histórica das fontes.
 - **Rede desta sessão:** sem `gh` autenticado. Os repositórios de terceiros só se leem pelo raw.githubusercontent.com.
   O `servicodados.ibge.gov.br` e o `files.isric.org` (SoilGrids) não respondem daqui; no Actions respondem.
 - **Fila de máquinas:** com 18 jobs, o CI dos PRs ficou na fila por dezenas de minutos. Daí o limite de 15.

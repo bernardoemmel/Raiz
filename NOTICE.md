@@ -235,6 +235,18 @@ subscrição de seguro. Tolerâncias de georreferenciamento do INCRA (0,50 m art
 estudo do próprio INCRA; 7,50 m inacessível). Base legal da regularização da posse em
 `raiz/regras/padroes/regularizacao.yaml`, com a marca do que o jurídico ainda não conferiu.
 
+## Metadados do Release (`raiz/metadados.py`)
+
+Bibliotecas usadas sem copiar nem alterar código: croissant-baker 0.8.3 (MIT, Copyright (c) 2025 MIT Laboratory for
+Computational Physiology; https://github.com/MIT-LCP/croissant-baker) e mlcroissant 1.1.1 (Apache-2.0,
+https://github.com/mlcommons/croissant). O extra `metadados` inclui as dependências de leitura de arquivos do baker,
+conferidas pelo mesmo verificador de licenças do projeto. As fichas seguem Croissant 1.1
+(https://docs.mlcommons.org/croissant/docs/croissant-spec-1.1.html) e schema.org Dataset.
+
+A licença de redistribuição dos dados derivados da Raíz ainda não foi definida. As fichas não atribuem a licença
+do software nem uma licença aberta presumida aos dados. As fontes conservam os termos e créditos registrados neste
+NOTICE; disponibilidade pública do arquivo não concede licença adicional.
+
 ## Aprendizado no formato do hub (`raiz/aprendizado/hub.py`, `raiz/aprendizado/acerto.py`)
 
 Nenhum código copiado. O formato das pastas e arquivos segue a documentação do hubverse (hubverse-org/hubDocs, esquemas

@@ -569,6 +569,8 @@ class ArmazemRelease:
         import datetime as dt
         import re
 
+        from raiz.metadados import croissant_uf, ficha_arquivo, validar
+
         rel = self._release()
         estados = self.manifesto().get("estados", {})
         agora = dt.datetime.now(dt.UTC).isoformat(timespec="seconds")
@@ -590,24 +592,51 @@ class ArmazemRelease:
             elif arq.startswith("camadas_"):
                 camadas[arq] = dados
         info = dict(estados.get(u, {}))
+        assets = {a["name"]: a for a in rel.get("assets", [])}
+        # Jobs iniciados antes dos metadados ainda podem publicar: o digest do asset prevalece sobre o índice antigo.
+        for asset in rel.get("assets", []):
+            digest = asset.get("digest") or ""
+            if asset.get("name") == f"raiz_{u}.tar.gz" and re.fullmatch(r"sha256:[a-fA-F0-9]{64}", digest):
+                info["sha256"] = digest.split(":", 1)[1]
         versao = hashlib.sha256(b"".join(n.encode() + csvs[n] for n in sorted(csvs))).hexdigest()[:16]
-        if csvs and info.get("versao") != versao:
-            pacote = self._tar(u, {**csvs, "_versoes.json": json.dumps(vers, ensure_ascii=False).encode()})
-            self._subir(rel, f"raiz_{u}.tar.gz", pacote, "application/gzip")
-            info.update(tamanho=len(pacote), atualizado_em=agora)
+        dados_versoes = json.dumps(vers, ensure_ascii=False, sort_keys=True).encode()
+        proveniencia = sha256_bytes(dados_versoes)
+        pendentes = []
+        if csvs and (
+            f"raiz_{u}.tar.gz" not in assets
+            or info.get("versao") != versao
+            or not info.get("sha256")
+            or info.get("proveniencia_sha256") != proveniencia
+        ):
+            pacote = self._tar(u, {**csvs, "_versoes.json": dados_versoes})
+            pendentes.append((f"raiz_{u}.tar.gz", pacote, "application/gzip"))
+            info.update(tamanho=len(pacote), atualizado_em=agora, sha256=sha256_bytes(pacote),
+                        proveniencia_sha256=proveniencia)  # fmt: skip
         for nome, grupo, campo in ((f"raiz_geo_{u}.tar.gz", geos, "geo"), (f"raiz_camadas_{u}.tar.gz", camadas,
                                                                              "camadas")):  # fmt: skip
             if not grupo:
                 continue
+            digest = assets.get(nome, {}).get("digest") or ""
+            if re.fullmatch(r"sha256:[a-fA-F0-9]{64}", digest) and info.get(campo):
+                info[campo] = {**info[campo], "sha256": digest.split(":", 1)[1]}
             vg = hashlib.sha256(b"".join(n.encode() + grupo[n] for n in sorted(grupo))).hexdigest()[:16]
-            if (info.get(campo) or {}).get("versao") != vg:
+            precisa_ficha = f"croissant_{nome}.json" not in assets or ((info.get("fichas") or {}).get(nome) or {}).get(
+                "arquivo_sha256"
+            ) != (info.get(campo) or {}).get("sha256")
+            if (
+                nome not in assets
+                or (info.get(campo) or {}).get("versao") != vg
+                or not (info.get(campo) or {}).get("sha256")
+                or precisa_ficha
+            ):
                 p = self._tar(u, grupo)
-                self._subir(rel, nome, p, "application/gzip")
-                info[campo] = {"versao": vg, "tamanho": len(p), "url": self.url(nome), "municipios": len(grupo)}
+                pendentes.append((nome, p, "application/gzip"))
+                info[campo] = {"versao": vg, "tamanho": len(p), "url": self.url(nome), "municipios": len(grupo),
+                               "sha256": sha256_bytes(p)}  # fmt: skip
         marcas = {k.rsplit("/", 1)[1][:-5]: json.loads(self.local.ler(k)) for k in self.local.listar(f"marcas/{u}/")}
         est = json.loads(self.local.ler(f"estado/{u}.json") or b"{}")
         controle = json.dumps({"marcas": marcas, "estado": est}, ensure_ascii=False).encode()
-        self._subir(rel, f"raiz_controle_{u}.json", controle, "application/json")
+        pendentes.append((f"raiz_controle_{u}.json", controle, "application/json"))
         nomes = list(csvs)
         cont = {t: sum(1 for n in nomes if re.fullmatch(rf"{t}_\d{{7}}\.csv", n)) for t in TABELAS_TODAS}
         vazios = {c for c, m in marcas.items() if ((m.get("tarefas") or {}).get("funil") or {}).get("vazio")}
@@ -623,6 +652,28 @@ class ArmazemRelease:
             controle=self.url(f"raiz_controle_{u}.json"),
         )
         info.update(extra)
+        fichas = dict(info.get("fichas") or {})
+        for nome, dados, tipo in list(pendentes):
+            if nome == f"raiz_{u}.tar.gz":
+                continue  # a ficha tabular abaixo descreve este pacote
+            ficha = ficha_arquivo(nome, self.url(nome), sha256_bytes(dados), len(dados),
+                                  formato=tipo, repo=self.repo, atualizado_em=agora)  # fmt: skip
+            validar(ficha)
+            dados_ficha = json.dumps(ficha, ensure_ascii=False, indent=2).encode()
+            nome_ficha = f"croissant_{nome}.json"
+            pendentes.append((nome_ficha, dados_ficha, "application/ld+json"))
+            fichas[nome] = {"url": self.url(nome_ficha), "sha256": sha256_bytes(dados_ficha),
+                           "arquivo_sha256": sha256_bytes(dados)}  # fmt: skip
+        info["fichas"] = fichas
+        if csvs:
+            ficha = croissant_uf(self.local.raiz / "saida" / u, u, {**info, "repo": self.repo, "tag": self.tag})
+            dados_ficha = json.dumps(ficha, ensure_ascii=False, indent=2).encode()
+            nome_ficha = f"croissant_{u}.json"
+            pendentes.append((nome_ficha, dados_ficha, "application/ld+json"))
+            info["croissant"] = {"url": self.url(nome_ficha), "sha256": sha256_bytes(dados_ficha)}
+        # Prepara e valida a ficha antes de alterar qualquer arquivo remoto. A trava da UF abrange tudo.
+        for nome, dados, tipo in pendentes:
+            self._subir(rel, nome, dados, tipo)
         self._sujos.pop(u, None)
         self._ultima[u] = time.time()
         return info
@@ -631,6 +682,8 @@ class ArmazemRelease:
         """Relê o estados.json, troca só as entradas destes estados e regrava, dentro da trava; confere depois. O
         campo motor.fatias (a rodada de cada fatia de um estado grande) é juntado, não trocado."""
         import datetime as dt
+
+        from raiz.metadados import croissant_release, ficha_arquivo, validar
 
         agora = dt.datetime.now(dt.UTC).isoformat(timespec="seconds")
         for _ in range(3):
@@ -641,7 +694,28 @@ class ArmazemRelease:
                     est_f[u] = _juntar_entrada(est_f.get(u, {}), info)
                 fresco.update(gerado_em=agora, repo=self.repo, tag=self.tag, estados=dict(sorted(est_f.items())))
                 dados = json.dumps(fresco, ensure_ascii=False, indent=1).encode()
-                self._subir(self._release(), "estados.json", dados, "application/json")
+                rel = self._release()
+                ficha_indice = ficha_arquivo(
+                    "estados.json",
+                    self.url("estados.json"),
+                    sha256_bytes(dados),
+                    len(dados),
+                    formato="application/json",
+                    repo=self.repo,
+                    atualizado_em=agora,
+                )
+                validar(ficha_indice)
+                ficha_indice = json.dumps(ficha_indice, ensure_ascii=False, indent=2).encode()
+                nome_ficha = "croissant_estados.json"
+                self._subir(rel, nome_ficha, ficha_indice, "application/ld+json")
+                # A ficha do índice entra só no catálogo: seu hash no índice criaria autorreferência.
+                fichas = {**fresco.get("fichas", {}), "estados.json": {"url": self.url(nome_ficha),
+                           "sha256": sha256_bytes(ficha_indice)}}  # fmt: skip
+                catalogo = croissant_release({**fresco, "fichas": fichas}, self.repo, self.tag)
+                validar(catalogo)
+                ficha = json.dumps(catalogo, ensure_ascii=False, indent=2).encode()
+                self._subir(rel, "croissant.json", ficha, "application/ld+json")
+                self._subir(rel, "estados.json", dados, "application/json")
             conferido = self.manifesto(fresco=True).get("estados", {})
             if all((conferido.get(u) or {}).get("versao") == info.get("versao") for u, info in feito.items()):
                 return

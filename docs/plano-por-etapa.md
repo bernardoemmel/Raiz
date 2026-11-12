@@ -29,7 +29,7 @@ Retomada em 12/11/2026, seguindo a passagem `docs/passagem/raiz-dados-do-brasil.
 | Ordem | Entrega | Situação |
 |---|---|---|
 | 1 | Limite global de 15 jobs de processamento, sem cancelar os existentes | **feito**: #43 mesclado com CI de push e PR verdes; admissão atômica na ref `raiz-fila-processamento`, incluindo pedidos manuais e continuações; falha de consulta bloqueia novas vagas. Pedidos sem vaga ficam persistidos e são retomados a cada 15 minutos |
-| 2–3 | Fichas Croissant 1.1/schema.org e publicação no Release | a fazer |
+| 2–3 | Fichas Croissant 1.1/schema.org e publicação no Release | **feito no publicador**: `raiz/metadados.py`, baker 0.8.3 e mlcroissant 1.1.1; fichas por pacote CSV, geometria, camadas e controle, catálogo geral e ficha do índice sob as travas existentes. SHA-256 dos bytes reais, leitura de tar testada e nenhuma licença de dados presumida. A atualização retroativa de todos os assets será conferida na entrega final |
 | 4 | Quantis públicos no formato hubverse, com versão do modelo | a fazer |
 | 5 | Cartão do modelo | a fazer |
 | 6 | Atestação dos arquivos publicados pelo Actions | a fazer |

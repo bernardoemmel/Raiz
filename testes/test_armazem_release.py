@@ -25,6 +25,7 @@ class GitHubFalso:
         self.assets: dict[str, bytes] = {}
         self.uploads: list[str] = []
         self._ids: dict[str, int] = {}
+        self._proximo_id = 1
 
     def tar(self, uf: str, arquivos: dict[str, bytes]) -> bytes:
         buf = io.BytesIO()
@@ -48,7 +49,16 @@ class GitHubFalso:
         if not tok:
             return httpx.Response(401)
         if u.host == "api.github.com" and req.method == "GET":
-            assets = [{"id": self._ids.setdefault(n, len(self._ids) + 1), "name": n} for n in self.assets]
+            import hashlib
+
+            for n in self.assets:
+                if n not in self._ids:
+                    self._ids[n] = self._proximo_id
+                    self._proximo_id += 1
+            assets = [
+                {"id": self._ids[n], "name": n, "digest": "sha256:" + hashlib.sha256(d).hexdigest()}
+                for n, d in self.assets.items()
+            ]
             return httpx.Response(200, json={"id": 7, "assets": assets})
         if u.host == "api.github.com" and req.method == "DELETE":
             aid = int(u.path.rsplit("/", 1)[1])
@@ -184,6 +194,52 @@ def test_nao_publica_coluna_proibida(gh, tmp_path):
     with pytest.raises(ValueError, match="proibida"):
         a.publicar("PA")
     assert "raiz_PA.tar.gz" not in gh.assets
+
+
+def test_ficha_corresponde_ao_pacote_e_catalogo_preserva_outros_estados(gh, tmp_path):
+    import hashlib
+
+    a = _armazem(gh, tmp_path / "esp")
+    a.por_bytes(f"saida/PA/imoveis_{C1}.csv", b"cod_imovel,ha\nx,1\n", {"versao": "funil-1"})
+    a.publicar("PA")
+    man = json.loads(gh.assets["estados.json"])["estados"]["PA"]
+    assert man["sha256"] == hashlib.sha256(gh.assets["raiz_PA.tar.gz"]).hexdigest()
+    ficha = json.loads(gh.assets["croissant_PA.json"])
+    pacote = next(d for d in ficha["distribution"] if d.get("contentUrl") == a.url("raiz_PA.tar.gz"))
+    assert pacote["sha256"] == man["sha256"]
+    assert man["croissant"]["sha256"] == hashlib.sha256(gh.assets["croissant_PA.json"]).hexdigest()
+    a.por_bytes("saida/AC/imoveis_1200001.csv", b"cod_imovel,ha\ny,2\n", {"versao": "funil-1"})
+    a.publicar("AC")
+    catalogo = json.dumps(json.loads(gh.assets["croissant.json"]))
+    assert "croissant_PA.json" in catalogo and "croissant_AC.json" in catalogo
+    assert gh.uploads[-1] == "estados.json"
+    # Publicar de novo sem mudar o CSV não troca os bytes que a ficha identifica.
+    pacote_antes = gh.assets["raiz_PA.tar.gz"]
+    a.publicar("PA")
+    assert gh.assets["raiz_PA.tar.gz"] == pacote_antes
+
+
+def test_falha_na_ficha_nao_publica_pacote_parcial(gh, tmp_path, monkeypatch):
+    from raiz import metadados
+
+    def falhar(*args, **kwargs):
+        raise ValueError("ficha inválida")
+
+    a = _armazem(gh, tmp_path / "esp")
+    a.por_bytes(f"saida/PA/imoveis_{C1}.csv", b"cod_imovel,ha\nx,1\n")
+    monkeypatch.setattr(metadados, "croissant_uf", falhar)
+    with pytest.raises(ValueError, match="ficha inválida"):
+        a.publicar("PA")
+    assert not gh.uploads
+
+
+def test_publicacao_recupera_asset_ausente_sem_alteracao_dos_dados(gh, tmp_path):
+    a = _armazem(gh, tmp_path / "esp")
+    a.por_bytes(f"saida/PA/imoveis_{C1}.csv", b"cod_imovel,ha\nx,1\n")
+    a.publicar("PA")
+    del gh.assets["raiz_PA.tar.gz"]  # falha de upload após DELETE, com índice da publicação anterior
+    a.publicar("PA")
+    assert f"PA/imoveis_{C1}.csv" in gh.membros("raiz_PA.tar.gz")
 
 
 def test_armazem_padrao_e_o_release(monkeypatch):

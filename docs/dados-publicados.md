@@ -64,6 +64,26 @@ daquela tabela muda, sem contar comentários) e chega ao código exato pelo `com
 
 São dados de fontes públicas (CAR, MapBiomas, INPE, FUNAI, INCRA, ICMBio), sem nome, CPF ou CNPJ.
 
+## Fichas Croissant 1.1 e schema.org
+
+O publicador do executor gera `croissant_<UF>.json` com o SHA-256 do `raiz_<UF>.tar.gz` efetivamente publicado,
+um `FileObject` por CSV e `FileSet` por tabela. Cada CSV preserva seu próprio esquema, inclusive quando um município
+tem colunas mais novas que outro. O baker 0.8.3 infere os tipos percorrendo o CSV; o mlcroissant 1.1.1 valida a ficha
+sem baixar o pacote. Um teste também carrega registros reais de um tar local pelo mlcroissant.
+
+Pacotes de geometria, camadas e arquivos de controle recebem `croissant_<nome-do-arquivo>.json`; esses arquivos
+não tabulares são descritos como distribuições, sem prometer um leitor de registros para formatos não suportados.
+`croissant.json` reúne as fichas publicadas. `croissant_estados.json` descreve os bytes do índice, e seu hash
+fica apenas no catálogo para evitar autorreferência. As próprias fichas não geram novas fichas recursivamente.
+
+Os pacotes e suas fichas são preparados antes do upload e publicados na mesma trava de UF. O catálogo é gerado
+na trava global, com `estados.json` por último. O índice passa a trazer `sha256` (pacote comprimido),
+`proveniencia_sha256` (versões/datas dos arquivos), `croissant` e `fichas`; os consumidores antigos podem ignorar
+essas colunas adicionais. Os arquivos que já existiam serão atualizados pela publicação retroativa da retomada.
+
+A licença dos dados derivados da Raíz ainda não foi definida. As fichas registram essa condição e remetem aos
+créditos e termos das fontes em `NOTICE.md`; não atribuem automaticamente a licença do código ou a do baker aos dados.
+
 ## Release `vigilancia`
 
 A vigilância diária (`raiz/vigilancia/`, workflow `.github/workflows/vigilancia.yml`) lê os polígonos daqui e publica
