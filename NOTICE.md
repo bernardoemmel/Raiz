@@ -80,7 +80,9 @@ Métodos reescritos, sem copiar código: frases comparativas por índice no esti
 (`front/compartilhado/comparacoes.ts`) e caixa de fatos no formato das "fact boxes" de comunicação de risco
 (`front/compartilhado/cenario.ts`). Dependências só de desenvolvimento: Vite, TypeScript, Vitest, Oxlint (MIT) e,
 no script, requests (Apache-2.0), shapely e pmtiles (BSD-3-Clause). Teste do site estático no Chromium:
-Playwright 1.65.0 (Apache-2.0) e pngjs 7.0.0 (MIT), usados como bibliotecas, sem código copiado.
+Playwright 1.65.0 (Apache-2.0) e pngjs 7.0.0 (MIT), usados como bibliotecas, sem código copiado. Auditoria
+Agentic Browsing: Lighthouse 13.6.0 (Apache-2.0), somente no desenvolvimento/CI. O arquivo llms.txt segue a
+proposta do llmstxt.org; JSON-LD usa o vocabulário schema.org, sem copiar código de implementação.
 
 ## OpenStreetMap pelos ladrilhos do Protomaps (cidades e estradas por imóvel)
 
