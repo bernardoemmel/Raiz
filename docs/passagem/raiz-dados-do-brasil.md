@@ -223,3 +223,18 @@ privada exige nova validação antes da entrega.
 O fundador autorizou explicitamente reativar o processamento e retomar os lotes pendentes. A retomada será feita
 após CI e merge do publicador integrado, migrando as referências da fila para esse código, reabrindo os pedidos
 interrompidos e mantendo o teto global de 15. Nenhum job novo usará o publicador que expunha dados completos.
+
+## Capacidade conjunta com o Lote do Pará
+
+O #55 acrescentou `retomar-lote-para.yml`, com cinco fatias. Os dois workflows do Lote passam a reservar cotas na
+mesma ref CAS do motor e do catálogo, antes de instalar dependências ou ler dados. A concorrência da matriz usa
+apenas as cotas obtidas; preparo, checkpoints e publicação ficam cobertos até o término confirmado da rodada.
+Reruns conferem cotas por tentativa antes de acessar os dados; uma reexecução parcial sem reserva falha sem calcular.
+
+A rodada `43299409156`, iniciada pelo chat do Lote no SHA `3546687c66ec07ef9bd875d181efcff57ff1d312`, continua intacta.
+Esse workflow imutável foi conferido e ocupa cinco vagas durante toda a execução. Outros Lotes legados desconhecidos
+consomem conservadoramente as 15 vagas até terminar. Nenhuma reserva é liberada por idade ou por cancelamento solicitado.
+A fila do motor preserva RN-1 e RN-2, cancelados na pausa externa; o fundador autorizou reabri-los com referência segura.
+
+Entradas congeladas, fatias intermediárias e checkpoints do Lote ficam fora da retrocatalogação, assim como caches e
+backups. Os produtos finais continuam elegíveis a ficha e atestação; o processamento científico do outro chat não muda.
