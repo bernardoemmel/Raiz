@@ -58,3 +58,9 @@ def test_urtx_prazo_registrado_gera_rota_e_alerta_sem_estado_privado(cfg, monkey
     aviso = next(a for a in novos if a.chave == "verra_aviso:URTX_LE1")
     assert aviso.gravidade == "critico" and "proponente" in aviso.texto
     assert not len(v.eventos())
+    # Confirmação do proponente também encerra o aviso que nasceu só do prazo informado.
+    cliente.post(base + "/eventos", json={"tipo": "verra_avisada", "quem": "proponente", "data": "2026-11-13"})
+    assert cliente.get(base + "/aviso-verra.eml").status_code == 409
+    assert not any(
+        a.chave == "verra_aviso:URTX_LE1" for a in alertas._vigilancia(v, alertas.politica()["regras"], HOJE)
+    )

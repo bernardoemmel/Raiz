@@ -206,10 +206,12 @@ def rodar(
                 perda_id = registro_aviso["perda_id"]
                 if perda_id in perdas_presentes:
                     continue
-                rascunho = aviso_verra.preparar(
-                    p, perda_id, regras, hoje, prazo_informado=aviso_verra.prazo_registrado(p, perda_id)
-                )
-                (pasta_rel / f"{perda_id}_aviso_verra.eml").write_text(aviso_verra.eml(rascunho), encoding="utf-8")
+                rascunho = vig.aviso_verra(p.id, perda_id, hoje)
+                arquivo_aviso = pasta_rel / f"{perda_id}_aviso_verra.eml"
+                if rascunho["pode_exportar"]:
+                    arquivo_aviso.write_text(aviso_verra.eml(rascunho), encoding="utf-8")
+                else:
+                    arquivo_aviso.unlink(missing_ok=True)
             resumo_proj[p.id] = {
                 "perdas_abertas": sum(1 for x in lista_perdas if x["estado"] in ("suspeita", "confirmada")),
                 "avisos_aguardando": sum(1 for a in avs if a["estado"] == "aguardando_aprovacao"),

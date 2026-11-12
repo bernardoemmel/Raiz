@@ -150,18 +150,19 @@ def main(argv: list[str] | None = None) -> int:
 
     v = Vigilancia()
     if args.cmd == "aviso-verra":
-        from raiz.vigilancia.aviso_verra import eml, prazo_registrado, preparar
+        from raiz.vigilancia.aviso_verra import eml, preparar
         from raiz.vigilancia.servico import hoje_brasil
 
         if args.projeto not in v.projetos:
             _imprimir({"erro": "projeto não cadastrado"})
             return 2
         try:
-            pe = v._perda(args.projeto, args.perda) if len(v.arm.alertas("projeto", args.projeto)) else None
-            prazo = _data(args.prazo_informado) or prazo_registrado(v.projetos[args.projeto], args.perda)
-            d = preparar(v.projetos[args.projeto], args.perda, v.regras, hoje_brasil(), pe, prazo)
-            if pe is None and not args.prazo_informado:
-                d["origem_prazo"] = "informado_pelo_cliente_e_registrado_no_projeto"
+            d = v.aviso_verra(args.projeto, args.perda)
+            prazo = _data(args.prazo_informado)
+            if d is not None and prazo is not None and prazo.isoformat() != d["prazo"]:
+                raise ValueError("prazo informado diverge do prazo registrado no projeto")
+            if d is None:
+                d = preparar(v.projetos[args.projeto], args.perda, v.regras, hoje_brasil(), prazo_informado=prazo)
         except ValueError as ex:
             _imprimir({"erro": str(ex)})
             return 2
