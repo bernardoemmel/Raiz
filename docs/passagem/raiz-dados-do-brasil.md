@@ -238,3 +238,17 @@ A fila do motor preserva RN-1 e RN-2, cancelados na pausa externa; o fundador au
 
 Entradas congeladas, fatias intermediárias e checkpoints do Lote ficam fora da retrocatalogação, assim como caches e
 backups. Os produtos finais continuam elegíveis a ficha e atestação; o processamento científico do outro chat não muda.
+
+## Validação final antes do PR dos formatos
+
+- Suíte completa do publicador integrado: **1.511 passaram, 2 pulados e 1 xfail**, com PostGIS, no commit `57c6c04`.
+  As duas incompatibilidades da migração local foram corrigidas antes dessa execução.
+- Integração posterior da API/MCP: 544 testes complementares passaram; o contrato de resposta da Ficha foi
+  incorporado do #72 e os 93 testes finais de ficha, pedidos, Pix, webhook, apresentação e MCP passaram.
+  Banco novo e downgrade/upgrade conferiram a cadeia até `0031`, sem alterar as revisões já na main.
+- Ruff, actionlint, varredura de CPF/CNPJ e licenças passaram; 681 pacotes foram conferidos sem problema de licença.
+- Conferência somente de leitura dos Releases, antes da catalogação: 22 arquivos públicos e 39 canônicos privados
+  (1.205.637.082 bytes privados), todos com SHA-256 real igual ao digest do GitHub. Os 22 públicos passaram na
+  lista positiva. As fichas e assinaturas ainda serão preenchidas pelo workflow após o merge.
+- O run do Lote `43299409156` terminou com sucesso por conta própria. Não foi cancelado, reexecutado ou alterado
+  por este chat; a reserva conservadora de cinco vagas deixa de pesar após a confirmação do término pela API.
