@@ -271,7 +271,12 @@ def inventariar(gh: GitHub, repo: str, diretorio: Path, *, paralelos: int = 4) -
         release, asset = tarefa
         nome = nome_seguro(asset["name"])
         local = diretorio / "assets" / str(release["id"]) / f"{asset['id']}-{nome}"
-        if local.is_file():
+        # Tamanho sozinho não autentica o cache. Assets antigos podem não ter
+        # digest: nesse caso o snapshot deve vir novamente do endpoint remoto,
+        # nunca de bytes locais que poderiam ter mudado mantendo o mesmo tamanho.
+        sha_remoto = asset.get("digest")
+        cache_conferivel = isinstance(sha_remoto, str) and re.fullmatch(r"sha256:[a-f0-9]{64}", sha_remoto)
+        if local.is_file() and cache_conferivel:
             try:
                 conferir_local(local, asset)
             except ValueError:

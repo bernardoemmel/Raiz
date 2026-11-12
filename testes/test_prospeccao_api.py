@@ -208,3 +208,16 @@ def test_busca_salva_e_avisos_nao_aceitam_outra_identidade(cliente, monkeypatch)
 
     monkeypatch.setattr(api.buscas_salvas, "excluir", negar)
     assert cl.delete("/prospeccao/buscas-salvas/de-outra-conta").status_code == 404
+
+
+def test_filtros_premium_sem_pagamento_retornam_402(cliente, monkeypatch):
+    cl, _ = cliente
+    cl.headers["Authorization"] = "Bearer sessao-cliente"
+
+    def negar(*args, **kwargs):
+        raise api.acesso.ErroAcesso(402, "Filtros avançados exigem crédito pago.")
+
+    monkeypatch.setattr(api.busca, "buscar_prospeccao", negar)
+    resposta = cl.get("/prospeccao/busca?credito_min=10")
+    assert resposta.status_code == 402
+    assert "crédito pago" in resposta.text and "imoveis" not in resposta.text

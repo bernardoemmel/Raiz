@@ -248,8 +248,17 @@ Entrega do chat **Ficha da fazenda** (12/11/2026; detalhes em
 | Busca nacional combinando estado, município, bioma, área, terra, crédito e risco; pequenas preservadas e agrupamentos indicados | **feito** sobre a cobertura processada; vizinhança do agrupamento ainda precisa de conferência |
 | Botão pedir contato, registro interno na Raíz | **feito**; não envia contato nesta etapa |
 | Créditos pagos, Pix confirmado no provedor, débito atômico/idempotente, limites persistidos contra raspagem | **feito** no código; operação exige catálogo de preços e chave Pix de produção |
-| Agregados abertos no site, nova ficha completa só na API autenticada e paga | **feito** no site e nas rotas novas; Release histórico de dados continua aberto, migração de armazenamento privado deve ser coordenada com dados |
+| Agregados abertos no site, nova ficha completa só na API autenticada e paga | **feito** no site e nas rotas novas; migração do Release histórico e contrato básico descritos na continuação abaixo |
 | Integração da nova ficha com navegação do mapa | **feito**, sem reescrever o mapa; produtor precisa de autenticação própria para voltar a acessar detalhes no site |
+
+Continuação de Ficha da fazenda (12/11/2026; validação e operação na passagem):
+
+| Entrega | Situação |
+|---|---|
+| Contrato aberto com agregado municipal/estadual e CAR/situação básica; camadas exclusivas no arquivo privado | Código e testes feitos; migração remota verificável em execução, resultado em `docs/dados-publicados.md` |
+| Preços em YAML provisório, Pix em teste e roteiro de ativação no servidor | **feito**; valores a definir pelo fundador, venda real fechada |
+| Comparar até cinco fichas pagas, salvar busca/avisos internos e PDF com fontes/datas | **feito** no código; agendar verificação no servidor ao implantar |
+| `consultar_ficha` compartilhado pela API e adaptador MCP, alinhado à passagem Produto e regras | **feito**; registro no transporte corporativo permanece com Produto e regras |
 
 Site legível por agentes (12/11/2026): **feito** — `llms.txt`, `robots.txt`, páginas Markdown do Brasil, estados,
 municípios, produtor, serviço, fontes e privacidade; alternates no HTML; JSON-LD `Dataset`, `Service` e `Offer`
@@ -267,7 +276,7 @@ zoom, polígonos coloridos, HTTP Range e zero 404. Build limita fichas pré-gera
 com portão de 950 MB. Polígonos permanecem por município enquanto couberem; não foi necessário tippecanoe nesta rodada.
 
 A entrega da ficha mantém as bases e limites do mapa nacional, mas restringe os detalhes por CAR à API paga;
-a publicação pública usa os agregados municipais.
+a publicação pública usa agregados municipais e situação básica por CAR, sem camadas exclusivas.
 
 Conferido contra a main em 12/11/2026: "feito" quer dizer que o código está na main; "parcial" diz o que existe e o
 que falta, com as horas do que falta. O site público (https://bernardoemmel.github.io/Raiz/) mostra o que o front já

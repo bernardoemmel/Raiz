@@ -1,76 +1,96 @@
-# Dados do motor publicados (Release `dados`)
+# Dados publicados: aberto e pago
 
-Os dados grandes nunca entram no git. O motor roda sozinho no GitHub Actions e publica direto no Release `dados`
-(https://github.com/bernardoemmel/raiz/releases/tag/dados), de onde o front baixa. Ninguém baixa nem sobe nada à mão.
-Painel e detalhes: [`motor/README.md`](../motor/README.md).
+Os dados grandes ficam fora do git. Existem dois contratos separados: uma
+projeção pública para o mapa e os agregados; e o resultado completo do motor,
+acessível somente por processos autorizados do servidor.
 
-## Caminho automático
+## O que é aberto
 
-1. O workflow `.github/workflows/processar-estados.yml` roda toda segunda-feira e quando alguém dispara (Actions,
-   "Processar estados (motor)"). O plano (`motor/rodar_estado.py --planejar`) lê o `estados.json` publicado e escolhe,
-   na ordem do país, os estados que não começaram, os incompletos, os de antes do executor, os que têm tarefa com
-   código mudado e os completos que não rodam há 6 dias, em duas filas (estado novo primeiro; manutenção só com o que
-   sobra, até 4). Estado com mais de 120 municípios roda em fatias, em jobs separados. Até 15 jobs ao mesmo tempo,
-   somando todas as rodadas.
-2. Cada estado roda num job (`motor/rodar_estado.py <UF> --executor`) pelo executor do produto (`raiz executor`): ele
-   lê do Release o que já está publicado do estado (pacotes e marcas de retomada), roda o motor e as tarefas do
-   produto só onde falta ou mudou, e publica: `raiz_<UF>.tar.gz` (os CSV, com `<UF>/_versoes.json`: tarefa, versão,
-   data e sha256 de cada arquivo), `raiz_geo_<UF>.tar.gz` (os polígonos), `raiz_camadas_<UF>.tar.gz` (camadas dentro
-   do imóvel), `raiz_controle_<UF>.json` (marcas por município e andamento) e, por último, o `estados.json`, relido e
-   regravado dentro de uma trava (tag `trava-publicar-dados`) para que dois estados que terminam juntos não apaguem um
-   ao outro. Nada sobe com coluna de nome, CPF, CNPJ ou contato. Depois, o painel em `motor/README.md` é atualizado.
-3. Se o job parou pelo prazo de 5h30, ele dispara o workflow de novo só para aquele estado; se terminou, passa a vez ao
-   próximo estado da fila.
-4. O front baixa sozinho: `npm run dev` roda antes `front/scripts/baixar-dados.mjs`, que lê o `estados.json` publicado
-   e baixa só os estados novos ou mudados para `dados/estados/<UF>/` (fora do git). `npm run dados -- --geo` também
-   baixa os polígonos. `RAIZ_SEM_DOWNLOAD=1` pula o download. O back-end espelha o Release com
-   `raiz executor sincronizar`.
-5. O plugin do Vite (`front/compartilhado/vite-dados.ts` e `pasta-dados.ts`) lê `dados/estados/` sozinho quando
-   existe (ou a pasta de `RAIZ_DADOS`); sem ela, a amostra. O mapa do Brasil diz, por estado, o que o `estados.json`
-   baixado diz (completo, incompleto com a contagem, ainda não processado), sem recontar.
-6. O site público (https://bernardoemmel.github.io/Raiz/) é refeito todo dia pelo workflow `publicar-site.yml`, que
-   baixa este Release no build (ver `front/README.md`, "Site público").
+O Release `dados` distribui o contrato `publico_basico`, versão 1:
 
-## Caminho antigo (motor rodado no computador)
-
-`python motor/publicar_dados.py motor/saida dados-entrada [UF ...]` monta os pacotes em `dados-entrada/` (pacote acima
-de 90 MB vai em partes `.part00`, `.part01`...). Commit de `dados-entrada/` num branch de trabalho
-(`git add -f dados-entrada`) e push: o workflow `publicar-dados.yml` junta as partes, sobe os pacotes e mescla no
-`estados.json` publicado só as entradas dos estados que têm pacote (`publicar_dados.py --indice`). No commit seguinte,
-`git rm -r dados-entrada`. Com o `gh` autenticado dá para pular o git: `--subir`. Estado do executor (com
-`controle` no `estados.json`) não é publicado por aqui, para não perder as tabelas do produto: `raiz executor publicar`.
-
-## `estados.json`
-
-Uma entrada por estado:
-
-| Campo | O que é |
+| Arquivo | Conteúdo permitido |
 |---|---|
-| `municipios` | municípios com `imoveis_<cod>.csv` |
-| `sem_imoveis` | municípios sem nenhum imóvel IRU no CAR (na marca do executor, `vazio`; no motor sozinho, `sem_imoveis_<UF>.csv`); contam como prontos |
-| `total_ibge` | municípios do estado (IBGE) |
-| `funil_completo` | funil rodado em todos os municípios |
-| `completo` | funil, filtros, MapBiomas, direto, TMF e causas, APP pela escadinha e, no estado do executor, FLAG, caminho da terra, ficha e desenvolvedor em todos os municípios com imóvel (extras do Earth Engine e certidões não entram) |
-| `faltam` | quantos municípios faltam em cada etapa (`imoveis`, `filtros`, `mapbiomas`, `direto`, `extras_direto`, `app`, `flag`, `terra`, `ficha`, `desenvolvedor`) |
-| `tabelas` | quantos municípios têm cada tabela (`imoveis`, `direto`, `filtros`, `extras`, `extras_direto`, `mapbiomas`, `certidoes`, `app`) |
-| `versao`, `tamanho`, `url`, `atualizado_em` | pacote dos CSV: sha256 do conteúdo, bytes, endereço e quando o conteúdo mudou |
-| `geo` | o mesmo para o pacote dos polígonos |
-| `versoes`, `motor_versao`, `situacao`, `controle` | do executor: versão de cada tarefa (hash do código e da regra), versão do motor, andamento (`pronto`, `parado_no_prazo`, `com_erro`) e endereço das marcas de retomada |
-| `motor` | quem rodou: `commit` (sha do commit da rodada), `versao`, `etapas` (versão por tarefa), `legado` (tarefas adotadas de antes do executor, como estavam), `rodada` (endereço do job, início, fim, continuação, se parou pelo prazo e quantos municípios avançou) e, em estado grande, `fatias` (por fatia: `rodada`, `completo`, `faltam`, `erros`, `municipios`) |
-| `erros` | erros da última rodada (etapa, município, mensagem; sem CPF nem CNPJ), até 50 |
+| `estados.json` | Cobertura por UF, municípios, datas, versões e endereços dos pacotes públicos |
+| `raiz_<UF>.tar.gz` | Resumos por município e `imoveis_basicos_<IBGE>.csv` com `cod_imovel`, `cod_ibge`, `municipio`, `uf`, `situacao_basica` |
+| `raiz_geo_<UF>.tar.gz` | Geometria do CAR com apenas `cod_imovel` e `geometry` |
 
-O aprendizado compara previsões entre versões do motor pelo `motor.etapas[tabela].versao` (muda só quando o código
-daquela tabela muda, sem contar comentários) e chega ao código exato pelo `commit`.
+As situações abertas são `apto`, `com_pendencia` e `nao_apto`. São uma triagem,
+não certidão de domínio nem garantia de elegibilidade. Municípios e estados
+mantêm agregados; valores de grupos pequenos são suprimidos para evitar a
+reconstrução de uma ficha. Nenhuma fazenda é retirada por ser pequena.
 
-São dados de fontes públicas (CAR, MapBiomas, INPE, FUNAI, INCRA, ICMBio), sem nome, CPF ou CNPJ.
+A lista positiva está em `raiz/executor/publicacao_aberta.py`. Colunas, tabelas
+e arquivos novos ficam privados até revisão. As geometrias abertas não carregam
+atributos financeiros, históricos ou de risco. A amostra e os testes do site
+seguem o mesmo contrato.
 
-## Release `vigilancia`
+O front baixa somente esse contrato para `dados/publicos/`. O download rejeita
+manifesto antigo, pacote com campos pagos e destino compartilhado com o espelho
+privado. O build e o servidor de desenvolvimento também aplicam a lista positiva.
+Sem dados básicos publicados, o site mostra cobertura indisponível; não busca
+arquivos antigos completos como alternativa.
 
-A vigilância diária (`raiz/vigilancia/`, workflow `.github/workflows/vigilancia.yml`) lê os polígonos daqui e publica
-no Release `vigilancia` (https://github.com/bernardoemmel/raiz/releases/tag/vigilancia): alertas de imóvel por mês
-(`alertas_AAAA-MM.parquet`), espelho dos embargos do Ibama, situação das fontes e rodadas, abertos; projetos,
-eventos de perda, marcações e rascunhos de relatório num pacote cifrado (`privado.tar.gz.cifrado`, chave
-`RAIZ_VIGILANCIA_CHAVE`). `vigilancia.json` (manifesto) sobe por último. Detalhes em `raiz/vigilancia/README.md`.
+## O que é pago e permanece privado
+
+Por imóvel: certidão lida por IA, cadeia e pendências detalhadas da terra,
+comprometimento conhecido, sobreposições detalhadas, valor e créditos P10/P50/P90,
+TIR, risco, restauração estimada, uso e perdas ao longo dos anos. A ausência de
+nome ou CPF não torna esses derivados públicos.
+
+O arquivo completo preserva CSV, GeoParquet, camadas internas, controle de
+retomada, versões do motor e histórico de vigilância. Cada ficha é montada no
+back-end, com fonte, referência temporal e data de corte de cada medida; falta
+de dado continua explícita. O servidor exige identidade, liberação paga e limites
+contra extração em massa. PDF e comparação passam pelas mesmas verificações.
+Nunca são fornecidos nome, CPF ou contato do dono.
+
+## Armazenamento privado e publicação
+
+O destino desta migração é o Release **não publicado** `dados-privados` de
+`bernardoemmel/Raiz` (ID 443383695). É um draft autenticado: **não publicar esse
+Release**. A credencial de implantação não permitiu criar um repositório privado;
+o código também aceita migrar para um Release de repositório privado no futuro.
+O servidor confere `repo.private` ou `release.draft` antes de cada leitura e
+escrita. Se o draft virar público, a operação falha.
+
+```dotenv
+RAIZ_ARMAZEM_URL=release-github://bernardoemmel/Raiz/dados
+RAIZ_DADOS_PRIVADOS_URL=release-github://bernardoemmel/Raiz/dados-privados
+RAIZ_DADOS_PRIVADOS_TOKEN=<somente no ambiente do servidor>
+```
+
+O token deve poder ler o Release privado. Os jobs de publicação usam credencial
+com escrita, separada da credencial de leitura do back-end quando possível.
+No Actions do próprio repositório, `github.token` permite manter o draft sem
+expor token no navegador. Nunca usar variável `VITE_` para esse segredo.
+
+O executor grava primeiro o pacote completo no destino privado; somente depois
+projeta e valida os arquivos abertos. Travas por UF e por manifesto preservam
+publicações concorrentes. Os nomes canônicos privados (`raiz_<UF>`, `raiz_geo_<UF>`,
+`raiz_camadas_<UF>`, controles e `estados.json`) permitem retomar a coleta e carregar
+o banco. Snapshots históricos usam nomes imutáveis e não substituem o canônico.
+A vigilância por CAR e os cálculos completos do lote também usam armazenamento
+privado. Não enviar esses conteúdos como artifacts ou caches de Actions públicos.
+
+## Arquivos históricos encontrados
+
+Inventário inicial do Release `dados`, antes da troca (12/11/2026):
+
+- `raiz_<UF>.tar.gz`: AC, AP, GO, MA, MG, PA, RO, RR e TO. Contêm o motor completo
+  e camadas exclusivas, como ficha, desenvolvedor, terra, certidões, regularização,
+  filtros, MapBiomas e histórico. Devem ser substituídos pela projeção aberta.
+- `raiz_camadas_<UF>.tar.gz`: AC, AP, GO, MA, MG, RO, RR e TO. Somente privados.
+- `raiz_geo_<UF>.tar.gz`: AC, AP, GO, MA, MG, PA, RO, RR e TO. O original é
+  preservado; o público é reconstruído pela lista positiva de geometria e CAR.
+- `raiz_controle_<UF>.json`: AC, AM, AP, GO, MA, MG, MS, MT, PA, RO, RR e TO.
+  Controle detalhado de execução fica privado.
+- `estados.json`: substituído pelo manifesto básico sem referências a camadas pagas.
+- `URTX.kml`: arquivo fora do contrato aberto; preservado no privado, sem republicação automática.
+
+O inventário completo relaciona cada asset e cada membro, colunas, tamanho,
+SHA-256 e ID do GitHub. Novos Releases publicados também entram na varredura.
+O resultado remoto da migração e os comprovantes serão registrados nesta seção
+após a execução verificada; inventário local não comprova remoção do público.
 
 ## Migração verificável do histórico
 

@@ -238,3 +238,50 @@ def test_upload_usa_nome_real_do_backup_sem_rotulo_hash(tmp_path, monkeypatch):
     monkeypatch.setattr(gh, "comando", comando)
     gh.subir("org/repo", "backup", arq, "historico-1-2-publico.csv")
     assert nomes == ["historico-1-2-publico.csv"]
+
+
+@pytest.mark.parametrize("digest_remoto", [True, False])
+def test_inventario_nao_confia_em_cache_corrompido_com_mesmo_tamanho(tmp_path, monkeypatch, digest_remoto):
+    gh = GitHubFalso(tmp_path)
+    if not digest_remoto:
+        gh.originais[0]["digest"] = None
+    baixar = gh.baixar
+    downloads = []
+
+    def registrar(repo, asset_id, arquivo):
+        downloads.append(asset_id)
+        baixar(repo, asset_id, arquivo)
+
+    monkeypatch.setattr(gh, "baixar", registrar)
+    pasta = tmp_path / "inventario"
+    primeira = m.inventariar(gh, gh.repo_origem, pasta, paralelos=1)
+    local = Path(primeira["assets"][0]["arquivo_local"])
+    local.write_bytes(b"X" * local.stat().st_size)
+    segunda = m.inventariar(gh, gh.repo_origem, pasta, paralelos=1)
+    assert downloads.count(gh.originais[0]["id"]) == 2
+    assert local.read_bytes() == gh.bytes[gh.originais[0]["id"]]
+    assert segunda["assets"][0]["sha256"] == digest(gh.bytes[gh.originais[0]["id"]])
+    # A prova de backup e a remoção devem cobrir os bytes remotos saudáveis.
+    m.copiar(gh, segunda, gh.repo_destino, "backup", pasta, executar=True)
+    backup = next(a for a in gh.backups if a["name"] == segunda["assets"][0]["nome_backup"])
+    assert gh.bytes[backup["id"]] == gh.bytes[gh.originais[0]["id"]]
+    m.remover(gh, segunda, gh.repo_destino, "backup", pasta, executar=True)
+    assert gh.apagados == [1, 2]
+
+
+@pytest.mark.parametrize("digest_remoto,downloads_esperados", [(True, 1), (False, 2)])
+def test_cache_so_e_reutilizado_com_sha256_remoto_conferido(tmp_path, monkeypatch, digest_remoto, downloads_esperados):
+    gh = GitHubFalso(tmp_path)
+    if not digest_remoto:
+        gh.originais[0]["digest"] = None
+    baixar = gh.baixar
+    downloads = []
+
+    def registrar(repo, asset_id, arquivo):
+        downloads.append(asset_id)
+        baixar(repo, asset_id, arquivo)
+
+    monkeypatch.setattr(gh, "baixar", registrar)
+    for _ in range(2):
+        m.inventariar(gh, gh.repo_origem, tmp_path / "inventario", paralelos=1)
+    assert downloads.count(gh.originais[0]["id"]) == downloads_esperados

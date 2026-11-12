@@ -167,8 +167,10 @@ def _validar_csv(nome: str, dados: bytes, uf: str) -> None:
                 raise ValueError(f"{nome}: identificador inválido")
             if r.get("situacao_basica") not in SITUACOES or r.get("uf") != uf:
                 raise ValueError(f"{nome}: situação ou UF inválida")
-            if r["cod_imovel"][:2] != uf or r["cod_imovel"][3:10] != r["cod_ibge"] or r["cod_ibge"] not in nome:
-                raise ValueError(f"{nome}: CAR fora do município informado")
+            # O recorte SICAR inclui imóveis limítrofes cadastrados no município vizinho.
+            # cod_ibge identifica o arquivo/recorte processado, não reescreve o município no CAR.
+            if r["cod_imovel"][:2] != uf or r["cod_ibge"] != nome.removeprefix("imoveis_basicos_")[:-4]:
+                raise ValueError(f"{nome}: UF do CAR ou município do recorte divergente")
     elif nome == f"resumo_{uf}.csv":
         if not colunas or not set(colunas) <= set(COLUNAS_RESUMO):
             raise ValueError(f"{nome}: colunas fora do agregado permitido")

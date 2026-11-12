@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react"
-import { filtrosDaBuscaSalva, type AvisoBusca, type BuscaSalva, type FiltrosProspeccao } from "../../../compartilhado/prospeccao"
+import { filtrosDaBuscaSalva, type AvisoBusca, type BuscaSalva, type FiltrosProspeccao, type PaginaAvisos } from "../../../compartilhado/prospeccao"
 import { useSessao } from "../pedidos"
 import { dataTerra, prospeccao } from "../prospeccao"
 import { linkFazenda } from "../rota"
@@ -17,6 +17,12 @@ export function BuscasSalvas({ filtros, aoAplicar }: { filtros: FiltrosProspecca
   const controle = useRef<AbortController | null>(null)
   const geracao = useRef(0)
   const mutacao = useRef(false)
+  const ultimoAviso = useRef(0)
+  function receberAvisos(pagina: PaginaAvisos) {
+    for (const aviso of pagina.avisos) ultimoAviso.current = Math.max(ultimoAviso.current, aviso.id)
+    setAvisos((atuais) => [...new Map([...atuais, ...pagina.avisos].map((a) => [a.id, a])).values()].sort((a, b) => b.id - a.id))
+    setCursor(pagina.proximo_cursor)
+  }
   const podeUsar = !!sessao && prospeccao.disponivel
 
   useEffect(() => {
@@ -29,8 +35,8 @@ export function BuscasSalvas({ filtros, aoAplicar }: { filtros: FiltrosProspecca
       const versao = geracao.current
       consultando = true
       try {
-        const [salvas, novas] = await Promise.all([prospeccao.buscasSalvas(abortar.signal), prospeccao.avisos(0, abortar.signal)])
-        if (!abortar.signal.aborted && versao === geracao.current) { setBuscas(salvas); setAvisos(novas.avisos); setCursor(novas.proximo_cursor) }
+        const [salvas, novas] = await Promise.all([prospeccao.buscasSalvas(abortar.signal), prospeccao.avisos(ultimoAviso.current, abortar.signal)])
+        if (!abortar.signal.aborted && versao === geracao.current) { setBuscas(salvas); receberAvisos(novas) }
       } catch (e) { if (!abortar.signal.aborted) setErro((e as Error).message) }
       finally { consultando = false }
     }
@@ -48,11 +54,9 @@ export function BuscasSalvas({ filtros, aoAplicar }: { filtros: FiltrosProspecca
     catch (e) { if (!sinal.aborted) setErro((e as Error).message) }
     finally { mutacao.current = false; if (!sinal.aborted) setOcupado(false) }
   }
-  const carregarAvisos = (mais: boolean) => executar(async (sinal) => {
-    const pagina = await prospeccao.avisos(mais ? cursor ?? 0 : 0, sinal)
-    if (sinal.aborted) return
-    setAvisos((atuais) => mais ? [...atuais, ...pagina.avisos.filter((novo) => !atuais.some((a) => a.id === novo.id))] : pagina.avisos)
-    setCursor(pagina.proximo_cursor)
+  const carregarAvisos = () => executar(async (sinal) => {
+    const pagina = await prospeccao.avisos(ultimoAviso.current, sinal)
+    if (!sinal.aborted) receberAvisos(pagina)
   })
 
   return <section className="buscas-salvas secao-painel" aria-labelledby="buscas-salvas-titulo">
@@ -73,12 +77,12 @@ export function BuscasSalvas({ filtros, aoAplicar }: { filtros: FiltrosProspecca
         <div className="acoes-prospeccao"><button type="button" className="botao" onClick={() => { aoAplicar(filtrosDaBuscaSalva(busca.filtros)); setMensagem(`Filtros de “${busca.nome}” aplicados.`) }}>Aplicar busca {busca.nome}</button>
           <button type="button" className="botao" disabled={ocupado} onClick={() => void executar(async (sinal) => { await prospeccao.excluirBusca(busca.id, sinal); if (!sinal.aborted) { setBuscas((b) => b.filter((x) => x.id !== busca.id)); setAvisos((a) => a.filter((x) => x.busca_id !== busca.id)); setMensagem("Busca excluída.") } })}>Excluir busca {busca.nome}</button></div>
       </li>)}</ul>}
-      <div className="secao-cabeca"><h3>Novas fazendas nas buscas</h3><button type="button" className="botao" disabled={ocupado} onClick={() => void carregarAvisos(false)}>Atualizar avisos</button></div>
+      <div className="secao-cabeca"><h3>Novas fazendas nas buscas</h3><button type="button" className="botao" disabled={ocupado} onClick={() => void carregarAvisos()}>Atualizar avisos</button></div>
       {!avisos.length ? <p>Nenhum aviso disponível. As buscas são verificadas quando a base é atualizada.</p> : <ul className="grupos-prospeccao">{avisos.map((aviso) => <li key={aviso.id}>
         <strong>{aviso.nome_busca}{aviso.lida_em ? "" : ": novo aviso"}</strong><p>{aviso.mensagem}</p><p className="car-terra"><a href={linkFazenda(aviso.codigo_car)}>CAR {aviso.codigo_car}</a></p><p className="legenda-frase">Recebido em {dataTerra(aviso.criada_em)}. {aviso.lida_em ? `Lido em ${dataTerra(aviso.lida_em)}.` : "Ainda não lido."}</p>
         {!aviso.lida_em && <button type="button" className="botao" disabled={ocupado} onClick={() => void executar(async (sinal) => { const lido = await prospeccao.lerAviso(aviso.id, sinal); if (!sinal.aborted) setAvisos((a) => a.map((x) => x.id === lido.id ? { ...x, lida_em: lido.lida_em } : x)) })}>Marcar aviso como lido</button>}
       </li>)}</ul>}
-      {cursor !== null && <button type="button" className="botao" disabled={ocupado} onClick={() => void carregarAvisos(true)}>Carregar mais avisos</button>}
+      {cursor !== null && <button type="button" className="botao" disabled={ocupado} onClick={() => void carregarAvisos()}>Carregar mais avisos</button>}
     </>}
     {mensagem && <p role="status">{mensagem}</p>}{erro && <p className="erro-campo" role="alert">{erro}</p>}
   </section>

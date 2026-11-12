@@ -133,3 +133,35 @@ def test_cli_verifica_buscas_e_repeticao_nao_duplica_aviso(base, monkeypatch):
     assert [a["codigo_car"] for a in buscas.avisos(engine, cliente)["avisos"]] == [car]
     invalida = runner.invoke(app, ["prospeccao", "verificar-buscas", "--busca", "id-invalido"])
     assert invalida.exit_code == 1 and "Busca salva não encontrada" in invalida.output
+
+
+@pytest.mark.banco
+def test_busca_salva_avancada_e_job_conferem_habilitacao_paga(base):
+    engine, (cliente, _), filtros, acrescentar = base
+    filtros = {**filtros, "risco": "sem_dados"}
+    with pytest.raises(ErroAcesso) as erro:
+        buscas.salvar(engine, cliente, "Avançada", filtros)
+    assert erro.value.status == 402 and buscas.listar(engine, cliente) == []
+    liberada = acrescentar()
+    with engine.begin() as con:
+        con.execute(
+            text("insert into negocio.prospeccao_desbloqueio(cliente_id,cod_imovel) values (:c,:car)"),
+            {"c": cliente, "car": liberada},
+        )
+        con.execute(
+            text("insert into negocio.prospeccao_movimento(cliente_id,cod_imovel,quantidade) values (:c,:car,-1)"),
+            {"c": cliente, "car": liberada},
+        )
+    salva = buscas.salvar(engine, cliente, "Avançada", filtros)
+    nova = acrescentar()
+    assert buscas.verificar(engine, salva["id"])["novas_fazendas"] == 1
+    aviso = buscas.avisos(engine, cliente)["avisos"][0]
+    assert aviso["codigo_car"] == nova and "risco" not in aviso and "credito_p50" not in aviso
+    with engine.begin() as con:
+        con.execute(text("delete from negocio.prospeccao_movimento where cliente_id=:c"), {"c": cliente})
+    acrescentar()
+    with pytest.raises(ErroAcesso) as erro:
+        buscas.verificar(engine, salva["id"])
+    assert erro.value.status == 402
+    assert buscas.verificar_todas(engine)["buscas_sem_habilitacao"] == 1
+    assert len(buscas.avisos(engine, cliente)["avisos"]) == 1

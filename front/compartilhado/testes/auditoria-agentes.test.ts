@@ -12,12 +12,17 @@ describe("publicação para agentes respeita o acesso às fichas", () => {
   )
   it.each([
     "/Raiz/amostra/imoveis_1505536.csv.gz", "/Raiz/amostra/car_PA.json", "/Raiz/amostra/fichas/indice.json",
-    "/Raiz/geo/imoveis_1505536.geojson.gz", "/Raiz/amostra/desenvolvedor_1505536.csv.gz",
+    "/Raiz/amostra/desenvolvedor_1505536.csv.gz",
     "/Raiz/amostra/fichas%2Findice.json",
   ])("recusa download individual, inclusive com URL codificada: %s", (caminho) => {
     expect(() => conferirCaminhoPublico(caminho, "Dataset")).toThrow(/individual anunciado/)
     expect(() => conferirConteudoPublico(`[Dados](${caminho})`, "index.md")).toThrow(/individual anunciado/)
   })
+  it.each(["/Raiz/amostra/imoveis_basicos_1505536.csv.gz", "/Raiz/geo/imoveis_1505536.geojson.gz"])(
+    "permite somente os caminhos do contrato básico: %s", (caminho) => {
+      expect(() => conferirCaminhoPublico(caminho, "Camada básica")).not.toThrow()
+    },
+  )
   it("preserva resumo agregado, município e descrição do acesso pago", () => {
     expect(() => conferirConteudoPublico("# Ficha\nCréditos pagos e conta autenticada. [Pará](/Raiz/amostra/resumo_PA.csv.gz)", "index.md")).not.toThrow()
     expect(() => conferirCaminhoPublico("/Raiz/dados/municipios/1505536.md", "Catálogo")).not.toThrow()

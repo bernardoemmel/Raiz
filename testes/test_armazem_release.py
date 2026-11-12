@@ -52,7 +52,13 @@ class GitHubFalso:
             return httpx.Response(401)
         if u.host == "api.github.com" and req.method == "GET":
             assets = [
-                {"id": self._ids.setdefault(n, max(self._ids.values(), default=0) + 1), "name": n} for n in self.assets
+                {
+                    "id": self._ids.setdefault(n, max(self._ids.values(), default=0) + 1),
+                    "name": n,
+                    "size": len(self.assets[n]),
+                    "updated_at": "2026-11-12T00:00:00Z",
+                }
+                for n in self.assets
             ]
             if u.path.endswith("/commits/HEAD"):
                 return httpx.Response(200, json={"sha": "a" * 40})

@@ -506,3 +506,16 @@ comparam códigos do CAR, independentemente da data do arquivo. Snapshot e aviso
 com trava por busca; repetir o job ou executá-lo em paralelo não duplica avisos. Os avisos aparecem somente na
 conta do cliente e ocultam fazendas reservadas por outro cliente. O job não envia e-mail ou WhatsApp e não libera
 fichas pagas. Cada cliente pode manter até 20 buscas salvas; excluir uma remove seu snapshot e seus avisos.
+
+Crédito, risco e caminho da terra são filtros pagos: exigem compra real confirmada com movimento de crédito ou
+liberação de ficha com débito auditado. A gravação e cada execução do job conferem essa habilitação; buscas que
+a perderem ficam sem novos avisos e entram na contagem `buscas_sem_habilitacao`. Nenhuma nova cobrança é criada
+ao filtrar. A pertinência de um CAR a uma faixa é parte desse serviço pago. Combinar filtro avançado com CAR exige
+o código completo de uma ficha já liberada; prefixos não permitem deduzir seu valor.
+
+Na lista autenticada, medidas, risco e caminho de uma ficha fechada são nulos. As somas de crédito e área
+restaurável abrangem somente as fichas liberadas, com `escopo_metricas=fichas_liberadas` e a quantidade na
+cobertura `totais.fichas_liberadas`; contagens, tamanho e sugestões de agrupamento mantêm o universo filtrado.
+A ordem da lista é por CAR, sem revelar um ranking de crédito. O agregado regional aberto permanece separado,
+sem filtros privados e com a supressão das métricas com menos de cinco fazendas. Os limites persistidos de
+consulta continuam valendo para filtros, ficha, comparação e exportação.

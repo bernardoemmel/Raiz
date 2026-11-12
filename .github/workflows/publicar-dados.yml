@@ -1,8 +1,6 @@
-# Fluxo antigo (pelo git), para quem rodou o motor no computador: publica no Release `dados` os pacotes que
-# motor/publicar_dados.py gravou em dados-entrada/. Depois de publicar, dados-entrada/ sai do branch (os dados grandes
-# ficam só no Release, nunca no main). O caminho normal agora é o processar-estados.yml, que roda e publica sozinho.
-# O estados.json não é sobrescrito: só as entradas dos estados que têm pacote aqui são mescladas no publicado, dentro
-# da mesma trava que o processar-estados.yml usa (motor/publicar_dados.py --indice).
+# Importação administrativa de pacotes: confirma os originais no arquivo privado e publica somente a projeção
+# básica validada no Release aberto. O fluxo normal é processar-estados.yml; ambos usam as mesmas travas.
+# Dados grandes não devem entrar no git. Esta entrada legada é retirada do branch ao terminar.
 name: Publicar dados do motor
 
 on:

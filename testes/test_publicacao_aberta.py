@@ -125,3 +125,11 @@ def test_manifesto_nao_aceita_atributo_privado_em_geo():
     manifesto = {"escopo": "publico_basico", "versao_publicacao": 1, "repo": REPO, "tag": TAG, "estados": {"PA": info}}
     with pytest.raises(ValueError, match="privado"):
         validar_asset_publico("estados.json", json.dumps(manifesto).encode())
+
+
+def test_recorte_municipal_preserva_imovel_limitrofe_sem_reescrever_car():
+    dados = projetar_csvs("PA", {"imoveis_1507300.csv": CSV})
+    pacote = ArmazemRelease._tar("PA", dados)
+    validar_asset_publico("raiz_PA.tar.gz", pacote)
+    assert CAR.encode() in dados["imoveis_basicos_1507300.csv"]
+    assert b",1507300," in dados["imoveis_basicos_1507300.csv"]

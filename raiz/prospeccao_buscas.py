@@ -13,7 +13,7 @@ import uuid
 
 from sqlalchemy import Engine, text
 
-from raiz.busca import FiltrosProspeccao, _consulta_prospeccao
+from raiz.busca import FiltrosProspeccao, _consulta_prospeccao, exigir_filtros_pagos
 from raiz.prospeccao_acesso import ErroAcesso, limitar
 
 _VISIVEL = """exists (
@@ -56,6 +56,7 @@ def salvar(engine: Engine, cliente_id: int, nome: str, filtros: FiltrosProspecca
     sql, parametros = _consulta_prospeccao(filtros, cliente_id)
     with engine.begin() as con:
         _cliente(con, cliente_id, travar=True)
+        exigir_filtros_pagos(con, filtros, cliente_id)
         n = con.execute(
             text("select count(*) from negocio.prospeccao_busca where cliente_id = :c"), {"c": cliente_id}
         ).scalar_one()
@@ -120,6 +121,7 @@ def verificar(engine: Engine, busca_id: str) -> dict:
         if registro is None:
             raise ErroAcesso(404, "Busca salva não encontrada.")
         filtros = FiltrosProspeccao.model_validate(registro.filtros)
+        exigir_filtros_pagos(con, filtros, registro.cliente_id)
         sql, parametros = _consulta_prospeccao(filtros, registro.cliente_id)
         novas = con.execute(
             text(
@@ -149,17 +151,20 @@ def verificar_todas(engine: Engine) -> dict:
             .scalars()
             .all()
         )
-    feitas, novas = 0, 0
+    feitas, novas, sem_acesso = 0, 0, 0
     for ident in ids:
         try:
             resultado = verificar(engine, str(ident))
         except ErroAcesso as ex:
             if ex.status == 404:  # excluída enquanto o job percorria a lista
                 continue
+            if ex.status == 402:
+                sem_acesso += 1
+                continue
             raise
         feitas += 1
         novas += resultado["novas_fazendas"]
-    return {"buscas_verificadas": feitas, "novas_fazendas": novas}
+    return {"buscas_verificadas": feitas, "novas_fazendas": novas, "buscas_sem_habilitacao": sem_acesso}
 
 
 def avisos(engine: Engine, cliente_id: int, *, depois: int = 0, limite: int = 50) -> dict:

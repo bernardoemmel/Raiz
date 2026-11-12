@@ -15,13 +15,26 @@ lendo a publicação mínima estática; nunca recebe o token operacional da API.
 simulados no navegador.
 
 O agregado aberto aceita recortes territoriais e protege grupos com menos de cinco fazendas. Entrar libera a lista
-e os filtros de tamanho e crédito; abrir a ficha completa exige um crédito pago. O débito é feito no servidor,
+e o filtro de tamanho. Crédito, risco e caminho da terra exigem pagamento confirmado ou liberação auditada;
+filtrar não debita crédito, mas só as fichas liberadas exibem métricas individuais. Na busca autenticada, crédito
+e área restaurável agregados também somam apenas essas fichas, com cobertura explícita. Abrir uma ficha completa
+exige um crédito pago. O débito é feito no servidor,
 somente ao apertar "Desbloquear por 1 crédito". Reabrir a mesma ficha não cobra novamente. "Pedir contato" registra
 um pedido na Raíz para tratamento posterior, sem enviar mensagem ao proprietário. Planos aparecem com os valores
-configurados no servidor; nenhuma tarifa é inventada pelo front. Compras pendentes são recuperadas do histórico.
+configurados no servidor; nenhuma tarifa é inventada pelo front. Compras pendentes são recuperadas do histórico. Enquanto o catálogo estiver provisório, os pacotes de
+1, 10 e 50 consultas mostram “a definir pelo fundador” e não geram cobrança.
+
+Na mesma página, “Comparar fazendas” reúne de duas a cinco fichas previamente liberadas, sem novo débito e sem
+resultado parcial quando uma delas estiver bloqueada. A tabela conserva as fontes e datas de cada medida.
+A ficha liberada oferece PDF baixado com a sessão no cabeçalho, sem expor o token em links públicos.
+“Buscas salvas e avisos” guarda no servidor os filtros aplicados, aceita até 20 buscas por conta e permite reabrir
+ou excluir a busca. O primeiro snapshot não cria avisos para a base antiga. Novas correspondências aparecem no
+painel após o job de atualização; o painel consulta avisos a cada minuto enquanto está visível e oferece atualização
+manual e paginação. Marcar como lido não libera a ficha nem envia mensagem a proprietários. Ao trocar de conta,
+resultados, comparações e avisos da sessão anterior são descartados.
 
 Teste de navegador: `cd front/globo && npm run test:prospeccao`. Usa Chromium/Playwright com uma API de teste
-controlada e confere bloqueio, débito, contato, recompra, recuperação do Pix, troca de sessão e largura de 360 px.
+controlada e confere bloqueio, débito, contato, recompra, recuperação do Pix, preços provisórios, PDF, comparação, buscas salvas/avisos, troca de sessão e largura de 360 px.
 `RAIZ_PRINTS` escolhe a pasta dos prints (padrão `/tmp/raiz-ficha-prospeccao`).
 
 | Pasta | O que é | Tecnologia |

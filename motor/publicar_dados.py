@@ -1,28 +1,13 @@
-"""Publica as saídas do motor no Release `dados` do GitHub, de onde o front baixa sozinho. Os dados grandes nunca vão para
-o git: ficam só no Release.
+"""Separa as saídas do motor em arquivo privado completo e projeção aberta mínima.
 
-Para cada estado monta:
-  raiz_<UF>.tar.gz      todos os CSV do estado (imoveis_, direto_, filtros_, extras_, extras_direto_, mapbiomas_,
-                        certidoes_, resumo_<UF>.csv e sem_imoveis_<UF>.csv), dentro da pasta <UF>/
-  raiz_geo_<UF>.tar.gz  os polígonos dos imóveis (geo_<cod>.parquet, GeoParquet), dentro da pasta <UF>/
-e a entrada do estado no estados.json: municípios feitos, total do IBGE, o que falta, se está completo, tamanho, versão
-dos dados (sha256 do conteúdo) e versão do motor (commit e hash do código de cada tabela, lidos do saida/<UF>/rodada.json
-que o rodar_estado.py grava). Só monta de novo o pacote que mudou.
+Com --subir, o armazém autenticado confirma primeiro os originais e só então envia
+CSV básicos por CAR, contornos sem atributos e agregados ao Release aberto.
+Sem --subir, grava a projeção em <entrada> e os originais em <entrada>/privado.
+Esses pacotes administrativos não devem ser colocados no git ou em artifacts públicos.
+O importador raiz.executor.publicar_entrada preserva a mesma publicação dupla.
 
-Uso:
-  python motor/publicar_dados.py <saida> <entrada> [UF ...] --subir
-      monta em <entrada> e sobe direto no Release com o gh (GitHub Actions, com GH_TOKEN). Os pacotes de cada estado sobem
-      sem esperar ninguém; o estados.json é relido do Release, recebe só as entradas destes estados e é regravado por
-      último, dentro de uma trava (tag trava-publicar-dados criada pela API), para que dois jobs que terminam juntos não
-      apaguem a entrada um do outro. Depois atualiza o painel em motor/README.md.
-  python motor/publicar_dados.py <saida> <entrada> [UF ...]
-      só monta em <entrada> (fluxo antigo pelo git: commit de <entrada> e o workflow publicar-dados.yml sobe). Pacote
-      acima de 90 MB vai em partes (.part00, .part01...), porque o git não aceita arquivo acima de 100 MB.
-  python motor/publicar_dados.py --indice <entrada>
-      só o índice: mescla no estados.json publicado as entradas dos estados que têm pacote em <entrada> (usado pelo
-      publicar-dados.yml depois de subir os pacotes).
-
-Antes de montar, confere que nenhum CSV tem coluna de nome, CPF, CNPJ ou contato.
+O arquivo privado exige RAIZ_DADOS_PRIVADOS_URL e RAIZ_DADOS_PRIVADOS_TOKEN.
+Release em rascunho nunca deve ser publicado. O caminho legado --indice está desativado.
 """
 
 from __future__ import annotations

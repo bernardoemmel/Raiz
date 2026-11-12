@@ -1982,3 +1982,5 @@ def prospeccao_verificar_buscas(
         typer.echo("Não foi possível verificar as buscas salvas. Confira o banco e as migrações.", err=True)
         raise typer.Exit(1) from erro
     typer.echo(f"Buscas verificadas: {quantidade}; novas fazendas: {resultado['novas_fazendas']}.")
+    if resultado.get("buscas_sem_habilitacao"):
+        typer.echo(f"Buscas sem habilitação para os filtros pagos: {resultado['buscas_sem_habilitacao']}.")

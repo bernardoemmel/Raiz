@@ -98,7 +98,8 @@ def roteador(engine_de: Callable) -> APIRouter:
     ):
         limite(request, f"cliente:{cid}", "busca", 30)
         filtros = busca.FiltrosProspeccao.model_validate(consulta.model_dump(exclude={"pagina", "limite"}))
-        return busca.buscar_prospeccao(
+        return _executar(
+            busca.buscar_prospeccao,
             engine_de(request),
             filtros,
             cliente_id=cid,

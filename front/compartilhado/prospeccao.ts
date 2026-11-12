@@ -42,6 +42,8 @@ export interface FiltrosProspeccao {
   risco?: string
 }
 export interface ResumoTerra {
+  ficha_liberada?: boolean
+  situacao_basica?: "apto" | "com_pendencia" | "nao_apto"
   codigo_car: string
   uf: string
   cod_ibge: string | number
@@ -61,6 +63,7 @@ export interface ResumoTerra {
   fonte: string
 }
 export interface BuscaProspeccao {
+  escopo_metricas?: "fichas_liberadas" | "agregado_regional"
   total: number | null
   contagem?: string
   pagina: number
@@ -69,6 +72,7 @@ export interface BuscaProspeccao {
   total_agrupamentos?: number
   agrupamentos_limitados?: boolean
   totais: {
+    fichas_liberadas?: number
     fazendas: number | null
     area_ha: number | null
     area_restauravel_ha: number | null
@@ -81,7 +85,7 @@ export interface BuscaProspeccao {
     data_corte_min: string | null
     data_corte_max: string | null
   }
-  agrupamentos: { uf: string; cod_ibge: string | number; municipio: string; bioma: string | null; fazendas: number; area_ha: number | null; credito_p50: number | null; criterio: string }[]
+  agrupamentos: { fichas_liberadas?: number; uf: string; cod_ibge: string | number; municipio: string; bioma: string | null; fazendas: number; area_ha: number | null; credito_p50: number | null; criterio: string }[]
   imoveis?: ResumoTerra[]
   aviso: string
 }

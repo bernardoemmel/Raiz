@@ -62,6 +62,17 @@ describe("download fechado ao contrato público", () => {
     expect(fs.readFileSync(path.join(destino, "PA", "imoveis_basicos_1504950.csv"), "utf8")).toContain(car)
     expect(JSON.parse(fs.readFileSync(path.join(destino, "estados.json"), "utf8")).escopo).toBe("publico_basico")
   })
+  it("aceita metadados do Release público e CAR cadastrado no município vizinho", async () => {
+    const vizinho = "PA-1504802-BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB"
+    preparar({ "imoveis_basicos_1504950.csv": `${header}${vizinho},1504950,Cumaru do Norte,PA,com_pendencia\n` }, {
+      geo: { escopo: "publico_basico", municipios: 1, versao: "geo-v1", tamanho: 123, url: `${base}/raiz_geo_PA.tar.gz` },
+    })
+    manifesto.repo = "bernardoemmel/Raiz"
+    manifesto.tag = "dados"
+    const destino = path.join(temp, "contrato-release")
+    expect((await baixar(destino)).sucesso).toBe(true)
+    expect(fs.readFileSync(path.join(destino, "PA", "imoveis_basicos_1504950.csv"), "utf8")).toContain(vizinho)
+  })
   it("recusa manifesto legado e metadado desconhecido antes de pedir pacote", async () => {
     preparar(basicos)
     delete manifesto.escopo
@@ -70,6 +81,17 @@ describe("download fechado ao contrato público", () => {
     preparar(basicos, { detalhe_privado: "não pode baixar" })
     expect((await baixar(path.join(temp, "desconhecido"))).sucesso).toBe(false)
     expect(pedidos).toEqual(["/estados.json"])
+  })
+  it("recusa metadados permitidos malformados e CAR de outra UF", async () => {
+    preparar(basicos)
+    manifesto.repo = "empresa/repo/privado"
+    expect((await baixar(path.join(temp, "repo-invalido"))).sucesso).toBe(false)
+    expect(pedidos).toEqual(["/estados.json"])
+    preparar(basicos, { geo: { escopo: "publico_basico", municipios: "detalhe privado", url: `${base}/raiz_geo_PA.tar.gz` } })
+    expect((await baixar(path.join(temp, "geo-invalido"))).sucesso).toBe(false)
+    expect(pedidos).toEqual(["/estados.json"])
+    preparar({ "imoveis_basicos_1504950.csv": `${header}${car.replace("PA-", "MT-")},1504950,Cumaru do Norte,PA,apto\n` })
+    expect((await baixar(path.join(temp, "uf-divergente"))).sucesso).toBe(false)
   })
   it("recusa complementos e coluna extra sem substituir a última publicação válida", async () => {
     const destino = path.join(temp, "preservado")

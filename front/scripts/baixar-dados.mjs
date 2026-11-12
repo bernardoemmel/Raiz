@@ -34,17 +34,22 @@ function urlPacote(url, uf, geo = false) {
   return u.href
 }
 function validarManifesto(m) {
-  chaves(m, new Set(["versao_publicacao", "escopo", "gerado_em", "estados"]), "manifesto")
+  chaves(m, new Set(["versao_publicacao", "escopo", "gerado_em", "repo", "tag", "estados"]), "manifesto")
   if (!marcado(m) || !objeto(m.estados)) throw new Error("manifesto legado ou versão pública desconhecida")
+  if ((m.repo !== undefined && (typeof m.repo !== "string" || !/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(m.repo))) ||
+      (m.tag !== undefined && (typeof m.tag !== "string" || !/^[A-Za-z0-9_.-]+$/.test(m.tag))))
+    throw new Error("manifesto: repositório ou tag inválidos")
   for (const [uf, estado] of Object.entries(m.estados)) {
     if (!UFS.has(uf) || !marcado(estado)) throw new Error("estado sem marca publico_basico v1")
     chaves(estado, CHAVES_ESTADO, uf)
     if (estado.url) urlPacote(estado.url, uf)
     else if (estado.municipios || estado.tamanho) throw new Error(`${uf}: pacote público sem endereço`)
     if (estado.geo) {
-      chaves(estado.geo, new Set(["url", "versao", "tamanho", "escopo", "versao_publicacao"]), `${uf}/geo`)
+      chaves(estado.geo, new Set(["url", "versao", "tamanho", "municipios", "escopo", "versao_publicacao"]), `${uf}/geo`)
       if (estado.geo.escopo !== "publico_basico" || (estado.geo.versao_publicacao !== undefined && estado.geo.versao_publicacao !== 1))
         throw new Error(`${uf}: geometria sem marca pública`)
+      if (estado.geo.municipios !== undefined && (!Number.isInteger(estado.geo.municipios) || estado.geo.municipios < 0))
+        throw new Error(`${uf}: quantidade de municípios da geometria inválida`)
       urlPacote(estado.geo.url, uf, true)
     }
   }
@@ -83,7 +88,7 @@ function validarCsv(nome, dado, uf) {
     if (campos.length !== colunas.length) throw new Error(`${nome}: CSV ambíguo`)
     const r = Object.fromEntries(colunas.map((c, i) => [c, campos[i]]))
     if (!/^\d{7}$/.test(r.cod_ibge)) throw new Error(`${nome}: município inválido`)
-    if (basico && (!/^[A-Z]{2}-\d{7}-[0-9A-F]{32}$/.test(r.cod_imovel) || r.cod_ibge !== nome.slice(16, 23) || r.uf !== uf || !SITUACOES.has(r.situacao_basica)))
+    if (basico && (!/^[A-Z]{2}-\d{7}-[0-9A-F]{32}$/.test(r.cod_imovel) || r.cod_imovel.slice(0, 2) !== uf || r.cod_ibge !== nome.slice(16, 23) || r.uf !== uf || !SITUACOES.has(r.situacao_basica)))
       throw new Error(`${nome}: identificação ou situação básica inválida`)
   }
 }

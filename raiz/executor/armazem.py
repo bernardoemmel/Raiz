@@ -307,7 +307,9 @@ PROIBIDAS = r"(^|_)(cpf|cnpj|nome|proprietario|titular|email|telefone)($|_)"  # 
 
 
 class ArmazemRelease:
-    """O Release "dados" do GitHub como armazém, no formato de motor/publicar_dados.py (o que o front já baixa):
+    """Arquivo completo autenticado e projeção básica pública, sempre separados.
+
+    Formato reservado ao arquivo privado (repositório privado ou Release em rascunho):
 
       raiz_<UF>.tar.gz          todos os CSV do estado, em <UF>/, mais <UF>/_versoes.json (tarefa, versão, data,
                                 município e sha256 de cada arquivo)
@@ -318,8 +320,9 @@ class ArmazemRelease:
       estados.json              manifesto (por último), com versão do motor e de cada tarefa por estado
 
     Trabalha sobre um espelho local (ArmazemLocal): ler um estado baixa os pacotes dele uma vez; gravar fica no
-    espelho, e `publicar(uf)` empacota e sobe (com o token do GitHub Actions: GH_TOKEN ou GITHUB_TOKEN, só por
-    variável de ambiente). Sem token, só lê."""
+    espelho, e `publicar(uf)` confirma os originais privados antes de projetar a saída aberta.
+    O privado exige token e verificação da visibilidade em cada acesso remoto. Sem destino privado,
+    apenas os arquivos básicos validados podem ser lidos; publicação completa falha fechada."""
 
     API = "https://api.github.com"
     UPLOADS = "https://uploads.github.com"
@@ -358,27 +361,10 @@ class ArmazemRelease:
     def _baixar_asset(self, nome: str) -> bytes | None:
         if self.privado:
             self._exigir_privado()
-            rel = self._release()
-            # O browser_download_url privado não funciona sem sessão; usa o endpoint de assets da API.
-            for pagina in range(1, 100):
-                r = self.cli.get(
-                    f"{self.API}/repos/{self.repo}/releases/{rel['id']}/assets",
-                    headers=self._cabecalhos(),
-                    params={"per_page": 100, "page": pagina},
-                )
-                r.raise_for_status()
-                ativos = r.json()
-                for ativo in ativos:
-                    if ativo.get("name") == nome:
-                        r = self.cli.get(
-                            f"{self.API}/repos/{self.repo}/releases/assets/{ativo['id']}",
-                            headers={**self._cabecalhos(), "Accept": "application/octet-stream"},
-                        )
-                        r.raise_for_status()
-                        return r.content
-                if len(ativos) < 100:
-                    return None
-            raise RuntimeError("Release privado excedeu a paginação de assets")
+            for ativo in self._assets():
+                if ativo.get("name") == nome:
+                    return self._baixar_ativo(ativo)
+            return None
         r = self.cli.get(self.url(nome))
         if r.status_code == 404:
             return None
@@ -386,6 +372,35 @@ class ArmazemRelease:
         from raiz.executor.publicacao_aberta import validar_asset_publico
 
         validar_asset_publico(nome, r.content)
+        return r.content
+
+    def _assets(self, rel: dict | None = None) -> list[dict]:
+        """Lista todas as páginas, inclusive snapshots e checkpoints no arquivo privado."""
+        rel = rel or self._release()
+        ativos = []
+        for pagina in range(1, 1001):
+            r = self.cli.get(
+                f"{self.API}/repos/{self.repo}/releases/{rel['id']}/assets",
+                headers=self._cabecalhos(),
+                params={"per_page": 100, "page": pagina},
+            )
+            r.raise_for_status()
+            itens = r.json()
+            ativos.extend(itens)
+            if len(itens) < 100:
+                return ativos
+        raise RuntimeError("Release excedeu a paginação de assets")
+
+    def _baixar_ativo(self, ativo: dict) -> bytes:
+        """Baixa o ID congelado pela API autenticada; não segue browser_download_url."""
+        self._exigir_privado()
+        r = self.cli.get(
+            f"{self.API}/repos/{self.repo}/releases/assets/{int(ativo['id'])}",
+            headers={**self._cabecalhos(), "Accept": "application/octet-stream"},
+        )
+        r.raise_for_status()
+        if ativo.get("size") is not None and len(r.content) != ativo["size"]:
+            raise ValueError("tamanho divergente no download do asset privado")
         return r.content
 
     def manifesto(self, fresco: bool = False) -> dict:
@@ -561,12 +576,14 @@ class ArmazemRelease:
     def _subir(self, rel: dict, nome: str, dados: bytes, tipo: str = "application/octet-stream") -> None:
         if self.privado:
             self._exigir_privado()
+            if rel.get("id") != self._release().get("id"):
+                raise PermissionError("upload deve usar somente o Release privado configurado")
         else:
             from raiz.executor.publicacao_aberta import validar_asset_publico
 
             validar_asset_publico(nome, dados)
         h = self._cabecalhos()
-        for a in rel.get("assets", []):
+        for a in self._assets(rel):
             if a["name"] == nome:  # o Release não troca asset: apaga e sobe de novo
                 self.cli.delete(f"{self.API}/repos/{self.repo}/releases/assets/{a['id']}", headers=h).raise_for_status()
         r = self.cli.post(f"{self.UPLOADS}/repos/{self.repo}/releases/{rel['id']}/assets", params={"name": nome},
@@ -746,6 +763,8 @@ class ArmazemRelease:
                 p = self._tar(u, grupo)
                 self._subir(rel, nome, p, "application/gzip")
                 info[campo] = {"versao": vg, "tamanho": len(p), "url": self.url(nome), "municipios": len(grupo)}
+            else:
+                info[campo]["url"] = self.url(nome)
         marcas = {k.rsplit("/", 1)[1][:-5]: json.loads(self.local.ler(k)) for k in self.local.listar(f"marcas/{u}/")}
         est = json.loads(self.local.ler(f"estado/{u}.json") or b"{}")
         controle = json.dumps({"marcas": marcas, "estado": est}, ensure_ascii=False).encode()

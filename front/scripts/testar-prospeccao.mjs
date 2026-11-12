@@ -28,7 +28,10 @@ const ficha = {
   credito: { ...faixas, base: "liquido_contrato", metodo: "Simulação de teste identificada.", versao_modelo: "teste" }, tir: { p10: medida(null, "%/ano"), p50: medida(null, "%/ano"), p90: medida(null, "%/ano"), tipo: "sem_financiamento" },
   risco: { nivel: "medio", fonte: "Regra de teste", data_referencia: "2024", regra_versao: "teste" }, agrupamento: { pequena: true, grupo_id: null, imoveis: medida(null, "fazendas"), area: medida(null) },
 }
-let desbloqueada = false, debitos = 0, contatos = 0
+const car2 = "PA-1507300-BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB"
+let desbloqueada = false, debitos = 0, contatos = 0, precosProvisorios = false
+let buscasSalvas = [], avisos = []
+const salvo = (nome, filtros) => ({ id: "busca-1", nome, filtros, criada_em: "2026-11-12", verificada_em: "2026-11-12" })
 const chaves = [], chamadas = []
 const totais = { fazendas: 10, area_ha: 300, area_restauravel_ha: 120, credito_p10: 1000, credito_p50: 1500, credito_p90: 2000, com_credito: 10, pequenas: 10, fonte: "Base de teste", data_corte_min: "2026-11-12", data_corte_max: "2026-11-12" }
 const compra = (id, estado = "pendente") => ({ id, plano: "pesquisa", creditos: 10, valor_rs: 20, estado, modo: "producao", pix_copia_cola: "PIX-DE-TESTE-NAO-PAGAVEL", expira_em: "2026-11-13" })
@@ -39,15 +42,39 @@ try {
     const req = route.request(), url = new URL(req.url()), caminho = url.pathname.replace("/teste-api/prospeccao/", "")
     chamadas.push({ caminho, method: req.method(), token: req.headers().authorization })
     const json = (body, status = 200) => route.fulfill({ status, contentType: "application/json", body: JSON.stringify(body) })
+    if (caminho === "planos" && precosProvisorios) return json({ planos: [{ id: "consulta", nome: "Uma consulta", creditos: 1, valor_rs: null, status: "provisorio", aviso_preco: "a definir pelo fundador" }], custo_ficha: 1, unidade: "crédito de consulta", pagamento_disponivel: false, status: "provisorio", mensagem: "Preços a definir pelo fundador. Vendas desativadas." })
     if (caminho === "planos") return json({ planos: [{ id: "pesquisa", nome: "Pesquisa", creditos: 10, valor_rs: 20 }], custo_ficha: 1, unidade: "crédito de consulta", pagamento_disponivel: true, mensagem: "Valores de teste." })
     if (caminho === "saldo") return json({ creditos: 5 - debitos, fichas_desbloqueadas: debitos })
     if (caminho === "compras" && req.method() === "GET") return json([compra(99)])
     if (caminho === "compras" && req.method() === "POST") { chaves.push(req.postDataJSON().chave_idempotencia); return json(compra(chaves.length)) }
     if (caminho.startsWith("compras/")) return json(compra(Number(caminho.split("/")[1]), "paga"))
+    if (caminho === "comparar") {
+      const { codigos_car } = req.postDataJSON()
+      if (!desbloqueada || req.headers().authorization !== "Bearer cliente-a" || codigos_car.some((c) => ![car, car2].includes(c))) return json({ detail: "Ficha precisa de crédito pago" }, 402)
+      return json({ fichas: codigos_car.map((codigo_car) => ({ ...ficha, codigo_car })) })
+    }
+    if (caminho === "buscas-salvas" && req.method() === "GET") return json(req.headers().authorization === "Bearer cliente-a" ? buscasSalvas : [])
+    if (caminho === "buscas-salvas" && req.method() === "POST") {
+      const { nome, filtros } = req.postDataJSON(); assert.equal(filtros.area_min_ha, "0")
+      const nova = salvo(nome, { ...filtros, area_min_ha: 0 }); buscasSalvas = [nova]; return json(nova)
+    }
+    if (caminho.startsWith("buscas-salvas/") && req.method() === "DELETE") { buscasSalvas = []; avisos = []; return json({ id: "busca-1", excluida: true }) }
+    if (caminho === "avisos") {
+      const lista = req.headers().authorization === "Bearer cliente-a" ? avisos.filter((a) => a.id > Number(url.searchParams.get("depois") || 0)) : []
+      return json({ avisos: lista.slice(0, 50), proximo_cursor: lista.length > 50 ? lista[49].id : null })
+    }
+    if (caminho === "avisos/7/ler") { avisos = avisos.map((a) => ({ ...a, lida_em: "2026-11-12" })); return json({ id: 7, lida_em: "2026-11-12" }) }
+    if (caminho.endsWith("/pdf")) return desbloqueada && req.headers().authorization === "Bearer cliente-a" ? route.fulfill({ contentType: "application/pdf", body: "%PDF-1.4\nTeste de ficha paga" }) : json({ detail: "Ficha precisa de crédito pago" }, 402)
     if (caminho.endsWith("/desbloquear")) { desbloqueada = true; debitos++; return json(ficha) }
     if (caminho.startsWith("fichas/")) return desbloqueada && req.headers().authorization === "Bearer cliente-a" ? json(ficha) : json({ detail: "Ficha precisa de crédito pago" }, 402)
     if (caminho === "contatos") { contatos++; assert.deepEqual(req.postDataJSON(), { codigo_car: car }); return json({ id: 7, estado: "recebido", criado_em: "2026-11-12", mensagem: "Pedido registrado na Raíz. O contato será tratado depois." }) }
-    if (caminho === "busca" || caminho === "agregado") return json({ total: 10, pagina: 1, limite: 20, tem_mais: false, totais, agrupamentos: [{ uf: "PA", cod_ibge: 1507300, municipio: "São Félix do Xingu", bioma: "Amazônia", fazendas: 10, area_ha: 300, credito_p50: 1500, criterio: "Mesmo município e bioma; proximidade a confirmar." }], imoveis: caminho === "agregado" ? undefined : [{ codigo_car: car, uf: "PA", cod_ibge: 1507300, municipio: "São Félix do Xingu", bioma: "Amazônia", area_ha: 30, area_restauravel_ha: 12, caminho_terra: "posse_em_titulacao", risco: "medio", pequena: true, agrupar: true, credito_p50: 150, fonte: "Base de teste", data_corte: "2026-11-12" }], aviso: "Dados controlados de teste." })
+    if (caminho === "busca" || caminho === "agregado") {
+      const liberada = desbloqueada && req.headers().authorization === "Bearer cliente-a"
+      const resumo = caminho === "agregado" ? totais : { ...totais, fichas_liberadas: liberada ? 1 : 0, area_restauravel_ha: liberada ? 12 : null, credito_p10: liberada ? 100 : null, credito_p50: liberada ? 150 : null, credito_p90: liberada ? 200 : null, com_credito: liberada ? 1 : 0 }
+      return json({ total: 10, pagina: 1, limite: 20, tem_mais: false, totais: resumo, escopo_metricas: caminho === "agregado" ? "agregado_regional" : "fichas_liberadas",
+        agrupamentos: [{ uf: "PA", cod_ibge: 1507300, municipio: "São Félix do Xingu", bioma: "Amazônia", fazendas: 10, area_ha: 300, credito_p50: liberada ? 150 : null, criterio: "Mesmo município e bioma; proximidade a confirmar." }],
+        imoveis: caminho === "agregado" ? undefined : [{ codigo_car: car, ficha_liberada: liberada, situacao_basica: "com_pendencia", uf: "PA", cod_ibge: 1507300, municipio: "São Félix do Xingu", bioma: "Amazônia", area_ha: 30, area_restauravel_ha: liberada ? 12 : null, caminho_terra: liberada ? "posse_em_titulacao" : null, risco: liberada ? "medio" : null, pequena: true, agrupar: true, credito_p50: liberada ? 150 : null, fonte: "Base de teste", data_corte: "2026-11-12" }], aviso: "Dados controlados de teste." })
+    }
     return json({ detail: "Rota inesperada no teste" }, 404)
   })
   const page = await ctx.newPage(), erros = []
@@ -64,6 +91,13 @@ try {
   await page.getByRole("button", { name: "Pedir contato", exact: true }).click()
   await page.getByRole("button", { name: "Pedido de contato recebido" }).waitFor()
   assert.equal(contatos, 1)
+  const download = page.waitForEvent("download")
+  await page.getByRole("button", { name: "Exportar ficha em PDF" }).click()
+  const pdf = await download
+  assert.ok(pdf.suggestedFilename().endsWith(".pdf"))
+  const caminhoPdf = await pdf.path()
+  assert.ok(fs.readFileSync(caminhoPdf, "utf8").startsWith("%PDF-"))
+  assert.equal(debitos, 1, "Exportar não consome outro crédito")
   await print("ficha-terra-1440.png")
   await page.getByRole("button", { name: "Comprar pelo Pix" }).click()
   assert.equal(chaves.length, 0, "Recupera a compra pendente do servidor sem duplicar Pix")
@@ -78,9 +112,62 @@ try {
   await page.setViewportSize({ width: 360, height: 800 })
   await print("ficha-terra-360.png")
   assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), "Ficha cabe no celular")
+  await page.goto(`${url}#/prospeccao`)
+  await page.getByRole("heading", { name: "Quanto existe na base" }).waitFor()
+  await page.getByLabel("Área mínima, ha").fill("0")
+  await page.getByRole("button", { name: "Aplicar filtros" }).click()
+  await page.getByRole("heading", { name: "Quanto existe na base" }).waitFor()
+  await page.getByLabel("Nome da busca", { exact: true }).fill("Áreas pequenas")
+  await page.getByRole("button", { name: "Salvar filtros aplicados" }).click()
+  await page.getByRole("button", { name: "Aplicar busca Áreas pequenas", exact: true }).waitFor()
+  await page.getByRole("button", { name: "Limpar filtros" }).click()
+  await page.getByRole("button", { name: "Aplicar busca Áreas pequenas", exact: true }).click()
+  assert.equal(await page.getByLabel("Área mínima, ha").inputValue(), "0")
+  avisos = [{ id: 7, busca_id: "busca-1", nome_busca: "Áreas pequenas", codigo_car: car2, criada_em: "2026-11-12", lida_em: null, mensagem: "Nova fazenda corresponde à sua busca salva. A ficha completa exige liberação." }]
+  await page.getByRole("button", { name: "Atualizar avisos" }).click()
+  await page.getByRole("button", { name: "Marcar aviso como lido" }).click()
+  await page.getByText("Lido em 12/11/2026.", { exact: false }).waitFor()
+  await page.getByLabel("Códigos do CAR para comparar").fill(`${car}\n${car2}`)
+  await page.getByRole("button", { name: "Comparar fichas liberadas", exact: true }).click()
+  await page.locator(".comparar-fazendas table").first().waitFor()
+  assert.equal(debitos, 1, "Comparar não consome crédito")
+  assert.equal(await page.locator(".comparar-fazendas table").getByText("Base de teste da terra", { exact: false }).count() > 0, true)
+  await print("comparacao-360.png")
+  assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), "Comparação cabe no celular")
+  avisos = [...avisos, ...Array.from({ length: 51 }, (_, k) => ({ ...avisos[0], id: k + 8, lida_em: null }))]
+  await page.getByRole("button", { name: "Atualizar avisos" }).click()
+  await page.getByRole("button", { name: "Carregar mais avisos" }).click()
+  await page.getByRole("button", { name: "Atualizar avisos" }).click()
+  assert.equal(await page.getByText("Áreas pequenas: novo aviso", { exact: true }).count(), 51, "Atualização preserva páginas anteriores e busca avisos novos pelo maior id")
+  await page.getByText("Lido em 12/11/2026.", { exact: false }).waitFor()
+  await page.getByRole("button", { name: "Excluir busca Áreas pequenas", exact: true }).click()
+  await page.getByText("Busca excluída.", { exact: true }).waitFor()
+  assert.deepEqual(buscasSalvas, [])
+  await page.getByLabel("Nome da busca", { exact: true }).fill("Áreas pequenas")
+  await page.getByRole("button", { name: "Salvar filtros aplicados" }).click()
+  await page.getByRole("button", { name: "Aplicar busca Áreas pequenas", exact: true }).waitFor()
+  await page.getByLabel("Códigos do CAR para comparar").fill(`${car}\nPA-1507300-CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC`)
+  await page.getByRole("button", { name: "Comparar fichas liberadas", exact: true }).click()
+  await page.locator(".comparar-fazendas").getByRole("alert").waitFor()
+  assert.equal(await page.locator(".comparar-fazendas table").count(), 0, "A comparação não deixa resultado parcial de ficha bloqueada")
+  assert.equal(debitos, 1)
+  await page.getByLabel("Códigos do CAR para comparar").fill(`${car}\n${car2}`)
+  await page.getByRole("button", { name: "Comparar fichas liberadas", exact: true }).click()
+  await page.locator(".comparar-fazendas table").first().waitFor()
+  precosProvisorios = true
   await page.evaluate(() => { localStorage.setItem("raiz.sessao", JSON.stringify({ token: "cliente-b", email: "outra@raiz.invalid" })); window.dispatchEvent(new Event("raiz-sessao")) })
+  await page.getByRole("heading", { name: "Quanto existe na base" }).waitFor()
+  assert.equal(await page.locator(".comparar-fazendas table").count(), 0)
+  assert.equal(await page.getByRole("button", { name: "Aplicar busca Áreas pequenas", exact: true }).count(), 0)
+  await page.getByText("Ficha completa fechada", { exact: true }).waitFor()
+  assert.equal(await page.getByText("Disponível na ficha paga", { exact: true }).count(), 2)
+  await page.getByText("Crédito e área restaurável abaixo somam somente as 0 fichas liberadas", { exact: false }).waitFor()
+  await page.getByText("1 crédito: preço a definir pelo fundador", { exact: false }).waitFor()
+  assert.ok(await page.getByRole("button", { name: "Comprar pelo Pix" }).isDisabled())
+  await page.goto(`${url}#/fazenda/${car}`)
   await page.getByRole("button", { name: "Desbloquear por 1 crédito" }).waitFor()
   assert.equal(await page.getByRole("heading", { name: "Uso da terra ao longo dos anos" }).count(), 0)
+  assert.equal(await page.getByRole("button", { name: "Exportar ficha em PDF" }).count(), 0)
   assert.equal(await page.getByText("Pedido 7 recebido", { exact: false }).count(), 0)
   await page.goto(`${url}#/prospeccao`)
   await page.getByRole("heading", { name: "Quanto existe na base" }).waitFor()
@@ -96,5 +183,5 @@ try {
   assert.equal(await page.locator(`a[href*="${car}"]`).count(), 0)
   assert.ok(chamadas.filter((c) => c.caminho === "agregado").every((c) => !c.token))
   assert.deepEqual(erros, [])
-  console.log(`Prospecção conferida no Chromium: débito, contato, compra repetida, troca de conta, agregado e celular. Prints em ${prints}`)
+  console.log(`Prospecção conferida no Chromium: débito, contato, compra repetida, PDF, comparação, buscas/avisos, preços provisórios, troca de conta, agregado e celular. Prints em ${prints}`)
 } finally { await browser.close(); await servidor.close() }
