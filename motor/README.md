@@ -12,7 +12,7 @@ está completo quando tem, em todos os municípios, funil, filtros, MapBiomas, d
 escadinha. Os extras do Earth Engine e as certidões ficam de fora dessa conta (ver abaixo).
 
 <!-- painel:inicio -->
-Gerado do `estados.json` de 12/11/2026 14:07 (horário de Brasília). Brasil: 350 de 5.571 municípios com o funil pronto; 4 de 27 estados completos.
+Gerado do `estados.json` de 12/11/2026 14:10 (horário de Brasília). Brasil: 355 de 5.571 municípios com o funil pronto; 4 de 27 estados completos.
 
 | Estado | Municípios feitos/total | Situação | Última atualização | Motor |
 |---|---|---|---|---|
@@ -21,13 +21,13 @@ Gerado do `estados.json` de 12/11/2026 14:07 (horário de Brasília). Brasil: 35
 | RR Roraima | 15/15 | completo | 12/11/2026 11:17 | [9365d63](https://github.com/bernardoemmel/Raiz/actions/runs/43230460294) (parte manual) |
 | AC Acre | 22/22 | completo | 12/11/2026 11:38 | [9365d63](https://github.com/bernardoemmel/Raiz/actions/runs/43230460294) (parte manual) |
 | AP Amapá | 16/16 | completo | 12/11/2026 11:29 | [3537575](https://github.com/bernardoemmel/Raiz/actions/runs/43235780981) (parte manual) |
-| TO Tocantins | 86/139 | falta funil 53, MapBiomas 1, direto 1, TMF e causas 1, FLAG 1, caminho da terra 1, ficha 16, desenvolvedor 16 (2 fatias em jobs separados) | 12/11/2026 13:44 | manual |
+| TO Tocantins | 91/139 | falta funil 48, MapBiomas 1, direto 1, TMF e causas 1, FLAG 2, caminho da terra 2, ficha 15, desenvolvedor 15 (2 fatias em jobs separados) | 12/11/2026 14:07 | manual |
 | MA Maranhão | 2/217 | falta funil 215 (2 fatias em jobs separados) | 12/11/2026 12:58 | manual |
 | AM Amazonas | 0/62 | falta funil 62 | — | manual |
 | MT Mato Grosso | 0/142 | falta funil 142 (2 fatias em jobs separados) | — | manual |
 | GO Goiás | 11/246 | falta funil 235, MapBiomas 1, direto 1, TMF e causas 1, FLAG 1, caminho da terra 1, ficha 1, desenvolvedor 1; 236 erro(s) na última rodada (3 fatias em jobs separados) | 12/11/2026 13:51 | [5e57203](https://github.com/bernardoemmel/Raiz/actions/runs/43244609528) |
 | MS Mato Grosso do Sul | 0/79 | falta funil 79 | — | manual |
-| MG Minas Gerais | 2/853 | falta funil 851; 428 erro(s) na última rodada (8 fatias em jobs separados) | 12/11/2026 13:51 | [5e57203](https://github.com/bernardoemmel/Raiz/actions/runs/43244609528) |
+| MG Minas Gerais | 2/853 | falta funil 851; 535 erro(s) na última rodada (8 fatias em jobs separados) | 12/11/2026 13:51 | [5e57203](https://github.com/bernardoemmel/Raiz/actions/runs/43244609528) |
 | BA Bahia | 0/417 | não começou | — | — |
 | PI Piauí | 0/224 | não começou | — | — |
 | CE Ceará | 0/184 | não começou | — | — |
