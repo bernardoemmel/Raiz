@@ -131,7 +131,12 @@ def exporta_uf(uf, espera=6 * 3600, temas=None):
             if e['status'] == 'READY':
                 b = _get(f'{API}/maps/exports/{eid}/download', allow_redirects=True).content
                 if b[:2] == b'PK':  # às vezes vem em ZIP com o .tif dentro
-                    z = zipfile.ZipFile(io.BytesIO(b)); b = z.read([n for n in z.namelist() if n.endswith('.tif')][0])
+                    try:
+                        with zipfile.ZipFile(io.BytesIO(b)) as z:
+                            b = z.read([n for n in z.namelist() if n.endswith('.tif')][0])
+                    except zipfile.BadZipFile:
+                        # A exceção de CRC inclui o nome remoto, que pode conter dados pessoais.
+                        raise RuntimeError('MapBiomas: ZIP inválido ou incompleto') from None
                 os.makedirs(os.path.dirname(arq[k]), exist_ok=True)
                 open(arq[k] + '.tmp', 'wb').write(b); os.replace(arq[k] + '.tmp', arq[k])
                 print(f'  {uf} {k}: pronto em {time.time() - t0:.0f} s, {len(b) / 1e6:.0f} MB', flush=True); del pend[k]
