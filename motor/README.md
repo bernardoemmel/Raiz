@@ -12,7 +12,7 @@ está completo quando tem, em todos os municípios, funil, filtros, MapBiomas, d
 escadinha. Os extras do Earth Engine e as certidões ficam de fora dessa conta (ver abaixo).
 
 <!-- painel:inicio -->
-Gerado do `estados.json` de 12/11/2026 13:52 (horário de Brasília). Brasil: 350 de 5.571 municípios com o funil pronto; 4 de 27 estados completos.
+Gerado do `estados.json` de 12/11/2026 14:00 (horário de Brasília). Brasil: 350 de 5.571 municípios com o funil pronto; 4 de 27 estados completos.
 
 | Estado | Municípios feitos/total | Situação | Última atualização | Motor |
 |---|---|---|---|---|
@@ -27,7 +27,7 @@ Gerado do `estados.json` de 12/11/2026 13:52 (horário de Brasília). Brasil: 35
 | MT Mato Grosso | 0/142 | falta funil 142 (2 fatias em jobs separados) | — | manual |
 | GO Goiás | 11/246 | falta funil 235, MapBiomas 1, direto 1, TMF e causas 1, FLAG 1, caminho da terra 1, ficha 1, desenvolvedor 1; 236 erro(s) na última rodada (3 fatias em jobs separados) | 12/11/2026 13:51 | [5e57203](https://github.com/bernardoemmel/Raiz/actions/runs/43244609528) |
 | MS Mato Grosso do Sul | 0/79 | falta funil 79 | — | manual |
-| MG Minas Gerais | 2/853 | falta funil 851; 107 erro(s) na última rodada (8 fatias em jobs separados) | 12/11/2026 13:51 | [5e57203](https://github.com/bernardoemmel/Raiz/actions/runs/43244609528) |
+| MG Minas Gerais | 2/853 | falta funil 851; 214 erro(s) na última rodada (8 fatias em jobs separados) | 12/11/2026 13:51 | [5e57203](https://github.com/bernardoemmel/Raiz/actions/runs/43244609528) |
 | BA Bahia | 0/417 | não começou | — | — |
 | PI Piauí | 0/224 | não começou | — | — |
 | CE Ceará | 0/184 | não começou | — | — |
