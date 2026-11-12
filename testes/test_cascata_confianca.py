@@ -206,9 +206,13 @@ def test_calibra_o_corte_na_faixa_de_subida():
     assert AV.calibrar(com_falha)["t"]["subida"] >= 0.25
 
 
-def test_simulado_de_ponta_a_ponta_e_calibrar_so_grava_o_local(tmp_path):
+def test_simulado_de_ponta_a_ponta_e_calibrar_so_grava_o_local(tmp_path, monkeypatch):
     from raiz.cli import app
 
+    producao = tmp_path / "cortes_producao.yaml"
+    producao.write_text("nome: cortes\nmodelo_local: qwen-teste\ncortes:\n  aceite.intencao:\n    corte: 0.8\n")
+    original = producao.read_bytes()
+    monkeypatch.setattr(rota, "CORTES", producao)
     meta, ts = AV.carregar()
     m = Simulado()
     linhas = AV.avaliar(m, ts, 3, chamar=lambda mo, p: mo.responder_json(p))
@@ -224,8 +228,8 @@ def test_simulado_de_ponta_a_ponta_e_calibrar_so_grava_o_local(tmp_path):
     assert cs["modelo_local"] == "simulado-regras-1" and cs["banco"] == meta["versao"]
     for t, c in cs["cortes"].items():
         assert 0.20 <= c["subida"] <= 0.30 and c["acerto_que_fica"] >= 0.95, t
-    # o arquivo de produção continua sem corte até a rodada no Qwen de verdade
-    assert rota.cortes()["cortes"] == {}
+    # A simulação nunca substitui os cortes já calibrados para o modelo local.
+    assert producao.read_bytes() == original
 
 
 @pytest.fixture(scope="module")

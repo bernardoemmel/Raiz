@@ -1,5 +1,15 @@
 # Código e dados de terceiros
 
+Cache calibrado da matrícula: MAPIE 1.6 (BSD-3-Clause, Copyright 2021 Vianney Taquet,
+Grégoire Martinon, Nicolas Brunel, Issam Ibnouhsein, François Deheeger e contribuidores),
+usado como dependência, sem copiar código. `BinaryClassificationController` controla a
+precisão por Learn Then Test com correção de Bonferroni. Licença conferida no pacote
+instalado (`mapie-1.6.0.dist-info/licenses/LICENSE`). Origem: https://github.com/scikit-learn-contrib/MAPIE.
+
+Sobrevivência do aceite: lifelines 0.30.3 (MIT, Copyright 2017 Cameron Davidson-Pilon),
+usado como dependência, sem copiar código. Licença conferida no pacote instalado
+(`lifelines-0.30.3.dist-info/licenses/LICENSE`). Origem: https://github.com/CamDavidsonPilon/lifelines.
+
 | O quê | Onde é usado | Licença | Origem |
 |---|---|---|---|
 | Desenho do serviço de agentes: checkpointer aberto no início do serviço e retomada do grafo pelo thread_id quando há pausa pendente (reescrito, sem copiar código) | `raiz/api.py`, `raiz/agentes/memoria.py` | MIT, Copyright (c) 2024 Joshua Carroll | https://github.com/JoshuaC215/agent-service-toolkit |
@@ -254,6 +264,12 @@ como serviço no servidor; nada dele é embutido no produto distribuído. O `inf
 `.devops/cpu.Dockerfile` do llama.cpp (MIT, Copyright (c) 2023-2026 The ggml authors), sem a interface web. A
 confiança dos logprobs, a calibração do corte e o banco de tarefas em português foram escritos para a Raíz, sem
 código copiado.
+
+O peso Q4_K_M usado na validação local de 12/11/2026 é a conversão GGUF de
+[Unsloth/Qwen3-4B-Instruct-2507-GGUF](https://huggingface.co/unsloth/Qwen3-4B-Instruct-2507-GGUF), derivada de
+[Qwen/Qwen3-4B-Instruct-2507](https://huggingface.co/Qwen/Qwen3-4B-Instruct-2507), ambos sob Apache-2.0
+([licença original](https://huggingface.co/Qwen/Qwen3-4B-Instruct-2507/blob/main/LICENSE)). O peso fica fora do git;
+a revisão e o SHA-256 conferidos estão em `docs/operacao.md`.
 
 ## Sanitização de logs (`raiz/logs_seguros.py`)
 
