@@ -125,6 +125,37 @@ def pessoal_gerar_chave() -> None:
     typer.echo(gerar_chave())
 
 
+funil = typer.Typer(help="Motor por município, com lotes vigiados (Healthchecks).", no_args_is_help=True)
+app.add_typer(funil, name="funil")
+
+
+@funil.command("rodar")
+def funil_rodar(
+    uf: str,
+    municipios: Annotated[list[int] | None, typer.Argument(help="códigos IBGE; sem nada, a UF inteira")] = None,
+    tarefas: Annotated[str, typer.Option(help="separadas por vírgula")] = "funil,filtros,direto,carga",
+    lanes: Annotated[int, typer.Option(help="municípios ao mesmo tempo")] = 3,
+    refazer: bool = False,
+    data_corte: Annotated[str | None, typer.Option(help="AAAA-MM-DD; padrão: hoje")] = None,
+) -> None:
+    """Roda o motor (sem editá-lo) com CAR e SIGEF do espelho local e um lote vigiado por tarefa e município."""
+    import datetime as dt
+
+    from raiz.funil.rodar import TAREFAS, Opcoes, rodar
+
+    ts = tuple(t.strip() for t in tarefas.split(",") if t.strip())
+    if desconhecidas := set(ts) - set(TAREFAS):
+        raise typer.BadParameter(f"tarefas desconhecidas: {sorted(desconhecidas)}")
+    corte = dt.date.fromisoformat(data_corte) if data_corte else dt.date.today()
+    res = rodar(Opcoes(uf, ts, refazer, corte), municipios or None, lanes)
+    falhas = {c: r for c, r in res.items() if any(v.startswith("falha") for v in r.values())}
+    typer.echo(f"{len(res)} município(s), {len(falhas)} com falha")
+    for c, r in sorted(falhas.items()):
+        typer.echo(f"  {c}: {r}")
+    if falhas:
+        sys.exit(1)
+
+
 @banco.command("migrar")
 def banco_migrar(alvo: str = "head") -> None:
     """Aplica as migrações (Alembic) no banco de RAIZ_BANCO_URL."""

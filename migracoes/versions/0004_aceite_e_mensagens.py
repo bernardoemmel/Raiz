@@ -30,9 +30,11 @@ def upgrade() -> None:
         encerrado_em timestamptz
     )""")
     op.execute("CREATE INDEX aceite_contato_idx ON negocio.aceite (contato_id) WHERE estado = 'em_andamento'")
-    op.execute("COMMENT ON TABLE negocio.aceite IS "
-               "'um processo de aceite por imóvel; thread_id do LangGraph = cod_imovel; base do modelo de "
-               "sobrevivência do aceite (E8)'")
+    op.execute(
+        "COMMENT ON TABLE negocio.aceite IS "
+        "'um processo de aceite por imóvel; thread_id do LangGraph = cod_imovel; base do modelo de "
+        "sobrevivência do aceite (E8)'"
+    )
 
     # No começo toda mensagem para fora passa pela aprovação do fundador; cada tipo ganha autonomia depois.
     op.execute("""

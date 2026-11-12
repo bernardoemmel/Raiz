@@ -24,8 +24,11 @@ class Config(BaseSettings):
     # Healthchecks (https://healthchecks.io ou instância própria fora do servidor da Raíz)
     healthchecks_url: str = "https://hc-ping.com"
     healthchecks_chave_ping: SecretStr | None = None
-    # pasta onde o motor grava (motor/saida por padrão)
-    motor_saida: str | None = None
+    healthchecks_modelo_slug: str = "raiz-{tarefa}"  # campos: {tarefa}, {uf}, {cod}
+    # pasta onde o motor trabalha (cache/, saida/, mapbiomas/...); padrão: motor/
+    motor_dir_trabalho: str | None = None
+    # espelho local da coleta (E1), em Parquet por município: <espelho>/car/<UF>/<mun>.parquet, sigef/...
+    espelho_dir: str | None = None
 
     # Modelos de linguagem (E7). A chave da Anthropic também é aceita com o nome padrão ANTHROPIC_API_KEY.
     anthropic_api_key: SecretStr | None = Field(
