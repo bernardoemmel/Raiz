@@ -376,6 +376,32 @@ def test_ordenar_e_filtrar_painel():
         R.ordenar_filtrar(lista, "nome")
 
 
+def test_ptax_do_banco_central_entra_no_cenario(tmp_path):
+    import datetime as dt
+
+    class Resp:
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return {"value": [{"cotacaoVenda": 5.5, "dataHoraCotacao": "2026-11-10 13:05:00"},
+                              {"cotacaoVenda": 5.61234, "dataHoraCotacao": "2026-11-11 13:06:00"}]}  # fmt: skip
+
+    class Cli:
+        def get(self, url, params):
+            assert "PTAX" in url and params["@dataFinalCotacao"] == "'11-12-2026'"
+            return Resp()
+
+    c = R.ptax(dt.date(2026, 11, 12), cliente=Cli())
+    assert c["ptax"] == 5.6123 and c["data"] == "2026-11-11"
+    arq = R.gravar_cambio(c, tmp_path / "cambio.yaml")
+    r = R.regra(cambio=arq)
+    assert R.cenario(r=r)["cambio_brl_usd"] == 5.6123 and R.cenario(r=r)["cambio_data"] == "2026-11-11"
+    assert R.cenario("otimista_fundador", r=r)["cambio_brl_usd"] == 5.40  # o otimista fica com o câmbio fixo
+    assert R.cenario(r=r, cambio_brl_usd=5.0)["cambio_brl_usd"] == 5.0  # o digitado no simulador vale mais
+    assert r["versao_completa"] != R.regra(cambio=tmp_path / "nao_existe.yaml")["versao_completa"]
+
+
 def test_versao_muda_com_as_premissas(tmp_path):
     a = tmp_path / "restauracao.yaml"
     c = tmp_path / "cenarios.yaml"

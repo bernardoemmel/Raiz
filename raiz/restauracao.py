@@ -1426,7 +1426,7 @@ def bloco_ficha(linha: dict, r: dict | None = None) -> dict:
         "tir_alavancada_pct": _faixa(linha, "tir_alavancada_pct", 1),
         "pico_capital_proprio_rs_ha": _faixa(linha, "pico_capital_proprio_rs_ha", 0),
         "valor_desenvolvedor_rs": _num(linha, "valor_desenvolvedor_rs"),
-        "cenario": {k: c[k] for k in ("cenario", "nome", "modelo", *CENARIO_EDITAVEL) if k in c},
+        "cenario": {k: c[k] for k in ("cenario", "nome", "modelo", "cambio_data", *CENARIO_EDITAVEL) if k in c},
         "lote": {
             "grupo_id": grupo,
             "imoveis": _num(linha, "grupo_imoveis"),
@@ -1469,7 +1469,7 @@ def simular(linha: dict, nome_cenario: str | None = None, r: dict | None = None,
     calc, x = calcular(linha, c, r)
     s = x["sim"]
     bloco = bloco_ficha({**linha, **calc}, r)
-    bloco["cenario"] = {k: c[k] for k in ("cenario", "nome", "modelo", *CENARIO_EDITAVEL) if k in c}
+    bloco["cenario"] = {k: c[k] for k in ("cenario", "nome", "modelo", "cambio_data", *CENARIO_EDITAVEL) if k in c}
 
     def lista(v, nd=2):
         return [round(float(a), nd) for a in v]
