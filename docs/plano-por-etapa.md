@@ -45,6 +45,11 @@ Observação do motor atual (12/11): o funil já roda o Brasil por município (m
 | 7 | Manifesto público no GitHub (CSV e GeoJSON) gerado a cada checagem e, se fizer sentido, catálogo estático com Portolan no R2. | passo 2 | 2 a 3 |
 | 7 | Gerar o 'diff da semana' por município (no molde do ArchiveDiffer da Delphi) e publicar a lista de municípios alterados para a E8 | passos 4 e 6 | 3 a 5 |
 | 8 | Pedidos por LAI ao SFB (data_atualizacao nas 12 UFs e camada de exclusões) e ao INCRA (novo endereço dos ZIP e lista de canceladas), citando LINZ, SDMX e o índice diário da SEC | nada | 1 a 2 |
+| 4 | (rodada 10) Antes do hash, normalizar a geometria: precisão fixa e vértices em ordem padrão | passo 4 | 1 a 2 |
+| 4 | (rodada 10) Resumo por município (contagem + hash do conjunto); comparar imóvel a imóvel só onde o resumo mudou | passo 4 | 1 a 2 |
+| 5 | (rodada 10) Marcador da paginação só anda depois da página gravada (camadas grandes e backfill) | passo 4 | 2 a 3 |
+| 6 | (rodada 10) Trava de versão: arquivo que muda mais de 25% ou conjunto que muda mais de 15% não é publicado sem revisão | passo 4 | 1 a 2 |
+| 1 | (rodada 10) MapBiomas só pela API da Plataforma, por estado (categoria 214), como motor/raiz_mapbiomas.py: o armazenamento público fechou (403) | nada | feito |
 
 ## E2. Funil por imóvel
 
@@ -72,6 +77,7 @@ Observação do motor atual (12/11): o funil já roda o Brasil por município (m
 | 7 | Fila retomável e incremental: um alvo por bloco num Makefile gerado em Python (desenho do WSIM) ou no SQLMesh; arquivo 'BUSY_' e pular saída existente (desenho do cropclassification); refazer só blocos cujo CAR ou camada mudou (comparação de versões como no RPG da França) | passos 4 a 6 | 6 a 10 |
 | 8 | Pasta de reformas: cada projeto de lei ou decreto novo vira um arquivo de diferença (padrão Tax-Calculator) para simular o efeito sobre os imóveis antes de valer | passos 1 e 7 | 3 a 5 |
 | 8 | Conferência: comparar flox, 'pixels em polígonos' e exactextract em 1.000 imóveis sorteados e publicar a diferença no painel; checagem de mistura de classes por imóvel (desenho FOI do JRC) | passo 7 | 3 a 5 |
+| 7 | (rodada 10) Mudança de geometria menor que 0,5 ha não volta ao funil (entra no changelog, não na lista de sujos) | passo 7 | 1 |
 
 ## E3. Conta de carbono e de dinheiro
 
@@ -89,6 +95,10 @@ Observação do motor atual (12/11): o funil já roda o Brasil por município (m
 | 5 | Dinheiro: VPL e TIR por sorteio com PyXIRR e partilha dono/desenvolvedor/Raíz no padrão pyscnomics; caminhos de preço com as dinâmicas do rangekeeper | passo 4 | 5 a 8 |
 | 6 | Sensibilidade: SALib delta sobre a mesma amostra (como bicrs-lca), uma vez por bioma, para o tornado e a decomposição da incerteza no laudo | passo 4 | 3 a 4 |
 | 7 | Desconto de incerteza da VM0047 e oferta de "quantas parcelas medir" (Carbon_MRV 04_sampling_design); snapshot das fazendas-modelo no CI | passos 4 e 6 | 3 a 5 |
+| 3 | (rodada 10) Monte Carlo com sequência de Sobol (scipy.stats.qmc) no lugar do sorteio simples | passo 2 | 1 a 2 |
+| 3 | (rodada 10) Cópula vine (pyvinecopulib, conferir licença) no lugar da gaussiana para a correlação entre entradas | passo 2 | 3 a 5 |
+| 3 | (rodada 10) P90 da carteira pelo modelo de Vasicek (fator comum por bioma e município) ao lado do Monte Carlo | passo 3 | 2 a 4 |
+| 7 | (rodada 10) Amostragem de campo do grupo pela norma do MDL: 90% de confiança, 10% de erro, mínimo de 30 parcelas | passo 6 | 2 a 3 |
 
 ## E4. Rebanho, metano e solo
 
@@ -159,6 +169,10 @@ Observação do motor atual (12/11): o funil já roda o Brasil por município (m
 | 6 | Montar o backoffice do fundador (saúde, custo do mês contra orçamento, logs por fazenda) no estilo do Ezra, só leitura | E7 passos 3 e 4 | 6 a 10 |
 | 8 | Extração de matrícula com BAML (SAP) e cache calibrado com MAPIE | Langfuse para medir antes e depois | 6 a 10 |
 | 9 | Escalonamento de alertas (Healthchecks para ntfy e, se houver segunda pessoa, GoAlert) | Healthchecks | 3 a 6 |
+| 10 | (rodada 10) Qwen3-4B só para classificação curta; tarefa com várias chamadas de ferramenta vai ao Haiku ou ao Sonnet | passo 1 | 1 a 2 |
+| 10 | (rodada 10) Teste próprio em português: 30 a 200 tarefas, 3 tentativas seguidas por tarefa, 15% das tarefas sem resposta válida (o modelo tem de dizer que não sabe) | passo 3 | 4 a 6 |
+| 10 | (rodada 10) Cascata por confiança: só os 20 a 30% menos confiantes sobem de modelo (corte calibrado no teste acima) | teste acima | 2 a 4 |
+| 10 | (rodada 10) llama.cpp compilado com llguidance para a gramática JSON | passo 1 | 1 a 2 |
 
 ## E8. Aprendizado contínuo
 
@@ -172,6 +186,10 @@ Observação do motor atual (12/11): o funil já roda o Brasil por município (m
 | 6 | Campeão e desafiante: portão de promoção com score probabilístico e calibração dentro de tolerância, promoção automática com intervalo, trava e volta atrás manual; nota só quando o horizonte amadurecer | passo 5 | 6 a 10 |
 | 7 | Orquestração: Dagster com sensor de dado novo, partições município x ano, condição de automação 'needs_updating' e memória declarada por asset (ou cron com sqlmesh run, se preferir não usar Dagster) | passos 3 e 6 | 6 a 10 |
 | 10 | Modelo de sobrevivência do aceite do dono (lifelines) e regra de canário para modelos novos no SQLMesh | histórico de contatos | 5 a 8 |
+| 1 | (rodada 10) Gravar a chance de escolha em cada conferência (gabarito), para pesar a amostra | nada | feito no esquema |
+| 6 | (rodada 10) Sorteio das conferências em duas metades: uma aleatória e uma dirigida aos mais duvidosos | passo 4 | 2 a 4 |
+| 6 | (rodada 10) Calibração por UF e faixa de área (MCGrad, conferir licença) | passo 5 | 4 a 6 |
+| 6 | (rodada 10) Área apta com intervalo pelo estimador de Olofsson (mapaccuracy, conferir licença) | sorteio acima | 3 a 5 |
 
 ## E9. O que as pessoas veem
 

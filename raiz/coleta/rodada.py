@@ -51,7 +51,7 @@ def rodada_car(
                 with lote(engine, hc, "coleta-car", uf, cod) as reg:
                     with engine.begin() as con:
                         r = car.coletar_municipio(s, con, espelho, uf, cod, forcar=plano.modo == "reconciliacao")
-                    if r.acao == "falha":
+                    if r.acao in ("falha", "travado"):
                         raise RuntimeError(r.erro)
                     reg.detalhe.update(acao=r.acao, contagem=r.contagem, campo=r.campo_data)
                     d = r.diferenca
@@ -80,7 +80,7 @@ def rodada_car(
         if plano.modo == "reconciliacao":
             with engine.begin() as con:
                 registrar_reconciliacao(con, car.FONTE)
-        if historico:
+        if historico and not _uf_travada(engine, hc, uf, cods, resumo):
             resumo["historico"] += sincronizar_historico(engine, espelho, uf, cods, hc, agora, url)
     if historico:
         with engine.begin() as con:
@@ -88,6 +88,39 @@ def rodada_car(
                 if con.exec_driver_sql(f"select to_regclass('bruto.{t}')").scalar():
                     bruto.garantir_view(con, t)
     return resumo
+
+
+LIMITE_UF = 0.15  # mais que isto dos municípios da UF mudando numa rodada trava a publicação (rodada 10)
+MINIMO_UF = 10
+
+
+def _uf_travada(engine: Engine, hc: Healthchecks, uf: str, cods: list[int], resumo: dict) -> bool:
+    """Se mais de 15% dos municípios da UF mudou de uma vez, o histórico (e o funil) não recebe a versão nova até
+    alguém liberar (raiz coleta liberar sicar_imoveis <UF>)."""
+    from raiz.coleta.replicacao import atualizar, estado, evento
+
+    mudaram = [c for c in resumo["mudaram"] if c in set(cods)]
+    if len(cods) < MINIMO_UF or len(mudaram) / len(cods) <= LIMITE_UF:
+        return False
+    with engine.begin() as con:
+        e = estado(con, car.FONTE, uf)
+        if e is not None and e.liberado:
+            atualizar(con, car.FONTE, uf, liberado=False)
+            return False
+        evento(
+            con, car.FONTE, uf, "alerta", len(mudaram), {"trava": "uf", "fracao": round(len(mudaram) / len(cods), 3)}
+        )
+    try:
+        with lote(engine, hc, "trava", uf, None) as reg:
+            reg.detalhe.update(mudaram=len(mudaram), municipios=len(cods))
+            raise RuntimeError(
+                f"{uf}: {len(mudaram)} de {len(cods)} municípios mudaram; histórico e funil esperam "
+                f"liberação (raiz coleta liberar {car.FONTE} {uf})"
+            )
+    except RuntimeError:
+        pass
+    resumo.setdefault("travadas", []).append(uf)
+    return True
 
 
 CAMADAS_HISTORICO = (

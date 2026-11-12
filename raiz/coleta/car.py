@@ -100,12 +100,29 @@ def coletar_municipio(
                 acao, novo = "incremental", gpd.GeoDataFrame(junto, geometry="geometry", crs=4674)
         if novo is None:
             novo = wfs.ler(s, c, "cod_imovel", cql, pagina)
-        dif = espelho.gravar("car", uf, cod, novo, "cod_imovel", VOLATEIS)
+        liberar = bool(e is not None and getattr(e, "liberado", False))
+        dif = espelho.gravar("car", uf, cod, novo, "cod_imovel", VOLATEIS, liberar=liberar)
+        if dif.travado:
+            msg = (
+                f"versão travada: {dif.fracao:.0%} dos imóveis mudou de uma vez; conferir e liberar com "
+                f"'raiz coleta liberar {FONTE} {recorte}'"
+            )
+            atualizar(con, FONTE, recorte, sujo=True, ultimo_erro=msg, verificado_em=agora)
+            evento(
+                con,
+                FONTE,
+                recorte,
+                "alerta",
+                len(dif.novos) + len(dif.mudaram) + len(dif.sumiram),
+                {"trava": "arquivo", "fracao": round(dif.fracao, 3)},
+            )
+            return ResultadoCAR(uf, cod, "travado", dif, n_servidor, erro=msg, campo_data=campo)
         maior = _maior_data(novo, "data_atualizacao") if campo == "data_atualizacao" else None
         atualizar(
             con,
             FONTE,
             recorte,
+            liberado=False,
             assinatura=ass,
             contagem=n_servidor,
             cursor=maior,

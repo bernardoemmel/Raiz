@@ -45,7 +45,9 @@ def pipeline(url: str | None = None, nome: str = "raiz_bruto"):
 def linhas(g: gpd.GeoDataFrame, chave: str, cod_municipio: int, volateis: tuple[str, ...] = ()) -> pd.DataFrame:
     """Retrato do município pronto para o dlt: geometria em WKT, hash da linha e o município como merge_key."""
     df = pd.DataFrame(g.drop(columns="geometry"))
-    geoms = [None if x is None else shapely.normalize(x) for x in g.geometry.values]
+    from raiz.coleta.espelho import geometria_canonica
+
+    geoms = [geometria_canonica(x) for x in g.geometry.values]
     estaveis = sorted(c for c in df.columns if c not in volateis)
     # pandas 3: astype(str) mantém o nulo como nulo; o hash precisa de texto em todas as células
     como_texto = pd.DataFrame({c: [("" if pd.isna(v) else str(v)) for v in df[c]] for c in estaveis}, index=df.index)

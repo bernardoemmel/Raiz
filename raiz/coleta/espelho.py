@@ -11,6 +11,7 @@ de a função hash() do DuckDB ser igual entre versões.
 
 from __future__ import annotations
 
+import json
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -23,6 +24,16 @@ import shapely
 from raiz.privacidade import remover_colunas_pessoais
 
 GEOM = "geometry"
+PRECISAO_GRAUS = 1e-7  # ~1 cm: abaixo disso a diferença é ruído de arredondamento do servidor, não mudança
+LIMITE_MUDANCA = 0.25  # arquivo que muda mais que isto trava (rodada 10)
+MINIMO_TRAVA = 10  # e só se pelo menos isto de imóveis mudou (município pequeno não trava por 1 imóvel)
+
+
+def geometria_canonica(x):
+    """Precisão fixa e vértices em ordem padrão: a mesma forma dá sempre os mesmos bytes (rodada 10)."""
+    if x is None or x is pd.NA:
+        return None
+    return shapely.normalize(shapely.set_precision(x, PRECISAO_GRAUS))
 
 
 @dataclass
@@ -33,6 +44,9 @@ class Diferenca:
     total: int = 0
     escreveu: bool = False
     removidas_pessoais: list[str] = field(default_factory=list)
+    travado: bool = False  # mudou demais: o arquivo novo NÃO foi gravado (espera liberação)
+    fracao: float = 0.0
+    pelo_resumo: bool = False  # nada mudou e nem foi preciso comparar imóvel a imóvel
 
     @property
     def mudou(self) -> bool:
@@ -50,10 +64,25 @@ class Espelho:
         f = self.caminho(camada, uf, cod)
         return gpd.read_parquet(f) if f.exists() else None
 
+    def caminho_resumo(self, camada: str, uf: str, cod: int) -> Path:
+        return self.caminho(camada, uf, cod).with_suffix(".resumo.json")
+
     def gravar(
-        self, camada: str, uf: str, cod: int, novo: gpd.GeoDataFrame, chave: str, volateis: tuple[str, ...] = ()
+        self,
+        camada: str,
+        uf: str,
+        cod: int,
+        novo: gpd.GeoDataFrame,
+        chave: str,
+        volateis: tuple[str, ...] = (),
+        liberar: bool = False,
+        limite: float = LIMITE_MUDANCA,
     ) -> Diferenca:
-        """Substitui o conteúdo do município por `novo` (o retrato completo) e devolve a diferença."""
+        """Substitui o conteúdo do município por `novo` (o retrato completo) e devolve a diferença.
+
+        Resumo do município (contagem + hash do conjunto) guardado ao lado: se não mudou, nem compara imóvel a imóvel.
+        Trava: se mais de `limite` dos imóveis mudou (e pelo menos MINIMO_TRAVA), não grava e marca travado, salvo
+        liberar=True (decisão humana). A primeira carga nunca trava."""
         novo, pessoais = remover_colunas_pessoais(novo)
         novo = novo.drop_duplicates(chave)
         if novo.crs is not None:
@@ -68,6 +97,15 @@ class Espelho:
         con = duckdb.connect()
         con.register("_novo", _tabela(novo, cols))
         con.execute("create table novo as select * from _novo")
+        so_novo = [c for c in novo.columns if c != GEOM and c != chave and c not in volateis]
+        expr = ", ".join([f'"{chave}"', "_wkb"] + [f'cast("{c}" as varchar)' for c in so_novo])
+        n, resumo = con.execute(f"select count(*), coalesce(bit_xor(hash({expr})), 0) from novo").fetchone()
+        assinatura = {"n": int(n), "resumo": str(resumo), "colunas": so_novo, "duckdb": duckdb.__version__}
+        fr = self.caminho_resumo(camada, uf, cod)
+        if atual is not None and fr.exists() and json.loads(fr.read_text()) == assinatura:
+            con.close()
+            dif.total, dif.pelo_resumo = int(n), True
+            return dif
         if atual is not None:
             con.register("_atual", _tabela(atual.to_crs(4674) if atual.crs else atual, cols))
             con.execute("create table atual as select * from _atual")
@@ -90,10 +128,19 @@ class Espelho:
         for acao, k in acoes:
             {"INSERT": dif.novos, "UPDATE": dif.mudaram, "DELETE": dif.sumiram}[acao].append(str(k))
         dif.total = con.execute("select count(*) from atual").fetchone()[0]
+        if atual is not None and len(atual):
+            mudancas = len(dif.novos) + len(dif.mudaram) + len(dif.sumiram)
+            dif.fracao = mudancas / len(atual)
+            if dif.fracao > limite and mudancas >= MINIMO_TRAVA and not liberar:
+                dif.travado = True
+                con.close()
+                return dif
         if dif.mudou or atual is None:
             final = con.execute(f'select * from atual order by "{chave}"').fetch_df()
             self._escrever(camada, uf, cod, _geodf(final))
             dif.escreveu = True
+        fr.parent.mkdir(parents=True, exist_ok=True)
+        fr.write_text(json.dumps(assinatura))
         con.close()
         return dif
 
@@ -118,9 +165,8 @@ def _tabela(g: gpd.GeoDataFrame, cols: list[str]) -> pd.DataFrame:
     """Colunas na mesma ordem dos dois lados (faltando = nulo) e geometria normalizada em WKB."""
     df = pd.DataFrame({c: (g[c] if c in g.columns else pd.Series([None] * len(g), index=g.index)) for c in cols})
     geoms = g.geometry.values if GEOM in g.columns else [None] * len(g)
-    df["_wkb"] = [
-        None if x is None or x is pd.NA else shapely.to_wkb(shapely.normalize(x), output_dimension=2) for x in geoms
-    ]
+    canon = [geometria_canonica(x) for x in geoms]
+    df["_wkb"] = [None if x is None else shapely.to_wkb(x, output_dimension=2) for x in canon]
     return df.reset_index(drop=True)
 
 

@@ -259,3 +259,48 @@ def test_historico_que_falhou_e_recuperado_na_rodada_seguinte(ambiente, banco_ur
     with eng.connect() as c:
         assert c.execute(text("select count(*) from bruto.car_imovel_vigente")).scalar() == 3
     assert rodada_car(eng, s, esp, {"PA": [COD]}, hc, banco_url)["historico"] == 0
+
+
+def test_trava_de_versao_e_resumo(tmp_path):
+    import geopandas as gpd
+    from shapely.geometry import Polygon, box
+
+    from raiz.coleta.espelho import Espelho
+
+    esp = Espelho(tmp_path)
+    cods = [f"I{i:03d}" for i in range(40)]
+    g = gpd.GeoDataFrame(
+        {"cod_imovel": cods, "m_fiscal": [1.0] * 40}, geometry=[box(i, 0, i + 1, 1) for i in range(40)], crs=4674
+    )
+    assert esp.gravar("car", "PA", 1, g, "cod_imovel").total == 40  # primeira carga nunca trava
+    # mesma forma com vértices noutra ordem e ruído abaixo de 1 cm: o resumo não muda, nada é comparado
+    g2 = g.copy()
+    g2.loc[0, "geometry"] = Polygon([(1, 0), (1, 1 + 1e-9), (0, 1), (0, 0)])
+    d = esp.gravar("car", "PA", 1, g2, "cod_imovel")
+    assert d.pelo_resumo and not d.mudou
+    # 5 de 40 mudam (12,5%): grava
+    g3 = g.copy()
+    g3.loc[:4, "m_fiscal"] = 2.0
+    d = esp.gravar("car", "PA", 1, g3, "cod_imovel")
+    assert len(d.mudaram) == 5 and d.escreveu and not d.travado
+    # 15 de 40 mudam (37,5%): trava, o arquivo fica como estava
+    g4 = g3.copy()
+    g4.loc[10:24, "m_fiscal"] = 9.0
+    d = esp.gravar("car", "PA", 1, g4, "cod_imovel")
+    assert d.travado and not d.escreveu and esp.ler("car", "PA", 1).m_fiscal.max() == 2.0
+    # liberado por um humano: grava
+    assert esp.gravar("car", "PA", 1, g4, "cod_imovel", liberar=True).escreveu
+
+
+def test_trava_da_uf_segura_o_historico(ambiente, banco_url, monkeypatch):
+    from raiz.coleta import rodada
+    from raiz.coleta.replicacao import atualizar
+
+    eng, s, esp, mundo, hc, pings = ambiente
+    resumo = {"mudaram": list(range(5))}
+    assert rodada._uf_travada(eng, hc, "PA", list(range(20)), resumo)  # 25% dos municípios mudou
+    assert "/k/raiz-trava/fail" in pings and resumo["travadas"] == ["PA"]
+    with eng.begin() as c:
+        atualizar(c, "sicar_imoveis", "PA", liberado=True)
+    assert not rodada._uf_travada(eng, hc, "PA", list(range(20)), {"mudaram": list(range(5))})
+    assert not rodada._uf_travada(eng, hc, "PA", list(range(20)), {"mudaram": [1, 2]})  # 10%: não trava

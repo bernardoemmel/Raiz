@@ -23,6 +23,7 @@ CAMPOS = {
     "ultimo_erro",
     "verificado_em",
     "coletado_em",
+    "liberado",
 }
 
 

@@ -191,15 +191,28 @@ def registrar_gabarito(
     valor_num: float | None = None,
     valor_texto: str | None = None,
     referencia: str | None = None,
+    desenho_amostral: str = "oportunidade",
+    probabilidade_escolha: float | None = None,
 ) -> int:
     """Registra o resultado real. Correção = registrar de novo (vale o último registrado para a mesma data)."""
     if valor_num is None and valor_texto is None:
         raise ValueError("gabarito sem valor")
     return con.execute(
         text("""insert into aprendizado.gabarito
-                (cod_imovel, alvo, valor_num, valor_texto, observado_em, fonte, referencia)
-                values (:c, :a, :vn, :vt, :o, :f, :r) returning id"""),
-        dict(c=cod_imovel, a=alvo, vn=valor_num, vt=valor_texto, o=observado_em, f=fonte, r=referencia),
+                (cod_imovel, alvo, valor_num, valor_texto, observado_em, fonte, referencia, desenho_amostral,
+                 probabilidade_escolha)
+                values (:c, :a, :vn, :vt, :o, :f, :r, :da, :pe) returning id"""),
+        dict(
+            c=cod_imovel,
+            a=alvo,
+            vn=valor_num,
+            vt=valor_texto,
+            o=observado_em,
+            f=fonte,
+            r=referencia,
+            da=desenho_amostral,
+            pe=probabilidade_escolha,
+        ),
     ).scalar_one()
 
 

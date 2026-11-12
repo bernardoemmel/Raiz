@@ -260,6 +260,18 @@ def coleta_car(
         sys.exit(1)
 
 
+@coleta.command("liberar")
+def coleta_liberar(fonte: str, recorte: str) -> None:
+    """Libera a próxima versão travada (mudou mais de 25% do arquivo do município, ou 15% dos municípios da UF).
+    Ex.: raiz coleta liberar sicar_imoveis PA/1504950   ou   raiz coleta liberar sicar_imoveis PA"""
+    from raiz.banco import engine
+    from raiz.coleta.replicacao import atualizar
+
+    with engine().begin() as con:
+        atualizar(con, fonte, recorte, liberado=True)
+    typer.echo(f"{fonte} {recorte}: liberado para a próxima rodada")
+
+
 @coleta.command("ibama")
 def coleta_ibama() -> None:
     """Embargos do Ibama: pedido condicional, sem dado pessoal, espelho por município e CSV limpo para o motor."""
