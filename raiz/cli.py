@@ -113,6 +113,18 @@ def aprendizado_placar() -> None:
         )
 
 
+pessoal = typer.Typer(help="Dado pessoal cifrado (telefone e BSUID).", no_args_is_help=True)
+app.add_typer(pessoal, name="pessoal")
+
+
+@pessoal.command("gerar-chave")
+def pessoal_gerar_chave() -> None:
+    """Gera uma chave nova para RAIZ_CHAVE_PESSOAL (guarde no .env e num cofre fora do servidor)."""
+    from raiz.pessoal import gerar_chave
+
+    typer.echo(gerar_chave())
+
+
 @banco.command("migrar")
 def banco_migrar(alvo: str = "head") -> None:
     """Aplica as migrações (Alembic) no banco de RAIZ_BANCO_URL."""
