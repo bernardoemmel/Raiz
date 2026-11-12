@@ -211,6 +211,24 @@ def coleta_fontes(dia: Annotated[str | None, typer.Option(help="AAAA-MM-DD; padr
             typer.echo(f"  pendente: {f.id}: {f.pendente}")
 
 
+@coleta.command("checar")
+def coleta_checar() -> None:
+    """HEAD em cada arquivo do manifesto: grava bytes, ETag e Last-Modified e avisa no Healthchecks se algo sumiu
+    ou mudou. Rodar no servidor (este ambiente de desenvolvimento bloqueia os buckets)."""
+    from raiz.banco import engine
+    from raiz.coleta.checagem import checar
+    from raiz.coleta.http import sessao
+    from raiz.operacao.healthchecks import Healthchecks
+
+    with engine().begin() as con:
+        res = checar(con, sessao(), hc=Healthchecks())
+    for r in res:
+        marca = "FALTA" if r.faltando else ("MUDOU" if r.mudou else "ok")
+        typer.echo(f"{marca:5} {r.fonte} {r.status or r.erro} {r.bytes or '-'} {r.url}")
+    if any(r.faltando for r in res):
+        sys.exit(1)
+
+
 @banco.command("migrar")
 def banco_migrar(alvo: str = "head") -> None:
     """Aplica as migrações (Alembic) no banco de RAIZ_BANCO_URL."""
