@@ -1,7 +1,7 @@
 # Só endereços oficiais, conferidos em 12/11/2026. Nenhum prazo é fixado aqui.
 # Uma fonte sem data explícita aparece como sem_data, nunca como calendário completo.
 # O coletor lê páginas e PDFs em memória, sem guardar texto, nomes, CPF ou CNPJ.
-versao: 1
+versao: 2
 fontes:
   - id: djen
     nome: Diário de Justiça Eletrônico Nacional (CNJ)
@@ -28,12 +28,15 @@ fontes:
   - id: doe_pa
     nome: Diário Oficial do Pará
     uf: PA
-    modo: busca_pa
-    urls: [https://www.ioepa.com.br/pesquisa/]
-    termos: ['leilão rural', 'penhora rural', 'concessão florestal', 'créditos de carbono']
-    max_paginas: 8
+    grupo: diario_estadual
+    modo: diario_pa
+    urls: [https://www.ioepa.com.br/pages]
+    dias: 7
+    max_paginas: 20
+    max_bytes: 67108864
   - id: doe_mt
     nome: Diário Oficial de Mato Grosso
+    grupo: diario_estadual
     uf: MT
     urls: [https://www.iomat.mt.gov.br/]
     palavras: [edição, edição completa, diário, leilão, penhora, concessão, carbono]
@@ -107,3 +110,136 @@ fontes:
     urls: [https://environment.ec.europa.eu/topics/forests/deforestation/eu-deforestation-regulation-eudr_en, https://green-forum.ec.europa.eu/nature-and-biodiversity/deforestation-regulation-implementation_en]
     palavras: [implementation, timeline, application, obligation, responsibility]
     max_paginas: 6
+
+  # A CLI seleciona diariamente os diários das UFs com municípios processados no
+  # manifesto público. Fonte indisponível fica em erro/parcial, nunca é omitida.
+  - id: doe_ac
+    nome: Diário Oficial do Acre
+    grupo: diario_estadual
+    uf: AC
+    modo: diario_ac
+    urls: [https://www.diario.ac.gov.br/]
+    hosts: [diario.ac.gov.br]
+    max_paginas: 8
+  - id: doe_ap
+    nome: Diário Oficial do Amapá
+    grupo: diario_estadual
+    uf: AP
+    modo: diario_portal
+    # O portal oficial publica HTTP; HTTPS apresentou timeout nesta verificação.
+    urls: [http://diofe.portal.ap.gov.br]
+    dias: 7
+    max_paginas: 32
+    max_bytes: 67108864
+  - id: doe_ba
+    nome: Diário Oficial da Bahia
+    grupo: diario_estadual
+    uf: BA
+    modo: diario_portal
+    urls: [https://www2.egba.ba.gov.br]
+    dias: 7
+    max_paginas: 32
+    max_bytes: 67108864
+  - id: doe_ce
+    nome: Diário Oficial do Ceará
+    grupo: diario_estadual
+    uf: CE
+    modo: diario_links
+    urls: [https://www.ce.gov.br/diario-oficial/]
+    dias: 7
+    max_paginas: 24
+    max_bytes: 67108864
+  - id: doe_go
+    nome: Diário Oficial de Goiás
+    grupo: diario_estadual
+    uf: GO
+    modo: diario_portal
+    urls: [https://diariooficial.abc.go.gov.br]
+    dias: 7
+    max_paginas: 32
+    max_bytes: 67108864
+  - id: doe_ma
+    nome: Diário Oficial do Maranhão
+    grupo: diario_estadual
+    uf: MA
+    modo: diario_ma
+    urls: [https://diariooficial.ma.gov.br/]
+    hosts: [www.diariooficial.ma.gov.br]
+    dias: 7
+    max_paginas: 16
+    max_bytes: 67108864
+  - id: doe_mg
+    nome: Diário Oficial de Minas Gerais
+    grupo: diario_estadual
+    uf: MG
+    modo: diario_links
+    urls: [https://www.jornalminasgerais.mg.gov.br/]
+    hosts: [jornalminasgerais.mg.gov.br]
+    dias: 7
+    max_paginas: 24
+    max_bytes: 67108864
+  - id: doe_pi
+    nome: Diário Oficial do Piauí
+    grupo: diario_estadual
+    uf: PI
+    modo: diario_pi
+    urls: [https://www.diario.pi.gov.br/doe/Api/listardiarios.json]
+    base_documentos: https://www.diario.pi.gov.br/doe/
+    dias: 7
+    max_paginas: 24
+    max_bytes: 67108864
+  - id: doe_rn
+    nome: Diário Oficial do Rio Grande do Norte
+    grupo: diario_estadual
+    uf: RN
+    modo: diario_links
+    urls: [https://diariooficial.rn.gov.br/dei/dorn3/default.aspx]
+    hosts: [www.diariooficial.rn.gov.br, webdisk.diariooficial.rn.gov.br]
+    arquivos_correntes: [sdoe.pdf]
+    dias: 7
+    max_paginas: 16
+    max_bytes: 67108864
+  - id: doe_ro
+    nome: Diário Oficial de Rondônia
+    grupo: diario_estadual
+    uf: RO
+    modo: diario_links
+    urls: [https://diof.ro.gov.br/]
+    dias: 7
+    max_paginas: 24
+    max_bytes: 67108864
+  - id: doe_rr
+    nome: Diário Oficial de Roraima
+    grupo: diario_estadual
+    uf: RR
+    modo: diario_rr
+    urls: [https://imprensaoficial.rr.gov.br/_inicial/]
+    hosts: [www.imprensaoficial.rr.gov.br]
+    dias: 7
+    max_paginas: 16
+    max_bytes: 67108864
+  - id: doe_to
+    nome: Diário Oficial do Tocantins
+    grupo: diario_estadual
+    uf: TO
+    modo: diario_links
+    urls: [https://diariooficial.to.gov.br/]
+    dias: 7
+    max_paginas: 24
+    max_bytes: 67108864
+
+  - id: caixa_imoveis
+    nome: CAIXA Imóveis à Venda
+    grupo: leilao
+    modo: caixa_csv
+    urls: [https://venda-imoveis.caixa.gov.br/listaweb/Lista_imoveis_geral.csv]
+    max_paginas: 40
+    ocr: true
+  - id: bb_imoveis
+    nome: Banco do Brasil — Seu Imóvel BB
+    grupo: leilao
+    modo: bb_imoveis
+    urls: [https://www.seuimovelbb.com.br/]
+    hosts: [seuimovelbb.com.br]
+    max_paginas: 12
+    cobertura_parcial: true
