@@ -23,8 +23,23 @@ from raiz import MOTOR_DIR, RAIZ_REPO
 from raiz.executor.executor import Tarefa, assinatura_arquivo, sha_texto
 
 CODIGO = {
-    "funil": ("motor/raiz_estado.py", "raiz/funil/ponte.py"),
-    "filtros": ("motor/raiz_filtros.py", "motor/raiz_extras.py"),
+    "funil": (
+        "motor/raiz_estado.py",
+        "raiz/funil/rodar.py",
+        "raiz/funil/ponte.py",
+        "raiz/funil/duck.py",
+        "raiz/funil/novo.py",
+    ),
+    "filtros": (
+        "motor/raiz_filtros.py",
+        "motor/raiz_extras.py",
+        "raiz/funil/rodar.py",
+        "raiz/funil/filtros.py",
+        "raiz/funil/restricoes.py",
+        "raiz/funil/ponte.py",
+        "raiz/funil/duck.py",
+        "raiz/funil/novo.py",
+    ),
     "direto": ("motor/raiz_direto.py", "motor/raiz_extras.py", "raiz/funil/ponte.py"),
     "mapbiomas": ("motor/raiz_mapbiomas.py",),
     "extras_direto": ("motor/raiz_extras_direto.py", "motor/raiz_extras.py"),
@@ -192,7 +207,14 @@ def externas(nome: str):
                 "mapbiomas": {k: v for k, v in _rasters_uf(uf).items() if "_cobertura_" in k or "_desmat_" in k},
             }
         if nome == "filtros":
-            return _nacionais()
+            local = esp / "ibama" / uf / f"{cod}.parquet"
+            if local.exists():
+                return {**_nacionais(), "ibama": assinatura_arquivo(local, conteudo=True)}
+            return {
+                **_nacionais(),
+                "ibama_csv": assinatura_arquivo(_cache_motor() / "termo_de_embargo.csv"),
+                "ibama_etag": assinatura_arquivo(_cache_motor() / "termo_de_embargo.etag", conteudo=True),
+            }
         if nome == "mapbiomas":
             return _rasters_uf(uf)
         if nome == "extras_direto":
@@ -309,7 +331,7 @@ def preparar(uf: str, tarefas: list[str]) -> None:
     """Downloads do estado uma vez, antes de repartir os municípios (os mesmos do invólucro)."""
     from raiz.funil import rodar as R
 
-    R.preparar_motor(carregar_embargos="funil" in tarefas)
+    R.preparar_motor(carregar_embargos=bool({"funil", "filtros"} & set(tarefas)))
     R.preparar_estado(R.Opcoes(uf=uf, tarefas=tuple(tarefas)))
 
 
