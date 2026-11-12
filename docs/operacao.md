@@ -154,6 +154,43 @@ antigos deixam de valer. Sem servidor nem chave, `--modelo simulado` roda tudo c
 decisão em `operacao.decisao_cascata` guarda rota, confiança, corte e versão da regra e dos cortes. Se a subida real
 sair da faixa por mais de 15 pontos em 7 dias, abre o alerta `cascata_faixa`: recalibrar.
 
+Os 95% exigidos pelo calibrador são o acerto observado no mesmo banco usado para escolher o corte; não há amostra
+independente de validação nem garantia estatística desse acerto em produção. As três tentativas medem repetição e
+consistência, não equivalem a três mensagens independentes. O runtime confere o nome do modelo; conferir também
+SHA do GGUF, versão do llama.cpp e prompt é parte da promoção operacional dos cortes.
+
+### Resultado real do Qwen em 12/11/2026
+
+A rodada terminou às 16h05 de Brasília (19h05 UTC): **120 mensagens do banco próprio, três tentativas por
+mensagem, 360 respostas completas**, todas com confiança numérica e nenhuma falha técnica. São mensagens de
+teste, não contatos reais de produtores. Banco `banco-pt-2026.11a+01697528`, política
+`cascata-2026.11a+fb4a9c2d`, Qwen/llama/GGUF identificados acima, três threads e contexto de 8.192 tokens.
+
+| Tarefa | Mensagens / respostas | Acerto observado | Acerto nas três tentativas | Abstenção correta | Latência mediana |
+|---|---|---|---|---|---|
+| Intenção do aceite | 80 / 240 | 163/240 (67,92%) | 67,50% | 7,14% | 1.914 ms |
+| Compreensão da proposta | 40 / 120 | 52/120 (43,33%) | 42,50% | 25,00% | 5.465 ms |
+
+**Nenhum corte foi aprovado.** No melhor candidato da faixa de subida, a intenção manteria 79,43% de acerto no
+que fica no Qwen, com 27,08% subindo; a compreensão manteria 49,47%, com 20,83% subindo. Ambos ficaram abaixo dos
+95% exigidos. O arquivo `cascata_cortes.yaml` foi gerado pela CLI com os metadados desta rodada e `cortes: {}`;
+as duas tarefas continuam na votação Qwen + Haiku. Não foi ajustado o banco nem forçado um corte para melhorar a
+nota. A interpretação continua sendo empírica, no mesmo banco de escolha do corte, conforme a limitação acima.
+
+A soma do tempo de inferência foi de 24 min 27 s; havia outros testes rodando na máquina, portanto os tempos não
+são um compromisso de desempenho em produção. A comparação com Haiku ficou pendente: o teste real da CLI
+retornou `sem credencial da Anthropic` neste ambiente, sem benchmark simulado nem pedido de chave pelo chat.
+Implantação e agendamento no servidor de produção não foram realizados neste ambiente local.
+
+Evidência fora do git, em `dados/avaliacao/qwen-2026-11-12/`:
+
+- Relatório: `2026-11-12T190503_qwen3-4b-instruct-2507.json`, SHA-256
+  `0f23332758a33238ee48289caa4cb39b93a1f0d5072ecfc3dd3d2b4b1d6f4c87`.
+- Proveniência do peso, imagem, compilador e parâmetros: `proveniencia.json`, SHA-256
+  `35a215f3ece2240d5878182a69de8f9fda421fe97b642790fc08fb026c169abe`.
+- `verificacao.json` registra a conferência dos 120 IDs, três tentativas por ID, versão do banco, modelo, provedor,
+  métricas e decisões do calibrador. As 360 respostas brutas não foram incluídas no repositório.
+
 ## Rodar o motor vigiado
 
 ```bash
