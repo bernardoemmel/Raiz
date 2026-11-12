@@ -8,10 +8,12 @@ const repo = fileURLToPath(new URL("../..", import.meta.url))
 const { test, expect } = createRequire(path.join(repo, "front/globo/package.json"))("@playwright/test")
 const API = "http://127.0.0.1:8765"
 
-test("link de uso único → 1 milhão de créditos no Pará → três lotes → interesse → Pix de teste", async ({ page, request }) => {
+test("link de uso único → pedido no Pará → contato bloqueado na tela → ondas e Pix no servidor de teste", async ({ page, request }) => {
   const erros = []
+  const contatosPelaTela = []
   expect(existsSync(path.join(process.env.RAIZ_E2E_ESTADO, "pronto"))).toBe(true)
   page.on("pageerror", (erro) => erros.push(erro.message))
+  page.on("request", (r) => { if (r.url().endsWith("/solicitar-interesse")) contatosPelaTela.push(r.url()) })
   await page.goto("/#/pedidos")
   await expect(page.getByRole("heading", { name: "Entrar na Raíz" })).toBeVisible()
   await page.getByRole("textbox", { name: "E-mail" }).fill("compras@cliente.example")
@@ -32,8 +34,8 @@ test("link de uso único → 1 milhão de créditos no Pará → três lotes →
 
   await page.getByRole("link", { name: "Novo pedido" }).first().click()
   await expect(page.getByLabel("Quantidade (créditos)")).toHaveValue("1.000.000")
-  await page.getByLabel("Estados (sem nenhum: todos)").selectOption("PA")
   await expect(page.getByRole("list", { name: "Lugares escolhidos" })).toContainText("Pará")
+  await expect(page.getByLabel("Estados (sem nenhum: todos)").getByRole("option", { name: "Pará", exact: true })).toBeDisabled()
   const criada = page.waitForResponse((r) => r.url() === `${API}/pedidos` && r.request().method() === "POST")
   await page.getByRole("button", { name: "Ver o que existe e montar o lote" }).click()
   const resposta = await criada
@@ -52,7 +54,19 @@ test("link de uso único → 1 milhão de créditos no Pará → três lotes →
   // Nenhum valor pessoal ou campo do dono é exposto pelas respostas do pedido.
   expect(JSON.stringify(pedido)).not.toMatch(/"(?:cpf|cnpj|nome_dono|nome_proprietario|telefone|email)"/i)
 
-  await page.getByRole("button", { name: "Solicitar interesse dos donos" }).click()
+  await expect(page.getByRole("heading", { name: "Contato somente na fase final" })).toBeVisible()
+  await expect(page.getByRole("button", { name: "Solicitar interesse dos donos" })).toBeDisabled()
+  expect(contatosPelaTela).toEqual([])
+  // A tela atual não inicia contato. As etapas posteriores continuam cobertas pela API real deste banco
+  // descartável, sem envio externo: servidor.py substitui o correio e as respostas e só aceita banco local _e2e.
+  const tokenSessao = await page.evaluate(() => JSON.parse(localStorage.getItem("raiz.sessao") ?? "null")?.token)
+  if (!tokenSessao) throw new Error("A sessão local do cliente não foi criada.")
+  const solicitacao = await request.post(`${API}/pedidos/${pedido.id}/solicitar-interesse`, {
+    headers: { Authorization: `Bearer ${tokenSessao}` }, data: { opcao: "compacta" },
+  })
+  expect(solicitacao.ok()).toBeTruthy()
+  expect((await solicitacao.json()).status).toBe("buscando_interesse")
+  await page.reload()
   await expect(page.getByRole("heading", { name: "Busca de interesse dos donos" })).toBeVisible()
   await expect(page.locator(".barra-meta")).toBeVisible()
   execFileSync("uv", ["run", "--frozen", "python", "-m", "testes.e2e.servidor", "--interesses", pedido.id], {
@@ -84,5 +98,6 @@ test("link de uso único → 1 milhão de créditos no Pará → três lotes →
   await expect(page.getByRole("heading", { name: "Grupo reservado" })).toBeVisible()
   await page.goto("/#/pedidos")
   await expect(page.locator(".lista-pedidos .selo", { hasText: /Reservado até/ })).toBeVisible()
+  expect(contatosPelaTela).toEqual([])
   expect(erros).toEqual([])
 })

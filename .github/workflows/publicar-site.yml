@@ -59,6 +59,9 @@ jobs:
       - name: Dados do motor e polígonos de todos os estados (Release dados)
         run: node front/scripts/baixar-dados.mjs --geo --exigir
 
+      - name: Conferir os três lotes publicados do Pará
+        run: node front/scripts/baixar-lotes.mjs
+
       - name: Geometrias do mapa (do cache)
         uses: actions/cache/restore@v4
         with:
