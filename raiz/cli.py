@@ -186,6 +186,31 @@ def operacao_custo(
     typer.echo(f"gasto do mês: US$ {mes:.4f}{uso}")
 
 
+coleta = typer.Typer(help="Coleta de dados públicos (E1).", no_args_is_help=True)
+app.add_typer(coleta, name="coleta")
+
+
+@coleta.command("fontes")
+def coleta_fontes(dia: Annotated[str | None, typer.Option(help="AAAA-MM-DD; padrão: hoje")] = None) -> None:
+    """Grava o manifesto no banco e mostra o que deve ser olhado no dia e o que está pendente."""
+    import datetime as dt
+
+    from raiz.banco import engine
+    from raiz.coleta.manifesto import carregar
+    from raiz.coleta.replicacao import devidas, sincronizar_fontes
+
+    m = carregar()
+    with engine().begin() as con:
+        n = sincronizar_fontes(con, m)
+    d = dt.date.fromisoformat(dia) if dia else dt.date.today()
+    typer.echo(f"manifesto {m.versao}: {n} fontes")
+    for fid, ufs in devidas(m, d):
+        typer.echo(f"  hoje: {fid}" + (f" ({', '.join(ufs)})" if ufs else ""))
+    for f in m.fontes:
+        if f.pendente:
+            typer.echo(f"  pendente: {f.id}: {f.pendente}")
+
+
 @banco.command("migrar")
 def banco_migrar(alvo: str = "head") -> None:
     """Aplica as migrações (Alembic) no banco de RAIZ_BANCO_URL."""
