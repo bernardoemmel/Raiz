@@ -5,6 +5,7 @@
  */
 
 import type { Imovel } from "./dados/tipos"
+import { FOGO } from "./cores"
 import { fmtHa, fmtInt } from "./formato"
 
 export interface Classe {
@@ -86,9 +87,9 @@ export const classeMapbiomas = (c: number | null) => (c === null ? null : (MAPBI
 
 /** Anos com fogo: do mais claro (1 ano) ao mais escuro (6 ou mais). Usado no mapa e na legenda. */
 export const ESCALA_FOGO: [number, string][] = [
-  [1, "#f0c35e"],
-  [3, "#e5862f"],
-  [6, "#b8401f"],
+  [1, FOGO.poucos],
+  [3, FOGO.varios],
+  [6, FOGO.muitos],
 ]
 
 export const PERIODO_FOGO = "1985 a 2024"

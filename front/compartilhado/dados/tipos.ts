@@ -131,3 +131,13 @@ export interface Geo {
 
 /** terra_publica: glebas públicas não destinadas e UC de uso sustentável de domínio público (só pela API) */
 export type CamadaGeo = "municipio" | "imoveis" | "ti" | "uc" | "rios" | "terra_publica"
+
+/** Uma fazenda apta (ou apta com pendência) como ponto, para os agrupamentos no mapa do Brasil. */
+export interface PontoFazenda {
+  lon: number
+  lat: number
+  situacao: "apta" | "pendencia"
+  /** hectares que podem voltar a ser mata */
+  ha: number
+  cod_ibge: string
+}

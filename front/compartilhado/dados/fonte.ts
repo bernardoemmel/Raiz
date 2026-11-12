@@ -10,7 +10,7 @@
 export { comoLinha } from "./colunas"
 import type { RespostaBusca } from "./busca"
 import type { Ficha } from "./ficha"
-import type { CamadaGeo, FunilMunicipio, Geo, Imovel } from "./tipos"
+import type { CamadaGeo, FunilMunicipio, Geo, Imovel, PontoFazenda } from "./tipos"
 
 export interface Certidao {
   cod_imovel: string
@@ -37,12 +37,16 @@ export interface FonteDeDados {
   certidoes(cod_imovel: string): Promise<Certidao[]>
   /** GET /busca?q=: código do CAR (inteiro ou começo) ou nome do município; diz por que não achou */
   buscar(q: string, sinal?: AbortSignal): Promise<RespostaBusca>
+  /** fazendas aptas como pontos, de todos os municípios com lista por fazenda (mapa do Brasil) */
+  pontos(): Promise<PontoFazenda[]>
   /** quais municípios têm dado por fazenda */
   municipiosComImoveis(): Promise<string[]>
   geo: {
     camada(cod_ibge: string, camada: CamadaGeo): Promise<Geo | null>
     /** URL do mapa base em PMTiles do município, ou null se ainda não foi gerado */
     base(cod_ibge: string): Promise<string | null>
+    /** o Brasil: contorno de todos os municípios e o mapa base único (do país ao município) */
+    brasil(): Promise<{ municipios: Geo | null; base: string | null }>
   }
 }
 

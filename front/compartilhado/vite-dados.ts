@@ -4,6 +4,7 @@
  *   /amostra/indice.json             lista dos arquivos de dados/amostra/ (um arquivo novo do motor aparece sozinho)
  *   /amostra/<arquivo>.csv           os CSV do motor, como estão
  *   /amostra/fichas/<cod>.json       a ficha leve de uma fazenda (dados/ficha.ts), montada aqui
+ *   /amostra/pontos.json             fazendas aptas como pontos (agrupamentos no mapa do Brasil)
  *   /busca?q=                        busca por código do CAR ou município (dados/busca.ts), como o back-end vai fazer
  *   /geo/<arquivo>                   o que front/scripts/geo.py gerou (GeoJSON e PMTiles, com Range)
  *   /geo/fontes/<fonte>/<faixa>.pbf  letras dos rótulos do mapa
@@ -14,6 +15,7 @@
 
 import fs from "node:fs"
 import path from "node:path"
+import zlib from "node:zlib"
 import { buscar } from "./dados/busca"
 import { complementosDe, juntarComplementos } from "./dados/complementos"
 import { lerCsv } from "./dados/csv"
@@ -98,6 +100,44 @@ export function dadosRaiz(opcoes: { repo: string }) {
     return null
   }
 
+  /** o meio do maior anel do polígono do CAR (bom o bastante para agrupar no mapa do Brasil) */
+  function centro(f: Geo["features"][number] | undefined): [number, number] | null {
+    if (!f) return null
+    // Polygon, MultiPolygon ou GeometryCollection (sobra do conserto de polígono): os anéis externos que houver
+    const aneisDe = (g: { type: string; coordinates?: unknown; geometries?: unknown[] }): number[][][] =>
+      g.type === "Polygon"
+        ? [(g.coordinates as number[][][])[0]]
+        : g.type === "MultiPolygon"
+          ? (g.coordinates as number[][][][]).map((p) => p[0])
+          : g.type === "GeometryCollection"
+            ? ((g.geometries ?? []) as { type: string; coordinates?: unknown }[]).flatMap(aneisDe)
+            : []
+    const aneis = aneisDe(f.geometry as never)
+    const anel = aneis.sort((a, b) => b.length - a.length)[0]
+    if (!anel?.length) return null
+    let x = 0
+    let y = 0
+    for (const [a, b] of anel) {
+      x += a
+      y += b
+    }
+    return [Math.round((x / anel.length) * 1e4) / 1e4, Math.round((y / anel.length) * 1e4) / 1e4]
+  }
+
+  function pontos() {
+    const saida: [number, number, string, number, string][] = []
+    for (const cod of comImoveis()) {
+      const m = municipio(cod)
+      if (!m) continue
+      for (const i of m.imoveis) {
+        if (!i.apta) continue
+        const c = centro(m.geo.get(i.cod_imovel))
+        if (c) saida.push([c[0], c[1], i.com_matricula ? "apta" : "pendencia", Math.round(i.carbono_ha), cod])
+      }
+    }
+    return { campos: ["lon", "lat", "situacao", "ha", "cod_ibge"], pontos: saida }
+  }
+
   function baseBusca() {
     const municipios = listar(amostra)
       .filter((f) => /^resumo_[A-Z]{2}\.csv$/.test(f))
@@ -107,7 +147,28 @@ export function dadosRaiz(opcoes: { repo: string }) {
     return { municipios, imoveis, comImoveis: new Set(cods) }
   }
 
+  // GeoJSON e JSON grandes vão comprimidos (o contorno dos municípios do Brasil cai de 3,8 MB para perto de 1 MB)
+  const comprimidos = new Map<string, { mtime: number; dado: Buffer }>()
+  function enviarComprimido(req: Requisicao, res: Resposta, arq: string): boolean {
+    const aceita = String(req.headers["accept-encoding"] ?? "")
+    if (!/\bgzip\b/.test(aceita) || !/\.(geo)?json$/.test(arq) || req.headers.range) return false
+    const mtime = fs.statSync(arq).mtimeMs
+    let item = comprimidos.get(arq)
+    if (!item || item.mtime !== mtime) {
+      item = { mtime, dado: zlib.gzipSync(fs.readFileSync(arq), { level: 6 }) }
+      comprimidos.set(arq, item)
+    }
+    res.setHeader("Content-Type", TIPOS[path.extname(arq)] ?? "application/octet-stream")
+    res.setHeader("Content-Encoding", "gzip")
+    res.setHeader("Vary", "Accept-Encoding")
+    res.setHeader("Cache-Control", "no-cache")
+    res.setHeader("Content-Length", item.dado.length)
+    res.end(item.dado)
+    return true
+  }
+
   function enviarArquivo(req: Requisicao, res: Resposta, arq: string) {
+    if (enviarComprimido(req, res, arq)) return
     const tamanho = fs.statSync(arq).size
     res.setHeader("Content-Type", TIPOS[path.extname(arq)] ?? "application/octet-stream")
     res.setHeader("Accept-Ranges", "bytes")
@@ -159,6 +220,7 @@ export function dadosRaiz(opcoes: { repo: string }) {
           const q = new URLSearchParams((req.url ?? "").split("?")[1] ?? "").get("q") ?? ""
           return json(res, buscar(q, baseBusca()))
         }
+        if (url === "/amostra/pontos.json") return json(res, pontos())
         if (url === "/amostra/indice.json") return json(res, { arquivos: listar(amostra).filter((f) => f.endsWith(".csv")) })
         if ((m = /^\/amostra\/fichas\/([\w-]+)\.json$/.exec(url))) {
           const f = ficha(m[1])
@@ -187,6 +249,7 @@ export function dadosRaiz(opcoes: { repo: string }) {
       const csvs = listar(amostra).filter((f) => f.endsWith(".csv"))
       for (const f of csvs) fs.copyFileSync(path.join(amostra, f), path.join(dAmostra, f))
       fs.writeFileSync(path.join(dAmostra, "indice.json"), JSON.stringify({ arquivos: csvs }))
+      fs.writeFileSync(path.join(dAmostra, "pontos.json"), JSON.stringify(pontos()))
       let n = 0
       for (const cod of comImoveis()) {
         const m = municipio(cod)

@@ -10,6 +10,7 @@
 
 import { bool, limpar, n0, num, texto } from "./colunas"
 import type { Linha } from "./csv"
+import { COR } from "../cores"
 import type { Categoria, FunilMunicipio, Imovel } from "./tipos"
 
 /**
@@ -126,11 +127,11 @@ export function categoria(i: Pick<Imovel, "problema" | "apta" | "com_matricula" 
 }
 
 export const CATEGORIAS: { id: Categoria; rotulo: string; cor: string }[] = [
-  { id: "apta_matricula", rotulo: "Apta, com matrícula", cor: "#1d5a39" },
-  { id: "apta_titulo", rotulo: "Apta, título a conferir", cor: "#6fae7b" },
-  { id: "apta_assentamento", rotulo: "Apta, assentamento para agrupar", cor: "#d18b2c" },
-  { id: "sem_area", rotulo: "Sem área apta agora", cor: "#a7aea6" },
-  { id: "bloqueio", rotulo: "Embargo, TI ou desmate recente", cor: "#b5483a" },
+  { id: "apta_matricula", rotulo: "Apta, com matrícula", cor: COR.situacaoApta },
+  { id: "apta_titulo", rotulo: "Apta, título a conferir", cor: COR.situacaoPendencia },
+  { id: "apta_assentamento", rotulo: "Apta, assentamento para agrupar", cor: COR.restaurar },
+  { id: "sem_area", rotulo: "Sem área apta agora", cor: COR.situacaoNaoApta },
+  { id: "bloqueio", rotulo: "Embargo, terra indígena ou desmate recente", cor: COR.pedra },
 ]
 
 /** O funil de um município somado a partir dos imóveis: a mesma conta do motor.resumo. */

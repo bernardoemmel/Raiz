@@ -1,5 +1,5 @@
 import { Busca } from "./Busca"
-import { IconePessoa, IconeRaiz } from "./Icones"
+import { IconeRaiz, User } from "./Icones"
 
 const MENU = [
   { id: "mapa", rotulo: "Mapa" },
@@ -38,7 +38,7 @@ export function Cabecalho({ atual, linkMapa = "#/" }: { atual: string; linkMapa?
       <div className="topo-dir">
         <Busca />
         <span className="avatar" title="Sua conta">
-          <IconePessoa />
+          <User size={20} aria-hidden="true" />
         </span>
       </div>
     </header>

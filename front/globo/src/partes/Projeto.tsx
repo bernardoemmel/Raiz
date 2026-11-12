@@ -3,7 +3,7 @@ import type { Imovel } from "../../../compartilhado/dados"
 import { fmtCompacto, fmtHa, fmtInt } from "../../../compartilhado/formato"
 import { camposDeFutebol } from "../../../compartilhado/comparacoes"
 import { tituloDe, type Frente } from "../filtros"
-import { IconeBaixar } from "./Icones"
+import { Download } from "./Icones"
 
 /** Resumo da seleção como rascunho de projeto. Gravar o projeto é da API (negocio.grupos); aqui sai a planilha. */
 export function Projeto({ lista, frente, municipio, fechar, baixar }: { lista: Imovel[]; frente: Frente; municipio: string; fechar: () => void; baixar: () => void }) {
@@ -58,7 +58,7 @@ export function Projeto({ lista, frente, municipio, fechar, baixar }: { lista: I
             Fechar
           </button>
           <button type="button" className="botao principal" onClick={baixar} disabled={!lista.length}>
-            <IconeBaixar /> Baixar planilha do projeto
+            <Download size={20} aria-hidden="true" /> Baixar planilha do projeto
           </button>
         </div>
       </div>

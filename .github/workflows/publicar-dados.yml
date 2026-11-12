@@ -1,0 +1,63 @@
+# Publica os pacotes de dados do motor no Release `dados`, de onde o front baixa sozinho.
+# Quem prepara os pacotes: motor/publicar_dados.py, que grava em dados-entrada/.
+# Depois de publicar, dados-entrada/ sai do branch (os dados grandes ficam só no Release, nunca no main).
+name: Publicar dados do motor
+
+on:
+  push:
+    paths:
+      - "dados-entrada/**"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: publicar-dados
+  cancel-in-progress: false
+
+jobs:
+  publicar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Ver se há pacotes para publicar
+        id: tem
+        run: |
+          if [ -n "$(ls -A dados-entrada 2>/dev/null)" ]; then echo "sim=1" >> "$GITHUB_OUTPUT"; else echo "Nada em dados-entrada/, nada a publicar."; fi
+
+      - if: steps.tem.outputs.sim == '1'
+        name: Juntar as partes dos pacotes grandes
+        run: |
+          cd dados-entrada
+          for p in *.part00; do
+            [ -e "$p" ] || continue
+            nome="${p%.part00}"
+            cat "$nome".part* > "$nome"
+            rm "$nome".part*
+          done
+          ls -la
+
+      - if: steps.tem.outputs.sim == '1'
+        name: Criar o Release dados se não existir
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view dados >/dev/null 2>&1 || gh release create dados \
+            --prerelease --target main \
+            --title "Dados do motor (atualizado sozinho)" \
+            --notes "Saídas do motor por estado, só de fontes públicas, sem nome, CPF ou CNPJ. O front baixa sozinho com front/scripts/baixar-dados.mjs. Não editar à mão."
+
+      - if: steps.tem.outputs.sim == '1'
+        name: Subir os pacotes (estados.json por último)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cd dados-entrada
+          for f in *.tar.gz *.kml *.geojson; do
+            [ -e "$f" ] || continue
+            gh release upload dados "$f" --clobber
+          done
+          [ -e estados.json ] && gh release upload dados estados.json --clobber
+          echo "Publicado:"; gh release view dados --json assets --jq '.assets[] | "\(.name) \(.size)"'

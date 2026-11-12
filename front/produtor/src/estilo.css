@@ -1,155 +1,116 @@
-/* Ficha leve do produtor: celular fraco, tela pequena, sol forte. Fonte do sistema (nada para baixar), letra
-   grande, contraste alto e botões de 48 px. */
-:root {
-  --fundo: #f4f5f0;
-  --cartao: #fff;
-  --texto: #141a16;
-  --texto-2: #4b554e;
-  --borda: #dde2d8;
-  --verde: #1d5a39;
-  --verde-claro: #e2ece3;
-  --ambar: #8a5a12;
-  --ambar-fundo: #fbf1de;
-  --vermelho: #a63d30;
-  --vermelho-fundo: #f8e6e2;
-  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", sans-serif;
-  font-size: 17px;
-  line-height: 1.5;
-  color: var(--texto);
-  background: var(--fundo);
-  -webkit-text-size-adjust: 100%;
-}
-* {
-  box-sizing: border-box;
+/* Ficha leve do produtor, na base do guia (item 1 e item 6): celular Android barato, sol forte, letra de 18 px no
+   mínimo, toque de 48 px, contraste alto. Só a Atkinson (400 e 700); com economia de dados, a fonte do sistema. */
+@import "../../compartilhado/base.css";
+@import "./fontes.css";
+
+/* economia de dados (Save-Data): nenhuma fonte baixada, fica a do sistema (Roboto no Android) */
+html.economia {
+  --fonte-texto: system-ui, sans-serif;
+  --fonte-titulo: system-ui, sans-serif;
 }
 body {
-  margin: 0;
-  background: var(--fundo);
+  font-size: var(--t-texto-produtor);
 }
-button,
-input {
-  font: inherit;
-}
-.num {
-  font-variant-numeric: tabular-nums;
+h1,
+h2,
+h3 {
+  font-family: var(--fonte-texto);
+  font-weight: 700;
+  letter-spacing: 0;
 }
 main {
   max-width: 560px;
   margin: 0 auto;
-  padding: 0 16px 40px;
+  padding: 0 var(--e4) var(--e7);
 }
 .topo {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 14px 16px;
+  gap: var(--e2);
   max-width: 560px;
   margin: 0 auto;
+  padding: var(--e3) var(--e4);
   font-weight: 700;
-  font-size: 19px;
+  font-size: var(--t-subtitulo);
+  border-bottom: var(--linha);
 }
 .topo svg {
-  color: var(--verde);
+  color: var(--mata);
 }
 .topo small {
   margin-left: auto;
-  font-weight: 500;
-  font-size: 14px;
-  color: var(--texto-2);
+  font-size: var(--t-texto-produtor);
+  font-weight: 400;
+  color: var(--pedra);
 }
 .onde {
-  margin: 4px 0 6px;
-  font-size: 15px;
-  color: var(--texto-2);
-}
-.onde code {
-  font-size: 13.5px;
+  margin: var(--e4) 0 var(--e2);
+  color: var(--pedra);
 }
 h1 {
-  margin: 0 0 10px;
-  font-size: 28px;
+  margin: 0 0 var(--e3);
+  font-size: var(--t-titulo);
   line-height: 1.2;
-  letter-spacing: -0.01em;
 }
+/* o número principal da tela: 56 px em urucum */
 h1 em {
+  display: block;
   font-style: normal;
-  color: var(--verde);
+  font-size: var(--t-numero-produtor);
+  line-height: 1.05;
+  color: var(--urucum);
+  font-variant-numeric: tabular-nums;
 }
 .lead {
-  margin: 0 0 8px;
-  font-size: 18px;
+  margin: 0 0 var(--e2);
 }
 .local {
   margin: 0;
-  color: var(--texto-2);
+  color: var(--pedra);
 }
+
+/* seções separadas por espaço e uma linha (nada de cartão com sombra) */
 .cartao {
-  margin-top: 16px;
-  padding: 18px;
-  border: 1px solid var(--borda);
-  border-radius: 16px;
-  background: var(--cartao);
+  margin-top: var(--e6);
+  padding-top: var(--e5);
+  border-top: var(--linha);
 }
 .cartao h2 {
-  margin: 0 0 8px;
-  font-size: 19px;
+  margin: 0 0 var(--e3);
+  font-size: var(--t-subtitulo);
 }
 .cartao p {
-  margin: 0 0 8px;
+  margin: 0 0 var(--e2);
 }
 .cartao p:last-child {
   margin-bottom: 0;
 }
+/* número de apoio: recua diante do número principal (um elemento principal por tela) */
 .grande {
-  font-size: 30px;
-  font-weight: 750;
+  font-size: var(--t-titulo);
+  font-weight: 700;
   line-height: 1.15;
-  color: var(--verde);
+  color: var(--tinta);
 }
 .miudo {
-  font-size: 14px;
-  color: var(--texto-2);
-}
-.selo {
-  display: inline-block;
-  padding: 3px 12px;
-  border-radius: 999px;
-  font-size: 15px;
-  font-weight: 650;
-}
-.selo.conferir {
-  background: var(--ambar-fundo);
-  color: var(--ambar);
-}
-.selo.ok {
-  background: var(--verde-claro);
-  color: var(--verde);
-}
-.selo.ruim {
-  background: var(--vermelho-fundo);
-  color: var(--vermelho);
-}
-.selo.neutro {
-  background: #eceee8;
-  color: var(--texto-2);
+  color: var(--pedra);
 }
 
-/* caixa de fatos: as mesmas três colunas da ficha do painel */
+/* caixa de fatos: as mesmas três colunas da ficha do painel, em preto sobre branco */
 .fatos {
-  border: 2px solid var(--texto);
   padding: 0;
-  overflow: hidden;
+  border: 2px solid var(--tinta);
+  background: var(--superficie);
 }
 .fatos h2 {
   margin: 0;
-  padding: 14px 16px 4px;
+  padding: var(--e3) var(--e3) var(--e1);
 }
 .fatos .base {
   margin: 0;
-  padding: 0 16px 10px;
-  border-bottom: 5px solid var(--texto);
-  font-size: 15px;
-  color: var(--texto-2);
+  padding: 0 var(--e3) var(--e3);
+  border-bottom: 10px solid var(--tinta);
+  color: var(--pedra);
 }
 .fatos table {
   width: 100%;
@@ -158,50 +119,46 @@ h1 em {
 }
 .fatos th,
 .fatos td {
-  padding: 10px 12px;
+  padding: var(--e2) var(--e3);
   vertical-align: top;
 }
 .fatos thead th {
-  font-size: 13px;
   text-align: right;
-  color: var(--texto-2);
-  border-bottom: 1px solid var(--texto);
+  border-bottom: 1px solid var(--tinta);
 }
 .fatos thead th:first-child {
-  width: 40%;
+  width: 38%;
 }
 .fatos tbody th {
   text-align: left;
-  font-size: 15.5px;
-  font-weight: 600;
   line-height: 1.3;
 }
 .fatos tbody td {
   text-align: right;
-  font-size: 19px;
+  font-size: var(--t-subtitulo);
   font-weight: 700;
+  font-variant-numeric: tabular-nums;
 }
 .fatos tbody td small {
   display: block;
-  font-size: 12.5px;
-  font-weight: 500;
-  color: var(--texto-2);
+  font-size: var(--t-texto-produtor);
+  font-weight: 400;
+  color: var(--pedra);
 }
 .fatos tbody tr + tr > * {
-  border-top: 1px solid var(--borda);
+  border-top: 1px solid var(--tinta);
 }
 .fatos .voltar {
-  background: #f1f7f0;
-  color: var(--verde);
+  color: var(--mata-texto);
 }
 .fatos .notas {
   margin: 0;
-  padding: 10px 16px 14px;
-  border-top: 1px solid var(--texto);
-  font-size: 13.5px;
-  color: var(--texto-2);
+  padding: var(--e2) var(--e3) var(--e3);
+  border-top: 4px solid var(--tinta);
+  color: var(--pedra);
 }
 
+/* o que precisa ficar em dia: ícone de forma (certo, x, alerta), nunca só cor */
 .lista {
   margin: 0;
   padding: 0;
@@ -209,46 +166,54 @@ h1 em {
 }
 .lista li {
   display: flex;
-  gap: 10px;
-  padding: 8px 0;
+  gap: var(--e3);
+  padding: var(--e3) 0;
 }
 .lista li + li {
-  border-top: 1px solid var(--borda);
+  border-top: var(--linha);
 }
 .icone {
   flex-shrink: 0;
-  display: grid;
-  place-items: center;
-  width: 26px;
-  height: 26px;
-  border-radius: 50%;
-  font-weight: 800;
-  font-size: 14px;
+  margin-top: 2px;
 }
 .ok .icone {
-  background: var(--verde-claro);
-  color: var(--verde);
+  color: var(--mata);
 }
 .ruim .icone {
-  background: var(--vermelho-fundo);
-  color: var(--vermelho);
+  color: var(--urucum-texto);
 }
 .atencao .icone {
-  background: var(--ambar-fundo);
-  color: var(--ambar);
+  color: var(--terra-texto);
 }
 
-/* mapa sob demanda */
+/* onde fica: mini mapa do Brasil numa linha */
+.onde-fica {
+  display: flex;
+  align-items: center;
+  gap: var(--e3);
+  margin: 0 0 var(--e4);
+}
+.onde-fica .mini-brasil {
+  flex-shrink: 0;
+  width: 64px;
+}
+.onde-fica svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/* mapa só ao tocar */
 .mapa-previa {
+  position: relative;
   display: block;
   width: 100%;
   padding: 0;
-  border: 1px solid var(--borda);
-  border-radius: 12px;
-  background: #e5ebdf;
+  border: var(--linha);
+  border-radius: var(--raio-imagem);
+  background: var(--nevoa);
   overflow: hidden;
   cursor: pointer;
-  position: relative;
 }
 .mapa-previa svg {
   display: block;
@@ -258,24 +223,22 @@ h1 em {
 .mapa-previa span {
   position: absolute;
   left: 50%;
-  bottom: 14px;
+  bottom: var(--e3);
   transform: translateX(-50%);
   display: inline-flex;
   align-items: center;
-  gap: 8px;
   min-height: 48px;
-  padding: 0 20px;
-  border-radius: 999px;
-  background: var(--verde);
-  color: #fff;
-  font-weight: 650;
+  padding: 0 var(--e5);
+  border-radius: var(--raio-botao);
+  background: var(--urucum);
+  color: var(--superficie);
+  font-weight: 700;
   white-space: nowrap;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
 }
 .mapa-vivo {
   height: 360px;
-  border: 1px solid var(--borda);
-  border-radius: 12px;
+  border: var(--linha);
+  border-radius: var(--raio-imagem);
   overflow: hidden;
 }
 .botao {
@@ -283,25 +246,27 @@ h1 em {
   align-items: center;
   justify-content: center;
   width: 100%;
-  min-height: 52px;
-  margin-top: 16px;
+  min-height: 56px;
+  margin-top: var(--e4);
   border: 0;
-  border-radius: 12px;
-  background: var(--verde);
-  color: #fff;
+  border-radius: var(--raio-botao);
+  background: var(--urucum);
+  color: var(--superficie);
   font-weight: 700;
   text-decoration: none;
+  cursor: pointer;
 }
 .campo {
   width: 100%;
-  min-height: 52px;
-  padding: 0 14px;
-  border: 1px solid #b9c1b5;
-  border-radius: 12px;
-  background: #fff;
+  min-height: 56px;
+  padding: 0 var(--e3);
+  border: 1px solid var(--pedra);
+  border-radius: var(--raio-botao);
+  background: var(--superficie);
 }
 footer {
-  margin-top: 24px;
-  font-size: 14px;
-  color: var(--texto-2);
+  margin-top: var(--e6);
+  padding-top: var(--e4);
+  border-top: var(--linha);
+  color: var(--pedra);
 }

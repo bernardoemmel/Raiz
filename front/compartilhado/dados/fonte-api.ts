@@ -10,6 +10,9 @@
  *   GET  {api}/busca?q=                           → RespostaBusca (dados/busca.ts: situacao, mensagem, imoveis, municipios)
  *   GET  {api}/geo/{cod_ibge}/{camada}.geojson    → municipio | imoveis | ti | uc | rios
  *   GET  {api}/geo/{cod_ibge}/base.pmtiles        → mapa base (precisa responder a Range)
+ *   GET  {api}/pontos                             → [{lon, lat, situacao: apta|pendencia, ha, cod_ibge}] (fazendas aptas)
+ *   GET  {api}/geo/brasil/municipios.geojson      → todos os municípios do Brasil, simplificados (cod_ibge, nome, uf)
+ *   GET  {api}/geo/brasil/base.pmtiles            → mapa base único, do país ao município (precisa responder a Range)
  * Autorização: Bearer no cabeçalho, com o token vindo de VITE_RAIZ_API_TOKEN só em ambiente interno.
  */
 
@@ -79,10 +82,16 @@ export function fonteApi(api: string, token?: string): FonteDeDados {
       if (!r) throw new Error("a API não respondeu à busca")
       return r
     },
+    async pontos() {
+      return (await json<import("./tipos").PontoFazenda[]>("pontos")) ?? []
+    },
     async municipiosComImoveis() {
       return (await municipios("")).filter((m) => m.linha.tem_imoveis !== "False").map((m) => m.cod_ibge)
     },
     geo: {
+      async brasil() {
+        return { municipios: await json<Geo>("geo/brasil/municipios.geojson"), base: `${raiz}geo/brasil/base.pmtiles` }
+      },
       camada: (cod, camada) => json<Geo>(`geo/${cod}/${camada}.geojson`),
       async base(cod) {
         return `${raiz}geo/${cod}/base.pmtiles`

@@ -1,15 +1,23 @@
 import { AttributionControl, LngLatBounds, Map as MapaGL, NavigationControl, ScaleControl } from "maplibre-gl"
 import "maplibre-gl/dist/maplibre-gl.css"
 import { useEffect, useRef } from "react"
+import { camposDeFutebol } from "../../../compartilhado/comparacoes"
+import { COR, MAPA } from "../../../compartilhado/cores"
 import type { Geo } from "../../../compartilhado/dados"
+import { fmtHa } from "../../../compartilhado/formato"
+import { MiniBrasil } from "../partes/MiniBrasil"
 import { estiloBase, imagemHachura, prepararMapLibre } from "./estilo"
 
 interface Props {
   aneis: [number, number][][]
   cod: string
-  /** divisa do município: contorno no mapa e primeira parada do voo */
+  /** área do imóvel, para a escala de leigo embaixo do mapa */
+  ha: number
+  uf: string
+  municipioNome: string
+  /** divisa do município: contorno no mapa e ponto de partida do voo */
   municipio: Geo | null
-  /** veio da busca: o mapa sai da vista do Brasil, passa pelo município e pousa na fazenda */
+  /** veio da busca: o mapa sai do município e pousa na fazenda */
   voar?: boolean
   base: string | null
   vizinhos: Geo | null
@@ -19,7 +27,6 @@ interface Props {
 
 const VAZIO: Geo = { type: "FeatureCollection", features: [] }
 
-/** O imóvel no mapa: perímetro do CAR em destaque, vizinhos em cinza, terras indígenas e rios. */
 function limitesDe(g: Geo | null): LngLatBounds | null {
   if (!g?.features.length) return null
   const b = new LngLatBounds()
@@ -31,7 +38,12 @@ function limitesDe(g: Geo | null): LngLatBounds | null {
   return b
 }
 
-export function MapaImovel({ aneis, cod, municipio, voar, base, vizinhos, ti, rios }: Props) {
+/**
+ * O imóvel no mapa (guia, item 2.1): máscara fora do imóvel, contorno duplo, vizinhos só com contorno fino a partir do
+ * zoom 12, terras indígenas em hachura e rios. A imagem de satélite da fazenda entra no lugar do mapa base quando o
+ * back-end gerar (GET /imoveis/{cod}/imagem/hoje.webp); enquanto isso, a base clara.
+ */
+export function MapaImovel({ aneis, cod, ha, uf, municipioNome, municipio, voar, base, vizinhos, ti, rios }: Props) {
   const caixa = useRef<HTMLDivElement>(null)
   useEffect(() => {
     if (!caixa.current || !aneis.length) return
@@ -40,28 +52,22 @@ export function MapaImovel({ aneis, cod, municipio, voar, base, vizinhos, ti, ri
     aneis.forEach((a) => a.forEach((p) => b.extend(p)))
     const doMunicipio = limitesDe(municipio)
     const reduzido = matchMedia("(prefers-reduced-motion: reduce)").matches
-    const comVoo = !!voar && !reduzido
+    const comVoo = !!voar && !reduzido && !!doMunicipio
     const m = new MapaGL({
       container: caixa.current,
       style: estiloBase(base),
-      ...(comVoo
-        ? { center: (doMunicipio ?? b).getCenter(), zoom: 3.6 }
-        : { bounds: b, fitBoundsOptions: { padding: 56, maxZoom: 15 } }),
+      bounds: comVoo ? doMunicipio! : b,
+      fitBoundsOptions: { padding: 48, maxZoom: 15 },
       attributionControl: false,
       cooperativeGestures: true,
+      pixelRatio: Math.min(window.devicePixelRatio || 1, 2),
+      fadeDuration: 150,
+      dragRotate: false,
+      pitchWithRotate: false,
     })
-    if (comVoo)
-      m.once("idle", () => {
-        // Brasil → município → fazenda
-        const pousar = () => m.fitBounds(b, { padding: 56, maxZoom: 15, duration: 1800, essential: true })
-        if (!doMunicipio) return pousar()
-        m.fitBounds(doMunicipio, { padding: 40, duration: 2000, essential: true })
-        m.once("moveend", () => setTimeout(pousar, 600))
-      })
-    m.addControl(new AttributionControl({ compact: true }), "bottom-right")
+    m.addControl(new AttributionControl({ compact: false }), "bottom-right")
     m.addControl(new NavigationControl({ showCompass: false }), "top-right")
-    m.addControl(new ScaleControl({ unit: "metric" }), "top-left")
-    m.once("load", () => caixa.current?.querySelector(".maplibregl-compact-show")?.classList.remove("maplibregl-compact-show"))
+    m.addControl(new ScaleControl({ unit: "metric" }), "bottom-right")
     if (import.meta.env.DEV) Object.assign(caixa.current, { __mapa: m })
     m.once("style.load", () => {
       const antes = m.getStyle().layers.find((l) => l.type === "symbol")?.id
@@ -70,56 +76,110 @@ export function MapaImovel({ aneis, cod, municipio, voar, base, vizinhos, ti, ri
         type: "FeatureCollection",
         features: [{ type: "Feature", properties: {}, geometry: { type: "MultiPolygon", coordinates: aneis.map((a) => [a]) } }],
       }
-      const outros: Geo = {
+      const mundo = [
+        [-180, -85],
+        [180, -85],
+        [180, 85],
+        [-180, 85],
+        [-180, -85],
+      ]
+      const fora: Geo = {
         type: "FeatureCollection",
-        features: (vizinhos?.features ?? []).filter((f) => f.properties.cod_imovel !== cod),
+        features: [{ type: "Feature", properties: {}, geometry: { type: "Polygon", coordinates: [mundo, ...aneis] } }],
       }
+      const outros: Geo = { type: "FeatureCollection", features: (vizinhos?.features ?? []).filter((f) => f.properties.cod_imovel !== cod) }
       m.addSource("ti", { type: "geojson", data: (ti ?? VAZIO) as never })
       m.addSource("rios", { type: "geojson", data: (rios ?? VAZIO) as never })
       m.addSource("vizinhos", { type: "geojson", data: outros as never })
       m.addSource("imovel", { type: "geojson", data: imovel as never })
+      m.addSource("fora", { type: "geojson", data: fora as never })
       m.addSource("municipio", { type: "geojson", data: (municipio ?? VAZIO) as never })
-      m.addLayer({ id: "ti", type: "fill", source: "ti", paint: { "fill-pattern": "hachura" } }, antes)
-      m.addLayer({ id: "rios", type: "fill", source: "rios", paint: { "fill-color": "#86a9cf" } }, antes)
-      m.addLayer({ id: "vizinhos", type: "fill", source: "vizinhos", paint: { "fill-color": "#a7aea6", "fill-opacity": 0.22 } }, antes)
+      const acesa = comVoo ? 0 : 1
+      m.addLayer({ id: "ti", type: "fill", source: "ti", paint: { "fill-pattern": "hachura", "fill-opacity": 0.5 } }, antes)
+      m.addLayer({ id: "rios", type: "fill", source: "rios", paint: { "fill-color": MAPA.agua } }, antes)
+      m.addLayer({ id: "municipio", type: "line", source: "municipio", maxzoom: 11, paint: { "line-color": COR.tinta, "line-width": 1.5 } }, antes)
+      // máscara fora do imóvel (vizinhos continuam visíveis, apagados)
       m.addLayer(
-        { id: "vizinhos-borda", type: "line", source: "vizinhos", paint: { "line-color": "#ffffff", "line-width": 1 } },
+        {
+          id: "fora",
+          type: "fill",
+          source: "fora",
+          paint: { "fill-color": MAPA.mascaraClara, "fill-opacity": 0.6 * acesa, "fill-opacity-transition": { duration: 280 } },
+        },
         antes,
       )
-      m.addLayer({ id: "municipio", type: "line", source: "municipio", paint: { "line-color": "#1d5a39", "line-width": 1.6, "line-dasharray": [3, 2] } }, antes)
-      m.addLayer({ id: "imovel", type: "fill", source: "imovel", paint: { "fill-color": "#1d5a39", "fill-opacity": 0.2 } }, antes)
+      // vizinhos do CAR: só contorno fino, a partir do zoom 12
+      m.addLayer(
+        { id: "vizinhos", type: "line", source: "vizinhos", minzoom: 12, paint: { "line-color": COR.pedra, "line-width": 0.8, "line-opacity": 0.7 } },
+        antes,
+      )
+      // contorno duplo: branco de 6 px por fora e tinta de 2,5 px por dentro (sobre a base clara)
       m.addLayer({
-        id: "imovel-borda",
+        id: "imovel-fora",
         type: "line",
         source: "imovel",
-        paint: { "line-color": "#1d5a39", "line-width": 3 },
+        paint: { "line-color": MAPA.contornoFora, "line-width": 6, "line-opacity": 0.9 * acesa, "line-opacity-transition": { duration: 280 } },
       })
+      m.addLayer({
+        id: "imovel-dentro",
+        type: "line",
+        source: "imovel",
+        paint: { "line-color": MAPA.contornoClaro, "line-width": 2.5, "line-opacity": acesa, "line-opacity-transition": { duration: 280 } },
+      })
+      if (comVoo)
+        m.once("idle", () => {
+          // do município à fazenda; só depois do moveend acende a máscara e o contorno (guia, item 3.2)
+          m.fitBounds(b, { padding: 48, maxZoom: 15, duration: 1100 })
+          m.once("moveend", () => {
+            m.setPaintProperty("fora", "fill-opacity", 0.6)
+            m.setPaintProperty("imovel-fora", "line-opacity", 0.9)
+            m.setPaintProperty("imovel-dentro", "line-opacity", 1)
+          })
+        })
     })
     return () => m.remove()
   }, [aneis, cod, municipio, voar, base, vizinhos, ti, rios])
 
+  let x0 = Infinity,
+    y0 = Infinity,
+    x1 = -Infinity,
+    y1 = -Infinity
+  for (const a of aneis)
+    for (const [x, y] of a) {
+      x0 = Math.min(x0, x)
+      x1 = Math.max(x1, x)
+      y0 = Math.min(y0, y)
+      y1 = Math.max(y1, y)
+    }
+  const centro = Number.isFinite(x0) ? { lon: (x0 + x1) / 2, lat: (y0 + y1) / 2 } : { lon: null, lat: null }
+
   return (
-    <div className="mapa-caixa mapa-imovel">
-      <div className="mapa" ref={caixa} role="region" aria-label="Mapa do imóvel" />
-      {!aneis.length && <div className="mapa-carregando">O perímetro deste imóvel ainda não foi baixado.</div>}
-      <ul className="legenda">
-        <li>
-          <i style={{ background: "rgba(29,90,57,.25)", border: "2px solid #1d5a39" }} />
-          Perímetro do CAR
-        </li>
-        <li>
-          <i style={{ background: "rgba(167,174,166,.4)" }} />
-          Imóveis vizinhos
-        </li>
-        <li>
-          <i style={{ border: "2px dashed #1d5a39" }} />
-          Divisa do município
-        </li>
-        <li>
-          <i className="hachura" />
-          Terra indígena
-        </li>
-      </ul>
-    </div>
+    <figure className="mapa-figura">
+      <div className="mapa-caixa mapa-imovel">
+        <div className="mapa" ref={caixa} role="region" aria-label="Mapa do imóvel" />
+        {!aneis.length && <div className="mapa-carregando">O perímetro deste imóvel ainda não foi baixado.</div>}
+        <MiniBrasil uf={uf} lon={centro.lon} lat={centro.lat} titulo={`Fica em ${municipioNome}`} />
+        <ul className="legenda">
+          <li>
+            <i className="imovel-duplo" />
+            Limite do imóvel no CAR
+          </li>
+          <li>
+            <i className="vizinho-linha" />
+            Imóveis vizinhos
+          </li>
+          <li>
+            <i className="hachura" />
+            Terra indígena
+          </li>
+        </ul>
+      </div>
+      <figcaption className="mapa-legenda-fixa">
+        <span>
+          {fmtHa(ha)}, do tamanho de {camposDeFutebol(ha).replace(/^são |^é /, "")}.
+        </span>
+        <span>Limites do CAR são declarados pelo dono e podem ter erro.</span>
+      </figcaption>
+    </figure>
   )
 }
