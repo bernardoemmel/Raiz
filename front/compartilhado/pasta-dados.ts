@@ -20,6 +20,7 @@
 import crypto from "node:crypto"
 import fs from "node:fs"
 import path from "node:path"
+import { gunzipSync } from "node:zlib"
 import type { BaseBusca } from "./dados/busca"
 import { normalizarCar, pareceCar } from "./dados/busca"
 import { limpar } from "./dados/colunas"
@@ -231,8 +232,24 @@ export function abrirPasta(opcoes: OpcoesPasta) {
 
   const municipios = (): FunilMunicipio[] => ufs().flatMap(resumo)
 
+  function arquivoGeo(cod: string): string {
+    const comprimido = path.join(geo, `imoveis_${cod}.geojson.gz`)
+    return fs.existsSync(comprimido) ? comprimido : path.join(geo, `imoveis_${cod}.geojson`)
+  }
+
+  function lerGeo(cod: string): Geo | null {
+    const arq = arquivoGeo(cod)
+    if (!fs.existsSync(arq)) return null
+    const bytes = fs.readFileSync(arq)
+    return JSON.parse((arq.endsWith(".gz") ? gunzipSync(bytes) : bytes).toString("utf8")) as Geo
+  }
+
   /** imóveis de um município, com os arquivos que o completam; os mais recentes ficam na memória */
   const memoria = new Map<string, { mtime: number; imoveis: Imovel[]; base: BaseMunicipio; geo: Map<string, Feicao> }>()
+  function quantidadeImoveis(cod: string): number {
+    return (lerArquivo(`imoveis_${cod}.csv`, false, ["cod_imovel"]) ?? []).filter((l) => l.cod_imovel).length
+  }
+
   function municipio(cod: string) {
     const arq = caminho(`imoveis_${cod}.csv`)
     if (!arq) return null
@@ -251,8 +268,7 @@ export function abrirPasta(opcoes: OpcoesPasta) {
       .filter((l) => l.cod_imovel)
       .map((l) => lerImovel(l, porImovel.get(l.cod_imovel)))
     const feicoes = new Map<string, Feicao>()
-    const g = path.join(geo, `imoveis_${cod}.geojson`)
-    if (fs.existsSync(g)) for (const f of (JSON.parse(fs.readFileSync(g, "utf8")) as Geo).features) feicoes.set(String(f.properties.cod_imovel), f)
+    for (const f of lerGeo(cod)?.features ?? []) feicoes.set(String(f.properties.cod_imovel), f)
     const item = { mtime, imoveis, base: baseDoMunicipio(imoveis), geo: feicoes }
     memoria.set(cod, item)
     while (memoria.size > MUNICIPIOS_NA_MEMORIA) memoria.delete(memoria.keys().next().value!)
@@ -388,7 +404,7 @@ export function abrirPasta(opcoes: OpcoesPasta) {
   function fontesDosPontos(uf: string): string[] {
     const lista = [path.join(pastaDoEstado(uf), `resumo_${uf}.csv`), path.join(geo, "brasil_municipios.geojson")]
     for (const cod of comImoveis(uf))
-      lista.push(path.join(pastaDoEstado(uf), `imoveis_${cod}.csv`), path.join(geo, `imoveis_${cod}.geojson`))
+      lista.push(path.join(pastaDoEstado(uf), `imoveis_${cod}.csv`), arquivoGeo(cod))
     return lista
   }
 
@@ -424,12 +440,10 @@ export function abrirPasta(opcoes: OpcoesPasta) {
     for (const cod of lista) {
       // só imoveis_<cod>.csv: apta e matrícula saem das colunas dele, como no resumo do motor
       const feicoes = new Map<string, [number, number]>()
-      const g = path.join(geo, `imoveis_${cod}.geojson`)
-      if (fs.existsSync(g))
-        for (const f of (JSON.parse(fs.readFileSync(g, "utf8")) as Geo).features) {
-          const c = centroDoCar(f)
-          if (c) feicoes.set(String(f.properties.cod_imovel), c)
-        }
+      for (const f of lerGeo(cod)?.features ?? []) {
+        const c = centroDoCar(f)
+        if (c) feicoes.set(String(f.properties.cod_imovel), c)
+      }
       const soma = { apta: [0, 0], pendencia: [0, 0] }
       // só as colunas que decidem a aptidão, pela mesma conta do funil (aptidao, em dados/funil.ts)
       for (const l of lerArquivo(`imoveis_${cod}.csv`, false, COLUNAS_APTIDAO) ?? []) {
@@ -519,6 +533,37 @@ export function abrirPasta(opcoes: OpcoesPasta) {
     return t ? (JSON.parse(t) as PontosDoEstado) : null
   }
 
+  /** A publicação aberta soma por município e situação; nunca devolve a coordenada da fazenda. */
+  async function pontosPublicos(uf: string): Promise<(Omit<PontosDoEstado, "fazendas" | "sem_lugar"> & {
+    fazendas: number | null; sem_lugar: number | null; suprimidos: boolean
+  }) | null> {
+    const originais = await pontos(uf)
+    if (!originais) return null
+    const centro = centroDosMunicipios()
+    const grupos = new Map<string, LinhaPonto>()
+    let semLugar = originais.sem_lugar
+    for (const [, , situacao, ha, cod, n] of originais.pontos) {
+      const c = centro.get(cod)
+      if (!c) {
+        semLugar += n
+        continue
+      }
+      const chave = `${cod}:${situacao}`
+      const grupo = grupos.get(chave) ?? [c[0], c[1], situacao, 0, cod, 0]
+      grupo[3] += ha
+      grupo[5] += n
+      grupos.set(chave, grupo)
+    }
+    const publicos = [...grupos.values()].filter((p) => p[5] >= 5)
+    const suprimidos = publicos.length < grupos.size || (originais.fazendas > 0 && originais.fazendas < 5) || (semLugar > 0 && semLugar < 5)
+    return {
+      ...originais, pontos: publicos, suprimidos,
+      // Sem totais auxiliares quando permitiriam recuperar a contagem protegida por subtração.
+      fazendas: suprimidos ? null : originais.fazendas,
+      sem_lugar: suprimidos ? null : semLugar,
+    }
+  }
+
   /** monta, em segundo plano, os pontos de todo estado que ainda não está no cache; diz quais montou e em quanto tempo */
   async function aquecer(aviso: (uf: string, segundos: number) => void = () => {}) {
     for (const uf of ufs()) {
@@ -541,12 +586,14 @@ export function abrirPasta(opcoes: OpcoesPasta) {
     resumo,
     municipios,
     comImoveis,
+    quantidadeImoveis,
     municipio,
     ficha,
     baseBusca,
     estados,
     pontos,
     pontosTexto,
+    pontosPublicos,
     foraDoMunicipio,
     aquecer,
     montagens: () => montagens,

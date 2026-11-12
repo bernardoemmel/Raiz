@@ -9,6 +9,7 @@ from __future__ import annotations
 import datetime as dt
 import json
 import math
+import re
 from typing import Literal
 from urllib.parse import urlsplit
 
@@ -125,14 +126,33 @@ def avaliar(linha: dict, verificacao: Verificacao | dict | None = None, programa
         or _positivo(linha.get("ti_ha"))
         or _positivo(linha.get("ti_funai_ha"))
         or _positivo(linha.get("quilombo_ha"))
+        or _positivo(linha.get("terra_tradicional_ha"))
+        or _positivo(linha.get("territorio_tradicional_ha"))
+        or _bool(linha.get("terra_indigena"))
         or _bool(linha.get("territorio_tradicional"))
         or bool((linha.get("salvaguardas") or {}).get("territorio_tradicional"))
         or bool(v and v.territorio_tradicional)
     )
     programas = programas if programas is not None else linha.get("redd_programas") or []
     conhecidos = [p for p in programas if isinstance(p, dict) and p.get("id")]
+    herdado = (linha.get("salvaguardas") or {}).get("redd") or {}
+    catalogo = set(herdado.get("programas_catalogo") or [])
+    catalogo_sem_id = bool(herdado.get("catalogo_sobreposto_sem_id"))
+    if _positivo(linha.get("jurisdicional_sobreposicao_ha")) or linha.get("jurisdicional_situacao") in (
+        "sobreposicao",
+        "exclusao_documentada",
+    ):
+        bruto = linha.get("jurisdicional_programa")
+        ids = [x.strip() for x in bruto.split(";")] if isinstance(bruto, str) else []
+        validos = [x for x in ids if re.fullmatch(r"[a-zA-Z0-9_-]{1,80}", x)]
+        catalogo.update(validos)
+        catalogo_sem_id = catalogo_sem_id or not validos or len(validos) != len(ids)
+    ids_conhecidos = {str(p["id"]) for p in conhecidos}
+    conhecidos.extend({"id": ident} for ident in sorted(catalogo - ids_conhecidos))
     motivos = []
     pendencias = []
+    if catalogo_sem_id:
+        motivos.append("sobreposicao_catalogo_sem_programa_identificado")
     if v is None:
         pendencias.append("verificacao_documental_pendente")
     elif v.territorio_tradicional is None:
@@ -156,12 +176,14 @@ def avaliar(linha: dict, verificacao: Verificacao | dict | None = None, programa
         "versao": VERSAO,
         "redd": {
             "estado": "sobreposicao"
-            if conhecidos
+            if conhecidos or catalogo_sem_id
             else (
                 "sem_sobreposicao_verificada" if linha.get("redd_cobertura_verificada") is True else "nao_verificado"
             ),
             "programas": [{k: p.get(k) for k in ("id", "uf", "inicio", "fim", "area_ha", "fonte")} for p in conhecidos],
             "exclusao_pendente": sem_exclusao,
+            "programas_catalogo": sorted(catalogo),
+            "catalogo_sobreposto_sem_id": catalogo_sem_id,
         },
         "territorio_tradicional": tradicional,
         "clpi": "comprovada"

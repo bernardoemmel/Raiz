@@ -35,7 +35,7 @@ export interface FonteDeDados {
   ficha(cod_imovel: string): Promise<Ficha | null>
   /** cartório (CNS) e matrícula das parcelas SIGEF do imóvel, quando o motor gerou certidoes_<mun>.csv */
   certidoes(cod_imovel: string): Promise<Certidao[]>
-  /** GET /busca?q=: código do CAR (inteiro ou começo) ou nome do município; diz por que não achou */
+  /** Código do CAR (inteiro ou começo), nome ou código do município; busca local no site e GET /busca na API. */
   buscar(q: string, sinal?: AbortSignal): Promise<RespostaBusca>
   /** os 27 estados: quantos municípios o motor já processou, de quantos (lista do IBGE), e se está completo */
   estados(): Promise<Estados>

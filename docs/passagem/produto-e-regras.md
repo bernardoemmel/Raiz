@@ -2,8 +2,28 @@
 
 ## Retomada no Codex
 
-O PR #45 foi atualizado com a main. A migração da API passou de 0020 para 0026,
-porque 0020 já pertencia aos alertas da main. Cobrança, estorno idempotente e
+Nova integração com a main `3199052`: preserva a ficha da terra paga e a busca
+nacional, a rodada do Pará e as passagens consolidadas dos PRs 48, 49 e 52.
+A migração da API é agora `0027`, depois de `0026_prospeccao_acesso`. A sequência
+é única e mantém os dois produtos. O teste de complementos adota a versão da
+main: exige os arquivos obrigatórios e tolera colunas/arquivos novos do motor.
+Validação desta integração: 67 testes de API paga, prospecção, privacidade e
+reserva passaram em banco vazio, com `0027` como única ponta das migrações;
+130 testes do front passaram. Ruff, formatação, privacidade e licenças aprovados.
+
+O PR #45 incorporou também a main `3b21e78` (mapa nacional e busca estática).
+O único conflito era a formatação da lista de complementos no teste do front;
+a comparação exata, incluindo regularização, foi preservada. As funcionalidades
+da API paga permaneceram intactas. Ruff, privacidade, licenças e os 80 testes
+do front e a navegação em Chromium passaram após essa integração. A suíte local
+completa (637 aprovados, 2 pulados e 1 xfail) encontrou uma falha intermitente:
+o filtro de privacidade reconhecia números dentro de UUIDs como telefone.
+UUIDs completos agora são preservados; o teste de pedido pago usa um UUID
+fixo que reproduz a falha e verifica o acompanhamento e o isolamento entre empresas.
+Texto com contatos ao redor continua filtrado. O CI completo volta a validar o merge.
+
+O PR #45 foi atualizado com a main. A migração da API passou de 0020 para 0027,
+porque 0020 já pertencia aos alertas e 0026 ao acesso pago da ficha da terra. Cobrança, estorno idempotente e
 limites compartilhados por empresa recebem testes de integração em PostGIS.
 CLI e análise da fazenda foram migrados. O adaptador MCP grátis foi retirado;
 nenhuma chave em URL ou rota antiga permanece como atalho.
@@ -49,22 +69,34 @@ Revisão humana exige vínculo da fazenda ao pedido, conta liberada e acesso da
 própria empresa. Resolver exige credencial humana separada, com trilha auditável.
 Detalhes: `docs/salvaguardas-produto.md`.
 
-O novo workflow `.github/workflows/recalcular-para.yml` processa 12 fatias, até
-12 em paralelo, sujeitas à fila da conta. Congela assets do Release por ID/hash, cobertura MapBiomas,
-camadas geobr e o commit; preserva também as medições geográficas por município
-obtidas dos rasters remotos, com hash no manifesto. Valida
-144 municípios, conservação das fazendas e piso 20%; publica pacote, CSV, JSON,
-HTML e manifesto com SHA256 no Release `dados`, sem sobrescrever os pacotes do
-executor nacional. O script recusa cálculo fora do GitHub Actions.
+A rodada reutiliza `.github/workflows/lote-para.yml`, incorporado pela main no
+PR #49. A execução https://github.com/bernardoemmel/Raiz/actions/runs/43285608189
+está em andamento no commit `31990520b842fd665152b2c7931b3556a66ca180`.
+São 15 fatias balanceadas pelo número de imóveis, com pacotes do Release
+congelados por ID e SHA256 e previsões imutáveis. Publica três opções de lote,
+relatórios e manifesto no Release `dados`, com arquivos por execução e um
+ponteiro atualizado somente após os uploads. O workflow duplicado foi retirado.
 
-Os números antigos da rodada11 estão identificados como históricos. A execução
-nova e o resultado ainda precisam ser registrados aqui depois do CI/merge.
+Limitação explícita: esta rodada usa `fontes_geo=()`, sem baixar novas camadas
+geográficas e sem recalcular o rebanho. Preserva as classificações fundiárias
+publicadas e declara entradas ausentes e premissas substitutas; não confere
+completude geográfica nem transforma pendência em liberação de venda.
 
-Validação desta entrega: 650 testes passaram, 4 foram pulados e 1 é xfail;
-os 5 testes de guardas do recálculo passaram novamente após preservar as entradas
-geográficas. Ruff, formatação, actionlint, privacidade e licenças aprovados.
-Após a guarda de recertificação, os 12 testes PostGIS de salvaguardas passaram.
-O recálculo permanece exclusivo do Actions; nenhum cálculo do lote rodou aqui.
+Os números anteriores da rodada11 permanecem históricos. Registrar aqui o
+manifesto, os três resultados e os hashes após a conclusão do Actions.
+Antes da integração dos PRs #48/#49, 650 testes passaram, com 4 pulados e 1
+xfail; os 12 testes PostGIS de salvaguardas passaram após a guarda de
+recertificação. A validação da integração ainda está em andamento.
+Nenhum cálculo do lote foi executado neste contêiner.
+Na integração, o catálogo `jurisdicional_<mun>.csv` passa a ser preservado pela
+carga/API; seus alertas não desaparecem quando a camada PostGIS ainda está vazia.
+O comando da rodada foi restringido ao Actions, e a publicação passou a conferir
+identidade exata dos imóveis, piso de 20% e colunas pessoais, além dos hashes.
+
+O CI do PR #45 detectou que a lista esperada no teste do front não incluía
+`regularizacao_1504950.csv`, amostra incorporada pela main. A expectativa foi
+atualizada mantendo a comparação exata dos complementos; `npm ci` e `npm test`
+em `front/globo` passaram (70 testes aprovados, 13 pulados, 7 arquivos).
 
 ---
 

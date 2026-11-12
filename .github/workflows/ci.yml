@@ -1,8 +1,8 @@
 # Checagens de todo PR (e da main). Três jobs em paralelo; o PR fica vermelho se qualquer um falhar:
 #   workflows  actionlint em .github/workflows: falha se algum workflow não abre (YAML quebrado, chave errada,
 #              expressão inválida). Foi assim que o "Publicar o site" chegou quebrado à main sem ninguém ver.
-#   front      o mesmo build do site público (front/scripts/construir-site.sh), sem os dados e sem publicar: falha se
-#              o package-lock.json não bate com o package.json (npm ci) ou se o painel ou a ficha não compilam.
+#   front      o mesmo build do site público com dados pequenos de teste, servido como no Pages: instalação
+#              travada, compilação, busca, polígonos coloridos, overzoom e zero 404 no Playwright.
 #   checagens  Python: estilo, CPF/CNPJ, licenças e testes com PostGIS.
 name: CI
 
@@ -36,13 +36,42 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Build do site público, sem os dados (npm ci e build do painel e da ficha do produtor)
+      - name: Preparar os dados pequenos de teste (sem baixar o Release)
+        run: node front/scripts/preparar-teste-site.mjs
+      - name: Build do site público com a fixture (npm ci e build do painel e da ficha do produtor)
         env:
-          RAIZ_BUILD_DADOS: "0"
-          RAIZ_BASE: /${{ github.event.repository.name }}/
+          RAIZ_DADOS: front/.cache/teste-site/dados
+          RAIZ_GEO: front/.cache/teste-site/geo
+          VITE_RAIZ_TESTE_MAPA: "1"
+          RAIZ_BASE: /Raiz/
         run: front/scripts/construir-site.sh
       - name: Testes do front
         run: cd front/globo && npm test
+      - name: Chromium para o Playwright
+        run: cd front/globo && npx playwright install --with-deps chromium
+      - name: Pages no navegador (Parauapebas, mapa agregado e zero 404)
+        run: cd front/globo && npm run test:pages
+      - name: Prospecção no navegador (créditos, contato, sessão e celular)
+        env:
+          RAIZ_PRINTS: ${{ github.workspace }}/front/.cache/teste-site/resultado/prospeccao
+        run: cd front/globo && npm run test:prospeccao
+      - name: Evidências do teste do Pages
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: teste-pages
+          path: front/.cache/teste-site/resultado
+          if-no-files-found: ignore
+      # Reutiliza o Chromium instalado para o teste Playwright do Pages.
+      - name: Site para agentes (Markdown, JSON-LD e Lighthouse Agentic Browsing)
+        run: cd front/globo && npm run test:agentes
+      - name: Relatório da auditoria para agentes
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: site-agentes
+          path: front/.cache/teste-agentes
+          if-no-files-found: ignore
 
   checagens:
     runs-on: ubuntu-24.04

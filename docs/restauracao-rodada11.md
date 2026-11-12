@@ -1,13 +1,8 @@
 # Valor para quem restaura: rodada 11 unificada (cenário central_r11)
 
-> Atualização de 12/11/2026: os resultados numéricos abaixo são históricos da
-> rodada anterior, cujo cenário usava reserva de 12%. A política vigente passa a
-> exigir pelo menos 20% em todas as fazendas e cenários. Não usar esses números
-> como resultado do novo lote. O workflow `Recalcular lote do Pará` processará os
-> 144 municípios no GitHub Actions, com pacotes/commit congelados, medições
-> geográficas preservadas e publicação
-> imutável no Release `dados`. Os resultados serão registrados após sua conclusão.
-
+> Revisão Lote e números (12/11/2026): os números abaixo são históricos, com piso de 12%.
+> O modelo `restauracao-2026d` adota piso de 20% e preços TIR12/15 por fazenda; ver
+> `docs/passagem/lote-e-numeros.md` para o recálculo, salvaguardas e publicação integral.
 
 Resultado da rodada 11 depois de juntar as duas implementações (esta e a da branch claude/premissas-rodada11) num só
 arquivo de premissas, raiz/regras/padroes/restauracao.yaml (regras, cenários, Monte Carlo, aluguel do Censo, renda do

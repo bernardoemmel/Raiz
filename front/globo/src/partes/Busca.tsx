@@ -45,8 +45,8 @@ const abrirMunicipio = (cod: string) => {
 }
 
 /**
- * Busca por código do CAR ou município, sempre no topo (abertura, painel e ficha). Chama GET /busca?q= pela camada
- * de dados, espera o usuário parar de digitar e cancela a busca anterior. Imóvel abre a ficha com o mapa voando até o
+ * Busca por código do CAR ou município, sempre no topo (abertura, painel e ficha). A camada de dados busca no navegador
+ * quando o site é estático, espera o usuário parar de digitar e cancela a busca anterior. Imóvel abre a ficha com o mapa voando até o
  * município; município abre o painel dele.
  */
 export function Busca({ aoEscolher }: { aoEscolher?: () => void }) {
@@ -136,7 +136,7 @@ export function Busca({ aoEscolher }: { aoEscolher?: () => void }) {
       ...(r?.municipios ?? []).map((m) => ({
         id: "m" + m.cod_ibge,
         rotulo: `${m.municipio} (${m.uf})`,
-        detalhe: `${fmtInt(m.imoveis)} imóveis no CAR`,
+        detalhe: m.imoveis === null ? "Contagem ocultada para proteger grupos pequenos" : `${fmtInt(m.imoveis)} imóveis no CAR`,
         marca: m.tem_imoveis ? "lista por fazenda" : "sem lista por fazenda",
         falta: !m.tem_imoveis,
         ir: () => {

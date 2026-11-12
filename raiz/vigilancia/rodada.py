@@ -17,7 +17,7 @@ import time
 import geopandas as gpd
 import pandas as pd
 
-from raiz.vigilancia import aprendizado, aviso, cruzamento, projetos, publicacao, relatorio
+from raiz.vigilancia import aprendizado, aviso, aviso_verra, cruzamento, projetos, publicacao, relatorio
 from raiz.vigilancia import regras as regras_mod
 from raiz.vigilancia.armazem import Armazem
 from raiz.vigilancia.config import Config, config
@@ -194,7 +194,24 @@ def rodar(
                         relatorio.rascunho(p, pe, regras, hoje, idioma), encoding="utf-8"
                     )
                 (pasta_rel / f"{pe['perda_id']}.kml").write_text(relatorio.kml_da_perda(p, pe), encoding="utf-8")
+                rascunho = aviso_verra.preparar(p, pe["perda_id"], regras, hoje, perda=pe)
+                arquivo_aviso = pasta_rel / f"{pe['perda_id']}_aviso_verra.eml"
+                if rascunho["pode_exportar"]:
+                    arquivo_aviso.write_text(aviso_verra.eml(rascunho), encoding="utf-8")
+                else:
+                    arquivo_aviso.unlink(missing_ok=True)
                 avs += aviso.avisos(pe, p, regras, ev, criados, hoje)
+            perdas_presentes = {pe["perda_id"] for pe in lista_perdas}
+            for registro_aviso in p.get("avisos_verra_informados") or []:
+                perda_id = registro_aviso["perda_id"]
+                if perda_id in perdas_presentes:
+                    continue
+                rascunho = vig.aviso_verra(p.id, perda_id, hoje)
+                arquivo_aviso = pasta_rel / f"{perda_id}_aviso_verra.eml"
+                if rascunho["pode_exportar"]:
+                    arquivo_aviso.write_text(aviso_verra.eml(rascunho), encoding="utf-8")
+                else:
+                    arquivo_aviso.unlink(missing_ok=True)
             resumo_proj[p.id] = {
                 "perdas_abertas": sum(1 for x in lista_perdas if x["estado"] in ("suspeita", "confirmada")),
                 "avisos_aguardando": sum(1 for a in avs if a["estado"] == "aguardando_aprovacao"),
