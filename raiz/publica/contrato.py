@@ -27,6 +27,7 @@ administrador da própria empresa. Não envie credenciais em URLs.
 
 Ferramentas:
 - consultar_ficha: relê CAR já adquirido, com fontes/datas; sem nova tarifa nem desbloqueio implícito.
+- proximos_eventos: calendário público por tipo, UF ou CAR, com fonte/data/confiança; não envia avisos.
 - consultar_disponibilidade: totais do pedido e lacunas da base.
 - pedir_lote: submete cálculo durável; requer Idempotency-Key.
 - comparar_lotes: opções e limites do pedido da própria empresa.
@@ -36,6 +37,8 @@ Ferramentas:
 
 A releitura da ficha exige a liberação paga daquele CAR, sinal e contrato da empresa.
 Não substitui a análise corporativa de fazenda, cobrada separadamente pela tabela vigente.
+O calendário é leitura auxiliar sem tarifa adicional, com conta ativa e os limites da empresa.
+Ausência de evento não comprova ausência de risco. Confirme os prazos no portal oficial indicado.
 
 Operações devolvem pedido_id da OPERAÇÃO e estado: submitted, working,
 input-required, completed, failed ou canceled. submitted/working são o estado do

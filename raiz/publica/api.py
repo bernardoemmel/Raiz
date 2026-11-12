@@ -384,6 +384,38 @@ def criar(engine_de: Callable[[Request], Any], verificador=None) -> FastAPI:
     Pessoa = Annotated[K.Acesso, Depends(pessoa)]
     Pid = Annotated[str, Path(description="Id do pedido (uuid).")]
 
+    @app.get("/eventos", tags=["Calendário"], summary="Consultar os próximos eventos públicos")
+    @limiter.shared_limit(LIMITE, scope="empresa")
+    def proximos_eventos(
+        request: Request,
+        a: Acesso,
+        tipo: Annotated[str | None, Query(max_length=40)] = None,
+        estado: Annotated[str | None, Query(min_length=2, max_length=2)] = None,
+        dias: Annotated[int, Query(ge=1, le=3660)] = 90,
+        cod_imovel: Annotated[str | None, Query(max_length=80)] = None,
+        limite: Annotated[int, Query(ge=1, le=1000)] = 100,
+    ) -> JSONResponse:
+        """Reutiliza o Calendário, sem coleta nova, envio de avisos ou acesso à ficha paga."""
+        from raiz.calendario.mcp import proximos_eventos as consultar_calendario
+        from raiz.publica.rotas_agentes import exigir_escopo
+
+        eng = engine_de(request)
+        request.state.ferramenta = "proximos_eventos"
+        exigir_escopo(eng, a, "proximos_eventos")
+        CT.exigir(eng, a.cliente_id)
+        try:
+            eventos = consultar_calendario(tipo, estado, dias, cod_imovel, limite, engine=eng)
+        except ValueError:
+            raise HTTPException(
+                422,
+                {
+                    "slug": "filtro_evento_invalido",
+                    "mensagem": "filtro do calendário inválido",
+                    "corrigir": "confira o tipo do evento, a UF, o CAR e os limites de dias e resultados",
+                },
+            ) from None
+        return ok(AP.eventos(eventos))
+
     @app.get("/", tags=["Pedido de lote"], summary="Sobre a API")
     def sobre() -> dict:
         return {"nome": "Raíz", "versao": VERSAO, "documentacao": "/v1/docs", "openapi": "/v1/openapi.json",

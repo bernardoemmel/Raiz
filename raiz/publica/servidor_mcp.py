@@ -22,6 +22,7 @@ from mcp.server.transport_security import TransportSecuritySettings
 from mcp.types import CallToolResult, TextContent, ToolAnnotations
 from pydantic import Field
 
+from raiz.calendario.modelos import Tipo as TipoEvento
 from raiz.pedidos.campos import CamposPedido
 from raiz.publica.oauth import VerificadorKeycloak, com_identidade
 from raiz.publica.privacidade import para_resposta
@@ -29,6 +30,7 @@ from raiz.publica.problemas import problema
 
 ESCOPOS_FERRAMENTAS = {
     "consultar_ficha": "consultar",
+    "proximos_eventos": "consultar",
     "consultar_disponibilidade": "consultar",
     "pedir_lote": "pedir",
     "comparar_lotes": "consultar",
@@ -221,6 +223,23 @@ def criar_servidor(api: ApiRaiz | None = None, *, verificador: VerificadorKeyclo
         """Relê uma ficha já adquirida pela empresa, com fontes, datas e ausências. Exige sinal, contrato e
         liberação prévia desse CAR; não compra acesso nem cobra nova tarifa. Nunca expõe dados do dono."""
         return await api.chamar("GET", f"/fazendas/{quote(codigo_car, safe='')}/ficha", "consultar_ficha", ctx)
+
+    @mcp.tool(annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, openWorldHint=False))
+    async def proximos_eventos(
+        ctx: Context,
+        tipo: TipoEvento | None = None,
+        estado: Annotated[str | None, Field(pattern=r"^[A-Za-z]{2}$")] = None,
+        dias: Annotated[int, Field(ge=1, le=3660)] = 90,
+        cod_imovel: Annotated[str | None, Field(min_length=3, max_length=80)] = None,
+        limite: Annotated[int, Field(ge=1, le=1000)] = 100,
+    ) -> dict[str, Any]:
+        """Consulta o calendário público dos próximos dias, por tipo, UF ou CAR, com data, fonte e confiança.
+        Não envia avisos, compra fichas nem inicia pedidos. Conta ativa e escopo consultar são necessários;
+        esta leitura auxiliar não tem tarifa adicional. Ausência de evento não comprova ausência de risco."""
+        params = {"tipo": tipo, "estado": estado, "dias": dias, "cod_imovel": cod_imovel, "limite": limite}
+        return await api.chamar(
+            "GET", "/eventos", "proximos_eventos", ctx, params={k: v for k, v in params.items() if v is not None}
+        )
 
     @mcp.tool(annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=False, openWorldHint=False))
     async def consultar_disponibilidade(campos: CamposPedido, ctx: Context) -> dict[str, Any]:
