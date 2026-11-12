@@ -20,7 +20,7 @@ const { default: lighthouse } = await import(pathToFileURL(require.resolve("ligh
 const { launch } = await import(pathToFileURL(require.resolve("chrome-launcher")).href)
 const site = path.join(repo, "site")
 const saida = path.join(repo, "front/.cache/teste-agentes")
-const prefixo = process.env.RAIZ_BASE || "/Raiz/"
+const prefixo = configurarPublicacao(process.env).base
 assert(prefixo.startsWith("/") && prefixo.endsWith("/"), "RAIZ_BASE precisa começar e terminar em /.")
 fs.mkdirSync(saida, { recursive: true })
 const tipos = { ".html": "text/html", ".js": "text/javascript", ".mjs": "text/javascript", ".css": "text/css",

@@ -14,11 +14,15 @@ import os
 import re
 import uuid
 from decimal import Decimal, InvalidOperation
+from pathlib import Path
 
+import yaml
 from sqlalchemy import Engine, text
 
 from raiz.busca import normalizar_codigo
 from raiz.pedidos import pix
+
+PRECOS_PADRAO = Path(__file__).parent / "regras" / "padroes" / "precos.yaml"
 
 
 class ErroAcesso(ValueError):
@@ -30,22 +34,38 @@ class ErroAcesso(ValueError):
 
 
 def planos() -> dict:
-    """Catálogo comercial configurado por operação, sem tarifa presumida no código.
+    """Catálogo proposto no YAML; produção exige preços aprovados e modo explícito.
 
-    RAIZ_PROSPECCAO_PLANOS: [{"id":"avulsa","nome":"Avulsa","creditos":1,"valor_rs":...}].
-    A ausência de preços ou da chave Pix deixa o catálogo visível, sem criar cobrança.
+    RAIZ_PRECOS_ARQUIVO aponta um YAML privado no mesmo contrato. O override
+    RAIZ_PROSPECCAO_PLANOS aceita esse envelope em JSON; a antiga lista simples é
+    lida como proposta sem aprovação, mesmo quando todos os preços estão definidos.
     """
     try:
-        bruto = json.loads(os.environ.get("RAIZ_PROSPECCAO_PLANOS") or "[]")
-        if not isinstance(bruto, list):
+        override = os.environ.get("RAIZ_PROSPECCAO_PLANOS")
+        bruto = (
+            json.loads(override)
+            if override
+            else yaml.safe_load(Path(os.environ.get("RAIZ_PRECOS_ARQUIVO") or PRECOS_PADRAO).read_text("utf-8"))
+        )
+        if isinstance(bruto, list):
+            bruto = {"versao": "proposta-ambiente", "status": "provisorio", "planos": bruto}
+        if not isinstance(bruto, dict) or not isinstance(bruto.get("planos"), list):
             raise ValueError
+        versao = bruto.get("versao")
+        status = bruto.get("status")
+        if not isinstance(versao, str) or not re.fullmatch(r"[A-Za-z0-9_.+-]{1,80}", versao):
+            raise ValueError
+        if status not in ("provisorio", "aprovado") or bruto.get("moeda", "BRL") != "BRL":
+            raise ValueError
+        aprovada = status == "aprovado"
+        aprovado_em = dt.date.fromisoformat(str(bruto.get("aprovado_em"))) if aprovada else None
         catalogo = []
         ids = set()
-        for item in bruto:
+        for item in bruto["planos"]:
             ident = item["id"]
             nome = item["nome"]
             quantidade = item["creditos"]
-            valor = Decimal(str(item["valor_rs"]))
+            valor = Decimal(str(item["valor_rs"])) if item.get("valor_rs") is not None else None
             if (
                 not isinstance(ident, str)
                 or not re.fullmatch(r"[a-z0-9_-]{1,40}", ident)
@@ -55,24 +75,45 @@ def planos() -> dict:
                 or len(nome) > 80
                 or type(quantidade) is not int
                 or not 1 <= quantidade <= 100_000
-                or not valor.is_finite()
-                or not Decimal("0.01") <= valor <= Decimal("99999999.99")
-                or valor != valor.quantize(Decimal("0.01"))
+                or (aprovada and valor is None)
+                or (
+                    valor is not None
+                    and (
+                        not valor.is_finite()
+                        or not Decimal("0.01") <= valor <= Decimal("99999999.99")
+                        or valor != valor.quantize(Decimal("0.01"))
+                    )
+                )
             ):
                 raise ValueError
             ids.add(ident)
-            catalogo.append({"id": ident, "nome": nome, "creditos": quantidade, "valor_rs": float(valor)})
-    except (ValueError, TypeError, KeyError, InvalidOperation) as ex:
+            catalogo.append(
+                {
+                    "id": ident,
+                    "nome": nome,
+                    "creditos": quantidade,
+                    "valor_rs": float(valor) if valor is not None else None,
+                    "status": status,
+                    "aviso_preco": "Preço aprovado pelo fundador" if aprovada else "a definir pelo fundador",
+                }
+            )
+    except (OSError, yaml.YAMLError, ValueError, TypeError, KeyError, InvalidOperation) as ex:
         raise ErroAcesso(503, "O catálogo de créditos está temporariamente indisponível.") from ex
-    disponivel = bool(catalogo and pix.chave())
+    disponivel = bool(catalogo and aprovada and pix.producao_habilitada())
     return {
         "planos": catalogo,
+        "versao": versao,
+        "status": status,
+        "aprovado_em": aprovado_em.isoformat() if aprovado_em else None,
         "custo_ficha": 1,
         "unidade": "crédito de consulta",
+        "pix_modo": pix.modo(),
         "pagamento_disponivel": disponivel,
         "mensagem": "Um crédito pago libera a ficha deste CAR; novas leituras não consomem crédito."
         if disponivel
-        else "A compra de créditos estará disponível quando os planos e o pagamento estiverem configurados.",
+        else "Preços a definir pelo fundador. Vendas desativadas até aprovar o catálogo e ativar o Pix de produção."
+        if not aprovada
+        else "Catálogo aprovado. Vendas desativadas enquanto o Pix estiver em teste ou sem chave de produção.",
     }
 
 

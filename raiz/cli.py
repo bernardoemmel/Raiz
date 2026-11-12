@@ -2045,3 +2045,41 @@ def legibilidade_modelos() -> None:
             f"{nome:14} {m['palavras']:8} {m['palavras_por_frase']:7.1f} {m['flesch_alt']:6.1f} "
             f"{m['flesch_martins']:7.1f} {m['flesch_languagetool']:6.1f} {m['resultado_alt']:9.1f}"
         )
+
+
+prospeccao_cli = typer.Typer(help="Fichas pagas e avisos de buscas salvas.", no_args_is_help=True)
+app.add_typer(prospeccao_cli, name="prospeccao")
+
+
+@prospeccao_cli.command("verificar-buscas")
+def prospeccao_verificar_buscas(
+    busca_id: Annotated[str | None, typer.Option("--busca", help="só esta busca salva (UUID)")] = None,
+) -> None:
+    """Registra no painel as novas fazendas das buscas salvas; não envia mensagens externas.
+
+    Rodar depois da carga do motor ou por cron. Repetir é seguro: cada CAR gera
+    no máximo um aviso por busca, mesmo com dois executores concorrentes.
+    """
+    from sqlalchemy.exc import SQLAlchemyError
+
+    from raiz.banco import engine
+    from raiz.prospeccao_acesso import ErroAcesso
+    from raiz.prospeccao_buscas import verificar, verificar_todas
+
+    try:
+        banco_engine = engine()
+        if busca_id:
+            resultado = verificar(banco_engine, busca_id)
+            quantidade = 1
+        else:
+            resultado = verificar_todas(banco_engine)
+            quantidade = resultado["buscas_verificadas"]
+    except ErroAcesso as erro:
+        typer.echo(str(erro), err=True)
+        raise typer.Exit(1) from erro
+    except SQLAlchemyError as erro:
+        typer.echo("Não foi possível verificar as buscas salvas. Confira o banco e as migrações.", err=True)
+        raise typer.Exit(1) from erro
+    typer.echo(f"Buscas verificadas: {quantidade}; novas fazendas: {resultado['novas_fazendas']}.")
+    if resultado.get("buscas_sem_habilitacao"):
+        typer.echo(f"Buscas sem habilitação para os filtros pagos: {resultado['buscas_sem_habilitacao']}.")

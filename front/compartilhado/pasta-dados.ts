@@ -5,7 +5,7 @@
  *                       <pasta>/<UF>/imoveis_<cod>.csv, direto_<cod>.csv, filtros_<cod>.csv, extras_<cod>.csv,
  *                       mapbiomas_<cod>.csv, certidoes_<cod>.csv e resumo_<UF>.csv. Caminho relativo vale a partir
  *                       da raiz do repositório.
- *   sem a variável      dados/estados/, se existir: é onde front/scripts/baixar-dados.mjs (predev) põe sozinho o que
+ *   sem a variável      dados/publicos/, se existir: é onde front/scripts/baixar-dados.mjs (predev) põe sozinho o que
  *                       o motor publicou no Release "dados" do GitHub (docs/dados-publicados.md), com o estados.json
  *                       que diz o que há em cada estado.
  *   sem nenhuma das duas  dados/amostra/, tudo numa pasta só, como sempre foi (sem internet, o front abre assim).
@@ -38,17 +38,20 @@ type Feicao = Geo["features"][number]
 
 /** o estados.json publicado com os dados (motor/publicar_dados.py): só o que o front usa */
 interface Manifesto {
+  versao_publicacao?: number
+  escopo?: string
   gerado_em?: string
   estados?: Record<
     string,
     {
+      versao_publicacao?: number
+      escopo?: string
       municipios?: number
       total_ibge?: number | null
       completo?: boolean
       tabelas?: Record<string, number>
       versao?: string
       atualizado_em?: string
-      escopo?: string
     }
   >
 }
@@ -84,10 +87,10 @@ export interface OpcoesPasta {
 }
 
 /** onde o baixar-dados.mjs grava, relativo à raiz do repositório */
-export const PASTA_BAIXADA = "dados/estados"
+export const PASTA_BAIXADA = "dados/publicos"
 
 /**
- * A pasta de dados que o front usa: RAIZ_DADOS (ambiente ou .env); sem ela, dados/estados/ se já tiver algum estado
+ * A pasta de dados que o front usa: RAIZ_DADOS (ambiente ou .env); sem ela, dados/publicos/ se já tiver algum estado
  * baixado; sem nada, null (a amostra).
  */
 export function pastaPadrao(repo: string, env: Record<string, string | undefined> = process.env): string | null {
@@ -95,10 +98,7 @@ export function pastaPadrao(repo: string, env: Record<string, string | undefined
   if (pedida) return pedida
   const baixada = path.join(repo, PASTA_BAIXADA)
   if (!fs.existsSync(baixada)) return null
-  const temEstado = fs
-    .readdirSync(baixada, { withFileTypes: true })
-    .some((e) => e.isDirectory() && ehUf(e.name) && fs.readdirSync(path.join(baixada, e.name)).some((f) => f.endsWith(".csv")))
-  return temEstado ? PASTA_BAIXADA : null
+  return PASTA_BAIXADA
 }
 
 /**
@@ -143,7 +143,11 @@ export function abrirPasta(opcoes: OpcoesPasta) {
     if (fs.existsSync(pedida) && fs.statSync(pedida).isDirectory()) {
       modo = "estados"
       dir = pedida
-    } else avisar(`RAIZ_DADOS aponta para uma pasta que não existe (${opcoes.raizDados}); usando dados/amostra`)
+    } else {
+      modo = "estados"
+      dir = pedida
+      avisar(`RAIZ_DADOS aponta para uma pasta que não existe (${opcoes.raizDados}); nenhum dado será servido`)
+    }
   }
   const geo = opcoes.geo ?? path.join(opcoes.repo, "front", "geo")
   const raizCache = opcoes.cache ?? path.join(opcoes.repo, "front", ".cache", "raiz-dados")
@@ -174,6 +178,7 @@ export function abrirPasta(opcoes: OpcoesPasta) {
   function ufs(): string[] {
     if (modo === "amostra")
       return [...new Set(listar(amostra).map(ufDoArquivo).filter((u): u is string => !!u))].sort()
+    if (!fs.existsSync(dir)) return []
     return fs
       .readdirSync(dir, { withFileTypes: true })
       .filter((e) => e.isDirectory() && ehUf(e.name) && listar(path.join(dir, e.name)).length > 0)
@@ -255,6 +260,72 @@ export function abrirPasta(opcoes: OpcoesPasta) {
     return JSON.parse((arq.endsWith(".gz") ? gunzipSync(bytes) : bytes).toString("utf8")) as Geo
   }
 
+  /** A publicação por CAR exige o manifesto novo; nunca é inferida dos CSV privados legados. */
+  function publicacaoBasica(uf?: string): boolean {
+    const m = lerManifesto()
+    if (m?.escopo !== "publico_basico" || m.versao_publicacao !== 1) return false
+    return uf ? m.estados?.[uf]?.escopo === "publico_basico" && m.estados[uf].versao_publicacao === 1 : true
+  }
+  const COLUNAS_BASICAS = ["cod_imovel", "cod_ibge", "municipio", "uf", "situacao_basica"]
+  function comBasicos(uf: string): string[] {
+    return publicacaoBasica(uf) ? arquivos(uf).flatMap((f) => /^imoveis_basicos_(\d{7})\.csv$/.exec(f)?.[1] ?? []) : []
+  }
+  const memoriaBasicos = new Map<string, { mtime: number; linhas: Linha[] }>()
+  function basicos(cod: string): Linha[] {
+    const uf = ufDoCodigo(cod)
+    if (!uf || !publicacaoBasica(uf)) return []
+    const arq = caminho(`imoveis_basicos_${cod}.csv`)
+    if (!arq) return []
+    const mtime = fs.statSync(arq).mtimeMs
+    const ja = memoriaBasicos.get(cod)
+    if (ja?.mtime === mtime) return ja.linhas
+    const { colunas, linhas } = lerCsv(fs.readFileSync(arq, "utf8"))
+    if (colunas.join() !== COLUNAS_BASICAS.join()) throw new Error(`imoveis_basicos_${cod}: colunas fora do contrato público`)
+    const vistos = new Set<string>()
+    for (const l of linhas) {
+      if (!/^[A-Z]{2}-\d{7}-[A-F0-9]{32}$/.test(l.cod_imovel) || l.cod_ibge !== cod || l.uf !== uf ||
+          !["apto", "com_pendencia", "nao_apto"].includes(l.situacao_basica) || vistos.has(l.cod_imovel))
+        throw new Error(`imoveis_basicos_${cod}: identificação ou situação fora do contrato público`)
+      vistos.add(l.cod_imovel)
+    }
+    const projetadas = linhas.map((l) => Object.fromEntries(COLUNAS_BASICAS.map((c) => [c, l[c]])))
+    memoriaBasicos.set(cod, { mtime, linhas: projetadas })
+    while (memoriaBasicos.size > MUNICIPIOS_NA_MEMORIA) memoriaBasicos.delete(memoriaBasicos.keys().next().value!)
+    return projetadas
+  }
+  function csvBasico(nome: string): string | null {
+    const m = /^imoveis_basicos_(\d{7})\.csv$/.exec(nome)
+    if (!m || !caminho(nome) || !publicacaoBasica(ufDoCodigo(m[1]) ?? "")) return null
+    return escreverCsv(COLUNAS_BASICAS, basicos(m[1]))
+  }
+  const indicesBasicos = new Map<string, { assinatura: string; dado: Record<string, string> }>()
+  function foraBasicos(uf: string): Record<string, string> {
+    const cods = comBasicos(uf)
+    const marca = cods.map((cod) => { const st = fs.statSync(caminho(`imoveis_basicos_${cod}.csv`)!); return `${cod}:${st.size}:${st.mtimeMs}` }).join(";")
+    const ja = indicesBasicos.get(uf)
+    if (ja?.assinatura === marca) return ja.dado
+    const dado = Object.fromEntries(cods.flatMap((cod) => basicos(cod).filter((l) => l.cod_imovel.slice(3, 10) !== cod).map((l) => [l.cod_imovel, cod])))
+    indicesBasicos.set(uf, { assinatura: marca, dado })
+    return dado
+  }
+  function geoBasico(cod: string): Geo | null {
+    const uf = ufDoCodigo(cod)
+    if (!uf || !comBasicos(uf).includes(cod)) return null
+    const original = lerGeo(cod)
+    if (!original) return null
+    const permitidos = new Set(basicos(cod).map((l) => l.cod_imovel))
+    const coordenadasValidas = (x: unknown): boolean => Array.isArray(x) && x.length > 0 && x.every((v) => typeof v === "number" ? Number.isFinite(v) : coordenadasValidas(v))
+    return {
+      type: "FeatureCollection",
+      features: original.features.flatMap((f) => {
+        const car = String(f.properties?.cod_imovel ?? "")
+        const g = f.geometry
+        if (!permitidos.has(car) || !g || !["Polygon", "MultiPolygon"].includes(g.type) || !coordenadasValidas(g.coordinates)) return []
+        return [{ type: "Feature" as const, properties: { cod_imovel: car }, geometry: { type: g.type, coordinates: g.coordinates } }]
+      }),
+    }
+  }
+
   /** imóveis de um município, com os arquivos que o completam; os mais recentes ficam na memória */
   const memoria = new Map<string, { mtime: number; imoveis: Imovel[]; base: BaseMunicipio; geo: Map<string, Feicao> }>()
   function quantidadeImoveis(cod: string): number {
@@ -331,7 +402,7 @@ export function abrirPasta(opcoes: OpcoesPasta) {
   let manifesto: { mtime: number; dado: Manifesto | null } | null = null
   function lerManifesto(): Manifesto | null {
     const arq = path.join(dir, "estados.json")
-    if (modo !== "estados" || !fs.existsSync(arq)) return null
+    if (!fs.existsSync(arq)) return null
     const mtime = fs.statSync(arq).mtimeMs
     if (manifesto?.mtime === mtime) return manifesto.dado
     let dado: Manifesto | null = null
@@ -563,9 +634,23 @@ export function abrirPasta(opcoes: OpcoesPasta) {
   async function pontosPublicos(uf: string): Promise<(Omit<PontosDoEstado, "fazendas" | "sem_lugar"> & {
     fazendas: number | null; sem_lugar: number | null; suprimidos: boolean
   }) | null> {
-    const originais = await pontos(uf)
-    if (!originais) return null
     const centro = centroDosMunicipios()
+    let originais: PontosDoEstado | null
+    if (publicacaoBasica(uf)) {
+      const agregados: LinhaPonto[] = []
+      let semLugar = 0, total = 0
+      for (const m of resumo(uf)) {
+        const c = centro.get(m.cod_ibge)
+        for (const [situacao, n, ha] of [["apta", m.aptas_com_matricula, m.ha_carbono_matricula], ["pendencia", m.aptas_carbono - m.aptas_com_matricula, m.ha_carbono - m.ha_carbono_matricula]] as const) {
+          if (n <= 0) continue
+          total += n
+          if (c) agregados.push([c[0], c[1], situacao, Math.max(0, ha), m.cod_ibge, n])
+          else semLugar += n
+        }
+      }
+      originais = { uf, campos: CAMPOS_PONTOS, pontos: agregados, fazendas: total, sem_lugar: semLugar }
+    } else originais = await pontos(uf)
+    if (!originais) return null
     const grupos = new Map<string, LinhaPonto>()
     let semLugar = originais.sem_lugar
     for (const [, , situacao, ha, cod, n] of originais.pontos) {
@@ -620,6 +705,12 @@ export function abrirPasta(opcoes: OpcoesPasta) {
     pontos,
     pontosTexto,
     pontosPublicos,
+    publicacaoBasica,
+    comBasicos,
+    basicos,
+    csvBasico,
+    foraBasicos,
+    geoBasico,
     foraDoMunicipio,
     aquecer,
     montagens: () => montagens,

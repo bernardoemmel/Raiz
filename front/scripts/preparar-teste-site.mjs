@@ -13,6 +13,7 @@ export const MUNICIPIO = "1505536"
 export const SEM_DESENHO = "1502772"
 export const CAR = `PA-${MUNICIPIO}-${"A".repeat(32)}`
 export const CAR_PENDENTE = `PA-${MUNICIPIO}-${"B".repeat(32)}`
+export const CANARIO_PRIVADO = "certidao_PRIVADA_nao_publicar"
 export const CARS = [CAR, CAR_PENDENTE, ...["D", "E", "F", "1"].map((letra) => `PA-${MUNICIPIO}-${letra.repeat(32)}`)]
 
 const colecao = (features) => ({ type: "FeatureCollection", features })
@@ -89,10 +90,10 @@ export function preparar() {
   salvar("brasil_municipios.geojson", colecao([municipio, semDesenho]))
   salvar("brasil_estados.geojson", colecao([retangulo([-58, -10, -46, 2], { uf: "PA", nome: "Pará" })]))
   salvar(`municipio_${MUNICIPIO}.geojson`, colecao([municipio]))
-  // Canários privados: o build precisa descartá-los, embora estejam na origem.
+  // A origem contém campos privados e um CAR fora do contrato; o build deve projetar só a camada básica.
   salvar(`imoveis_${MUNICIPIO}.geojson`, colecao(CARS.map((car, i) =>
-    retangulo([-49.93 + i * 0.01, -6.108, -49.922 + i * 0.01, -6.096], { cod_imovel: car }),
-  )))
+    retangulo([-49.93 + i * 0.01, -6.108, -49.922 + i * 0.01, -6.096], { cod_imovel: car, certidao_ia: CANARIO_PRIVADO, credito_p50: 987654.32 }),
+  ).concat(retangulo([-49.95, -6.11, -49.94, -6.10], { cod_imovel: `PA-${MUNICIPIO}-${"9".repeat(32)}`, certidao_ia: CANARIO_PRIVADO }))))
   fs.writeFileSync(path.join(geo, "base_brasil.pmtiles"), basePmtiles())
   const item = (arquivo) => ({ arquivo, bytes: fs.statSync(path.join(geo, arquivo)).size })
   salvar("indice.json", {
@@ -103,15 +104,25 @@ export function preparar() {
     municipios: { [MUNICIPIO]: { municipio: item(`municipio_${MUNICIPIO}.geojson`), imoveis: item(`imoveis_${MUNICIPIO}.geojson`) } },
     sem_contorno: { [SEM_DESENHO]: "Ainda não publicado" },
   })
+  fs.writeFileSync(path.join(FIXTURE, "dados/estados.json"), JSON.stringify({
+    versao_publicacao: 1, escopo: "publico_basico", gerado_em: "2026-11-12T00:00:00Z",
+    estados: { PA: { versao_publicacao: 1, escopo: "publico_basico", municipios: 2, total_ibge: 144, completo: false } },
+  }))
+  const basico = "cod_imovel,cod_ibge,municipio,uf,situacao_basica\n"
+  fs.writeFileSync(path.join(dados, `imoveis_basicos_${MUNICIPIO}.csv`), basico + CARS.map((car, i) =>
+    `${car},${MUNICIPIO},Parauapebas,PA,${["apto", "com_pendencia", "nao_apto"][i % 3]}\n`,
+  ).join(""))
+  fs.writeFileSync(path.join(dados, `imoveis_basicos_${SEM_DESENHO}.csv`), basico +
+    `PA-${SEM_DESENHO}-${"C".repeat(32)},${SEM_DESENHO},Curionópolis,PA,apto\n`)
   fs.writeFileSync(path.join(dados, "resumo_PA.csv"),
     "cod_ibge,municipio,imoveis,sem_problema,aptas_carbono,ha_carbono,aptas_com_matricula,ha_carbono_matricula\n" +
     `${MUNICIPIO},Parauapebas,6,6,6,360,3,240\n${SEM_DESENHO},Curionópolis,1,1,1,40,0,0\n`)
-  const cabecalho = "cod_imovel,uf,municipio,cod_municipio_ibge,ha,carbono_ha,f_matricula,problema,desm_pos2016_ha\n"
+  const cabecalho = "cod_imovel,uf,municipio,cod_municipio_ibge,ha,carbono_ha,f_matricula,problema,desm_pos2016_ha,certidao_ia\n"
   fs.writeFileSync(path.join(dados, `imoveis_${MUNICIPIO}.csv`), cabecalho + CARS.map((car, i) =>
-    `${car},PA,Parauapebas,${MUNICIPIO},${i % 2 ? 90 : 120},${i % 2 ? 40 : 80},${i % 2 ? 0 : 0.8},False,0\n`,
+    `${car},PA,Parauapebas,${MUNICIPIO},${i % 2 ? 90 : 120},${i % 2 ? 40 : 80},${i % 2 ? 0 : 0.8},False,0,${CANARIO_PRIVADO}\n`,
   ).join(""))
   fs.writeFileSync(path.join(dados, `imoveis_${SEM_DESENHO}.csv`), cabecalho +
-    `PA-${SEM_DESENHO}-${"C".repeat(32)},PA,Curionópolis,${SEM_DESENHO},90,40,0,False,0\n`)
+    `PA-${SEM_DESENHO}-${"C".repeat(32)},PA,Curionópolis,${SEM_DESENHO},90,40,0,False,0,${CANARIO_PRIVADO}\n`)
   console.log(`Fixture do Pages pronta: ${path.relative(REPO, FIXTURE)} (dados fictícios, uso exclusivo nos testes).`)
 }
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/** Cena-alvo com fixtures explícitas: Release ausente/presente e resposta autenticada com três lotes desenhados.
+/** Cena-alvo com fixtures explícitas: cobertura pública, snapshot financeiro ignorado, três lotes autorizados e ficha individual bloqueada.
  * Nenhum número desta fixture é usado pelo build público. Não inicia contato com proprietários.
  */
 import assert from "node:assert/strict"
@@ -52,7 +52,7 @@ const opcoes = ids.map((id, i) => {
     custo_usd_credito: { p10: 18, p50: 20 + i, p90: 24 }, pico_caixa_usd: 500_000, marcos: [{ ano: 7, fracao: 0.12, chance: 0.8 }],
     multa_esperada_usd: 1000, mistura_terra: [{ caminho: "matricula_a_conferir", fracao: 1 }], metodos: [{ metodo: "regeneracao_assistida", fazendas: 1 }],
     alcanca_meta: true, falta: 0,
-    itens: [{ cod_imovel: `CAR-FIXTURE-${i}`, cod_ibge: "1505536", municipio: "Parauapebas", uf: "PA", papel: "lote", hectares: 5000,
+    itens: [{ cod_imovel: `CAR-FIXTURE-${i}`, ficha_liberada: true, cod_ibge: "1505536", municipio: "Parauapebas", uf: "PA", papel: "lote", hectares: 5000,
       creditos: faixa, metodo: "regeneracao_assistida", caminho: "matricula_a_conferir", custo_usd_credito: 20, pequena: true,
       interesse: "sem_contato", lon, lat,
       geometria: { type: "Polygon", coordinates: [[[lon - 0.15, lat - 0.12], [lon + 0.15, lat - 0.12], [lon + 0.15, lat + 0.12], [lon - 0.15, lat + 0.12], [lon - 0.15, lat - 0.12]]] },
@@ -64,7 +64,19 @@ const pedido = {
   base: { fazendas: 321, hectares: 10_000, creditos: { p10: 2_000_000, p50: 2_500_000, p90: 3_000_000 }, por_caminho: [], por_interesse: [], alcanca_meta: true, falta: 0, afrouxar: [] },
   opcao_escolhida: null, reservado_ate: null, alertas: [], versao_modelo: "fixture-cena-v1",
 }
-const erros = [], contatos = []
+const carFechado = "PA-1505536-CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC"
+const pedidoComFichaFechada = {
+  ...pedido,
+  opcoes: opcoes.map((opcao) => opcao.id === "barata" ? {
+    ...opcao, fazendas: 2,
+    itens: [...opcao.itens, {
+      ...opcao.itens[0], cod_imovel: carFechado, ficha_liberada: false,
+      hectares: null, creditos: null, caminho: null, metodo: null, custo_usd_credito: null,
+      risco_terra: null, pequena: null, geometria: null, lon: null, lat: null,
+    }],
+  } : opcao),
+}
+const erros = [], contatos = [], snapshots = []
 const navegador = await chromium.launch({
   ...(process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE } : {}),
   args: ["--use-gl=angle", "--use-angle=swiftshader", "--enable-unsafe-swiftshader"],
@@ -78,19 +90,19 @@ async function servidor(api) {
   await vite.listen()
   return { vite, base: vite.resolvedUrls.local[0] }
 }
-async function pagina(base, publicacao, autenticada = false) {
+async function pagina(base, publicacao, autenticada = false, pedidoApi = pedido) {
   const contexto = await navegador.newContext({ viewport: { width: 1440, height: 960 }, reducedMotion: "reduce" })
   const p = await contexto.newPage()
   p.on("pageerror", (erro) => erros.push(erro.message))
   p.on("console", (mensagem) => { if (mensagem.type() === "error") erros.push(mensagem.text()) })
   p.on("response", (r) => { if (r.status() >= 400) erros.push(`${r.status()} ${r.url()}`) })
   p.on("request", (r) => { if (/solicitar-interesse|reservar/.test(r.url())) contatos.push(r.url()) })
-  await p.route("**/amostra/lote_PA_central_r11.json", (rota) => rota.fulfill({ json: publicacao }))
+  await p.route("**/amostra/lote_PA_central_r11.json", (rota) => { snapshots.push(rota.request().url()); return rota.fulfill({ json: publicacao }) })
   if (autenticada) {
     await p.addInitScript(() => localStorage.setItem("raiz.sessao", JSON.stringify({ token: "sessao-fixture-cliente", email: "cliente@example.test" })))
     await p.route("**/api/pedidos/fixture", (rota) => {
       assert.equal(rota.request().headers().authorization, "Bearer sessao-fixture-cliente")
-      return rota.fulfill({ json: pedido })
+      return rota.fulfill({ json: pedidoApi })
     })
     await p.goto(`${base}#/pedidos/fixture`)
   } else {
@@ -113,23 +125,22 @@ let publico, api
 try {
   publico = await servidor(false)
   let p = await pagina(publico.base, { estado: "ausente" })
-  assert.match(await p.locator(".fontes-pedido").innerText(), /ainda não foi publicado/)
-  assert.match(await p.locator(".tabela-comparacao").innerText(), /Ainda não publicado/)
+  assert.match(await p.locator(".fontes-pedido").innerText(), /Lotes na área autenticada/)
+  assert.match(await p.locator(".tabela-comparacao").innerText(), /Área autenticada/)
   assert(!/US\$ 0|0% ao ano|Resposta de exemplo/.test(await p.locator(".pedido-painel").innerText()))
   await p.screenshot({ path: path.join(resultado, "release-ausente-1440.png") })
-  await p.close()
+  await p.context().close()
   p = await pagina(publico.base, publicado)
   const tabela = await p.locator(".tabela-comparacao").innerText()
-  for (const valor of ["900.000", "1.100.000", "1.300.000", "12,5% ao ano", "5.000 ha", "8 fazendas"]) assert(tabela.includes(valor), `Falta na comparação: ${valor}`)
-  assert.match(await p.locator(".fontes-pedido").innerText(), /ainda não foram recalculados/)
-  assert.match(await p.locator(".quadro-destrava").innerText(), /georreferenciamento/)
-  assert.match(await p.locator(".quadro-destrava").innerText(), /Não some as linhas/)
-  assert.equal(await p.locator(".tabela-lote").count(), 0, "O resumo público não expõe fazendas.")
-  await p.screenshot({ path: path.join(resultado, "release-publicado-1440.png") })
+  for (const valor of ["900.000", "1.100.000", "1.300.000", "12,5% ao ano", "5.000 ha", "8 fazendas"]) assert(!tabela.includes(valor), `Métrica financeira do snapshot legado exposta: ${valor}`)
+  assert.match(await p.locator(".fontes-pedido").innerText(), /API autenticada/)
+  assert.equal(await p.locator(".tabela-lote").count(), 0, "A consulta pública não expõe lotes individuais.")
+  assert.deepEqual(snapshots, [], "O site não depende de ponteiro financeiro do Release.")
+  await p.screenshot({ path: path.join(resultado, "snapshot-legado-ignorado-1440.png") })
   await p.setViewportSize({ width: 360, height: 800 })
   assert(await p.evaluate(() => document.documentElement.scrollWidth <= innerWidth), "A página ultrapassou 360 px.")
-  await conferirPaginaAcessivel(p, AxeBuilder, "release-publicado-360", resultado)
-  await p.close()
+  await conferirPaginaAcessivel(p, AxeBuilder, "cobertura-publica-360", resultado)
+  await p.context().close()
   await publico.vite.close()
   publico = null
 
@@ -164,12 +175,32 @@ try {
   assert.equal(await p.getByRole("tab", { name: "Mais segura", exact: true }).getAttribute("aria-selected"), "true")
   await p.screenshot({ path: path.join(resultado, "lotes-autorizados-1440.png") })
   await p.setViewportSize({ width: 360, height: 800 })
+  assert(await p.evaluate(() => document.documentElement.scrollWidth <= innerWidth), "Os lotes autorizados ultrapassaram 360 px.")
   await conferirPaginaAcessivel(p, AxeBuilder, "lotes-autorizados-360", resultado)
-  await p.close()
+  await p.context().close()
+
+  p = await pagina(api.base, publicado, true, pedidoComFichaFechada)
+  const linhaFechada = p.locator(".aba-conteudo[data-state=active] .tabela-lote tbody tr").last()
+  assert.equal(await p.locator(".aba-conteudo[data-state=active] .tabela-lote tbody tr").count(), 2)
+  assert.equal((await linhaFechada.locator("td.num").innerText()).trim(), "Ficha paga", "Crédito individual ausente não pode aparecer como zero.")
+  await linhaFechada.getByRole("button").click()
+  const detalheFechado = p.locator(".fazenda-escolhida")
+  await detalheFechado.waitFor()
+  assert.match(await detalheFechado.innerText(), /Os dados desta fazenda ficam na ficha paga/)
+  const medidasFechadas = await detalheFechado.locator(".ficha-numeros dd").allInnerTexts()
+  assert.equal(medidasFechadas.filter((texto) => texto.trim() === "Disponível na ficha paga").length, 5,
+    "Área, créditos, método, caminho e custo fechados precisam manter ausência explícita.")
+  assert(!/\bNaN\b|undefined|(?:^|\s)0(?:[,.]0+)?(?:\s|%|$)/.test(medidasFechadas.join("\n")), "A ficha bloqueada inventou zero ou exibiu dado inválido.")
+  assert.equal(await detalheFechado.getByRole("link", { name: "Abrir a ficha", exact: true }).getAttribute("href"), `#/fazenda/${carFechado}`)
+  await p.screenshot({ path: path.join(resultado, "lote-com-ficha-bloqueada-1440.png") })
+  await p.setViewportSize({ width: 360, height: 800 })
+  assert(await p.evaluate(() => document.documentElement.scrollWidth <= innerWidth), "A ficha bloqueada ultrapassou 360 px.")
+  await conferirPaginaAcessivel(p, AxeBuilder, "lote-com-ficha-bloqueada-360", resultado)
+  await p.context().close()
   assert.deepEqual(contatos, [], "O teste tentou iniciar contato ou reserva.")
   assert.deepEqual(erros, [], "Há erro HTTP ou JavaScript.")
-  fs.writeFileSync(path.join(resultado, "resumo.json"), JSON.stringify({ cenarios: ["release ausente", "release publicado", "API autorizada"], cores, erros, contatos }, null, 2))
-  console.log("Cena-alvo: Release ausente/presente, números publicados, três lotes coloridos autorizados, teclado, 360 px e nenhum contato ou 404.")
+  fs.writeFileSync(path.join(resultado, "resumo.json"), JSON.stringify({ cenarios: ["cobertura pública", "snapshot financeiro legado ignorado", "API autorizada", "item com ficha paga bloqueada"], cores, erros, contatos }, null, 2))
+  console.log("Cena-alvo: cobertura pública sem snapshot financeiro, três lotes coloridos autorizados, ficha individual bloqueada sem zeros inventados, teclado, 360 px e nenhum contato ou 404.")
 } finally {
   await navegador.close()
   await publico?.vite.close()

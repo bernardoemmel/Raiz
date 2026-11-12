@@ -16,26 +16,67 @@ from raiz.pedidos.servico import criar_cliente
 CATALOGO = [{"id": "avulsa", "nome": "Consulta", "creditos": 1, "valor_rs": 12.34}]
 
 
+def _catalogo_aprovado(planos=CATALOGO):
+    return {"versao": "teste-aprovado", "status": "aprovado", "aprovado_em": "2026-11-12", "planos": planos}
+
+
 @pytest.fixture
 def catalogo(monkeypatch):
-    monkeypatch.setenv("RAIZ_PROSPECCAO_PLANOS", json.dumps(CATALOGO))
+    monkeypatch.setenv("RAIZ_PROSPECCAO_PLANOS", json.dumps(_catalogo_aprovado()))
+    monkeypatch.setenv("RAIZ_PIX_MODO", "producao")
     monkeypatch.setattr(pix, "chave", lambda: "chave-de-teste-unitario")
 
 
 def test_catalogo_sem_inventar_preco_ou_liberar_pagamento(monkeypatch):
     monkeypatch.delenv("RAIZ_PROSPECCAO_PLANOS", raising=False)
+    monkeypatch.delenv("RAIZ_PRECOS_ARQUIVO", raising=False)
     monkeypatch.setattr(pix, "chave", lambda: None)
-    assert A.planos()["planos"] == []
-    assert not A.planos()["pagamento_disponivel"]
-    assert A.planos()["custo_ficha"] == 1
+    proposta = A.planos()
+    assert [p["creditos"] for p in proposta["planos"]] == [1, 10, 50]
+    assert all(p["valor_rs"] is None and p["aviso_preco"] == "a definir pelo fundador" for p in proposta["planos"])
+    assert not proposta["pagamento_disponivel"] and proposta["status"] == "provisorio"
+    assert proposta["custo_ficha"] == 1
 
 
 @pytest.mark.parametrize("valor", ["NaN", "Infinity", -1, 0, 0.001, None])
 def test_catalogo_rejeita_precos_invalidos(monkeypatch, valor):
-    monkeypatch.setenv("RAIZ_PROSPECCAO_PLANOS", json.dumps([{**CATALOGO[0], "valor_rs": valor}]))
+    monkeypatch.setenv("RAIZ_PROSPECCAO_PLANOS", json.dumps(_catalogo_aprovado([{**CATALOGO[0], "valor_rs": valor}])))
     with pytest.raises(A.ErroAcesso) as erro:
         A.planos()
     assert erro.value.status == 503
+
+
+def test_chave_e_precos_propostos_nao_ativam_vendas(monkeypatch):
+    monkeypatch.setenv("RAIZ_PROSPECCAO_PLANOS", json.dumps(CATALOGO))
+    monkeypatch.setenv("RAIZ_PIX_MODO", "producao")
+    monkeypatch.setattr(pix, "chave", lambda: "chave-configurada")
+    assert A.planos()["status"] == "provisorio"
+    assert not A.planos()["pagamento_disponivel"]
+
+
+def test_catalogo_aprovado_ainda_exige_ativacao_explicita_do_pix(catalogo, monkeypatch):
+    monkeypatch.delenv("RAIZ_PIX_MODO", raising=False)
+    assert not A.planos()["pagamento_disponivel"]
+    assert A.planos()["pix_modo"] == "teste"
+    monkeypatch.setenv("RAIZ_PIX_MODO", "producao")
+    assert A.planos()["pagamento_disponivel"]
+
+
+def test_catalogo_yaml_externo_e_aprovacao_obrigatoria(tmp_path, monkeypatch):
+    monkeypatch.delenv("RAIZ_PROSPECCAO_PLANOS", raising=False)
+    caminho = tmp_path / "precos.yaml"
+    caminho.write_text("versao: teste\nstatus: aprovado\nplanos: []\n")
+    monkeypatch.setenv("RAIZ_PRECOS_ARQUIVO", str(caminho))
+    with pytest.raises(A.ErroAcesso):
+        A.planos()
+    caminho.write_text("versao: teste\nstatus: provisorio\nplanos: []\n")
+    assert A.planos()["status"] == "provisorio"
+
+
+def test_catalogo_em_outra_moeda_nao_e_cobrado_como_reais(monkeypatch):
+    monkeypatch.setenv("RAIZ_PROSPECCAO_PLANOS", json.dumps({**_catalogo_aprovado(), "moeda": "USD"}))
+    with pytest.raises(A.ErroAcesso):
+        A.planos()
 
 
 @pytest.fixture
@@ -96,6 +137,24 @@ def _pagar(eng, cliente, monkeypatch):
     monkeypatch.setattr(pix, "conferir", lambda _ident: "paga")
     assert A.conferir_compra(eng, cliente, compra["id"])["estado"] == "paga"
     return compra
+
+
+@pytest.mark.banco
+def test_catalogo_provisorio_nao_chama_provedor_nem_cria_compra(eng, cliente, monkeypatch):
+    monkeypatch.delenv("RAIZ_PROSPECCAO_PLANOS", raising=False)
+    monkeypatch.delenv("RAIZ_PRECOS_ARQUIVO", raising=False)
+    monkeypatch.setenv("RAIZ_PIX_MODO", "producao")
+    monkeypatch.setenv("RAIZ_ABACATEPAY_CHAVE", "chave-presente-sem-preco-aprovado")
+
+    def proibido(*args):
+        pytest.fail("O catálogo provisório não pode criar cobrança no provedor.")
+
+    monkeypatch.setattr(pix, "criar", proibido)
+    with pytest.raises(A.ErroAcesso) as erro:
+        A.iniciar_compra(eng, cliente, "avulsa", str(uuid.uuid4()))
+    assert erro.value.status == 503
+    assert A.listar_compras(eng, cliente) == []
+    assert A.saldo(eng, cliente)["creditos"] == 0
 
 
 @pytest.mark.banco

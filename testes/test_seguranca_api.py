@@ -97,7 +97,8 @@ def test_memoria_limitada_nao_expulsa_cliente_ativo_para_liberar_abuso(monkeypat
     assert len(middleware.clientes) == 1
 
 
-def test_api_aplica_protecao_e_permite_patch_do_pedido(monkeypatch):
+@pytest.mark.parametrize("metodo,rota", [("PATCH", "/pedidos/um"), ("DELETE", "/prospeccao/buscas-salvas/uma")])
+def test_api_aplica_protecao_e_permite_patch_e_exclusao_de_busca(monkeypatch, metodo, rota):
     from raiz.api import criar_app
     from raiz.config import config
 
@@ -108,15 +109,15 @@ def test_api_aplica_protecao_e_permite_patch_do_pedido(monkeypatch):
         r = cliente.get("/rota-inexistente")
         assert r.headers["x-frame-options"] == "DENY"
         r = cliente.options(
-            "/pedidos/um",
+            rota,
             headers={
                 "Origin": "https://painel.example.org",
-                "Access-Control-Request-Method": "PATCH",
+                "Access-Control-Request-Method": metodo,
                 "Access-Control-Request-Headers": "Authorization,Content-Type",
             },
         )
         assert r.status_code == 200
-        assert "PATCH" in r.headers["access-control-allow-methods"]
+        assert metodo in r.headers["access-control-allow-methods"]
     finally:
         config.cache_clear()
 

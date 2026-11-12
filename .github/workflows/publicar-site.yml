@@ -1,7 +1,7 @@
 # Publica o produto (painel e ficha do produtor) no GitHub Pages: https://bernardoemmel.github.io/Raiz/
 #
 # O site é estático: o build baixa do Release "dados" o que o motor publicou (front/scripts/baixar-dados.mjs) e grava
-# os CSV limpos e comprimidos, os estados, os pontos de cada estado e as fichas prontas (vite-dados.ts). As geometrias
+# somente agregados e CAR/situação básica, comprimidos e validados por allowlist (vite-dados.ts). As geometrias
 # do mapa saem de front/scripts/geo.py, guardadas em cache entre as rodadas. Roda a cada mudança do front na main, todo
 # dia (dados novos do motor), após a coleta do Calendário e quando alguém dispara (Actions, "Publicar o site").
 #
@@ -56,30 +56,27 @@ jobs:
         with:
           node-version: 22
 
-      - name: Dados do motor e polígonos de todos os estados (Release dados)
+      - name: Pacotes públicos mínimos e polígonos (manifesto publico_basico v1)
         run: node front/scripts/baixar-dados.mjs --geo --exigir
-
-      - name: Conferir os três lotes publicados do Pará
-        run: node front/scripts/baixar-lotes.mjs
 
       - name: Geometrias do mapa (do cache)
         uses: actions/cache/restore@v4
         with:
           path: front/geo
-          key: geo-${{ hashFiles('front/scripts/geo.py') }}-${{ github.run_id }}
-          restore-keys: geo-
+          key: geo-publico-v1-${{ hashFiles('front/scripts/geo.py') }}-${{ github.run_id }}
+          restore-keys: geo-publico-v1-
 
       - name: Desenhos de todos os municípios publicados e fundo compartilhado por estado
         run: |
           pip install --quiet requests shapely pmtiles geopandas pyarrow
-          python front/scripts/geo.py --dados dados/estados
+          python front/scripts/geo.py --dados dados/publicos
 
       - name: "Guardar as geometrias (mesmo as de uma rodada pela metade: o geo.py só baixa o que falta)"
         if: always()
         uses: actions/cache/save@v4
         with:
           path: front/geo
-          key: geo-${{ hashFiles('front/scripts/geo.py') }}-${{ github.run_id }}
+          key: geo-publico-v1-${{ hashFiles('front/scripts/geo.py') }}-${{ github.run_id }}
 
       - name: Conferir o mapa
         run: |
@@ -90,6 +87,7 @@ jobs:
       # o mesmo script do CI de todo PR (lá sem os dados): npm ci, build do painel e da ficha, e a pasta site/
       - name: Montar o site (painel com os dados e ficha do produtor)
         env:
+          RAIZ_DADOS: dados/publicos
           # Variável vazia mantém o Pages de projeto. Um hostname publica / e grava site/CNAME.
           RAIZ_DOMINIO: ${{ vars.RAIZ_DOMINIO }}
         run: front/scripts/construir-site.sh

@@ -17,6 +17,7 @@ from raiz.publica.servidor_mcp import ApiRaiz, app_http, criar_servidor
 from testes.test_publica_oauth import assinador, verificador  # noqa: F401
 
 FERRAMENTAS = {
+    "consultar_ficha",
     "consultar_disponibilidade",
     "pedir_lote",
     "comparar_lotes",
@@ -41,7 +42,7 @@ def backend():
     return app, chamadas
 
 
-def test_seis_ferramentas_sdk_estrutura_e_sem_oauth_falha():
+def test_ferramentas_sdk_estrutura_e_sem_oauth_falha():
     async def executar():
         async with Client(criar_servidor()) as c:
             tools = {t.name: t for t in (await c.list_tools()).tools}

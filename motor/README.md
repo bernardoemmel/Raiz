@@ -1,7 +1,14 @@
 # Motor de dados da Raíz
 
-Funil por imóvel do CAR, município por município, para o Brasil inteiro. Roda sozinho no GitHub Actions e publica no
-Release [`dados`](https://github.com/bernardoemmel/raiz/releases/tag/dados), de onde o front baixa. Ninguém precisa
+> Publicação atual (12/11/2026): dados completos e históricos por CAR ficam no
+> arquivo privado autenticado, configurado por `RAIZ_DADOS_PRIVADOS_URL` e
+> `RAIZ_DADOS_PRIVADOS_TOKEN`. O Release público contém somente agregados e
+> situação básica do CAR; não publicar camadas detalhadas, vigilância por CAR,
+> artifacts ou caches completos no público. Ver [contrato de publicação](../docs/dados-publicados.md).
+
+
+Funil por imóvel do CAR, município por município, para o Brasil inteiro. Roda sozinho no GitHub Actions e preserva o resultado completo no arquivo privado.
+O Release [`dados`](https://github.com/bernardoemmel/raiz/releases/tag/dados), de onde o front baixa, recebe apenas a projeção básica. Ninguém precisa
 baixar nem subir nada à mão. O que cada coluna significa está em [`docs/colunas.md`](../docs/colunas.md).
 
 ## Painel

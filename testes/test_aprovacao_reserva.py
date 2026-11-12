@@ -265,6 +265,7 @@ def test_pix_idempotencia_so_quando_suporte_declarado_e_timeout(monkeypatch):
             return Resposta()
 
     monkeypatch.setenv("RAIZ_ABACATEPAY_CHAVE", "teste")
+    monkeypatch.setenv("RAIZ_PIX_MODO", "producao")
     monkeypatch.delenv("RAIZ_ABACATEPAY_IDEMPOTENCIA_SUPORTADA", raising=False)
     monkeypatch.setattr("httpx.Client", Cliente)
     pix.criar(1, "reserva", 120, chave_idempotencia="reserva:1")

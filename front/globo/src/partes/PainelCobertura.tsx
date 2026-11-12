@@ -16,7 +16,7 @@ export function PainelCobertura({ cobertura, uf }: { cobertura?: CoberturaMapa; 
         {n.municipios === 1 ? " tem" : " têm"} desenho das fazendas na base.
         {n.semDesenho > 0 && ` ${fmtInt(n.semDesenho)} ${n.semDesenho === 1 ? "ainda aguarda" : "ainda aguardam"} o desenho.`}
       </p>
-      {cobertura.acesso === "restrito" && <p className="legenda-frase">Este mapa aberto mostra os agregados municipais. Os desenhos individuais ficam na ficha com acesso pago.</p>}
+      {cobertura.acesso === "restrito" ? <p className="legenda-frase">Este mapa aberto mostra os agregados municipais. Os desenhos individuais ficam na ficha com acesso pago.</p> : <p className="legenda-frase">O mapa mostra os limites e a situação básica da terra. Satélite e camadas detalhadas ficam na ficha com acesso pago.</p>}
       <p className="legenda-frase">
         Última atualização do mapa: {cobertura.gerado_em ? <Data valor={cobertura.gerado_em} /> : "data não informada"}.
         <br />

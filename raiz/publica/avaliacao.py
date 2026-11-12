@@ -20,7 +20,15 @@ from pydantic import BaseModel, ConfigDict, Field, StringConstraints, Validation
 
 GABARITO = Path(__file__).with_name("avaliacao_tarefas.yaml")
 FERRAMENTAS = frozenset(
-    {"consultar_disponibilidade", "pedir_lote", "comparar_lotes", "acompanhar_contato", "preparar_reserva", "cancelar"}
+    {
+        "consultar_ficha",
+        "consultar_disponibilidade",
+        "pedir_lote",
+        "comparar_lotes",
+        "acompanhar_contato",
+        "preparar_reserva",
+        "cancelar",
+    }  # fmt: skip
 )
 REPETICOES = 4
 META_PASS4 = 0.80
@@ -60,7 +68,7 @@ class Tarefa(Estrito):
     @model_validator(mode="after")
     def conferir_ferramentas(self):
         if not set(self.permitidas) <= FERRAMENTAS:
-            raise ValueError("ferramenta permitida não pertence às seis ferramentas da Raíz")
+            raise ValueError("ferramenta permitida não pertence ao catálogo da Raíz")
         if set(self.permitidas) & set(self.proibidas):
             raise ValueError("uma ferramenta não pode ser permitida e proibida na mesma tarefa")
         if not set(self.obrigatorias) <= set(self.permitidas):

@@ -18,12 +18,16 @@ consultar, pedir, reservar. Reservar nasce desabilitado e exige habilitação pe
 administrador da própria empresa. Não envie credenciais em URLs.
 
 Ferramentas:
+- consultar_ficha: relê CAR já adquirido, com fontes/datas; sem nova tarifa nem desbloqueio implícito.
 - consultar_disponibilidade: totais do pedido e lacunas da base.
 - pedir_lote: submete cálculo durável; requer Idempotency-Key.
 - comparar_lotes: opções e limites do pedido da própria empresa.
 - acompanhar_contato: estado da operação ou do contato mediado pela Raíz.
 - preparar_reserva: prepara aprovação humana; requer Idempotency-Key.
 - cancelar: cancela trabalho pendente ou pedido sem reserva paga.
+
+A releitura da ficha exige a liberação paga daquele CAR, sinal e contrato da empresa.
+Não substitui a análise corporativa de fazenda, cobrada separadamente pela tabela vigente.
 
 Operações demoradas devolvem pedido_id e estado: submitted, working,
 input-required, completed, failed ou canceled. Consulte o estado; não duplique o

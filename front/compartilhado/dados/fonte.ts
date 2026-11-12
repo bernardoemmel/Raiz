@@ -8,6 +8,7 @@
  */
 
 export { comoLinha } from "./colunas"
+import type { ImovelBasico } from "./basico"
 import type { RespostaBusca } from "./busca"
 import type { Ficha } from "./ficha"
 import type { CoberturaMapa } from "./cobertura-mapa"
@@ -28,6 +29,8 @@ export interface FonteDeDados {
   municipios(): Promise<FunilMunicipio[]>
   /** funil de um município: o resumo, ou a soma dos imóveis se não houver resumo */
   municipio(cod_ibge: string): Promise<FunilMunicipio | null>
+  /** Camada pública mínima, independente dos dados completos e sem métricas por imóvel. */
+  basicos?(cod_ibge: string): Promise<ImovelBasico[] | null>
   /** imóveis de um município; null quando o motor ainda não entregou dado por fazenda desse município */
   imoveis(cod_ibge: string): Promise<Imovel[] | null>
   /** um imóvel pelo código do CAR (procura em todos os municípios disponíveis) */

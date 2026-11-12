@@ -71,9 +71,16 @@ entrada e saída, modelo, CARs, contagens e a composição exata de cada fatia a
 preservada é validada e reutilizada; não há novo cálculo só porque um passo posterior precisou ser repetido.
 Os arquivos completos têm como destino o Release
 autenticado `dados-privados` (draft, ID 443383695), sem publicar o draft nem criar novos artifacts/caches públicos.
+Depois da execução documentada abaixo, a integração do PR #72 atualizou o orquestrador para usar
+`RAIZ_DADOS_PRIVADOS_URL` e `RAIZ_DADOS_PRIVADOS_TOKEN`, como o arquivo privado da rodada atual;
+por preservar as provas históricas, recusa outro repositório/tag ou ausência de token. Sua identidade de origem
+fica no próprio orquestrador, sem depender de `REPO` no módulo atual da rodada. O token segue somente no ambiente
+do processo autenticado; erros de API e download não expõem URLs assinadas. Motor e lockfile continuam no SHA original.
 Nenhuma das dez fatias prontas deve ser recalculada.
-O fluxo original permanece desativado enquanto seu publicador ainda expuser dados pagos; a continuação protegida
+O fluxo original foi desativado durante a retirada do publicador público; a continuação protegida
 usa o mesmo grupo de concorrência, no máximo cinco jobs de cálculo e dispara apenas quando houver vagas.
+Após a integração do PR #72, ambos os workflows estão ativos e o fluxo original também publica apenas no arquivo
+privado. Não foi disparada uma nova rodada integral: a entrega reutiliza exatamente as dez fatias anteriores.
 
 A continuação foi integrada no [PR #55](https://github.com/bernardoemmel/Raiz/pull/55), com os seis checks verdes
 no [CI 43296782776](https://github.com/bernardoemmel/Raiz/actions/runs/43296782776). A
@@ -167,8 +174,8 @@ normativas em P10/P50/P90. A referência SMA/SP de regenerantes permanece separa
 ## Validação
 
 Testes específicos de reserva, preço, salvaguardas, três opções, comparação, persistência e workflow.
-Ruff global conferido. A validação local integrada à main `9d5f591` teve 1.246 testes aprovados,
-217 dependentes do ambiente ignorados e 1 falha histórica esperada. A continuação privada tem 78 testes específicos
+Ruff global conferido. A validação local integrada à main `88860b6` teve 1.395 testes aprovados,
+232 dependentes do ambiente ignorados e 1 falha histórica esperada. A continuação privada tem 78 testes específicos
 aprovados e revisão independente, incluindo recusa de
 Release público, origem divergente, alteração do conjunto de CARs e recálculo de fatia pronta. O motor e a amostra
 originais foram conferidos em checkout separado. O CI com PostGIS, testes do front e workflows passou antes do merge do PR #49.

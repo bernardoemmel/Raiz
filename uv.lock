@@ -3657,6 +3657,7 @@ dependencies = [
     { name = "pyyaml" },
     { name = "qrcode" },
     { name = "redis" },
+    { name = "reportlab" },
     { name = "requests" },
     { name = "requests-cache" },
     { name = "scipy" },
@@ -3687,7 +3688,6 @@ dev = [
     { name = "maturin" },
     { name = "moto", extra = ["s3"] },
     { name = "pytest" },
-    { name = "reportlab" },
     { name = "ruff" },
 ]
 
@@ -3740,6 +3740,7 @@ requires-dist = [
     { name = "raiz-iov", marker = "extra == 'nativo'", editable = "nativo/raiz_iov" },
     { name = "rasterio", marker = "extra == 'motor'", specifier = ">=1.3" },
     { name = "redis", specifier = ">=5,<7" },
+    { name = "reportlab", specifier = ">=4.0" },
     { name = "requests", specifier = ">=2.31" },
     { name = "requests", marker = "extra == 'motor'", specifier = ">=2.31" },
     { name = "requests-cache", specifier = ">=1.2" },
@@ -3762,7 +3763,6 @@ dev = [
     { name = "maturin", specifier = ">=1.7" },
     { name = "moto", extras = ["s3"], specifier = ">=5.0" },
     { name = "pytest", specifier = ">=8" },
-    { name = "reportlab", specifier = ">=4.0" },
     { name = "ruff", specifier = ">=0.6" },
 ]
 

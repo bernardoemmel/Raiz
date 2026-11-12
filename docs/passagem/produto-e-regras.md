@@ -16,7 +16,7 @@ continua ativo. O teste Chromium da API paga respeita Retry-After.
 O fluxo de navegador respeita também os limites das leituras
 paralelas do grupo; erro de carregamento mostra mensagem e permite tentar de novo.
 A migração do Calendário permanece 0027, seguida da API 0028, salvaguardas 0029 e
-plataforma 0030, com uma única ponta no Alembic.
+plataforma 0030 e buscas salvas 0031, com uma única ponta no Alembic.
 
 Os seis jobs de CI passaram nos dois PRs: [#45](https://github.com/bernardoemmel/Raiz/pull/45),
 com [1.072 testes Python aprovados](https://github.com/bernardoemmel/Raiz/actions/runs/43296919086),
@@ -32,9 +32,15 @@ licença proibida; Gitleaks não encontrou segredos.
 
 A plataforma está implementada no mesmo FastAPI: SDK oficial `mcp==2.3.0`, protocolo
 2026-07-28, transporte HTTP e OAuth 2.1 via Keycloak 26.8.2. A chave de API vale só na REST.
-Seis ferramentas: consultar_disponibilidade, pedir_lote, comparar_lotes,
+Sete ferramentas: consultar_ficha, consultar_disponibilidade, pedir_lote, comparar_lotes,
 acompanhar_contato, preparar_reserva e cancelar. Reservar começa desligado e só o
 administrador da própria empresa habilita; o worker revalida antes de executar.
+
+`consultar_ficha` foi integrada pela ponte REST existente em `/v1/fazendas/{CAR}/ficha`.
+Relê exclusivamente a ficha já adquirida pela empresa na carteira da prospecção,
+com sinal, contrato, OAuth/escopo, limites e auditoria. Não cobra tarifa nova nem
+desbloqueia CAR implicitamente; ausência de liberação é 402. Preserva o DTO comum
+com fontes, datas e `null`; a análise corporativa de R$ 1.500 continua separada.
 
 As cinco operações de cálculo/preparo entram em fila PostgreSQL e devolvem 202 com
 `pedido_id` e estado. O worker confirma resultado, efeitos, débito/estorno e outbox
@@ -84,7 +90,7 @@ As salvaguardas da API complementam o catálogo da rodada: os bloqueios publicad
 chegam à oferta/PostGIS. Inclusão de programa REDD+ exige recertificar a cobertura
 vigente. Os testes de revisão usam o app real e os gates pagos, inclusive o caminho
 legado por redirecionamento. A cadeia de migrações é 0026 (prospecção) → 0027 (calendário)
-→ 0028 (API) → 0029 (salvaguardas) → 0030 (plataforma).
+→ 0028 (API) → 0029 (salvaguardas) → 0030 (plataforma) → 0031 (buscas salvas).
 
 ---
 
