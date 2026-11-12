@@ -118,9 +118,8 @@ normativas em P10/P50/P90. A referência SMA/SP de regenerantes permanece separa
 ## Validação
 
 Testes específicos de reserva, preço, salvaguardas, três opções, comparação, persistência e workflow.
-Ruff global conferido. A validação local anterior à leitura dos ZIPs migrados, integrada à main até o PR #53,
-teve 880 testes aprovados, 117 dependentes do ambiente ignorados e 1 falha histórica esperada. A continuação
-privada tem 78 testes específicos
+Ruff global conferido. A validação local integrada à main até o PR #68 teve 979 testes aprovados,
+127 dependentes do ambiente ignorados e 1 falha histórica esperada. A continuação privada tem 78 testes específicos
 aprovados e revisão independente, incluindo recusa de
 Release público, origem divergente, alteração do conjunto de CARs e recálculo de fatia pronta. O motor e a amostra
 originais foram conferidos em checkout separado. O CI com PostGIS, testes do front e workflows passou antes do merge do PR #49.
@@ -128,6 +127,6 @@ A exceção autorizada no teste do front foi validada em 24 testes; nenhum códi
 
 A varredura de segredos com todos os ramos encontrou um falso positivo no PR #69, commit
 `be05cee99ee060b5ca2c9e60d7b077d1fa2a51aa`: URL JDBC sem credenciais em `infra/docker-compose.keycloak.yml:28`.
-A exceção em `.gitleaks.toml` exige esse arquivo e a linha `KC_DB_URL` com apenas host, porta e banco. Gitleaks
-8.24.3 conferiu 308 commits sem ocorrências; controles temporários confirmaram que senha na URL, senha em query,
-token e o mesmo texto fora do arquivo permitido continuam detectados. Nenhum valor de credencial foi exposto.
+A main incorporou em `.gitleaksignore` a exceção do fingerprint exato desse commit, arquivo, regra e linha;
+a continuação usa essa exceção existente, sem ampliar a allowlist. A varredura de todos os ramos permanece ativa.
+Nenhum valor de credencial foi exposto.

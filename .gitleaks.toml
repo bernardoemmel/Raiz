@@ -9,13 +9,3 @@ condition = "AND"
 paths = ['''^docs/colunas\.md$''']
 regexTarget = "secret"
 regexes = ['''^regularizacao_chance_12m$''']
-
-[[rules]]
-id = "generic-api-key"
-
-[[rules.allowlists]]
-description = "URL JDBC interna sem credenciais, no compose de desenvolvimento do Keycloak"
-condition = "AND"
-paths = ['''^infra/docker-compose\.keycloak\.yml$''']
-regexTarget = "line"
-regexes = ['''^\s*KC_DB_URL:\s*jdbc:postgresql://[a-z][a-z0-9-]*:[0-9]{1,5}/[a-z][a-z0-9_]*\s*$''']
