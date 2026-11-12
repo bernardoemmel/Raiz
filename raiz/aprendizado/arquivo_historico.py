@@ -8,6 +8,7 @@ Fonte ausente não fecha versões; fonte presente e vazia registra uma retirada.
 
 from __future__ import annotations
 
+import datetime as dt
 import hashlib
 import json
 import math
@@ -127,6 +128,8 @@ def arquivar(
     uf: str,
     cod_municipio: int,
     exigir_completo: bool = True,
+    *,
+    _observacao: dict | None = None,
 ) -> dict:
     """Publica fontes válidas na transação do chamador, sem tocar o bruto.
 
@@ -137,7 +140,10 @@ def arquivar(
     normalizados = _normalizar(dados, exigir_completo=exigir_completo)
     # Uma trava também protege a criação inicial das tabelas entre municípios.
     con.execute(text("select pg_advisory_xact_lock(823008, 0)"))
-    agora = con.execute(text("select clock_timestamp()")).scalar_one()
+    registrado = con.execute(text("select clock_timestamp()")).scalar_one()
+    agora = dt.datetime.fromisoformat(_observacao["observado_em"]) if _observacao else registrado
+    if agora.tzinfo is None or agora > registrado:
+        raise HistoricoInsuficiente("a observação precisa ter fuso e não pode estar no futuro")
     con.execute(text(f"create schema if not exists {ESQUEMA}"))
     con.execute(
         text(f"""create table if not exists {ESQUEMA}.coleta (
@@ -145,6 +151,31 @@ def arquivar(
         manifesto_hash text not null, contagens jsonb not null,
         primary key (cod_municipio, observado_em))""")
     )
+    # Os campos novos não mudam o contrato das tabelas já criadas pelo executor.
+    # Capturas antigas nasceram no banco: observado e registrado eram o mesmo instante.
+    con.execute(text(f"alter table {ESQUEMA}.coleta add column if not exists registrado_em timestamptz"))
+    con.execute(text(f"update {ESQUEMA}.coleta set registrado_em=observado_em where registrado_em is null"))
+    con.execute(text(f"alter table {ESQUEMA}.coleta add column if not exists retrato_hash text"))
+    con.execute(text(f"alter table {ESQUEMA}.coleta add column if not exists proveniencia jsonb"))
+    con.execute(text(f"create unique index if not exists coleta_retrato on {ESQUEMA}.coleta (retrato_hash)"))
+    retrato_hash = _observacao.get("retrato_hash") if _observacao else None
+    if retrato_hash:
+        existente = con.execute(
+            text(f"select observado_em, registrado_em from {ESQUEMA}.coleta where retrato_hash=:h"), {"h": retrato_hash}
+        ).first()
+        if existente:
+            return {
+                "situacao": "ja_importado",
+                "retrato_hash": retrato_hash,
+                "observado_em": existente.observado_em.isoformat(),
+                "registrado_em": existente.registrado_em.isoformat(),
+            }
+    conflito = con.execute(
+        text(f"select 1 from {ESQUEMA}.coleta where cod_municipio=:m and observado_em=:a"),
+        {"m": cod_municipio, "a": agora},
+    ).scalar()
+    if conflito:
+        raise HistoricoInsuficiente("há outra captura desse município no mesmo instante")
     hashes = {}
     for nome, linhas in normalizados.items():
         esp = FONTES[nome]
@@ -172,30 +203,61 @@ def arquivar(
                 "(cod_municipio_ibge, _chave) where _dlt_valid_to is null"
             )
         )
-        atuais = dict(
-            con.execute(
-                text(f"select _chave, _linha_hash from {tabela} where cod_municipio_ibge=:m and _dlt_valid_to is null"),
-                {"m": cod_municipio},
-            ).all()
-        )
+        # Intervalo até a próxima conferência REAL desta fonte. Uma captura
+        # atrasada jamais apaga o estado já conhecido depois dela.
+        proxima = con.execute(
+            text(
+                f"select min(observado_em) from {ESQUEMA}.coleta "
+                "where cod_municipio=:m and observado_em>:a and contagens ? :fonte"
+            ),
+            {"m": cod_municipio, "a": agora, "fonte": nome},
+        ).scalar()
+        colunas_select = [*esp.campos, "_chave", "_linha_hash", "_dlt_valid_from", "_dlt_valid_to"]
+        if esp.geometria:
+            colunas_select.append("ST_AsText(geom) as geom")
+        atuais = {
+            r["_chave"]: dict(r)
+            for r in con.execute(
+                text(
+                    f"select {', '.join(colunas_select)} from {tabela} where cod_municipio_ibge=:m "
+                    "and _dlt_valid_from<=:a and (_dlt_valid_to is null or _dlt_valid_to>:a)"
+                ),
+                {"m": cod_municipio, "a": agora},
+            ).mappings()
+        }
         novas = {r["_chave"]: r for r in linhas}
-        fecham = [k for k, h in atuais.items() if k not in novas or novas[k]["_linha_hash"] != h]
+        mudam = {
+            k for k in atuais | novas if atuais.get(k, {}).get("_linha_hash") != novas.get(k, {}).get("_linha_hash")
+        }
+        fecham = [k for k in mudam if k in atuais]
         for chaves in _lotes(fecham):
             con.execute(
                 text(
                     f"update {tabela} set _dlt_valid_to=:a where cod_municipio_ibge=:m "
-                    "and _dlt_valid_to is null and _chave = any(:chaves)"
+                    "and _chave=any(:chaves) and _dlt_valid_from<=:a "
+                    "and (_dlt_valid_to is null or _dlt_valid_to>:a)"
                 ),
                 {"a": agora, "m": cod_municipio, "chaves": chaves},
             )
         insercoes = []
-        for k, li in novas.items():
-            if atuais.get(k) == li["_linha_hash"]:
-                continue
-            params = {**li, "cod_municipio_ibge": cod_municipio, "_dlt_valid_from": agora}
+        for k in sorted(mudam):
+            anterior = atuais.get(k)
+            if anterior and proxima and (anterior["_dlt_valid_to"] is None or anterior["_dlt_valid_to"] > proxima):
+                # A próxima captura já registrada confirmou esta mesma versão;
+                # preserva seu trecho futuro, inclusive no caso de uma retirada.
+                insercoes.append({**anterior, "cod_municipio_ibge": cod_municipio, "_dlt_valid_from": proxima})
+            if k in novas:
+                insercoes.append(
+                    {
+                        **novas[k],
+                        "cod_municipio_ibge": cod_municipio,
+                        "_dlt_valid_from": agora,
+                        "_dlt_valid_to": proxima,
+                    }
+                )
+        for params in insercoes:
             for campo in esp.campos_json:
                 params[campo] = json.dumps(params[campo], sort_keys=True, allow_nan=False)
-            insercoes.append(params)
         if insercoes:
             colunas = list(insercoes[0])
             valores = [
@@ -213,11 +275,26 @@ def arquivar(
     manifesto = hashlib.sha256(json.dumps(hashes, sort_keys=True).encode()).hexdigest()
     contagens = {n: len(rs) for n, rs in normalizados.items()}
     con.execute(
-        text(f"insert into {ESQUEMA}.coleta values (:m, :uf, :a, :h, cast(:c as jsonb))"),
-        {"m": cod_municipio, "uf": uf.upper(), "a": agora, "h": manifesto, "c": json.dumps(contagens)},
+        text(
+            f"insert into {ESQUEMA}.coleta (cod_municipio, uf, observado_em, manifesto_hash, contagens, "
+            "registrado_em, retrato_hash, proveniencia) values "
+            "(:m, :uf, :a, :h, cast(:c as jsonb), :r, :rh, cast(:p as jsonb))"
+        ),
+        {
+            "m": cod_municipio,
+            "uf": uf.upper(),
+            "a": agora,
+            "h": manifesto,
+            "c": json.dumps(contagens),
+            "r": registrado,
+            "rh": retrato_hash,
+            "p": json.dumps(_observacao or {}),
+        },
     )
     return {
         "observado_em": agora.isoformat(),
+        "registrado_em": registrado.isoformat(),
+        "retrato_hash": retrato_hash,
         "manifesto_hash": manifesto,
         "contagens": contagens,
         "faltantes": sorted(set(FONTES) - set(normalizados)),
@@ -229,7 +306,7 @@ def catalogo(con: Connection, cod_municipio: int) -> dict[str, Fonte]:
     """Cada fonte tem somente a cobertura das capturas que efetivamente a contêm."""
     existe = con.execute(text("select to_regclass(:t)"), {"t": f"{ESQUEMA}.coleta"}).scalar()
     if existe is None:
-        raise HistoricoInsuficiente("ainda não há capturas históricas no executor com banco")
+        raise HistoricoInsuficiente("ainda não há capturas históricas importadas ou feitas com banco")
     rs = con.execute(
         text(f"""select fonte.nome, min(c.observado_em) as desde, max(c.observado_em) as ate
                  from {ESQUEMA}.coleta c
