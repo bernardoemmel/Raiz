@@ -238,6 +238,15 @@ Feito na main fora desta tabela: aprendizado do valor para quem restaura (`raiz/
 
 ## E9. O que as pessoas veem
 
+Cena-alvo com publicação real (12/11/2026): **feito no código**. O formulário parte de um milhão de créditos no
+Pará e permite teto em US$ por crédito. O site lê o ponteiro `lote_PA_central_r11.json`, publicado pelo chat
+Lote e números, e apresenta as três alternativas, P10/P50/P90, TIR do fluxo, hectares, fazendas, pendências e
+“o que destrava”. O cenário publicado fica identificado como referência; um novo teto ou filtro exige recálculo
+na API. Sem publicação, aparecem a cobertura territorial real e o aviso, sem resultados simulados.
+Mapa das três opções com cores e traços distintos aceita somente geometrias autorizadas pela API, de fichas já
+desbloqueadas pelo próprio cliente e fora de reserva alheia. Consultar o mapa não consome novos créditos.
+Contato com donos permanece reservado à fase final. A calibração E9 com 30 cartas reais continua pendente.
+
 Entrega do chat **Ficha da fazenda** (12/11/2026; detalhes em
 `docs/passagem/ficha-da-fazenda.md`):
 

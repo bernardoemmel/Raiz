@@ -13,6 +13,7 @@ import { lerFunil } from "./dados/funil"
 import { UFS } from "./formato"
 import { abrirPasta, nomeSeguro, pastaPadrao } from "./pasta-dados"
 import { paginasAgentes } from "./paginas-agentes"
+import { projetarPublicacaoLote } from "./pedidos/release"
 
 interface Requisicao {
   url?: string
@@ -40,6 +41,11 @@ const TIPOS: Record<string, string> = {
 /** repo: raiz do repositório; raizDados e cache só para teste (o normal é ler RAIZ_DADOS do ambiente ou do .env) */
 export function dadosRaiz(opcoes: { repo: string; raizDados?: string | null; cache?: string }) {
   const geo = path.resolve(opcoes.repo, process.env.RAIZ_GEO || "front/geo")
+  const lotes = path.resolve(opcoes.repo, process.env.RAIZ_LOTES || "dados/lotes")
+  function lotePublicado() {
+    const arquivo = path.join(lotes, "lote_PA_central_r11.json")
+    return projetarPublicacaoLote(fs.existsSync(arquivo) ? JSON.parse(fs.readFileSync(arquivo, "utf8")) : null)
+  }
   const pasta = abrirPasta({
     repo: opcoes.repo,
     raizDados: opcoes.raizDados !== undefined ? opcoes.raizDados : pastaPadrao(opcoes.repo),
@@ -242,13 +248,14 @@ export function dadosRaiz(opcoes: { repo: string; raizDados?: string | null; cac
         const arquivoDireto = url.startsWith("/@fs/") ? path.resolve(url.slice(4)) : path.resolve(opcoes.repo, `.${url}`)
         const emPasta = (dir: string) => arquivoDireto === dir || arquivoDireto.startsWith(dir + path.sep)
         if (emPasta(pasta.dir) || emPasta(path.join(opcoes.repo, "dados")) || emPasta(path.join(opcoes.repo, "motor", "saida"))) return naoAchou(res)
-        if (emPasta(geo)) return naoAchou(res)
+        if (emPasta(geo) || emPasta(lotes)) return naoAchou(res)
         if (url === "/busca") {
           const q = new URLSearchParams((req.url ?? "").split("?")[1] ?? "").get("q") ?? ""
           const resultado = buscar(q, { municipios: pasta.municipios(), imoveis: [], comImoveis: new Set() })
           return json(req, res, { ...resultado, municipios: resultado.municipios.map((m) => ({ ...m, imoveis: m.imoveis === null || m.imoveis < 5 ? null : m.imoveis })) })
         }
         if (url === "/amostra/estados.json") return json(req, res, estadosPublicos())
+        if (url === "/amostra/lote_PA_central_r11.json") return json(req, res, lotePublicado())
         if ((m = /^\/amostra\/indice_([A-Z]{2})\.json$/.exec(url))) return json(req, res, { uf: m[1], arquivos: arquivosPublicos(m[1]) })
         if ((m = /^\/amostra\/pontos_([A-Z]{2})\.json$/.exec(url))) {
           pasta.pontosPublicos(m[1]).then((t) => (t ? json(req, res, t) : naoAchou(res)), falhou)
@@ -308,6 +315,7 @@ export function dadosRaiz(opcoes: { repo: string; raizDados?: string | null; cac
         fs.writeFileSync(path.join(dAmostra, `pontos_${uf}.json`), JSON.stringify(await pasta.pontosPublicos(uf)))
       }
       fs.writeFileSync(path.join(dAmostra, "estados.json"), JSON.stringify(estadosPublicos()))
+      fs.writeFileSync(path.join(dAmostra, "lote_PA_central_r11.json"), JSON.stringify(lotePublicado()))
       fs.writeFileSync(path.join(dGeo, "indice.json"), JSON.stringify(indiceGeoPublico()))
       for (const f of arquivosGeo()) fs.copyFileSync(path.join(geo, f), path.join(dGeo, f))
       if (fs.existsSync(path.join(geo, "fontes")))
