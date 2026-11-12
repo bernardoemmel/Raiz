@@ -215,6 +215,13 @@ jobs:
       - name: Rodar pelo executor (fontes, adoção, motor e tarefas do produto) e publicar no Release dados
         run: uv run python motor/rodar_estado.py "$UNIDADE" --executor
 
+      - name: Publicar retratos imutáveis das entradas reais (inclusive tarefas concluídas antes de falha)
+        if: always()
+        run: |
+          if [ -f raiz/aprendizado/transporte.py ]; then
+            uv run raiz aprendizado publicar-retratos --uf "$UF"
+          fi
+
       - name: Guardar o cache da unidade
         id: salvar
         if: always()

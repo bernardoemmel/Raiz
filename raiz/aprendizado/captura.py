@@ -327,8 +327,8 @@ class Captura:
                 # Pasta ausente/vazia não prova consulta completa ao registro.
                 self.indisponiveis.add("projetos")
 
-    def publicar(self, con) -> dict:
-        from raiz.aprendizado.arquivo_historico import _normalizar, arquivar
+    def fontes_validas(self) -> dict[str, pd.DataFrame]:
+        from raiz.aprendizado.arquivo_historico import _normalizar
 
         dados = {**self.dados, **{n: pd.DataFrame(list(rs.values())) for n, rs in self.entradas.items()}}
         validos = {}
@@ -342,6 +342,12 @@ class Captura:
                 self.indisponiveis.add(nome)
             else:
                 validos[nome] = df
+        return validos
+
+    def publicar(self, con) -> dict:
+        from raiz.aprendizado.arquivo_historico import arquivar
+
+        validos = self.fontes_validas()
         if not validos:
             return {"situacao": "sem_captura", "indisponiveis": sorted(self.indisponiveis)}
         r = arquivar(con, validos, self.uf, self.municipio, exigir_completo=False)

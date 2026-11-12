@@ -350,3 +350,14 @@ relatórios Lighthouse passaram pelo portão fixo. E9 real não foi calibrado e 
   acesso pago por CAR, overzoom e formulário do produtor sem JavaScript; zero 404 nas duas publicações.
 - Dez testes de configuração e 187 testes do front passaram. Actionlint aprovou os workflows.
   A fixture de calendário é usada também no segundo build do CI, sem depender da agenda remota.
+
+### Conferência final com o Release real
+
+- O conjunto final passou novamente pela busca Parauapebas, zoom 13 por HTTP Range, pedido no Pará e 360 px,
+  com zero 404. Lighthouse das cinco páginas no artefato real: desempenho mediano 100/98/95/95/100;
+  acessibilidade mínima 100 em todas as quinze medições fixas. Não houve repetição para escolher notas.
+- A revisão corrigiu o Markdown estadual/municipal: medidas ausentes permanecem desconhecidas e zero
+  explícito continua zero. Um total incompleto não é apresentado como completo; contagem desconhecida
+  não libera medidas de grupos cujo tamanho mínimo não pode ser confirmado. Dezenove testes focados passaram.
+- A atualização da main para o histórico automático foi incorporada; preservadas a nota do Calendário
+  sobre o runner e a exceção exata de URL JDBC sem credenciais.
