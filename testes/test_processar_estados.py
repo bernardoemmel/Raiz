@@ -2,7 +2,11 @@
 somam o estado; estados novos entram antes da manutenção (tarefa nova em estado já feito), que não passa do teto; job
 antigo do estado inteiro segura as fatias dele; o próximo da fila pega uma unidade só; continuação por fatia."""
 
+import copy
 import datetime as dt
+import json
+import os
+import subprocess
 import sys
 from pathlib import Path
 
@@ -11,6 +15,7 @@ import pytest
 MOTOR = Path(__file__).resolve().parents[1] / "motor"
 sys.path.insert(0, str(MOTOR))
 
+import fila_processamento as F  # noqa: E402
 import raiz_situacao as S  # noqa: E402
 import rodar_estado as O  # noqa: E402
 
@@ -55,6 +60,7 @@ def plano(monkeypatch):
     monkeypatch.setattr(O, "ufs_ativas", lambda: (set(), 0))
     monkeypatch.delenv("GITHUB_OUTPUT", raising=False)
     monkeypatch.delenv("GITHUB_STEP_SUMMARY", raising=False)
+    monkeypatch.delenv("GITHUB_ACTIONS", raising=False)
     return estados
 
 
@@ -84,7 +90,7 @@ def test_job_antigo_do_estado_inteiro_segura_as_fatias(plano, monkeypatch):
 
 def test_proximo_da_fila_pega_uma_unidade_e_pula_a_tentada_ha_pouco(plano, monkeypatch):
     monkeypatch.setattr(O, "ufs_ativas", lambda: ({"MG-1"}, 0))
-    assert O.planejar([], set(), "proximo", liberou="MG-1") == ["MG-1"]  # a vaga do MG-1 acabou de ficar livre
+    assert O.planejar([], set(), "proximo", liberou="MG-1") == ["MG-2"]  # MG-1 ainda guarda cache: continua ocupando
     # fatia que terminou dentro do prazo há pouco, mas com erro: fica para a rodada semanal
     plano["MG"] = {"municipios": 100, "total_ibge": 853, "completo": False, "faltam": {"imoveis": 753}, "controle": "x",
                    "motor": {"fatias": {"1": {"completo": False, "faltam": {"imoveis": 7},
@@ -113,3 +119,232 @@ def test_quinze_jobs_no_maximo_deixando_cinco_maquinas_para_ci_e_site(plano, mon
     assert O.planejar([], set()) == []
     monkeypatch.setattr(O, "ufs_ativas", lambda: (set(sorted(rodando)[:14]), 0))
     assert O.planejar([], set()) == ["MG-1"]
+
+
+def test_pedido_refazer_e_continuacao_respeitam_vagas_e_estado_inteiro(plano, monkeypatch):
+    ativos = {f"SP-{i}" for i in range(1, 7)} | {f"RS-{i}" for i in range(1, 6)} | {"PA", "PR-1", "PR-2"}
+    monkeypatch.setattr(O, "ufs_ativas", lambda: (ativos, 0))
+    assert O.planejar(["PA-1", "PA-2", "MG-1", "MG-2"], set(), continuacao=2) == ["MG-1"]
+    monkeypatch.setattr(O, "ufs_ativas", lambda: (ativos | {"PR-3"}, 0))
+    assert O.planejar(["MG-1"], {"funil"}) == []
+    assert O.planejar([], {"funil"}) == []
+
+
+@pytest.mark.parametrize(("valor", "esperado"), [("100", 15), ("8", 8), ("-1", 0)])
+def test_variavel_de_ambiente_so_reduz_teto(valor, esperado):
+    env = {**os.environ, "RAIZ_VAGAS": valor, "PYTHONPATH": str(MOTOR)}
+    r = subprocess.run(
+        [sys.executable, "-c", "import rodar_estado; print(rodar_estado.VAGAS)"],
+        capture_output=True,
+        text=True,
+        check=True,
+        env=env,
+    )
+    assert int(r.stdout.strip()) == esperado
+
+
+def _pedido(unidade, origem="1", continuacao=0, refazer=""):
+    return {
+        "id": f"{origem}/{unidade}/{continuacao}",
+        "unidade": unidade,
+        "refazer": refazer,
+        "continuacao": continuacao,
+        "ref": "a" * 40,
+    }
+
+
+def _run(*unidades, status="in_progress", conclusion=None):
+    return {"status": status, "jobs": [{"name": u, "status": status, "conclusion": conclusion} for u in unidades]}
+
+
+def _legados(n=14):
+    unidades = [f"SP-{i}" for i in range(1, 7)] + [f"RS-{i}" for i in range(1, 6)] + [f"PR-{i}" for i in range(1, 5)]
+    return {"antiga": _run(*unidades[:n])}
+
+
+def test_dois_planejadores_disputam_ultima_vaga_sem_estourar_quinze():
+    estado = {**F.vazio(), "planejadores": ["1", "2"]}
+    runs = {**_legados(), "1": _run(), "2": _run()}
+    assert F.admitir(estado, runs, "1", [_pedido("MG-1")], O._e_unidade) == [_pedido("MG-1")]
+    assert F.admitir(estado, runs, "2", [_pedido("MG-2", "2")], O._e_unidade) == []
+    assert len(estado["reservas"]) == 1
+    # A matriz do primeiro apareceu: não contar seu job duas vezes (API + reserva).
+    runs["1"] = _run("MG-1")
+    assert F.admitir(estado, runs, "2", [_pedido("MG-2", "2")], O._e_unidade) == []
+
+
+def test_plano_legado_sem_matriz_impede_admissao_e_erro_de_api_nao_vira_zero(monkeypatch):
+    estado = {**F.vazio(), "planejadores": ["1"]}
+    assert F.admitir(estado, {"antigo": _run(), "1": _run()}, "1", [_pedido("MG-1")], O._e_unidade) == []
+    monkeypatch.setattr(F, "rodadas", lambda *a: (_ for _ in ()).throw(RuntimeError("rede indisponível")))
+    with pytest.raises(RuntimeError, match="rede indisponível"):
+        O.ufs_ativas()
+
+
+def test_api_le_todas_as_paginas_e_confere_resposta(monkeypatch):
+    chamadas = []
+
+    def executar(args, entrada=None):
+        chamadas.append(args)
+        return json.dumps({"jobs": [{"id": i} for i in range(100)]}) + "\n" + json.dumps({"jobs": [{"id": 100}]})
+
+    monkeypatch.setattr(F, "comando", executar)
+    assert len(F.paginas("repos/raiz/teste/actions/runs/1/jobs?per_page=100", "jobs")) == 101
+    assert "--paginate" in chamadas[0] and "--slurp" not in chamadas[0]
+    monkeypatch.setattr(F, "comando", lambda *a: '{"message":"erro"}')
+    with pytest.raises(RuntimeError, match="resposta incompleta"):
+        F.paginas("jobs", "jobs")
+
+
+def test_reserva_so_libera_depois_do_job_inteiro_e_recupera_falha_de_preparo():
+    p = _pedido("MG-1", continuacao=2, refazer="direto")
+    estado = {**F.vazio(), "planejadores": ["1", "2"], "reservas": [{"run_id": "1", "unidade": "MG-1", "pedido": p}]}
+    runs = {"1": _run("MG-1"), "2": _run()}
+    assert F.admitir(estado, runs, "2", [_pedido("MG-1", "2")], O._e_unidade) == []
+    # O cache ainda está rodando: nem o tempo transcorrido nem uma continuação liberam.
+    assert len(estado["reservas"]) == 1
+    runs["1"] = _run(status="completed")  # sem job da unidade: preparar não chegou a criar a matriz
+    escolhidos = F.admitir(estado, runs, "2", [], O._e_unidade)
+    assert escolhidos == [{**p, "falhas": 1}]
+    assert escolhidos[0]["refazer"] == "direto" and escolhidos[0]["continuacao"] == 2
+
+
+@pytest.mark.parametrize("conclusao", ["failure", "timed_out", "skipped"])
+def test_job_sem_sucesso_devolve_pedido_a_fila(conclusao):
+    p = _pedido("MG-1", refazer="ficha")
+    estado = {**F.vazio(), "planejadores": ["1", "2"], "reservas": [{"run_id": "1", "unidade": "MG-1", "pedido": p}]}
+    runs = {"1": _run("MG-1", status="completed", conclusion=conclusao), "2": _run()}
+    assert F.admitir(estado, runs, "2", [], O._e_unidade) == [{**p, "falhas": 1}]
+
+
+def test_conclusao_de_job_libera_reserva_mesmo_com_outras_unidades_no_run():
+    p = _pedido("MG-1")
+    estado = {**F.vazio(), "planejadores": ["1", "2"], "reservas": [{"run_id": "1", "unidade": "MG-1", "pedido": p}]}
+    runs = {"1": _run("MG-1", "MG-2"), "2": _run()}
+    runs["1"]["jobs"][0].update(status="completed", conclusion="success")
+    assert F.admitir(estado, runs, "2", [], O._e_unidade) == []
+    assert estado["reservas"] == [] and estado["fila"] == []
+
+
+def test_falha_depois_do_executor_retoma_sem_refazer_resultados_prontos():
+    p = _pedido("MG-1", refazer="funil")
+    estado = {
+        **F.vazio(),
+        "planejadores": ["1", "2"],
+        "reservas": [{"run_id": "1", "unidade": "MG-1", "pedido": p}],
+    }
+    runs = {"1": _run("MG-1", status="completed", conclusion="failure"), "2": _run()}
+    runs["1"]["jobs"][0]["steps"] = [{"name": F.PASSO_EXECUTOR, "conclusion": "success"}]
+    assert F.admitir(estado, runs, "2", [], O._e_unidade) == [{**p, "refazer": "", "falhas": 1}]
+
+
+@pytest.mark.parametrize("cancelado", [True, False])
+def test_cancelamento_e_tres_falhas_ficam_visiveis_sem_reabrir_automaticamente(cancelado):
+    p = {**_pedido("MG-1"), "falhas": 0 if cancelado else 2}
+    estado = {
+        **F.vazio(),
+        "planejadores": ["1", "2"],
+        "reservas": [{"run_id": "1", "unidade": "MG-1", "pedido": p}],
+    }
+    runs = {
+        "1": _run("MG-1", status="completed", conclusion="cancelled" if cancelado else "failure"),
+        "2": _run(),
+    }
+    novo = _pedido("MG-1", "2")
+    assert F.admitir(estado, runs, "2", [novo], O._e_unidade) == []
+    assert len(estado["fila"]) == 1 and estado["fila"][0]["bloqueado"]
+    assert estado["fila"][0]["falhas"] == (1 if cancelado else 3)
+    F.enfileirar(estado, [novo])  # novo pedido explícito autorizado, depois da correção
+    assert F.admitir(estado, runs, "2", [], O._e_unidade) == [novo]
+
+
+def test_continuacao_sem_vaga_permanece_ate_o_proximo_planejamento():
+    p = _pedido("MG-1", continuacao=2)
+    estado = {**F.vazio(), "planejadores": ["1"]}
+    F.enfileirar(estado, [p])
+    F.enfileirar(estado, [p])
+    assert F.admitir(estado, {**_legados(15), "1": _run()}, "1", [], O._e_unidade) == []
+    assert estado["fila"] == [p]
+    estado["planejadores"].append("2")
+    assert F.admitir(estado, {"1": _run(status="completed"), "2": _run()}, "2", [], O._e_unidade) == [p]
+    assert estado["fila"] == []
+
+
+def test_transacao_refaz_plano_apos_conflito_sem_perder_reserva(monkeypatch):
+    estado = {**F.vazio(), "planejadores": ["1", "2"]}
+    runs = {**_legados(), "1": _run(), "2": _run()}
+
+    class Repo:
+        revisao = 0
+        conflito = True
+
+        def ler(self):
+            return str(self.revisao), copy.deepcopy(estado)
+
+        def trocar(self, antes, novo):
+            if self.conflito:
+                self.conflito = False
+                F.admitir(estado, runs, "2", [_pedido("MG-2", "2")], O._e_unidade)
+                self.revisao += 1
+            if antes != str(self.revisao):
+                return False
+            estado.update(novo)
+            self.revisao += 1
+            return True
+
+    monkeypatch.setattr(F.time, "sleep", lambda _: None)
+    resultado = F.transacao(Repo(), lambda e: F.admitir(e, runs, "1", [_pedido("MG-1")], O._e_unidade))
+    assert resultado == []
+    assert [r["unidade"] for r in estado["reservas"]] == ["MG-2"]
+
+
+def test_git_lease_rejeita_escritor_atrasado_e_preserva_main(tmp_path, monkeypatch):
+    remoto = tmp_path / "remoto.git"
+    local = tmp_path / "local"
+    subprocess.run(["git", "init", "--bare", str(remoto)], check=True, capture_output=True)
+    subprocess.run(["git", "clone", str(remoto), str(local)], check=True, capture_output=True)
+    monkeypatch.chdir(local)
+    F.comando(["git", "config", "user.name", "Teste"])
+    F.comando(["git", "config", "user.email", "teste@raiz.invalid"])
+    F.comando(["git", "checkout", "-b", "main"])
+    F.comando(["git", "commit", "--allow-empty", "-m", "Início do teste"])
+    F.comando(["git", "push", "origin", "main"])
+    antes_main = F.comando(["git", "ls-remote", "origin", "refs/heads/main"])
+    monkeypatch.setenv("GITHUB_SHA", "b" * 40)  # SHA do workflow não existe neste checkout histórico
+    repo = F.Repositorio()
+    anterior, inicial = repo.ler()
+    primeiro = {**inicial, "fila": [_pedido("MG-1")]}
+    assert repo.trocar(anterior, primeiro)
+    assert not repo.trocar(anterior, {**inicial, "fila": [_pedido("MG-2")]})
+    assert repo.ler()[1] == primeiro
+    assert F.comando(["git", "ls-remote", "origin", "refs/heads/main"]) == antes_main
+
+
+def test_continuacao_persistida_dispara_so_dreno_sem_duplicar(tmp_path, monkeypatch):
+    pasta = tmp_path / "saida" / "MG"
+    pasta.mkdir(parents=True)
+    (pasta / "rodada.json").write_text(json.dumps({"continuacao": 1, "parou_por_tempo": True, "progresso": 3}))
+    monkeypatch.setattr(O, "AQUI", tmp_path)
+    monkeypatch.setenv("GITHUB_ACTIONS", "true")
+    fila, disparos = [], []
+    monkeypatch.setattr(F, "guardar_continuacao", lambda u, n: fila.append((u, n)))
+    monkeypatch.setattr(O, "disparar", lambda campos, rotulo: disparos.append(campos) or True)
+    O.continuar("MG-1")
+    assert fila == [("MG-1", 2)]
+    assert disparos == [{"continuacao": "fila"}]
+
+
+def test_workflow_drena_fila_e_preserva_parametros_da_matriz():
+    import yaml
+
+    w = yaml.safe_load((MOTOR.parent / ".github/workflows/processar-estados.yml").read_text())
+    evento = w.get("on", w.get(True))
+    assert {c["cron"] for c in evento["schedule"]} == {"23 5 * * 1", "*/15 * * * *"}
+    job = w["jobs"]["processar"]
+    assert job["strategy"]["max-parallel"] == 15 and job["strategy"]["fail-fast"] is False
+    assert job["concurrency"]["cancel-in-progress"] is False
+    assert "include" in job["strategy"]["matrix"]
+    checkout = next(s for s in job["steps"] if s.get("uses", "").startswith("actions/checkout"))
+    assert checkout["with"]["ref"] == "${{ matrix.ref }}"
+    assert job["env"]["RAIZ_REFAZER"] == "${{ matrix.refazer }}"
+    assert any(s.get("name") == F.PASSO_EXECUTOR for s in job["steps"])

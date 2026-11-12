@@ -40,15 +40,16 @@ export function Explorar({ municipio, uf }: { municipio: string | null; uf: stri
   const imoveis = useCarga(() => (municipio ? fonte.imoveis(municipio) : Promise.resolve(null)), [municipio])
   const geoMunicipio = useCarga<GeoMunicipio | null>(async () => {
     if (!municipio) return null
-    const [m, i, ti, uc, rios, terraPublica] = await Promise.all([
+    const [m, i, ti, uc, rios, terraPublica, base] = await Promise.all([
       fonte.geo.camada(municipio, "municipio"),
       fonte.geo.camada(municipio, "imoveis"),
       fonte.geo.camada(municipio, "ti"),
       fonte.geo.camada(municipio, "uc"),
       fonte.geo.camada(municipio, "rios"),
       fonte.geo.camada(municipio, "terra_publica").catch(() => null), // só a API tem; a amostra não
+      fonte.geo.base(municipio),
     ])
-    return { municipio: m, imoveis: i, ti, uc, rios, terraPublica }
+    return { municipio: m, imoveis: i, ti, uc, rios, terraPublica, base }
   }, [municipio])
 
   const [foco, setFoco] = useState<Foco>(null)
@@ -136,6 +137,12 @@ export function Explorar({ municipio, uf }: { municipio: string | null; uf: stri
             <span aria-hidden="true" />
           </button>
           <div className="painel-rolagem">
+            {municipio && !geoMunicipio.carregando && !geoMunicipio.dado?.imoveis?.features.length && (
+              <p className="aviso" role="status">
+                O desenho das fazendas deste município ainda não está disponível.
+                {listas.has(municipio) && " Os dados e a lista continuam disponíveis."}
+              </p>
+            )}
             {municipio ? (
               <PainelMunicipio
                 cod={municipio}
@@ -171,7 +178,7 @@ export function Explorar({ municipio, uf }: { municipio: string | null; uf: stri
           pontos={pontos.dado ?? []}
           uf={uf}
           municipio={municipio}
-          geoMunicipio={geoMunicipio.dado ?? null}
+          geoMunicipio={geoMunicipio.carregando ? null : (geoMunicipio.dado ?? null)}
           imoveis={imoveis.dado ?? null}
           foco={foco}
           camada={camada}

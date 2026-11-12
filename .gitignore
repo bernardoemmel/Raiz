@@ -58,3 +58,6 @@ dados/fichas/
 dados/calendario/
 # pacotes montados pelo publicar_dados.py (sobem para o Release; no fluxo antigo, git add -f)
 dados-entrada/
+
+# artefato do site público (reconstruído no CI)
+/site/

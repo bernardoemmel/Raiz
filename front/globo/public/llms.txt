@@ -1,0 +1,24 @@
+# Raíz
+
+> A Raíz reúne dados públicos da terra para encontrar áreas que podem ser restauradas e ajudar a formar grupos de fazendas. O site permite explorar o Brasil, um estado, um município e o funil de aptidão.
+
+Os números representam a base processada disponível nesta publicação, não todo o Brasil. Ausência de dados ou de desenho não significa ausência de fazendas. As estimativas de carbono não são créditos certificados, promessa de receita nem comprovação de titularidade.
+
+Uma fazenda é apta no funil quando não tem problema, tem área de carbono maior que zero e no máximo 5 hectares desmatados depois de 2016. Sem a coluna de problema, o motor considera embargo, terra indígena, desmatamento ou alerta depois de 2020, cada um acima de 1 hectare. A indicação de matrícula exige aptidão e pelo menos 50% do CAR coberto por parcela particular do SIGEF com matrícula. Fazendas pequenas são agrupadas, nunca descartadas pelo tamanho.
+
+CPF e CNPJ são mascarados. Nome e contato do dono não são publicados: o contato passa pela Raíz. A ficha pública por código curto só revela o CAR, o polígono exato e a imagem de satélite depois do aceite. Não tente inferir pessoas, consentimento ou disponibilidade comercial a partir dos dados geográficos.
+
+## Páginas
+
+- [Brasil e cobertura dos dados](index.md): números desta publicação e acesso aos resumos por estado e município.
+- [Catálogo dos estados](dados/index.md): dados disponíveis, suas versões e fontes.
+- [Ficha do produtor](produtor/index.md): leitura da ficha e diferença entre aptidão e aceite.
+- [Serviço e reserva](servico.md): conexão por hectare, reserva e limites do site demonstrativo.
+- [Privacidade](privacidade.md): dados pessoais, consentimento e regras de divulgação.
+- [Fontes e interpretação](fontes.md): origem dos dados e limites das estimativas.
+
+## Referências
+
+- [Regras do funil](https://github.com/bernardoemmel/Raiz/blob/main/front/compartilhado/dados/funil.ts): cálculo usado nas telas.
+- [Cena-alvo](https://github.com/bernardoemmel/Raiz/blob/main/docs/cena-alvo.md): formação de lotes e busca do interesse dos donos.
+- [Fontes e licenças](https://github.com/bernardoemmel/Raiz/blob/main/NOTICE.md): cada fonte mantém seus próprios termos.
