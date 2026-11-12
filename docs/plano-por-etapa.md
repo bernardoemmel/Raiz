@@ -266,3 +266,16 @@ faz sem back-end.
 - **Feito:** passagens unificadas em `docs/passagem/continuidade-raiz.md`; PRs #35 e #44 já integrados; migrações do título/aprendizado corrigidas para 0022–0025.
 
 - **Feito:** instalador idempotente de cron dos alertas a cada 15 minutos (`scripts/instalar_cron_alertas.py`), com trava de execução e caminho do ambiente. Instalação real no servidor continua pendente de acesso; nenhuma notificação externa foi enviada.
+
+## Calendário da Raíz
+
+| Entrega | Situação |
+|---|---|
+| Eventos com tipo, data/prazo, UF/município, fonte/link, coleta e confiança | **feito**: esquema `calendario`, migração 0026 após 0022–0025 do título/aprendizado; histórico, UID e sequência preservados nas retificações |
+| Coleta diária de leilões rurais, penhoras, BNDES, ProFloresta+, Fundo Amazônia, concessões, crédito e SBCE/Verra/ICVCM/SBTi/EUDR | **feito**: 17 fontes oficiais em `raiz/calendario/fontes.yaml`, HTTP/PDF/Firecrawl opcional, workflow diário com snapshot no Release `calendario`; cobertura inicial e falhas explícitas, sem inventar prazos |
+| Vínculo de leilão/penhora ao CAR | **feito**: CAR explícito, CNS+matrícula ou interseção SIGEF; sem corte por tamanho; vínculo insuficiente fica pendente; títulos gerados, nenhum nome de pessoa ou documento pessoal persistido |
+| API e integração | **feito**: `GET /eventos` com tipo/estado/período/CAR, `GET /eventos.ics` e função MCP `proximos_eventos` pronta; transporte MCP depende de servidor, ainda ausente no repositório |
+| Site e pedidos | **feito**: aba Calendário, filtros, fonte/data de coleta, feed, selos no mapa/ficha/tabela e aviso deduplicado aos lotes; e-mail/WhatsApp permanecem simulados. Publicação do site após a coleta |
+| Agenda no servidor | **feito no código**: `scripts/instalar_cron_alertas.py --tarefa calendario --instalar`, diário com banco, trava e `.env`; instalação em produção depende de acesso ao servidor |
+
+Limites verificados em 12/11/2026: DJEN/CNJ respondeu HTTP 403; diários estaduais começam por PA/MT; PDF escaneado sem texto ainda não tem OCR. Erro de fonte não elimina os eventos anteriores. Testes com trechos oficiais gravados e PostGIS; detalhes em `docs/calendario.md`.
