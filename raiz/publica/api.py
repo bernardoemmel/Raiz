@@ -21,6 +21,7 @@ import os
 import time
 from collections.abc import Callable
 from typing import Annotated, Any, Literal
+from urllib.parse import parse_qsl, urlsplit
 
 from fastapi import Body, Depends, FastAPI, Header, HTTPException, Path, Query, Request
 from fastapi.exceptions import RequestValidationError
@@ -144,22 +145,74 @@ class Mudanca(BaseModel):
 SOLICITAR_PADRAO = Solicitar()
 
 
+def _criar_limitador(uri: str):
+    """Valkey pelo cliente Redis: conexão/leitura de 0,5 s, nenhuma repetição ou fallback local.
+
+    Suporta explicitamente redis://, rediss:// e redis+unix://. memory:// permanece
+    disponível para um único processo/testes. Outros backends exigem política de prazo própria.
+    """
+    from slowapi import Limiter
+
+    esquema = urlsplit(uri).scheme
+    opcoes = {"wrap_exceptions": True}
+    if esquema in {"redis", "rediss", "redis+unix"}:
+        from redis.backoff import NoBackoff
+        from redis.retry import Retry
+
+        # redis.from_url dá precedência à query. Não permitir que ela desfaça o prazo ou habilite retries.
+        protegidas = {"socket_timeout", "socket_connect_timeout", "health_check_interval", "redis_connect_func"}
+        if any(k in protegidas or k.startswith("retry") for k, _ in parse_qsl(urlsplit(uri).query)):
+            raise ValueError("a URL do limitador não pode alterar prazos nem repetições")
+        opcoes.update(
+            socket_connect_timeout=0.5,
+            socket_timeout=0.5,
+            retry=Retry(NoBackoff(), 0),
+            retry_on_timeout=False,
+            retry_on_error=[],
+            health_check_interval=0,
+        )
+    elif esquema != "memory":
+        raise ValueError("limitador admite memory://, redis://, rediss:// ou redis+unix://")
+    limiter = Limiter(
+        key_func=_cliente,
+        storage_uri=uri,
+        storage_options=opcoes,
+        swallow_errors=False,
+        in_memory_fallback_enabled=False,
+    )
+    # SlowAPI também lê RATELIMIT_* do ambiente/.env; rejeitar configuração que libere chamadas em falha.
+    if not limiter.enabled or limiter._swallow_errors or limiter._in_memory_fallback_enabled:
+        raise ValueError("o limitador exige armazenamento ativo, sem ignorar erros ou fallback em memória")
+    return limiter
+
+
 def criar(engine_de: Callable[[Request], Any], verificador=None) -> FastAPI:
     """A aplicação da API pública (montada em /v1 pela aplicação principal)."""
-    from slowapi import Limiter
+    from limits.errors import StorageError
     from slowapi.errors import RateLimitExceeded
 
     app = FastAPI(title="Raíz: API pública do pedido de lote", version=VERSAO, description=RESUMO + "\n" + PRODUTOS,
                   openapi_tags=TAGS, docs_url="/docs", redoc_url="/redoc", openapi_url="/openapi.json",
                   servers=[{"url": "/v1", "description": "esta instalação"}])  # fmt: skip
     lim = CT.premissas()["limites"]
-    limiter = Limiter(key_func=_cliente, storage_uri=os.environ.get("RAIZ_API_LIMIT_STORAGE_URI", "memory://"))
+    limiter = _criar_limitador(os.environ.get("RAIZ_API_LIMIT_STORAGE_URI", "memory://"))
     LIMITE = f"{lim['por_minuto']}/minute;{lim['por_dia']}/day;{lim['por_mes']}/month"
     app.state.limiter = limiter
 
     def instancia(request: Request) -> str:
         # Template da rota: nunca o token de aprovação nem um valor livre no caminho.
         return getattr(request.scope.get("route"), "path", "/v1")
+
+    @app.exception_handler(StorageError)
+    async def _armazenamento_limite(request: Request, ex: StorageError):
+        return problema(
+            503,
+            "limite_indisponivel",
+            "não foi possível verificar o limite da empresa",
+            "repita mais tarde com a mesma Idempotency-Key",
+            instancia(request),
+            headers={"Retry-After": "1"},
+        )
 
     @app.exception_handler(CT.ErroConta)
     async def _conta(request: Request, ex: CT.ErroConta):
