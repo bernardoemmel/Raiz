@@ -136,6 +136,7 @@ def salvaguardas(x):
     x = _obj(x)
     motivos = {
         "sobreposicao_redd_sem_exclusao_conaredd",
+        "sobreposicao_catalogo_sem_programa_identificado",
         "consentimento_clpi_pendente",
         "consulta_previa_nao_comprovada",
         "participacao_comunidade_insuficiente",
@@ -174,8 +175,60 @@ def salvaguardas(x):
     return out
 
 
+def _geometria(x):
+    """Só o contorno 2D já autorizado pelo serviço; nunca busca nem libera geometria.
+
+    O banco usa MultiPolygon e o transporte usa longitude/latitude (EPSG:4326).
+    Feature, coleções e membros livres não atravessam esta projeção. Validar o
+    formato aqui não substitui a autorização paga feita em obter_pedido.
+    """
+    if not isinstance(x, dict) or x.get("type") not in ("Polygon", "MultiPolygon"):
+        return None
+
+    def poligono(aneis):
+        if not isinstance(aneis, list) or not aneis:
+            return None
+        resultado = []
+        for anel in aneis:
+            if not isinstance(anel, list) or len(anel) < 4:
+                return None
+            pontos = []
+            for ponto in anel:
+                if not isinstance(ponto, list) or len(ponto) != 2:
+                    return None
+                lon, lat = ponto
+                if not (
+                    type(lon) in (int, float)
+                    and type(lat) in (int, float)
+                    and -180 <= lon <= 180
+                    and -90 <= lat <= 90
+                    and math.isfinite(lon)
+                    and math.isfinite(lat)
+                ):
+                    return None
+                pontos.append([lon, lat])
+            if pontos[0] != pontos[-1] or len({tuple(p) for p in pontos}) < 3:
+                return None
+            resultado.append(pontos)
+        return resultado
+
+    coords = x.get("coordinates")
+    if x["type"] == "Polygon":
+        projetadas = poligono(coords)
+    else:
+        if not isinstance(coords, list) or not coords:
+            return None
+        projetadas = []
+        for item in coords:
+            pol = poligono(item)
+            if pol is None:
+                return None
+            projetadas.append(pol)
+    return {"type": x["type"], "coordinates": projetadas} if projetadas is not None else None
+
+
 def fazenda(x):
-    return {
+    out = {
         "cod_imovel": _car(x.get("cod_imovel")),
         **_local(x),
         **_numeros(x, ("hectares", "custo_usd_credito", "lon", "lat")),
@@ -191,6 +244,9 @@ def fazenda(x):
         "salvaguardas": salvaguardas(x.get("salvaguardas")),
         "revisao_humana": "/pedidos/{pedido_id}/revisoes",
     }
+    if "geometria" in x:
+        out["geometria"] = _geometria(x["geometria"])
+    return out
 
 
 def opcoes(xs):

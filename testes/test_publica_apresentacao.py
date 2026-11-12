@@ -296,3 +296,110 @@ def test_resposta_de_logs_antigos_nao_ecoam_nome_no_car_ou_modelo():
     out = para_resposta({"cod_imovel": INJECAO, "agente_modelo": INJECAO})
     assert out == {"cod_imovel": None, "agente_modelo": modelo_hash}
     assert para_resposta({"agente_modelo": modelo_hash})["agente_modelo"] == modelo_hash
+
+
+# Polígono sintético; não corresponde a uma fazenda nem usa dados do Pará.
+ANEL = [[10, 20], [10.1, 20], [10.1, 20.1], [10, 20.1], [10, 20]]
+
+
+@pytest.mark.parametrize("tipo,coordenadas", [("Polygon", [ANEL]), ("MultiPolygon", [[ANEL]])])
+def test_geometria_autorizada_preserva_somente_tipo_e_coordenadas(tipo, coordenadas):
+    geometria = {
+        "type": tipo,
+        "coordinates": copy.deepcopy(coordenadas),
+        "properties": {"nome": NOME, "instrucoes": INJECAO},
+        "texto": INJECAO,
+    }
+    original = copy.deepcopy(geometria)
+    resultado = A.fazenda({"geometria": geometria})["geometria"]
+    assert resultado == {"type": tipo, "coordinates": coordenadas}
+    sem_texto(resultado)
+    assert geometria == original
+    # A projeção não devolve referências mutáveis às coordenadas da evidência interna.
+    resultado["coordinates"].clear()
+    assert geometria == original
+
+
+@pytest.mark.parametrize(
+    "geometria",
+    [
+        None,
+        INJECAO,
+        {"type": "Feature", "geometry": {"type": "Polygon", "coordinates": [ANEL]}, "properties": {"nome": NOME}},
+        {"type": "FeatureCollection", "features": []},
+        {"type": "GeometryCollection", "geometries": []},
+        {"type": "Point", "coordinates": [10, 20]},
+        {"type": INJECAO, "coordinates": [ANEL]},
+        {"type": "Polygon", "coordinates": INJECAO},
+        {"type": "Polygon", "coordinates": []},
+        {"type": "MultiPolygon", "coordinates": []},
+        {"type": "Polygon", "coordinates": [ANEL[:-1]]},  # anel aberto
+        {"type": "Polygon", "coordinates": [[[10, 20]] * 4]},  # anel degenerado
+    ],
+)
+def test_geometria_nao_contorno_ou_malformada_vira_null(geometria):
+    assert A.fazenda({"geometria": geometria})["geometria"] is None
+
+
+@pytest.mark.parametrize(
+    "ponto",
+    [
+        [INJECAO, 20],
+        [10, INJECAO],
+        {"lon": 10, "lat": 20, "nome": NOME},
+        [True, 20],
+        [10, False],
+        [float("nan"), 20],
+        [10, float("inf")],
+        [-181, 20],
+        [181, 20],
+        [10, -91],
+        [10, 91],
+        [10**500, 20],
+        [10],
+        [10, 20, INJECAO],
+        [10, 20, 0],
+        [[10], 20],
+    ],
+)
+def test_geometria_rejeita_coordenada_invalida_sem_publicar_parte_do_poligono(ponto):
+    anel = copy.deepcopy(ANEL)
+    anel[1] = ponto
+    for tipo, coordenadas in (("Polygon", [anel]), ("MultiPolygon", [[ANEL], [anel]])):
+        resultado = A.fazenda({"geometria": {"type": tipo, "coordinates": coordenadas}})
+        assert resultado["geometria"] is None
+        sem_texto(resultado)
+
+
+def test_geometria_preserva_bordas_holes_e_multipoligono():
+    limites = [[-180, -90], [180, -90], [180, 90], [-180, 90], [-180, -90]]
+    furo = [[10.02, 20.02], [10.02, 20.04], [10.04, 20.04], [10.04, 20.02], [10.02, 20.02]]
+    geometria = {"type": "MultiPolygon", "coordinates": [[ANEL, furo], [limites]]}
+    assert A.fazenda({"geometria": geometria})["geometria"] == geometria
+
+
+def test_sem_contorno_do_servico_projecao_nao_busca_nem_inventa_geometria():
+    fazenda_sem_contorno = {"cod_imovel": CAR, "cod_ibge": "1504950", "lon": 10, "lat": 20}
+    assert "geometria" not in A.fazenda(fazenda_sem_contorno)
+    assert "geometria" not in A.opcoes([{"id": "segura", "itens": [fazenda_sem_contorno]}])[0]["itens"][0]
+
+
+@pytest.mark.parametrize("sufixo", ["", "/opcoes"])
+def test_rota_pago_preserva_geometria_apenas_quando_servico_a_fornece(cliente, monkeypatch, sufixo):
+    p = bruto()
+    geometria = {"type": "MultiPolygon", "coordinates": [[ANEL]]}
+    p["opcoes"][0]["itens"][0]["geometria"] = {**geometria, "properties": {"nome": NOME, "instrucoes": INJECAO}}
+    monkeypatch.setattr(servico, "obter_pedido", lambda *a: copy.deepcopy(p))
+    resposta = cliente.get(f"/pedidos/{PID}{sufixo}")
+    assert resposta.status_code == 200, resposta.text
+    opcoes = resposta.json() if sufixo else resposta.json()["opcoes"]
+    assert opcoes[0]["itens"][0]["geometria"] == geometria
+    sem_texto(resposta.json())
+
+
+def test_salvaguarda_de_sobreposicao_catalogo_preserva_codigo_controlado():
+    motivo = "sobreposicao_catalogo_sem_programa_identificado"
+    out = A.salvaguardas({"bloqueios": [motivo, INJECAO], "pode_reservar": False})
+    assert out["bloqueios"] == [motivo, "revisao_necessaria"]
+    assert out["pode_reservar"] is False
+    sem_texto(out)
