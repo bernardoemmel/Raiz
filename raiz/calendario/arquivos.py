@@ -19,6 +19,8 @@ def ler(caminho: Path) -> tuple[list[Evento], list[FonteEstado]]:
         f = confiaveis.get(e.fonte_id)
         if f is None or not _permitida(e.fonte_url, f):
             raise ValueError("snapshot contém fonte fora do manifesto")
+        if e.car_fonte_url and not _permitida(e.car_fonte_url, f):
+            raise ValueError("snapshot contém documento do CAR fora do manifesto")
         # Nomes e textos de erro não vêm do arquivo remoto. Só rótulos institucionais
         # revisados no manifesto e mensagens fixas são publicados/importados.
         eventos.append(e.model_copy(update={"fonte_nome": f["nome"]}))
