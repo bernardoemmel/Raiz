@@ -12,11 +12,12 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:prospeccao": "node ../scripts/testar-prospeccao.mjs",
-    "test:e2e": "node ../scripts/testar-entrada.mjs && node ../scripts/testar-pedido.mjs",
+    "test:e2e": "node ../scripts/testar-entrada.mjs && node ../scripts/testar-cena-alvo.mjs",
     "verificar": "node ../scripts/verificar-design.mjs",
     "test:agentes": "node ../scripts/testar-agentes.mjs",
     "test:pages": "node ../scripts/testar-site-pages.mjs",
-    "test:acessibilidade": "node ../scripts/testar-acessibilidade.mjs"
+    "test:acessibilidade": "node ../scripts/testar-acessibilidade.mjs",
+    "test:cena": "node ../scripts/testar-cena-alvo.mjs"
   },
   "dependencies": {
     "@fontsource/atkinson-hyperlegible-next": "5.3.0",

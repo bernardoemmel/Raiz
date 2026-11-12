@@ -393,7 +393,7 @@ def relatorio_lote(lote: dict, c: dict | None = None, r: dict | None = None) -> 
     mun = res["municipios"]
     eco = res.get("economia") or {}
     corpo = [
-        f'<div class="pagina"><h1>Lote pronto para proposta: {_e(res["uf"])}</h1>'
+        f'<div class="pagina"><h1>Lote potencial para proposta: {_e(res["uf"])}</h1>'
         f'<div class="sub">ProFloresta+ e registro Verra VM0047. {_n(res["volume_creditos"])} créditos. Cenário '
         f"{_e(res['cenario'])}, premissas {_e(res['versao_premissas'])}, otimizador "
         f"{_e(res['versao_otimizador'])}, {_e(res['data'])}.</div>"
@@ -402,6 +402,24 @@ def relatorio_lote(lote: dict, c: dict | None = None, r: dict | None = None) -> 
         f"lote). Oferta: {_n(res['oferta']['fazendas'])} fazendas com área para restaurar "
         f"({_n(res['oferta']['ha'])} ha); {_n(res['oferta']['fazendas_terra_pronta'])} com a terra pronta.</p>"
     ]
+    comercializacao = res.get("comercializacao") or {}
+    corpo.append(f'<p class="alerta">{_e(comercializacao.get("aviso", "Estimativa sujeita a diligência."))}</p>')
+    corpo.append(f"<p>Opção: {_e(res.get('opcao_texto', 'mais barata'))}. Alternativas não se somam.</p>")
+    pendencias = res.get("o_que_destrava") or []
+    if pendencias:
+        corpo.append(
+            "<h2>O que destrava: terra e salvaguardas</h2><p>Potencial condicionado; uma fazenda pode ter "
+            "várias pendências, por isso as linhas não se somam.</p><table><tr><th>Pendência</th>"
+            "<th>Fazendas</th><th>Hectares</th><th>P10</th><th>P50</th><th>P90</th></tr>"
+        )
+        for item in pendencias:
+            cr = item["creditos"]
+            corpo.append(
+                f"<tr><td>{_e(item['pendencia'])}</td><td>{_n(item['fazendas'])}</td>"
+                f"<td>{_n(item['ha'])}</td><td>{_n(cr['p10'])}</td><td>{_n(cr['p50'])}</td>"
+                f"<td>{_n(cr['p90'])}</td></tr>"
+            )
+        corpo.append("</table>")
     corpo.append(
         '<div class="numeros">'
         f'<div class="numero"><b>{_n(res["ha_lote"])} ha</b><span>{res["titulares"]} titulares e {res["reservas"]} de '
@@ -642,6 +660,18 @@ def gravar_lote(lote: dict, pasta: str | Path, c: dict | None = None, r: dict | 
     Path(out["json"]).write_text(json.dumps(L.json_seguro(lote["resumo"]), ensure_ascii=False, indent=1),
                                  encoding="utf-8")  # fmt: skip
     Path(out["relatorio"]).write_text(relatorio_lote(lote, c, r), encoding="utf-8")
+    from raiz import restauracao_ecologia as E
+    from raiz.regras import salvaguardas_lote as S
+
+    out["decisoes"] = str(pasta / f"decisoes_{uf}.jsonl")
+    S.gravar_decisoes(out["decisoes"], lote.get("decisoes", []))
+    t = lote["tabela"]
+    cods = list(t[t.papel.isin(["titular", "reserva"])].cod_imovel.astype(str))
+    ecologia = E.tabela(lote["linhas"].completas(cods).values(), r["versao_completa"])
+    out["ecologia"] = str(pasta / f"ecologia_{uf}.json")
+    Path(out["ecologia"]).write_text(
+        json.dumps(L.json_seguro(ecologia), ensure_ascii=False, indent=1), encoding="utf-8"
+    )
     n = 0
     if folhas:
         t = lote["tabela"]

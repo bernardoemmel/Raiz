@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useRef } from "react"
 import { useRota } from "./rota"
-import { useSessao } from "./pedidos"
+import { pedidos, useSessao } from "./pedidos"
 import { Explorar } from "./telas/Explorar"
 
 const Entrar = lazy(() => import("./telas/Entrar").then((m) => ({ default: m.Entrar })))
@@ -41,7 +41,7 @@ function TelaAtual() {
   if (rota.tela === "entrar") return <Entrar token={rota.token} />
   if (rota.tela === "pedidos" || rota.tela === "pedido-novo" || rota.tela === "pedido" || rota.tela === "grupo") {
     // sem sessão, entra primeiro e volta para onde ia
-    if (!sessao) return <Entrar token={null} volta={location.hash} />
+    if (!sessao && (!pedidos.publica || rota.tela === "grupo")) return <Entrar token={null} volta={location.hash} />
     if (rota.tela === "pedidos") return <MeusPedidos />
     if (rota.tela === "pedido-novo") return <NovoPedido />
     if (rota.tela === "grupo") return <Grupo key={rota.id} id={rota.id} />

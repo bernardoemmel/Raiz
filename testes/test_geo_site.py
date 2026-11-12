@@ -86,6 +86,41 @@ def test_release_descobre_todos_os_municipios_e_indica_desenho_ausente(geo, tmp_
     assert not (geo.SAIDA / "imoveis_5200050.geojson").exists()
 
 
+def test_rodada_seguinte_inclui_municipio_e_estado_novos_sem_lista_fixa(geo, tmp_path):
+    pasta = tmp_path / "dados"
+    escrever_municipio(pasta, "PA", "1505536")
+    manifesto = pasta / "estados.json"
+    manifesto.write_text(json.dumps({"gerado_em": "2026-11-11T10:00:00Z", "estados": {"PA": {}}}))
+    fronteiras = [
+        {"type": "Feature", "properties": {"cod_ibge": cod}, "geometry": mapping(box(-50, -6, -49, -5))}
+        for cod in ("1505536", "1502772", "5200050")
+    ]
+    geo.salvar("brasil_municipios.geojson", fronteiras)
+    geo.salvar("brasil_estados.geojson", [])
+    geo.do_release(pasta, sem_base=True)
+    primeiro = json.loads((geo.SAIDA / "indice.json").read_text())
+    assert set(primeiro["municipios"]) == {"1505536"}
+    assert primeiro["dados_publicados_em"] == "2026-11-11T10:00:00Z"
+
+    # Simula a próxima publicação do processamento, conservando o cache do site anterior.
+    escrever_municipio(pasta, "PA", "1502772")
+    escrever_municipio(pasta, "GO", "5200050", com_geo=False)
+    manifesto.write_text(json.dumps({"gerado_em": "2026-11-12T10:00:00Z", "estados": {"PA": {}, "GO": {}}}))
+    geo.do_release(pasta, sem_base=True)
+    segundo = json.loads((geo.SAIDA / "indice.json").read_text())
+    assert set(segundo["municipios"]) == {"1505536", "1502772", "5200050"}
+    assert segundo["dados_publicados_em"] == "2026-11-12T10:00:00Z"
+    assert set(segundo["sem_contorno"]) == {"5200050"}
+    assert "imoveis" in segundo["municipios"]["1502772"]
+
+    # Quando o desenho chega depois, a mesma descoberta retira o aviso na rodada seguinte.
+    escrever_municipio(pasta, "GO", "5200050")
+    geo.do_release(pasta, sem_base=True)
+    terceiro = json.loads((geo.SAIDA / "indice.json").read_text())
+    assert not terceiro["sem_contorno"]
+    assert "imoveis" in terceiro["municipios"]["5200050"]
+
+
 def test_base_nacional_uniforme_tem_tile_ao_aproximar_fora_do_para(geo, monkeypatch):
     class Remoto:
         def __init__(self, _url):

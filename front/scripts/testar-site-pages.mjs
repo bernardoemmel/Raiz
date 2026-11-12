@@ -92,6 +92,10 @@ try {
   console.log("Abrindo o build estático agregado no Chromium...")
   await pagina.goto(base)
   await pagina.getByRole("group", { name: "Mapa do Brasil por estado" }).waitFor()
+  await pagina.getByRole("heading", { name: "Cobertura do mapa", exact: true }).waitFor()
+  await pagina.getByText("1 município em 1 estado", { exact: true }).waitFor()
+  await pagina.locator('time[datetime="2026-11-12T10:41:00Z"]').waitFor()
+  await pagina.locator('time[datetime="2026-11-11T18:00:00Z"]').waitFor()
   await pagina.locator('.mapa-nacional-leve a[href="#/estado/PA"]').click()
   await mapaPronto()
   await pagina.waitForFunction(() => {
@@ -103,6 +107,7 @@ try {
   console.log("Buscando Parauapebas...")
   await buscar("Parauapebas", `#/municipio/${MUNICIPIO}`)
   await pagina.locator(".funil-barras").waitFor()
+  await pagina.getByText("O desenho das fazendas deste município está na base.", { exact: false }).waitFor()
   await mapaPronto()
   await pagina.waitForFunction((cod) => {
     const m = document.querySelector(".mapa-brasil .mapa").__mapa

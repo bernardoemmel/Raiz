@@ -47,7 +47,7 @@ describe("build estático com geometrias comprimidas", () => {
     fs.writeFileSync(path.join(geo, "exportacao.tmp"), "temporário")
     fs.mkdirSync(path.join(geo, "cache"))
     fs.writeFileSync(path.join(geo, "cache", "fonte.parquet"), "cache de download")
-    fs.writeFileSync(path.join(geo, "indice.json"), JSON.stringify({ municipios }))
+    fs.writeFileSync(path.join(geo, "indice.json"), JSON.stringify({ municipios, gerado_em: "2026-11-12T10:41:00Z", dados_publicados_em: "2026-11-11T18:00:00Z" }))
     vi.stubEnv("RAIZ_GEO", "geo-publicado")
     vi.stubEnv("RAIZ_BUILD_DADOS", "1")
     vi.spyOn(console, "log").mockImplementation(() => {})
@@ -85,6 +85,10 @@ describe("build estático com geometrias comprimidas", () => {
       "base_PA.pmtiles", "indice.json",
     ])
     const indice = json(saida, "geo/indice.json")
+    expect(indice.cobertura).toEqual({
+      gerado_em: "2026-11-12T10:41:00Z", dados_publicados_em: "2026-11-11T18:00:00Z",
+      com_desenho: MUNICIPIOS, sem_desenho: [], acesso: "restrito",
+    })
     for (const cod of MUNICIPIOS) expect(indice.municipios[cod]).toEqual({ base: { arquivo: "base_PA.pmtiles", bytes: 10 } })
     expect(copiar.mock.calls.filter(([origem]) => String(origem).endsWith("base_PA.pmtiles"))).toHaveLength(1)
   })
@@ -113,5 +117,30 @@ describe("build estático com geometrias comprimidas", () => {
     expect(fs.existsSync(path.join(saida, "amostra", "fichas"))).toBe(false)
     expect(json(saida, "amostra/pontos_PA.json").fazendas).toBeNull()
     expect(json(saida, "amostra/estados.json").acesso).toBe("agregado")
+  })
+
+  it("publica o aviso de lote ausente como JSON, sem provocar 404 no navegador", async () => {
+    const saida = await construir(0)
+    const lote = json(saida, "amostra/lote_PA_central_r11.json")
+    expect(lote.estado).toBe("ausente")
+    expect(lote.base.creditos.p50).toBeNull()
+    expect(lote.opcoes).toEqual([])
+  })
+
+  it("copia só o resumo dos lotes publicados, sem CAR nem pacotes por fazenda", async () => {
+    const lotes = path.join(repo, "dados/lotes")
+    fs.mkdirSync(lotes, { recursive: true })
+    const resumo = { titulares: 10, reservas: 2, ha_lote: 100, creditos_lote_faixa: { p10: 10, p50: 20, p90: 30 },
+      dados_individuais: [{ cod_imovel: CARS[0], nome_dono: "Dado privado de teste" }] }
+    fs.writeFileSync(path.join(lotes, "lote_PA_central_r11.json"), JSON.stringify({
+      uf: "PA", cenario: "central_r11", resumos: { barata: resumo, segura: resumo, compacta: resumo },
+      arquivos: { privado: { url: "https://exemplo.invalid/individual.tar.gz" } },
+    }))
+    const saida = await construir(0)
+    const lote = json(saida, "amostra/lote_PA_central_r11.json")
+    expect(lote.estado).toBe("publicado")
+    expect(lote.opcoes).toHaveLength(3)
+    expect(lote.opcoes[0].creditos).toEqual({ p10: 10, p50: 20, p90: 30 })
+    expect(JSON.stringify(lote)).not.toMatch(/Dado privado|cod_imovel|individual.tar.gz|nome_dono/)
   })
 })
