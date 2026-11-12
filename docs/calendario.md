@@ -4,7 +4,7 @@ O calendário reúne datas explicitamente publicadas por fontes oficiais. Cada e
 
 ## Coleta e operação
 
-A migração `0026`, posterior às migrações do título `0022` a `0025`, cria o esquema `calendario`. Aplicar `uv run raiz banco migrar` antes da primeira coleta no servidor.
+A migração `0027`, posterior às migrações do título `0022` a `0025` e à `0026` da prospecção, cria o esquema `calendario`. Aplicar `uv run raiz banco migrar` antes da primeira coleta no servidor.
 
 ```bash
 uv run raiz calendario coletar
@@ -36,15 +36,15 @@ O extrator separa anúncios por blocos conhecidos. ICVCM usa os cartões do índ
 
 ## Imóveis e avisos
 
-O vínculo usa CAR explícito; na ausência dele, exige CNS **e** matrícula compatíveis com `titulo.matricula_imovel`, ou parcela SIGEF sobreposta ao imóvel vigente com área de interseção positiva. Matrícula sem CNS não determina um CAR. Não existe corte de tamanho da fazenda. Município é um código IBGE, sem nomes de pessoas ou inferência pelo endereço do titular. Evento sem chave suficiente fica `pendente` e aparece sem selo de leilão para um imóvel específico.
+O vínculo usa CAR explícito; na ausência dele, exige CNS **e** matrícula compatíveis com `titulo.matricula_imovel` e a rodada de `funil.vigente`, ou parcela SIGEF sobreposta ao imóvel vigente com área de interseção positiva. Matrícula sem CNS não determina um CAR. Vínculos derivados são revalidados ao importar/coletar o evento; uma matrícula corrigida ou removida da rodada vigente não mantém o CAR anterior. Não existe corte de tamanho da fazenda. Município é um código IBGE, sem nomes de pessoas ou inferência pelo endereço do titular. Evento sem chave suficiente fica `pendente` e aparece sem selo de leilão para um imóvel específico.
 
 Avisos de leilão futuro e penhora entram nos pedidos ativos que contêm o CAR. Deduplicação usa evento, versão e imóvel; o painel fica disponível e email/WhatsApp ficam **simulados**, mesmo se outro módulo tiver enviador configurado. Nenhuma mensagem externa é enviada pela coleta ou importação.
 
-Retificações na mesma publicação conservam o UID e aumentam `SEQUENCE`. Cancelamento sem repetir a data reaproveita o ato anterior quando há a mesma referência na mesma URL, a mesma referência e CAR em outra publicação, ou o mesmo permalink individual. Sem vínculo seguro, o coletor não adivinha qual ato cancelar e registra cobertura incompleta. Desaparecer da página não equivale a cancelamento. Histórico anterior é conservado, inclusive quando uma fonte falha.
+Retificações na mesma publicação conservam o UID e aumentam `SEQUENCE`. Cancelamento sem repetir a data reaproveita o ato anterior quando há a mesma referência na mesma URL, a mesma referência e CAR em outra publicação, ou o mesmo permalink individual. Sem vínculo seguro, o coletor não adivinha qual ato cancelar e registra cobertura incompleta. Na mesma coleta, cancelamento prevalece sobre o edital original mesmo que a resposta ou a paginação o apresentem primeiro. Desaparecer da página não equivale a cancelamento. Histórico anterior é conservado, inclusive quando uma fonte falha.
 
 ## API, feed e MCP
 
-`GET /eventos` é público e devolve `{eventos, total, coletado_em, fontes}`. Filtros: `tipo`, `estado`, `inicio`, `fim`, `cod_imovel`, `limite` (1–1000, padrão 100) e `deslocamento`. Estado inclui eventos nacionais (UF nula). Período compara o prazo, quando presente, ou a data. CAR aceita pontuação de apresentação e é normalizado antes da consulta. Tipos:
+`GET /eventos` é público e devolve `{eventos, total, coletado_em, fontes}`. Filtros: `tipo`, `estado`, `inicio`, `fim`, `cod_imovel`, `limite` (1–1000, padrão 100) e `deslocamento`. Estado inclui eventos nacionais (UF nula). O filtro público `cod_imovel` considera somente CAR explícito no ato publicado; não consulta os vínculos internos enriquecidos por matrícula/SIGEF. Período compara o prazo, quando presente, ou a data. CAR aceita pontuação de apresentação e é normalizado antes da consulta. Tipos:
 
 ```text
 leilao_imovel, penhora, edital_bndes, profloresta, fundo_amazonia,
@@ -59,4 +59,6 @@ concessao, leilao_credito, sbce, verra, icvcm, sbti, eudr
 
 HTML/PDF são lidos somente em memória. Banco, snapshots, feed, histórico e avisos recebem campos fechados, identificadores de imóvel e links institucionais; nunca texto bruto, nome, CPF ou CNPJ. Links que contêm documentos pessoais ou parâmetros de nome/email/token são recusados, inclusive chaves percent-encoded. Os nomes de fonte vêm do manifesto, não dos editais. Objetos internos do parser PDF não são enviados ao log.
 
-`eventos.json` exclui CNS, matrícula e SIGEF, mantendo só CAR público. `estado.json` inclui os identificadores de imóvel necessários ao vínculo no servidor, sem dados de pessoas. Os testes exercitam páginas gravadas, datas, isolamento entre editais, cancelamento, privacidade, erro de fonte, PostGIS, CAR/CNS/SIGEF, idempotência dos avisos, API, feed e consulta MCP.
+`eventos.json` e o feed excluem CNS, matrícula, SIGEF e CAR enriquecido, mantendo apenas CAR explícito no ato público. API, snapshot e MCP aplicam a mesma regra, também ao filtrar por CAR. Isso preserva o acesso pago à ficha da terra definido na main de 12/11/2026.
+
+`estado.json` inclui os identificadores necessários ao vínculo no servidor. Quando gerado com banco, é arquivo administrativo e pode conter enriquecimento: não publicar esse arquivo em armazenamento aberto. O workflow público usa exclusivamente `--sem-banco`, portanto seu `estado.json` contém apenas campos extraídos da fonte pública, sem enriquecimento da base de imóveis. Os testes exercitam páginas gravadas, datas, isolamento entre editais, cancelamento, privacidade, erro de fonte, PostGIS, CAR/CNS/SIGEF, idempotência dos avisos, API, feed e consulta MCP.

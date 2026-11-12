@@ -1,13 +1,13 @@
 """Calendário público, coleta diária e vínculo de leilões/penhoras ao CAR.
 
-Revision ID: 0026
-Revises: 0025
+Revision ID: 0027
+Revises: 0026
 """
 
 from alembic import op
 
-revision = "0026"
-down_revision = "0025"
+revision = "0027"
+down_revision = "0026"
 branch_labels = None
 depends_on = None
 

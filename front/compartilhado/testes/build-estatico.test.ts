@@ -5,6 +5,7 @@ import { gzipSync } from "node:zlib"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { fonteAmostra } from "../dados/fonte-amostra"
 import { dadosRaiz } from "../vite-dados"
+import { abrirPasta } from "../pasta-dados"
 
 const MUNICIPIOS = ["1504208", "1505536"]
 const CARS = [
@@ -69,25 +70,27 @@ describe("build estático com geometrias comprimidas", () => {
   }
   const json = (saida: string, arquivo: string) => JSON.parse(fs.readFileSync(path.join(saida, arquivo), "utf8"))
 
-  it("gera pontos e perímetros do gzip; publica só índice, geometria e uma cópia da base compartilhada", async () => {
+  it("lê geometrias gzip na origem privada e publica só uma cópia da base compartilhada", async () => {
+    const pasta = abrirPasta({ repo, raizDados: "dados", geo })
+    expect(pasta.municipio("1504208")?.geo.size).toBe(2)
+    expect((await pasta.pontos("PA"))?.pontos).toHaveLength(3)
     const copiar = vi.spyOn(fs, "copyFileSync")
     const saida = await construir(3)
     const pontos = json(saida, "amostra/pontos_PA.json")
-    expect(pontos.fazendas).toBe(3)
-    expect(pontos.sem_lugar).toBe(0)
-    expect(pontos.pontos).toHaveLength(3)
-    expect(pontos.pontos.map((p: unknown[]) => p[4])).toEqual(["1504208", "1504208", "1505536"])
-    for (const car of CARS) expect(json(saida, `amostra/fichas/${car}.json`).perimetro).toHaveLength(1)
-    expect(json(saida, "amostra/fichas/indice.json")).toEqual({ municipios: MUNICIPIOS, codigos: CARS })
+    expect(pontos.fazendas).toBeNull()
+    expect(pontos.sem_lugar).toBeNull()
+    expect(pontos.pontos).toHaveLength(0)
+    expect(fs.existsSync(path.join(saida, "amostra/fichas"))).toBe(false)
     expect(fs.readdirSync(path.join(saida, "geo")).sort()).toEqual([
-      "base_PA.pmtiles", "imoveis_1504208.geojson.gz", "imoveis_1505536.geojson.gz", "indice.json",
+      "base_PA.pmtiles", "indice.json",
     ])
+    const indice = json(saida, "geo/indice.json")
+    for (const cod of MUNICIPIOS) expect(indice.municipios[cod]).toEqual({ base: { arquivo: "base_PA.pmtiles", bytes: 10 } })
     expect(copiar.mock.calls.filter(([origem]) => String(origem).endsWith("base_PA.pmtiles"))).toHaveLength(1)
   })
 
-  it("respeita o limite por município inteiro e monta a ficha restante no navegador sem 404", async () => {
+  it("não reconstrói fichas no navegador nem pede arquivos individuais ausentes", async () => {
     const saida = await construir(1)
-    expect(json(saida, "amostra/fichas/indice.json")).toEqual({ municipios: ["1505536"], codigos: [CARS[2]] })
     const pedidos: string[] = []
     vi.stubGlobal("fetch", vi.fn(async (url: string) => {
       pedidos.push(url)
@@ -97,18 +100,18 @@ describe("build estático com geometrias comprimidas", () => {
     }))
     const fonte = fonteAmostra("/Raiz/")
     const pronta = await fonte.ficha(CARS[2])
-    expect(pronta?.aneis).toHaveLength(1)
-    expect(pedidos).toEqual(["/Raiz/amostra/fichas/indice.json", `/Raiz/amostra/fichas/${CARS[2]}.json`])
+    expect(pronta).toBeNull()
+    expect(pedidos).toEqual(["/Raiz/amostra/estados.json"])
     const calculada = await fonte.ficha(CARS[0])
-    expect(calculada?.aneis).toHaveLength(1)
-    expect(pedidos).toContain("/Raiz/geo/imoveis_1504208.geojson.gz")
+    expect(calculada).toBeNull()
+    expect(pedidos).not.toContain("/Raiz/geo/imoveis_1504208.geojson.gz")
     expect(pedidos).not.toContain(`/Raiz/amostra/fichas/${CARS[0]}.json`)
   })
 
-  it("limite zero mantém todos os dados e oferece as fichas sob demanda", async () => {
+  it("variável antiga de limite de fichas não reabre a publicação por fazenda", async () => {
     const saida = await construir(0)
-    expect(json(saida, "amostra/fichas/indice.json")).toEqual({ municipios: [], codigos: [] })
-    expect(fs.readdirSync(path.join(saida, "amostra", "fichas"))).toEqual(["indice.json"])
-    expect(json(saida, "amostra/pontos_PA.json").fazendas).toBe(3)
+    expect(fs.existsSync(path.join(saida, "amostra", "fichas"))).toBe(false)
+    expect(json(saida, "amostra/pontos_PA.json").fazendas).toBeNull()
+    expect(json(saida, "amostra/estados.json").acesso).toBe("agregado")
   })
 })

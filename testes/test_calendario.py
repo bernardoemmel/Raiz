@@ -253,6 +253,10 @@ def test_cruzamento_cns_matricula_e_sigef_com_imovel_pequeno(con):
         (rodada_id,cod_imovel,registro_cns,registro_matricula) values (:r,:car,'123456','987')"""),
         {"r": rodada, "car": CAR},
     )
+    con.execute(
+        text("insert into funil.vigente(cod_imovel,rodada_id,cod_busca) values(:car,:r,:car)"),
+        {"car": CAR, "r": rodada},
+    )
     e = evento(codigos_car=[], cns="123456", matricula="987")
     assert banco.cruzar(con, e).codigos_car == [CAR]
     assert banco.cruzar(con, e).vinculo == "cns_matricula"
@@ -299,3 +303,119 @@ def test_indice_de_cards_nao_reabre_detalhes_e_cancelamento_nao_regride():
     antes = evento(situacao="cancelado", fonte_url=fonte()["urls"][0] + "/RETIFICACAO123/certidao")
     antigo_revisitado = evento(coletado_em=AGORA + dt.timedelta(days=1))
     assert banco.combinar([antes], [antigo_revisitado])[0].situacao == "cancelado"
+
+
+@pytest.mark.parametrize("inverter", [False, True])
+@pytest.mark.parametrize("paginas", [False, True])
+def test_cancelamento_na_mesma_coleta_independe_ordem_itens_e_paginas(inverter, paginas):
+    f = {**fonte(), "termos": ["leilão rural", "penhora rural"] if paginas else ["leilão rural"], "max_paginas": 2}
+    original = {"hash": "ABCDEFGHIJKL", "texto": f"Edital 12/2026. Leilão de imóvel rural em 30/11/2026. CAR {CAR}."}
+    cancelamento = {"hash": "MNOPQRSTUVWX", "texto": f"Edital 12/2026. Leilão de imóvel rural cancelado. CAR {CAR}."}
+    antigos, _ = coleta.extrair(json.dumps({"items": [original]}), f, f["urls"][0], AGORA)
+    itens = [original, cancelamento] if inverter else [cancelamento, original]
+    respostas = iter([[item] for item in itens] if paginas else [itens])
+    novos, estado = coleta.coletar_fonte(
+        f,
+        AGORA + dt.timedelta(days=1),
+        anteriores=antigos,
+        obter=lambda *_: (json.dumps({"items": next(respostas)}), "html"),
+    )
+    final = banco.combinar(antigos, novos)
+    assert estado.eventos == 1 and len(final) == 1
+    assert final[0].situacao == "cancelado" and final[0].sequencia == 1
+
+
+@pytest.mark.banco
+@pytest.mark.parametrize("nova_matricula", ["654", None])
+def test_cruzamento_matricula_corrigida_ou_removida_nao_usa_rodada_antiga(con, nova_matricula):
+    cns = "654321" if nova_matricula else "654322"
+    cod = "PA-1504950-" + ("C" if nova_matricula else "D") * 32
+
+    def rodada(sufixo, corte):
+        return con.execute(
+            text("""insert into funil.rodada
+            (tipo,uf,cod_municipio,origem,arquivos,hash_entradas,motor_versao,regras_versao,data_corte)
+            values ('municipio','PA',1504950,'teste','{}',:h,'teste','teste',:corte) returning id"""),
+            {"h": f"calendario-correcao-{nova_matricula}-{sufixo}", "corte": corte},
+        ).scalar_one()
+
+    anterior = rodada("antes", "2026-11-11")
+    atual = rodada("atual", "2026-11-12")
+    con.execute(
+        text("""insert into titulo.certidao_alvo
+        (rodada_id,cod_imovel,registro_cns,registro_matricula) values (:r,:car,:cns,'987')"""),
+        {"r": anterior, "car": cod, "cns": cns},
+    )
+    con.execute(
+        text("insert into funil.vigente(cod_imovel,rodada_id,cod_busca) values(:car,:r,:car)"),
+        {"r": anterior, "car": cod},
+    )
+    e = evento(codigos_car=[], cns=cns, matricula="987")
+    vinculado = banco.cruzar(con, e)
+    assert vinculado.codigos_car == [cod]
+    con.execute(text("update funil.vigente set rodada_id=:r where cod_imovel=:car"), {"r": atual, "car": cod})
+    if nova_matricula:
+        con.execute(
+            text("""insert into titulo.certidao_alvo
+            (rodada_id,cod_imovel,registro_cns,registro_matricula) values (:r,:car,:cns,:m)"""),
+            {"r": atual, "car": cod, "m": nova_matricula, "cns": cns},
+        )
+        assert banco.cruzar(con, e.model_copy(update={"matricula": nova_matricula})).codigos_car == [cod]
+    assert banco.cruzar(con, e).codigos_car == []
+    revalidado = banco.cruzar(con, vinculado)
+    assert revalidado.codigos_car == [] and revalidado.vinculo == "pendente"
+
+
+@pytest.mark.banco
+@pytest.mark.parametrize("vinculo", ["cns_matricula", "sigef"])
+def test_enriquecimento_fica_interno_sem_vazar_por_filtro_publico(con, tmp_path, vinculo):
+    cod = "PA-1504950-" + ("E" if vinculo == "sigef" else "F") * 32
+    e = evento(
+        id=identificador("djen", "enriquecido", "leilao_imovel", vinculo),
+        codigos_car=[cod],
+        cns="654321",
+        matricula="765",
+        sigef=[SIGEF],
+        vinculo=vinculo,
+    )
+    banco.gravar(con, [e], [], cruzar_imoveis=False)
+    assert (
+        con.execute(
+            text("select cod_imovel from calendario.evento_imovel where evento_id=:id"), {"id": e.id}
+        ).scalar_one()
+        == cod
+    )
+    assert e.publico()["codigos_car"] == [] and e.publico()["vinculo"] == "pendente"
+    assert banco.consultar(con, cod_imovel=cod)["total"] == 0
+    assert arquivos.envelope([e], [], cod_imovel=cod)["total"] == 0
+    assert not any(item["codigos_car"] for item in banco.consultar(con)["eventos"] if item["id"] == e.id)
+    arquivos.publicar(tmp_path, [e], [])
+    publico = (tmp_path / "eventos.json").read_text() + (tmp_path / "eventos.ics").read_text()
+    assert cod not in publico and SIGEF not in publico and "654321" not in publico
+    # O estado administrativo conserva o vínculo para o servidor e para avisos.
+    assert cod in (tmp_path / "estado.json").read_text()
+    assert cod not in ics([e])
+    explicito = e.model_copy(update={"vinculo": "car"})
+    assert explicito.publico()["codigos_car"] == [cod]
+    assert arquivos.envelope([explicito], [], cod_imovel=cod)["total"] == 1
+    banco.gravar(con, [explicito], [], cruzar_imoveis=False)
+    assert banco.consultar(con, cod_imovel=cod)["total"] == 1
+
+
+def test_pagina_extensa_nao_compara_arvores_inteiras(monkeypatch):
+    from bs4.element import Tag
+
+    original = Tag.__eq__
+    comparacoes = 0
+
+    def contar(self, outro):
+        nonlocal comparacoes
+        comparacoes += 1
+        return original(self, outro)
+
+    monkeypatch.setattr(Tag, "__eq__", contar)
+    f = fonte("icvcm")
+    pagina = "<main><article>" + "<p>Consultation closes 30 November 2026.</p>" * 2000 + "</article></main>"
+    eventos, _ = coleta.extrair(pagina, f, f["urls"][0], AGORA)
+    assert len(eventos) == 1
+    assert comparacoes < 10  # regressão: a seleção fazia milhões de comparações profundas

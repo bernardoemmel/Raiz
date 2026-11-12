@@ -158,9 +158,20 @@ class Evento(BaseModel):
     def dia(self) -> dt.date:
         return self.prazo or self.data
 
+    @property
+    def codigos_car_publicos(self) -> list[str]:
+        # Só o CAR explícito no ato público. Enriquecimento de título/SIGEF
+        # pertence aos pedidos e à ficha autenticada, nunca ao calendário aberto.
+        return self.codigos_car if self.vinculo in ("car", "pendente") else []
+
     def publico(self) -> dict:
         d = self.model_dump(mode="json", exclude={"cns", "matricula", "sigef"})
-        return {**d, "titulo": self.titulo}
+        return {
+            **d,
+            "titulo": self.titulo,
+            "codigos_car": self.codigos_car_publicos,
+            "vinculo": "car" if self.codigos_car_publicos else "pendente",
+        }
 
 
 def identificador(fonte_id: str, url: str, tipo: str, chave: str) -> str:
@@ -194,7 +205,7 @@ def filtrar(eventos: list[Evento], *, tipo=None, estado=None, inicio=None, fim=N
             for e in eventos
             if (tipo is None or e.tipo == tipo)
             and (estado is None or e.uf in (estado, None))
-            and (cod is None or cod in e.codigos_car)
+            and (cod is None or cod in e.codigos_car_publicos)
             and (inicio is None or e.dia >= inicio)
             and (fim is None or e.dia <= fim)
         ),

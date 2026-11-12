@@ -135,6 +135,7 @@ novas da E2 (regras em Catala, restrições, DuckDB) estão testadas mas fora de
 | 9 | Motor dentro do produto (agente Dados): executor por estado e município com marca de concluído por tarefa (versão, assinatura, sha das saídas), retomada depois de matar, refazer só o afetado (versão da tarefa, fonte do município, saída anterior), armazém no Release "dados" do GitHub (produção; S3 com R2 ou SeaweedFS como opção futura) com versão e data em cada arquivo, workflow processar-estados chamando `raiz executor rodar --ate-minutos`, back-end lendo o armazém (sincronizar, carga do que mudou, sob demanda por imóvel), /brasil, /estados, painel do processamento, agenda anual (coleção do MapBiomas) e parcial | E1, E2 | feito |
 | 10 | Pedido de lote (docs/cena-alvo.md): oferta por fazenda (negocio.oferta, refeita a cada carga), pedido com os campos da cena-alvo, quanto existe na base por caminho da terra e interesse do dono com P10/P50/P90, o que falta e o que afrouxar, 3 opções do mesmo solver (HiGHS pelo scipy: mais barata, mais segura, mais compacta, com forma do lote e vazamento zero com fazenda de mitigação) e 10 a 20% de reserva, troca de fazenda, entrar sem senha, interesse do dono por nível (só o nível sai na API), ondas de contato dimensionadas pela chance de aceite (envio simulado), andamento, grupo pronto com aviso (painel, e-mail, WhatsApp), reserva com Pix da AbacatePay (modo de teste) e exclusividade de 60 dias, contrato com abatimento, vigia do pedido salvo e chance de aceite que aprende com cada contato | passos 6 e 9 | feito |
 | 10b | Rodada 11 unificada (um só arquivo de premissas e um só cálculo, com a branch premissas-rodada11: curva oficial da URTX, teto por bioma, P10/P90 de custo publicados, último marco a 100%, vazamento por vizinha VMD0054, renda do gado do Censo) e lote do ProFloresta+ por estado (`raiz lote montar`): titulares e reserva pela chance de 90% com erro comum da captura, fluxo do lote pela soma das fazendas, preço mínimo para TIR de 12% e 15%, o que destrava o lote (posse e assentamento), certidões para os 5% homologados, checklist do edital, relatório para o desenvolvedor e folha do dono; o otimizador põe a regeneração antes do plantio que o preço não paga | passos 6 e 10 | feito |
+| 10c | Lote e números: piso20 de reversão, três opções, preços TIR12/15 por fazenda, salvaguardas jurisdicionais/CLPI/partilha, decisões explicadas e revisão humana, previsões versionadas e comparação real; workflow PA144 no Release dados | 10b | **código feito nesta entrega**; execução integral e publicação pendentes do workflow após merge; fontes/licenças e quatro horizontes regionais auditados; quantis ecológicos pendentes de harmonização de parcelas, unidades e métodos (**parcial**, conforme autorização do fundador). Detalhes em `docs/passagem/lote-e-numeros.md` |
 | 11 | Ligar o envio de verdade das ondas (agente de aceite no WhatsApp com o termo, carta e parceiro local) e a chave de produção da AbacatePay; calibrar a chance de aceite e o valor da conexão com os primeiros pedidos | passo 10 e clientes | 6 a 10 |
 
 ## E4. Rebanho, metano e solo
@@ -238,6 +239,18 @@ Feito na main fora desta tabela: aprendizado do valor para quem restaura (`raiz/
 
 ## E9. O que as pessoas veem
 
+Entrega do chat **Ficha da fazenda** (12/11/2026; detalhes em
+`docs/passagem/ficha-da-fazenda.md`):
+
+| Entrega | Situação |
+|---|---|
+| Ficha de prospecção pelo CAR, só terra, caminho/pendências, sobreposições, embargos, séries, restauração, crédito líquido P10/P50/P90, TIR e risco, com fonte e data por medida | **feito** no código: contrato fechado, ausências explícitas, sem dados pessoais |
+| Busca nacional combinando estado, município, bioma, área, terra, crédito e risco; pequenas preservadas e agrupamentos indicados | **feito** sobre a cobertura processada; vizinhança do agrupamento ainda precisa de conferência |
+| Botão pedir contato, registro interno na Raíz | **feito**; não envia contato nesta etapa |
+| Créditos pagos, Pix confirmado no provedor, débito atômico/idempotente, limites persistidos contra raspagem | **feito** no código; operação exige catálogo de preços e chave Pix de produção |
+| Agregados abertos no site, nova ficha completa só na API autenticada e paga | **feito** no site e nas rotas novas; Release histórico de dados continua aberto, migração de armazenamento privado deve ser coordenada com dados |
+| Integração da nova ficha com navegação do mapa | **feito**, sem reescrever o mapa; produtor precisa de autenticação própria para voltar a acessar detalhes no site |
+
 Site legível por agentes (12/11/2026): **feito** — `llms.txt`, `robots.txt`, páginas Markdown do Brasil, estados,
 municípios, produtor, serviço, fontes e privacidade; alternates no HTML; JSON-LD `Dataset`, `Service` e `Offer`
 sem transformar premissa em preço comercial. API aceita `text/markdown` nas leituras, preservando Bearer e
@@ -245,12 +258,16 @@ privacidade da ficha pública. Lighthouse 13.6.0, categoria experimental `agenti
 separada de arquivos, links e dados estruturados. No Pages de projeto, `robots.txt` em `/Raiz/` não controla a raiz
 da origem; isso depende do site da conta ou de domínio próprio.
 
+A publicação Markdown segue a mesma regra do site agregado: nenhuma ficha individual aberta por CAR.
+
 Entrega do mapa nacional (12/11/2026): o workflow publica os desenhos de todos os municípios com dados no Release,
 reaproveitando os GeoParquet do motor como GeoJSON gzip. Fundo PMTiles compartilhado por UF e base nacional em
 overzoom; busca estática por nome/IBGE/CAR e aviso de desenho ausente. CI com Playwright em `/Raiz/`: Parauapebas,
 zoom, polígonos coloridos, HTTP Range e zero 404. Build limita fichas pré-geradas e publica só o manifesto de geometrias,
 com portão de 950 MB. Polígonos permanecem por município enquanto couberem; não foi necessário tippecanoe nesta rodada.
 
+A entrega da ficha mantém as bases e limites do mapa nacional, mas restringe os detalhes por CAR à API paga;
+a publicação pública usa os agregados municipais.
 
 Conferido contra a main em 12/11/2026: "feito" quer dizer que o código está na main; "parcial" diz o que existe e o
 que falta, com as horas do que falta. O site público (https://bernardoemmel.github.io/Raiz/) mostra o que o front já
@@ -284,8 +301,9 @@ faz sem back-end.
 | 1 | (API do front) Rotas que o front espera (front/README.md, "Depois (API)"): /municipios, /municipios/{cod_ibge}/imoveis, /imoveis/{cod_imovel}, /ficha, /certidoes, /geo/{cod_ibge}/{municipio,imoveis,ti,uc,rios}.geojson e base.pmtiles com Range, servidas do PostGIS com os nomes de coluna dos CSV, CPF/CNPJ mascarados e Bearer; camadas do mapa carregadas por `raiz geo carregar` | carga do motor (fundação) | feito |
 | 2 | (API do front) Cache por rodada (ETag pelo hash da rodada) e lista de imóveis em pedaços ou em formato colunar para município grande (São Félix: 2,8 MB comprimidos, 3,4 s) | passo anterior | 2 a 4 |
 | 2 | (API do front) Divisa, TI, UC e rios vindos da coleta (E1) direto no PostGIS, no lugar dos arquivos do front/scripts/geo.py; um mapa base PMTiles do Brasil servido com Range | E1 | parcial: o mapa base do Brasil com Range está feito (raiz/mapa_base.py, /mapa/brasil.pmtiles); as camadas ainda vêm do front/scripts/geo.py (2 a 3) |
-| 6 | (API do front) Fichas em JSON do lote anual (passo 1) servidas como arquivo estático; a API fica para o painel interno e para o que muda no dia | passo 1 | feito: o back-end grava as fichas em lote (`raiz ficha lote`, arquivos estáticos em dados/fichas/); o site público grava as dos municípios com contorno e o navegador monta as outras (front/compartilhado/vite-dados.ts) |
-| 1 | (busca) Busca nacional também no navegador (Pages, sem `/busca`), pelo nome e código IBGE do município e pelo código do CAR (inteiro ou começo, com ou sem pontos e traços) e pelo nome do município, no contrato de front/compartilhado/dados/busca.ts; índice por código normalizado; 6,7 milhões de imóveis sintéticos: pior resposta 0,49 s | carga contínua | feito |
+| 6 | (API do front) Fichas em JSON do lote anual (passo 1) servidas como arquivo estático; a API fica para o painel interno e para o que muda no dia | passo 1 | feito o lote administrativo (`raiz ficha lote`, dados/fichas/ em armazenamento privado). A entrega Ficha da fazenda retira fichas e CSV individuais do site; a ficha de prospecção passa pela API com sessão/crédito pago, e o site publica só agregados |
+| 1 | (busca) Busca nacional pela API pelo código do CAR (inteiro ou começo, com ou sem pontos e traços) e pelo nome do município, no contrato de front/compartilhado/dados/busca.ts; índice por código normalizado; 6,7 milhões de imóveis sintéticos: pior resposta 0,49 s | carga contínua | feito |
+| 1 | (busca pública) Busca no navegador por nome e código IBGE do município, sem depender de `/busca` no Pages; CAR leva à ficha paga | mapa nacional | feito |
 | 1 | (busca) Carga contínua das saídas do motor por estado (`raiz vigiar`), só o município que mudou, com a versão anterior guardada | carga do motor | feito |
 
 ## Continuidade de documentos, vigilância e calendário (12/11/2026)
@@ -299,11 +317,11 @@ faz sem back-end.
 
 | Entrega | Situação |
 |---|---|
-| Eventos com tipo, data/prazo, UF/município, fonte/link, coleta e confiança | **feito**: esquema `calendario`, migração 0026 após 0022–0025 do título/aprendizado; histórico, UID e sequência preservados nas retificações |
+| Eventos com tipo, data/prazo, UF/município, fonte/link, coleta e confiança | **feito**: esquema `calendario`, migração 0027 após 0022–0025 do título/aprendizado e 0026 da prospecção; histórico, UID e sequência preservados nas retificações |
 | Coleta diária de leilões rurais, penhoras, BNDES, ProFloresta+, Fundo Amazônia, concessões, crédito e SBCE/Verra/ICVCM/SBTi/EUDR | **feito**: 17 fontes oficiais em `raiz/calendario/fontes.yaml`, HTTP/PDF/Firecrawl opcional, workflow diário com snapshot no Release `calendario`; cobertura inicial e falhas explícitas, sem inventar prazos |
-| Vínculo de leilão/penhora ao CAR | **feito**: CAR explícito, CNS+matrícula ou interseção SIGEF; sem corte por tamanho; vínculo insuficiente fica pendente; títulos gerados, nenhum nome de pessoa ou documento pessoal persistido |
+| Vínculo de leilão/penhora ao CAR | **feito**: CAR explícito, CNS+matrícula vigente ou interseção SIGEF; sem corte por tamanho; vínculo insuficiente fica pendente; CAR inferido fica interno, só CAR explícito no edital aparece na consulta pública; nenhum nome ou documento pessoal persistido |
 | API e integração | **feito**: `GET /eventos` com tipo/estado/período/CAR, `GET /eventos.ics` e função MCP `proximos_eventos` pronta; transporte MCP depende de servidor, ainda ausente no repositório |
-| Site e pedidos | **feito**: aba Calendário, filtros, fonte/data de coleta, feed, selos no mapa/ficha/tabela e aviso deduplicado aos lotes; e-mail/WhatsApp permanecem simulados. Publicação do site após a coleta |
+| Site e pedidos | **feito**: aba Calendário, filtros, fonte/data de coleta, feed, selos no mapa/ficha/tabela e aviso deduplicado aos lotes; ficha individual mantém acesso por créditos, e-mail/WhatsApp permanecem simulados. Publicação do site após a coleta |
 | Agenda no servidor | **feito no código**: `scripts/instalar_cron_alertas.py --tarefa calendario --instalar`, diário com banco, trava e `.env`; instalação em produção depende de acesso ao servidor |
 
 Limites verificados em 12/11/2026: DJEN/CNJ respondeu HTTP 403; diários estaduais começam por PA/MT; PDF escaneado sem texto ainda não tem OCR. Erro de fonte não elimina os eventos anteriores. Testes com trechos oficiais gravados e PostGIS; detalhes em `docs/calendario.md`.
