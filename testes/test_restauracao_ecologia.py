@@ -37,7 +37,7 @@ def test_sem_inventario_nao_inventa_previsoes_a_partir_de_carbono():
         for campo in ("densidade_arvores_ha", "numero_especies", "numero_arvores_area_restaurada"):
             assert h[campo] == dict.fromkeys(E.Q)
     assert "não significam zero" in p["incerteza"]
-    assert p["ecologia_versao"].startswith("ecologia-2026a+")
+    assert p["ecologia_versao"].startswith("ecologia-2026b+")
 
 
 def test_referencia_normativa_nao_e_quantil_ou_arvore_adulta():
@@ -110,3 +110,49 @@ def test_versao_obrigatoria_e_area_total_nao_substitui_restauracao():
 def test_car_ausente_nao_vira_identificador_de_fazenda(cod):
     with pytest.raises(ValueError, match="cod_imovel"):
         E.projetar({"cod_imovel": cod}, "r11")
+
+
+@pytest.mark.parametrize("bioma", ["Amazônia", "Cerrado", "Mata Atlântica", None])
+@pytest.mark.parametrize("metodo", ["regeneracao_assistida", "plantio_total", "semeadura_direta"])
+def test_fontes_abertas_preservam_pendencias_sem_fabricar_quantis(bioma, metodo):
+    li = {
+        "cod_imovel": "regional",
+        "bioma": bioma,
+        "modo_restauracao": metodo,
+        "restauracao_area_ha": 0.01,
+        "sec_idade_media": 18,
+    }
+    tab = E.tabela([li], "r11")
+    assert len(tab) == 4
+    for item in tab:
+        assert item["bioma"] == bioma and item["metodo"] == metodo
+        assert item["idade_inicial_anos"] == 0  # idade da mata existente não envelhece o pasto futuro
+        assert item["rotulo_regional"] == "estimativa regional, não medida na fazenda"
+        assert item["situacao_regional"] == "pendente_harmonizacao_de_dados_abertos"
+        assert item["densidade_arvores_ha_p10"] is None
+        assert item["numero_especies_p90"] is None
+        assert item["modelo_versao"] == "r11" and item["ecologia_versao"].startswith("ecologia-2026b+")
+        assert all(x["motivo"] for x in item["pendencias_regionais"])
+        fontes = item["fontes_publicas_avaliadas"]
+        assert all(x["licenca"] and x["limite"] and x["url"] for x in fontes)
+        assert {"IFN/SFB", "Rozendaal", "Poorter", "MapBiomas", "Pacto", "Rede"} <= {
+            x["fonte"].split()[0].rstrip(",") for x in fontes
+        }
+
+
+def test_dados_abertos_nao_herdam_licenca_nc_do_artigo():
+    fontes = E.regra()["fontes_publicas"]
+    rozendaal = next(x for x in fontes if x["fonte"].startswith("Rozendaal"))
+    assert rozendaal["licenca"].startswith("CC0-1.0 (dados)")
+    giles = E.regra()["base_regional"]
+    assert giles["licenca"] == "CC-BY-4.0"
+    assert len(giles["sha256_original"]) == len(rozendaal["sha256_original"]) == 64
+    assert "514" in giles["limite"] and "448" in giles["limite"]
+    assert "fustes" in giles["populacao"] and "heterogêneo" in giles["populacao"]
+
+
+def test_projecao_local_nao_recebe_rotulo_regional_ou_pendencia_de_fonte():
+    h = E.projetar(_local(), "r11")["horizontes"][0]
+    assert h["rotulo_regional"] is None
+    assert h["pendencias_regionais"] == []
+    assert h["situacao_regional"] == "projecao_documentada"

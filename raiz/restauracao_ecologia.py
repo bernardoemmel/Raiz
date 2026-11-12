@@ -1,7 +1,7 @@
 """Resposta ecológica por CAR, com a unidade e a ausência de evidência explícitas.
 
 CAR, carbono e área de pasto não determinam densidade de árvores ou riqueza de
-espécies. Sem inventário e modelo local, os quatro horizontes ficam sem previsão.
+espécies. Sem inventário ou referência regional harmonizada, os horizontes ficam pendentes.
 Os patamares de monitoramento de SP são apresentados separadamente e nunca viram
 P10/P50/P90 amazônicos. Plantio inicial também não equivale a árvores sobreviventes.
 
@@ -24,6 +24,7 @@ import yaml
 ARQUIVO = Path(__file__).parent / "regras" / "padroes" / "restauracao_ecologia.yaml"
 Q = ("p10", "p50", "p90")
 TIPOS_PROJECAO = {"cenario_planejamento", "projecao_calibrada"}
+ROTULO_REGIONAL = "estimativa regional, não medida na fazenda"
 SEM_DADO = (
     "Sem inventário, composição de espécies e trajetória de sobrevivência/recrutamento locais: "
     "não há base para quantificar a densidade de árvores ou o número de espécies desta fazenda. "
@@ -32,7 +33,7 @@ SEM_DADO = (
 
 
 @lru_cache(maxsize=4)
-def _regra(marca: tuple[int, int]) -> dict:
+def _regra(marca: tuple) -> dict:
     bruto = ARQUIVO.read_bytes()
     r = yaml.safe_load(bruto)
     h = hashlib.sha256(bruto + Path(__file__).read_bytes()).hexdigest()[:12]
@@ -41,8 +42,8 @@ def _regra(marca: tuple[int, int]) -> dict:
 
 
 def regra() -> dict:
-    st = ARQUIVO.stat()
-    return copy.deepcopy(_regra((st.st_mtime_ns, st.st_size)))
+    marca = tuple((p.stat().st_mtime_ns, p.stat().st_size) for p in (ARQUIVO, Path(__file__)))
+    return copy.deepcopy(_regra(marca))
 
 
 def _numero(valor, campo: str) -> float:
@@ -120,6 +121,11 @@ def projetar(linha: dict, modelo_versao: str) -> dict:
             {
                 "ano": ano,
                 "situacao": status,
+                "situacao_regional": "pendente_harmonizacao_de_dados_abertos"
+                if entrada is None
+                else "projecao_documentada",
+                "rotulo_regional": ROTULO_REGIONAL if entrada is None else None,
+                "pendencias_regionais": r["pendencias_regionais"] if entrada is None else [],
                 "incerteza": projecao["incerteza"] if entrada is not None else SEM_DADO,
                 "densidade_arvores_ha": densidade,
                 "numero_arvores_area_restaurada": total,
@@ -137,6 +143,7 @@ def projetar(linha: dict, modelo_versao: str) -> dict:
     return {
         "cod_imovel": cod,
         "area_restaurada_ha": area,
+        "bioma": linha.get("bioma"),
         "metodo": linha.get("modo_restauracao", linha.get("modo")),
         "modelo_versao": modelo_versao,
         "ecologia_versao": r["versao_completa"],
@@ -145,12 +152,20 @@ def projetar(linha: dict, modelo_versao: str) -> dict:
         "data_corte_projecao": projecao["data_corte"] if projecao else None,
         "populacao": projecao["populacao"] if projecao else "árvores; classe de tamanho ainda não definida em campo",
         "riqueza_unidade": "especies_distintas_na_area_restaurada",
+        "idade_inicial_anos": 0,
+        "idade_referencia": (
+            "Anos após iniciar restauração na área aberta; a idade da vegetação secundária existente "
+            "não é atribuída ao pasto a restaurar. MapBiomas mede idade da cobertura, não árvores ou espécies."
+        ),
+        "fontes_publicas_avaliadas": r["fontes_publicas"],
+        "base_regional_candidata": r["base_regional"],
         "incerteza": projecao["incerteza"] if projecao else SEM_DADO,
         "horizontes": horizontes,
         "referencias": [
             {"fonte": ref["fonte"], "url": ref["url"], "limite": ref["abrangencia"]},
             {k: v for k, v in r["plantio_inicial"].items()},
             r["recuperacao_diversidade"],
+            *r["fontes_publicas"],
         ],
         "proximo_passo": (
             "Inventariar parcelas por método com classe de tamanho e área amostrada explícitas; "
@@ -169,6 +184,11 @@ def tabela(linhas, modelo_versao: str) -> list[dict]:
                 k: p[k]
                 for k in (
                     "cod_imovel",
+                    "bioma",
+                    "idade_inicial_anos",
+                    "idade_referencia",
+                    "fontes_publicas_avaliadas",
+                    "base_regional_candidata",
                     "area_restaurada_ha",
                     "metodo",
                     "modelo_versao",
@@ -182,6 +202,7 @@ def tabela(linhas, modelo_versao: str) -> list[dict]:
                 )
             }
             item.update(ano=h["ano"], situacao=h["situacao"], incerteza=h["incerteza"])
+            item.update({k: h[k] for k in ("situacao_regional", "rotulo_regional", "pendencias_regionais")})
             for campo in ("densidade_arvores_ha", "numero_arvores_area_restaurada", "numero_especies"):
                 item.update({f"{campo}_{q}": h[campo][q] for q in Q})
             ref = h["referencia_monitoramento"]

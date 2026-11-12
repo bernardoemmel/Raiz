@@ -48,19 +48,28 @@ São fontes/coleções distintas, não medições de crescimento realizado. Não
 O relatório identifica a fonte efetivamente usada, compara por CAR e guarda hashes; o registro de previsões é
 imutável por modelo e entradas. A publicação de uma coleta mais recente permanece dependente do fluxo de dados.
 
-## Resposta ecológica e limite pendente
+## Ecologia regional: fontes verificadas e pendências
 
-O arquivo de cada opção `ecologia_PA.json` traz 3, 5, 10 e 15 anos por fazenda, com fontes, unidade, versão e incerteza.
-Não há inventário local na base. Densidade futura e riqueza de espécies ficam **não estimadas**, não zero.
-O módulo aceita projeção local documentada com faixa; não fabrica quantis.
+O fundador confirmou ausência de inventário próprio e autorizou estimativa regional ou pendência quando as fontes
+abertas não bastarem. `ecologia_PA.json` contém, por fazenda, os horizontes 3/5/10/15, bioma, método, versão,
+fontes e licenças, com o rótulo **“estimativa regional, não medida na fazenda”**. Nesta rodada os quantis de árvores
+e espécies ficam nulos com justificativa; nulo não é zero. O modelo ecológico `ecologia-2026b` inclui hash do código
+e do YAML; os arquivos publicados são imutáveis por execução para confrontar com inventário futuro.
 
-Referência separada: SMA 32/2014, Anexo I (São Paulo), regenerantes de altura >50 cm e CAP <15 cm: densidade adequada
->200/>1.000/>2.000/>2.500 indivíduos/ha e riqueza >3/>10/>20/>25 espécies aos 3/5/10/15 anos. Isso não equivale a
-árvores adultas por hectare nem a previsão para o Pará. Embrapa informa 1.667 ou 2.500 mudas/ha no plantio inicial,
-sem sustentar sobrevivência futura nem riqueza por fazenda. O fundador confirmou que não há inventário próprio e pediu fontes públicas: IFN/SFB, Rozendaal et al. (2019),
-Poorter et al. (2021)/2ndFOR, idade secundária do MapBiomas, Pacto e Rede de Sementes do Xingu. O item continua
-**parcial**, com investigação das bases abertas para estimativa regional P10/P50/P90, fonte e licença.
-Qualquer resultado regional terá o rótulo “estimativa regional, não medida na fazenda”; fonte insuficiente fica pendente.
+| Fonte pública examinada | Licença dos dados | Resultado da auditoria |
+|---|---|---|
+| [IFN/SFB, set/2025](https://dados.florestal.gov.br/dataset/ifn-dap-10-por-uf_disp-set2025) | CC-BY, versão não indicada no portal | Há microdados regionais, mas sem vínculo de idade e método de restauração; DAP10 e regenerantes têm esforços distintos. |
+| [Rozendaal 2019, DANS](https://doi.org/10.17026/dans-xh8-gh92) | CC0-1.0; artigo NC apenas citado | Riqueza padronizada em 25 fustes, sem densidade absoluta. Seis sítios usam DAP10; falta confirmar a correspondência S1/S2 para o recorte brasileiro. Não usar como riqueza total por fazenda. |
+| [Poorter 2021 / 2ndFOR](https://github.com/dylancraven/MultiDimensional_Recovery) | CC-BY-2.0 no repositório | Recuperação relativa dos atributos; não fornece diretamente árvores/ha ou espécies absolutas por fazenda. |
+| [Giles 2024, Zenodo](https://doi.org/10.5281/zenodo.13970371) | CC-BY-4.0 | Candidato de densidade de fustes e riqueza por 100 fustes. CSV v1 tem 514 linhas/22 sítios, distinto das 448 parcelas/24 sítios do artigo. Protocolos misturam DAP, diâmetro basal e áreas aninhadas; o artigo/suplemento diverge sobre 1/3 sítios DAP10. Não incorporados quantis sem harmonização. |
+| [MapBiomas, vegetação secundária](https://brasil.mapbiomas.org/downloads/assets-no-google-earth-engine/) | CC-BY, versão não explicitada na brochura oficial | Falta vincular pixels à coorte do projeto. A idade da vegetação existente não se aplica ao pasto que será restaurado; `sec_idade_media` atual vem do YbYrá, não do MapBiomas. A restauração futura começa na idade zero. |
+| [Pacto pela Restauração da Mata Atlântica](https://doi.org/10.1177/1940082917697265) | Artigo CC-BY-NC-3.0, somente referência | Protocolo de medição; sem distribuição aberta por idade para gerar quantis. Não foram incorporados texto, código ou coeficientes NC. |
+| [Rede de Sementes do Xingu](https://www.sementesdoxingu.org.br/restauracao-ecologica/) e [Freitas 2018](https://repositorio.unb.br/handle/10482/32438) | Licença aberta dos microdados não confirmada | Monitoramento e estudo de 72 áreas/1–10 anos; mistura de espécies semeadas e mudas iniciais não mede sobrevivência futura ou riqueza estabelecida. |
+
+Os SHA256 dos dados candidatos baixados e as referências de licença ficam no YAML. **Pendências:** harmonizar
+protocolos e parcelas, identificar árvores distintas de fustes, obter coortes abertas para plantio/semeadura,
+vincular idade espacial à área restaurada e validar quantis. Não converter médias/desvios dos artigos nem metas
+normativas em P10/P50/P90. A referência SMA/SP de regenerantes permanece separada, sem ser previsão para o Pará.
 
 ## Validação
 

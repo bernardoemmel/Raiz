@@ -1,4 +1,4 @@
-versao: ecologia-2026a
+versao: ecologia-2026b
 horizontes_anos: [3, 5, 10, 15]
 # Referências de acompanhamento, nunca quantis ou previsões para as fazendas do Pará.
 referencia_monitoramento:
@@ -23,3 +23,82 @@ recuperacao_diversidade:
   fonte: Rozendaal et al. (2019), Science Advances 5, eaau3114
   url: https://doi.org/10.1126/sciadv.aau3114
   limite: recuperação relativa da riqueza em florestas secundárias neotropicais; não informa espécies absolutas de cada CAR
+# Valores abertos de parcelas; nunca converter fustes em árvores ou riqueza padronizada em total do imóvel.
+base_regional:
+  fonte: Giles et al. (2024), Simple ecological indicators benchmark regeneration success of Amazonian forests
+  artigo_url: https://doi.org/10.1038/s43247-024-01949-9
+  dados_url: https://doi.org/10.5281/zenodo.13970371
+  download_url: https://zenodo.org/api/records/13970371/files/data_plot.csv/content
+  licenca: CC-BY-4.0
+  licenca_url: https://creativecommons.org/licenses/by/4.0/
+  data_consulta: '2026-11-12'
+  sha256_original: 977eb5df8e0b71854877103de7d22d9897981fffd2025d89b182d2801d8d88b0
+  situacao: pendente_harmonizacao; nenhum dado quantitativo incorporado
+  bioma: Amazônia
+  metodo: regeneracao_natural
+  populacao: fustes de árvores, arbustos e palmeiras; limiar de DAP heterogêneo a harmonizar
+  riqueza_unidade: espécies nativas padronizadas para 100 fustes por rarefação ou extrapolação iNEXT
+  limite: >-
+    Candidato para distribuição descritiva regional de cronossequências; não é intervalo preditivo calibrado,
+    nem observação na fazenda. Não distingue fustes de uma mesma árvore. Não identifica efeito
+    causal de manejo assistido. Não extrapolar para plantio, semeadura ou outros biomas.
+    A base v1 tem 514 linhas/22 sítios, distinta das 448 parcelas/24 sítios do artigo;
+    os dados não reproduzem os modelos do artigo. O artigo menciona um sítio com DAP10 e o suplemento três;
+    faltam correspondência por parcela e harmonização de DAP, diâmetro basal e parcelas aninhadas. O artigo é citado; nenhum texto, figura,
+    equação ou coeficiente com licença NC foi incorporado.
+fontes_publicas:
+  - fonte: IFN/SFB, edição setembro de 2025, DAP10, regeneração e uso da terra
+    url: https://dados.florestal.gov.br/dataset/ifn-dap-10-por-uf_disp-set2025
+    licenca: Creative Commons Atribuição; versão não indicada no portal
+    limite: Sem idade e método de restauração por parcela; não fornece quantis temporais. DAP10 e regenerantes têm populações e esforços amostrais diferentes.
+  - fonte: Rozendaal et al. (2019), base de recuperação de diversidade
+    url: https://doi.org/10.17026/dans-xh8-gh92
+    licenca: CC0-1.0 (dados); artigo CC-BY-NC-4.0 somente como referência bibliográfica
+    sha256_original: ff060d7f969a1a25882b1f3ee526a4686ebf4e522fdc9bb0945c2763b7ac1201
+    limite: Riqueza padronizada em 25 fustes; não riqueza total do imóvel. Não misturada com a métrica de 100 fustes de Giles. Não fornece densidade absoluta. Seis sítios usam limiar DAP10 e os demais DAP5; correspondência entre os sítios brasileiros e o protocolo da tabela S1/S2 ainda não confirmada para harmonizar os quantis.
+  - fonte: Poorter et al. (2021), 2ndFOR, Multidimensional tropical forest recovery
+    url: https://doi.org/10.1126/science.abh3629
+    dados_url: https://github.com/dylancraven/MultiDimensional_Recovery
+    licenca: CC-BY-2.0 nos dados/código do repositório; artigo apenas citado
+    limite: Base pública de recuperação relativa de atributos, insuficiente para número absoluto de árvores ou espécies por fazenda.
+  - fonte: MapBiomas, idade da vegetação secundária
+    url: https://brasil.mapbiomas.org/downloads/assets-no-google-earth-engine/
+    licenca: CC-BY, conforme brochura oficial; versão não explicitada
+    licenca_fonte: https://brasil.mapbiomas.org/wp-content/uploads/sites/4/2025/11/MapBiomas_cop30_06.11_v2.pdf
+    limite: Idade da cobertura existente não é idade de restauração futura em pasto. Sem coorte georreferenciada validada, não usada como idade inicial. A coluna sec_idade_media atual do motor vem do YbYrá, não do MapBiomas.
+  - fonte: Pacto pela Restauração da Mata Atlântica, protocolo de monitoramento
+    url: https://doi.org/10.1177/1940082917697265
+    licenca: CC-BY-NC-3.0; apenas referência bibliográfica, sem incorporar conteúdo ou coeficientes
+    limite: Protocolo não fornece distribuição aberta de densidade/riqueza por idade; separar regenerantes de lenhosas grandes e documentar esforço.
+  - fonte: Rede de Sementes do Xingu, monitoramento de restauração
+    url: https://www.sementesdoxingu.org.br/restauracao-ecologica/
+    licenca: Licença aberta de microdados não localizada; apenas referência
+    limite: Acompanhamento divulgado geralmente até 2 anos; mistura de 40–80 espécies semeadas não é riqueza estabelecida aos 3/5/10/15 anos.
+  - fonte: Freitas (2018), semeadura direta na bacia do Xingu
+    url: https://repositorio.unb.br/handle/10482/32438
+    licenca: Acesso para leitura/download; licença aberta para reutilizar microdados não confirmada
+    limite: 72 áreas de semeadura de 1–10 anos; fonte para buscar dados abertos e calibrar plantio/semeadura, ainda pendente.
+
+pendencias_regionais:
+  - indicador: densidade_arvores_ha
+    motivo: >-
+      IFN aberto não vincula idade e método de restauração. Giles fornece fustes de árvores,
+      arbustos e palmeiras, com protocolos heterogêneos ainda não harmonizados; não converter
+      fustes em árvores nem média/desvio do artigo em P10/P90.
+  - indicador: riqueza_padronizada_regional
+    motivo: >-
+      Conferir a correspondência dos seis sítios com DAP10 na tabela suplementar S1/S2 de
+      Rozendaal; não combinar protocolos DAP5/DAP10 e parcelas aninhadas sem harmonização.
+      A riqueza rarefeita em 25 fustes poderia ser um indicador separado, nunca o total da fazenda.
+  - indicador: numero_especies
+    motivo: >-
+      Rozendaal padroniza riqueza para 25 fustes e Giles para 100, não para a área inteira de cada
+      fazenda. Riqueza distinta da fazenda requer inventário e esforço amostral documentado.
+  - indicador: plantio_e_semeadura
+    motivo: >-
+      As fontes abertas verificadas não oferecem distribuição harmonizada por bioma, método e
+      idades 3/5/10/15. Mistura de sementes ou densidade inicial de mudas não é sobrevivência futura.
+  - indicador: idade_da_coorte
+    motivo: >-
+      Vincular pixels MapBiomas à área e ano inicial da coorte a restaurar; a coluna atual
+      sec_idade_media do motor usa YbYrá e não deve ser atribuída à pastagem futura.
