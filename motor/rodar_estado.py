@@ -62,7 +62,12 @@ RE_OK = re.compile(r"(\d{7})\b.*(imóveis|APP 30 m|nenhum imóvel)")
 ERROS_SEGUIDOS = int(os.environ.get("RAIZ_ERROS_SEGUIDOS", 8))
 MAX_CONTINUACOES = int(os.environ.get("RAIZ_MAX_CONTINUACOES", 40))
 ESPERAS_FONTE_MIN = (10, 30)
-VAGAS = int(os.environ.get("RAIZ_VAGAS", 4))  # estados rodando ao mesmo tempo, somando todas as rodadas do workflow
+# jobs de estado ao mesmo tempo, somando todas as rodadas do workflow (repositório público: até 20 jobs no GitHub;
+# 18 deixa folga para o planejamento das rodadas e para o CI)
+VAGAS = int(os.environ.get("RAIZ_VAGAS", 18))
+# fila de manutenção (tarefa nova, código mudado ou reconferência em estado com o funil pronto): no máximo isto, e só
+# com as vagas que sobram dos estados novos
+VAGAS_MANUTENCAO = int(os.environ.get("RAIZ_VAGAS_MANUTENCAO", 4))
 DIAS_TENTADO = 6  # o "próximo da fila" não pega de novo estado tentado há menos que isto (a rodada semanal pega)
 WORKFLOW = os.environ.get("RAIZ_WORKFLOW", "processar-estados.yml")
 
@@ -78,15 +83,22 @@ def prazo() -> float:
     return ini + 60 * (float(os.environ.get("RAIZ_LIMITE_MIN", 330)) - float(os.environ.get("RAIZ_MARGEM_MIN", 25)))
 
 
-def lista_ufs(args: list[str]) -> list[str]:
-    ufs = []
+def lista_unidades(args: list[str], expandir: bool = True) -> list[str]:
+    """'MG' vira as fatias MG-1..MG-8 (expandir); 'MG-3' é uma fatia; 'AC' é o estado inteiro."""
+    out = []
     for a in args:
         for x in re.split(r"[\s,;]+", a.upper()):
-            if x and x in S.TOTAL_IBGE and x not in ufs:
-                ufs.append(x)
-            elif x:
-                S.acao_github("warning", "UF desconhecida", f"ignorei '{x}'")
-    return ufs
+            if not x:
+                continue
+            try:
+                uf, i, _ = S.ler_unidade(x)
+            except ValueError:
+                S.acao_github("warning", "unidade desconhecida", f"ignorei '{x}'")
+                continue
+            for u in (S.unidades(uf) if (expandir and i == 0) else [x]):
+                if u not in out:
+                    out.append(u)
+    return out
 
 
 def lista_refazer(txt: str) -> set[str]:
@@ -115,9 +127,17 @@ def gh_output(**kv) -> None:
 
 # ---------------------------------------------------------------- planejar
 
+def _e_unidade(nome: str) -> bool:
+    try:
+        S.ler_unidade(nome)
+        return True
+    except ValueError:
+        return False
+
+
 def ufs_ativas() -> tuple[set[str], int]:
-    """Estados com job deste workflow rodando ou na fila em outras rodadas, e quantas rodadas ainda estão planejando
-    (cada uma conta como uma vaga ocupada). Sem acesso à API, devolve vazio (e avisa)."""
+    """Unidades (estado inteiro ou fatia) com job deste workflow rodando ou na fila em outras rodadas, e quantas rodadas
+    ainda estão planejando (cada uma conta como uma vaga ocupada). Sem acesso à API, devolve vazio (e avisa)."""
     eu = os.environ.get("GITHUB_RUN_ID")
     repo = os.environ.get("GITHUB_REPOSITORY", S.REPO)
     try:
@@ -132,8 +152,8 @@ def ufs_ativas() -> tuple[set[str], int]:
             j = subprocess.run(["gh", "run", "view", str(run["databaseId"]), "-R", repo, "--json", "jobs"],
                                capture_output=True, text=True, timeout=120)
             jobs = json.loads(j.stdout).get("jobs", []) if j.returncode == 0 else []
-            ufs = {x["name"] for x in jobs if x.get("name") in S.TOTAL_IBGE and x.get("status") != "completed"}
-            feitos = {x["name"] for x in jobs if x.get("name") in S.TOTAL_IBGE}
+            ufs = {x["name"] for x in jobs if _e_unidade(x.get("name", "")) and x.get("status") != "completed"}
+            feitos = {x["name"] for x in jobs if _e_unidade(x.get("name", ""))}
             ativas |= ufs
             if not feitos:
                 planejando += 1
@@ -152,11 +172,25 @@ def dias_desde_a_rodada(e: dict) -> float | None:
         return None
 
 
-def tentado_ha_pouco(e: dict) -> bool:
+def _rodada_da_unidade(e: dict, i: int) -> dict:
+    m = e.get("motor") or {}
+    if i:
+        return ((m.get("fatias") or {}).get(str(i)) or {}).get("rodada") or {}
+    return m.get("rodada") or {}
+
+
+def _dias(rod: dict) -> float | None:
+    try:
+        return (time.time() - dt.datetime.fromisoformat(rod["fim"]).timestamp()) / 86400 if rod.get("fim") else None
+    except ValueError:
+        return None
+
+
+def tentado_ha_pouco(e: dict, i: int = 0) -> bool:
     """Rodou há menos de DIAS_TENTADO dias e terminou dentro do prazo (ou parou sem avançar): o que faltou depende de
     fonte fora do ar ou de erro em município, e fica para a rodada semanal."""
-    rod = (e.get("motor") or {}).get("rodada") or {}
-    dias = dias_desde_a_rodada(e)
+    rod = _rodada_da_unidade(e, i)
+    dias = _dias(rod)
     return dias is not None and dias < DIAS_TENTADO and (not rod.get("parou_por_tempo") or (rod.get("progresso") or 0) <= 0)
 
 
@@ -172,12 +206,18 @@ def versoes_executor() -> dict[str, str] | None:
         return None
 
 
-def motivo(e: dict | None, atual: dict, atual_exec: dict | None) -> tuple[str | None, bool]:
-    """Por que o estado precisa rodar (None: não precisa) e se é porque o código mudou."""
+def motivo(e: dict | None, atual: dict, atual_exec: dict | None, unidade: str | None = None) -> tuple[str | None, bool, str]:
+    """Por que a unidade (estado inteiro ou fatia) precisa rodar (None: não precisa), se é porque o código mudou e em
+    que fila entra: 'novo' (funil ainda incompleto) ou 'manutencao' (funil pronto: tarefa nova, código mudado,
+    adoção ou reconferência das fontes)."""
+    uf, i, _ = S.ler_unidade(unidade) if unidade else (None, 0, 1)
     if not e:
-        return "ainda não começou", False
+        return "ainda não começou", False, "novo"
+    total = e.get("total_ibge") or (S.TOTAL_IBGE.get(uf) if uf else 0)
+    funil_ok = (e.get("municipios", 0) + (e.get("sem_imoveis") or 0)) >= (total or 0)
     if not e.get("controle"):
-        return "publicado antes do executor: adotar (com a APP pela escadinha onde faltar) e rodar o que falta", False
+        return ("publicado antes do executor: adotar (com a APP pela escadinha onde faltar) e rodar o que falta", False,
+                "manutencao" if funil_ok else "novo")
     mudou = []
     if atual_exec and e.get("versoes"):
         mudou = [t for t, v in atual_exec.items() if (e["versoes"] or {}).get(t) not in (None, v)]
@@ -185,64 +225,88 @@ def motivo(e: dict | None, atual: dict, atual_exec: dict | None) -> tuple[str | 
         etapas = (e.get("motor") or {}).get("etapas") or {}
         mudou = [t for t, v in atual.items() if t != "extras" and (etapas.get(t) or {}).get("versao") not in (None, v)]
     if mudou:
-        return "código mudou: " + ", ".join(S.NOME_TABELA.get(t, t) for t in mudou), True
-    if not e.get("completo"):
-        falta = e.get("faltam") or {}
-        return "falta " + (", ".join(f"{S.NOME_TABELA.get(t, t)} {n}" for t, n in falta.items()) or "conferir"), False
-    dias = dias_desde_a_rodada(e)
+        return "código mudou: " + ", ".join(S.NOME_TABELA.get(t, t) for t in mudou), True, "manutencao"
+    fat = ((e.get("motor") or {}).get("fatias") or {}).get(str(i)) if i else None
+    if i and fat is None and not e.get("completo"):  # fatia que nunca rodou sozinha
+        return "fatia ainda não rodou", False, "manutencao" if funil_ok else "novo"
+    completo, falta = (fat.get("completo"), fat.get("faltam") or {}) if fat else (e.get("completo"), e.get("faltam") or {})
+    if not completo:
+        texto = "falta " + (", ".join(f"{S.NOME_TABELA.get(t, t)} {n}" for t, n in falta.items()) or "conferir")
+        return texto, False, "novo" if falta.get("imoveis") else "manutencao"
+    dias = _dias(_rodada_da_unidade(e, i)) if fat else dias_desde_a_rodada(e)
     if dias is None or dias >= DIAS_TENTADO:
-        return f"reconferir o que mudou nas fontes (última rodada há {dias:.0f} dias)" if dias else "reconferir", False
-    return None, False
+        texto = f"reconferir o que mudou nas fontes (última rodada há {dias:.0f} dias)" if dias else "reconferir"
+        return texto, False, "manutencao"
+    return None, False, "manutencao"
 
 
 def planejar(pedidos: list[str], refazer: set[str], modo: str = "automatico", liberou: str | None = None) -> list[str]:
-    """Estados que precisam rodar, na ordem de S.ORDEM.
-    Pedido explícito (campo ufs, ou continuação de um estado): roda esses. Senão, entram os que não começaram, os
-    incompletos, os publicados antes da automação (para conferir e adotar a versão) e os que têm tabela feita com código
-    antigo, limitados às vagas livres (VAGAS menos os estados já rodando em outras rodadas). No modo 'proximo' (um job
-    terminou e passa a vez), entra no máximo um estado, e ficam de fora os tentados há pouco; `liberou` é o estado do job
-    que passou a vez (ainda aparece rodando enquanto este plano é feito, mas a vaga dele já está livre)."""
+    """Unidades que precisam rodar (estado inteiro, ou fatia de estado grande), na ordem de S.ORDEM, em duas filas.
+    Pedido explícito (campo ufs, ou continuação): roda essas. Senão, a fila 'novo' (estado que não começou ou com funil
+    incompleto) pega primeiro as vagas livres (VAGAS menos as unidades já rodando em outras rodadas); a fila
+    'manutencao' (funil pronto: tarefa nova, código mudado, adoção, reconferência) pega só o que sobra, até
+    VAGAS_MANUTENCAO ao mesmo tempo, e nunca segura vaga de estado novo. No modo 'proximo' (um job terminou e passa a
+    vez), entra no máximo uma unidade, e ficam de fora as tentadas há pouco; `liberou` é a unidade do job que passou a
+    vez (ainda aparece rodando, mas a vaga dela já está livre)."""
     pub = S.ler_manifesto().get("estados", {})
     atual = S.versoes()
     atual_exec = versoes_executor()
     if refazer and not pedidos:
-        pedidos = [uf for uf in S.ORDEM if uf in pub]
+        pedidos = [u for uf in S.ORDEM if uf in pub for u in S.unidades(uf)]
         S.acao_github("notice", "refazer", f"sem lista de estados: refaço {', '.join(sorted(refazer))} em todos os publicados")
     ativas, planejando = (set(), 0) if pedidos else ufs_ativas()
     ativas.discard(liberou)
-    vagas = len(S.ORDEM) if pedidos else max(0, VAGAS - len(ativas) - planejando)
+    inteiro_ativo = {u for u in ativas if "-" not in u}  # job antigo do estado inteiro: as fatias dele esperam
+
+    def ocupada(u: str) -> bool:
+        uf, i, _ = S.ler_unidade(u)
+        return u in ativas or uf in inteiro_ativo or (i == 0 and any(a.startswith(uf + "-") for a in ativas))
+
+    manut_ativas = sum(1 for u in ativas if motivo(pub.get(S.ler_unidade(u)[0]), atual, atual_exec, u)[2] != "novo")
+    vagas = len(pedidos) if pedidos else max(0, VAGAS - len(ativas) - planejando)
     if modo == "proximo":
         vagas = min(vagas, 1)
-    matriz, linhas = [], []
+    vagas_manut = vagas if pedidos else max(0, VAGAS_MANUTENCAO - manut_ativas)
+    filas = {"novo": [], "manutencao": []}
+    linhas, prontas = [], 0
     for uf in S.ORDEM:
         e = pub.get(uf)
-        if pedidos:
-            if uf not in pedidos:
+        for u in S.unidades(uf):
+            if pedidos:
+                if u not in pedidos:
+                    continue
+                razao, mudou, classe = "pedido" + (f" (refazer {', '.join(sorted(refazer))})" if refazer else ""), False, "novo"
+            else:
+                razao, mudou, classe = motivo(e, atual, atual_exec, u)
+                if razao and ocupada(u):
+                    linhas.append((u, e, f"{razao} (já rodando)", None))
+                    continue
+                if razao and modo == "proximo" and not mudou and e and tentado_ha_pouco(e, S.ler_unidade(u)[1]):
+                    linhas.append((u, e, f"{razao} (tentada há pouco; fica para a rodada semanal)", None))
+                    continue
+            if not razao:
+                prontas += 1
                 continue
-            razao, mudou = "pedido" + (f" (refazer {', '.join(sorted(refazer))})" if refazer else ""), False
-        else:
-            razao, mudou = motivo(e, atual, atual_exec)
-        acao = razao or "pronto, nada a fazer"
-        if razao and not pedidos:
-            if uf in ativas:
-                acao, razao = f"{razao} (já rodando em outra rodada)", None
-            elif modo == "proximo" and not mudou and e and tentado_ha_pouco(e):
-                acao, razao = f"{razao} (tentado há pouco; fica para a rodada semanal)", None
-            elif len(matriz) >= vagas:
-                acao, razao = f"{razao} (na fila)", None
-        feitos = "—" if not e else f"{e.get('municipios', 0) + e.get('sem_imoveis', 0)}/{e.get('total_ibge') or S.TOTAL_IBGE[uf]}"
-        linhas.append(f"| {uf} | {feitos} | {acao}{' **agora**' if razao else ''} |")
-        if razao:
-            matriz.append(uf)
+            filas[classe].append(u)
+            linhas.append((u, e, razao, classe))
+    escolhidas = filas["novo"][:vagas]
+    escolhidas += filas["manutencao"][:max(0, min(vagas - len(escolhidas), vagas_manut))]
+    tabela = []
+    for u, e, razao, classe in linhas:
+        feitos = "—" if not e else f"{e.get('municipios', 0) + (e.get('sem_imoveis') or 0)}/{e.get('total_ibge') or S.TOTAL_IBGE[S.ler_unidade(u)[0]]}"
+        acao = "**agora**" if u in escolhidas else ("na fila" if classe else "")
+        tabela.append(f"| {u} | {feitos} | {classe or ''} | {razao} | {acao} |")
     texto = (f"### Plano desta rodada ({'pedido' if pedidos else modo})\n\n"
-             f"Rodando em outras rodadas: {', '.join(sorted(ativas)) or 'nenhum'}"
-             f"{f' (mais {planejando} planejando)' if planejando else ''}. Vagas: {VAGAS}.\n\n"
-             "| Estado | Municípios | O que fazer |\n|---|---|---|\n" + "\n".join(linhas))
+             f"Rodando em outras rodadas: {', '.join(sorted(ativas)) or 'nenhuma'}"
+             f"{f' (mais {planejando} planejando)' if planejando else ''}. Vagas: {VAGAS} "
+             f"(manutenção até {VAGAS_MANUTENCAO}). Começam agora: {len(escolhidas)}. Prontas: {prontas}.\n\n"
+             "| Unidade | Municípios do estado | Fila | O que fazer | |\n|---|---|---|---|---|\n" + "\n".join(tabela))
     texto += f"\n\nVersão das tarefas: {', '.join(f'{v}' for v in (atual_exec or atual).values())}"
     print(texto)
     S.resumo_github(texto)
-    gh_output(matriz=json.dumps(matriz), tem="1" if matriz else "0", dia=dt.datetime.now(dt.timezone.utc).strftime("%Y%m%d"))
-    return matriz
+    gh_output(matriz=json.dumps(escolhidas), tem="1" if escolhidas else "0",
+              dia=dt.datetime.now(dt.timezone.utc).strftime("%Y%m%d"))
+    return escolhidas
 
 
 # ---------------------------------------------------------------- preparar (cache comum)
@@ -557,30 +621,34 @@ def _app_legado(a, uf: str, cods: list[str], fim: float) -> dict:
     return r
 
 
-def _refazer_no_executor(a, uf: str, refazer: set[str], tarefas: tuple[str, ...]) -> int:
-    """Apaga das marcas as tarefas pedidas: o executor as refaz (e o que depende delas, se a saída mudar)."""
+def _refazer_no_executor(a, uf: str, refazer: set[str], tarefas: tuple[str, ...], so: set[str] | None = None) -> int:
+    """Apaga das marcas as tarefas pedidas (só da fatia, com so): o executor as refaz (e o que depende delas, se a
+    saída mudar)."""
     from raiz.executor.armazem import ler_json, por_json
     alvo = {("funil" if t == "imoveis" else t) for t in refazer} & set(tarefas)
     if "funil" in alvo:
         alvo = set(tarefas)
     n = 0
     for k in a.listar(f"marcas/{uf}/") if alvo else []:
+        if so is not None and k.rsplit("/", 1)[1][:-5] not in so:
+            continue
         m = ler_json(a, k) or {}
         if any(m.get("tarefas", {}).pop(t, None) is not None for t in list(alvo)):
             por_json(a, k, m)
             n += 1
     if "extras" in refazer and tem_geotiff_extras(uf):
         for k in a.listar(f"saida/{uf}/"):
-            if re.search(r"/extras_\d{7}\.csv$", k):
+            m = re.search(r"/extras_(\d{7})\.csv$", k)
+            if m and (so is None or m.group(1) in so):
                 a.apagar(k)
     return n
 
 
-def _extras_no_armazem(a, uf: str, esp: Path, fim: float) -> dict | None:
+def _extras_no_armazem(a, uf: str, esp: Path, fim: float, so: set[str] | None = None) -> dict | None:
     """Histórico do Earth Engine (raiz_extras.py), só com os GeoTIFFs em extras/; o resultado vai para o armazém."""
     if not tem_geotiff_extras(uf) or esp is None:
         return None
-    feitos = S.cods(esp, "imoveis")
+    feitos = S.cods(esp, "imoveis") & (so if so is not None else S.cods(esp, "imoveis"))
     falta = sorted(feitos - S.cods(esp, "extras"))
     if not falta:
         return {"faltavam": 0, "faltam": 0, "segundos": 0, "parada": "nada a fazer", "erros": []}
@@ -630,11 +698,17 @@ def _rodar_processo(cmd: list[str], limite: float, env: dict) -> tuple[int | Non
     return proc.returncode, morto["v"], list(ultimas)
 
 
-def rodar_executor(uf: str, refazer: set[str], continuacao: int) -> dict:
-    """Um estado pelo executor do produto: fontes do estado, APP e adoção do que foi publicado antes do executor,
-    `raiz executor rodar` dentro do prazo, extras do Earth Engine (se houver GeoTIFF) e publicação com a rodada."""
+def rodar_executor(unidade: str, refazer: set[str], continuacao: int) -> dict:
+    """Uma unidade (estado inteiro ou fatia de estado grande) pelo executor do produto: fontes do estado, APP e adoção
+    do que foi publicado antes do executor, `raiz executor rodar` dentro do prazo, extras do Earth Engine (se houver
+    GeoTIFF) e publicação com a rodada. Fatia: só os municípios dela; publica relendo o que as outras fatias do mesmo
+    estado já publicaram (trava do estado no armazém) e refaz o resumo do estado inteiro."""
     from raiz.executor.armazem import ler_json
     from raiz.versoes import motor_versao
+    uf, i_fatia, k_fatias = S.ler_unidade(unidade)
+    fatia = set(S.municipios_da_fatia(uf, i_fatia)) if i_fatia else None
+    if fatia is not None:
+        os.environ.setdefault("RAIZ_PUBLICAR_MIN", "60")  # cada publicação de fatia sobe o estado inteiro
     os.chdir(AQUI)
     fim = prazo()
     pasta = AQUI / "saida" / uf
@@ -644,7 +718,8 @@ def rodar_executor(uf: str, refazer: set[str], continuacao: int) -> dict:
     if continuacao and refazer:
         log("continuação: ignoro o pedido de refazer (já foi feito na primeira rodada)")
         refazer = set()
-    rel = {"uf": uf, "modo": "executor", "inicio": S.agora(), "fim": None, "continuacao": continuacao,
+    rel = {"uf": uf, "unidade": unidade, "fatia": i_fatia, "fatias": k_fatias, "modo": "executor",
+           "inicio": S.agora(), "fim": None, "continuacao": continuacao,
            "url": S.url_rodada(), "commit": S.commit_atual(), "versao_motor": motor_versao(), "etapas": {},
            "legado": [], "parou_por_tempo": False, "progresso": 0, "completo": False, "etapas_rodadas": {},
            "erros": []}
@@ -656,11 +731,12 @@ def rodar_executor(uf: str, refazer: set[str], continuacao: int) -> dict:
 
     def erro(etapa: str, ex_: Exception) -> None:
         rel["erros"].append({"etapa": etapa, "municipio": None, "mensagem": S.mascarar(f"{type(ex_).__name__}: {ex_}")})
-        S.acao_github("warning", f"{uf} {etapa}", f"{type(ex_).__name__}: {ex_}")
+        S.acao_github("warning", f"{unidade} {etapa}", f"{type(ex_).__name__}: {ex_}")
 
     grava()
     if fim != float("inf"):
-        log(f"{uf}: prazo das etapas às {dt.datetime.fromtimestamp(fim, dt.timezone.utc):%H:%M} UTC ({a.descricao})")
+        log(f"{unidade}: prazo das etapas às {dt.datetime.fromtimestamp(fim, dt.timezone.utc):%H:%M} UTC ({a.descricao})"
+            + (f"; fatia {i_fatia} de {k_fatias}, {len(fatia)} municípios" if fatia else ""))
     if hasattr(a, "garantir_uf"):
         a.garantir_uf(uf)  # baixa do Release o que já está publicado (saídas, marcas e andamento)
     esp = _pasta_espelho(a, uf)
@@ -680,6 +756,8 @@ def rodar_executor(uf: str, refazer: set[str], continuacao: int) -> dict:
     if seguir and esp is not None:
         marcados = {k.rsplit("/", 1)[1][:-5] for k in a.listar(f"marcas/{uf}/")}
         sem_marca = S.cods(esp, "imoveis") - marcados
+        if fatia is not None:
+            sem_marca &= fatia
         if sem_marca:
             falta_app = sorted(sem_marca - S.com_app(esp, sem_marca))
             if falta_app:
@@ -695,7 +773,7 @@ def rodar_executor(uf: str, refazer: set[str], continuacao: int) -> dict:
                 rel["etapas_rodadas"]["adotar"] = {"municipios": r["adotados"], "tarefas": r["tarefas"]}
                 log(f"{uf}: adotei {r['adotados']} municípios publicados antes do executor ({r['tarefas']})")
     if seguir and refazer:
-        n = _refazer_no_executor(a, uf, refazer, tuple(T.DEPENDE))
+        n = _refazer_no_executor(a, uf, refazer, tuple(T.DEPENDE), fatia)
         log(f"{uf}: refazer {', '.join(sorted(refazer))}: marca apagada em {n} municípios")
     # 3. o executor
     if seguir:
@@ -710,9 +788,12 @@ def rodar_executor(uf: str, refazer: set[str], continuacao: int) -> dict:
             if ate != float("inf"):
                 cmd += ["--ate-minutos", f"{ate:.0f}"]
             env = dict(os.environ, PYTHONUNBUFFERED="1", RAIZ_SEM_BANCO="1")
+            if fatia is not None:
+                cmd += ["--municipios", ",".join(sorted(fatia))]
+                env["RAIZ_SEM_RESUMO"] = "1"  # o resumo do estado inteiro é feito no fim, com todas as fatias
             if fim != float("inf"):
                 env["RAIZ_PRAZO"] = str(int(fim))
-            log(f"{uf}: {' '.join(cmd[-8:])}")
+            log(f"{unidade}: {' '.join(x if len(x) < 80 else x[:60] + '…' for x in cmd[-10:])}")
             t0 = time.time()
             codigo, morto, ultimas = _rodar_processo(cmd, fim + 600, env)
             est = ler_json(a, f"estado/{uf}.json") or {}
@@ -734,29 +815,43 @@ def rodar_executor(uf: str, refazer: set[str], continuacao: int) -> dict:
                 S.acao_github("warning", f"{uf} executor", f"saiu com código {codigo}: {msg}")
     # 4. extras do Earth Engine
     if seguir and not rel["parou_por_tempo"]:
-        r = _extras_no_armazem(a, uf, esp, fim)
+        r = _extras_no_armazem(a, uf, esp, fim, fatia)
         if r:
             rel["etapas_rodadas"]["extras"] = r
             rel["parou_por_tempo"] = r.get("parada") == "prazo"
-    # 5. situação, publicação (com a rodada) e painel
+    # 5. situação, resumo do estado (fatia), publicação (com a rodada) e painel
+    if fatia is not None and esp is not None and getattr(a, "token", None):
+        try:
+            a.garantir_uf(uf, forcar=True)  # o que as outras fatias já publicaram
+            cods_uf = sorted(int(c) for c in S.cods(esp, "imoveis"))
+            f = T.resumo_uf(uf, esp, cods_uf)
+            os.chdir(AQUI)
+            if f is not None:
+                a.por(f"saida/{uf}/resumo_{uf}.csv", Path(f),
+                      {"tarefa": "resumo", "data": S.agora(), "uf": uf, "motor_versao": rel["versao_motor"]})
+        except Exception as ex_:
+            erro("resumo", ex_)
     vazios = _vazios(a, uf)
     if esp is not None:
-        sit = S.situacao(esp, uf, vazios=vazios, produto=True)
+        sit = S.situacao(esp, uf, vazios=vazios, produto=True, so=fatia)
         rel["completo"] = sit["completo"]
         rel["faltam"] = sit["faltam"]
     est = ler_json(a, f"estado/{uf}.json") or {}
     rel["etapas"] = {t: {"versao": v} for t, v in (est.get("versoes") or ex.versoes()).items()}
     rel["fim"] = S.agora()
     grava()
-    extra = {uf: {"motor": {"commit": rel["commit"], "versao": rel["versao_motor"], "etapas": rel["etapas"],
-                            "legado": rel["legado"],
-                            "rodada": {k: rel[k] for k in ("url", "inicio", "fim", "continuacao", "parou_por_tempo",
-                                                           "progresso")}},
-                  "erros": rel["erros"][:50]}}
+    rodada = {k: rel[k] for k in ("url", "inicio", "fim", "continuacao", "parou_por_tempo", "progresso")}
+    motor = {"commit": rel["commit"], "versao": rel["versao_motor"], "etapas": rel["etapas"], "rodada": rodada}
+    if fatia is not None:  # cada fatia anota a sua; o armazém junta as fatias no estados.json
+        motor["fatias"] = {str(i_fatia): {"rodada": rodada, "completo": rel["completo"], "faltam": rel.get("faltam"),
+                                          "erros": len(rel["erros"]), "municipios": len(fatia)}}
+    else:
+        motor["legado"] = rel["legado"]
+    extra = {uf: {"motor": motor, "erros": rel["erros"][:50]}}
     if getattr(a, "token", None) and hasattr(a, "publicar") and esp is not None and S.cods(esp, "imoveis"):
         try:
             a.publicar(uf, extra=extra)
-            log(f"{uf}: publicado no {a.descricao}")
+            log(f"{unidade}: publicado no {a.descricao}")
             import painel
             painel.atualizar_no_github(a.manifesto(fresco=True))
         except Exception as ex_:
@@ -765,14 +860,17 @@ def rodar_executor(uf: str, refazer: set[str], continuacao: int) -> dict:
             grava()
             raise
     else:
-        log(f"{uf}: sem token do GitHub (ou nada no estado): não publico")
-    resumo_executor(uf, rel)
-    log(f"{uf}: fim. Avanço: {rel['progresso']}; completo: {rel['completo']}; parou pelo prazo: {rel['parou_por_tempo']}")
+        log(f"{unidade}: sem token do GitHub (ou nada no estado): não publico")
+    resumo_executor(unidade, rel)
+    log(f"{unidade}: fim. Avanço: {rel['progresso']}; completo: {rel['completo']}; parou pelo prazo: {rel['parou_por_tempo']}")
     return rel
 
 
-def resumo_executor(uf: str, rel: dict) -> None:
-    linhas = [f"### {uf} {S.NOME_UF[uf]} (executor)" + (f", continuação {rel['continuacao']}" if rel.get("continuacao") else ""), ""]
+def resumo_executor(unidade: str, rel: dict) -> None:
+    uf = S.ler_unidade(unidade)[0]
+    linhas = [f"### {unidade} {S.NOME_UF[uf]} (executor)"
+              + (f", fatia {rel['fatia']} de {rel['fatias']}" if rel.get("fatia") else "")
+              + (f", continuação {rel['continuacao']}" if rel.get("continuacao") else ""), ""]
     for nome, r in rel["etapas_rodadas"].items():
         detalhe = ", ".join(f"{k} {v}" for k, v in r.items() if k not in ("erros",) and v not in (None, [], {}))
         linhas.append(f"- {nome}: {detalhe}")
@@ -807,10 +905,10 @@ def disparar(campos: dict, rotulo: str) -> bool:
 
 
 def continuar(uf: str) -> None:
-    """Depois de publicar: se o job parou pelo prazo e avançou, dispara este workflow de novo só para esta UF
-    (continuação). Senão, passa a vez: dispara o 'próximo da fila', que pega o próximo estado na ordem (até VAGAS
-    estados ao mesmo tempo, somando todas as rodadas)."""
-    arq = AQUI / "saida" / uf / "rodada.json"
+    """Depois de publicar: se o job parou pelo prazo e avançou, dispara este workflow de novo só para esta unidade
+    (estado inteiro ou fatia: continuação). Senão, passa a vez: dispara o 'próximo da fila', que pega a próxima
+    unidade (até VAGAS ao mesmo tempo, somando todas as rodadas)."""
+    arq = AQUI / "saida" / S.ler_unidade(uf)[0] / "rodada.json"
     if not arq.exists():
         log(f"{uf}: sem rodada.json (o motor não rodou); não disparo nada, a rodada semanal retoma")
         return
@@ -845,11 +943,11 @@ def main() -> None:
     p.add_argument("--continuacao", default=os.environ.get("RAIZ_CONTINUACAO") or "0",
                    help="número da continuação; 'proximo-<UF>' quando o job de <UF> terminou e passou a vez")
     a = p.parse_args()
-    ufs = lista_ufs(a.ufs or [os.environ.get("RAIZ_UFS", "")])
+    ufs = lista_unidades(a.ufs or [os.environ.get("RAIZ_UFS", "")], expandir=a.planejar)
     refazer = lista_refazer(a.refazer)
     cont = str(a.continuacao).strip()
     proximo = cont.lower().startswith("proximo")  # "proximo-PA": o job de PA terminou e passou a vez
-    liberou = cont.split("-", 1)[1].upper() if proximo and "-" in cont else None
+    liberou = cont.split("-", 1)[1].upper() if proximo and "-" in cont else None  # unidade: "PA" ou "MG-3"
     continuacao = int(cont) if cont.isdigit() else 0
     if a.planejar:
         planejar(ufs, refazer, "proximo" if proximo else "automatico", liberou)
@@ -867,8 +965,8 @@ def main() -> None:
         for uf in ufs:
             if a.executor:
                 rodar_executor(uf, refazer if not proximo else set(), continuacao)
-            else:
-                rodar(uf, refazer if not proximo else set(), continuacao, so)
+            else:  # só o motor: a fatia vira o estado inteiro (os scripts do motor rodam por estado)
+                rodar(S.ler_unidade(uf)[0], refazer if not proximo else set(), continuacao, so)
 
 
 if __name__ == "__main__":

@@ -296,7 +296,8 @@ class ArmazemRelease:
     UPLOADS = "https://uploads.github.com"
 
     def __init__(self, repo: str = "bernardoemmel/raiz", tag: str = "dados", espelho: Path | None = None,
-                 token: str | None = None, cliente=None, intervalo_s: float = 900, a_cada: int = 20):  # fmt: skip
+                 token: str | None = None, cliente=None, intervalo_s: float | None = None,
+                 a_cada: int = 20):  # fmt: skip
         import httpx
 
         self.repo, self.tag = repo, tag
@@ -305,8 +306,12 @@ class ArmazemRelease:
         self.cli = cliente or httpx.Client(timeout=300, follow_redirects=True,
                                             headers={"User-Agent": "raiz-executor"})  # fmt: skip
         self.descricao = f"Release {tag} de {repo}"
+        # de quanto em quanto tempo publica no meio da rodada (RAIZ_PUBLICAR_MIN; fatias de estado grande: 60)
+        if intervalo_s is None:
+            intervalo_s = float(os.environ.get("RAIZ_PUBLICAR_MIN", 15)) * 60
         self.intervalo_s, self.a_cada = intervalo_s, a_cada
         self._ufs: set[str] = set()
+        self._travas: set[str] = set()
         self._global = False
         self._sujos: dict[str, int] = {}
         self._ultima: dict[str, float] = {}
@@ -353,15 +358,22 @@ class ArmazemRelease:
                 if not self.local.meta(k):
                     self.local.por_bytes(k, json.dumps(v, ensure_ascii=False).encode("utf-8"), {"tipo": "json"})
 
-    def garantir_uf(self, uf: str) -> None:
-        """Baixa os pacotes do estado para o espelho (uma vez por sessão; o que já foi gravado aqui fica)."""
+    def garantir_uf(self, uf: str, forcar: bool = False) -> None:
+        """Baixa os pacotes do estado para o espelho (uma vez por sessão, ou de novo com forcar). O que esta máquina
+        gravou e ainda não publicou fica; o resto vem do Release (ex.: municípios de outra fatia do mesmo estado, que
+        roda em outro job). Lê dentro da trava do estado, para não pegar pacote no meio da publicação de outro job."""
+        uf = uf.upper()
+        if uf in self._ufs and not forcar:
+            return
+        self._ufs.add(uf)
+        trava = self._trava(f"trava-publicar-{uf}", 1800) if self.token else contextlib.nullcontext()
+        with trava:
+            self._baixar_uf(uf)
+
+    def _baixar_uf(self, uf: str) -> None:
         import io
         import tarfile
 
-        uf = uf.upper()
-        if uf in self._ufs:
-            return
-        self._ufs.add(uf)
         for nome in (f"raiz_{uf}.tar.gz", f"raiz_geo_{uf}.tar.gz", f"raiz_camadas_{uf}.tar.gz"):
             b = self._baixar_asset(nome)
             if not b:
@@ -387,8 +399,11 @@ class ArmazemRelease:
             ctl = json.loads(b)
             for cod, marca in (ctl.get("marcas") or {}).items():
                 k = f"marcas/{uf}/{int(cod)}.json"
-                if not self.local.meta(k):
-                    self.local.por_bytes(k, json.dumps(marca, ensure_ascii=False).encode("utf-8"), {"tipo": "json"})
+                dados = json.dumps(marca, ensure_ascii=False).encode("utf-8")
+                atual = self.local.meta(k)
+                if atual and (atual.get("gravado_aqui") == "sim" or atual.get("sha256") == sha256_bytes(dados)):
+                    continue  # a marca que esta máquina gravou fica (e só ela sabe das saídas que gravou)
+                self.local.por_bytes(k, dados, {"tipo": "json"})
             if ctl.get("estado") and not self.local.meta(f"estado/{uf}.json"):
                 self.local.por_bytes(f"estado/{uf}.json", json.dumps(ctl["estado"], ensure_ascii=False).encode("utf-8"))
 
@@ -489,10 +504,15 @@ class ArmazemRelease:
     TRAVA = "trava-publicar-dados"  # a mesma de motor/publicar_dados.py
 
     @contextlib.contextmanager
-    def _trava(self, velha_s: float = 600):
-        """Só um job por vez relê e regrava o estados.json. A trava é a tag trava-publicar-dados: criar uma referência
-        que já existe dá erro na API, então só um consegue. Quem espera mais de 10 min considera a trava abandonada
-        (job que caiu) e a apaga; a regravação dura segundos. Sem como criar a trava, publica sem ela e confere."""
+    def _trava(self, nome: str | None = None, velha_s: float = 600):
+        """Só um job por vez relê e regrava o estados.json (trava-publicar-dados) ou o pacote de um estado
+        (trava-publicar-<UF>: fatias do mesmo estado rodam em jobs diferentes). A trava é uma tag: criar uma referência
+        que já existe dá erro na API, então só um consegue. Quem espera mais que velha_s considera a trava abandonada
+        (job que caiu) e a apaga. Reentrante no mesmo processo. Sem como criar a trava, segue sem ela e confere."""
+        nome = nome or self.TRAVA
+        if nome in self._travas:
+            yield
+            return
         h = self._cabecalhos()
         sha = os.environ.get("GITHUB_SHA")
         if not sha:
@@ -501,125 +521,144 @@ class ArmazemRelease:
         pegou, t0 = False, time.time()
         while sha:
             r = self.cli.post(f"{self.API}/repos/{self.repo}/git/refs", headers=h,
-                              json={"ref": f"refs/tags/{self.TRAVA}", "sha": sha})  # fmt: skip
+                              json={"ref": f"refs/tags/{nome}", "sha": sha})  # fmt: skip
             if r.status_code == 201:
                 pegou = True
                 break
             if r.status_code == 422 and "already exists" in r.text.lower():
                 if time.time() - t0 > velha_s:
-                    log.warning("trava do estados.json abandonada há mais de %.0f min: apago e pego", velha_s / 60)
-                    self.cli.delete(f"{self.API}/repos/{self.repo}/git/refs/tags/{self.TRAVA}", headers=h)
+                    log.warning("trava %s abandonada há mais de %.0f min: apago e pego", nome, velha_s / 60)
+                    self.cli.delete(f"{self.API}/repos/{self.repo}/git/refs/tags/{nome}", headers=h)
                     t0 = time.time()
                     continue
                 time.sleep(random.uniform(5, 15))
                 continue
-            log.warning("sem trava do estados.json (HTTP %s); publico sem ela e confiro depois", r.status_code)
+            log.warning("sem a trava %s (HTTP %s); sigo sem ela e confiro depois", nome, r.status_code)
             break
+        self._travas.add(nome)
         try:
             yield
         finally:
+            self._travas.discard(nome)
             if pegou:
-                self.cli.delete(f"{self.API}/repos/{self.repo}/git/refs/tags/{self.TRAVA}", headers=h)
+                self.cli.delete(f"{self.API}/repos/{self.repo}/git/refs/tags/{nome}", headers=h)
 
     def publicar(self, uf: str | None = None, extra: dict | None = None) -> dict:
         """Empacota o estado a partir do espelho e sobe: pacotes, controle e por último o estados.json. O estados.json
         é relido do Release e regravado dentro da trava, trocando só as entradas destes estados (vários jobs publicam
         ao mesmo tempo no GitHub Actions). extra: campos a mais por estado ({uf: {...}}), ex.: a rodada e os erros que
         o motor/rodar_estado.py anota."""
-        import datetime as dt
-        import re
-
         if not self.token:
             raise PermissionError("sem token do GitHub (GH_TOKEN ou GITHUB_TOKEN): publicar só de dentro do Actions")
-        rel = self._release()
-        man = self.manifesto()
-        estados = man.setdefault("estados", {})
         ufs = [uf.upper()] if uf else sorted(u for u in self._sujos if u != "_global")
-        agora = dt.datetime.now(dt.UTC).isoformat(timespec="seconds")
         feito = {}
         for u in ufs:
-            self.garantir_uf(u)
-            chaves = self.local.listar(f"saida/{u}/")
-            csvs, geos, camadas, vers = {}, {}, {}, {}
-            for k in chaves:
-                arq = k.rsplit("/", 1)[1]
-                dados = self.local.ler(k)
-                meta = self.local.meta(k) or {}
-                vers[arq] = {x: meta[x] for x in ("tarefa", "versao", "data", "cod_municipio", "sha256") if x in meta}
-                if arq.endswith(".csv"):
-                    cab = dados.split(b"\n", 1)[0].decode("utf-8", "replace").split(",")
-                    ruins = [c for c in cab if re.search(PROIBIDAS, c.strip().strip('"'), re.I)]
-                    if ruins:
-                        raise ValueError(f"{arq} tem coluna proibida {ruins}: não publico")
-                    csvs[arq] = dados
-                elif arq.startswith("geo_"):
-                    geos[arq] = dados
-                elif arq.startswith("camadas_"):
-                    camadas[arq] = dados
-            info = dict(estados.get(u, {}))
-            versao = hashlib.sha256(b"".join(n.encode() + csvs[n] for n in sorted(csvs))).hexdigest()[:16]
-            if csvs and info.get("versao") != versao:
-                pacote = self._tar(u, {**csvs, "_versoes.json": json.dumps(vers, ensure_ascii=False).encode()})
-                self._subir(rel, f"raiz_{u}.tar.gz", pacote, "application/gzip")
-                info.update(tamanho=len(pacote), atualizado_em=agora)
-            for nome, grupo, campo in ((f"raiz_geo_{u}.tar.gz", geos, "geo"), (f"raiz_camadas_{u}.tar.gz", camadas,
-                                                                                 "camadas")):  # fmt: skip
-                if not grupo:
-                    continue
-                vg = hashlib.sha256(b"".join(n.encode() + grupo[n] for n in sorted(grupo))).hexdigest()[:16]
-                if (info.get(campo) or {}).get("versao") != vg:
-                    p = self._tar(u, grupo)
-                    self._subir(rel, nome, p, "application/gzip")
-                    info[campo] = {"versao": vg, "tamanho": len(p), "url": self.url(nome), "municipios": len(grupo)}
-            marcas = {
-                k.rsplit("/", 1)[1][:-5]: json.loads(self.local.ler(k)) for k in self.local.listar(f"marcas/{u}/")
-            }
-            est = json.loads(self.local.ler(f"estado/{u}.json") or b"{}")
-            controle = json.dumps({"marcas": marcas, "estado": est}, ensure_ascii=False).encode()
-            self._subir(rel, f"raiz_controle_{u}.json", controle, "application/json")
-            nomes = list(csvs)
-            cont = {t: sum(1 for n in nomes if re.fullmatch(rf"{t}_\d{{7}}\.csv", n)) for t in TABELAS_TODAS}
-            vazios = {c for c, m in marcas.items() if ((m.get("tarefas") or {}).get("funil") or {}).get("vazio")}
-            sit = _situacao(self.local.raiz / "saida" / u, u, vazios)
-            info.update(sit)
-            info.update(
-                tabelas={**cont, "app": sit["tabelas"]["app"]},
-                versao=versao,
-                url=self.url(f"raiz_{u}.tar.gz"),
-                motor_versao=est.get("motor_versao"),
-                versoes=est.get("versoes"),
-                situacao=est.get("situacao"),
-                controle=self.url(f"raiz_controle_{u}.json"),
-            )
-            info.update((extra or {}).get(u, {}))
-            estados[u] = info
-            self._sujos.pop(u, None)
-            self._ultima[u] = time.time()
-            feito[u] = info
+            with self._trava(f"trava-publicar-{u}", 1800):
+                self.garantir_uf(u, forcar=True)  # junta o que outras fatias do estado já publicaram
+                feito[u] = self._publicar_uf(u, (extra or {}).get(u, {}))
+                self._gravar_indice({u: feito[u]})
         if self._sujos.pop("_global", 0) or not uf:
             glob = {k: json.loads(self.local.ler(k)) for k in self.local.listar("estado/")
                     if self._uf_da_chave(k) is None}  # fmt: skip
             if glob:
-                self._subir(
-                    rel, "raiz_controle.json", json.dumps(glob, ensure_ascii=False).encode(), "application/json"
-                )
+                self._subir(self._release(), "raiz_controle.json", json.dumps(glob, ensure_ascii=False).encode(),
+                            "application/json")  # fmt: skip
+        return feito
+
+    def _publicar_uf(self, u: str, extra: dict) -> dict:
+        import datetime as dt
+        import re
+
+        rel = self._release()
+        estados = self.manifesto().get("estados", {})
+        agora = dt.datetime.now(dt.UTC).isoformat(timespec="seconds")
+        chaves = self.local.listar(f"saida/{u}/")
+        csvs, geos, camadas, vers = {}, {}, {}, {}
+        for k in chaves:
+            arq = k.rsplit("/", 1)[1]
+            dados = self.local.ler(k)
+            meta = self.local.meta(k) or {}
+            vers[arq] = {x: meta[x] for x in ("tarefa", "versao", "data", "cod_municipio", "sha256") if x in meta}
+            if arq.endswith(".csv"):
+                cab = dados.split(b"\n", 1)[0].decode("utf-8", "replace").split(",")
+                ruins = [c for c in cab if re.search(PROIBIDAS, c.strip().strip('"'), re.I)]
+                if ruins:
+                    raise ValueError(f"{arq} tem coluna proibida {ruins}: não publico")
+                csvs[arq] = dados
+            elif arq.startswith("geo_"):
+                geos[arq] = dados
+            elif arq.startswith("camadas_"):
+                camadas[arq] = dados
+        info = dict(estados.get(u, {}))
+        versao = hashlib.sha256(b"".join(n.encode() + csvs[n] for n in sorted(csvs))).hexdigest()[:16]
+        if csvs and info.get("versao") != versao:
+            pacote = self._tar(u, {**csvs, "_versoes.json": json.dumps(vers, ensure_ascii=False).encode()})
+            self._subir(rel, f"raiz_{u}.tar.gz", pacote, "application/gzip")
+            info.update(tamanho=len(pacote), atualizado_em=agora)
+        for nome, grupo, campo in ((f"raiz_geo_{u}.tar.gz", geos, "geo"), (f"raiz_camadas_{u}.tar.gz", camadas,
+                                                                             "camadas")):  # fmt: skip
+            if not grupo:
+                continue
+            vg = hashlib.sha256(b"".join(n.encode() + grupo[n] for n in sorted(grupo))).hexdigest()[:16]
+            if (info.get(campo) or {}).get("versao") != vg:
+                p = self._tar(u, grupo)
+                self._subir(rel, nome, p, "application/gzip")
+                info[campo] = {"versao": vg, "tamanho": len(p), "url": self.url(nome), "municipios": len(grupo)}
+        marcas = {k.rsplit("/", 1)[1][:-5]: json.loads(self.local.ler(k)) for k in self.local.listar(f"marcas/{u}/")}
+        est = json.loads(self.local.ler(f"estado/{u}.json") or b"{}")
+        controle = json.dumps({"marcas": marcas, "estado": est}, ensure_ascii=False).encode()
+        self._subir(rel, f"raiz_controle_{u}.json", controle, "application/json")
+        nomes = list(csvs)
+        cont = {t: sum(1 for n in nomes if re.fullmatch(rf"{t}_\d{{7}}\.csv", n)) for t in TABELAS_TODAS}
+        vazios = {c for c, m in marcas.items() if ((m.get("tarefas") or {}).get("funil") or {}).get("vazio")}
+        sit = _situacao(self.local.raiz / "saida" / u, u, vazios)
+        info.update(sit)
+        info.update(
+            tabelas={**cont, "app": sit["tabelas"]["app"]},
+            versao=versao,
+            url=self.url(f"raiz_{u}.tar.gz"),
+            motor_versao=est.get("motor_versao"),
+            versoes=est.get("versoes"),
+            situacao=est.get("situacao"),
+            controle=self.url(f"raiz_controle_{u}.json"),
+        )
+        info.update(extra)
+        self._sujos.pop(u, None)
+        self._ultima[u] = time.time()
+        return info
+
+    def _gravar_indice(self, feito: dict) -> None:
+        """Relê o estados.json, troca só as entradas destes estados e regrava, dentro da trava; confere depois. O
+        campo motor.fatias (a rodada de cada fatia de um estado grande) é juntado, não trocado."""
+        import datetime as dt
+
+        agora = dt.datetime.now(dt.UTC).isoformat(timespec="seconds")
         for _ in range(3):
             with self._trava():
                 fresco = self.manifesto(fresco=True)
                 est_f = fresco.setdefault("estados", {})
                 for u, info in feito.items():
-                    est_f[u] = {**est_f.get(u, {}), **info}
+                    est_f[u] = _juntar_entrada(est_f.get(u, {}), info)
                 fresco.update(gerado_em=agora, repo=self.repo, tag=self.tag, estados=dict(sorted(est_f.items())))
                 dados = json.dumps(fresco, ensure_ascii=False, indent=1).encode()
                 self._subir(self._release(), "estados.json", dados, "application/json")
             conferido = self.manifesto(fresco=True).get("estados", {})
             if all((conferido.get(u) or {}).get("versao") == info.get("versao") for u, info in feito.items()):
-                break
+                return
             log.warning("estados.json sem a entrada de %s (outro job regravou junto); refaço", list(feito))
             time.sleep(random.uniform(5, 20))
-        else:
-            raise RuntimeError("não consegui gravar o estados.json com as entradas deste job")
-        return feito
+        raise RuntimeError("não consegui gravar o estados.json com as entradas deste job")
+
+
+def _juntar_entrada(antiga: dict, nova: dict) -> dict:
+    """Entrada nova por cima da antiga; motor.fatias junta as fatias (cada job publica só a sua)."""
+    out = {**antiga, **nova}
+    ma, mn = antiga.get("motor"), nova.get("motor")
+    if isinstance(ma, dict) and isinstance(mn, dict):
+        out["motor"] = {**ma, **mn, "fatias": {**(ma.get("fatias") or {}), **(mn.get("fatias") or {})}}
+        if not out["motor"]["fatias"]:
+            del out["motor"]["fatias"]
+    return out
 
 
 def _situacao(pasta: Path, uf: str, vazios: set[str]) -> dict:

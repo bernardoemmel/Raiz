@@ -91,6 +91,23 @@ v5.0 (é evento de perda quando a perda passa de **5%** das reduções e remoç�
 - Situação do evento: `suspeita`, `confirmada` (algum alerta verdadeiro), `descartada` (todos falsos ou descartado
   pelo fundador) ou `relatada`.
 
+## Alerta do pedido salvo (cena-alvo, passo 9)
+
+O vigia do pedido (`raiz/pedidos/servico.py`, `vigiar`, rodado de hora em hora por `raiz pedidos ciclo`) usa
+`raiz/vigilancia/pedidos.py` para saber o que aconteceu nas fazendas do lote e do grupo depois que o pedido foi salvo:
+
+| Motivo | De onde vem |
+|---|---|
+| `desmatamento` | alerta de desmatamento ou degradação da vigilância diária (MapBiomas Alerta, DETER, PRODES) visto depois do pedido; fica de fora o que foi marcado falso, a borda e a linha de base |
+| `embargo` | termo de embargo do Ibama novo e ainda ativo |
+| `matricula_cancelada` | certidão lida que diz que a matrícula foi encerrada, cancelada ou transportada (`matricula_<mun>.csv` do leitor de certidões) |
+| `bloqueio`, `caminho_terra`, `saiu_da_base` | o motor refez o município e a fazenda não passa mais no filtro do pedido |
+
+Cada fato tem chave própria e nunca é avisado duas vezes. O aviso vai para o painel e o e-mail; com o grupo em
+formação ou fechado, também por WhatsApp (simulado até haver enviador). "Lote melhorou" diz quais fazendas novas
+entraram e se o dado delas é novo na base. Antes do vigia, o ciclo traz o estado publicado da vigilância (a parte
+aberta basta; com `RAIZ_VIGILANCIA_CHAVE`, também as marcações).
+
 ## Aprendizado
 
 Cada alerta é uma previsão congelada: nasce com a versão da regra (`vigilancia-2026.11a+<hash de regras.yaml>`), o

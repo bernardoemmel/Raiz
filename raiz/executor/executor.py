@@ -280,7 +280,7 @@ class Executor:
                         parou = True
                         pool.terminate()  # os que estavam no meio ficam sem marca e rodam na próxima vez
                         break
-        if self.resumo:
+        if self.resumo and os.environ.get("RAIZ_SEM_RESUMO") != "1":  # fatia: o resumo do estado inteiro é feito fora
             try:
                 f = self.resumo(uf, self.pasta(uf), cods)
                 if f is not None and Path(f).exists():
