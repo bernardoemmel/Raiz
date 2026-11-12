@@ -4,14 +4,11 @@ Três telas, lendo as saídas do motor pelo nome das colunas (`docs/colunas.md`)
 
 | Pasta | O que é | Tecnologia |
 |---|---|---|
-| `globo/` | Painel: abertura com o globo, tela principal (funil, filtros, mapa, lista de aptas) e ficha da fazenda | Vite + React 19 + TypeScript, globo `cobe` 2.0.1, MapLibre GL JS + PMTiles |
+| `globo/` | Painel do analista: tela de entrada (mapa do Brasil com a busca no topo), painel do município (funil em barras ligado ao mapa, tabela de fazendas) e ficha da fazenda. A pasta guarda o nome antigo; não tem mais globo | Vite + React 19 + TypeScript, MapLibre GL JS + PMTiles |
 | `produtor/` | Ficha leve para o produtor no celular: texto primeiro, mapa só ao tocar | Vite + Preact, MapLibre + PMTiles carregados sob demanda |
 | `compartilhado/` | Camada única de dados, regras do funil, formatos, comparações, caixa de fatos, privacidade | TypeScript sem dependência |
-| `scripts/geo.py` | Baixa as geometrias públicas e recorta o mapa base | Python (requests, shapely, pmtiles) |
+| `scripts/geo.py` | Baixa as geometrias públicas, recorta o mapa base do Brasil e gera o contorno dos estados do minimapa | Python (requests, shapely, pmtiles) |
 | `referencia/` | Prints aprovados pelo fundador | |
-
-Os componentes em `globo/src/components/` foram copiados sem alterar e continuam assim: a abertura controla o
-globo só pelas props `speed` e `theta`.
 
 ## Rodar
 
@@ -28,13 +25,20 @@ cd front/globo && npm install && npm run dev
 cd front/produtor && npm install && npm run dev
 ```
 
-O painel abre em `http://localhost:5173/` (São Félix do Xingu primeiro) e a ficha do produtor em
-`http://localhost:5174/?car=<código do CAR>`. Testes da camada de dados: `cd front/globo && npm test`.
+O painel abre em `http://localhost:5173/` e a ficha do produtor em `http://localhost:5174/?car=<código do CAR>`.
 
-- `?sem-abertura` pula a abertura; `?abertura` força. Ela roda uma vez por sessão e nunca com "reduzir movimento".
-- A busca fica no topo da abertura, do painel e da ficha (atalho: tecla `/`). Imóvel achado abre a ficha com o mapa
-  saindo do Brasil, passando pelo município e pousando na fazenda.
-- Rotas do painel: `#/municipio/<código IBGE>` e `#/fazenda/<código do CAR>`.
+- **Tela de entrada** (`#/`): o mapa plano do Brasil, sem animação. Municípios processados em mata clara, os demais
+  em névoa, fazendas aptas agrupadas em círculos com o número. Tocar num município faz o mesmo que buscar por ele.
+- **Município** (`#/municipio/<código IBGE>`): o mapa voa até ele (sem passar por zoom de mundo), pinta as fazendas
+  pela situação e abre o painel com o funil em barras: tocar numa barra deixa só aquelas fazendas coloridas; tocar no
+  contorno mostra quem saiu, pela cor do motivo. No celular o painel é uma gaveta que sobe de baixo.
+- **Fazenda** (`#/fazenda/<código do CAR>`): a ficha. A busca fica no topo de todas as telas (atalho: tecla `/`):
+  código do CAR vai direto para a ficha, com o mapa saindo do município e pousando na fazenda; nome de município vai
+  para o mapa dele, inclusive de estado ainda não processado (o painel avisa).
+
+Testes: `cd front/globo && npm test` (dados, funil, busca, rotas, design e ausência do globo) e `npm run test:e2e`
+(sobe o Vite e confere no Chromium a entrada sem o cobe, a busca por município e por CAR, o toque no mapa e a gaveta no
+celular; precisa do Playwright com o Chromium e de `front/geo/` gerado).
 
 ## Dados
 
@@ -57,6 +61,9 @@ Tudo passa por `compartilhado/dados/` (`FonteDeDados`). As telas não sabem de o
 | `GET /busca?q=` | `RespostaBusca` (`compartilhado/dados/busca.ts`): `situacao`, `mensagem`, `imoveis`, `municipios` |
 | `GET /geo/{cod_ibge}/{municipio,imoveis,ti,uc,rios}.geojson` | geometrias |
 | `GET /geo/{cod_ibge}/base.pmtiles` | mapa base (precisa responder a `Range`) |
+| `GET /pontos` | fazendas aptas para os círculos da tela de entrada: `lon`, `lat`, `situacao` (`apta` ou `pendencia`), `ha`, `cod_ibge` |
+| `GET /geo/brasil/municipios.geojson` | os 5.570 municípios do Brasil, simplificados (`cod_ibge`, `nome`, `uf`) |
+| `GET /geo/brasil/base.pmtiles` | mapa base único, do país (zoom 0 a 6) ao município (até 14), com `Range` |
 
 A busca (`GET /busca?q=`) aceita o código do CAR inteiro ou o começo dele, com ou sem os pontos do recibo
 (`PA-1507300-F293.CD17...`), e o nome ou o código IBGE do município. Quando não acha, diz por quê:
