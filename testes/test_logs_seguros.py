@@ -72,3 +72,108 @@ def test_metadados_e_healthchecks_sanitizados():
         hc = Healthchecks(chave_ping="somente-teste", base="https://hc.example.org", cliente=cliente)
         assert hc.falha("lote", "teste", "nome=Pessoa Sintética, contato@example.org")
     assert "Pessoa Sintética" not in enviados[0] and "contato@example.org" not in enviados[0]
+
+
+def _capturar_json_configurado(monkeypatch):
+    from raiz.privacidade import configurar_log
+
+    arquivo = io.StringIO()
+    handler = logging.StreamHandler(arquivo)
+    raiz = logging.getLogger()
+    monkeypatch.setattr(raiz, "handlers", [handler])
+    monkeypatch.setattr(raiz, "level", raiz.level)
+    configurar_log()
+    return arquivo, handler
+
+
+def test_log_reentrante_do_analisador_e_descartado_sem_ruido_ou_conteudo(monkeypatch):
+    import json
+
+    ferramentas = L._ferramentas()
+    arquivo, handler = _capturar_json_configurado(monkeypatch)
+
+    def analisar_com_aviso():
+        logging.getLogger("analisador-interno-teste").warning("nome=Pessoa Sintética, contato@example.invalid")
+        return ferramentas
+
+    monkeypatch.setattr(L, "_ferramentas", analisar_com_aviso)
+    logging.getLogger("teste-http").warning(
+        "falha: contato@example.invalid", extra={"evento": "http", "status": 500, "rota": "/pedidos/{id}"}
+    )
+    linhas = arquivo.getvalue().splitlines()
+    assert len(linhas) == 1
+    dado = json.loads(linhas[0])
+    assert dado["nivel"] == "WARNING" and dado["logger"] == "teste-http"
+    assert dado["evento"] == "http" and dado["status"] == 500 and dado["rota"] == "/pedidos/{id}"
+    assert "<EMAIL_ADDRESS>" in dado["mensagem"]
+    assert all(p not in linhas[0] for p in ("Pessoa Sintética", "contato@example.invalid", "indisponível"))
+    # Configurar novamente não acumula filtros nem passa a ocultar registros normais.
+    from raiz.privacidade import configurar_log
+
+    configurar_log()
+    assert len(handler.filters) == 1
+    monkeypatch.setattr(L, "_ferramentas", lambda: ferramentas)
+    logging.getLogger("analisador-interno-teste").warning("aviso normal fora da sanitização")
+    assert len(arquivo.getvalue().splitlines()) == 2
+
+
+def test_falha_real_da_sanitizacao_permanece_visivel_sem_original(monkeypatch):
+    import json
+
+    arquivo, _ = _capturar_json_configurado(monkeypatch)
+
+    def falhar():
+        logging.getLogger("analisador-interno-teste").warning("falha interna contato@example.invalid")
+        raise RuntimeError("erro com nome=Pessoa Sintética")
+
+    monkeypatch.setattr(L, "_ferramentas", falhar)
+    logging.getLogger("teste").warning("não liberar contato@example.invalid")
+    linhas = arquivo.getvalue().splitlines()
+    assert len(linhas) == 1
+    dado = json.loads(linhas[0])
+    assert dado["nivel"] == "WARNING"
+    assert dado["mensagem"] == "[log suprimido: sanitização indisponível]"
+    assert "Pessoa Sintética" not in linhas[0] and "contato@example.invalid" not in linhas[0]
+
+
+def test_filtro_nao_descarta_registro_de_outra_thread(monkeypatch):
+    from concurrent.futures import ThreadPoolExecutor
+
+    from raiz.privacidade import FiltroSanitizacao
+
+    monkeypatch.setattr(L._estado, "ativo", True, raising=False)
+    filtro = FiltroSanitizacao()
+    registro = logging.LogRecord("teste", logging.WARNING, "", 1, "aviso normal", (), None)
+    assert not filtro.filter(registro)
+    with ThreadPoolExecutor(max_workers=1) as executor:
+        assert executor.submit(filtro.filter, registro).result()
+
+
+def test_id_gerado_preserva_correlacao_sem_abrir_campo_a_texto_pessoal(monkeypatch):
+    import json
+
+    from raiz.privacidade import FormatadorJSON
+
+    identificador = "abcdef0123456789" * 2
+    monkeypatch.setattr(L, "sanitizar_log", lambda texto: "<PERSON>" if texto == identificador else texto)
+    registro = logging.LogRecord("teste", logging.INFO, "", 1, "chamada HTTP", (), None)
+    registro.requisicao_id = identificador
+    assert json.loads(FormatadorJSON().format(registro))["requisicao_id"] == identificador
+    registro.requisicao_id = "contato@example.invalid"
+    assert "requisicao_id" not in json.loads(FormatadorJSON().format(registro))
+
+
+def test_http_real_nao_cria_avisos_reentrantes_por_campo_json(monkeypatch):
+    import json
+
+    from fastapi.testclient import TestClient
+
+    from testes.test_seguranca_api import app_teste
+
+    arquivo, _ = _capturar_json_configurado(monkeypatch)
+    resposta = TestClient(app_teste()).get("/ok")
+    linhas = [json.loads(linha) for linha in arquivo.getvalue().splitlines()]
+    assert len(linhas) == 1
+    assert linhas[0]["evento"] == "http" and linhas[0]["status"] == 200
+    assert linhas[0]["requisicao_id"] == resposta.headers["x-request-id"]
+    assert "indisponível" not in arquivo.getvalue()

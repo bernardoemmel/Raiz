@@ -12,6 +12,7 @@ import time
 import uuid
 from collections import OrderedDict
 
+from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import MutableHeaders
 from starlette.middleware.cors import CORSMiddleware
 from starlette.responses import JSONResponse
@@ -98,7 +99,9 @@ class SegurancaAPI:
         finally:
             # A rota vem do roteador, nunca do path/query/header que o visitante controla.
             rota = getattr(scope.get("route"), "path", "[sem rota]")
-            log.info(
+            # Presidio e a escrita do handler são síncronos; não devem bloquear I/O/timeout dos outros pedidos.
+            await run_in_threadpool(
+                log.info,
                 "chamada HTTP",
                 extra={
                     "evento": "http",
@@ -129,7 +132,7 @@ class SegurancaAPI:
             )
         except Exception:
             # Não registrar URL/credencial/mensagem da conexão; não desabilitar o limite em uma falha.
-            log.error("armazenamento do limite de chamadas indisponível")
+            await run_in_threadpool(log.error, "armazenamento do limite de chamadas indisponível")
             return await JSONResponse(
                 {"detail": "serviço temporariamente indisponível"},
                 status_code=503,
@@ -149,7 +152,7 @@ class SegurancaAPI:
                 try:
                     self.erros.capturar(erro)
                 except Exception:
-                    log.error("monitoramento de erros indisponível")
+                    await run_in_threadpool(log.error, "monitoramento de erros indisponível")
             # O ServerErrorMiddleware externo não passa pelo middleware ao criar o 500.
             if not iniciado:
                 await JSONResponse({"detail": "erro interno"}, status_code=500)(scope, receive, enviar)

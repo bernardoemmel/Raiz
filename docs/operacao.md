@@ -503,8 +503,8 @@ New branch ruleset**. Dê o nome `main protegida`, selecione **Active** e inclua
 1. Exija pull request antes de integrar. Para o fundador trabalhar sozinho, não exija aprovação de uma segunda
    pessoa; exija resolver todas as conversas abertas. Se houver revisor, pode exigir uma aprovação e invalidá-la
    quando o código mudar.
-2. Em **Require status checks to pass**, selecione os sete checks do workflow **CI**: `workflows`, `segredos`,
-   `front`, `seguranca`, `checagens`, `e2e` e `carga`. Prefira a origem **GitHub Actions**, quando disponível. Marque
+2. Em **Require status checks to pass**, selecione os oito checks do workflow **CI**: `workflows`, `segredos`,
+   `front`, `seguranca`, `checagens`, `e2e`, `carga` e `mcp`. Prefira a origem **GitHub Actions**, quando disponível. Marque
    **Require branches to be up to date before merging**. Os nomes só aparecem depois de uma execução.
 3. Ative **Block force pushes** e **Restrict deletions**. Mantenha a lista de bypass vazia, incluindo para
    administradores, salvo uma política de emergência explícita. Não habilite merge automático do Dependabot
@@ -530,7 +530,7 @@ retirá-la do último commit não a apaga do histórico.
 
 ## CI e controles de segurança
 
-Os sete jobs rodam em paralelo, sem filtro de caminhos nem seleção de testes. `setup-uv` guarda cache pelo
+Os oito jobs rodam em paralelo, sem filtro de caminhos nem seleção de testes. `setup-uv` guarda cache pelo
 `uv.lock`, `setup-node` guarda o cache npm pelos locks, e o Chromium/LanguageTool têm caches separados. A instalação
 continua travada (`uv sync --frozen --all-extras`, `npm ci`). Não se reutiliza `node_modules` de outro lock.
 
@@ -689,10 +689,9 @@ A validação impede nova publicação irregular; não é limpeza retroativa de 
 
 ## Revisão contínua da main
 
-Cada push da main executa os sete jobs de CI, incluindo segredos, licenças, privacidade, testes e carga. A revisão
+Cada push da main executa os oito jobs de CI, incluindo segredos, licenças, privacidade, testes e carga. A revisão
 semântica de cada PR integrado fica registrada em `docs/passagem/qualidade-e-seguranca.md`, com commit e chat dono
 dos achados maiores. Correção pequena precisa de regressão e PR com todos os checks verdes.
 
-A automação disponível neste chat não expõe gatilho de merge do GitHub. Foi oferecida ao fundador a alternativa
-horária, processando todos os PRs ainda não revisados; ela ainda não está ativada. Checagens por push não são
+Por decisão do fundador, ficam somente as checagens por push, sem automação horária. Checagens por push não são
 apresentadas como revisão automática de lógica por um agente. A proteção da main continua sendo ativada à mão.

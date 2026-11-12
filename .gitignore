@@ -65,3 +65,7 @@ dados-entrada/
 
 # retratos imutáveis de entradas do executor (publicados no Release, nunca no git)
 dados/historico_aprendizado/
+
+# Relatórios locais de qualidade, sem artefatos grandes no git
+resultado-mcp/
+resultado-carga/

@@ -281,3 +281,44 @@ jobs:
           path: resultado-carga/*.json
           if-no-files-found: error
           retention-days: 7
+
+  mcp:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    services:
+      banco:
+        image: postgis/postgis:16-3.5
+        env:
+          POSTGRES_USER: raiz
+          POSTGRES_PASSWORD: raiz
+          POSTGRES_DB: raiz_mcp_teste
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U raiz -d raiz_mcp_teste"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+    env:
+      RAIZ_BANCO_URL_MCP_TESTE: postgresql+psycopg://raiz:raiz@localhost:5432/raiz_mcp_teste
+    steps:
+      - uses: actions/checkout@v4
+      - name: Detectar MCP (ausência gera aviso explícito, não aprovação dos ensaios)
+        id: detectar
+        run: python3 scripts/testar_mcp_ci.py --detectar
+      - if: steps.detectar.outputs.disponivel == 'true'
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+      - if: steps.detectar.outputs.disponivel == 'true'
+        name: Dependências travadas
+        run: uv sync --frozen --all-extras
+      - if: steps.detectar.outputs.disponivel == 'true'
+        name: Injeções, todas as ferramentas abaixo de 5 s e Locust MCP
+        run: uv run python scripts/testar_mcp_ci.py
+      - name: Estado explícito e evidências MCP
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: resultado-mcp
+          path: resultado-mcp/*.json
+          if-no-files-found: error
+          retention-days: 7

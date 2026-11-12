@@ -3,6 +3,7 @@
 import asyncio
 import os
 import secrets
+import time
 
 import httpx
 import pytest
@@ -25,14 +26,20 @@ def _app(backend, **opcoes):
     return app
 
 
-def test_contagem_atomica_compartilhada_concorrente_e_janela_real():
+def test_contagem_atomica_compartilhada_concorrente_com_log_real():
+    from raiz.logs_seguros import sanitizar_log
+    from raiz.privacidade import configurar_log
+
+    configurar_log()
+    assert "indisponível" not in sanitizar_log("modelo aquecido")
+
     async def rodar():
         chave = secrets.token_hex(32)
         url = os.environ.get("RAIZ_VALKEY_URL_TESTE", "redis://127.0.0.1:6379/15")
         backends = [LimiteCompartilhado(url, chave) for _ in range(2)]
         clientes = [
             httpx.AsyncClient(
-                transport=httpx.ASGITransport(app=_app(b, limite=7, janela=2)), base_url="http://testserver"
+                transport=httpx.ASGITransport(app=_app(b, limite=7, janela=60)), base_url="http://testserver"
             )
             for b in backends
         ]
@@ -41,24 +48,39 @@ def test_contagem_atomica_compartilhada_concorrente_e_janela_real():
             assert sum(r.status_code == 200 for r in respostas) == 7
             negadas = [r for r in respostas if r.status_code == 429]
             assert len(negadas) == 43
-            assert all(1 <= int(r.headers["retry-after"]) <= 2 for r in negadas)
+            assert all(1 <= int(r.headers["retry-after"]) <= 60 for r in negadas)
             identificador = backends[0].identificador("127.0.0.1")
             assert "127.0.0.1" not in identificador
-            assert await backends[0].cliente.ttl(identificador) in (1, 2)
+            assert 0 < await backends[0].cliente.ttl(identificador) <= 60
             # Reiniciar um worker não reinicia o orçamento.
             novo = LimiteCompartilhado(url, chave)
             try:
-                assert await novo.espera("127.0.0.1", False, 7, 10, 2) > 0
+                assert await novo.espera("127.0.0.1", False, 7, 10, 60) > 0
             finally:
                 await novo.fechar()
-            await asyncio.sleep(2.05)
-            assert (await clientes[1].get("/ok")).status_code == 200
         finally:
             await backends[0].cliente.delete(backends[0].identificador("127.0.0.1"))
             for cliente in clientes:
                 await cliente.aclose()
             for backend in backends:
                 await backend.fechar()
+
+    asyncio.run(rodar())
+
+
+def test_janela_real_expira_sem_confundir_com_duracao_da_rajada():
+    async def rodar():
+        url = os.environ.get("RAIZ_VALKEY_URL_TESTE", "redis://127.0.0.1:6379/15")
+        backend = LimiteCompartilhado(url, secrets.token_hex(32))
+        ip = "192.0.2.10"
+        try:
+            assert await backend.espera(ip, False, 1, 1, 1) == 0
+            assert await backend.espera(ip, False, 1, 1, 1) == 1
+            await asyncio.sleep(1.05)
+            assert await backend.espera(ip, False, 1, 1, 1) == 0
+        finally:
+            await backend.cliente.delete(backend.identificador(ip))
+            await backend.fechar()
 
     asyncio.run(rodar())
 
@@ -103,8 +125,6 @@ def test_backend_recusa_chave_fraca_e_protocolo_errado():
 
 
 def test_servidor_travado_falha_fechado_sem_repeticoes_demorradas():
-    import time
-
     async def rodar():
         encerrar = asyncio.Event()
         conexoes = []

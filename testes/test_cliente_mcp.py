@@ -11,7 +11,7 @@ from testes.mcp.cliente import ClienteMCP, ErroMCP, LimiteMCP
 
 
 @contextlib.contextmanager
-def servidor(*, modo="json", status=200, espera="2", erro=False):
+def servidor(*, modo="json", status=200, espera="2", erro=False, protocolo="2025-06-18"):
     chamadas = []
 
     class Handler(BaseHTTPRequestHandler):
@@ -21,11 +21,23 @@ def servidor(*, modo="json", status=200, espera="2", erro=False):
         def do_POST(self):
             dado = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
             chamadas.append((dado["method"], self.headers.get("Mcp-Session-Id")))
+            if protocolo == "2026-07-28":
+                assert self.headers["MCP-Protocol-Version"] == protocolo
+                assert self.headers["MCP-Method"] == dado["method"]
+                assert dado["params"]["_meta"] == {
+                    "io.modelcontextprotocol/protocolVersion": protocolo,
+                    "io.modelcontextprotocol/clientCapabilities": {},
+                }
+                if dado["method"] == "tools/call":
+                    assert self.headers["MCP-Name"] == dado["params"]["name"]
+                else:
+                    assert "MCP-Name" not in self.headers
             if "id" not in dado:
                 self.send_response(202)
                 self.end_headers()
                 return
             resultado = {
+                "server/discover": {"supportedVersions": ["2026-07-28"]},
                 "initialize": {"protocolVersion": "2025-06-18", "capabilities": {}, "serverInfo": {}},
                 "tools/list": {"tools": [{"name": "consultar", "inputSchema": {"type": "object"}}]},
                 "tools/call": {"content": [{"type": "text", "text": "resultado"}], "isError": erro},
@@ -107,3 +119,17 @@ def test_mcp_nao_conta_erro_de_ferramenta_como_sucesso():
 def test_mcp_nao_aceita_ensaio_anonimo():
     with pytest.raises(ErroMCP, match="token OAuth"):
         ClienteMCP("http://localhost:8765/mcp", "")
+
+
+def test_mcp_v2_stateless_descobre_e_envia_metadados_em_todas_as_chamadas(monkeypatch):
+    monkeypatch.setenv("RAIZ_MCP_TESTE_PROTOCOLO", "2026-07-28")
+    with servidor(protocolo="2026-07-28") as (url, chamadas):
+        cliente = ClienteMCP(url, "token-local-descartavel")
+        try:
+            cliente.inicializar()
+            assert set(cliente.listar_ferramentas()) == {"consultar"}
+            assert cliente.chamar("consultar", {})["content"]
+            assert set(cliente.listar_ferramentas()) == {"consultar"}
+        finally:
+            cliente.fechar()
+    assert [metodo for metodo, _ in chamadas] == ["server/discover", "tools/list", "tools/call", "tools/list"]

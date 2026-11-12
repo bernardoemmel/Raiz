@@ -72,3 +72,35 @@ verifica 429 sob carga separadamente. O limite usa relógio monotônico e tempor
 POSIX no processo principal: também interrompe resposta que continua enviando
 bytes sem terminar. Exatos 5 s reprovam. O relatório contém apenas ferramenta e
 duração. Sem servidor/manifesto não há aprovação nem substituição por servidor falso.
+
+## Ativação automática no CI
+
+Por instrução explícita do fundador, o job `mcp` roda em cada push/PR e pode pular
+somente enquanto não existir servidor na main. `scripts/testar_mcp_ci.py` publica
+aviso e `integracao.json` com `estado=ausente` e `ensaios_executados=false`.
+O stub retirado na migração é reconhecido pelo hash exato; qualquer implementação
+nova, alteração desse stub ou dependência do SDK MCP ativa a exigência dos ensaios.
+Um erro de importação, OAuth, fixture, ferramenta, prazo ou carga nunca volta a ser ausência.
+
+**Produto e regras** deve entregar junto do servidor `testes/mcp/produto.py`, com
+`integracao()` como context manager que inicia/encerra o ambiente real isolado.
+O objeto fornecido precisa ter:
+
+- `ambiente`: implementa `Ambiente` descrito acima, com os observadores reais.
+- `cliente`: `ClienteMCP` autenticado no servidor local com token descartável.
+- `casos`: manifesto de argumentos válidos de todas as ferramentas.
+- `carga(fase)`: context manager para `normal`/`limite`, preparando/resetando o
+  estado e retornando as variáveis `RAIZ_MCP_TESTE_URL`, `RAIZ_MCP_TESTE_TOKEN`,
+  `RAIZ_MCP_TESTE_CASOS` e, se necessário, `RAIZ_MCP_TESTE_PROTOCOLO` para Locust.
+
+O CI já fornece PostGIS local em `RAIZ_BANCO_URL_MCP_TESTE`, com base descartável
+`raiz_mcp_teste`. A integração não usa segredos reais nem serviços externos.
+Sem esse adaptador, a chegada do MCP deixa o job **vermelho**, com diagnóstico
+explícito de integração pendente. Assim a dependência não fica escondida por um skip.
+A integração do produto ainda está pendente; o job ligado não significa que seus
+ensaios já passaram. O arquivo abaixo permite conferir o estado localmente:
+
+```bash
+python3 scripts/testar_mcp_ci.py --detectar
+uv run python scripts/testar_mcp_ci.py
+```

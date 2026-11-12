@@ -64,11 +64,16 @@ def _ferramentas():
     return AnalyzerEngine(nlp_engine=nlp, registry=registro, supported_languages=["pt"]), AnonymizerEngine()
 
 
+def sanitizacao_ativa() -> bool:
+    """Estado da thread atual, sem acionar NLP ou produzir um registro de log."""
+    return bool(getattr(_estado, "ativo", False))
+
+
 def sanitizar_log(texto: str) -> str:
     """Limpa o texto final, incluindo argumentos e traceback; não registra falhas com conteúdo sensível."""
     if not texto:
         return texto
-    if getattr(_estado, "ativo", False):
+    if sanitizacao_ativa():
         return _SUPRIMIDO
     _estado.ativo = True
     try:

@@ -97,6 +97,18 @@ def mascarar(texto: str) -> str:
 # --- log ---------------------------------------------------------------------------------------------------------
 
 
+class FiltroSanitizacao(logging.Filter):
+    """Descarta logs internos produzidos pelo NLP enquanto limpa outro registro."""
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        from raiz.logs_seguros import sanitizacao_ativa
+
+        return not sanitizacao_ativa()
+
+
+_FILTRO_SANITIZACAO = FiltroSanitizacao()
+
+
 class FormatadorSeguro(logging.Formatter):
     """Passa o resultado final pelo Presidio (mensagem, argumentos e traceback)."""
 
@@ -129,6 +141,11 @@ class FormatadorJSON(logging.Formatter):
             dado["excecao"] = sanitizar_log(self.formatException(record.exc_info))
         for chave in ("evento", "metodo", "rota", "status", "duracao_ms", "requisicao_id"):
             valor = getattr(record, chave, None)
+            if chave == "requisicao_id":
+                # UUID gerado pelo servidor: validar o contrato evita falso PERSON e perda da correlação.
+                if isinstance(valor, str) and re.fullmatch(r"[0-9a-f]{32}", valor):
+                    dado[chave] = valor
+                continue
             if isinstance(valor, str):
                 dado[chave] = sanitizar_log(valor)
             elif isinstance(valor, int | float):
@@ -140,16 +157,19 @@ def configurar_log(nivel: int = logging.INFO) -> None:
     raiz = logging.getLogger()
     raiz.setLevel(nivel)
     for h in raiz.handlers:
+        h.addFilter(_FILTRO_SANITIZACAO)
         h.setFormatter(FormatadorJSON())
     if not raiz.handlers:
         h = logging.StreamHandler()
+        h.addFilter(_FILTRO_SANITIZACAO)
         h.setFormatter(FormatadorJSON())
         raiz.addHandler(h)
     # Uvicorn pode ter handlers próprios que não propagam até a raiz.
     for nome in ("uvicorn", "uvicorn.error", "uvicorn.access"):
         for h in logging.getLogger(nome).handlers:
+            h.addFilter(_FILTRO_SANITIZACAO)
             h.setFormatter(FormatadorJSON())
-    for barulhento in ("alembic", "httpx", "httpcore", "urllib3"):
+    for barulhento in ("alembic", "httpx", "httpx2", "httpcore", "urllib3"):
         logging.getLogger(barulhento).setLevel(logging.WARNING)
 
 

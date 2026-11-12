@@ -82,6 +82,19 @@ class ClienteMCP:
 
     def _enviar(self, metodo: str, params: dict, notificar: bool = False) -> dict:
         identificador = next(self.identificadores)
+        cabecalhos = dict(self.cabecalhos)
+        if self.protocolo == "2026-07-28":
+            # MCP v2 stateless: versão/capabilities acompanham cada requisição.
+            params = {
+                **params,
+                "_meta": {
+                    "io.modelcontextprotocol/protocolVersion": self.protocolo,
+                    "io.modelcontextprotocol/clientCapabilities": {},
+                },
+            }
+            cabecalhos.update({"MCP-Protocol-Version": self.protocolo, "MCP-Method": metodo})
+            if metodo == "tools/call":
+                cabecalhos["MCP-Name"] = params["name"]
         corpo: dict[str, Any] = {"jsonrpc": "2.0", "method": metodo, "params": params}
         if not notificar:
             corpo["id"] = identificador
@@ -89,7 +102,7 @@ class ClienteMCP:
         resposta = None
         try:
             resposta = self.sessao.post(
-                self.url, json=corpo, headers=self.cabecalhos, timeout=4.9, allow_redirects=False, stream=True
+                self.url, json=corpo, headers=cabecalhos, timeout=4.9, allow_redirects=False, stream=True
             )
             if time.monotonic() - inicio >= 5:
                 raise ErroMCP("MCP demorou 5 segundos ou mais")
@@ -114,6 +127,12 @@ class ClienteMCP:
                 resposta.close()
 
     def inicializar(self) -> None:
+        if self.protocolo == "2026-07-28":
+            dado = self._enviar("server/discover", {})
+            if self.protocolo not in dado.get("supportedVersions", []):
+                raise ErroMCP("MCP não oferece a versão solicitada pelo ensaio")
+            self.iniciado = True
+            return
         dado = self._enviar(
             "initialize",
             {

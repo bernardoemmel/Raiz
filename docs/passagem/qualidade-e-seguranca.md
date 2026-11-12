@@ -13,14 +13,13 @@ com regressões. Mudanças de contrato/arquitetura ficam para os chats responsá
   e persistiu erro sintético sem a mensagem original. Servidor de produção ainda precisa das variáveis/DNS/TLS do guia.
 - **Qualidade e segurança:** Locust MIT no CI, API/PostGIS reais, três rotas, saturação e recuperação. Ensaio local:
   70 chamadas normais e 385 na saturação, 355 respostas 429 válidas, zero falhas, máximo 2,864 s. São medidas do ensaio
-  curto, não capacidade máxima de produção. Sete jobs em paralelo; nenhuma suíte existente foi removida.
+  curto, não capacidade máxima de produção. Oito jobs em paralelo; nenhuma suíte existente foi removida.
 - **MCP, parcial:** corpus de seis ataques, auditor com observador independente de efeitos, cliente real de protocolo,
   latência com prazo estrito e Locust preparados. A função existente `proximos_eventos` passou seis cenários com
   Postgres e ausência de ações; não há agente LLM nem transporte MCP/OAuth disponíveis na main. **Produto e regras**
-  entrega o servidor; Qualidade conecta a suíte completa. Nenhum skip ou stub é apresentado como MCP aprovado.
+  entrega o servidor; Qualidade conecta a suíte completa. O job MCP pode pular com aviso explícito enquanto ausente, por autorização do fundador; implementação presente exige ensaios verdes.
 - **Revisão contínua:** PRs #53, #56, #67 e #54 revisados, com correções pequenas de privacidade e calendário abaixo.
-  Scanners e testes rodam a cada push. A alternativa de revisão semântica horária foi perguntada ao fundador porque
-  a ferramenta não oferece evento de merge; ainda não foi ativada.
+  Scanners e testes rodam a cada push. O fundador optou por manter somente essas checagens por push, sem automação horária.
 
 ### Achados de dados agora bloqueados — chat Dados
 
