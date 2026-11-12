@@ -1,14 +1,17 @@
-import { useEffect, useMemo, useRef, useState } from "react"
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react"
 import { codigosEmLeilao } from "../../../compartilhado/calendario"
 import { calendario } from "../calendario"
 import { ufDoCodigo } from "../../../compartilhado/formato"
 import type { Foco } from "../../../compartilhado/funil-etapas"
 import { fonte, useCarga } from "../dados"
-import { MapaBrasil, type CamadaAssunto, type GeoMunicipio } from "../mapa/MapaBrasil"
+import type { CamadaAssunto, GeoMunicipio } from "../mapa/MapaBrasil"
+import { MapaNacionalLeve } from "../mapa/MapaNacionalLeve"
 import { Cabecalho } from "../partes/Cabecalho"
 import { PainelBrasil } from "../partes/PainelBrasil"
 import { PainelMunicipio } from "../partes/PainelMunicipio"
 import { linkEstado, linkMunicipio } from "../rota"
+
+const MapaBrasil = lazy(() => import("../mapa/MapaBrasil").then((m) => ({ default: m.MapaBrasil })))
 
 type Altura = "baixa" | "meia" | "alta"
 const ALTURAS: Altura[] = ["baixa", "meia", "alta"]
@@ -28,7 +31,10 @@ function cobertura(altura: Altura): number {
  * o tempo todo: trocar de estado ou de município não recarrega nada além das camadas dele.
  */
 export function Explorar({ municipio, uf }: { municipio: string | null; uf: string | null }) {
-  const brasil = useCarga(() => fonte.geo.brasil(), [])
+  const [abriuDetalhe, setAbriuDetalhe] = useState(Boolean(municipio || uf))
+  if (!abriuDetalhe && (municipio || uf)) setAbriuDetalhe(true)
+  const brasil = useCarga(() => abriuDetalhe ? fonte.geo.brasil() : Promise.resolve({ municipios: null, estados: null, base: null }), [abriuDetalhe])
+  const coberturaMapa = useCarga(() => fonte.geo.cobertura(), [])
   const estados = useCarga(() => fonte.estados(), [])
   const municipios = useCarga(() => fonte.municipios(), [])
   // o estado em foco: o escolhido, ou o do município aberto; os pontos são só dele
@@ -112,7 +118,7 @@ export function Explorar({ municipio, uf }: { municipio: string | null; uf: stri
   return (
     <div className="explorar">
       <Cabecalho atual="mapa" linkMapa="#/" />
-      <div className="explorar-corpo">
+      <main id="conteudo" tabIndex={-1} className="explorar-corpo">
         <aside
           className={`painel-lateral gaveta-${altura}`}
           aria-label={municipio ? "Painel do município" : uf ? "O estado na Raíz" : "O Brasil na Raíz"}
@@ -139,7 +145,7 @@ export function Explorar({ municipio, uf }: { municipio: string | null; uf: stri
           <div className="painel-rolagem">
             {municipio && !geoMunicipio.carregando && !geoMunicipio.dado?.imoveis?.features.length && (
               <p className="aviso" role="status">
-                {brasil.dado?.cobertura?.acesso === "restrito" && brasil.dado.cobertura.com_desenho.includes(municipio)
+                {coberturaMapa.dado?.acesso === "restrito" && coberturaMapa.dado.com_desenho.includes(municipio)
                   ? "O desenho das fazendas deste município está na base. Para consultar uma fazenda, abra a ficha com acesso pago."
                   : "O desenho das fazendas deste município ainda não está disponível."}
                 {listas.has(municipio) && " Os dados e a lista continuam disponíveis."}
@@ -168,12 +174,12 @@ export function Explorar({ municipio, uf }: { municipio: string | null; uf: stri
                 uf={uf}
                 pontos={uf ? pontos.dado : undefined}
                 carregando={municipios.carregando || estados.carregando}
-                cobertura={brasil.dado?.cobertura}
+                cobertura={coberturaMapa.dado}
               />
             )}
           </div>
         </aside>
-        <MapaBrasil
+        {abriuDetalhe ? <Suspense fallback={<MapaNacionalLeve estados={estados.dado} carregandoDetalhe />}><MapaBrasil
           brasil={brasil.dado}
           processados={processados}
           comLista={listas}
@@ -190,8 +196,8 @@ export function Explorar({ municipio, uf }: { municipio: string | null; uf: stri
           margemBaixo={margem}
           aoEscolherMunicipio={(cod) => (location.hash = linkMunicipio(cod))}
           aoEscolherEstado={(sigla) => (location.hash = linkEstado(sigla))}
-        />
-      </div>
+        /></Suspense> : <MapaNacionalLeve estados={estados.dado} />}
+      </main>
     </div>
   )
 }

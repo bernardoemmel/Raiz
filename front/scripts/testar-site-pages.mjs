@@ -91,10 +91,12 @@ try {
   conferirPublicacao()
   console.log("Abrindo o build estático agregado no Chromium...")
   await pagina.goto(base)
+  await pagina.getByRole("group", { name: "Mapa do Brasil por estado" }).waitFor()
   await pagina.getByRole("heading", { name: "Cobertura do mapa", exact: true }).waitFor()
   await pagina.getByText("1 município em 1 estado", { exact: true }).waitFor()
   await pagina.locator('time[datetime="2026-11-12T10:41:00Z"]').waitFor()
   await pagina.locator('time[datetime="2026-11-11T18:00:00Z"]').waitFor()
+  await pagina.locator('.mapa-nacional-leve a[href="#/estado/PA"]').click()
   await mapaPronto()
   await pagina.waitForFunction(() => {
     const m = document.querySelector(".mapa-brasil .mapa").__mapa

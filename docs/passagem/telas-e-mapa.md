@@ -249,3 +249,59 @@ RAIZ_BUILD_DADOS=0 front/scripts/construir-site.sh
 - Ruff e formatação passaram em 361 arquivos. TypeScript, 177 testes do front e 91 testes Python focados
   em visual/satélite/ficha/API/acesso passaram, sem skips. Playwright conferiu a ficha com o calendário
   e a agenda em 1440, 768 e 360 px, incluindo o aviso de coleta ausente.
+
+## Entrega 4: celular, teclado e desempenho (12/11/2026)
+
+- A escala nacional usa SVG Natural Earth já existente no repositório, com estados coloridos pela cobertura real,
+  nomes acessíveis, links por estado e a mesma busca. Escolher estado ou município carrega MapLibre e a base PMTiles;
+  depois o mapa detalhado permanece montado nas trocas. Isso reduz o JS inicial de cerca de 1,6 MB para 267 KB
+  (aproximadamente 86 KB gzip), sem baixar contornos municipais na abertura nacional.
+- Menus continuam disponíveis a 360 px. Atalho de teclado pula para o conteúdo, as rotas levam foco ao main,
+  a alça da gaveta e os controles têm 48 px, os resultados da busca quebram linha e tabelas roláveis recebem foco e rótulo.
+- `npm run test:acessibilidade` serve o artefato com gzip/Range, verifica teclado (pular conteúdo, gaveta e busca),
+  largura de 360 px e axe WCAG 2.1 A/AA no Brasil, município, login com erro, novo pedido (filtros fechados/abertos)
+  prospecção pública e produtor. `test:prospeccao` também audita a ficha desbloqueada e a busca autenticada. Não expõe dados pessoais.
+- Lighthouse 13.6.0 mede as categorias oficiais performance e accessibility em mobile de 360 px, com throttling
+  `simulate` padrão. São **três execuções fixas** por página: Brasil, entrar, novo pedido, prospecção e produtor: exige mediana de desempenho >= 90
+  e acessibilidade >= 90 em cada execução. Erro de coleta, nota ausente/nula e troca para desktop/rede sem simulação
+  reprovam. Salva todas as amostras HTML/JSON, axe e capturas em `front/.cache/teste-acessibilidade` e no CI.
+- A série fixa final deu medianas de desempenho de 100 no Brasil, 96 na entrada, 98 em novo pedido,
+  98 em prospecção e 100 no produtor; acessibilidade 100 nas quinze medições. Todas as amostras ficam preservadas,
+  inclusive os outliers de desempenho 73 no Brasil e 72 em novo pedido. Runners concorrentes afetam TBT: a mediana
+  tem três amostras fixas, sem repetir até passar ou escolher a melhor.
+- Ficam pendentes avaliação humana completa WCAG e a calibração E9 com cartas reais. O teste automatizado não é
+  declaração de conformidade total e não inicia contato com proprietários.
+
+Validação local integrada das entregas 1 a 4: build com dependências travadas, 175 testes do front sem skips,
+Pages com zero 404, cena-alvo pública/autorizada e prospecção/ficha com axe, além do Lighthouse Agentic Browsing.
+Os sete cenários do auditor mobile tiveram zero violações axe e nenhuma largura acima de 360 px. Os quinze
+relatórios Lighthouse passaram pelo portão fixo. E9 real não foi calibrado e a suíte Python completa cabe ao chat principal.
+
+
+### Integração das entregas 1 a 4
+
+- `fonte.geo.cobertura()` lê apenas o índice leve, com cache, para mostrar contagem e datas na entrada em SVG.
+  Os GeoJSON nacionais continuam adiados até escolher estado/município. A API ainda não publica esse manifesto;
+  nesse modo a cobertura fica indisponível, sem inferir desenhos a partir dos resumos e sem chamar uma rota inexistente.
+- Formulário fechado, consulta pública sem fazendas e ficha antes do desbloqueio não baixam MapLibre.
+  O mapa específico carrega ao desenhar uma área, receber lotes autorizados ou abrir a ficha desbloqueada.
+- `test:cena` executa axe WCAG 2.1 AA também na comparação pública e nos três lotes autorizados a 360 px;
+  `test:prospeccao` conserva o teste de Sentinel-2 sintético, hachura e linha do tempo junto da auditoria axe.
+
+- A entrada do produtor entrega cabeçalho, instrução e formulário como HTML nativo; funciona sem JavaScript.
+  Preact e o leitor da ficha só carregam com `?car=`, preservando o caminho e os controles de acesso existentes.
+  A auditoria confirma a leitura e o envio nativo do formulário com JavaScript desligado.
+- O portão Lighthouse inclui também `#/pedidos/novo` e `#/prospeccao`, sem substituir o backend público por fixture: são 15 medições fixas ao todo.
+- Revisão visual da ficha a 360 px: escala no alto à esquerda e atribuição inteira no rodapé, sem sobreposição.
+  O estilo dos detalhes da ficha não atinge mais o controle interno do MapLibre, eliminando o botão de informação
+  redundante; os botões de zoom têm 48 px. Playwright verifica a legenda Copernicus completa com imagem sintética,
+  as caixas sem interseção, o crédito visível e axe/360 px. TypeScript e verificador de design passaram.
+
+### Integração do Calendário com a navegação acessível
+
+- Calendário também usa carregamento por tela, conserva o foco no conteúdo e mantém seus filtros, feed e aviso
+  de coleta ausente. O quarto link do menu continua visível a 360 px, sem rolagem horizontal.
+- A auditoria do Calendário entra no CI: três larguras (1440, 768 e 360 px), teclado e axe WCAG 2.1 AA.
+  TypeScript, design, actionlint, 186 testes do front e Playwright de cena-alvo e ficha passaram após o merge.
+- Os seis jobs do CI e as quinze medições fixas de Lighthouse foram preservados; a integração não reduziu
+  categorias, notas mínimas nem o conjunto de páginas do portão.

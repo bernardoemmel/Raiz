@@ -43,7 +43,7 @@ jobs:
 
   front:
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -78,6 +78,8 @@ jobs:
         env:
           RAIZ_PRINTS: ${{ github.workspace }}/front/.cache/teste-site/resultado/prospeccao
         run: cd front/globo && npm run test:prospeccao
+      - name: Calendário no navegador (filtros, teclado, axe e celular)
+        run: cd front/globo && npm run test:calendario
       - name: Cena-alvo (Release ausente, publicado e três lotes autorizados)
         run: cd front/globo && npm run test:cena
       - name: Evidências da cena-alvo
@@ -105,6 +107,16 @@ jobs:
           path: front/.cache/teste-agentes
           if-no-files-found: ignore
 
+      - name: Celular, teclado, WCAG 2.1 AA e Lighthouse >= 90
+        run: cd front/globo && npm run test:acessibilidade
+      - name: Evidências de acessibilidade e desempenho
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: celular-acessibilidade
+          path: front/.cache/teste-acessibilidade
+          if-no-files-found: ignore
+
   seguranca:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
@@ -124,6 +136,7 @@ jobs:
         run: uv run raiz privacidade varrer
       - name: Licenças de Python, Rust e de todos os locks npm
         run: uv run python scripts/checar_licencas.py
+
 
   checagens:
     runs-on: ubuntu-24.04

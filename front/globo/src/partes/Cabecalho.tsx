@@ -17,6 +17,11 @@ export function Cabecalho({ atual, linkMapa = "#/" }: { atual: string; linkMapa?
   const sessao = useSessao()
   return (
     <header className="topo">
+      <a className="pular-conteudo" href="#conteudo" onClick={(e) => {
+        e.preventDefault()
+        const principal = document.querySelector("main")
+        if (principal) { principal.tabIndex = -1; principal.focus(); principal.scrollIntoView({ block: "nearest" }) }
+      }}>Pular para o conteúdo</a>
       <a className="marca" href={linkMapa}>
         <IconeRaiz />
         Raíz

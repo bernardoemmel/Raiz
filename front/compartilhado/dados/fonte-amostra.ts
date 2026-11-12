@@ -172,6 +172,7 @@ export function fonteAmostra(base = "/"): FonteDeDados {
     pontos: (uf) => pontos(uf),
     municipiosComImoveis,
     geo: {
+      cobertura: async () => (await indiceCompleto("")).cobertura,
       async brasil() {
         const indice = await indiceCompleto("")
         const b = indice.brasil ?? {}

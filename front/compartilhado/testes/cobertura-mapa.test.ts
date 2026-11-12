@@ -1,7 +1,8 @@
 import { createElement } from "react"
 import { renderToStaticMarkup } from "react-dom/server"
-import { describe, expect, it } from "vitest"
+import { afterEach, describe, expect, it, vi } from "vitest"
 import { coberturaDoIndice, contarCobertura } from "../dados/cobertura-mapa"
+import { fonteAmostra } from "../dados/fonte-amostra"
 import { PainelCobertura } from "../../globo/src/partes/PainelCobertura"
 
 describe("cobertura do mapa publicado", () => {
@@ -45,5 +46,23 @@ describe("cobertura do mapa publicado", () => {
     expect(html).toContain('dateTime="2026-11-12T10:41:00Z"')
     expect(html).toContain('dateTime="2026-11-11T18:00:00Z"')
     expect(html).toContain("desenhos individuais ficam na ficha com acesso pago")
+  })
+})
+
+
+describe("cobertura leve antes de abrir o mapa detalhado", () => {
+  afterEach(() => vi.unstubAllGlobals())
+  it("lê a contagem e as datas sem baixar nenhum contorno", async () => {
+    const caminhos: string[] = []
+    const cobertura = { gerado_em: "2026-11-12T10:41:00Z", dados_publicados_em: "2026-11-11T18:00:00Z", com_desenho: ["1505536"], sem_desenho: [], acesso: "restrito" }
+    vi.stubGlobal("fetch", async (url: string) => {
+      caminhos.push(url)
+      if (url !== "/teste/geo/indice.json") throw new Error("O painel não deve baixar geometria.")
+      return new Response(JSON.stringify({ cobertura, municipios: {}, brasil: { municipios: { arquivo: "brasil_municipios.geojson" } } }), { headers: { "Content-Type": "application/json" } })
+    })
+    const fonte = fonteAmostra("/teste/")
+    expect(await fonte.geo.cobertura()).toEqual(cobertura)
+    expect(await fonte.geo.cobertura()).toEqual(cobertura)
+    expect(caminhos).toEqual(["/teste/geo/indice.json"])
   })
 })
