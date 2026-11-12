@@ -81,10 +81,11 @@ def estado(uf):
     raise RuntimeError(f'estado {uf} não achado na plataforma')
 
 
-def exporta_uf(uf, espera=6 * 3600):
-    """Pede todos os temas do estado de uma vez, espera e baixa. Devolve {tema: caminho do GeoTIFF}."""
-    arq = {k: f'{CACHE}/{uf}/{uf}_{k}_{ano}.tif' for k, (ch, ano) in TEMAS.items()}
-    falta = {k: v for k, v in TEMAS.items() if not os.path.exists(arq[k])}
+def exporta_uf(uf, espera=6 * 3600, temas=None):
+    """Pede os temas do estado de uma vez (todos, ou só os de `temas`), espera e baixa. Devolve {tema: GeoTIFF}."""
+    T = {k: v for k, v in TEMAS.items() if temas is None or k in temas}
+    arq = {k: f'{CACHE}/{uf}/{uf}_{k}_{ano}.tif' for k, (ch, ano) in T.items()}
+    falta = {k: v for k, v in T.items() if not os.path.exists(arq[k])}
     if not falta: return arq
     tid = estado(uf); pend = {}
     for k, (ch, ano) in falta.items():
