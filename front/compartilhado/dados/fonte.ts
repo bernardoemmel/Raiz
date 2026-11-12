@@ -45,6 +45,8 @@ export interface FonteDeDados {
   municipiosComImoveis(): Promise<string[]>
   geo: {
     camada(cod_ibge: string, camada: CamadaGeo): Promise<Geo | null>
+    /** municípios com o contorno de cada fazenda (imoveis_<cod>.geojson) */
+    comContorno(): Promise<string[]>
     /** URL do mapa base em PMTiles do município, ou null se ainda não foi gerado */
     base(cod_ibge: string): Promise<string | null>
     /** o Brasil: contorno de todos os municípios, dos 27 estados e o mapa base único (do país ao município) */

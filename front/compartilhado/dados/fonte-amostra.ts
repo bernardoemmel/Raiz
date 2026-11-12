@@ -144,6 +144,11 @@ export function fonteAmostra(base = "/"): FonteDeDados {
         ])
         return { municipios, estados, base: b.base ? new URL(urlGeo(b.base.arquivo), location.href).href : null }
       },
+      async comContorno() {
+        return Object.entries(await indiceGeo(""))
+          .filter(([, c]) => c.imoveis)
+          .map(([cod]) => cod)
+      },
       async camada(cod, camada) {
         const item = (await indiceGeo(""))[cod]?.[camada]
         return item ? buscarJson<Geo>(urlGeo(item.arquivo)) : null

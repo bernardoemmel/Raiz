@@ -155,3 +155,17 @@ export function rgb01(hex: string): [number, number, number] {
   const n = parseInt(hex.slice(1), 16)
   return [((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255]
 }
+
+/**
+ * Nível de interesse do dono no mapa do pedido (cena-alvo). Sempre com o nome na legenda; quem recusou também com a
+ * hachura cruzada. Só cores da paleta.
+ */
+export const INTERESSE = {
+  sem_contato: COR.nevoa,
+  contatado: COR.agua,
+  interessado: COR.situacaoPendencia,
+  aceite_fase1: COR.restaurar,
+  contrato_firme: COR.mata,
+  recusou: COR.situacaoNaoApta,
+  sem_resposta: COR.situacaoNaoApta,
+} as const

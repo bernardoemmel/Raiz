@@ -103,6 +103,8 @@ export function fonteApi(api: string, token?: string): FonteDeDados {
         return { municipios, estados, base: `${raiz}geo/brasil/base.pmtiles` }
       },
       camada: (cod, camada) => json<Geo>(`geo/${cod}/${camada}.geojson`),
+      // a API ainda não lista; os municípios com lista por fazenda têm o contorno das fazendas
+      comContorno: () => municipios("").then((l) => l.filter((m) => m.linha.tem_imoveis !== "False").map((m) => m.cod_ibge)),
       async base(cod) {
         return `${raiz}geo/${cod}/base.pmtiles`
       },
