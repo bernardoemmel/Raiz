@@ -130,3 +130,13 @@ export interface Geo {
 }
 
 export type CamadaGeo = "municipio" | "imoveis" | "ti" | "uc" | "rios"
+
+/** Uma fazenda apta (ou apta com pendência) como ponto, para os agrupamentos no mapa do Brasil. */
+export interface PontoFazenda {
+  lon: number
+  lat: number
+  situacao: "apta" | "pendencia"
+  /** hectares que podem voltar a ser mata */
+  ha: number
+  cod_ibge: string
+}

@@ -13,6 +13,10 @@ Saída em front/geo/ (fora do git, é dado gerado e pode ser grande):
   rios_<cod>.geojson        hidrografia do PRODES na caixa do município (a mesma que o motor usa para a APP)
   base_<cod>.pmtiles        mapa base recortado do build diário do Protomaps (dados © OpenStreetMap, ODbL)
   fontes/<fonte>/<faixa>.pbf  letras dos rótulos do mapa (Noto Sans, licença OFL, do protomaps/basemaps-assets)
+  brasil_municipios.geojson todos os municípios do Brasil, simplificados para a escala do país (TerraBrasilis, por bioma)
+  base_brasil.pmtiles       mapa base único da tela de entrada: Brasil até o zoom 6, o estado até o 9 e os municípios
+                            com fazendas até o 12 a 14 (Protomaps, dados © OpenStreetMap)
+E grava front/compartilhado/brasil-estados.ts (contorno dos estados para o mini mapa, Natural Earth, domínio público).
   indice.json               o que já foi gerado, lido pelo front para saber o que existe
 
 Roda de novo sem baixar o que já existe (apague o arquivo para baixar de novo).
@@ -345,15 +349,210 @@ def fontes() -> None:
                 arq.write_bytes(baixar(FONTES.format(fonte.replace(" ", "%20"), faixa)).content)
 
 
+MUNICIPIOS_BIOMA = [
+    ("prodes-legal-amz", "municipalities_legal_amazon"),
+    ("prodes-cerrado-nb", "municipalities_cerrado_biome"),
+    ("prodes-caatinga-nb", "municipalities_caatinga_biome"),
+    ("prodes-mata-atlantica-nb", "municipalities_mata_atlantica_biome"),
+    ("prodes-pampa-nb", "municipalities_pampa_biome"),
+    ("prodes-pantanal-nb", "municipalities_pantanal_biome"),
+]
+UF_IBGE = {
+    "11": "RO", "12": "AC", "13": "AM", "14": "RR", "15": "PA", "16": "AP", "17": "TO", "21": "MA", "22": "PI",
+    "23": "CE", "24": "RN", "25": "PB", "26": "PE", "27": "AL", "28": "SE", "29": "BA", "31": "MG", "32": "ES",
+    "33": "RJ", "35": "SP", "41": "PR", "42": "SC", "43": "RS", "50": "MS", "51": "MT", "52": "GO", "53": "DF",
+}
+
+
+def valido(g):
+    """Conserta o polígono; se o make_valid recusar (mistura de dimensões), refaz com buffer(0). Fica só com área."""
+    try:
+        if not g.is_valid:
+            g = shapely.make_valid(g)
+    except Exception:  # noqa: BLE001
+        g = g.buffer(0)
+    if g.geom_type == "GeometryCollection":
+        g = shapely.union_all([p for p in g.geoms if p.geom_type in ("Polygon", "MultiPolygon")])
+    return g
+
+
+def municipios_brasil() -> None:
+    """Todos os municípios, para a tela de entrada: pintar o que já foi processado e deixar clicar em qualquer um."""
+    arq = SAIDA / "brasil_municipios.geojson"
+    if arq.exists():
+        return
+    cache = SAIDA / "cache"
+    cache.mkdir(exist_ok=True)
+    partes: dict[str, list] = {}
+    nomes: dict[str, str] = {}
+    for ws, camada in MUNICIPIOS_BIOMA:
+        bruto = cache / f"{camada}.geojson"
+        if not bruto.exists():
+            print(f" municípios: {camada}")
+            fs, inicio = [], 0
+            while True:
+                try:
+                    r = baixar(
+                        TB_WFS,
+                        dict(
+                            service="WFS",
+                            version="2.0.0",
+                            request="GetFeature",
+                            typeNames=f"{ws}:{camada}",
+                            outputFormat="application/json",
+                            srsName="EPSG:4326",
+                            count=500,
+                            startIndex=inicio,
+                            sortBy="geocodigo",
+                        ),
+                        timeout=900,
+                    )
+                except RuntimeError as ex:
+                    print(f"   não veio ({ex}); segue sem {camada}")
+                    break
+                lote = r.json()["features"]
+                fs += lote
+                if len(lote) < 500:
+                    break
+                inicio += 500
+            bruto.write_text(json.dumps({"type": "FeatureCollection", "features": fs}))
+        for f in json.loads(bruto.read_text())["features"]:
+            p = f["properties"]
+            cod = str(p.get("geocodigo") or "")[:7]
+            if not cod or not f.get("geometry"):
+                continue
+            g = valido(shape(f["geometry"]))
+            if g.is_empty:
+                continue
+            partes.setdefault(cod, []).append(g.simplify(0.003, preserve_topology=True))
+            nomes[cod] = p.get("nome") or nomes.get(cod, "")
+    feicoes = []
+    for cod, gs in sorted(partes.items()):
+        g = shapely.union_all(gs) if len(gs) > 1 else gs[0]
+        g = arredondar(g.simplify(0.01, preserve_topology=True), 3)
+        if g.is_empty:
+            continue
+        feicoes.append(feicao(g, {"cod_ibge": cod, "nome": nomes[cod], "uf": UF_IBGE.get(cod[:2], "")}))
+    tam = salvar(arq.name, feicoes)
+    print(f"   {len(feicoes)} municípios, {tam / 1e6:.1f} MB")
+
+
+NATURAL_EARTH = "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_50m_admin_1_states_provinces.geojson"
+
+
+def estados_svg() -> None:
+    """Contorno dos estados em SVG para o mini mapa do Brasil (Natural Earth, domínio público), gravado no front."""
+    destino = SAIDA.parent / "compartilhado" / "brasil-estados.ts"
+    r = baixar(NATURAL_EARTH, timeout=300)
+    estados = [f for f in r.json()["features"] if f["properties"].get("adm0_a3") == "BRA"]
+    lat0 = -15.0
+    k = math.cos(math.radians(lat0))
+    geoms = {f["properties"]["postal"]: shape(f["geometry"]).simplify(0.12, preserve_topology=True) for f in estados}
+    x0, y0, x1, y1 = shapely.union_all(list(geoms.values())).bounds
+    largura = 120.0
+    escala = largura / ((x1 - x0) * k)
+    altura = (y1 - y0) * escala
+
+    def caminho(g) -> str:
+        poligonos = [g] if g.geom_type == "Polygon" else list(g.geoms)
+        partes = []
+        for p in poligonos:
+            pts = [((x - x0) * k * escala, (y1 - y) * escala) for x, y in p.exterior.coords]
+            partes.append("M" + "L".join(f"{a:.1f},{b:.1f}" for a, b in pts) + "Z")
+        return "".join(partes)
+
+    linhas = [
+        "/**",
+        " * Contorno dos estados do Brasil para o mini mapa (guia, item 2.1, parte 8). Gerado por front/scripts/geo.py a",
+        " * partir do Natural Earth 1:50m (domínio público). Não editar à mão.",
+        " */",
+        "",
+        f"export const LARGURA = {largura:.0f}",
+        f"export const ALTURA = {altura:.1f}",
+        "",
+        "/** lon/lat para a posição no desenho (a mesma projeção do contorno) */",
+        "export function projetar(lon: number, lat: number): [number, number] {",
+        f"  return [(lon - ({x0:.4f})) * {k * escala:.5f}, ({y1:.4f} - lat) * {escala:.5f}]",
+        "}",
+        "",
+        "export const ESTADOS: Record<string, string> = {",
+    ]
+    for uf in sorted(geoms):
+        linhas.append(f'  {uf}: "{caminho(geoms[uf])}",')
+    linhas.append("}")
+    destino.write_text("\n".join(linhas) + "\n")
+    print(f" mini mapa: {len(geoms)} estados, {destino.stat().st_size / 1e3:.0f} kB em {destino.name}")
+
+
+def base_brasil(dia: str, cods: list[str]) -> None:
+    """Um mapa base só para a tela de entrada (o mesmo mapa vai do Brasil ao município, sem trocar de arquivo)."""
+    arq = SAIDA / "base_brasil.pmtiles"
+    if arq.exists():
+        return
+    remoto = Remoto(PROTOMAPS.format(dia))
+    pedidos: list[tuple[int, int, int]] = []
+    for z in range(0, 7):
+        pedidos += ladrilhos_na_caixa(z, BRASIL)
+    for z in range(7, 10):
+        pedidos += ladrilhos_na_caixa(z, (-59.0, -10.0, -46.0, 2.7))  # Pará, o estado já processado
+    for cod in cods:
+        g, _ = municipio(cod)
+        x0, y0, x1, y1 = g.bounds
+        caixa = (x0 - 0.05, y0 - 0.05, x1 + 0.05, y1 + 0.05)
+        zmax = 10
+        while zmax < 14 and len(ladrilhos_na_caixa(zmax + 1, caixa)) <= 2000:
+            zmax += 1
+        for z in range(10, zmax + 1):
+            pedidos += ladrilhos_na_caixa(z, caixa)
+    ids = sorted({zxy_to_tileid(*p) for p in pedidos})
+    print(f" mapa base do Brasil: {len(ids)} ladrilhos (build {dia})")
+    with ThreadPoolExecutor(16) as ex:
+        dados = list(ex.map(remoto.ladrilho, ids))
+    meta = remoto.metadados()
+    meta["attribution"] = '<a href="https://openstreetmap.org/copyright">© OpenStreetMap</a>'
+    meta["description"] = f"Recorte do Brasil para a Raíz, build {dia} do Protomaps"
+    temp = arq.with_suffix(".tmp")
+    with open(temp, "wb") as f:
+        w = Writer(f)
+        for tid, d in zip(ids, dados):
+            if d:
+                w.write_tile(tid, d)
+        w.finalize(
+            {
+                "tile_type": TileType.MVT,
+                "tile_compression": remoto.header["tile_compression"],
+                "min_lon_e7": int(BRASIL[0] * 1e7),
+                "min_lat_e7": int(BRASIL[1] * 1e7),
+                "max_lon_e7": int(BRASIL[2] * 1e7),
+                "max_lat_e7": int(BRASIL[3] * 1e7),
+                "center_zoom": 4,
+                "center_lon_e7": int(-53 * 1e7),
+                "center_lat_e7": int(-14 * 1e7),
+            },
+            meta,
+        )
+    temp.rename(arq)
+    print(f"   {arq.name}: {arq.stat().st_size / 1e6:.1f} MB")
+
+
 def indice() -> None:
     itens: dict[str, dict] = {}
     for f in sorted(SAIDA.glob("*_*.*")):
+        if f.stem.startswith("brasil_") or f.stem == "base_brasil":
+            continue
         tipo, resto = f.stem.split("_", 1)
         if f.suffix not in (".geojson", ".pmtiles"):
             continue
         itens.setdefault(resto, {})[tipo] = {"arquivo": f.name, "bytes": f.stat().st_size}
+    brasil = {
+        nome: {"arquivo": arq, "bytes": (SAIDA / arq).stat().st_size}
+        for nome, arq in (("municipios", "brasil_municipios.geojson"), ("base", "base_brasil.pmtiles"))
+        if (SAIDA / arq).exists()
+    }
     (SAIDA / "indice.json").write_text(
-        json.dumps({"gerado_em": dt.datetime.now().isoformat(timespec="seconds"), "municipios": itens}, indent=1)
+        json.dumps(
+            {"gerado_em": dt.datetime.now().isoformat(timespec="seconds"), "brasil": brasil, "municipios": itens}, indent=1
+        )
     )
 
 
@@ -387,6 +586,11 @@ def main(cods: list[str]) -> None:
             dia = dia or build_recente()
             base(cod, caixa, dia)
     fontes()
+    municipios_brasil()
+    if not (SAIDA.parent / "compartilhado" / "brasil-estados.ts").exists():
+        estados_svg()
+    if not (SAIDA / "base_brasil.pmtiles").exists():
+        base_brasil(dia or build_recente(), cods)
     indice()
 
 
