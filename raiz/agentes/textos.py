@@ -75,3 +75,21 @@ def duvida_recebida() -> str:
 
 def em_analise() -> str:
     return "Obrigado. Vamos olhar com cuidado e voltamos a falar em breve."
+
+
+def exemplos() -> dict[str, str]:
+    """Cada modelo preenchido com um imóvel e uma proposta de exemplo (sem pessoa real), para medir a legibilidade
+    (`raiz legibilidade modelos`)."""
+    ficha = {"cod_imovel": "PA-1500107-0000EXEMPLO", "municipio": "Abaetetuba", "uf": "PA", "carbono_ha": 12.4}
+    p = {"area_ha": 12.5, "prazo_anos": 30, "pagamento": "R$ 300 por hectare por ano, todo mês de março"}
+    return {
+        "convite": convite(ficha),
+        "proposta": proposta(p),
+        "reexplicacao": reexplicar(p, ["area", "pagamento"]),
+        "codigo": pedir_codigo("4821"),
+        "codigo_errado": codigo_errado(),
+        "aceito": aceito(),
+        "recusa": recusado(),
+        "duvida": duvida_recebida(),
+        "em_analise": em_analise(),
+    }
