@@ -49,10 +49,16 @@ def contar(s: requests.Session, c: Camada, cql: str | None = None, timeout: int 
 
 
 def mais_novo(s: requests.Session, c: Camada, campo: str, cql: str | None = None, timeout: int = 120) -> str | None:
-    """Valor mais novo de `campo` (1 linha ordenada pela data, decrescente; só aquele campo)."""
+    """Valor mais novo de `campo` (1 linha ordenada pela data, decrescente; só aquele campo).
+    No GeoServer do CAR (Postgres), DESC põe os nulos primeiro: o filtro IS NOT NULL é obrigatório."""
     ordem = f"{campo} DESC" if c.versao.startswith("2") else f"{campo} D"
     chave_qtd = "count" if c.versao.startswith("2") else "maxFeatures"
-    p = _params(c, CQL_FILTER=cql, sortBy=ordem, propertyName=campo, outputFormat="application/json", **{chave_qtd: 1})
+    # sem parênteses: o GeoServer do CAR responde 500 a "(a=1) AND b IS NOT NULL" (visto em 12/11/2026); os filtros
+    # da Raíz só usam AND, então o sentido é o mesmo
+    filtro = f"{campo} IS NOT NULL" if not cql else f"{cql} AND {campo} IS NOT NULL"
+    p = _params(
+        c, CQL_FILTER=filtro, sortBy=ordem, propertyName=campo, outputFormat="application/json", **{chave_qtd: 1}
+    )
     r = s.get(c.url, params=p, timeout=timeout)
     r.raise_for_status()
     feats = r.json().get("features", [])

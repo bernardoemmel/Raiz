@@ -224,3 +224,38 @@ def test_fila_disjuntor_e_limite(ambiente):
         assert p.modo == "completo" and len(p.recortes) == 400
         p = planejar(c, car.FONTE, recortes, agora=dt.datetime.now(dt.UTC) + dt.timedelta(days=31))
         assert p.modo == "reconciliacao" and len(p.recortes) == 1000
+
+
+def test_linhas_do_historico_com_campo_nulo():
+    import geopandas as gpd
+    from shapely.geometry import box
+
+    from raiz.coleta.bruto import linhas
+
+    g = gpd.GeoDataFrame(
+        {"cod_imovel": ["A", "B"], "condicao": [None, "Analisado"], "m_fiscal": [float("nan"), 2.0]},
+        geometry=[box(0, 0, 1, 1), box(1, 1, 2, 2)],
+        crs=4674,
+    )
+    df = linhas(g, "cod_imovel", 1)
+    assert df._hash.notna().all() and df._hash.is_unique
+
+
+def test_historico_que_falhou_e_recuperado_na_rodada_seguinte(ambiente, banco_url, monkeypatch):
+    from raiz.coleta import bruto
+
+    eng, s, esp, mundo, hc, pings = ambiente
+    original = bruto.carregar
+
+    def quebra(*a, **k):
+        raise RuntimeError("banco caiu no meio da carga")
+
+    monkeypatch.setattr(bruto, "carregar", quebra)
+    r1 = rodada_car(eng, s, esp, {"PA": [COD]}, hc, banco_url)
+    assert r1["baixados"] == 1 and r1["historico"] == 0 and "/k/raiz-historico/fail" in pings
+    monkeypatch.setattr(bruto, "carregar", original)
+    r2 = rodada_car(eng, s, esp, {"PA": [COD]}, hc, banco_url)  # nada mudou na fonte, mas o histórico estava atrasado
+    assert r2["baixados"] == 0 and r2["historico"] == 2  # CAR e SIGEF
+    with eng.connect() as c:
+        assert c.execute(text("select count(*) from bruto.car_imovel_vigente")).scalar() == 3
+    assert rodada_car(eng, s, esp, {"PA": [COD]}, hc, banco_url)["historico"] == 0

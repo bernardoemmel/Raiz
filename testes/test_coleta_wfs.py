@@ -45,6 +45,8 @@ def geoserver(total=25, mentir_total=False):
             return 200, {}, f'<wfs:FeatureCollection numberMatched="{total}" numberReturned="0"/>'
         if p.get("count") == "1" and p.get("sortBy") == "data_atualizacao DESC":
             assert p["propertyName"] == "data_atualizacao"
+            if "IS NOT NULL" not in p["CQL_FILTER"]:  # como o servidor real: DESC põe o nulo primeiro
+                return 200, {}, _feicoes(0, 1, total).replace('"2026-07-01"', "null")
             return 200, {}, _feicoes(0, 1, total).replace("2026-07-01", "2026-07-28")
         ini, qtd = int(p["startIndex"]), int(p["count"])
         assert p["sortBy"] == "cod_imovel" and p["CQL_FILTER"] == "cod_municipio_ibge=1504950"

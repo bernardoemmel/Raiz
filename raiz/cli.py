@@ -251,7 +251,8 @@ def coleta_car(
     muns = {uf: (municipio or da_uf(uf, s_outros)) for uf in ufs}
     r = rodada_car(engine(), s_car, Espelho(espelho_padrao()), muns, historico=historico, s_sigef=s_outros)
     typer.echo(
-        f"verificados {r['verificados']}, baixados {r['baixados']}, falhas {r['falhas']}, mudaram {len(r['mudaram'])}"
+        f"verificados {r['verificados']}, baixados {r['baixados']}, falhas {r['falhas']}, "
+        f"mudaram {len(r['mudaram'])}, cargas no histórico {r['historico']}"
     )
     for uf, modo in r["modo"].items():
         typer.echo(f"  {uf}: {modo}")

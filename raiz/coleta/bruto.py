@@ -47,7 +47,9 @@ def linhas(g: gpd.GeoDataFrame, chave: str, cod_municipio: int, volateis: tuple[
     df = pd.DataFrame(g.drop(columns="geometry"))
     geoms = [None if x is None else shapely.normalize(x) for x in g.geometry.values]
     estaveis = sorted(c for c in df.columns if c not in volateis)
-    textos = df[estaveis].astype(str).agg("|".join, axis=1) if estaveis else pd.Series([""] * len(df))
+    # pandas 3: astype(str) mantém o nulo como nulo; o hash precisa de texto em todas as células
+    como_texto = pd.DataFrame({c: [("" if pd.isna(v) else str(v)) for v in df[c]] for c in estaveis}, index=df.index)
+    textos = como_texto.agg("|".join, axis=1) if estaveis else pd.Series([""] * len(df), index=df.index)
     wkb = [b"" if x is None else shapely.to_wkb(x, output_dimension=2) for x in geoms]
     df["_hash"] = [hashlib.sha256(t.encode() + b"|" + w).hexdigest()[:32] for t, w in zip(textos, wkb, strict=True)]
     df["geom"] = [None if x is None else shapely.to_wkt(x, rounding_precision=-1) for x in geoms]

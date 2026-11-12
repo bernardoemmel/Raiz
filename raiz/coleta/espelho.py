@@ -118,10 +118,15 @@ def _tabela(g: gpd.GeoDataFrame, cols: list[str]) -> pd.DataFrame:
     """Colunas na mesma ordem dos dois lados (faltando = nulo) e geometria normalizada em WKB."""
     df = pd.DataFrame({c: (g[c] if c in g.columns else pd.Series([None] * len(g), index=g.index)) for c in cols})
     geoms = g.geometry.values if GEOM in g.columns else [None] * len(g)
-    df["_wkb"] = [None if x is None else shapely.to_wkb(shapely.normalize(x), output_dimension=2) for x in geoms]
+    df["_wkb"] = [
+        None if x is None or x is pd.NA else shapely.to_wkb(shapely.normalize(x), output_dimension=2) for x in geoms
+    ]
     return df.reset_index(drop=True)
 
 
 def _geodf(df: pd.DataFrame) -> gpd.GeoDataFrame:
-    geom = [None if b is None else shapely.from_wkb(bytes(b)) for b in df.pop("_wkb")]
+    geom = [
+        None if b is None or b is pd.NA or (isinstance(b, float) and b != b) else shapely.from_wkb(bytes(b))
+        for b in df.pop("_wkb")
+    ]
     return gpd.GeoDataFrame(df, geometry=geom, crs=4674)

@@ -64,3 +64,15 @@ def test_ibama_condicional_e_sem_dado_pessoal(banco_url, tmp_path):
         assert r.municipios[1504950].mudaram == ["2"] and r.municipios[1500107].sumiram == ["3"]
         assert esp.ler("ibama", "PA", 1504950).crs.to_epsg() == 4674
     eng.dispose()
+
+
+def test_termo_sem_geometria_nao_derruba(tmp_path):
+    import geopandas as gpd
+
+    from raiz.coleta.espelho import Espelho
+
+    g = gpd.GeoDataFrame({"SEQ_TAD": ["1", "2"], "UF": ["PA", "PA"]}, geometry=[None, None], crs=4674)
+    esp = Espelho(tmp_path)
+    assert esp.gravar("ibama", "PA", 1, g, "SEQ_TAD").novos == ["1", "2"]
+    assert esp.ler("ibama", "PA", 1).geometry.isna().all()
+    assert not esp.gravar("ibama", "PA", 1, g, "SEQ_TAD").mudou
