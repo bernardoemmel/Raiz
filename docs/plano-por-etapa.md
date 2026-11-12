@@ -228,7 +228,7 @@ Feito na main fora desta tabela: caminho da terra com risco por imóvel (`raiz/t
 | D | Fila durável, Idempotency-Key, Standard Webhooks, aprovação humana/Pix/JWS, OpenTelemetry | implementado; testes de concorrência, queda do processo, assinatura e prazo; conta/API/worker precisam da mesma base e cofre |
 | E | Gabarito de 24 tarefas, quatro sessões por tarefa, meta pass^4 ≥ 80% e zero chamada proibida | gabarito e avaliador prontos; desempenho de agente real ainda não medido |
 | F | Piso de reversão 20%, REDD+ jurisdicional, CLPI 50%/70% e revisão humana | entrega das salvaguardas com evidência vigente e bloqueio quando falta dado; camada oficial precisa ser carregada pelo operador |
-| G | Recálculo dos 144 municípios do Pará pelo Actions e publicação no Release | workflow da main reutilizado; execução43285608189 cancelada externamente após10/15 fatias e desativada; nenhuma publicação parcial, retomada aguarda confirmação |
+| G | Recálculo dos 144 municípios do Pará pelo Actions e publicação no Release | responsabilidade exclusiva do chat "Lote e números", por orientação do fundador; este chat não altera execução nem Release |
 
 Operação e limites: `docs/agentes-ia.md`, `docs/trabalhos-agentes.md`, `docs/eventos-agentes.md` e
 `docs/avaliacao-agentes.md`. O Pix só é gerado após aprovação de uma pessoa autenticada. Recibo Ed25519

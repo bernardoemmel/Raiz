@@ -54,16 +54,17 @@ Valkey para limites compartilhados, cofre, assinante, SMTP, provedor Pix e colet
 Não reutilizar segredos dos testes. Não enviar mensagens reais durante validação.
 
 O recálculo usa o workflow `lote-para.yml` da main (PR #49), sem pipeline duplicado.
-A execução43285608189, commit3199052, calculou dez de quinze fatias; foi cancelada
-externamente em12/11 às19:09UTC e o workflow foi desativado manualmente. Nenhuma
-saída parcial foi publicada. A retomada das cinco fatias e publicação aguarda
-esclarecimento do fundador sobre o cancelamento posterior ao pedido deste chat.
-Não recalcular no contêiner e não cancelar workflows de outros chats.
+A execução 43285608189, commit 3199052, calculou dez de quinze fatias; foi cancelada
+externamente em 12/11 às 19:09 UTC e o workflow foi desativado manualmente. Nenhuma
+saída parcial foi publicada. Por orientação posterior do fundador, a retomada das
+cinco fatias e a publicação pertencem exclusivamente ao chat "Lote e números".
+Este chat segue apenas com a API paga e o MCP; não altera o recálculo nem o Release.
 
 As salvaguardas da API complementam o catálogo da rodada: os bloqueios publicados
 chegam à oferta/PostGIS. Inclusão de programa REDD+ exige recertificar a cobertura
 vigente. Os testes de revisão usam o app real e os gates pagos, inclusive o caminho
-legado por redirecionamento. A cadeia agora é0026prospecção→0027API→0028salvaguardas→0029plataforma.
+legado por redirecionamento. A cadeia de migrações é 0026 (prospecção) → 0027 (API)
+→ 0028 (salvaguardas) → 0029 (plataforma).
 
 ---
 
