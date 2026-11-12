@@ -34,6 +34,11 @@ Rotas legadas redirecionam à API paga; recusas também contam no limitador.
 PR: https://github.com/bernardoemmel/Raiz/pull/45. Merge condicionado ao CI verde.
 Registrar os resultados do lote/Release na próxima entrega.
 
+O CI do PR #45 detectou que a lista esperada no teste do front não incluía
+`regularizacao_1504950.csv`, amostra incorporada pela main. A expectativa foi
+atualizada mantendo a comparação exata dos complementos; `npm ci` e `npm test`
+em `front/globo` passaram (70 testes aprovados, 13 pulados, 7 arquivos).
+
 ---
 
 ## Registro anterior (contexto histórico; itens acima prevalecem)
