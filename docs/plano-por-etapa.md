@@ -315,6 +315,16 @@ faz sem back-end.
 | 1 | (busca pública) Busca no navegador por nome e código IBGE do município, sem depender de `/busca` no Pages; CAR leva à ficha paga | mapa nacional | feito |
 | 1 | (busca) Carga contínua das saídas do motor por estado (`raiz vigiar`), só o município que mudou, com a versão anterior guardada | carga do motor | feito |
 
+## Qualidade e segurança (12/11/2026)
+
+| Entrega | Situação |
+|---|---|
+| Auditoria PRs #35–#44 integrados e revisão preventiva #45 ainda aberto; correções pequenas com regressões; Release completo e amostra do site | **feito**; evidência e limites em `docs/passagem/qualidade-e-seguranca.md` |
+| Playwright no CI: link, milhão de créditos no Pará, 3 opções, interesse e Pix de teste com API/PostGIS | **feito**; serviços externos controlados, sem pagamento real |
+| Dependabot, Gitleaks no histórico, licenças Python/npm/Rust obrigatórias, cabeçalhos, limite de chamadas e Presidio nos logs | **feito**; limite por processo e restrições operacionais na passagem |
+| CI paralelo com cache uv/npm/Chromium/LanguageTool, build público e coleção completa de testes | **feito**; zero skips ainda **parcial**: falta conjunto real de 144 tabelas desenvolvedor do Pará; demais dependências opcionais instaladas no CI |
+| Instruções para proteger a main | **feito** em `docs/operacao.md`; ativação manual pelo fundador |
+
 ## Continuidade de documentos, vigilância e calendário (12/11/2026)
 
 - **Feito:** aviso inicial à Verra em JSON e `.eml`, pela API, CLI e rodada diária, separado do relatório de perda. Preparar não envia nem registra `verra_avisada`. Rascunho URTX_LE1 para o desenvolvedor cliente em `docs/pedidos/urtx-le1-aviso-verra.md`, prazo **15/11/2026** registrado no projeto e no alerta interno. Campos desconhecidos: “a preencher pelo proponente”. A Raíz não é proponente e nunca envia; não depende de estado privado.
