@@ -54,7 +54,7 @@ class Converter(BaseModel):
 
 def _erro(ex: S.ErroPedido) -> HTTPException:
     msg = str(ex)
-    return HTTPException(404 if "não encontrad" in msg else 422, {"mensagem": msg})
+    return HTTPException(getattr(ex, "status", 404 if "não encontrad" in msg else 422), {"mensagem": msg})
 
 
 def roteador_cliente(engine_de: Callable) -> APIRouter:

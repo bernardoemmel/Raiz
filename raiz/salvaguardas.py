@@ -15,7 +15,19 @@ from urllib.parse import urlsplit
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from sqlalchemy import Engine, text
 
+from raiz.pedidos.servico import ErroPedido
+
 VERSAO = "salvaguardas-2026a"
+
+
+class ErroSalvaguarda(ErroPedido):
+    """Evidência pendente: o trabalho deve devolver input-required, sem aprovar ou gerar Pix."""
+
+
+class ErroAcessoRevisao(ErroPedido):
+    """Detalhe de decisão segue a mesma liberação comercial da ficha e do lote."""
+
+    status = 403
 
 
 class Evidencia(BaseModel):
@@ -300,8 +312,6 @@ def do_banco(engine: Engine, cods: list[str]) -> dict[str, dict]:
 
 
 def exigir_para_reserva(engine: Engine, cods: list[str]) -> None:
-    from raiz.pedidos.servico import ErroPedido
-
     dados = do_banco(engine, cods)
     with engine.connect() as con:
         attrs = {
@@ -314,7 +324,42 @@ def exigir_para_reserva(engine: Engine, cods: list[str]) -> None:
         li = {**(attrs.get(cod) or {}), **(dados.get(cod) or {})}
         v = avaliar(li, li.get("verificacao"))
         if not v["pode_reservar"]:
-            raise ErroPedido("reserva aguarda verificação humana das salvaguardas territoriais e de carbono")
+            raise ErroSalvaguarda("reserva aguarda verificação humana das salvaguardas territoriais e de carbono")
+
+
+def _exigir_liberacao_revisao(con, cliente_id: int) -> None:
+    liberada = con.execute(
+        text("""select contrato_aceito_em is not null and sinal_pago_em is not null
+        and bloqueada_em is null from negocio.conta_api where cliente_id = :c"""),
+        {"c": cliente_id},
+    ).scalar_one_or_none()
+    if liberada is not True:
+        raise ErroAcessoRevisao("o detalhe da decisão exige conta liberada, sinal pago e contrato aceito")
+
+
+def _exigir_imovel_do_pedido(con, pedido_id: str, cliente_id: int, cod_imovel: str) -> None:
+    # Não há candidatos excluídos persistidos antes de uma sugestão: até haver esse registro,
+    # um código arbitrário da base não pode ser usado para consultar detalhe pela revisão.
+    vinculado = con.execute(
+        text("""select exists (
+            select 1 from negocio.pedido_fazenda where pedido_id = :p and cod_imovel = :cod
+        ) or exists (
+            select 1 from (
+                select opcoes from negocio.pedido_sugestao where pedido_id = :p order by id desc limit 1
+            ) s cross join lateral jsonb_array_elements(s.opcoes) o(opcao)
+            cross join lateral jsonb_array_elements(coalesce(o.opcao->'itens', '[]'::jsonb)) i(item)
+            where i.item->>'cod_imovel' = :cod
+        )"""),
+        {"p": pedido_id, "cod": cod_imovel},
+    ).scalar_one()
+    reservada = con.execute(
+        text("""select exists (select 1 from negocio.reserva_fazenda rf
+        join negocio.reserva r on r.id = rf.reserva_id
+        where rf.cod_imovel = :cod and rf.ativa and r.cliente_id <> :c)"""),
+        {"cod": cod_imovel, "c": cliente_id},
+    ).scalar_one()
+    if not vinculado or reservada:
+        raise ErroPedido("fazenda não encontrada neste pedido")
 
 
 def solicitar_revisao(engine: Engine, pedido_id: str, cliente_id: int, cod_imovel: str, motivo: str) -> dict:
@@ -325,6 +370,8 @@ def solicitar_revisao(engine: Engine, pedido_id: str, cliente_id: int, cod_imove
         raise ErroPedido("motivo de revisão inválido")
     with engine.begin() as con:
         _linha_pedido(con, pedido_id, cliente_id)
+        _exigir_liberacao_revisao(con, cliente_id)
+        _exigir_imovel_do_pedido(con, pedido_id, cliente_id, cod_imovel)
         oferta = con.execute(
             text("select atributos from negocio.oferta where cod_imovel = :cod"), {"cod": cod_imovel}
         ).scalar()
@@ -354,9 +401,14 @@ def listar_revisoes(engine: Engine, pedido_id: str, cliente_id: int) -> list[dic
 
     with engine.connect() as con:
         _linha_pedido(con, pedido_id, cliente_id)
+        _exigir_liberacao_revisao(con, cliente_id)
         rs = con.execute(
-            text("""select id, cod_imovel, motivo, criterios, estado, decisao, criada_em, resolvida_em
-            from negocio.revisao_humana where pedido_id = :p and cliente_id = :c order by id"""),
+            text("""select h.id, h.cod_imovel, h.motivo, h.criterios, h.estado, h.decisao, h.criada_em, h.resolvida_em
+            from negocio.revisao_humana h where h.pedido_id = :p and h.cliente_id = :c
+            and not exists (select 1 from negocio.reserva_fazenda rf
+                join negocio.reserva r on r.id = rf.reserva_id
+                where rf.cod_imovel = h.cod_imovel and rf.ativa and r.cliente_id <> :c)
+            order by h.id"""),
             {"p": pedido_id, "c": cliente_id},
         ).mappings()
         return [{k: v.isoformat() if isinstance(v, dt.datetime) else v for k, v in row.items()} for row in rs]

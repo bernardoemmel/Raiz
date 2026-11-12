@@ -53,6 +53,12 @@ A [LGPD, art. 20](https://www2.camara.leg.br/legin/fed/lei/2018/lei-13709-14-ago
 assegura solicitação de revisão e informações sobre critérios. A revisão **por pessoa** é compromisso explícito da Raíz.
 Os itens do lote e a avaliação territorial apontam a rota `POST /pedidos/{pedido_id}/revisoes`, com código do imóvel e
 motivo fechado (`exclusao_automatica`, `nota_de_risco` ou `salvaguarda`). O pedido deve pertencer à empresa autenticada.
+O detalhe exige a mesma liberação da ficha (sinal pago e contrato, conta não bloqueada), e o imóvel deve constar
+na sugestão atual ou no grupo persistido do pedido, inclusive quando marcado como fora do grupo. Uma fazenda reservada
+por outra empresa não revela detalhes nem pelo histórico de revisões. Não há ainda registro dos candidatos descartados
+antes de gerar uma sugestão: esses códigos não podem abrir uma revisão pela API até existir vínculo comprovável com
+a decisão do pedido.
+
 O protocolo guarda critérios e versão naquele instante, aceita repetição sem duplicar a solicitação pendente e pode
 ser acompanhado em `GET /pedidos/{pedido_id}/revisoes`.
 

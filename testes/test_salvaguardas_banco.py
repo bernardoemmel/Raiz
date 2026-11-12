@@ -90,6 +90,12 @@ def test_revisao_tem_protocolo_criterios_e_credencial_humana(eng, monkeypatch):
             values (:p, :c, 'lote_montado', '{}', 'teste')"""),
             {"p": pid, "c": cid},
         )
+        S._salvar_sugestao(con, pid, "teste", {}, [{"id": "segura", "itens": [{"cod_imovel": COD}]}])
+        con.execute(
+            text("""insert into negocio.conta_api (cliente_id, cnpj_hmac, cnpj_mascarado, termos_versao,
+            contrato_aceito_em, sinal_pago_em) values (:c, :h, '**', 'teste', now(), now())"""),
+            {"c": cid, "h": uuid.uuid4().hex},
+        )
     app = FastAPI()
     app.include_router(api.roteador_cliente(lambda r: eng))
     app.include_router(api.roteador_interno(lambda r: eng))
@@ -113,3 +119,67 @@ def test_revisao_tem_protocolo_criterios_e_credencial_humana(eng, monkeypatch):
         lista = cl.get(f"/pedidos/{pid}/revisoes", headers=h).json()
         assert lista[0]["estado"] == "resolvida" and lista[0]["decisao"] == "corrigir_dados"
         assert "revisor_id" not in lista[0]  # cliente não recebe identidade do revisor
+
+
+def test_revisao_nao_abre_detalhe_sem_liberacao_ou_vinculo_e_respeita_exclusividade(eng):
+    cid, sessao = S.criar_cliente(eng, "revisora de teste")
+    outro, _ = S.criar_cliente(eng, "titular da reserva de teste")
+    pid, pid_outro = str(uuid.uuid4()), str(uuid.uuid4())
+    with eng.begin() as con:
+        for p, c in ((pid, cid), (pid_outro, outro)):
+            con.execute(
+                text("""insert into negocio.pedido (id, cliente_id, estado, campos, premissas_versao)
+                values (:p, :c, 'lote_montado', '{}', 'teste')"""),
+                {"p": p, "c": c},
+            )
+        con.execute(
+            text("""insert into negocio.conta_api (cliente_id, cnpj_hmac, cnpj_mascarado, termos_versao)
+            values (:c, :h, '**', 'teste')"""),
+            {"c": cid, "h": uuid.uuid4().hex},
+        )
+    app = FastAPI()
+    app.include_router(api.roteador_cliente(lambda r: eng))
+    rota = f"/pedidos/{pid}/revisoes"
+    corpo = {"cod_imovel": COD, "motivo": "exclusao_automatica"}
+    with TestClient(app) as cl:
+        h = {"Authorization": f"Bearer {sessao}"}
+        assert cl.post(rota, headers=h, json=corpo).status_code == 403
+        assert cl.get(rota, headers=h).status_code == 403
+        with eng.begin() as con:
+            con.execute(
+                text("update negocio.conta_api set contrato_aceito_em = now() where cliente_id = :c"), {"c": cid}
+            )
+        assert cl.post(rota, headers=h, json=corpo).status_code == 403  # só contrato não basta
+        with eng.begin() as con:
+            con.execute(text("update negocio.conta_api set sinal_pago_em = now() where cliente_id = :c"), {"c": cid})
+        r = cl.post(rota, headers=h, json=corpo)
+        assert r.status_code == 404 and "criterios" not in r.json()
+        with eng.begin() as con:
+            assert (
+                con.execute(
+                    text("select count(*) from negocio.revisao_humana where pedido_id = :p"), {"p": pid}
+                ).scalar()
+                == 0
+            )
+            # Mesmo uma fazenda que saiu do grupo pode contestar uma decisão já vinculada ao pedido.
+            con.execute(
+                text("insert into negocio.pedido_fazenda (pedido_id, cod_imovel, papel) values (:p, :cod, 'fora')"),
+                {"p": pid, "cod": COD},
+            )
+        assert cl.post(rota, headers=h, json=corpo).status_code == 200
+        assert len(cl.get(rota, headers=h).json()) == 1
+        with eng.begin() as con:
+            rid = con.execute(
+                text("""insert into negocio.reserva (pedido_id, cliente_id, estado, ha, valor_rs, dias, inicio, fim)
+                values (:p, :c, 'ativa', 2, 100, 1, now(), now() + interval '1 day') returning id"""),
+                {"p": pid_outro, "c": outro},
+            ).scalar_one()
+            con.execute(
+                text("insert into negocio.reserva_fazenda (reserva_id, cod_imovel, ativa) values (:r, :cod, true)"),
+                {"r": rid, "cod": COD},
+            )
+        assert cl.post(rota, headers=h, json=corpo).status_code == 404
+        assert cl.get(rota, headers=h).json() == []  # o histórico também não contorna exclusividade
+        with eng.begin() as con:
+            con.execute(text("delete from negocio.reserva_fazenda where reserva_id = :r"), {"r": rid})
+            con.execute(text("delete from negocio.reserva where id = :r"), {"r": rid})
