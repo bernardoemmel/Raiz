@@ -17,6 +17,7 @@ import hashlib
 
 import pandas as pd
 
+from raiz.legibilidade import medir
 from raiz.vigilancia.privacidade import mascarar
 from raiz.vigilancia.regras import Regras
 
@@ -131,7 +132,8 @@ def avisos(
                 "marco": m,
                 "estado": estado,
                 "criado_em": criados[aid],
-                "texto": texto(perda, projeto.nome, m),
+                "texto": (t := texto(perda, projeto.nome, m)),
+                "legibilidade": medir(t),
             }
         )
     return out

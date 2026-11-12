@@ -156,8 +156,8 @@ def criar_app(
             rs = (
                 con.execute(
                     text(
-                        "select id, contato_id, cod_imovel, tipo, texto, criado_em from pessoal.mensagem_saida "
-                        "where estado = 'aguardando_aprovacao' order by id"
+                        "select id, contato_id, cod_imovel, tipo, texto, legibilidade, criado_em "
+                        "from pessoal.mensagem_saida where estado = 'aguardando_aprovacao' order by id"
                     )
                 )
                 .mappings()
