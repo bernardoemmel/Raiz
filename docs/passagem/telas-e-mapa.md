@@ -139,3 +139,28 @@ cd front/globo && npm test
 ```bash
 RAIZ_BUILD_DADOS=0 front/scripts/construir-site.sh
 ```
+
+## Continuação: ficha visual da terra (entrega 3)
+
+- A rota do CAR continua na `FichaTerra` paga do PR #52. Não reabrir a antiga ficha estática para fornecer o mapa.
+- `GET /prospeccao/fichas/{car}/visual` entrega um contrato fechado: `imovel`, `mascara`, `camadas` (GeoJSON),
+  fonte do perímetro e das camadas, data de corte, data da fonte quando disponível e avisos. Todas as geometrias
+  vêm do banco; as camadas são intersectadas com o CAR, preservando furos. Só `camada` sai nas propriedades.
+- `GET .../visual/satelite` reutiliza o gerador Sentinel-2 existente e devolve a caixa geográfica, fonte e data
+  da cena. Uma ausência conhecida devolve um estado explícito com HTTP 200. `GET .../visual/satelite.webp`
+  serve a imagem com sessão, crédito liberado, exclusividade e `private, no-store`. A URL do blob é revogada ao
+  sair da ficha; token nunca vai na URL ou em um arquivo do site.
+- `MapaFichaTerra` põe a imagem recente sob o perímetro duplo, máscara e hachura diagonal. A hachura só usa
+  `pode_voltar` medido, não a área restaurável da tabela. Sem camada medida, aparece aviso. Fonte e data das
+  camadas ficam consultáveis; a coleção/data ausente não recebe um ano presumido.
+- A linha do tempo reúne cobertura e perdas por ano, com texto e fonte/data além das cores; mantém as tabelas
+  completas e navegação por teclado. O mapa se reenquadra ao mudar a largura da tela, incluindo 360 px.
+- Validação focada: 32 testes Python com PostGIS, incluindo geometrias com furos, recorte e privacidade;
+  Chromium confere satélite de teste explicitamente sintético, camadas, controle de hachura, linha do tempo,
+  acesso antes/depois do crédito, troca de conta e 360 px. `test:prospeccao`, já no CI, guarda as capturas.
+- Um teste externo com contorno real de Parauapebas encontrou cenas no STAC, mas a leitura do COG pelo
+  GDAL deste ambiente falhou na validação da cadeia TLS do proxy. TLS não foi desativado; essa tentativa
+  não comprova uma foto real renderizada. Os testes determinísticos usam a imagem sintética identificada.
+- A imagem real depende da disponibilidade de cena no Sentinel-2 e dos polígonos/camadas carregados na API.
+  A publicação estática mantém apenas agregados. Não transformar o teste de imagem sintética em evidência
+  de disponibilidade orbital para todas as fazendas. O contato com o dono continua na fase final.

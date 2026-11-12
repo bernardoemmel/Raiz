@@ -1,0 +1,22 @@
+.visual-terra figure { margin: 0; }
+.mapa-ficha-terra { height: min(62vh, 560px); min-height: 320px; width: 100%; }
+.controles-visual { display: flex; flex-wrap: wrap; gap: var(--e4); margin-block: var(--e4); }
+.controles-visual label { display: flex; align-items: center; gap: var(--e2); min-height: 48px; cursor: pointer; }
+.controles-visual input { width: 20px; height: 20px; accent-color: var(--mata); }
+.visual-terra details { margin-block: var(--e4); }
+.visual-terra summary { min-height: 48px; display: list-item; cursor: pointer; }
+.linha-tempo-terra { list-style: none; padding: 0; display: flex; overflow-x: auto; gap: var(--e3); scroll-snap-type: x proximity; }
+.linha-tempo-terra > li { flex: 0 0 220px; padding: var(--e3); border: var(--linha); scroll-snap-align: start; }
+.linha-tempo-terra h3 { margin: 0 0 var(--e2); }
+.linha-tempo-terra p { margin-block: var(--e2); }
+.linha-tempo-terra small { display: block; color: var(--pedra); }
+.uso-terra-barra { height: 16px; display: flex; background: var(--nevoa); margin-block: var(--e2); }
+.uso-terra-barra span { height: 100%; }
+.uso-terra-barra .mata { background: var(--mata); }
+.uso-terra-barra .pasto { background: var(--terra); }
+.uso-terra-barra .lavoura { background: var(--urucum); }
+.uso-terra-barra .agua { background: var(--agua); }
+@media (max-width: 600px) {
+  .mapa-ficha-terra { min-height: 300px; height: 420px; }
+  .linha-tempo-terra small, .visual-terra figcaption, .visual-terra details { font-size: 16px; }
+}
