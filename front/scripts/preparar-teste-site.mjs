@@ -97,10 +97,12 @@ export function preparar() {
   fs.writeFileSync(path.join(geo, "base_brasil.pmtiles"), basePmtiles())
   const item = (arquivo) => ({ arquivo, bytes: fs.statSync(path.join(geo, arquivo)).size })
   salvar("indice.json", {
+    gerado_em: "2026-11-12T10:41:00Z", dados_publicados_em: "2026-11-11T18:00:00Z",
     brasil: {
       municipios: item("brasil_municipios.geojson"), estados: item("brasil_estados.geojson"), base: item("base_brasil.pmtiles"),
     },
     municipios: { [MUNICIPIO]: { municipio: item(`municipio_${MUNICIPIO}.geojson`), imoveis: item(`imoveis_${MUNICIPIO}.geojson`) } },
+    sem_contorno: { [SEM_DESENHO]: "Ainda não publicado" },
   })
   fs.writeFileSync(path.join(FIXTURE, "dados/estados.json"), JSON.stringify({
     versao_publicacao: 1, escopo: "publico_basico", gerado_em: "2026-11-12T00:00:00Z",

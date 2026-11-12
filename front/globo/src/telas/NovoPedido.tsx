@@ -1,5 +1,5 @@
 import { X } from "lucide-react"
-import { useMemo, useState } from "react"
+import { lazy, Suspense, useMemo, useState } from "react"
 import { fmtInt, UFS } from "../../../compartilhado/formato"
 import { CAMPOS_PADRAO, marcosDo } from "../../../compartilhado/pedidos/exemplo"
 import {
@@ -12,12 +12,13 @@ import {
 } from "../../../compartilhado/pedidos/texto"
 import type { CaminhoTerra, CamposPedido, Cronograma, Exclusao, FiltroInteresse, Metodo, TipoMeta } from "../../../compartilhado/pedidos/tipos"
 import { fonte, useCarga } from "../dados"
-import { MapaDesenho } from "../mapa/MapaDesenho"
 import { pedidos } from "../pedidos"
 import { Cabecalho } from "../partes/Cabecalho"
 import { AvisoExemplo } from "../partes/pedido/AvisoExemplo"
 import "../partes/pedido/pedido.css"
 import { linkPedido, linkPedidos } from "../rota"
+
+const MapaDesenho = lazy(() => import("../mapa/MapaDesenho").then((m) => ({ default: m.MapaDesenho })))
 
 const BIOMAS = ["Amazônia", "Cerrado", "Mata Atlântica", "Caatinga", "Pantanal", "Pampa"]
 
@@ -48,7 +49,7 @@ export function NovoPedido() {
   const [mun, setMun] = useState("")
   const [enviando, setEnviando] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
-  const brasil = useCarga(() => fonte.geo.brasil(), [])
+  const brasil = useCarga(() => desenhar ? fonte.geo.brasil() : Promise.resolve(null), [desenhar])
   const municipios = useCarga(() => fonte.municipios(), [])
   const opcoesMun = useMemo(() => new Map((municipios.dado ?? []).map((m) => [`${m.municipio} (${m.uf})`, m])), [municipios.dado])
 
@@ -90,7 +91,7 @@ export function NovoPedido() {
   return (
     <div className="tela-pedidos">
       <Cabecalho atual="pedidos" />
-      <main className="pagina pagina-media">
+      <main id="conteudo" tabIndex={-1} className="pagina pagina-media">
         <ol className="migalhas" aria-label="Onde você está">
           <li>
             <a href={linkPedidos}>Meus pedidos</a>
@@ -290,11 +291,11 @@ export function NovoPedido() {
               <div className="desenho">
                 <p className="legenda-frase">Toque no mapa para marcar os cantos da área. A partir de 3 cantos, a área se fecha sozinha.</p>
                 {brasil.dado && (
-                  <MapaDesenho
+                  <Suspense fallback={<p role="status">Abrindo o mapa para desenhar…</p>}><MapaDesenho
                     base={brasil.dado.base}
                     pontos={(c.onde.poligono ?? []).slice(0, -1)}
                     mudar={(p) => mudar((x) => (x.onde.poligono = p.length ? [...p, p[0]] : null))}
-                  />
+                  /></Suspense>
                 )}
                 <div className="acoes">
                   <span className="legenda-frase">{cantos === 1 ? "1 canto" : `${cantos} cantos`}</span>

@@ -12,6 +12,7 @@ import { buscar, normalizarCar, pareceCar } from "./dados/busca"
 import { lerBasico } from "./dados/basico"
 import { escreverCsv, lerCsv } from "./dados/csv"
 import { lerFunil } from "./dados/funil"
+import { coberturaDoIndice } from "./dados/cobertura-mapa"
 import { UFS } from "./formato"
 import { abrirPasta, nomeSeguro, pastaPadrao } from "./pasta-dados"
 import { paginasAgentes } from "./paginas-agentes"
@@ -136,7 +137,14 @@ export function dadosRaiz(opcoes: { repo: string; raizDados?: string | null; cac
         }
       }
       adicionarGeometriasBasicas(municipios)
-      return { brasil, municipios }
+      const cobertura = coberturaDoIndice(origem, (arquivo) => fs.existsSync(path.join(geo, arquivo)), pasta.estados().gerado_em)
+      // No contrato básico, a cobertura descreve só desenhos efetivamente publicados.
+      if (pasta.publicacaoBasica()) {
+        cobertura.acesso = "aberto"
+        cobertura.com_desenho = Object.keys(municipios).filter((cod) => municipios[cod].imoveis).sort()
+        cobertura.sem_desenho = [...new Set([...cobertura.sem_desenho, ...Object.keys(municipios)])].filter((cod) => !cobertura.com_desenho.includes(cod)).sort()
+      }
+      return { brasil, municipios, cobertura }
     }
     // Compatibilidade com pastas antigas, antes do manifesto: só limites e bases com nome conhecido.
     for (const arquivo of listar(geo).filter(geoPermitido)) {
@@ -253,7 +261,7 @@ export function dadosRaiz(opcoes: { repo: string; raizDados?: string | null; cac
       saida = path.resolve(config.root, config.build.outDir)
       construindo = config.command === "build"
       produtor = path.basename(config.root) === "produtor"
-      base = produtor ? (process.env.RAIZ_BASE || "/Raiz/") : (config.base || "/")
+      base = produtor ? (process.env.RAIZ_BASE || "/") : (config.base || "/")
     },
     configureServer(server: Servidor) {
       const ufs = pasta.ufs()

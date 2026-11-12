@@ -56,15 +56,53 @@ Sessão: https://claude.ai/code/session_01VGb88MJumyG9PHt2znaaKE. Branch: `claud
 - E9 posterior: a calibração do portão depende de 30 cartas reais anonimizadas e avaliação de compreensão,
   sem conjunto pronto segundo resposta do fundador em 12/11. Não usar o corte dos testes sintéticos como calibrado.
 
-## O que falta, em ordem
+## Preparação do domínio próprio (entrega 5, 12/11/2026)
 
-1. Concluir as cinco entregas solicitadas: cena-alvo, cobertura diária do mapa, ficha visual, celular/acessibilidade
-   com Lighthouse ≥90 nas duas categorias e configuração de domínio próprio. Integrar cada uma com CI verde.
-2. Conferir a chegada do ponteiro `lote_PA_central_r11.json` no Release; a rotina diária já o incorpora quando existir.
+- `front/scripts/configurar-publicacao.mjs` centraliza base, URL canônica e hostname. `RAIZ_DOMINIO` vazio mantém
+  o Pages derivado de `GITHUB_REPOSITORY`; preenchido usa `/`, HTTPS e `site/CNAME`. Recusa protocolo, caminho,
+  porta, IP, hostname inválido e configuração que mandaria os arquivos para um subcaminho do domínio.
+- `construir-site.sh` passa a mesma configuração aos dois builds; produtor não usa mais `/Raiz/` como fallback.
+  HTML do painel e do produtor anunciam canonical; Markdown, JSON-LD, assets e dados acompanham a base.
+- O workflow lê a variável de Actions `RAIZ_DOMINIO`. Nenhum domínio real foi definido. Antes de ligá-la:
+  verificar o domínio na conta, apontar DNS, cadastrar em Settings > Pages > Custom domain e habilitar HTTPS.
+  O CNAME no artefato não configura DNS nem substitui a configuração do Pages.
+- CI executa testes de configuração e duas publicações reais da fixture: `/Raiz/` e `/`, a segunda com o hostname
+  reservado `raiz.example`. Playwright e auditoria de agentes verificam ambos; na raiz, também CNAME e canonical.
+- Validação integrada das entregas 1 a 5: 10 testes de configuração, 176 testes de front sem skips, os dois builds
+  e Playwright/Lighthouse Agentic nos dois caminhos passaram, com zero 404 e sem expor dados individuais.
+  O formulário nativo do produtor conserva o caminho também com JavaScript desligado. Actionlint aprovou os dois
+  workflows; os seis jobs, E2E com API, cena-alvo e as 15 medições fixas de Lighthouse mobile foram preservados.
+- `robots.txt` e `llms.txt` ficam prontos para a raiz quando o domínio for ativado. O endereço atual de projeto
+  continua com a limitação do robots na raiz de `bernardoemmel.github.io`.
+
+## Verificação real após a migração do Release
+
+- Em 12/11, o cadastro básico atual produziu 365 municípios com desenho em 9 estados e site público de 91 MB.
+  Playwright conferiu busca por Parauapebas, zoom 13 com HTTP Range, pedido no Pará e 360 px, com zero 404.
+- A consulta atual confirma 345.870 fazendas lidas em 144 municípios do Pará. O total de hectares passou a
+  aparecer como desconhecido quando há células ausentes ou suprimidas no novo pacote. A medição de hectares
+  registrada antes nesta passagem pertence ao pacote anterior; não deve substituir a disponibilidade atual.
+- Cena-alvo: [PR #67](https://github.com/bernardoemmel/Raiz/pull/67), integrado com seis checks verdes.
+  Cobertura: [PR #70](https://github.com/bernardoemmel/Raiz/pull/70); ficha: [PR #71](https://github.com/bernardoemmel/Raiz/pull/71).
+  Os demais merges e a publicação devem ser conferidos ao concluir a sequência.
+
+## Situação das cinco entregas e próximos passos
+
+As cinco entregas estão implementadas e verificadas localmente: cena-alvo ligada ao Release, cobertura diária
+sem lista fixa, ficha visual com acesso controlado, navegação mobile com portão Lighthouse e domínio configurável.
+Os PRs e a publicação final ainda precisam ter seus resultados de CI e integração conferidos; esta descrição não
+antecipa o merge de uma entrega que ainda esteja em revisão.
+
+1. Acompanhar o CI de cada PR e a publicação final; conferir o site no ar, as datas da cobertura e os caminhos
+   públicos após a integração. Registrar aqui os links e resultados dos PRs ao fechar cada entrega.
+2. Aguardar o ponteiro `lote_PA_central_r11.json` no Release; a rotina diária já o incorpora quando existir.
+   Enquanto faltar, a tela mantém o aviso e não inventa os três lotes nem suas faixas de crédito/TIR.
 3. E9 passo 3: aguardar as 30 cartas reais anonimizadas e uma avaliação de compreensão, confirmadas como ainda
-   indisponíveis pelo fundador. Depois calibrar o portão e gravar a nota no laudo.
-4. Continuar os itens E9 na ordem do plano: texto por fazenda no kit ONS/campos abertos, condicionais e extenso,
-   KMZ e os demais. A geometria de reserva legal ainda não está nas camadas; não deduzir seu desenho de percentuais.
+   indisponíveis pelo fundador. Depois calibrar o portão e gravar a nota no laudo. Contato com o dono somente na fase final.
+4. Quando houver domínio real, configurar DNS e Pages e preencher `RAIZ_DOMINIO`; conferir HTTPS, CNAME,
+   `robots.txt` e `llms.txt` na raiz. Nenhum domínio real foi escolhido ou ativado nesta entrega.
+5. Continuar os demais itens E9 na ordem do plano: texto por fazenda no kit ONS/campos abertos, condicionais e
+   extenso, KMZ e os demais. A geometria de reserva legal ainda não está nas camadas; não deduzir seu desenho de percentuais.
 
 ## Nova entrega 1: cena-alvo ligada ao Release (12/11/2026)
 
@@ -86,6 +124,42 @@ Sessão: https://claude.ai/code/session_01VGb88MJumyG9PHt2znaaKE. Branch: `claud
   passaram após integrar a entrega de qualidade. Playwright confere ausência/publicação do lote, três cores por
   pixels, teclado, 360 px e zero 404. O E2E com API e PostGIS preserva os testes da fase posterior de interesse/Pix
   por preparação isolada no servidor de teste, mantendo o botão de contato desabilitado na tela do produto.
+
+## Nova entrega 2: cobertura diária do mapa (12/11/2026)
+
+- O cron diário existente (10:41 UTC) continua lendo `estados.json` e os pacotes de todas as UFs do Release.
+  A geração não tem lista fixa de municípios. O teste incremental usa três rodadas com o mesmo cache: acrescenta
+  um município e uma UF; depois acrescenta o desenho que estava faltando, que deixa de aparecer como pendência.
+- `geo/indice.json` preserva `gerado_em` e recebe `dados_publicados_em` do manifesto do Release. O build aberto
+  calcula `cobertura` só dos arquivos anunciados e presentes, com códigos municipais, sem CAR ou caminhos privados.
+  Cache de município fora do manifesto não aumenta a contagem.
+- O painel do Brasil mostra municípios e estados com desenho na base; o painel estadual mostra sua própria
+  contagem. Municípios processados continuam como medida separada. Datas do mapa e do Release são distintas,
+  em horário de Brasília; ausência é escrita como “data não informada”.
+- A main passou a publicar só agregados no PR #52. A cobertura não reabre geometrias individuais: explica que
+  a ficha com acesso pago contém os desenhos. Município com desenho na origem recebe esse aviso; município
+  cujo desenho falta recebe o aviso de indisponibilidade. Não confundir restrição de acesso com falta de dado.
+- Validação local: 9 testes de geometria passaram, 133 testes do front passaram (13 pulados), lint e formato
+  Python passaram. O Playwright do build verifica cobertura, datas e ausência de vazamento de dados individuais.
+- Verificação adicional no navegador com dados reais do Release: a consulta do Pará mostrou 144 municípios,
+  345.870 fazendas lidas e 9.484.092 ha com potencial de restauração, sem 404 ou erro de JavaScript. Créditos e TIR
+  continuam pendentes da publicação dos lotes. O texto do estado ausente agora diferencia explicitamente a base
+  territorial disponível da oferta de créditos e da avaliação da terra que ainda aguardam o lote.
+
+- O Release migrou em 12/11 às 19:25 UTC para `imoveis_basicos_<código>.csv`. O leitor e o exportador aceitam
+  esse contrato; no escopo `publico_basico`, não usam tabelas técnicas antigas. O download remove CSVs retirados
+  do pacote somente após extração bem-sucedida, conservando a geometria da mesma versão. Regressões cobrem
+  migração de formato, município retirado e preservação de fazenda pequena. A falha de publicação após #67
+  preservou o site anterior; esta correção recompõe a rodada diária.
+- O CI encontrou um falso positivo em URL JDBC sem credenciais de outra branch. A exceção em `.gitleaksignore`
+  identifica exatamente commit, arquivo, regra e linha; mantém a varredura de todas as refs e as demais regras.
+
+- A integração com o Calendário da main também publica JSON de ausência explícita quando sua primeira coleta
+  ainda não existe. Isso elimina o 404 observado na navegação real, sem inventar eventos nem data de coleta;
+  falha de atualização preserva os bytes da última coleta disponível. Teste HTTP cobre JSON e ICS em `/Raiz/`.
+- Validação do novo contrato real: 365/365 municípios com desenho, 9 UFs, 74,2 MB de geometrias internas e
+  91 MB no site público agregado. Após incorporar Calendário: 174 testes de front e 12 testes de geometria
+  passaram; as regressões da ausência de agenda também passaram.
 
 ## Referências conferidas para a segunda entrega
 
@@ -160,3 +234,130 @@ cd front/globo && npm test
 ```bash
 RAIZ_BUILD_DADOS=0 front/scripts/construir-site.sh
 ```
+
+## Continuação: ficha visual da terra (entrega 3)
+
+- A rota do CAR continua na `FichaTerra` paga do PR #52. Não reabrir a antiga ficha estática para fornecer o mapa.
+- `GET /prospeccao/fichas/{car}/visual` entrega um contrato fechado: `imovel`, `mascara`, `camadas` (GeoJSON),
+  fonte do perímetro e das camadas, data de corte, data da fonte quando disponível e avisos. Todas as geometrias
+  vêm do banco; as camadas são intersectadas com o CAR, preservando furos. Só `camada` sai nas propriedades.
+- `GET .../visual/satelite` reutiliza o gerador Sentinel-2 existente e devolve a caixa geográfica, fonte e data
+  da cena. Uma ausência conhecida devolve um estado explícito com HTTP 200. `GET .../visual/satelite.webp`
+  serve a imagem com sessão, crédito liberado, exclusividade e `private, no-store`. A URL do blob é revogada ao
+  sair da ficha; token nunca vai na URL ou em um arquivo do site.
+- `MapaFichaTerra` põe a imagem recente sob o perímetro duplo, máscara e hachura diagonal. A hachura só usa
+  `pode_voltar` medido, não a área restaurável da tabela. Sem camada medida, aparece aviso. Fonte e data das
+  camadas ficam consultáveis; a coleção/data ausente não recebe um ano presumido.
+- A linha do tempo reúne cobertura e perdas por ano, com texto e fonte/data além das cores; mantém as tabelas
+  completas e navegação por teclado. O mapa se reenquadra ao mudar a largura da tela, incluindo 360 px.
+- Validação focada: 32 testes Python com PostGIS, incluindo geometrias com furos, recorte e privacidade;
+  Chromium confere satélite de teste explicitamente sintético, camadas, controle de hachura, linha do tempo,
+  acesso antes/depois do crédito, troca de conta e 360 px. `test:prospeccao`, já no CI, guarda as capturas.
+- Teste externo validado com CAR e geometria do Release de Parauapebas: imagem Sentinel-2 de 132.586 bytes,
+  1024 × 938 px, composta pela mediana das cenas de 06/09/2026 a 23/10/2026. O mapa renderizou o recorte,
+  contorno e máscara em 1100 e 360 px. Sem camadas medidas nesse imóvel, exibiu o aviso, sem inventar hachura.
+  A legenda preserva o período inteiro e identifica a composição mediana, em vez de tratá-la como uma foto
+  de data única. Os testes determinísticos do CI continuam identificados como imagem sintética.
+- Em ambiente cujo GDAL não reconheça a CA do proxy, configurar `RAIZ_SATELITE_LEITOR_HTTP=blocos` na API.
+  Só as novas rotas visuais usam então o leitor Range já existente em `raiz.coleta.blocos`, com requests,
+  a CA/proxy herdados e cache de 1 GB em `dados/imagens/.cog`. O gerador e as outras rotas permanecem iguais.
+  A validação real usou esse leitor sem desativar TLS e baixou 95 MB de blocos, sem baixar cenas inteiras.
+- A suíte completa local foi interrompida após 321 testes aprovados para evitar competição com a suíte
+  de integração do chat principal; os testes focados passaram. Rodar a suíte completa no checkout integrado.
+- A imagem real depende da disponibilidade de cena no Sentinel-2 e dos polígonos/camadas carregados na API.
+  A publicação estática mantém apenas agregados. Não transformar o teste de imagem sintética em evidência
+  de disponibilidade orbital para todas as fazendas. O contato com o dono continua na fase final.
+
+### Validação da ficha após integrar as entregas 1 e 2
+
+- Integrada a cobertura do mapa (`fb8c796`), incluindo a cena-alvo e os seis jobs de qualidade do CI.
+  O único conflito estava no plano; todas as entregas e as seções de qualidade e continuidade foram preservadas.
+- A API do pedido continua retornando apenas contornos já desbloqueados pela própria conta, sem nova cobrança.
+  Sugestões antigas perdem a geometria antes de conferir novamente a autorização e a exclusividade.
+- Checagens no ambiente próprio da ficha: Ruff e formatação, TypeScript, 166 testes de front, 53 testes de
+  API/ficha/satélite com PostGIS e dois testes de autorização dos contornos do lote aprovados, sem skips.
+  Chromium conferiu o mapa, hachura, linha do tempo, crédito, troca de conta e 360 px. A suíte Python completa
+  permanece a cargo da integração do chat principal; não foi repetida nesta rodada.
+
+### Integração da ficha com o cadastro básico e o Calendário
+
+- A entrega 3 incorpora a descoberta de `imoveis_basicos_<IBGE>.csv` no Release e a main com o Calendário
+  (`a4c1066`). A ficha mantém o mapa privado, a linha do tempo e o selo de leilão da agenda; imagem e vínculo
+  do calendário só são consultados depois do desbloqueio da ficha.
+- Ruff e formatação passaram em 361 arquivos. TypeScript, 177 testes do front e 91 testes Python focados
+  em visual/satélite/ficha/API/acesso passaram, sem skips. Playwright conferiu a ficha com o calendário
+  e a agenda em 1440, 768 e 360 px, incluindo o aviso de coleta ausente.
+
+## Entrega 4: celular, teclado e desempenho (12/11/2026)
+
+- A escala nacional usa SVG Natural Earth já existente no repositório, com estados coloridos pela cobertura real,
+  nomes acessíveis, links por estado e a mesma busca. Escolher estado ou município carrega MapLibre e a base PMTiles;
+  depois o mapa detalhado permanece montado nas trocas. Isso reduz o JS inicial de cerca de 1,6 MB para 267 KB
+  (aproximadamente 86 KB gzip), sem baixar contornos municipais na abertura nacional.
+- Menus continuam disponíveis a 360 px. Atalho de teclado pula para o conteúdo, as rotas levam foco ao main,
+  a alça da gaveta e os controles têm 48 px, os resultados da busca quebram linha e tabelas roláveis recebem foco e rótulo.
+- `npm run test:acessibilidade` serve o artefato com gzip/Range, verifica teclado (pular conteúdo, gaveta e busca),
+  largura de 360 px e axe WCAG 2.1 A/AA no Brasil, município, login com erro, novo pedido (filtros fechados/abertos)
+  prospecção pública e produtor. `test:prospeccao` também audita a ficha desbloqueada e a busca autenticada. Não expõe dados pessoais.
+- Lighthouse 13.6.0 mede as categorias oficiais performance e accessibility em mobile de 360 px, com throttling
+  `simulate` padrão. São **três execuções fixas** por página: Brasil, entrar, novo pedido, prospecção e produtor: exige mediana de desempenho >= 90
+  e acessibilidade >= 90 em cada execução. Erro de coleta, nota ausente/nula e troca para desktop/rede sem simulação
+  reprovam. Salva todas as amostras HTML/JSON, axe e capturas em `front/.cache/teste-acessibilidade` e no CI.
+- A série fixa final deu medianas de desempenho de 100 no Brasil, 96 na entrada, 98 em novo pedido,
+  98 em prospecção e 100 no produtor; acessibilidade 100 nas quinze medições. Todas as amostras ficam preservadas,
+  inclusive os outliers de desempenho 73 no Brasil e 72 em novo pedido. Runners concorrentes afetam TBT: a mediana
+  tem três amostras fixas, sem repetir até passar ou escolher a melhor.
+- Ficam pendentes avaliação humana completa WCAG e a calibração E9 com cartas reais. O teste automatizado não é
+  declaração de conformidade total e não inicia contato com proprietários.
+
+Validação local integrada das entregas 1 a 4: build com dependências travadas, 175 testes do front sem skips,
+Pages com zero 404, cena-alvo pública/autorizada e prospecção/ficha com axe, além do Lighthouse Agentic Browsing.
+Os sete cenários do auditor mobile tiveram zero violações axe e nenhuma largura acima de 360 px. Os quinze
+relatórios Lighthouse passaram pelo portão fixo. E9 real não foi calibrado e a suíte Python completa cabe ao chat principal.
+
+
+### Integração das entregas 1 a 4
+
+- `fonte.geo.cobertura()` lê apenas o índice leve, com cache, para mostrar contagem e datas na entrada em SVG.
+  Os GeoJSON nacionais continuam adiados até escolher estado/município. A API ainda não publica esse manifesto;
+  nesse modo a cobertura fica indisponível, sem inferir desenhos a partir dos resumos e sem chamar uma rota inexistente.
+- Formulário fechado, consulta pública sem fazendas e ficha antes do desbloqueio não baixam MapLibre.
+  O mapa específico carrega ao desenhar uma área, receber lotes autorizados ou abrir a ficha desbloqueada.
+- `test:cena` executa axe WCAG 2.1 AA também na comparação pública e nos três lotes autorizados a 360 px;
+  `test:prospeccao` conserva o teste de Sentinel-2 sintético, hachura e linha do tempo junto da auditoria axe.
+
+- A entrada do produtor entrega cabeçalho, instrução e formulário como HTML nativo; funciona sem JavaScript.
+  Preact e o leitor da ficha só carregam com `?car=`, preservando o caminho e os controles de acesso existentes.
+  A auditoria confirma a leitura e o envio nativo do formulário com JavaScript desligado.
+- O portão Lighthouse inclui também `#/pedidos/novo` e `#/prospeccao`, sem substituir o backend público por fixture: são 15 medições fixas ao todo.
+- Revisão visual da ficha a 360 px: escala no alto à esquerda e atribuição inteira no rodapé, sem sobreposição.
+  O estilo dos detalhes da ficha não atinge mais o controle interno do MapLibre, eliminando o botão de informação
+  redundante; os botões de zoom têm 48 px. Playwright verifica a legenda Copernicus completa com imagem sintética,
+  as caixas sem interseção, o crédito visível e axe/360 px. TypeScript e verificador de design passaram.
+
+### Integração do Calendário com a navegação acessível
+
+- Calendário também usa carregamento por tela, conserva o foco no conteúdo e mantém seus filtros, feed e aviso
+  de coleta ausente. O quarto link do menu continua visível a 360 px, sem rolagem horizontal.
+- A auditoria do Calendário entra no CI: três larguras (1440, 768 e 360 px), teclado e axe WCAG 2.1 AA.
+  TypeScript, design, actionlint, 186 testes do front e Playwright de cena-alvo e ficha passaram após o merge.
+- Os seis jobs do CI e as quinze medições fixas de Lighthouse foram preservados; a integração não reduziu
+  categorias, notas mínimas nem o conjunto de páginas do portão.
+
+### Domínio após integrar Calendário e cadastro básico
+
+- As duas bases, `/Raiz/` e `/`, passaram pelo build e pelo Playwright com calendário/feed ICS, busca,
+  acesso pago por CAR, overzoom e formulário do produtor sem JavaScript; zero 404 nas duas publicações.
+- Dez testes de configuração e 187 testes do front passaram. Actionlint aprovou os workflows.
+  A fixture de calendário é usada também no segundo build do CI, sem depender da agenda remota.
+
+### Conferência final com o Release real
+
+- O conjunto final passou novamente pela busca Parauapebas, zoom 13 por HTTP Range, pedido no Pará e 360 px,
+  com zero 404. Lighthouse das cinco páginas no artefato real: desempenho mediano 100/98/95/95/100;
+  acessibilidade mínima 100 em todas as quinze medições fixas. Não houve repetição para escolher notas.
+- A revisão corrigiu o Markdown estadual/municipal: medidas ausentes permanecem desconhecidas e zero
+  explícito continua zero. Um total incompleto não é apresentado como completo; contagem desconhecida
+  não libera medidas de grupos cujo tamanho mínimo não pode ser confirmado. Dezenove testes focados passaram.
+- A atualização da main para o histórico automático foi incorporada; preservadas a nota do Calendário
+  sobre o runner e a exceção exata de URL JDBC sem credenciais.

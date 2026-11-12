@@ -1,3 +1,5 @@
+import type { Geo } from "./dados/tipos"
+
 /** Contrato da prospecção: somente terra. As permissões e os créditos pertencem ao servidor. */
 export interface MedidaTerra {
   valor: number | null
@@ -27,6 +29,26 @@ export interface FichaTerraDados {
   tir: { p10: MedidaTerra; p50: MedidaTerra; p90: MedidaTerra; tipo: string }
   risco: { nivel: string | null; fonte: string; data_referencia: string | null; regra_versao: string | null }
   agrupamento: { pequena: boolean | null; grupo_id: string | null; imoveis: MedidaTerra; area: MedidaTerra }
+}
+export interface VisualTerra {
+  imovel: Geo
+  mascara: Geo
+  camadas: Geo
+  fonte_perimetro: string
+  fonte_camadas: string
+  data_referencia: string | null
+  data_corte: string | null
+  avisos: string[]
+}
+export type SateliteTerra = { disponivel: false; aviso: string } | {
+  disponivel: true
+  caixa: [number, number, number, number]
+  data_cena: string
+  metodo: string
+  satelite: string
+  credito: string
+  largura: number
+  altura: number
 }
 export interface FiltrosProspeccao {
   q?: string
@@ -188,6 +210,9 @@ export function fonteProspeccao(api: string | undefined, token: () => string | n
     },
     buscar: (f: FiltrosProspeccao, pagina: number, sinal?: AbortSignal) => pedir<BuscaProspeccao>(`busca?${parametrosProspeccao(f, pagina)}`, undefined, sinal),
     ficha: (car: string, sinal?: AbortSignal) => pedir<FichaTerraDados>(`fichas/${encodeURIComponent(car)}`, undefined, sinal),
+    visual: (car: string, sinal?: AbortSignal) => pedir<VisualTerra>(`fichas/${encodeURIComponent(car)}/visual`, undefined, sinal),
+    satelite: (car: string, sinal?: AbortSignal) => pedir<SateliteTerra>(`fichas/${encodeURIComponent(car)}/visual/satelite`, undefined, sinal),
+    imagemSatelite: async (car: string, sinal?: AbortSignal) => (await respostaDe(`fichas/${encodeURIComponent(car)}/visual/satelite.webp`, undefined, sinal)).blob(),
     desbloquear: (car: string) => pedir<FichaTerraDados>(`fichas/${encodeURIComponent(car)}/desbloquear`, {}),
     contato: (car: string) => pedir<{ id: number | string; estado: string; criado_em: string; mensagem: string }>("contatos", { codigo_car: car }),
     planos: () => pedir<PlanosConsulta>("planos", undefined, undefined, true),

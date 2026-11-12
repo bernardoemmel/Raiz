@@ -105,10 +105,19 @@ rejeita qualquer snapshot financeiro antigo no build público. No retorno de
 pedidos, valores por CAR também exigem liberação da própria conta; `ficha_liberada`
 distingue bloqueio de ausência, e a projeção remove campos inesperados. Totais,
 interesse, reservas e cálculo persistido foram preservados, sem cobrança nova.
-A integração das telas passou em 186 testes do front, build, Pages, prospecção,
+A integração das telas, antes da nova ficha visual, passou em 186 testes do front, build, Pages, prospecção,
 cena-alvo e Lighthouse, preservando também o calendário recém-integrado.
 Onze testes de pedidos com PostGIS e 76 testes da integração de fichas e migrações
 passaram em banco novo, com `0028` como revisão final.
+
+A ficha visual integrada da main preserva mapa, Sentinel-2 e linha do tempo junto
+com a comparação e o PDF. As rotas `/fichas/{car}/visual`, `/visual/satelite` e
+`/visual/satelite.webp` também exigem sessão e desbloqueio da própria conta,
+verificam reserva e retornam conteúdo privado sem cache público. A integração
+HTTP/visual passou em 44 testes com PostGIS. A junção visual passou nos 201 testes
+do front, 17 de geometria, build e todos os cenários de navegador. As melhorias de
+acessibilidade e domínio configurável da main também são preservadas; nenhuma
+oferta financeira estática é incluída no build aberto.
 
 ## Função compartilhada para API e MCP
 
@@ -153,10 +162,19 @@ A atualização da main também trouxe os retratos automáticos do aprendizado. 
 seguem a mesma fronteira privada, inclusive os pacotes imutáveis e os recibos:
 nenhum Release diário público de histórico por CAR pode ser criado. O alerta do
 Gitleaks para uma URL JDBC histórica sem credenciais tem exceção restrita ao
-fingerprint já revisado e integrado pela main, conforme `operacao.md`.
+fingerprint já revisado e integrado pela main, conforme `operacao.md`. O CI dessa revisão executou 1.174 testes com sucesso;
+uma asserção antiga contava dois passos finais protegidos, mas agora existem
+três. O teste foi corrigido para conferir a proteção de cada operação, e os
+13 testes de transferência passaram. A suíte completa deve ser reconferida na
+revisão final integrada.
 
 Após a integração, reativar os cinco workflows pausados, atualizar as refs da fila
 com `scripts/atualizar_fila_privada.py` e retomar as unidades interrompidas com o
 commit protegido: BA-1 a BA-4, CE-1/2, PI-1/2 e RN-1, sem duplicar reservas ativas.
-O lote do Pará e o site devem rodar novamente na main; a publicação do site passa
-a consumir os 22 assets básicos, sem depender dos originais preservados.
+O lote do Pará tem retomada específica na main (`retomar-lote-para.yml`, PR #55):
+a execução 43299409156 já foi iniciada, reutilizando dez fatias preservadas e
+calculando só as cinco interrompidas, no privado e com motor/lockfile originais.
+Não disparar também o lote genérico de quinze fatias. A compatibilidade do
+orquestrador histórico com o armazém atual deve permanecer coberta nos testes.
+O site deve ser republicado na main com os 22 assets básicos, sem depender dos
+originais preservados.

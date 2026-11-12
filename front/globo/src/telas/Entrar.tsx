@@ -69,7 +69,7 @@ export function Entrar({ token, volta }: { token: string | null; volta?: string 
   return (
     <div className="tela-pedidos">
       <Cabecalho atual="pedidos" />
-      <main className="pagina pagina-estreita">
+      <main id="conteudo" tabIndex={-1} className="pagina pagina-estreita">
         <h1>Entrar na Raíz</h1>
         {token ? (
           confirmando === "confirmando" ? (

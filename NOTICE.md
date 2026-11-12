@@ -300,6 +300,13 @@ O peso Q4_K_M usado na validação local de 12/11/2026 é a conversão GGUF de
 ([licença original](https://huggingface.co/Qwen/Qwen3-4B-Instruct-2507/blob/main/LICENSE)). O peso fica fora do git;
 a revisão e o SHA-256 conferidos estão em `docs/operacao.md`.
 
+### Auditoria de acessibilidade em celular
+
+O CI usa `@axe-core/playwright` 4.14.0 e seu motor `axe-core` (MPL-2.0), somente nas ferramentas de teste,
+para verificar WCAG 2.1 A e AA. Origem: https://github.com/dequelabs/axe-core-npm e
+https://github.com/dequelabs/axe-core. Lighthouse 13.6.0 (Apache-2.0, já registrado acima) mede as categorias
+oficiais performance e accessibility em celular de 360 px, com rede e CPU simuladas.
+
 ## Sanitização de logs (`raiz/logs_seguros.py`)
 
 Microsoft Presidio Analyzer e Anonymizer ([microsoft/presidio](https://github.com/microsoft/presidio), MIT) são usados

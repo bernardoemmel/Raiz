@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 /** Fluxo de consulta no Chromium com API controlada: bloqueio, débito, contato, recompra, troca de sessão e celular. */
 import assert from "node:assert/strict"
+import { conferirPaginaAcessivel } from "./conferir-acessibilidade.mjs"
 import fs from "node:fs"
 import { createRequire } from "node:module"
 import path from "node:path"
@@ -9,12 +10,15 @@ import { fileURLToPath, pathToFileURL } from "node:url"
 const globo = fileURLToPath(new URL("../globo/", import.meta.url))
 const require = createRequire(path.join(globo, "package.json"))
 const { chromium } = require("playwright")
+const { default: AxeBuilder } = await import(pathToFileURL(require.resolve("@axe-core/playwright")).href)
+const { PNG } = require("pngjs")
+
 const { createServer } = await import(pathToFileURL(require.resolve("vite")).href)
 process.env.VITE_RAIZ_API = "/teste-api"
 const servidor = await createServer({ root: globo, configFile: path.join(globo, "vite.config.ts"), server: { port: 0 }, logLevel: "error" })
 await servidor.listen()
 const executavel = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE || (fs.existsSync("/usr/bin/chromium") ? "/usr/bin/chromium" : undefined)
-const browser = await chromium.launch({ executablePath: executavel, args: ["--no-sandbox"] })
+const browser = await chromium.launch({ executablePath: executavel, args: ["--no-sandbox", "--use-gl=angle", "--use-angle=swiftshader", "--enable-unsafe-swiftshader"] })
 const prints = process.env.RAIZ_PRINTS || "/tmp/raiz-ficha-prospeccao"
 fs.mkdirSync(prints, { recursive: true })
 const car = "PA-1507300-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
@@ -32,6 +36,13 @@ const car2 = "PA-1507300-BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB"
 let desbloqueada = false, debitos = 0, contatos = 0, precosProvisorios = false
 let buscasSalvas = [], avisos = []
 const salvo = (nome, filtros) => ({ id: "busca-1", nome, filtros, criada_em: "2026-11-12", verificada_em: "2026-11-12" })
+const anel = [[-52.1, -6.7], [-52.08, -6.7], [-52.08, -6.68], [-52.1, -6.68], [-52.1, -6.7]]
+const colecao = (coordinates, properties = {}) => ({ type: "FeatureCollection", features: [{ type: "Feature", properties, geometry: { type: "Polygon", coordinates } }] })
+const visual = { imovel: colecao([anel]), mascara: colecao([[[-180, -85], [180, -85], [180, 85], [-180, 85], [-180, -85]], anel]), camadas: colecao([[[-52.1, -6.7], [-52.09, -6.7], [-52.09, -6.68], [-52.1, -6.68], [-52.1, -6.7]]], { camada: "pode_voltar" }), fonte_perimetro: "Limite sintético de teste", fonte_camadas: "Camada sintética de teste", data_referencia: null, data_corte: "2026-11-12", avisos: [] }
+const png = new PNG({ width: 4, height: 4 })
+for (let i = 0; i < png.data.length; i += 4) png.data.set([120, 140, 110, 255], i)
+const imagemTeste = PNG.sync.write(png)
+const creditoTeste = "Imagem sintética de teste; legenda de atribuição: Contains modified Copernicus Sentinel data 2026"
 const chaves = [], chamadas = []
 const totais = { fazendas: 10, area_ha: 300, area_restauravel_ha: 120, credito_p10: 1000, credito_p50: 1500, credito_p90: 2000, com_credito: 10, pequenas: 10, fonte: "Base de teste", data_corte_min: "2026-11-12", data_corte_max: "2026-11-12" }
 const compra = (id, estado = "pendente") => ({ id, plano: "pesquisa", creditos: 10, valor_rs: 20, estado, modo: "producao", pix_copia_cola: "PIX-DE-TESTE-NAO-PAGAVEL", expira_em: "2026-11-13" })
@@ -72,6 +83,12 @@ try {
     if (caminho === "avisos/7/ler") { avisos = avisos.map((a) => ({ ...a, lida_em: "2026-11-12" })); return json({ id: 7, lida_em: "2026-11-12" }) }
     if (caminho.endsWith("/pdf")) return desbloqueada && req.headers().authorization === "Bearer cliente-a" ? route.fulfill({ contentType: "application/pdf", body: "%PDF-1.4\nTeste de ficha paga" }) : json({ detail: "Ficha precisa de crédito pago" }, 402)
     if (caminho.endsWith("/desbloquear")) { desbloqueada = true; debitos++; return json(ficha) }
+    if (caminho.includes("/visual")) {
+      assert.ok(desbloqueada && req.headers().authorization === "Bearer cliente-a", "Visual só depois do crédito e com a sessão da conta")
+      if (caminho.endsWith("satelite.webp")) return route.fulfill({ status: 200, contentType: "image/png", body: imagemTeste })
+      if (caminho.endsWith("satelite")) return json({ disponivel: true, caixa: [-52.105, -6.705, -52.075, -6.675], data_cena: "2026-10-10", metodo: "cena", satelite: "Sentinel-2", credito: creditoTeste, largura: 4, altura: 4 })
+      return json(visual)
+    }
     if (caminho.startsWith("fichas/")) return desbloqueada && req.headers().authorization === "Bearer cliente-a" ? json(ficha) : json({ detail: "Ficha precisa de crédito pago" }, 402)
     if (caminho === "contatos") { contatos++; assert.deepEqual(req.postDataJSON(), { codigo_car: car }); return json({ id: 7, estado: "recebido", criado_em: "2026-11-12", mensagem: "Pedido registrado na Raíz. O contato será tratado depois." }) }
     if (caminho === "busca" || caminho === "agregado") {
@@ -86,10 +103,12 @@ try {
   const page = await ctx.newPage(), erros = []
   const print = async (nome) => { await page.evaluate(() => window.scrollTo(0, 0)); await page.screenshot({ path: path.join(prints, nome), fullPage: true }) }
   page.on("pageerror", (e) => erros.push(e.message))
+  page.on("console", (m) => { if (m.type() === "error" && !m.text().includes("status of 402 (Payment Required)")) erros.push(m.text()) })
   const url = servidor.resolvedUrls.local[0]
   await page.goto(`${url}#/fazenda/${car}`)
   await page.getByRole("button", { name: "Desbloquear por 1 crédito" }).waitFor()
   assert.equal(await page.getByRole("heading", { name: "Uso da terra ao longo dos anos" }).count(), 0)
+  assert.equal(chamadas.filter((c) => c.caminho.includes("/visual")).length, 0)
   assert.equal(await page.getByRole("link", { name: "Em leilão: conferir edital e prazo", exact: true }).count(), 0)
   assert.equal(chamadas.filter((c) => c.caminho === "/teste-api/eventos").length, 0, "Só confere vínculos do calendário após desbloquear a ficha")
   await print("ficha-bloqueada-1440.png")
@@ -98,6 +117,16 @@ try {
   await page.getByRole("link", { name: "Em leilão: conferir edital e prazo", exact: true }).waitFor()
   assert.equal(await page.getByRole("link", { name: "Em leilão: conferir edital e prazo", exact: true }).getAttribute("href"), `#/calendario/${encodeURIComponent(car)}`)
   assert.equal(debitos, 1)
+  await page.waitForFunction(() => {
+    const m = document.querySelector(".mapa-ficha-terra")?.__mapa
+    return m?.loaded() && m?.getLayer("sentinel") && m?.queryRenderedFeatures({ layers: ["pode-voltar"] }).length > 0
+  })
+  await page.getByText("Sentinel-2 em 10/10/2026", { exact: false }).waitFor()
+  assert.ok(await page.locator(".linha-tempo-terra").innerText().then((t) => t.includes("2024") && t.includes("Fonte: Base de teste da terra")))
+  await page.getByLabel("Mostrar área que pode virar mata").uncheck()
+  await page.waitForFunction(() => (() => { const m = document.querySelector(".mapa-ficha-terra")?.__mapa; return m?.getLayer("pode-voltar") && m.getLayoutProperty("pode-voltar", "visibility") === "none" })())
+  await page.getByLabel("Mostrar área que pode virar mata").check()
+  await page.waitForFunction(() => (() => { const m = document.querySelector(".mapa-ficha-terra")?.__mapa; return m?.getLayer("pode-voltar") && m.getLayoutProperty("pode-voltar", "visibility") === "visible" })())
   await page.getByRole("button", { name: "Pedir contato", exact: true }).click()
   await page.getByRole("button", { name: "Pedido de contato recebido" }).waitFor()
   assert.equal(contatos, 1)
@@ -120,7 +149,24 @@ try {
   await page.getByRole("heading", { name: "Pix aguardando pagamento" }).waitFor()
   assert.equal(chaves.length, 2); assert.notEqual(chaves[0], chaves[1])
   await page.setViewportSize({ width: 360, height: 800 })
+  await page.locator(".visual-terra").scrollIntoViewIfNeeded()
+  const mapaPrivado = page.locator(".mapa-ficha-terra")
+  const credito = mapaPrivado.locator(".maplibregl-ctrl-attrib-inner")
+  assert.equal(await credito.innerText(), creditoTeste)
+  const caixaMapa = await mapaPrivado.boundingBox(), caixaCredito = await credito.boundingBox()
+  const caixaEscala = await mapaPrivado.locator(".maplibregl-ctrl-scale").boundingBox()
+  assert(caixaMapa && caixaCredito && caixaEscala)
+  assert(caixaEscala.y + caixaEscala.height <= caixaCredito.y, "Escala fica acima da atribuição, sem sobrepor o texto completo")
+  assert(caixaCredito.x >= caixaMapa.x && caixaCredito.x + caixaCredito.width <= caixaMapa.x + caixaMapa.width, "Atribuição cabe na largura do mapa")
+  assert(caixaCredito.y + caixaCredito.height <= caixaMapa.y + caixaMapa.height, "Atribuição inteira permanece visível")
+  assert.equal(await mapaPrivado.locator(".maplibregl-ctrl-attrib-button:visible").count(), 0, "Crédito aberto não exibe botão redundante")
+  for (const botao of await mapaPrivado.locator(".maplibregl-ctrl-group button").all()) {
+    const caixa = await botao.boundingBox()
+    assert(caixa && caixa.width >= 48 && caixa.height >= 48, "Controles do mapa têm área de toque de 48 px no celular")
+  }
+  await page.screenshot({ path: path.join(prints, "mapa-ficha-terra-360.png") })
   await print("ficha-terra-360.png")
+  await conferirPaginaAcessivel(page, AxeBuilder, "ficha-desbloqueada-360", prints)
   assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), "Ficha cabe no celular")
   await page.goto(`${url}#/prospeccao`)
   await page.getByRole("heading", { name: "Quanto existe na base" }).waitFor()
@@ -178,6 +224,7 @@ try {
   await page.getByRole("button", { name: "Desbloquear por 1 crédito" }).waitFor()
   assert.equal(await page.getByRole("heading", { name: "Uso da terra ao longo dos anos" }).count(), 0)
   assert.equal(await page.getByRole("button", { name: "Exportar ficha em PDF" }).count(), 0)
+  assert.equal(await page.locator(".visual-terra").count(), 0, "O mapa e o satélite da conta anterior desaparecem ao trocar a sessão")
   assert.equal(await page.getByText("Pedido 7 recebido", { exact: false }).count(), 0)
   assert.equal(await page.getByRole("link", { name: "Em leilão: conferir edital e prazo", exact: true }).count(), 0)
   await page.goto(`${url}#/prospeccao`)
@@ -186,6 +233,7 @@ try {
   await page.getByRole("button", { name: "Aplicar filtros" }).click()
   await page.getByRole("heading", { name: "Quanto existe na base" }).waitFor()
   await print("busca-terra-360.png")
+  await conferirPaginaAcessivel(page, AxeBuilder, "prospeccao-360", prints)
   assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), "Busca cabe no celular")
   assert.equal(await page.locator('a[href="#/"]').count() > 0, true)
   await page.evaluate(() => { localStorage.removeItem("raiz.sessao"); window.dispatchEvent(new Event("raiz-sessao")) })
@@ -194,5 +242,5 @@ try {
   assert.equal(await page.locator(`a[href*="${car}"]`).count(), 0)
   assert.ok(chamadas.filter((c) => c.caminho === "agregado").every((c) => !c.token))
   assert.deepEqual(erros, [])
-  console.log(`Prospecção conferida no Chromium: débito, contato, compra repetida, PDF, comparação, buscas/avisos, preços provisórios, troca de conta, agregado e celular. Prints em ${prints}`)
+  console.log(`Prospecção conferida no Chromium: mapa privado, Sentinel-2 simulado, hachura, linha do tempo, débito, contato, compra repetida, PDF, comparação, buscas/avisos, preços provisórios, troca de conta, agregado e celular. Prints em ${prints}`)
 } finally { await browser.close(); await servidor.close() }

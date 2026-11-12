@@ -136,7 +136,7 @@ legais anteriores permanecem, inclusive embargo sobreposto a TI, sem apagar sua 
 | 9 | Motor dentro do produto (agente Dados): executor por estado e município com marca de concluído por tarefa (versão, assinatura, sha das saídas), retomada depois de matar, refazer só o afetado (versão da tarefa, fonte do município, saída anterior), armazém no Release "dados" do GitHub (produção; S3 com R2 ou SeaweedFS como opção futura) com versão e data em cada arquivo, workflow processar-estados chamando `raiz executor rodar --ate-minutos`, back-end lendo o armazém (sincronizar, carga do que mudou, sob demanda por imóvel), /brasil, /estados, painel do processamento, agenda anual (coleção do MapBiomas) e parcial | E1, E2 | feito |
 | 10 | Pedido de lote (docs/cena-alvo.md): oferta por fazenda (negocio.oferta, refeita a cada carga), pedido com os campos da cena-alvo, quanto existe na base por caminho da terra e interesse do dono com P10/P50/P90, o que falta e o que afrouxar, 3 opções do mesmo solver (HiGHS pelo scipy: mais barata, mais segura, mais compacta, com forma do lote e vazamento zero com fazenda de mitigação) e 10 a 20% de reserva, troca de fazenda, entrar sem senha, interesse do dono por nível (só o nível sai na API), ondas de contato dimensionadas pela chance de aceite (envio simulado), andamento, grupo pronto com aviso (painel, e-mail, WhatsApp), reserva com Pix da AbacatePay (modo de teste) e exclusividade de 60 dias, contrato com abatimento, vigia do pedido salvo e chance de aceite que aprende com cada contato | passos 6 e 9 | feito |
 | 10b | Rodada 11 unificada (um só arquivo de premissas e um só cálculo, com a branch premissas-rodada11: curva oficial da URTX, teto por bioma, P10/P90 de custo publicados, último marco a 100%, vazamento por vizinha VMD0054, renda do gado do Censo) e lote do ProFloresta+ por estado (`raiz lote montar`): titulares e reserva pela chance de 90% com erro comum da captura, fluxo do lote pela soma das fazendas, preço mínimo para TIR de 12% e 15%, o que destrava o lote (posse e assentamento), certidões para os 5% homologados, checklist do edital, relatório para o desenvolvedor e folha do dono; o otimizador põe a regeneração antes do plantio que o preço não paga | passos 6 e 10 | feito |
-| 10c | Lote e números: piso20 de reversão, três opções, preços TIR12/15 por fazenda, salvaguardas jurisdicionais/CLPI/partilha, decisões explicadas e revisão humana, previsões versionadas e comparação real; workflow PA144 no Release dados | 10b | **código feito nesta entrega**; execução integral e publicação pendentes do workflow após merge; fontes/licenças e quatro horizontes regionais auditados; quantis ecológicos pendentes de harmonização de parcelas, unidades e métodos (**parcial**, conforme autorização do fundador). Detalhes em `docs/passagem/lote-e-numeros.md` |
+| 10c | Lote e números: piso20 de reversão, três opções, preços TIR12/15 por fazenda, salvaguardas jurisdicionais/CLPI/partilha, decisões explicadas e revisão humana, previsões versionadas e comparação real; workflow PA144 com separação entre aberto e pago | 10b | **código feito no PR #49, CI verde**; Actions 43285608189 interrompido pelo chat Ficha da fazenda durante migração dos dados pagos. Retomada autorizada só das cinco fatias faltantes, reutilizando dez prontas, limite total de quinze jobs e publicação completa autenticada; execução integral ainda pendente. Uma fatia de 23.023 imóveis auditada. Fontes/licenças e quatro horizontes regionais auditados; quantis ecológicos pendentes de harmonização de parcelas, unidades e métodos (**parcial**, conforme autorização do fundador). Detalhes em `docs/passagem/lote-e-numeros.md` |
 | 11 | Ligar o envio de verdade das ondas (agente de aceite no WhatsApp com o termo, carta e parceiro local) e a chave de produção da AbacatePay; calibrar a chance de aceite e o valor da conexão com os primeiros pedidos | passo 10 e clientes | 6 a 10 |
 
 ## E4. Rebanho, metano e solo
@@ -265,7 +265,7 @@ Continuação de Ficha da fazenda (12/11/2026; validação e operação na passa
 
 | Entrega | Situação |
 |---|---|
-| Contrato aberto com agregado municipal/estadual e CAR/situação básica; camadas exclusivas e retratos históricos do aprendizado no arquivo privado | **feito**: 40 originais preservados no privado e 22 assets básicos publicados; SHA-256 e bloqueio anônimo conferidos, provas em `docs/dados-publicados.md`; 18 artifacts preservados/removidos e 33 caches antigos descartados |
+| Contrato aberto com agregado municipal/estadual e CAR/situação básica; camadas exclusivas e retratos históricos do aprendizado no arquivo privado | **feito**: 40 originais preservados no privado e 22 assets básicos publicados; SHA-256 e bloqueio anônimo conferidos, provas em `docs/dados-publicados.md`; 18 artifacts preservados/removidos e 33 caches antigos descartados; retomada do Pará reutiliza as dez fatias preservadas |
 | Preços em YAML provisório, Pix em teste e roteiro de ativação no servidor | **feito**; valores a definir pelo fundador, venda real fechada |
 | Comparar até cinco fichas pagas, salvar busca/avisos internos e PDF com fontes/datas | **feito** no código; buscas salvas na migração 0028 após 0027 do calendário; agendar verificação no servidor ao implantar |
 | `consultar_ficha` compartilhado pela API e adaptador MCP, alinhado à passagem Produto e regras | **feito**; registro no transporte corporativo permanece com Produto e regras |
@@ -279,6 +279,28 @@ da origem; isso depende do site da conta ou de domínio próprio.
 
 A publicação Markdown segue a mesma regra do site agregado: nenhuma ficha individual aberta por CAR.
 
+Celular e acessibilidade (12/11/2026): **feito** no código. Entrada nacional em SVG com estados acessíveis,
+sem baixar WebGL ou geometria municipal antes de aproximar; rotas carregadas ao abrir. Navegação disponível a 360 px,
+atalho para o conteúdo, foco após troca de tela, alça e controles com 48 px, tabelas roláveis pelo teclado.
+A entrada do produtor já entrega o formulário em HTML e carrega a ficha apenas ao receber um código do CAR.
+CI verifica axe WCAG 2.1 A/AA, busca e gaveta pelo teclado, novo pedido com filtros, comparação pública,
+lotes autorizados, ficha desbloqueada e prospecção. A contagem do mapa vem de um índice leve, antes de carregar os contornos.
+Lighthouse mobile a 360 px conserva rede/CPU simuladas: três execuções fixas por página (Brasil, entrar, novo pedido, prospecção e produtor),
+mediana de desempenho >= 90 e acessibilidade >= 90 em todas. A série integrada teve medianas 100/96/98/98/100
+e acessibilidade 100 nas quinze medidas; 175 testes do front, Pages, cena-alvo e ficha/prospecção passaram.
+Relatórios completos (incluindo outliers), axe e capturas ficam nos artefatos.
+A revisão visual da ficha mantém escala e atribuição em posições separadas, crédito inteiro e zoom com 48 px;
+Playwright cobre a legenda Copernicus longa a 360 px, além de axe.
+As verificações automatizadas não substituem avaliação humana de todos os critérios WCAG; a calibração E9 de
+compreensão com 30 cartas reais continua pendente e nenhum contato com dono é disparado por estes testes.
+
+Domínio próprio configurável (entrega 5 de Telas e mapa, 12/11/2026): **feito no código**. `RAIZ_DOMINIO` validado
+gera CNAME, base `/` e URLs canônicas HTTPS do painel, produtor e JSON-LD. Sem domínio, o build deriva o caminho
+do repositório e mantém o Pages atual. CI cobre subcaminho e raiz, com navegação, Range, Markdown, robôs e CNAME;
+o formulário nativo do produtor funciona sem JavaScript nos dois caminhos. Os seis jobs de qualidade e o portão
+mobile de 15 medições são preservados antes da segunda publicação de teste.
+Ativação do domínio, DNS e HTTPS permanece pendente de um domínio real; nenhum foi inventado nem configurado.
+
 Entrega do mapa nacional (12/11/2026): o workflow publica os desenhos de todos os municípios com dados no Release,
 reaproveitando os GeoParquet do motor como GeoJSON gzip. Fundo PMTiles compartilhado por UF e base nacional em
 overzoom; busca estática por nome/IBGE/CAR e aviso de desenho ausente. CI com Playwright em `/Raiz/`: Parauapebas,
@@ -287,6 +309,20 @@ com portão de 950 MB. Polígonos permanecem por município enquanto couberem; n
 
 A entrega da ficha mantém as bases e limites do mapa nacional, mas restringe os detalhes por CAR à API paga;
 a publicação pública usa agregados municipais e situação básica por CAR, sem camadas exclusivas.
+
+Cobertura diária do mapa (12/11/2026): **feito no código**. A rodada diária descobre municípios e UFs do Release,
+incluindo os novos sem lista fixa. O painel do Brasil e de cada estado informa quantos municípios têm desenho
+na base e quantos ainda aguardam; separa esses totais dos municípios processados. A data de geração do mapa e
+a data dos dados publicados no Release aparecem separadas, sem substituir data ausente pela data de hoje.
+O manifesto aberto expõe só cobertura por município, mantendo os desenhos individuais no acesso pago.
+Teste incremental cobre município novo, UF nova e chegada posterior do desenho; Playwright confere contagem,
+datas e avisos de acesso restrito ou desenho ausente. A migração do Release para cadastro básico é reconhecida
+pelo leitor e pela geração de geometria; CSVs retirados não sobrevivem no cache da rodada seguinte.
+A agenda ainda sem coleta é publicada como indisponível, evitando 404 na navegação do mapa.
+
+A verificação no navegador com o Release real conferiu a consulta do Pará: 144 municípios, 345.870 fazendas e
+9.484.092 ha com potencial de restauração, zero 404 e zero erro de JavaScript. Oferta de créditos e TIR continuam
+pendentes; o texto da ausência não apresenta o cenário como já publicado.
 
 Conferido contra a main em 12/11/2026: "feito" quer dizer que o código está na main; "parcial" diz o que existe e o
 que falta, com as horas do que falta. O site público (https://bernardoemmel.github.io/Raiz/) mostra o que o front já
@@ -325,6 +361,17 @@ faz sem back-end.
 | 1 | (busca pública) Busca no navegador por nome e código IBGE do município, sem depender de `/busca` no Pages; CAR leva à ficha paga | mapa nacional | feito |
 | 1 | (busca) Carga contínua das saídas do motor por estado (`raiz vigiar`), só o município que mudou, com a versão anterior guardada | carga do motor | feito |
 
+## Telas e mapa: ficha visual da terra
+
+Entrega 3 da continuação de 12/11/2026, sobre a ficha paga do PR #52.
+
+| Entrega | Situação |
+|---|---|
+| Mapa do imóvel com Sentinel-2, máscara e restauração hachurada | **feito**: a ficha autorizada carrega perímetro e camadas medidas pela API de prospecção. A máscara respeita furos do CAR e a hachura é recortada ao imóvel. A cena Sentinel-2 usa o gerador existente; composição mediana preserva o período inteiro e o método. Ausência de cena ou camada fica explícita, sem inventar desenho a partir de hectares. Recorte real de Parauapebas validado em 360 px; integração com o cadastro básico do Release e o selo do Calendário validada com 91 testes Python focados, 177 testes de front e Playwright. |
+| Linha do tempo de uso e perdas | **feito**: anos disponíveis, medidas e fontes da ficha paga, além das tabelas completas. Ausência e zero são diferentes; a data de corte não substitui a data da fonte. |
+| Acesso à imagem e ao desenho | **feito**: sessão individual e desbloqueio pago conferidos em todas as rotas, incluindo exclusividade. A imagem é buscada com Bearer, sem token na URL, com `private, no-store`; nenhuma lista ou imagem individual vai ao Pages. |
+| Calibração E9 com cartas reais | **pendente**: ainda não existe o conjunto de 30 cartas anonimizadas com avaliação de compreensão. Esta entrega não inicia contato com proprietários. |
+
 ## Qualidade e segurança (12/11/2026)
 
 | Entrega | Situação |
@@ -355,5 +402,14 @@ faz sem back-end.
 
 Limites verificados em 12/11/2026: DJEN/CNJ respondeu HTTP 403; diários estaduais começam por PA/MT; PDF escaneado sem texto ainda não tem OCR. Erro de fonte não elimina os eventos anteriores. Testes com trechos oficiais gravados e PostGIS; detalhes em `docs/calendario.md`.
 
+- [x] Integração da entrega mobile com o Calendário: rota sob demanda, quatro links visíveis a 360 px, filtros
+  com 48 px e teste CI de teclado/axe em três larguras; 186 testes do front e fluxos de ficha/lote aprovados.
+
+- [x] Domínio integrado ao Calendário e ao cadastro básico: builds em `/Raiz/` e `/` e Playwright com feed ICS
+  passaram sem 404; 187 testes do front e 10 de configuração aprovados. Domínio real continua não configurado.
+
 A primeira execução no Actions identificou ausência de `rg` no runner; a verificação do Release inicial usa agora
 `grep`, disponível na imagem padrão, preservando a interrupção em erros que não sejam Release inexistente.
+
+- [x] Markdown do site preserva medidas ausentes e zeros explícitos; totais incompletos não são apresentados
+  como totais completos. Regressões cobrem páginas estaduais/municipais e proteção de grupos pequenos.

@@ -59,6 +59,7 @@ export function linkPublico(valor: unknown): string | null {
 export function lerAgenda(valor: unknown): Agenda {
   if (!valor || typeof valor !== "object" || !Array.isArray((valor as Record<string, unknown>).eventos)) throw new Error("Calendário indisponível.")
   const v = valor as Record<string, unknown>
+  if (v.disponivel === false) return { eventos: [], total: 0, coletado_em: null, fontes: [], disponivel: false }
   const eventos = (v.eventos as Record<string, unknown>[]).flatMap((e): Evento[] => {
     if (!e || typeof e !== "object" || !Object.hasOwn(TIPOS_EVENTO, String(e.tipo)) || !DIA.test(String(e.data)) || !e.id) return []
     const tipo = e.tipo as TipoEvento
