@@ -1,0 +1,25 @@
+# segredos
+.env
+*.env
+!.env.example
+# dados grandes e gerados pelo motor (ficam fora do git; só dados/amostra entra)
+motor/saida/
+motor/cache/
+motor/extras/
+motor/mapbiomas/
+motor/projetos_carbono/
+*.tif
+*.tiff
+*.parquet
+*.gpkg
+*.zip
+*.log
+log_*.txt
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.ipynb_checkpoints/
+# sistema
+.DS_Store
