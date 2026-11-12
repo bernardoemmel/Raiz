@@ -309,9 +309,10 @@ export interface Cobranca {
   /** a reserva é abatida da conexão por hectare quando o contrato fecha */
   abatimento: string
   /** null antes de pedir a reserva (GET /reserva devolve só o valor e o prazo) */
-  pix: { copia_e_cola: string; expira_em: string } | null
+  pix: { copia_e_cola: string; expira_em: string | null } | null
   pago: boolean
   reservado_ate: string | null
+  modo_teste?: boolean
   exemplo?: boolean
 }
 

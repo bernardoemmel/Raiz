@@ -96,10 +96,12 @@ def mascarar(texto: str) -> str:
 
 
 class FormatadorSeguro(logging.Formatter):
-    """Formata normalmente e mascara o resultado final (mensagem, argumentos e traceback)."""
+    """Passa o resultado final pelo Presidio (mensagem, argumentos e traceback)."""
 
     def format(self, record: logging.LogRecord) -> str:
-        return mascarar(super().format(record))
+        from raiz.logs_seguros import sanitizar_log
+
+        return sanitizar_log(super().format(record))
 
 
 def configurar_log(nivel: int = logging.INFO) -> None:
@@ -111,6 +113,10 @@ def configurar_log(nivel: int = logging.INFO) -> None:
         h = logging.StreamHandler()
         h.setFormatter(FormatadorSeguro("%(asctime)s %(levelname)s %(name)s: %(message)s"))
         raiz.addHandler(h)
+    # Uvicorn pode ter handlers próprios que não propagam até a raiz.
+    for nome in ("uvicorn", "uvicorn.error", "uvicorn.access"):
+        for h in logging.getLogger(nome).handlers:
+            h.setFormatter(FormatadorSeguro("%(levelname)s %(name)s: %(message)s"))
     for barulhento in ("alembic", "httpx", "httpcore", "urllib3"):
         logging.getLogger(barulhento).setLevel(logging.WARNING)
 

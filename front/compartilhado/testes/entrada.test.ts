@@ -183,28 +183,10 @@ describe("áreas sem imóvel do CAR no mapa", () => {
     expect(r.features.map((f) => f.properties.rotulo)).toEqual(["Terra indígena Kayapó", "Parque Estadual do Xingu"])
   })
 
-  // as geometrias geradas por front/scripts/geo.py (fora do git): só confere quando existem
-  const GEO = path.resolve(FRONT, "geo")
-  for (const cod of ["1507300", "1504950"])
-    it.skipIf(!fs.existsSync(path.join(GEO, `municipio_${cod}.geojson`)))(`terra indígena e unidade de conservação não passam da divisa (${cod})`, () => {
-      const lerGeo = (n: string) => JSON.parse(fs.readFileSync(path.join(GEO, `${n}_${cod}.geojson`), "utf8"))
-      const divisa = aneisDe(lerGeo("municipio").features[0].geometry)
-      for (const camada of ["ti", "uc"]) {
-        if (!fs.existsSync(path.join(GEO, `${camada}_${cod}.geojson`))) continue
-        let fora = 0
-        for (const f of lerGeo(camada).features)
-          for (const anel of aneisDe(f.geometry)) for (const p of anel) if (!divisa.some((d) => dentro(p, d)) && distancia(p, divisa) > 2e-4) fora++
-        expect(fora, camada).toBe(0)
-      }
-    })
+  // O recorte de TI/UC passou para testes/test_front_geo.py: executa o gerador
+  // real com WFS sintético (inclusive cache antigo), sem depender de front/geo.
 })
 
-/** os anéis externos de um Polygon ou MultiPolygon */
-function aneisDe(g: { type: string; coordinates: unknown }): [number, number][][] {
-  if (g.type === "Polygon") return [(g.coordinates as [number, number][][])[0]]
-  if (g.type === "MultiPolygon") return (g.coordinates as [number, number][][][]).map((p) => p[0])
-  return []
-}
 function dentro([x, y]: [number, number], anel: [number, number][]): boolean {
   let sim = false
   for (let i = 0, j = anel.length - 1; i < anel.length; j = i++) {
@@ -213,16 +195,4 @@ function dentro([x, y]: [number, number], anel: [number, number][]): boolean {
     if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) sim = !sim
   }
   return sim
-}
-function distancia([x, y]: [number, number], aneis: [number, number][][]): number {
-  let d = Infinity
-  for (const a of aneis)
-    for (let i = 0; i + 1 < a.length; i++) {
-      const [ax, ay] = a[i]
-      const [bx, by] = a[i + 1]
-      const l = (bx - ax) ** 2 + (by - ay) ** 2
-      const t = l ? Math.max(0, Math.min(1, ((x - ax) * (bx - ax) + (y - ay) * (by - ay)) / l)) : 0
-      d = Math.min(d, Math.hypot(x - (ax + t * (bx - ax)), y - (ay + t * (by - ay))))
-    }
-  return d
 }

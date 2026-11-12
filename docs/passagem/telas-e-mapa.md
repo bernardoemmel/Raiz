@@ -82,6 +82,10 @@ Sessão: https://claude.ai/code/session_01VGb88MJumyG9PHt2znaaKE. Branch: `claud
   geometria somente para fichas já desbloqueadas pelo cliente ativo; revalida reserva/exclusividade a cada leitura.
   O Pages continua agregado. Falta de autorização ou desenho produz aviso, sem abrir detalhes por contorno público.
 - Botão de contato permanece desabilitado nesta fase. As 30 cartas reais ainda não estão disponíveis para E9.
+- Verificação: 869 testes Python passaram após incorporar a rodada 11 (2 pulados e 1 xfail); 160 testes do front
+  passaram após integrar a entrega de qualidade. Playwright confere ausência/publicação do lote, três cores por
+  pixels, teclado, 360 px e zero 404. O E2E com API e PostGIS preserva os testes da fase posterior de interesse/Pix
+  por preparação isolada no servidor de teste, mantendo o botão de contato desabilitado na tela do produto.
 
 ## Referências conferidas para a segunda entrega
 
