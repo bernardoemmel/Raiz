@@ -29,7 +29,7 @@ import { AvisoExemplo } from "../partes/pedido/AvisoExemplo"
 import { FaixaBarra } from "../partes/pedido/FaixaBarra"
 import { SeloStatus } from "../partes/pedido/SeloStatus"
 import { ComparacaoLotes } from "../partes/pedido/ComparacaoLotes"
-import { AvisoPublicacao, BasePublicada, QuadroDestrava } from "../partes/pedido/PublicacaoPedido"
+import { AcessoDetalhesLote, AvisoPublicacao, BasePublicada, QuadroDestrava } from "../partes/pedido/PublicacaoPedido"
 import "../partes/pedido/pedido.css"
 import { linkFazenda, linkGrupo, linkPedidos } from "../rota"
 
@@ -85,8 +85,9 @@ export function PedidoTela({ id }: { id: string }) {
   const opcao = pedido?.opcoes.find((o) => o.id === aba) ?? null
   const fazendas = useMemo<FazendaNoMapa[]>(() => {
     // Fora do acompanhamento, as três alternativas dividem o mesmo mapa, cada uma com sua cor.
+    if (pedido?.publicacao) return []
     return andamento ? andamento.fazendas : (pedido?.opcoes ?? []).flatMap((o) => o.itens.map((f) => ({ ...f, opcao: o.id })))
-  }, [pedido?.opcoes, andamento])
+  }, [pedido?.opcoes, pedido?.publicacao, andamento])
 
   const temFazendas = fazendas.length > 0
   const brasil = useCarga(() => temFazendas ? fonte.geo.brasil() : Promise.resolve(null), [temFazendas])
@@ -154,9 +155,10 @@ export function PedidoTela({ id }: { id: string }) {
           {pedido.publicacao ? <BasePublicada publicacao={pedido.publicacao} /> : <QuadroBase pedido={pedido} unidade={unidade} />}
           <ComparacaoLotes opcoes={pedido.opcoes} publicadas={pedido.publicacao?.opcoes} selecionar={(id) => { setAba(id); setEscolhida(null) }} />
 
-          {item && (
+          {!pedido.publicacao && item && (
             <FazendaEscolhida
               item={item}
+              exemplo={!!pedido.exemplo}
               nivel={nivelNoAndamento ?? item.interesse}
               opcao={opcao!}
               podeMudar={!pedido.opcao_escolhida && !ocupado && !pedido.publicacao}
@@ -165,7 +167,7 @@ export function PedidoTela({ id }: { id: string }) {
             />
           )}
 
-          <section className="secao-painel" aria-labelledby="opcoes-titulo">
+          {!pedido.publicacao && <section className="secao-painel" aria-labelledby="opcoes-titulo">
             <h2 id="opcoes-titulo">O melhor agrupamento</h2>
             <Abas.Root value={aba} onValueChange={(v) => (setAba(v as IdOpcao), setEscolhida(null))}>
               <Abas.List className="abas" aria-label="Opções de lote">
@@ -183,9 +185,9 @@ export function PedidoTela({ id }: { id: string }) {
                 </Abas.Content>
               ))}
             </Abas.Root>
-          </section>
+          </section>}
 
-          <QuadroDestrava pedido={pedido} opcao={aba} />
+          {pedido.publicacao ? <AcessoDetalhesLote /> : <QuadroDestrava pedido={pedido} opcao={aba} />}
 
           {!pedido.opcao_escolhida ? (
             <section className="secao-painel" aria-labelledby="solicitar-titulo">
@@ -198,7 +200,8 @@ export function PedidoTela({ id }: { id: string }) {
             <PainelAndamento pedido={pedido} andamento={andamento} unidade={unidade} />
           )}
         </aside>
-        <div className={`pedido-mapa${!fazendas.length ? " pedido-mapa-pendente" : ""}`}>
+        {!pedido.publicacao && <div className={`pedido-mapa${!fazendas.length ? " pedido-mapa-pendente" : ""}`}>
+          {pedido.exemplo && <p className="pedido-cena-resumo"><strong>Mapa de demonstração: contornos fictícios.</strong> Não corresponde às fazendas selecionadas no Release.</p>}
           {!fazendas.length ? <h2>Mapa dos lotes</h2> : brasil.dado ? (
             <Suspense fallback={<p role="status">Abrindo o mapa dos lotes…</p>}><MapaLote base={brasil.dado.base} fazendas={fazendas} modo={andamento ? "interesse" : "opcoes"} escolhida={escolhida} aoEscolher={setEscolhida} aoEscolherOpcao={setAba} opcaoAtiva={aba} /></Suspense>
           ) : (
@@ -208,7 +211,7 @@ export function PedidoTela({ id }: { id: string }) {
           )}
           <LegendaLote andamento={!!andamento} />
           {!fazendas.length && <p className="aviso" role="status">Os desenhos dependem de consulta autorizada e cobertura geográfica. Quando o motor entregar os contornos autorizados, as três opções aparecerão nas cores da legenda.</p>}
-        </div>
+        </div>}
       </div>
     </Moldura>
   )
@@ -426,11 +429,8 @@ function NumerosOpcao({ opcao: o, meta, unidade, exemplo, versao }: { opcao: Opc
       <details className="como-calculamos-pedido">
         <summary>Ver como calculamos</summary>
         {exemplo ? <p>
-          Crédito líquido = potencial de captura do motor (carbono_tco2_ano) em {PREMISSAS.anos} anos, menos {fmtPct(PREMISSAS.desconto_liquido)} de linha
-          de base, vazamento e reserva de não permanência; faixa de {fmtPct(PREMISSAS.p10)} a {fmtPct(PREMISSAS.p90)} do P50. Custo por hectare
-          restaurado: regeneração assistida {fmtUsd(PREMISSAS.custo_ha_usd.regeneracao_assistida)}, semeadura direta{" "}
-          {fmtUsd(PREMISSAS.custo_ha_usd.semeadura_direta)}, plantio total {fmtUsd(PREMISSAS.custo_ha_usd.plantio_total)}, mais um custo fixo por
-          fazenda. A mais segura fecha a meta no P10. Valores exatos: {fmtInt(o.creditos.p10)}, {fmtInt(o.creditos.p50)} e {fmtInt(o.creditos.p90)} {unidade}.
+          Dados inventados para demonstrar o formato da API. Não há cálculo de crédito ou retorno a partir de imóveis reais neste exemplo.
+          Valores fictícios da opção: P10 {fmtInt(o.creditos.p10)}, P50 {fmtInt(o.creditos.p50)} e P90 {fmtInt(o.creditos.p90)} créditos.
         </p> : <p>Números entregues pelo motor, modelo {versao}. Créditos líquidos P10: {fmtInt(o.creditos.p10)}, P50: {fmtInt(o.creditos.p50)}, P90: {fmtInt(o.creditos.p90)}. As faixas de custo e retorno são as publicadas para este lote; não são calculadas pela tela.</p>}
       </details>
     </div>
@@ -442,7 +442,7 @@ function TabelaLote({ opcao, andamento, escolher, escolhida }: { opcao: Opcao; a
   const [todas, setTodas] = useState(false)
   const lista = todas ? opcao.itens : opcao.itens.slice(0, 12)
   return (
-    <div className="tabela-rolagem">
+    <div className="tabela-rolagem" role="region" aria-label="Fazendas da opção" tabIndex={0}>
       <table className="tabela-simples tabela-lote">
         <caption>Fazendas da opção (toque para ver a ficha)</caption>
         <thead>
@@ -487,6 +487,7 @@ function TabelaLote({ opcao, andamento, escolher, escolhida }: { opcao: Opcao; a
 
 function FazendaEscolhida({
   item,
+  exemplo,
   nivel,
   opcao,
   podeMudar,
@@ -494,6 +495,7 @@ function FazendaEscolhida({
   fechar,
 }: {
   item: FazendaDoLote
+  exemplo: boolean
   nivel: NivelInteresse
   opcao: Opcao
   podeMudar: boolean
@@ -550,9 +552,9 @@ function FazendaEscolhida({
       </dl>
       {item.pequena && <p className="legenda-frase">Pequena propriedade: entra agrupada com as vizinhas.</p>}
       <div className="acoes">
-        <a className="botao" href={linkFazenda(item.cod_imovel)}>
+        {exemplo ? <p>Fazenda fictícia: não há ficha real para abrir.</p> : <a className="botao" href={linkFazenda(item.cod_imovel)}>
           Abrir a ficha
-        </a>
+        </a>}
         {podeMudar && item.papel === "lote" && (
           <>
             <button type="button" className="botao" onClick={() => mudar("tirar", item.cod_imovel)}>

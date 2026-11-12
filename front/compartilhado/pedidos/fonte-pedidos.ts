@@ -1,5 +1,5 @@
 /** Com API, pedidos e lotes autenticados. Sem ela, guarda critérios no navegador
- * e consulta somente cobertura agregada municipal/estadual, sem números financeiros de lotes.
+ * e consulta cobertura regional e os resumos de lote aprovados para publicação.
  */
 
 import type { FonteDeDados } from "../dados/fonte"
@@ -17,14 +17,15 @@ import {
   type Candidato,
   type PedidoGuardado,
 } from "./exemplo"
-import type { Andamento, CamposPedido, Cobranca, IdOpcao, MudancaLote, Pedido, ResumoPedido, Sessao } from "./tipos"
+import type { Andamento, CamposPedido, Cobranca, IdOpcao, MudancaLote, Pedido, PublicacaoLote, ResumoPedido, Sessao } from "./tipos"
 import { tituloDoPedido } from "./texto"
-import { projetarPublicacaoLote } from "./release"
+import { lerPublicacaoLote } from "./release"
+import { fontePedidosSimulada } from "./simulado"
 
 export interface FontePedidos {
   /** resposta de exemplo (sem back-end): a tela avisa */
   readonly exemplo: boolean
-  /** Consulta local à cobertura territorial, sem autenticação simulada nem acesso a lotes pagos. */
+  /** Consulta local a agregados públicos, sem sessão nem acesso a fazendas dos lotes. */
   readonly publica?: boolean
   sessao(): Sessao | null
   /** manda o link de entrada por e-mail; no exemplo, devolve o link para abrir direto */
@@ -70,9 +71,9 @@ function guarda() {
 
 const CHAVE_SESSAO = "raiz.sessao"
 
-function sessaoGuardada(g: ReturnType<typeof guarda>): Sessao | null {
+function sessaoGuardada(g: ReturnType<typeof guarda>, chave = CHAVE_SESSAO): Sessao | null {
   try {
-    const s = JSON.parse(g.ler(CHAVE_SESSAO) ?? "null") as Sessao | null
+    const s = JSON.parse(g.ler(chave) ?? "null") as Sessao | null
     return s?.token && s.email ? s : null
   } catch {
     return null
@@ -81,19 +82,21 @@ function sessaoGuardada(g: ReturnType<typeof guarda>): Sessao | null {
 
 // ---- API de verdade ---------------------------------------------------------------------------------------------------
 
-export function fontePedidosApi(api: string): FontePedidos {
+export function fontePedidosApi(api: string, opcoes: { transporte?: typeof fetch; chaveSessao?: string } = {}): FontePedidos {
   const raiz = api.endsWith("/") ? api : api + "/"
   const g = guarda()
+  const chaveSessao = opcoes.chaveSessao ?? CHAVE_SESSAO
+  const transporte = opcoes.transporte ?? fetch
   async function pedir<T>(caminho: string, corpo?: unknown): Promise<T | null> {
-    const s = sessaoGuardada(g)
-    const r = await fetch(raiz + caminho, {
+    const s = sessaoGuardada(g, chaveSessao)
+    const r = await transporte(raiz + caminho, {
       method: corpo === undefined ? "GET" : "POST",
       headers: { "Content-Type": "application/json", ...(s ? { Authorization: `Bearer ${s.token}` } : {}) },
       body: corpo === undefined ? undefined : JSON.stringify(corpo),
     })
     if (r.status === 404) return null
     if (r.status === 401) {
-      g.gravar(CHAVE_SESSAO, null)
+      g.gravar(chaveSessao, null)
       throw new Error("A sessão acabou. Entre de novo pelo link no e-mail.")
     }
     if (!r.ok) throw new Error(`${r.status} em ${caminho}`)
@@ -105,17 +108,17 @@ export function fontePedidosApi(api: string): FontePedidos {
   }
   return {
     exemplo: false,
-    sessao: () => sessaoGuardada(g),
+    sessao: () => sessaoGuardada(g, chaveSessao),
     async entrar(email) {
       await pedir("entrar", { email })
       return { enviado: true }
     },
     async confirmar(token) {
       const s = exigir(await pedir<Sessao>("entrar/confirmar", { token }), "o link de entrada")
-      g.gravar(CHAVE_SESSAO, JSON.stringify(s))
+      g.gravar(chaveSessao, JSON.stringify(s))
       return s
     },
-    sair: () => g.gravar(CHAVE_SESSAO, null),
+    sair: () => g.gravar(chaveSessao, null),
     listar: async () => (await pedir<ResumoPedido[]>("pedidos")) ?? [],
     criar: async (campos) => exigir(await pedir<Pedido>("pedidos", campos), "o pedido"),
     pedido: (id) => pedir<Pedido>(`pedidos/${encodeURIComponent(id)}`),
@@ -321,8 +324,8 @@ export function fontePedidosExemplo(fonte: FonteDeDados, agora: () => Date = () 
   }
 }
 
-/** Compatibilidade: guarda critérios locais e lê apenas cobertura regional. Nenhum lote sai do Release. */
-export function fontePedidosRelease(_base: string, fonte: FonteDeDados, agora: () => Date = () => new Date()): FontePedidos {
+/** Guarda critérios locais e lê a projeção revisada com resumos; detalhes de lotes continuam privados. */
+export function fontePedidosRelease(base: string, fonte: FonteDeDados, agora: () => Date = () => new Date()): FontePedidos {
   const g = guarda()
   const chave = "raiz.consultas.release.v1"
   type Consulta = { id: string; criado_em: string; campos: CamposPedido }
@@ -330,9 +333,20 @@ export function fontePedidosRelease(_base: string, fonte: FonteDeDados, agora: (
     try { return JSON.parse(g.ler(chave) ?? "{}") } catch { return {} }
   }
   const bloquear = async (): Promise<never> => { throw new Error("Esta consulta pública não inicia contato nem reserva. Essa etapa ficará para a fase final, na área autenticada.") }
+  let publicado: Promise<PublicacaoLote> | null = null
+  function resumo(): Promise<PublicacaoLote> {
+    publicado ??= (async () => {
+      const raiz = base.endsWith("/") ? base : base + "/"
+      const resposta = await fetch(raiz + "amostra/lote_PA_central_r11.json")
+      if (!resposta.ok) throw new Error("Não foi possível consultar os resumos públicos dos lotes. Tente novamente.")
+      return lerPublicacaoLote(await resposta.json())
+    })()
+    publicado.catch(() => { publicado = null })
+    return publicado
+  }
   async function montar(c: Consulta): Promise<Pedido> {
-    const publicacao = projetarPublicacaoLote(null)
-    if (publicacao.estado === "ausente") {
+    const publicacao = structuredClone(await resumo())
+    {
       const municipios = (await fonte.municipios()).filter((m) => (!c.campos.onde.ufs.length || c.campos.onde.ufs.includes(m.uf)) && (!c.campos.onde.municipios.length || c.campos.onde.municipios.includes(m.cod_ibge)))
       const somaCompleta = (coluna: string): number | null => {
         let soma = 0
@@ -374,9 +388,11 @@ export function fontePedidosRelease(_base: string, fonte: FonteDeDados, agora: (
   }
 }
 
-/** Com API, o solver autenticado; sem ela, somente a cobertura regional aberta. */
+/** Com API, o solver autenticado; sem ela, resumos públicos ou uma demonstração fictícia escolhida explicitamente. */
 export function escolherFontePedidos(env: { VITE_RAIZ_API?: string; VITE_RAIZ_DADOS_BASE?: string; BASE_URL?: string }, fonte: FonteDeDados): FontePedidos {
-  return env.VITE_RAIZ_API ? fontePedidosApi(env.VITE_RAIZ_API) : fontePedidosRelease(env.VITE_RAIZ_DADOS_BASE || env.BASE_URL || "/", fonte)
+  if (env.VITE_RAIZ_API) return fontePedidosApi(env.VITE_RAIZ_API)
+  if (typeof location !== "undefined" && new URLSearchParams(location.search).get("demonstracao") === "lotes") return fontePedidosSimulada()
+  return fontePedidosRelease(env.VITE_RAIZ_DADOS_BASE || env.BASE_URL || "/", fonte)
 }
 
 export { CAMPOS_PADRAO }
