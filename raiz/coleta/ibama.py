@@ -23,8 +23,8 @@ import requests
 import shapely
 from sqlalchemy import Connection
 
-from raiz.coleta.espelho import Diferenca, Espelho
-from raiz.coleta.manifesto import carregar
+from raiz.coleta.espelho import Diferenca, Espelho, registrar_alertas
+from raiz.coleta.manifesto import UFS, carregar
 from raiz.coleta.replicacao import atualizar, estado, evento
 from raiz.privacidade import mascarar, remover_colunas_pessoais
 
@@ -34,10 +34,11 @@ RECORTE = "BR"
 
 @dataclass
 class ResultadoIbama:
-    acao: str  # sem_mudanca | atualizado
+    acao: str  # sem_mudanca | atualizado | travado
     linhas: int = 0
     removidas: list[str] = field(default_factory=list)
     municipios: dict[int, Diferenca] = field(default_factory=dict)
+    travados: list[int] = field(default_factory=list)
 
 
 def _geometria(wkt: str | None):
@@ -60,46 +61,88 @@ def limpar(df: pd.DataFrame) -> tuple[pd.DataFrame, list[str]]:
 
 
 def coletar(
-    s: requests.Session, con: Connection, espelho: Espelho, cache_motor: Path | None = None, url: str | None = None
+    s: requests.Session,
+    con: Connection,
+    espelho: Espelho,
+    cache_motor: Path | None = None,
+    url: str | None = None,
+    hc=None,
 ) -> ResultadoIbama:
     url = url or carregar().fonte(FONTE).url
     agora = dt.datetime.now(dt.UTC)
     e = estado(con, FONTE, RECORTE)
     cab = {"If-None-Match": e.etag} if e is not None and e.etag else {}
-    with s.get(url, headers=cab, stream=True, timeout=1800) as r:
-        if r.status_code == 304:
-            atualizar(con, FONTE, RECORTE, verificado_em=agora, sujo=False)
-            evento(con, FONTE, RECORTE, "sem_mudanca")
-            return ResultadoIbama("sem_mudanca")
-        r.raise_for_status()
-        etag, last_mod = r.headers.get("ETag"), r.headers.get("Last-Modified")
-        with tempfile.NamedTemporaryFile(suffix=".csv", delete=False) as tmp:
-            for bloco in r.iter_content(1 << 20):
-                tmp.write(bloco)
+    tmp_nome = None
     try:
-        bruto = pd.read_csv(tmp.name, sep=";", dtype=str, encoding="utf-8-sig", on_bad_lines="skip")
+        with s.get(url, headers=cab, stream=True, timeout=1800) as r:
+            if r.status_code == 304:
+                atualizar(con, FONTE, RECORTE, verificado_em=agora, sujo=False)
+                evento(con, FONTE, RECORTE, "sem_mudanca")
+                return ResultadoIbama("sem_mudanca")
+            r.raise_for_status()
+            etag, last_mod = r.headers.get("ETag"), r.headers.get("Last-Modified")
+            with tempfile.NamedTemporaryFile(suffix=".csv", delete=False) as tmp:
+                tmp_nome = tmp.name
+                for bloco in r.iter_content(1 << 20):
+                    tmp.write(bloco)
+        try:
+            bruto = pd.read_csv(tmp_nome, sep=";", dtype=str, encoding="utf-8-sig", on_bad_lines="error")
+        except (pd.errors.ParserError, pd.errors.EmptyDataError, UnicodeError):
+            # A exceção do parser pode incluir texto da fonte, ainda não sanitizado.
+            raise ValueError("CSV do Ibama inválido: leitura integral exigida") from None
     finally:
-        os.unlink(tmp.name)  # o arquivo original (com nomes e CPF) não fica em disco
+        if tmp_nome:
+            os.unlink(tmp_nome)  # mesmo uma transferência incompleta não deixa o original com nomes/CPF no disco
     df, fora = limpar(bruto)
     del bruto
     res = ResultadoIbama("atualizado", len(df), fora)
-    if cache_motor is not None:
-        _cache_motor(df, cache_motor, etag)
+    obrigatorias = {"SEQ_TAD", "COD_MUNICIPIO", "UF", "SIT_CANCELADO", "SIT_DESEMBARGO", "GEOM_AREA_EMBARGADA"}
+    if faltam := obrigatorias - set(df.columns):
+        raise ValueError(f"CSV do Ibama sem colunas obrigatórias: {', '.join(sorted(faltam))}")
 
-    df["cod_mun"] = pd.to_numeric(df.get("COD_MUNICIPIO"), errors="coerce")
-    df["uf_"] = df.get("UF", pd.Series("XX", index=df.index)).fillna("XX").astype(str).str.upper()
+    codigos = df["COD_MUNICIPIO"].str.strip()
+    df["uf_"] = df["UF"].str.strip().str.upper()
+    if not codigos.str.fullmatch("[1-9][0-9]{6}", na=False).all() or not df["uf_"].isin(UFS).all():
+        raise ValueError("CSV do Ibama contém recorte municipal inválido; nenhuma linha será descartada")
+    df["cod_mun"] = pd.to_numeric(codigos)
+    df["SEQ_TAD"] = df["SEQ_TAD"].str.strip()
+    if df["SEQ_TAD"].fillna("").eq("").any() or df["SEQ_TAD"].duplicated().any():
+        raise ValueError("CSV do Ibama contém chave SEQ_TAD vazia ou duplicada")
+    liberar = bool(e is not None and getattr(e, "liberado", False))
     vistos = set()
     for (uf, cod), parte in df.dropna(subset=["cod_mun"]).groupby(["uf_", "cod_mun"]):
         geoms = [_geometria(w) for w in parte.get("GEOM_AREA_EMBARGADA", [None] * len(parte))]
         g = gpd.GeoDataFrame(parte.drop(columns=["cod_mun", "uf_"]), geometry=geoms, crs=4674)
-        _gravar(con, espelho, res, uf, int(cod), g)
+        _gravar(con, espelho, res, uf, int(cod), g, liberar=liberar, hc=hc)
         vistos.add((uf, int(cod)))
     # município que perdeu o último termo some do CSV: o espelho dele precisa registrar a retirada
     colunas = [c for c in df.columns if c not in ("cod_mun", "uf_")]
     for f in (espelho.raiz / "ibama").glob("*/*.parquet"):
         uf, cod = f.parent.name, int(f.stem)
         if (uf, cod) not in vistos:
-            _gravar(con, espelho, res, uf, cod, gpd.GeoDataFrame(columns=colunas, geometry=[], crs=4674))
+            _gravar(
+                con,
+                espelho,
+                res,
+                uf,
+                cod,
+                gpd.GeoDataFrame(columns=colunas, geometry=[], crs=4674),
+                liberar=liberar,
+                hc=hc,
+            )
+    if res.travados:
+        res.acao = "travado"
+        atualizar(
+            con,
+            FONTE,
+            RECORTE,
+            sujo=True,
+            ultimo_erro=f"versão travada em {len(res.travados)} municípios; cache e ETag preservados",
+            verificado_em=agora,
+        )
+        return res
+    if cache_motor is not None:
+        _cache_motor(df, cache_motor, etag)
     atualizar(
         con,
         FONTE,
@@ -108,6 +151,7 @@ def coletar(
         last_modified=last_mod,
         contagem=len(df),
         sujo=False,
+        liberado=False,
         tentativas=0,
         ultimo_erro=None,
         verificado_em=agora,
@@ -116,13 +160,33 @@ def coletar(
     return res
 
 
-def _gravar(con: Connection, espelho: Espelho, res: ResultadoIbama, uf: str, cod: int, g: gpd.GeoDataFrame) -> None:
-    dif = espelho.gravar("ibama", uf, cod, g, "SEQ_TAD")
+def _gravar(
+    con: Connection,
+    espelho: Espelho,
+    res: ResultadoIbama,
+    uf: str,
+    cod: int,
+    g: gpd.GeoDataFrame,
+    *,
+    liberar: bool = False,
+    hc=None,
+) -> None:
+    recorte = f"{uf}/{cod}"
+    e = estado(con, FONTE, recorte)
+    liberar = liberar or bool(e is not None and getattr(e, "liberado", False))
+    dif = espelho.gravar("ibama", uf, cod, g, "SEQ_TAD", liberar=liberar)
+    registrar_alertas(con, FONTE, recorte, dif, hc)
+    if dif.travado:
+        res.travados.append(cod)
+        atualizar(con, FONTE, recorte, sujo=True, ultimo_erro="versão travada por mudança de conteúdo")
+        evento(con, FONTE, recorte, "alerta", detalhe={"trava": "arquivo", "fracao": round(dif.fracao, 3)})
+        return
+    atualizar(con, FONTE, recorte, sujo=False, ultimo_erro=None, liberado=False, contagem=dif.total)
     if dif.mudou:
         res.municipios[cod] = dif
         for tipo, chaves in (("novos", dif.novos), ("mudaram", dif.mudaram), ("sumiram", dif.sumiram)):
             if chaves:
-                evento(con, FONTE, f"{uf}/{cod}", tipo, len(chaves), {"exemplos": chaves[:20]})
+                evento(con, FONTE, recorte, tipo, len(chaves))
 
 
 def _cache_motor(df: pd.DataFrame, pasta: Path, etag: str | None) -> None:
@@ -134,3 +198,5 @@ def _cache_motor(df: pd.DataFrame, pasta: Path, etag: str | None) -> None:
     os.replace(tmp, f)
     if etag:
         (pasta / "termo_de_embargo.etag").write_text(etag)
+    else:
+        (pasta / "termo_de_embargo.etag").unlink(missing_ok=True)

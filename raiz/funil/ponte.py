@@ -73,6 +73,37 @@ def ponte(R, uf: str, cod: int, espelho: Path | None = None):
 
 
 @contextlib.contextmanager
+def ponte_vetorial(R):
+    """Usa DuckDB + iOverlay no ov do motor, com uma conexão preguiçosa por município.
+
+    A conexão não atravessa o fork, e tanto ela quanto a função original são restauradas no finally,
+    inclusive se o motor ou uma tarefa posterior falhar. O chamador pode reutilizá-la nas restrições.
+    """
+    from raiz.funil import duck
+
+    original, con = R.ov, None
+
+    def conexao():
+        nonlocal con
+        if con is None:
+            con = duck.conectar()
+        return con
+
+    def ov(base, layer):
+        if not len(base) or not len(layer):
+            return duck.ov(base, layer)
+        return duck.ov(base, layer, conexao())
+
+    R.ov = ov
+    try:
+        yield conexao
+    finally:
+        R.ov = original
+        if con is not None:
+            con.close()
+
+
+@contextlib.contextmanager
 def ponte_raster(modulo, atributo: str = "U", cache=None):
     """Troca, durante a chamada, os endereços /vsicurl/ de um dicionário do motor (ex.: raiz_direto.U) por rasters
     abertos com o cache de blocos em disco (raiz.coleta.blocos). O zonal_janela do motor aceita o raster aberto.

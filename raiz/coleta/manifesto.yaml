@@ -5,7 +5,7 @@
 # densidade:   densa (cobre todo pixel: MapBiomas, YbYrá, pasto; soma por janela) | esparsa (poucos polígonos ou
 #              pixels marcados: PRODES, DETER, embargos, alertas, territórios; cruzamento ou 'pixels em polígonos') |
 #              cadastro (a base de imóveis) | tabela (sem geometria). Decide o caminho do funil (E2 passo 3).
-# sinal:       como saber que mudou antes de baixar (campo_data | etag | ano | last_edit | hash | publicado_em | calendario)
+# sinal:       como saber que mudou antes de baixar (campo_data | etag | ano | last_edit | hash | publicado_em | calendario | catalogo_downloads)
 # calendario:  diario | dias_semana [0=seg ... 6=dom] | meses [1-12] | rodizio_uf (cada UF num dia da semana)
 # licenca / pode_treinar: dado sem licença conferida não entra em treino (pode_treinar: false) até alguém conferir.
 # pendente:    o que falta confirmar (endereço, nome de camada); a checagem HEAD avisa quando a rede deixar.
@@ -61,7 +61,8 @@ fontes:
     sinal: {tipo: etag, campos_data: [DAT_ULT_ALTERACAO, DAT_ULT_ALTER_GEOM]}
     calendario: diario
     descartar_na_entrada: [nome, cpf, cnpj]
-    licenca: dado aberto do governo federal (Decreto 8.777/2016)
+    licenca: ODbL 1.0 (catálogo oficial de termos de embargo do Ibama)
+    referencia_licenca: https://dadosabertos.ibama.gov.br/dataset/termos-de-embargo
     pode_treinar: true
 
   - id: ibama_embargos_historico
@@ -78,6 +79,67 @@ fontes:
     pode_treinar: true
     pendente: endereço do termo_embargo_historico.csv no portal de dados abertos do Ibama
 
+  # ArcGIS: metadados conferidos em 12/11/2026. A coleta exige UF, município e bbox explícita; o arquivo contém
+  # feições que intersectam o retângulo informado, não um corte pela divisa administrativa do município.
+  - id: sfb_cnfp_arcgis
+    nome: Cadastro Nacional de Florestas Públicas 2025, serviço oficial SFB
+    orgao: SFB
+    tipo: arcgis
+    densidade: esparsa
+    url: https://mapas.florestal.gov.br/server/rest/services/Hosted/Cadastro_Nacional_de_Florestas_P%C3%BAblicas_2025/FeatureServer/0
+    recorte: municipio
+    recorte_espacial: bbox_explicita_epsg4674
+    chave: fid
+    chave_origem: codigo
+    campos_publicos: [fid, codigo, categoria, protecao, tipo, governo, classe, orgao, atolegal, anocriacao, estagio, uf, bioma, geocodigo, area_ha]
+    sinal: {tipo: last_edit, campo: editingInfo.lastEditDate, sem_campo: releitura_completa}
+    calendario: {dias_semana: [2]}
+    licenca: dado público oficial do SFB; licença de redistribuição não declarada no portal
+    pode_treinar: false
+    pendente: confirmar licença de redistribuição e treino com o SFB
+    verificacao: {data: "2026-11-12", last_edit_observado: 1782498617983, max_record_count: 2000}
+
+  - id: ibama_embargos_arcgis
+    nome: Embargos do Ibama, PAMGIA (serviço original)
+    orgao: Ibama
+    tipo: arcgis
+    densidade: esparsa
+    url: https://pamgia.ibama.gov.br/server/rest/services/01_Publicacoes_Bases/adm_embargos_ibama_a/MapServer/0
+    recorte: municipio
+    recorte_espacial: bbox_explicita_epsg4674
+    chave: objectid
+    chave_origem: seq_tad
+    campos_publicos: [objectid, seq_tad, cod_uf, uf, cod_municipio, tipo_area, sit_desmatamento, dat_embargo, dat_ult_alteracao, dat_ult_alter_geom, qtd_area_desmatada, qtd_area_embargada]
+    # O MapServer NÃO oferece editingInfo. Sem esse campo, o coletor relê o recorte e compara o conteúdo.
+    sinal: {tipo: last_edit, campo: editingInfo.lastEditDate, disponivel: false, sem_campo: releitura_completa, campos_data: [dat_ult_alteracao, dat_ult_alter_geom]}
+    calendario: diario
+    licenca: ODbL 1.0 (catálogo oficial de termos de embargo do Ibama)
+    referencia_licenca: https://dadosabertos.ibama.gov.br/dataset/termos-de-embargo
+    pode_treinar: true
+    descartar_na_entrada: [nome, cpf, cnpj, contato, endereco, textos_livres]
+    verificacao: {data: "2026-11-12", last_edit_observado: null, max_record_count: 2000}
+
+  - id: ibama_embargos_sfb_arcgis
+    nome: Embargos do Ibama, snapshot hospedado pelo SFB
+    orgao: SFB (espelho do Ibama)
+    tipo: arcgis
+    densidade: esparsa
+    url: https://mapas.florestal.gov.br/server/rest/services/Hosted/adm_embargos_ibama_a/FeatureServer/5
+    recorte: municipio
+    recorte_espacial: bbox_explicita_epsg4674
+    chave: fid
+    chave_origem: seq_tad
+    campos_publicos: [fid, seq_tad, cod_uf, uf, cod_munici, tipo_area, sit_desmat, dat_embarg, dat_ult_al, dat_ult__1, qtd_area_d, qtd_area_e]
+    sinal: {tipo: last_edit, campo: editingInfo.lastEditDate, sem_campo: releitura_completa}
+    calendario: {dias_semana: [2]}
+    snapshot: true
+    nao_substitui: ibama_embargos
+    aviso: lastEditDate é a edição do espelho SFB, não comprova atualização da base original; usar o CSV diário para a rotina de embargos
+    licenca: licença de redistribuição do espelho SFB a conferir; fonte original Ibama declara ODbL 1.0
+    pode_treinar: false
+    descartar_na_entrada: [nome, cpf, cnpj, contato, endereco, textos_livres]
+    verificacao: {data: "2026-11-12", last_edit_observado: 1776550314515, max_record_count: 2000}
+
   - id: prodes
     nome: PRODES (desmatamento anual, acumulado, não floresta, hidrografia), por bioma
     orgao: INPE
@@ -88,11 +150,18 @@ fontes:
     versao_wfs: "1.0.0"
     recorte: bbox
     bloco_graus: 0.5
-    sinal: {tipo: ano, mes_publicacao: 10}
+    sinal:
+      tipo: catalogo_downloads
+      url: https://terrabrasilis.dpi.inpe.br/business/api/v1/download/all
+      campos: [link, created, enabled]
+      recorte: dataset
+      assinatura: sha256_canonico
+      created: data de atualização do arquivo no catálogo, não a data do desmatamento
+      sem_checksum: a assinatura detecta mudanças no catálogo, não comprova os bytes de cada ZIP
     calendario: {meses: [10, 11, 12]}
     licenca: a conferir (TerraBrasilis/INPE)
-    pode_treinar: true
-    pendente: last_update_date.json e nomes de arquivo da área de download do PRODES
+    pode_treinar: false
+    pendente: confirmar licença de redistribuição e treino com o INPE
 
   - id: deter
     nome: DETER (alertas de desmatamento)

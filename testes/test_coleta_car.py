@@ -61,11 +61,20 @@ class Mundo:
                         "natureza": "Particular",
                         "registro_matricula": str(100 + i),
                         "nome_area": "Fazenda de alguém",
+                        "data_aprovacao": "2026-07-01",
                     },
                 }
                 for i in range(2)
             ]
-            assert p["bbox"].endswith("urn:ogc:def:crs:EPSG::4674")
+            if "bbox" in p:
+                assert p["bbox"].endswith("urn:ogc:def:crs:EPSG::4674")
+            else:
+                assert "filter" in p and "urn:ogc:def:crs:EPSG::4674" in p["filter"]
+            if p.get("resultType") == "hits":
+                return 200, {}, '<wfs:FeatureCollection numberMatched="2"/>'
+            if p.get("count") == "1":
+                assert p["sortBy"] == "data_aprovacao DESC"
+                return 200, {}, json.dumps({"features": [{"properties": {"data_aprovacao": "2026-07-01"}}]})
             return 200, {}, json.dumps({"type": "FeatureCollection", "features": parcelas, "numberMatched": 2})
         if p.get("request") == "DescribeFeatureType":
             return (
@@ -224,6 +233,24 @@ def test_fila_disjuntor_e_limite(ambiente):
         assert p.modo == "completo" and len(p.recortes) == 400
         p = planejar(c, car.FONTE, recortes, agora=dt.datetime.now(dt.UTC) + dt.timedelta(days=31))
         assert p.modo == "reconciliacao" and len(p.recortes) == 1000
+
+
+def test_reconciliacao_sigef_de_uma_uf_nao_suprime_as_demais(ambiente):
+    from raiz.coleta import sigef
+    from raiz.coleta.fila import registrar_reconciliacao
+    from raiz.coleta.replicacao import atualizar
+
+    eng = ambiente[0]
+    with eng.begin() as c:
+        atualizar(c, sigef.FONTE, "PA/1504950", sujo=False)
+        atualizar(c, sigef.FONTE, "GO/5200050", sujo=False)
+        registrar_reconciliacao(c, sigef.FONTE, recorte="PA")
+        pa = planejar(c, sigef.FONTE, ["PA/1504950"], recorte_reconciliacao="PA")
+        go = planejar(c, sigef.FONTE, ["GO/5200050"], recorte_reconciliacao="GO")
+        assert pa.modo == "incremental" and not pa.recortes
+        assert go.modo == "reconciliacao" and go.recortes == ["GO/5200050"]
+        registrar_reconciliacao(c, sigef.FONTE, recorte="GO")
+        assert planejar(c, sigef.FONTE, ["GO/5200050"], recorte_reconciliacao="GO").modo == "incremental"
 
 
 def test_linhas_do_historico_com_campo_nulo():
