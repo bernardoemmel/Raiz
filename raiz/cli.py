@@ -613,3 +613,28 @@ def satelite_gerar(
             typer.echo(f"{b}: " + ", ".join(f"{k} {v['bytes'] // 1024} KB" for k, v in r.items()))
         except LookupError as ex:
             typer.echo(f"{b}: {ex}")
+
+
+municipio_cli = typer.Typer(help="Dados por município para o front (design v1, item 4).", no_args_is_help=True)
+app.add_typer(municipio_cli, name="municipio")
+
+
+@municipio_cli.command("urbana")
+def municipio_urbana(municipios: Annotated[list[int], typer.Argument(help="códigos IBGE")]) -> None:
+    """Gera o contorno da área urbanizada da sede (MapBiomas) e grava no PostGIS."""
+    from raiz.banco import engine
+    from raiz.funil.rodar import dir_trabalho
+    from raiz.municipio_dados import urbana
+
+    eng = engine()
+    for cod in municipios:
+        with eng.connect() as con:
+            from sqlalchemy import text
+
+            uf = con.execute(text("select uf from funil.municipio_busca where cod_ibge = :c"), {"c": cod}).scalar()
+        tifs = sorted((dir_trabalho() / "cache" / "mapbiomas" / str(uf)).glob(f"{uf}_cobertura_*.tif"))
+        if not tifs:
+            typer.echo(f"{cod}: sem cobertura do MapBiomas em cache para {uf}")
+            continue
+        m = urbana(eng, cod, tifs[-1])
+        typer.echo(f"{cod}: " + (f"{m.area * 111.32**2 * 100:.0f} ha (aprox.)" if m is not None else "sede não achada"))

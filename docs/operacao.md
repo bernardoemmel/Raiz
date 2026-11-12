@@ -115,3 +115,12 @@ mudar na nuvem (ETag novo), o cache dele é refeito.
   `uv pip install qwen-tts` (traz torch; o modelo de 0,6 B roda em CPU); sem ela o vídeo sai mudo e o cabeçalho
   `X-Raiz-Aviso: sem voz` avisa. Cache em `RAIZ_PUBLICO_DIR` (padrão `dados/publico/`), refeito quando o selo muda.
 - Medido aqui: prévia 41 KB, retrato 63 KB, adesivo 12 KB, vídeo 720p de 6 s em 1,4 s.
+
+## Dados por município (design v1 do front, item 4)
+
+- `GET /municipios/{cod_ibge}`: frase-resumo, funil por etapa e por porte com os 3 maiores motivos de saída, "desde a
+  última análise" (foto da etapa de cada imóvel em cada rodada, `funil.etapa_rodada`, gravada pela carga) e área
+  urbana da sede. `raiz municipio urbana <cod>` gera o contorno urbano (MapBiomas classe 24, a mancha onde fica a
+  sede no OpenStreetMap) e grava em `geo.camada`.
+- Em Nova Esperança do Piriá (dado real): 880 imóveis, 793 sem problema, 738 aptos (32.848 ha), 41 com matrícula;
+  o que mais tira do funil é a matrícula (697); área urbana da sede 182 ha.

@@ -210,6 +210,29 @@ def _carregar_serie_uso(con: Connection, arquivo: Path) -> int:
     return _copy(con, "funil.serie_uso", cols, (tuple(_py(v) for v in r) for r in df.itertuples(index=False)))
 
 
+def _fotografar_etapas(con: Connection, rid: int, arquivos: dict[str, Path]) -> int:
+    """Foto da etapa do funil de cada imóvel nesta rodada (para o "desde a última análise" do município): vem da
+    ficha_<mun>.csv quando existe; senão é calculada das colunas do motor com as mesmas regras."""
+    from raiz.imovel_dados import etapa_e_motivo
+
+    im = pd.read_csv(arquivos["imoveis"], low_memory=False)
+    ficha = {}
+    if "ficha" in arquivos:
+        f = pd.read_csv(arquivos["ficha"], low_memory=False)
+        if {"etapa_funil", "motivo_saida"} <= set(f.columns):
+            ficha = {str(r.cod_imovel): (r.etapa_funil, r.motivo_saida) for r in f.itertuples(index=False)}
+    linhas = []
+    for r in im.to_dict("records"):
+        cod = str(r["cod_imovel"])
+        if cod in ficha:
+            etapa, motivo = ficha[cod]
+        else:
+            etapa, m = etapa_e_motivo(r)
+            motivo = m["id"] if m else None
+        linhas.append((rid, cod, etapa, None if pd.isna(motivo) else motivo))
+    return _copy(con, "funil.etapa_rodada", ["rodada_id", "cod_imovel", "etapa", "motivo_saida"], linhas)
+
+
 def _marcar_blocos(con: Connection, rid: int) -> None:
     """Copia a chave de bloco do imóvel (raiz/funil/grade.py, gravada com a geometria) para as tabelas da rodada."""
     for t in ("funil.resultado_imovel", "funil.filtro_imovel", "funil.mapbiomas_imovel"):
@@ -286,6 +309,7 @@ def carregar_municipio(
         _carregar_camadas(con, arquivos["camadas"], cod, rid)
     if "serie_uso" in arquivos:
         _carregar_serie_uso(con, arquivos["serie_uso"])
+    _fotografar_etapas(con, rid, arquivos)
     _marcar_blocos(con, rid)
 
     novas, faltando, avisos = _fechar_rodada(con, rid, n, list(leituras.values()), mb)

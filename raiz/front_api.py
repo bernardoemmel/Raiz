@@ -610,6 +610,32 @@ def roteador(engine_de) -> APIRouter:
             out.append(_limpa(d))
         return out
 
+    @r.get("/municipios/{cod_ibge}")
+    def municipio(cod_ibge: int, request: Request) -> Response:
+        """Frase-resumo, funil por etapa e por porte com os maiores motivos de saída, desde a última análise e área
+        urbana da sede (design v1 do front, item 4)."""
+        from raiz import municipio_dados
+
+        d = municipio_dados.dados(engine_de(request), cod_ibge)
+        if d is None:
+            raise HTTPException(404, {"mensagem": "Município ainda não processado pela Raíz."})
+        return _json(d)
+
+    @r.get("/municipios/{cod_ibge}/urbana.geojson")
+    def urbana(cod_ibge: int, request: Request) -> Response:
+        """Contorno da área urbanizada da sede (MapBiomas), para comparar o tamanho das fazendas."""
+        with engine_de(request).connect() as con:
+            fc = con.execute(
+                text("""select json_build_object('type', 'FeatureCollection', 'features', coalesce(json_agg(
+                            json_build_object('type', 'Feature', 'properties', propriedades,
+                                              'geometry', ST_AsGeoJSON(geom, 6)::json)), '[]'::json))
+                        from geo.camada where cod_ibge = :c and camada = 'urbana'"""),
+                {"c": cod_ibge},
+            ).scalar()
+        if not fc or not fc["features"]:
+            raise HTTPException(404, {"mensagem": "Contorno urbano ainda não gerado (raiz municipio urbana)."})
+        return Response(json.dumps(fc, separators=(",", ":")), media_type="application/geo+json")
+
     @r.get("/municipios/{cod_ibge}/imoveis")
     def imoveis(cod_ibge: int, request: Request) -> Response:
         lista = imoveis_do_municipio(engine_de(request), cod_ibge=cod_ibge)
