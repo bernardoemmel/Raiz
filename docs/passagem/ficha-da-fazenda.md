@@ -111,13 +111,15 @@ ao implantar para que o endereço represente o cliente real.
 
 Validação local desta entrega: suíte completa com PostGIS, 674 testes aprovados,
 dois ignorados e um xfail já existente; após as últimas correções, os 92 testes
-dos quatro módulos de prospecção passaram. Front: 83 testes aprovados, 13
-ignorados, build dos dois aplicativos aprovado. Chromium confirmou bloqueio,
+dos quatro módulos de prospecção passaram. Depois de integrar a main do mapa nacional (#47), o front passou em 93 testes,
+com 13 ignorados, e no build dos dois aplicativos. Chromium confirmou bloqueio,
 desbloqueio, pedido de contato, recuperação de compra, recompra, troca de sessão
 e largura de 360 px, usando API controlada de teste. O script reproduzível é
-`front/scripts/testar-prospeccao.mjs` (`npm run test:prospeccao`). Sem arquivos
-`front/geo` neste ambiente, não foi possível conferir o mapa real completo no
-navegador; os testes de publicação usam geometrias de teste.
+`front/scripts/testar-prospeccao.mjs` (`npm run test:prospeccao`). O teste Pages com dados de teste também passou: limites do estado/município,
+zoom 13 sobre a base nacional, MVT desenhado, HTTP Range, busca por nome/IBGE,
+nenhum 404 e nenhum arquivo individual no pacote ou na rede. As correções do
+mapa nacional foram preservadas na integração; o detalhamento por CAR passa
+pela nova ficha paga.
 
 Testes unitários e com PostGIS cobrem contrato sem dados pessoais, ausência de
 dados, filtros combinados, exclusividade, agregados, concorrência de compra e

@@ -32,16 +32,18 @@ const TIPOS: Record<string, string> = {
   ".geojson": "application/geo+json; charset=utf-8",
   ".pmtiles": "application/octet-stream",
   ".pbf": "application/x-protobuf",
+  ".gz": "application/gzip",
 }
 
 /** repo: raiz do repositório; raizDados e cache só para teste (o normal é ler RAIZ_DADOS do ambiente ou do .env) */
 export function dadosRaiz(opcoes: { repo: string; raizDados?: string | null; cache?: string }) {
+  const geo = path.resolve(opcoes.repo, process.env.RAIZ_GEO || "front/geo")
   const pasta = abrirPasta({
     repo: opcoes.repo,
     raizDados: opcoes.raizDados !== undefined ? opcoes.raizDados : pastaPadrao(opcoes.repo),
     cache: opcoes.cache,
+    geo,
   })
-  const geo = path.join(opcoes.repo, "front", "geo")
   const resumoPermitido = (nome: string) => /^resumo_[A-Z]{2}\.csv$/.test(nome)
   const arquivosPublicos = (uf: string) => pasta.arquivos(uf).filter(resumoPermitido)
   const estadosPublicos = () => {
@@ -71,18 +73,45 @@ export function dadosRaiz(opcoes: { repo: string; raizDados?: string | null; cac
       ])
     }))
   }
-  const geoPermitido = (nome: string) => /^(brasil_(municipios|estados)\.geojson|municipio_\d{7}\.geojson|base_(brasil|\d{7})\.pmtiles)$/.test(nome)
-  const arquivosGeo = () => listar(geo).filter(geoPermitido)
+  const geoPermitido = (nome: string) => /^(brasil_(municipios|estados)\.geojson|municipio_\d{7}\.geojson(?:\.gz)?|base_(brasil|[A-Z]{2}|\d{7})\.pmtiles)$/.test(nome)
   function indiceGeoPublico() {
     const municipios: Record<string, Record<string, { arquivo: string; bytes: number }>> = {}
     const brasil: Record<string, { arquivo: string; bytes: number }> = {}
-    for (const arquivo of arquivosGeo()) {
+    const indice = path.join(geo, "indice.json")
+    // Preserva bases compartilhadas por UF e os caminhos gzip do manifesto do mapa, retirando camadas privadas.
+    if (fs.existsSync(indice)) {
+      const origem = JSON.parse(fs.readFileSync(indice, "utf8"))
+      const item = (valor: { arquivo?: unknown } | undefined) => {
+        const arquivo = valor?.arquivo
+        return typeof arquivo === "string" && nomeSeguro(arquivo) && geoPermitido(arquivo) && fs.existsSync(path.join(geo, arquivo))
+          ? { arquivo, bytes: fs.statSync(path.join(geo, arquivo)).size } : null
+      }
+      for (const chave of ["municipios", "estados", "base"]) {
+        const dado = item(origem.brasil?.[chave])
+        if (dado) brasil[chave] = dado
+      }
+      for (const [cod, camadas] of Object.entries(origem.municipios ?? {})) {
+        if (!/^\d{7}$/.test(cod)) continue
+        for (const chave of ["municipio", "base"]) {
+          const dado = item((camadas as Record<string, { arquivo?: unknown }>)[chave])
+          if (dado) (municipios[cod] ??= {})[chave] = dado
+        }
+      }
+      return { brasil, municipios }
+    }
+    // Compatibilidade com pastas antigas, antes do manifesto: só limites e bases com nome conhecido.
+    for (const arquivo of listar(geo).filter(geoPermitido)) {
       const item = { arquivo, bytes: fs.statSync(path.join(geo, arquivo)).size }
       const m = /^(municipio|base)_(\d{7})\./.exec(arquivo)
       if (m) (municipios[m[2]] ??= {})[m[1]] = item
-      else brasil[arquivo === "base_brasil.pmtiles" ? "base" : arquivo.includes("municipios") ? "municipios" : "estados"] = item
+      else if (arquivo.startsWith("brasil_") || arquivo === "base_brasil.pmtiles")
+        brasil[arquivo === "base_brasil.pmtiles" ? "base" : arquivo.includes("municipios") ? "municipios" : "estados"] = item
     }
     return { brasil, municipios }
+  }
+  function arquivosGeo() {
+    const indice = indiceGeoPublico()
+    return [...new Set([...Object.values(indice.brasil), ...Object.values(indice.municipios).flatMap(Object.values)].map((item) => item.arquivo))]
   }
   let saida = "dist"
   // o Vite chama closeBundle também ao fechar o servidor (e o Vitest fecha um no fim): só grava no vite build
@@ -239,7 +268,7 @@ export function dadosRaiz(opcoes: { repo: string; raizDados?: string | null; cac
         if (url === "/geo/indice.json") return json(req, res, indiceGeoPublico())
         if ((m = /^\/geo\/([^/]+)$/.exec(url))) {
           const arq = path.join(geo, m[1])
-          return nomeSeguro(m[1]) && geoPermitido(m[1]) && fs.existsSync(arq) ? enviarArquivo(req, res, arq) : naoAchou(res)
+          return nomeSeguro(m[1]) && arquivosGeo().includes(m[1]) && fs.existsSync(arq) ? enviarArquivo(req, res, arq) : naoAchou(res)
         }
         next()
       })

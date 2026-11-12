@@ -185,6 +185,57 @@ def test_filtros_combinados_e_ausencias(base):
 
 
 @pytest.mark.banco
+@pytest.mark.parametrize("total", [0, 875.5])
+def test_total_contratual_prevalece_sobre_anual_sem_area_nem_faixas(base, total):
+    engine, codigos, clientes = base
+    # O total P50 da carga continua válido mesmo sem a área usada na simulação.
+    with engine.begin() as con:
+        con.execute(
+            text("""update funil.resultado_imovel set atributos = atributos || cast(:dados as jsonb)
+                    where cod_imovel = :car"""),
+            {
+                "car": codigos[3],
+                "dados": json.dumps({"credito_liquido_tco2_contrato": total, "credito_liquido_tco2_ano": 55}),
+            },
+        )
+    r = buscar_prospeccao(
+        engine, {"uf": "RS", "credito_min": total, "credito_max": total}, clientes[0], incluir_imoveis=True
+    )
+    assert r["total"] == 1 and r["imoveis"][0]["codigo_car"] == codigos[3]
+    assert r["imoveis"][0]["credito_p50"] == total
+    assert r["imoveis"][0]["credito_p10"] is None and r["imoveis"][0]["credito_p90"] is None
+    assert r["totais"]["credito_p50"] == total and r["totais"]["com_credito"] == 1
+
+
+@pytest.mark.banco
+def test_total_contratual_e_fallback_sem_sobrescrever_calculo_por_area(base):
+    engine, codigos, clientes = base
+    with engine.begin() as con:
+        con.execute(
+            text("""update funil.resultado_imovel
+                    set atributos = atributos || cast(:dados as jsonb)
+                    where cod_imovel = :car"""),
+            {"car": codigos[0], "dados": json.dumps({"credito_liquido_tco2_contrato": 999})},
+        )
+    r = buscar_prospeccao(engine, {"q": codigos[0]}, clientes[0], incluir_imoveis=True)
+    assert r["imoveis"][0]["credito_p50"] == 50
+
+
+@pytest.mark.banco
+@pytest.mark.parametrize("total", ["NaN", "Infinity", True, {"valor": 20}])
+def test_total_contratual_malformado_nao_vira_credito(base, total):
+    engine, codigos, clientes = base
+    with engine.begin() as con:
+        con.execute(
+            text("""update funil.resultado_imovel set atributos = atributos || cast(:dados as jsonb)
+                    where cod_imovel = :car"""),
+            {"car": codigos[3], "dados": json.dumps({"credito_liquido_tco2_contrato": total})},
+        )
+    r = buscar_prospeccao(engine, {"q": codigos[3]}, clientes[0], incluir_imoveis=True)
+    assert r["imoveis"][0]["credito_p50"] is None
+
+
+@pytest.mark.banco
 def test_reserva_de_outro_cliente_some_de_lista_e_agregados(base):
     engine, codigos, clientes = base
     with engine.begin() as con:

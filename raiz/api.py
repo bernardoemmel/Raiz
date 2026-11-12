@@ -287,6 +287,6 @@ def criar_app(
             allow_origins=origens,
             allow_methods=["GET", "POST"],
             allow_headers=["Authorization", "Range", "Content-Type"],
-            expose_headers=["Content-Range", "Accept-Ranges", "Content-Length", "ETag"],
+            expose_headers=["Content-Range", "Accept-Ranges", "Content-Length", "ETag", "Retry-After"],
         )
     return app

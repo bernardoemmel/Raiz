@@ -236,6 +236,15 @@ Entrega do chat **Ficha da fazenda** (12/11/2026; detalhes em
 | Agregados abertos no site, nova ficha completa só na API autenticada e paga | **feito** no site e nas rotas novas; Release histórico de dados continua aberto, migração de armazenamento privado deve ser coordenada com dados |
 | Integração da nova ficha com navegação do mapa | **feito**, sem reescrever o mapa; produtor precisa de autenticação própria para voltar a acessar detalhes no site |
 
+Entrega do mapa nacional (12/11/2026): o workflow publica os desenhos de todos os municípios com dados no Release,
+reaproveitando os GeoParquet do motor como GeoJSON gzip. Fundo PMTiles compartilhado por UF e base nacional em
+overzoom; busca estática por nome/IBGE/CAR e aviso de desenho ausente. CI com Playwright em `/Raiz/`: Parauapebas,
+zoom, polígonos coloridos, HTTP Range e zero 404. Build limita fichas pré-geradas e publica só o manifesto de geometrias,
+com portão de 950 MB. Polígonos permanecem por município enquanto couberem; não foi necessário tippecanoe nesta rodada.
+
+A entrega da ficha mantém as bases e limites do mapa nacional, mas restringe os detalhes por CAR à API paga;
+a publicação pública usa os agregados municipais.
+
 Conferido contra a main em 12/11/2026: "feito" quer dizer que o código está na main; "parcial" diz o que existe e o
 que falta, com as horas do que falta. O site público (https://bernardoemmel.github.io/Raiz/) mostra o que o front já
 faz sem back-end.
@@ -269,5 +278,6 @@ faz sem back-end.
 | 2 | (API do front) Cache por rodada (ETag pelo hash da rodada) e lista de imóveis em pedaços ou em formato colunar para município grande (São Félix: 2,8 MB comprimidos, 3,4 s) | passo anterior | 2 a 4 |
 | 2 | (API do front) Divisa, TI, UC e rios vindos da coleta (E1) direto no PostGIS, no lugar dos arquivos do front/scripts/geo.py; um mapa base PMTiles do Brasil servido com Range | E1 | parcial: o mapa base do Brasil com Range está feito (raiz/mapa_base.py, /mapa/brasil.pmtiles); as camadas ainda vêm do front/scripts/geo.py (2 a 3) |
 | 6 | (API do front) Fichas em JSON do lote anual (passo 1) servidas como arquivo estático; a API fica para o painel interno e para o que muda no dia | passo 1 | feito o lote administrativo (`raiz ficha lote`, dados/fichas/ em armazenamento privado). A entrega Ficha da fazenda retira fichas e CSV individuais do site; a ficha de prospecção passa pela API com sessão/crédito pago, e o site publica só agregados |
-| 1 | (busca) Busca nacional pelo código do CAR (inteiro ou começo, com ou sem pontos e traços) e pelo nome do município, no contrato de front/compartilhado/dados/busca.ts; índice por código normalizado; 6,7 milhões de imóveis sintéticos: pior resposta 0,49 s | carga contínua | feito |
+| 1 | (busca) Busca nacional pela API pelo código do CAR (inteiro ou começo, com ou sem pontos e traços) e pelo nome do município, no contrato de front/compartilhado/dados/busca.ts; índice por código normalizado; 6,7 milhões de imóveis sintéticos: pior resposta 0,49 s | carga contínua | feito |
+| 1 | (busca pública) Busca no navegador por nome e código IBGE do município, sem depender de `/busca` no Pages; CAR leva à ficha paga | mapa nacional | feito |
 | 1 | (busca) Carga contínua das saídas do motor por estado (`raiz vigiar`), só o município que mudou, com a versão anterior guardada | carga do motor | feito |

@@ -274,6 +274,7 @@ def _consulta_prospeccao(filtros: FiltrosProspeccao, cliente_id: int | None) -> 
         par["bioma"] = normalizar_nome(filtros.bioma)
     area = _numero_json("restauracao_area_ha")
     c10, c50, c90 = (_numero_json(f"credito_liquido_tco2_ha_contrato_{q}") for q in ("p10", "p50", "p90"))
+    total_contrato = _numero_json("credito_liquido_tco2_contrato")
     caminhos_sql = ",".join(f"'{c}'" for c in CAMINHOS)
     sql = f"""with origem as (
         select v.cod_imovel as codigo_car, v.uf, v.cod_municipio_ibge as cod_ibge,
@@ -295,7 +296,8 @@ def _consulta_prospeccao(filtros: FiltrosProspeccao, cliente_id: int | None) -> 
                case when ha >= 0 and ha < 'Infinity'::float8 then ha end as area_ha,
                coalesce({area}, case when carbono_ha >= 0 and carbono_ha < 'Infinity'::float8
                                     then carbono_ha end) as area_restauravel_ha,
-               {area} * ({c10}) as credito_p10, {area} * ({c50}) as credito_p50,
+               {area} * ({c10}) as credito_p10,
+               coalesce({area} * ({c50}), {total_contrato}) as credito_p50,
                {area} * ({c90}) as credito_p90,
                case when a ->> 'caminho_terra' in ({caminhos_sql})
                     then a ->> 'caminho_terra' else 'sem_dados' end as caminho_terra,
