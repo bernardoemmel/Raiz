@@ -5,15 +5,14 @@ O plano de entrega está em `docs/plano-por-etapa.md`; esta passagem guarda cont
 
 ## Urgência: URTX_LE1
 
-O fundador informou prazo de **15/11/2026** para avisar `registry@verra.org`. O produto já calculava o prazo,
-abria alerta crítico `verra_aviso:URTX_LE1` e gerava o relatório de perda; faltava o e-mail inicial. Agora gera
-rascunho JSON/`.eml`, pela API, CLI e rodada diária. Preparar nunca envia nem registra `verra_avisada`.
+**Prazo registrado: 15/11/2026** para o aviso do proponente a `registry@verra.org`. A Raíz não é proponente do
+URTX: prepara somente o rascunho para o desenvolvedor cliente e **nunca envia o aviso**. Não existe estado
+privado do URTX a restaurar. Campos desconhecidos ficam como **a preencher pelo proponente**; não pedir novos
+dados sobre isso. O prazo em `raiz/vigilancia/projetos.yaml` aparece no projeto e no alerta crítico interno
+`verra_aviso:URTX_LE1`, sem fabricar uma perda ou deduzir descoberta/área/causa.
 
-Rascunho em `docs/pedidos/urtx-le1-aviso-verra.md`. Este ambiente não tem `RAIZ_VIGILANCIA_CHAVE` nem
-`RAIZ_PROJETOS_PRIVADO`; o Release `vigilancia` não foi encontrado. O prazo é o informado pelo fundador, não uma
-confirmação de estado real: ainda é preciso restaurar o estado, conferir eventual envio anterior, ID Verra,
-descoberta, área e causa, e completar assinatura/contato no cliente de e-mail. Não deduzir descoberta a partir do
-prazo nem tratar dados de teste como evento real.
+Rascunho pronto em `docs/pedidos/urtx-le1-aviso-verra.md`, gerado por API/CLI/rodada diária em JSON e `.eml`.
+Preparação não registra `verra_avisada`; envio e preenchimento cabem exclusivamente ao proponente.
 
 ## O que já está na main
 
@@ -33,8 +32,7 @@ prazo nem tratar dados de teste como evento real.
 
 ## O que falta e quem pode concluir
 
-1. **Aviso Verra:** rascunho preparado; conferência dos dados privados e envio pelo proponente/fundador pendentes.
-   Só depois do envio efetivo registrar `verra_avisada`, com a data correta e comprovante privado.
+1. **Aviso Verra:** entregue como rascunho ao desenvolvedor cliente; prazo registrado em 15/11/2026 e campos “a preencher pelo proponente”. A Raíz nunca envia. Não há pendência de estado privado URTX.
 2. **E7 passo 8:** cache calibrado da matrícula é responsabilidade deste chat, em implementação. Escore numérico
    por leitura, corte calibrado em gabaritos da leitura integral e risco controlado; sem calibração suficiente,
    reler. Confiança declarada alta/média/baixa não prova acerto. MAPIE previsto no plano.
@@ -48,7 +46,7 @@ prazo nem tratar dados de teste como evento real.
    Este ambiente não tem acesso SSH, banco ou credenciais de produção. Preparar instalação reproduzível não
    equivale a instalar no servidor.
 6. **Segredos pendentes:** `MAPBIOMAS_ALERTA_EMAIL`, `MAPBIOMAS_ALERTA_SENHA`, `RAIZ_VIGILANCIA_CHAVE`,
-   `RAIZ_PROJETOS_PRIVADO`; opcionais `FIRMS_MAP_KEY`, `RAIZ_NTFY_TOPICO`, `RAIZ_NTFY_TOKEN`, `RAIZ_GOALERT_URL`.
+   `RAIZ_PROJETOS_PRIVADO` somente quando existirem projetos privados (não exigido para URTX); opcionais `FIRMS_MAP_KEY`, `RAIZ_NTFY_TOPICO`, `RAIZ_NTFY_TOKEN`, `RAIZ_GOALERT_URL`.
    Configurar no servidor e nos secrets da vigilância no GitHub. Nunca pedir valores no chat. Envio simulado até lá.
 7. **Calendário da Raíz, depois das pendências:** leilões rurais/penhoras ligados ao CAR/SIGEF, BNDES,
    ProFloresta+, Fundo Amazônia, concessões, leilões de créditos, SBCE/Verra/ICVCM/SBTi/EUDR; coleta diária, banco,

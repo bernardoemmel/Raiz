@@ -262,5 +262,5 @@ faz sem back-end.
 
 ## Continuidade de documentos, vigilância e calendário (12/11/2026)
 
-- **Feito:** aviso inicial à Verra em JSON e `.eml`, pela API, CLI e rodada diária, separado do relatório de perda. Preparar não envia nem registra `verra_avisada`. Rascunho URTX_LE1 em `docs/pedidos/urtx-le1-aviso-verra.md`, prazo informado de **15/11/2026**; falta restaurar o estado privado, ID Verra e assinatura para enviar.
+- **Feito:** aviso inicial à Verra em JSON e `.eml`, pela API, CLI e rodada diária, separado do relatório de perda. Preparar não envia nem registra `verra_avisada`. Rascunho URTX_LE1 para o desenvolvedor cliente em `docs/pedidos/urtx-le1-aviso-verra.md`, prazo **15/11/2026** registrado no projeto e no alerta interno. Campos desconhecidos: “a preencher pelo proponente”. A Raíz não é proponente e nunca envia; não depende de estado privado.
 - **Feito:** passagens unificadas em `docs/passagem/continuidade-raiz.md`; PRs #35 e #44 já integrados; migrações do título/aprendizado corrigidas para 0022–0025.

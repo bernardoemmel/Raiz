@@ -81,7 +81,7 @@ def main(argv: list[str] | None = None) -> int:
     av = sub.add_parser("aviso-verra", help="preparar o e-mail inicial, sem enviar nem quitar o prazo")
     av.add_argument("projeto")
     av.add_argument("perda")
-    av.add_argument("--prazo-informado", help="AAAA-MM-DD, somente se o estado privado estiver indisponível")
+    av.add_argument("--prazo-informado", help="AAAA-MM-DD para um prazo informado ainda não registrado no projeto")
     av.add_argument("--saida", help="gravar o rascunho .eml no caminho indicado")
 
     m = sub.add_parser("marcar")
@@ -150,7 +150,7 @@ def main(argv: list[str] | None = None) -> int:
 
     v = Vigilancia()
     if args.cmd == "aviso-verra":
-        from raiz.vigilancia.aviso_verra import eml, preparar
+        from raiz.vigilancia.aviso_verra import eml, prazo_registrado, preparar
         from raiz.vigilancia.servico import hoje_brasil
 
         if args.projeto not in v.projetos:
@@ -158,7 +158,10 @@ def main(argv: list[str] | None = None) -> int:
             return 2
         try:
             pe = v._perda(args.projeto, args.perda) if len(v.arm.alertas("projeto", args.projeto)) else None
-            d = preparar(v.projetos[args.projeto], args.perda, v.regras, hoje_brasil(), pe, _data(args.prazo_informado))
+            prazo = _data(args.prazo_informado) or prazo_registrado(v.projetos[args.projeto], args.perda)
+            d = preparar(v.projetos[args.projeto], args.perda, v.regras, hoje_brasil(), pe, prazo)
+            if pe is None and not args.prazo_informado:
+                d["origem_prazo"] = "informado_pelo_cliente_e_registrado_no_projeto"
         except ValueError as ex:
             _imprimir({"erro": str(ex)})
             return 2
