@@ -218,7 +218,9 @@ export function numerosDoBrasil(municipios: FunilMunicipio[]): NumerosBrasil {
  * as que passam em tudo mas ainda não têm o título (apta com pendência, como diz a legenda do mapa).
  */
 export function fraseDoBrasil(n: NumerosBrasil, estados: string[], fmt: (n: number) => string): string {
-  const lidos = `A Raíz já leu ${fmt(n.municipios)} ${n.municipios === 1 ? "município" : "municípios"} (${estados.join(", ")}): ${fmt(n.imoveis)} imóveis do Cadastro Ambiental Rural (CAR).`
+  // um a três estados pelo nome; mais que isso, quantos são; nenhum (o painel de um estado), sem parênteses
+  const onde = !estados.length ? "" : estados.length <= 3 ? ` (${estados.join(", ")})` : `, em ${fmt(estados.length)} estados`
+  const lidos = `A Raíz já leu ${fmt(n.municipios)} ${n.municipios === 1 ? "município" : "municípios"}${onde}: ${fmt(n.imoveis)} imóveis do Cadastro Ambiental Rural (CAR).`
   const prontas = `${fmt(n.prontas)} ${n.prontas === 1 ? "fazenda está pronta" : "fazendas estão prontas"} para conversar`
   if (!n.faltaTitulo) return `${lidos} ${prontas}.`
   const outras = `${n.faltaTitulo === 1 ? "outra" : "outras"} ${fmt(n.faltaTitulo)} ${n.faltaTitulo === 1 ? "passa" : "passam"} em tudo, mas ainda falta o título`

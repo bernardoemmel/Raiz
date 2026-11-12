@@ -1,17 +1,24 @@
 import { useEffect, useState } from "react"
 import type { RespostaBusca } from "../../compartilhado/dados"
-import { normalizar } from "../../compartilhado/formato"
+import { normalizar, UFS } from "../../compartilhado/formato"
 
-/** Entrada (o Brasil), um município ou a ficha de uma fazenda. */
-export type Rota = { tela: "entrada" } | { tela: "municipio"; municipio: string } | { tela: "fazenda"; car: string }
+/** Entrada (o Brasil), um estado, um município ou a ficha de uma fazenda. */
+export type Rota =
+  | { tela: "entrada" }
+  | { tela: "estado"; uf: string }
+  | { tela: "municipio"; municipio: string }
+  | { tela: "fazenda"; car: string }
 
 export function lerRota(hash: string): Rota {
   const partes = hash.replace(/^#\/?/, "").split("/").map(decodeURIComponent)
   if (partes[0] === "fazenda" && partes[1]) return { tela: "fazenda", car: partes[1] }
   if (partes[0] === "municipio" && /^\d{7}$/.test(partes[1] ?? "")) return { tela: "municipio", municipio: partes[1] }
+  const uf = (partes[1] ?? "").toUpperCase()
+  if (partes[0] === "estado" && uf in UFS) return { tela: "estado", uf }
   return { tela: "entrada" }
 }
 
+export const linkEstado = (uf: string) => `#/estado/${uf}`
 export const linkMunicipio = (cod: string) => `#/municipio/${cod}`
 export const linkFazenda = (car: string) => `#/fazenda/${encodeURIComponent(car)}`
 

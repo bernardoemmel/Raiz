@@ -1364,3 +1364,13 @@ button.link:hover {
     padding: var(--e4);
   }
 }
+
+/* no painel de um estado: a situação dele numa linha, completo em mata */
+.estado-situacao {
+  margin: var(--e2) 0 0;
+  font-size: var(--t-legenda);
+  color: var(--pedra);
+}
+.estado-situacao.completo {
+  color: var(--mata);
+}

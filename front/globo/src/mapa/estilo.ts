@@ -51,6 +51,8 @@ export function estiloBase(base: string | null, opcoes: { rotulos?: boolean } = 
 export function camadasBase(rotulos = true): LayerSpecification[] {
   return layers("protomaps", SABOR_RAIZ, { lang: "pt" }).flatMap((l): LayerSpecification[] => {
     if (l.id === "pois" || l.id.startsWith("address") || l.id === "buildings") return []
+    // nome de estado sai do mapa base: a tela de entrada escreve o dela, com o que a Raíz já leu de cada um
+    if (l.id === "places_region") return []
     if (l.type === "symbol" && !rotulos) return []
     if (l.id === "places_country") l = { ...l, filter: FILTRO_PAISES } as unknown as LayerSpecification
     if (l.type === "symbol" && l.layout && "icon-image" in l.layout) {
