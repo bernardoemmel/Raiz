@@ -45,6 +45,9 @@ Essas guardas permitem encaminhar as cinco origens auditadas para a referência 
 são recalculadas pelo fluxo normal, sem atribuir versões novas a arquivos antigos ou mudar reservas vivas.
 O delta final de promoção/fila/catálogo passou em 285 testes, com Ruff e actionlint verdes. A confirmação
 em produção segue o merge desta correção.
+O CI anterior do #82 passou; antes do merge, a integração incorporou o #83, que exige a referência privada
+completa do Pará em um job separado e impede que esse teste seja pulado. Os 256 testes locais relacionados
+passaram; o CI dessa integração será conferido antes do merge.
 
 Oito pacotes reais adicionais ao RO foram validados offline: 2.696 CSVs, 57.863 campos Croissant e 4.283.214 linhas
 de quantis. Os diagnósticos de faixas cruzadas e ausência de produto foram preservados. Cinco UFs usam a regra

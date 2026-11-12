@@ -338,6 +338,9 @@ backups. Os produtos finais continuam elegíveis a ficha e atestação; o proces
 
 ## Proteções incorporadas à retomada operacional
 
+- O CI do #82 na referência `7ab4852` passou. Antes do merge, foi incorporado o #83 da main, que torna
+  obrigatória a referência privada completa do Pará e exige sua execução exatamente uma vez no CI.
+  Os 256 testes locais relacionados passaram após essa integração; o CI atualizado ainda será conferido.
 - O #81 foi integrado antes da atualização final do PR #82: atestação privada identificada somente pelo digest
   dos bytes, sanitização de erros e reserva do catálogo por rodada/tentativa. O catálogo não libera uma vaga
   com base no término de uma tentativa anterior. A combinação passou em 174 testes focados; um cenário de
