@@ -22,7 +22,7 @@ os.environ.update(GDAL_DISABLE_READDIR_ON_OPEN='EMPTY_LIST', CPL_VSIL_CURL_ALLOW
 warnings.filterwarnings('ignore')
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import pandas as pd
-from raiz_extras import geometria, exact_extract
+from raiz_extras import geometria, zonal_janela, limita_memoria
 
 ANO = 2024
 YB = 'https://data.source.coop/ybyra-br/secondary-forest/{p}/ybyra_secondary_forest_{p}_brazil_v8_1_{a}.tif'
@@ -42,19 +42,20 @@ def direto(g):
     lat = g.geometry.centroid.y.values
     t = pd.DataFrame({'cod_imovel': g.cod_imovel.values})
     for k in ['idade', 'incremento']:
-        d = exact_extract(U[k], g, ['mean', 'count'], output='pandas')  # nodata = 0: só pixels com vegetação secundária
+        d = zonal_janela(U[k], g, ('mean', 'count'))  # nodata = 0: só pixels com vegetação secundária
         area = d['count'].values * [ha_por_pixel(x, RES[k]) for x in lat]
         if k == 'idade':
             t['sec_area_ha'] = area.round(1); t['sec_idade_media'] = d['mean'].round(1)
         else:
             t['sec_nova_ha'] = area.round(1)
     for k, c in [('altura', 'gpw_altura_m'), ('ugpp', 'gpw_ugpp')]:
-        d = exact_extract(U[k], g, ['mean'], output='pandas')
+        d = zonal_janela(U[k], g, ('mean',))
         t[c] = d['mean'].round(2)
     return t
 
 
 def main():
+    limita_memoria()
     uf = sys.argv[1].upper(); pasta = f'saida/{uf}'
     cods = sorted(int(os.path.basename(p)[8:-4]) for p in glob.glob(f'{pasta}/imoveis_*.csv'))
     print(f'{uf}: {len(cods)} municípios', flush=True)
