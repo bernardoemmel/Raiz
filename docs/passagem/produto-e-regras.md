@@ -7,6 +7,12 @@ para 0027. Conta e três testes são por empresa; saldo não pula sinal Pix/cont
 O caminho legado redireciona para a política paga; recusas contam no SlowAPI.
 A análise usa projeções explícitas e marca ausência de certidão/camada como não verificado.
 
+A integração com a main 78e13f7 mantém login por URL configurada, Presidio e
+Uvicorn com formatador seguro. CORS aceita OAuth/MCP e idempotência; a CSP da
+aprovação é preservada. O limite global também gera telemetria e erros RFC 9457;
+a ponte interna autenticada não duplica a contagem por IP. O limite por empresa
+continua ativo. O teste Chromium da API paga respeita Retry-After.
+
 A plataforma está implementada no mesmo FastAPI: SDK oficial `mcp==2.3.0`, protocolo
 2026-07-28, transporte HTTP e OAuth 2.1 via Keycloak 26.8.2. A chave de API vale só na REST.
 Seis ferramentas: consultar_disponibilidade, pedir_lote, comparar_lotes,

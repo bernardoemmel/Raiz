@@ -225,5 +225,5 @@ jobs:
       - name: Chromium e bibliotecas do sistema
         working-directory: front/globo
         run: npx playwright install --with-deps chromium
-      - name: Login por link, pedido no Pará, três lotes, interesse e Pix de teste
+      - name: Login, conta paga, sinal/contrato, três lotes e reserva com Pix de teste
         run: npm --prefix front/globo run test:e2e:api
