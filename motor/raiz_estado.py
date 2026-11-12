@@ -12,8 +12,8 @@ Saídas (pasta saida/<UF>/):
   certidoes_<mun>.csv       para cada imóvel da frente 'carbono': cartório (CNS) e número
                             da matrícula das parcelas SIGEF, prontos para pedir a certidão
                             no ONR/SAEC (registradores.onr.org.br); quem pede e paga é o investidor
-Regeneração viável (opcional, recomendado): coloque em mapbiomas/ os GeoTIFFs exportados do
-Earth Engine (raiz_mapbiomas_<UF>*.tif, bandas cob2008, cob_atual, sec_idade). Imóvel da frente
+Regeneração viável: cobertura e vegetação secundária vêm da API da Plataforma MapBiomas, sem Earth Engine e sem
+login (baixadas por estado pelo raiz_mapbiomas.py; GeoTIFFs antigos do Earth Engine em mapbiomas/ só como reserva). Imóvel da frente
 'carbono' sem pasto a até 1 km de floresta (mata não volta sozinha) vira 'carbono_so_plantio'. Sem corte de tamanho.
 Projetos de carbono já existentes: coloque na pasta projetos_carbono/ os mapas (KML, GeoJSON,
 GPKG ou SHP) dos projetos registrados na Verra/Gold Standard da região (na página de cada
@@ -65,23 +65,51 @@ def projetos_carbono():
 
 PROJ = None
 MB_DIR = "mapbiomas"
+MB_API = "cache/mapbiomas"
 MB = {}
 
 
 def mapbiomas(uf):
+    """Fonte da cobertura e da vegetação secundária para a regeneração.
+    Padrão (sem Earth Engine): GeoTIFFs da API da Plataforma MapBiomas que o raiz_mapbiomas.py baixa por estado
+    (cache/mapbiomas/<UF>/<UF>_cobertura_<ano>.tif e <UF>_desmat_<ano>.tif; secundária = classes 3 e 5 do desmatamento v5).
+    Reserva: GeoTIFFs antigos do Earth Engine em mapbiomas/ (raiz_mapbiomas_<UF>*.tif), usados só se a API faltar."""
     if uf not in MB:
         import glob, rasterio
-        fs = sorted(glob.glob(f'{MB_DIR}/raiz_mapbiomas_{uf}*.tif'))
-        MB[uf] = [rasterio.open(f) for f in fs]
-        print(f'  MapBiomas {uf}: {len(fs)} arquivo(s)' if fs else f'  sem MapBiomas para {uf} em {MB_DIR}/ (pulando regeneração)')
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        ano = int(os.environ.get('RAIZ_MB_ANO', 2025))
+        cob, des = (f'{MB_API}/{uf}/{uf}_{k}_{ano}.tif' for k in ('cobertura', 'desmat'))
+        if not (os.path.exists(cob) and os.path.exists(des)) and os.environ.get('RAIZ_MB_BAIXAR', '1') == '1':
+            try:
+                import raiz_mapbiomas
+                raiz_mapbiomas.exporta_uf(uf, temas=('cobertura', 'desmat'))
+            except Exception as ex:
+                print(f'  API MapBiomas {uf} falhou: {ex}')
+        if os.path.exists(cob) and os.path.exists(des):
+            MB[uf] = {'modo': 'api', 'cob': rasterio.open(cob), 'sec': rasterio.open(des)}
+            print(f'  MapBiomas {uf}: API da Plataforma ({ano})')
+        else:
+            fs = sorted(glob.glob(f'{MB_DIR}/raiz_mapbiomas_{uf}*.tif'))
+            MB[uf] = {'modo': 'gee', 'rs': [rasterio.open(f) for f in fs]} if fs else None
+            print(f'  MapBiomas {uf}: {len(fs)} arquivo(s) do Earth Engine' if fs else f'  sem MapBiomas para {uf} (pulando regeneração)')
     return MB[uf]
+
+
+def _janela_api(mb, bb):
+    """Lê cobertura e secundária (classes 3 e 5 do desmatamento v5) da API na caixa bb, na mesma grade."""
+    from rasterio.windows import from_bounds
+    r = mb['cob']
+    w = from_bounds(*bb, transform=r.transform).round_offsets().round_lengths()
+    cob = r.read(1, window=w, boundless=True, fill_value=0)
+    des = mb['sec'].read(1, window=w, boundless=True, fill_value=0)
+    return cob, np.isin(des, (3, 5)).astype('uint8'), r.window_transform(w)
 
 
 def regeneracao(c, uf, min_ha=1):
     """Pasto, floresta, secundária e pasto a até 1 km de floresta (MapBiomas) nos imóveis 'carbono'."""
-    rs = mapbiomas(uf)
+    mb = mapbiomas(uf)
     alvo = c[c.frente.isin(['carbono', 'regularizar_antes', 'assentamento_agrupado'])]
-    if not rs or len(alvo) == 0: return c
+    if not mb or len(alvo) == 0: return c
     import numpy as np
     from rasterio.merge import merge
     from rasterio.features import geometry_mask
@@ -92,10 +120,13 @@ def regeneracao(c, uf, min_ha=1):
     for cod, geom in g.geometry.items():
         x0, y0, x1, y1 = geom.bounds
         bb = (x0 - pad, y0 - pad, x1 + pad, y1 + pad)
-        rs_ok = [r for r in rs if not (r.bounds.right < bb[0] or r.bounds.left > bb[2] or r.bounds.top < bb[1] or r.bounds.bottom > bb[3])]
-        if not rs_ok: continue
-        arr, tr = merge(rs_ok, bounds=bb, indexes=[2, 3])
-        cob, sec = arr[0], arr[1]
+        if mb['modo'] == 'api':
+            cob, sec, tr = _janela_api(mb, bb)
+        else:
+            rs_ok = [r for r in mb['rs'] if not (r.bounds.right < bb[0] or r.bounds.left > bb[2] or r.bounds.top < bb[1] or r.bounds.bottom > bb[3])]
+            if not rs_ok: continue
+            arr, tr = merge(rs_ok, bounds=bb, indexes=[2, 3])
+            cob, sec = arr[0], arr[1]
         m = geometry_mask([geom], out_shape=cob.shape, transform=tr, invert=True)
         forest = (cob == 3) | (cob == 4)
         d = distance_transform_edt(~forest) * 30
