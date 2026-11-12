@@ -399,7 +399,7 @@ function NumerosOpcao({ opcao: o, meta, unidade }: { opcao: Opcao; meta: number;
           <dd>{fmtUsd(o.multa_esperada_usd)}</dd>
         </div>
       </dl>
-      <table className="tabela-simples marcos">
+      <table className="tabela-simples marcos-pedido">
         <caption>Chance de cumprir cada marco</caption>
         <thead>
           <tr>
@@ -426,7 +426,7 @@ function NumerosOpcao({ opcao: o, meta, unidade }: { opcao: Opcao; meta: number;
         <strong>Caminho da terra:</strong> {o.mistura_terra.map((m) => `${ROTULO_CAMINHO[m.caminho].toLowerCase()} ${fmtPct(m.fracao)}`).join(", ")}.{" "}
         <strong>Restauração:</strong> {o.metodos.map((m) => `${ROTULO_METODO[m.metodo].toLowerCase()} em ${m.fazendas === 1 ? "1 fazenda" : `${fmtInt(m.fazendas)} fazendas`}`).join(", ")}.
       </p>
-      <details className="como-calculamos">
+      <details className="como-calculamos-pedido">
         <summary>Ver como calculamos</summary>
         <p>
           Crédito líquido = potencial de captura do motor (carbono_tco2_ano) em {PREMISSAS.anos} anos, menos {fmtPct(PREMISSAS.desconto_liquido)} de linha

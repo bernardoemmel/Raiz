@@ -1,0 +1,8 @@
+# Registro de licenças conferidas à mão (lido por scripts/checar_licencas.py).
+#
+# [conferidas]: pacote sem licença nos metadados; escrever a licença conferida e onde foi conferida.
+# [gpl_no_servidor]: pacote GPL permitido porque roda só no servidor (nunca no produto distribuído); escrever o motivo.
+
+[conferidas]
+
+[gpl_no_servidor]

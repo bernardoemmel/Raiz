@@ -23,6 +23,7 @@ import { linkEstado } from "../rota"
 import { MiniBrasil } from "./MiniBrasil"
 import { Projeto } from "./Projeto"
 import { TabelaFazendas } from "./TabelaFazendas"
+import { MODOS, ORDENS, ordenarFiltrar, type Modo, type OrdemRestauracao } from "../../../compartilhado/restauracao"
 
 interface Props {
   cod: string
@@ -40,13 +41,18 @@ interface Props {
 
 const CAMADAS: { id: CamadaAssunto | "uso"; rotulo: string; desligada?: string }[] = [
   { id: "situacao", rotulo: "Situação" },
-  { id: "titulo", rotulo: "Título" },
+  { id: "titulo", rotulo: "Caminho da terra" },
+  { id: "terra_publica", rotulo: "Terra pública" },
   { id: "fogo", rotulo: "Fogo" },
   { id: "uso", rotulo: "Uso da terra", desligada: "Mata, pasto e lavoura dentro de cada fazenda chegam com o back-end." },
 ]
 
 function baixarCsv(nome: string, lista: Imovel[]) {
-  const colunas = ["cod_imovel", "municipio", "uf", "ha", "m_fiscal", "situacao", "etapa", "motivo_saida", "carbono_ha", "carbono_tco2_ano", "titulo"]
+  const colunas = [
+    "cod_imovel", "municipio", "uf", "ha", "m_fiscal", "situacao", "etapa", "motivo_saida", "carbono_ha",
+    "carbono_tco2_ano", "caminho_terra", "risco_terra", "modo_restauracao", "custo_restauracao_ha_p50",
+    "credito_liquido_tco2_ha_ano", "vpl_rs_ha_p50", "tir_alavancada_pct_p50", "valor_desenvolvedor_rs", "grupo_id",
+  ]  // prettier-ignore
   const linhas = lista.map((i) => {
     const { etapa, motivo } = etapaDe(i)
     return {
@@ -60,7 +66,15 @@ function baixarCsv(nome: string, lista: Imovel[]) {
       motivo_saida: motivo ?? "",
       carbono_ha: i.apta ? i.carbono_ha.toFixed(2) : "0",
       carbono_tco2_ano: i.apta ? Math.round(i.carbono_tco2_ano) : 0,
-      titulo: tituloDe(i),
+      caminho_terra: tituloDe(i),
+      risco_terra: i.linha.risco_terra ?? "",
+      modo_restauracao: i.linha.modo_restauracao ?? "",
+      custo_restauracao_ha_p50: i.linha.custo_restauracao_ha_p50 ?? "",
+      credito_liquido_tco2_ha_ano: i.linha.credito_liquido_tco2_ha_ano ?? "",
+      vpl_rs_ha_p50: i.linha.vpl_rs_ha_p50 ?? "",
+      tir_alavancada_pct_p50: i.linha.tir_alavancada_pct_p50 ?? "",
+      valor_desenvolvedor_rs: i.linha.valor_desenvolvedor_rs ?? "",
+      grupo_id: i.linha.grupo_id ?? "",
     }
   })
   const a = document.createElement("a")
@@ -96,7 +110,16 @@ function Legenda({ camada, foco, imoveis }: { camada: CamadaAssunto; foco: Foco;
   if (camada === "titulo")
     return (
       <p className="legenda-frase">
-        Verde-escuro é matrícula no SIGEF, verde-claro é lote de assentamento e amarelo é posse sem matrícula.
+        Verde-escuro é matrícula no SIGEF, azul é terra pública sob concessão, verde-claro é lote de assentamento,
+        amarelo é posse em titulação, cor de terra é terra pública sem destinação e cinza é terra indígena ou
+        tradicional. Nenhuma fazenda sai do mapa por causa da terra.
+      </p>
+    )
+  if (camada === "terra_publica")
+    return (
+      <p className="legenda-frase">
+        Cor de terra tracejada: gleba pública não destinada ou floresta nacional ou estadual com área desmatada. Não se
+        origina com particular; é candidata a concessão.
       </p>
     )
   if (camada === "fogo")
@@ -146,6 +169,8 @@ export function PainelMunicipio(props: Props) {
   const { cod, nome, uf, centro, funil, imoveis, foco, aoFocar, camada, mudarCamada, aoPassar } = props
   const [unidade, setUnidade] = useState<Unidade>("imoveis")
   const [projeto, setProjeto] = useState(false)
+  const [ordem, setOrdem] = useState<OrdemRestauracao>("area")
+  const [modo, setModo] = useState<Modo | null>(null)
   const etapas = useMemo(
     () => (imoveis ? etapasDoFunil(imoveis) : funil ? etapasDoResumo(funil) : null),
     [imoveis, funil],
@@ -155,6 +180,8 @@ export function PainelMunicipio(props: Props) {
     const base = foco ? imoveis.filter((i) => noFoco(i, foco)) : imoveis.filter((i) => i.apta)
     return [...base].sort((a, b) => (b.apta ? b.carbono_ha : 0) - (a.apta ? a.carbono_ha : 0))
   }, [imoveis, foco])
+  // valor para quem restaura: ordena e filtra pelo caminho de restauração (ninguém some quando não há filtro)
+  const listaOrdenada = useMemo(() => ordenarFiltrar(lista, ordem, modo), [lista, ordem, modo])
   const nomeMun = funil?.municipio ?? nome ?? "Município"
   const sigla = funil?.uf ?? uf ?? ""
   const ufNome = UFS[sigla] ?? sigla
@@ -232,8 +259,31 @@ export function PainelMunicipio(props: Props) {
                   </button>
                 </div>
               </div>
-              {lista.length ? (
-                <TabelaFazendas lista={lista} aoPassar={aoPassar} />
+              <div className="ordem-restauro">
+                <label>
+                  Ordenar por
+                  <select value={ordem} onChange={(e) => setOrdem(e.target.value as OrdemRestauracao)}>
+                    {ORDENS.map((o) => (
+                      <option key={o.id} value={o.id}>
+                        {o.rotulo}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  Caminho de restauração
+                  <select value={modo ?? ""} onChange={(e) => setModo((e.target.value || null) as Modo | null)}>
+                    <option value="">Todos</option>
+                    {MODOS.map((m) => (
+                      <option key={m.id} value={m.id}>
+                        {m.nome}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+              {listaOrdenada.length ? (
+                <TabelaFazendas lista={listaOrdenada} aoPassar={aoPassar} valor={ordem !== "area"} />
               ) : (
                 <Estado tipo="vazio" titulo={funil?.aptas_carbono === 0 ? `Nenhuma fazenda apta em ${nomeMun}.` : "Nenhuma fazenda nesta seleção."} />
               )}

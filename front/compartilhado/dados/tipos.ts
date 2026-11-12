@@ -129,7 +129,8 @@ export interface Geo {
   }[]
 }
 
-export type CamadaGeo = "municipio" | "imoveis" | "ti" | "uc" | "rios"
+/** terra_publica: glebas públicas não destinadas e UC de uso sustentável de domínio público (só pela API) */
+export type CamadaGeo = "municipio" | "imoveis" | "ti" | "uc" | "rios" | "terra_publica"
 
 /**
  * Fazendas aptas (ou aptas com pendência) como ponto, para os agrupamentos no mapa de um estado. Com o contorno da

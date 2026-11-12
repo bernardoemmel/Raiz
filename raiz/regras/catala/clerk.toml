@@ -1,0 +1,11 @@
+# Projeto Catala das regras federais (E2 passo 2). Compilar: clerk build; testar: clerk test.
+# O Python gerado é copiado para raiz/regras/gerado/ por `raiz regras gerar` (ver README.md).
+[project]
+include_dirs = ["."]
+build_dir = "_build"
+target_dir = "_target"
+
+[[target]]
+name = "regras_federais"
+backends = ["python"]
+modules = ["Codigo_florestal"]

@@ -36,14 +36,15 @@ export function Explorar({ municipio, uf }: { municipio: string | null; uf: stri
   const imoveis = useCarga(() => (municipio ? fonte.imoveis(municipio) : Promise.resolve(null)), [municipio])
   const geoMunicipio = useCarga<GeoMunicipio | null>(async () => {
     if (!municipio) return null
-    const [m, i, ti, uc, rios] = await Promise.all([
+    const [m, i, ti, uc, rios, terraPublica] = await Promise.all([
       fonte.geo.camada(municipio, "municipio"),
       fonte.geo.camada(municipio, "imoveis"),
       fonte.geo.camada(municipio, "ti"),
       fonte.geo.camada(municipio, "uc"),
       fonte.geo.camada(municipio, "rios"),
+      fonte.geo.camada(municipio, "terra_publica").catch(() => null), // só a API tem; a amostra não
     ])
-    return { municipio: m, imoveis: i, ti, uc, rios }
+    return { municipio: m, imoveis: i, ti, uc, rios, terraPublica }
   }, [municipio])
 
   const [foco, setFoco] = useState<Foco>(null)

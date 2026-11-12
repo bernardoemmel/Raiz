@@ -1,0 +1,252 @@
+# Testes das regras federais
+
+Casos tirados do funil real do município 1504950 (testes/dados/imoveis_teste/PA.yaml) e casos de cada artigo.
+Rodar: `clerk test` dentro de raiz/regras/catala.
+
+> Using Codigo_florestal
+
+```catala
+#[test]
+declaration scope TesteImovelPequenoDoPara:
+  output laudo content Codigo_florestal.LaudoFederal
+
+scope TesteImovelPequenoDoPara:
+  definition laudo equals output of Codigo_florestal.LaudoFederal with {
+    -- imovel: Codigo_florestal.Imovel {
+      -- na_amazonia_legal: true
+      -- vegetacao: Codigo_florestal.Vegetacao.Floresta
+      -- area_ha: 35.781504
+      -- modulos_fiscais: 0.4737
+      -- nao_floresta_ha: 0.0
+      -- floresta_remanescente_ha: 0.0
+      -- area_aberta_ha: 35.781504
+    }
+    -- app_escadinha_ha: 0.0
+    -- reducao_art12_par4_ou_par5: true
+  }
+  assertion laudo.pct_RL = 80.0
+  assertion laudo.pct_RL_alem = 50.0
+  assertion laudo.deficit_RL_ha = 28.6252032
+  assertion laudo.deficit_RL_alem_ha = 17.890752
+  # art. 67: até 4 módulos, toda a área aberta fica livre
+  assertion laudo.alem_RL_ha = 35.781504
+```
+
+```catala
+#[test]
+declaration scope TesteImovelGrandeDoPara:
+  output laudo content Codigo_florestal.LaudoFederal
+
+scope TesteImovelGrandeDoPara:
+  definition laudo equals output of Codigo_florestal.LaudoFederal with {
+    -- imovel: Codigo_florestal.Imovel {
+      -- na_amazonia_legal: true
+      -- vegetacao: Codigo_florestal.Vegetacao.Floresta
+      -- area_ha: 22389.40209
+      -- modulos_fiscais: 317.6679
+      -- nao_floresta_ha: 10.042281
+      -- floresta_remanescente_ha: 16194.419172
+      -- area_aberta_ha: 6184.940636
+    }
+    -- app_escadinha_ha: 3.900761
+    -- reducao_art12_par4_ou_par5: true
+  }
+  assertion laudo.deficit_RL_ha = 1709.0686752
+  assertion laudo.deficit_RL_alem_ha = 0.0
+  assertion laudo.alem_RL_ha = 6184.940636
+  # acima de 4 módulos não há teto do art. 61-B
+  assertion laudo.app_recompor_ha = 3.900761
+```
+
+```catala
+#[test]
+declaration scope TesteSemReducaoECerrado:
+  output floresta content Codigo_florestal.ReservaLegal
+  output cerrado content Codigo_florestal.ReservaLegal
+  output fora content Codigo_florestal.ReservaLegal
+
+scope TesteSemReducaoECerrado:
+  definition floresta equals output of Codigo_florestal.ReservaLegal with {
+    -- imovel: Codigo_florestal.Imovel {
+      -- na_amazonia_legal: true -- vegetacao: Codigo_florestal.Vegetacao.Floresta
+      -- area_ha: 1000.0 -- modulos_fiscais: 10.0 -- nao_floresta_ha: 0.0
+      -- floresta_remanescente_ha: 300.0 -- area_aberta_ha: 700.0
+    }
+  }
+  # sem as condições dos §§ 4º e 5º, a recomposição é até 80%
+  assertion floresta.percentual_recomposicao = 0.80
+  assertion floresta.deficit_devido_ha = 500.0
+  assertion floresta.area_alem_da_reserva_ha = 200.0
+
+  definition cerrado equals output of Codigo_florestal.ReservaLegal with {
+    -- imovel: Codigo_florestal.Imovel {
+      -- na_amazonia_legal: true -- vegetacao: Codigo_florestal.Vegetacao.Cerrado
+      -- area_ha: 1000.0 -- modulos_fiscais: 10.0 -- nao_floresta_ha: 0.0
+      -- floresta_remanescente_ha: 300.0 -- area_aberta_ha: 700.0
+    }
+    -- reducao_art12_par4_ou_par5: true
+  }
+  # a redução dos §§ 4º e 5º é só para floresta (alínea a)
+  assertion cerrado.percentual = 0.35
+  assertion cerrado.percentual_recomposicao = 0.35
+  assertion cerrado.deficit_devido_ha = 50.0
+
+  definition fora equals output of Codigo_florestal.ReservaLegal with {
+    -- imovel: Codigo_florestal.Imovel {
+      -- na_amazonia_legal: false -- vegetacao: Codigo_florestal.Vegetacao.Floresta
+      -- area_ha: 1000.0 -- modulos_fiscais: 10.0 -- nao_floresta_ha: 0.0
+      -- floresta_remanescente_ha: 100.0 -- area_aberta_ha: 900.0
+    }
+  }
+  assertion fora.percentual = 0.20
+  assertion fora.deficit_devido_ha = 100.0
+```
+
+```catala
+#[test]
+declaration scope TesteArtigos15E68:
+  output com_app content Codigo_florestal.ReservaLegal
+  output art68 content Codigo_florestal.ReservaLegal
+
+scope TesteArtigos15E68:
+  definition com_app equals output of Codigo_florestal.ReservaLegal with {
+    -- imovel: Codigo_florestal.Imovel {
+      -- na_amazonia_legal: false -- vegetacao: Codigo_florestal.Vegetacao.Floresta
+      -- area_ha: 1000.0 -- modulos_fiscais: 10.0 -- nao_floresta_ha: 0.0
+      -- floresta_remanescente_ha: 150.0 -- area_aberta_ha: 850.0
+    }
+    -- computa_app_art15: true
+    -- app_conservada_fora_da_floresta_ha: 30.0
+  }
+  assertion com_app.vegetacao_computada_ha = 180.0
+  assertion com_app.deficit_ha = 20.0
+
+  definition art68 equals output of Codigo_florestal.ReservaLegal with {
+    -- imovel: Codigo_florestal.Imovel {
+      -- na_amazonia_legal: true -- vegetacao: Codigo_florestal.Vegetacao.Floresta
+      -- area_ha: 1000.0 -- modulos_fiscais: 10.0 -- nao_floresta_ha: 0.0
+      -- floresta_remanescente_ha: 500.0 -- area_aberta_ha: 500.0
+    }
+    -- supressao_respeitou_lei_da_epoca: true
+  }
+  # o déficit continua medido, mas não é devido
+  assertion art68.deficit_ha = 300.0
+  assertion art68.deficit_devido_ha = 0.0
+  assertion art68.area_alem_da_reserva_ha = 500.0
+```
+
+```catala
+#[test]
+declaration scope TesteFaixasDeApp:
+  output esc_1mf content decimal
+  output esc_2mf content decimal
+  output esc_4mf content decimal
+  output esc_8mf_rio_estreito content decimal
+  output esc_8mf_rio_largo content decimal
+  output esc_8mf_sem_largura content decimal
+  output esc_20mf_sem_largura content decimal
+  output esc_20mf_rio_300m content decimal
+  output nascente content decimal
+  output vereda_pequeno content decimal
+  output vereda_grande content decimal
+  output lago_grande content decimal
+  output art4_rio_10m content decimal
+  output art4_rio_600m content decimal
+  output art4_rio_601m content decimal
+  output art4_lago_pequeno content decimal
+
+scope TesteFaixasDeApp:
+  definition esc_1mf equals (output of Codigo_florestal.FaixaApp with {
+    -- corpo: Codigo_florestal.CorpoDagua.CursoDagua content Codigo_florestal.Rio { -- largura_conhecida: true -- largura_m: 80.0 }
+    -- modulos_fiscais: 1.0 -- area_consolidada: true }).faixa_m
+  definition esc_2mf equals (output of Codigo_florestal.FaixaApp with {
+    -- corpo: Codigo_florestal.CorpoDagua.CursoDagua content Codigo_florestal.Rio { -- largura_conhecida: false -- largura_m: 0.0 }
+    -- modulos_fiscais: 1.5 -- area_consolidada: true }).faixa_m
+  definition esc_4mf equals (output of Codigo_florestal.FaixaApp with {
+    -- corpo: Codigo_florestal.CorpoDagua.CursoDagua content Codigo_florestal.Rio { -- largura_conhecida: true -- largura_m: 300.0 }
+    -- modulos_fiscais: 4.0 -- area_consolidada: true }).faixa_m
+  definition esc_8mf_rio_estreito equals (output of Codigo_florestal.FaixaApp with {
+    -- corpo: Codigo_florestal.CorpoDagua.CursoDagua content Codigo_florestal.Rio { -- largura_conhecida: true -- largura_m: 10.0 }
+    -- modulos_fiscais: 8.0 -- area_consolidada: true }).faixa_m
+  definition esc_8mf_rio_largo equals (output of Codigo_florestal.FaixaApp with {
+    -- corpo: Codigo_florestal.CorpoDagua.CursoDagua content Codigo_florestal.Rio { -- largura_conhecida: true -- largura_m: 12.0 }
+    -- modulos_fiscais: 8.0 -- area_consolidada: true }).faixa_m
+  definition esc_8mf_sem_largura equals (output of Codigo_florestal.FaixaApp with {
+    -- corpo: Codigo_florestal.CorpoDagua.CursoDagua content Codigo_florestal.Rio { -- largura_conhecida: false -- largura_m: 0.0 }
+    -- modulos_fiscais: 8.0 -- area_consolidada: true }).faixa_m
+  definition esc_20mf_sem_largura equals (output of Codigo_florestal.FaixaApp with {
+    -- corpo: Codigo_florestal.CorpoDagua.CursoDagua content Codigo_florestal.Rio { -- largura_conhecida: false -- largura_m: 0.0 }
+    -- modulos_fiscais: 20.0 -- area_consolidada: true }).faixa_m
+  definition esc_20mf_rio_300m equals (output of Codigo_florestal.FaixaApp with {
+    -- corpo: Codigo_florestal.CorpoDagua.CursoDagua content Codigo_florestal.Rio { -- largura_conhecida: true -- largura_m: 300.0 }
+    -- modulos_fiscais: 20.0 -- area_consolidada: true }).faixa_m
+  definition nascente equals (output of Codigo_florestal.FaixaApp with {
+    -- corpo: Codigo_florestal.CorpoDagua.Nascente -- modulos_fiscais: 0.5 -- area_consolidada: true }).faixa_m
+  definition vereda_pequeno equals (output of Codigo_florestal.FaixaApp with {
+    -- corpo: Codigo_florestal.CorpoDagua.Vereda -- modulos_fiscais: 3.0 -- area_consolidada: true }).faixa_m
+  definition vereda_grande equals (output of Codigo_florestal.FaixaApp with {
+    -- corpo: Codigo_florestal.CorpoDagua.Vereda -- modulos_fiscais: 30.0 -- area_consolidada: true }).faixa_m
+  definition lago_grande equals (output of Codigo_florestal.FaixaApp with {
+    -- corpo: Codigo_florestal.CorpoDagua.LagoNatural content Codigo_florestal.Lago { -- superficie_ha: 50.0 }
+    -- modulos_fiscais: 30.0 -- area_consolidada: true }).faixa_m
+  definition art4_rio_10m equals (output of Codigo_florestal.FaixaApp with {
+    -- corpo: Codigo_florestal.CorpoDagua.CursoDagua content Codigo_florestal.Rio { -- largura_conhecida: true -- largura_m: 10.0 }
+    -- modulos_fiscais: 1.0 -- area_consolidada: false }).faixa_m
+  definition art4_rio_600m equals (output of Codigo_florestal.FaixaApp with {
+    -- corpo: Codigo_florestal.CorpoDagua.CursoDagua content Codigo_florestal.Rio { -- largura_conhecida: true -- largura_m: 600.0 }
+    -- modulos_fiscais: 1.0 -- area_consolidada: false }).faixa_m
+  definition art4_rio_601m equals (output of Codigo_florestal.FaixaApp with {
+    -- corpo: Codigo_florestal.CorpoDagua.CursoDagua content Codigo_florestal.Rio { -- largura_conhecida: true -- largura_m: 601.0 }
+    -- modulos_fiscais: 1.0 -- area_consolidada: false }).faixa_m
+  definition art4_lago_pequeno equals (output of Codigo_florestal.FaixaApp with {
+    -- corpo: Codigo_florestal.CorpoDagua.LagoNatural content Codigo_florestal.Lago { -- superficie_ha: 20.0 }
+    -- modulos_fiscais: 1.0 -- area_consolidada: false }).faixa_m
+
+  assertion esc_1mf = 5.0
+  assertion esc_2mf = 8.0
+  assertion esc_4mf = 15.0
+  assertion esc_8mf_rio_estreito = 20.0
+  assertion esc_8mf_rio_largo = 30.0
+  assertion esc_8mf_sem_largura = 20.0
+  assertion esc_20mf_sem_largura = 30.0
+  assertion esc_20mf_rio_300m = 100.0
+  assertion nascente = 15.0
+  assertion vereda_pequeno = 30.0
+  assertion vereda_grande = 50.0
+  assertion lago_grande = 30.0
+  assertion art4_rio_10m = 50.0
+  assertion art4_rio_600m = 200.0
+  assertion art4_rio_601m = 500.0
+  assertion art4_lago_pequeno = 50.0
+```
+
+```catala
+#[test]
+declaration scope TesteTetoArt61B:
+  output ate_2mf content decimal
+  output ate_4mf content decimal
+  output acima content decimal
+
+scope TesteTetoArt61B:
+  definition ate_2mf equals (output of Codigo_florestal.AppARecompor with {
+    -- imovel: Codigo_florestal.Imovel {
+      -- na_amazonia_legal: true -- vegetacao: Codigo_florestal.Vegetacao.Floresta
+      -- area_ha: 100.0 -- modulos_fiscais: 2.0 -- nao_floresta_ha: 0.0
+      -- floresta_remanescente_ha: 0.0 -- area_aberta_ha: 100.0 }
+    -- app_escadinha_ha: 25.0 }).app_recompor_ha
+  definition ate_4mf equals (output of Codigo_florestal.AppARecompor with {
+    -- imovel: Codigo_florestal.Imovel {
+      -- na_amazonia_legal: true -- vegetacao: Codigo_florestal.Vegetacao.Floresta
+      -- area_ha: 100.0 -- modulos_fiscais: 3.0 -- nao_floresta_ha: 0.0
+      -- floresta_remanescente_ha: 0.0 -- area_aberta_ha: 100.0 }
+    -- app_escadinha_ha: 25.0 }).app_recompor_ha
+  definition acima equals (output of Codigo_florestal.AppARecompor with {
+    -- imovel: Codigo_florestal.Imovel {
+      -- na_amazonia_legal: true -- vegetacao: Codigo_florestal.Vegetacao.Floresta
+      -- area_ha: 100.0 -- modulos_fiscais: 5.0 -- nao_floresta_ha: 0.0
+      -- floresta_remanescente_ha: 0.0 -- area_aberta_ha: 100.0 }
+    -- app_escadinha_ha: 25.0 }).app_recompor_ha
+  assertion ate_2mf = 10.0
+  assertion ate_4mf = 20.0
+  assertion acima = 25.0
+```

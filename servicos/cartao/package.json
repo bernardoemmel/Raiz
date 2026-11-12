@@ -1,0 +1,10 @@
+{
+  "name": "raiz-cartao",
+  "private": true,
+  "type": "module",
+  "description": "Cartão, adesivo e quadros do vídeo da fazenda com o Takumi (chamado pelo back-end da Raíz)",
+  "dependencies": {
+    "@takumi-rs/core": "2.20.0",
+    "@takumi-rs/helpers": "2.20.0"
+  }
+}

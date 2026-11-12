@@ -45,6 +45,11 @@ Observação do motor atual (12/11): o funil já roda o Brasil por município (m
 | 7 | Manifesto público no GitHub (CSV e GeoJSON) gerado a cada checagem e, se fizer sentido, catálogo estático com Portolan no R2. | passo 2 | 2 a 3 |
 | 7 | Gerar o 'diff da semana' por município (no molde do ArchiveDiffer da Delphi) e publicar a lista de municípios alterados para a E8 | passos 4 e 6 | 3 a 5 |
 | 8 | Pedidos por LAI ao SFB (data_atualizacao nas 12 UFs e camada de exclusões) e ao INCRA (novo endereço dos ZIP e lista de canceladas), citando LINZ, SDMX e o índice diário da SEC | nada | 1 a 2 |
+| 4 | (rodada 10) Antes do hash, normalizar a geometria: precisão fixa e vértices em ordem padrão | passo 4 | 1 a 2 |
+| 4 | (rodada 10) Resumo por município (contagem + hash do conjunto); comparar imóvel a imóvel só onde o resumo mudou | passo 4 | 1 a 2 |
+| 5 | (rodada 10) Marcador da paginação só anda depois da página gravada (camadas grandes e backfill) | passo 4 | 2 a 3 |
+| 6 | (rodada 10) Trava de versão: arquivo que muda mais de 25% ou conjunto que muda mais de 15% não é publicado sem revisão | passo 4 | 1 a 2 |
+| 1 | (rodada 10) MapBiomas só pela API da Plataforma, por estado (categoria 214), como motor/raiz_mapbiomas.py: o armazenamento público fechou (403) | nada | feito |
 
 ## E2. Funil por imóvel
 
@@ -72,6 +77,7 @@ Observação do motor atual (12/11): o funil já roda o Brasil por município (m
 | 7 | Fila retomável e incremental: um alvo por bloco num Makefile gerado em Python (desenho do WSIM) ou no SQLMesh; arquivo 'BUSY_' e pular saída existente (desenho do cropclassification); refazer só blocos cujo CAR ou camada mudou (comparação de versões como no RPG da França) | passos 4 a 6 | 6 a 10 |
 | 8 | Pasta de reformas: cada projeto de lei ou decreto novo vira um arquivo de diferença (padrão Tax-Calculator) para simular o efeito sobre os imóveis antes de valer | passos 1 e 7 | 3 a 5 |
 | 8 | Conferência: comparar flox, 'pixels em polígonos' e exactextract em 1.000 imóveis sorteados e publicar a diferença no painel; checagem de mistura de classes por imóvel (desenho FOI do JRC) | passo 7 | 3 a 5 |
+| 7 | (rodada 10) Mudança de geometria menor que 0,5 ha não volta ao funil (entra no changelog, não na lista de sujos) | passo 7 | 1 |
 
 ## E3. Conta de carbono e de dinheiro
 
@@ -89,6 +95,22 @@ Observação do motor atual (12/11): o funil já roda o Brasil por município (m
 | 5 | Dinheiro: VPL e TIR por sorteio com PyXIRR e partilha dono/desenvolvedor/Raíz no padrão pyscnomics; caminhos de preço com as dinâmicas do rangekeeper | passo 4 | 5 a 8 |
 | 6 | Sensibilidade: SALib delta sobre a mesma amostra (como bicrs-lca), uma vez por bioma, para o tornado e a decomposição da incerteza no laudo | passo 4 | 3 a 4 |
 | 7 | Desconto de incerteza da VM0047 e oferta de "quantas parcelas medir" (Carbon_MRV 04_sampling_design); snapshot das fazendas-modelo no CI | passos 4 e 6 | 3 a 5 |
+| 3 | (rodada 10) Monte Carlo com sequência de Sobol (scipy.stats.qmc) no lugar do sorteio simples | passo 2 | 1 a 2 |
+| 3 | (rodada 10) Cópula vine (pyvinecopulib, conferir licença) no lugar da gaussiana para a correlação entre entradas | passo 2 | 3 a 5 |
+| 3 | (rodada 10) P90 da carteira pelo modelo de Vasicek (fator comum por bioma e município) ao lado do Monte Carlo | passo 3 | 2 a 4 |
+| 7 | (rodada 10) Amostragem de campo do grupo pela norma do MDL: 90% de confiança, 10% de erro, mínimo de 30 parcelas | passo 6 | 2 a 3 |
+| 1 | (GHG LSR v1.1, vale a partir de 1/1/2027; o SBTi FLAG segue) Meta FLAG separada de crédito: flag_<mun>.csv com silvipastoril, cacau e tCO2 com faixa; restauração, RL, APP e capoeira vão para crédito Verra ou compensação; regra versionada em raiz/regras/padroes/ghg_lsr.yaml, gravada em cada cálculo e refeita quando muda (`raiz flag recalcular`); ficha e simulador sem somar os dois blocos | motor (pasto, RL, APP, MapBiomas) | feito |
+| 2 | (GHG LSR v1.1) Calibrar as faixas de remoção de silvipastoril e de SAF de cacau (GROA, CC BY, e literatura da Amazônia) e trocar a viabilidade do cacau por bioma pelo zoneamento de risco climático do cacau (ZARC/MAPA) por município | passo anterior | 4 a 8 |
+| 3 | (GHG LSR v1.1) Requisitos por fazenda com dado de verdade: vínculo CAR com frigorífico (fornecedor direto) para o rastreio; medição de campo com nova amostragem a cada 5 anos, gravada como gabarito (E8); direito de reportar no contrato (E6) | E6, E8 | 8 a 12 |
+| 4 | (GHG LSR v1.1) Requirement 7 (floresta ligada à produção: mesmo dono, mesmo plano de manejo, vizinha, ligada à produção) já modelado e desligado; ligar quando o padrão incluir floresta, só trocando ativo e a versão na tabela | nada | 0,5 |
+| 5 | Valor para quem restaura (desenvolvedor de crédito: Systemica, re.green, brCarbon, Mombak, Biomas): modo por regra escrita (distância à mata, idade e vigor do pasto, fogo, declividade), custo e captura P10/P50/P90 com ajustes (acesso OSM, Copernicus, CHIRPS, SoilGrids), linha de base dinâmica VM0047 medida no YbYrá, crédito líquido, fluxo de caixa do ProFloresta+ (VPL, TIR sem e com Fundo Clima, pico de capital), lotes de vizinhas, bloco na ficha e painel ordenado; estimativas congeladas e recalibração com o real do cliente | motor, E8 | feito |
+| 6 | Rodada 11 como cenário padrão (central_r11): captura em curva (forma da URTX, 588,8 t em 40 anos no plantio e 442,8 t na regeneração, teto por bioma), custos oficiais do SFB por ano, descontos em ordem (linha de base com piso de 10%, vazamento VMD0054 de 10%, reserva, incerteza), marcos do ProFloresta+ com chance de cumprir, multa esperada e rescisão, pagamento ao dono comparado com o aluguel do Censo Agro 2017 e o aceite em duas fases, Fundo Clima pelo ICSD 1,3, venda depois do ano 25, PTAX do Banco Central; premissas antigas no otimista_fundador | passo anterior | feito |
+| 6b | Calibrar o valor para quem restaura com custo e captura reais dos primeiros clientes e medir o vazamento (VMD0054) fazenda a fazenda | passo anterior e clientes | 4 a 8 |
+| 7 | Caminho da terra no lugar do corte por matrícula: seis caminhos com risco e motivo (Verra VCS 5.0 3.6.2; Lei 15.042/2024 arts. 43, 47 e 49; ProFloresta+ fase 1), sobreposição com SIGEF do espelho, CNFP do SFB, CNUC, TI e quilombos; etapa "Caminho da terra" no funil com barras pronta agora, em espera e só mostrar; selo prata só para matrícula conferida ou concessão; camada de terra pública para restaurar com custo, captura e crédito; concessões e editais com data e link | motor, espelho SIGEF, CNFP | feito |
+| 8 | Carregar o polígono exato das concessões do Ideflor-Bio (página "Concessão Florestal, Shapes") e do SFB, e o processo de titulação do Iterpa e do INCRA por imóvel (hoje só o estado da parcela no SIGEF) | passo anterior | 3 a 6 |
+| 9 | Motor dentro do produto (agente Dados): executor por estado e município com marca de concluído por tarefa (versão, assinatura, sha das saídas), retomada depois de matar, refazer só o afetado (versão da tarefa, fonte do município, saída anterior), armazém no Release "dados" do GitHub (produção; S3 com R2 ou SeaweedFS como opção futura) com versão e data em cada arquivo, workflow processar-estados chamando `raiz executor rodar --ate-minutos`, back-end lendo o armazém (sincronizar, carga do que mudou, sob demanda por imóvel), /brasil, /estados, painel do processamento, agenda anual (coleção do MapBiomas) e parcial | E1, E2 | feito |
+| 10 | Pedido de lote (docs/cena-alvo.md): oferta por fazenda (negocio.oferta, refeita a cada carga), pedido com os campos da cena-alvo, quanto existe na base por caminho da terra e interesse do dono com P10/P50/P90, o que falta e o que afrouxar, 3 opções do mesmo solver (HiGHS pelo scipy: mais barata, mais segura, mais compacta, com forma do lote e vazamento zero com fazenda de mitigação) e 10 a 20% de reserva, troca de fazenda, entrar sem senha, interesse do dono por nível (só o nível sai na API), ondas de contato dimensionadas pela chance de aceite (envio simulado), andamento, grupo pronto com aviso (painel, e-mail, WhatsApp), reserva com Pix da AbacatePay (modo de teste) e exclusividade de 60 dias, contrato com abatimento, vigia do pedido salvo e chance de aceite que aprende com cada contato | passos 6 e 9 | feito |
+| 11 | Ligar o envio de verdade das ondas (agente de aceite no WhatsApp com o termo, carta e parceiro local) e a chave de produção da AbacatePay; calibrar a chance de aceite e o valor da conexão com os primeiros pedidos | passo 10 e clientes | 6 a 10 |
 
 ## E4. Rebanho, metano e solo
 
@@ -159,6 +181,10 @@ Observação do motor atual (12/11): o funil já roda o Brasil por município (m
 | 6 | Montar o backoffice do fundador (saúde, custo do mês contra orçamento, logs por fazenda) no estilo do Ezra, só leitura | E7 passos 3 e 4 | 6 a 10 |
 | 8 | Extração de matrícula com BAML (SAP) e cache calibrado com MAPIE | Langfuse para medir antes e depois | 6 a 10 |
 | 9 | Escalonamento de alertas (Healthchecks para ntfy e, se houver segunda pessoa, GoAlert) | Healthchecks | 3 a 6 |
+| 10 | (rodada 10) Qwen3-4B só para classificação curta; tarefa com várias chamadas de ferramenta vai ao Haiku ou ao Sonnet | passo 1 | 1 a 2 |
+| 10 | (rodada 10) Teste próprio em português: 30 a 200 tarefas, 3 tentativas seguidas por tarefa, 15% das tarefas sem resposta válida (o modelo tem de dizer que não sabe) | passo 3 | 4 a 6 |
+| 10 | (rodada 10) Cascata por confiança: só os 20 a 30% menos confiantes sobem de modelo (corte calibrado no teste acima) | teste acima | 2 a 4 |
+| 10 | (rodada 10) llama.cpp compilado com llguidance para a gramática JSON | passo 1 | 1 a 2 |
 
 ## E8. Aprendizado contínuo
 
@@ -172,6 +198,10 @@ Observação do motor atual (12/11): o funil já roda o Brasil por município (m
 | 6 | Campeão e desafiante: portão de promoção com score probabilístico e calibração dentro de tolerância, promoção automática com intervalo, trava e volta atrás manual; nota só quando o horizonte amadurecer | passo 5 | 6 a 10 |
 | 7 | Orquestração: Dagster com sensor de dado novo, partições município x ano, condição de automação 'needs_updating' e memória declarada por asset (ou cron com sqlmesh run, se preferir não usar Dagster) | passos 3 e 6 | 6 a 10 |
 | 10 | Modelo de sobrevivência do aceite do dono (lifelines) e regra de canário para modelos novos no SQLMesh | histórico de contatos | 5 a 8 |
+| 1 | (rodada 10) Gravar a chance de escolha em cada conferência (gabarito), para pesar a amostra | nada | feito no esquema |
+| 6 | (rodada 10) Sorteio das conferências em duas metades: uma aleatória e uma dirigida aos mais duvidosos | passo 4 | 2 a 4 |
+| 6 | (rodada 10) Calibração por UF e faixa de área (MCGrad, conferir licença) | passo 5 | 4 a 6 |
+| 6 | (rodada 10) Área apta com intervalo pelo estimador de Olofsson (mapaccuracy, conferir licença) | sorteio acima | 3 a 5 |
 
 ## E9. O que as pessoas veem
 
@@ -200,3 +230,9 @@ Observação do motor atual (12/11): o funil já roda o Brasil por município (m
 | 8 | Pacote offline mensal por município para técnicos: pmtiles extract e remendo com zstd --patch-from | PMTiles do Brasil e PWA com Workbox | 4 a 8 |
 | 9 | Opcional: treinar uma voz Piper do zero só com dados CC0 (sem a voz lessac) para rodar em CPU e no celular | passo 5 | 6 a 10 de trabalho, mais o tempo de GPU |
 | 11 | Página de aceite do dono com componentes do gov.br DS, grade de ícones (PyWaffle) e motivos específicos de 'não apto' | Preact | 6 a 10 |
+| 1 | (API do front) Rotas que o front espera (front/README.md, "Depois (API)"): /municipios, /municipios/{cod_ibge}/imoveis, /imoveis/{cod_imovel}, /ficha, /certidoes, /geo/{cod_ibge}/{municipio,imoveis,ti,uc,rios}.geojson e base.pmtiles com Range, servidas do PostGIS com os nomes de coluna dos CSV, CPF/CNPJ mascarados e Bearer; camadas do mapa carregadas por `raiz geo carregar` | carga do motor (fundação) | feito |
+| 2 | (API do front) Cache por rodada (ETag pelo hash da rodada) e lista de imóveis em pedaços ou em formato colunar para município grande (São Félix: 2,8 MB comprimidos, 3,4 s) | passo anterior | 2 a 4 |
+| 2 | (API do front) Divisa, TI, UC e rios vindos da coleta (E1) direto no PostGIS, no lugar dos arquivos do front/scripts/geo.py; um mapa base PMTiles do Brasil servido com Range | E1 | 3 a 5 |
+| 6 | (API do front) Fichas em JSON do lote anual (passo 1) servidas como arquivo estático; a API fica para o painel interno e para o que muda no dia | passo 1 | 1 a 2 |
+| 1 | (busca) Busca nacional pelo código do CAR (inteiro ou começo, com ou sem pontos e traços) e pelo nome do município, no contrato de front/compartilhado/dados/busca.ts; índice por código normalizado; 6,7 milhões de imóveis sintéticos: pior resposta 0,49 s | carga contínua | feito |
+| 1 | (busca) Carga contínua das saídas do motor por estado (`raiz vigiar`), só o município que mudou, com a versão anterior guardada | carga do motor | feito |

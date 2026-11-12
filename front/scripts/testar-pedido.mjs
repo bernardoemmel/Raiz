@@ -130,7 +130,7 @@ try {
   const custoBarata = await p.locator(".aba-conteudo[data-state=active] .ficha-numeros dd").nth(3).textContent()
   await p.getByRole("tab", { name: "Mais segura" }).click()
   const custoSegura = await p.locator(".aba-conteudo[data-state=active] .ficha-numeros dd").nth(3).textContent()
-  conferir(custoBarata !== custoSegura && (await p.locator(".aba-conteudo[data-state=active] .faixa-barra").count()) === 1, "cada opção com os seus números e a faixa P10 a P90")
+  conferir(custoBarata !== custoSegura && (await p.locator(".aba-conteudo[data-state=active] .faixa-pedido").count()) === 1, "cada opção com os seus números e a faixa P10 a P90")
   await p.getByRole("tab", { name: "Mais barata" }).click()
 
   // 4. ficha e troca

@@ -1664,15 +1664,15 @@ button.link:hover {
 }
 
 /* faixa P10 a P90 (guia, item 1.6) */
-.faixa-barra {
+.faixa-pedido {
   position: relative;
   height: 18px;
   margin: var(--e2) 0;
 }
-.faixa-barra span {
+.faixa-pedido span {
   position: absolute;
 }
-.faixa-trilho {
+.fp-trilho {
   top: 7px;
   left: 0;
   right: 0;
@@ -1680,21 +1680,21 @@ button.link:hover {
   border-radius: 2px;
   background: var(--nevoa);
 }
-.faixa-p10p90 {
+.fp-p10p90 {
   top: 5px;
   height: 8px;
   border-radius: 2px;
   background: var(--restaurar);
   opacity: 0.45;
 }
-.faixa-meta {
+.fp-meta {
   top: 0;
   bottom: 0;
   width: 2px;
   margin-left: -1px;
   background: var(--urucum-texto);
 }
-.faixa-p50 {
+.fp-p50 {
   top: 4px;
   width: 10px;
   height: 10px;
@@ -1831,18 +1831,18 @@ button.link:hover {
   color: var(--urucum);
   font-size: var(--t-subtitulo);
 }
-.marcos {
+.marcos-pedido {
   margin: var(--e3) 0;
 }
 .mistura {
   font-size: var(--t-legenda);
 }
-.como-calculamos {
+.como-calculamos-pedido {
   margin: var(--e3) 0;
   font-size: var(--t-legenda);
   color: var(--pedra);
 }
-.como-calculamos summary {
+.como-calculamos-pedido summary {
   min-height: 40px;
   color: var(--tinta);
   font-weight: 700;
@@ -2030,4 +2030,158 @@ button.link:hover {
   .pagina-media {
     padding: var(--e4) var(--e4) var(--e8);
   }
+}
+
+/* ---------- para quem restaura (valor para o desenvolvedor): faixa P10 a P90 com ponto no P50 ---------- */
+.aviso-estimativa {
+  display: flex;
+  gap: var(--e3);
+  align-items: flex-start;
+  background: var(--nevoa);
+  padding: var(--e3) var(--e4);
+  margin: var(--e2) 0 var(--e4);
+}
+.aviso-icone {
+  flex: 0 0 28px;
+  height: 28px;
+  border-radius: var(--raio-selo);
+  background: var(--tinta);
+  color: var(--superficie);
+  font-weight: 700;
+  display: grid;
+  place-items: center;
+}
+.aviso-estimativa strong {
+  font-weight: 700;
+  line-height: 1.45;
+}
+.restaurar-principal {
+  font-size: var(--t-subtitulo);
+  margin: 0 0 var(--e2);
+}
+.faixas {
+  margin: var(--e4) 0;
+  display: grid;
+  gap: var(--e3);
+}
+.faixa-linha {
+  display: grid;
+  grid-template-columns: minmax(160px, 1fr) 2fr;
+  gap: var(--e1) var(--e4);
+  align-items: center;
+  border-top: var(--linha);
+  padding-top: var(--e3);
+}
+.faixa-linha dt {
+  font-weight: 700;
+}
+.faixa-ajuda {
+  display: block;
+  font-weight: 400;
+  color: var(--pedra);
+  font-size: var(--t-legenda);
+}
+.faixa-linha dd {
+  margin: 0;
+  display: grid;
+  gap: var(--e2);
+}
+.faixa-barra {
+  position: relative;
+  display: block;
+  height: 10px;
+  background: var(--nevoa);
+}
+.faixa-p10-p90 {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: var(--restaurar);
+  opacity: 0.35;
+}
+.faixa-p50 {
+  position: absolute;
+  top: -3px;
+  width: 4px;
+  height: 16px;
+  margin-left: -2px;
+  background: var(--mata);
+}
+.como-calculamos summary {
+  cursor: pointer;
+  color: var(--mata-texto);
+  font-weight: 700;
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+}
+.marcos {
+  width: 100%;
+  border-collapse: collapse;
+  margin: var(--e3) 0;
+}
+.marcos th,
+.marcos td {
+  text-align: left;
+  padding: var(--e1) var(--e2);
+  border-bottom: var(--linha);
+}
+.marcos td.num {
+  text-align: right;
+}
+.ordem-restauro {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--e3);
+  margin: 0 0 var(--e3);
+}
+.ordem-restauro label {
+  display: flex;
+  flex-direction: column;
+  gap: var(--e1);
+  font-size: var(--t-legenda);
+  color: var(--pedra);
+}
+.ordem-restauro select {
+  min-height: 40px;
+  border: var(--linha);
+  border-radius: var(--raio-botao);
+  background: var(--superficie);
+  padding: 0 var(--e2);
+  color: var(--tinta);
+  font: inherit;
+}
+@media (max-width: 640px) {
+  .faixa-linha {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ---------- caminho da terra no funil: partes pronta agora, em espera, só mostrar ---------- */
+.fb-partes {
+  margin: var(--e1) 0 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--e1) var(--e4);
+  font-size: var(--t-legenda);
+  color: var(--pedra);
+}
+.fb-partes li::before {
+  content: "";
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  margin-right: var(--e1);
+  vertical-align: -1px;
+}
+.fb-partes .parte-pronta_agora::before {
+  background: var(--situacao-apta);
+}
+.fb-partes .parte-em_espera::before {
+  background: var(--situacao-pendencia);
+}
+.fb-partes .parte-so_mostrar::before {
+  background: repeating-linear-gradient(45deg, var(--situacao-nao-apta) 0 2px, var(--superficie) 2px 4px);
 }

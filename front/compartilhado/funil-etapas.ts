@@ -9,10 +9,11 @@
 import { MOTIVO, PORTE, PORTE_OPACIDADE, SITUACAO } from "./cores"
 import { texto } from "./dados/colunas"
 import type { FunilMunicipio, Imovel } from "./dados/tipos"
+import { caminhoDe, infoCaminho, SITUACOES as SITUACOES_TERRA, type SituacaoTerra } from "./terra"
 
 export type Porte = "pequeno" | "medio" | "grande"
 export type Situacao = "apta" | "pendencia" | "nao_apta"
-export type EtapaId = "car" | "limpos" | "aptas" | "matricula"
+export type EtapaId = "car" | "limpos" | "aptas" | "caminho"
 export type MotivoId = keyof typeof MOTIVO
 
 /** Lei 8.629/1993: pequena até 4 módulos fiscais, média de 4 a 15, grande acima de 15. */
@@ -24,16 +25,24 @@ export function porteDe(i: Imovel): Porte {
   return mf <= 4 ? "pequeno" : mf <= 15 ? "medio" : "grande"
 }
 
-/** Apta: passou no funil e tem matrícula no SIGEF; com pendência: passou, mas o título falta; não apta: o resto. */
+/** A situação da terra de uma fazenda (compartilhado/terra.ts): pronta agora, em espera ou só para mostrar. */
+export const terraDe = (i: Imovel): SituacaoTerra => infoCaminho(caminhoDe(i.linha)).situacao
+
+/** Apta: passou no funil e a terra está pronta agora (matrícula ou concessão); com pendência: passou, e a terra está
+ * em espera ou só para mostrar; não apta: o resto. A terra nunca tira a fazenda do mapa. */
 export function situacaoDe(i: Imovel): Situacao {
-  if (i.com_matricula) return "apta"
-  if (i.apta) return "pendencia"
-  return "nao_apta"
+  if (!i.apta) return "nao_apta"
+  return terraDe(i) === "pronta_agora" ? "apta" : "pendencia"
 }
 
 export const SITUACOES: { id: Situacao; rotulo: string; texto: string; cor: string; cruzada?: boolean }[] = [
-  { id: "apta", rotulo: "Apta", texto: "passou no funil e tem matrícula no SIGEF", cor: SITUACAO.apta },
-  { id: "pendencia", rotulo: "Apta com pendência", texto: "passou no funil, mas falta o título", cor: SITUACAO.pendencia },
+  { id: "apta", rotulo: "Apta", texto: "passou no funil e a terra está pronta (matrícula ou concessão)", cor: SITUACAO.apta },
+  {
+    id: "pendencia",
+    rotulo: "Apta com pendência",
+    texto: "passou no funil e a terra está em espera (posse em titulação, assentamento) ou é pública",
+    cor: SITUACAO.pendencia,
+  },
   { id: "nao_apta", rotulo: "Não apta", texto: "saiu em alguma etapa do funil", cor: SITUACAO.naoApta, cruzada: true },
 ]
 
@@ -89,11 +98,10 @@ export const REGRAS: Regra[] = [
     motivo: (i) => (i.carbono_ha <= 0 ? "sem_area" : "desmate10"),
   },
   {
-    id: "matricula",
-    rotulo: "Com matrícula no cartório",
-    dica: "Pelo menos metade do CAR coberta por parcela SIGEF particular com matrícula. Ainda se confere no cartório.",
-    entra: (i) => i.com_matricula,
-    motivo: (i) => (i.assentamento ? "assentamento" : "posse"),
+    id: "caminho",
+    rotulo: "Caminho da terra",
+    dica: "A terra não tira ninguém do funil: cada fazenda apta segue um caminho (matrícula, concessão, posse em titulação, assentamento, terra pública ou tradicional), pronta agora ou em espera.",
+    entra: (i) => i.apta,
   },
 ]
 
@@ -110,6 +118,8 @@ export interface EtapaFunil {
   porte: Partial<Record<Porte, Contagem>>
   /** quem saiu nesta etapa, por motivo, do maior para o menor */
   perdas: { motivo: MotivoId; n: number; ha: number }[]
+  /** só no caminho da terra: quantas prontas agora, em espera e só para mostrar (somam o total da etapa) */
+  terra?: Partial<Record<SituacaoTerra, Contagem>>
 }
 
 const soma = (xs: Imovel[]): Contagem => ({ n: xs.length, ha: xs.reduce((s, i) => s + i.ha, 0) })
@@ -127,6 +137,10 @@ export function etapasDoFunil(imoveis: Imovel[]): EtapaFunil[] {
     const porte: Partial<Record<Porte, Contagem>> = {}
     for (const p of ["grande", "medio", "pequeno"] as Porte[]) porte[p] = soma(dentro.filter((i) => porteDe(i) === p))
     anteriores = dentro
+    const terra: Partial<Record<SituacaoTerra, Contagem>> | undefined =
+      r.id === "caminho"
+        ? Object.fromEntries(SITUACOES_TERRA.map((s) => [s.id, soma(dentro.filter((i) => terraDe(i) === s.id))]))
+        : undefined
     return {
       id: r.id,
       rotulo: r.rotulo,
@@ -136,13 +150,15 @@ export function etapasDoFunil(imoveis: Imovel[]): EtapaFunil[] {
       perdas: [...porMotivo.entries()]
         .map(([motivo, xs]) => ({ motivo, ...soma(xs) }))
         .sort((a, b) => b.n - a.n),
+      terra,
     }
   })
 }
 
 /** Só com o resumo do município (sem a lista por fazenda): os totais de cada etapa, sem porte nem motivos. */
 export function etapasDoResumo(f: FunilMunicipio): EtapaFunil[] {
-  const n = [f.imoveis, f.sem_problema, f.aptas_carbono, f.aptas_com_matricula]
+  // o caminho da terra não corta: com só o resumo, a etapa tem as mesmas aptas
+  const n = [f.imoveis, f.sem_problema, f.aptas_carbono, f.aptas_carbono]
   return REGRAS.map((r, k) => ({ id: r.id, rotulo: r.rotulo, dica: r.dica, total: { n: n[k], ha: NaN }, porte: {}, perdas: [] }))
 }
 
@@ -174,7 +190,8 @@ export function noFoco(i: Imovel, foco: Foco): boolean {
  */
 export function fraseDoMunicipio(f: FunilMunicipio | null, etapas: EtapaFunil[], fmt: (n: number) => string): string {
   if (!f) return "Este município ainda não foi processado pela Raíz."
-  const prontos = f.aptas_com_matricula
+  const caminho = etapas.find((e) => e.id === "caminho")
+  const prontos = caminho?.terra?.pronta_agora?.n ?? f.aptas_com_matricula
   const base = `Dos ${fmt(f.imoveis)} imóveis no CAR de ${f.municipio}, ${fmt(prontos)} ${prontos === 1 ? "está pronto" : "estão prontos"} para conversar`
   // a maior perda entre uma etapa e a seguinte
   let maior: { etapa: EtapaFunil; perdeu: number } | null = null
@@ -187,7 +204,7 @@ export function fraseDoMunicipio(f: FunilMunicipio | null, etapas: EtapaFunil[],
     car: "",
     limpos: "em embargo, terra indígena ou desmate recente",
     aptas: "na falta de área para a mata voltar",
-    matricula: "na falta de matrícula",
+    caminho: "",
   }
   return `${base}; a maior perda está ${onde[maior.etapa.id]}.`
 }
