@@ -18,6 +18,12 @@ from raiz import restauracao_retomada as RT
 from raiz import restauracao_rodada as RR
 
 
+@pytest.fixture(autouse=True)
+def ambiente_privado(monkeypatch):
+    monkeypatch.setenv("RAIZ_DADOS_PRIVADOS_URL", f"release-github://{RT.REPO_ORIGEM}/{RT.TAG}")
+    monkeypatch.setenv("RAIZ_DADOS_PRIVADOS_TOKEN", "token-privado-de-teste")
+
+
 def _release(**muda):
     return {"id": RT.RELEASE_ID, "tag_name": "dados-privados", "draft": True, "assets": [], **muda}
 
@@ -46,11 +52,11 @@ PRONTAS = {"03", "04", "06", "07", "08", "09", "10", "11", "13", "14"}
 
 
 def _comprovantes():
-    inventario = {"versao": 1, "tipo": "actions_artifacts", "origem": RR.REPO, "assets": []}
+    inventario = {"versao": 1, "tipo": "actions_artifacts", "origem": RT.REPO_ORIGEM, "assets": []}
     backup = {
         "versao": 1,
-        "origem": RR.REPO,
-        "destino": RR.REPO,
+        "origem": RT.REPO_ORIGEM,
+        "destino": RT.REPO_ORIGEM,
         "release_id": RT.RELEASE_ID,
         "tag": "dados-privados",
         "assets": [],
@@ -292,10 +298,11 @@ def test_download_usa_accept_proprio_de_artifact_ou_asset(tmp_path, monkeypatch,
     chamadas = []
     corpo = b"\x1f\x8b\x00\xffconteudo-binario"
 
-    def executar(cmd, *, stdout, stderr, check):
+    def executar(cmd, *, stdout, stderr, check, env):
         chamadas.append(cmd)
         assert check is True
         assert stderr is subprocess.PIPE
+        assert env["GH_TOKEN"] == "token-privado-de-teste"
         stdout.write(corpo)
 
     monkeypatch.setattr(RT.subprocess, "run", executar)
@@ -311,7 +318,7 @@ def test_download_usa_accept_proprio_de_artifact_ou_asset(tmp_path, monkeypatch,
 def test_falha_de_download_nao_expoe_url_assinada_no_erro(tmp_path, monkeypatch):
     endpoint = "repos/bernardoemmel/Raiz/actions/artifacts/123/zip"
 
-    def executar(cmd, *, stdout, stderr, check):
+    def executar(cmd, *, stdout, stderr, check, env):
         assert stderr is subprocess.PIPE and check is True
         stdout.write(b"download parcial")
         raise subprocess.CalledProcessError(22, cmd, stderr=b"https://blob.example/arquivo?sig=segredo")
@@ -327,6 +334,43 @@ def test_falha_de_download_nao_expoe_url_assinada_no_erro(tmp_path, monkeypatch)
     assert erro.value.__cause__ is None
     assert erro.value.__suppress_context__ is True
     assert destino.read_bytes() == b"arquivo anterior"
+
+
+@pytest.mark.parametrize(
+    "variavel,valor",
+    [
+        ("RAIZ_DADOS_PRIVADOS_URL", ""),
+        ("RAIZ_DADOS_PRIVADOS_URL", f"release-github://{RT.REPO_ORIGEM}/dados"),
+        ("RAIZ_DADOS_PRIVADOS_URL", "release-github://outra/conta/dados-privados"),
+        ("RAIZ_DADOS_PRIVADOS_TOKEN", ""),
+    ],
+)
+def test_configuracao_sem_destino_historico_ou_token_falha_antes_da_rede(monkeypatch, variavel, valor):
+    monkeypatch.setenv(variavel, valor)
+    monkeypatch.setattr(RT, "_api_json", lambda *args: pytest.fail("Configuração inválida não acessa a rede"))
+    with pytest.raises(PermissionError):
+        RT.Privado()
+
+
+@pytest.mark.parametrize("falha", [False, True])
+def test_api_usa_token_do_arquivo_privado_e_suprime_erros_com_url_assinada(monkeypatch, falha):
+    monkeypatch.setenv("GH_TOKEN", "token-de-outro-destino")
+
+    def executar(cmd, *, text, stderr, env):
+        assert text is True and stderr is subprocess.PIPE
+        assert env["GH_TOKEN"] == "token-privado-de-teste" and "token-privado-de-teste" not in cmd
+        if falha:
+            raise subprocess.CalledProcessError(22, cmd, stderr=b"https://blob.example/arquivo?sig=segredo")
+        return json.dumps(_release())
+
+    monkeypatch.setattr(RT.subprocess, "check_output", executar)
+    if falha:
+        with pytest.raises(RuntimeError) as erro:
+            RT.Privado().verificar()
+        assert "sig=" not in str(erro.value) and "segredo" not in str(erro.value)
+        assert erro.value.__suppress_context__ is True
+    else:
+        assert RT.Privado().verificar() == _release()
 
 
 @pytest.mark.parametrize("muda", [{"draft": False}, {"id": 1}, {"tag_name": "dados"}])
@@ -720,3 +764,7 @@ def test_workflow_nao_grava_dados_em_artifact_ou_cache_publico():
     for prefixo in ("actions/upload-artifact", "actions/cache/save", "actions/cache/restore", "actions/cache@"):
         assert not any(a.startswith(prefixo) for a in actions)
     assert any(job.get("strategy", {}).get("max-parallel") == 5 for job in workflow["jobs"].values())
+    assert "RAIZ_DADOS_PRIVADOS_URL" in workflow["env"] and "RAIZ_DADOS_PRIVADOS_TOKEN" in workflow["env"]
+    assert workflow["env"]["SHA_ORIGEM"] == RT.SHA_ORIGEM
+    for job in workflow["jobs"].values():
+        assert any(s.get("with", {}).get("ref") == "${{ env.SHA_ORIGEM }}" for s in job["steps"])

@@ -10,6 +10,7 @@ import asyncio
 import json
 import os
 from typing import Annotated, Any
+from urllib.parse import quote
 from uuid import UUID
 
 import httpx
@@ -27,6 +28,7 @@ from raiz.publica.privacidade import para_resposta
 from raiz.publica.problemas import problema
 
 ESCOPOS_FERRAMENTAS = {
+    "consultar_ficha": "consultar",
     "consultar_disponibilidade": "consultar",
     "pedir_lote": "pedir",
     "comparar_lotes": "consultar",
@@ -147,6 +149,14 @@ def criar_servidor(api: ApiRaiz | None = None, *, verificador: VerificadorKeyclo
         auth=verificador.auth if verificador else None,
     )
     instalar_telemetria_mcp(mcp)
+
+    @mcp.tool(annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, openWorldHint=False))
+    async def consultar_ficha(
+        codigo_car: Annotated[str, Field(min_length=3, max_length=80)], ctx: Context
+    ) -> dict[str, Any]:
+        """Relê uma ficha já adquirida pela empresa, com fontes, datas e ausências. Exige sinal, contrato e
+        liberação prévia desse CAR; não compra acesso nem cobra nova tarifa. Nunca expõe dados do dono."""
+        return await api.chamar("GET", f"/fazendas/{quote(codigo_car, safe='')}/ficha", "consultar_ficha", ctx)
 
     @mcp.tool(
         annotations=ToolAnnotations(readOnlyHint=False, idempotentHint=True, destructiveHint=False, openWorldHint=False)

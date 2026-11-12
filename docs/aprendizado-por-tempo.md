@@ -70,18 +70,18 @@ tarefa não declara uma captura completa.
 O fluxo `processar-estados.yml` publica esses retratos na mesma cadência dos
 pacotes do executor e novamente em um passo `always()`, antes de continuar a
 fila. Os contratos das saídas, marcas, filas e `estados.json` permanecem iguais.
-Os retratos públicos são agrupados em pacotes de até 64 MiB no Release diário
+Os retratos privados são agrupados em pacotes de até 64 MiB no Release diário
 `historico-AAAA-MM-DD`, com nomes derivados do SHA-256 do pacote. Nenhum asset
 histórico é apagado ou substituído. Armazéns local e S3 usam o prefixo
 `historico/<UF>/<município>/`; no S3 a criação exige que o objeto ainda não exista.
 
-No repositório público, esses Releases históricos também são públicos: as
-entradas sanitizadas por código do CAR e as geometrias podem ser baixadas. Isso
-não equivale à distribuição de fichas confidenciais nem implementa a migração
-futura de derivados para armazenamento privado descrita em
-`docs/passagem/ficha-da-fazenda.md`. Quando houver exigência de confidencialidade,
-é necessário configurar um armazém privado. A exclusão de nomes e o mascaramento
-de CPF/CNPJ não transformam o Release público em armazenamento confidencial.
+O histórico por CAR é privado, mesmo sem nomes ou CPF. No GitHub, usa o destino
+configurado em `RAIZ_DADOS_PRIVADOS_URL` e token de `RAIZ_DADOS_PRIVADOS_TOKEN`.
+Cada Release diário é criado como draft e nunca deve ser publicado em repositório
+aberto. Leitura e escrita exigem autenticação e conferem o destino e a visibilidade
+atual de cada Release, inclusive quando há recibos locais. Um histórico legado
+aberto provoca erro explícito; não é tratado como cópia privada já concluída.
+O contrato e a migração estão em `docs/dados-publicados.md`.
 
 ```bash
 uv run raiz aprendizado publicar-retratos --uf PA

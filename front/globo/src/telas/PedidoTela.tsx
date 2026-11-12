@@ -457,7 +457,7 @@ function TabelaLote({ opcao, andamento, escolher, escolhida }: { opcao: Opcao; a
         </thead>
         <tbody>
           {lista.map((i) => {
-            const selo = seloDeNivel(i.caminho, nivel.get(i.cod_imovel) ?? i.interesse)
+            const selo = i.caminho ? seloDeNivel(i.caminho, nivel.get(i.cod_imovel) ?? i.interesse) : { classe: "", texto: "Ficha paga" }
             return (
               <tr key={i.cod_imovel} aria-selected={escolhida === i.cod_imovel}>
                 <th scope="row">
@@ -467,7 +467,7 @@ function TabelaLote({ opcao, andamento, escolher, escolhida }: { opcao: Opcao; a
                   <small>{i.municipio}</small>
                 </th>
                 <td>{i.papel === "lote" ? (i.trocou ? "Lote (troca)" : "Lote") : "Reserva"}</td>
-                <td className="num">{fmtInt(i.creditos.p50)}</td>
+                <td className="num">{i.creditos ? fmtInt(i.creditos.p50) : "Ficha paga"}</td>
                 <td>
                   <span className={`selo-nivel ${selo.classe}`}>{selo.texto}</span>
                 </td>
@@ -507,7 +507,7 @@ function FazendaEscolhida({
   useEffect(() => {
     secao.current?.scrollIntoView({ block: "nearest", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" })
   }, [item.cod_imovel])
-  const selo = seloDeNivel(item.caminho, nivel)
+  const selo = item.caminho ? seloDeNivel(item.caminho, nivel) : { classe: "", texto: "Ficha paga" }
   return (
     <section className="secao-painel fazenda-escolhida" aria-labelledby="fe-titulo" ref={secao}>
       <div className="secao-cabeca">
@@ -521,26 +521,27 @@ function FazendaEscolhida({
       <p>
         {item.papel === "lote" ? "No lote" : "De reserva"}, em {item.municipio} ({item.uf}). <span className={`selo-nivel ${selo.classe}`}>{selo.texto}</span>
       </p>
+      {item.ficha_liberada === false && <p>Os dados desta fazenda ficam na ficha paga. Abra a ficha para consultar os créditos e liberar o acesso.</p>}
       <dl className="ficha-numeros">
         <div>
           <dt>Pode voltar a ser mata</dt>
-          <dd>{fmtHa(item.hectares)}</dd>
+          <dd>{item.hectares === null ? "Disponível na ficha paga" : fmtHa(item.hectares)}</dd>
         </div>
         <div>
           <dt>Créditos líquidos</dt>
-          <dd>{fmtFaixa(item.creditos)}</dd>
+          <dd>{item.creditos ? fmtFaixa(item.creditos) : "Disponível na ficha paga"}</dd>
         </div>
         <div>
           <dt>Restauração</dt>
-          <dd>{ROTULO_METODO[item.metodo]}</dd>
+          <dd>{item.metodo ? ROTULO_METODO[item.metodo] : "Disponível na ficha paga"}</dd>
         </div>
         <div>
           <dt>Caminho da terra</dt>
-          <dd>{ROTULO_CAMINHO[item.caminho]}</dd>
+          <dd>{item.caminho ? ROTULO_CAMINHO[item.caminho] : "Disponível na ficha paga"}</dd>
         </div>
         <div>
           <dt>Custo por crédito</dt>
-          <dd>{fmtUsd(item.custo_usd_credito)}</dd>
+          <dd>{item.custo_usd_credito === null ? "Disponível na ficha paga" : fmtUsd(item.custo_usd_credito)}</dd>
         </div>
         <div>
           <dt>Interesse do dono</dt>
@@ -568,7 +569,7 @@ function FazendaEscolhida({
           {reservas.map((r) => (
             <li key={r.cod_imovel}>
               <span>
-                <code>{abreviarCar(r.cod_imovel)}</code> <small>{fmtInt(r.creditos.p50)} créditos, {fmtUsd(r.custo_usd_credito)} por crédito</small>
+                <code>{abreviarCar(r.cod_imovel)}</code> <small>{r.creditos && r.custo_usd_credito !== null ? `${fmtInt(r.creditos.p50)} créditos, ${fmtUsd(r.custo_usd_credito)} por crédito` : "Disponível na ficha paga"}</small>
               </span>
               <button type="button" className="botao" onClick={() => mudar("trocar", item.cod_imovel, r.cod_imovel)}>
                 Trocar por esta

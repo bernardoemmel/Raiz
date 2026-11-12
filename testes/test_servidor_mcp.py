@@ -21,6 +21,7 @@ from testes.test_publica_oauth import assinador, verificador  # noqa: F401
 from testes.test_publica_trabalhos import empresa, eng  # noqa: F401
 
 FERRAMENTAS = {
+    "consultar_ficha",
     "consultar_disponibilidade",
     "pedir_lote",
     "comparar_lotes",
@@ -45,7 +46,7 @@ def backend():
     return app, chamadas
 
 
-def test_seis_ferramentas_sdk_estrutura_e_sem_oauth_falha():
+def test_ferramentas_sdk_estrutura_e_sem_oauth_falha():
     async def executar():
         async with Client(criar_servidor()) as c:
             tools = {t.name: t for t in (await c.list_tools()).tools}
@@ -53,7 +54,12 @@ def test_seis_ferramentas_sdk_estrutura_e_sem_oauth_falha():
             assert "P10/P50/P90" in tools["consultar_disponibilidade"].description
             assert "nunca aprova nem paga" in tools["preparar_reserva"].description
             assert {"campos", "idempotency_key"} <= set(tools["pedir_lote"].input_schema["required"])
-            assert all("idempotency_key" in ferramenta.input_schema["required"] for ferramenta in tools.values())
+            assert all(
+                "idempotency_key" in ferramenta.input_schema["required"]
+                for nome, ferramenta in tools.items()
+                if nome != "consultar_ficha"
+            )
+            assert tools["consultar_ficha"].input_schema["required"] == ["codigo_car"]
             r = await c.call_tool("consultar_disponibilidade", {"campos": {}, "idempotency_key": "consulta-sem-oauth"})
             assert r.is_error and '"status":401' in r.content[0].text
 

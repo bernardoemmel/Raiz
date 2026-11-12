@@ -1,7 +1,8 @@
-"""Rodada reproduzível do Pará: fontes congeladas, 144 municípios e publicação do lote no Release.
+"""Rodada reproduzível do Pará: fontes congeladas, 144 municípios e lote no arquivo privado.
 
-Executado por ``python -m raiz.restauracao_rodada`` no GitHub Actions. As saídas
-do motor permanecem intactas no Release: a rodada publica seus próprios arquivos.
+Executado por ``python -m raiz.restauracao_rodada`` no GitHub Actions. Entradas,
+checkpoints, lotes e previsões usam somente a API autenticada do arquivo privado.
+A rodada preserva as saídas canônicas do motor e publica seus próprios arquivos.
 """
 
 from __future__ import annotations
@@ -13,13 +14,13 @@ import json
 import os
 import re
 import shutil
-import subprocess
 import tarfile
 import tempfile
 from collections import Counter
 from pathlib import Path
 
-REPO = "bernardoemmel/Raiz"
+from raiz.executor.transferencia_privada import arquivo_privado, empacotar, enviar_arquivo
+
 CENARIO = "central_r11"
 OPCOES = ("barata", "segura", "compacta")
 PACOTES = ("raiz_PA.tar.gz", "raiz_geo_PA.tar.gz")
@@ -116,23 +117,19 @@ def planejar(pasta: Path, fatias: int = 15) -> list[dict]:
     return [x for x in saida if x["municipios"]]
 
 
-def preparar(destino: Path, repo: str = REPO, fatias: int = 15) -> dict:
+def preparar(destino: Path, fatias: int = 15) -> dict:
     """Baixa IDs imutáveis dos assets, guarda SHA256 e congela a mesma entrada para todos os jobs."""
     destino.mkdir(parents=True, exist_ok=True)
-    rel = json.loads(subprocess.check_output(["gh", "api", f"repos/{repo}/releases/tags/dados"], text=True))
-    assets = {a["name"]: a for a in rel["assets"]}
+    arm = arquivo_privado()
+    rel = arm._release()
+    assets = {a["name"]: a for a in arm._assets(rel)}
     fontes = {}
     for nome in (*PACOTES, "estados.json"):
         if nome not in assets:
-            raise ValueError(f"Release dados sem {nome}.")
+            raise ValueError(f"Arquivo privado sem {nome}.")
         a = assets[nome]
         arquivo = destino / nome
-        with arquivo.open("wb") as f:
-            subprocess.run(
-                ["gh", "api", f"repos/{repo}/releases/assets/{a['id']}", "-H", "Accept: application/octet-stream"],
-                stdout=f,
-                check=True,
-            )
+        arquivo.write_bytes(arm._baixar_ativo(a))
         if arquivo.stat().st_size != a["size"]:
             raise ValueError(f"Tamanho divergente no download de {nome}.")
         fontes[nome] = {
@@ -140,7 +137,7 @@ def preparar(destino: Path, repo: str = REPO, fatias: int = 15) -> dict:
             "sha256": sha256(arquivo),
             "bytes": a["size"],
             "atualizado_em": a["updated_at"],
-            "url": a["browser_download_url"],
+            "url": f"{arm.API}/repos/{arm.repo}/releases/assets/{a['id']}",
         }
     with tempfile.TemporaryDirectory() as td:
         pasta = Path(td)
@@ -148,8 +145,9 @@ def preparar(destino: Path, repo: str = REPO, fatias: int = 15) -> dict:
         cobertura = conferir_cobertura(pasta / "PA")
         plano = planejar(pasta / "PA", fatias)
     snapshot = {
-        "repo": repo,
+        "repo": arm.repo,
         "release_id": rel["id"],
+        "acesso": "privado",
         "cenario": CENARIO,
         "fontes": fontes,
         "cobertura": cobertura,
@@ -415,8 +413,9 @@ def reunir(entradas: Path, calculados: Path, destino: Path) -> dict:
     return manifesto
 
 
-def publicar(destino: Path, repo: str = REPO) -> dict:
+def publicar(destino: Path) -> dict:
     """Assets por execução são imutáveis; o ponteiro mais recente só muda após todos os uploads."""
+    arm = arquivo_privado()
     produto = destino / "produto"
     manifesto = _ler(produto / "manifesto.json")
     run_id = os.environ.get("GITHUB_RUN_ID")
@@ -427,35 +426,29 @@ def publicar(destino: Path, repo: str = REPO) -> dict:
     arquivos = []
     for nome in OPCOES:
         arquivo = destino / f"{base}_{nome}.tar.gz"
-        with tarfile.open(arquivo, "w:gz") as tar:
-            tar.add(produto / nome, arcname=nome)
+        empacotar(produto / nome, arquivo, prefixo=nome)
         arquivos.append(arquivo)
     completo = destino / f"{base}_previsoes.tar.gz"
-    with tarfile.open(completo, "w:gz") as tar:
-        for f in sorted(produto.iterdir()):
-            if f.name not in OPCOES:
-                tar.add(f, arcname=f.name)
+    empacotar(produto, completo, excluir=OPCOES)
     arquivos.append(completo)
     manifesto["arquivos"] = {
         f.name: {
             "sha256": sha256(f),
             "bytes": f.stat().st_size,
-            "url": f"https://github.com/{repo}/releases/download/dados/{f.name}",
+            "local": f"release-github://{arm.repo}/{arm.tag}/{f.name}",
+            "acesso": "privado",
         }
         for f in arquivos
     }
     imutavel = destino / f"{base}.json"
     _json(imutavel, manifesto)
-    from raiz.qualidade_rodada import validar_publicacao
-
-    # O mesmo manifesto será o ponteiro; ambos e todos os bytes TAR são conferidos
-    # antes do primeiro upload. HTML/propostas individuais sem contrato ficam privados.
-    validar_publicacao(arquivos, destino / "trabalho" / "PA", _ler(imutavel))
+    # Arquivo bruto privado para auditoria/reprocessamento; não é projeção pública aprovada.
+    # enviar_arquivo confere a visibilidade privada novamente antes de cada transferência.
     for f in [*arquivos, imutavel]:
-        subprocess.run(["gh", "release", "upload", "dados", str(f), "--repo", repo], check=True)
+        enviar_arquivo(f.name, f, imutavel=True, arm=arm)
     atual = destino / "lote_PA_central_r11.json"
     _json(atual, manifesto)
-    subprocess.run(["gh", "release", "upload", "dados", str(atual), "--repo", repo, "--clobber"], check=True)
+    enviar_arquivo(atual.name, atual, arm=arm)
     return manifesto
 
 
@@ -466,10 +459,9 @@ def main() -> None:
     parser.add_argument("--entradas", type=Path)
     parser.add_argument("--calculados", type=Path)
     parser.add_argument("--fatia")
-    parser.add_argument("--repo", default=REPO)
     args = parser.parse_args()
     if args.etapa == "preparar":
-        resultado = preparar(args.destino, args.repo)
+        resultado = preparar(args.destino)
         print(json.dumps({"fatias": len(resultado["plano"]), "cobertura": resultado["cobertura"]}))
     elif args.etapa == "calcular":
         print(json.dumps(calcular(args.entradas, args.destino, args.fatia)))
@@ -477,7 +469,7 @@ def main() -> None:
         resultado = reunir(args.entradas, args.calculados, args.destino)
         print(json.dumps({k: resultado[k] for k in ("municipios", "imoveis_calculados", "modelo_versao")}))
     else:
-        resultado = publicar(args.destino, args.repo)
+        resultado = publicar(args.destino)
         print(json.dumps({"arquivos": list(resultado["arquivos"])}))
 
 

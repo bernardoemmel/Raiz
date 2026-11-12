@@ -1,4 +1,4 @@
-"""Pacotes da rodada: dados inválidos e documentos privados nunca chegam ao Release."""
+"""Pacotes da rodada: dados inválidos e documentos privados nunca chegam ao Release público."""
 
 import io
 import json
@@ -114,8 +114,9 @@ def test_quantile_isolado_novo_tambem_exige_contrato(tmp_path):
         validar_publicacao(*montar(tmp_path, {"previsoes/validacao_entradas_1504950.jsonl": registro}))
 
 
-def test_html_na_publicacao_real_bloqueia_todo_gh(tmp_path, monkeypatch):
+def test_html_da_rodada_so_e_arquivado_em_destino_privado(tmp_path, monkeypatch):
     from raiz import restauracao_rodada as RR
+    from testes.test_armazem_release import GitHubFalso, _armazem
 
     pacotes, referencias, manifesto = montar(tmp_path)
     produto = tmp_path / "produto"
@@ -129,9 +130,16 @@ def test_html_na_publicacao_real_bloqueia_todo_gh(tmp_path, monkeypatch):
     (trabalho / "imoveis_1504950.csv").write_bytes((referencias / "imoveis_1504950.csv").read_bytes())
     monkeypatch.setenv("GITHUB_RUN_ID", "12345")
     monkeypatch.setenv("GITHUB_RUN_ATTEMPT", "1")
-    chamadas = []
-    monkeypatch.setattr(RR.subprocess, "run", lambda *args, **kwargs: chamadas.append(args))
-    with pytest.raises(ErroQualidade, match="documento individual ou HTML"):
+    gh = GitHubFalso()
+    gh.privado = False
+    gh.rascunho = True
+    arm = _armazem(gh, tmp_path / "cache")
+    monkeypatch.setattr(RR, "arquivo_privado", lambda: arm)
+    resultado = RR.publicar(tmp_path)
+    assert len(gh.uploads) == 6
+    assert all(a["acesso"] == "privado" and "url" not in a for a in resultado["arquivos"].values())
+    quantidade = len(gh.uploads)
+    gh.rascunho = False
+    with pytest.raises(PermissionError):
         RR.publicar(tmp_path)
-    assert chamadas == []
-    assert not (tmp_path / "lote_PA_central_r11.json").exists()
+    assert len(gh.uploads) == quantidade

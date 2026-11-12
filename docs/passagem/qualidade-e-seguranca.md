@@ -1,6 +1,6 @@
 # Qualidade e segurança — passagem
 
-Entrega inicial de 12/11/2026 (#51); revisão de continuidade em 12/11/2026, até a main `9d5f591`. Área: CI, E2E, infraestrutura e segurança. Correções em produto são pontuais,
+Entrega inicial de 12/11/2026 (#51); revisão de continuidade em 12/11/2026, até a main `88860b6`. Área: CI, E2E, infraestrutura e segurança. Correções em produto são pontuais,
 com regressões. Mudanças de contrato/arquitetura ficam para os chats responsáveis abaixo.
 
 ## Continuidade desta entrega (12/11/2026)
@@ -15,11 +15,11 @@ com regressões. Mudanças de contrato/arquitetura ficam para os chats responsá
   70 chamadas normais e 385 na saturação, 355 respostas 429 válidas, zero falhas, máximo 2,864 s. São medidas do ensaio
   curto, não capacidade máxima de produção. Oito jobs em paralelo; nenhuma suíte existente foi removida.
 - **MCP, parcial:** o servidor OAuth entrou na main durante o CI desta entrega (#45/#69). O adaptador de testes
-  agora usa HTTP/JWKS/RS256 e PostGIS reais, todas as seis ferramentas, latência e Locust. O corpus continua dependendo
+  agora usa HTTP/JWKS/RS256 e PostGIS reais, todas as sete ferramentas após #72, latência e Locust. O corpus continua dependendo
   de **Produto e regras**: o MCP oferece ferramentas de pedidos para agentes externos, sem agente leitor de certidão,
   edital ou arquivo. Não se simula essa leitura nem sua aprovação. A exceção anterior do fundador era somente ausência
   de servidor; com o servidor presente, o runner exige a integração e registra falha explícita do corpus pendente.
-- **Revisão contínua:** PRs #53, #56, #67, #54, #68, #70, #71, #73, #74, #55, #75 e a integração #45/#69 revisados,
+- **Revisão contínua:** PRs #53, #56, #67, #54, #68, #70, #71, #73, #74, #55, #75, a integração #45/#69 e #72 revisados,
   com correções pequenas de privacidade, calendário e idempotência abaixo.
   Scanners e testes rodam a cada push. O fundador optou por manter somente essas checagens por push, sem automação horária.
 
@@ -442,3 +442,28 @@ A revisão final acrescentou regressões do isolamento do ensaio: `connect_ex` e
 externos antes de chamar o sistema, e o registro de tentativas é conferido após encerrar o servidor mesmo quando
 o corpus lança sua falha pendente. Uma tentativa de rede não pode ficar escondida por essa pendência. **30 testes
 focados de MCP** e **13 testes do limite por empresa** passaram; o segundo conjunto usa duas apps e Valkey real.
+
+### Integração do #72 — arquivo privado e sétima ferramenta
+
+A main `88860b6` retirou a publicação de camadas completas, financeiros e folhas individuais; o Release aberto
+fica restrito ao contrato `publico_basico`. Preservada essa fronteira durante os conflitos: não foi restaurado
+o upload legado de pacotes completos nem a leitura de snapshots financeiros pelo site. As regressões de texto
+pessoal, instruções e propriedades herdadas agora exigem recusar o snapshot inteiro. **219 testes Vitest** e
+dez testes de configuração passaram após a integração.
+
+O arquivo bruto autenticado preserva originais para auditoria e reprocessamento, inclusive dados com pendências
+conhecidas; isso não aprova as medidas nem autoriza sua exposição. O portão público valida a projeção antes do
+upload aberto. A rodada do Pará verifica o destino privado a cada transferência; **39 testes de rodada,
+qualidade e transporte privado** passaram, incluindo recusa quando o rascunho deixa de ser privado. O contrato
+quantitativo completo e seus testes permanecem disponíveis para revisão dos cálculos. **Dados / Lote e números**
+continuam responsáveis pelas áreas/datas inconsistentes já relatadas. O contrato básico foi explicitado em
+`docs/colunas.md`, resolvendo a pendência anterior de formato sem produtor integrado.
+
+Revisão de `consultar_ficha`: exige conta ativa, sinal/contrato, escopo, quota e desbloqueio do CAR pela própria
+empresa, revalida reserva de terceiro e retorna somente a projeção da ficha, sem cobrar outra compra. Não houve
+bypass concreto confirmado. O adaptador usa o desbloqueio real sobre CAR da amostra, com crédito fictício.
+
+Com as **sete ferramentas**, latência máxima **0,262 s**; Locust normal **157 requisições**, zero falhas, máximo
+**0,941 s**; saturação **251 requisições**, **152 HTTP 429** válidos, zero falhas, máximo **1,748 s**. Todas tiveram
+respostas válidas nas duas fases. **36 testes focados** passaram. O runner continua terminando em exit 1 somente
+pelo corpus sem agente leitor, com `latencia=true`, `carga=true`, `corpus=false`; a ficha não lê documentos do corpus.

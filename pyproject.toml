@@ -55,6 +55,7 @@ dependencies = [
     # título (raiz/titulo): laudo HTML por imóvel e WARC das consultas públicas
     "jinja2>=3.1",
     "warcio>=1.7",
+    "reportlab>=4.0",  # PDF privado da ficha da fazenda
     "mapie>=1.6,<2",
     "lifelines>=0.30",
     "presidio-analyzer>=2.2.360",
@@ -81,7 +82,6 @@ dev = [
     "maturin>=1.7",
     "moto[s3]>=5.0",
     "pytest>=8",
-    "reportlab>=4.0",  # PDF de exemplo dos testes de raiz/documentos
     "ruff>=0.6",
 ]
 

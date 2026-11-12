@@ -1,6 +1,6 @@
 """Integração HTTP/OAuth/SQL real para latência e Locust do MCP da Raíz.
 
-Não inventa um agente de leitura: o produto publica ferramentas de pedidos para
+Não inventa um agente de leitura: o produto publica ferramentas de pedidos e ficha para
 agentes externos e não fornece cliente que leia certidão/edital/nomes de arquivo.
 O corpus adversarial exige essa integração adicional e permanece explicitamente pendente.
 """
@@ -36,7 +36,7 @@ from raiz.pessoal import gerar_chave
 from testes.mcp.cliente import ClienteMCP
 
 AVISO_INJECOES = (
-    "Corpus AgentDojo pendente: o MCP oferece ferramentas de pedidos, sem agente cliente "
+    "Corpus AgentDojo pendente: o MCP oferece ferramentas de pedidos e ficha, sem agente cliente "
     "nem entrada de leitura de certidão, edital ou nome de arquivo. Nenhuma execução de agente foi simulada."
 )
 CAMPOS = {"meta": {"tipo": "creditos", "valor": 1000000}, "onde": {"ufs": ["PA"]}}
@@ -47,7 +47,7 @@ class AgenteAusente(RuntimeError):
 
 
 class SemAgenteLeitor:
-    ferramentas_leitura = frozenset({"acompanhar_contato"})
+    ferramentas_leitura = frozenset({"acompanhar_contato", "consultar_ficha"})
 
     async def preparar(self, *_):
         raise AgenteAusente(AVISO_INJECOES)
@@ -109,6 +109,7 @@ def _criar_banco(url: str) -> None:
 
 
 def _semente(engine) -> dict:
+    from raiz import prospeccao_acesso
     from raiz.pedidos import servico
     from raiz.publica import trabalhos
 
@@ -123,6 +124,13 @@ def _semente(engine) -> dict:
             values (:c,:h,'**','teste-mcp',3,1000000,now(),now(),true)"""),
             {"c": cid, "h": uuid.uuid4().hex},
         )
+        car = con.execute(text("select cod_imovel from funil.vigente order by cod_imovel limit 1")).scalar_one()
+        con.execute(text("insert into negocio.prospeccao_carteira(cliente_id,creditos) values (:c,1)"), {"c": cid})
+    # Saldo sintético só na fixture; o serviço real registra débito e autorização por CAR desta empresa.
+    # A consulta MCP posterior não compra acesso e deve funcionar com a carteira já zerada.
+    liberacao = prospeccao_acesso.desbloquear(engine, cid, car)
+    if liberacao["cobrado"] is not True or liberacao["saldo"] != 0:
+        raise RuntimeError("A fixture não confirmou a aquisição da ficha pela própria empresa")
     negocio = servico.criar_pedido(engine, cid, CAMPOS)["id"]
     acompanhamento = trabalhos.submeter(engine, cid, "consultar_disponibilidade", CAMPOS, "preparacao-acompanhar")
     # As fases anteriores podem ter deixado trabalho submetido; o worker real conclui a fila,
@@ -138,6 +146,7 @@ def _semente(engine) -> dict:
         raise RuntimeError("O trabalho real da consulta de referência não concluiu")
     cancelamento = trabalhos.submeter(engine, cid, "pedir_lote", CAMPOS, "preparacao-cancelar")
     casos = {
+        "consultar_ficha": {"argumentos": {"codigo_car": car}},
         "consultar_disponibilidade": {"argumentos": {"campos": CAMPOS, "idempotency_key": "consulta-manifesto"}},
         "pedir_lote": {"argumentos": {"campos": CAMPOS, "idempotency_key": "pedido-manifesto"}},
         "comparar_lotes": {"argumentos": {"pedido_id": negocio, "idempotency_key": "comparacao-manifesto"}},

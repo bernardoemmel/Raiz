@@ -1,8 +1,12 @@
 # Portão de qualidade dos arquivos publicados
 
-A publicação do motor e da vigilância passa por `raiz/qualidade_dados.py`. A versão do contrato é
-`colunas-2026-11-12`, transcrita de `docs/colunas.md`. Pandera (MIT) verifica as tabelas antes do upload.
-Uma falha interrompe a publicação; o portão não remove fazendas, não recorta resultados e não troca valores por zero.
+O Release aberto recebe somente a projeção `publico_basico` do #72, validada com Pandera (MIT) e o scanner central
+antes do upload. O contrato básico consta de `docs/colunas.md` e `docs/dados-publicados.md`; arquivos completos,
+financeiros e de vigilância permanecem no destino privado autenticado. Uma falha bloqueia a projeção pública.
+
+`raiz/qualidade_dados.py` também verifica o contrato completo `colunas-2026-11-12`, transcrito de `docs/colunas.md`,
+para conferir medidas e apoiar a correção da origem. Esse validador não autoriza publicar as tabelas completas.
+O portão não remove fazendas, não recorta resultados e não troca valores por zero.
 
 Para conferir pacotes prontos, depois de juntar todas as partes `.partNN`, execute:
 
@@ -46,7 +50,7 @@ ativas. A política deve ser calibrada com dados reais versionados antes de afir
 
 ## Formatos e privacidade
 
-O validador lê CSV, Parquet/GeoParquet, todos os ladrilhos MVT dos PMTiles, JSON, JSONL, o KML público URTX e
+O validador completo lê CSV, Parquet/GeoParquet, todos os ladrilhos MVT dos PMTiles, JSON, JSONL, o KML URTX e
 `geo_<mun>.geojson`. Inspeciona também metadados Parquet, propriedades/valores vetoriais, chaves JSON repetidas,
 comentários/caudas XML e atributos. CRS declarado precisa corresponder ao registro de autoridade conhecido;
 IDs opcionais dos membros do datum são tratados como descritores técnicos. O XML não permite entidades externas.
@@ -58,14 +62,17 @@ para nomes em XML. `pagamento_dono` e `dono_rs_ha_ano` são métricas legítimas
 
 Presidio tem falsos negativos e não prova ausência absoluta de nomes livres. Não adicionar identificação pessoal
 nem confiar em nome de coluna para tornar seu conteúdo público. Exportações administrativas privadas não possuem
-contrato de upload e continuam fora do Release. Os portões específicos de outros Releases são documentados em
+contrato de upload aberto e continuam fora do Release público. Estarem no arquivo privado não autoriza sua exposição.
+Os portões específicos de outros Releases são documentados em
 operação; a validação do motor não transforma SQLite, Markdown ou calendário em tabela do motor.
 
 ## Unidade de publicação e dados históricos
 
-No executor, cada UF tem seus CSV, geometria, metadados, controle e `extra` validados antes do primeiro upload
-referente àquela UF. Na vigilância, todos os arquivos públicos candidatos e o resumo são validados antes de tocar o
-Release. O conteúdo privado só sai cifrado. Não existe transação distribuída entre assets do GitHub; uma falha de
+No executor e no publicador legado, cada UF tem CSV, geometria e manifesto da projeção básica validados antes do
+primeiro upload público. Controles, extras, camadas completas e a rodada do Pará são arquivados no destino privado,
+com visibilidade revalidada em cada transferência; preservar esses originais para auditoria não é aprová-los.
+Na vigilância, alertas e resumo continuam validados e agora ficam privados; dados de projeto também exigem cifra.
+Não existe transação distribuída entre assets do GitHub; uma falha de
 rede posterior ou conflito no índice pode exigir nova tentativa. Várias UFs são unidades independentes.
 
 Este portão não altera retroativamente assets ou logs remotos. A amostra atual já contém componentes maiores que

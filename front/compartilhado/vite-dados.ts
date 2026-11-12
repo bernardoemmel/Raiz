@@ -1,13 +1,15 @@
 /**
- * Publicação aberta do mapa: somente resumos por município, pontos agregados e mapa base.
- * Fichas, CAR, CSV por imóvel e geometrias das fazendas ficam na API autenticada de prospecção.
+ * Publicação aberta do mapa: agregados e situação básica por CAR, com sua geometria.
+ * Somente o contrato publico_basico v1 abre a camada individual, projetada em cinco campos.
+ * Fichas completas e métricas privadas ficam na API autenticada de prospecção.
  * A mesma regra vale no servidor de desenvolvimento e no build estático.
  */
 
 import fs from "node:fs"
 import path from "node:path"
 import zlib from "node:zlib"
-import { buscar } from "./dados/busca"
+import { buscar, normalizarCar, pareceCar } from "./dados/busca"
+import { lerBasico } from "./dados/basico"
 import { escreverCsv, lerCsv } from "./dados/csv"
 import { lerFunil } from "./dados/funil"
 import { coberturaDoIndice } from "./dados/cobertura-mapa"
@@ -44,8 +46,8 @@ export function dadosRaiz(opcoes: { repo: string; raizDados?: string | null; cac
   const geo = path.resolve(opcoes.repo, process.env.RAIZ_GEO || "front/geo")
   const lotes = path.resolve(opcoes.repo, process.env.RAIZ_LOTES || "dados/lotes")
   function lotePublicado() {
-    const arquivo = path.join(lotes, "lote_PA_central_r11.json")
-    return projetarPublicacaoLote(fs.existsSync(arquivo) ? JSON.parse(fs.readFileSync(arquivo, "utf8")) : null)
+    // Marcador de compatibilidade: nunca ler ou projetar lotes financeiros reais para o site aberto.
+    return projetarPublicacaoLote(null)
   }
   const pasta = abrirPasta({
     repo: opcoes.repo,
@@ -54,10 +56,14 @@ export function dadosRaiz(opcoes: { repo: string; raizDados?: string | null; cac
     geo,
   })
   const resumoPermitido = (nome: string) => /^resumo_[A-Z]{2}\.csv$/.test(nome)
-  const arquivosPublicos = (uf: string) => pasta.arquivos(uf).filter(resumoPermitido)
+  const arquivosPublicos = (uf: string) => [
+    ...pasta.arquivos(uf).filter(resumoPermitido),
+    ...pasta.comBasicos(uf).map((cod) => `imoveis_basicos_${cod}.csv`),
+  ]
   const estadosPublicos = () => {
     const estados = pasta.estados()
-    return { ...estados, acesso: "agregado" as const, estados: estados.estados.map((e) => ({ ...e, com_lista: [] })) }
+    return { ...estados, acesso: pasta.publicacaoBasica() ? "publico_basico" as const : "agregado" as const,
+      estados: estados.estados.map((e) => ({ ...e, com_lista: pasta.comBasicos(e.uf) })) }
   }
   const colunasResumo = new Set([
     "cod_ibge", "municipio", "imoveis", "sem_problema", "def_RL", "aptas_carbono", "ha_carbono",
@@ -77,10 +83,34 @@ export function dadosRaiz(opcoes: { repo: string; raizDados?: string | null; cac
       const n = Number(linha.imoveis)
       const suprimir = !Number.isFinite(n) || n < 5
       return Object.fromEntries([
-        ...permitidas.map((c) => [c, suprimir && c !== "cod_ibge" && c !== "municipio" ? "" : linha[c]]),
+        ...permitidas.map((c) => [c, suprimir && c !== "cod_ibge" && c !== "municipio" && !(pasta.publicacaoBasica() && c === "imoveis") ? "" : linha[c]]),
         ["dados_suprimidos", String(suprimir)],
       ])
     }))
+  }
+  const csvPublico = (nome: string) => resumoPermitido(nome) ? resumoPublico(nome) : pasta.csvBasico(nome)
+  function geometriaBasicaPublicada(cod: string): string | null {
+    const uf = cod.length === 7 ? pasta.ufs().find((u) => pasta.comBasicos(u).includes(cod)) : undefined
+    if (!uf) return null
+    const comprimido = path.join(geo, `imoveis_${cod}.geojson.gz`)
+    const origem = fs.existsSync(comprimido) ? comprimido : path.join(geo, `imoveis_${cod}.geojson`)
+    const csv = pasta.caminho(`imoveis_basicos_${cod}.csv`)
+    if (!csv || !fs.existsSync(origem)) return null
+    const identidade = [origem, csv].map((arq) => `${fs.statSync(arq).size}-${fs.statSync(arq).mtimeMs}`).join("_")
+    const arq = path.join(pasta.cache, `publico_basico_${cod}_${identidade}.geojson.gz`)
+    if (!fs.existsSync(arq)) {
+      const dado = pasta.geoBasico(cod)
+      if (!dado) return null
+      fs.mkdirSync(pasta.cache, { recursive: true })
+      fs.writeFileSync(arq, zlib.gzipSync(JSON.stringify(dado), { level: 6 }))
+    }
+    return arq
+  }
+  function adicionarGeometriasBasicas(municipios: Record<string, Record<string, { arquivo: string; bytes: number }>>) {
+    for (const uf of pasta.ufs()) for (const cod of pasta.comBasicos(uf)) {
+      const arq = geometriaBasicaPublicada(cod)
+      if (arq) (municipios[cod] ??= {}).imoveis = { arquivo: `imoveis_${cod}.geojson.gz`, bytes: fs.statSync(arq).size }
+    }
   }
   const geoPermitido = (nome: string) => /^(brasil_(municipios|estados)\.geojson|municipio_\d{7}\.geojson(?:\.gz)?|base_(brasil|[A-Z]{2}|\d{7})\.pmtiles)$/.test(nome)
   function indiceGeoPublico() {
@@ -106,7 +136,14 @@ export function dadosRaiz(opcoes: { repo: string; raizDados?: string | null; cac
           if (dado) (municipios[cod] ??= {})[chave] = dado
         }
       }
+      adicionarGeometriasBasicas(municipios)
       const cobertura = coberturaDoIndice(origem, (arquivo) => fs.existsSync(path.join(geo, arquivo)), pasta.estados().gerado_em)
+      // No contrato básico, a cobertura descreve só desenhos efetivamente publicados.
+      if (pasta.publicacaoBasica()) {
+        cobertura.acesso = "aberto"
+        cobertura.com_desenho = Object.keys(municipios).filter((cod) => municipios[cod].imoveis).sort()
+        cobertura.sem_desenho = [...new Set([...cobertura.sem_desenho, ...Object.keys(municipios)])].filter((cod) => !cobertura.com_desenho.includes(cod)).sort()
+      }
       return { brasil, municipios, cobertura }
     }
     // Compatibilidade com pastas antigas, antes do manifesto: só limites e bases com nome conhecido.
@@ -117,6 +154,7 @@ export function dadosRaiz(opcoes: { repo: string; raizDados?: string | null; cac
       else if (arquivo.startsWith("brasil_") || arquivo === "base_brasil.pmtiles")
         brasil[arquivo === "base_brasil.pmtiles" ? "base" : arquivo.includes("municipios") ? "municipios" : "estados"] = item
     }
+    adicionarGeometriasBasicas(municipios)
     return { brasil, municipios }
   }
   function arquivosGeo() {
@@ -132,12 +170,14 @@ export function dadosRaiz(opcoes: { repo: string; raizDados?: string | null; cac
   /** CSV limpo e comprimido, guardado enquanto o arquivo não muda (os mais recentes) */
   const gz = new Map<string, { mtime: number; dado: Buffer }>()
   function csvComprimido(nome: string): Buffer | null {
-    const arq = resumoPermitido(nome) ? pasta.caminho(nome) : null
+    const arq = (resumoPermitido(nome) || /^imoveis_basicos_\d{7}\.csv$/.test(nome)) ? pasta.caminho(nome) : null
     if (!arq) return null
     const mtime = fs.statSync(arq).mtimeMs
     const ja = gz.get(nome)
     if (ja && ja.mtime === mtime) return ja.dado
-    const dado = zlib.gzipSync(resumoPublico(nome) ?? "", { level: 6 })
+    const publico = csvPublico(nome)
+    if (publico === null) return null
+    const dado = zlib.gzipSync(publico, { level: 6 })
     gz.set(nome, { mtime, dado })
     while (gz.size > 40) gz.delete(gz.keys().next().value!)
     return dado
@@ -227,7 +267,7 @@ export function dadosRaiz(opcoes: { repo: string; raizDados?: string | null; cac
       const ufs = pasta.ufs()
       console.log(
         pasta.modo === "amostra"
-          ? `raiz-dados: dados/amostra (${ufs.join(", ") || "vazia"}). Sem dados publicados em dados/estados (o predev baixa sozinho quando há internet)`
+          ? `raiz-dados: dados/amostra (${ufs.join(", ") || "vazia"}). Sem dados publicados em dados/publicos (o predev baixa somente o pacote público versionado)`
           : `raiz-dados: ${path.relative(opcoes.repo, pasta.dir) || pasta.dir} (${ufs.length} estado(s): ${ufs.join(", ") || "nenhum"})`,
       )
       // os pontos de cada estado ficam prontos em segundo plano: o primeiro toque num estado já acha o cache
@@ -253,7 +293,12 @@ export function dadosRaiz(opcoes: { repo: string; raizDados?: string | null; cac
         if (emPasta(geo) || emPasta(lotes)) return naoAchou(res)
         if (url === "/busca") {
           const q = new URLSearchParams((req.url ?? "").split("?")[1] ?? "").get("q") ?? ""
-          const resultado = buscar(q, { municipios: pasta.municipios(), imoveis: [], comImoveis: new Set() })
+          const car = pareceCar(q) ? normalizarCar(q) : null
+          const uf = car?.slice(0, 2) ?? ""
+          const cods = new Set(car && car.length >= 10 ? [car.slice(3, 10)] : [])
+          if (car && car.length >= 10) for (const [codigo, cod] of Object.entries(pasta.foraBasicos(uf))) if (codigo.startsWith(car)) cods.add(cod)
+          const basicos = [...cods].flatMap((cod) => pasta.basicos(cod).flatMap((l) => { const b = lerBasico(l); return b ? [b] : [] }))
+          const resultado = buscar(q, { municipios: pasta.municipios(), imoveis: [], basicos, comImoveis: new Set(pasta.ufs().flatMap(pasta.comBasicos)) })
           return json(req, res, { ...resultado, municipios: resultado.municipios.map((m) => ({ ...m, imoveis: m.imoveis === null || m.imoveis < 5 ? null : m.imoveis })) })
         }
         if (url === "/amostra/estados.json") return json(req, res, estadosPublicos())
@@ -263,7 +308,9 @@ export function dadosRaiz(opcoes: { repo: string; raizDados?: string | null; cac
           pasta.pontosPublicos(m[1]).then((t) => (t ? json(req, res, t) : naoAchou(res)), falhou)
           return
         }
-        if (/^\/amostra\/(car_|fichas\/)/.test(url)) return naoAchou(res)
+        if ((m = /^\/amostra\/car_([A-Z]{2})\.json$/.exec(url)))
+          return pasta.publicacaoBasica(m[1]) ? json(req, res, pasta.foraBasicos(m[1])) : naoAchou(res)
+        if (/^\/amostra\/fichas\//.test(url)) return naoAchou(res)
         if ((m = /^\/amostra\/([^/]+\.csv)\.gz$/.exec(url))) {
           const dado = csvComprimido(m[1])
           if (!dado) return naoAchou(res)
@@ -273,7 +320,7 @@ export function dadosRaiz(opcoes: { repo: string; raizDados?: string | null; cac
           return res.end(dado)
         }
         if ((m = /^\/amostra\/([^/]+\.csv)$/.exec(url))) {
-          const t = resumoPublico(m[1])
+          const t = csvPublico(m[1])
           return t !== null ? texto(req, res, t, TIPOS[".csv"]) : naoAchou(res)
         }
         if ((m = /^\/geo\/fontes\/([\w ]+)\/(\d+-\d+)\.pbf$/.exec(url))) {
@@ -281,6 +328,10 @@ export function dadosRaiz(opcoes: { repo: string; raizDados?: string | null; cac
           return fs.existsSync(arq) ? enviarArquivo(req, res, arq) : naoAchou(res)
         }
         if (url === "/geo/indice.json") return json(req, res, indiceGeoPublico())
+        if ((m = /^\/geo\/imoveis_(\d{7})\.geojson\.gz$/.exec(url))) {
+          const arq = geometriaBasicaPublicada(m[1])
+          return arq ? enviarArquivo(req, res, arq) : naoAchou(res)
+        }
         if ((m = /^\/geo\/([^/]+)$/.exec(url))) {
           const arq = path.join(geo, m[1])
           return nomeSeguro(m[1]) && arquivosGeo().includes(m[1]) && fs.existsSync(arq) ? enviarArquivo(req, res, arq) : naoAchou(res)
@@ -293,7 +344,7 @@ export function dadosRaiz(opcoes: { repo: string; raizDados?: string | null; cac
       const comDados = !produtor && process.env.RAIZ_BUILD_DADOS !== "0"
       // Markdown e JSON-LD recebem exatamente o mesmo recorte público, com as mesmas supressões dos CSV.
       const municipios = comDados ? pasta.ufs().flatMap((uf) =>
-        arquivosPublicos(uf).flatMap((nome) => lerCsv(resumoPublico(nome) ?? "").linhas.map((linha) => lerFunil(linha, uf)))) : []
+        arquivosPublicos(uf).filter(resumoPermitido).flatMap((nome) => lerCsv(resumoPublico(nome) ?? "").linhas.map((linha) => lerFunil(linha, uf)))) : []
       paginasAgentes({
         saida, base, produtor, siteUrl: process.env.RAIZ_SITE_URL,
         ...(comDados ? { catalogo: { estados: estadosPublicos(), municipios, arquivos: Object.fromEntries(pasta.ufs().map((uf) => [uf, arquivosPublicos(uf)])) } } : {}),
@@ -310,16 +361,21 @@ export function dadosRaiz(opcoes: { repo: string; raizDados?: string | null; cac
       for (const uf of pasta.ufs()) {
         const arquivos = arquivosPublicos(uf)
         for (const f of arquivos) {
-          fs.writeFileSync(path.join(dAmostra, `${f}.gz`), zlib.gzipSync(resumoPublico(f) ?? "", { level: 9 }))
+          fs.writeFileSync(path.join(dAmostra, `${f}.gz`), zlib.gzipSync(csvPublico(f) ?? "", { level: 9 }))
           csvs++
         }
         fs.writeFileSync(path.join(dAmostra, `indice_${uf}.json`), JSON.stringify({ uf, arquivos }))
         fs.writeFileSync(path.join(dAmostra, `pontos_${uf}.json`), JSON.stringify(await pasta.pontosPublicos(uf)))
+        if (pasta.publicacaoBasica(uf)) fs.writeFileSync(path.join(dAmostra, `car_${uf}.json`), JSON.stringify(pasta.foraBasicos(uf)))
       }
       fs.writeFileSync(path.join(dAmostra, "estados.json"), JSON.stringify(estadosPublicos()))
       fs.writeFileSync(path.join(dAmostra, "lote_PA_central_r11.json"), JSON.stringify(lotePublicado()))
       fs.writeFileSync(path.join(dGeo, "indice.json"), JSON.stringify(indiceGeoPublico()))
-      for (const f of arquivosGeo()) fs.copyFileSync(path.join(geo, f), path.join(dGeo, f))
+      for (const f of arquivosGeo()) {
+        const m = /^imoveis_(\d{7})\.geojson\.gz$/.exec(f)
+        const origem = m ? geometriaBasicaPublicada(m[1]) : path.join(geo, f)
+        if (origem) fs.copyFileSync(origem, path.join(dGeo, f))
+      }
       if (fs.existsSync(path.join(geo, "fontes")))
         fs.cpSync(path.join(geo, "fontes"), path.join(dGeo, "fontes"), { recursive: true })
       console.log(`raiz-dados: ${csvs} resumos municipais e mapa agregado em ${saida}; fichas completas somente na API`)

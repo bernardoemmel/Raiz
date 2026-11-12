@@ -1,28 +1,13 @@
-"""Publica as saídas do motor no Release `dados` do GitHub, de onde o front baixa sozinho. Os dados grandes nunca vão para
-o git: ficam só no Release.
+"""Separa as saídas do motor em arquivo privado completo e projeção aberta mínima.
 
-Para cada estado monta:
-  raiz_<UF>.tar.gz      todos os CSV do estado (imoveis_, direto_, filtros_, extras_, extras_direto_, mapbiomas_,
-                        certidoes_, resumo_<UF>.csv e sem_imoveis_<UF>.csv), dentro da pasta <UF>/
-  raiz_geo_<UF>.tar.gz  os polígonos dos imóveis (geo_<cod>.parquet, GeoParquet), dentro da pasta <UF>/
-e a entrada do estado no estados.json: municípios feitos, total do IBGE, o que falta, se está completo, tamanho, versão
-dos dados (sha256 do conteúdo) e versão do motor (commit e hash do código de cada tabela, lidos do saida/<UF>/rodada.json
-que o rodar_estado.py grava). Só monta de novo o pacote que mudou.
+Com --subir, o armazém autenticado confirma primeiro os originais e só então envia
+CSV básicos por CAR, contornos sem atributos e agregados ao Release aberto.
+Sem --subir, grava a projeção em <entrada> e os originais em <entrada>/privado.
+Esses pacotes administrativos não devem ser colocados no git ou em artifacts públicos.
+O importador raiz.executor.publicar_entrada preserva a mesma publicação dupla.
 
-Uso:
-  python motor/publicar_dados.py <saida> <entrada> [UF ...] --subir
-      monta em <entrada> e sobe direto no Release com o gh (GitHub Actions, com GH_TOKEN). Os pacotes de cada estado sobem
-      sem esperar ninguém; o estados.json é relido do Release, recebe só as entradas destes estados e é regravado por
-      último, dentro de uma trava (tag trava-publicar-dados criada pela API), para que dois jobs que terminam juntos não
-      apaguem a entrada um do outro. Depois atualiza o painel em motor/README.md.
-  python motor/publicar_dados.py <saida> <entrada> [UF ...]
-      só monta em <entrada> (fluxo antigo pelo git: commit de <entrada> e o workflow publicar-dados.yml sobe). Pacote
-      acima de 90 MB vai em partes (.part00, .part01...), porque o git não aceita arquivo acima de 100 MB.
-  python motor/publicar_dados.py --indice <entrada>
-      só o índice: mescla no estados.json publicado as entradas dos estados que têm pacote em <entrada> (usado pelo
-      publicar-dados.yml depois de subir os pacotes).
-
-Antes de montar, confere que nenhum CSV tem coluna de nome, CPF, CNPJ ou contato.
+O arquivo privado exige RAIZ_DADOS_PRIVADOS_URL e RAIZ_DADOS_PRIVADOS_TOKEN.
+Release em rascunho nunca deve ser publicado. O caminho legado --indice está desativado.
 """
 
 from __future__ import annotations
@@ -40,6 +25,7 @@ import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import raiz_situacao as S  # noqa: E402
 
 REPO, TAG, BASE = S.REPO, S.TAG, S.BASE
@@ -120,6 +106,11 @@ def motor_info(pasta: Path, antigo: dict) -> tuple[dict, list[dict]]:
 
 def montar(saida: Path, destino: Path, ufs: list[str], publicado: dict, partes: bool) -> tuple[dict, list[Path]]:
     """Monta os pacotes que mudaram. Devolve as entradas novas do estados.json e os arquivos a subir."""
+    from raiz.executor.armazem import ArmazemRelease
+    from raiz.executor.publicacao_aberta import entrada_publica, projetar_csvs, projetar_geo, validar_asset_publico
+
+    privado = destino / "privado"
+    privado.mkdir(parents=True, exist_ok=True)
     estados = publicado.get("estados", {})
     agora = S.agora()
     novas, arquivos = {}, []
@@ -137,19 +128,20 @@ def montar(saida: Path, destino: Path, ufs: list[str], publicado: dict, partes: 
             S.acao_github("warning", f"publicar {uf}", "o estado é do executor (raiz executor): publique com "
                           "`uv run raiz executor publicar --ufs " + uf + "`; não troco o pacote dele")
             continue
-        conferir_privacidade(csvs)
-        from raiz.qualidade_dados import validar_arquivos, validar_json
         geos = sorted(pasta.glob("geo_*.parquet"))
         conteudos = {f.name: f.read_bytes() for f in [*csvs, *geos]}
-        validar_arquivos(conteudos)
         csvs_conferidos = {f.name: conteudos[f.name] for f in csvs}
         geos_conferidos = {f.name: conteudos[f.name] for f in geos}
         motor, erros = motor_info(pasta, antigo)
-        validar_json({"motor": motor, "erros": erros})
         info = estado_info(pasta, uf)
-        v = versao(csvs_conferidos)
+        completos = csvs_conferidos
+        # A cópia completa fica separada, para o publicador autenticado. Nunca subir esses arquivos ao aberto.
+        gravar(privado, f"raiz_{uf}.tar.gz", empacotar(uf, csvs_conferidos), partes=False)
+        publicos = projetar_csvs(uf, completos)
+        pacote = ArmazemRelease._tar(uf, publicos)
+        validar_asset_publico(f"raiz_{uf}.tar.gz", pacote)
+        v = __import__("hashlib").sha256(pacote).hexdigest()[:16]
         if antigo.get("versao") != v:
-            pacote = empacotar(uf, csvs_conferidos)
             arquivos += gravar(destino, f"raiz_{uf}.tar.gz", pacote, partes)
             info.update(tamanho=len(pacote), atualizado_em=agora)
             print(f"{uf}: raiz_{uf}.tar.gz {len(pacote) / 1e6:.1f} MB ({info['municipios']}/{info['total_ibge']} municípios)")
@@ -159,22 +151,26 @@ def montar(saida: Path, destino: Path, ufs: list[str], publicado: dict, partes: 
         info.update(versao=v, url=f"{BASE}/raiz_{uf}.tar.gz")
         geos = sorted(pasta.glob("geo_*.parquet"))
         if geos:
-            vg = versao(geos_conferidos)
+            gravar(privado, f"raiz_geo_{uf}.tar.gz", empacotar(uf, geos_conferidos), partes=False)
+            pg = ArmazemRelease._tar(uf, {nome: projetar_geo(dados) for nome, dados in geos_conferidos.items()})
+            validar_asset_publico(f"raiz_geo_{uf}.tar.gz", pg)
+            vg = __import__("hashlib").sha256(pg).hexdigest()[:16]
             if (antigo.get("geo") or {}).get("versao") != vg:
-                pg = empacotar(uf, geos_conferidos)
                 arquivos += gravar(destino, f"raiz_geo_{uf}.tar.gz", pg, partes)
-                info["geo"] = {"versao": vg, "tamanho": len(pg), "url": f"{BASE}/raiz_geo_{uf}.tar.gz", "municipios": len(geos)}
+                info["geo"] = {"versao": vg, "tamanho": len(pg), "url": f"{BASE}/raiz_geo_{uf}.tar.gz",
+                               "municipios": len(geos), "escopo": "publico_basico"}
                 print(f"{uf}: raiz_geo_{uf}.tar.gz {len(pg) / 1e6:.1f} MB")
             else:
                 info["geo"] = antigo["geo"]
         info["motor"], info["erros"] = motor, erros
-        novas[uf] = info
+        novas[uf] = {**entrada_publica(info), "url": info["url"], **({"geo": info["geo"]} if info.get("geo") else {})}
     return novas, arquivos
 
 
 def escrever_manifesto(destino: Path, estados: dict) -> Path:
     ordem = {u: i for i, u in enumerate(S.ORDEM)}
-    manifesto = {"gerado_em": S.agora(), "repo": REPO, "tag": TAG,
+    estados = {uf: e for uf, e in estados.items() if e.get("escopo") == "publico_basico"}
+    manifesto = {"gerado_em": S.agora(), "repo": REPO, "tag": TAG, "versao_publicacao": 1, "escopo": "publico_basico",
                  "estados": dict(sorted(estados.items(), key=lambda kv: ordem.get(kv[0], 99)))}
     f = destino / "estados.json"
     f.write_text(json.dumps(manifesto, ensure_ascii=False, indent=1), encoding="utf-8")
@@ -201,9 +197,9 @@ def garantir_release() -> None:
 
 
 def subir(arquivo: Path, tentativas: int = 4) -> None:
-    if arquivo.suffix == ".json":
-        from raiz.qualidade_dados import validar_json
-        validar_json(json.loads(arquivo.read_bytes()))
+    from raiz.executor.publicacao_aberta import validar_asset_publico
+
+    validar_asset_publico(arquivo.name, arquivo.read_bytes())
     for i in range(tentativas):
         r = gh("release", "upload", TAG, str(arquivo), "--clobber", "-R", REPO, check=False)
         if r.returncode == 0:
@@ -277,14 +273,7 @@ def main() -> None:
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
     flags = {a for a in sys.argv[1:] if a.startswith("--")}
     if "--indice" in flags:
-        if len(args) != 1:
-            raise SystemExit(__doc__)
-        pasta = Path(args[0])
-        local = json.loads((pasta / "estados.json").read_text(encoding="utf-8")).get("estados", {})
-        ufs = {m.group(1) for f in pasta.iterdir() if (m := re.fullmatch(r"raiz_(?:geo_)?([A-Z]{2})\.tar\.gz", f.name))}
-        novas = {uf: local[uf] for uf in sorted(ufs) if uf in local}
-        mesclar_indice(novas, pasta)
-        return
+        raise SystemExit("Publicação isolada do índice foi desativada. Use --subir ou raiz.executor.publicar_entrada.")
     if len(args) < 2:
         raise SystemExit(__doc__)
     saida, destino = Path(args[0]), Path(args[1])
@@ -292,7 +281,10 @@ def main() -> None:
     ufs = [u.upper() for u in args[2:]] or sorted(p.name for p in saida.iterdir() if p.is_dir() and p.name in S.TOTAL_IBGE)
     subir_agora = "--subir" in flags
     if subir_agora:
-        garantir_release()
+        from raiz.executor.publicar_entrada import publicar_pasta
+
+        publicar_pasta(saida, ufs)
+        return
     publicado = S.ler_manifesto()
     novas, arquivos = montar(saida, destino, ufs, publicado, partes=not subir_agora)
     if not novas:

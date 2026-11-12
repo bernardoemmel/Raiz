@@ -25,6 +25,7 @@ aceita `X-Chave-API` ou `Authorization: Bearer raiz_...`, nunca chave na URL.
 | Montar pedido | `POST /v1/pedidos` |
 | Comparar opções | `GET /v1/pedidos/{id}/opcoes` |
 | Analisar fazenda | `GET /v1/fazendas/{cod}/analise` |
+| Reler ficha já adquirida | `GET /v1/fazendas/{cod}/ficha` |
 | Buscar interesse | `POST /v1/pedidos/{id}/solicitar-interesse` |
 | Acompanhar | `GET /v1/pedidos/{id}/andamento` |
 | Preparar reserva | `POST /v1/pedidos/{id}/reservar` |
@@ -49,6 +50,7 @@ cabeçalhos externos que pretendam escolher uma empresa.
 
 | Ferramenta | Escopo | Comportamento |
 |---|---|---|
+| `consultar_ficha` | `consultar` | Relê CAR já pago na carteira de fichas, com fontes/datas; exige sinal e contrato, sem nova tarifa |
 | `consultar_disponibilidade` | `consultar` | Enfileira totais P10/P50/P90; consome teste ou saldo |
 | `pedir_lote` | `pedir` | Enfileira montagem; exige sinal, contrato e `idempotency_key` |
 | `comparar_lotes` | `consultar` | Enfileira comparação agregada das opções; exige liberação |
@@ -69,6 +71,12 @@ de API. O cabeçalho `Idempotency-Key` das mutações corresponde ao argumento M
 `idempotency_key`. Mesma empresa, ferramenta, chave e corpo retornam a operação
 original, inclusive entre REST e MCP; reaproveitar a chave com outro corpo dá 409.
 Os limites SlowAPI também são compartilhados entre esses dois canais.
+
+`consultar_ficha` devolve diretamente a mesma ficha da prospecção, com fontes,
+datas e ausências. Exige liberação prévia daquele CAR pela própria empresa;
+sem ela retorna 402. Não consome saldo/teste corporativo, não desbloqueia acesso
+e não substitui a análise de fazenda de R$ 1.500. Mantém auditoria, limites e
+controle de raspagem. A carteira de fichas também limita essa leitura.
 Se o adaptador devolver 504 ao atingir o prazo de três segundos, a requisição
 interna já iniciada pode concluir. Repita com a mesma chave idempotente para
 consultar a mesma intenção; o adaptador não dispara outra tentativa por conta própria.
@@ -192,7 +200,7 @@ do servidor Redis sob SSPL, RSAL ou AGPL.
 ## Evidência e meta dos agentes
 
 Os testes HTTP usam o aplicativo completo, JWTs assinados e PostgreSQL/PostGIS
-descartável. Cobrem as seis ferramentas, identidade e escopos, liberação comercial,
+descartável. Cobrem as sete ferramentas, identidade e escopos, liberação comercial,
 fila, idempotência entre REST/MCP, limite por empresa, cancelamento, retorno de
 aprovação e preservação/verificação do recibo. Erros de autenticação são RFC 9457.
 Não use o banco do produto: a fixture de testes desmonta e recria o banco indicado

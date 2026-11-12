@@ -1,8 +1,8 @@
 # Contrato adversarial do MCP
 
 **Estado em 12/11/2026: MCP presente; corpus de agente pendente de Produto e regras.**
-Os PRs #45/#69 entraram durante a validação do PR de Qualidade. O servidor real tem seis ferramentas de
-pedidos, OAuth e ponte REST, mas não tem agente cliente nem entrada que leia certidão, edital ou nome de arquivo.
+Os PRs #45/#69/#72 entraram durante a validação do PR de Qualidade. O servidor real tem sete ferramentas de
+pedidos e ficha, OAuth e ponte REST, mas não tem agente cliente nem entrada que leia certidão, edital ou nome de arquivo.
 `produto.py` inicia HTTP/JWKS local, valida JWT RS256 pelo código real e usa PostGIS/contas/trabalhos reais.
 Latência e Locust executam todas as ferramentas. Isso não comprova resistência de um agente leitor inexistente.
 
@@ -95,9 +95,15 @@ uv run python scripts/testar_mcp_ci.py
 ```
 
 O ambiente não herda segredos de serviços do operador, bloqueia conexão/DNS externos e só usa crédito fictício.
-A amostra do repositório alimenta pedidos e worker reais. As seis ferramentas precisam dar resposta válida;
+A amostra do repositório alimenta pedidos e worker reais. As sete ferramentas precisam dar resposta válida;
 limite mede apenas retorno da ferramenta, que pode admitir um trabalho assíncrono sem executá-lo inteiro.
 O prazo não é tempo de conclusão do cálculo em segundo plano. O servidor conserva os logs sanitizados do produto.
+
+`consultar_ficha` recebe um CAR da amostra adquirido pela própria empresa da fixture: um crédito sintético é
+debitado pelo serviço real de desbloqueio, com movimento auditado, antes do ensaio. A carteira fica zerada e a
+consulta usa OAuth, conta, sinal, contrato, limites e autorização do CAR reais; nenhuma cobrança externa é criada.
+Essa ferramenta somente relê a ficha e não exige chave de idempotência. As outras seis recebem uma chave por
+intenção, preservada nas repetições de carga para não gerar novos trabalhos ou débitos.
 
 A carga repete intenções idempotentes sobre pedidos reais preparados no banco descartável, com seis usuários.
 Isso mede transporte, autorização, consultas e replay seguro; não é capacidade máxima de criação de novos lotes.

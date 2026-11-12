@@ -1,3 +1,5 @@
+import type { SituacaoBasica } from "../../../compartilhado/dados/basico"
+import { PainelMunicipioBasico } from "../partes/PainelMunicipioBasico"
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react"
 import { codigosEmLeilao } from "../../../compartilhado/calendario"
 import { calendario } from "../calendario"
@@ -44,6 +46,8 @@ export function Explorar({ municipio, uf }: { municipio: string | null; uf: stri
   const pontos = useCarga(() => (ufFoco ? fonte.pontos(ufFoco) : Promise.resolve([])), [ufFoco])
   const funil = useCarga(() => (municipio ? fonte.municipio(municipio) : Promise.resolve(null)), [municipio])
   const imoveis = useCarga(() => (municipio ? fonte.imoveis(municipio) : Promise.resolve(null)), [municipio])
+  const basicos = useCarga(() => (municipio && fonte.basicos ? fonte.basicos(municipio) : Promise.resolve(null)), [municipio])
+  const [situacaoBasica, setSituacaoBasica] = useState<SituacaoBasica | null>(null)
   const geoMunicipio = useCarga<GeoMunicipio | null>(async () => {
     if (!municipio) return null
     const [m, i, ti, uc, rios, terraPublica, base] = await Promise.all([
@@ -70,6 +74,7 @@ export function Explorar({ municipio, uf }: { municipio: string | null; uf: stri
   if (ultimo !== municipio) {
     setUltimo(municipio)
     setFoco(null)
+    setSituacaoBasica(null)
     setCamada("situacao")
     if (!municipio) setAltura("baixa")
     else if (altura === "baixa") setAltura("meia")
@@ -151,7 +156,21 @@ export function Explorar({ municipio, uf }: { municipio: string | null; uf: stri
                 {listas.has(municipio) && " Os dados e a lista continuam disponíveis."}
               </p>
             )}
-            {municipio ? (
+            {municipio && estados.dado?.acesso === "publico_basico" ? (
+              <PainelMunicipioBasico
+                key={municipio}
+                nome={funil.dado?.municipio ?? (feicao?.properties.nome as string | undefined) ?? "Município"}
+                uf={ufFoco ?? ""}
+                centro={centro}
+                funil={funil.dado ?? null}
+                imoveis={basicos.carregando ? undefined : basicos.dado ?? null}
+                situacao={situacaoBasica}
+                mudarSituacao={setSituacaoBasica}
+                aoPassar={setDestaque}
+                emLeilao={emLeilao}
+                atualizadoEm={estados.dado.estados.find((e) => e.uf === ufFoco)?.atualizado_em ?? estados.dado.gerado_em}
+              />
+            ) : municipio ? (
               <PainelMunicipio
                 cod={municipio}
                 nome={(feicao?.properties.nome as string | undefined) ?? null}
@@ -189,6 +208,8 @@ export function Explorar({ municipio, uf }: { municipio: string | null; uf: stri
           municipio={municipio}
           geoMunicipio={geoMunicipio.carregando ? null : (geoMunicipio.dado ?? null)}
           imoveis={imoveis.dado ?? null}
+          basicos={basicos.dado ?? null}
+          situacaoBasica={situacaoBasica}
           foco={foco}
           camada={camada}
           destaque={destaque}

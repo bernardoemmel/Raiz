@@ -7,6 +7,7 @@
  * processados ou código que não existe nos dados.
  */
 
+import type { ImovelBasico } from "./basico"
 import { normalizar, UFS } from "../formato"
 import type { Categoria, FunilMunicipio, Imovel } from "./tipos"
 
@@ -44,7 +45,7 @@ export interface RespostaBusca {
   situacao: SituacaoBusca
   /** frase pronta para a tela quando a situação não é "ok" */
   mensagem: string | null
-  imoveis: ImovelAchado[]
+  imoveis: (ImovelAchado | ImovelBasico)[]
   municipios: MunicipioAchado[]
 }
 
@@ -52,6 +53,7 @@ export interface BaseBusca {
   municipios: FunilMunicipio[]
   /** imóveis de todos os municípios com lista por fazenda */
   imoveis: Imovel[]
+  basicos?: ImovelBasico[]
   /** municípios com lista por fazenda */
   comImoveis: Set<string>
 }
@@ -124,6 +126,8 @@ export function buscar(qBruta: string, base: BaseBusca): RespostaBusca {
       )
     if (cod.length < 10) return vazia("car", "curta", "Continue digitando: depois da sigla vêm os 7 números do município.")
     const completo = cod.length === 43
+    const basicos = (base.basicos ?? []).filter((i) => completo ? i.cod_imovel === cod : i.cod_imovel.startsWith(cod))
+    if (basicos.length) return { q, tipo: "car", situacao: "ok", mensagem: null, imoveis: basicos.sort((a, b) => a.cod_imovel.localeCompare(b.cod_imovel)).slice(0, MAX_IMOVEIS), municipios: [] }
     const lista = completo
       ? base.imoveis.filter((i) => i.cod_imovel === cod)
       : base.imoveis.filter((i) => i.cod_imovel.startsWith(cod))

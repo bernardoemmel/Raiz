@@ -147,15 +147,17 @@ def test_cli_recusa_subdiretorio_extra(tmp_path):
     assert resultado.returncode == 1 and b"diret" in resultado.stderr
 
 
-def test_executor_valida_extra_antes_do_primeiro_upload(tmp_path):
+def test_executor_preserva_extra_privado_sem_levar_para_publicacao(tmp_path):
     from testes.test_armazem_release import GitHubFalso, _armazem
 
-    gh = GitHubFalso()
-    a = _armazem(gh, tmp_path / "espelho")
-    a.local.por_bytes(f"saida/PA/imoveis_{MUN}.csv", next(iter(csv().values())))
-    with pytest.raises(ErroQualidade):
-        a.publicar("PA", extra={"PA": {"erro": "nome: Pessoa de Teste"}})
-    assert gh.uploads == []
+    gh, publico = GitHubFalso(), GitHubFalso()
+    publico.privado = False
+    aberto = _armazem(publico, tmp_path / "aberto", privado=False)
+    a = _armazem(gh, tmp_path / "espelho", publico=aberto)
+    a.local.por_bytes(f"saida/PA/imoveis_{MUN}.csv", next(iter(csv(municipio="Nova Esperança do Piriá").values())))
+    a.publicar("PA", extra={"PA": {"erro": "nome: Pessoa de Teste"}})
+    assert gh.uploads and publico.uploads
+    assert all(b"Pessoa de Teste" not in dados for dados in publico.assets.values())
 
 
 def test_vigilancia_valida_todo_lote_antes_do_primeiro_upload(tmp_path):
@@ -261,7 +263,7 @@ def test_json_chave_repetida_nao_pode_ocultar_valor():
 
 def test_legado_empacota_os_mesmos_bytes_que_passaram_no_portao(tmp_path, monkeypatch):
     from motor import publicar_dados
-    from raiz import qualidade_dados
+    from raiz.executor import publicacao_aberta
 
     saida = tmp_path / "saida"
     pasta = saida / "PA"
@@ -269,20 +271,23 @@ def test_legado_empacota_os_mesmos_bytes_que_passaram_no_portao(tmp_path, monkey
     pasta.mkdir(parents=True)
     destino.mkdir()
     caminho = pasta / f"imoveis_{MUN}.csv"
-    dados = next(iter(csv().values()))
+    dados = next(iter(csv(municipio="Nova Esperança do Piriá").values()))
     caminho.write_bytes(dados)
     # A publicação no Actions exige comprovante de rodada; exercitar o mesmo caminho também localmente.
     monkeypatch.setenv("GITHUB_ACTIONS", "true")
     (pasta / "rodada.json").write_text(json.dumps({"commit": "0" * 40, "fim": "2026-11-12T00:00:00Z"}))
-    original = qualidade_dados.validar_arquivos
+    original = publicacao_aberta.validar_asset_publico
 
-    def validar_e_alterar_fonte(arquivos):
-        original(arquivos)
+    def validar_e_alterar_fonte(nome, conteudo):
+        original(nome, conteudo)
         caminho.write_text("contato\nteste@exemplo.invalid\n")
 
-    monkeypatch.setattr(qualidade_dados, "validar_arquivos", validar_e_alterar_fonte)
+    monkeypatch.setattr(publicacao_aberta, "validar_asset_publico", validar_e_alterar_fonte)
     monkeypatch.setattr(publicar_dados, "estado_info", lambda *_: {"municipios": 1, "total_ibge": 144})
     monkeypatch.setattr(publicar_dados, "motor_info", lambda *_: ({}, []))
     publicar_dados.montar(saida, destino, ["PA"], {}, partes=False)
-    with tarfile.open(destino / "raiz_PA.tar.gz") as tar:
+    with tarfile.open(destino / "privado" / "raiz_PA.tar.gz") as tar:
         assert tar.extractfile(f"PA/{caminho.name}").read() == dados
+    with tarfile.open(destino / "raiz_PA.tar.gz") as tar:
+        publico = tar.extractfile(f"PA/imoveis_basicos_{MUN}.csv").read()
+        assert b"contato" not in publico and COD.encode() in publico

@@ -1,7 +1,7 @@
 # Vigilância diária das fazendas e dos projetos (raiz/vigilancia/README.md).
 # Lê MapBiomas Alerta, FIRMS (NOAA-20/21), embargos do Ibama, DETER e PRODES, cruza com os polígonos do Release dados
-# e com os projetos, e publica no Release `vigilancia`: alertas de imóvel abertos; projetos, perdas e marcações
-# cifrados (RAIZ_VIGILANCIA_CHAVE). Fonte com erro deixa a execução vermelha (o GitHub avisa por e-mail), depois de
+# e com os projetos, e publica no arquivo privado: alertas de imóvel e histórico autenticados; projetos, perdas
+# e marcações também cifrados (RAIZ_VIGILANCIA_CHAVE). Fonte com erro deixa a execução vermelha (o GitHub avisa por e-mail), depois de
 # publicar o que deu certo.
 #
 # Segredos do repositório (Settings > Secrets and variables > Actions):
@@ -56,14 +56,8 @@ jobs:
       - name: Testes da vigilância
         run: python -m pytest -q raiz/vigilancia/testes
 
-      # polígonos do Release dados e a versão limpa dos embargos (sem nome nem CPF/CNPJ): só baixa de novo o que mudou
-      - name: Cache dos polígonos e dos embargos
-        uses: actions/cache@v4
-        with:
-          path: ${{ runner.temp }}/vigilancia/cache
-          key: vigilancia-cache-${{ github.run_id }}
-          restore-keys: vigilancia-cache-
-
+      # Cache local descartável: polígonos com atributos e embargos não saem pelo cache aberto do Actions.
+      # Estado, alertas e retomadas são lidos e gravados no arquivo privado autenticado.
       - name: Rodada
         env:
           MAPBIOMAS_ALERTA_EMAIL: ${{ secrets.MAPBIOMAS_ALERTA_EMAIL }}
@@ -72,6 +66,8 @@ jobs:
           RAIZ_VIGILANCIA_CHAVE: ${{ secrets.RAIZ_VIGILANCIA_CHAVE }}
           RAIZ_PROJETOS_PRIVADO: ${{ secrets.RAIZ_PROJETOS_PRIVADO }}
           GITHUB_TOKEN: ${{ github.token }}
+          RAIZ_DADOS_PRIVADOS_URL: ${{ vars.RAIZ_DADOS_PRIVADOS_URL || format('release-github://{0}/dados-privados', github.repository) }}
+          RAIZ_DADOS_PRIVADOS_TOKEN: ${{ secrets.RAIZ_DADOS_PRIVADOS_TOKEN || github.token }}
           FONTES: ${{ inputs.fontes }}
           UFS: ${{ inputs.ufs }}
         run: |

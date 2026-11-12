@@ -27,7 +27,7 @@ As três rotas tiveram respostas válidas nas duas fases. A recuperação observ
 
 ## Carga MCP real
 
-O MCP OAuth dos PRs #45/#69 está na main e o adaptador `testes/mcp/produto.py` o exercita com banco, emissor
+O MCP OAuth dos PRs #45/#69/#72 está na main e o adaptador `testes/mcp/produto.py` o exercita com banco, emissor
 JWKS e credenciais descartáveis. A carga exige manifesto que cubra exatamente `tools/list`; o corpus de agente
 leitor continua pendente, conforme a seção de integração abaixo. Para um sandbox local já iniciado:
 
@@ -51,10 +51,13 @@ Use o conjunto completo de ferramentas realmente publicadas, IDs e dados descart
 
 Repita com `RAIZ_CARGA_FASE=limite` e orçamento baixo configurado pelo servidor do sandbox, usando outro arquivo de relatório. Essa fase exige ao menos um 429 com Retry-After positivo (até 60 s) e ao menos uma resposta válida de cada ferramenta; a fase normal recusa qualquer 429. O Locust aplica deadline de 4,9 s por chamada MCP, além do portão de tempo <5 s. O ensaio de latência separado usa deadline de relógio, independente do timeout de inatividade HTTP.
 
-O job MCP já executa esse perfil real com todas as ferramentas. A aprovação de tempo/carga não equivale à aprovação do corpus de leitura de documentos, que continua explicitamente pendente.
+O job MCP executa esse perfil real com as sete ferramentas, incluindo `consultar_ficha`. O CAR da amostra já foi
+adquirido pela própria empresa mediante débito do crédito sintético da fixture; o GET passa pelos gates reais e
+relê a ficha com saldo zerado, sem compra implícita. As demais ferramentas conservam a chave da mesma intenção
+durante os replays. A aprovação de tempo/carga não equivale à aprovação do corpus de leitura de documentos, que continua explicitamente pendente.
 
 
-## Integração disponível após #45/#69
+## Integração disponível após #45/#69/#72
 
 `testes/mcp/produto.py` agora inicia o MCP e a API reais com PostGIS local, JWT/JWKS descartáveis e logs sanitizados
 ativos. `uv run python scripts/testar_mcp_ci.py` produz medições de todas as ferramentas e as duas fases Locust;
@@ -62,3 +65,10 @@ exige `RAIZ_BANCO_URL_MCP_TESTE` apontando ao banco local `raiz_mcp_teste`, que 
 O comando ainda termina com falha explícita pelo corpus AgentDojo sem agente leitor; os relatórios de tempo/carga
 não aprovam esse corpus. Veja `testes/mcp/README.md` para a pendência e a distinção entre tempo de resposta da
 ferramenta e execução assíncrona do cálculo. A carga repete intenções idempotentes, sem pagamentos externos.
+
+Ensaio local após #72, em 12/11/2026: sete ferramentas responderam pela integração real; a maior chamada isolada
+foi `consultar_ficha`, em 0,262 s. A fase normal teve 157 requisições, zero falhas e máximo de 0,941 s; a saturação
+teve 251 requisições, 152 respostas 429 esperadas, zero falhas e máximo de 1,748 s. Todas as ferramentas tiveram
+sucesso nas duas fases. Não foi necessário mudar o teto próprio de leitura de fichas nesse ensaio.
+Relatórios locais: `/tmp/raiz-mcp-sete-ferramentas/`. O runner retornou 1 exclusivamente pelo corpus pendente,
+com `latencia=true`, `carga=true` e `corpus=false`; estes resultados não são aprovação do agente leitor.

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 
-/** Texto para agentes segue o mesmo limite dos dados servidos ao navegador. */
+/** Catálogo e texto para agentes apresentam agregados e o portão pago; a camada básica é validada no smoke Pages. */
 export function conferirConteudoPublico(texto, identificador) {
   assert(!/\b[A-Z]{2}[-. ]?\d{7}[-. ]?(?:[A-F0-9][.]?){32}\b/i.test(texto),
     `${identificador}: um código CAR individual apareceu na publicação aberta.`)
@@ -8,10 +8,10 @@ export function conferirConteudoPublico(texto, identificador) {
     conferirCaminhoPublico(new URL(destino, "https://raiz.invalid/").pathname, identificador)
 }
 
-/** Não basta esconder o valor no texto: downloads e links individuais também ficam fechados. */
+/** Downloads completos continuam fechados; CSV básico e geometria projetada são permitidos. */
 export function conferirCaminhoPublico(caminho, identificador) {
   const legivel = decodeURIComponent(caminho)
-  assert(!/(?:^|\/)(?:car_[^/]*|(?:imoveis|filtros|certidoes|desenvolvedor|ficha)_\d{7}[^/]*|fichas)(?:\/|$)/i.test(legivel),
+  assert(!/(?:^|\/)(?:car_[^/]*|imoveis_\d{7}\.csv[^/]*|(?:filtros|certidoes|desenvolvedor|ficha)_\d{7}[^/]*|fichas)(?:\/|$)/i.test(legivel),
     `${identificador}: download ou ficha individual anunciado no conteúdo público: ${legivel}`)
 }
 

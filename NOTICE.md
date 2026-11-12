@@ -232,7 +232,7 @@ Dependências usadas como biblioteca, sem copiar nem alterar o código (`raiz/do
 | beautifulsoup4 | links das páginas de editais | MIT |
 | requests | páginas e APIs públicas | Apache-2.0 |
 | pandas, numpy | tabelas do motor e faixa P10 a P90 da carteira | BSD-3-Clause |
-| reportlab | PDF de exemplo dos testes | BSD |
+| reportlab | PDF privado da ficha da fazenda e PDF de exemplo dos testes | BSD |
 
 Programas e serviços chamados de fora, sem embutir código: LibreOffice (MPL-2.0) converte .docx em PDF no servidor;
 Firecrawl só pela API hospedada (o código do Firecrawl é AGPL: não instalar nem hospedar). Fontes públicas da busca

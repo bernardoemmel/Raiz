@@ -452,8 +452,9 @@ front/compartilhado/pedidos/tipos.ts.
   pedidos ciclo` (de hora em hora no cron) vence quem não respondeu em 15 dias, chama a próxima onda, fecha o grupo
   quando os interessados alcançam a meta (aviso no painel, e-mail e WhatsApp) ou diz o que faltou.
   `GET /pedidos/{id}/andamento` mostra a meta com interessado, aceite e contrato, as ondas, recusas e motivos.
-- Reserva: `POST /pedidos/{id}/reservar` cria a cobrança Pix pela AbacatePay (`RAIZ_ABACATEPAY_CHAVE`; sem chave,
-  cobrança de teste, paga com `raiz pedidos pagar-teste <id>` ou `POST /pagamentos/teste/{id}/pagar`). O aviso de
+- Reserva: `POST /pedidos/{id}/reservar` cria a cobrança Pix pela AbacatePay somente com `RAIZ_PIX_MODO=producao`
+  e `RAIZ_ABACATEPAY_CHAVE`; por padrão é cobrança de teste, paga com `raiz pedidos pagar-teste <id>` ou
+  `POST /pagamentos/teste/{id}/pagar`. O aviso de
   pagamento chega em `POST /pagamentos/abacatepay?webhookSecret=...` (`RAIZ_ABACATEPAY_WEBHOOK_SEGREDO`). Paga, as
   fazendas ficam do cliente por 60 dias (`reserva_dias` no pedido) e somem das buscas, contas e pedidos dos outros;
   uma fazenda nunca está em duas reservas (índice único). Venceu sem contrato, voltam para a base (`raiz pedidos
@@ -506,6 +507,132 @@ reservas). Responde quantos municípios entraram e, se não fecha 1 milhão com 
   total em 40 anos; comparação com a renda do gado na mesma área (venda de bovinos por ha de pasto no município, Censo
   Agro 2017 corrigido pelo IPCA, e a sobra pela margem de referência da CNA) e com o aluguel do Censo. Sem nome, CPF
   ou CNPJ: só o código do CAR.
+
+## Preparar o servidor de fichas e o pagamento de consultas
+
+**Situação desta entrega:** roteiro e código preparados; não há servidor da Raíz implantado por este chat e nenhuma
+venda foi ativada. `raiz/regras/padroes/precos.yaml` propõe pacotes de 1, 10 e 50 consultas, com `valor_rs: null`,
+`status: provisorio` e o aviso literal **a definir pelo fundador**. Crédito de consulta não é crédito de carbono.
+
+1. Provisionar uma máquina com Python 3.12+, `uv`, PostgreSQL 16/PostGIS 3.5, armazenamento privado e backups.
+   O compose em `infra/docker-compose.yml` oferece o banco; sua porta fica em `127.0.0.1:5432`. Escolher o endereço
+   HTTPS da API e um proxy que termine TLS; manter a porta do banco e a porta interna da API fora da internet.
+2. Instalar a versão revisada do repositório com `uv sync --frozen --all-extras`. Criar um arquivo privado de ambiente
+   a partir de `.env.example`, protegido contra leitura de outros usuários. Configurar `RAIZ_BANCO_URL`,
+   `RAIZ_API_TOKEN`, `RAIZ_API_ORIGENS` com a origem exata do front e `RAIZ_CHAVE_PESSOAL`. A chave pessoal cifra o
+   e-mail do comprador; nome, CPF e contato do dono não entram nas fichas de prospecção.
+3. Injetar as variáveis no processo. Nos comandos manuais abaixo, `--env-file .env` faz essa injeção, inclusive para
+   os módulos Pix que leem `os.environ`; não basta o arquivo existir. Aplicar as migrações antes de iniciar a API:
+
+   ```bash
+   uv run --env-file .env raiz banco migrar
+   uv run --env-file .env raiz api --host 127.0.0.1 --porta 8000
+   ```
+
+   Em operação contínua, usar um gerenciador de processos com reinício, ambiente privado e logs sem tokens ou corpos
+   de webhook. A migração 0026 cria carteira, compras, movimentos, desbloqueios, pedidos de contato e limites. Usar
+   `head` para aplicar também as migrações posteriores. Carregar o funil vigente no banco pelo fluxo do executor.
+4. Confirmar `/saude` e `GET /prospeccao/planos`. Nesta fase a resposta deve mostrar pacotes provisórios,
+   `pix_modo: teste` e `pagamento_disponivel: false`, mesmo se alguém já configurou uma chave da AbacatePay.
+   A ficha exige sessão individual e crédito pago; o token operacional não é token de cliente e nunca vai no build
+   do front. A publicação estática continua só com agregados. Configurar `VITE_RAIZ_API` com o endereço HTTPS da API
+   e reconstruir o front quando o servidor estiver pronto.
+5. Preparar o envio real do link de entrada: o serviço de sessões já grava links de uso único e sessões, mas o
+   adaptador `raiz.pedidos.servico.ENVIO_LINK` precisa estar ligado a um envio autorizado. Sem ele, o endpoint de
+   entrada não entrega e-mail. Validar o ciclo de entrada e saída antes de oferecer fichas aos clientes.
+
+### Catálogo aprovado e chaves reais, somente na futura ativação
+
+O fundador precisa definir os valores e aprovar a política comercial. Depois disso, criar um YAML privado no mesmo
+formato de `precos.yaml`, com uma nova `versao`, `status: aprovado`, `aprovado_em` em `AAAA-MM-DD` e os preços reais
+positivos, em reais, com até duas casas decimais. `creditos` é a quantidade de consultas de cada pacote e pode ser
+alterada no catálogo. Apontar `RAIZ_PRECOS_ARQUIVO` para esse arquivo. Não marcar o YAML provisório do repositório
+como aprovado apenas para testar o botão.
+
+O override `RAIZ_PROSPECCAO_PLANOS` aceita o mesmo envelope em JSON (`versao`, `status`, `aprovado_em`, `planos`).
+Uma lista JSON no formato antigo continua legível, mas permanece provisória. Aprovação sem data ou sem preço válido
+fecha o catálogo com erro; preço ausente nunca vira zero. A compra congela pacote, quantidade e valor no banco.
+
+Na futura ativação autorizada, configurar os valores reais destas variáveis no servidor:
+
+| Variável | Uso |
+|---|---|
+| `RAIZ_PIX_MODO` | `teste` por padrão; só o literal `producao` permite chamar o provedor. |
+| `RAIZ_ABACATEPAY_CHAVE` | Chave privada da conta no ambiente e na versão compatíveis com o adaptador. |
+| `RAIZ_ABACATEPAY_WEBHOOK_SEGREDO` | Segredo aleatório privado de pelo menos 32 caracteres, igual ao cadastrado no webhook. |
+| `RAIZ_ABACATEPAY_WEBHOOK_CHAVE_PUBLICA` | Chave pública HMAC publicada pela AbacatePay, copiada da documentação oficial. |
+| `RAIZ_PRECOS_ARQUIVO` | Caminho do catálogo aprovado, fora do repositório. |
+
+Uma chave configurada, isoladamente, não ativa a compra. O catálogo precisa estar aprovado, com preços válidos, e o
+modo Pix precisa ser explicitamente de produção. Uma resposta `devMode: true` do provedor continua sendo teste e
+nunca libera crédito pago. Nenhum teste deste repositório faz pagamento real.
+
+**Compatibilidade do adaptador:** `raiz/pedidos/pix.py` ainda usa a API legada v1 (`pixQrCode/create` e
+`pixQrCode/check`, evento `billing.paid`). A documentação oficial atual descreve v2 (`transparents/*`). Conferir
+com a conta se as chaves e webhooks v1 continuam disponíveis; se a conta só aceitar v2, manter vendas desativadas
+e migrar o adaptador em uma entrega própria. A integração de produção não foi validada com uma conta real.
+
+### Webhook de consultas e conciliação
+
+Para consultas, cadastrar a URL HTTPS `https://<api>/pagamentos/prospeccao/abacatepay` no ambiente e versão
+compatíveis do provedor. O webhook antigo `/pagamentos/abacatepay` pertence às reservas de lote; ele não credita
+a carteira de consultas. Não chamar os endpoints de teste de reservas para tentar liberar fichas pagas.
+
+O novo webhook exige as duas provas descritas na
+[documentação de segurança da AbacatePay](https://docs.abacatepay.com/pages/notificacoes/seguranca):
+
+- `X-Webhook-Secret`, ou o parâmetro legado `webhookSecret`, confere o segredo privado em tempo constante.
+- `X-Webhook-Signature` contém HMAC-SHA256 em base64 dos bytes originais do corpo, usando a chave pública do
+  provedor. Essa assinatura garante integridade; ela não substitui o segredo privado.
+
+Preservar o corpo bruto no proxy. Preferir o segredo no cabeçalho e retirar a query dos logs quando a versão legada
+a exigir. Segredo/assinatura ausentes ou inválidos devolvem 401; corpo acima de 256 KiB devolve 413. Eventos de
+teste são ignorados. O código não grava o corpo recebido e não usa preços, quantidade de créditos ou cliente
+informados pelo evento: identifica a compra local e confere novamente o pagamento pela API autenticada do provedor.
+Somente o estado confirmado como pago credita a carteira. A trava da carteira e o movimento único por compra
+impedem crédito duplicado por reentrega, concorrência ou consulta pelo navegador.
+
+O comprador pode recuperar o histórico em `GET /prospeccao/compras` e conferir uma cobrança em
+`GET /prospeccao/compras/{id}`, com sua própria sessão. O botão **Conferir pagamento** usa essa conciliação; se for
+automatizada, respeitar intervalo de pelo menos 15 segundos e o limite de 15 verificações por minuto. Falha do
+provedor no webhook responde 502 para permitir nova entrega; o polling cobre um evento perdido. Cobrança pendente,
+expirada ou cancelada não gera saldo. Se o provedor corrigir posteriormente para paga, a conciliação ainda credita
+uma única vez.
+
+Antes da futura ativação, validar o fluxo em ambiente separado: assinatura errada não altera saldo, evento de teste
+não libera ficha, reentrega não duplica crédito, o último crédito não abre duas fichas concorrentes e outra sessão
+não lê a compra. A implementação está coberta por `testes/test_prospeccao_acesso.py` e
+`testes/test_prospeccao_webhook.py`. Fontes consultadas para o protocolo:
+[segurança](https://docs.abacatepay.com/pages/notificacoes/seguranca),
+[Pix v2](https://docs.abacatepay.com/pages/transparents/create) e
+[consulta de estado v2](https://docs.abacatepay.com/pages/transparents/check).
+
+### Avisos de buscas salvas
+
+Depois de migrar o banco até `0031` (buscas salvas, após `0030` da plataforma de agentes), executar
+`uv run raiz prospeccao verificar-buscas` após cada carga do motor,
+ou pelo cron do operador. O comando usa `RAIZ_BANCO_URL`, imprime somente as quantidades verificadas e sai com
+erro se a consulta falhar. Para repetir uma única busca: `uv run raiz prospeccao verificar-buscas --busca <UUID>`.
+Esta entrega fornece o comando; não instala uma agenda em produção.
+
+A primeira gravação da busca guarda as correspondências sem avisar a base antiga. As próximas verificações
+comparam códigos do CAR, independentemente da data do arquivo. Snapshot e avisos são gravados na mesma transação,
+com trava por busca; repetir o job ou executá-lo em paralelo não duplica avisos. Os avisos aparecem somente na
+conta do cliente e ocultam fazendas reservadas por outro cliente. O job não envia e-mail ou WhatsApp e não libera
+fichas pagas. Cada cliente pode manter até 20 buscas salvas; excluir uma remove seu snapshot e seus avisos.
+
+Crédito, risco e caminho da terra são filtros pagos: exigem compra real confirmada com movimento de crédito ou
+liberação de ficha com débito auditado. A gravação e cada execução do job conferem essa habilitação; buscas que
+a perderem ficam sem novos avisos e entram na contagem `buscas_sem_habilitacao`. Nenhuma nova cobrança é criada
+ao filtrar. A pertinência de um CAR a uma faixa é parte desse serviço pago. Combinar filtro avançado com CAR exige
+o código completo de uma ficha já liberada; prefixos não permitem deduzir seu valor.
+
+Na lista autenticada, medidas, risco e caminho de uma ficha fechada são nulos. As somas de crédito e área
+restaurável abrangem somente as fichas liberadas, com `escopo_metricas=fichas_liberadas` e a quantidade na
+cobertura `totais.fichas_liberadas`; contagens, tamanho e sugestões de agrupamento mantêm o universo filtrado.
+A ordem da lista é por CAR, sem revelar um ranking de crédito. O agregado regional aberto permanece separado,
+sem filtros privados e com a supressão das métricas com menos de cinco fazendas. Os limites persistidos de
+consulta continuam valendo para filtros, ficha, comparação e exportação.
 
 ## Proteção da main (o fundador ativa à mão)
 
@@ -666,8 +793,8 @@ O corpus de injeção, os controles limpos, o contrato dos observadores de efeit
 indevida; tentativas recusadas também são examinadas. Cada ferramenta precisa responder em menos de 5 s,
 com o inventário completo de `tools/list`, sem selecionar apenas as rápidas.
 
-A main agora inclui o MCP OAuth dos PRs #45/#69. O job testa HTTP, RS256/JWKS local, vínculo de empresa,
-as seis ferramentas, prazo e carga com PostGIS descartável. Seu retorno rápido pode ser admissão de trabalho
+A main agora inclui o MCP OAuth dos PRs #45/#69 e a ficha do #72. O job testa HTTP, RS256/JWKS local, vínculo de empresa,
+as sete ferramentas, prazo e carga com PostGIS descartável. Seu retorno rápido pode ser admissão de trabalho
 assíncrono; não é promessa de cálculo completo em cinco segundos. As intenções da carga são idempotentes.
 
 O corpus de certidão/edital/nome de arquivo ainda depende de **Produto e regras**: as ferramentas atuais não
@@ -688,9 +815,12 @@ O erro informa a regra e o nome técnico do arquivo, sem imprimir a célula. Nã
 para liberar uma rodada. O chat **Dados** corrige a origem e recalcula; históricos já publicados não são alterados
 por este controle. O produtor deve manter a coluna e representar fonte ausente por nulo.
 
-- Motor/executor: valida cada UF antes do primeiro asset correspondente. O fluxo legado valida todo o diretório
-  com `uv run python -m raiz.qualidade_dados dados-entrada` antes de qualquer upload.
-- Vigilância: verifica todo o conjunto público e o resumo antes do Release; entradas privadas só saem cifradas.
+- Motor/executor: arquiva os originais no destino privado autenticado e valida todos os bytes da projeção
+  `publico_basico` antes do primeiro upload aberto da UF. O fluxo legado segue a mesma divisão; não envia o pacote
+  completo ao Release público. `uv run python -m raiz.qualidade_dados dados-entrada` confere as tabelas completas
+  para revisão científica, sem autorizar sua exposição. O contrato básico está em `docs/colunas.md`.
+- Vigilância: verifica o conjunto de alertas e o resumo antes de arquivar no destino privado; dados de projeto,
+  perdas e marcações também exigem cifra. O #72 retirou a publicação aberta de histórico por CAR.
 - Busca: `uv run python -m raiz.qualidade_busca caminho/busca.sqlite caminho/novidades_DATA.md caminho/novidades_DATA.csv`.
   Confere os três arquivos, o esquema e a correspondência dos resultados; recompõe o SQLite aprovado para remover
   restos de linhas apagadas. O workflow executa o portão antes do Release, resumo e issue. Nome rotulado como autor
@@ -700,9 +830,10 @@ por este controle. O produtor deve manter a coluna e representar fonte ausente p
   quando esse passo teve sucesso, inclusive quando a coleta parcial termina com erro. O site reconstrói JSON/ICS
   a partir dos campos aprovados e revalida o cache; não copia os bytes remotos. O portão do site usa somente a
   biblioteca padrão do Python, sem instalar as dependências científicas no job do front.
-- Rodada do Pará: `raiz.restauracao_rodada.publicar` confere o conjunto de arquivos gerados antes do primeiro upload.
-  Folhas individuais e HTML sem contrato público ficam bloqueados; **Lote e números / Telas e mapa** devem separar
-  a entrega pública da administrativa privada. O portão não autoriza exposição por ausência de CPF em um arquivo.
+- Rodada do Pará: `raiz.restauracao_rodada.publicar` arquiva lotes, previsões e folhas somente no destino privado;
+  a visibilidade é conferida antes de cada transferência. Arquivar o original para auditoria/reprocessamento não
+  significa aprovar sua qualidade ou exposição. `raiz.qualidade_rodada` conserva a validação quantitativa do antigo
+  contrato público e recusa HTML/folhas individuais; esse contrato não reabre o publicador retirado pelo #72.
 
 Os workflows de publicação do site e da busca também usam dependências travadas pelo `uv.lock`, com cache.
 A validação impede nova publicação irregular; não é limpeza retroativa de Releases, bancos ou logs externos.

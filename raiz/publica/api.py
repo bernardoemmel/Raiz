@@ -663,6 +663,41 @@ def criar(engine_de: Callable[[Request], Any], verificador=None) -> FastAPI:
         return {"keys": [jwk()]}
 
     @app.get(
+        "/fazendas/{cod_imovel}/ficha",
+        tags=["Produto 1 e 2: análise da fazenda"],
+        summary="Reler ficha já adquirida, sem nova tarifa",
+    )
+    @limiter.shared_limit(LIMITE, scope="empresa")
+    def consultar_ficha(cod_imovel: str, request: Request, a: Acesso) -> JSONResponse:
+        """Mesma ficha da prospecção, com fontes, datas e ausências. Não compra nem desbloqueia acesso."""
+        from raiz import prospeccao_servico
+        from raiz.prospeccao_acesso import ErroAcesso
+        from raiz.publica.rotas_agentes import exigir_escopo
+
+        eng = engine_de(request)
+        request.state.ferramenta = "consultar_ficha"
+        exigir_escopo(eng, a, "consultar_ficha")
+        CT.exigir_liberacao(eng, a.cliente_id)
+        try:
+            prospeccao_servico.limitar_consulta(eng, a.cliente_id)
+            ficha = prospeccao_servico.consultar_ficha(eng, a.cliente_id, cod_imovel)
+        except ErroAcesso as ex:
+            raise HTTPException(
+                ex.status,
+                {
+                    "slug": "ficha_indisponivel",
+                    "mensagem": str(ex),
+                    "corrigir": "confira a liberação desta ficha na sua conta; esta leitura não compra acesso",
+                },
+                headers={"Retry-After": str(ex.retry_after)} if ex.retry_after is not None else None,
+            ) from None
+        request.state.cods_expostos = [ficha["codigo_car"]]
+        resposta = ok(ficha)
+        resposta.headers["Cache-Control"] = "private, no-store"
+        resposta.headers["Vary"] = "Authorization, X-Chave-API"
+        return resposta
+
+    @app.get(
         "/fazendas/{cod_imovel}/analise",
         tags=["Produto 1 e 2: análise da fazenda"],
         summary="Análise de uma fazenda (R$ 1.500)",

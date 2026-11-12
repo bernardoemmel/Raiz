@@ -1,4 +1,4 @@
-# Roda o motor da Raíz estado por estado, sozinho, e publica no Release `dados` (de onde o front baixa).
+# Roda o motor da Raíz: íntegra e caches no arquivo privado; projeção básica no Release aberto `dados`.
 # Explicação completa e painel: motor/README.md. Repositório público: os minutos do Actions são grátis.
 #
 # planejar  -> lê o estados.json publicado e escolhe as unidades: estado inteiro, ou fatia de estado grande (mais de
@@ -41,13 +41,15 @@ on:
 
 permissions:
   contents: write # subir no Release, trava do estados.json, painel do README
-  actions: write # ver as rodadas em andamento, disparar a continuação e o próximo da fila, apagar caches velhos
+  actions: write # ver as rodadas em andamento e disparar a continuação e o próximo da fila
 
 env:
   RAIZ_REPO: ${{ github.repository }}
   RAIZ_ARMAZEM_URL: release-github://${{ github.repository }}/dados # o armazém do executor é o Release "dados"
+  RAIZ_DADOS_PRIVADOS_URL: ${{ vars.RAIZ_DADOS_PRIVADOS_URL || format('release-github://{0}/dados-privados', github.repository) }}
+  RAIZ_DADOS_PRIVADOS_TOKEN: ${{ secrets.RAIZ_DADOS_PRIVADOS_TOKEN || github.token }}
   RAIZ_SEM_BANCO: "1" # sem Postgres no job: a marca do executor guarda o andamento
-  # arquivos nacionais (mesma lista no restore e no save, senão o cache não confere)
+  # Fontes nacionais selecionadas para o cache autenticado; nunca enviadas ao cache público do Actions.
   CACHE_COMUM: |
     motor/cache/municipios.csv
     motor/cache/termo_de_embargo.csv
@@ -73,6 +75,10 @@ jobs:
           enable-cache: true
       - name: Dependências (produto e motor)
         run: uv sync --frozen --all-extras
+      - name: Conferir arquivo privado antes de planejar a rodada
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: uv run python -c "from raiz.executor.armazem import do_config; do_config().verificar_publicacao()"
       - name: Escolher os estados (lê o estados.json publicado e as versões das tarefas do executor)
         id: plano
         env:
@@ -90,46 +96,30 @@ jobs:
     timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
-      - name: Já existe o cache comum de hoje?
-        id: hoje
-        uses: actions/cache/restore@v4
-        with:
-          path: ${{ env.CACHE_COMUM }}
-          key: motor-comum-v1-${{ needs.planejar.outputs.dia }}
-          lookup-only: true
-      - if: steps.hoje.outputs.cache-hit != 'true'
-        uses: astral-sh/setup-uv@v6
+      - uses: astral-sh/setup-uv@v6
         with:
           enable-cache: true
-      - if: steps.hoje.outputs.cache-hit != 'true'
-        run: uv sync --frozen --all-extras
-      - name: Recuperar o cache comum anterior
+      - run: uv sync --frozen --all-extras
+      - name: Já existe o cache privado comum de hoje?
+        id: hoje
+        env:
+          DIA: ${{ needs.planejar.outputs.dia }}
+        run: |
+          existe=$(uv run python -m raiz.executor.transferencia_privada existe --nome cache_motor_comum.tar.gz --dia "$DIA")
+          echo "cache-hit=$existe" >> "$GITHUB_OUTPUT"
+      - name: Recuperar o cache privado comum anterior
         if: steps.hoje.outputs.cache-hit != 'true'
-        uses: actions/cache/restore@v4
-        with:
-          path: ${{ env.CACHE_COMUM }}
-          key: motor-comum-v1-${{ needs.planejar.outputs.dia }}
-          restore-keys: motor-comum-v1-
+        run: >-
+          uv run python -m raiz.executor.transferencia_privada baixar-pasta
+          --nome cache_motor_comum.tar.gz --caminho . --opcional
       - name: Baixar os arquivos nacionais (lista de municípios, embargos, biomas, geobr, TMF, causas da perda)
         if: steps.hoje.outputs.cache-hit != 'true'
         run: uv run python motor/rodar_estado.py --preparar
-      - name: Guardar o cache comum de hoje
-        id: salvar
+      - name: Guardar o cache comum somente no arquivo privado
         if: steps.hoje.outputs.cache-hit != 'true'
-        continue-on-error: true
-        uses: actions/cache/save@v4
-        with:
-          path: ${{ env.CACHE_COMUM }}
-          key: motor-comum-v1-${{ needs.planejar.outputs.dia }}
-      - name: Apagar caches comuns de outros dias
-        if: steps.salvar.outcome == 'success'
-        continue-on-error: true
-        env:
-          GH_TOKEN: ${{ github.token }}
-          NOVA: motor-comum-v1-${{ needs.planejar.outputs.dia }}
-        run: |
-          gh cache list -R "$GITHUB_REPOSITORY" --key motor-comum-v1- --limit 100 --json id,key \
-            --jq '.[] | select(.key != env.NOVA) | .id' | xargs -r -n1 gh cache delete -R "$GITHUB_REPOSITORY"
+        run: >-
+          uv run python -m raiz.executor.transferencia_privada enviar-pasta
+          --nome cache_motor_comum.tar.gz --caminho . --selecao-env CACHE_COMUM
 
   processar:
     name: ${{ matrix.unidade }}
@@ -156,7 +146,10 @@ jobs:
       RAIZ_RASTER_CACHE_GB: "5"
       RAIZ_CONTINUACAO: ${{ matrix.continuacao }}
       RAIZ_REFAZER: ${{ matrix.refazer }}
-      CACHE_UF_CHAVE: motor-uf-v1-${{ matrix.unidade }}-${{ github.run_id }}-${{ github.run_attempt }}
+      CACHE_UF: |
+        motor/cache/tb
+        motor/cache/mapbiomas
+        motor/cache/alerta
     steps:
       - name: Marcar o início (o prazo de 5h30 conta daqui) e o estado da unidade
         run: |
@@ -179,24 +172,26 @@ jobs:
       - name: Dependências (produto e motor)
         run: uv sync --frozen --all-extras
 
-      - name: Recuperar o cache comum
-        uses: actions/cache/restore@v4
-        with:
-          path: ${{ env.CACHE_COMUM }}
-          key: motor-comum-v1-${{ needs.planejar.outputs.dia }}
-          restore-keys: motor-comum-v1-
+      - name: Exigir publicador seguro no commit preservado pela fila
+        id: privacidade
+        run: |
+          uv run python - <<'PY'
+          from raiz.executor.publicacao_aberta import ESCOPO, VERSAO_PUBLICACAO
+          from raiz.executor.transferencia_privada import arquivo_privado
+          if ESCOPO != 'publico_basico' or VERSAO_PUBLICACAO != 1:
+              raise RuntimeError('Ref da fila não implementa o contrato público mínimo; atualizar antes de continuar')
+          arquivo_privado()
+          PY
 
-      - name: Recuperar o cache da unidade (blocos do TerraBrasilis, MapBiomas, Alerta)
-        uses: actions/cache/restore@v4
-        with:
-          path: |
-            motor/cache/tb
-            motor/cache/mapbiomas
-            motor/cache/alerta
-          key: ${{ env.CACHE_UF_CHAVE }}
-          restore-keys: |
-            motor-uf-v1-${{ matrix.unidade }}-
-            motor-uf-v1-${{ env.UF }}-
+      - name: Recuperar o cache comum autenticado
+        run: >-
+          uv run python -m raiz.executor.transferencia_privada baixar-pasta
+          --nome cache_motor_comum.tar.gz --caminho .
+
+      - name: Recuperar o cache privado da unidade (blocos do TerraBrasilis, MapBiomas, Alerta)
+        run: >-
+          uv run python -m raiz.executor.transferencia_privada baixar-pasta
+          --nome "cache_motor_unidade_${UNIDADE}.tar.gz" --caminho . --opcional
 
       - name: Insumos opcionais (Release insumos)
         run: |
@@ -212,35 +207,24 @@ jobs:
             echo "sem mapas de projetos de carbono (frente ja_tem_projeto fica de fora)"
           fi
 
+      # Nome preservado: fila_processamento reconhece este passo ao retomar falhas posteriores ao cálculo.
       - name: Rodar pelo executor (fontes, adoção, motor e tarefas do produto) e publicar no Release dados
         run: uv run python motor/rodar_estado.py "$UNIDADE" --executor
 
-      - name: Publicar retratos imutáveis das entradas reais (inclusive tarefas concluídas antes de falha)
-        if: always()
+      - name: Preservar retratos imutáveis somente no arquivo privado
+        if: always() && steps.privacidade.outcome == 'success'
         run: |
           if [ -f raiz/aprendizado/transporte.py ]; then
             uv run raiz aprendizado publicar-retratos --uf "$UF"
           fi
 
-      - name: Guardar o cache da unidade
-        id: salvar
-        if: always()
+      - name: Guardar o cache da unidade somente no arquivo privado
+        if: always() && steps.privacidade.outcome == 'success'
         continue-on-error: true
-        uses: actions/cache/save@v4
-        with:
-          path: |
-            motor/cache/tb
-            motor/cache/mapbiomas
-            motor/cache/alerta
-          key: ${{ env.CACHE_UF_CHAVE }}
+        run: >-
+          uv run python -m raiz.executor.transferencia_privada enviar-pasta
+          --nome "cache_motor_unidade_${UNIDADE}.tar.gz" --caminho . --selecao-env CACHE_UF
 
       - name: Continuar esta unidade (se parou pelo prazo) ou passar a vez ao próximo da fila
-        if: always()
+        if: always() && steps.privacidade.outcome == 'success'
         run: uv run python motor/rodar_estado.py --continuar "$UNIDADE"
-
-      - name: Apagar caches antigos desta unidade
-        if: always() && steps.salvar.outcome == 'success'
-        continue-on-error: true
-        run: |
-          gh cache list -R "$GITHUB_REPOSITORY" --key "motor-uf-v1-${UNIDADE}-" --limit 100 --json id,key \
-            --jq '.[] | select(.key != env.CACHE_UF_CHAVE) | .id' | xargs -r -n1 gh cache delete -R "$GITHUB_REPOSITORY"

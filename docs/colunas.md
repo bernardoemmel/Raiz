@@ -3,6 +3,32 @@
 Regra: o motor pode **acrescentar** colunas, nunca renomear ou apagar sem aviso. O produto deve ler pelo nome e
 ignorar colunas que não conhece. Áreas em hectares (`_ha`), carbono em tCO2 por ano. Nenhum arquivo tem CPF, CNPJ ou nome.
 
+## Projeção aberta `publico_basico`, versão 1
+
+O Release público `dados` contém somente a projeção definida em
+[`dados-publicados.md`](dados-publicados.md). As tabelas completas descritas nas demais seções ficam no arquivo
+privado autenticado. Guardar um original nesse arquivo preserva sua proveniência; não indica aprovação para publicação.
+
+| Arquivo dentro do pacote da UF | Colunas obrigatórias da projeção |
+|---|---|
+| `imoveis_basicos_<IBGE>.csv` | `cod_imovel`, `cod_ibge`, `municipio`, `uf`, `situacao_basica`, nessa ordem e sem colunas adicionais |
+| `geo_<IBGE>.parquet` | Somente `cod_imovel` e `geometry` |
+| `resumo_<UF>.csv` | `cod_ibge`, `municipio`, `imoveis`; outras medidas somente da lista positiva `COLUNAS_RESUMO` de `raiz/executor/publicacao_aberta.py` |
+| `sem_imoveis_<UF>.csv` | Somente `cod_ibge`, `municipio`, `verificado_em` |
+
+`situacao_basica` aceita `apto`, `com_pendencia` ou `nao_apto`. O código IBGE do arquivo identifica o recorte;
+um CAR limítrofe conserva seu código. O nome municipal pode identificar a origem do CAR ou o recorte atual;
+os identificadores e nomes são conferidos com o cadastro
+IBGE. Nenhum imóvel é removido por tamanho. Medidas de grupos pequenos continuam suprimidas conforme o produtor da projeção.
+
+Pandera confere a estrutura das tabelas abertas; o portão também inspeciona valores, metadados e geometria antes do upload.
+Os contratos de área, percentuais e quantis abaixo continuam aplicáveis às tabelas completas: essas medidas não são
+adicionadas ao CSV básico para validá-las. `estados.json` declara o escopo e a versão, e referencia apenas pacotes dessa projeção.
+Nos resumos públicos, a razão `tco2_ano_aptas / ha_carbono` mantém a triagem de saltos municipais de escala:
+ao menos cinco municípios com numerador disponível e área positiva; desvio superior a dez vezes ou inferior a um décimo
+da mediana, além de oito desvios absolutos medianos escalados. Ausência e área zero não viram intensidade zero.
+Esse controle detecta erros de escala; não afirma equivalência científica entre municípios nem compara seus totais.
+
 ## `saida/<UF>/imoveis_<cod_ibge>.csv` (uma linha por imóvel do CAR, tipo IRU, sem cancelados)
 
 | Coluna | O que é |

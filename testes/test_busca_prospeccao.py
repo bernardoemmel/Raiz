@@ -1,12 +1,28 @@
 """Filtros nacionais, soma anterior à paginação, dados ausentes e reserva privada."""
 
 import json
+import uuid
 
 import pytest
 from pydantic import ValidationError
 from sqlalchemy import create_engine, text
 
 from raiz.busca import FiltrosProspeccao, buscar_prospeccao
+from raiz.prospeccao_acesso import ErroAcesso
+
+
+def _liberar(engine, cliente, *codigos):
+    """Liberação auditada de teste; não simula pagamento nem chama provedor."""
+    with engine.begin() as con:
+        for car in codigos:
+            con.execute(
+                text("insert into negocio.prospeccao_desbloqueio(cliente_id,cod_imovel) values (:c,:car)"),
+                {"c": cliente, "car": car},
+            )
+            con.execute(
+                text("insert into negocio.prospeccao_movimento(cliente_id,cod_imovel,quantidade) values (:c,:car,-1)"),
+                {"c": cliente, "car": car},
+            )
 
 
 @pytest.mark.parametrize(
@@ -130,7 +146,8 @@ def test_busca_nacional_preserva_pequenas_e_agrega_antes_pagina(base):
     r = buscar_prospeccao(engine, cliente_id=clientes[0], limite=1, incluir_imoveis=True)
     assert r["total"] == 5 and len(r["imoveis"]) == 1 and r["tem_mais"]
     assert r["totais"]["area_ha"] == 5014 and r["totais"]["pequenas"] == 4
-    assert r["totais"]["credito_p50"] == 301050 and r["totais"]["com_credito"] == 3
+    assert r["totais"]["credito_p50"] is None and r["totais"]["com_credito"] == 0
+    assert r["totais"]["fichas_liberadas"] == 0 and r["escopo_metricas"] == "fichas_liberadas"
     assert r["totais"]["data_corte_min"] == "2026-11-12" and "contrato" in r["credito_unidade"]
     assert r["total_agrupamentos"] == 2
     assert all(g["fazendas"] == 2 and "vizinhança a conferir" in g["criterio"] for g in r["agrupamentos"])
@@ -152,6 +169,7 @@ def test_busca_nacional_preserva_pequenas_e_agrega_antes_pagina(base):
 @pytest.mark.banco
 def test_filtros_combinados_e_ausencias(base):
     engine, codigos, clientes = base
+    _liberar(engine, clientes[0], codigos[0])
     filtros = {
         "uf": "pa",
         "cod_ibge": 1507300,
@@ -168,6 +186,7 @@ def test_filtros_combinados_e_ausencias(base):
     r = buscar_prospeccao(engine, filtros, clientes[0], incluir_imoveis=True)
     assert r["total"] == 1 and r["imoveis"][0]["codigo_car"] == codigos[1]
     assert r["imoveis"][0]["pequena"] and r["imoveis"][0]["agrupar"]
+    assert r["imoveis"][0]["credito_p50"] is None and not r["imoveis"][0]["ficha_liberada"]
     desconhecida = buscar_prospeccao(engine, {"risco": "sem_dados"}, clientes[0], incluir_imoveis=True)
     assert desconhecida["total"] == 1 and desconhecida["imoveis"][0]["credito_p50"] is None
     assert desconhecida["imoveis"][0]["area_restauravel_ha"] is None
@@ -188,6 +207,7 @@ def test_filtros_combinados_e_ausencias(base):
 @pytest.mark.parametrize("total", [0, 875.5])
 def test_total_contratual_prevalece_sobre_anual_sem_area_nem_faixas(base, total):
     engine, codigos, clientes = base
+    _liberar(engine, clientes[0], codigos[3])
     # O total P50 da carga continua válido mesmo sem a área usada na simulação.
     with engine.begin() as con:
         con.execute(
@@ -210,6 +230,7 @@ def test_total_contratual_prevalece_sobre_anual_sem_area_nem_faixas(base, total)
 @pytest.mark.banco
 def test_total_contratual_e_fallback_sem_sobrescrever_calculo_por_area(base):
     engine, codigos, clientes = base
+    _liberar(engine, clientes[0], codigos[0])
     with engine.begin() as con:
         con.execute(
             text("""update funil.resultado_imovel
@@ -225,6 +246,7 @@ def test_total_contratual_e_fallback_sem_sobrescrever_calculo_por_area(base):
 @pytest.mark.parametrize("total", ["NaN", "Infinity", True, {"valor": 20}])
 def test_total_contratual_malformado_nao_vira_credito(base, total):
     engine, codigos, clientes = base
+    _liberar(engine, clientes[0], codigos[3])
     with engine.begin() as con:
         con.execute(
             text("""update funil.resultado_imovel set atributos = atributos || cast(:dados as jsonb)
@@ -259,7 +281,7 @@ def test_reserva_de_outro_cliente_some_de_lista_e_agregados(base):
     assert buscar_prospeccao(engine, cliente_id=clientes[0])["total"] == 5
     outro = buscar_prospeccao(engine, cliente_id=clientes[1], incluir_imoveis=True)
     assert outro["total"] == 4 and all(i["codigo_car"] != codigos[0] for i in outro["imoveis"])
-    assert outro["totais"]["credito_p50"] == 301000
+    assert outro["totais"]["credito_p50"] is None
     assert not any(g["uf"] == "PA" for g in outro["agrupamentos"])
 
 
@@ -280,8 +302,103 @@ def test_paginacao_e_lista_sem_cliente_fecham_antes_do_banco():
         {"area_max_ha": 5},
         {"credito_min": 0},
         {"credito_max": 100},
+        {"risco": "alto"},
+        {"caminho_terra": "assentamento"},
+        {"situacao_terra": "pronta_agora"},
     ],
 )
 def test_agregado_nao_permita_isolar_car_por_codigo_ou_intervalo(filtro):
     with pytest.raises(ValueError, match="exige"):
         buscar_prospeccao(None, filtro)
+
+
+@pytest.mark.banco
+def test_sessao_sem_pagamento_nao_revela_ficha_pela_linha_soma_ou_ordem(base):
+    engine, codigos, clientes = base
+    campos = (
+        "credito_p10",
+        "credito_p50",
+        "credito_p90",
+        "risco",
+        "caminho_terra",
+        "situacao_terra",
+        "area_restauravel_ha",
+    )
+    resposta = buscar_prospeccao(engine, cliente_id=clientes[0], incluir_imoveis=True)
+    assert [i["codigo_car"] for i in resposta["imoveis"]] == sorted(codigos)
+    for imovel in resposta["imoveis"]:
+        assert not imovel["ficha_liberada"] and all(imovel[c] is None for c in campos)
+        assert imovel["situacao_basica"] in ("apto", "com_pendencia", "nao_apto")
+        assert "serie_uso" not in imovel and "perdas" not in imovel
+    isolada = buscar_prospeccao(engine, {"q": codigos[0]}, clientes[0], incluir_imoveis=True)
+    assert isolada["total"] == 1 and isolada["totais"]["credito_p50"] is None
+    assert isolada["totais"]["area_restauravel_ha"] is None
+    assert all(g["credito_p50"] is None for g in resposta["agrupamentos"])
+    for filtro in ({"risco": "baixo"}, {"credito_min": 0}, {"caminho_terra": "assentamento"}):
+        with pytest.raises(ErroAcesso) as erro:
+            buscar_prospeccao(engine, filtro, clientes[0], incluir_imoveis=True)
+        assert erro.value.status == 402
+
+
+@pytest.mark.banco
+def test_so_car_liberado_revela_metricas_e_cliente_pago_descobre_novos_matches(base):
+    engine, codigos, clientes = base
+    _liberar(engine, clientes[0], codigos[0])
+    resposta = buscar_prospeccao(engine, cliente_id=clientes[0], incluir_imoveis=True)
+    liberada = next(i for i in resposta["imoveis"] if i["codigo_car"] == codigos[0])
+    assert liberada["ficha_liberada"] and liberada["credito_p10"] == liberada["credito_p50"] == 50
+    assert liberada["credito_p90"] == 50 and liberada["area_restauravel_ha"] == 0.5
+    assert liberada["risco"] == "alto" and liberada["caminho_terra"] == "posse_em_titulacao"
+    assert resposta["totais"]["credito_p50"] == 50 and resposta["totais"]["fichas_liberadas"] == 1
+    descoberta = buscar_prospeccao(engine, {"risco": "baixo"}, clientes[0], incluir_imoveis=True)
+    assert descoberta["imoveis"][0]["codigo_car"] == codigos[1]
+    assert descoberta["imoveis"][0]["risco"] is None and descoberta["totais"]["credito_p50"] is None
+    for q in (codigos[1], codigos[1][:15]):
+        with pytest.raises(ErroAcesso) as erro:
+            buscar_prospeccao(engine, {"q": q, "credito_min": 0}, clientes[0], incluir_imoveis=True)
+        assert erro.value.status == 402
+    assert (
+        buscar_prospeccao(engine, {"q": codigos[0], "credito_min": 0}, clientes[0], incluir_imoveis=True)["total"] == 1
+    )
+    outra_conta = buscar_prospeccao(engine, {"q": codigos[0]}, clientes[1], incluir_imoveis=True)
+    assert outra_conta["imoveis"][0]["credito_p50"] is None and not outra_conta["imoveis"][0]["ficha_liberada"]
+
+
+@pytest.mark.banco
+def test_filtros_exigem_evidencia_paga_nao_so_saldo_ou_pagamento_de_teste(base):
+    engine, _, clientes = base
+    cliente = clientes[0]
+    compra = uuid.uuid4()
+
+    def negada():
+        with pytest.raises(ErroAcesso) as erro:
+            buscar_prospeccao(engine, {"credito_min": 0}, cliente, incluir_imoveis=True)
+        assert erro.value.status == 402
+
+    with engine.begin() as con:
+        con.execute(
+            text("insert into negocio.prospeccao_carteira(cliente_id,creditos) values (:c,100)"), {"c": cliente}
+        )
+    negada()
+    with engine.begin() as con:
+        con.execute(
+            text("""insert into negocio.prospeccao_compra
+                (id,cliente_id,chave_idempotencia,plano,creditos,valor_rs,externo_id,modo,estado,pix_copia_cola,expira_em)
+                values (:id,:c,:k,'teste-unitario',1,1,:k,'producao','pendente','nao-utilizavel',now())"""),
+            {"id": compra, "c": cliente, "k": str(compra)},
+        )
+        con.execute(
+            text("insert into negocio.prospeccao_movimento(cliente_id,quantidade,compra_id) values (:c,1,:id)"),
+            {"c": cliente, "id": compra},
+        )
+    negada()
+    with engine.begin() as con:
+        con.execute(
+            text("update negocio.prospeccao_compra set estado='paga',modo='teste' where id=:id"), {"id": compra}
+        )
+    negada()
+    with engine.begin() as con:
+        con.execute(text("update negocio.prospeccao_compra set modo='producao' where id=:id"), {"id": compra})
+    resposta = buscar_prospeccao(engine, {"credito_min": 0}, cliente, incluir_imoveis=True)
+    assert resposta["total"] == 3
+    assert all(i["credito_p50"] is None and not i["ficha_liberada"] for i in resposta["imoveis"])

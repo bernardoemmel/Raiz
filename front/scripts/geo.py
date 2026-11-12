@@ -2,7 +2,7 @@
 
 Uso (da raiz do repositório):
   node front/scripts/baixar-dados.mjs --geo --exigir
-  python front/scripts/geo.py --dados dados/estados  # todos os municípios do Release
+  python front/scripts/geo.py --dados dados/publicos  # todos os municípios do Release
   python front/scripts/geo.py 1507300 1504950        # consulta direta antiga, para diagnóstico
 
 Saída em front/geo/ (fora do git, é dado gerado e pode ser grande):
@@ -52,6 +52,7 @@ CAR_WFS = "https://geoserver.car.gov.br/geoserver/sicar/wfs"
 TB_WFS = "https://terrabrasilis.dpi.inpe.br/geoserver/ows"
 PROTOMAPS = "https://build.protomaps.com/{}.pmtiles"
 BRASIL = (-74.0, -34.0, -34.0, 5.5)
+
 
 class TLSAntigo(requests.adapters.HTTPAdapter):
     """O servidor do CAR usa TLS antigo; o Python novo recusa sem isto (o mesmo ajuste de motor/raiz_estado.py)."""
@@ -416,9 +417,33 @@ MUNICIPIOS_BIOMA = [
     ("prodes-pantanal-nb", "municipalities_pantanal_biome"),
 ]
 UF_IBGE = {
-    "11": "RO", "12": "AC", "13": "AM", "14": "RR", "15": "PA", "16": "AP", "17": "TO", "21": "MA", "22": "PI",
-    "23": "CE", "24": "RN", "25": "PB", "26": "PE", "27": "AL", "28": "SE", "29": "BA", "31": "MG", "32": "ES",
-    "33": "RJ", "35": "SP", "41": "PR", "42": "SC", "43": "RS", "50": "MS", "51": "MT", "52": "GO", "53": "DF",
+    "11": "RO",
+    "12": "AC",
+    "13": "AM",
+    "14": "RR",
+    "15": "PA",
+    "16": "AP",
+    "17": "TO",
+    "21": "MA",
+    "22": "PI",
+    "23": "CE",
+    "24": "RN",
+    "25": "PB",
+    "26": "PE",
+    "27": "AL",
+    "28": "SE",
+    "29": "BA",
+    "31": "MG",
+    "32": "ES",
+    "33": "RJ",
+    "35": "SP",
+    "41": "PR",
+    "42": "SC",
+    "43": "RS",
+    "50": "MS",
+    "51": "MT",
+    "52": "GO",
+    "53": "DF",
 }
 
 
@@ -524,11 +549,16 @@ def estados_brasil() -> None:
         g = valido(shapely.union_all(gs).buffer(0.0005).buffer(-0.0005))
         g = arredondar(g.simplify(0.01, preserve_topology=True), 3)
         p = shapely.ops.polylabel(max(getattr(g, "geoms", [g]), key=lambda x: x.area), tolerance=0.01)
-        feicoes.append(feicao(g, {
-            "uf": uf,
-            "cod": next(c for c, u in UF_IBGE.items() if u == uf),
-            "rotulo": [round(p.x, 3), round(p.y, 3)],
-        }))
+        feicoes.append(
+            feicao(
+                g,
+                {
+                    "uf": uf,
+                    "cod": next(c for c, u in UF_IBGE.items() if u == uf),
+                    "rotulo": [round(p.x, 3), round(p.y, 3)],
+                },
+            )
+        )
     tam = salvar(arq.name, feicoes)
     print(f"   {len(feicoes)} estados, {tam / 1e6:.1f} MB")
 
@@ -676,7 +706,7 @@ def base_regiao(nome: str, caixa, dia: str | None, zoom: int) -> None:
     with temporario.open("wb") as f, ThreadPoolExecutor(16) as ex:
         w = Writer(f)
         for inicio in range(0, len(ids), 128):
-            lote = ids[inicio:inicio + 128]
+            lote = ids[inicio : inicio + 128]
             for tid, dado in zip(lote, ex.map(remoto.ladrilho, lote), strict=True):
                 if dado:
                     w.write_tile(tid, dado)
@@ -749,30 +779,42 @@ def indice(
 
 
 def municipios_publicados(dados: Path) -> dict[str, Path]:
-    """Só municípios com dados por fazenda; a lista vem do Release, nunca de dois códigos fixos."""
+    """Somente a publicação mínima explícita; pacotes legados nunca alimentam o mapa público."""
     manifesto = dados / "estados.json"
-    ufs = json.loads(manifesto.read_text())["estados"] if manifesto.exists() else dict.fromkeys(UF_IBGE.values(), {})
-    publicados = {}
-    for uf, estado in sorted(ufs.items()):
-        # O pacote público novo contém só cadastro básico; nunca ressuscitar CSV técnico do cache anterior.
-        prefixos = ["imoveis_basicos_"] if estado.get("escopo") == "publico_basico" else ["imoveis_", "imoveis_basicos_"]
-        for prefixo in prefixos:
-            for arquivo in sorted((dados / uf).glob(f"{prefixo}???????.csv")):
-                cod = arquivo.stem.removeprefix(prefixo)
-                if cod.isdigit():
-                    publicados[cod] = arquivo
-    return publicados
+    publicado = json.loads(manifesto.read_text()) if manifesto.exists() else {}
+    if publicado.get("versao_publicacao") != 1 or publicado.get("escopo") != "publico_basico":
+        raise ValueError("o mapa exige manifesto publico_basico v1; pacotes legados não são aceitos")
+    ufs = publicado.get("estados", {})
+    if any(uf not in UF_IBGE.values() for uf in ufs):
+        raise ValueError("manifesto público contém UF inválida")
+    if any(estado.get("versao_publicacao") != 1 or estado.get("escopo") != "publico_basico" for estado in ufs.values()):
+        raise ValueError("estado exige marca publico_basico v1; pacotes legados não são aceitos")
+    return {
+        f.stem.removeprefix("imoveis_basicos_"): f
+        for uf in sorted(ufs)
+        for f in sorted((dados / uf).glob("imoveis_basicos_???????.csv"))
+        if f.stem.removeprefix("imoveis_basicos_").isdigit()
+    }
 
 
 def exportar_geometria(csv_imoveis: Path, cache: dict) -> tuple[int, int]:
     """GeoParquet do próprio Release; expõe só CAR e contorno, preservando inclusive áreas pequenas."""
     import geopandas as gpd
+    import pyarrow.parquet as pq
 
-    cod = csv_imoveis.stem.rsplit("_", 1)[-1]
+    cod = csv_imoveis.stem.removeprefix("imoveis_basicos_")
+    if not cod.isdigit() or len(cod) != 7:
+        raise ValueError("o mapa exige imoveis_basicos_<cod>.csv")
     origem = csv_imoveis.with_name(f"geo_{cod}.parquet")
     if not origem.exists():
         raise FileNotFoundError("o Release ainda não contém o desenho deste município")
     destino = SAIDA / f"imoveis_{cod}.geojson.gz"
+    colunas_geo = pq.read_schema(origem).names
+    if len(colunas_geo) != 2 or set(colunas_geo) != {"cod_imovel", "geometry"}:
+        raise ValueError("GeoParquet público contém campos fora do contrato mínimo")
+    with csv_imoveis.open(encoding="utf-8-sig", newline="") as f:
+        if csv.DictReader(f).fieldnames != ["cod_imovel", "cod_ibge", "municipio", "uf", "situacao_basica"]:
+            raise ValueError("CSV público contém campos fora do contrato mínimo")
     assinatura = hashlib.sha256(origem.read_bytes() + csv_imoveis.read_bytes()).hexdigest()
     if cache.get(cod, {}).get("sha256") == assinatura and destino.exists():
         return cache[cod]["imoveis"], destino.stat().st_size
@@ -862,7 +904,7 @@ def do_release(dados: Path, sem_base: bool = False) -> None:
             if uf in ufs:
                 caixa = shape(f["geometry"]).bounds
                 # Margem para rios/estradas na borda e cobertura até z10 em todo estado, sem municípios em branco.
-                caixa = (caixa[0] - .05, caixa[1] - .05, caixa[2] + .05, caixa[3] + .05)
+                caixa = (caixa[0] - 0.05, caixa[1] - 0.05, caixa[2] + 0.05, caixa[3] + 0.05)
                 base_regiao(f"base_{uf}.pmtiles", caixa, dia, 10)
     # Retira bases municipais duplicadas do cache antigo. O índice aponta todos para a mesma base estadual.
     for arq in SAIDA.glob("base_???????.pmtiles"):

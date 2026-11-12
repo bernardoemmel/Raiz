@@ -31,7 +31,7 @@ export function ComparacaoLotes({ opcoes, publicadas, selecionar }: { opcoes: Op
     } },
   ]
   const valorPublicado = (titulo: string, o: OpcaoPublicada | undefined): string => {
-    if (!o) return "Ainda não publicado"
+    if (!o) return "Área autenticada"
     if (titulo.startsWith("Créditos líquidos")) return numero(o.creditos?.[titulo.includes("P10") ? "p10" : titulo.includes("P90") ? "p90" : "p50"])
     if (titulo === "TIR do cenário") return numero(o.tir_p50, fmtTir)
     if (titulo.startsWith("TIR")) return "Ainda não publicado"
@@ -45,7 +45,7 @@ export function ComparacaoLotes({ opcoes, publicadas, selecionar }: { opcoes: Op
   return (
     <section className="secao-painel comparacao-lotes" aria-labelledby="comparacao-lotes-titulo">
       <h2 id="comparacao-lotes-titulo">Compare os três lotes</h2>
-      <p className="legenda-frase">P10 é a estimativa conservadora, P50 a central e P90 a alta. As faixas não são promessa de entrega. TIR é a taxa interna de retorno.</p>
+      <p className="legenda-frase">{publicadas && "Os números de cada lote são consultados na área autenticada. "}P10 é a estimativa conservadora, P50 a central e P90 a alta. As faixas não são promessa de entrega. TIR é a taxa interna de retorno.</p>
       <div className="tabela-rolagem" role="region" aria-label="Comparação dos lotes, deslize para ver todas as opções" tabIndex={0}>
         <table className="tabela-simples tabela-comparacao">
           <caption className="sr">Créditos, retorno, área e situação da terra por alternativa</caption>
