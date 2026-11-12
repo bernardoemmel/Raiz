@@ -12,7 +12,9 @@ AMOSTRA = RAIZ_REPO / "dados" / "amostra"
 
 
 def _url_teste() -> str | None:
-    return os.environ.get("RAIZ_BANCO_URL_TESTE")
+    from raiz.config import config
+
+    return os.environ.get("RAIZ_BANCO_URL_TESTE") or config().banco_url_teste
 
 
 @pytest.fixture(scope="session")

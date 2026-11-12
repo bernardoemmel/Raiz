@@ -38,6 +38,28 @@ def privacidade_varrer(
     typer.echo(f"{len(caminhos)} arquivo(s) sem CPF/CNPJ.")
 
 
+@app.command("carregar")
+def carregar(
+    pasta: Annotated[str, typer.Argument(help="pasta saida/<UF>/ do motor (ou dados/amostra)")],
+    data_corte: Annotated[str | None, typer.Option(help="AAAA-MM-DD; dados como estavam até esta data")] = None,
+) -> None:
+    """Carrega as saídas do motor no banco pelo contrato de colunas (idempotente)."""
+    import datetime as dt
+
+    from raiz.banco import engine
+    from raiz.carga import carregar_pasta
+
+    corte = dt.date.fromisoformat(data_corte) if data_corte else None
+    for r in carregar_pasta(engine(), pasta, corte):
+        onde = r.cod_municipio or f"resumo {r.uf}"
+        estado = "nova" if r.nova else "já carregada"
+        typer.echo(f"{onde}: rodada {r.rodada_id} ({estado}), {r.imoveis} linhas")
+        for c in r.colunas_novas:
+            typer.echo(f"  coluna nova (em atributos; documentar em docs/colunas.md): {c}")
+        for c in r.colunas_faltando:
+            typer.echo(f"  coluna do contrato ausente (fica nula): {c}")
+
+
 @banco.command("migrar")
 def banco_migrar(alvo: str = "head") -> None:
     """Aplica as migrações (Alembic) no banco de RAIZ_BANCO_URL."""

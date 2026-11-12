@@ -17,6 +17,8 @@ class Config(BaseSettings):
     )
 
     banco_url: str = "postgresql+psycopg://raiz:raiz@localhost:5432/raiz"
+    # banco descartável dos testes (é zerado a cada rodada de testes)
+    banco_url_teste: str | None = None
     # chave para cifrar o esquema pessoal (telefone, BSUID); sem ela, nada pessoal é gravado
     chave_pessoal: SecretStr | None = None
     # Healthchecks (https://healthchecks.io ou instância própria fora do servidor da Raíz)

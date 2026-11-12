@@ -111,6 +111,8 @@ def configurar_log(nivel: int = logging.INFO) -> None:
         h = logging.StreamHandler()
         h.setFormatter(FormatadorSeguro("%(asctime)s %(levelname)s %(name)s: %(message)s"))
         raiz.addHandler(h)
+    for barulhento in ("alembic", "httpx", "httpcore", "urllib3"):
+        logging.getLogger(barulhento).setLevel(logging.WARNING)
 
 
 # --- colunas pessoais na entrada ---------------------------------------------------------------------------------
