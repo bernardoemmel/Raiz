@@ -23,6 +23,12 @@ from pathlib import Path
 RAIZ = Path(__file__).resolve().parents[1]
 UNIDADE = "catalogo"
 COMMIT_TRAVAS_UF = "1e6d6f61bd8564f0546dbb453339e102b5531f54"
+# SHA-256 dos workflows completos em 1e6d6f6 e c3ec39e (os dois leiautes
+# pré-matrix.ref auditados): checkout padrão, sem troca posterior de commit.
+WORKFLOWS_CHECKOUT_HEAD = {
+    "dd0da1a5d2f1af64030ec74316babc284ca23263b2268baff2aee4618632a77c",
+    "d804e0b7bb327bc7058ab199691fcfcbb8f5ba8b75d951a135e21e357d6b79d6",
+}
 _COMPATIBILIDADE: dict[tuple[str, str], bool] = {}
 _CHECKOUT_HEAD: dict[tuple[str, str], bool] = {}
 
@@ -32,30 +38,19 @@ class ProcessamentoInseguro(RuntimeError):
 
 
 def checkout_do_head(repo: str, sha: str, fila) -> bool:
-    """Reconhece só o checkout padrão exato dos workflows anteriores à matriz.ref.
+    """Reconhece só os workflows históricos auditados que executavam head_sha.
 
-    Sem dependência YAML antes do uv sync: formatos alternativos, aliases e
-    parâmetros no checkout são recusados. O conteúdo vem do commit imutável.
+    Conferir o arquivo inteiro impede falsos positivos de um parser YAML parcial
+    e de passos posteriores que alterem o checkout. Sem dependências antes do uv
+    sync: qualquer workflow diferente exige a referência preservada na reserva.
     """
     chave = (repo, sha)
     if chave not in _CHECKOUT_HEAD:
         objeto = fila.api(f"repos/{repo}/contents/.github/workflows/processar-estados.yml?ref={sha}")
         if objeto.get("encoding") != "base64":
             raise ValueError("workflow do checkout não confirmado")
-        texto = base64.b64decode("".join(objeto["content"].split()), validate=True).decode("utf-8")
-        blocos = re.findall(r"^  processar:\s*\n(.*?)(?=^  [^ #\n][^\n]*:|\Z)", texto, re.M | re.S)
-        correto = False
-        if len(blocos) == 1 and not re.search(r"(?:^|\s)[&*][A-Za-z_]|<<:", blocos[0]):
-            passos = re.split(r"(?=^      - )", blocos[0], flags=re.M)
-            checkouts = [p for p in passos if "actions/checkout@" in p]
-            if len(checkouts) == 1:
-                linhas = [
-                    linha.strip()
-                    for linha in checkouts[0].splitlines()
-                    if linha.strip() and not linha.lstrip().startswith("#")
-                ]
-                correto = linhas == ["- uses: actions/checkout@v4"]
-        _CHECKOUT_HEAD[chave] = correto
+        dados = base64.b64decode("".join(objeto["content"].split()), validate=True)
+        _CHECKOUT_HEAD[chave] = hashlib.sha256(dados).hexdigest() in WORKFLOWS_CHECKOUT_HEAD
     return _CHECKOUT_HEAD[chave]
 
 

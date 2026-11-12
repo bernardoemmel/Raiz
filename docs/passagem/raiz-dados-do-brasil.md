@@ -27,8 +27,8 @@ Branch da entrega de formatos e procedência: `codex/dados-croissant`.
   a verificação das assinaturas ainda dependem da execução do novo workflow após merge. As fichas não concedem
   licença presumida aos dados, e o cartão diferencia cenário central, quantil e hipótese triangular de FLAG.
   A suíte da entrega passou com PostGIS (711 testes, 2 pulados, 1 xfail); correções adicionais de proveniência e
-  os novos formatos passaram em 88 testes focados. A atualização retroativa aguarda também o término natural de
-  runs anteriores à trava por UF (MA, run `43239448949`, ainda ativo na conferência), sem cancelar nada.
+  os novos formatos passaram em 88 testes focados. A atualização retroativa verifica o término natural de
+  runs anteriores à trava por UF. MA, run `43239448949`, terminou com sucesso; conferido às 19h02 UTC, sem cancelamento.
 - **Plano:** E1/E2 estão em preparação para a entrega seguinte, na ordem de dependência abaixo. Não confundir
   código preparado no branch com operação agendada: a coleta com PostGIS continua sem servidor permanente.
 
