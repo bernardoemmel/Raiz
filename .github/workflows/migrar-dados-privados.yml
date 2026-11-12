@@ -1,0 +1,38 @@
+name: Preservar dados completos em armazenamento privado
+
+on:
+  push:
+    branches: [codex/dados-privados-e-prospeccao]
+    paths:
+      - .github/workflows/migrar-dados-privados.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: migrar-dados-privados
+  cancel-in-progress: false
+
+jobs:
+  preservar:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - name: Instalar dependências
+        run: uv sync --frozen --all-extras
+      - name: Inventariar todos os Releases publicados
+        run: uv run python scripts/migrar_dados_privados.py inventariar --origem "$GITHUB_REPOSITORY" --diretorio /tmp/raiz-migracao
+      - name: Copiar, rebaixar e verificar SHA-256 e bloqueio anônimo
+        run: uv run python scripts/migrar_dados_privados.py copiar --destino "$GITHUB_REPOSITORY" --tag dados-privados --diretorio /tmp/raiz-migracao --executar
+      - name: Preservar comprovantes somente no Release privado
+        run: |
+          mkdir /tmp/raiz-comprovantes
+          cp /tmp/raiz-migracao/inventario.json "/tmp/raiz-comprovantes/inventario-$GITHUB_RUN_ID.json"
+          cp /tmp/raiz-migracao/backup-verificado.json "/tmp/raiz-comprovantes/backup-verificado-$GITHUB_RUN_ID.json"
+          gh release upload dados-privados /tmp/raiz-comprovantes/*.json --repo "$GITHUB_REPOSITORY"
+          echo 'Backup completo verificado por SHA-256 e HTTP 404 sem autenticação. Nenhum arquivo público removido nesta execução.' >> "$GITHUB_STEP_SUMMARY"
