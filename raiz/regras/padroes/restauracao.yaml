@@ -6,7 +6,7 @@
 # (`fonte`). Quando um cliente informa o real (`raiz restauracao informar`), `raiz restauracao recalibrar` compara
 # com o que a Raíz previu e propõe os fatores em restauracao_calibracao.yaml. Cada cálculo grava a versão deste
 # arquivo + hash (restauracao_versao); mudou a versão, `raiz restauracao recalcular` refaz.
-versao: restauracao-2026a
+versao: restauracao-2026b
 aviso: >-
   Estimativa da Raíz para orientar a conversa com o desenvolvedor, não é orçamento nem promessa de crédito. Custos,
   captura e linha de base são premissas a calibrar com dados reais.
@@ -62,6 +62,36 @@ regra_modo:
     Limiares a calibrar.
 
 # --- 2. Custo de restauração (R$/ha, P10/P50/P90 por modo) --------------------------------------------------------
+# Duas tabelas; o cenário escolhe (tabela_custo). sfb_bom_futuro: custos oficiais do SFB por ano (cenário central da
+# rodada 11); faixa_mercado: faixas de mercado do fundador, tudo no ano 0 (cenário otimista).
+custo_sfb_rs_ha:
+  plantio_total:
+    implantacao: 15830
+    manutencao_inicial: [1772, 1772]  # anos 1 e 2: R$ 3.544/ha no total
+    p10_rel: 0.70
+    p90_rel: 1.50
+    fonte: >-
+      fundador, rodada 11: R$ 15.830/ha + R$ 3.544/ha de manutenção nos anos 1 e 2 (lido como total dos dois anos).
+      O R$ 15.830,71 é o custo de referência do SFB para plantio total na Flona do Bom Futuro (Relatório de Avaliação
+      Econômico-Financeira Referencial, Tabelas 37 a 39), que já soma os anos 1 a 3 (R$ 11.233 + 2.533 + 2.065); a
+      manutenção a mais é margem da rodada 11. Faixa P10-P90 relativa igual à da faixa de mercado.
+  regeneracao_assistida:
+    implantacao: 4230
+    manutencao_inicial: [400, 400]  # anos 1 e 2: R$ 800/ha no total
+    p10_rel: 0.57
+    p90_rel: 1.43
+    fonte: >-
+      fundador, rodada 11: condução da regeneração R$ 4.230/ha + R$ 800/ha (anos 1 e 2). R$ 4.229,88 é o custo de
+      referência do SFB (Tabelas 40 a 42, anos 1 a 3). Faixa relativa igual à da faixa de mercado.
+  semeadura_direta:
+    implantacao: 10030
+    manutencao_inicial: [1086, 1086]
+    p10_rel: 0.67
+    p90_rel: 1.44
+    fonte: >-
+      premissa Raíz: média do plantio total e da condução da regeneração, como o SFB faz para o plantio de
+      enriquecimento no mesmo relatório; a conferir com redes de sementes e clientes
+
 custo_rs_ha:
   regeneracao_assistida:
     p10: 2000
@@ -103,7 +133,43 @@ ajustes_custo:
     fogo_frequente: 1.05  # fogo_anos_media acima do limite de muito fogo: aceiros e brigada
     fonte: premissa Raíz (MapBiomas Pastagem, vigor; fogo do histórico do motor)
 
-# --- 3. Captura (tCO2/ha/ano, P10/P50/P90 por modo) ---------------------------------------------------------------
+# --- 3. Captura -------------------------------------------------------------------------------------------------
+# Duas formas; o cenário escolhe (modelo). curva: total em 40 anos por modo, na forma da URTX (cenário central da
+# rodada 11); constante: tCO2/ha/ano igual todo ano (cenário otimista).
+captura_curva:
+  anos: 40
+  # tCO2/ha no ano (forma da URTX): zero nos anos 1 e 2, 13,44 t no ano 7 e pico de 30,29 t no ano 14, linear entre
+  # os pontos; depois do pico cai em linha reta até o ano 40 no ritmo que fecha o total de referência
+  pontos: [[2, 0.0], [7, 13.44], [14, 30.29]]
+  total_referencia: 588.8
+  total_tco2_ha:  # Amazônia; a curva de cada modo é a mesma forma escalada para o total
+    plantio_total: 588.8
+    regeneracao_assistida: 442.8
+    semeadura_direta: 515.8
+  fator_bioma:  # fora da Amazônia, o total cai na proporção do P50 do plantio da tabela constante
+    Amazônia: 1.0
+    Mata Atlântica: 0.85
+    Cerrado: 0.54
+    Pantanal: 0.54
+    Caatinga: 0.31
+    Pampa: 0.38
+  teto_tco2_ha:  # estoque acumulado nunca passa do teto do bioma (vegetação madura, com raízes)
+    Amazônia: 650
+    Mata Atlântica: 550
+    Cerrado: 350
+    Pantanal: 350
+    Caatinga: 200
+    Pampa: 250
+  faixa_rel:  # P10 e P90 do total em relação ao P50
+    plantio_total: [0.69, 1.38]
+    semeadura_direta: [0.60, 1.40]
+    regeneracao_assistida: [0.60, 1.40]
+  fonte: >-
+    fundador, rodada 11 (curva da URTX, total de 588,8 t em 40 anos no plantio e 442,8 t na regeneração). Os totais
+    são os do modelo do SFB para a Flona do Bom Futuro (588,82 e 442,79 tCO2/ha, com raízes, serapilheira e solo; curva
+    em S até o máximo local perto dos 40 anos). Semeadura direta no meio dos dois, fatores de bioma e tetos são
+    premissa Raíz a calibrar com medição de cliente.
+
 captura_tco2_ha_ano:
   regeneracao_assistida:
     # P50 = taxa do motor (taxa_tco2_ha_ano: Heinrich 2021 por região na Amazônia, provisória fora dela) vezes o
@@ -181,13 +247,17 @@ linha_base:
     premissa Raíz para quando faltar o raster
 
 # --- 5. Do bruto ao líquido -------------------------------------------------------------------------------------
+# Os valores ficam no cenário (linha_base_piso, vazamento, reserva_risco, incerteza); aqui, a ordem e a regra.
 liquido:
-  reserva_risco: 0.12
-  incerteza: 0.10
-  vazamento: 0.0
+  ordem: [linha_base, vazamento, reserva_risco, incerteza]
+  regra: >-
+    crédito líquido = captura x (1 - linha de base) x (1 - vazamento) x (1 - reserva) x (1 - incerteza), nesta
+    ordem; a linha de base é a medida no YbYrá (parte da captura que a mata faria sozinha), nunca abaixo do piso do
+    cenário
   fonte: >-
-    reserva de não permanência e incerteza ex-ante iguais às do motor (raiz_ajustes.py: reserva mínima NPRT v5.0 e
-    VM0047); vazamento (VMD0054, gado deslocado) fica em zero até ser medido e aparece na ficha como pendente
+    rodada 11 do fundador (ordem e valores do central e do estresse); reserva de não permanência e incerteza ex-ante
+    iguais às do motor (raiz_ajustes.py: reserva mínima NPRT v5.0 e VM0047); vazamento pelo VMD0054 (gado deslocado),
+    zero só com fazenda vizinha de mitigação no lote
 
 # --- 7. Agrupamento de fazendas vizinhas --------------------------------------------------------------------------
 agrupamento:

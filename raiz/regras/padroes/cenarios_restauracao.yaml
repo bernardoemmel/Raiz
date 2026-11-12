@@ -1,36 +1,261 @@
-# Cenários do fluxo de caixa por hectare de quem restaura (raiz/restauracao.py, fluxo_caixa). Todo parâmetro é
-# editável na ficha (simulador) e cada um traz a fonte. O cenário padrão é o ProFloresta+ (BNDES) no preço baixo.
-# Cada cálculo grava a versão + hash deste arquivo junto da do restauracao.yaml.
-versao: cenarios-2026a
-padrao: profloresta_55
+# Cenários do fluxo de caixa por hectare de quem restaura (raiz/restauracao.py). Todo parâmetro é editável na ficha
+# (simulador) e cada um traz a fonte. O cenário padrão é o central da rodada 11 (central_r11); as premissas antigas do
+# fundador ficam no otimista_fundador. Cada cálculo grava a versão + hash deste arquivo junto da do restauracao.yaml.
+#
+# modelo:
+#   curva     captura em curva (forma da URTX), custos oficiais do SFB por ano, descontos em ordem, marcos e multas do
+#             ProFloresta+, pagamento ao dono, dívida pelo ICSD e venda depois do contrato
+#   constante captura constante por ano e custo de mercado no ano 0 (premissas antigas do fundador)
+versao: cenarios-2026b
+padrao: central_r11
 
 cenarios:
-  profloresta_55:
-    nome: ProFloresta+ (BNDES), US$ 55/t
+  central_r11:
+    nome: Central (rodada 11), US$ 55/t
+    modelo:
+      valor: curva
+      fonte: fundador, rodada 11 (12/11/2026)
+    tabela_custo:
+      valor: sfb_bom_futuro
+      fonte: fundador, rodada 11 (custos oficiais do SFB na concessão da Flona do Bom Futuro)
+    preco_usd_t:
+      valor: 55
+      fonte: fundador, rodada 11 (ProFloresta+ do BNDES compra entre US$ 55 e 74/t)
+    prazo_anos:
+      valor: 25
+      fonte: fundador, rodada 11 (contrato de 25 anos do ProFloresta+)
+    horizonte_anos:
+      valor: 40
+      fonte: fundador, rodada 11 (pagamento ao dono por 40 anos; a curva vai até o ano 40)
+    entregas_anos:
+      valor: [7, 12, 17, 22, 25]
+      fonte: fundador, rodada 11 (marcos do ProFloresta+)
+    marcos_pct:
+      valor: [12, 30, 50, 70, 100]
+      fonte: fundador, rodada 11 (parte acumulada do volume contratado em cada marco)
+    tolerancia_marco:
+      valor: 0.25
+      fonte: fundador, rodada 11 (o marco conta como cumprido com 75% do volume)
+    multa_credito_dia_rs:
+      valor: 0.03
+      fonte: fundador, rodada 11 (R$ 0,03 por crédito em falta por dia, depois da carência)
+    multa_carencia_dias:
+      valor: 180
+      fonte: fundador, rodada 11 (a multa por crédito começa 180 dias depois do marco)
+    multa_marco_dia_rs:
+      valor: 1000
+      fonte: >-
+        fundador, rodada 11 (R$ 1.000 por dia de marco atrasado, por contrato; rateado por hectare pela parte do imóvel
+        no contrato de referência de 1 milhão de créditos)
+    rescisao_multa_fracao:
+      valor: 0.20
+      fonte: >-
+        fundador, rodada 11 (rescisão quando as multas chegam a 20% do valor do contrato; depois dela, o que faltar
+        entregar é vendido no mercado ao preço depois do contrato)
+    volume_contratado:
+      valor: 1.0
+      fonte: premissa Raíz (contrata o P50 dos créditos líquidos até o fim do contrato; 0,9 contrata 90% do P50)
+    preco_pos_contrato_usd_t:
+      valor: 30
+      fonte: fundador, rodada 11 (venda depois do ano 25 a US$ 30)
+    entregas_pos_contrato_anos:
+      valor: [30, 35, 40]
+      fonte: premissa Raíz (verificação e venda a cada 5 anos depois do contrato)
+    fracao_financiada:
+      valor: 0.50
+      fonte: fundador, rodada 11 (Fundo Clima de 35 a 50% do investimento; aqui o teto)
+    fracao_financiada_minima:
+      valor: 0.35
+      fonte: fundador, rodada 11 (piso da faixa do Fundo Clima; abaixo dele a ficha avisa)
+    juros_ano:
+      valor: 0.0494
+      fonte: fundador, rodada 11 (Fundo Clima a 4,94% ao ano)
+    carencia_anos:
+      valor: 8
+      fonte: fundador, rodada 11 (carência de até 8 anos)
+    juros_carencia:
+      valor: capitalizados
+      fonte: >-
+        premissa Raíz: sem receita até o ano 7, os juros da carência entram no saldo (o modelo do SFB para a Flona do
+        Bom Futuro também tem carência de juros); "pagos" põe os juros no caixa do dono do projeto
+    amortizacao_anos:
+      valor: 17
+      fonte: premissa Raíz (a dívida termina no ano 25, junto com o contrato)
+    sistema_amortizacao:
+      valor: icsd
+      fonte: >-
+        fundador, rodada 11 (dívida máxima pelo ICSD 1,3): parcelas esculpidas no caixa do P50 de cada ano (caixa /
+        1,3) e dívida = menor entre o teto da fração e o que o ICSD permite
+    icsd_minimo:
+      valor: 1.3
+      fonte: fundador, rodada 11 (o mesmo do modelo do SFB para a Flona do Bom Futuro)
+    taxa_desconto:
+      valor: 0.092
+      fonte: fundador, rodada 11 (WACC real de 9,2%)
+    cambio_brl_usd:
+      valor: 5.40
+      fonte: >-
+        premissa marcada pelo fundador (R$ 5,40), usada enquanto não houver PTAX gravada; o simulador da ficha aceita
+        outro valor
+    cambio_ptax:
+      valor: true
+      fonte: >-
+        fundador, rodada 11 (melhor ainda: PTAX automática). Com a PTAX gravada (`raiz restauracao cambio --gravar`,
+        restauracao_cambio.yaml) ela substitui os R$ 5,40; a versão das premissas muda e o recalcular refaz
+    desembolso_custo:
+      valor: [1.0]
+      fonte: premissa Raíz (só para o modelo constante; no modelo curva o custo sai por ano da tabela do SFB)
+    manutencao_rs_ha_ano:
+      valor: 0
+      fonte: fundador, rodada 11 (a manutenção depois do ano 2 vem em dólar, na linha de baixo)
+    manutencao_usd_ha_ano:
+      valor: 40
+      fonte: fundador, rodada 11 (US$ 40/ha/ano depois da manutenção dos anos 1 e 2)
+    manutencao_desde_ano:
+      valor: 3
+      fonte: fundador, rodada 11 (anos 1 e 2 estão no custo do SFB)
+    monitoramento_rs_ha_ano:
+      valor: 40
+      fonte: premissa marcada pelo fundador (satélite e parcelas permanentes)
+    verificacao_rs_ha_entrega:
+      valor: 120
+      fonte: premissa marcada pelo fundador (auditoria de verificação em cada entrega, rateada por ha)
+    taxa_registro_usd_t:
+      valor: 0.20
+      fonte: premissa marcada pelo fundador (taxa de emissão por crédito na Verra)
+    registro_venda_receita:
+      valor: 0.10
+      fonte: fundador, rodada 11 (custo de registro e venda de 10% da receita)
+    tributos_receita:
+      valor: 0.0925
+      fonte: premissa marcada pelo fundador (PIS e Cofins não cumulativos, 9,25%; o modelo do SFB usa o mesmo)
+    pagamento_dono:
+      valor: participacao
+      fonte: >-
+        fundador, rodada 11 (padrão: parte do crédito + piso baixo, por 40 anos). Outras formas, para comparar:
+        arrendamento (aluguel fixo do Censo Agro 2017) e duas_fases (pagamento pequeno até o resultado do leilão,
+        depois o contrato firme)
+    participacao_dono:
+      valor: 0.15
+      fonte: fundador, rodada 11 (10 a 20% do crédito; aqui o meio da faixa)
+    piso_dono_rs_ha_ano:
+      valor: 50
+      fonte: premissa Raíz (piso baixo pago todo ano, além da parte do crédito)
+    arrendamento_rs_ha_ano:
+      valor: 0
+      fonte: >-
+        premissa Raíz (com pagamento_dono = arrendamento e valor 0, usa o aluguel do Censo Agro 2017 do município
+        ou do estado, na tabela abaixo)
+    fase1_rs_ha_ano:
+      valor: 20
+      fonte: "premissa Raíz (aceite em duas fases: pagamento pequeno por ha até o resultado do leilão)"
+    fase1_anos:
+      valor: 2
+      fonte: premissa Raíz (do aceite ao resultado do leilão)
+    linha_base_piso:
+      valor: 0.10
+      fonte: fundador, rodada 11 (a medida do YbYrá vale, mas o desconto nunca fica abaixo de 10%)
+    vazamento:
+      valor: 0.10
+      fonte: fundador, rodada 11 (VMD0054, gado deslocado, 10% no central)
+    vazamento_com_mitigacao:
+      valor: 0.0
+      fonte: fundador, rodada 11 (zero só com fazenda vizinha de mitigação no lote; coluna mitigacao_vizinha)
+    reserva_risco:
+      valor: 0.12
+      fonte: fundador, rodada 11 (reserva de não permanência)
+    incerteza:
+      valor: 0.10
+      fonte: fundador, rodada 11 (incerteza ex-ante)
+
+  central_r11_74:
+    nome: Central (rodada 11), US$ 74/t
+    herda: central_r11
+    preco_usd_t:
+      valor: 74
+      fonte: fundador, rodada 11 (teto da faixa do ProFloresta+)
+
+  estresse_r11:
+    nome: Estresse (rodada 11), US$ 55/t
+    herda: central_r11
+    linha_base_piso:
+      valor: 0.40
+      fonte: "fundador, rodada 11 (estresse da linha de base: 40%)"
+    vazamento:
+      valor: 0.40
+      fonte: "fundador, rodada 11 (estresse do vazamento: 40%)"
+
+  otimista_fundador:
+    nome: Otimista do fundador, US$ 55/t
+    modelo:
+      valor: constante
+      fonte: fundador, 12/11/2026 (premissas antes da rodada 11)
+    tabela_custo:
+      valor: faixa_mercado
+      fonte: fundador, 12/11/2026 (faixas de mercado por modo)
     preco_usd_t:
       valor: 55
       fonte: fundador, 12/11/2026 (ProFloresta+ do BNDES compra entre US$ 55 e 74/t)
     prazo_anos:
       valor: 25
       fonte: fundador (contrato do ProFloresta+)
+    horizonte_anos:
+      valor: 25
+      fonte: fundador (só o prazo do contrato)
     entregas_anos:
       valor: [7, 12, 17, 22, 25]
       fonte: fundador (primeira entrega no ano 7, depois a cada 5 anos)
+    marcos_pct:
+      valor: [12, 30, 50, 70, 100]
+      fonte: fundador (marcos do ProFloresta+; no otimista sem multa)
+    tolerancia_marco:
+      valor: 0.25
+      fonte: fundador
+    multa_credito_dia_rs:
+      valor: 0
+      fonte: fundador (o otimista não conta multa)
+    multa_carencia_dias:
+      valor: 180
+      fonte: fundador
+    multa_marco_dia_rs:
+      valor: 0
+      fonte: fundador (o otimista não conta multa)
+    rescisao_multa_fracao:
+      valor: 0.20
+      fonte: fundador
+    volume_contratado:
+      valor: null
+      fonte: fundador (entrega todo o crédito ao preço do contrato, sem volume fixo)
+    preco_pos_contrato_usd_t:
+      valor: 30
+      fonte: fundador
+    entregas_pos_contrato_anos:
+      valor: []
+      fonte: fundador (sem venda depois do contrato)
     fracao_financiada:
       valor: 0.8
       fonte: fundador (80% financiado)
+    fracao_financiada_minima:
+      valor: 0.0
+      fonte: fundador
     juros_ano:
       valor: 0.023
       fonte: fundador (Fundo Clima, cerca de 2,3% ao ano)
     carencia_anos:
       valor: 5
       fonte: fundador (5 anos de carência, juros pagos na carência)
+    juros_carencia:
+      valor: pagos
+      fonte: fundador (juros pagos na carência)
     amortizacao_anos:
       valor: 20
       fonte: fundador (20 anos de amortização)
     sistema_amortizacao:
       valor: sac
       fonte: premissa Raíz (o BNDES costuma usar o sistema de amortização constante)
+    icsd_minimo:
+      valor: 1.3
+      fonte: fundador (não usado no sistema sac)
     taxa_desconto:
       valor: 0.12
       fonte: fundador (VPL a 12%)
@@ -43,6 +268,9 @@ cenarios:
     manutencao_rs_ha_ano:
       valor: 150
       fonte: premissa Raíz (aceiro, formiga e cerca depois da implantação)
+    manutencao_usd_ha_ano:
+      valor: 0
+      fonte: premissa Raíz (manutenção em reais, na linha de cima)
     manutencao_desde_ano:
       valor: 3
       fonte: premissa Raíz (até o ano 2 a manutenção está dentro do custo de implantação)
@@ -55,22 +283,65 @@ cenarios:
     taxa_registro_usd_t:
       valor: 0.20
       fonte: premissa Raíz (taxa de emissão por crédito na Verra; conferir na tabela de taxas vigente)
+    registro_venda_receita:
+      valor: 0
+      fonte: fundador (sem custo de venda)
     tributos_receita:
       valor: 0.0925
       fonte: premissa Raíz (PIS e Cofins não cumulativos sobre a venda; conferir com a Lei 15.042/2024)
+    pagamento_dono:
+      valor: arrendamento
+      fonte: fundador (sem pagamento ao dono; preencha o arrendamento se o desenvolvedor paga por ha)
+    participacao_dono:
+      valor: 0
+      fonte: fundador
+    piso_dono_rs_ha_ano:
+      valor: 0
+      fonte: fundador
     arrendamento_rs_ha_ano:
       valor: 0
       fonte: premissa Raíz (sem arrendamento; preencha se o desenvolvedor paga ao dono por ha)
+    fase1_rs_ha_ano:
+      valor: 0
+      fonte: fundador
+    fase1_anos:
+      valor: 0
+      fonte: fundador
+    linha_base_piso:
+      valor: 0
+      fonte: fundador (a medida do YbYrá, sem piso)
+    vazamento:
+      valor: 0
+      fonte: fundador (vazamento pendente, fora da conta)
+    vazamento_com_mitigacao:
+      valor: 0
+      fonte: fundador
+    reserva_risco:
+      valor: 0.12
+      fonte: motor (raiz_ajustes.py, reserva mínima NPRT v5.0)
+    incerteza:
+      valor: 0.10
+      fonte: motor (raiz_ajustes.py, VM0047)
 
-  profloresta_74:
-    nome: ProFloresta+ (BNDES), US$ 74/t
-    herda: profloresta_55
+  otimista_fundador_74:
+    nome: Otimista do fundador, US$ 74/t
+    herda: otimista_fundador
     preco_usd_t:
       valor: 74
       fonte: fundador, 12/11/2026 (teto da faixa do ProFloresta+)
 
-# Faixa P10-P90 do VPL e das TIRs por imóvel: Monte Carlo com sorteios comuns a todos os imóveis (semente fixa), o
-# custo e a captura sorteados de forma independente numa normal de dois lados que respeita os P10, P50 e P90.
+# Aluguel de terra para comparar com a parte do crédito (pagamento_dono = arrendamento com valor 0). Valor médio por
+# ha por ano no Censo Agropecuário 2017 do IBGE; município primeiro, depois o estado.
+arrendamento_censo_2017:
+  fonte: IBGE, Censo Agropecuário 2017 (valores trazidos pelo fundador na rodada 11)
+  municipios:
+    1507300: 532  # São Félix do Xingu (PA)
+  ufs:
+    PA: 212
+
+# Faixa P10-P90 do VPL, das TIRs, das entregas e das multas por imóvel: Monte Carlo com sorteios comuns a todos os
+# imóveis (semente fixa), o custo e a captura sorteados de forma independente numa normal de dois lados que respeita
+# os P10, P50 e P90. Os indicadores do P50 saem do caminho do meio (custo e captura no P50).
 monte_carlo:
   sorteios: 400
   semente: 2026

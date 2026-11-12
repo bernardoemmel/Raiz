@@ -560,6 +560,26 @@ def restauracao_recalcular(
         typer.echo(f"  erro {e}")
 
 
+@restauracao_cli.command("cambio")
+def restauracao_cambio(
+    gravar: Annotated[
+        bool, typer.Option(help="gravar a PTAX nas premissas (muda a versão; o recalcular refaz)")
+    ] = False,
+) -> None:
+    """PTAX de venda do dólar no Banco Central. Com --gravar, os cenários com cambio_ptax passam a usá-la."""
+    from raiz import restauracao as RS
+
+    try:
+        c = RS.ptax()
+    except Exception as e:  # noqa: BLE001 - sem rede, segue o câmbio fixo do cenário
+        typer.echo(f"não consegui a PTAX ({e}); segue o câmbio do cenário")
+        raise typer.Exit(1) from e
+    typer.echo(f"PTAX de venda de {c['data']}: R$ {c['ptax']:.4f}")
+    if gravar:
+        f = RS.gravar_cambio(c)
+        typer.echo(f"gravada em {f}; versão das premissas agora {RS.versao()}")
+
+
 @restauracao_cli.command("informar")
 def restauracao_informar(
     cod_imovel: Annotated[str, typer.Argument(help="código do CAR (com ou sem pontos e traços)")],

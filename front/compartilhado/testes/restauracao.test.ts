@@ -2,7 +2,7 @@ import fs from "node:fs"
 import path from "node:path"
 import { describe, expect, it } from "vitest"
 import { lerCsv } from "../dados/csv"
-import { fmtFaixa, fmtReais, lerRestauracao, ordenarFiltrar } from "../restauracao"
+import { descricaoCenario, fmtFaixa, fmtReais, lerMarcos, lerRestauracao, ordenarFiltrar } from "../restauracao"
 
 const AMOSTRA = path.resolve(__dirname, "../../../dados/amostra")
 const linhas = lerCsv(fs.readFileSync(path.join(AMOSTRA, "desenvolvedor_1504950.csv"), "utf8")).linhas
@@ -19,6 +19,26 @@ describe("valor para quem restaura", () => {
       expect(r.creditoHaAno.p50).toBeLessThanOrEqual(r.capturaHaAno.p50)
     }
     expect(new Set(rs.map((r) => r.modo)).size).toBeGreaterThan(1)
+  })
+
+  it("cenário central da rodada 11: descontos em ordem, marcos, dívida e dono", () => {
+    const r = lerRestauracao(linhas[0])
+    expect(r).not.toBeNull()
+    if (!r) return
+    expect(r.cenario).toBe("central_r11")
+    expect(r.capturaModelo).toBe("curva")
+    expect(r.descontos.linhaBase).toBeGreaterThanOrEqual(10)
+    expect([r.descontos.vazamento, r.descontos.reserva, r.descontos.incerteza]).toEqual([10, 12, 10])
+    expect(r.marcos.map((m) => m.ano)).toEqual([7, 12, 17, 22, 25])
+    expect(r.creditoContratoHa?.p50).toBeGreaterThan(0)
+    expect(r.divida?.fracao).toBeLessThanOrEqual(0.5)
+    expect(r.dono.forma).toBe("participacao")
+    expect(descricaoCenario(r.cenario).taxa).toBe("a 9,2% ao ano")
+    expect(descricaoCenario("otimista_fundador").financiamento).toBe("80% pelo Fundo Clima")
+    expect(lerMarcos({ marco_12_chance_pct: "80", marco_7_chance_pct: "40", outro: "1" })).toEqual([
+      { ano: 7, chancePct: 40 },
+      { ano: 12, chancePct: 80 },
+    ])
   })
 
   it("sem o cálculo, não inventa número", () => {

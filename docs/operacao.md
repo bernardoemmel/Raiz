@@ -139,7 +139,18 @@ Calculado pelo produto, fora do motor (raiz/restauracao.py e raiz/restauracao_ge
   Copernicus por ladrilho de 1 grau, chuva do CHIRPS por faixa de 5 graus de latitude, solo do SoilGrids por município;
   a distância à mata e a linha de base saem do raster de cobertura do MapBiomas do motor e do YbYrá. Se uma fonte
   falhar, a coluna fica vazia, o cálculo usa a premissa neutra e `restauracao_faltou` diz o que faltou.
-- Simulador: `GET /imoveis/{cod}/restauracao/simular?preco_usd_t=74&entregas_anos=7,12,17,22,25&...`;
+- Cenários (raiz/regras/padroes/cenarios_restauracao.yaml): o padrão é `central_r11` (rodada 11 do fundador: captura
+  em curva na forma da URTX, custos oficiais do SFB, descontos em ordem com piso de 10% na linha de base e vazamento de
+  10%, marcos do ProFloresta+ com multa e rescisão, dono pago por 40 anos, Fundo Clima até 50% pelo ICSD 1,3, venda a
+  US$ 30 depois do ano 25, WACC de 9,2%); `central_r11_74`, `estresse_r11` (linha de base e vazamento de 40%) e as
+  premissas antigas em `otimista_fundador` e `otimista_fundador_74`. Referência (fazenda de 100 ha no leste do PA, US$
+  55, câmbio de R$ 5,40): TIR com financiamento de ~6,8% no plantio e ~14,6% na regeneração assistida.
+- Câmbio: `raiz restauracao cambio` mostra a PTAX de venda do Banco Central; `--gravar` grava em
+  raiz/regras/padroes/restauracao_cambio.yaml e os cenários com `cambio_ptax` passam a usá-la no lugar dos R$ 5,40 (a
+  versão muda e o `recalcular` refaz; rode uma vez por mês, ou quando o câmbio andar).
+- Simulador: `GET /imoveis/{cod}/restauracao/simular?cenario=estresse_r11&preco_usd_t=74&pagamento_dono=duas_fases&...`
+  (marcos_pct, entregas_anos, volume_contratado, juros_carencia, participacao_dono, piso_dono_rs_ha_ano e os demais
+  da lista `editaveis`);
   cenários com a fonte de cada parâmetro em `GET /restauracao/cenarios`. Painel: `GET /municipios/{cod}/imoveis?
   ordem=valor_desenvolvedor&modo=plantio_total&tir_min=20&so_lote_fecha=true` e `GET /municipios/{cod}/lotes`.
 - Aprendizado: cada estimativa entra congelada (modelo `restauracao`, com a versão) na carga. Quando um cliente

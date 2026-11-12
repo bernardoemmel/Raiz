@@ -81,7 +81,9 @@ def test_ficha_tem_o_bloco_para_quem_restaura(cliente):
     for k in ("custo_rs_ha", "captura_tco2_ha_ano", "credito_liquido_tco2_ha_ano", "vpl_rs_ha", "tir_projeto_pct",
               "tir_alavancada_pct", "pico_capital_proprio_rs_ha"):  # fmt: skip
         assert b[k]["p10"] <= b[k]["p50"] <= b[k]["p90"], k
-    assert b["versao"] == R.versao() and b["cenario"]["cenario"] == "profloresta_55"
+    assert b["versao"] == R.versao() and b["cenario"]["cenario"] == "central_r11"
+    assert [d["id"] for d in b["descontos"]] == ["linha_base", "vazamento", "reserva_risco", "incerteza"]
+    assert b["marcos"]["lista"] and b["pagamento_dono"]["comparacao"][0]["atual"]
     assert "explicacao" in b["linha_base"] and b["faltou"]  # sem geo na amostra: diz o que faltou
     # FLAG e crédito continuam separados; o bloco novo não soma com a meta FLAG
     assert "flag" in f and "nao_somar" in f["flag"]
@@ -114,11 +116,15 @@ def test_simulador_e_cenarios(cliente):
     cl, _, _ = cliente
     alvo = _um_com_area(cl)
     cods = cl.get("/restauracao/cenarios").json()
-    assert cods["padrao"] == "profloresta_55" and "profloresta_74" in cods["cenarios"]
-    assert cods["cenarios"]["profloresta_55"]["fontes"]["preco_usd_t"].startswith("fundador")
+    assert cods["padrao"] == "central_r11"
+    assert {"central_r11_74", "estresse_r11", "otimista_fundador", "otimista_fundador_74"} <= set(cods["cenarios"])
+    assert cods["cenarios"]["central_r11"]["fontes"]["preco_usd_t"].startswith("fundador, rodada 11")
+    assert "duas_fases" in cods["opcoes"]["pagamento_dono"]
     base = cl.get(f"/imoveis/{alvo['cod_imovel']}/restauracao/simular").json()
     caro = cl.get(f"/imoveis/{alvo['cod_imovel']}/restauracao/simular", params={"preco_usd_t": 74}).json()
-    assert caro["vpl_rs_ha"]["p50"] > base["vpl_rs_ha"]["p50"] and len(base["fluxo_p50"]["anos"]) == 26
+    assert caro["vpl_rs_ha"]["p50"] > base["vpl_rs_ha"]["p50"] and len(base["fluxo_p50"]["anos"]) == 41
+    ot = cl.get(f"/imoveis/{alvo['cod_imovel']}/restauracao/simular", params={"cenario": "otimista_fundador"}).json()
+    assert len(ot["fluxo_p50"]["anos"]) == 26 and ot["cenario"]["cenario"] == "otimista_fundador"
     r = cl.get(f"/imoveis/{alvo['cod_imovel']}/restauracao/simular", params={"fracao_financiada": 3})
     assert r.status_code == 422 and "fracao_financiada" in r.json()["detail"]["mensagem"]
 
