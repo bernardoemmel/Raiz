@@ -1,0 +1,202 @@
+# Plano de construção por etapa
+
+Gerado da rodada 8 de pesquisa (12/11/2026). Ordem geral: E1 → E2 → E5 → E7 (em paralelo) → E3/E4 → E6 → E8 → E9.
+Pedidos que só o fundador faz, no dia 1: convênio com o ONR e pedidos por LAI ao SFB e ao INCRA.
+
+## Ordem geral
+
+| Ordem | O quê | Depende de | Horas | Por quê |
+|---|---|---|---|---|
+| 1 | E1 passos 1 a 4 (coleta que pega só o que mudou) | nada | 20 a 33 | Tudo depende de dado atualizado e versionado. |
+| 2 | E2 passos 1 a 5 (funil rápido sobre a coleta) | E1 | 15 a 30 | Destrava todas as outras etapas e ataca os 9 dias de fila. |
+| 3 | E5 passos 1 a 4 (laudo de título por imóvel) | E1 e E2 | 33 a 53 | Já é produto vendável, inclusive para quem faz solo e metano. |
+| 4 | E7 passos 1, 3 e 4 (operação vigiada), em paralelo desde o começo | nada | 11 a 19 | Quem opera sozinho precisa saber na hora quando algo parou. |
+| 5 | E3 e E4 (conta com faixa honesta; rebanho e metano) | E2 | 85 a 138 | Dependem das áreas por fazenda que o funil entrega. |
+| 6 | E6 (quem compra, por tempo de caminhão) | E4 | 34 a 59 | Precisa do rebanho por fazenda. |
+| 7 | E8 (aprendizado), assim que houver previsões gravadas | E1 a E6 | 40 a 64 | Só aprende quando há previsão guardada para comparar. |
+| 8 | E9 (ficha, texto, cartão, vídeo e voz) | E2, E3 e E5 | 46 a 80 | Mostra o que as etapas anteriores calculam. |
+| 9 | No dia 1, em paralelo: pedir convênio ao ONR e fazer os pedidos de LAI ao SFB e ao INCRA | nada | 3 a 5 | Têm prazo de resposta de terceiros; quanto antes, melhor. |
+
+Observação do motor atual (12/11): o funil já roda o Brasil por município (motor/), com cruzamento vetorizado ~4x mais rápido; a coleta incremental (dlt) e o banco (PostGIS) ainda não existem.
+
+## E1. Coleta de dados públicos
+
+| Ordem | Passo | Depende de | Horas |
+|---|---|---|---|
+| 1 | Montar o manifesto de camadas (YAML ou JSON): endereço por ano de cobertura Col. 11 e Col. 10, nove produtos do Fogo Col. 5, quatro produtos do YbYrá, altura e uGPP do GPW, com fonte alternativa (Earth Engine) para as camadas fechadas. | nada | 1 a 2 |
+| 1 | Criar a tabela de replicação (fonte, recorte, cursor, etag, contagem, atualizado_em) e o calendário por fonte (Ibama diário, DETER sábado, MapBiomas segunda, PRODES outubro, CAR em rodízio semanal) | nada | 2 a 4 |
+| 1 | Gatilho da PPM pelo calendário do IBGE (produto 9107), copiando a função do PYield | conferir robots e termos do servicodados | 2 a 3 |
+| 1 | Fazer a tabela de 'sinal de mudança' de cada fonte: SICAR com data_atualizacao em 15 UFs e sem o campo em 12; DETER com view_date; PRODES por ano; ArcGIS do Ibama e SFB com editingInfo.lastEditDate; SIGEF e acervo sem campo (usar hash) | nada | 2 a 4 |
+| 2 | Job de checagem: HEAD em cada endereço, grava bytes, ETag e Last-Modified numa tabela; avisa no Healthchecks se faltar arquivo ou mudar ETag (rodar fora deste ambiente, que bloqueia os buckets). | passo 1 | 2 a 3 |
+| 2 | Assinatura barata por município antes de baixar: resultType=hits mais 1 linha ordenada pela data (SICAR, Geoportal INCRA); If-None-Match no Ibama; nome do arquivo e last_update_date.json no PRODES | passo 1 | 3 a 5 |
+| 2 | Escrever uma fonte dlt para WFS do GeoServer (SICAR e TerraBrasilis): paginação count/startIndex com sortBy, CQL_FILTER por município e por data quando houver, requests-cache que não guarda resposta de erro | passo 1 | 6 a 10 |
+| 3 | Índice de blocos: ler uma vez o cabeçalho de cada arquivo (tifffile ou GDAL /vsicurl) e salvar a tabela de offsets em Parquet; calcular bytes por município com a lógica do fetch_size.py. | passo 2 | 3 a 5 |
+| 3 | CAR incremental: 15 UFs por data_atualizacao maior que o cursor menos 2 dias; 12 UFs por dat_criacao e coleta cheia do município quando a contagem muda; dlt scd2 com merge_key=cod_municipio_ibge | passo 2 | 6 a 10 |
+| 3 | Escrever uma fonte dlt para ArcGIS REST (Ibama, SFB, IPAAM, ANA) no molde do ArcGISFeatureServerSpider: ler detalhes da camada, pular se lastEditDate não mudou, paginar por OBJECTID e conferir a contagem total | passo 1 | 4 a 8 |
+| 4 | Leitor por blocos no funil: pedir só os blocos do município com HTTP Range agrupado e cache local; calcular transições Col. 11 a partir de dois anos de cobertura. | passo 3 | 4 a 6 |
+| 4 | Ibama: pedido condicional do CSV, carga só de linhas com DAT_ULT_ALTERACAO ou DAT_ULT_ALTER_GEOM novos, carga do termo_embargo_historico.csv como changelog, descarte de nome e CPF/CNPJ na entrada | passo 1 | 3 a 5 |
+| 4 | Gravar no PostGIS com scd2: merge_key = município, hash próprio de campos estáveis e geometria normalizada, boundary_timestamp = data da extração; criar view da versão vigente | passos 2 e 3 | 4 a 6 |
+| 5 | Manter a exportação anual do Earth Engine só para desmatamento e vegetação secundária v5, vigor, idade e biomassa do pasto, já gravando COG com overviews (rio-cogeo) no armazenamento da Raíz e registrando no mesmo manifesto. | passo 1 | 2 a 4 |
+| 5 | DETER no sábado com janela de 30 dias e chave composta; recarga completa anual depois do PRODES; MapBiomas Alerta por PublishedAt com janela de 35 dias e releitura de statusAt | passo 1 | 4 a 6 |
+| 5 | Guardar estado por camada x município no estado do dlt (como o Aqueduct) e criar backfill em blocos (UF ou mês) com checkpoint | passo 4 | 4 a 6 |
+| 6 | Cubo por estado (Zarr ou referências do tifffile) com os 41 anos em cada bloco, para idade, transição e frequência de fogo por fazenda numa leitura. | passo 4 | 4 a 8 |
+| 6 | INCRA: Geoportal sigef_geo por data_aprovacao maior que o cursor e anti-junção semanal de parcela_codigo por município para achar canceladas; voltar aos ZIP com ETag quando o host voltar | passo 2 | 4 a 6 |
+| 6 | Guardas de qualidade: contagem recebida contra numberMatched ou count da camada, alerta de queda forte de contagem por município (como o notify-on-record-change da Nextstrain) e de colunas que ficaram vazias | passo 4 | 3 a 5 |
+| 7 | Manifesto público no GitHub (CSV e GeoJSON) gerado a cada checagem e, se fizer sentido, catálogo estático com Portolan no R2. | passo 2 | 2 a 3 |
+| 7 | Gerar o 'diff da semana' por município (no molde do ArchiveDiffer da Delphi) e publicar a lista de municípios alterados para a E8 | passos 4 e 6 | 3 a 5 |
+| 8 | Pedidos por LAI ao SFB (data_atualizacao nas 12 UFs e camada de exclusões) e ao INCRA (novo endereço dos ZIP e lista de canceladas), citando LINZ, SDMX e o índice diário da SEC | nada | 1 a 2 |
+
+## E2. Funil por imóvel
+
+| Ordem | Passo | Depende de | Horas |
+|---|---|---|---|
+| 1 | Montar a tabela de parâmetros legais versionada: percentuais de RL por UF, bioma e fitofisionomia, faixas da escadinha, teto do 61-B, corte de 22/07/2008 e de 2002, cada linha com vigência, artigo, URN do LexML e link arquivado (formato vat-rates ou ParamTools) | tabela de módulos fiscais do SNCR e tabela de percentuais do DCF Guidebook (rodadas anteriores) | 4 a 6 |
+| 1 | Montar a bancada própria copiando o geobenchmark (BSD-3): CAR de um estado grande (por exemplo Mato Grosso) contra UC, TI e embargos, medindo tempo e memória de geofileops, DuckDB lendo GeoParquet e geopandas com Arrow na máquina de 16 GB | E1 (CAR e camadas em disco) | 4 a 8 |
+| 1 | Trocar Fiona por pyogrio em toda leitura e gravação e guardar as camadas em GeoParquet | nada | 1 a 2 |
+| 2 | Escrever as regras federais em Catala (arts. 4, 12, 15, 61-A, 61-B, 67 e 68), usando o BCAE7 como molde de pastas, prólogo e testes, e gerar o Python | passo 1 | 12 a 20 |
+| 2 | Limpar as camadas de restrição antes do cruzamento (desenho do wdpar): consertar geometria, unir e apagar sobreposições por prioridade (TI, UC de proteção integral, UC de uso sustentável, embargo) com geofileops | passo 1 | 3 a 6 |
+| 2 | Reescrever os cruzamentos vetoriais no DuckDB com só o predicado espacial na junção e filtros depois; conferir no EXPLAIN que aparece 'Spatial Join' | passo 1 | 3 a 6 |
+| 3 | Criar 60 a 100 imóveis de teste com laudo esperado (snapshot, como no mon-entreprise) e testes em YAML por UF; somar testes de propriedade com Hypothesis (já conhecido) para faixas de módulos e larguras de rio | passo 2 | 6 a 10 |
+| 3 | Separar camadas densas (MapBiomas, YbYrá, pasto) de esparsas (incremento do PRODES, embargos, fogo) e definir a chave de bloco (0,5 grau ou prefixo de quadkey) gravada em todas as tabelas | passo 2 | 1 a 2 |
+| 3 | Calcular uma vez a tabela (CAR, pixel ou célula, fração) com exactextract ou rusterize e aplicar cada ano do MapBiomas como junção ou numpy.bincount | passo 2 | 4 a 8 |
+| 4 | Validação cruzada num município piloto: rodar a Raíz, o GeoCAR (regras copiadas, MIT) e o landschaft (no servidor, GPL) nos mesmos imóveis e comparar com o quadro de áreas do SICAR (num_area_reserva_legal_minima_lei); investigar cada diferença, como no Tax-Calculator | passos 2 e 3 | 6 a 10 |
+| 4 | Camadas densas: rasterizar o CAR por bloco com rasterix e motor rusterize alinhado à grade de 30 m e somar com flox xarray_reduce (expected_groups = imóveis do bloco, reindex esparso); tratar imóveis sobrepostos em camadas separadas | passo 3 | 8 a 12 |
+| 4 | Repartir o país em blocos fixos com manifesto (bloco, hash, data) e recalcular só os blocos tocados por mudanças da coleta | passos 2 e 3; coleta com data ou hash (E1) | 6 a 10 |
+| 5 | Camada estadual: regras de PRA e exceções por UF (começar por PA, MT e SP; incluir Piauí 30% no Cerrado) com nível, área de validade e vigência, no padrão aides-velo e Catala archives | passos 1 a 4 | 4 a 8 por estado |
+| 5 | Camadas esparsas: motor 'pixels em polígonos' (só pixels marcados, STRtree.contains com os imóveis do bloco, somas parciais em Parquet ordenado por id do imóvel, junção por faixa de id) | passo 3 | 8 a 12 |
+| 5 | Montar o teste de velocidade no estilo do geobenchmark com o CAR de um estado e rodar a cada troca de ferramenta | passo 1 | 3 a 5 |
+| 6 | Marcar cada resultado como completo ou incompleto, com a lista de fatos que faltam (ideia do Fact Graph), e gerar a explicação passo a passo em português simples para o laudo e para o agente de WhatsApp | passo 2 | 4 a 6 |
+| 6 | Área exata só onde importa: exactextract sobre VRT para imóveis pequenos e para limites legais (APP, reserva legal) perto do corte | passos 4 e 5 | 3 a 5 |
+| 7 | Changelog próprio no estilo Overture (added, removed, data_changed, unchanged, columns_changed, tipo de mudança da OS) e lista de imóveis e células sujas para o funil recalcular só elas | passos 3 a 6 | 5 a 8 |
+| 7 | Versão nomeada das regras (ex.: regras-2026b, como no tz) gravada em cada previsão, com as duas datas do OpenL (vigência legal e quando a Raíz passou a usar) | passo 1 | 2 a 4 |
+| 7 | Fila retomável e incremental: um alvo por bloco num Makefile gerado em Python (desenho do WSIM) ou no SQLMesh; arquivo 'BUSY_' e pular saída existente (desenho do cropclassification); refazer só blocos cujo CAR ou camada mudou (comparação de versões como no RPG da França) | passos 4 a 6 | 6 a 10 |
+| 8 | Pasta de reformas: cada projeto de lei ou decreto novo vira um arquivo de diferença (padrão Tax-Calculator) para simular o efeito sobre os imóveis antes de valer | passos 1 e 7 | 3 a 5 |
+| 8 | Conferência: comparar flox, 'pixels em polígonos' e exactextract em 1.000 imóveis sorteados e publicar a diferença no painel; checagem de mistura de classes por imóvel (desenho FOI do JRC) | passo 7 | 3 a 5 |
+
+## E3. Conta de carbono e de dinheiro
+
+| Ordem | Passo | Depende de | Horas |
+|---|---|---|---|
+| 1 | Instalar metalog-jax e trocar as entradas PERT por metalog SPT montada de P10/P50/P90 de cada entrada | conta de carbono atual em OpenTURNS | 2 a 4 |
+| 1 | Escrever a conta de carbono por fazenda como função pura (área elegível por classe, taxa de acúmulo, fator raiz, fração de carbono, 44/12), no formato da cadeia do Carbon_MRV, com testes Dado/Quando/Então de 20 fazendas-modelo | saída do funil E2 (áreas por classe por fazenda) | 4 a 6 |
+| 2 | Gravar cada fazenda como coeficientes metalog mais índices HDR em JSON (formato inspirado no SIPmath, sem usar a marca) | E3 passo 1 | 3 a 5 |
+| 2 | Montar as distribuições das entradas (inclusive a partir de P10, P50 e P90 de especialista, como o HIIPAPP) e as correlações (cópula ou generateCorrelatedSamples do PVDeg) | passo 1 | 3 a 5 |
+| 3 | Somar a carteira à moda do PRMS: Monte Carlo com correlação por bioma e município e saída lado a lado P90_soma e P90_carteira | E3 passo 2 | 3 a 6 |
+| 3 | Escolher o número de sorteios com OpenTURNS QuantileConfidence (P10 com 95% de confiança) | passo 2 | 2 a 3 |
+| 4 | Modelar a perda por fogo e derrubada com aggregate (frequência vezes severidade) e repartir a reserva por fazenda | E3 passo 3 e mapas de risco já temos | 6 a 10 |
+| 4 | Rodar o Monte Carlo por município com sorteio comum dos fatores globais (preço, fração de carbono) e sorteio próprio dos locais, no padrão CLIMADA unsequa (uma coluna por fazenda); gravar P10, P50, P90 e hash da função em Parquet | passo 3 | 6 a 10 |
+| 5 | Acrescentar ao laudo os campos da Portaria MME 102/2016 (P50, P90, incerteza padrão, revisor independente) com teste de independência | E3 passo 3 | 2 a 4 |
+| 5 | Dinheiro: VPL e TIR por sorteio com PyXIRR e partilha dono/desenvolvedor/Raíz no padrão pyscnomics; caminhos de preço com as dinâmicas do rangekeeper | passo 4 | 5 a 8 |
+| 6 | Sensibilidade: SALib delta sobre a mesma amostra (como bicrs-lca), uma vez por bioma, para o tornado e a decomposição da incerteza no laudo | passo 4 | 3 a 4 |
+| 7 | Desconto de incerteza da VM0047 e oferta de "quantas parcelas medir" (Carbon_MRV 04_sampling_design); snapshot das fazendas-modelo no CI | passos 4 e 6 | 3 a 5 |
+
+## E4. Rebanho, metano e solo
+
+| Ordem | Passo | Depende de | Horas |
+|---|---|---|---|
+| 1 | Montar as entradas: PPM por município (SIDRA 3939), Censo Agro 2017 por grupo de área e de cabeças (SIDRA 8986 e 8987), pasto do MapBiomas, vigor e idade do pasto, densidade do GPW; imputar células com 'X' do SIDRA (ideia do FLAPS) e alinhar a malha municipal entre anos (ideia do NHGIS) | E1 | 5 a 8 |
+| 2 | Base rápida: pyDasymetric com peso pasto x vigor e máscara de pasto fora de áreas restritas, separando rebanho a pasto e em confinamento (regra do PIK); somar por imóvel com exactextract e arredondar para inteiros preservando o total (IntPopGrids) | passo 1 e E2 (máscara) | 4 a 6 |
+| 3 | Baixar raster de gado a pasto (1 km) e pontos de operações de gado da Climate TRACE e comparar com o rebanho espalhado da Raíz | disaggregation do E4 rodando | 4 a 6 |
+| 3 | Calibrar o peso: testar pares de expoentes (desenho LitPop) e floresta aleatória (pypopRF) contra o Censo Agro 2017 por município, com validação cruzada por estado | passo 2 | 6 a 10 |
+| 4 | Ajuste de credibilidade por município com statsmodels MixedLM | passo 3 | 3 a 5 |
+| 4 | Faixa de erro: disaggregation (R-INLA) por estado ou bioma com pasto como raster de agregação; antes, rodar o teste com rebanho simulado (ideia do CattleSlaughtering) e escolher covariáveis na bancada disagapp | passo 3 | 10 a 16 |
+| 5 | Ajustar cada sorteio ao total oficial (raking do IHME LBD) e guardar P10, P50 e P90 por imóvel | passo 4 | 3 a 5 |
+| 6 | Fazendas sintéticas por município (humanleague QIS ou PopulationSim em dois anos, como o psrc/mazpop) para dividir as cabeças em vacas, novilhas, bois e bezerros e dar faixa de tamanho | passo 5 | 8 a 12 |
+| 7 | Metano: fator de emissão por categoria (IPCC Tier 2 ou ABC+Calc, já conhecidos) vezes cabeças em cada sorteio; conferência grossa por microrregião com TROPOMI | passo 6 | 3 a 5 |
+| 8 | Solo e pasto degradado: estatística zonal do MapBiomas Solo por imóvel e sorteio de proporções do Censo Agro dentro do município (desenho DSMART); segunda estimativa de rebanho pelo GPW levado a 30 m (desenho dissever) para marcar imóveis com grande divergência | passos 2 e 5 | 6 a 10 |
+
+## E5. Título e geolocalização
+
+| Ordem | Passo | Depende de | Horas |
+|---|---|---|---|
+| 1 | Montar o conjunto de teste: sortear cerca de 200 parcelas do acervo fundiário, gerar o memorial de cada uma com LFTools ou GeoPlanta e guardar o par polígono e texto. | acervo fundiário já baixado (E1) | 3 a 5 |
+| 1 | Definir o registro e a chave (código do CAR + parcelas SIGEF + matrícula + CNS, o código do cartório no Conselho Nacional de Justiça) e a tabela de achados no formato do CFPB (registro, regra, campo, valor, gravidade, fase) | E1 e E2 | 2 a 3 |
+| 2 | Leitor de memorial em duas camadas: regex em português (vértice, coordenadas, azimute, rumo, distância, confrontante) e modelo de IA só quando a regex falhar, com fila de revisão (desenho do McWillie Deed Sketcher). | passo 1 | 6 a 10 |
+| 2 | Gravar em WARC (warcio capture_http) todas as consultas públicas usadas em cada laudo | coletor dlt existente | 3 a 5 |
+| 2 | Escrever as checagens em Pandera ou Pointblank por fase: formato, validade da geometria, coerência (áreas CAR x SIGEF x matrícula), referência (cartório existe), com N/A quando não se aplica (como o Pelican) | passo 1 | 8 a 12 |
+| 3 | Geometria e fechamento: azimute e distância para coordenadas no elipsoide (GeographicLib, por causa do sistema local do SIGEF), erro de fechamento, precisão relativa e ajuste pela regra da bússola (cogokit). | passo 2 | 4 a 6 |
+| 3 | Separar checagens que reprovam das que pedem confirmação (padrão HMDA) e gravar quem confirmou e quando | passo 2 | 3 a 4 |
+| 4 | Comparar memorial, SIGEF e CAR com as tolerâncias de 0,50 m, 3,00 m e 7,50 m e as classes D1 a D7, e gerar o laudo por imóvel no Pointblank. | passo 3 | 4 a 8 |
+| 4 | Nota de risco 1 a 5 por imóvel com bandeiras (padrão Collateral Underwriter) e decisão em quatro saídas (padrão subscrição de seguro) | passo 3 | 3 a 5 |
+| 5 | Leitor e validador da planilha ODS (colunas do GeoINCRA, zip mais ElementTree). | nenhum | 2 a 4 |
+| 5 | Regras legais em Catala no molde do BCAE7 (reserva legal, APP escadinha, art. 67) ou em Publicodes em camadas (federal, estadual, municipal), com testes de fazendas-modelo e snapshot | passo 1 | 12 a 20 |
+| 6 | Modelo de dados da cadeia dominial em Postgres (ato, imóvel do ato, parte só com tipo e CNPJ, referência ao ato anterior), no molde do ACRIS e do Sistema de Cadeia Dominial. | nenhum | 4 a 6 |
+| 6 | Bandeiras de contexto por dono, cartório e município com quartis e cercas (padrão Cardinal) e testes de auditoria (áreas redondas, soma das glebas) | passo 2 | 4 a 6 |
+| 6 | No robô de aceite, pedir a localização da sede com o botão do WhatsApp e testar se o ponto cai dentro do polígono | robô de aceite (E7) e polígono do imóvel | 3 a 6 |
+| 7 | Extrator de certidão de inteiro teor (OCRmyPDF mais modelo com esquema fixo) que monta a cadeia, marca quebras e buracos e guarda o recorte da página de cada achado (molde do TitleChain). | passo 6 | 8 a 12 |
+| 7 | Laudo HTML ou PDF por imóvel a partir da tabela de achados, da nota e das explicações | passos 4 a 6 | 4 a 6 |
+| 8 | Regra de triagem 'checagem rápida ou busca completa' (estilo Fannie Mae) e registro da previsão para comparar com a certidão depois. | passo 7 | 2 a 3 |
+| 9 | Pedir convênio ao ONR (oficioeletronico@onr.org.br), testar na homologação e ligar o Monitor Registral às matrículas acompanhadas. | nenhum (pode começar no dia 1) | 2 a 3 de trabalho, mais a espera da resposta do ONR |
+
+## E6. Quem compra
+
+| Ordem | Passo | Depende de | Horas |
+|---|---|---|---|
+| 1 | Baixar o CSV do SIGSIF, filtrar ativos, contar por classe e geocodificar por CEP e endereço | nada | 3 a 6 |
+| 1 | Subir um OSRM local com perfil de caminhão a partir do OpenStreetMap do Brasil (por região se a máquina não aguentar o país inteiro) | nada | 4 a 8 |
+| 2 | Subir GraphHopper com o PBF do Brasil, perfil truck e estrada de terra mais lenta; gerar isócronas de 2, 4, 6 e 8 horas por frigorífico | E6 passo 1 | 4 a 8 |
+| 2 | Montar a matriz fazenda (centroide do CAR) até frigorífico, laticínio e curtume (Trase facilities) pelo serviço Table em lotes retomáveis, copiando build_osrm_matrix.py do Ontario | E6 passo 1; E2 (centroides) | 4 a 6 |
+| 3 | Medir a cobertura de OSM (taginfo e pyosmium), Overture e FSQ contra o SIGSIF com junção por nome e distância (receita World-POI) | E6 passo 1 | 4 a 8 |
+| 3 | Rodar o Huff ponderado pela capacidade da planta (copiar planning.py do Ontario, ou a biblioteca huff com a matriz pronta) | E6 passo 2; E4 (rebanho por fazenda) | 4 a 8 |
+| 4 | Calibrar o Huff com as áreas observadas da Trase e a capacidade de abate (método T-Huff), com limite de distância do jordan-hsa | E6 passos 2 e 3 | 6 a 10 |
+| 4 | Calibrar lambda e gama com as supply sheds da Trase como fluxo observado (máxima verossimilhança por fluxos da huff, roteiro do T-Huff ou fit do scikit-mobility) | E6 passo 3 | 6 a 10 |
+| 5 | Desenhar bacias de compra pelos fluxos com Leiden restrito (graspologic) e calcular o índice de localização de cada bacia | E6 passo 4 e dados de fluxo da Trase | 4 a 8 |
+| 5 | Coletor do ComexStat por município (NCM 0201 e 0202), só quando a data de atualização mudar | nenhum | 4 a 6 |
+| 5 | Aplicar a restrição de capacidade (CFLP do spopt-r ou a mesma formulação em PuLP) para não mandar mais boi do que a planta abate | E6 passo 4 | 6 a 10 |
+| 6 | Coletor incremental do PNCP pelos endpoints /atualizacao com janela de 10 dias e pedaços atômicos | nenhum | 4 a 8 |
+| 6 | Adicionar o índice 2SFCA (pressão de compra) e o Monte Carlo de risco de capacidade (queueing.py do Ontario) e gravar cada previsão com data para a E8 | E6 passo 5; E8 | 3 a 5 |
+| 7 | Ranking de compradores com CatBoostRanker usando cat_features | passos 5 e 6 | 4 a 6 |
+
+## E7. Agentes e operação
+
+| Ordem | Passo | Depende de | Horas |
+|---|---|---|---|
+| 1 | Clonar o agent-service-toolkit, trocar o agente de exemplo pelo grafo da Raíz e ligar o checkpointer Postgres; rodar o smoke_test.sh | nada | 6 a 10 |
+| 2 | Pausar o pedido de aceite com interrupt() e expor a retomada {resume, thread_id} usando o código do CAR como thread_id (padrão do GeopoliticAI) | E7 passo 1 | 4 a 6 |
+| 3 | Ligar o Langfuse e medir custo por fazenda e por município a partir dos rastros (como o Ezra mede custo por turno) | E7 passo 1 | 3 a 5 |
+| 4 | Colocar um check do Healthchecks por lote municipal (início, sucesso, falha com log) e um canal de alerta que não dependa do próprio servidor | E7 passo 1 | 2 a 4 |
+| 5 | Gravar as previsões no formato do hub e publicar o painel de acerto copiando a configuração do flusight-dashboard | E7 passo 3; E8 | 6 a 10 |
+| 6 | Montar o backoffice do fundador (saúde, custo do mês contra orçamento, logs por fazenda) no estilo do Ezra, só leitura | E7 passos 3 e 4 | 6 a 10 |
+| 8 | Extração de matrícula com BAML (SAP) e cache calibrado com MAPIE | Langfuse para medir antes e depois | 6 a 10 |
+| 9 | Escalonamento de alertas (Healthchecks para ntfy e, se houver segunda pessoa, GoAlert) | Healthchecks | 3 a 6 |
+
+## E8. Aprendizado contínuo
+
+| Ordem | Passo | Depende de | Horas |
+|---|---|---|---|
+| 1 | Criar o projeto SQLMesh a partir do pipeline dlt (sqlmesh init -t dlt) apontando para o PostGIS | E1 passo 4 | 2 a 4 |
+| 2 | Modelos do funil por município (INCREMENTAL_BY_PARTITION por cod_municipio) e resultados por imóvel (INCREMENTAL_BY_UNIQUE_KEY cod_imovel e ano); interseções caras pré-calculadas em modelo próprio (como o brewgis) | passo 1 | 8 a 12 |
+| 3 | Fila de municípios ou células sujas alimentada pelo diff da E1, job que esvazia a fila em lotes e reconciliação completa semanal (padrão osmpbudynkiv2 e osm2pgsql) | passo 2 e E1 passo 7 | 6 a 10 |
+| 4 | Tabela única de previsões: previsão ao vivo e folds de backtest juntos, com model_version, data de corte, horizonte e hash da receita (padrão OCF e PostHog) | passo 2 | 4 a 6 |
+| 5 | Teste por tempo: folds anuais que só leem dados 'como estavam' na data de corte (filtro _dlt_valid_from <= corte e _dlt_valid_to > corte no scd2) | passo 4 e E1 passo 4 | 8 a 12 |
+| 6 | Campeão e desafiante: portão de promoção com score probabilístico e calibração dentro de tolerância, promoção automática com intervalo, trava e volta atrás manual; nota só quando o horizonte amadurecer | passo 5 | 6 a 10 |
+| 7 | Orquestração: Dagster com sensor de dado novo, partições município x ano, condição de automação 'needs_updating' e memória declarada por asset (ou cron com sqlmesh run, se preferir não usar Dagster) | passos 3 e 6 | 6 a 10 |
+| 10 | Modelo de sobrevivência do aceite do dono (lifelines) e regra de canário para modelos novos no SQLMesh | histórico de contatos | 5 a 8 |
+
+## E9. O que as pessoas veem
+
+| Ordem | Passo | Depende de | Horas |
+|---|---|---|---|
+| 1 | Medidor de legibilidade: copiar contagem e fórmulas do ALT (sem PyMuPDF), calcular as três versões do Flesch (ALT, LanguageTool, Martins) e guardar todas | nada | 2 a 4 |
+| 1 | Gerar a ficha de cada fazenda em JSON (rows.json) a partir do funil, com os campos que o vídeo, o cartão e o texto vão usar | E2, E3, E5 | 2 a 4 |
+| 1 | Trocar o cartão da ficha de Satori + resvg para Takumi com saída WebP (manter Satori só onde precisar de SVG) | modelo do cartão já existente | 2 a 4 |
+| 2 | Servidor LanguageTool em contêiner, só com as regras de estilo e legibilidade do português, chamado antes de todo envio | passo 1 | 2 a 4 |
+| 2 | Produzir a imagem antes e depois de cada fazenda (Sentinel-2 por STAC, lógica do Sentinel2Timelapse-QGIS) e o mapa do imóvel | E9 passo 1 | 6 a 10 |
+| 2 | Ficha em Preact com 'mapa sob demanda' (padrão Uber Lite): texto, cartão WebP e ThumbHash na primeira abertura; MapLibre e PMTiles só no toque | passo 1 | 4 a 8 |
+| 3 | Portão no estilo da lei da Flórida: nota mínima calibrada com 30 cartas reais, sem contar termos do glossário e tabelas, nota gravada no laudo | passos 1 e 2 | 3 a 5 |
+| 3 | Escrever o texto por fazenda e por município com frases comparativas por índice (método do Census Reporter) dentro do kit do ONS, com modelo de campos abertos como o do g1 | E9 passo 1 | 6 a 10 |
+| 3 | Gravar no lote anual, por fazenda: ThumbHash da miniatura, perímetro em polyline (6 casas), Plus Code da porteira e link omaps.app | funil E2 com o polígono final | 3 a 5 |
+| 4 | Modelos de texto com campos condicionais no formato do GOV.UK Notify, mais extenso.js ou num2words, pluralizador e verbecc; aviso curto na ordem fonte, fato, fazenda, prazo, o que fazer | passo 3 | 4 a 8 |
+| 4 | Gerar cartão PNG e laudo PDF por fazenda com Takumi (takumi-js e takumi-pdf) a partir do mesmo modelo | E9 passos 2 e 3 | 4 a 6 |
+| 4 | Gerar KMZ por fazenda (perímetro, reserva legal e APP com cor) e o link do pacote regional do Organic Maps no envio do WhatsApp | passo 3 | 2 a 4 |
+| 5 | Voz: criar uma voz fixa da Raíz no Qwen3-TTS (VoiceDesign) e gerar o áudio de cada carta em lote; Kokoro pf_dora como segunda opção no servidor | passo 4 | 4 a 6 |
+| 5 | Montar a composição do HyperFrames com data-var-text e data-var-src e rodar render --batch com --strict-variables e manifest.json | E9 passos 1 a 3 | 6 a 10 |
+| 5 | Carga adaptativa: escolher vídeo HyperFrames ou cartão WebP pelo tipo de rede, economia de dados e memória (react-adaptive-hooks via preact/compat) | passo 2 | 2 a 3 |
+| 6 | QR Code em cada documento levando a página com resumo, áudio e três perguntas prontas (desenho do SOFIA) | passo 5 | 2 a 4 |
+| 6 | Envolver o render com cache e trava por CAR e ano (padrão do GitHub Unwrapped) e ligar ao envio por pessoa (padrão de planilha do GOV.UK Notify) | E9 passo 5; E7 | 3 a 5 |
+| 7 | WhatsApp: mensagem com botão para o dono ligar (grátis) e agente de voz no Pipecat atendendo; baixar a tabela CSV em reais no painel da Meta para orçar as chamadas da Raíz | passo 5 | 6 a 10 |
+| 7 | Manter tiles em MVT dentro do PMTiles; reavaliar MLT quando o caminho colunar (#8985) entrar no MapLibre GL JS | nada | 0,5 |
+| 8 | Passo de teach-back no aceite: o dono explica com as próprias palavras, o agente confere prazo, área e pagamento e só então pede a confirmação separada (código ou assinatura) | passo 7 | 3 a 5 |
+| 8 | Pacote offline mensal por município para técnicos: pmtiles extract e remendo com zstd --patch-from | PMTiles do Brasil e PWA com Workbox | 4 a 8 |
+| 9 | Opcional: treinar uma voz Piper do zero só com dados CC0 (sem a voz lessac) para rodar em CPU e no celular | passo 5 | 6 a 10 de trabalho, mais o tempo de GPU |
+| 11 | Página de aceite do dono com componentes do gov.br DS, grade de ícones (PyWaffle) e motivos específicos de 'não apto' | Preact | 6 a 10 |
