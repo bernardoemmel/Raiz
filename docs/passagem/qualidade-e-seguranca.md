@@ -52,15 +52,15 @@ e novos snapshots de **Lote e números**. O critério TIR continua com seu dono;
 - Correções pequenas encontradas na revisão: rebanho zero, gabarito de certidão em revisão, índice WARC e alertas.
 - Procedimento manual da proteção da main em [operação](../operacao.md#proteção-da-main-o-fundador-ativa-à-mão).
 
-## Pendência explícita: zero testes pulados
+## Referência estadual obrigatória e TIR pendente
 
 Nenhum teste foi retirado ou selecionado parcialmente para acelerar o CI. O teste opcional preexistente
 `test_lote_do_para_inteiro_fecha_ou_diz_o_que_falta` ainda depende das 144 tabelas reais `desenvolvedor` do Pará,
 que não estavam preparadas nos ensaios históricos registrados abaixo. A publicação privada integral foi concluída
 por **Lote e números**. **Qualidade e segurança** já executou o teste real com download autenticado, hashes e
 entradas/geometrias congeladas: 144 municípios, 345.870 imóveis, nenhum skip, em 446,2 s e pico de 6.840,2 MiB.
-O teste e o portão desta continuação não aceitam mais a exceção estadual; falta comprovar no CI o job privado
-isolado e integrar a entrega independente à main. Nenhum pacote financeiro vai para cache ou artifact
+O teste e o portão desta continuação não aceitam mais a exceção estadual; o job privado e a união dos resultados
+também passaram no CI, sem skips. A entrega independente está sendo integrada à main. Nenhum pacote financeiro vai para cache ou artifact
 público; a recomendação histórica de cache abaixo está superada.
 Além disso, permanece o `xfail` preexistente de TIR do plantio (`test_plantio_da_7_a_9_pct_no_central_r11`):
 o teste executa, mas a conta ainda diverge da referência de 7–9%; o chat **Lote e números**, com **Produto e regras**, deve resolver o critério
@@ -575,7 +575,7 @@ com saída e JUnit privados apagados. Timeout e interrupção encerram também o
 **73 regressões do preparador/supervisor/portão passaram**; não foi criado cache ou artifact público desses dados.
 O CI agora exige exatamente um caso estadual aprovado e não aceita mais seu skip. PR de fork é explicitamente
 bloqueado antes de acesso ou credenciais; os demais testes continuam sendo executados. O acesso do job privado
-e a suíte integral ainda precisam ser confirmados no commit final pelo CI.
+e a suíte integral foram confirmados no CI `43324357697`, conforme o resultado abaixo.
 
 Corrigida uma opção de configuração do limitador compartilhado: a query da URL do Valkey não pode substituir
 os prazos de conexão/leitura nem habilitar retries ou health checks adicionais. URLs válidas com banco, keepalive
@@ -594,9 +594,22 @@ para drafts. A correção isola `contents: write` somente no job `referencia_par
 as actions desse job compartilham essa permissão, por isso ele não executa o restante da suíte. Nenhuma operação
 de publicação ou criação de segredo foi adicionada.
 
-O caso estadual roda em paralelo ao restante, que exclui somente esse nó. `resultado_testes` exige ambos os jobs
+O caso estadual roda em paralelo ao restante, que exclui somente esse nó. `checagens` exige ambos os jobs
 aprovados, junta seus JUnits e recusa ausência, duplicação ou skip. Fork não executa o job privado e não recebe
 aprovação estadual; configuração administrativa de envio de tokens de escrita/segredos a forks continua a ser
 confirmada pelo fundador (consulta desta conta recusada com 403). Não há `pull_request_target` nem novo PAT.
 Uma interrupção do ambiente matou a primeira suíte local integral perto de 70%, depois de aprovar o estadual;
-essa execução não foi registrada como aprovada e está sendo refeita com log persistente.
+essa execução não foi registrada como aprovada. A retomada com log persistente terminou com sucesso.
+
+O check final conserva o nome `checagens`; o job geral passa a `testes_python`. Assim, uma proteção da main
+que já exige `checagens` continua exigindo a suíte completa, antes mesmo da atualização manual da lista de checks.
+
+O CI `43324357697` aprovou **nove de dez jobs**: **2.360 testes gerais passaram**, um estadual foi executado no job
+paralelo (**1 aprovado em 484,76 s**) e a TIR foi executada como xfail conhecido. O portão combinado aprovou os dois
+relatórios, sem skips nem duplicação; preparação autenticada e limpeza dos dados privados passaram. O único job
+vermelho continuou sendo o corpus MCP sem agente leitor. Depois disso, o nome do portão foi preservado como
+`checagens`, com **49 regressões de divisão/portão aprovadas**; nenhuma asserção ou dado do teste estadual mudou.
+
+A suíte local integral da entrega independente terminou com **2.079 aprovados, zero skips, um xfail executado**,
+em 1.390,97 s. O JUnit passou no portão obrigatório. Os resultados privados do filho foram apagados; o snapshot
+temporário usado para essa validação será removido após concluir a entrega.

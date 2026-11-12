@@ -24,7 +24,7 @@ def fluxo():
     privado = jobs["referencia_para"]
     preparadores = [p for p in privado["steps"] if "--preparar" in shlex.split(p.get("run", ""))]
     assert len(preparadores) == 1
-    return workflow, jobs["checagens"], privado, jobs["resultado_testes"], preparadores[0]
+    return workflow, jobs["testes_python"], privado, jobs["checagens"], preparadores[0]
 
 
 def _condicao(passo):
@@ -153,16 +153,17 @@ def test_deselecao_real_nao_omite_outro_caso_com_prefixo_semelhante(fluxo, tmp_p
     assert restantes - todos == set()
 
 
-def test_portao_final_exige_ambos_os_jobs_e_os_dois_junits(fluxo):
+def test_check_obrigatorio_checagens_continua_portao_das_duas_partes(fluxo):
     workflow, _, _, portao, _ = fluxo
-    assert set(portao["needs"]) == {"checagens", "referencia_para"}
+    assert workflow["jobs"]["checagens"] is portao
+    assert set(portao["needs"]) == {"testes_python", "referencia_para"}
     assert _condicao(portao) == "always()"
     passos = portao["steps"]
     conferir_status = [p for p in passos if "GERAIS" in p.get("env", {}) and "ESTADUAL" in p.get("env", {})]
     assert len(conferir_status) == 1
     status = conferir_status[0]
     assert status["env"] == {
-        "GERAIS": "${{ needs.checagens.result }}",
+        "GERAIS": "${{ needs.testes_python.result }}",
         "ESTADUAL": "${{ needs.referencia_para.result }}",
     }
     assert '"$GERAIS" != success' in status["run"] and '"$ESTADUAL" != success' in status["run"]

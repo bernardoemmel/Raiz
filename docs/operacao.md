@@ -643,8 +643,8 @@ New branch ruleset**. Dê o nome `main protegida`, selecione **Active** e inclua
    pessoa; exija resolver todas as conversas abertas. Se houver revisor, pode exigir uma aprovação e invalidá-la
    quando o código mudar.
 2. Em **Require status checks to pass**, selecione os dez checks do workflow **CI**: `workflows`, `segredos`,
-   `front`, `seguranca`, `checagens`, `referencia_para`, `resultado_testes`, `e2e`, `carga` e `mcp`.
-   `checagens` sozinho não aprova a suíte: o portão completo é `resultado_testes`.
+   `front`, `seguranca`, `testes_python`, `referencia_para`, `checagens`, `e2e`, `carga` e `mcp`.
+   O nome `checagens` foi preservado no portão completo: regras existentes continuam exigindo a suíte inteira.
    Prefira a origem **GitHub Actions**, quando disponível. Marque
    **Require branches to be up to date before merging**. Os nomes só aparecem depois de uma execução.
 3. Ative **Block force pushes** e **Restrict deletions**. Mantenha a lista de bypass vazia, incluindo para
@@ -676,16 +676,16 @@ retirá-la do último commit não a apaga do histórico.
 
 ## CI e controles de segurança
 
-Nove jobs rodam em paralelo; `resultado_testes` reúne as duas partes da suíte Python ao final. Não há filtro
+Nove jobs rodam em paralelo; `checagens` reúne as duas partes da suíte Python ao final. Não há filtro
 de caminhos nem teste retirado da execução. `setup-uv` guarda cache pelo
 `uv.lock`, `setup-node` guarda o cache npm pelos locks, e o Chromium/LanguageTool têm caches separados. A instalação
 continua travada (`uv sync --frozen --all-extras`, `npm ci`). Não se reutiliza `node_modules` de outro lock.
 
 - `front` constrói o mesmo site público e executa os testes unitários, com geometrias de teste determinísticas.
-- `checagens` executa os testes Python de PostGIS, Rust, cartão, vídeo, PDF e LanguageTool. Só o caso estadual é
+- `testes_python` executa os testes Python de PostGIS, Rust, cartão, vídeo, PDF e LanguageTool. Só o caso estadual é
   separado com `--deselect` e executado em paralelo por `referencia_para`. A regressão de coleta verifica que a
   diferença é exatamente esse nó, sem excluir testes com nomes parecidos.
-- `resultado_testes` exige sucesso nos dois jobs e confere ambos os JUnits. Exige o caso estadual exatamente uma
+- `checagens` exige sucesso nos dois jobs e confere ambos os JUnits. Exige o caso estadual exatamente uma
   vez, aprovado, e recusa relatórios ausentes, casos duplicados e novos skips/xfails;
   a divergência conhecida de TIR continua executada como `xfail`, detalhada na passagem.
 - `e2e` abre Chromium e usa API/PostGIS reais: link de entrada, milhão de créditos no Pará, três opções, interesse

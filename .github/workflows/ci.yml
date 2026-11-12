@@ -163,7 +163,7 @@ jobs:
         run: uv run python scripts/checar_licencas.py
 
 
-  checagens:
+  testes_python:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     services:
@@ -241,7 +241,7 @@ jobs:
           retention-days: 7
 
   referencia_para:
-    # Fork não recebe o job privilegiado; resultado_testes reprova explicitamente a validação ausente.
+    # Fork não recebe o job privilegiado; checagens reprova explicitamente a validação ausente.
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-24.04
     timeout-minutes: 25
@@ -280,8 +280,9 @@ jobs:
         if: always()
         run: rm -rf "$RUNNER_TEMP/raiz-pa"
 
-  resultado_testes:
-    needs: [checagens, referencia_para]
+  # Nome preservado para que regras existentes da main continuem exigindo a suíte inteira.
+  checagens:
+    needs: [testes_python, referencia_para]
     if: always()
     runs-on: ubuntu-24.04
     timeout-minutes: 5
@@ -293,7 +294,7 @@ jobs:
           persist-credentials: false
       - name: Exigir as duas partes da suíte aprovadas
         env:
-          GERAIS: ${{ needs.checagens.result }}
+          GERAIS: ${{ needs.testes_python.result }}
           ESTADUAL: ${{ needs.referencia_para.result }}
         run: |
           if [ "$GERAIS" != success ] || [ "$ESTADUAL" != success ]; then
