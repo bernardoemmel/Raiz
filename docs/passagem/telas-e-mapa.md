@@ -24,24 +24,27 @@ Sessão: https://claude.ai/code/session_01VGb88MJumyG9PHt2znaaKE. Branch: `claud
   https://bernardoemmel.github.io/Raiz/produtor/?car=<código do CAR>. Publicado pelo merge do #40, conferido no
   navegador: 6 estados, 256 municípios, 638.754 imóveis, sem erro no console.
 
-## Onde parou
+## Continuação no Codex (12/11/2026)
 
-- PR #42: o commit `Teste do CI: workflow quebrado e lock fora de sincronia` deixou o PR vermelho como devia:
-  - job `workflows`: o actionlint acusou só `.github/workflows/teste-quebrado.yml`, linha 12;
-  - job `front`: falhou no `npm ci` (lock fora de sincronia);
-  - job `checagens`: verde.
-
-  O commit seguinte desfaz a quebra. Falta o CI ficar verde e o merge.
-- docs/plano-por-etapa.md, E9: feitos o medidor de legibilidade, a ficha em lote, o cartão WebP, o LanguageTool, a
-  ficha em Preact com ThumbHash e o lote anual com Plus Code e Organic Maps. O próximo pela ordem é o passo 3
-  "Portão no estilo da lei da Flórida".
-- Pedido novo do fundador, NÃO começado: llms.txt, Markdown das páginas, robots.txt, schema.org e Lighthouse
-  "Agentic Browsing" no CI. Está na lista abaixo.
+- PR #42 já integrado em 12/11. A regressão esperada do CI foi desfeita antes do merge.
+- Primeira entrega: corrigido o mapa público. `baixar-dados.mjs --geo --exigir` baixa tabelas e polígonos do Release
+  antes de `geo.py --dados dados/estados`; não há mais lista fixa de dois municípios. O exportador usa só CAR e
+  geometria dos GeoParquet, preserva fazendas pequenas e registra município cujo desenho ainda falta.
+- Polígonos gzip por município: a medição do Pará deu 35 MB para 144 municípios (Parauapebas: 2.194 polígonos,
+  aproximadamente 209 KB). Não precisa de tippecanoe com este volume. As bases PMTiles por UF são compartilhadas;
+  `base_brasil.pmtiles` cobre todo o país até z6 e continua por overzoom. O detalhe estadual vai até z10 com overzoom.
+- O build copia só arquivos anunciados no índice, limita fichas pré-geradas a 10 mil (municípios inteiros; restante
+  montado no navegador) e falha acima de 950 MB. O índice das fichas impede tentativas que geravam 404.
+- A busca da fonte estática roda no navegador por nome, IBGE e CAR normalizado; a fonte API conserva `/busca`.
+  Município sem contorno mostra aviso. O CI serve o build em `/Raiz/`, sem fallback de SPA, e testa nome/IBGE/CAR,
+  aproximação até z13, polígonos verdes/amarelos, base visível por Range e zero 404.
+- Próxima entrega: llms.txt, robots.txt, Markdown, JSON-LD e Lighthouse Agentic Browsing.
+- E9 posterior: a calibração do portão depende de 30 cartas reais anonimizadas e avaliação de compreensão,
+  ainda não presentes no repositório. Não usar o corte dos testes sintéticos como se fosse calibrado.
 
 ## O que falta, em ordem
 
-1. PR #42: esperar o CI verde e fazer o merge. Se o job `workflows` acusar algum workflow real, consertar o workflow
-   (não desligar o actionlint).
+1. Mapa nacional: acompanhar o CI e a publicação desta entrega; conferir o site com dados reais depois do merge.
 2. Site legível por agentes (pedido do fundador):
    - `front/globo/public/llms.txt`: resumo de até 8 KB do produto e das regras, no formato do llmstxt.org.
      - O produto está em `docs/cena-alvo.md` e no README.
@@ -72,7 +75,7 @@ Sessão: https://claude.ai/code/session_01VGb88MJumyG9PHt2znaaKE. Branch: `claud
 
 ## PRs abertos e branches sem merge
 
-- #42 (este chat): veja acima.
+- #42: já integrado; a lista abaixo é histórico da passagem anterior e deve ser conferida antes de atuar.
 - #35 (outro chat, E5): cria `migracoes/versions/0019_titulo_achados.py` com revision "0019". A 0019 deste chat
   (`0019_legibilidade.py`) já está na main, então o #35 tem de virar 0020 (revision "0020", down_revision "0019").
   Senão o Alembic fica com duas cabeças e os testes com banco falham.
@@ -94,9 +97,8 @@ Sessão: https://claude.ai/code/session_01VGb88MJumyG9PHt2znaaKE. Branch: `claud
 
 ## Decisões e cuidados que não estão no código
 
-- Neste ambiente, o modo automático NEGA rodar código baixado da internet: o binário do actionlint e o código do
-  alt-python foram negados. Ler o código baixado pode; rodar não. O actionlint roda só no CI, pela imagem
-  `docker://rhysd/actionlint:1.7.7`.
+- O relato de negação automática de binários era do ambiente anterior. No ambiente Codex atual, dependências
+  travadas foram instaladas normalmente e PostGIS roda em Docker para a suíte Python. Actionlint segue no CI.
 - `npm ci` falhou no site por lock fora de sincronia. Para mexer em dependência do front: `npm install` na pasta e
   conferir um `npm ci` numa cópia limpa (`package.json` e `package-lock.json` numa pasta vazia).
 - Para testar com banco aqui (não há Docker):

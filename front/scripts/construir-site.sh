@@ -2,7 +2,7 @@
 # Monta o site público em ./site: o painel na raiz do site e a ficha do produtor em produtor/.
 # É o mesmo build nos dois lugares, para o que passa no CI ser o que vai ao ar:
 #   - workflow "Publicar o site": depois de baixar os dados do Release e as geometrias, grava os dados no site;
-#   - CI de todo PR: com RAIZ_BUILD_DADOS=0 (sem dados), só confere que instala (npm ci) e compila.
+#   - CI de todo PR: com dados fictícios isolados, confere instalação, build e navegação real pelo Playwright.
 # RAIZ_BASE é o caminho do site (no GitHub Pages, /<repositório>/).
 set -euo pipefail
 cd "$(dirname "$0")/../.."
@@ -25,4 +25,10 @@ rm -rf site
 cp -r front/globo/dist site
 cp -r front/produtor/dist site/produtor
 touch site/.nojekyll
+# O Pages limita o site a 1 GB. Folga para metadados e variações da próxima rodada.
+bytes_site=$(du -sb site | cut -f1)
+if [ "$bytes_site" -gt 950000000 ]; then
+  echo "::error::Site com $bytes_site bytes: excedeu 950 MB. Mover as geometrias para PMTiles por estado antes de publicar."
+  exit 1
+fi
 echo "Tamanho do site: $(du -sh site | cut -f1), $(find site -type f | wc -l) arquivos"
