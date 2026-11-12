@@ -81,7 +81,7 @@ R11 = {"cambio_brl_usd": 5.40}  # o câmbio marcado pelo fundador (a PTAX gravad
 
 
 def test_central_r11_e_o_padrao_e_da_a_tir_de_referencia():
-    """Rodada 11 (cenário padrão), US$ 55: a regeneração dá ~13 a 17% de TIR com o Fundo Clima; o plantio fica abaixo
+    """Rodada 11 com piso de reserva de 20%, US$ 55: regeneração dá ~11,9% com Fundo Clima; plantio fica abaixo
     da referência do fundador (ver o teste marcado como falha esperada logo abaixo); a US$ 74 sobe, no estresse (linha
     de base e vazamento de 40%) cai."""
     c = R.cenario(**R11)
@@ -92,8 +92,9 @@ def test_central_r11_e_o_padrao_e_da_a_tir_de_referencia():
     regen = R.por_imovel(_linha(**PERTO), c)
     assert plantio["modo_restauracao"] == "plantio_total" and regen["modo_restauracao"] == "regeneracao_assistida"
     assert 4.0 <= plantio["tir_alavancada_pct_p50"] <= 9.0, plantio["tir_alavancada_pct_p50"]
-    assert 13.0 <= regen["tir_alavancada_pct_p50"] <= 17.0, regen["tir_alavancada_pct_p50"]
-    assert plantio["tir_projeto_pct_p50"] < plantio["tir_alavancada_pct_p50"]  # Fundo Clima abaixo da TIR
+    assert regen["tir_alavancada_pct_p50"] == pytest.approx(11.9, abs=0.1)
+    # Com a reserva maior, o plantio rende menos que os juros: alavancar passa a reduzir a TIR.
+    assert plantio["tir_alavancada_pct_p50"] < plantio["tir_projeto_pct_p50"] < 100 * c["juros_ano"]
     assert 0.35 <= plantio["divida_fracao"] <= 0.5
     c74 = R.cenario("central_r11_74", **R11)
     assert R.por_imovel(_linha(), c74)["tir_alavancada_pct_p50"] > plantio["tir_alavancada_pct_p50"]
@@ -111,7 +112,7 @@ def test_central_r11_e_o_padrao_e_da_a_tir_de_referencia():
 
 @pytest.mark.xfail(strict=False, reason=(
     "com a curva oficial da URTX, os custos do SFB, o piso de R$ 24/ha e o último marco a 100%, o plantio total dá"
-    " ~5,5% de TIR alavancada a US$ 55, abaixo dos 7 a 9% da referência do fundador (a outra sessão chegou a 6,0%);"
+    " ~4,1% de TIR alavancada a US$ 55 com reserva de 20%, abaixo dos 7 a 9% da referência do fundador;"
     " ver docs/restauracao-rodada11.md"))  # fmt: skip
 def test_plantio_da_7_a_9_pct_no_central_r11():
     assert 7.0 <= R.por_imovel(_linha(), R.cenario(**R11))["tir_alavancada_pct_p50"] <= 9.0
@@ -146,12 +147,12 @@ def test_curva_de_captura_da_urtx_custos_do_sfb_e_descontos_em_ordem():
     assert list(s["K"][0][:4]) == pytest.approx([15830, 1772, 1772, 0])
     assert s["op"][5] == pytest.approx(40 + 40 * 5.40)
     # descontos na ordem: linha de base (nunca abaixo de 10%), vazamento 10%, reserva (a da fazenda, nunca abaixo de
-    # 12%), incerteza 10%
+    # 20%), incerteza 10%
     d = plantio[1]["descontos"]
     assert d["linha_base_medida"] < 0.10 and d["linha_base"] == 0.10
-    assert d["reserva_risco"] >= 0.12 and d["fator"] == pytest.approx(0.9 * 0.9 * (1 - d["reserva_risco"]) * 0.9)
+    assert d["reserva_risco"] >= 0.20 and d["fator"] == pytest.approx(0.9 * 0.9 * (1 - d["reserva_risco"]) * 0.9)
     sem_fogo = {k: v for k, v in _linha().items() if k != "fogo_anos_media"}
-    assert R.calcular(sem_fogo, c)[1]["descontos"]["reserva_risco"] == 0.12  # sem histórico: a do cenário
+    assert R.calcular(sem_fogo, c)[1]["descontos"]["reserva_risco"] == 0.20  # sem histórico: mantém piso
     assert regen[1]["descontos"]["linha_base"] == pytest.approx(regen[1]["descontos"]["linha_base_medida"])
     assert R.calcular(_linha(mitigacao_vizinha=True), c)[1]["descontos"]["vazamento"] == 0
     # depois do ano 25 o crédito é vendido a US$ 30 (anos 30, 35 e 40)
@@ -406,7 +407,7 @@ def test_ficha_separa_faixas_e_avisa():
         assert b[k]["p10"] <= b[k]["p50"] <= b[k]["p90"], k
     assert "viraria mata sozinho" in b["linha_base"]["explicacao"]
     assert [d["id"] for d in b["descontos"]] == ["linha_base", "vazamento", "reserva_risco", "incerteza"]
-    assert [d["pct"] for d in b["descontos"]][1:] == [10, 12, 10]
+    assert [d["pct"] for d in b["descontos"]][1:] == [10, 20, 10]
     assert [m["ano"] for m in b["marcos"]["lista"]] == [7, 12, 17, 22, 25]
     assert b["marcos"]["lista"][0]["minimo_pct"] == 9.0 and b["marcos"]["multa_esperada_rs_ha"] is not None
     assert b["curva_p50"]["bruto_tco2_ha"][1] == 0 and len(b["curva_p50"]["anos"]) == 41
@@ -465,7 +466,7 @@ def test_versao_muda_com_as_premissas(tmp_path):
     a = tmp_path / "restauracao.yaml"
     shutil.copy(R.ARQ_REGRA, a)
     v1 = R.regra(a, cambio=tmp_path / "nao_existe.yaml")["versao_completa"]
-    assert v1.startswith("restauracao-2026c+")
+    assert v1.startswith("restauracao-2026d+")
     r = R.regra(a, cambio=tmp_path / "nao_existe.yaml")
     assert r["cenarios"]["padrao"] == "central_r11" and "so_contrato_25" in r["cenarios"]["cenarios"]
     a.write_text(a.read_text().replace("valor: 5.40", "valor: 5.10"))
@@ -579,7 +580,7 @@ def test_reserva_de_nao_permanencia_por_fazenda():
     taxa = 0.28 / 40 * npm["severidade_fogo"] * (1 - npm["mitigacao_fogo"]) + 0.0085 * (1 - npm["mitigacao_derrubada"])
     perda = 1 - np.exp(-40 * taxa)
     assert x["fonte"] == "fazenda" and x["perda_40a"] == pytest.approx(perda)
-    assert x["reserva"] == pytest.approx(npm["risco_interno_externo"] + perda)
+    assert x["reserva"] == pytest.approx(max(0.20, npm["risco_interno_externo"] + perda))
     calmo = R.nao_permanencia({"fogo_anos_media": 0.0, "taxa_supressao_secundaria_municipio": 0.0}, c, r)
     assert calmo["reserva"] == c["reserva_risco"]  # o piso do cenário
     pegando_fogo = R.nao_permanencia({"fogo_anos_media": 40, "taxa_supressao_secundaria_municipio": 0.5}, c, r)

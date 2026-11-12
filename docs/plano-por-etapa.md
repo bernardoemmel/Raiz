@@ -135,6 +135,7 @@ novas da E2 (regras em Catala, restrições, DuckDB) estão testadas mas fora de
 | 9 | Motor dentro do produto (agente Dados): executor por estado e município com marca de concluído por tarefa (versão, assinatura, sha das saídas), retomada depois de matar, refazer só o afetado (versão da tarefa, fonte do município, saída anterior), armazém no Release "dados" do GitHub (produção; S3 com R2 ou SeaweedFS como opção futura) com versão e data em cada arquivo, workflow processar-estados chamando `raiz executor rodar --ate-minutos`, back-end lendo o armazém (sincronizar, carga do que mudou, sob demanda por imóvel), /brasil, /estados, painel do processamento, agenda anual (coleção do MapBiomas) e parcial | E1, E2 | feito |
 | 10 | Pedido de lote (docs/cena-alvo.md): oferta por fazenda (negocio.oferta, refeita a cada carga), pedido com os campos da cena-alvo, quanto existe na base por caminho da terra e interesse do dono com P10/P50/P90, o que falta e o que afrouxar, 3 opções do mesmo solver (HiGHS pelo scipy: mais barata, mais segura, mais compacta, com forma do lote e vazamento zero com fazenda de mitigação) e 10 a 20% de reserva, troca de fazenda, entrar sem senha, interesse do dono por nível (só o nível sai na API), ondas de contato dimensionadas pela chance de aceite (envio simulado), andamento, grupo pronto com aviso (painel, e-mail, WhatsApp), reserva com Pix da AbacatePay (modo de teste) e exclusividade de 60 dias, contrato com abatimento, vigia do pedido salvo e chance de aceite que aprende com cada contato | passos 6 e 9 | feito |
 | 10b | Rodada 11 unificada (um só arquivo de premissas e um só cálculo, com a branch premissas-rodada11: curva oficial da URTX, teto por bioma, P10/P90 de custo publicados, último marco a 100%, vazamento por vizinha VMD0054, renda do gado do Censo) e lote do ProFloresta+ por estado (`raiz lote montar`): titulares e reserva pela chance de 90% com erro comum da captura, fluxo do lote pela soma das fazendas, preço mínimo para TIR de 12% e 15%, o que destrava o lote (posse e assentamento), certidões para os 5% homologados, checklist do edital, relatório para o desenvolvedor e folha do dono; o otimizador põe a regeneração antes do plantio que o preço não paga | passos 6 e 10 | feito |
+| 10c | Lote e números: piso20 de reversão, três opções, preços TIR12/15 por fazenda, salvaguardas jurisdicionais/CLPI/partilha, decisões explicadas e revisão humana, previsões versionadas e comparação real; workflow PA144 no Release dados | 10b | **código feito nesta entrega**; execução integral e publicação pendentes do workflow após merge; fontes/licenças e quatro horizontes regionais auditados; quantis ecológicos pendentes de harmonização de parcelas, unidades e métodos (**parcial**, conforme autorização do fundador). Detalhes em `docs/passagem/lote-e-numeros.md` |
 | 11 | Ligar o envio de verdade das ondas (agente de aceite no WhatsApp com o termo, carta e parceiro local) e a chave de produção da AbacatePay; calibrar a chance de aceite e o valor da conexão com os primeiros pedidos | passo 10 e clientes | 6 a 10 |
 
 ## E4. Rebanho, metano e solo
@@ -157,7 +158,7 @@ novas da E2 (regras em Catala, restrições, DuckDB) estão testadas mas fora de
 | Ordem | Passo | Depende de | Horas | Situação |
 |---|---|---|---|---|
 | 1 | Montar o conjunto de teste: sortear cerca de 200 parcelas do acervo fundiário, gerar o memorial de cada uma com LFTools ou GeoPlanta e guardar o par polígono e texto. | acervo fundiário já baixado (E1) | 3 a 5 | **feito**: `raiz titulo conjunto-teste` sorteia parcelas do SIGEF do espelho e escreve o memorial nos estilos SIGEF e por rumo com gerador próprio (LFTools e GeoPlanta são GPL); `avaliar_conjunto` dá o placar do leitor (`raiz/titulo/conferir.py`) |
-| 1 | Definir o registro e a chave (código do CAR + parcelas SIGEF + matrícula + CNS, o código do cartório no Conselho Nacional de Justiça) e a tabela de achados no formato do CFPB (registro, regra, campo, valor, gravidade, fase) | E1 e E2 | 2 a 3 | **feito**: chave do registro (`raiz/titulo/achados.py`, `car:...|sigef:...|mat:CNS/matrícula`) e tabela de achados no formato do CFPB (`achados_<mun>.csv`, `titulo.achado`, migração 0021), com as fases formato, geometria, coerência, referência, cadeia e regularização |
+| 1 | Definir o registro e a chave (código do CAR + parcelas SIGEF + matrícula + CNS, o código do cartório no Conselho Nacional de Justiça) e a tabela de achados no formato do CFPB (registro, regra, campo, valor, gravidade, fase) | E1 e E2 | 2 a 3 | **feito**: chave do registro (`raiz/titulo/achados.py`, `car:...|sigef:...|mat:CNS/matrícula`) e tabela de achados no formato do CFPB (`achados_<mun>.csv`, `titulo.achado`, migração 0022), com as fases formato, geometria, coerência, referência, cadeia e regularização |
 | 2 | Leitor de memorial em duas camadas: regex em português (vértice, coordenadas, azimute, rumo, distância, confrontante) e modelo de IA só quando a regex falhar, com fila de revisão (desenho do McWillie Deed Sketcher). | passo 1 | 6 a 10 | **feito**: `raiz/titulo/memorial.py`; o modelo entra pela nota de confiança da leitura, não por "a regex falhou", e a nota baixa vira achado a confirmar |
 | 2 | Gravar em WARC (warcio capture_http) todas as consultas públicas usadas em cada laudo | coletor dlt existente | 3 a 5 | **feito**: `raiz/titulo/warc.py` grava pedido e resposta de cada consulta pública num WARC (warcio) cifrado com a chave pessoal (a página do SIGEF pode trazer nome); o índice e o laudo guardam só URL, data e hash SHA-256 (`raiz titulo warc`). O WARC é montado da resposta, não pelo capture_http, que só grava se for importado antes do requests |
 | 2 | Escrever as checagens em Pandera ou Pointblank por fase: formato, validade da geometria, coerência (áreas CAR x SIGEF x matrícula), referência (cartório existe), com N/A quando não se aplica (como o Pelican) | passo 1 | 8 a 12 | **feito** com motor próprio, sem Pandera: achados por fase (formato, geometria, coerência, referência, cadeia, regularização), situação `nao_se_aplica` e gravidade, para certidão, memorial, planilha, CAR x SIGEF e regularização |
@@ -167,7 +168,7 @@ novas da E2 (regras em Catala, restrições, DuckDB) estão testadas mas fora de
 | 4 | Nota de risco 1 a 5 por imóvel com bandeiras (padrão Collateral Underwriter) e decisão em quatro saídas (padrão subscrição de seguro) | passo 3 | 3 a 5 | **feito**: `titulo_<mun>.csv` com nota, bandeiras e decisão em quatro saídas (`raiz/titulo/nota.py`, `nota_titulo.yaml`) |
 | 5 | Leitor e validador da planilha ODS (colunas do GeoINCRA, zip mais ElementTree). | nenhum | 2 a 4 | **feito**: `raiz/titulo/planilha.py` (zip + ElementTree); colunas achadas pelo cabeçalho, layout a conferir com uma planilha real |
 | 5 | Regras legais em Catala no molde do BCAE7 (reserva legal, APP escadinha, art. 67) ou em Publicodes em camadas (federal, estadual, municipal), com testes de fazendas-modelo e snapshot | passo 1 | 12 a 20 | **feito** na E2 passo 2: `raiz/regras/catala/` (arts. 12, 15, 61-A, 61-B, 67 e 68), gerado para Python e conferido com o motor |
-| 6 | Modelo de dados da cadeia dominial em Postgres (ato, imóvel do ato, parte só com tipo e CNPJ, referência ao ato anterior), no molde do ACRIS e do Sistema de Cadeia Dominial. | nenhum | 4 a 6 | **feito**: migração 0022 com `titulo.matricula`, `titulo.ato` (com o ato anterior), `titulo.ato_parte` (só tipo e documento mascarado; o banco recusa documento sem máscara), `titulo.matricula_imovel` e `titulo.cadeia_origem`; a carga lê o `cadeia_<mun>.csv` de `raiz/documentos`; achado `cadeia.origem` (`raiz/titulo/cadeia.py`) |
+| 6 | Modelo de dados da cadeia dominial em Postgres (ato, imóvel do ato, parte só com tipo e CNPJ, referência ao ato anterior), no molde do ACRIS e do Sistema de Cadeia Dominial. | nenhum | 4 a 6 | **feito**: migração 0023 com `titulo.matricula`, `titulo.ato` (com o ato anterior), `titulo.ato_parte` (só tipo e documento mascarado; o banco recusa documento sem máscara), `titulo.matricula_imovel` e `titulo.cadeia_origem`; a carga lê o `cadeia_<mun>.csv` de `raiz/documentos`; achado `cadeia.origem` (`raiz/titulo/cadeia.py`) |
 | 6 | Bandeiras de contexto por dono, cartório e município com quartis e cercas (padrão Cardinal) e testes de auditoria (áreas redondas, soma das glebas) | passo 2 | 4 a 6 | **feito**: `raiz/titulo/contexto.py`, quartis e cercas de Tukey por município, cartório e dono (documento mascarado) e auditoria de soma das glebas e área redonda (ha e alqueires) |
 | 6 | No robô de aceite, pedir a localização da sede com o botão do WhatsApp e testar se o ponto cai dentro do polígono | robô de aceite (E7) e polígono do imóvel | 3 a 6 | **feito**: o robô pede a localização com o botão do WhatsApp depois do aceite; o webhook confere o ponto contra o polígono do CAR e guarda só o resultado (`raiz/titulo/sede.py`, achado `sede.dentro_do_imovel`), nunca o ponto |
 | 7 | Extrator de certidão de inteiro teor (OCRmyPDF mais modelo com esquema fixo) que monta a cadeia, marca quebras e buracos e guarda o recorte da página de cada achado (molde do TitleChain). | passo 6 | 8 a 12 | **feito** (PR #24): `raiz/documentos/certidao/`; o modelo da Anthropic lê o PDF, inclusive escaneado, no lugar do OCRmyPDF, e guarda a página de cada ato (não o recorte) |
@@ -226,17 +227,26 @@ Feito na main fora desta tabela: caminho da terra com risco por imóvel (`raiz/t
 | 3 | Fila de municípios ou células sujas alimentada pelo diff da E1, job que esvazia a fila em lotes e reconciliação completa semanal (padrão osmpbudynkiv2 e osm2pgsql) | passo 2 e E1 passo 7 | 6 a 10 | **feito**: `raiz/coleta/fila.py` (sujos primeiro, disjuntor de 15%, reconciliação mensal em vez de semanal), `raiz/funil/manifesto_blocos.py` e `raiz/executor/agenda.py` |
 | 4 | Tabela única de previsões: previsão ao vivo e folds de backtest juntos, com model_version, data de corte, horizonte e hash da receita (padrão OCF e PostHog) | passo 2 | 4 a 6 | **feito**: `aprendizado.previsao` e `aprendizado.lote_previsao` (migração 0002), `raiz/aprendizado/registro.py` e `congelar.py` |
 | 5 | Teste por tempo: folds anuais que só leem dados 'como estavam' na data de corte (filtro _dlt_valid_from <= corte e _dlt_valid_to > corte no scd2) | passo 4 e E1 passo 4 | 8 a 12 | parcial: `raiz/aprendizado/folds.py` com `como_estava` (scd2 da coleta num dia) e folds anuais da calibração (`raiz aprendizado folds`), que só usam gabarito observado até o corte e congelam o recalibrado como backtest; falta refazer o motor e os outros modelos por fold a partir do scd2 |
-| 6 | Campeão e desafiante: portão de promoção com score probabilístico e calibração dentro de tolerância, promoção automática com intervalo, trava e volta atrás manual; nota só quando o horizonte amadurecer | passo 5 | 6 a 10 | **feito**: migração 0024 e `raiz/aprendizado/campeao.py`: portão com pares maturados, bootstrap pareado e ECE, promoção automática com trava e intervalo de 30 dias, volta atrás à mão (`raiz aprendizado campeao/promover/voltar/travar`) |
+| 6 | Campeão e desafiante: portão de promoção com score probabilístico e calibração dentro de tolerância, promoção automática com intervalo, trava e volta atrás manual; nota só quando o horizonte amadurecer | passo 5 | 6 a 10 | **feito**: migração 0025 e `raiz/aprendizado/campeao.py`: portão com pares maturados, bootstrap pareado e ECE, promoção automática com trava e intervalo de 30 dias, volta atrás à mão (`raiz aprendizado campeao/promover/voltar/travar`) |
 | 7 | Orquestração: Dagster com sensor de dado novo, partições município x ano, condição de automação 'needs_updating' e memória declarada por asset (ou cron com sqlmesh run, se preferir não usar Dagster) | passos 3 e 6 | 6 a 10 | parcial: agenda por cron (`raiz executor vigiar`, `raiz/executor/agenda.py`), sem Dagster |
 | 10 | Modelo de sobrevivência do aceite do dono (lifelines) e regra de canário para modelos novos no SQLMesh | histórico de contatos | 5 a 8 | parcial: chance de aceite por perfil, beta-binomial (`raiz/pedidos/aceite.py`); falta o tempo até o aceite (sobrevivência) |
 | 1 | (rodada 10) Gravar a chance de escolha em cada conferência (gabarito), para pesar a amostra | nada | feito no esquema | **feito** no esquema (migração 0007) |
-| 6 | (rodada 10) Sorteio das conferências em duas metades: uma aleatória e uma dirigida aos mais duvidosos | passo 4 | 2 a 4 | **feito**: migração 0023 e `raiz/aprendizado/sorteio.py`: metade aleatória e metade dirigida (PPS pela dúvida), chance de escolha no gabarito, `raiz aprendizado sortear` com as matrículas a pedir |
+| 6 | (rodada 10) Sorteio das conferências em duas metades: uma aleatória e uma dirigida aos mais duvidosos | passo 4 | 2 a 4 | **feito**: migração 0024 e `raiz/aprendizado/sorteio.py`: metade aleatória e metade dirigida (PPS pela dúvida), chance de escolha no gabarito, `raiz aprendizado sortear` com as matrículas a pedir |
 | 6 | (rodada 10) Calibração por UF e faixa de área (MCGrad, conferir licença) | passo 5 | 4 a 6 | **feito** sem MCGrad (licença não conferida): `raiz/aprendizado/calibracao.py`, medida e isotônica por UF e porte puxada para o total (`raiz aprendizado calibracao`) |
 | 6 | (rodada 10) Área apta com intervalo pelo estimador de Olofsson (mapaccuracy, conferir licença) | sorteio acima | 3 a 5 | **feito** sem mapaccuracy: `olofsson` em `raiz/aprendizado/sorteio.py` (`raiz aprendizado olofsson`); com fazendas muito grandes o intervalo cobre ~85%, não 95% |
 
 Feito na main fora desta tabela: aprendizado do valor para quem restaura (`raiz/restauracao_aprendizado.py`), da vigilância (`raiz/vigilancia/aprendizado.py`) e das leituras de documento (`raiz/documentos/aprendizado.py`), todos gravando no mesmo `aprendizado.previsao`. Situação conferida em 12/11/2026.
 
 ## E9. O que as pessoas veem
+
+Cena-alvo com publicação real (12/11/2026): **feito no código**. O formulário parte de um milhão de créditos no
+Pará e permite teto em US$ por crédito. O site lê o ponteiro `lote_PA_central_r11.json`, publicado pelo chat
+Lote e números, e apresenta as três alternativas, P10/P50/P90, TIR do fluxo, hectares, fazendas, pendências e
+“o que destrava”. O cenário publicado fica identificado como referência; um novo teto ou filtro exige recálculo
+na API. Sem publicação, aparecem a cobertura territorial real e o aviso, sem resultados simulados.
+Mapa das três opções com cores e traços distintos aceita somente geometrias autorizadas pela API, de fichas já
+desbloqueadas pelo próprio cliente e fora de reserva alheia. Consultar o mapa não consome novos créditos.
+Contato com donos permanece reservado à fase final. A calibração E9 com 30 cartas reais continua pendente.
 
 Entrega do chat **Ficha da fazenda** (12/11/2026; detalhes em
 `docs/passagem/ficha-da-fazenda.md`):
@@ -259,6 +269,17 @@ da origem; isso depende do site da conta ou de domínio próprio.
 
 A publicação Markdown segue a mesma regra do site agregado: nenhuma ficha individual aberta por CAR.
 
+Celular e acessibilidade (12/11/2026): **feito** no código. Entrada nacional em SVG com estados acessíveis,
+sem baixar WebGL ou geometria municipal antes de aproximar; rotas carregadas ao abrir. Navegação disponível a 360 px,
+atalho para o conteúdo, foco após troca de tela, alça e controles com 48 px, tabelas roláveis pelo teclado.
+A entrada do produtor já entrega o formulário em HTML e carrega a ficha apenas ao receber um código do CAR.
+CI verifica axe WCAG 2.1 A/AA, busca e gaveta pelo teclado, novo pedido com filtros, comparação pública,
+lotes autorizados, ficha desbloqueada e prospecção. A contagem do mapa vem de um índice leve, antes de carregar os contornos.
+Lighthouse mobile a 360 px conserva rede/CPU simuladas: três execuções fixas por página (Brasil, entrar, novo pedido, prospecção e produtor),
+mediana de desempenho >= 90 e acessibilidade >= 90 em todas. Relatórios completos e capturas ficam nos artefatos.
+As verificações automatizadas não substituem avaliação humana de todos os critérios WCAG; a calibração E9 de
+compreensão com 30 cartas reais continua pendente e nenhum contato com dono é disparado por estes testes.
+
 Domínio próprio configurável (entrega 5 de Telas e mapa, 12/11/2026): **feito no código**. `RAIZ_DOMINIO` validado
 gera CNAME, base `/` e URLs canônicas HTTPS do painel, produtor e JSON-LD. Sem domínio, o build deriva o caminho
 do repositório e mantém o Pages atual. CI cobre subcaminho e raiz, com navegação, Range, Markdown, robôs e CNAME.
@@ -272,6 +293,14 @@ com portão de 950 MB. Polígonos permanecem por município enquanto couberem; n
 
 A entrega da ficha mantém as bases e limites do mapa nacional, mas restringe os detalhes por CAR à API paga;
 a publicação pública usa os agregados municipais.
+
+Cobertura diária do mapa (12/11/2026): **feito no código**. A rodada diária descobre municípios e UFs do Release,
+incluindo os novos sem lista fixa. O painel do Brasil e de cada estado informa quantos municípios têm desenho
+na base e quantos ainda aguardam; separa esses totais dos municípios processados. A data de geração do mapa e
+a data dos dados publicados no Release aparecem separadas, sem substituir data ausente pela data de hoje.
+O manifesto aberto expõe só cobertura por município, mantendo os desenhos individuais no acesso pago.
+Teste incremental cobre município novo, UF nova e chegada posterior do desenho; Playwright confere contagem,
+datas e avisos de acesso restrito ou desenho ausente.
 
 Conferido contra a main em 12/11/2026: "feito" quer dizer que o código está na main; "parcial" diz o que existe e o
 que falta, com as horas do que falta. O site público (https://bernardoemmel.github.io/Raiz/) mostra o que o front já
@@ -309,3 +338,29 @@ faz sem back-end.
 | 1 | (busca) Busca nacional pela API pelo código do CAR (inteiro ou começo, com ou sem pontos e traços) e pelo nome do município, no contrato de front/compartilhado/dados/busca.ts; índice por código normalizado; 6,7 milhões de imóveis sintéticos: pior resposta 0,49 s | carga contínua | feito |
 | 1 | (busca pública) Busca no navegador por nome e código IBGE do município, sem depender de `/busca` no Pages; CAR leva à ficha paga | mapa nacional | feito |
 | 1 | (busca) Carga contínua das saídas do motor por estado (`raiz vigiar`), só o município que mudou, com a versão anterior guardada | carga do motor | feito |
+
+## Telas e mapa: ficha visual da terra
+
+Entrega 3 da continuação de 12/11/2026, sobre a ficha paga do PR #52.
+
+| Entrega | Situação |
+|---|---|
+| Mapa do imóvel com Sentinel-2, máscara e restauração hachurada | **feito**: a ficha autorizada carrega perímetro e camadas medidas pela API de prospecção. A máscara respeita furos do CAR e a hachura é recortada ao imóvel. A cena Sentinel-2 usa o gerador existente; composição mediana preserva o período inteiro e o método. Ausência de cena ou camada fica explícita, sem inventar desenho a partir de hectares. Recorte real de Parauapebas validado em 360 px. |
+| Linha do tempo de uso e perdas | **feito**: anos disponíveis, medidas e fontes da ficha paga, além das tabelas completas. Ausência e zero são diferentes; a data de corte não substitui a data da fonte. |
+| Acesso à imagem e ao desenho | **feito**: sessão individual e desbloqueio pago conferidos em todas as rotas, incluindo exclusividade. A imagem é buscada com Bearer, sem token na URL, com `private, no-store`; nenhuma lista ou imagem individual vai ao Pages. |
+| Calibração E9 com cartas reais | **pendente**: ainda não existe o conjunto de 30 cartas anonimizadas com avaliação de compreensão. Esta entrega não inicia contato com proprietários. |
+
+## Qualidade e segurança (12/11/2026)
+
+| Entrega | Situação |
+|---|---|
+| Auditoria PRs #35–#44 integrados e revisão preventiva #45 ainda aberto; correções pequenas com regressões; Release completo e amostra do site | **feito**; evidência e limites em `docs/passagem/qualidade-e-seguranca.md` |
+| Playwright no CI: link, milhão de créditos no Pará, 3 opções, interesse e Pix de teste com API/PostGIS | **feito**; serviços externos controlados, sem pagamento real |
+| Dependabot, Gitleaks no histórico, licenças Python/npm/Rust obrigatórias, cabeçalhos, limite de chamadas e Presidio nos logs | **feito**; limite por processo e restrições operacionais na passagem |
+| CI paralelo com cache uv/npm/Chromium/LanguageTool, build público e coleção completa de testes | **feito**; zero skips ainda **parcial**: falta conjunto real de 144 tabelas desenvolvedor do Pará; demais dependências opcionais instaladas no CI |
+| Instruções para proteger a main | **feito** em `docs/operacao.md`; ativação manual pelo fundador |
+
+## Continuidade de documentos, vigilância e calendário (12/11/2026)
+
+- **Feito:** aviso inicial à Verra em JSON e `.eml`, pela API, CLI e rodada diária, separado do relatório de perda. Preparar não envia nem registra `verra_avisada`. Rascunho URTX_LE1 para o desenvolvedor cliente em `docs/pedidos/urtx-le1-aviso-verra.md`, prazo **15/11/2026** registrado no projeto e no alerta interno. Campos desconhecidos: “a preencher pelo proponente”. A Raíz não é proponente e nunca envia; não depende de estado privado.
+- **Feito:** passagens unificadas em `docs/passagem/continuidade-raiz.md`; PRs #35 e #44 já integrados; migrações do título/aprendizado corrigidas para 0022–0025.

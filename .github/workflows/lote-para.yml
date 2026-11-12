@@ -1,0 +1,127 @@
+name: Lote do Pará (central_r11)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: lote-para-central-r11
+  cancel-in-progress: false
+
+jobs:
+  preparar:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    outputs:
+      matriz: ${{ steps.plano.outputs.matriz }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - run: uv sync --frozen --extra motor
+      - name: Congelar os dados dos 144 municípios
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: uv run python -m raiz.restauracao_rodada preparar --destino rodada/entradas --repo "$GITHUB_REPOSITORY"
+      - name: Distribuir os municípios por quantidade de imóveis
+        id: plano
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          plano = json.loads(Path('rodada/entradas/snapshot.json').read_text())['plano']
+          matriz = {'include': [{'fatia': p['fatia']} for p in plano]}
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+              f.write('matriz=' + json.dumps(matriz) + '\n')
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: entradas-congeladas
+          path: rodada/entradas/
+          compression-level: 0
+          retention-days: 30
+          if-no-files-found: error
+
+  calcular:
+    needs: preparar
+    runs-on: ubuntu-24.04
+    timeout-minutes: 240
+    strategy:
+      fail-fast: false
+      max-parallel: 15
+      matrix: ${{ fromJSON(needs.preparar.outputs.matriz) }}
+    env:
+      OPENBLAS_NUM_THREADS: "1"
+      OMP_NUM_THREADS: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - run: uv sync --frozen --extra motor
+      - uses: actions/download-artifact@v4
+        with:
+          name: entradas-congeladas
+          path: rodada/entradas
+      - name: Restaurar municípios já calculados da mesma entrada e versão
+        id: cache
+        uses: actions/cache/restore@v4
+        with:
+          path: rodada/fatia/resultado
+          key: lote-pa-${{ github.sha }}-${{ github.run_id }}-${{ matrix.fatia }}
+      - name: Calcular todas as fazendas da fatia
+        env:
+          FATIA: ${{ matrix.fatia }}
+        run: >-
+          uv run python -m raiz.restauracao_rodada calcular
+          --entradas rodada/entradas --destino rodada/fatia --fatia "$FATIA"
+      - name: Guardar municípios concluídos mesmo se a fatia parar
+        if: always() && steps.cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: rodada/fatia/resultado
+          key: lote-pa-${{ github.sha }}-${{ github.run_id }}-${{ matrix.fatia }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: calculado-${{ matrix.fatia }}
+          path: rodada/fatia/calculado_*.tar.gz
+          compression-level: 0
+          retention-days: 30
+          if-no-files-found: error
+
+  publicar:
+    needs: [preparar, calcular]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    permissions:
+      contents: write
+    env:
+      OPENBLAS_NUM_THREADS: "1"
+      OMP_NUM_THREADS: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - run: uv sync --frozen --extra motor
+      - uses: actions/download-artifact@v4
+        with:
+          name: entradas-congeladas
+          path: rodada/entradas
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: calculado-*
+          merge-multiple: true
+          path: rodada/calculados
+      - name: Conferir os 144 municípios e montar os três lotes
+        run: >-
+          uv run python -m raiz.restauracao_rodada reunir
+          --entradas rodada/entradas --calculados rodada/calculados --destino rodada/entrega
+      - name: Publicar lotes e previsões versionadas no Release dados
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: uv run python -m raiz.restauracao_rodada publicar --destino rodada/entrega --repo "$GITHUB_REPOSITORY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: manifesto-lote-para
+          path: rodada/entrega/lote_PA_central_r11.json
+          retention-days: 90
+          if-no-files-found: error

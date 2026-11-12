@@ -260,6 +260,7 @@ function ConteudoPix({ cobranca, pedido, aoPagar }: { cobranca: Cobranca; pedido
         ou cole o texto.
       </p>
       {cobranca.exemplo && <p className="aviso aviso-exemplo">Pix de exemplo: este código não paga nada. O back-end gera o Pix de verdade.</p>}
+      {cobranca.modo_teste && <p className="aviso aviso-exemplo">Pix de teste: este código não paga nada.</p>}
       <div className="pix-qr" role="img" aria-label="Código QR do Pix" dangerouslySetInnerHTML={{ __html: qr }} />
       <label className="campo">
         <span>Pix copia e cola</span>
@@ -296,8 +297,8 @@ function ConteudoPix({ cobranca, pedido, aoPagar }: { cobranca: Cobranca; pedido
         )}
       </div>
       <p className="legenda-frase">
-        O código vale até {new Date(cobranca.pix.expira_em).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}. Esta tela confere sozinha quando o banco
-        avisar o pagamento.
+        {cobranca.pix.expira_em && <>O código vale até {new Date(cobranca.pix.expira_em).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}. </>}
+        Esta tela confere sozinha quando o banco avisar o pagamento.
       </p>
     </div>
   )
@@ -340,7 +341,7 @@ function Moldura({ children }: { children: React.ReactNode }) {
   return (
     <div className="tela-pedidos tela-pedido">
       <Cabecalho atual="pedidos" />
-      <main className="pedido-main">{children}</main>
+      <main id="conteudo" tabIndex={-1} className="pedido-main">{children}</main>
     </div>
   )
 }

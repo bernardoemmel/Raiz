@@ -26,7 +26,7 @@ const servidor = http.createServer((req, res) => {
   const url = new URL(req.url, "http://localhost")
   const pathname = decodeURIComponent(url.pathname)
   const rel = pathname.slice(prefixo.length)
-  const arquivo = path.resolve(site, rel || "index.html")
+  const arquivo = path.resolve(site, !rel || rel.endsWith("/") ? rel + "index.html" : rel)
   if (!pathname.startsWith(prefixo) || !arquivo.startsWith(site + path.sep) || !fs.existsSync(arquivo) || !fs.statSync(arquivo).isFile()) {
     ausentes.push(url.pathname)
     res.writeHead(404).end("Arquivo não encontrado")
@@ -94,6 +94,12 @@ try {
   conferirPublicacao()
   console.log("Abrindo o build estático agregado no Chromium...")
   await pagina.goto(base)
+  await pagina.getByRole("group", { name: "Mapa do Brasil por estado" }).waitFor()
+  await pagina.getByRole("heading", { name: "Cobertura do mapa", exact: true }).waitFor()
+  await pagina.getByText("1 município em 1 estado", { exact: true }).waitFor()
+  await pagina.locator('time[datetime="2026-11-12T10:41:00Z"]').waitFor()
+  await pagina.locator('time[datetime="2026-11-11T18:00:00Z"]').waitFor()
+  await pagina.locator('.mapa-nacional-leve a[href="#/estado/PA"]').click()
   await mapaPronto()
   await pagina.waitForFunction(() => {
     const m = document.querySelector(".mapa-brasil .mapa").__mapa
@@ -104,6 +110,7 @@ try {
   console.log("Buscando Parauapebas...")
   await buscar("Parauapebas", `#/municipio/${MUNICIPIO}`)
   await pagina.locator(".funil-barras").waitFor()
+  await pagina.getByText("O desenho das fazendas deste município está na base.", { exact: false }).waitFor()
   await mapaPronto()
   await pagina.waitForFunction((cod) => {
     const m = document.querySelector(".mapa-brasil .mapa").__mapa

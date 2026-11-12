@@ -36,14 +36,14 @@ export function MeusPedidos() {
   return (
     <div className="tela-pedidos">
       <Cabecalho atual="pedidos" />
-      <main className="pagina pagina-media">
+      <main id="conteudo" tabIndex={-1} className="pagina pagina-media">
         <div className="secao-cabeca">
           <h1>Meus pedidos</h1>
           <a className="botao principal" href={linkNovoPedido}>
             <Plus size={20} aria-hidden="true" /> Novo pedido
           </a>
         </div>
-        <p className="legenda-frase">
+        {pedidos.publica ? <p className="legenda-frase">Consultas ao Release salvas apenas neste navegador. Os critérios não iniciam contato nem reserva.</p> : <p className="legenda-frase">
           Entrou como {sessao?.email}.{" "}
           <button
             type="button"
@@ -56,7 +56,7 @@ export function MeusPedidos() {
           >
             Sair
           </button>
-        </p>
+        </p>}
         <AvisoExemplo ativo={pedidos.exemplo} />
         {prontos.map((p) => (
           <p key={p.id} className="aviso aviso-pronto" role="status">
@@ -75,7 +75,7 @@ export function MeusPedidos() {
           <Estado tipo="carregando" titulo="Lendo seus pedidos" />
         ) : !lista.length ? (
           <Estado tipo="vazio" titulo="Nenhum pedido ainda.">
-            <p>Diga quantos créditos precisa, onde e em que prazo. A Raíz mostra quanto existe na base e monta o melhor lote no mapa.</p>
+            <p>Diga quantos créditos precisa, onde e em que prazo. Consulte a base e compare os cenários de lote publicados.</p>
             <a href={linkNovoPedido}>Fazer o primeiro pedido</a>
           </Estado>
         ) : (
@@ -88,7 +88,7 @@ export function MeusPedidos() {
                     <small>Pedido de {dataLonga(p.criado_em)}</small>
                   </span>
                   <span className="lp-status">
-                    <SeloStatus status={p.status} reservadoAte={p.reservado_ate} />
+                    {pedidos.publica ? <span className="selo neutro">Consulta ao Release</span> : <SeloStatus status={p.status} reservadoAte={p.reservado_ate} />}
                     {p.com_interesse !== null && p.status === "buscando_interesse" && <small>{fmtPct(p.com_interesse)} da meta com dono interessado</small>}
                     {p.alertas > 0 && <small className="lp-alerta">{p.alertas === 1 ? "1 alerta" : `${p.alertas} alertas`}</small>}
                   </span>

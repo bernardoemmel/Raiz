@@ -4,6 +4,7 @@ aviso, reserva com Pix de teste, exclusividade (a fazenda reservada some para os
 reserva vence), contrato, vigia e aprendizado da chance de aceite. Nada pessoal do dono sai pela API."""
 
 import datetime as dt
+import uuid
 
 import pytest
 from fastapi.testclient import TestClient
@@ -56,6 +57,59 @@ def test_carga_monta_a_oferta(eng):
         n, eleg = c.execute(text("""select count(*), count(*) filter (where (atributos->>'elegivel')::boolean)
                                     from negocio.oferta""")).one()  # fmt: skip
     assert n == 880 and eleg > 700
+
+
+def test_contornos_do_lote_exigem_desbloqueio_atual_sem_nova_cobranca(eng):
+    cliente = S.criar_cliente(eng, "Consulta do mapa")[0]
+    outro = S.criar_cliente(eng, "Outra consulta do mapa")[0]
+    with eng.connect() as con:
+        codigos = list(con.execute(text("select cod_imovel from funil.vigente order by cod_imovel limit 3")).scalars())
+        con.execute(
+            text("""update funil.imovel set geom = ST_Multi(ST_GeomFromText(
+                'POLYGON((-50 -6,-49.99 -6,-49.99 -5.99,-50 -5.99,-50 -6))',4674))
+                where cod_imovel = any(:codigos)"""),
+            {"codigos": codigos},
+        )
+        assert S._contornos_desbloqueados(con, cliente, codigos) == {}
+        con.execute(
+            text("insert into negocio.prospeccao_desbloqueio(cliente_id,cod_imovel) values (:cliente,:cod)"),
+            [{"cliente": cliente, "cod": cod} for cod in codigos[:2]],
+        )
+        assert set(S._contornos_desbloqueados(con, cliente, codigos)) == set(codigos[:2])
+        assert set(S._contornos_desbloqueados(con, cliente, [codigos[0]])) == {codigos[0]}
+        assert S._contornos_desbloqueados(con, outro, codigos) == {}
+        pedido = str(uuid.uuid4())
+        con.execute(
+            text("insert into negocio.pedido(id,cliente_id,campos) values (:id,:cliente,'{}')"),
+            {"id": pedido, "cliente": outro},
+        )
+        reserva = con.execute(
+            text("""insert into negocio.reserva(pedido_id,cliente_id,estado,ha,valor_rs,dias)
+                values (:pedido,:cliente,'ativa',10,1,30) returning id"""),
+            {"pedido": pedido, "cliente": outro},
+        ).scalar_one()
+        con.execute(
+            text("insert into negocio.reserva_fazenda(reserva_id,cod_imovel,ativa) values (:id,:cod,true)"),
+            {"id": reserva, "cod": codigos[0]},
+        )
+        desenhos = S._contornos_desbloqueados(con, cliente, codigos)
+        assert set(desenhos) == {codigos[1]}
+        assert desenhos[codigos[1]]["type"] == "MultiPolygon"
+        assert "properties" not in desenhos[codigos[1]]
+        assert (
+            con.execute(
+                text("select count(*) from negocio.prospeccao_movimento where cliente_id=:id"), {"id": cliente}
+            ).scalar_one()
+            == 0
+        )
+        con.execute(text("update negocio.cliente set ativo=false where id=:id"), {"id": cliente})
+        assert S._contornos_desbloqueados(con, cliente, codigos) == {}
+        # Desfaz dados geográficos/autorização de teste ao fechar a conexão.
+
+
+def test_sugestao_antiga_nao_carrega_geometria_sem_revalidar_autorizacao():
+    opcoes = [{"id": "barata", "itens": [{"cod_imovel": "CAR-teste", "geometria": {"type": "Polygon"}}]}]
+    assert "geometria" not in S._limpar_opcoes(opcoes, {}, set())[0]["itens"][0]
 
 
 def test_fluxo_completo_com_ondas_reserva_e_exclusividade(eng, chave):

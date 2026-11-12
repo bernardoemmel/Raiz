@@ -75,13 +75,51 @@ Sessão: https://claude.ai/code/session_01VGb88MJumyG9PHt2znaaKE. Branch: `claud
 
 ## O que falta, em ordem
 
-1. Acompanhar os checks e a publicação dos PRs destas duas entregas; merge somente com CI verde.
-2. Configurar a descoberta na raiz de hospedagem quando houver acesso ao site da conta ou domínio próprio,
-   sem presumir que o arquivo em `/Raiz/` equivale a `/robots.txt`.
+1. Concluir as cinco entregas solicitadas: cena-alvo, cobertura diária do mapa, ficha visual, celular/acessibilidade
+   com Lighthouse ≥90 nas duas categorias e configuração de domínio próprio. Integrar cada uma com CI verde.
+2. Conferir a chegada do ponteiro `lote_PA_central_r11.json` no Release; a rotina diária já o incorpora quando existir.
 3. E9 passo 3: aguardar as 30 cartas reais anonimizadas e uma avaliação de compreensão, confirmadas como ainda
    indisponíveis pelo fundador. Depois calibrar o portão e gravar a nota no laudo.
 4. Continuar os itens E9 na ordem do plano: texto por fazenda no kit ONS/campos abertos, condicionais e extenso,
    KMZ e os demais. A geometria de reserva legal ainda não está nas camadas; não deduzir seu desenho de percentuais.
+
+## Nova entrega 1: cena-alvo ligada ao Release (12/11/2026)
+
+- Contrato conferido no código do chat Lote e números (`4f7c558c`, `raiz/restauracao_rodada.py`): ponteiro
+  `lote_PA_central_r11.json`, com `resumos.barata/segura/compacta`; pacotes por execução ficam no Release.
+- Na conferência desta implementação, o ponteiro ainda não existia. `baixar-lotes.mjs` grava ausência explícita;
+  erro de rede ou formato interrompe a publicação. A data de publicação vem do arquivo remoto, separada da conferência.
+- O build projeta somente agregados conhecidos para `amostra/lote_PA_central_r11.json`, inclusive no servidor de
+  desenvolvimento. Nunca copia os pacotes individuais, CARs ou folhas de contato. O JSON sempre existe no site com dados.
+- Sem API, o site salva os critérios no navegador e mostra o cenário publicado ou sua ausência. Retirado o fluxo
+  de resultados inventados como padrão. O snapshot não finge ter aplicado teto de custo nem outros filtros novos.
+- Comparação e quadro “o que destrava” preservam dados ausentes como desconhecidos. TIR é a do fluxo alavancado do
+  lote, não média das TIRs individuais; P10/P90 de TIR não são fabricados quando só há valor central.
+- Mapa com verde, azul e ocre, e padrões de linha diferentes, permite comparar as três opções. A API acrescenta
+  geometria somente para fichas já desbloqueadas pelo cliente ativo; revalida reserva/exclusividade a cada leitura.
+  O Pages continua agregado. Falta de autorização ou desenho produz aviso, sem abrir detalhes por contorno público.
+- Botão de contato permanece desabilitado nesta fase. As 30 cartas reais ainda não estão disponíveis para E9.
+- Verificação: 869 testes Python passaram após incorporar a rodada 11 (2 pulados e 1 xfail); 160 testes do front
+  passaram após integrar a entrega de qualidade. Playwright confere ausência/publicação do lote, três cores por
+  pixels, teclado, 360 px e zero 404. O E2E com API e PostGIS preserva os testes da fase posterior de interesse/Pix
+  por preparação isolada no servidor de teste, mantendo o botão de contato desabilitado na tela do produto.
+
+## Nova entrega 2: cobertura diária do mapa (12/11/2026)
+
+- O cron diário existente (10:41 UTC) continua lendo `estados.json` e os pacotes de todas as UFs do Release.
+  A geração não tem lista fixa de municípios. O teste incremental usa três rodadas com o mesmo cache: acrescenta
+  um município e uma UF; depois acrescenta o desenho que estava faltando, que deixa de aparecer como pendência.
+- `geo/indice.json` preserva `gerado_em` e recebe `dados_publicados_em` do manifesto do Release. O build aberto
+  calcula `cobertura` só dos arquivos anunciados e presentes, com códigos municipais, sem CAR ou caminhos privados.
+  Cache de município fora do manifesto não aumenta a contagem.
+- O painel do Brasil mostra municípios e estados com desenho na base; o painel estadual mostra sua própria
+  contagem. Municípios processados continuam como medida separada. Datas do mapa e do Release são distintas,
+  em horário de Brasília; ausência é escrita como “data não informada”.
+- A main passou a publicar só agregados no PR #52. A cobertura não reabre geometrias individuais: explica que
+  a ficha com acesso pago contém os desenhos. Município com desenho na origem recebe esse aviso; município
+  cujo desenho falta recebe o aviso de indisponibilidade. Não confundir restrição de acesso com falta de dado.
+- Validação local: 9 testes de geometria passaram, 133 testes do front passaram (13 pulados), lint e formato
+  Python passaram. O Playwright do build verifica cobertura, datas e ausência de vazamento de dados individuais.
 
 ## Referências conferidas para a segunda entrega
 
@@ -156,3 +194,78 @@ cd front/globo && npm test
 ```bash
 RAIZ_BUILD_DADOS=0 front/scripts/construir-site.sh
 ```
+
+## Continuação: ficha visual da terra (entrega 3)
+
+- A rota do CAR continua na `FichaTerra` paga do PR #52. Não reabrir a antiga ficha estática para fornecer o mapa.
+- `GET /prospeccao/fichas/{car}/visual` entrega um contrato fechado: `imovel`, `mascara`, `camadas` (GeoJSON),
+  fonte do perímetro e das camadas, data de corte, data da fonte quando disponível e avisos. Todas as geometrias
+  vêm do banco; as camadas são intersectadas com o CAR, preservando furos. Só `camada` sai nas propriedades.
+- `GET .../visual/satelite` reutiliza o gerador Sentinel-2 existente e devolve a caixa geográfica, fonte e data
+  da cena. Uma ausência conhecida devolve um estado explícito com HTTP 200. `GET .../visual/satelite.webp`
+  serve a imagem com sessão, crédito liberado, exclusividade e `private, no-store`. A URL do blob é revogada ao
+  sair da ficha; token nunca vai na URL ou em um arquivo do site.
+- `MapaFichaTerra` põe a imagem recente sob o perímetro duplo, máscara e hachura diagonal. A hachura só usa
+  `pode_voltar` medido, não a área restaurável da tabela. Sem camada medida, aparece aviso. Fonte e data das
+  camadas ficam consultáveis; a coleção/data ausente não recebe um ano presumido.
+- A linha do tempo reúne cobertura e perdas por ano, com texto e fonte/data além das cores; mantém as tabelas
+  completas e navegação por teclado. O mapa se reenquadra ao mudar a largura da tela, incluindo 360 px.
+- Validação focada: 32 testes Python com PostGIS, incluindo geometrias com furos, recorte e privacidade;
+  Chromium confere satélite de teste explicitamente sintético, camadas, controle de hachura, linha do tempo,
+  acesso antes/depois do crédito, troca de conta e 360 px. `test:prospeccao`, já no CI, guarda as capturas.
+- Teste externo validado com CAR e geometria do Release de Parauapebas: imagem Sentinel-2 de 132.586 bytes,
+  1024 × 938 px, composta pela mediana das cenas de 06/09/2026 a 23/10/2026. O mapa renderizou o recorte,
+  contorno e máscara em 1100 e 360 px. Sem camadas medidas nesse imóvel, exibiu o aviso, sem inventar hachura.
+  A legenda preserva o período inteiro e identifica a composição mediana, em vez de tratá-la como uma foto
+  de data única. Os testes determinísticos do CI continuam identificados como imagem sintética.
+- Em ambiente cujo GDAL não reconheça a CA do proxy, configurar `RAIZ_SATELITE_LEITOR_HTTP=blocos` na API.
+  Só as novas rotas visuais usam então o leitor Range já existente em `raiz.coleta.blocos`, com requests,
+  a CA/proxy herdados e cache de 1 GB em `dados/imagens/.cog`. O gerador e as outras rotas permanecem iguais.
+  A validação real usou esse leitor sem desativar TLS e baixou 95 MB de blocos, sem baixar cenas inteiras.
+- A suíte completa local foi interrompida após 321 testes aprovados para evitar competição com a suíte
+  de integração do chat principal; os testes focados passaram. Rodar a suíte completa no checkout integrado.
+- A imagem real depende da disponibilidade de cena no Sentinel-2 e dos polígonos/camadas carregados na API.
+  A publicação estática mantém apenas agregados. Não transformar o teste de imagem sintética em evidência
+  de disponibilidade orbital para todas as fazendas. O contato com o dono continua na fase final.
+
+## Entrega 4: celular, teclado e desempenho (12/11/2026)
+
+- A escala nacional usa SVG Natural Earth já existente no repositório, com estados coloridos pela cobertura real,
+  nomes acessíveis, links por estado e a mesma busca. Escolher estado ou município carrega MapLibre e a base PMTiles;
+  depois o mapa detalhado permanece montado nas trocas. Isso reduz o JS inicial de cerca de 1,6 MB para 320 KB
+  (aproximadamente 104 KB gzip), sem baixar contornos municipais na abertura nacional.
+- Menus continuam disponíveis a 360 px. Atalho de teclado pula para o conteúdo, as rotas levam foco ao main,
+  a alça da gaveta e os controles têm 48 px, os resultados da busca quebram linha e tabelas roláveis recebem foco e rótulo.
+- `npm run test:acessibilidade` serve o artefato com gzip/Range, verifica teclado (pular conteúdo, gaveta e busca),
+  largura de 360 px e axe WCAG 2.1 A/AA no Brasil, município, login com erro, novo pedido (filtros fechados/abertos)
+  e produtor. `test:prospeccao` também audita a ficha desbloqueada e a busca autenticada. Não expõe dados pessoais.
+- Lighthouse 13.6.0 mede as categorias oficiais performance e accessibility em mobile de 360 px, com throttling
+  `simulate` padrão. São **três execuções fixas** por página: Brasil, entrar, novo pedido, prospecção e produtor: exige mediana de desempenho >= 90
+  e acessibilidade >= 90 em cada execução. Erro de coleta, nota ausente/nula e troca para desktop/rede sem simulação
+  reprovam. Salva todas as amostras HTML/JSON, axe e capturas em `front/.cache/teste-acessibilidade` e no CI.
+- A série fixa com gzip, após otimizar, deu medianas de desempenho 100 no Brasil, 95 na entrada e 100 no produtor,
+  com acessibilidade 100 nas nove medições. A primeira medição diagnóstica usava servidor sem gzip e não deve ser
+  comparada diretamente com a publicação.
+  Runners concorrentes afetam TBT: a mediana tem três amostras fixas, sem repetir até passar ou escolher a melhor.
+- Ficam pendentes avaliação humana completa WCAG e a calibração E9 com cartas reais. O teste automatizado não é
+  declaração de conformidade total e não inicia contato com proprietários.
+
+Validação local da entrega 4: build travado, 138 testes do front, Pages com zero 404, prospecção com axe e
+Lighthouse Agentic Browsing aprovados. O portão mobile final passou nas medições fixas; E9 real não foi calibrado.
+
+
+### Integração das entregas 1 a 4
+
+- `fonte.geo.cobertura()` lê apenas o índice leve, com cache, para mostrar contagem e datas na entrada em SVG.
+  Os GeoJSON nacionais continuam adiados até escolher estado/município. A API ainda não publica esse manifesto;
+  nesse modo a cobertura fica indisponível, sem inferir desenhos a partir dos resumos e sem chamar uma rota inexistente.
+- Formulário fechado, consulta pública sem fazendas e ficha antes do desbloqueio não baixam MapLibre.
+  O mapa específico carrega ao desenhar uma área, receber lotes autorizados ou abrir a ficha desbloqueada.
+- `test:cena` executa axe WCAG 2.1 AA também na comparação pública e nos três lotes autorizados a 360 px;
+  `test:prospeccao` conserva o teste de Sentinel-2 sintético, hachura e linha do tempo junto da auditoria axe.
+
+- A entrada do produtor entrega cabeçalho, instrução e formulário como HTML nativo; funciona sem JavaScript.
+  Preact e o leitor da ficha só carregam com `?car=`, preservando o caminho e os controles de acesso existentes.
+  A auditoria confirma a leitura e o envio nativo do formulário com JavaScript desligado.
+
+- O portão Lighthouse inclui também `#/pedidos/novo` e `#/prospeccao`, sem substituir o backend público por fixture: são 15 medições fixas ao todo.

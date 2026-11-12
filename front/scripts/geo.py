@@ -705,7 +705,9 @@ def base_brasil(dia: str | None, cods: list[str] | None = None) -> None:
     base_regiao("base_brasil.pmtiles", BRASIL, dia, 6)
 
 
-def indice(cods: list[str] | None = None, falhas: dict[str, str] | None = None) -> None:
+def indice(
+    cods: list[str] | None = None, falhas: dict[str, str] | None = None, dados_publicados_em: str | None = None
+) -> None:
     itens: dict[str, dict] = {}
     for f in sorted(SAIDA.glob("*_*.*")):
         nome = f.name.removesuffix(".gz")
@@ -736,6 +738,7 @@ def indice(cods: list[str] | None = None, falhas: dict[str, str] | None = None) 
         json.dumps(
             {
                 "gerado_em": dt.datetime.now(dt.UTC).isoformat(timespec="seconds"),
+                "dados_publicados_em": dados_publicados_em,
                 "brasil": brasil,
                 "municipios": itens,
                 "sem_contorno": {cod: motivo for cod, motivo in (falhas or {}).items()},
@@ -860,7 +863,9 @@ def do_release(dados: Path, sem_base: bool = False) -> None:
     # Retira bases municipais duplicadas do cache antigo. O índice aponta todos para a mesma base estadual.
     for arq in SAIDA.glob("base_???????.pmtiles"):
         arq.unlink()
-    indice(list(publicados), falhas)
+    manifesto = dados / "estados.json"
+    publicado_em = json.loads(manifesto.read_text()).get("gerado_em") if manifesto.exists() else None
+    indice(list(publicados), falhas, dados_publicados_em=publicado_em)
     print(f" {len(publicados) - len(falhas)}/{len(publicados)} municípios com desenho; {total / 1e6:.1f} MB gzip")
 
 

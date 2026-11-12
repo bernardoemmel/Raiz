@@ -1,15 +1,13 @@
-# Checagens de todo PR (e da main). Três jobs em paralelo; o PR fica vermelho se qualquer um falhar:
-#   workflows  actionlint em .github/workflows: falha se algum workflow não abre (YAML quebrado, chave errada,
-#              expressão inválida). Foi assim que o "Publicar o site" chegou quebrado à main sem ninguém ver.
-#   front      o mesmo build do site público com dados pequenos de teste, servido como no Pages: instalação
-#              travada, compilação, busca, polígonos coloridos, overzoom e zero 404 no Playwright.
-#   checagens  Python: estilo, CPF/CNPJ, licenças e testes com PostGIS.
+# Jobs independentes, sem filtro de caminhos nem seleção parcial da suíte.
 name: CI
 
 on:
   push:
     branches: [main]
   pull_request:
+
+permissions:
+  contents: read
 
 concurrency:
   group: ci-${{ github.event.pull_request.number || github.sha }}
@@ -21,21 +19,40 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
-      # actionlint (MIT) pela imagem oficial; o shellcheck dentro dele fica desligado: o que importa aqui é o
-      # workflow abrir e as chaves e expressões estarem certas
       - name: actionlint
         uses: docker://rhysd/actionlint:1.7.7
         with:
           args: -color -shellcheck= -pyflakes=
 
+  segredos:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Gitleaks em todo o histórico (valores sempre ocultos)
+        uses: docker://zricethezav/gitleaks:v8.24.3
+        # O Actions troca o HOME da imagem; confie somente no checkout montado, cujo dono é o runner.
+        env:
+          GIT_CONFIG_COUNT: "1"
+          GIT_CONFIG_KEY_0: safe.directory
+          GIT_CONFIG_VALUE_0: /github/workspace
+        with:
+          args: git --redact=100 --log-opts=--all --no-banner
+
   front:
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            front/globo/package-lock.json
+            front/produtor/package-lock.json
       - name: Preparar os dados pequenos de teste (sem baixar o Release)
         run: node front/scripts/preparar-teste-site.mjs
       - name: Configuração de domínio e subcaminho
@@ -49,6 +66,11 @@ jobs:
         run: front/scripts/construir-site.sh
       - name: Testes do front
         run: cd front/globo && npm test
+      - name: Cache do Chromium
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('front/globo/package-lock.json') }}
       - name: Chromium para o Playwright
         run: cd front/globo && npx playwright install --with-deps chromium
       - name: Pages no navegador (Parauapebas, mapa agregado e zero 404)
@@ -57,6 +79,15 @@ jobs:
         env:
           RAIZ_PRINTS: ${{ github.workspace }}/front/.cache/teste-site/resultado/prospeccao
         run: cd front/globo && npm run test:prospeccao
+      - name: Cena-alvo (Release ausente, publicado e três lotes autorizados)
+        run: cd front/globo && npm run test:cena
+      - name: Evidências da cena-alvo
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cena-alvo
+          path: front/.cache/teste-cena-alvo
+          if-no-files-found: ignore
       - name: Evidências do teste do Pages
         if: always()
         uses: actions/upload-artifact@v4
@@ -73,6 +104,16 @@ jobs:
         with:
           name: site-agentes
           path: front/.cache/teste-agentes
+          if-no-files-found: ignore
+
+      - name: Celular, teclado, WCAG 2.1 AA e Lighthouse >= 90
+        run: cd front/globo && npm run test:acessibilidade
+      - name: Evidências de acessibilidade e desempenho
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: celular-acessibilidade
+          path: front/.cache/teste-acessibilidade
           if-no-files-found: ignore
 
       - name: Build e navegação na raiz de um domínio configurado
@@ -97,8 +138,30 @@ jobs:
             front/.cache/teste-agentes
           if-no-files-found: ignore
 
+  seguranca:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+      - name: Dependências travadas (inclusive extensão Rust)
+        run: uv sync --frozen --all-extras
+      - name: Estilo
+        run: |
+          uv run ruff check raiz testes scripts migracoes
+          uv run ruff format --check raiz testes scripts migracoes
+      - name: Sem CPF/CNPJ no repositório
+        run: uv run raiz privacidade varrer
+      - name: Licenças de Python, Rust e de todos os locks npm
+        run: uv run python scripts/checar_licencas.py
+
+
   checagens:
     runs-on: ubuntu-24.04
+    timeout-minutes: 30
     services:
       banco:
         image: postgis/postgis:16-3.5
@@ -108,26 +171,103 @@ jobs:
           POSTGRES_DB: raiz_teste
         ports: ["5432:5432"]
         options: >-
-          --health-cmd "pg_isready -U raiz"
+          --health-cmd "pg_isready -U raiz -d raiz_teste"
           --health-interval 5s --health-timeout 5s --health-retries 20
     env:
       RAIZ_BANCO_URL_TESTE: postgresql+psycopg://raiz:raiz@localhost:5432/raiz_teste
+      RAIZ_LANGUAGETOOL_URL_TESTE: http://localhost:8010
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: servicos/cartao/package-lock.json
       - name: Dependências (produto e motor)
         run: uv sync --frozen --all-extras
-      - name: Takumi (cartão e vídeo) e FFmpeg
+      - name: Takumi, FFmpeg e LibreOffice (inclui testes de PDF)
         run: |
-          (cd servicos/cartao && npm ci --no-audit --no-fund)
-          sudo apt-get update -q && sudo apt-get install -y -q ffmpeg
-      - name: Estilo
+          npm --prefix servicos/cartao ci --no-audit --no-fund
+          sudo apt-get update -q
+          sudo apt-get install -y -q --no-install-recommends ffmpeg libreoffice-writer
+      - name: Cache do LanguageTool
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/raiz-languagetool
+          key: languagetool-6.6-53600506
+      - name: LanguageTool real para o teste de revisão
         run: |
-          uv run ruff check raiz testes scripts migracoes
-          uv run ruff format --check raiz testes scripts migracoes
-      - name: Sem CPF/CNPJ no repositório
-        run: uv run raiz privacidade varrer
-      - name: Licenças
-        run: uv run python scripts/checar_licencas.py
-      - name: Testes
-        run: uv run pytest -q
+          pasta="$HOME/.cache/raiz-languagetool"
+          mkdir -p "$pasta"
+          if [ ! -f "$pasta/LanguageTool-6.6/languagetool-server.jar" ]; then
+            curl --fail --location --retry 3 https://languagetool.org/download/LanguageTool-6.6.zip -o "$pasta/lt.zip"
+            echo "53600506b399bb5ffe1e4c8dec794fd378212f14aaf38ccef9b6f89314d11631  $pasta/lt.zip" | sha256sum -c -
+            unzip -q "$pasta/lt.zip" -d "$pasta"
+            rm "$pasta/lt.zip"
+          fi
+          java -Xms256m -Xmx768m -cp "$pasta/LanguageTool-6.6/languagetool-server.jar" \
+            org.languagetool.server.HTTPServer --port 8010 --public \
+            --config infra/languagetool/servidor.properties > /tmp/languagetool.log 2>&1 &
+          for tentativa in $(seq 1 60); do
+            if curl --fail --silent http://localhost:8010/v2/languages > /dev/null; then break; fi
+            sleep 1
+          done
+          curl --fail --silent http://localhost:8010/v2/languages > /dev/null
+      - name: Todos os testes Python, com PostGIS
+        run: uv run pytest -q --junitxml=resultado-pytest.xml
+      - name: Impedir novos testes pulados por dependência ausente
+        if: always()
+        run: uv run python scripts/conferir_testes_ci.py resultado-pytest.xml
+      - name: Resultado dos testes (inclui motivos de testes opcionais pendentes)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: resultado-pytest
+          path: resultado-pytest.xml
+          retention-days: 7
+
+  e2e:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    services:
+      banco:
+        image: postgis/postgis:16-3.5
+        env:
+          POSTGRES_USER: raiz
+          POSTGRES_PASSWORD: raiz
+          POSTGRES_DB: raiz_e2e
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U raiz -d raiz_e2e"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+    env:
+      RAIZ_BANCO_URL_TESTE: postgresql+psycopg://raiz:raiz@localhost:5432/raiz_e2e
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: front/globo/package-lock.json
+      - name: Dependências travadas
+        run: |
+          uv sync --frozen --all-extras
+          npm --prefix front/globo ci --no-audit --no-fund
+      - name: Cache do Chromium
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('front/globo/package-lock.json') }}
+      - name: Chromium e bibliotecas do sistema
+        working-directory: front/globo
+        run: npx playwright install --with-deps chromium
+      - name: Login, pedido no Pará e fase posterior de interesse e Pix isolada no teste
+        run: npm --prefix front/globo run test:e2e:api

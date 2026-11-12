@@ -33,7 +33,7 @@ from sqlalchemy import Connection, Engine, text
 
 from raiz import RAIZ_REPO
 from raiz.config import config
-from raiz.privacidade import mascarar
+from raiz.logs_seguros import sanitizar_estrutura, sanitizar_log
 
 log = logging.getLogger(__name__)
 
@@ -164,12 +164,14 @@ def _vigilancia(vig, regras: dict, hoje: dt.date) -> list[Novo]:
                     f"vigilancia_fonte:{nome}",
                     regras["vigilancia_fonte_com_erro"]["gravidade"],
                     f"Vigilância: fonte {nome} com erro",
-                    f"A fonte {nome} falhou na última leitura: {mascarar(str(f.get('erro') or ''))[:300]}",
+                    f"A fonte {nome} falhou na última leitura: {sanitizar_log(str(f.get('erro') or ''))[:300]}",
                     {"fonte": nome},
                 )
             )
+    perdas_vistas = set()
     for pid in vig.projetos:
         for pe in vig.perdas(pid, hoje)[0]:
+            perdas_vistas.add(pe["perda_id"])
             if pe["estado"] in ("descartada", "relatada"):
                 continue
             pr = pe["prazo"]
@@ -183,7 +185,8 @@ def _vigilancia(vig, regras: dict, hoje: dt.date) -> list[Novo]:
                         f"Evento de perda {pe['perda_id']} ({pe['estado']}) no projeto {pid}: "
                         "o aviso à Verra por e-mail "
                         f"vence em {pr['aviso_verra_ate']:%d/%m/%Y} ({pr['aviso_verra_dias_restantes']} dias). "
-                        "Registrar 'verra_avisada' na vigilância depois de enviar.",
+                        f"Rascunho: /vigilancia/projeto/{pid}/perdas/{pe['perda_id']}/aviso-verra. "
+                        "O envio cabe ao proponente, nunca à Raíz. Registrar 'verra_avisada' só após confirmação dele.",
                         {"perda_id": pe["perda_id"], "projeto_id": pid, "dias": pr["aviso_verra_dias_restantes"]},
                     )
                 )
@@ -199,6 +202,27 @@ def _vigilancia(vig, regras: dict, hoje: dt.date) -> list[Novo]:
                         {"perda_id": pe["perda_id"], "projeto_id": pid},
                     )
                 )
+    for d in getattr(vig, "avisos_verra_informados", lambda _hoje: [])(hoje):
+        if d["perda_id"] in perdas_vistas or not d["pode_exportar"] or d["dias_restantes"] > 7:
+            continue
+        prazo = dt.date.fromisoformat(d["prazo"])
+        out.append(
+            Novo(
+                "verra_prazo",
+                f"verra_aviso:{d['perda_id']}",
+                regras["verra_aviso_urgente"]["gravidade"],
+                f"Verra: prazo do proponente para {d['perda_id']} em {prazo:%d/%m/%Y}",
+                f"Rascunho para o desenvolvedor cliente: {d['rascunho']}. "
+                f"Prazo informado: {prazo:%d/%m/%Y} ({d['dias_restantes']} dias). "
+                "Campos a preencher pelo proponente. A Raíz nunca envia o aviso à Verra.",
+                {
+                    "perda_id": d["perda_id"],
+                    "projeto_id": d["projeto_id"],
+                    "dias": d["dias_restantes"],
+                    "responsavel_pelo_envio": "proponente",
+                },
+            )
+        )
     return out
 
 
@@ -339,7 +363,7 @@ def coletar(engine: Engine, agora: dt.datetime | None = None, vigilancia=None) -
             novos += f()
             olhadas |= origens
         except Exception as ex:  # noqa: BLE001 (uma checagem quebrada não cala as outras)
-            log.warning("checagem de %s falhou: %s", ",".join(sorted(origens)), mascarar(str(ex))[:200])
+            log.warning("checagem de %s falhou: %s", ",".join(sorted(origens)), sanitizar_log(str(ex))[:200])
     return novos, olhadas
 
 
@@ -368,9 +392,9 @@ def registrar(
                 "o": n.origem,
                 "c": n.chave,
                 "g": n.gravidade,
-                "ti": mascarar(n.titulo)[:200],
-                "tx": mascarar(n.texto)[:2000],
-                "d": json.dumps({**n.detalhe, "continuo": n.continuo}, default=str),
+                "ti": sanitizar_log(n.titulo)[:200],
+                "tx": sanitizar_log(n.texto)[:2000],
+                "d": json.dumps(sanitizar_estrutura({**n.detalhe, "continuo": n.continuo}), default=str),
                 "v": versao,
                 "agora": agora,
             },
@@ -484,7 +508,7 @@ def reconhecer(con: Connection, alerta_id: int, quem: str) -> bool:
     r = con.execute(
         text("""update operacao.alerta set reconhecido_em = now(), reconhecido_por = :q
                 where id = :id and reconhecido_em is null and resolvido_em is null returning id"""),
-        {"id": alerta_id, "q": mascarar(str(quem or "fundador"))[:40]},
+        {"id": alerta_id, "q": sanitizar_log(str(quem or "fundador"))[:40]},
     ).first()
     return r is not None
 
@@ -494,7 +518,11 @@ def resolver(con: Connection, alerta_id: int, quem: str, nota: str = "") -> bool
         text("""update operacao.alerta set resolvido_em = now(), resolucao = :n,
                 reconhecido_em = coalesce(reconhecido_em, now()), reconhecido_por = coalesce(reconhecido_por, :q)
                 where id = :id and resolvido_em is null returning id"""),
-        {"id": alerta_id, "q": mascarar(str(quem or "fundador"))[:40], "n": mascarar(nota or "resolvido")[:300]},
+        {
+            "id": alerta_id,
+            "q": sanitizar_log(str(quem or "fundador"))[:40],
+            "n": sanitizar_log(nota or "resolvido")[:300],
+        },
     ).first()
     return r is not None
 

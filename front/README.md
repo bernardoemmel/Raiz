@@ -63,18 +63,16 @@ O painel abre em `http://localhost:5173/` e a ficha do produtor em `http://local
   no mapa. "Fazendas" no menu abre a busca nacional e a entrada direta por CAR. A busca do topo mantém a navegação
   por município, inclusive em estado ainda não processado.
 
-- **Pedidos** (`#/pedidos`, área logada): entrar sem senha (e-mail com link, `#/entrar`), "Meus pedidos" com o status
-  de cada um, "Novo pedido" (`#/pedidos/novo`) com os campos da cena-alvo já preenchidos, o pedido (`#/pedidos/<id>`)
-  com "Quanto existe na nossa base", as 3 opções em abas e o lote no mapa, a busca de interesse dos donos em ondas, e o
-  grupo (`#/pedidos/<id>/grupo`) com a reserva por Pix. Ver "Pedido de lote" abaixo.
+- **Pedidos** (`#/pedidos`): sem API, consultas locais ao cenário real publicado no Release, sem login simulado.
+  "Novo pedido" parte de um milhão de créditos no Pará e permite um teto de custo. A comparação informa
+  P10/P50/P90, TIR, hectares, fazendas, pendências e o que destrava. Com API, os pedidos usam a sessão do cliente.
+  Contato com donos fica para a fase final; nenhum botão desta cena inicia contato agora.
 
-Testes: `cd front/globo && npm test` (dados, funil, busca, rotas, design, ausência do globo e dados por estado: estado
-completo, incompleto, estados.json baixado, cache dos pontos, queda para a amostra sem RAIZ_DADOS e sem internet, CPF
-e CNPJ mascarados) e `npm run test:e2e` (sem internet o predev avisa e segue; sobe o Vite com a amostra e confere no
-Chromium a entrada por estado, o toque no estado e no município, a busca por município e por CAR e a gaveta no
-celular; depois, o pedido de lote de ponta a ponta: entrar pelo link, novo pedido com os padrões, base, 3 opções,
-troca, busca de interesse até o grupo pronto, reserva com Pix, exclusividade e o celular sem passar da tela; precisa do
-Playwright com o Chromium e de `front/geo/` gerado).
+Testes: `cd front/globo && npm test` valida dados e contratos. `npm run test:pages` abre o build estático com
+busca, overzoom e zero 404; `npm run test:cena` verifica Release ausente/presente, três lotes autorizados em cores
+com pixels reais, teclado e 360 px. As fixtures são isoladas, nunca publicadas como resultados reais.
+`npm run test:e2e` executa a entrada e essa mesma cena. O script antigo `testar-pedido.mjs`, com ondas e Pix
+simulados, permanece como referência da fase posterior e não integra a validação atual.
 
 ## Dados
 
@@ -204,19 +202,17 @@ O contrato com o back-end está em `compartilhado/pedidos/tipos.ts` (rotas no co
 trocar), `POST /pedidos/{id}/solicitar-interesse`, `GET /pedidos/{id}/andamento`, `POST /pedidos/{id}/reservar` e
 `GET /pedidos/{id}/reserva`, com o token da sessão no cabeçalho. Com `VITE_RAIZ_API`, as telas falam com essas rotas.
 
-Sem a API, a **resposta de exemplo** (`compartilhado/pedidos/exemplo.ts`) roda no navegador com o mesmo formato, e a
-tela avisa. O lote sai de fazendas aptas de verdade (as que têm contorno em `front/geo/`: hoje São Félix do Xingu e
-Cumaru do Norte). Custo, TIR, chance de cada marco, aceite dos donos e ondas de contato são simulados, com as
-premissas escritas em `PREMISSAS` e em "Ver como calculamos". A mais barata ordena por custo por crédito, a mais
-segura por risco da terra e chance de aceite (e fecha a meta no P10), a mais compacta pelas vizinhas de onde há mais
-crédito. Na busca de interesse, a primeira onda contata mais donos do que a meta pede. Quem recusa ou não responde
-sai, e entram reservas até a meta caber na chance de aceite esperada. A onda é de 20 s no exemplo; o teste de tela
-usa `localStorage["raiz.exemplo.onda_ms"]`. O exemplo guarda os pedidos no navegador, separados por e-mail. O Pix de
-exemplo não é um código de banco e não paga nada.
+Sem API, `scripts/baixar-lotes.mjs` lê o ponteiro `lote_PA_central_r11.json` do Release `dados`, publicado
+pelo fluxo `restauracao_rodada`. `RAIZ_LOTES` escolhe a pasta de entrada (padrão `dados/lotes`, ignorada pelo git).
+O plugin de build projeta somente agregados para `amostra/lote_PA_central_r11.json`: não copia CARs, matrículas,
+folhas de contato ou os pacotes individuais. Ausência de publicação gera aviso com a cobertura territorial real;
+falhas de rede/formato interrompem a publicação. O cenário é uma referência: mudar teto de custo ou outro filtro
+exige recálculo pela API. Dado desconhecido permanece desconhecido, inclusive nos totais suprimidos.
 
-Exclusividade: fazenda reservada por outro cliente some do mapa do município, da lista, da ficha, da busca e de todo
-lote (`compartilhado/pedidos/exclusividade.ts`; no exemplo, cerca de 1,5% das fazendas). Com a API, quem esconde é o
-servidor. A ficha do produtor não passa por essa camada: o dono sempre vê a própria fazenda.
+As três opções têm cores e traços diferentes. Na API, a geometria vem junto do item apenas quando a ficha já foi
+desbloqueada pelo mesmo cliente ativo; a autorização e a exclusividade são revalidadas a cada leitura. Consultar
+o mapa não gera débito novo. Sem desenho autorizado, a tela mostra aviso e nunca busca contornos privados no Pages.
+A simulação antiga continua exportada somente para testes explícitos, sem ser o padrão da aplicação.
 
 ## Regras que as telas seguem
 

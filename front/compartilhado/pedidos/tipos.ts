@@ -17,6 +17,8 @@
  * dono: o contato passa pela Raíz. Fazenda reservada por outro cliente nunca aparece em resposta de outro cliente.
  */
 
+import type { Geo } from "../dados/tipos"
+
 /** O que conta na meta. */
 export type TipoMeta = "creditos" | "hectares" | "flag_t_ano"
 export type Cronograma = "profloresta" | "livre" | "proprio"
@@ -113,6 +115,8 @@ export interface FazendaDoLote {
   trocou?: string | null
   lon: number
   lat: number
+  /** Somente quando a API autorizar o detalhe dessa fazenda; não buscar o conjunto público para contornar o portão. */
+  geometria?: Geo["features"][number]["geometry"] | null
 }
 
 export interface Marco {
@@ -191,6 +195,58 @@ export interface Pedido {
   versao_modelo: string
   /** true na resposta de exemplo (sem back-end): a tela avisa */
   exemplo?: boolean
+  /** Consulta pública ao cenário publicado. Não é uma execução do pedido nem libera detalhes das fazendas. */
+  publicacao?: PublicacaoLote
+}
+
+export interface DestravadorPublicado {
+  tipo: "salvaguarda" | "regularizacao" | "certidao"
+  texto: string
+  fazendas: number | null
+  hectares: number | null
+  /** P50 informado na regularização; nunca é um ganho adicional que se possa somar. */
+  creditos: number | null
+  creditos_faixa: Faixa | null
+  /** Uma fazenda pode constar em várias pendências, inclusive nas duas fontes do quadro. */
+  somavel: false
+}
+
+/** Métricas publicadas pelo chat Lote e números; ausência permanece nula. */
+export interface OpcaoPublicada {
+  id: IdOpcao
+  creditos: Faixa | null
+  /** TIR alavancada do fluxo agregado, em fração ao ano; não é média das TIRs das fazendas. */
+  tir_p50: number | null
+  custo_usd_credito: number | null
+  hectares: number | null
+  fazendas: number | null
+  pequenas: number | null
+  reservas: number | null
+  pendencias_terra: { caminho: CaminhoTerra; fazendas: number | null; hectares: number | null }[]
+  destrava: DestravadorPublicado[]
+  o_que_falta: string[]
+}
+
+export interface PublicacaoLote {
+  estado: "ausente" | "publicado"
+  aviso: string
+  fonte: string
+  atualizado_em: string | null
+  cenario: string
+  modelo_versao: string | null
+  uf: string
+  volume_creditos: number | null
+  preco_contrato_usd: number | null
+  /** O snapshot publicado é referência; filtros novos exigem uma execução autenticada do solver. */
+  pedido_recalculado: false
+  base: {
+    fazendas: number | null
+    hectares: number | null
+    creditos: { p10: number | null; p50: number | null; p90: number | null }
+    observacao: string
+  }
+  cobertura: { municipios: number | null; estados: number | null; fazendas: number | null; hectares: number | null; observacao?: string }
+  opcoes: OpcaoPublicada[]
 }
 
 export interface ResumoPedido {
@@ -253,9 +309,10 @@ export interface Cobranca {
   /** a reserva é abatida da conexão por hectare quando o contrato fecha */
   abatimento: string
   /** null antes de pedir a reserva (GET /reserva devolve só o valor e o prazo) */
-  pix: { copia_e_cola: string; expira_em: string } | null
+  pix: { copia_e_cola: string; expira_em: string | null } | null
   pago: boolean
   reservado_ate: string | null
+  modo_teste?: boolean
   exemplo?: boolean
 }
 
