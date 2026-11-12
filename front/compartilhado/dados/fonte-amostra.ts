@@ -15,6 +15,7 @@ import { funilDosImoveis, lerFunil, lerImovel } from "./funil"
 import type { CamadaGeo, FunilMunicipio, Geo, Imovel } from "./tipos"
 
 interface IndiceGeo {
+  brasil?: Partial<Record<"municipios" | "base", { arquivo: string; bytes: number }>>
   municipios: Record<string, Partial<Record<CamadaGeo | "base", { arquivo: string; bytes: number }>>>
 }
 
@@ -24,7 +25,12 @@ export function fonteAmostra(base = "/"): FonteDeDados {
   const urlGeo = (arq: string) => `${raiz}geo/${arq}`
 
   const indice = memo(async () => (await buscarJson<{ arquivos: string[] }>(urlAmostra("indice.json")))?.arquivos ?? [])
-  const indiceGeo = memo(async () => (await buscarJson<IndiceGeo>(urlGeo("indice.json")))?.municipios ?? {})
+  const indiceCompleto = memo(async () => (await buscarJson<IndiceGeo>(urlGeo("indice.json"))) ?? { municipios: {} })
+  const indiceGeo = async (_: string) => (await indiceCompleto("")).municipios
+  const pontos = memo(async () => {
+    const r = await buscarJson<{ pontos: [number, number, "apta" | "pendencia", number, string][] }>(urlAmostra("pontos.json"))
+    return (r?.pontos ?? []).map(([lon, lat, situacao, ha, cod_ibge]) => ({ lon, lat, situacao, ha, cod_ibge }))
+  })
 
   const csv = memo(async (arq: string) => {
     const t = await buscarTexto(urlAmostra(arq))
@@ -105,8 +111,16 @@ export function fonteAmostra(base = "/"): FonteDeDados {
       const todos = (await Promise.all(comImoveis.map((c) => imoveis(c)))).flatMap((l) => l ?? [])
       return buscar(q, { municipios: await municipios(""), imoveis: todos, comImoveis: new Set(comImoveis) })
     },
+    pontos: () => pontos(""),
     municipiosComImoveis,
     geo: {
+      async brasil() {
+        const b = (await indiceCompleto("")).brasil ?? {}
+        return {
+          municipios: b.municipios ? await buscarJson<Geo>(urlGeo(b.municipios.arquivo)) : null,
+          base: b.base ? new URL(urlGeo(b.base.arquivo), location.href).href : null,
+        }
+      },
       async camada(cod, camada) {
         const item = (await indiceGeo(""))[cod]?.[camada]
         return item ? buscarJson<Geo>(urlGeo(item.arquivo)) : null

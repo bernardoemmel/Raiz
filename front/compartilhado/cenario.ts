@@ -92,7 +92,7 @@ export function caixaDeFatos(i: Imovel): CaixaDeFatos {
   ]
   if (taxa)
     notas.push(
-      `Captura de ${String(taxa).replace(".", ",")} tCO₂ por hectare por ano (região ${i.regiao_carbono ?? "—"}), a taxa que o motor usa para mata que volta sozinha.`,
+      `Captura de ${String(taxa).replace(".", ",")} tCO₂ por hectare por ano${i.regiao_carbono ? ` (região ${i.regiao_carbono})` : ""}, a taxa que o motor usa para mata que volta sozinha.`,
     )
   if (!i.apta)
     notas.push(

@@ -1,8 +1,11 @@
+import { Check, CircleAlert, TriangleAlert, WifiOff, X } from "lucide-preact"
 import { useEffect, useRef, useState } from "preact/hooks"
 import { BASE_HA, caixaDeFatos, PRAZO_ANOS } from "../../compartilhado/cenario"
 import { boisPorAno, camposDeFutebol } from "../../compartilhado/comparacoes"
 import { escolherFonte, type Ficha as DadosFicha } from "../../compartilhado/dados"
-import { abreviarCar, fmtCompacto, fmtInt, fmtPct, UFS } from "../../compartilhado/formato"
+import { abreviarCar, fmtCompacto, fmtDestaque, fmtInt, fmtPct, UFS } from "../../compartilhado/formato"
+import { COR, MAPA } from "../../compartilhado/cores"
+import { svgMiniBrasil } from "../../compartilhado/mini-brasil"
 import { motivos } from "../../compartilhado/motivos"
 import { situacaoTitulo } from "../../compartilhado/titulo"
 
@@ -46,8 +49,8 @@ function Contorno({ aneis }: { aneis: [number, number][][] }) {
     .join("")
   return (
     <svg viewBox={`0 0 ${L} ${A}`} role="img" aria-label="Contorno da fazenda no CAR">
-      <rect width={L} height={A} fill="#e5ebdf" />
-      <path d={d} fill="#1d5a39" fill-opacity=".22" stroke="#1d5a39" stroke-width="2.5" stroke-linejoin="round" />
+      <rect width={L} height={A} fill={MAPA.terra} />
+      <path d={d} fill={COR.mata} fill-opacity=".22" stroke={COR.tinta} stroke-width="2.5" stroke-linejoin="round" />
     </svg>
   )
 }
@@ -59,7 +62,10 @@ function MapaSobDemanda({ ficha }: { ficha: DadosFicha }) {
     setEstado("carregando")
     try {
       // MapLibre e PMTiles só chegam aqui, no toque
-      const [{ montarMapa }, base] = await Promise.all([import("./mapa"), fonte.geo.base(ficha.imovel.cod_ibge)])
+      const [{ montarMapa }, base] = await Promise.all([
+        import("./mapa"),
+        fonte.geo.brasil().then(async (b) => b.base ?? (await fonte.geo.base(ficha.imovel.cod_ibge))),
+      ])
       setEstado("aberto")
       requestAnimationFrame(() => caixa.current && montarMapa(caixa.current, ficha.aneis, base))
     } catch {
@@ -76,6 +82,27 @@ function MapaSobDemanda({ ficha }: { ficha: DadosFicha }) {
       </button>
       <p class="miudo">{estado === "erro" ? "Não deu para abrir o mapa agora. Tente de novo com sinal melhor." : "O mapa usa mais internet; o desenho acima não gasta nada."}</p>
     </>
+  )
+}
+
+/** Onde fica, numa linha: o mini mapa do Brasil (64 px) com o ponto no município e a frase (guia, item 2.1, parte 8). */
+function OndeFica({ ficha }: { ficha: DadosFicha }) {
+  const i = ficha.imovel
+  const c = ficha.caixa
+  const svg = svgMiniBrasil({
+    uf: i.uf,
+    lon: c ? (c[0] + c[2]) / 2 : null,
+    lat: c ? (c[1] + c[3]) / 2 : null,
+    titulo: `Mapa do Brasil com o ponto em ${i.municipio}`,
+  })
+  const estado = UFS[i.uf] ?? i.uf
+  return (
+    <p class="onde-fica">
+      <span class="mini-brasil" dangerouslySetInnerHTML={{ __html: svg }} />
+      <span>
+        Fica em {i.municipio}, {estado === "Pará" ? "no Pará" : `em ${estado}`}.
+      </span>
+    </p>
   )
 }
 
@@ -106,8 +133,13 @@ function SemCodigo() {
 export function Ficha() {
   const car = new URLSearchParams(location.search).get("car")
   const [ficha, setFicha] = useState<DadosFicha | null | undefined>(undefined)
+  const [falhou, setFalhou] = useState(false)
   useEffect(() => {
-    if (car) fonte.ficha(car).then(setFicha, () => setFicha(null))
+    if (car)
+      fonte.ficha(car).then(setFicha, () => {
+        setFalhou(true)
+        setFicha(null)
+      })
   }, [car])
 
   const topo = (
@@ -127,7 +159,26 @@ export function Ficha() {
       <>
         {topo}
         <main>
-          <p class="lead">Carregando a ficha…</p>
+          <p class="estado">
+            <span class="girando" aria-hidden="true" /> Carregando a ficha da sua fazenda.
+          </p>
+        </main>
+      </>
+    )
+  if (ficha === null && falhou)
+    return (
+      <>
+        {topo}
+        <main>
+          <h1>{navigator.onLine === false ? "Sem internet agora" : "Não deu para abrir a ficha"}</h1>
+          <p class="aviso">
+            {navigator.onLine === false ? <WifiOff size={24} aria-hidden="true" /> : <CircleAlert size={24} aria-hidden="true" />}
+            <span>
+              {navigator.onLine === false
+                ? "Quando o sinal voltar, abra o link de novo. A ficha fica guardada no celular depois da primeira vez."
+                : "Tente de novo daqui a pouco. Se continuar, fale com a Raíz."}
+            </span>
+          </p>
         </main>
       </>
     )
@@ -164,7 +215,7 @@ export function Ficha() {
       {topo}
       <main>
         <p class="onde">
-          {i.municipio} ({UFS[i.uf] ?? i.uf}) · CAR <code>{abreviarCar(i.cod_imovel)}</code>
+          {i.municipio}, {UFS[i.uf] ?? i.uf}. Cadastro Ambiental Rural (CAR) {abreviarCar(i.cod_imovel)}
         </p>
         {i.apta ? (
           <>
@@ -193,7 +244,7 @@ export function Ficha() {
           <section class="cartao">
             <h2>Se a mata voltar</h2>
             <p>Por ano, ela tira do ar cerca de</p>
-            <p class="grande num">{numero(i.carbono_tco2_ano)} toneladas de gás carbônico</p>
+            <p class="grande num">{fmtDestaque(i.carbono_tco2_ano)} toneladas de gás carbônico</p>
             <p>É como sumir com {boisPorAno(i.carbono_tco2_ano)}.</p>
             <p class="miudo">Conta bruta, antes dos descontos que todo projeto de carbono faz.</p>
           </section>
@@ -256,9 +307,13 @@ export function Ficha() {
           <ul class="lista">
             {lista.map((m) => (
               <li key={m.id} class={m.ok ? "ok" : m.bloqueia ? "ruim" : "atencao"}>
-                <span class="icone" aria-hidden="true">
-                  {m.ok ? "✓" : m.bloqueia ? "✕" : "!"}
-                </span>
+                {m.ok ? (
+                  <Check size={24} class="icone" aria-hidden="true" />
+                ) : m.bloqueia ? (
+                  <X size={24} class="icone" aria-hidden="true" />
+                ) : (
+                  <TriangleAlert size={24} class="icone" aria-hidden="true" />
+                )}
                 <span>
                   {m.texto}
                   <br />
@@ -271,6 +326,7 @@ export function Ficha() {
 
         <section class="cartao">
           <h2>Onde fica</h2>
+          <OndeFica ficha={ficha} />
           <MapaSobDemanda ficha={ficha} />
         </section>
 

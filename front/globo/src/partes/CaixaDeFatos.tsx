@@ -18,6 +18,7 @@ export function CaixaDeFatos({ imovel }: { imovel: Imovel }) {
           A cada <strong>{BASE_HA} ha</strong> deste imóvel, em <strong>{PRAZO_ANOS} anos</strong>
         </p>
       </header>
+      <div className="tabela-rolagem">
       <table>
         <thead>
           <tr>
@@ -56,6 +57,7 @@ export function CaixaDeFatos({ imovel }: { imovel: Imovel }) {
           })}
         </tbody>
       </table>
+      </div>
       <ul className="fatos-notas">
         {c.notas.map((n) => (
           <li key={n}>{n}</li>
