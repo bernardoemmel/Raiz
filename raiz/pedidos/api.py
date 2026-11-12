@@ -68,9 +68,15 @@ def roteador_cliente(engine_de: Callable) -> APIRouter:
     @r.post("/entrar")
     def entrar(corpo: PedidoEntrar, request: Request) -> dict:
         try:
-            S.pedir_link(engine_de(request), corpo.email, str(request.headers.get("origin") or ""))
+            from raiz.publica.email_login import ErroEnvioLogin, origem_front
+
+            if S.ENVIO_LINK is None:
+                raise HTTPException(503, "envio de login por e-mail indisponível")
+            S.pedir_link(engine_de(request), corpo.email, origem_front())
         except S.ErroPedido as ex:
             raise _erro(ex) from ex
+        except (ValueError, ErroEnvioLogin):
+            raise HTTPException(503, "envio de login por e-mail indisponível") from None
         return {"enviado": True}
 
     @r.post("/entrar/confirmar")
