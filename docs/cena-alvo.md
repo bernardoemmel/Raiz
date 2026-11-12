@@ -5,19 +5,27 @@ Todo chat que constrói a Raíz confere se o seu trabalho aproxima esta cena. Se
 ## A cena
 
 1. O cliente (desenvolvedor de restauração, empresa com meta FLAG, frigorífico, fundo ou banco) entra na **área logada**.
-2. Faz um **pedido**: "preciso de uma área que entregue 1 milhão de créditos líquidos, no Pará, na Amazônia,
-   no cronograma do ProFloresta+, com custo de até US$ X por crédito".
-3. Em menos de 1 minuto, o **mapa mostra o melhor agrupamento de fazendas** que atende o pedido, com 3 opções lado a lado:
+2. Faz um **pedido**: "preciso de 1 milhão de créditos líquidos (toneladas de CO2), no Pará, na Amazônia, no cronograma
+   do ProFloresta+, com custo de até US$ X por crédito, só fazendas com tal especificação".
+3. A Raíz filtra o mapa inteiro e responde na hora **"quanto existe na nossa base"**: fazendas, hectares e créditos
+   líquidos P10/P50/P90 que atendem o pedido, separados por caminho da terra e por interesse do dono. Se a base não
+   alcança a meta, mostra o quanto falta e o que afrouxar.
+4. O mapa mostra o **melhor agrupamento** em 3 opções lado a lado:
    - **mais barata** (menor custo líquido por crédito);
-   - **mais segura** (menos risco de terra e mais chance de cumprir os marcos);
+   - **mais segura** (menos risco de terra, mais chance de cumprir os marcos e de aceite do dono);
    - **mais compacta** (fazendas vizinhas, logística e vazamento menores).
-4. Cada opção mostra: créditos líquidos P10/P50/P90, hectares, número de fazendas (pequenas agrupadas, nunca descartadas),
-   modo de restauração por fazenda, TIR, custo por crédito, pico de caixa, chance de cumprir cada marco e multa esperada,
-   mistura do caminho da terra (matrícula conferida, posse em titulação, assentamento, concessão) e **fazendas de reserva**
-   (10 a 20% a mais, para quando um dono não aceitar).
-5. O cliente troca uma fazenda à mão, salva o pedido e clica em **"pedir contato com os donos"**.
-6. A Raíz aborda os donos, colhe o aceite e cobra a conexão por hectare. O pedido salvo vira **alerta**: quando surge
-   fazenda que melhora o lote, ou quando uma do lote tem desmatamento, embargo ou matrícula cancelada, o cliente é avisado.
+   Cada opção mostra: créditos líquidos P10/P50/P90, hectares, número de fazendas (pequenas agrupadas, nunca
+   descartadas), modo de restauração por fazenda, TIR, custo por crédito, pico de caixa, chance de cumprir cada marco e
+   multa esperada, mistura do caminho da terra e **fazendas de reserva**.
+5. O cliente clica em **"solicitar interesse dos donos"**.
+6. A Raíz contata os donos **em ondas**, bem mais fazendas do que a meta pede (a quantidade sai da chance de aceite
+   estimada), e vai trocando quem recusa, até **fechar um grupo com interesse que atende o pedido**.
+7. Quando o grupo fecha, o cliente recebe a **notificação "grupo pronto"** (painel, e-mail e WhatsApp).
+8. O cliente paga a **reserva do grupo** (Pix). Durante o prazo de exclusividade, essas fazendas ficam **invisíveis para
+   os outros clientes** e o cliente negocia com elas pela Raíz. A reserva é abatida da conexão por hectare quando o
+   contrato fecha; se o prazo vence sem contrato, o grupo volta para a base.
+9. O pedido salvo vira **alerta**: fazenda nova que melhora o lote, ou fazenda do grupo com desmatamento, embargo ou
+   matrícula cancelada.
 
 ## Interesse do dono: filtro e busca de aceite
 
@@ -35,7 +43,10 @@ Cada fazenda tem um **nível de interesse do dono**, que só sobe com registro (
    quantos recusaram e por quê (sem nome nem CPF).
 4. Quem contata: o agente de contato da Raíz (WhatsApp, carta e e-mail, com roteiro e termo LGPD) e, quando precisa de
    visita, parceiro local credenciado com o app da Raíz. Nunca o cliente direto: o contato passa pela Raíz.
-5. Cobrança: a conexão por hectare é cobrada sobre o grupo que aceitou.
+5. Cobrança: reserva do grupo (Pix, com prazo de exclusividade) quando o grupo fecha, abatida da conexão por hectare
+   cobrada sobre o grupo que assinou.
+7. Exclusividade: fazenda reservada sai de todas as buscas e pedidos de outros clientes até o prazo vencer ou o
+   contrato fechar. Uma fazenda nunca está em duas reservas ao mesmo tempo.
 6. Aprendizado: cada contato guarda o resultado; a chance de aceite por perfil de fazenda (tamanho, caminho da terra,
    região, pagamento oferecido) entra no otimizador, que passa a preferir lotes com mais chance de fechar.
 
