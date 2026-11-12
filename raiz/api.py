@@ -242,6 +242,12 @@ def criar_app(
     app.include_router(pedidos_api.roteador_cliente(_engine_do_app))
     app.include_router(pedidos_api.roteador_interno(_engine_do_app), dependencies=seguro)
     app.include_router(pedidos_api.roteador_webhook(_engine_do_app))
+    # backoffice do fundador, só leitura (saúde, custo do mês contra orçamento, filas, logs por fazenda) e
+    # reconhecimento dos alertas de operação (raiz/operacao/backoffice.py, raiz/operacao/alertas.py)
+    from raiz.operacao import backoffice
+
+    app.include_router(backoffice.roteador(_engine_do_app), dependencies=seguro)
+    app.include_router(backoffice.roteador_publico())
     # vigilância das fazendas e dos projetos (raiz/vigilancia): alertas por imóvel, perdas de projeto com o prazo da
     # Verra, rascunho do relatório de perda, avisos e marcação verdadeiro/falso. Lê o estado publicado no Release
     # vigilancia (parte privada com RAIZ_VIGILANCIA_CHAVE), não o PostGIS

@@ -25,6 +25,12 @@ class Config(BaseSettings):
     healthchecks_url: str = "https://hc-ping.com"
     healthchecks_chave_ping: SecretStr | None = None
     healthchecks_modelo_slug: str = "raiz-{tarefa}"  # campos: {tarefa}, {uf}, {cod}
+    # escalonamento dos alertas de operação (raiz/operacao/alertas.py): ntfy (aplicativo no celular) e, havendo
+    # segunda pessoa de plantão, GoAlert. Sem tópico nem URL, o envio é simulado e fica registrado no alerta.
+    ntfy_url: str = "https://ntfy.sh"
+    ntfy_topico: SecretStr | None = None  # o nome do tópico funciona como senha: escolher um longo e aleatório
+    ntfy_token: SecretStr | None = None
+    goalert_url: SecretStr | None = None  # URL da integração genérica (já traz o token)
     # pasta onde o motor trabalha (cache/, saida/, mapbiomas/...); padrão: motor/
     motor_dir_trabalho: str | None = None
     # espelho local da coleta (E1), em Parquet por município: <espelho>/car/<UF>/<mun>.parquet, sigef/...

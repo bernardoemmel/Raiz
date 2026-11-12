@@ -1,0 +1,34 @@
+# Escalonamento dos alertas de operação (E7 passo 9). Quem opera sozinho precisa saber na hora quando algo parou.
+# Mudou este arquivo, muda a versão (nome + hash), gravada em cada alerta.
+nome: alertas-2026.11a
+
+# Escada: alerta não reconhecido sobe de nível depois de N minutos desde que abriu.
+#   ntfy                aplicativo no celular (tópico em RAIZ_NTFY_TOPICO); sem tópico, envio simulado e registrado
+#   segunda_pessoa      GoAlert (RAIZ_GOALERT_URL) quando houver uma segunda pessoa de plantão; sem ele, ntfy urgente
+niveis:
+  - {nivel: 0, canal: ntfy, prioridade: 3, depois_min: 0}
+  - {nivel: 1, canal: ntfy, prioridade: 5, depois_min: 30}
+  - {nivel: 2, canal: segunda_pessoa, prioridade: 5, depois_min: 120}
+# o último nível se repete enquanto ninguém reconhece, até o limite de envios
+repetir_ultimo_min: 240
+max_envios: 8
+
+# até onde cada gravidade sobe
+teto_por_gravidade:
+  aviso: 0
+  urgente: 1
+  critico: 2
+
+# o que vira alerta (coletar() em raiz/operacao/alertas.py)
+regras:
+  lote_falhou: {gravidade: aviso, janela_horas: 24}
+  lote_travado: {gravidade: urgente, horas: 6}
+  orcamento: {aviso_pct: 80, urgente_pct: 100}
+  vigilancia_atrasada: {gravidade: urgente, dias: 1}
+  vigilancia_fonte_com_erro: {gravidade: aviso}
+  # prazo da Verra num evento de perda de projeto (raiz/vigilancia/perdas.py)
+  verra_aviso_urgente: {gravidade: critico}
+  verra_prazo_vencido: {gravidade: critico}
+  revisao_parada: {gravidade: aviso, horas: 24}
+  mensagem_esperando_aprovacao: {gravidade: aviso, horas: 12}
+  pedido_fazenda_com_problema: {gravidade: urgente}
