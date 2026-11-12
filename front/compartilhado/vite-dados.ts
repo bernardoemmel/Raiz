@@ -30,8 +30,10 @@ import path from "node:path"
 import zlib from "node:zlib"
 import { buscar } from "./dados/busca"
 import { montarFicha } from "./dados/ficha"
+import { funilDosImoveis } from "./dados/funil"
 import { UFS } from "./formato"
 import { abrirPasta, nomeSeguro, pastaPadrao } from "./pasta-dados"
+import { paginasAgentes } from "./paginas-agentes"
 
 interface Requisicao {
   url?: string
@@ -53,17 +55,21 @@ const TIPOS: Record<string, string> = {
   ".geojson": "application/geo+json; charset=utf-8",
   ".pmtiles": "application/octet-stream",
   ".pbf": "application/x-protobuf",
+  ".gz": "application/gzip",
 }
 
 /** repo: raiz do repositório; raizDados e cache só para teste (o normal é ler RAIZ_DADOS do ambiente ou do .env) */
 export function dadosRaiz(opcoes: { repo: string; raizDados?: string | null; cache?: string }) {
+  const geo = path.resolve(opcoes.repo, process.env.RAIZ_GEO || "front/geo")
   const pasta = abrirPasta({
     repo: opcoes.repo,
     raizDados: opcoes.raizDados !== undefined ? opcoes.raizDados : pastaPadrao(opcoes.repo),
     cache: opcoes.cache,
+    geo,
   })
-  const geo = path.join(opcoes.repo, "front", "geo")
   let saida = "dist"
+  let base = "/"
+  let produtor = false
   // o Vite chama closeBundle também ao fechar o servidor (e o Vitest fecha um no fim): só grava no vite build
   let construindo = false
 
@@ -152,9 +158,11 @@ export function dadosRaiz(opcoes: { repo: string; raizDados?: string | null; cac
 
   return {
     name: "raiz-dados",
-    configResolved(config: { root: string; command: string; build: { outDir: string } }) {
+    configResolved(config: { root: string; command: string; base?: string; build: { outDir: string } }) {
       saida = path.resolve(config.root, config.build.outDir)
       construindo = config.command === "build"
+      produtor = path.basename(config.root) === "produtor"
+      base = produtor ? (process.env.RAIZ_BASE || "/Raiz/") : (config.base || "/")
     },
     configureServer(server: Servidor) {
       const ufs = pasta.ufs()
@@ -194,6 +202,7 @@ export function dadosRaiz(opcoes: { repo: string; raizDados?: string | null; cac
           pasta.foraDoMunicipio(m[1]).then((t) => json(req, res, t), falhou)
           return
         }
+        if (url === "/amostra/fichas/indice.json") return json(req, res, { municipios: [], codigos: [] })
         if ((m = /^\/amostra\/fichas\/([\w-]+)\.json$/.exec(url))) {
           pasta.ficha(m[1]).then((f) => (f ? json(req, res, f) : naoAchou(res)), falhou)
           return
@@ -222,12 +231,33 @@ export function dadosRaiz(opcoes: { repo: string; raizDados?: string | null; cac
       })
     },
     async closeBundle() {
-      if (!construindo || !fs.existsSync(saida) || process.env.RAIZ_BUILD_DADOS === "0") return
+      if (!construindo || !fs.existsSync(saida)) return
+      const comDados = !produtor && process.env.RAIZ_BUILD_DADOS !== "0"
+      const municipios = comDados ? pasta.municipios() : []
+      if (comDados) {
+        const conhecidos = new Set(municipios.map((m) => m.cod_ibge))
+        for (const uf of pasta.ufs()) {
+          for (const cod of pasta.comImoveis(uf)) {
+            if (conhecidos.has(cod)) continue
+            const m = pasta.municipio(cod)
+            if (m) municipios.push(funilDosImoveis(m.imoveis, cod, m.imoveis[0]?.municipio || cod, uf))
+          }
+        }
+      }
+      paginasAgentes({
+        saida, base, produtor, siteUrl: process.env.RAIZ_SITE_URL,
+        ...(comDados ? { catalogo: { estados: pasta.estados(), municipios, arquivos: Object.fromEntries(pasta.ufs().map((uf) => [uf, pasta.arquivos(uf)])) } } : {}),
+      })
+      if (!comDados) return
       const dAmostra = path.join(saida, "amostra")
       const dFichas = path.join(dAmostra, "fichas")
       fs.mkdirSync(dFichas, { recursive: true })
       let csvs = 0
       let n = 0
+      const fichasMunicipios: string[] = []
+      const fichasCodigos: string[] = []
+      const limiteFichas = Number(process.env.RAIZ_FICHAS_LIMITE ?? 10000)
+      if (!Number.isSafeInteger(limiteFichas) || limiteFichas < 0) throw new Error("RAIZ_FICHAS_LIMITE inválido")
       for (const uf of pasta.ufs()) {
         const arquivos = pasta.arquivos(uf)
         for (const f of arquivos) {
@@ -239,22 +269,40 @@ export function dadosRaiz(opcoes: { repo: string; raizDados?: string | null; cac
         fs.writeFileSync(path.join(dAmostra, `car_${uf}.json`), JSON.stringify(await pasta.foraDoMunicipio(uf)))
         // ficha pronta só onde há o contorno das fazendas (as outras o navegador monta dos CSV do município)
         for (const cod of pasta.comImoveis(uf)) {
-          if (!fs.existsSync(path.join(geo, `imoveis_${cod}.geojson`))) continue
+          if (n >= limiteFichas) break
+          if (![".geojson", ".geojson.gz"].some((ext) => fs.existsSync(path.join(geo, `imoveis_${cod}${ext}`)))) continue
+          if (n + pasta.quantidadeImoveis(cod) > limiteFichas) continue
           const m = pasta.municipio(cod)
           if (!m) continue
+          fichasMunicipios.push(cod)
           for (const i of m.imoveis) {
             fs.writeFileSync(
               path.join(dFichas, `${i.cod_imovel}.json`),
               JSON.stringify(montarFicha(i, m.imoveis, m.geo.get(i.cod_imovel), m.base)),
             )
+            fichasCodigos.push(i.cod_imovel)
             n++
           }
         }
       }
+      fs.writeFileSync(path.join(dFichas, "indice.json"), JSON.stringify({ municipios: fichasMunicipios, codigos: fichasCodigos }))
       fs.writeFileSync(path.join(dAmostra, "estados.json"), JSON.stringify(pasta.estados()))
       const dGeo = path.join(saida, "geo")
       fs.mkdirSync(dGeo, { recursive: true })
-      for (const f of listar(geo)) fs.copyFileSync(path.join(geo, f), path.join(dGeo, f))
+      // Só os arquivos publicados no índice; cache, fontes temporárias e bases antigas não vão ao Pages.
+      const indiceGeo = path.join(geo, "indice.json")
+      const publicados = new Set<string>(["indice.json"])
+      function coletarArquivos(valor: unknown): void {
+        if (!valor || typeof valor !== "object") return
+        for (const [chave, item] of Object.entries(valor)) {
+          if (chave === "arquivo" && typeof item === "string" && nomeSeguro(item)) publicados.add(item)
+          else coletarArquivos(item)
+        }
+      }
+      if (fs.existsSync(indiceGeo)) {
+        coletarArquivos(JSON.parse(fs.readFileSync(indiceGeo, "utf8")))
+        for (const f of publicados) fs.copyFileSync(path.join(geo, f), path.join(dGeo, f))
+      }
       if (fs.existsSync(path.join(geo, "fontes")))
         fs.cpSync(path.join(geo, "fontes"), path.join(dGeo, "fontes"), { recursive: true })
       const de = path.relative(opcoes.repo, pasta.dir) || pasta.dir

@@ -15,7 +15,8 @@ Três telas, lendo as saídas do motor pelo nome das colunas (`docs/colunas.md`)
 
 ```bash
 pip install requests shapely pmtiles
-python front/scripts/geo.py 1507300 1504950
+node front/scripts/baixar-dados.mjs --geo --exigir
+python front/scripts/geo.py --dados dados/estados
 ```
 
 ```bash
@@ -78,23 +79,38 @@ Tudo passa por `compartilhado/dados/` (`FonteDeDados`). As telas não sabem de o
 
   O `vite build` grava os dados em `dist/` do jeito que cabe num site estático: os CSV limpos e comprimidos
   (`.csv.gz`, que o navegador descomprime), os estados, os pontos e os códigos fora do município de cada estado, e as
-  fichas prontas só dos municípios com contorno (as outras o navegador monta dos CSV do município, com a mesma função
-  do plugin e do back-end). Com os 6 estados publicados hoje, o site tem 303 MB e 12.620 arquivos. `RAIZ_BUILD_DADOS=0`
-  não grava dado nenhum; `RAIZ_BASE` muda o caminho do site; `VITE_RAIZ_DADOS_BASE` faz um app ler os dados de outra
+  fichas prontas até o limite `RAIZ_FICHAS_LIMITE` (10 mil por padrão, municípios inteiros). As demais são montadas
+  no navegador com os CSV e geometrias gzip, sem excluir fazendas. O manifesto evita buscar fichas inexistentes.
+  O build publica só as geometrias do índice e barra o site acima de 950 MB. `RAIZ_BUILD_DADOS=0`
+  não grava tabelas nem geometrias, mas mantém as páginas explicativas em Markdown; `RAIZ_BASE` muda o caminho do site; `VITE_RAIZ_DADOS_BASE` faz um app ler os dados de outra
   pasta (a ficha do produtor no site lê os do painel).
 
 ## Site público (GitHub Pages)
 
 `.github/workflows/publicar-site.yml` publica o painel em https://bernardoemmel.github.io/Raiz/ e a ficha do produtor
 em https://bernardoemmel.github.io/Raiz/produtor/?car=<código do CAR>. Roda a cada mudança do front na main, todo dia
-(dados novos do motor) e quando alguém dispara. O build baixa o Release "dados" com `baixar-dados.mjs`, gera o que falta
-do mapa com `geo.py` (guardado em cache entre as rodadas; se um servidor público estiver fora, segue com o resto) e
-publica o resultado. Uma vez só, no repositório: Settings, Pages, Source "GitHub Actions" (o token do Actions não liga
+(dados novos do motor) e quando alguém dispara. O build baixa o Release "dados" com `baixar-dados.mjs --geo --exigir`, exporta os polígonos de todos os
+municípios com `geo.py --dados dados/estados` e gera fundos PMTiles compartilhados por estado. A base nacional
+continua por overzoom; o município cujo desenho não consta no Release recebe aviso. Falha de download ou de
+cobertura da base interrompe a publicação, preservando o site anterior. Uma vez só, no repositório: Settings, Pages, Source "GitHub Actions" (o token do Actions não liga
 o Pages sozinho).
 
 O build do site é um script só, `front/scripts/construir-site.sh` (npm ci, build do painel e da ficha, pasta `site/`).
-O CI de todo PR roda o mesmo script, sem os dados e sem publicar, e o actionlint em `.github/workflows`: lock fora de
-sincronia, front que não compila ou workflow que não abre deixam o PR vermelho antes do merge.
+O CI de todo PR usa dados fictícios isolados em `RAIZ_DADOS`/`RAIZ_GEO`, executa o mesmo build e testa o artefato
+como Pages pelo Playwright (subcaminho `/Raiz/`, busca por Parauapebas, zoom, polígonos coloridos, Range e zero 404).
+Actionlint, lock fora de sincronia e erros de compilação também deixam o PR vermelho.
+
+O site oferece `llms.txt`, `robots.txt` e `index.md` ao lado dos dois HTMLs, com links alternativos. O catálogo em
+`dados/index.md` leva aos Markdown de estados/municípios; `servico.md`, `fontes.md` e `privacidade.md` explicam o
+produto. JSON-LD no HTML lista Dataset somente dos estados publicados, Service e Offer com valores sob proposta.
+`RAIZ_SITE_URL` define a URL canônica em outro domínio. A API aceita `Accept: text/markdown` nas leituras textuais,
+sem alterar autenticação; a ficha pública também oferece `/p/{codigo}.md` com a mesma regra de aceite.
+
+`npm run test:agentes` confere arquivos e links sob `/Raiz/` e roda Lighthouse 13.6.0 (`agentic-browsing`, experimental).
+O portão exige `llms.txt`, árvore de acessibilidade e CLS até 0,1. WebMCP e ARD são apenas relatados. O gatherer busca
+`/llms.txt` na raiz da origem, por isso a auditoria usa outra origem local com o artefato na raiz. No Pages de projeto,
+`/Raiz/robots.txt` não governa a origem: o site da conta precisa publicar também `/robots.txt`, ou usar domínio próprio.
+O relatório local não comprova esses arquivos na raiz pública.
 
 O que funciona sem back-end: o mapa do Brasil por estado, os estados, os municípios, o funil, a tabela, a ficha da
 fazenda e a do produtor, a busca por CAR e por município, e o pedido de lote com a resposta de exemplo (os pedidos

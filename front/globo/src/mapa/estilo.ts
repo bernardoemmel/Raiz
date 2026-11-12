@@ -8,7 +8,8 @@ import { addProtocol, setWorkerUrl, type LayerSpecification, type StyleSpecifica
 import workerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?url"
 import { Protocol } from "pmtiles"
 import { COR, MAPA } from "../../../compartilhado/cores"
-import { ATRIBUICAO_MAPA, CORES_MAPA, FILTRO_PAISES } from "../../../compartilhado/mapa-cores"
+import { CORES_MAPA, FILTRO_PAISES } from "../../../compartilhado/mapa-cores"
+import { fonteMapaBase } from "../../../compartilhado/mapa-base"
 
 let pronto = false
 
@@ -38,7 +39,7 @@ export function estiloBase(base: string | null, opcoes: { rotulos?: boolean } = 
   return {
     version: 8,
     glyphs: glyphs(),
-    sources: { protomaps: { type: "vector", url: "pmtiles://" + base, attribution: ATRIBUICAO_MAPA } },
+    sources: { protomaps: fonteMapaBase(base) },
     layers: camadas,
   }
 }
