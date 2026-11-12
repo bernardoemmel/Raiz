@@ -13,6 +13,12 @@ aprovação é preservada. O limite global também gera telemetria e erros RFC 9
 a ponte interna autenticada não duplica a contagem por IP. O limite por empresa
 continua ativo. O teste Chromium da API paga respeita Retry-After.
 
+Na integração posterior passaram 166 testes de API, MCP, operações e salvaguardas
+em banco novo. O fluxo de navegador respeita também os limites das leituras
+paralelas do grupo; erro de carregamento mostra mensagem e permite tentar de novo.
+A migração do Calendário permanece 0027, seguida da API 0028, salvaguardas 0029 e
+plataforma 0030. As verificações completas do merge ficam registradas nos PRs #45 e #69.
+
 A validação integrada inclui 64 testes de login, segurança e telemetria, 12 das
 salvaguardas e 12 do armazenamento do limitador. O fluxo real no Chromium passou
 com evidências geográficas sintéticas, aprovação humana, QR/vencimento e verificação
