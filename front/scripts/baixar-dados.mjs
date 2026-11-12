@@ -35,16 +35,33 @@ async function baixarJson(url) {
   return r.json()
 }
 
-async function baixarEExtrair(url, uf) {
+async function baixarEExtrair(url, uf, tabelas = false, permiteVazio = false) {
   const r = await fetch(url, { redirect: "follow" })
   if (!r.ok) throw new Error(`${url}: HTTP ${r.status}`)
   const tmp = path.join(os.tmpdir(), `raiz_${uf}_${process.pid}.tar.gz`)
+  const extraido = fs.mkdtempSync(path.join(os.tmpdir(), `raiz_${uf}_`))
   fs.writeFileSync(tmp, Buffer.from(await r.arrayBuffer()))
   try {
     fs.mkdirSync(DESTINO, { recursive: true })
-    execFileSync("tar", ["-xzf", tmp, "-C", DESTINO], { stdio: "inherit" })
+    execFileSync("tar", ["-xzf", tmp, "-C", extraido], { stdio: "inherit" })
+    const origem = path.join(extraido, uf)
+    // O Release também anuncia pacotes tar vazios (algumas dezenas de bytes) de UFs ainda sem municípios.
+    if (permiteVazio && fs.readdirSync(extraido).length === 0) fs.mkdirSync(origem)
+    if (!fs.existsSync(origem)) throw new Error(`pacote de ${uf} sem pasta ${uf}`)
+    const destino = path.join(DESTINO, uf)
+    fs.mkdirSync(destino, { recursive: true })
+    // A publicação passou de tabelas técnicas para cadastro básico. Arquivos retirados do pacote não sobrevivem
+    // no cache, nem fazem município removido voltar à cobertura. Só limpar depois de extrair com sucesso.
+    if (tabelas) {
+      const atuais = new Set(fs.readdirSync(origem))
+      for (const nome of fs.readdirSync(destino)) {
+        if (nome.endsWith(".csv") && !atuais.has(nome)) fs.rmSync(path.join(destino, nome))
+      }
+    }
+    fs.cpSync(origem, destino, { recursive: true })
   } finally {
     fs.rmSync(tmp, { force: true })
+    fs.rmSync(extraido, { recursive: true, force: true })
   }
 }
 
@@ -78,7 +95,7 @@ async function main() {
     try {
       if (l.versao !== r.versao || !fs.existsSync(path.join(DESTINO, uf))) {
         console.log(`[dados] baixando ${rotulo}, ${((r.tamanho || 0) / 1e6).toFixed(0)} MB`)
-        await baixarEExtrair(r.url, uf)
+        await baixarEExtrair(r.url, uf, true, r.municipios === 0)
         l.versao = r.versao
       }
       if (comGeo && r.geo && l.geo?.versao !== r.geo.versao) {

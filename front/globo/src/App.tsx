@@ -10,6 +10,7 @@ const Grupo = lazy(() => import("./telas/Grupo").then((m) => ({ default: m.Grupo
 const MeusPedidos = lazy(() => import("./telas/MeusPedidos").then((m) => ({ default: m.MeusPedidos })))
 const NovoPedido = lazy(() => import("./telas/NovoPedido").then((m) => ({ default: m.NovoPedido })))
 const PedidoTela = lazy(() => import("./telas/PedidoTela").then((m) => ({ default: m.PedidoTela })))
+const Calendario = lazy(() => import("./telas/Calendario").then((m) => ({ default: m.Calendario })))
 
 /**
  * A entrada é o mapa do Brasil, sem abertura: quem chega já vê os estados pintados pelo que a Raíz já leu. Tocar num
@@ -36,6 +37,7 @@ function TelaAtual() {
     return () => observer.disconnect()
   }, [rota])
   const sessao = useSessao()
+  if (rota.tela === "calendario") return <Calendario key={rota.car || "todos"} car={rota.car} />
   if (rota.tela === "fazenda") return <FichaTerra key={`${rota.car}-${sessao?.token ?? "publica"}`} car={rota.car} />
   if (rota.tela === "prospeccao") return <Prospeccao key={sessao?.token ?? "publica"} />
   if (rota.tela === "entrar") return <Entrar token={rota.token} />

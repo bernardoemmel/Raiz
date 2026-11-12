@@ -751,20 +751,24 @@ def indice(
 def municipios_publicados(dados: Path) -> dict[str, Path]:
     """Só municípios com dados por fazenda; a lista vem do Release, nunca de dois códigos fixos."""
     manifesto = dados / "estados.json"
-    ufs = json.loads(manifesto.read_text())["estados"] if manifesto.exists() else UF_IBGE.values()
-    return {
-        f.stem.removeprefix("imoveis_"): f
-        for uf in sorted(ufs)
-        for f in sorted((dados / uf).glob("imoveis_???????.csv"))
-        if f.stem.removeprefix("imoveis_").isdigit()
-    }
+    ufs = json.loads(manifesto.read_text())["estados"] if manifesto.exists() else dict.fromkeys(UF_IBGE.values(), {})
+    publicados = {}
+    for uf, estado in sorted(ufs.items()):
+        # O pacote público novo contém só cadastro básico; nunca ressuscitar CSV técnico do cache anterior.
+        prefixos = ["imoveis_basicos_"] if estado.get("escopo") == "publico_basico" else ["imoveis_", "imoveis_basicos_"]
+        for prefixo in prefixos:
+            for arquivo in sorted((dados / uf).glob(f"{prefixo}???????.csv")):
+                cod = arquivo.stem.removeprefix(prefixo)
+                if cod.isdigit():
+                    publicados[cod] = arquivo
+    return publicados
 
 
 def exportar_geometria(csv_imoveis: Path, cache: dict) -> tuple[int, int]:
     """GeoParquet do próprio Release; expõe só CAR e contorno, preservando inclusive áreas pequenas."""
     import geopandas as gpd
 
-    cod = csv_imoveis.stem.removeprefix("imoveis_")
+    cod = csv_imoveis.stem.rsplit("_", 1)[-1]
     origem = csv_imoveis.with_name(f"geo_{cod}.parquet")
     if not origem.exists():
         raise FileNotFoundError("o Release ainda não contém o desenho deste município")

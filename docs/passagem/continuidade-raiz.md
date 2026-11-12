@@ -33,25 +33,27 @@ Preparação não registra `verra_avisada`; envio e preenchimento cabem exclusiv
 ## O que falta e quem pode concluir
 
 1. **Aviso Verra:** entregue como rascunho ao desenvolvedor cliente; prazo registrado em 15/11/2026 e campos “a preencher pelo proponente”. A Raíz nunca envia. Não há pendência de estado privado URTX.
-2. **E7 passo 8:** cache calibrado da matrícula é responsabilidade deste chat, em implementação. Escore numérico
+2. **E7 passo 8:** cache calibrado da matrícula implementado em `raiz/documentos/certidao/cache.py`. Escore numérico
    por leitura, corte calibrado em gabaritos da leitura integral e risco controlado; sem calibração suficiente,
-   reler. Confiança declarada alta/média/baixa não prova acerto. MAPIE previsto no plano.
+   reler. Confiança declarada alta/média/baixa não prova acerto. MAPIE LTT implementado; ver `docs/cache-matricula.md`. Coletar a amostra real e calibrar antes da ativação.
 3. **E8:** reexecutar motor/outros modelos por fold com scd2 `folds.como_estava`, e sobrevivência do aceite
-   (tempo até aceite; lifelines MIT), em implementação. Não usar camadas de hoje nos folds históricos.
+   (tempo até aceite; lifelines MIT), implementados. Captura automática no executor com banco e seis adaptadores: motor, FLAG, restauração, regularização, triagem e rebanho. Catálogo parcial aceita só modelos com todas as fontes do corte. Actions sem banco ainda não arquiva entradas. Sobrevivência exige 30 contatos reais/5 aceites. Ver `docs/aprendizado-por-tempo.md`. Não usar camadas de hoje nos folds históricos.
 4. **Servidor:** subir llama.cpp/llguidance com GGUF `qwen3-4b-instruct-2507-q4_k_m.gguf`; testar, calibrar 120
    tarefas x 3 tentativas e comparar Haiku. Os cortes de `cascata_cortes.yaml` ficam vazios até avaliação real.
-   Resultado “sem corte, fica na votação” é válido se o acerto retido não atingir 95%. Rodada local em validação;
-   produção sem acesso neste ambiente. Relatório de avaliação fica fora do git; cortes reais em PR próprio.
+   Resultado “sem corte, fica na votação” é válido se o acerto retido não atingir 95%. Build local corrigido e validado (b12300/llguidance, Rust 1.100.0, JSON real Qwen); calibração real concluída em 12/11/2026: 120 tarefas × 3, nenhuma falha técnica, 67,92% de acerto em intenção e 43,33% em compreensão. Nenhum corte atingiu 95%; YAML real mantém cortes vazios e votação. Relatório e hashes em `docs/operacao.md`; evidência bruta fora do git. Produção sem acesso; comparação Haiku pendente por ausência de credencial local.
 5. **Cron operacional:** `uv run raiz operacao alertas` a cada 15 minutos; sem ntfy/GoAlert, simulado e registrado.
-   Este ambiente não tem acesso SSH, banco ou credenciais de produção. Preparar instalação reproduzível não
-   equivale a instalar no servidor.
+   Este ambiente não tem acesso SSH, banco ou credenciais de produção. Instalador idempotente pronto: `uv run python scripts/instalar_cron_alertas.py` mostra a prévia; `--instalar` aplica no servidor. Preparar o script não equivale a instalar no servidor.
 6. **Segredos pendentes:** `MAPBIOMAS_ALERTA_EMAIL`, `MAPBIOMAS_ALERTA_SENHA`, `RAIZ_VIGILANCIA_CHAVE`,
    `RAIZ_PROJETOS_PRIVADO` somente quando existirem projetos privados (não exigido para URTX); opcionais `FIRMS_MAP_KEY`, `RAIZ_NTFY_TOPICO`, `RAIZ_NTFY_TOKEN`, `RAIZ_GOALERT_URL`.
    Configurar no servidor e nos secrets da vigilância no GitHub. Nunca pedir valores no chat. Envio simulado até lá.
-7. **Calendário da Raíz, depois das pendências:** leilões rurais/penhoras ligados ao CAR/SIGEF, BNDES,
-   ProFloresta+, Fundo Amazônia, concessões, leilões de créditos, SBCE/Verra/ICVCM/SBTi/EUDR; coleta diária, banco,
-   fonte/data/confiança, `GET /eventos`, `.ics`, função MCP `proximos_eventos`, aba do site, marca no mapa e avisos
-   aos lotes. Em desenvolvimento; nunca guardar nome de pessoa, CPF/CNPJ sempre mascarados.
+7. **Calendário da Raíz:** implementado com migração 0027, 17 fontes oficiais, coleta diária Actions/Release,
+   API `/eventos`, `.ics`, função MCP `proximos_eventos`, aba do site, selos por CAR e avisos de lotes simulados.
+   Cancelamentos/retificações preservam UID; nenhuma pessoa ou documento pessoal persistido. CAR inferido por
+   matrícula/SIGEF fica interno; consulta pública só mostra CAR explícito no edital. Ficha mantém acesso pago. Fonte sem chave
+   CAR/CNS/SIGEF fica pendente. DJEN respondeu 403, cobertura de diários inicial PA/MT, sem OCR de PDF escaneado.
+   Ver `docs/calendario.md`. Site publica depois da coleta. No servidor, instalar o cron com
+   `uv run python scripts/instalar_cron_alertas.py --tarefa calendario --instalar` após migrar o banco;
+   não foi instalado em produção por ausência de acesso. Não existe transporte MCP no repositório.
 8. **Decisões já reservadas ao fundador:** SQLMesh/Dagster (o executor próprio continua nos E8 1/2/7); envio do
    convênio ONR (`docs/pedidos/onr-convenio.md`, E5 9); WhatsApp real e chaves de produção continuam adiados.
    MCGrad/mapaccuracy só após licença conferida; calibração e Olofsson próprios já implementados, sem depender deles.
@@ -73,7 +75,8 @@ Preparação não registra `verra_avisada`; envio e preenchimento cabem exclusiv
   Gerar CPF/CNPJ de teste em memória; literal válido derruba a varredura.
 - Cada worktree usa `.venv` próprio (`uv sync --frozen --all-extras`); não compartilhar `UV_PROJECT_ENVIRONMENT`.
 - Antes de cada entrega, buscar main, conferir migrações e `uv run alembic heads`: uma cabeça só. Resolver
-  conflitos, abrir PR e fazer squash merge com CI verde. Sem force-push na main.
+  conflitos, abrir PR e fazer merge com CI verde. Em entregas encadeadas, preservar a ancestralidade evita
+  reapresentar alterações já revisadas. Sem force-push na main.
 - Não cancelar “Processar estados” para liberar CI. “Vigilância diária” roda às 09:17 UTC e publica no Release
   `vigilancia`; “Busca semanal” também já existe. Filas do CI podem levar até 40 minutos.
 

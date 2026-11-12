@@ -43,6 +43,8 @@ class _Fluxo:
 class ClienteSimulado:
     """Imita anthropic.Anthropic: messages.stream e beta.messages.stream devolvem a próxima resposta da fila."""
 
+    simulado = True
+
     respostas: list = field(default_factory=list)
     modelo: str = "claude-opus-5-5"
     chamadas: list = field(default_factory=list)

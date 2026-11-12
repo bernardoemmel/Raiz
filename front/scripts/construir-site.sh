@@ -18,6 +18,10 @@ echo "::group::Dependências travadas (npm ci)"
 (cd front/produtor && npm ci --no-audit --no-fund)
 echo "::endgroup::"
 
+if [ "${RAIZ_BUILD_DADOS:-1}" != "0" ]; then
+  node front/scripts/baixar-calendario.mjs
+fi
+
 echo "::group::Build do painel"
 (cd front/globo && npm run build)
 echo "::endgroup::"

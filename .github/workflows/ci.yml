@@ -61,6 +61,7 @@ jobs:
         env:
           RAIZ_DADOS: front/.cache/teste-site/dados
           RAIZ_GEO: front/.cache/teste-site/geo
+          RAIZ_CALENDARIO_DADOS: front/.cache/teste-site/calendario
           VITE_RAIZ_TESTE_MAPA: "1"
           RAIZ_BASE: /Raiz/
         run: front/scripts/construir-site.sh
@@ -79,6 +80,8 @@ jobs:
         env:
           RAIZ_PRINTS: ${{ github.workspace }}/front/.cache/teste-site/resultado/prospeccao
         run: cd front/globo && npm run test:prospeccao
+      - name: Calendário no navegador (filtros, teclado, axe e celular)
+        run: cd front/globo && npm run test:calendario
       - name: Cena-alvo (Release ausente, publicado e três lotes autorizados)
         run: cd front/globo && npm run test:cena
       - name: Evidências da cena-alvo
@@ -120,6 +123,7 @@ jobs:
         env:
           RAIZ_DADOS: front/.cache/teste-site/dados
           RAIZ_GEO: front/.cache/teste-site/geo
+          RAIZ_CALENDARIO_DADOS: front/.cache/teste-site/calendario
           VITE_RAIZ_TESTE_MAPA: "1"
           RAIZ_DOMINIO: raiz.example
           RAIZ_BASE: /

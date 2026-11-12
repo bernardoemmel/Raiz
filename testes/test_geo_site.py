@@ -2,9 +2,11 @@
 
 import gzip
 import importlib.util
+import io
 import json
 import os
 import subprocess
+import tarfile
 import threading
 from concurrent.futures import ThreadPoolExecutor
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -119,6 +121,86 @@ def test_rodada_seguinte_inclui_municipio_e_estado_novos_sem_lista_fixa(geo, tmp
     terceiro = json.loads((geo.SAIDA / "indice.json").read_text())
     assert not terceiro["sem_contorno"]
     assert "imoveis" in terceiro["municipios"]["5200050"]
+
+
+def test_release_basico_prevalece_e_nao_reutiliza_csv_tecnico_antigo(geo, tmp_path):
+    pasta = tmp_path / "dados"
+    antigo = escrever_municipio(pasta, "PA", "1505536")
+    basico = antigo.with_name("imoveis_basicos_1505536.csv")
+    basico.write_text("cod_imovel,cod_ibge,situacao_basica\nCAR-B,1505536,apto\n")
+    escrever_municipio(pasta, "PA", "1502772")  # município retirado do pacote novo
+    (pasta / "estados.json").write_text(json.dumps({"estados": {"PA": {"escopo": "publico_basico"}}}))
+    assert geo.municipios_publicados(pasta) == {"1505536": basico}
+    assert geo.exportar_geometria(basico, {})[0] == 1
+    fs = json.loads(gzip.decompress((geo.SAIDA / "imoveis_1505536.geojson.gz").read_bytes()))["features"]
+    assert fs[0]["properties"] == {"cod_imovel": "CAR-B"}
+
+
+@pytest.mark.parametrize("vazio", [False, True])
+def test_atualizacao_do_pacote_remove_csv_antigo_e_conserva_geo(tmp_path, vazio):
+    pasta = tmp_path / "PA"
+    pasta.mkdir()
+    (pasta / "imoveis_1502772.csv").write_text("cache técnico antigo")
+    (pasta / "geo_1505536.parquet").write_bytes("geometria da mesma versão".encode())
+    (tmp_path / "estados.json").write_text(
+        json.dumps({"estados": {"PA": {"versao": "antiga", "geo": {"versao": "g1"}}}})
+    )
+    pacote = io.BytesIO()
+    with tarfile.open(fileobj=pacote, mode="w:gz") as tar:
+        texto = b"cod_imovel,cod_ibge,situacao_basica\nCAR-B,1505536,apto\n"
+        membro = tarfile.TarInfo("PA/imoveis_basicos_1505536.csv")
+        membro.size = len(texto)
+        if not vazio:
+            tar.addfile(membro, io.BytesIO(texto))
+
+    class Servidor(BaseHTTPRequestHandler):
+        def do_GET(self):
+            self.send_response(200)
+            self.end_headers()
+            if self.path == "/estados.json":
+                self.wfile.write(
+                    json.dumps(
+                        {
+                            "estados": {
+                                "PA": {
+                                    "municipios": 0 if vazio else 1,
+                                    "tamanho": len(pacote.getvalue()),
+                                    "versao": "nova",
+                                    "escopo": "publico_basico",
+                                    "url": url + "/pacote",
+                                    "geo": {"versao": "g1"},
+                                }
+                            }
+                        }
+                    ).encode()
+                )
+            else:
+                self.wfile.write(pacote.getvalue())
+
+        def log_message(self, *_args):
+            pass
+
+    servidor = ThreadingHTTPServer(("127.0.0.1", 0), Servidor)
+    url = f"http://127.0.0.1:{servidor.server_port}"
+    thread = threading.Thread(target=servidor.serve_forever, daemon=True)
+    thread.start()
+    try:
+        script = Path(__file__).resolve().parents[1] / "front/scripts/baixar-dados.mjs"
+        resultado = subprocess.run(
+            ["node", str(script), "--geo", "--exigir"],
+            env={**os.environ, "RAIZ_DADOS_URL": url, "RAIZ_DADOS": str(tmp_path), "RAIZ_SEM_DOWNLOAD": "0"},
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+        assert resultado.returncode == 0, resultado.stderr
+        assert sorted(p.name for p in pasta.iterdir()) == ["geo_1505536.parquet"] + (
+            [] if vazio else ["imoveis_basicos_1505536.csv"]
+        )
+    finally:
+        servidor.shutdown()
+        servidor.server_close()
+        thread.join(timeout=2)
 
 
 def test_base_nacional_uniforme_tem_tile_ao_aproximar_fora_do_para(geo, monkeypatch):

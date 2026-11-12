@@ -1,4 +1,5 @@
 import { lazy, Suspense, useEffect, useState } from "react"
+import { codigosEmLeilao, normalizarCar } from "../../../compartilhado/calendario"
 import { ErroProspeccao, type FichaTerraDados, type MedidaTerra } from "../../../compartilhado/prospeccao"
 import { NOME_RISCO, SITUACOES, type Risco } from "../../../compartilhado/terra"
 import { LinhaTempoTerra } from "../partes/LinhaTempoTerra"
@@ -7,8 +8,10 @@ import { CreditosConsulta } from "../partes/CreditosConsulta"
 import { Estado } from "../partes/Estado"
 import { useSessao } from "../pedidos"
 import { dataTerra, numeroTerra, prospeccao } from "../prospeccao"
-import { linkMunicipio, linkProspeccao } from "../rota"
+import { linkCalendarioImovel, linkMunicipio, linkProspeccao } from "../rota"
 import { Entrar } from "./Entrar"
+import { calendario } from "../calendario"
+import { useCarga } from "../dados"
 
 const MapaFichaTerra = lazy(() => import("../mapa/MapaFichaTerra").then((m) => ({ default: m.MapaFichaTerra })))
 
@@ -31,6 +34,8 @@ export function FichaTerra({ car }: { car: string }) {
   const [ocupado, setOcupado] = useState(false)
   const [contato, setContato] = useState<string | null>(null)
   const [revisao, setRevisao] = useState(0)
+  const leiloes = useCarga(() => ficha ? calendario.leiloes({ cod_imovel: car }) : Promise.resolve(null), [car, ficha])
+  const emLeilao = !!ficha && codigosEmLeilao(leiloes.dado?.eventos ?? []).has(normalizarCar(car))
   useEffect(() => {
     if (!sessao || !prospeccao.disponivel) return
     const abortar = new AbortController()
@@ -69,6 +74,7 @@ export function FichaTerra({ car }: { car: string }) {
         <h2>Desbloquear esta ficha</h2><p>Use 1 crédito de consulta para ver os dados da terra, suas fontes e datas. O crédito não é uma tonelada de carbono.</p>
         <button className="botao principal" type="button" disabled={ocupado} onClick={desbloquear}>{ocupado ? "Desbloqueando" : "Desbloquear por 1 crédito"}</button>
       </section> : ficha && <>
+        {emLeilao && <p><a className="selo conferir" href={linkCalendarioImovel(car)}>Em leilão: conferir edital e prazo</a></p>}
         <div className="secao-cabeca"><p className="frase">{ficha.municipio}, {ficha.uf}. {ficha.bioma ?? "Bioma não informado"}.</p>{ficha.cod_ibge && <a className="botao" href={linkMunicipio(String(ficha.cod_ibge))}>Ver município no mapa</a>}</div>
         <Suspense fallback={<p role="status">Abrindo o mapa da fazenda…</p>}><MapaFichaTerra ficha={ficha} /></Suspense>
         <section aria-labelledby="area-terra"><h2 id="area-terra">Área e restauração</h2><dl className="grade-terra"><div><dt>Área da fazenda</dt><dd><Medida dado={ficha.area_total} /></dd></div><div><dt>Quanto pode voltar a ser mata</dt><dd><Medida dado={ficha.area_restauravel} /></dd></div></dl></section>
