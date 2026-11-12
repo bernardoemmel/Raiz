@@ -23,13 +23,12 @@ WORKFLOWS_LOTE = ("lote-para.yml", "retomar-lote-para.yml")
 # #55: workflow inteiro conferido neste commit imutável, max-parallel=5,
 # preparo e publicação sequenciais. Nenhum outro head herda esta exceção.
 CAPACIDADE_LEGADA_LOTE = {("retomar-lote-para.yml", "3546687c66ec07ef9bd875d181efcff57ff1d312"): 5}
-# Destinos imutáveis: aquisição MapBiomas, embargo inválido bloqueado e adoção comprovada.
-# Funil muda nos dois grupos; filtros também muda nas origens E1 anteriores ao #81.
-# A auditoria registra cada delta e as versões reais, preservando o restante das fórmulas.
-# Não seguir HEAD nem incorporar E1 nos pedidos antigos; reservas vivas ficam intactas.
+# Destino imutável com E1/E2 e guardas: upgrade científico intencional nas origens antigas.
+# A auditoria declara as versões e os deltas por origem, sem reetiquetar saídas legadas.
+# Só promove continuações/retentativas pendentes elegíveis; reservas vivas ficam intactas.
 PROMOCOES_CONTINUACAO = {
-    "88860b64ee09f811b66e283f5c57997ebcdb3fd5": "02c3db8de18ef1fb6f5260803e33f4ac3a73c305",
-    "b624b108b0350135003e1099d9c928fa7cc24151": "02c3db8de18ef1fb6f5260803e33f4ac3a73c305",
+    "88860b64ee09f811b66e283f5c57997ebcdb3fd5": "be452620f868537251fa832a10cb14bfb5c8efe3",
+    "b624b108b0350135003e1099d9c928fa7cc24151": "be452620f868537251fa832a10cb14bfb5c8efe3",
     "6a53cfbf514f369f694ea0bd3bc594ef8295a3b4": "be452620f868537251fa832a10cb14bfb5c8efe3",
     "bea53bd06c7178daf2a53c392e5a9d54c55e7bc7": "be452620f868537251fa832a10cb14bfb5c8efe3",
     "436c7b636f6a8867b47403a1dfad4e4c741dc150": "be452620f868537251fa832a10cb14bfb5c8efe3",

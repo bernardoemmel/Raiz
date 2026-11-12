@@ -11,12 +11,11 @@ from testes.test_processar_estados import F, O, _pedido, _run
 
 ORIGEM = "88860b64ee09f811b66e283f5c57997ebcdb3fd5"
 BASE = "b624b108b0350135003e1099d9c928fa7cc24151"
-DESTINO = "02c3db8de18ef1fb6f5260803e33f4ac3a73c305"
-DESTINO_E1 = "be452620f868537251fa832a10cb14bfb5c8efe3"
+DESTINO = "be452620f868537251fa832a10cb14bfb5c8efe3"
 PROMOCOES = {ORIGEM: DESTINO, BASE: DESTINO,
-             "6a53cfbf514f369f694ea0bd3bc594ef8295a3b4": DESTINO_E1,
-             "bea53bd06c7178daf2a53c392e5a9d54c55e7bc7": DESTINO_E1,
-             "436c7b636f6a8867b47403a1dfad4e4c741dc150": DESTINO_E1}  # fmt: skip
+             "6a53cfbf514f369f694ea0bd3bc594ef8295a3b4": DESTINO,
+             "bea53bd06c7178daf2a53c392e5a9d54c55e7bc7": DESTINO,
+             "436c7b636f6a8867b47403a1dfad4e4c741dc150": DESTINO}  # fmt: skip
 RAIZ = Path(__file__).resolve().parents[1]
 
 
@@ -29,64 +28,80 @@ def _promovido(pedido):
     return {**pedido, "ref": destino, "promocao_publicador": {"origem": pedido["ref"], "destino": destino}}
 
 
-def test_promocao_fechada_declara_guardas_e_versoes_reais_de_cada_origem():
-    # Prova de commits imutáveis: o CI raso verifica o artefato sem consultar GitHub.
+def test_promocao_fechada_declara_upgrade_e1_e2_guardas_e_versoes_por_origem():
+    # O CI raso verifica a prova dos commits imutáveis sem consultar GitHub.
     prova = json.loads((RAIZ / "docs/passagem/auditoria-promocao-publicador.json").read_text())
-    assert prova["versao_auditoria"] == 2
+    assert prova["versao_auditoria"] == 3
     assert F.PROMOCOES_CONTINUACAO == PROMOCOES
-    assert PROMOCOES == {ref: grupo["destino"] for grupo in prova["grupos"] for ref in grupo["origens"]}
+    assert prova["destino"] == DESTINO
+    assert set(prova["origens"]) == set(PROMOCOES)
+    assert set(PROMOCOES.values()) == {DESTINO}
+    pr79 = "6a53cfbf514f369f694ea0bd3bc594ef8295a3b4"
+    pr81 = "436c7b636f6a8867b47403a1dfad4e4c741dc150"
+    assert prova["referencias"] == {
+        "upgrade_e1_e2_pr79": pr79,
+        "protecao_pr81": pr81,
+        "embargo_legado_e_adocao": DESTINO,
+    }
     pares = {(p["origem"], p["destino"]): p for p in prova["comparacoes"]}
     assert set(pares) == set(PROMOCOES.items())
-    for ref, destino in PROMOCOES.items():
-        antes, depois = prova["commits"][ref], prova["commits"][destino]
-        par = pares[(ref, destino)]
-        for campo in (
-            "arquivos_nativos", "codigo_nativo_sha256", "arquivos", "codigo_preservado_sha256",
-            "mapbiomas_formulas_sha256", "mapbiomas_configuracao_sha256", "codigo_tarefas", "depende",
-        ):  # fmt: skip
+    assert set(prova["commits"]) == {*PROMOCOES, DESTINO}
+    for ref in PROMOCOES:
+        antes, depois = prova["commits"][ref], prova["commits"][DESTINO]
+        par = pares[(ref, DESTINO)]
+        # Preserva apenas o que foi comprovado; as origens pré-E1 recebem ciência nova.
+        for campo in ("mapbiomas_formulas_sha256", "mapbiomas_configuracao_sha256",
+                      "codigo_nativo_sha256", "depende_sha256"):  # fmt: skip
             assert antes[campo] == depois[campo]
-        assert antes["mapbiomas_arquivo_sha256"] != depois["mapbiomas_arquivo_sha256"]
         assert antes["versao_motor"] != depois["versao_motor"]
         assert antes["modulo_temporario_conferido"] and depois["modulo_temporario_conferido"]
         mudaram = {t for t, v in antes["versoes_tarefas"].items() if depois["versoes_tarefas"][t] != v}
-        esperadas = {"funil", "mapbiomas"}
-        if destino == DESTINO_E1 and ref != "436c7b636f6a8867b47403a1dfad4e4c741dc150":
-            esperadas.add("filtros")
-        assert mudaram == set(par["tarefas_alteradas"]) == esperadas
-        assert set(par["tarefas_preservadas"]) == set(antes["versoes_tarefas"]) - mudaram
-        dep = par["dependencias"]
-        assert dep["pacotes_origem"] > 200 and dep["origem_sha256"] == dep["origem_no_destino_sha256"]
-        assert dep["projeto_editavel_fora_da_comparacao"] == ["raiz"]
-        legado, adocao, *e1 = par["guardas"]
-        assert legado["tipo"] == "embargo_legado" and adocao["tipo"] == "adocao_comprovada"
-        assert legado["ocorrencias"] == {"helper_antes": 0, "helper_depois": 1, "bloco_antes": 1, "chamada_depois": 1}
-        assert legado["resto_municipio"]["antes_sha256"] == legado["resto_municipio"]["depois_sha256"]
-        assert adocao["canonical_conferido"] and adocao["referencia"] == DESTINO_E1
-        assert set(adocao["resto_plano_execucao_sha256"]) == {"plano", "processar_municipio"}
-        for guarda in par["guardas"]:
-            resto = guarda["resto_modulo"]
-            assert resto["iguais"] and resto["antes_sha256"] == resto["depois_sha256"]
-        assert legado["diff_guardas"] and adocao["diff_guardas"]
-        if destino == DESTINO:
-            assert not e1 and antes["modulos_e1_presentes"] == depois["modulos_e1_presentes"] == []
-            assert depois["codigo_tarefas"]["funil"] == ["motor/raiz_estado.py", "raiz/funil/ponte.py"]
+        anteriores_ao_e1 = ref in {ORIGEM, BASE}
+        assert par["upgrade_e1_e2"] == anteriores_ao_e1
+        if anteriores_ao_e1:
+            assert len(mudaram) == 11 and mudaram == set(antes["versoes_tarefas"])
+            assert antes["codigo_tarefas_sha256"] != depois["codigo_tarefas_sha256"]
         else:
-            assert {g["funcao"] for g in e1} == {"_falha", "embargos_ativos"}
-            assert all(g["canonical_conferido"] for g in e1)
-            filtro = next(g for g in e1 if g["funcao"] == "embargos_ativos")
-            assert (filtro["funcao_antes_ast_sha256"] == filtro["funcao_depois_ast_sha256"]) == (
-                ref == "436c7b636f6a8867b47403a1dfad4e4c741dc150"
-            )
-    assert (
-        prova["commits"][DESTINO]["codigo_preservado_sha256"]
-        != prova["commits"][DESTINO_E1]["codigo_preservado_sha256"]
+            assert mudaram == ({"funil", "mapbiomas"} if ref == pr81 else {"funil", "mapbiomas", "filtros"})
+            assert antes["codigo_tarefas_sha256"] == depois["codigo_tarefas_sha256"]
+        assert mudaram == set(par["tarefas_alteradas"])
+        assert set(par["tarefas_preservadas"]) == set(antes["versoes_tarefas"]) - mudaram
+        assert len(par["diff_sha256"]) == 64 and par["arquivos_status"]
+        assert par["escopos"] == ["motor/", "raiz/", "nativo/", "uv.lock"]
+        dep = par["dependencias"]
+        assert dep["pacotes_origem"] > 200 and dep["todos_preservados_integralmente"]
+        assert dep["projeto_editavel_excluido"] == ["raiz"]
+        assert par["guardas_comuns_comprovadas"] == ["embargo_legado", "adocao_comprovada"]
+        assert par["protecao_pr81"] == ("ja_presente" if ref == pr81 else "adicionada")
+    legado = prova["guardas_comuns"]["embargo_legado"]
+    adocao = prova["guardas_comuns"]["adocao_comprovada"]
+    assert legado["ocorrencias"] == {"helper_antes": 0, "helper_depois": 1, "bloco_antes": 1, "chamada_depois": 1}
+    assert legado["resto_municipio"]["antes_sha256"] == legado["resto_municipio"]["depois_sha256"]
+    assert adocao["canonical_conferido"] and adocao["referencia"] == DESTINO
+    assert set(adocao["resto_plano_execucao_sha256"]) == {"plano", "processar_municipio"}
+    for guarda in prova["guardas_comuns"].values():
+        assert set(guarda["origens"]) == set(PROMOCOES)
+        resto = guarda["resto_modulo"]
+        assert resto["iguais"] and resto["antes_sha256"] == resto["depois_sha256"]
+        assert guarda["arquivo_antes_sha256"] != guarda["arquivo_depois_sha256"]
+        assert len(guarda["diff_sha256"]) == 64
+    assert set(prova["guardas_pr81"]) == {"_falha", "embargos_ativos"}
+    for guarda in prova["guardas_pr81"].values():
+        assert guarda["origem"] == pr79 and guarda["destino"] == pr81
+        assert guarda["canonical_conferido"] and guarda["resto_modulo"]["iguais"]
+    upgrade = prova["upgrade_pr79"]
+    assert upgrade["destino"] == pr79 and len(upgrade["diff_sha256"]) == 64
+    assert {
+        "M\traiz/funil/rodar.py",
+        "M\traiz/funil/restricoes.py",
+        "M\traiz/funil/duck.py",
+        "A\traiz/coleta/prodes.py",
+        "M\traiz/executor/tarefas.py",
+    } <= set(upgrade["arquivos_status"])
+    assert prova["mapbiomas"]["formulas"] == ["ha_pixel", "por_imovel"]
+    assert {"ANO", "TEMAS", "FLORESTA", "PASTO", "AGRICULTURA", "SILVICULTURA"} <= set(
+        prova["mapbiomas"]["configuracao"]
     )
-    assert prova["escopos"] == ["motor/", "raiz/"]
-    assert "raiz/regras/padroes/" not in prova["excluidos_operacionais_ou_aquisicao"]
-    assert "raiz/funil/restricoes.py" not in prova["excluidos_operacionais_ou_aquisicao"]
-    assert "raiz/funil/duck.py" not in prova["excluidos_operacionais_ou_aquisicao"]
-    assert prova["mapbiomas_formulas"] == ["ha_pixel", "por_imovel"]
-    assert {"ANO", "TEMAS", "FLORESTA", "PASTO", "AGRICULTURA", "SILVICULTURA"} <= set(prova["mapbiomas_configuracao"])
 
 
 @pytest.mark.parametrize("origem", PROMOCOES)

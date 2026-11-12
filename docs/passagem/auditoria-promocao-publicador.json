@@ -1,84 +1,216 @@
 {
-  "versao_auditoria": 2,
-  "grupos": [
-    {
+  "versao_auditoria": 3,
+  "destino": "be452620f868537251fa832a10cb14bfb5c8efe3",
+  "origens": [
+    "88860b64ee09f811b66e283f5c57997ebcdb3fd5",
+    "b624b108b0350135003e1099d9c928fa7cc24151",
+    "6a53cfbf514f369f694ea0bd3bc594ef8295a3b4",
+    "bea53bd06c7178daf2a53c392e5a9d54c55e7bc7",
+    "436c7b636f6a8867b47403a1dfad4e4c741dc150"
+  ],
+  "criterio": "Promoção intencional a E1/E2 protegido de continuações ou retentativas pendentes não bloqueadas. Reservas vivas permanecem no SHA original; novos pedidos fora desse contrato não mudam. O destino é um SHA fechado, nunca HEAD.",
+  "efeito_cientifico": "As duas origens anteriores ao #79 recebem E1/E2: coleta incremental, histórico Ibama, controles de qualidade e restrições territoriais no funil com DuckDB/iOverlay. Essa mudança pode alterar os resultados. Não se afirma igualdade da árvore científica entre essas origens e o destino. Todas as onze versões de tarefa mudam porque rodar.py também integra o hash compartilhado de captura do histórico. Saídas antigas não são reetiquetadas; o executor verifica versão e hash, preserva datas originais e recalcula conforme versões, fontes e dependentes.",
+  "referencias": {
+    "upgrade_e1_e2_pr79": "6a53cfbf514f369f694ea0bd3bc594ef8295a3b4",
+    "protecao_pr81": "436c7b636f6a8867b47403a1dfad4e4c741dc150",
+    "embargo_legado_e_adocao": "be452620f868537251fa832a10cb14bfb5c8efe3"
+  },
+  "metodo": "Versões executadas em checkouts Git temporários com origem do módulo conferida. Diff completo motor/raiz/nativo/uv.lock identificado por SHA256 por par. Fórmulas e configuração MapBiomas comparadas por nós AST completos e únicos. Dependências integrais do lock comparadas por par, exceto projeto raiz editável; árvore nativa conferida. Provas AST das guardas deduplicadas da auditoria anterior, vinculadas novamente aos bytes de cada origem e destino.",
+  "scripts_auditoria_sha256": {
+    "raiz-auditar-promocoes-e1.py": "1b093b6f426f89358928fa7c448029b32157826f985e2adfda45002b53293ee3",
+    "raiz-auditar-promocoes-protegidas.py": "a39a4166a5c90d7446ba09307f7e9354925c7f3997925432753d1224fdc4f05a",
+    "raiz_auditoria_guardas.py": "e73e1c3ee14e79d8a6c50a8593fc8544157535e83462276ecb14e99826d57bca"
+  },
+  "prova_ast_anterior_commit": "c0923aa2a1b89fb2faa9f142efdc66e1c27bee97",
+  "mapbiomas": {
+    "formulas": [
+      "ha_pixel",
+      "por_imovel"
+    ],
+    "configuracao": [
+      "API",
+      "H",
+      "CAT_MUNICIPIO",
+      "CAT_ESTADO",
+      "NOME_UF",
+      "ANO",
+      "CACHE",
+      "TEMAS",
+      "FLORESTA",
+      "PASTO",
+      "AGRICULTURA",
+      "SILVICULTURA"
+    ]
+  },
+  "guardas_comuns": {
+    "embargo_legado": {
+      "arquivo": "motor/raiz_estado.py",
       "origens": [
         "88860b64ee09f811b66e283f5c57997ebcdb3fd5",
-        "b624b108b0350135003e1099d9c928fa7cc24151"
-      ],
-      "destino": "02c3db8de18ef1fb6f5260803e33f4ac3a73c305",
-      "ciencia": "anterior_ao_e1"
-    },
-    {
-      "origens": [
+        "b624b108b0350135003e1099d9c928fa7cc24151",
         "6a53cfbf514f369f694ea0bd3bc594ef8295a3b4",
         "bea53bd06c7178daf2a53c392e5a9d54c55e7bc7",
         "436c7b636f6a8867b47403a1dfad4e4c741dc150"
       ],
-      "destino": "be452620f868537251fa832a10cb14bfb5c8efe3",
-      "ciencia": "e1_com_guardas"
+      "tipo": "embargo_legado",
+      "arquivo_antes_sha256": "3b90d96ac7f3ebe95fe6f935cfd46ff68835074b7d9b886e11c6553e50267a68",
+      "arquivo_depois_sha256": "573689252da8d0b96b7500b13dc5376af94cf379445190c2ef379e1bdfd25908",
+      "modulo_antes_ast_sha256": "b83dfd2ddd44eb3982a3ca59d6fb3af70f78114b8122b1ffceb019bfaa149841",
+      "modulo_depois_ast_sha256": "26e6ef954bb00c5d36f54fecdd48cefa68c14ed0aaef8b6bdee2dcd33778c348",
+      "municipio_antes_ast_sha256": "98077a2c55550be7f018ef6588f930d0d1bdcb89cf96fdb31494f664149beb12",
+      "municipio_depois_ast_sha256": "240aa08f7038e2cae71a8333d6bb91cbe13781a2f68f4eaeabf6655ce00663b4",
+      "helper_depois_ast_sha256": "788800f565d9e40fc8ca7ef6915267ed928ffa139393188ed82ea1d5600e1064",
+      "bloco_antes_ast_sha256": "1ac870e08f19c7fc2e8f0d5320ada650873c4687a849762a8d068555394d2a5f",
+      "chamada_depois_ast_sha256": "0b68bf9a05042c3dcac4f8672cca6996540bf982efc64eecbd49a72b86fe45f7",
+      "ocorrencias": {
+        "helper_antes": 0,
+        "helper_depois": 1,
+        "bloco_antes": 1,
+        "chamada_depois": 1
+      },
+      "resto_municipio": {
+        "antes_sha256": "ff4c8b7af6f5065311d4519fbe2da20a20eb96c9284b9c2ecaf721157caeb135",
+        "depois_sha256": "ff4c8b7af6f5065311d4519fbe2da20a20eb96c9284b9c2ecaf721157caeb135",
+        "iguais": true
+      },
+      "resto_modulo": {
+        "antes_sha256": "fe35d791afda21e1a5c4e5ee10dca9fc843e1c73a8c71b04d0f8a3ceb416569f",
+        "depois_sha256": "fe35d791afda21e1a5c4e5ee10dca9fc843e1c73a8c71b04d0f8a3ceb416569f",
+        "iguais": true
+      },
+      "diff_sha256": "4052c6ef31d70e1a430da5ff4cb456d79c8694230dbd88dcf27d5331053ef86e"
+    },
+    "adocao_comprovada": {
+      "arquivo": "raiz/executor/executor.py",
+      "origens": [
+        "88860b64ee09f811b66e283f5c57997ebcdb3fd5",
+        "b624b108b0350135003e1099d9c928fa7cc24151",
+        "6a53cfbf514f369f694ea0bd3bc594ef8295a3b4",
+        "bea53bd06c7178daf2a53c392e5a9d54c55e7bc7",
+        "436c7b636f6a8867b47403a1dfad4e4c741dc150"
+      ],
+      "tipo": "adocao_comprovada",
+      "referencia": "be452620f868537251fa832a10cb14bfb5c8efe3",
+      "arquivo_antes_sha256": "a197d590ee4bb9c216661a371fa9eff95c5cb1e73d14272e9e73e0192c5052e3",
+      "arquivo_depois_sha256": "f9734a8b76b96b74472b6832804cd95305f802a3c8f559afcee57b7f064b42df",
+      "resto_modulo": {
+        "antes_sha256": "8ef737407e815fdc8d8fcccfda7cf2cba9ac948d01c6227d2b3a9e16d12b3280",
+        "depois_sha256": "8ef737407e815fdc8d8fcccfda7cf2cba9ac948d01c6227d2b3a9e16d12b3280",
+        "iguais": true
+      },
+      "funcoes_antes": {
+        "plano": "1de553cd8149aa204fbb3ab37d92a3eb27075653d0d7a08bfd2e422fb9b2ccf2",
+        "processar_municipio": "6f71161aaca937d89f6e3b53e03f6c9e63609dd72c689db15ec675a6d99aa33f",
+        "adotar": "a60e30f004ff480bf0853e51b7b2716e36371f9402a58eb2e636b102371001d0"
+      },
+      "funcoes_depois": {
+        "_saidas_adotaveis": "9a9230b22ca4fead8fc70e40be064500b488900476e3adfdd5b9bf3ffa2c304c",
+        "_adocao_comprovada": "feef26fbf5cbe57f364139c246784d0a705f9e5129783dc86e05b136a2da0d71",
+        "plano": "2680987396575acba88ff791bbe936f33a7ff568aa3f04ffb5024a0d4d3e1964",
+        "processar_municipio": "3363f9ffd8c0e6978cc25916b49fb82c8365da944775fb9fca27f7ac40ccbc72",
+        "adotar": "09f91cb95ce7eef7b4f8e143f29bcc1ce23a84bed35a0651941ff2929c5d4d82"
+      },
+      "resto_plano_execucao_sha256": {
+        "plano": "1de553cd8149aa204fbb3ab37d92a3eb27075653d0d7a08bfd2e422fb9b2ccf2",
+        "processar_municipio": "6f71161aaca937d89f6e3b53e03f6c9e63609dd72c689db15ec675a6d99aa33f"
+      },
+      "canonical_conferido": true,
+      "contrato": "Versão e hash comprovados antes de adotar ou reutilizar marca adotada; data original preservada, inclusive None. Não reetiqueta legado.",
+      "diff_sha256": "70aa7f0b851175fe3c4255e2f3f0cedcc478f7a36d5220ff14c5625072473f04"
     }
-  ],
-  "criterio": "Somente continuações ou retentativas não bloqueadas, em dois grupos científicos separados. Aquisição MapBiomas e validação de embargos mudam tarefas e são declaradas por origem; não há alegação de dez versões iguais. Guardas impedem falso zero com embargo ativo inválido e reatribuição de versões na adoção. Entradas válidas mantêm fórmulas e parâmetros fora dos deltas explicitados; fontes alteradas e guardas podem exigir recálculo normal dos dependentes. O grupo antigo não incorpora E1.",
-  "metodo": "SHA256 de caminho + NUL + bytes + NUL para árvore preservada; funções alteradas têm diff e AST, com igualdade obrigatória do restante. Nós MapBiomas completos e únicos. Versões reais executadas em checkout temporário cuja origem do módulo é conferida. Dependências comparadas integralmente por par, incluindo origem, marcadores e artefatos do lock; só o projeto raiz editável fica fora. Código nativo raiz-iov incluído por hash integral da árvore nativo/.",
-  "escopos": [
-    "motor/",
-    "raiz/"
-  ],
-  "excluidos_operacionais_ou_aquisicao": [
-    "motor/fila_processamento.py",
-    "motor/painel.py",
-    "motor/rodar_estado.py",
-    "motor/raiz_mapbiomas.py",
-    "raiz/atestacao.py",
-    "raiz/cadt.py",
-    "raiz/catalogo_publico.py",
-    "raiz/executor/armazem.py",
-    "raiz/executor/publicacao_aberta.py",
-    "raiz/executor/publicar_entrada.py",
-    "raiz/executor/rodadas.py",
-    "raiz/metadados.py",
-    "raiz/quantis.py",
-    "raiz/regras/historico/"
-  ],
-  "arquivos_com_guardas_auditadas": [
-    "motor/raiz_estado.py",
-    "raiz/executor/executor.py",
-    "raiz/coleta/sigef.py",
-    "raiz/funil/filtros.py"
-  ],
-  "mapbiomas_formulas": [
-    "ha_pixel",
-    "por_imovel"
-  ],
-  "mapbiomas_configuracao": [
-    "API",
-    "H",
-    "CAT_MUNICIPIO",
-    "CAT_ESTADO",
-    "NOME_UF",
-    "ANO",
-    "CACHE",
-    "TEMAS",
-    "FLORESTA",
-    "PASTO",
-    "AGRICULTURA",
-    "SILVICULTURA"
-  ],
-  "referencias_guardas": {
-    "e1_filtros_privacidade": "436c7b636f6a8867b47403a1dfad4e4c741dc150",
-    "legado_adocao": "be452620f868537251fa832a10cb14bfb5c8efe3"
   },
-  "scripts_auditoria_sha256": {
-    "raiz-auditar-promocoes-protegidas.py": "a39a4166a5c90d7446ba09307f7e9354925c7f3997925432753d1224fdc4f05a",
-    "raiz_auditoria_guardas.py": "e73e1c3ee14e79d8a6c50a8593fc8544157535e83462276ecb14e99826d57bca"
+  "guardas_pr81": {
+    "_falha": {
+      "arquivo": "raiz/coleta/sigef.py",
+      "origem": "6a53cfbf514f369f694ea0bd3bc594ef8295a3b4",
+      "destino": "436c7b636f6a8867b47403a1dfad4e4c741dc150",
+      "tipo": "funcao_isolada",
+      "funcao": "_falha",
+      "arquivo_antes_sha256": "a1b215a44f7920f2851e0e64becd50c69fbfc65bdd48223b58ea5927a4115888",
+      "arquivo_depois_sha256": "64ca0a93e22332c27ae9950f8fb32953788b768fb9f1cc39b7a11fa215773557",
+      "modulo_antes_ast_sha256": "bc8f765b97536cf78033497843d041444523909581fe50e497306c323017304c",
+      "modulo_depois_ast_sha256": "5233d95e2717672ba25951f93409a3a33342f478d5d4035311e7df8b1651d981",
+      "funcao_antes_ast_sha256": "2c0d82c70ea2dde4df3ff9ede2748d91aec3fa415fc3bf78da649649fe131886",
+      "funcao_depois_ast_sha256": "9c2f7871debc41148160ab5f9557cc74dadfcd6e6aec29e596afee895c9fa837",
+      "resto_modulo": {
+        "antes_sha256": "ac4112a80cd99de217ac4762c96cc7eb9eb804c84ccfa4d322c17248a91875ee",
+        "depois_sha256": "ac4112a80cd99de217ac4762c96cc7eb9eb804c84ccfa4d322c17248a91875ee",
+        "iguais": true
+      },
+      "imports_permitidos": [
+        {
+          "ast_sha256": "e8aae8e316cec755746a9a3c294afbe056916882467d76bf295d74ff66be0ced",
+          "antes": 0,
+          "depois": 1
+        }
+      ],
+      "canonical_conferido": true,
+      "canonical": {
+        "arquivo_sha256": "64ca0a93e22332c27ae9950f8fb32953788b768fb9f1cc39b7a11fa215773557",
+        "funcao_ast_sha256": "9c2f7871debc41148160ab5f9557cc74dadfcd6e6aec29e596afee895c9fa837"
+      },
+      "diff_sha256": "eba3ddb37b0d1555ee4c0f8b35867477ccab235d1fb8f33b6ba7eea00fd31436"
+    },
+    "embargos_ativos": {
+      "arquivo": "raiz/funil/filtros.py",
+      "origem": "6a53cfbf514f369f694ea0bd3bc594ef8295a3b4",
+      "destino": "436c7b636f6a8867b47403a1dfad4e4c741dc150",
+      "tipo": "funcao_isolada",
+      "funcao": "embargos_ativos",
+      "arquivo_antes_sha256": "d0965d10ad98c3ba8807a3449fd4be7634356e82b4eb5f3319338101274515cf",
+      "arquivo_depois_sha256": "f3993ba16a4fe2da57a451d27f135ea8f669cff7bbc187e550553a2aa18617f3",
+      "modulo_antes_ast_sha256": "2518c7c7dc503800c1ec445c01ed21bc948f13f3c33fd13cdef727228be39e45",
+      "modulo_depois_ast_sha256": "7d1bcfffc8e62f75c1a3eb0e4da947d2ab874adc1a2ff49ed1eb7f2884478a6f",
+      "funcao_antes_ast_sha256": "6eae1307479769decb98d14578379b4013efd7772028e14cb5eec974fc4b6b1c",
+      "funcao_depois_ast_sha256": "f4bbf517cd077df797682499d561783cd2e3b63f6aba6c88f2ea25a6d123014a",
+      "resto_modulo": {
+        "antes_sha256": "bbfcf5e91d7b57de1c377020b1ff3b2f807489e8c07f5ebe9b32a92a8cf2bbaa",
+        "depois_sha256": "bbfcf5e91d7b57de1c377020b1ff3b2f807489e8c07f5ebe9b32a92a8cf2bbaa",
+        "iguais": true
+      },
+      "imports_permitidos": [],
+      "canonical_conferido": true,
+      "canonical": {
+        "arquivo_sha256": "f3993ba16a4fe2da57a451d27f135ea8f669cff7bbc187e550553a2aa18617f3",
+        "funcao_ast_sha256": "f4bbf517cd077df797682499d561783cd2e3b63f6aba6c88f2ea25a6d123014a"
+      },
+      "diff_sha256": "feb1bf28b0f18140dbd7f2febcb034bb59c8d0c2297ad2f7e4fbbe942b67eb23"
+    }
+  },
+  "upgrade_pr79": {
+    "origem": "7748730264b81d896dbb21102a61c4b86689027d",
+    "destino": "6a53cfbf514f369f694ea0bd3bc594ef8295a3b4",
+    "escopos": [
+      "motor/",
+      "raiz/",
+      "nativo/",
+      "uv.lock"
+    ],
+    "diff_sha256": "7837cae83d61054e0fb1ed5689553d49a56aedb157924e961108c70b3a04a6e9",
+    "arquivos_status": [
+      "M\traiz/cli.py",
+      "M\traiz/coleta/arcgis.py",
+      "A\traiz/coleta/arcgis_cli.py",
+      "M\traiz/coleta/bruto.py",
+      "M\traiz/coleta/car.py",
+      "M\traiz/coleta/espelho.py",
+      "M\traiz/coleta/fila.py",
+      "M\traiz/coleta/ibama.py",
+      "M\traiz/coleta/manifesto.yaml",
+      "A\traiz/coleta/prodes.py",
+      "M\traiz/coleta/rodada.py",
+      "M\traiz/coleta/sigef.py",
+      "M\traiz/coleta/wfs.py",
+      "M\traiz/executor/tarefas.py",
+      "M\traiz/funil/duck.py",
+      "A\traiz/funil/filtros.py",
+      "M\traiz/funil/ponte.py",
+      "M\traiz/funil/restricoes.py",
+      "M\traiz/funil/rodar.py"
+    ]
   },
   "commits": {
     "88860b64ee09f811b66e283f5c57997ebcdb3fd5": {
-      "arquivos_nativos": 4,
-      "codigo_nativo_sha256": "f55d787caad693cadaf11dc084c03a928f465dbc8913adf1556aed77b31de12d",
-      "arquivos": 349,
-      "codigo_preservado_sha256": "b6e1bac2d4bf3a4f01b3f803098f43b5540ac7debcebd94fa8ac93bb535d6060",
       "versoes_tarefas": {
         "funil": "funil-1642afe89067",
         "filtros": "filtros-9c1ae2374773",
@@ -91,123 +223,16 @@
         "ficha": "ficha-92dcead7aefb",
         "rebanho": "rebanho-afd05b1264a5",
         "desenvolvedor": "desenvolvedor-d590ebd0cd76"
-      },
-      "codigo_tarefas": {
-        "funil": [
-          "motor/raiz_estado.py",
-          "raiz/funil/ponte.py"
-        ],
-        "filtros": [
-          "motor/raiz_filtros.py",
-          "motor/raiz_extras.py"
-        ],
-        "direto": [
-          "motor/raiz_direto.py",
-          "motor/raiz_extras.py",
-          "raiz/funil/ponte.py"
-        ],
-        "mapbiomas": [
-          "motor/raiz_mapbiomas.py"
-        ],
-        "extras_direto": [
-          "motor/raiz_extras_direto.py",
-          "motor/raiz_extras.py"
-        ],
-        "flag": [
-          "raiz/flag.py"
-        ],
-        "terra": [
-          "raiz/terra.py"
-        ],
-        "titulo": [
-          "raiz/titulo/regularizacao.py",
-          "raiz/titulo/achados.py",
-          "raiz/titulo/nota.py",
-          "raiz/titulo/geometria.py",
-          "raiz/titulo/cadeia.py",
-          "raiz/titulo/contexto.py",
-          "raiz/titulo/triagem.py",
-          "raiz/titulo/tarefa.py"
-        ],
-        "ficha": [
-          "raiz/imovel_dados.py",
-          "raiz/osm.py",
-          "raiz/tiles.py",
-          "raiz/motivos.py",
-          "raiz/regras/padroes/faixas.yaml"
-        ],
-        "rebanho": [
-          "raiz/rebanho.py"
-        ],
-        "desenvolvedor": [
-          "raiz/restauracao.py",
-          "raiz/restauracao_geo.py",
-          "raiz/vazamento.py"
-        ]
-      },
-      "depende": {
-        "funil": [],
-        "filtros": [
-          "funil"
-        ],
-        "direto": [
-          "funil"
-        ],
-        "mapbiomas": [
-          "funil"
-        ],
-        "extras_direto": [
-          "funil"
-        ],
-        "flag": [
-          "funil",
-          "mapbiomas",
-          "direto"
-        ],
-        "terra": [
-          "funil",
-          "filtros"
-        ],
-        "titulo": [
-          "funil",
-          "filtros",
-          "terra"
-        ],
-        "ficha": [
-          "funil",
-          "filtros",
-          "mapbiomas",
-          "flag",
-          "terra"
-        ],
-        "rebanho": [
-          "funil",
-          "mapbiomas",
-          "direto"
-        ],
-        "desenvolvedor": [
-          "funil",
-          "filtros",
-          "mapbiomas",
-          "direto",
-          "ficha",
-          "terra",
-          "rebanho"
-        ]
       },
       "versao_motor": "motor-b1c546e8d42c",
-      "python_auditoria": "3.12.14",
       "modulo_temporario_conferido": true,
-      "mapbiomas_arquivo_sha256": "6f05d33265a3860f850c5b857492ca14517cbefb7f4b6a80d13601f57e0a3aa9",
+      "codigo_tarefas_sha256": "0eb72f3ead7b44011ca3af95d1dd8cb14055ca984a8a89cddf04215abfe29652",
+      "depende_sha256": "ef61df674c8c1b08b9d92e21d1ac6dbec41d1547b6eaaf7d820689d7dd16ffc6",
       "mapbiomas_formulas_sha256": "6958501f62ef67c16a8865555f4409bfc20e73c7aee69ba04db7cbef22efb3e5",
       "mapbiomas_configuracao_sha256": "3b3683711db60b606f3244efc08582a8129c0653ee1faa5af9b7856a10a94746",
-      "modulos_e1_presentes": []
+      "codigo_nativo_sha256": "f55d787caad693cadaf11dc084c03a928f465dbc8913adf1556aed77b31de12d"
     },
     "b624b108b0350135003e1099d9c928fa7cc24151": {
-      "arquivos_nativos": 4,
-      "codigo_nativo_sha256": "f55d787caad693cadaf11dc084c03a928f465dbc8913adf1556aed77b31de12d",
-      "arquivos": 349,
-      "codigo_preservado_sha256": "b6e1bac2d4bf3a4f01b3f803098f43b5540ac7debcebd94fa8ac93bb535d6060",
       "versoes_tarefas": {
         "funil": "funil-1642afe89067",
         "filtros": "filtros-9c1ae2374773",
@@ -221,251 +246,15 @@
         "rebanho": "rebanho-afd05b1264a5",
         "desenvolvedor": "desenvolvedor-d590ebd0cd76"
       },
-      "codigo_tarefas": {
-        "funil": [
-          "motor/raiz_estado.py",
-          "raiz/funil/ponte.py"
-        ],
-        "filtros": [
-          "motor/raiz_filtros.py",
-          "motor/raiz_extras.py"
-        ],
-        "direto": [
-          "motor/raiz_direto.py",
-          "motor/raiz_extras.py",
-          "raiz/funil/ponte.py"
-        ],
-        "mapbiomas": [
-          "motor/raiz_mapbiomas.py"
-        ],
-        "extras_direto": [
-          "motor/raiz_extras_direto.py",
-          "motor/raiz_extras.py"
-        ],
-        "flag": [
-          "raiz/flag.py"
-        ],
-        "terra": [
-          "raiz/terra.py"
-        ],
-        "titulo": [
-          "raiz/titulo/regularizacao.py",
-          "raiz/titulo/achados.py",
-          "raiz/titulo/nota.py",
-          "raiz/titulo/geometria.py",
-          "raiz/titulo/cadeia.py",
-          "raiz/titulo/contexto.py",
-          "raiz/titulo/triagem.py",
-          "raiz/titulo/tarefa.py"
-        ],
-        "ficha": [
-          "raiz/imovel_dados.py",
-          "raiz/osm.py",
-          "raiz/tiles.py",
-          "raiz/motivos.py",
-          "raiz/regras/padroes/faixas.yaml"
-        ],
-        "rebanho": [
-          "raiz/rebanho.py"
-        ],
-        "desenvolvedor": [
-          "raiz/restauracao.py",
-          "raiz/restauracao_geo.py",
-          "raiz/vazamento.py"
-        ]
-      },
-      "depende": {
-        "funil": [],
-        "filtros": [
-          "funil"
-        ],
-        "direto": [
-          "funil"
-        ],
-        "mapbiomas": [
-          "funil"
-        ],
-        "extras_direto": [
-          "funil"
-        ],
-        "flag": [
-          "funil",
-          "mapbiomas",
-          "direto"
-        ],
-        "terra": [
-          "funil",
-          "filtros"
-        ],
-        "titulo": [
-          "funil",
-          "filtros",
-          "terra"
-        ],
-        "ficha": [
-          "funil",
-          "filtros",
-          "mapbiomas",
-          "flag",
-          "terra"
-        ],
-        "rebanho": [
-          "funil",
-          "mapbiomas",
-          "direto"
-        ],
-        "desenvolvedor": [
-          "funil",
-          "filtros",
-          "mapbiomas",
-          "direto",
-          "ficha",
-          "terra",
-          "rebanho"
-        ]
-      },
       "versao_motor": "motor-409c68f0434e",
-      "python_auditoria": "3.12.14",
       "modulo_temporario_conferido": true,
-      "mapbiomas_arquivo_sha256": "6f05d33265a3860f850c5b857492ca14517cbefb7f4b6a80d13601f57e0a3aa9",
+      "codigo_tarefas_sha256": "0eb72f3ead7b44011ca3af95d1dd8cb14055ca984a8a89cddf04215abfe29652",
+      "depende_sha256": "ef61df674c8c1b08b9d92e21d1ac6dbec41d1547b6eaaf7d820689d7dd16ffc6",
       "mapbiomas_formulas_sha256": "6958501f62ef67c16a8865555f4409bfc20e73c7aee69ba04db7cbef22efb3e5",
       "mapbiomas_configuracao_sha256": "3b3683711db60b606f3244efc08582a8129c0653ee1faa5af9b7856a10a94746",
-      "modulos_e1_presentes": []
-    },
-    "02c3db8de18ef1fb6f5260803e33f4ac3a73c305": {
-      "arquivos_nativos": 4,
-      "codigo_nativo_sha256": "f55d787caad693cadaf11dc084c03a928f465dbc8913adf1556aed77b31de12d",
-      "arquivos": 349,
-      "codigo_preservado_sha256": "b6e1bac2d4bf3a4f01b3f803098f43b5540ac7debcebd94fa8ac93bb535d6060",
-      "versoes_tarefas": {
-        "funil": "funil-55b6fe4db1a2",
-        "filtros": "filtros-9c1ae2374773",
-        "direto": "direto-a3ccf1633dd7",
-        "mapbiomas": "mapbiomas-3ffd6cd150c6",
-        "extras_direto": "extras_direto-76b44c187164",
-        "flag": "flag-2d2dc7a85797",
-        "terra": "terra-b02bcaf5d54e",
-        "titulo": "titulo-305df336f77f",
-        "ficha": "ficha-92dcead7aefb",
-        "rebanho": "rebanho-afd05b1264a5",
-        "desenvolvedor": "desenvolvedor-d590ebd0cd76"
-      },
-      "codigo_tarefas": {
-        "funil": [
-          "motor/raiz_estado.py",
-          "raiz/funil/ponte.py"
-        ],
-        "filtros": [
-          "motor/raiz_filtros.py",
-          "motor/raiz_extras.py"
-        ],
-        "direto": [
-          "motor/raiz_direto.py",
-          "motor/raiz_extras.py",
-          "raiz/funil/ponte.py"
-        ],
-        "mapbiomas": [
-          "motor/raiz_mapbiomas.py"
-        ],
-        "extras_direto": [
-          "motor/raiz_extras_direto.py",
-          "motor/raiz_extras.py"
-        ],
-        "flag": [
-          "raiz/flag.py"
-        ],
-        "terra": [
-          "raiz/terra.py"
-        ],
-        "titulo": [
-          "raiz/titulo/regularizacao.py",
-          "raiz/titulo/achados.py",
-          "raiz/titulo/nota.py",
-          "raiz/titulo/geometria.py",
-          "raiz/titulo/cadeia.py",
-          "raiz/titulo/contexto.py",
-          "raiz/titulo/triagem.py",
-          "raiz/titulo/tarefa.py"
-        ],
-        "ficha": [
-          "raiz/imovel_dados.py",
-          "raiz/osm.py",
-          "raiz/tiles.py",
-          "raiz/motivos.py",
-          "raiz/regras/padroes/faixas.yaml"
-        ],
-        "rebanho": [
-          "raiz/rebanho.py"
-        ],
-        "desenvolvedor": [
-          "raiz/restauracao.py",
-          "raiz/restauracao_geo.py",
-          "raiz/vazamento.py"
-        ]
-      },
-      "depende": {
-        "funil": [],
-        "filtros": [
-          "funil"
-        ],
-        "direto": [
-          "funil"
-        ],
-        "mapbiomas": [
-          "funil"
-        ],
-        "extras_direto": [
-          "funil"
-        ],
-        "flag": [
-          "funil",
-          "mapbiomas",
-          "direto"
-        ],
-        "terra": [
-          "funil",
-          "filtros"
-        ],
-        "titulo": [
-          "funil",
-          "filtros",
-          "terra"
-        ],
-        "ficha": [
-          "funil",
-          "filtros",
-          "mapbiomas",
-          "flag",
-          "terra"
-        ],
-        "rebanho": [
-          "funil",
-          "mapbiomas",
-          "direto"
-        ],
-        "desenvolvedor": [
-          "funil",
-          "filtros",
-          "mapbiomas",
-          "direto",
-          "ficha",
-          "terra",
-          "rebanho"
-        ]
-      },
-      "versao_motor": "motor-123996b23b9e",
-      "python_auditoria": "3.12.14",
-      "modulo_temporario_conferido": true,
-      "mapbiomas_arquivo_sha256": "ae222bcc7ec0d0ba96dec7ee4b1b9f55376e7220a53f161e1c007207699da700",
-      "mapbiomas_formulas_sha256": "6958501f62ef67c16a8865555f4409bfc20e73c7aee69ba04db7cbef22efb3e5",
-      "mapbiomas_configuracao_sha256": "3b3683711db60b606f3244efc08582a8129c0653ee1faa5af9b7856a10a94746",
-      "modulos_e1_presentes": []
+      "codigo_nativo_sha256": "f55d787caad693cadaf11dc084c03a928f465dbc8913adf1556aed77b31de12d"
     },
     "6a53cfbf514f369f694ea0bd3bc594ef8295a3b4": {
-      "arquivos_nativos": 4,
-      "codigo_nativo_sha256": "f55d787caad693cadaf11dc084c03a928f465dbc8913adf1556aed77b31de12d",
-      "arquivos": 351,
-      "codigo_preservado_sha256": "fb7a2488b5ecbabab61fa6b1bcd3ae0b475aaa7761399c8784a4c557b7957bd5",
       "versoes_tarefas": {
         "funil": "funil-c9ffafe84027",
         "filtros": "filtros-ffaf4ea2b227",
@@ -479,135 +268,15 @@
         "rebanho": "rebanho-47ef2fbebb24",
         "desenvolvedor": "desenvolvedor-7662657eb966"
       },
-      "codigo_tarefas": {
-        "funil": [
-          "motor/raiz_estado.py",
-          "raiz/funil/rodar.py",
-          "raiz/funil/ponte.py",
-          "raiz/funil/duck.py",
-          "raiz/funil/novo.py"
-        ],
-        "filtros": [
-          "motor/raiz_filtros.py",
-          "motor/raiz_extras.py",
-          "raiz/funil/rodar.py",
-          "raiz/funil/filtros.py",
-          "raiz/funil/restricoes.py",
-          "raiz/funil/ponte.py",
-          "raiz/funil/duck.py",
-          "raiz/funil/novo.py"
-        ],
-        "direto": [
-          "motor/raiz_direto.py",
-          "motor/raiz_extras.py",
-          "raiz/funil/ponte.py"
-        ],
-        "mapbiomas": [
-          "motor/raiz_mapbiomas.py"
-        ],
-        "extras_direto": [
-          "motor/raiz_extras_direto.py",
-          "motor/raiz_extras.py"
-        ],
-        "flag": [
-          "raiz/flag.py"
-        ],
-        "terra": [
-          "raiz/terra.py"
-        ],
-        "titulo": [
-          "raiz/titulo/regularizacao.py",
-          "raiz/titulo/achados.py",
-          "raiz/titulo/nota.py",
-          "raiz/titulo/geometria.py",
-          "raiz/titulo/cadeia.py",
-          "raiz/titulo/contexto.py",
-          "raiz/titulo/triagem.py",
-          "raiz/titulo/tarefa.py"
-        ],
-        "ficha": [
-          "raiz/imovel_dados.py",
-          "raiz/osm.py",
-          "raiz/tiles.py",
-          "raiz/motivos.py",
-          "raiz/regras/padroes/faixas.yaml"
-        ],
-        "rebanho": [
-          "raiz/rebanho.py"
-        ],
-        "desenvolvedor": [
-          "raiz/restauracao.py",
-          "raiz/restauracao_geo.py",
-          "raiz/vazamento.py"
-        ]
-      },
-      "depende": {
-        "funil": [],
-        "filtros": [
-          "funil"
-        ],
-        "direto": [
-          "funil"
-        ],
-        "mapbiomas": [
-          "funil"
-        ],
-        "extras_direto": [
-          "funil"
-        ],
-        "flag": [
-          "funil",
-          "mapbiomas",
-          "direto"
-        ],
-        "terra": [
-          "funil",
-          "filtros"
-        ],
-        "titulo": [
-          "funil",
-          "filtros",
-          "terra"
-        ],
-        "ficha": [
-          "funil",
-          "filtros",
-          "mapbiomas",
-          "flag",
-          "terra"
-        ],
-        "rebanho": [
-          "funil",
-          "mapbiomas",
-          "direto"
-        ],
-        "desenvolvedor": [
-          "funil",
-          "filtros",
-          "mapbiomas",
-          "direto",
-          "ficha",
-          "terra",
-          "rebanho"
-        ]
-      },
       "versao_motor": "motor-409c68f0434e",
-      "python_auditoria": "3.12.14",
       "modulo_temporario_conferido": true,
-      "mapbiomas_arquivo_sha256": "6f05d33265a3860f850c5b857492ca14517cbefb7f4b6a80d13601f57e0a3aa9",
+      "codigo_tarefas_sha256": "f24d04540c6c4ea9ad5a7b8a15ed9e9cccf9b04196a2bb990f3de15842a14e3b",
+      "depende_sha256": "ef61df674c8c1b08b9d92e21d1ac6dbec41d1547b6eaaf7d820689d7dd16ffc6",
       "mapbiomas_formulas_sha256": "6958501f62ef67c16a8865555f4409bfc20e73c7aee69ba04db7cbef22efb3e5",
       "mapbiomas_configuracao_sha256": "3b3683711db60b606f3244efc08582a8129c0653ee1faa5af9b7856a10a94746",
-      "modulos_e1_presentes": [
-        "raiz/coleta/arcgis_cli.py",
-        "raiz/coleta/prodes.py",
-        "raiz/funil/filtros.py"
-      ]
+      "codigo_nativo_sha256": "f55d787caad693cadaf11dc084c03a928f465dbc8913adf1556aed77b31de12d"
     },
     "bea53bd06c7178daf2a53c392e5a9d54c55e7bc7": {
-      "arquivos_nativos": 4,
-      "codigo_nativo_sha256": "f55d787caad693cadaf11dc084c03a928f465dbc8913adf1556aed77b31de12d",
-      "arquivos": 351,
-      "codigo_preservado_sha256": "fb7a2488b5ecbabab61fa6b1bcd3ae0b475aaa7761399c8784a4c557b7957bd5",
       "versoes_tarefas": {
         "funil": "funil-c9ffafe84027",
         "filtros": "filtros-ffaf4ea2b227",
@@ -621,135 +290,15 @@
         "rebanho": "rebanho-47ef2fbebb24",
         "desenvolvedor": "desenvolvedor-7662657eb966"
       },
-      "codigo_tarefas": {
-        "funil": [
-          "motor/raiz_estado.py",
-          "raiz/funil/rodar.py",
-          "raiz/funil/ponte.py",
-          "raiz/funil/duck.py",
-          "raiz/funil/novo.py"
-        ],
-        "filtros": [
-          "motor/raiz_filtros.py",
-          "motor/raiz_extras.py",
-          "raiz/funil/rodar.py",
-          "raiz/funil/filtros.py",
-          "raiz/funil/restricoes.py",
-          "raiz/funil/ponte.py",
-          "raiz/funil/duck.py",
-          "raiz/funil/novo.py"
-        ],
-        "direto": [
-          "motor/raiz_direto.py",
-          "motor/raiz_extras.py",
-          "raiz/funil/ponte.py"
-        ],
-        "mapbiomas": [
-          "motor/raiz_mapbiomas.py"
-        ],
-        "extras_direto": [
-          "motor/raiz_extras_direto.py",
-          "motor/raiz_extras.py"
-        ],
-        "flag": [
-          "raiz/flag.py"
-        ],
-        "terra": [
-          "raiz/terra.py"
-        ],
-        "titulo": [
-          "raiz/titulo/regularizacao.py",
-          "raiz/titulo/achados.py",
-          "raiz/titulo/nota.py",
-          "raiz/titulo/geometria.py",
-          "raiz/titulo/cadeia.py",
-          "raiz/titulo/contexto.py",
-          "raiz/titulo/triagem.py",
-          "raiz/titulo/tarefa.py"
-        ],
-        "ficha": [
-          "raiz/imovel_dados.py",
-          "raiz/osm.py",
-          "raiz/tiles.py",
-          "raiz/motivos.py",
-          "raiz/regras/padroes/faixas.yaml"
-        ],
-        "rebanho": [
-          "raiz/rebanho.py"
-        ],
-        "desenvolvedor": [
-          "raiz/restauracao.py",
-          "raiz/restauracao_geo.py",
-          "raiz/vazamento.py"
-        ]
-      },
-      "depende": {
-        "funil": [],
-        "filtros": [
-          "funil"
-        ],
-        "direto": [
-          "funil"
-        ],
-        "mapbiomas": [
-          "funil"
-        ],
-        "extras_direto": [
-          "funil"
-        ],
-        "flag": [
-          "funil",
-          "mapbiomas",
-          "direto"
-        ],
-        "terra": [
-          "funil",
-          "filtros"
-        ],
-        "titulo": [
-          "funil",
-          "filtros",
-          "terra"
-        ],
-        "ficha": [
-          "funil",
-          "filtros",
-          "mapbiomas",
-          "flag",
-          "terra"
-        ],
-        "rebanho": [
-          "funil",
-          "mapbiomas",
-          "direto"
-        ],
-        "desenvolvedor": [
-          "funil",
-          "filtros",
-          "mapbiomas",
-          "direto",
-          "ficha",
-          "terra",
-          "rebanho"
-        ]
-      },
       "versao_motor": "motor-409c68f0434e",
-      "python_auditoria": "3.12.14",
       "modulo_temporario_conferido": true,
-      "mapbiomas_arquivo_sha256": "6f05d33265a3860f850c5b857492ca14517cbefb7f4b6a80d13601f57e0a3aa9",
+      "codigo_tarefas_sha256": "f24d04540c6c4ea9ad5a7b8a15ed9e9cccf9b04196a2bb990f3de15842a14e3b",
+      "depende_sha256": "ef61df674c8c1b08b9d92e21d1ac6dbec41d1547b6eaaf7d820689d7dd16ffc6",
       "mapbiomas_formulas_sha256": "6958501f62ef67c16a8865555f4409bfc20e73c7aee69ba04db7cbef22efb3e5",
       "mapbiomas_configuracao_sha256": "3b3683711db60b606f3244efc08582a8129c0653ee1faa5af9b7856a10a94746",
-      "modulos_e1_presentes": [
-        "raiz/coleta/arcgis_cli.py",
-        "raiz/coleta/prodes.py",
-        "raiz/funil/filtros.py"
-      ]
+      "codigo_nativo_sha256": "f55d787caad693cadaf11dc084c03a928f465dbc8913adf1556aed77b31de12d"
     },
     "436c7b636f6a8867b47403a1dfad4e4c741dc150": {
-      "arquivos_nativos": 4,
-      "codigo_nativo_sha256": "f55d787caad693cadaf11dc084c03a928f465dbc8913adf1556aed77b31de12d",
-      "arquivos": 351,
-      "codigo_preservado_sha256": "fb7a2488b5ecbabab61fa6b1bcd3ae0b475aaa7761399c8784a4c557b7957bd5",
       "versoes_tarefas": {
         "funil": "funil-c9ffafe84027",
         "filtros": "filtros-f6a1b5d63913",
@@ -763,135 +312,15 @@
         "rebanho": "rebanho-47ef2fbebb24",
         "desenvolvedor": "desenvolvedor-7662657eb966"
       },
-      "codigo_tarefas": {
-        "funil": [
-          "motor/raiz_estado.py",
-          "raiz/funil/rodar.py",
-          "raiz/funil/ponte.py",
-          "raiz/funil/duck.py",
-          "raiz/funil/novo.py"
-        ],
-        "filtros": [
-          "motor/raiz_filtros.py",
-          "motor/raiz_extras.py",
-          "raiz/funil/rodar.py",
-          "raiz/funil/filtros.py",
-          "raiz/funil/restricoes.py",
-          "raiz/funil/ponte.py",
-          "raiz/funil/duck.py",
-          "raiz/funil/novo.py"
-        ],
-        "direto": [
-          "motor/raiz_direto.py",
-          "motor/raiz_extras.py",
-          "raiz/funil/ponte.py"
-        ],
-        "mapbiomas": [
-          "motor/raiz_mapbiomas.py"
-        ],
-        "extras_direto": [
-          "motor/raiz_extras_direto.py",
-          "motor/raiz_extras.py"
-        ],
-        "flag": [
-          "raiz/flag.py"
-        ],
-        "terra": [
-          "raiz/terra.py"
-        ],
-        "titulo": [
-          "raiz/titulo/regularizacao.py",
-          "raiz/titulo/achados.py",
-          "raiz/titulo/nota.py",
-          "raiz/titulo/geometria.py",
-          "raiz/titulo/cadeia.py",
-          "raiz/titulo/contexto.py",
-          "raiz/titulo/triagem.py",
-          "raiz/titulo/tarefa.py"
-        ],
-        "ficha": [
-          "raiz/imovel_dados.py",
-          "raiz/osm.py",
-          "raiz/tiles.py",
-          "raiz/motivos.py",
-          "raiz/regras/padroes/faixas.yaml"
-        ],
-        "rebanho": [
-          "raiz/rebanho.py"
-        ],
-        "desenvolvedor": [
-          "raiz/restauracao.py",
-          "raiz/restauracao_geo.py",
-          "raiz/vazamento.py"
-        ]
-      },
-      "depende": {
-        "funil": [],
-        "filtros": [
-          "funil"
-        ],
-        "direto": [
-          "funil"
-        ],
-        "mapbiomas": [
-          "funil"
-        ],
-        "extras_direto": [
-          "funil"
-        ],
-        "flag": [
-          "funil",
-          "mapbiomas",
-          "direto"
-        ],
-        "terra": [
-          "funil",
-          "filtros"
-        ],
-        "titulo": [
-          "funil",
-          "filtros",
-          "terra"
-        ],
-        "ficha": [
-          "funil",
-          "filtros",
-          "mapbiomas",
-          "flag",
-          "terra"
-        ],
-        "rebanho": [
-          "funil",
-          "mapbiomas",
-          "direto"
-        ],
-        "desenvolvedor": [
-          "funil",
-          "filtros",
-          "mapbiomas",
-          "direto",
-          "ficha",
-          "terra",
-          "rebanho"
-        ]
-      },
       "versao_motor": "motor-409c68f0434e",
-      "python_auditoria": "3.12.14",
       "modulo_temporario_conferido": true,
-      "mapbiomas_arquivo_sha256": "6f05d33265a3860f850c5b857492ca14517cbefb7f4b6a80d13601f57e0a3aa9",
+      "codigo_tarefas_sha256": "f24d04540c6c4ea9ad5a7b8a15ed9e9cccf9b04196a2bb990f3de15842a14e3b",
+      "depende_sha256": "ef61df674c8c1b08b9d92e21d1ac6dbec41d1547b6eaaf7d820689d7dd16ffc6",
       "mapbiomas_formulas_sha256": "6958501f62ef67c16a8865555f4409bfc20e73c7aee69ba04db7cbef22efb3e5",
       "mapbiomas_configuracao_sha256": "3b3683711db60b606f3244efc08582a8129c0653ee1faa5af9b7856a10a94746",
-      "modulos_e1_presentes": [
-        "raiz/coleta/arcgis_cli.py",
-        "raiz/coleta/prodes.py",
-        "raiz/funil/filtros.py"
-      ]
+      "codigo_nativo_sha256": "f55d787caad693cadaf11dc084c03a928f465dbc8913adf1556aed77b31de12d"
     },
     "be452620f868537251fa832a10cb14bfb5c8efe3": {
-      "arquivos_nativos": 4,
-      "codigo_nativo_sha256": "f55d787caad693cadaf11dc084c03a928f465dbc8913adf1556aed77b31de12d",
-      "arquivos": 351,
-      "codigo_preservado_sha256": "fb7a2488b5ecbabab61fa6b1bcd3ae0b475aaa7761399c8784a4c557b7957bd5",
       "versoes_tarefas": {
         "funil": "funil-9222a79e7478",
         "filtros": "filtros-f6a1b5d63913",
@@ -905,347 +334,193 @@
         "rebanho": "rebanho-47ef2fbebb24",
         "desenvolvedor": "desenvolvedor-7662657eb966"
       },
-      "codigo_tarefas": {
-        "funil": [
-          "motor/raiz_estado.py",
-          "raiz/funil/rodar.py",
-          "raiz/funil/ponte.py",
-          "raiz/funil/duck.py",
-          "raiz/funil/novo.py"
-        ],
-        "filtros": [
-          "motor/raiz_filtros.py",
-          "motor/raiz_extras.py",
-          "raiz/funil/rodar.py",
-          "raiz/funil/filtros.py",
-          "raiz/funil/restricoes.py",
-          "raiz/funil/ponte.py",
-          "raiz/funil/duck.py",
-          "raiz/funil/novo.py"
-        ],
-        "direto": [
-          "motor/raiz_direto.py",
-          "motor/raiz_extras.py",
-          "raiz/funil/ponte.py"
-        ],
-        "mapbiomas": [
-          "motor/raiz_mapbiomas.py"
-        ],
-        "extras_direto": [
-          "motor/raiz_extras_direto.py",
-          "motor/raiz_extras.py"
-        ],
-        "flag": [
-          "raiz/flag.py"
-        ],
-        "terra": [
-          "raiz/terra.py"
-        ],
-        "titulo": [
-          "raiz/titulo/regularizacao.py",
-          "raiz/titulo/achados.py",
-          "raiz/titulo/nota.py",
-          "raiz/titulo/geometria.py",
-          "raiz/titulo/cadeia.py",
-          "raiz/titulo/contexto.py",
-          "raiz/titulo/triagem.py",
-          "raiz/titulo/tarefa.py"
-        ],
-        "ficha": [
-          "raiz/imovel_dados.py",
-          "raiz/osm.py",
-          "raiz/tiles.py",
-          "raiz/motivos.py",
-          "raiz/regras/padroes/faixas.yaml"
-        ],
-        "rebanho": [
-          "raiz/rebanho.py"
-        ],
-        "desenvolvedor": [
-          "raiz/restauracao.py",
-          "raiz/restauracao_geo.py",
-          "raiz/vazamento.py"
-        ]
-      },
-      "depende": {
-        "funil": [],
-        "filtros": [
-          "funil"
-        ],
-        "direto": [
-          "funil"
-        ],
-        "mapbiomas": [
-          "funil"
-        ],
-        "extras_direto": [
-          "funil"
-        ],
-        "flag": [
-          "funil",
-          "mapbiomas",
-          "direto"
-        ],
-        "terra": [
-          "funil",
-          "filtros"
-        ],
-        "titulo": [
-          "funil",
-          "filtros",
-          "terra"
-        ],
-        "ficha": [
-          "funil",
-          "filtros",
-          "mapbiomas",
-          "flag",
-          "terra"
-        ],
-        "rebanho": [
-          "funil",
-          "mapbiomas",
-          "direto"
-        ],
-        "desenvolvedor": [
-          "funil",
-          "filtros",
-          "mapbiomas",
-          "direto",
-          "ficha",
-          "terra",
-          "rebanho"
-        ]
-      },
       "versao_motor": "motor-7946ac2c3369",
-      "python_auditoria": "3.12.14",
       "modulo_temporario_conferido": true,
-      "mapbiomas_arquivo_sha256": "ae222bcc7ec0d0ba96dec7ee4b1b9f55376e7220a53f161e1c007207699da700",
+      "codigo_tarefas_sha256": "f24d04540c6c4ea9ad5a7b8a15ed9e9cccf9b04196a2bb990f3de15842a14e3b",
+      "depende_sha256": "ef61df674c8c1b08b9d92e21d1ac6dbec41d1547b6eaaf7d820689d7dd16ffc6",
       "mapbiomas_formulas_sha256": "6958501f62ef67c16a8865555f4409bfc20e73c7aee69ba04db7cbef22efb3e5",
       "mapbiomas_configuracao_sha256": "3b3683711db60b606f3244efc08582a8129c0653ee1faa5af9b7856a10a94746",
-      "modulos_e1_presentes": [
-        "raiz/coleta/arcgis_cli.py",
-        "raiz/coleta/prodes.py",
-        "raiz/funil/filtros.py"
-      ]
+      "codigo_nativo_sha256": "f55d787caad693cadaf11dc084c03a928f465dbc8913adf1556aed77b31de12d"
     }
   },
   "comparacoes": [
     {
       "origem": "88860b64ee09f811b66e283f5c57997ebcdb3fd5",
-      "destino": "02c3db8de18ef1fb6f5260803e33f4ac3a73c305",
-      "tarefas_alteradas": [
-        "funil",
-        "mapbiomas"
+      "destino": "be452620f868537251fa832a10cb14bfb5c8efe3",
+      "escopos": [
+        "motor/",
+        "raiz/",
+        "nativo/",
+        "uv.lock"
       ],
-      "tarefas_preservadas": [
+      "diff_sha256": "d8873587746fe7d783a7989416d466a846fc7d9396e61e4067412800061068b8",
+      "arquivos_status": [
+        "M\tmotor/fila_processamento.py",
+        "M\tmotor/painel.py",
+        "M\tmotor/raiz_estado.py",
+        "M\tmotor/raiz_mapbiomas.py",
+        "M\tmotor/rodar_estado.py",
+        "A\traiz/atestacao.py",
+        "A\traiz/cadt.py",
+        "A\traiz/catalogo_publico.py",
+        "M\traiz/cli.py",
+        "M\traiz/coleta/arcgis.py",
+        "A\traiz/coleta/arcgis_cli.py",
+        "M\traiz/coleta/bruto.py",
+        "M\traiz/coleta/car.py",
+        "M\traiz/coleta/espelho.py",
+        "M\traiz/coleta/fila.py",
+        "M\traiz/coleta/ibama.py",
+        "M\traiz/coleta/manifesto.yaml",
+        "A\traiz/coleta/prodes.py",
+        "M\traiz/coleta/rodada.py",
+        "M\traiz/coleta/sigef.py",
+        "M\traiz/coleta/wfs.py",
+        "M\traiz/executor/armazem.py",
+        "M\traiz/executor/executor.py",
+        "M\traiz/executor/publicacao_aberta.py",
+        "M\traiz/executor/publicar_entrada.py",
+        "A\traiz/executor/rodadas.py",
+        "M\traiz/executor/tarefas.py",
+        "M\traiz/funil/duck.py",
+        "A\traiz/funil/filtros.py",
+        "M\traiz/funil/ponte.py",
+        "M\traiz/funil/restricoes.py",
+        "M\traiz/funil/rodar.py",
+        "A\traiz/metadados.py",
+        "A\traiz/quantis.py",
+        "A\traiz/regras/historico/README.md",
+        "A\traiz/regras/historico/__init__.py",
+        "A\traiz/regras/historico/restauracao-2026c+421970fd/edital_profloresta.yaml",
+        "A\traiz/regras/historico/restauracao-2026c+421970fd/manifesto.json",
+        "A\traiz/regras/historico/restauracao-2026c+421970fd/restauracao.yaml",
+        "A\traiz/regras/historico/restauracao-2026c+421970fd/restauracao_cambio.yaml",
+        "M\tuv.lock"
+      ],
+      "upgrade_e1_e2": true,
+      "tarefas_alteradas": [
         "desenvolvedor",
         "direto",
         "extras_direto",
         "ficha",
         "filtros",
         "flag",
+        "funil",
+        "mapbiomas",
         "rebanho",
         "terra",
         "titulo"
       ],
-      "arquivos_alterados": [
-        "motor/fila_processamento.py",
-        "motor/painel.py",
-        "motor/raiz_estado.py",
-        "motor/raiz_mapbiomas.py",
-        "motor/rodar_estado.py",
-        "raiz/atestacao.py",
-        "raiz/cadt.py",
-        "raiz/catalogo_publico.py",
-        "raiz/executor/armazem.py",
-        "raiz/executor/executor.py",
-        "raiz/executor/publicacao_aberta.py",
-        "raiz/executor/publicar_entrada.py",
-        "raiz/executor/rodadas.py",
-        "raiz/metadados.py",
-        "raiz/quantis.py",
-        "raiz/regras/historico/README.md",
-        "raiz/regras/historico/__init__.py",
-        "raiz/regras/historico/restauracao-2026c+421970fd/edital_profloresta.yaml",
-        "raiz/regras/historico/restauracao-2026c+421970fd/manifesto.json",
-        "raiz/regras/historico/restauracao-2026c+421970fd/restauracao.yaml",
-        "raiz/regras/historico/restauracao-2026c+421970fd/restauracao_cambio.yaml"
-      ],
+      "tarefas_preservadas": [],
       "dependencias": {
         "pacotes_origem": 212,
-        "origem_sha256": "7ed6db346fda1852bddc9e47bf8df33cdf8ad481a089a1b78f3493e7eb069726",
-        "origem_no_destino_sha256": "7ed6db346fda1852bddc9e47bf8df33cdf8ad481a089a1b78f3493e7eb069726",
-        "requires_python": ">=3.12",
-        "projeto_editavel_fora_da_comparacao": [
+        "pacotes_origem_sha256": "7ed6db346fda1852bddc9e47bf8df33cdf8ad481a089a1b78f3493e7eb069726",
+        "todos_preservados_integralmente": true,
+        "projeto_editavel_excluido": [
           "raiz"
         ]
       },
-      "guardas": [
-        {
-          "tipo": "embargo_legado",
-          "arquivo_antes_sha256": "3b90d96ac7f3ebe95fe6f935cfd46ff68835074b7d9b886e11c6553e50267a68",
-          "arquivo_depois_sha256": "573689252da8d0b96b7500b13dc5376af94cf379445190c2ef379e1bdfd25908",
-          "modulo_antes_ast_sha256": "b83dfd2ddd44eb3982a3ca59d6fb3af70f78114b8122b1ffceb019bfaa149841",
-          "modulo_depois_ast_sha256": "26e6ef954bb00c5d36f54fecdd48cefa68c14ed0aaef8b6bdee2dcd33778c348",
-          "municipio_antes_ast_sha256": "98077a2c55550be7f018ef6588f930d0d1bdcb89cf96fdb31494f664149beb12",
-          "municipio_depois_ast_sha256": "240aa08f7038e2cae71a8333d6bb91cbe13781a2f68f4eaeabf6655ce00663b4",
-          "helper_depois_ast_sha256": "788800f565d9e40fc8ca7ef6915267ed928ffa139393188ed82ea1d5600e1064",
-          "bloco_antes_ast_sha256": "1ac870e08f19c7fc2e8f0d5320ada650873c4687a849762a8d068555394d2a5f",
-          "chamada_depois_ast_sha256": "0b68bf9a05042c3dcac4f8672cca6996540bf982efc64eecbd49a72b86fe45f7",
-          "ocorrencias": {
-            "helper_antes": 0,
-            "helper_depois": 1,
-            "bloco_antes": 1,
-            "chamada_depois": 1
-          },
-          "resto_municipio": {
-            "antes_sha256": "ff4c8b7af6f5065311d4519fbe2da20a20eb96c9284b9c2ecaf721157caeb135",
-            "depois_sha256": "ff4c8b7af6f5065311d4519fbe2da20a20eb96c9284b9c2ecaf721157caeb135",
-            "iguais": true
-          },
-          "resto_modulo": {
-            "antes_sha256": "fe35d791afda21e1a5c4e5ee10dca9fc843e1c73a8c71b04d0f8a3ceb416569f",
-            "depois_sha256": "fe35d791afda21e1a5c4e5ee10dca9fc843e1c73a8c71b04d0f8a3ceb416569f",
-            "iguais": true
-          },
-          "diff_guardas": "--- antes\n+++ depois\n@@ -506,6 +506,43 @@\n     return a.cx[bbox[0]:bbox[2], bbox[1]:bbox[3]] if len(a) else a\n \n \n+def embargos_municipio(embargos, cod):\n+    \"\"\"Embargo ativo sem polígono utilizável bloqueia o funil; nunca vira ausência de restrição.\n+\n+    Usa a mesma reparação do motor legado, sem depender dos módulos E1. A validação\n+    não altera as geometrias retornadas nem exclui polígonos por tamanho.\n+    \"\"\"\n+    exigidas = {'COD_MUNICIPIO', 'SIT_CANCELADO', 'SIT_DESEMBARGO'}\n+    if not exigidas <= set(embargos.columns):\n+        raise ValueError('embargos sem colunas obrigatórias; cálculo bloqueado')\n+    codigos = pd.to_numeric(embargos.COD_MUNICIPIO, errors='coerce')\n+    ativos = embargos.loc[(codigos == int(cod)) & (embargos.SIT_CANCELADO != 'S') &\n+                          (embargos.SIT_DESEMBARGO != 'S')]\n+    try:\n+        if isinstance(ativos, gpd.GeoDataFrame):\n+            g = gpd.GeoDataFrame(geometry=ativos.geometry, crs=ativos.crs).to_crs(4674)\n+        else:\n+            if 'GEOM_AREA_EMBARGADA' not in ativos:\n+                raise ValueError('coluna de geometria ausente')\n+            geoms = [wkt.loads(s) if isinstance(s, str) and s.strip() else None for s in ativos.GEOM_AREA_EMBARGADA]\n+            g = gpd.GeoDataFrame(geometry=geoms, crs=4674)\n+        if g.geometry.isna().any() or g.geometry.is_empty.any():\n+            raise ValueError('geometria ausente ou vazia')\n+        # Uma projeção não linear pode dar área artificial a um anel colinear.\n+        # Confere também a geometria original, com a mesma regra buffer(0).\n+        originais = [geom if geom.is_valid else geom.buffer(0) for geom in g.geometry]\n+        if any(not np.isfinite(geom.area) or geom.area <= 0 for geom in originais):\n+            raise ValueError('sem área poligonal na geometria original')\n+        reparadas = fix(g, sub=False)\n+        areas = reparadas.area\n+        if len(reparadas) != len(g) or not (np.isfinite(areas) & (areas > 0)).all():\n+            raise ValueError('sem área poligonal após reparo')\n+    except Exception:\n+        # Parsers podem incluir o WKT original no erro; só divulga o diagnóstico fixo.\n+        raise ValueError('embargo ativo sem geometria poligonal válida; cálculo bloqueado') from None\n+    return g\n+\n+\n def municipio(uf, cod, EMB, out='.'):\n     global PROJ\n     if PROJ is None: PROJ = projetos_carbono()\n@@ -514,6 +551,7 @@\n     if len(car) == 0: return None, nome  # o SICAR devolve zero imóveis (ex.: Uiramutã, RR): sem colunas para filtrar\n     car = car[(car.status_imovel != 'CA') & (car.tipo_imovel == 'IRU')]\n     if len(car) == 0: return None, nome\n+    e = embargos_municipio(EMB, cod)\n     bbox = [round(v, 4) for v in car.total_bounds]\n     print(f'  {nome}: {len(car)} imóveis; baixando PRODES, TI, UC, SIGEF...')\n     L, toca = camadas(uf, bbox)\n@@ -524,10 +562,6 @@\n     yd = fix(yd)\n     if 'main_class' in yd: yd = yd[yd.main_class.str.upper() == 'DESMATAMENTO']\n     if 'year' not in yd: yd['year'] = pd.Series(dtype=float)  # fora do bioma Amazônia o PRODES desta camada vem vazio\n-    e = EMB[EMB.COD_MUNICIPIO == str(cod)]\n-    e = e[(e.SIT_CANCELADO != 'S') & (e.SIT_DESEMBARGO != 'S') & e.GEOM_AREA_EMBARGADA.notna()].copy()\n-    e['geometry'] = e.GEOM_AREA_EMBARGADA.apply(lambda s: wkt.loads(s) if isinstance(s, str) and s.strip() else None)\n-    e = gpd.GeoDataFrame(e[e.geometry.notna()], geometry='geometry', crs=4674)\n     c = car.set_index('cod_imovel')\n     c['desm_pos2008_ha'] = ov(base, yd[yd.year >= 2009])\n     c['desm_pos2020_ha'] = ov(base, yd[yd.year >= 2021])\n"
-        },
-        {
-          "tipo": "adocao_comprovada",
-          "referencia": "be452620f868537251fa832a10cb14bfb5c8efe3",
-          "arquivo_antes_sha256": "a197d590ee4bb9c216661a371fa9eff95c5cb1e73d14272e9e73e0192c5052e3",
-          "arquivo_depois_sha256": "f9734a8b76b96b74472b6832804cd95305f802a3c8f559afcee57b7f064b42df",
-          "resto_modulo": {
-            "antes_sha256": "8ef737407e815fdc8d8fcccfda7cf2cba9ac948d01c6227d2b3a9e16d12b3280",
-            "depois_sha256": "8ef737407e815fdc8d8fcccfda7cf2cba9ac948d01c6227d2b3a9e16d12b3280",
-            "iguais": true
-          },
-          "funcoes_antes": {
-            "plano": "1de553cd8149aa204fbb3ab37d92a3eb27075653d0d7a08bfd2e422fb9b2ccf2",
-            "processar_municipio": "6f71161aaca937d89f6e3b53e03f6c9e63609dd72c689db15ec675a6d99aa33f",
-            "adotar": "a60e30f004ff480bf0853e51b7b2716e36371f9402a58eb2e636b102371001d0"
-          },
-          "funcoes_depois": {
-            "_saidas_adotaveis": "9a9230b22ca4fead8fc70e40be064500b488900476e3adfdd5b9bf3ffa2c304c",
-            "_adocao_comprovada": "feef26fbf5cbe57f364139c246784d0a705f9e5129783dc86e05b136a2da0d71",
-            "plano": "2680987396575acba88ff791bbe936f33a7ff568aa3f04ffb5024a0d4d3e1964",
-            "processar_municipio": "3363f9ffd8c0e6978cc25916b49fb82c8365da944775fb9fca27f7ac40ccbc72",
-            "adotar": "09f91cb95ce7eef7b4f8e143f29bcc1ce23a84bed35a0651941ff2929c5d4d82"
-          },
-          "resto_plano_execucao_sha256": {
-            "plano": "1de553cd8149aa204fbb3ab37d92a3eb27075653d0d7a08bfd2e422fb9b2ccf2",
-            "processar_municipio": "6f71161aaca937d89f6e3b53e03f6c9e63609dd72c689db15ec675a6d99aa33f"
-          },
-          "canonical_conferido": true,
-          "contrato": "Versão e hash comprovados antes de adotar ou reutilizar marca adotada; data original preservada, inclusive None. Não reetiqueta legado.",
-          "diff_guardas": "--- antes\n+++ depois\n@@ -111,6 +111,31 @@\n         corpo = {\"versao\": self.versoes()[t.nome], \"externas\": t.externas(uf, cod, marca), \"entradas\": entradas}\n         return hashlib.sha256(json.dumps(corpo, sort_keys=True, default=str).encode()).hexdigest()\n \n+    def _saidas_adotaveis(self, t: Tarefa, uf: str, cod: int) -> dict[str, str] | None:\n+        \"\"\"Só atribui a versão atual quando todos os arquivos presentes comprovam essa origem.\"\"\"\n+        versao = self.versoes()[t.nome]\n+        if not isinstance(versao, str) or not versao or versao == \"publicado\":\n+            return None\n+        saidas = {}\n+        for padrao in t.saidas:\n+            arq = padrao.format(cod=cod)\n+            meta = self.a.meta(self.chave_saida(uf, arq))\n+            if meta is None:\n+                continue\n+            if not meta.get(\"sha256\") or meta.get(\"versao\") != versao:\n+                return None\n+            if meta.get(\"tarefa\") not in (None, t.nome):\n+                return None\n+            saidas[arq] = meta[\"sha256\"]\n+        return saidas if t.saidas[0].format(cod=cod) in saidas else None\n+\n+    def _adocao_comprovada(self, t: Tarefa, uf: str, cod: int, feito: dict) -> bool:\n+        \"\"\"Marcas adotadas antigas não legitimam CSV legado por terem uma assinatura atual.\"\"\"\n+        if not feito.get(\"adotado\"):\n+            return True\n+        saidas = self._saidas_adotaveis(t, uf, cod)\n+        return bool(saidas) and feito.get(\"versao\") == self.versoes()[t.nome] and feito.get(\"saidas\") == saidas\n+\n     def plano(self, uf: str, cod: int, refazer: bool = False) -> list[str]:\n         \"\"\"Tarefas que rodariam agora (supondo que as anteriores saiam iguais). Para o painel e para decidir.\"\"\"\n         m = self.marca(uf, cod)\n@@ -119,7 +144,13 @@\n             feito = m[\"tarefas\"].get(t.nome)\n             if any((m[\"tarefas\"].get(d) or {}).get(\"vazio\") for d in t.depende):\n                 continue\n-            if refazer or not feito or feito.get(\"erro\") or feito.get(\"assinatura\") != self.assinatura(t, uf, cod, m):\n+            if (\n+                refazer\n+                or not feito\n+                or feito.get(\"erro\")\n+                or not self._adocao_comprovada(t, uf, cod, feito)\n+                or feito.get(\"assinatura\") != self.assinatura(t, uf, cod, m)\n+            ):\n                 out.append(t.nome)\n         return out\n \n@@ -148,7 +179,13 @@\n                 continue\n             a = self.assinatura(t, uf, cod, m)\n             feito = m[\"tarefas\"].get(t.nome)\n-            if not refazer and feito and not feito.get(\"erro\") and feito.get(\"assinatura\") == a:\n+            if (\n+                not refazer\n+                and feito\n+                and not feito.get(\"erro\")\n+                and self._adocao_comprovada(t, uf, cod, feito)\n+                and feito.get(\"assinatura\") == a\n+            ):\n                 res[\"puladas\"].append(t.nome)\n                 continue\n             try:\n@@ -307,8 +344,11 @@\n         return estado\n \n     def adotar(self, uf: str, cods: list[int] | None = None) -> dict:\n-        \"\"\"Dá marca de concluído às saídas que já estão no armazém sem marca (ex.: o PA publicado antes do executor),\n-        como se fossem da versão atual de cada tarefa. Daí em diante só roda o que faltar ou o que mudar.\"\"\"\n+        \"\"\"Adota saídas sem marca somente quando sua versão corresponde à tarefa atual.\n+\n+        Arquivos legados, sem versão ou divergentes permanecem intactos e sem\n+        marca de concluído; o executor poderá recalculá-los pelo fluxo normal.\n+        \"\"\"\n         uf = uf.upper()\n         if hasattr(self.a, \"garantir_uf\"):\n             self.a.garantir_uf(uf)\n@@ -331,16 +371,12 @@\n             for t in self.tarefas:\n                 if any(d not in m[\"tarefas\"] for d in t.depende):\n                     continue\n-                saidas = {}\n-                for padrao in t.saidas:\n-                    arq = padrao.format(cod=cod)\n-                    meta = self.a.meta(self.chave_saida(uf, arq))\n-                    if meta and meta.get(\"sha256\"):\n-                        saidas[arq] = meta[\"sha256\"]\n-                if t.saidas[0].format(cod=cod) not in saidas:\n+                saidas = self._saidas_adotaveis(t, uf, cod)\n+                if saidas is None:\n                     continue\n+                origem = self.a.meta(self.chave_saida(uf, t.saidas[0].format(cod=cod)))\n                 m[\"tarefas\"][t.nome] = {\"versao\": self.versoes()[t.nome], \"assinatura\": self.assinatura(t, uf, cod, m),\n-                                        \"saidas\": saidas, \"data\": _agora(), \"adotado\": True}  # fmt: skip\n+                                        \"saidas\": saidas, \"data\": origem.get(\"data\"), \"adotado\": True}  # fmt: skip\n                 out[\"tarefas\"][t.nome] = out[\"tarefas\"].get(t.nome, 0) + 1\n             if m[\"tarefas\"]:\n                 por_json(self.a, self.chave_marca(uf, cod), m)\n"
-        }
-      ]
+      "guardas_comuns_comprovadas": [
+        "embargo_legado",
+        "adocao_comprovada"
+      ],
+      "protecao_pr81": "adicionada"
     },
     {
       "origem": "b624b108b0350135003e1099d9c928fa7cc24151",
-      "destino": "02c3db8de18ef1fb6f5260803e33f4ac3a73c305",
-      "tarefas_alteradas": [
-        "funil",
-        "mapbiomas"
+      "destino": "be452620f868537251fa832a10cb14bfb5c8efe3",
+      "escopos": [
+        "motor/",
+        "raiz/",
+        "nativo/",
+        "uv.lock"
       ],
-      "tarefas_preservadas": [
+      "diff_sha256": "629fd37a90e344d2431f2ab9ba5e41331fb968464b13655c7e4df0bb78553b46",
+      "arquivos_status": [
+        "M\tmotor/fila_processamento.py",
+        "M\tmotor/painel.py",
+        "M\tmotor/raiz_estado.py",
+        "M\tmotor/raiz_mapbiomas.py",
+        "M\tmotor/rodar_estado.py",
+        "M\traiz/atestacao.py",
+        "M\traiz/cli.py",
+        "M\traiz/coleta/arcgis.py",
+        "A\traiz/coleta/arcgis_cli.py",
+        "M\traiz/coleta/bruto.py",
+        "M\traiz/coleta/car.py",
+        "M\traiz/coleta/espelho.py",
+        "M\traiz/coleta/fila.py",
+        "M\traiz/coleta/ibama.py",
+        "M\traiz/coleta/manifesto.yaml",
+        "A\traiz/coleta/prodes.py",
+        "M\traiz/coleta/rodada.py",
+        "M\traiz/coleta/sigef.py",
+        "M\traiz/coleta/wfs.py",
+        "M\traiz/executor/executor.py",
+        "M\traiz/executor/publicar_entrada.py",
+        "A\traiz/executor/rodadas.py",
+        "M\traiz/executor/tarefas.py",
+        "M\traiz/funil/duck.py",
+        "A\traiz/funil/filtros.py",
+        "M\traiz/funil/ponte.py",
+        "M\traiz/funil/restricoes.py",
+        "M\traiz/funil/rodar.py",
+        "M\traiz/metadados.py"
+      ],
+      "upgrade_e1_e2": true,
+      "tarefas_alteradas": [
         "desenvolvedor",
         "direto",
         "extras_direto",
         "ficha",
         "filtros",
         "flag",
+        "funil",
+        "mapbiomas",
         "rebanho",
         "terra",
         "titulo"
       ],
-      "arquivos_alterados": [
-        "motor/painel.py",
-        "motor/raiz_estado.py",
-        "motor/raiz_mapbiomas.py",
-        "motor/rodar_estado.py",
-        "raiz/atestacao.py",
-        "raiz/executor/executor.py",
-        "raiz/executor/publicar_entrada.py",
-        "raiz/executor/rodadas.py",
-        "raiz/metadados.py"
-      ],
+      "tarefas_preservadas": [],
       "dependencias": {
         "pacotes_origem": 238,
-        "origem_sha256": "b8ae38bb9bf97a92c0bfa0ffc524bbe58d0bed5e5554ba6b42e002c64d121118",
-        "origem_no_destino_sha256": "b8ae38bb9bf97a92c0bfa0ffc524bbe58d0bed5e5554ba6b42e002c64d121118",
-        "requires_python": ">=3.12",
-        "projeto_editavel_fora_da_comparacao": [
+        "pacotes_origem_sha256": "b8ae38bb9bf97a92c0bfa0ffc524bbe58d0bed5e5554ba6b42e002c64d121118",
+        "todos_preservados_integralmente": true,
+        "projeto_editavel_excluido": [
           "raiz"
         ]
       },
-      "guardas": [
-        {
-          "tipo": "embargo_legado",
-          "arquivo_antes_sha256": "3b90d96ac7f3ebe95fe6f935cfd46ff68835074b7d9b886e11c6553e50267a68",
-          "arquivo_depois_sha256": "573689252da8d0b96b7500b13dc5376af94cf379445190c2ef379e1bdfd25908",
-          "modulo_antes_ast_sha256": "b83dfd2ddd44eb3982a3ca59d6fb3af70f78114b8122b1ffceb019bfaa149841",
-          "modulo_depois_ast_sha256": "26e6ef954bb00c5d36f54fecdd48cefa68c14ed0aaef8b6bdee2dcd33778c348",
-          "municipio_antes_ast_sha256": "98077a2c55550be7f018ef6588f930d0d1bdcb89cf96fdb31494f664149beb12",
-          "municipio_depois_ast_sha256": "240aa08f7038e2cae71a8333d6bb91cbe13781a2f68f4eaeabf6655ce00663b4",
-          "helper_depois_ast_sha256": "788800f565d9e40fc8ca7ef6915267ed928ffa139393188ed82ea1d5600e1064",
-          "bloco_antes_ast_sha256": "1ac870e08f19c7fc2e8f0d5320ada650873c4687a849762a8d068555394d2a5f",
-          "chamada_depois_ast_sha256": "0b68bf9a05042c3dcac4f8672cca6996540bf982efc64eecbd49a72b86fe45f7",
-          "ocorrencias": {
-            "helper_antes": 0,
-            "helper_depois": 1,
-            "bloco_antes": 1,
-            "chamada_depois": 1
-          },
-          "resto_municipio": {
-            "antes_sha256": "ff4c8b7af6f5065311d4519fbe2da20a20eb96c9284b9c2ecaf721157caeb135",
-            "depois_sha256": "ff4c8b7af6f5065311d4519fbe2da20a20eb96c9284b9c2ecaf721157caeb135",
-            "iguais": true
-          },
-          "resto_modulo": {
-            "antes_sha256": "fe35d791afda21e1a5c4e5ee10dca9fc843e1c73a8c71b04d0f8a3ceb416569f",
-            "depois_sha256": "fe35d791afda21e1a5c4e5ee10dca9fc843e1c73a8c71b04d0f8a3ceb416569f",
-            "iguais": true
-          },
-          "diff_guardas": "--- antes\n+++ depois\n@@ -506,6 +506,43 @@\n     return a.cx[bbox[0]:bbox[2], bbox[1]:bbox[3]] if len(a) else a\n \n \n+def embargos_municipio(embargos, cod):\n+    \"\"\"Embargo ativo sem polígono utilizável bloqueia o funil; nunca vira ausência de restrição.\n+\n+    Usa a mesma reparação do motor legado, sem depender dos módulos E1. A validação\n+    não altera as geometrias retornadas nem exclui polígonos por tamanho.\n+    \"\"\"\n+    exigidas = {'COD_MUNICIPIO', 'SIT_CANCELADO', 'SIT_DESEMBARGO'}\n+    if not exigidas <= set(embargos.columns):\n+        raise ValueError('embargos sem colunas obrigatórias; cálculo bloqueado')\n+    codigos = pd.to_numeric(embargos.COD_MUNICIPIO, errors='coerce')\n+    ativos = embargos.loc[(codigos == int(cod)) & (embargos.SIT_CANCELADO != 'S') &\n+                          (embargos.SIT_DESEMBARGO != 'S')]\n+    try:\n+        if isinstance(ativos, gpd.GeoDataFrame):\n+            g = gpd.GeoDataFrame(geometry=ativos.geometry, crs=ativos.crs).to_crs(4674)\n+        else:\n+            if 'GEOM_AREA_EMBARGADA' not in ativos:\n+                raise ValueError('coluna de geometria ausente')\n+            geoms = [wkt.loads(s) if isinstance(s, str) and s.strip() else None for s in ativos.GEOM_AREA_EMBARGADA]\n+            g = gpd.GeoDataFrame(geometry=geoms, crs=4674)\n+        if g.geometry.isna().any() or g.geometry.is_empty.any():\n+            raise ValueError('geometria ausente ou vazia')\n+        # Uma projeção não linear pode dar área artificial a um anel colinear.\n+        # Confere também a geometria original, com a mesma regra buffer(0).\n+        originais = [geom if geom.is_valid else geom.buffer(0) for geom in g.geometry]\n+        if any(not np.isfinite(geom.area) or geom.area <= 0 for geom in originais):\n+            raise ValueError('sem área poligonal na geometria original')\n+        reparadas = fix(g, sub=False)\n+        areas = reparadas.area\n+        if len(reparadas) != len(g) or not (np.isfinite(areas) & (areas > 0)).all():\n+            raise ValueError('sem área poligonal após reparo')\n+    except Exception:\n+        # Parsers podem incluir o WKT original no erro; só divulga o diagnóstico fixo.\n+        raise ValueError('embargo ativo sem geometria poligonal válida; cálculo bloqueado') from None\n+    return g\n+\n+\n def municipio(uf, cod, EMB, out='.'):\n     global PROJ\n     if PROJ is None: PROJ = projetos_carbono()\n@@ -514,6 +551,7 @@\n     if len(car) == 0: return None, nome  # o SICAR devolve zero imóveis (ex.: Uiramutã, RR): sem colunas para filtrar\n     car = car[(car.status_imovel != 'CA') & (car.tipo_imovel == 'IRU')]\n     if len(car) == 0: return None, nome\n+    e = embargos_municipio(EMB, cod)\n     bbox = [round(v, 4) for v in car.total_bounds]\n     print(f'  {nome}: {len(car)} imóveis; baixando PRODES, TI, UC, SIGEF...')\n     L, toca = camadas(uf, bbox)\n@@ -524,10 +562,6 @@\n     yd = fix(yd)\n     if 'main_class' in yd: yd = yd[yd.main_class.str.upper() == 'DESMATAMENTO']\n     if 'year' not in yd: yd['year'] = pd.Series(dtype=float)  # fora do bioma Amazônia o PRODES desta camada vem vazio\n-    e = EMB[EMB.COD_MUNICIPIO == str(cod)]\n-    e = e[(e.SIT_CANCELADO != 'S') & (e.SIT_DESEMBARGO != 'S') & e.GEOM_AREA_EMBARGADA.notna()].copy()\n-    e['geometry'] = e.GEOM_AREA_EMBARGADA.apply(lambda s: wkt.loads(s) if isinstance(s, str) and s.strip() else None)\n-    e = gpd.GeoDataFrame(e[e.geometry.notna()], geometry='geometry', crs=4674)\n     c = car.set_index('cod_imovel')\n     c['desm_pos2008_ha'] = ov(base, yd[yd.year >= 2009])\n     c['desm_pos2020_ha'] = ov(base, yd[yd.year >= 2021])\n"
-        },
-        {
-          "tipo": "adocao_comprovada",
-          "referencia": "be452620f868537251fa832a10cb14bfb5c8efe3",
-          "arquivo_antes_sha256": "a197d590ee4bb9c216661a371fa9eff95c5cb1e73d14272e9e73e0192c5052e3",
-          "arquivo_depois_sha256": "f9734a8b76b96b74472b6832804cd95305f802a3c8f559afcee57b7f064b42df",
-          "resto_modulo": {
-            "antes_sha256": "8ef737407e815fdc8d8fcccfda7cf2cba9ac948d01c6227d2b3a9e16d12b3280",
-            "depois_sha256": "8ef737407e815fdc8d8fcccfda7cf2cba9ac948d01c6227d2b3a9e16d12b3280",
-            "iguais": true
-          },
-          "funcoes_antes": {
-            "plano": "1de553cd8149aa204fbb3ab37d92a3eb27075653d0d7a08bfd2e422fb9b2ccf2",
-            "processar_municipio": "6f71161aaca937d89f6e3b53e03f6c9e63609dd72c689db15ec675a6d99aa33f",
-            "adotar": "a60e30f004ff480bf0853e51b7b2716e36371f9402a58eb2e636b102371001d0"
-          },
-          "funcoes_depois": {
-            "_saidas_adotaveis": "9a9230b22ca4fead8fc70e40be064500b488900476e3adfdd5b9bf3ffa2c304c",
-            "_adocao_comprovada": "feef26fbf5cbe57f364139c246784d0a705f9e5129783dc86e05b136a2da0d71",
-            "plano": "2680987396575acba88ff791bbe936f33a7ff568aa3f04ffb5024a0d4d3e1964",
-            "processar_municipio": "3363f9ffd8c0e6978cc25916b49fb82c8365da944775fb9fca27f7ac40ccbc72",
-            "adotar": "09f91cb95ce7eef7b4f8e143f29bcc1ce23a84bed35a0651941ff2929c5d4d82"
-          },
-          "resto_plano_execucao_sha256": {
-            "plano": "1de553cd8149aa204fbb3ab37d92a3eb27075653d0d7a08bfd2e422fb9b2ccf2",
-            "processar_municipio": "6f71161aaca937d89f6e3b53e03f6c9e63609dd72c689db15ec675a6d99aa33f"
-          },
-          "canonical_conferido": true,
-          "contrato": "Versão e hash comprovados antes de adotar ou reutilizar marca adotada; data original preservada, inclusive None. Não reetiqueta legado.",
-          "diff_guardas": "--- antes\n+++ depois\n@@ -111,6 +111,31 @@\n         corpo = {\"versao\": self.versoes()[t.nome], \"externas\": t.externas(uf, cod, marca), \"entradas\": entradas}\n         return hashlib.sha256(json.dumps(corpo, sort_keys=True, default=str).encode()).hexdigest()\n \n+    def _saidas_adotaveis(self, t: Tarefa, uf: str, cod: int) -> dict[str, str] | None:\n+        \"\"\"Só atribui a versão atual quando todos os arquivos presentes comprovam essa origem.\"\"\"\n+        versao = self.versoes()[t.nome]\n+        if not isinstance(versao, str) or not versao or versao == \"publicado\":\n+            return None\n+        saidas = {}\n+        for padrao in t.saidas:\n+            arq = padrao.format(cod=cod)\n+            meta = self.a.meta(self.chave_saida(uf, arq))\n+            if meta is None:\n+                continue\n+            if not meta.get(\"sha256\") or meta.get(\"versao\") != versao:\n+                return None\n+            if meta.get(\"tarefa\") not in (None, t.nome):\n+                return None\n+            saidas[arq] = meta[\"sha256\"]\n+        return saidas if t.saidas[0].format(cod=cod) in saidas else None\n+\n+    def _adocao_comprovada(self, t: Tarefa, uf: str, cod: int, feito: dict) -> bool:\n+        \"\"\"Marcas adotadas antigas não legitimam CSV legado por terem uma assinatura atual.\"\"\"\n+        if not feito.get(\"adotado\"):\n+            return True\n+        saidas = self._saidas_adotaveis(t, uf, cod)\n+        return bool(saidas) and feito.get(\"versao\") == self.versoes()[t.nome] and feito.get(\"saidas\") == saidas\n+\n     def plano(self, uf: str, cod: int, refazer: bool = False) -> list[str]:\n         \"\"\"Tarefas que rodariam agora (supondo que as anteriores saiam iguais). Para o painel e para decidir.\"\"\"\n         m = self.marca(uf, cod)\n@@ -119,7 +144,13 @@\n             feito = m[\"tarefas\"].get(t.nome)\n             if any((m[\"tarefas\"].get(d) or {}).get(\"vazio\") for d in t.depende):\n                 continue\n-            if refazer or not feito or feito.get(\"erro\") or feito.get(\"assinatura\") != self.assinatura(t, uf, cod, m):\n+            if (\n+                refazer\n+                or not feito\n+                or feito.get(\"erro\")\n+                or not self._adocao_comprovada(t, uf, cod, feito)\n+                or feito.get(\"assinatura\") != self.assinatura(t, uf, cod, m)\n+            ):\n                 out.append(t.nome)\n         return out\n \n@@ -148,7 +179,13 @@\n                 continue\n             a = self.assinatura(t, uf, cod, m)\n             feito = m[\"tarefas\"].get(t.nome)\n-            if not refazer and feito and not feito.get(\"erro\") and feito.get(\"assinatura\") == a:\n+            if (\n+                not refazer\n+                and feito\n+                and not feito.get(\"erro\")\n+                and self._adocao_comprovada(t, uf, cod, feito)\n+                and feito.get(\"assinatura\") == a\n+            ):\n                 res[\"puladas\"].append(t.nome)\n                 continue\n             try:\n@@ -307,8 +344,11 @@\n         return estado\n \n     def adotar(self, uf: str, cods: list[int] | None = None) -> dict:\n-        \"\"\"Dá marca de concluído às saídas que já estão no armazém sem marca (ex.: o PA publicado antes do executor),\n-        como se fossem da versão atual de cada tarefa. Daí em diante só roda o que faltar ou o que mudar.\"\"\"\n+        \"\"\"Adota saídas sem marca somente quando sua versão corresponde à tarefa atual.\n+\n+        Arquivos legados, sem versão ou divergentes permanecem intactos e sem\n+        marca de concluído; o executor poderá recalculá-los pelo fluxo normal.\n+        \"\"\"\n         uf = uf.upper()\n         if hasattr(self.a, \"garantir_uf\"):\n             self.a.garantir_uf(uf)\n@@ -331,16 +371,12 @@\n             for t in self.tarefas:\n                 if any(d not in m[\"tarefas\"] for d in t.depende):\n                     continue\n-                saidas = {}\n-                for padrao in t.saidas:\n-                    arq = padrao.format(cod=cod)\n-                    meta = self.a.meta(self.chave_saida(uf, arq))\n-                    if meta and meta.get(\"sha256\"):\n-                        saidas[arq] = meta[\"sha256\"]\n-                if t.saidas[0].format(cod=cod) not in saidas:\n+                saidas = self._saidas_adotaveis(t, uf, cod)\n+                if saidas is None:\n                     continue\n+                origem = self.a.meta(self.chave_saida(uf, t.saidas[0].format(cod=cod)))\n                 m[\"tarefas\"][t.nome] = {\"versao\": self.versoes()[t.nome], \"assinatura\": self.assinatura(t, uf, cod, m),\n-                                        \"saidas\": saidas, \"data\": _agora(), \"adotado\": True}  # fmt: skip\n+                                        \"saidas\": saidas, \"data\": origem.get(\"data\"), \"adotado\": True}  # fmt: skip\n                 out[\"tarefas\"][t.nome] = out[\"tarefas\"].get(t.nome, 0) + 1\n             if m[\"tarefas\"]:\n                 por_json(self.a, self.chave_marca(uf, cod), m)\n"
-        }
-      ]
+      "guardas_comuns_comprovadas": [
+        "embargo_legado",
+        "adocao_comprovada"
+      ],
+      "protecao_pr81": "adicionada"
     },
     {
       "origem": "6a53cfbf514f369f694ea0bd3bc594ef8295a3b4",
       "destino": "be452620f868537251fa832a10cb14bfb5c8efe3",
+      "escopos": [
+        "motor/",
+        "raiz/",
+        "nativo/",
+        "uv.lock"
+      ],
+      "diff_sha256": "100327056644b93262ac4c109161dc0082c0c6ca0fb03aaa3ef19e1858df3b23",
+      "arquivos_status": [
+        "M\tmotor/fila_processamento.py",
+        "M\tmotor/painel.py",
+        "M\tmotor/raiz_estado.py",
+        "M\tmotor/raiz_mapbiomas.py",
+        "M\tmotor/rodar_estado.py",
+        "M\traiz/atestacao.py",
+        "M\traiz/coleta/sigef.py",
+        "M\traiz/executor/executor.py",
+        "M\traiz/executor/publicar_entrada.py",
+        "A\traiz/executor/rodadas.py",
+        "M\traiz/funil/filtros.py",
+        "M\traiz/metadados.py"
+      ],
+      "upgrade_e1_e2": false,
       "tarefas_alteradas": [
         "filtros",
         "funil",
@@ -1261,144 +536,45 @@
         "terra",
         "titulo"
       ],
-      "arquivos_alterados": [
-        "motor/fila_processamento.py",
-        "motor/painel.py",
-        "motor/raiz_estado.py",
-        "motor/raiz_mapbiomas.py",
-        "motor/rodar_estado.py",
-        "raiz/atestacao.py",
-        "raiz/coleta/sigef.py",
-        "raiz/executor/executor.py",
-        "raiz/executor/publicar_entrada.py",
-        "raiz/executor/rodadas.py",
-        "raiz/funil/filtros.py",
-        "raiz/metadados.py"
-      ],
       "dependencias": {
         "pacotes_origem": 238,
-        "origem_sha256": "b8ae38bb9bf97a92c0bfa0ffc524bbe58d0bed5e5554ba6b42e002c64d121118",
-        "origem_no_destino_sha256": "b8ae38bb9bf97a92c0bfa0ffc524bbe58d0bed5e5554ba6b42e002c64d121118",
-        "requires_python": ">=3.12",
-        "projeto_editavel_fora_da_comparacao": [
+        "pacotes_origem_sha256": "b8ae38bb9bf97a92c0bfa0ffc524bbe58d0bed5e5554ba6b42e002c64d121118",
+        "todos_preservados_integralmente": true,
+        "projeto_editavel_excluido": [
           "raiz"
         ]
       },
-      "guardas": [
-        {
-          "tipo": "embargo_legado",
-          "arquivo_antes_sha256": "3b90d96ac7f3ebe95fe6f935cfd46ff68835074b7d9b886e11c6553e50267a68",
-          "arquivo_depois_sha256": "573689252da8d0b96b7500b13dc5376af94cf379445190c2ef379e1bdfd25908",
-          "modulo_antes_ast_sha256": "b83dfd2ddd44eb3982a3ca59d6fb3af70f78114b8122b1ffceb019bfaa149841",
-          "modulo_depois_ast_sha256": "26e6ef954bb00c5d36f54fecdd48cefa68c14ed0aaef8b6bdee2dcd33778c348",
-          "municipio_antes_ast_sha256": "98077a2c55550be7f018ef6588f930d0d1bdcb89cf96fdb31494f664149beb12",
-          "municipio_depois_ast_sha256": "240aa08f7038e2cae71a8333d6bb91cbe13781a2f68f4eaeabf6655ce00663b4",
-          "helper_depois_ast_sha256": "788800f565d9e40fc8ca7ef6915267ed928ffa139393188ed82ea1d5600e1064",
-          "bloco_antes_ast_sha256": "1ac870e08f19c7fc2e8f0d5320ada650873c4687a849762a8d068555394d2a5f",
-          "chamada_depois_ast_sha256": "0b68bf9a05042c3dcac4f8672cca6996540bf982efc64eecbd49a72b86fe45f7",
-          "ocorrencias": {
-            "helper_antes": 0,
-            "helper_depois": 1,
-            "bloco_antes": 1,
-            "chamada_depois": 1
-          },
-          "resto_municipio": {
-            "antes_sha256": "ff4c8b7af6f5065311d4519fbe2da20a20eb96c9284b9c2ecaf721157caeb135",
-            "depois_sha256": "ff4c8b7af6f5065311d4519fbe2da20a20eb96c9284b9c2ecaf721157caeb135",
-            "iguais": true
-          },
-          "resto_modulo": {
-            "antes_sha256": "fe35d791afda21e1a5c4e5ee10dca9fc843e1c73a8c71b04d0f8a3ceb416569f",
-            "depois_sha256": "fe35d791afda21e1a5c4e5ee10dca9fc843e1c73a8c71b04d0f8a3ceb416569f",
-            "iguais": true
-          },
-          "diff_guardas": "--- antes\n+++ depois\n@@ -506,6 +506,43 @@\n     return a.cx[bbox[0]:bbox[2], bbox[1]:bbox[3]] if len(a) else a\n \n \n+def embargos_municipio(embargos, cod):\n+    \"\"\"Embargo ativo sem polígono utilizável bloqueia o funil; nunca vira ausência de restrição.\n+\n+    Usa a mesma reparação do motor legado, sem depender dos módulos E1. A validação\n+    não altera as geometrias retornadas nem exclui polígonos por tamanho.\n+    \"\"\"\n+    exigidas = {'COD_MUNICIPIO', 'SIT_CANCELADO', 'SIT_DESEMBARGO'}\n+    if not exigidas <= set(embargos.columns):\n+        raise ValueError('embargos sem colunas obrigatórias; cálculo bloqueado')\n+    codigos = pd.to_numeric(embargos.COD_MUNICIPIO, errors='coerce')\n+    ativos = embargos.loc[(codigos == int(cod)) & (embargos.SIT_CANCELADO != 'S') &\n+                          (embargos.SIT_DESEMBARGO != 'S')]\n+    try:\n+        if isinstance(ativos, gpd.GeoDataFrame):\n+            g = gpd.GeoDataFrame(geometry=ativos.geometry, crs=ativos.crs).to_crs(4674)\n+        else:\n+            if 'GEOM_AREA_EMBARGADA' not in ativos:\n+                raise ValueError('coluna de geometria ausente')\n+            geoms = [wkt.loads(s) if isinstance(s, str) and s.strip() else None for s in ativos.GEOM_AREA_EMBARGADA]\n+            g = gpd.GeoDataFrame(geometry=geoms, crs=4674)\n+        if g.geometry.isna().any() or g.geometry.is_empty.any():\n+            raise ValueError('geometria ausente ou vazia')\n+        # Uma projeção não linear pode dar área artificial a um anel colinear.\n+        # Confere também a geometria original, com a mesma regra buffer(0).\n+        originais = [geom if geom.is_valid else geom.buffer(0) for geom in g.geometry]\n+        if any(not np.isfinite(geom.area) or geom.area <= 0 for geom in originais):\n+            raise ValueError('sem área poligonal na geometria original')\n+        reparadas = fix(g, sub=False)\n+        areas = reparadas.area\n+        if len(reparadas) != len(g) or not (np.isfinite(areas) & (areas > 0)).all():\n+            raise ValueError('sem área poligonal após reparo')\n+    except Exception:\n+        # Parsers podem incluir o WKT original no erro; só divulga o diagnóstico fixo.\n+        raise ValueError('embargo ativo sem geometria poligonal válida; cálculo bloqueado') from None\n+    return g\n+\n+\n def municipio(uf, cod, EMB, out='.'):\n     global PROJ\n     if PROJ is None: PROJ = projetos_carbono()\n@@ -514,6 +551,7 @@\n     if len(car) == 0: return None, nome  # o SICAR devolve zero imóveis (ex.: Uiramutã, RR): sem colunas para filtrar\n     car = car[(car.status_imovel != 'CA') & (car.tipo_imovel == 'IRU')]\n     if len(car) == 0: return None, nome\n+    e = embargos_municipio(EMB, cod)\n     bbox = [round(v, 4) for v in car.total_bounds]\n     print(f'  {nome}: {len(car)} imóveis; baixando PRODES, TI, UC, SIGEF...')\n     L, toca = camadas(uf, bbox)\n@@ -524,10 +562,6 @@\n     yd = fix(yd)\n     if 'main_class' in yd: yd = yd[yd.main_class.str.upper() == 'DESMATAMENTO']\n     if 'year' not in yd: yd['year'] = pd.Series(dtype=float)  # fora do bioma Amazônia o PRODES desta camada vem vazio\n-    e = EMB[EMB.COD_MUNICIPIO == str(cod)]\n-    e = e[(e.SIT_CANCELADO != 'S') & (e.SIT_DESEMBARGO != 'S') & e.GEOM_AREA_EMBARGADA.notna()].copy()\n-    e['geometry'] = e.GEOM_AREA_EMBARGADA.apply(lambda s: wkt.loads(s) if isinstance(s, str) and s.strip() else None)\n-    e = gpd.GeoDataFrame(e[e.geometry.notna()], geometry='geometry', crs=4674)\n     c = car.set_index('cod_imovel')\n     c['desm_pos2008_ha'] = ov(base, yd[yd.year >= 2009])\n     c['desm_pos2020_ha'] = ov(base, yd[yd.year >= 2021])\n"
-        },
-        {
-          "tipo": "adocao_comprovada",
-          "referencia": "be452620f868537251fa832a10cb14bfb5c8efe3",
-          "arquivo_antes_sha256": "a197d590ee4bb9c216661a371fa9eff95c5cb1e73d14272e9e73e0192c5052e3",
-          "arquivo_depois_sha256": "f9734a8b76b96b74472b6832804cd95305f802a3c8f559afcee57b7f064b42df",
-          "resto_modulo": {
-            "antes_sha256": "8ef737407e815fdc8d8fcccfda7cf2cba9ac948d01c6227d2b3a9e16d12b3280",
-            "depois_sha256": "8ef737407e815fdc8d8fcccfda7cf2cba9ac948d01c6227d2b3a9e16d12b3280",
-            "iguais": true
-          },
-          "funcoes_antes": {
-            "plano": "1de553cd8149aa204fbb3ab37d92a3eb27075653d0d7a08bfd2e422fb9b2ccf2",
-            "processar_municipio": "6f71161aaca937d89f6e3b53e03f6c9e63609dd72c689db15ec675a6d99aa33f",
-            "adotar": "a60e30f004ff480bf0853e51b7b2716e36371f9402a58eb2e636b102371001d0"
-          },
-          "funcoes_depois": {
-            "_saidas_adotaveis": "9a9230b22ca4fead8fc70e40be064500b488900476e3adfdd5b9bf3ffa2c304c",
-            "_adocao_comprovada": "feef26fbf5cbe57f364139c246784d0a705f9e5129783dc86e05b136a2da0d71",
-            "plano": "2680987396575acba88ff791bbe936f33a7ff568aa3f04ffb5024a0d4d3e1964",
-            "processar_municipio": "3363f9ffd8c0e6978cc25916b49fb82c8365da944775fb9fca27f7ac40ccbc72",
-            "adotar": "09f91cb95ce7eef7b4f8e143f29bcc1ce23a84bed35a0651941ff2929c5d4d82"
-          },
-          "resto_plano_execucao_sha256": {
-            "plano": "1de553cd8149aa204fbb3ab37d92a3eb27075653d0d7a08bfd2e422fb9b2ccf2",
-            "processar_municipio": "6f71161aaca937d89f6e3b53e03f6c9e63609dd72c689db15ec675a6d99aa33f"
-          },
-          "canonical_conferido": true,
-          "contrato": "Versão e hash comprovados antes de adotar ou reutilizar marca adotada; data original preservada, inclusive None. Não reetiqueta legado.",
-          "diff_guardas": "--- antes\n+++ depois\n@@ -111,6 +111,31 @@\n         corpo = {\"versao\": self.versoes()[t.nome], \"externas\": t.externas(uf, cod, marca), \"entradas\": entradas}\n         return hashlib.sha256(json.dumps(corpo, sort_keys=True, default=str).encode()).hexdigest()\n \n+    def _saidas_adotaveis(self, t: Tarefa, uf: str, cod: int) -> dict[str, str] | None:\n+        \"\"\"Só atribui a versão atual quando todos os arquivos presentes comprovam essa origem.\"\"\"\n+        versao = self.versoes()[t.nome]\n+        if not isinstance(versao, str) or not versao or versao == \"publicado\":\n+            return None\n+        saidas = {}\n+        for padrao in t.saidas:\n+            arq = padrao.format(cod=cod)\n+            meta = self.a.meta(self.chave_saida(uf, arq))\n+            if meta is None:\n+                continue\n+            if not meta.get(\"sha256\") or meta.get(\"versao\") != versao:\n+                return None\n+            if meta.get(\"tarefa\") not in (None, t.nome):\n+                return None\n+            saidas[arq] = meta[\"sha256\"]\n+        return saidas if t.saidas[0].format(cod=cod) in saidas else None\n+\n+    def _adocao_comprovada(self, t: Tarefa, uf: str, cod: int, feito: dict) -> bool:\n+        \"\"\"Marcas adotadas antigas não legitimam CSV legado por terem uma assinatura atual.\"\"\"\n+        if not feito.get(\"adotado\"):\n+            return True\n+        saidas = self._saidas_adotaveis(t, uf, cod)\n+        return bool(saidas) and feito.get(\"versao\") == self.versoes()[t.nome] and feito.get(\"saidas\") == saidas\n+\n     def plano(self, uf: str, cod: int, refazer: bool = False) -> list[str]:\n         \"\"\"Tarefas que rodariam agora (supondo que as anteriores saiam iguais). Para o painel e para decidir.\"\"\"\n         m = self.marca(uf, cod)\n@@ -119,7 +144,13 @@\n             feito = m[\"tarefas\"].get(t.nome)\n             if any((m[\"tarefas\"].get(d) or {}).get(\"vazio\") for d in t.depende):\n                 continue\n-            if refazer or not feito or feito.get(\"erro\") or feito.get(\"assinatura\") != self.assinatura(t, uf, cod, m):\n+            if (\n+                refazer\n+                or not feito\n+                or feito.get(\"erro\")\n+                or not self._adocao_comprovada(t, uf, cod, feito)\n+                or feito.get(\"assinatura\") != self.assinatura(t, uf, cod, m)\n+            ):\n                 out.append(t.nome)\n         return out\n \n@@ -148,7 +179,13 @@\n                 continue\n             a = self.assinatura(t, uf, cod, m)\n             feito = m[\"tarefas\"].get(t.nome)\n-            if not refazer and feito and not feito.get(\"erro\") and feito.get(\"assinatura\") == a:\n+            if (\n+                not refazer\n+                and feito\n+                and not feito.get(\"erro\")\n+                and self._adocao_comprovada(t, uf, cod, feito)\n+                and feito.get(\"assinatura\") == a\n+            ):\n                 res[\"puladas\"].append(t.nome)\n                 continue\n             try:\n@@ -307,8 +344,11 @@\n         return estado\n \n     def adotar(self, uf: str, cods: list[int] | None = None) -> dict:\n-        \"\"\"Dá marca de concluído às saídas que já estão no armazém sem marca (ex.: o PA publicado antes do executor),\n-        como se fossem da versão atual de cada tarefa. Daí em diante só roda o que faltar ou o que mudar.\"\"\"\n+        \"\"\"Adota saídas sem marca somente quando sua versão corresponde à tarefa atual.\n+\n+        Arquivos legados, sem versão ou divergentes permanecem intactos e sem\n+        marca de concluído; o executor poderá recalculá-los pelo fluxo normal.\n+        \"\"\"\n         uf = uf.upper()\n         if hasattr(self.a, \"garantir_uf\"):\n             self.a.garantir_uf(uf)\n@@ -331,16 +371,12 @@\n             for t in self.tarefas:\n                 if any(d not in m[\"tarefas\"] for d in t.depende):\n                     continue\n-                saidas = {}\n-                for padrao in t.saidas:\n-                    arq = padrao.format(cod=cod)\n-                    meta = self.a.meta(self.chave_saida(uf, arq))\n-                    if meta and meta.get(\"sha256\"):\n-                        saidas[arq] = meta[\"sha256\"]\n-                if t.saidas[0].format(cod=cod) not in saidas:\n+                saidas = self._saidas_adotaveis(t, uf, cod)\n+                if saidas is None:\n                     continue\n+                origem = self.a.meta(self.chave_saida(uf, t.saidas[0].format(cod=cod)))\n                 m[\"tarefas\"][t.nome] = {\"versao\": self.versoes()[t.nome], \"assinatura\": self.assinatura(t, uf, cod, m),\n-                                        \"saidas\": saidas, \"data\": _agora(), \"adotado\": True}  # fmt: skip\n+                                        \"saidas\": saidas, \"data\": origem.get(\"data\"), \"adotado\": True}  # fmt: skip\n                 out[\"tarefas\"][t.nome] = out[\"tarefas\"].get(t.nome, 0) + 1\n             if m[\"tarefas\"]:\n                 por_json(self.a, self.chave_marca(uf, cod), m)\n"
-        },
-        {
-          "tipo": "funcao_isolada",
-          "funcao": "_falha",
-          "arquivo_antes_sha256": "a1b215a44f7920f2851e0e64becd50c69fbfc65bdd48223b58ea5927a4115888",
-          "arquivo_depois_sha256": "64ca0a93e22332c27ae9950f8fb32953788b768fb9f1cc39b7a11fa215773557",
-          "modulo_antes_ast_sha256": "bc8f765b97536cf78033497843d041444523909581fe50e497306c323017304c",
-          "modulo_depois_ast_sha256": "5233d95e2717672ba25951f93409a3a33342f478d5d4035311e7df8b1651d981",
-          "funcao_antes_ast_sha256": "2c0d82c70ea2dde4df3ff9ede2748d91aec3fa415fc3bf78da649649fe131886",
-          "funcao_depois_ast_sha256": "9c2f7871debc41148160ab5f9557cc74dadfcd6e6aec29e596afee895c9fa837",
-          "resto_modulo": {
-            "antes_sha256": "ac4112a80cd99de217ac4762c96cc7eb9eb804c84ccfa4d322c17248a91875ee",
-            "depois_sha256": "ac4112a80cd99de217ac4762c96cc7eb9eb804c84ccfa4d322c17248a91875ee",
-            "iguais": true
-          },
-          "imports_permitidos": [
-            {
-              "ast_sha256": "e8aae8e316cec755746a9a3c294afbe056916882467d76bf295d74ff66be0ced",
-              "antes": 0,
-              "depois": 1
-            }
-          ],
-          "canonical_conferido": true,
-          "canonical": {
-            "arquivo_sha256": "64ca0a93e22332c27ae9950f8fb32953788b768fb9f1cc39b7a11fa215773557",
-            "funcao_ast_sha256": "9c2f7871debc41148160ab5f9557cc74dadfcd6e6aec29e596afee895c9fa837"
-          },
-          "diff_guardas": "--- antes\n+++ depois\n@@ -21,6 +21,7 @@\n from raiz.coleta.espelho import Diferenca, Espelho, registrar_alertas\n from raiz.coleta.manifesto import carregar\n from raiz.coleta.replicacao import atualizar, estado, evento\n+from raiz.logs_seguros import sanitizar_log\n \n FONTE = \"sigef_parcelas\"\n \n@@ -83,7 +84,9 @@\n \n def _falha(con: Connection, recorte: str, ex: Exception, agora: dt.datetime) -> str:\n     e = estado(con, FONTE, recorte)\n-    erro = f\"{type(ex).__name__}: {ex}\"\n+    # Erros de rede, parser ou banco podem carregar dados da fonte e credenciais.\n+    # Limpa antes de persistir o diagnóstico ou devolvê-lo ao chamador.\n+    erro = sanitizar_log(f\"{type(ex).__name__}: {ex}\")\n     atualizar(\n         con,\n         FONTE,\n"
-        },
-        {
-          "tipo": "funcao_isolada",
-          "funcao": "embargos_ativos",
-          "arquivo_antes_sha256": "d0965d10ad98c3ba8807a3449fd4be7634356e82b4eb5f3319338101274515cf",
-          "arquivo_depois_sha256": "f3993ba16a4fe2da57a451d27f135ea8f669cff7bbc187e550553a2aa18617f3",
-          "modulo_antes_ast_sha256": "2518c7c7dc503800c1ec445c01ed21bc948f13f3c33fd13cdef727228be39e45",
-          "modulo_depois_ast_sha256": "7d1bcfffc8e62f75c1a3eb0e4da947d2ab874adc1a2ff49ed1eb7f2884478a6f",
-          "funcao_antes_ast_sha256": "6eae1307479769decb98d14578379b4013efd7772028e14cb5eec974fc4b6b1c",
-          "funcao_depois_ast_sha256": "f4bbf517cd077df797682499d561783cd2e3b63f6aba6c88f2ea25a6d123014a",
-          "resto_modulo": {
-            "antes_sha256": "bbfcf5e91d7b57de1c377020b1ff3b2f807489e8c07f5ebe9b32a92a8cf2bbaa",
-            "depois_sha256": "bbfcf5e91d7b57de1c377020b1ff3b2f807489e8c07f5ebe9b32a92a8cf2bbaa",
-            "iguais": true
-          },
-          "imports_permitidos": [],
-          "canonical_conferido": true,
-          "canonical": {
-            "arquivo_sha256": "f3993ba16a4fe2da57a451d27f135ea8f669cff7bbc187e550553a2aa18617f3",
-            "funcao_ast_sha256": "f4bbf517cd077df797682499d561783cd2e3b63f6aba6c88f2ea25a6d123014a"
-          },
-          "diff_guardas": "--- antes\n+++ depois\n@@ -24,12 +24,18 @@\n     ativos = df.loc[(codigos == cod) & (df.SIT_CANCELADO != \"S\") & (df.SIT_DESEMBARGO != \"S\")]\n     if isinstance(ativos, gpd.GeoDataFrame):\n         geoms = ativos.geometry\n-        return gpd.GeoDataFrame(geometry=geoms, crs=ativos.crs).to_crs(4674)\n-    if \"GEOM_AREA_EMBARGADA\" not in ativos:\n-        raise ValueError(\"embargos sem geometria\")\n-    # Erro de WKT não deve produzir um falso zero de restrição.\n-    geoms = shapely.from_wkt(ativos.GEOM_AREA_EMBARGADA.where(ativos.GEOM_AREA_EMBARGADA.notna(), None))\n-    return gpd.GeoDataFrame(geometry=geoms, crs=4674)\n+        g = gpd.GeoDataFrame(geometry=geoms, crs=ativos.crs).to_crs(4674)\n+    else:\n+        if \"GEOM_AREA_EMBARGADA\" not in ativos:\n+            raise ValueError(\"embargos sem geometria\")\n+        # Erro de WKT não deve produzir um falso zero de restrição.\n+        geoms = shapely.from_wkt(ativos.GEOM_AREA_EMBARGADA.where(ativos.GEOM_AREA_EMBARGADA.notna(), None))\n+        g = gpd.GeoDataFrame(geometry=geoms, crs=4674)\n+    if g.geometry.isna().any() or g.geometry.is_empty.any():\n+        raise ValueError(\"embargo ativo com geometria ausente ou vazia; cálculo de restrições bloqueado\")\n+    if any(restricoes._poligonos(geom).is_empty for geom in g.geometry):\n+        raise ValueError(\"embargo ativo sem geometria poligonal após reparo; cálculo de restrições bloqueado\")\n+    return g\n \n \n def calcular(g: gpd.GeoDataFrame, motor_filtros, embargos: gpd.GeoDataFrame, con=None) -> pd.DataFrame:\n"
-        }
-      ]
+      "guardas_comuns_comprovadas": [
+        "embargo_legado",
+        "adocao_comprovada"
+      ],
+      "protecao_pr81": "adicionada"
     },
     {
       "origem": "bea53bd06c7178daf2a53c392e5a9d54c55e7bc7",
       "destino": "be452620f868537251fa832a10cb14bfb5c8efe3",
+      "escopos": [
+        "motor/",
+        "raiz/",
+        "nativo/",
+        "uv.lock"
+      ],
+      "diff_sha256": "100327056644b93262ac4c109161dc0082c0c6ca0fb03aaa3ef19e1858df3b23",
+      "arquivos_status": [
+        "M\tmotor/fila_processamento.py",
+        "M\tmotor/painel.py",
+        "M\tmotor/raiz_estado.py",
+        "M\tmotor/raiz_mapbiomas.py",
+        "M\tmotor/rodar_estado.py",
+        "M\traiz/atestacao.py",
+        "M\traiz/coleta/sigef.py",
+        "M\traiz/executor/executor.py",
+        "M\traiz/executor/publicar_entrada.py",
+        "A\traiz/executor/rodadas.py",
+        "M\traiz/funil/filtros.py",
+        "M\traiz/metadados.py"
+      ],
+      "upgrade_e1_e2": false,
       "tarefas_alteradas": [
         "filtros",
         "funil",
@@ -1414,144 +590,40 @@
         "terra",
         "titulo"
       ],
-      "arquivos_alterados": [
-        "motor/fila_processamento.py",
-        "motor/painel.py",
-        "motor/raiz_estado.py",
-        "motor/raiz_mapbiomas.py",
-        "motor/rodar_estado.py",
-        "raiz/atestacao.py",
-        "raiz/coleta/sigef.py",
-        "raiz/executor/executor.py",
-        "raiz/executor/publicar_entrada.py",
-        "raiz/executor/rodadas.py",
-        "raiz/funil/filtros.py",
-        "raiz/metadados.py"
-      ],
       "dependencias": {
         "pacotes_origem": 238,
-        "origem_sha256": "b8ae38bb9bf97a92c0bfa0ffc524bbe58d0bed5e5554ba6b42e002c64d121118",
-        "origem_no_destino_sha256": "b8ae38bb9bf97a92c0bfa0ffc524bbe58d0bed5e5554ba6b42e002c64d121118",
-        "requires_python": ">=3.12",
-        "projeto_editavel_fora_da_comparacao": [
+        "pacotes_origem_sha256": "b8ae38bb9bf97a92c0bfa0ffc524bbe58d0bed5e5554ba6b42e002c64d121118",
+        "todos_preservados_integralmente": true,
+        "projeto_editavel_excluido": [
           "raiz"
         ]
       },
-      "guardas": [
-        {
-          "tipo": "embargo_legado",
-          "arquivo_antes_sha256": "3b90d96ac7f3ebe95fe6f935cfd46ff68835074b7d9b886e11c6553e50267a68",
-          "arquivo_depois_sha256": "573689252da8d0b96b7500b13dc5376af94cf379445190c2ef379e1bdfd25908",
-          "modulo_antes_ast_sha256": "b83dfd2ddd44eb3982a3ca59d6fb3af70f78114b8122b1ffceb019bfaa149841",
-          "modulo_depois_ast_sha256": "26e6ef954bb00c5d36f54fecdd48cefa68c14ed0aaef8b6bdee2dcd33778c348",
-          "municipio_antes_ast_sha256": "98077a2c55550be7f018ef6588f930d0d1bdcb89cf96fdb31494f664149beb12",
-          "municipio_depois_ast_sha256": "240aa08f7038e2cae71a8333d6bb91cbe13781a2f68f4eaeabf6655ce00663b4",
-          "helper_depois_ast_sha256": "788800f565d9e40fc8ca7ef6915267ed928ffa139393188ed82ea1d5600e1064",
-          "bloco_antes_ast_sha256": "1ac870e08f19c7fc2e8f0d5320ada650873c4687a849762a8d068555394d2a5f",
-          "chamada_depois_ast_sha256": "0b68bf9a05042c3dcac4f8672cca6996540bf982efc64eecbd49a72b86fe45f7",
-          "ocorrencias": {
-            "helper_antes": 0,
-            "helper_depois": 1,
-            "bloco_antes": 1,
-            "chamada_depois": 1
-          },
-          "resto_municipio": {
-            "antes_sha256": "ff4c8b7af6f5065311d4519fbe2da20a20eb96c9284b9c2ecaf721157caeb135",
-            "depois_sha256": "ff4c8b7af6f5065311d4519fbe2da20a20eb96c9284b9c2ecaf721157caeb135",
-            "iguais": true
-          },
-          "resto_modulo": {
-            "antes_sha256": "fe35d791afda21e1a5c4e5ee10dca9fc843e1c73a8c71b04d0f8a3ceb416569f",
-            "depois_sha256": "fe35d791afda21e1a5c4e5ee10dca9fc843e1c73a8c71b04d0f8a3ceb416569f",
-            "iguais": true
-          },
-          "diff_guardas": "--- antes\n+++ depois\n@@ -506,6 +506,43 @@\n     return a.cx[bbox[0]:bbox[2], bbox[1]:bbox[3]] if len(a) else a\n \n \n+def embargos_municipio(embargos, cod):\n+    \"\"\"Embargo ativo sem polígono utilizável bloqueia o funil; nunca vira ausência de restrição.\n+\n+    Usa a mesma reparação do motor legado, sem depender dos módulos E1. A validação\n+    não altera as geometrias retornadas nem exclui polígonos por tamanho.\n+    \"\"\"\n+    exigidas = {'COD_MUNICIPIO', 'SIT_CANCELADO', 'SIT_DESEMBARGO'}\n+    if not exigidas <= set(embargos.columns):\n+        raise ValueError('embargos sem colunas obrigatórias; cálculo bloqueado')\n+    codigos = pd.to_numeric(embargos.COD_MUNICIPIO, errors='coerce')\n+    ativos = embargos.loc[(codigos == int(cod)) & (embargos.SIT_CANCELADO != 'S') &\n+                          (embargos.SIT_DESEMBARGO != 'S')]\n+    try:\n+        if isinstance(ativos, gpd.GeoDataFrame):\n+            g = gpd.GeoDataFrame(geometry=ativos.geometry, crs=ativos.crs).to_crs(4674)\n+        else:\n+            if 'GEOM_AREA_EMBARGADA' not in ativos:\n+                raise ValueError('coluna de geometria ausente')\n+            geoms = [wkt.loads(s) if isinstance(s, str) and s.strip() else None for s in ativos.GEOM_AREA_EMBARGADA]\n+            g = gpd.GeoDataFrame(geometry=geoms, crs=4674)\n+        if g.geometry.isna().any() or g.geometry.is_empty.any():\n+            raise ValueError('geometria ausente ou vazia')\n+        # Uma projeção não linear pode dar área artificial a um anel colinear.\n+        # Confere também a geometria original, com a mesma regra buffer(0).\n+        originais = [geom if geom.is_valid else geom.buffer(0) for geom in g.geometry]\n+        if any(not np.isfinite(geom.area) or geom.area <= 0 for geom in originais):\n+            raise ValueError('sem área poligonal na geometria original')\n+        reparadas = fix(g, sub=False)\n+        areas = reparadas.area\n+        if len(reparadas) != len(g) or not (np.isfinite(areas) & (areas > 0)).all():\n+            raise ValueError('sem área poligonal após reparo')\n+    except Exception:\n+        # Parsers podem incluir o WKT original no erro; só divulga o diagnóstico fixo.\n+        raise ValueError('embargo ativo sem geometria poligonal válida; cálculo bloqueado') from None\n+    return g\n+\n+\n def municipio(uf, cod, EMB, out='.'):\n     global PROJ\n     if PROJ is None: PROJ = projetos_carbono()\n@@ -514,6 +551,7 @@\n     if len(car) == 0: return None, nome  # o SICAR devolve zero imóveis (ex.: Uiramutã, RR): sem colunas para filtrar\n     car = car[(car.status_imovel != 'CA') & (car.tipo_imovel == 'IRU')]\n     if len(car) == 0: return None, nome\n+    e = embargos_municipio(EMB, cod)\n     bbox = [round(v, 4) for v in car.total_bounds]\n     print(f'  {nome}: {len(car)} imóveis; baixando PRODES, TI, UC, SIGEF...')\n     L, toca = camadas(uf, bbox)\n@@ -524,10 +562,6 @@\n     yd = fix(yd)\n     if 'main_class' in yd: yd = yd[yd.main_class.str.upper() == 'DESMATAMENTO']\n     if 'year' not in yd: yd['year'] = pd.Series(dtype=float)  # fora do bioma Amazônia o PRODES desta camada vem vazio\n-    e = EMB[EMB.COD_MUNICIPIO == str(cod)]\n-    e = e[(e.SIT_CANCELADO != 'S') & (e.SIT_DESEMBARGO != 'S') & e.GEOM_AREA_EMBARGADA.notna()].copy()\n-    e['geometry'] = e.GEOM_AREA_EMBARGADA.apply(lambda s: wkt.loads(s) if isinstance(s, str) and s.strip() else None)\n-    e = gpd.GeoDataFrame(e[e.geometry.notna()], geometry='geometry', crs=4674)\n     c = car.set_index('cod_imovel')\n     c['desm_pos2008_ha'] = ov(base, yd[yd.year >= 2009])\n     c['desm_pos2020_ha'] = ov(base, yd[yd.year >= 2021])\n"
-        },
-        {
-          "tipo": "adocao_comprovada",
-          "referencia": "be452620f868537251fa832a10cb14bfb5c8efe3",
-          "arquivo_antes_sha256": "a197d590ee4bb9c216661a371fa9eff95c5cb1e73d14272e9e73e0192c5052e3",
-          "arquivo_depois_sha256": "f9734a8b76b96b74472b6832804cd95305f802a3c8f559afcee57b7f064b42df",
-          "resto_modulo": {
-            "antes_sha256": "8ef737407e815fdc8d8fcccfda7cf2cba9ac948d01c6227d2b3a9e16d12b3280",
-            "depois_sha256": "8ef737407e815fdc8d8fcccfda7cf2cba9ac948d01c6227d2b3a9e16d12b3280",
-            "iguais": true
-          },
-          "funcoes_antes": {
-            "plano": "1de553cd8149aa204fbb3ab37d92a3eb27075653d0d7a08bfd2e422fb9b2ccf2",
-            "processar_municipio": "6f71161aaca937d89f6e3b53e03f6c9e63609dd72c689db15ec675a6d99aa33f",
-            "adotar": "a60e30f004ff480bf0853e51b7b2716e36371f9402a58eb2e636b102371001d0"
-          },
-          "funcoes_depois": {
-            "_saidas_adotaveis": "9a9230b22ca4fead8fc70e40be064500b488900476e3adfdd5b9bf3ffa2c304c",
-            "_adocao_comprovada": "feef26fbf5cbe57f364139c246784d0a705f9e5129783dc86e05b136a2da0d71",
-            "plano": "2680987396575acba88ff791bbe936f33a7ff568aa3f04ffb5024a0d4d3e1964",
-            "processar_municipio": "3363f9ffd8c0e6978cc25916b49fb82c8365da944775fb9fca27f7ac40ccbc72",
-            "adotar": "09f91cb95ce7eef7b4f8e143f29bcc1ce23a84bed35a0651941ff2929c5d4d82"
-          },
-          "resto_plano_execucao_sha256": {
-            "plano": "1de553cd8149aa204fbb3ab37d92a3eb27075653d0d7a08bfd2e422fb9b2ccf2",
-            "processar_municipio": "6f71161aaca937d89f6e3b53e03f6c9e63609dd72c689db15ec675a6d99aa33f"
-          },
-          "canonical_conferido": true,
-          "contrato": "Versão e hash comprovados antes de adotar ou reutilizar marca adotada; data original preservada, inclusive None. Não reetiqueta legado.",
-          "diff_guardas": "--- antes\n+++ depois\n@@ -111,6 +111,31 @@\n         corpo = {\"versao\": self.versoes()[t.nome], \"externas\": t.externas(uf, cod, marca), \"entradas\": entradas}\n         return hashlib.sha256(json.dumps(corpo, sort_keys=True, default=str).encode()).hexdigest()\n \n+    def _saidas_adotaveis(self, t: Tarefa, uf: str, cod: int) -> dict[str, str] | None:\n+        \"\"\"Só atribui a versão atual quando todos os arquivos presentes comprovam essa origem.\"\"\"\n+        versao = self.versoes()[t.nome]\n+        if not isinstance(versao, str) or not versao or versao == \"publicado\":\n+            return None\n+        saidas = {}\n+        for padrao in t.saidas:\n+            arq = padrao.format(cod=cod)\n+            meta = self.a.meta(self.chave_saida(uf, arq))\n+            if meta is None:\n+                continue\n+            if not meta.get(\"sha256\") or meta.get(\"versao\") != versao:\n+                return None\n+            if meta.get(\"tarefa\") not in (None, t.nome):\n+                return None\n+            saidas[arq] = meta[\"sha256\"]\n+        return saidas if t.saidas[0].format(cod=cod) in saidas else None\n+\n+    def _adocao_comprovada(self, t: Tarefa, uf: str, cod: int, feito: dict) -> bool:\n+        \"\"\"Marcas adotadas antigas não legitimam CSV legado por terem uma assinatura atual.\"\"\"\n+        if not feito.get(\"adotado\"):\n+            return True\n+        saidas = self._saidas_adotaveis(t, uf, cod)\n+        return bool(saidas) and feito.get(\"versao\") == self.versoes()[t.nome] and feito.get(\"saidas\") == saidas\n+\n     def plano(self, uf: str, cod: int, refazer: bool = False) -> list[str]:\n         \"\"\"Tarefas que rodariam agora (supondo que as anteriores saiam iguais). Para o painel e para decidir.\"\"\"\n         m = self.marca(uf, cod)\n@@ -119,7 +144,13 @@\n             feito = m[\"tarefas\"].get(t.nome)\n             if any((m[\"tarefas\"].get(d) or {}).get(\"vazio\") for d in t.depende):\n                 continue\n-            if refazer or not feito or feito.get(\"erro\") or feito.get(\"assinatura\") != self.assinatura(t, uf, cod, m):\n+            if (\n+                refazer\n+                or not feito\n+                or feito.get(\"erro\")\n+                or not self._adocao_comprovada(t, uf, cod, feito)\n+                or feito.get(\"assinatura\") != self.assinatura(t, uf, cod, m)\n+            ):\n                 out.append(t.nome)\n         return out\n \n@@ -148,7 +179,13 @@\n                 continue\n             a = self.assinatura(t, uf, cod, m)\n             feito = m[\"tarefas\"].get(t.nome)\n-            if not refazer and feito and not feito.get(\"erro\") and feito.get(\"assinatura\") == a:\n+            if (\n+                not refazer\n+                and feito\n+                and not feito.get(\"erro\")\n+                and self._adocao_comprovada(t, uf, cod, feito)\n+                and feito.get(\"assinatura\") == a\n+            ):\n                 res[\"puladas\"].append(t.nome)\n                 continue\n             try:\n@@ -307,8 +344,11 @@\n         return estado\n \n     def adotar(self, uf: str, cods: list[int] | None = None) -> dict:\n-        \"\"\"Dá marca de concluído às saídas que já estão no armazém sem marca (ex.: o PA publicado antes do executor),\n-        como se fossem da versão atual de cada tarefa. Daí em diante só roda o que faltar ou o que mudar.\"\"\"\n+        \"\"\"Adota saídas sem marca somente quando sua versão corresponde à tarefa atual.\n+\n+        Arquivos legados, sem versão ou divergentes permanecem intactos e sem\n+        marca de concluído; o executor poderá recalculá-los pelo fluxo normal.\n+        \"\"\"\n         uf = uf.upper()\n         if hasattr(self.a, \"garantir_uf\"):\n             self.a.garantir_uf(uf)\n@@ -331,16 +371,12 @@\n             for t in self.tarefas:\n                 if any(d not in m[\"tarefas\"] for d in t.depende):\n                     continue\n-                saidas = {}\n-                for padrao in t.saidas:\n-                    arq = padrao.format(cod=cod)\n-                    meta = self.a.meta(self.chave_saida(uf, arq))\n-                    if meta and meta.get(\"sha256\"):\n-                        saidas[arq] = meta[\"sha256\"]\n-                if t.saidas[0].format(cod=cod) not in saidas:\n+                saidas = self._saidas_adotaveis(t, uf, cod)\n+                if saidas is None:\n                     continue\n+                origem = self.a.meta(self.chave_saida(uf, t.saidas[0].format(cod=cod)))\n                 m[\"tarefas\"][t.nome] = {\"versao\": self.versoes()[t.nome], \"assinatura\": self.assinatura(t, uf, cod, m),\n-                                        \"saidas\": saidas, \"data\": _agora(), \"adotado\": True}  # fmt: skip\n+                                        \"saidas\": saidas, \"data\": origem.get(\"data\"), \"adotado\": True}  # fmt: skip\n                 out[\"tarefas\"][t.nome] = out[\"tarefas\"].get(t.nome, 0) + 1\n             if m[\"tarefas\"]:\n                 por_json(self.a, self.chave_marca(uf, cod), m)\n"
-        },
-        {
-          "tipo": "funcao_isolada",
-          "funcao": "_falha",
-          "arquivo_antes_sha256": "a1b215a44f7920f2851e0e64becd50c69fbfc65bdd48223b58ea5927a4115888",
-          "arquivo_depois_sha256": "64ca0a93e22332c27ae9950f8fb32953788b768fb9f1cc39b7a11fa215773557",
-          "modulo_antes_ast_sha256": "bc8f765b97536cf78033497843d041444523909581fe50e497306c323017304c",
-          "modulo_depois_ast_sha256": "5233d95e2717672ba25951f93409a3a33342f478d5d4035311e7df8b1651d981",
-          "funcao_antes_ast_sha256": "2c0d82c70ea2dde4df3ff9ede2748d91aec3fa415fc3bf78da649649fe131886",
-          "funcao_depois_ast_sha256": "9c2f7871debc41148160ab5f9557cc74dadfcd6e6aec29e596afee895c9fa837",
-          "resto_modulo": {
-            "antes_sha256": "ac4112a80cd99de217ac4762c96cc7eb9eb804c84ccfa4d322c17248a91875ee",
-            "depois_sha256": "ac4112a80cd99de217ac4762c96cc7eb9eb804c84ccfa4d322c17248a91875ee",
-            "iguais": true
-          },
-          "imports_permitidos": [
-            {
-              "ast_sha256": "e8aae8e316cec755746a9a3c294afbe056916882467d76bf295d74ff66be0ced",
-              "antes": 0,
-              "depois": 1
-            }
-          ],
-          "canonical_conferido": true,
-          "canonical": {
-            "arquivo_sha256": "64ca0a93e22332c27ae9950f8fb32953788b768fb9f1cc39b7a11fa215773557",
-            "funcao_ast_sha256": "9c2f7871debc41148160ab5f9557cc74dadfcd6e6aec29e596afee895c9fa837"
-          },
-          "diff_guardas": "--- antes\n+++ depois\n@@ -21,6 +21,7 @@\n from raiz.coleta.espelho import Diferenca, Espelho, registrar_alertas\n from raiz.coleta.manifesto import carregar\n from raiz.coleta.replicacao import atualizar, estado, evento\n+from raiz.logs_seguros import sanitizar_log\n \n FONTE = \"sigef_parcelas\"\n \n@@ -83,7 +84,9 @@\n \n def _falha(con: Connection, recorte: str, ex: Exception, agora: dt.datetime) -> str:\n     e = estado(con, FONTE, recorte)\n-    erro = f\"{type(ex).__name__}: {ex}\"\n+    # Erros de rede, parser ou banco podem carregar dados da fonte e credenciais.\n+    # Limpa antes de persistir o diagnóstico ou devolvê-lo ao chamador.\n+    erro = sanitizar_log(f\"{type(ex).__name__}: {ex}\")\n     atualizar(\n         con,\n         FONTE,\n"
-        },
-        {
-          "tipo": "funcao_isolada",
-          "funcao": "embargos_ativos",
-          "arquivo_antes_sha256": "d0965d10ad98c3ba8807a3449fd4be7634356e82b4eb5f3319338101274515cf",
-          "arquivo_depois_sha256": "f3993ba16a4fe2da57a451d27f135ea8f669cff7bbc187e550553a2aa18617f3",
-          "modulo_antes_ast_sha256": "2518c7c7dc503800c1ec445c01ed21bc948f13f3c33fd13cdef727228be39e45",
-          "modulo_depois_ast_sha256": "7d1bcfffc8e62f75c1a3eb0e4da947d2ab874adc1a2ff49ed1eb7f2884478a6f",
-          "funcao_antes_ast_sha256": "6eae1307479769decb98d14578379b4013efd7772028e14cb5eec974fc4b6b1c",
-          "funcao_depois_ast_sha256": "f4bbf517cd077df797682499d561783cd2e3b63f6aba6c88f2ea25a6d123014a",
-          "resto_modulo": {
-            "antes_sha256": "bbfcf5e91d7b57de1c377020b1ff3b2f807489e8c07f5ebe9b32a92a8cf2bbaa",
-            "depois_sha256": "bbfcf5e91d7b57de1c377020b1ff3b2f807489e8c07f5ebe9b32a92a8cf2bbaa",
-            "iguais": true
-          },
-          "imports_permitidos": [],
-          "canonical_conferido": true,
-          "canonical": {
-            "arquivo_sha256": "f3993ba16a4fe2da57a451d27f135ea8f669cff7bbc187e550553a2aa18617f3",
-            "funcao_ast_sha256": "f4bbf517cd077df797682499d561783cd2e3b63f6aba6c88f2ea25a6d123014a"
-          },
-          "diff_guardas": "--- antes\n+++ depois\n@@ -24,12 +24,18 @@\n     ativos = df.loc[(codigos == cod) & (df.SIT_CANCELADO != \"S\") & (df.SIT_DESEMBARGO != \"S\")]\n     if isinstance(ativos, gpd.GeoDataFrame):\n         geoms = ativos.geometry\n-        return gpd.GeoDataFrame(geometry=geoms, crs=ativos.crs).to_crs(4674)\n-    if \"GEOM_AREA_EMBARGADA\" not in ativos:\n-        raise ValueError(\"embargos sem geometria\")\n-    # Erro de WKT não deve produzir um falso zero de restrição.\n-    geoms = shapely.from_wkt(ativos.GEOM_AREA_EMBARGADA.where(ativos.GEOM_AREA_EMBARGADA.notna(), None))\n-    return gpd.GeoDataFrame(geometry=geoms, crs=4674)\n+        g = gpd.GeoDataFrame(geometry=geoms, crs=ativos.crs).to_crs(4674)\n+    else:\n+        if \"GEOM_AREA_EMBARGADA\" not in ativos:\n+            raise ValueError(\"embargos sem geometria\")\n+        # Erro de WKT não deve produzir um falso zero de restrição.\n+        geoms = shapely.from_wkt(ativos.GEOM_AREA_EMBARGADA.where(ativos.GEOM_AREA_EMBARGADA.notna(), None))\n+        g = gpd.GeoDataFrame(geometry=geoms, crs=4674)\n+    if g.geometry.isna().any() or g.geometry.is_empty.any():\n+        raise ValueError(\"embargo ativo com geometria ausente ou vazia; cálculo de restrições bloqueado\")\n+    if any(restricoes._poligonos(geom).is_empty for geom in g.geometry):\n+        raise ValueError(\"embargo ativo sem geometria poligonal após reparo; cálculo de restrições bloqueado\")\n+    return g\n \n \n def calcular(g: gpd.GeoDataFrame, motor_filtros, embargos: gpd.GeoDataFrame, con=None) -> pd.DataFrame:\n"
-        }
-      ]
+      "guardas_comuns_comprovadas": [
+        "embargo_legado",
+        "adocao_comprovada"
+      ],
+      "protecao_pr81": "adicionada"
     },
     {
       "origem": "436c7b636f6a8867b47403a1dfad4e4c741dc150",
       "destino": "be452620f868537251fa832a10cb14bfb5c8efe3",
+      "escopos": [
+        "motor/",
+        "raiz/",
+        "nativo/",
+        "uv.lock"
+      ],
+      "diff_sha256": "b9b9e0419e2a41ad6da561833da8baeffa73f04675977da49273ffa9a5051956",
+      "arquivos_status": [
+        "M\tmotor/fila_processamento.py",
+        "M\tmotor/painel.py",
+        "M\tmotor/raiz_estado.py",
+        "M\tmotor/raiz_mapbiomas.py",
+        "M\tmotor/rodar_estado.py",
+        "M\traiz/executor/executor.py",
+        "A\traiz/executor/rodadas.py"
+      ],
+      "upgrade_e1_e2": false,
       "tarefas_alteradas": [
         "funil",
         "mapbiomas"
@@ -1567,135 +639,19 @@
         "terra",
         "titulo"
       ],
-      "arquivos_alterados": [
-        "motor/fila_processamento.py",
-        "motor/painel.py",
-        "motor/raiz_estado.py",
-        "motor/raiz_mapbiomas.py",
-        "motor/rodar_estado.py",
-        "raiz/executor/executor.py",
-        "raiz/executor/rodadas.py"
-      ],
       "dependencias": {
         "pacotes_origem": 238,
-        "origem_sha256": "b8ae38bb9bf97a92c0bfa0ffc524bbe58d0bed5e5554ba6b42e002c64d121118",
-        "origem_no_destino_sha256": "b8ae38bb9bf97a92c0bfa0ffc524bbe58d0bed5e5554ba6b42e002c64d121118",
-        "requires_python": ">=3.12",
-        "projeto_editavel_fora_da_comparacao": [
+        "pacotes_origem_sha256": "b8ae38bb9bf97a92c0bfa0ffc524bbe58d0bed5e5554ba6b42e002c64d121118",
+        "todos_preservados_integralmente": true,
+        "projeto_editavel_excluido": [
           "raiz"
         ]
       },
-      "guardas": [
-        {
-          "tipo": "embargo_legado",
-          "arquivo_antes_sha256": "3b90d96ac7f3ebe95fe6f935cfd46ff68835074b7d9b886e11c6553e50267a68",
-          "arquivo_depois_sha256": "573689252da8d0b96b7500b13dc5376af94cf379445190c2ef379e1bdfd25908",
-          "modulo_antes_ast_sha256": "b83dfd2ddd44eb3982a3ca59d6fb3af70f78114b8122b1ffceb019bfaa149841",
-          "modulo_depois_ast_sha256": "26e6ef954bb00c5d36f54fecdd48cefa68c14ed0aaef8b6bdee2dcd33778c348",
-          "municipio_antes_ast_sha256": "98077a2c55550be7f018ef6588f930d0d1bdcb89cf96fdb31494f664149beb12",
-          "municipio_depois_ast_sha256": "240aa08f7038e2cae71a8333d6bb91cbe13781a2f68f4eaeabf6655ce00663b4",
-          "helper_depois_ast_sha256": "788800f565d9e40fc8ca7ef6915267ed928ffa139393188ed82ea1d5600e1064",
-          "bloco_antes_ast_sha256": "1ac870e08f19c7fc2e8f0d5320ada650873c4687a849762a8d068555394d2a5f",
-          "chamada_depois_ast_sha256": "0b68bf9a05042c3dcac4f8672cca6996540bf982efc64eecbd49a72b86fe45f7",
-          "ocorrencias": {
-            "helper_antes": 0,
-            "helper_depois": 1,
-            "bloco_antes": 1,
-            "chamada_depois": 1
-          },
-          "resto_municipio": {
-            "antes_sha256": "ff4c8b7af6f5065311d4519fbe2da20a20eb96c9284b9c2ecaf721157caeb135",
-            "depois_sha256": "ff4c8b7af6f5065311d4519fbe2da20a20eb96c9284b9c2ecaf721157caeb135",
-            "iguais": true
-          },
-          "resto_modulo": {
-            "antes_sha256": "fe35d791afda21e1a5c4e5ee10dca9fc843e1c73a8c71b04d0f8a3ceb416569f",
-            "depois_sha256": "fe35d791afda21e1a5c4e5ee10dca9fc843e1c73a8c71b04d0f8a3ceb416569f",
-            "iguais": true
-          },
-          "diff_guardas": "--- antes\n+++ depois\n@@ -506,6 +506,43 @@\n     return a.cx[bbox[0]:bbox[2], bbox[1]:bbox[3]] if len(a) else a\n \n \n+def embargos_municipio(embargos, cod):\n+    \"\"\"Embargo ativo sem polígono utilizável bloqueia o funil; nunca vira ausência de restrição.\n+\n+    Usa a mesma reparação do motor legado, sem depender dos módulos E1. A validação\n+    não altera as geometrias retornadas nem exclui polígonos por tamanho.\n+    \"\"\"\n+    exigidas = {'COD_MUNICIPIO', 'SIT_CANCELADO', 'SIT_DESEMBARGO'}\n+    if not exigidas <= set(embargos.columns):\n+        raise ValueError('embargos sem colunas obrigatórias; cálculo bloqueado')\n+    codigos = pd.to_numeric(embargos.COD_MUNICIPIO, errors='coerce')\n+    ativos = embargos.loc[(codigos == int(cod)) & (embargos.SIT_CANCELADO != 'S') &\n+                          (embargos.SIT_DESEMBARGO != 'S')]\n+    try:\n+        if isinstance(ativos, gpd.GeoDataFrame):\n+            g = gpd.GeoDataFrame(geometry=ativos.geometry, crs=ativos.crs).to_crs(4674)\n+        else:\n+            if 'GEOM_AREA_EMBARGADA' not in ativos:\n+                raise ValueError('coluna de geometria ausente')\n+            geoms = [wkt.loads(s) if isinstance(s, str) and s.strip() else None for s in ativos.GEOM_AREA_EMBARGADA]\n+            g = gpd.GeoDataFrame(geometry=geoms, crs=4674)\n+        if g.geometry.isna().any() or g.geometry.is_empty.any():\n+            raise ValueError('geometria ausente ou vazia')\n+        # Uma projeção não linear pode dar área artificial a um anel colinear.\n+        # Confere também a geometria original, com a mesma regra buffer(0).\n+        originais = [geom if geom.is_valid else geom.buffer(0) for geom in g.geometry]\n+        if any(not np.isfinite(geom.area) or geom.area <= 0 for geom in originais):\n+            raise ValueError('sem área poligonal na geometria original')\n+        reparadas = fix(g, sub=False)\n+        areas = reparadas.area\n+        if len(reparadas) != len(g) or not (np.isfinite(areas) & (areas > 0)).all():\n+            raise ValueError('sem área poligonal após reparo')\n+    except Exception:\n+        # Parsers podem incluir o WKT original no erro; só divulga o diagnóstico fixo.\n+        raise ValueError('embargo ativo sem geometria poligonal válida; cálculo bloqueado') from None\n+    return g\n+\n+\n def municipio(uf, cod, EMB, out='.'):\n     global PROJ\n     if PROJ is None: PROJ = projetos_carbono()\n@@ -514,6 +551,7 @@\n     if len(car) == 0: return None, nome  # o SICAR devolve zero imóveis (ex.: Uiramutã, RR): sem colunas para filtrar\n     car = car[(car.status_imovel != 'CA') & (car.tipo_imovel == 'IRU')]\n     if len(car) == 0: return None, nome\n+    e = embargos_municipio(EMB, cod)\n     bbox = [round(v, 4) for v in car.total_bounds]\n     print(f'  {nome}: {len(car)} imóveis; baixando PRODES, TI, UC, SIGEF...')\n     L, toca = camadas(uf, bbox)\n@@ -524,10 +562,6 @@\n     yd = fix(yd)\n     if 'main_class' in yd: yd = yd[yd.main_class.str.upper() == 'DESMATAMENTO']\n     if 'year' not in yd: yd['year'] = pd.Series(dtype=float)  # fora do bioma Amazônia o PRODES desta camada vem vazio\n-    e = EMB[EMB.COD_MUNICIPIO == str(cod)]\n-    e = e[(e.SIT_CANCELADO != 'S') & (e.SIT_DESEMBARGO != 'S') & e.GEOM_AREA_EMBARGADA.notna()].copy()\n-    e['geometry'] = e.GEOM_AREA_EMBARGADA.apply(lambda s: wkt.loads(s) if isinstance(s, str) and s.strip() else None)\n-    e = gpd.GeoDataFrame(e[e.geometry.notna()], geometry='geometry', crs=4674)\n     c = car.set_index('cod_imovel')\n     c['desm_pos2008_ha'] = ov(base, yd[yd.year >= 2009])\n     c['desm_pos2020_ha'] = ov(base, yd[yd.year >= 2021])\n"
-        },
-        {
-          "tipo": "adocao_comprovada",
-          "referencia": "be452620f868537251fa832a10cb14bfb5c8efe3",
-          "arquivo_antes_sha256": "a197d590ee4bb9c216661a371fa9eff95c5cb1e73d14272e9e73e0192c5052e3",
-          "arquivo_depois_sha256": "f9734a8b76b96b74472b6832804cd95305f802a3c8f559afcee57b7f064b42df",
-          "resto_modulo": {
-            "antes_sha256": "8ef737407e815fdc8d8fcccfda7cf2cba9ac948d01c6227d2b3a9e16d12b3280",
-            "depois_sha256": "8ef737407e815fdc8d8fcccfda7cf2cba9ac948d01c6227d2b3a9e16d12b3280",
-            "iguais": true
-          },
-          "funcoes_antes": {
-            "plano": "1de553cd8149aa204fbb3ab37d92a3eb27075653d0d7a08bfd2e422fb9b2ccf2",
-            "processar_municipio": "6f71161aaca937d89f6e3b53e03f6c9e63609dd72c689db15ec675a6d99aa33f",
-            "adotar": "a60e30f004ff480bf0853e51b7b2716e36371f9402a58eb2e636b102371001d0"
-          },
-          "funcoes_depois": {
-            "_saidas_adotaveis": "9a9230b22ca4fead8fc70e40be064500b488900476e3adfdd5b9bf3ffa2c304c",
-            "_adocao_comprovada": "feef26fbf5cbe57f364139c246784d0a705f9e5129783dc86e05b136a2da0d71",
-            "plano": "2680987396575acba88ff791bbe936f33a7ff568aa3f04ffb5024a0d4d3e1964",
-            "processar_municipio": "3363f9ffd8c0e6978cc25916b49fb82c8365da944775fb9fca27f7ac40ccbc72",
-            "adotar": "09f91cb95ce7eef7b4f8e143f29bcc1ce23a84bed35a0651941ff2929c5d4d82"
-          },
-          "resto_plano_execucao_sha256": {
-            "plano": "1de553cd8149aa204fbb3ab37d92a3eb27075653d0d7a08bfd2e422fb9b2ccf2",
-            "processar_municipio": "6f71161aaca937d89f6e3b53e03f6c9e63609dd72c689db15ec675a6d99aa33f"
-          },
-          "canonical_conferido": true,
-          "contrato": "Versão e hash comprovados antes de adotar ou reutilizar marca adotada; data original preservada, inclusive None. Não reetiqueta legado.",
-          "diff_guardas": "--- antes\n+++ depois\n@@ -111,6 +111,31 @@\n         corpo = {\"versao\": self.versoes()[t.nome], \"externas\": t.externas(uf, cod, marca), \"entradas\": entradas}\n         return hashlib.sha256(json.dumps(corpo, sort_keys=True, default=str).encode()).hexdigest()\n \n+    def _saidas_adotaveis(self, t: Tarefa, uf: str, cod: int) -> dict[str, str] | None:\n+        \"\"\"Só atribui a versão atual quando todos os arquivos presentes comprovam essa origem.\"\"\"\n+        versao = self.versoes()[t.nome]\n+        if not isinstance(versao, str) or not versao or versao == \"publicado\":\n+            return None\n+        saidas = {}\n+        for padrao in t.saidas:\n+            arq = padrao.format(cod=cod)\n+            meta = self.a.meta(self.chave_saida(uf, arq))\n+            if meta is None:\n+                continue\n+            if not meta.get(\"sha256\") or meta.get(\"versao\") != versao:\n+                return None\n+            if meta.get(\"tarefa\") not in (None, t.nome):\n+                return None\n+            saidas[arq] = meta[\"sha256\"]\n+        return saidas if t.saidas[0].format(cod=cod) in saidas else None\n+\n+    def _adocao_comprovada(self, t: Tarefa, uf: str, cod: int, feito: dict) -> bool:\n+        \"\"\"Marcas adotadas antigas não legitimam CSV legado por terem uma assinatura atual.\"\"\"\n+        if not feito.get(\"adotado\"):\n+            return True\n+        saidas = self._saidas_adotaveis(t, uf, cod)\n+        return bool(saidas) and feito.get(\"versao\") == self.versoes()[t.nome] and feito.get(\"saidas\") == saidas\n+\n     def plano(self, uf: str, cod: int, refazer: bool = False) -> list[str]:\n         \"\"\"Tarefas que rodariam agora (supondo que as anteriores saiam iguais). Para o painel e para decidir.\"\"\"\n         m = self.marca(uf, cod)\n@@ -119,7 +144,13 @@\n             feito = m[\"tarefas\"].get(t.nome)\n             if any((m[\"tarefas\"].get(d) or {}).get(\"vazio\") for d in t.depende):\n                 continue\n-            if refazer or not feito or feito.get(\"erro\") or feito.get(\"assinatura\") != self.assinatura(t, uf, cod, m):\n+            if (\n+                refazer\n+                or not feito\n+                or feito.get(\"erro\")\n+                or not self._adocao_comprovada(t, uf, cod, feito)\n+                or feito.get(\"assinatura\") != self.assinatura(t, uf, cod, m)\n+            ):\n                 out.append(t.nome)\n         return out\n \n@@ -148,7 +179,13 @@\n                 continue\n             a = self.assinatura(t, uf, cod, m)\n             feito = m[\"tarefas\"].get(t.nome)\n-            if not refazer and feito and not feito.get(\"erro\") and feito.get(\"assinatura\") == a:\n+            if (\n+                not refazer\n+                and feito\n+                and not feito.get(\"erro\")\n+                and self._adocao_comprovada(t, uf, cod, feito)\n+                and feito.get(\"assinatura\") == a\n+            ):\n                 res[\"puladas\"].append(t.nome)\n                 continue\n             try:\n@@ -307,8 +344,11 @@\n         return estado\n \n     def adotar(self, uf: str, cods: list[int] | None = None) -> dict:\n-        \"\"\"Dá marca de concluído às saídas que já estão no armazém sem marca (ex.: o PA publicado antes do executor),\n-        como se fossem da versão atual de cada tarefa. Daí em diante só roda o que faltar ou o que mudar.\"\"\"\n+        \"\"\"Adota saídas sem marca somente quando sua versão corresponde à tarefa atual.\n+\n+        Arquivos legados, sem versão ou divergentes permanecem intactos e sem\n+        marca de concluído; o executor poderá recalculá-los pelo fluxo normal.\n+        \"\"\"\n         uf = uf.upper()\n         if hasattr(self.a, \"garantir_uf\"):\n             self.a.garantir_uf(uf)\n@@ -331,16 +371,12 @@\n             for t in self.tarefas:\n                 if any(d not in m[\"tarefas\"] for d in t.depende):\n                     continue\n-                saidas = {}\n-                for padrao in t.saidas:\n-                    arq = padrao.format(cod=cod)\n-                    meta = self.a.meta(self.chave_saida(uf, arq))\n-                    if meta and meta.get(\"sha256\"):\n-                        saidas[arq] = meta[\"sha256\"]\n-                if t.saidas[0].format(cod=cod) not in saidas:\n+                saidas = self._saidas_adotaveis(t, uf, cod)\n+                if saidas is None:\n                     continue\n+                origem = self.a.meta(self.chave_saida(uf, t.saidas[0].format(cod=cod)))\n                 m[\"tarefas\"][t.nome] = {\"versao\": self.versoes()[t.nome], \"assinatura\": self.assinatura(t, uf, cod, m),\n-                                        \"saidas\": saidas, \"data\": _agora(), \"adotado\": True}  # fmt: skip\n+                                        \"saidas\": saidas, \"data\": origem.get(\"data\"), \"adotado\": True}  # fmt: skip\n                 out[\"tarefas\"][t.nome] = out[\"tarefas\"].get(t.nome, 0) + 1\n             if m[\"tarefas\"]:\n                 por_json(self.a, self.chave_marca(uf, cod), m)\n"
-        },
-        {
-          "tipo": "funcao_isolada",
-          "funcao": "_falha",
-          "arquivo_antes_sha256": "64ca0a93e22332c27ae9950f8fb32953788b768fb9f1cc39b7a11fa215773557",
-          "arquivo_depois_sha256": "64ca0a93e22332c27ae9950f8fb32953788b768fb9f1cc39b7a11fa215773557",
-          "modulo_antes_ast_sha256": "5233d95e2717672ba25951f93409a3a33342f478d5d4035311e7df8b1651d981",
-          "modulo_depois_ast_sha256": "5233d95e2717672ba25951f93409a3a33342f478d5d4035311e7df8b1651d981",
-          "funcao_antes_ast_sha256": "9c2f7871debc41148160ab5f9557cc74dadfcd6e6aec29e596afee895c9fa837",
-          "funcao_depois_ast_sha256": "9c2f7871debc41148160ab5f9557cc74dadfcd6e6aec29e596afee895c9fa837",
-          "resto_modulo": {
-            "antes_sha256": "ac4112a80cd99de217ac4762c96cc7eb9eb804c84ccfa4d322c17248a91875ee",
-            "depois_sha256": "ac4112a80cd99de217ac4762c96cc7eb9eb804c84ccfa4d322c17248a91875ee",
-            "iguais": true
-          },
-          "imports_permitidos": [
-            {
-              "ast_sha256": "e8aae8e316cec755746a9a3c294afbe056916882467d76bf295d74ff66be0ced",
-              "antes": 1,
-              "depois": 1
-            }
-          ],
-          "canonical_conferido": true,
-          "canonical": {
-            "arquivo_sha256": "64ca0a93e22332c27ae9950f8fb32953788b768fb9f1cc39b7a11fa215773557",
-            "funcao_ast_sha256": "9c2f7871debc41148160ab5f9557cc74dadfcd6e6aec29e596afee895c9fa837"
-          },
-          "diff_guardas": ""
-        },
-        {
-          "tipo": "funcao_isolada",
-          "funcao": "embargos_ativos",
-          "arquivo_antes_sha256": "f3993ba16a4fe2da57a451d27f135ea8f669cff7bbc187e550553a2aa18617f3",
-          "arquivo_depois_sha256": "f3993ba16a4fe2da57a451d27f135ea8f669cff7bbc187e550553a2aa18617f3",
-          "modulo_antes_ast_sha256": "7d1bcfffc8e62f75c1a3eb0e4da947d2ab874adc1a2ff49ed1eb7f2884478a6f",
-          "modulo_depois_ast_sha256": "7d1bcfffc8e62f75c1a3eb0e4da947d2ab874adc1a2ff49ed1eb7f2884478a6f",
-          "funcao_antes_ast_sha256": "f4bbf517cd077df797682499d561783cd2e3b63f6aba6c88f2ea25a6d123014a",
-          "funcao_depois_ast_sha256": "f4bbf517cd077df797682499d561783cd2e3b63f6aba6c88f2ea25a6d123014a",
-          "resto_modulo": {
-            "antes_sha256": "bbfcf5e91d7b57de1c377020b1ff3b2f807489e8c07f5ebe9b32a92a8cf2bbaa",
-            "depois_sha256": "bbfcf5e91d7b57de1c377020b1ff3b2f807489e8c07f5ebe9b32a92a8cf2bbaa",
-            "iguais": true
-          },
-          "imports_permitidos": [],
-          "canonical_conferido": true,
-          "canonical": {
-            "arquivo_sha256": "f3993ba16a4fe2da57a451d27f135ea8f669cff7bbc187e550553a2aa18617f3",
-            "funcao_ast_sha256": "f4bbf517cd077df797682499d561783cd2e3b63f6aba6c88f2ea25a6d123014a"
-          },
-          "diff_guardas": ""
-        }
-      ]
+      "guardas_comuns_comprovadas": [
+        "embargo_legado",
+        "adocao_comprovada"
+      ],
+      "protecao_pr81": "ja_presente"
     }
   ]
 }
