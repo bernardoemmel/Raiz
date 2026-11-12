@@ -1,26 +1,61 @@
 {
-  "origem": "88860b64ee09f811b66e283f5c57997ebcdb3fd5",
-  "destino": "b624b108b0350135003e1099d9c928fa7cc24151",
-  "metodo": "SHA-256 de caminho + NUL + bytes + NUL, caminhos Git ordenados; versões executadas em checkout temporário de cada commit; dependências da origem preservadas no destino.",
+  "grupos": [
+    {
+      "origens": [
+        "88860b64ee09f811b66e283f5c57997ebcdb3fd5",
+        "b624b108b0350135003e1099d9c928fa7cc24151"
+      ],
+      "destino": "ec2ebd2c5772c6307aa1c3a41e1f97aac54e1b51",
+      "ciencia": "anterior_ao_e1"
+    },
+    {
+      "origens": [
+        "6a53cfbf514f369f694ea0bd3bc594ef8295a3b4",
+        "bea53bd06c7178daf2a53c392e5a9d54c55e7bc7"
+      ],
+      "destino": "dac754f9d27a61481fdb0db24c496cdea0dd4f35",
+      "ciencia": "e1_preservado"
+    }
+  ],
+  "criterio": "Somente continuações ou retentativas não bloqueadas. Dentro de cada grupo, dez versões de tarefa iguais; MapBiomas ganha versão pela aquisição. Fórmulas, temas e anos preservados. O primeiro grupo permanece anterior ao E1; o segundo mantém E1. Previsões históricas mantêm suas versões; mudanças efetivas das fontes podem recomputar tarefas dependentes pelo contrato normal.",
+  "metodo": "SHA-256 de caminho + NUL + bytes + NUL, caminhos Git ordenados; versões executadas em checkout temporário de cada commit; AST sem posições para fórmulas/configuração MapBiomas; dependências da origem preservadas no destino.",
   "escopos": [
     "motor/",
     "raiz/"
   ],
-  "excluidos_operacionais": [
+  "excluidos_operacionais_ou_aquisicao": [
     "motor/fila_processamento.py",
+    "motor/painel.py",
+    "motor/rodar_estado.py",
+    "motor/raiz_mapbiomas.py",
     "raiz/atestacao.py",
     "raiz/cadt.py",
     "raiz/catalogo_publico.py",
     "raiz/executor/armazem.py",
     "raiz/executor/publicacao_aberta.py",
+    "raiz/executor/rodadas.py",
     "raiz/metadados.py",
     "raiz/quantis.py",
     "raiz/regras/historico/"
   ],
+  "mapbiomas_formulas": [
+    "ha_pixel",
+    "por_imovel"
+  ],
+  "mapbiomas_configuracao": [
+    "API",
+    "H",
+    "CAT_MUNICIPIO",
+    "CAT_ESTADO",
+    "NOME_UF",
+    "ANO",
+    "CACHE",
+    "TEMAS"
+  ],
   "commits": {
     "88860b64ee09f811b66e283f5c57997ebcdb3fd5": {
-      "arquivos": 356,
-      "codigo_sha256": "a3a2c26825a0b9351964166590dbdfae864a26a96da34da60e5417de6a148581",
+      "arquivos": 353,
+      "codigo_preservado_sha256": "21bebff118affdcdb8c9e4828456f3ff2d3c5bf77b51777381216ee7889c1abb",
       "pacotes_origem": 213,
       "dependencias_sha256": "b3de6407db71d325cb1b43474e60059a075b1ca019ca9b6f5b97aeac33dc58ca",
       "versoes_tarefas": {
@@ -35,11 +70,15 @@
         "rebanho": "rebanho-afd05b1264a5",
         "terra": "terra-b02bcaf5d54e",
         "titulo": "titulo-305df336f77f"
-      }
+      },
+      "versao_motor": "motor-b1c546e8d42c",
+      "mapbiomas_arquivo_sha256": "6f05d33265a3860f850c5b857492ca14517cbefb7f4b6a80d13601f57e0a3aa9",
+      "mapbiomas_formulas_sha256": "6958501f62ef67c16a8865555f4409bfc20e73c7aee69ba04db7cbef22efb3e5",
+      "mapbiomas_configuracao_sha256": "10d1156e6649dfc4414760885b2a5a42928f3bbec91e33a4bc658d0281da0afe"
     },
     "b624b108b0350135003e1099d9c928fa7cc24151": {
-      "arquivos": 356,
-      "codigo_sha256": "a3a2c26825a0b9351964166590dbdfae864a26a96da34da60e5417de6a148581",
+      "arquivos": 353,
+      "codigo_preservado_sha256": "21bebff118affdcdb8c9e4828456f3ff2d3c5bf77b51777381216ee7889c1abb",
       "pacotes_origem": 213,
       "dependencias_sha256": "b3de6407db71d325cb1b43474e60059a075b1ca019ca9b6f5b97aeac33dc58ca",
       "versoes_tarefas": {
@@ -54,7 +93,103 @@
         "rebanho": "rebanho-afd05b1264a5",
         "terra": "terra-b02bcaf5d54e",
         "titulo": "titulo-305df336f77f"
-      }
+      },
+      "versao_motor": "motor-409c68f0434e",
+      "mapbiomas_arquivo_sha256": "6f05d33265a3860f850c5b857492ca14517cbefb7f4b6a80d13601f57e0a3aa9",
+      "mapbiomas_formulas_sha256": "6958501f62ef67c16a8865555f4409bfc20e73c7aee69ba04db7cbef22efb3e5",
+      "mapbiomas_configuracao_sha256": "10d1156e6649dfc4414760885b2a5a42928f3bbec91e33a4bc658d0281da0afe"
+    },
+    "ec2ebd2c5772c6307aa1c3a41e1f97aac54e1b51": {
+      "arquivos": 353,
+      "codigo_preservado_sha256": "21bebff118affdcdb8c9e4828456f3ff2d3c5bf77b51777381216ee7889c1abb",
+      "pacotes_origem": 213,
+      "dependencias_sha256": "b3de6407db71d325cb1b43474e60059a075b1ca019ca9b6f5b97aeac33dc58ca",
+      "versoes_tarefas": {
+        "desenvolvedor": "desenvolvedor-d590ebd0cd76",
+        "direto": "direto-a3ccf1633dd7",
+        "extras_direto": "extras_direto-76b44c187164",
+        "ficha": "ficha-92dcead7aefb",
+        "filtros": "filtros-9c1ae2374773",
+        "flag": "flag-2d2dc7a85797",
+        "funil": "funil-1642afe89067",
+        "mapbiomas": "mapbiomas-3ffd6cd150c6",
+        "rebanho": "rebanho-afd05b1264a5",
+        "terra": "terra-b02bcaf5d54e",
+        "titulo": "titulo-305df336f77f"
+      },
+      "versao_motor": "motor-9cce83272637",
+      "mapbiomas_arquivo_sha256": "ae222bcc7ec0d0ba96dec7ee4b1b9f55376e7220a53f161e1c007207699da700",
+      "mapbiomas_formulas_sha256": "6958501f62ef67c16a8865555f4409bfc20e73c7aee69ba04db7cbef22efb3e5",
+      "mapbiomas_configuracao_sha256": "10d1156e6649dfc4414760885b2a5a42928f3bbec91e33a4bc658d0281da0afe"
+    },
+    "6a53cfbf514f369f694ea0bd3bc594ef8295a3b4": {
+      "arquivos": 356,
+      "codigo_preservado_sha256": "5a59ad3011c7ea845a95667d78d7be6eab1e743e0fe293aa87b9c7e5e10daa4d",
+      "pacotes_origem": 213,
+      "dependencias_sha256": "b3de6407db71d325cb1b43474e60059a075b1ca019ca9b6f5b97aeac33dc58ca",
+      "versoes_tarefas": {
+        "desenvolvedor": "desenvolvedor-7662657eb966",
+        "direto": "direto-dd60b18775e7",
+        "extras_direto": "extras_direto-49e961b4e835",
+        "ficha": "ficha-a120ba6c5bb9",
+        "filtros": "filtros-ffaf4ea2b227",
+        "flag": "flag-20a62662fdab",
+        "funil": "funil-c9ffafe84027",
+        "mapbiomas": "mapbiomas-2b56e24653e3",
+        "rebanho": "rebanho-47ef2fbebb24",
+        "terra": "terra-578e392a6726",
+        "titulo": "titulo-f6c7bf3945f4"
+      },
+      "versao_motor": "motor-409c68f0434e",
+      "mapbiomas_arquivo_sha256": "6f05d33265a3860f850c5b857492ca14517cbefb7f4b6a80d13601f57e0a3aa9",
+      "mapbiomas_formulas_sha256": "6958501f62ef67c16a8865555f4409bfc20e73c7aee69ba04db7cbef22efb3e5",
+      "mapbiomas_configuracao_sha256": "10d1156e6649dfc4414760885b2a5a42928f3bbec91e33a4bc658d0281da0afe"
+    },
+    "bea53bd06c7178daf2a53c392e5a9d54c55e7bc7": {
+      "arquivos": 356,
+      "codigo_preservado_sha256": "5a59ad3011c7ea845a95667d78d7be6eab1e743e0fe293aa87b9c7e5e10daa4d",
+      "pacotes_origem": 213,
+      "dependencias_sha256": "b3de6407db71d325cb1b43474e60059a075b1ca019ca9b6f5b97aeac33dc58ca",
+      "versoes_tarefas": {
+        "desenvolvedor": "desenvolvedor-7662657eb966",
+        "direto": "direto-dd60b18775e7",
+        "extras_direto": "extras_direto-49e961b4e835",
+        "ficha": "ficha-a120ba6c5bb9",
+        "filtros": "filtros-ffaf4ea2b227",
+        "flag": "flag-20a62662fdab",
+        "funil": "funil-c9ffafe84027",
+        "mapbiomas": "mapbiomas-2b56e24653e3",
+        "rebanho": "rebanho-47ef2fbebb24",
+        "terra": "terra-578e392a6726",
+        "titulo": "titulo-f6c7bf3945f4"
+      },
+      "versao_motor": "motor-409c68f0434e",
+      "mapbiomas_arquivo_sha256": "6f05d33265a3860f850c5b857492ca14517cbefb7f4b6a80d13601f57e0a3aa9",
+      "mapbiomas_formulas_sha256": "6958501f62ef67c16a8865555f4409bfc20e73c7aee69ba04db7cbef22efb3e5",
+      "mapbiomas_configuracao_sha256": "10d1156e6649dfc4414760885b2a5a42928f3bbec91e33a4bc658d0281da0afe"
+    },
+    "dac754f9d27a61481fdb0db24c496cdea0dd4f35": {
+      "arquivos": 356,
+      "codigo_preservado_sha256": "5a59ad3011c7ea845a95667d78d7be6eab1e743e0fe293aa87b9c7e5e10daa4d",
+      "pacotes_origem": 213,
+      "dependencias_sha256": "b3de6407db71d325cb1b43474e60059a075b1ca019ca9b6f5b97aeac33dc58ca",
+      "versoes_tarefas": {
+        "desenvolvedor": "desenvolvedor-7662657eb966",
+        "direto": "direto-dd60b18775e7",
+        "extras_direto": "extras_direto-49e961b4e835",
+        "ficha": "ficha-a120ba6c5bb9",
+        "filtros": "filtros-ffaf4ea2b227",
+        "flag": "flag-20a62662fdab",
+        "funil": "funil-c9ffafe84027",
+        "mapbiomas": "mapbiomas-2df346dbb625",
+        "rebanho": "rebanho-47ef2fbebb24",
+        "terra": "terra-578e392a6726",
+        "titulo": "titulo-f6c7bf3945f4"
+      },
+      "versao_motor": "motor-c8d7a6cec446",
+      "mapbiomas_arquivo_sha256": "ae222bcc7ec0d0ba96dec7ee4b1b9f55376e7220a53f161e1c007207699da700",
+      "mapbiomas_formulas_sha256": "6958501f62ef67c16a8865555f4409bfc20e73c7aee69ba04db7cbef22efb3e5",
+      "mapbiomas_configuracao_sha256": "10d1156e6649dfc4414760885b2a5a42928f3bbec91e33a4bc658d0281da0afe"
     }
   }
 }

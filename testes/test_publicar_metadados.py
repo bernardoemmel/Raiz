@@ -80,9 +80,18 @@ def test_reserva_auxiliar_recusa_sem_vaga_e_nao_enfileira(monkeypatch):
 
 
 @pytest.mark.parametrize("rodada_terminou", [True, False])
-def test_catalogo_promove_ultima_continuacao_antes_do_gate_sem_admitir_motor(tmp_path, monkeypatch, rodada_terminou):
-    origem = "88860b64ee09f811b66e283f5c57997ebcdb3fd5"
-    destino = "b624b108b0350135003e1099d9c928fa7cc24151"
+@pytest.mark.parametrize(
+    "origem,destino",
+    [
+        ("88860b64ee09f811b66e283f5c57997ebcdb3fd5", "ec2ebd2c5772c6307aa1c3a41e1f97aac54e1b51"),
+        ("b624b108b0350135003e1099d9c928fa7cc24151", "ec2ebd2c5772c6307aa1c3a41e1f97aac54e1b51"),
+        ("6a53cfbf514f369f694ea0bd3bc594ef8295a3b4", "dac754f9d27a61481fdb0db24c496cdea0dd4f35"),
+        ("bea53bd06c7178daf2a53c392e5a9d54c55e7bc7", "dac754f9d27a61481fdb0db24c496cdea0dd4f35"),
+    ],
+)
+def test_catalogo_promove_ultima_continuacao_antes_do_gate_sem_admitir_motor(
+    tmp_path, monkeypatch, rodada_terminou, origem, destino
+):
     fila, _ = P.modulos_fila()
     estado = {**fila.vazio(), "fila": [{"id": "123/BA-1/1", "unidade": "BA-1", "ref": origem,
                                       "continuacao": 1, "refazer": ""}]}  # fmt: skip
