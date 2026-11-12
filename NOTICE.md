@@ -42,3 +42,29 @@ Métodos reescritos, sem copiar código: frases comparativas por índice no esti
 (`front/compartilhado/comparacoes.ts`) e caixa de fatos no formato das "fact boxes" de comunicação de risco
 (`front/compartilhado/cenario.ts`). Dependências só de desenvolvimento: Vite, TypeScript, Vitest, Oxlint (MIT) e,
 no script, requests (Apache-2.0), shapely e pmtiles (BSD-3-Clause).
+
+## Documentos (`raiz/documentos/`)
+
+Dependências usadas como biblioteca, sem copiar nem alterar o código (`raiz/documentos/requirements.txt`):
+
+| O quê | Para quê | Licença |
+|---|---|---|
+| anthropic (SDK Python) | leitura de certidão e edital pela API da Anthropic | Apache-2.0 |
+| docxtpl | modelos .docx com campos Jinja (usado como biblioteca, sem alteração) | LGPL-2.1 |
+| python-docx | monta os modelos .docx | MIT |
+| Jinja2 (dependência do docxtpl) | campos dos modelos | BSD-3-Clause |
+| pypdf | conta páginas do PDF | BSD-3-Clause |
+| beautifulsoup4 | links das páginas de editais | MIT |
+| requests | páginas e APIs públicas | Apache-2.0 |
+| pandas, numpy | tabelas do motor e faixa P10 a P90 da carteira | BSD-3-Clause |
+| reportlab | PDF de exemplo dos testes | BSD |
+
+Programas e serviços chamados de fora, sem embutir código: LibreOffice (MPL-2.0) converte .docx em PDF no servidor;
+Firecrawl só pela API hospedada (o código do Firecrawl é AGPL: não instalar nem hospedar). Fontes públicas da busca
+semanal, cada uma com seus termos: registro da Verra (VCS), portal gov.br do Serviço Florestal Brasileiro (API do
+Plone), páginas de licitações e concessões do Ideflor-Bio e busca do Diário Oficial da União (in.gov.br).
+
+Métodos reescritos, sem copiar código: cadeia dominial com quebras e ônus ativos (desenho do TitleChain citado no plano,
+E5 passo 7); normal de dois lados nos P10, P50 e P90 e soma ao lado da carteira (E3); regra provisória das faixas
+(faixas-2026a) igual à do back-end (`raiz/regras/padroes/faixas.yaml`).
+

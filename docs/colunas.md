@@ -49,3 +49,15 @@ ignorar colunas que não conhece. Áreas em hectares (`_ha`), carbono em tCO2 po
 | certidoes_<mun>.csv | cartório (CNS) e número de matrícula das parcelas SIGEF de cada imóvel, para pedir certidão |
 | geo_<mun>.parquet | polígono de cada imóvel (cod_imovel + geometria) |
 | resumo_<UF>.csv | uma linha por município com o funil somado |
+
+## Conferência das certidões (`raiz/documentos`, fora do motor)
+
+Gravadas em `dados/documentos/saida/<UF>/` por `python -m raiz.documentos certidao saida <mun>`, a partir das
+leituras de certidão conferidas com o `certidoes_<mun>.csv`. Sem nome nem CPF: só situação, motivos já limpos, áreas,
+contagens e versões. Regra completa em `docs/documentos.md`.
+
+| Arquivo | Colunas |
+|---|---|
+| matricula_<mun>.csv | uma linha por imóvel do certidoes_<mun>.csv. matricula_conferida (True quando todas as matrículas do imóvel foram lidas e conferidas; False quando alguma foi lida e deu divergente, cancelada ou ilegível; vazio quando falta ler; é a coluna que o selo "Matrícula conferida" do front lê), matricula_situacao (a pior: cancelada, divergente, revisar, a_conferir, conferida), matriculas_total, matriculas_lidas, matriculas_conferidas, matricula_area_ha (soma das áreas lidas, em ha), matricula_onus_ativos, matricula_onus_graves (penhora, arresto, sequestro, indisponibilidade, ação judicial ou bloqueio), matricula_quebra_cadeia, matricula_precisa_confirmar, matricula_motivo, matricula_lido_em, matricula_modelo (o modelo que leu; humano quando a leitura foi manual), matricula_leitor_versao (versão do leitor + do prompt) |
+| matricula_conferencia_<mun>.csv | uma linha por (imóvel, cartório, matrícula) do certidoes_<mun>.csv, com a última conferência: situacao (conferida, divergente, cancelada, revisar ou a_conferir), precisa_confirmar, motivo (até 3 motivos, os que decidem primeiro), area_matricula_ha, ha_sobre_car (do motor), onus_ativos, onus_graves, quebra_cadeia, n_transmissoes, matricula_destino (para onde a matrícula encerrada foi transportada), leitura_id, lido_em, modelo, leitor_versao, regras_versao |
+
