@@ -28,6 +28,9 @@ from fastapi.responses import FileResponse, Response
 from sqlalchemy import Engine, text
 
 from raiz import contrato
+from raiz import flag as flag_mod
+from raiz import motivos as motivos_mod
+from raiz.busca import normalizar_codigo, normalizar_nome
 from raiz.privacidade import colunas_pessoais, mascarar
 
 # nome no banco (minúsculo) -> nome no CSV do motor
@@ -93,21 +96,26 @@ def _faltando(con, rodadas: set[int]) -> dict[int, set[str]]:
 
 
 def imoveis_do_municipio(engine: Engine, cod_ibge: int | None = None, cod_imovel: str | None = None) -> list[dict]:
-    """Uma linha por imóvel, como o front monta da amostra: complementos primeiro, a linha principal ganha."""
-    filtro = "cod_imovel = :ci" if cod_imovel else "cod_municipio_ibge = :c"
+    """Uma linha por imóvel, como o front monta da amostra: complementos primeiro, a linha principal ganha.
+    O imóvel é achado pelo código normalizado (com ou sem pontos e traços, em qualquer caixa)."""
+    if cod_imovel is not None:
+        filtro, par = "v.cod_busca = :b", {"b": normalizar_codigo(cod_imovel)}
+    else:
+        filtro, par = "v.cod_municipio_ibge = :c", {"c": cod_ibge}
     with engine.connect() as con:
         principais = [
             dict(r._mapping)
             for r in con.execute(
-                text(f"select * from funil.resultado_vigente where {filtro} order by cod_imovel"),
-                {"c": cod_ibge, "ci": cod_imovel},
+                text(f"""select r.*, v.rodada_id as _rodada from funil.vigente v
+                         join funil.resultado_imovel r on r.rodada_id = v.rodada_id and r.cod_imovel = v.cod_imovel
+                         where {filtro} order by v.cod_imovel"""),
+                par,
             )
         ]
         if not principais:
             return []
-        chaves = [(p["rodada_id"], p["cod_imovel"]) for p in principais]
-        rodadas = {r for r, _ in chaves}
-        cods = [c for _, c in chaves]
+        rodadas = {p["rodada_id"] for p in principais}
+        cods = [p["cod_imovel"] for p in principais]
         faltando = _faltando(con, rodadas)
         comp: dict[str, dict] = defaultdict(dict)
         par = {"r": list(rodadas), "cs": cods}
@@ -130,53 +138,68 @@ def imoveis_do_municipio(engine: Engine, cod_ibge: int | None = None, cod_imovel
             comp[r.cod_imovel][contrato.coluna_mb(r.indicador, r.ano)] = v
     out = []
     for p in principais:
+        p.pop("_rodada", None)
         linha = dict(comp.get(p["cod_imovel"], {}))
         linha.update(_linha_banco(p, faltando.get(p["rodada_id"], set())))
         out.append(_limpa(linha))
     return out
 
 
-# --- regras do funil do front (front/compartilhado/dados/funil.ts), para a ficha ------------------------------------
-
-
-def _num(linha: dict, c: str) -> float | None:
-    v = linha.get(c)
-    if v is None or isinstance(v, bool):
-        return None if v is None else float(v)
-    try:
-        x = float(v)
-    except (TypeError, ValueError):
+def versao(engine: Engine, cod_imovel: str) -> dict | None:
+    """De qual rodada vem o dado do imóvel (as rodadas antigas do município continuam guardadas)."""
+    with engine.connect() as con:
+        r = con.execute(
+            text("""select ro.id, ro.data_corte, ro.carregada_em, ro.motor_versao, ro.regras_versao, ro.origem,
+                           (select count(*) from funil.rodada x where x.tipo = 'municipio'
+                            and x.cod_municipio = ro.cod_municipio) as rodadas_do_municipio
+                    from funil.vigente v join funil.rodada ro on ro.id = v.rodada_id where v.cod_busca = :b"""),
+            {"b": normalizar_codigo(cod_imovel)},
+        ).first()
+    if r is None:
         return None
-    return x if math.isfinite(x) else None
+    return {
+        "rodada": r.id,
+        "data_corte": r.data_corte.isoformat(),
+        "carregada_em": r.carregada_em.isoformat(),
+        "motor_versao": r.motor_versao,
+        "regras_versao": r.regras_versao,
+        "rodadas_do_municipio": r.rodadas_do_municipio,
+    }
 
 
-def _n0(linha: dict, c: str, padrao: float = 0.0) -> float:
-    x = _num(linha, c)
-    return padrao if x is None else x
+def nao_achado(engine: Engine, cod_imovel: str) -> dict:
+    """Corpo do 404: diz o que se sabe do código (município conhecido? já processado?), nunca uma resposta vazia."""
+    b = normalizar_codigo(cod_imovel)
+    out = {"cod_imovel": cod_imovel, "codigo_normalizado": b, "achado": False}
+    m = re.match(r"^([A-Z]{2})(\d{7})", b)
+    if not m:
+        out["mensagem"] = "Código do CAR fora do formato UF-municipio-código (ex.: PA-1504950-0016...)."
+        return out
+    with engine.connect() as con:
+        mun = con.execute(
+            text("select cod_ibge, municipio, uf, imoveis from funil.municipio_busca where cod_ibge = :c"),
+            {"c": int(m.group(2))},
+        ).first()
+    if mun is None:
+        out["mensagem"] = "O município deste código ainda não foi processado pelo motor da Raíz."
+    elif not mun.imoveis:
+        out["municipio"] = {"cod_ibge": str(mun.cod_ibge), "municipio": mun.municipio, "uf": mun.uf}
+        out["mensagem"] = f"{mun.municipio} ({mun.uf}) ainda não teve os imóveis processados pelo motor."
+    else:
+        out["municipio"] = {"cod_ibge": str(mun.cod_ibge), "municipio": mun.municipio, "uf": mun.uf}
+        out["mensagem"] = (
+            f"O motor processou {mun.municipio} ({mun.uf}), mas este imóvel não está na saída: pode estar cancelado, "
+            "não ser imóvel rural (IRU) ou o código pode estar errado."
+        )
+    return out
 
 
-def _bool(linha: dict, c: str) -> bool | None:
-    v = linha.get(c)
-    if isinstance(v, bool) or v is None:
-        return v
-    s = str(v).strip().lower()
-    if s in {"true", "1", "sim", "s", "yes"}:
-        return True
-    if s in {"false", "0", "não", "nao", "n", "no"}:
-        return False
-    return None
+# --- regras do funil do front (front/compartilhado/dados/funil.ts), em raiz/motivos.py ---------------------------
 
 
 def ler_imovel(linha: dict) -> dict:
     """ha, carbono_ha e apta, com as mesmas regras de lerImovel do front."""
-    ha = _n0(linha, "ha", _n0(linha, "area"))
-    carbono_ha = _n0(linha, "carbono_ha") if "carbono_ha" in linha else _n0(linha, "alem_RL_ha")
-    problema = _bool(linha, "problema")
-    if problema is None:
-        problema = any(_n0(linha, c) > 1 for c in ("embargo_ha", "ti_ha", "desm_pos2020_ha", "alerta_pos2020_ha"))
-    desm16 = _num(linha, "desm_pos2016_ha")
-    apta = (not problema) and carbono_ha > 0 and (desm16 or 0) <= 5
-    return {"ha": ha, "carbono_ha": carbono_ha, "apta": apta}
+    return motivos_mod.ler(linha)
 
 
 def mediana(xs: list[float]) -> float:
@@ -242,8 +265,9 @@ def linhas_para_contexto(engine: Engine, cod_ibge: int) -> list[dict]:
     return [_linha_banco(r, faltando.get(r["rodada_id"], set())) for r in rs]
 
 
-def montar_ficha(alvo: dict, todos: list[dict], geometria: dict | None) -> dict:
-    """FichaJson: a linha, o contexto do município e o perímetro em polyline (front/compartilhado/dados/ficha.ts)."""
+def montar_ficha(alvo: dict, todos: list[dict], geometria: dict | None, versao_dado: dict | None = None) -> dict:
+    """FichaJson: a linha, o contexto do município e o perímetro em polyline (front/compartilhado/dados/ficha.ts).
+    A mais, para qualquer cliente: situacao (apta ou não, e por quê), motivos item por item e versao_dado (rodada)."""
     lidos = [ler_imovel(i) for i in todos]
     eu = ler_imovel(alvo)
     meu = eu["carbono_ha"] if eu["apta"] else 0
@@ -266,7 +290,176 @@ def montar_ficha(alvo: dict, todos: list[dict], geometria: dict | None) -> dict:
         },
         "perimetro": [polyline(a) for a in aneis] if aneis else None,
         "caixa": [min(xs), min(ys), max(xs), max(ys)] if xs else None,
+        "situacao": motivos_mod.situacao(alvo),
+        "motivos": motivos_mod.motivos(alvo),
+        # meta FLAG (GHG LSR v1.1) separada de crédito/compensação, com requisitos e versão da regra
+        "flag": flag_mod.bloco_ficha(alvo),
+        "versao_dado": versao_dado,
     }
+
+
+# --- busca --------------------------------------------------------------------------------------------------------
+
+_COLUNAS_SITUACAO = (
+    "r.rodada_id, r.cod_imovel, r.municipio, r.status_imovel, r.ha, r.area, r.carbono_ha, r.alem_rl_ha, r.problema, "
+    "r.embargo_ha, r.ti_ha, r.desm_pos2020_ha, r.alerta_pos2020_ha, r.desm_pos2016_ha, r.f_matricula, "
+    "r.matricula_ha, r.frente, r.assentamento_ha, r.pasto_ate1km_ha, r.uc_ha, r.deficit_rl_ha, r.pct_rl, "
+    "r.app_desmatada_ha, r.app_recompor_ha"
+)
+
+
+UFS = {
+    "AC": "Acre", "AL": "Alagoas", "AM": "Amazonas", "AP": "Amapá", "BA": "Bahia", "CE": "Ceará",
+    "DF": "Distrito Federal", "ES": "Espírito Santo", "GO": "Goiás", "MA": "Maranhão", "MG": "Minas Gerais",
+    "MS": "Mato Grosso do Sul", "MT": "Mato Grosso", "PA": "Pará", "PB": "Paraíba", "PE": "Pernambuco", "PI": "Piauí",
+    "PR": "Paraná", "RJ": "Rio de Janeiro", "RN": "Rio Grande do Norte", "RO": "Rondônia", "RR": "Roraima",
+    "RS": "Rio Grande do Sul", "SC": "Santa Catarina", "SE": "Sergipe", "SP": "São Paulo", "TO": "Tocantins",
+}  # fmt: skip
+MAX_IMOVEIS = MAX_MUNICIPIOS = 8
+_CAR = re.compile(r"^([A-Z]{2})-?(\d{0,7})(?:-?([0-9A-F]{0,32}))?$")
+
+
+def normalizar_car(q: str) -> str | None:
+    """Como normalizarCar do front: "pa 1507300 f293.cd17" vira "PA-1507300-F293CD17"."""
+    s = re.sub(r"[\s.]", "", q.upper())
+    m = _CAR.match(s)
+    if not m:
+        return None
+    uf, mun, cauda = m.group(1), m.group(2), m.group(3) or ""
+    if not mun:
+        return uf + "-"
+    if len(mun) < 7:
+        return f"{uf}-{mun}"
+    return f"{uf}-{mun}-{cauda}"
+
+
+def buscar(engine: Engine, q: str, limite: int = MAX_IMOVEIS) -> dict:
+    """GET /busca?q= com o contrato de front/compartilhado/dados/busca.ts (que é a especificação): tipo, situacao,
+    mensagem pronta, até 8 imóveis (maior área de carbono primeiro) e até 8 municípios."""
+    q = (q or "").strip()
+
+    def vazia(tipo: str, situacao: str, mensagem: str, municipios=None) -> dict:
+        return {"q": q, "tipo": tipo, "situacao": situacao, "mensagem": mensagem, "imoveis": [],
+                "municipios": municipios or []}  # fmt: skip
+
+    def mun(m) -> dict:
+        carregados = m.imoveis or 0
+        return {
+            "cod_ibge": str(m.cod_ibge),
+            "municipio": m.municipio,
+            "uf": m.uf,
+            "imoveis": carregados or (m.imoveis_resumo or 0),
+            "tem_imoveis": carregados > 0,
+        }
+
+    with engine.connect() as con:
+        ufs = [u for (u,) in con.execute(text("select distinct uf from funil.municipio_busca order by uf"))]
+        nomes_ufs = ", ".join(UFS.get(u, u) for u in ufs) or "nenhum"
+        if re.match(r"^[A-Za-z]{2}\s*-?\s*\d", q):
+            cod = normalizar_car(q)
+            uf = q[:2].upper()
+            if uf not in UFS:
+                return vazia(
+                    "car",
+                    "formato_invalido",
+                    f'"{uf}" não é sigla de estado. O código do CAR começa assim: PA-1507300-…',
+                )
+            if not cod:
+                return vazia(
+                    "car",
+                    "formato_invalido",
+                    "Código do CAR fora do formato. Ele tem a sigla do estado, os 7 números do município e 32 letras e "
+                    "números, por exemplo PA-1507300-F293CD17…",
+                )
+            if uf not in ufs:
+                return vazia(
+                    "car",
+                    "estado_nao_processado",
+                    f"{UFS[uf]} ainda não foi processado pela Raíz. Por enquanto: {nomes_ufs}.",
+                )
+            if len(cod) < 10:
+                return vazia("car", "curta", "Continue digitando: depois da sigla vêm os 7 números do município.")
+            completo = len(cod) == 43
+            b = normalizar_codigo(cod)
+            linhas = [
+                dict(x._mapping)
+                for x in con.execute(
+                    text(f"""select v.uf as _uf, v.cod_municipio_ibge as _cod_ibge, {_COLUNAS_SITUACAO}
+                             from funil.vigente v
+                             join funil.resultado_imovel r on r.rodada_id = v.rodada_id and r.cod_imovel = v.cod_imovel
+                             where {"v.cod_busca = :b" if completo else "v.cod_busca like :p"}
+                             order by r.carbono_ha desc nulls last, v.cod_busca limit :n"""),
+                    {"b": b, "p": b + "%", "n": limite},
+                )
+            ]
+            if linhas:
+                faltando = _faltando(con, {x["rodada_id"] for x in linhas})
+                imoveis = []
+                for x in linhas:
+                    linha = _linha_banco(x, faltando.get(x["rodada_id"], set()))
+                    sit = motivos_mod.situacao(linha)
+                    lido = motivos_mod.ler(linha)
+                    imoveis.append(
+                        {
+                            "cod_imovel": x["cod_imovel"],
+                            "municipio": x["municipio"],
+                            "cod_ibge": str(x["_cod_ibge"]),
+                            "uf": x["_uf"],
+                            "ha": lido["ha"],
+                            "carbono_ha": lido["carbono_ha"],
+                            "apta": lido["apta"],
+                            "categoria": sit["categoria"],
+                            "porque_nao_apta": sit["porque_nao_apta"],  # a mais: o motivo, item por item
+                        }
+                    )
+                return {"q": q, "tipo": "car", "situacao": "ok", "mensagem": None, "imoveis": imoveis, "municipios": []}
+            cod_mun = cod[3:10]
+            m = con.execute(
+                text("select * from funil.municipio_busca where cod_ibge = :c"), {"c": int(cod_mun)}
+            ).first()
+            if m is not None and not m.imoveis:
+                return vazia(
+                    "car",
+                    "municipio_sem_imoveis",
+                    f"{m.municipio} ({m.uf}) já tem o funil do município, mas os imóveis por fazenda ainda não foram "
+                    "processados. Este código aparece quando forem.",
+                    [mun(m)],
+                )
+            if m is None:
+                return vazia(
+                    "car",
+                    "nao_encontrado",
+                    f"Nenhum município de {UFS[uf]} com o código {cod_mun} nos dados da Raíz. Confira os 7 números "
+                    "depois da sigla.",
+                )
+            return vazia(
+                "car",
+                "nao_encontrado",
+                f"Nenhum imóvel com este código em {m.municipio}. Pode ser CAR cancelado, de assentamento coletivo ou "
+                "terra indígena (a Raíz só analisa imóvel rural), ou um erro de digitação."
+                if completo
+                else f"Nenhum código de {m.municipio} começa assim. Confira as letras e números depois do município.",
+            )
+        t = normalizar_nome(q)
+        if len(t) < 3:
+            return vazia("texto", "curta", "Digite pelo menos 3 letras do município ou o começo do código do CAR.")
+        ms = con.execute(
+            text("""select * from funil.municipio_busca
+                    where nome_busca like :meio or cast(cod_ibge as text) = :t
+                    order by (cast(cod_ibge as text) = :t) desc, (nome_busca like :inicio) desc,
+                             greatest(imoveis, coalesce(imoveis_resumo, 0)) desc, municipio
+                    limit :n"""),
+            {"meio": f"%{t}%", "inicio": f"{t}%", "t": t, "n": MAX_MUNICIPIOS},
+        ).all()
+        if not ms:
+            return vazia(
+                "texto",
+                "nao_encontrado",
+                f'Nenhum município com "{q}" nos estados processados ({nomes_ufs}). Para um imóvel, digite o código do '
+                "CAR.",
+            )
+        return {"q": q, "tipo": "texto", "situacao": "ok", "mensagem": None, "imoveis": [],
+                "municipios": [mun(m) for m in ms]}  # fmt: skip
 
 
 # --- rotas --------------------------------------------------------------------------------------------------------
@@ -304,39 +497,56 @@ def roteador(engine_de) -> APIRouter:
         return _json(lista)
 
     @r.get("/imoveis/{cod_imovel}")
-    def imovel(cod_imovel: str, request: Request) -> dict:
-        lista = imoveis_do_municipio(engine_de(request), cod_imovel=cod_imovel)
+    def imovel(cod_imovel: str, request: Request) -> Response:
+        eng = engine_de(request)
+        lista = imoveis_do_municipio(eng, cod_imovel=cod_imovel)
         if not lista:
-            raise HTTPException(404, "imóvel não encontrado")
-        return lista[0]
+            raise HTTPException(404, nao_achado(eng, cod_imovel))
+        return _json(lista[0])
 
     @r.get("/imoveis/{cod_imovel}/ficha")
     def ficha(cod_imovel: str, request: Request) -> Response:
         eng = engine_de(request)
         alvo = imoveis_do_municipio(eng, cod_imovel=cod_imovel)
         if not alvo:
-            raise HTTPException(404, "imóvel não encontrado")
+            raise HTTPException(404, nao_achado(eng, cod_imovel))
         cod_ibge = alvo[0].get("cod_municipio_ibge")
         todos = linhas_para_contexto(eng, int(cod_ibge)) if cod_ibge else alvo
+        cod = alvo[0]["cod_imovel"]  # o código como está no banco (o pedido pode vir sem traços ou em minúsculas)
         with eng.connect() as con:
             g = con.execute(
                 text("""select ST_AsGeoJSON(ST_SimplifyPreserveTopology(geom, :t), 6) from funil.imovel
                         where cod_imovel = :c and geom is not null"""),
-                {"c": cod_imovel, "t": SIMPLIFICAR_GRAUS},
+                {"c": cod, "t": SIMPLIFICAR_GRAUS},
             ).scalar()
-        return _json(montar_ficha(alvo[0], todos, json.loads(g) if g else None))
+        return _json(montar_ficha(alvo[0], todos, json.loads(g) if g else None, versao(eng, cod)))
+
+    @r.get("/imoveis/{cod_imovel}/flag/simular")
+    def simular_flag(
+        cod_imovel: str, request: Request, silvipastoril_ha: float = 0.0, cacau_ha: float = 0.0
+    ) -> Response:
+        """Simulador: hectares escolhidos para a meta FLAG; o resto fica para crédito ou compensação, sem somar."""
+        eng = engine_de(request)
+        alvo = imoveis_do_municipio(eng, cod_imovel=cod_imovel)
+        if not alvo:
+            raise HTTPException(404, nao_achado(eng, cod_imovel))
+        return _json(flag_mod.simular(alvo[0], silvipastoril_ha, cacau_ha))
 
     @r.get("/imoveis/{cod_imovel}/certidoes")
     def certidoes(cod_imovel: str, request: Request) -> list[dict]:
         with engine_de(request).connect() as con:
             linhas = con.execute(
-                text("""select c.* from titulo.certidao_alvo c
-                        where c.cod_imovel = :c and c.rodada_id = (
-                            select rodada_id from funil.resultado_vigente where cod_imovel = :c)
-                        order by c.registro_cns, c.registro_matricula"""),
-                {"c": cod_imovel},
+                text("""select c.* from funil.vigente v
+                        join titulo.certidao_alvo c on c.cod_imovel = v.cod_imovel and c.rodada_id = v.rodada_id
+                        where v.cod_busca = :b order by c.registro_cns, c.registro_matricula"""),
+                {"b": normalizar_codigo(cod_imovel)},
             ).all()
         return [_limpa(_linha_banco(dict(x._mapping))) for x in linhas]
+
+    @r.get("/busca")
+    def busca(request: Request, q: str = "", limite: int = 8) -> Response:
+        """Código do CAR (inteiro ou começo, com ou sem pontos e traços) e nome de município (sem acento)."""
+        return _json(buscar(engine_de(request), q, max(1, min(limite, MAX_IMOVEIS))))
 
     @r.get("/geo/{cod_ibge}/base.pmtiles")
     def base(cod_ibge: int) -> Response:

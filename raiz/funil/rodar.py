@@ -5,6 +5,7 @@
     direto  raiz_direto.direto (YbYrá e GPW direto dos arquivos públicos)      -> direto_<mun>.csv
     mapbiomas raiz_mapbiomas.por_imovel (API da Plataforma, colunas mb_*)       -> mapbiomas_<mun>.csv
     extras_direto raiz_extras_direto.municipio (JRC TMF e causas da perda)      -> extras_direto_<mun>.csv
+    flag    raiz.flag.calcular_municipio (meta FLAG pela GHG LSR, fora do motor)   -> flag_<mun>.csv
     carga   raiz.carga.carregar_municipio + congelamento das previsões (versão do motor confirmada)
 
 Cada tarefa de cada município pinga o Healthchecks (início, sucesso, falha com log) e fica em operacao.lote.
@@ -31,7 +32,7 @@ from raiz.config import config
 
 log = logging.getLogger(__name__)
 
-TAREFAS = ("funil", "filtros", "direto", "mapbiomas", "extras_direto", "carga")
+TAREFAS = ("funil", "filtros", "direto", "mapbiomas", "extras_direto", "flag", "carga")
 
 
 @dataclass
@@ -170,6 +171,18 @@ def rodar_municipio(cod: int, op: Opcoes, hc=None) -> dict:
         _escrever_csv(t, pasta / f"extras_direto_{cod}.csv", index=False)
         reg.detalhe.update(imoveis=len(t), tmf_ano=X.TMF_ANO, com_causa=int(t.causa_perda.between(1, 7).sum()))
 
+    def flag(reg):
+        from raiz import flag as F
+
+        f = pasta / f"flag_{cod}.csv"
+        if f.exists() and not op.refazer and F.versao_do_arquivo(f) == F.versao():
+            reg.pulado = True
+            reg.nota(f"{f.name} já está na regra {F.versao()}")
+            return
+        t = F.calcular_municipio(pasta, cod, F.vigor_do_estado(uf, Path("cache")))
+        _escrever_csv(t, f, index=False)
+        reg.detalhe.update(imoveis=len(t), regra=F.versao(), flag_tco2_ano=round(float(t.flag_tco2_ano.sum()), 1))
+
     imoveis = pasta / f"imoveis_{cod}.csv"
     if not executar("funil", imoveis, funil) or not imoveis.exists():
         return res
@@ -177,6 +190,7 @@ def rodar_municipio(cod: int, op: Opcoes, hc=None) -> dict:
     executar("direto", pasta / f"direto_{cod}.csv", direto)
     executar("mapbiomas", pasta / f"mapbiomas_{cod}.csv", mapbiomas)
     executar("extras_direto", pasta / f"extras_direto_{cod}.csv", extras_direto)
+    executar("flag", None, flag)  # refaz quando a versão da regra muda
     executar("carga", None, carga)
     return res
 

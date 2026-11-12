@@ -99,6 +99,10 @@ Observação do motor atual (12/11): o funil já roda o Brasil por município (m
 | 3 | (rodada 10) Cópula vine (pyvinecopulib, conferir licença) no lugar da gaussiana para a correlação entre entradas | passo 2 | 3 a 5 |
 | 3 | (rodada 10) P90 da carteira pelo modelo de Vasicek (fator comum por bioma e município) ao lado do Monte Carlo | passo 3 | 2 a 4 |
 | 7 | (rodada 10) Amostragem de campo do grupo pela norma do MDL: 90% de confiança, 10% de erro, mínimo de 30 parcelas | passo 6 | 2 a 3 |
+| 1 | (GHG LSR v1.1, vale a partir de 1/1/2027; o SBTi FLAG segue) Meta FLAG separada de crédito: flag_<mun>.csv com silvipastoril, cacau e tCO2 com faixa; restauração, RL, APP e capoeira vão para crédito Verra ou compensação; regra versionada em raiz/regras/padroes/ghg_lsr.yaml, gravada em cada cálculo e refeita quando muda (`raiz flag recalcular`); ficha e simulador sem somar os dois blocos | motor (pasto, RL, APP, MapBiomas) | feito |
+| 2 | (GHG LSR v1.1) Calibrar as faixas de remoção de silvipastoril e de SAF de cacau (GROA, CC BY, e literatura da Amazônia) e trocar a viabilidade do cacau por bioma pelo zoneamento de risco climático do cacau (ZARC/MAPA) por município | passo anterior | 4 a 8 |
+| 3 | (GHG LSR v1.1) Requisitos por fazenda com dado de verdade: vínculo CAR com frigorífico (fornecedor direto) para o rastreio; medição de campo com nova amostragem a cada 5 anos, gravada como gabarito (E8); direito de reportar no contrato (E6) | E6, E8 | 8 a 12 |
+| 4 | (GHG LSR v1.1) Requirement 7 (floresta ligada à produção: mesmo dono, mesmo plano de manejo, vizinha, ligada à produção) já modelado e desligado; ligar quando o padrão incluir floresta, só trocando ativo e a versão na tabela | nada | 0,5 |
 
 ## E4. Rebanho, metano e solo
 
@@ -222,3 +226,5 @@ Observação do motor atual (12/11): o funil já roda o Brasil por município (m
 | 2 | (API do front) Cache por rodada (ETag pelo hash da rodada) e lista de imóveis em pedaços ou em formato colunar para município grande (São Félix: 2,8 MB comprimidos, 3,4 s) | passo anterior | 2 a 4 |
 | 2 | (API do front) Divisa, TI, UC e rios vindos da coleta (E1) direto no PostGIS, no lugar dos arquivos do front/scripts/geo.py; um mapa base PMTiles do Brasil servido com Range | E1 | 3 a 5 |
 | 6 | (API do front) Fichas em JSON do lote anual (passo 1) servidas como arquivo estático; a API fica para o painel interno e para o que muda no dia | passo 1 | 1 a 2 |
+| 1 | (busca) Busca nacional pelo código do CAR (inteiro ou começo, com ou sem pontos e traços) e pelo nome do município, no contrato de front/compartilhado/dados/busca.ts; índice por código normalizado; 6,7 milhões de imóveis sintéticos: pior resposta 0,49 s | carga contínua | feito |
+| 1 | (busca) Carga contínua das saídas do motor por estado (`raiz vigiar`), só o município que mudou, com a versão anterior guardada | carga do motor | feito |

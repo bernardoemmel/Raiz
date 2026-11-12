@@ -27,6 +27,16 @@ def upgrade() -> None:
         op.execute(f"CREATE INDEX {t.split('.')[1]}_bloco_idx ON {t} (bloco)")
 
 
+VIEW_ORIGINAL = """
+    CREATE VIEW funil.resultado_vigente AS
+    SELECT DISTINCT ON (r.cod_imovel) r.*, ro.data_corte, ro.motor_versao, ro.regras_versao
+    FROM funil.resultado_imovel r JOIN funil.rodada ro ON ro.id = r.rodada_id
+    ORDER BY r.cod_imovel, ro.data_corte DESC, ro.id DESC"""
+
+
 def downgrade() -> None:
+    # a view refeita depois desta migração (r.*) passa a depender de bloco: tira e põe de volta sem a coluna
+    op.execute("DROP VIEW IF EXISTS funil.resultado_vigente")
     for t in (*TABELAS, "funil.imovel"):
         op.execute(f"ALTER TABLE {t} DROP COLUMN bloco")
+    op.execute(VIEW_ORIGINAL)

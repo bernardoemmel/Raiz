@@ -135,7 +135,7 @@ def funil_rodar(
     municipios: Annotated[list[int] | None, typer.Argument(help="códigos IBGE; sem nada, a UF inteira")] = None,
     tarefas: Annotated[
         str, typer.Option(help="separadas por vírgula")
-    ] = "funil,filtros,direto,mapbiomas,extras_direto,carga",
+    ] = "funil,filtros,direto,mapbiomas,extras_direto,flag,carga",
     lanes: Annotated[int, typer.Option(help="municípios ao mesmo tempo")] = 3,
     refazer: bool = False,
     data_corte: Annotated[str | None, typer.Option(help="AAAA-MM-DD; padrão: hoje")] = None,
@@ -474,3 +474,59 @@ def geo_carregar(
             n = carregar(con, cod, p)
             base = "com mapa base" if arquivo_base(cod, p) else "sem mapa base"
             typer.echo(f"{cod}: {n or 'nenhum arquivo'} ({base})")
+
+
+@app.command("vigiar")
+def vigiar_saida(
+    saida: Annotated[
+        str | None, typer.Option(help="pasta saida/ do motor; padrão: a pasta de trabalho do motor")
+    ] = None,
+    intervalo: Annotated[int, typer.Option(help="segundos entre uma volta e outra")] = 300,
+    uma_vez: Annotated[bool, typer.Option(help="dá uma volta só e sai (para cron)")] = False,
+    ufs: Annotated[str | None, typer.Option(help="só estas UFs, separadas por vírgula")] = None,
+    congelar: Annotated[bool, typer.Option(help="congelar as previsões de cada rodada nova (E8)")] = True,
+) -> None:
+    """Carga contínua: leva ao banco cada município que o motor terminar em saida/<UF>/ (só o que mudou)."""
+    from pathlib import Path
+
+    from raiz.banco import engine
+    from raiz.carga_continua import varrer, vigiar
+    from raiz.funil.rodar import dir_trabalho
+
+    pasta = Path(saida) if saida else dir_trabalho() / "saida"
+    lista = [u.strip().upper() for u in ufs.split(",")] if ufs else None
+    if uma_vez:
+        r = varrer(engine(), pasta, ufs=lista, congelar=congelar)
+        typer.echo(
+            f"{len(r['carregados'])} municípios carregados, "
+            f"{r['pulados']} sem mudança, {len(r['esperando'])} esperando o motor terminar, {len(r['falhas'])} falhas"
+        )
+        for f in r["falhas"]:
+            typer.echo(f"  falha {f['chave']}: {f['erro']}")
+        raise typer.Exit(1 if r["falhas"] else 0)
+    vigiar(engine(), pasta, intervalo, ufs=lista, congelar=congelar)
+
+
+flag_cli = typer.Typer(
+    help="Meta FLAG pela GHG Protocol LSR (regra versionada em raiz/regras/padroes/).", no_args_is_help=True
+)
+app.add_typer(flag_cli, name="flag")
+
+
+@flag_cli.command("recalcular")
+def flag_recalcular(
+    saida: Annotated[
+        str | None, typer.Option(help="pasta saida/ do motor; padrão: a pasta de trabalho do motor")
+    ] = None,
+    ufs: Annotated[str | None, typer.Option(help="só estas UFs, separadas por vírgula")] = None,
+) -> None:
+    """Refaz flag_<mun>.csv que falta ou que foi calculado com outra versão da regra."""
+    from pathlib import Path
+
+    from raiz import flag as F
+    from raiz.funil.rodar import dir_trabalho
+
+    pasta = Path(saida) if saida else dir_trabalho() / "saida"
+    lista = [u.strip().upper() for u in ufs.split(",")] if ufs else None
+    r = F.recalcular(pasta, lista, cache_motor=dir_trabalho() / "cache")
+    typer.echo(f"regra {F.versao()}: {len(r['refeitos'])} municípios refeitos, {r['em_dia']} já em dia")

@@ -137,8 +137,9 @@ CERTIDOES: dict[str, str] = {
 }
 
 # arquivos sem contrato tipado ainda: tudo vai para atributos, uma linha por imóvel
-# (extras = histórico fixo exportado uma vez do Earth Engine; extras_direto = TMF e causa da perda, sem Earth Engine)
-COMPLEMENTOS = ("extras", "extras_direto", "direto", "ajustes", "alertas")
+# (extras = histórico fixo exportado uma vez do Earth Engine; extras_direto = TMF e causa da perda, sem Earth Engine;
+#  flag = meta FLAG pela GHG LSR, calculada pelo produto em raiz/flag.py)
+COMPLEMENTOS = ("extras", "extras_direto", "direto", "ajustes", "alertas", "flag")
 
 CONTRATOS: dict[str, dict[str, str]] = {
     "imoveis": IMOVEIS,

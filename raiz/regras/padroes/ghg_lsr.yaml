@@ -1,0 +1,75 @@
+# Regra de contabilidade de remoções para metas FLAG: GHG Protocol Land Sector and Removals Standard (LSR), seguida
+# pelo SBTi FLAG. Cada cálculo grava `versao` + hash deste arquivo (ghg-lsr-1.1+<hash8>); quando o padrão mudar, sobe
+# a versão aqui e `raiz flag recalcular` refaz tudo o que foi calculado com a versão anterior.
+versao: ghg-lsr-1.1
+padrao: GHG Protocol Land Sector and Removals Standard, versão 1.1 (seguida pelo SBTi FLAG)
+vigencia_inicio: "2027-01-01"
+adotado_em: "2026-11-12"
+
+# O que conta na meta FLAG da empresa (inventário com meta) e para onde vai o resto. A mesma área nunca entra nos
+# dois destinos: a ficha separa os blocos e não soma toneladas de um com as do outro.
+usos:
+  silvipastoril:
+    descricao: árvore plantada no pasto produtivo (sistema silvipastoril)
+    conta_meta_flag: true
+    onde: pasto fora da reserva legal e da APP, primeiro o pasto degradado ou de baixo vigor
+  agrofloresta_cacau:
+    descricao: cacau em sistema agroflorestal
+    conta_meta_flag: true
+    onde: pasto ou agricultura fora da reserva legal e da APP, onde o cacau é viável no bioma e no clima
+  restauracao_alem_rl:
+    descricao: mata que volta (regeneração ou plantio) na área aberta além da reserva legal
+    conta_meta_flag: false
+    destino: crédito Verra (desenvolvedor) ou compensação voluntária
+  reserva_legal:
+    descricao: recompor o déficit de reserva legal
+    conta_meta_flag: false
+    destino: crédito Verra (desenvolvedor) ou compensação voluntária
+    aguardando_regra: true
+  app:
+    descricao: recompor a beira de rio (APP)
+    conta_meta_flag: false
+    destino: crédito Verra (desenvolvedor) ou compensação voluntária
+    aguardando_regra: true
+  capoeira:
+    descricao: vegetação secundária em pé (capoeira)
+    conta_meta_flag: false
+    destino: crédito Verra (desenvolvedor) ou compensação voluntária
+    aguardando_regra: true
+
+# Floresta (reserva legal, APP, capoeira) ligada à produção: a v1.1 não deixa contar. Guardamos os critérios do
+# Requirement 7 por fazenda para ligar quando uma versão futura incluir floresta.
+requirement_7:
+  ativo: false
+  criterios:
+    mesmo_dono: a área de floresta é do mesmo dono (ou posse) da área produtiva
+    mesmo_plano_de_manejo: está no mesmo plano de manejo da fazenda
+    vizinha_ou_proxima: é vizinha ou próxima da área produtiva
+    ligada_a_producao: está ligada à produção que vai para a empresa com meta
+
+# Requisitos do padrão para a remoção entrar no inventário, conferidos fazenda a fazenda
+requisitos:
+  rastreio: rastreio até a fazenda fornecedora (fornecedor direto do frigorífico)
+  medicao: medição específica da área, com nova amostragem a cada 5 anos
+  incerteza: incerteza da remoção dada em número
+  perdas: vigilância de perdas (fogo e corte entram como perda, abatidas da remoção)
+  dupla_contagem: sem crédito emitido na mesma área; contrato com o "direito de reportar"
+anos_reamostragem: 5
+
+# Remoção pela biomassa da árvore no sistema, em tCO2 por hectare por ano: mínimo, central e máximo.
+# PROVISÓRIO: faixas largas de primeira versão, para a ficha mostrar ordem de grandeza com a incerteza à vista;
+# calibrar na E3 (GROA, CC BY, e literatura de SAF e silvipastoril na Amazônia) e medir em campo (requisito medicao).
+remocao_tco2_ha_ano:
+  silvipastoril: {minimo: 1.5, central: 3.0, maximo: 5.0, provisorio: true}
+  agrofloresta_cacau: {minimo: 2.0, central: 4.0, maximo: 7.0, provisorio: true}
+
+# Onde o cacau é viável. PROVISÓRIO: por bioma e UF, até entrar o zoneamento de risco climático do cacau (ZARC/MAPA)
+# por município. Se o motor entregar cacau_aptidao por imóvel, ela manda.
+cacau_viavel:
+  biomas: [Amazônia]
+  ufs_mata_atlantica: [BA, ES]
+  cacau_aptidao_minima: 0.5
+  provisorio: true
+
+# Classe de vigor do pasto do MapBiomas (condição de vigor) tratada como pasto degradado, a primeira a receber árvore
+pasto_vigor_baixo: [1]

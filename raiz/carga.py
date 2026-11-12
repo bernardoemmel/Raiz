@@ -22,12 +22,13 @@ from psycopg.types.json import Jsonb
 from sqlalchemy import Connection, text
 
 from raiz import contrato
+from raiz.busca import atualizar_vigente, municipios_do_resumo
 from raiz.funil import grade
 from raiz.versoes import motor_commit, motor_versao, regras_versao, sha256_arquivo
 
 log = logging.getLogger(__name__)
 
-TIPOS_MUNICIPIO = ("imoveis", "filtros", "extras", "extras_direto", "direto", "ajustes", "alertas", "certidoes")
+TIPOS_MUNICIPIO = ("imoveis", "filtros", "extras", "extras_direto", "direto", "ajustes", "alertas", "certidoes", "flag")
 
 
 @dataclass
@@ -194,6 +195,7 @@ def carregar_municipio(
         raise FileNotFoundError(f"falta imoveis_{cod}.csv em {pasta}")
     hashes, h = _hash_entradas(arquivos)
     if ex := _rodada_existente(con, h):
+        atualizar_vigente(con, cod)
         return ResultadoCarga(ex.id, False, ex.tipo, ex.uf, ex.cod_municipio, ex.imoveis or 0)
 
     leituras = {t: contrato.ler(p, t) for t, p in arquivos.items() if t not in ("geo", "mapbiomas")}
@@ -241,6 +243,7 @@ def carregar_municipio(
     _marcar_blocos(con, rid)
 
     novas, faltando, avisos = _fechar_rodada(con, rid, n, list(leituras.values()), mb)
+    atualizar_vigente(con, cod)  # só este município muda; as rodadas antigas ficam guardadas
     log.info("município %s: rodada %s com %s imóveis", cod, rid, n)
     return ResultadoCarga(rid, True, "municipio", uf, cod, n, novas, faltando, avisos)
 
@@ -258,6 +261,7 @@ def carregar_resumo(
     )
     n = _copy(con, "funil.resumo_municipio", ["rodada_id", *lr.tipadas.columns, "atributos"], _linhas_leitura(rid, lr))
     novas, faltando, avisos = _fechar_rodada(con, rid, n, [lr])
+    municipios_do_resumo(con, rid)  # busca por nome acha o município mesmo antes de ter imóveis
     return ResultadoCarga(rid, True, "resumo_uf", uf.upper(), None, n, novas, faltando, avisos)
 
 
