@@ -419,3 +419,30 @@ def test_pagina_extensa_nao_compara_arvores_inteiras(monkeypatch):
     eventos, _ = coleta.extrair(pagina, f, f["urls"][0], AGORA)
     assert len(eventos) == 1
     assert comparacoes < 10  # regressão: a seleção fazia milhões de comparações profundas
+
+
+def test_portal_florestal_nao_transforma_pregao_comum_ou_lei_em_concessao():
+    f = fonte("ideflor_bio")
+    tx = "Pregão eletrônico para serviço de mecanização. Sessão pública em 27/11/2025."
+    eventos, _ = coleta.extrair(tx, f, f["urls"][0], AGORA, "pdf")
+    assert eventos == []
+    tx = (
+        "Edital de concessão florestal. Aplicação da Lei Complementar nº 123, de 14 de dezembro de 2006. "
+        "Entrega de propostas em 16/04/2025."
+    )
+    eventos, _ = coleta.extrair(tx, f, f["urls"][0], AGORA, "pdf")
+    assert [(e.data, e.marco) for e in eventos] == [(dt.date(2025, 4, 16), "propostas")]
+
+
+def test_data_repetida_na_mesma_publicacao_nao_duplica_evento():
+    f = fonte("verra")
+    tx = "<p>Consultation closes 20 March 2026.</p><p>Public comments deadline: 20 March 2026.</p>"
+    eventos, _ = coleta.extrair(tx, f, f["urls"][0], AGORA)
+    assert len(eventos) == 1 and eventos[0].prazo == dt.date(2026, 3, 20)
+
+
+def test_numero_do_edital_nao_vem_de_item_do_corpo():
+    assert coleta._referencia("edital de concorrencia publica n.º 001/2025 - anexo") == "001/2025"
+    assert coleta._referencia("deste edital 2. objeto do leilao") is None
+    assert coleta._referencia("edital nº 5") == "5"
+    assert coleta._referencia("edital 12/2026") == "12/2026"

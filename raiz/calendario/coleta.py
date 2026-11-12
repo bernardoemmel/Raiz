@@ -186,7 +186,9 @@ def _tipo(texto: str, fonte: dict) -> str | None:
         return "leilao_credito"
     if "sbce" in t:
         return "sbce"
-    return fonte.get("tipo")
+    # O mesmo portal florestal publica pregões de máquinas, escritório e obras.
+    # Sem menção explícita à concessão florestal, o órgão não define o tipo do ato.
+    return fonte.get("tipo") if fonte.get("tipo") != "concessao" else None
 
 
 def _marco(antes: str, depois: str, tipo: str) -> str | None:
@@ -194,6 +196,8 @@ def _marco(antes: str, depois: str, tipo: str) -> str | None:
     antes = re.split(r"[;\n]", antes)[-1][-150:]
     if re.search(r"publicad|publicacao|modificad|atualizad|published|updated|copyright|cut-off|in force since", antes):
         return None
+    if re.search(r"\b(?:lei|decreto|portaria|resolucao|instrucao normativa)\b.{0,85}\bde\s*$", antes):
+        return None  # data de edição de norma citada não é um prazo do edital
     if re.search(r"\bopens?\s*$", antes):
         return None
     if re.search(r"propostas|proposals|submissions|recebimento|entrega de", antes):
@@ -242,12 +246,24 @@ def _identificadores(texto: str) -> dict:
     }
 
 
+def _referencia(texto: str) -> str | None:
+    padrao = (
+        r"\bedital(?:\s+(?:de\s+)?(?:concorrencia(?:\s+publica)?|leilao|pregao(?:\s+eletronico)?))?"
+        r"\s*(?P<indicador>n[º°o.]*)?\s*(?P<numero>\d{1,5}(?:[/.-]\d{1,4}){0,3})"
+    )
+    for m in re.finditer(padrao, texto):
+        numero = m["numero"]
+        if m["indicador"] or re.search(r"[/.-]", numero):
+            return numero
+    return None  # “deste edital. 2. Objeto” é item do texto, não número de edital
+
+
 def _extrair(texto: str, fonte: dict, url: str, agora: dt.datetime, chave: str, anteriores=()) -> list[Evento]:
     tipo = _tipo(texto, fonte)
     if tipo is None:
         return []
     n = _normal(" ".join(texto.split()))
-    ref = re.search(r"\bedital\s*(?:n[º°o.]*)?\s*(\d{1,5}(?:[/.-]\d{1,4}){0,3})", n)
+    ref = _referencia(n)
     situacao = (
         "cancelado" if re.search(r"(?:leilao|edital|evento|consulta).{0,30}(?:cancelad|revogad)", n) else "previsto"
     )
@@ -282,7 +298,7 @@ def _extrair(texto: str, fonte: dict, url: str, agora: dt.datetime, chave: str, 
                 id=eid,
                 tipo=tipo,
                 marco=marco,
-                referencia=ref[1] if ref else None,
+                referencia=ref,
                 data=data,
                 prazo=prazo,
                 uf=uf,
@@ -303,7 +319,7 @@ def _extrair(texto: str, fonte: dict, url: str, agora: dt.datetime, chave: str, 
         # com referência explícita na mesma fonte e imóvel, ou no mesmo permalink.
         for antigo in anteriores:
             mesma_publicacao = antigo.fonte_url == url and url not in fonte["urls"]
-            mesmo_edital = bool(ref and antigo.referencia == ref[1])
+            mesmo_edital = bool(ref and antigo.referencia == ref)
             mesmo_imovel = bool(set(antigo.codigos_car) & set(ids["codigos_car"]))
             if (
                 antigo.fonte_id == fonte["id"]
@@ -316,6 +332,28 @@ def _extrair(texto: str, fonte: dict, url: str, agora: dt.datetime, chave: str, 
         if retificados:
             return retificados
     return out
+
+
+def _deduplicar(eventos: list[Evento]) -> list[Evento]:
+    unicos = {}
+    for e in eventos:
+        chave = (
+            e.fonte_url,
+            e.tipo,
+            e.marco,
+            e.data,
+            e.prazo,
+            e.referencia,
+            tuple(e.codigos_car),
+            e.cns,
+            e.matricula,
+            tuple(e.sigef),
+            e.situacao,
+        )
+        # A mesma data pode estar no resumo, corpo e anexo do mesmo documento.
+        # Preserva a primeira identidade; não junta imóveis ou publicações distintas.
+        unicos.setdefault(chave, e)
+    return list(unicos.values())
 
 
 def extrair(
@@ -336,7 +374,7 @@ def extrair(
             out.extend(novos)
             if not novos and _tipo(tx, fonte):
                 sem += 1
-        return out, sem
+        return _deduplicar(out), sem
     if formato == "pdf":
         # Edições podem trazer vários editais na mesma página. Separa também pelo
         # cabeçalho; nunca usa todos os CARs da edição em todos os eventos.
@@ -347,7 +385,7 @@ def extrair(
         out = []
         for bloco in blocos:
             out.extend(_extrair(bloco, fonte, url, agora, _chave_bloco(bloco), anteriores))
-        return out, max(0, sum(1 for b in blocos if _tipo(b, fonte)) - len(out))
+        return _deduplicar(out), max(0, sum(1 for b in blocos if _tipo(b, fonte)) - len(out))
     sopa = BeautifulSoup(texto, "html.parser")
     for tag in sopa(["nav", "header", "footer", "style", "script", "form"]):
         tag.decompose()
@@ -397,17 +435,17 @@ def extrair(
         ):
             sem_data += 1
         out.extend(eventos)
-    return list({e.id: e for e in out}.values()), max(0, sem_data)
+    return _deduplicar(list({e.id: e for e in out}.values())), max(0, sem_data)
 
 
 def _chave_bloco(texto: str) -> str:
     # Data fica fora da identidade. Número de edital e contexto antes do primeiro
     # prazo sobrevivem a inserções de parágrafos e retificações de data.
     n = _normal(" ".join(texto.split()))
-    ref = re.search(r"edital\s*(?:n[º°o.]*)?\s*(\d{1,5}(?:[/.-]\d{1,4}){0,3})", n)
+    ref = _referencia(n)
     prefixo = DATAS.split(n, maxsplit=1)[0]
     prefixo = re.sub(r"\b(?:prorrogad[oa]|retificad[oa]|cancelad[oa]|adiad[oa])\b", "", prefixo)
-    return ref[1] if ref else hashlib.sha256(prefixo.strip().encode()).hexdigest()[:16]
+    return ref if ref else hashlib.sha256(prefixo.strip().encode()).hexdigest()[:16]
 
 
 def _sementes(fonte: dict, hoje: dt.date) -> list[str]:
