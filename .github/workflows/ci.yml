@@ -1,10 +1,49 @@
+# Checagens de todo PR (e da main). Três jobs em paralelo; o PR fica vermelho se qualquer um falhar:
+#   workflows  actionlint em .github/workflows: falha se algum workflow não abre (YAML quebrado, chave errada,
+#              expressão inválida). Foi assim que o "Publicar o site" chegou quebrado à main sem ninguém ver.
+#   front      o mesmo build do site público (front/scripts/construir-site.sh), sem os dados e sem publicar: falha se
+#              o package-lock.json não bate com o package.json (npm ci) ou se o painel ou a ficha não compilam.
+#   checagens  Python: estilo, CPF/CNPJ, licenças e testes com PostGIS.
 name: CI
 
 on:
   push:
+    branches: [main]
   pull_request:
 
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: true
+
 jobs:
+  workflows:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      # actionlint (MIT) pela imagem oficial; o shellcheck dentro dele fica desligado: o que importa aqui é o
+      # workflow abrir e as chaves e expressões estarem certas
+      - name: actionlint
+        uses: docker://rhysd/actionlint:1.7.7
+        with:
+          args: -color -shellcheck= -pyflakes=
+
+  front:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Build do site público, sem os dados (npm ci e build do painel e da ficha do produtor)
+        env:
+          RAIZ_BUILD_DADOS: "0"
+          RAIZ_BASE: /${{ github.event.repository.name }}/
+        run: front/scripts/construir-site.sh
+      - name: Testes do front
+        run: cd front/globo && npm test
+
   checagens:
     runs-on: ubuntu-24.04
     services:
@@ -29,10 +68,6 @@ jobs:
         run: |
           (cd servicos/cartao && npm ci --no-audit --no-fund)
           sudo apt-get update -q && sudo apt-get install -y -q ffmpeg
-      - name: Front com as dependências travadas (o site público usa npm ci)
-        run: |
-          (cd front/globo && npm ci --no-audit --no-fund --ignore-scripts)
-          (cd front/produtor && npm ci --no-audit --no-fund --ignore-scripts)
       - name: Estilo
         run: |
           uv run ruff check raiz testes scripts migracoes
