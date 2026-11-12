@@ -32,13 +32,14 @@ export function Explorar({ municipio }: { municipio: string | null }) {
   const imoveis = useCarga(() => (municipio ? fonte.imoveis(municipio) : Promise.resolve(null)), [municipio])
   const geoMunicipio = useCarga<GeoMunicipio | null>(async () => {
     if (!municipio) return null
-    const [m, i, ti, rios] = await Promise.all([
+    const [m, i, ti, uc, rios] = await Promise.all([
       fonte.geo.camada(municipio, "municipio"),
       fonte.geo.camada(municipio, "imoveis"),
       fonte.geo.camada(municipio, "ti"),
+      fonte.geo.camada(municipio, "uc"),
       fonte.geo.camada(municipio, "rios"),
     ])
-    return { municipio: m, imoveis: i, ti, rios }
+    return { municipio: m, imoveis: i, ti, uc, rios }
   }, [municipio])
 
   const [foco, setFoco] = useState<Foco>(null)

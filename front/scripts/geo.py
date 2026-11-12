@@ -181,9 +181,13 @@ def imoveis(cod: str, uf: str = "pa") -> None:
 # --- TerraBrasilis: terra indígena, unidade de conservação, rios ---------------------------------------------------
 
 
-def camada_tb(cod: str, nome: str, camada: str, caixa, campos: dict[str, str], tolerancia: float) -> None:
+def camada_tb(cod: str, nome: str, camada: str, caixa, campos: dict[str, str], tolerancia: float, dentro=None) -> None:
+    """Baixa a camada na caixa do município. Com `dentro` (a divisa), recorta no contorno: terra indígena e unidade de
+    conservação não podem aparecer fora do município no mapa (guia, item 3.3)."""
     arq = SAIDA / f"{nome}_{cod}.geojson"
     if arq.exists():
+        if dentro is not None:
+            recortar_no_municipio(arq, dentro)
         return
     print(f" {nome} de {cod}")
     x0, y0, x1, y1 = caixa
@@ -212,10 +216,40 @@ def camada_tb(cod: str, nome: str, camada: str, caixa, campos: dict[str, str], t
         if g.is_empty:
             continue
         g = arredondar(g.simplify(tolerancia, preserve_topology=True), 5)
+        if dentro is not None:
+            g = so_poligonos(arredondar(valido(g).intersection(dentro), 5))
+            if g.is_empty:
+                continue
         props = {novo: f["properties"].get(velho) for velho, novo in campos.items()}
         feicoes.append(feicao(g, props))
     tam = salvar(arq.name, feicoes)
     print(f"   {len(feicoes)} feições, {tam / 1e3:.0f} kB")
+
+
+def so_poligonos(g):
+    """Depois de um recorte, fica só o que tem área (o recorte pode deixar linhas e pontos soltos na divisa)."""
+    if g.is_empty or g.geom_type in ("Polygon", "MultiPolygon"):
+        return g
+    partes = [p for p in getattr(g, "geoms", []) if p.geom_type in ("Polygon", "MultiPolygon")]
+    return shapely.union_all(partes) if partes else shapely.Polygon()
+
+
+def recortar_no_municipio(arq: Path, dentro) -> None:
+    """Recorta no contorno do município um arquivo já baixado (gerado antes do recorte existir). Não baixa nada."""
+    dados = json.loads(arq.read_text())
+    feicoes, mudou = [], False
+    for f in dados["features"]:
+        g = shape(f["geometry"])
+        if dentro.contains(g):
+            feicoes.append(f)
+            continue
+        mudou = True
+        r = so_poligonos(arredondar(valido(g).intersection(dentro), 5))
+        if not r.is_empty:
+            feicoes.append(feicao(r, f["properties"]))
+    if mudou:
+        salvar(arq.name, feicoes)
+        print(f"   {arq.name}: recortado na divisa ({len(feicoes)} feições)")
 
 
 # --- mapa base: recorte do build diário do Protomaps ---------------------------------------------------------------
@@ -572,6 +606,7 @@ def main(cods: list[str]) -> None:
             caixa,
             {"terrai_nom": "nome", "fase_ti": "fase"},
             0.0005,
+            dentro=geom,
         )
         camada_tb(
             cod,
@@ -580,6 +615,7 @@ def main(cods: list[str]) -> None:
             caixa,
             {"nome": "nome", "categoria": "categoria", "grupo": "grupo"},
             0.0005,
+            dentro=geom,
         )
         camada_tb(cod, "rios", "prodes-legal-amz:hydrography", caixa, {}, 0.0002)
         if not (SAIDA / f"base_{cod}.pmtiles").exists():
