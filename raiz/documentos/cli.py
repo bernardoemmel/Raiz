@@ -216,7 +216,12 @@ def principal(argv: list[str] | None = None) -> int:
     g.add_argument("alvo", nargs="?", help="código do CAR (folha) ou edital: PDF ou endereço (edital)")
     lote(g)
     g.add_argument("--nome", help="nome do lote")
-    g.add_argument("--rho", type=float, default=0.5, help="correlação entre imóveis na carteira (padrão 0,5)")
+    g.add_argument(
+        "--rho",
+        type=float,
+        default=None,
+        help="parte comum do erro entre imóveis na carteira (padrão: a do lote, restauracao.yaml)",
+    )
     g.add_argument("--leitura", type=int, help="usa uma leitura de edital já gravada")
     g.add_argument("--manual", help="JSON da leitura do edital feita por gente")
     g.add_argument("--pdf", action="store_true", help="também gera o PDF (LibreOffice)")

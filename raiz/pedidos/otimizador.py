@@ -106,13 +106,22 @@ def filtrar(oferta: pd.DataFrame, c: CamposPedido, niveis: dict[str, str] | None
 # --- faixa de uma soma de fazendas ---------------------------------------------------------------------------------
 
 
-def faixa_soma(p10, p50, p90, rho: float | None = None) -> dict[str, float]:
-    """P10/P50/P90 da soma: metades normais por fazenda, com parte comum rho entre elas (conta fechada)."""
-    rho = premissas()["otimizador"]["correlacao_captura"] if rho is None else rho
+def fracao_comum() -> float:
+    """Parte da variância do erro da captura comum a todas as fazendas (o mesmo fator de Vasicek do lote, em
+    raiz/regras/padroes/restauracao.yaml, seção carteira)."""
+    from raiz import restauracao as R
+
+    return float(R.regra()["carteira"]["fracao_comum"])
+
+
+def faixa_soma(p10, p50, p90, fracao: float | None = None) -> dict[str, float]:
+    """P10/P50/P90 da soma em conta fechada (rápida para a base inteira): metades normais por fazenda, com a fração
+    comum da variância entre elas; a mesma premissa de restauracao.faixa_lote, que sorteia o lote escolhido."""
+    f = fracao_comum() if fracao is None else float(fracao)
     p10, p50, p90 = (np.asarray(x, dtype=float) for x in (p10, p50, p90))
     lo, hi = np.maximum(p50 - p10, 0) / Z90, np.maximum(p90 - p50, 0) / Z90
-    s_lo = math.sqrt(rho**2 * lo.sum() ** 2 + (1 - rho**2) * (lo**2).sum())
-    s_hi = math.sqrt(rho**2 * hi.sum() ** 2 + (1 - rho**2) * (hi**2).sum())
+    s_lo = math.sqrt(f * lo.sum() ** 2 + (1 - f) * (lo**2).sum())
+    s_hi = math.sqrt(f * hi.sum() ** 2 + (1 - f) * (hi**2).sum())
     m = float(p50.sum())
     return {"p10": max(m - Z90 * s_lo, 0.0), "p50": m, "p90": m + Z90 * s_hi}
 
@@ -121,9 +130,9 @@ def _sorteios(n_faz: int, p: dict) -> np.ndarray:
     o = p["otimizador"]
     g = np.random.default_rng(int(o["semente"]))
     n = int(o["sorteios"])
-    rho = float(o["correlacao_captura"])
+    f = fracao_comum()
     comum = g.standard_normal((n, 1))
-    return rho * comum + math.sqrt(1 - rho**2) * g.standard_normal((n, n_faz))
+    return math.sqrt(f) * comum + math.sqrt(1 - f) * g.standard_normal((n, n_faz))
 
 
 def simular(sel: pd.DataFrame, chance: np.ndarray | None, p: dict, reserva: pd.DataFrame | None = None,
