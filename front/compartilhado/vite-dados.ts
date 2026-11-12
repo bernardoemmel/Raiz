@@ -30,8 +30,10 @@ import path from "node:path"
 import zlib from "node:zlib"
 import { buscar } from "./dados/busca"
 import { montarFicha } from "./dados/ficha"
+import { funilDosImoveis } from "./dados/funil"
 import { UFS } from "./formato"
 import { abrirPasta, nomeSeguro, pastaPadrao } from "./pasta-dados"
+import { paginasAgentes } from "./paginas-agentes"
 
 interface Requisicao {
   url?: string
@@ -64,6 +66,8 @@ export function dadosRaiz(opcoes: { repo: string; raizDados?: string | null; cac
   })
   const geo = path.join(opcoes.repo, "front", "geo")
   let saida = "dist"
+  let base = "/"
+  let produtor = false
   // o Vite chama closeBundle também ao fechar o servidor (e o Vitest fecha um no fim): só grava no vite build
   let construindo = false
 
@@ -152,9 +156,11 @@ export function dadosRaiz(opcoes: { repo: string; raizDados?: string | null; cac
 
   return {
     name: "raiz-dados",
-    configResolved(config: { root: string; command: string; build: { outDir: string } }) {
+    configResolved(config: { root: string; command: string; base?: string; build: { outDir: string } }) {
       saida = path.resolve(config.root, config.build.outDir)
       construindo = config.command === "build"
+      produtor = path.basename(config.root) === "produtor"
+      base = produtor ? (process.env.RAIZ_BASE || "/Raiz/") : (config.base || "/")
     },
     configureServer(server: Servidor) {
       const ufs = pasta.ufs()
@@ -222,7 +228,24 @@ export function dadosRaiz(opcoes: { repo: string; raizDados?: string | null; cac
       })
     },
     async closeBundle() {
-      if (!construindo || !fs.existsSync(saida) || process.env.RAIZ_BUILD_DADOS === "0") return
+      if (!construindo || !fs.existsSync(saida)) return
+      const comDados = !produtor && process.env.RAIZ_BUILD_DADOS !== "0"
+      const municipios = comDados ? pasta.municipios() : []
+      if (comDados) {
+        const conhecidos = new Set(municipios.map((m) => m.cod_ibge))
+        for (const uf of pasta.ufs()) {
+          for (const cod of pasta.comImoveis(uf)) {
+            if (conhecidos.has(cod)) continue
+            const m = pasta.municipio(cod)
+            if (m) municipios.push(funilDosImoveis(m.imoveis, cod, m.imoveis[0]?.municipio || cod, uf))
+          }
+        }
+      }
+      paginasAgentes({
+        saida, base, produtor, siteUrl: process.env.RAIZ_SITE_URL,
+        ...(comDados ? { catalogo: { estados: pasta.estados(), municipios, arquivos: Object.fromEntries(pasta.ufs().map((uf) => [uf, pasta.arquivos(uf)])) } } : {}),
+      })
+      if (!comDados) return
       const dAmostra = path.join(saida, "amostra")
       const dFichas = path.join(dAmostra, "fichas")
       fs.mkdirSync(dFichas, { recursive: true })

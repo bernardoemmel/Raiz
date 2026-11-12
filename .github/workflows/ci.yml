@@ -43,6 +43,16 @@ jobs:
         run: front/scripts/construir-site.sh
       - name: Testes do front
         run: cd front/globo && npm test
+      # Reutiliza o Chromium instalado para o teste Playwright do Pages.
+      - name: Site para agentes (Markdown, JSON-LD e Lighthouse Agentic Browsing)
+        run: cd front/globo && npm run test:agentes
+      - name: Relatório da auditoria para agentes
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: site-agentes
+          path: front/.cache/teste-agentes
+          if-no-files-found: ignore
 
   checagens:
     runs-on: ubuntu-24.04
