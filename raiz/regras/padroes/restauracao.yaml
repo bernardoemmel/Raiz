@@ -511,7 +511,11 @@ cenarios:
       fonte: fundador, rodada 11 (zero só com fazenda vizinha de mitigação no lote; coluna mitigacao_vizinha)
     reserva_risco:
       valor: 0.20
-      fonte: política conservadora Raíz (12/11/2026), piso de 20% contra reversão; ICVCM 9.4
+      fonte: >-
+        Piso conservador Raíz de 20% por fazenda, adotando a alternativa ICVCM 9.4(a)(5)(i).
+        O critério 9.4 também admite contribuição ajustada ao risco; 9.3 exige monitoramento e compensação
+        por pelo menos 40 anos. Não é certificação nem substitui a avaliação do programa.
+        https://icvcm.org/wp-content/uploads/2024/05/CCP-Section-4-V3-FINAL-10May24.pdf
     reserva_por_fazenda:
       valor: true
       fonte: >-
@@ -683,8 +687,8 @@ cenarios:
       valor: 0
       fonte: fundador
     reserva_risco:
-      valor: 0.12
-      fonte: motor (raiz_ajustes.py, reserva mínima NPRT v5.0)
+      valor: 0.20
+      fonte: política Raíz de reserva mínima de 20% (ICVCM 9.4(a)(5)(i)), inclusive nos cenários antigos
     incerteza:
       valor: 0.10
       fonte: motor (raiz_ajustes.py, VM0047)
@@ -747,7 +751,8 @@ sensibilidade:
 # --- 13. Não permanência por fazenda (E3 passo 4) --------------------------------------------------------------------
 # Perda esperada em 40 anos = 1 − exp(−40 × (λ_fogo × severidade × (1 − mitigação) + λ_derrubada × severidade ×
 # (1 − mitigação))), frequência vezes severidade como no aggregate. Reserva da fazenda = risco interno e externo +
-# perda esperada, nunca abaixo da reserva do cenário nem do piso da Verra, no máximo o teto.
+# perda esperada, nunca abaixo do piso Raíz de 20% nem da reserva do cenário.
+# O teto limita o componente estimado; não reduz uma reserva maior pedida no cenário.
 nao_permanencia:
   anos_serie_fogo: 40  # fogo_anos_media: anos com fogo por pixel no MapBiomas Fogo, 1985 a 2024
   severidade_fogo: 0.5
@@ -755,15 +760,17 @@ nao_permanencia:
   severidade_derrubada: 1.0
   mitigacao_derrubada: 0.8
   risco_interno_externo: 0.02
-  piso: 0.20  # política Raíz: >=20% em toda estimativa, mesmo sem histórico ou com cenário editado
-  piso_vcs: 0.10  # referência VCS, não reduz o piso Raíz
+  piso_vcs: 0.10
+  piso_raiz: 0.20
   teto: 0.60
   horizonte_anos: 40
   fonte: >-
-    Política Raíz: reserva mínima de 20%, inclusive na falta de histórico. ICVCM Assessment Framework 9.4
-    admite 20% ou proporcionalidade demonstrada ao risco; a Raíz escolhe o piso conservador universal.
     Estrutura da Verra, AFOLU Non-Permanence Risk Tool (VT0001 v4.2): risco natural = probabilidade vezes
-    significância, menos a mitigação, somado ao risco interno e externo, com reserva mínima de 10%. Frequência do fogo:
+    significância, menos a mitigação, somado ao risco interno e externo, com reserva VCS mínima de 10%.
+    A Raíz adota piso superior de 20% por fazenda, alternativa ICVCM 9.4(a)(5)(i); riscos maiores elevam a reserva.
+    O ICVCM admite também reserva ajustada ao risco e não exige 20% universalmente em cada projeto.
+    Fonte: https://icvcm.org/wp-content/uploads/2024/05/CCP-Section-4-V3-FINAL-10May24.pdf, páginas 83 e 84.
+    Frequência do fogo:
     MapBiomas Fogo (anos com fogo por pixel, 1985 a 2024, fogo_anos_media). Derrubada: taxa anual de supressão da
     vegetação secundária no município, MapBiomas desmatamento v5 (mb_supressao_secundaria_<ano>_ha dividido por
     mb_veg_secundaria_<ano>_ha). Severidade (metade do carbono numa queimada da floresta jovem; toda a área na

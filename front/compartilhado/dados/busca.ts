@@ -33,7 +33,7 @@ export interface MunicipioAchado {
   cod_ibge: string
   municipio: string
   uf: string
-  imoveis: number
+  imoveis: number | null
   /** a lista por fazenda já foi processada */
   tem_imoveis: boolean
 }

@@ -5,6 +5,7 @@ máquina."""
 
 import json
 import re
+import shutil
 from pathlib import Path
 
 import numpy as np
@@ -21,8 +22,12 @@ PA_REAL = RAIZ / "dados" / "armazem_local" / "saida" / "PA"
 
 
 @pytest.fixture(scope="module")
-def amostra():
-    return L.ler_pasta(AMOSTRA, "PA")
+def amostra(tmp_path_factory):
+    pasta = tmp_path_factory.mktemp("lote_atual")
+    for arquivo in AMOSTRA.glob("*.csv"):
+        shutil.copy2(arquivo, pasta / arquivo.name)
+    R.calcular_municipio(pasta, 1504950, fontes_geo=()).to_csv(pasta / "desenvolvedor_1504950.csv", index=False)
+    return L.ler_pasta(pasta, "PA")
 
 
 @pytest.fixture(scope="module")
@@ -31,20 +36,20 @@ def lote(amostra):
 
 
 def test_um_so_calculo_da_fazenda_ao_lote(amostra):
-    """Fluxo do lote e ficha usam a mesma versão; a amostra histórica não incorpora o novo piso de 20%."""
-    dv = pd.read_csv(AMOSTRA / "desenvolvedor_1504950.csv", low_memory=False, dtype={"cod_imovel": str})
+    """O caminho do P50 refeito para o lote dá o mesmo preço de equilíbrio e a mesma área que a ficha gravou."""
+    dv = pd.read_csv(amostra["pasta"] / "desenvolvedor_1504950.csv", low_memory=False, dtype={"cod_imovel": str})
     dv = dv[dv.restauracao_area_ha > 0].head(80)
-    linhas = R.linhas_para_refazer(AMOSTRA, 1504950, set(dv.cod_imovel))
+    linhas = R.linhas_para_refazer(amostra["pasta"], 1504950, set(dv.cod_imovel))
     c = R.cenario()
-    for li in linhas.values():
+    for cod, li in linhas.items():
         x = R.fluxo_p50(li, c)
-        g = R.por_imovel(li, c)
-        assert x["area_ha"] == pytest.approx(g["restauracao_area_ha"], abs=1e-3)
-        if g["preco_equilibrio_usd_t"] is not None:
-            assert x["preco_equilibrio_usd"] == pytest.approx(g["preco_equilibrio_usd_t"], abs=0.01)
+        g = dv[dv.cod_imovel == cod].iloc[0]
+        assert x["area_ha"] == pytest.approx(g.restauracao_area_ha, abs=1e-3)
+        if pd.notna(g.preco_equilibrio_usd_t):
+            assert x["preco_equilibrio_usd"] == pytest.approx(g.preco_equilibrio_usd_t, abs=0.01)
     # a oferta não descarta ninguém por tamanho: toda fazenda com área para restaurar entra
     assert len(amostra["oferta"]) == int(
-        (pd.read_csv(AMOSTRA / "desenvolvedor_1504950.csv").restauracao_area_ha > 0).sum()
+        (pd.read_csv(amostra["pasta"] / "desenvolvedor_1504950.csv").restauracao_area_ha > 0).sum()
     )
     assert amostra["oferta"].pequena.sum() > 0.8 * len(amostra["oferta"])
 
@@ -79,15 +84,15 @@ def test_fluxo_do_lote_preco_minimo_e_credito_alem_do_contrato():
     assert R.fluxo_lote([parte], c, {8: 1000.0})["F"][8] == pytest.approx(parte["area_ha"] * F[8] - 1000.0)
 
 
-def test_lote_da_amostra_fecha_no_p50_e_diz_o_que_falta_para_a_reserva(lote):
+def test_lote_da_amostra_diz_o_que_falta_com_reserva_de_20_pct(lote):
     r = lote["resumo"]
     assert r["cenario"] == "central_r11" and r["versao_premissas"].startswith("restauracao-2026d+")
     assert r["volume_creditos"] == 1_000_000 and r["chance_alvo"] == 0.9
     # quantos municípios entraram (a amostra tem 2 com imóveis, 1 com o valor para quem restaura)
     assert r["municipios"]["no_estado"] == 2 and r["municipios"]["lidos"] == 1 and r["municipios"]["no_lote"] == 1
     assert r["municipios"]["sem_calculo"] == [1507300]
-    # titulares cumprem os marcos no P50; a reserva pela chance alvo de 90% não fecha só com a terra pronta
-    assert r["fecha_no_p50"] and r["creditos_titulares"] >= r["creditos_precisa_p50"]
+    # Com piso20, a terra pronta da amostra nem fecha os marcos no P50; não ocultar a insuficiência.
+    assert not r["fecha_no_p50"] and r["creditos_titulares"] < r["creditos_precisa_p50"]
     assert r["creditos_precisa_com_reserva"] > r["creditos_precisa_p50"] > r["volume_creditos"]
     assert not r["fecha_com_reserva"]
     assert r["falta_reserva"] == pytest.approx(r["creditos_precisa_com_reserva"] - r["creditos_lote"], abs=1)
@@ -100,7 +105,8 @@ def test_lote_da_amostra_fecha_no_p50_e_diz_o_que_falta_para_a_reserva(lote):
     assert cl["chance_todos"] >= ct["chance_todos"] and cl["marcos"][-1]["limiar"] == pytest.approx(1_000_000)
     # tabela: titulares, reserva, mitigação e em espera; nunca descarta por tamanho
     t = lote["tabela"]
-    assert set(t.papel) >= {"titular", "reserva", "em_espera"}
+    assert set(t.papel) >= {"titular", "em_espera"}
+    assert r["reservas"] == 0  # toda a terra pronta foi necessária como titular
     assert (t.papel == "titular").sum() == r["titulares"] and (t.papel == "reserva").sum() == r["reservas"]
     assert t.cod_imovel.is_unique
     assert not any(re.search(r"nome|cpf|cnpj|telefone", c_, re.I) for c_ in t.columns)
@@ -170,7 +176,7 @@ def test_relatorio_e_folha_do_dono(lote, tmp_path):
     r = lote["resumo"]
     assert int(out["folhas_dono"]) == r["titulares"] + r["reservas"]
     html = Path(out["relatorio"]).read_text(encoding="utf-8")
-    for trecho in ("Lote pronto para proposta: PA", "1 de 2 do estado", "Mínimo para TIR de 12%",
+    for trecho in ("Lote potencial para proposta: PA", "1 de 2 do estado", "Mínimo para TIR de 12%",
                    "Mínimo para TIR de 15%", "O que destrava o lote", "matrícula com certidão conferida",
                    "matrícula a conferir", "certidões de matrícula" if r["certidoes"]["certidoes_a_pedir"] != 1
                    else "certidão de matrícula", "Checklist do edital", "abaixo do equilíbrio"):  # fmt: skip
@@ -260,3 +266,50 @@ def test_lote_traz_faixa_mme102_parcelas_e_sensibilidade(lote):
     assert por["captura"]["tir_baixo"] < por["captura"]["tir_base"] < por["captura"]["tir_alto"]
     assert por["custo"]["tir_baixo"] > por["custo"]["tir_alto"]  # custo no P10 dá TIR maior
     assert por["preco"]["tir_baixo"] == pytest.approx(r["economia"]["tir_alavancada_pct"], abs=0.1)  # US$ 55
+
+
+def test_rejeita_mistura_de_modelos_antigos():
+    antigos = L.ler_pasta(AMOSTRA, "PA")
+    with pytest.raises(ValueError, match="outra versão"):
+        L.montar(antigos)
+
+
+def test_tres_opcoes_auditadas_e_sem_dupla_mitigacao(amostra, monkeypatch):
+    chamadas = []
+    resolver = L.Z.resolver
+
+    def conferir(f, ped, opcao, chance, **kw):
+        chamadas.append(opcao)
+        assert not f.mitigacao.any()  # crédito já líquido, não aplicar bônus genérico outra vez
+        return resolver(f, ped, opcao, chance, **kw)
+
+    monkeypatch.setattr(L.Z, "resolver", conferir)
+    opcoes = L.montar_opcoes(amostra, sensibilidade_ligada=False)
+    assert set(opcoes) == set(chamadas) == {"barata", "segura", "compacta"}
+    for opcao, lote in opcoes.items():
+        resumo = lote["resumo"]
+        assert resumo["opcao"] == opcao and resumo["pequenas"] > 0
+        assert resumo["comercializacao"]["situacao"] == "pendente"
+        assert resumo["comercializacao"]["creditos_sem_pendencia_salvaguarda"] == 0
+        riscos = [d for d in lote["decisoes"] if d["criterio"] == f"{opcao}:terra_atual:risco_solver"]
+        assert len(riscos) == len(amostra["oferta"])
+        assert all(d["texto"] and d["revisao_humana_disponivel"] for d in riscos)
+        assert all(L.versao_modelo() in d["modelo_versao"] for d in riscos)
+        t = lote["tabela"]
+        selecionadas = t[t.papel.isin(["titular", "reserva"])]
+        for coluna in L.COLUNAS_FINANCEIRAS:
+            assert selecionadas[coluna].notna().any()
+        assert resumo["creditos_lote"] == pytest.approx(selecionadas.credito_p50.sum(), abs=1)
+        assert any(x["pendencia"].startswith("jurisdicional") for x in resumo["o_que_destrava"])
+
+
+def test_sobreposicao_confirmada_sai_do_lote_sem_apagar_potencial(amostra):
+    dados = {**amostra, "oferta": amostra["oferta"].copy()}
+    candidata = dados["oferta"].index[dados["oferta"].caminho.isin(L.PRONTA)][0]
+    cod = dados["oferta"].loc[candidata, "cod_imovel"]
+    dados["oferta"].loc[candidata, "salvaguardas_planejamento"] = False
+    dados["oferta"].loc[candidata, "salvaguardas_pendencias"] = "jurisdicional_sobreposicao"
+    lote = L.montar(dados, sensibilidade_ligada=False)
+    assert cod not in set(lote["tabela"].query("papel in ['titular', 'reserva']").cod_imovel)
+    assert any(d["cod_imovel"] == cod and "salvaguarda" in d["texto"] for d in lote["decisoes"])
+    assert lote["resumo"]["oferta"]["fazendas"] == len(amostra["oferta"])

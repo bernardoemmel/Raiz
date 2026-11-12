@@ -47,7 +47,11 @@ describe("funil igual ao do motor", () => {
 
   it("junta todo arquivo de uma linha por imóvel, inclusive extras_direto_, e deixa certidoes_ de fora", () => {
     const { nomes, avisos } = carregar("1504950")
-    expect(nomes).toEqual(["desenvolvedor_1504950.csv", "direto_1504950.csv", "extras_1504950.csv", "extras_direto_1504950.csv", "filtros_1504950.csv", "mapbiomas_1504950.csv", "rebanho_1504950.csv", "terra_1504950.csv"])
+    expect(nomes).toEqual(expect.arrayContaining(["desenvolvedor_1504950.csv", "direto_1504950.csv", "extras_1504950.csv", "extras_direto_1504950.csv", "filtros_1504950.csv", "mapbiomas_1504950.csv", "rebanho_1504950.csv", "regularizacao_1504950.csv", "terra_1504950.csv"]))
+    expect(nomes.some((nome) => nome.startsWith("certidoes_"))).toBe(false)
+    const novos = complementosDe([...nomes, "indicador_novo_1504950.csv", "certidoes_1504950.csv"], "1504950")
+    expect(novos).toEqual(expect.arrayContaining([...nomes, "indicador_novo_1504950.csv"]))
+    expect(novos.some((nome) => nome.startsWith("certidoes_"))).toBe(false)
     expect(avisos).toEqual([])
     expect(resumo).toBeDefined()
   })

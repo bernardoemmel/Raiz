@@ -9,6 +9,7 @@ import datetime as dt
 import hashlib
 import itertools
 import re
+import uuid
 from concurrent.futures import ThreadPoolExecutor
 
 import pytest
@@ -287,7 +288,7 @@ def test_resposta_e_log_nao_expoem_dados_pessoais(eng, cl, empresa, monkeypatch)
     )
 
 
-def test_lote_pago_tres_opcoes_e_isolamento_entre_empresas(eng, cl, empresa):
+def test_lote_pago_tres_opcoes_e_isolamento_entre_empresas(eng, cl, empresa, monkeypatch):
     _liberar(eng, empresa)
     h = _h(empresa, "lote-pago-unico")
     r = cl.post("/v1/pedidos", json=PEDIDO, headers=h)
@@ -297,11 +298,15 @@ def test_lote_pago_tres_opcoes_e_isolamento_entre_empresas(eng, cl, empresa):
     repetida = cl.post("/v1/pedidos", json=PEDIDO, headers=h)
     assert repetida.status_code == 202 and repetida.json()["pedido_id"] == operacao["pedido_id"]
     assert CT.ver(eng, empresa["cliente_id"])["saldo_rs"] == 4600
-    concluida = T.executar_proximo(eng)
+    pid = uuid.UUID("9a432ea5-eb43-4784-b691-" + "1234567890" + "b7")
+    with monkeypatch.context() as mp:
+        mp.setattr(S.uuid, "uuid4", lambda: pid)
+        concluida = T.executar_proximo(eng)
     assert concluida["pedido_id"] == operacao["pedido_id"] and concluida["estado"] == "completed"
     protocolo = cl.get(f"/v1/operacoes/{operacao['pedido_id']}", headers=_h(empresa))
     assert protocolo.status_code == 200, protocolo.text
     p = protocolo.json()["resultado"]
+    assert p["id"] == str(pid)
     assert set(p) == {"id"}  # snapshot da fila não expõe fazendas cuja exclusividade pode mudar
     r = cl.get(f"/v1/pedidos/{p['id']}/opcoes", headers=_h(empresa))
     assert r.status_code == 200, r.text

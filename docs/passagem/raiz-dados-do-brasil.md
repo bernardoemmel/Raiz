@@ -1,7 +1,7 @@
 # Passagem do chat "Raíz · Dados do Brasil" (processamento de dados)
 
-Escrito em 12/11/2026, por volta das 16h20 UTC, porque a cota do chat acabou. Branch de trabalho:
-`claude/quirky-cannon-8ogwvw`.
+Passagem original de 12/11/2026, 13h20 de Brasília. Retomada pelo Codex na mesma data, a partir da main.
+Branch da primeira entrega da retomada: `codex/dados-metadados`.
 
 ## O que este chat fez
 
@@ -10,13 +10,17 @@ Escrito em 12/11/2026, por volta das 16h20 UTC, porque a cota do chat acabou. Br
 | #21 | `.github/workflows/processar-estados.yml`: o motor roda sozinho no GitHub Actions e publica no Release `dados`. Estão nele o orquestrador `motor/rodar_estado.py` (planejar, preparar, `--executor`, continuar), `motor/raiz_situacao.py`, `motor/painel.py`, `publicar_dados.py --subir` com trava, e o executor (`raiz/executor/`) pronto para o Actions | mesclado (o fundador fez o merge) |
 | #30 | Até 18 jobs, estados grandes em fatias por longitude (62 unidades), duas filas (novo antes de manutenção, manutenção até 4), trava por estado na publicação, `motor.fatias` no `estados.json` | mesclado |
 | #38 | Situação de E1 e E2 no `docs/plano-por-etapa.md`; versão nomeada das regras (`regras-2026b+hash`) em cada previsão (`raiz/versoes.py`, `raiz/carga.py`); manifesto com os 4 produtos do YbYrá e os subtemas da API do MapBiomas | mesclado |
-| #43 | Limite de 15 jobs de processamento (5 máquinas livres para CI e site), mais esta passagem | aberto até o CI ficar verde (ver abaixo) |
+| #43 | Limite padrão de 15 jobs de processamento (5 máquinas livres para CI e site), mais esta passagem | mesclado em 12/11, 13h30 de Brasília; CI de push e PR verdes |
+| Retomada, entrega 1 | Teto global de 15, reserva atômica, fila persistente de pedidos e continuações, consulta paginada e bloqueio de admissão se a API falhar | implementado; testes e CI registrados no PR da entrega |
 
 ## Onde parou
 
-- **#43:** a mudança está pronta e testada (`motor/rodar_estado.py`, `VAGAS = 15`; `processar-estados.yml`,
-  `max-parallel: 15`). Faltava o CI verde para o merge: ele ficou na fila porque o processamento ocupava 17 das
-  20 máquinas do repositório.
+- **#43 fechado e conferido:** os runs `43256751563` (PR) e `43256738203` (push) terminaram com sucesso.
+  Na retomada havia 13 jobs de processamento ativos. Nenhum foi cancelado. A revisão encontrou caminhos que
+  ainda furavam o limite (pedidos explícitos, `refazer`, continuações, planejadores concorrentes e falha da API).
+  A entrega 1 fecha esses caminhos com `motor/fila_processamento.py` e a ref `raiz-fila-processamento`.
+  Reservas só são liberadas depois de o Actions confirmar o job concluído, incluindo seus passos finais.
+  A agenda de 15 minutos apenas drena pedidos pendentes; a rodada semanal mantém seu escopo.
 - **Pedido do fundador ainda não começado no código:** ficha Croissant 1.1 + schema.org Dataset por arquivo do
   Release (croissant-baker), P10/P50/P90 em colunas de quantil no formato hubverse com a versão do modelo, cartão do
   modelo, assinatura dos arquivos com `actions/attest`, e o cronograma dos lotes no vocabulário do CAD Trust. Só a
@@ -25,9 +29,8 @@ Escrito em 12/11/2026, por volta das 16h20 UTC, porque a cota do chat acabou. Br
 
 ## O que falta, em ordem
 
-1. **Fechar o #43.** Se ainda estiver aberto, puxar a main, conferir que as duas execuções do CI (push e PR) estão
-   verdes e fazer o merge. Os jobs que já rodam não são interrompidos; o planejador só abre vaga quando houver menos de
-   15 rodando.
+1. **Fechar o #43 — feito.** Merge e os dois CIs conferidos. O complemento da retomada torna 15 um teto global,
+   inclusive com pedidos simultâneos, e preserva na fila os pedidos que ainda não cabem. Não cancelar os jobs.
 2. **Croissant.**
    - Criar `raiz/metadados.py` com `croissant_uf(pasta, uf, entrada)`. Ele roda o `croissant-baker` (0.8.3, MIT) na
      pasta do espelho do estado (`dados/armazem_local/saida/<UF>/`) e troca a `distribution` por um `FileObject` do
@@ -83,8 +86,7 @@ Escrito em 12/11/2026, por volta das 16h20 UTC, porque a cota do chat acabou. Br
 
 ## PRs abertos e branches sem merge
 
-- **#43**, branch `claude/quirky-cannon-8ogwvw`: aberto até o CI ficar verde. Não há outros branches deste chat sem
-  merge.
+- **#43:** já mesclado. As entregas da retomada seguem PR, CI verde e merge; o PR corrente aparece nos artefatos do chat.
 
 ## Trabalhos rodando no Actions e como conferir
 
@@ -113,6 +115,9 @@ Escrito em 12/11/2026, por volta das 16h20 UTC, porque a cota do chat acabou. Br
 - **Espelho do Release:** não troca o que a máquina gravou e não publicou (meta `gravado_aqui`).
 - **Travas:** tags `trava-publicar-dados` (o `estados.json`) e `trava-publicar-<UF>` (o pacote do estado; as fatias
   relêem e juntam). Não apagar essas tags à mão, salvo se ficarem órfãs mais de 30 min.
+- **Fila de processamento:** `raiz-fila-processamento` contém reservas e pedidos pendentes, atualizada com
+  compare-and-swap (`force-with-lease` somente nessa ref; nunca na main). Não apagar nem liberar por idade:
+  a reconciliação consulta o estado real dos jobs. Falha de autenticação, rede ou leitura impede novas admissões.
 - **Estado do executor** (com `controle` no `estados.json`): não publicar pelo `motor/publicar_dados.py`, porque
   perderia as tabelas do produto. Usar `raiz executor publicar`.
 - **Funil sem Alerta ou MapBiomas:** não roda sem o MapBiomas Alerta (WFS público, `garantir_alertas`) nem sem o

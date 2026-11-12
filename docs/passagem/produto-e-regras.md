@@ -3,7 +3,7 @@
 ## Retomada no Codex: plataforma integrada
 
 A API paga do PR #45 foi migrada e recebeu a main, com a migração de conta renumerada
-para 0026. Conta e três testes são por empresa; saldo não pula sinal Pix/contrato.
+para 0027. Conta e três testes são por empresa; saldo não pula sinal Pix/contrato.
 O caminho legado redireciona para a política paga; recusas contam no SlowAPI.
 A análise usa projeções explícitas e marca ausência de certidão/camada como não verificado.
 
@@ -44,7 +44,7 @@ apresentado como detector confiável de nomes próprios.
 Salvaguardas: piso conservador Raíz 20%; art. 47 exige 50% para remoção e 70% para REDD+
 de mercado, além de CLPI; art. 43 exige evidência de exclusão e impede dupla contagem.
 A revisão humana é o compromisso Raíz ao atender LGPD art. 20. Falta de camada/evidência
-bloqueia reserva. A migração 0027 contém essas tabelas; 0028 contém fila, eventos,
+bloqueia reserva. A migração 0028 contém essas tabelas; 0029 contém fila, eventos,
 permissão, aprovação e recibos. Migração nova precisa de banco atualizado, não apenas código novo.
 
 Implantação detalhada: `docs/agentes-ia.md`, `docs/trabalhos-agentes.md`,
