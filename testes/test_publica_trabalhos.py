@@ -231,7 +231,12 @@ def test_reserva_so_prepara_para_pessoa(eng, empresa, monkeypatch):
     )
     resultado = T.executar_proximo(eng)
     assert resultado["estado"] == "input-required"
-    assert resultado["resultado"]["pix"] is None
+    assert resultado["resultado"] == {"pedido": pedido, "aguardando_confirmacao": True}
+    with eng.connect() as con:
+        salvo = con.execute(
+            text("select resultado from negocio.trabalho_api where id=:i"), {"i": job["pedido_id"]}
+        ).scalar_one()
+    assert "token" not in json.dumps(salvo) and "aprovacao_url" not in salvo and "pix" not in salvo
     assert recebido == [(pedido, empresa, f"operacao:{job['pedido_id']}", "https://raiz.example")]
     assert _saldo(eng, empresa) == 2000
     with pytest.raises(T.ErroTrabalho) as erro:
@@ -266,3 +271,166 @@ def test_servico_real_mantem_pedido_e_resultado_na_mesma_transacao(eng, empresa,
         ).scalar_one()
     assert salvo["opcoes"] == []  # base vazia é dado honesto, sem opções inventadas
     assert salvo["status"] == "lote_montado"
+
+
+@pytest.mark.parametrize(
+    "ferramenta,servico,preco,saida",
+    [
+        (
+            "consultar_disponibilidade",
+            "base_disponivel",
+            40,
+            {"fazendas": 12, "creditos": {"p50": 100}, "itens": [{"cod_imovel": "CAR-privado"}]},
+        ),
+        (
+            "comparar_lotes",
+            "obter_pedido",
+            20,
+            {
+                "opcoes": [
+                    {
+                        "id": "barata",
+                        "fazendas": 4,
+                        "creditos": {"p50": 200},
+                        "itens": [{"cod_imovel": "CAR-privado"}],
+                        "observacao": "texto pessoal privado",
+                    }
+                ]
+            },
+        ),
+        (
+            "acompanhar_contato",
+            "andamento",
+            10,
+            {
+                "meta": 1000,
+                "com_interessado": 800,
+                "fazendas": [{"cod_imovel": "CAR-privado"}],
+                "motivos": [{"motivo": "texto pessoal privado"}],
+            },
+        ),
+    ],
+)
+def test_leituras_entram_na_fila_cobram_uma_vez_e_so_persistem_resumo(
+    eng, empresa, monkeypatch, ferramenta, servico, preco, saida
+):
+    corpo = {} if ferramenta == "consultar_disponibilidade" else {"pedido_id": str(uuid.uuid4())}
+    monkeypatch.setattr(T.S, servico, lambda *a, **kw: pytest.fail("leitura pesada não pode ocorrer na submissão"))
+    inicio = time.monotonic()
+    job = T.submeter(eng, empresa, ferramenta, corpo, "leitura-paga-1")
+    assert time.monotonic() - inicio < 5
+    assert job["estado"] == "submitted" and job["ferramenta"] == ferramenta
+    assert T.submeter(eng, empresa, ferramenta, corpo, "leitura-paga-1") == job
+    assert _saldo(eng, empresa) == 2000 - preco
+    monkeypatch.setattr(T.S, servico, lambda *a, **kw: saida)
+    final = T.executar_proximo(eng)
+    assert final["estado"] == "completed", final
+    assert T.obter(eng, empresa, job["pedido_id"]) == final
+    with eng.connect() as con:
+        salvo = con.execute(
+            text("select resultado from negocio.trabalho_api where id=:i"), {"i": job["pedido_id"]}
+        ).scalar_one()
+    assert "privado" not in json.dumps(salvo)
+    assert "cod_imovel" not in json.dumps(salvo)
+    assert _saldo(eng, empresa) == 2000 - preco
+
+
+def test_consulta_usa_credito_de_teste_sem_exigir_sinal_e_contrato(eng, empresa, monkeypatch):
+    with eng.begin() as con:
+        con.execute(
+            text(
+                "update negocio.conta_api set testes_restantes=3,sinal_pago_em=null,contrato_aceito_em=null "
+                "where cliente_id=:c"
+            ),
+            {"c": empresa},
+        )
+    monkeypatch.setattr(T.S, "base_disponivel", lambda *a: {"fazendas": 10, "creditos": {"p50": 100}})
+    job = T.submeter(eng, empresa, "consultar_disponibilidade", {}, "teste-consulta-1")
+    assert T.submeter(eng, empresa, "consultar_disponibilidade", {}, "teste-consulta-1") == job
+    assert T.executar_proximo(eng)["estado"] == "completed"
+    assert T.obter(eng, empresa, job["pedido_id"])["resultado"]["fazendas"] == 10
+    with eng.connect() as con:
+        assert (
+            con.execute(
+                text("select testes_restantes from negocio.conta_api where cliente_id=:c"), {"c": empresa}
+            ).scalar_one()
+            == 2
+        )
+    assert _saldo(eng, empresa) == 2000
+    for ferramenta in ("comparar_lotes", "acompanhar_contato"):
+        with pytest.raises(T.CT.ErroConta) as erro:
+            T.submeter(eng, empresa, ferramenta, {"pedido_id": str(uuid.uuid4())}, "exige-liberacao")
+        assert erro.value.status == 403
+
+
+def test_resultado_pronto_revalida_liberacao(eng, empresa, monkeypatch):
+    monkeypatch.setattr(T.S, "obter_pedido", lambda *a: {"opcoes": []})
+    job = T.submeter(eng, empresa, "comparar_lotes", {"pedido_id": str(uuid.uuid4())}, "comparar-revalidar")
+    assert T.executar_proximo(eng)["estado"] == "completed"
+    with eng.begin() as con:
+        con.execute(text("update negocio.conta_api set sinal_pago_em=null where cliente_id=:c"), {"c": empresa})
+    with pytest.raises(T.CT.ErroConta) as erro:
+        T.obter(eng, empresa, job["pedido_id"])
+    assert erro.value.status == 403
+
+
+def test_salvaguarda_exige_pessoa_e_estorna_sem_gravar_texto_privado(eng, empresa, monkeypatch):
+    def exigir(*args):
+        raise T.ErroSalvaguarda("texto privado de evidência")
+
+    monkeypatch.setattr(T.S, "criar_pedido", exigir)
+    T.submeter(eng, empresa, "pedir_lote", {}, "salvaguarda-pendente")
+    final = T.executar_proximo(eng)
+    assert final["estado"] == "input-required"
+    assert final["erro"]["type"].endswith("salvaguarda_pendente")
+    assert "privado" not in json.dumps(final)
+    assert _saldo(eng, empresa) == 2000
+
+
+def test_eventos_confirmam_junto_dos_estados_e_replay_nao_duplica(eng, empresa, monkeypatch):
+    from raiz.pessoal import Cofre, gerar_chave
+    from raiz.publica import webhooks as W
+
+    monkeypatch.setenv("RAIZ_WEBHOOK_HOSTS", "eventos.example.com")
+    with eng.begin() as con:
+        W.cadastrar_inscricao(
+            con, empresa, "https://eventos.example.com/raiz", W.gerar_segredo(), cofre=Cofre(gerar_chave())
+        )
+    monkeypatch.setattr(T.S, "base_disponivel", lambda *a: {"fazendas": 1})
+    job = T.submeter(eng, empresa, "consultar_disponibilidade", {}, "eventos-fila-1")
+    T.submeter(eng, empresa, "consultar_disponibilidade", {}, "eventos-fila-1")
+    T.executar_proximo(eng)
+    cancelado = T.submeter(eng, empresa, "consultar_disponibilidade", {}, "eventos-fila-2")
+    T.cancelar(eng, empresa, cancelado["pedido_id"])
+    T.cancelar(eng, empresa, cancelado["pedido_id"])
+    with eng.connect() as con:
+        eventos = [
+            json.loads(bytes(corpo))["data"]
+            for corpo in con.execute(
+                text("select corpo from negocio.webhook_entrega where cliente_id=:c order by criada_em,id"),
+                {"c": empresa},
+            ).scalars()
+        ]
+    assert [e["estado"] for e in eventos if e["pedido_id"] == job["pedido_id"]] == [
+        "recebido",
+        "processando",
+        "concluido",
+    ]
+    assert [e["estado"] for e in eventos if e["pedido_id"] == cancelado["pedido_id"]] == ["recebido", "cancelado"]
+
+
+def test_falha_ao_enfileirar_evento_reverte_debito_e_submissao(eng, empresa, monkeypatch):
+    def falha(*args):
+        raise RuntimeError("falha da outbox")
+
+    monkeypatch.setattr(T.W, "enfileirar", falha)
+    with pytest.raises(RuntimeError, match="outbox"):
+        T.submeter(eng, empresa, "consultar_disponibilidade", {}, "outbox-atomica")
+    assert _saldo(eng, empresa) == 2000
+    with eng.connect() as con:
+        assert (
+            con.execute(
+                text("select count(*) from negocio.trabalho_api where cliente_id=:c"), {"c": empresa}
+            ).scalar_one()
+            == 0
+        )

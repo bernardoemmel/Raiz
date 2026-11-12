@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 import re
 import uuid
 from contextlib import contextmanager
@@ -20,11 +21,23 @@ from sqlalchemy import Connection, Engine, text
 from sqlalchemy.exc import DBAPIError
 
 from raiz.pedidos import servico as S
-from raiz.pedidos.campos import CamposPedido
+from raiz.pedidos.campos import CAMINHOS, METODOS, CamposPedido
 from raiz.publica import conta as CT
+from raiz.publica import webhooks as W
 from raiz.publica.privacidade import sem_dado_pessoal
+from raiz.salvaguardas import ErroSalvaguarda
 
-FERRAMENTAS = frozenset({"pedir_lote", "preparar_reserva"})
+FERRAMENTAS = frozenset(
+    {"consultar_disponibilidade", "comparar_lotes", "acompanhar_contato", "pedir_lote", "preparar_reserva"}
+)
+_ESTADOS_EVENTO = {
+    "submitted": "recebido",
+    "working": "processando",
+    "completed": "concluido",
+    "failed": "falhou",
+    "input-required": "aguardando",
+    "canceled": "cancelado",
+}
 LEASE_SEGUNDOS = 900
 
 
@@ -69,14 +82,17 @@ def _corpo(ferramenta: str, corpo: dict) -> tuple[dict, str]:
         bruto = json.dumps(corpo, sort_keys=True, separators=(",", ":"), ensure_ascii=False, allow_nan=False)
         if len(bruto.encode()) > 65536:
             raise _erro("corpo_grande", "o pedido excede 64 KB", 413)
-        if ferramenta == "pedir_lote":
+        if ferramenta in {"pedir_lote", "consultar_disponibilidade"}:
             valor = CamposPedido.model_validate(corpo).model_dump(mode="json")
         else:
-            if set(corpo) - {"pedido_id", "base_url"} or "pedido_id" not in corpo:
-                raise _erro("corpo_invalido", "a preparação exige pedido_id e aceita apenas base_url do servidor")
-            valor = {"pedido_id": _id(corpo["pedido_id"]), "base_url": corpo.get("base_url", "")}
-            if not isinstance(valor["base_url"], str) or len(valor["base_url"]) > 2048:
-                raise _erro("corpo_invalido", "base_url inválida")
+            permitidos = {"pedido_id", "base_url"} if ferramenta == "preparar_reserva" else {"pedido_id"}
+            if set(corpo) - permitidos or "pedido_id" not in corpo:
+                raise _erro("corpo_invalido", "a ferramenta exige pedido_id; campos desconhecidos são recusados")
+            valor = {"pedido_id": _id(corpo["pedido_id"])}
+            if ferramenta == "preparar_reserva":
+                valor["base_url"] = corpo.get("base_url", "")
+                if not isinstance(valor["base_url"], str) or len(valor["base_url"]) > 2048:
+                    raise _erro("corpo_invalido", "base_url inválida")
     except (ValidationError, TypeError, ValueError) as ex:
         if isinstance(ex, ErroTrabalho):
             raise
@@ -91,11 +107,132 @@ def _recibo(r) -> dict[str, Any]:
         resultado = {"id": str(r["negocio_pedido_id"])}
     return {
         "pedido_id": str(r["id"]),
+        "ferramenta": r["ferramenta"],
         "estado": r["estado"],
         "negocio_pedido_id": str(r["negocio_pedido_id"]) if r["negocio_pedido_id"] else None,
         "resultado": resultado,
         "erro": r["erro"],
     }
+
+
+def _acesso(engine: Engine, cliente_id: int, ferramenta: str) -> None:
+    if ferramenta == "consultar_disponibilidade":
+        CT.exigir(engine, cliente_id)
+    else:
+        CT.exigir_liberacao(engine, cliente_id)
+
+
+def _evento(con: Connection, r) -> None:
+    W.enfileirar(con, r["cliente_id"], "pedido.atualizado", str(r["id"]), _ESTADOS_EVENTO[r["estado"]])
+
+
+def _numeros(valor: dict, campos: tuple[str, ...]) -> dict:
+    """Projeção positiva: strings e listas sob nomes numéricos nunca atravessam a fila."""
+    return {
+        k: v
+        for k in campos
+        if (v := valor.get(k)) is None or (isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v))
+    }
+
+
+def _faixa(valor) -> dict | None:
+    return _numeros(valor, ("p10", "p50", "p90")) if isinstance(valor, dict) else None
+
+
+def _resumo_base(resultado: dict) -> dict:
+    out = _numeros(resultado, ("fazendas", "hectares", "falta", "na_unidade_da_meta"))
+    out["creditos"] = _faixa(resultado.get("creditos"))
+    out["alcanca_meta"] = resultado.get("alcanca_meta") is True
+    for campo, etiqueta, permitidos, numeros in (
+        ("por_caminho", "caminho", CAMINHOS, ("fazendas", "hectares", "creditos")),
+        (
+            "por_interesse",
+            "nivel",
+            ("sem_contato", "contatado", "interessado", "aceite_fase1", "contrato_firme", "sem_resposta"),
+            ("fazendas", "creditos"),
+        ),
+    ):
+        out[campo] = [
+            {etiqueta: x[etiqueta], **_numeros(x, numeros)}
+            for x in resultado.get(campo, [])
+            if isinstance(x, dict) and x.get(etiqueta) in permitidos
+        ]
+    campos = {
+        "terra",
+        "metodos",
+        "interesse",
+        "dinheiro.custo_max_usd_credito",
+        "dinheiro.tir_min",
+        "onde",
+        "onde.biomas",
+        "onde.ufs",
+        "onde.so_fornecedores_cadeia",
+        "base",
+    }
+    out["afrouxar"] = [
+        {"campo": x["campo"], **_numeros(x, ("ganho",))}
+        for x in resultado.get("afrouxar", [])
+        if isinstance(x, dict) and x.get("campo") in campos
+    ]
+    return out
+
+
+def _resumo_opcoes(resultado: dict) -> dict:
+    opcoes = []
+    for opcao in resultado.get("opcoes", []):
+        if not isinstance(opcao, dict) or opcao.get("id") not in {"barata", "segura", "compacta"}:
+            continue
+        out = {
+            "id": opcao["id"],
+            **_numeros(
+                opcao,
+                (
+                    "fazendas",
+                    "hectares",
+                    "pequenas",
+                    "pico_caixa_usd",
+                    "multa_esperada_usd",
+                    "falta",
+                    "chance_fechar_com_aceite",
+                    "aceite_medio",
+                    "reserva_creditos",
+                    "vpl_rs",
+                ),
+            ),
+        }
+        out["alcanca_meta"] = opcao.get("alcanca_meta") is True
+        for faixa in ("creditos", "tir", "custo_usd_credito", "creditos_com_aceite"):
+            out[faixa] = _faixa(opcao.get(faixa))
+        out["marcos"] = [
+            _numeros(m, ("ano", "fracao", "chance", "multa_esperada_rs"))
+            for m in opcao.get("marcos", [])
+            if isinstance(m, dict)
+        ]
+        out["mistura_terra"] = [
+            {"caminho": x["caminho"], **_numeros(x, ("fracao",))}
+            for x in opcao.get("mistura_terra", [])
+            if isinstance(x, dict) and x.get("caminho") in CAMINHOS
+        ]
+        out["metodos"] = [
+            {"metodo": x["metodo"], **_numeros(x, ("fazendas",))}
+            for x in opcao.get("metodos", [])
+            if isinstance(x, dict) and x.get("metodo") in METODOS
+        ]
+        opcoes.append(out)
+    return {"opcoes": opcoes, "referencia": "resumo_do_instante_do_calculo_sem_identificadores_de_fazendas"}
+
+
+def _resumo_andamento(resultado: dict) -> dict:
+    out = _numeros(
+        resultado, ("meta", "com_interessado", "com_aceite", "com_contrato", "contatados", "recusas", "sem_resposta")
+    )
+    out["ondas"] = [
+        _numeros(onda, ("numero", "contatados")) for onda in resultado.get("ondas", []) if isinstance(onda, dict)
+    ]
+    if isinstance(resultado.get("faltou"), dict):
+        out["faltou"] = _numeros(resultado["faltou"], ("falta",))
+    out["referencia"] = "resumo_do_instante_do_calculo_sem_identificadores_de_fazendas"
+    return out
 
 
 def _debitar(con: Connection, conta, cliente_id: int, ferramenta: str) -> int | None:
@@ -180,7 +317,7 @@ def submeter(
                 .mappings()
                 .first()
             )
-            CT.exigir_liberacao(vinculo, cliente_id)
+            _acesso(vinculo, cliente_id, ferramenta)
             anterior = (
                 con.execute(
                     text("""select * from negocio.trabalho_api where cliente_id=:c
@@ -221,6 +358,7 @@ def submeter(
                     .mappings()
                     .one()
                 )
+                _evento(con, r)
                 retorno = _recibo(r)
     except DBAPIError as ex:
         raise _erro("fila_indisponivel", "a fila está ocupada; repita com a mesma Idempotency-Key", 503) from ex
@@ -241,6 +379,7 @@ def obter(engine: Engine, cliente_id: int, pedido_id: str) -> dict[str, Any]:
         )
     if r is None:
         raise _erro("operacao_nao_encontrada", "operação não encontrada", 404)
+    _acesso(engine, cliente_id, r["ferramenta"])
     return _recibo(r)
 
 
@@ -274,6 +413,7 @@ def cancelar(engine: Engine, cliente_id: int, pedido_id: str) -> dict[str, Any]:
                 .mappings()
                 .one()
             )
+            _evento(con, r)
             return _recibo(r)
     except DBAPIError as ex:
         raise _erro("operacao_ocupada", "o worker está executando a operação; consulte seu estado", 409) from ex
@@ -282,7 +422,7 @@ def cancelar(engine: Engine, cliente_id: int, pedido_id: str) -> dict[str, Any]:
 def _reivindicar(engine: Engine):
     with engine.begin() as con:
         r = con.execute(
-            text("""select id from negocio.trabalho_api
+            text("""select id, cliente_id from negocio.trabalho_api
             where estado='submitted' or (estado='working' and lease_ate < now())
             order by criado_em, id for update skip locked limit 1""")
         ).first()
@@ -295,11 +435,27 @@ def _reivindicar(engine: Engine):
             tentativas=tentativas+1, atualizado_em=now() where id=:id"""),
             {"t": token, "s": LEASE_SEGUNDOS, "id": r.id},
         )
+        _evento(con, {"id": r.id, "cliente_id": r.cliente_id, "estado": "working"})
         return r.id, token
 
 
-def _executar(vinculo: ConexaoVinculada, r) -> tuple[dict, str, str]:
-    CT.exigir_liberacao(vinculo, r["cliente_id"])
+def _executar(vinculo: ConexaoVinculada, r) -> tuple[dict, str, str | None]:
+    _acesso(vinculo, r["cliente_id"], r["ferramenta"])
+    corpo = r["corpo"]
+    if r["ferramenta"] == "consultar_disponibilidade":
+        return _resumo_base(S.base_disponivel(vinculo, r["cliente_id"], corpo)), "completed", None
+    if r["ferramenta"] == "comparar_lotes":
+        return (
+            _resumo_opcoes(S.obter_pedido(vinculo, corpo["pedido_id"], r["cliente_id"])),
+            "completed",
+            corpo["pedido_id"],
+        )
+    if r["ferramenta"] == "acompanhar_contato":
+        return (
+            _resumo_andamento(S.andamento(vinculo, corpo["pedido_id"], r["cliente_id"])),
+            "completed",
+            corpo["pedido_id"],
+        )
     if r["ferramenta"] == "pedir_lote":
         resultado = S.criar_pedido(vinculo, r["cliente_id"], r["corpo"])
         return resultado, "completed", resultado["id"]
@@ -311,7 +467,10 @@ def _executar(vinculo: ConexaoVinculada, r) -> tuple[dict, str, str]:
         por_agente=f"operacao:{r['id']}",
         base_url=corpo.get("base_url", ""),
     )
-    return resultado, "input-required" if resultado.get("aguardando_confirmacao") else "completed", corpo["pedido_id"]
+    # Não persistir link de aprovação, Pix nem recibo assinado. A API reconstitui a cobrança atual após autorizar.
+    aguardando = resultado.get("aguardando_confirmacao") is True
+    resumo = {"pedido": corpo["pedido_id"], "aguardando_confirmacao": aguardando}
+    return resumo, "input-required" if aguardando else "completed", corpo["pedido_id"]
 
 
 def executar_proximo(engine: Engine) -> dict[str, Any] | None:
@@ -341,17 +500,23 @@ def executar_proximo(engine: Engine) -> dict[str, Any] | None:
         except Exception as ex:
             CT.estornar(vinculo, r["lancamento_id"])
             # Não gravar ex/texto de terceiros: diagnóstico público é um código e instrução controlados.
+            salvaguarda = isinstance(ex, ErroSalvaguarda)
+            estado_erro = "input-required" if salvaguarda else "failed"
             erro = {
-                "type": "https://raiz.eco/problemas/operacao_falhou",
+                "type": "https://raiz.eco/problemas/" + ("salvaguarda_pendente" if salvaguarda else "operacao_falhou"),
                 "title": "Não foi possível concluir a operação",
                 "status": ex.status if isinstance(ex, CT.ErroConta) else (422 if isinstance(ex, S.ErroPedido) else 500),
-                "detail": "Confira a liberação e o estado do pedido. A cobrança desta operação foi estornada.",
+                "detail": (
+                    "Uma pessoa precisa conferir as salvaguardas. A cobrança desta operação foi estornada."
+                    if salvaguarda
+                    else "Confira a liberação e o estado do pedido. A cobrança desta operação foi estornada."
+                ),
             }
             r = (
                 con.execute(
-                    text("""update negocio.trabalho_api set estado='failed', erro=cast(:e as jsonb),
+                    text("""update negocio.trabalho_api set estado=:estado, erro=cast(:e as jsonb),
                 lease_ate=null, atualizado_em=now(), concluido_em=now() where id=:id returning *"""),
-                    {"e": json.dumps(erro), "id": id_},
+                    {"e": json.dumps(erro), "id": id_, "estado": estado_erro},
                 )
                 .mappings()
                 .one()
@@ -367,4 +532,5 @@ def executar_proximo(engine: Engine) -> dict[str, Any] | None:
                 .mappings()
                 .one()
             )
+        _evento(con, r)
         return _recibo(r)

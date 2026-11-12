@@ -1,15 +1,34 @@
 # Operações duráveis dos agentes
 
 `submeter(engine, cliente_id, ferramenta, corpo, chave, lancamento_id=None)` valida o corpo e o `Idempotency-Key`,
-confere a liberação, procura a repetição e debita uma única vez na mesma transação. O retorno contém `pedido_id`
+confere a conta e a liberação aplicável, procura a repetição e debita uma única vez na mesma transação. O retorno contém `pedido_id`
 (identificador da operação), `estado` e, depois da conclusão, `negocio_pedido_id` (identificador do pedido do lote).
-O estado e o resultado são lidos por `obter(engine, cliente_id, pedido_id)`. Não há execução em callback HTTP.
+O recibo também identifica a `ferramenta`. O estado e o resultado são lidos por
+`obter(engine, cliente_id, pedido_id)`, que revalida a conta e a liberação. Não há execução em callback HTTP.
 Para lote concluído, o recibo devolve apenas o identificador do pedido. O snapshot completo fica como evidência
 interna; `comparar_lotes` aplica novamente a exclusividade e a liberação antes de mostrar qualquer fazenda.
 
-A fila aceita `pedir_lote` (corpo `CamposPedido`) e `preparar_reserva` (corpo com `pedido_id` do lote e `base_url`
-configurada pelo servidor). O agente nunca aprova nem paga. A preparação da reserva precisa permanecer local ao
-banco: `servico.reservar(..., por_agente="operacao:<id>")` não pode enviar mensagem nem criar Pix antes da pessoa.
+A fila aceita cinco operações:
+
+- `consultar_disponibilidade` e `pedir_lote`: corpo `CamposPedido`.
+- `comparar_lotes` e `acompanhar_contato`: somente `pedido_id` do lote.
+- `preparar_reserva`: `pedido_id` do lote e `base_url` configurada pelo servidor.
+
+A consulta agregada exige conta válida, mas dispensa sinal e contrato. As demais operações exigem a liberação
+comercial, novamente conferida no worker. Cada submissão debita o preço ou crédito de teste uma vez; falhas estornam.
+Leituras recebem uma chave de idempotência por invocação quando o cliente não fornece uma. O MCP submete o trabalho
+imediatamente e consulta o recibo depois, sem bloquear o transporte esperando agregações ou solver.
+
+Comparação e andamento persistem somente contagens, métricas numéricas e categorias conhecidas. Não há códigos de
+fazenda, itens, motivos livres ou textos externos no snapshot. A resposta identifica que se trata do resumo do
+instante do cálculo, evitando apresentar contagens antigas como disponibilidade atual. Consultas também guardam
+somente agregados. Obter o resultado continua condicionado à autorização da empresa.
+
+O agente nunca aprova nem paga. A preparação da reserva permanece local ao banco:
+`servico.reservar(..., por_agente="operacao:<id>")` não pode enviar mensagem nem criar Pix antes da pessoa.
+Na fila persistem apenas o ID do pedido e se aguarda confirmação. Link de aprovação, token, Pix e recibo assinado
+não são guardados no JSON da operação. A API reconstrói a cobrança atual pelo serviço de pedidos após autorizar a
+leitura; isso permite renovar o acesso sem guardar um segredo reutilizável em texto claro.
 
 O worker `executar_proximo(engine)` reivindica com `FOR UPDATE SKIP LOCKED`, publica `working` e executa mantendo a
 linha travada. Serviços recebem uma conexão vinculada: seus blocos `begin()` são savepoints da transação do worker.
@@ -20,7 +39,8 @@ confirmado: a conclusão já está gravada na mesma transação.
 
 `cancelar(engine, cliente_id, pedido_id)` cancela apenas antes do início e estorna na mesma transação. Depois que o
 worker começou, responde conflito; isso não promete desfazer operação em curso nem cancelar uma reserva já criada.
-Falha de negócio estorna o lançamento. Retentativa com a mesma chave devolve o mesmo estado, inclusive falha e
+Falha de negócio estorna o lançamento. `ErroSalvaguarda` devolve `input-required`, com instrução controlada para
+revisão humana e estorno; não vira aprovação nem pagamento. Retentativa com a mesma chave devolve o mesmo estado, inclusive falha e
 cancelamento; uma nova tentativa precisa de outra chave. Mesmo corpo com outra chave é outra operação cobrável.
 
 Não criar cobrança Pix externa na submissão: saldo insuficiente responde 402 e indica `/v1/conta/recarga`, onde uma
@@ -33,7 +53,8 @@ responde erro recuperável. O cliente HTTP/ASGI deve ainda impor o orçamento to
 CREATE TABLE negocio.trabalho_api (
     id uuid PRIMARY KEY,
     cliente_id bigint NOT NULL REFERENCES negocio.cliente(id) ON DELETE CASCADE,
-    ferramenta text NOT NULL CHECK (ferramenta IN ('pedir_lote', 'preparar_reserva')),
+    ferramenta text NOT NULL CHECK (ferramenta IN (
+        'consultar_disponibilidade', 'comparar_lotes', 'acompanhar_contato', 'pedir_lote', 'preparar_reserva')),
     chave_hash char(64) NOT NULL,
     corpo_hash char(64) NOT NULL,
     corpo jsonb NOT NULL,
@@ -58,3 +79,12 @@ CREATE INDEX trabalho_api_cliente ON negocio.trabalho_api (cliente_id, criado_em
 
 A tabela não guarda a chave de idempotência em texto. O corpo vem do esquema do pedido; os dados da resposta passam
 pelo filtro de privacidade. Não enviar corpo, chave, token de aprovação ou texto de terceiros para logs.
+
+## Eventos atômicos
+
+Cada mudança insere `pedido.atualizado` na outbox na mesma transação do estado, débito, estorno ou resultado.
+O `pedido_id` do evento identifica a operação da fila; o recibo fornece o pedido de negócio quando disponível.
+Os estados públicos dos eventos são: `submitted` → `recebido`, `working` → `processando`, `completed` → `concluido`,
+`failed` → `falhou`, `input-required` → `aguardando` e `canceled` → `cancelado`.
+Repetir uma submissão ou cancelamento já aplicado não repete o evento. Se a outbox falhar, a mudança é revertida.
+A migração precisa incluir também `webhook_inscricao` e `webhook_entrega`, descritas em `docs/eventos-agentes.md`.
