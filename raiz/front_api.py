@@ -32,6 +32,8 @@ from raiz import contrato
 from raiz import flag as flag_mod
 from raiz import motivos as motivos_mod
 from raiz import restauracao as restauracao_mod
+from raiz import terra as terra_mod
+from raiz import terra_publica as terra_publica_mod
 from raiz.busca import normalizar_codigo, normalizar_nome
 from raiz.privacidade import colunas_pessoais, mascarar
 
@@ -169,7 +171,7 @@ def versao(engine: Engine, cod_imovel: str) -> dict | None:
     }
 
 
-SELOS = {"bronze": "achada no CAR", "prata": "título conferido", "ouro": "dono aceitou"}
+SELOS = {"bronze": "achada no CAR", "prata": "título conferido ou concessão", "ouro": "dono aceitou"}
 
 
 def do_banco(engine: Engine, cod_imovel: str) -> dict:
@@ -211,7 +213,7 @@ def selo_e_etapa(linha: dict, banco: dict) -> tuple[str, str | None]:
     etapa = linha.get("etapa_funil")
     if banco.get("aceite") == "aceito":
         return "ouro", "aceite"
-    if motivos_mod._bool(linha, "matricula_conferida"):
+    if terra_mod.selo_prata(linha):  # prata só para matrícula conferida ou terra pública sob concessão
         return "prata", etapa
     return "bronze", etapa
 
@@ -345,6 +347,8 @@ def montar_ficha(
         "motivos": motivos_mod.motivos(alvo),
         # meta FLAG (GHG LSR v1.1) separada de crédito/compensação, com requisitos e versão da regra
         "flag": flag_mod.bloco_ficha(alvo),
+        # caminho da terra (não corta): caminho, risco, aviso do que falta e base legal
+        "caminho_terra": terra_mod.bloco_ficha(alvo),
         # valor para quem restaura com crédito de carbono (estimativa em faixa P10-P90, sempre com aviso)
         "para_quem_restaura": restauracao_mod.bloco_ficha(alvo),
         **_do_design_v1(alvo, banco or {}),
@@ -669,6 +673,34 @@ def roteador(engine_de) -> APIRouter:
             raise HTTPException(404, "município ainda sem imóveis carregados")
         return _json(restauracao_mod.lotes(lista))
 
+    @r.get("/terra-publica")
+    def terra_publica(
+        request: Request, uf: str, ordem: str = "desmatado", so_com_concessao: bool = False, limite: int = 200
+    ) -> Response:
+        """Terra pública para restaurar no estado: glebas não destinadas e UC de uso sustentável de domínio público,
+        com hectares desmatados, custo, captura e crédito líquido estimados e a concessão ou edital (data e link)."""
+        colunas = {"desmatado": "desmatado_ha", "credito": "credito_liquido_tco2_ano", "area": "ha"}
+        if ordem not in colunas:
+            raise HTTPException(422, {"mensagem": f"ordem desconhecida: {ordem} (use {', '.join(colunas)})"})
+        with engine_de(request).connect() as con:
+            linhas = [
+                {k: (float(v) if hasattr(v, "is_finite") else v) for k, v in dict(x._mapping).items()}
+                for x in con.execute(
+                    text(f"""select {", ".join(c for c in terra_publica_mod.COLUNAS_BANCO)},
+                                    round(ST_Y(ST_PointOnSurface(geom))::numeric, 5) as lat,
+                                    round(ST_X(ST_PointOnSurface(geom))::numeric, 5) as lon
+                             from geo.terra_publica where uf = :u
+                               and (not :so or concessao is not null)
+                             order by {colunas[ordem]} desc nulls last limit :n"""),
+                    {"u": uf.upper(), "so": so_com_concessao, "n": max(1, min(limite, 2000))},
+                )
+            ]
+        if not linhas:
+            msg = f"Terra pública de {uf.upper()} ainda não gerada (raiz terra publica)."
+            raise HTTPException(404, {"mensagem": msg})
+        return _json({"uf": uf.upper(), "aviso": restauracao_mod.regra()["aviso"], "areas": linhas,
+                      "regra": terra_mod.regra()["caminhos"]["publica_sem_destinacao"]["aviso"]})  # fmt: skip
+
     @r.get("/restauracao/cenarios")
     def cenarios_restauracao() -> Response:
         """Cenários do fluxo de caixa (ProFloresta+...), cada parâmetro com a fonte, para o simulador."""
@@ -890,6 +922,29 @@ def roteador(engine_de) -> APIRouter:
                     from funil.imovel i join funil.resultado_vigente v on v.cod_imovel = i.cod_imovel
                     where v.cod_municipio_ibge = :c and i.geom is not null"""),
                     {"c": cod_ibge, "t": SIMPLIFICAR_GRAUS},
+                ).scalar()
+            elif camada == "terra_publica":
+                # terra pública para restaurar dentro do município (a divisa vem de geo.camada 'municipio'; sem ela,
+                # a caixa dos imóveis do município)
+                fc = con.execute(
+                    text("""
+                    with m as (
+                        select coalesce(
+                            (select ST_Union(geom) from geo.camada where cod_ibge = :c and camada = 'municipio'),
+                            (select ST_Envelope(ST_Collect(i.geom)) from funil.imovel i
+                             join funil.vigente v on v.cod_imovel = i.cod_imovel where v.cod_municipio_ibge = :c)
+                        ) as g)
+                    select json_build_object('type', 'FeatureCollection', 'features', coalesce(json_agg(
+                        json_build_object('type', 'Feature', 'properties', json_build_object(
+                            'id', t.id, 'nome', t.nome, 'fonte', t.fonte, 'destinacao', t.destinacao,
+                            'categoria', t.categoria, 'ha', t.ha, 'desmatado_ha', t.desmatado_ha,
+                            'credito_liquido_tco2_ano', t.credito_liquido_tco2_ano, 'tradicional', t.tradicional,
+                            'concessao_situacao', t.concessao_situacao),
+                            'geometry', ST_AsGeoJSON(ST_SimplifyPreserveTopology(ST_Intersection(t.geom, m.g), :t),
+                                                     6)::json)
+                        order by t.desmatado_ha desc nulls last), '[]'::json))
+                    from geo.terra_publica t, m where m.g is not null and ST_Intersects(t.geom, m.g)"""),
+                    {"c": cod_ibge, "t": SIMPLIFICAR_GRAUS * 3},
                 ).scalar()
             elif camada in ("municipio", "ti", "uc", "rios"):
                 fc = con.execute(

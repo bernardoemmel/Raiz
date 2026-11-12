@@ -37,17 +37,20 @@ export function Projeto({ lista, frente, municipio, fechar, baixar }: { lista: I
               <dd>≈{fmtCompacto(co2)} tCO₂/ano</dd>
             </>
           )}
-          <dt>Com matrícula (a conferir no cartório)</dt>
-          <dd>{fmtInt(por("matricula"))}</dd>
-          <dt>Lotes de assentamento</dt>
+          <dt>Privada com matrícula (a conferir no cartório)</dt>
+          <dd>{fmtInt(por("privada_matricula"))}</dd>
+          <dt>Pública sob concessão</dt>
+          <dd>{fmtInt(por("publica_concessao"))}</dd>
+          <dt>Posse em titulação (entra quando o título sair)</dt>
+          <dd>{fmtInt(por("posse_em_titulacao"))}</dd>
+          <dt>Lotes de assentamento (dependem do INCRA)</dt>
           <dd>{fmtInt(por("assentamento"))}</dd>
-          <dt>Posse a regularizar</dt>
-          <dd>{fmtInt(por("posse"))}</dd>
           <dt>Pequenas (até 4 módulos fiscais)</dt>
           <dd>{fmtInt(pequenas)}</dd>
         </dl>
         <p>
-          O próximo passo é conferir a matrícula de cada fazenda e pedir o aceite do dono. Gravar o projeto fica com o
+          O próximo passo é conferir a matrícula de quem tem, acompanhar a titulação de quem está em espera e pedir o
+          aceite do dono. Gravar o projeto fica com o
           back-end; por enquanto, baixe a planilha.
         </p>
         <div className="acoes">

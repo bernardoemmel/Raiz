@@ -650,6 +650,9 @@ def elegivel(linha: dict) -> bool:
         return False
     if _verdade(linha.get("problema")):
         return False
+    # terra pública sem destinação e terra indígena ou tradicional só aparecem no mapa: não entram em lote
+    if linha.get("caminho_terra") in ("publica_sem_destinacao", "terra_indigena_ou_tradicional"):
+        return False
     return str(linha.get("filtro_territorial") or "").lower() != "bloqueio"
 
 
@@ -706,7 +709,7 @@ def colunas_do_lote(df, cod_municipio: int, c: dict, r: dict | None = None):
 
 # --- por município (saida/<UF>/desenvolvedor_<mun>.csv) ----------------------------------------------------------
 
-ENTRADAS = ("filtros", "mapbiomas", "extras", "direto", "ficha")
+ENTRADAS = ("filtros", "mapbiomas", "extras", "direto", "ficha", "terra")
 COLS_FICHA = ("estrada_acesso_km", "cidade_proxima_km")
 
 
@@ -723,6 +726,8 @@ def linhas_do_municipio(pasta: Path, cod: int):
             extra = pd.read_csv(f, low_memory=False)
             if tipo == "ficha":
                 extra = extra[[c for c in extra.columns if c == "cod_imovel" or c in COLS_FICHA]]
+            if tipo == "terra":
+                extra = extra[[c for c in extra.columns if c in ("cod_imovel", "caminho_terra")]]
             novas = [c for c in extra.columns if c == "cod_imovel" or c not in im.columns]
             im = im.merge(extra[novas].drop_duplicates("cod_imovel"), on="cod_imovel", how="left")
     im["cod_imovel"] = im.cod_imovel.astype(str)

@@ -35,10 +35,14 @@ def test_porte_etapa_motivo_faixas():
     ]
     apta = {"ha": 100, "carbono_ha": 40, "carbono_tco2_ano": 100, "f_matricula": 0.8}
     assert I.etapa_e_motivo(apta) == (
-        "com_matricula",
+        "caminho_terra",
         {"id": "titulo", "texto": "Matrícula ainda não conferida no cartório"},
     )
-    assert I.etapa_e_motivo({**apta, "f_matricula": 0.2})[1]["id"] == "matricula"
+    # sem matrícula não sai do funil: segue no caminho da terra, como posse em titulação
+    assert I.etapa_e_motivo({**apta, "f_matricula": 0.2}) == (
+        "caminho_terra",
+        {"id": "terra_posse", "texto": "Posse em titulação: entra quando o título sair"},
+    )
     etapa, motivo = I.etapa_e_motivo({**apta, "embargo_ha": 5, "problema": True})
     assert etapa == "cadastro" and motivo["id"] == "embargo"  # o primeiro motivo, um só
     assert I.etapa_e_motivo({**apta, "matricula_conferida": True})[0] == "titulo_conferido"

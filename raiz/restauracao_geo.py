@@ -87,13 +87,15 @@ def faixas_e_linha_base(
     r: dict | None = None,
     idade_url: str | None = "padrao",
     pasta_tmp: Path | None = None,
+    reducao: int = 1,
 ) -> tuple[dict[str, dict], dict]:
     """(por imóvel: pasto_d0_ha..pasto_d3_ha; do município: linha_base_taxa_d0..d3 e linha_base_fonte).
 
     Lê a cobertura em ladrilhos com borda de ~1,2 km (a distância só importa até 1 km), calcula a distância de
     cada pixel de pasto à mata mais próxima (remanescente = classes de mata do MapBiomas menos a vegetação secundária
     jovem do YbYrá, que é justamente o que rebrotou) e grava um raster de códigos: 1 a 4 = pasto em d0..d3; 11 a 14
-    = rebrotou sozinho nos últimos N anos em d0..d3. A soma por imóvel usa a soma por janela do motor."""
+    = rebrotou sozinho nos últimos N anos em d0..d3. A soma por imóvel usa a soma por janela do motor.
+    reducao > 1 trabalha numa grade mais grossa (pixel a cada `reducao`), para áreas do tamanho de um estado."""
     import rasterio
     from rasterio.windows import Window, from_bounds
     from scipy.ndimage import distance_transform_edt
@@ -113,12 +115,14 @@ def faixas_e_linha_base(
     cont_rebrota = np.zeros(4)
     tmpdir = Path(tempfile.mkdtemp(prefix="faixas_", dir=pasta_tmp))
     saida = tmpdir / "faixas.tif"
+    red = max(int(reducao), 1)
     with rasterio.open(cobertura_tif) as cob:
-        res = abs(cob.res[0])
+        res = abs(cob.res[0]) * red
         pad_px = int(math.ceil(lim[-1] * 1.2 / (res * 110574.0))) + 2
         w = from_bounds(x0, y0, x1, y1, cob.transform).round_offsets(op="floor").round_lengths(op="ceil")
-        W, H = int(w.width) + 1, int(w.height) + 1
-        tr = cob.window_transform(Window(int(w.col_off), int(w.row_off), W, H))
+        W, H = (int(w.width) + 1 + red - 1) // red, (int(w.height) + 1 + red - 1) // red
+        tr = cob.window_transform(Window(int(w.col_off), int(w.row_off), W * red, H * red))
+        tr = tr * tr.scale(red, red)
         idade = None
         if idade_url:
             try:
@@ -132,14 +136,16 @@ def faixas_e_linha_base(
                 for r0 in range(0, H, LADRILHO):
                     for c0 in range(0, W, LADRILHO):
                         h, wd = min(LADRILHO, H - r0), min(LADRILHO, W - c0)
-                        jan = Window(int(w.col_off) + c0 - pad_px, int(w.row_off) + r0 - pad_px, wd + 2 * pad_px,
-                                     h + 2 * pad_px)  # fmt: skip
+                        jan = Window(int(w.col_off) + (c0 - pad_px) * red, int(w.row_off) + (r0 - pad_px) * red,
+                                     (wd + 2 * pad_px) * red, (h + 2 * pad_px) * red)  # fmt: skip
                         c = cob.read(1, window=jan, boundless=True, fill_value=0)
+                        cheio = c.shape
+                        c = c[::red, ::red]
                         jovem = np.zeros(c.shape, dtype=bool)
                         if idade is not None:
                             bx = rasterio.windows.bounds(jan, cob.transform)
                             wi = from_bounds(*bx, idade.transform).round_offsets().round_lengths()
-                            a = _ler_janela(idade, wi, c.shape)
+                            a = _ler_janela(idade, wi, cheio)[::red, ::red]
                             jovem = (a >= 1) & (a <= janela_anos)
                         rem = np.isin(c, mata) & ~jovem
                         pasto = np.isin(c, aberto) & ~jovem

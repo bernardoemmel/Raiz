@@ -5,6 +5,7 @@ import { colunaConhecida, NOMES_COLUNAS } from "../../../compartilhado/dados/con
 import { escreverCsv } from "../../../compartilhado/dados/csv"
 import { abreviarCar, fmt1, fmtCompacto, fmtHa, fmtInt, fmtModulos, fmtPct, STATUS_CAR, UFS } from "../../../compartilhado/formato"
 import { motivos } from "../../../compartilhado/motivos"
+import { lerTerra, NOME_RISCO, SITUACOES } from "../../../compartilhado/terra"
 import { situacaoTitulo } from "../../../compartilhado/titulo"
 import { fonte, useCarga } from "../dados"
 import { MapaImovel } from "../mapa/MapaImovel"
@@ -144,6 +145,7 @@ export function Fazenda({ car }: { car: string }) {
     )
 
   const titulo = situacaoTitulo(i)
+  const terra = lerTerra(i.linha)
   const lista = motivos(i)
   const bloqueios = lista.filter((m) => m.bloqueia && !m.ok)
   const novas = Object.keys(i.linha).filter((k) => !colunaConhecida(k))
@@ -269,10 +271,35 @@ export function Fazenda({ car }: { car: string }) {
           </section>
 
           <section className="painel bloco" aria-labelledby="titulo-titulo">
-            <h2 id="titulo-titulo">Título da terra</h2>
+            <h2 id="titulo-titulo">Caminho da terra</h2>
             <p className="titulo-situacao">
-              <span className={"selo " + titulo.tom}>{titulo.rotulo}</span>
+              <span className={"selo " + (terra.situacao === "pronta_agora" ? "ok" : terra.situacao === "em_espera" ? "conferir" : "neutro")}>
+                {terra.nome}
+              </span>{" "}
+              <span className="selo neutro">{SITUACOES.find((x) => x.id === terra.situacao)?.nome}</span>{" "}
+              {terra.risco && <span className={"selo " + (terra.risco === "alto" ? "ruim" : terra.risco === "medio" ? "conferir" : "ok")}>Risco {NOME_RISCO[terra.risco]}</span>}
             </p>
+            {terra.motivo && <p className="bloco-resumo">{terra.motivo}</p>}
+            {terra.aviso && (
+              <div className="aviso-estimativa" role="note">
+                <span className="aviso-icone" aria-hidden="true">
+                  !
+                </span>
+                <strong>{terra.aviso}</strong>
+              </div>
+            )}
+            {terra.riscoMotivo && (
+              <p className="bloco-resumo">
+                Por que o risco é {terra.risco ? NOME_RISCO[terra.risco] : "este"}: {terra.riscoMotivo}
+              </p>
+            )}
+            {terra.concessaoLink && (
+              <p className="bloco-resumo">
+                <a className="link" href={terra.concessaoLink} target="_blank" rel="noopener">
+                  Ver a concessão{terra.concessaoData ? ` (${terra.concessaoData})` : ""}
+                </a>
+              </p>
+            )}
             <p className="bloco-resumo">{titulo.texto}</p>
             <dl className="barras">
               {[

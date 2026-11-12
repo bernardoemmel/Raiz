@@ -139,8 +139,9 @@ CERTIDOES: dict[str, str] = {
 # arquivos sem contrato tipado ainda: tudo vai para atributos, uma linha por imóvel
 # (extras = histórico fixo exportado uma vez do Earth Engine; extras_direto = TMF e causa da perda, sem Earth Engine;
 #  flag = meta FLAG pela GHG LSR, calculada pelo produto em raiz/flag.py; ficha = colunas do design v1 do front,
-#  raiz/imovel_dados.py; desenvolvedor = valor para quem restaura com crédito de carbono, raiz/restauracao.py)
-COMPLEMENTOS = ("extras", "extras_direto", "direto", "ajustes", "alertas", "flag", "ficha", "desenvolvedor")
+#  raiz/imovel_dados.py; desenvolvedor = valor para quem restaura com crédito de carbono, raiz/restauracao.py;
+#  terra = caminho da terra e risco, raiz/terra.py)
+COMPLEMENTOS = ("extras", "extras_direto", "direto", "ajustes", "alertas", "flag", "ficha", "desenvolvedor", "terra")
 
 CONTRATOS: dict[str, dict[str, str]] = {
     "imoveis": IMOVEIS,

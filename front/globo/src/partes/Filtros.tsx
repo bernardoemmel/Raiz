@@ -55,7 +55,7 @@ export function Filtros({ filtros, mudar, camadas, mudarCamadas, imoveis }: Prop
       </fieldset>
 
       <fieldset disabled={semDado}>
-        <legend>Título da terra</legend>
+        <legend>Caminho da terra</legend>
         {TITULOS.map((t) => (
           <label key={t.id} className="marcar" title={t.dica}>
             <input type="checkbox" checked={filtros.titulos.includes(t.id)} onChange={() => alternarTitulo(t.id)} />

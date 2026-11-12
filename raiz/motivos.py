@@ -259,7 +259,7 @@ CRITERIOS = (
     ("alerta", "decide", "MapBiomas Alerta"),
     ("desmate2016", "decide", "INPE PRODES"),
     ("alem", "decide", "MapBiomas cobertura e Código Florestal (reserva legal)"),
-    ("matricula", "só informa", "INCRA SIGEF"),
+    ("caminho_terra", "só informa", "INCRA SIGEF, SFB Cadastro Nacional de Florestas Públicas, MMA CNUC, FUNAI"),
     ("uc", "só informa", "MMA CNUC e INPE TerraBrasilis, unidades de conservação"),
     ("reserva", "só informa", "Código Florestal, art. 12 (regras da Raíz)"),
     ("app", "só informa", "INPE PRODES hidrografia e Código Florestal, art. 61-A"),
@@ -272,20 +272,17 @@ CRITERIOS = (
 def criterios(linha: dict, data: str | None = None) -> list[dict]:
     """Os 13 critérios na ordem fixa, com situação ok, falta ou não se aplica, o grupo (decide a aptidão ou só
     informa), a fonte e a data do dado (a data de corte da rodada)."""
+    from raiz import terra
+
     por_id = {m["id"]: m for m in motivos(linha)}
-    i = ler(linha)
-    f_mat = _num(linha, "f_matricula")
-    if f_mat is None:
-        f_mat = _n0(linha, "matricula_ha") / i["ha"] if i["ha"] > 0 else None
+    t = terra.do_imovel(linha)
     extras = {
-        "matricula": None
-        if f_mat is None
-        else {
-            "ok": f_mat >= 0.5,
-            "texto": "Pelo menos metade do CAR com matrícula no SIGEF"
-            if f_mat >= 0.5
-            else "Menos da metade do CAR com matrícula no SIGEF",
-            "detalhe": f"{round(100 * f_mat)}% do CAR coberto por parcela SIGEF particular com matrícula",
+        # a terra não corta: é caminho com risco; ok quando está pronta agora (matrícula ou concessão)
+        "caminho_terra": {
+            "ok": terra.regra()["caminhos"][t["caminho_terra"]]["situacao"] == "pronta_agora",
+            "texto": f"Caminho da terra: {t['caminho_terra_rotulo'].lower()}, risco "
+            f"{terra.NOME_RISCO[t['risco_terra']]}",
+            "detalhe": t["caminho_terra_motivo"],
         },
         "uc": {"ok": True, "texto": "Fora de unidade de conservação", "detalhe": "até 1 ha em UC"},
         "reserva": {"ok": True, "texto": "Reserva legal completa", "detalhe": "déficit de até 1 ha"},

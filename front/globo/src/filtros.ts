@@ -4,9 +4,11 @@
  */
 
 import type { Imovel } from "../../compartilhado/dados"
+import { CAMINHOS, caminhoDe, ORIGINAVEIS, type Caminho } from "../../compartilhado/terra"
 
 export type FrenteId = "carbono" | "empresa" | "agrupar" | "cacau" | "redd" | "cota"
-export type TituloId = "matricula" | "assentamento" | "posse"
+/** caminho da terra (compartilhado/terra.ts): filtra a lista, nunca tira a fazenda do mapa */
+export type TituloId = Caminho
 export type DesmateId = "5" | "10" | "2008"
 
 export interface Filtros {
@@ -15,7 +17,7 @@ export interface Filtros {
   semDesmate: DesmateId | null
 }
 
-export const FILTROS_INICIAIS: Filtros = { frente: "carbono", titulos: ["matricula", "assentamento"], semDesmate: "10" }
+export const FILTROS_INICIAIS: Filtros = { frente: "carbono", titulos: [...ORIGINAVEIS], semDesmate: "10" }
 
 export interface Frente {
   id: FrenteId
@@ -89,19 +91,11 @@ export const FRENTES: Frente[] = [
   },
 ]
 
-export const TITULOS: { id: TituloId; rotulo: string; dica: string }[] = [
-  {
-    id: "matricula",
-    rotulo: "Matrícula no cartório",
-    dica: "Pelo menos 50% do CAR coberto por parcela SIGEF particular com matrícula. A matrícula ainda se confere no cartório.",
-  },
-  {
-    id: "assentamento",
-    rotulo: "Lote de assentamento (INCRA)",
-    dica: "Pelo menos 50% do CAR dentro de assentamento do INCRA.",
-  },
-  { id: "posse", rotulo: "Posse em terra pública", dica: "Sem parcela SIGEF com matrícula nem assentamento: título a regularizar." },
-]
+export const TITULOS: { id: TituloId; rotulo: string; dica: string }[] = CAMINHOS.map((c) => ({
+  id: c.id,
+  rotulo: c.nome,
+  dica: c.dica,
+}))
 
 export const DESMATES: { id: DesmateId; rotulo: string; dica: string; ok: (i: Imovel) => boolean }[] = [
   {
@@ -124,11 +118,7 @@ export const DESMATES: { id: DesmateId; rotulo: string; dica: string; ok: (i: Im
   },
 ]
 
-export function tituloDe(i: Imovel): TituloId {
-  if (i.f_matricula >= 0.5) return "matricula"
-  if (i.assentamento) return "assentamento"
-  return "posse"
-}
+export const tituloDe = (i: Imovel): TituloId => caminhoDe(i.linha)
 
 export const frenteDe = (id: FrenteId) => FRENTES.find((f) => f.id === id) ?? FRENTES[0]
 

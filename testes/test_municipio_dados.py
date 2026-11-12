@@ -50,12 +50,14 @@ def test_rotas_e_desde_a_ultima_analise(banco_url, tmp_path, monkeypatch):
     shutil.copy(AMOSTRA / "imoveis_1504950.csv", pasta / "imoveis_1504950.csv")
     with eng.begin() as c:
         carregar_municipio(c, pasta, COD, dt.date(2026, 11, 12))
-    # o motor reprocessa: uma apta ganha matrícula (sobe) e outra ganha embargo (desce)
+    # o motor reprocessa: uma apta tem a matrícula conferida (sobe para título conferido; ganhar matrícula sem
+    # conferir não muda de etapa, porque a terra não corta mais) e outra ganha embargo (desce)
     df = pd.read_csv(pasta / "imoveis_1504950.csv")
     aptas = [
         i for i, r in enumerate(df.to_dict("records")) if motivos.ler(r)["apta"] and not motivos.ler(r)["com_matricula"]
     ]
-    df.loc[aptas[0], "f_matricula"] = 0.9
+    df["matricula_conferida"] = False
+    df.loc[aptas[0], ["f_matricula", "matricula_ha", "matricula_conferida"]] = [0.9, 0.9 * df.loc[aptas[0], "ha"], True]
     df.loc[aptas[1], ["problema", "embargo_ha"]] = [True, 50.0]
     df.to_csv(pasta / "imoveis_1504950.csv", index=False)
     with eng.begin() as c:

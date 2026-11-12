@@ -11,6 +11,8 @@ export interface Etapa {
   ativo: boolean
   aoEscolher?: () => void
   dica?: string
+  /** barras por parte da etapa (caminho da terra: pronta agora, em espera, só mostrar); somam o número da etapa */
+  partes?: { id: string; rotulo: string; numero: number }[]
 }
 
 function Cartao({ e, modo }: { e: Etapa; modo: ModoContagem }) {
@@ -24,6 +26,22 @@ function Cartao({ e, modo }: { e: Etapa; modo: ModoContagem }) {
       <div className="etapa-barra" aria-hidden="true">
         <i style={{ transform: `scaleX(${escala})` }} />
       </div>
+      {e.partes && e.numero > 0 && (
+        <div className="etapa-partes">
+          <div className="etapa-partes-barra" aria-hidden="true">
+            {e.partes.map((p) => (
+              <i key={p.id} className={"parte-" + p.id} style={{ width: `${(100 * p.numero) / e.numero}%` }} />
+            ))}
+          </div>
+          <ul>
+            {e.partes.map((p) => (
+              <li key={p.id} className={"parte-" + p.id}>
+                <span className="num">{fmtInt(p.numero)}</span> {p.rotulo.toLowerCase()}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </>
   )
   const classe = "etapa" + (e.ativo ? " ativo" : "") + (e.aoEscolher ? "" : " estatica")

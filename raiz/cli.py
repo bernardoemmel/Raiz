@@ -135,7 +135,7 @@ def funil_rodar(
     municipios: Annotated[list[int] | None, typer.Argument(help="códigos IBGE; sem nada, a UF inteira")] = None,
     tarefas: Annotated[
         str, typer.Option(help="separadas por vírgula")
-    ] = "funil,filtros,direto,mapbiomas,extras_direto,flag,ficha,desenvolvedor,carga",
+    ] = "funil,filtros,direto,mapbiomas,extras_direto,flag,terra,ficha,desenvolvedor,carga",
     lanes: Annotated[int, typer.Option(help="municípios ao mesmo tempo")] = 3,
     refazer: bool = False,
     data_corte: Annotated[str | None, typer.Option(help="AAAA-MM-DD; padrão: hoje")] = None,
@@ -620,6 +620,80 @@ def restauracao_recalibrar(
     for grupo, modo, fator in r["mudou"]:
         typer.echo(f"{grupo} {modo}: fator {fator}")
     typer.echo(("gravado em " + r["arquivo"]) if r["gravado"] else "nada gravado (use --gravar)")
+
+
+terra_cli = typer.Typer(
+    help="Caminho da terra por imóvel e camada de terra pública para restaurar (regra em raiz/regras/padroes/).",
+    no_args_is_help=True,
+)
+app.add_typer(terra_cli, name="terra")
+
+
+@terra_cli.command("recalcular")
+def terra_recalcular(
+    saida: Annotated[
+        str | None, typer.Option(help="pasta saida/ do motor; padrão: a pasta de trabalho do motor")
+    ] = None,
+    ufs: Annotated[str | None, typer.Option(help="só estas UFs, separadas por vírgula")] = None,
+) -> None:
+    """Refaz terra_<mun>.csv que falta ou foi calculado com outra versão da regra ou das concessões."""
+    from pathlib import Path
+
+    from raiz import terra as T
+    from raiz.funil.rodar import dir_trabalho
+
+    pasta = Path(saida) if saida else dir_trabalho() / "saida"
+    lista = [u.strip().upper() for u in ufs.split(",")] if ufs else None
+    r = T.recalcular(pasta, lista, cache_motor=dir_trabalho() / "cache")
+    typer.echo(f"regra {T.versao()}: {len(r['refeitos'])} municípios refeitos, {r['em_dia']} já em dia")
+    for e in r["erros"]:
+        typer.echo(f"  erro {e}")
+
+
+@terra_cli.command("preparar-cnfp")
+def terra_preparar_cnfp() -> None:
+    """Baixa o Cadastro Nacional de Florestas Públicas (SFB) e grava um GeoParquet por estado."""
+    from raiz import terra_publica as TP
+
+    z = TP.baixar_cnfp()
+    for uf, n in TP.preparar_cnfp(z).items():
+        typer.echo(f"{uf}: {n} áreas")
+
+
+@terra_cli.command("publica")
+def terra_publica_gerar(
+    ufs: Annotated[str, typer.Option(help="UFs separadas por vírgula")],
+    carregar: Annotated[bool, typer.Option(help="carregar no banco (geo.terra_publica)")] = True,
+    reducao: Annotated[int, typer.Option(help="grade da distância à mata: 1 = 30 m, 4 = 120 m")] = 4,
+) -> None:
+    """Gera a camada "Terra pública para restaurar" de cada estado e carrega no banco."""
+    from raiz import terra_publica as TP
+    from raiz.funil.rodar import dir_trabalho
+
+    for uf in [u.strip().upper() for u in ufs.split(",")]:
+        f = TP.gerar_uf(uf, dir_trabalho() / "cache", reducao=reducao)
+        if f is None:
+            typer.echo(f"{uf}: sem área pública candidata")
+            continue
+        n = 0
+        if carregar:
+            from raiz.banco import engine
+
+            n = TP.carregar(engine(), f)
+        typer.echo(f"{uf}: {f.name}{f', {n} áreas no banco' if carregar else ''}")
+
+
+@terra_cli.command("editais")
+def terra_editais() -> None:
+    """Confere as páginas de editais do SFB e do Ideflor-Bio e lista os links novos (registrar em concessoes.yaml)."""
+    from raiz import terra_publica as TP
+
+    r = TP.conferir_editais()
+    for n in r["novos"]:
+        typer.echo(f"novo ({n['fonte']}, visto em {n['visto_em']}): {n['texto']} {n['link']}")
+    for f, e in r["erros"].items():
+        typer.echo(f"erro em {f}: {e}")
+    typer.echo(f"{len(r['novos'])} novos, {r['total']} links guardados")
 
 
 ficha_cli = typer.Typer(help="Colunas e camadas dentro do imóvel para o front (design v1).", no_args_is_help=True)

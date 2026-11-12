@@ -147,3 +147,21 @@ Calculado pelo produto, fora do motor (raiz/restauracao.py e raiz/restauracao_ge
   (ou `POST /imoveis/{cod}/restauracao/real`). `raiz restauracao comparar` mostra real contra previsto por modo;
   `raiz restauracao recalibrar --gravar` escreve raiz/regras/padroes/restauracao_calibracao.yaml (revise antes de
   subir): a versão muda e o `recalcular` refaz.
+
+## Caminho da terra e terra pública para restaurar
+
+A situação da terra não corta mais o funil: cada imóvel ganha um caminho (privada com matrícula, posse em
+titulação, assentamento, pública sob concessão, pública sem destinação, terra indígena ou tradicional) com risco
+e motivo, em `saida/<UF>/terra_<mun>.csv` (raiz/terra.py; regra em raiz/regras/padroes/caminho_terra.yaml).
+
+- Preparar uma vez: `raiz terra preparar-cnfp` (baixa o Cadastro Nacional de Florestas Públicas do SFB, 229 MB, e
+  grava `dados/terra_publica/cnfp_<UF>.parquet`). Sem ele, o caminho usa só o SIGEF do espelho e as colunas do motor.
+- Junto do motor: a tarefa `terra` do `raiz funil rodar` (padrão), antes da ficha. Refazer quando a regra ou as
+  concessões mudam: `raiz terra recalcular [--ufs PA]`.
+- Camada "Terra pública para restaurar": `raiz terra publica --ufs PA` (gera `terra_publica_<UF>.parquet` e carrega em
+  geo.terra_publica; `--reducao 4` mede a distância à mata a 120 m, bom para áreas do tamanho de um estado). API:
+  `GET /terra-publica?uf=PA&ordem=desmatado|credito|area&so_com_concessao=true` e
+  `GET /geo/{cod_ibge}/terra_publica.geojson`.
+- Editais: `raiz terra editais` lê as páginas do SFB e do Ideflor-Bio, guarda cada link com a data em que apareceu
+  (`dados/terra_publica/editais_vistos.json`) e lista os novos; o que for concessão de verdade entra em
+  raiz/regras/padroes/concessoes.yaml com data e link (a versão da regra muda e o `recalcular` refaz).

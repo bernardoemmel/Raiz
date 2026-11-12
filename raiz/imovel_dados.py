@@ -35,7 +35,9 @@ GRUPOS = {"mata_em_pe": 1, "pasto": 2, "lavoura": 3, "agua": 4, "pode_voltar": 5
 DISTANCIA_M = 1000  # pasto a até 1 km de floresta pode voltar a ser mata (regra do motor)
 SIMPLIFICAR_GRAUS = 0.00015  # ~15 m
 PORTES = ((4, "pequeno"), (15, "médio"), (math.inf, "grande"))  # módulos fiscais, Lei 8.629/1993, art. 4º
-ETAPAS = ("cadastro", "sem_problema", "apta", "com_matricula", "titulo_conferido", "aceite")
+ETAPAS = ("cadastro", "sem_problema", "apta", "caminho_terra", "titulo_conferido", "aceite")
+# fotos antigas (antes do caminho da terra) usavam com_matricula: vale como caminho_terra na comparação entre rodadas
+ETAPAS_ANTIGAS = {"com_matricula": "caminho_terra"}
 FAIXAS = Path(__file__).parent / "regras" / "padroes" / "faixas.yaml"
 
 
@@ -61,12 +63,15 @@ def etapa_e_motivo(linha: dict) -> tuple[str, dict | None]:
         ruins = [m for m in motivos_mod.motivos(linha) if m["bloqueia"] and not m["ok"]]
         etapa = "cadastro" if lido["problema"] else "sem_problema"
         return etapa, ({"id": ruins[0]["id"], "texto": ruins[0]["texto"]} if ruins else None)
-    if not lido["com_matricula"]:
-        return "apta", {"id": "matricula", "texto": "Menos da metade do CAR com matrícula no SIGEF"}
-    conferida = motivos_mod._bool(linha, "matricula_conferida")
-    if not conferida:
-        return "com_matricula", {"id": "titulo", "texto": "Matrícula ainda não conferida no cartório"}
-    return "titulo_conferido", {"id": "aceite", "texto": "Dono ainda não aceitou"}
+    # a situação da terra não corta: toda apta chega ao caminho da terra; título conferido só para matrícula
+    # conferida no cartório ou terra pública sob concessão (selo prata)
+    from raiz import terra
+
+    d = terra.do_imovel(linha)
+    if terra.selo_prata(d):
+        return "titulo_conferido", {"id": "aceite", "texto": "Dono ainda não aceitou"}
+    mid, texto = terra.MOTIVO_ETAPA[d["caminho_terra"]]
+    return "caminho_terra", {"id": mid, "texto": texto}
 
 
 def faixas(linha: dict, f: dict | None = None) -> dict:
@@ -218,7 +223,7 @@ def gerar_municipio(
 
     pasta = Path(pasta)
     im, _ = remover_colunas_pessoais(pd.read_csv(pasta / f"imoveis_{cod}.csv", low_memory=False))
-    for tipo in ("filtros", "mapbiomas", "flag"):
+    for tipo in ("filtros", "mapbiomas", "flag", "terra"):
         f = pasta / f"{tipo}_{cod}.csv"
         if f.exists():
             extra = pd.read_csv(f, low_memory=False)

@@ -14,14 +14,15 @@ from collections import Counter, defaultdict
 
 from sqlalchemy import Engine, text
 
-from raiz.imovel_dados import ETAPAS
+from raiz import terra
+from raiz.imovel_dados import ETAPAS, ETAPAS_ANTIGAS
 
 ROTULOS_ETAPA = {
     "cadastro": "no CAR",
     "sem_problema": "sem embargo, TI ou desmate recente",
     "apta": "aptas para a mata voltar",
-    "com_matricula": "com matrícula",
-    "titulo_conferido": "com título conferido",
+    "caminho_terra": "com caminho da terra (pronta agora ou em espera)",
+    "titulo_conferido": "com título conferido ou concessão",
     "aceite": "com aceite do dono",
 }
 TEXTO_MOTIVO = {
@@ -33,6 +34,10 @@ TEXTO_MOTIVO = {
     "alem": "falta de área para a mata voltar além da reserva legal",
     "matricula": "menos da metade do CAR com matrícula",
     "titulo": "matrícula ainda não conferida",
+    "terra_posse": "posse em titulação (entra quando o título sair)",
+    "terra_assentamento": "lote de assentamento (depende de aval do INCRA)",
+    "terra_publica": "terra pública sem destinação (só candidata a concessão)",
+    "terra_tradicional": "terra indígena ou tradicional (fora da originação comercial)",
     "aceite": "dono ainda não aceitou",
 }
 URBANA = 24  # MapBiomas: área urbanizada
@@ -49,7 +54,9 @@ def _linhas(engine: Engine, cod_ibge: int) -> list[dict]:
             dict(r._mapping)
             for r in con.execute(
                 text("""
-                select v.cod_imovel, e.etapa, e.motivo_saida, r.ha, r.carbono_ha, r.m_fiscal,
+                select v.cod_imovel, e.etapa, e.motivo_saida, r.ha, r.carbono_ha, r.m_fiscal, r.uf,
+                       r.matricula_ha, r.f_matricula, r.sigef_ha, r.assentamento_ha, r.ti_ha, r.tipo_imovel,
+                       t.atributos as terra,
                        coalesce(c.atributos->>'porte',
                                 case when r.m_fiscal is null then null when r.m_fiscal <= 4 then 'pequeno'
                                      when r.m_fiscal <= 15 then 'médio' else 'grande' end) as porte,
@@ -59,6 +66,8 @@ def _linhas(engine: Engine, cod_ibge: int) -> list[dict]:
                 left join funil.etapa_rodada e on e.rodada_id = v.rodada_id and e.cod_imovel = v.cod_imovel
                 left join funil.complemento_imovel c
                        on c.rodada_id = v.rodada_id and c.cod_imovel = v.cod_imovel and c.tipo = 'ficha'
+                left join funil.complemento_imovel t
+                       on t.rodada_id = v.rodada_id and t.cod_imovel = v.cod_imovel and t.tipo = 'terra'
                 left join negocio.aceite a on a.cod_imovel = v.cod_imovel
                 where v.cod_municipio_ibge = :m"""),
                 {"m": cod_ibge},
@@ -72,7 +81,7 @@ def funil(linhas: list[dict]) -> dict:
     for x in linhas:
         if x.get("aceite") == "aceito":
             x["etapa"], x["motivo_saida"] = "aceite", None
-        x["etapa"] = x.get("etapa") or "cadastro"
+        x["etapa"] = ETAPAS_ANTIGAS.get(x.get("etapa"), x.get("etapa")) or "cadastro"
 
     def contar(grupo):
         out = []
@@ -95,10 +104,13 @@ def funil(linhas: list[dict]) -> dict:
             ha[x["motivo_saida"]] += float(x["ha"] or 0)
         motivos[e] = [{"motivo": m, "texto": TEXTO_MOTIVO.get(m, m), "imoveis": n, "ha": round(ha[m], 1)}
                       for m, n in cont.most_common(3)]  # fmt: skip
+    # caminho da terra: barras por caminho de todas que chegaram à etapa (somam exatamente a etapa: ninguém some)
+    chegaram = [{**x, **(x.get("terra") or {})} for x in linhas if ordem.get(x["etapa"], 0) >= ordem["caminho_terra"]]
     return {
         "etapas": contar(linhas),
         "por_porte": {p: contar(g) for p, g in sorted(por_porte.items())},
         "motivos_saida": motivos,
+        "caminho_terra": terra.por_caminho(chegaram),
     }
 
 
@@ -124,7 +136,8 @@ def desde_ultima(engine: Engine, cod_ibge: int) -> dict | None:
     if not fotos[velha.id] or not fotos[nova.id]:  # rodada carregada antes de existir a foto: não dá para comparar
         return None
     ordem = {e: i for i, e in enumerate(ETAPAS)}
-    a, b = fotos[velha.id], fotos[nova.id]
+    a = {c: ETAPAS_ANTIGAS.get(e, e) for c, e in fotos[velha.id].items()}
+    b = {c: ETAPAS_ANTIGAS.get(e, e) for c, e in fotos[nova.id].items()}
     subiram = sum(1 for c in a.keys() & b.keys() if ordem.get(b[c], 0) > ordem.get(a[c], 0))
     desceram = sum(1 for c in a.keys() & b.keys() if ordem.get(b[c], 0) < ordem.get(a[c], 0))
     return {
@@ -154,8 +167,10 @@ def frase(nome: str, uf: str, f: dict | None, resumo: dict | None, desde: dict |
         partes.append(f"{_fmt(e['apta']['imoveis'])} têm área para a mata voltar ({_fmt(e['apta']['ha'])} ha)")
     else:
         partes.append("nenhum tem área para a mata voltar por enquanto")
-    if e["com_matricula"]["imoveis"]:
-        partes.append(f"{_fmt(e['com_matricula']['imoveis'])} com matrícula")
+    sit = (f.get("caminho_terra") or {}).get("situacoes") or {}
+    pronta, espera = (sit.get("pronta_agora") or {}).get("imoveis", 0), (sit.get("em_espera") or {}).get("imoveis", 0)
+    if pronta or espera:
+        partes.append(f"{_fmt(pronta)} com a terra pronta agora e {_fmt(espera)} em espera")
     texto = partes[0] + ": " + ", ".join(partes[1:-1]) + (" e " if len(partes) > 2 else "") + partes[-1] + "."
     todos = [m for ms in f["motivos_saida"].values() for m in ms]
     if todos:

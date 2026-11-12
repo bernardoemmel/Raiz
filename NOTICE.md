@@ -108,3 +108,15 @@ junto do produto.
 - **YbYrá-BR v8.1** (Source Cooperative): idade da vegetação secundária, já usada pelo motor; aqui só para medir a
   linha de base do município.
 - **Heinrich et al. 2021** (CC BY-NC): só a taxa que o motor já usa, para comparação; fora de qualquer treino.
+
+## Caminho da terra e terra pública para restaurar
+
+Usados como dado de entrada no servidor (raiz/terra.py, raiz/terra_publica.py); nada é distribuído com o produto.
+
+- **Cadastro Nacional de Florestas Públicas 2025** (Serviço Florestal Brasileiro, Lei 11.284/2006): dado público
+  oficial, baixado do portal mapas.florestal.gov.br (item CNFP_2025.zip); o portal não declara licença. Crédito:
+  "Cadastro Nacional de Florestas Públicas, Serviço Florestal Brasileiro, atualização 2025".
+- **SIGEF** (INCRA): natureza e estado de cada parcela, do espelho que a Raíz já mantém.
+- **CNUC** (MMA), **terras indígenas** (FUNAI) e **quilombos** (INCRA): os mesmos arquivos do cache do motor.
+- **Editais e contratos de concessão**: páginas públicas do SFB (gov.br/florestal) e do Ideflor-Bio
+  (ideflorbio.pa.gov.br), guardadas como link e data em raiz/regras/padroes/concessoes.yaml.

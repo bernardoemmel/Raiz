@@ -6,6 +6,7 @@
     mapbiomas raiz_mapbiomas.por_imovel (API da Plataforma, colunas mb_*)       -> mapbiomas_<mun>.csv
     extras_direto raiz_extras_direto.municipio (JRC TMF e causas da perda)      -> extras_direto_<mun>.csv
     flag    raiz.flag.calcular_municipio (meta FLAG pela GHG LSR, fora do motor)   -> flag_<mun>.csv
+    terra   raiz.terra (caminho da terra e risco, fora do motor)                   -> terra_<mun>.csv
     ficha   raiz.imovel_dados (design v1 do front: colunas e camadas no imóvel)   -> ficha_, camadas_<mun>
     desenvolvedor raiz.restauracao (valor para quem restaura, fora do motor)      -> desenvolvedor_<mun>.csv
     carga   raiz.carga.carregar_municipio + congelamento das previsões (versão do motor confirmada)
@@ -34,7 +35,9 @@ from raiz.config import config
 
 log = logging.getLogger(__name__)
 
-TAREFAS = ("funil", "filtros", "direto", "mapbiomas", "extras_direto", "flag", "ficha", "desenvolvedor", "carga")
+TAREFAS = (
+    "funil", "filtros", "direto", "mapbiomas", "extras_direto", "flag", "terra", "ficha", "desenvolvedor", "carga",
+)  # fmt: skip
 
 
 @dataclass
@@ -185,6 +188,16 @@ def rodar_municipio(cod: int, op: Opcoes, hc=None) -> dict:
         _escrever_csv(t, f, index=False)
         reg.detalhe.update(imoveis=len(t), regra=F.versao(), flag_tco2_ano=round(float(t.flag_tco2_ano.sum()), 1))
 
+    def terra(reg):
+        from raiz import terra as T
+
+        f = pasta / f"terra_{cod}.csv"
+        if f.exists() and not op.refazer and T.versao_do_arquivo(f) == T.versao():
+            reg.pulado = True
+            reg.nota(f"{f.name} já está na regra {T.versao()}")
+            return
+        reg.detalhe.update(T.escrever_municipio(pasta, cod, Path("cache")), regra=T.versao())
+
     def ficha(reg):
         from raiz.imovel_dados import escrever_municipio
 
@@ -208,6 +221,7 @@ def rodar_municipio(cod: int, op: Opcoes, hc=None) -> dict:
     executar("mapbiomas", pasta / f"mapbiomas_{cod}.csv", mapbiomas)
     executar("extras_direto", pasta / f"extras_direto_{cod}.csv", extras_direto)
     executar("flag", None, flag)  # refaz quando a versão da regra muda
+    executar("terra", None, terra)  # caminho da terra; refaz quando a regra ou as concessões mudam
     executar("ficha", pasta / f"ficha_{cod}.csv", ficha)
     executar("desenvolvedor", None, desenvolvedor)  # refaz quando a versão das premissas ou do cenário muda
     executar("carga", None, carga)

@@ -3,6 +3,7 @@ import type { FunilMunicipio, Imovel } from "../../../compartilhado/dados"
 import { escreverCsv } from "../../../compartilhado/dados/csv"
 import { fmtInt, UFS } from "../../../compartilhado/formato"
 import { ordenarFiltrar, type Modo, type OrdemRestauracao } from "../../../compartilhado/restauracao"
+import { lerTerra, ORIGINAVEIS, porSituacao, PRONTAS, SITUACOES } from "../../../compartilhado/terra"
 import { fonte, useCarga } from "../dados"
 import { aplicar, FILTROS_INICIAIS, frenteDe, tituloDe, type Filtros as F } from "../filtros"
 import { MapaMunicipio, type MapaApi } from "../mapa/MapaMunicipio"
@@ -14,11 +15,10 @@ import { ListaFazendas } from "../partes/ListaFazendas"
 import { Projeto } from "../partes/Projeto"
 import { linkMunicipio } from "../rota"
 
-const TODOS_TITULOS: F["titulos"] = ["matricula", "assentamento", "posse"]
 const PRESETS: Record<string, F> = {
-  aptas: { frente: "carbono", titulos: TODOS_TITULOS, semDesmate: "10" },
-  matricula: { frente: "carbono", titulos: ["matricula"], semDesmate: "10" },
-  agrupar: { frente: "agrupar", titulos: TODOS_TITULOS, semDesmate: "10" },
+  aptas: { frente: "carbono", titulos: [...ORIGINAVEIS], semDesmate: "10" },
+  caminho: { frente: "carbono", titulos: [...PRONTAS], semDesmate: "10" },
+  agrupar: { frente: "agrupar", titulos: [...ORIGINAVEIS], semDesmate: "10" },
 }
 const igual = (a: F, b: F) =>
   a.frente === b.frente && a.semDesmate === b.semDesmate && [...a.titulos].sort().join() === [...b.titulos].sort().join()
@@ -36,7 +36,8 @@ function baixarCsv(nome: string, lista: Imovel[], f: F) {
     "area_da_frente_ha",
     "carbono_ha",
     "carbono_tco2_ano",
-    "titulo",
+    "caminho_terra",
+    "risco_terra",
     "f_matricula",
     "desm_pos2016_ha",
     "alerta_pos2020_ha",
@@ -60,7 +61,8 @@ function baixarCsv(nome: string, lista: Imovel[], f: F) {
     area_da_frente_ha: frente.area(i).toFixed(2),
     carbono_ha: i.carbono_ha.toFixed(2),
     carbono_tco2_ano: Math.round(i.carbono_tco2_ano),
-    titulo: tituloDe(i),
+    caminho_terra: tituloDe(i),
+    risco_terra: lerTerra(i.linha).risco ?? "",
     f_matricula: i.f_matricula.toFixed(3),
     desm_pos2016_ha: (i.desm_pos2016_ha ?? 0).toFixed(2),
     alerta_pos2020_ha: i.alerta_pos2020_ha.toFixed(2),
@@ -106,16 +108,24 @@ function etapas(funil: FunilMunicipio, imoveis: Imovel[] | null | undefined, fil
       ativo: comDado && igual(filtros, PRESETS.aptas),
       aoEscolher: comDado ? () => escolher(PRESETS.aptas) : undefined,
     },
-    {
-      id: "matricula",
-      rotulo: "Com matrícula",
-      numero: funil.aptas_com_matricula,
-      sub: `${fmtInt(funil.ha_carbono_matricula)} ha prontos para contrato`,
-      fracao: funil.aptas_com_matricula / total,
-      ativo: !comDado || igual(filtros, PRESETS.matricula),
-      aoEscolher: comDado ? () => escolher(PRESETS.matricula) : undefined,
-      dica: "Pelo menos metade do CAR com parcela SIGEF com matrícula. A matrícula ainda se confere no cartório.",
-    },
+    (() => {
+      // a terra não corta: toda apta segue um caminho; as barras somam exatamente as aptas
+      const aptas = imoveis ? imoveis.filter((i) => i.apta) : null
+      const sit = aptas ? porSituacao(aptas) : null
+      return {
+        id: "caminho",
+        rotulo: "Caminho da terra",
+        numero: aptas ? aptas.length : funil.aptas_carbono,
+        sub: sit
+          ? `${fmtInt(sit.pronta_agora)} prontas agora e ${fmtInt(sit.em_espera)} em espera`
+          : "o caminho de cada fazenda aparece quando a lista chegar",
+        fracao: (aptas ? aptas.length : funil.aptas_carbono) / total,
+        ativo: comDado && igual(filtros, PRESETS.caminho),
+        aoEscolher: comDado ? () => escolher(PRESETS.caminho) : undefined,
+        dica: "A terra não tira ninguém do funil: cada fazenda segue um caminho (matrícula, concessão, posse em titulação, assentamento, terra pública ou tradicional), com o seu risco. Tocar mostra só as prontas agora.",
+        partes: sit ? SITUACOES.map((x) => ({ id: x.id, rotulo: x.nome, numero: sit[x.id] })) : undefined,
+      }
+    })(),
     {
       id: "agrupar",
       rotulo: "Para agrupar",

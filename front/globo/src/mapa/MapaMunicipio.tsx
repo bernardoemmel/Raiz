@@ -16,6 +16,7 @@ import { ESCALA_FOGO, PERIODO_FOGO } from "../../../compartilhado/satelite"
 import { fonte, useCarga } from "../dados"
 import type { Frente } from "../filtros"
 import { tituloDe } from "../filtros"
+import { infoCaminho } from "../../../compartilhado/terra"
 import type { Camadas } from "../partes/Filtros"
 import { linkFazenda } from "../rota"
 import { estiloBase, imagemHachura, prepararMapLibre } from "./estilo"
@@ -154,8 +155,7 @@ function textoPopup(cod: string, props: Record<string, unknown>, i: Imovel | und
     area > 0 && frente.entra(i)
       ? `${fmtHa(area)} ${frente.sobre}`
       : (CATEGORIAS.find((c) => c.id === i.categoria)?.rotulo ?? "Imóvel")
-  const t = tituloDe(i)
-  const terra = t === "matricula" ? "matrícula a conferir" : t === "assentamento" ? "assentamento" : "posse"
+  const terra = infoCaminho(tituloDe(i)).curto
   const alerta = i.alerta_pos2020_ha > 1 ? `alerta em ${i.alerta_ultimo_ano ?? "depois de 2020"}` : "0 alertas desde 2020"
   const fogo: string[] = []
   if (i.fogo_anos_max !== null)

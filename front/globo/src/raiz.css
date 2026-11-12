@@ -1373,7 +1373,7 @@ a {
 }
 
 /* Para quem restaura (valor para o desenvolvedor): faixa P10 a P90 com ponto no P50 e aviso de estimativa */
-.restaurar .aviso-estimativa {
+.aviso-estimativa {
   display: flex;
   gap: 12px;
   align-items: flex-start;
@@ -1381,7 +1381,7 @@ a {
   padding: 12px 16px;
   margin: 8px 0 16px;
 }
-.restaurar .aviso-icone {
+.aviso-icone {
   flex: 0 0 28px;
   height: 28px;
   border-radius: 999px;
@@ -1391,7 +1391,7 @@ a {
   display: grid;
   place-items: center;
 }
-.restaurar .aviso-estimativa strong {
+.aviso-estimativa strong {
   font-weight: 600;
   line-height: 1.45;
 }
@@ -1480,4 +1480,47 @@ a {
   .faixa-linha {
     grid-template-columns: 1fr;
   }
+}
+
+/* Caminho da terra no funil: barras por situação (pronta agora, em espera, só mostrar), somando a etapa */
+.etapa-partes {
+  margin-top: 8px;
+  font-size: 13px;
+  color: var(--texto-2);
+}
+.etapa-partes-barra {
+  display: flex;
+  height: 8px;
+  background: var(--borda);
+}
+.etapa-partes-barra i {
+  display: block;
+  height: 100%;
+}
+.etapa-partes ul {
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 2px;
+}
+.etapa-partes li::before {
+  content: "";
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  margin-right: 6px;
+  vertical-align: -1px;
+}
+.etapa-partes-barra i.parte-pronta_agora,
+.etapa-partes li.parte-pronta_agora::before {
+  background: var(--verde);
+}
+.etapa-partes-barra i.parte-em_espera,
+.etapa-partes li.parte-em_espera::before {
+  background: var(--laranja);
+}
+.etapa-partes-barra i.parte-so_mostrar,
+.etapa-partes li.parte-so_mostrar::before {
+  background: repeating-linear-gradient(45deg, var(--borda-forte) 0 2px, var(--cartao) 2px 4px);
 }
