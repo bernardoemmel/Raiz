@@ -12,10 +12,11 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:prospeccao": "node ../scripts/testar-prospeccao.mjs",
-    "test:e2e": "node ../scripts/testar-entrada.mjs && node ../scripts/testar-pedido.mjs",
+    "test:e2e": "node ../scripts/testar-entrada.mjs && node ../scripts/testar-cena-alvo.mjs",
     "verificar": "node ../scripts/verificar-design.mjs",
     "test:agentes": "node ../scripts/testar-agentes.mjs",
     "test:pages": "node ../scripts/testar-site-pages.mjs",
+    "test:cena": "node ../scripts/testar-cena-alvo.mjs",
     "test:e2e:api": "node ../../testes/e2e/rodar.mjs"
   },
   "dependencies": {
