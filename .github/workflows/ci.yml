@@ -29,6 +29,10 @@ jobs:
         run: |
           (cd servicos/cartao && npm ci --no-audit --no-fund)
           sudo apt-get update -q && sudo apt-get install -y -q ffmpeg
+      - name: Front com as dependências travadas (o site público usa npm ci)
+        run: |
+          (cd front/globo && npm ci --no-audit --no-fund --ignore-scripts)
+          (cd front/produtor && npm ci --no-audit --no-fund --ignore-scripts)
       - name: Estilo
         run: |
           uv run ruff check raiz testes scripts migracoes

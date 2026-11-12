@@ -12,22 +12,22 @@ está completo quando tem, em todos os municípios, funil, filtros, MapBiomas, d
 escadinha. Os extras do Earth Engine e as certidões ficam de fora dessa conta (ver abaixo).
 
 <!-- painel:inicio -->
-Gerado do `estados.json` de 12/11/2026 11:50 (horário de Brasília). Brasil: 262 de 5.571 municípios com o funil pronto; 4 de 27 estados completos.
+Gerado do `estados.json` de 12/11/2026 12:51 (horário de Brasília). Brasil: 297 de 5.571 municípios com o funil pronto; 4 de 27 estados completos.
 
 | Estado | Municípios feitos/total | Situação | Última atualização | Motor |
 |---|---|---|---|---|
 | PA Pará | 144/144 | completo (APP a conferir na primeira rodada automática) | 12/11/2026 07:52 | manual |
-| RO Rondônia | 52/52 | completo | 12/11/2026 11:50 | [9365d63](https://github.com/bernardoemmel/Raiz/actions/runs/43230460294) (parte manual) |
+| RO Rondônia | 52/52 | completo | 12/11/2026 12:50 | [41f8e22](https://github.com/bernardoemmel/Raiz/actions/runs/43241594895) |
 | RR Roraima | 15/15 | completo | 12/11/2026 11:17 | [9365d63](https://github.com/bernardoemmel/Raiz/actions/runs/43230460294) (parte manual) |
 | AC Acre | 22/22 | completo | 12/11/2026 11:38 | [9365d63](https://github.com/bernardoemmel/Raiz/actions/runs/43230460294) (parte manual) |
 | AP Amapá | 16/16 | completo | 12/11/2026 11:29 | [3537575](https://github.com/bernardoemmel/Raiz/actions/runs/43235780981) (parte manual) |
-| TO Tocantins | 13/139 | falta funil 126, TMF e causas 1, FLAG 1, caminho da terra 1, ficha 4, desenvolvedor 4 | 12/11/2026 11:50 | manual |
-| MA Maranhão | 0/217 | não começou | — | — |
+| TO Tocantins | 45/139 | falta funil 94, ficha 9, desenvolvedor 9 | 12/11/2026 12:26 | manual |
+| MA Maranhão | 2/217 | falta funil 215, ficha 1, desenvolvedor 1 | 12/11/2026 12:29 | manual |
 | AM Amazonas | 0/62 | não começou | — | — |
 | MT Mato Grosso | 0/142 | não começou | — | — |
-| GO Goiás | 0/246 | não começou | — | — |
+| GO Goiás | 1/246 | falta funil 245 | 12/11/2026 12:40 | manual |
 | MS Mato Grosso do Sul | 0/79 | não começou | — | — |
-| MG Minas Gerais | 0/853 | não começou | — | — |
+| MG Minas Gerais | 0/853 | falta funil 853 | — | manual |
 | BA Bahia | 0/417 | não começou | — | — |
 | PI Piauí | 0/224 | não começou | — | — |
 | CE Ceará | 0/184 | não começou | — | — |

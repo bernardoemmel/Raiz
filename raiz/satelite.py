@@ -365,6 +365,8 @@ class Imagem:
     altura: int
     bytes: int
     gerado_em: str
+    # miniatura de ~25 bytes (raiz/thumbhash.py): o borrão com as cores da foto enquanto ela carrega
+    thumbhash: str | None = None
 
 
 def salvar(pasta_imovel: Path, tipo: str, cena: Cena, img) -> Imagem:
@@ -376,8 +378,10 @@ def salvar(pasta_imovel: Path, tipo: str, cena: Cena, img) -> Imagem:
     from PIL import Image
 
     w, h = Image.open(io.BytesIO(dado)).size
+    from raiz.thumbhash import de_imagem
+
     meta = Imagem(tipo, arq.name, cena.data, cena.satelite, cena.credito, cena.metodo, list(cena.caixa), w, h,
-                  len(dado), dt.datetime.now(dt.UTC).isoformat(timespec="seconds"))  # fmt: skip
+                  len(dado), dt.datetime.now(dt.UTC).isoformat(timespec="seconds"), de_imagem(img))  # fmt: skip
     mf = pasta_imovel / "metadados.json"
     tudo = json.loads(mf.read_text(encoding="utf-8")) if mf.exists() else {}
     tudo[tipo] = asdict(meta)
@@ -404,6 +408,35 @@ def gerar(cod_busca: str, imovel_geom, pode_voltar=None, tipos=None, hoje=None, 
 def metadados(cod_busca: str) -> dict:
     f = pasta() / cod_busca / "metadados.json"
     return json.loads(f.read_text(encoding="utf-8")) if f.exists() else {}
+
+
+def capa(cod_busca: str, tipo: str = "hoje-produtor") -> dict | None:
+    """A foto de capa da ficha (satélite com o contorno), se já foi gerada: caminho na API, ThumbHash, tamanho e
+    crédito. Não gera nada (a geração é na rota da imagem). Imagem antiga sem ThumbHash ganha o dela aqui."""
+    meta = metadados(cod_busca).get(tipo)
+    arq = pasta() / cod_busca / f"{tipo}.webp"
+    if not meta or not arq.exists():
+        return None
+    if not meta.get("thumbhash"):
+        from PIL import Image
+
+        from raiz.thumbhash import de_imagem
+
+        with Image.open(arq) as im:
+            meta["thumbhash"] = de_imagem(im)
+        mf = pasta() / cod_busca / "metadados.json"
+        tudo = json.loads(mf.read_text(encoding="utf-8"))
+        tudo[tipo] = meta
+        mf.write_text(json.dumps(tudo, ensure_ascii=False, indent=1), encoding="utf-8")
+    return {
+        "tipo": tipo,
+        "caminho": f"imoveis/{cod_busca}/imagem/{tipo}.webp",
+        "thumbhash": meta["thumbhash"],
+        "largura": meta["largura"],
+        "altura": meta["altura"],
+        "data_cena": meta["data_cena"],
+        "credito": meta["credito"],
+    }
 
 
 def km_por_px(caixa, largura: int) -> float:  # pragma: no cover - utilidade para a legenda de escala

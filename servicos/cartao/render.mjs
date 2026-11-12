@@ -1,4 +1,5 @@
-// Cartão, adesivo e quadros do vídeo da fazenda com o Takumi (MIT ou Apache-2.0), chamado pelo back-end da Raíz:
+// Cartão, adesivo e quadros do vídeo da fazenda com o Takumi (MIT ou Apache-2.0), em JPEG, PNG ou WebP, chamado pelo
+// back-end da Raíz:
 //   node render.mjs <pedido.json> <saida>
 // O pedido traz só o que pode ir a público: município, UF, hectares, selo e código curto (e, depois do aceite do
 // dono, as imagens de satélite). Nunca nome, CPF, código do CAR ou polígono antes do aceite.
@@ -86,12 +87,17 @@ const p = JSON.parse(await readFile(pedidoArq, "utf8"));
 const r = new Renderer();
 const images = await imagens(p);
 let dado;
+// formato: "jpeg" (padrão do cartão, é o que a prévia do WhatsApp lê), "png" (padrão do adesivo, transparente) ou
+// "webp" (com perda no cartão, sem perda no adesivo, que guarda a transparência; é o que a ficha e o site usam)
 if (p.tipo === "previa" || p.tipo === "retrato") {
   const [w, h] = p.tipo === "previa" ? [1200, 630] : [1080, 1350];
-  dado = await r.render(cartao(p, w, h), { width: w, height: h, format: "jpeg", quality: p.qualidade ?? 82, images });
+  const format = p.formato === "webp" ? "webp" : "jpeg";
+  dado = await r.render(cartao(p, w, h), { width: w, height: h, format, quality: p.qualidade ?? 82, images });
 } else if (p.tipo === "adesivo") {
   const lado = p.lado ?? 512;
-  dado = await r.render(adesivo(p, lado), { width: lado, height: lado, format: "png", images });
+  // adesivo é de cores chapadas: o WebP sem perda sai menor que o PNG e que o WebP com perda
+  const opcoes = p.formato === "webp" ? { format: "webp", lossless: true } : { format: "png" };
+  dado = await r.render(adesivo(p, lado), { width: lado, height: lado, ...opcoes, images });
 } else if (p.tipo === "animacao") {
   dado = await r.renderAnimation({ scenes: cenas(p), width: p.largura, height: p.altura, fps: p.fps ?? 15, format: "apng", images });
 } else {

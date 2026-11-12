@@ -159,6 +159,22 @@ describe("ficha e caixa de fatos", () => {
     expect(f.imovel.categoria).toBe(alvo.categoria)
     expect(f.contexto.n_imoveis).toBe(880)
     expect(f.contexto.posicao_carbono).toBeGreaterThan(0.9)
+    expect(f.capa).toBeNull() // a amostra não tem foto de satélite
+  })
+
+  it("a capa (satélite com ThumbHash) só passa quando vem completa do back-end", () => {
+    const base = JSON.parse(JSON.stringify(montarFicha(alvo, imoveis)))
+    const capa = {
+      caminho: "imoveis/PA15049500016/imagem/hoje-produtor.webp",
+      thumbhash: "1QsOTaRxd3iAiHiIiIiHh3FwGPd4",
+      largura: 720,
+      altura: 540,
+      data_cena: "2026-10-28",
+      credito: "Contains modified Copernicus Sentinel data 2026",
+    }
+    expect(lerFicha({ ...base, capa }).capa).toEqual(capa)
+    expect(lerFicha({ ...base, capa: { ...capa, thumbhash: "" } }).capa).toBeNull()
+    expect(lerFicha({ ...base, capa: null }).capa).toBeNull()
   })
 })
 

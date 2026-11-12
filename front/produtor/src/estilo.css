@@ -203,6 +203,37 @@ h1 em {
   height: auto;
 }
 
+/* capa: borrão do ThumbHash na hora, a foto por cima quando chega */
+.capa {
+  margin: 0 0 var(--e5);
+}
+.capa-moldura {
+  position: relative;
+  width: 100%;
+  border-radius: var(--raio-imagem);
+  background: var(--nevoa) center / cover no-repeat;
+  overflow: hidden;
+}
+.capa-moldura img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+.capa-moldura img.pronta {
+  opacity: 1;
+}
+.capa figcaption {
+  margin-top: var(--e2);
+}
+@media (prefers-reduced-motion: reduce) {
+  .capa-moldura img {
+    transition: none;
+  }
+}
+
 /* mapa só ao tocar */
 .mapa-previa {
   position: relative;

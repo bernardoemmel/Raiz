@@ -126,8 +126,17 @@ fontes:
       cobertura: coverage_coverage-30m-droufo
       desmatamento: desmatamento-copia-12xxov_annual-c5i7xj
       fogo_mensal: fogo-copia-1h7mac_monthly-433exq
+      # tema Fogo na API (conferido em /themes em 12/11/2026): a Plataforma não separa os 9 produtos da Col. 5; publica
+      # o anual, o por período e o monitor (e o mensal acima, que o motor usa e não aparece na lista)
+      fogo_anual: fogo-copia-1h7mac_annual-mt1bfg
+      fogo_periodo: fogo-copia-1h7mac_by-period-5gx85l
+      fogo_monitor: fogo-copia-1h7mac_fire-monitor-cb6xqc
       pasto_idade: pastagem-copia-0dzt61_idade-da-pastagem-drixus
       pasto_vigor: pastagem-copia-0dzt61_condicao-de-vigor-loj9p9
+      pasto_biomassa: pastagem-copia-0dzt61_biomassa-fdbcei
+      pasto_vigor_transicoes: pastagem-copia-0dzt61_condicao-de-vigor-loj9p9_transitions-wc5og1
+      secundaria_anual: secondary-vegetation-copy-t41ydh_annual-5plvd6
+      secundaria_idade: secondary-vegetation-copy-t41ydh_annual-lfh76u_age
     legenda_desmatamento_v5: {1: antrópico, 2: primária, 3: secundária, 4: supressão de primária, 5: recuperação, 6: supressão de secundária, 7: outras}
     recorte: uf
     sinal: {tipo: calendario}
@@ -154,19 +163,21 @@ fontes:
     pode_treinar: false
 
   - id: ybyra_secundaria
-    nome: YbYrá-BR v8.1, vegetação secundária (idade e incremento)
+    nome: YbYrá-BR v8.1, vegetação secundária (idade, extensão, incremento e perda)
     orgao: YbYrá-BR (Source Cooperative)
     tipo: cog
     densidade: densa
+    # os 4 produtos (README do repositório, conferido em 12/11/2026): idade em anos desde o último distúrbio, extensão
+    # (presença), incremento (pixel novo no ano) e perda (pixel derrubado no ano; a perda começa em 1987). Feito da
+    # Coleção 10.1 do MapBiomas, classes Formação Florestal e Floresta Alagável, 30 m, EPSG:4326, COG.
     url: https://data.source.coop/ybyra-br/secondary-forest/{produto}/ybyra_secondary_forest_{produto}_brazil_v8_1_{ano}.tif
-    produtos: [age, increment]
-    anos: [2024]
+    produtos: [age, extent, increment, loss]
+    anos: {inicio: 1986, fim: 2024, perda_desde: 1987}
     recorte: brasil
     sinal: {tipo: etag}
     calendario: {meses: [1, 7]}
-    licenca: a conferir (YbYrá-BR)
-    pode_treinar: false
-    pendente: os outros dois produtos do YbYrá citados no plano
+    licenca: CC BY 4.0 (YBYRÁ-BR, CNPq 401741/2023-0; citar Silva-Junior et al. 2020, doi 10.1038/s41597-020-00600-4)
+    pode_treinar: true
 
   - id: gpw_pasto
     nome: Global Pasture Watch, altura da vegetação baixa e uGPP

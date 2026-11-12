@@ -12,12 +12,13 @@
     "verificar": "node ../scripts/verificar-design.mjs"
   },
   "dependencies": {
+    "@fontsource/atkinson-hyperlegible-next": "5.3.0",
     "@protomaps/basemaps": "5.7.2",
+    "lucide-preact": "1.62.0",
     "maplibre-gl": "6.15.0",
     "pmtiles": "4.5.0",
     "preact": "10.29.8",
-    "@fontsource/atkinson-hyperlegible-next": "5.3.0",
-    "lucide-preact": "1.62.0"
+    "thumbhash": "0.1.1"
   },
   "devDependencies": {
     "@types/node": "^24.19.2",
