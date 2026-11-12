@@ -1,0 +1,36 @@
+# Premissas do rebanho por fazenda, do metano e da âncora do gado (E4; raiz/rebanho.py). Cada número diz de onde veio.
+# A versão (com o hash deste arquivo e da tabela da PPM) fica gravada em cada rebanho_<mun>.csv.
+versao: rebanho-2026a
+
+ppm:
+  arquivo: ppm_bovinos.csv  # por município: bovinos_2025 e bovinos_2017 (cabeças em 31/12)
+  ano: 2025
+  ano_censo: 2017
+  censo_arquivo: censo_agro_2017_pecuaria.csv  # bovinos_cab do Censo Agro 2017 (SIDRA 6910), a mesma tabela da âncora do gado
+  fonte: >-
+    IBGE, Pesquisa da Pecuária Municipal, SIDRA tabela 3939 (efetivo dos rebanhos, variável 105, bovino),
+    https://apisidra.ibge.gov.br/values/t/3939/n6/all/v/105/p/last%201/c79/2670 (2025) e /p/2017; baixada em
+    12/11/2026. O gatilho de atualização é o calendário do IBGE (raiz/coleta/ppm.py)
+
+# Espalhar o total do município pelas fazendas (dasimétrico): peso = pasto × produtividade^expoente. Produtividade:
+# uGPP do pasto no GPW (gpw_ugpp, relativa à média do município); sem ela, o vigor do pasto do MapBiomas.
+espalhar:
+  expoente: 1.0
+  expoentes_faixa: [0.0, 2.0]  # a faixa P10 a P90 sai também destes pesos (desenho LitPop: pares de expoentes)
+  vigor_relativo: {1: 0.6, 2: 1.0, 3: 1.3}
+  lotacao_min_cab_ha: 0.05
+  lotacao_max_cab_ha: 4.0
+  fonte: >-
+    premissa Raíz a calibrar contra o Censo Agro 2017 por município (E4 passo 3); desenho dasimétrico com total
+    preservado (pyDasymetric/IntPopGrids) e pares de expoentes (LitPop); GPW: Global Pasture Watch (OpenGeoHub, CC BY
+    4.0); vigor: MapBiomas pastagem (1 baixo, 2 médio, 3 alto)
+
+# Metano do gado (Tier 1 do IPCC, por cabeça por ano) e CO2 equivalente
+metano:
+  enterico_kg_ch4_cab_ano: 56
+  dejetos_kg_ch4_cab_ano: 1
+  gwp100: 27.0
+  fonte: >-
+    IPCC 2006, Volume 4, Capítulo 10, Tabela 10.11 (fermentação entérica, América Latina, outros bovinos: 56 kg
+    CH4/cabeça/ano) e Tabela 10.14 (manejo de dejetos, América Latina, outros bovinos: 1 kg); GWP100 do metano não
+    fóssil: IPCC AR6 (27,0). Tier 2 por categoria (vacas, novilhas, bois, bezerros) é o passo 6 da E4

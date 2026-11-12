@@ -1489,7 +1489,7 @@ def colunas_do_lote(df, cod_municipio: int, c: dict, r: dict | None = None):
 
 # --- por município (saida/<UF>/desenvolvedor_<mun>.csv) ----------------------------------------------------------
 
-ENTRADAS = ("filtros", "mapbiomas", "extras", "direto", "ficha", "terra")
+ENTRADAS = ("filtros", "mapbiomas", "extras", "direto", "ficha", "terra", "rebanho")
 COLS_FICHA = ("estrada_acesso_km", "cidade_proxima_km")
 
 
@@ -1649,12 +1649,19 @@ def calcular_municipio(
         from raiz import vazamento as V
 
         mit = V.mitigacoes(registros, pontos, r, area_restauravel, elegivel)
-    elif gravado:  # sem contorno: a vizinha decidida antes
-        vz = ("vazamento_motivo", "vazamento_mitigacao_imovel", "cabecas_deslocadas", "rebanho_fonte")
+    elif gravado:  # sem contorno: a vizinha decidida antes; as cabeças que saem, com o rebanho de agora
+        from raiz import vazamento as V
+
+        por_cod = {str(x["cod_imovel"]): x for x in registros}
+        vz = ("vazamento_motivo", "vazamento_mitigacao_imovel")
         for c_, g in gravado.items():
             x = {k: g[k] for k in vz if k in g and pd.notna(g[k])}
             if x:
                 x["vazamento_mitigacao"] = str(x.get("vazamento_motivo")) in ("mitigacao_vizinha", "sem_gado")
+                li = por_cod.get(c_)
+                if li is not None:
+                    x["cabecas_deslocadas"] = V.cabecas_deslocadas(li, area_restauravel(li), r)
+                    x["rebanho_fonte"] = V.rebanho(li, r)[1]
                 mit[c_] = x
     linhas = []
     for linha in registros:
