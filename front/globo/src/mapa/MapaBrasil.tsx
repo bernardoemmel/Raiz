@@ -20,13 +20,15 @@ import { linkFazenda } from "../rota"
 import { estiloBase, imagemHachura, prepararMapLibre } from "./estilo"
 
 /** O que o mapa pinta nas fazendas do município: a situação (padrão), o título da terra ou o fogo. */
-export type CamadaAssunto = "situacao" | "titulo" | "fogo"
+export type CamadaAssunto = "situacao" | "titulo" | "fogo" | "terra_publica"
 
 export interface GeoMunicipio {
   municipio: Geo | null
   imoveis: Geo | null
   ti: Geo | null
   rios: Geo | null
+  /** terra pública para restaurar (gleba não destinada, floresta nacional ou estadual): só pela API */
+  terraPublica?: Geo | null
 }
 
 interface Props {
@@ -56,9 +58,12 @@ const G = {
   pendencia: 1,
   naoApta: 2,
   apagada: 3,
-  matricula: 20,
+  privada_matricula: 20,
   assentamento: 21,
-  posse: 22,
+  posse_em_titulacao: 22,
+  publica_concessao: 23,
+  publica_sem_destinacao: 24,
+  terra_indigena_ou_tradicional: 25,
 } as const
 const MOTIVO_G: Record<MotivoId, number> = {
   embargo: 10,
@@ -79,12 +84,18 @@ const COR_G: ExpressionSpecification = [
   SITUACAO.pendencia,
   G.naoApta,
   SITUACAO.naoApta,
-  G.matricula,
+  G.privada_matricula,
   COR.mata,
+  G.publica_concessao,
+  COR.agua,
   G.assentamento,
   COR.restaurar,
-  G.posse,
+  G.posse_em_titulacao,
   COR.situacaoPendencia,
+  G.publica_sem_destinacao,
+  COR.terra,
+  G.terra_indigena_ou_tradicional,
+  COR.situacaoNaoApta,
   ...(Object.entries(MOTIVO_G).flatMap(([m, g]) => [g, MOTIVOS[m as MotivoId].cor]) as (number | string)[]),
   SITUACAO.apagada,
 ] as unknown as ExpressionSpecification
@@ -219,6 +230,7 @@ export function MapaBrasil(props: Props) {
     set("mascara", municipio ? mascara(g?.municipio ?? null) : VAZIO)
     set("ti", g?.ti)
     set("rios", g?.rios)
+    set("terra-publica", g?.terraPublica)
     set("imoveis", g?.imoveis)
     set("fogo-recente", VAZIO)
     m.setFilter("brasil-mun-escolhido", ["==", ["get", "cod_ibge"], municipio ?? ""])
@@ -309,6 +321,8 @@ export function MapaBrasil(props: Props) {
     const vis = (id: string, on: boolean) => m.getLayer(id) && m.setLayoutProperty(id, "visibility", on ? "visible" : "none")
     vis("imoveis-fogo", camada === "fogo")
     vis("fogo-recente", camada === "fogo")
+    vis("terra-publica", camada === "terra_publica")
+    vis("terra-publica-linha", camada === "terra_publica")
   }, [camada, pronto])
 
   function montar(m: MapaGL, municipiosBrasil: Geo | null) {
@@ -317,7 +331,8 @@ export function MapaBrasil(props: Props) {
     m.addImage("hachura-cruzada", imagemHachura(COR.pedra, true), { pixelRatio: 2 })
     m.addImage("hachura", imagemHachura(COR.mata), { pixelRatio: 2 })
     m.addSource("brasil-municipios", { type: "geojson", data: (municipiosBrasil ?? VAZIO) as never, promoteId: "cod_ibge" })
-    for (const id of ["municipio", "mascara", "ti", "rios", "fogo-recente"]) m.addSource(id, { type: "geojson", data: VAZIO as never })
+    for (const id of ["municipio", "mascara", "ti", "rios", "fogo-recente", "terra-publica"])
+      m.addSource(id, { type: "geojson", data: VAZIO as never })
     m.addSource("imoveis", { type: "geojson", data: VAZIO as never, promoteId: "cod_imovel" })
     m.addSource("pontos", { type: "geojson", data: VAZIO as never, cluster: true, clusterRadius: 44, clusterMaxZoom: 7 })
 
@@ -359,6 +374,11 @@ export function MapaBrasil(props: Props) {
     })
     add({ id: "ti", type: "fill", source: "ti", paint: { "fill-pattern": "hachura", "fill-opacity": 0.5 } })
     add({ id: "rios", type: "fill", source: "rios", paint: { "fill-color": MAPA.agua } })
+    // terra pública para restaurar: cor de terra, contorno tracejado; só com a camada de assunto ligada
+    add({ id: "terra-publica", type: "fill", source: "terra-publica", layout: { visibility: "none" },
+          paint: { "fill-color": COR.terra, "fill-opacity": 0.22 } })  // prettier-ignore
+    add({ id: "terra-publica-linha", type: "line", source: "terra-publica", layout: { visibility: "none" },
+          paint: { "line-color": COR.terraTexto, "line-width": 1.4, "line-dasharray": [2, 2] } })  // prettier-ignore
     // fazendas do município: cor pelo estado de feição "g"; não apta também com hachura cruzada (nunca só cor).
     // Sem zoom mínimo: a fonte só tem o município escolhido, e no celular ele cabe num zoom menor.
     add({

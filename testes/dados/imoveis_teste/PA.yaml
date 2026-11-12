@@ -1,0 +1,1522 @@
+municipio: 1504950
+uf: PA
+origem: funil real do motor (sem edição), 12/11/2026
+faixas_mf:
+  (-1.0, 1.0]: 24
+  (1.0, 2.0]: 15
+  (2.0, 4.0]: 17
+  (4.0, 10.0]: 8
+  (10.0, 1000000000.0]: 8
+casos:
+- cod_imovel: PA-1504950-03FC0337F3224EF69BAFE566B00FBBD4
+  entrada:
+    uf: PA
+    bioma: Amazônia
+    ha: 35.781504
+    m_fiscal: 0.4737
+    nao_floresta_ha: 0.0
+    floresta_rem_ha: 0.0
+    desm_total_ha: 35.781504
+    app_escadinha_ha: 0.0
+  esperado:
+    pct_RL: 80.0
+    pct_RL_alem: 50.0
+    deficit_RL80_ha: 28.625203
+    deficit_RL50_ha: 17.890752
+    deficit_RL_ha: 28.625203
+    deficit_RL_alem_ha: 17.890752
+    alem_RL_ha: 35.781504
+    app_recompor_ha: 0.0
+    frente: regularizar_antes
+    problema: false
+- cod_imovel: PA-1504950-0788980641424E68A042B007DA4A202A
+  entrada:
+    uf: PA
+    bioma: Amazônia
+    ha: 9567.481427
+    m_fiscal: 140.2955
+    nao_floresta_ha: 0.0
+    floresta_rem_ha: 1230.753521
+    desm_total_ha: 8336.727906
+    app_escadinha_ha: 0.0
+  esperado:
+    pct_RL: 80.0
+    pct_RL_alem: 50.0
+    deficit_RL80_ha: 6423.231621
+    deficit_RL50_ha: 3552.987193
+    deficit_RL_ha: 6423.231621
+    deficit_RL_alem_ha: 3552.987193
+    alem_RL_ha: 4783.740714
+    app_recompor_ha: 0.0
+    frente: desbloqueio
+    problema: true
+- cod_imovel: PA-1504950-0E3B6098A40D44F7B85CFB563EB6A45A
+  entrada:
+    uf: PA
+    bioma: Amazônia
+    ha: 300.397519
+    m_fiscal: 4.1321
+    nao_floresta_ha: 0.0
+    floresta_rem_ha: 18.088293
+    desm_total_ha: 282.309225
+    app_escadinha_ha: 0.0
+  esperado:
+    pct_RL: 80.0
+    pct_RL_alem: 50.0
+    deficit_RL80_ha: 222.229722
+    deficit_RL50_ha: 132.110466
+    deficit_RL_ha: 222.229722
+    deficit_RL_alem_ha: 132.110466
+    alem_RL_ha: 150.198759
+    app_recompor_ha: 0.0
+    frente: carbono
+    problema: false
+- cod_imovel: PA-1504950-0F2FC277D6704AC5B6F7D08CFF961C70
+  entrada:
+    uf: PA
+    bioma: Amazônia
+    ha: 2050.868366
+    m_fiscal: 27.3332
+    nao_floresta_ha: 0.0
+    floresta_rem_ha: 447.379799
+    desm_total_ha: 1603.488567
+    app_escadinha_ha: 0.0
+  esperado:
+    pct_RL: 80.0
+    pct_RL_alem: 50.0
+    deficit_RL80_ha: 1193.314894
+    deficit_RL50_ha: 578.054384
+    deficit_RL_ha: 1193.314894
+    deficit_RL_alem_ha: 578.054384
+    alem_RL_ha: 1025.434183
+    app_recompor_ha: 0.0
+    frente: carbono_revisar_desm10anos
+    problema: false
+- cod_imovel: PA-1504950-1371D5877BBB4496919F5221A046D902
+  entrada:
+    uf: PA
+    bioma: Amazônia
+    ha: 44.356698
+    m_fiscal: 0.5872
+    nao_floresta_ha: 0.0
+    floresta_rem_ha: 13.742651
+    desm_total_ha: 30.614047
+    app_escadinha_ha: 0.0
+  esperado:
+    pct_RL: 80.0
+    pct_RL_alem: 50.0
+    deficit_RL80_ha: 21.742707
+    deficit_RL50_ha: 8.435698
+    deficit_RL_ha: 21.742707
+    deficit_RL_alem_ha: 8.435698
+    alem_RL_ha: 30.614047
+    app_recompor_ha: 0.0
+    frente: desbloqueio
+    problema: true
+- cod_imovel: PA-1504950-1DB6A0AEE1E747A697807A0F50FE7CF3
+  entrada:
+    uf: PA
+    bioma: Amazônia
+    ha: 136.465751
+    m_fiscal: 1.8087
+    nao_floresta_ha: 0.0
+    floresta_rem_ha: 4.667218
+    desm_total_ha: 131.798533
+    app_escadinha_ha: 0.0
+  esperado:
+    pct_RL: 80.0
+    pct_RL_alem: 50.0
+    deficit_RL80_ha: 104.505383
+    deficit_RL50_ha: 63.565657
+    deficit_RL_ha: 104.505383
+    deficit_RL_alem_ha: 63.565657
+    alem_RL_ha: 131.798533
+    app_recompor_ha: 0.0
+    frente: carbono
+    problema: false
+- cod_imovel: PA-1504950-2121195D718F4B1BB897DC8CFACC551D
+  entrada:
+    uf: PA
+    bioma: Amazônia
+    ha: 1388.630018
+    m_fiscal: 18.3921
+    nao_floresta_ha: 0.0
+    floresta_rem_ha: 72.291049
+    desm_total_ha: 1316.338969
+    app_escadinha_ha: 0.0
+  esperado:
+    pct_RL: 80.0
+    pct_RL_alem: 50.0
+    deficit_RL80_ha: 1038.612966
+    deficit_RL50_ha: 622.02396
+    deficit_RL_ha: 1038.612966
+    deficit_RL_alem_ha: 622.02396
+    alem_RL_ha: 694.315009
+    app_recompor_ha: 0.0
+    frente: carbono
+    problema: false
+- cod_imovel: PA-1504950-2763F666C08D4CCBB713A6BF4238B833
+  entrada:
+    uf: PA
+    bioma: Amazônia
+    ha: 0.05421
+    m_fiscal: 0.0007
+    nao_floresta_ha: 0.0
+    floresta_rem_ha: 0.0
+    desm_total_ha: 0.05421
+    app_escadinha_ha: 0.0
+  esperado:
+    pct_RL: 80.0
+    pct_RL_alem: 50.0
+    deficit_RL80_ha: 0.043368
+    deficit_RL50_ha: 0.027105
+    deficit_RL_ha: 0.043368
+    deficit_RL_alem_ha: 0.027105
+    alem_RL_ha: 0.05421
+    app_recompor_ha: 0.0
+    frente: silvipastoril
+    problema: false
+- cod_imovel: PA-1504950-29CE1ED8F9BA4B408287DC51F43160F7
+  entrada:
+    uf: PA
+    bioma: Amazônia
+    ha: 123.171825
+    m_fiscal: 1.6279
+    nao_floresta_ha: 0.0
+    floresta_rem_ha: 24.680733
+    desm_total_ha: 98.491092
+    app_escadinha_ha: 0.0
+  esperado:
+    pct_RL: 80.0
+    pct_RL_alem: 50.0
+    deficit_RL80_ha: 73.856727
+    deficit_RL50_ha: 36.905179
+    deficit_RL_ha: 73.856727
+    deficit_RL_alem_ha: 36.905179
+    alem_RL_ha: 98.491092
+    app_recompor_ha: 0.0
+    frente: desbloqueio
+    problema: true
+- cod_imovel: PA-1504950-2AC3DCB062A844FA898767320BF9CC38
+  entrada:
+    uf: PA
+    bioma: Amazônia
+    ha: 297.368242
+    m_fiscal: 3.9416
+    nao_floresta_ha: 0.0
+    floresta_rem_ha: 10.502043
+    desm_total_ha: 286.866199
+    app_escadinha_ha: 0.0
+  esperado:
+    pct_RL: 80.0
+    pct_RL_alem: 50.0
+    deficit_RL80_ha: 227.392551
+    deficit_RL50_ha: 138.182078
+    deficit_RL_ha: 227.392551
+    deficit_RL_alem_ha: 138.182078
+    alem_RL_ha: 286.866199
+    app_recompor_ha: 0.0
+    frente: assentamento_agrupado
+    problema: false
+- cod_imovel: PA-1504950-2C381262695749E19DC4BE32ACB549C2
+  entrada:
+    uf: PA
+    bioma: Amazônia
+    ha: 161.496734
+    m_fiscal: 2.1947
+    nao_floresta_ha: 0.0
+    floresta_rem_ha: 1.0522
+    desm_total_ha: 160.444535
+    app_escadinha_ha: 0.0
+  esperado:
+    pct_RL: 80.0
+    pct_RL_alem: 50.0
+    deficit_RL80_ha: 128.145188
+    deficit_RL50_ha: 79.696167
+    deficit_RL_ha: 128.145188
+    deficit_RL_alem_ha: 79.696167
+    alem_RL_ha: 160.444535
+    app_recompor_ha: 0.0
+    frente: assentamento_agrupado
+    problema: false
+- cod_imovel: PA-1504950-2CE652F672A44FB18A93EEFC3E5EA657
+  entrada:
+    uf: PA
+    bioma: Amazônia
+    ha: 292.511723
+    m_fiscal: 3.8771
+    nao_floresta_ha: 0.0
+    floresta_rem_ha: 40.716792
+    desm_total_ha: 251.794931
+    app_escadinha_ha: 0.0
+  esperado:
+    pct_RL: 80.0
+    pct_RL_alem: 50.0
+    deficit_RL80_ha: 193.292587
+    deficit_RL50_ha: 105.53907
+    deficit_RL_ha: 193.292587
+    deficit_RL_alem_ha: 105.53907
+    alem_RL_ha: 251.794931
+    app_recompor_ha: 0.0
+    frente: assentamento_agrupado
+    problema: false
+- cod_imovel: PA-1504950-316E146B304B452BA0CCA7559A218EE2
+  entrada:
+    uf: PA
+    bioma: Amazônia
+    ha: 484.098385
+    m_fiscal: 6.4109
+    nao_floresta_ha: 0.0
+    floresta_rem_ha: 220.44358
+    desm_total_ha: 263.654805
+    app_escadinha_ha: 0.0
+  esperado:
+    pct_RL: 80.0
+    pct_RL_alem: 50.0
+    deficit_RL80_ha: 166.835128
+    deficit_RL50_ha: 21.605613
+    deficit_RL_ha: 166.835128
+    deficit_RL_alem_ha: 21.605613
+    alem_RL_ha: 242.049193
+    app_recompor_ha: 0.0
+    frente: regularizar_antes
+    problema: false
+- cod_imovel: PA-1504950-3640921ECE7B4252BE55B99176954EA9
+  entrada:
+    uf: PA
+    bioma: Amazônia
+    ha: 80.83958
+    m_fiscal: 1.0704
+    nao_floresta_ha: 0.0
+    floresta_rem_ha: 1.434374
+    desm_total_ha: 79.405206
+    app_escadinha_ha: 0.0
+  esperado:
+    pct_RL: 80.0
+    pct_RL_alem: 50.0
+    deficit_RL80_ha: 63.23729
+    deficit_RL50_ha: 38.985416
+    deficit_RL_ha: 63.23729
+    deficit_RL_alem_ha: 38.985416
+    alem_RL_ha: 79.405206
+    app_recompor_ha: 0.0
+    frente: regularizar_antes
+    problema: false
+- cod_imovel: PA-1504950-3867A8A51D7F450489D8D8113BB7F854
+  entrada:
+    uf: PA
+    bioma: Amazônia
+    ha: 32.591965
+    m_fiscal: 0.4314
+    nao_floresta_ha: 0.0
+    floresta_rem_ha: 8.537968
+    desm_total_ha: 24.053996
+    app_escadinha_ha: 0.0
+  esperado:
+    pct_RL: 80.0
+    pct_RL_alem: 50.0
+    deficit_RL80_ha: 17.535604
+    deficit_RL50_ha: 7.758014
+    deficit_RL_ha: 17.535604
+    deficit_RL_alem_ha: 7.758014
+    alem_RL_ha: 24.053996
+    app_recompor_ha: 0.0
+    frente: desbloqueio
+    problema: true
+- cod_imovel: PA-1504950-3C65A8E1D3B047C9A2BECCA1BB4943C6
+  entrada:
+    uf: PA
+    bioma: Amazônia
+    ha: 142.22099
+    m_fiscal: 1.8821
+    nao_floresta_ha: 0.0
+    floresta_rem_ha: 53.439144
+    desm_total_ha: 88.781846
+    app_escadinha_ha: 0.0
+  esperado:
+    pct_RL: 80.0
+    pct_RL_alem: 50.0
+    deficit_RL80_ha: 60.337648
+    deficit_RL50_ha: 17.671351
+    deficit_RL_ha: 60.337648
+    deficit_RL_alem_ha: 17.671351
+    alem_RL_ha: 88.781846
+    app_recompor_ha: 0.0
+    frente: desbloqueio
+    problema: true
+- cod_imovel: PA-1504950-3CE09395FDAB40879B57CEDD25922600
+  entrada:
+    uf: PA
+    bioma: Amazônia
+    ha: 318.845547
+    m_fiscal: 4.221
+    nao_floresta_ha: 0.0
+    floresta_rem_ha: 0.0
+    desm_total_ha: 318.845547
+    app_escadinha_ha: 0.0
+  esperado:
+    pct_RL: 80.0
+    pct_RL_alem: 50.0
+    deficit_RL80_ha: 255.076438
+    deficit_RL50_ha: 159.422774
+    deficit_RL_ha: 255.076438
+    deficit_RL_alem_ha: 159.422774
+    alem_RL_ha: 159.422774
+    app_recompor_ha: 0.0
+    frente: regularizar_antes
+    problema: false
+- cod_imovel: PA-1504950-3F22C1BE5FE44CF798E4F3C18D2618BE
+  entrada:
+    uf: PA
+    bioma: Amazônia
+    ha: 273.602864
+    m_fiscal: 3.6258
+    nao_floresta_ha: 0.0
+    floresta_rem_ha: 8.219274
+    desm_total_ha: 265.38359
+    app_escadinha_ha: 0.0
+  esperado:
+    pct_RL: 80.0
+    pct_RL_alem: 50.0
+    deficit_RL80_ha: 210.663017
+    deficit_RL50_ha: 128.582158
+    deficit_RL_ha: 210.663017
+    deficit_RL_alem_ha: 128.582158
+    alem_RL_ha: 265.38359
+    app_recompor_ha: 0.0
+    frente: carbono
+    problema: false
+- cod_imovel: PA-1504950-4193ADDF23D54EBF99527E246962580D
+  entrada:
+    uf: PA
+    bioma: Amazônia
+    ha: 61.488594
+    m_fiscal: 0.8151
+    nao_floresta_ha: 0.0
+    floresta_rem_ha: 4.53658
+    desm_total_ha: 56.952014
+    app_escadinha_ha: 0.0
+  esperado:
+    pct_RL: 80.0
+    pct_RL_alem: 50.0
+    deficit_RL80_ha: 44.654295
+    deficit_RL50_ha: 26.207717
+    deficit_RL_ha: 44.654295
+    deficit_RL_alem_ha: 26.207717
+    alem_RL_ha: 56.952014
+    app_recompor_ha: 0.0
+    frente: assentamento_agrupado
+    problema: false
+- cod_imovel: PA-1504950-443A641879CA4D0A821A622E5BD22C7C
+  entrada:
+    uf: PA
+    bioma: Amazônia
+    ha: 1335.373659
+    m_fiscal: 17.6753
+    nao_floresta_ha: 0.0
+    floresta_rem_ha: 481.140381
+    desm_total_ha: 854.233278
+    app_escadinha_ha: 0.0
+  esperado:
+    pct_RL: 80.0
+    pct_RL_alem: 50.0
+    deficit_RL80_ha: 587.158547
+    deficit_RL50_ha: 186.546449
+    deficit_RL_ha: 587.158547
+    deficit_RL_alem_ha: 186.546449
+    alem_RL_ha: 667.68683
+    app_recompor_ha: 0.0
+    frente: desbloqueio
+    problema: true
+- cod_imovel: PA-1504950-44E517A453314C74BFDEEE5E651F185A
+  entrada:
+    uf: PA
+    bioma: Amazônia
+    ha: 31.370224
+    m_fiscal: 0.4424
+    nao_floresta_ha: 0.0
+    floresta_rem_ha: 8.965967
+    desm_total_ha: 22.404257
+    app_escadinha_ha: 0.0
+  esperado:
+    pct_RL: 80.0
+    pct_RL_alem: 50.0
+    deficit_RL80_ha: 16.130212
+    deficit_RL50_ha: 6.719145
+    deficit_RL_ha: 16.130212
+    deficit_RL_alem_ha: 6.719145
+    alem_RL_ha: 22.404257
+    app_recompor_ha: 0.0
+    frente: desbloqueio
+    problema: true
+- cod_imovel: PA-1504950-4D75D02D01564942AE5540A9FD89AC6A
+  entrada:
+    uf: PA
+    bioma: Amazônia
+    ha: 79.958022
+    m_fiscal: 1.0589
+    nao_floresta_ha: 0.0
+    floresta_rem_ha: 18.263439
+    desm_total_ha: 61.694584
+    app_escadinha_ha: 0.0
+  esperado:
+    pct_RL: 80.0
+    pct_RL_alem: 50.0
+    deficit_RL80_ha: 45.702979
+    deficit_RL50_ha: 21.715572
+    deficit_RL_ha: 45.702979
+    deficit_RL_alem_ha: 21.715572
+    alem_RL_ha: 61.694584
+    app_recompor_ha: 0.0
+    frente: desbloqueio
+    problema: true
+- cod_imovel: PA-1504950-4DC8C60C5DA54585BF0E7EB4B46104CF
+  entrada:
+    uf: PA
+    bioma: Amazônia
+    ha: 85.161726
+    m_fiscal: 1.1255
+    nao_floresta_ha: 0.0
+    floresta_rem_ha: 10.539835
+    desm_total_ha: 74.621892
+    app_escadinha_ha: 0.0
+  esperado:
+    pct_RL: 80.0
+    pct_RL_alem: 50.0
+    deficit_RL80_ha: 57.589546
+    deficit_RL50_ha: 32.041028
+    deficit_RL_ha: 57.589546
+    deficit_RL_alem_ha: 32.041028
+    alem_RL_ha: 74.621892
+    app_recompor_ha: 0.0
+    frente: fora_TI
+    problema: true
+- cod_imovel: PA-1504950-4F27A056189041968F802B922BF00E11
+  entrada:
+    uf: PA
+    bioma: Amazônia
+    ha: 82.981719
+    m_fiscal: 1.0988
+    nao_floresta_ha: 0.0
+    floresta_rem_ha: 4.88766
+    desm_total_ha: 78.094059
+    app_escadinha_ha: 0.0
+  esperado:
+    pct_RL: 80.0
+    pct_RL_alem: 50.0
+    deficit_RL80_ha: 61.497715
+    deficit_RL50_ha: 36.603199
+    deficit_RL_ha: 61.497715
+    deficit_RL_alem_ha: 36.603199
+    alem_RL_ha: 78.094059
+    app_recompor_ha: 0.0
+    frente: regularizar_antes
+    problema: false
+- cod_imovel: PA-1504950-4FE8310671204032927151CB227F4F39
+  entrada:
+    uf: PA
+    bioma: Amazônia
+    ha: 705.692712
+    m_fiscal: 9.3531
+    nao_floresta_ha: 0.0
+    floresta_rem_ha: 110.46908
+    desm_total_ha: 595.223632
+    app_escadinha_ha: 0.0
+  esperado:
+    pct_RL: 80.0
+    pct_RL_alem: 50.0
+    deficit_RL80_ha: 454.08509
+    deficit_RL50_ha: 242.377276
+    deficit_RL_ha: 454.08509
+    deficit_RL_alem_ha: 242.377276
+    alem_RL_ha: 352.846356
+    app_recompor_ha: 0.0
+    frente: desbloqueio
+    problema: true
+- cod_imovel: PA-1504950-508C67099D164E0581650983A8CC2059
+  entrada:
+    uf: PA
+    bioma: Amazônia
+    ha: 4180.072856
+    m_fiscal: 56.0647
+    nao_floresta_ha: 0.0
+    floresta_rem_ha: 1111.634919
+    desm_total_ha: 3068.437937
+    app_escadinha_ha: 0.0
+  esperado:
+    pct_RL: 80.0
+    pct_RL_alem: 50.0
+    deficit_RL80_ha: 2232.423366
+    deficit_RL50_ha: 978.401509
+    deficit_RL_ha: 2232.423366
+    deficit_RL_alem_ha: 978.401509
+    alem_RL_ha: 2090.036428
+    app_recompor_ha: 0.0
+    frente: carbono
+    problema: false
+- cod_imovel: PA-1504950-531268B5F0FE4DF7BB67852FFEFA5BC8
+  entrada:
+    uf: PA
+    bioma: Amazônia
+    ha: 65.345686
+    m_fiscal: 0.865
+    nao_floresta_ha: 0.0
+    floresta_rem_ha: 0.0
+    desm_total_ha: 65.345686
+    app_escadinha_ha: 0.0
+  esperado:
+    pct_RL: 80.0
+    pct_RL_alem: 50.0
+    deficit_RL80_ha: 52.276549
+    deficit_RL50_ha: 32.672843
+    deficit_RL_ha: 52.276549
+    deficit_RL_alem_ha: 32.672843
+    alem_RL_ha: 65.345686
+    app_recompor_ha: 0.0
+    frente: carbono
+    problema: false
+- cod_imovel: PA-1504950-550B2E1993064638BDCE9A6740B7DB0E
+  entrada:
+    uf: PA
+    bioma: Amazônia
+    ha: 22389.40209
+    m_fiscal: 317.6679
+    nao_floresta_ha: 10.042281
+    floresta_rem_ha: 16194.419172
+    desm_total_ha: 6184.940636
+    app_escadinha_ha: 3.900761
+  esperado:
+    pct_RL: 80.0
+    pct_RL_alem: 50.0
+    deficit_RL80_ha: 1709.068675
+    deficit_RL50_ha: 0.0
+    deficit_RL_ha: 1709.068675
+    deficit_RL_alem_ha: 0.0
+    alem_RL_ha: 6184.940636
+    app_recompor_ha: 3.900761
+    frente: carbono_revisar_desm10anos
+    problema: false
+- cod_imovel: PA-1504950-61EEA68766C74375BC8A98A861299DD6
+  entrada:
+    uf: PA
+    bioma: Amazônia
+    ha: 0.0
+    m_fiscal: 0.0
+    nao_floresta_ha: 0.0
+    floresta_rem_ha: 0.0
+    desm_total_ha: 0.0
+    app_escadinha_ha: 0.0
+  esperado:
+    pct_RL: 80.0
+    pct_RL_alem: 50.0
+    deficit_RL80_ha: 0.0
+    deficit_RL50_ha: 0.0
+    deficit_RL_ha: 0.0
+    deficit_RL_alem_ha: 0.0
+    alem_RL_ha: 0.0
+    app_recompor_ha: 0.0
+    frente: silvipastoril
+    problema: false
+- cod_imovel: PA-1504950-745F9B5FCF8A4F20888A928E30F9247E
+  entrada:
+    uf: PA
+    bioma: Amazônia
+    ha: 509.802744
+    m_fiscal: 6.7514
+    nao_floresta_ha: 0.0
+    floresta_rem_ha: 0.0
+    desm_total_ha: 509.802744
+    app_escadinha_ha: 0.0
+  esperado:
+    pct_RL: 80.0
+    pct_RL_alem: 50.0
+    deficit_RL80_ha: 407.842195
+    deficit_RL50_ha: 254.901372
+    deficit_RL_ha: 407.842195
+    deficit_RL_alem_ha: 254.901372
+    alem_RL_ha: 254.901372
+    app_recompor_ha: 0.0
+    frente: regularizar_antes
+    problema: false
+- cod_imovel: PA-1504950-74A39432546843D799F4915907A167D0
+  entrada:
+    uf: PA
+    bioma: Amazônia
+    ha: 26.269991
+    m_fiscal: 0.3479
+    nao_floresta_ha: 0.0
+    floresta_rem_ha: 10.2346
+    desm_total_ha: 16.035391
+    app_escadinha_ha: 0.0
+  esperado:
+    pct_RL: 80.0
+    pct_RL_alem: 50.0
+    deficit_RL80_ha: 10.781393
+    deficit_RL50_ha: 2.900396
+    deficit_RL_ha: 10.781393
+    deficit_RL_alem_ha: 2.900396
+    alem_RL_ha: 16.035391
+    app_recompor_ha: 0.0
+    frente: regularizar_antes
+    problema: false
+- cod_imovel: PA-1504950-7B03E3EBC6C443639DCA25DBAACBCD63
+  entrada:
+    uf: PA
+    bioma: Amazônia
+    ha: 289.738438
+    m_fiscal: 3.8368
+    nao_floresta_ha: 0.0
+    floresta_rem_ha: 0.0
+    desm_total_ha: 289.738438
+    app_escadinha_ha: 0.0
+  esperado:
+    pct_RL: 80.0
+    pct_RL_alem: 50.0
+    deficit_RL80_ha: 231.79075
+    deficit_RL50_ha: 144.869219
+    deficit_RL_ha: 231.79075
+    deficit_RL_alem_ha: 144.869219
+    alem_RL_ha: 289.738438
+    app_recompor_ha: 0.0
+    frente: carbono
+    problema: false
+- cod_imovel: PA-1504950-8050C16E26A04DDDAF00E73918585571
+  entrada:
+    uf: PA
+    bioma: Amazônia
+    ha: 300.092818
+    m_fiscal: 3.9772
+    nao_floresta_ha: 0.0
+    floresta_rem_ha: 8.591872
+    desm_total_ha: 291.500945
+    app_escadinha_ha: 0.0
+  esperado:
+    pct_RL: 80.0
+    pct_RL_alem: 50.0
+    deficit_RL80_ha: 231.482382
+    deficit_RL50_ha: 141.454537
+    deficit_RL_ha: 231.482382
+    deficit_RL_alem_ha: 141.454537
+    alem_RL_ha: 291.500945
+    app_recompor_ha: 0.0
+    frente: carbono
+    problema: false
+- cod_imovel: PA-1504950-822EC66B60B548FC9A2F3BDD929646CD
+  entrada:
+    uf: PA
+    bioma: Amazônia
+    ha: 227.502856
+    m_fiscal: 3.0136
+    nao_floresta_ha: 0.0
+    floresta_rem_ha: 186.817944
+    desm_total_ha: 40.684912
+    app_escadinha_ha: 0.0
+  esperado:
+    pct_RL: 80.0
+    pct_RL_alem: 50.0
+    deficit_RL80_ha: 0.0
+    deficit_RL50_ha: 0.0
+    deficit_RL_ha: 0.0
+    deficit_RL_alem_ha: 0.0
+    alem_RL_ha: 40.684912
+    app_recompor_ha: 0.0
+    frente: desbloqueio
+    problema: true
+- cod_imovel: PA-1504950-829151032E7A47C2BAB63ED0D7A66BDD
+  entrada:
+    uf: PA
+    bioma: Amazônia
+    ha: 243.692037
+    m_fiscal: 3.2294
+    nao_floresta_ha: 0.0
+    floresta_rem_ha: 0.503656
+    desm_total_ha: 243.188381
+    app_escadinha_ha: 0.0
+  esperado:
+    pct_RL: 80.0
+    pct_RL_alem: 50.0
+    deficit_RL80_ha: 194.449974
+    deficit_RL50_ha: 121.342362
+    deficit_RL_ha: 194.449974
+    deficit_RL_alem_ha: 121.342362
+    alem_RL_ha: 243.188381
+    app_recompor_ha: 0.0
+    frente: desbloqueio
+    problema: true
+- cod_imovel: PA-1504950-8729123FE4A14636A7C7B7595E5C40EE
+  entrada:
+    uf: PA
+    bioma: Amazônia
+    ha: 289.705957
+    m_fiscal: 3.839
+    nao_floresta_ha: 0.0
+    floresta_rem_ha: 2.327675
+    desm_total_ha: 287.378283
+    app_escadinha_ha: 0.0
+  esperado:
+    pct_RL: 80.0
+    pct_RL_alem: 50.0
+    deficit_RL80_ha: 229.437091
+    deficit_RL50_ha: 142.525304
+    deficit_RL_ha: 229.437091
+    deficit_RL_alem_ha: 142.525304
+    alem_RL_ha: 287.378283
+    app_recompor_ha: 0.0
+    frente: carbono_revisar_desm10anos
+    problema: false
+- cod_imovel: PA-1504950-8DD89483E31943FCB6072D709D365151
+  entrada:
+    uf: PA
+    bioma: Amazônia
+    ha: 2490.699663
+    m_fiscal: 33.6582
+    nao_floresta_ha: 0.0
+    floresta_rem_ha: 822.789461
+    desm_total_ha: 1667.910203
+    app_escadinha_ha: 0.0
+  esperado:
+    pct_RL: 80.0
+    pct_RL_alem: 50.0
+    deficit_RL80_ha: 1169.77027
+    deficit_RL50_ha: 422.560371
+    deficit_RL_ha: 1169.77027
+    deficit_RL_alem_ha: 422.560371
+    alem_RL_ha: 1245.349832
+    app_recompor_ha: 0.0
+    frente: carbono
+    problema: false
+- cod_imovel: PA-1504950-8F6E308394F945A299EAD2EA6B5BD55A
+  entrada:
+    uf: PA
+    bioma: Amazônia
+    ha: 3.0e-06
+    m_fiscal: 0.0
+    nao_floresta_ha: 0.0
+    floresta_rem_ha: 0.0
+    desm_total_ha: 3.0e-06
+    app_escadinha_ha: 0.0
+  esperado:
+    pct_RL: 80.0
+    pct_RL_alem: 50.0
+    deficit_RL80_ha: 2.0e-06
+    deficit_RL50_ha: 2.0e-06
+    deficit_RL_ha: 2.0e-06
+    deficit_RL_alem_ha: 2.0e-06
+    alem_RL_ha: 3.0e-06
+    app_recompor_ha: 0.0
+    frente: silvipastoril
+    problema: false
+- cod_imovel: PA-1504950-92A9F12226844EECA158FEF4134989B4
+  entrada:
+    uf: PA
+    bioma: Amazônia
+    ha: 38.7331
+    m_fiscal: 0.5135
+    nao_floresta_ha: 0.0
+    floresta_rem_ha: 0.0
+    desm_total_ha: 38.7331
+    app_escadinha_ha: 0.0
+  esperado:
+    pct_RL: 80.0
+    pct_RL_alem: 50.0
+    deficit_RL80_ha: 30.98648
+    deficit_RL50_ha: 19.36655
+    deficit_RL_ha: 30.98648
+    deficit_RL_alem_ha: 19.36655
+    alem_RL_ha: 38.7331
+    app_recompor_ha: 0.0
+    frente: assentamento_agrupado
+    problema: false
+- cod_imovel: PA-1504950-93D23BD2321E4F268F522908FCAC8C7A
+  entrada:
+    uf: PA
+    bioma: Amazônia
+    ha: 1053.500398
+    m_fiscal: 13.9653
+    nao_floresta_ha: 0.0
+    floresta_rem_ha: 509.26078
+    desm_total_ha: 544.239618
+    app_escadinha_ha: 0.0
+  esperado:
+    pct_RL: 80.0
+    pct_RL_alem: 50.0
+    deficit_RL80_ha: 333.539539
+    deficit_RL50_ha: 17.489419
+    deficit_RL_ha: 333.539539
+    deficit_RL_alem_ha: 17.489419
+    alem_RL_ha: 526.750199
+    app_recompor_ha: 0.0
+    frente: desbloqueio
+    problema: true
+- cod_imovel: PA-1504950-9CA65C24738443439216A41648F09F1E
+  entrada:
+    uf: PA
+    bioma: Amazônia
+    ha: 0.000101
+    m_fiscal: 0.0
+    nao_floresta_ha: 0.0
+    floresta_rem_ha: 0.0
+    desm_total_ha: 0.000101
+    app_escadinha_ha: 0.0
+  esperado:
+    pct_RL: 80.0
+    pct_RL_alem: 50.0
+    deficit_RL80_ha: 8.1e-05
+    deficit_RL50_ha: 5.0e-05
+    deficit_RL_ha: 8.1e-05
+    deficit_RL_alem_ha: 5.0e-05
+    alem_RL_ha: 0.000101
+    app_recompor_ha: 0.0
+    frente: silvipastoril
+    problema: false
+- cod_imovel: PA-1504950-9EAC9CCA35954E97A6E73E3760936F50
+  entrada:
+    uf: PA
+    bioma: Amazônia
+    ha: 45.730826
+    m_fiscal: 0.6061
+    nao_floresta_ha: 0.0
+    floresta_rem_ha: 2.90801
+    desm_total_ha: 42.822817
+    app_escadinha_ha: 0.0
+  esperado:
+    pct_RL: 80.0
+    pct_RL_alem: 50.0
+    deficit_RL80_ha: 33.676651
+    deficit_RL50_ha: 19.957403
+    deficit_RL_ha: 33.676651
+    deficit_RL_alem_ha: 19.957403
+    alem_RL_ha: 42.822817
+    app_recompor_ha: 0.0
+    frente: desbloqueio
+    problema: true
+- cod_imovel: PA-1504950-A03D305322264160BB80EAB51CE1C25B
+  entrada:
+    uf: PA
+    bioma: Amazônia
+    ha: 189.104379
+    m_fiscal: 2.5032
+    nao_floresta_ha: 0.0
+    floresta_rem_ha: 0.0
+    desm_total_ha: 189.104379
+    app_escadinha_ha: 0.0
+  esperado:
+    pct_RL: 80.0
+    pct_RL_alem: 50.0
+    deficit_RL80_ha: 151.283503
+    deficit_RL50_ha: 94.55219
+    deficit_RL_ha: 151.283503
+    deficit_RL_alem_ha: 94.55219
+    alem_RL_ha: 189.104379
+    app_recompor_ha: 0.0
+    frente: regularizar_antes
+    problema: false
+- cod_imovel: PA-1504950-A476049F96BE44EE9EDD06B3C76E5171
+  entrada:
+    uf: PA
+    bioma: Amazônia
+    ha: 61.636921
+    m_fiscal: 0.8169
+    nao_floresta_ha: 0.0
+    floresta_rem_ha: 10.130571
+    desm_total_ha: 51.50635
+    app_escadinha_ha: 0.0
+  esperado:
+    pct_RL: 80.0
+    pct_RL_alem: 50.0
+    deficit_RL80_ha: 39.178966
+    deficit_RL50_ha: 20.687889
+    deficit_RL_ha: 39.178966
+    deficit_RL_alem_ha: 20.687889
+    alem_RL_ha: 51.50635
+    app_recompor_ha: 0.0
+    frente: regularizar_antes
+    problema: false
+- cod_imovel: PA-1504950-A91B962DCC3B49B58AF3EE7F14F70554
+  entrada:
+    uf: PA
+    bioma: Amazônia
+    ha: 61.624418
+    m_fiscal: 0.816
+    nao_floresta_ha: 0.0
+    floresta_rem_ha: 36.551908
+    desm_total_ha: 25.07251
+    app_escadinha_ha: 0.0
+  esperado:
+    pct_RL: 80.0
+    pct_RL_alem: 50.0
+    deficit_RL80_ha: 12.747626
+    deficit_RL50_ha: 0.0
+    deficit_RL_ha: 12.747626
+    deficit_RL_alem_ha: 0.0
+    alem_RL_ha: 25.07251
+    app_recompor_ha: 0.0
+    frente: desbloqueio
+    problema: true
+- cod_imovel: PA-1504950-A960C471DA0C4343ADFAFA48FB3197FE
+  entrada:
+    uf: PA
+    bioma: Amazônia
+    ha: 0.016066
+    m_fiscal: 0.0002
+    nao_floresta_ha: 0.0
+    floresta_rem_ha: 0.0
+    desm_total_ha: 0.016066
+    app_escadinha_ha: 0.0
+  esperado:
+    pct_RL: 80.0
+    pct_RL_alem: 50.0
+    deficit_RL80_ha: 0.012853
+    deficit_RL50_ha: 0.008033
+    deficit_RL_ha: 0.012853
+    deficit_RL_alem_ha: 0.008033
+    alem_RL_ha: 0.016066
+    app_recompor_ha: 0.0
+    frente: silvipastoril
+    problema: false
+- cod_imovel: PA-1504950-A9F9747561D54FD2B5DB905C22C844A7
+  entrada:
+    uf: PA
+    bioma: Amazônia
+    ha: 35.292459
+    m_fiscal: 0.4671
+    nao_floresta_ha: 0.0
+    floresta_rem_ha: 0.111458
+    desm_total_ha: 35.181001
+    app_escadinha_ha: 0.0
+  esperado:
+    pct_RL: 80.0
+    pct_RL_alem: 50.0
+    deficit_RL80_ha: 28.122509
+    deficit_RL50_ha: 17.534772
+    deficit_RL_ha: 28.122509
+    deficit_RL_alem_ha: 17.534772
+    alem_RL_ha: 35.181001
+    app_recompor_ha: 0.0
+    frente: regularizar_antes
+    problema: false
+- cod_imovel: PA-1504950-AA3460EEF5B04666BD42CBBBFD7A1A6D
+  entrada:
+    uf: PA
+    bioma: Amazônia
+    ha: 61.622683
+    m_fiscal: 0.8159
+    nao_floresta_ha: 0.0
+    floresta_rem_ha: 2.144316
+    desm_total_ha: 59.478367
+    app_escadinha_ha: 0.0
+  esperado:
+    pct_RL: 80.0
+    pct_RL_alem: 50.0
+    deficit_RL80_ha: 47.153831
+    deficit_RL50_ha: 28.667026
+    deficit_RL_ha: 47.153831
+    deficit_RL_alem_ha: 28.667026
+    alem_RL_ha: 59.478367
+    app_recompor_ha: 0.0
+    frente: desbloqueio
+    problema: true
+- cod_imovel: PA-1504950-AB2DD2F3EF9A48AC9C694B9B9C23A105
+  entrada:
+    uf: PA
+    bioma: Amazônia
+    ha: 151.526693
+    m_fiscal: 2.0057
+    nao_floresta_ha: 0.0
+    floresta_rem_ha: 9.572932
+    desm_total_ha: 141.953761
+    app_escadinha_ha: 0.0
+  esperado:
+    pct_RL: 80.0
+    pct_RL_alem: 50.0
+    deficit_RL80_ha: 111.648422
+    deficit_RL50_ha: 66.190414
+    deficit_RL_ha: 111.648422
+    deficit_RL_alem_ha: 66.190414
+    alem_RL_ha: 141.953761
+    app_recompor_ha: 0.0
+    frente: regularizar_antes
+    problema: false
+- cod_imovel: PA-1504950-ACFB0AD136E64E188CA566B9C7C3F19D
+  entrada:
+    uf: PA
+    bioma: Amazônia
+    ha: 373.443186
+    m_fiscal: 4.9494
+    nao_floresta_ha: 0.0
+    floresta_rem_ha: 0.85955
+    desm_total_ha: 372.583636
+    app_escadinha_ha: 0.0
+  esperado:
+    pct_RL: 80.0
+    pct_RL_alem: 50.0
+    deficit_RL80_ha: 297.894999
+    deficit_RL50_ha: 185.862043
+    deficit_RL_ha: 297.894999
+    deficit_RL_alem_ha: 185.862043
+    alem_RL_ha: 186.721593
+    app_recompor_ha: 0.0
+    frente: carbono
+    problema: false
+- cod_imovel: PA-1504950-AF14ECD1ABD7419DACE72B0E703786BD
+  entrada:
+    uf: PA
+    bioma: Amazônia
+    ha: 90.001838
+    m_fiscal: 1.193
+    nao_floresta_ha: 0.0
+    floresta_rem_ha: 14.870992
+    desm_total_ha: 75.130846
+    app_escadinha_ha: 0.0
+  esperado:
+    pct_RL: 80.0
+    pct_RL_alem: 50.0
+    deficit_RL80_ha: 57.130478
+    deficit_RL50_ha: 30.129927
+    deficit_RL_ha: 57.130478
+    deficit_RL_alem_ha: 30.129927
+    alem_RL_ha: 75.130846
+    app_recompor_ha: 0.0
+    frente: assentamento_agrupado
+    problema: false
+- cod_imovel: PA-1504950-AFC559BFEE0B41ED8F1A257D9254C579
+  entrada:
+    uf: PA
+    bioma: Amazônia
+    ha: 135.52431
+    m_fiscal: 1.7965
+    nao_floresta_ha: 0.0
+    floresta_rem_ha: 0.00602
+    desm_total_ha: 135.51829
+    app_escadinha_ha: 0.0
+  esperado:
+    pct_RL: 80.0
+    pct_RL_alem: 50.0
+    deficit_RL80_ha: 108.413428
+    deficit_RL50_ha: 67.756135
+    deficit_RL_ha: 108.413428
+    deficit_RL_alem_ha: 67.756135
+    alem_RL_ha: 135.51829
+    app_recompor_ha: 0.0
+    frente: desbloqueio
+    problema: true
+- cod_imovel: PA-1504950-B335B8B7B522487383CB4EB63CDD21E8
+  entrada:
+    uf: PA
+    bioma: Amazônia
+    ha: 303.13336
+    m_fiscal: 4.0117
+    nao_floresta_ha: 0.0
+    floresta_rem_ha: 5.551258
+    desm_total_ha: 297.582103
+    app_escadinha_ha: 0.0
+  esperado:
+    pct_RL: 80.0
+    pct_RL_alem: 50.0
+    deficit_RL80_ha: 236.955431
+    deficit_RL50_ha: 146.015423
+    deficit_RL_ha: 236.955431
+    deficit_RL_alem_ha: 146.015423
+    alem_RL_ha: 151.56668
+    app_recompor_ha: 0.0
+    frente: desbloqueio
+    problema: true
+- cod_imovel: PA-1504950-B5456E4BD7C04D87A732BBDB599260D1
+  entrada:
+    uf: PA
+    bioma: Amazônia
+    ha: 109.275006
+    m_fiscal: 1.4486
+    nao_floresta_ha: 0.0
+    floresta_rem_ha: 0.0
+    desm_total_ha: 109.275006
+    app_escadinha_ha: 0.0
+  esperado:
+    pct_RL: 80.0
+    pct_RL_alem: 50.0
+    deficit_RL80_ha: 87.420005
+    deficit_RL50_ha: 54.637503
+    deficit_RL_ha: 87.420005
+    deficit_RL_alem_ha: 54.637503
+    alem_RL_ha: 109.275006
+    app_recompor_ha: 0.0
+    frente: assentamento_agrupado
+    problema: false
+- cod_imovel: PA-1504950-BE23B69806C048FF92D64C1EEE65C910
+  entrada:
+    uf: PA
+    bioma: Amazônia
+    ha: 299.134897
+    m_fiscal: 3.9611
+    nao_floresta_ha: 0.0
+    floresta_rem_ha: 2.426717
+    desm_total_ha: 296.70818
+    app_escadinha_ha: 0.0
+  esperado:
+    pct_RL: 80.0
+    pct_RL_alem: 50.0
+    deficit_RL80_ha: 236.8812
+    deficit_RL50_ha: 147.140731
+    deficit_RL_ha: 236.8812
+    deficit_RL_alem_ha: 147.140731
+    alem_RL_ha: 296.70818
+    app_recompor_ha: 0.0
+    frente: carbono_revisar_desm10anos
+    problema: false
+- cod_imovel: PA-1504950-BF5412EFD59444B3BB26A59E506E1096
+  entrada:
+    uf: PA
+    bioma: Amazônia
+    ha: 283.100923
+    m_fiscal: 3.7486
+    nao_floresta_ha: 0.0
+    floresta_rem_ha: 3.034701
+    desm_total_ha: 280.066222
+    app_escadinha_ha: 0.0
+  esperado:
+    pct_RL: 80.0
+    pct_RL_alem: 50.0
+    deficit_RL80_ha: 223.446038
+    deficit_RL50_ha: 138.515761
+    deficit_RL_ha: 223.446038
+    deficit_RL_alem_ha: 138.515761
+    alem_RL_ha: 280.066222
+    app_recompor_ha: 0.0
+    frente: carbono
+    problema: false
+- cod_imovel: PA-1504950-C37B89E211D741E49257ED9ABE3AEA1B
+  entrada:
+    uf: PA
+    bioma: Amazônia
+    ha: 59.864932
+    m_fiscal: 0.7935
+    nao_floresta_ha: 0.0
+    floresta_rem_ha: 5.839393
+    desm_total_ha: 54.025539
+    app_escadinha_ha: 0.0
+  esperado:
+    pct_RL: 80.0
+    pct_RL_alem: 50.0
+    deficit_RL80_ha: 42.052553
+    deficit_RL50_ha: 24.093073
+    deficit_RL_ha: 42.052553
+    deficit_RL_alem_ha: 24.093073
+    alem_RL_ha: 54.025539
+    app_recompor_ha: 0.0
+    frente: regularizar_antes
+    problema: false
+- cod_imovel: PA-1504950-C547AF0EA31B4D0E8015CBCF33CA916E
+  entrada:
+    uf: PA
+    bioma: Amazônia
+    ha: 62.654551
+    m_fiscal: 0.8304
+    nao_floresta_ha: 0.0
+    floresta_rem_ha: 5.34774
+    desm_total_ha: 57.306811
+    app_escadinha_ha: 0.0
+  esperado:
+    pct_RL: 80.0
+    pct_RL_alem: 50.0
+    deficit_RL80_ha: 44.775901
+    deficit_RL50_ha: 25.979536
+    deficit_RL_ha: 44.775901
+    deficit_RL_alem_ha: 25.979536
+    alem_RL_ha: 57.306811
+    app_recompor_ha: 0.0
+    frente: assentamento_agrupado
+    problema: false
+- cod_imovel: PA-1504950-CD6D8DA739E34685A1BF5DA4D21D027E
+  entrada:
+    uf: PA
+    bioma: Amazônia
+    ha: 254.782559
+    m_fiscal: 3.566
+    nao_floresta_ha: 0.0
+    floresta_rem_ha: 40.755506
+    desm_total_ha: 214.027053
+    app_escadinha_ha: 0.0
+  esperado:
+    pct_RL: 80.0
+    pct_RL_alem: 50.0
+    deficit_RL80_ha: 163.070541
+    deficit_RL50_ha: 86.635773
+    deficit_RL_ha: 163.070541
+    deficit_RL_alem_ha: 86.635773
+    alem_RL_ha: 214.027053
+    app_recompor_ha: 0.0
+    frente: desbloqueio
+    problema: true
+- cod_imovel: PA-1504950-D03B0B3944A74B38834E47AC69531DCF
+  entrada:
+    uf: PA
+    bioma: Amazônia
+    ha: 226.553662
+    m_fiscal: 3.0026
+    nao_floresta_ha: 0.0
+    floresta_rem_ha: 5.503561
+    desm_total_ha: 221.0501
+    app_escadinha_ha: 0.0
+  esperado:
+    pct_RL: 80.0
+    pct_RL_alem: 50.0
+    deficit_RL80_ha: 175.739368
+    deficit_RL50_ha: 107.77327
+    deficit_RL_ha: 175.739368
+    deficit_RL_alem_ha: 107.77327
+    alem_RL_ha: 221.0501
+    app_recompor_ha: 0.0
+    frente: desbloqueio
+    problema: true
+- cod_imovel: PA-1504950-D4FDEB81E7F04C33820A528035523CF1
+  entrada:
+    uf: PA
+    bioma: Amazônia
+    ha: 274.870344
+    m_fiscal: 3.6427
+    nao_floresta_ha: 0.0
+    floresta_rem_ha: 30.741102
+    desm_total_ha: 244.129243
+    app_escadinha_ha: 0.0
+  esperado:
+    pct_RL: 80.0
+    pct_RL_alem: 50.0
+    deficit_RL80_ha: 189.155174
+    deficit_RL50_ha: 106.69407
+    deficit_RL_ha: 189.155174
+    deficit_RL_alem_ha: 106.69407
+    alem_RL_ha: 244.129243
+    app_recompor_ha: 0.0
+    frente: carbono_revisar_desm10anos
+    problema: false
+- cod_imovel: PA-1504950-D5EFD7FCA6084AF8BBFE683A906D34CC
+  entrada:
+    uf: PA
+    bioma: Amazônia
+    ha: 103.59974
+    m_fiscal: 1.3719
+    nao_floresta_ha: 0.0
+    floresta_rem_ha: 0.0
+    desm_total_ha: 103.59974
+    app_escadinha_ha: 0.0
+  esperado:
+    pct_RL: 80.0
+    pct_RL_alem: 50.0
+    deficit_RL80_ha: 82.879792
+    deficit_RL50_ha: 51.79987
+    deficit_RL_ha: 82.879792
+    deficit_RL_alem_ha: 51.79987
+    alem_RL_ha: 103.59974
+    app_recompor_ha: 0.0
+    frente: regularizar_antes
+    problema: false
+- cod_imovel: PA-1504950-D7C7709F80D0497DA2C18AE9DEC1DACC
+  entrada:
+    uf: PA
+    bioma: Amazônia
+    ha: 148.281875
+    m_fiscal: 1.9636
+    nao_floresta_ha: 0.0
+    floresta_rem_ha: 0.0
+    desm_total_ha: 148.281875
+    app_escadinha_ha: 0.0
+  esperado:
+    pct_RL: 80.0
+    pct_RL_alem: 50.0
+    deficit_RL80_ha: 118.6255
+    deficit_RL50_ha: 74.140937
+    deficit_RL_ha: 118.6255
+    deficit_RL_alem_ha: 74.140937
+    alem_RL_ha: 148.281875
+    app_recompor_ha: 0.0
+    frente: carbono
+    problema: false
+- cod_imovel: PA-1504950-D7DB8291CA4C40D2BBAA5C1007E15BF3
+  entrada:
+    uf: PA
+    bioma: Amazônia
+    ha: 35.627411
+    m_fiscal: 0.4718
+    nao_floresta_ha: 0.0
+    floresta_rem_ha: 0.0
+    desm_total_ha: 35.627411
+    app_escadinha_ha: 0.0
+  esperado:
+    pct_RL: 80.0
+    pct_RL_alem: 50.0
+    deficit_RL80_ha: 28.501929
+    deficit_RL50_ha: 17.813705
+    deficit_RL_ha: 28.501929
+    deficit_RL_alem_ha: 17.813705
+    alem_RL_ha: 35.627411
+    app_recompor_ha: 0.0
+    frente: carbono
+    problema: false
+- cod_imovel: PA-1504950-DE94D5606B64443095FCDC81A516077C
+  entrada:
+    uf: PA
+    bioma: Amazônia
+    ha: 586.782784
+    m_fiscal: 7.7765
+    nao_floresta_ha: 0.0
+    floresta_rem_ha: 26.663369
+    desm_total_ha: 560.119415
+    app_escadinha_ha: 0.0
+  esperado:
+    pct_RL: 80.0
+    pct_RL_alem: 50.0
+    deficit_RL80_ha: 442.762858
+    deficit_RL50_ha: 266.728023
+    deficit_RL_ha: 442.762858
+    deficit_RL_alem_ha: 266.728023
+    alem_RL_ha: 293.391392
+    app_recompor_ha: 0.0
+    frente: carbono
+    problema: false
+- cod_imovel: PA-1504950-DEBE8E41552F4721BEC012F5180B82A0
+  entrada:
+    uf: PA
+    bioma: Amazônia
+    ha: 18.493745
+    m_fiscal: 0.2451
+    nao_floresta_ha: 0.0
+    floresta_rem_ha: 0.0
+    desm_total_ha: 18.493745
+    app_escadinha_ha: 0.0
+  esperado:
+    pct_RL: 80.0
+    pct_RL_alem: 50.0
+    deficit_RL80_ha: 14.794996
+    deficit_RL50_ha: 9.246873
+    deficit_RL_ha: 14.794996
+    deficit_RL_alem_ha: 9.246873
+    alem_RL_ha: 18.493745
+    app_recompor_ha: 0.0
+    frente: carbono
+    problema: false
+- cod_imovel: PA-1504950-E0B7C8998307483994C32FA79433CB41
+  entrada:
+    uf: PA
+    bioma: Amazônia
+    ha: 101.272246
+    m_fiscal: 1.3402
+    nao_floresta_ha: 0.0
+    floresta_rem_ha: 48.086932
+    desm_total_ha: 53.185314
+    app_escadinha_ha: 0.0
+  esperado:
+    pct_RL: 80.0
+    pct_RL_alem: 50.0
+    deficit_RL80_ha: 32.930865
+    deficit_RL50_ha: 2.549191
+    deficit_RL_ha: 32.930865
+    deficit_RL_alem_ha: 2.549191
+    alem_RL_ha: 53.185314
+    app_recompor_ha: 0.0
+    frente: desbloqueio
+    problema: true
+- cod_imovel: PA-1504950-E6F318776AAE4A06AA04BA1FA50579A2
+  entrada:
+    uf: PA
+    bioma: Amazônia
+    ha: 146.488118
+    m_fiscal: 1.94
+    nao_floresta_ha: 0.0
+    floresta_rem_ha: 0.0
+    desm_total_ha: 146.488118
+    app_escadinha_ha: 0.0
+  esperado:
+    pct_RL: 80.0
+    pct_RL_alem: 50.0
+    deficit_RL80_ha: 117.190495
+    deficit_RL50_ha: 73.244059
+    deficit_RL_ha: 117.190495
+    deficit_RL_alem_ha: 73.244059
+    alem_RL_ha: 146.488118
+    app_recompor_ha: 0.0
+    frente: carbono
+    problema: false
+- cod_imovel: PA-1504950-EB6FC31902CD4557A1BEB475B9A3E1BF
+  entrada:
+    uf: PA
+    bioma: Amazônia
+    ha: 11.953956
+    m_fiscal: 0.1584
+    nao_floresta_ha: 0.0
+    floresta_rem_ha: 3.443563
+    desm_total_ha: 8.510392
+    app_escadinha_ha: 0.0
+  esperado:
+    pct_RL: 80.0
+    pct_RL_alem: 50.0
+    deficit_RL80_ha: 6.119601
+    deficit_RL50_ha: 2.533414
+    deficit_RL_ha: 6.119601
+    deficit_RL_alem_ha: 2.533414
+    alem_RL_ha: 8.510392
+    app_recompor_ha: 0.0
+    frente: carbono_revisar_desm10anos
+    problema: false
+- cod_imovel: PA-1504950-EDD5271F97D145589A9AE5FA419288C9
+  entrada:
+    uf: PA
+    bioma: Amazônia
+    ha: 114.034187
+    m_fiscal: 1.5115
+    nao_floresta_ha: 0.0
+    floresta_rem_ha: 1.147513
+    desm_total_ha: 112.886674
+    app_escadinha_ha: 0.0
+  esperado:
+    pct_RL: 80.0
+    pct_RL_alem: 50.0
+    deficit_RL80_ha: 90.079837
+    deficit_RL50_ha: 55.869581
+    deficit_RL_ha: 90.079837
+    deficit_RL_alem_ha: 55.869581
+    alem_RL_ha: 112.886674
+    app_recompor_ha: 0.0
+    frente: assentamento_agrupado
+    problema: false
+- cod_imovel: PA-1504950-F807292DCDAC4BD882178177FA855FA2
+  entrada:
+    uf: PA
+    bioma: Amazônia
+    ha: 41.726731
+    m_fiscal: 0.5525
+    nao_floresta_ha: 0.0
+    floresta_rem_ha: 0.0
+    desm_total_ha: 41.726731
+    app_escadinha_ha: 0.0
+  esperado:
+    pct_RL: 80.0
+    pct_RL_alem: 50.0
+    deficit_RL80_ha: 33.381385
+    deficit_RL50_ha: 20.863365
+    deficit_RL_ha: 33.381385
+    deficit_RL_alem_ha: 20.863365
+    alem_RL_ha: 41.726731
+    app_recompor_ha: 0.0
+    frente: regularizar_antes
+    problema: false
+- cod_imovel: PA-1504950-FE97ADA79CD5409D8D0A8BD5759DD179
+  entrada:
+    uf: PA
+    bioma: Amazônia
+    ha: 219.816931
+    m_fiscal: 2.9136
+    nao_floresta_ha: 0.0
+    floresta_rem_ha: 62.868269
+    desm_total_ha: 156.948661
+    app_escadinha_ha: 0.0
+  esperado:
+    pct_RL: 80.0
+    pct_RL_alem: 50.0
+    deficit_RL80_ha: 112.985275
+    deficit_RL50_ha: 47.040196
+    deficit_RL_ha: 112.985275
+    deficit_RL_alem_ha: 47.040196
+    alem_RL_ha: 156.948661
+    app_recompor_ha: 0.0
+    frente: regularizar_antes
+    problema: false

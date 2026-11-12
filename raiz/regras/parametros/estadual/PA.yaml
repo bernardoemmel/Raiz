@@ -1,0 +1,18 @@
+# Camada estadual do Pará (E2 passo 5).
+versao: regras-2026b
+nivel: estadual
+uf: PA
+norma:
+  nome: "ZEE do Pará (Zona Leste e Calha Norte; Zona Oeste) e PRA estadual"
+parametros:
+  rl_percentual_reduzido:
+    valores:
+      - {rotulos: {amazonia_legal: true, vegetacao: floresta}, area: {uf: PA, zona: zee_consolidacao}, valor: 50,
+         artigo: "Lei 12.651, art. 13, I, com o ZEE estadual", urn_frag: null, vigencia_inicio: null, adotado_em: null,
+         pendente: "o art. 13, I, deixa o ZEE reduzir a reserva a 50% para regularização em área consolidada de floresta; falta a lei estadual de cada ZEE do Pará, as zonas onde vale (camada geográfica) e a vigência"}
+  pra_estadual:
+    descricao: Programa de Regularização Ambiental do estado (regras próprias de recomposição)
+    unidade: norma
+    valores:
+      - {rotulos: {}, valor: null, artigo: null, urn_frag: null, vigencia_inicio: null, adotado_em: null,
+         pendente: "levantar o decreto do PRA do Pará e o que ele muda em relação à regra federal (prazos, escadinha, compensação)"}

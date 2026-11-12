@@ -1,0 +1,22 @@
+[package]
+name = "raiz_iov"
+version = "0.1.0"
+edition = "2021"
+description = "Área de interseção imóvel x camada pelo iOverlay, para o caminho novo do funil da Raíz"
+publish = false
+
+[lib]
+name = "raiz_iov"
+crate-type = ["cdylib"]
+
+[dependencies]
+# licenças: i_overlay MIT/Apache-2.0, pyo3 MIT/Apache-2.0, numpy (rust-numpy) BSD-2, rayon MIT/Apache-2.0
+i_overlay = "9.1.0"
+pyo3 = { version = "0.30", features = ["extension-module", "abi3-py312"] }
+numpy = "0.30"
+rayon = "1.12"
+ndarray = "0.17"
+
+[profile.release]
+lto = true
+codegen-units = 1

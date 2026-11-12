@@ -1,0 +1,272 @@
+# Manifesto de camadas da Raíz (E1 passo 1). Uma entrada por fonte pública.
+#
+# tipo:        wfs | arcgis | arquivo (HTTP com ETag) | cog (raster na nuvem) | api_mapbiomas | graphql | sidra | parquet
+# recorte:     municipio | uf | bbox | brasil       (unidade de replicação e de checagem)
+# densidade:   densa (cobre todo pixel: MapBiomas, YbYrá, pasto; soma por janela) | esparsa (poucos polígonos ou
+#              pixels marcados: PRODES, DETER, embargos, alertas, territórios; cruzamento ou 'pixels em polígonos') |
+#              cadastro (a base de imóveis) | tabela (sem geometria). Decide o caminho do funil (E2 passo 3).
+# sinal:       como saber que mudou antes de baixar (campo_data | etag | ano | last_edit | hash | publicado_em | calendario)
+# calendario:  diario | dias_semana [0=seg ... 6=dom] | meses [1-12] | rodizio_uf (cada UF num dia da semana)
+# licenca / pode_treinar: dado sem licença conferida não entra em treino (pode_treinar: false) até alguém conferir.
+# pendente:    o que falta confirmar (endereço, nome de camada); a checagem HEAD avisa quando a rede deixar.
+versao: "2026-11-12"
+
+fontes:
+  - id: sicar_imoveis
+    nome: Cadastro Ambiental Rural, imóveis
+    orgao: SFB
+    tipo: wfs
+    densidade: cadastro
+    url: https://geoserver.car.gov.br/geoserver/sicar/wfs
+    camada: "sicar:sicar_imoveis_{uf}"
+    versao_wfs: "2.0.0"
+    recorte: municipio
+    filtro_municipio: "cod_municipio_ibge={cod}"
+    ordenar_por: cod_imovel
+    chave: cod_imovel
+    pagina: 10000
+    tls_legado: true
+    sinal: {tipo: campo_data, campo: data_atualizacao, reserva: dat_criacao, margem_dias: 2, detectar_por_uf: true}
+    calendario: {rodizio_uf: true}
+    licenca: dado aberto do governo federal (Decreto 8.777/2016)
+    pode_treinar: true
+
+  - id: sigef_parcelas
+    nome: SIGEF, parcelas certificadas
+    orgao: INCRA
+    tipo: wfs
+    densidade: cadastro
+    url: https://geoportal.incra.gov.br/geoserver/ows
+    camada: "geonode:sigef_geo"
+    versao_wfs: "2.0.0"
+    recorte: municipio
+    ordenar_por: parcela_codigo
+    chave: parcela_codigo
+    pagina: 5000
+    sinal: {tipo: campo_data, campo: data_aprovacao, canceladas: anti_juncao_semanal}
+    calendario: {dias_semana: [2]}
+    espelho_externo: {nome: GeoOne/incra-brasil, conferir: sha256}
+    licenca: dado aberto do governo federal (Decreto 8.777/2016)
+    pode_treinar: true
+    pendente: certificacao.incra.gov.br (ZIP do acervo) fora do ar; pedido de LAI em docs/pedidos/lai-incra.md
+
+  - id: ibama_embargos
+    nome: Termos de embargo do Ibama
+    orgao: Ibama
+    tipo: arquivo
+    densidade: esparsa
+    url: https://stibamadadosabertosprd.blob.core.windows.net/dados-abertos/dados/TERMOS_DE_EMBARGO/TERMO_EMBARGO/termo_de_embargo.csv
+    recorte: brasil
+    chave: SEQ_TAD
+    sinal: {tipo: etag, campos_data: [DAT_ULT_ALTERACAO, DAT_ULT_ALTER_GEOM]}
+    calendario: diario
+    descartar_na_entrada: [nome, cpf, cnpj]
+    licenca: dado aberto do governo federal (Decreto 8.777/2016)
+    pode_treinar: true
+
+  - id: ibama_embargos_historico
+    nome: Histórico dos termos de embargo (changelog)
+    orgao: Ibama
+    tipo: arquivo
+    densidade: tabela
+    url: null
+    recorte: brasil
+    sinal: {tipo: etag}
+    calendario: diario
+    descartar_na_entrada: [nome, cpf, cnpj]
+    licenca: dado aberto do governo federal (Decreto 8.777/2016)
+    pode_treinar: true
+    pendente: endereço do termo_embargo_historico.csv no portal de dados abertos do Ibama
+
+  - id: prodes
+    nome: PRODES (desmatamento anual, acumulado, não floresta, hidrografia), por bioma
+    orgao: INPE
+    tipo: wfs
+    densidade: esparsa
+    url: https://terrabrasilis.dpi.inpe.br/geoserver/ows
+    camada: "{espaco}:{camada}"   # espaços e camadas por bioma: motor/raiz_estado.py (BIOMA_WS, AMZ_LEGAL)
+    versao_wfs: "1.0.0"
+    recorte: bbox
+    bloco_graus: 0.5
+    sinal: {tipo: ano, mes_publicacao: 10}
+    calendario: {meses: [10, 11, 12]}
+    licenca: a conferir (TerraBrasilis/INPE)
+    pode_treinar: true
+    pendente: last_update_date.json e nomes de arquivo da área de download do PRODES
+
+  - id: deter
+    nome: DETER (alertas de desmatamento)
+    orgao: INPE
+    tipo: wfs
+    densidade: esparsa
+    url: https://terrabrasilis.dpi.inpe.br/geoserver/ows
+    camada: "deter-amz:deter_amz"
+    versao_wfs: "2.0.0"
+    recorte: uf
+    chave_composta: [gid, view_date]
+    sinal: {tipo: campo_data, campo: view_date, janela_dias: 30}
+    calendario: {dias_semana: [5]}
+    recarga_completa: anual depois do PRODES
+    licenca: a conferir (TerraBrasilis/INPE)
+    pode_treinar: true
+    pendente: confirmar nomes das camadas do DETER Amazônia e Cerrado pelo GetCapabilities
+
+  - id: mapbiomas_plataforma
+    nome: MapBiomas pela API da Plataforma (exportação por ESTADO, GeoTIFF), coletado por motor/raiz_mapbiomas.py
+    orgao: MapBiomas
+    tipo: api_mapbiomas
+    densidade: densa
+    url: https://prd.plataforma.mapbiomas.org/api/v1/brazil
+    cabecalhos: {tenant-id: mapbiomas}
+    categoria_estado: 214
+    categoria_municipio: 230
+    # formato conferido no motor em 12/11/2026: POST /maps/exports -> {"exports":[{"id"}]}; status READY|FAILED|EXPIRED;
+    # download redireciona (302) ao GCS e entrega ZIP ou TIF (conferir os bytes PK). O armazenamento público fechou (403).
+    subtemas:
+      cobertura: coverage_coverage-30m-droufo
+      desmatamento: desmatamento-copia-12xxov_annual-c5i7xj
+      fogo_mensal: fogo-copia-1h7mac_monthly-433exq
+      pasto_idade: pastagem-copia-0dzt61_idade-da-pastagem-drixus
+      pasto_vigor: pastagem-copia-0dzt61_condicao-de-vigor-loj9p9
+    legenda_desmatamento_v5: {1: antrópico, 2: primária, 3: secundária, 4: supressão de primária, 5: recuperação, 6: supressão de secundária, 7: outras}
+    recorte: uf
+    sinal: {tipo: calendario}
+    calendario: {dias_semana: [0]}
+    alternativa: idade da vegetação secundária vem do YbYrá (a exportação falha do lado deles)
+    # sem Earth Engine (PR #5 do motor): o funil lê daqui a cobertura e a vegetação secundária (classes 3 e 5 do
+    # desmatamento v5) para a regeneração; o fogo e a supressão de secundária do ano novo também vêm daqui (mb_*)
+    usos: [regeneracao_do_funil, colunas_mb, fogo_do_ano, supressao_secundaria_do_ano]
+    substitui: exportação anual do Earth Engine (cobertura, desmatamento e secundária v5, fogo, pasto)
+    licenca: a conferir (MapBiomas)
+    pode_treinar: false
+
+  - id: mapbiomas_alerta
+    nome: MapBiomas Alerta (desmatamento validado)
+    orgao: MapBiomas
+    tipo: graphql
+    densidade: esparsa
+    url: https://plataforma.alerta.mapbiomas.org/api/v2/graphql
+    credenciais: [MAPBIOMAS_ALERTA_EMAIL, MAPBIOMAS_ALERTA_SENHA]
+    recorte: uf
+    sinal: {tipo: publicado_em, janela_dias: 35, reler: statusAt}
+    calendario: {dias_semana: [0]}
+    licenca: a conferir (MapBiomas Alerta)
+    pode_treinar: false
+
+  - id: ybyra_secundaria
+    nome: YbYrá-BR v8.1, vegetação secundária (idade e incremento)
+    orgao: YbYrá-BR (Source Cooperative)
+    tipo: cog
+    densidade: densa
+    url: https://data.source.coop/ybyra-br/secondary-forest/{produto}/ybyra_secondary_forest_{produto}_brazil_v8_1_{ano}.tif
+    produtos: [age, increment]
+    anos: [2024]
+    recorte: brasil
+    sinal: {tipo: etag}
+    calendario: {meses: [1, 7]}
+    licenca: a conferir (YbYrá-BR)
+    pode_treinar: false
+    pendente: os outros dois produtos do YbYrá citados no plano
+
+  - id: gpw_pasto
+    nome: Global Pasture Watch, altura da vegetação baixa e uGPP
+    orgao: OpenGeoHub
+    tipo: cog
+    densidade: densa
+    url: https://s3.opengeohub.org/gpw/arco/gpw_{produto}_30m_s_{ano}0101_{ano}1231_go_epsg.4326_v1.tif
+    produtos: [short.veg.height_egbt_m, ugpp_lue.model_m]
+    anos: [2024]
+    recorte: brasil
+    sinal: {tipo: etag}
+    calendario: {meses: [1, 7]}
+    licenca: a conferir (OpenGeoHub)
+    pode_treinar: false
+
+  - id: jrc_tmf
+    nome: JRC Tropical Moist Forest (mudança anual da floresta úmida), coletado por motor/raiz_extras_direto.py
+    orgao: Joint Research Centre da Comissão Europeia (espelho COG na Source Cooperative, valores idênticos ao JRC)
+    tipo: cog
+    densidade: densa
+    url: https://data.source.coop/epoch/jrc-tmf/stac/AnnualChange_stac.parquet
+    # o índice STAC aponta um COG por bloco (AnnualChange_<ano>), lido por HTTP Range só nos blocos do município;
+    # classes: 1 intacta, 2 degradada, 3 desmatada, 4 em regeneração, 5 água, 6 outro uso
+    anos: [2025]
+    recorte: brasil
+    sinal: {tipo: etag}
+    calendario: {meses: [2]}
+    substitui: TMF exportado do Earth Engine
+    licenca: JRC/Comissão Europeia, reuso aberto com citação da fonte (conferir o termo exato)
+    pode_treinar: false
+
+  - id: wri_causas_perda
+    nome: Causas da perda de floresta 2001-2024 (WRI / Google DeepMind v1.2, 1 km), coletado por motor/raiz_extras_direto.py
+    orgao: World Resources Institute e Google DeepMind (Zenodo 15366671)
+    tipo: arquivo
+    densidade: densa
+    url: https://zenodo.org/api/records/15366671/files/drivers_forest_loss_1km_2001_2024_v1_2.tif/content
+    # arquivo único de 295 MB, baixado uma vez para cache/drivers/; banda 1 = causa dominante (1 a 7, 255 sem perda)
+    recorte: brasil
+    sinal: {tipo: etag}
+    calendario: {meses: [3]}
+    substitui: causa da perda exportada do Earth Engine
+    licenca: CC BY 4.0
+    pode_treinar: true
+
+  - id: geobr_territorios
+    nome: Quilombos (INCRA), terras indígenas (FUNAI) e unidades de conservação (CNUC), via geobr/Ipea
+    orgao: Ipea (geobr)
+    tipo: parquet
+    densidade: esparsa
+    url: https://www.ipea.gov.br/geobr/data_v2.0.0/{arquivo}
+    arquivos: [quilombolalands_202605.parquet, indigenouslands_2025.parquet, conservationunits_202503.parquet]
+    recorte: brasil
+    sinal: {tipo: etag}
+    calendario: {meses: [1, 4, 7, 10]}
+    licenca: a conferir (geobr é MIT; os dados seguem a licença de cada órgão)
+    pode_treinar: true
+
+  - id: ibge_ppm
+    nome: Pesquisa da Pecuária Municipal (efetivo dos rebanhos)
+    orgao: IBGE
+    tipo: sidra
+    densidade: tabela
+    url: https://apisidra.ibge.gov.br/values/t/3939
+    produto_calendario: 9107
+    url_calendario: https://servicodados.ibge.gov.br/api/v3/calendario/9107
+    recorte: municipio
+    sinal: {tipo: calendario}
+    calendario: gatilho_ibge
+    licenca: dado aberto do governo federal (Decreto 8.777/2016)
+    pode_treinar: true
+    pendente: conferir robots e termos do servicodados.ibge.gov.br antes de ligar o gatilho
+
+  - id: sigmine
+    nome: SIGMINE (processos minerários)
+    orgao: ANM
+    tipo: arquivo
+    densidade: esparsa
+    url: null
+    recorte: brasil
+    sinal: {tipo: etag}
+    calendario: {dias_semana: [3]}
+    licenca: dado aberto do governo federal (Decreto 8.777/2016)
+    pode_treinar: true
+    pendente: endereço do conjunto em dadosabertos.anm.gov.br (o SIGMINE mudou para lá)
+
+referencias:
+  # dados de pesquisa usados pelas contas; não são coletados, mas a licença decide o uso
+  - id: groa
+    nome: GROA (Global Reforestation Opportunity Assessment), taxas de acúmulo de carbono
+    licenca: CC BY 4.0
+    pode_treinar: true
+    uso: calibração do carbono (E3)
+  - id: extras_historico_ee
+    nome: Histórico exportado uma vez do Earth Engine (extras_<mun>.csv do motor)
+    licenca: a conferir (MapBiomas Fogo e YbYrá)
+    pode_treinar: false
+    uso: histórico fixo (fogo 1985-2024, perdas da secundária 1987-2024, vigor e idade do pasto); não é coletado de novo, o ano novo vem da API do MapBiomas (colunas mb_*)
+  - id: heinrich_2021
+    nome: Heinrich et al. 2021 (Nature Communications), taxas de regeneração na Amazônia
+    licenca: não comercial
+    pode_treinar: false
+    uso: só comparação, fora do treino

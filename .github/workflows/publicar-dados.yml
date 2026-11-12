@@ -58,7 +58,7 @@ jobs:
           RAIZ_REPO: ${{ github.repository }}
         run: |
           cd dados-entrada
-          for f in *.tar.gz; do
+          for f in *.tar.gz *.kml *.geojson; do
             [ -e "$f" ] || continue
             gh release upload dados "$f" --clobber
           done
