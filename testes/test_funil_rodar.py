@@ -136,6 +136,44 @@ def test_rodar_municipio_com_lotes(motor, tmp_path, monkeypatch, banco_url):
 
 
 @pytest.mark.banco
+def test_extras_direto_vai_para_o_banco(motor, tmp_path, monkeypatch, banco_url):
+    """Tarefa extras_direto (TMF e causa da perda, sem Earth Engine) com o módulo do motor trocado por um falso."""
+    import types
+
+    R = motor
+    pasta = tmp_path / "saida" / "PA"
+    pasta.mkdir(parents=True)
+    amostra = pd.read_csv(AMOSTRA / "imoveis_1504950.csv")
+    amostra.to_csv(pasta / f"imoveis_{COD}.csv", index=False)
+    falso = types.SimpleNamespace(
+        TMF_ANO=2025,
+        tmf_tiles=lambda: "blocos",
+        drivers=lambda: "causas.tif",
+        municipio=lambda uf, cod, p, tiles, arq: pd.DataFrame(
+            {"cod_imovel": amostra.cod_imovel, "tmf_classe": 4, "tmf_floresta_pct": 40.0, "causa_perda": 255}
+        ),
+    )
+    monkeypatch.setitem(sys.modules, "raiz_extras_direto", falso)
+    monkeypatch.setattr(RD, "_R", R)
+    monkeypatch.setattr(RD, "_ENGINE", None)
+    eng = create_engine(banco_url)
+    with eng.begin() as c:
+        c.execute(text("truncate funil.rodada, funil.imovel, operacao.lote cascade"))
+    op = RD.Opcoes("pa", tarefas=("funil", "extras_direto", "carga"), data_corte=dt.date(2026, 11, 20),
+                   banco_url=banco_url)  # fmt: skip
+    hc = Healthchecks("", "https://hc.exemplo", "raiz-{tarefa}", None)
+    r = RD.rodar_municipio(COD, op, hc)
+    assert r == {"funil": "pulado", "extras_direto": "sucesso", "carga": "sucesso"}
+    with eng.connect() as c:
+        n, classe = c.execute(
+            text("""select count(*), min(atributos->>'tmf_classe') from funil.complemento_imovel
+                    where tipo = 'extras_direto'""")
+        ).one()
+    assert n == len(amostra) and float(classe) == 4
+    eng.dispose()
+
+
+@pytest.mark.banco
 def test_falha_vai_para_o_healthchecks_mascarada(motor, tmp_path, monkeypatch, banco_url):
     R = motor
 

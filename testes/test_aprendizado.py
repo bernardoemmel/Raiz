@@ -45,12 +45,15 @@ class TestNoBanco:
         # data de corte só deste teste: o mesmo arquivo com a mesma data daria o mesmo lote (já congelado)
         corte = CORTE + dt.timedelta(days=1)
         res = carregar_pasta(engine, AMOSTRA, corte)
-        r = next(x for x in res if x.tipo == "municipio")
+        r = next(x for x in res if x.tipo == "municipio" and x.cod_municipio == 1504950)
         df = pd.read_csv(AMOSTRA / "imoveis_1504950.csv")
         esperado = sum(df[a.coluna if a.coluna in df else a.coluna.replace("_rl", "_RL")].notna().sum()
                        for a in ALVOS_MOTOR if a.tabela == "resultado"
                        and (a.coluna in df or a.coluna.replace("_rl", "_RL") in df))  # fmt: skip
         esperado += 880  # filtro_territorial
+        extras = AMOSTRA / "extras_1504950.csv"  # persistencia_nota vem do histórico do Earth Engine, se houver
+        if extras.exists():
+            esperado += int(pd.read_csv(extras).get("persistencia_nota", pd.Series(dtype=float)).notna().sum())
         with engine.connect() as c:
             n = c.execute(text("select count(*) from aprendizado.previsao where lote_hash = :h"),
                           {"h": r.lote_previsoes}).scalar()  # fmt: skip

@@ -137,7 +137,8 @@ CERTIDOES: dict[str, str] = {
 }
 
 # arquivos sem contrato tipado ainda: tudo vai para atributos, uma linha por imóvel
-COMPLEMENTOS = ("extras", "direto", "ajustes", "alertas")
+# (extras = histórico fixo exportado uma vez do Earth Engine; extras_direto = TMF e causa da perda, sem Earth Engine)
+COMPLEMENTOS = ("extras", "extras_direto", "direto", "ajustes", "alertas")
 
 CONTRATOS: dict[str, dict[str, str]] = {
     "imoveis": IMOVEIS,
@@ -215,7 +216,8 @@ class Leitura:
 
 def tipo_do_arquivo(arquivo: str | Path) -> str | None:
     nome = Path(arquivo).name
-    for tipo in CONTRATOS:
+    # o tipo mais longo primeiro: extras_direto_<mun>.csv não é extras_<mun>.csv
+    for tipo in sorted(CONTRATOS, key=len, reverse=True):
         if nome.startswith(tipo + "_") and nome.endswith(".csv"):
             return tipo
     return None
@@ -362,3 +364,44 @@ def ler_mapbiomas(arquivo: str | Path) -> LeituraMapBiomas:
     )
     longa = longa[longa.valor_num.notna() | longa.valor_texto.notna()].reset_index(drop=True)
     return LeituraMapBiomas(str(arquivo), longa, novos, avisos)
+
+
+# --- extras_direto_<mun>.csv (motor/raiz_extras_direto.py, sem Earth Engine): colunas opcionais ----------------------
+# JRC TMF 2025 (classe dominante e % por imóvel) e causa dominante da perda de floresta (WRI/Google DeepMind v1.2).
+EXTRAS_DIRETO_CONHECIDAS = ("tmf_classe", "tmf_floresta_pct", "tmf_regeneracao_pct", "causa_perda")
+TMF_CLASSES = {
+    1: "floresta intacta",
+    2: "floresta degradada",
+    3: "desmatada",
+    4: "em regeneração",
+    5: "água",
+    6: "outro uso",
+}
+CAUSAS_PERDA = {
+    1: "agricultura permanente",
+    2: "commodities",
+    3: "agricultura itinerante",
+    4: "extração de madeira",
+    5: "incêndio",
+    6: "assentamento e infraestrutura",
+    7: "perturbação natural",
+}
+SEM_PERDA = 255
+
+
+def ler_extras_direto(arquivo: str | Path) -> pd.DataFrame:
+    """Lê pelo nome as colunas conhecidas que existirem (todas opcionais), como número, e acrescenta o texto da classe
+    do TMF e da causa da perda. causa_perda 255 (sem perda) vira vazio. Coluna desconhecida passa como veio."""
+    df = pd.read_csv(arquivo, dtype=str, low_memory=False)
+    if "cod_imovel" not in df:
+        raise ValueError(f"{Path(arquivo).name}: falta a chave cod_imovel")
+    df, _ = remover_colunas_pessoais(df)
+    for c in EXTRAS_DIRETO_CONHECIDAS:
+        if c in df:
+            df[c] = pd.to_numeric(df[c], errors="coerce")
+    if "causa_perda" in df:
+        df["causa_perda"] = df["causa_perda"].where(df["causa_perda"] != SEM_PERDA)
+        df["causa_perda_texto"] = df["causa_perda"].map(CAUSAS_PERDA)
+    if "tmf_classe" in df:
+        df["tmf_classe_texto"] = df["tmf_classe"].map(TMF_CLASSES)
+    return df

@@ -133,7 +133,9 @@ app.add_typer(funil, name="funil")
 def funil_rodar(
     uf: str,
     municipios: Annotated[list[int] | None, typer.Argument(help="códigos IBGE; sem nada, a UF inteira")] = None,
-    tarefas: Annotated[str, typer.Option(help="separadas por vírgula")] = "funil,filtros,direto,mapbiomas,carga",
+    tarefas: Annotated[
+        str, typer.Option(help="separadas por vírgula")
+    ] = "funil,filtros,direto,mapbiomas,extras_direto,carga",
     lanes: Annotated[int, typer.Option(help="municípios ao mesmo tempo")] = 3,
     refazer: bool = False,
     data_corte: Annotated[str | None, typer.Option(help="AAAA-MM-DD; padrão: hoje")] = None,

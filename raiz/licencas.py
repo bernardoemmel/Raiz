@@ -1,4 +1,4 @@
-"""Checagem de licenças das dependências (Python instaladas e npm em web/node_modules).
+"""Checagem de licenças das dependências (Python instaladas, npm do front e crates Rust).
 
 Regra do CLAUDE.md: proibidas AGPL, EUPL, SSPL, BSL e qualquer não comercial (NC). GPL só em serviço no servidor,
 nunca embutido no produto distribuído: cada pacote GPL precisa estar em scripts/licencas.toml [gpl_no_servidor] com o

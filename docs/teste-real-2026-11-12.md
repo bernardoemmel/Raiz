@@ -41,4 +41,10 @@ Diferenças, todas de entrada que faltou aqui, não do produto:
    O `raiz_mapbiomas.py` novo entrega as colunas `mb_*`, mas não a distância à floresta que a regeneração usa.
    Decisão do motor (não editado aqui).
 
+   **Resolvido no PR #5 do motor (sem Earth Engine)**, rodado de novo aqui no mesmo dia: a regeneração lê cobertura e
+   desmatamento v5 da API da Plataforma MapBiomas. Resultado em 1504950: carbono 209.708 tCO2/ano (antes 443.546;
+   amostra, ainda da exportação do Earth Engine, 222.694). As frentes ficam iguais nos 880 imóveis. A diferença de
+   5,8% vem da área de pasto (37.736 ha pela API, coleção 11 de 2025, contra 40.325 ha na exportação antiga), não
+   do cálculo. TMF e causa da perda (`extras_direto_1504950.csv`) batem com a amostra em 880 de 880 imóveis.
+
 Colunas novas no real: app_escadinha_ha e app_recompor_ha (a amostra é anterior à escadinha).

@@ -133,7 +133,13 @@ def test_checagem_avisa_mudanca_e_falta(banco_url):
         assert pings[-1][0] == "/k/raiz-checagem/fail" and "FALTA gpw_pasto" in pings[-1][1]
         etag["v"] = '"2"'
         segunda = checar(c, s, hc=hc)
-        assert {x.fonte for x in segunda if x.mudou} == {"ibama_embargos", "ybyra_secundaria", "geobr_territorios"}
+        assert {x.fonte for x in segunda if x.mudou} == {
+            "ibama_embargos",
+            "ybyra_secundaria",
+            "geobr_territorios",
+            "jrc_tmf",
+            "wri_causas_perda",
+        }
         n = c.execute(text("select count(*) from coleta.evento where tipo = 'mudaram'")).scalar()
         assert n == sum(1 for x in segunda if x.mudou)
     eng.dispose()

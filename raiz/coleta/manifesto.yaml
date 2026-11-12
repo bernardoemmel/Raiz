@@ -133,6 +133,10 @@ fontes:
     sinal: {tipo: calendario}
     calendario: {dias_semana: [0]}
     alternativa: idade da vegetação secundária vem do YbYrá (a exportação falha do lado deles)
+    # sem Earth Engine (PR #5 do motor): o funil lê daqui a cobertura e a vegetação secundária (classes 3 e 5 do
+    # desmatamento v5) para a regeneração; o fogo e a supressão de secundária do ano novo também vêm daqui (mb_*)
+    usos: [regeneracao_do_funil, colunas_mb, fogo_do_ano, supressao_secundaria_do_ano]
+    substitui: exportação anual do Earth Engine (cobertura, desmatamento e secundária v5, fogo, pasto)
     licenca: a conferir (MapBiomas)
     pode_treinar: false
 
@@ -177,6 +181,36 @@ fontes:
     calendario: {meses: [1, 7]}
     licenca: a conferir (OpenGeoHub)
     pode_treinar: false
+
+  - id: jrc_tmf
+    nome: JRC Tropical Moist Forest (mudança anual da floresta úmida), coletado por motor/raiz_extras_direto.py
+    orgao: Joint Research Centre da Comissão Europeia (espelho COG na Source Cooperative, valores idênticos ao JRC)
+    tipo: cog
+    densidade: densa
+    url: https://data.source.coop/epoch/jrc-tmf/stac/AnnualChange_stac.parquet
+    # o índice STAC aponta um COG por bloco (AnnualChange_<ano>), lido por HTTP Range só nos blocos do município;
+    # classes: 1 intacta, 2 degradada, 3 desmatada, 4 em regeneração, 5 água, 6 outro uso
+    anos: [2025]
+    recorte: brasil
+    sinal: {tipo: etag}
+    calendario: {meses: [2]}
+    substitui: TMF exportado do Earth Engine
+    licenca: JRC/Comissão Europeia, reuso aberto com citação da fonte (conferir o termo exato)
+    pode_treinar: false
+
+  - id: wri_causas_perda
+    nome: Causas da perda de floresta 2001-2024 (WRI / Google DeepMind v1.2, 1 km), coletado por motor/raiz_extras_direto.py
+    orgao: World Resources Institute e Google DeepMind (Zenodo 15366671)
+    tipo: arquivo
+    densidade: densa
+    url: https://zenodo.org/api/records/15366671/files/drivers_forest_loss_1km_2001_2024_v1_2.tif/content
+    # arquivo único de 295 MB, baixado uma vez para cache/drivers/; banda 1 = causa dominante (1 a 7, 255 sem perda)
+    recorte: brasil
+    sinal: {tipo: etag}
+    calendario: {meses: [3]}
+    substitui: causa da perda exportada do Earth Engine
+    licenca: CC BY 4.0
+    pode_treinar: true
 
   - id: geobr_territorios
     nome: Quilombos (INCRA), terras indígenas (FUNAI) e unidades de conservação (CNUC), via geobr/Ipea
@@ -226,6 +260,11 @@ referencias:
     licenca: CC BY 4.0
     pode_treinar: true
     uso: calibração do carbono (E3)
+  - id: extras_historico_ee
+    nome: Histórico exportado uma vez do Earth Engine (extras_<mun>.csv do motor)
+    licenca: a conferir (MapBiomas Fogo e YbYrá)
+    pode_treinar: false
+    uso: histórico fixo (fogo 1985-2024, perdas da secundária 1987-2024, vigor e idade do pasto); não é coletado de novo, o ano novo vem da API do MapBiomas (colunas mb_*)
   - id: heinrich_2021
     nome: Heinrich et al. 2021 (Nature Communications), taxas de regeneração na Amazônia
     licenca: não comercial

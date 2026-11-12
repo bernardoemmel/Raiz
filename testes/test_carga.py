@@ -30,16 +30,21 @@ def _n(eng, sql, **kw):
 
 def test_carrega_amostra_e_e_idempotente(engine):
     res = carregar_pasta(engine, AMOSTRA, CORTE)
-    mun = [r for r in res if r.tipo == "municipio"]
-    assert len(mun) == 1 and mun[0].nova and mun[0].imoveis == 880
+    mun = sorted((r for r in res if r.tipo == "municipio"), key=lambda r: r.cod_municipio)
+    dfs = [pd.read_csv(AMOSTRA / f"imoveis_{r.cod_municipio}.csv") for r in mun]
+    total = sum(len(d) for d in dfs)
+    assert [r.cod_municipio for r in mun] == [1504950, 1507300] and all(r.nova for r in mun)
+    assert [r.imoveis for r in mun] == [len(d) for d in dfs] == [880, 9703]
     assert mun[0].colunas_faltando == ["imoveis.app_escadinha_ha", "imoveis.app_recompor_ha"]
-    assert _n(engine, "select count(*) from funil.resultado_imovel") == 880
-    assert _n(engine, "select count(*) from funil.filtro_imovel") == 880
+    assert _n(engine, "select count(*) from funil.resultado_imovel") == total
+    assert _n(engine, "select count(*) from funil.filtro_imovel") == total
     assert _n(engine, "select count(*) from funil.resumo_municipio") == 144
     assert _n(engine, "select count(*) from funil.imovel where cod_municipio_ibge = 1504950") >= 870
-    assert _n(engine, "select count(*) from funil.resultado_vigente") == 880
+    assert _n(engine, "select count(*) from funil.resultado_vigente") == total
+    # complementos novos (sem Earth Engine) entram pelo nome: TMF e causa da perda
+    assert _n(engine, "select count(*) from funil.complemento_imovel where tipo = 'extras_direto'") == total
     # mesmos números da amostra, lidos pelo nome
-    df = pd.read_csv(AMOSTRA / "imoveis_1504950.csv")
+    df = pd.concat(dfs)
     assert _n(engine, "select round(sum(carbono_tco2_ano)) from funil.resultado_imovel") == round(
         df.carbono_tco2_ano.sum()
     )
@@ -50,7 +55,7 @@ def test_carrega_amostra_e_e_idempotente(engine):
     # recarregar os mesmos arquivos não duplica
     res2 = carregar_pasta(engine, AMOSTRA, CORTE)
     assert not any(r.nova for r in res2)
-    assert _n(engine, "select count(*) from funil.rodada") == 2
+    assert _n(engine, "select count(*) from funil.rodada") == 3
 
 
 def test_coluna_nova_chega_ao_banco(engine, tmp_path):

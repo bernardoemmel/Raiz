@@ -101,3 +101,20 @@ def test_mapbiomas_por_nome_e_opcional(tmp_path):
     # arquivo sem nenhuma coluna mb_ é aceito (todas opcionais)
     pd.DataFrame({"cod_imovel": ["A"]}).to_csv(tmp_path / "mapbiomas_1.csv", index=False)
     assert len(contrato.ler_mapbiomas(tmp_path / "mapbiomas_1.csv").longa) == 0
+
+
+def test_extras_direto_opcional_e_tipo_do_arquivo(tmp_path):
+    assert contrato.tipo_do_arquivo("extras_direto_1504950.csv") == "extras_direto"
+    assert contrato.tipo_do_arquivo("extras_1504950.csv") == "extras"
+    f = tmp_path / "extras_direto_1.csv"
+    f.write_text(
+        "cod_imovel,tmf_classe,tmf_floresta_pct,causa_perda,coluna_nova\n"
+        "PA-1-A,4,35.5,255,x\nPA-1-B,1,99.0,2,y\nPA-1-C,,,,z\n"
+    )
+    d = contrato.ler_extras_direto(f)
+    assert list(d.tmf_classe_texto[:2]) == ["em regeneração", "floresta intacta"]
+    assert d.causa_perda.isna()[0] and d.causa_perda_texto[1] == "commodities"  # 255 = sem perda
+    assert "tmf_regeneracao_pct" not in d and list(d.coluna_nova) == ["x", "y", "z"]  # ausente fica ausente
+    so_tmf = tmp_path / "extras_direto_2.csv"
+    so_tmf.write_text("cod_imovel,tmf_floresta_pct\nPA-2-A,10\n")
+    assert "causa_perda_texto" not in contrato.ler_extras_direto(so_tmf)

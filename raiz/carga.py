@@ -1,8 +1,8 @@
 """Carga das saídas do motor (saida/<UF>/) no banco, pelo contrato de colunas.
 
-Unidade de carga = um município (imoveis_<mun>.csv e o que houver junto: filtros, extras, direto, ajustes, alertas,
-certidoes, geo_<mun>.parquet). Cada município vira uma rodada; recarregar os mesmos arquivos não duplica nada
-(a rodada é identificada pelo hash dos arquivos). O resumo da UF é uma rodada à parte.
+Unidade de carga = um município (imoveis_<mun>.csv e o que houver junto: filtros, extras, extras_direto, direto,
+ajustes, alertas, certidoes, geo_<mun>.parquet). Cada município vira uma rodada; recarregar os mesmos arquivos não
+duplica nada (a rodada é identificada pelo hash dos arquivos). O resumo da UF é uma rodada à parte.
 """
 
 from __future__ import annotations
@@ -27,7 +27,7 @@ from raiz.versoes import motor_commit, motor_versao, regras_versao, sha256_arqui
 
 log = logging.getLogger(__name__)
 
-TIPOS_MUNICIPIO = ("imoveis", "filtros", "extras", "direto", "ajustes", "alertas", "certidoes")
+TIPOS_MUNICIPIO = ("imoveis", "filtros", "extras", "extras_direto", "direto", "ajustes", "alertas", "certidoes")
 
 
 @dataclass

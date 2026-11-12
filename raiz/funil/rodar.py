@@ -3,11 +3,17 @@
     funil   raiz_estado.municipio (CAR e SIGEF pela ponte com o espelho local)  -> saida/<UF>/imoveis_<mun>.csv
     filtros raiz_filtros.filtros                                                -> filtros_<mun>.csv
     direto  raiz_direto.direto (YbYrá e GPW direto dos arquivos públicos)      -> direto_<mun>.csv
+    mapbiomas raiz_mapbiomas.por_imovel (API da Plataforma, colunas mb_*)       -> mapbiomas_<mun>.csv
+    extras_direto raiz_extras_direto.municipio (JRC TMF e causas da perda)      -> extras_direto_<mun>.csv
     carga   raiz.carga.carregar_municipio + congelamento das previsões (versão do motor confirmada)
 
 Cada tarefa de cada município pinga o Healthchecks (início, sucesso, falha com log) e fica em operacao.lote.
 Falha num município não para os outros. Retoma de onde parou: arquivo pronto é pulado (salvo --refazer).
 Vários municípios ao mesmo tempo como o motor (processos com fork; padrão 3 na máquina de 4 núcleos).
+
+Nada passa pelo Earth Engine: cobertura e desmatamento do estado (regeneração no funil e colunas mb_*) vêm da API da
+Plataforma MapBiomas, pedidos uma vez por estado antes de repartir os municípios; o TMF e as causas da perda também
+são preparados uma vez (índice dos blocos do TMF e arquivo de 295 MB das causas). extras_<mun>.csv é histórico fixo.
 """
 
 from __future__ import annotations
@@ -25,7 +31,7 @@ from raiz.config import config
 
 log = logging.getLogger(__name__)
 
-TAREFAS = ("funil", "filtros", "direto", "mapbiomas", "carga")
+TAREFAS = ("funil", "filtros", "direto", "mapbiomas", "extras_direto", "carga")
 
 
 @dataclass
@@ -42,6 +48,8 @@ _R = None  # módulo raiz_estado (importado depois do chdir)
 _EMB = None  # embargos do Ibama, carregados uma vez antes do fork
 _ENGINE = None
 _MB_ARQ = None  # GeoTIFFs do MapBiomas do estado (motor/raiz_mapbiomas.exporta_uf), pedidos uma vez antes do fork
+_TMF = None  # índice dos blocos do JRC TMF (motor/raiz_extras_direto.tmf_tiles), lido uma vez antes do fork
+_CAUSAS = None  # arquivo das causas da perda (motor/raiz_extras_direto.drivers), baixado uma vez antes do fork
 
 
 def dir_trabalho() -> Path:
@@ -154,12 +162,21 @@ def rodar_municipio(cod: int, op: Opcoes, hc=None) -> dict:
         _escrever_csv(t, pasta / f"mapbiomas_{cod}.csv", index=False)
         reg.detalhe.update(imoveis=len(t), ano=raiz_mapbiomas.ANO)
 
+    def extras_direto(reg):
+        import raiz_extras_direto as X
+
+        tiles = _TMF if _TMF is not None else X.tmf_tiles()
+        t = X.municipio(uf, cod, str(pasta), tiles, _CAUSAS or X.drivers())
+        _escrever_csv(t, pasta / f"extras_direto_{cod}.csv", index=False)
+        reg.detalhe.update(imoveis=len(t), tmf_ano=X.TMF_ANO, com_causa=int(t.causa_perda.between(1, 7).sum()))
+
     imoveis = pasta / f"imoveis_{cod}.csv"
     if not executar("funil", imoveis, funil) or not imoveis.exists():
         return res
     executar("filtros", pasta / f"filtros_{cod}.csv", filtros)
     executar("direto", pasta / f"direto_{cod}.csv", direto)
     executar("mapbiomas", pasta / f"mapbiomas_{cod}.csv", mapbiomas)
+    executar("extras_direto", pasta / f"extras_direto_{cod}.csv", extras_direto)
     executar("carga", None, carga)
     return res
 
@@ -169,17 +186,36 @@ def _trabalhador(args):
     return cod, rodar_municipio(cod, op)
 
 
+def preparar_estado(op: Opcoes) -> None:
+    """Downloads do estado feitos uma vez, antes do fork (senão cada processo pediria o mesmo à API):
+    MapBiomas (todos os temas para as colunas mb_*, ou só cobertura e desmatamento para a regeneração do funil), índice
+    do TMF e arquivo das causas da perda. Se a API do MapBiomas falhar aqui, os processos não tentam de novo cada um
+    (RAIZ_MB_BAIXAR=0) e o funil segue sem regeneração, como o motor faz."""
+    global _MB_ARQ, _TMF, _CAUSAS
+    uf = op.uf.upper()
+    if "mapbiomas" in op.tarefas or "funil" in op.tarefas:
+        import raiz_mapbiomas
+
+        temas = None if "mapbiomas" in op.tarefas else ("cobertura", "desmat")
+        try:
+            arq = raiz_mapbiomas.exporta_uf(uf, temas=temas)
+            _MB_ARQ = arq if temas is None else _MB_ARQ
+        except Exception as ex:  # noqa: BLE001 - o motor sabe seguir sem; o lote de cada município registra
+            log.warning("API do MapBiomas falhou para %s: %s", uf, ex)
+        os.environ["RAIZ_MB_BAIXAR"] = "0"
+    if "extras_direto" in op.tarefas:
+        import raiz_extras_direto as X
+
+        _TMF, _CAUSAS = X.tmf_tiles(), X.drivers()
+
+
 def rodar(op: Opcoes, cods: list[int] | None = None, lanes: int | None = None) -> dict[int, dict]:
     """Roda vários municípios (todos da UF se `cods` vier vazio), `lanes` ao mesmo tempo."""
     import multiprocessing as mp
 
-    global _MB_ARQ
     R = preparar_motor(carregar_embargos="funil" in op.tarefas)
     cods = cods or R.lista_municipios(op.uf.upper())
-    if "mapbiomas" in op.tarefas:  # 5 pedidos por estado, uma vez, antes de repartir os municípios
-        import raiz_mapbiomas
-
-        _MB_ARQ = raiz_mapbiomas.exporta_uf(op.uf.upper())
+    preparar_estado(op)
     lanes = lanes or int(os.environ.get("LANES", "3"))
     if lanes <= 1:
         return {c: rodar_municipio(c, op) for c in cods}

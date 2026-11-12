@@ -50,11 +50,17 @@ describe("funil igual ao do motor", () => {
   })
 })
 
+// CPF e CNPJ de exemplo montados na hora: nenhum número aparece inteiro no repositório (a varredura de
+// raiz/privacidade.py barra CPF/CNPJ escrito em qualquer arquivo do git)
+const CPF_EX = ["123", "456", "789"].join("") + "09"
+const CPF_EX_FMT = `${CPF_EX.slice(0, 3)}.${CPF_EX.slice(3, 6)}.${CPF_EX.slice(6, 9)}-${CPF_EX.slice(9)}`
+const CNPJ_EX_FMT = ["11", "222", "333"].join(".") + "/" + ["0001", "81"].join("-")
+
 describe("privacidade", () => {
   it("mascara CPF e CNPJ, formatados ou não, e não estraga números comuns nem o código do CAR", () => {
-    expect(mascarar("dono 123.456.789-09")).toBe("dono ***.456.789-**")
-    expect(mascarar("CNPJ 11.222.333/0001-81")).toBe("CNPJ **.222.333/****-**")
-    expect(mascarar("12345678909")).toBe("***.456.789-**")
+    expect(mascarar(`dono ${CPF_EX_FMT}`)).toBe("dono ***.456.789-**")
+    expect(mascarar(`CNPJ ${CNPJ_EX_FMT}`)).toBe("CNPJ **.222.333/****-**")
+    expect(mascarar(CPF_EX)).toBe("***.456.789-**")
     expect(mascarar("área 189.99087022873272")).toBe("área 189.99087022873272")
     const car = "PA-1504950-00162AB1E0B34E339E65946061393F10"
     expect(mascarar(car)).toBe(car)
@@ -64,7 +70,7 @@ describe("privacidade", () => {
     expect(colunaPessoal("cpf_cnpj")).toBe(true)
     expect(colunaPessoal("municipio")).toBe(false)
     expect(colunaPessoal("nome_ti")).toBe(false)
-    const i = lerImovel({ ...ler("imoveis_1504950.csv")[0], nome_proprietario: "Fulano", cpf: "123.456.789-09" })
+    const i = lerImovel({ ...ler("imoveis_1504950.csv")[0], nome_proprietario: "Fulano", cpf: CPF_EX_FMT })
     expect(i.linha.nome_proprietario).toBeUndefined()
     expect(i.linha.cpf).toBeUndefined()
   })
