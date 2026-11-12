@@ -39,8 +39,13 @@ def motor_versao() -> str:
 
 def motor_commit() -> str | None:
     try:
-        r = subprocess.run(["git", "log", "-1", "--format=%H", "--", "motor"], cwd=RAIZ_REPO,
-                           capture_output=True, text=True, timeout=10)  # fmt: skip
+        r = subprocess.run(
+            ["git", "log", "-1", "--format=%H", "--", "motor"],
+            cwd=RAIZ_REPO,
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
         return r.stdout.strip() or None
     except (OSError, subprocess.SubprocessError):
         return None

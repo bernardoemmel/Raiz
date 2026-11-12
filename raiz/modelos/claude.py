@@ -34,8 +34,9 @@ def cliente_padrao() -> anthropic.Anthropic:
 class Claude:
     provedor = "anthropic"
 
-    def __init__(self, modelo: str, esforco: str | None = None, cliente: anthropic.Anthropic | None = None,
-                 reserva: bool = True):  # fmt: skip
+    def __init__(
+        self, modelo: str, esforco: str | None = None, cliente: anthropic.Anthropic | None = None, reserva: bool = True
+    ):
         self.nome = modelo
         self.esforco = esforco or ESFORCO_PADRAO.get(modelo, "medium")
         self._cliente = cliente
@@ -76,9 +77,12 @@ class Claude:
             except anthropic.APIConnectionError as ex:
                 return Resposta(None, self.nome, self.provedor, erro=f"conexão: {mascarar(str(ex))[:200]}")
         u = r.usage
-        uso = Uso(entrada=u.input_tokens or 0, saida=u.output_tokens or 0,
-                  cache_leitura=getattr(u, "cache_read_input_tokens", 0) or 0,
-                  cache_escrita=getattr(u, "cache_creation_input_tokens", 0) or 0)  # fmt: skip
+        uso = Uso(
+            entrada=u.input_tokens or 0,
+            saida=u.output_tokens or 0,
+            cache_leitura=getattr(u, "cache_read_input_tokens", 0) or 0,
+            cache_escrita=getattr(u, "cache_creation_input_tokens", 0) or 0,
+        )
         modelo = getattr(r, "model", None) or self.nome
         valor, fonte = custo(uso, modelo, self.provedor)
         base = dict(modelo=modelo, provedor=self.provedor, uso=uso, custo_usd=valor, custo_fonte=fonte, duracao_ms=t.ms)

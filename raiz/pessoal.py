@@ -69,9 +69,14 @@ def _por(con: Connection, coluna: str, h: str):
     return con.execute(text(f"select id from pessoal.contato where {coluna} = :h"), {"h": h}).scalar()
 
 
-def registrar_contato_whatsapp(con: Connection, bsuid: str, wa_id: str | None = None,
-                               parent_bsuid: str | None = None, username: str | None = None,
-                               cofre: Cofre | None = None) -> int:  # fmt: skip
+def registrar_contato_whatsapp(
+    con: Connection,
+    bsuid: str,
+    wa_id: str | None = None,
+    parent_bsuid: str | None = None,
+    username: str | None = None,
+    cofre: Cofre | None = None,
+) -> int:
     """Grava ou completa o contato que escreveu no WhatsApp. Junta pelo BSUID ou pelo telefone; quem já existia
     pelo telefone ganha o BSUID (e vice-versa). Devolve o id do contato."""
     cofre = cofre or Cofre()
@@ -81,19 +86,26 @@ def registrar_contato_whatsapp(con: Connection, bsuid: str, wa_id: str | None = 
     pais = bsuid.split(".")[0] if "." in bsuid else None
     id_b = _por(con, "bsuid_hmac", hb)
     id_t = _por(con, "telefone_hmac", ht) if ht else None
-    campos = {"pb": cofre.cifrar(parent_bsuid) if parent_bsuid else None,
-              "un": cofre.cifrar(username) if username else None, "pais": pais}  # fmt: skip
+    campos = {
+        "pb": cofre.cifrar(parent_bsuid) if parent_bsuid else None,
+        "un": cofre.cifrar(username) if username else None,
+        "pais": pais,
+    }
     if id_b is None and id_t is None:
-        return con.execute(text("""
+        return con.execute(
+            text("""
             insert into pessoal.contato (bsuid_hmac, bsuid_cifrado, parent_bsuid_cifrado, telefone_hmac,
                 telefone_cifrado, username_cifrado, pais, origem)
             values (:hb, :bc, :pb, :ht, :tc, :un, :pais, 'whatsapp') returning id"""),
             dict(hb=hb, bc=cofre.cifrar(bsuid), ht=ht, tc=cofre.cifrar(tel) if tel else None, **campos),
-        ).scalar_one()  # fmt: skip
+        ).scalar_one()
     alvo = id_b if id_b is not None else id_t
-    sets = ["parent_bsuid_cifrado = coalesce(:pb, parent_bsuid_cifrado)",
-            "username_cifrado = coalesce(:un, username_cifrado)", "pais = coalesce(:pais, pais)",
-            "atualizado_em = now()"]  # fmt: skip
+    sets = [
+        "parent_bsuid_cifrado = coalesce(:pb, parent_bsuid_cifrado)",
+        "username_cifrado = coalesce(:un, username_cifrado)",
+        "pais = coalesce(:pais, pais)",
+        "atualizado_em = now()",
+    ]
     params = dict(id=alvo, **campos)
     if id_b is None:  # existia pelo telefone: ganha o BSUID
         sets += ["bsuid_hmac = :hb", "bsuid_cifrado = :bc"]
@@ -116,19 +128,25 @@ def achar_por_telefone(con: Connection, telefone: str, cofre: Cofre | None = Non
 def destino_whatsapp(con: Connection, contato_id: int, cofre: Cofre | None = None) -> str:
     """Para quem mandar a mensagem: o BSUID quando existe (prioridade do PyWa), senão o telefone."""
     cofre = cofre or Cofre()
-    r = con.execute(text("select bsuid_cifrado, telefone_cifrado from pessoal.contato where id = :i"),
-                    {"i": contato_id}).one()  # fmt: skip
+    r = con.execute(
+        text("select bsuid_cifrado, telefone_cifrado from pessoal.contato where id = :i"), {"i": contato_id}
+    ).one()
     return cofre.decifrar(r.bsuid_cifrado) if r.bsuid_cifrado else cofre.decifrar(r.telefone_cifrado)
 
 
 def vincular_imovel(con: Connection, contato_id: int, cod_imovel: str, papel: str = "dono") -> None:
-    con.execute(text("""insert into pessoal.contato_imovel (contato_id, cod_imovel, papel) values (:c, :i, :p)
-                        on conflict do nothing"""), {"c": contato_id, "i": cod_imovel, "p": papel})  # fmt: skip
+    con.execute(
+        text("""insert into pessoal.contato_imovel (contato_id, cod_imovel, papel) values (:c, :i, :p)
+                        on conflict do nothing"""),
+        {"c": contato_id, "i": cod_imovel, "p": papel},
+    )
 
 
 def registrar_consentimento(con: Connection, contato_id: int) -> None:
-    con.execute(text("update pessoal.contato set consentimento_em = now(), atualizado_em = now() where id = :i"),
-                {"i": contato_id})  # fmt: skip
+    con.execute(
+        text("update pessoal.contato set consentimento_em = now(), atualizado_em = now() where id = :i"),
+        {"i": contato_id},
+    )
 
 
 def apagar_contato(con: Connection, contato_id: int) -> None:

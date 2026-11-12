@@ -70,8 +70,9 @@ def geracao(pedido: Pedido, modelo: str, papel: str):
     entrada = (
         "[dado pessoal: não enviado]" if pedido.pessoal else {"sistema": pedido.sistema, "mensagem": pedido.mensagem}
     )
-    with lf.start_as_current_observation(name=f"{pedido.tarefa}:{papel}", as_type="generation", model=modelo,
-                                         input=entrada, metadata={"papel": papel}) as g:  # fmt: skip
+    with lf.start_as_current_observation(
+        name=f"{pedido.tarefa}:{papel}", as_type="generation", model=modelo, input=entrada, metadata={"papel": papel}
+    ) as g:
         yield g
 
 
@@ -82,13 +83,16 @@ def fechar(g, pedido: Pedido, resp: Resposta) -> str | None:
         g.update(
             output="[dado pessoal: não enviado]" if pedido.pessoal else resp.dados,
             model=resp.modelo,
-            usage_details={"input": resp.uso.entrada, "output": resp.uso.saida,
-                           "cache_read_input_tokens": resp.uso.cache_leitura,
-                           "cache_creation_input_tokens": resp.uso.cache_escrita},
+            usage_details={
+                "input": resp.uso.entrada,
+                "output": resp.uso.saida,
+                "cache_read_input_tokens": resp.uso.cache_leitura,
+                "cache_creation_input_tokens": resp.uso.cache_escrita,
+            },
             cost_details={"total": float(resp.custo_usd)} if resp.custo_usd is not None else None,
             level="ERROR" if resp.erro else ("WARNING" if resp.recusou else "DEFAULT"),
             status_message=resp.erro,
-        )  # fmt: skip
+        )
         return cliente_langfuse().get_current_trace_id()
     except Exception as ex:  # noqa: BLE001 - rastro nunca derruba a tarefa
         log.warning("Langfuse falhou: %s", ex)

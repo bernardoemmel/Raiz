@@ -94,8 +94,9 @@ def _hash_entradas(arquivos: dict[str, Path]) -> tuple[dict, str]:
 
 
 def _rodada_existente(con: Connection, h: str):
-    return con.execute(text("select id, tipo, uf, cod_municipio, imoveis from funil.rodada where hash_entradas=:h"),
-                       {"h": h}).first()  # fmt: skip
+    return con.execute(
+        text("select id, tipo, uf, cod_municipio, imoveis from funil.rodada where hash_entradas=:h"), {"h": h}
+    ).first()
 
 
 def _nova_rodada(con, tipo, uf, cod, origem, hashes, h, data_corte, motor_confirmado) -> int:
@@ -103,17 +104,30 @@ def _nova_rodada(con, tipo, uf, cod, origem, hashes, h, data_corte, motor_confir
         text("""insert into funil.rodada (tipo, uf, cod_municipio, origem, arquivos, hash_entradas, motor_versao,
                 motor_versao_confirmada, motor_commit, regras_versao, data_corte)
                 values (:tipo, :uf, :cod, :origem, :arquivos, :h, :mv, :mc, :commit, :rv, :dc) returning id"""),
-        dict(tipo=tipo, uf=uf, cod=cod, origem=origem, arquivos=json.dumps(hashes), h=h, mv=motor_versao(),
-             mc=motor_confirmado, commit=motor_commit(), rv=regras_versao(), dc=data_corte),
-    ).scalar_one()  # fmt: skip
+        dict(
+            tipo=tipo,
+            uf=uf,
+            cod=cod,
+            origem=origem,
+            arquivos=json.dumps(hashes),
+            h=h,
+            mv=motor_versao(),
+            mc=motor_confirmado,
+            commit=motor_commit(),
+            rv=regras_versao(),
+            dc=data_corte,
+        ),
+    ).scalar_one()
 
 
 def _fechar_rodada(con, rodada_id, imoveis, leituras: list[contrato.Leitura]) -> tuple[list, list, list]:
     novas = sorted({f"{lt.tipo}.{c}" for lt in leituras for c in lt.colunas_novas})
     faltando = sorted({f"{lt.tipo}.{c}" for lt in leituras for c in lt.colunas_faltando})
     avisos = [f"{lt.tipo}: {a}" for lt in leituras for a in lt.avisos]
-    con.execute(text("update funil.rodada set imoveis=:n, colunas_novas=:cn, colunas_faltando=:cf, avisos=:av "
-                     "where id=:id"), dict(n=imoveis, cn=novas, cf=faltando, av=avisos, id=rodada_id))  # fmt: skip
+    con.execute(
+        text("update funil.rodada set imoveis=:n, colunas_novas=:cn, colunas_faltando=:cf, avisos=:av where id=:id"),
+        dict(n=imoveis, cn=novas, cf=faltando, av=avisos, id=rodada_id),
+    )
     if novas:
         log.warning("colunas novas do motor (guardadas em atributos; documentar em docs/colunas.md): %s", novas)
     for a in avisos:
@@ -146,8 +160,14 @@ def _carregar_geo(con: Connection, arquivo: Path) -> int:
     return n
 
 
-def carregar_municipio(con: Connection, pasta: str | Path, cod: int, data_corte: dt.date | None = None,
-                       origem: str | None = None, motor_confirmado: bool = False) -> ResultadoCarga:  # fmt: skip
+def carregar_municipio(
+    con: Connection,
+    pasta: str | Path,
+    cod: int,
+    data_corte: dt.date | None = None,
+    origem: str | None = None,
+    motor_confirmado: bool = False,
+) -> ResultadoCarga:
     """Carrega um município numa transação já aberta (con). Idempotente pelo hash dos arquivos."""
     pasta = Path(pasta)
     arquivos = arquivos_do_municipio(pasta, cod)
@@ -161,8 +181,9 @@ def carregar_municipio(con: Connection, pasta: str | Path, cod: int, data_corte:
     im = leituras["imoveis"]
     ufs = im.tipadas["uf"].dropna().unique().tolist()
     uf = ufs[0] if ufs else pasta.name.upper()
-    rid = _nova_rodada(con, "municipio", uf, cod, origem or str(pasta), hashes, h, data_corte or dt.date.today(),
-                       motor_confirmado)  # fmt: skip
+    rid = _nova_rodada(
+        con, "municipio", uf, cod, origem or str(pasta), hashes, h, data_corte or dt.date.today(), motor_confirmado
+    )
 
     cols = ["rodada_id"] + list(im.tipadas.columns) + ["atributos"]
     n = _copy(con, "funil.resultado_imovel", cols, _linhas_leitura(rid, im))
@@ -178,12 +199,15 @@ def carregar_municipio(con: Connection, pasta: str | Path, cod: int, data_corte:
         lc = leituras["certidoes"]
         _copy(con, "titulo.certidao_alvo", ["rodada_id", *lc.tipadas.columns, "atributos"], _linhas_leitura(rid, lc))
 
-    con.execute(text("""
+    con.execute(
+        text("""
         insert into funil.imovel (cod_imovel, uf, cod_municipio_ibge)
         select cod_imovel, uf, cod_municipio_ibge from funil.resultado_imovel where rodada_id = :rid
         on conflict (cod_imovel) do update set uf = excluded.uf, cod_municipio_ibge = excluded.cod_municipio_ibge
         where (funil.imovel.uf, funil.imovel.cod_municipio_ibge)
-              is distinct from (excluded.uf, excluded.cod_municipio_ibge)"""), {"rid": rid})  # fmt: skip
+              is distinct from (excluded.uf, excluded.cod_municipio_ibge)"""),
+        {"rid": rid},
+    )
     if "geo" in arquivos:
         _carregar_geo(con, arquivos["geo"])
 
@@ -192,22 +216,25 @@ def carregar_municipio(con: Connection, pasta: str | Path, cod: int, data_corte:
     return ResultadoCarga(rid, True, "municipio", uf, cod, n, novas, faltando, avisos)
 
 
-def carregar_resumo(con: Connection, arquivo: str | Path, uf: str, data_corte: dt.date | None = None,
-                    origem: str | None = None) -> ResultadoCarga:  # fmt: skip
+def carregar_resumo(
+    con: Connection, arquivo: str | Path, uf: str, data_corte: dt.date | None = None, origem: str | None = None
+) -> ResultadoCarga:
     arquivo = Path(arquivo)
     hashes, h = _hash_entradas({"resumo": arquivo})
     if ex := _rodada_existente(con, h):
         return ResultadoCarga(ex.id, False, ex.tipo, ex.uf, None, ex.imoveis or 0)
     lr = contrato.ler(arquivo, "resumo")
-    rid = _nova_rodada(con, "resumo_uf", uf.upper(), None, origem or str(arquivo), hashes, h,
-                       data_corte or dt.date.today(), False)  # fmt: skip
+    rid = _nova_rodada(
+        con, "resumo_uf", uf.upper(), None, origem or str(arquivo), hashes, h, data_corte or dt.date.today(), False
+    )
     n = _copy(con, "funil.resumo_municipio", ["rodada_id", *lr.tipadas.columns, "atributos"], _linhas_leitura(rid, lr))
     novas, faltando, avisos = _fechar_rodada(con, rid, n, [lr])
     return ResultadoCarga(rid, True, "resumo_uf", uf.upper(), None, n, novas, faltando, avisos)
 
 
-def carregar_pasta(engine, pasta: str | Path, data_corte: dt.date | None = None, motor_confirmado: bool = False,
-                   congelar: bool = True) -> list[ResultadoCarga]:  # fmt: skip
+def carregar_pasta(
+    engine, pasta: str | Path, data_corte: dt.date | None = None, motor_confirmado: bool = False, congelar: bool = True
+) -> list[ResultadoCarga]:
     """Carrega todos os municípios e o resumo de uma pasta saida/<UF>/ (cada município na sua transação) e congela
     as previsões do motor de cada rodada (E8 passo 1)."""
     from raiz.aprendizado.congelar import congelar_rodada

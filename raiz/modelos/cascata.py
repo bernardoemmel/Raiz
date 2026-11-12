@@ -126,21 +126,28 @@ class Cascata:
             text("""insert into operacao.fila_revisao (tarefa, chave, motivo, conteudo)
                     values (:t, :c, :m, :x) returning id"""),
             dict(t=pedido.tarefa, c=pedido.cod_imovel, m=mascarar(motivo), x=Jsonb(_mascarar_json(conteudo))),
-        ).scalar_one()  # fmt: skip
+        ).scalar_one()
 
     def _gravar(self, con: Connection, pedido: Pedido, out: ResultadoCascata) -> None:
-        h = hashlib.sha256(json.dumps([pedido.sistema, pedido.mensagem, pedido.esquema], sort_keys=True,
-                                      ensure_ascii=False).encode()).hexdigest()  # fmt: skip
+        h = hashlib.sha256(
+            json.dumps([pedido.sistema, pedido.mensagem, pedido.esquema], sort_keys=True, ensure_ascii=False).encode()
+        ).hexdigest()
         resp = self._respostas_json(pedido, out.respostas)
         out.decisao_id = con.execute(
             text("""insert into operacao.decisao_cascata
                     (tarefa, chave, entrada_hash, via, respostas, decisao, revisao_id, custo_usd)
                     values (:t, :c, :h, :v, :r, :d, :rv, :cu) returning id"""),
-            dict(t=pedido.tarefa, c=pedido.cod_imovel, h=h, v=out.via,
-                 r=Jsonb(_mascarar_json(resp)) if resp is not None else None,
-                 d=Jsonb(_mascarar_json(out.dados)) if out.dados is not None and not pedido.pessoal else None,
-                 rv=out.revisao_id, cu=out.custo_usd),
-        ).scalar_one()  # fmt: skip
+            dict(
+                t=pedido.tarefa,
+                c=pedido.cod_imovel,
+                h=h,
+                v=out.via,
+                r=Jsonb(_mascarar_json(resp)) if resp is not None else None,
+                d=Jsonb(_mascarar_json(out.dados)) if out.dados is not None and not pedido.pessoal else None,
+                rv=out.revisao_id,
+                cu=out.custo_usd,
+            ),
+        ).scalar_one()
 
 
 def _mascarar_json(x):
@@ -153,7 +160,7 @@ def resolver_revisao(con: Connection, revisao_id: int, resposta: dict, quem: str
         text("""update operacao.fila_revisao set estado = 'resolvida', resposta = :r, resolvida_por = :q,
                 resolvida_em = now() where id = :i and estado = 'aberta'"""),
         dict(r=Jsonb(_mascarar_json(resposta)), q=quem, i=revisao_id),
-    ).rowcount  # fmt: skip
+    ).rowcount
     if n != 1:
         raise ValueError(f"revisão {revisao_id} não está aberta")
 

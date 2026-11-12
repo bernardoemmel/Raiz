@@ -47,11 +47,25 @@ def _num(v: float | None) -> str:
 
 
 def _linha(p: Previsao, v: Versoes) -> str:
-    return "|".join([
-        v.tipo, p.cod_imovel, p.alvo, _num(p.valor_num), p.valor_texto or "", _num(p.p10), _num(p.p50), _num(p.p90),
-        v.data_corte.isoformat(), str(p.horizonte_dias), v.modelo, v.modelo_versao, v.entradas_versao,
-        v.regras_versao or "", v.receita_hash or "",
-    ])  # fmt: skip
+    return "|".join(
+        [
+            v.tipo,
+            p.cod_imovel,
+            p.alvo,
+            _num(p.valor_num),
+            p.valor_texto or "",
+            _num(p.p10),
+            _num(p.p50),
+            _num(p.p90),
+            v.data_corte.isoformat(),
+            str(p.horizonte_dias),
+            v.modelo,
+            v.modelo_versao,
+            v.entradas_versao,
+            v.regras_versao or "",
+            v.receita_hash or "",
+        ]
+    )
 
 
 def hash_lote(previsoes: Iterable[Previsao], v: Versoes) -> str:
@@ -70,8 +84,9 @@ def _valida(p: Previsao) -> None:
         raise ValueError(f"previsão vazia: {p.cod_imovel}/{p.alvo}")
 
 
-def registrar_lote(con: Connection, previsoes: list[Previsao], v: Versoes, descricao: str | None = None
-                   ) -> tuple[str, bool]:  # fmt: skip
+def registrar_lote(
+    con: Connection, previsoes: list[Previsao], v: Versoes, descricao: str | None = None
+) -> tuple[str, bool]:
     """Congela um lote. Devolve (lote_hash, novo). Registrar o mesmo lote de novo não faz nada."""
     for p in previsoes:
         _valida(p)
@@ -82,19 +97,64 @@ def registrar_lote(con: Connection, previsoes: list[Previsao], v: Versoes, descr
         text("""insert into aprendizado.lote_previsao (lote_hash, tipo, modelo, modelo_versao, entradas_versao,
                 regras_versao, data_corte, rodada_id, n_previsoes, descricao)
                 values (:h, :tipo, :m, :mv, :ev, :rv, :dc, :rid, :n, :d)"""),
-        dict(h=lh, tipo=v.tipo, m=v.modelo, mv=v.modelo_versao, ev=v.entradas_versao, rv=v.regras_versao,
-             dc=v.data_corte, rid=v.rodada_id, n=len(previsoes), d=descricao),
-    )  # fmt: skip
-    cols = ["lote_hash", "tipo", "cod_imovel", "alvo", "valor_num", "valor_texto", "p10", "p50", "p90", "distribuicao",
-            "data_corte", "horizonte_dias", "modelo", "modelo_versao", "entradas_versao", "regras_versao",
-            "receita_hash", "rodada_id"]  # fmt: skip
+        dict(
+            h=lh,
+            tipo=v.tipo,
+            m=v.modelo,
+            mv=v.modelo_versao,
+            ev=v.entradas_versao,
+            rv=v.regras_versao,
+            dc=v.data_corte,
+            rid=v.rodada_id,
+            n=len(previsoes),
+            d=descricao,
+        ),
+    )
+    cols = [
+        "lote_hash",
+        "tipo",
+        "cod_imovel",
+        "alvo",
+        "valor_num",
+        "valor_texto",
+        "p10",
+        "p50",
+        "p90",
+        "distribuicao",
+        "data_corte",
+        "horizonte_dias",
+        "modelo",
+        "modelo_versao",
+        "entradas_versao",
+        "regras_versao",
+        "receita_hash",
+        "rodada_id",
+    ]
     raw = con.connection.driver_connection
     with raw.cursor() as cur, cur.copy(f"COPY aprendizado.previsao ({', '.join(cols)}) FROM STDIN") as cp:
         for p in previsoes:
-            cp.write_row((lh, v.tipo, p.cod_imovel, p.alvo, p.valor_num, p.valor_texto, p.p10, p.p50, p.p90,
-                          Jsonb(p.distribuicao) if p.distribuicao is not None else None, v.data_corte,
-                          p.horizonte_dias, v.modelo, v.modelo_versao, v.entradas_versao, v.regras_versao,
-                          v.receita_hash, v.rodada_id))  # fmt: skip
+            cp.write_row(
+                (
+                    lh,
+                    v.tipo,
+                    p.cod_imovel,
+                    p.alvo,
+                    p.valor_num,
+                    p.valor_texto,
+                    p.p10,
+                    p.p50,
+                    p.p90,
+                    Jsonb(p.distribuicao) if p.distribuicao is not None else None,
+                    v.data_corte,
+                    p.horizonte_dias,
+                    v.modelo,
+                    v.modelo_versao,
+                    v.entradas_versao,
+                    v.regras_versao,
+                    v.receita_hash,
+                    v.rodada_id,
+                )
+            )
     return lh, True
 
 
@@ -106,17 +166,32 @@ def conferir_lote(con: Connection, lote_hash: str) -> bool:
     rows = con.execute(text("select * from aprendizado.previsao where lote_hash = :h"), {"h": lote_hash}).all()
     if len(rows) != lote.n_previsoes:
         return False
-    v = Versoes(lote.modelo, lote.modelo_versao, lote.entradas_versao, lote.data_corte, lote.regras_versao,
-                rows[0].receita_hash if rows else None, lote.tipo, lote.rodada_id)  # fmt: skip
+    v = Versoes(
+        lote.modelo,
+        lote.modelo_versao,
+        lote.entradas_versao,
+        lote.data_corte,
+        lote.regras_versao,
+        rows[0].receita_hash if rows else None,
+        lote.tipo,
+        lote.rodada_id,
+    )
     ps = [
         Previsao(r.cod_imovel, r.alvo, r.horizonte_dias, r.valor_num, r.valor_texto, r.p10, r.p50, r.p90) for r in rows
     ]
     return hash_lote(ps, v) == lote_hash
 
 
-def registrar_gabarito(con: Connection, cod_imovel: str, alvo: str, observado_em: dt.date, fonte: str,
-                       valor_num: float | None = None, valor_texto: str | None = None,
-                       referencia: str | None = None) -> int:  # fmt: skip
+def registrar_gabarito(
+    con: Connection,
+    cod_imovel: str,
+    alvo: str,
+    observado_em: dt.date,
+    fonte: str,
+    valor_num: float | None = None,
+    valor_texto: str | None = None,
+    referencia: str | None = None,
+) -> int:
     """Registra o resultado real. Correção = registrar de novo (vale o último registrado para a mesma data)."""
     if valor_num is None and valor_texto is None:
         raise ValueError("gabarito sem valor")
@@ -125,7 +200,7 @@ def registrar_gabarito(con: Connection, cod_imovel: str, alvo: str, observado_em
                 (cod_imovel, alvo, valor_num, valor_texto, observado_em, fonte, referencia)
                 values (:c, :a, :vn, :vt, :o, :f, :r) returning id"""),
         dict(c=cod_imovel, a=alvo, vn=valor_num, vt=valor_texto, o=observado_em, f=fonte, r=referencia),
-    ).scalar_one()  # fmt: skip
+    ).scalar_one()
 
 
 def placar(con: Connection):

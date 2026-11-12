@@ -47,6 +47,14 @@ class Config(BaseSettings):
         default=None, validation_alias=AliasChoices("RAIZ_LANGFUSE_HOST", "LANGFUSE_HOST")
     )
 
+    # WhatsApp Cloud API (PyWa). Webhook em /whatsapp, assinatura conferida com o app_secret.
+    whatsapp_phone_id: str | None = None
+    whatsapp_token: SecretStr | None = None
+    whatsapp_verify_token: SecretStr | None = None
+    whatsapp_app_secret: SecretStr | None = None
+    # token do backoffice para a API (sem ele, só /saude e o webhook respondem)
+    api_token: SecretStr | None = None
+
 
 @lru_cache
 def config() -> Config:

@@ -19,8 +19,13 @@ from raiz.modelos.custo import custo
 class LlamaCpp:
     provedor = "local"
 
-    def __init__(self, url: str | None = None, modelo: str | None = None, cliente: httpx.Client | None = None,
-                 timeout: float = 180.0):  # fmt: skip
+    def __init__(
+        self,
+        url: str | None = None,
+        modelo: str | None = None,
+        cliente: httpx.Client | None = None,
+        timeout: float = 180.0,
+    ):
         self.url = (url or config().llama_url).rstrip("/")
         self.nome = modelo or config().modelo_local
         self._cliente = cliente or httpx.Client(timeout=timeout)

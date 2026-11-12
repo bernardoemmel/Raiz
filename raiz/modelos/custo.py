@@ -19,8 +19,12 @@ def custo(uso: Uso, modelo: str, provedor: str) -> tuple[Decimal | None, str]:
     try:
         # o genai-prices conta o cache dentro do total de entrada; a Anthropic informa separado
         total = uso.entrada + uso.cache_leitura + uso.cache_escrita
-        u = Usage(input_tokens=total, output_tokens=uso.saida, cache_read_tokens=uso.cache_leitura,
-                  cache_write_tokens=uso.cache_escrita)  # fmt: skip
+        u = Usage(
+            input_tokens=total,
+            output_tokens=uso.saida,
+            cache_read_tokens=uso.cache_leitura,
+            cache_write_tokens=uso.cache_escrita,
+        )
         return Decimal(str(calc_price(u, model_ref=modelo, provider_id=provedor).total_price)), "genai-prices"
     except (LookupError, ValueError) as ex:
         log.warning("sem preço para %s/%s: %s", provedor, modelo, ex)

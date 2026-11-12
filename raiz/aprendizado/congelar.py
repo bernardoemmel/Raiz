@@ -38,7 +38,7 @@ ALVOS_MOTOR: list[Alvo] = [
     Alvo("carbono_tco2_ano", "resultado", "carbono_tco2_ano", "num", 1825, "medição de carbono em campo"),
     Alvo("filtro_territorial", "filtro", "filtro_territorial", "texto", 365, "checagem jurídica do território"),
     Alvo("persistencia_nota", "complemento:extras", "persistencia_nota", "num", 1825, "capoeira ainda de pé (YbYrá)"),
-]  # fmt: skip
+]
 
 
 def _valor(alvo: Alvo, v) -> tuple[float | None, str | None]:
@@ -65,8 +65,7 @@ def _valores(con: Connection, rodada_id: int, alvo: Alvo):
         q = f"select cod_imovel, {alvo.coluna} as v from funil.filtro_imovel where rodada_id = :r"
         params = {"r": rodada_id}
     else:
-        q = ("select cod_imovel, atributos->:col as v from funil.complemento_imovel "
-             "where rodada_id = :r and tipo = :t")  # fmt: skip
+        q = "select cod_imovel, atributos->:col as v from funil.complemento_imovel where rodada_id = :r and tipo = :t"
         params = {"r": rodada_id, "t": alvo.tabela.split(":", 1)[1], "col": alvo.coluna}
     return con.execute(text(q), params).all()
 
@@ -88,8 +87,15 @@ def congelar_rodada(con: Connection, rodada_id: int) -> tuple[str, bool, int]:
         raise ValueError(f"rodada {rodada_id} não é de município")
     previsoes = previsoes_da_rodada(con, rodada_id)
     versao = r.motor_versao if r.motor_versao_confirmada else f"{r.motor_versao}-suposta"
-    v = Versoes(modelo="motor", modelo_versao=versao, entradas_versao=r.hash_entradas, data_corte=r.data_corte,
-                regras_versao=r.regras_versao, tipo="ao_vivo", rodada_id=rodada_id)  # fmt: skip
+    v = Versoes(
+        modelo="motor",
+        modelo_versao=versao,
+        entradas_versao=r.hash_entradas,
+        data_corte=r.data_corte,
+        regras_versao=r.regras_versao,
+        tipo="ao_vivo",
+        rodada_id=rodada_id,
+    )
     desc = f"motor, município {r.cod_municipio} ({r.uf}), rodada {rodada_id}"
     lh, novo = registrar_lote(con, previsoes, v, desc)
     return lh, novo, len(previsoes)

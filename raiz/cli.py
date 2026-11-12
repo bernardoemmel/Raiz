@@ -129,9 +129,27 @@ def pessoal_gerar_chave() -> None:
 def banco_migrar(alvo: str = "head") -> None:
     """Aplica as migrações (Alembic) no banco de RAIZ_BANCO_URL."""
     from raiz.banco import migrar
+    from raiz.config import config
 
     migrar(alvo=alvo)
     typer.echo(f"banco migrado até {alvo}")
+    if config().chave_pessoal and alvo == "head":
+        from raiz.agentes.memoria import preparar
+
+        preparar()
+        typer.echo("tabelas de conversa (LangGraph, cifradas) prontas no esquema pessoal")
+    else:
+        typer.echo("sem RAIZ_CHAVE_PESSOAL: tabelas de conversa não criadas")
+
+
+@app.command("api")
+def api(porta: int = 8000, host: str = "127.0.0.1") -> None:
+    """Sobe a API (aceites, mensagens a aprovar, revisões e webhook do WhatsApp em /whatsapp)."""
+    import uvicorn
+
+    from raiz.api import criar_app
+
+    uvicorn.run(criar_app(), host=host, port=porta)
 
 
 if __name__ == "__main__":
