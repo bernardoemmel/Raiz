@@ -115,6 +115,7 @@ PADRAO_CENARIO = {  # o que um cenário antigo (sem a rodada 11) não traz
     "linha_base_piso": 0.0, "vazamento": 0.0, "vazamento_com_mitigacao": 0.0, "reserva_risco": 0.12,
     "incerteza": 0.10, "cambio_ptax": False, "juros_carencia": "pagos", "arrendamento_rs_ha_ano": 0.0,
     "tolerancia_ultimo_marco": None, "rescisao_atraso_marco_dias": None, "multas_no_fluxo": True,
+    "reserva_por_fazenda": False,
     "desembolso_custo": [1.0],
 }  # fmt: skip
 
@@ -551,15 +552,65 @@ def captura(linha: dict, m: dict | None = None, r: dict | None = None, c: dict |
             "modelo": c.get("modelo") or "constante", "fator": f, "ajustes": det, "por_modo": pm}  # fmt: skip
 
 
-def descontos(linha: dict, cap: dict, lb: dict, c: dict) -> dict:
+def _texto_reserva(linha: dict, c: dict) -> str:
+    """Explica a reserva de não permanência da fazenda (ou diz que é a do cenário)."""
+    if str(linha.get("reserva_risco_fonte")) != "fazenda":
+        return f"A do cenário ({100 * float(c['reserva_risco']):.0f}%): falta o histórico de fogo e de derrubada."
+    fogo, der, perda = (_num(linha, k) for k in ("fogo_risco_ano_pct", "derrubada_risco_ano_pct",
+                                                 "perda_natural_40a_pct"))  # fmt: skip
+    partes = []
+    if fogo is not None:
+        partes.append(f"fogo em {fogo:.1f}% da área por ano (MapBiomas Fogo, 1985 a 2024)")
+    if der is not None:
+        partes.append(f"derrubada de {der:.1f}% da vegetação secundária do município por ano (MapBiomas)")
+    txt = "; ".join(partes)
+    if perda is not None:
+        txt += (
+            f". Perda esperada em 40 anos, com aceiro, brigada e contrato averbado: {perda:.1f}%. A reserva "
+            f"nunca fica abaixo dos {100 * float(c['reserva_risco']):.0f}% do cenário."
+        )
+    return txt[:1].upper() + txt[1:]
+
+
+def _r(x: float | None, mult: float = 1.0, nd: int = 2) -> float | None:
+    return None if x is None else round(float(x) * mult, nd)
+
+
+def nao_permanencia(linha: dict, c: dict, r: dict | None = None) -> dict:
+    """Reserva de não permanência da fazenda (E3 passo 4): frequência vezes severidade do fogo (MapBiomas Fogo) e da
+    derrubada da vegetação secundária no município (MapBiomas desmatamento), menos a mitigação do projeto, somadas ao
+    risco interno e externo; nunca abaixo da reserva do cenário nem do piso da Verra. Sem dado, a do cenário."""
+    base = float(c["reserva_risco"])
+    out = {"reserva": base, "fonte": "cenario", "fogo_ano": None, "derrubada_ano": None, "perda_40a": None}
+    if not c.get("reserva_por_fazenda"):
+        return out
+    r = r or regra()
+    npm = r["nao_permanencia"]
+    fogo, sup = _num(linha, "fogo_anos_media"), _num(linha, "taxa_supressao_secundaria_municipio")
+    if fogo is None and sup is None:
+        return out
+    lf = max(fogo or 0.0, 0.0) / float(npm["anos_serie_fogo"])
+    ld = max(sup or 0.0, 0.0)
+    taxa = lf * float(npm["severidade_fogo"]) * (1 - float(npm["mitigacao_fogo"]))
+    taxa += ld * float(npm["severidade_derrubada"]) * (1 - float(npm["mitigacao_derrubada"]))
+    perda = 1 - math.exp(-taxa * float(npm["horizonte_anos"]))
+    risco = float(npm["risco_interno_externo"]) + perda
+    res = min(max(risco, base, float(npm["piso_vcs"])), float(npm["teto"]))
+    return {"reserva": res, "fonte": "fazenda", "fogo_ano": lf, "derrubada_ano": ld, "perda_40a": perda}
+
+
+def descontos(linha: dict, cap: dict, lb: dict, c: dict, r: dict | None = None) -> dict:
     """Do bruto ao líquido, nesta ordem: linha de base (a medida no YbYrá, nunca abaixo do piso do cenário),
-    vazamento (VMD0054; o do cenário, ou zero com fazenda vizinha de mitigação no lote), reserva e incerteza."""
+    vazamento (VMD0054; o do cenário, ou zero com fazenda vizinha de mitigação no lote), reserva de não permanência
+    (a da fazenda pelo fogo e pela derrubada, nunca abaixo da do cenário) e incerteza."""
     medida = lb["tco2_ha_ano"] / cap["p50"] if cap["p50"] > 0 else 0.0
     base = min(max(medida, float(c.get("linha_base_piso") or 0.0)), 1.0)
     mitig = _verdade(linha.get("vazamento_mitigacao")) or _verdade(linha.get("mitigacao_vizinha"))
     vaz = float(c["vazamento_com_mitigacao"] if mitig else c["vazamento"])
-    res, inc = float(c["reserva_risco"]), float(c["incerteza"])
+    npm = nao_permanencia(linha, c, r)
+    res, inc = npm["reserva"], float(c["incerteza"])
     return {
+        "nao_permanencia": npm,
         "linha_base": base,
         "linha_base_medida": medida,
         "vazamento": vaz,
@@ -1115,7 +1166,7 @@ def escolher_metodo(linha: dict, c: dict, r: dict) -> tuple[str, dict, dict]:
     for nome, mo in ops.items():
         cu, ca = custo(linha, mo, r, c), captura(linha, mo, r, c)
         lb = lb or linha_base(linha, H, mo, r)
-        ds = descontos(linha, ca, lb, c)
+        ds = descontos(linha, ca, lb, c, r)
         if len(ops) > 1 and c.get("modelo") == "curva":
             x = simular_fluxos(cu["por_ano_p50"], [], ca["bruto_ano"], [], ca["teto"], ds["fator"], c, r, ())
             disputa[nome] = _equilibrio(x, c)
@@ -1147,7 +1198,7 @@ def fluxo_p50(linha: dict, c: dict | None = None, r: dict | None = None, fator_c
         linha = {**linha, "vazamento_mitigacao": True}  # o vazamento por vizinha já foi decidido no município
     escolhido, m, _ = escolher_metodo(linha, c, r)
     cus, cap = custo(linha, m, r, c), captura(linha, m, r, c)
-    dsc = descontos(linha, cap, linha_base(linha, int(c["horizonte_anos"]), m, r), c)
+    dsc = descontos(linha, cap, linha_base(linha, int(c["horizonte_anos"]), m, r), c, r)
     if isinstance(fator_custo, str):  # "p10" ou "p90": o custo da própria fazenda nesse ponto da faixa
         fator_custo = float(cus[fator_custo]) / float(cus["p50"]) if cus["p50"] > 0 else 1.0
     s = simular_fluxos(np.asarray(cus["por_ano_p50"], dtype=float) * fator_custo, [],
@@ -1233,7 +1284,7 @@ def calcular(linha: dict, c: dict | None = None, r: dict | None = None) -> tuple
     cus = custo(linha, m, r, c)
     cap = captura(linha, m, r, c)
     lb = linha_base(linha, H, m, r)
-    dsc = descontos(linha, cap, lb, c)
+    dsc = descontos(linha, cap, lb, c, r)
     mc_ = r["cenarios"]["monte_carlo"]
     zc, zk = _sorteios(int(mc_["sorteios"]), int(mc_["semente"]))
     mcus = _dois_lados(zc, cus["p10"] / cus["p50"], 1.0, cus["p90"] / cus["p50"]) if cus["p50"] > 0 else zc * 0 + 1
@@ -1303,6 +1354,11 @@ def calcular(linha: dict, c: dict | None = None, r: dict | None = None) -> tuple
         "linha_base_fonte": lb["fonte"],
         "vazamento_pct": round(100 * dsc["vazamento"], 1),
         "reserva_risco_pct": round(100 * dsc["reserva_risco"], 1),
+        "reserva_risco_fonte": dsc["nao_permanencia"]["fonte"],
+        "fogo_risco_ano_pct": _r(dsc["nao_permanencia"]["fogo_ano"], 100, 3),
+        "derrubada_risco_ano_pct": _r(dsc["nao_permanencia"]["derrubada_ano"], 100, 3),
+        "perda_natural_40a_pct": _r(dsc["nao_permanencia"]["perda_40a"], 100, 1),
+        "taxa_supressao_secundaria_municipio": _num(linha, "taxa_supressao_secundaria_municipio"),
         "incerteza_pct": round(100 * dsc["incerteza"], 1),
         "fator_liquido": round(dsc["fator"], 4),
         "vazamento_motivo": linha.get("vazamento_motivo")
@@ -1433,7 +1489,7 @@ def colunas_do_lote(df, cod_municipio: int, c: dict, r: dict | None = None):
 
 # --- por município (saida/<UF>/desenvolvedor_<mun>.csv) ----------------------------------------------------------
 
-ENTRADAS = ("filtros", "mapbiomas", "extras", "direto", "ficha", "terra")
+ENTRADAS = ("filtros", "mapbiomas", "extras", "direto", "ficha", "terra", "rebanho")
 COLS_FICHA = ("estrada_acesso_km", "cidade_proxima_km")
 
 
@@ -1461,7 +1517,22 @@ def linhas_do_municipio(pasta: Path, cod: int):
 ENTRADAS_GRAVADAS = ("pasto_d0_ha", "pasto_d1_ha", "pasto_d2_ha", "pasto_d3_ha", "declividade_media_pct",
                      "chuva_mm_ano", "solo_cec_cmolc_kg", "linha_base_taxa_d0", "linha_base_taxa_d1",
                      "linha_base_taxa_d2", "linha_base_taxa_d3", "linha_base_fonte", "estrada_acesso_km",
-                     "cidade_proxima_km")  # fmt: skip
+                     "cidade_proxima_km", "taxa_supressao_secundaria_municipio")  # fmt: skip
+
+
+def taxa_supressao_secundaria(im) -> float | None:
+    """Parte da vegetação secundária do município suprimida no último ano do MapBiomas desmatamento
+    (mb_supressao_secundaria_<ano>_ha somado dividido por mb_veg_secundaria_<ano>_ha somado), lida pelo nome."""
+    import re
+
+    anos = sorted({int(m.group(1)) for c in im.columns if (m := re.fullmatch(r"mb_supressao_secundaria_(\d{4})_ha", c))
+                   and f"mb_veg_secundaria_{m.group(1)}_ha" in im.columns})  # fmt: skip
+    if not anos:
+        return None
+    a = anos[-1]
+    sup = float(np.nansum(im[f"mb_supressao_secundaria_{a}_ha"].to_numpy(float)))
+    veg = float(np.nansum(im[f"mb_veg_secundaria_{a}_ha"].to_numpy(float)))
+    return sup / veg if veg > 0 else None
 
 
 def _gravado(pasta: Path, cod: int) -> dict[str, dict]:
@@ -1563,23 +1634,34 @@ def calcular_municipio(
         g0 = next(iter(gravado.values()))
         mun = {k: g0[k] for k in ENTRADAS_GRAVADAS if k.startswith("linha_base_") and k in g0 and pd.notna(g0[k])}
     acesso = ("estrada_acesso_km", "cidade_proxima_km")
+    sup_mun = taxa_supressao_secundaria(im)  # derrubada da vegetação secundária no município (não permanência)
+    if sup_mun is None and gravado:
+        sup_mun = _num(next(iter(gravado.values())), "taxa_supressao_secundaria_municipio")
     registros = []
     for li in im.to_dict("records"):
         g = gravado.get(str(li["cod_imovel"]), {})
         extra = {k: g[k] for k in acesso if pd.isna(li.get(k)) and k in g and pd.notna(g[k])}
-        registros.append({**li, **por.get(li["cod_imovel"], {}), **extra})
+        registros.append({**li, **por.get(li["cod_imovel"], {}), **extra,
+                          "taxa_supressao_secundaria_municipio": sup_mun})  # fmt: skip
     # vazamento (VMD0054): vizinha a até 15 km que intensifica o pasto recebe o gado e zera o vazamento
     mit = {}
     if pontos and r.get("mitigacao"):
         from raiz import vazamento as V
 
         mit = V.mitigacoes(registros, pontos, r, area_restauravel, elegivel)
-    elif gravado:  # sem contorno: a vizinha decidida antes
-        vz = ("vazamento_motivo", "vazamento_mitigacao_imovel", "cabecas_deslocadas", "rebanho_fonte")
+    elif gravado:  # sem contorno: a vizinha decidida antes; as cabeças que saem, com o rebanho de agora
+        from raiz import vazamento as V
+
+        por_cod = {str(x["cod_imovel"]): x for x in registros}
+        vz = ("vazamento_motivo", "vazamento_mitigacao_imovel")
         for c_, g in gravado.items():
             x = {k: g[k] for k in vz if k in g and pd.notna(g[k])}
             if x:
                 x["vazamento_mitigacao"] = str(x.get("vazamento_motivo")) in ("mitigacao_vizinha", "sem_gado")
+                li = por_cod.get(c_)
+                if li is not None:
+                    x["cabecas_deslocadas"] = V.cabecas_deslocadas(li, area_restauravel(li), r)
+                    x["rebanho_fonte"] = V.rebanho(li, r)[1]
                 mit[c_] = x
     linhas = []
     for linha in registros:
@@ -1774,7 +1856,8 @@ def bloco_ficha(linha: dict, r: dict | None = None) -> dict:
         {"id": "vazamento", "nome": NOMES_DESCONTO["vazamento"], "pct": pct["vazamento"],
          "texto": ("Zero: há fazenda vizinha de mitigação no lote." if _verdade(linha.get("mitigacao_vizinha"))
                    else "Zero só com fazenda vizinha de mitigação no lote.")},
-        {"id": "reserva_risco", "nome": NOMES_DESCONTO["reserva_risco"], "pct": pct["reserva_risco"], "texto": ""},
+        {"id": "reserva_risco", "nome": NOMES_DESCONTO["reserva_risco"], "pct": pct["reserva_risco"],
+         "texto": _texto_reserva(linha, c)},
         {"id": "incerteza", "nome": NOMES_DESCONTO["incerteza"], "pct": pct["incerteza"], "texto": ""},
     ]  # fmt: skip
     marcos = []
