@@ -272,9 +272,10 @@ A publicação Markdown segue a mesma regra do site agregado: nenhuma ficha indi
 Celular e acessibilidade (12/11/2026): **feito** no código. Entrada nacional em SVG com estados acessíveis,
 sem baixar WebGL ou geometria municipal antes de aproximar; rotas carregadas ao abrir. Navegação disponível a 360 px,
 atalho para o conteúdo, foco após troca de tela, alça e controles com 48 px, tabelas roláveis pelo teclado.
+A entrada do produtor já entrega o formulário em HTML e carrega a ficha apenas ao receber um código do CAR.
 CI verifica axe WCAG 2.1 A/AA, busca e gaveta pelo teclado, novo pedido com filtros, comparação pública,
 lotes autorizados, ficha desbloqueada e prospecção. A contagem do mapa vem de um índice leve, antes de carregar os contornos.
-Lighthouse mobile a 360 px conserva rede/CPU simuladas: três execuções fixas por página (Brasil, entrar, produtor),
+Lighthouse mobile a 360 px conserva rede/CPU simuladas: três execuções fixas por página (Brasil, entrar, novo pedido, prospecção e produtor),
 mediana de desempenho >= 90 e acessibilidade >= 90 em todas. Relatórios completos e capturas ficam nos artefatos.
 As verificações automatizadas não substituem avaliação humana de todos os critérios WCAG; a calibração E9 de
 compreensão com 30 cartas reais continua pendente e nenhum contato com dono é disparado por estes testes.

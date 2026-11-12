@@ -223,7 +223,7 @@ RAIZ_BUILD_DADOS=0 front/scripts/construir-site.sh
   largura de 360 px e axe WCAG 2.1 A/AA no Brasil, município, login com erro, novo pedido (filtros fechados/abertos)
   e produtor. `test:prospeccao` também audita a ficha desbloqueada e a busca autenticada. Não expõe dados pessoais.
 - Lighthouse 13.6.0 mede as categorias oficiais performance e accessibility em mobile de 360 px, com throttling
-  `simulate` padrão. São **três execuções fixas** de Brasil, entrar e produtor: exige mediana de desempenho >= 90
+  `simulate` padrão. São **três execuções fixas** por página: Brasil, entrar, novo pedido, prospecção e produtor: exige mediana de desempenho >= 90
   e acessibilidade >= 90 em cada execução. Erro de coleta, nota ausente/nula e troca para desktop/rede sem simulação
   reprovam. Salva todas as amostras HTML/JSON, axe e capturas em `front/.cache/teste-acessibilidade` e no CI.
 - A série fixa com gzip, após otimizar, deu medianas de desempenho 100 no Brasil, 95 na entrada e 100 no produtor,
@@ -234,7 +234,7 @@ RAIZ_BUILD_DADOS=0 front/scripts/construir-site.sh
   declaração de conformidade total e não inicia contato com proprietários.
 
 Validação local da entrega 4: build travado, 138 testes do front, Pages com zero 404, prospecção com axe e
-Lighthouse Agentic Browsing aprovados. O portão mobile final passou nas nove medições fixas; E9 real não foi calibrado.
+Lighthouse Agentic Browsing aprovados. O portão mobile final passou nas medições fixas; E9 real não foi calibrado.
 
 
 ### Integração das entregas 1 a 4
@@ -246,3 +246,9 @@ Lighthouse Agentic Browsing aprovados. O portão mobile final passou nas nove me
   O mapa específico carrega ao desenhar uma área, receber lotes autorizados ou abrir a ficha desbloqueada.
 - `test:cena` executa axe WCAG 2.1 AA também na comparação pública e nos três lotes autorizados a 360 px;
   `test:prospeccao` conserva o teste de Sentinel-2 sintético, hachura e linha do tempo junto da auditoria axe.
+
+- A entrada do produtor entrega cabeçalho, instrução e formulário como HTML nativo; funciona sem JavaScript.
+  Preact e o leitor da ficha só carregam com `?car=`, preservando o caminho e os controles de acesso existentes.
+  A auditoria confirma a leitura e o envio nativo do formulário com JavaScript desligado.
+
+- O portão Lighthouse inclui também `#/pedidos/novo` e `#/prospeccao`, sem substituir o backend público por fixture: são 15 medições fixas ao todo.

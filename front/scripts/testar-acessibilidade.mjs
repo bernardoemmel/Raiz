@@ -70,14 +70,25 @@ try {
   resumo.axe.push(await conferirPaginaAcessivel(page, AxeBuilder, "novo-pedido-360", saida))
   await page.getByText("Mais filtros", { exact: false }).first().click()
   resumo.axe.push(await conferirPaginaAcessivel(page, AxeBuilder, "novo-pedido-filtros-360", saida))
+  await page.goto(servidor.url + "#/prospeccao")
+  await page.getByRole("heading", { name: "Prospectar terras no Brasil", exact: true }).waitFor()
+  resumo.axe.push(await conferirPaginaAcessivel(page, AxeBuilder, "prospeccao-publica-360", saida))
   await page.goto(servidor.url + "produtor/")
   await page.getByRole("heading", { level: 1 }).waitFor()
   resumo.axe.push(await conferirPaginaAcessivel(page, AxeBuilder, "produtor-360", saida))
+  const semJs = await browser.newContext({ viewport: { width: 360, height: 800 }, javaScriptEnabled: false })
+  const paginaSemJs = await semJs.newPage()
+  await paginaSemJs.goto(servidor.url + "produtor/")
+  await paginaSemJs.getByRole("heading", { name: "Ficha da sua fazenda", exact: true }).waitFor()
+  await paginaSemJs.getByLabel("Código do CAR", { exact: false }).fill("CAR-TESTE-DE-NAVEGACAO")
+  await paginaSemJs.getByRole("button", { name: "Ver a ficha", exact: true }).click()
+  await paginaSemJs.waitForURL((url) => url.searchParams.get("car") === "CAR-TESTE-DE-NAVEGACAO")
+  await semJs.close()
   assert.deepEqual(erros, [], "Erros de execução durante o teste de acessibilidade.")
   await browser.close()
 
   chrome = await launch({ chromePath: executablePath, chromeFlags: ["--headless", ...args] })
-  for (const [nome, caminho] of [["brasil", ""], ["entrar", "#/entrar"], ["produtor", "produtor/"]]) {
+  for (const [nome, caminho] of [["brasil", ""], ["entrar", "#/entrar"], ["novo-pedido", "#/pedidos/novo"], ["prospeccao", "#/prospeccao"], ["produtor", "produtor/"]]) {
     const amostras = []
     for (let rodada = 1; rodada <= 3; rodada++) {
       const resultado = await lighthouse(servidor.url + caminho, {
