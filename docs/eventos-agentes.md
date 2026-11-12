@@ -59,3 +59,24 @@ O SDK MCP v2 já instrumenta suas mensagens; a instrumentação Raíz cobre a op
 
 Dependências: `opentelemetry-api`, `opentelemetry-sdk` e `opentelemetry-exporter-otlp-proto-http`. O envio usa
 `httpx` existente e `Cofre` existente; a assinatura é implementação própria do formato público, sem código copiado.
+
+## Administrar inscrições e operar o worker
+
+Uma pessoa autenticada na sessão da empresa pode usar:
+
+- `POST /v1/webhooks`, com `Idempotency-Key` e corpo `{"url":"https://host-aprovado/raiz"}`. Retorna ID e
+  `segredo` uma única vez, com `Cache-Control: no-store`. Repetir a mesma chave e URL retorna a inscrição sem segredo;
+  reutilizar a chave com outra URL é conflito. São permitidos até cinco destinos ativos por empresa.
+- `GET /v1/webhooks`: lista somente ID, estado e data; não revela URL nem segredo.
+- `DELETE /v1/webhooks/{id}`: desativa e cancela as entregas pendentes. Repetição é idempotente; ID de outra empresa
+  retorna não encontrado. Uma conexão que já havia iniciado não pode ser recolhida após o envio.
+
+Chaves de API e identidades de agentes não administram inscrições. O operador mantém a allowlist
+`RAIZ_WEBHOOK_HOSTS`; possuir sessão não permite enviar eventos para hosts arbitrários. Sem chave válida do cofre,
+o cadastro fica indisponível. Se o segredo da primeira resposta for perdido, desative a inscrição e crie outra.
+
+Executar `uv run raiz api worker` continuamente, ou `uv run raiz api worker --uma` para um ciclo controlado.
+O processo exige `RAIZ_CHAVE_PESSOAL`, fornece o cofre para as entregas e escoa os spans ao encerrar. Cada trabalho
+da fila cria span com ferramenta/canal/empresa; cada tentativa de webhook cria span com empresa/número da tentativa
+/status HTTP. URLs e assinaturas não entram nos atributos. Falhas do ciclo mostram apenas o tipo do erro no terminal,
+sem texto de exceção, SQL, parâmetros ou conteúdo de terceiros.

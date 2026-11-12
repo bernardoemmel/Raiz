@@ -24,9 +24,11 @@ from urllib.parse import urlsplit
 from urllib.request import getproxies, proxy_bypass_environment
 
 import httpx
+from opentelemetry.trace import Status, StatusCode
 from sqlalchemy import Connection, Engine, text
 
 from raiz.pessoal import Cofre
+from raiz.publica.telemetria import entrega_webhook
 
 _SIGILO = ContextVar("webhook_sigilo", default=False)
 
@@ -216,11 +218,13 @@ def enviar_https(url: str, corpo: bytes, cabecalhos: dict[str, str]) -> int:
         _SIGILO.reset(sigilo)
 
 
-def cadastrar_inscricao(con: Connection, cliente_id: int, url: str, segredo: str, *, cofre: Cofre) -> str:
+def cadastrar_inscricao(
+    con: Connection, cliente_id: int, url: str, segredo: str, *, cofre: Cofre, inscricao_id: str | None = None
+) -> str:
     """Operação administrativa; nunca expor como ferramenta de agente."""
     validar_destino(url)
     _chave(segredo)
-    inscricao_id = str(uuid.uuid4())
+    inscricao_id = str(uuid.UUID(inscricao_id)) if inscricao_id is not None else str(uuid.uuid4())
     con.execute(
         text("""
         INSERT INTO negocio.webhook_inscricao (id, cliente_id, url_cifrada, segredo_cifrado)
@@ -312,22 +316,27 @@ def entregar_proximo(
         """),
             {"lease": lease, "ate": agora + dt.timedelta(seconds=60), "id": linha["id"], "c": cliente_id},
         )
-    status = None
-    try:
-        url = cofre.decifrar(linha["url_cifrada"])
-        validar_destino(url)
-        corpo = bytes(linha["corpo"])
-        cabecalhos = assinar(
-            corpo, cofre.decifrar(linha["segredo_cifrado"]), str(linha["id"]), timestamp=int(agora.timestamp())
-        )
-        status = enviar(url, corpo, cabecalhos)
-        if not isinstance(status, int) or not 100 <= status <= 599:
-            status = None
-    except Exception:
-        # Texto de erro remoto pode conter segredos/PII; só o estado categórico é persistido.
-        pass
     tentativa = linha["tentativas"] + 1
-    sucesso = status is not None and 200 <= status < 300
+    with entrega_webhook(cliente_id, tentativa) as span:
+        status = None
+        try:
+            url = cofre.decifrar(linha["url_cifrada"])
+            validar_destino(url)
+            corpo = bytes(linha["corpo"])
+            cabecalhos = assinar(
+                corpo, cofre.decifrar(linha["segredo_cifrado"]), str(linha["id"]), timestamp=int(agora.timestamp())
+            )
+            status = enviar(url, corpo, cabecalhos)
+            if not isinstance(status, int) or not 100 <= status <= 599:
+                status = None
+        except Exception:
+            # Texto de erro remoto pode conter segredos/PII; só o estado categórico é persistido.
+            pass
+        sucesso = status is not None and 200 <= status < 300
+        if status is not None:
+            span.set_attribute("http.response.status_code", status)
+        if not sucesso:
+            span.set_status(Status(StatusCode.ERROR))
     estado = "entregue" if sucesso else "cancelada" if status == 410 else "falhou" if tentativa >= 20 else "pendente"
     espera = min(60 * 2 ** min(tentativa - 1, 11), 86400) + secrets.randbelow(30)
     with engine.begin() as con:

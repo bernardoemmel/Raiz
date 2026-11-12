@@ -65,3 +65,16 @@ def test_http_registra_recusas_sem_corpo_cabecalhos_ou_caminho_livre(coletor, st
     assert "segredo" not in repr(dict(span.attributes))
     assert not span.events
     assert len(mensagens) == 2
+
+
+def test_span_webhook_nao_captura_url_ou_falha_textual(coletor):
+    from raiz.publica.telemetria import entrega_webhook
+
+    tracer, exportador = coletor
+    with pytest.raises(ValueError), entrega_webhook(18, 2, tracer=tracer):
+        raise ValueError("https://segredo.example/credencial")
+    span = exportador.get_finished_spans()[0]
+    assert span.name == "raiz.webhook"
+    assert dict(span.attributes) == {"raiz.cliente_id": 18, "raiz.tentativa": 2}
+    assert span.status.status_code == StatusCode.ERROR
+    assert not span.events and span.status.description is None

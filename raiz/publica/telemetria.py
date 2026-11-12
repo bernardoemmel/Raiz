@@ -79,6 +79,23 @@ def chamada(ferramenta: str, via: str, cliente_id: int | None = None, *, tracer=
             raise
 
 
+@contextmanager
+def entrega_webhook(cliente_id: int, tentativa: int, *, tracer=None) -> Iterator:
+    """Evento de saída sem URL, segredo, assinatura, payload ou resposta externa."""
+    with _tracer(tracer).start_as_current_span(
+        "raiz.webhook",
+        kind=SpanKind.PRODUCER,
+        attributes={"raiz.cliente_id": cliente_id, "raiz.tentativa": tentativa},
+        record_exception=False,
+        set_status_on_exception=False,
+    ) as span:
+        try:
+            yield span
+        except BaseException:
+            span.set_status(Status(StatusCode.ERROR))
+            raise
+
+
 class TelemetriaMiddleware:
     """ASGI puro: mede inclusive 401/403/429 sem consumir corpo nem capturar exceções."""
 
