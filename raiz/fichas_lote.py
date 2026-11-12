@@ -165,8 +165,10 @@ def linha_do_cartao(ficha: dict) -> dict:
         "aceito": aceito,
         "_cod_imovel": imovel["cod_imovel"],
     }
-    if aceito:  # depois do aceite o código do CAR pode aparecer
+    if aceito:  # depois do aceite o código do CAR e a foto de satélite podem aparecer
         linha["cod_imovel"] = imovel["cod_imovel"]
+        if ficha.get("capa"):
+            linha["capa_thumbhash"] = ficha["capa"]["thumbhash"]
     return linha
 
 
@@ -185,9 +187,8 @@ def gravar_municipio(engine: Engine, cod_ibge: int, destino: Path) -> dict:
     rows = []
     for alvo in todos:
         cod = alvo["cod_imovel"]
-        ficha = api.montar_ficha(
-            alvo, todos, geoms.get(cod), rodadas.get(rodada_de.get(cod)), banco.get(cod, {}), contexto
-        )
+        b = {**banco.get(cod, {}), "capa": api.capa_da_ficha(cod)}
+        ficha = api.montar_ficha(alvo, todos, geoms.get(cod), rodadas.get(rodada_de.get(cod)), b, contexto)
         _gravar(pasta / "fichas" / f"{api.normalizar_codigo(cod)}.json", ficha)
         rows.append(linha_do_cartao(ficha))
     _gravar(pasta / "rows.json", rows)

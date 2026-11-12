@@ -8,6 +8,7 @@
 | Regras da escadinha do art. 61-A (`faixa_rio_consolidada`) e do teto do art. 61-B (`limite_61b`), reescritas | `motor/raiz_estado.py`, `motor/raiz_app.py` | MIT, Copyright (c) 2022 GeoOne | https://github.com/OpenGeoOne/GeoCAR |
 | Contorno dos estados do Brasil (Natural Earth 1:50m, admin 1), projetado e simplificado para o minimapa em SVG | `front/compartilhado/brasil-estados.ts` (gerado por `front/scripts/geo.py`) | domínio público | https://www.naturalearthdata.com |
 | Contagem de letras, palavras, sílabas e frases e as fórmulas do ALT (Análise de Legibilidade Textual: Flesch, Flesch-Kincaid, Gunning Fog, ARI, Coleman-Liau, Gulpease e o resultado), copiadas do alt-python 0.1.2 sem a leitura de PDF e Word; a lista de palavras comuns da Linguateca não foi copiada (sem licença clara). As fórmulas de Martins et al. (1996, NILC-USP) e a do LanguageTool para o português (LGPL; só os coeficientes, sem código) foram reimplementadas | `raiz/legibilidade.py` | MIT, Copyright (c) 2025 Marco Polo Moreno de Souza | https://github.com/marcopolomoreno/alt-python |
+| ThumbHash: codificador e decodificador (rgbaToThumbHash e thumbHashToRGBA) portados para Python, com o arredondamento do JavaScript para o hash sair igual ao do pacote npm | `raiz/thumbhash.py` | MIT, Copyright (c) 2023 Evan Wallace | https://github.com/evanw/thumbhash |
 | Códigos dos 5.571 municípios por estado (IBGE, Divisão Territorial Brasileira 2025, data base 31/12/2025), só os códigos | `front/compartilhado/ibge-municipios.ts` (gerado por `front/scripts/geo.py`) | dado público do IBGE, uso livre com citação da fonte | https://geoftp.ibge.gov.br/organizacao_do_territorio/estrutura_territorial/divisao_territorial/ |
 
 Dados públicos lidos pelo motor (cada um com seus termos): SICAR/SFB, Ibama, INPE TerraBrasilis (PRODES),
@@ -61,6 +62,7 @@ Distribuídas dentro do produto (vão no pacote que o navegador baixa), sem alte
 | Radix Primitives: @radix-ui/react-tabs 1.2.1 e @radix-ui/react-dialog 1.3.1 (abas das opções do lote e janela do Pix; e as dependências deles: aria-hidden, react-remove-scroll, use-callback-ref, use-sidecar, get-nonce, detect-node-es, MIT; tslib, 0BSD) | `front/globo` | MIT |
 | NumberFlow (@number-flow/react 0.6.2 e number-flow, esm-env) nos números do andamento | `front/globo` | MIT |
 | uqr 0.1.3 (código QR do Pix em SVG) | `front/globo` | MIT |
+| thumbhash 0.1.1 (borrão da capa enquanto a foto de satélite chega) | `front/produtor` | MIT |
 
 Gerados por `front/scripts/geo.py` e servidos junto (fora do git): recorte do mapa base do build diário do Protomaps,
 com dados © colaboradores do OpenStreetMap (ODbL 1.0, atribuição no canto do mapa); letras dos rótulos Noto Sans

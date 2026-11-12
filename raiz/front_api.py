@@ -377,6 +377,17 @@ def montar_ficha(
     }
 
 
+def capa_da_ficha(cod_imovel: str) -> dict | None:
+    """A foto de capa (satélite com o contorno) se já existe em cache; a ficha nunca espera o satélite."""
+    from raiz import satelite
+
+    try:
+        return satelite.capa(normalizar_codigo(cod_imovel))
+    except (OSError, ValueError):  # metadados quebrados não derrubam a ficha
+        log.warning("capa da ficha ilegível", exc_info=True)
+        return None
+
+
 def _do_design_v1(alvo: dict, banco: dict) -> dict:
     """Campos do design v1 do front que dependem do banco ou viram lista (docs/design/dados-para-o-front-v1.md)."""
     selo, etapa = selo_e_etapa(alvo, banco)
@@ -387,6 +398,8 @@ def _do_design_v1(alvo: dict, banco: dict) -> dict:
         "etapa_funil": etapa,
         "criterios_aptidao": motivos_mod.criterios(alvo, banco.get("data_corte")),
         "serie_uso": banco.get("serie_uso"),
+        # foto de satélite com o contorno, quando já foi gerada (caminho na API e ThumbHash para o borrão)
+        "capa": banco.get("capa"),
     }
 
 
@@ -808,7 +821,7 @@ def roteador(engine_de) -> APIRouter:
                         where cod_imovel = :c and geom is not null"""),
                 {"c": cod, "t": SIMPLIFICAR_GRAUS},
             ).scalar()
-        banco = do_banco(eng, cod)
+        banco = {**do_banco(eng, cod), "capa": capa_da_ficha(cod)}
         return _json(montar_ficha(alvo[0], todos, json.loads(g) if g else None, versao(eng, cod), banco))
 
     @r.get("/imoveis/{cod_imovel}/flag/simular")

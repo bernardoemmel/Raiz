@@ -154,3 +154,37 @@ def test_rotas_de_imagem(tmp_path, monkeypatch):
         assert m["satelite"] == "Sentinel-2C" and m["largura"] == 1024 and m["bytes"] == len(r.content)
         assert cl.get("/imoveis/PA-1504950-0016/imagem/qualquer.webp").status_code == 404
         assert cl.get("/imoveis/PA-1504950-0016/imagem/1985.webp").status_code == 404  # sem polígono no banco
+
+
+def test_capa_com_thumbhash(tmp_path, monkeypatch):
+    """A foto do produtor grava o ThumbHash; imagem antiga sem ele ganha o dela na primeira leitura da capa."""
+    from raiz.thumbhash import hash_para_rgba
+
+    monkeypatch.setattr(S, "pasta", lambda: tmp_path)
+    assert S.capa("PA15049500016") is None  # ainda não gerada: a ficha não espera o satélite
+    p = tmp_path / "PA15049500016"
+    meta = S.salvar(p, "hoje-produtor", _cena(), S.desenhar(_cena(), "hoje-produtor", GEOM, PODE_VOLTAR))
+    assert meta.thumbhash and 20 <= len(__import__("base64").b64decode(meta.thumbhash)) <= 30
+    c = S.capa("PA15049500016")
+    assert c["caminho"] == "imoveis/PA15049500016/imagem/hoje-produtor.webp"
+    assert c["thumbhash"] == meta.thumbhash and (c["largura"], c["altura"]) == (meta.largura, meta.altura)
+    # o borrão tem a proporção da foto
+    w, h, _ = hash_para_rgba(__import__("base64").b64decode(c["thumbhash"]))
+    assert abs(w / h - meta.largura / meta.altura) < 0.35
+    # metadados de antes do ThumbHash
+    mf = p / "metadados.json"
+    tudo = json.loads(mf.read_text(encoding="utf-8"))
+    tudo["hoje-produtor"].pop("thumbhash")
+    mf.write_text(json.dumps(tudo), encoding="utf-8")
+    assert S.capa("PA15049500016")["thumbhash"]
+    assert json.loads(mf.read_text(encoding="utf-8"))["hoje-produtor"]["thumbhash"]
+
+
+def test_foto_da_pagina_publica_com_borrao(tmp_path, monkeypatch):
+    from raiz import publico
+
+    monkeypatch.setattr(S, "pasta", lambda: tmp_path)
+    S.salvar(tmp_path / "PA15049500016", "hoje-produtor", _cena(), S.desenhar(_cena(), "hoje-produtor", GEOM))
+    h = publico._foto({"codigo": "K7M2Q9X", "_cod_busca": "PA15049500016"}, "https://raiz.exemplo")
+    assert 'src="https://raiz.exemplo/p/K7M2Q9X/satelite.webp"' in h and 'width="720"' in h
+    assert "background:url(data:image/png;base64," in h and "Copernicus" in h

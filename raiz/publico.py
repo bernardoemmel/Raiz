@@ -199,6 +199,22 @@ def video(d: dict, sufixo: str = "") -> tuple[Path, dict]:
     return f, meta
 
 
+def _foto(d: dict, base: str) -> str:
+    """Satélite com o contorno, com o borrão do ThumbHash de fundo (PNG de ~1 KB embutido) enquanto a foto chega e o
+    tamanho certo para a página não pular."""
+    from raiz import satelite
+    from raiz.thumbhash import para_data_url
+
+    c = satelite.capa(d["_cod_busca"]) or {}
+    tam = f' width="{c["largura"]}" height="{c["altura"]}"' if c.get("largura") else ' width="720"'
+    fundo = f' style="background:url({para_data_url(c["thumbhash"])}) center/cover"' if c.get("thumbhash") else ""
+    legenda = f"<figcaption>{html.escape(c['credito'])}</figcaption>" if c.get("credito") else ""
+    return (
+        f'<figure><img src="{base}/p/{html.escape(d["codigo"])}/satelite.webp" alt="Imagem de satélite da fazenda"'
+        f"{tam}{fundo}>{legenda}</figure>"
+    )
+
+
 def pagina(d: dict, base_url: str) -> str:
     """Ficha do produtor em HTML pronto (sem JavaScript), com Open Graph para o WhatsApp. Até 150 KB."""
     e = html.escape
@@ -209,14 +225,9 @@ def pagina(d: dict, base_url: str) -> str:
     desc = f"{d['hectares']} hectares {d['frase']}. {selo_txt}. Código {d['codigo']}."
     depois = ""
     if d["aceito"]:
-        depois = (
-            f'<p class="car">CAR {e(d["_cod_imovel"])}</p>'
-            + (
-                f'<img src="{base}/p/{e(d["codigo"])}/satelite.webp" alt="Imagem de satélite da fazenda" width="720">'
-                if _imagens_do_aceite(d).get("imagem")
-                else ""
-            )  # fmt: skip
-        )
+        depois = f'<p class="car">CAR {e(d["_cod_imovel"])}</p>'
+        if _imagens_do_aceite(d).get("imagem"):
+            depois += _foto(d, base)
     return f"""<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>{e(titulo)} · Raíz</title>
@@ -230,7 +241,8 @@ def pagina(d: dict, base_url: str) -> str:
 <style>body{{margin:0;font:18px/1.4 system-ui,sans-serif;background:#f4f1ea;color:#1d5a39}}
 main{{max-width:720px;margin:auto;padding:24px}}.ha{{font-size:64px;font-weight:700;margin:8px 0}}
 .selo{{display:inline-block;background:#fff;border-radius:20px;padding:6px 14px}}.car{{font-family:monospace}}
-img{{max-width:100%;height:auto;border-radius:12px;margin-top:16px}}</style></head>
+img{{max-width:100%;height:auto;border-radius:12px;margin-top:16px}}figure{{margin:0}}
+figcaption{{font-size:14px;opacity:.8}}</style></head>
 <body><main><p>{e(d["municipio"])} · {e(d["uf"])}</p><p class="ha">{e(d["hectares"])} ha</p>
 <p>{e(d["frase"]).capitalize()}.</p><p class="selo">{e(selo_txt)}</p><p>Código da fazenda: <b>{e(d["codigo"])}</b></p>
 {depois}<p><small>Raíz · dados do CAR (SICAR/SFB) e do MapBiomas</small></p></main></body></html>"""
