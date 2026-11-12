@@ -27,12 +27,12 @@ import logging
 import sys
 from pathlib import Path
 
-from raiz.vigilancia.privacidade import mascarar
-
 
 class _LogSeguro(logging.Formatter):
     def format(self, record):
-        return mascarar(super().format(record))
+        from raiz.logs_seguros import sanitizar_log
+
+        return sanitizar_log(super().format(record))
 
 
 def _log() -> None:
@@ -125,7 +125,7 @@ def main(argv: list[str] | None = None) -> int:
 
         from raiz.vigilancia.servidor import criar_app
 
-        uvicorn.run(criar_app(), host=args.host, port=args.porta)
+        uvicorn.run(criar_app(), host=args.host, port=args.porta, log_config=None, access_log=False)
         return 0
 
     if args.cmd == "rodar":
