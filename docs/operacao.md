@@ -27,6 +27,23 @@ olha o resto de 15 em 15 minutos e sobe a escada do que ninguém reconheceu:
 */15 * * * *  uv run raiz operacao alertas   # lotes, orçamento, vigilância, prazo da Verra, filas, grupos
 ```
 
+Para instalar sem depender do diretório e do `PATH` do cron, no servidor e com o usuário da aplicação:
+
+```bash
+uv run python scripts/instalar_cron_alertas.py             # mostra o bloco
+uv run python scripts/instalar_cron_alertas.py --instalar  # ativa a cada 15 minutos
+crontab -l
+```
+
+O instalador preserva os outros trabalhos e substitui apenas o bloco marcado da Raíz; pode ser repetido. Usa o
+caminho absoluto do `uv`, entra na raiz do repositório (onde a configuração lê o `.env`), exige o lockfile com
+`--frozen` e usa `flock` para não sobrepor rodadas. Se existir `.env`, usa `uv run --env-file .env` para exportar
+também as variáveis lidas diretamente por `os.environ` na vigilância; não executa o arquivo como código shell.
+Precisa de `cron` ativo e `flock` (`util-linux`) no servidor.
+Não instala serviços nem preenche credenciais. Sem ntfy e GoAlert, continua em envio simulado; sem banco acessível
+e migrado, a rodada falha. A prévia não ativa nada. Um ambiente de desenvolvimento sem acesso ao servidor não
+comprova que o agendamento esteja ativo em produção.
+
 | O que | Gravidade |
 |---|---|
 | lote que falhou nas últimas 24 h (um alerta por tarefa e dia) | aviso |
@@ -99,6 +116,38 @@ docker compose -f infra/docker-compose.yml up -d --build llama
 uv run raiz modelos calibrar        # roda o teste no Qwen e grava raiz/regras/padroes/cascata_cortes.yaml
 uv run raiz modelos avaliar --modelo triagem   # o mesmo teste no Haiku, para comparar
 ```
+
+O GGUF validado para o nome usado no compose é o Q4_K_M de
+[Unsloth/Qwen3-4B-Instruct-2507-GGUF](https://huggingface.co/unsloth/Qwen3-4B-Instruct-2507-GGUF), revisão
+`a06e946bb6b655725eafa393f4a9745d460374c9` (2.497.281.120 bytes), sob Apache-2.0. Salve-o como
+`infra/modelos/qwen3-4b-instruct-2507-q4_k_m.gguf`, fora do git, e confira antes de subir:
+
+```bash
+sha256sum infra/modelos/qwen3-4b-instruct-2507-q4_k_m.gguf
+```
+
+SHA-256 esperado: `3605803b982cb64aead44f6c1b2ae36e3acdb41d8e46c8a94c6533bc4c67e597`.
+O download verificado em 12/11/2026 veio da revisão acima; trocar a quantização ou o conteúdo do arquivo exige
+recalibrar, mesmo que o nome permaneça igual. Guarde esse SHA junto do relatório de avaliação. Antes de rodar as
+360 chamadas, `uv run raiz modelos testar --modelo qwen3-4b-instruct-2507` confere a conexão e a saída JSON.
+
+O Dockerfile fixa Rust 1.100.0 e copia o header da mesma revisão do llguidance depois de compilar o Rust. Isso
+corrige a falha `llguidance.h: No such file or directory` da combinação b12300/llguidance 1.0.1 com o novo layout
+de diretórios do Cargo. Se o ambiente usa proxy TLS, o certificado pode ser montado apenas durante o build:
+
+```bash
+docker build --secret id=proxy_ca,src=/etc/ssl/certs/ca-certificates.crt \
+  -t raiz/llama-server:b12300-llguidance infra/llama
+docker compose -f infra/docker-compose.yml up -d --no-build llama
+```
+
+Sem proxy, o segredo é opcional e o comando normal do compose continua suficiente. A imagem final não recebe o
+certificado do ambiente de construção.
+
+Validação local em 12/11/2026: imagem construída com esse Dockerfile, `llama-server --version` em
+`ccd360f` (b12300), `/health` saudável e teste CLI do Qwen respondendo JSON válido em 1.253 ms. A intenção e a
+explicação amostradas do teste próprio levaram 3.868 e 7.392 ms, com logprobs disponíveis. Isso confirma o build e
+a conexão local; não afirma implantação no servidor nem substitui as 360 respostas da calibração.
 
 O corte só é gravado com o relatório de um modelo local de verdade; se o arquivo do GGUF mudar de nome, os cortes
 antigos deixam de valer. Sem servidor nem chave, `--modelo simulado` roda tudo com regras (linha de base). Cada
