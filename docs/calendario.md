@@ -32,7 +32,7 @@ O manifesto `raiz/calendario/fontes.yaml` registra os endereços oficiais, termo
 
 Os estados são `ok`, `parcial`, `erro` e `sem_data`. `ok` significa apenas que as páginas visitadas foram processadas; os limites de páginas, falhas ou atos com data não reconhecida aparecem como cobertura parcial. A coleta sem eventos não prova inexistência de editais. A busca dos diários é uma janela móvel de sete dias. PDF escaneado sem camada de texto não passa por OCR nesta entrega. Edições inteiras sem separação reconhecível de editais não são cruzadas com CAR para evitar vínculos falsos.
 
-O extrator separa anúncios por blocos conhecidos, elimina repetição de data no mesmo ato e exclui datas de edição de leis citadas. Portais florestais só geram concessão quando o texto a identifica; pregões comuns de compra/serviço não herdam esse tipo. ICVCM usa os cartões do índice oficial, sem duplicar consultas por traduções, PDFs e fusos diferentes das páginas de detalhe. Testes guardam trechos oficiais de ICVCM, EUDR e Fomento Paraná capturados em 12/11/2026. O trecho de Fomento conserva apenas os títulos e cláusulas de data/objeto; pessoas e outros elementos foram omitidos. O quadro EUDR usa linhas de aplicação, excluindo a entrada em vigor e a data histórica de corte de desmatamento. A confiança `0.85` é um rótulo heurístico de extração de data explícita, não uma probabilidade calibrada.
+O extrator separa anúncios por blocos conhecidos, elimina repetição de data no mesmo ato e exclui datas de edição de leis citadas. Portais florestais só geram concessão quando o texto a identifica; pregões comuns de compra/serviço não herdam esse tipo. ICVCM usa os cartões do índice oficial, sem duplicar consultas por traduções, PDFs e fusos diferentes das páginas de detalhe. Testes guardam trechos oficiais de ICVCM, EUDR, SBTi e Fomento Paraná capturados em 12/11/2026. O trecho de Fomento conserva apenas os títulos e cláusulas de data/objeto; pessoas e outros elementos foram omitidos. O quadro EUDR usa linhas de aplicação, excluindo a entrada em vigor e a data histórica de corte de desmatamento. A confiança `0.85` é um rótulo heurístico de extração de data explícita, não uma probabilidade calibrada.
 
 ## Imóveis e avisos
 
@@ -62,3 +62,33 @@ HTML/PDF são lidos somente em memória. Banco, snapshots, feed, histórico e av
 `eventos.json` e o feed excluem CNS, matrícula, SIGEF e CAR enriquecido, mantendo apenas CAR explícito no ato público. API, snapshot e MCP aplicam a mesma regra, também ao filtrar por CAR. Isso preserva o acesso pago à ficha da terra definido na main de 12/11/2026.
 
 `estado.json` inclui os identificadores necessários ao vínculo no servidor. Quando gerado com banco, é arquivo administrativo e pode conter enriquecimento: não publicar esse arquivo em armazenamento aberto. O workflow público usa exclusivamente `--sem-banco`, portanto seu `estado.json` contém apenas campos extraídos da fonte pública, sem enriquecimento da base de imóveis. Os testes exercitam páginas gravadas, datas, isolamento entre editais, cancelamento, privacidade, erro de fonte, PostGIS, CAR/CNS/SIGEF, idempotência dos avisos, API, feed e consulta MCP.
+
+## Verificação operacional de 12/11/2026
+
+A primeira coleta completa visitou as 17 fontes dentro dos limites do manifesto. A auditoria encontrou comparação quadrática de árvores HTML, datas de leis citadas, pregões comuns classificados como concessão e repetição de datas no mesmo ato. A revisão independente também identificou uma contratação da SBTi indevidamente incluída e uma consulta ainda não reconhecida. Após corrigir esses pontos, as cinco fontes afetadas foram coletadas novamente. O resultado consolidado foi de **43 eventos, 6 futuros, em 102 páginas consultadas**; nenhum CAR explícito apareceu nessa rodada. A ausência de CAR não virou vínculo inventado. A revisão do número de edital também passou a distinguir cabeçalho de numeração interna do texto.
+
+| Fonte | Páginas | Eventos | Situação |
+|---|---:|---:|---|
+| BNDES Florestas | 3 | 0 | sem_data |
+| BNDES Créditos de Carbono | 6 | 12 | parcial |
+| Diário de Justiça Eletrônico Nacional (CNJ) | 4 | 0 | erro |
+| Diário Oficial de Mato Grosso | 6 | 0 | parcial |
+| Diário Oficial do Pará | 4 | 0 | erro |
+| Diário Oficial da União | 15 | 0 | parcial |
+| Comissão Europeia (EUDR) | 6 | 3 | parcial |
+| Fomento Paraná | 8 | 11 | parcial |
+| Fundo Amazônia | 1 | 0 | sem_data |
+| ICVCM | 1 | 2 | ok |
+| Ideflor-Bio | 8 | 5 | parcial |
+| BNDES ProFloresta+ | 3 | 0 | sem_data |
+| Ministério da Fazenda (SBCE) | 8 | 0 | parcial |
+| SBTi | 8 | 2 | parcial |
+| Serviço Florestal Brasileiro | 1 | 0 | sem_data |
+| Justiça Federal da 2ª Região | 12 | 0 | parcial |
+| Verra | 8 | 8 | parcial |
+
+O diagnóstico direto confirmou **HTTP 403 no DJEN** e **HTTP 500 no DOE PA**. Essas fontes não foram contornadas. A rodada preservou os dados úteis e saiu com código 1 para sinalizar as falhas. Os quatro `sem_data` significam ausência de prazo extraído nas páginas visitadas, sem afirmar ausência de editais ou cobertura completa.
+
+Os arquivos JSON público, estado e feed passaram na varredura de CPF/CNPJ. Não houve nomes, texto bruto, envio de avisos, atualização de produção ou publicação de Release. Vínculos CAR/CNS/SIGEF, matrícula corrigida/removida, cancelamento independente da ordem, consulta pública sem enriquecimento e fonte indisponível estão cobertos pelos 28 testes do calendário com PostGIS.
+
+A revisão independente confirmou os seis prazos futuros nos textos oficiais: consultas SBTi em 04/12/2026 e 06/12/2026; ICVCM em 04/12/2026; aplicação EUDR em 30/12/2026, 30/06/2027 e 30/12/2027. A contratação SBTi de 30/11/2026 foi excluída. Esses dias são evidência da rodada, não prazos fixados no código; a coleta seguinte volta às fontes.
