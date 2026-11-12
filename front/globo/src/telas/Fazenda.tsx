@@ -18,7 +18,7 @@ import { Satelite } from "../partes/Satelite"
 import { consumirVoo, linkMunicipio } from "../rota"
 
 const URL_PRODUTOR: string =
-  import.meta.env.VITE_RAIZ_URL_PRODUTOR ?? (import.meta.env.DEV ? "http://localhost:5174/" : "/produtor/")
+  import.meta.env.VITE_RAIZ_URL_PRODUTOR ?? (import.meta.env.DEV ? "http://localhost:5174/" : `${import.meta.env.BASE_URL}produtor/`)
 
 interface Numero {
   id: string
