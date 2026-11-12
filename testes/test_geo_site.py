@@ -6,6 +6,7 @@ import json
 import os
 import subprocess
 import threading
+from concurrent.futures import ThreadPoolExecutor
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
@@ -106,6 +107,20 @@ def test_base_nacional_uniforme_tem_tile_ao_aproximar_fora_do_para(geo, monkeypa
         assert leitor.get(z, x, y) is not None
 
 
+def test_cache_nacional_parcial_nao_publica_uf_sem_fundo_e_pode_ser_refeito(geo):
+    geo.salvar("brasil_municipios.geojson", [])
+    geo.salvar("brasil_estados.geojson", [])
+    pasta = geo.SAIDA / "cache"
+    pasta.mkdir()
+    bruto = pasta / "municipalities_cerrado_biome.geojson"
+    bruto.write_text('{"features":[]}')
+    with pytest.raises(RuntimeError, match="UFs.*GO"):
+        geo.conferir_limites({"5200050": Path("imoveis_5200050.csv")}, {"5200050": {}}, [])
+    assert not bruto.exists()
+    assert not (geo.SAIDA / "brasil_municipios.geojson").exists()
+    assert not (geo.SAIDA / "brasil_estados.geojson").exists()
+
+
 def test_servidor_sem_range_nao_e_aceito_como_pmtiles(geo, monkeypatch):
     class Resposta:
         status_code = 200
@@ -114,6 +129,21 @@ def test_servidor_sem_range_nao_e_aceito_como_pmtiles(geo, monkeypatch):
     monkeypatch.setattr(geo, "baixar", lambda *_a, **_k: Resposta())
     with pytest.raises(RuntimeError, match="HTTP Range"):
         geo.Remoto("https://exemplo.test/base.pmtiles")
+
+
+def test_tiles_concorrentes_compartilham_download_e_leitura_do_diretorio(geo, monkeypatch):
+    leituras = []
+    interpretacoes = []
+    remoto = geo.Remoto.__new__(geo.Remoto)
+    remoto.cache = {}
+    remoto.trava = threading.Lock()
+    remoto.ler = lambda inicio, tamanho: leituras.append((inicio, tamanho)) or b"diretorio"
+    monkeypatch.setattr(geo, "deserialize_directory", lambda dado: interpretacoes.append(dado) or ["tile"])
+    with ThreadPoolExecutor(16) as executor:
+        resultados = list(executor.map(lambda _: remoto.diretorio(127, 50), range(64)))
+    assert leituras == [(127, 50)]
+    assert interpretacoes == [b"diretorio"]
+    assert all(resultado == ["tile"] for resultado in resultados)
 
 
 @pytest.mark.parametrize("municipios,saida", [(0, 0), (1, 1)])
