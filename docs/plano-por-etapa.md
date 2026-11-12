@@ -317,7 +317,7 @@ faz sem back-end.
 
 | Entrega | Situação |
 |---|---|
-| Eventos com tipo, data/prazo, UF/município, fonte/link, coleta e confiança | **feito**: esquema `calendario`, migração 0026 após 0022–0025 do título/aprendizado; histórico, UID e sequência preservados nas retificações |
+| Eventos com tipo, data/prazo, UF/município, fonte/link, coleta e confiança | **feito**: esquema `calendario`, migração 0027 após 0022–0025 do título/aprendizado e 0026 da prospecção; histórico, UID e sequência preservados nas retificações |
 | Coleta diária de leilões rurais, penhoras, BNDES, ProFloresta+, Fundo Amazônia, concessões, crédito e SBCE/Verra/ICVCM/SBTi/EUDR | **feito**: 17 fontes oficiais em `raiz/calendario/fontes.yaml`, HTTP/PDF/Firecrawl opcional, workflow diário com snapshot no Release `calendario`; cobertura inicial e falhas explícitas, sem inventar prazos |
 | Vínculo de leilão/penhora ao CAR | **feito**: CAR explícito, CNS+matrícula ou interseção SIGEF; sem corte por tamanho; vínculo insuficiente fica pendente; títulos gerados, nenhum nome de pessoa ou documento pessoal persistido |
 | API e integração | **feito**: `GET /eventos` com tipo/estado/período/CAR, `GET /eventos.ics` e função MCP `proximos_eventos` pronta; transporte MCP depende de servidor, ainda ausente no repositório |

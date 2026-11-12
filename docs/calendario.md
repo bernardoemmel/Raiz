@@ -4,7 +4,7 @@ O calendário reúne datas explicitamente publicadas por fontes oficiais. Cada e
 
 ## Coleta e operação
 
-A migração `0026`, posterior às migrações do título `0022` a `0025`, cria o esquema `calendario`. Aplicar `uv run raiz banco migrar` antes da primeira coleta no servidor.
+A migração `0027`, posterior às migrações do título `0022` a `0025` e à `0026` da prospecção, cria o esquema `calendario`. Aplicar `uv run raiz banco migrar` antes da primeira coleta no servidor.
 
 ```bash
 uv run raiz calendario coletar
