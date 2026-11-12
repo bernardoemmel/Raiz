@@ -13,6 +13,13 @@ aprovação é preservada. O limite global também gera telemetria e erros RFC 9
 a ponte interna autenticada não duplica a contagem por IP. O limite por empresa
 continua ativo. O teste Chromium da API paga respeita Retry-After.
 
+A validação integrada inclui 64 testes de login, segurança e telemetria, 12 das
+salvaguardas e 12 do armazenamento do limitador. O fluxo real no Chromium passou
+com evidências geográficas sintéticas, aprovação humana, QR/vencimento e verificação
+criptográfica do recibo. A página recebida pelo agente também foi exercitada com
+rede simulada e passa a ser verificada no CI. Foram auditados 638 pacotes, sem
+licença proibida; Gitleaks não encontrou segredos. A suíte completa segue no CI.
+
 A plataforma está implementada no mesmo FastAPI: SDK oficial `mcp==2.3.0`, protocolo
 2026-07-28, transporte HTTP e OAuth 2.1 via Keycloak 26.8.2. A chave de API vale só na REST.
 Seis ferramentas: consultar_disponibilidade, pedir_lote, comparar_lotes,

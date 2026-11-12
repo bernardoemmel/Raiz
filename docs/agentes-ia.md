@@ -150,6 +150,15 @@ processo, com o mesmo ambiente e banco, rode `uv run raiz api worker`. A opção
 | `RAIZ_SMTP_USER`, `RAIZ_SMTP_PASSWORD` | Credenciais SMTP quando exigidas pelo serviço |
 | `RAIZ_FRONT_URL` | URL pública do painel para o login humano |
 
+O login do painel prioriza `RAIZ_LOGIN_BASE_URL`, depois `RAIZ_FRONT_URL` e a
+primeira origem de `RAIZ_API_ORIGENS`. Esses valores são configuração do operador;
+Host, Origin e cabeçalhos de encaminhamento da chamada nunca definem o destino.
+
+O limitador aceita memória local ou Valkey pelo protocolo Redis. Conexão e leitura
+do Valkey têm prazo de 0,5 s, sem repetição automática. Se ele estiver indisponível,
+a chamada recebe 503 RFC 9457; não há mudança silenciosa para memória nem liberação
+sem conferir a cota. Outros armazenamentos precisam de implementação validada.
+
 As variáveis OAuth, limitador e telemetria devem estar no ambiente dos processos,
 não apenas escritas em um arquivo que o launcher não exporta. O MCP permanece
 fechado com 503 enquanto emissor e recurso não estiverem configurados.

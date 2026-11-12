@@ -227,3 +227,5 @@ jobs:
         run: npx playwright install --with-deps chromium
       - name: Login, conta paga, sinal/contrato, três lotes e reserva com Pix de teste
         run: npm --prefix front/globo run test:e2e:api
+      - name: Aprovação humana do link MCP (rede simulada, sem pagamento)
+        run: node front/scripts/testar-aprovacao.mjs
