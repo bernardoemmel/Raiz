@@ -30,3 +30,6 @@ dados/dlt/
 dados/cache_http/
 motor/iovbench/target/
 dados/cache_raster/
+
+# extensão Rust compilada
+nativo/raiz_iov/target/

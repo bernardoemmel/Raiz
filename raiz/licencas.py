@@ -25,6 +25,7 @@ PROIBIDAS = [
     (re.compile(r"Elastic License|\bELv2\b", re.I), "Elastic License"),
     (re.compile(r"\bRSAL|Redis Source Available", re.I), "RSAL"),
 ]
+PROPRIOS = {"raiz", "raiz-iov"}
 LGPL = re.compile(r"\bLGPL|Lesser General Public|Library General Public", re.I)
 GPL = re.compile(r"\bGPL|General Public License", re.I)
 
@@ -85,7 +86,7 @@ def pacotes_python() -> list[Pacote]:
     vistos = {}
     for d in metadata.distributions():
         nome = (d.metadata.get("Name") or "").lower()
-        if nome and nome != "raiz" and nome not in vistos:  # o próprio produto não entra
+        if nome and nome not in PROPRIOS and nome not in vistos:  # o próprio produto não entra
             vistos[nome] = Pacote(nome, d.version, _licenca_python(d), "python")
     return sorted(vistos.values(), key=lambda p: p.nome)
 
@@ -133,3 +134,30 @@ def avaliar(pacotes: list[Pacote], registro: dict) -> list[Pacote]:
 
 def falhas(pacotes: list[Pacote]) -> list[Pacote]:
     return [p for p in pacotes if p.situacao in {"proibida", "gpl_sem_registro", "desconhecida"}]
+
+
+def pacotes_cargo(manifesto: Path) -> list[Pacote]:
+    """Crates Rust da extensão (cargo metadata), menos os próprios. Vazio se o cargo não estiver instalado."""
+    import shutil
+    import subprocess
+
+    if not manifesto.exists() or shutil.which("cargo") is None:
+        return []
+    r = subprocess.run(
+        ["cargo", "metadata", "--format-version", "1", "--manifest-path", str(manifesto)],
+        capture_output=True,
+        text=True,
+        timeout=300,
+    )
+    if r.returncode != 0:
+        return []
+    j = json.loads(r.stdout)
+    proprios = {p["name"] for p in j["packages"] if p.get("source") is None}
+    return sorted(
+        (
+            Pacote(p["name"], p["version"], p.get("license") or "", "cargo")
+            for p in j["packages"]
+            if p["name"] not in proprios
+        ),
+        key=lambda p: p.nome,
+    )

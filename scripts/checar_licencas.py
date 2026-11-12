@@ -5,12 +5,13 @@ import sys
 from pathlib import Path
 
 from raiz import RAIZ_REPO
-from raiz.licencas import avaliar, falhas, ler_registro, pacotes_npm, pacotes_python
+from raiz.licencas import avaliar, falhas, ler_registro, pacotes_cargo, pacotes_npm, pacotes_python
 
 
 def main() -> int:
     registro = ler_registro(Path(__file__).with_name("licencas.toml"))
-    pacotes = avaliar(pacotes_python() + pacotes_npm(RAIZ_REPO / "web" / "node_modules"), registro)
+    cargo = pacotes_cargo(RAIZ_REPO / "nativo" / "raiz_iov" / "Cargo.toml")
+    pacotes = avaliar(pacotes_python() + pacotes_npm(RAIZ_REPO / "web" / "node_modules") + cargo, registro)
     ruins = falhas(pacotes)
     avisos = [p for p in pacotes if p.situacao in {"lgpl", "gpl_servidor"}]
     for p in avisos:

@@ -39,9 +39,16 @@ dependencies = [
 [project.optional-dependencies]
 # o que o motor (motor/) precisa além do pacote; ver requirements.txt
 motor = ["requests>=2.31", "rasterio>=1.3", "exactextract>=0.2", "scipy>=1.11"]
+nativo = [
+    "raiz-iov",
+]
 
 [dependency-groups]
-dev = ["pytest>=8", "ruff>=0.6"]
+dev = [
+    "maturin>=1.7",
+    "pytest>=8",
+    "ruff>=0.6",
+]
 
 [project.scripts]
 raiz = "raiz.cli:app"
@@ -67,3 +74,11 @@ testpaths = ["testes"]
 markers = ["banco: precisa de PostgreSQL com PostGIS (RAIZ_BANCO_URL_TESTE)"]
 # aviso que nasce dentro do DuckDB (fetch_df usa drop(inplace=True)), não no código da Raíz
 filterwarnings = ["ignore:The inplace keyword in DataFrame.drop is deprecated"]
+
+[tool.uv.workspace]
+members = [
+    "nativo/raiz_iov",
+]
+
+[tool.uv.sources]
+raiz-iov = { workspace = true }

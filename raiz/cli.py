@@ -357,6 +357,20 @@ def regras_publicar() -> None:
             typer.echo(f"  pendente: {x.parametro} {x.rotulos}: {x.pendente}")
 
 
+@funil.command("bancada")
+def funil_bancada(uf: str, municipio: int, camada: str = "accumulated_deforestation_2007") -> None:
+    """GEOS (motor) contra iOverlay (caminho novo) nos mesmos pares imóvel x camada, com o cache do funil."""
+    from raiz.funil.bancada import bancada
+
+    r = bancada(uf, municipio, camada)
+    typer.echo(f"{r['camada']}: {r['imoveis']} imóveis, {r['poligonos']} polígonos, {r['pares']} pares")
+    typer.echo(
+        f"  GEOS {r['geos_s']} s, iOverlay {r['iov_s']} s ({r['vezes']}x); área {r['area_geos_ha']} ha contra "
+        f"{r['area_iov_ha']} ha; maior diferença por par {r['maior_dif_m2']} m², pares com mais de 1 m²: "
+        f"{r['pares_dif_1m2']}"
+    )
+
+
 @banco.command("migrar")
 def banco_migrar(alvo: str = "head") -> None:
     """Aplica as migrações (Alembic) no banco de RAIZ_BANCO_URL."""
