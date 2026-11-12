@@ -34,5 +34,21 @@ services:
       timeout: 5s
       retries: 10
 
+  # Modelo local: Qwen3-4B-Instruct-2507 (Apache-2.0) no llama-server (llama.cpp, MIT), em CPU.
+  # Baixe o GGUF (Q4_K_M, ~2,5 GB) da página do modelo no Hugging Face para infra/modelos/ e confira a licença.
+  # O JSON sai por gramática: o servidor converte o JSON Schema do pedido (response_format) em gramática GBNF.
+  llama:
+    image: ghcr.io/ggml-org/llama.cpp:server
+    restart: unless-stopped
+    command: >-
+      -m /modelos/qwen3-4b-instruct-2507-q4_k_m.gguf
+      --alias qwen3-4b-instruct-2507
+      --host 0.0.0.0 --port 8080
+      --ctx-size 8192 --threads 3 --parallel 1 --jinja
+    volumes:
+      - ./modelos:/modelos:ro
+    ports:
+      - "127.0.0.1:8080:8080"
+
 volumes:
   banco:
