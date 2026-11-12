@@ -705,7 +705,9 @@ def base_brasil(dia: str | None, cods: list[str] | None = None) -> None:
     base_regiao("base_brasil.pmtiles", BRASIL, dia, 6)
 
 
-def indice(cods: list[str] | None = None, falhas: dict[str, str] | None = None) -> None:
+def indice(
+    cods: list[str] | None = None, falhas: dict[str, str] | None = None, dados_publicados_em: str | None = None
+) -> None:
     itens: dict[str, dict] = {}
     for f in sorted(SAIDA.glob("*_*.*")):
         nome = f.name.removesuffix(".gz")
@@ -736,6 +738,7 @@ def indice(cods: list[str] | None = None, falhas: dict[str, str] | None = None) 
         json.dumps(
             {
                 "gerado_em": dt.datetime.now(dt.UTC).isoformat(timespec="seconds"),
+                "dados_publicados_em": dados_publicados_em,
                 "brasil": brasil,
                 "municipios": itens,
                 "sem_contorno": {cod: motivo for cod, motivo in (falhas or {}).items()},
@@ -748,20 +751,24 @@ def indice(cods: list[str] | None = None, falhas: dict[str, str] | None = None) 
 def municipios_publicados(dados: Path) -> dict[str, Path]:
     """Só municípios com dados por fazenda; a lista vem do Release, nunca de dois códigos fixos."""
     manifesto = dados / "estados.json"
-    ufs = json.loads(manifesto.read_text())["estados"] if manifesto.exists() else UF_IBGE.values()
-    return {
-        f.stem.removeprefix("imoveis_"): f
-        for uf in sorted(ufs)
-        for f in sorted((dados / uf).glob("imoveis_???????.csv"))
-        if f.stem.removeprefix("imoveis_").isdigit()
-    }
+    ufs = json.loads(manifesto.read_text())["estados"] if manifesto.exists() else dict.fromkeys(UF_IBGE.values(), {})
+    publicados = {}
+    for uf, estado in sorted(ufs.items()):
+        # O pacote público novo contém só cadastro básico; nunca ressuscitar CSV técnico do cache anterior.
+        prefixos = ["imoveis_basicos_"] if estado.get("escopo") == "publico_basico" else ["imoveis_", "imoveis_basicos_"]
+        for prefixo in prefixos:
+            for arquivo in sorted((dados / uf).glob(f"{prefixo}???????.csv")):
+                cod = arquivo.stem.removeprefix(prefixo)
+                if cod.isdigit():
+                    publicados[cod] = arquivo
+    return publicados
 
 
 def exportar_geometria(csv_imoveis: Path, cache: dict) -> tuple[int, int]:
     """GeoParquet do próprio Release; expõe só CAR e contorno, preservando inclusive áreas pequenas."""
     import geopandas as gpd
 
-    cod = csv_imoveis.stem.removeprefix("imoveis_")
+    cod = csv_imoveis.stem.rsplit("_", 1)[-1]
     origem = csv_imoveis.with_name(f"geo_{cod}.parquet")
     if not origem.exists():
         raise FileNotFoundError("o Release ainda não contém o desenho deste município")
@@ -860,7 +867,9 @@ def do_release(dados: Path, sem_base: bool = False) -> None:
     # Retira bases municipais duplicadas do cache antigo. O índice aponta todos para a mesma base estadual.
     for arq in SAIDA.glob("base_???????.pmtiles"):
         arq.unlink()
-    indice(list(publicados), falhas)
+    manifesto = dados / "estados.json"
+    publicado_em = json.loads(manifesto.read_text()).get("gerado_em") if manifesto.exists() else None
+    indice(list(publicados), falhas, dados_publicados_em=publicado_em)
     print(f" {len(publicados) - len(falhas)}/{len(publicados)} municípios com desenho; {total / 1e6:.1f} MB gzip")
 
 

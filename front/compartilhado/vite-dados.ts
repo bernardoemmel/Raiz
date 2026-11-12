@@ -10,6 +10,7 @@ import zlib from "node:zlib"
 import { buscar } from "./dados/busca"
 import { escreverCsv, lerCsv } from "./dados/csv"
 import { lerFunil } from "./dados/funil"
+import { coberturaDoIndice } from "./dados/cobertura-mapa"
 import { UFS } from "./formato"
 import { abrirPasta, nomeSeguro, pastaPadrao } from "./pasta-dados"
 import { paginasAgentes } from "./paginas-agentes"
@@ -105,7 +106,8 @@ export function dadosRaiz(opcoes: { repo: string; raizDados?: string | null; cac
           if (dado) (municipios[cod] ??= {})[chave] = dado
         }
       }
-      return { brasil, municipios }
+      const cobertura = coberturaDoIndice(origem, (arquivo) => fs.existsSync(path.join(geo, arquivo)), pasta.estados().gerado_em)
+      return { brasil, municipios, cobertura }
     }
     // Compatibilidade com pastas antigas, antes do manifesto: só limites e bases com nome conhecido.
     for (const arquivo of listar(geo).filter(geoPermitido)) {
