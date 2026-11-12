@@ -6,6 +6,7 @@ Os testes do transporte MCP ficam em test_servidor_mcp.py.
 
 import copy
 import datetime as dt
+import hashlib
 import itertools
 import re
 from concurrent.futures import ThreadPoolExecutor
@@ -281,7 +282,9 @@ def test_resposta_e_log_nao_expoem_dados_pessoais(eng, cl, empresa, monkeypatch)
     _sem_pessoal(r.json())
     assert "pessoa@example.test" not in r.text
     assert "Dono de teste" not in r.text
-    assert K.chamadas(eng, empresa["cliente_id"])[-1]["agente_modelo"] == "<EMAIL>"
+    assert K.chamadas(eng, empresa["cliente_id"])[-1]["agente_modelo"] == (
+        "sha256:" + hashlib.sha256(b"pessoa@example.test").hexdigest()
+    )
 
 
 def test_lote_pago_tres_opcoes_e_isolamento_entre_empresas(eng, cl, empresa):

@@ -2,7 +2,8 @@
 
 `sem_dado_pessoal` tira das respostas as chaves com cara de dado pessoal (nome, CPF, CNPJ, contato do dono).
 `limpar` troca no texto CPF, CNPJ, telefone e e-mail por marcadores (<CPF>, <CNPJ>, <TELEFONE>, <EMAIL>) antes de
-gravar o registro (o mesmo papel do Presidio; os reconhecedores brasileiros ficam aqui, em expressões regulares).
+gravar o registro. Expressões regulares não reconhecem nomes de pessoas: textos livres de terceiros exigem
+projeção positiva na fronteira pública (apresentacao.py).
 """
 
 from __future__ import annotations
@@ -244,8 +245,13 @@ def para_resposta(x: Any, *, _campo: str = "", _pai: str = "") -> Any:
         return x
     if _campo in _IDS and _uuid(x):
         return x
-    if _campo == "cod_imovel" and _CAR.fullmatch(x):
-        return x
+    if _campo == "cod_imovel":
+        return x if _CAR.fullmatch(x) else None
+    if _campo == "agente_modelo":
+        import hashlib
+
+        # Registros anteriores também não podem ecoar o cabeçalho livre fornecido pelo cliente.
+        return x if re.fullmatch(r"sha256:[a-f0-9]{64}", x) else "sha256:" + hashlib.sha256(x.encode()).hexdigest()
     if (_campo.endswith("_sha256") or _campo in {"hash", "leitura_hash"}) and re.fullmatch(r"[a-fA-F0-9]{64}", x):
         return x
     if _campo in _LINKS:

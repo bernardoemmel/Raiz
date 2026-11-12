@@ -80,6 +80,7 @@ def registrar(engine: Engine, *, cliente_id: int | None, chave_id: int | None, v
               versao_modelo: str | None = None, versao_premissas: str | None = None, agente_modelo: str | None = None,
               atributos: dict | None = None) -> int | None:  # fmt: skip
     """Grava a chamada para o limite, a auditoria e o aprendizado. Devolve o id."""
+    import re
     import uuid
 
     from raiz.publica.privacidade import limpar
@@ -88,6 +89,11 @@ def registrar(engine: Engine, *, cliente_id: int | None, chave_id: int | None, v
         pid = str(uuid.UUID(str(pedido_id))) if pedido_id else None
     except ValueError:
         pid = None
+    car = (
+        cod_imovel
+        if isinstance(cod_imovel, str) and re.fullmatch(r"[A-Z]{2}-[0-9]{7}-[a-fA-F0-9]{32}", cod_imovel)
+        else None
+    )
     with engine.begin() as con:
         return con.execute(
             text("""insert into negocio.chamada_api (cliente_id, chave_id, via, ferramenta, metodo, rota, pedido_id,
@@ -95,10 +101,10 @@ def registrar(engine: Engine, *, cliente_id: int | None, chave_id: int | None, v
                     atributos) values (:c, :k, :v, :f, :m, :r, :p, :i, cast(:al as jsonb), :s, :ms, :pr, :vm, :vp,
                     :am, cast(:at as jsonb)) returning id"""),
             {"c": cliente_id, "k": chave_id, "v": via, "f": ferramenta[:80], "m": metodo, "r": rota[:200], "p": pid,
-             "i": (cod_imovel or None) and cod_imovel[:80],
+             "i": car,
              "al": json.dumps(_alcance_seguro(alcance)) if alcance else None,
              "s": status, "ms": ms, "pr": preco_rs, "vm": versao_modelo, "vp": versao_premissas,
-             "am": (agente_modelo or None) and limpar(agente_modelo)[:120],
+             "am": "sha256:" + hashlib.sha256(agente_modelo.encode()).hexdigest() if agente_modelo else None,
              "at": json.dumps(limpar(atributos)) if atributos else None},
         ).scalar_one()  # fmt: skip
 
