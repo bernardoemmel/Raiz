@@ -1,6 +1,6 @@
 # Qualidade e segurança — passagem
 
-Entrega inicial de 12/11/2026 (#51); revisão de continuidade em 12/11/2026, até a main `436c7b6` (#81). Área: CI, E2E, infraestrutura e segurança. Correções em produto são pontuais,
+Entrega inicial de 12/11/2026 (#51); revisão de continuidade em 12/11/2026, até a main `6f49dfc` (#83). Área: CI, E2E, infraestrutura e segurança. Correções em produto são pontuais,
 com regressões. Mudanças de contrato/arquitetura ficam para os chats responsáveis abaixo.
 
 ## Continuidade desta entrega (12/11/2026)
@@ -17,8 +17,9 @@ com regressões. Mudanças de contrato/arquitetura ficam para os chats responsá
 - **MCP, parcial:** o servidor OAuth entrou na main durante o CI desta entrega (#45/#69). O adaptador de testes
   agora usa HTTP/JWKS/RS256 e PostGIS reais, todas as sete ferramentas após #72, latência e Locust. O corpus continua dependendo
   de **Produto e regras**: o MCP oferece ferramentas de pedidos para agentes externos, sem agente leitor de certidão,
-  edital ou arquivo. Não se simula essa leitura nem sua aprovação. A exceção anterior do fundador era somente ausência
-  de servidor; com o servidor presente, o runner exige a integração e registra falha explícita do corpus pendente.
+  edital ou arquivo. Não se simula essa leitura nem sua aprovação. O fundador autorizou depois **aviso somente
+  para essa ausência**, mantendo OAuth, ferramentas, tempo e carga obrigatórios. Quando o leitor estiver ligado,
+  o corpus passa a ser obrigatório; falha não vira aviso. Os CIs vermelhos anteriores permanecem registrados abaixo.
 - **Revisão contínua:** PRs #53, #56, #67, #54, #68, #70, #71, #73, #74, #55, #75, a integração #45/#69, #72, #77, #79 e #80 revisados,
   com correções pequenas de privacidade, calendário e idempotência abaixo.
   Scanners e testes rodam a cada push. O fundador optou por manter somente essas checagens por push, sem automação horária.
@@ -54,13 +55,13 @@ e novos snapshots de **Lote e números**. O critério TIR continua com seu dono;
 
 ## Referência estadual obrigatória e TIR pendente
 
-Nenhum teste foi retirado ou selecionado parcialmente para acelerar o CI. O teste opcional preexistente
+Nenhum teste foi retirado. A suíte completa é distribuída entre dois jobs, com portão único. O teste opcional preexistente
 `test_lote_do_para_inteiro_fecha_ou_diz_o_que_falta` ainda depende das 144 tabelas reais `desenvolvedor` do Pará,
 que não estavam preparadas nos ensaios históricos registrados abaixo. A publicação privada integral foi concluída
 por **Lote e números**. **Qualidade e segurança** já executou o teste real com download autenticado, hashes e
 entradas/geometrias congeladas: 144 municípios, 345.870 imóveis, nenhum skip, em 446,2 s e pico de 6.840,2 MiB.
 O teste e o portão desta continuação não aceitam mais a exceção estadual; o job privado e a união dos resultados
-também passaram no CI, sem skips. A entrega independente está sendo integrada à main. Nenhum pacote financeiro vai para cache ou artifact
+também passaram no CI, sem skips. A entrega independente #83 foi integrada à main com os oito jobs aprovados. Nenhum pacote financeiro vai para cache ou artifact
 público; a recomendação histórica de cache abaixo está superada.
 Além disso, permanece o `xfail` preexistente de TIR do plantio (`test_plantio_da_7_a_9_pct_no_central_r11`):
 o teste executa, mas a conta ainda diverge da referência de 7–9%; o chat **Lote e números**, com **Produto e regras**, deve resolver o critério
@@ -345,7 +346,8 @@ MCP ativam a exigência dos ensaios; erro de OAuth, falta de adaptador, tempo, e
 **Produto e regras** entrega com o servidor o adaptador `testes.mcp.produto.integracao()`, conforme
 [`testes/mcp/README.md`](../../testes/mcp/README.md), iniciando OAuth/MCP reais e observadores independentes.
 **Qualidade e segurança** fornece corpus, auditor, cliente, limite de 5 s por ferramenta, Locust e runner CI já ligados.
-Uma integração ausente depois da entrada do servidor não será convertida em aviso nem aprovação falsa.
+A ausência do agente leitor recebeu posteriormente autorização específica de aviso, conforme a atualização
+ao fim desta passagem. Isso não cobre falta de adaptador OAuth/MCP, inventário incompleto ou falhas reais.
 
 A correção de concorrência do limite compartilhado executa a sanitização/gravação HTTP fora do loop assíncrono,
 sem remover Presidio. O teste usa dois apps, logger JSON real e 50 chamadas concorrentes; exige exatamente sete
@@ -613,3 +615,45 @@ vermelho continuou sendo o corpus MCP sem agente leitor. Depois disso, o nome do
 A suíte local integral da entrega independente terminou com **2.079 aprovados, zero skips, um xfail executado**,
 em 1.390,97 s. O JUnit passou no portão obrigatório. Os resultados privados do filho foram apagados; o snapshot
 temporário usado para essa validação será removido após concluir a entrega.
+
+### Entrega da referência real do Pará — #83 integrado
+
+O [CI 43327983910](https://github.com/bernardoemmel/Raiz/actions/runs/43327983910) aprovou os oito jobs:
+**2.106 testes gerais e um estadual**, sem skips, com a TIR conhecida executada como xfail. O estadual levou
+336,65 s; o portão `checagens` confirmou a união dos relatórios sem caso ausente ou duplicado. Após atualizar
+a main, o #83 foi integrado em `6f49dfc`. Os dados financeiros não foram publicados nem guardados em artifact/cache.
+
+### Corpus MCP: aviso autorizado e expiração da exceção
+
+Em 12/11/2026, o fundador autorizou **aviso só para a ausência do agente leitor de documentos** e exigiu que
+o aviso vire falha automaticamente quando esse leitor estiver ligado ao MCP. Essa decisão supera o bloqueio
+registrado nos ensaios históricos acima; não transforma aqueles resultados em aprovações do corpus.
+
+OAuth, todas as sete ferramentas, latência inferior a 5 s e as duas fases de carga continuam obrigatórios.
+Somente depois desses ensaios aprovados é permitida a saída parcial com `corpus=false` e aviso explícito.
+Erro de transporte, autenticação, adaptador, limite de chamadas, tempo, rede externa ou corpus executado reprova.
+
+**Produto e regras** deve ligar o leitor no ponto canônico `raiz.publica.agente_documentos` e fornecer o adaptador
+`testes.mcp.leitor_documentos.integracao`, conforme o README da suíte. A presença de qualquer um exige o corpus;
+importação quebrada, fábrica ausente ou integração incompleta falham. Não há flag permanente para desativá-lo.
+O aviso também depende da superfície de API/MCP auditada e do inventário completo das ferramentas: mudanças
+invalidam a exceção, exigindo a integração ou revisão explícita da ausência do leitor. A referência não deve ser
+atualizada automaticamente para obter CI verde. Um agente externo sem registro ou mudança observável no
+repositório/servidor fica fora dessa detecção; sua ligação precisa seguir esse contrato.
+
+### Revisão preventiva do #82 e correção de ZIP
+
+O diff do #82 foi revisado no head `7ab48525084c352e71ffe8c4de603a37a6a035e8`, antes do merge. Gitleaks com
+redação examinou 14 commits e 301.135 bytes sem reconhecer segredos. Não foram auditados novos assets remotos.
+Uma falha de CRC do ZIP MapBiomas podia carregar o nome do membro remoto na exceção `BadZipFile`, depois
+impressa pelo motor ou incorporada ao resumo público. A correção pequena troca erros de ZIP por mensagem fixa,
+sem encadeamento. Três regressões passaram: CRC inválido, arquivo truncado e extração válida; falhas não salvam
+TIFF nem perdem o pedido aceito. A correção foi aplicada à main de base, sem incorporar o #82 ainda aberto.
+
+**Raiz dados do Brasil — finalizador histórico:** o preflight de `scripts/publicar_metadados.py` ainda conta a
+própria reserva antiga enquanto o job está em execução, embora a etapa do motor tenha concluído com sucesso.
+O finalizador chama esse preflight dentro do mesmo job. O novo gatilho pós-run do #82 atende o catálogo separado,
+mas não resolve esse caminho. Reprodução em memória confirmou bloqueio com job `in_progress` e liberação
+somente com job `completed`; o teste atual substitui o preflight. O chat dono precisa de teste integrado que permita
+o encerramento da própria reserva e preserve o bloqueio de outros executores antigos ativos. Qualidade não alterou
+esse protocolo de coordenação.

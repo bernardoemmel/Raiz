@@ -842,9 +842,16 @@ as sete ferramentas, prazo e carga com PostGIS descartável. Seu retorno rápido
 assíncrono; não é promessa de cálculo completo em cinco segundos. As intenções da carga são idempotentes.
 
 O corpus de certidão/edital/nome de arquivo ainda depende de **Produto e regras**: as ferramentas atuais não
-oferecem agente cliente nem leitura dessas entradas. O runner grava resultados parciais e falha explicitamente
-pelo corpus ausente. A autorização anterior para pular era somente ausência do servidor, que já não se aplica.
-Sem orientação adicional do fundador, essa pendência bloqueia o merge. Não simular agente/leitura para liberar CI.
+oferecem agente cliente nem leitura dessas entradas. Em 12/11/2026, o fundador autorizou **aviso somente para
+essa ausência**, depois de OAuth, todas as ferramentas, latência e carga reais aprovados. O relatório marca a
+integração como parcial e `corpus=false`; não declara resistência a injeção. Qualquer falha nos demais ensaios,
+ou no corpus quando o leitor estiver ligado, reprova o CI. Não simular agente/leitura para liberar CI.
+
+A ligação segue o ponto canônico `raiz.publica.agente_documentos`, com o adaptador
+`testes.mcp.leitor_documentos.integracao` descrito no README. Presença de qualquer um torna o corpus obrigatório;
+importação ou adaptação incompleta falha. A exceção também expira quando muda a superfície auditada de API/MCP
+ou o inventário de ferramentas. Revisar a integração antes de renovar a referência de ausência; nunca atualizá-la
+automaticamente para liberar CI. Agentes externos sem registro observável precisam aderir a esse contrato.
 
 O código e os requisitos estão em [`testes/mcp/README.md`](../testes/mcp/README.md). As regressões do auditor
 não comprovam resistência de um agente de produção. A carga usa `testes/carga/locust_mcp.py`, com credenciais

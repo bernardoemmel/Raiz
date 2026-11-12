@@ -62,8 +62,9 @@ durante os replays. A aprovação de tempo/carga não equivale à aprovação do
 `testes/mcp/produto.py` agora inicia o MCP e a API reais com PostGIS local, JWT/JWKS descartáveis e logs sanitizados
 ativos. `uv run python scripts/testar_mcp_ci.py` produz medições de todas as ferramentas e as duas fases Locust;
 exige `RAIZ_BANCO_URL_MCP_TESTE` apontando ao banco local `raiz_mcp_teste`, que é apagado/migrado.
-O comando ainda termina com falha explícita pelo corpus AgentDojo sem agente leitor; os relatórios de tempo/carga
-não aprovam esse corpus. Veja `testes/mcp/README.md` para a pendência e a distinção entre tempo de resposta da
+O fundador autorizou aviso específico quando faltar o agente leitor, somente depois de tempo/carga aprovados;
+os relatórios não aprovam esse corpus. Com o leitor ligado, o corpus é obrigatório e qualquer falha reprova.
+Veja `testes/mcp/README.md` para a pendência e a distinção entre tempo de resposta da
 ferramenta e execução assíncrona do cálculo. A carga repete intenções idempotentes, sem pagamentos externos.
 
 Ensaio local após #72, em 12/11/2026: sete ferramentas responderam pela integração real; a maior chamada isolada
