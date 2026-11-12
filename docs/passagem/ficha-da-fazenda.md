@@ -114,8 +114,10 @@ A ficha visual integrada da main preserva mapa, Sentinel-2 e linha do tempo junt
 com a comparação e o PDF. As rotas `/fichas/{car}/visual`, `/visual/satelite` e
 `/visual/satelite.webp` também exigem sessão e desbloqueio da própria conta,
 verificam reserva e retornam conteúdo privado sem cache público. A integração
-HTTP/visual passou em 44 testes com PostGIS; nenhum fallback de lote financeiro
-é incluído no build aberto.
+HTTP/visual passou em 44 testes com PostGIS. A junção visual passou nos 201 testes
+do front, 17 de geometria, build e todos os cenários de navegador. As melhorias de
+acessibilidade e domínio configurável da main também são preservadas; nenhuma
+oferta financeira estática é incluída no build aberto.
 
 ## Função compartilhada para API e MCP
 
@@ -160,7 +162,11 @@ A atualização da main também trouxe os retratos automáticos do aprendizado. 
 seguem a mesma fronteira privada, inclusive os pacotes imutáveis e os recibos:
 nenhum Release diário público de histórico por CAR pode ser criado. O alerta do
 Gitleaks para uma URL JDBC histórica sem credenciais tem exceção restrita ao
-fingerprint já revisado e integrado pela main, conforme `operacao.md`.
+fingerprint já revisado e integrado pela main, conforme `operacao.md`. O CI dessa revisão executou 1.174 testes com sucesso;
+uma asserção antiga contava dois passos finais protegidos, mas agora existem
+três. O teste foi corrigido para conferir a proteção de cada operação, e os
+13 testes de transferência passaram. A suíte completa deve ser reconferida na
+revisão final integrada.
 
 Após a integração, reativar os cinco workflows pausados, atualizar as refs da fila
 com `scripts/atualizar_fila_privada.py` e retomar as unidades interrompidas com o

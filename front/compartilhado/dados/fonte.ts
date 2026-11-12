@@ -48,6 +48,8 @@ export interface FonteDeDados {
   /** quais municípios têm dado por fazenda */
   municipiosComImoveis(): Promise<string[]>
   geo: {
+    /** Contagem e datas do índice leve, sem baixar contornos municipais ou dados individuais. */
+    cobertura(): Promise<CoberturaMapa | undefined>
     camada(cod_ibge: string, camada: CamadaGeo): Promise<Geo | null>
     /** municípios com o contorno de cada fazenda (imoveis_<cod>.geojson) */
     comContorno(): Promise<string[]>

@@ -261,7 +261,7 @@ export function dadosRaiz(opcoes: { repo: string; raizDados?: string | null; cac
       saida = path.resolve(config.root, config.build.outDir)
       construindo = config.command === "build"
       produtor = path.basename(config.root) === "produtor"
-      base = produtor ? (process.env.RAIZ_BASE || "/Raiz/") : (config.base || "/")
+      base = produtor ? (process.env.RAIZ_BASE || "/") : (config.base || "/")
     },
     configureServer(server: Servidor) {
       const ufs = pasta.ufs()

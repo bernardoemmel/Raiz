@@ -124,7 +124,13 @@ def test_motor_cache_privado_e_guard_impedem_ref_legada_de_rodar():
     workflow = (raiz / ".github/workflows/processar-estados.yml").read_text()
     assert "actions/cache" not in workflow and "transferencia_privada" in workflow
     assert "id: privacidade" in workflow
-    assert workflow.count("if: always() && steps.privacidade.outcome == 'success'") == 2
+    import yaml
+
+    passos = yaml.safe_load(workflow)["jobs"]["processar"]["steps"]
+    for comando in ("aprendizado publicar-retratos", "transferencia_privada enviar-pasta", "--continuar"):
+        finais = [p for p in passos if comando in p.get("run", "")]
+        assert finais, f"passo final ausente: {comando}"
+        assert all(p.get("if") == "always() && steps.privacidade.outcome == 'success'" for p in finais)
     assert "--selecao-env CACHE_COMUM" in workflow and "--selecao-env CACHE_UF" in workflow
 
 

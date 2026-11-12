@@ -278,6 +278,28 @@ da origem; isso depende do site da conta ou de domínio próprio.
 
 A publicação Markdown segue a mesma regra do site agregado: nenhuma ficha individual aberta por CAR.
 
+Celular e acessibilidade (12/11/2026): **feito** no código. Entrada nacional em SVG com estados acessíveis,
+sem baixar WebGL ou geometria municipal antes de aproximar; rotas carregadas ao abrir. Navegação disponível a 360 px,
+atalho para o conteúdo, foco após troca de tela, alça e controles com 48 px, tabelas roláveis pelo teclado.
+A entrada do produtor já entrega o formulário em HTML e carrega a ficha apenas ao receber um código do CAR.
+CI verifica axe WCAG 2.1 A/AA, busca e gaveta pelo teclado, novo pedido com filtros, comparação pública,
+lotes autorizados, ficha desbloqueada e prospecção. A contagem do mapa vem de um índice leve, antes de carregar os contornos.
+Lighthouse mobile a 360 px conserva rede/CPU simuladas: três execuções fixas por página (Brasil, entrar, novo pedido, prospecção e produtor),
+mediana de desempenho >= 90 e acessibilidade >= 90 em todas. A série integrada teve medianas 100/96/98/98/100
+e acessibilidade 100 nas quinze medidas; 175 testes do front, Pages, cena-alvo e ficha/prospecção passaram.
+Relatórios completos (incluindo outliers), axe e capturas ficam nos artefatos.
+A revisão visual da ficha mantém escala e atribuição em posições separadas, crédito inteiro e zoom com 48 px;
+Playwright cobre a legenda Copernicus longa a 360 px, além de axe.
+As verificações automatizadas não substituem avaliação humana de todos os critérios WCAG; a calibração E9 de
+compreensão com 30 cartas reais continua pendente e nenhum contato com dono é disparado por estes testes.
+
+Domínio próprio configurável (entrega 5 de Telas e mapa, 12/11/2026): **feito no código**. `RAIZ_DOMINIO` validado
+gera CNAME, base `/` e URLs canônicas HTTPS do painel, produtor e JSON-LD. Sem domínio, o build deriva o caminho
+do repositório e mantém o Pages atual. CI cobre subcaminho e raiz, com navegação, Range, Markdown, robôs e CNAME;
+o formulário nativo do produtor funciona sem JavaScript nos dois caminhos. Os seis jobs de qualidade e o portão
+mobile de 15 medições são preservados antes da segunda publicação de teste.
+Ativação do domínio, DNS e HTTPS permanece pendente de um domínio real; nenhum foi inventado nem configurado.
+
 Entrega do mapa nacional (12/11/2026): o workflow publica os desenhos de todos os municípios com dados no Release,
 reaproveitando os GeoParquet do motor como GeoJSON gzip. Fundo PMTiles compartilhado por UF e base nacional em
 overzoom; busca estática por nome/IBGE/CAR e aviso de desenho ausente. CI com Playwright em `/Raiz/`: Parauapebas,
@@ -379,5 +401,14 @@ Entrega 3 da continuação de 12/11/2026, sobre a ficha paga do PR #52.
 
 Limites verificados em 12/11/2026: DJEN/CNJ respondeu HTTP 403; diários estaduais começam por PA/MT; PDF escaneado sem texto ainda não tem OCR. Erro de fonte não elimina os eventos anteriores. Testes com trechos oficiais gravados e PostGIS; detalhes em `docs/calendario.md`.
 
+- [x] Integração da entrega mobile com o Calendário: rota sob demanda, quatro links visíveis a 360 px, filtros
+  com 48 px e teste CI de teclado/axe em três larguras; 186 testes do front e fluxos de ficha/lote aprovados.
+
+- [x] Domínio integrado ao Calendário e ao cadastro básico: builds em `/Raiz/` e `/` e Playwright com feed ICS
+  passaram sem 404; 187 testes do front e 10 de configuração aprovados. Domínio real continua não configurado.
+
 A primeira execução no Actions identificou ausência de `rg` no runner; a verificação do Release inicial usa agora
 `grep`, disponível na imagem padrão, preservando a interrupção em erros que não sejam Release inexistente.
+
+- [x] Markdown do site preserva medidas ausentes e zeros explícitos; totais incompletos não são apresentados
+  como totais completos. Regressões cobrem páginas estaduais/municipais e proteção de grupos pequenos.
