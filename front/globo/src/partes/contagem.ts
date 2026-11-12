@@ -1,11 +1,17 @@
 import { useEffect, useState } from "react"
 
-/** Conta de 0 até o valor quando `animar` liga (depois da abertura); sem animação se o sistema pede menos movimento. */
-export function useContagem(valor: number, animar: boolean, ms = 1400) {
+/**
+ * Número que conta de 0 até o valor. "zero": ainda escondido pela abertura; "contar": conta (depois da abertura);
+ * "final": já mostra o valor. Com "reduzir movimento" ligado no sistema, mostra o valor direto.
+ */
+export type ModoContagem = "final" | "zero" | "contar"
+
+export function useContagem(valor: number, modo: ModoContagem, ms = 1400) {
   const [v, setV] = useState(0)
-  const parado = !animar || matchMedia("(prefers-reduced-motion: reduce)").matches
+  const reduzido = typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches
+  const contando = modo === "contar" && !reduzido
   useEffect(() => {
-    if (parado) return
+    if (!contando) return
     let raf = 0
     const t0 = performance.now()
     const passo = (t: number) => {
@@ -15,6 +21,7 @@ export function useContagem(valor: number, animar: boolean, ms = 1400) {
     }
     raf = requestAnimationFrame(passo)
     return () => cancelAnimationFrame(raf)
-  }, [valor, parado, ms])
-  return parado ? valor : v
+  }, [valor, contando, ms])
+  if (modo === "zero" && !reduzido) return 0
+  return contando ? v : valor
 }

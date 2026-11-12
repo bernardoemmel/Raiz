@@ -171,7 +171,7 @@ export function Principal({ municipio, abertura }: Props) {
         </div>
 
         {f ? (
-          <Funil etapas={etapas(f, dados, filtros, setFiltros)} animar={!!abertura && revelado} />
+          <Funil etapas={etapas(f, dados, filtros, setFiltros)} modo={!abertura ? "final" : revelado ? "contar" : "zero"} />
         ) : (
           <p className="aviso-filtro">{funil.carregando ? "Carregando o funil…" : "Este município não está na amostra."}</p>
         )}

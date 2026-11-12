@@ -1,4 +1,4 @@
-import { useContagem } from "./contagem"
+import { useContagem, type ModoContagem } from "./contagem"
 import { fmtInt } from "../../../compartilhado/formato"
 
 export interface Etapa {
@@ -13,8 +13,8 @@ export interface Etapa {
   dica?: string
 }
 
-function Cartao({ e, animar }: { e: Etapa; animar: boolean }) {
-  const n = useContagem(e.numero, animar)
+function Cartao({ e, modo }: { e: Etapa; modo: ModoContagem }) {
+  const n = useContagem(e.numero, modo)
   const escala = Math.min(1, e.fracao) * (e.numero ? n / e.numero : 1)
   const conteudo = (
     <>
@@ -38,12 +38,12 @@ function Cartao({ e, animar }: { e: Etapa; animar: boolean }) {
   )
 }
 
-export function Funil({ etapas, animar }: { etapas: Etapa[]; animar: boolean }) {
+export function Funil({ etapas, modo }: { etapas: Etapa[]; modo: ModoContagem }) {
   return (
     <ul className="funil" aria-label="Funil do município">
       {etapas.map((e) => (
         <li key={e.id}>
-          <Cartao e={e} animar={animar} />
+          <Cartao e={e} modo={modo} />
         </li>
       ))}
     </ul>

@@ -798,3 +798,92 @@ a {
     height: 460px;
   }
 }
+
+/* ---------- abertura (globo) ---------- */
+.abertura {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  grid-template-rows: 1fr auto auto 1fr;
+  justify-items: center;
+  overflow: hidden;
+}
+.abertura-fundo {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 50% 45%, #fbfcf9 0%, var(--fundo) 70%);
+}
+.abertura-marca {
+  position: absolute;
+  top: 22px;
+  left: 32px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 21px;
+  font-weight: 700;
+  color: var(--texto);
+}
+.abertura-marca svg {
+  color: var(--verde);
+}
+.abertura-globo {
+  grid-row: 2;
+  position: relative;
+  width: min(68vh, 600px, 88vw);
+  pointer-events: none;
+  will-change: transform, opacity;
+}
+/* o rótulo do globo nas cores da Raíz (o componente fica como veio; só a cor muda por fora) */
+.abertura .cg-label--marker {
+  background: var(--verde);
+  font-size: 11px;
+  padding: 3px 8px;
+}
+.abertura .cg-label--marker .cg-label__tip {
+  border-top-color: var(--verde);
+}
+.abertura-legenda {
+  grid-row: 3;
+  position: relative;
+  margin: 18px 0 0;
+  display: grid;
+  gap: 4px;
+  text-align: center;
+  min-height: 52px;
+}
+.abertura-legenda strong {
+  font-size: 22px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+.abertura-legenda span {
+  font-size: 15px;
+  color: var(--texto-2);
+}
+.abertura-pular {
+  position: absolute;
+  right: 28px;
+  bottom: 24px;
+  padding: 8px 14px;
+  border: 1px solid var(--borda-forte);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.8);
+  font-size: 14px;
+  color: var(--texto-2);
+  cursor: pointer;
+}
+.abertura-marca,
+.abertura-legenda,
+.abertura-pular {
+  transition: opacity 0.45s;
+}
+.fase-aproximando .abertura-marca,
+.fase-aproximando .abertura-legenda,
+.fase-aproximando .abertura-pular {
+  opacity: 0;
+}
+.fase-aproximando {
+  pointer-events: none;
+}
