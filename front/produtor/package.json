@@ -18,7 +18,8 @@
     "maplibre-gl": "6.15.0",
     "pmtiles": "4.5.0",
     "preact": "10.29.8",
-    "thumbhash": "0.1.1"
+    "thumbhash": "0.1.1",
+    "left-pad": "1.3.0"
   },
   "devDependencies": {
     "@types/node": "^24.19.2",
