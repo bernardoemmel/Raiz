@@ -1,6 +1,8 @@
 """MCP v2 real, escopos por ferramenta e HTTP OAuth: nenhuma chave ou texto externo autoriza ações."""
 
 import contextlib
+import json
+import time
 
 import anyio
 from fastapi import FastAPI, Request
@@ -151,11 +153,9 @@ def test_http_oauth_real_descoberta_e_chave_na_url_rejeitada(assinador, monkeypa
 
 
 def test_timeout_de_ferramenta_menor_que_cinco_segundos(monkeypatch):
-    import time
-
     app = FastAPI()
 
-    @app.post("/v1/disponibilidade")
+    @app.post("/v1/agentes/consultar_disponibilidade")
     async def lento():
         await anyio.sleep(30)
 
@@ -169,6 +169,43 @@ def test_timeout_de_ferramenta_menor_que_cinco_segundos(monkeypatch):
                 r = await c.call_tool("consultar_disponibilidade", {"campos": {}})
                 assert r.is_error and "prazo_excedido" in r.content[0].text
             assert time.monotonic() - t < 5
+        finally:
+            auth_context_var.reset(marcador)
+
+    anyio.run(executar)
+
+
+def test_deadline_nao_espera_rota_sincrona_e_preserva_execucao_unica_com_chave_original():
+    app = FastAPI()
+    chamadas, concluidas = [], []
+
+    @app.post("/v1/agentes/pedir_lote")
+    def lento(request: Request):
+        chamadas.append(request.headers["idempotency-key"])
+        time.sleep(5.2)
+        concluidas.append(True)
+        return {"pedido_id": PID, "estado": "submitted"}
+
+    api = ApiRaiz(app=app)
+    token = AccessToken(token="interno", client_id="agente", scopes=["pedir"], claims={"empresa_id": 42})
+
+    async def executar():
+        marcador = auth_context_var.set(AuthenticatedUser(token))
+        try:
+            async with Client(criar_servidor(api)) as c:
+                inicio = time.monotonic()
+                r = await c.call_tool("pedir_lote", {"campos": {}, "idempotency_key": "pedido-original-teste"})
+                assert time.monotonic() - inicio < 4
+                assert r.is_error
+                texto = r.content[0].text
+                p = json.loads(texto[texto.index("{") :])
+                assert p["status"] == 504 and p["type"].endswith("#erro-prazo_excedido")
+                assert "mesma Idempotency-Key" in p["corrigir"]
+                assert chamadas == ["pedido-original-teste"] and concluidas == []
+                assert len(api._pendentes) == 1
+                await anyio.sleep(2.5)
+                assert concluidas == [True] and chamadas == ["pedido-original-teste"]
+                assert not api._pendentes
         finally:
             auth_context_var.reset(marcador)
 
