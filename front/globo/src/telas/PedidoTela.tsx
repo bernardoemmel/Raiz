@@ -28,6 +28,7 @@ import { Estado } from "../partes/Estado"
 import { AvisoExemplo } from "../partes/pedido/AvisoExemplo"
 import { FaixaBarra } from "../partes/pedido/FaixaBarra"
 import { SeloStatus } from "../partes/pedido/SeloStatus"
+import { SensibilidadePedido } from "../partes/pedido/SensibilidadePedido"
 import { ComparacaoLotes } from "../partes/pedido/ComparacaoLotes"
 import { AcessoDetalhesLote, AvisoPublicacao, BasePublicada, QuadroDestrava } from "../partes/pedido/PublicacaoPedido"
 import "../partes/pedido/pedido.css"
@@ -154,6 +155,8 @@ export function PedidoTela({ id }: { id: string }) {
 
           {pedido.publicacao ? <BasePublicada publicacao={pedido.publicacao} /> : <QuadroBase pedido={pedido} unidade={unidade} />}
           <ComparacaoLotes opcoes={pedido.opcoes} publicadas={pedido.publicacao?.opcoes} selecionar={(id) => { setAba(id); setEscolhida(null) }} />
+
+          {!pedido.publicacao && <SensibilidadePedido pedido={pedido} />}
 
           {!pedido.publicacao && item && (
             <FazendaEscolhida

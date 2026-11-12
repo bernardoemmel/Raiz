@@ -3,6 +3,7 @@
  * Nenhum número desta fixture é usado pelo build público. Não inicia contato com proprietários.
  */
 import assert from "node:assert/strict"
+import { conferirSensibilidade } from "./conferir-sensibilidade.mjs"
 import { conferirPaginaAcessivel } from "./conferir-acessibilidade.mjs"
 import fs from "node:fs"
 import path from "node:path"
@@ -167,6 +168,7 @@ try {
 
   api = await servidor(true)
   p = await pagina(api.base, publicado, true)
+  await conferirSensibilidade(p, AxeBuilder, resultado)
   await p.waitForFunction(() => {
     const m = document.querySelector(".mapa-lote")?.__mapa
     return m?.loaded() && m.queryRenderedFeatures({ layers: ["lote-area"] }).length >= 3
