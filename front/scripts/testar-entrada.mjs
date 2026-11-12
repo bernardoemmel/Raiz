@@ -2,7 +2,10 @@
 /**
  * Teste da tela de entrada no navegador (front/globo): sobe o Vite com a amostra, abre o Chromium e confere
  *
- *   1. a entrada é o mapa do Brasil, sem baixar o cobe nem mostrar abertura;
+ *   0. sem internet, o predev (baixar-dados.mjs) avisa e segue, e o front abre com a amostra;
+ *   1. a entrada é o mapa do Brasil, sem baixar o cobe nem mostrar abertura; cada estado com a situação (completo,
+ *      incompleto com a contagem, ainda não processado) e nenhum ponto de fazenda carregado;
+ *   1b. tocar num estado aproxima e carrega só aquele estado; dentro dele, tocar num município abre o município;
  *   2. busca por município leva ao mapa do município, com o funil em barras;
  *   3. tocar num município no mapa faz o mesmo que buscar por ele;
  *   4. busca por código do CAR leva direto à ficha;
@@ -15,8 +18,10 @@
  * Uso (de front/globo): npm run test:e2e
  * Precisa do Playwright com o Chromium (npx playwright install chromium) e de front/geo/ gerado (python front/scripts/geo.py).
  */
-import { execSync } from "node:child_process"
+import { execSync, spawnSync } from "node:child_process"
+import fs from "node:fs"
 import { createRequire } from "node:module"
+import os from "node:os"
 import path from "node:path"
 import { fileURLToPath, pathToFileURL } from "node:url"
 
@@ -44,6 +49,17 @@ const conferir = (ok, frase) => {
   console.log(`${ok ? "ok  " : "FALHOU"} ${frase}`)
   if (!ok) falhas++
 }
+
+// 0. sem internet: o predev avisa e segue; a pasta de destino não aparece e o plugin cai na amostra
+const semInternet = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "raiz-e2e-")), "estados")
+const predev = spawnSync(process.execPath, [path.resolve(GLOBO, "../scripts/baixar-dados.mjs")], {
+  env: { ...process.env, RAIZ_DADOS: semInternet, RAIZ_DADOS_URL: "http://127.0.0.1:9/dados", RAIZ_SEM_DOWNLOAD: "" },
+  encoding: "utf8",
+  timeout: 30000,
+})
+conferir(predev.status === 0 && /não consegui ler o estados\.json publicado/.test(predev.stderr), "sem internet, o predev avisa e segue")
+// o mesmo RAIZ_DADOS para o Vite: nada foi baixado, então a tela abre com a amostra (números que os testes conhecem)
+process.env.RAIZ_DADOS = semInternet
 
 const servidor = await createServer({ root: GLOBO, configFile: path.join(GLOBO, "vite.config.ts"), server: { port: 0 }, logLevel: "error" })
 await servidor.listen()
@@ -80,6 +96,20 @@ try {
     conferir((await p.getByText("Pular abertura").count()) === 0, "não há abertura nem botão de pular")
     conferir(new URL(p.url()).hash === "", "a entrada abre sem nada no endereço")
     conferir(await p.locator(".topo .busca input").isVisible(), "a busca está no topo")
+    const estados = await (await p.request.get(URL_BASE + "amostra/estados.json")).json()
+    conferir(estados.pasta === "amostra", "sem os dados baixados, o front abre com a amostra")
+    await p.waitForFunction(() => document.querySelector(".mapa-brasil .mapa").__mapa.querySourceFeatures("estados-rotulos").length > 0, null, { timeout: 30000 })
+    const rotulos = await p.evaluate(() =>
+      Object.fromEntries(
+        document
+          .querySelector(".mapa-brasil .mapa")
+          .__mapa.querySourceFeatures("estados-rotulos")
+          .map((f) => [f.properties.uf, f.properties.linha]),
+      ),
+    )
+    conferir(rotulos.PA === "todos os 144 municípios", `o Pará aparece completo no mapa ("${rotulos.PA}")`)
+    conferir(rotulos.GO === "ainda não processado" && Object.keys(rotulos).length === 27, `os outros 26 estados com o aviso "ainda não processado"`)
+    conferir(!pedidos.some((u) => /pontos_/.test(u)), "na entrada, nenhum ponto de fazenda é carregado (só ao tocar num estado)")
     const processados = await p.evaluate(
       () =>
         document
@@ -160,21 +190,46 @@ try {
     const rodape = await p.locator(".tabela-fazendas tfoot th").first().textContent()
     conferir(pressionada === "true" && /seleção/.test(rodape ?? ""), "a barra do funil filtra o mapa e a tabela")
 
-    // 3. tocar num município no mapa (Santarém, sem grupos de pontos por cima)
+    // o nome do estado no caminho do município leva ao estado
+    conferir((await p.locator(".migalhas a", { hasText: "Pará" }).getAttribute("href")) === "#/estado/PA", "no município, o nome do estado leva ao painel do estado")
+
+    // 1b. tocar num estado na escala do país aproxima e carrega só ele
     await p.goto(URL_BASE + "#/")
     await p.waitForFunction(() => !document.querySelector(".funil-barras"))
-    const alvo = await p.evaluate(async () => {
-      const m = document.querySelector(".mapa-brasil .mapa").__mapa
-      m.jumpTo({ center: [-54.7, -2.6], zoom: 7 })
-      await new Promise((r) => m.once("idle", r))
-      const c = m.project([-54.7, -2.6])
-      const f = m.queryRenderedFeatures(c, { layers: ["brasil-mun"] })[0]
-      const r = m.getCanvas().getBoundingClientRect()
-      return { x: r.left + c.x, y: r.top + c.y, cod: f && String(f.properties.cod_ibge) }
-    })
+    const ponto = async (lon, lat, zoom) =>
+      p.evaluate(
+        async ([lon, lat, zoom]) => {
+          const m = document.querySelector(".mapa-brasil .mapa").__mapa
+          if (zoom) m.jumpTo({ center: [lon, lat], zoom })
+          await new Promise((r) => (m.loaded() && !m.isMoving() ? r() : m.once("idle", r)))
+          const c = m.project([lon, lat])
+          const f = m.queryRenderedFeatures(c, { layers: ["brasil-mun"] })[0]
+          const r = m.getCanvas().getBoundingClientRect()
+          return { x: r.left + c.x, y: r.top + c.y, cod: f && String(f.properties.cod_ibge) }
+        },
+        [lon, lat, zoom],
+      )
+    const noPara = await ponto(-52, -4, null)
+    await p.mouse.click(noPara.x, noPara.y)
+    await p.waitForURL(/#\/estado\/PA$/, { timeout: 10000 }).catch(() => {})
+    conferir(p.url().endsWith("#/estado/PA"), "tocar no Pará, na escala do país, abre o estado")
+    await p.locator('aside[aria-label="O estado na Raíz"] h1', { hasText: "Pará" }).waitFor({ timeout: 20000 })
+    conferir(/Completo/.test((await p.locator(".estado-situacao").textContent()) ?? ""), "o painel do estado diz que o Pará está completo")
+    await p.waitForFunction(() => document.querySelector(".mapa-brasil .mapa").__mapa.querySourceFeatures("pontos").length > 0, null, { timeout: 30000 })
+    // os pontos do Pará vieram uma vez só (no município de São Félix, que é do Pará) e nenhum de outro estado
+    const pontosPedidos = pedidos.filter((u) => /pontos_/.test(u))
+    conferir(pontosPedidos.length === 1 && /pontos_PA\.json/.test(pontosPedidos[0]), "carregou os pontos só do Pará, uma vez")
+
+    // 3. dentro do estado, tocar num município (Santarém, sem grupos de pontos por cima) faz o mesmo que buscar por ele
+    const alvo = await ponto(-54.7, -2.6, 7)
     await p.mouse.click(alvo.x, alvo.y)
     await p.waitForURL(/#\/municipio\/\d{7}$/, { timeout: 10000 }).catch(() => {})
     conferir(!!alvo.cod && p.url().endsWith(`#/municipio/${alvo.cod}`), `tocar no município ${alvo.cod} abre o mesmo que buscar por ele`)
+
+    // estado ainda não processado: cinza, com o aviso e o total do IBGE
+    await p.goto(URL_BASE + "#/estado/GO")
+    await p.getByText("O estado de Goiás ainda não foi processado pela Raíz.").waitFor({ timeout: 20000 })
+    conferir(await p.getByText("Os 246 municípios aparecem aqui").isVisible(), "Goiás abre com o aviso de ainda não processado e os 246 municípios")
 
     // 4. busca por código do CAR
     await buscar(p, CAR)
