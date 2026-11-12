@@ -75,6 +75,14 @@ Os retratos públicos são agrupados em pacotes de até 64 MiB no Release diári
 histórico é apagado ou substituído. Armazéns local e S3 usam o prefixo
 `historico/<UF>/<município>/`; no S3 a criação exige que o objeto ainda não exista.
 
+No repositório público, esses Releases históricos também são públicos: as
+entradas sanitizadas por código do CAR e as geometrias podem ser baixadas. Isso
+não equivale à distribuição de fichas confidenciais nem implementa a migração
+futura de derivados para armazenamento privado descrita em
+`docs/passagem/ficha-da-fazenda.md`. Quando houver exigência de confidencialidade,
+é necessário configurar um armazém privado. A exclusão de nomes e o mascaramento
+de CPF/CNPJ não transformam o Release público em armazenamento confidencial.
+
 ```bash
 uv run raiz aprendizado publicar-retratos --uf PA
 uv run raiz aprendizado importar-retratos --uf PA
