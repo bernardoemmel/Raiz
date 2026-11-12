@@ -41,6 +41,16 @@ ETAPAS_ANTIGAS = {"com_matricula": "caminho_terra"}
 FAIXAS = Path(__file__).parent / "regras" / "padroes" / "faixas.yaml"
 
 
+def ficha_prospeccao(linha: dict, versao: dict | None = None, banco: dict | None = None) -> dict:
+    """Ficha completa de terra, servida somente depois de autorizar os créditos do cliente.
+
+    Não acrescentar ao JSON público do produtor: os contratos têm públicos e acesso diferentes.
+    """
+    from raiz.ficha_prospeccao_dados import ficha
+
+    return ficha(linha, versao, banco)
+
+
 def _num(linha: dict, c: str) -> float | None:
     v = linha.get(c)
     try:

@@ -174,6 +174,8 @@ export interface EstadoDados {
 }
 
 export interface Estados {
+  /** Publicação aberta: listas e fichas individuais só podem ser lidas pela API autenticada. */
+  acesso?: "agregado"
   /** "amostra" (dados/amostra), "publicada" (com o estados.json do Release dados), "RAIZ_DADOS" ou "api" */
   pasta: string
   /** quando os dados publicados foram montados */

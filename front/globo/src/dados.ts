@@ -1,12 +1,11 @@
 import { useEffect, useState } from "react"
-import { escolherFonte } from "../../compartilhado/dados"
-import { semReservadasPorOutros } from "../../compartilhado/pedidos/exclusividade"
+import { fonteAmostra } from "../../compartilhado/dados/fonte-amostra"
 
 /**
- * A fonte de dados do painel: a amostra do motor, ou a API se VITE_RAIZ_API estiver definida no .env. Sem a API, a
- * camada de exclusividade esconde as fazendas reservadas por outro cliente (com a API, o servidor esconde).
+ * O mapa aberto lê somente o agregado publicado. VITE_RAIZ_API conecta a prospecção e os pedidos com a sessão do
+ * cliente; nunca entrega o token operacional nem abre as rotas internas de dados no navegador.
  */
-export const fonte = import.meta.env.VITE_RAIZ_API ? escolherFonte(import.meta.env) : semReservadasPorOutros(escolherFonte(import.meta.env))
+export const fonte = fonteAmostra(import.meta.env.VITE_RAIZ_DADOS_BASE || import.meta.env.BASE_URL || "/")
 
 export interface Carga<T> {
   dado: T | undefined

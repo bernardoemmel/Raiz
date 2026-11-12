@@ -22,15 +22,20 @@ interface Opcoes {
 const REPO = "https://github.com/bernardoemmel/Raiz"
 const REGRAS = "Apta no funil: sem problema, área de carbono maior que zero e no máximo 5 ha desmatados depois de 2016. A indicação de matrícula exige também cobertura de pelo menos 50% do CAR por parcela particular do SIGEF com matrícula. Pequenas fazendas são agrupadas; não são excluídas pelo tamanho."
 const LIMITE = "São estimativas e triagens com dados públicos, sujeitas à data e à cobertura de cada fonte. Aptidão não é crédito de carbono certificado, garantia de receita, autorização para intervir na terra ou comprovação de propriedade."
-const PRIVACIDADE = "CPF e CNPJ são sempre mascarados. Nome e contato do dono não são publicados. O contato passa pela Raíz. Na ficha pública por código curto, CAR, polígono exato e imagem de satélite só aparecem depois do aceite do dono. O aceite não pode ser presumido a partir da presença no mapa."
+const PRIVACIDADE = "Nome, CPF, CNPJ e contato do dono não aparecem na ficha de prospecção. O contato passa pela Raíz. O site aberto publica somente agregados; a ficha completa exige conta de cliente e créditos pagos, com limites de consulta. O aceite não pode ser presumido a partir da presença no mapa."
 const numero = (n: number) => new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 2 }).format(Number.isFinite(n) ? n : 0)
 /** Nomes de lugares são texto; nunca podem criar HTML, links ou quebrar a tabela. */
 const md = (s: string) => mascarar(String(s)).replace(/[\r\n]+/g, " ").replace(/([\\`*_[\]<>|])/g, "\\$1")
 const soma = (ms: FunilMunicipio[], campo: "imoveis" | "aptas_carbono" | "ha_carbono") => ms.reduce((n, m) => n + m[campo], 0)
+const protegido = (m: FunilMunicipio) => m.linha.dados_suprimidos === "true" || !Number.isFinite(m.imoveis) || m.imoveis < 5
+const indicador = (m: FunilMunicipio, valor: number) => protegido(m) ? "Suprimido" : numero(valor)
+const totalPublico = (ms: FunilMunicipio[]) => ms.some(protegido)
+  ? "Os totais deste recorte foram suprimidos porque incluem grupos com menos de cinco imóveis."
+  : `${numero(soma(ms, "imoveis"))} imóveis, ${numero(soma(ms, "aptas_carbono"))} aptos no funil e ${numero(soma(ms, "ha_carbono"))} ha de área de carbono nas fazendas aptas.`
 /** O funil usa zero como padrão de cálculo. Só publicar um indicador opcional se a fonte trouxer um número. */
 const indicadorOpcional = (m: FunilMunicipio, coluna: string, rotulo: string) => {
   const valor = num(m.linha, coluna)
-  return valor === null ? "" : `| ${rotulo} | ${numero(valor)} |\n`
+  return valor === null || protegido(m) ? "" : `| ${rotulo} | ${numero(valor)} |\n`
 }
 
 export function paginasAgentes(opcoes: Opcoes): void {
@@ -59,19 +64,21 @@ ${PRIVACIDADE}
 
 ${LIMITE}
 
-O endereço desta página pode receber o parâmetro \`car\` para consultar uma ficha no navegador. Este documento geral não contém uma ficha individual nem pressupõe o aceite de qualquer dono.
+Este documento geral não contém uma ficha individual nem pressupõe o aceite de qualquer dono. A ficha completa exige conta de cliente, créditos pagos e conexão com a Raíz; o parâmetro \`car\` não libera os dados no site estático.
 
+- [Consultar fichas na área de clientes](${link("#/prospeccao")})
 - [Explorar os dados públicos](${link("index.md")})
 - [Entender a reserva e a conexão](${link("servico.md")})
 - [Fontes](${link("fontes.md")})`)
     return
   }
 
-  const estados = catalogo?.estados.estados.filter((e) => (catalogo.arquivos[e.uf]?.length ?? 0) > 0) ?? []
+  // Defesa adicional: nem um catálogo antigo pode anunciar CSV por imóvel como download aberto.
+  const estados = catalogo?.estados.estados.filter((e) => catalogo.arquivos[e.uf]?.includes(`resumo_${e.uf}.csv`)) ?? []
   const municipios = catalogo?.municipios.filter((m) => /^\d{7}$/.test(m.cod_ibge) && estados.some((e) => e.uf === m.uf)) ?? []
   const origem = catalogo?.estados.pasta === "amostra" ? "amostra do repositório" : "dados disponíveis neste build"
   const cobertura = estados.length
-    ? `Esta publicação reúne ${numero(estados.length)} estados e ${numero(municipios.length)} municípios com resumo: ${numero(soma(municipios, "imoveis"))} imóveis, ${numero(soma(municipios, "aptas_carbono"))} aptos no funil e ${numero(soma(municipios, "ha_carbono"))} ha de área de carbono nas fazendas aptas. Origem: ${origem}.`
+    ? `Esta publicação reúne ${numero(estados.length)} estados e ${numero(municipios.length)} municípios com resumo. ${totalPublico(municipios)} Origem: ${origem}.`
     : "Esta publicação não inclui tabelas do motor. Não é possível informar cobertura ou somar áreas neste build."
   const atualizado = catalogo?.estados.gerado_em ? `\nData do manifesto dos dados: ${md(catalogo.estados.gerado_em)}.\n` : ""
   const linksEstados = estados.map((e) => `- [${md(e.nome)} (${e.uf})](${link(`dados/estados/${e.uf}.md`)}): ${numero(e.municipios)} de ${numero(e.municipios_ibge)} municípios processados; ${e.completo ? "cobertura completa" : "cobertura parcial"}.`).join("\n")
@@ -79,7 +86,7 @@ O endereço desta página pode receber o parâmetro \`car\` para consultar uma f
 
 ${cobertura}
 ${atualizado}
-O mapa agrupa pequenas fazendas para formar lotes de restauração. É possível buscar pelo nome ou código IBGE do município e pelo código do CAR, consultar o funil e comparar os imóveis. Quando faltar o desenho do município, os totais podem estar disponíveis mesmo sem polígonos.
+O mapa mostra agregados para estudar áreas de restauração. É possível buscar pelo nome ou código IBGE do município. A busca por CAR e a comparação de fazendas ficam na área de clientes; a ficha completa usa créditos pagos. Pequenas fazendas continuam na busca para compor grupos.
 
 ${REGRAS}
 
@@ -92,6 +99,7 @@ ${linksEstados || "Nenhuma tabela publicada neste build."}
 ## Próximos passos
 
 - [Abrir o mapa](${link("")})
+- [Prospectar terras na área de clientes](${link("#/prospeccao")})
 - [Catálogo de dados](${link("dados/index.md")})
 - [Serviço, conexão e reserva](${link("servico.md")})
 - [Ficha do produtor](${link("produtor/index.md")})
@@ -114,21 +122,21 @@ ${LIMITE}
   const datasets: object[] = []
   for (const e of estados) {
     const ms = municipios.filter((m) => m.uf === e.uf).sort((a, b) => a.municipio.localeCompare(b.municipio, "pt-BR"))
-    const arquivos = catalogo!.arquivos[e.uf].filter((f) => /^[\w-]+\.csv$/.test(f))
+    const arquivos = catalogo!.arquivos[e.uf].filter((f) => f === `resumo_${e.uf}.csv`)
     const resumo = arquivos.includes(`resumo_${e.uf}.csv`) ? `resumo_${e.uf}.csv` : null
     // O JSON-LD aponta ao resumo do estado; a página do estado lista todas as tabelas sem inflar o HTML inicial.
-    const fontes = resumo ? [resumo] : arquivos.filter((f) => /^imoveis_\d{7}\.csv$/.test(f))
+    const fontes = resumo ? [resumo] : []
     gravar(`dados/estados/${e.uf}.md`, `# ${md(e.nome)} (${e.uf}): dados da Raíz
 
 Cobertura do manifesto: ${numero(e.municipios)} de ${numero(e.municipios_ibge)} municípios processados. ${e.completo ? "Estado completo na lista do IBGE." : "A cobertura ainda é parcial."}
 ${e.atualizado_em ? `\nAtualização do estado: ${md(e.atualizado_em)}.\n` : ""}${e.versao ? `\nVersão dos dados: ${md(e.versao)}.\n` : ""}
-Os ${numero(ms.length)} resumos disponíveis somam ${numero(soma(ms, "imoveis"))} imóveis, ${numero(soma(ms, "aptas_carbono"))} aptos e ${numero(soma(ms, "ha_carbono"))} ha de área de carbono nas fazendas aptas.
+Há ${numero(ms.length)} resumos disponíveis. ${totalPublico(ms)}
 
 ## Municípios
 
 | Município | Código IBGE | Imóveis | Aptos | Área de carbono apta (ha) |
 |---|---|---:|---:|---:|
-${ms.map((m) => `| [${md(m.municipio)}](${link(`dados/municipios/${m.cod_ibge}.md`)}) | ${m.cod_ibge} | ${numero(m.imoveis)} | ${numero(m.aptas_carbono)} | ${numero(m.ha_carbono)} |`).join("\n")}
+${ms.map((m) => `| [${md(m.municipio)}](${link(`dados/municipios/${m.cod_ibge}.md`)}) | ${m.cod_ibge} | ${indicador(m, m.imoveis)} | ${indicador(m, m.aptas_carbono)} | ${indicador(m, m.ha_carbono)} |`).join("\n")}
 
 ## Tabelas disponíveis
 
@@ -162,14 +170,16 @@ Código IBGE: ${m.cod_ibge}. Origem do resumo: ${m.origem === "resumo" ? "tabela
 
 | Indicador | Resultado |
 |---|---:|
-| Imóveis analisados | ${numero(m.imoveis)} |
-| Imóveis sem problema no funil | ${numero(m.sem_problema)} |
-| Imóveis aptos para carbono | ${numero(m.aptas_carbono)} |
-| Área de carbono nas fazendas aptas (ha) | ${numero(m.ha_carbono)} |
-${indicadorOpcional(m, "tco2_ano_aptas", "Potencial estimado de carbono nas aptas (tCO₂/ano)")}| Aptos com indicação de matrícula | ${numero(m.aptas_com_matricula)} |
-| Área de carbono das aptas com matrícula (ha) | ${numero(m.ha_carbono_matricula)} |
+| Imóveis analisados | ${indicador(m, m.imoveis)} |
+| Imóveis sem problema no funil | ${indicador(m, m.sem_problema)} |
+| Imóveis aptos para carbono | ${indicador(m, m.aptas_carbono)} |
+| Área de carbono nas fazendas aptas (ha) | ${indicador(m, m.ha_carbono)} |
+${indicadorOpcional(m, "tco2_ano_aptas", "Potencial estimado de carbono nas aptas (tCO₂/ano)")}| Aptos com indicação de matrícula | ${indicador(m, m.aptas_com_matricula)} |
+| Área de carbono das aptas com matrícula (ha) | ${indicador(m, m.ha_carbono_matricula)} |
 ${indicadorOpcional(m, "frente_assentamento_agrupado", "Imóveis na frente de assentamentos para agrupar")}
 Indicadores opcionais sem valor na tabela de origem não são exibidos. Ausência de informação não significa zero.
+
+${protegido(m) ? "Os números deste grupo foram suprimidos no site aberto. As fazendas continuam disponíveis na busca da área de clientes, sem exclusão pelo tamanho." : ""}
 
 ${REGRAS}
 
@@ -188,6 +198,10 @@ A Raíz ajuda a identificar e agrupar fazendas para restauração a partir de um
 
 O interesse do dono precisa ser registrado: sem contato, contatado, interessado, aceite de fase 1 e contrato firme são situações diferentes. A Raíz conduz o contato; o cliente não recebe dados pessoais dos donos.
 
+## Consulta de fichas
+
+O agregado é aberto. A ficha completa por CAR exige conta de cliente e créditos pagos. O valor dos planos vem da configuração comercial do serviço autenticado. Reabrir uma ficha desbloqueada não cobra novamente. "Pedir contato" registra um pedido na Raíz para tratamento posterior.
+
 ## Conexão por hectare
 
 A conexão é cobrada sobre os hectares do grupo que assinou o contrato. O valor depende da proposta. Os números usados pelo simulador são premissas, não uma tabela comercial confirmada. Consulte a proposta antes de contratar.
@@ -196,7 +210,7 @@ A conexão é cobrada sobre os hectares do grupo que assinou o contrato. O valor
 
 Quando o grupo está pronto, a reserva dá exclusividade por prazo definido na proposta. O valor pago é abatido da conexão quando o contrato fecha. Sem contrato ao fim do prazo, as fazendas voltam à base. Uma fazenda não pode participar de duas reservas simultâneas.
 
-O site estático mostra o fluxo com dados de demonstração para pedidos, interesse e pagamento. Não efetiva contato, reserva ou cobrança real. Essas operações dependem do serviço autenticado e da proposta aceita.
+Sem conexão com a Raíz, o site mostra somente agregados. Não efetiva contato, reserva ou cobrança real. Essas operações dependem do serviço autenticado e da proposta aceita.
 
 [Explorar o mapa](${link("")})
 
@@ -229,12 +243,11 @@ Cada fonte mantém seus termos e sua licença. A permissão de leitura por robô
 - [Fontes e licenças detalhadas](${REPO}/blob/main/NOTICE.md)
 - [Contrato das colunas](${REPO}/blob/main/docs/colunas.md)
 - [Regras do funil](${REPO}/blob/main/front/compartilhado/dados/funil.ts)
-- [Dados publicados no Release](${REPO}/releases/tag/dados)
 - [Catálogo desta publicação](${link("dados/index.md")})`)
 
   const service = {
     "@type": "Service", "@id": absoluto("#servico"), name: "Conexão de grupos de fazendas para restauração",
-    description: "Identificação e agrupamento de áreas, busca do interesse dos donos e conexão por hectare contratado. O site estático demonstra o fluxo; a contratação depende do serviço autenticado e de proposta.",
+    description: "Identificação e agrupamento de áreas, busca do interesse dos donos e conexão por hectare contratado. O site aberto mostra agregados; a ficha exige conta e créditos pagos. A contratação depende do serviço autenticado e de proposta.",
     provider: { "@id": absoluto("#organizacao") }, areaServed: { "@type": "Country", name: "Brasil" },
     serviceType: "Conexão para restauração", url: absoluto("servico.md"), termsOfService: absoluto("servico.md"),
     offers: [
