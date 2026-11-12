@@ -15,8 +15,10 @@ import { baseDoMunicipio, lerFicha, montarFicha, type FichaJson } from "./ficha"
 import { funilDosImoveis, lerFunil, lerImovel } from "./funil"
 import { ufDoCodigo } from "../formato"
 import type { CamadaGeo, Estados, FunilMunicipio, Geo, Imovel } from "./tipos"
+import type { CoberturaMapa } from "./cobertura-mapa"
 
 interface IndiceGeo {
+  cobertura?: CoberturaMapa
   brasil?: Partial<Record<"municipios" | "estados" | "base", { arquivo: string; bytes: number }>>
   municipios: Record<string, Partial<Record<CamadaGeo | "base", { arquivo: string; bytes: number }>>>
 }
@@ -171,12 +173,13 @@ export function fonteAmostra(base = "/"): FonteDeDados {
     municipiosComImoveis,
     geo: {
       async brasil() {
-        const b = (await indiceCompleto("")).brasil ?? {}
+        const indice = await indiceCompleto("")
+        const b = indice.brasil ?? {}
         const [municipios, estados] = await Promise.all([
           b.municipios ? buscarJson<Geo>(urlGeo(b.municipios.arquivo)) : null,
           b.estados ? buscarJson<Geo>(urlGeo(b.estados.arquivo)) : null,
         ])
-        return { municipios, estados, base: b.base ? new URL(urlGeo(b.base.arquivo), location.href).href : null }
+        return { municipios, estados, base: b.base ? new URL(urlGeo(b.base.arquivo), location.href).href : null, cobertura: indice.cobertura }
       },
       async comContorno() {
         return Object.entries(await indiceGeo(""))

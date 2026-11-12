@@ -58,6 +58,25 @@ Sessão: https://claude.ai/code/session_01VGb88MJumyG9PHt2znaaKE. Branch: `claud
 
 ## O que falta, em ordem
 
+### Entrega 2 da continuação: cobertura diária do mapa
+
+- O cron diário existente (10:41 UTC) continua lendo `estados.json` e os pacotes de todas as UFs do Release.
+  A geração não tem lista fixa de municípios. O teste incremental usa três rodadas com o mesmo cache: acrescenta
+  um município e uma UF; depois acrescenta o desenho que estava faltando, que deixa de aparecer como pendência.
+- `geo/indice.json` preserva `gerado_em` e recebe `dados_publicados_em` do manifesto do Release. O build aberto
+  calcula `cobertura` só dos arquivos anunciados e presentes, com códigos municipais, sem CAR ou caminhos privados.
+  Cache de município fora do manifesto não aumenta a contagem.
+- O painel do Brasil mostra municípios e estados com desenho na base; o painel estadual mostra sua própria
+  contagem. Municípios processados continuam como medida separada. Datas do mapa e do Release são distintas,
+  em horário de Brasília; ausência é escrita como “data não informada”.
+- A main passou a publicar só agregados no PR #52. A cobertura não reabre geometrias individuais: explica que
+  a ficha com acesso pago contém os desenhos. Município com desenho na origem recebe esse aviso; município
+  cujo desenho falta recebe o aviso de indisponibilidade. Não confundir restrição de acesso com falta de dado.
+- Validação local: 9 testes de geometria passaram, 133 testes do front passaram (13 pulados), lint e formato
+  Python passaram. O Playwright do build verifica cobertura, datas e ausência de vazamento de dados individuais.
+
+### Pendências anteriores
+
 1. Acompanhar os checks e a publicação dos PRs destas duas entregas; merge somente com CI verde.
 2. Configurar a descoberta na raiz de hospedagem quando houver acesso ao site da conta ou domínio próprio,
    sem presumir que o arquivo em `/Raiz/` equivale a `/robots.txt`.

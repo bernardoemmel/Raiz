@@ -135,7 +135,9 @@ export function Explorar({ municipio, uf }: { municipio: string | null; uf: stri
           <div className="painel-rolagem">
             {municipio && !geoMunicipio.carregando && !geoMunicipio.dado?.imoveis?.features.length && (
               <p className="aviso" role="status">
-                O desenho das fazendas deste município ainda não está disponível.
+                {brasil.dado?.cobertura?.acesso === "restrito" && brasil.dado.cobertura.com_desenho.includes(municipio)
+                  ? "O desenho das fazendas deste município está na base. Para consultar uma fazenda, abra a ficha com acesso pago."
+                  : "O desenho das fazendas deste município ainda não está disponível."}
                 {listas.has(municipio) && " Os dados e a lista continuam disponíveis."}
               </p>
             )}
@@ -161,6 +163,7 @@ export function Explorar({ municipio, uf }: { municipio: string | null; uf: stri
                 uf={uf}
                 pontos={uf ? pontos.dado : undefined}
                 carregando={municipios.carregando || estados.carregando}
+                cobertura={brasil.dado?.cobertura}
               />
             )}
           </div>

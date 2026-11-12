@@ -268,6 +268,14 @@ com portão de 950 MB. Polígonos permanecem por município enquanto couberem; n
 A entrega da ficha mantém as bases e limites do mapa nacional, mas restringe os detalhes por CAR à API paga;
 a publicação pública usa os agregados municipais.
 
+Cobertura diária do mapa (12/11/2026): **feito no código**. A rodada diária descobre municípios e UFs do Release,
+incluindo os novos sem lista fixa. O painel do Brasil e de cada estado informa quantos municípios têm desenho
+na base e quantos ainda aguardam; separa esses totais dos municípios processados. A data de geração do mapa e
+a data dos dados publicados no Release aparecem separadas, sem substituir data ausente pela data de hoje.
+O manifesto aberto expõe só cobertura por município, mantendo os desenhos individuais no acesso pago.
+Teste incremental cobre município novo, UF nova e chegada posterior do desenho; Playwright confere contagem,
+datas e avisos de acesso restrito ou desenho ausente.
+
 Conferido contra a main em 12/11/2026: "feito" quer dizer que o código está na main; "parcial" diz o que existe e o
 que falta, com as horas do que falta. O site público (https://bernardoemmel.github.io/Raiz/) mostra o que o front já
 faz sem back-end.
