@@ -112,7 +112,7 @@ PADRAO_CENARIO = {  # o que um cenário antigo (sem a rodada 11) não traz
     "entregas_pos_contrato_anos": [], "fracao_financiada_minima": 0.0, "icsd_minimo": 1.3,
     "manutencao_usd_ha_ano": 0.0, "registro_venda_receita": 0.0, "pagamento_dono": "arrendamento",
     "participacao_dono": 0.0, "piso_dono_rs_ha_ano": 0.0, "fase1_rs_ha_ano": 0.0, "fase1_anos": 0,
-    "linha_base_piso": 0.0, "vazamento": 0.0, "vazamento_com_mitigacao": 0.0, "reserva_risco": 0.12,
+    "linha_base_piso": 0.0, "vazamento": 0.0, "vazamento_com_mitigacao": 0.0, "reserva_risco": 0.20,
     "incerteza": 0.10, "cambio_ptax": False, "juros_carencia": "pagos", "arrendamento_rs_ha_ano": 0.0,
     "tolerancia_ultimo_marco": None, "rescisao_atraso_marco_dias": None, "multas_no_fluxo": True,
     "reserva_por_fazenda": False,
@@ -127,6 +127,7 @@ def _normalizar(c: dict, r: dict) -> dict:
         if c.get(k) is None and v is not None:
             c[k] = copy.deepcopy(v)
         c.setdefault(k, v)
+    c["reserva_risco"] = max(float(c["reserva_risco"]), float(r["nao_permanencia"].get("piso", 0.20)), 0.20)
     T = int(c["prazo_anos"])
     c["horizonte_anos"] = max(int(c.get("horizonte_anos") or T), T)
     H = c["horizonte_anos"]
@@ -554,8 +555,9 @@ def captura(linha: dict, m: dict | None = None, r: dict | None = None, c: dict |
 
 def _texto_reserva(linha: dict, c: dict) -> str:
     """Explica a reserva de não permanência da fazenda (ou diz que é a do cenário)."""
+    piso = max(float(c["reserva_risco"]), 0.20)
     if str(linha.get("reserva_risco_fonte")) != "fazenda":
-        return f"A do cenário ({100 * float(c['reserva_risco']):.0f}%): falta o histórico de fogo e de derrubada."
+        return f"Reserva mínima ({100 * piso:.0f}%): falta o histórico de fogo e de derrubada; piso Raíz de 20%."
     fogo, der, perda = (_num(linha, k) for k in ("fogo_risco_ano_pct", "derrubada_risco_ano_pct",
                                                  "perda_natural_40a_pct"))  # fmt: skip
     partes = []
@@ -567,7 +569,7 @@ def _texto_reserva(linha: dict, c: dict) -> str:
     if perda is not None:
         txt += (
             f". Perda esperada em 40 anos, com aceiro, brigada e contrato averbado: {perda:.1f}%. A reserva "
-            f"nunca fica abaixo dos {100 * float(c['reserva_risco']):.0f}% do cenário."
+            f"nunca fica abaixo dos {100 * piso:.0f}% (cenário e piso Raíz de 20%)."
         )
     return txt[:1].upper() + txt[1:]
 
@@ -579,13 +581,13 @@ def _r(x: float | None, mult: float = 1.0, nd: int = 2) -> float | None:
 def nao_permanencia(linha: dict, c: dict, r: dict | None = None) -> dict:
     """Reserva de não permanência da fazenda (E3 passo 4): frequência vezes severidade do fogo (MapBiomas Fogo) e da
     derrubada da vegetação secundária no município (MapBiomas desmatamento), menos a mitigação do projeto, somadas ao
-    risco interno e externo; nunca abaixo da reserva do cenário nem do piso da Verra. Sem dado, a do cenário."""
-    base = float(c["reserva_risco"])
+    risco interno e externo; nunca abaixo de 20% (política Raíz) nem da reserva do cenário. Sem dado, mantém o piso."""
+    r = r or regra()
+    npm = r["nao_permanencia"]
+    base = max(float(c["reserva_risco"]), float(npm.get("piso", 0.20)), 0.20)
     out = {"reserva": base, "fonte": "cenario", "fogo_ano": None, "derrubada_ano": None, "perda_40a": None}
     if not c.get("reserva_por_fazenda"):
         return out
-    r = r or regra()
-    npm = r["nao_permanencia"]
     fogo, sup = _num(linha, "fogo_anos_media"), _num(linha, "taxa_supressao_secundaria_municipio")
     if fogo is None and sup is None:
         return out
@@ -595,7 +597,7 @@ def nao_permanencia(linha: dict, c: dict, r: dict | None = None) -> dict:
     taxa += ld * float(npm["severidade_derrubada"]) * (1 - float(npm["mitigacao_derrubada"]))
     perda = 1 - math.exp(-taxa * float(npm["horizonte_anos"]))
     risco = float(npm["risco_interno_externo"]) + perda
-    res = min(max(risco, base, float(npm["piso_vcs"])), float(npm["teto"]))
+    res = max(base, min(max(risco, float(npm["piso_vcs"])), float(npm["teto"])))
     return {"reserva": res, "fonte": "fazenda", "fogo_ano": lf, "derrubada_ano": ld, "perda_40a": perda}
 
 
@@ -1429,7 +1431,12 @@ def elegivel(linha: dict) -> bool:
     # terra pública sem destinação e terra indígena ou tradicional só aparecem no mapa: não entram em lote
     if linha.get("caminho_terra") in ("publica_sem_destinacao", "terra_indigena_ou_tradicional"):
         return False
-    return str(linha.get("filtro_territorial") or "").lower() != "bloqueio"
+    from raiz.salvaguardas import avaliar
+
+    return (
+        str(linha.get("filtro_territorial") or "").lower() != "bloqueio"
+        and avaliar(linha, linha.get("verificacao"))["pode_originar"]
+    )
 
 
 def agrupar(pontos: list[tuple[str, float, float]], r: dict | None = None) -> dict[str, int]:
@@ -2056,7 +2063,7 @@ _LIMITES = {
     "taxa_registro_usd_t": (0, 100), "registro_venda_receita": (0, 0.9), "tributos_receita": (0, 0.9),
     "participacao_dono": (0, 0.9), "piso_dono_rs_ha_ano": (0, 1e5), "arrendamento_rs_ha_ano": (0, 1e5),
     "fase1_rs_ha_ano": (0, 1e5), "fase1_anos": (0, 20), "linha_base_piso": (0, 1), "vazamento": (0, 1),
-    "reserva_risco": (0, 1), "incerteza": (0, 1),
+    "reserva_risco": (0.20, 1), "incerteza": (0, 1),
 }  # fmt: skip
 
 

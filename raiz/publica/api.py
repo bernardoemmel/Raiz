@@ -433,6 +433,24 @@ def criar(engine_de: Callable[[Request], Any]) -> FastAPI:
         CT.exigir_liberacao(engine_de(request), a.cliente_id)
         return ok(S.obter_pedido(engine_de(request), pedido_id, a.cliente_id)["alertas"])
 
+    @app.post("/pedidos/{pedido_id}/revisoes", tags=["Pedido de lote"])
+    @limiter.shared_limit(LIMITE, scope="empresa")
+    def solicitar_revisao(
+        pedido_id: Pid, request: Request, a: Pessoa, cod_imovel: Annotated[str, Body()], motivo: Annotated[str, Body()]
+    ) -> JSONResponse:
+        from raiz import salvaguardas as SG
+
+        CT.exigir_liberacao(engine_de(request), a.cliente_id)
+        return ok(SG.solicitar_revisao(engine_de(request), pedido_id, a.cliente_id, cod_imovel, motivo))
+
+    @app.get("/pedidos/{pedido_id}/revisoes", tags=["Pedido de lote"])
+    @limiter.shared_limit(LIMITE, scope="empresa")
+    def revisoes(pedido_id: Pid, request: Request, a: Pessoa) -> JSONResponse:
+        from raiz import salvaguardas as SG
+
+        CT.exigir_liberacao(engine_de(request), a.cliente_id)
+        return ok(SG.listar_revisoes(engine_de(request), pedido_id, a.cliente_id))
+
     @app.get("/notificacoes", tags=["Conta da empresa"])
     @limiter.shared_limit(LIMITE, scope="empresa")
     def notificacoes(request: Request, a: Pessoa) -> JSONResponse:

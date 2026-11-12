@@ -31,17 +31,17 @@ def lote(amostra):
 
 
 def test_um_so_calculo_da_fazenda_ao_lote(amostra):
-    """O caminho do P50 refeito para o lote dá o mesmo preço de equilíbrio e a mesma área que a ficha gravou."""
+    """Fluxo do lote e ficha usam a mesma versão; a amostra histórica não incorpora o novo piso de 20%."""
     dv = pd.read_csv(AMOSTRA / "desenvolvedor_1504950.csv", low_memory=False, dtype={"cod_imovel": str})
     dv = dv[dv.restauracao_area_ha > 0].head(80)
     linhas = R.linhas_para_refazer(AMOSTRA, 1504950, set(dv.cod_imovel))
     c = R.cenario()
-    for cod, li in linhas.items():
+    for li in linhas.values():
         x = R.fluxo_p50(li, c)
-        g = dv[dv.cod_imovel == cod].iloc[0]
-        assert x["area_ha"] == pytest.approx(g.restauracao_area_ha, abs=1e-3)
-        if pd.notna(g.preco_equilibrio_usd_t):
-            assert x["preco_equilibrio_usd"] == pytest.approx(g.preco_equilibrio_usd_t, abs=0.01)
+        g = R.por_imovel(li, c)
+        assert x["area_ha"] == pytest.approx(g["restauracao_area_ha"], abs=1e-3)
+        if g["preco_equilibrio_usd_t"] is not None:
+            assert x["preco_equilibrio_usd"] == pytest.approx(g["preco_equilibrio_usd_t"], abs=0.01)
     # a oferta não descarta ninguém por tamanho: toda fazenda com área para restaurar entra
     assert len(amostra["oferta"]) == int(
         (pd.read_csv(AMOSTRA / "desenvolvedor_1504950.csv").restauracao_area_ha > 0).sum()
@@ -81,7 +81,7 @@ def test_fluxo_do_lote_preco_minimo_e_credito_alem_do_contrato():
 
 def test_lote_da_amostra_fecha_no_p50_e_diz_o_que_falta_para_a_reserva(lote):
     r = lote["resumo"]
-    assert r["cenario"] == "central_r11" and r["versao_premissas"].startswith("restauracao-2026c+")
+    assert r["cenario"] == "central_r11" and r["versao_premissas"].startswith("restauracao-2026d+")
     assert r["volume_creditos"] == 1_000_000 and r["chance_alvo"] == 0.9
     # quantos municípios entraram (a amostra tem 2 com imóveis, 1 com o valor para quem restaura)
     assert r["municipios"]["no_estado"] == 2 and r["municipios"]["lidos"] == 1 and r["municipios"]["no_lote"] == 1
