@@ -1,0 +1,117 @@
+/**
+ * O que o front usa, já lido pelo nome das colunas do motor (docs/colunas.md). Áreas em hectares, carbono em tCO2
+ * por ano. Nada aqui tem nome de pessoa, CPF ou CNPJ.
+ */
+
+import type { Linha } from "./csv"
+
+/** Funil de um município: a linha do resumo_<UF>.csv (ou a mesma conta feita a partir dos imóveis). */
+export interface FunilMunicipio {
+  cod_ibge: string
+  municipio: string
+  uf: string
+  imoveis: number
+  sem_problema: number
+  aptas_carbono: number
+  ha_carbono: number
+  tco2_ano_aptas: number
+  aptas_com_matricula: number
+  ha_carbono_matricula: number
+  /** imóveis da frente assentamento_agrupado (lotes do INCRA que entram num projeto agrupado) */
+  para_agrupar: number
+  /** contagem por frente (colunas frente_*; frente nova do motor aparece aqui sozinha) */
+  frentes: Record<string, number>
+  /** a linha inteira, inclusive colunas que o front ainda não conhece */
+  linha: Linha
+  /** de onde veio: o resumo do estado ou a soma dos imóveis */
+  origem: "resumo" | "imoveis"
+}
+
+export type Categoria = "bloqueio" | "apta_matricula" | "apta_assentamento" | "apta_titulo" | "sem_area"
+
+export interface Imovel {
+  cod_imovel: string
+  uf: string
+  municipio: string
+  cod_ibge: string
+  status_imovel: string | null
+  condicao: string | null
+  ha: number
+  m_fiscal: number | null
+  bioma: string | null
+  frente: string | null
+  problema: boolean
+
+  // abertura e floresta
+  desm_total_ha: number
+  desm_pos2008_ha: number | null
+  desm_pos2016_ha: number | null
+  desm_pos2020_ha: number | null
+  floresta_rem_ha: number
+  nao_floresta_ha: number
+  pasto_ha: number | null
+  secundaria_ha: number | null
+  pasto_ate1km_ha: number | null
+
+  // bloqueios
+  embargo_ha: number
+  ti_ha: number
+  uc_ha: number
+  alerta_pos2020_ha: number
+  alerta_ultimo_ano: number | null
+
+  // reserva legal e APP
+  pct_RL: number | null
+  deficit_RL_ha: number
+  alem_RL_ha: number
+  app_desmatada_ha: number
+  app_recompor_ha: number | null
+
+  // título
+  sigef_ha: number
+  matricula_ha: number
+  assentamento_ha: number
+  f_matricula: number
+
+  // frentes
+  carbono_ha: number
+  carbono_tco2_ano: number
+  taxa_tco2_ha_ano: number | null
+  regiao_carbono: string | null
+  redd_excedente_ha: number
+  frigorifico_remocao_ha: number
+  cota_reserva: boolean
+  eudr_ok: boolean | null
+  credito_rural_ok: boolean | null
+  compra_arrendamento: boolean | null
+  cacau_aptidao: number | null
+
+  // filtros territoriais (filtros_<mun>.csv), quando houver
+  filtro_territorial: string | null
+  quilombo_ha: number | null
+  ti_funai_ha: number | null
+  ti_fase: string | null
+
+  // derivados (regras em funil.ts, iguais às do motor)
+  apta: boolean
+  com_matricula: boolean
+  assentamento: boolean
+  /** até 4 módulos fiscais: pequena propriedade (Lei 12.651, art. 3º, V) */
+  pequena: boolean
+  categoria: Categoria
+
+  /** a linha inteira (imóveis + filtros), inclusive colunas que o front ainda não conhece */
+  linha: Linha
+}
+
+export interface Geo {
+  type: "FeatureCollection"
+  features: {
+    type: "Feature"
+    id?: string | number
+    properties: Record<string, unknown>
+    geometry: { type: string; coordinates: unknown }
+  }[]
+}
+
+export type CamadaGeo = "municipio" | "imoveis" | "ti" | "uc" | "rios"
