@@ -264,3 +264,7 @@ relatórios Lighthouse passaram pelo portão fixo. E9 real não foi calibrado e 
   Preact e o leitor da ficha só carregam com `?car=`, preservando o caminho e os controles de acesso existentes.
   A auditoria confirma a leitura e o envio nativo do formulário com JavaScript desligado.
 - O portão Lighthouse inclui também `#/pedidos/novo` e `#/prospeccao`, sem substituir o backend público por fixture: são 15 medições fixas ao todo.
+- Revisão visual da ficha a 360 px: escala no alto à esquerda e atribuição inteira no rodapé, sem sobreposição.
+  O estilo dos detalhes da ficha não atinge mais o controle interno do MapLibre, eliminando o botão de informação
+  redundante; os botões de zoom têm 48 px. Playwright verifica a legenda Copernicus completa com imagem sintética,
+  as caixas sem interseção, o crédito visível e axe/360 px. TypeScript e verificador de design passaram.

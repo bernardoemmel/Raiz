@@ -279,6 +279,8 @@ Lighthouse mobile a 360 px conserva rede/CPU simuladas: três execuções fixas 
 mediana de desempenho >= 90 e acessibilidade >= 90 em todas. A série integrada teve medianas 100/96/98/98/100
 e acessibilidade 100 nas quinze medidas; 175 testes do front, Pages, cena-alvo e ficha/prospecção passaram.
 Relatórios completos (incluindo outliers), axe e capturas ficam nos artefatos.
+A revisão visual da ficha mantém escala e atribuição em posições separadas, crédito inteiro e zoom com 48 px;
+Playwright cobre a legenda Copernicus longa a 360 px, além de axe.
 As verificações automatizadas não substituem avaliação humana de todos os critérios WCAG; a calibração E9 de
 compreensão com 30 cartas reais continua pendente e nenhum contato com dono é disparado por estes testes.
 
