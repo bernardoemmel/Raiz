@@ -284,6 +284,10 @@ def _alertas(con, pedido_id) -> list[dict]:
             "texto": (r.detalhe or {}).get("texto", ""),
             "data": r.criado_em.isoformat(),
             "cod_imovel": r.cod_imovel,
+            # desmatamento, embargo, matricula_cancelada, bloqueio, caminho_terra, saiu_da_base (fazenda_com_problema)
+            "motivo": (r.detalhe or {}).get("motivo"),
+            # fonte, data do evento, área, link da fonte, fazendas novas no lote (lote_melhorou); nada pessoal
+            "detalhe": {k: v for k, v in (r.detalhe or {}).items() if k not in ("texto", "chave", "motivo")},
         }
         for r in rs
     ]
@@ -1132,30 +1136,98 @@ def converter_reserva(engine: Engine, reserva_id: int, ha_assinados: float, quem
 
 # --- vigia do pedido salvo ----------------------------------------------------------------------------------------
 
+# fazenda com problema num pedido que já tem grupo em formação ou fechado: aviso em todos os canais (e-mail e WhatsApp
+# simulados até haver enviador); antes disso, painel e e-mail
+CANAIS_PROBLEMA_GRUPO = ("painel", "email", "whatsapp")
+CANAIS_PROBLEMA_LOTE = ("painel", "email")
+ESTADOS_COM_GRUPO = ("buscando_interesse", "grupo_pronto", "reservado")
 
-def _alerta(con, pedido_id, tipo: str, cod: str | None, texto_: str, detalhe: dict | None = None) -> bool:
-    """Grava o alerta se ainda não houver o mesmo sem ver (não repete)."""
-    ja = con.execute(
-        text("""select 1 from negocio.alerta_pedido where pedido_id = :p and tipo = :t
-                             and coalesce(cod_imovel, '') = coalesce(:c, '') and visto_em is null"""),
-        {"p": pedido_id, "t": tipo, "c": cod},
-    ).first()
+
+def _alerta(
+    con, pedido_id, tipo: str, cod: str | None, texto_: str, detalhe: dict | None = None, chave: str | None = None
+) -> bool:
+    """Grava o alerta sem repetir. Com `chave` (um fato: o alerta da vigilância, a leitura da certidão), o mesmo fato
+    nunca é avisado de novo, mesmo depois de visto; sem chave, não repete enquanto o anterior não foi visto."""
+    if chave:
+        ja = con.execute(
+            text("""select 1 from negocio.alerta_pedido where pedido_id = :p and tipo = :t
+                    and detalhe->>'chave' = :k"""),
+            {"p": pedido_id, "t": tipo, "k": chave},
+        ).first()
+    else:
+        ja = con.execute(
+            text("""select 1 from negocio.alerta_pedido where pedido_id = :p and tipo = :t
+                    and coalesce(cod_imovel, '') = coalesce(:c, '') and visto_em is null"""),
+            {"p": pedido_id, "t": tipo, "c": cod},
+        ).first()
     if ja:
         return False
+    corpo = {"texto": texto_, **(detalhe or {}), **({"chave": chave} if chave else {})}
     con.execute(
         text("""insert into negocio.alerta_pedido (pedido_id, tipo, cod_imovel, detalhe)
                         values (:p, :t, :c, cast(:d as jsonb))"""),
-        {"p": pedido_id, "t": tipo, "c": cod, "d": json.dumps({"texto": texto_, **(detalhe or {})})},
+        {"p": pedido_id, "t": tipo, "c": cod, "d": json.dumps(corpo, default=str)},
     )
     return True
 
 
-def vigiar(engine: Engine) -> dict:
-    """O pedido salvo vira alerta: refaz a base e as opções com o dado novo; avisa quando o lote melhorou (custo por
-    crédito ou crédito ao menos 3% melhor) ou quando uma fazenda do lote ou do grupo ganhou problema (embargo,
-    desmatamento, bloqueio, saiu da base: matrícula cancelada ou caminho da terra que o pedido não aceita)."""
+def _motivo_da_oferta(li) -> tuple[str, str]:
+    if li.embargo:
+        return "embargo", "embargo"
+    if li.problema:
+        return "desmatamento", "desmatamento ou alerta depois de 2020"
+    if li.bloqueio:
+        return "bloqueio", "bloqueio territorial"
+    return "caminho_terra", "caminho da terra que o pedido não aceita"
+
+
+def _fazendas_novas(engine: Engine, o: dict, a: dict, desde) -> list[dict]:
+    """Fazendas do lote novo que não estavam no lote anterior da mesma opção; `nova_na_base` quando o dado delas
+    entrou ou mudou na oferta depois do lote anterior."""
+    antes = {i["cod_imovel"] for i in a.get("itens") or [] if i.get("papel") == "lote"}
+    entram = [i for i in o.get("itens") or [] if i.get("papel") == "lote" and i["cod_imovel"] not in antes]
+    quando = {}
+    if entram and desde is not None:
+        with engine.connect() as con:
+            quando = dict(
+                con.execute(
+                    text("select cod_imovel, atualizado_em from negocio.oferta where cod_imovel = any(:c)"),
+                    {"c": [i["cod_imovel"] for i in entram]},
+                ).all()
+            )
+    out = []
+    for i in entram:
+        cod = i["cod_imovel"]
+        nova = None
+        if cod in quando and quando[cod] is not None:
+            nova = bool(pd.Timestamp(quando[cod]) > pd.Timestamp(desde))
+        out.append(
+            {
+                "cod_imovel": cod,
+                "municipio": i.get("municipio"),
+                "uf": i.get("uf"),
+                "creditos": i.get("creditos"),
+                "custo_usd_credito": i.get("custo_usd_credito"),
+                "nova_na_base": nova,
+            }
+        )
+    return out
+
+
+def vigiar(engine: Engine, fatos_de=None) -> dict:
+    """O pedido salvo vira alerta (docs/cena-alvo.md, passo 9):
+
+    - fazenda nova que melhora o lote: refaz a base e as opções com o dado novo; avisa quando o custo por crédito cai
+      ao menos 3% ou o lote passa a fechar a meta, dizendo quais fazendas entraram no lote;
+    - fazenda do grupo com problema: desmatamento ou embargo novos que a vigilância diária viu depois que o pedido
+      foi salvo, matrícula cancelada nas certidões lidas (raiz/vigilancia/pedidos.py), e o que o motor refez
+      (embargo, desmatamento, bloqueio, saiu da base, caminho da terra que o pedido não aceita).
+
+    O mesmo fato nunca é avisado duas vezes. `fatos_de(cods, desde)` troca a fonte dos fatos (testes)."""
+    if fatos_de is None:
+        from raiz.vigilancia.pedidos import fatos as fatos_de
     melhora = float(premissas()["vigia"]["melhora_minima"])
-    out = {"pedidos": 0, "lote_melhorou": 0, "fazenda_com_problema": 0}
+    out = {"pedidos": 0, "lote_melhorou": 0, "fazenda_com_problema": 0, "fatos": {}}
     with engine.connect() as con:
         ps = (
             con.execute(
@@ -1175,38 +1247,39 @@ def vigiar(engine: Engine) -> dict:
             meus = [
                 r[0]
                 for r in con.execute(
-                    text("select cod_imovel from negocio.pedido_fazenda where pedido_id = :p"), {"p": p["id"]}
+                    text("select cod_imovel from negocio.pedido_fazenda where pedido_id = :p and papel <> 'fora'"),
+                    {"p": p["id"]},
                 )
             ]
         oferta = _oferta(engine, c)
         if not meus:
             op = next((o for o in s["opcoes"] if o["id"] == (p["opcao_escolhida"] or "barata")), None)
             meus = [i["cod_imovel"] for i in op["itens"]] if op else []
+        canais = CANAIS_PROBLEMA_GRUPO if p["estado"] in ESTADOS_COM_GRUPO else CANAIS_PROBLEMA_LOTE
         ok = set(Z.filtrar(oferta, c.model_copy(update={"interesse": "qualquer"}), nv, set()).cod_imovel)
         por_cod = oferta.set_index("cod_imovel")
-        novos_alertas = []
+        novos_alertas: list[tuple[str, str, dict, str | None]] = []
+        # 1. o que o motor refez: a fazenda não passa mais no filtro do pedido
         for cod in meus:
             if cod in ok:
                 continue
             if cod in por_cod.index:
-                li = por_cod.loc[cod]
-                motivo = (
-                    "embargo"
-                    if li.embargo
-                    else "desmatamento ou alerta depois de 2020"
-                    if li.problema
-                    else "bloqueio territorial"
-                    if li.bloqueio
-                    else "caminho da terra que o pedido não aceita"
-                )
+                motivo, texto_motivo = _motivo_da_oferta(por_cod.loc[cod])
             else:
-                motivo = "saiu da base (matrícula cancelada ou dado do município refeito)"
-            novos_alertas.append((cod, f"Fazenda do lote com problema: {motivo}."))
+                motivo, texto_motivo = "saiu_da_base", "saiu da base (matrícula cancelada ou dado do município refeito)"
+            novos_alertas.append(
+                (cod, f"Fazenda do lote com problema: {texto_motivo}.", {"motivo": motivo, "fonte": "motor"}, None)
+            )
+        # 2. fatos novos do dia: vigilância (desmatamento, embargo) e certidões (matrícula cancelada)
+        desde = (p["criado_em"] or _agora()).date()
+        for f in fatos_de(meus, desde):
+            novos_alertas.append((f.cod_imovel, f.texto, {"motivo": f.motivo, **f.detalhe}, f.chave))
         with engine.begin() as con:
-            for cod, tx in novos_alertas:
-                if _alerta(con, p["id"], "fazenda_com_problema", cod, tx):
+            for cod, tx, det, chave in novos_alertas:
+                if _alerta(con, p["id"], "fazenda_com_problema", cod, tx, det, chave):
                     out["fazenda_com_problema"] += 1
-                    notificar(con, p["cliente_id"], p["id"], "fazenda_com_problema", tx, canais=("painel",))
+                    out["fatos"][det["motivo"]] = out["fatos"].get(det["motivo"], 0) + 1
+                    notificar(con, p["cliente_id"], p["id"], "fazenda_com_problema", tx, canais=canais)
         if p["estado"] not in ("lote_montado", "faltou"):
             continue
         b, ops, _ = Z.opcoes(oferta, c, nv, fora, hist, _pagamento(c))
@@ -1219,14 +1292,27 @@ def vigiar(engine: Engine) -> dict:
             mais_barato = c_novo is not None and c_velho and c_novo <= (1 - melhora) * c_velho
             fechou = o["alcanca_meta"] and not a.get("alcanca_meta")
             if mais_barato or fechou:
+                novas = _fazendas_novas(engine, o, a, s.get("criada_em"))
+                quais = ""
+                if novas:
+                    cods = ", ".join(n["cod_imovel"] for n in novas[:3])
+                    mais = f" e mais {len(novas) - 3}" if len(novas) > 3 else ""
+                    quais = f" Fazendas novas no lote: {cods}{mais}."
                 tx = (
                     f"O lote melhorou na opção {o['id']}: custo por crédito de US$ {c_velho:.2f} para US$ {c_novo:.2f}."
                     if mais_barato
                     else f"O lote da opção {o['id']} agora fecha a meta."
-                )
+                ) + quais
+                det = {
+                    "opcao": o["id"],
+                    "custo_antes_usd": c_velho,
+                    "custo_agora_usd": c_novo,
+                    "fecha_meta": bool(o["alcanca_meta"]),
+                    "fazendas_novas": novas,
+                }
                 with engine.begin() as con:
                     _salvar_sugestao(con, p["id"], "vigia", b, ops)
-                    if _alerta(con, p["id"], "lote_melhorou", None, tx):
+                    if _alerta(con, p["id"], "lote_melhorou", None, tx, det):
                         out["lote_melhorou"] += 1
                         notificar(con, p["cliente_id"], p["id"], "lote_melhorou", tx, canais=("painel", "email"))
                 break
