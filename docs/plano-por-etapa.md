@@ -286,6 +286,7 @@ O manifesto aberto expõe só cobertura por município, mantendo os desenhos ind
 Teste incremental cobre município novo, UF nova e chegada posterior do desenho; Playwright confere contagem,
 datas e avisos de acesso restrito ou desenho ausente. A migração do Release para cadastro básico é reconhecida
 pelo leitor e pela geração de geometria; CSVs retirados não sobrevivem no cache da rodada seguinte.
+A agenda ainda sem coleta é publicada como indisponível, evitando 404 na navegação do mapa.
 
 A verificação no navegador com o Release real conferiu a consulta do Pará: 144 municípios, 345.870 fazendas e
 9.484.092 ha com potencial de restauração, zero 404 e zero erro de JavaScript. Oferta de créditos e TIR continuam
