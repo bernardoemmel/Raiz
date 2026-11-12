@@ -1077,3 +1077,65 @@ def pedidos_resposta(
     from raiz.pedidos import servico as S
 
     typer.echo(S.registrar_resposta(engine(), cod_imovel, nivel, canal, motivo, termo, pedido))
+
+
+lote_cli = typer.Typer(
+    help="Lote do ProFloresta+ por estado: 1 milhão de créditos com reserva, marcos, preço mínimo, checklist do "
+    "edital, relatório para o desenvolvedor e folha de cada dono.",
+    no_args_is_help=True,
+)
+app.add_typer(lote_cli, name="lote")
+
+
+@lote_cli.command("montar")
+def lote_montar(
+    uf: Annotated[str, typer.Argument(help="UF (área de elegibilidade da Verra), ex.: PA")],
+    saida: Annotated[
+        str | None, typer.Option(help="pasta saida/ do motor; padrão: a pasta de trabalho do motor")
+    ] = None,
+    destino: Annotated[str | None, typer.Option(help="pasta do lote; padrão: <saida>/<UF>/lote")] = None,
+    creditos: Annotated[float | None, typer.Option(help="volume do contrato; padrão: 1 milhão")] = None,
+    cenario: Annotated[str | None, typer.Option(help="cenário das premissas; padrão: central_r11")] = None,
+    municipios: Annotated[str | None, typer.Option(help="só estes códigos IBGE, separados por vírgula")] = None,
+    folhas: Annotated[bool, typer.Option(help="gravar a folha de cada dono das titulares e reservas")] = True,
+) -> None:
+    """Monta o lote do estado com o mesmo cálculo da ficha e do pedido, e grava o csv, o resumo, o relatório e as
+    folhas dos donos. Diz quantos municípios entraram e, se não fecha, exatamente o que falta."""
+    from pathlib import Path
+
+    from raiz import lote as L
+    from raiz import lote_relatorio as LR
+    from raiz import restauracao as RS
+    from raiz.funil.rodar import dir_trabalho
+
+    base = Path(saida) if saida else dir_trabalho() / "saida"
+    mun = [int(x) for x in municipios.split(",")] if municipios else None
+    dados = L.ler_uf(base, uf, mun)
+    r = RS.regra()
+    c = RS.cenario(cenario, r)
+    lote = L.montar(dados, creditos, c, r)
+    res = lote["resumo"]
+    out = LR.gravar_lote(lote, Path(destino) if destino else base / uf.upper() / "lote", c, r, folhas)
+    m = res["municipios"]
+    typer.echo(
+        f"{res['uf']}: {m['lidos']} de {m['no_estado']} municípios no cálculo, {m['no_lote']} com fazenda no lote"
+    )
+    typer.echo(
+        f"  {res['titulares']} titulares e {res['reservas']} de reserva, {res['ha_lote']:,.0f} ha, "
+        f"{res['creditos_lote']:,.0f} créditos até o ano 25 (precisa {res['creditos_precisa_com_reserva']:,.0f})"
+    )
+    eco = res.get("economia") or {}
+    pm = eco.get("preco_minimo_usd") or {}
+    typer.echo(
+        f"  TIR com Fundo Clima {eco.get('tir_alavancada_pct')}% a US$ {res['preco_contrato_usd']:.0f}; "
+        f"mínimo para 12%: US$ {(pm.get('12') or {}).get('alavancada')}, para 15%: "
+        f"US$ {(pm.get('15') or {}).get('alavancada')}"
+    )
+    if res["fecha_com_reserva"]:
+        typer.echo(f"  fecha {res['volume_creditos']:,.0f} créditos com reserva")
+    for x in res["o_que_falta"]:
+        typer.echo(f"  falta: {x}")
+    if (res.get("abaixo_equilibrio") or {}).get("aviso"):
+        typer.echo(f"  aviso: {res['abaixo_equilibrio']['aviso']}")
+    for k, v in out.items():
+        typer.echo(f"  {k}: {v}")

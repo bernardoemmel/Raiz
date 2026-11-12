@@ -28,7 +28,8 @@ COLUNAS = (
     "custo_credito_usd", "preco_equilibrio_usd", "tir_p10", "tir_p50", "tir_p90", "tir_projeto", "vpl_rs",
     "pico_rs", "multa_rs", "marcos", "marcos_todos", "caminho_terra", "caminho", "risco_terra", "grupo_id",
     "mitigacao", "embargo", "terra_indigena", "uc_protecao_integral", "projeto_carbono", "bloqueio", "problema",
-    "elegivel", "restauracao_versao", "cambio",
+    "elegivel", "restauracao_versao", "cambio", "regeneracao_ha", "semeadura_ha", "plantio_ha", "vazamento_motivo",
+    "vazamento_mitigacao_imovel",
 )  # fmt: skip
 
 
@@ -150,6 +151,13 @@ def de_linha(linha: dict, lon: float | None = None, lat: float | None = None) ->
         "elegivel": bool(elegivel),
         "restauracao_versao": linha.get("restauracao_versao"),
         "cambio": cambio,
+        "regeneracao_ha": _num(linha.get("restauracao_regeneracao_assistida_ha")) or 0.0,
+        "semeadura_ha": _num(linha.get("restauracao_semeadura_direta_ha")) or 0.0,
+        "plantio_ha": _num(linha.get("restauracao_plantio_total_ha")) or 0.0,
+        "vazamento_motivo": linha.get("vazamento_motivo") if isinstance(linha.get("vazamento_motivo"), str) else None,
+        "vazamento_mitigacao_imovel": str(linha["vazamento_mitigacao_imovel"])
+        if isinstance(linha.get("vazamento_mitigacao_imovel"), str) and linha["vazamento_mitigacao_imovel"]
+        else None,
     }
 
 
@@ -161,21 +169,34 @@ def tabela(linhas: list[dict]) -> pd.DataFrame:
 # --- das pastas do motor (testes, máquina sem banco) ------------------------------------------------------------
 
 
-def linhas_da_pasta(pasta: str | Path, cod: int) -> list[dict]:
+def linhas_da_pasta(pasta: str | Path, cod: int, so: set[str] | None = None,
+                    so_restauracao: bool = False) -> list[dict]:  # fmt: skip
     """imoveis_<mun>.csv com todos os complementos (desenvolvedor, terra, ficha, flag, filtros...), sem colunas
-    pessoais; as colunas são lidas pelo nome e as novas vêm junto."""
+    pessoais; as colunas são lidas pelo nome e as novas vêm junto. `so`: só esses imóveis; `so_restauracao`: só os
+    que têm área para restaurar no desenvolvedor_<mun>.csv (para ler um estado inteiro sem estourar a memória)."""
     from raiz.contrato import COMPLEMENTOS
     from raiz.privacidade import remover_colunas_pessoais
 
     pasta = Path(pasta)
+    if so_restauracao:
+        f = pasta / f"desenvolvedor_{cod}.csv"
+        if not f.exists():
+            return []
+        d = pd.read_csv(f, usecols=lambda c: c in ("cod_imovel", "restauracao_area_ha"), dtype={"cod_imovel": str})
+        com = set(d.cod_imovel[pd.to_numeric(d.get("restauracao_area_ha"), errors="coerce").fillna(0) > 0])
+        so = com if so is None else (set(so) & com)
     im, _ = remover_colunas_pessoais(pd.read_csv(pasta / f"imoveis_{cod}.csv", low_memory=False))
     im["cod_imovel"] = im.cod_imovel.astype(str)
+    if so is not None:
+        im = im[im.cod_imovel.isin(so)]
     for tipo in ("filtros", *COMPLEMENTOS):
         f = pasta / f"{tipo}_{cod}.csv"
         if not f.exists():
             continue
         extra, _ = remover_colunas_pessoais(pd.read_csv(f, low_memory=False))
         extra["cod_imovel"] = extra.cod_imovel.astype(str)
+        if so is not None:
+            extra = extra[extra.cod_imovel.isin(so)]
         novas = [c for c in extra.columns if c == "cod_imovel" or c not in im.columns]
         im = im.merge(extra[novas].drop_duplicates("cod_imovel"), on="cod_imovel", how="left")
     return im.replace({np.nan: None}).to_dict("records")

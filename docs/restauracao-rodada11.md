@@ -1,63 +1,74 @@
-# Valor para quem restaura: rodada 11 (cenário central_r11)
+# Valor para quem restaura: rodada 11 unificada (cenário central_r11)
 
-Resultado da troca do cenário padrão (12/11/2026). Premissas em raiz/regras/padroes/cenarios_restauracao.yaml e
-restauracao.yaml, cada uma com a fonte; as antigas seguem no cenário `otimista_fundador`.
+Resultado da rodada 11 depois de juntar as duas implementações (esta e a da branch claude/premissas-rodada11) num só
+arquivo de premissas, raiz/regras/padroes/restauracao.yaml (regras, cenários, Monte Carlo, aluguel do Censo, renda do
+gado e lote), e num só cálculo, raiz/restauracao.py (12/11/2026). As premissas antigas seguem no cenário
+`otimista_fundador`, que ainda reproduz a TIR de ~30%.
+
+## O que veio de cada lado
+
+| Ponto | Fica | De onde |
+|---|---|---|
+| Forma da curva | pontos oficiais da URTX (Anexo 20) em linha reta, escalados para o total do método | outra branch |
+| Total de 40 anos | 588,8 t/ha no plantio, 442,8 na regeneração, 515,8 na semeadura, limitado ao teto do bioma | as duas |
+| Incerteza da captura | P10 de 0,6 e P90 de 1,3 do P50, comum ao lote | outra branch |
+| Custo | SFB no P50; P10 e P90 publicados (Altamira, Systemica, Instituto Escolhas) | outra branch |
+| Marcos | último marco a 100% sem tolerância; rescisão por multa de 20% ou atraso acima de 180 dias | outra branch |
+| Multa e rescisão | medidas no lote inteiro (`cronograma_lote`), fora do fluxo da fazenda | outra branch, no motor daqui |
+| Dívida | Fundo Clima pelo ICSD 1,3, juros da carência no saldo | esta |
+| Dono | 15% do crédito + piso de R$ 24/ha (Inesc); duas fases a R$ 2/ha por mês | outra branch |
+| Aluguel de referência | Censo 2017 por município, estado ou Brasil | as duas |
+| Renda do gado | venda de bovinos por ha de pasto (Censo 2017, SIDRA 6910 e 6881) corrigida pelo IPCA | nova |
+| Vazamento | vizinha a até 15 km que recebe o gado zera o vazamento (VMD0054) | outra branch |
+| Método | os métodos disputam a fazenda e vence o menor preço de equilíbrio | as duas |
+| Lote | otimizador dos pedidos, reserva pela chance de 90%, fluxo do lote pela soma das fazendas | esta |
+| Checklist do edital | 62 itens de edital_profloresta.yaml | outra branch |
 
 ## Fazenda de referência (100 ha no leste do Pará, Amazônia, US$ 55)
 
 | | Plantio total | Regeneração assistida |
 |---|---|---|
-| Custo (SFB) | R$ 15.830 + R$ 3.544 nos anos 1 e 2 | R$ 4.230 + R$ 800 |
-| Captura em 40 anos | 588,8 t/ha | 442,8 t/ha |
+| Custo (SFB) | R$ 15.830 + R$ 3.544 nos anos 1 e 2 (P10 R$ 14.500, P90 R$ 24.800) | R$ 4.230 + R$ 800 (P10 R$ 2.430, P90 R$ 6.096) |
+| Captura em 40 anos | 588,8 t/ha (no teto da Amazônia) | 442,8 t/ha |
 | Linha de base usada | 10% (piso; medida no YbYrá abaixo de 1%) | 19,7% (medida) |
-| Crédito líquido até o ano 25 | 295 t/ha | 198 t/ha |
-| TIR do projeto (P50) | 5,9% | 11,3% |
-| TIR com Fundo Clima (P50), câmbio R$ 5,40 | 6,8% | 14,6% |
-| TIR com Fundo Clima (P50), PTAX de R$ 5,56 (padrão) | 7,2% | 15,0% |
-| Preço que zera o VPL a 9,2% (PTAX) | US$ 82 | US$ 44 |
-| Chance de cumprir o marco do ano 7 | 49% | 49% |
+| Crédito líquido até o ano 25 | 258 t/ha | 173 t/ha |
+| TIR do projeto (P50), PTAX de R$ 5,56 | 5,4% | 10,5% |
+| TIR com Fundo Clima (P50), PTAX de R$ 5,56 | 5,8% | 13,5% |
+| TIR com Fundo Clima (P50), câmbio de R$ 5,40 | 5,5% | 13,2% |
+| Preço que zera o VPL a 9,2% (PTAX) | US$ 92 | US$ 48 |
 
-A US$ 74 (central_r11_74, câmbio de R$ 5,40) o plantio sobe para 10,6% e a regeneração para 18,7%. No estresse (linha de base e
-vazamento de 40%) o plantio não se paga.
+A US$ 74 (central_r11_74, R$ 5,40) o plantio sobe para 9,1% e a regeneração para 17,1%. Sem venda depois do contrato
+(so_contrato_25) o plantio cai para 3,7% e a regeneração para 12,8%. No estresse (linha de base e vazamento de 40%,
+35% financiado, 20% ao dono) o plantio perde dinheiro (TIR do projeto de −1,6%) e a regeneração fica em 2,1%.
 
-O marco do ano 7 (12% do volume, com tolerância até 9%) é o mais difícil: a curva da URTX entrega só 8,8% do
-volume até o ano 7 no caminho do meio. Contratar o P50 inteiro dá cerca de 80% de chance de cumprir o ano 25.
+O plantio total fica abaixo dos 7 a 9% da referência do fundador: a curva oficial entrega pouco até o ano 7, o
+último marco pede 100% e o dono tem piso. A outra sessão chegou a 6,0%. O teste
+`test_plantio_da_7_a_9_pct_no_central_r11` fica marcado como falha esperada até o fundador decidir a premissa.
 
 ## Nova Esperança do Piriá (1504950), dado real
 
-869 imóveis com pasto livre, 45.360 ha (746 em semeadura direta, 85 em regeneração, 38 em plantio).
+870 imóveis com área para restaurar, 47.768 ha: 543 em semeadura direta, 305 em regeneração assistida e 22 em
+plantio. TIR com Fundo Clima, mediana: plantio 4,4%, regeneração 12,0%, semeadura 8,3%. Preço de equilíbrio,
+mediana: plantio US$ 104, regeneração US$ 54, semeadura US$ 74. 10,1 milhões de créditos líquidos até o ano 25; 402
+fazendas com TIR acima da WACC e 157 que o preço de US$ 55 paga. Vazamento: 34 fazendas com vizinha de mitigação.
 
-| | central_r11 | antes (otimista) |
-|---|---|---|
-| TIR com financiamento, mediana: plantio | 6,8% | 18,8% |
-| regeneração | 12,5% | 28,3% |
-| semeadura | 9,2% | 24,8% |
-| Créditos líquidos até o ano 25 | 11,4 milhões | 8,1 milhões |
-| Fazendas com TIR com financiamento acima da WACC (9,2%) | 463 | 869 |
-
-Lote de 1 milhão: o maior lote de vizinhas (116 imóveis, 89 deles com menos de 50 ha, 4.593 ha) agora fecha 1
-milhão de créditos até o ano 25 (1,18 milhão; antes, 823 mil). Pede cerca de 3.900 ha com o rendimento do lote; TIR
-com financiamento média de 10,1% (ponderada pela área); multa esperada somada de R$ 4,8 milhões.
-
-## São Félix do Xingu (1507300), dado real
-
-9.324 imóveis com pasto livre, 1,31 milhão de ha; 313 milhões de créditos líquidos até o ano 25 e 52 lotes de
-vizinhas que fecham 1 milhão. TIR com financiamento, mediana: plantio 6,3%, regeneração 12,6%, semeadura 9,6%.
+Lote do ProFloresta+ só com Nova Esperança (a amostra do CI): fecha os marcos no P50 com 28 titulares, mas a terra
+pronta (42 fazendas com matrícula a conferir) não dá a reserva para 90% de chance; com a posse em titulação e o
+assentamento destravados, fecha com reserva (201 fazendas, custo médio de US$ 34 por crédito, TIR do lote de 8,4%).
 
 ## Pagamento ao dono
 
-- São Félix (aluguel do Censo Agro 2017 de R$ 532/ha/ano): o aluguel fixo derruba a TIR do projeto em todas as
-  9.324 fazendas (mediana de 7,7% com parte do crédito + piso para 6,3% com aluguel).
-- Resto do Pará (R$ 212/ha/ano, Nova Esperança): o aluguel fixo sai mais barato que 15% do crédito + piso (TIR de
-  8,3% contra 7,4%), mas o dono não divide o risco da captura. A ficha mostra os dois números e diz qual é o caso.
-- Aceite em duas fases: quase o mesmo que a parte do crédito (o pagamento até o leilão é pequeno).
+- São Félix (aluguel do Censo Agro 2017 de R$ 532/ha/ano): o aluguel fixo derruba a TIR do projeto.
+- Resto do Pará (R$ 212/ha/ano): o aluguel fixo pode sair mais barato que 15% do crédito + piso, mas o dono não divide
+  o risco da captura. A ficha mostra os dois números e diz qual é o caso.
+- Renda do gado na mesma área: em Nova Esperança, R$ 187/ha/ano de venda de bois (bruto, corrigido pelo IPCA) e cerca
+  de R$ 5/ha/ano de sobra com a margem de referência da CNA (2,7%). A folha do dono mostra os três números.
 
 ## O que vale conferir
 
 - Custo do SFB: o R$ 15.830,71 do plantio e o R$ 4.229,88 da condução, no Relatório de Avaliação
   Econômico-Financeira Referencial da Flona do Bom Futuro (Tabelas 37 a 42), já somam os anos 1 a 3 (implantação e
-  duas manutenções). Os R$ 3.544 e R$ 800 da rodada 11 entram por cima, lidos como total dos anos 1 e 2. Se a
-  rodada 11 quis dizer R$ 3.544 por ano, a TIR do plantio cai cerca de 1 ponto.
+  duas manutenções). Os R$ 3.544 e R$ 800 da rodada 11 entram por cima, lidos como total dos anos 1 e 2.
 - O modelo do SFB usa WACC real de 10,97%, linha de base de 7,5 a 10%, vazamento de 20% e reserva de 20%.
-- Juros da carência entram no saldo (premissa Raíz; o modelo do SFB também tem carência de juros); com juros
-  pagos na carência, a TIR do plantio cai de 6,8% para 6,5%.
+- Margem do gado: 2,7% é a expectativa da recria e engorda no Pará (CNA, jul/2024); a fazenda modelo de Paragominas
+  teve margem bem maior em 2022. A folha cita a fonte e pede para o dono comparar com as próprias contas.
