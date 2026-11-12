@@ -1,5 +1,22 @@
 # Passagem do chat "Produto e regras" (12/11/2026)
 
+## Próxima entrega: medição real e operação (em andamento)
+
+Branch de trabalho: `produto-agentes-validacao`. O gabarito v2 preserva os 24 desafios e a meta,
+mas permite consultar a operação assíncrona devolvida na própria tentativa; a versão anterior
+proibia esse acompanhamento e exigia seu resultado. A permissão não autoriza consultar outro pedido.
+O cenário de injeção na sugestão verifica a remoção do texto pela projeção do servidor, sem
+injetar uma resposta fictícia depois do MCP. A versão e os hashes serão congelados antes da campanha.
+
+Runner Claude/MCP, juiz separado, VCR, Compose, Inspector, vacuum e workflow semanal estão em validação.
+**Ainda não houve chamada real ao Claude nem medição pass^4 desta entrega.** A chave adicionada pelo
+fundador ainda não foi propagada à sessão Cloud atual; os valores de segredos não foram exibidos.
+Não publicar cassetes como evidência real antes da execução. O replay sempre terá origem de contrato.
+
+`consultar_ficha` já veio na main pelo PR #72. A integração de `proximos_eventos` está isolada
+na branch `produto-agentes-ferramentas`, commit `629400def7ae86970da8db097ef8c21450ca55bd`,
+para entrar depois da primeira medição. Não foi feita contratação, implantação pública ou registro MCP.
+
 ## Retomada no Codex: plataforma integrada
 
 A API paga do PR #45 foi migrada e recebeu a main, com a migração de conta renumerada

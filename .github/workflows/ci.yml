@@ -14,6 +14,64 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  agentes:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.22.1
+          cache: npm
+          cache-dependency-path: servicos/conferencia-agentes/package-lock.json
+      - name: Dependências travadas dos contratos e do agente
+        run: |
+          uv sync --frozen
+          npm --prefix servicos/conferencia-agentes ci --no-audit --no-fund
+      - name: API, MCP, PostGIS, Keycloak e worker reais em Compose
+        run: uv run python scripts/pilha_agentes.py teste --env-file .env.agentes-teste
+      - name: Empresa sintética e token OAuth por PKCE
+        run: >-
+          uv run python scripts/cenarios_agentes.py --bootstrap-ci
+          --token-file .cache/agentes/token-mcp.txt
+      - name: Inspector oficial, vacuum e manifesto do registro sem publicação
+        run: >-
+          uv run python scripts/verificar_protocolo_agentes.py
+          --openapi-url http://localhost:18000/v1/openapi.json
+          --mcp-url http://localhost:18000/mcp/
+          --token-file .cache/agentes/token-mcp.txt
+      - name: Repetir as respostas gravadas do agente, sem chave nem chamadas à Anthropic
+        run: >-
+          uv run python scripts/avaliar_agente_real.py
+          --provider scripts.cenarios_agentes:provedor
+          --modelo claude-sonnet-5-5 --modo replay
+          --cassetes testes/cassetes/agentes --saida .cache/agentes-replay
+          --campanha replay-${{ github.run_id }}-${{ github.run_attempt }}
+      - name: Memória e disco da pilha de teste
+        if: always()
+        run: >-
+          uv run python scripts/pilha_agentes.py medir --teste --env-file .env.agentes-teste
+          --saida .cache/protocolo-agentes/recursos.json --amostras 5 --intervalo 2
+      - name: Relatórios sem tokens nem traces privados
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: contratos-agentes
+          path: |
+            .cache/protocolo-agentes
+            .cache/agentes-replay/relatorio.json
+          retention-days: 14
+          if-no-files-found: error
+      - name: Encerrar a pilha local
+        if: always()
+        run: uv run python scripts/pilha_agentes.py parar --teste --env-file .env.agentes-teste
+
   workflows:
     runs-on: ubuntu-24.04
     timeout-minutes: 10

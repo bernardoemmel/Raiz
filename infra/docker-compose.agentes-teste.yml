@@ -1,0 +1,52 @@
+# Override estritamente local: não altera política OAuth nem habilita grant de senha no MCP.
+# API e Keycloak dividem a rede só para o emissor localhost funcionar também na validação do JWKS.
+name: raiz-agentes-teste
+x-teste-ambiente: &teste-ambiente
+  RAIZ_PIX_MODO: teste
+  RAIZ_ABACATEPAY_CHAVE: ""
+  RAIZ_ABACATEPAY_WEBHOOK_SEGREDO: ""
+  RAIZ_ABACATEPAY_WEBHOOK_CHAVE_PUBLICA: ""
+  RAIZ_SMTP_HOST: ""
+  RAIZ_SMTP_FROM: ""
+  RAIZ_SMTP_USER: ""
+  RAIZ_SMTP_PASSWORD: ""
+  RAIZ_WEBHOOK_HOSTS: ""
+  RAIZ_OTEL_ENDPOINT: ""
+  RAIZ_DADOS_PRIVADOS_URL: /app/dados/armazem
+  RAIZ_DADOS_PRIVADOS_TOKEN: ""
+services:
+  banco:
+    ports:
+      - "127.0.0.1:15432:5432"
+  keycloak:
+    ports: !override
+      - "127.0.0.1:18180:18180"
+      - "127.0.0.1:18000:8000"
+    environment:
+      KC_HTTP_PORT: "18180"
+      KC_HOSTNAME: http://localhost:18180
+      KC_HOSTNAME_STRICT: "true"
+  migrar:
+    environment: *teste-ambiente
+  api:
+    environment: *teste-ambiente
+    volumes:
+      - ../raiz:/app/raiz:ro
+      - ../scripts:/app/scripts:ro
+    network_mode: service:keycloak
+    ports: !reset []
+  worker:
+    environment: *teste-ambiente
+    volumes:
+      - ../raiz:/app/raiz:ro
+      - ../scripts:/app/scripts:ro
+    network_mode: service:keycloak
+    depends_on:
+      keycloak:
+        condition: service_healthy
+  agenda:
+    volumes:
+      - ../scripts:/app/scripts:ro
+    environment:
+      <<: *teste-ambiente
+      RAIZ_AGENDA_MODO: teste

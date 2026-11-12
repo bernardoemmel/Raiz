@@ -4399,10 +4399,12 @@ nativo = [
 [package.dev-dependencies]
 dev = [
     { name = "hypothesis" },
+    { name = "jsonschema" },
     { name = "maturin" },
     { name = "moto", extra = ["s3"] },
     { name = "pytest" },
     { name = "ruff" },
+    { name = "vcrpy" },
 ]
 
 [package.metadata]
@@ -4476,10 +4478,12 @@ provides-extras = ["metadados", "motor", "nativo"]
 [package.metadata.requires-dev]
 dev = [
     { name = "hypothesis", specifier = ">=6.100" },
+    { name = "jsonschema", specifier = ">=4.23,<5" },
     { name = "maturin", specifier = ">=1.7" },
     { name = "moto", extras = ["s3"], specifier = ">=5.0" },
     { name = "pytest", specifier = ">=8" },
     { name = "ruff", specifier = ">=0.6" },
+    { name = "vcrpy", specifier = ">=7,<9" },
 ]
 
 [[package]]
@@ -5853,6 +5857,19 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/da/34/30e9280707135d2cfc589dfff3cb796bd07a3aeb1a3e415ba09dd89d7bb4/uvicorn-0.54.0.tar.gz", hash = "sha256:a2e33cbfaa0306f8e6b0c13e0cb89d7d7a2da3e62b90c66e18c33d9807b28620", size = 112283, upload-time = "2026-09-25T06:52:37.601Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/38/0c/b54a4fdd7f90a3af8b02ebc9ce6712c2c208b7926a2f7bad95c33ebbe943/uvicorn-0.54.0-py3-none-any.whl", hash = "sha256:505bdb0f318731d45f1f712071fc781a8981f6847a31c902c9f5e652d4f67faf", size = 87427, upload-time = "2026-09-25T06:52:35.829Z" },
+]
+
+[[package]]
+name = "vcrpy"
+version = "8.5.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "pyyaml" },
+    { name = "wrapt" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/82/ec/69ad8ab945540ab11b507fd8ccdbfc9f30e1b4b71f8f42e670f84fb0492a/vcrpy-8.5.0.tar.gz", hash = "sha256:93b65a1512d92c3985a3b731c5a9a4bc1447103d76b896c7d031b3b105e312b9", size = 103228, upload-time = "2026-10-25T20:07:06.705Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/66/cb/e4a5f56261ec2a86f1c26f61d5919486a6eafb583694a1639df9a373bfc7/vcrpy-8.5.0-py3-none-any.whl", hash = "sha256:cebe4bf4f30f89a8f27525e7b7eca6eeb3231fa8427bbd117540f645dbadf951", size = 48999, upload-time = "2026-10-25T20:07:04.919Z" },
 ]
 
 [[package]]
