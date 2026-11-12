@@ -683,3 +683,9 @@ ignorados. **115 testes de publicação, qualidade, projeção e armazenamento p
 diretórios, **85 testes das duas fronteiras passaram**. As regressões reproduziram as aceitações indevidas antes
 das correções. Ruff global, actionlint e a varredura de 953 arquivos por CPF/CNPJ passaram. A suíte integral e os
 dez jobs do commit final são exigidos antes do merge; os resultados ficam no [PR #76](https://github.com/bernardoemmel/Raiz/pull/76).
+
+O primeiro CI desse fechamento identificou três possíveis chaves na referência MCP. Conferência dos bytes
+provou que eram SHA-256 de `raiz/api.py`, `raiz/publica/api.py` e `raiz/publica/oauth.py`. As exceções de Gitleaks
+ficam restritas ao commit `e7074b4`, arquivo e linhas exatos; não liberam hashes/chaves futuras nem o arquivo todo.
+Gitleaks passou nos 367 commits (30,55 MB). Um controle sintético em commit novo, no mesmo caminho e linha,
+continuou sendo detectado; o diretório temporário desse controle foi apagado.
