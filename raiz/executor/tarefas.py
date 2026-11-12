@@ -110,7 +110,15 @@ def versao(nome: str) -> str:
         from raiz.titulo import tarefa
 
         extra = tarefa.versao()
-    return f"{nome}-{_hash_codigo(CODIGO[nome], extra)}"
+    # A captura é parte do contrato da tarefa: mudança nela precisa de nova
+    # execução, mesmo quando o CSV final teria os mesmos números.
+    historico = (
+        "raiz/aprendizado/captura.py",
+        "raiz/aprendizado/arquivo_historico.py",
+        "raiz/aprendizado/reexecucao.py",
+        "raiz/funil/rodar.py",
+    )
+    return f"{nome}-{_hash_codigo((*CODIGO[nome], *historico), extra)}"
 
 
 # --- fontes externas ---------------------------------------------------------------------------------------------

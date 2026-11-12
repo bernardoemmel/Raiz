@@ -21,7 +21,10 @@ export default defineConfig({
     // Traces guardariam o token de sessão e o link de entrada.
     trace: "off",
     screenshot: "only-on-failure",
-    launchOptions: { args: ["--use-gl=angle", "--use-angle=swiftshader", "--enable-unsafe-swiftshader"] },
+    launchOptions: {
+      ...(process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE } : {}),
+      args: ["--use-gl=angle", "--use-angle=swiftshader", "--enable-unsafe-swiftshader"],
+    },
   },
   webServer: [
     {

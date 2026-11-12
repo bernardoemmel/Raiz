@@ -315,9 +315,31 @@ def _limpar_opcoes(ops: list[dict], nv: dict[str, str], fora: set[str]) -> list[
         ]
         if len(itens) != len(o.get("itens", [])):
             o["observacao"] = "Fazendas reservadas por outro cliente saíram desta opção; refaça o pedido para repor."
+        # Geometria é uma autorização atual, nunca algo herdado de uma sugestão antiga.
+        for item in itens:
+            item.pop("geometria", None)
         o["itens"] = itens
         out.append(o)
     return out
+
+
+def _contornos_desbloqueados(con, cliente_id: int, codigos: list[str]) -> dict:
+    """Somente desenhos já pagos pelo cliente; consultar o lote não debita créditos."""
+    if not codigos:
+        return {}
+    linhas = con.execute(
+        text("""select i.cod_imovel, ST_AsGeoJSON(ST_Transform(i.geom, 4326))::json as geometria
+            from funil.imovel i
+            join funil.vigente v on v.cod_imovel = i.cod_imovel
+            join negocio.prospeccao_desbloqueio d on d.cod_imovel = i.cod_imovel and d.cliente_id = :cliente
+            join negocio.cliente c on c.id = d.cliente_id and c.ativo
+            where i.cod_imovel = any(:codigos) and i.geom is not null
+              and not exists (select 1 from negocio.reserva_fazenda rf
+                join negocio.reserva r on r.id = rf.reserva_id
+                where rf.cod_imovel = i.cod_imovel and rf.ativa and r.cliente_id <> :cliente)"""),
+        {"cliente": cliente_id, "codigos": list(set(codigos))},
+    )
+    return {linha.cod_imovel: linha.geometria for linha in linhas}
 
 
 def obter_pedido(engine: Engine, pedido_id: str, cliente_id: int | None) -> dict:
@@ -327,13 +349,19 @@ def obter_pedido(engine: Engine, pedido_id: str, cliente_id: int | None) -> dict
         cods = [i["cod_imovel"] for o in s["opcoes"] for i in o.get("itens", [])]
         nv = niveis(con, cods)
         fora = fora_para(con, p["cliente_id"])
+        opcoes = _limpar_opcoes(s["opcoes"], nv, fora)
+        contornos = _contornos_desbloqueados(con, p["cliente_id"], [cod for cod in cods if cod not in fora])
+        for opcao in opcoes:
+            for item in opcao["itens"]:
+                if item["cod_imovel"] in contornos:
+                    item["geometria"] = contornos[item["cod_imovel"]]
         return {
             "id": str(p["id"]),
             "criado_em": p["criado_em"].isoformat(),
             "campos": p["campos"],
             "status": p["estado"],
             "base": s["base"],
-            "opcoes": _limpar_opcoes(s["opcoes"], nv, fora),
+            "opcoes": opcoes,
             "opcao_escolhida": p["opcao_escolhida"],
             "reservado_ate": _reservado_ate(con, p["id"]),
             "alertas": _alertas(con, p["id"]),
