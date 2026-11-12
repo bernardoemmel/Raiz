@@ -74,9 +74,13 @@ def linha(uf: str, e: dict | None) -> str:
         sit = "completo"
     if conferir:
         sit += " (APP a conferir na primeira rodada automática)"
-    if e.get("erros"):
-        sit += f"; {len(e['erros'])} erro(s) na última rodada"
     m = e.get("motor") or {}
+    fatias = m.get("fatias") or {}
+    erros = sum(int(f.get("erros") or 0) for f in fatias.values()) if fatias else len(e.get("erros") or [])
+    if erros:
+        sit += f"; {erros} erro(s) na última rodada"
+    if S.n_fatias(uf) > 1:
+        sit += f" ({S.n_fatias(uf)} fatias em jobs separados)"
     if m.get("commit"):
         motor = m["commit"][:7]
         url = (m.get("rodada") or {}).get("url")

@@ -220,11 +220,12 @@ def test_publicar_mescla_o_estados_json_relido_na_trava(gh, tmp_path, stub, monk
     trava_original = a._trava
 
     @contextlib.contextmanager
-    def outro_job_publica_antes():
-        m = json.loads(gh.assets["estados.json"])
-        m["estados"]["RO"] = {"municipios": 52, "versao": "ro"}
-        gh.assets["estados.json"] = json.dumps(m).encode()
-        with trava_original():
+    def outro_job_publica_antes(nome=None, velha_s=600):
+        if nome is None:  # trava do estados.json (a do pacote do estado é trava-publicar-<UF>)
+            m = json.loads(gh.assets["estados.json"])
+            m["estados"]["RO"] = {"municipios": 52, "versao": "ro"}
+            gh.assets["estados.json"] = json.dumps(m).encode()
+        with trava_original(nome, velha_s):
             yield
 
     monkeypatch.setattr(a, "_trava", outro_job_publica_antes)
@@ -298,3 +299,27 @@ def test_prazo_corta_municipio_que_nao_termina(tmp_path, monkeypatch):
     t0 = t.time()
     r = ex.rodar_uf("PA", [C1, C2], lanes=2, ate_s=0.5)
     assert r["situacao"] == "parado_no_prazo" and t.time() - t0 < 15
+
+
+def test_fatias_do_mesmo_estado_em_jobs_diferentes_nao_se_apagam(gh, tmp_path, stub):
+    """MG em fatias: dois jobs (espelhos diferentes) rodam metade dos municípios cada e publicam um depois do outro. O
+    segundo relê o pacote publicado pelo primeiro antes de empacotar: no fim estão os 4 municípios e as 4 marcas, e
+    motor.fatias tem as duas fatias."""
+    log = tmp_path / "chamadas.log"
+    a = _armazem(gh, tmp_path / "job1")
+    b = _armazem(gh, tmp_path / "job2")
+    ea = Executor(a, tmp_path / "trab1", stub.tarefas(log))
+    eb = Executor(b, tmp_path / "trab2", stub.tarefas(log))
+    b.garantir_uf("PA")  # os dois jobs começam juntos: o B olha o Release antes de o A publicar
+    ea.rodar_uf("PA", [C1, C2])  # o A termina e publica a fatia dele
+    eb.rodar_uf("PA", [C3, C4])  # o B termina depois e publica relendo o pacote do A
+    a.publicar("PA", extra={"PA": {"motor": {"commit": "x", "fatias": {"1": {"completo": True}}}}})
+    b.publicar("PA", extra={"PA": {"motor": {"commit": "x", "fatias": {"2": {"completo": True}}}}})
+    pacote = gh.membros("raiz_PA.tar.gz")
+    assert {f"PA/imoveis_{c}.csv" for c in (C1, C2, C3, C4)} <= set(pacote)
+    assert set(json.loads(gh.assets["raiz_controle_PA.json"])["marcas"]) == {str(c) for c in (C1, C2, C3, C4)}
+    pa = json.loads(gh.assets["estados.json"])["estados"]["PA"]
+    assert pa["municipios"] == 4 and set(pa["motor"]["fatias"]) == {"1", "2"}
+    # o primeiro job publica de novo (fim da rodada dele): nada do segundo some
+    a.publicar("PA")
+    assert {f"PA/filtros_{c}.csv" for c in (C1, C2, C3, C4)} <= set(gh.membros("raiz_PA.tar.gz"))
