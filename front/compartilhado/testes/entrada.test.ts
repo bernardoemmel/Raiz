@@ -111,7 +111,10 @@ describe("funil em barras", () => {
   const etapas = etapasDoFunil(imoveis)
 
   it("as barras batem com o resumo do motor, e quem sai em cada etapa soma a diferença", () => {
-    expect(etapas.map((e) => e.total.n)).toEqual([resumo.imoveis, resumo.sem_problema, resumo.aptas_carbono, resumo.aptas_com_matricula])
+    // a terra não corta: o caminho da terra tem as mesmas aptas, divididas em pronta agora, em espera e só mostrar
+    expect(etapas.map((e) => e.total.n)).toEqual([resumo.imoveis, resumo.sem_problema, resumo.aptas_carbono, resumo.aptas_carbono])
+    const terra = etapas[3].terra!
+    expect((terra.pronta_agora?.n ?? 0) + (terra.em_espera?.n ?? 0) + (terra.so_mostrar?.n ?? 0)).toBe(resumo.aptas_carbono)
     for (let k = 1; k < etapas.length; k++) {
       const saiu = etapas[k].perdas.reduce((s, p) => s + p.n, 0)
       expect(saiu, etapas[k].id).toBe(etapas[k - 1].total.n - etapas[k].total.n)

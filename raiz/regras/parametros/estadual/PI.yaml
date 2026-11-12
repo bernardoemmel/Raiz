@@ -1,0 +1,13 @@
+# Camada estadual do Piauí (E2 passo 5). Mesmo formato da tabela federal, com nível e área de validade (padrão do
+# aides-velo: cada regra diz que ente a criou e onde vale). Valor pendente nunca entra em laudo.
+versao: regras-2026b
+nivel: estadual
+uf: PI
+norma:
+  nome: "Lei estadual 5.699/2007, que alterou a Lei 5.178/2000 (achada por busca em 12/11/2026; texto não lido)"
+parametros:
+  rl_percentual:
+    valores:
+      - {rotulos: {bioma: Cerrado}, valor: 30, artigo: null, urn_frag: null, vigencia_inicio: null, adotado_em: null,
+         norma: "Lei estadual 5.699, de 26/11/2007 (altera a Lei 5.178/2000)",
+         pendente: "a busca acha a Lei estadual 5.699/2007 fixando 30% de reserva legal em área de Cerrado no Piauí (a Embrapa descreve como 20% federal + 10% estadual); falta ler o texto consolidado em legislacao.pi.gov.br (fora do ar para este servidor em 12/11/2026), achar o artigo, a data de início e conferir que não foi revogada"}

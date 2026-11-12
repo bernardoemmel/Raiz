@@ -1,0 +1,3 @@
+# arquivos de modelo (GGUF) ficam fora do git
+*
+!.gitignore

@@ -1,0 +1,106 @@
+# Caminho da terra: a situação da terra deixa de ser corte no funil e vira caminho com risco. Ninguém sai do mapa
+# por falta de matrícula. Calculado pelo produto (raiz/terra.py), gravado em terra_<mun>.csv com a versão deste
+# arquivo + hash (terra_regra_versao); mudou a regra, `raiz terra recalcular` refaz.
+#
+# Cuidados de texto: nunca chamar posse de propriedade; nada de nome ou CPF.
+versao: caminho-terra-2026a
+adotado_em: "2026-11-12"
+
+# Base legal conferida pelo fundador (12/11/2026). Vai também para docs/colunas.md junto das colunas.
+base_legal:
+  verra_vcs_5_3_6_2: >-
+    Verra VCS Standard v5.0, seção 3.6.2 (direito de uso): aceita concessão, contrato sobre a área, direito dado por
+    autoridade ou acordo irrevogável com quem detém o direito. Não exige matrícula.
+  lei_15042_art43: >-
+    Lei 15.042/2024, art. 43: o crédito é do proprietário ou usufrutuário privado (IV), do assentado mesmo sem título
+    (VIII) e da União, dos Estados e dos Municípios nas terras públicas (I a III).
+  lei_15042_art43_p5: Lei 15.042/2024, art. 43, § 5º, manda averbar o contrato no registro de imóveis.
+  lei_15042_art49: Lei 15.042/2024, art. 49, exige anuência prévia do órgão gestor em área pública.
+  lei_15042_art47: >-
+    Lei 15.042/2024, art. 47, exige consulta e no mínimo 50% dos créditos para povos e comunidades tradicionais.
+  profloresta_fase1: ProFloresta+ (BNDES) fase 1 aceita só área privada ou pública sob concessão florestal.
+
+situacoes:
+  pronta_agora: Pronta agora
+  em_espera: Em espera
+  so_mostrar: Só mostrar
+
+# Em ordem de decisão: vale o primeiro que se aplicar (terra indígena e tradicional primeiro; matrícula por último
+# antes da posse, para uma sobreposição grande com terra pública nunca passar por particular).
+caminhos:
+  terra_indigena_ou_tradicional:
+    nome: Terra indígena ou de comunidade tradicional
+    situacao: so_mostrar
+    profloresta_fase1: false
+    texto: Terra indígena, quilombo ou reserva de comunidade tradicional; fora da originação comercial.
+    aviso: >-
+      Fora da originação comercial: só aparece no mapa. Qualquer projeto aqui é dos próprios povos e comunidades, com
+      consulta e no mínimo 50% dos créditos para eles (Lei 15.042/2024, art. 47).
+    base: [lei_15042_art47]
+  publica_concessao:
+    nome: Pública sob concessão
+    situacao: pronta_agora
+    profloresta_fase1: true
+    texto: Dentro de área pública concedida ou em edital de concessão; pronta para o concessionário.
+    aviso: ""
+    base: [verra_vcs_5_3_6_2, lei_15042_art43, lei_15042_art49, profloresta_fase1]
+  publica_sem_destinacao:
+    nome: Pública sem destinação
+    situacao: so_mostrar
+    profloresta_fase1: false
+    texto: Gleba pública não destinada ou área de unidade de conservação; candidata a concessão.
+    aviso: >-
+      Terra pública: não se origina com particular. Aparece só como candidata a concessão; qualquer projeto depende de
+      anuência prévia do órgão gestor (Lei 15.042/2024, art. 49).
+    base: [lei_15042_art43, lei_15042_art49]
+  assentamento:
+    nome: Assentamento
+    situacao: em_espera
+    profloresta_fase1: false
+    texto: Lote de projeto de assentamento do INCRA.
+    aviso: >-
+      Em espera: depende de aval do INCRA. O assentado tem direito ao crédito mesmo sem título (Lei 15.042/2024, art.
+      43, VIII), mas o lote fica fora da fase 1 do ProFloresta+.
+    base: [lei_15042_art43, verra_vcs_5_3_6_2]
+  privada_matricula:
+    nome: Privada com matrícula
+    situacao: pronta_agora
+    profloresta_fase1: true
+    texto: Matrícula achada no SIGEF; a cadeia dominial ainda se confere no cartório.
+    aviso: ""
+    base: [lei_15042_art43, lei_15042_art43_p5, profloresta_fase1]
+  posse_em_titulacao:
+    nome: Posse em titulação
+    situacao: em_espera
+    profloresta_fase1: false
+    texto: Posse sem matrícula; entra quando o título sair.
+    aviso: >-
+      Em espera: é posse, ainda sem título. Entra quando o título sair (Iterpa, INCRA ou Terra Legal). Até lá, conta
+      como estoque futuro.
+    base: [verra_vcs_5_3_6_2, lei_15042_art43]
+
+# Limiares (fração da área do imóvel no CAR)
+limiares:
+  fracao_caminho: 0.5  # sobreposição a partir da qual a terra do imóvel segue aquele caminho
+  tradicional_min_ha: 1.0  # terra indígena ou tradicional: a partir de 1 ha e 5% do imóvel
+  tradicional_min_fracao: 0.05
+  sobreposicao_alerta: 0.05  # sobreposição menor que o caminho, mas que sobe o risco
+  matricula_firme: 0.9  # matrícula em 90% do CAR ou mais
+  sem_sigef_ha: 101  # 101 ha ou mais sem SIGEF certificado (Decreto 12.689/2025, mesma regra do motor)
+
+# Unidades de conservação pelo domínio da terra (categoria do CNUC, cache do motor conservationunits_*.parquet)
+uc:
+  dominio_publico: [Floresta, Parque, Reserva Biológica, Estação Ecológica, Reserva de Fauna]
+  tradicional: [Reserva Extrativista, Reserva de Desenvolvimento Sustentável]
+  # APA, ARIE, RPPN, Monumento Natural e Refúgio de Vida Silvestre admitem terra privada: não mudam o caminho
+  admite_privada: [Área de Proteção Ambiental, Área de Relevante Interesse Ecológico,
+                   Reserva Particular do Patrimônio Natural, Monumento Natural, Refúgio de Vida Silvestre]
+
+risco:
+  regra: >-
+    Privada com matrícula: baixo com a matrícula conferida no cartório; médio sem conferir, com matrícula em menos
+    de 90% do CAR, no Pará (cancelamentos de matrícula, Provimentos CGJ-PA 13/2006 e 02/2010) ou com 101 ha ou mais
+    sem SIGEF; alto com sobreposição de 5% ou mais com terra pública, unidade de conservação de domínio público ou
+    terra indígena. Posse em titulação: médio com parcela no SIGEF (certificada ou em titulação); alto só declarada no
+    CAR. Assentamento: médio com lote titulado no SIGEF; alto sem título. Pública sob concessão: baixo com contrato
+    assinado; médio em edital. Pública sem destinação e terra indígena ou tradicional: alto.

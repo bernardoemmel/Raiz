@@ -1,0 +1,127 @@
+# Langfuse próprio (rastros e custo por tarefa e por fazenda), adaptado do docker-compose.yml oficial (MIT, versão 4).
+# Uso, junto com o compose principal:
+#   docker compose --env-file .env -f infra/docker-compose.yml -f infra/docker-compose.langfuse.yml up -d
+#   painel em http://127.0.0.1:3000 (só a própria máquina; publicar por túnel ou proxy com senha)
+#
+# Trocas por causa das licenças do CLAUDE.md:
+#   Redis (hoje RSAL/SSPL/AGPL)  -> Valkey (BSD-3)
+#   MinIO (AGPL)                 -> SeaweedFS (Apache-2.0) aqui, ou o R2: preencha LANGFUSE_S3_* no .env
+# O banco do Langfuse fica no mesmo PostGIS, numa base própria (langfuse), criada por infra/banco/init/.
+# Segredos sem valor padrão: o compose não sobe sem eles no .env.
+
+x-langfuse-env: &langfuse-env
+  NEXTAUTH_URL: ${LANGFUSE_URL:-http://localhost:3000}
+  DATABASE_URL: postgresql://raiz:${RAIZ_BANCO_SENHA:?defina RAIZ_BANCO_SENHA}@banco:5432/langfuse
+  SALT: ${LANGFUSE_SALT:?defina LANGFUSE_SALT}
+  ENCRYPTION_KEY: ${LANGFUSE_ENCRYPTION_KEY:?defina LANGFUSE_ENCRYPTION_KEY (openssl rand -hex 32)}
+  TELEMETRY_ENABLED: "false"
+  CLICKHOUSE_MIGRATION_URL: clickhouse://clickhouse:9000
+  CLICKHOUSE_URL: http://clickhouse:8123
+  CLICKHOUSE_USER: clickhouse
+  CLICKHOUSE_PASSWORD: ${LANGFUSE_CLICKHOUSE_SENHA:?defina LANGFUSE_CLICKHOUSE_SENHA}
+  CLICKHOUSE_CLUSTER_ENABLED: "false"
+  LANGFUSE_S3_EVENT_UPLOAD_BUCKET: ${LANGFUSE_S3_BUCKET:-langfuse}
+  LANGFUSE_S3_EVENT_UPLOAD_REGION: ${LANGFUSE_S3_REGIAO:-auto}
+  LANGFUSE_S3_EVENT_UPLOAD_ACCESS_KEY_ID: ${LANGFUSE_S3_CHAVE:?defina LANGFUSE_S3_CHAVE}
+  LANGFUSE_S3_EVENT_UPLOAD_SECRET_ACCESS_KEY: ${LANGFUSE_S3_SEGREDO:?defina LANGFUSE_S3_SEGREDO}
+  LANGFUSE_S3_EVENT_UPLOAD_ENDPOINT: ${LANGFUSE_S3_ENDERECO:-http://seaweedfs:8333}
+  LANGFUSE_S3_EVENT_UPLOAD_FORCE_PATH_STYLE: "true"
+  LANGFUSE_S3_EVENT_UPLOAD_PREFIX: events/
+  LANGFUSE_S3_MEDIA_UPLOAD_BUCKET: ${LANGFUSE_S3_BUCKET:-langfuse}
+  LANGFUSE_S3_MEDIA_UPLOAD_REGION: ${LANGFUSE_S3_REGIAO:-auto}
+  LANGFUSE_S3_MEDIA_UPLOAD_ACCESS_KEY_ID: ${LANGFUSE_S3_CHAVE}
+  LANGFUSE_S3_MEDIA_UPLOAD_SECRET_ACCESS_KEY: ${LANGFUSE_S3_SEGREDO}
+  LANGFUSE_S3_MEDIA_UPLOAD_ENDPOINT: ${LANGFUSE_S3_ENDERECO:-http://seaweedfs:8333}
+  LANGFUSE_S3_MEDIA_UPLOAD_FORCE_PATH_STYLE: "true"
+  LANGFUSE_S3_MEDIA_UPLOAD_PREFIX: media/
+  REDIS_HOST: valkey
+  REDIS_PORT: "6379"
+  REDIS_AUTH: ${LANGFUSE_VALKEY_SENHA:?defina LANGFUSE_VALKEY_SENHA}
+
+services:
+  langfuse-worker:
+    image: docker.langfuse.com/langfuse/langfuse-worker:${LANGFUSE_IMAGE_TAG:-4}
+    restart: unless-stopped
+    depends_on: &depende
+      banco: {condition: service_healthy}
+      clickhouse: {condition: service_healthy}
+      valkey: {condition: service_healthy}
+      seaweedfs-bucket: {condition: service_completed_successfully}
+    environment: *langfuse-env
+    ports: ["127.0.0.1:3030:3030"]
+
+  langfuse-web:
+    image: docker.langfuse.com/langfuse/langfuse:${LANGFUSE_IMAGE_TAG:-4}
+    restart: unless-stopped
+    depends_on: *depende
+    environment:
+      <<: *langfuse-env
+      NEXTAUTH_SECRET: ${LANGFUSE_NEXTAUTH_SECRET:?defina LANGFUSE_NEXTAUTH_SECRET}
+      LANGFUSE_DISABLE_SIGNUP_ONBOARDING: "true"
+      AUTH_DISABLE_SIGNUP: "true"
+      LANGFUSE_INIT_ORG_ID: raiz
+      LANGFUSE_INIT_ORG_NAME: Raíz
+      LANGFUSE_INIT_PROJECT_ID: raiz
+      LANGFUSE_INIT_PROJECT_NAME: Raíz
+      LANGFUSE_INIT_PROJECT_PUBLIC_KEY: ${LANGFUSE_PUBLIC_KEY:?defina LANGFUSE_PUBLIC_KEY (pk-lf-...)}
+      LANGFUSE_INIT_PROJECT_SECRET_KEY: ${LANGFUSE_SECRET_KEY:?defina LANGFUSE_SECRET_KEY (sk-lf-...)}
+      LANGFUSE_INIT_USER_EMAIL: ${LANGFUSE_ADMIN_EMAIL:?defina LANGFUSE_ADMIN_EMAIL}
+      LANGFUSE_INIT_USER_NAME: Fundador
+      LANGFUSE_INIT_USER_PASSWORD: ${LANGFUSE_ADMIN_SENHA:?defina LANGFUSE_ADMIN_SENHA}
+    ports: ["127.0.0.1:3000:3000"]
+
+  clickhouse:
+    image: docker.io/clickhouse/clickhouse-server:26.3.62.3  # Apache-2.0
+    restart: unless-stopped
+    user: "101:101"
+    environment:
+      CLICKHOUSE_DB: default
+      CLICKHOUSE_USER: clickhouse
+      CLICKHOUSE_PASSWORD: ${LANGFUSE_CLICKHOUSE_SENHA}
+    volumes:
+      - langfuse_clickhouse:/var/lib/clickhouse
+      - langfuse_clickhouse_logs:/var/log/clickhouse-server
+    healthcheck:
+      test: wget --no-verbose --tries=1 --spider http://localhost:8123/ping || exit 1
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  valkey:
+    image: docker.io/valkey/valkey:8  # BSD-3, no lugar do Redis
+    restart: unless-stopped
+    command: ["valkey-server", "--requirepass", "${LANGFUSE_VALKEY_SENHA}", "--maxmemory-policy", "noeviction"]
+    volumes: [langfuse_valkey:/data]
+    healthcheck:
+      test: ["CMD", "valkey-cli", "-a", "${LANGFUSE_VALKEY_SENHA}", "ping"]
+      interval: 3s
+      timeout: 10s
+      retries: 20
+
+  seaweedfs:
+    image: docker.io/chrislusf/seaweedfs:4.53  # Apache-2.0, S3 local no lugar do MinIO
+    restart: unless-stopped
+    command: server -dir=/data -s3 -s3.port=8333 -s3.config=/etc/seaweedfs/s3.json
+    environment:
+      LANGFUSE_S3_CHAVE: ${LANGFUSE_S3_CHAVE}
+      LANGFUSE_S3_SEGREDO: ${LANGFUSE_S3_SEGREDO}
+    entrypoint: ["/bin/sh", "-c", "mkdir -p /etc/seaweedfs && printf '{\"identities\":[{\"name\":\"langfuse\",\"credentials\":[{\"accessKey\":\"%s\",\"secretKey\":\"%s\"}],\"actions\":[\"Admin\",\"Read\",\"Write\",\"List\",\"Tagging\"]}]}' \"$$LANGFUSE_S3_CHAVE\" \"$$LANGFUSE_S3_SEGREDO\" > /etc/seaweedfs/s3.json && exec /entrypoint.sh \"$$@\"", "--"]
+    volumes: [langfuse_seaweedfs:/data]
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O- http://localhost:9333/cluster/status || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  seaweedfs-bucket:
+    image: docker.io/chrislusf/seaweedfs:4.53
+    depends_on:
+      seaweedfs: {condition: service_healthy}
+    entrypoint: ["/bin/sh", "-c", "echo 's3.bucket.create -name ${LANGFUSE_S3_BUCKET:-langfuse}' | weed shell -master=seaweedfs:9333 || true"]
+    restart: "no"
+
+volumes:
+  langfuse_clickhouse:
+  langfuse_clickhouse_logs:
+  langfuse_valkey:
+  langfuse_seaweedfs:

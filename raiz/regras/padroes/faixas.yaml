@@ -1,0 +1,18 @@
+# Faixas P10, P50 e P90 do carbono por ano e da receita por ano por imóvel (docs/design/dados-para-o-front-v1.md,
+# item 3). PROVISÓRIO até o Monte Carlo da E3 (Sobol, cópula vine): troque aqui e suba a versão; cada ficha grava a
+# versão usada. A regra escrita sai junto de cada imóvel (faixas_regra).
+versao: faixas-2026a
+carbono:
+  # P50 = carbono_tco2_ano do motor (área de carbono x taxa da região); P10 e P90 = P50 vezes estes fatores
+  fator_p10: 0.6
+  fator_p90: 1.4
+receita:
+  # preço do crédito de restauração (ARR) em reais por tCO2, antes de custos e da parte do desenvolvedor
+  moeda: BRL
+  preco_p10: 40
+  preco_p50: 75
+  preco_p90: 120
+regra: >-
+  Carbono por ano: P50 é a área de carbono vezes a taxa da região (motor); P10 é 0,6 e P90 é 1,4 vezes o P50, faixa
+  provisória até a conta com incerteza da E3. Receita por ano: carbono vezes R$ 40 (P10), R$ 75 (P50) e R$ 120 (P90)
+  por tonelada, antes de custos e da parte do desenvolvedor; só o crédito da restauração, sem pagamento por meta FLAG.
