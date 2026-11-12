@@ -98,4 +98,8 @@ def congelar_rodada(con: Connection, rodada_id: int) -> tuple[str, bool, int]:
     )
     desc = f"motor, município {r.cod_municipio} ({r.uf}), rodada {rodada_id}"
     lh, novo = registrar_lote(con, previsoes, v, desc)
+    # o valor para quem restaura vai num lote à parte, com a versão do modelo dele (raiz/restauracao.py)
+    from raiz.restauracao_aprendizado import congelar_restauracao
+
+    congelar_restauracao(con, rodada_id)
     return lh, novo, len(previsoes)

@@ -135,7 +135,7 @@ def funil_rodar(
     municipios: Annotated[list[int] | None, typer.Argument(help="códigos IBGE; sem nada, a UF inteira")] = None,
     tarefas: Annotated[
         str, typer.Option(help="separadas por vírgula")
-    ] = "funil,filtros,direto,mapbiomas,extras_direto,flag,ficha,carga",
+    ] = "funil,filtros,direto,mapbiomas,extras_direto,flag,ficha,desenvolvedor,carga",
     lanes: Annotated[int, typer.Option(help="municípios ao mesmo tempo")] = 3,
     refazer: bool = False,
     data_corte: Annotated[str | None, typer.Option(help="AAAA-MM-DD; padrão: hoje")] = None,
@@ -530,6 +530,96 @@ def flag_recalcular(
     lista = [u.strip().upper() for u in ufs.split(",")] if ufs else None
     r = F.recalcular(pasta, lista, cache_motor=dir_trabalho() / "cache")
     typer.echo(f"regra {F.versao()}: {len(r['refeitos'])} municípios refeitos, {r['em_dia']} já em dia")
+
+
+restauracao_cli = typer.Typer(
+    help="Valor de cada fazenda para quem restaura com crédito de carbono (premissas em raiz/regras/padroes/).",
+    no_args_is_help=True,
+)
+app.add_typer(restauracao_cli, name="restauracao")
+
+
+@restauracao_cli.command("recalcular")
+def restauracao_recalcular(
+    saida: Annotated[
+        str | None, typer.Option(help="pasta saida/ do motor; padrão: a pasta de trabalho do motor")
+    ] = None,
+    ufs: Annotated[str | None, typer.Option(help="só estas UFs, separadas por vírgula")] = None,
+) -> None:
+    """Refaz desenvolvedor_<mun>.csv que falta ou foi calculado com outra versão das premissas ou do cenário."""
+    from pathlib import Path
+
+    from raiz import restauracao as RS
+    from raiz.funil.rodar import dir_trabalho
+
+    pasta = Path(saida) if saida else dir_trabalho() / "saida"
+    lista = [u.strip().upper() for u in ufs.split(",")] if ufs else None
+    r = RS.recalcular(pasta, lista, cache_motor=dir_trabalho() / "cache")
+    typer.echo(f"versão {RS.versao()}: {len(r['refeitos'])} municípios refeitos, {r['em_dia']} já em dia")
+    for e in r["erros"]:
+        typer.echo(f"  erro {e}")
+
+
+@restauracao_cli.command("informar")
+def restauracao_informar(
+    cod_imovel: Annotated[str, typer.Argument(help="código do CAR (com ou sem pontos e traços)")],
+    fonte: Annotated[str, typer.Option(help="quem mediu: desenvolvedor, parcela, nota fiscal (sem nome de pessoa)")],
+    custo_rs_ha: Annotated[float | None, typer.Option(help="custo real de restauração, R$/ha")] = None,
+    captura_tco2_ha_ano: Annotated[float | None, typer.Option(help="captura medida, tCO2/ha/ano")] = None,
+    credito_tco2_ha_ano: Annotated[float | None, typer.Option(help="crédito líquido emitido, tCO2/ha/ano")] = None,
+    modo: Annotated[str | None, typer.Option(help="regeneracao_assistida, semeadura_direta ou plantio_total")] = None,
+    data: Annotated[str | None, typer.Option(help="data da medição (AAAA-MM-DD); padrão hoje")] = None,
+    referencia: Annotated[str | None, typer.Option(help="documento ou contrato de onde veio o dado")] = None,
+) -> None:
+    """Grava o real informado pelo cliente para comparar com o que a Raíz previu."""
+    import datetime as dt
+
+    from sqlalchemy import text
+
+    from raiz.banco import engine
+    from raiz.busca import normalizar_codigo
+    from raiz.restauracao_aprendizado import informar
+
+    eng = engine()
+    with eng.begin() as con:
+        cod = con.execute(
+            text("select cod_imovel from funil.vigente where cod_busca = :b"), {"b": normalizar_codigo(cod_imovel)}
+        ).scalar()
+        if cod is None:
+            typer.echo("imóvel não carregado no banco")
+            raise typer.Exit(1)
+        quando = dt.date.fromisoformat(data) if data else dt.date.today()
+        ids = informar(con, cod, quando, fonte, custo_rs_ha, captura_tco2_ha_ano, credito_tco2_ha_ano, modo, referencia)
+    typer.echo(f"{len(ids)} valores reais gravados para {cod} em {quando.isoformat()}")
+
+
+@restauracao_cli.command("comparar")
+def restauracao_comparar() -> None:
+    """Real contra previsto por modo: razão mediana, cobertura da faixa P10-P90 e acerto do modo."""
+    from raiz.banco import engine
+    from raiz.restauracao_aprendizado import comparar
+
+    with engine().connect() as con:
+        linhas = comparar(con)
+    if not linhas:
+        typer.echo("nenhum valor real informado ainda")
+    for c in linhas:
+        typer.echo(", ".join(f"{k}={v}" for k, v in c.items()))
+
+
+@restauracao_cli.command("recalibrar")
+def restauracao_recalibrar(
+    gravar: Annotated[bool, typer.Option(help="gravar restauracao_calibracao.yaml (muda a versão do modelo)")] = False,
+) -> None:
+    """Propõe (ou grava) os fatores de calibração de custo e captura por modo a partir do real dos clientes."""
+    from raiz.banco import engine
+    from raiz.restauracao_aprendizado import recalibrar
+
+    with engine().connect() as con:
+        r = recalibrar(con, gravar=gravar)
+    for grupo, modo, fator in r["mudou"]:
+        typer.echo(f"{grupo} {modo}: fator {fator}")
+    typer.echo(("gravado em " + r["arquivo"]) if r["gravado"] else "nada gravado (use --gravar)")
 
 
 ficha_cli = typer.Typer(help="Colunas e camadas dentro do imóvel para o front (design v1).", no_args_is_help=True)

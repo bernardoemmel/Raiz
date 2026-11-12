@@ -103,6 +103,8 @@ Observação do motor atual (12/11): o funil já roda o Brasil por município (m
 | 2 | (GHG LSR v1.1) Calibrar as faixas de remoção de silvipastoril e de SAF de cacau (GROA, CC BY, e literatura da Amazônia) e trocar a viabilidade do cacau por bioma pelo zoneamento de risco climático do cacau (ZARC/MAPA) por município | passo anterior | 4 a 8 |
 | 3 | (GHG LSR v1.1) Requisitos por fazenda com dado de verdade: vínculo CAR com frigorífico (fornecedor direto) para o rastreio; medição de campo com nova amostragem a cada 5 anos, gravada como gabarito (E8); direito de reportar no contrato (E6) | E6, E8 | 8 a 12 |
 | 4 | (GHG LSR v1.1) Requirement 7 (floresta ligada à produção: mesmo dono, mesmo plano de manejo, vizinha, ligada à produção) já modelado e desligado; ligar quando o padrão incluir floresta, só trocando ativo e a versão na tabela | nada | 0,5 |
+| 5 | Valor para quem restaura (desenvolvedor de crédito: Systemica, re.green, brCarbon, Mombak, Biomas): modo por regra escrita (distância à mata, idade e vigor do pasto, fogo, declividade), custo e captura P10/P50/P90 com ajustes (acesso OSM, Copernicus, CHIRPS, SoilGrids), linha de base dinâmica VM0047 medida no YbYrá, crédito líquido, fluxo de caixa do ProFloresta+ (VPL, TIR sem e com Fundo Clima, pico de capital), lotes de vizinhas, bloco na ficha e painel ordenado; estimativas congeladas e recalibração com o real do cliente | motor, E8 | feito |
+| 6 | Calibrar o valor para quem restaura com custo e captura reais dos primeiros clientes; trocar a captura constante por curva por idade e medir o vazamento (VMD0054) | passo anterior e clientes | 4 a 8 |
 
 ## E4. Rebanho, metano e solo
 

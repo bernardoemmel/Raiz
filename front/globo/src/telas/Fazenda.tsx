@@ -11,6 +11,7 @@ import { MapaImovel } from "../mapa/MapaImovel"
 import { Cabecalho } from "../partes/Cabecalho"
 import { CaixaDeFatos } from "../partes/CaixaDeFatos"
 import { IconeBaixar } from "../partes/Icones"
+import { ParaQuemRestaura } from "../partes/ParaQuemRestaura"
 import { Satelite } from "../partes/Satelite"
 import { consumirVoo, linkMunicipio } from "../rota"
 
@@ -238,6 +239,8 @@ export function Fazenda({ car }: { car: string }) {
         </div>
 
         <CaixaDeFatos imovel={i} />
+
+        <ParaQuemRestaura imovel={i} />
 
         <Satelite imovel={i} />
 

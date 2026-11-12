@@ -124,3 +124,26 @@ mudar na nuvem (ETag novo), o cache dele é refeito.
   sede no OpenStreetMap) e grava em `geo.camada`.
 - Em Nova Esperança do Piriá (dado real): 880 imóveis, 793 sem problema, 738 aptos (32.848 ha), 41 com matrícula;
   o que mais tira do funil é a matrícula (697); área urbana da sede 182 ha.
+
+## Valor para quem restaura (desenvolvedor de crédito de carbono)
+
+Calculado pelo produto, fora do motor (raiz/restauracao.py e raiz/restauracao_geo.py), por município, em
+`saida/<UF>/desenvolvedor_<mun>.csv`; a carga leva ao banco como complemento `desenvolvedor` e a ficha mostra o bloco
+"Para quem restaura" (sempre com o aviso de estimativa e as faixas P10 a P90).
+
+- Rodar junto do motor: a tarefa `desenvolvedor` do `raiz funil rodar` (padrão), depois da ficha e antes da carga.
+- Refazer quando as premissas mudam: `raiz restauracao recalcular [--ufs PA]` refaz só os municípios gravados com
+  outra versão (`restauracao_versao` = versão de raiz/regras/padroes/restauracao.yaml + do cenário + hash dos
+  arquivos e da calibração).
+- Entradas geográficas com cache em `dados/cache_restauracao/` (ou RAIZ_CACHE_RESTAURACAO_DIR): declividade do
+  Copernicus por ladrilho de 1 grau, chuva do CHIRPS por faixa de 5 graus de latitude, solo do SoilGrids por município;
+  a distância à mata e a linha de base saem do raster de cobertura do MapBiomas do motor e do YbYrá. Se uma fonte
+  falhar, a coluna fica vazia, o cálculo usa a premissa neutra e `restauracao_faltou` diz o que faltou.
+- Simulador: `GET /imoveis/{cod}/restauracao/simular?preco_usd_t=74&entregas_anos=7,12,17,22,25&...`;
+  cenários com a fonte de cada parâmetro em `GET /restauracao/cenarios`. Painel: `GET /municipios/{cod}/imoveis?
+  ordem=valor_desenvolvedor&modo=plantio_total&tir_min=20&so_lote_fecha=true` e `GET /municipios/{cod}/lotes`.
+- Aprendizado: cada estimativa entra congelada (modelo `restauracao`, com a versão) na carga. Quando um cliente
+  informar o real: `raiz restauracao informar <CAR> --fonte "desenvolvedor" --custo-rs-ha 16500 --modo plantio_total`
+  (ou `POST /imoveis/{cod}/restauracao/real`). `raiz restauracao comparar` mostra real contra previsto por modo;
+  `raiz restauracao recalibrar --gravar` escreve raiz/regras/padroes/restauracao_calibracao.yaml (revise antes de
+  subir): a versão muda e o `recalcular` refaz.

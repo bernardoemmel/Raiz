@@ -30,7 +30,7 @@ log = logging.getLogger(__name__)
 
 TIPOS_MUNICIPIO = (
     "imoveis", "filtros", "extras", "extras_direto", "direto", "ajustes", "alertas", "certidoes", "flag", "ficha",
-    "serie_uso",
+    "desenvolvedor", "serie_uso",
 )  # fmt: skip
 
 

@@ -2,6 +2,7 @@ import { useCallback, useMemo, useState, type Ref } from "react"
 import type { FunilMunicipio, Imovel } from "../../../compartilhado/dados"
 import { escreverCsv } from "../../../compartilhado/dados/csv"
 import { fmtInt, UFS } from "../../../compartilhado/formato"
+import { ordenarFiltrar, type Modo, type OrdemRestauracao } from "../../../compartilhado/restauracao"
 import { fonte, useCarga } from "../dados"
 import { aplicar, FILTROS_INICIAIS, frenteDe, tituloDe, type Filtros as F } from "../filtros"
 import { MapaMunicipio, type MapaApi } from "../mapa/MapaMunicipio"
@@ -40,6 +41,13 @@ function baixarCsv(nome: string, lista: Imovel[], f: F) {
     "desm_pos2016_ha",
     "alerta_pos2020_ha",
     "status_imovel",
+    "modo_restauracao",
+    "custo_restauracao_ha_p50",
+    "credito_liquido_tco2_ha_ano",
+    "vpl_rs_ha_p50",
+    "tir_alavancada_pct_p50",
+    "valor_desenvolvedor_rs",
+    "grupo_id",
   ]
   const linhas = lista.map((i) => ({
     cod_imovel: i.cod_imovel,
@@ -57,6 +65,13 @@ function baixarCsv(nome: string, lista: Imovel[], f: F) {
     desm_pos2016_ha: (i.desm_pos2016_ha ?? 0).toFixed(2),
     alerta_pos2020_ha: i.alerta_pos2020_ha.toFixed(2),
     status_imovel: i.status_imovel ?? "",
+    modo_restauracao: i.linha.modo_restauracao ?? "",
+    custo_restauracao_ha_p50: i.linha.custo_restauracao_ha_p50 ?? "",
+    credito_liquido_tco2_ha_ano: i.linha.credito_liquido_tco2_ha_ano ?? "",
+    vpl_rs_ha_p50: i.linha.vpl_rs_ha_p50 ?? "",
+    tir_alavancada_pct_p50: i.linha.tir_alavancada_pct_p50 ?? "",
+    valor_desenvolvedor_rs: i.linha.valor_desenvolvedor_rs ?? "",
+    grupo_id: i.linha.grupo_id ?? "",
   }))
   const blob = new Blob([escreverCsv(colunas, linhas)], { type: "text/csv;charset=utf-8" })
   const a = document.createElement("a")
@@ -132,10 +147,15 @@ export function Principal({ municipio, abertura }: Props) {
   const [camadas, setCamadas] = useState<Camadas>({ fogo: false, secundaria: false, alertas: true, areas: true, rios: true })
   const [destaque, setDestaque] = useState<string | null>(null)
   const [projeto, setProjeto] = useState(false)
+  const [ordem, setOrdem] = useState<OrdemRestauracao>("area")
+  const [modo, setModo] = useState<Modo | null>(null)
 
   const dados = imoveis.dado ?? null
   const frente = frenteDe(filtros.frente)
-  const lista = useMemo(() => (dados ? aplicar(dados, filtros) : null), [dados, filtros])
+  const lista = useMemo(
+    () => (dados ? ordenarFiltrar(aplicar(dados, filtros), ordem, modo) : null),
+    [dados, filtros, ordem, modo],
+  )
   const passa = useMemo(() => (lista ? new Set(lista.map((i) => i.cod_imovel)) : null), [lista])
   const pequenas = useMemo(() => dados?.filter((i) => i.apta && (i.pequena || i.assentamento)).length ?? 0, [dados])
   const f = funil.dado
@@ -199,6 +219,10 @@ export function Principal({ municipio, abertura }: Props) {
             aoPassar={setDestaque}
             verPequenas={() => setFiltros(PRESETS.agrupar)}
             outroMunicipio={outro.dado}
+            ordem={ordem}
+            mudarOrdem={setOrdem}
+            modo={modo}
+            mudarModo={setModo}
           />
         </div>
 

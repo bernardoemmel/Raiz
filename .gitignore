@@ -39,6 +39,7 @@ raiz/regras/catala/_build/
 raiz/regras/catala/_target/
 dados/validacao/
 dados/cache_osm/
+dados/cache_restauracao/
 dados/mapa/
 dados/imagens/
 dados/publico/

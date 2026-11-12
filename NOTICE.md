@@ -91,3 +91,20 @@ no script, requests (Apache-2.0), shapely e pmtiles (BSD-3-Clause).
 - FFmpeg (GPL, pacote do sistema) só como processo separado no servidor, para juntar as cenas e o áudio em MP4; não
   vai no produto distribuído.
 - Voz: Qwen3-TTS (`qwen-tts`, Apache-2.0) quando instalado no servidor (raiz/voz.py).
+
+## Valor para quem restaura (relevo, chuva, solo e vegetação secundária)
+
+Usados como dado de entrada no servidor (raiz/restauracao_geo.py), com cache em disco; nada disso é distribuído
+junto do produto.
+
+- **Copernicus DEM GLO-30** (AWS Open Data, `copernicus-dem-30m`): licença de uso gratuito, mundial, inclusive
+  comercial, pedindo que se informe a origem. Crédito: "Produced using Copernicus WorldDEM-30 © DLR e.V. 2010-2014
+  and © Airbus Defence and Space GmbH 2014-2018 provided under COPERNICUS by the European Union and ESA; all rights
+  reserved". A Raíz guarda só a declividade derivada.
+- **CHIRPS v3** (Climate Hazards Center, UC Santa Barbara): domínio público (renúncia de direitos registrada no
+  Creative Commons). Citação pedida: CHIRPS3 Data Repository, doi:10.15780/G2JQ0P.
+- **SoilGrids 2.0** (ISRIC World Soil Information): CC BY 4.0. Crédito: "SoilGrids 2.0, ISRIC World Soil
+  Information" (Poggio et al. 2021, SOIL 7:217).
+- **YbYrá-BR v8.1** (Source Cooperative): idade da vegetação secundária, já usada pelo motor; aqui só para medir a
+  linha de base do município.
+- **Heinrich et al. 2021** (CC BY-NC): só a taxa que o motor já usa, para comparação; fora de qualquer treino.

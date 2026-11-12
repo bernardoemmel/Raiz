@@ -1,6 +1,7 @@
 import { useState } from "react"
 import type { FunilMunicipio, Imovel } from "../../../compartilhado/dados"
 import { abreviarCar, fmtCompacto, fmtHa, fmtInt, fmtModulos } from "../../../compartilhado/formato"
+import { fmtReais, lerRestauracao, MODOS, ORDENS, type Modo, type OrdemRestauracao } from "../../../compartilhado/restauracao"
 import type { Frente } from "../filtros"
 import { linkFazenda } from "../rota"
 
@@ -14,11 +15,30 @@ interface Props {
   aoPassar: (cod: string | null) => void
   verPequenas: () => void
   outroMunicipio?: { nome: string; link: string } | null
+  /** ordem e filtro pelo valor para quem restaura (o desenvolvedor) */
+  ordem?: OrdemRestauracao
+  mudarOrdem?: (o: OrdemRestauracao) => void
+  modo?: Modo | null
+  mudarModo?: (m: Modo | null) => void
 }
 
 const PASSO = 60
 
-export function ListaFazendas({ titulo, frente, lista, funil, pequenas, selecionado, aoPassar, verPequenas, outroMunicipio }: Props) {
+export function ListaFazendas({
+  titulo,
+  frente,
+  lista,
+  funil,
+  pequenas,
+  selecionado,
+  aoPassar,
+  verPequenas,
+  outroMunicipio,
+  ordem = "area",
+  mudarOrdem,
+  modo = null,
+  mudarModo,
+}: Props) {
   // a lista mudou (filtro, município): volta a mostrar só as primeiras
   const [pagina, setPagina] = useState({ lista, quantas: PASSO })
   if (pagina.lista !== lista) setPagina({ lista, quantas: PASSO })
@@ -49,15 +69,45 @@ export function ListaFazendas({ titulo, frente, lista, funil, pequenas, selecion
   }
 
   const usaCarbono = frente.id === "carbono" || frente.id === "agrupar"
+  const porValor = ordem !== "area"
   return (
     <aside className="painel lista" aria-label="Fazendas">
       <div className="lista-cabeca">
         <h2>{titulo}</h2>
         <span className="lista-total num">{fmtInt(lista.length)}</span>
       </div>
+      {mudarOrdem && mudarModo && (
+        <div className="lista-ordem">
+          <label>
+            Ordenar por
+            <select value={ordem} onChange={(e) => mudarOrdem(e.target.value as OrdemRestauracao)}>
+              {ORDENS.map((o) => (
+                <option key={o.id} value={o.id}>
+                  {o.rotulo}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Caminho de restauração
+            <select value={modo ?? ""} onChange={(e) => mudarModo((e.target.value || null) as Modo | null)}>
+              <option value="">Todos</option>
+              {MODOS.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.nome}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+      )}
       {lista.length === 0 ? (
         <div className="vazio-lista">
-          <p>Nenhuma fazenda passa por estes filtros. Afrouxe o título da terra ou o tempo sem desmatamento.</p>
+          <p>
+            {modo
+              ? "Nenhuma fazenda deste caminho de restauração passa pelos filtros. Escolha outro caminho ou todos."
+              : "Nenhuma fazenda passa por estes filtros. Afrouxe o título da terra ou o tempo sem desmatamento."}
+          </p>
         </div>
       ) : (
         <ol>
@@ -82,7 +132,12 @@ export function ListaFazendas({ titulo, frente, lista, funil, pequenas, selecion
                 <div className="lf-dir">
                   <div className="lf-ha num">{fmtHa(frente.area(i))}</div>
                   <div className="lf-co2 num">
-                    {usaCarbono && i.carbono_tco2_ano > 0 ? (
+                    {porValor ? (
+                      (() => {
+                        const r = lerRestauracao(i.linha)
+                        return r ? `${fmtReais(r.valorDesenvolvedor)} para quem restaura` : "sem cálculo ainda"
+                      })()
+                    ) : usaCarbono && i.carbono_tco2_ano > 0 ? (
                       <>≈{fmtCompacto(i.carbono_tco2_ano)} tCO₂/ano</>
                     ) : (
                       frente.sobre

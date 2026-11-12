@@ -1371,3 +1371,113 @@ a {
   padding: 3px 0;
   font-size: 13.5px;
 }
+
+/* Para quem restaura (valor para o desenvolvedor): faixa P10 a P90 com ponto no P50 e aviso de estimativa */
+.restaurar .aviso-estimativa {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  background: var(--fundo);
+  padding: 12px 16px;
+  margin: 8px 0 16px;
+}
+.restaurar .aviso-icone {
+  flex: 0 0 28px;
+  height: 28px;
+  border-radius: 999px;
+  background: var(--texto);
+  color: var(--cartao);
+  font-weight: 700;
+  display: grid;
+  place-items: center;
+}
+.restaurar .aviso-estimativa strong {
+  font-weight: 600;
+  line-height: 1.45;
+}
+.restaurar-principal {
+  font-size: 18px;
+  margin: 0 0 8px;
+}
+.faixas {
+  margin: 16px 0;
+  display: grid;
+  gap: 12px;
+}
+.faixa-linha {
+  display: grid;
+  grid-template-columns: minmax(160px, 1fr) 2fr;
+  gap: 4px 16px;
+  align-items: center;
+  border-top: 1px solid var(--borda);
+  padding-top: 10px;
+}
+.faixa-linha dt {
+  font-weight: 600;
+}
+.faixa-ajuda {
+  display: block;
+  font-weight: 400;
+  color: var(--texto-2);
+  font-size: 13px;
+}
+.faixa-linha dd {
+  margin: 0;
+  display: grid;
+  gap: 6px;
+}
+.faixa-barra {
+  position: relative;
+  display: block;
+  height: 10px;
+  background: var(--borda);
+}
+.faixa-p10-p90 {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: var(--verde-claro);
+  outline: 1px solid var(--verde-medio);
+}
+.faixa-p50 {
+  position: absolute;
+  top: -3px;
+  width: 4px;
+  height: 16px;
+  margin-left: -2px;
+  background: var(--verde-escuro);
+}
+.como-calculamos summary {
+  cursor: pointer;
+  color: var(--verde);
+  font-weight: 600;
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+}
+.lista-ordem {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 0 0 8px;
+  font-size: 14px;
+}
+.lista-ordem label {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  color: var(--texto-2);
+}
+.lista-ordem select {
+  min-height: 36px;
+  border: 1px solid var(--borda-forte);
+  border-radius: 6px;
+  background: var(--cartao);
+  padding: 0 8px;
+  color: var(--texto);
+}
+@media (max-width: 640px) {
+  .faixa-linha {
+    grid-template-columns: 1fr;
+  }
+}

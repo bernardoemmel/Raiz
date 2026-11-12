@@ -1,0 +1,76 @@
+# Cenários do fluxo de caixa por hectare de quem restaura (raiz/restauracao.py, fluxo_caixa). Todo parâmetro é
+# editável na ficha (simulador) e cada um traz a fonte. O cenário padrão é o ProFloresta+ (BNDES) no preço baixo.
+# Cada cálculo grava a versão + hash deste arquivo junto da do restauracao.yaml.
+versao: cenarios-2026a
+padrao: profloresta_55
+
+cenarios:
+  profloresta_55:
+    nome: ProFloresta+ (BNDES), US$ 55/t
+    preco_usd_t:
+      valor: 55
+      fonte: fundador, 12/11/2026 (ProFloresta+ do BNDES compra entre US$ 55 e 74/t)
+    prazo_anos:
+      valor: 25
+      fonte: fundador (contrato do ProFloresta+)
+    entregas_anos:
+      valor: [7, 12, 17, 22, 25]
+      fonte: fundador (primeira entrega no ano 7, depois a cada 5 anos)
+    fracao_financiada:
+      valor: 0.8
+      fonte: fundador (80% financiado)
+    juros_ano:
+      valor: 0.023
+      fonte: fundador (Fundo Clima, cerca de 2,3% ao ano)
+    carencia_anos:
+      valor: 5
+      fonte: fundador (5 anos de carência, juros pagos na carência)
+    amortizacao_anos:
+      valor: 20
+      fonte: fundador (20 anos de amortização)
+    sistema_amortizacao:
+      valor: sac
+      fonte: premissa Raíz (o BNDES costuma usar o sistema de amortização constante)
+    taxa_desconto:
+      valor: 0.12
+      fonte: fundador (VPL a 12%)
+    cambio_brl_usd:
+      valor: 5.40
+      fonte: premissa Raíz (trocar pela PTAX do dia)
+    desembolso_custo:
+      valor: [1.0]
+      fonte: premissa Raíz (o custo por ha, com a manutenção dos primeiros anos, sai na implantação, ano 0)
+    manutencao_rs_ha_ano:
+      valor: 150
+      fonte: premissa Raíz (aceiro, formiga e cerca depois da implantação)
+    manutencao_desde_ano:
+      valor: 3
+      fonte: premissa Raíz (até o ano 2 a manutenção está dentro do custo de implantação)
+    monitoramento_rs_ha_ano:
+      valor: 40
+      fonte: premissa Raíz (satélite e parcelas permanentes)
+    verificacao_rs_ha_entrega:
+      valor: 120
+      fonte: premissa Raíz (auditoria de verificação em cada entrega, rateada por ha)
+    taxa_registro_usd_t:
+      valor: 0.20
+      fonte: premissa Raíz (taxa de emissão por crédito na Verra; conferir na tabela de taxas vigente)
+    tributos_receita:
+      valor: 0.0925
+      fonte: premissa Raíz (PIS e Cofins não cumulativos sobre a venda; conferir com a Lei 15.042/2024)
+    arrendamento_rs_ha_ano:
+      valor: 0
+      fonte: premissa Raíz (sem arrendamento; preencha se o desenvolvedor paga ao dono por ha)
+
+  profloresta_74:
+    nome: ProFloresta+ (BNDES), US$ 74/t
+    herda: profloresta_55
+    preco_usd_t:
+      valor: 74
+      fonte: fundador, 12/11/2026 (teto da faixa do ProFloresta+)
+
+# Faixa P10-P90 do VPL e das TIRs por imóvel: Monte Carlo com sorteios comuns a todos os imóveis (semente fixa), o
+# custo e a captura sorteados de forma independente numa normal de dois lados que respeita os P10, P50 e P90.
+monte_carlo:
+  sorteios: 400
+  semente: 2026

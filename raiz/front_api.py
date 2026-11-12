@@ -17,6 +17,7 @@ motor: apta = sem problema, área de carbono > 0 e até 5 ha desmatados depois d
 
 from __future__ import annotations
 
+import datetime as dt
 import json
 import math
 import re
@@ -30,6 +31,7 @@ from sqlalchemy import Engine, text
 from raiz import contrato
 from raiz import flag as flag_mod
 from raiz import motivos as motivos_mod
+from raiz import restauracao as restauracao_mod
 from raiz.busca import normalizar_codigo, normalizar_nome
 from raiz.privacidade import colunas_pessoais, mascarar
 
@@ -343,6 +345,8 @@ def montar_ficha(
         "motivos": motivos_mod.motivos(alvo),
         # meta FLAG (GHG LSR v1.1) separada de crédito/compensação, com requisitos e versão da regra
         "flag": flag_mod.bloco_ficha(alvo),
+        # valor para quem restaura com crédito de carbono (estimativa em faixa P10-P90, sempre com aviso)
+        "para_quem_restaura": restauracao_mod.bloco_ficha(alvo),
         **_do_design_v1(alvo, banco or {}),
         "versao_dado": versao_dado,
     }
@@ -637,11 +641,76 @@ def roteador(engine_de) -> APIRouter:
         return Response(json.dumps(fc, separators=(",", ":")), media_type="application/geo+json")
 
     @r.get("/municipios/{cod_ibge}/imoveis")
-    def imoveis(cod_ibge: int, request: Request) -> Response:
+    def imoveis(
+        cod_ibge: int,
+        request: Request,
+        ordem: str | None = None,
+        modo: str | None = None,
+        tir_min: float | None = None,
+        so_lote_fecha: bool = False,
+    ) -> Response:
+        """Imóveis do município. Para o painel de quem restaura: ordem=valor_desenvolvedor (ou vpl_ha,
+        tir_alavancada, credito), filtro por modo de restauração, TIR com financiamento mínima (P50, em %) e só os
+        lotes que fecham o contrato de referência. Sem parâmetros, a lista de sempre."""
         lista = imoveis_do_municipio(engine_de(request), cod_ibge=cod_ibge)
         if not lista:
             raise HTTPException(404, "município ainda sem imóveis carregados")
+        try:
+            lista = restauracao_mod.ordenar_filtrar(lista, ordem, modo, tir_min, so_lote_fecha)
+        except ValueError as ex:
+            raise HTTPException(422, {"mensagem": str(ex)}) from ex
         return _json(lista)
+
+    @r.get("/municipios/{cod_ibge}/lotes")
+    def lotes(cod_ibge: int, request: Request) -> Response:
+        """Lotes de fazendas vizinhas para quem restaura: quantos ha e créditos cada lote fecha."""
+        lista = imoveis_do_municipio(engine_de(request), cod_ibge=cod_ibge)
+        if not lista:
+            raise HTTPException(404, "município ainda sem imóveis carregados")
+        return _json(restauracao_mod.lotes(lista))
+
+    @r.get("/restauracao/cenarios")
+    def cenarios_restauracao() -> Response:
+        """Cenários do fluxo de caixa (ProFloresta+...), cada parâmetro com a fonte, para o simulador."""
+        return _json(restauracao_mod.cenarios_publicos())
+
+    @r.get("/imoveis/{cod_imovel}/restauracao/simular")
+    def simular_restauracao(cod_imovel: str, request: Request) -> Response:
+        """Refaz o valor para quem restaura com os parâmetros do cenário editados (preco_usd_t, prazo_anos,
+        entregas_anos=7,12,17, fracao_financiada, juros_ano, carencia_anos, amortizacao_anos, taxa_desconto,
+        cambio_brl_usd, manutencao_rs_ha_ano, arrendamento_rs_ha_ano...), com o fluxo ano a ano."""
+        eng = engine_de(request)
+        alvo = imoveis_do_municipio(eng, cod_imovel=cod_imovel)
+        if not alvo:
+            raise HTTPException(404, nao_achado(eng, cod_imovel))
+        try:
+            nome, muda = restauracao_mod.parametros_da_consulta(dict(request.query_params))
+            return _json(restauracao_mod.simular(alvo[0], nome, **muda))
+        except ValueError as ex:
+            raise HTTPException(422, {"mensagem": str(ex)}) from ex
+
+    @r.post("/imoveis/{cod_imovel}/restauracao/real")
+    async def restauracao_real(cod_imovel: str, request: Request) -> Response:
+        """O cliente informa custo e captura reais: vira gabarito para comparar com o que a Raíz previu."""
+        from raiz import restauracao_aprendizado as RA
+
+        eng = engine_de(request)
+        alvo = imoveis_do_municipio(eng, cod_imovel=cod_imovel)
+        if not alvo:
+            raise HTTPException(404, nao_achado(eng, cod_imovel))
+        try:
+            b = await request.json()
+            if not isinstance(b, dict) or not str(b.get("fonte") or "").strip():
+                raise ValueError("informe a fonte (quem mediu: desenvolvedor, parcela, nota fiscal)")
+            quando = dt.date.fromisoformat(b["observado_em"]) if b.get("observado_em") else dt.date.today()
+            with eng.begin() as con:
+                ids = RA.informar(con, alvo[0]["cod_imovel"], quando, str(b["fonte"])[:200],
+                                  custo_rs_ha=b.get("custo_rs_ha"), captura_tco2_ha_ano=b.get("captura_tco2_ha_ano"),
+                                  credito_liquido_tco2_ha_ano=b.get("credito_liquido_tco2_ha_ano"),
+                                  modo=b.get("modo"), referencia=b.get("referencia"))  # fmt: skip
+        except (ValueError, TypeError, KeyError) as ex:
+            raise HTTPException(422, {"mensagem": str(ex)}) from ex
+        return _json({"gravados": len(ids), "observado_em": quando.isoformat()})
 
     @r.get("/imoveis/{cod_imovel}")
     def imovel(cod_imovel: str, request: Request) -> Response:
