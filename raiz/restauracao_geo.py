@@ -145,7 +145,13 @@ def faixas_e_linha_base(
                         if idade is not None:
                             bx = rasterio.windows.bounds(jan, cob.transform)
                             wi = from_bounds(*bx, idade.transform).round_offsets().round_lengths()
-                            a = _ler_janela(idade, wi, cheio)[::red, ::red]
+                            if red > 1:  # grade grossa: lê a pirâmide do próprio COG (muito menos bytes na rede)
+                                from rasterio.windows import Window as W_
+
+                                a = idade.read(1, window=W_(wi.col_off, wi.row_off, cheio[1], cheio[0]),
+                                               out_shape=c.shape, boundless=True, fill_value=0)  # fmt: skip
+                            else:
+                                a = _ler_janela(idade, wi, cheio)
                             jovem = (a >= 1) & (a <= janela_anos)
                         rem = np.isin(c, mata) & ~jovem
                         pasto = np.isin(c, aberto) & ~jovem
