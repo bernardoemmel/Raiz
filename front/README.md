@@ -184,12 +184,14 @@ Sem API, o front salva apenas os critérios no navegador e mostra a cobertura ag
 O build ignora qualquer `lote_PA_central_r11.json` financeiro encontrado em `RAIZ_LOTES` ou `dados/lotes`;
 publica somente um marcador de acesso privado para clientes estáticos antigos. O navegador também ignora caches
 legados, sem baixar o ponteiro do Release. `scripts/baixar-lotes.mjs` permanece como compatibilidade: não usa
-rede e sobrescreve um arquivo antigo com o marcador privado. O workflow do site não executa esse downloader.
+rede nem lê ou altera snapshots financeiros locais. O workflow do site não executa esse downloader.
 A comparação real, os ganhos por pendência e os desenhos dos lotes vêm exclusivamente da API autenticada.
 O cenário sintético do teste de navegador é interceptado somente pelo Playwright e nunca entra no build público.
 
 As três opções têm cores e traços diferentes. Na API, a geometria vem junto do item apenas quando a ficha já foi
-desbloqueada pelo mesmo cliente ativo; a autorização e a exclusividade são revalidadas a cada leitura. Consultar
+desbloqueada pelo mesmo cliente ativo; medidas individuais de itens fechados chegam como `null`, com
+`ficha_liberada: false`, e a tela indica a ficha paga sem inventar zeros. A autorização e a exclusividade são
+revalidadas a cada leitura. Consultar
 o mapa não gera débito novo. Sem desenho autorizado, a tela mostra aviso e nunca busca contornos privados no Pages.
 A simulação antiga continua exportada somente para testes explícitos, sem ser o padrão da aplicação.
 
