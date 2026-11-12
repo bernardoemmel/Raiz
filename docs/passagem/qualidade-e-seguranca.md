@@ -48,7 +48,7 @@ Verificação pelo GitHub em 12/11/2026, comparada ao checkout da main (8865c7c 
 | #37 | Diff do medidor, migração, gravação da nota e mensagens | Contagens/índices não guardam texto de entrada; mensagem pessoal permanece no esquema pessoal. Sem novo bug confirmado. |
 | #38 | Diff regras_versao, carga e manifesto | Versão publicada antes da rodada, preservando referência; nenhum novo dado pessoal. Não revalidamos cientificamente o catálogo remoto de camadas. |
 | #39 | Diff alertas/backoffice, persistência e respostas | Detalhe JSON não era sanitizado e textos só mascaravam CPF/CNPJ. Agora passam por Presidio antes da persistência; backoffice também filtra dados legados ao responder. |
-| #40 | Diff fichas, API, revisão e cartão; consultas e contratos de serialização | A API interna e o cartão por código curto são caminhos distintos. Encontrado risco de publicação de localização exata via fichas/rows.json; mudança de contrato registrada abaixo. Sem CPF/nome de dono confirmado no diff. |
+| #40 | Diff fichas, API, revisão e cartão; consultas e contratos de serialização | A API interna e o cartão por código curto são caminhos distintos. Risco de localização em fichas/rows.json parcialmente tratado pelo #52: site agregado e exportação administrativa declarada privada. Permanecem a garantia de armazenamento privado e o tratamento dos artefatos históricos. |
 | #41 | Diff rebanho/restauração/vazamento e contratos; tabela PPM municipal | Corrigido total PPM zero elevado pelo piso de lotação, que inventava gado e metano. Teste inclui propriedade pequena e grande, todas as faixas zeradas. |
 | #42 | Diff CI e construção do site | Jobs isolados removiam instalação npm do job de licenças, fazendo o scanner ignorar front. Corrigido pelo trabalho do CI/licenças desta entrega. |
 | #43 | Diff completo do limite do executor | Limite 15 consistente entre planejamento e matriz; sem mudança em dados do dono. |
@@ -64,7 +64,7 @@ Verificação pelo GitHub em 12/11/2026, comparada ao checkout da main (8865c7c 
 
 ## Mudanças grandes para os chats responsáveis
 
-1. **#40 — localização e consentimento em exportações (Telas e mapa / Dados):** `raiz/fichas_lote.py::linha_do_cartao` inclui `_cod_imovel`, `_plus_code`, `_omaps` antes do aceite. Prefixar `_` não impede leitura de rows.json; `gravar_municipio` também grava fichas com perímetro e localização exata. Isso conflita com a regra explicitada em `raiz/publico.py` de que a localização exata só vai a público depois do aceite. Separar artefato interno/público e aplicar o consentimento no servidor e no produtor do arquivo, incluindo expiração/revogação. Publicar somente depois de definir o contrato. É risco demonstrado no código; o escopo da auditoria de artefatos públicos desta entrega é descrito separadamente.
+1. **#40 — exportações administrativas e artefatos históricos (Telas e mapa / Dados), parcialmente resolvido pelo #52:** o build do site passou a publicar somente agregados, retirando fichas, CAR, CSV e geometrias individuais, inclusive sobras de builds anteriores. A exportação `raiz/fichas_lote.py` foi explicitamente classificada como privada; continua contendo `_cod_imovel`, `_plus_code`, `_omaps` e perímetro. Garantir que seu destino permaneça privado e fora de qualquer upload público. O prefixo `_` não protege arquivos. O Release histórico continua público e exige tratamento separado; a alteração no código do site não torna privados os artefatos já publicados.
 2. **#41 — validade de resultados anteriores (Produto/regras):** o executor inclui hash de código da tarefa e refaz os rebanhos afetados; execução manual `raiz funil` decide pelo hash de premissas/tabela e precisa de `--refazer` para resultados produzidos antes da correção PPM zero. Não alteramos as premissas científicas de limitar lotação/total.
 3. **#44 — calibração da cascata (Vigilância/aprendizado):** o corte é ligado ao nome do modelo, mas não à versão dos pesos, prompt ou gramática. Há alerta posterior de desvio de subida; trocar pesos mantendo alias pode reutilizar um corte inválido. Versionar artefato/prompt no corte e exigir reavaliação real antes de promovê-lo. Sem corte preenchido na main, o caminho continua em votação.
 4. **#45 — conflito de migração (Produto/regras):** nova `0020_api_publica.py` declara revision `0020`/down_revision `0019`, identificador já usado por `0020_alertas_operacao.py` da main. Rebase e renumeração são necessários antes de integrar; não foi alterado o PR de outro chat.
@@ -119,7 +119,7 @@ A amostra HTTP do site também não contém CPF/CNPJ sem máscara, e-mail/telefo
 
 1. O portão de publicação (`raiz/executor/armazem.py`, `_publicar_uf`) só rejeita cabeçalhos CSV por uma lista curta de palavras. Geometrias/PMTiles, JSON de controle e `extra` passam sem uma validação equivalente; `motor/publicar_dados.py` também só verifica o cabeçalho CSV. Não houve vazamento confirmado nos artefatos examinados, mas o portão não impede uma coluna nova (ex.: contato/embargado) ou dado pessoal colocado em mensagem de erro. Padronizar um contrato de publicação com allowlist por produto e validação antes de qualquer upload, preservando métricas legítimas, envolve o chat de dados.
 2. Vigilância: `_publicos()` decide o que é público pelo nome do arquivo e `publicar()` envia os bytes sem revalidar o conteúdo. Hoje não há Release para medir exposição. Cobertura de publicação deve verificar dados/erros antes de habilitar a primeira rodada.
-3. Contrato de localização/consentimento: o auditor dos PRs apontou `rows.json` com `_cod_imovel`, `_plus_code` e `_omaps` antes do aceite; prefixo `_` não torna um arquivo privado. Alinhar arquivos públicos com o contrato de aceite requer revisão pelo chat responsável (E9).
+3. Contrato de localização/consentimento: parcialmente tratado pelo #52 durante a entrega. O site agora publica somente agregados; a exportação administrativa deve permanecer privada. Ver a atualização do item #40 acima, incluindo artefatos históricos.
 4. Teste do Pará inteiro: o pacote publicado `raiz_PA.tar.gz` contém 144 tabelas `imoveis`, 144 `direto`, 144 `filtros`, 144 `mapbiomas`, 143 `certidoes` e nenhum `desenvolvedor`. Baixar esse Release não atende a pré-condição do teste que exige pelo menos 100 CSV `desenvolvedor`.
 
 ## Referências
@@ -172,8 +172,8 @@ verificado. Não foram reescritos commits ou logs remotos.
 - Suíte Python completa com PostGIS e LanguageTool: **649 passaram, 1 skip (dados do Pará), 1 xfail preexistente
   (TIR)**. Após o merge do #47 e as últimas regressões de segurança/portão, 48 testes focados adicionais passaram.
   Após integrar #46/#50, mais 65 testes de Markdown/API/executor/cabeçalhos passaram.
-- Build completo da fixture Pages (painel + produtor) e **115 testes Vitest passaram, nenhum skip**,
-  após integrar também os PRs #46 e #50. Pages e Lighthouse Agentic Browsing passaram em origem local.
+- Build completo da fixture Pages (painel + produtor) e **141 testes Vitest passaram, nenhum skip**,
+  após integrar também os PRs #46, #50 e #52. O teste de prospecção também passou. Pages e Lighthouse Agentic Browsing passaram em origem local.
 - Cena-alvo Playwright/API passou antes e depois da correção de destino do link; a versão integrada é novamente
   executada pelo CI. Teste Pages vindo do #47 permanece no CI, sem remover cobertura anterior.
 - Ruff check/format, actionlint e varredura CPF/CNPJ passaram. **624 pacotes** Python/npm/Rust conferidos, sem
@@ -189,3 +189,12 @@ FSL trazida pelo SDK 11 transitivo do Lighthouse. Override restrito usa SDK 10.7
 a categoria Agentic Browsing foram preservados. A telemetria foi testada com transporte em memória (sem envio
 externo); a auditoria do site e todas as licenças passaram. A auditoria Lighthouse local não comprova a presença
 de llms.txt/robots.txt na raiz do domínio público do Pages, como já explica a passagem Telas e mapa.
+
+
+### Integração do PR #52
+
+O PR #52 entrou na main imediatamente antes do merge. O conflito em `raiz/api.py` foi resolvido preservando
+as novas rotas da ficha paga e o middleware de segurança/CORS. A publicação agregada dessa entrega resolve
+parte do achado #40, atualizado acima. Os testes de Pages, prospecção, Lighthouse e cena-alvo da API passaram
+novamente; a leitura repetida dos CSV da fixture de pedidos foi reaproveitada para evitar timeout sem ampliar
+o limite nem retirar testes. O CI completo foi repetido no novo commit antes do merge.

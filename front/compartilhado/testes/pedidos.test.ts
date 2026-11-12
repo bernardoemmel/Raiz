@@ -38,9 +38,16 @@ const AMOSTRA = path.resolve(__dirname, "../../../dados/amostra")
 const COM_CONTORNO = ["1507300", "1504950"]
 
 const ler = (a: string) => lerCsv(fs.readFileSync(path.join(AMOSTRA, a), "utf8")).linhas
+// A mesma amostra alimenta contornos, candidatos e as fontes falsas. Reutilizar a
+// leitura evita trabalho repetido sem reduzir a cobertura ou alongar os limites do CI.
+const imoveisLidos = new Map<string, Imovel[]>()
 const imoveisDe = (cod: string): Imovel[] => {
+  const lidos = imoveisLidos.get(cod)
+  if (lidos) return lidos
   const { porImovel } = juntarComplementos(complementosDe(fs.readdirSync(AMOSTRA), cod).map((arquivo) => ({ arquivo, linhas: ler(arquivo) })))
-  return ler(`imoveis_${cod}.csv`).map((l) => lerImovel(l, porImovel.get(l.cod_imovel)))
+  const imoveis = ler(`imoveis_${cod}.csv`).map((l) => lerImovel(l, porImovel.get(l.cod_imovel)))
+  imoveisLidos.set(cod, imoveis)
+  return imoveis
 }
 const geometrias = new Map<string, Geo>()
 const geoDe = (cod: string): Geo => {
