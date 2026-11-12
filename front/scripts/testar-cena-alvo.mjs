@@ -3,6 +3,7 @@
  * Nenhum número desta fixture é usado pelo build público. Não inicia contato com proprietários.
  */
 import assert from "node:assert/strict"
+import { conferirPaginaAcessivel } from "./conferir-acessibilidade.mjs"
 import fs from "node:fs"
 import path from "node:path"
 import { createRequire } from "node:module"
@@ -13,6 +14,7 @@ const globo = path.join(REPO, "front/globo")
 const require = createRequire(path.join(globo, "package.json"))
 const { chromium } = require("playwright")
 const { PNG } = require("pngjs")
+const { default: AxeBuilder } = await import(pathToFileURL(require.resolve("@axe-core/playwright")).href)
 const { createServer } = await import(pathToFileURL(require.resolve("vite")).href)
 const resultado = path.join(REPO, "front/.cache/teste-cena-alvo")
 fs.mkdirSync(resultado, { recursive: true })
@@ -77,7 +79,8 @@ async function servidor(api) {
   return { vite, base: vite.resolvedUrls.local[0] }
 }
 async function pagina(base, publicacao, autenticada = false) {
-  const p = await navegador.newPage({ viewport: { width: 1440, height: 960 }, reducedMotion: "reduce" })
+  const contexto = await navegador.newContext({ viewport: { width: 1440, height: 960 }, reducedMotion: "reduce" })
+  const p = await contexto.newPage()
   p.on("pageerror", (erro) => erros.push(erro.message))
   p.on("console", (mensagem) => { if (mensagem.type() === "error") erros.push(mensagem.text()) })
   p.on("response", (r) => { if (r.status() >= 400) erros.push(`${r.status()} ${r.url()}`) })
@@ -123,7 +126,7 @@ try {
   await p.screenshot({ path: path.join(resultado, "release-publicado-1440.png") })
   await p.setViewportSize({ width: 360, height: 800 })
   assert(await p.evaluate(() => document.documentElement.scrollWidth <= innerWidth), "A página ultrapassou 360 px.")
-  await p.screenshot({ path: path.join(resultado, "release-publicado-360.png"), fullPage: true })
+  await conferirPaginaAcessivel(p, AxeBuilder, "release-publicado-360", resultado)
   await p.close()
   await publico.vite.close()
   publico = null
@@ -158,6 +161,8 @@ try {
   await p.getByRole("tab", { name: "Mais segura", exact: true }).and(p.locator('[aria-selected="true"]')).waitFor()
   assert.equal(await p.getByRole("tab", { name: "Mais segura", exact: true }).getAttribute("aria-selected"), "true")
   await p.screenshot({ path: path.join(resultado, "lotes-autorizados-1440.png") })
+  await p.setViewportSize({ width: 360, height: 800 })
+  await conferirPaginaAcessivel(p, AxeBuilder, "lotes-autorizados-360", resultado)
   await p.close()
   assert.deepEqual(contatos, [], "O teste tentou iniciar contato ou reserva.")
   assert.deepEqual(erros, [], "Há erro HTTP ou JavaScript.")

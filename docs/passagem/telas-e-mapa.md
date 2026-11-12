@@ -174,6 +174,38 @@ cd front/globo && npm test
 RAIZ_BUILD_DADOS=0 front/scripts/construir-site.sh
 ```
 
+## Continuação: ficha visual da terra (entrega 3)
+
+- A rota do CAR continua na `FichaTerra` paga do PR #52. Não reabrir a antiga ficha estática para fornecer o mapa.
+- `GET /prospeccao/fichas/{car}/visual` entrega um contrato fechado: `imovel`, `mascara`, `camadas` (GeoJSON),
+  fonte do perímetro e das camadas, data de corte, data da fonte quando disponível e avisos. Todas as geometrias
+  vêm do banco; as camadas são intersectadas com o CAR, preservando furos. Só `camada` sai nas propriedades.
+- `GET .../visual/satelite` reutiliza o gerador Sentinel-2 existente e devolve a caixa geográfica, fonte e data
+  da cena. Uma ausência conhecida devolve um estado explícito com HTTP 200. `GET .../visual/satelite.webp`
+  serve a imagem com sessão, crédito liberado, exclusividade e `private, no-store`. A URL do blob é revogada ao
+  sair da ficha; token nunca vai na URL ou em um arquivo do site.
+- `MapaFichaTerra` põe a imagem recente sob o perímetro duplo, máscara e hachura diagonal. A hachura só usa
+  `pode_voltar` medido, não a área restaurável da tabela. Sem camada medida, aparece aviso. Fonte e data das
+  camadas ficam consultáveis; a coleção/data ausente não recebe um ano presumido.
+- A linha do tempo reúne cobertura e perdas por ano, com texto e fonte/data além das cores; mantém as tabelas
+  completas e navegação por teclado. O mapa se reenquadra ao mudar a largura da tela, incluindo 360 px.
+- Validação focada: 32 testes Python com PostGIS, incluindo geometrias com furos, recorte e privacidade;
+  Chromium confere satélite de teste explicitamente sintético, camadas, controle de hachura, linha do tempo,
+  acesso antes/depois do crédito, troca de conta e 360 px. `test:prospeccao`, já no CI, guarda as capturas.
+- Teste externo validado com CAR e geometria do Release de Parauapebas: imagem Sentinel-2 de 132.586 bytes,
+  1024 × 938 px, composta pela mediana das cenas de 06/09/2026 a 23/10/2026. O mapa renderizou o recorte,
+  contorno e máscara em 1100 e 360 px. Sem camadas medidas nesse imóvel, exibiu o aviso, sem inventar hachura.
+  A legenda preserva o período inteiro e identifica a composição mediana, em vez de tratá-la como uma foto
+  de data única. Os testes determinísticos do CI continuam identificados como imagem sintética.
+- Em ambiente cujo GDAL não reconheça a CA do proxy, configurar `RAIZ_SATELITE_LEITOR_HTTP=blocos` na API.
+  Só as novas rotas visuais usam então o leitor Range já existente em `raiz.coleta.blocos`, com requests,
+  a CA/proxy herdados e cache de 1 GB em `dados/imagens/.cog`. O gerador e as outras rotas permanecem iguais.
+  A validação real usou esse leitor sem desativar TLS e baixou 95 MB de blocos, sem baixar cenas inteiras.
+- A suíte completa local foi interrompida após 321 testes aprovados para evitar competição com a suíte
+  de integração do chat principal; os testes focados passaram. Rodar a suíte completa no checkout integrado.
+- A imagem real depende da disponibilidade de cena no Sentinel-2 e dos polígonos/camadas carregados na API.
+  A publicação estática mantém apenas agregados. Não transformar o teste de imagem sintética em evidência
+  de disponibilidade orbital para todas as fazendas. O contato com o dono continua na fase final.
 
 ## Entrega 4: celular, teclado e desempenho (12/11/2026)
 
@@ -199,3 +231,4 @@ RAIZ_BUILD_DADOS=0 front/scripts/construir-site.sh
 
 Validação local da entrega 4: build travado, 138 testes do front, Pages com zero 404, prospecção com axe e
 Lighthouse Agentic Browsing aprovados. O portão mobile final passou nas nove medições fixas; E9 real não foi calibrado.
+
