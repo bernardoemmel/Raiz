@@ -36,6 +36,29 @@ async function confirmarPixLocal(request, cobranca) {
   expect(await pago.json()).toEqual({ reserva: "paga" })
 }
 
+async function lerComLimite(page, caminhos, abrir) {
+  const aguardar = () => Promise.all(caminhos.map((caminho) => page.waitForResponse(
+    (r) => r.url() === `${API}/v1/${caminho}` && r.request().method() === "GET",
+  )))
+  const inicial = aguardar()
+  await abrir()
+  let respostas = await inicial
+  const limitadas = respostas.filter((r) => r.status() === 429)
+  if (limitadas.length) {
+    // A automação comprime etapas humanas; continua respeitando o limite real por empresa.
+    const esperas = limitadas.map((r) => Number(r.headers()["retry-after"]))
+    for (const espera of esperas) {
+      expect(espera).toBeGreaterThan(0)
+      expect(espera).toBeLessThanOrEqual(60)
+    }
+    await page.waitForTimeout(Math.max(...esperas) * 1000)
+    const repetidas = aguardar()
+    await page.reload()
+    respostas = await repetidas
+  }
+  for (const resposta of respostas) expect(resposta.status()).toBe(200)
+}
+
 test("login único → conta paga → milhão no Pará → contato bloqueado → interesse e Pix isolados", async ({ page, request }) => {
   const erros = []
   const contatosPelaTela = []
@@ -174,23 +197,9 @@ test("login único → conta paga → milhão no Pará → contato bloqueado →
   await page.getByRole("button", { name: "Ver o grupo reservado" }).click()
   await expect(page.getByRole("heading", { name: "Grupo reservado" })).toBeVisible()
   await expect(page.getByRole("timer")).toContainText("Reservado até")
-  await page.reload()
+  await lerComLimite(page, [`pedidos/${pedido.id}`, `pedidos/${pedido.id}/andamento`, `pedidos/${pedido.id}/reserva`], () => page.reload())
   await expect(page.getByRole("heading", { name: "Grupo reservado" })).toBeVisible()
-  const listar = () => page.waitForResponse((r) => r.url() === `${API}/v1/pedidos` && r.request().method() === "GET")
-  const listaInicial = listar()
-  await page.goto("/#/pedidos")
-  let lista = await listaInicial
-  if (lista.status() === 429) {
-    // As etapas humanas são executadas em sequência no teste; o limite real continua ativo.
-    const espera = Number(lista.headers()["retry-after"])
-    expect(espera).toBeGreaterThan(0)
-    expect(espera).toBeLessThanOrEqual(60)
-    await page.waitForTimeout(espera * 1000)
-    const novaLista = listar()
-    await page.reload()
-    lista = await novaLista
-  }
-  expect(lista.status()).toBe(200)
+  await lerComLimite(page, ["pedidos"], () => page.goto("/#/pedidos"))
   await expect(page.locator(".lista-pedidos .selo", { hasText: /Reservado até/ })).toBeVisible()
   expect(contatosPelaTela).toEqual([])
   expect(erros).toEqual([])
