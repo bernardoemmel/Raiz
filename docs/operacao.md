@@ -169,8 +169,20 @@ e motivo, em `saida/<UF>/terra_<mun>.csv` (raiz/terra.py; regra em raiz/regras/p
 ## Motor dentro do produto (agente Dados)
 
 O executor (raiz/executor/) roda o motor e as tarefas do produto por estado e por município e grava tudo no
-armazenamento configurado (RAIZ_ARMAZEM_URL: Cloudflare R2 ou SeaweedFS pelo protocolo S3, ou pasta local).
+armazém configurado em RAIZ_ARMAZEM_URL. O de produção (e o padrão) é o Release `dados` do GitHub
+(`release-github://bernardoemmel/raiz/dados`), no formato de motor/publicar_dados.py: `raiz_<UF>.tar.gz` (CSV e
+`_versoes.json`), `raiz_geo_<UF>.tar.gz`, `raiz_camadas_<UF>.tar.gz`, `raiz_controle_<UF>.json` (marcas e estado,
+para retomar), `raiz_controle.json` e, por último, `estados.json`. Grava só com o token do Actions (`GH_TOKEN` ou
+`GITHUB_TOKEN`); sem token, só lê. Também servem uma pasta local (testes) e o S3 (`s3://`, opção futura: R2 ou
+SeaweedFS, sem uso hoje).
 
+- Actions: o workflow `.github/workflows/processar-estados.yml` chama, por estado,
+  `raiz executor rodar --ufs <UF> --lanes N --ate-minutos 330` com `RAIZ_SEM_BANCO=1` (sem banco no job) e o token.
+  Aos 330 minutos o executor para de começar municípios, termina os que estão em curso e publica; a rodada seguinte
+  baixa `raiz_controle_<UF>.json` e continua do ponto em que parou. Durante a rodada ele publica a cada 15 minutos
+  (ou a cada 80 arquivos novos), então um job morto perde no máximo esse trecho.
+- Estado publicado antes do executor (sem marcas, como o PA): `raiz executor adotar --ufs PA` grava as marcas a partir
+  dos `_versoes.json` e dos arquivos que estão no Release, sem rodar o motor.
 - Retomada: depois de CADA tarefa de cada município, a marca `marcas/<UF>/<mun>.json` guarda a versão da tarefa, a
   assinatura das entradas e o sha256 das saídas. Matar o processo perde no máximo a tarefa em curso; rodar de novo
   pula o que está em dia. Se a máquina for outra (disco vazio), as entradas de que uma tarefa precisa descem do armazém.

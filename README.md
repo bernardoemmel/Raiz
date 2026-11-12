@@ -65,21 +65,34 @@ uv run pytest                                          # com RAIZ_BANCO_URL_TEST
 
 ## Rodar o motor (dentro do produto: agente Dados)
 
-O motor roda pelo produto, município a município, e grava cada arquivo no armazenamento (compatível com S3) com a
-versão da tarefa e a data. A marca de concluído por município guarda a versão de cada tarefa: se a máquina reiniciar,
-ele retoma de onde parou; se o motor ou uma regra mudar, refaz só o que a mudança afeta.
+O motor roda pelo produto, município a município, e grava cada arquivo no armazém com a versão da tarefa e a data.
+A marca de concluído por município guarda a versão de cada tarefa: se a máquina reiniciar, ele retoma de onde parou;
+se o motor ou uma regra mudar, refaz só o que a mudança afeta.
 
-Armazenamento (no `.env`, credenciais só por variável de ambiente):
+O armazém de produção é o Release `dados` do GitHub (o mesmo que o front baixa, ver docs/dados-publicados.md). É o
+padrão: sem configurar nada, o executor lê de lá; grava só onde há o token do GitHub Actions (`GH_TOKEN` ou
+`GITHUB_TOKEN`, só por variável de ambiente). Outros armazéns, pelo `RAIZ_ARMAZEM_URL` no `.env`:
 
 ```bash
-RAIZ_ARMAZEM_URL=s3://raiz-motor/producao          # Cloudflare R2 (S3, sem taxa de saída) ou SeaweedFS
-RAIZ_S3_ENDPOINT=https://<conta>.r2.cloudflarestorage.com
-RAIZ_S3_ACCESS_KEY_ID=...
-RAIZ_S3_SECRET_ACCESS_KEY=...
+RAIZ_ARMAZEM_URL=release-github://bernardoemmel/raiz/dados   # padrão (produção)
+RAIZ_ARMAZEM_URL=dados/armazem                               # pasta local (desenvolvimento e testes)
+RAIZ_ARMAZEM_URL=s3://raiz-motor/producao                    # compatível com S3 (opção futura, ver abaixo)
 ```
 
-Sem servidor externo: `docker compose --env-file .env -f infra/docker-compose.yml --profile armazem up -d armazem`
-sobe o SeaweedFS (Apache-2.0) com S3 em `http://localhost:8333`. Sem nada configurado, usa a pasta `dados/armazem`.
+O S3 fica pronto para quando o volume pedir (Cloudflare R2, sem taxa de saída, ou SeaweedFS local: `docker compose
+--env-file .env -f infra/docker-compose.yml --profile armazem up -d armazem`), com `RAIZ_S3_ENDPOINT`,
+`RAIZ_S3_ACCESS_KEY_ID` e `RAIZ_S3_SECRET_ACCESS_KEY` só no `.env`. Hoje não é usado.
+
+No GitHub Actions (workflow `processar-estados.yml`), cada estado roda assim, retoma do ponto em que a rodada
+anterior parou e publica no Release antes do limite de 6 horas do job:
+
+```bash
+RAIZ_SEM_BANCO=1 GH_TOKEN=${{ github.token }} \
+  uv run raiz executor rodar --ufs PA --lanes 3 --ate-minutos 330
+```
+
+Um estado que já está no Release mas foi feito antes do executor (sem marcas): `uv run raiz executor adotar --ufs PA`
+grava as marcas a partir do que está publicado, sem rodar o motor de novo.
 
 Um estado à mão:
 
