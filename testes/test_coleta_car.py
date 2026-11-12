@@ -40,20 +40,42 @@ class Mundo:
 
     def _feats(self, itens):
         # geometria presa à chave (não à posição na resposta): o delta não pode "mudar a forma" do imóvel
-        return [{"type": "Feature", "id": f"sicar_imoveis_pa.{i}", "geometry": _poly(ord(k[-1])),
-                 "properties": {"cod_imovel": k, "cod_municipio_ibge": COD, **v}}
-                for i, (k, v) in enumerate(itens)]  # fmt: skip
+        return [
+            {
+                "type": "Feature",
+                "id": f"sicar_imoveis_pa.{i}",
+                "geometry": _poly(ord(k[-1])),
+                "properties": {"cod_imovel": k, "cod_municipio_ibge": COD, **v},
+            }
+            for i, (k, v) in enumerate(itens)
+        ]
 
     def responder(self, metodo, base, p, h):
         if "incra" in base:
-            parcelas = [{"type": "Feature", "geometry": _poly(i), "properties": {
-                "parcela_codigo": f"P{i}", "natureza": "Particular", "registro_matricula": str(100 + i),
-                "nome_area": "Fazenda de alguém"}} for i in range(2)]  # fmt: skip
+            parcelas = [
+                {
+                    "type": "Feature",
+                    "geometry": _poly(i),
+                    "properties": {
+                        "parcela_codigo": f"P{i}",
+                        "natureza": "Particular",
+                        "registro_matricula": str(100 + i),
+                        "nome_area": "Fazenda de alguém",
+                    },
+                }
+                for i in range(2)
+            ]
             assert p["bbox"].endswith("urn:ogc:def:crs:EPSG::4674")
             return 200, {}, json.dumps({"type": "FeatureCollection", "features": parcelas, "numberMatched": 2})
         if p.get("request") == "DescribeFeatureType":
-            return 200, {}, ('<xsd:element name="cod_imovel" type="xsd:string"/>'
-                             '<xsd:element name="data_atualizacao" type="xsd:dateTime"/>')  # fmt: skip
+            return (
+                200,
+                {},
+                (
+                    '<xsd:element name="cod_imovel" type="xsd:string"/>'
+                    '<xsd:element name="data_atualizacao" type="xsd:dateTime"/>'
+                ),
+            )
         itens = sorted(self.car.items())
         m = re.search(r"data_atualizacao > '([\d-]+)'", p.get("CQL_FILTER", ""))
         if m:
@@ -71,8 +93,11 @@ class Mundo:
             self.pedidos_delta += 1
         else:
             self.pedidos_completos += 1
-        return 200, {}, json.dumps({"type": "FeatureCollection", "features": self._feats(itens),
-                                    "numberMatched": len(itens)})  # fmt: skip
+        return (
+            200,
+            {},
+            json.dumps({"type": "FeatureCollection", "features": self._feats(itens), "numberMatched": len(itens)}),
+        )
 
 
 @pytest.fixture
@@ -91,8 +116,12 @@ def ambiente(banco_url, tmp_path, monkeypatch):
     mundo = Mundo()
     s, _ = sessao_falsa(mundo.responder)
     pings = []
-    hc = Healthchecks("k", "https://hc.exemplo", "raiz-{tarefa}", httpx.Client(transport=httpx.MockTransport(
-        lambda req: pings.append(req.url.path) or httpx.Response(200))))  # fmt: skip
+    hc = Healthchecks(
+        "k",
+        "https://hc.exemplo",
+        "raiz-{tarefa}",
+        httpx.Client(transport=httpx.MockTransport(lambda req: pings.append(req.url.path) or httpx.Response(200))),
+    )
     yield eng, s, Espelho(tmp_path / "espelho"), mundo, hc, pings
     eng.dispose()
 
@@ -129,8 +158,12 @@ def test_coleta_car_tres_rodadas(ambiente, banco_url):
     assert sorted(esp.ler("car", "PA", COD).cod_imovel) == ["PA-1504950-A", "PA-1504950-B"]
 
     with eng.connect() as c:
-        hist = c.execute(text("select cod_imovel, m_fiscal, _dlt_valid_to is null as vigente from bruto.car_imovel "
-                              "order by cod_imovel, _dlt_valid_from")).all()  # fmt: skip
+        hist = c.execute(
+            text(
+                "select cod_imovel, m_fiscal, _dlt_valid_to is null as vigente from bruto.car_imovel "
+                "order by cod_imovel, _dlt_valid_from"
+            )
+        ).all()
         assert [(h.cod_imovel[-1], h.m_fiscal, h.vigente) for h in hist] == [
             ("A", 1.0, True),
             ("B", 2.0, False),
@@ -139,8 +172,14 @@ def test_coleta_car_tres_rodadas(ambiente, banco_url):
         ]
         assert c.execute(text("select count(*) from bruto.car_imovel_vigente")).scalar() == 2
         assert c.execute(text("select bool_and(st_srid(geom) = 4674) from bruto.car_imovel")).scalar()
-        ev = dict(c.execute(text("select tipo, sum(quantidade) from coleta.evento where fonte = 'sicar_imoveis' "
-                                 "and tipo in ('novos', 'mudaram', 'sumiram') group by 1")).all())  # fmt: skip
+        ev = dict(
+            c.execute(
+                text(
+                    "select tipo, sum(quantidade) from coleta.evento where fonte = 'sicar_imoveis' "
+                    "and tipo in ('novos', 'mudaram', 'sumiram') group by 1"
+                )
+            ).all()
+        )
         assert ev == {"novos": 3, "mudaram": 1, "sumiram": 1}
 
     # a ponte do motor lê exatamente este espelho
@@ -159,8 +198,9 @@ def test_falha_fica_suja_e_tenta_de_novo(ambiente, banco_url):
     r = rodada_car(eng, s, esp, {"PA": [COD]}, hc, banco_url, historico=False)
     assert r["falhas"] == 1 and "/k/raiz-coleta-car/fail" in pings
     with eng.connect() as c:
-        e = c.execute(text("select sujo, tentativas, ultimo_erro from coleta.replicacao where recorte = :r"),
-                      {"r": f"PA/{COD}"}).one()  # fmt: skip
+        e = c.execute(
+            text("select sujo, tentativas, ultimo_erro from coleta.replicacao where recorte = :r"), {"r": f"PA/{COD}"}
+        ).one()
         assert e.sujo and e.tentativas >= 1 and "503" in e.ultimo_erro
 
 

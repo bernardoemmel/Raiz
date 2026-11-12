@@ -22,8 +22,18 @@ def test_manifesto_valido():
 
 def test_licenca_nao_comercial_nao_treina():
     with pytest.raises(ValidationError, match="não comercial"):
-        M.Fonte(id="x", nome="x", orgao="x", tipo="cog", url="u", recorte="brasil", sinal={}, calendario="diario",
-                licenca="CC BY-NC 4.0, não comercial", pode_treinar=True)  # fmt: skip
+        M.Fonte(
+            id="x",
+            nome="x",
+            orgao="x",
+            tipo="cog",
+            url="u",
+            recorte="brasil",
+            sinal={},
+            calendario="diario",
+            licenca="CC BY-NC 4.0, não comercial",
+            pode_treinar=True,
+        )
 
 
 def test_rodizio_cobre_todas_as_ufs_sem_sobrecarregar():
@@ -47,18 +57,44 @@ def test_calendario():
 
 
 PAGINAS = {
-    1: {"items": [{"produto_id": 9107, "tipo_id": 1, "ano_referencia_inicio": 2024, "mes_referencia_inicio": 1,
-                   "data_divulgacao": "18/09/2025 10:00:00"},
-                  {"produto_id": 9107, "tipo_id": 2, "ano_referencia_inicio": 2024, "mes_referencia_inicio": 1,
-                   "data_divulgacao": "01/01/2025 10:00:00"}], "nextPage": 2},
-    2: {"items": [{"produto_id": 9107, "tipo_id": 1, "ano_referencia_inicio": 2025, "mes_referencia_inicio": 1,
-                   "data_divulgacao": "17/09/2026 10:00:00"}], "nextPage": 0},
-}  # fmt: skip
+    1: {
+        "items": [
+            {
+                "produto_id": 9107,
+                "tipo_id": 1,
+                "ano_referencia_inicio": 2024,
+                "mes_referencia_inicio": 1,
+                "data_divulgacao": "18/09/2025 10:00:00",
+            },
+            {
+                "produto_id": 9107,
+                "tipo_id": 2,
+                "ano_referencia_inicio": 2024,
+                "mes_referencia_inicio": 1,
+                "data_divulgacao": "01/01/2025 10:00:00",
+            },
+        ],
+        "nextPage": 2,
+    },
+    2: {
+        "items": [
+            {
+                "produto_id": 9107,
+                "tipo_id": 1,
+                "ano_referencia_inicio": 2025,
+                "mes_referencia_inicio": 1,
+                "data_divulgacao": "17/09/2026 10:00:00",
+            }
+        ],
+        "nextPage": 0,
+    },
+}
 
 
 def test_gatilho_ppm():
-    cli = httpx.Client(transport=httpx.MockTransport(
-        lambda req: httpx.Response(200, json=PAGINAS[int(req.url.params["page"])])))  # fmt: skip
+    cli = httpx.Client(
+        transport=httpx.MockTransport(lambda req: httpx.Response(200, json=PAGINAS[int(req.url.params["page"])]))
+    )
     divs = ppm.divulgacoes(ppm.buscar_paginas(cli))
     assert [(d.ano_referencia, d.data) for d in divs] == [(2024, dt.date(2025, 9, 18)), (2025, dt.date(2026, 9, 17))]
     assert ppm.deve_coletar(divs, 2024, dt.date(2026, 9, 16)) is None  # 2025 ainda não saiu

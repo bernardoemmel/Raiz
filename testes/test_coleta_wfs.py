@@ -18,19 +18,29 @@ CAMADA = wfs.Camada(URL, "sicar:sicar_imoveis_pa")
 
 
 def _feicoes(n0, n, total):
-    feats = [{"type": "Feature", "geometry": {"type": "Point", "coordinates": [-47.3, -2.3]},
-              "properties": {"cod_imovel": f"PA-1-{i:04d}", "data_atualizacao": f"2026-07-{1 + i % 28:02d}"}}
-             for i in range(n0, n0 + n)]  # fmt: skip
-    return json.dumps({"type": "FeatureCollection", "features": feats, "numberMatched": total,
-                       "numberReturned": n})  # fmt: skip
+    feats = [
+        {
+            "type": "Feature",
+            "geometry": {"type": "Point", "coordinates": [-47.3, -2.3]},
+            "properties": {"cod_imovel": f"PA-1-{i:04d}", "data_atualizacao": f"2026-07-{1 + i % 28:02d}"},
+        }
+        for i in range(n0, n0 + n)
+    ]
+    return json.dumps({"type": "FeatureCollection", "features": feats, "numberMatched": total, "numberReturned": n})
 
 
 def geoserver(total=25, mentir_total=False):
     def responder(metodo, base, p, h):
         if p.get("request") == "DescribeFeatureType":
-            return 200, {}, ('<xsd:schema><xsd:element name="sicar_imoveis_pa" type="x"/>'
-                             '<xsd:element name="cod_imovel" type="xsd:string"/>'
-                             '<xsd:element name="data_atualizacao" type="xsd:dateTime"/></xsd:schema>')  # fmt: skip
+            return (
+                200,
+                {},
+                (
+                    '<xsd:schema><xsd:element name="sicar_imoveis_pa" type="x"/>'
+                    '<xsd:element name="cod_imovel" type="xsd:string"/>'
+                    '<xsd:element name="data_atualizacao" type="xsd:dateTime"/></xsd:schema>'
+                ),
+            )
         if p.get("resultType") == "hits":
             return 200, {}, f'<wfs:FeatureCollection numberMatched="{total}" numberReturned="0"/>'
         if p.get("count") == "1" and p.get("sortBy") == "data_atualizacao DESC":
@@ -103,8 +113,16 @@ def test_checagem_avisa_mudanca_e_falta(banco_url):
 
     s, _ = sessao_falsa(r)
     pings = []
-    hc = Healthchecks("k", "https://hc.exemplo", "raiz-{tarefa}", httpx.Client(transport=httpx.MockTransport(
-        lambda req: pings.append((req.url.path, req.content.decode())) or httpx.Response(200))))  # fmt: skip
+    hc = Healthchecks(
+        "k",
+        "https://hc.exemplo",
+        "raiz-{tarefa}",
+        httpx.Client(
+            transport=httpx.MockTransport(
+                lambda req: pings.append((req.url.path, req.content.decode())) or httpx.Response(200)
+            )
+        ),
+    )
     eng = create_engine(banco_url)
     with eng.begin() as c:
         c.execute(text("truncate coleta.checagem_http, coleta.evento"))
