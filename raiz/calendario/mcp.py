@@ -1,4 +1,4 @@
-"""Ferramenta pronta para registrar no futuro servidor MCP; somente leitura pública."""
+"""Consulta pública reutilizada pela CLI e pela ferramenta do MCP corporativo."""
 
 import datetime as dt
 from zoneinfo import ZoneInfo

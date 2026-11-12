@@ -23,6 +23,7 @@ from raiz.publica.privacidade import para_resposta
 
 ESCOPOS_ACAO = {
     "consultar_ficha": "consultar",
+    "proximos_eventos": "consultar",
     "consultar_disponibilidade": "consultar",
     "pedir_lote": "pedir",
     "comparar_lotes": "consultar",
