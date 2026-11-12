@@ -150,6 +150,25 @@ def test_falha_ou_leitura_incompleta_preserva_ultima_assinatura_aceita(ambiente)
     assert e.assinatura != antiga and not e.sujo and e.tentativas == 0
 
 
+@pytest.mark.parametrize("metodo", [sigef.verificar_municipio, sigef.atualizar_municipio])
+def test_diagnostico_nao_persiste_nome_contato_ou_segredo(ambiente, monkeypatch, metodo):
+    a = ambiente
+    sigef.atualizar_municipio(a.s, None, a.esp, "PA", COD)
+    e = a.estados[(sigef.FONTE, RECORTE)]
+    antiga = e.assinatura
+
+    def falhar(*args):
+        raise ValueError("nome=Pessoa Sintetica Teste; contato=canario@example.invalid; token=segredo-sintetico")
+
+    monkeypatch.setattr(sigef, "assinatura", falhar)
+    resultado = metodo(a.s, None, a.esp, "PA", COD)
+    diagnosticos = json.dumps([a.escritos, a.eventos, getattr(resultado, "erro", None)], default=str)
+    for sensivel in ("Pessoa Sintetica Teste", "canario@example.invalid", "segredo-sintetico"):
+        assert sensivel not in diagnosticos
+    assert e.sujo and e.assinatura == antiga and e.tentativas == 1
+    assert e.ultimo_erro and "ValueError" in e.ultimo_erro
+
+
 def test_trava_nao_confirma_assinatura_e_liberacao_aceita_snapshot_vazio(ambiente):
     a = ambiente
     a.mundo.n = 40

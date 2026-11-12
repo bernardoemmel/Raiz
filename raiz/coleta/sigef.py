@@ -21,6 +21,7 @@ from raiz.coleta import wfs
 from raiz.coleta.espelho import Diferenca, Espelho, registrar_alertas
 from raiz.coleta.manifesto import carregar
 from raiz.coleta.replicacao import atualizar, estado, evento
+from raiz.logs_seguros import sanitizar_log
 
 FONTE = "sigef_parcelas"
 
@@ -83,7 +84,9 @@ def coletar_municipio(
 
 def _falha(con: Connection, recorte: str, ex: Exception, agora: dt.datetime) -> str:
     e = estado(con, FONTE, recorte)
-    erro = f"{type(ex).__name__}: {ex}"
+    # Erros de rede, parser ou banco podem carregar dados da fonte e credenciais.
+    # Limpa antes de persistir o diagnóstico ou devolvê-lo ao chamador.
+    erro = sanitizar_log(f"{type(ex).__name__}: {ex}")
     atualizar(
         con,
         FONTE,
