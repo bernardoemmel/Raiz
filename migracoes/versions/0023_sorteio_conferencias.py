@@ -51,7 +51,8 @@ def upgrade() -> None:
         op.execute(f"""CREATE TRIGGER {t}_congelada BEFORE UPDATE OR DELETE ON aprendizado.{t}
                        FOR EACH ROW EXECUTE FUNCTION aprendizado.congelado()""")
     op.execute(
-        "COMMENT ON COLUMN aprendizado.sorteio.quem IS 'identificador do operador (fundador, conferente-02); nunca nome'"
+        "COMMENT ON COLUMN aprendizado.sorteio.quem IS "
+        "'identificador do operador (fundador, conferente-02); nunca nome'"
     )
 
 
