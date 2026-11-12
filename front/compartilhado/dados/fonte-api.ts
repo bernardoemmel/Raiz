@@ -7,6 +7,7 @@
  *   GET  {api}/imoveis/{cod_imovel}               → {cod_imovel, ...}               (404 = não existe)
  *   GET  {api}/imoveis/{cod_imovel}/ficha         → FichaJson (dados/ficha.ts: linha, contexto, perímetro)
  *   GET  {api}/imoveis/{cod_imovel}/certidoes     → [{registro_cns, registro_matricula, ha_sobre_car, parcelas}]
+ *   GET  {api}/busca?q=                           → RespostaBusca (dados/busca.ts: situacao, mensagem, imoveis, municipios)
  *   GET  {api}/geo/{cod_ibge}/{camada}.geojson    → municipio | imoveis | ti | uc | rios
  *   GET  {api}/geo/{cod_ibge}/base.pmtiles        → mapa base (precisa responder a Range)
  * Autorização: Bearer no cabeçalho, com o token vindo de VITE_RAIZ_API_TOKEN só em ambiente interno.
@@ -14,6 +15,7 @@
 
 import { comoLinha, n0, texto } from "./colunas"
 import { memo, type FonteDeDados } from "./fonte"
+import type { RespostaBusca } from "./busca"
 import { lerFicha, type FichaJson } from "./ficha"
 import { funilDosImoveis, lerFunil, lerImovel } from "./funil"
 import type { Geo } from "./tipos"
@@ -22,8 +24,8 @@ export function fonteApi(api: string, token?: string): FonteDeDados {
   const raiz = api.endsWith("/") ? api : api + "/"
   const cabecalhos: HeadersInit = token ? { Authorization: `Bearer ${token}` } : {}
 
-  async function json<T>(caminho: string): Promise<T | null> {
-    const r = await fetch(raiz + caminho, { headers: cabecalhos })
+  async function json<T>(caminho: string, sinal?: AbortSignal): Promise<T | null> {
+    const r = await fetch(raiz + caminho, { headers: cabecalhos, signal: sinal })
     if (r.status === 404) return null
     if (!r.ok) throw new Error(`${r.status} em ${caminho}`)
     return (await r.json()) as T
@@ -71,6 +73,11 @@ export function fonteApi(api: string, token?: string): FonteDeDados {
           parcelas: n0(l, "parcelas") || null,
         }
       })
+    },
+    async buscar(q, sinal) {
+      const r = await json<RespostaBusca>(`busca?q=${encodeURIComponent(q)}`, sinal)
+      if (!r) throw new Error("a API não respondeu à busca")
+      return r
     },
     async municipiosComImoveis() {
       return (await municipios("")).filter((m) => m.linha.tem_imoveis !== "False").map((m) => m.cod_ibge)

@@ -1,9 +1,9 @@
-import { useMemo } from "react"
+import { useMemo, useState } from "react"
 import { boisPorAno, camposDeFutebol, fraseIndice, frasePosicao, mediana } from "../../../compartilhado/comparacoes"
 import type { Imovel } from "../../../compartilhado/dados"
-import { COLUNAS_CONHECIDAS, NOMES_COLUNAS } from "../../../compartilhado/dados/contrato"
+import { colunaConhecida, NOMES_COLUNAS } from "../../../compartilhado/dados/contrato"
 import { escreverCsv } from "../../../compartilhado/dados/csv"
-import { abreviarCar, fmtCompacto, fmtHa, fmtInt, fmtModulos, fmtPct, STATUS_CAR, UFS } from "../../../compartilhado/formato"
+import { abreviarCar, fmt1, fmtCompacto, fmtHa, fmtInt, fmtModulos, fmtPct, STATUS_CAR, UFS } from "../../../compartilhado/formato"
 import { motivos } from "../../../compartilhado/motivos"
 import { situacaoTitulo } from "../../../compartilhado/titulo"
 import { fonte, useCarga } from "../dados"
@@ -11,7 +11,8 @@ import { MapaImovel } from "../mapa/MapaImovel"
 import { Cabecalho } from "../partes/Cabecalho"
 import { CaixaDeFatos } from "../partes/CaixaDeFatos"
 import { IconeBaixar } from "../partes/Icones"
-import { linkMunicipio } from "../rota"
+import { Satelite } from "../partes/Satelite"
+import { consumirVoo, linkMunicipio } from "../rota"
 
 const URL_PRODUTOR: string =
   import.meta.env.VITE_RAIZ_URL_PRODUTOR ?? (import.meta.env.DEV ? "http://localhost:5174/" : "/produtor/")
@@ -54,7 +55,9 @@ function numerosGrandes(i: Imovel, todos: Imovel[] | null, municipio: string, tc
       valor: i.carbono_tco2_ano >= 10_000 ? fmtCompacto(i.carbono_tco2_ano) : fmtInt(i.carbono_tco2_ano),
       unidade: "tCO₂ por ano",
       concreta: boisPorAno(i.carbono_tco2_ano),
-      local: tco2Municipio ? `${fmtPct(i.carbono_tco2_ano / tco2Municipio)} do carbono de todas as aptas de ${onde}` : null,
+      local: tco2Municipio
+        ? `${i.carbono_tco2_ano / tco2Municipio < 0.01 ? fmt1((100 * i.carbono_tco2_ano) / tco2Municipio) + "%" : fmtPct(i.carbono_tco2_ano / tco2Municipio)} do carbono de todas as aptas de ${onde}`
+        : null,
     })
   lista.push({
     id: "floresta",
@@ -93,19 +96,21 @@ function baixarLinha(i: Imovel) {
 
 export function Fazenda({ car }: { car: string }) {
   const ficha = useCarga(() => fonte.ficha(car), [car])
+  const [voar] = useState(() => consumirVoo(car))
   const i = ficha.dado?.imovel
   const cod = i?.cod_ibge ?? ""
   const contexto = useCarga(async () => {
     if (!cod) return null
-    const [funil, imoveis, vizinhos, ti, rios, base] = await Promise.all([
+    const [funil, imoveis, municipio, vizinhos, ti, rios, base] = await Promise.all([
       fonte.municipio(cod),
       fonte.imoveis(cod),
+      fonte.geo.camada(cod, "municipio"),
       fonte.geo.camada(cod, "imoveis"),
       fonte.geo.camada(cod, "ti"),
       fonte.geo.camada(cod, "rios"),
       fonte.geo.base(cod),
     ])
-    return { funil, imoveis, vizinhos, ti, rios, base }
+    return { funil, imoveis, municipio, vizinhos, ti, rios, base }
   }, [cod])
   const certidoes = useCarga(() => fonte.certidoes(car), [car])
   const c = contexto.dado
@@ -140,13 +145,13 @@ export function Fazenda({ car }: { car: string }) {
   const titulo = situacaoTitulo(i)
   const lista = motivos(i)
   const bloqueios = lista.filter((m) => m.bloqueia && !m.ok)
-  const novas = Object.keys(i.linha).filter((k) => !COLUNAS_CONHECIDAS.has(k))
+  const novas = Object.keys(i.linha).filter((k) => !colunaConhecida(k))
   const status = i.status_imovel ? STATUS_CAR[i.status_imovel] ?? i.status_imovel : null
   const certs = certidoes.dado ?? []
 
   return (
     <>
-      <Cabecalho atual="fazenda" imoveis={c?.imoveis} linkMapa={linkMunicipio(cod)} />
+      <Cabecalho atual="fazenda" linkMapa={linkMunicipio(cod)} />
       <main className="pagina ficha">
         <div className="cabeca">
           <div>
@@ -202,14 +207,22 @@ export function Fazenda({ car }: { car: string }) {
         </div>
 
         <div className="ficha-topo">
-          <MapaImovel
-            aneis={ficha.dado.aneis}
-            cod={i.cod_imovel}
-            base={c?.base ?? null}
-            vizinhos={c?.vizinhos ?? null}
-            ti={c?.ti ?? null}
-            rios={c?.rios ?? null}
-          />
+          {contexto.carregando ? (
+            <div className="mapa-caixa mapa-imovel">
+              <div className="mapa-carregando">Carregando o mapa de {i.municipio}…</div>
+            </div>
+          ) : (
+            <MapaImovel
+              aneis={ficha.dado.aneis}
+              cod={i.cod_imovel}
+              municipio={c?.municipio ?? null}
+              voar={voar}
+              base={c?.base ?? null}
+              vizinhos={c?.vizinhos ?? null}
+              ti={c?.ti ?? null}
+              rios={c?.rios ?? null}
+            />
+          )}
           <section className="painel grandes" aria-label="Números grandes">
             {numeros.map((n) => (
               <div key={n.id} className="grande">
@@ -225,6 +238,8 @@ export function Fazenda({ car }: { car: string }) {
         </div>
 
         <CaixaDeFatos imovel={i} />
+
+        <Satelite imovel={i} />
 
         <div className="ficha-duas">
           <section className="painel bloco" aria-labelledby="motivos-titulo">
@@ -316,7 +331,7 @@ export function Fazenda({ car }: { car: string }) {
                   <th scope="row">
                     {NOMES_COLUNAS[k] ?? k}
                     {NOMES_COLUNAS[k] && <code>{k}</code>}
-                    {!COLUNAS_CONHECIDAS.has(k) && <span className="selo neutro">coluna nova</span>}
+                    {!colunaConhecida(k) && <span className="selo neutro">coluna nova</span>}
                   </th>
                   <td className="num">{v === "" ? "—" : v}</td>
                 </tr>

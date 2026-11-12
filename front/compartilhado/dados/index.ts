@@ -6,6 +6,7 @@ import { fonteApi } from "./fonte-api"
 
 export type { FonteDeDados, Certidao } from "./fonte"
 export type { Ficha, ContextoMunicipio } from "./ficha"
+export type { RespostaBusca, ImovelAchado, MunicipioAchado, SituacaoBusca } from "./busca"
 export type { Categoria, FunilMunicipio, Geo, Imovel, CamadaGeo } from "./tipos"
 export { CATEGORIAS } from "./funil"
 

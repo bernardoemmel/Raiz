@@ -86,6 +86,21 @@ export interface Imovel {
   compra_arrendamento: boolean | null
   cacau_aptidao: number | null
 
+  // fogo e floresta vistos do satélite (extras_, extras_direto_, mapbiomas_), quando houver
+  /** maior número de anos com fogo num ponto do imóvel, 1985 a 2024 (MapBiomas Fogo, extras_) */
+  fogo_anos_max: number | null
+  /** o ano mais recente do MapBiomas pela API (colunas mb_*_<ano>_*) e o que ele diz */
+  mb_ano: number | null
+  mb_fogo_ha: number | null
+  mb_fogo_mes: number | null
+  mb_classe: number | null
+  /** JRC TMF: 1 intacta, 2 degradada, 3 desmatada, 4 regeneração, 5 água, 6 outro */
+  tmf_classe: number | null
+  tmf_floresta_pct: number | null
+  tmf_regeneracao_pct: number | null
+  /** WRI/Google DeepMind, grade de 1 km: 1 a 7, 255 = sem perda */
+  causa_perda: number | null
+
   // filtros territoriais (filtros_<mun>.csv), quando houver
   filtro_territorial: string | null
   quilombo_ha: number | null

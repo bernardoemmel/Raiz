@@ -65,9 +65,39 @@ export function caixaDe(aneis: [number, number][][]): [number, number, number, n
   return Number.isFinite(x0) ? [x0, y0, x1, y1] : null
 }
 
-export function montarFicha(alvo: Imovel, todos: Imovel[], feicao?: Feicao): FichaJson {
+/** O que a ficha compara com o município, calculado uma vez por município (São Félix tem 9.703 imóveis). */
+export interface BaseMunicipio {
+  n: number
+  /** área apta de cada imóvel (0 se não apta), em ordem crescente */
+  carbonos: number[]
+  mediana_carbono_ha_aptas: number
+  mediana_ha: number
+}
+
+export function baseDoMunicipio(todos: Imovel[]): BaseMunicipio {
+  return {
+    n: todos.length,
+    carbonos: todos.map((i) => (i.apta ? i.carbono_ha : 0)).sort((a, b) => a - b),
+    mediana_carbono_ha_aptas: mediana(todos.filter((i) => i.apta).map((i) => i.carbono_ha)),
+    mediana_ha: mediana(todos.map((i) => i.ha)),
+  }
+}
+
+/** quantos valores da lista ordenada são menores que v (busca binária) */
+function menores(ordenados: number[], v: number): number {
+  let a = 0
+  let b = ordenados.length
+  while (a < b) {
+    const m = (a + b) >> 1
+    if (ordenados[m] < v) a = m + 1
+    else b = m
+  }
+  return a
+}
+
+export function montarFicha(alvo: Imovel, todos: Imovel[], feicao?: Feicao, base?: BaseMunicipio): FichaJson {
   const aneis = aneisExternos(feicao)
-  const carbonos = todos.map((i) => (i.apta ? i.carbono_ha : 0))
+  const b = base ?? baseDoMunicipio(todos)
   const meu = alvo.apta ? alvo.carbono_ha : 0
   return {
     versao: 1,
@@ -76,10 +106,10 @@ export function montarFicha(alvo: Imovel, todos: Imovel[], feicao?: Feicao): Fic
       cod_ibge: alvo.cod_ibge,
       municipio: alvo.municipio,
       uf: alvo.uf,
-      n_imoveis: todos.length,
-      posicao_carbono: todos.length ? carbonos.filter((c) => c < meu).length / todos.length : 0,
-      mediana_carbono_ha_aptas: mediana(todos.filter((i) => i.apta).map((i) => i.carbono_ha)),
-      mediana_ha: mediana(todos.map((i) => i.ha)),
+      n_imoveis: b.n,
+      posicao_carbono: b.n ? menores(b.carbonos, meu) / b.n : 0,
+      mediana_carbono_ha_aptas: b.mediana_carbono_ha_aptas,
+      mediana_ha: b.mediana_ha,
     },
     perimetro: aneis.length ? aneis.map((a) => codificar(a)) : null,
     caixa: caixaDe(aneis),

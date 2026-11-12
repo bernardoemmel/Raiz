@@ -3,6 +3,7 @@ import path from "node:path"
 import { describe, expect, it } from "vitest"
 import { caixaDeFatos } from "../cenario"
 import { camposDeFutebol, fraseIndice, frasePosicao } from "../comparacoes"
+import { complementosDe, juntarComplementos } from "../dados/complementos"
 import { escreverCsv, lerCsv } from "../dados/csv"
 import { lerFicha, montarFicha } from "../dados/ficha"
 import { funilDosImoveis, lerFunil, lerImovel } from "../dados/funil"
@@ -13,25 +14,51 @@ import { colunaPessoal, mascarar } from "../privacidade"
 const AMOSTRA = path.resolve(__dirname, "../../../dados/amostra")
 const ler = (arq: string) => lerCsv(fs.readFileSync(path.join(AMOSTRA, arq), "utf8")).linhas
 
+const carregar = (cod: string) => {
+  const nomes = complementosDe(fs.readdirSync(AMOSTRA), cod)
+  const { porImovel, avisos } = juntarComplementos(nomes.map((arquivo) => ({ arquivo, linhas: ler(arquivo) })))
+  return { nomes, avisos, imoveis: ler(`imoveis_${cod}.csv`).map((l) => lerImovel(l, porImovel.get(l.cod_imovel))) }
+}
+
 describe("funil igual ao do motor", () => {
-  const filtros = new Map(ler("filtros_1504950.csv").map((l) => [l.cod_imovel, l]))
-  const imoveis = ler("imoveis_1504950.csv").map((l) => lerImovel(l, [filtros.get(l.cod_imovel) ?? {}]))
+  const { imoveis } = carregar("1504950")
   const resumo = ler("resumo_PA.csv").find((l) => l.cod_ibge === "1504950")!
 
-  it("a soma dos imóveis de Nova Esperança do Piriá bate com o resumo_PA.csv", () => {
-    const meu = funilDosImoveis(imoveis, "1504950", "Nova Esperança do Piriá", "PA")
-    const motor = lerFunil(resumo, "PA")
-    for (const k of [
-      "imoveis",
-      "sem_problema",
-      "aptas_carbono",
-      "ha_carbono",
-      "tco2_ano_aptas",
-      "aptas_com_matricula",
-      "ha_carbono_matricula",
-      "para_agrupar",
-    ] as const)
-      expect(meu[k], k).toBe(motor[k])
+  for (const [cod, nome] of [
+    ["1504950", "Nova Esperança do Piriá"],
+    ["1507300", "São Félix do Xingu"],
+  ])
+    it(`a soma dos imóveis de ${nome} bate com o resumo_PA.csv`, () => {
+      const lista = cod === "1504950" ? imoveis : carregar(cod).imoveis
+      const meu = funilDosImoveis(lista, cod, nome, "PA")
+      const motor = lerFunil(ler("resumo_PA.csv").find((l) => l.cod_ibge === cod)!, "PA")
+      for (const k of [
+        "imoveis",
+        "sem_problema",
+        "aptas_carbono",
+        "ha_carbono",
+        "tco2_ano_aptas",
+        "aptas_com_matricula",
+        "ha_carbono_matricula",
+        "para_agrupar",
+      ] as const)
+        expect(meu[k], k).toBe(motor[k])
+    })
+
+  it("junta todo arquivo de uma linha por imóvel, inclusive extras_direto_, e deixa certidoes_ de fora", () => {
+    const { nomes, avisos } = carregar("1504950")
+    expect(nomes).toEqual(["direto_1504950.csv", "extras_1504950.csv", "extras_direto_1504950.csv", "filtros_1504950.csv", "mapbiomas_1504950.csv"])
+    expect(avisos).toEqual([])
+    expect(resumo).toBeDefined()
+  })
+
+  it("lê fogo, TMF, causa da perda e o ano mais recente do MapBiomas", () => {
+    const com = imoveis.filter((i) => i.tmf_classe !== null && i.causa_perda !== null && i.fogo_anos_max !== null)
+    expect(com.length).toBeGreaterThan(800)
+    expect(imoveis.every((i) => i.mb_ano === null || i.mb_ano === 2025)).toBe(true)
+    expect(imoveis.some((i) => (i.mb_fogo_ha ?? 0) > 0)).toBe(true)
+    const novo = lerImovel({ ...imoveis[0].linha, mb_fogo_2026_ha: "12.5", mb_fogo_mes_principal_2026: "9.0" })
+    expect([novo.mb_ano, novo.mb_fogo_ha, novo.mb_fogo_mes]).toEqual([2026, 12.5, 9])
   })
 
   it("lê pelo nome e tolera coluna nova, coluna faltando e ordem trocada", () => {
@@ -45,7 +72,7 @@ describe("funil igual ao do motor", () => {
     expect(i.linha.coluna_que_o_motor_criou_amanha).toBe("42")
   })
 
-  it("junta as colunas de filtros_<mun>.csv", () => {
+  it("junta as colunas de filtros_<mun>.csv (uma fazenda com bloqueio territorial)", () => {
     expect(imoveis.filter((i) => i.filtro_territorial === "bloqueio")).toHaveLength(1)
   })
 })
@@ -157,5 +184,81 @@ describe("título e motivos", async () => {
       if (i.apta) expect(bloqueios, i.cod_imovel).toHaveLength(0)
       else expect(bloqueios.length, i.cod_imovel).toBeGreaterThan(0)
     }
+  })
+})
+
+describe("busca por código do CAR ou município (GET /busca?q=)", async () => {
+  const { buscar, normalizarCar } = await import("../dados/busca")
+  const imoveis = [...carregar("1504950").imoveis, ...carregar("1507300").imoveis]
+  const municipios = ler("resumo_PA.csv").map((l) => lerFunil(l, "PA"))
+  const base = { municipios, imoveis, comImoveis: new Set(["1504950", "1507300"]) }
+  const SFX = "PA-1507300-F293CD17B5FE4D4682CB436FF5B136D0"
+
+  it("acha o imóvel pelo código inteiro, em municípios diferentes", () => {
+    for (const [cod, mun] of [
+      ["PA-1504950-508C67099D164E0581650983A8CC2059", "Nova Esperança do Piriá"],
+      [SFX, "São Félix do Xingu"],
+      // código com o município de outro lugar, mas o imóvel está nestes municípios
+      ["PA-1503077-1105FEC8081A45F48E16739A0035CC5E", "Nova Esperança do Piriá"],
+      ["PA-1502764-9686458E866C455FBDF5E41D96D7A614", "São Félix do Xingu"],
+      ["PA-1504208-B000CE16276348319BBA474ACFB35A67", "São Félix do Xingu"],
+    ]) {
+      const r = buscar(cod, base)
+      expect(r.situacao, cod).toBe("ok")
+      expect(r.imoveis.map((i) => i.cod_imovel)).toEqual([cod])
+      expect(r.imoveis[0].municipio).toBe(mun)
+    }
+  })
+
+  it("aceita o código como o recibo do CAR mostra (com pontos), em minúsculas e sem hífen", () => {
+    expect(normalizarCar("pa-1507300-f293.cd17.b5fe.4d46.82cb.436f.f5b1.36d0")).toBe(SFX)
+    expect(buscar("PA-1507300-F293.CD17.B5FE.4D46.82CB.436F.F5B1.36D0", base).imoveis[0]?.cod_imovel).toBe(SFX)
+    expect(buscar("pa1507300f293cd17b5fe4d4682cb436ff5b136d0", base).imoveis[0]?.cod_imovel).toBe(SFX)
+  })
+
+  it("acha pelo começo do código, as maiores áreas aptas primeiro", () => {
+    const r = buscar("PA-1507300-F29", base)
+    expect(r.situacao).toBe("ok")
+    expect(r.imoveis.map((i) => i.cod_imovel)).toContain(SFX)
+    expect(buscar("PA-1507300", base).imoveis.length).toBe(8)
+  })
+
+  it("diz quando o município tem funil mas os imóveis ainda não foram processados (Altamira)", () => {
+    const r = buscar("PA-1500602-70896562BFAF45BCA609AD3EBBE266F1", base)
+    expect(r.situacao).toBe("municipio_sem_imoveis")
+    expect(r.mensagem).toContain("Altamira")
+    expect(r.municipios.map((m) => [m.cod_ibge, m.tem_imoveis])).toEqual([["1500602", false]])
+  })
+
+  it("diz quando o estado ainda não foi processado (Sinop, MT)", () => {
+    const r = buscar("MT-5107909-530857C676404FCEB548A881C0ED8B8A", base)
+    expect(r.situacao).toBe("estado_nao_processado")
+    expect(r.mensagem).toContain("Mato Grosso")
+    expect(r.mensagem).toContain("Pará")
+  })
+
+  it("diz quando o código não existe e quando o formato está errado", () => {
+    const errado = SFX.slice(0, -1) + "1"
+    const r = buscar(errado, base)
+    expect(r.situacao).toBe("nao_encontrado")
+    expect(r.mensagem).toContain("São Félix do Xingu")
+    expect(buscar("PA-9999999-ABC", base).situacao).toBe("nao_encontrado")
+    expect(buscar("XX-1507300", base).situacao).toBe("formato_invalido")
+    expect(buscar("PA-1507300-ZZZ", base).situacao).toBe("formato_invalido")
+    expect(buscar("PA-15", base).situacao).toBe("curta")
+  })
+
+  it("acha município pelo nome, sem acento, e diz quais têm lista por fazenda", () => {
+    const sf = buscar("sao felix", base)
+    expect(sf.municipios[0]).toMatchObject({ cod_ibge: "1507300", tem_imoveis: true })
+    expect(buscar("xingu", base).municipios.map((m) => m.municipio)).toEqual(
+      expect.arrayContaining(["São Félix do Xingu", "Vitória do Xingu"]),
+    )
+    expect(buscar("Altamira", base).municipios[0]).toMatchObject({ cod_ibge: "1500602", tem_imoveis: false })
+    expect(buscar("1504950", base).municipios[0].municipio).toBe("Nova Esperança do Piriá")
+    expect(buscar("al", base).situacao).toBe("curta")
+    const nada = buscar("Curitiba", base)
+    expect(nada.situacao).toBe("nao_encontrado")
+    expect(nada.mensagem).toContain("Pará")
   })
 })

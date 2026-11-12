@@ -1,4 +1,3 @@
-import type { Imovel } from "../../../compartilhado/dados"
 import { Busca } from "./Busca"
 import { IconePessoa, IconeRaiz } from "./Icones"
 
@@ -10,7 +9,7 @@ const MENU = [
   { id: "cadeia", rotulo: "Minha cadeia" },
 ]
 
-export function Cabecalho({ atual, imoveis, linkMapa = "#/" }: { atual: string; imoveis?: Imovel[] | null; linkMapa?: string }) {
+export function Cabecalho({ atual, linkMapa = "#/" }: { atual: string; linkMapa?: string }) {
   return (
     <header className="topo">
       <a className="marca" href={linkMapa}>
@@ -37,7 +36,7 @@ export function Cabecalho({ atual, imoveis, linkMapa = "#/" }: { atual: string; 
         </ul>
       </nav>
       <div className="topo-dir">
-        <Busca imoveis={imoveis} />
+        <Busca />
         <span className="avatar" title="Sua conta">
           <IconePessoa />
         </span>
