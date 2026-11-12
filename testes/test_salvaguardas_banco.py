@@ -324,3 +324,38 @@ def test_confirmacao_revalida_grupo_congelado_e_preserva_link_apos_recusa(eng, g
             ).scalar()
             == 1
         )
+
+
+def test_programa_novo_exige_recertificar_cobertura_sem_apagar_certificado(eng, grupo_reserva):
+    _, _, cod = grupo_reserva
+    SG.exigir_para_reserva(eng, [cod])
+    SG.registrar_programa(
+        eng,
+        SG.Programa(
+            id="to-programa-novo-2026",
+            uf="TO",
+            inicio="2026-01-01",
+            fim="2026-12-31",
+            fonte="https://exemplo.gov.br/redd-to",
+            evidencia=EV,
+            geometria={
+                "type": "Polygon",
+                "coordinates": [[[-47, -12], [-46, -12], [-46, -11], [-47, -11], [-47, -12]]],
+            },
+        ),
+    )
+    dados = SG.do_banco(eng, [cod])[cod]
+    assert dados["redd_programas"] == []  # a revisão do catálogo não é somente teste de interseção
+    assert not dados["redd_cobertura_verificada"]
+    with eng.connect() as con:
+        ev, pendente = con.execute(
+            text("select evidencia, revalidacao_pendente from geo.redd_cobertura where uf = 'TO'")
+        ).one()
+    assert ev["sha256"] == "d" * 64 and pendente
+    with pytest.raises(SG.ErroSalvaguarda, match="salvaguardas"):
+        SG.exigir_para_reserva(eng, [cod])
+    hoje = dt.datetime.now(dt.UTC).date()
+    SG.registrar_cobertura(
+        eng, SG.Cobertura(uf="TO", evidencia=SG.Evidencia(sha256="e" * 64, data=hoje), valida_ate=hoje)
+    )
+    SG.exigir_para_reserva(eng, [cod])

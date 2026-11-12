@@ -196,6 +196,12 @@ def registrar_programa(engine: Engine, programa: Programa) -> None:
                 "g": json.dumps(programa.geometria),
             },
         )
+        # O catálogo da UF mudou: mantém o certificado e exige nova conferência
+        # mesmo quando o programa recém-cadastrado não intercepta esta fazenda.
+        con.execute(
+            text("update geo.redd_cobertura set revalidacao_pendente = true where uf = :uf"),
+            {"uf": programa.uf},
+        )
 
 
 def registrar_cobertura(engine: Engine, cobertura: Cobertura) -> None:
@@ -204,7 +210,7 @@ def registrar_cobertura(engine: Engine, cobertura: Cobertura) -> None:
             text("""insert into geo.redd_cobertura (uf, verificada_em, valida_ate, evidencia)
             values (:uf, :d, :v, cast(:e as jsonb)) on conflict (uf) do update set
             verificada_em = excluded.verificada_em, valida_ate = excluded.valida_ate,
-            evidencia = excluded.evidencia"""),
+            evidencia = excluded.evidencia, revalidacao_pendente = false"""),
             {
                 "uf": cobertura.uf,
                 "d": cobertura.evidencia.data,
@@ -272,7 +278,7 @@ def do_banco(engine: Engine, cods: list[str]) -> dict[str, dict]:
         linhas = (
             con.execute(
                 text("""select i.cod_imovel, i.uf,
-            coalesce(c.valida_ate >= current_date, false) as cobertura,
+            coalesce(c.valida_ate >= current_date and not c.revalidacao_pendente, false) as cobertura,
             i.geom is not null as tem_geometria,
             p.id, p.inicio, p.fim, p.fonte,
             case when p.id is not null then ST_Area(ST_Intersection(i.geom, p.geom)::geography) / 10000 end as area_ha

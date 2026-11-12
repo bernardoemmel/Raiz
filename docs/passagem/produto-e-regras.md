@@ -42,6 +42,8 @@ por programa/período, CLPI com consentimento prévio e repartição de 50% para
 remoção/70% para REDD+ de mercado. Fonte ausente fica não verificada e impede
 preparação/aprovação da reserva. Ainda não há declaração de cobertura oficial
 carregada; não converter falta de evidência em elegibilidade.
+Programa novo deixa a cobertura da UF pendente de recertificação, preservando
+o certificado anterior e bloqueando reservas até a nova conferência.
 
 Revisão humana exige vínculo da fazenda ao pedido, conta liberada e acesso da
 própria empresa. Resolver exige credencial humana separada, com trilha auditável.
@@ -61,6 +63,7 @@ nova e o resultado ainda precisam ser registrados aqui depois do CI/merge.
 Validação desta entrega: 650 testes passaram, 4 foram pulados e 1 é xfail;
 os 5 testes de guardas do recálculo passaram novamente após preservar as entradas
 geográficas. Ruff, formatação, actionlint, privacidade e licenças aprovados.
+Após a guarda de recertificação, os 12 testes PostGIS de salvaguardas passaram.
 O recálculo permanece exclusivo do Actions; nenhum cálculo do lote rodou aqui.
 
 ---

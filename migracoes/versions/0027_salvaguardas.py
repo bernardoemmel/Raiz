@@ -24,6 +24,7 @@ def upgrade() -> None:
     op.execute("CREATE INDEX redd_programa_geom ON geo.redd_programa USING gist (geom)")
     op.execute("""CREATE TABLE geo.redd_cobertura (
         uf text PRIMARY KEY, verificada_em date NOT NULL, valida_ate date NOT NULL, evidencia jsonb NOT NULL,
+        revalidacao_pendente boolean NOT NULL DEFAULT false,
         CHECK (valida_ate >= verificada_em)
     )""")
     op.execute("""CREATE TABLE negocio.salvaguarda (
