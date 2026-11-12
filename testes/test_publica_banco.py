@@ -6,6 +6,7 @@ Os testes do transporte MCP ficam em test_servidor_mcp.py.
 
 import copy
 import datetime as dt
+import hashlib
 import itertools
 import re
 import uuid
@@ -23,6 +24,7 @@ from raiz.pessoal import gerar_chave
 from raiz.publica import api
 from raiz.publica import chaves as K
 from raiz.publica import conta as CT
+from raiz.publica import trabalhos as T
 from testes.conftest import AMOSTRA
 
 pytestmark = pytest.mark.banco
@@ -92,8 +94,11 @@ def cl(eng):
         yield cliente
 
 
-def _h(empresa):
-    return {"X-Chave-API": empresa["chave"]}
+def _h(empresa, idempotencia=None):
+    h = {"X-Chave-API": empresa["chave"]}
+    if idempotencia is not None:
+        h["Idempotency-Key"] = idempotencia
+    return h
 
 
 def _pessoa(empresa):
@@ -206,7 +211,7 @@ def test_saldo_nao_pula_sinal_e_contrato(eng, cl, empresa, falta):
     else:
         CT.aceitar_contrato(eng, empresa["cliente_id"])
     for caminho, metodo, corpo in (("/v1/pedidos", "post", PEDIDO), ("/v1/fazendas/PA-TESTE/analise", "get", None)):
-        r = cl.request(metodo, caminho, json=corpo, headers=_h(empresa))
+        r = cl.request(metodo, caminho, json=corpo, headers=_h(empresa, "liberacao-pendente"))
         assert r.status_code == 403, r.text
         assert r.json()["type"].endswith("liberacao_pendente")
     assert CT.ver(eng, empresa["cliente_id"])["saldo_rs"] == 5000
@@ -278,22 +283,34 @@ def test_resposta_e_log_nao_expoem_dados_pessoais(eng, cl, empresa, monkeypatch)
     _sem_pessoal(r.json())
     assert "pessoa@example.test" not in r.text
     assert "Dono de teste" not in r.text
-    assert K.chamadas(eng, empresa["cliente_id"])[-1]["agente_modelo"] == "<EMAIL>"
+    assert K.chamadas(eng, empresa["cliente_id"])[-1]["agente_modelo"] == (
+        "sha256:" + hashlib.sha256(b"pessoa@example.test").hexdigest()
+    )
 
 
 def test_lote_pago_tres_opcoes_e_isolamento_entre_empresas(eng, cl, empresa, monkeypatch):
     _liberar(eng, empresa)
-    # Esse UUID tem uma sequência que o reconhecedor de telefone confundia com dado pessoal.
-    pid = uuid.UUID("9a432ea5-eb43-4784-b691-" + "1234567890" + "b7")
-    monkeypatch.setattr(S.uuid, "uuid4", lambda: pid)
-    r = cl.post("/v1/pedidos", json=PEDIDO, headers=_h(empresa))
-    assert r.status_code == 200, r.text
-    p = r.json()
-    assert p["id"] == str(pid)
-    assert {o["id"] for o in p["opcoes"]} == {"barata", "segura", "compacta"}
+    h = _h(empresa, "lote-pago-unico")
+    r = cl.post("/v1/pedidos", json=PEDIDO, headers=h)
+    assert r.status_code == 202, r.text
+    operacao = r.json()
+    assert operacao["estado"] == "submitted" and operacao["resultado"] is None
+    repetida = cl.post("/v1/pedidos", json=PEDIDO, headers=h)
+    assert repetida.status_code == 202 and repetida.json()["pedido_id"] == operacao["pedido_id"]
     assert CT.ver(eng, empresa["cliente_id"])["saldo_rs"] == 4600
+    pid = uuid.UUID("9a432ea5-eb43-4784-b691-" + "1234567890" + "b7")
+    with monkeypatch.context() as mp:
+        mp.setattr(S.uuid, "uuid4", lambda: pid)
+        concluida = T.executar_proximo(eng)
+    assert concluida["pedido_id"] == operacao["pedido_id"] and concluida["estado"] == "completed"
+    protocolo = cl.get(f"/v1/operacoes/{operacao['pedido_id']}", headers=_h(empresa))
+    assert protocolo.status_code == 200, protocolo.text
+    p = protocolo.json()["resultado"]
+    assert p["id"] == str(pid)
+    assert set(p) == {"id"}  # snapshot da fila não expõe fazendas cuja exclusividade pode mudar
     r = cl.get(f"/v1/pedidos/{p['id']}/opcoes", headers=_h(empresa))
     assert r.status_code == 200, r.text
+    assert {o["id"] for o in r.json()} == {"barata", "segura", "compacta"}
     _sem_pessoal(r.json())
     n = next(SEQUENCIA)
     cid, _ = S.criar_cliente(eng, "Outra empresa", f"isolada{n}@empresa.example")
@@ -326,9 +343,9 @@ def test_limite_tambem_conta_tentativas_recusadas(eng, empresa, monkeypatch, est
         )
     rota = "/v1/disponibilidade" if estado == "sem_saldo" else "/v1/pedidos"
     with TestClient(_app(eng)) as cliente:
-        assert cliente.post(rota, json=PEDIDO, headers=_h(empresa)).status_code == status
-        assert cliente.post(rota, json=PEDIDO, headers=_h(empresa)).status_code == status
-        assert cliente.post(rota, json=PEDIDO, headers=_h(empresa)).status_code == 429
+        assert cliente.post(rota, json=PEDIDO, headers=_h(empresa, "tentativa-recusada")).status_code == status
+        assert cliente.post(rota, json=PEDIDO, headers=_h(empresa, "tentativa-recusada")).status_code == status
+        assert cliente.post(rota, json=PEDIDO, headers=_h(empresa, "tentativa-recusada")).status_code == 429
 
 
 def test_alcance_do_log_nao_aceita_texto_arbitrario():

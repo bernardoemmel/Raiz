@@ -1,88 +1,90 @@
 # Passagem do chat "Produto e regras" (12/11/2026)
 
-## Retomada no Codex
+## Retomada no Codex: plataforma integrada
 
-Integração atual: main `a4c1066`, incluindo aprendizado, avaliação Qwen,
-cena do lote e Calendário. A API paga é a migração **0028**, depois de
-`0027_calendario`; a sequência continua única. Mantidos os controles pagos e
-a revalidação dos desenhos: só aparecem contornos desbloqueados pela empresa,
-e nunca os reservados por outra empresa. O E2E combina a conta paga com a
-nova cena do lote, mantendo a fase de interesse/reserva isolada no teste.
-O recálculo do Pará pertence ao chat Lote e números; não será executado aqui.
-Validação da integração: 89 testes de API, banco, autorização dos contornos e
-Calendário passaram em banco vazio; 167 testes do front passaram. Ruff,
-formatação, privacidade e licenças de 652 pacotes passaram. O E2E pago também
-passou em Chromium, com os limites ativos. Gitleaks em todo o histórico passou
-com duas exceções por fingerprint: URLs JDBC sem credenciais em commits da
-plataforma. Nenhum arquivo ou tipo de segredo foi liberado genericamente.
+A API paga do PR #45 foi migrada e recebeu a main, com a migração de conta renumerada
+para 0028, após o calendário (0027). Conta e três testes são por empresa; saldo não pula sinal Pix/contrato.
+O caminho legado redireciona para a política paga; recusas contam no SlowAPI.
+A análise usa projeções explícitas e marca ausência de certidão/camada como não verificado.
 
-Integração mais recente: main `78e13f7` (qualidade e segurança). Mantém o login
-com URL pública configurada, aliases 307 para a política paga, sanitização
-Presidio e `uvicorn` sem access log e sem substituir o formatador seguro.
-O teste de ponta a ponta passa a abrir conta, verificar recusa sem liberação,
-aceitar contrato e confirmar sinal/recarga exclusivamente por Pix local de teste.
-Não há liberação direta no banco nem retorno ao desenho grátis. Os 58 testes
-específicos de API/login/logs e os 141 testes do front passaram após a integração.
-O teste Chromium de conta paga até reserva passou, respeitando `Retry-After`
-sem desligar limites; 636 pacotes Python/npm/Rust foram conferidos sem problema.
-O CI reforçado da main executa a suíte completa, E2E, Gitleaks e licenças.
+A integração com a main preserva calendário, aprendizado, interface, acessibilidade e domínio configurável. Mantém login por URL configurada, Presidio e
+Uvicorn com formatador seguro. CORS aceita OAuth/MCP e idempotência; a CSP da
+aprovação é preservada. O limite global também gera telemetria e erros RFC 9457;
+a ponte interna autenticada não duplica a contagem por IP. O limite por empresa
+continua ativo. O teste Chromium da API paga respeita Retry-After.
 
-Nova integração com a main `3199052`: preserva a ficha da terra paga e a busca
-nacional, a rodada do Pará e as passagens consolidadas dos PRs 48, 49 e 52.
-A migração da API é agora `0027`, depois de `0026_prospeccao_acesso`. A sequência
-é única e mantém os dois produtos. O teste de complementos adota a versão da
-main: exige os arquivos obrigatórios e tolera colunas/arquivos novos do motor.
-Validação desta integração: 67 testes de API paga, prospecção, privacidade e
-reserva passaram em banco vazio, com `0027` como única ponta das migrações;
-130 testes do front passaram. Ruff, formatação, privacidade e licenças aprovados.
+O fluxo de navegador respeita também os limites das leituras
+paralelas do grupo; erro de carregamento mostra mensagem e permite tentar de novo.
+A migração do Calendário permanece 0027, seguida da API 0028, salvaguardas 0029 e
+plataforma 0030, com uma única ponta no Alembic.
 
-O PR #45 incorporou também a main `3b21e78` (mapa nacional e busca estática).
-O único conflito era a formatação da lista de complementos no teste do front;
-a comparação exata, incluindo regularização, foi preservada. As funcionalidades
-da API paga permaneceram intactas. Ruff, privacidade, licenças e os 80 testes
-do front e a navegação em Chromium passaram após essa integração. A suíte local
-completa (637 aprovados, 2 pulados e 1 xfail) encontrou uma falha intermitente:
-o filtro de privacidade reconhecia números dentro de UUIDs como telefone.
-UUIDs completos agora são preservados; o teste de pedido pago usa um UUID
-fixo que reproduz a falha e verifica o acompanhamento e o isolamento entre empresas.
-Texto com contatos ao redor continua filtrado. O CI completo volta a validar o merge.
+Os seis jobs de CI passaram nos dois PRs: [#45](https://github.com/bernardoemmel/Raiz/pull/45),
+com [1.072 testes Python aprovados](https://github.com/bernardoemmel/Raiz/actions/runs/43296919086),
+e [#69](https://github.com/bernardoemmel/Raiz/pull/69), com
+[1.384 testes Python aprovados](https://github.com/bernardoemmel/Raiz/actions/runs/43296958877).
+Cada suíte teve também um teste ignorado e um xfail esperado. Na integração final
+passaram 170 testes focados de API/banco, 194 testes do front, TypeScript e Ruff.
+O fluxo real no Chromium passou
+com evidências geográficas sintéticas, aprovação humana, QR/vencimento e verificação
+criptográfica do recibo. A página recebida pelo agente também foi exercitada com
+rede simulada e passa a ser verificada no CI. Foram auditados 638 pacotes, sem
+licença proibida; Gitleaks não encontrou segredos.
 
-O PR #45 foi atualizado com a main. A migração da API passou de 0020 para 0027,
-porque 0020 já pertencia aos alertas e 0026 ao acesso pago da ficha da terra. Cobrança, estorno idempotente e
-limites compartilhados por empresa recebem testes de integração em PostGIS.
-CLI e análise da fazenda foram migrados. O adaptador MCP grátis foi retirado;
-nenhuma chave em URL ou rota antiga permanece como atalho.
+A plataforma está implementada no mesmo FastAPI: SDK oficial `mcp==2.3.0`, protocolo
+2026-07-28, transporte HTTP e OAuth 2.1 via Keycloak 26.8.2. A chave de API vale só na REST.
+Seis ferramentas: consultar_disponibilidade, pedir_lote, comparar_lotes,
+acompanhar_contato, preparar_reserva e cancelar. Reservar começa desligado e só o
+administrador da própria empresa habilita; o worker revalida antes de executar.
 
-A API mantém três créditos de teste por empresa, sinal Pix e contrato para
-montagem/detalhes, anti-raspagem e ausência de dados pessoais. Os termos estão em
-`docs/termos-api.md`. A análise informa quando faltam certidão/camada; não inventa
-conferência. A licença administrativa usa `raiz api licenca --cliente ID --aprovar`.
+As cinco operações de cálculo/preparo entram em fila PostgreSQL e devolvem 202 com
+`pedido_id` e estado. O worker confirma resultado, efeitos, débito/estorno e outbox
+na mesma transação; uma queda antes do commit permite recuperação sem duplicação.
+`Idempotency-Key` protege a intenção e rejeita outro corpo. O cancelamento tem
+registro idempotente e nunca cancela Pix já emitido ou contrato. O MCP limita a
+espera da ponte a 3 s; uma operação que já entrou continua identificável pela mesma chave.
 
-Próxima entrega: SDK MCP 2.3.0/protocolo 2026-07-28 no mesmo app; Keycloak OAuth
-2.1; seis ferramentas; fila persistida e idempotência; Standard Webhooks;
-OpenTelemetry e resumo único; aprovação humana com Pix e recibo assinado;
-gabarito com pass^4. Reservar começa desabilitado por empresa.
+O agente nunca aprova ou paga. Preparação entrega link para uma pessoa da empresa;
+a página exige sessão/login e clique após ver valor e prazos. A aprovação gera Pix
+com QR e vencimento e recibo JWS Ed25519. O recibo não é comprovante de pagamento nem
+certificação AP2. A exclusividade começa somente com confirmação do provedor;
+pagamento fora das condições preserva o fato financeiro e exige revisão humana.
+O suporte a Idempotency-Key do provedor Pix v1 não está confirmado e não é presumido.
 
-Correções legais verificadas: piso 20% como política conservadora Raíz; art.47
-exige mínimo 50% para remoção e 70% para REDD+ de mercado, além de CLPI; art.43
-requer evidência de exclusão e impede dupla contagem; revisão humana é compromisso
-Raíz ao atender LGPD art.20. Não confundir falta de camada com ausência de risco.
+Standard Webhooks: corpo estável, assinatura v1, timestamp, proteção de repetição,
+outbox/retry e destinos HTTPS aprovados. Uma pessoa administra as inscrições;
+segredo aparece uma vez e destino/segredo ficam cifrados. Proxy de saída precisa
+bloquear redes privadas no ambiente de produção. Telemetria OpenTelemetry registra
+chamadas e recusas com atributos permitidos, sem corpo, credenciais ou texto livre.
+O resumo único `contrato.RESUMO` alimenta /llms.txt, MCP e topo do OpenAPI, até 8 KiB.
 
-O Pará tem 144 municípios no pacote publicado. O recálculo será apenas no Actions,
-com fonte e premissas congeladas, validação dos municípios e publicação no Release.
-Não cancelar outros workflows em execução. Não calcular o lote no contêiner.
+O gabarito tem 24 tarefas e exige 96 tentativas em sessões novas: meta pass^4 ≥ 80%,
+zero chamada proibida e zero violação crítica. Os testes validam o avaliador e as
+barreiras do servidor. **Não há medição de desempenho de agente real nesta entrega.**
+Texto de terceiros permanece dado; projeções positivas excluem nomes, documentos,
+contatos e motivos livres das respostas das ferramentas. O filtro de texto não é
+apresentado como detector confiável de nomes próprios.
 
-Validação local da entrega IA-A: 629 testes passaram, 4 pulados, 1 xfail;
-27 testes específicos passaram após os ajustes finais e 9 testes do caminho
-legado passaram. Ruff, formatação, varredura de documentos e licenças aprovados.
-Rotas legadas redirecionam à API paga; recusas também contam no limitador.
-PR: https://github.com/bernardoemmel/Raiz/pull/45. Merge condicionado ao CI verde.
-Registrar os resultados do lote/Release na próxima entrega.
+Salvaguardas: piso conservador Raíz 20%; art. 47 exige 50% para remoção e 70% para REDD+
+de mercado, além de CLPI; art. 43 exige evidência de exclusão e impede dupla contagem.
+A revisão humana é o compromisso Raíz ao atender LGPD art. 20. Falta de camada/evidência
+bloqueia reserva. A migração 0029 contém essas tabelas; 0030 contém fila, eventos,
+permissão, aprovação e recibos. Migração nova precisa de banco atualizado, não apenas código novo.
 
-O CI do PR #45 detectou que a lista esperada no teste do front não incluía
-`regularizacao_1504950.csv`, amostra incorporada pela main. A expectativa foi
-atualizada mantendo a comparação exata dos complementos; `npm ci` e `npm test`
-em `front/globo` passaram (70 testes aprovados, 13 pulados, 7 arquivos).
+Implantação detalhada: `docs/agentes-ia.md`, `docs/trabalhos-agentes.md`,
+`docs/eventos-agentes.md` e `docs/avaliacao-agentes.md`. Keycloak foi testado em
+contêiner local; não afirmar implantação pública. Configure TLS, vínculo empresa/role,
+Valkey para limites compartilhados, cofre, assinante, SMTP, provedor Pix e coletor OTLP.
+Não reutilizar segredos dos testes. Não enviar mensagens reais durante validação.
+
+O recálculo do Pará e a publicação no Release pertencem exclusivamente ao chat
+"Lote e números", por orientação do fundador. Consulte a [passagem desse chat](lote-e-numeros.md)
+para o estado atual. Nenhuma ação sobre execução ou Release foi feita nesta entrega.
+
+As salvaguardas da API complementam o catálogo da rodada: os bloqueios publicados
+chegam à oferta/PostGIS. Inclusão de programa REDD+ exige recertificar a cobertura
+vigente. Os testes de revisão usam o app real e os gates pagos, inclusive o caminho
+legado por redirecionamento. A cadeia de migrações é 0026 (prospecção) → 0027 (calendário)
+→ 0028 (API) → 0029 (salvaguardas) → 0030 (plataforma).
 
 ---
 

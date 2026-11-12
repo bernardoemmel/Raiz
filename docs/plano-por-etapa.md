@@ -222,13 +222,18 @@ Feito na main fora desta tabela: caminho da terra com risco por imóvel (`raiz/t
 
 | Ordem | Entrega | Situação |
 |---|---|---|
-| A | API paga sem plano grátis: 3 testes por empresa, sinal Pix e contrato, cobrança e estorno, limite SlowAPI por empresa, bloqueio de raspagem, CLI e análise sem dados pessoais | implementado e validado no PR #45; main `a4c1066` integrada com Calendário/cena do lote, API em 0028, controles pagos e varredura do histórico validados; aguardando novo CI para merge |
-| B | MCP oficial Python v2 / especificação 2026-07-28, seis ferramentas e resumo único até 8 KB | em implementação; adaptador antigo retirado |
-| C | OAuth 2.1 com Keycloak; consultar/pedir e reservar desabilitado por padrão, habilitado por administrador da empresa | em implementação |
-| D | Trabalhos persistidos, Idempotency-Key, Standard Webhooks, aprovação humana/Pix/recibo e OpenTelemetry | em implementação |
-| E | Gabarito de 20–30 tarefas; meta pass^4 >= 80% e nenhuma chamada proibida | pendente de avaliação |
-| F | Piso de reversão 20%, REDD+ jurisdicional, CLPI e participação territorial, revisão humana | em implementação |
-| G | Recálculo dos 144 municípios do Pará pelo Actions e publicação do lote no Release | preparação; não executado no contêiner |
+| A | API paga: 3 testes por empresa, sinal Pix e contrato, cobrança/estorno, limite SlowAPI, CLI e privacidade | **feito no código**, PR #45 com CI verde (1.072 testes Python); migração 0028 após o calendário |
+| B | MCP oficial Python 2.3.0/protocolo 2026-07-28 no mesmo app, seis ferramentas e resumo único até 8 KiB | **feito no código**, PR #69 com CI verde (1.384 testes Python); descoberta e chamadas testadas com o cliente oficial |
+| C | OAuth 2.1/Keycloak; consultar/pedir/reservar, reserva desligada até administrador da empresa habilitar | **feito no código**; JWT, emissor, audiência, PKCE e isolamento testados; produção depende da configuração da instalação |
+| D | Fila durável, Idempotency-Key, Standard Webhooks, aprovação humana/Pix/JWS, OpenTelemetry | **feito no código**; testes de concorrência, queda do processo, assinatura e prazo; conta/API/worker precisam da mesma base e cofre |
+| E | Gabarito de 24 tarefas, quatro sessões por tarefa, meta pass^4 ≥ 80% e zero chamada proibida | **feito**: gabarito e avaliador; desempenho de agente real ainda não medido |
+| F | Piso de reversão 20%, REDD+ jurisdicional, CLPI 50%/70% e revisão humana | **feito no código**, com evidência vigente e bloqueio quando falta dado; camada oficial precisa ser carregada pelo operador |
+| G | Recálculo dos 144 municípios do Pará pelo Actions e publicação no Release | responsabilidade exclusiva do chat "Lote e números", por orientação do fundador; este chat não altera execução nem Release |
+
+Operação e limites: `docs/agentes-ia.md`, `docs/trabalhos-agentes.md`, `docs/eventos-agentes.md` e
+`docs/avaliacao-agentes.md`. O Pix só é gerado após aprovação de uma pessoa autenticada. Recibo Ed25519
+comprova aprovação, não pagamento. Sem SMTP, chave de assinatura ou evidência territorial, a ação fica indisponível.
+
 
 ## E8. Aprendizado contínuo
 
@@ -398,7 +403,7 @@ Entrega 3 da continuação de 12/11/2026, sobre a ficha paga do PR #52.
 | Eventos com tipo, data/prazo, UF/município, fonte/link, coleta e confiança | **feito**: esquema `calendario`, migração 0027 após 0022–0025 do título/aprendizado e 0026 da prospecção; histórico, UID e sequência preservados nas retificações |
 | Coleta diária de leilões rurais, penhoras, BNDES, ProFloresta+, Fundo Amazônia, concessões, crédito e SBCE/Verra/ICVCM/SBTi/EUDR | **feito**: 17 fontes oficiais em `raiz/calendario/fontes.yaml`, HTTP/PDF/Firecrawl opcional, workflow diário com snapshot no Release `calendario`; cobertura inicial e falhas explícitas, sem inventar prazos |
 | Vínculo de leilão/penhora ao CAR | **feito**: CAR explícito, CNS+matrícula vigente ou interseção SIGEF; sem corte por tamanho; vínculo insuficiente fica pendente; CAR inferido fica interno, só CAR explícito no edital aparece na consulta pública; nenhum nome ou documento pessoal persistido |
-| API e integração | **feito**: `GET /eventos` com tipo/estado/período/CAR, `GET /eventos.ics` e função MCP `proximos_eventos` pronta; transporte MCP depende de servidor, ainda ausente no repositório |
+| API e integração | **feito**: `GET /eventos` com tipo/estado/período/CAR, `GET /eventos.ics` e função Python `proximos_eventos` pronta; o calendário ainda não está registrado no transporte MCP, e o servidor pago mantém suas seis ferramentas |
 | Site e pedidos | **feito**: aba Calendário, filtros, fonte/data de coleta, feed, selos no mapa/ficha/tabela e aviso deduplicado aos lotes; ficha individual mantém acesso por créditos, e-mail/WhatsApp permanecem simulados. Publicação do site após a coleta |
 | Agenda no servidor | **feito no código**: `scripts/instalar_cron_alertas.py --tarefa calendario --instalar`, diário com banco, trava e `.env`; instalação em produção depende de acesso ao servidor |
 

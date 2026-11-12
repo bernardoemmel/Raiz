@@ -7,14 +7,17 @@ Nada aqui devolve nome, CPF, CNPJ ou contato do dono."""
 from __future__ import annotations
 
 import hmac
+import os
+import uuid
 from collections.abc import Callable
 from typing import Literal
 from urllib.parse import urlsplit
 
-from fastapi import APIRouter, HTTPException, Query, Request
+from fastapi import APIRouter, Header, HTTPException, Query, Request
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
 
+from raiz import salvaguardas as SG
 from raiz.pedidos import pix
 from raiz.pedidos import servico as S
 
@@ -35,13 +38,24 @@ class Resposta(BaseModel):
     pedido_id: str | None = None
 
 
+class Revisar(BaseModel):
+    cod_imovel: str
+    motivo: Literal["exclusao_automatica", "nota_de_risco", "salvaguarda"]
+
+
+class ResolucaoHumana(BaseModel):
+    revisor_id: uuid.UUID
+    decisao: Literal["mantida", "corrigir_dados", "recalcular"]
+    evidencia: SG.Evidencia
+
+
 class Converter(BaseModel):
     ha_assinados: float
 
 
 def _erro(ex: S.ErroPedido) -> HTTPException:
     msg = str(ex)
-    return HTTPException(404 if "não encontrad" in msg else 422, {"mensagem": msg})
+    return HTTPException(getattr(ex, "status", 404 if "não encontrad" in msg else 422), {"mensagem": msg})
 
 
 def _base_link_login(base_url: str) -> str:
@@ -78,11 +92,17 @@ def roteador_cliente(engine_de: Callable, base_url: str = "") -> APIRouter:
 
     @r.post("/entrar")
     def entrar(corpo: PedidoEntrar, request: Request) -> dict:
-        destino = _base_link_login(base_url)
         try:
+            from raiz.publica.email_login import ErroEnvioLogin, origem_front
+
+            if S.ENVIO_LINK is None:
+                raise HTTPException(503, "envio de login por e-mail indisponível")
+            destino = _base_link_login(base_url) if base_url else origem_front()
             S.pedir_link(engine_de(request), corpo.email, destino)
         except S.ErroPedido as ex:
             raise _erro(ex) from ex
+        except (ValueError, ErroEnvioLogin):
+            raise HTTPException(503, "envio de login por e-mail indisponível") from None
         return {"enviado": True}
 
     @r.post("/entrar/confirmar")
@@ -116,6 +136,36 @@ def roteador_cliente(engine_de: Callable, base_url: str = "") -> APIRouter:
 def roteador_interno(engine_de: Callable) -> APIRouter:
     """Para a equipe e os agentes da Raíz (token da API): resposta do dono, passo das ondas, vigia e reservas."""
     r = APIRouter(tags=["pedidos (interno)"])
+
+    @r.post("/salvaguardas/programas")
+    def programa(corpo: SG.Programa, request: Request) -> dict:
+        SG.registrar_programa(engine_de(request), corpo)
+        return {"programa_id": corpo.id}
+
+    @r.post("/salvaguardas/cobertura")
+    def cobertura(corpo: SG.Cobertura, request: Request) -> dict:
+        SG.registrar_cobertura(engine_de(request), corpo)
+        return {"uf": corpo.uf, "valida_ate": corpo.valida_ate.isoformat()}
+
+    @r.post("/salvaguardas/imoveis/{cod_imovel}")
+    def verificacao(cod_imovel: str, corpo: SG.Verificacao, request: Request) -> dict:
+        SG.registrar_verificacao(engine_de(request), cod_imovel, corpo)
+        return {"cod_imovel": cod_imovel, "registrada": True}
+
+    @r.post("/salvaguardas/revisoes/{revisao_id}/resolver")
+    def resolver(
+        revisao_id: int, corpo: ResolucaoHumana, request: Request, x_revisao_humana: str = Header(default="")
+    ) -> dict:
+        # A credencial do serviço/agente não basta; esta credencial só pertence ao backoffice humano.
+        esperado = os.environ.get("RAIZ_REVISAO_HUMANA_TOKEN", "")
+        if not esperado or not hmac.compare_digest(x_revisao_humana.encode(), esperado.encode()):
+            raise HTTPException(403, "revisão exige autenticação do revisor humano")
+        try:
+            return SG.resolver_revisao(
+                engine_de(request), revisao_id, str(corpo.revisor_id), corpo.decisao, corpo.evidencia
+            )
+        except S.ErroPedido as ex:
+            raise _erro(ex) from ex
 
     @r.post("/interesse/{cod_imovel}")
     def interesse(cod_imovel: str, corpo: Resposta, request: Request) -> dict:

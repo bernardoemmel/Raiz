@@ -11,7 +11,7 @@ TIPO = "https://github.com/bernardoemmel/Raiz/blob/main/docs/agentes-ia.md#erro-
 TITULOS = {
     400: "Pedido malformado", 401: "Sem credencial válida", 402: "Pagamento necessário", 403: "Não liberado",
     404: "Não encontrado", 409: "Conflito", 410: "Não vale mais", 422: "Dados para corrigir",
-    429: "Limite de chamadas", 500: "Erro da Raíz",
+    429: "Limite de chamadas", 500: "Erro da Raíz", 503: "Serviço indisponível", 504: "Prazo excedido",
 }  # fmt: skip
 
 

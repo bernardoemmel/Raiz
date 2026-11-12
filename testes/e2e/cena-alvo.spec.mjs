@@ -1,4 +1,5 @@
 import { execFileSync } from "node:child_process"
+import { createPublicKey, verify } from "node:crypto"
 import { existsSync, readFileSync } from "node:fs"
 import { createRequire } from "node:module"
 import path from "node:path"
@@ -58,7 +59,7 @@ async function lerComLimite(page, caminhos, abrir) {
   for (const resposta of respostas) expect(resposta.status()).toBe(200)
 }
 
-test("login e conta paga → milhão no Pará → contato bloqueado na tela → reserva Pix no servidor de teste", async ({ page, request }) => {
+test("login único → conta paga → milhão no Pará → contato bloqueado → interesse e Pix isolados", async ({ page, request }) => {
   const erros = []
   const contatosPelaTela = []
   expect(existsSync(path.join(process.env.RAIZ_E2E_ESTADO, "pronto"))).toBe(true)
@@ -151,13 +152,39 @@ test("login e conta paga → milhão no Pará → contato bloqueado na tela → 
   await expect(page.getByRole("link", { name: "Ver o grupo e reservar" }).first()).toBeVisible({ timeout: 30_000 })
   await page.getByRole("link", { name: "Ver o grupo e reservar" }).first().click()
   await expect(page.getByRole("heading", { name: "Reservar este grupo" })).toBeVisible()
+  const aprovacao = page.waitForResponse((r) => r.url() === `${API}/v1/pedidos/${pedido.id}/reservar`
+    && r.request().method() === "POST")
   await page.getByRole("button", { name: "Reservar este grupo" }).click()
+  const respostaAprovacao = await aprovacao
+  expect(respostaAprovacao.ok()).toBeTruthy()
+  const reserva = await respostaAprovacao.json()
+  expect(reserva.estado).toBe("aguardando_pagamento")
+  expect(reserva.pago).toBe(false)
+  expect(reserva.aprovacao_url).toBeNull()
+  expect(reserva.pix.qr_svg).toContain("<svg")
+  expect(Date.parse(reserva.pix.expira_em)).toBeGreaterThan(Date.now())
+  expect(Date.parse(reserva.pix.expira_em)).toBeLessThanOrEqual(Date.parse(reserva.preco_valido_ate))
+  // A pessoa aprovou o Pix; assinatura não afirma pagamento nem concede exclusividade.
+  const jwks = await request.get(`${API}/v1/recibos/jwks.json`)
+  expect(jwks.ok()).toBeTruthy()
+  const [cabecalho, corpo, assinatura] = reserva.recibo_aprovacao.split(".")
+  const header = JSON.parse(Buffer.from(cabecalho, "base64url"))
+  const chave = (await jwks.json()).keys.find((k) => k.kid === header.kid)
+  expect(Boolean(chave)).toBe(true)
+  expect(verify(null, Buffer.from(`${cabecalho}.${corpo}`), createPublicKey({ key: chave, format: "jwk" }),
+    Buffer.from(assinatura, "base64url"))).toBe(true)
+  const mandato = JSON.parse(Buffer.from(corpo, "base64url"))
+  expect(mandato.pedido).toBe(pedido.id)
+  expect(mandato.tipo).toBe("aprovacao_humana_reserva")
+  expect(mandato.pagamento_confirmado).toBe(false)
+  expect(mandato.condicoes.agente_pode_pagar).toBe(false)
+  expect(mandato.exclusividade.inicio).toBe("apos_pagamento_confirmado")
   await expect(page.getByRole("img", { name: "Código QR do Pix" })).toBeVisible()
   const pix = await page.getByLabel("Pix copia e cola").inputValue()
   expect(pix).toMatch(/^RAIZ-TESTE-PIX-teste_[a-f0-9]+-NAO-E-CODIGO-DE-BANCO$/)
   await expect(page.getByText("Pix de teste: este código não paga nada.")).toBeVisible()
   await expect(page.getByRole("button", { name: "Simular o pagamento (exemplo)" })).toHaveCount(0)
-  await expect(page.getByText(/O código vale até/)).toHaveCount(0)
+  await expect(page.getByText(/O código vale até/)).toBeVisible()
   const externo = pix.match(/teste_[a-f0-9]+/)[0]
   const negado = await request.post(`${API}/pagamentos/teste/${externo}/pagar`)
   expect(negado.status()).toBe(401)

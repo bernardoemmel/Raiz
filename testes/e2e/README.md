@@ -10,6 +10,8 @@ somente os Pix locais de teste. Então o cenário continua com o pedido de
 de lote. O botão de contato permanece desabilitado na tela, sem disparar pedido.
 As etapas posteriores de busca de interesse, grupo pronto e Pix da reserva são
 exercitadas pela API do servidor de teste, com atualização da tela após pagamento.
+A assinatura Ed25519 do recibo é verificada com a chave pública da API; também são
+conferidos o QR, o vencimento e a ausência de exclusividade antes do pagamento.
 
 Somente as entradas externas são simuladas: o envio de e-mail entrega o link em
 arquivo temporário privado, as respostas dos donos entram pelo serviço de
@@ -19,7 +21,12 @@ não há liberação direta no banco nem desativação dos limites. O teste conf
 rejeição da confirmação de pagamento sem o token interno. Não há SMTP, WhatsApp
 nem pagamento real. O servidor recusa credenciais da AbacatePay.
 
-As etapas humanas rodam em sequência; se a releitura do grupo ou da lista atingir o
+A fixture completa a amostra com polígonos arbitrários e evidências sintéticas de cobertura e verificação
+territorial, registradas pelos serviços de salvaguardas. As validações reais continuam ativas; não se infere ausência
+de sobreposição pela falta de uma camada. Esses polígonos e documentos existem somente no banco descartável do E2E
+e não representam imóveis ou revisões reais. As chaves do cofre e do recibo são efêmeras, geradas ao iniciar o servidor.
+
+As etapas humanas rodam em sequência; se a leitura final da lista atingir o
 limite de 30 chamadas por minuto da empresa, o teste aguarda o `Retry-After`
 antes de repetir. Esse limite permanece ativo durante todo o cenário.
 

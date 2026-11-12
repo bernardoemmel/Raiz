@@ -287,8 +287,12 @@ oficiais performance e accessibility em celular de 360 px, com rede e CPU simula
 ## API paga (`raiz/publica/`)
 
 Limites por empresa implementados com SlowAPI (MIT) e limits (MIT). Nenhum código
-copiado. O SDK oficial MCP Python (MIT) permanece como dependência; o adaptador
-antigo foi retirado até a entrega do servidor com OAuth.
+copiado. Plataforma MCP no mesmo app: SDK oficial MCP Python 2.3.0 (MIT), PyJWT (MIT),
+cryptography (Apache-2.0/BSD-3-Clause), qrcode (BSD-3-Clause), OpenTelemetry Python
+(Apache-2.0) e cliente redis-py (MIT). Standard Webhooks implementado a partir da
+especificação pública (MIT), sem copiar código. OAuth via Keycloak26.8.2 (Apache-2.0)
+em contêiner separado. O armazenamento compartilhado dos limites usa Valkey (BSD-3-Clause),
+compatível com o protocolo Redis; o servidor Redis com licença restritiva não é distribuído.
 
 ## Sanitização de logs (`raiz/logs_seguros.py`)
 

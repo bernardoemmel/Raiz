@@ -12,8 +12,9 @@ from __future__ import annotations
 import contextlib
 import hmac
 import logging
+import os
 
-from fastapi import Depends, FastAPI, Header, HTTPException
+from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from pydantic import BaseModel
 from sqlalchemy import Engine, text
 
@@ -89,6 +90,11 @@ def criar_app(
 
     configurar_log()
     app.state.engine, app.state.grafo, app.state.deps = engine, grafo, deps
+    from raiz.pedidos import servico as pedidos_servico
+    from raiz.publica.email_login import enviador
+
+    if pedidos_servico.ENVIO_LINK is None:
+        pedidos_servico.ENVIO_LINK = enviador()
     app.state.armazem = armazem  # arquivos do motor (raiz/executor/armazem.py); padrão: o da configuração
 
     if whatsapp:
@@ -253,7 +259,11 @@ def criar_app(
     from raiz.pedidos import api as pedidos_api
 
     cfg = config()
-    base_login = getattr(cfg, "login_base_url", None) or getattr(cfg, "api_origens", "").split(",")[0].strip()
+    base_login = (
+        getattr(cfg, "login_base_url", None)
+        or os.environ.get("RAIZ_FRONT_URL")
+        or getattr(cfg, "api_origens", "").split(",")[0].strip()
+    )
     app.include_router(pedidos_api.roteador_cliente(_engine_do_app, base_url=base_login))
     app.include_router(pedidos_api.roteador_interno(_engine_do_app), dependencies=seguro)
     app.include_router(pedidos_api.roteador_webhook(_engine_do_app))
@@ -289,8 +299,43 @@ def criar_app(
             app.state.engine = engine_padrao()
         return app.state.engine
 
-    app.mount("/v1", publica_api.criar(_engine_principal))
-    # O MCP antigo foi retirado: a próxima entrega exige OAuth e a política paga.
+    from fastapi.responses import PlainTextResponse
+
+    from raiz.publica.contrato import RESUMO
+    from raiz.publica.telemetria import TelemetriaMiddleware, configurar_telemetria
+
+    configurar_telemetria()
+
+    @app.get("/llms.txt", response_class=PlainTextResponse, include_in_schema=False)
+    def llms():
+        return RESUMO
+
+    verificador = None
+    if os.environ.get("RAIZ_OAUTH_ISSUER") and os.environ.get("RAIZ_MCP_RESOURCE"):
+        from raiz.publica.oauth import VerificadorKeycloak, rotas_metadados
+        from raiz.publica.rotas_agentes import base_publica
+        from raiz.publica.servidor_mcp import ApiRaiz, app_http
+
+        def eng():
+            return _engine_principal(None)
+
+        verificador = VerificadorKeycloak(eng)
+        app.state.mcp, mcp_app = app_http(
+            ApiRaiz(app=app, url=base_publica().removesuffix("/v1"), engine_de=eng),
+            config().mcp_hosts,
+            verificador=verificador,
+        )
+        app.router.routes.extend(rotas_metadados(verificador))
+        app.mount("/mcp", mcp_app)
+    else:
+
+        @app.post("/mcp/", include_in_schema=False)
+        def mcp_fechado():
+            from raiz.publica.problemas import problema
+
+            return problema(503, "oauth_nao_configurado", "MCP aguarda configuração do Keycloak", "avise a Raíz")
+
+    app.mount("/v1", publica_api.criar(_engine_principal, verificador))
     # link público, cartão e vídeo pelo código curto: sem token (só município, hectares, selo e código antes do aceite)
     from raiz import publico
 
@@ -305,6 +350,7 @@ def criar_app(
         exclude_content_types=(*DEFAULT_EXCLUDED_CONTENT_TYPES, "application/vnd.pmtiles"),
     )
     origens = [o.strip() for o in getattr(config(), "api_origens", "").split(",") if o.strip()]
+    from raiz.publica.oauth import acesso_interno
     from raiz.seguranca_api import SegurancaAPI
 
     app.add_middleware(
@@ -312,5 +358,8 @@ def criar_app(
         limite=getattr(config(), "api_limite_minuto", 120),
         login_limite=getattr(config(), "api_login_limite_minuto", 10),
         origens=origens,
+        autenticada_interna=lambda scope: acesso_interno(Request(scope)) is not None,
     )
+    # O último middleware fica por fora e registra também recusas do limite global.
+    app.add_middleware(TelemetriaMiddleware)
     return app

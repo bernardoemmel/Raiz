@@ -21,6 +21,7 @@ import os
 import time
 from collections.abc import Callable
 from typing import Annotated, Any, Literal
+from urllib.parse import parse_qsl, urlsplit
 
 from fastapi import Body, Depends, FastAPI, Header, HTTPException, Path, Query, Request
 from fastapi.exceptions import RequestValidationError
@@ -29,9 +30,11 @@ from pydantic import BaseModel, Field
 
 from raiz.pedidos import servico as S
 from raiz.pedidos.campos import CamposPedido
+from raiz.publica import apresentacao as AP
 from raiz.publica import chaves as K
 from raiz.publica import conta as CT
-from raiz.publica.privacidade import limpar, sem_dado_pessoal
+from raiz.publica.contrato import RESUMO
+from raiz.publica.oauth import acesso_interno
 from raiz.publica.problemas import ERROS_COMUNS, problema
 
 VERSAO = "1.1.0"
@@ -142,41 +145,110 @@ class Mudanca(BaseModel):
 SOLICITAR_PADRAO = Solicitar()
 
 
-def criar(engine_de: Callable[[Request], Any]) -> FastAPI:
-    """A aplicação da API pública (montada em /v1 pela aplicação principal)."""
+def _criar_limitador(uri: str):
+    """Valkey pelo cliente Redis: conexão/leitura de 0,5 s, nenhuma repetição ou fallback local.
+
+    Suporta explicitamente redis://, rediss:// e redis+unix://. memory:// permanece
+    disponível para um único processo/testes. Outros backends exigem política de prazo própria.
+    """
     from slowapi import Limiter
+
+    esquema = urlsplit(uri).scheme
+    opcoes = {"wrap_exceptions": True}
+    if esquema in {"redis", "rediss", "redis+unix"}:
+        from redis.backoff import NoBackoff
+        from redis.retry import Retry
+
+        # redis.from_url dá precedência à query. Não permitir que ela desfaça o prazo ou habilite retries.
+        protegidas = {"socket_timeout", "socket_connect_timeout", "health_check_interval", "redis_connect_func"}
+        if any(k in protegidas or k.startswith("retry") for k, _ in parse_qsl(urlsplit(uri).query)):
+            raise ValueError("a URL do limitador não pode alterar prazos nem repetições")
+        opcoes.update(
+            socket_connect_timeout=0.5,
+            socket_timeout=0.5,
+            retry=Retry(NoBackoff(), 0),
+            retry_on_timeout=False,
+            retry_on_error=[],
+            health_check_interval=0,
+        )
+    elif esquema != "memory":
+        raise ValueError("limitador admite memory://, redis://, rediss:// ou redis+unix://")
+    limiter = Limiter(
+        key_func=_cliente,
+        storage_uri=uri,
+        storage_options=opcoes,
+        swallow_errors=False,
+        in_memory_fallback_enabled=False,
+    )
+    # SlowAPI também lê RATELIMIT_* do ambiente/.env; rejeitar configuração que libere chamadas em falha.
+    if not limiter.enabled or limiter._swallow_errors or limiter._in_memory_fallback_enabled:
+        raise ValueError("o limitador exige armazenamento ativo, sem ignorar erros ou fallback em memória")
+    return limiter
+
+
+def criar(engine_de: Callable[[Request], Any], verificador=None) -> FastAPI:
+    """A aplicação da API pública (montada em /v1 pela aplicação principal)."""
+    from limits.errors import StorageError
     from slowapi.errors import RateLimitExceeded
 
-    app = FastAPI(title="Raíz: API pública do pedido de lote", version=VERSAO, description=DESCRICAO,
+    app = FastAPI(title="Raíz: API pública do pedido de lote", version=VERSAO, description=RESUMO + "\n" + PRODUTOS,
                   openapi_tags=TAGS, docs_url="/docs", redoc_url="/redoc", openapi_url="/openapi.json",
                   servers=[{"url": "/v1", "description": "esta instalação"}])  # fmt: skip
     lim = CT.premissas()["limites"]
-    limiter = Limiter(key_func=_cliente, storage_uri=os.environ.get("RAIZ_API_LIMIT_STORAGE_URI", "memory://"))
+    limiter = _criar_limitador(os.environ.get("RAIZ_API_LIMIT_STORAGE_URI", "memory://"))
     LIMITE = f"{lim['por_minuto']}/minute;{lim['por_dia']}/day;{lim['por_mes']}/month"
     app.state.limiter = limiter
 
+    def instancia(request: Request) -> str:
+        # Template da rota: nunca o token de aprovação nem um valor livre no caminho.
+        return getattr(request.scope.get("route"), "path", "/v1")
+
+    @app.exception_handler(StorageError)
+    async def _armazenamento_limite(request: Request, ex: StorageError):
+        return problema(
+            503,
+            "limite_indisponivel",
+            "não foi possível verificar o limite da empresa",
+            "repita mais tarde com a mesma Idempotency-Key",
+            instancia(request),
+            headers={"Retry-After": "1"},
+        )
+
     @app.exception_handler(CT.ErroConta)
     async def _conta(request: Request, ex: CT.ErroConta):
-        return problema(ex.status, ex.slug, ex.detalhe, ex.corrigir, str(request.url.path), **ex.extra)
+        return problema(ex.status, ex.slug, ex.detalhe, ex.corrigir, instancia(request), **ex.extra)
+
+    from raiz.publica.aprovacao import ErroAprovacao
+    from raiz.publica.email_login import ErroEnvioLogin
+
+    @app.exception_handler(ErroEnvioLogin)
+    async def _email(request: Request, ex: ErroEnvioLogin):
+        return problema(
+            503, "email_indisponivel", "não foi possível enviar o link de entrada", "tente novamente mais tarde"
+        )
+
+    @app.exception_handler(ErroAprovacao)
+    async def _aprovacao(request: Request, ex: ErroAprovacao):
+        return problema(ex.status, "aprovacao", str(ex), "confira a sessão, o prazo e as condições da reserva")
 
     @app.exception_handler(S.ErroPedido)
     async def _pedido(request: Request, ex: S.ErroPedido):
         msg = str(ex)
         st = 404 if "não encontrad" in msg else 422
         return problema(st, "pedido", msg, "confira o id do pedido e o estado dele (GET /v1/pedidos/{id})",
-                        str(request.url.path))  # fmt: skip
+                        instancia(request))  # fmt: skip
 
     @app.exception_handler(HTTPException)
     async def _http(request: Request, ex: HTTPException):
         d = ex.detail if isinstance(ex.detail, dict) else {"mensagem": str(ex.detail)}
         return problema(ex.status_code, d.get("slug", f"http_{ex.status_code}"), d.get("mensagem", ""),
-                        d.get("corrigir", "confira o pedido"), str(request.url.path), headers=ex.headers)  # fmt: skip
+                        d.get("corrigir", "confira o pedido"), instancia(request), headers=ex.headers)  # fmt: skip
 
     @app.exception_handler(RequestValidationError)
     async def _validacao(request: Request, ex: RequestValidationError):
         campos = [".".join(str(x) for x in e.get("loc", []) if x != "body") + f": {e.get('msg')}" for e in ex.errors()]
         return problema(422, "dados_invalidos", "o corpo ou os parâmetros não passaram na validação",
-                        "corrija: " + "; ".join(campos[:10]), str(request.url.path), campos=campos[:20])  # fmt: skip
+                        "corrija: " + "; ".join(campos[:10]), instancia(request), campos=campos[:20])  # fmt: skip
 
     @app.exception_handler(RateLimitExceeded)
     async def _limite(request: Request, ex: RateLimitExceeded):
@@ -185,7 +257,7 @@ def criar(engine_de: Callable[[Request], Any]) -> FastAPI:
         except Exception:  # noqa: BLE001
             espera = 60
         return problema(429, "limite", f"passou do limite da empresa ({ex.detail})",
-                        f"espere {espera} s e repita; uso em volume é licença de dados", str(request.url.path),
+                        f"espere {espera} s e repita; uso em volume é licença de dados", instancia(request),
                         headers={"Retry-After": str(espera)})  # fmt: skip
 
     def acesso(request: Request,
@@ -194,7 +266,9 @@ def criar(engine_de: Callable[[Request], Any]) -> FastAPI:
                ) -> K.Acesso:  # fmt: skip
         eng = engine_de(request)
         bruto = (x_chave_api or (authorization or "").removeprefix("Bearer ").strip()).strip()
-        a = K.acesso_da_chave(eng, bruto) if bruto.startswith(K.PREFIXO) else None
+        a = acesso_interno(request)
+        if a is None:
+            a = K.acesso_da_chave(eng, bruto) if bruto.startswith(K.PREFIXO) else None
         if a is None and bruto and not bruto.startswith(K.PREFIXO):
             cid = S.cliente_da_sessao(eng, bruto)
             a = K.Acesso(int(cid), None, "sessao") if cid is not None else None
@@ -203,6 +277,7 @@ def criar(engine_de: Callable[[Request], Any]) -> FastAPI:
                                       "foi revogada", "corrigir": "mande a chave em X-Chave-API (ou Authorization: "
                                       "Bearer raiz_...); uma pessoa da empresa cria em POST /v1/chaves"})  # fmt: skip
         request.state.acesso = a
+        request.state.cliente_id = a.cliente_id
         # Antes das dependências de cobrança/liberação: recusas também contam.
         if not getattr(request.state, "_rate_limiting_complete", False):
             limiter._check_request_limit(request, request.scope.get("endpoint"), False)
@@ -225,6 +300,16 @@ def criar(engine_de: Callable[[Request], Any]) -> FastAPI:
         def dep(request: Request, a: Annotated[K.Acesso, Depends(acesso)]) -> int | None:
             eng = engine_de(request)
             request.state.ferramenta = ferramenta
+            from raiz.publica.rotas_agentes import exigir_escopo
+
+            if ferramenta in {
+                "consultar_disponibilidade",
+                "pedir_lote",
+                "comparar_lotes",
+                "acompanhar_contato",
+                "preparar_reserva",
+            }:
+                exigir_escopo(eng, a, ferramenta)
             if liberacao:
                 CT.exigir_liberacao(eng, a.cliente_id)
             lanc = CT.cobrar(eng, a.cliente_id, ferramenta, _base(request))
@@ -246,7 +331,7 @@ def criar(engine_de: Callable[[Request], Any]) -> FastAPI:
                 "falha_interna",
                 "não foi possível concluir a chamada",
                 "a chamada não será cobrada; tente novamente",
-                str(request.url.path),
+                instancia(request),
             )
         a = getattr(request.state, "acesso", None)
         if a is None:
@@ -281,7 +366,9 @@ def criar(engine_de: Callable[[Request], Any]) -> FastAPI:
         return resp
 
     def ok(x: Any) -> JSONResponse:
-        return JSONResponse(limpar(sem_dado_pessoal(x)))
+        from raiz.publica.privacidade import para_resposta
+
+        return JSONResponse(para_resposta(x))
 
     Acesso = Annotated[K.Acesso, Depends(acesso)]
     Pessoa = Annotated[K.Acesso, Depends(pessoa)]
@@ -397,23 +484,30 @@ def criar(engine_de: Callable[[Request], Any]) -> FastAPI:
         """Totais do pedido (sem fazenda, sem número por município). Vale crédito de teste."""
         request.state.alcance = {"ufs": campos.onde.ufs, "municipios": [str(m) for m in campos.onde.municipios],
                                  "biomas": campos.onde.biomas, "meta": campos.meta.valor}  # fmt: skip
-        return ok(S.base_disponivel(engine_de(request), a.cliente_id, campos))
+        return ok(AP.base(S.base_disponivel(engine_de(request), a.cliente_id, campos)))
 
     @app.post("/pedidos", tags=["Pedido de lote"], summary="Montar o lote em 3 opções (pedir_lote)")
     @limiter.shared_limit(LIMITE, scope="empresa")
-    def pedir_lote(campos: Annotated[CamposPedido, Body(openapi_examples=EXEMPLOS_PEDIDO)], request: Request,
-                   a: Acesso, _c: Annotated[Any, Depends(cobrar("pedir_lote", liberacao=True))]) -> JSONResponse:  # fmt: skip  # noqa: E501
-        """Pede a liberação (sinal pago e contrato de não contornar)."""
+    def pedir_lote(
+        campos: Annotated[CamposPedido, Body(openapi_examples=EXEMPLOS_PEDIDO)],
+        request: Request,
+        a: Acesso,
+        idempotency_key: Annotated[str | None, Header()] = None,
+    ) -> JSONResponse:
+        """Pessoa usa o painel; agentes recebem o protocolo persistido do trabalho."""
+        if a.via != "sessao":
+            return _trabalho(request, a, "pedir_lote", campos.model_dump(mode="json"), idempotency_key)
+        cobrar("pedir_lote", liberacao=True)(request, a)
         p = S.criar_pedido(engine_de(request), a.cliente_id, campos)
         request.state.pedido_id = p["id"]
         request.state.cods_expostos = [i["cod_imovel"] for o in p.get("opcoes") or [] for i in o.get("itens") or []]
-        return ok(p)
+        return ok(AP.pedido(p))
 
     @app.get("/pedidos", tags=["Pedido de lote"], summary="Pedidos da empresa (sem custo)")
     @limiter.shared_limit(LIMITE, scope="empresa")
     def listar(request: Request, a: Acesso) -> JSONResponse:
         CT.exigir(engine_de(request), a.cliente_id)
-        return ok(S.pedidos_do_cliente(engine_de(request), a.cliente_id))
+        return ok(AP.resumos(S.pedidos_do_cliente(engine_de(request), a.cliente_id)))
 
     @app.get("/pedidos/{pedido_id}", tags=["Pedido de lote"], summary="Detalhe do pedido")
     @limiter.shared_limit(LIMITE, scope="empresa")
@@ -425,19 +519,37 @@ def criar(engine_de: Callable[[Request], Any]) -> FastAPI:
     ) -> JSONResponse:
         pedido = S.obter_pedido(engine_de(request), pedido_id, a.cliente_id)
         request.state.cods_expostos = [i["cod_imovel"] for o in pedido["opcoes"] for i in o.get("itens", [])]
-        return ok(pedido)
+        return ok(AP.pedido(pedido))
 
     @app.get("/pedidos/{pedido_id}/alertas", tags=["Pedido de lote"])
     @limiter.shared_limit(LIMITE, scope="empresa")
     def alertas_pedido(pedido_id: Pid, request: Request, a: Acesso) -> JSONResponse:
         CT.exigir_liberacao(engine_de(request), a.cliente_id)
-        return ok(S.obter_pedido(engine_de(request), pedido_id, a.cliente_id)["alertas"])
+        return ok(AP.alertas(S.obter_pedido(engine_de(request), pedido_id, a.cliente_id)["alertas"]))
+
+    @app.post("/pedidos/{pedido_id}/revisoes", tags=["Pedido de lote"])
+    @limiter.shared_limit(LIMITE, scope="empresa")
+    def solicitar_revisao(
+        pedido_id: Pid, request: Request, a: Pessoa, cod_imovel: Annotated[str, Body()], motivo: Annotated[str, Body()]
+    ) -> JSONResponse:
+        from raiz import salvaguardas as SG
+
+        CT.exigir_liberacao(engine_de(request), a.cliente_id)
+        return ok(AP.revisao(SG.solicitar_revisao(engine_de(request), pedido_id, a.cliente_id, cod_imovel, motivo)))
+
+    @app.get("/pedidos/{pedido_id}/revisoes", tags=["Pedido de lote"])
+    @limiter.shared_limit(LIMITE, scope="empresa")
+    def revisoes(pedido_id: Pid, request: Request, a: Pessoa) -> JSONResponse:
+        from raiz import salvaguardas as SG
+
+        CT.exigir_liberacao(engine_de(request), a.cliente_id)
+        return ok([AP.revisao(r) for r in SG.listar_revisoes(engine_de(request), pedido_id, a.cliente_id)])
 
     @app.get("/notificacoes", tags=["Conta da empresa"])
     @limiter.shared_limit(LIMITE, scope="empresa")
     def notificacoes(request: Request, a: Pessoa) -> JSONResponse:
         CT.exigir(engine_de(request), a.cliente_id)
-        return ok(S.notificacoes(engine_de(request), a.cliente_id))
+        return ok(AP.notificacoes(S.notificacoes(engine_de(request), a.cliente_id)))
 
     @app.get("/pedidos/{pedido_id}/opcoes", tags=["Pedido de lote"], summary="As 3 opções lado a lado (comparar_lotes)")
     @limiter.shared_limit(LIMITE, scope="empresa")
@@ -445,14 +557,14 @@ def criar(engine_de: Callable[[Request], Any]) -> FastAPI:
                  _c: Annotated[Any, Depends(cobrar("comparar_lotes", liberacao=True))]) -> JSONResponse:  # fmt: skip
         ops = S.obter_pedido(engine_de(request), pedido_id, a.cliente_id)["opcoes"]
         request.state.cods_expostos = [i["cod_imovel"] for o in ops for i in o.get("itens") or []]
-        return ok(ops)
+        return ok(AP.opcoes(ops))
 
     @app.patch("/pedidos/{pedido_id}", tags=["Pedido de lote"])
     @app.post("/pedidos/{pedido_id}/lote", tags=["Pedido de lote"], summary="Tirar ou trocar uma fazenda")
     @limiter.shared_limit(LIMITE, scope="empresa")
     def mudar(pedido_id: Pid, m: Mudanca, request: Request, a: Acesso,
               _c: Annotated[Any, Depends(cobrar("comparar_lotes", liberacao=True))]) -> JSONResponse:  # fmt: skip
-        return ok(S.mudar_lote(engine_de(request), pedido_id, a.cliente_id, m.model_dump()))
+        return ok(AP.pedido(S.mudar_lote(engine_de(request), pedido_id, a.cliente_id, m.model_dump())))
 
     @app.post(
         "/pedidos/{pedido_id}/solicitar-interesse",
@@ -463,7 +575,7 @@ def criar(engine_de: Callable[[Request], Any]) -> FastAPI:
     def solicitar(pedido_id: Pid, request: Request, a: Acesso,
                   _c: Annotated[Any, Depends(cobrar("solicitar_interesse", liberacao=True))],
                   corpo: Annotated[Solicitar, Body()] = SOLICITAR_PADRAO) -> JSONResponse:  # fmt: skip
-        return ok(S.solicitar_interesse(engine_de(request), pedido_id, a.cliente_id, corpo.opcao))
+        return ok(AP.pedido(S.solicitar_interesse(engine_de(request), pedido_id, a.cliente_id, corpo.opcao)))
 
     @app.get("/pedidos/{pedido_id}/andamento", tags=["Interesse dos donos"], summary="Andamento (acompanhar_contato)")
     @limiter.shared_limit(LIMITE, scope="empresa")
@@ -473,15 +585,22 @@ def criar(engine_de: Callable[[Request], Any]) -> FastAPI:
         a: Acesso,
         _c: Annotated[Any, Depends(cobrar("acompanhar_contato", liberacao=True))],
     ) -> JSONResponse:
-        return ok(S.andamento(engine_de(request), pedido_id, a.cliente_id))
+        return ok(AP.andamento(S.andamento(engine_de(request), pedido_id, a.cliente_id)))
 
     @app.post("/pedidos/{pedido_id}/reservar", tags=["Reserva"], summary="Preparar a reserva (uma pessoa aprova)")
     @limiter.shared_limit(LIMITE, scope="empresa")
-    def reservar(pedido_id: Pid, request: Request, a: Acesso,
-                 _c: Annotated[Any, Depends(cobrar("preparar_reserva", liberacao=True))]) -> JSONResponse:  # fmt: skip
-        por = None if a.via == "sessao" else f"{a.via}:{a.chave_id}"
-        return ok(S.reservar(engine_de(request), pedido_id, a.cliente_id, por_agente=por,
-                             base_url=_base(request) + "/v1"))  # fmt: skip
+    def reservar(
+        pedido_id: Pid,
+        request: Request,
+        a: Acesso,
+        idempotency_key: Annotated[str | None, Header()] = None,
+    ) -> JSONResponse:
+        from raiz.publica.rotas_agentes import base_publica
+
+        if a.via != "sessao":
+            return _trabalho(request, a, "preparar_reserva", {"pedido_id": pedido_id}, idempotency_key)
+        cobrar("preparar_reserva", liberacao=True)(request, a)
+        return ok(S.reservar(engine_de(request), pedido_id, a.cliente_id, base_url=base_publica()))
 
     @app.get("/pedidos/{pedido_id}/reserva", tags=["Reserva"], summary="Situação da reserva (sem custo)")
     @limiter.shared_limit(LIMITE, scope="empresa")
@@ -489,36 +608,59 @@ def criar(engine_de: Callable[[Request], Any]) -> FastAPI:
         CT.exigir_liberacao(engine_de(request), a.cliente_id)
         return ok(S.cobranca_do_pedido(engine_de(request), pedido_id, a.cliente_id))
 
-    @app.get(
-        "/reservas/confirmar/{token}",
-        tags=["Reserva"],
-        summary="Página de aprovação (para uma pessoa)",
-        response_class=HTMLResponse,
-    )
+    @app.get("/reservas/confirmar/{token}", tags=["Reserva"], response_class=HTMLResponse)
     def pagina_confirmar(token: str) -> HTMLResponse:
-        t = html.escape(token)
-        return HTMLResponse(f"""<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Aprovar a reserva
-</title></head><body style="font-family:system-ui;max-width:560px;margin:40px auto;padding:0 16px"><h1>Aprovar a
-reserva do grupo</h1><p>O agente de IA da sua empresa preparou a reserva de um grupo de fazendas na Raíz. Ao aprovar,
-sai o Pix da reserva. Se não foi você quem autorizou, não aprove.</p><form method="post"
-action="/v1/reservas/confirmar/{t}"><button type="submit">Aprovar e gerar o Pix</button></form></body></html>""")
+        import re
 
-    @app.post(
-        "/reservas/confirmar/{token}",
-        tags=["Reserva"],
-        summary="Aprovar (uma pessoa da empresa)",
-        response_class=HTMLResponse,
-    )
-    def confirmar(token: str, request: Request) -> HTMLResponse:
-        try:
-            c = S.confirmar_reserva(engine_de(request), token)
-        except S.ErroPedido as ex:
-            return HTMLResponse(f"<p>{html.escape(str(ex))}</p>", status_code=410)
-        pixc = (c.get("pix") or {}).get("copia_e_cola") or ""
-        return HTMLResponse(f"""<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Reserva aprovada
-</title></head><body style="font-family:system-ui;max-width:560px;margin:40px auto;padding:0 16px"><h1>Reserva
-aprovada</h1><p>Valor: R$ {c["valor_brl"]:.2f}.</p><p>Pix copia e cola:</p><textarea readonly rows="4"
-style="width:100%">{html.escape(pixc)}</textarea></body></html>""")
+        from raiz.publica.pagina_aprovacao import pagina
+
+        if not re.fullmatch(r"[A-Za-z0-9_-]{20,100}", token):
+            raise HTTPException(404, "link inválido")
+        return pagina(token)
+
+    @app.get("/reservas/confirmar/{token}/resumo", tags=["Reserva"])
+    @limiter.shared_limit(LIMITE, scope="empresa")
+    def resumo_confirmacao(token: str, request: Request, a: Pessoa):
+        from raiz.publica.aprovacao import ver
+
+        CT.exigir_liberacao(engine_de(request), a.cliente_id)
+        return JSONResponse(ver(engine_de(request), token, a.cliente_id), headers={"Cache-Control": "no-store"})
+
+    @app.post("/reservas/confirmar/{token}/entrar", tags=["Reserva"])
+    @limiter.shared_limit("5/minute", scope="login_aprovacao")
+    def entrar_aprovacao(token: str, request: Request, email: Annotated[str, Body(embed=True)]):
+        from sqlalchemy import text
+
+        from raiz.pessoal import Cofre
+        from raiz.publica.rotas_agentes import base_publica
+
+        if S.ENVIO_LINK is None:
+            raise HTTPException(503, "envio de login por e-mail indisponível")
+        with engine_de(request).connect() as con:
+            esperado = con.execute(
+                text("""select pc.email_hmac from negocio.reserva r
+                join pessoal.cliente_contato pc on pc.cliente_id=r.cliente_id
+                where r.confirmacao_hash=:h and r.estado='aguardando_confirmacao'
+                and r.confirmacao_expira > now()"""),
+                {"h": S._hash(token)},
+            ).scalar()
+        if esperado is not None and Cofre().indice(email.strip().lower()) == esperado:
+            S.pedir_link(engine_de(request), email, base_publica() + f"/reservas/confirmar/{token}")
+        return JSONResponse({"enviado": True}, headers={"Cache-Control": "no-store"})
+
+    @app.post("/reservas/confirmar/{token}", tags=["Reserva"])
+    @limiter.shared_limit(LIMITE, scope="empresa")
+    def confirmar(token: str, request: Request, a: Pessoa):
+        from raiz.publica.aprovacao import aprovar
+
+        CT.exigir_liberacao(engine_de(request), a.cliente_id)
+        return JSONResponse(aprovar(engine_de(request), token, a.cliente_id), headers={"Cache-Control": "no-store"})
+
+    @app.get("/recibos/jwks.json", tags=["Reserva"])
+    def chave_recibo():
+        from raiz.publica.recibos import jwk
+
+        return {"keys": [jwk()]}
 
     @app.get(
         "/fazendas/{cod_imovel}/analise",
@@ -536,7 +678,7 @@ style="width:100%">{html.escape(pixc)}</textarea></body></html>""")
             raise HTTPException(404, {"slug": "fazenda", "mensagem": "fazenda não encontrada na base da Raíz",
                                       "corrigir": "confira o código do CAR"})  # fmt: skip
         request.state.cods_expostos = [x["cod_imovel"]]
-        return ok(x)
+        return ok(AP.analise(x))
 
     @app.get("/previsoes/precisao", tags=["Produto 4: previsões conferidas"], summary="Acerto das previsões da Raíz")
     @limiter.shared_limit(LIMITE, scope="empresa")
@@ -548,6 +690,29 @@ style="width:100%">{html.escape(pixc)}</textarea></body></html>""")
             linhas = [dict(r._mapping) for r in placar(con)]
         return ok([{k: (float(v) if hasattr(v, "as_integer_ratio") else v) for k, v in li.items()} for li in linhas])
 
+    def _trabalho(request, a, ferramenta, corpo, chave):
+        from raiz.publica import trabalhos as T
+        from raiz.publica.rotas_agentes import base_publica, exigir_escopo
+
+        eng = engine_de(request)
+        exigir_escopo(eng, a, ferramenta)
+        if not chave:
+            raise CT.ErroConta(
+                "idempotencia_obrigatoria", "falta Idempotency-Key", "gere uma chave para a intenção", 422
+            )
+        if ferramenta == "preparar_reserva":
+            corpo = {**corpo, "base_url": base_publica()}
+        r = T.submeter(eng, a.cliente_id, ferramenta, corpo, chave)
+        request.state.ferramenta = ferramenta
+        request.state.pedido_id = r["pedido_id"]
+        return JSONResponse(r, status_code=202, headers={"Location": f"/v1/operacoes/{r['pedido_id']}"})
+
+    from raiz.publica.rotas_agentes import instalar
+
+    instalar(app, engine_de, acesso, limiter, LIMITE, verificador)
+    from raiz.publica.rotas_webhooks import instalar as instalar_webhooks
+
+    instalar_webhooks(app, engine_de, pessoa, limiter, LIMITE)
     return app
 
 
