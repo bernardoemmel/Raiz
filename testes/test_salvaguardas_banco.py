@@ -1,7 +1,9 @@
 """Polígonos, isolamento por empresa e revisão sem contornar salvaguardas."""
 
+import base64
 import datetime as dt
 import json
+import secrets
 import uuid
 
 import pytest
@@ -12,6 +14,8 @@ from sqlalchemy import create_engine, text
 from raiz import salvaguardas as SG
 from raiz.pedidos import oferta
 from raiz.pedidos import servico as S
+from raiz.pessoal import gerar_chave
+from raiz.publica import aprovacao, recibos
 from raiz.publica import chaves as K
 
 pytestmark = pytest.mark.banco
@@ -212,7 +216,14 @@ def test_revisao_nao_abre_detalhe_sem_liberacao_ou_vinculo_e_respeita_exclusivid
 
 
 @pytest.fixture
-def grupo_reserva(eng):
+def chaves_reserva(monkeypatch):
+    chave = gerar_chave()
+    monkeypatch.setattr("raiz.pessoal.config", lambda: type("C", (), {"chave_pessoal": SecretStr(chave)})())
+    monkeypatch.setenv("RAIZ_RECIBO_CHAVE", base64.urlsafe_b64encode(secrets.token_bytes(32)).decode())
+
+
+@pytest.fixture
+def grupo_reserva(eng, chaves_reserva):
     """Grupo mínimo sintético: geometria e documentos são necessários, não pressupostos."""
     cid, _ = S.criar_cliente(eng, "compradora da reserva de teste")
     pid = str(uuid.uuid4())
@@ -288,20 +299,24 @@ def test_preparar_reserva_exige_evidencias_antes_de_qualquer_pix(eng, grupo_rese
 @pytest.mark.parametrize("falta", ["verificacao", "cobertura", "geometria", "clpi"])
 def test_confirmacao_revalida_grupo_congelado_e_preserva_link_apos_recusa(eng, grupo_reserva, falta, monkeypatch):
     cid, pid, cod = grupo_reserva
-    enviados = []
-    monkeypatch.setattr(S, "ENVIO_CONFIRMACAO", lambda cliente, token: enviados.append((cliente, token)))
-    preparada = S.reservar(eng, pid, cid, por_agente="agente-de-teste")
+    monkeypatch.setattr(S, "ENVIO_CONFIRMACAO", lambda *a: pytest.fail("a preparação não envia token externamente"))
+    preparada = S.reservar(eng, pid, cid, por_agente="agente-de-teste", base_url="https://api.raiz.example/v1")
     assert preparada["aguardando_confirmacao"] and preparada["pix"] is None
-    assert enviados[0][0] == cid
-    token = enviados[0][1]
+    assert preparada["recibo_aprovacao"] is None and not preparada["pago"]
+    token = preparada["aprovacao_url"].rsplit("/", 1)[1]
     _invalidar_grupo(eng, cod, falta)
-    # Alterar a composição atual do pedido não retira o imóvel da reserva já preparada.
-    with eng.begin() as con:
-        con.execute(text("delete from negocio.pedido_fazenda where pedido_id = :p"), {"p": pid})
     with pytest.raises(SG.ErroSalvaguarda, match="salvaguardas"):
         S.reservar(eng, pid, cid, por_agente="agente-de-teste")
+    # O serviço recebe a empresa autenticada pela rota humana, nunca infere o titular pelo token.
     with pytest.raises(SG.ErroSalvaguarda, match="salvaguardas"):
-        S.confirmar_reserva(eng, token)
+        aprovacao.aprovar(eng, token, cid)
+    # Retirar a fazenda do pedido não contorna o grupo congelado nem consome o link de aprovação.
+    with eng.begin() as con:
+        con.execute(text("delete from negocio.pedido_fazenda where pedido_id = :p"), {"p": pid})
+    with pytest.raises(S.ErroPedido, match="grupo não tem fazendas"):
+        S.reservar(eng, pid, cid, por_agente="agente-de-teste")
+    with pytest.raises(aprovacao.ErroAprovacao, match="fazendas do grupo mudaram"):
+        aprovacao.aprovar(eng, token, cid)
     with eng.connect() as con:
         estado, tem_link, n_pix = con.execute(
             text("""select r.estado, r.confirmacao_hash is not null,
@@ -309,12 +324,32 @@ def test_confirmacao_revalida_grupo_congelado_e_preserva_link_apos_recusa(eng, g
             from negocio.reserva r where r.pedido_id = :p"""),
             {"p": pid},
         ).one()
+        congelados = (
+            con.execute(
+                text("""select f.cod_imovel from negocio.reserva_fazenda f
+        join negocio.reserva r on r.id=f.reserva_id where r.pedido_id=:p"""),
+                {"p": pid},
+            )
+            .scalars()
+            .all()
+        )
     assert (estado, tem_link, n_pix) == ("aguardando_confirmacao", True, 0)
+    assert congelados == [cod]
     _verificar_grupo(eng, cod)
-    confirmada = S.confirmar_reserva(eng, token)
+    with eng.begin() as con:
+        con.execute(
+            text("insert into negocio.pedido_fazenda(pedido_id,cod_imovel,papel) values(:p,:c,'lote')"),
+            {"p": pid, "c": cod},
+        )
+    confirmada = aprovacao.aprovar(eng, token, cid)
     assert confirmada["estado"] == "aguardando_pagamento" and confirmada["pix"]
-    with pytest.raises(S.ErroPedido, match="link de confirmação inválido"):
-        S.confirmar_reserva(eng, token)
+    assert not confirmada["pago"] and confirmada["aprovacao_url"] is None
+    mandato = recibos.verificar(confirmada["recibo_aprovacao"], recibos.jwk())
+    assert mandato["empresa"] == cid and mandato["pedido"] == pid
+    assert mandato["pagamento_confirmado"] is False and mandato["condicoes"]["agente_pode_pagar"] is False
+    with pytest.raises(aprovacao.ErroAprovacao, match="link de confirmação inválido"):
+        aprovacao.aprovar(eng, token, cid)
+
     with eng.connect() as con:
         assert (
             con.execute(
