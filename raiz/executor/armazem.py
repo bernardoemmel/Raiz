@@ -315,14 +315,15 @@ class ArmazemRelease:
         self._global = False
         self._sujos: dict[str, int] = {}
         self._ultima: dict[str, float] = {}
+        self._quantis: dict[str, dict] = {}
 
     # --- leitura -------------------------------------------------------------------------------------------------
 
     def url(self, nome: str) -> str:
         return f"https://github.com/{self.repo}/releases/download/{self.tag}/{nome}"
 
-    def _baixar_asset(self, nome: str) -> bytes | None:
-        r = self.cli.get(self.url(nome))
+    def _baixar_asset(self, nome: str, fresco: bool = False) -> bytes | None:
+        r = self.cli.get(self.url(nome), params={"t": str(time.time_ns())} if fresco else None)
         if r.status_code == 404:
             return None
         r.raise_for_status()
@@ -457,7 +458,26 @@ class ArmazemRelease:
         h = self._cabecalhos()
         r = self.cli.get(f"{self.API}/repos/{self.repo}/releases/tags/{self.tag}", headers=h)
         r.raise_for_status()
-        return r.json()
+        rel = r.json()
+        # As fichas aumentam bastante a quantidade de assets. Sempre percorre
+        # o endpoint paginado, sem depender da lista embutida no Release.
+        assets, nomes, pagina = [], set(), 1
+        while True:
+            r = self.cli.get(f"{self.API}/repos/{self.repo}/releases/{rel['id']}/assets",
+                             params={"per_page": 100, "page": pagina}, headers=h)  # fmt: skip
+            r.raise_for_status()
+            itens = r.json()
+            if not isinstance(itens, list):
+                raise RuntimeError("resposta inválida ao listar os arquivos do Release")
+            for asset in itens:
+                if asset["name"] in nomes:
+                    raise RuntimeError("arquivos mudaram durante a paginação do Release; tente novamente")
+                nomes.add(asset["name"])
+                assets.append(asset)
+            if len(itens) < 100:
+                rel["assets"] = assets
+                return rel
+            pagina += 1
 
     def _cabecalhos(self) -> dict:
         if not self.token:
@@ -474,6 +494,24 @@ class ArmazemRelease:
         r = self.cli.post(f"{self.UPLOADS}/repos/{self.repo}/releases/{rel['id']}/assets", params={"name": nome},
                           headers={**h, "Content-Type": tipo}, content=dados)  # fmt: skip
         r.raise_for_status()
+        from raiz.atestacao import registrar
+
+        registrar(nome, dados)
+
+    def _publicar_auxiliar(self, rel: dict, nome: str, dados: bytes, tipo: str) -> dict:
+        """Publica artefato global e ficha; o chamador deve manter a trava do índice."""
+        from raiz.metadados import ficha_arquivo, validar
+
+        digest = sha256_bytes(dados)
+        ficha = ficha_arquivo(nome, self.url(nome), digest, len(dados), formato=tipo, repo=self.repo)
+        validar(ficha)
+        dados_ficha = json.dumps(ficha, ensure_ascii=False, indent=2).encode()
+        nome_ficha = f"croissant_{nome}.json"
+        assets = {a["name"]: a for a in rel.get("assets", [])}
+        for arquivo, conteudo, mime in ((nome, dados, tipo), (nome_ficha, dados_ficha, "application/ld+json")):
+            if assets.get(arquivo, {}).get("digest") != "sha256:" + sha256_bytes(conteudo):
+                self._subir(rel, arquivo, conteudo, mime)
+        return {"url": self.url(nome_ficha), "sha256": sha256_bytes(dados_ficha), "arquivo_sha256": digest}
 
     @staticmethod
     def _tar(uf: str, arquivos: dict[str, bytes]) -> bytes:
@@ -507,8 +545,8 @@ class ArmazemRelease:
     def _trava(self, nome: str | None = None, velha_s: float = 600):
         """Só um job por vez relê e regrava o estados.json (trava-publicar-dados) ou o pacote de um estado
         (trava-publicar-<UF>: fatias do mesmo estado rodam em jobs diferentes). A trava é uma tag: criar uma referência
-        que já existe dá erro na API, então só um consegue. Quem espera mais que velha_s considera a trava abandonada
-        (job que caiu) e a apaga. Reentrante no mesmo processo. Sem como criar a trava, segue sem ela e confere."""
+        que já existe dá erro na API, então só um consegue. Esperar não prova que o dono morreu: ao atingir
+        velha_s, falha sem apagar a trava. Erros da API impedem publicação. Reentrante no mesmo processo."""
         nome = nome or self.TRAVA
         if nome in self._travas:
             yield
@@ -517,31 +555,29 @@ class ArmazemRelease:
         sha = os.environ.get("GITHUB_SHA")
         if not sha:
             r = self.cli.get(f"{self.API}/repos/{self.repo}/commits/HEAD", headers=h)
-            sha = r.json().get("sha") if r.status_code == 200 else None
-        pegou, t0 = False, time.time()
-        while sha:
+            r.raise_for_status()
+            sha = r.json().get("sha")
+        if not sha:
+            raise RuntimeError("não consegui identificar o commit para adquirir a trava de publicação")
+        t0 = time.monotonic()
+        while True:
             r = self.cli.post(f"{self.API}/repos/{self.repo}/git/refs", headers=h,
                               json={"ref": f"refs/tags/{nome}", "sha": sha})  # fmt: skip
             if r.status_code == 201:
-                pegou = True
                 break
             if r.status_code == 422 and "already exists" in r.text.lower():
-                if time.time() - t0 > velha_s:
-                    log.warning("trava %s abandonada há mais de %.0f min: apago e pego", nome, velha_s / 60)
-                    self.cli.delete(f"{self.API}/repos/{self.repo}/git/refs/tags/{nome}", headers=h)
-                    t0 = time.time()
-                    continue
+                if time.monotonic() - t0 >= velha_s:
+                    raise TimeoutError(f"trava {nome} ocupada; não publico nem removo uma trava sem confirmar seu dono")
                 time.sleep(random.uniform(5, 15))
                 continue
-            log.warning("sem a trava %s (HTTP %s); sigo sem ela e confiro depois", nome, r.status_code)
-            break
+            r.raise_for_status()
+            raise RuntimeError(f"resposta inesperada ao adquirir {nome}: HTTP {r.status_code}")
         self._travas.add(nome)
         try:
             yield
         finally:
             self._travas.discard(nome)
-            if pegou:
-                self.cli.delete(f"{self.API}/repos/{self.repo}/git/refs/tags/{nome}", headers=h)
+            self.cli.delete(f"{self.API}/repos/{self.repo}/git/refs/tags/{nome}", headers=h).raise_for_status()
 
     def publicar(self, uf: str | None = None, extra: dict | None = None) -> dict:
         """Empacota o estado a partir do espelho e sobe: pacotes, controle e por último o estados.json. O estados.json
@@ -561,8 +597,8 @@ class ArmazemRelease:
             glob = {k: json.loads(self.local.ler(k)) for k in self.local.listar("estado/")
                     if self._uf_da_chave(k) is None}  # fmt: skip
             if glob:
-                self._subir(self._release(), "raiz_controle.json", json.dumps(glob, ensure_ascii=False).encode(),
-                            "application/json")  # fmt: skip
+                self.catalogar_arquivo("raiz_controle.json", json.dumps(glob, ensure_ascii=False).encode(),
+                                       "application/json")  # fmt: skip
         return feito
 
     def _publicar_uf(self, u: str, extra: dict) -> dict:
@@ -652,6 +688,32 @@ class ArmazemRelease:
             controle=self.url(f"raiz_controle_{u}.json"),
         )
         info.update(extra)
+        from raiz.quantis import quantis_uf
+
+        quantis = quantis_uf(self.local.raiz / "saida" / u, u, vers)
+        self._quantis[u] = quantis
+        for nome, dados in quantis["arquivos"].items():
+            tipo = "application/json" if nome.endswith(".json") else "application/octet-stream"
+            pendentes.append((nome, dados, tipo))
+        info["quantis"] = {
+            "url": self.url(f"quantis_{u}.parquet"),
+            "linhas": quantis["linhas"],
+            "modelos": sorted(quantis["modelos"]),
+            "diagnosticos": len(quantis["diagnosticos"]),
+        }
+        from raiz.cadt import cadt_uf
+
+        cadt = cadt_uf(self.local.raiz / "saida" / u, u,
+                       data_inicio=os.environ.get("RAIZ_CADT_INICIO_CENARIO"), data_referencia=agora[:10])  # fmt: skip
+        cadt["metadados"]["entradas"] = {
+            "pacote_sha256": info.get("sha256"),
+            "proveniencia_sha256": proveniencia,
+            "url": self.url(f"raiz_{u}.tar.gz"),
+        }
+        info["cadt"] = cadt
+        pendentes.append(
+            (f"cadt_{u}.json", json.dumps(cadt, ensure_ascii=False, indent=2).encode(), "application/json")
+        )
         fichas = dict(info.get("fichas") or {})
         for nome, dados, tipo in list(pendentes):
             if nome == f"raiz_{u}.tar.gz":
@@ -678,12 +740,30 @@ class ArmazemRelease:
         self._ultima[u] = time.time()
         return info
 
-    def _gravar_indice(self, feito: dict) -> None:
+    def catalogar_arquivo(self, nome: str, dados: bytes, tipo: str = "application/octet-stream") -> dict:
+        """Completa a ficha de um arquivo global existente, sob a trava do índice.
+
+        O chamador baixa os bytes sob a mesma trava se o arquivo puder mudar.
+        Fichas não recebem fichas de si próprias.
+        """
+        if nome == "croissant.json" or nome.startswith("croissant_"):
+            raise ValueError("a catalogação não cria fichas de fichas")
+        if not nome or any(c in nome for c in "\r\n\x00\\/") or nome in {".", ".."}:
+            raise ValueError("nome de arquivo inválido para o catálogo")
+        with self._trava():
+            referencia = self._publicar_auxiliar(self._release(), nome, dados, tipo)
+            self._gravar_indice({}, fichas_adicionais={nome: referencia})
+        return referencia
+
+    def _gravar_indice(self, feito: dict, fichas_adicionais: dict | None = None) -> None:
         """Relê o estados.json, troca só as entradas destes estados e regrava, dentro da trava; confere depois. O
         campo motor.fatias (a rodada de cada fatia de um estado grande) é juntado, não trocado."""
         import datetime as dt
 
+        from raiz import RAIZ_REPO
+        from raiz.cadt import combinar_estados
         from raiz.metadados import croissant_release, ficha_arquivo, validar
+        from raiz.quantis import combinar_tasks, esquema_modelos
 
         agora = dt.datetime.now(dt.UTC).isoformat(timespec="seconds")
         for _ in range(3):
@@ -693,8 +773,31 @@ class ArmazemRelease:
                 for u, info in feito.items():
                     est_f[u] = _juntar_entrada(est_f.get(u, {}), info)
                 fresco.update(gerado_em=agora, repo=self.repo, tag=self.tag, estados=dict(sorted(est_f.items())))
-                dados = json.dumps(fresco, ensure_ascii=False, indent=1).encode()
                 rel = self._release()
+                fichas = fresco.setdefault("fichas", {})
+                fichas.update(fichas_adicionais or {})
+                cartao = (RAIZ_REPO / "docs" / "modelo" / "cartao.md").read_bytes()
+                fichas["cartao_modelo.md"] = self._publicar_auxiliar(rel, "cartao_modelo.md", cartao, "text/markdown")
+                lotes = combinar_estados({u: e["cadt"] for u, e in est_f.items() if e.get("cadt")})
+                fichas["cadt_lotes.json"] = self._publicar_auxiliar(
+                    rel, "cadt_lotes.json", json.dumps(lotes, ensure_ascii=False, indent=2).encode(), "application/json"
+                )
+                atuais = [self._quantis[u] for u in feito if u in self._quantis]
+                if atuais:
+                    tasks_antes = json.loads(self._baixar_asset("tasks.json", fresco=True) or b"{}")
+                    configuracoes = ([tasks_antes] if tasks_antes else []) + [q["tasks"] for q in atuais]
+                    tarefas = combinar_tasks(configuracoes)
+                    modelos = json.loads(self._baixar_asset("modelos.json", fresco=True) or b'{"modelos":{}}')
+                    for q in atuais:
+                        modelos.setdefault("modelos", {}).update(q["modelos"])
+                    for nome, objeto in (
+                        ("tasks.json", tarefas),
+                        ("modelos.json", modelos),
+                        ("model-metadata-schema.json", esquema_modelos()),
+                    ):
+                        conteudo = json.dumps(objeto, ensure_ascii=False, indent=2).encode()
+                        fichas[nome] = self._publicar_auxiliar(rel, nome, conteudo, "application/json")
+                dados = json.dumps(fresco, ensure_ascii=False, indent=1).encode()
                 ficha_indice = ficha_arquivo(
                     "estados.json",
                     self.url("estados.json"),
@@ -718,6 +821,8 @@ class ArmazemRelease:
                 self._subir(rel, "estados.json", dados, "application/json")
             conferido = self.manifesto(fresco=True).get("estados", {})
             if all((conferido.get(u) or {}).get("versao") == info.get("versao") for u, info in feito.items()):
+                for u in feito:
+                    self._quantis.pop(u, None)
                 return
             log.warning("estados.json sem a entrada de %s (outro job regravou junto); refaço", list(feito))
             time.sleep(random.uniform(5, 20))

@@ -26,6 +26,7 @@ class GitHubFalso:
         self.uploads: list[str] = []
         self._ids: dict[str, int] = {}
         self._proximo_id = 1
+        self.refs = set()
 
     def tar(self, uf: str, arquivos: dict[str, bytes]) -> bytes:
         buf = io.BytesIO()
@@ -48,6 +49,18 @@ class GitHubFalso:
         tok = req.headers.get("authorization") == "Bearer segredo"
         if not tok:
             return httpx.Response(401)
+        if u.path.endswith("/commits/HEAD"):
+            return httpx.Response(200, json={"sha": "a" * 40})
+        if "/git/refs" in u.path:
+            if req.method == "POST":
+                ref = json.loads(req.content)["ref"]
+                if ref in self.refs:
+                    return httpx.Response(422, json={"message": "Reference already exists"})
+                self.refs.add(ref)
+                return httpx.Response(201)
+            if req.method == "DELETE":
+                self.refs.discard("refs/" + u.path.split("/git/refs/", 1)[1])
+                return httpx.Response(204)
         if u.host == "api.github.com" and req.method == "GET":
             import hashlib
 
@@ -59,6 +72,10 @@ class GitHubFalso:
                 {"id": self._ids[n], "name": n, "digest": "sha256:" + hashlib.sha256(d).hexdigest()}
                 for n, d in self.assets.items()
             ]
+            if u.path.endswith("/assets"):
+                pagina = int(u.params.get("page", 1))
+                tamanho = int(u.params.get("per_page", 100))
+                return httpx.Response(200, json=assets[(pagina - 1) * tamanho : pagina * tamanho])
             return httpx.Response(200, json={"id": 7, "assets": assets})
         if u.host == "api.github.com" and req.method == "DELETE":
             aid = int(u.path.rsplit("/", 1)[1])
@@ -83,6 +100,29 @@ def gh():
 def _armazem(gh, pasta: Path, token="segredo", **kw) -> ArmazemRelease:
     cli = httpx.Client(transport=httpx.MockTransport(gh))
     return ArmazemRelease(REPO, TAG, pasta, token=token, cliente=cli, **kw)
+
+
+def test_trava_ocupada_nao_e_removida_por_tempo_de_espera(gh, tmp_path):
+    gh.refs.add("refs/tags/trava-publicar-dados")
+    a = _armazem(gh, tmp_path / "espelho")
+    with pytest.raises(TimeoutError), a._trava(velha_s=0):
+        pytest.fail("não pode publicar sem adquirir a trava")
+    assert gh.refs == {"refs/tags/trava-publicar-dados"}
+    assert not gh.uploads
+
+
+def test_erro_da_api_da_trava_impede_upload(gh, tmp_path, monkeypatch):
+    monkeypatch.setenv("GITHUB_SHA", "a" * 40)
+
+    def indisponivel(req):
+        if req.method == "POST" and req.url.path.endswith("/git/refs"):
+            return httpx.Response(503)
+        return gh(req)
+
+    a = _armazem(indisponivel, tmp_path / "espelho")
+    with pytest.raises(httpx.HTTPStatusError), a._trava():
+        pytest.fail("não pode publicar com falha da API")
+    assert not gh.uploads
 
 
 STUB = """

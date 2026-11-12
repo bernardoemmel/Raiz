@@ -250,6 +250,16 @@ A licença de redistribuição dos dados derivados da Raíz ainda não foi defin
 do software nem uma licença aberta presumida aos dados. As fontes conservam os termos e créditos registrados neste
 NOTICE; disponibilidade pública do arquivo não concede licença adicional.
 
+O exportador `raiz/quantis.py` segue os esquemas v6.0.0 do hubverse-org/schemas e as convenções de hubverse-org/hubDocs,
+sem copiar implementação. O cartão de modelo segue a estrutura de Mitchell et al., *Model Cards for Model Reporting*
+(2019), sem reproduzir texto do artigo.
+
+O vocabulário dos cronogramas em `raiz/cadt.py` foi conferido no CAD Trust
+(https://github.com/Chia-Network/cadt, commit `58927db8f4b4fe558842a688d33f173c41944279`, Apache-2.0).
+Nenhum código do CADT foi copiado; campos e listas são usados para interoperabilidade, sem afirmar registro no CAD Trust.
+A procedência dos uploads usa a ação externa actions/attest-build-provenance v2 (MIT), que chama actions/attest;
+não incorpora seu código no produto.
+
 ## Aprendizado no formato do hub (`raiz/aprendizado/hub.py`, `raiz/aprendizado/acerto.py`)
 
 Nenhum código copiado. O formato das pastas e arquivos segue a documentação do hubverse (hubverse-org/hubDocs, esquemas

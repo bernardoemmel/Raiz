@@ -84,6 +84,63 @@ essas colunas adicionais. Os arquivos que já existiam serão atualizados pela p
 A licença dos dados derivados da Raíz ainda não foi definida. As fichas registram essa condição e remetem aos
 créditos e termos das fontes em `NOTICE.md`; não atribuem automaticamente a licença do código ou a do baker aos dados.
 
+## Quantis, versão do modelo e cartão
+
+Cada UF tem `quantis_<UF>.parquet` com `reference_date`, `location`, `target`, `output_type`, `output_type_id`,
+`value` e as colunas de proveniência `model_id`, `model_version`, `source_model_version`, `task_version`,
+`quantile_method` e `source_file`. Os quantis são números `0.1`, `0.5` e `0.9`; cada alvo informa sua unidade em
+`tasks_<UF>.json`. `model_id` segue `raiz-<tarefa>_<hash-da-versao>`.
+
+`hub_<UF>.tar.gz` contém um hub nativo: Parquet com as seis colunas padrão dentro de `model-output/<model_id>/`,
+metadados YAML por modelo e `hub-config/` com tasks/admin v6 e o schema de metadados. `modelos_<UF>.json` registra
+versões, arquivos de entrada e SHA-256; `diagnosticos_quantis_<UF>.json` aponta dados que não puderam ser exportados,
+sem reproduzir valores pessoais. Os arquivos globais `tasks.json`, `modelos.json` e `model-metadata-schema.json`
+unem as configurações e identificações estaduais.
+
+A data é o dia UTC da execução registrada na origem, não a data de publicação nem um corte histórico inferido
+para todas as fontes. Sem versão ou data confiável, a linha não recebe uma versão inventada. Os P10/P50/P90 do
+desenvolvedor são preservados; o P50 legado é o cenário central, que pode diferir da mediana da simulação. FLAG
+tem mínimo, central e máximo: o exportador define uma distribuição triangular provisória, versionada e sem
+calibração empírica, da qual calcula os quantis. O [cartão do modelo](modelo/cartao.md), também publicado como
+`cartao_modelo.md`, detalha métodos, premissas, uso, avaliação e limites.
+
+Os assets da UF são retratos mutáveis. O catálogo de versões conserva metadados, mas não é um histórico completo
+de valores previstos. O módulo de aprendizado conserva previsões para comparação longitudinal no seu próprio
+armazenamento; para reproduzir um retrato público, guardar arquivos, hashes e atestação correspondentes.
+
+## Cronogramas CAD Trust
+
+`cadt_<UF>.json` descreve o cenário estadual ProFloresta+; `cadt_lotes.json` reúne os estados disponíveis. O objeto
+`projeto` usa campos e listas do CAD Trust; proveniência, premissas e diagnósticos ficam no envelope da Raíz.
+Cada `estimation` informa `creditingPeriodStart`, `creditingPeriodEnd` e `unitCount` anual em `tCO2e`. Os incrementos
+derivam da curva de captura e dos marcos acumulados P50; o arredondamento conserva o total inteiro.
+
+No Actions, `RAIZ_CADT_INICIO_CENARIO` usa **2027-01-01** por padrão e pode ser definida nas variáveis do repositório.
+É uma âncora hipotética para comparar cronogramas. `Listed` representa a listagem neste catálogo de cenários;
+VM0047 é referência metodológica. O arquivo não afirma registro no CAD Trust/Verra, certificação ou emissão de
+créditos. Estado sem lote elegível ou cronograma válido recebe diagnóstico.
+
+## Atestação e atualização dos arquivos existentes
+
+Depois de cada upload concluído, o publicador registra `sha256  nome` em `$RUNNER_TEMP/atestar.txt`. O passo
+`actions/attest-build-provenance@v2` usa esse arquivo, OIDC e permissões `id-token: write`/`attestations: write` para
+atestar os bytes. Se um nome mudar várias vezes no mesmo job, a assinatura cobre o último upload desse job.
+O SHA identifica conteúdo; a atestação vincula esse conteúdo ao workflow, sem certificar a qualidade científica.
+
+Com GitHub CLI atual e o arquivo baixado, verificar, por exemplo:
+
+```bash
+gh attestation verify quantis_PA.parquet --repo bernardoemmel/Raiz
+```
+
+O workflow `publicar-metadados.yml` preenche os arquivos que já existiam, usando os CSV e as versões publicadas;
+não repete a coleta ou o funil geográfico. Ele disputa uma vaga no mesmo teto global de 15 jobs e não começa o
+trabalho pesado sem reserva. Mantém as travas de UF e do índice, baixa e verifica bytes para atestar arquivos
+inalterados e inclui distribuições avulsas no catálogo. Fichas Croissant não geram fichas recursivas.
+
+Falha ao adquirir uma trava impede a publicação. Esperar por uma trava não prova abandono: o publicador novo
+não a apaga por idade. Jobs iniciados com código anterior só adotam essas regras nas próximas execuções.
+
 ## Release `vigilancia`
 
 A vigilância diária (`raiz/vigilancia/`, workflow `.github/workflows/vigilancia.yml`) lê os polígonos daqui e publica

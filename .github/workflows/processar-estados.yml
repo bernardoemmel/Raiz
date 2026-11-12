@@ -47,6 +47,8 @@ env:
   RAIZ_REPO: ${{ github.repository }}
   RAIZ_ARMAZEM_URL: release-github://${{ github.repository }}/dados # o armazém do executor é o Release "dados"
   RAIZ_SEM_BANCO: "1" # sem Postgres no job: a marca do executor guarda o andamento
+  # Âncora HIPOTÉTICA do cenário CAD Trust, sem afirmar data de implantação/contrato de projeto real.
+  RAIZ_CADT_INICIO_CENARIO: ${{ vars.RAIZ_CADT_INICIO_CENARIO || '2027-01-01' }}
   # arquivos nacionais (mesma lista no restore e no save, senão o cache não confere)
   CACHE_COMUM: |
     motor/cache/municipios.csv
@@ -133,6 +135,11 @@ jobs:
 
   processar:
     name: ${{ matrix.unidade }}
+    permissions:
+      contents: write
+      actions: write
+      id-token: write
+      attestations: write
     needs: [planejar, preparar]
     if: ${{ !cancelled() && needs.planejar.outputs.tem == '1' }}
     runs-on: ubuntu-latest
@@ -214,6 +221,20 @@ jobs:
 
       - name: Rodar pelo executor (fontes, adoção, motor e tarefas do produto) e publicar no Release dados
         run: uv run python motor/rodar_estado.py "$UNIDADE" --executor
+
+      - name: Conferir se há arquivos publicados para atestar
+        id: atestar
+        if: always()
+        run: |
+          if test -s "$RUNNER_TEMP/atestar.txt"; then
+            echo "tem=1" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Atestar a procedência dos arquivos publicados
+        if: always() && steps.atestar.outputs.tem == '1'
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-checksums: ${{ runner.temp }}/atestar.txt
 
       - name: Guardar o cache da unidade
         id: salvar
