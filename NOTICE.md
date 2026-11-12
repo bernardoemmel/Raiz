@@ -1,5 +1,15 @@
 # Código e dados de terceiros
 
+Cache calibrado da matrícula: MAPIE 1.6 (BSD-3-Clause, Copyright 2021 Vianney Taquet,
+Grégoire Martinon, Nicolas Brunel, Issam Ibnouhsein, François Deheeger e contribuidores),
+usado como dependência, sem copiar código. `BinaryClassificationController` controla a
+precisão por Learn Then Test com correção de Bonferroni. Licença conferida no pacote
+instalado (`mapie-1.6.0.dist-info/licenses/LICENSE`). Origem: https://github.com/scikit-learn-contrib/MAPIE.
+
+Sobrevivência do aceite: lifelines 0.30.3 (MIT, Copyright 2017 Cameron Davidson-Pilon),
+usado como dependência, sem copiar código. Licença conferida no pacote instalado
+(`lifelines-0.30.3.dist-info/licenses/LICENSE`). Origem: https://github.com/CamDavidsonPilon/lifelines.
+
 | O quê | Onde é usado | Licença | Origem |
 |---|---|---|---|
 | Desenho do serviço de agentes: checkpointer aberto no início do serviço e retomada do grafo pelo thread_id quando há pausa pendente (reescrito, sem copiar código) | `raiz/api.py`, `raiz/agentes/memoria.py` | MIT, Copyright (c) 2024 Joshua Carroll | https://github.com/JoshuaC215/agent-service-toolkit |
