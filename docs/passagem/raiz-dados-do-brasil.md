@@ -304,6 +304,9 @@ backups. Os produtos finais continuam elegíveis a ficha e atestação; o proces
   A correção operacional reaproveita e consome exports aceitos antes de abrir novos, respeita prazo e retries,
   registra a tentativa no índice privado e impede o encadeamento imediato de jobs com erro e avanço zero.
   Não se deve mudar ano, omitir fonte obrigatória ou declarar dados concluídos para contornar essa resposta.
+  A aquisição integra o hash da tarefa MapBiomas: pedidos novos com essa correção terão nova versão de tarefa,
+  embora o cálculo por imóvel permaneça igual. A promoção auditada acima continua tendo destino fixo no #77;
+  não se atribui a versão nova a previsões já publicadas.
 - O registro de tentativa fica em módulo separado (`raiz/executor/rodadas.py`), usando as mesmas travas e o mesmo
   publicador. `armazem.py` permanece idêntico ao #77, preservando a conferência estrita de compatibilidade.
   Testes focados da promoção/gatilho: 135 passaram, com Ruff e actionlint 1.7.12. A validação conjunta da correção
