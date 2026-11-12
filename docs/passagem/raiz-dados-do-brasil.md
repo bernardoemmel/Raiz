@@ -30,7 +30,9 @@ Branch da entrega operacional: `codex/dados-operacao`.
   anteriores ao #77. O código já está na main. As fichas não concedem
   licença presumida aos dados, e o cartão diferencia cenário central, quantil e hipótese triangular de FLAG.
   A rodada `43305564503`, iniciada após a reativação, usa o contrato privado do #72, mas ainda as travas antigas.
-  Às 21h37 UTC, oito jobs de BA, CE e PI continuavam ativos. Nenhum foi cancelado por este chat.
+  Às 22h38 UTC, oito jobs de BA, CE e PI continuavam ativos, além de um RN em rodada posterior: nove vagas
+  ocupadas de quinze. O preflight confirmou essa rodada antiga como único bloqueio à catalogação.
+  Nenhum job foi cancelado por este chat.
 - **E1/E2 implementados:** fontes ArcGIS no manifesto e CLI/replicação, assinaturas SIGEF/PRODES, Ibama no SCD2,
   alertas de qualidade e DuckDB/restrições no funil de produção. Não confundir código com operação agendada:
   a coleta com PostGIS continua sem servidor permanente. Pendências maiores do plano que não estavam nos seis
@@ -179,7 +181,9 @@ como não habilitada para treino no manifesto.
   certificação ou emissão. Referência do vocabulário: CADT `58927db8f4b4fe558842a688d33f173c41944279`.
   Versão científica/cenário ausentes ou diferentes nos CSV impedem o projeto da UF, com diagnóstico.
 - **Atestação:** `actions/attest-build-provenance@v2` aceita `subject-checksums` (action.yml conferido). Os uploads
-  concluídos registram SHA-256 em `RUNNER_TEMP/atestar.txt`; a última versão de cada nome no job é atestada.
+  públicos concluídos registram SHA-256 e nome em `RUNNER_TEMP/atestar.txt`. No canal privado, a lista separada
+  usa somente `privado-sha256-<digest dos bytes>`, nunca o nome original; aliases do mesmo conteúdo colapsam,
+  mas versões distintas permanecem atestadas. O gate do #81 impede atestar uma lista privada legada inválida.
 - **Rede desta retomada:** GitHub conectado e `gh` autenticado; Docker/PostGIS local disponível para testes.
   Não pressupor que os bloqueios da sessão original ainda valem: conferir a fonte antes de concluir indisponibilidade.
 - **Fila de máquinas:** com 18 jobs, o CI dos PRs ficou na fila por dezenas de minutos. Daí o limite de 15.
@@ -288,15 +292,18 @@ backups. Os produtos finais continuam elegíveis a ficha e atestação; o proces
 
 - Uma migração manual da fila não alcança continuações que um job antigo ainda vai enfileirar. A admissão CAS
   promove somente pedidos não bloqueados de continuação ou retentativa entre referências exatas, sem seguir
-  a main: `88860b64`/`b624b108` passam a `ec2ebd2c` (#77 com aquisição corrigida, sem E1 novo);
-  `6a53cfbf`/`bea53bd0` passam a `dac754f9` (E1 novo preservado, com aquisição corrigida).
+  a main: as cinco origens `88860b64`, `b624b108`, `6a53cfbf`, `bea53bd0` e `436c7b63` passam
+  ao destino fixo `be452620`. Ele inclui E1/E2 do #79, a aquisição corrigida, as proteções operacionais do #81
+  e as guardas de embargo e adoção descritas abaixo.
   Preserva ID, parâmetros, contador e falhas; registra origem e destino.
   Reservas vivas não mudam. O catálogo aplica a mesma promoção antes do preflight, para não depender da ordem
   entre o último job e o cron de 15 minutos.
-- A evidência está em `auditoria-promocao-publicador.json`. Cada grupo preserva suas fórmulas, temas, ano,
-  regras e versões de dependências. Dez versões de tarefa permanecem iguais; MapBiomas muda porque a aquisição
-  integra seu hash. A versão operacional do motor também pode mudar; isso não reescreve versões nas previsões
-  existentes. A promoção não transfere as mudanças científicas de E1/E2 ao grupo que ainda não as usava.
+- A evidência está em `auditoria-promocao-publicador.json`. A aquisição mantém fórmulas, temas e ano do MapBiomas.
+  A prova declara as mudanças de versão por origem e a entrada intencional de E1/E2 nos pedidos anteriores ao #79.
+  Nas duas origens anteriores ao #79, mudam as 11 versões de tarefa: `rodar.py` integra o hash compartilhado
+  do histórico. A guarda de adoção permite esse avanço sem atribuir a ciência nova a arquivos antigos. Tarefas com versão
+  alterada e saídas sem versão comprovada seguem para o recálculo normal; checkpoints, prazos e limite de 15
+  continuam valendo. Previsões históricas conservam suas versões; não se usa HEAD móvel como destino.
 - O `workflow_run` da catalogação é restrito ao término de `43305564503`, no SHA `88860b64` completo, branch main
   e repositório de origem igual ao atual. Executa o código da main e não baixa artifacts do gatilho. O preflight
   continua exigindo a ausência de qualquer escritor antigo, antes de reservar uma das 15 vagas.
@@ -313,14 +320,44 @@ backups. Os produtos finais continuam elegíveis a ficha e atestação; o proces
   registra a tentativa no índice privado e impede o encadeamento imediato de jobs com erro e avanço zero.
   Não se deve mudar ano, omitir fonte obrigatória ou declarar dados concluídos para contornar essa resposta.
   A aquisição integra o hash da tarefa MapBiomas: pedidos novos com essa correção terão nova versão de tarefa,
-  embora o cálculo por imóvel permaneça igual. A promoção auditada acima inclui a aquisição corrigida nos dois
-  destinos fixos; não se atribui a versão nova a previsões já publicadas.
+  embora o cálculo por imóvel permaneça igual. A promoção auditada inclui a aquisição corrigida no destino
+  fixo; não se atribui a versão nova a previsões já publicadas.
+- Conferência real somente por GET: os caches privados de RN-1/RN-2 tiveram visibilidade e SHA-256 conferidos;
+  contêm os mesmos três pedidos aceitos, um READY e dois QUEUED. O export pronto foi baixado sem criar pedidos:
+  ZIP de 8.429.316 bytes, GeoTIFF de 8.425.445 bytes, uma banda em EPSG:4326, todas as janelas lidas sem erro.
+  Nenhum dado foi publicado nessa validação. O resultado prova que havia uma exportação pronta ainda não
+  consumida pelo fluxo antigo; não confirma o motivo específico da recusa do quarto pedido.
 - O registro de tentativa fica em módulo separado (`raiz/executor/rodadas.py`), usando as mesmas travas e o mesmo
   publicador. `armazem.py` permanece idêntico ao #77, preservando a conferência estrita de compatibilidade.
   A promoção final e o catálogo passaram em 155 testes de integração, com Ruff e actionlint 1.7.12.
-- Suíte completa da operação integrada à main do #80: **1.998 passaram, 4 pulados e 1 xfail**, com PostGIS,
-  em 1.068 s. Depois da correção final das referências, os 155 testes de fila/promoção/catálogo passaram novamente.
-  O destino de retomada `ec2ebd2c`, sem E1 novo, também teve suíte completa própria: **1.895 passaram, 4 pulados
-  e 1 xfail**, em 1.050 s, em outro banco PostGIS. Dois skips de cada checkout eram Takumi ainda não instalado;
-  após `npm ci` travado, os testes de cartões e vídeo passaram em ambos. Permanecem opcionais locais o Pará
-  inteiro e o servidor LanguageTool; o xfail de TIR já existia. Atestações e arquivos reais ainda exigem a execução retroativa.
+- Suíte completa da integração protegida (`56a6354`, mesma árvore de código de `be452620`): **2.115 passaram,
+  2 pulados e 1 xfail**, com PostGIS, em 1.102,57 s. Takumi e os testes de cartões/vídeo estavam disponíveis.
+  Skips: dados do Pará inteiro e servidor LanguageTool; xfail: TIR central r11 já documentada. A execução anterior
+  interrompida pela reinicialização da interface não foi contada. Depois da promoção final, **285 testes** de integração de fila, catálogo, fontes, atestação e guardas
+  passaram. Ruff (476 arquivos) e actionlint 1.7.12 passaram; o novo CI será conferido antes do merge. Atestações e arquivos reais ainda exigem a execução retroativa.
+
+## Proteções incorporadas à retomada operacional
+
+- O #81 foi integrado antes da atualização final do PR #82: atestação privada identificada somente pelo digest
+  dos bytes, sanitização de erros e reserva do catálogo por rodada/tentativa. O catálogo não libera uma vaga
+  com base no término de uma tentativa anterior. A combinação passou em 174 testes focados; um cenário de
+  14 jobs mais o catálogo não admitiu um 16º job, mesmo com promoção pendente e snapshot antigo do Actions.
+- O caminho legado do funil também descartava embargo ativo sem WKT, produzindo falsa ausência de restrição.
+  A guarda portável exige geometria poligonal utilizável antes dos cálculos, sem eliminar fazendas pequenas.
+  Áreas válidas e reparáveis mantêm o cálculo anterior; geometria ausente, vazia ou sem área bloqueia o município.
+- A adoção exige versão comprovada e hashes das saídas. Arquivo sem versão ou de outra versão permanece intacto
+  e segue para o recálculo normal, sem ser carimbado como resultado atual. Marcas adotadas anteriores também são
+  revalidadas. A data original é preservada; `adotado_em` registra separadamente a adoção. Essas guardas passaram
+  em 74 testes focados antes da integração, com revisão cruzada.
+
+## Validação offline dos demais produtos privados
+
+- Além do RO real já validado, oito pacotes do cache autenticado tiveram SHA-256 e conteúdo conferidos sem rede
+  nem publicação: AC, AP, GO, MA, MG, PA, RR e TO. As cópias temporárias privadas incluíram as geometrias reais.
+  Foram 44 operações sem falha inesperada: 2.696 CSVs, 57.863 campos Croissant e 4.283.214 linhas de quantis;
+  423,886 s somados e pico de cerca de 302 MiB, com um gerador por vez.
+- Faixas cruzadas permaneceram como diagnóstico, sem reordenação: GO 8.898, MG 1.366 e TO 190. PA não contém
+  tabelas financeiras/FLAG; AM, MS e MT não têm pacote tabular privado. A ausência não gera previsões inventadas.
+- CADT de GO/MG indicou ausência de lote elegível. AC/AP/MA/RR/TO usam uniformemente
+  `restauracao-2026b+cenarios-2026b+dbc2776a`, cenário `central_r11`; o registro fechado dessa versão está sendo
+  recuperado no Git antes de gerar seus cronogramas. Os cálculos individuais publicados permanecem preservados.

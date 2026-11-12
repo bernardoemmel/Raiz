@@ -38,9 +38,17 @@ O motor foi reativado com autorização do fundador. A entrega operacional promo
 continuações/retentativas auditadas para o publicador seguro, mantém as reservas vivas e liga a catalogação ao
 término natural da rodada `43305564503`. Também corrige o retorno falso de sucesso quando a fonte MapBiomas
 falha antes do primeiro município: pedidos aceitos são retomados, a tentativa fica registrada e a fila deixa de
-disparar sucessivos jobs sem avanço. A suíte integrada passou em 1.998 testes; a referência de retomada sem E1
-novo passou em 1.895, ambas com PostGIS. Os testes de cartões/vídeo passaram após instalar a dependência local;
-o delta final de fila/catalogação passou em 155 testes. A confirmação em produção segue o merge desta correção.
+disparar sucessivos jobs sem avanço. A integração protegida passou em **2.115 testes com PostGIS**, com dois
+skips locais (Pará inteiro e LanguageTool) e um xfail conhecido de TIR. As proteções do #81 foram incorporadas.
+Embargo ativo sem geometria válida bloqueia o cálculo, e a adoção exige versão comprovada e mantém a data original.
+Essas guardas permitem encaminhar as cinco origens auditadas para a referência fixa com E1/E2; versões alteradas
+são recalculadas pelo fluxo normal, sem atribuir versões novas a arquivos antigos ou mudar reservas vivas.
+O delta final de promoção/fila/catálogo passou em 285 testes, com Ruff e actionlint verdes. A confirmação
+em produção segue o merge desta correção.
+
+Oito pacotes reais adicionais ao RO foram validados offline: 2.696 CSVs, 57.863 campos Croissant e 4.283.214 linhas
+de quantis. Os diagnósticos de faixas cruzadas e ausência de produto foram preservados. Cinco UFs usam a regra
+histórica `restauracao-2026b+cenarios-2026b+dbc2776a`; sua recuperação fechada no Git antecederá os cronogramas CADT.
 
 | Ordem | Entrega | Situação |
 |---|---|---|
@@ -48,7 +56,7 @@ o delta final de fila/catalogação passou em 155 testes. A confirmação em pro
 | 2–3 | Fichas Croissant 1.1/schema.org e publicação no Release | **feito no publicador**: `raiz/metadados.py`, baker 0.8.3 e mlcroissant 1.1.1; fichas por pacote CSV, geometria, camadas e controle, com catálogos separados por acesso; o público recebe só fichas básicas, o privado recebe os derivados completos. SHA-256 dos bytes reais, leitura de tar testada e nenhuma licença de dados presumida. Baker e validador trabalham em subprocessos limitados por campos, preservando a ficha integral. A atualização retroativa de todos os assets será conferida na entrega final |
 | 4 | Quantis privados no formato hubverse, com versão do modelo | **feito no publicador**: Parquet longo, hub nativo por UF, tasks v6 e metadados por versão; data/versão ausentes geram diagnóstico. FLAG usa hipótese triangular explícita; P50 legado do desenvolvedor preserva o cenário central. Publicação retroativa pendente de execução |
 | 5 | Cartão do modelo | **feito no código**: `docs/modelo/cartao.md`, preparado para publicação como `cartao_modelo.md`; usos, dados, métodos, versões, métricas ainda sem validação de campo e limites. A presença no Release será conferida após a execução retroativa |
-| 6 | Atestação dos arquivos publicados pelo Actions | **feito no workflow**: checksums dos uploads concluídos e `actions/attest-build-provenance@v2`, com OIDC e permissão de atestação. Finalizador da versão atual atende também execuções científicas fixadas em commits antigos. A execução e a verificação dos arquivos existentes serão registradas após o merge |
+| 6 | Atestação dos arquivos publicados pelo Actions | **feito no workflow**: checksums dos uploads concluídos e `actions/attest-build-provenance@v2`, com OIDC e permissão de atestação. A integração do #81 identifica arquivos privados somente pelo hash do conteúdo e valida a lista antes da assinatura. Finalizador da versão atual atende também execuções científicas fixadas em commits antigos. A execução e a verificação dos arquivos existentes serão registradas após o merge |
 | 7 | Cronograma dos lotes no vocabulário CAD Trust | **feito no publicador**: cenários ProFloresta+ privados por UF, incrementos anuais inteiros cuja soma preserva o total P50; `cadt_lotes.json`, proveniência e diagnósticos. Âncora hipotética de 01/01/2027 configurável; não declara registro, certificação ou emissão |
 | 8 | Pendências E1/E2 da passagem, na ordem de dependência | **feito no código**: manifesto ArcGIS, assinaturas SIGEF/PRODES, CLI/replicação ArcGIS, Ibama no SCD2, alertas de qualidade e DuckDB/restrições no funil de produção; testes com PostGIS. A coleta continua dependendo de servidor e agendamento |
 

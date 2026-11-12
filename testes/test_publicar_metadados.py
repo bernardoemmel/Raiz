@@ -85,10 +85,11 @@ def test_reserva_auxiliar_recusa_sem_vaga_e_nao_enfileira(monkeypatch):
 @pytest.mark.parametrize(
     "origem,destino",
     [
-        ("88860b64ee09f811b66e283f5c57997ebcdb3fd5", "ec2ebd2c5772c6307aa1c3a41e1f97aac54e1b51"),
-        ("b624b108b0350135003e1099d9c928fa7cc24151", "ec2ebd2c5772c6307aa1c3a41e1f97aac54e1b51"),
-        ("6a53cfbf514f369f694ea0bd3bc594ef8295a3b4", "dac754f9d27a61481fdb0db24c496cdea0dd4f35"),
-        ("bea53bd06c7178daf2a53c392e5a9d54c55e7bc7", "dac754f9d27a61481fdb0db24c496cdea0dd4f35"),
+        ("88860b64ee09f811b66e283f5c57997ebcdb3fd5", "be452620f868537251fa832a10cb14bfb5c8efe3"),
+        ("b624b108b0350135003e1099d9c928fa7cc24151", "be452620f868537251fa832a10cb14bfb5c8efe3"),
+        ("6a53cfbf514f369f694ea0bd3bc594ef8295a3b4", "be452620f868537251fa832a10cb14bfb5c8efe3"),
+        ("bea53bd06c7178daf2a53c392e5a9d54c55e7bc7", "be452620f868537251fa832a10cb14bfb5c8efe3"),
+        ("436c7b636f6a8867b47403a1dfad4e4c741dc150", "be452620f868537251fa832a10cb14bfb5c8efe3"),
     ],
 )
 def test_catalogo_promove_ultima_continuacao_antes_do_gate_sem_admitir_motor(
