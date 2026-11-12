@@ -13,7 +13,7 @@ com regressões. Mudanças de contrato/arquitetura ficam para os chats responsá
   e persistiu erro sintético sem a mensagem original. Servidor de produção ainda precisa das variáveis/DNS/TLS do guia.
 - **Qualidade e segurança:** Locust MIT no CI, API/PostGIS reais, três rotas, saturação e recuperação. Ensaio local:
   70 chamadas normais e 385 na saturação, 355 respostas 429 válidas, zero falhas, máximo 2,864 s. São medidas do ensaio
-  curto, não capacidade máxima de produção. Oito jobs em paralelo; nenhuma suíte existente foi removida.
+  curto, não capacidade máxima de produção. Nove jobs em paralelo e um portão final; nenhuma suíte existente foi removida.
 - **MCP, parcial:** o servidor OAuth entrou na main durante o CI desta entrega (#45/#69). O adaptador de testes
   agora usa HTTP/JWKS/RS256 e PostGIS reais, todas as sete ferramentas após #72, latência e Locust. O corpus continua dependendo
   de **Produto e regras**: o MCP oferece ferramentas de pedidos para agentes externos, sem agente leitor de certidão,
@@ -59,8 +59,8 @@ Nenhum teste foi retirado ou selecionado parcialmente para acelerar o CI. O test
 que não estavam preparadas nos ensaios históricos registrados abaixo. A publicação privada integral foi concluída
 por **Lote e números**. **Qualidade e segurança** já executou o teste real com download autenticado, hashes e
 entradas/geometrias congeladas: 144 municípios, 345.870 imóveis, nenhum skip, em 446,2 s e pico de 6.840,2 MiB.
-O teste e o portão desta continuação não aceitam mais a exceção estadual; falta comprovar no CI o acesso com
-`contents: read` e integrar a entrega independente à main. Nenhum pacote financeiro vai para cache ou artifact
+O teste e o portão desta continuação não aceitam mais a exceção estadual; falta comprovar no CI o job privado
+isolado e integrar a entrega independente à main. Nenhum pacote financeiro vai para cache ou artifact
 público; a recomendação histórica de cache abaixo está superada.
 Além disso, permanece o `xfail` preexistente de TIR do plantio (`test_plantio_da_7_a_9_pct_no_central_r11`):
 o teste executa, mas a conta ainda diverge da referência de 7–9%; o chat **Lote e números**, com **Produto e regras**, deve resolver o critério
@@ -574,8 +574,8 @@ geometrias congeladas. O token fica somente no passo de preparação; o teste ro
 com saída e JUnit privados apagados. Timeout e interrupção encerram também os descendentes do processo.
 **73 regressões do preparador/supervisor/portão passaram**; não foi criado cache ou artifact público desses dados.
 O CI agora exige exatamente um caso estadual aprovado e não aceita mais seu skip. PR de fork é explicitamente
-bloqueado antes de acesso ou credenciais; os demais testes continuam sendo executados. O acesso do token automático
-de leitura e a suíte integral ainda precisam ser confirmados no commit final pelo CI.
+bloqueado antes de acesso ou credenciais; os demais testes continuam sendo executados. O acesso do job privado
+e a suíte integral ainda precisam ser confirmados no commit final pelo CI.
 
 Corrigida uma opção de configuração do limitador compartilhado: a query da URL do Valkey não pode substituir
 os prazos de conexão/leitura nem habilitar retries ou health checks adicionais. URLs válidas com banco, keepalive
@@ -586,3 +586,17 @@ skip estadual e o xfail conhecidos. A suíte local desse marco passou com **2.14
 O único job vermelho daquele CI foi o corpus MCP: latência e carga passaram, mas falta o agente leitor de documentos
 de **Produto e regras**. Essa pendência permanece explícita; nenhuma aprovação de corpus ou merge com CI vermelho
 foi feita. A entrega independente #81 não altera essa política.
+
+O CI `43319627024` confirmou que `contents: read` não acessa o draft privado: o preparador respondeu somente
+"acesso autenticado ao snapshot privado recusado". Os outros **2.327 testes passaram**, sem skips; o estadual
+falhou explicitamente e a TIR permaneceu como xfail executado. A documentação do GitHub exige acesso de push
+para drafts. A correção isola `contents: write` somente no job `referencia_para`, que baixa e testa a referência;
+as actions desse job compartilham essa permissão, por isso ele não executa o restante da suíte. Nenhuma operação
+de publicação ou criação de segredo foi adicionada.
+
+O caso estadual roda em paralelo ao restante, que exclui somente esse nó. `resultado_testes` exige ambos os jobs
+aprovados, junta seus JUnits e recusa ausência, duplicação ou skip. Fork não executa o job privado e não recebe
+aprovação estadual; configuração administrativa de envio de tokens de escrita/segredos a forks continua a ser
+confirmada pelo fundador (consulta desta conta recusada com 403). Não há `pull_request_target` nem novo PAT.
+Uma interrupção do ambiente matou a primeira suíte local integral perto de 70%, depois de aprovar o estadual;
+essa execução não foi registrada como aprovada e está sendo refeita com log persistente.

@@ -642,8 +642,10 @@ New branch ruleset**. Dê o nome `main protegida`, selecione **Active** e inclua
 1. Exija pull request antes de integrar. Para o fundador trabalhar sozinho, não exija aprovação de uma segunda
    pessoa; exija resolver todas as conversas abertas. Se houver revisor, pode exigir uma aprovação e invalidá-la
    quando o código mudar.
-2. Em **Require status checks to pass**, selecione os oito checks do workflow **CI**: `workflows`, `segredos`,
-   `front`, `seguranca`, `checagens`, `e2e`, `carga` e `mcp`. Prefira a origem **GitHub Actions**, quando disponível. Marque
+2. Em **Require status checks to pass**, selecione os dez checks do workflow **CI**: `workflows`, `segredos`,
+   `front`, `seguranca`, `checagens`, `referencia_para`, `resultado_testes`, `e2e`, `carga` e `mcp`.
+   `checagens` sozinho não aprova a suíte: o portão completo é `resultado_testes`.
+   Prefira a origem **GitHub Actions**, quando disponível. Marque
    **Require branches to be up to date before merging**. Os nomes só aparecem depois de uma execução.
 3. Ative **Block force pushes** e **Restrict deletions**. Mantenha a lista de bypass vazia, incluindo para
    administradores, salvo uma política de emergência explícita. Não habilite merge automático do Dependabot
@@ -655,6 +657,11 @@ New branch ruleset**. Dê o nome `main protegida`, selecione **Active** e inclua
 A automação atual do motor atualiza `motor/README.md` por push direto. A proteção impedirá esse push: o chat
 Dados/operação precisa transformar a atualização em PR. Não conceda bypass geral ao token para contornar isso.
 Esta entrega documenta a configuração; não altera as regras da conta do fundador.
+
+Em **Settings → Actions → General**, mantenha desativado o envio de tokens de escrita e segredos a workflows
+de forks, quando essas opções forem oferecidas. A conta desta auditoria não pôde consultar essa configuração
+administrativa (403); o fundador deve confirmá-la. O YAML de um PR pode ser alterado pelo autor e não substitui
+essa restrição do GitHub. Não usar `pull_request_target` para executar código do PR com acesso ao arquivo privado.
 
 Em **Settings → Code security**, habilite **Dependabot alerts**, **Dependabot security updates** e, quando
 oferecidos pelo plano, **Secret scanning** e **Push protection**. `.github/dependabot.yml` já agenda atualizações
@@ -669,13 +676,17 @@ retirá-la do último commit não a apaga do histórico.
 
 ## CI e controles de segurança
 
-Os oito jobs rodam em paralelo, sem filtro de caminhos nem seleção de testes. `setup-uv` guarda cache pelo
+Nove jobs rodam em paralelo; `resultado_testes` reúne as duas partes da suíte Python ao final. Não há filtro
+de caminhos nem teste retirado da execução. `setup-uv` guarda cache pelo
 `uv.lock`, `setup-node` guarda o cache npm pelos locks, e o Chromium/LanguageTool têm caches separados. A instalação
 continua travada (`uv sync --frozen --all-extras`, `npm ci`). Não se reutiliza `node_modules` de outro lock.
 
 - `front` constrói o mesmo site público e executa os testes unitários, com geometrias de teste determinísticas.
-- `checagens` executa toda a coleta pytest, inclusive PostGIS, Rust, cartão, vídeo, PDF, LanguageTool e o conjunto
-  privado completo do Pará. O portão exige o caso estadual exatamente uma vez, aprovado, e recusa novos skips/xfails;
+- `checagens` executa os testes Python de PostGIS, Rust, cartão, vídeo, PDF e LanguageTool. Só o caso estadual é
+  separado com `--deselect` e executado em paralelo por `referencia_para`. A regressão de coleta verifica que a
+  diferença é exatamente esse nó, sem excluir testes com nomes parecidos.
+- `resultado_testes` exige sucesso nos dois jobs e confere ambos os JUnits. Exige o caso estadual exatamente uma
+  vez, aprovado, e recusa relatórios ausentes, casos duplicados e novos skips/xfails;
   a divergência conhecida de TIR continua executada como `xfail`, detalhada na passagem.
 - `e2e` abre Chromium e usa API/PostGIS reais: link de entrada, milhão de créditos no Pará, três opções, interesse
   e reserva Pix local. E-mail e respostas dos donos são controlados; nenhuma credencial de pagamento real é
@@ -693,15 +704,23 @@ O teste usa as 144 tabelas de desenvolvedor e terra, as entradas e as geometrias
 municipais, o modelo, o cenário e a identidade dos 345.870 imóveis. Mudança de modelo exige uma referência
 compatível de **Lote e números**; não reetiquetar previsões antigas para fazer o CI passar.
 
-No CI, somente o passo de preparação recebe `RAIZ_DADOS_PRIVADOS_TOKEN=${{ github.token }}`, com permissão
-`contents: read`. A suíte recebe apenas a pasta em `$RUNNER_TEMP/raiz-pa` e `RAIZ_TESTE_PA_OBRIGATORIO=1`.
+O GitHub exige acesso de escrita/push para ler releases em rascunho; o ensaio com `contents: read` foi recusado.
+Por isso, somente o job mínimo `referencia_para` usa `contents: write`; os demais mantêm leitura. Essa permissão
+vale também para as actions desse job, não apenas para um passo. Não há publicação nem credencial nova. O restante
+da suíte roda em outro job, sem o snapshot. Veja as regras de [releases em rascunho](https://docs.github.com/en/rest/releases/releases#list-releases)
+e [permissões do token](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#permissions).
+
+Somente o comando de preparação recebe `RAIZ_DADOS_PRIVADOS_TOKEN` no ambiente. Checkout usa
+`persist-credentials: false`; o processo pytest recebe apenas a pasta em `$RUNNER_TEMP/raiz-pa` e `RAIZ_TESTE_PA_OBRIGATORIO=1`.
 O teste reconfere os arquivos e roda o mesmo caso estadual em subprocesso sem credenciais; stdout, stderr e
 JUnit desse filho ficam privados e são apagados. O JUnit público contém apenas o resultado do caso e uma mensagem
 fixa se falhar. A pasta tem modo 0700, fica fora do checkout e é removida no passo `always()`.
 
-Não guardar esses arquivos financeiros em Actions cache ou artifact público. PR de fork não recebe credencial
-nem os dados: a validação estadual fica explicitamente bloqueada, e o CI não a apresenta como aprovada. Falha
-de acesso, hash, modelo ou preparação também deixa o job vermelho; os demais testes ainda são executados.
+Não guardar esses arquivos financeiros em Actions cache ou artifact público. O job privado só roda em push da
+main ou PR de branch do próprio repositório. Para fork, o portão final reprova a validação ausente: não há aprovação
+estadual simulada. Dependabot também pode receber token de leitura apesar de usar branch interno; nesses casos,
+um mantenedor revisa a alteração e a promove a branch confiável para executar a validação, sem ampliar acesso a forks.
+Falha de acesso, hash, modelo ou preparação deixa o CI vermelho; os demais testes continuam rodando no job paralelo.
 
 Para medir localmente, configure as duas variáveis do arquivo privado descritas em `docs/dados-publicados.md` e
 execute `uv run python scripts/testar_para_privado.py`. A CLI prepara uma pasta temporária, executa o caso real,
@@ -865,7 +884,7 @@ A validação impede nova publicação irregular; não é limpeza retroativa de 
 
 ## Revisão contínua da main
 
-Cada push da main executa os oito jobs de CI, incluindo segredos, licenças, privacidade, testes e carga. A revisão
+Cada push da main executa os dez jobs de CI, incluindo segredos, licenças, privacidade, testes e carga. A revisão
 semântica de cada PR integrado fica registrada em `docs/passagem/qualidade-e-seguranca.md`, com commit e chat dono
 dos achados maiores. Correção pequena precisa de regressão e PR com todos os checks verdes.
 
