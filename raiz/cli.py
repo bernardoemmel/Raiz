@@ -1064,6 +1064,33 @@ def pedidos_cliente(
     typer.echo(f"cliente {cid} criado. Token da sessão (guarde agora, não aparece de novo): {token}")
 
 
+@pedidos_cli.command("chave")
+def pedidos_chave(
+    cliente: Annotated[int, typer.Option(help="id do cliente (empresa)")],
+    rotulo: Annotated[str | None, typer.Option(help="qual agente usa a chave")] = None,
+    limite_minuto: Annotated[int, typer.Option(help="chamadas por minuto")] = 30,
+    limite_dia: Annotated[int, typer.Option(help="chamadas por dia")] = 2000,
+) -> None:
+    """Cria a chave de API da empresa para o agente de IA dela (a chave aparece uma vez só). A própria empresa também
+    cria pela API: POST /v1/chaves, na sessão do login por e-mail."""
+    from raiz.banco import engine
+    from raiz.publica import chaves as K
+
+    k = K.criar(engine(), cliente, rotulo, limite_minuto, limite_dia)
+    typer.echo(f"chave {k['prefixo']}... criada (guarde agora, não aparece de novo): {k['chave']}")
+
+
+@app.command("mcp")
+def mcp_stdio(
+    url: Annotated[str | None, typer.Option(help="endereço da API; padrão RAIZ_API_URL")] = None,
+) -> None:
+    """Servidor MCP da Raíz por stdio, para o Claude Desktop, o Claude Code e outros clientes locais (a chave da
+    empresa vem de RAIZ_CHAVE_API). O remoto, por HTTP, fica em /mcp na própria API (docs/agentes-ia.md)."""
+    from raiz.publica.servidor_mcp import ApiRaiz, criar_servidor
+
+    criar_servidor(ApiRaiz(url=url)).run("stdio")
+
+
 @pedidos_cli.command("ciclo")
 def pedidos_ciclo() -> None:
     """Um passo de tudo o que anda sozinho: ondas (vence quem não respondeu, chama a próxima onda, fecha o grupo),

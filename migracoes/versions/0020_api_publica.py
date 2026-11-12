@@ -1,16 +1,16 @@
 """API pública e agentes de IA dos clientes: chave de API por empresa, registro de cada chamada (empresa, ferramenta,
 pedido, versão do modelo) e reserva que espera a confirmação de uma pessoa da empresa.
 
-Revision ID: 0019
-Revises: 0018
+Revision ID: 0020
+Revises: 0019
 """
 
 from __future__ import annotations
 
 from alembic import op
 
-revision = "0019"
-down_revision = "0018"
+revision = "0020"
+down_revision = "0019"
 branch_labels = None
 depends_on = None
 

@@ -19,6 +19,9 @@ class Config(BaseSettings):
     banco_url: str = "postgresql+psycopg://raiz:raiz@localhost:5432/raiz"
     # banco descartável dos testes (é zerado a cada rodada de testes)
     banco_url_teste: str | None = None
+    # servidor MCP remoto (/mcp): hosts aceitos, separados por vírgula (vazio: qualquer um; a chave da empresa é
+    # exigida em toda chamada). Ex.: "api.raiz.com.br,localhost:8000"
+    mcp_hosts: str | None = None
     # chave para cifrar o esquema pessoal (telefone, BSUID); sem ela, nada pessoal é gravado
     chave_pessoal: SecretStr | None = None
     # Healthchecks (https://healthchecks.io ou instância própria fora do servidor da Raíz)

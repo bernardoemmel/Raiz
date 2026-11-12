@@ -68,17 +68,21 @@ def criar_app(
 
     @contextlib.asynccontextmanager
     async def ciclo(app: FastAPI):
-        with contextlib.ExitStack() as pilha:
-            if app.state.grafo is None:
-                from raiz.agentes.memoria import checkpointer
-                from raiz.banco import engine as engine_padrao
-                from raiz.modelos.cascata import cascata_padrao
+        async with contextlib.AsyncExitStack() as assinc:
+            mcp = getattr(app.state, "mcp", None)
+            if mcp is not None:  # o servidor MCP por HTTP precisa do gerenciador de sessões rodando
+                await assinc.enter_async_context(mcp.session_manager.run())
+            with contextlib.ExitStack() as pilha:
+                if app.state.grafo is None:
+                    from raiz.agentes.memoria import checkpointer
+                    from raiz.banco import engine as engine_padrao
+                    from raiz.modelos.cascata import cascata_padrao
 
-                cp = pilha.enter_context(checkpointer())
-                app.state.engine = app.state.engine or engine_padrao()
-                app.state.grafo = aceite.construir(cp)
-                app.state.deps = aceite.Dependencias(app.state.engine, cascata_padrao())
-            yield
+                    cp = pilha.enter_context(checkpointer())
+                    app.state.engine = app.state.engine or engine_padrao()
+                    app.state.grafo = aceite.construir(cp)
+                    app.state.deps = aceite.Dependencias(app.state.engine, cascata_padrao())
+                yield
 
     app = FastAPI(title="Raíz", lifespan=ciclo)
     app.state.engine, app.state.grafo, app.state.deps = engine, grafo, deps
@@ -248,6 +252,27 @@ def criar_app(
     from raiz.vigilancia import api as vigilancia_api
 
     app.include_router(vigilancia_api.roteador(), dependencies=seguro)
+    # API pública (/v1) para as empresas clientes e os agentes de IA delas: chave por empresa ou login por e-mail,
+    # limite por chave, cada chamada gravada; OpenAPI em /v1/openapi.json. O servidor MCP fica em /mcp.
+    from raiz.publica import api as publica_api
+
+    def _engine_principal(request) -> Engine:
+        if app.state.engine is None:
+            from raiz.banco import engine as engine_padrao
+
+            app.state.engine = engine_padrao()
+        return app.state.engine
+
+    app.mount("/v1", publica_api.criar(_engine_principal))
+    import httpx
+
+    from raiz.config import config as _config
+    from raiz.publica.servidor_mcp import ApiRaiz, app_http
+
+    app.state.mcp, mcp_app = app_http(
+        ApiRaiz(url="http://raiz.interno", transporte=httpx.ASGITransport(app=app)), _config().mcp_hosts
+    )
+    app.mount("/mcp", mcp_app)
     # link público, cartão e vídeo pelo código curto: sem token (só município, hectares, selo e código antes do aceite)
     from raiz import publico
 

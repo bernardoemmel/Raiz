@@ -223,6 +223,14 @@ def _salvar_sugestao(con, pedido_id, motivo: str, b: dict, ops: list[dict]) -> N
     )
 
 
+def base_disponivel(engine: Engine, cliente_id: int, campos: CamposPedido | dict) -> dict:
+    """Quanto existe na base para o pedido, sem salvar nada (a primeira pergunta de um agente de IA)."""
+    c = campos if isinstance(campos, CamposPedido) else CamposPedido.model_validate(campos)
+    with engine.connect() as con:
+        nv, fora = niveis(con), fora_para(con, cliente_id)
+    return Z.base(_oferta(engine, c), c, nv, fora)
+
+
 def criar_pedido(engine: Engine, cliente_id: int, campos: CamposPedido | dict) -> dict:
     c = campos if isinstance(campos, CamposPedido) else CamposPedido.model_validate(campos)
     with engine.connect() as con:
