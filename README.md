@@ -29,6 +29,30 @@ Os dados completos não ficam no repositório (são grandes); o motor gera de no
 **Documentação (`docs/`)**: `colunas.md` (o que cada coluna significa; é o contrato entre motor e produto) e
 `plano-por-etapa.md` (o que construir, em que ordem, com horas estimadas).
 
+**Produto (`raiz/`)**: pacote Python em cima do motor. Arquitetura aprovada em `docs/arquitetura.md`.
+
+| Peça | O que faz |
+|---|---|
+| `raiz/contrato.py` | lê as saídas do motor pelo nome das colunas; coluna nova vai para `atributos` em vez de quebrar |
+| `raiz/carga.py` | carrega `saida/<UF>/` no PostgreSQL + PostGIS, uma rodada por município, sem duplicar |
+| `raiz/aprendizado/` | previsões congeladas (data de corte, horizonte, versões, hash do lote) e previsão contra gabarito |
+| `raiz/privacidade.py` | máscara de CPF/CNPJ (inclusive alfanumérico), log mascarado, varredura do repositório |
+| `raiz/licencas.py` | derruba o build se alguma dependência tiver licença proibida pelo CLAUDE.md |
+| `migracoes/` | esquemas `coleta`, `bruto`, `funil`, `regras`, `titulo`, `negocio`, `aprendizado`, `pessoal`, `operacao` |
+
+**Pedidos do dia 1 (`docs/pedidos/`)**: convênio com o ONR e pedidos de LAI ao SFB e ao INCRA, prontos para enviar.
+
+## Rodar o produto
+
+```bash
+uv sync --all-extras                                   # dependências do produto e do motor
+docker compose --env-file .env -f infra/docker-compose.yml up -d   # PostGIS (ou um Postgres com PostGIS local)
+uv run raiz banco migrar
+uv run raiz carregar dados/amostra --data-corte 2026-11-12   # carrega e congela as previsões do motor
+uv run raiz aprendizado placar
+uv run pytest                                          # com RAIZ_BANCO_URL_TESTE no .env, testa também o banco
+```
+
 ## Rodar o motor
 
 ```bash
