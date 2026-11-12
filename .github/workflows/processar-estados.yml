@@ -1,0 +1,227 @@
+# Roda o motor da Raíz estado por estado, sozinho, e publica no Release `dados` (de onde o front baixa).
+# Explicação completa e painel: motor/README.md. Repositório público: os minutos do Actions são grátis.
+#
+# planejar  -> lê o estados.json publicado e escolhe os estados (incompletos ou com código mudado), na ordem do país,
+#              até 4 ao mesmo tempo contando as outras rodadas em andamento
+# preparar  -> baixa uma vez por dia os arquivos nacionais e guarda no cache comum
+# processar -> um job por estado: motor/rodar_estado.py --executor baixa as fontes do estado, adota o que foi publicado
+#              antes do executor (com a APP pela escadinha onde faltava) e chama `raiz executor rodar` (o motor e as
+#              tarefas do produto, município a município, retomando das marcas no Release), que para antes de 5h30 e
+#              publica. Se parou pelo prazo, dispara este workflow de novo só para aquele estado (continuação); se
+#              terminou, passa a vez ao próximo da fila. Ficam sempre 4 cadeias rodando, na ordem, até o Brasil inteiro.
+name: Processar estados (motor)
+
+run-name: >-
+  Processar estados: ${{ inputs.ufs || (startsWith(inputs.continuacao, 'proximo') && 'próximo da fila' ||
+  (github.event_name == 'schedule' && 'rodada semanal' || 'plano automático')) }}${{ inputs.continuacao &&
+  inputs.continuacao != '0' && !startsWith(inputs.continuacao, 'proximo') && format(' (continuação {0})', inputs.continuacao) || '' }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      ufs:
+        description: "Estados separados por espaço (ex.: TO MA). Vazio: todos os incompletos ou com código do motor mudado"
+        required: false
+        default: ""
+      refazer:
+        description: "Tabelas para apagar e refazer nesses estados: funil, filtros, mapbiomas, direto, extras_direto, extras ou tudo (vírgula). Vazio: nada"
+        required: false
+        default: ""
+      continuacao:
+        description: "Uso interno (número da continuação depois do prazo de 5h30, ou proximo-UF quando um job passa a vez). Deixe 0"
+        required: false
+        default: "0"
+  schedule:
+    - cron: "23 5 * * 1" # segunda-feira, 02:23 em Brasília: refaz o que mudou e continua o que falta
+
+permissions:
+  contents: write # subir no Release, trava do estados.json, painel do README
+  actions: write # ver as rodadas em andamento, disparar a continuação e o próximo da fila, apagar caches velhos
+
+env:
+  RAIZ_REPO: ${{ github.repository }}
+  RAIZ_ARMAZEM_URL: release-github://${{ github.repository }}/dados # o armazém do executor é o Release "dados"
+  RAIZ_SEM_BANCO: "1" # sem Postgres no job: a marca do executor guarda o andamento
+  # arquivos nacionais (mesma lista no restore e no save, senão o cache não confere)
+  CACHE_COMUM: |
+    motor/cache/municipios.csv
+    motor/cache/termo_de_embargo.csv
+    motor/cache/termo_de_embargo.etag
+    motor/cache/embargos_changelog.csv
+    motor/cache/biomas_brasil.gpkg
+    motor/cache/*.parquet
+    motor/cache/drivers
+    motor/cache/tmf
+
+jobs:
+  planejar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    outputs:
+      matriz: ${{ steps.plano.outputs.matriz }}
+      tem: ${{ steps.plano.outputs.tem }}
+      dia: ${{ steps.plano.outputs.dia }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - name: Dependências (produto e motor)
+        run: uv sync --frozen --all-extras
+      - name: Escolher os estados (lê o estados.json publicado e as versões das tarefas do executor)
+        id: plano
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RAIZ_UFS: ${{ inputs.ufs }}
+          RAIZ_REFAZER: ${{ inputs.refazer }}
+          RAIZ_CONTINUACAO: ${{ inputs.continuacao }}
+        run: uv run python motor/rodar_estado.py --planejar
+
+  preparar:
+    needs: planejar
+    if: needs.planejar.outputs.tem == '1'
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - name: Já existe o cache comum de hoje?
+        id: hoje
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ env.CACHE_COMUM }}
+          key: motor-comum-v1-${{ needs.planejar.outputs.dia }}
+          lookup-only: true
+      - if: steps.hoje.outputs.cache-hit != 'true'
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - if: steps.hoje.outputs.cache-hit != 'true'
+        run: uv sync --frozen --all-extras
+      - name: Recuperar o cache comum anterior
+        if: steps.hoje.outputs.cache-hit != 'true'
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ env.CACHE_COMUM }}
+          key: motor-comum-v1-${{ needs.planejar.outputs.dia }}
+          restore-keys: motor-comum-v1-
+      - name: Baixar os arquivos nacionais (lista de municípios, embargos, biomas, geobr, TMF, causas da perda)
+        if: steps.hoje.outputs.cache-hit != 'true'
+        run: uv run python motor/rodar_estado.py --preparar
+      - name: Guardar o cache comum de hoje
+        id: salvar
+        if: steps.hoje.outputs.cache-hit != 'true'
+        continue-on-error: true
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ env.CACHE_COMUM }}
+          key: motor-comum-v1-${{ needs.planejar.outputs.dia }}
+      - name: Apagar caches comuns de outros dias
+        if: steps.salvar.outcome == 'success'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NOVA: motor-comum-v1-${{ needs.planejar.outputs.dia }}
+        run: |
+          gh cache list -R "$GITHUB_REPOSITORY" --key motor-comum-v1- --limit 100 --json id,key \
+            --jq '.[] | select(.key != env.NOVA) | .id' | xargs -r -n1 gh cache delete -R "$GITHUB_REPOSITORY"
+
+  processar:
+    name: ${{ matrix.uf }}
+    needs: [planejar, preparar]
+    if: ${{ !cancelled() && needs.planejar.outputs.tem == '1' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 345 # o executor para sozinho e publica antes; isto é só a rede de segurança
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        uf: ${{ fromJSON(needs.planejar.outputs.matriz) }}
+    concurrency: # nunca dois jobs no mesmo estado ao mesmo tempo
+      group: motor-estado-${{ matrix.uf }}
+      cancel-in-progress: false
+    env:
+      UF: ${{ matrix.uf }}
+      GH_TOKEN: ${{ github.token }}
+      OGR_GEOJSON_MAX_OBJ_SIZE: "0"
+      LANES: "3"
+      RAIZ_LIMITE_MIN: "330" # 5h30 por job
+      RAIZ_MARGEM_MIN: "25" # tempo guardado para guardar o cache e continuar
+      RAIZ_GRACA_MIN: "10" # folga para os municípios em curso quando o executor para de começar novos
+      RAIZ_RASTER_CACHE_GB: "5"
+      RAIZ_CONTINUACAO: ${{ inputs.continuacao || '0' }}
+      RAIZ_REFAZER: ${{ inputs.refazer }}
+      CACHE_UF_CHAVE: motor-uf-v1-${{ matrix.uf }}-${{ github.run_id }}-${{ github.run_attempt }}
+    steps:
+      - name: Marcar o início (o prazo de 5h30 conta daqui)
+        run: echo "RAIZ_INICIO=$(date +%s)" >> "$GITHUB_ENV"
+
+      - uses: actions/checkout@v4
+
+      - name: Liberar espaço em disco
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL || true
+          df -h /
+
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Dependências (produto e motor)
+        run: uv sync --frozen --all-extras
+
+      - name: Recuperar o cache comum
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ env.CACHE_COMUM }}
+          key: motor-comum-v1-${{ needs.planejar.outputs.dia }}
+          restore-keys: motor-comum-v1-
+
+      - name: Recuperar o cache do estado (blocos do TerraBrasilis, MapBiomas, Alerta)
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            motor/cache/tb
+            motor/cache/mapbiomas/${{ matrix.uf }}
+            motor/cache/alerta
+          key: ${{ env.CACHE_UF_CHAVE }}
+          restore-keys: motor-uf-v1-${{ matrix.uf }}-
+
+      - name: Insumos opcionais (Release insumos)
+        run: |
+          mkdir -p motor/extras
+          if gh release download insumos -R "$GITHUB_REPOSITORY" -D motor/extras -p "raiz_extras*_${UF}*.tif" 2>/dev/null; then
+            echo "GeoTIFFs do Earth Engine: $(ls motor/extras | wc -l)"
+          else
+            echo "sem GeoTIFF do Earth Engine para $UF: a etapa extras é pulada"
+          fi
+          if gh release download insumos -R "$GITHUB_REPOSITORY" -D "$RUNNER_TEMP" -p projetos_carbono.tar.gz 2>/dev/null; then
+            tar -xzf "$RUNNER_TEMP/projetos_carbono.tar.gz" -C motor --no-same-owner && echo "projetos de carbono: ok"
+          else
+            echo "sem mapas de projetos de carbono (frente ja_tem_projeto fica de fora)"
+          fi
+
+      - name: Rodar pelo executor (fontes, adoção, motor e tarefas do produto) e publicar no Release dados
+        run: uv run python motor/rodar_estado.py "$UF" --executor
+
+      - name: Guardar o cache do estado
+        id: salvar
+        if: always()
+        continue-on-error: true
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            motor/cache/tb
+            motor/cache/mapbiomas/${{ matrix.uf }}
+            motor/cache/alerta
+          key: ${{ env.CACHE_UF_CHAVE }}
+
+      - name: Continuar este estado (se parou pelo prazo) ou passar a vez ao próximo da fila
+        if: always()
+        run: uv run python motor/rodar_estado.py --continuar "$UF"
+
+      - name: Apagar caches antigos deste estado
+        if: always() && steps.salvar.outcome == 'success'
+        continue-on-error: true
+        run: |
+          gh cache list -R "$GITHUB_REPOSITORY" --key "motor-uf-v1-${UF}-" --limit 100 --json id,key \
+            --jq '.[] | select(.key != env.CACHE_UF_CHAVE) | .id' | xargs -r -n1 gh cache delete -R "$GITHUB_REPOSITORY"

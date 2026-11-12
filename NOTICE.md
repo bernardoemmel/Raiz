@@ -13,7 +13,9 @@ Dados públicos lidos pelo motor (cada um com seus termos): SICAR/SFB, Ibama, IN
 INCRA (SIGEF, quilombolas), FUNAI, MMA/CNUC (via geobr/Ipea), MapBiomas (cobertura, Fogo, Alerta), YbYrá-BR
 (Source Cooperative), Global Pasture Watch (OpenGeoHub), JRC TMF v1.2025 (espelho COG na Source Cooperative,
 epoch/jrc-tmf; dado do Joint Research Centre da Comissão Europeia, reempacotado sem alterar valores), causas da
-perda de floresta WRI/Google DeepMind v1.2 (Zenodo 15366671, CC BY 4.0).
+perda de floresta WRI/Google DeepMind v1.2 (Zenodo 15366671, CC BY 4.0). MapBiomas Alerta lido pelo WFS público da
+plataforma (maps.alerta.mapbiomas.org, camada dashboard-alert-shapefile, só alertas publicados). Lista de municípios
+do IBGE em CSV de https://github.com/kelvins/municipios-brasileiros (MIT), baixada para o cache, sem copiar código.
 
 Dependências usadas sem copiar código: `i_overlay` (MIT/Apache-2.0) e `serde_json` (MIT/Apache-2.0) no teste `motor/iovbench/`.
 

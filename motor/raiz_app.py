@@ -18,7 +18,7 @@ def app(uf, cod, pasta):
     g = gpd.read_parquet(f'{pasta}/geo_{cod}.parquet')
     base = R.fix(g[['cod_imovel', 'geometry']], sub=False)
     bbox = [round(v, 4) for v in g.to_crs(4674).total_bounds]
-    L, _ = R.camadas(uf, bbox)
+    L, _ = R.camadas(uf, bbox, so=('yd', 'acc', 'hy'))  # só o que a APP usa: desmatamento e hidrografia
     yd, acc, hy = R.fix(L['yd']), R.fix(L['acc']), R.fix(L['hy'])
     if 'main_class' in yd: yd = yd[yd.main_class.str.upper() == 'DESMATAMENTO']
     r = {}

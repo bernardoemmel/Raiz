@@ -35,6 +35,8 @@ import sys, os, io, time, warnings, requests, pandas as pd, geopandas as gpd
 from shapely import wkt
 import numpy as np
 warnings.filterwarnings('ignore')
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from raiz_situacao import NOME_UF
 
 A = "EPSG:5880"
 PCT_ALEM = 50
@@ -43,6 +45,8 @@ CAR_WFS = "https://geoserver.car.gov.br/geoserver/sicar/wfs"
 TB_WFS = "https://terrabrasilis.dpi.inpe.br/geoserver/ows"
 SIGEF_WFS = "https://geoportal.incra.gov.br/geoserver/ows"
 IBAMA_CSV = "https://stibamadadosabertosprd.blob.core.windows.net/dados-abertos/dados/TERMOS_DE_EMBARGO/TERMO_EMBARGO/termo_de_embargo.csv"
+ALERTA_WFS = "https://maps.alerta.mapbiomas.org/geoserver/ows"
+MUNICIPIOS_CSV = "https://raw.githubusercontent.com/kelvins/municipios-brasileiros/main/csv/municipios.csv"
 CACHE = "cache"; os.makedirs(CACHE, exist_ok=True)
 PROJ_DIR = "projetos_carbono"
 
@@ -163,14 +167,58 @@ class LegacyTLS(HTTPAdapter):
 S = requests.Session(); S.mount('https://', LegacyTLS())
 
 
-def get(url, params, tries=5, timeout=600):
+TENTATIVAS = int(os.environ.get('RAIZ_TENTATIVAS', 6))
+RECUSA = (403, 429, 502, 503, 504)  # fonte recusando (limite de pedidos) ou sobrecarregada
+
+
+def _fora_do_ar(host, marcar=None):
+    """Disjuntor por fonte, valendo para todos os processos (arquivo em cache/): depois que uma fonte recusa todas as
+    tentativas, os próximos municípios fazem só uma tentativa cada, em vez de esperar 15 min cada um. Quem conseguir
+    de novo desarma."""
+    f = f'{CACHE}/fora_do_ar_{host}'
+    if marcar is True:
+        try: open(f, 'w').write(str(time.time()))
+        except OSError: pass
+        return True
+    if marcar is False:
+        try: os.remove(f)
+        except OSError: pass
+        return False
+    try: return time.time() - float(open(f).read()) < float(os.environ.get('RAIZ_FORA_DO_AR_S', 600))
+    except Exception: return False
+
+
+def get(url, params, tries=None, timeout=600):
+    """GET com espera crescente. Recusa (403, 429, 502, 503, 504) espera 30 s, 1, 2, 4 e 8 min (ou o Retry-After da
+    fonte); outros erros, 5 s a 80 s. Cada tentativa fica no log. Se todas falharem, levanta erro: quem chamou marca o
+    município como ERRO e segue para o próximo (ele entra de novo na próxima rodada)."""
+    from urllib.parse import urlparse
+    host = urlparse(url).hostname or url
+    tries = tries or TENTATIVAS
+    if _fora_do_ar(host): tries = 1
+    recusas, ultimo = 0, ''
     for i in range(tries):
+        espera = None
         try:
             r = S.get(url, params=params, timeout=timeout)
-            r.raise_for_status(); return r
+            if r.status_code in RECUSA:
+                ra = r.headers.get('Retry-After', '')
+                espera = min(float(ra), 900) if ra.isdigit() else min(30 * 2 ** i, 600)
+                raise requests.HTTPError(f'HTTP {r.status_code} {r.reason}', response=r)
+            r.raise_for_status()
+            if recusas or i: print(f'   {host}: respondeu na tentativa {i + 1}', flush=True)
+            _fora_do_ar(host, False) if os.path.exists(f'{CACHE}/fora_do_ar_{host}') else None
+            return r
         except Exception as e:
-            print('   tentativa', i + 1, 'falhou:', str(e)[:120]); time.sleep((30 if '429' in str(e) else 2) * (2 ** i))
-    raise RuntimeError('download falhou: ' + url)
+            ultimo = str(e)[:160]
+            rede = isinstance(e, (requests.ConnectionError, requests.Timeout))
+            if espera is not None or rede: recusas += 1
+            if espera is None: espera = min((30 if rede else 5) * 2 ** i, 600)
+            if i < tries - 1:
+                print(f'   {host}: tentativa {i + 1}/{tries} falhou ({ultimo}); espero {espera:.0f} s', flush=True)
+                time.sleep(espera)
+    if recusas == tries: _fora_do_ar(host, True)
+    raise RuntimeError(f'{host} não respondeu em {tries} tentativa(s): {ultimo}')
 
 
 def gj(r):
@@ -347,12 +395,13 @@ def biomas():
             r = get(TB_WFS, dict(service='WFS', version='1.0.0', request='GetFeature', typeName='prodes-brasil-nb:biomas_brasil',
                                  outputFormat='application/json'))
             BIOMAS = gpd.GeoDataFrame(gj(r), geometry='geometry').set_crs(4674, allow_override=True)[['bioma', 'geometry']]
-            BIOMAS.to_file(f)
+            tmp = f'cache/biomas_brasil.{os.getpid()}.tmp.gpkg'; BIOMAS.to_file(tmp); os.replace(tmp, f)
     return BIOMAS
 
 
-def camadas(uf, bbox):
-    """Baixa PRODES, terras indígenas, UCs, não floresta e hidrografia de todos os biomas que tocam o município."""
+def camadas(uf, bbox, so=None):
+    """Baixa PRODES, terras indígenas, UCs, não floresta e hidrografia de todos os biomas que tocam o município.
+    so: só estas camadas (ex.: ('yd', 'acc', 'hy') para a APP); as outras voltam vazias."""
     from shapely.geometry import box
     bs = biomas(); toca = bs[bs.intersects(box(*bbox))].bioma.tolist()
     fontes = []
@@ -361,7 +410,7 @@ def camadas(uf, bbox):
     out = {k: [] for k in ['yd', 'acc', 'nf', 'hy', 'ti', 'uc']}
     for ws, ls in fontes:
         for k, layer in ls.items():
-            if layer: out[k].append(tb(layer, bbox, ws=ws))
+            if layer and (so is None or k in so): out[k].append(tb(layer, bbox, ws=ws))
     vazio = gpd.GeoDataFrame(geometry=[], crs=4674)
     res = {}
     for k, v in out.items():
@@ -411,6 +460,43 @@ def carbono(c, uf):
 AL_CACHE = {}
 
 
+def garantir_alertas(uf, dias=None):
+    """MapBiomas Alerta do estado pelo WFS público da plataforma (sem login): só alertas publicados, todos os biomas.
+    Grava cache/alerta/alerta_<UF>.parquet (CODEALERTA, ANODETEC, AREAHA e o polígono), no mesmo formato do arquivo que
+    antes vinha do download do Brasil separado à mão, e baixa de novo quando passa de RAIZ_ALERTA_DIAS (7) dias."""
+    dias = float(os.environ.get('RAIZ_ALERTA_DIAS', 7)) if dias is None else dias
+    f = f'{CACHE}/alerta/alerta_{uf}.parquet'
+    if os.path.exists(f) and time.time() - os.path.getmtime(f) < dias * 86400: return f
+    nome = NOME_UF[uf].upper()
+    partes, start, passo = [], 0, 5000
+    try:
+        while True:
+            r = get(ALERTA_WFS, dict(service='WFS', version='2.0.0', request='GetFeature',
+                    typeNames='mapbiomas-alertas:dashboard-alert-shapefile', outputFormat='application/json',
+                    propertyName='alert_code,states,year_detected_at,area_ha,geom',
+                    CQL_FILTER=f"states LIKE '%{nome}%' AND status_name = 'published'",
+                    sortBy='alert_code', count=passo, startIndex=start))
+            g = gj(r); partes.append(g)
+            if len(g) < passo: break
+            start += passo
+    except Exception as ex:
+        if os.path.exists(f):
+            print(f'  MapBiomas Alerta {uf}: não atualizei ({ex}); sigo com a cópia de {time.ctime(os.path.getmtime(f))}', flush=True)
+            return f
+        raise
+    g = pd.concat(partes, ignore_index=True)
+    if len(g):  # alerta na divisa vem como 'AMAZONAS,PARÁ': fica o que tem este estado na lista (MATO GROSSO != MATO GROSSO DO SUL)
+        g = g[g.states.fillna('').map(lambda x: nome in [p.strip() for p in x.split(',')])]
+    out = gpd.GeoDataFrame({'CODEALERTA': g.get('alert_code', pd.Series(dtype=int)).values,
+                            'ANODETEC': pd.to_numeric(g.get('year_detected_at', pd.Series(dtype=float)), errors='coerce').fillna(0).astype(int).values,
+                            'AREAHA': g.get('area_ha', pd.Series(dtype=float)).values},
+                           geometry=g.geometry.values if len(g) else [], crs=g.crs or 4326)
+    os.makedirs(os.path.dirname(f), exist_ok=True)
+    out.to_parquet(f'{f}.{os.getpid()}.tmp'); os.replace(f'{f}.{os.getpid()}.tmp', f)
+    print(f'  MapBiomas Alerta {uf}: {len(out)} alertas publicados (WFS público)', flush=True)
+    return f
+
+
 def alertas(uf, bbox):
     # cache/alerta/alerta_<UF>.parquet: arquivo do MapBiomas Alerta (plataforma, download do Brasil) separado por estado
     if uf not in AL_CACHE:
@@ -424,7 +510,8 @@ def municipio(uf, cod, EMB, out='.'):
     global PROJ
     if PROJ is None: PROJ = projetos_carbono()
     car = car_mun(uf, cod)
-    nome = car.municipio.iloc[0] if len(car) else str(cod)
+    nome = car.municipio.iloc[0] if len(car) else nome_municipio(cod)
+    if len(car) == 0: return None, nome  # o SICAR devolve zero imóveis (ex.: Uiramutã, RR): sem colunas para filtrar
     car = car[(car.status_imovel != 'CA') & (car.tipo_imovel == 'IRU')]
     if len(car) == 0: return None, nome
     bbox = [round(v, 4) for v in car.total_bounds]
@@ -531,8 +618,11 @@ def municipio(uf, cod, EMB, out='.'):
         c[k] = np.nan  # fontes: aptidão Embrapa/ZARC cacau; solo (MapBiomas Solo); GTA Adepará; regras PSA/Floresta+; mapas de espécies
     c = regeneracao(c, uf)
     c = carbono(c, uf)
-    if len(sg): certidoes(c, sg).to_csv(f'{out}/certidoes_{cod}.csv', index=False)
-    try: gpd.GeoDataFrame({'cod_imovel': c.index}, geometry=c.geometry.values, crs=c.crs).to_parquet(f'{out}/geo_{cod}.parquet')
+    if len(sg):
+        f = f'{out}/certidoes_{cod}.csv'; certidoes(c, sg).to_csv(f + '.tmp', index=False); os.replace(f + '.tmp', f)
+    try:
+        f = f'{out}/geo_{cod}.parquet'
+        gpd.GeoDataFrame({'cod_imovel': c.index}, geometry=c.geometry.values, crs=c.crs).to_parquet(f + '.tmp'); os.replace(f + '.tmp', f)
     except Exception as ex: print('   sem geo:', ex)
     return c.drop(columns='geometry'), nome
 
@@ -594,20 +684,80 @@ COD_UF = dict(RO=11, AC=12, AM=13, RR=14, PA=15, AP=16, TO=17, MA=21, PI=22, CE=
               AL=27, SE=28, BA=29, MG=31, ES=32, RJ=33, SP=35, PR=41, SC=42, RS=43, MS=50, MT=51, GO=52, DF=53)
 
 
+def garantir_municipios():
+    """Lista local dos municípios (github.com/kelvins/municipios-brasileiros, MIT): a API do IBGE às vezes cai."""
+    f = f'{CACHE}/municipios.csv'
+    if not os.path.exists(f):
+        r = get(MUNICIPIOS_CSV, {}, timeout=120)
+        open(f + '.tmp', 'wb').write(r.content); os.replace(f + '.tmp', f)
+    return f
+
+
+def nome_municipio(cod):
+    try:
+        m = pd.read_csv(garantir_municipios())
+        return str(m.loc[m.codigo_ibge == int(cod), 'nome'].iloc[0])
+    except Exception:
+        return str(cod)
+
+
 def lista_municipios(uf):
-    # lista local (cache/municipios.csv, de github.com/kelvins/municipios-brasileiros); a API do IBGE às vezes cai
-    f = 'cache/municipios.csv'
-    if os.path.exists(f):
-        m = pd.read_csv(f)
+    try:
+        m = pd.read_csv(garantir_municipios())
         return m[m.codigo_uf == COD_UF[uf]].codigo_ibge.astype(int).tolist()
+    except Exception as ex:
+        print('lista local de municípios falhou, uso a API do IBGE:', ex, flush=True)
     return [m['id'] for m in get(f'https://servicodados.ibge.gov.br/api/v1/localidades/estados/{uf}/municipios', {}).json()]
+
+
+def ler_sem_imoveis(out, uf):
+    """{código: nome} dos municípios sem nenhum imóvel IRU no CAR (contam como prontos; ver raiz_situacao.sem_imoveis)."""
+    f = f'{out}/sem_imoveis_{uf}.csv'
+    if not os.path.exists(f): return {}
+    t = pd.read_csv(f, dtype=str)
+    return dict(zip(t.cod_ibge, t.municipio.fillna('')))
+
+
+def grava_sem_imoveis(out, uf, sem):
+    f = f'{out}/sem_imoveis_{uf}.csv'
+    t = pd.DataFrame({'cod_ibge': list(sem), 'municipio': list(sem.values())}).sort_values('cod_ibge')
+    t['verificado_em'] = time.strftime('%Y-%m-%d')
+    t.to_csv(f + '.tmp', index=False); os.replace(f + '.tmp', f)
+
+
+def preparar_estado(uf):
+    """O que o funil precisa antes de abrir os processos, baixado uma vez só: embargos do Ibama, MapBiomas Alerta e
+    MapBiomas cobertura/desmatamento (regeneração). Sem o Alerta ou sem o MapBiomas o funil não roda (as colunas problema
+    e frente sairiam erradas sem aviso); o estado segue com as outras etapas e o funil tenta de novo na próxima rodada.
+    Para rodar mesmo assim no computador: RAIZ_ALERTA_OBRIGATORIO=0 e RAIZ_MB_OBRIGATORIO=0."""
+    global _EMB
+    import glob
+    _EMB = embargos()
+    try:
+        garantir_alertas(uf)
+    except Exception as ex:
+        if os.environ.get('RAIZ_ALERTA_OBRIGATORIO', '1') == '1':
+            raise SystemExit(f'MapBiomas Alerta de {uf} não baixou ({ex}): o funil fica para a próxima rodada.')
+        print(f'  sem MapBiomas Alerta para {uf}: {ex}', flush=True)
+    if os.environ.get('RAIZ_MB_BAIXAR', '1') == '1':
+        try:
+            import raiz_mapbiomas
+            raiz_mapbiomas.exporta_uf(uf, temas=('cobertura', 'desmat'))
+        except Exception as ex:
+            if glob.glob(f'{MB_DIR}/raiz_mapbiomas_{uf}*.tif'):
+                print(f'  API MapBiomas {uf} falhou ({ex}); uso os GeoTIFFs do Earth Engine', flush=True)
+            elif os.environ.get('RAIZ_MB_OBRIGATORIO', '1') == '1':
+                raise SystemExit(f'MapBiomas de {uf} (cobertura e desmatamento) não baixou ({ex}): o funil fica para a próxima rodada.')
+            else:
+                print(f'  API MapBiomas {uf} falhou ({ex}); sigo sem regeneração', flush=True)
+        os.environ['RAIZ_MB_BAIXAR'] = '0'  # os processos do funil não pedem de novo
 
 
 _EMB = None
 
 
 def _um(args):
-    """Roda um município (em processo separado) e devolve a linha do resumo."""
+    """Roda um município (em processo separado). Devolve ('ok', linha do resumo), ('sem', (cod, nome)) ou ('erro', None)."""
     uf, cod, out = args
     p = f'{out}/imoveis_{cod}.csv'
     try:
@@ -616,29 +766,37 @@ def _um(args):
         else:
             t0 = time.time()
             c, nome = municipio(uf, cod, _EMB, out)
-            if c is None: return None
-            c.to_csv(p)
+            if c is None:
+                print(f'   {cod} {nome}: nenhum imóvel IRU no CAR (conta como pronto)', flush=True)
+                return 'sem', (cod, nome)
+            c.to_csv(p + '.tmp'); os.replace(p + '.tmp', p)
             print(f'   {cod} {nome}: {len(c)} imóveis em {time.time() - t0:.0f} s', flush=True)
-        return resumo(c, cod, nome)
+        return 'ok', resumo(c, cod, nome)
     except Exception as ex:
-        print(f'   {cod} ERRO, pulando: {ex}', flush=True); return None
+        print(f'   {cod} ERRO, pulando: {ex}', flush=True); return 'erro', None
 
 
 def main():
     """Vários municípios ao mesmo tempo (LANES processos, padrão 3; a máquina tem 4 núcleos)."""
-    global _EMB
     import multiprocessing as mp
     uf = sys.argv[1].upper()
     cods = [int(x) for x in sys.argv[2:]] or lista_municipios(uf)
     out = f'saida/{uf}'; os.makedirs(out, exist_ok=True)
-    _EMB = embargos()
+    sem = ler_sem_imoveis(out, uf)
+    cods = [c for c in cods if str(c) not in sem]
+    pend = [c for c in cods if not os.path.exists(f'{out}/imoveis_{c}.csv')]
+    print(f'{uf}: {len(cods) + len(sem)} municípios, {len(pend)} para rodar, {len(sem)} sem imóvel no CAR', flush=True)
+    if pend: preparar_estado(uf)  # sem município novo, não baixa embargos, Alerta nem MapBiomas
     lanes = int(os.environ.get('LANES', '3'))
     linhas = []
     with mp.get_context('fork').Pool(lanes, maxtasksperchild=20) as pool:
-        for i, r in enumerate(pool.imap_unordered(_um, [(uf, c, out) for c in cods]), 1):
-            if r: linhas.append(r)
+        for i, (tipo, r) in enumerate(pool.imap_unordered(_um, [(uf, c, out) for c in cods]), 1):
+            if tipo == 'ok': linhas.append(r)
+            elif tipo == 'sem': sem[str(r[0])] = r[1]; grava_sem_imoveis(out, uf, sem)
             print(f'[{i}/{len(cods)}]', flush=True)
-            if linhas: pd.DataFrame(linhas).sort_values('cod_ibge').to_csv(f'{out}/resumo_{uf}.csv', index=False)
+            if linhas and tipo == 'ok':
+                f = f'{out}/resumo_{uf}.csv'
+                pd.DataFrame(linhas).sort_values('cod_ibge').to_csv(f + '.tmp', index=False); os.replace(f + '.tmp', f)
     t = pd.DataFrame(linhas)
     if len(t): print('\nTOTAL', uf, t.drop(columns=['cod_ibge', 'municipio']).sum().to_dict())
 

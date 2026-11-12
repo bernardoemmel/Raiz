@@ -11,11 +11,18 @@ Chaves:
 
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import json
+import logging
 import os
+import random
+import sys
+import time
 from pathlib import Path
 from typing import Protocol
+
+log = logging.getLogger(__name__)
 
 
 def sha256_bytes(b: bytes) -> str:
@@ -316,8 +323,14 @@ class ArmazemRelease:
         r.raise_for_status()
         return r.content
 
-    def manifesto(self) -> dict:
-        b = self._baixar_asset("estados.json")
+    def manifesto(self, fresco: bool = False) -> dict:
+        if fresco:  # dentro da trava: sem cache no caminho
+            r = self.cli.get(self.url("estados.json"), params={"t": str(int(time.time()))})
+            if r.status_code != 404:
+                r.raise_for_status()
+            b = None if r.status_code == 404 else r.content
+        else:
+            b = self._baixar_asset("estados.json")
         return json.loads(b) if b else {"repo": self.repo, "tag": self.tag, "estados": {}}
 
     @staticmethod
@@ -365,8 +378,8 @@ class ArmazemRelease:
                     chave = f"saida/{uf}/{arq}"
                     dados = tar.extractfile(m).read()
                     atual = self.local.meta(chave)
-                    if atual and atual.get("sha256") == sha256_bytes(dados):
-                        continue
+                    if atual and (atual.get("sha256") == sha256_bytes(dados) or atual.get("gravado_aqui") == "sim"):
+                        continue  # o que esta máquina gravou e ainda não publicou fica (a marca local fica também)
                     meta = {k: str(v) for k, v in (vers.get(arq) or {"versao": "publicado"}).items() if k != "sha256"}
                     self.local.por_bytes(chave, dados, meta)
         b = self._baixar_asset(f"raiz_controle_{uf}.json")
@@ -411,13 +424,13 @@ class ArmazemRelease:
 
     def por(self, chave, arquivo, meta=None):
         self.garantir(chave)
-        m = self.local.por(chave, arquivo, meta)
+        m = self.local.por(chave, arquivo, {**(meta or {}), "gravado_aqui": "sim"})
         self._anota(chave)
         return m
 
     def por_bytes(self, chave, dados, meta=None):
         self.garantir(chave)
-        m = self.local.por_bytes(chave, dados, meta)
+        m = self.local.por_bytes(chave, dados, {**(meta or {}), "gravado_aqui": "sim"})
         self._anota(chave)
         return m
 
@@ -473,11 +486,48 @@ class ArmazemRelease:
             return True
         return False
 
-    def publicar(self, uf: str | None = None) -> dict:
-        """Empacota o estado a partir do espelho e sobe: pacotes, controle e por último o estados.json."""
+    TRAVA = "trava-publicar-dados"  # a mesma de motor/publicar_dados.py
+
+    @contextlib.contextmanager
+    def _trava(self, velha_s: float = 600):
+        """Só um job por vez relê e regrava o estados.json. A trava é a tag trava-publicar-dados: criar uma referência
+        que já existe dá erro na API, então só um consegue. Quem espera mais de 10 min considera a trava abandonada
+        (job que caiu) e a apaga; a regravação dura segundos. Sem como criar a trava, publica sem ela e confere."""
+        h = self._cabecalhos()
+        sha = os.environ.get("GITHUB_SHA")
+        if not sha:
+            r = self.cli.get(f"{self.API}/repos/{self.repo}/commits/HEAD", headers=h)
+            sha = r.json().get("sha") if r.status_code == 200 else None
+        pegou, t0 = False, time.time()
+        while sha:
+            r = self.cli.post(f"{self.API}/repos/{self.repo}/git/refs", headers=h,
+                              json={"ref": f"refs/tags/{self.TRAVA}", "sha": sha})  # fmt: skip
+            if r.status_code == 201:
+                pegou = True
+                break
+            if r.status_code == 422 and "already exists" in r.text.lower():
+                if time.time() - t0 > velha_s:
+                    log.warning("trava do estados.json abandonada há mais de %.0f min: apago e pego", velha_s / 60)
+                    self.cli.delete(f"{self.API}/repos/{self.repo}/git/refs/tags/{self.TRAVA}", headers=h)
+                    t0 = time.time()
+                    continue
+                time.sleep(random.uniform(5, 15))
+                continue
+            log.warning("sem trava do estados.json (HTTP %s); publico sem ela e confiro depois", r.status_code)
+            break
+        try:
+            yield
+        finally:
+            if pegou:
+                self.cli.delete(f"{self.API}/repos/{self.repo}/git/refs/tags/{self.TRAVA}", headers=h)
+
+    def publicar(self, uf: str | None = None, extra: dict | None = None) -> dict:
+        """Empacota o estado a partir do espelho e sobe: pacotes, controle e por último o estados.json. O estados.json
+        é relido do Release e regravado dentro da trava, trocando só as entradas destes estados (vários jobs publicam
+        ao mesmo tempo no GitHub Actions). extra: campos a mais por estado ({uf: {...}}), ex.: a rodada e os erros que
+        o motor/rodar_estado.py anota."""
         import datetime as dt
         import re
-        import time
 
         if not self.token:
             raise PermissionError("sem token do GitHub (GH_TOKEN ou GITHUB_TOKEN): publicar só de dentro do Actions")
@@ -529,12 +579,11 @@ class ArmazemRelease:
             self._subir(rel, f"raiz_controle_{u}.json", controle, "application/json")
             nomes = list(csvs)
             cont = {t: sum(1 for n in nomes if re.fullmatch(rf"{t}_\d{{7}}\.csv", n)) for t in TABELAS_TODAS}
-            total = TOTAL_IBGE.get(u)
+            vazios = {c for c, m in marcas.items() if ((m.get("tarefas") or {}).get("funil") or {}).get("vazio")}
+            sit = _situacao(self.local.raiz / "saida" / u, u, vazios)
+            info.update(sit)
             info.update(
-                municipios=cont["imoveis"],
-                total_ibge=total,
-                completo=total is not None and cont["imoveis"] >= total,
-                tabelas=cont,
+                tabelas={**cont, "app": sit["tabelas"]["app"]},
                 versao=versao,
                 url=self.url(f"raiz_{u}.tar.gz"),
                 motor_versao=est.get("motor_versao"),
@@ -542,6 +591,7 @@ class ArmazemRelease:
                 situacao=est.get("situacao"),
                 controle=self.url(f"raiz_controle_{u}.json"),
             )
+            info.update((extra or {}).get(u, {}))
             estados[u] = info
             self._sujos.pop(u, None)
             self._ultima[u] = time.time()
@@ -553,9 +603,34 @@ class ArmazemRelease:
                 self._subir(
                     rel, "raiz_controle.json", json.dumps(glob, ensure_ascii=False).encode(), "application/json"
                 )
-        man.update(gerado_em=agora, repo=self.repo, tag=self.tag, estados=dict(sorted(estados.items())))
-        self._subir(rel, "estados.json", json.dumps(man, ensure_ascii=False, indent=1).encode(), "application/json")
+        for _ in range(3):
+            with self._trava():
+                fresco = self.manifesto(fresco=True)
+                est_f = fresco.setdefault("estados", {})
+                for u, info in feito.items():
+                    est_f[u] = {**est_f.get(u, {}), **info}
+                fresco.update(gerado_em=agora, repo=self.repo, tag=self.tag, estados=dict(sorted(est_f.items())))
+                dados = json.dumps(fresco, ensure_ascii=False, indent=1).encode()
+                self._subir(self._release(), "estados.json", dados, "application/json")
+            conferido = self.manifesto(fresco=True).get("estados", {})
+            if all((conferido.get(u) or {}).get("versao") == info.get("versao") for u, info in feito.items()):
+                break
+            log.warning("estados.json sem a entrada de %s (outro job regravou junto); refaço", list(feito))
+            time.sleep(random.uniform(5, 20))
+        else:
+            raise RuntimeError("não consegui gravar o estados.json com as entradas deste job")
         return feito
+
+
+def _situacao(pasta: Path, uf: str, vazios: set[str]) -> dict:
+    """completo, faltam, sem_imoveis... pela conta do motor (motor/raiz_situacao.py), com as tarefas do produto."""
+    from raiz import MOTOR_DIR
+
+    if str(MOTOR_DIR) not in sys.path:
+        sys.path.insert(0, str(MOTOR_DIR))
+    import raiz_situacao
+
+    return raiz_situacao.situacao(Path(pasta), uf, vazios=vazios, produto=True)
 
 
 def _espelho_padrao() -> Path:
