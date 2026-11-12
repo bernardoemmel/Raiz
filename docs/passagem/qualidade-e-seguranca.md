@@ -234,11 +234,25 @@ seu resultado não equivale a uma aprovação dos testes de injeção pendentes.
 
 Main atualizada até `bea53bd`, sem conflito. O diagnóstico de falha do SIGEF agora passa pelo sanitizador antes
 de ser persistido ou retornado: mensagens de rede, parser e banco podem conter nome, contato ou credencial.
-O filtro de embargos recusa geometria ausente ou vazia depois de selecionar o município e os termos ativos;
+O filtro de embargos recusa geometria ausente, vazia ou sem componente poligonal depois do reparo, após selecionar o município e os termos ativos;
 antes, um WKT inválido convertido em `None` no espelho podia virar área de restrição zero. A guarda aceita
 polígonos reparáveis e mantém a exclusão de cancelados, desembargados e outros municípios.
 
-As regressões falharam antes das correções. **23 testes de SIGEF e E2 passaram**, sem skips; Ruff e formatação
+As regressões falharam antes das correções. **31 testes de SIGEF e E2 passaram**, sem skips; Ruff e formatação
 dos quatro arquivos passaram. O retry de download do #80 não apresentou novo achado confirmado: erros de
 validação continuam fora da repetição. A revisão não encontrou segredo real no diff; não equivale a uma
 auditoria dos novos assets externos ou dos serviços em produção. Não restou achado maior confirmado em #79/#80.
+
+O portão de atestação usa o checkout `publicador-atual` quando o executor está preso a uma referência antiga.
+O verificador não existe nessas referências: procurá-lo sempre na raiz bloqueava até a lista já convertida pelo
+finalizador atual. **31 testes de atestação passaram**, incluindo execução real do passo em checkout legado,
+recusa de subject legado e falha fechada quando o checkout atual falha; actionlint e Ruff passaram.
+
+### Estado atualizado da referência real do Pará
+
+A publicação privada integral já foi concluída por **Lote e números**, conforme sua passagem: 144 municípios e
+345.870 imóveis. A pendência histórica acima não é mais produzir as tabelas `desenvolvedor`. **Qualidade e segurança**
+está integrando no #76 a preparação autenticada das previsões e entradas/geometrias congeladas, conferência de hashes
+e execução do teste estadual. **Lote e números** mantém o contrato, modelo e futuros snapshots. Esses dados financeiros
+por imóvel não devem ir para cache ou artifact público; a recomendação histórica de cache público está superada.
+Até a integração demonstrar a execução real, o skip herdado continua explicitamente pendente e não vale como teste aprovado.

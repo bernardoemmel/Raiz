@@ -33,6 +33,8 @@ def embargos_ativos(df: pd.DataFrame, cod: int) -> gpd.GeoDataFrame:
         g = gpd.GeoDataFrame(geometry=geoms, crs=4674)
     if g.geometry.isna().any() or g.geometry.is_empty.any():
         raise ValueError("embargo ativo com geometria ausente ou vazia; cálculo de restrições bloqueado")
+    if any(restricoes._poligonos(geom).is_empty for geom in g.geometry):
+        raise ValueError("embargo ativo sem geometria poligonal após reparo; cálculo de restrições bloqueado")
     return g
 
 

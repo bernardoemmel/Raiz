@@ -150,9 +150,12 @@ def test_embargos_ativos_excluem_cancelados_sem_ocultar_erro():
         embargos_ativos(df, 1504950)
 
 
-@pytest.mark.parametrize("wkt", [None, "POLYGON EMPTY"])
+@pytest.mark.parametrize(
+    "wkt",
+    [None, "POLYGON EMPTY", "POINT (0 0)", "LINESTRING (0 0, 1 1)", "POLYGON ((0 0, 1 1, 2 2, 0 0))"],
+)
 @pytest.mark.parametrize("espelho", [False, True])
-def test_embargo_ativo_sem_geometria_bloqueia_calculo(wkt, espelho):
+def test_embargo_ativo_sem_geometria_poligonal_bloqueia_calculo(wkt, espelho):
     df = pd.DataFrame(
         {
             "COD_MUNICIPIO": [1504950],
@@ -186,8 +189,9 @@ def test_espelho_com_wkt_invalido_nao_vira_restricao_zero(tmp_path):
         embargos_ativos(esp.ler("ibama", "PA", 1504950), 1504950)
 
 
+@pytest.mark.parametrize("geometria_inativa", [None, "POINT (0 0)"])
 @pytest.mark.parametrize("espelho", [False, True])
-def test_embargo_reparavel_preservado_e_inativos_sem_geometria_excluidos(espelho):
+def test_embargo_reparavel_preservado_e_inativos_sem_geometria_excluidos(espelho, geometria_inativa):
     reparavel = shapely.Polygon([(0, 0), (1, 1), (0, 1), (1, 0), (0, 0)])
     assert not reparavel.is_valid
     df = pd.DataFrame(
@@ -195,7 +199,7 @@ def test_embargo_reparavel_preservado_e_inativos_sem_geometria_excluidos(espelho
             "COD_MUNICIPIO": [1504950, 1504950, 1504950, 1500107],
             "SIT_CANCELADO": ["N", "S", "N", "N"],
             "SIT_DESEMBARGO": ["N", "N", "S", "N"],
-            "GEOM_AREA_EMBARGADA": [reparavel.wkt, None, "POLYGON EMPTY", None],
+            "GEOM_AREA_EMBARGADA": [reparavel.wkt, geometria_inativa, "POLYGON EMPTY", geometria_inativa],
         }
     )
     if espelho:
