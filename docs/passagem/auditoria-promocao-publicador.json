@@ -50,7 +50,11 @@
     "NOME_UF",
     "ANO",
     "CACHE",
-    "TEMAS"
+    "TEMAS",
+    "FLORESTA",
+    "PASTO",
+    "AGRICULTURA",
+    "SILVICULTURA"
   ],
   "commits": {
     "88860b64ee09f811b66e283f5c57997ebcdb3fd5": {
@@ -74,7 +78,7 @@
       "versao_motor": "motor-b1c546e8d42c",
       "mapbiomas_arquivo_sha256": "6f05d33265a3860f850c5b857492ca14517cbefb7f4b6a80d13601f57e0a3aa9",
       "mapbiomas_formulas_sha256": "6958501f62ef67c16a8865555f4409bfc20e73c7aee69ba04db7cbef22efb3e5",
-      "mapbiomas_configuracao_sha256": "10d1156e6649dfc4414760885b2a5a42928f3bbec91e33a4bc658d0281da0afe"
+      "mapbiomas_configuracao_sha256": "b254154b05ed85e54c363ebb46a6badcffa99ee5b279bac8d3b4bf8583817b96"
     },
     "b624b108b0350135003e1099d9c928fa7cc24151": {
       "arquivos": 353,
@@ -97,7 +101,7 @@
       "versao_motor": "motor-409c68f0434e",
       "mapbiomas_arquivo_sha256": "6f05d33265a3860f850c5b857492ca14517cbefb7f4b6a80d13601f57e0a3aa9",
       "mapbiomas_formulas_sha256": "6958501f62ef67c16a8865555f4409bfc20e73c7aee69ba04db7cbef22efb3e5",
-      "mapbiomas_configuracao_sha256": "10d1156e6649dfc4414760885b2a5a42928f3bbec91e33a4bc658d0281da0afe"
+      "mapbiomas_configuracao_sha256": "b254154b05ed85e54c363ebb46a6badcffa99ee5b279bac8d3b4bf8583817b96"
     },
     "ec2ebd2c5772c6307aa1c3a41e1f97aac54e1b51": {
       "arquivos": 353,
@@ -120,7 +124,7 @@
       "versao_motor": "motor-9cce83272637",
       "mapbiomas_arquivo_sha256": "ae222bcc7ec0d0ba96dec7ee4b1b9f55376e7220a53f161e1c007207699da700",
       "mapbiomas_formulas_sha256": "6958501f62ef67c16a8865555f4409bfc20e73c7aee69ba04db7cbef22efb3e5",
-      "mapbiomas_configuracao_sha256": "10d1156e6649dfc4414760885b2a5a42928f3bbec91e33a4bc658d0281da0afe"
+      "mapbiomas_configuracao_sha256": "b254154b05ed85e54c363ebb46a6badcffa99ee5b279bac8d3b4bf8583817b96"
     },
     "6a53cfbf514f369f694ea0bd3bc594ef8295a3b4": {
       "arquivos": 356,
@@ -143,7 +147,7 @@
       "versao_motor": "motor-409c68f0434e",
       "mapbiomas_arquivo_sha256": "6f05d33265a3860f850c5b857492ca14517cbefb7f4b6a80d13601f57e0a3aa9",
       "mapbiomas_formulas_sha256": "6958501f62ef67c16a8865555f4409bfc20e73c7aee69ba04db7cbef22efb3e5",
-      "mapbiomas_configuracao_sha256": "10d1156e6649dfc4414760885b2a5a42928f3bbec91e33a4bc658d0281da0afe"
+      "mapbiomas_configuracao_sha256": "b254154b05ed85e54c363ebb46a6badcffa99ee5b279bac8d3b4bf8583817b96"
     },
     "bea53bd06c7178daf2a53c392e5a9d54c55e7bc7": {
       "arquivos": 356,
@@ -166,7 +170,7 @@
       "versao_motor": "motor-409c68f0434e",
       "mapbiomas_arquivo_sha256": "6f05d33265a3860f850c5b857492ca14517cbefb7f4b6a80d13601f57e0a3aa9",
       "mapbiomas_formulas_sha256": "6958501f62ef67c16a8865555f4409bfc20e73c7aee69ba04db7cbef22efb3e5",
-      "mapbiomas_configuracao_sha256": "10d1156e6649dfc4414760885b2a5a42928f3bbec91e33a4bc658d0281da0afe"
+      "mapbiomas_configuracao_sha256": "b254154b05ed85e54c363ebb46a6badcffa99ee5b279bac8d3b4bf8583817b96"
     },
     "dac754f9d27a61481fdb0db24c496cdea0dd4f35": {
       "arquivos": 356,
@@ -189,7 +193,7 @@
       "versao_motor": "motor-c8d7a6cec446",
       "mapbiomas_arquivo_sha256": "ae222bcc7ec0d0ba96dec7ee4b1b9f55376e7220a53f161e1c007207699da700",
       "mapbiomas_formulas_sha256": "6958501f62ef67c16a8865555f4409bfc20e73c7aee69ba04db7cbef22efb3e5",
-      "mapbiomas_configuracao_sha256": "10d1156e6649dfc4414760885b2a5a42928f3bbec91e33a4bc658d0281da0afe"
+      "mapbiomas_configuracao_sha256": "b254154b05ed85e54c363ebb46a6badcffa99ee5b279bac8d3b4bf8583817b96"
     }
   }
 }

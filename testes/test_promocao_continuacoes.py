@@ -69,7 +69,7 @@ def test_promocao_fechada_versiona_aquisicao_preservando_ciencia_de_cada_grupo()
     assert "raiz/funil/restricoes.py" not in prova["excluidos_operacionais_ou_aquisicao"]
     assert "raiz/funil/duck.py" not in prova["excluidos_operacionais_ou_aquisicao"]
     assert prova["mapbiomas_formulas"] == ["ha_pixel", "por_imovel"]
-    assert {"ANO", "TEMAS"} <= set(prova["mapbiomas_configuracao"])
+    assert {"ANO", "TEMAS", "FLORESTA", "PASTO", "AGRICULTURA", "SILVICULTURA"} <= set(prova["mapbiomas_configuracao"])
 
 
 @pytest.mark.parametrize("origem", PROMOCOES)
