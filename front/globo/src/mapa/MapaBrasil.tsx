@@ -16,9 +16,10 @@ import type { Estados, Geo, Imovel, PontoFazenda } from "../../../compartilhado/
 import { MOTIVOS, etapaDe, noFoco, situacaoDe, type Foco, type MotivoId } from "../../../compartilhado/funil-etapas"
 import { abreviarCar, fmtHa, fmtInt, ufDoCodigo } from "../../../compartilhado/formato"
 import { rotulosDeAreas } from "../../../compartilhado/rotulos-mapa"
+import { fonteMapaBase } from "../../../compartilhado/mapa-base"
 import { tituloDe } from "../filtros"
 import { linkFazenda } from "../rota"
-import { estiloBase, imagemHachura, prepararMapLibre } from "./estilo"
+import { camadasBase, estiloBase, imagemHachura, prepararMapLibre } from "./estilo"
 
 /** O que o mapa pinta nas fazendas do município: a situação (padrão), o título da terra ou o fogo. */
 export type CamadaAssunto = "situacao" | "titulo" | "fogo" | "terra_publica"
@@ -29,6 +30,8 @@ export interface GeoMunicipio {
   ti: Geo | null
   uc: Geo | null
   rios: Geo | null
+  /** base detalhada compartilhada pelo estado; a nacional continua visível onde não houver detalhe */
+  base?: string | null
   /** terra pública para restaurar (gleba não destinada, floresta nacional ou estadual): só pela API */
   terraPublica?: Geo | null
 }
@@ -199,7 +202,7 @@ export function MapaBrasil(props: Props) {
     m.addControl(new AttributionControl({ compact: false }), "bottom-right")
     m.addControl(new NavigationControl({ showCompass: false }), "top-right")
     m.addControl(new ScaleControl({ unit: "metric" }), "bottom-right")
-    if (import.meta.env.DEV) Object.assign(caixa.current, { __mapa: m })
+    if (import.meta.env.DEV || import.meta.env.VITE_RAIZ_TESTE_MAPA === "1") Object.assign(caixa.current, { __mapa: m })
     mapaRef.current = m
     m.once("style.load", () => {
       montar(m, brasil.municipios, brasil.estados)
@@ -287,6 +290,27 @@ export function MapaBrasil(props: Props) {
       })
     ;(m.getSource("pontos") as GeoJSONSource).setData({ type: "FeatureCollection", features } as never)
   }, [pronto, pontos, municipio])
+
+  // O fundo nacional continua em overzoom. A base do estado entra por cima sem recarregar as fazendas nem o mapa.
+  useEffect(() => {
+    const m = mapaRef.current
+    const base = geoMunicipio?.base
+    if (!m || !pronto || !base || base === brasil?.base) return
+    const fonte = "protomaps-detalhe"
+    m.addSource(fonte, fonteMapaBase(base))
+    const ids: string[] = []
+    const antes = "brasil-mun"
+    for (const camada of camadasBase()) {
+      if (camada.type === "background") continue
+      const id = `detalhe-${camada.id}`
+      ids.push(id)
+      m.addLayer({ ...camada, id, source: fonte } as LayerSpecification, camada.type === "symbol" ? undefined : antes)
+    }
+    return () => {
+      for (const id of ids) if (m.getLayer(id)) m.removeLayer(id)
+      if (m.getSource(fonte)) m.removeSource(fonte)
+    }
+  }, [pronto, geoMunicipio?.base, brasil?.base])
 
   // camadas do município escolhido
   useEffect(() => {
