@@ -1,7 +1,6 @@
-import { useEffect, useState } from "react"
+import { lazy, Suspense, useEffect, useState } from "react"
 import { ErroProspeccao, type FichaTerraDados, type MedidaTerra } from "../../../compartilhado/prospeccao"
 import { NOME_RISCO, SITUACOES, type Risco } from "../../../compartilhado/terra"
-import { MapaFichaTerra } from "../mapa/MapaFichaTerra"
 import { LinhaTempoTerra } from "../partes/LinhaTempoTerra"
 import { Cabecalho } from "../partes/Cabecalho"
 import { CreditosConsulta } from "../partes/CreditosConsulta"
@@ -10,6 +9,8 @@ import { useSessao } from "../pedidos"
 import { dataTerra, numeroTerra, prospeccao } from "../prospeccao"
 import { linkMunicipio, linkProspeccao } from "../rota"
 import { Entrar } from "./Entrar"
+
+const MapaFichaTerra = lazy(() => import("../mapa/MapaFichaTerra").then((m) => ({ default: m.MapaFichaTerra })))
 
 export function Medida({ dado }: { dado: MedidaTerra }) {
   return <span className="medida-terra">
@@ -69,7 +70,7 @@ export function FichaTerra({ car }: { car: string }) {
         <button className="botao principal" type="button" disabled={ocupado} onClick={desbloquear}>{ocupado ? "Desbloqueando" : "Desbloquear por 1 crédito"}</button>
       </section> : ficha && <>
         <div className="secao-cabeca"><p className="frase">{ficha.municipio}, {ficha.uf}. {ficha.bioma ?? "Bioma não informado"}.</p>{ficha.cod_ibge && <a className="botao" href={linkMunicipio(String(ficha.cod_ibge))}>Ver município no mapa</a>}</div>
-        <MapaFichaTerra ficha={ficha} />
+        <Suspense fallback={<p role="status">Abrindo o mapa da fazenda…</p>}><MapaFichaTerra ficha={ficha} /></Suspense>
         <section aria-labelledby="area-terra"><h2 id="area-terra">Área e restauração</h2><dl className="grade-terra"><div><dt>Área da fazenda</dt><dd><Medida dado={ficha.area_total} /></dd></div><div><dt>Quanto pode voltar a ser mata</dt><dd><Medida dado={ficha.area_restauravel} /></dd></div></dl></section>
         <section><h2>Caminho da terra e pendências</h2><p className="frase">{ficha.caminho_terra.rotulo}</p><p>{SITUACOES.find((s) => s.id === ficha.caminho_terra.situacao)?.nome ?? "Situação não informada"}. Fonte: {ficha.caminho_terra.fonte}. {dataTerra(ficha.caminho_terra.data_referencia)}.</p>
           {ficha.pendencias.length ? <ul>{ficha.pendencias.map((p) => <li key={p.codigo}>{p.texto}</li>)}</ul> : <p>Nenhuma pendência registrada nas fontes consultadas.</p>}

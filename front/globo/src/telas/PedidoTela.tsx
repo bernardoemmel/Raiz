@@ -1,7 +1,7 @@
 import NumberFlow from "@number-flow/react"
 import * as Abas from "@radix-ui/react-tabs"
 import { Bell, ShieldCheck, TriangleAlert } from "lucide-react"
-import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { abreviarCar, fmtHa, fmtInt, fmtPct } from "../../../compartilhado/formato"
 import { PREMISSAS } from "../../../compartilhado/pedidos/exemplo"
 import {
@@ -21,7 +21,7 @@ import {
 } from "../../../compartilhado/pedidos/texto"
 import type { Andamento, FazendaDoLote, IdOpcao, NivelInteresse, Opcao, Pedido } from "../../../compartilhado/pedidos/tipos"
 import { fonte, useCarga } from "../dados"
-import { MapaLote, type FazendaNoMapa } from "../mapa/MapaLote"
+import type { FazendaNoMapa } from "../mapa/MapaLote"
 import { pedidos } from "../pedidos"
 import { Cabecalho } from "../partes/Cabecalho"
 import { Estado } from "../partes/Estado"
@@ -32,6 +32,8 @@ import { ComparacaoLotes } from "../partes/pedido/ComparacaoLotes"
 import { AvisoPublicacao, BasePublicada, QuadroDestrava } from "../partes/pedido/PublicacaoPedido"
 import "../partes/pedido/pedido.css"
 import { linkFazenda, linkGrupo, linkPedidos } from "../rota"
+
+const MapaLote = lazy(() => import("../mapa/MapaLote").then((m) => ({ default: m.MapaLote })))
 
 const IDS: IdOpcao[] = ["barata", "segura", "compacta"]
 
@@ -47,7 +49,6 @@ export function PedidoTela({ id }: { id: string }) {
   const [escolhida, setEscolhida] = useState<string | null>(null)
   const [andamento, setAndamento] = useState<Andamento | null>(null)
   const [ocupado, setOcupado] = useState(false)
-  const brasil = useCarga(() => fonte.geo.brasil(), [])
 
   const ler = useCallback(() => pedidos.pedido(id).then(setPedido, (e: Error) => setErro(e.message)), [id])
   useEffect(() => {
@@ -86,6 +87,9 @@ export function PedidoTela({ id }: { id: string }) {
     // Fora do acompanhamento, as três alternativas dividem o mesmo mapa, cada uma com sua cor.
     return andamento ? andamento.fazendas : (pedido?.opcoes ?? []).flatMap((o) => o.itens.map((f) => ({ ...f, opcao: o.id })))
   }, [pedido?.opcoes, andamento])
+
+  const temFazendas = fazendas.length > 0
+  const brasil = useCarga(() => temFazendas ? fonte.geo.brasil() : Promise.resolve(null), [temFazendas])
 
   async function mudar(acao: "tirar" | "trocar", cod: string, por?: string) {
     if (!pedido) return
@@ -196,7 +200,7 @@ export function PedidoTela({ id }: { id: string }) {
         </aside>
         <div className={`pedido-mapa${!fazendas.length ? " pedido-mapa-pendente" : ""}`}>
           {!fazendas.length ? <h2>Mapa dos lotes</h2> : brasil.dado ? (
-            <MapaLote base={brasil.dado.base} fazendas={fazendas} modo={andamento ? "interesse" : "opcoes"} escolhida={escolhida} aoEscolher={setEscolhida} aoEscolherOpcao={setAba} opcaoAtiva={aba} />
+            <Suspense fallback={<p role="status">Abrindo o mapa dos lotes…</p>}><MapaLote base={brasil.dado.base} fazendas={fazendas} modo={andamento ? "interesse" : "opcoes"} escolhida={escolhida} aoEscolher={setEscolhida} aoEscolherOpcao={setAba} opcaoAtiva={aba} /></Suspense>
           ) : (
             <div className="mapa-carregando">
               <span className="girando" aria-hidden="true" /> Carregando o mapa

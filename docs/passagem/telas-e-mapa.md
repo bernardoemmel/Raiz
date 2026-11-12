@@ -232,3 +232,13 @@ RAIZ_BUILD_DADOS=0 front/scripts/construir-site.sh
 Validação local da entrega 4: build travado, 138 testes do front, Pages com zero 404, prospecção com axe e
 Lighthouse Agentic Browsing aprovados. O portão mobile final passou nas nove medições fixas; E9 real não foi calibrado.
 
+
+### Integração das entregas 1 a 4
+
+- `fonte.geo.cobertura()` lê apenas o índice leve, com cache, para mostrar contagem e datas na entrada em SVG.
+  Os GeoJSON nacionais continuam adiados até escolher estado/município. A API ainda não publica esse manifesto;
+  nesse modo a cobertura fica indisponível, sem inferir desenhos a partir dos resumos e sem chamar uma rota inexistente.
+- Formulário fechado, consulta pública sem fazendas e ficha antes do desbloqueio não baixam MapLibre.
+  O mapa específico carrega ao desenhar uma área, receber lotes autorizados ou abrir a ficha desbloqueada.
+- `test:cena` executa axe WCAG 2.1 AA também na comparação pública e nos três lotes autorizados a 360 px;
+  `test:prospeccao` conserva o teste de Sentinel-2 sintético, hachura e linha do tempo junto da auditoria axe.
