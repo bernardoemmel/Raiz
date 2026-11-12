@@ -191,12 +191,19 @@ def registrar_gabarito(
     valor_num: float | None = None,
     valor_texto: str | None = None,
     referencia: str | None = None,
-    desenho_amostral: str = "oportunidade",
+    desenho_amostral: str | None = None,
     probabilidade_escolha: float | None = None,
 ) -> int:
-    """Registra o resultado real. Correção = registrar de novo (vale o último registrado para a mesma data)."""
+    """Registra o resultado real. Correção = registrar de novo (vale o último registrado para a mesma data).
+    Sem desenho_amostral: se o imóvel foi sorteado para conferir este alvo (raiz/aprendizado/sorteio.py), vale o
+    desenho e a chance do sorteio; se não, é gabarito de oportunidade."""
     if valor_num is None and valor_texto is None:
         raise ValueError("gabarito sem valor")
+    if desenho_amostral is None:
+        from raiz.aprendizado.sorteio import desenho_do_imovel
+
+        d = desenho_do_imovel(con, cod_imovel, alvo, observado_em)
+        desenho_amostral, probabilidade_escolha = d if d else ("oportunidade", probabilidade_escolha)
     return con.execute(
         text("""insert into aprendizado.gabarito
                 (cod_imovel, alvo, valor_num, valor_texto, observado_em, fonte, referencia, desenho_amostral,
