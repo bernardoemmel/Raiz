@@ -1,6 +1,6 @@
 # Qualidade e segurança — passagem
 
-Entrega inicial de 12/11/2026 (#51); revisão de continuidade em 12/11/2026, até a main `b63c555`. Área: CI, E2E, infraestrutura e segurança. Correções em produto são pontuais,
+Entrega inicial de 12/11/2026 (#51); revisão de continuidade em 12/11/2026, até a main `3546687`. Área: CI, E2E, infraestrutura e segurança. Correções em produto são pontuais,
 com regressões. Mudanças de contrato/arquitetura ficam para os chats responsáveis abaixo.
 
 ## Continuidade desta entrega (12/11/2026)
@@ -245,7 +245,7 @@ produzir um conjunto utilizável. Não foram disparados envios à Verra nem proc
 
 ## Revisão contínua — continuação de 12/11/2026
 
-Marco inicial: merge do #51 (`78e13f7`). Main conferida até `b63c555`; não foram confundidos PRs abertos com
+Marco inicial: merge do #51 (`78e13f7`). Main conferida até `3546687`; não foram confundidos PRs abertos com
 código integrado. O histórico acima descreve a entrega inicial; esta seção registra mudanças posteriores.
 
 | PR integrado | Diff revisado | Resultado e responsável |
@@ -342,3 +342,34 @@ Uma integração ausente depois da entrada do servidor não será convertida em 
 A correção de concorrência do limite compartilhado executa a sanitização/gravação HTTP fora do loop assíncrono,
 sem remover Presidio. O teste usa dois apps, logger JSON real e 50 chamadas concorrentes; exige exatamente sete
 admitidas e 43 recusas 429. Falha do Valkey permanece 503, nunca substituída por contador por processo.
+
+
+### Integração do #55 — retomada privada
+
+A main `3546687` acrescentou a retomada de cinco fatias. Revisados workflow, destino por ID fixo, verificação
+`draft=true` antes de cada operação, hashes/comprovantes, extração ZIP/TAR e ausência de cache/artifact de dados.
+O orquestrador não chama o publicador aberto; usa modelo/lock originais e preserva dez fatias prontas. Seus **78
+testes passaram** no branch integrado. Não foi disparada retomada nem alterado Release nesta revisão.
+
+O arquivo privado em rascunho não deve ser promovido a Release público: contém resultados completos e não passa
+pelo contrato público. **Lote e números / Dados** continuam responsáveis por separar uma projeção publicável e
+resolver os achados de qualidade; a conclusão do cálculo privado não libera a publicação detalhada bloqueada.
+
+
+### Validação final da continuidade
+
+- Suíte Python completa com PostGIS, Valkey e LanguageTool reais: **1.250 passaram**, um skip herdado (tabelas
+  reais do Pará ainda ausentes) e um xfail herdado (TIR), em 460,86 s. O conferidor de skips aprovou apenas essas
+  duas pendências conhecidas. Após integrar #55, seus **78 testes adicionais passaram**. O CI executa o conjunto
+  integrado novamente antes do merge.
+- **200 testes Vitest**, dez testes de configuração, build painel/produtor e Playwright de Pages, prospecção,
+  calendário e cena-alvo passaram. Axe/teclado/celular passaram; Lighthouse mobile teve mediana 97–100 e
+  acessibilidade 100. Pages e Lighthouse passaram tanto em `/Raiz/` quanto em `/` com domínio de teste.
+- Playwright com API/PostGIS reais: **um fluxo passou** (link único, pedido, três opções, interesse via API após
+  validar bloqueio da interface e Pix de teste). Não foi realizada cobrança nem mensagem externa.
+- Ruff, formatação de 405 arquivos e actionlint passaram. **670 dependências** sem licença bloqueada/desconhecida;
+  **815 arquivos** sem CPF/CNPJ detectado; Gitleaks percorreu **321 commits / 28,98 MB**, sem segredo reconhecido.
+- O runner MCP confirmou `estado=ausente`, aviso explícito e `ensaios_executados=false`; não houve aprovação
+  fictícia da integração. Valkey concorrente, portões de publicação e observabilidade estão cobertos pela suíte.
+
+Os números descrevem as execuções locais. O resultado remoto e o commit de integração ficam registrados no PR.

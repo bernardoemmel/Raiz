@@ -654,9 +654,12 @@ indevida; tentativas recusadas também são examinadas. Cada ferramenta precisa 
 com o inventário completo de `tools/list`, sem selecionar apenas as rápidas.
 
 A função de calendário adicionada pelo PR #54 não substitui o servidor MCP com OAuth. A integração de transporte
-continua dependendo de **Produto e regras**. Sem servidor/manifesto/adaptador real, os comandos terminam com erro
-explícito e não geram uma aprovação. As regressões do auditor e do cliente rodam no pytest; elas não comprovam
-resistência de um agente de produção. A carga MCP usa `testes/carga/locust_mcp.py`, com dados descartáveis e
+continua dependendo de **Produto e regras**. Por decisão do fundador, o job `mcp` detecta a ausência e publica
+aviso explícito e relatório `ensaios_executados=false`, sem executar os ensaios. Quando o servidor entrar, a suíte
+é exigida automaticamente: adaptador ausente ou falha de OAuth, ferramenta, prazo e carga reprovam o job.
+Os comandos individuais de avaliação/latência sem integração real terminam com erro, nunca com aprovação.
+As regressões do auditor e do cliente rodam no pytest; elas não comprovam resistência de um agente de produção.
+A carga MCP usa `testes/carga/locust_mcp.py`, com dados descartáveis e
 credenciais de teste; instruções completas em [`testes/carga/README.md`](../testes/carga/README.md).
 
 ## Portões antes da publicação

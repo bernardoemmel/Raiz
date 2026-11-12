@@ -1,10 +1,11 @@
 # Contrato adversarial do MCP
 
-**Estado em 12/11/2026: integração bloqueada.** Não há servidor MCP na main. O PR #45
+**Estado em 12/11/2026: integração pendente de Produto e regras.** Não há servidor MCP na main. O PR #45
 retirou o adaptador anterior até a entrega OAuth 2.1 pelo chat **Produto e regras**.
 Os testes `test_avaliacao_mcp.py` verificam o auditor; não são evidência de resistência
-do agente nem de latência das ferramentas do produto. Nenhum teste usa `skip` para
-representar essa pendência.
+do agente nem de latência das ferramentas do produto. Enquanto o servidor estiver ausente,
+o job CI publica aviso explícito e não executa os ensaios, conforme orientação do fundador.
+Com implementação presente, qualquer falha reprova o job; veja a ativação automática abaixo.
 
 O PR #54 acrescentou a função `raiz.calendario.mcp.proximos_eventos`, pronta para
 registro futuro no servidor. `test_calendario_mcp_seguranca.py` já exercita essa função
