@@ -22,6 +22,20 @@ Actions, com até 15 jobs ao mesmo tempo e os estados grandes em fatias; a colet
 e o banco (PostGIS, migrações 0001 a 0018) existem, mas a coleta ainda não está agendada. Atualizado no fim do dia 12/11:
 E3, E5, E7, E8 e E9 têm a coluna Situação conferida contra a main; E1 e E2 também (abaixo).
 
+## Entregas de Dados do Brasil
+
+Retomada em 12/11/2026, seguindo a passagem `docs/passagem/raiz-dados-do-brasil.md`.
+
+| Ordem | Entrega | Situação |
+|---|---|---|
+| 1 | Limite global de 15 jobs de processamento, sem cancelar os existentes | **feito**: #43 mesclado com CI de push e PR verdes; admissão atômica na ref `raiz-fila-processamento`, incluindo pedidos manuais e continuações; falha de consulta bloqueia novas vagas. Pedidos sem vaga ficam persistidos e são retomados a cada 15 minutos |
+| 2–3 | Fichas Croissant 1.1/schema.org e publicação no Release | a fazer |
+| 4 | Quantis públicos no formato hubverse, com versão do modelo | a fazer |
+| 5 | Cartão do modelo | a fazer |
+| 6 | Atestação dos arquivos publicados pelo Actions | a fazer |
+| 7 | Cronograma dos lotes no vocabulário CAD Trust | a fazer |
+| 8 | Pendências E1/E2 da passagem, na ordem de dependência | a fazer |
+
 ## E1. Coleta de dados públicos
 
 Conferido contra a main em 12/11/2026: "feito" quer dizer que o código está na main; "parcial" diz o que existe e o

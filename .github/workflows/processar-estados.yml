@@ -37,6 +37,7 @@ on:
         default: "0"
   schedule:
     - cron: "23 5 * * 1" # segunda-feira, 02:23 em Brasília: refaz o que mudou e continua o que falta
+    - cron: "*/15 * * * *" # só drena pedidos/continuações persistidos; não começa rodada nova
 
 permissions:
   contents: write # subir no Release, trava do estados.json, painel do README
@@ -79,6 +80,7 @@ jobs:
           RAIZ_UFS: ${{ inputs.ufs }}
           RAIZ_REFAZER: ${{ inputs.refazer }}
           RAIZ_CONTINUACAO: ${{ inputs.continuacao }}
+          RAIZ_SO_FILA: ${{ github.event_name == 'schedule' && github.event.schedule == '*/15 * * * *' && '1' || '0' }}
         run: uv run python motor/rodar_estado.py --planejar
 
   preparar:
@@ -139,7 +141,7 @@ jobs:
       fail-fast: false
       max-parallel: 15
       matrix:
-        unidade: ${{ fromJSON(needs.planejar.outputs.matriz) }}
+        include: ${{ fromJSON(needs.planejar.outputs.matriz) }}
     concurrency: # nunca dois jobs na mesma unidade (estado inteiro ou fatia) ao mesmo tempo
       group: motor-estado-${{ matrix.unidade }}
       cancel-in-progress: false
@@ -152,8 +154,8 @@ jobs:
       RAIZ_MARGEM_MIN: "25" # tempo guardado para guardar o cache e continuar
       RAIZ_GRACA_MIN: "10" # folga para os municípios em curso quando o executor para de começar novos
       RAIZ_RASTER_CACHE_GB: "5"
-      RAIZ_CONTINUACAO: ${{ inputs.continuacao || '0' }}
-      RAIZ_REFAZER: ${{ inputs.refazer }}
+      RAIZ_CONTINUACAO: ${{ matrix.continuacao }}
+      RAIZ_REFAZER: ${{ matrix.refazer }}
       CACHE_UF_CHAVE: motor-uf-v1-${{ matrix.unidade }}-${{ github.run_id }}-${{ github.run_attempt }}
     steps:
       - name: Marcar o início (o prazo de 5h30 conta daqui) e o estado da unidade
@@ -162,6 +164,8 @@ jobs:
           echo "UF=${UNIDADE%%-*}" >> "$GITHUB_ENV"
 
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ matrix.ref }} # commit preservado na fila junto do pedido
 
       - name: Liberar espaço em disco
         run: |
