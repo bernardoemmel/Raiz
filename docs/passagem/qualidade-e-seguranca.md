@@ -206,3 +206,53 @@ As entregas de aviso à Verra e lote/números também foram integradas antes de 
 foi resolvido mantendo ambas as passagens. O novo workflow `lote-para.yml` prepara a rodada real do Pará;
 o teste estadual ainda tem a pré-condição dos arquivos desenvolvedor e permanece como pendência até a rodada
 produzir um conjunto utilizável. Não foram disparados envios à Verra nem processamento de produção nesta auditoria.
+
+## Entrega independente de proveniência, cota e revisão contínua — 12/11/2026
+
+Revisão dos PRs #72/#77 sobre a main `b624b10`. Esta entrega fecha dois vazamentos pequenos e uma corrida de
+admissão: o importador e o catálogo podiam imprimir nomes/retornos privados ou mensagens de terceiros; nomes de
+assets privados também podiam chegar ao subject público da atestação; uma reexecução do catálogo podia perder
+sua reserva ao receber o término da tentativa anterior, admitindo indevidamente o 16º trabalho.
+
+As CLIs usam mensagens fixas, e os diagnósticos do validador Croissant preservam nível e falha sem mostrar o nome
+do Dataset. Subjects privados usam somente o SHA256 dos bytes, sem nome nem hash do nome; listas legadas são
+convertidas ou recusadas pelo portão dos workflows antes da atestação, inclusive em passos `always()`. A reserva
+do catálogo confirma por CAS o escopo e a tentativa atual, mantendo a cota global de 15 trabalhos.
+
+Os testes focados exercitam nomes/contatos e segredos sintéticos no retorno, nos caminhos, nas exceções e nos
+warnings; cobrem também listas de atestação legadas, aliases, versões de conteúdo e a corrida de reexecução.
+**190 testes focados passaram, sem skips**, em 31,17 s. Ruff e formatação globais, actionlint 1.7.12 e a conferência
+do diff passaram. O CI integral será exigido no PR antes do merge. Nenhum upload de dados ou processamento de produção foi
+disparado por esta validação.
+
+Os demais portões de qualidade dos dados, observabilidade, carga e a integração adversarial do MCP continuam no
+**PR #76**. O corpus desse PR permanece explicitamente bloqueado: **Produto e regras** precisa entregar o agente
+leitor de certidão, edital e arquivo. Esta entrega independente preserva `ci.yml`, MCP e a política do corpus;
+seu resultado não equivale a uma aprovação dos testes de injeção pendentes.
+
+### Revisão dos PRs #79 e #80
+
+Main atualizada até `bea53bd`, sem conflito. O diagnóstico de falha do SIGEF agora passa pelo sanitizador antes
+de ser persistido ou retornado: mensagens de rede, parser e banco podem conter nome, contato ou credencial.
+O filtro de embargos recusa geometria ausente, vazia ou sem componente poligonal depois do reparo, após selecionar o município e os termos ativos;
+antes, um WKT inválido convertido em `None` no espelho podia virar área de restrição zero. A guarda aceita
+polígonos reparáveis e mantém a exclusão de cancelados, desembargados e outros municípios.
+
+As regressões falharam antes das correções. **31 testes de SIGEF e E2 passaram**, sem skips; Ruff e formatação
+dos quatro arquivos passaram. O retry de download do #80 não apresentou novo achado confirmado: erros de
+validação continuam fora da repetição. A revisão não encontrou segredo real no diff; não equivale a uma
+auditoria dos novos assets externos ou dos serviços em produção. Não restou achado maior confirmado em #79/#80.
+
+O portão de atestação usa o checkout `publicador-atual` quando o executor está preso a uma referência antiga.
+O verificador não existe nessas referências: procurá-lo sempre na raiz bloqueava até a lista já convertida pelo
+finalizador atual. **31 testes de atestação passaram**, incluindo execução real do passo em checkout legado,
+recusa de subject legado e falha fechada quando o checkout atual falha; actionlint e Ruff passaram.
+
+### Estado atualizado da referência real do Pará
+
+A publicação privada integral já foi concluída por **Lote e números**, conforme sua passagem: 144 municípios e
+345.870 imóveis. A pendência histórica acima não é mais produzir as tabelas `desenvolvedor`. **Qualidade e segurança**
+está integrando no #76 a preparação autenticada das previsões e entradas/geometrias congeladas, conferência de hashes
+e execução do teste estadual. **Lote e números** mantém o contrato, modelo e futuros snapshots. Esses dados financeiros
+por imóvel não devem ir para cache ou artifact público; a recomendação histórica de cache público está superada.
+Até a integração demonstrar a execução real, o skip herdado continua explicitamente pendente e não vale como teste aprovado.

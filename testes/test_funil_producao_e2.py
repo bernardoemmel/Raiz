@@ -8,6 +8,8 @@ import pytest
 import shapely
 
 from raiz import MOTOR_DIR
+from raiz.coleta import ibama
+from raiz.coleta.espelho import Espelho
 from raiz.funil import duck, rodar
 from raiz.funil.filtros import embargos_ativos
 from raiz.funil.ponte import ponte_vetorial
@@ -146,6 +148,65 @@ def test_embargos_ativos_excluem_cancelados_sem_ocultar_erro():
     df.loc[0, "GEOM_AREA_EMBARGADA"] = "geometria inválida"
     with pytest.raises(shapely.errors.GEOSException):
         embargos_ativos(df, 1504950)
+
+
+@pytest.mark.parametrize(
+    "wkt",
+    [None, "POLYGON EMPTY", "POINT (0 0)", "LINESTRING (0 0, 1 1)", "POLYGON ((0 0, 1 1, 2 2, 0 0))"],
+)
+@pytest.mark.parametrize("espelho", [False, True])
+def test_embargo_ativo_sem_geometria_poligonal_bloqueia_calculo(wkt, espelho):
+    df = pd.DataFrame(
+        {
+            "COD_MUNICIPIO": [1504950],
+            "SIT_CANCELADO": ["N"],
+            "SIT_DESEMBARGO": ["N"],
+            "GEOM_AREA_EMBARGADA": [wkt],
+        }
+    )
+    if espelho:
+        df = gpd.GeoDataFrame(df, geometry=shapely.from_wkt(df.GEOM_AREA_EMBARGADA), crs=4674)
+    with pytest.raises(ValueError, match="embargo ativo.*geometria"):
+        embargos_ativos(df, 1504950)
+
+
+def test_espelho_com_wkt_invalido_nao_vira_restricao_zero(tmp_path):
+    wkt = "geometria inválida"
+    g = gpd.GeoDataFrame(
+        {
+            "SEQ_TAD": ["termo-teste"],
+            "COD_MUNICIPIO": [1504950],
+            "SIT_CANCELADO": ["N"],
+            "SIT_DESEMBARGO": ["N"],
+            "GEOM_AREA_EMBARGADA": [wkt],
+        },
+        geometry=[ibama._geometria(wkt)],
+        crs=4674,
+    )
+    esp = Espelho(tmp_path)
+    esp.gravar("ibama", "PA", 1504950, g, "SEQ_TAD")
+    with pytest.raises(ValueError, match="embargo ativo.*geometria"):
+        embargos_ativos(esp.ler("ibama", "PA", 1504950), 1504950)
+
+
+@pytest.mark.parametrize("geometria_inativa", [None, "POINT (0 0)"])
+@pytest.mark.parametrize("espelho", [False, True])
+def test_embargo_reparavel_preservado_e_inativos_sem_geometria_excluidos(espelho, geometria_inativa):
+    reparavel = shapely.Polygon([(0, 0), (1, 1), (0, 1), (1, 0), (0, 0)])
+    assert not reparavel.is_valid
+    df = pd.DataFrame(
+        {
+            "COD_MUNICIPIO": [1504950, 1504950, 1504950, 1500107],
+            "SIT_CANCELADO": ["N", "S", "N", "N"],
+            "SIT_DESEMBARGO": ["N", "N", "S", "N"],
+            "GEOM_AREA_EMBARGADA": [reparavel.wkt, geometria_inativa, "POLYGON EMPTY", geometria_inativa],
+        }
+    )
+    if espelho:
+        df = gpd.GeoDataFrame(df, geometry=shapely.from_wkt(df.GEOM_AREA_EMBARGADA), crs=4674)
+    ativos = embargos_ativos(df, 1504950)
+    assert len(ativos) == 1
+    assert ativos.geometry.iloc[0].equals_exact(reparavel, 0)
 
 
 def test_areas_exigem_crs_metrico():
