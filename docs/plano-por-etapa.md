@@ -34,11 +34,13 @@ da rodada anterior ao novo publicador, sem cancelar jobs.
 As seis pendências E1/E2 foram integradas pelo **#79**, com 1.936 testes no CI do PR, preservando o limite
 compartilhado e o destino privado. A operação agendada da coleta ainda depende de Postgres permanente.
 
-O motor foi reativado com autorização do fundador. A entrega operacional em validação promove apenas
+O motor foi reativado com autorização do fundador. A entrega operacional promove apenas
 continuações/retentativas auditadas para o publicador seguro, mantém as reservas vivas e liga a catalogação ao
 término natural da rodada `43305564503`. Também corrige o retorno falso de sucesso quando a fonte MapBiomas
 falha antes do primeiro município: pedidos aceitos são retomados, a tentativa fica registrada e a fila deixa de
-disparar sucessivos jobs sem avanço. A confirmação em produção segue a validação e o merge desta correção.
+disparar sucessivos jobs sem avanço. A suíte integrada passou em 1.998 testes; a referência de retomada sem E1
+novo passou em 1.895, ambas com PostGIS. Os testes de cartões/vídeo passaram após instalar a dependência local;
+o delta final de fila/catalogação passou em 155 testes. A confirmação em produção segue o merge desta correção.
 
 | Ordem | Entrega | Situação |
 |---|---|---|

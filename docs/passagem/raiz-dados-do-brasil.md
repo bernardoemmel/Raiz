@@ -2,7 +2,7 @@
 
 Passagem original de 12/11/2026, 13h20 de Brasília. Retomada pelo Codex na mesma data, a partir da main.
 Formatos e procedência foram integrados pelo #77; as seis pendências E1/E2, pelo #79.
-Entrega operacional em preparação: `codex/dados-operacao`.
+Branch da entrega operacional: `codex/dados-operacao`.
 
 ## O que este chat fez
 
@@ -14,7 +14,7 @@ Entrega operacional em preparação: `codex/dados-operacao`.
 | #43 | Limite padrão de 15 jobs de processamento (5 máquinas livres para CI e site), mais esta passagem | mesclado em 12/11, 13h30 de Brasília; CI de push e PR verdes |
 | #46 | Teto global de 15, reserva atômica, fila persistente de pedidos e continuações, consulta paginada e bloqueio de admissão se a API falhar | mesclado; os três checks do run `43281492727` passaram |
 | #77 | Itens 2–7: Croissant 1.1/schema.org, quantis hubverse, cartão, actions/attest e cronogramas CAD Trust; publicação sob as travas do estado e do índice | mesclado em `b624b108`; CI do PR `43304760101` verde, 1.859 testes; CI de push `43308323363` também verde |
-| #79 | As seis pendências E1/E2 do item 8, na ordem de dependência | mesclado em `6a53cfbf`; CI do PR `43305894156` verde, 1.936 testes |
+| #79 | As seis pendências E1/E2 do item 8, na ordem de dependência | mesclado em `6a53cfbf`; CI do PR `43305894156` verde, 1.936 testes; CI de push `43308991599` também verde |
 
 ## Onde parou
 
@@ -38,7 +38,8 @@ Entrega operacional em preparação: `codex/dados-operacao`.
 - **Retomada autorizada e efetivada:** o workflow foi reativado às 20h57 UTC na integração da Ficha. RN-1 e RN-2
   terminaram com status de sucesso, mas sem avanço: uma resposta HTTP 422 do MapBiomas era tratada apenas como
   aviso antes dos municípios. Sem CSV, a tentativa não entrava no índice; a fila voltava a selecionar RN.
-  A correção operacional está em validação. Sucesso do job não deve ser usado como evidência de dados produzidos.
+  A correção operacional foi validada localmente; sua confirmação em produção continua pendente.
+  Sucesso do job não deve ser usado como evidência de dados produzidos.
 
 ## O que falta, em ordem
 
@@ -286,13 +287,16 @@ backups. Os produtos finais continuam elegíveis a ficha e atestação; o proces
 ## Continuidade depois dos merges #77 e #79
 
 - Uma migração manual da fila não alcança continuações que um job antigo ainda vai enfileirar. A admissão CAS
-  promove somente pedidos não bloqueados de continuação ou retentativa com origem exata `88860b64` para
-  `b624b108`, sem seguir a main. Preserva ID, parâmetros, contador e falhas; registra origem e destino.
+  promove somente pedidos não bloqueados de continuação ou retentativa entre referências exatas, sem seguir
+  a main: `88860b64`/`b624b108` passam a `ec2ebd2c` (#77 com aquisição corrigida, sem E1 novo);
+  `6a53cfbf`/`bea53bd0` passam a `dac754f9` (E1 novo preservado, com aquisição corrigida).
+  Preserva ID, parâmetros, contador e falhas; registra origem e destino.
   Reservas vivas não mudam. O catálogo aplica a mesma promoção antes do preflight, para não depender da ordem
   entre o último job e o cron de 15 minutos.
-- A evidência está em `auditoria-promocao-publicador.json`: 356 arquivos científicos idênticos, 11 versões de
-  tarefa iguais e todos os 213 pacotes da origem com versões preservadas. A versão operacional do motor pode
-  mudar; isso não reescreve versões nas previsões existentes. O destino não inclui as mudanças científicas de E1/E2.
+- A evidência está em `auditoria-promocao-publicador.json`. Cada grupo preserva suas fórmulas, temas, ano,
+  regras e versões de dependências. Dez versões de tarefa permanecem iguais; MapBiomas muda porque a aquisição
+  integra seu hash. A versão operacional do motor também pode mudar; isso não reescreve versões nas previsões
+  existentes. A promoção não transfere as mudanças científicas de E1/E2 ao grupo que ainda não as usava.
 - O `workflow_run` da catalogação é restrito ao término de `43305564503`, no SHA `88860b64` completo, branch main
   e repositório de origem igual ao atual. Executa o código da main e não baixa artifacts do gatilho. O preflight
   continua exigindo a ausência de qualquer escritor antigo, antes de reservar uma das 15 vagas.
@@ -301,13 +305,22 @@ backups. Os produtos finais continuam elegíveis a ficha e atestação; o proces
 - RN expôs uma falha anterior: HTTP 422 em `/maps/exports` era aviso, não falha do job; a tentativa sem CSV não
   chegava ao índice e `continuar` disparava outro planejamento. O frontend oficial do MapBiomas associa 422 a
   limite temporário de geração; os temas, ano 2025 e `exportType=range` conferem com seu catálogo e interface.
+  Referência: [bundle oficial](https://plataforma.mapbiomas.org/assets/index-DkZM_66U.js), SHA-256
+  `ea2e4ae615bb44b8cc03d5b7dc0064c2aed812f25bb5c0d4a85a4a3ca71cbe4c`. O corpo da resposta que afetou RN não
+  ficou registrado; seu motivo específico não foi confirmado. O cliente novo só repete 422 com indicação
+  explícita de limite de geração; validação de ano/campo e respostas ambíguas falham com diagnóstico sanitizado.
   A correção operacional reaproveita e consome exports aceitos antes de abrir novos, respeita prazo e retries,
   registra a tentativa no índice privado e impede o encadeamento imediato de jobs com erro e avanço zero.
   Não se deve mudar ano, omitir fonte obrigatória ou declarar dados concluídos para contornar essa resposta.
   A aquisição integra o hash da tarefa MapBiomas: pedidos novos com essa correção terão nova versão de tarefa,
-  embora o cálculo por imóvel permaneça igual. A promoção auditada acima continua tendo destino fixo no #77;
-  não se atribui a versão nova a previsões já publicadas.
+  embora o cálculo por imóvel permaneça igual. A promoção auditada acima inclui a aquisição corrigida nos dois
+  destinos fixos; não se atribui a versão nova a previsões já publicadas.
 - O registro de tentativa fica em módulo separado (`raiz/executor/rodadas.py`), usando as mesmas travas e o mesmo
   publicador. `armazem.py` permanece idêntico ao #77, preservando a conferência estrita de compatibilidade.
-  Testes focados da promoção/gatilho: 135 passaram, com Ruff e actionlint 1.7.12. A validação conjunta da correção
-  de fonte e a confirmação real de metadados serão registradas na entrega operacional.
+  A promoção final e o catálogo passaram em 155 testes de integração, com Ruff e actionlint 1.7.12.
+- Suíte completa da operação integrada à main do #80: **1.998 passaram, 4 pulados e 1 xfail**, com PostGIS,
+  em 1.068 s. Depois da correção final das referências, os 155 testes de fila/promoção/catálogo passaram novamente.
+  O destino de retomada `ec2ebd2c`, sem E1 novo, também teve suíte completa própria: **1.895 passaram, 4 pulados
+  e 1 xfail**, em 1.050 s, em outro banco PostGIS. Dois skips de cada checkout eram Takumi ainda não instalado;
+  após `npm ci` travado, os testes de cartões e vídeo passaram em ambos. Permanecem opcionais locais o Pará
+  inteiro e o servidor LanguageTool; o xfail de TIR já existia. Atestações e arquivos reais ainda exigem a execução retroativa.
