@@ -44,6 +44,21 @@ Não instala serviços nem preenche credenciais. Sem ntfy e GoAlert, continua em
 e migrado, a rodada falha. A prévia não ativa nada. Um ambiente de desenvolvimento sem acesso ao servidor não
 comprova que o agendamento esteja ativo em produção.
 
+O Calendário da Raíz usa um bloco separado no mesmo instalador:
+
+```bash
+uv run raiz banco migrar
+uv run python scripts/instalar_cron_alertas.py --tarefa calendario            # prévia
+uv run python scripts/instalar_cron_alertas.py --tarefa calendario --instalar # diário
+```
+
+Ele executa `uv run raiz calendario coletar` todos os dias às **06:47 no fuso configurado no servidor**, com trava
+própria, sem alterar o fuso dos demais trabalhos. O banco do `.env` precisa estar acessível e migrado (incluindo
+0026). Essa rodada persiste os eventos, cruza CAR/SIGEF, atualiza API/MCP e prepara os avisos do painel; os canais
+externos continuam simulados. A rodada do GitHub Actions com `--sem-banco` publica o Release e não substitui esse
+agendamento do banco. Instalar ou repetir um bloco preserva o outro. Instale no diretório permanente da aplicação:
+`dados/calendario/` guarda o estado da coleta entre as rodadas.
+
 | O que | Gravidade |
 |---|---|
 | lote que falhou nas últimas 24 h (um alerta por tarefa e dia) | aviso |

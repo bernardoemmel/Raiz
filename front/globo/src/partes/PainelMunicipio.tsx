@@ -27,6 +27,7 @@ import { MODOS, ORDENS, ordenarFiltrar, type Modo, type OrdemRestauracao } from 
 
 interface Props {
   cod: string
+  emLeilao?: Set<string>
   nome: string | null
   uf: string | null
   centro: [number, number] | null
@@ -283,7 +284,10 @@ export function PainelMunicipio(props: Props) {
                 </label>
               </div>
               {listaOrdenada.length ? (
-                <TabelaFazendas lista={listaOrdenada} aoPassar={aoPassar} valor={ordem !== "area"} />
+                <>
+                {!!props.emLeilao?.size && <p className="legenda-frase">Contorno tracejado no mapa: imóvel em leilão. <a href="#/calendario">Conferir no calendário</a>.</p>}
+                <TabelaFazendas emLeilao={props.emLeilao} lista={listaOrdenada} aoPassar={aoPassar} valor={ordem !== "area"} />
+                </>
               ) : (
                 <Estado tipo="vazio" titulo={funil?.aptas_carbono === 0 ? `Nenhuma fazenda apta em ${nomeMun}.` : "Nenhuma fazenda nesta seleção."} />
               )}
