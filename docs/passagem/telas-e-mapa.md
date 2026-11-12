@@ -116,6 +116,13 @@ Sessão: https://claude.ai/code/session_01VGb88MJumyG9PHt2znaaKE. Branch: `claud
 - O CI encontrou um falso positivo em URL JDBC sem credenciais de outra branch. A exceção em `.gitleaksignore`
   identifica exatamente commit, arquivo, regra e linha; mantém a varredura de todas as refs e as demais regras.
 
+- A integração com o Calendário da main também publica JSON de ausência explícita quando sua primeira coleta
+  ainda não existe. Isso elimina o 404 observado na navegação real, sem inventar eventos nem data de coleta;
+  falha de atualização preserva os bytes da última coleta disponível. Teste HTTP cobre JSON e ICS em `/Raiz/`.
+- Validação do novo contrato real: 365/365 municípios com desenho, 9 UFs, 74,2 MB de geometrias internas e
+  91 MB no site público agregado. Após incorporar Calendário: 174 testes de front e 12 testes de geometria
+  passaram; as regressões da ausência de agenda também passaram.
+
 ## Referências conferidas para a segunda entrega
 
 - llms.txt: https://llmstxt.org/ (proposta v2; permite subcaminho e `rel="describedby"`).
