@@ -183,6 +183,7 @@ def _vigilancia(vig, regras: dict, hoje: dt.date) -> list[Novo]:
                         f"Evento de perda {pe['perda_id']} ({pe['estado']}) no projeto {pid}: "
                         "o aviso à Verra por e-mail "
                         f"vence em {pr['aviso_verra_ate']:%d/%m/%Y} ({pr['aviso_verra_dias_restantes']} dias). "
+                        f"Rascunho: /vigilancia/projeto/{pid}/perdas/{pe['perda_id']}/aviso-verra. "
                         "Registrar 'verra_avisada' na vigilância depois de enviar.",
                         {"perda_id": pe["perda_id"], "projeto_id": pid, "dias": pr["aviso_verra_dias_restantes"]},
                     )

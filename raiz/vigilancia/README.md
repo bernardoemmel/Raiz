@@ -197,3 +197,7 @@ aqui por falta de credencial neste ambiente.
 | `perdas.py`, `relatorio.py`, `aviso.py` | regra da Verra, rascunho do relatório e KML, aviso ao cliente |
 | `armazem.py`, `publicacao.py` | estado em arquivos e publicação no Release (privado cifrado) |
 | `rodada.py`, `servico.py`, `api.py`, `servidor.py`, `__main__.py` | rodada diária, respostas das rotas, rotas, servidor avulso, linha de comando |
+
+## Aviso inicial à Verra
+
+O e-mail inicial é separado do relatório de perda. A rodada diária grava `<evento>_aviso_verra.eml` na pasta privada dos relatórios (publicada somente no pacote cifrado). As rotas `GET /vigilancia/projeto/{id}/perdas/{evento}/aviso-verra` e `/aviso-verra.eml` usam a autenticação existente e mostram as pendências. `python -m raiz.vigilancia aviso-verra URTX URTX_LE1 --saida /caminho/privado/aviso.eml` prepara sem enviar. Sem o estado privado, `--prazo-informado AAAA-MM-DD` prepara só um rascunho incompleto, marcado como prazo informado pelo operador. Preparação nunca registra `verra_avisada`. Ver `docs/pedidos/urtx-le1-aviso-verra.md`.
