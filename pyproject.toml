@@ -85,7 +85,7 @@ extend-exclude = ["motor", "raiz/regras/gerado"]
 select = ["E", "F", "W", "I", "B", "UP"]
 
 [tool.pytest.ini_options]
-testpaths = ["testes"]
+testpaths = ["testes", "raiz/vigilancia/testes"]
 markers = ["banco: precisa de PostgreSQL com PostGIS (RAIZ_BANCO_URL_TESTE)"]
 # aviso que nasce dentro do DuckDB (fetch_df usa drop(inplace=True)), não no código da Raíz
 filterwarnings = [

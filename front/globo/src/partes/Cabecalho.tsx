@@ -1,8 +1,11 @@
+import { useSessao } from "../pedidos"
+import { linkPedidos } from "../rota"
 import { Busca } from "./Busca"
 import { IconeRaiz, User } from "./Icones"
 
 const MENU = [
   { id: "mapa", rotulo: "Mapa" },
+  { id: "pedidos", rotulo: "Pedidos" },
   { id: "fazendas", rotulo: "Fazendas" },
   { id: "agrupados", rotulo: "Projetos agrupados" },
   { id: "carteira", rotulo: "Carteira" },
@@ -10,6 +13,7 @@ const MENU = [
 ]
 
 export function Cabecalho({ atual, linkMapa = "#/" }: { atual: string; linkMapa?: string }) {
+  const sessao = useSessao()
   return (
     <header className="topo">
       <a className="marca" href={linkMapa}>
@@ -19,9 +23,9 @@ export function Cabecalho({ atual, linkMapa = "#/" }: { atual: string; linkMapa?
       <nav aria-label="Principal">
         <ul className="menu">
           {MENU.map((m) =>
-            m.id === "mapa" ? (
+            m.id === "mapa" || m.id === "pedidos" ? (
               <li key={m.id}>
-                <a href={linkMapa} aria-current={atual === "mapa" ? "page" : undefined}>
+                <a href={m.id === "mapa" ? linkMapa : linkPedidos} aria-current={atual === m.id ? "page" : undefined}>
                   {m.rotulo}
                 </a>
               </li>
@@ -37,9 +41,9 @@ export function Cabecalho({ atual, linkMapa = "#/" }: { atual: string; linkMapa?
       </nav>
       <div className="topo-dir">
         <Busca />
-        <span className="avatar" title="Sua conta">
+        <a className="avatar" href={sessao ? linkPedidos : "#/entrar"} title={sessao ? `Seus pedidos (${sessao.email})` : "Entrar"} aria-label={sessao ? "Seus pedidos" : "Entrar"}>
           <User size={20} aria-hidden="true" />
-        </span>
+        </a>
       </div>
     </header>
   )

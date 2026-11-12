@@ -5,8 +5,9 @@ import { camposDeFutebol } from "../../../compartilhado/comparacoes"
 import { COR, MAPA } from "../../../compartilhado/cores"
 import type { Geo } from "../../../compartilhado/dados"
 import { fmtHa } from "../../../compartilhado/formato"
+import { rotulosDeAreas } from "../../../compartilhado/rotulos-mapa"
 import { MiniBrasil } from "../partes/MiniBrasil"
-import { estiloBase, imagemHachura, prepararMapLibre } from "./estilo"
+import { estiloBase, prepararMapLibre } from "./estilo"
 
 interface Props {
   aneis: [number, number][][]
@@ -40,7 +41,8 @@ function limitesDe(g: Geo | null): LngLatBounds | null {
 
 /**
  * O imóvel no mapa (guia, item 2.1): máscara fora do imóvel, contorno duplo, vizinhos só com contorno fino a partir do
- * zoom 12, terras indígenas em hachura e rios. A imagem de satélite da fazenda entra no lugar do mapa base quando o
+ * zoom 12, terras indígenas em névoa lisa com o nome (a hachura diagonal fica só para a área que pode voltar a ser mata) e
+ * rios. A imagem de satélite da fazenda entra no lugar do mapa base quando o
  * back-end gerar (GET /imoveis/{cod}/imagem/hoje.webp); enquanto isso, a base clara.
  */
 export function MapaImovel({ aneis, cod, ha, uf, municipioNome, municipio, voar, base, vizinhos, ti, rios }: Props) {
@@ -71,7 +73,6 @@ export function MapaImovel({ aneis, cod, ha, uf, municipioNome, municipio, voar,
     if (import.meta.env.DEV) Object.assign(caixa.current, { __mapa: m })
     m.once("style.load", () => {
       const antes = m.getStyle().layers.find((l) => l.type === "symbol")?.id
-      if (!m.hasImage("hachura")) m.addImage("hachura", imagemHachura(), { pixelRatio: 2 })
       const imovel: Geo = {
         type: "FeatureCollection",
         features: [{ type: "Feature", properties: {}, geometry: { type: "MultiPolygon", coordinates: aneis.map((a) => [a]) } }],
@@ -95,7 +96,12 @@ export function MapaImovel({ aneis, cod, ha, uf, municipioNome, municipio, voar,
       m.addSource("fora", { type: "geojson", data: fora as never })
       m.addSource("municipio", { type: "geojson", data: (municipio ?? VAZIO) as never })
       const acesa = comVoo ? 0 : 1
-      m.addLayer({ id: "ti", type: "fill", source: "ti", paint: { "fill-pattern": "hachura", "fill-opacity": 0.5 } }, antes)
+      m.addSource("nomes", { type: "geojson", data: rotulosDeAreas(ti, null) as never })
+      m.addLayer({ id: "ti", type: "fill", source: "ti", paint: { "fill-color": COR.nevoa } }, antes)
+      m.addLayer(
+        { id: "ti-linha", type: "line", source: "ti", paint: { "line-color": COR.pedra, "line-width": 0.8, "line-opacity": 0.6, "line-dasharray": [3, 2] } },
+        antes,
+      )
       m.addLayer({ id: "rios", type: "fill", source: "rios", paint: { "fill-color": MAPA.agua } }, antes)
       m.addLayer({ id: "municipio", type: "line", source: "municipio", maxzoom: 11, paint: { "line-color": COR.tinta, "line-width": 1.5 } }, antes)
       // máscara fora do imóvel (vizinhos continuam visíveis, apagados)
@@ -119,6 +125,13 @@ export function MapaImovel({ aneis, cod, ha, uf, municipioNome, municipio, voar,
         type: "line",
         source: "imovel",
         paint: { "line-color": MAPA.contornoFora, "line-width": 6, "line-opacity": 0.9 * acesa, "line-opacity-transition": { duration: 280 } },
+      })
+      m.addLayer({
+        id: "nomes",
+        type: "symbol",
+        source: "nomes",
+        layout: { "text-field": ["get", "rotulo"], "text-font": ["Noto Sans Italic"], "text-size": 13, "text-max-width": 8 },
+        paint: { "text-color": COR.pedra, "text-halo-color": COR.nevoa, "text-halo-width": 1.5 },
       })
       m.addLayer({
         id: "imovel-dentro",
@@ -169,7 +182,7 @@ export function MapaImovel({ aneis, cod, ha, uf, municipioNome, municipio, voar,
             Imóveis vizinhos
           </li>
           <li>
-            <i className="hachura" />
+            <i className="nevoa" />
             Terra indígena
           </li>
         </ul>

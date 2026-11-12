@@ -6,13 +6,44 @@
 
 export type Linha = Record<string, string>
 
-export function lerCsv(texto: string): { colunas: string[]; linhas: Linha[] } {
-  const registros: string[][] = []
-  let campo = ""
-  let registro: string[] = []
-  let aspas = false
+export function lerCsv(texto: string, opcoes: { colunas?: string[] } = {}): { colunas: string[]; linhas: Linha[] } {
   const t = texto.charCodeAt(0) === 0xfeff ? texto.slice(1) : texto
-  for (let i = 0; i < t.length; i++) {
+  const registros: string[][] = []
+  // arquivo só com \r (Mac antigo): tudo pelo caminho com aspas, que entende qualquer quebra de linha
+  const soCr = t.indexOf("\n") < 0 && t.indexOf("\r") >= 0
+  let aspasEm = soCr ? 0 : t.indexOf('"')
+  let i = 0
+  while (i < t.length) {
+    if (aspasEm >= 0 && aspasEm < i) aspasEm = t.indexOf('"', i)
+    let fim = t.indexOf("\n", i)
+    if (fim < 0) fim = t.length
+    // caminho rápido: linha sem aspas é só separar nas vírgulas (quase todas as linhas do motor)
+    if (!soCr && (aspasEm < 0 || aspasEm > fim)) {
+      const linha = t.charCodeAt(fim - 1) === 13 ? t.slice(i, fim - 1) : t.slice(i, fim)
+      if (linha !== "") registros.push(linha.split(","))
+      i = fim + 1
+      continue
+    }
+    i = registroComAspas(t, i, registros)
+  }
+  const [cabecalho = [], ...resto] = registros
+  const colunas = cabecalho.map((c) => c.trim())
+  // só as colunas pedidas viram campo do objeto (ler 345 mil imóveis do Pará só para o mapa fica 5 vezes mais rápido)
+  const usar = opcoes.colunas ? colunas.map((c, k) => [c, k] as const).filter(([c]) => opcoes.colunas!.includes(c)) : colunas.map((c, k) => [c, k] as const)
+  const linhas = resto.map((r) => {
+    const l: Linha = {}
+    for (const [c, k] of usar) l[c] = r[k] ?? ""
+    return l
+  })
+  return { colunas, linhas }
+}
+
+/** um registro com aspas (vírgula, aspas ou quebra de linha dentro do campo), a partir de i; devolve onde o próximo começa */
+function registroComAspas(t: string, i: number, registros: string[][]): number {
+  let campo = ""
+  const registro: string[] = []
+  let aspas = false
+  for (; i < t.length; i++) {
     const c = t[i]
     if (aspas) {
       if (c === '"') {
@@ -28,23 +59,13 @@ export function lerCsv(texto: string): { colunas: string[]; linhas: Linha[] } {
     } else if (c === "\n" || c === "\r") {
       if (c === "\r" && t[i + 1] === "\n") i++
       registro.push(campo)
-      campo = ""
       if (registro.length > 1 || registro[0] !== "") registros.push(registro)
-      registro = []
+      return i + 1
     } else campo += c
   }
-  if (campo !== "" || registro.length) {
-    registro.push(campo)
-    registros.push(registro)
-  }
-  const [cabecalho = [], ...resto] = registros
-  const colunas = cabecalho.map((c) => c.trim())
-  const linhas = resto.map((r) => {
-    const l: Linha = {}
-    colunas.forEach((c, i) => (l[c] = r[i] ?? ""))
-    return l
-  })
-  return { colunas, linhas }
+  registro.push(campo)
+  registros.push(registro)
+  return i
 }
 
 /** Escreve CSV com as colunas pedidas (aspas só quando precisa). */

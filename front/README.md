@@ -7,7 +7,8 @@ Três telas, lendo as saídas do motor pelo nome das colunas (`docs/colunas.md`)
 | `globo/` | Painel do analista: tela de entrada (mapa do Brasil com a busca no topo), painel do município (funil em barras ligado ao mapa, tabela de fazendas) e ficha da fazenda. A pasta guarda o nome antigo; não tem mais globo | Vite + React 19 + TypeScript, MapLibre GL JS + PMTiles |
 | `produtor/` | Ficha leve para o produtor no celular: texto primeiro, mapa só ao tocar | Vite + Preact, MapLibre + PMTiles carregados sob demanda |
 | `compartilhado/` | Camada única de dados, regras do funil, formatos, comparações, caixa de fatos, privacidade | TypeScript sem dependência |
-| `scripts/geo.py` | Baixa as geometrias públicas, recorta o mapa base do Brasil e gera o contorno dos estados do minimapa | Python (requests, shapely, pmtiles) |
+| `scripts/geo.py` | Baixa as geometrias públicas, recorta o mapa base do Brasil, junta os municípios em estados e grava a lista de municípios do IBGE (`compartilhado/ibge-municipios.ts`) e o contorno dos estados do minimapa | Python (requests, shapely, pmtiles) |
+| `scripts/baixar-dados.mjs` | Roda sozinho antes do `npm run dev` (predev): baixa do Release "dados" os estados que o motor publicou para `dados/estados/` (fora do git), só o que mudou; sem internet, avisa e segue | Node, sem dependência |
 | `referencia/` | Prints aprovados pelo fundador | |
 
 ## Rodar
@@ -27,8 +28,11 @@ cd front/produtor && npm install && npm run dev
 
 O painel abre em `http://localhost:5173/` e a ficha do produtor em `http://localhost:5174/?car=<código do CAR>`.
 
-- **Tela de entrada** (`#/`): o mapa plano do Brasil, sem animação. Municípios processados em mata clara, os demais
-  em névoa, fazendas aptas agrupadas em círculos com o número. Tocar num município faz o mesmo que buscar por ele.
+- **Tela de entrada** (`#/`): o mapa plano do Brasil, sem animação, pintado por estado: município processado em mata
+  clara, o resto em cinza, e cada estado com o que a Raíz já leu dele ("todos os 144 municípios", "8 de 139
+  municípios" ou "ainda não processado"). Nenhuma fazenda carrega nessa escala.
+- **Estado** (`#/estado/<UF>`): tocar num estado aproxima e carrega só as fazendas aptas dele, agrupadas em círculos
+  com o número; o painel diz se o estado está completo. Dentro do estado, tocar num município abre o município.
 - **Município** (`#/municipio/<código IBGE>`): o mapa voa até ele (sem passar por zoom de mundo), pinta as fazendas
   pela situação e abre o painel com o funil em barras: tocar numa barra deixa só aquelas fazendas coloridas; tocar no
   contorno mostra quem saiu, pela cor do motivo. No celular o painel é uma gaveta que sobe de baixo.
@@ -36,18 +40,44 @@ O painel abre em `http://localhost:5173/` e a ficha do produtor em `http://local
   código do CAR vai direto para a ficha, com o mapa saindo do município e pousando na fazenda; nome de município vai
   para o mapa dele, inclusive de estado ainda não processado (o painel avisa).
 
-Testes: `cd front/globo && npm test` (dados, funil, busca, rotas, design e ausência do globo) e `npm run test:e2e`
-(sobe o Vite e confere no Chromium a entrada sem o cobe, a busca por município e por CAR, o toque no mapa e a gaveta no
-celular; precisa do Playwright com o Chromium e de `front/geo/` gerado).
+- **Pedidos** (`#/pedidos`, área logada): entrar sem senha (e-mail com link, `#/entrar`), "Meus pedidos" com o status
+  de cada um, "Novo pedido" (`#/pedidos/novo`) com os campos da cena-alvo já preenchidos, o pedido (`#/pedidos/<id>`)
+  com "Quanto existe na nossa base", as 3 opções em abas e o lote no mapa, a busca de interesse dos donos em ondas, e o
+  grupo (`#/pedidos/<id>/grupo`) com a reserva por Pix. Ver "Pedido de lote" abaixo.
+
+Testes: `cd front/globo && npm test` (dados, funil, busca, rotas, design, ausência do globo e dados por estado: estado
+completo, incompleto, estados.json baixado, cache dos pontos, queda para a amostra sem RAIZ_DADOS e sem internet, CPF
+e CNPJ mascarados) e `npm run test:e2e` (sem internet o predev avisa e segue; sobe o Vite com a amostra e confere no
+Chromium a entrada por estado, o toque no estado e no município, a busca por município e por CAR e a gaveta no
+celular; depois, o pedido de lote de ponta a ponta: entrar pelo link, novo pedido com os padrões, base, 3 opções,
+troca, busca de interesse até o grupo pronto, reserva com Pix, exclusividade e o celular sem passar da tela; precisa do
+Playwright com o Chromium e de `front/geo/` gerado).
 
 ## Dados
 
 Tudo passa por `compartilhado/dados/` (`FonteDeDados`). As telas não sabem de onde vêm os números.
 
-- **Hoje (amostra):** `dados/amostra/*.csv` e `front/geo/` (gerado pelo script, fora do git). O plugin do Vite
-  (`compartilhado/vite-dados.ts`) serve `/amostra/` e `/geo/` como se fosse a API e monta a ficha de cada fazenda em
-  `/amostra/fichas/<cod>.json`. Arquivo novo do motor (por exemplo `imoveis_1507300.csv`, `extras_<mun>.csv`) aparece
-  sozinho na tela; coluna nova aparece em "Outros dados do motor" na ficha.
+- **Hoje (pasta do motor):** o plugin do Vite (`compartilhado/vite-dados.ts`, com a leitura em `pasta-dados.ts`)
+  serve os CSV como se fosse a API. De onde, nesta ordem:
+  1. a pasta da variável `RAIZ_DADOS` (no ambiente ou no `.env` da raiz), separada por estado como o motor grava:
+     `<pasta>/<UF>/imoveis_<cod>.csv`, `direto_`, `filtros_`, `extras_`, `mapbiomas_`, `certidoes_` e `resumo_<UF>.csv`;
+  2. sem ela, `dados/estados/`, que o `npm run dev` baixa sozinho do Release "dados" (`docs/dados-publicados.md`),
+     com o `estados.json` que diz, por estado, quantos municípios há, de quantos, e se está completo;
+  3. sem nenhuma das duas (por exemplo, sem internet), `dados/amostra/`, como sempre. `RAIZ_DADOS=dados/amostra`
+     força a amostra.
+
+  Rotas (iguais nos três casos; o nome do arquivo diz o estado): `/amostra/estados.json` (os 27 estados; com o
+  `estados.json` baixado, os números vêm dele, sem recontar; sem ele, conta os arquivos e compara com a lista do IBGE
+  em `compartilhado/ibge-municipios.ts`), `/amostra/indice_<UF>.json` (os CSV do estado), `/amostra/<arquivo>.csv`
+  (limpo: sem coluna pessoal, CPF e CNPJ mascarados), `/amostra/pontos_<UF>.json` (as aptas do estado para os
+  círculos do mapa), `/amostra/car_<UF>.json` (códigos do CAR que o motor pôs no arquivo de outro município; 0,6% no
+  Pará), `/amostra/fichas/<cod>.json` e `/busca?q=`. Nada é lido de uma vez: os pontos de cada estado são montados uma
+  vez (em segundo plano, logo que o servidor sobe; o Pará leva uns 8 s), guardados em `front/.cache/` (fora do git) e
+  refeitos só quando um CSV ou contorno daquele estado muda. Arquivo novo do motor aparece sozinho na tela; coluna nova
+  aparece em "Outros dados do motor" na ficha. As geometrias continuam em `front/geo/` (gerado pelo script, fora do git).
+
+  O `vite build` grava tudo em `dist/`, com uma ficha por fazenda (a ficha leve do produtor sem servidor): com os 6
+  estados publicados hoje são 638.754 fichas e 3,1 GB. Com o Brasil inteiro, o caminho é a API (abaixo).
 - **Depois (API):** defina `VITE_RAIZ_API` no `.env` do front (nunca no git). Rotas que a fonte da API espera, com
   as mesmas colunas dos CSV:
 
@@ -59,10 +89,12 @@ Tudo passa por `compartilhado/dados/` (`FonteDeDados`). As telas não sabem de o
 | `GET /imoveis/{cod_imovel}/ficha` | `FichaJson` (`compartilhado/dados/ficha.ts`): linha, contexto do município e perímetro em polyline |
 | `GET /imoveis/{cod_imovel}/certidoes` | cartório (CNS) e matrícula das parcelas SIGEF |
 | `GET /busca?q=` | `RespostaBusca` (`compartilhado/dados/busca.ts`): `situacao`, `mensagem`, `imoveis`, `municipios` |
-| `GET /geo/{cod_ibge}/{municipio,imoveis,ti,uc,rios}.geojson` | geometrias |
+| `GET /geo/{cod_ibge}/{municipio,imoveis,ti,uc,rios}.geojson` | geometrias; `ti` e `uc` recortadas na divisa do município, com `nome` |
 | `GET /geo/{cod_ibge}/base.pmtiles` | mapa base (precisa responder a `Range`) |
-| `GET /pontos` | fazendas aptas para os círculos da tela de entrada: `lon`, `lat`, `situacao` (`apta` ou `pendencia`), `ha`, `cod_ibge` |
-| `GET /geo/brasil/municipios.geojson` | os 5.570 municípios do Brasil, simplificados (`cod_ibge`, `nome`, `uf`) |
+| `GET /estados` | `Estados` (`compartilhado/dados/tipos.ts`): os 27 estados, quantos municípios o motor processou, de quantos na lista do IBGE, `situacao` (`completo`, `incompleto`, `sem_dados`) e os municípios com lista por fazenda |
+| `GET /estados/{uf}/pontos` | fazendas aptas do estado para os círculos do mapa: `{campos, pontos: [[lon, lat, situacao, ha, cod_ibge, n]]}`; `n` maior que 1 é a soma do município, no meio dele |
+| `GET /geo/brasil/municipios.geojson` | os municípios do Brasil, simplificados (`cod_ibge`, `nome`, `uf`) |
+| `GET /geo/brasil/estados.geojson` | os 27 estados (`uf`, `cod`, `rotulo`: o ponto do nome) |
 | `GET /geo/brasil/base.pmtiles` | mapa base único, do país (zoom 0 a 6) ao município (até 14), com `Range` |
 
 A busca (`GET /busca?q=`) aceita o código do CAR inteiro ou o começo dele, com ou sem os pontos do recibo
@@ -75,6 +107,27 @@ roda no navegador.
 Colunas que o front já sabe usar quando o motor entregar: `matricula_conferida` (troca o selo "matrícula a
 conferir" por "conferida"), `rebanho_cabecas` (linha de gado na caixa de fatos), `fogo_anos_max` e `mb_fogo_<ano>_ha` (camada de fogo, já ligada). A frente Cacau e o raio do
 frigorífico ficam desligados de propósito, mesmo quando as colunas chegarem.
+
+## Pedido de lote (cena-alvo)
+
+O contrato com o back-end está em `compartilhado/pedidos/tipos.ts` (rotas no comentário do topo): `POST /entrar`,
+`POST /entrar/confirmar`, `GET /pedidos`, `POST /pedidos`, `GET /pedidos/{id}`, `POST /pedidos/{id}/lote` (tirar ou
+trocar), `POST /pedidos/{id}/solicitar-interesse`, `GET /pedidos/{id}/andamento`, `POST /pedidos/{id}/reservar` e
+`GET /pedidos/{id}/reserva`, com o token da sessão no cabeçalho. Com `VITE_RAIZ_API`, as telas falam com essas rotas.
+
+Sem a API, a **resposta de exemplo** (`compartilhado/pedidos/exemplo.ts`) roda no navegador com o mesmo formato, e a
+tela avisa. O lote sai de fazendas aptas de verdade (as que têm contorno em `front/geo/`: hoje São Félix do Xingu e
+Cumaru do Norte). Custo, TIR, chance de cada marco, aceite dos donos e ondas de contato são simulados, com as
+premissas escritas em `PREMISSAS` e em "Ver como calculamos". A mais barata ordena por custo por crédito, a mais
+segura por risco da terra e chance de aceite (e fecha a meta no P10), a mais compacta pelas vizinhas de onde há mais
+crédito. Na busca de interesse, a primeira onda contata mais donos do que a meta pede. Quem recusa ou não responde
+sai, e entram reservas até a meta caber na chance de aceite esperada. A onda é de 20 s no exemplo; o teste de tela
+usa `localStorage["raiz.exemplo.onda_ms"]`. O exemplo guarda os pedidos no navegador, separados por e-mail. O Pix de
+exemplo não é um código de banco e não paga nada.
+
+Exclusividade: fazenda reservada por outro cliente some do mapa do município, da lista, da ficha, da busca e de todo
+lote (`compartilhado/pedidos/exclusividade.ts`; no exemplo, cerca de 1,5% das fazendas). Com a API, quem esconde é o
+servidor. A ficha do produtor não passa por essa camada: o dono sempre vê a própria fazenda.
 
 ## Regras que as telas seguem
 

@@ -117,8 +117,8 @@ export const SITUACAO = {
   apta: COR.situacaoApta,
   pendencia: COR.situacaoPendencia,
   naoApta: COR.situacaoNaoApta,
-  /** fora do foco do funil: fica em cinza claro, não some */
-  apagada: COR.nevoa,
+  /** fora do foco do funil: fica em branco, não some (a névoa é do chão sem imóvel do CAR) */
+  apagada: COR.superficie,
 } as const
 
 /** Porte por módulos fiscais, em três tons do mesmo verde (guia, item 4.2): os pequenos vão para o projeto agrupado. */
@@ -155,3 +155,17 @@ export function rgb01(hex: string): [number, number, number] {
   const n = parseInt(hex.slice(1), 16)
   return [((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255]
 }
+
+/**
+ * Nível de interesse do dono no mapa do pedido (cena-alvo). Sempre com o nome na legenda; quem recusou também com a
+ * hachura cruzada. Só cores da paleta.
+ */
+export const INTERESSE = {
+  sem_contato: COR.nevoa,
+  contatado: COR.agua,
+  interessado: COR.situacaoPendencia,
+  aceite_fase1: COR.restaurar,
+  contrato_firme: COR.mata,
+  recusou: COR.situacaoNaoApta,
+  sem_resposta: COR.situacaoNaoApta,
+} as const
