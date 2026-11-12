@@ -3,7 +3,9 @@ de fazenda, busca de interesse em ondas (quem recusa é trocado e o grupo fecha 
 aviso, reserva com Pix de teste, exclusividade (a fazenda reservada some para os outros clientes e volta quando a
 reserva vence), contrato, vigia e aprendizado da chance de aceite. Nada pessoal do dono sai pela API."""
 
+import base64
 import datetime as dt
+import secrets
 import uuid
 
 import pytest
@@ -11,9 +13,12 @@ from fastapi.testclient import TestClient
 from pydantic import SecretStr
 from sqlalchemy import create_engine, text
 
+from raiz import salvaguardas as SG
 from raiz.carga import carregar_pasta
 from raiz.pedidos import servico as S
 from raiz.pessoal import gerar_chave
+from raiz.publica import conta as CT
+from raiz.publica import recibos
 from testes.conftest import AMOSTRA
 
 pytestmark = pytest.mark.banco
@@ -31,6 +36,23 @@ def eng(banco_url):
         c.execute(text("truncate funil.rodada, funil.imovel, negocio.oferta, negocio.cliente cascade"))
         c.execute(text("truncate negocio.interesse_dono, negocio.interesse_evento"))
     carregar_pasta(e, AMOSTRA, dt.date(2026, 11, 12))  # a carga já refaz a oferta do município
+    # A amostra CSV não contém geometria nem documentos. Apenas neste cenário feliz,
+    # polígonos e evidências sintéticos tornam explícita a revisão prévia à reserva.
+    hoje = dt.datetime.now(dt.UTC).date()
+    ev = SG.Evidencia(sha256="c" * 64, data=hoje)
+    SG.registrar_cobertura(e, SG.Cobertura(uf="PA", evidencia=ev, valida_ate=hoje))
+    verificacao = SG.Verificacao(verificacao=ev, territorio_tradicional=False)
+    with e.begin() as c:
+        c.execute(
+            text("""update funil.imovel set geom = ST_Multi(ST_GeomFromText(
+            'POLYGON((-47 -1,-46.99 -1,-46.99 -0.99,-47 -0.99,-47 -1))', 4674))
+            where geom is null""")
+        )
+        c.execute(
+            text("""insert into negocio.salvaguarda (cod_imovel, evidencia)
+            select cod_imovel, cast(:e as jsonb) from funil.imovel"""),
+            {"e": verificacao.model_dump_json()},
+        )
     yield e
     e.dispose()
 
@@ -42,6 +64,8 @@ def chave():
     k = gerar_chave()
     mp = pytest.MonkeyPatch()
     mp.setattr(P, "config", lambda: type("C", (), {"chave_pessoal": SecretStr(k)})())
+    mp.setenv("RAIZ_RECIBO_CHAVE", base64.urlsafe_b64encode(secrets.token_bytes(32)).decode())
+    mp.delenv("RAIZ_ABACATEPAY_CHAVE", raising=False)
     yield k
     mp.undo()
 
@@ -206,6 +230,10 @@ def test_fluxo_completo_com_ondas_reserva_e_exclusividade(eng, chave):
     cob = S.reservar(eng, p["id"], a)
     assert cob["modo_teste"] and cob["pix"]["copia_e_cola"].startswith("RAIZ-TESTE-PIX") and not cob["pago"]
     assert cob["valor_brl"] >= 500 and cob["prazo_dias"] == 60 and "abatida" in cob["abatimento"]
+    assert "<svg" in cob["pix"]["qr_svg"] and cob["pix"]["expira_em"]
+    mandato = recibos.verificar(cob["recibo_aprovacao"], recibos.jwk())
+    assert mandato["empresa"] == a and mandato["pedido"] == p["id"]
+    assert mandato["pagamento_confirmado"] is False and mandato["condicoes"]["agente_pode_pagar"] is False
     b, _ = S.criar_cliente(eng, "Fundo B")
     antes_b = S.criar_pedido(eng, b, CAMPOS)
     with eng.connect() as c:
@@ -239,7 +267,7 @@ def test_fluxo_completo_com_ondas_reserva_e_exclusividade(eng, chave):
         ev = [r[0] for r in c.execute(text("""select e.evento from negocio.reserva_evento e join negocio.reserva r
                                               on r.id = e.reserva_id where r.pedido_id = :p order by e.id"""),
                                       {"p": p["id"]})]  # fmt: skip
-    assert ev == ["criada", "paga", "expirada"]
+    assert ev == ["criada", "confirmada", "paga", "expirada"]
 
 
 def test_contrato_abate_a_reserva_e_pedido_impossivel(eng, chave):
@@ -436,6 +464,16 @@ def test_vigia_diz_quais_fazendas_novas_melhoram_o_lote(eng, chave):
     assert atualizar(eng, 1504950) == 880
 
 
+def _abrir_conta_de_teste(eng, cliente_id):
+    # Documento sintético: construído em teste, não armazenado em texto no repositório.
+    cnpj = f"73{cliente_id:010d}"
+    for tamanho in (12, 13):
+        pesos = list(range(tamanho - 7, 1, -1)) + list(range(9, 1, -1))
+        resto = sum(int(x) * w for x, w in zip(cnpj, pesos, strict=True)) % 11
+        cnpj += str(0 if resto < 2 else 11 - resto)
+    CT.abrir(eng, cliente_id, cnpj, True)
+
+
 def test_api_no_contrato_do_front(eng, chave, monkeypatch):
     from raiz.api import criar_app
 
@@ -443,6 +481,8 @@ def test_api_no_contrato_do_front(eng, chave, monkeypatch):
     import raiz.api as api_mod
 
     monkeypatch.setattr(api_mod, "config", lambda: cfg)
+    monkeypatch.setenv("RAIZ_FRONT_URL", "https://painel.raiz.example")
+    monkeypatch.setenv("RAIZ_API_PUBLICA_URL", "https://api.raiz.example")
     links = []
     monkeypatch.setattr(S, "ENVIO_LINK", lambda e, link: links.append(link))
     app = criar_app(engine=eng, grafo=object(), deps=object(), whatsapp=False)
@@ -453,7 +493,22 @@ def test_api_no_contrato_do_front(eng, chave, monkeypatch):
         sess = cl.post("/entrar/confirmar", json={"token": tok}).json()
         h = {"Authorization": f"Bearer {sess['token']}"}
         assert cl.get("/pedidos").status_code == 401  # sem sessão
-        p = cl.post("/pedidos", json=CAMPOS, headers=h).json()
+        # O caminho antigo preserva o contrato do front, mas não pode contornar a conta paga.
+        recusado = cl.post("/pedidos", json=CAMPOS, headers=h)
+        assert recusado.status_code == 403 and recusado.history[0].status_code == 307
+        cliente_id = S.cliente_da_sessao(eng, sess["token"])
+        _abrir_conta_de_teste(eng, cliente_id)
+        CT.aceitar_contrato(eng, cliente_id)
+        assert cl.post("/pedidos", json=CAMPOS, headers=h).status_code == 403  # ainda sem sinal
+        with eng.begin() as con:
+            con.execute(
+                text("update negocio.conta_api set sinal_pago_em=now(), saldo_rs=5000 where cliente_id=:c"),
+                {"c": cliente_id},
+            )
+        criado = cl.post("/pedidos", json=CAMPOS, headers=h)
+        assert criado.status_code == 200, criado.text
+        p = criado.json()
+        assert CT.ver(eng, cliente_id)["saldo_rs"] == 4600  # uma cobrança, no destino /v1
         assert set(p) >= {"id", "criado_em", "campos", "status", "base", "opcoes", "opcao_escolhida", "reservado_ate",
                           "alertas", "versao_modelo"}  # fmt: skip
         assert set(p["base"]) >= {"fazendas", "hectares", "creditos", "por_caminho", "por_interesse", "alcanca_meta",

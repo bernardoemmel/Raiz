@@ -11,6 +11,7 @@ import math
 import time
 import uuid
 from collections import OrderedDict
+from collections.abc import Callable
 
 from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import MutableHeaders
@@ -31,21 +32,46 @@ class SegurancaAPI:
         origens: list[str] | None = None,
         backend=None,
         erros=None,
+        autenticada_interna: Callable[[dict], bool] | None = None,
     ):
         self.app = app
         self.limite, self.login_limite = limite, login_limite
         self.janela, self.max_clientes = janela, max_clientes
         self.clientes: OrderedDict[str, tuple[float, int, int]] = OrderedDict()
         self.backend, self.erros = backend, erros
+        # Somente uma ponte ASGI autenticada pelo app pode dispensar a segunda contagem por IP.
+        # O chamador valida uma sentinela em memória; nunca aceitar cabeçalho/rede como prova.
+        self.autenticada_interna = autenticada_interna
         # Ordem: cabeçalhos de segurança → CORS → limite/erros → aplicação.
         # Assim o navegador lê 429/500 e o preflight também recebe os cabeçalhos de segurança.
         self.atender = (
             CORSMiddleware(
                 self._atender,
                 allow_origins=origens,
-                allow_methods=["GET", "POST", "PATCH"],
-                allow_headers=["Authorization", "Range", "Content-Type"],
-                expose_headers=["Content-Range", "Accept-Ranges", "Content-Length", "ETag", "Retry-After"],
+                allow_methods=["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE"],
+                allow_headers=[
+                    "Authorization",
+                    "Range",
+                    "Content-Type",
+                    "X-Chave-API",
+                    "Idempotency-Key",
+                    "MCP-Protocol-Version",
+                    "MCP-Method",
+                    "MCP-Name",
+                    "MCP-Session-Id",
+                    "Last-Event-ID",
+                ],
+                expose_headers=[
+                    "Content-Range",
+                    "Accept-Ranges",
+                    "Content-Length",
+                    "ETag",
+                    "Retry-After",
+                    "WWW-Authenticate",
+                    "Location",
+                    "MCP-Session-Id",
+                    "MCP-Protocol-Version",
+                ],
             )
             if origens
             else self._atender
@@ -85,11 +111,18 @@ class SegurancaAPI:
                 headers["Referrer-Policy"] = "no-referrer"
                 headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
                 # Compatível com os painéis HTML atuais, que têm scripts inline.
-                headers["Content-Security-Policy"] = "frame-ancestors 'none'; base-uri 'self'; object-src 'none'"
+                # Uma página pode fornecer uma política mais estrita, com nonce de script. Não a enfraquecer.
+                headers.setdefault(
+                    "Content-Security-Policy", "frame-ancestors 'none'; base-uri 'self'; object-src 'none'"
+                )
                 if scope.get("scheme") == "https":
                     headers["Strict-Transport-Security"] = "max-age=31536000"
-                if any(k.lower() == b"authorization" for k, _ in scope.get("headers", [])) or scope["path"].startswith(
-                    ("/entrar", "/pedidos", "/notificacoes", "/pagamentos", "/backoffice")
+                if (
+                    any(k.lower() in {b"authorization", b"x-chave-api"} for k, _ in scope.get("headers", []))
+                    or scope["path"].startswith(
+                        ("/entrar", "/pedidos", "/notificacoes", "/pagamentos", "/backoffice", "/v1/", "/mcp")
+                    )
+                    or scope["path"] == "/v1"
                 ):
                     headers["Cache-Control"] = "no-store"
             await send(mensagem)
@@ -124,24 +157,29 @@ class SegurancaAPI:
 
         ip = (scope.get("client") or ("desconhecido", 0))[0]
         login = scope["path"].rstrip("/") in {"/entrar", "/entrar/confirmar"}
+        interna = self.autenticada_interna is not None and self.autenticada_interna(scope) is True
         try:
-            espera = (
-                await self.backend.espera(ip, login, self.limite, self.login_limite, self.janela)
-                if self.backend is not None
-                else self._espera(ip, login)
-            )
+            espera = 0
+            if not interna:
+                espera = (
+                    await self.backend.espera(ip, login, self.limite, self.login_limite, self.janela)
+                    if self.backend is not None
+                    else self._espera(ip, login)
+                )
         except Exception:
             # Não registrar URL/credencial/mensagem da conexão; não desabilitar o limite em uma falha.
             await run_in_threadpool(log.error, "armazenamento do limite de chamadas indisponível")
-            return await JSONResponse(
-                {"detail": "serviço temporariamente indisponível"},
-                status_code=503,
+            return await _problema(
+                503,
+                "Serviço temporariamente indisponível",
+                "serviço temporariamente indisponível",
                 headers={"Retry-After": "1", "Cache-Control": "no-store"},
             )(scope, receive, enviar)
         if espera:
-            resposta = JSONResponse(
-                {"detail": "limite de chamadas atingido; tente novamente depois"},
-                status_code=429,
+            resposta = _problema(
+                429,
+                "Limite de chamadas",
+                "limite de chamadas atingido; tente novamente depois",
                 headers={"Retry-After": str(espera), "Cache-Control": "no-store"},
             )
             return await resposta(scope, receive, enviar)
@@ -155,5 +193,15 @@ class SegurancaAPI:
                     await run_in_threadpool(log.error, "monitoramento de erros indisponível")
             # O ServerErrorMiddleware externo não passa pelo middleware ao criar o 500.
             if not iniciado:
-                await JSONResponse({"detail": "erro interno"}, status_code=500)(scope, receive, enviar)
+                await _problema(500, "Erro interno", "erro interno")(scope, receive, enviar)
             raise
+
+
+def _problema(status: int, titulo: str, detalhe: str, *, headers: dict | None = None) -> JSONResponse:
+    """RFC 9457 também antes de autenticar/rotear, sem reproduzir URL, token ou exceção."""
+    return JSONResponse(
+        {"type": "about:blank", "title": titulo, "status": status, "detail": detalhe},
+        status_code=status,
+        media_type="application/problem+json",
+        headers=headers,
+    )

@@ -177,3 +177,62 @@ def test_http_real_nao_cria_avisos_reentrantes_por_campo_json(monkeypatch):
     assert linhas[0]["evento"] == "http" and linhas[0]["status"] == 200
     assert linhas[0]["requisicao_id"] == resposta.headers["x-request-id"]
     assert "indisponível" not in arquivo.getvalue()
+
+
+# Credenciais sintéticas opacas não dependem de reconhecimento probabilístico de pessoas.
+_CREDENCIAL = "afbecccdddeeaaafffbbbdddccceeaff"
+
+
+def test_caminhos_de_reserva_cobranca_e_fragmento_de_login_ocultam_credencial():
+    casos = (
+        (f"GET /v1/reservas/confirmar/{_CREDENCIAL}/resumo HTTP/1.1 200", "/resumo HTTP/1.1 200"),
+        (f"POST /v1/reservas/confirmar/{_CREDENCIAL}/entrar HTTP/1.1 200", "/entrar HTTP/1.1 200"),
+        (f"GET /v1/cobrancas/{_CREDENCIAL} HTTP/1.1 402", "HTTP/1.1 402"),
+        (f"https://api.example/reservas/confirmar/{_CREDENCIAL}", "https://api.example/reservas/confirmar/"),
+        (f"https://painel.example/Raiz/#/entrar/{_CREDENCIAL}", "https://painel.example/Raiz/#/entrar/"),
+    )
+    for entrada, preservado in casos:
+        saida = L._sem_credenciais(entrada)
+        assert _CREDENCIAL not in saida
+        assert "[SEGREDO]" in saida and preservado in saida
+
+
+def test_query_e_fragmentos_oauth_ocultam_tokens_sem_apagar_parametros_operacionais():
+    for chave in ("token", "access_token", "refresh_token", "id_token", "code", "session_state", "t%6Fken"):
+        for separador in ("?", "#", "&"):
+            entrada = f"https://painel.example/Raiz/{separador}{chave}={_CREDENCIAL}&pagina=2"
+            saida = L._sem_credenciais(entrada)
+            assert _CREDENCIAL not in saida
+            assert f"{separador}{chave}=" in saida and "pagina=2" in saida
+    assert L._sem_credenciais("GET /v1/pedidos?pagina=2 HTTP/1.1 200") == "GET /v1/pedidos?pagina=2 HTTP/1.1 200"
+    assert L._sem_credenciais("code=200 fazendas=27 creditos=4000") == "code=200 fazendas=27 creditos=4000"
+
+
+def test_credenciais_em_campos_e_estruturas_sao_removidas():
+    for chave in ("X-Chave-API", "api_key", "refresh_token", "id_token", "session", "sessao"):
+        assert _CREDENCIAL not in L._sem_credenciais(f"{chave}: {_CREDENCIAL}")
+        assert chave not in L.sanitizar_estrutura({chave: _CREDENCIAL, "status": 200})
+
+
+def test_formatador_de_acesso_com_modelo_real_preserva_rota_e_status_sem_token():
+    caminho = f"/v1/reservas/confirmar/{_CREDENCIAL}/resumo"
+    registro = logging.LogRecord(
+        "uvicorn.access",
+        logging.INFO,
+        "",
+        0,
+        '%s - "%s %s HTTP/%s" %s',
+        ("127.0.0.1:1", "GET", caminho, "1.1", 200),
+        None,
+    )
+    texto = FormatadorSeguro("%(message)s").format(registro)
+    assert _CREDENCIAL not in texto and "indisponível" not in texto
+    assert "/v1/reservas/confirmar/[SEGREDO]/resumo" in texto
+    assert "GET" in texto and 'HTTP/1.1" 200' in texto
+
+
+def test_mascara_de_credenciais_e_estavel_ao_sanitizar_novamente():
+    entrada = f"https://painel.example/?token={_CREDENCIAL}&pagina=2#/entrar/{_CREDENCIAL}"
+    primeira = L._sem_credenciais(entrada)
+    assert L._sem_credenciais(primeira) == primeira
+    assert primeira.count("[SEGREDO]") == 2

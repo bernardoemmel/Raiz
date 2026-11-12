@@ -53,7 +53,7 @@ concessao, leilao_credito, sbce, verra, icvcm, sbti, eudr
 
 `GET /eventos.ics` aplica os mesmos filtros, usa dias inteiros, UID estável, sequência e cancelamento RFC 5545. Não embute token. Acima de 20 mil eventos pede filtro mais restrito em vez de truncar silenciosamente.
 
-`raiz.calendario.mcp.proximos_eventos(tipo, estado, dias, cod_imovel, limite)` usa a mesma consulta pública, somente leitura. Está pronta para registrar em um servidor MCP; este repositório ainda não tem transporte/servidor MCP. O CLI `proximos` permite verificar a função imediatamente.
+`raiz.calendario.mcp.proximos_eventos(tipo, estado, dias, cod_imovel, limite)` usa a mesma consulta pública, somente leitura. A função do calendário ainda não está registrada em transporte MCP; o servidor pago em `/mcp` mantém suas seis ferramentas. O CLI `proximos` permite verificar a função imediatamente.
 
 ## Privacidade e validação
 

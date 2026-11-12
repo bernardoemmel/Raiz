@@ -45,6 +45,13 @@ dependencies = [
     "pypdf>=5.0",
     "beautifulsoup4>=4.12",
     "requests>=2.31",
+    "mcp==2.3.0",
+    "slowapi>=0.1.9",
+    "PyJWT[crypto]>=2.10,<3",
+    "qrcode>=8,<9",
+    "opentelemetry-api>=1.45,<2",
+    "opentelemetry-sdk>=1.45,<2",
+    "opentelemetry-exporter-otlp-proto-http>=1.45,<2",
     # título (raiz/titulo): laudo HTML por imóvel e WARC das consultas públicas
     "jinja2>=3.1",
     "warcio>=1.7",
@@ -55,7 +62,7 @@ dependencies = [
     "pt-core-news-sm",
     "spacy>=3.8,<3.9",
     "pandera[pandas]>=0.27,<0.28",
-    "redis>=6",
+    "redis>=6,<7",
     "sentry-sdk>=2.75,<3",
     "defusedxml>=0.7",
 ]
