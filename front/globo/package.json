@@ -11,6 +11,7 @@
     "lint": "oxlint",
     "preview": "vite preview",
     "test": "vitest run",
+    "test:prospeccao": "node ../scripts/testar-prospeccao.mjs",
     "test:e2e": "node ../scripts/testar-entrada.mjs && node ../scripts/testar-pedido.mjs",
     "verificar": "node ../scripts/verificar-design.mjs",
     "test:calendario": "node ../scripts/testar-calendario.mjs",

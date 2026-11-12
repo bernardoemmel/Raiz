@@ -1,6 +1,28 @@
 import { describe, expect, it } from "vitest"
 // @ts-expect-error: script de CI em JavaScript puro, sem tipos
-import { conferirAuditoriaAgentes } from "../../scripts/conferir-auditoria-agentes.mjs"
+import { conferirAuditoriaAgentes, conferirCaminhoPublico, conferirConteudoPublico } from "../../scripts/conferir-auditoria-agentes.mjs"
+
+describe("publicação para agentes respeita o acesso às fichas", () => {
+  const car = `PA-1505536-${"A".repeat(32)}`
+  it.each([car, car.toLowerCase().replaceAll("-", ""), `PA-1505536-${Array(8).fill("AAAA").join(".")}`])(
+    "recusa CAR completo em Markdown ou JSON-LD: %s", (codigo) => {
+      expect(() => conferirConteudoPublico(`# Fazenda ${codigo}`, "index.md")).toThrow(/CAR individual/)
+      expect(() => conferirConteudoPublico(JSON.stringify({ codigo_car: codigo }), "JSON-LD")).toThrow(/CAR individual/)
+    },
+  )
+  it.each([
+    "/Raiz/amostra/imoveis_1505536.csv.gz", "/Raiz/amostra/car_PA.json", "/Raiz/amostra/fichas/indice.json",
+    "/Raiz/geo/imoveis_1505536.geojson.gz", "/Raiz/amostra/desenvolvedor_1505536.csv.gz",
+    "/Raiz/amostra/fichas%2Findice.json",
+  ])("recusa download individual, inclusive com URL codificada: %s", (caminho) => {
+    expect(() => conferirCaminhoPublico(caminho, "Dataset")).toThrow(/individual anunciado/)
+    expect(() => conferirConteudoPublico(`[Dados](${caminho})`, "index.md")).toThrow(/individual anunciado/)
+  })
+  it("preserva resumo agregado, município e descrição do acesso pago", () => {
+    expect(() => conferirConteudoPublico("# Ficha\nCréditos pagos e conta autenticada. [Pará](/Raiz/amostra/resumo_PA.csv.gz)", "index.md")).not.toThrow()
+    expect(() => conferirCaminhoPublico("/Raiz/dados/municipios/1505536.md", "Catálogo")).not.toThrow()
+  })
+})
 
 function relatorio() {
   const audits = {

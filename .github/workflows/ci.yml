@@ -50,8 +50,12 @@ jobs:
         run: cd front/globo && npm test
       - name: Chromium para o Playwright
         run: cd front/globo && npx playwright install --with-deps chromium
-      - name: Pages no navegador (Parauapebas, aproximação, polígonos e zero 404)
+      - name: Pages no navegador (Parauapebas, mapa agregado e zero 404)
         run: cd front/globo && npm run test:pages
+      - name: Prospecção no navegador (créditos, contato, sessão e celular)
+        env:
+          RAIZ_PRINTS: ${{ github.workspace }}/front/.cache/teste-site/resultado/prospeccao
+        run: cd front/globo && npm run test:prospeccao
       - name: Evidências do teste do Pages
         if: always()
         uses: actions/upload-artifact@v4

@@ -9,6 +9,7 @@ export type Rota =
   | { tela: "estado"; uf: string }
   | { tela: "municipio"; municipio: string }
   | { tela: "fazenda"; car: string }
+  | { tela: "prospeccao" }
   | { tela: "entrar"; token: string | null }
   | { tela: "pedidos" }
   | { tela: "pedido-novo" }
@@ -19,6 +20,7 @@ export function lerRota(hash: string): Rota {
   const partes = hash.replace(/^#\/?/, "").split("/").map(decodeURIComponent)
   if (partes[0] === "calendario") return /^[A-Z]{2}[0-9]{7}[A-F0-9]{32}$/i.test((partes[1] || "").replace(/[^a-z0-9]/gi, "")) ? { tela: "calendario", car: partes[1] } : { tela: "calendario" }
   if (partes[0] === "fazenda" && partes[1]) return { tela: "fazenda", car: partes[1] }
+  if (partes[0] === "prospeccao") return { tela: "prospeccao" }
   if (partes[0] === "entrar") return { tela: "entrar", token: partes[1] || null }
   if (partes[0] === "pedidos") {
     if (!partes[1]) return { tela: "pedidos" }
@@ -35,6 +37,7 @@ export const linkEstado = (uf: string) => `#/estado/${uf}`
 export const linkCalendario = "#/calendario"
 export const linkCalendarioImovel = (car: string) => `${linkCalendario}/${encodeURIComponent(car)}`
 export const linkPedidos = "#/pedidos"
+export const linkProspeccao = "#/prospeccao"
 export const linkNovoPedido = "#/pedidos/novo"
 export const linkPedido = (id: string) => `#/pedidos/${encodeURIComponent(id)}`
 export const linkGrupo = (id: string) => `#/pedidos/${encodeURIComponent(id)}/grupo`
