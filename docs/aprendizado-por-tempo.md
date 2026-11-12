@@ -58,10 +58,69 @@ arquivadas, faltantes e indisponíveis. Uma fonte presente e vazia fecha sua ver
 anterior; uma fonte ausente permanece fora do intervalo confirmado. Fontes inválidas
 são identificadas e não fazem as demais parecerem completas.
 
-O caminho automático requer o executor com PostgreSQL. O GitHub Actions usa
-`RAIZ_SEM_BANCO=1`: nesse caminho não há arquivamento. Não há cópia local provisória
-com importação posterior nesta entrega. Isso continua como necessidade operacional
-para acumular o histórico diretamente das rodadas de Actions.
+Com PostgreSQL, a tarefa grava diretamente no scd2. Sem banco, inclusive no
+GitHub Actions com `RAIZ_SEM_BANCO=1`, grava primeiro um retrato imutável em
+`dados/historico_aprendizado/<UF>/<município>/<sha256>.json.gz`, pasta ignorada pelo
+git. `RAIZ_HISTORICO_DIR` permite escolher outra pasta persistente. A escrita é
+atômica e nunca substitui um arquivo já existente. Falha antes de concluir a
+tarefa não declara uma captura completa.
+
+### Publicação e importação do histórico do Actions
+
+O fluxo `processar-estados.yml` publica esses retratos na mesma cadência dos
+pacotes do executor e novamente em um passo `always()`, antes de continuar a
+fila. Os contratos das saídas, marcas, filas e `estados.json` permanecem iguais.
+Os retratos públicos são agrupados em pacotes de até 64 MiB no Release diário
+`historico-AAAA-MM-DD`, com nomes derivados do SHA-256 do pacote. Nenhum asset
+histórico é apagado ou substituído. Armazéns local e S3 usam o prefixo
+`historico/<UF>/<município>/`; no S3 a criação exige que o objeto ainda não exista.
+
+```bash
+uv run raiz aprendizado publicar-retratos --uf PA
+uv run raiz aprendizado importar-retratos --uf PA
+# Uma pasta já recebida pode ser importada sem consultar o armazém:
+uv run raiz aprendizado importar-retratos --pasta dados/historico_aprendizado --no-baixar
+```
+
+A sincronização normal `raiz executor sincronizar --ufs PA` (com carga, padrão)
+e os ciclos `executor ciclo`/`executor vigiar` também recebem e importam os
+retratos automaticamente. Cada retrato entra em uma transação; os hashes já confirmados
+são ignorados na repetição. Recibos locais só são gravados depois de conferir o
+objeto remoto. Sem os recibos de uma publicação anterior, um novo agrupamento
+pode repetir fisicamente o mesmo retrato em outro pacote; o hash continua
+identificando uma única captura no banco.
+
+O JSON tem formato versionado, hora UTC de observação, versão da tarefa, hash do
+código da captura e somente fontes/colunas permitidas. O SHA-256 cobre o JSON
+canônico; gzip usa relógio zero. Publicação e recebimento conferem os hashes e
+reaplicam a lista positiva, incluindo as geometrias e os vínculos do zonal ao CAR.
+Nomes, documentos numéricos fora do contrato e texto livre de achados não entram
+no retrato. Pacotes com caminhos estranhos, links, membros repetidos, campos
+extras ou versão de formato desconhecida são recusados.
+
+`historico_modelos.coleta` conserva `observado_em` (instante real da captura) e
+`registrado_em` (hora em que o banco recebeu o retrato), mais hash e proveniência.
+O scd2 usa a observação confirmada pelo retrato; uma chegada fora de ordem só
+altera o intervalo até a próxima captura daquela fonte/município e preserva o
+estado posterior. A chegada ao banco não é apagada nem retrodatada. A leitura do
+fold representa o que a Raíz observou, inclusive no Actions, e não uma simulação
+da transação que existia naquele banco antes da importação. O hash comprova
+integridade; a confiança na origem vem do repositório/armazém configurado.
+
+Arquivos atuais sem esse manifesto continuam usando `arquivar-fold`, com a hora
+do banco e sem opção de data passada. Não se reconstrói histórico de anos
+anteriores a partir do ano da imagem ou da modificação do CSV. Repetir as mesmas
+entradas em uma execução posterior confirma outra observação, mas não duplica
+linhas scd2 sem mudança.
+
+O histórico começa nas execuções que de fato usam essa captura. Jobs antigos
+preservados pela fila não passam a ter retratos retroativamente. Fonte ausente,
+modelo não chamado e tarefa reaproveitada continuam sem captura nova. Uma queda
+abrupta antes da publicação pode perder os retratos locais ainda pendentes; os
+pacotes já publicados permanecem. Falha de publicação periódica mantém os arquivos
+locais e o passo final tenta novamente, expondo falha se o armazém seguir indisponível.
+A importação exige um back-end com banco e acesso de leitura ao armazém; o Actions
+não recebe credenciais de PostgreSQL.
 
 ### Começar a guardar os retratos completos
 
@@ -111,7 +170,7 @@ cada fold exige gabaritos disponíveis até seu corte. O comando existente
 
 ### Limite operacional atual
 
-A captura está ligada às tarefas do executor com banco. As fontes que não estavam
+A captura está ligada às tarefas do executor com e sem banco. As fontes que não estavam
 disponíveis e as safras anteriores à primeira captura não são inventadas. O motor
 exige todas as suas camadas; os outros cinco adaptadores usam as entradas completas
 que suas funções receberam, arquivadas como scd2. Não foi feita uma avaliação real

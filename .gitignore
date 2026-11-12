@@ -61,3 +61,6 @@ dados-entrada/
 
 # artefato do site público (reconstruído no CI)
 /site/
+
+# retratos imutáveis de entradas do executor (publicados no Release, nunca no git)
+dados/historico_aprendizado/
