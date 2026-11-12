@@ -1,19 +1,17 @@
 /**
  * Fonte da amostra: lê os CSV do motor em dados/amostra/ e as geometrias geradas por front/scripts/geo.py em
  * front/geo/. O plugin do Vite (compartilhado/vite-dados.ts) serve as duas pastas em /amostra/ e /geo/ e lista os
- * arquivos em /amostra/indice.json, então um arquivo novo do motor (imoveis_1507300.csv, extras_..., uma coluna
- * nova) aparece na tela sem mudar código.
+ * arquivos em /amostra/indice.json, então um arquivo novo do motor (imoveis_1507300.csv, extras_direto_..., uma
+ * coluna nova) aparece na tela sem mudar código (ver complementos.ts).
  */
 
 import { n0, texto } from "./colunas"
-import { lerCsv, type Linha } from "./csv"
+import { complementosDe, juntarComplementos } from "./complementos"
+import { lerCsv } from "./csv"
 import { buscarJson, buscarTexto, memo, type Certidao, type FonteDeDados } from "./fonte"
 import { lerFicha, type FichaJson } from "./ficha"
 import { funilDosImoveis, lerFunil, lerImovel } from "./funil"
 import type { CamadaGeo, FunilMunicipio, Geo, Imovel } from "./tipos"
-
-/** arquivos por município que completam imoveis_<mun>.csv, todos pela coluna cod_imovel */
-const COMPLEMENTOS = ["filtros", "extras", "direto", "mapbiomas"]
 
 interface IndiceGeo {
   municipios: Record<string, Partial<Record<CamadaGeo | "base", { arquivo: string; bytes: number }>>>
@@ -47,18 +45,11 @@ export function fonteAmostra(base = "/"): FonteDeDados {
   const imoveis = memo(async (cod: string): Promise<Imovel[] | null> => {
     const arqs = await indice("")
     if (!arqs.includes(`imoveis_${cod}.csv`)) return null
-    const principais = (await csv(`imoveis_${cod}.csv`)) ?? []
-    const porImovel = new Map<string, Linha[]>()
-    for (const tipo of COMPLEMENTOS) {
-      if (!arqs.includes(`${tipo}_${cod}.csv`)) continue
-      for (const l of (await csv(`${tipo}_${cod}.csv`)) ?? []) {
-        if (!l.cod_imovel) continue
-        const lista = porImovel.get(l.cod_imovel) ?? []
-        lista.push(l)
-        porImovel.set(l.cod_imovel, lista)
-      }
-    }
-    return principais.filter((l) => l.cod_imovel).map((l) => lerImovel(l, porImovel.get(l.cod_imovel)))
+    const nomes = complementosDe(arqs, cod)
+    const [principais, ...tabelas] = await Promise.all([csv(`imoveis_${cod}.csv`), ...nomes.map((a) => csv(a))])
+    const { porImovel, avisos } = juntarComplementos(nomes.map((arquivo, n) => ({ arquivo, linhas: tabelas[n] ?? [] })))
+    if (avisos.length) console.warn("Raíz, arquivos que não entraram:", avisos.join("; "))
+    return (principais ?? []).filter((l) => l.cod_imovel).map((l) => lerImovel(l, porImovel.get(l.cod_imovel)))
   })
 
   const municipiosComImoveis = async () =>

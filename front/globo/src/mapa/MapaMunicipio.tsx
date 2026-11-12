@@ -11,7 +11,8 @@ import {
 import "maplibre-gl/dist/maplibre-gl.css"
 import { useEffect, useImperativeHandle, useRef, useState, type Ref } from "react"
 import { CATEGORIAS, type Geo, type Imovel } from "../../../compartilhado/dados"
-import { abreviarCar, fmtHa, fmtModulos, STATUS_CAR } from "../../../compartilhado/formato"
+import { abreviarCar, fmtHa, fmtInt, fmtModulos, STATUS_CAR } from "../../../compartilhado/formato"
+import { ESCALA_FOGO, PERIODO_FOGO } from "../../../compartilhado/satelite"
 import { fonte, useCarga } from "../dados"
 import type { Frente } from "../filtros"
 import { tituloDe } from "../filtros"
@@ -97,6 +98,7 @@ function juntar(g: Geo, porCod: Map<string, Imovel>, passa: Set<string> | null):
           passa: !i || !passa || passa.has(cod) ? 1 : 0,
           alerta: i && i.alerta_pos2020_ha > 1 ? 1 : 0,
           sec: i && (i.secundaria_ha ?? 0) >= 1 ? 1 : 0,
+          fogo: i?.fogo_anos_max ?? -1,
           area: f.properties.area ?? null,
           m_fiscal: f.properties.m_fiscal ?? null,
           status: f.properties.status_imovel ?? null,
@@ -107,6 +109,33 @@ function juntar(g: Geo, porCod: Map<string, Imovel>, passa: Set<string> | null):
 }
 
 const VAZIO: Geo = { type: "FeatureCollection", features: [] }
+
+/** Um ponto por imóvel que queimou no ano mais recente do MapBiomas, no meio do maior anel do polígono. */
+function pontosDeFogo(g: Geo, porCod: Map<string, Imovel>): Geo {
+  const features: Geo["features"] = []
+  for (const f of g.features) {
+    const i = porCod.get(String(f.properties.cod_imovel))
+    if (!i || !(i.mb_fogo_ha && i.mb_fogo_ha > 0)) continue
+    const aneis =
+      f.geometry.type === "Polygon"
+        ? [(f.geometry.coordinates as number[][][])[0]]
+        : (f.geometry.coordinates as number[][][][]).map((p) => p[0])
+    const anel = aneis.sort((a, b) => b.length - a.length)[0]
+    if (!anel?.length) continue
+    let x = 0
+    let y = 0
+    for (const [a, b] of anel) {
+      x += a
+      y += b
+    }
+    features.push({
+      type: "Feature",
+      properties: { cod_imovel: i.cod_imovel, ha: i.mb_fogo_ha },
+      geometry: { type: "Point", coordinates: [x / anel.length, y / anel.length] },
+    })
+  }
+  return { type: "FeatureCollection", features }
+}
 
 function textoPopup(cod: string, props: Record<string, unknown>, i: Imovel | undefined, frente: Frente): string {
   const car = `<div class="pop-car">CAR ${esc(abreviarCar(cod))}</div>`
@@ -128,10 +157,14 @@ function textoPopup(cod: string, props: Record<string, unknown>, i: Imovel | und
   const t = tituloDe(i)
   const terra = t === "matricula" ? "matrícula a conferir" : t === "assentamento" ? "assentamento" : "posse"
   const alerta = i.alerta_pos2020_ha > 1 ? `alerta em ${i.alerta_ultimo_ano ?? "depois de 2020"}` : "0 alertas desde 2020"
+  const fogo: string[] = []
+  if (i.fogo_anos_max !== null)
+    fogo.push(i.fogo_anos_max >= 0.5 ? `fogo em ${fmtInt(i.fogo_anos_max)} ${Math.round(i.fogo_anos_max) === 1 ? "ano" : "anos"} desde 1985` : "sem fogo desde 1985")
+  if (i.mb_ano !== null && i.mb_fogo_ha) fogo.push(`${fmtHa(i.mb_fogo_ha)} queimados em ${i.mb_ano}`)
   return (
     car +
     `<div class="pop-titulo">${esc(titulo)}</div>` +
-    `<p class="pop-sub">${esc(fmtHa(i.ha))} · ${terra} · ${esc(alerta)}</p>` +
+    `<p class="pop-sub">${esc(fmtHa(i.ha))} · ${terra} · ${esc(alerta)}${fogo.length ? "<br>" + esc(fogo.join(" · ")) : ""}</p>` +
     `<a class="pop-link" href="${esc(linkFazenda(cod))}">Abrir ficha →</a>`
   )
 }
@@ -235,6 +268,7 @@ export function MapaMunicipio({ cod, imoveis, passa, camadas, frente, destaque, 
     const g = geo.dado?.imoveisGeo
     if (!m || !montado || !g) return
     ;(m.getSource("imoveis") as GeoJSONSource | undefined)?.setData(juntar(g, porCod.current, passa) as never)
+    ;(m.getSource("fogo-recente") as GeoJSONSource | undefined)?.setData(pontosDeFogo(g, porCod.current) as never)
   }, [montado, imoveis, passa, geo.dado])
 
   // camadas ligadas e desligadas
@@ -244,6 +278,8 @@ export function MapaMunicipio({ cod, imoveis, passa, camadas, frente, destaque, 
     const vis = (id: string, on: boolean) => m.getLayer(id) && m.setLayoutProperty(id, "visibility", on ? "visible" : "none")
     vis("imoveis-sec", camadas.secundaria)
     vis("imoveis-alerta", camadas.alertas)
+    vis("imoveis-fogo", camadas.fogo)
+    vis("fogo-recente", camadas.fogo)
     for (const id of ["rios", "rios-linha"]) vis(id, camadas.rios)
     for (const id of ["ti", "ti-borda", "ti-rotulo", "uc", "uc-borda"]) vis(id, camadas.areas)
   }, [montado, camadas])
@@ -299,6 +335,10 @@ export function MapaMunicipio({ cod, imoveis, passa, camadas, frente, destaque, 
       type: "geojson",
       data: (g.imoveisGeo ? juntar(g.imoveisGeo, porCod.current, passa) : VAZIO) as never,
       promoteId: "cod_imovel",
+    })
+    m.addSource("fogo-recente", {
+      type: "geojson",
+      data: (g.imoveisGeo ? pontosDeFogo(g.imoveisGeo, porCod.current) : VAZIO) as never,
     })
 
     add({ id: "uc", type: "fill", source: "uc", paint: { "fill-color": "#bcd2b3", "fill-opacity": 0.35 } })
@@ -365,6 +405,17 @@ export function MapaMunicipio({ cod, imoveis, passa, camadas, frente, destaque, 
       paint: { "line-color": "#2c7a47", "line-width": 1.4, "line-dasharray": [1.5, 1.2] },
     })
     add({
+      id: "imoveis-fogo",
+      type: "line",
+      source: "imoveis",
+      filter: [">=", ["get", "fogo"], 0.5],
+      layout: { visibility: "none" },
+      paint: {
+        "line-color": ["step", ["get", "fogo"], ESCALA_FOGO[0][1], ESCALA_FOGO[1][0], ESCALA_FOGO[1][1], ESCALA_FOGO[2][0], ESCALA_FOGO[2][1]],
+        "line-width": ["interpolate", ["linear"], ["zoom"], 8, 1.1, 12, 2.6],
+      },
+    })
+    add({
       id: "imoveis-alerta",
       type: "line",
       source: "imoveis",
@@ -387,6 +438,27 @@ export function MapaMunicipio({ cod, imoveis, passa, camadas, frente, destaque, 
       },
     })
     add({ id: "mascara", type: "fill", source: "mascara", paint: { "fill-color": "#f3f4ef", "fill-opacity": 0.55 } })
+    add({
+      id: "fogo-recente",
+      type: "circle",
+      source: "fogo-recente",
+      layout: { visibility: "none" },
+      paint: {
+        "circle-color": "#d9481f",
+        "circle-opacity": 0.85,
+        "circle-stroke-color": "#ffffff",
+        "circle-stroke-width": 1.2,
+        "circle-radius": [
+          "interpolate",
+          ["linear"],
+          ["zoom"],
+          8,
+          ["interpolate", ["linear"], ["sqrt", ["get", "ha"]], 0, 2, 10, 4, 55, 9],
+          13,
+          ["interpolate", ["linear"], ["sqrt", ["get", "ha"]], 0, 4, 10, 8, 55, 18],
+        ],
+      },
+    })
     add({ id: "municipio", type: "line", source: "municipio", paint: { "line-color": "#1d5a39", "line-width": 2.2 } })
     add(
       {
@@ -438,6 +510,24 @@ export function MapaMunicipio({ cod, imoveis, passa, camadas, frente, destaque, 
             <i className="hachura" />
             Terra indígena (excluída)
           </li>
+        )}
+        {imoveis && camadas.fogo && (
+          <>
+            <li className="titulo">Fogo, {PERIODO_FOGO}</li>
+            <li>
+              <i className="contorno" style={{ borderColor: ESCALA_FOGO[0][1] }} />1 a 2 anos
+            </li>
+            <li>
+              <i className="contorno" style={{ borderColor: ESCALA_FOGO[1][1] }} />3 a 5 anos
+            </li>
+            <li>
+              <i className="contorno" style={{ borderColor: ESCALA_FOGO[2][1] }} />6 anos ou mais
+            </li>
+            <li>
+              <i className="circulo" />
+              Queimou em {imoveis.find((i) => i.mb_ano !== null)?.mb_ano ?? "2025"} (tamanho pela área)
+            </li>
+          </>
         )}
         {imoveis && camadas.alertas && (
           <li>

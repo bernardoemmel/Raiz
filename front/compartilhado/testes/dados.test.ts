@@ -3,6 +3,7 @@ import path from "node:path"
 import { describe, expect, it } from "vitest"
 import { caixaDeFatos } from "../cenario"
 import { camposDeFutebol, fraseIndice, frasePosicao } from "../comparacoes"
+import { complementosDe, juntarComplementos } from "../dados/complementos"
 import { escreverCsv, lerCsv } from "../dados/csv"
 import { lerFicha, montarFicha } from "../dados/ficha"
 import { funilDosImoveis, lerFunil, lerImovel } from "../dados/funil"
@@ -13,25 +14,51 @@ import { colunaPessoal, mascarar } from "../privacidade"
 const AMOSTRA = path.resolve(__dirname, "../../../dados/amostra")
 const ler = (arq: string) => lerCsv(fs.readFileSync(path.join(AMOSTRA, arq), "utf8")).linhas
 
+const carregar = (cod: string) => {
+  const nomes = complementosDe(fs.readdirSync(AMOSTRA), cod)
+  const { porImovel, avisos } = juntarComplementos(nomes.map((arquivo) => ({ arquivo, linhas: ler(arquivo) })))
+  return { nomes, avisos, imoveis: ler(`imoveis_${cod}.csv`).map((l) => lerImovel(l, porImovel.get(l.cod_imovel))) }
+}
+
 describe("funil igual ao do motor", () => {
-  const filtros = new Map(ler("filtros_1504950.csv").map((l) => [l.cod_imovel, l]))
-  const imoveis = ler("imoveis_1504950.csv").map((l) => lerImovel(l, [filtros.get(l.cod_imovel) ?? {}]))
+  const { imoveis } = carregar("1504950")
   const resumo = ler("resumo_PA.csv").find((l) => l.cod_ibge === "1504950")!
 
-  it("a soma dos imóveis de Nova Esperança do Piriá bate com o resumo_PA.csv", () => {
-    const meu = funilDosImoveis(imoveis, "1504950", "Nova Esperança do Piriá", "PA")
-    const motor = lerFunil(resumo, "PA")
-    for (const k of [
-      "imoveis",
-      "sem_problema",
-      "aptas_carbono",
-      "ha_carbono",
-      "tco2_ano_aptas",
-      "aptas_com_matricula",
-      "ha_carbono_matricula",
-      "para_agrupar",
-    ] as const)
-      expect(meu[k], k).toBe(motor[k])
+  for (const [cod, nome] of [
+    ["1504950", "Nova Esperança do Piriá"],
+    ["1507300", "São Félix do Xingu"],
+  ])
+    it(`a soma dos imóveis de ${nome} bate com o resumo_PA.csv`, () => {
+      const lista = cod === "1504950" ? imoveis : carregar(cod).imoveis
+      const meu = funilDosImoveis(lista, cod, nome, "PA")
+      const motor = lerFunil(ler("resumo_PA.csv").find((l) => l.cod_ibge === cod)!, "PA")
+      for (const k of [
+        "imoveis",
+        "sem_problema",
+        "aptas_carbono",
+        "ha_carbono",
+        "tco2_ano_aptas",
+        "aptas_com_matricula",
+        "ha_carbono_matricula",
+        "para_agrupar",
+      ] as const)
+        expect(meu[k], k).toBe(motor[k])
+    })
+
+  it("junta todo arquivo de uma linha por imóvel, inclusive extras_direto_, e deixa certidoes_ de fora", () => {
+    const { nomes, avisos } = carregar("1504950")
+    expect(nomes).toEqual(["direto_1504950.csv", "extras_1504950.csv", "extras_direto_1504950.csv", "filtros_1504950.csv", "mapbiomas_1504950.csv"])
+    expect(avisos).toEqual([])
+    expect(resumo).toBeDefined()
+  })
+
+  it("lê fogo, TMF, causa da perda e o ano mais recente do MapBiomas", () => {
+    const com = imoveis.filter((i) => i.tmf_classe !== null && i.causa_perda !== null && i.fogo_anos_max !== null)
+    expect(com.length).toBeGreaterThan(800)
+    expect(imoveis.every((i) => i.mb_ano === null || i.mb_ano === 2025)).toBe(true)
+    expect(imoveis.some((i) => (i.mb_fogo_ha ?? 0) > 0)).toBe(true)
+    const novo = lerImovel({ ...imoveis[0].linha, mb_fogo_2026_ha: "12.5", mb_fogo_mes_principal_2026: "9.0" })
+    expect([novo.mb_ano, novo.mb_fogo_ha, novo.mb_fogo_mes]).toEqual([2026, 12.5, 9])
   })
 
   it("lê pelo nome e tolera coluna nova, coluna faltando e ordem trocada", () => {
@@ -45,7 +72,7 @@ describe("funil igual ao do motor", () => {
     expect(i.linha.coluna_que_o_motor_criou_amanha).toBe("42")
   })
 
-  it("junta as colunas de filtros_<mun>.csv", () => {
+  it("junta as colunas de filtros_<mun>.csv (uma fazenda com bloqueio territorial)", () => {
     expect(imoveis.filter((i) => i.filtro_territorial === "bloqueio")).toHaveLength(1)
   })
 })

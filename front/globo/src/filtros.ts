@@ -63,11 +63,11 @@ export const FRENTES: Frente[] = [
   {
     id: "cacau",
     rotulo: "Cacau",
-    dica: "Aptidão para cacau (Embrapa/ZARC). O motor ainda não preenche esta coluna; a frente liga sozinha quando ela chegar.",
+    dica: "Desligada até a aptidão para cacau (Embrapa/ZARC) ser validada, mesmo que a coluna cacau_aptidao chegue.",
     area: (i) => i.carbono_ha,
     sobre: "para cacau com floresta",
     entra: (i) => !i.problema && (i.cacau_aptidao ?? 0) > 0,
-    disponivel: (todos) => todos.some((i) => i.cacau_aptidao !== null),
+    disponivel: () => false,
   },
   {
     id: "redd",

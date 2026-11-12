@@ -12,9 +12,19 @@ export const COLUNAS_CONHECIDAS = new Set(
     "redd_excedente_ha frigorifico_remocao_ha compensacao_restauravel_ha eudr_ok credito_rural_ok compra_arrendamento " +
     "pasto_ha secundaria_ha pasto_ate1km_ha carbono_ha regiao_carbono taxa_tco2_ha_ano carbono_tco2_ano cacau_aptidao " +
     "carbono_solo_ha rebanho_cabecas psa_elegivel biodiversidade_score quilombo_ha ti_funai_ha ti_fase " +
-    "uc_protecao_integral_ha uc_uso_sustentavel_ha uc_apa_ha filtro_territorial"
+    "uc_protecao_integral_ha uc_uso_sustentavel_ha uc_apa_ha filtro_territorial " +
+    // extras_ (histórico do Earth Engine), direto_, extras_direto_
+    "yb_idade_media yb_idade_max yb_perdas_media yb_perdas_max fogo_anos_media fogo_anos_max pasto_vigor_media " +
+    "pasto_vigor_max pasto_idade_anos_max persistencia_nota sec_area_ha sec_idade_media sec_nova_ha gpw_altura_m " +
+    "gpw_ugpp tmf_classe tmf_floresta_pct tmf_regeneracao_pct causa_perda mb_pasto_idade_anos_media " +
+    "mb_pasto_vigor_principal"
   ).split(" "),
 )
+
+/** Conhecida: está na lista ou é do MapBiomas pela API com o ano no nome (mb_fogo_2025_ha, mb_fogo_2026_ha...). */
+export const colunaConhecida = (c: string) =>
+  COLUNAS_CONHECIDAS.has(c) ||
+  /^mb_(floresta|pasto|agricultura|silvicultura|classe_principal|supressao_primaria|supressao_secundaria|recuperacao_secundaria|veg_secundaria|fogo|fogo_mes_principal)_\d{4}(_ha)?$/.test(c)
 
 /** Nomes legíveis das colunas mais usadas (o resto aparece pelo nome técnico). */
 export const NOMES_COLUNAS: Record<string, string> = {
@@ -56,4 +66,13 @@ export const NOMES_COLUNAS: Record<string, string> = {
   redd_excedente_ha: "Floresta além da reserva (ha)",
   frigorifico_remocao_ha: "Restaurável para meta de empresa (ha)",
   filtro_territorial: "Filtro territorial",
+  fogo_anos_max: "Anos com fogo, ponto que mais queimou (1985 a 2024)",
+  fogo_anos_media: "Anos com fogo, média do imóvel (1985 a 2024)",
+  tmf_classe: "Floresta tropical, classe principal (JRC TMF)",
+  tmf_floresta_pct: "Floresta tropical (% do imóvel, JRC TMF)",
+  tmf_regeneracao_pct: "Floresta em regeneração (% do imóvel, JRC TMF)",
+  causa_perda: "Causa da perda de floresta (WRI, grade de 1 km)",
+  sec_area_ha: "Vegetação secundária (ha, YbYrá 2024)",
+  sec_idade_media: "Idade média da vegetação secundária (anos)",
+  persistencia_nota: "Nota de persistência",
 }

@@ -498,6 +498,15 @@ a {
   border: 2px solid var(--vermelho);
   background: transparent;
 }
+.legenda i.circulo {
+  width: 12px;
+  height: 12px;
+  margin: 1px;
+  border-radius: 50%;
+  background: #d9481f;
+  border: 1.5px solid #fff;
+  box-shadow: 0 0 0 1px #d9481f;
+}
 .legenda li.titulo {
   font-weight: 600;
   font-size: 12px;
@@ -1235,4 +1244,52 @@ a {
   .fatos tbody td {
     font-size: 17px;
   }
+}
+
+/* o que o satélite mostra */
+.satelite {
+  margin-bottom: 24px;
+}
+.satelite-grade {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 24px;
+}
+.satelite-grade > div {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+.satelite-grade h3 {
+  margin: 0;
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--texto-2);
+}
+.satelite-grade .selo {
+  height: 28px;
+  padding: 0 12px;
+  font-size: 14px;
+}
+.satelite-grade p {
+  margin: 0;
+  font-size: 14.5px;
+  line-height: 1.45;
+}
+.satelite-grade small {
+  font-size: 12.5px;
+  color: var(--texto-3);
+  line-height: 1.4;
+}
+.barras.curtas {
+  width: 100%;
+  margin: 0;
+}
+.barras.curtas div {
+  grid-template-columns: 120px 1fr;
+  padding: 3px 0;
+  font-size: 13.5px;
 }

@@ -13,8 +13,9 @@
 
 import fs from "node:fs"
 import path from "node:path"
-import { lerCsv, type Linha } from "./dados/csv"
-import { montarFicha } from "./dados/ficha"
+import { complementosDe, juntarComplementos } from "./dados/complementos"
+import { lerCsv } from "./dados/csv"
+import { baseDoMunicipio, montarFicha, type BaseMunicipio } from "./dados/ficha"
 import { lerImovel } from "./dados/funil"
 import type { Geo, Imovel } from "./dados/tipos"
 
@@ -32,8 +33,6 @@ interface Servidor {
   middlewares: { use(fn: (req: Requisicao, res: Resposta, next: Proximo) => void): void }
 }
 
-const COMPLEMENTOS = ["filtros", "extras", "direto", "mapbiomas"]
-
 const TIPOS: Record<string, string> = {
   ".csv": "text/csv; charset=utf-8",
   ".json": "application/json; charset=utf-8",
@@ -46,12 +45,17 @@ export function dadosRaiz(opcoes: { repo: string }) {
   const amostra = path.join(opcoes.repo, "dados", "amostra")
   const geo = path.join(opcoes.repo, "front", "geo")
   let saida = "dist"
+  // o Vite chama closeBundle também ao fechar o servidor (e o Vitest fecha um no fim): só grava no vite build
+  let construindo = false
 
   const listar = (dir: string) =>
     fs.existsSync(dir) ? fs.readdirSync(dir).filter((f) => fs.statSync(path.join(dir, f)).isFile()) : []
 
   // imóveis por município, lidos uma vez e relidos se o arquivo mudar
-  const cache = new Map<string, { mtime: number; imoveis: Imovel[]; geo: Map<string, Geo["features"][number]> }>()
+  const cache = new Map<
+    string,
+    { mtime: number; imoveis: Imovel[]; base: BaseMunicipio; geo: Map<string, Geo["features"][number]> }
+  >()
 
   function municipio(cod: string) {
     const arq = path.join(amostra, `imoveis_${cod}.csv`)
@@ -59,15 +63,11 @@ export function dadosRaiz(opcoes: { repo: string }) {
     const mtime = fs.statSync(arq).mtimeMs
     const ja = cache.get(cod)
     if (ja && ja.mtime === mtime) return ja
-    const porImovel = new Map<string, Linha[]>()
-    for (const tipo of COMPLEMENTOS) {
-      const c = path.join(amostra, `${tipo}_${cod}.csv`)
-      if (!fs.existsSync(c)) continue
-      for (const l of lerCsv(fs.readFileSync(c, "utf8")).linhas) {
-        if (!l.cod_imovel) continue
-        porImovel.set(l.cod_imovel, [...(porImovel.get(l.cod_imovel) ?? []), l])
-      }
-    }
+    const nomes = complementosDe(listar(amostra), cod)
+    const { porImovel, avisos } = juntarComplementos(
+      nomes.map((arquivo) => ({ arquivo, linhas: lerCsv(fs.readFileSync(path.join(amostra, arquivo), "utf8")).linhas })),
+    )
+    if (avisos.length) console.warn("raiz-dados: arquivos que não entraram:", avisos.join("; "))
     const imoveis = lerCsv(fs.readFileSync(arq, "utf8"))
       .linhas.filter((l) => l.cod_imovel)
       .map((l) => lerImovel(l, porImovel.get(l.cod_imovel)))
@@ -77,7 +77,7 @@ export function dadosRaiz(opcoes: { repo: string }) {
       for (const f of (JSON.parse(fs.readFileSync(g, "utf8")) as Geo).features)
         feicoes.set(String(f.properties.cod_imovel), f)
     }
-    const item = { mtime, imoveis, geo: feicoes }
+    const item = { mtime, imoveis, base: baseDoMunicipio(imoveis), geo: feicoes }
     cache.set(cod, item)
     return item
   }
@@ -91,7 +91,7 @@ export function dadosRaiz(opcoes: { repo: string }) {
     for (const cod of comImoveis()) {
       const m = municipio(cod)
       const alvo = m?.imoveis.find((i) => i.cod_imovel === cod_imovel)
-      if (m && alvo) return montarFicha(alvo, m.imoveis, m.geo.get(cod_imovel))
+      if (m && alvo) return montarFicha(alvo, m.imoveis, m.geo.get(cod_imovel), m.base)
     }
     return null
   }
@@ -136,8 +136,9 @@ export function dadosRaiz(opcoes: { repo: string }) {
 
   return {
     name: "raiz-dados",
-    configResolved(config: { root: string; build: { outDir: string } }) {
+    configResolved(config: { root: string; command: string; build: { outDir: string } }) {
       saida = path.resolve(config.root, config.build.outDir)
+      construindo = config.command === "build"
     },
     configureServer(server: Servidor) {
       server.middlewares.use((req, res, next) => {
@@ -164,7 +165,7 @@ export function dadosRaiz(opcoes: { repo: string }) {
       })
     },
     closeBundle() {
-      if (!fs.existsSync(saida)) return
+      if (!construindo || !fs.existsSync(saida)) return
       const dAmostra = path.join(saida, "amostra")
       const dFichas = path.join(dAmostra, "fichas")
       fs.mkdirSync(dFichas, { recursive: true })
@@ -178,7 +179,7 @@ export function dadosRaiz(opcoes: { repo: string }) {
         for (const i of m.imoveis) {
           fs.writeFileSync(
             path.join(dFichas, `${i.cod_imovel}.json`),
-            JSON.stringify(montarFicha(i, m.imoveis, m.geo.get(i.cod_imovel))),
+            JSON.stringify(montarFicha(i, m.imoveis, m.geo.get(i.cod_imovel), m.base)),
           )
           n++
         }
