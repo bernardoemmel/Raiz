@@ -87,6 +87,42 @@ Sessão: https://claude.ai/code/session_01VGb88MJumyG9PHt2znaaKE. Branch: `claud
   pixels, teclado, 360 px e zero 404. O E2E com API e PostGIS preserva os testes da fase posterior de interesse/Pix
   por preparação isolada no servidor de teste, mantendo o botão de contato desabilitado na tela do produto.
 
+## Nova entrega 2: cobertura diária do mapa (12/11/2026)
+
+- O cron diário existente (10:41 UTC) continua lendo `estados.json` e os pacotes de todas as UFs do Release.
+  A geração não tem lista fixa de municípios. O teste incremental usa três rodadas com o mesmo cache: acrescenta
+  um município e uma UF; depois acrescenta o desenho que estava faltando, que deixa de aparecer como pendência.
+- `geo/indice.json` preserva `gerado_em` e recebe `dados_publicados_em` do manifesto do Release. O build aberto
+  calcula `cobertura` só dos arquivos anunciados e presentes, com códigos municipais, sem CAR ou caminhos privados.
+  Cache de município fora do manifesto não aumenta a contagem.
+- O painel do Brasil mostra municípios e estados com desenho na base; o painel estadual mostra sua própria
+  contagem. Municípios processados continuam como medida separada. Datas do mapa e do Release são distintas,
+  em horário de Brasília; ausência é escrita como “data não informada”.
+- A main passou a publicar só agregados no PR #52. A cobertura não reabre geometrias individuais: explica que
+  a ficha com acesso pago contém os desenhos. Município com desenho na origem recebe esse aviso; município
+  cujo desenho falta recebe o aviso de indisponibilidade. Não confundir restrição de acesso com falta de dado.
+- Validação local: 9 testes de geometria passaram, 133 testes do front passaram (13 pulados), lint e formato
+  Python passaram. O Playwright do build verifica cobertura, datas e ausência de vazamento de dados individuais.
+- Verificação adicional no navegador com dados reais do Release: a consulta do Pará mostrou 144 municípios,
+  345.870 fazendas lidas e 9.484.092 ha com potencial de restauração, sem 404 ou erro de JavaScript. Créditos e TIR
+  continuam pendentes da publicação dos lotes. O texto do estado ausente agora diferencia explicitamente a base
+  territorial disponível da oferta de créditos e da avaliação da terra que ainda aguardam o lote.
+
+- O Release migrou em 12/11 às 19:25 UTC para `imoveis_basicos_<código>.csv`. O leitor e o exportador aceitam
+  esse contrato; no escopo `publico_basico`, não usam tabelas técnicas antigas. O download remove CSVs retirados
+  do pacote somente após extração bem-sucedida, conservando a geometria da mesma versão. Regressões cobrem
+  migração de formato, município retirado e preservação de fazenda pequena. A falha de publicação após #67
+  preservou o site anterior; esta correção recompõe a rodada diária.
+- O CI encontrou um falso positivo em URL JDBC sem credenciais de outra branch. A exceção em `.gitleaksignore`
+  identifica exatamente commit, arquivo, regra e linha; mantém a varredura de todas as refs e as demais regras.
+
+- A integração com o Calendário da main também publica JSON de ausência explícita quando sua primeira coleta
+  ainda não existe. Isso elimina o 404 observado na navegação real, sem inventar eventos nem data de coleta;
+  falha de atualização preserva os bytes da última coleta disponível. Teste HTTP cobre JSON e ICS em `/Raiz/`.
+- Validação do novo contrato real: 365/365 municípios com desenho, 9 UFs, 74,2 MB de geometrias internas e
+  91 MB no site público agregado. Após incorporar Calendário: 174 testes de front e 12 testes de geometria
+  passaram; as regressões da ausência de agenda também passaram.
+
 ## Referências conferidas para a segunda entrega
 
 - llms.txt: https://llmstxt.org/ (proposta v2; permite subcaminho e `rel="describedby"`).
