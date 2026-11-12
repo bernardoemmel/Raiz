@@ -158,7 +158,7 @@ def funil_rodar(
         sys.exit(1)
 
 
-operacao = typer.Typer(help="Operação: custo dos modelos e lotes.", no_args_is_help=True)
+operacao = typer.Typer(help="Operação: custo dos modelos, lotes, alertas e backoffice.", no_args_is_help=True)
 app.add_typer(operacao, name="operacao")
 
 
@@ -186,6 +186,61 @@ def operacao_custo(
     orc = config().orcamento_mensal_usd
     uso = f" de US$ {orc:.2f} ({100 * mes / orc:.0f}%)" if orc else " (sem orçamento definido)"
     typer.echo(f"gasto do mês: US$ {mes:.4f}{uso}")
+
+
+@operacao.command("alertas")
+def operacao_alertas() -> None:
+    """Olha o que está errado (lotes, orçamento, vigilância, prazo da Verra, filas, grupos com problema), abre um
+    alerta por problema e sobe a escada do que ninguém reconheceu (ntfy; GoAlert com segunda pessoa). Sem
+    RAIZ_NTFY_TOPICO, o envio é simulado e fica registrado. Rodar de 15 em 15 minutos (cron)."""
+    from raiz.banco import engine
+    from raiz.operacao.alertas import ciclo
+
+    r = ciclo(engine())
+    typer.echo(
+        f"abertos: {r['abertos']}; fechados sozinhos: {r['fechados_sozinhos']}; envios: {len(r['envios'])} "
+        f"({', '.join(sorted({e['estado'] for e in r['envios']})) or 'nenhum'}); olhado: {', '.join(r['olhadas'])}"
+    )
+
+
+@operacao.command("reconhecer")
+def operacao_reconhecer(
+    alerta: Annotated[int, typer.Argument(help="id do alerta")],
+    quem: Annotated[str, typer.Option(help="papel de quem reconhece")] = "fundador",
+) -> None:
+    """Para a escada de um alerta (alguém já está cuidando)."""
+    from raiz.banco import engine
+    from raiz.operacao.alertas import reconhecer
+
+    with engine().begin() as con:
+        ok = reconhecer(con, alerta, quem)
+    typer.echo("reconhecido" if ok else "alerta aberto não encontrado")
+
+
+@operacao.command("resolver")
+def operacao_resolver(
+    alerta: Annotated[int, typer.Argument(help="id do alerta")],
+    nota: Annotated[str, typer.Option(help="o que foi feito")] = "",
+    quem: Annotated[str, typer.Option(help="papel de quem resolve")] = "fundador",
+) -> None:
+    """Fecha um alerta."""
+    from raiz.banco import engine
+    from raiz.operacao.alertas import resolver
+
+    with engine().begin() as con:
+        ok = resolver(con, alerta, quem, nota)
+    typer.echo("resolvido" if ok else "alerta aberto não encontrado")
+
+
+@operacao.command("painel")
+def operacao_painel() -> None:
+    """O resumo do backoffice no terminal (saúde, custo do mês, filas e alertas abertos), em JSON."""
+    import json
+
+    from raiz.banco import engine
+    from raiz.operacao.backoffice import resumo
+
+    typer.echo(json.dumps(resumo(engine()), ensure_ascii=False, indent=1, default=str))
 
 
 coleta = typer.Typer(help="Coleta de dados públicos (E1).", no_args_is_help=True)
@@ -558,6 +613,37 @@ def restauracao_recalcular(
     typer.echo(f"versão {RS.versao()}: {len(r['refeitos'])} municípios refeitos, {r['em_dia']} já em dia")
     for e in r["erros"]:
         typer.echo(f"  erro {e}")
+
+
+rebanho_cli = typer.Typer(help="Rebanho por fazenda pela PPM e metano do gado (E4).", no_args_is_help=True)
+app.add_typer(rebanho_cli, name="rebanho")
+
+
+@rebanho_cli.command("recalcular")
+def rebanho_recalcular(
+    saida: Annotated[
+        str | None, typer.Option(help="pasta saida/ do motor; padrão: a pasta de trabalho do motor")
+    ] = None,
+    ufs: Annotated[str | None, typer.Option(help="só estas UFs, separadas por vírgula")] = None,
+) -> None:
+    """Grava rebanho_<mun>.csv onde falta ou foi feito com outra versão da PPM ou das premissas."""
+    from pathlib import Path
+
+    from raiz import rebanho as RB
+    from raiz.funil.rodar import dir_trabalho
+
+    base = Path(saida) if saida else dir_trabalho() / "saida"
+    lista = [u.strip().upper() for u in ufs.split(",")] if ufs else sorted(p.name for p in base.iterdir() if p.is_dir())
+    feitos = em_dia = 0
+    for uf in lista:
+        for f in sorted((base / uf).glob("imoveis_*.csv")):
+            cod = int(f.stem.split("_")[-1])
+            if RB.versao_do_arquivo(base / uf / f"rebanho_{cod}.csv") == RB.versao():
+                em_dia += 1
+                continue
+            RB.escrever_municipio(base / uf, cod)
+            feitos += 1
+    typer.echo(f"versão {RB.versao()}: {feitos} municípios refeitos, {em_dia} já em dia")
 
 
 @restauracao_cli.command("cambio")
