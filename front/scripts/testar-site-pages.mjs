@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /** Testa o site compilado como no Pages: só arquivos, /Raiz/ e HTTP Range, sem API nem fallback do Vite.
  * Antes: preparar-teste-site.mjs e construir-site.sh com RAIZ_DADOS/RAIZ_GEO apontando à fixture,
- * RAIZ_BASE=/Raiz/ e VITE_RAIZ_TESTE_MAPA=1. PLAYWRIGHT_CHROMIUM_EXECUTABLE é opcional no ambiente local.
+ * RAIZ_CALENDARIO_DADOS apontando ao calendário da fixture, RAIZ_BASE=/Raiz/ e VITE_RAIZ_TESTE_MAPA=1. PLAYWRIGHT_CHROMIUM_EXECUTABLE é opcional no ambiente local.
  */
 import assert from "node:assert/strict"
 import fs from "node:fs"
@@ -164,12 +164,22 @@ try {
   assert.equal(await pagina.getByRole("button", { name: "Pedir contato", exact: true }).count(), 0,
     "O site aberto não concede acesso à ficha ou ao pedido de contato.")
   await pagina.waitForLoadState("networkidle")
+  assert.equal(await pagina.getByRole("link", { name: "Em leilão: conferir edital e prazo", exact: true }).count(), 0,
+    "A ficha bloqueada não expõe os vínculos individuais do calendário.")
+  await pagina.getByRole("link", { name: "Calendário", exact: true }).click()
+  await pagina.getByRole("heading", { name: "Calendário da Raíz" }).waitFor()
+  await pagina.getByRole("heading", { name: "Leilão fictício para teste do Pages" }).waitFor()
+  assert.equal(await pagina.locator(".calendario-evento").count(), 1)
+  const feed = await pagina.getByRole("link", { name: "Baixar agenda completa (.ics)" }).getAttribute("href")
+  const respostaFeed = await pagina.request.get(new URL(feed, base).href)
+  assert.equal(respostaFeed.status(), 200)
+  assert((await respostaFeed.text()).startsWith("BEGIN:VCALENDAR"))
   assert(!pedidos.some((u) => new URL(u).pathname.endsWith("/busca")), "A busca estática não pode pedir /busca.")
   assert(!pedidos.some((u) => /\/(?:imoveis_|car_|fichas\/|certidoes_|desenvolvedor_)/.test(new URL(u).pathname)),
     "A navegação aberta não pode requisitar CSV, CAR, geometria ou ficha individuais.")
   assert.deepEqual(ausentes, [], "Nenhum arquivo pode responder 404.")
   assert.deepEqual(erros, [], "Nenhum erro de rede, JavaScript ou renderização.")
-  console.log("ok: busca por nome e IBGE, acesso pago pelo CAR, publicação sem dados individuais, zero 404 e zero erro no navegador.")
+  console.log("ok: busca por nome e IBGE, acesso pago pelo CAR, publicação agregada, calendário e feed ICS, zero 404 e zero erro no navegador.")
 } catch (erro) {
   await pagina.screenshot({ path: path.join(resultado, "falha.png"), fullPage: true }).catch(() => {})
   console.error(JSON.stringify({ ausentes, erros }, null, 2))

@@ -24,3 +24,6 @@ playwright-report/
 *.njsproj
 *.sln
 *.sw?
+
+# Última coleta pública, baixada do Release calendario
+/public/calendario/

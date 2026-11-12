@@ -106,7 +106,9 @@ export function projetarPublicacaoLote(valor: unknown): PublicacaoLote {
       // O contrato informa a área de toda a oferta, não a da parcela com terra pronta. Não misturar os recortes.
       hectares: null,
       creditos: { p10: null, p50: publicado ? numero(oferta.creditos_terra_pronta) : null, p90: null },
-      observacao: "Oferta com caminho da terra pronta no cenário publicado. P10, P90 e hectares desse recorte não constam do resumo. Não representa o resultado dos novos filtros.",
+      observacao: publicado
+        ? "Oferta com caminho da terra pronta no cenário publicado. P10, P90 e hectares desse recorte não constam do resumo. Não representa o resultado dos novos filtros."
+        : "Os dados territoriais já estão disponíveis. A oferta de créditos e a avaliação da terra aguardam a publicação do lote.",
     },
     cobertura: {
       municipios: publicado ? numero(m.municipios_calculados) : null,

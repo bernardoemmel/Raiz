@@ -70,6 +70,8 @@ def marcar(
     observado_em: str | None = None,
     nota: str | None = None,
     armazem: Armazem | None = None,
+    leitura_integral: bool | None = None,
+    amostra_aleatoria_cache: bool = False,
 ) -> dict:
     """Marca a leitura como confirmada ou desmentida pela certidão real. Devolve o que foi gravado.
 
@@ -81,9 +83,26 @@ def marcar(
         raise ValueError(f"leitura {leitura_id} não existe")
     if situacao_real is not None and situacao_real not in SITUACOES:
         raise ValueError(f"situação deve ser uma de {', '.join(SITUACOES)}")
-    if confirma is None and situacao_real is None and not campos:
+    if confirma is None and situacao_real is None and not campos and leitura_integral is None:
         raise ValueError("diga se confirma, a situação real ou os campos conferidos")
+    if amostra_aleatoria_cache and leitura_integral is None:
+        raise ValueError("a amostra do cache exige conferência integral da leitura")
     gravado = {}
+    if leitura_integral is not None:
+        if fonte not in {"cartorio", "onr", "conferencia_humana"}:
+            raise ValueError("conferência integral exige fonte cartorio, onr ou conferencia_humana")
+        if lt.erro:
+            raise ValueError("leitura com erro não pode receber conferência integral")
+        armazem.gravar_gabarito(
+            lt.chave,
+            "leitura_integral",
+            fonte,
+            confirma=leitura_integral,
+            leitura_id=leitura_id,
+            observado_em=observado_em,
+            nota="amostra_aleatoria_cache" if amostra_aleatoria_cache else None,
+        )
+        gravado["leitura_integral"] = dict(confirma=leitura_integral, amostra_aleatoria=amostra_aleatoria_cache)
     prevista = situacao_prevista(armazem, leitura_id)
     if confirma is not None or situacao_real is not None:
         real = situacao_real or (prevista if confirma else None)
