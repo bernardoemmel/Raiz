@@ -16,9 +16,11 @@ e comparada com o resultado real.
 | `raiz_filtros.py` | quilombos (INCRA), terras indígenas da FUNAI em todas as fases, unidades de conservação do CNUC por grupo |
 | `raiz_extras.py` | camadas exportadas do Earth Engine (`motor/gee/`): vegetação secundária, fogo, pasto, lavoura, TMF, causa da perda |
 | `raiz_direto.py` | YbYrá e Global Pasture Watch lidos direto dos arquivos públicos, sem Earth Engine |
+| `raiz_mapbiomas.py` | MapBiomas (cobertura, desmatamento, fogo, pasto) pela API da Plataforma, sem login e sem Earth Engine |
 | `raiz_app.py` | aplica a escadinha da APP a municípios rodados antes dela |
 | `raiz_ajustes.py` | ajustes da pesquisa (cenários de carbono etc.) por cima da saída |
 | `mapbiomas_alerta.py` | API do MapBiomas Alerta (credenciais em variáveis de ambiente) |
+| `iovbench/` | teste da interseção pelo iOverlay (Rust) contra o GEOS nos mesmos pares: 2,1x mais rápido em São Félix do Xingu e Altamira, mesma área |
 | `fila*.sh` | filas que rodam o país inteiro, estado por estado, retomando de onde pararam |
 
 Desempenho: cerca de 30 a 40 s por município com 3 municípios ao mesmo tempo (4 núcleos, 15 GB); Brasil inteiro em cerca de 2 dias.

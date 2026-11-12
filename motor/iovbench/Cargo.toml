@@ -1,0 +1,8 @@
+[package]
+name = "iovbench"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+i_overlay = "9.1.0"
+serde_json = "1.0.154"

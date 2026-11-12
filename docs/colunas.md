@@ -43,7 +43,8 @@ ignorar colunas que não conhece. Áreas em hectares (`_ha`), carbono em tCO2 po
 |---|---|
 | filtros_<mun>.csv | quilombo_ha, ti_funai_ha, ti_fase, uc_protecao_integral_ha, uc_uso_sustentavel_ha, uc_apa_ha, filtro_territorial (bloqueio / atencao / ok) |
 | extras_<mun>.csv | camadas do Earth Engine: idade e perdas da vegetação secundária (YbYrá), anos de fogo, vigor e idade do pasto (v2 acrescenta lavoura, TMF, causa da perda, vegetação baixa) |
-| direto_<mun>.csv | lido direto dos arquivos públicos: sec_area_ha, sec_idade_media, sec_nova_ha (YbYrá 2024), gpw_altura_m, gpw_ugpp (Global Pasture Watch 2024) |
+| direto_<mun>.csv | lido direto dos arquivos públicos: sec_area_ha, sec_idade_media, sec_nova_ha (YbYrá 2024), gpw_altura_m, gpw_ugpp (Global Pasture Watch 2024). Desde 12/11/2026 a soma por imóvel usa zonal_janela (lê uma janela por grupo de imóveis; respeita o valor sem dado) no lugar do exactextract; gpw_altura_m antiga estava contaminada pelo valor sem dado −32000 |
+| mapbiomas_<mun>.csv | MapBiomas pela API da Plataforma, sem Earth Engine (ano 2025): mb_floresta_2025_ha, mb_pasto_2025_ha, mb_agricultura_2025_ha, mb_silvicultura_2025_ha, mb_classe_principal_2025 (cobertura col. 11); mb_supressao_primaria_2025_ha, mb_supressao_secundaria_2025_ha, mb_recuperacao_secundaria_2025_ha, mb_veg_secundaria_2025_ha (desmatamento v5); mb_fogo_2025_ha, mb_fogo_mes_principal_2025 (fogo mensal); mb_pasto_idade_anos_media, mb_pasto_vigor_principal (pastagem) |
 | certidoes_<mun>.csv | cartório (CNS) e número de matrícula das parcelas SIGEF de cada imóvel, para pedir certidão |
 | geo_<mun>.parquet | polígono de cada imóvel (cod_imovel + geometria) |
 | resumo_<UF>.csv | uma linha por município com o funil somado |
