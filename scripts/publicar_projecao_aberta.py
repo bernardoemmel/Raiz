@@ -95,7 +95,7 @@ class _Snapshot(ArmazemRelease):
     def _exigir_privado(self):
         pass  # este adaptador lê exclusivamente arquivos locais já inventariados
 
-    def _baixar_asset(self, nome):
+    def _baixar_asset(self, nome, fresco=False):
         item = self.arquivos.get(nome)
         if item is None:
             return None
@@ -130,7 +130,9 @@ def preparar(rel: dict, tag: str, diretorio: Path) -> dict[str, Path]:
                 if f"raiz_{uf}.tar.gz" not in arm.arquivos and info.get("municipios", 0) != 0:
                     raise ValueError("Manifesto declara municípios mas o pacote completo está ausente.")
                 arm.garantir_uf(uf)
-                arm._publicar_aberto(uf, info)
+                # O corte prepara apenas a projeção básica em disco, sem rede.
+                # O catálogo descreve os bytes efetivamente publicados depois.
+                arm._publicar_aberto(uf, info, catalogar=False)
         finally:
             arm.cli.close()
     indice = {

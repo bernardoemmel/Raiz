@@ -763,7 +763,11 @@ def test_workflow_nao_grava_dados_em_artifact_ou_cache_publico():
     actions = [s.get("uses", "") for job in workflow["jobs"].values() for s in job["steps"]]
     for prefixo in ("actions/upload-artifact", "actions/cache/save", "actions/cache/restore", "actions/cache@"):
         assert not any(a.startswith(prefixo) for a in actions)
-    assert any(job.get("strategy", {}).get("max-parallel") == 5 for job in workflow["jobs"].values())
+    assert workflow["jobs"]["calcular"]["strategy"]["max-parallel"] == "${{ fromJSON(needs.preparar.outputs.vagas) }}"
+    assert any(
+        passo.get("run") == "python scripts/reservar_lote.py --reservar 5"
+        for passo in workflow["jobs"]["preparar"]["steps"]
+    )
     assert "RAIZ_DADOS_PRIVADOS_URL" in workflow["env"] and "RAIZ_DADOS_PRIVADOS_TOKEN" in workflow["env"]
     assert workflow["env"]["SHA_ORIGEM"] == RT.SHA_ORIGEM
     for job in workflow["jobs"].values():
