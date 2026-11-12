@@ -20,6 +20,7 @@ class Pedido:
     max_tokens: int = 2048
     esforco: str | None = None  # low | medium | high (Claude); ignorado no modelo local
     pessoal: bool = False  # a entrada ou a saída tem dado pessoal: não guardar respostas em claro
+    ferramentas: int = 0  # chamadas de ferramenta que a tarefa faz; com alguma, a tarefa não vai ao modelo local
 
 
 @dataclass
@@ -41,6 +42,7 @@ class Resposta:
     duracao_ms: int = 0
     recusou: bool = False
     erro: str | None = None
+    confianca: float | None = None  # 0 a 1, dos logprobs do modelo local (o Claude não devolve logprobs)
 
     @property
     def ok(self) -> bool:

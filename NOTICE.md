@@ -223,3 +223,20 @@ Plone), páginas de licitações e concessões do Ideflor-Bio e busca do Diário
 Métodos reescritos, sem copiar código: cadeia dominial com quebras e ônus ativos (desenho do TitleChain citado no plano,
 E5 passo 7); normal de dois lados nos P10, P50 e P90 e soma ao lado da carteira (E3); regra provisória das faixas
 (faixas-2026a) igual à do back-end (`raiz/regras/padroes/faixas.yaml`).
+
+## Aprendizado no formato do hub (`raiz/aprendizado/hub.py`, `raiz/aprendizado/acerto.py`)
+
+Nenhum código copiado. O formato das pastas e arquivos segue a documentação do hubverse (hubverse-org/hubDocs, esquemas
+v6.0.0 em hubverse-org/schemas) para que hubData, hubEvals, hubPredEvalsData e o hub-dashboard leiam as previsões da
+Raíz. A configuração do painel (site-config.yml, predevals-config.yml, predtimechart-config.yml) segue o molde do
+reichlab/flusight-dashboard, que é CC0 1.0. O WIS foi escrito a partir da fórmula de Bracher et al. (2021, PLOS
+Computational Biology 17(2): e1008618).
+
+## Modelo local com llguidance e cascata por confiança (`infra/llama/Dockerfile`, `raiz/modelos/`)
+
+O servidor do modelo local é o llama.cpp (ggml-org/llama.cpp, licença MIT) compilado com o llguidance
+(guidance-ai/llguidance, licença MIT), que entra pela construção do próprio llama.cpp (LLAMA_LLGUIDANCE=ON). Roda
+como serviço no servidor; nada dele é embutido no produto distribuído. O `infra/llama/Dockerfile` segue o molde do
+`.devops/cpu.Dockerfile` do llama.cpp (MIT, Copyright (c) 2023-2026 The ggml authors), sem a interface web. A
+confiança dos logprobs, a calibração do corte e o banco de tarefas em português foram escritos para a Raíz, sem
+código copiado.
