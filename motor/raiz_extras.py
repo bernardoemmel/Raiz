@@ -50,6 +50,43 @@ def zonal_janela(fonte, g, ops=('count', 'sum', 'max'), include_cols=None, max_p
         c1, r1 = min(int(w.col_off + w.width) + 1, W), min(int(w.row_off + w.height) + 1, H)
         return Window(c0, r0, max(c1 - c0, 0), max(r1 - r0, 0))
 
+    def valores(k, a, tr, toca=True):
+        """Valores (sem 'sem dado') de cada banda nos pixels do imóvel k dentro do bloco a."""
+        wk = from_bounds(*b[k], tr).round_offsets(op='floor').round_lengths(op='ceil')
+        c0, r0 = max(int(wk.col_off), 0), max(int(wk.row_off), 0)
+        c1, r1 = min(int(wk.col_off + wk.width) + 1, a.shape[2]), min(int(wk.row_off + wk.height) + 1, a.shape[1])
+        if c1 <= c0 or r1 <= r0: return None, False
+        trk = tr * tr.translation(c0, r0)
+        geom = [g.geometry.iat[k]]
+        m = ~geometry_mask(geom, (r1 - r0, c1 - c0), trk)
+        tocou = False
+        if toca and not m.any(): m = ~geometry_mask(geom, (r1 - r0, c1 - c0), trk, all_touched=True); tocou = True
+        out = []
+        for i in range(nb):
+            v = a[i, r0:r1, c0:c1][m]
+            if nod[i] is not None: v = v[v != nod[i]]
+            out.append(v[np.isfinite(v)] if v.dtype.kind == 'f' else v)
+        return out, tocou
+
+    def grava(k, vs):
+        for i in range(nb):
+            v = vs[i]; n = v.size
+            for o in ops:
+                if o == 'count': x = n
+                elif o == 'sum': x = float(v.sum()) if n else 0.0
+                elif o == 'mean': x = float(v.mean()) if n else np.nan
+                elif o == 'max': x = float(v.max()) if n else np.nan
+                elif o == 'classes':  # contagem de pixels por classe (até 255): coluna band_i_c<classe>
+                    if n:
+                        u, c = np.unique(v, return_counts=True)
+                        for uu, cc in zip(u.tolist(), c.tolist()):
+                            res.setdefault(f'band_{i + 1}_c{int(uu)}', np.zeros(len(g)))[k] = cc
+                    continue
+                elif o == 'majority':
+                    x = float(np.bincount(v.astype(np.int64) - int(v.min())).argmax() + int(v.min())) if n else np.nan
+                else: raise ValueError(o)
+                res[f'band_{i + 1}_{o}'][k] = x
+
     def processa(idx):
         if len(idx) == 0: return
         w = janela(idx)
@@ -58,37 +95,22 @@ def zonal_janela(fonte, g, ops=('count', 'sum', 'max'), include_cols=None, max_p
             o = idx[np.argsort(eixo[idx])]; m = len(o) // 2
             processa(o[:m]); processa(o[m:]); return
         if w.width == 0 or w.height == 0: return
+        if w.width * w.height > max_pix:  # um imóvel só com caixa gigante (espinho, vértice fora do lugar): lê em faixas
+            k = idx[0]; partes = [[] for _ in range(nb)]
+            passo = max(int(max_pix // max(w.width, 1)), 1)
+            for lin in range(int(w.row_off), int(w.row_off + w.height), passo):
+                wf = Window(w.col_off, lin, w.width, min(passo, int(w.row_off + w.height) - lin))
+                a = r.read(window=wf); tr = r.window_transform(wf)
+                vs, _ = valores(k, a, tr, toca=False)
+                if vs is not None:
+                    for i in range(nb): partes[i].append(vs[i])
+            grava(k, [np.concatenate(p) if p else np.array([]) for p in partes])
+            return
         a = r.read(window=w)
         tr = r.window_transform(w)
         for k in idx:
-            wk = from_bounds(*b[k], tr).round_offsets(op='floor').round_lengths(op='ceil')
-            c0, r0 = max(int(wk.col_off), 0), max(int(wk.row_off), 0)
-            c1, r1 = min(int(wk.col_off + wk.width) + 1, a.shape[2]), min(int(wk.row_off + wk.height) + 1, a.shape[1])
-            if c1 <= c0 or r1 <= r0: continue
-            trk = tr * tr.translation(c0, r0)
-            geom = [g.geometry.iat[k]]
-            m = ~geometry_mask(geom, (r1 - r0, c1 - c0), trk)
-            if not m.any(): m = ~geometry_mask(geom, (r1 - r0, c1 - c0), trk, all_touched=True)
-            for i in range(nb):
-                v = a[i, r0:r1, c0:c1][m]
-                if nod[i] is not None: v = v[v != nod[i]]
-                v = v[np.isfinite(v)] if v.dtype.kind == 'f' else v
-                n = v.size
-                for o in ops:
-                    if o == 'count': x = n
-                    elif o == 'sum': x = float(v.sum()) if n else 0.0
-                    elif o == 'mean': x = float(v.mean()) if n else np.nan
-                    elif o == 'max': x = float(v.max()) if n else np.nan
-                    elif o == 'classes':  # contagem de pixels por classe (até 255): coluna band_i_c<classe>
-                        if n:
-                            u, c = np.unique(v, return_counts=True)
-                            for uu, cc in zip(u.tolist(), c.tolist()):
-                                res.setdefault(f'band_{i + 1}_c{int(uu)}', np.zeros(len(g)))[k] = cc
-                        continue
-                    elif o == 'majority':
-                        x = float(np.bincount(v.astype(np.int64) - int(v.min())).argmax() + int(v.min())) if n else np.nan
-                    else: raise ValueError(o)
-                    res[f'band_{i + 1}_{o}'][k] = x
+            vs, _ = valores(k, a, tr)
+            if vs is not None: grava(k, vs)
 
     # grupos por vizinhança (grade de 0,25 grau pelo centro do imóvel)
     chave = np.floor(cx / 0.25).astype(np.int64) * 100000 + np.floor(cy / 0.25).astype(np.int64)
@@ -136,12 +158,26 @@ def limpa(g):
     bad = ~g.is_valid
     if bad.any():
         g = g.copy()
-        g.loc[bad, 'geometry'] = [shapely.make_valid(x) for x in g.geometry[bad]]
+        # method='structure' (rodada 10): o padrão 'linework' não termina em polígono autocruzado de 1.000 vértices
+        # (mais de 120 s e memória subindo); 'structure' leva 3,6 s e 288 MB no mesmo polígono.
+        g.loc[bad, 'geometry'] = [shapely.make_valid(x, method='structure', keep_collapsed=False) for x in g.geometry[bad]]
         g.loc[bad, 'geometry'] = g.geometry[bad].apply(
             lambda x: x if x.geom_type in ('Polygon', 'MultiPolygon') else shapely.MultiPolygon(
                 [p for p in getattr(x, 'geoms', []) if p.geom_type == 'Polygon'] +
                 [q for p in getattr(x, 'geoms', []) if p.geom_type == 'MultiPolygon' for q in p.geoms]))
     return g[~g.is_empty & g.geometry.notna()]
+
+
+def bandeira_geometria(g, razao_min=0.002, lado_max_graus=1.0):
+    """Checagem barata (rodada 10, 0,01 s): marca o imóvel com espinho ou vértice fora do lugar antes de abrir o raster.
+    razão área/caixa muito baixa ou caixa com lado enorme = polígono que faria a janela de leitura explodir.
+    Devolve uma Série booleana (True = conferir à mão; a área desse imóvel muda conforme o método)."""
+    import numpy as np
+    b = g.geometry.bounds
+    caixa = (b.maxx - b.minx) * (b.maxy - b.miny)
+    razao = np.where(caixa > 0, g.geometry.area / caixa.replace(0, np.nan), 1.0)
+    lado = np.maximum(b.maxx - b.minx, b.maxy - b.miny)
+    return pd.Series((razao < razao_min) | (lado > lado_max_graus), index=g.index)
 
 
 def geometria(uf, cod, pasta):
