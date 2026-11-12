@@ -364,3 +364,39 @@ def test_cruzamento_matricula_corrigida_ou_removida_nao_usa_rodada_antiga(con, n
     assert banco.cruzar(con, e).codigos_car == []
     revalidado = banco.cruzar(con, vinculado)
     assert revalidado.codigos_car == [] and revalidado.vinculo == "pendente"
+
+
+@pytest.mark.banco
+@pytest.mark.parametrize("vinculo", ["cns_matricula", "sigef"])
+def test_enriquecimento_fica_interno_sem_vazar_por_filtro_publico(con, tmp_path, vinculo):
+    cod = "PA-1504950-" + ("E" if vinculo == "sigef" else "F") * 32
+    e = evento(
+        id=identificador("djen", "enriquecido", "leilao_imovel", vinculo),
+        codigos_car=[cod],
+        cns="654321",
+        matricula="765",
+        sigef=[SIGEF],
+        vinculo=vinculo,
+    )
+    banco.gravar(con, [e], [], cruzar_imoveis=False)
+    assert (
+        con.execute(
+            text("select cod_imovel from calendario.evento_imovel where evento_id=:id"), {"id": e.id}
+        ).scalar_one()
+        == cod
+    )
+    assert e.publico()["codigos_car"] == [] and e.publico()["vinculo"] == "pendente"
+    assert banco.consultar(con, cod_imovel=cod)["total"] == 0
+    assert arquivos.envelope([e], [], cod_imovel=cod)["total"] == 0
+    assert not any(item["codigos_car"] for item in banco.consultar(con)["eventos"] if item["id"] == e.id)
+    arquivos.publicar(tmp_path, [e], [])
+    publico = (tmp_path / "eventos.json").read_text() + (tmp_path / "eventos.ics").read_text()
+    assert cod not in publico and SIGEF not in publico and "654321" not in publico
+    # O estado administrativo conserva o vínculo para o servidor e para avisos.
+    assert cod in (tmp_path / "estado.json").read_text()
+    assert cod not in ics([e])
+    explicito = e.model_copy(update={"vinculo": "car"})
+    assert explicito.publico()["codigos_car"] == [cod]
+    assert arquivos.envelope([explicito], [], cod_imovel=cod)["total"] == 1
+    banco.gravar(con, [explicito], [], cruzar_imoveis=False)
+    assert banco.consultar(con, cod_imovel=cod)["total"] == 1

@@ -155,7 +155,8 @@ def consultar(con, *, limite=100, deslocamento=0, **filtros) -> dict:
         ("fim", "coalesce(e.prazo,e.data)<=:fim"),
         (
             "cod_imovel",
-            "exists(select 1 from calendario.evento_imovel i where i.evento_id=e.id and i.cod_imovel=:cod_imovel)",
+            "exists(select 1 from calendario.evento_imovel i "
+            "where i.evento_id=e.id and i.cod_imovel=:cod_imovel and i.vinculo='car')",
         ),
     ):
         valor = filtros.get(nome)

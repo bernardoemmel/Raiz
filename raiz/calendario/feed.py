@@ -35,8 +35,8 @@ def ics(eventos: list[Evento]) -> str:
             f"Confiança da extração: {e.confianca:.0%}. Situação: {e.situacao}. "
             "Confira horário, fuso e condições na fonte oficial."
         )
-        if e.codigos_car:
-            descricao += " CAR: " + ", ".join(e.codigos_car)
+        if e.codigos_car_publicos:
+            descricao += " CAR: " + ", ".join(e.codigos_car_publicos)
         linhas += [
             "BEGIN:VEVENT",
             f"UID:{e.id}@calendario.raiz",

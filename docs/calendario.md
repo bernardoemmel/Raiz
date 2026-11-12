@@ -44,7 +44,7 @@ Retificações na mesma publicação conservam o UID e aumentam `SEQUENCE`. Canc
 
 ## API, feed e MCP
 
-`GET /eventos` é público e devolve `{eventos, total, coletado_em, fontes}`. Filtros: `tipo`, `estado`, `inicio`, `fim`, `cod_imovel`, `limite` (1–1000, padrão 100) e `deslocamento`. Estado inclui eventos nacionais (UF nula). Período compara o prazo, quando presente, ou a data. CAR aceita pontuação de apresentação e é normalizado antes da consulta. Tipos:
+`GET /eventos` é público e devolve `{eventos, total, coletado_em, fontes}`. Filtros: `tipo`, `estado`, `inicio`, `fim`, `cod_imovel`, `limite` (1–1000, padrão 100) e `deslocamento`. Estado inclui eventos nacionais (UF nula). O filtro público `cod_imovel` considera somente CAR explícito no ato publicado; não consulta os vínculos internos enriquecidos por matrícula/SIGEF. Período compara o prazo, quando presente, ou a data. CAR aceita pontuação de apresentação e é normalizado antes da consulta. Tipos:
 
 ```text
 leilao_imovel, penhora, edital_bndes, profloresta, fundo_amazonia,
@@ -59,4 +59,6 @@ concessao, leilao_credito, sbce, verra, icvcm, sbti, eudr
 
 HTML/PDF são lidos somente em memória. Banco, snapshots, feed, histórico e avisos recebem campos fechados, identificadores de imóvel e links institucionais; nunca texto bruto, nome, CPF ou CNPJ. Links que contêm documentos pessoais ou parâmetros de nome/email/token são recusados, inclusive chaves percent-encoded. Os nomes de fonte vêm do manifesto, não dos editais. Objetos internos do parser PDF não são enviados ao log.
 
-`eventos.json` exclui CNS, matrícula e SIGEF, mantendo só CAR público. `estado.json` inclui os identificadores de imóvel necessários ao vínculo no servidor, sem dados de pessoas. Os testes exercitam páginas gravadas, datas, isolamento entre editais, cancelamento, privacidade, erro de fonte, PostGIS, CAR/CNS/SIGEF, idempotência dos avisos, API, feed e consulta MCP.
+`eventos.json` e o feed excluem CNS, matrícula, SIGEF e CAR enriquecido, mantendo apenas CAR explícito no ato público. API, snapshot e MCP aplicam a mesma regra, também ao filtrar por CAR. Isso preserva o acesso pago à ficha da terra definido na main de 12/11/2026.
+
+`estado.json` inclui os identificadores necessários ao vínculo no servidor. Quando gerado com banco, é arquivo administrativo e pode conter enriquecimento: não publicar esse arquivo em armazenamento aberto. O workflow público usa exclusivamente `--sem-banco`, portanto seu `estado.json` contém apenas campos extraídos da fonte pública, sem enriquecimento da base de imóveis. Os testes exercitam páginas gravadas, datas, isolamento entre editais, cancelamento, privacidade, erro de fonte, PostGIS, CAR/CNS/SIGEF, idempotência dos avisos, API, feed e consulta MCP.
