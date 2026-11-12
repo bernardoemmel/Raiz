@@ -13,6 +13,7 @@ export const MUNICIPIO = "1505536"
 export const SEM_DESENHO = "1502772"
 export const CAR = `PA-${MUNICIPIO}-${"A".repeat(32)}`
 export const CAR_PENDENTE = `PA-${MUNICIPIO}-${"B".repeat(32)}`
+export const CARS = [CAR, CAR_PENDENTE, ...["D", "E", "F", "1"].map((letra) => `PA-${MUNICIPIO}-${letra.repeat(32)}`)]
 
 const colecao = (features) => ({ type: "FeatureCollection", features })
 const retangulo = ([x0, y0, x1, y1], properties = {}) => ({
@@ -60,6 +61,9 @@ function basePmtiles() {
 export function preparar() {
   const geo = path.join(FIXTURE, "geo")
   const dados = path.join(FIXTURE, "dados/PA")
+  // Não deixar um arquivo de uma execução anterior mudar o resultado da fixture.
+  fs.rmSync(geo, { recursive: true, force: true })
+  fs.rmSync(path.join(FIXTURE, "dados"), { recursive: true, force: true })
   fs.mkdirSync(geo, { recursive: true })
   fs.mkdirSync(dados, { recursive: true })
   const salvar = (nome, conteudo) => fs.writeFileSync(path.join(geo, nome), JSON.stringify(conteudo))
@@ -68,10 +72,10 @@ export function preparar() {
   salvar("brasil_municipios.geojson", colecao([municipio, semDesenho]))
   salvar("brasil_estados.geojson", colecao([retangulo([-58, -10, -46, 2], { uf: "PA", nome: "Pará" })]))
   salvar(`municipio_${MUNICIPIO}.geojson`, colecao([municipio]))
-  salvar(`imoveis_${MUNICIPIO}.geojson`, colecao([
-    retangulo([-49.908, -6.108, -49.900, -6.096], { cod_imovel: CAR }),
-    retangulo([-49.898, -6.108, -49.890, -6.096], { cod_imovel: CAR_PENDENTE }),
-  ]))
+  // Canários privados: o build precisa descartá-los, embora estejam na origem.
+  salvar(`imoveis_${MUNICIPIO}.geojson`, colecao(CARS.map((car, i) =>
+    retangulo([-49.93 + i * 0.01, -6.108, -49.922 + i * 0.01, -6.096], { cod_imovel: car }),
+  )))
   fs.writeFileSync(path.join(geo, "base_brasil.pmtiles"), basePmtiles())
   const item = (arquivo) => ({ arquivo, bytes: fs.statSync(path.join(geo, arquivo)).size })
   salvar("indice.json", {
@@ -82,11 +86,11 @@ export function preparar() {
   })
   fs.writeFileSync(path.join(dados, "resumo_PA.csv"),
     "cod_ibge,municipio,imoveis,sem_problema,aptas_carbono,ha_carbono,aptas_com_matricula,ha_carbono_matricula\n" +
-    `${MUNICIPIO},Parauapebas,2,2,2,120,1,80\n${SEM_DESENHO},Curionópolis,1,1,1,40,0,0\n`)
+    `${MUNICIPIO},Parauapebas,6,6,6,360,3,240\n${SEM_DESENHO},Curionópolis,1,1,1,40,0,0\n`)
   const cabecalho = "cod_imovel,uf,municipio,cod_municipio_ibge,ha,carbono_ha,f_matricula,problema,desm_pos2016_ha\n"
-  fs.writeFileSync(path.join(dados, `imoveis_${MUNICIPIO}.csv`), cabecalho +
-    `${CAR},PA,Parauapebas,${MUNICIPIO},120,80,0.8,False,0\n` +
-    `${CAR_PENDENTE},PA,Parauapebas,${MUNICIPIO},90,40,0,False,0\n`)
+  fs.writeFileSync(path.join(dados, `imoveis_${MUNICIPIO}.csv`), cabecalho + CARS.map((car, i) =>
+    `${car},PA,Parauapebas,${MUNICIPIO},${i % 2 ? 90 : 120},${i % 2 ? 40 : 80},${i % 2 ? 0 : 0.8},False,0\n`,
+  ).join(""))
   fs.writeFileSync(path.join(dados, `imoveis_${SEM_DESENHO}.csv`), cabecalho +
     `PA-${SEM_DESENHO}-${"C".repeat(32)},PA,Curionópolis,${SEM_DESENHO},90,40,0,False,0\n`)
   console.log(`Fixture do Pages pronta: ${path.relative(REPO, FIXTURE)} (dados fictícios, uso exclusivo nos testes).`)

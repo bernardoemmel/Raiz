@@ -27,7 +27,7 @@ Sessão: https://claude.ai/code/session_01VGb88MJumyG9PHt2znaaKE. Branch: `claud
 ## Continuação no Codex (12/11/2026)
 
 - PR #42 já integrado em 12/11. A regressão esperada do CI foi desfeita antes do merge.
-- Primeira entrega: corrigido o mapa público. `baixar-dados.mjs --geo --exigir` baixa tabelas e polígonos do Release
+- PR #47 integrado com os três jobs do CI verdes: correção do mapa público. `baixar-dados.mjs --geo --exigir` baixa tabelas e polígonos do Release
   antes de `geo.py --dados dados/estados`; não há mais lista fixa de dois municípios. O exportador usa só CAR e
   geometria dos GeoParquet, preserva fazendas pequenas e registra município cujo desenho ainda falta.
 - Polígonos gzip por município: a medição do Pará deu 35 MB para 144 municípios (Parauapebas: 2.194 polígonos,
@@ -38,40 +38,45 @@ Sessão: https://claude.ai/code/session_01VGb88MJumyG9PHt2znaaKE. Branch: `claud
 - A busca da fonte estática roda no navegador por nome, IBGE e CAR normalizado; a fonte API conserva `/busca`.
   Município sem contorno mostra aviso. O CI serve o build em `/Raiz/`, sem fallback de SPA, e testa nome/IBGE/CAR,
   aproximação até z13, polígonos verdes/amarelos, base visível por Range e zero 404.
-- Próxima entrega: llms.txt, robots.txt, Markdown, JSON-LD e Lighthouse Agentic Browsing.
+- Segunda entrega: `llms.txt` com menos de 8 KB, `robots.txt` permitindo os agentes atuais, alternates HTML e
+  Markdown do Brasil, estados, municípios, produtor, serviço, fontes e privacidade. JSON-LD declara Dataset só de
+  UFs disponíveis e Service/Offer com preço sob proposta. API negocia `Accept: text/markdown`, respeita `q=0`,
+  prioridade e `Vary`; mantém Bearer e a mesma projeção pública. `/p/{codigo}.md` preserva o aceite.
+- O Lighthouse **tem** a categoria experimental `agentic-browsing` desde 13.3.0; a dependência foi fixada em 13.6.0.
+  CI verifica HTTP 200 e links sob `/Raiz/`, executa a auditoria oficial e guarda HTML/JSON. WebMCP e ARD não
+  implementados são relatados como não aplicáveis, sem simular aprovação.
+- Limite real de hospedagem: `/Raiz/robots.txt` não governa a origem. O arquivo deve também existir em
+  `https://bernardoemmel.github.io/robots.txt` no site da conta, ou o produto usar domínio próprio. O gatherer do
+  Lighthouse procura `/llms.txt` na raiz da origem, então o CI audita uma origem local com o artefato na raiz,
+  além de conferir os links reais de `/Raiz/`; não é evidência da descoberta na raiz pública.
+- Snapshot real conferido: 365 municípios em 9 UFs, 712.601 desenhos, sem CAR da tabela faltando no GeoParquet.
+  Mapas referenciados: 160,34 MB; build completo: aproximadamente 585 MiB, 13.987 arquivos.
+- Validação da segunda entrega: 627 testes Python passaram com PostGIS (2 pulados e 1 xfail); 104 testes de front;
+  Playwright no Pages e Lighthouse oficial passaram. Relatórios ficam em front/.cache/teste-agentes e nos artefatos do CI.
 - E9 posterior: a calibração do portão depende de 30 cartas reais anonimizadas e avaliação de compreensão,
-  ainda não presentes no repositório. Não usar o corte dos testes sintéticos como se fosse calibrado.
+  sem conjunto pronto segundo resposta do fundador em 12/11. Não usar o corte dos testes sintéticos como calibrado.
 
 ## O que falta, em ordem
 
-1. Mapa nacional: acompanhar o CI e a publicação desta entrega; conferir o site com dados reais depois do merge.
-2. Site legível por agentes (pedido do fundador):
-   - `front/globo/public/llms.txt`: resumo de até 8 KB do produto e das regras, no formato do llmstxt.org.
-     - O produto está em `docs/cena-alvo.md` e no README.
-     - As regras: o funil está em `front/compartilhado/dados/funil.ts` e `raiz/motivos.py` (apta = sem problema,
-       área de carbono > 0, até 5 ha desmatados depois de 2016).
-     - Também: privacidade (CPF e CNPJ mascarados, nome nunca) e as fontes (`NOTICE.md`).
-   - Versão em Markdown das páginas. O GitHub Pages não negocia `Accept: text/markdown`, então:
-     - gravar um `.md` ao lado de cada página estática no build (`front/scripts/construir-site.sh`, ou um passo
-       no plugin `front/compartilhado/vite-dados.ts`);
-     - pôr `<link rel="alternate" type="text/markdown">` no `index.html`;
-     - na API (`raiz/api.py`), responder Markdown quando o cabeçalho Accept pedir.
-   - `front/globo/public/robots.txt`: liberar os robôs de IA. Os nomes atuais dos user-agents NÃO foram
-     conferidos; conferir antes (GPTBot, OAI-SearchBot, ChatGPT-User, ClaudeBot, Claude-User, PerplexityBot,
-     Google-Extended, Applebot-Extended, CCBot).
-   - schema.org em JSON-LD no `front/globo/index.html`: Dataset para os dados do CAR por estado, Service e Offer
-     para a conexão por hectare e a reserva.
-   - Lighthouse "Agentic Browsing" no CI. A pesquisa foi interrompida pela cota. NÃO está confirmado que essa
-     categoria existe no Lighthouse oficial: confirmar em github.com/GoogleChrome/lighthouse (id da categoria,
-     versão, se é experimental) antes de escrever o job. Rodar contra `site/` servido localmente no job `front`.
-     Se a categoria não existir, avisar o fundador e propor o equivalente.
-3. E9 pela ordem do plano:
-   - passo 3: portão de legibilidade, com nota mínima calibrada com 30 cartas reais (pedir as cartas ao fundador)
-     e gravada no laudo (`raiz/documentos/`);
-   - passo 3: texto por fazenda no kit do ONS;
-   - passo 4: campos condicionais e número por extenso. `raiz/legibilidade.py` já tem a função `extenso()`;
-   - passo 4: KMZ por fazenda;
-   - e assim por diante na tabela do E9.
+1. Acompanhar os checks e a publicação dos PRs destas duas entregas; merge somente com CI verde.
+2. Configurar a descoberta na raiz de hospedagem quando houver acesso ao site da conta ou domínio próprio,
+   sem presumir que o arquivo em `/Raiz/` equivale a `/robots.txt`.
+3. E9 passo 3: aguardar as 30 cartas reais anonimizadas e uma avaliação de compreensão, confirmadas como ainda
+   indisponíveis pelo fundador. Depois calibrar o portão e gravar a nota no laudo.
+4. Continuar os itens E9 na ordem do plano: texto por fazenda no kit ONS/campos abertos, condicionais e extenso,
+   KMZ e os demais. A geometria de reserva legal ainda não está nas camadas; não deduzir seu desenho de percentuais.
+
+## Referências conferidas para a segunda entrega
+
+- llms.txt: https://llmstxt.org/ (proposta v2; permite subcaminho e `rel="describedby"`).
+- Lighthouse: https://github.com/GoogleChrome/lighthouse/releases/tag/v13.6.0 e
+  https://developer.chrome.com/docs/lighthouse/agentic-browsing/scoring (experimental, Chrome 150+).
+- OpenAI: https://developers.openai.com/api/docs/bots.
+- Anthropic: https://support.claude.com/en/articles/8896518-does-anthropic-crawl-data-from-the-web-and-how-can-site-owners-block-the-crawler.
+- Perplexity: https://docs.perplexity.ai/docs/resources/perplexity-crawlers.
+- Google: https://developers.google.com/crawling/docs/crawlers-fetchers/google-common-crawlers#google-extended.
+- Apple: https://support.apple.com/en-us/119829; Common Crawl: https://commoncrawl.org/ccbot.
+- Alcance do robots.txt: https://www.rfc-editor.org/rfc/rfc9309.html#section-2.3.
 
 ## PRs abertos e branches sem merge
 

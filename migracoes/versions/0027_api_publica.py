@@ -2,16 +2,16 @@
 créditos de teste, saldo e cobranças por Pix, liberação (sinal pago + contrato de não contornar), chave de API, registro
 de cada chamada e do que cada empresa viu, alertas e bloqueio contra raspagem, e a reserva que espera uma pessoa.
 
-Revision ID: 0026
-Revises: 0025
+Revision ID: 0027
+Revises: 0026
 """
 
 from __future__ import annotations
 
 from alembic import op
 
-revision = "0026"
-down_revision = "0025"
+revision = "0027"
+down_revision = "0026"
 branch_labels = None
 depends_on = None
 

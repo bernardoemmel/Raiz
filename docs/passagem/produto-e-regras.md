@@ -2,6 +2,15 @@
 
 ## Retomada no Codex
 
+Nova integração com a main `3199052`: preserva a ficha da terra paga e a busca
+nacional, a rodada do Pará e as passagens consolidadas dos PRs 48, 49 e 52.
+A migração da API é agora `0027`, depois de `0026_prospeccao_acesso`. A sequência
+é única e mantém os dois produtos. O teste de complementos adota a versão da
+main: exige os arquivos obrigatórios e tolera colunas/arquivos novos do motor.
+Validação desta integração: 67 testes de API paga, prospecção, privacidade e
+reserva passaram em banco vazio, com `0027` como única ponta das migrações;
+130 testes do front passaram. Ruff, formatação, privacidade e licenças aprovados.
+
 O PR #45 incorporou também a main `3b21e78` (mapa nacional e busca estática).
 O único conflito era a formatação da lista de complementos no teste do front;
 a comparação exata, incluindo regularização, foi preservada. As funcionalidades
@@ -13,8 +22,8 @@ UUIDs completos agora são preservados; o teste de pedido pago usa um UUID
 fixo que reproduz a falha e verifica o acompanhamento e o isolamento entre empresas.
 Texto com contatos ao redor continua filtrado. O CI completo volta a validar o merge.
 
-O PR #45 foi atualizado com a main. A migração da API passou de 0020 para 0026,
-porque 0020 já pertencia aos alertas da main. Cobrança, estorno idempotente e
+O PR #45 foi atualizado com a main. A migração da API passou de 0020 para 0027,
+porque 0020 já pertencia aos alertas e 0026 ao acesso pago da ficha da terra. Cobrança, estorno idempotente e
 limites compartilhados por empresa recebem testes de integração em PostGIS.
 CLI e análise da fazenda foram migrados. O adaptador MCP grátis foi retirado;
 nenhuma chave em URL ou rota antiga permanece como atalho.

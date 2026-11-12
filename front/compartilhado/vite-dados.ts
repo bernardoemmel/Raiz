@@ -1,37 +1,18 @@
 /**
- * Plugin do Vite que serve os dados do motor para as telas, como se fosse a API:
- *
- *   /amostra/estados.json            os 27 estados: quantos municípios o motor já processou, de quantos (lista do
- *                                    IBGE), se está completo e quais municípios têm lista por fazenda
- *   /amostra/indice_<UF>.json        os CSV de um estado (um arquivo novo do motor aparece sozinho)
- *   /amostra/<arquivo>.csv           um CSV do motor, limpo (sem coluna pessoal, CPF e CNPJ mascarados)
- *   /amostra/<arquivo>.csv.gz        o mesmo, comprimido (é como o site estático guarda; o navegador descomprime)
- *   /amostra/pontos_<UF>.json        fazendas aptas do estado como pontos (agrupamentos no mapa), com cache em disco
- *   /amostra/car_<UF>.json           códigos do CAR que estão no arquivo de outro município (código → município)
- *   /amostra/fichas/<cod>.json       a ficha leve de uma fazenda (dados/ficha.ts), montada aqui
- *   /busca?q=                        busca por código do CAR ou município (dados/busca.ts), como o back-end vai fazer
- *   /geo/<arquivo>                   o que front/scripts/geo.py gerou (GeoJSON e PMTiles, com Range)
- *   /geo/fontes/<fonte>/<faixa>.pbf  letras dos rótulos do mapa
- *
- * De onde vêm os CSV: a pasta da variável RAIZ_DADOS (no ambiente ou no .env da raiz do repositório), separada por
- * estado como o motor grava (<pasta>/<UF>/imoveis_<cod>.csv...); sem ela, dados/estados/ (o que o predev baixou do
- * Release "dados"); sem nenhuma, dados/amostra/ (ver pasta-dados.ts). As rotas são as mesmas nos três casos: o nome do
- * arquivo já diz de que estado ele é. /amostra/estados.json usa o estados.json baixado quando há.
- *
- * No `vite build`, grava os dados em dist/: CSV limpos e comprimidos (.csv.gz), estados, pontos, códigos fora do
- * município e as fichas prontas dos municípios com contorno (as outras o navegador monta dos CSV). Assim o Brasil cabe
- * num site estático (GitHub Pages: até 1 GB). RAIZ_BUILD_DADOS=0 não grava dado nenhum (a ficha do produtor no site lê
- * os do painel). Sem dependência de pacote: os tipos do Vite ficam de fora para este arquivo poder morar fora dos
- * projetos.
+ * Publicação aberta do mapa: somente resumos por município, pontos agregados e mapa base.
+ * Fichas, CAR, CSV por imóvel e geometrias das fazendas ficam na API autenticada de prospecção.
+ * A mesma regra vale no servidor de desenvolvimento e no build estático.
  */
 
 import fs from "node:fs"
 import path from "node:path"
 import zlib from "node:zlib"
 import { buscar } from "./dados/busca"
-import { montarFicha } from "./dados/ficha"
+import { escreverCsv, lerCsv } from "./dados/csv"
+import { lerFunil } from "./dados/funil"
 import { UFS } from "./formato"
 import { abrirPasta, nomeSeguro, pastaPadrao } from "./pasta-dados"
+import { paginasAgentes } from "./paginas-agentes"
 
 interface Requisicao {
   url?: string
@@ -65,19 +46,90 @@ export function dadosRaiz(opcoes: { repo: string; raizDados?: string | null; cac
     cache: opcoes.cache,
     geo,
   })
+  const resumoPermitido = (nome: string) => /^resumo_[A-Z]{2}\.csv$/.test(nome)
+  const arquivosPublicos = (uf: string) => pasta.arquivos(uf).filter(resumoPermitido)
+  const estadosPublicos = () => {
+    const estados = pasta.estados()
+    return { ...estados, acesso: "agregado" as const, estados: estados.estados.map((e) => ({ ...e, com_lista: [] })) }
+  }
+  const colunasResumo = new Set([
+    "cod_ibge", "municipio", "imoveis", "sem_problema", "def_RL", "aptas_carbono", "ha_carbono",
+    "tco2_ano_aptas", "aptas_com_matricula", "ha_carbono_matricula", "cota_reserva", "redd_imoveis", "redd_ha",
+    "app_imoveis", "app_ha", "frigorifico_imoveis", "frigorifico_ha", "compensacao_ha", "eudr_ok",
+    "credito_rural_ok", "compra_arrendamento", "alerta_pos2020_imoveis", "frente_regularizar_antes", "frente_carbono",
+    "frente_silvipastoril", "frente_desbloqueio", "frente_carbono_revisar_desm10anos", "frente_assentamento_agrupado",
+    "frente_carbono_so_plantio", "frente_fora_TI", "frente_ja_tem_projeto",
+  ])
+  function resumoPublico(nome: string): string | null {
+    if (!resumoPermitido(nome)) return null
+    const t = pasta.csvLimpo(nome)
+    if (t === null) return null
+    const { colunas, linhas } = lerCsv(t)
+    const permitidas = colunas.filter((c) => colunasResumo.has(c))
+    return escreverCsv([...permitidas, "dados_suprimidos"], linhas.map((linha) => {
+      const n = Number(linha.imoveis)
+      const suprimir = !Number.isFinite(n) || n < 5
+      return Object.fromEntries([
+        ...permitidas.map((c) => [c, suprimir && c !== "cod_ibge" && c !== "municipio" ? "" : linha[c]]),
+        ["dados_suprimidos", String(suprimir)],
+      ])
+    }))
+  }
+  const geoPermitido = (nome: string) => /^(brasil_(municipios|estados)\.geojson|municipio_\d{7}\.geojson(?:\.gz)?|base_(brasil|[A-Z]{2}|\d{7})\.pmtiles)$/.test(nome)
+  function indiceGeoPublico() {
+    const municipios: Record<string, Record<string, { arquivo: string; bytes: number }>> = {}
+    const brasil: Record<string, { arquivo: string; bytes: number }> = {}
+    const indice = path.join(geo, "indice.json")
+    // Preserva bases compartilhadas por UF e os caminhos gzip do manifesto do mapa, retirando camadas privadas.
+    if (fs.existsSync(indice)) {
+      const origem = JSON.parse(fs.readFileSync(indice, "utf8"))
+      const item = (valor: { arquivo?: unknown } | undefined) => {
+        const arquivo = valor?.arquivo
+        return typeof arquivo === "string" && nomeSeguro(arquivo) && geoPermitido(arquivo) && fs.existsSync(path.join(geo, arquivo))
+          ? { arquivo, bytes: fs.statSync(path.join(geo, arquivo)).size } : null
+      }
+      for (const chave of ["municipios", "estados", "base"]) {
+        const dado = item(origem.brasil?.[chave])
+        if (dado) brasil[chave] = dado
+      }
+      for (const [cod, camadas] of Object.entries(origem.municipios ?? {})) {
+        if (!/^\d{7}$/.test(cod)) continue
+        for (const chave of ["municipio", "base"]) {
+          const dado = item((camadas as Record<string, { arquivo?: unknown }>)[chave])
+          if (dado) (municipios[cod] ??= {})[chave] = dado
+        }
+      }
+      return { brasil, municipios }
+    }
+    // Compatibilidade com pastas antigas, antes do manifesto: só limites e bases com nome conhecido.
+    for (const arquivo of listar(geo).filter(geoPermitido)) {
+      const item = { arquivo, bytes: fs.statSync(path.join(geo, arquivo)).size }
+      const m = /^(municipio|base)_(\d{7})\./.exec(arquivo)
+      if (m) (municipios[m[2]] ??= {})[m[1]] = item
+      else if (arquivo.startsWith("brasil_") || arquivo === "base_brasil.pmtiles")
+        brasil[arquivo === "base_brasil.pmtiles" ? "base" : arquivo.includes("municipios") ? "municipios" : "estados"] = item
+    }
+    return { brasil, municipios }
+  }
+  function arquivosGeo() {
+    const indice = indiceGeoPublico()
+    return [...new Set([...Object.values(indice.brasil), ...Object.values(indice.municipios).flatMap(Object.values)].map((item) => item.arquivo))]
+  }
   let saida = "dist"
+  let base = "/"
+  let produtor = false
   // o Vite chama closeBundle também ao fechar o servidor (e o Vitest fecha um no fim): só grava no vite build
   let construindo = false
 
   /** CSV limpo e comprimido, guardado enquanto o arquivo não muda (os mais recentes) */
   const gz = new Map<string, { mtime: number; dado: Buffer }>()
   function csvComprimido(nome: string): Buffer | null {
-    const arq = pasta.caminho(nome)
+    const arq = resumoPermitido(nome) ? pasta.caminho(nome) : null
     if (!arq) return null
     const mtime = fs.statSync(arq).mtimeMs
     const ja = gz.get(nome)
     if (ja && ja.mtime === mtime) return ja.dado
-    const dado = zlib.gzipSync(pasta.csvLimpo(nome) ?? "", { level: 6 })
+    const dado = zlib.gzipSync(resumoPublico(nome) ?? "", { level: 6 })
     gz.set(nome, { mtime, dado })
     while (gz.size > 40) gz.delete(gz.keys().next().value!)
     return dado
@@ -154,9 +206,14 @@ export function dadosRaiz(opcoes: { repo: string; raizDados?: string | null; cac
 
   return {
     name: "raiz-dados",
-    configResolved(config: { root: string; command: string; build: { outDir: string } }) {
+    configResolved(config: { root: string; command: string; base?: string; build: { outDir: string }; env?: Record<string, unknown> }) {
+      if (config.command === "build" && ["VITE_RAIZ_TOKEN", "VITE_RAIZ_API_TOKEN"].some((chave) => config.env?.[chave] || process.env[chave])) {
+        throw new Error("VITE_RAIZ_TOKEN e VITE_RAIZ_API_TOKEN não podem entrar no site. Use a sessão de cliente na API de prospecção.")
+      }
       saida = path.resolve(config.root, config.build.outDir)
       construindo = config.command === "build"
+      produtor = path.basename(config.root) === "produtor"
+      base = produtor ? (process.env.RAIZ_BASE || "/Raiz/") : (config.base || "/")
     },
     configureServer(server: Servidor) {
       const ufs = pasta.ufs()
@@ -181,26 +238,23 @@ export function dadosRaiz(opcoes: { repo: string; raizDados?: string | null; cac
           res.statusCode = 500
           res.end(JSON.stringify({ erro: e.message }))
         }
+        // O Vite também pode servir arquivos por /@fs: os dados de origem nunca passam por esse caminho.
+        const arquivoDireto = url.startsWith("/@fs/") ? path.resolve(url.slice(4)) : path.resolve(opcoes.repo, `.${url}`)
+        const emPasta = (dir: string) => arquivoDireto === dir || arquivoDireto.startsWith(dir + path.sep)
+        if (emPasta(pasta.dir) || emPasta(path.join(opcoes.repo, "dados")) || emPasta(path.join(opcoes.repo, "motor", "saida"))) return naoAchou(res)
+        if (emPasta(geo)) return naoAchou(res)
         if (url === "/busca") {
           const q = new URLSearchParams((req.url ?? "").split("?")[1] ?? "").get("q") ?? ""
-          pasta.baseBusca(q).then((base) => json(req, res, buscar(q, base)), falhou)
-          return
+          const resultado = buscar(q, { municipios: pasta.municipios(), imoveis: [], comImoveis: new Set() })
+          return json(req, res, { ...resultado, municipios: resultado.municipios.map((m) => ({ ...m, imoveis: m.imoveis === null || m.imoveis < 5 ? null : m.imoveis })) })
         }
-        if (url === "/amostra/estados.json") return json(req, res, pasta.estados())
-        if ((m = /^\/amostra\/indice_([A-Z]{2})\.json$/.exec(url))) return json(req, res, { uf: m[1], arquivos: pasta.arquivos(m[1]) })
+        if (url === "/amostra/estados.json") return json(req, res, estadosPublicos())
+        if ((m = /^\/amostra\/indice_([A-Z]{2})\.json$/.exec(url))) return json(req, res, { uf: m[1], arquivos: arquivosPublicos(m[1]) })
         if ((m = /^\/amostra\/pontos_([A-Z]{2})\.json$/.exec(url))) {
-          pasta.pontosTexto(m[1]).then((t) => (t ? json(req, res, t) : naoAchou(res)), falhou)
+          pasta.pontosPublicos(m[1]).then((t) => (t ? json(req, res, t) : naoAchou(res)), falhou)
           return
         }
-        if ((m = /^\/amostra\/car_([A-Z]{2})\.json$/.exec(url))) {
-          pasta.foraDoMunicipio(m[1]).then((t) => json(req, res, t), falhou)
-          return
-        }
-        if (url === "/amostra/fichas/indice.json") return json(req, res, { municipios: [], codigos: [] })
-        if ((m = /^\/amostra\/fichas\/([\w-]+)\.json$/.exec(url))) {
-          pasta.ficha(m[1]).then((f) => (f ? json(req, res, f) : naoAchou(res)), falhou)
-          return
-        }
+        if (/^\/amostra\/(car_|fichas\/)/.test(url)) return naoAchou(res)
         if ((m = /^\/amostra\/([^/]+\.csv)\.gz$/.exec(url))) {
           const dado = csvComprimido(m[1])
           if (!dado) return naoAchou(res)
@@ -210,80 +264,56 @@ export function dadosRaiz(opcoes: { repo: string; raizDados?: string | null; cac
           return res.end(dado)
         }
         if ((m = /^\/amostra\/([^/]+\.csv)$/.exec(url))) {
-          const t = pasta.csvLimpo(m[1])
+          const t = resumoPublico(m[1])
           return t !== null ? texto(req, res, t, TIPOS[".csv"]) : naoAchou(res)
         }
         if ((m = /^\/geo\/fontes\/([\w ]+)\/(\d+-\d+)\.pbf$/.exec(url))) {
           const arq = path.join(geo, "fontes", m[1], `${m[2]}.pbf`)
           return fs.existsSync(arq) ? enviarArquivo(req, res, arq) : naoAchou(res)
         }
+        if (url === "/geo/indice.json") return json(req, res, indiceGeoPublico())
         if ((m = /^\/geo\/([^/]+)$/.exec(url))) {
           const arq = path.join(geo, m[1])
-          return nomeSeguro(m[1]) && fs.existsSync(arq) ? enviarArquivo(req, res, arq) : naoAchou(res)
+          return nomeSeguro(m[1]) && arquivosGeo().includes(m[1]) && fs.existsSync(arq) ? enviarArquivo(req, res, arq) : naoAchou(res)
         }
         next()
       })
     },
     async closeBundle() {
-      if (!construindo || !fs.existsSync(saida) || process.env.RAIZ_BUILD_DADOS === "0") return
+      if (!construindo || !fs.existsSync(saida)) return
+      const comDados = !produtor && process.env.RAIZ_BUILD_DADOS !== "0"
+      // Markdown e JSON-LD recebem exatamente o mesmo recorte público, com as mesmas supressões dos CSV.
+      const municipios = comDados ? pasta.ufs().flatMap((uf) =>
+        arquivosPublicos(uf).flatMap((nome) => lerCsv(resumoPublico(nome) ?? "").linhas.map((linha) => lerFunil(linha, uf)))) : []
+      paginasAgentes({
+        saida, base, produtor, siteUrl: process.env.RAIZ_SITE_URL,
+        ...(comDados ? { catalogo: { estados: estadosPublicos(), municipios, arquivos: Object.fromEntries(pasta.ufs().map((uf) => [uf, arquivosPublicos(uf)])) } } : {}),
+      })
+      if (!comDados) return
       const dAmostra = path.join(saida, "amostra")
-      const dFichas = path.join(dAmostra, "fichas")
-      fs.mkdirSync(dFichas, { recursive: true })
+      const dGeo = path.join(saida, "geo")
+      // Remove a publicação anterior para nenhum arquivo individual sobreviver a um rebuild.
+      fs.rmSync(dAmostra, { recursive: true, force: true })
+      fs.rmSync(dGeo, { recursive: true, force: true })
+      fs.mkdirSync(dAmostra, { recursive: true })
+      fs.mkdirSync(dGeo, { recursive: true })
       let csvs = 0
-      let n = 0
-      const fichasMunicipios: string[] = []
-      const fichasCodigos: string[] = []
-      const limiteFichas = Number(process.env.RAIZ_FICHAS_LIMITE ?? 10000)
-      if (!Number.isSafeInteger(limiteFichas) || limiteFichas < 0) throw new Error("RAIZ_FICHAS_LIMITE inválido")
       for (const uf of pasta.ufs()) {
-        const arquivos = pasta.arquivos(uf)
+        const arquivos = arquivosPublicos(uf)
         for (const f of arquivos) {
-          fs.writeFileSync(path.join(dAmostra, `${f}.gz`), zlib.gzipSync(pasta.csvLimpo(f) ?? "", { level: 9 }))
+          fs.writeFileSync(path.join(dAmostra, `${f}.gz`), zlib.gzipSync(resumoPublico(f) ?? "", { level: 9 }))
           csvs++
         }
         fs.writeFileSync(path.join(dAmostra, `indice_${uf}.json`), JSON.stringify({ uf, arquivos }))
-        fs.writeFileSync(path.join(dAmostra, `pontos_${uf}.json`), (await pasta.pontosTexto(uf)) ?? "")
-        fs.writeFileSync(path.join(dAmostra, `car_${uf}.json`), JSON.stringify(await pasta.foraDoMunicipio(uf)))
-        // ficha pronta só onde há o contorno das fazendas (as outras o navegador monta dos CSV do município)
-        for (const cod of pasta.comImoveis(uf)) {
-          if (n >= limiteFichas) break
-          if (![".geojson", ".geojson.gz"].some((ext) => fs.existsSync(path.join(geo, `imoveis_${cod}${ext}`)))) continue
-          if (n + pasta.quantidadeImoveis(cod) > limiteFichas) continue
-          const m = pasta.municipio(cod)
-          if (!m) continue
-          fichasMunicipios.push(cod)
-          for (const i of m.imoveis) {
-            fs.writeFileSync(
-              path.join(dFichas, `${i.cod_imovel}.json`),
-              JSON.stringify(montarFicha(i, m.imoveis, m.geo.get(i.cod_imovel), m.base)),
-            )
-            fichasCodigos.push(i.cod_imovel)
-            n++
-          }
-        }
+        fs.writeFileSync(path.join(dAmostra, `pontos_${uf}.json`), JSON.stringify(await pasta.pontosPublicos(uf)))
       }
-      fs.writeFileSync(path.join(dFichas, "indice.json"), JSON.stringify({ municipios: fichasMunicipios, codigos: fichasCodigos }))
-      fs.writeFileSync(path.join(dAmostra, "estados.json"), JSON.stringify(pasta.estados()))
-      const dGeo = path.join(saida, "geo")
-      fs.mkdirSync(dGeo, { recursive: true })
-      // Só os arquivos publicados no índice; cache, fontes temporárias e bases antigas não vão ao Pages.
-      const indiceGeo = path.join(geo, "indice.json")
-      const publicados = new Set<string>(["indice.json"])
-      function coletarArquivos(valor: unknown): void {
-        if (!valor || typeof valor !== "object") return
-        for (const [chave, item] of Object.entries(valor)) {
-          if (chave === "arquivo" && typeof item === "string" && nomeSeguro(item)) publicados.add(item)
-          else coletarArquivos(item)
-        }
-      }
-      if (fs.existsSync(indiceGeo)) {
-        coletarArquivos(JSON.parse(fs.readFileSync(indiceGeo, "utf8")))
-        for (const f of publicados) fs.copyFileSync(path.join(geo, f), path.join(dGeo, f))
-      }
+      fs.writeFileSync(path.join(dAmostra, "estados.json"), JSON.stringify(estadosPublicos()))
+      fs.writeFileSync(path.join(dGeo, "indice.json"), JSON.stringify(indiceGeoPublico()))
+      for (const f of arquivosGeo()) fs.copyFileSync(path.join(geo, f), path.join(dGeo, f))
       if (fs.existsSync(path.join(geo, "fontes")))
         fs.cpSync(path.join(geo, "fontes"), path.join(dGeo, "fontes"), { recursive: true })
-      const de = path.relative(opcoes.repo, pasta.dir) || pasta.dir
-      console.log(`raiz-dados: ${csvs} CSV de ${de}, ${n} fichas e ${listar(geo).length} arquivos de geometria em ${saida}`)
+      console.log(`raiz-dados: ${csvs} resumos municipais e mapa agregado em ${saida}; fichas completas somente na API`)
+
     },
   }
 }

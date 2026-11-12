@@ -2,6 +2,28 @@
 
 Três telas, lendo as saídas do motor pelo nome das colunas (`docs/colunas.md`) e tolerando colunas novas.
 
+## Ficha da terra e prospecção
+
+`#/prospeccao` abre a busca nacional; `#/fazenda/<CAR>` abre a ficha de prospecção. O mapa continua nos mesmos
+componentes e recebe apenas agregados. A ficha mostra caminho da terra, pendências, sobreposições, embargos,
+histórico de uso e perdas, restauração, crédito líquido P10/P50/P90, TIR e risco. Cada medida mostra fonte e data;
+ausência de dado não vira zero. Nunca há nome, documento ou contato do proprietário.
+
+Com `VITE_RAIZ_API`, a prospecção usa `/prospeccao/*` e o token da sessão de cliente dos pedidos. O mapa continua
+lendo os agregados estáticos; nunca recebe o token operacional da API. O build recusa `VITE_RAIZ_API_TOKEN` e
+`VITE_RAIZ_TOKEN`. Sem API, somente o agregado está disponível: compras, débito e pedidos de contato não são
+simulados no navegador.
+
+O agregado aberto aceita recortes territoriais e protege grupos com menos de cinco fazendas. Entrar libera a lista
+e os filtros de tamanho e crédito; abrir a ficha completa exige um crédito pago. O débito é feito no servidor,
+somente ao apertar "Desbloquear por 1 crédito". Reabrir a mesma ficha não cobra novamente. "Pedir contato" registra
+um pedido na Raíz para tratamento posterior, sem enviar mensagem ao proprietário. Planos aparecem com os valores
+configurados no servidor; nenhuma tarifa é inventada pelo front. Compras pendentes são recuperadas do histórico.
+
+Teste de navegador: `cd front/globo && npm run test:prospeccao`. Usa Chromium/Playwright com uma API de teste
+controlada e confere bloqueio, débito, contato, recompra, recuperação do Pix, troca de sessão e largura de 360 px.
+`RAIZ_PRINTS` escolhe a pasta dos prints (padrão `/tmp/raiz-ficha-prospeccao`).
+
 | Pasta | O que é | Tecnologia |
 |---|---|---|
 | `globo/` | Painel do analista: tela de entrada (mapa do Brasil com a busca no topo), painel do município (funil em barras ligado ao mapa, tabela de fazendas) e ficha da fazenda. A pasta guarda o nome antigo; não tem mais globo | Vite + React 19 + TypeScript, MapLibre GL JS + PMTiles |
@@ -15,7 +37,8 @@ Três telas, lendo as saídas do motor pelo nome das colunas (`docs/colunas.md`)
 
 ```bash
 pip install requests shapely pmtiles
-python front/scripts/geo.py 1507300 1504950
+node front/scripts/baixar-dados.mjs --geo --exigir
+python front/scripts/geo.py --dados dados/estados
 ```
 
 ```bash
@@ -36,9 +59,9 @@ O painel abre em `http://localhost:5173/` e a ficha do produtor em `http://local
 - **Município** (`#/municipio/<código IBGE>`): o mapa voa até ele (sem passar por zoom de mundo), pinta as fazendas
   pela situação e abre o painel com o funil em barras: tocar numa barra deixa só aquelas fazendas coloridas; tocar no
   contorno mostra quem saiu, pela cor do motivo. No celular o painel é uma gaveta que sobe de baixo.
-- **Fazenda** (`#/fazenda/<código do CAR>`): a ficha. A busca fica no topo de todas as telas (atalho: tecla `/`):
-  código do CAR vai direto para a ficha, com o mapa saindo do município e pousando na fazenda; nome de município vai
-  para o mapa dele, inclusive de estado ainda não processado (o painel avisa).
+- **Fazenda** (`#/fazenda/<código do CAR>`): a ficha de terra, com acesso pago no servidor e link para o município
+  no mapa. "Fazendas" no menu abre a busca nacional e a entrada direta por CAR. A busca do topo mantém a navegação
+  por município, inclusive em estado ainda não processado.
 
 - **Pedidos** (`#/pedidos`, área logada): entrar sem senha (e-mail com link, `#/entrar`), "Meus pedidos" com o status
   de cada um, "Novo pedido" (`#/pedidos/novo`) com os campos da cena-alvo já preenchidos, o pedido (`#/pedidos/<id>`)
@@ -76,31 +99,44 @@ Tudo passa por `compartilhado/dados/` (`FonteDeDados`). As telas não sabem de o
   refeitos só quando um CSV ou contorno daquele estado muda. Arquivo novo do motor aparece sozinho na tela; coluna nova
   aparece em "Outros dados do motor" na ficha. As geometrias continuam em `front/geo/` (gerado pelo script, fora do git).
 
-  O `vite build` grava os dados em `dist/` do jeito que cabe num site estático: os CSV limpos e comprimidos
-  (`.csv.gz`, que o navegador descomprime), os estados, os pontos e os códigos fora do município de cada estado, e as
-  fichas prontas só dos municípios com contorno (as outras o navegador monta dos CSV do município, com a mesma função
-  do plugin e do back-end). Com os 6 estados publicados hoje, o site tem 303 MB e 12.620 arquivos. `RAIZ_BUILD_DADOS=0`
-  não grava dado nenhum; `RAIZ_BASE` muda o caminho do site; `VITE_RAIZ_DADOS_BASE` faz um app ler os dados de outra
-  pasta (a ficha do produtor no site lê os do painel).
+  O `vite build` publica somente resumos municipais por uma lista de colunas permitidas, estados e pontos
+  agregados, limites municipais/estaduais e mapa base. Não publica fichas, códigos do CAR, CSV individuais nem
+  geometrias de imóveis. O plugin remove sobras de builds anteriores; o servidor de desenvolvimento aplica a mesma
+  restrição, inclusive ao acesso direto aos arquivos. Grupos com menos de cinco imóveis têm números suprimidos.
+  `RAIZ_BUILD_DADOS=0` não grava dados, mas mantém páginas explicativas em Markdown; `RAIZ_BASE` muda o caminho do site; `VITE_RAIZ_DADOS_BASE` escolhe a pasta dos
+  agregados. A ficha antiga do produtor não é reconstruída a partir de dados públicos.
 
 ## Site público (GitHub Pages)
 
 `.github/workflows/publicar-site.yml` publica o painel em https://bernardoemmel.github.io/Raiz/ e a ficha do produtor
 em https://bernardoemmel.github.io/Raiz/produtor/?car=<código do CAR>. Roda a cada mudança do front na main, todo dia
-(dados novos do motor) e quando alguém dispara. O build baixa o Release "dados" com `baixar-dados.mjs`, gera o que falta
-do mapa com `geo.py` (guardado em cache entre as rodadas; se um servidor público estiver fora, segue com o resto) e
-publica o resultado. Uma vez só, no repositório: Settings, Pages, Source "GitHub Actions" (o token do Actions não liga
+(dados novos do motor) e quando alguém dispara. O build baixa o Release "dados" com `baixar-dados.mjs --geo --exigir`, exporta os polígonos de todos os
+municípios com `geo.py --dados dados/estados` e gera fundos PMTiles compartilhados por estado. A base nacional
+continua por overzoom; o município cujo desenho não consta no Release recebe aviso. Falha de download ou de
+cobertura da base interrompe a publicação, preservando o site anterior. Uma vez só, no repositório: Settings, Pages, Source "GitHub Actions" (o token do Actions não liga
 o Pages sozinho).
 
 O build do site é um script só, `front/scripts/construir-site.sh` (npm ci, build do painel e da ficha, pasta `site/`).
-O CI de todo PR roda o mesmo script, sem os dados e sem publicar, e o actionlint em `.github/workflows`: lock fora de
-sincronia, front que não compila ou workflow que não abre deixam o PR vermelho antes do merge.
+O CI de todo PR usa dados fictícios isolados em `RAIZ_DADOS`/`RAIZ_GEO`, executa o mesmo build e testa o artefato
+como Pages pelo Playwright (subcaminho `/Raiz/`, busca por Parauapebas, mapa agregado, zoom, Range e zero 404).
+Actionlint, lock fora de sincronia e erros de compilação também deixam o PR vermelho.
 
-O que funciona sem back-end: o mapa do Brasil por estado, os estados, os municípios, o funil, a tabela, a ficha da
-fazenda e a do produtor, a busca por CAR e por município, e o pedido de lote com a resposta de exemplo (os pedidos
-ficam no navegador de quem usa). O que precisa do back-end rodando (`raiz/`, FastAPI com PostgreSQL e PostGIS): entrar
-com link de verdade por e-mail, pedidos e reservas guardados no servidor, o otimizador do lote, os contatos com os
-donos, o Pix e o painel do fundador.
+O site oferece `llms.txt`, `robots.txt` e `index.md` ao lado dos dois HTMLs, com links alternativos. O catálogo em
+`dados/index.md` leva aos Markdown de estados/municípios; números suprimidos no agregado continuam suprimidos no
+Markdown e no JSON-LD, sem links para CSV ou geometrias individuais. `servico.md`, `fontes.md` e `privacidade.md` explicam o
+produto. JSON-LD no HTML lista Dataset somente dos estados publicados, Service e Offer com valores sob proposta.
+`RAIZ_SITE_URL` define a URL canônica em outro domínio. A API aceita `Accept: text/markdown` nas leituras textuais,
+sem alterar autenticação; a ficha pública também oferece `/p/{codigo}.md` com a mesma regra de aceite.
+
+`npm run test:agentes` confere arquivos e links sob `/Raiz/` e roda Lighthouse 13.6.0 (`agentic-browsing`, experimental).
+O portão exige `llms.txt`, árvore de acessibilidade e CLS até 0,1. WebMCP e ARD são apenas relatados. O gatherer busca
+`/llms.txt` na raiz da origem, por isso a auditoria usa outra origem local com o artefato na raiz. No Pages de projeto,
+`/Raiz/robots.txt` não governa a origem: o site da conta precisa publicar também `/robots.txt`, ou usar domínio próprio.
+O relatório local não comprova esses arquivos na raiz pública.
+
+O que funciona sem back-end: mapa, estados, municípios e resumos agregados. Ficha completa, busca por fazenda,
+créditos, Pix e pedidos de contato precisam do back-end (`raiz/`, FastAPI com PostgreSQL e PostGIS). Os componentes
+antigos de exemplos de pedidos continuam no código, mas não recebem listas individuais no site público.
 - **Depois (API):** defina `VITE_RAIZ_API` no `.env` do front (nunca no git). Rotas que a fonte da API espera, com
   as mesmas colunas dos CSV:
 
