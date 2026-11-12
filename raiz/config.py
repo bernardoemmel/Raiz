@@ -32,6 +32,8 @@ class Config(BaseSettings):
     # cache em disco dos blocos de rasters na nuvem (YbYrá, GPW...): a próxima rodada lê do disco
     raster_cache_dir: str | None = None
     raster_cache_gb: float = 20.0
+    # arquivos do front/scripts/geo.py (GeoJSON das camadas e base_<mun>.pmtiles), servidos pela API; padrão front/geo
+    geo_dir: str | None = None
 
     # Modelos de linguagem (E7). A chave da Anthropic também é aceita com o nome padrão ANTHROPIC_API_KEY.
     anthropic_api_key: SecretStr | None = Field(
@@ -61,6 +63,8 @@ class Config(BaseSettings):
     whatsapp_app_secret: SecretStr | None = None
     # token do backoffice para a API (sem ele, só /saude e o webhook respondem)
     api_token: SecretStr | None = None
+    # origens do front que podem chamar a API pelo navegador (CORS), separadas por vírgula; vazio = nenhuma
+    api_origens: str = ""
 
 
 @lru_cache

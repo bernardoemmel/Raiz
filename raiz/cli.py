@@ -449,3 +449,28 @@ def api(porta: int = 8000, host: str = "127.0.0.1") -> None:
 
 if __name__ == "__main__":
     app()
+
+
+geo_cli = typer.Typer(help="Camadas geográficas do front no PostGIS (rotas /geo da API).", no_args_is_help=True)
+app.add_typer(geo_cli, name="geo")
+
+
+@geo_cli.command("carregar")
+def geo_carregar(
+    municipios: Annotated[list[int], typer.Argument(help="códigos IBGE")],
+    pasta: Annotated[
+        str | None, typer.Option(help="saída do front/scripts/geo.py; padrão RAIZ_GEO_DIR ou front/geo")
+    ] = None,
+) -> None:
+    """Grava no PostGIS a divisa, as TIs, as UCs e os rios que front/scripts/geo.py gerou para cada município."""
+    from pathlib import Path
+
+    from raiz.banco import engine
+    from raiz.geo import arquivo_base, carregar
+
+    p = Path(pasta) if pasta else None
+    with engine().begin() as con:
+        for cod in municipios:
+            n = carregar(con, cod, p)
+            base = "com mapa base" if arquivo_base(cod, p) else "sem mapa base"
+            typer.echo(f"{cod}: {n or 'nenhum arquivo'} ({base})")

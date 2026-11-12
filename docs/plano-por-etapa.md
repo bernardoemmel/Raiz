@@ -218,3 +218,7 @@ Observação do motor atual (12/11): o funil já roda o Brasil por município (m
 | 8 | Pacote offline mensal por município para técnicos: pmtiles extract e remendo com zstd --patch-from | PMTiles do Brasil e PWA com Workbox | 4 a 8 |
 | 9 | Opcional: treinar uma voz Piper do zero só com dados CC0 (sem a voz lessac) para rodar em CPU e no celular | passo 5 | 6 a 10 de trabalho, mais o tempo de GPU |
 | 11 | Página de aceite do dono com componentes do gov.br DS, grade de ícones (PyWaffle) e motivos específicos de 'não apto' | Preact | 6 a 10 |
+| 1 | (API do front) Rotas que o front espera (front/README.md, "Depois (API)"): /municipios, /municipios/{cod_ibge}/imoveis, /imoveis/{cod_imovel}, /ficha, /certidoes, /geo/{cod_ibge}/{municipio,imoveis,ti,uc,rios}.geojson e base.pmtiles com Range, servidas do PostGIS com os nomes de coluna dos CSV, CPF/CNPJ mascarados e Bearer; camadas do mapa carregadas por `raiz geo carregar` | carga do motor (fundação) | feito |
+| 2 | (API do front) Cache por rodada (ETag pelo hash da rodada) e lista de imóveis em pedaços ou em formato colunar para município grande (São Félix: 2,8 MB comprimidos, 3,4 s) | passo anterior | 2 a 4 |
+| 2 | (API do front) Divisa, TI, UC e rios vindos da coleta (E1) direto no PostGIS, no lugar dos arquivos do front/scripts/geo.py; um mapa base PMTiles do Brasil servido com Range | E1 | 3 a 5 |
+| 6 | (API do front) Fichas em JSON do lote anual (passo 1) servidas como arquivo estático; a API fica para o painel interno e para o que muda no dia | passo 1 | 1 a 2 |

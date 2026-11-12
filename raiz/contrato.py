@@ -319,6 +319,16 @@ def indicador_mb(coluna: str) -> tuple[str, int | None] | None:
     return coluna[3:], None
 
 
+def coluna_mb(indicador: str, ano: int | None) -> str:
+    """Volta do formato longo ao nome do CSV: ('floresta_ha', 2025) -> mb_floresta_2025_ha;
+    ('classe_principal', 2025) -> mb_classe_principal_2025; ('pasto_idade_anos_media', None) -> o mesmo com mb_."""
+    if ano is None:
+        return f"mb_{indicador}"
+    if indicador.endswith("_ha"):
+        return f"mb_{indicador[:-3]}_{ano}_ha"
+    return f"mb_{indicador}_{ano}"
+
+
 @dataclass
 class LeituraMapBiomas:
     arquivo: str

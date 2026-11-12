@@ -3,6 +3,7 @@
 
 - /saude e /whatsapp (webhook, assinatura conferida pelo PyWa) não pedem token.
 - O resto pede `Authorization: Bearer <RAIZ_API_TOKEN>`; sem token configurado, essas rotas ficam fechadas.
+- Rotas do front (raiz/front_api.py): /municipios, /imoveis/..., /geo/... com os nomes de coluna dos CSV do motor.
 Rodar: uv run raiz api
 """
 
@@ -206,4 +207,35 @@ def criar_app(
             raise HTTPException(409, str(ex)) from ex
         return {"resolvida": revisao_id}
 
+    # rotas do front (front/README.md, "Depois (API)"): dados do PostGIS com CPF/CNPJ mascarados
+    from raiz import front_api
+
+    def _engine_do_app(request) -> Engine:
+        if request.app.state.engine is None:
+            from raiz.banco import engine as engine_padrao
+
+            request.app.state.engine = engine_padrao()
+        return request.app.state.engine
+
+    app.include_router(front_api.roteador(_engine_do_app), dependencies=seguro)
+    # JSON grande (São Félix: 26 MB) vai comprimido; o Starlette já não comprime resposta parcial (206), e o PMTiles
+    # fica de fora (os ladrilhos já vêm comprimidos e o leitor pede por Range)
+    from starlette.middleware.gzip import DEFAULT_EXCLUDED_CONTENT_TYPES, GZipMiddleware
+
+    app.add_middleware(
+        GZipMiddleware,
+        minimum_size=2048,
+        exclude_content_types=(*DEFAULT_EXCLUDED_CONTENT_TYPES, "application/vnd.pmtiles"),
+    )
+    origens = [o.strip() for o in getattr(config(), "api_origens", "").split(",") if o.strip()]
+    if origens:  # o front roda em outra origem: o navegador precisa de CORS, com Range e o token liberados
+        from starlette.middleware.cors import CORSMiddleware
+
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=origens,
+            allow_methods=["GET", "POST"],
+            allow_headers=["Authorization", "Range", "Content-Type"],
+            expose_headers=["Content-Range", "Accept-Ranges", "Content-Length", "ETag"],
+        )
     return app
