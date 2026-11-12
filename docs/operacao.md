@@ -277,6 +277,7 @@ reservas). Responde quantos municípios entraram e, se não fecha 1 milhão com 
 - Certidões: matrícula com certidão conferida (etapa `titulo_conferido`) separada da matrícula a conferir, e quantas
   certidões pedir (das maiores áreas por certidão primeiro; cartório e matrícula do `certidoes_<mun>.csv`) para ter 5%
   da área homologada na assinatura (`lote.area_homologada_assinatura`).
+- Faixa do lote (E3): créditos até o ano 25 em soma (todas as fazendas errando juntas, a que dimensiona a reserva) e em carteira (um fator comum de Vasicek com 60% da variância, `carteira.fracao_comum`), com os campos da Portaria MME 102/2016 (P50, P90 de excedência, incerteza padrão; revisor independente pendente); a mesma premissa vale no pedido e nos documentos. Parcelas de campo por método (AR-TOOL03: 90% de confiança, 10% de erro, mínimo de 30). Tornado da TIR do lote: captura, custo, preço e câmbio no P10 e no P90.
 - Checklist do edital: os 62 itens de raiz/regras/padroes/edital_profloresta.yaml, com a checagem automática quando os
   dados da Raíz dão conta e "a conferir" no resto.
 - Folha do dono: tudo passa pela Raíz (contato, dúvidas e assinatura); quanto recebe por ha e por ano (P10 a P90) e o
