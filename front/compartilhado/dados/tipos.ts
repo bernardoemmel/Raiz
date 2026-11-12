@@ -132,7 +132,11 @@ export interface Geo {
 /** terra_publica: glebas públicas não destinadas e UC de uso sustentável de domínio público (só pela API) */
 export type CamadaGeo = "municipio" | "imoveis" | "ti" | "uc" | "rios" | "terra_publica"
 
-/** Uma fazenda apta (ou apta com pendência) como ponto, para os agrupamentos no mapa do Brasil. */
+/**
+ * Fazendas aptas (ou aptas com pendência) como ponto, para os agrupamentos no mapa de um estado. Com o contorno da
+ * fazenda, um ponto é uma fazenda no lugar dela (n = 1); sem o contorno (município só com o funil, ou sem as
+ * geometrias geradas), um ponto soma as fazendas do município no meio dele (n = quantas).
+ */
 export interface PontoFazenda {
   lon: number
   lat: number
@@ -140,4 +144,42 @@ export interface PontoFazenda {
   /** hectares que podem voltar a ser mata */
   ha: number
   cod_ibge: string
+  /** quantas fazendas o ponto representa */
+  n: number
+}
+
+/** completo: todos os municípios do estado na lista do IBGE já processados; incompleto: parte; sem_dados: nenhum */
+export type SituacaoEstado = "completo" | "incompleto" | "sem_dados"
+
+/** Um estado em GET /estados (no plugin, /amostra/estados.json). */
+export interface EstadoDados {
+  uf: string
+  /** código IBGE do estado (os dois primeiros números do código de cada município) */
+  cod: string
+  nome: string
+  /** municípios do estado na lista do IBGE */
+  municipios_ibge: number
+  /** quantos deles o motor já processou (funil no resumo ou lista por fazenda) */
+  municipios: number
+  /** códigos dos municípios com lista por fazenda (imoveis_<cod>.csv) */
+  com_lista: string[]
+  situacao: SituacaoEstado
+  completo: boolean
+  /** códigos processados que não estão na lista do IBGE (aviso; não contam em municipios) */
+  fora_da_lista: string[]
+  /** do estados.json publicado com os dados, quando há: municípios por tabela, versão e quando o estado mudou */
+  tabelas?: Record<string, number>
+  versao?: string
+  atualizado_em?: string
+}
+
+export interface Estados {
+  /** "amostra" (dados/amostra), "publicada" (com o estados.json do Release dados), "RAIZ_DADOS" ou "api" */
+  pasta: string
+  /** quando os dados publicados foram montados */
+  gerado_em?: string
+  /** qual lista do IBGE serviu de régua, por exemplo "DTB 2025 (data base 31/12/2025)" */
+  lista_ibge: string
+  /** os 27 estados, em ordem de nome */
+  estados: EstadoDados[]
 }

@@ -10,18 +10,22 @@
  *   GET  {api}/busca?q=                           → RespostaBusca (dados/busca.ts: situacao, mensagem, imoveis, municipios)
  *   GET  {api}/geo/{cod_ibge}/{camada}.geojson    → municipio | imoveis | ti | uc | rios
  *   GET  {api}/geo/{cod_ibge}/base.pmtiles        → mapa base (precisa responder a Range)
- *   GET  {api}/pontos                             → [{lon, lat, situacao: apta|pendencia, ha, cod_ibge}] (fazendas aptas)
+ *   GET  {api}/estados                            → Estados (dados/tipos.ts): os 27 estados, quantos municípios o motor
+ *                                                   processou, de quantos na lista do IBGE e se está completo
+ *   GET  {api}/estados/{uf}/pontos                → {campos, pontos: [[lon, lat, situacao, ha, cod_ibge, n]]} (aptas de
+ *                                                   um estado; n > 1 é a soma do município, no meio dele)
  *   GET  {api}/geo/brasil/municipios.geojson      → todos os municípios do Brasil, simplificados (cod_ibge, nome, uf)
+ *   GET  {api}/geo/brasil/estados.geojson         → os 27 estados (uf, cod, rotulo: [lon, lat])
  *   GET  {api}/geo/brasil/base.pmtiles            → mapa base único, do país ao município (precisa responder a Range)
  * Autorização: Bearer no cabeçalho, com o token vindo de VITE_RAIZ_API_TOKEN só em ambiente interno.
  */
 
 import { comoLinha, n0, texto } from "./colunas"
-import { memo, type FonteDeDados } from "./fonte"
+import { lerPontos, memo, type FonteDeDados } from "./fonte"
 import type { RespostaBusca } from "./busca"
 import { lerFicha, type FichaJson } from "./ficha"
 import { funilDosImoveis, lerFunil, lerImovel } from "./funil"
-import type { Geo } from "./tipos"
+import type { Estados, Geo } from "./tipos"
 
 export function fonteApi(api: string, token?: string): FonteDeDados {
   const raiz = api.endsWith("/") ? api : api + "/"
@@ -82,17 +86,25 @@ export function fonteApi(api: string, token?: string): FonteDeDados {
       if (!r) throw new Error("a API não respondeu à busca")
       return r
     },
-    async pontos() {
-      return (await json<import("./tipos").PontoFazenda[]>("pontos")) ?? []
+    async estados() {
+      const e = await json<Estados>("estados")
+      if (!e) throw new Error("a API não respondeu GET /estados")
+      return e
+    },
+    async pontos(uf) {
+      return lerPontos(await json(`estados/${uf}/pontos`))
     },
     async municipiosComImoveis() {
       return (await municipios("")).filter((m) => m.linha.tem_imoveis !== "False").map((m) => m.cod_ibge)
     },
     geo: {
       async brasil() {
-        return { municipios: await json<Geo>("geo/brasil/municipios.geojson"), base: `${raiz}geo/brasil/base.pmtiles` }
+        const [municipios, estados] = await Promise.all([json<Geo>("geo/brasil/municipios.geojson"), json<Geo>("geo/brasil/estados.geojson")])
+        return { municipios, estados, base: `${raiz}geo/brasil/base.pmtiles` }
       },
       camada: (cod, camada) => json<Geo>(`geo/${cod}/${camada}.geojson`),
+      // a API ainda não lista; os municípios com lista por fazenda têm o contorno das fazendas
+      comContorno: () => municipios("").then((l) => l.filter((m) => m.linha.tem_imoveis !== "False").map((m) => m.cod_ibge)),
       async base(cod) {
         return `${raiz}geo/${cod}/base.pmtiles`
       },

@@ -12,13 +12,14 @@ import {
   situacaoDe,
   type Foco,
 } from "../../../compartilhado/funil-etapas"
-import { fmtInt, UFS } from "../../../compartilhado/formato"
+import { doEstado, fmtInt, UFS } from "../../../compartilhado/formato"
 import { ESCALA_FOGO, PERIODO_FOGO } from "../../../compartilhado/satelite"
 import { frenteDe, tituloDe } from "../filtros"
 import type { CamadaAssunto } from "../mapa/MapaBrasil"
 import { Estado } from "./Estado"
 import { FunilBarras, type Unidade } from "./FunilBarras"
 import { Download } from "./Icones"
+import { linkEstado } from "../rota"
 import { MiniBrasil } from "./MiniBrasil"
 import { Projeto } from "./Projeto"
 import { TabelaFazendas } from "./TabelaFazendas"
@@ -97,7 +98,11 @@ function Legenda({ camada, foco, imoveis }: { camada: CamadaAssunto; foco: Foco;
         ))}
         <li>
           <i className="apagada" />
-          As outras fazendas, em cinza claro
+          As outras fazendas, em branco
+        </li>
+        <li>
+          <i className="nevoa" />
+          Sem imóvel no CAR, terra indígena ou unidade de conservação (com o nome no mapa)
         </li>
       </ul>
     )
@@ -149,9 +154,13 @@ function Legenda({ camada, foco, imoveis }: { camada: CamadaAssunto; foco: Foco;
       {foco && (
         <li>
           <i className="apagada" />
-          Fora da etapa escolhida, em cinza claro
+          Fora da etapa escolhida, em branco
         </li>
       )}
+        <li>
+          <i className="nevoa" />
+          Sem imóvel no CAR, terra indígena ou unidade de conservação (com o nome no mapa)
+        </li>
     </ul>
   )
 }
@@ -183,7 +192,7 @@ export function PainelMunicipio(props: Props) {
         <li>
           <a href="#/">Brasil</a>
         </li>
-        {ufNome && <li>{ufNome}</li>}
+        {ufNome && <li>{sigla in UFS ? <a href={linkEstado(sigla)}>{ufNome}</a> : ufNome}</li>}
         <li aria-current="page">{nomeMun}</li>
       </ol>
       <div className="painel-titulo">
@@ -192,7 +201,7 @@ export function PainelMunicipio(props: Props) {
           uf={sigla}
           lon={centro?.[0]}
           lat={centro?.[1]}
-          titulo={`Fica ${ufNome ? `no estado ${ufNome === "Pará" ? "do Pará" : `de ${ufNome}`}` : "no Brasil"}`}
+          titulo={`Fica ${sigla in UFS ? `no estado ${doEstado(sigla)}` : "no Brasil"}`}
           className="mini-titulo"
         />
       </div>

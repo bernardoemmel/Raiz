@@ -5,7 +5,9 @@ import { lerCsv } from "../dados/csv"
 import { buscar } from "../dados/busca"
 import { complementosDe, juntarComplementos } from "../dados/complementos"
 import { lerFunil, lerImovel } from "../dados/funil"
-import { etapasDoFunil, etapasDoResumo, noFoco } from "../funil-etapas"
+import { fmtInt } from "../formato"
+import { etapasDoFunil, etapasDoResumo, fraseDoBrasil, noFoco, numerosDoBrasil } from "../funil-etapas"
+import { nomeProprio, pontoDentro, rotulosDeAreas } from "../rotulos-mapa"
 import { destinoDaBusca, lerRota, linkFazenda, linkMunicipio, municipiosSemDados, type MunicipioDoMapa } from "../../globo/src/rota"
 
 const FRONT = path.resolve(__dirname, "../..")
@@ -132,3 +134,95 @@ describe("funil em barras", () => {
     expect(imoveis.filter((i) => noFoco(i, null)).length).toBe(imoveis.length)
   })
 })
+
+describe("frase da tela de entrada", () => {
+  const resumo = ler("resumo_PA.csv").map((l) => lerFunil(l, "PA"))
+  const n = numerosDoBrasil(resumo)
+  const frase = fraseDoBrasil(n, ["Pará"], fmtInt)
+  const numero = (re: RegExp) => Number(frase.match(re)?.[1].replace(/\./g, ""))
+
+  it("prontas para conversar e as que só falta o título somam o número de Fazendas aptas", () => {
+    const prontas = numero(/([\d.]+) fazendas? estão prontas para conversar/)
+    const faltaTitulo = numero(/outras? ([\d.]+) passam? em tudo, mas ainda falta o título/)
+    expect(prontas).toBe(n.prontas)
+    expect(faltaTitulo).toBe(n.faltaTitulo)
+    expect(prontas + faltaTitulo).toBe(n.aptas)
+    // e bate com o resumo do motor: aptas = aptas_carbono; prontas = aptas_com_matricula
+    expect(n.aptas).toBe(resumo.reduce((s, m) => s + m.aptas_carbono, 0))
+    expect(n.prontas).toBe(resumo.reduce((s, m) => s + m.aptas_com_matricula, 0))
+    expect(frase).toContain(`${fmtInt(n.municipios)} municípios (Pará)`)
+    expect(frase).not.toMatch(/título em dia/)
+  })
+
+  it("singular, plural e nenhuma pendência", () => {
+    const base = { municipios: 1, imoveis: 10, aptas: 3, prontas: 1, faltaTitulo: 2, ha: 5 }
+    expect(fraseDoBrasil(base, ["Pará"], fmtInt)).toBe(
+      "A Raíz já leu 1 município (Pará): 10 imóveis do Cadastro Ambiental Rural (CAR). 1 fazenda está pronta para conversar e outras 2 passam em tudo, mas ainda falta o título.",
+    )
+    expect(fraseDoBrasil({ ...base, aptas: 2, faltaTitulo: 1 }, ["Pará"], fmtInt)).toContain("e outra 1 passa em tudo")
+    expect(fraseDoBrasil({ ...base, aptas: 1, faltaTitulo: 0 }, ["Pará"], fmtInt)).toMatch(/1 fazenda está pronta para conversar\.$/)
+  })
+})
+
+describe("áreas sem imóvel do CAR no mapa", () => {
+  it("escreve o nome da unidade de conservação como gente escreve", () => {
+    expect(nomeProprio("ÁREA DE PROTEÇÃO AMBIENTAL TRIUNFO DO XINGU")).toBe("Área de Proteção Ambiental Triunfo do Xingu")
+    expect(nomeProprio("FLORESTA NACIONAL DE TAPIRAPÉ-AQUIRI")).toBe("Floresta Nacional de Tapirapé-Aquiri")
+    expect(nomeProprio("Capoto/Jarina")).toBe("Capoto/Jarina")
+  })
+
+  it("o nome fica dentro da área, mesmo em forma de U", () => {
+    // um U: o centro da caixa (5, 5) cai fora
+    const u = { type: "Polygon", coordinates: [[[0, 0], [10, 0], [10, 10], [7, 10], [7, 3], [3, 3], [3, 10], [0, 10], [0, 0]]] }
+    const [x, y] = pontoDentro(u)!
+    expect(dentro([x, y], u.coordinates[0] as [number, number][])).toBe(true)
+    const r = rotulosDeAreas(
+      { type: "FeatureCollection", features: [{ type: "Feature", properties: { nome: "Kayapó" }, geometry: u }] },
+      { type: "FeatureCollection", features: [{ type: "Feature", properties: { nome: "PARQUE ESTADUAL DO XINGU" }, geometry: u }] },
+    )
+    expect(r.features.map((f) => f.properties.rotulo)).toEqual(["Terra indígena Kayapó", "Parque Estadual do Xingu"])
+  })
+
+  // as geometrias geradas por front/scripts/geo.py (fora do git): só confere quando existem
+  const GEO = path.resolve(FRONT, "geo")
+  for (const cod of ["1507300", "1504950"])
+    it.skipIf(!fs.existsSync(path.join(GEO, `municipio_${cod}.geojson`)))(`terra indígena e unidade de conservação não passam da divisa (${cod})`, () => {
+      const lerGeo = (n: string) => JSON.parse(fs.readFileSync(path.join(GEO, `${n}_${cod}.geojson`), "utf8"))
+      const divisa = aneisDe(lerGeo("municipio").features[0].geometry)
+      for (const camada of ["ti", "uc"]) {
+        if (!fs.existsSync(path.join(GEO, `${camada}_${cod}.geojson`))) continue
+        let fora = 0
+        for (const f of lerGeo(camada).features)
+          for (const anel of aneisDe(f.geometry)) for (const p of anel) if (!divisa.some((d) => dentro(p, d)) && distancia(p, divisa) > 2e-4) fora++
+        expect(fora, camada).toBe(0)
+      }
+    })
+})
+
+/** os anéis externos de um Polygon ou MultiPolygon */
+function aneisDe(g: { type: string; coordinates: unknown }): [number, number][][] {
+  if (g.type === "Polygon") return [(g.coordinates as [number, number][][])[0]]
+  if (g.type === "MultiPolygon") return (g.coordinates as [number, number][][][]).map((p) => p[0])
+  return []
+}
+function dentro([x, y]: [number, number], anel: [number, number][]): boolean {
+  let sim = false
+  for (let i = 0, j = anel.length - 1; i < anel.length; j = i++) {
+    const [xi, yi] = anel[i]
+    const [xj, yj] = anel[j]
+    if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) sim = !sim
+  }
+  return sim
+}
+function distancia([x, y]: [number, number], aneis: [number, number][][]): number {
+  let d = Infinity
+  for (const a of aneis)
+    for (let i = 0; i + 1 < a.length; i++) {
+      const [ax, ay] = a[i]
+      const [bx, by] = a[i + 1]
+      const l = (bx - ax) ** 2 + (by - ay) ** 2
+      const t = l ? Math.max(0, Math.min(1, ((x - ax) * (bx - ax) + (y - ay) * (by - ay)) / l)) : 0
+      d = Math.min(d, Math.hypot(x - (ax + t * (bx - ax)), y - (ay + t * (by - ay))))
+    }
+  return d
+}

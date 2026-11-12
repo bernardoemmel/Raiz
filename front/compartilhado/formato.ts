@@ -91,6 +91,30 @@ export const UFS: Record<string, string> = {
   TO: "Tocantins",
 }
 
+// artigo de cada estado: "do Pará", "da Bahia", "de Goiás" (Mato Grosso e Mato Grosso do Sul sem artigo, como o IBGE)
+const DO_ESTADO: Record<string, "do" | "da" | "de"> = {
+  AC: "do", AL: "de", AM: "do", AP: "do", BA: "da", CE: "do", DF: "do", ES: "do", GO: "de", MA: "do", MG: "de",
+  MS: "de", MT: "de", PA: "do", PB: "da", PE: "de", PI: "do", PR: "do", RJ: "do", RN: "do", RO: "de", RR: "de",
+  RS: "do", SC: "de", SE: "de", SP: "de", TO: "do",
+}
+
+/** "PA" → "do Pará", "BA" → "da Bahia", "GO" → "de Goiás" */
+export const doEstado = (uf: string) => (UFS[uf] ? `${DO_ESTADO[uf] ?? "de"} ${UFS[uf]}` : uf)
+
+/** Os dois primeiros números do código IBGE do município são os do estado (11 é Rondônia, 15 é o Pará...). */
+export const UF_POR_CODIGO: Record<string, string> = {
+  "11": "RO", "12": "AC", "13": "AM", "14": "RR", "15": "PA", "16": "AP", "17": "TO",
+  "21": "MA", "22": "PI", "23": "CE", "24": "RN", "25": "PB", "26": "PE", "27": "AL", "28": "SE", "29": "BA",
+  "31": "MG", "32": "ES", "33": "RJ", "35": "SP", "41": "PR", "42": "SC", "43": "RS",
+  "50": "MS", "51": "MT", "52": "GO", "53": "DF",
+}
+
+/** "1507300" → "PA"; também aceita o código do CAR ("PA-1507300-…"). Null se não for de estado nenhum. */
+export function ufDoCodigo(cod: string): string | null {
+  const m = /^(?:[A-Za-z]{2}-?)?(\d{2})\d{5}/.exec(cod.trim())
+  return m ? (UF_POR_CODIGO[m[1]] ?? null) : null
+}
+
 /** Situação do CAR (status_imovel do SICAR) em palavras. */
 export const STATUS_CAR: Record<string, string> = {
   AT: "ativo",

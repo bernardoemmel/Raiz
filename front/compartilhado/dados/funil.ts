@@ -17,23 +17,44 @@ import type { Categoria, FunilMunicipio, Imovel } from "./tipos"
  * Um imóvel a partir da linha de imoveis_<mun>.csv e das linhas dos arquivos que o completam (filtros_, extras_,
  * direto_, mapbiomas_), todas pela coluna cod_imovel. A linha principal ganha em caso de coluna repetida.
  */
-export function lerImovel(bruta: Linha, complementos: Linha[] = []): Imovel {
-  const { linha } = limpar(Object.assign({}, ...complementos, bruta))
-  const l = linha
+/** as colunas que decidem se a fazenda é apta e se tem matrícula (o mapa de um estado lê só estas) */
+export const COLUNAS_APTIDAO = [
+  "cod_imovel",
+  "ha",
+  "area",
+  "carbono_ha",
+  "alem_RL_ha",
+  "problema",
+  "embargo_ha",
+  "ti_ha",
+  "desm_pos2020_ha",
+  "alerta_pos2020_ha",
+  "desm_pos2016_ha",
+  "f_matricula",
+  "matricula_ha",
+]
+
+/** apta, com matrícula e a área de carbono, pelas regras do motor; lerImovel usa esta mesma conta */
+export function aptidao(l: Linha) {
   const ha = n0(l, "ha", n0(l, "area"))
-  const temCarbono = "carbono_ha" in l
-  const carbono_ha = temCarbono ? n0(l, "carbono_ha") : n0(l, "alem_RL_ha")
+  const carbono_ha = "carbono_ha" in l ? n0(l, "carbono_ha") : n0(l, "alem_RL_ha")
   const problema =
     bool(l, "problema") ??
     (n0(l, "embargo_ha") > 1 || n0(l, "ti_ha") > 1 || n0(l, "desm_pos2020_ha") > 1 || n0(l, "alerta_pos2020_ha") > 1)
   const desm_pos2016_ha = num(l, "desm_pos2016_ha")
   const f_matricula = num(l, "f_matricula") ?? (ha > 0 ? n0(l, "matricula_ha") / ha : 0)
+  const apta = !problema && carbono_ha > 0 && (desm_pos2016_ha ?? 0) <= 5
+  return { ha, carbono_ha, problema, desm_pos2016_ha, f_matricula, apta, com_matricula: apta && f_matricula >= 0.5 }
+}
+
+export function lerImovel(bruta: Linha, complementos: Linha[] = []): Imovel {
+  const { linha } = limpar(Object.assign({}, ...complementos, bruta))
+  const l = linha
+  const { ha, carbono_ha, problema, desm_pos2016_ha, f_matricula, apta, com_matricula } = aptidao(l)
   const assentamento_ha = n0(l, "assentamento_ha")
   const m_fiscal = num(l, "m_fiscal")
   const frente = texto(l, "frente")
 
-  const apta = !problema && carbono_ha > 0 && (desm_pos2016_ha ?? 0) <= 5
-  const com_matricula = apta && f_matricula >= 0.5
   const assentamento = frente === "assentamento_agrupado" || (ha > 0 && assentamento_ha / ha >= 0.5)
 
   // MapBiomas pela API: o ano mais recente que vier nas colunas mb_fogo_<ano>_ha

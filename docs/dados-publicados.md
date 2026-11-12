@@ -15,6 +15,9 @@ Os dados grandes nunca entram no main. O caminho é sempre automático:
 5. O front baixa sozinho: `npm run dev` roda antes `front/scripts/baixar-dados.mjs`, que lê o `estados.json`
    publicado e baixa só os estados novos ou mudados para `dados/estados/<UF>/` (fora do git).
    `npm run dados -- --geo` também baixa os polígonos. `RAIZ_SEM_DOWNLOAD=1` pula o download.
+6. O plugin do Vite (`front/compartilhado/vite-dados.ts` e `pasta-dados.ts`) lê `dados/estados/` sozinho quando
+   existe (ou a pasta de `RAIZ_DADOS`); sem ela, a amostra. O mapa do Brasil diz, por estado, o que o `estados.json`
+   baixado diz (completo, incompleto com a contagem, ainda não processado), sem recontar.
 
 `estados.json`, por estado: `municipios` feitos, `total_ibge`, `completo`, contagem por tabela
 (`imoveis`, `direto`, `filtros`, `extras`, `extras_direto`, `mapbiomas`, `certidoes`), `versao` (sha256),
