@@ -48,13 +48,33 @@ jobs:
           cache-dependency-path: |
             front/globo/package-lock.json
             front/produtor/package-lock.json
-      - name: Mesmo build do site público, sem baixar dados de produção
+      - name: Preparar os dados pequenos de teste (sem baixar o Release)
+        run: node front/scripts/preparar-teste-site.mjs
+      - name: Build do site público com a fixture (npm ci e build do painel e da ficha do produtor)
         env:
-          RAIZ_BUILD_DADOS: "0"
-          RAIZ_BASE: /${{ github.event.repository.name }}/
+          RAIZ_DADOS: front/.cache/teste-site/dados
+          RAIZ_GEO: front/.cache/teste-site/geo
+          VITE_RAIZ_TESTE_MAPA: "1"
+          RAIZ_BASE: /Raiz/
         run: front/scripts/construir-site.sh
-      - name: Todos os testes do front
-        run: npm --prefix front/globo test
+      - name: Testes do front
+        run: cd front/globo && npm test
+      - name: Cache do Chromium
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('front/globo/package-lock.json') }}
+      - name: Chromium para o Playwright
+        run: cd front/globo && npx playwright install --with-deps chromium
+      - name: Pages no navegador (Parauapebas, aproximação, polígonos e zero 404)
+        run: cd front/globo && npm run test:pages
+      - name: Evidências do teste do Pages
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: teste-pages
+          path: front/.cache/teste-site/resultado
+          if-no-files-found: ignore
 
   seguranca:
     runs-on: ubuntu-24.04

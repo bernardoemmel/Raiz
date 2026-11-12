@@ -79,7 +79,8 @@ Brasil). Foram apagados a biblioteca `cobe` 2.0.1 (MIT) e os componentes `cobe-g
 Métodos reescritos, sem copiar código: frases comparativas por índice no estilo do Census Reporter
 (`front/compartilhado/comparacoes.ts`) e caixa de fatos no formato das "fact boxes" de comunicação de risco
 (`front/compartilhado/cenario.ts`). Dependências só de desenvolvimento: Vite, TypeScript, Vitest, Oxlint (MIT) e,
-no script, requests (Apache-2.0), shapely e pmtiles (BSD-3-Clause).
+no script, requests (Apache-2.0), shapely e pmtiles (BSD-3-Clause). Teste do site estático no Chromium:
+Playwright 1.65.0 (Apache-2.0) e pngjs 7.0.0 (MIT), usados como bibliotecas, sem código copiado.
 
 ## OpenStreetMap pelos ladrilhos do Protomaps (cidades e estradas por imóvel)
 
@@ -264,6 +265,6 @@ O modelo roda só no servidor, instalado do Release oficial com hash no `uv.lock
 ## Ferramentas de qualidade e segurança
 
 Gitleaks 8.24.3 (MIT, https://github.com/gitleaks/gitleaks) e actionlint 1.7.7
-(MIT, https://github.com/rhysd/actionlint) verificam o repositório no CI. Playwright 1.58.2
+(MIT, https://github.com/rhysd/actionlint) verificam o repositório no CI. Playwright 1.65.0
 (Apache-2.0, https://github.com/microsoft/playwright) executa o navegador de teste. Usados como ferramentas,
 sem código-fonte copiado para o produto.

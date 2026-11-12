@@ -8,6 +8,7 @@
  *   node ../scripts/baixar-dados.mjs              # todos os estados publicados, só CSV
  *   node ../scripts/baixar-dados.mjs PA RO        # só alguns
  *   node ../scripts/baixar-dados.mjs --geo        # também os polígonos (geo_<cod>.parquet)
+ *   node ../scripts/baixar-dados.mjs --geo --exigir # publicação: erro no download interrompe o build
  * Variáveis: RAIZ_DADOS (pasta de destino; padrão dados/estados na raiz do repositório),
  *            RAIZ_DADOS_URL (onde está o estados.json; padrão o Release `dados` do repositório),
  *            RAIZ_SEM_DOWNLOAD=1 (pula tudo, ex.: sem internet).
@@ -25,6 +26,7 @@ const DESTINO = path.resolve(RAIZ_REPO, process.env.RAIZ_DADOS || "dados/estados
 const URL_BASE = process.env.RAIZ_DADOS_URL || "https://github.com/bernardoemmel/raiz/releases/download/dados"
 const args = process.argv.slice(2)
 const comGeo = args.includes("--geo")
+const exigir = args.includes("--exigir")
 const pedidos = args.filter((a) => /^[A-Z]{2}$/.test(a))
 
 async function baixarJson(url) {
@@ -52,6 +54,7 @@ async function main() {
   try {
     remoto = await baixarJson(`${URL_BASE}/estados.json`)
   } catch (e) {
+    if (exigir) throw e
     console.warn(`[dados] não consegui ler o estados.json publicado (${e.message}); sigo com o que já tenho.`)
     return
   }
@@ -62,10 +65,16 @@ async function main() {
   } catch {}
 
   const ufs = Object.keys(remoto.estados).filter((uf) => !pedidos.length || pedidos.includes(uf))
+  const falhas = []
   for (const uf of ufs) {
     const r = remoto.estados[uf]
     const l = local.estados[uf] || {}
     const rotulo = `${uf} (${r.municipios}/${r.total_ibge ?? "?"} municípios${r.completo ? "" : ", incompleto"})`
+    // O executor anuncia estados em andamento antes de criar o primeiro pacote. Não pedir um arquivo inexistente.
+    if (!r.municipios && !r.tamanho) {
+      local.estados[uf] = r
+      continue
+    }
     try {
       if (l.versao !== r.versao || !fs.existsSync(path.join(DESTINO, uf))) {
         console.log(`[dados] baixando ${rotulo}, ${((r.tamanho || 0) / 1e6).toFixed(0)} MB`)
@@ -80,10 +89,17 @@ async function main() {
       local.estados[uf] = { ...r, versao: l.versao, geo: l.geo }
       fs.writeFileSync(arqLocal, JSON.stringify({ ...remoto, estados: local.estados }, null, 1))
     } catch (e) {
+      falhas.push(uf)
       console.warn(`[dados] falhou ${uf}: ${e.message}`)
     }
   }
+  fs.mkdirSync(DESTINO, { recursive: true })
+  fs.writeFileSync(arqLocal, JSON.stringify({ ...remoto, estados: local.estados }, null, 1))
+  if (exigir && falhas.length) throw new Error(`não consegui atualizar os estados: ${falhas.join(", ")}`)
   console.log(`[dados] pronto em ${path.relative(RAIZ_REPO, DESTINO) || DESTINO}: ${Object.keys(local.estados).join(", ")}`)
 }
 
-main()
+main().catch((e) => {
+  console.error(`[dados] ${e.message}`)
+  process.exitCode = 1
+})
