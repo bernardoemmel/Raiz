@@ -1,0 +1,18 @@
+# Preferências para os dados públicos da Raíz. Conferidas nas documentações oficiais em 12/11/2026.
+# No Pages de projeto (/Raiz/), este arquivo precisa também estar em /robots.txt da origem para controlar robôs.
+User-agent: GPTBot
+User-agent: OAI-SearchBot
+User-agent: ChatGPT-User
+User-agent: ClaudeBot
+User-agent: Claude-User
+User-agent: Claude-SearchBot
+User-agent: PerplexityBot
+User-agent: Perplexity-User
+User-agent: Google-Extended
+User-agent: Applebot
+User-agent: Applebot-Extended
+User-agent: CCBot
+Allow: /
+
+User-agent: *
+Allow: /

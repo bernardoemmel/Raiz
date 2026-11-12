@@ -9,7 +9,8 @@ ou CPF em imagem, arquivo ou log.
   adesivo.webp), mais leves, para a ficha e o site; a prévia do WhatsApp (og:image) continua em JPEG;
 - /video/{codigo}.mp4 (1080 x 1920) e /video/{codigo}-720p.mp4: cenas do Takumi (renderAnimation) codificadas pelo
   FFmpeg no servidor, com a voz do Qwen3-TTS quando estiver instalado (sem ele, o vídeo sai mudo e o metadado diz);
-- /p/{codigo}: ficha do produtor em HTML pronto no servidor (até 150 KB), com Open Graph para o WhatsApp.
+- /p/{codigo}: ficha do produtor em HTML pronto no servidor (até 150 KB), com Open Graph para o WhatsApp;
+  com Accept: text/markdown, ou em /p/{codigo}.md, os mesmos campos públicos em Markdown.
 Tudo fica em cache (dados/publico/<codigo>/) e é refeito quando o selo ou o aceite mudam.
 """
 
@@ -27,6 +28,7 @@ from fastapi.responses import FileResponse, HTMLResponse, Response
 from sqlalchemy import Engine, text
 
 from raiz import RAIZ_REPO
+from raiz import markdown as markdown_mod
 from raiz.config import config
 
 SERVICO = RAIZ_REPO / "servicos" / "cartao"
@@ -232,6 +234,7 @@ def pagina(d: dict, base_url: str) -> str:
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>{e(titulo)} · Raíz</title>
 <meta name="description" content="{e(desc)}">
+<link rel="alternate" type="text/markdown" href="{base}/p/{e(d["codigo"])}.md">
 <meta property="og:type" content="website"><meta property="og:site_name" content="Raíz">
 <meta property="og:title" content="{e(titulo)}"><meta property="og:description" content="{e(desc)}">
 <meta property="og:url" content="{base}/p/{e(d["codigo"])}">
@@ -246,6 +249,33 @@ figcaption{{font-size:14px;opacity:.8}}</style></head>
 <body><main><p>{e(d["municipio"])} · {e(d["uf"])}</p><p class="ha">{e(d["hectares"])} ha</p>
 <p>{e(d["frase"]).capitalize()}.</p><p class="selo">{e(selo_txt)}</p><p>Código da fazenda: <b>{e(d["codigo"])}</b></p>
 {depois}<p><small>Raíz · dados do CAR (SICAR/SFB) e do MapBiomas</small></p></main></body></html>"""
+
+
+def pagina_markdown(d: dict, base_url: str) -> str:
+    """A mesma ficha pública do HTML: CAR e satélite só saem depois do aceite, nunca chaves internas."""
+    t = markdown_mod.texto
+    base = base_url.rstrip("/")
+    selo = {
+        "bronze": "Selo bronze: achada no CAR",
+        "prata": "Selo prata: título conferido",
+        "ouro": "Selo ouro: o dono aceitou",
+    }[d["selo"]]
+    partes = [
+        f"# {t(d['hectares'])} ha em {t(d['municipio'])} ({t(d['uf'])})",
+        "",
+        f"{t(d['hectares'])} hectares {t(d['frase'])}.",
+        "",
+        selo + ".",
+        "",
+        f"Código da fazenda na Raíz: {t(d['codigo'])}.",
+        "",
+    ]
+    if d["aceito"]:
+        partes.extend([f"CAR: {t(d['_cod_imovel'])}.", ""])
+        if _imagens_do_aceite(d).get("imagem"):
+            partes.extend([f"![Imagem de satélite da fazenda]({base}/p/{d['codigo']}/satelite.webp)", ""])
+    partes.append("Fonte: CAR (SICAR/SFB) e MapBiomas.")
+    return "\n".join(partes) + "\n"
 
 
 def roteador(engine_de):
@@ -263,9 +293,16 @@ def roteador(engine_de):
             raise HTTPException(404, "código não existe")
         return d
 
+    @r.get("/p/{codigo}.md")
+    def p_markdown(codigo: str, request: Request) -> Response:
+        return markdown_mod.resposta(pagina_markdown(achar(request, codigo), str(request.base_url)))
+
     @r.get("/p/{codigo}", response_class=HTMLResponse)
-    def p(codigo: str, request: Request) -> HTMLResponse:
-        return HTMLResponse(pagina(achar(request, codigo), str(request.base_url)))
+    def p(codigo: str, request: Request) -> Response:
+        d = achar(request, codigo)
+        if markdown_mod.prefere_markdown(request.headers.get("accept"), "text/html"):
+            return markdown_mod.resposta(pagina_markdown(d, str(request.base_url)))
+        return HTMLResponse(pagina(d, str(request.base_url)), headers={"Vary": "Accept"})
 
     @r.get("/p/{codigo}/satelite.webp")
     def satelite_publico(codigo: str, request: Request) -> Response:
