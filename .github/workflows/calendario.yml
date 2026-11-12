@@ -38,7 +38,7 @@ jobs:
           mkdir -p dados/calendario
           if gh release view calendario --json tagName >/dev/null 2>/tmp/calendario-release-erro; then
             gh release download calendario -p estado.json -D dados/calendario
-          elif ! rg -qi 'release not found|HTTP 404|Not Found' /tmp/calendario-release-erro; then
+          elif ! grep -Eqi 'release not found|HTTP 404|Not Found' /tmp/calendario-release-erro; then
             cat /tmp/calendario-release-erro >&2
             exit 1
           fi

@@ -9,6 +9,35 @@ import typer
 
 
 def registrar(app: typer.Typer) -> None:
+    @app.command("publicar-retratos")
+    def publicar_retratos(
+        uf: Annotated[str | None, typer.Option(help="Publicar somente esta UF")] = None,
+        pasta: Annotated[Path | None, typer.Option(help="Pasta local dos retratos capturados")] = None,
+    ) -> None:
+        """Publica capturas imutáveis no armazém; no Release usa pacotes separados do mapa."""
+        from raiz.aprendizado.retratos import pasta_padrao
+        from raiz.aprendizado.transporte import publicar
+        from raiz.executor.armazem import do_config
+
+        resultado = publicar(pasta or pasta_padrao(), do_config(), uf=uf)
+        typer.echo(json.dumps(resultado, ensure_ascii=False, indent=2))
+
+    @app.command("importar-retratos")
+    def importar_retratos(
+        uf: Annotated[str | None, typer.Option(help="Importar somente esta UF")] = None,
+        pasta: Annotated[Path | None, typer.Option(help="Espelho local dos retratos")] = None,
+        baixar: Annotated[bool, typer.Option(help="Antes de importar, sincronizar os retratos publicados")] = True,
+    ) -> None:
+        """Importa capturas reais; a observação e a chegada ao banco ficam separadas."""
+        from raiz.aprendizado.importacao import importar_pasta, receber
+        from raiz.aprendizado.retratos import pasta_padrao
+        from raiz.banco import engine
+        from raiz.executor.armazem import do_config
+
+        ufs, destino = [uf.upper()] if uf else None, pasta or pasta_padrao()
+        resultado = receber(engine(), do_config(), destino, ufs) if baixar else importar_pasta(engine(), destino, ufs)
+        typer.echo(json.dumps(resultado, ensure_ascii=False, indent=2))
+
     @app.command("arquivar-fold")
     def arquivar_fold(
         pasta: Annotated[Path, typer.Option(help="Pasta do retrato completo: um Parquet por fonte")],
