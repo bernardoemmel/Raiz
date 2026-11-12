@@ -1,0 +1,60 @@
+{
+  "origem": "88860b64ee09f811b66e283f5c57997ebcdb3fd5",
+  "destino": "b624b108b0350135003e1099d9c928fa7cc24151",
+  "metodo": "SHA-256 de caminho + NUL + bytes + NUL, caminhos Git ordenados; versões executadas em checkout temporário de cada commit; dependências da origem preservadas no destino.",
+  "escopos": [
+    "motor/",
+    "raiz/"
+  ],
+  "excluidos_operacionais": [
+    "motor/fila_processamento.py",
+    "raiz/atestacao.py",
+    "raiz/cadt.py",
+    "raiz/catalogo_publico.py",
+    "raiz/executor/armazem.py",
+    "raiz/executor/publicacao_aberta.py",
+    "raiz/metadados.py",
+    "raiz/quantis.py",
+    "raiz/regras/historico/"
+  ],
+  "commits": {
+    "88860b64ee09f811b66e283f5c57997ebcdb3fd5": {
+      "arquivos": 356,
+      "codigo_sha256": "a3a2c26825a0b9351964166590dbdfae864a26a96da34da60e5417de6a148581",
+      "pacotes_origem": 213,
+      "dependencias_sha256": "b3de6407db71d325cb1b43474e60059a075b1ca019ca9b6f5b97aeac33dc58ca",
+      "versoes_tarefas": {
+        "desenvolvedor": "desenvolvedor-d590ebd0cd76",
+        "direto": "direto-a3ccf1633dd7",
+        "extras_direto": "extras_direto-76b44c187164",
+        "ficha": "ficha-92dcead7aefb",
+        "filtros": "filtros-9c1ae2374773",
+        "flag": "flag-2d2dc7a85797",
+        "funil": "funil-1642afe89067",
+        "mapbiomas": "mapbiomas-732fe6f08784",
+        "rebanho": "rebanho-afd05b1264a5",
+        "terra": "terra-b02bcaf5d54e",
+        "titulo": "titulo-305df336f77f"
+      }
+    },
+    "b624b108b0350135003e1099d9c928fa7cc24151": {
+      "arquivos": 356,
+      "codigo_sha256": "a3a2c26825a0b9351964166590dbdfae864a26a96da34da60e5417de6a148581",
+      "pacotes_origem": 213,
+      "dependencias_sha256": "b3de6407db71d325cb1b43474e60059a075b1ca019ca9b6f5b97aeac33dc58ca",
+      "versoes_tarefas": {
+        "desenvolvedor": "desenvolvedor-d590ebd0cd76",
+        "direto": "direto-a3ccf1633dd7",
+        "extras_direto": "extras_direto-76b44c187164",
+        "ficha": "ficha-92dcead7aefb",
+        "filtros": "filtros-9c1ae2374773",
+        "flag": "flag-2d2dc7a85797",
+        "funil": "funil-1642afe89067",
+        "mapbiomas": "mapbiomas-732fe6f08784",
+        "rebanho": "rebanho-afd05b1264a5",
+        "terra": "terra-b02bcaf5d54e",
+        "titulo": "titulo-305df336f77f"
+      }
+    }
+  }
+}
