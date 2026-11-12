@@ -4,6 +4,7 @@
 |---|---|---|---|
 | Regras da escadinha do art. 61-A (`faixa_rio_consolidada`) e do teto do art. 61-B (`limite_61b`), reescritas | `motor/raiz_estado.py`, `motor/raiz_app.py` | MIT, Copyright (c) 2022 GeoOne | https://github.com/OpenGeoOne/GeoCAR |
 | Contorno dos estados do Brasil (Natural Earth 1:50m, admin 1), projetado e simplificado para o minimapa em SVG | `front/compartilhado/brasil-estados.ts` (gerado por `front/scripts/geo.py`) | domínio público | https://www.naturalearthdata.com |
+| Códigos dos 5.571 municípios por estado (IBGE, Divisão Territorial Brasileira 2025, data base 31/12/2025), só os códigos | `front/compartilhado/ibge-municipios.ts` (gerado por `front/scripts/geo.py`) | dado público do IBGE, uso livre com citação da fonte | https://geoftp.ibge.gov.br/organizacao_do_territorio/estrutura_territorial/divisao_territorial/ |
 
 Dados públicos lidos pelo motor (cada um com seus termos): SICAR/SFB, Ibama, INPE TerraBrasilis (PRODES),
 INCRA (SIGEF, quilombolas), FUNAI, MMA/CNUC (via geobr/Ipea), MapBiomas (cobertura, Fogo, Alerta), YbYrá-BR
@@ -31,7 +32,7 @@ Gerados por `front/scripts/geo.py` e servidos junto (fora do git): recorte do ma
 com dados © colaboradores do OpenStreetMap (ODbL 1.0, atribuição no canto do mapa); letras dos rótulos Noto Sans
 (SIL Open Font License 1.1) de protomaps/basemaps-assets; polígonos do CAR (SICAR/SFB) e camadas do INPE TerraBrasilis,
 inclusive o contorno dos 5.570 municípios da tela de entrada (camadas de municípios por bioma, juntadas pelo código
-IBGE).
+IBGE) e o dos 27 estados (os mesmos municípios juntados por estado).
 
 Removidos: o globo da abertura saiu do produto em novembro de 2026 (a tela de entrada passou a ser o mapa plano do
 Brasil). Foram apagados a biblioteca `cobe` 2.0.1 (MIT) e os componentes `cobe-globe.tsx` e `cobe-globe-demo.tsx`
