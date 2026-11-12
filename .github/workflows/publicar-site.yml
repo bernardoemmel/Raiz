@@ -68,8 +68,14 @@ jobs:
 
       - name: Desenhos de todos os municípios publicados e fundo compartilhado por estado
         run: |
-          pip install --quiet requests shapely pmtiles geopandas pyarrow
+          pip install --quiet requests shapely pmtiles geopandas pyarrow httpx
           python front/scripts/geo.py --dados dados/publicos
+
+      - name: Resumo aberto dos lotes, sem baixar composição ou pacotes pagos
+        env:
+          RAIZ_DADOS_PRIVADOS_URL: release-github://${{ github.repository }}/dados-privados
+          RAIZ_DADOS_PRIVADOS_TOKEN: ${{ github.token }}
+        run: python -m raiz.lotes_publicos
 
       - name: "Guardar as geometrias (mesmo as de uma rodada pela metade: o geo.py só baixa o que falta)"
         if: always()

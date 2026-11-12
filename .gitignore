@@ -68,3 +68,6 @@ dados/publicos/
 
 # Retratos imutáveis de entradas do executor (arquivo privado, nunca no git)
 dados/historico_aprendizado/
+
+# Resumo comercial aberto derivado do manifesto privado durante a publicação.
+dados/lotes-publicos/
