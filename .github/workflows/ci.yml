@@ -33,6 +33,11 @@ jobs:
           fetch-depth: 0
       - name: Gitleaks em todo o histórico (valores sempre ocultos)
         uses: docker://zricethezav/gitleaks:v8.24.3
+        # O Actions troca o HOME da imagem; confie somente no checkout montado, cujo dono é o runner.
+        env:
+          GIT_CONFIG_COUNT: "1"
+          GIT_CONFIG_KEY_0: safe.directory
+          GIT_CONFIG_VALUE_0: /github/workspace
         with:
           args: git --redact=100 --log-opts=--all --no-banner
 
