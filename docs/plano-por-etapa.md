@@ -344,3 +344,6 @@ faz sem back-end.
 | Agenda no servidor | **feito no código**: `scripts/instalar_cron_alertas.py --tarefa calendario --instalar`, diário com banco, trava e `.env`; instalação em produção depende de acesso ao servidor |
 
 Limites verificados em 12/11/2026: DJEN/CNJ respondeu HTTP 403; diários estaduais começam por PA/MT; PDF escaneado sem texto ainda não tem OCR. Erro de fonte não elimina os eventos anteriores. Testes com trechos oficiais gravados e PostGIS; detalhes em `docs/calendario.md`.
+
+A primeira execução no Actions identificou ausência de `rg` no runner; a verificação do Release inicial usa agora
+`grep`, disponível na imagem padrão, preservando a interrupção em erros que não sejam Release inexistente.
