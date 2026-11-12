@@ -26,6 +26,9 @@ Branch da entrega de formatos e procedência: `codex/dados-croissant`.
   cartão do modelo, checksums para atestação OIDC e cronogramas CAD Trust. O preenchimento dos assets existentes e
   a verificação das assinaturas ainda dependem da execução do novo workflow após merge. As fichas não concedem
   licença presumida aos dados, e o cartão diferencia cenário central, quantil e hipótese triangular de FLAG.
+  A suíte da entrega passou com PostGIS (711 testes, 2 pulados, 1 xfail); correções adicionais de proveniência e
+  os novos formatos passaram em 88 testes focados. A atualização retroativa aguarda também o término natural de
+  runs anteriores à trava por UF (MA, run `43239448949`, ainda ativo na conferência), sem cancelar nada.
 - **Plano:** E1/E2 estão em preparação para a entrega seguinte, na ordem de dependência abaixo. Não confundir
   código preparado no branch com operação agendada: a coleta com PostGIS continua sem servidor permanente.
 
@@ -46,7 +49,7 @@ Branch da entrega de formatos e procedência: `codex/dados-croissant`.
    fichas de cada estado (subir dentro da trava do `estados.json`, `_gravar_indice`).
 4. **Quantis hubverse — feito no código.**
    - Converter as colunas P10/P50/P90 do `desenvolvedor_<mun>.csv` (valor para quem restaura) e do `flag_<mun>.csv`
-     para o formato longo do hubverse: `reference_date` (data de corte), `location` (cod_imovel), `target` (ex.:
+     para o formato longo do hubverse: `reference_date` (dia UTC da execução registrada), `location` (cod_imovel), `target` (ex.:
      `credito_liquido_tco2`), `output_type="quantile"`, `output_type_id` em {0.1, 0.5, 0.9} e `value`.
    - `model_id = "raiz-<tarefa>_<hash da versão>"`. O padrão do hubverse só aceita `[A-Za-z0-9_+]` dos dois lados do
      hífen. Cada versão vira um "modelo", o que deixa o aprendizado comparar versões.
@@ -143,6 +146,7 @@ Branch da entrega de formatos e procedência: `codex/dados-croissant`.
 - **CAD Trust:** o Actions usa início hipotético `2027-01-01`, configurável. Incrementos anuais conservam o total
   P50 arredondado; ausência de lote/cronograma gera diagnóstico. `Listed` é apenas o catálogo da Raíz, sem registro,
   certificação ou emissão. Referência do vocabulário: CADT `58927db8f4b4fe558842a688d33f173c41944279`.
+  Versão científica/cenário ausentes ou diferentes nos CSV impedem o projeto da UF, com diagnóstico.
 - **Atestação:** `actions/attest-build-provenance@v2` aceita `subject-checksums` (action.yml conferido). Os uploads
   concluídos registram SHA-256 em `RUNNER_TEMP/atestar.txt`; a última versão de cada nome no job é atestada.
 - **Rede desta retomada:** GitHub conectado e `gh` autenticado; Docker/PostGIS local disponível para testes.

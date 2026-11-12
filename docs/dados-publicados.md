@@ -119,6 +119,8 @@ No Actions, `RAIZ_CADT_INICIO_CENARIO` usa **2027-01-01** por padrão e pode ser
 É uma âncora hipotética para comparar cronogramas. `Listed` representa a listagem neste catálogo de cenários;
 VM0047 é referência metodológica. O arquivo não afirma registro no CAD Trust/Verra, certificação ou emissão de
 créditos. Estado sem lote elegível ou cronograma válido recebe diagnóstico.
+Resultados do desenvolvedor com versão científica ou cenário ausentes/incompatíveis também impedem a exportação
+do projeto estadual; o exportador não aplica silenciosamente a curva atual a previsões de outro modelo.
 
 ## Atestação e atualização dos arquivos existentes
 
@@ -140,6 +142,9 @@ inalterados e inclui distribuições avulsas no catálogo. Fichas Croissant não
 
 Falha ao adquirir uma trava impede a publicação. Esperar por uma trava não prova abandono: o publicador novo
 não a apaga por idade. Jobs iniciados com código anterior só adotam essas regras nas próximas execuções.
+O preenchimento retroativo verifica runs, reservas e pedidos pendentes antes de começar: códigos anteriores à
+introdução da trava por UF precisam terminar naturalmente. A verificação é repetida antes de cada publicação;
+uma falha de consulta bloqueia o trabalho, sem cancelar os jobs existentes.
 
 ## Release `vigilancia`
 

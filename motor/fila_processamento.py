@@ -115,6 +115,8 @@ def enfileirar(estado: dict, pedidos: list[dict]) -> None:
 
 def devolver_a_fila(estado: dict, reserva: dict, run: dict, jobs: list[dict]) -> None:
     pedido = dict(reserva["pedido"])
+    if pedido.get("repetir") is False:
+        return  # catálogo auxiliar: uma falha não vira uma unidade da matriz do motor
     pedido["falhas"] = int(pedido.get("falhas", 0)) + 1
     if run.get("conclusion") == "cancelled" or any(j.get("conclusion") == "cancelled" for j in jobs):
         pedido["bloqueado"] = "Execução cancelada: só um novo pedido explícito pode retomar."
@@ -160,7 +162,8 @@ def reconciliar(estado: dict, runs: dict[str, dict], e_unidade) -> tuple[set[str
 
 
 def admitir(estado: dict, runs: dict[str, dict], run_id: str, candidatos: list[dict], e_unidade,
-            limite: int = TETO, max_novos: int | None = None, manutencao=(), limite_manutencao: int = 4) -> list[dict]:
+            limite: int = TETO, max_novos: int | None = None, manutencao=(), limite_manutencao: int = 4,
+            consumir_fila: bool = True) -> list[dict]:
     ativas, legados = reconciliar(estado, runs, e_unidade)
     livres = max(0, min(limite, TETO) - len(estado["reservas"]) - legados)
     if max_novos is not None:
@@ -169,7 +172,7 @@ def admitir(estado: dict, runs: dict[str, dict], run_id: str, candidatos: list[d
     pendentes = {p["id"] for p in estado["fila"]}
     bloqueadas = {p["unidade"] for p in estado["fila"] if p.get("bloqueado")}
     manut_ativas = sum(u in manutencao for u in ativas)
-    for pedido in [*estado["fila"], *candidatos]:
+    for pedido in [*(estado["fila"] if consumir_fila else []), *candidatos]:
         if len(escolhidos) >= livres:
             break
         if pedido.get("bloqueado"):
@@ -208,7 +211,8 @@ def pedido(unidade: str, refazer, continuacao: int = 0, origem: str | None = Non
 
 
 def reservar(candidatos: list[str], pedidos: list[str], refazer, e_unidade, limite: int,
-             continuacao: int = 0, max_novos: int | None = None, manutencao=(), limite_manutencao: int = 4) -> list[dict]:
+             continuacao: int = 0, max_novos: int | None = None, manutencao=(), limite_manutencao: int = 4,
+             consumir_fila: bool = True, repetir: bool = True) -> list[dict]:
     repo = Repositorio()
     run_id = os.environ["GITHUB_RUN_ID"]
     explicitos = [pedido(u, refazer, continuacao) for u in pedidos]
@@ -224,7 +228,10 @@ def reservar(candidatos: list[str], pedidos: list[str], refazer, e_unidade, limi
         adicionais = set(estado["planejadores"]) | {r["run_id"] for r in estado["reservas"]}
         runs = rodadas(os.environ["GITHUB_REPOSITORY"], os.environ.get("RAIZ_WORKFLOW", "processar-estados.yml"), adicionais)
         novos = [pedido(u, refazer, continuacao) for u in candidatos] if not pedidos else []
-        escolhidos = admitir(estado, runs, run_id, novos, e_unidade, limite, max_novos, manutencao, limite_manutencao)
+        if not repetir:
+            novos = [{**p, "repetir": False} for p in novos]
+        escolhidos = admitir(estado, runs, run_id, novos, e_unidade, limite, max_novos, manutencao, limite_manutencao,
+                             consumir_fila)
         return escolhidos, [p for p in estado["fila"] if p.get("bloqueado")]
 
     escolhidos, bloqueados = transacao(repo, alocar)

@@ -149,7 +149,7 @@ def test_sem_fazendas_ou_lote_elegivel_publica_diagnostico(tmp_path, monkeypatch
     pasta = tmp_path / "PA"
     pasta.mkdir()
     for nome in ("imoveis_1504950.csv", "desenvolvedor_1504950.csv"):
-        (pasta / nome).write_text("cod_imovel\n")
+        (pasta / nome).write_text("cod_imovel,restauracao_versao,restauracao_cenario\n")
     monkeypatch.setattr(L, "ler_uf", lambda *a, **kw: {"oferta": pd.DataFrame()})
     assert cadt.cadt_uf(pasta, "PA", data_inicio="2027-01-01")["diagnosticos"] == [
         {"codigo": "sem_fazendas_com_estimativa"}
@@ -157,6 +157,59 @@ def test_sem_fazendas_ou_lote_elegivel_publica_diagnostico(tmp_path, monkeypatch
     monkeypatch.setattr(L, "ler_uf", lambda *a, **kw: {"oferta": pd.DataFrame({"cod_imovel": ["nao_publicar"]})})
     monkeypatch.setattr(L, "montar", lambda *a, **kw: {"resumo": {"cronograma_lote": None}})
     assert cadt.cadt_uf(pasta, "PA", data_inicio="2027-01-01")["diagnosticos"] == [{"codigo": "sem_lote_elegivel"}]
+
+
+@pytest.mark.parametrize("misturado", [False, True])
+@pytest.mark.parametrize(
+    "campo,valor,diagnostico",
+    [
+        ("restauracao_versao", "regra_antiga", "versao_da_fonte_incompativel"),
+        ("restauracao_versao", "", "versao_da_fonte_ausente"),
+        ("restauracao_versao", None, "versao_da_fonte_ausente"),
+        ("restauracao_cenario", "outro_cenario", "cenario_da_fonte_incompativel"),
+        ("restauracao_cenario", "", "cenario_da_fonte_ausente"),
+        ("restauracao_cenario", None, "cenario_da_fonte_ausente"),
+    ],
+)
+def test_fontes_incompativeis_ou_ausentes_nao_reinterpretam_historico(
+    tmp_path, monkeypatch, campo, valor, diagnostico, misturado
+):
+    pasta = tmp_path / "PA"
+    pasta.mkdir()
+    (pasta / "imoveis_1504950.csv").write_text("cod_imovel\n")
+    tabela = pd.DataFrame(
+        [{"cod_imovel": "NAO_PUBLICAR", "restauracao_versao": R.versao(), "restauracao_cenario": "central_r11"}]
+    )
+    if misturado:
+        tabela.to_csv(pasta / "desenvolvedor_1504950.csv", index=False)
+    if valor is None:
+        tabela = tabela.drop(columns=campo)
+    else:
+        tabela[campo] = valor
+    tabela.to_csv(pasta / "desenvolvedor_1505007.csv", index=False)
+    monkeypatch.setattr(L, "ler_uf", lambda *a, **kw: pytest.fail("não deve montar oferta incompatível"))
+    out = cadt.cadt_uf(pasta, "PA", data_inicio="2027-01-01")
+    assert out["projeto"] is None
+    assert out["diagnosticos"] == [{"codigo": diagnostico}]
+    assert "NAO_PUBLICAR" not in json.dumps(out)
+
+
+def test_mistura_de_versoes_no_mesmo_arquivo_nao_publica_parte_da_uf(tmp_path, monkeypatch):
+    pasta = tmp_path / "PA"
+    pasta.mkdir()
+    (pasta / "imoveis_1504950.csv").write_text("cod_imovel\n")
+    pd.DataFrame(
+        {
+            "cod_imovel": ["NAO_PUBLICAR_A", "NAO_PUBLICAR_B"],
+            "restauracao_versao": [R.versao(), "regra_antiga"],
+            "restauracao_cenario": ["central_r11", "central_r11"],
+        }
+    ).to_csv(pasta / "desenvolvedor_1504950.csv", index=False)
+    monkeypatch.setattr(L, "montar", lambda *a, **kw: pytest.fail("não deve montar lote com versões mistas"))
+    out = cadt.cadt_uf(pasta, "PA", data_inicio="2027-01-01")
+    assert out["projeto"] is None
+    assert out["diagnosticos"] == [{"codigo": "versao_da_fonte_incompativel"}]
+    assert "NAO_PUBLICAR" not in json.dumps(out)
 
 
 def test_catalogo_reune_resultados_ja_persistidos_sem_mutar(pequeno):

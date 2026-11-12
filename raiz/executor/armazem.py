@@ -366,10 +366,10 @@ class ArmazemRelease:
         uf = uf.upper()
         if uf in self._ufs and not forcar:
             return
-        self._ufs.add(uf)
         trava = self._trava(f"trava-publicar-{uf}", 1800) if self.token else contextlib.nullcontext()
         with trava:
             self._baixar_uf(uf)
+        self._ufs.add(uf)
 
     def _baixar_uf(self, uf: str) -> None:
         import io
@@ -391,9 +391,18 @@ class ArmazemRelease:
                     chave = f"saida/{uf}/{arq}"
                     dados = tar.extractfile(m).read()
                     atual = self.local.meta(chave)
-                    if atual and (atual.get("sha256") == sha256_bytes(dados) or atual.get("gravado_aqui") == "sim"):
+                    if atual and atual.get("gravado_aqui") == "sim":
                         continue  # o que esta máquina gravou e ainda não publicou fica (a marca local fica também)
                     meta = {k: str(v) for k, v in (vers.get(arq) or {"versao": "publicado"}).items() if k != "sha256"}
+                    if (
+                        atual
+                        and atual.get("sha256") == sha256_bytes(dados)
+                        and all(atual.get(k) == v for k, v in meta.items())
+                        and set(atual) - {"sha256", "tamanho"} == set(meta)
+                    ):
+                        continue
+                    # CSV idêntico pode vir de outra execução/versão. Seus metadados
+                    # também são dados: jamais conservar a data anterior por comparar só bytes.
                     self.local.por_bytes(chave, dados, meta)
         b = self._baixar_asset(f"raiz_controle_{uf}.json")
         if b:

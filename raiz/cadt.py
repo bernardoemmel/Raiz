@@ -8,6 +8,7 @@ diagnósticos ficam no envelope Raíz, sem nomes, contatos ou códigos de imóve
 from __future__ import annotations
 
 import calendar
+import csv
 import datetime as dt
 import hashlib
 import json
@@ -35,6 +36,24 @@ REPO = "bernardoemmel/Raiz"
 
 class CronogramaInvalido(ValueError):
     """Dado inconsistente; o publicador registra o código, sem publicar um projeto inventado."""
+
+
+def _validar_fontes(pasta: Path, versao: str, cenario: str) -> None:
+    """Não aplica a curva atual a créditos calculados sob outra regra ou cenário."""
+    campos = (("restauracao_versao", versao, "versao"), ("restauracao_cenario", cenario, "cenario"))
+    for arquivo in sorted(pasta.glob("desenvolvedor_*.csv")):
+        with arquivo.open(newline="", encoding="utf-8-sig") as entrada:
+            leitor = csv.DictReader(entrada)
+            for campo, _, nome in campos:
+                if campo not in (leitor.fieldnames or []):
+                    raise CronogramaInvalido(f"{nome}_da_fonte_ausente")
+            for linha in leitor:
+                for campo, esperado, nome in campos:
+                    valor = linha.get(campo)
+                    if valor is None or not valor.strip():
+                        raise CronogramaInvalido(f"{nome}_da_fonte_ausente")
+                    if valor != esperado:
+                        raise CronogramaInvalido(f"{nome}_da_fonte_incompativel")
 
 
 def _data(valor: dt.date | str, campo: str) -> dt.date:
@@ -232,6 +251,10 @@ def cadt_uf(
         return ausente("sem_tabelas_do_produto")
     r = r or R.regra()
     c = c or R.cenario("central_r11", r=r)
+    try:
+        _validar_fontes(pasta, r["versao_completa"], c["cenario"])
+    except CronogramaInvalido as ex:
+        return ausente(str(ex))
     dados = L.ler_uf(pasta.parent, uf)
     if dados["oferta"].empty:
         return ausente("sem_fazendas_com_estimativa")

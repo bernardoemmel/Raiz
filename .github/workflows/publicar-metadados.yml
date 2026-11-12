@@ -1,0 +1,60 @@
+name: Publicar metadados do Release
+run-name: Metadados dos dados publicados (${{ inputs.ufs || 'todos os estados' }})
+
+on:
+  workflow_dispatch:
+    inputs:
+      ufs:
+        description: "UFs para retomar, separadas por espaço. Vazio: todos os pacotes já publicados."
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+  actions: read
+  id-token: write
+  attestations: write
+
+jobs:
+  catalogo:
+    name: catalogo
+    runs-on: ubuntu-latest
+    timeout-minutes: 345
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RAIZ_REPO: ${{ github.repository }}
+      RAIZ_SEM_BANCO: "1"
+      RAIZ_WORKFLOW: processar-estados.yml
+      RAIZ_CATALOGO_UFS: ${{ inputs.ufs }}
+      # Data de cenário, não data de implantação/contrato de um projeto real.
+      RAIZ_CADT_INICIO_CENARIO: ${{ vars.RAIZ_CADT_INICIO_CENARIO || '2027-01-01' }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Reservar uma das 15 vagas globais antes de qualquer processamento pesado
+        run: python scripts/publicar_metadados.py --reservar
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - name: Dependências dos metadados e do produto
+        run: uv sync --frozen --all-extras
+      - name: Completar fichas, quantis, cartão e cronogramas dos arquivos já publicados
+        run: uv run --all-extras python scripts/publicar_metadados.py --publicar --limite-minutos 280
+      - name: Conferir se há bytes publicados ou verificados para atestar
+        id: atestar
+        if: always()
+        run: |
+          if test -s "$RUNNER_TEMP/atestar.txt"; then
+            echo "tem=1" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Atestar a procedência dos bytes publicados ou verificados
+        if: always() && steps.atestar.outputs.tem == '1'
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-checksums: ${{ runner.temp }}/atestar.txt
+      - name: Guardar relatório para retomar as UFs pendentes
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: catalogo-metadados
+          path: ${{ runner.temp }}/catalogo-metadados.json
+          if-no-files-found: ignore

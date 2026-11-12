@@ -24,7 +24,7 @@ jobs:
       # actionlint (MIT) pela imagem oficial; o shellcheck dentro dele fica desligado: o que importa aqui é o
       # workflow abrir e as chaves e expressões estarem certas
       - name: actionlint
-        uses: docker://rhysd/actionlint:1.7.7
+        uses: docker://rhysd/actionlint:1.7.12
         with:
           args: -color -shellcheck= -pyflakes=
 

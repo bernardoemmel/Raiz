@@ -125,6 +125,34 @@ def test_erro_da_api_da_trava_impede_upload(gh, tmp_path, monkeypatch):
     assert not gh.uploads
 
 
+def test_csv_identico_atualiza_versao_remota_sem_sobrescrever_trabalho_local(gh, tmp_path):
+    nome = "desenvolvedor_1504950.csv"
+    chave = f"saida/PA/{nome}"
+    dados = b"cod_imovel,valor\nPA-1504950-x,1\n"
+
+    def pacote(versao, data):
+        return gh.tar(
+            "PA",
+            {
+                nome: dados,
+                "_versoes.json": json.dumps(
+                    {nome: {"versao": versao, "data": data, "tarefa": "desenvolvedor"}}
+                ).encode(),
+            },
+        )
+
+    gh.assets["raiz_PA.tar.gz"] = pacote("tarefa-1", "2026-11-10T00:00:00+00:00")
+    a = _armazem(gh, tmp_path / "espelho")
+    assert a.meta(chave)["versao"] == "tarefa-1"
+    gh.assets["raiz_PA.tar.gz"] = pacote("tarefa-2", "2026-11-11T00:00:00+00:00")
+    a.garantir_uf("PA", forcar=True)
+    assert a.meta(chave)["versao"] == "tarefa-2"
+    assert a.meta(chave)["data"].startswith("2026-11-11")
+    a.por_bytes(chave, dados, {"versao": "tarefa-local", "data": "2026-11-12T00:00:00+00:00"})
+    a.garantir_uf("PA", forcar=True)
+    assert a.meta(chave)["versao"] == "tarefa-local"
+
+
 STUB = """
 from pathlib import Path
 from raiz.executor.executor import Tarefa
