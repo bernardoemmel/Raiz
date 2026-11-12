@@ -30,7 +30,13 @@ CODIGO = {
     "extras_direto": ("motor/raiz_extras_direto.py", "motor/raiz_extras.py"),
     "flag": ("raiz/flag.py",),
     "terra": ("raiz/terra.py",),
-    "titulo": ("raiz/titulo/regularizacao.py", "raiz/titulo/achados.py"),
+    "titulo": (
+        "raiz/titulo/regularizacao.py",
+        "raiz/titulo/achados.py",
+        "raiz/titulo/nota.py",
+        "raiz/titulo/geometria.py",
+        "raiz/titulo/tarefa.py",
+    ),
     "ficha": (
         "raiz/imovel_dados.py",
         "raiz/osm.py",
@@ -60,7 +66,7 @@ SAIDAS = {
     "extras_direto": ("extras_direto_{cod}.csv",),
     "flag": ("flag_{cod}.csv",),
     "terra": ("terra_{cod}.csv",),
-    "titulo": ("regularizacao_{cod}.csv", "achados_{cod}.csv"),
+    "titulo": ("titulo_{cod}.csv", "regularizacao_{cod}.csv", "achados_{cod}.csv"),
     "ficha": ("ficha_{cod}.csv", "camadas_{cod}.parquet", "camadas_{cod}.pmtiles"),
     "desenvolvedor": ("desenvolvedor_{cod}.csv",),
 }
@@ -91,9 +97,9 @@ def versao(nome: str) -> str:
 
         extra = restauracao.versao()
     elif nome == "titulo":
-        from raiz.titulo import regularizacao
+        from raiz.titulo import tarefa
 
-        extra = regularizacao.versao()
+        extra = tarefa.versao()
     return f"{nome}-{_hash_codigo(CODIGO[nome], extra)}"
 
 
@@ -181,7 +187,9 @@ def externas(nome: str):
                     "cnfp": assinatura_arquivo(cnfp) if cnfp else None, **_nacionais(),
                     "matricula": _documentos(uf, cod, "matricula")}  # fmt: skip
         if nome == "titulo":
-            return {"certidoes": _documentos(uf, cod, "matricula_conferencia")}
+            return {"certidoes": _documentos(uf, cod, "matricula_conferencia"),
+                    "matricula": _documentos(uf, cod, "matricula"),
+                    "sigef": assinatura_arquivo(esp / "sigef" / uf / f"{cod}.parquet", conteudo=True)}  # fmt: skip
         if nome in ("ficha", "desenvolvedor"):
             return _rasters_uf(uf, "cobertura")
         return {}

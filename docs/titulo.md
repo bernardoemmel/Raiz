@@ -47,6 +47,45 @@ imóvel em matrícula e 0 quando o prazo vence; com os gabaritos, as chances e o
 **Onde aparece**: a classe vai na linha do imóvel (API e ficha), na oferta do pedido de lote (`regularizacao_classe`) e
 no quadro "o que destrava o lote" do lote do ProFloresta+, que agora separa as fazendas em espera pela classe.
 
+## Conferir a terra pela geometria
+
+```bash
+raiz titulo memorial memorial.pdf --cod-imovel PA-1504950-...        # lê, fecha e confere com o CAR e o SIGEF
+raiz titulo memorial memorial.txt --cod-imovel ... --modelo --gravar # modelo só com nota baixa; achados no banco
+raiz titulo planilha georref.ods --cod-imovel PA-1504950-...         # planilha ODS do georreferenciamento
+raiz titulo conjunto-teste 1504950 --n 200                           # placar de regressão do leitor de memorial
+```
+
+- **Memorial** (`raiz/titulo/memorial.py`): regras em português leem vértices (código do SIGEF ou "M-01"),
+  coordenadas geográficas ou UTM (fuso ou meridiano central), azimute ou rumo, distância, área e perímetro. A nota de
+  confiança junta vértices com coordenada, lados completos, fechamento (1:5.000 ou melhor) e área declarada; abaixo
+  de 80%, entra o modelo da Anthropic (só então) e, se continuar baixa, o achado pede revisão. Nome de confrontante
+  nunca é guardado.
+- **Geometria** (`raiz/titulo/geometria.py`): azimute e distância no elipsoide GRS80 (SIRGAS 2000), erro de
+  fechamento, precisão 1:N e ajuste pela regra da bússola; comparação entre duas descrições da mesma terra na escala
+  D1 a D7 (D1 coincide até a tolerância; D2 até 2 vezes; D3, D4 e D5 sobreposição de 95%, 90% e 70% ou mais; D6
+  parcial; D7 não se sobrepõem), com as tolerâncias do INCRA: 0,50 m (limite artificial), 3,00 m (natural), 7,50 m
+  (inacessível). O plano citava "classes D1 a D7" sem defini-las: a escala acima é a da Raíz.
+- **CAR contra SIGEF**: a tarefa do município compara o polígono de cada CAR com a união das parcelas do SIGEF que o
+  cobrem (tolerância de 7,50 m, porque o CAR é declarado) quando há `geo_<mun>.parquet` e o espelho do SIGEF.
+- **Planilha ODS** (`raiz/titulo/planilha.py`): lida com zip e ElementTree; as colunas são achadas pelo nome do
+  cabeçalho (código, longitude, latitude, sigma, tipo de limite, CNS, matrícula) e a validação confere o padrão do
+  código, coordenadas, repetidos, precisão contra a tolerância do limite (LA 0,50 m, LN 3,00 m, vértice V 7,50 m) e o
+  polígono. **O layout exato da planilha do SIGEF não foi conferido com um arquivo real**: o leitor avisa as colunas
+  que não achou; conferir com a primeira planilha que chegar.
+- **Conjunto de teste**: sorteia parcelas do SIGEF do espelho, escreve o memorial de cada uma nos dois estilos (SIGEF e
+  antigo, por rumo) com um gerador próprio (o LFTools e o GeoPlanta são GPL e não entram) e mede o acerto do leitor.
+
+## Nota de risco e decisão
+
+`titulo_<mun>.csv` (regra em `raiz/regras/padroes/nota_titulo.yaml`): nota de 1 (título em ordem) a 5 (não segue) a
+partir do caminho da terra e do risco (ou da classe da regularização, na posse), mais 1 por fase com achado que
+reprova e ninguém confirmou (até 2), ônus grave e divergência geométrica (D5 +1, D6 +2); piso 5 com matrícula
+cancelada e 4 com certidão divergente. Decisão: **aceitar** (nota até 2, nada a conferir), **aceitar com condições**
+(até 3; as condições são os achados a confirmar e o motivo do risco da terra), **análise humana** (4) ou **recusar**
+(5). Na amostra de Nova Esperança do Piriá: 719 aceitar com condições, 82 análise humana e 79 recusar (71 terra
+pública sem destinação e 8 posses impedidas).
+
 ## Achados e confirmações
 
 ```bash

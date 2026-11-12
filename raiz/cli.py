@@ -896,16 +896,16 @@ def titulo_recalcular(
     ] = None,
     ufs: Annotated[str | None, typer.Option(help="só estas UFs, separadas por vírgula")] = None,
 ) -> None:
-    """Refaz regularizacao_<mun>.csv e achados_<mun>.csv que faltam ou estão noutra versão da regra."""
+    """Refaz regularizacao_<mun>.csv, achados_<mun>.csv e titulo_<mun>.csv que faltam ou estão noutra versão."""
     from pathlib import Path
 
     from raiz.funil.rodar import dir_trabalho
-    from raiz.titulo import regularizacao as RG
+    from raiz.titulo import tarefa as TT
 
     pasta = Path(saida) if saida else dir_trabalho() / "saida"
     lista = [u.strip().upper() for u in ufs.split(",")] if ufs else None
-    r = RG.recalcular(pasta, lista)
-    typer.echo(f"regra {RG.versao()}: {len(r['refeitos'])} municípios refeitos, {r['em_dia']} já em dia")
+    r = TT.recalcular(pasta, lista)
+    typer.echo(f"versão {TT.versao()}: {len(r['refeitos'])} municípios refeitos, {r['em_dia']} já em dia")
     for e in r["erros"]:
         typer.echo(f"  erro {e}")
 
@@ -949,6 +949,105 @@ def titulo_mutiroes(
             f"{m['grupo']:24} {m['imoveis']:4} imóveis ({m['pequenas'] or 0} pequenas) {m['ha']:10,.1f} ha "
             f"{(m['carbono_tco2_ano'] or 0):10,.0f} tCO2/ano"
         )
+
+
+def _conferir_documento(poligono, cod_imovel: str, origem: str, tolerancia: float, gravar: bool, extra: list) -> None:
+    from raiz.documentos.config import municipio_do_imovel, uf_do_municipio
+    from raiz.funil.rodar import dir_trabalho
+    from raiz.titulo import conferir as C
+
+    cod = municipio_do_imovel(cod_imovel)
+    pasta = dir_trabalho() / "saida" / (uf_do_municipio(cod) or "")
+    car = C.poligono_do_car(pasta, cod, cod_imovel) if poligono is not None else None
+    sigef = C.parcelas_do_sigef(pasta, cod, car or poligono) if poligono is not None else None
+    res, achados = (
+        C.conferir_poligono(poligono, cod_imovel, origem, tolerancia, car, sigef) if poligono is not None else ({}, [])
+    )
+    achados = extra + achados
+    for a in achados:
+        typer.echo(f"  {a.gravidade:9} {a.regra}: {a.mensagem}")
+    if not res:
+        typer.echo("  sem polígono do CAR nem do SIGEF para comparar (geo_<mun>.parquet e espelho do SIGEF)")
+    if gravar:
+        from raiz.banco import engine
+
+        with engine().begin() as con:
+            typer.echo(f"{C.gravar_achados(con, achados)} achados gravados em titulo.achado")
+
+
+@titulo_cli.command("memorial")
+def titulo_memorial(
+    arquivo: Annotated[str, typer.Argument(help="memorial descritivo em .txt ou .pdf")],
+    cod_imovel: Annotated[str, typer.Option(help="código do CAR do imóvel")],
+    modelo: Annotated[bool, typer.Option(help="usa o modelo da Anthropic se a leitura por regras tiver nota baixa")] = (
+        False
+    ),
+    gravar: Annotated[bool, typer.Option(help="grava os achados no banco")] = False,
+) -> None:
+    """Lê o memorial (regras em português; modelo só com nota baixa), fecha o polígono e confere com o CAR e o SIGEF."""
+    from pathlib import Path
+
+    from raiz.titulo import memorial as M
+
+    p = Path(arquivo)
+    if p.suffix.lower() == ".pdf":
+        from pypdf import PdfReader
+
+        texto = "\n".join(pg.extract_text() or "" for pg in PdfReader(str(p)).pages)
+    else:
+        texto = p.read_text(encoding="utf-8", errors="ignore")
+    leitor = None
+    if modelo:
+        from raiz.documentos.claude import LeitorClaude
+
+        leitor = LeitorClaude()
+    lt = M.ler(texto, leitor)
+    f = lt.fechamento
+    typer.echo(
+        f"{len(lt.vertices)} vértices ({lt.sistema}, {lt.fonte}), confiança {lt.confianca:.0%}"
+        + (f", fechamento {f.erro_m:.2f} m ({f.texto_precisao})" if f else "")
+        + (f", área {lt.area_ha:,.4f} ha" if lt.area_ha else "")
+    )
+    _conferir_documento(lt.poligono, cod_imovel, "memorial", 0.5, gravar, lt.achados(cod_imovel))
+
+
+@titulo_cli.command("planilha")
+def titulo_planilha(
+    arquivo: Annotated[str, typer.Argument(help="planilha .ods do georreferenciamento (SIGEF)")],
+    cod_imovel: Annotated[str, typer.Option(help="código do CAR do imóvel")],
+    gravar: Annotated[bool, typer.Option(help="grava os achados no banco")] = False,
+) -> None:
+    """Lê e valida a planilha ODS (precisão por tipo de limite, códigos, polígono) e confere com o CAR e o SIGEF."""
+    from raiz.titulo import planilha as P
+
+    for per in P.perimetros(arquivo):
+        typer.echo(f"aba {per.aba}: {len(per.vertices)} vértices")
+        _conferir_documento(per.poligono, cod_imovel, "planilha", 0.5, gravar, P.validar(per, cod_imovel))
+
+
+@titulo_cli.command("conjunto-teste")
+def titulo_conjunto_teste(
+    cod: Annotated[int, typer.Argument(help="código IBGE do município (parcelas do SIGEF do espelho)")],
+    n: int = 200,
+    saida: Annotated[str, typer.Option(help="pasta dos pares polígono e memorial")] = "dados/titulo/teste",
+) -> None:
+    """Sorteia parcelas do SIGEF, gera o memorial de cada uma e mede o acerto do leitor (placar de regressão)."""
+    from pathlib import Path
+
+    from raiz.documentos.config import uf_do_municipio
+    from raiz.funil import ponte
+    from raiz.titulo import conferir as C
+
+    s = ponte.ler_local(ponte.espelho_padrao(), "sigef", uf_do_municipio(cod) or "", cod)
+    if s is None or len(s) == 0:
+        typer.echo("sem SIGEF do município no espelho")
+        raise typer.Exit(1)
+    s = s.set_crs(4674) if s.crs is None else s.to_crs(4674)
+    pares = C.conjunto_teste(s, n, pasta=Path(saida))
+    typer.echo(f"{len(pares)} memoriais em {saida}/pares.jsonl")
+    for estilo, r in C.avaliar_conjunto(pares).items():
+        typer.echo(f"  {estilo}: acerto {r['acerto']:.1%}, confiança média {r['confianca_media']:.0%}, "
+                   f"{r['para_revisao']} para revisão")  # fmt: skip
 
 
 @titulo_cli.command("pendentes")

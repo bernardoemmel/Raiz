@@ -18,6 +18,12 @@ from testes.conftest import AMOSTRA
 COD = 1504950
 
 
+@pytest.fixture(autouse=True)
+def _documentos_isolados(tmp_path, monkeypatch):
+    # a saída de raiz/documentos (certidões conferidas) nunca vem da máquina de quem roda o teste
+    monkeypatch.setenv("RAIZ_DOCUMENTOS_DIR", str(tmp_path / "docs_isolados"))
+
+
 def linha(**kw):
     base = dict(
         cod_imovel="PA-1504950-AAAA", uf="PA", ha=100.0, m_fiscal=1.5, status_imovel="AT",

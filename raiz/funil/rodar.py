@@ -202,14 +202,14 @@ def rodar_municipio(cod: int, op: Opcoes, hc=None) -> dict:
         reg.detalhe.update(T.escrever_municipio(pasta, cod, Path("cache")), regra=T.versao())
 
     def titulo(reg):
-        from raiz.titulo import regularizacao as RG
+        from raiz.titulo import tarefa as TT
 
-        f = pasta / f"regularizacao_{cod}.csv"
-        if f.exists() and not op.refazer and RG.versao_do_arquivo(f) == RG.versao():
+        f = pasta / f"titulo_{cod}.csv"
+        if f.exists() and not op.refazer and TT.versao_do_arquivo(f) == TT.versao():
             reg.pulado = True
-            reg.nota(f"{f.name} já está na regra {RG.versao()}")
+            reg.nota(f"{f.name} já está na versão {TT.versao()}")
             return
-        reg.detalhe.update(RG.escrever_municipio(pasta, cod), regra=RG.versao())
+        reg.detalhe.update(TT.escrever_municipio(pasta, cod), versao=TT.versao())
 
     def ficha(reg):
         from raiz.imovel_dados import escrever_municipio

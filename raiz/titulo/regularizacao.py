@@ -484,37 +484,16 @@ def versao_do_arquivo(f: Path) -> str | None:
 
 
 def escrever_municipio(pasta: str | Path, cod: int) -> dict:
-    import pandas as pd
+    """regularizacao_<mun>.csv, achados_<mun>.csv e titulo_<mun>.csv (a tarefa inteira, raiz/titulo/tarefa.py)."""
+    from raiz.titulo import tarefa
 
-    pasta = Path(pasta)
-    reg, ach = calcular_municipio(pasta, cod)
-    ach = pd.concat([ach, achados_da_certidao(pasta, cod)], ignore_index=True)
-    reg.to_csv(pasta / f"regularizacao_{cod}.csv", index=False)
-    ach.to_csv(pasta / f"achados_{cod}.csv", index=False)
-    return {
-        "imoveis": len(reg),
-        "achados": len(ach),
-        **{f"classe_{k}": int(v) for k, v in reg.regularizacao_classe.value_counts().items()},
-    }
+    return tarefa.escrever_municipio(pasta, cod)
 
 
 def recalcular(saida: str | Path, ufs: list[str] | None = None) -> dict:
-    """Refaz regularizacao_<mun>.csv que falta ou foi calculado com outra versão da regra."""
-    saida = Path(saida)
-    v = versao()
-    feitos, em_dia, erros = [], 0, []
-    for pasta_uf in sorted(p for p in saida.iterdir() if p.is_dir() and (not ufs or p.name.upper() in ufs)):
-        for f in sorted(pasta_uf.glob("imoveis_*.csv")):
-            cod = int(f.stem.split("_")[1])
-            if versao_do_arquivo(pasta_uf / f"regularizacao_{cod}.csv") == v:
-                em_dia += 1
-                continue
-            try:
-                escrever_municipio(pasta_uf, cod)
-                feitos.append(cod)
-            except Exception as ex:  # noqa: BLE001 - um município quebrado não para os outros
-                erros.append(f"{cod}: {ex}")
-    return {"refeitos": feitos, "em_dia": em_dia, "erros": erros}
+    from raiz.titulo import tarefa
+
+    return tarefa.recalcular(saida, ufs)
 
 
 def resumo(pasta: str | Path, cod: int) -> list[dict]:
