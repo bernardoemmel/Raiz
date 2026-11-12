@@ -467,3 +467,14 @@ Com as **sete ferramentas**, latência máxima **0,262 s**; Locust normal **157 
 **0,941 s**; saturação **251 requisições**, **152 HTTP 429** válidos, zero falhas, máximo **1,748 s**. Todas tiveram
 respostas válidas nas duas fases. **36 testes focados** passaram. O runner continua terminando em exit 1 somente
 pelo corpus sem agente leitor, com `latencia=true`, `carga=true`, `corpus=false`; a ficha não lê documentos do corpus.
+
+O portão da projeção passou em **90 testes focados**, além das projeções reais **AC (23 arquivos, 7,28 s)** e
+**PA (145 arquivos, 32,46 s)**. No PA, 2.035 CARs usam o nome do município do recorte atual em vez do código
+embutido no CAR; a validação aceita estritamente um desses dois nomes oficiais IBGE, sem liberar texto livre.
+O resumo público aplica a triagem de saltos à intensidade `tco2_ano_aptas/ha_carbono` e recusa medidas não
+suprimidas de grupos pequenos. Nenhum dado foi enviado ao Release por esses ensaios.
+
+Corrigida a saída do importador `raiz.executor.publicar_entrada`: não imprime mais o retorno privado nem
+nomes arbitrários de pacotes/membros em erro. Sucesso usa resumo fechado e falha usa mensagem fixa sem traceback.
+**Nove regressões** passaram com canários de dado pessoal/segredo em caminhos, retorno e exceções. Os E2E da API/Pix
+e da aprovação humana passaram após #72, respeitando o limite por empresa; não houve pagamento ou acesso externo.

@@ -48,6 +48,11 @@ geográfica de municípios necessariamente vizinhos. Totais de área e tamanho d
 Com menos de cinco municípios não há referência suficiente para essa comparação; as demais validações permanecem
 ativas. A política deve ser calibrada com dados reais versionados antes de afirmar detecção de toda anomalia espacial.
 
+Na projeção básica do #72, o resumo aberto compara a intensidade municipal `tco2_ano_aptas / ha_carbono`, com
+o mesmo detector de escala. Só calcula a razão quando ambas as medidas existem e a área é positiva; ausência
+e área zero não viram estimativas artificiais. Medidas de grupos pequenos precisam estar suprimidas. Os totais
+municipais não são comparados como se municípios de tamanhos diferentes devessem produzir a mesma quantidade.
+
 ## Formatos e privacidade
 
 O validador completo lê CSV, Parquet/GeoParquet, todos os ladrilhos MVT dos PMTiles, JSON, JSONL, o KML URTX e
