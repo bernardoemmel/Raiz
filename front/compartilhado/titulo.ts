@@ -37,19 +37,19 @@ export function situacaoTitulo(i: Imovel): SituacaoTitulo {
       tom: "conferir",
       texto: `${pct} do CAR coberto por parcela SIGEF particular com matrícula. Falta conferir a matrícula no cartório (certidão de inteiro teor).`,
     }
-  if (i.f_matricula > 0.001)
-    return {
-      selo: "matricula_a_conferir",
-      rotulo: "Matrícula a conferir",
-      tom: "conferir",
-      texto: `Só ${pct} do CAR tem parcela SIGEF com matrícula; o resto pode ser posse. Conferir no cartório e com o dono.`,
-    }
   if (i.assentamento)
     return {
       selo: "assentamento",
       rotulo: "Lote de assentamento",
       tom: "neutro",
       texto: `${fmtPct(i.ha > 0 ? i.assentamento_ha / i.ha : 0)} do CAR dentro de assentamento do INCRA: entra em projeto agrupado, com o INCRA.`,
+    }
+  if (i.f_matricula > 0.001)
+    return {
+      selo: "matricula_a_conferir",
+      rotulo: "Matrícula a conferir",
+      tom: "conferir",
+      texto: `Só ${pct} do CAR tem parcela SIGEF com matrícula; o resto pode ser posse. Conferir no cartório e com o dono.`,
     }
   return {
     selo: "sem_matricula",
