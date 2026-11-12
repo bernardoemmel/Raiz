@@ -12,7 +12,7 @@
 | Link curto do Organic Maps (formato ge0: zoom e coordenada em 10 caracteres, nome com %XX), reimplementado a partir de libs/ge0/url_generator.cpp e conferido com os casos de teste dele; Plus Code pela especificação aberta do Open Location Code | `raiz/localizacao.py` | Apache-2.0 (Organic Maps; Open Location Code) | https://github.com/organicmaps/organicmaps e https://github.com/google/open-location-code |
 | Códigos dos 5.571 municípios por estado (IBGE, Divisão Territorial Brasileira 2025, data base 31/12/2025), só os códigos | `front/compartilhado/ibge-municipios.ts` (gerado por `front/scripts/geo.py`) | dado público do IBGE, uso livre com citação da fonte | https://geoftp.ibge.gov.br/organizacao_do_territorio/estrutura_territorial/divisao_territorial/ |
 
-Dados públicos lidos pelo motor (cada um com seus termos): SICAR/SFB, Ibama, INPE TerraBrasilis (PRODES),
+Dados públicos lidos pelo motor e pelo produto (cada um com seus termos): IBGE (Pesquisa da Pecuária Municipal, SIDRA 3939, e Censo Agro 2017, SIDRA 6899, 6753, 6881 e 6910), SICAR/SFB, Ibama, INPE TerraBrasilis (PRODES),
 INCRA (SIGEF, quilombolas), FUNAI, MMA/CNUC (via geobr/Ipea), MapBiomas (cobertura, Fogo, Alerta), YbYrá-BR
 (Source Cooperative), Global Pasture Watch (OpenGeoHub), JRC TMF v1.2025 (espelho COG na Source Cooperative,
 epoch/jrc-tmf; dado do Joint Research Centre da Comissão Europeia, reempacotado sem alterar valores), causas da

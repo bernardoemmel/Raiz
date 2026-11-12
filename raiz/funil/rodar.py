@@ -8,6 +8,7 @@
     flag    raiz.flag.calcular_municipio (meta FLAG pela GHG LSR, fora do motor)   -> flag_<mun>.csv
     terra   raiz.terra (caminho da terra e risco, fora do motor)                   -> terra_<mun>.csv
     ficha   raiz.imovel_dados (design v1 do front: colunas e camadas no imóvel)   -> ficha_, camadas_<mun>
+    rebanho raiz.rebanho (rebanho por fazenda pela PPM e metano, E4, fora do motor) -> rebanho_<mun>.csv
     desenvolvedor raiz.restauracao (valor para quem restaura, fora do motor)      -> desenvolvedor_<mun>.csv
     carga   raiz.carga.carregar_municipio + congelamento das previsões (versão do motor confirmada)
 
@@ -36,7 +37,8 @@ from raiz.config import config
 log = logging.getLogger(__name__)
 
 TAREFAS = (
-    "funil", "filtros", "direto", "mapbiomas", "extras_direto", "flag", "terra", "ficha", "desenvolvedor", "carga",
+    "funil", "filtros", "direto", "mapbiomas", "extras_direto", "flag", "terra", "ficha", "rebanho", "desenvolvedor",
+    "carga",
 )  # fmt: skip
 
 
@@ -205,6 +207,16 @@ def rodar_municipio(cod: int, op: Opcoes, hc=None) -> dict:
 
         reg.detalhe.update(escrever_municipio(pasta, cod, Path("cache")))
 
+    def rebanho(reg):
+        from raiz import rebanho as RB
+
+        f = pasta / f"rebanho_{cod}.csv"
+        if f.exists() and not op.refazer and RB.versao_do_arquivo(f) == RB.versao():
+            reg.pulado = True
+            reg.nota(f"{f.name} já está na versão {RB.versao()}")
+            return
+        reg.detalhe.update(RB.escrever_municipio(pasta, cod))
+
     def desenvolvedor(reg):
         from raiz import restauracao as RS
 
@@ -225,6 +237,7 @@ def rodar_municipio(cod: int, op: Opcoes, hc=None) -> dict:
     executar("flag", None, flag)  # refaz quando a versão da regra muda
     executar("terra", None, terra)  # caminho da terra; refaz quando a regra ou as concessões mudam
     executar("ficha", pasta / f"ficha_{cod}.csv", ficha)
+    executar("rebanho", None, rebanho)  # rebanho por fazenda (E4); refaz quando a PPM ou as premissas mudam
     executar("desenvolvedor", None, desenvolvedor)  # refaz quando a versão das premissas ou do cenário muda
     executar("carga", None, carga)
     return res

@@ -267,6 +267,10 @@ Calculado pelo produto, fora do motor (raiz/restauracao.py e raiz/restauracao_ge
   `raiz restauracao recalibrar --gravar` escreve raiz/regras/padroes/restauracao_calibracao.yaml (revise antes de
   subir): a versão muda e o `recalcular` refaz.
 
+## Rebanho por fazenda e metano (E4)
+
+`raiz rebanho recalcular [--saida pasta] [--ufs PA]` grava rebanho_<mun>.csv onde falta ou a versão mudou (a tarefa `rebanho` do invólucro e do executor faz o mesmo, antes do valor para quem restaura). A PPM vem de raiz/regras/padroes/ppm_bovinos.csv (SIDRA 3939, 2025 e 2017); quando o IBGE divulga um ano novo (raiz/coleta/ppm.py), baixe de novo a tabela e suba o ano em rebanho.yaml: a versão muda e tudo se refaz. Reserva de não permanência por fazenda (E3 passo 4): seção nao_permanencia de restauracao.yaml, com o fogo do MapBiomas Fogo e a derrubada da vegetação secundária do município.
+
 ## Caminho da terra e terra pública para restaurar
 
 A situação da terra não corta mais o funil: cada imóvel ganha um caminho (privada com matrícula, posse em
