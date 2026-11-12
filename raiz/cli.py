@@ -560,6 +560,37 @@ def restauracao_recalcular(
         typer.echo(f"  erro {e}")
 
 
+rebanho_cli = typer.Typer(help="Rebanho por fazenda pela PPM e metano do gado (E4).", no_args_is_help=True)
+app.add_typer(rebanho_cli, name="rebanho")
+
+
+@rebanho_cli.command("recalcular")
+def rebanho_recalcular(
+    saida: Annotated[
+        str | None, typer.Option(help="pasta saida/ do motor; padrão: a pasta de trabalho do motor")
+    ] = None,
+    ufs: Annotated[str | None, typer.Option(help="só estas UFs, separadas por vírgula")] = None,
+) -> None:
+    """Grava rebanho_<mun>.csv onde falta ou foi feito com outra versão da PPM ou das premissas."""
+    from pathlib import Path
+
+    from raiz import rebanho as RB
+    from raiz.funil.rodar import dir_trabalho
+
+    base = Path(saida) if saida else dir_trabalho() / "saida"
+    lista = [u.strip().upper() for u in ufs.split(",")] if ufs else sorted(p.name for p in base.iterdir() if p.is_dir())
+    feitos = em_dia = 0
+    for uf in lista:
+        for f in sorted((base / uf).glob("imoveis_*.csv")):
+            cod = int(f.stem.split("_")[-1])
+            if RB.versao_do_arquivo(base / uf / f"rebanho_{cod}.csv") == RB.versao():
+                em_dia += 1
+                continue
+            RB.escrever_municipio(base / uf, cod)
+            feitos += 1
+    typer.echo(f"versão {RB.versao()}: {feitos} municípios refeitos, {em_dia} já em dia")
+
+
 @restauracao_cli.command("cambio")
 def restauracao_cambio(
     gravar: Annotated[
