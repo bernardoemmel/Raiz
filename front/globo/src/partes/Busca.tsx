@@ -136,7 +136,7 @@ export function Busca({ aoEscolher }: { aoEscolher?: () => void }) {
       ...(r?.municipios ?? []).map((m) => ({
         id: "m" + m.cod_ibge,
         rotulo: `${m.municipio} (${m.uf})`,
-        detalhe: `${fmtInt(m.imoveis)} imóveis no CAR`,
+        detalhe: m.imoveis === null ? "Contagem ocultada para proteger grupos pequenos" : `${fmtInt(m.imoveis)} imóveis no CAR`,
         marca: m.tem_imoveis ? "lista por fazenda" : "sem lista por fazenda",
         falta: !m.tem_imoveis,
         ir: () => {
