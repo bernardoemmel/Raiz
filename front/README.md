@@ -123,7 +123,7 @@ O site oferece `llms.txt`, `robots.txt` e `index.md` ao lado dos dois HTMLs, com
 `dados/index.md` leva aos Markdown de estados/municípios; números suprimidos no agregado continuam suprimidos no
 Markdown e no JSON-LD, sem links para CSV ou geometrias individuais. `servico.md`, `fontes.md` e `privacidade.md` explicam o
 produto. JSON-LD no HTML lista Dataset somente dos estados publicados, Service e Offer com valores sob proposta.
-`RAIZ_SITE_URL` define a URL canônica em outro domínio. A API aceita `Accept: text/markdown` nas leituras textuais,
+`RAIZ_SITE_URL` define a URL canônica (mesmo caminho de `RAIZ_BASE`). A API aceita `Accept: text/markdown` nas leituras textuais,
 sem alterar autenticação; a ficha pública também oferece `/p/{codigo}.md` com a mesma regra de aceite.
 
 `npm run test:agentes` confere arquivos e links sob `/Raiz/` e roda Lighthouse 13.6.0 (`agentic-browsing`, experimental).
@@ -131,6 +131,36 @@ O portão exige `llms.txt`, árvore de acessibilidade e CLS até 0,1. WebMCP e A
 `/llms.txt` na raiz da origem, por isso a auditoria usa outra origem local com o artefato na raiz. No Pages de projeto,
 `/Raiz/robots.txt` não governa a origem: o site da conta precisa publicar também `/robots.txt`, ou usar domínio próprio.
 O relatório local não comprova esses arquivos na raiz pública.
+
+### Domínio próprio
+
+O build deriva o endereço do Pages de `GITHUB_REPOSITORY`; o nome `Raiz` não está fixo nos caminhos de produção.
+Sem configuração no ambiente local, a base é `/`. `RAIZ_BASE=/outro/` permite testar um subcaminho.
+
+Quando o domínio existir, configurar a variável de Actions **RAIZ_DOMINIO** com apenas o hostname (por exemplo,
+`mapa.suaempresa.com`, sem `https://`, porta ou caminho). O mesmo `construir-site.sh` então usa `/`, grava
+`site/CNAME`, define a URL HTTPS canônica no HTML do painel e do produtor e no JSON-LD, e publica `robots.txt` e
+`llms.txt` na raiz. A configuração rejeita domínio inválido, subcaminho junto do domínio e URL canônica divergente.
+Sem a variável, não gera CNAME e conserva o Pages de projeto.
+
+Ainda é preciso apontar o DNS, verificar o domínio na conta e cadastrá-lo em **Settings > Pages > Custom domain**,
+com HTTPS, antes de ativar a variável e executar a publicação. O CNAME dentro do artefato não faz essas alterações
+na conta nem no provedor de DNS. Nenhum domínio real foi presumido ou configurado nesta entrega.
+
+O CI valida as duas publicações: o subcaminho do Pages e a raiz com `RAIZ_DOMINIO=raiz.example` (domínio reservado
+só para o teste local). Nas duas, Playwright confere navegação e HTTP Range sem 404; a auditoria verifica links,
+Markdown e arquivos para agentes. Na raiz também exige CNAME e URLs canônicas coerentes. Para reproduzir:
+
+```bash
+node --test front/scripts/configurar-publicacao.test.mjs
+RAIZ_DOMINIO=raiz.example front/scripts/construir-site.sh
+cd front/globo
+RAIZ_BASE=/ RAIZ_DOMINIO=raiz.example npm run test:pages
+RAIZ_BASE=/ RAIZ_DOMINIO=raiz.example npm run test:agentes
+```
+
+Os testes de navegador pressupõem a fixture preparada por `preparar-teste-site.mjs`, `RAIZ_DADOS`/`RAIZ_GEO`
+apontando para ela no build e `VITE_RAIZ_TESTE_MAPA=1`.
 
 O que funciona sem back-end: mapa, estados, municípios e resumos agregados. Ficha completa, busca por fazenda,
 créditos, Pix e pedidos de contato precisam do back-end (`raiz/`, FastAPI com PostgreSQL e PostGIS). Os componentes

@@ -90,7 +90,8 @@ jobs:
       # o mesmo script do CI de todo PR (lá sem os dados): npm ci, build do painel e da ficha, e a pasta site/
       - name: Montar o site (painel com os dados e ficha do produtor)
         env:
-          RAIZ_BASE: /${{ github.event.repository.name }}/
+          # Variável vazia mantém o Pages de projeto. Um hostname publica / e grava site/CNAME.
+          RAIZ_DOMINIO: ${{ vars.RAIZ_DOMINIO }}
         run: front/scripts/construir-site.sh
 
       - uses: actions/upload-pages-artifact@v3

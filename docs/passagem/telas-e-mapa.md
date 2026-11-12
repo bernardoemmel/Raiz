@@ -56,15 +56,53 @@ Sessão: https://claude.ai/code/session_01VGb88MJumyG9PHt2znaaKE. Branch: `claud
 - E9 posterior: a calibração do portão depende de 30 cartas reais anonimizadas e avaliação de compreensão,
   sem conjunto pronto segundo resposta do fundador em 12/11. Não usar o corte dos testes sintéticos como calibrado.
 
-## O que falta, em ordem
+## Preparação do domínio próprio (entrega 5, 12/11/2026)
 
-1. Concluir as cinco entregas solicitadas: cena-alvo, cobertura diária do mapa, ficha visual, celular/acessibilidade
-   com Lighthouse ≥90 nas duas categorias e configuração de domínio próprio. Integrar cada uma com CI verde.
-2. Conferir a chegada do ponteiro `lote_PA_central_r11.json` no Release; a rotina diária já o incorpora quando existir.
+- `front/scripts/configurar-publicacao.mjs` centraliza base, URL canônica e hostname. `RAIZ_DOMINIO` vazio mantém
+  o Pages derivado de `GITHUB_REPOSITORY`; preenchido usa `/`, HTTPS e `site/CNAME`. Recusa protocolo, caminho,
+  porta, IP, hostname inválido e configuração que mandaria os arquivos para um subcaminho do domínio.
+- `construir-site.sh` passa a mesma configuração aos dois builds; produtor não usa mais `/Raiz/` como fallback.
+  HTML do painel e do produtor anunciam canonical; Markdown, JSON-LD, assets e dados acompanham a base.
+- O workflow lê a variável de Actions `RAIZ_DOMINIO`. Nenhum domínio real foi definido. Antes de ligá-la:
+  verificar o domínio na conta, apontar DNS, cadastrar em Settings > Pages > Custom domain e habilitar HTTPS.
+  O CNAME no artefato não configura DNS nem substitui a configuração do Pages.
+- CI executa testes de configuração e duas publicações reais da fixture: `/Raiz/` e `/`, a segunda com o hostname
+  reservado `raiz.example`. Playwright e auditoria de agentes verificam ambos; na raiz, também CNAME e canonical.
+- Validação integrada das entregas 1 a 5: 10 testes de configuração, 176 testes de front sem skips, os dois builds
+  e Playwright/Lighthouse Agentic nos dois caminhos passaram, com zero 404 e sem expor dados individuais.
+  O formulário nativo do produtor conserva o caminho também com JavaScript desligado. Actionlint aprovou os dois
+  workflows; os seis jobs, E2E com API, cena-alvo e as 15 medições fixas de Lighthouse mobile foram preservados.
+- `robots.txt` e `llms.txt` ficam prontos para a raiz quando o domínio for ativado. O endereço atual de projeto
+  continua com a limitação do robots na raiz de `bernardoemmel.github.io`.
+
+## Verificação real após a migração do Release
+
+- Em 12/11, o cadastro básico atual produziu 365 municípios com desenho em 9 estados e site público de 91 MB.
+  Playwright conferiu busca por Parauapebas, zoom 13 com HTTP Range, pedido no Pará e 360 px, com zero 404.
+- A consulta atual confirma 345.870 fazendas lidas em 144 municípios do Pará. O total de hectares passou a
+  aparecer como desconhecido quando há células ausentes ou suprimidas no novo pacote. A medição de hectares
+  registrada antes nesta passagem pertence ao pacote anterior; não deve substituir a disponibilidade atual.
+- Cena-alvo: [PR #67](https://github.com/bernardoemmel/Raiz/pull/67), integrado com seis checks verdes.
+  Cobertura: [PR #70](https://github.com/bernardoemmel/Raiz/pull/70); ficha: [PR #71](https://github.com/bernardoemmel/Raiz/pull/71).
+  Os demais merges e a publicação devem ser conferidos ao concluir a sequência.
+
+## Situação das cinco entregas e próximos passos
+
+As cinco entregas estão implementadas e verificadas localmente: cena-alvo ligada ao Release, cobertura diária
+sem lista fixa, ficha visual com acesso controlado, navegação mobile com portão Lighthouse e domínio configurável.
+Os PRs e a publicação final ainda precisam ter seus resultados de CI e integração conferidos; esta descrição não
+antecipa o merge de uma entrega que ainda esteja em revisão.
+
+1. Acompanhar o CI de cada PR e a publicação final; conferir o site no ar, as datas da cobertura e os caminhos
+   públicos após a integração. Registrar aqui os links e resultados dos PRs ao fechar cada entrega.
+2. Aguardar o ponteiro `lote_PA_central_r11.json` no Release; a rotina diária já o incorpora quando existir.
+   Enquanto faltar, a tela mantém o aviso e não inventa os três lotes nem suas faixas de crédito/TIR.
 3. E9 passo 3: aguardar as 30 cartas reais anonimizadas e uma avaliação de compreensão, confirmadas como ainda
-   indisponíveis pelo fundador. Depois calibrar o portão e gravar a nota no laudo.
-4. Continuar os itens E9 na ordem do plano: texto por fazenda no kit ONS/campos abertos, condicionais e extenso,
-   KMZ e os demais. A geometria de reserva legal ainda não está nas camadas; não deduzir seu desenho de percentuais.
+   indisponíveis pelo fundador. Depois calibrar o portão e gravar a nota no laudo. Contato com o dono somente na fase final.
+4. Quando houver domínio real, configurar DNS e Pages e preencher `RAIZ_DOMINIO`; conferir HTTPS, CNAME,
+   `robots.txt` e `llms.txt` na raiz. Nenhum domínio real foi escolhido ou ativado nesta entrega.
+5. Continuar os demais itens E9 na ordem do plano: texto por fazenda no kit ONS/campos abertos, condicionais e
+   extenso, KMZ e os demais. A geometria de reserva legal ainda não está nas camadas; não deduzir seu desenho de percentuais.
 
 ## Nova entrega 1: cena-alvo ligada ao Release (12/11/2026)
 
@@ -305,3 +343,21 @@ relatórios Lighthouse passaram pelo portão fixo. E9 real não foi calibrado e 
   TypeScript, design, actionlint, 186 testes do front e Playwright de cena-alvo e ficha passaram após o merge.
 - Os seis jobs do CI e as quinze medições fixas de Lighthouse foram preservados; a integração não reduziu
   categorias, notas mínimas nem o conjunto de páginas do portão.
+
+### Domínio após integrar Calendário e cadastro básico
+
+- As duas bases, `/Raiz/` e `/`, passaram pelo build e pelo Playwright com calendário/feed ICS, busca,
+  acesso pago por CAR, overzoom e formulário do produtor sem JavaScript; zero 404 nas duas publicações.
+- Dez testes de configuração e 187 testes do front passaram. Actionlint aprovou os workflows.
+  A fixture de calendário é usada também no segundo build do CI, sem depender da agenda remota.
+
+### Conferência final com o Release real
+
+- O conjunto final passou novamente pela busca Parauapebas, zoom 13 por HTTP Range, pedido no Pará e 360 px,
+  com zero 404. Lighthouse das cinco páginas no artefato real: desempenho mediano 100/98/95/95/100;
+  acessibilidade mínima 100 em todas as quinze medições fixas. Não houve repetição para escolher notas.
+- A revisão corrigiu o Markdown estadual/municipal: medidas ausentes permanecem desconhecidas e zero
+  explícito continua zero. Um total incompleto não é apresentado como completo; contagem desconhecida
+  não libera medidas de grupos cujo tamanho mínimo não pode ser confirmado. Dezenove testes focados passaram.
+- A atualização da main para o histórico automático foi incorporada; preservadas a nota do Calendário
+  sobre o runner e a exceção exata de URL JDBC sem credenciais.
