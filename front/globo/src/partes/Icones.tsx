@@ -1,4 +1,8 @@
-/** Ícones desenhados para a Raíz (traço simples, sem biblioteca). */
+/** Ícones: Lucide (ISC), importados um a um, 20 px ao lado do texto e na cor do texto (guia, item 1.5). A marca da
+ * Raíz é desenho próprio até a etapa de identidade (guia, item 10). */
+
+export { CircleAlert, Download, Info, User } from "lucide-react"
+import { Check, TriangleAlert, X } from "lucide-react"
 
 export function IconeRaiz({ tamanho = 26 }: { tamanho?: number }) {
   return (
@@ -11,19 +15,8 @@ export function IconeRaiz({ tamanho = 26 }: { tamanho?: number }) {
   )
 }
 
-export function IconePessoa() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <circle cx="12" cy="8.5" r="4" stroke="currentColor" strokeWidth="1.8" />
-      <path d="M4.5 20c1.2-3.6 4.2-5.5 7.5-5.5s6.3 1.9 7.5 5.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-    </svg>
-  )
-}
-
-export function IconeBaixar() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path d="M12 4v11m0 0-4.5-4.5M12 15l4.5-4.5M5 19.5h14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  )
+/** Situação de um item: forma diferente para cada estado (certo, alerta, x), nunca só a cor. */
+export function IconeSituacao({ ok, bloqueia }: { ok: boolean; bloqueia: boolean }) {
+  const Icone = ok ? Check : bloqueia ? X : TriangleAlert
+  return <Icone size={20} aria-hidden="true" className="motivo-icone" />
 }

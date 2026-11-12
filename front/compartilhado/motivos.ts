@@ -79,7 +79,7 @@ export function motivos(i: Imovel): Motivo[] {
       id: "reserva",
       ok: false,
       texto: "Falta reserva legal",
-      detalhe: `${fmtHa(i.deficit_RL_ha)} de reserva legal a recompor (${i.pct_RL ?? "—"}% do imóvel); não impede o carbono na área além da reserva`,
+      detalhe: `${fmtHa(i.deficit_RL_ha)} de reserva legal a recompor${i.pct_RL !== null ? ` (${i.pct_RL}% do imóvel)` : ""}; não impede o carbono na área além da reserva`,
       bloqueia: false,
     })
   if (i.app_desmatada_ha > 1)

@@ -25,7 +25,8 @@ Distribuídas dentro do produto (vão no pacote que o navegador baixa), sem alte
 | React 19, React DOM | `front/globo` | MIT |
 | Preact 10.29.8 | `front/produtor` | MIT |
 | cobe 2.0.1 | `front/globo` (globo da abertura) | MIT |
-| Fonte Inter (@fontsource-variable/inter 5.3.0) | `front/globo` | SIL Open Font License 1.1 |
+| Fontes Familjen Grotesk, Atkinson Hyperlegible Next e IBM Plex Mono (@fontsource 5.3.0, só woff2 latino) | `front/globo`; o produtor usa só a Atkinson | SIL Open Font License 1.1 |
+| Ícones Lucide (lucide-react e lucide-preact 1.62.0, importados um a um) | `front/globo`, `front/produtor` | ISC |
 
 Gerados por `front/scripts/geo.py` e servidos junto (fora do git): recorte do mapa base do build diário do Protomaps,
 com dados © colaboradores do OpenStreetMap (ODbL 1.0, atribuição no canto do mapa); letras dos rótulos Noto Sans

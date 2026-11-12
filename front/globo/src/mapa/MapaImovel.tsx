@@ -1,6 +1,7 @@
 import { AttributionControl, LngLatBounds, Map as MapaGL, NavigationControl, ScaleControl } from "maplibre-gl"
 import "maplibre-gl/dist/maplibre-gl.css"
 import { useEffect, useRef } from "react"
+import { COR, MAPA } from "../../../compartilhado/cores"
 import type { Geo } from "../../../compartilhado/dados"
 import { estiloBase, imagemHachura, prepararMapLibre } from "./estilo"
 
@@ -80,19 +81,19 @@ export function MapaImovel({ aneis, cod, municipio, voar, base, vizinhos, ti, ri
       m.addSource("imovel", { type: "geojson", data: imovel as never })
       m.addSource("municipio", { type: "geojson", data: (municipio ?? VAZIO) as never })
       m.addLayer({ id: "ti", type: "fill", source: "ti", paint: { "fill-pattern": "hachura" } }, antes)
-      m.addLayer({ id: "rios", type: "fill", source: "rios", paint: { "fill-color": "#86a9cf" } }, antes)
-      m.addLayer({ id: "vizinhos", type: "fill", source: "vizinhos", paint: { "fill-color": "#a7aea6", "fill-opacity": 0.22 } }, antes)
+      m.addLayer({ id: "rios", type: "fill", source: "rios", paint: { "fill-color": MAPA.rio } }, antes)
+      m.addLayer({ id: "vizinhos", type: "fill", source: "vizinhos", paint: { "fill-color": COR.situacaoNaoApta, "fill-opacity": 0.22 } }, antes)
       m.addLayer(
-        { id: "vizinhos-borda", type: "line", source: "vizinhos", paint: { "line-color": "#ffffff", "line-width": 1 } },
+        { id: "vizinhos-borda", type: "line", source: "vizinhos", paint: { "line-color": COR.superficie, "line-width": 1 } },
         antes,
       )
-      m.addLayer({ id: "municipio", type: "line", source: "municipio", paint: { "line-color": "#1d5a39", "line-width": 1.6, "line-dasharray": [3, 2] } }, antes)
-      m.addLayer({ id: "imovel", type: "fill", source: "imovel", paint: { "fill-color": "#1d5a39", "fill-opacity": 0.2 } }, antes)
+      m.addLayer({ id: "municipio", type: "line", source: "municipio", paint: { "line-color": COR.mata, "line-width": 1.6, "line-dasharray": [3, 2] } }, antes)
+      m.addLayer({ id: "imovel", type: "fill", source: "imovel", paint: { "fill-color": COR.mata, "fill-opacity": 0.2 } }, antes)
       m.addLayer({
         id: "imovel-borda",
         type: "line",
         source: "imovel",
-        paint: { "line-color": "#1d5a39", "line-width": 3 },
+        paint: { "line-color": COR.mata, "line-width": 3 },
       })
     })
     return () => m.remove()
@@ -104,15 +105,15 @@ export function MapaImovel({ aneis, cod, municipio, voar, base, vizinhos, ti, ri
       {!aneis.length && <div className="mapa-carregando">O perímetro deste imóvel ainda não foi baixado.</div>}
       <ul className="legenda">
         <li>
-          <i style={{ background: "rgba(29,90,57,.25)", border: "2px solid #1d5a39" }} />
+          <i className="imovel" />
           Perímetro do CAR
         </li>
         <li>
-          <i style={{ background: "rgba(167,174,166,.4)" }} />
+          <i className="vizinho" />
           Imóveis vizinhos
         </li>
         <li>
-          <i style={{ border: "2px dashed #1d5a39" }} />
+          <i className="divisa" />
           Divisa do município
         </li>
         <li>

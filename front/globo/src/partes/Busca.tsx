@@ -1,3 +1,4 @@
+import { CircleAlert, Info } from "lucide-react"
 import { useEffect, useId, useRef, useState } from "react"
 import { CATEGORIAS, type RespostaBusca } from "../../../compartilhado/dados"
 import { abreviarCar, fmtHa, fmtInt } from "../../../compartilhado/formato"
@@ -109,7 +110,7 @@ export function Busca({ aoEscolher }: { aoEscolher?: () => void }) {
       ...(r?.imoveis ?? []).map((i) => ({
         id: "i" + i.cod_imovel,
         rotulo: abreviarCar(i.cod_imovel),
-        detalhe: `${i.municipio} (${i.uf}) · ${fmtHa(i.ha)}`,
+        detalhe: `${i.municipio} (${i.uf}), ${fmtHa(i.ha)}`,
         marca: i.apta ? `${fmtHa(i.carbono_ha)} aptos` : CATEGORIAS.find((c) => c.id === i.categoria)?.rotulo,
         falta: !i.apta,
         ir: () => {
@@ -181,11 +182,26 @@ export function Busca({ aoEscolher }: { aoEscolher?: () => void }) {
       {ocupado && <span className="busca-girando" aria-hidden="true" />}
       {mostrar && (
         <div className="busca-caixa" role="region" aria-live="polite">
-          {ocupado && <p className="busca-estado">Buscando “{q}”…</p>}
-          {!ocupado && estado.fase === "erro" && estado.q === q && (
-            <p className="busca-estado erro">Não deu para buscar agora. Confira a conexão e tente de novo.</p>
+          {ocupado && (
+            <p className="busca-estado estado-linha">
+              <span className="girando" aria-hidden="true" /> Buscando “{q}”…
+            </p>
           )}
-          {!ocupado && r?.mensagem && <p className={"busca-estado " + (r.situacao === "curta" ? "" : "aviso")}>{r.mensagem}</p>}
+          {!ocupado && estado.fase === "erro" && estado.q === q && (
+            <p className="busca-estado aviso" role="alert">
+              <CircleAlert size={20} aria-hidden="true" />
+              <span>Não deu para buscar agora. Confira a conexão e tente de novo.</span>
+            </p>
+          )}
+          {!ocupado && r?.mensagem &&
+            (r.situacao === "curta" ? (
+              <p className="busca-estado">{r.mensagem}</p>
+            ) : (
+              <p className="busca-estado aviso">
+                <Info size={20} aria-hidden="true" />
+                <span>{r.mensagem}</span>
+              </p>
+            ))}
           {!ocupado && opcoes.length > 0 && (
             <ul id={idLista} role="listbox" aria-label="Resultados">
               {opcoes.map((o, n) => (

@@ -1,0 +1,5 @@
+{
+  "private": true,
+  "type": "module",
+  "description": "Código comum do painel (globo) e da ficha do produtor; sem dependências próprias."
+}

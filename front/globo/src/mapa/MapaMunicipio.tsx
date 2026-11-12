@@ -12,6 +12,7 @@ import "maplibre-gl/dist/maplibre-gl.css"
 import { useEffect, useImperativeHandle, useRef, useState, type Ref } from "react"
 import { CATEGORIAS, type Geo, type Imovel } from "../../../compartilhado/dados"
 import { abreviarCar, fmtHa, fmtInt, fmtModulos, STATUS_CAR } from "../../../compartilhado/formato"
+import { COR, FOGO, MAPA } from "../../../compartilhado/cores"
 import { ESCALA_FOGO, PERIODO_FOGO } from "../../../compartilhado/satelite"
 import { fonte, useCarga } from "../dados"
 import type { Frente } from "../filtros"
@@ -44,10 +45,11 @@ const CORES: ExpressionSpecification = [
   ["get", "cat"],
   ...CATEGORIAS.flatMap((c) => [c.id, c.cor]),
   "sem_dado",
-  "#8f9a8e",
-  "#a7aea6",
+  COR.situacaoNaoApta,
+  COR.situacaoNaoApta,
 ] as unknown as ExpressionSpecification
 
+const maiuscula = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`)
 
 function caixaDeGeo(g: Geo | null): LngLatBounds | null {
@@ -146,7 +148,7 @@ function textoPopup(cod: string, props: Record<string, unknown>, i: Imovel | und
     return (
       car +
       `<div class="pop-titulo">${Number.isFinite(area) ? esc(fmtHa(area)) : "Imóvel"} no CAR</div>` +
-      `<p class="pop-sub">${Number.isFinite(mf) ? esc(fmtModulos(mf)) + " · " : ""}${status ? "CAR " + esc(status) + " · " : ""}o funil por fazenda deste município ainda não está na amostra</p>`
+      `<p class="pop-sub">${Number.isFinite(mf) ? esc(fmtModulos(mf)) + ", " : ""}${status ? "CAR " + esc(status) + ". " : ""}O funil por fazenda deste município ainda não está na amostra.</p>`
     )
   }
   const area = frente.area(i)
@@ -164,8 +166,8 @@ function textoPopup(cod: string, props: Record<string, unknown>, i: Imovel | und
   return (
     car +
     `<div class="pop-titulo">${esc(titulo)}</div>` +
-    `<p class="pop-sub">${esc(fmtHa(i.ha))} · ${terra} · ${esc(alerta)}${fogo.length ? "<br>" + esc(fogo.join(" · ")) : ""}</p>` +
-    `<a class="pop-link" href="${esc(linkFazenda(cod))}">Abrir ficha →</a>`
+    `<p class="pop-sub">${esc(fmtHa(i.ha))}, ${terra}, ${esc(alerta)}.${fogo.length ? "<br>" + esc(maiuscula(fogo.join(", "))) + "." : ""}</p>` +
+    `<a class="pop-link" href="${esc(linkFazenda(cod))}">Abrir ficha</a>`
   )
 }
 
@@ -341,33 +343,33 @@ export function MapaMunicipio({ cod, imoveis, passa, camadas, frente, destaque, 
       data: (g.imoveisGeo ? pontosDeFogo(g.imoveisGeo, porCod.current) : VAZIO) as never,
     })
 
-    add({ id: "uc", type: "fill", source: "uc", paint: { "fill-color": "#bcd2b3", "fill-opacity": 0.35 } })
+    add({ id: "uc", type: "fill", source: "uc", paint: { "fill-color": MAPA.uso.savana, "fill-opacity": 0.35 } })
     add({
       id: "uc-borda",
       type: "line",
       source: "uc",
-      paint: { "line-color": "#6c8a6c", "line-width": 1.2, "line-dasharray": [3, 2] },
+      paint: { "line-color": COR.mata, "line-width": 1.2, "line-dasharray": [3, 2] },
     })
     add({ id: "ti", type: "fill", source: "ti", paint: { "fill-pattern": "hachura", "fill-opacity": 0.9 } })
     add({
       id: "ti-borda",
       type: "line",
       source: "ti",
-      paint: { "line-color": "#4f6d51", "line-width": 1.3, "line-dasharray": [4, 2] },
+      paint: { "line-color": COR.mataTexto, "line-width": 1.3, "line-dasharray": [4, 2] },
     })
     add({
       id: "rios",
       type: "fill",
       source: "rios",
       filter: ["in", ["geometry-type"], ["literal", ["Polygon", "MultiPolygon"]]],
-      paint: { "fill-color": "#86a9cf", "fill-opacity": 0.95 },
+      paint: { "fill-color": MAPA.rio, "fill-opacity": 0.95 },
     })
     add({
       id: "rios-linha",
       type: "line",
       source: "rios",
       filter: ["in", ["geometry-type"], ["literal", ["LineString", "MultiLineString"]]],
-      paint: { "line-color": "#7ea3cc", "line-width": 2 },
+      paint: { "line-color": MAPA.rio, "line-width": 2 },
     })
     add({
       id: "imoveis",
@@ -392,7 +394,7 @@ export function MapaMunicipio({ cod, imoveis, passa, camadas, frente, destaque, 
       type: "line",
       source: "imoveis",
       paint: {
-        "line-color": "#ffffff",
+        "line-color": COR.superficie,
         "line-opacity": ["interpolate", ["linear"], ["zoom"], 8, 0.25, 12, 0.9],
         "line-width": ["interpolate", ["linear"], ["zoom"], 8, 0.3, 13, 1.2],
       },
@@ -402,7 +404,7 @@ export function MapaMunicipio({ cod, imoveis, passa, camadas, frente, destaque, 
       type: "line",
       source: "imoveis",
       filter: ["==", ["get", "sec"], 1],
-      paint: { "line-color": "#2c7a47", "line-width": 1.4, "line-dasharray": [1.5, 1.2] },
+      paint: { "line-color": COR.mata, "line-width": 1.4, "line-dasharray": [1.5, 1.2] },
     })
     add({
       id: "imoveis-fogo",
@@ -420,14 +422,14 @@ export function MapaMunicipio({ cod, imoveis, passa, camadas, frente, destaque, 
       type: "line",
       source: "imoveis",
       filter: ["==", ["get", "alerta"], 1],
-      paint: { "line-color": "#b5483a", "line-width": 2 },
+      paint: { "line-color": COR.urucum, "line-width": 2 },
     })
     add({
       id: "imoveis-foco",
       type: "line",
       source: "imoveis",
       paint: {
-        "line-color": "#10301f",
+        "line-color": COR.tinta,
         "line-width": 2.6,
         "line-opacity": [
           "case",
@@ -437,16 +439,16 @@ export function MapaMunicipio({ cod, imoveis, passa, camadas, frente, destaque, 
         ],
       },
     })
-    add({ id: "mascara", type: "fill", source: "mascara", paint: { "fill-color": "#f3f4ef", "fill-opacity": 0.55 } })
+    add({ id: "mascara", type: "fill", source: "mascara", paint: { "fill-color": MAPA.mascaraClara, "fill-opacity": 0.6 } })
     add({
       id: "fogo-recente",
       type: "circle",
       source: "fogo-recente",
       layout: { visibility: "none" },
       paint: {
-        "circle-color": "#d9481f",
+        "circle-color": FOGO.recente,
         "circle-opacity": 0.85,
-        "circle-stroke-color": "#ffffff",
+        "circle-stroke-color": COR.superficie,
         "circle-stroke-width": 1.2,
         "circle-radius": [
           "interpolate",
@@ -459,7 +461,7 @@ export function MapaMunicipio({ cod, imoveis, passa, camadas, frente, destaque, 
         ],
       },
     })
-    add({ id: "municipio", type: "line", source: "municipio", paint: { "line-color": "#1d5a39", "line-width": 2.2 } })
+    add({ id: "municipio", type: "line", source: "municipio", paint: { "line-color": COR.mata, "line-width": 2.2 } })
     add(
       {
         id: "ti-rotulo",
@@ -471,7 +473,7 @@ export function MapaMunicipio({ cod, imoveis, passa, camadas, frente, destaque, 
           "text-size": 12.5,
           "text-max-width": 12,
         },
-        paint: { "text-color": "#3e5a41", "text-halo-color": "#eef2ea", "text-halo-width": 1.4 },
+        paint: { "text-color": COR.mataTexto, "text-halo-color": MAPA.terra, "text-halo-width": 1.5 },
       },
       true,
     )
@@ -484,12 +486,12 @@ export function MapaMunicipio({ cod, imoveis, passa, camadas, frente, destaque, 
       <div className="mapa" ref={caixa} aria-label="Mapa do município" role="region" />
       {!g && <div className="mapa-carregando">Carregando o mapa…</div>}
       {semGeo && (
-        <div className="mapa-aviso">
+        <div className="aviso mapa-aviso">
           A geometria deste município ainda não foi gerada. Rode <code>python front/scripts/geo.py {cod}</code>.
         </div>
       )}
       {g && !g.imoveisGeo && !semGeo && (
-        <div className="mapa-aviso">Os polígonos do CAR deste município ainda não foram baixados.</div>
+        <div className="aviso mapa-aviso">Os polígonos do CAR deste município ainda não foram baixados.</div>
       )}
       <ul className="legenda" aria-label="Legenda">
         {imoveis ? (
@@ -501,7 +503,7 @@ export function MapaMunicipio({ cod, imoveis, passa, camadas, frente, destaque, 
           ))
         ) : (
           <li>
-            <i style={{ background: "#8f9a8e", opacity: 0.6 }} />
+            <i style={{ background: COR.situacaoNaoApta }} />
             Imóvel do CAR (funil por fazenda a caminho)
           </li>
         )}

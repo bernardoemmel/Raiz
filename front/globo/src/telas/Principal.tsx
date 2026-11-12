@@ -8,7 +8,8 @@ import { MapaMunicipio, type MapaApi } from "../mapa/MapaMunicipio"
 import { Cabecalho } from "../partes/Cabecalho"
 import { Filtros, type Camadas } from "../partes/Filtros"
 import { Funil, type Etapa } from "../partes/Funil"
-import { IconeBaixar } from "../partes/Icones"
+import { Download } from "../partes/Icones"
+import { Estado } from "../partes/Estado"
 import { ListaFazendas } from "../partes/ListaFazendas"
 import { Projeto } from "../partes/Projeto"
 import { linkMunicipio } from "../rota"
@@ -156,13 +157,13 @@ export function Principal({ municipio, abertura }: Props) {
             </ol>
             <h1>Onde dá para restaurar, com dono e título</h1>
             <p>
-              {f ? fmtInt(f.imoveis) : "…"} imóveis do CAR cruzados com PRODES, MapBiomas, Ibama, SIGEF, terras
-              indígenas, UCs e alertas de desmatamento.
+              {f ? fmtInt(f.imoveis) : "…"} imóveis do Cadastro Ambiental Rural (CAR) cruzados com PRODES, MapBiomas,
+              Ibama, SIGEF, terras indígenas, unidades de conservação e alertas de desmatamento.
             </p>
           </div>
           <div className="acoes">
             <button type="button" className="botao" onClick={baixar} disabled={!lista?.length}>
-              <IconeBaixar /> Baixar planilha
+              <Download size={20} aria-hidden="true" /> Baixar planilha
             </button>
             <button type="button" className="botao principal" onClick={() => setProjeto(true)} disabled={!lista?.length}>
               Montar projeto com a seleção
@@ -173,7 +174,19 @@ export function Principal({ municipio, abertura }: Props) {
         {f ? (
           <Funil etapas={etapas(f, dados, filtros, setFiltros)} modo={!abertura ? "final" : revelado ? "contar" : "zero"} />
         ) : (
-          <p className="aviso-filtro">{funil.carregando ? "Carregando o funil…" : "Este município não está na amostra."}</p>
+          <div className="funil-estado">
+            {funil.carregando ? (
+              <Estado tipo="carregando" titulo="Carregando o funil do município" />
+            ) : funil.erro ? (
+              <Estado tipo="erro" titulo="Não deu para ler o funil agora.">
+                Confira a conexão e recarregue a página.
+              </Estado>
+            ) : (
+              <Estado tipo="vazio" titulo="Este município ainda não foi processado.">
+                O funil aparece aqui quando o motor rodar o município.
+              </Estado>
+            )}
+          </div>
         )}
 
         <div className="corpo">

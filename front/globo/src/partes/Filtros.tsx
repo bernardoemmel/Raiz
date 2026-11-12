@@ -1,3 +1,4 @@
+import { Info } from "lucide-react"
 import type { Imovel } from "../../../compartilhado/dados"
 import { DESMATES, FRENTES, TITULOS, type Filtros as F, type TituloId } from "../filtros"
 
@@ -27,9 +28,12 @@ export function Filtros({ filtros, mudar, camadas, mudarCamadas, imoveis }: Prop
   return (
     <aside className="painel filtros" aria-label="Filtros">
       {semDado && (
-        <p className="aviso-filtro">
-          Os filtros por fazenda ligam quando o motor entregar os imóveis deste município. Os números do funil já são
-          do motor.
+        <p className="aviso aviso-filtro">
+          <Info size={20} aria-hidden="true" />
+          <span>
+            Os filtros por fazenda ligam quando o motor entregar os imóveis deste município. Os números do funil já são
+            do motor.
+          </span>
         </p>
       )}
       <fieldset disabled={semDado}>

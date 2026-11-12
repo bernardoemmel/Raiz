@@ -22,6 +22,22 @@ export function fmtCompacto(n: number): string {
   return fmtInt(n)
 }
 
+/**
+ * Destaque de carbono e dinheiro: 2 algarismos significativos, com unidade por extenso no texto
+ * (4.417 → "4.400"; 15.900 → "16 mil"; 4.226.631 → "4,2 milhões"). O valor exato fica em "Ver como calculamos".
+ */
+export function fmtDestaque(n: number): string {
+  if (!Number.isFinite(n) || n === 0) return "0"
+  const a = Math.abs(n)
+  const casas = Math.floor(Math.log10(a)) - 1
+  const r = Math.round(n / 10 ** casas) * 10 ** casas
+  const ra = Math.abs(r)
+  if (ra >= 1e9) return `${ateUmaCasa.format(r / 1e9)} ${ra >= 2e9 ? "bilhões" : "bilhão"}`
+  if (ra >= 1e6) return `${ateUmaCasa.format(r / 1e6)} ${ra >= 2e6 ? "milhões" : "milhão"}`
+  if (ra >= 1e4) return `${inteiro.format(r / 1e3)} mil`
+  return inteiro.format(r)
+}
+
 export const fmtPct = (f: number) => `${inteiro.format(Math.round(f * 100))}%`
 
 export const fmtModulos = (m: number) => `${ateUmaCasa.format(m)} ${m >= 2 || m === 0 ? "módulos" : "módulo"}`

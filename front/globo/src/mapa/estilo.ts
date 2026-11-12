@@ -7,6 +7,7 @@ import { layers, namedFlavor, type Flavor } from "@protomaps/basemaps"
 import { addProtocol, setWorkerUrl, type StyleSpecification } from "maplibre-gl"
 import workerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?url"
 import { Protocol } from "pmtiles"
+import { COR } from "../../../compartilhado/cores"
 import { ATRIBUICAO_MAPA, CORES_MAPA } from "../../../compartilhado/mapa-cores"
 
 let pronto = false
@@ -49,7 +50,7 @@ export function estiloBase(base: string | null, opcoes: { rotulos?: boolean } = 
 }
 
 /** Hachura diagonal para as terras indígenas (como na tela aprovada). */
-export function imagemHachura(cor = "#5d7a5f"): { width: number; height: number; data: Uint8Array } {
+export function imagemHachura(cor: string = COR.mata): { width: number; height: number; data: Uint8Array } {
   const t = 16
   const data = new Uint8Array(t * t * 4)
   const [r, g, b] = [1, 3, 5].map((i) => parseInt(cor.slice(i, i + 2), 16))

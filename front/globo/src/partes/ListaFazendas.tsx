@@ -2,6 +2,7 @@ import { useState } from "react"
 import type { FunilMunicipio, Imovel } from "../../../compartilhado/dados"
 import { abreviarCar, fmtCompacto, fmtHa, fmtInt, fmtModulos } from "../../../compartilhado/formato"
 import type { Frente } from "../filtros"
+import { Estado } from "./Estado"
 import { linkFazenda } from "../rota"
 
 interface Props {
@@ -40,7 +41,7 @@ export function ListaFazendas({ titulo, frente, lista, funil, pequenas, selecion
           <p>Ela aparece aqui sozinha quando o arquivo de imóveis do município chegar.</p>
           {outroMunicipio && (
             <a className="link" href={outroMunicipio.link}>
-              Ver a lista de {outroMunicipio.nome} →
+              Ver a lista de {outroMunicipio.nome}
             </a>
           )}
         </div>
@@ -57,7 +58,15 @@ export function ListaFazendas({ titulo, frente, lista, funil, pequenas, selecion
       </div>
       {lista.length === 0 ? (
         <div className="vazio-lista">
-          <p>Nenhuma fazenda passa por estes filtros. Afrouxe o título da terra ou o tempo sem desmatamento.</p>
+          {funil && funil.aptas_carbono === 0 ? (
+            <Estado tipo="vazio" titulo={`Nenhuma fazenda apta em ${funil.municipio}.`}>
+              <p>Nenhum imóvel passou pelo funil. Os motivos de cada um estão na ficha, pelo mapa.</p>
+            </Estado>
+          ) : (
+            <Estado tipo="vazio" titulo="Nenhuma fazenda passa por estes filtros.">
+              <p>Afrouxe o título da terra ou o tempo sem desmatamento.</p>
+            </Estado>
+          )}
         </div>
       ) : (
         <ol>
@@ -76,7 +85,7 @@ export function ListaFazendas({ titulo, frente, lista, funil, pequenas, selecion
                   <div className="lf-car">{abreviarCar(i.cod_imovel)}</div>
                   <div className="lf-sub num">
                     {fmtHa(i.ha)}
-                    {i.m_fiscal !== null && <> · {fmtModulos(i.m_fiscal)}</>}
+                    {i.m_fiscal !== null && <>, {fmtModulos(i.m_fiscal)}</>}
                   </div>
                 </div>
                 <div className="lf-dir">
@@ -104,7 +113,7 @@ export function ListaFazendas({ titulo, frente, lista, funil, pequenas, selecion
       {pequenas > 0 && frente.id !== "agrupar" && (
         <div className="lista-pe">
           <button type="button" className="link" onClick={verPequenas}>
-            Ver as {fmtInt(pequenas)} pequenas para agrupar →
+            Ver as {fmtInt(pequenas)} pequenas para agrupar
           </button>
         </div>
       )}

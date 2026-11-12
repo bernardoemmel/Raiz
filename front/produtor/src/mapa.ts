@@ -17,6 +17,7 @@ import {
 import "maplibre-gl/dist/maplibre-gl.css"
 import workerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?url"
 import { Protocol } from "pmtiles"
+import { COR } from "../../compartilhado/cores"
 import { ATRIBUICAO_MAPA, CORES_MAPA } from "../../compartilhado/mapa-cores"
 
 const SABOR: Flavor = { ...namedFlavor("light"), ...CORES_MAPA, landcover: { ...CORES_MAPA.landcover } }
@@ -68,8 +69,8 @@ export function montarMapa(caixa: HTMLElement, aneis: [number, number][][], base
       type: "geojson",
       data: { type: "Feature", properties: {}, geometry: { type: "MultiPolygon", coordinates: aneis.map((a) => [a]) } },
     })
-    m.addLayer({ id: "fazenda", type: "fill", source: "fazenda", paint: { "fill-color": "#1d5a39", "fill-opacity": 0.2 } })
-    m.addLayer({ id: "fazenda-borda", type: "line", source: "fazenda", paint: { "line-color": "#1d5a39", "line-width": 3 } })
+    m.addLayer({ id: "fazenda", type: "fill", source: "fazenda", paint: { "fill-color": COR.mata, "fill-opacity": 0.2 } })
+    m.addLayer({ id: "fazenda-borda", type: "line", source: "fazenda", paint: { "line-color": COR.tinta, "line-width": 3 } })
   })
   return m
 }

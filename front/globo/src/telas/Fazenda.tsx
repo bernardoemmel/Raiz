@@ -3,14 +3,15 @@ import { boisPorAno, camposDeFutebol, fraseIndice, frasePosicao, mediana } from 
 import type { Imovel } from "../../../compartilhado/dados"
 import { colunaConhecida, NOMES_COLUNAS } from "../../../compartilhado/dados/contrato"
 import { escreverCsv } from "../../../compartilhado/dados/csv"
-import { abreviarCar, fmt1, fmtCompacto, fmtHa, fmtInt, fmtModulos, fmtPct, STATUS_CAR, UFS } from "../../../compartilhado/formato"
+import { abreviarCar, fmt1, fmtDestaque, fmtHa, fmtInt, fmtModulos, fmtPct, STATUS_CAR, UFS } from "../../../compartilhado/formato"
 import { motivos } from "../../../compartilhado/motivos"
 import { situacaoTitulo } from "../../../compartilhado/titulo"
 import { fonte, useCarga } from "../dados"
 import { MapaImovel } from "../mapa/MapaImovel"
 import { Cabecalho } from "../partes/Cabecalho"
 import { CaixaDeFatos } from "../partes/CaixaDeFatos"
-import { IconeBaixar } from "../partes/Icones"
+import { Estado } from "../partes/Estado"
+import { Download, IconeSituacao } from "../partes/Icones"
 import { Satelite } from "../partes/Satelite"
 import { consumirVoo, linkMunicipio } from "../rota"
 
@@ -22,8 +23,8 @@ interface Numero {
   rotulo: string
   valor: string
   unidade: string
-  concreta: string
-  local: string | null
+  /** no máximo uma comparação por número (guia, item 1.6): a local quando houver, senão a concreta */
+  comparacao: string | null
 }
 
 function numerosGrandes(i: Imovel, todos: Imovel[] | null, municipio: string, tco2Municipio: number | null): Numero[] {
@@ -34,38 +35,38 @@ function numerosGrandes(i: Imovel, todos: Imovel[] | null, municipio: string, tc
   const lista: Numero[] = [
     {
       id: "restaurar",
-      rotulo: "Para restaurar",
+      rotulo: "Pode voltar a ser mata",
       valor: fmtInt(area),
       unidade: "ha",
-      concreta: area > 0 ? camposDeFutebol(area) : "sem área apta agora",
-      local:
-        area > 0 && todos
-          ? (frasePosicao(
-              area,
-              todos.map((x) => (x.apta ? x.carbono_ha : 0)),
-              onde,
-            ) ?? fraseIndice(area, mediana(aptas), `mediana das aptas de ${onde}`))
-          : null,
+      comparacao:
+        area > 0
+          ? ((todos &&
+              (frasePosicao(
+                area,
+                todos.map((x) => (x.apta ? x.carbono_ha : 0)),
+                onde,
+              ) ??
+                fraseIndice(area, mediana(aptas), `mediana das aptas de ${onde}`))) ||
+            camposDeFutebol(area))
+          : "Sem área apta agora.",
     },
   ]
   if (i.apta && i.carbono_tco2_ano > 0)
     lista.push({
       id: "carbono",
-      rotulo: "Carbono tirado do ar",
-      valor: i.carbono_tco2_ano >= 10_000 ? fmtCompacto(i.carbono_tco2_ano) : fmtInt(i.carbono_tco2_ano),
-      unidade: "tCO₂ por ano",
-      concreta: boisPorAno(i.carbono_tco2_ano),
-      local: tco2Municipio
+      rotulo: "Gás carbônico tirado do ar",
+      valor: fmtDestaque(i.carbono_tco2_ano),
+      unidade: "t por ano",
+      comparacao: tco2Municipio
         ? `${i.carbono_tco2_ano / tco2Municipio < 0.01 ? fmt1((100 * i.carbono_tco2_ano) / tco2Municipio) + "%" : fmtPct(i.carbono_tco2_ano / tco2Municipio)} do carbono de todas as aptas de ${onde}`
-        : null,
+        : boisPorAno(i.carbono_tco2_ano),
     })
   lista.push({
     id: "floresta",
     rotulo: "Floresta em pé",
     valor: fmtInt(i.floresta_rem_ha),
-    unidade: "ha",
-    concreta: `${fmtPct(pctFloresta(i))} do imóvel; ${camposDeFutebol(i.floresta_rem_ha)}`,
-    local: todos
+    unidade: `ha, ${fmtPct(pctFloresta(i))} do imóvel`,
+    comparacao: todos
       ? (() => {
           const med = mediana(todos.map(pctFloresta))
           const f = fraseIndice(pctFloresta(i), med, `mediana de ${onde}`)
@@ -77,9 +78,8 @@ function numerosGrandes(i: Imovel, todos: Imovel[] | null, municipio: string, tc
     id: "tamanho",
     rotulo: "Tamanho do imóvel",
     valor: fmtInt(i.ha),
-    unidade: "ha",
-    concreta: `${i.m_fiscal !== null ? fmtModulos(i.m_fiscal) + "; " : ""}${camposDeFutebol(i.ha)}`,
-    local: todos ? frasePosicao(i.ha, todos.map((x) => x.ha), onde) : null,
+    unidade: i.m_fiscal !== null ? `ha, ${fmtModulos(i.m_fiscal)} fiscais` : "ha",
+    comparacao: (todos && frasePosicao(i.ha, todos.map((x) => x.ha), onde)) || camposDeFutebol(i.ha),
   })
   return lista
 }
@@ -125,7 +125,7 @@ export function Fazenda({ car }: { car: string }) {
       <>
         <Cabecalho atual="fazenda" />
         <main className="pagina">
-          <p className="aviso-filtro">Carregando a ficha…</p>
+          <Estado tipo="carregando" titulo="Carregando a ficha da fazenda" />
         </main>
       </>
     )
@@ -134,10 +134,18 @@ export function Fazenda({ car }: { car: string }) {
       <>
         <Cabecalho atual="fazenda" />
         <main className="pagina">
-          <h1>Imóvel não encontrado</h1>
-          <p className="aviso-filtro">
-            O código {car} não está nos dados disponíveis. <a href="#/">Voltar ao mapa</a>
-          </p>
+          {ficha.erro ? (
+            <Estado tipo="erro" titulo="Não deu para abrir a ficha agora.">
+              <p>Confira a conexão e recarregue a página.</p>
+            </Estado>
+          ) : (
+            <Estado tipo="vazio" titulo="Imóvel não encontrado.">
+              <p>
+                O código <code>{car}</code> não está nos dados da Raíz. Confira o código ou procure pelo município na
+                busca acima. <a href="#/">Voltar ao mapa</a>
+              </p>
+            </Estado>
+          )}
         </main>
       </>
     )
@@ -174,10 +182,15 @@ export function Fazenda({ car }: { car: string }) {
             </h1>
             <p>
               Imóvel de {fmtHa(i.ha)}
-              {i.m_fiscal !== null && <> · {fmtModulos(i.m_fiscal)} fiscais</>}
-              {i.bioma && <> · {i.bioma}</>}
-              {status && <> · CAR {status}</>}
-              {i.condicao && <> · {i.condicao.charAt(0).toLowerCase() + i.condicao.slice(1)}</>}
+              {i.m_fiscal !== null && <> e {fmtModulos(i.m_fiscal)} fiscais</>}
+              {i.bioma && <>, no bioma {i.bioma}</>}.
+              {status && (
+                <>
+                  {" "}
+                  Cadastro Ambiental Rural (CAR) {status}
+                  {i.condicao && <>: {i.condicao.charAt(0).toLowerCase() + i.condicao.slice(1)}</>}.
+                </>
+              )}
             </p>
             <div className="selos">
               {i.apta ? <span className="selo ok">Apta ao carbono</span> : <span className="selo ruim">Fora do funil</span>}
@@ -195,13 +208,13 @@ export function Fazenda({ car }: { car: string }) {
           </div>
           <div className="acoes">
             <a className="botao" href={linkMunicipio(cod)}>
-              ← Voltar ao mapa
+              Voltar ao mapa
             </a>
             <button type="button" className="botao" onClick={() => baixarLinha(i)}>
-              <IconeBaixar /> Baixar dados
+              <Download size={20} aria-hidden="true" /> Baixar dados
             </button>
             <a className="botao principal" href={`${URL_PRODUTOR}?car=${encodeURIComponent(i.cod_imovel)}`} target="_blank" rel="noopener">
-              Ficha do produtor ↗
+              Ficha do produtor<span className="sr"> (abre em outra aba)</span>
             </a>
           </div>
         </div>
@@ -230,8 +243,9 @@ export function Fazenda({ car }: { car: string }) {
                 <div className="grande-valor num">
                   {n.valor} <span>{n.unidade}</span>
                 </div>
-                <div className="grande-concreta">{n.concreta.charAt(0).toUpperCase() + n.concreta.slice(1)}</div>
-                {n.local && <div className="grande-local">{n.local.charAt(0).toUpperCase() + n.local.slice(1)}</div>}
+                {n.comparacao && (
+                  <div className="grande-comparacao">{n.comparacao.charAt(0).toUpperCase() + n.comparacao.slice(1)}</div>
+                )}
               </div>
             ))}
           </section>
@@ -253,9 +267,7 @@ export function Fazenda({ car }: { car: string }) {
             <ul className="motivos">
               {lista.map((m) => (
                 <li key={m.id} className={m.ok ? "ok" : m.bloqueia ? "ruim" : "atencao"}>
-                  <span className="motivo-icone" aria-hidden="true">
-                    {m.ok ? "✓" : m.bloqueia ? "✕" : "!"}
-                  </span>
+                  <IconeSituacao ok={m.ok} bloqueia={m.bloqueia} />
                   <div>
                     <div className="motivo-texto">{m.texto}</div>
                     <div className="motivo-detalhe num">{m.detalhe}</div>
@@ -303,7 +315,7 @@ export function Fazenda({ car }: { car: string }) {
                     <tr key={x.registro_cns + x.registro_matricula}>
                       <td>{x.registro_cns}</td>
                       <td>{x.registro_matricula}</td>
-                      <td className="num">{x.ha_sobre_car ? fmtHa(x.ha_sobre_car) : "—"}</td>
+                      <td className="num">{x.ha_sobre_car ? fmtHa(x.ha_sobre_car) : "sem dado"}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -333,7 +345,7 @@ export function Fazenda({ car }: { car: string }) {
                     {NOMES_COLUNAS[k] && <code>{k}</code>}
                     {!colunaConhecida(k) && <span className="selo neutro">coluna nova</span>}
                   </th>
-                  <td className="num">{v === "" ? "—" : v}</td>
+                  <td className="num">{v === "" ? "sem dado" : v}</td>
                 </tr>
               ))}
             </tbody>
