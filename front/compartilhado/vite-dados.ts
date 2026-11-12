@@ -5,6 +5,7 @@
  *                                    IBGE), se está completo e quais municípios têm lista por fazenda
  *   /amostra/indice_<UF>.json        os CSV de um estado (um arquivo novo do motor aparece sozinho)
  *   /amostra/<arquivo>.csv           um CSV do motor, limpo (sem coluna pessoal, CPF e CNPJ mascarados)
+ *   /amostra/<arquivo>.csv.gz        o mesmo, comprimido (é como o site estático guarda; o navegador descomprime)
  *   /amostra/pontos_<UF>.json        fazendas aptas do estado como pontos (agrupamentos no mapa), com cache em disco
  *   /amostra/car_<UF>.json           códigos do CAR que estão no arquivo de outro município (código → município)
  *   /amostra/fichas/<cod>.json       a ficha leve de uma fazenda (dados/ficha.ts), montada aqui
@@ -17,8 +18,11 @@
  * Release "dados"); sem nenhuma, dados/amostra/ (ver pasta-dados.ts). As rotas são as mesmas nos três casos: o nome do
  * arquivo já diz de que estado ele é. /amostra/estados.json usa o estados.json baixado quando há.
  *
- * No `vite build`, grava tudo em dist/ (CSV limpos, estados, pontos e uma ficha por fazenda). Sem dependência de
- * pacote: os tipos do Vite ficam de fora para este arquivo poder morar fora dos projetos.
+ * No `vite build`, grava os dados em dist/: CSV limpos e comprimidos (.csv.gz), estados, pontos, códigos fora do
+ * município e as fichas prontas dos municípios com contorno (as outras o navegador monta dos CSV). Assim o Brasil cabe
+ * num site estático (GitHub Pages: até 1 GB). RAIZ_BUILD_DADOS=0 não grava dado nenhum (a ficha do produtor no site lê
+ * os do painel). Sem dependência de pacote: os tipos do Vite ficam de fora para este arquivo poder morar fora dos
+ * projetos.
  */
 
 import fs from "node:fs"
@@ -62,6 +66,20 @@ export function dadosRaiz(opcoes: { repo: string; raizDados?: string | null; cac
   let saida = "dist"
   // o Vite chama closeBundle também ao fechar o servidor (e o Vitest fecha um no fim): só grava no vite build
   let construindo = false
+
+  /** CSV limpo e comprimido, guardado enquanto o arquivo não muda (os mais recentes) */
+  const gz = new Map<string, { mtime: number; dado: Buffer }>()
+  function csvComprimido(nome: string): Buffer | null {
+    const arq = pasta.caminho(nome)
+    if (!arq) return null
+    const mtime = fs.statSync(arq).mtimeMs
+    const ja = gz.get(nome)
+    if (ja && ja.mtime === mtime) return ja.dado
+    const dado = zlib.gzipSync(pasta.csvLimpo(nome) ?? "", { level: 6 })
+    gz.set(nome, { mtime, dado })
+    while (gz.size > 40) gz.delete(gz.keys().next().value!)
+    return dado
+  }
 
   const listar = (dir: string) =>
     fs.existsSync(dir) ? fs.readdirSync(dir).filter((f) => fs.statSync(path.join(dir, f)).isFile()) : []
@@ -180,6 +198,14 @@ export function dadosRaiz(opcoes: { repo: string; raizDados?: string | null; cac
           pasta.ficha(m[1]).then((f) => (f ? json(req, res, f) : naoAchou(res)), falhou)
           return
         }
+        if ((m = /^\/amostra\/([^/]+\.csv)\.gz$/.exec(url))) {
+          const dado = csvComprimido(m[1])
+          if (!dado) return naoAchou(res)
+          res.setHeader("Content-Type", "application/gzip")
+          res.setHeader("Cache-Control", "no-cache")
+          res.setHeader("Content-Length", dado.length)
+          return res.end(dado)
+        }
         if ((m = /^\/amostra\/([^/]+\.csv)$/.exec(url))) {
           const t = pasta.csvLimpo(m[1])
           return t !== null ? texto(req, res, t, TIPOS[".csv"]) : naoAchou(res)
@@ -196,7 +222,7 @@ export function dadosRaiz(opcoes: { repo: string; raizDados?: string | null; cac
       })
     },
     async closeBundle() {
-      if (!construindo || !fs.existsSync(saida)) return
+      if (!construindo || !fs.existsSync(saida) || process.env.RAIZ_BUILD_DADOS === "0") return
       const dAmostra = path.join(saida, "amostra")
       const dFichas = path.join(dAmostra, "fichas")
       fs.mkdirSync(dFichas, { recursive: true })
@@ -205,13 +231,15 @@ export function dadosRaiz(opcoes: { repo: string; raizDados?: string | null; cac
       for (const uf of pasta.ufs()) {
         const arquivos = pasta.arquivos(uf)
         for (const f of arquivos) {
-          fs.writeFileSync(path.join(dAmostra, f), pasta.csvLimpo(f) ?? "")
+          fs.writeFileSync(path.join(dAmostra, `${f}.gz`), zlib.gzipSync(pasta.csvLimpo(f) ?? "", { level: 9 }))
           csvs++
         }
         fs.writeFileSync(path.join(dAmostra, `indice_${uf}.json`), JSON.stringify({ uf, arquivos }))
         fs.writeFileSync(path.join(dAmostra, `pontos_${uf}.json`), (await pasta.pontosTexto(uf)) ?? "")
         fs.writeFileSync(path.join(dAmostra, `car_${uf}.json`), JSON.stringify(await pasta.foraDoMunicipio(uf)))
+        // ficha pronta só onde há o contorno das fazendas (as outras o navegador monta dos CSV do município)
         for (const cod of pasta.comImoveis(uf)) {
+          if (!fs.existsSync(path.join(geo, `imoveis_${cod}.geojson`))) continue
           const m = pasta.municipio(cod)
           if (!m) continue
           for (const i of m.imoveis) {

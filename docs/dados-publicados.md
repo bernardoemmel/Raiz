@@ -9,8 +9,9 @@ Painel e detalhes: [`motor/README.md`](../motor/README.md).
 1. O workflow `.github/workflows/processar-estados.yml` roda toda segunda-feira e quando alguém dispara (Actions,
    "Processar estados (motor)"). O plano (`motor/rodar_estado.py --planejar`) lê o `estados.json` publicado e escolhe,
    na ordem do país, os estados que não começaram, os incompletos, os de antes do executor, os que têm tarefa com
-   código mudado e os completos que não rodam há 6 dias. Ficam 4 estados rodando ao mesmo tempo, somando todas as
-   rodadas.
+   código mudado e os completos que não rodam há 6 dias, em duas filas (estado novo primeiro; manutenção só com o que
+   sobra, até 4). Estado com mais de 120 municípios roda em fatias, em jobs separados. Até 18 jobs ao mesmo tempo,
+   somando todas as rodadas.
 2. Cada estado roda num job (`motor/rodar_estado.py <UF> --executor`) pelo executor do produto (`raiz executor`): ele
    lê do Release o que já está publicado do estado (pacotes e marcas de retomada), roda o motor e as tarefas do
    produto só onde falta ou mudou, e publica: `raiz_<UF>.tar.gz` (os CSV, com `<UF>/_versoes.json`: tarefa, versão,
@@ -27,6 +28,8 @@ Painel e detalhes: [`motor/README.md`](../motor/README.md).
 5. O plugin do Vite (`front/compartilhado/vite-dados.ts` e `pasta-dados.ts`) lê `dados/estados/` sozinho quando
    existe (ou a pasta de `RAIZ_DADOS`); sem ela, a amostra. O mapa do Brasil diz, por estado, o que o `estados.json`
    baixado diz (completo, incompleto com a contagem, ainda não processado), sem recontar.
+6. O site público (https://bernardoemmel.github.io/Raiz/) é refeito todo dia pelo workflow `publicar-site.yml`, que
+   baixa este Release no build (ver `front/README.md`, "Site público").
 
 ## Caminho antigo (motor rodado no computador)
 
@@ -53,7 +56,7 @@ Uma entrada por estado:
 | `versao`, `tamanho`, `url`, `atualizado_em` | pacote dos CSV: sha256 do conteúdo, bytes, endereço e quando o conteúdo mudou |
 | `geo` | o mesmo para o pacote dos polígonos |
 | `versoes`, `motor_versao`, `situacao`, `controle` | do executor: versão de cada tarefa (hash do código e da regra), versão do motor, andamento (`pronto`, `parado_no_prazo`, `com_erro`) e endereço das marcas de retomada |
-| `motor` | quem rodou: `commit` (sha do commit da rodada), `versao`, `etapas` (versão por tarefa), `legado` (tarefas adotadas de antes do executor, como estavam) e `rodada` (endereço do job, início, fim, continuação, se parou pelo prazo e quantos municípios avançou) |
+| `motor` | quem rodou: `commit` (sha do commit da rodada), `versao`, `etapas` (versão por tarefa), `legado` (tarefas adotadas de antes do executor, como estavam), `rodada` (endereço do job, início, fim, continuação, se parou pelo prazo e quantos municípios avançou) e, em estado grande, `fatias` (por fatia: `rodada`, `completo`, `faltam`, `erros`, `municipios`) |
 | `erros` | erros da última rodada (etapa, município, mensagem; sem CPF nem CNPJ), até 50 |
 
 O aprendizado compara previsões entre versões do motor pelo `motor.etapas[tabela].versao` (muda só quando o código
