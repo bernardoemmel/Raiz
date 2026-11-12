@@ -8,6 +8,8 @@ from typing import Annotated
 import typer
 
 from raiz import RAIZ_REPO
+from raiz.aprendizado.cli_folds import registrar as registrar_folds
+from raiz.aprendizado.cli_sobrevivencia import registrar as registrar_sobrevivencia
 from raiz.privacidade import configurar_log, varrer
 
 app = typer.Typer(help="Raíz: coleta, funil, título, agentes e aprendizado em cima do motor.", no_args_is_help=True)
@@ -66,6 +68,8 @@ def carregar(
 
 aprendizado = typer.Typer(help="Previsões congeladas e gabaritos (E8).", no_args_is_help=True)
 app.add_typer(aprendizado, name="aprendizado")
+registrar_folds(aprendizado)
+registrar_sobrevivencia(aprendizado)
 
 
 @aprendizado.command("gabarito")

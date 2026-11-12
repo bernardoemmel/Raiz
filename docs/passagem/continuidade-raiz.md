@@ -35,18 +35,17 @@ prazo nem tratar dados de teste como evento real.
 
 1. **Aviso Verra:** rascunho preparado; conferência dos dados privados e envio pelo proponente/fundador pendentes.
    Só depois do envio efetivo registrar `verra_avisada`, com a data correta e comprovante privado.
-2. **E7 passo 8:** cache calibrado da matrícula é responsabilidade deste chat, em implementação. Escore numérico
+2. **E7 passo 8:** cache calibrado da matrícula implementado em `raiz/documentos/certidao/cache.py`. Escore numérico
    por leitura, corte calibrado em gabaritos da leitura integral e risco controlado; sem calibração suficiente,
-   reler. Confiança declarada alta/média/baixa não prova acerto. MAPIE previsto no plano.
+   reler. Confiança declarada alta/média/baixa não prova acerto. MAPIE LTT implementado; ver `docs/cache-matricula.md`. Coletar a amostra real e calibrar antes da ativação.
 3. **E8:** reexecutar motor/outros modelos por fold com scd2 `folds.como_estava`, e sobrevivência do aceite
-   (tempo até aceite; lifelines MIT), em implementação. Não usar camadas de hoje nos folds históricos.
+   (tempo até aceite; lifelines MIT), implementados. Folds têm adaptadores motor/FLAG/restauração e arquivador SCD2; exigem todas as fontes do corte. Sobrevivência exige 30 contatos reais/5 aceites. Ver `docs/aprendizado-por-tempo.md`. Não usar camadas de hoje nos folds históricos.
 4. **Servidor:** subir llama.cpp/llguidance com GGUF `qwen3-4b-instruct-2507-q4_k_m.gguf`; testar, calibrar 120
    tarefas x 3 tentativas e comparar Haiku. Os cortes de `cascata_cortes.yaml` ficam vazios até avaliação real.
    Resultado “sem corte, fica na votação” é válido se o acerto retido não atingir 95%. Rodada local em validação;
    produção sem acesso neste ambiente. Relatório de avaliação fica fora do git; cortes reais em PR próprio.
 5. **Cron operacional:** `uv run raiz operacao alertas` a cada 15 minutos; sem ntfy/GoAlert, simulado e registrado.
-   Este ambiente não tem acesso SSH, banco ou credenciais de produção. Preparar instalação reproduzível não
-   equivale a instalar no servidor.
+   Este ambiente não tem acesso SSH, banco ou credenciais de produção. Instalador idempotente pronto: `uv run python scripts/instalar_cron_alertas.py` mostra a prévia; `--instalar` aplica no servidor. Preparar o script não equivale a instalar no servidor.
 6. **Segredos pendentes:** `MAPBIOMAS_ALERTA_EMAIL`, `MAPBIOMAS_ALERTA_SENHA`, `RAIZ_VIGILANCIA_CHAVE`,
    `RAIZ_PROJETOS_PRIVADO`; opcionais `FIRMS_MAP_KEY`, `RAIZ_NTFY_TOPICO`, `RAIZ_NTFY_TOKEN`, `RAIZ_GOALERT_URL`.
    Configurar no servidor e nos secrets da vigilância no GitHub. Nunca pedir valores no chat. Envio simulado até lá.
