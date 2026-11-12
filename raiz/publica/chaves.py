@@ -95,7 +95,8 @@ def registrar(engine: Engine, *, cliente_id: int | None, chave_id: int | None, v
                     atributos) values (:c, :k, :v, :f, :m, :r, :p, :i, cast(:al as jsonb), :s, :ms, :pr, :vm, :vp,
                     :am, cast(:at as jsonb)) returning id"""),
             {"c": cliente_id, "k": chave_id, "v": via, "f": ferramenta[:80], "m": metodo, "r": rota[:200], "p": pid,
-             "i": (cod_imovel or None) and cod_imovel[:80], "al": json.dumps(alcance) if alcance else None,
+             "i": (cod_imovel or None) and cod_imovel[:80],
+             "al": json.dumps(_alcance_seguro(alcance)) if alcance else None,
              "s": status, "ms": ms, "pr": preco_rs, "vm": versao_modelo, "vp": versao_premissas,
              "am": (agente_modelo or None) and limpar(agente_modelo)[:120],
              "at": json.dumps(limpar(atributos)) if atributos else None},
@@ -123,3 +124,17 @@ def chamadas(engine: Engine, cliente_id: int | None = None, pedido_id: str | Non
             d["criada_em"] = d["criada_em"].isoformat()
             out.append(d)
         return out
+
+
+def _alcance_seguro(alcance: dict) -> dict:
+    """Log de filtros com domínios fechados: nomes/textos livres nunca são gravados."""
+    import re
+
+    ufs = set("AC AL AP AM BA CE DF ES GO MA MT MS MG PA PB PR PE PI RJ RN RS RO RR SC SP SE TO".split())
+    biomas = {"Amazônia", "Caatinga", "Cerrado", "Mata Atlântica", "Pampa", "Pantanal"}
+    return {
+        "ufs": [u for u in alcance.get("ufs", []) if u in ufs],
+        "municipios": [str(m) for m in alcance.get("municipios", []) if re.fullmatch(r"[1-5][0-9]{6}", str(m))],
+        "biomas": [b for b in alcance.get("biomas", []) if b in biomas],
+        "meta": alcance.get("meta") if isinstance(alcance.get("meta"), (int, float)) else None,
+    }

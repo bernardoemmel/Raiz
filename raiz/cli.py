@@ -826,14 +826,38 @@ def banco_migrar(alvo: str = "head") -> None:
         typer.echo("sem RAIZ_CHAVE_PESSOAL: tabelas de conversa não criadas")
 
 
-@app.command("api")
-def api(porta: int = 8000, host: str = "127.0.0.1") -> None:
+api_cli = typer.Typer(help="Servidor da API e administração local da licença de dados.", invoke_without_command=True)
+app.add_typer(api_cli, name="api")
+
+
+@api_cli.callback()
+def api(ctx: typer.Context, porta: int = 8000, host: str = "127.0.0.1") -> None:
     """Sobe a API (aceites, mensagens a aprovar, revisões e webhook do WhatsApp em /whatsapp)."""
+    if ctx.invoked_subcommand is not None:
+        return
     import uvicorn
 
     from raiz.api import criar_app
 
     uvicorn.run(criar_app(), host=host, port=porta)
+
+
+@api_cli.command("licenca")
+def api_licenca(
+    cliente: Annotated[int, typer.Option(help="id da empresa cuja licença o fundador aprovou", min=1)],
+    aprovar: Annotated[bool, typer.Option("--aprovar", help="registrar a aprovação e desbloquear a conta")] = False,
+) -> None:
+    """Administração local pelo fundador; não disponível à chave da empresa nem ao MCP."""
+    from raiz.banco import engine
+    from raiz.publica import conta
+
+    if not aprovar:
+        raise typer.BadParameter("informe --aprovar para registrar a licença de dados")
+    eng = engine()
+    if conta.ver(eng, cliente) is None:
+        raise typer.BadParameter("a empresa ainda não abriu a conta da API")
+    conta.aprovar_licenca(eng, cliente)
+    typer.echo(f"licença de dados aprovada para a empresa {cliente}; limites e cobrança por chamada continuam valendo")
 
 
 if __name__ == "__main__":
@@ -1787,15 +1811,18 @@ def pedidos_cliente(
 def pedidos_chave(
     cliente: Annotated[int, typer.Option(help="id do cliente (empresa)")],
     rotulo: Annotated[str | None, typer.Option(help="qual agente usa a chave")] = None,
-    limite_minuto: Annotated[int, typer.Option(help="chamadas por minuto")] = 30,
-    limite_dia: Annotated[int, typer.Option(help="chamadas por dia")] = 2000,
 ) -> None:
     """Cria a chave de API da empresa para o agente de IA dela (a chave aparece uma vez só). A própria empresa também
-    cria pela API: POST /v1/chaves, na sessão do login por e-mail."""
+    cria pela API: POST /v1/chaves, na sessão do login por e-mail. A conta com CNPJ e termos deve estar aberta;
+    os limites e os 3 créditos de teste são por empresa, não por chave."""
     from raiz.banco import engine
     from raiz.publica import chaves as K
+    from raiz.publica.conta import ErroConta
 
-    k = K.criar(engine(), cliente, rotulo, limite_minuto, limite_dia)
+    try:
+        k = K.criar(engine(), cliente, rotulo)
+    except ErroConta as ex:
+        raise typer.BadParameter(f"{ex.detalhe}. {ex.corrigir}") from ex
     typer.echo(f"chave {k['prefixo']}... criada (guarde agora, não aparece de novo): {k['chave']}")
 
 

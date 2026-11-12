@@ -13,6 +13,7 @@ from sqlalchemy import create_engine, text
 from raiz.carga import carregar_pasta
 from raiz.pedidos import servico as S
 from raiz.pessoal import gerar_chave
+from raiz.publica import conta as CT
 from testes.conftest import AMOSTRA
 
 pytestmark = pytest.mark.banco
@@ -382,6 +383,16 @@ def test_vigia_diz_quais_fazendas_novas_melhoram_o_lote(eng, chave):
     assert atualizar(eng, 1504950) == 880
 
 
+def _abrir_conta_de_teste(eng, cliente_id):
+    # Documento sintético: construído em teste, não armazenado em texto no repositório.
+    cnpj = f"73{cliente_id:010d}"
+    for tamanho in (12, 13):
+        pesos = list(range(tamanho - 7, 1, -1)) + list(range(9, 1, -1))
+        resto = sum(int(x) * w for x, w in zip(cnpj, pesos, strict=True)) % 11
+        cnpj += str(0 if resto < 2 else 11 - resto)
+    CT.abrir(eng, cliente_id, cnpj, True)
+
+
 def test_api_no_contrato_do_front(eng, chave, monkeypatch):
     from raiz.api import criar_app
 
@@ -399,7 +410,22 @@ def test_api_no_contrato_do_front(eng, chave, monkeypatch):
         sess = cl.post("/entrar/confirmar", json={"token": tok}).json()
         h = {"Authorization": f"Bearer {sess['token']}"}
         assert cl.get("/pedidos").status_code == 401  # sem sessão
-        p = cl.post("/pedidos", json=CAMPOS, headers=h).json()
+        # O caminho antigo preserva o contrato do front, mas não pode contornar a conta paga.
+        recusado = cl.post("/pedidos", json=CAMPOS, headers=h)
+        assert recusado.status_code == 403 and recusado.history[0].status_code == 307
+        cliente_id = S.cliente_da_sessao(eng, sess["token"])
+        _abrir_conta_de_teste(eng, cliente_id)
+        CT.aceitar_contrato(eng, cliente_id)
+        assert cl.post("/pedidos", json=CAMPOS, headers=h).status_code == 403  # ainda sem sinal
+        with eng.begin() as con:
+            con.execute(
+                text("update negocio.conta_api set sinal_pago_em=now(), saldo_rs=5000 where cliente_id=:c"),
+                {"c": cliente_id},
+            )
+        criado = cl.post("/pedidos", json=CAMPOS, headers=h)
+        assert criado.status_code == 200, criado.text
+        p = criado.json()
+        assert CT.ver(eng, cliente_id)["saldo_rs"] == 4600  # uma cobrança, no destino /v1
         assert set(p) >= {"id", "criado_em", "campos", "status", "base", "opcoes", "opcao_escolhida", "reservado_ate",
                           "alertas", "versao_modelo"}  # fmt: skip
         assert set(p["base"]) >= {"fazendas", "hectares", "creditos", "por_caminho", "por_interesse", "alcanca_meta",

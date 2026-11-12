@@ -257,3 +257,9 @@ como serviço no servidor; nada dele é embutido no produto distribuído. O `inf
 `.devops/cpu.Dockerfile` do llama.cpp (MIT, Copyright (c) 2023-2026 The ggml authors), sem a interface web. A
 confiança dos logprobs, a calibração do corte e o banco de tarefas em português foram escritos para a Raíz, sem
 código copiado.
+
+## API paga (`raiz/publica/`)
+
+Limites por empresa implementados com SlowAPI (MIT) e limits (MIT). Nenhum código
+copiado. O SDK oficial MCP Python (MIT) permanece como dependência; o adaptador
+antigo foi retirado até a entrega do servidor com OAuth.

@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import datetime as dt
 import hashlib
+import math
 import re
 import secrets
 from functools import lru_cache
@@ -52,33 +53,26 @@ def preco(ferramenta: str) -> float:
 # --- CNPJ ---------------------------------------------------------------------------------------------------------
 
 
-def so_digitos(x: str) -> str:
-    return re.sub(r"\D", "", x or "")
+def normalizar_cnpj(x: str) -> str:
+    return re.sub(r"[^0-9A-Z]", "", (x or "").upper())
 
 
 def cnpj_valido(cnpj: str) -> bool:
-    d = so_digitos(cnpj)
-    if len(d) != 14 or d == d[0] * 14:
-        return False
-    for n in (12, 13):
-        pesos = list(range(n - 7, 1, -1)) + list(range(9, 1, -1))
-        s = sum(int(x) * w for x, w in zip(d[:n], pesos, strict=True))
-        dv = 0 if s % 11 < 2 else 11 - s % 11
-        if int(d[n]) != dv:
-            return False
-    return True
+    from raiz.privacidade import cnpj_valido as validar
+
+    return validar(cnpj)
 
 
 def mascarar_cnpj(cnpj: str) -> str:
     """12.***.***/0001-** (só a raiz parcial e a filial, como pede a regra da Raíz)."""
-    d = so_digitos(cnpj)
+    d = normalizar_cnpj(cnpj)
     return f"{d[:2]}.***.***/{d[8:12]}-**"
 
 
 def _indice_cnpj(cnpj: str, cofre=None) -> str:
     from raiz.pessoal import Cofre
 
-    return (cofre or Cofre()).indice("cnpj:" + so_digitos(cnpj))
+    return (cofre or Cofre()).indice("cnpj:" + normalizar_cnpj(cnpj))
 
 
 # --- conta --------------------------------------------------------------------------------------------------------
@@ -90,10 +84,13 @@ def abrir(engine: Engine, cliente_id: int, cnpj: str, aceito_termos: bool, cofre
         raise ErroConta("termos_nao_aceitos", "é preciso aceitar os termos de uso da API",
                         f"leia GET /v1/termos e mande aceito_termos=true ({premissas()['termos_versao']})")  # fmt: skip
     if not cnpj_valido(cnpj):
-        raise ErroConta("cnpj_invalido", "CNPJ inválido", "mande o CNPJ da empresa com os 14 dígitos")
+        raise ErroConta("cnpj_invalido", "CNPJ inválido", "mande o CNPJ da empresa com os 14 caracteres")
     h = _indice_cnpj(cnpj, cofre)
     p = premissas()
     with engine.begin() as con:
+        # Serializa tanto duas empresas com o mesmo CNPJ quanto duas aberturas para o mesmo cliente.
+        con.execute(text("select id from negocio.cliente where id = :c for update"), {"c": cliente_id})
+        con.execute(text("select pg_advisory_xact_lock(hashtextextended(:h, 0))"), {"h": h})
         atual = con.execute(text("select cliente_id from negocio.conta_api where cnpj_hmac = :h"), {"h": h}).scalar()
         if atual is not None and int(atual) != int(cliente_id):
             raise ErroConta("cnpj_em_uso", "este CNPJ já tem conta na Raíz",
@@ -206,13 +203,30 @@ def cobrar(engine: Engine, cliente_id: int, ferramenta: str, base_url: str = "")
                     "paga) e a chamada pode ser repetida", status=402, recarga=cob)  # fmt: skip
 
 
+def valor_cobrado(engine: Engine, lancamento_id: int | None) -> float:
+    """Preço efetivamente debitado, inclusive zero nos testes e depois do estorno."""
+    if lancamento_id is None:
+        return 0.0
+    with engine.connect() as con:
+        valor = con.execute(
+            text("""select -valor_rs from negocio.lancamento_api
+                    where id = :i and tipo = 'debito' and estornado_em is null"""),
+            {"i": lancamento_id},
+        ).scalar()
+    return max(0.0, float(valor or 0))
+
+
 def estornar(engine: Engine, lancamento_id: int | None) -> None:
     """Chamada que falhou não custa: devolve o crédito de teste ou o valor."""
     if lancamento_id is None:
         return
     with engine.begin() as con:
-        lc = con.execute(text("select * from negocio.lancamento_api where id = :i"), {"i": lancamento_id}).first()
-        if lc is None or lc.tipo not in ("teste", "debito"):
+        lc = con.execute(
+            text("""update negocio.lancamento_api set estornado_em = now()
+                    where id = :i and tipo in ('teste', 'debito') and estornado_em is null returning *"""),
+            {"i": lancamento_id},
+        ).first()
+        if lc is None:
             return
         if lc.tipo == "teste":
             con.execute(text("update negocio.conta_api set testes_restantes = testes_restantes + 1 where cliente_id = "
@@ -236,10 +250,21 @@ def criar_cobranca(engine: Engine, cliente_id: int, finalidade: str, valor: floa
     não vai para o agente."""
     from raiz.pedidos import pix
 
+    if finalidade not in {"sinal", "recarga"} or not math.isfinite(valor) or not 0 < valor <= 999999999999:
+        raise ErroConta(
+            "cobranca_invalida",
+            "finalidade ou valor de cobrança inválido",
+            "use sinal ou recarga com valor positivo e finito",
+        )
     p = premissas()
     with engine.begin() as con:
+        # Evita gerar duas cobranças externas para chamadas concorrentes da mesma empresa.
+        con.execute(
+            text("select cliente_id from negocio.conta_api where cliente_id = :c for update"), {"c": cliente_id}
+        )
         aberta = con.execute(
-            text("""select id from negocio.cobranca_api where cliente_id = :c and finalidade = :f and estado = 'pendente'  # noqa: E501
+            text("""select id from negocio.cobranca_api where cliente_id = :c and finalidade = :f
+                    and estado = 'pendente'
                     and expira_em > now() and valor_rs >= :v order by id desc limit 1"""),
             {"c": cliente_id, "f": finalidade, "v": valor},
         ).scalar()
@@ -270,7 +295,9 @@ def _hash(t: str) -> str:
 
 def cobranca_pelo_link(engine: Engine, token: str) -> dict | None:
     with engine.connect() as con:
-        r = con.execute(text("select * from negocio.cobranca_api where link_hash = :h"), {"h": _hash(token)}).first()
+        r = con.execute(
+            text("select * from negocio.cobranca_api where link_hash = :h and expira_em > now()"), {"h": _hash(token)}
+        ).first()
     if r is None:
         return None
     return {"finalidade": r.finalidade, "valor_rs": float(r.valor_rs), "estado": r.estado,
@@ -340,17 +367,26 @@ def vigiar_raspagem(engine: Engine, cliente_id: int) -> str:
             return "ok"
         if c.bloqueada_em is not None:
             return "bloqueada"
-        fz = con.execute(text("""select count(distinct cod_imovel) from negocio.exposicao_api where cliente_id = :c
-                                 and criada_em >= date_trunc('month', now())"""), {"c": cliente_id}).scalar()
-        mm, md, cm = con.execute(text("""
+        fz = con.execute(
+            text("""select count(distinct cod_imovel) from negocio.exposicao_api where cliente_id = :c
+                                 and criada_em >= date_trunc('month', now())"""),
+            {"c": cliente_id},
+        ).scalar()
+        mm, md, cm = con.execute(
+            text("""
             select count(distinct m) filter (where criada_em >= date_trunc('month', now())),
                    count(distinct m) filter (where criada_em >= date_trunc('day', now())),
                    count(distinct id) filter (where criada_em >= date_trunc('month', now()))
             from negocio.chamada_api, jsonb_array_elements_text(coalesce(alcance->'municipios', '[]'::jsonb)) as m
-            where cliente_id = :c and ferramenta = 'consultar_disponibilidade'"""), {"c": cliente_id}).one()
-        consultas = con.execute(text("""select count(*) from negocio.chamada_api where cliente_id = :c
+            where cliente_id = :c and ferramenta = 'consultar_disponibilidade'"""),
+            {"c": cliente_id},
+        ).one()
+        consultas = con.execute(
+            text("""select count(*) from negocio.chamada_api where cliente_id = :c
                                         and ferramenta = 'consultar_disponibilidade'
-                                        and criada_em >= date_trunc('month', now())"""), {"c": cliente_id}).scalar()
+                                        and criada_em >= date_trunc('month', now())"""),
+            {"c": cliente_id},
+        ).scalar()
     bloqueio = [("fazendas_vistas_mes", fz, p["fazendas_vistas_mes_bloqueio"]),
                 ("municipios_consultados_mes", mm, p["municipios_consultados_mes_bloqueio"])]  # fmt: skip
     alerta = [("fazendas_vistas_mes", fz, p["fazendas_vistas_mes_alerta"]),
@@ -391,10 +427,16 @@ def _alertar(engine: Engine, cliente_id: int, tipo: str, regra: str, valor: floa
 def aprovar_licenca(engine: Engine, cliente_id: int) -> None:
     """O fundador aprova a licença de dados (uso em volume, preço separado): desbloqueia e para de vigiar volume."""
     with engine.begin() as con:
-        con.execute(text("""update negocio.conta_api set licenca_dados_aprovada_em = now(), bloqueada_em = null,
-                            bloqueio_motivo = null where cliente_id = :c"""), {"c": cliente_id})
-        con.execute(text("""insert into negocio.alerta_api (cliente_id, tipo, regra) values (:c, 'licenca',
-                            'aprovada pelo fundador')"""), {"c": cliente_id})
+        con.execute(
+            text("""update negocio.conta_api set licenca_dados_aprovada_em = now(), bloqueada_em = null,
+                            bloqueio_motivo = null where cliente_id = :c"""),
+            {"c": cliente_id},
+        )
+        con.execute(
+            text("""insert into negocio.alerta_api (cliente_id, tipo, regra) values (:c, 'licenca',
+                            'aprovada pelo fundador')"""),
+            {"c": cliente_id},
+        )
 
 
 def alertas(engine: Engine, cliente_id: int | None = None) -> list[dict]:

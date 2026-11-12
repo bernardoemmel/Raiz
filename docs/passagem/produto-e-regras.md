@@ -1,5 +1,44 @@
 # Passagem do chat "Produto e regras" (12/11/2026)
 
+## Retomada no Codex
+
+O PR #45 foi atualizado com a main. A migração da API passou de 0020 para 0026,
+porque 0020 já pertencia aos alertas da main. Cobrança, estorno idempotente e
+limites compartilhados por empresa recebem testes de integração em PostGIS.
+CLI e análise da fazenda foram migrados. O adaptador MCP grátis foi retirado;
+nenhuma chave em URL ou rota antiga permanece como atalho.
+
+A API mantém três créditos de teste por empresa, sinal Pix e contrato para
+montagem/detalhes, anti-raspagem e ausência de dados pessoais. Os termos estão em
+`docs/termos-api.md`. A análise informa quando faltam certidão/camada; não inventa
+conferência. A licença administrativa usa `raiz api licenca --cliente ID --aprovar`.
+
+Próxima entrega: SDK MCP 2.3.0/protocolo 2026-07-28 no mesmo app; Keycloak OAuth
+2.1; seis ferramentas; fila persistida e idempotência; Standard Webhooks;
+OpenTelemetry e resumo único; aprovação humana com Pix e recibo assinado;
+gabarito com pass^4. Reservar começa desabilitado por empresa.
+
+Correções legais verificadas: piso 20% como política conservadora Raíz; art.47
+exige mínimo 50% para remoção e 70% para REDD+ de mercado, além de CLPI; art.43
+requer evidência de exclusão e impede dupla contagem; revisão humana é compromisso
+Raíz ao atender LGPD art.20. Não confundir falta de camada com ausência de risco.
+
+O Pará tem 144 municípios no pacote publicado. O recálculo será apenas no Actions,
+com fonte e premissas congeladas, validação dos municípios e publicação no Release.
+Não cancelar outros workflows em execução. Não calcular o lote no contêiner.
+
+Validação local da entrega IA-A: 629 testes passaram, 4 pulados, 1 xfail;
+27 testes específicos passaram após os ajustes finais e 9 testes do caminho
+legado passaram. Ruff, formatação, varredura de documentos e licenças aprovados.
+Rotas legadas redirecionam à API paga; recusas também contam no limitador.
+PR: https://github.com/bernardoemmel/Raiz/pull/45. Merge condicionado ao CI verde.
+Registrar os resultados do lote/Release na próxima entrega.
+
+---
+
+## Registro anterior (contexto histórico; itens acima prevalecem)
+
+
 ## O que este chat fez
 
 Na main:

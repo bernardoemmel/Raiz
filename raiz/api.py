@@ -277,15 +277,7 @@ def criar_app(
         return app.state.engine
 
     app.mount("/v1", publica_api.criar(_engine_principal))
-    import httpx
-
-    from raiz.config import config as _config
-    from raiz.publica.servidor_mcp import ApiRaiz, app_http
-
-    app.state.mcp, mcp_app = app_http(
-        ApiRaiz(url="http://raiz.interno", transporte=httpx.ASGITransport(app=app)), _config().mcp_hosts
-    )
-    app.mount("/mcp", mcp_app)
+    # O MCP antigo foi retirado: a próxima entrega exige OAuth e a política paga.
     # link público, cartão e vídeo pelo código curto: sem token (só município, hectares, selo e código antes do aceite)
     from raiz import publico
 

@@ -1,6 +1,5 @@
 """API pública da Raíz (/v1): o pedido de lote para as empresas clientes e os agentes de IA delas. Paga, sem plano
-grátis (decisão do fundador, 12/11/2026). EM ANDAMENTO (ver docs/passagem/produto-e-regras.md): reescrita para o
-desenho pago, ainda sem os testes novos.
+grátis (decisão do fundador, 12/11/2026).
 
 - Chave de API por empresa, só na API REST (cabeçalho X-Chave-API ou Authorization: Bearer raiz_...); a conta da
   empresa se abre com o CNPJ (validado, guardado só em hash e mascarado) e os termos de uso aceitos, por uma pessoa no
@@ -17,11 +16,13 @@ desenho pago, ainda sem os testes novos.
 """
 
 import html
+import logging
+import os
 import time
 from collections.abc import Callable
 from typing import Annotated, Any, Literal
 
-from fastapi import Body, Depends, FastAPI, Header, HTTPException, Path, Request
+from fastapi import Body, Depends, FastAPI, Header, HTTPException, Path, Query, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import HTMLResponse, JSONResponse
 from pydantic import BaseModel, Field
@@ -30,10 +31,11 @@ from raiz.pedidos import servico as S
 from raiz.pedidos.campos import CamposPedido
 from raiz.publica import chaves as K
 from raiz.publica import conta as CT
-from raiz.publica.privacidade import sem_dado_pessoal
+from raiz.publica.privacidade import limpar, sem_dado_pessoal
 from raiz.publica.problemas import ERROS_COMUNS, problema
 
 VERSAO = "1.1.0"
+log = logging.getLogger(__name__)
 
 PRODUTOS = """
 ## Os 4 produtos que só a Raíz tem
@@ -118,7 +120,7 @@ def _ok(exemplo: Any, descricao: str = "Tudo certo") -> dict:
 
 
 class AbrirConta(BaseModel):
-    cnpj: str = Field(description="CNPJ da empresa (guardado só em hash e mascarado).", examples=["11.222.333/0001-81"])
+    cnpj: str = Field(description="CNPJ da empresa (guardado só em hash e mascarado).", examples=["12.***.***/0001-**"])
     aceito_termos: bool = Field(description="A empresa aceita os termos de uso (GET /v1/termos).")
 
 
@@ -149,7 +151,7 @@ def criar(engine_de: Callable[[Request], Any]) -> FastAPI:
                   openapi_tags=TAGS, docs_url="/docs", redoc_url="/redoc", openapi_url="/openapi.json",
                   servers=[{"url": "/v1", "description": "esta instalação"}])  # fmt: skip
     lim = CT.premissas()["limites"]
-    limiter = Limiter(key_func=lambda r: f"empresa:{_cliente(r)}", storage_uri="memory://")
+    limiter = Limiter(key_func=_cliente, storage_uri=os.environ.get("RAIZ_API_LIMIT_STORAGE_URI", "memory://"))
     LIMITE = f"{lim['por_minuto']}/minute;{lim['por_dia']}/day;{lim['por_mes']}/month"
     app.state.limiter = limiter
 
@@ -201,12 +203,22 @@ def criar(engine_de: Callable[[Request], Any]) -> FastAPI:
                                       "foi revogada", "corrigir": "mande a chave em X-Chave-API (ou Authorization: "
                                       "Bearer raiz_...); uma pessoa da empresa cria em POST /v1/chaves"})  # fmt: skip
         request.state.acesso = a
+        # Antes das dependências de cobrança/liberação: recusas também contam.
+        if not getattr(request.state, "_rate_limiting_complete", False):
+            limiter._check_request_limit(request, request.scope.get("endpoint"), False)
+            request.state._rate_limiting_complete = True
         return a
 
     def pessoa(a: Annotated[K.Acesso, Depends(acesso)]) -> K.Acesso:
         if a.via != "sessao":
-            raise HTTPException(403, {"slug": "so_pessoa", "mensagem": "só uma pessoa da empresa (login por e-mail) "
-                                      "faz isto", "corrigir": "entre pelo e-mail (POST /entrar) e use a sessão"})
+            raise HTTPException(
+                403,
+                {
+                    "slug": "so_pessoa",
+                    "mensagem": "só uma pessoa da empresa (login por e-mail) faz isto",
+                    "corrigir": "entre pelo e-mail (POST /entrar) e use a sessão",
+                },
+            )
         return a
 
     def cobrar(ferramenta: str, liberacao: bool = False):
@@ -217,7 +229,7 @@ def criar(engine_de: Callable[[Request], Any]) -> FastAPI:
                 CT.exigir_liberacao(eng, a.cliente_id)
             lanc = CT.cobrar(eng, a.cliente_id, ferramenta, _base(request))
             request.state.lancamento = lanc
-            request.state.preco = CT.preco(ferramenta)
+            request.state.preco = CT.valor_cobrado(eng, lanc)
             return lanc
 
         return dep
@@ -225,7 +237,17 @@ def criar(engine_de: Callable[[Request], Any]) -> FastAPI:
     @app.middleware("http")
     async def registrar(request: Request, call_next):
         t0 = time.monotonic()
-        resp = await call_next(request)
+        try:
+            resp = await call_next(request)
+        except Exception as ex:  # noqa: BLE001 - falha interna também deve estornar e não revelar dados
+            log.error("falha interna na API pública (%s)", type(ex).__name__)
+            resp = problema(
+                500,
+                "falha_interna",
+                "não foi possível concluir a chamada",
+                "a chamada não será cobrada; tente novamente",
+                str(request.url.path),
+            )
         a = getattr(request.state, "acesso", None)
         if a is None:
             return resp
@@ -254,14 +276,12 @@ def criar(engine_de: Callable[[Request], Any]) -> FastAPI:
                 CT.registrar_exposicao(eng, cid, a.cliente_id, getattr(request.state, "cods_expostos", []))
                 if ferr:
                     CT.vigiar_raspagem(eng, a.cliente_id)
-        except Exception:  # noqa: BLE001 - o registro nunca derruba a resposta ao cliente
-            import logging
-
-            logging.getLogger("raiz.publica").exception("registro da chamada falhou")
+        except Exception as ex:  # noqa: BLE001 - não registrar corpo, token nem dados pessoais de uma exceção
+            log.error("registro da chamada falhou (%s)", type(ex).__name__)
         return resp
 
     def ok(x: Any) -> JSONResponse:
-        return JSONResponse(sem_dado_pessoal(x))
+        return JSONResponse(limpar(sem_dado_pessoal(x)))
 
     Acesso = Annotated[K.Acesso, Depends(acesso)]
     Pessoa = Annotated[K.Acesso, Depends(pessoa)]
@@ -277,25 +297,36 @@ def criar(engine_de: Callable[[Request], Any]) -> FastAPI:
         t = TERMOS.format(versao=CT.premissas()["termos_versao"])
         return HTMLResponse(f"<pre style='white-space:pre-wrap;font-family:system-ui'>{html.escape(t)}</pre>")
 
-    @app.post("/conta", tags=["Conta da empresa"], summary="Abrir a conta da empresa (CNPJ e termos)",
-              responses=_ok(EXEMPLO_CONTA, "Conta aberta com 3 créditos de teste"))
+    @app.post(
+        "/conta",
+        tags=["Conta da empresa"],
+        summary="Abrir a conta da empresa (CNPJ e termos)",
+        responses=_ok(EXEMPLO_CONTA, "Conta aberta com 3 créditos de teste"),
+    )
+    @limiter.shared_limit(LIMITE, scope="empresa")
     def abrir_conta(corpo: AbrirConta, request: Request, a: Pessoa) -> JSONResponse:
         return ok(CT.abrir(engine_de(request), a.cliente_id, corpo.cnpj, corpo.aceito_termos))
 
-    @app.get("/conta", tags=["Conta da empresa"], summary="Saldo, testes, liberação e preços",
-             responses=_ok(EXEMPLO_CONTA))
+    @app.get(
+        "/conta", tags=["Conta da empresa"], summary="Saldo, testes, liberação e preços", responses=_ok(EXEMPLO_CONTA)
+    )
+    @limiter.shared_limit(LIMITE, scope="empresa")
     def ver_conta(request: Request, a: Acesso) -> JSONResponse:
         return ok(CT.exigir(engine_de(request), a.cliente_id))
 
     @app.get("/conta/extrato", tags=["Conta da empresa"], summary="Extrato (testes, débitos, estornos, recargas)")
+    @limiter.shared_limit(LIMITE, scope="empresa")
     def extrato(request: Request, a: Acesso) -> JSONResponse:
+        CT.exigir(engine_de(request), a.cliente_id)
         return ok(CT.extrato(engine_de(request), a.cliente_id))
 
     @app.post("/conta/contrato", tags=["Conta da empresa"], summary="Aceitar o contrato de não contornar")
+    @limiter.shared_limit(LIMITE, scope="empresa")
     def contrato(request: Request, a: Pessoa) -> JSONResponse:
         return ok(CT.aceitar_contrato(engine_de(request), a.cliente_id))
 
     @app.post("/conta/sinal", tags=["Conta da empresa"], summary="Gerar o Pix do sinal (uma pessoa paga)")
+    @limiter.shared_limit(LIMITE, scope="empresa")
     def sinal(request: Request, a: Acesso) -> JSONResponse:
         eng = engine_de(request)
         CT.exigir(eng, a.cliente_id)
@@ -303,14 +334,23 @@ def criar(engine_de: Callable[[Request], Any]) -> FastAPI:
                                     _base(request)))  # fmt: skip
 
     @app.post("/conta/recarga", tags=["Conta da empresa"], summary="Gerar uma recarga do saldo (uma pessoa paga)")
-    def recarga(request: Request, a: Acesso, valor_rs: float | None = None) -> JSONResponse:
+    @limiter.shared_limit(LIMITE, scope="empresa")
+    def recarga(
+        request: Request,
+        a: Acesso,
+        valor_rs: Annotated[float | None, Query(gt=0, le=999999999999, allow_inf_nan=False)] = None,
+    ) -> JSONResponse:
         eng = engine_de(request)
         CT.exigir(eng, a.cliente_id)
         v = max(float(valor_rs or 0), float(CT.premissas()["recarga"]["minimo_rs"]))
         return ok(CT.criar_cobranca(eng, a.cliente_id, "recarga", v, _base(request)))
 
-    @app.get("/cobrancas/{token}", tags=["Conta da empresa"], summary="Página do Pix (para uma pessoa)",
-             response_class=HTMLResponse)
+    @app.get(
+        "/cobrancas/{token}",
+        tags=["Conta da empresa"],
+        summary="Página do Pix (para uma pessoa)",
+        response_class=HTMLResponse,
+    )
     def pagina_cobranca(token: str, request: Request) -> HTMLResponse:
         c = CT.cobranca_pelo_link(engine_de(request), token)
         if c is None:
@@ -318,18 +358,21 @@ def criar(engine_de: Callable[[Request], Any]) -> FastAPI:
         titulo = "Recarga do saldo da API" if c["finalidade"] == "recarga" else "Sinal da liberação"
         return HTMLResponse(f"""<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Pix da Raíz
 </title></head><body style="font-family:system-ui;max-width:560px;margin:40px auto;padding:0 16px"><h1>{titulo}</h1>
-<p>Valor: R$ {c['valor_rs']:.2f}. Situação: {html.escape(c['estado'])}.</p><p>Pix copia e cola:</p>
-<textarea readonly rows="4" style="width:100%">{html.escape(c['pix_copia_cola'] or '')}</textarea></body></html>""")
+<p>Valor: R$ {c["valor_rs"]:.2f}. Situação: {html.escape(c["estado"])}.</p><p>Pix copia e cola:</p>
+<textarea readonly rows="4" style="width:100%">{html.escape(c["pix_copia_cola"] or "")}</textarea></body></html>""")
 
     @app.post("/chaves", tags=["Conta da empresa"], summary="Criar a chave do agente (a chave aparece uma vez)")
+    @limiter.shared_limit(LIMITE, scope="empresa")
     def nova_chave(corpo: NovaChave, request: Request, a: Pessoa) -> dict:
         return K.criar(engine_de(request), a.cliente_id, corpo.rotulo)
 
     @app.get("/chaves", tags=["Conta da empresa"], summary="Chaves da empresa (só o prefixo)")
+    @limiter.shared_limit(LIMITE, scope="empresa")
     def listar_chaves(request: Request, a: Pessoa) -> list[dict]:
         return K.listar(engine_de(request), a.cliente_id)
 
     @app.delete("/chaves/{prefixo}", tags=["Conta da empresa"], summary="Revogar uma chave")
+    @limiter.shared_limit(LIMITE, scope="empresa")
     def revogar(prefixo: str, request: Request, a: Pessoa) -> dict:
         if not K.revogar(engine_de(request), a.cliente_id, prefixo):
             raise HTTPException(404, {"slug": "chave", "mensagem": "chave não encontrada ou já revogada",
@@ -337,12 +380,18 @@ def criar(engine_de: Callable[[Request], Any]) -> FastAPI:
         return {"revogada": prefixo}
 
     @app.get("/chamadas", tags=["Conta da empresa"], summary="O que os agentes da empresa fizeram")
+    @limiter.shared_limit(LIMITE, scope="empresa")
     def chamadas(request: Request, a: Acesso, pedido_id: str | None = None) -> JSONResponse:
+        CT.exigir(engine_de(request), a.cliente_id)
         return ok(K.chamadas(engine_de(request), a.cliente_id, pedido_id))
 
-    @app.post("/disponibilidade", tags=["Pedido de lote"], summary="Quanto existe na base (consultar_disponibilidade)",
-              responses=_ok(EXEMPLO_BASE))
-    @limiter.limit(LIMITE)
+    @app.post(
+        "/disponibilidade",
+        tags=["Pedido de lote"],
+        summary="Quanto existe na base (consultar_disponibilidade)",
+        responses=_ok(EXEMPLO_BASE),
+    )
+    @limiter.shared_limit(LIMITE, scope="empresa")
     def disponibilidade(campos: Annotated[CamposPedido, Body(openapi_examples=EXEMPLOS_PEDIDO)], request: Request,
                         a: Acesso, _c: Annotated[Any, Depends(cobrar("consultar_disponibilidade"))]) -> JSONResponse:  # fmt: skip  # noqa: E501
         """Totais do pedido (sem fazenda, sem número por município). Vale crédito de teste."""
@@ -351,7 +400,7 @@ def criar(engine_de: Callable[[Request], Any]) -> FastAPI:
         return ok(S.base_disponivel(engine_de(request), a.cliente_id, campos))
 
     @app.post("/pedidos", tags=["Pedido de lote"], summary="Montar o lote em 3 opções (pedir_lote)")
-    @limiter.limit(LIMITE)
+    @limiter.shared_limit(LIMITE, scope="empresa")
     def pedir_lote(campos: Annotated[CamposPedido, Body(openapi_examples=EXEMPLOS_PEDIDO)], request: Request,
                    a: Acesso, _c: Annotated[Any, Depends(cobrar("pedir_lote", liberacao=True))]) -> JSONResponse:  # fmt: skip  # noqa: E501
         """Pede a liberação (sinal pago e contrato de não contornar)."""
@@ -361,39 +410,73 @@ def criar(engine_de: Callable[[Request], Any]) -> FastAPI:
         return ok(p)
 
     @app.get("/pedidos", tags=["Pedido de lote"], summary="Pedidos da empresa (sem custo)")
+    @limiter.shared_limit(LIMITE, scope="empresa")
     def listar(request: Request, a: Acesso) -> JSONResponse:
+        CT.exigir(engine_de(request), a.cliente_id)
         return ok(S.pedidos_do_cliente(engine_de(request), a.cliente_id))
 
+    @app.get("/pedidos/{pedido_id}", tags=["Pedido de lote"], summary="Detalhe do pedido")
+    @limiter.shared_limit(LIMITE, scope="empresa")
+    def detalhe(
+        pedido_id: Pid,
+        request: Request,
+        a: Acesso,
+        _c: Annotated[Any, Depends(cobrar("comparar_lotes", liberacao=True))],
+    ) -> JSONResponse:
+        pedido = S.obter_pedido(engine_de(request), pedido_id, a.cliente_id)
+        request.state.cods_expostos = [i["cod_imovel"] for o in pedido["opcoes"] for i in o.get("itens", [])]
+        return ok(pedido)
+
+    @app.get("/pedidos/{pedido_id}/alertas", tags=["Pedido de lote"])
+    @limiter.shared_limit(LIMITE, scope="empresa")
+    def alertas_pedido(pedido_id: Pid, request: Request, a: Acesso) -> JSONResponse:
+        CT.exigir_liberacao(engine_de(request), a.cliente_id)
+        return ok(S.obter_pedido(engine_de(request), pedido_id, a.cliente_id)["alertas"])
+
+    @app.get("/notificacoes", tags=["Conta da empresa"])
+    @limiter.shared_limit(LIMITE, scope="empresa")
+    def notificacoes(request: Request, a: Pessoa) -> JSONResponse:
+        CT.exigir(engine_de(request), a.cliente_id)
+        return ok(S.notificacoes(engine_de(request), a.cliente_id))
+
     @app.get("/pedidos/{pedido_id}/opcoes", tags=["Pedido de lote"], summary="As 3 opções lado a lado (comparar_lotes)")
-    @limiter.limit(LIMITE)
+    @limiter.shared_limit(LIMITE, scope="empresa")
     def comparar(pedido_id: Pid, request: Request, a: Acesso,
                  _c: Annotated[Any, Depends(cobrar("comparar_lotes", liberacao=True))]) -> JSONResponse:  # fmt: skip
         ops = S.obter_pedido(engine_de(request), pedido_id, a.cliente_id)["opcoes"]
         request.state.cods_expostos = [i["cod_imovel"] for o in ops for i in o.get("itens") or []]
         return ok(ops)
 
+    @app.patch("/pedidos/{pedido_id}", tags=["Pedido de lote"])
     @app.post("/pedidos/{pedido_id}/lote", tags=["Pedido de lote"], summary="Tirar ou trocar uma fazenda")
-    @limiter.limit(LIMITE)
+    @limiter.shared_limit(LIMITE, scope="empresa")
     def mudar(pedido_id: Pid, m: Mudanca, request: Request, a: Acesso,
               _c: Annotated[Any, Depends(cobrar("comparar_lotes", liberacao=True))]) -> JSONResponse:  # fmt: skip
         return ok(S.mudar_lote(engine_de(request), pedido_id, a.cliente_id, m.model_dump()))
 
-    @app.post("/pedidos/{pedido_id}/solicitar-interesse", tags=["Interesse dos donos"],
-              summary="A Raíz busca o interesse dos donos")
-    @limiter.limit(LIMITE)
+    @app.post(
+        "/pedidos/{pedido_id}/solicitar-interesse",
+        tags=["Interesse dos donos"],
+        summary="A Raíz busca o interesse dos donos",
+    )
+    @limiter.shared_limit(LIMITE, scope="empresa")
     def solicitar(pedido_id: Pid, request: Request, a: Acesso,
                   _c: Annotated[Any, Depends(cobrar("solicitar_interesse", liberacao=True))],
                   corpo: Annotated[Solicitar, Body()] = SOLICITAR_PADRAO) -> JSONResponse:  # fmt: skip
         return ok(S.solicitar_interesse(engine_de(request), pedido_id, a.cliente_id, corpo.opcao))
 
     @app.get("/pedidos/{pedido_id}/andamento", tags=["Interesse dos donos"], summary="Andamento (acompanhar_contato)")
-    @limiter.limit(LIMITE)
-    def andamento(pedido_id: Pid, request: Request, a: Acesso,
-                  _c: Annotated[Any, Depends(cobrar("acompanhar_contato"))]) -> JSONResponse:  # fmt: skip
+    @limiter.shared_limit(LIMITE, scope="empresa")
+    def andamento(
+        pedido_id: Pid,
+        request: Request,
+        a: Acesso,
+        _c: Annotated[Any, Depends(cobrar("acompanhar_contato", liberacao=True))],
+    ) -> JSONResponse:
         return ok(S.andamento(engine_de(request), pedido_id, a.cliente_id))
 
     @app.post("/pedidos/{pedido_id}/reservar", tags=["Reserva"], summary="Preparar a reserva (uma pessoa aprova)")
-    @limiter.limit(LIMITE)
+    @limiter.shared_limit(LIMITE, scope="empresa")
     def reservar(pedido_id: Pid, request: Request, a: Acesso,
                  _c: Annotated[Any, Depends(cobrar("preparar_reserva", liberacao=True))]) -> JSONResponse:  # fmt: skip
         por = None if a.via == "sessao" else f"{a.via}:{a.chave_id}"
@@ -401,11 +484,17 @@ def criar(engine_de: Callable[[Request], Any]) -> FastAPI:
                              base_url=_base(request) + "/v1"))  # fmt: skip
 
     @app.get("/pedidos/{pedido_id}/reserva", tags=["Reserva"], summary="Situação da reserva (sem custo)")
+    @limiter.shared_limit(LIMITE, scope="empresa")
     def reserva(pedido_id: Pid, request: Request, a: Acesso) -> JSONResponse:
+        CT.exigir_liberacao(engine_de(request), a.cliente_id)
         return ok(S.cobranca_do_pedido(engine_de(request), pedido_id, a.cliente_id))
 
-    @app.get("/reservas/confirmar/{token}", tags=["Reserva"], summary="Página de aprovação (para uma pessoa)",
-             response_class=HTMLResponse)
+    @app.get(
+        "/reservas/confirmar/{token}",
+        tags=["Reserva"],
+        summary="Página de aprovação (para uma pessoa)",
+        response_class=HTMLResponse,
+    )
     def pagina_confirmar(token: str) -> HTMLResponse:
         t = html.escape(token)
         return HTMLResponse(f"""<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Aprovar a reserva
@@ -414,8 +503,12 @@ reserva do grupo</h1><p>O agente de IA da sua empresa preparou a reserva de um g
 sai o Pix da reserva. Se não foi você quem autorizou, não aprove.</p><form method="post"
 action="/v1/reservas/confirmar/{t}"><button type="submit">Aprovar e gerar o Pix</button></form></body></html>""")
 
-    @app.post("/reservas/confirmar/{token}", tags=["Reserva"], summary="Aprovar (uma pessoa da empresa)",
-              response_class=HTMLResponse)
+    @app.post(
+        "/reservas/confirmar/{token}",
+        tags=["Reserva"],
+        summary="Aprovar (uma pessoa da empresa)",
+        response_class=HTMLResponse,
+    )
     def confirmar(token: str, request: Request) -> HTMLResponse:
         try:
             c = S.confirmar_reserva(engine_de(request), token)
@@ -424,16 +517,18 @@ action="/v1/reservas/confirmar/{t}"><button type="submit">Aprovar e gerar o Pix<
         pixc = (c.get("pix") or {}).get("copia_e_cola") or ""
         return HTMLResponse(f"""<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Reserva aprovada
 </title></head><body style="font-family:system-ui;max-width:560px;margin:40px auto;padding:0 16px"><h1>Reserva
-aprovada</h1><p>Valor: R$ {c['valor_brl']:.2f}.</p><p>Pix copia e cola:</p><textarea readonly rows="4"
+aprovada</h1><p>Valor: R$ {c["valor_brl"]:.2f}.</p><p>Pix copia e cola:</p><textarea readonly rows="4"
 style="width:100%">{html.escape(pixc)}</textarea></body></html>""")
 
-    @app.get("/fazendas/{cod_imovel}/analise", tags=["Produto 1 e 2: análise da fazenda"],
-             summary="Análise de uma fazenda (R$ 1.500)")
-    @limiter.limit(LIMITE)
+    @app.get(
+        "/fazendas/{cod_imovel}/analise",
+        tags=["Produto 1 e 2: análise da fazenda"],
+        summary="Análise de uma fazenda (R$ 1.500)",
+    )
+    @limiter.shared_limit(LIMITE, scope="empresa")
     def analise(cod_imovel: str, request: Request, a: Acesso,
                 _c: Annotated[Any, Depends(cobrar("analise_fazenda", liberacao=True))]) -> JSONResponse:  # fmt: skip
-        """Certidão lida por IA, sobreposição, "já comprometida" e simulação P10/P50/P90. Sem dado pessoal.
-        A FAZER: raiz/publica/fazenda.py ainda tem só explicar(); falta a função analisar()."""
+        """Certidão lida por IA, sobreposição, "já comprometida" e simulação P10/P50/P90. Sem dado pessoal."""
         from raiz.publica.fazenda import analisar
 
         x = analisar(engine_de(request), cod_imovel)
@@ -444,7 +539,7 @@ style="width:100%">{html.escape(pixc)}</textarea></body></html>""")
         return ok(x)
 
     @app.get("/previsoes/precisao", tags=["Produto 4: previsões conferidas"], summary="Acerto das previsões da Raíz")
-    @limiter.limit(LIMITE)
+    @limiter.shared_limit(LIMITE, scope="empresa")
     def precisao(request: Request, a: Acesso,
                  _c: Annotated[Any, Depends(cobrar("precisao_previsoes"))]) -> JSONResponse:  # fmt: skip
         from raiz.aprendizado.registro import placar
@@ -458,7 +553,7 @@ style="width:100%">{html.escape(pixc)}</textarea></body></html>""")
 
 def _cliente(request: Request) -> str:
     a = getattr(request.state, "acesso", None)
-    return str(a.cliente_id) if a is not None else (request.client.host if request.client else "?")
+    return f"empresa:{a.cliente_id}" if a is not None else f"ip:{request.client.host if request.client else '?'}"
 
 
 def _base(request: Request) -> str:

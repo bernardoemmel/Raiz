@@ -10,12 +10,12 @@ import hmac
 from collections.abc import Callable
 from typing import Literal
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request
+from fastapi import APIRouter, HTTPException, Query, Request
+from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
 
 from raiz.pedidos import pix
 from raiz.pedidos import servico as S
-from raiz.pedidos.campos import CamposPedido
 
 
 class PedidoEntrar(BaseModel):
@@ -24,17 +24,6 @@ class PedidoEntrar(BaseModel):
 
 class Confirmar(BaseModel):
     token: str
-
-
-class Mudanca(BaseModel):
-    opcao: Literal["barata", "segura", "compacta"]
-    acao: Literal["tirar", "trocar"]
-    cod_imovel: str
-    por: str | None = None
-
-
-class Solicitar(BaseModel):
-    opcao: Literal["barata", "segura", "compacta"] = "segura"
 
 
 class Resposta(BaseModel):
@@ -55,14 +44,12 @@ def _erro(ex: S.ErroPedido) -> HTTPException:
 
 
 def roteador_cliente(engine_de: Callable) -> APIRouter:
-    r = APIRouter(tags=["pedidos"])
+    """Login por e-mail e aliases do front para a API paga, que concentra a política de acesso.
 
-    def cliente(request: Request, authorization: str | None = Header(default=None)) -> int:
-        token = (authorization or "").removeprefix("Bearer ").strip()
-        cid = S.cliente_da_sessao(engine_de(request), token)
-        if cid is None:
-            raise HTTPException(401, {"mensagem": "entre de novo: sessão inválida ou vencida"})
-        return cid
+    O 307 preserva método, corpo e credencial; só muda o caminho na mesma origem. Não executa
+    serviço nem cobrança aqui. Assim o caminho antigo nunca evita liberação, saldo ou limite.
+    """
+    r = APIRouter(tags=["pedidos"])
 
     @r.post("/entrar")
     def entrar(corpo: PedidoEntrar, request: Request) -> dict:
@@ -79,73 +66,23 @@ def roteador_cliente(engine_de: Callable) -> APIRouter:
         except S.ErroPedido as ex:
             raise HTTPException(401, {"mensagem": str(ex)}) from ex
 
-    @r.get("/pedidos")
-    def listar(request: Request, cid: int = Depends(cliente)) -> list[dict]:
-        return S.pedidos_do_cliente(engine_de(request), cid)
+    def destino(request: Request) -> RedirectResponse:
+        caminho = f"/v1{request.url.path}"
+        if request.url.query:
+            caminho += f"?{request.url.query}"
+        return RedirectResponse(caminho, status_code=307, headers={"Cache-Control": "no-store"})
 
-    @r.post("/pedidos")
-    def criar(campos: CamposPedido, request: Request, cid: int = Depends(cliente)) -> dict:
-        return S.criar_pedido(engine_de(request), cid, campos)
+    @r.api_route("/pedidos", methods=["GET", "POST"], include_in_schema=False)
+    def pedidos(request: Request) -> RedirectResponse:
+        return destino(request)
 
-    @r.get("/pedidos/{pedido_id}")
-    def obter(pedido_id: str, request: Request, cid: int = Depends(cliente)) -> dict:
-        try:
-            return S.obter_pedido(engine_de(request), pedido_id, cid)
-        except S.ErroPedido as ex:
-            raise _erro(ex) from ex
+    @r.api_route("/pedidos/{caminho:path}", methods=["GET", "POST", "PATCH"], include_in_schema=False)
+    def pedido(request: Request, caminho: str) -> RedirectResponse:
+        return destino(request)
 
-    def _mudar(pedido_id: str, m: Mudanca, request: Request, cid: int) -> dict:
-        try:
-            return S.mudar_lote(engine_de(request), pedido_id, cid, m.model_dump())
-        except S.ErroPedido as ex:
-            raise _erro(ex) from ex
-
-    @r.post("/pedidos/{pedido_id}/lote")
-    def lote(pedido_id: str, m: Mudanca, request: Request, cid: int = Depends(cliente)) -> dict:
-        return _mudar(pedido_id, m, request, cid)
-
-    @r.patch("/pedidos/{pedido_id}")
-    def patch(pedido_id: str, m: Mudanca, request: Request, cid: int = Depends(cliente)) -> dict:
-        return _mudar(pedido_id, m, request, cid)
-
-    @r.post("/pedidos/{pedido_id}/solicitar-interesse")
-    def solicitar(pedido_id: str, corpo: Solicitar, request: Request, cid: int = Depends(cliente)) -> dict:
-        try:
-            return S.solicitar_interesse(engine_de(request), pedido_id, cid, corpo.opcao)
-        except S.ErroPedido as ex:
-            raise _erro(ex) from ex
-
-    @r.get("/pedidos/{pedido_id}/andamento")
-    def andamento(pedido_id: str, request: Request, cid: int = Depends(cliente)) -> dict:
-        try:
-            return S.andamento(engine_de(request), pedido_id, cid)
-        except S.ErroPedido as ex:
-            raise _erro(ex) from ex
-
-    @r.post("/pedidos/{pedido_id}/reservar")
-    def reservar(pedido_id: str, request: Request, cid: int = Depends(cliente)) -> dict:
-        try:
-            return S.reservar(engine_de(request), pedido_id, cid)
-        except S.ErroPedido as ex:
-            raise _erro(ex) from ex
-
-    @r.get("/pedidos/{pedido_id}/reserva")
-    def reserva(pedido_id: str, request: Request, cid: int = Depends(cliente)) -> dict:
-        try:
-            return S.cobranca_do_pedido(engine_de(request), pedido_id, cid)
-        except S.ErroPedido as ex:
-            raise _erro(ex) from ex
-
-    @r.get("/pedidos/{pedido_id}/alertas")
-    def alertas(pedido_id: str, request: Request, cid: int = Depends(cliente)) -> list[dict]:
-        try:
-            return S.obter_pedido(engine_de(request), pedido_id, cid)["alertas"]
-        except S.ErroPedido as ex:
-            raise _erro(ex) from ex
-
-    @r.get("/notificacoes")
-    def notificacoes(request: Request, cid: int = Depends(cliente)) -> list[dict]:
-        return S.notificacoes(engine_de(request), cid)
+    @r.get("/notificacoes", include_in_schema=False)
+    def notificacoes(request: Request) -> RedirectResponse:
+        return destino(request)
 
     return r
 

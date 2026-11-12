@@ -2,16 +2,16 @@
 créditos de teste, saldo e cobranças por Pix, liberação (sinal pago + contrato de não contornar), chave de API, registro
 de cada chamada e do que cada empresa viu, alertas e bloqueio contra raspagem, e a reserva que espera uma pessoa.
 
-Revision ID: 0020
-Revises: 0019
+Revision ID: 0026
+Revises: 0025
 """
 
 from __future__ import annotations
 
 from alembic import op
 
-revision = "0020"
-down_revision = "0019"
+revision = "0026"
+down_revision = "0025"
 branch_labels = None
 depends_on = None
 
@@ -90,6 +90,7 @@ def upgrade() -> None:
             ferramenta text,
             versao_precos text,
             cobranca_id bigint,
+            estornado_em timestamptz,
             criado_em timestamptz NOT NULL DEFAULT now()
         )""")
     # cobranças Pix da API (recarga do saldo e sinal da liberação): uma pessoa paga, nunca o agente

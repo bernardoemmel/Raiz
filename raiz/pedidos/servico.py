@@ -973,6 +973,19 @@ def _cobrar(con, rid: int, p, valor: float) -> None:
     )
 
 
+def mensagem_confirmacao_reserva(pedido_id: str, valor: float, ha: float, dias: int, base_url: str, token: str) -> str:
+    """Mensagem humana: formata apenas números, preservando domínio e token do link de aprovação."""
+    trocar = str.maketrans(",.", ".,")
+    dinheiro = f"{valor:,.2f}".translate(trocar)
+    hectares = f"{ha:,.0f}".translate(trocar)
+    link = f"{base_url.rstrip('/')}/reservas/confirmar/{token}"
+    return (
+        f"O agente de IA da sua empresa pediu a reserva do grupo do pedido {str(pedido_id)[:8]} "
+        f"(R$ {dinheiro}, {hectares} ha, {dias} dias). Uma pessoa da empresa precisa "
+        f"confirmar para gerar o Pix: {link} (vale por 48 horas)."
+    )
+
+
 def reservar(engine: Engine, pedido_id: str, cliente_id: int, por_agente: str | None = None,
              base_url: str = "") -> dict:  # fmt: skip
     """Reserva do grupo pronto. Na sessão de uma pessoa da empresa, cria a cobrança Pix (as fazendas ficam reservadas
@@ -1033,13 +1046,8 @@ def reservar(engine: Engine, pedido_id: str, cliente_id: int, por_agente: str | 
                 },
             )
             if token:
-                link = f"{base_url}#/reserva/confirmar/{token}"
-                notificar(con, cliente_id, p["id"], "confirmar_reserva",
-                          f"O agente de IA da sua empresa pediu a reserva do grupo do pedido {str(p['id'])[:8]} "
-                          f"(R$ {valor:,.2f}, {ha:,.0f} ha, {c.reserva_dias} dias). Uma pessoa da empresa precisa "
-                          f"confirmar para gerar o Pix: {link} (vale por 48 horas).".replace(",", "X")
-                          .replace(".", ",").replace("X", "."),
-                          canais=("painel", "email"))  # fmt: skip
+                mensagem = mensagem_confirmacao_reserva(p["id"], valor, ha, c.reserva_dias, base_url, token)
+                notificar(con, cliente_id, p["id"], "confirmar_reserva", mensagem, canais=("painel", "email"))
     if token and ENVIO_CONFIRMACAO is not None:
         ENVIO_CONFIRMACAO(cliente_id, token)
     return cobranca_do_pedido(engine, pedido_id, cliente_id)
