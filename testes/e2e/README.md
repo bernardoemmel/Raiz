@@ -7,7 +7,9 @@ recusa **403** antes do sinal e contrato e redirecionamento **307** do caminho
 antigo para `/v1`. Uma pessoa aceita o contrato, gera sinal e recarga e confirma
 somente os Pix locais de teste. Então o cenário continua com o pedido de
 **1 milhão de créditos no Pará**, três opções de lote, busca de interesse,
-grupo pronto, Pix da reserva e atualização da tela após o pagamento.
+grupo pronto, aprovação humana, Pix da reserva e atualização da tela após o pagamento. A assinatura Ed25519 do
+recibo é verificada com a chave pública da API; também são conferidos o QR, o vencimento do Pix e a ausência de
+pagamento/exclusividade antes da confirmação interna.
 
 Somente as entradas externas são simuladas: o envio de e-mail entrega o link em
 arquivo temporário privado, as respostas dos donos entram pelo serviço de
@@ -16,6 +18,11 @@ sinal, recarga, cobrança por chamada e saldo passam pelos serviços reais da AP
 não há liberação direta no banco nem desativação dos limites. O teste confere a
 rejeição da confirmação de pagamento sem o token interno. Não há SMTP, WhatsApp
 nem pagamento real. O servidor recusa credenciais da AbacatePay.
+
+A fixture completa a amostra com polígonos arbitrários e evidências sintéticas de cobertura e verificação
+territorial, registradas pelos serviços de salvaguardas. As validações reais continuam ativas; não se infere ausência
+de sobreposição pela falta de uma camada. Esses polígonos e documentos existem somente no banco descartável do E2E
+e não representam imóveis ou revisões reais. As chaves do cofre e do recibo são efêmeras, geradas ao iniciar o servidor.
 
 As etapas humanas rodam em sequência; se a leitura final da lista atingir o
 limite de 30 chamadas por minuto da empresa, o teste aguarda o `Retry-After`
