@@ -465,6 +465,8 @@ def fazenda_do_lote(li: dict, papel: str, nivel: str, trocou: str | None = None)
         "pequena": bool(li["pequena"]), "interesse": nivel, "trocou": trocou,
         "lon": li["lon"], "lat": li["lat"], "local_aproximado": bool(li["local_aproximado"]),
         "risco_terra": li["risco_terra"],
+        "salvaguardas": li.get("salvaguardas") or {"estado": "nao_verificado"},
+        "revisao_humana": "/pedidos/{pedido_id}/revisoes",
     }  # fmt: skip
 
 

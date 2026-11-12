@@ -1,0 +1,54 @@
+# API pública e MCP (raiz/publica/): preços por chamada, créditos de teste, liberação, limites e anti-raspagem.
+# Decisão do fundador (12/11/2026): nada grátis; cada empresa cria a chave com o CNPJ e ganha 3 créditos de teste;
+# depois, cobrança por uso via Pix (AbacatePay, modo de teste por enquanto). Valores marcados "proposta" esperam o
+# fundador; mudar aqui sobe a versão, gravada em cada chamada e em cada lançamento.
+versao: api-2026a
+moeda: BRL
+
+# R$ por chamada, por ferramenta (o mesmo nome na API REST e no MCP)
+precos:
+  consultar_disponibilidade: 40   # proposta: quanto existe na base para o pedido (só totais do pedido)
+  pedir_lote: 400                 # proposta: monta o lote em 3 opções (só com a liberação)
+  comparar_lotes: 20              # proposta: as 3 opções lado a lado de um pedido seu
+  acompanhar_contato: 10          # proposta: andamento da busca de interesse
+  solicitar_interesse: 50         # proposta: a Raíz contata os donos em ondas
+  analise_fazenda: 1500           # linha 3 do modelo: certidão lida por IA, sobreposição, "já comprometida", simulação
+  precisao_previsoes: 200         # proposta: previsões da Raíz conferidas com o real (produto 4)
+  preparar_reserva: 0             # o dinheiro é o Pix da reserva, aprovado por uma pessoa
+  cancelar: 0                     # parar nunca custa
+fonte_precos: >-
+  fundador, 12/11/2026: análise de uma fazenda a R$ 1.500 (linha 3 do modelo de negócio); as demais são proposta da
+  Raíz para cobrar por chamada sem afastar quem testa, a confirmar
+
+# Créditos de teste: por empresa (pelo CNPJ), não por chave; criar outra chave não dá mais testes
+teste:
+  creditos: 3
+  vale_para: [consultar_disponibilidade, comparar_lotes, acompanhar_contato]
+
+# Recarga do saldo por Pix: quando falta saldo, a chamada responde 402 com o link para uma pessoa pagar
+recarga:
+  minimo_rs: 500
+  validade_pix_s: 86400
+
+# Liberação (igual ao app): montar lote e ver o detalhe da fazenda (código do CAR, contorno, contato) só depois do
+# sinal pago por Pix e do contrato aceito com a cláusula de não contornar. Pagar a API não pula esta trava.
+liberacao:
+  sinal_rs: 2000                  # proposta: abatido da conexão por hectare quando o contrato com os donos fecha
+  contrato_versao: contrato-nao-contornar-2026a
+
+# Limites por empresa (SlowAPI): 429 com Retry-After
+limites:
+  por_minuto: 30
+  por_dia: 1000
+  por_mes: 10000
+
+# Anti-raspagem (por empresa, no mês corrente): alerta ao fundador e bloqueio automático. Uso em volume vira licença
+# de dados, com preço separado e aprovação do fundador (`raiz api licenca --cliente <id> --aprovar`)
+raspagem:
+  fazendas_vistas_mes_alerta: 200
+  fazendas_vistas_mes_bloqueio: 1000
+  municipios_consultados_dia_alerta: 40
+  municipios_consultados_mes_bloqueio: 300
+  consultas_mes_alerta: 300
+
+termos_versao: termos-api-2026a

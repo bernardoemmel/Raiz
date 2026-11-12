@@ -7,6 +7,11 @@ from fastapi.testclient import TestClient
 from raiz.pedidos import api
 
 
+@pytest.fixture(autouse=True)
+def envio_configurado(monkeypatch):
+    monkeypatch.setattr(api.S, "ENVIO_LINK", lambda *args: None)
+
+
 @pytest.mark.parametrize(
     "origem", ["https://atacante.example", "null", "https://painel.example.atacante.example", None]
 )
