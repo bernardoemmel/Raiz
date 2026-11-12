@@ -108,8 +108,10 @@ def rodar_municipio(cod: int, op: Opcoes, hc=None) -> dict:
     pasta = Path(f"saida/{uf}")
     pasta.mkdir(parents=True, exist_ok=True)
     res: dict[str, str] = {}
+    captura = None
 
     def executar(tarefa: str, saida: Path | None, fn) -> bool:
+        nonlocal captura
         if tarefa not in op.tarefas:
             return True
         try:
@@ -118,7 +120,14 @@ def rodar_municipio(cod: int, op: Opcoes, hc=None) -> dict:
                     reg.pulado = True
                     reg.nota(f"{saida.name} já existe")
                 else:
-                    fn(reg)
+                    from raiz.aprendizado.captura import Captura
+
+                    captura = Captura(uf, cod) if eng is not None else None
+                    with captura.modelos() if captura else contextlib.nullcontext():
+                        fn(reg)
+                    if captura is not None:
+                        with eng.begin() as con:
+                            reg.detalhe["historico_aprendizado"] = captura.publicar(con)
             res[tarefa] = "pulado" if reg.pulado else "sucesso"
             return True
         except Exception as ex:  # noqa: BLE001 - o lote já registrou e pingou a falha
@@ -127,7 +136,8 @@ def rodar_municipio(cod: int, op: Opcoes, hc=None) -> dict:
 
     def funil(reg):
         with ponte(R, uf, cod, op.espelho) as origem:
-            c, nome = R.municipio(uf, cod, _EMB, str(pasta))
+            with captura.motor(R, _EMB) if captura else contextlib.nullcontext():
+                c, nome = R.municipio(uf, cod, _EMB, str(pasta))
         reg.detalhe.update(origem=origem)
         if c is None:
             reg.nota(f"{cod}: nenhum imóvel IRU ativo")
