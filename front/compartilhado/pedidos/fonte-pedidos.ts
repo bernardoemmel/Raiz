@@ -3,7 +3,6 @@
  */
 
 import type { FonteDeDados } from "../dados/fonte"
-import { bool, num } from "../dados/colunas"
 import { pontoDentro } from "../rotulos-mapa"
 import {
   candidatoDe,
@@ -21,6 +20,7 @@ import type { Andamento, CamposPedido, Cobranca, IdOpcao, MudancaLote, Pedido, P
 import { tituloDoPedido } from "./texto"
 import { lerPublicacaoLote } from "./release"
 import { fontePedidosSimulada } from "./simulado"
+import { resumirCoberturaMunicipal } from "./territorio"
 
 export interface FontePedidos {
   /** resposta de exemplo (sem back-end): a tela avisa */
@@ -347,24 +347,7 @@ export function fontePedidosRelease(base: string, fonte: FonteDeDados, agora: ()
   async function montar(c: Consulta): Promise<Pedido> {
     const publicacao = structuredClone(await resumo())
     {
-      const municipios = (await fonte.municipios()).filter((m) => (!c.campos.onde.ufs.length || c.campos.onde.ufs.includes(m.uf)) && (!c.campos.onde.municipios.length || c.campos.onde.municipios.includes(m.cod_ibge)))
-      const somaCompleta = (coluna: string): number | null => {
-        let soma = 0
-        for (const m of municipios) {
-          const linha = m.linha ?? {}
-          const valor = num(linha, coluna)
-          if (bool(linha, "dados_suprimidos") === true || valor === null) return null
-          soma += valor
-        }
-        return soma
-      }
-      const fazendas = somaCompleta("imoveis"), hectares = somaCompleta("ha_carbono")
-      publicacao.cobertura = {
-        municipios: municipios.length,
-        estados: new Set(municipios.map((m) => m.uf)).size,
-        fazendas, hectares,
-        ...(fazendas === null || hectares === null ? { observacao: "O total não está disponível: há municípios com dados suprimidos ou valores ainda não publicados. As contagens de municípios e estados permanecem conhecidas." } : {}),
-      }
+      publicacao.cobertura = resumirCoberturaMunicipal(c.campos.onde, await fonte.municipios())
     }
     return {
       ...c, status: "lote_montado", publicacao,

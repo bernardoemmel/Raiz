@@ -96,7 +96,7 @@ describe("publicação dos três lotes", () => {
 })
 
 describe("consulta estática aos lotes", () => {
-  const campos = { ...CAMPOS_PADRAO, onde: { ...CAMPOS_PADRAO.onde, ufs: ["PA"] } }
+  const campos = { ...CAMPOS_PADRAO, onde: { ...CAMPOS_PADRAO.onde, biomas: [], ufs: ["PA"] } }
   const fonte = () => ({ municipios: vi.fn(async () => [
     { uf: "PA", cod_ibge: "1505536", imoveis: 7, ha_carbono: 20, linha: { imoveis: "7", ha_carbono: "20", dados_suprimidos: "false" } },
     { uf: "TO", cod_ibge: "1721000", imoveis: 100, ha_carbono: 1000, linha: { imoveis: "100", ha_carbono: "1000", dados_suprimidos: "false" } },

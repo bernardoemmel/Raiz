@@ -9,6 +9,7 @@ export function OndePedido({ onde, mudar, mudarAlcance }: { onde: CamposPedido["
   const [escopo, setEscopo] = useState<EscopoPedido>(() => escopoDoPedido(onde))
   const biomas = <fieldset className="campo-grupo">
     <legend>{escopo === "biomas" ? "Biomas do pedido" : "Refinar os estados por bioma"}</legend>
+    {escopo === "estados" && <p className="legenda-frase">Estado e bioma são filtros combinados. Para incluir o estado inteiro, desmarque os biomas.</p>}
     <div className="opcoes-linha">{BIOMAS.map((bioma) => <label key={bioma} className="opcao">
       <input type="checkbox" checked={onde.biomas.includes(bioma)} onChange={() => mudar({ ...onde, biomas: onde.biomas.includes(bioma) ? onde.biomas.filter((b) => b !== bioma) : [...onde.biomas, bioma] })} />
       <span>{bioma}</span>

@@ -31,6 +31,7 @@ import { SeloStatus } from "../partes/pedido/SeloStatus"
 import { SensibilidadePedido } from "../partes/pedido/SensibilidadePedido"
 import { ComparacaoLotes } from "../partes/pedido/ComparacaoLotes"
 import { AcessoDetalhesLote, AvisoPublicacao, BasePublicada, QuadroDestrava } from "../partes/pedido/PublicacaoPedido"
+import { CoberturaPedido } from "../partes/pedido/CoberturaPedido"
 import "../partes/pedido/pedido.css"
 import { linkFazenda, linkGrupo, linkPedidos } from "../rota"
 
@@ -147,6 +148,7 @@ export function PedidoTela({ id }: { id: string }) {
           {!pedido.publicacao && <Alertas pedido={pedido} />}
           <AvisoExemplo ativo={!!pedido.exemplo} />
           {pedido.publicacao && <AvisoPublicacao publicacao={pedido.publicacao} />}
+          <CoberturaPedido onde={pedido.campos.onde} />
           {erro && (
             <p className="erro-campo" role="alert">
               {erro}
