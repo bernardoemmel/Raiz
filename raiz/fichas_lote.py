@@ -2,8 +2,8 @@
 
 Por município, em <destino>/<UF>/<cod_ibge>/:
 
-    fichas/<cod_busca>.json   FichaJson, a mesma de GET /imoveis/{cod}/ficha (front/compartilhado/dados/ficha.ts),
-                              para servir como arquivo estático (o site e a ficha do produtor leem sem a API)
+    fichas/<cod_busca>.json   FichaJson administrativo, a mesma de GET /imoveis/{cod}/ficha
+                              (front/compartilhado/dados/ficha.ts), somente em armazenamento privado
     rows.json                 uma linha por fazenda com os campos que o cartão, o vídeo e o texto usam (mesmos nomes
                               do pedido do Takumi em servicos/cartao/render.mjs); campo com "_" na frente é interno e
                               nunca vai para imagem, vídeo ou página antes do aceite do dono (o código do CAR, a foto
@@ -15,6 +15,11 @@ e <destino>/indice.json com um resumo por município. Só regrava o município c
 
 O contexto do município (posição e medianas) é calculado uma vez por município, não por fazenda. Nome, CPF e CNPJ não
 entram: a linha passa pela mesma limpeza da API (raiz/front_api.py) e o texto pela máscara.
+
+Esta saída contém detalhamento da terra e NÃO deve ser montada como diretório estático público ou enviada aberta
+ao Release. Mesmo os campos com prefixo "_" continuam legíveis em um arquivo publicado. O site expõe agregados;
+a ficha completa de prospecção é montada por imovel_dados.ficha_prospeccao depois da autorização de créditos
+no servidor. Esta exportação administrativa não é um mecanismo de autorização.
 """
 
 from __future__ import annotations

@@ -1,5 +1,20 @@
 import assert from "node:assert/strict"
 
+/** Texto para agentes segue o mesmo limite dos dados servidos ao navegador. */
+export function conferirConteudoPublico(texto, identificador) {
+  assert(!/\b[A-Z]{2}[-. ]?\d{7}[-. ]?(?:[A-F0-9][.]?){32}\b/i.test(texto),
+    `${identificador}: um código CAR individual apareceu na publicação aberta.`)
+  for (const [, destino] of texto.matchAll(/\[[^\]]*\]\(([^\s)]+)\)/g))
+    conferirCaminhoPublico(new URL(destino, "https://raiz.invalid/").pathname, identificador)
+}
+
+/** Não basta esconder o valor no texto: downloads e links individuais também ficam fechados. */
+export function conferirCaminhoPublico(caminho, identificador) {
+  const legivel = decodeURIComponent(caminho)
+  assert(!/(?:^|\/)(?:car_[^/]*|(?:imoveis|filtros|certidoes|desenvolvedor|ficha)_\d{7}[^/]*|fichas)(?:\/|$)/i.test(legivel),
+    `${identificador}: download ou ficha individual anunciado no conteúdo público: ${legivel}`)
+}
+
 /** Portão do CI. WebMCP e ARD ficam no relatório, mas não são recursos exigidos do produto. */
 export function conferirAuditoriaAgentes(lhr) {
   assert(!lhr.runtimeError, `Lighthouse falhou: ${JSON.stringify(lhr.runtimeError)}`)

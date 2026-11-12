@@ -533,6 +533,37 @@ export function abrirPasta(opcoes: OpcoesPasta) {
     return t ? (JSON.parse(t) as PontosDoEstado) : null
   }
 
+  /** A publicação aberta soma por município e situação; nunca devolve a coordenada da fazenda. */
+  async function pontosPublicos(uf: string): Promise<(Omit<PontosDoEstado, "fazendas" | "sem_lugar"> & {
+    fazendas: number | null; sem_lugar: number | null; suprimidos: boolean
+  }) | null> {
+    const originais = await pontos(uf)
+    if (!originais) return null
+    const centro = centroDosMunicipios()
+    const grupos = new Map<string, LinhaPonto>()
+    let semLugar = originais.sem_lugar
+    for (const [, , situacao, ha, cod, n] of originais.pontos) {
+      const c = centro.get(cod)
+      if (!c) {
+        semLugar += n
+        continue
+      }
+      const chave = `${cod}:${situacao}`
+      const grupo = grupos.get(chave) ?? [c[0], c[1], situacao, 0, cod, 0]
+      grupo[3] += ha
+      grupo[5] += n
+      grupos.set(chave, grupo)
+    }
+    const publicos = [...grupos.values()].filter((p) => p[5] >= 5)
+    const suprimidos = publicos.length < grupos.size || (originais.fazendas > 0 && originais.fazendas < 5) || (semLugar > 0 && semLugar < 5)
+    return {
+      ...originais, pontos: publicos, suprimidos,
+      // Sem totais auxiliares quando permitiriam recuperar a contagem protegida por subtração.
+      fazendas: suprimidos ? null : originais.fazendas,
+      sem_lugar: suprimidos ? null : semLugar,
+    }
+  }
+
   /** monta, em segundo plano, os pontos de todo estado que ainda não está no cache; diz quais montou e em quanto tempo */
   async function aquecer(aviso: (uf: string, segundos: number) => void = () => {}) {
     for (const uf of ufs()) {
@@ -562,6 +593,7 @@ export function abrirPasta(opcoes: OpcoesPasta) {
     estados,
     pontos,
     pontosTexto,
+    pontosPublicos,
     foraDoMunicipio,
     aquecer,
     montagens: () => montagens,

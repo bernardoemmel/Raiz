@@ -11,7 +11,7 @@ import http from "node:http"
 import { createRequire } from "node:module"
 import path from "node:path"
 import { fileURLToPath, pathToFileURL } from "node:url"
-import { conferirAuditoriaAgentes } from "./conferir-auditoria-agentes.mjs"
+import { conferirAuditoriaAgentes, conferirCaminhoPublico, conferirConteudoPublico } from "./conferir-auditoria-agentes.mjs"
 
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..")
 const require = createRequire(path.join(repo, "front/globo/package.json"))
@@ -60,6 +60,7 @@ try {
   async function ler(caminho) {
     const url = new URL(caminho, pages.origem + prefixo)
     assert.equal(url.origin, pages.origem, "A checagem não deve buscar páginas externas.")
+    conferirCaminhoPublico(url.pathname, caminho)
     if (lidos.has(url.href)) return lidos.get(url.href)
     const r = await fetch(url)
     assert.equal(r.status, 200, `${url.pathname} precisa responder HTTP 200.`)
@@ -69,6 +70,7 @@ try {
       assert.match(texto, /^# .+/m, `${url.pathname} precisa conter Markdown, sem fallback HTML.`)
       assert(!/<html\b/i.test(texto), `${url.pathname} retornou HTML.`)
     }
+    if (/\.(md|txt)$/.test(url.pathname)) conferirConteudoPublico(texto, url.pathname)
     lidos.set(url.href, texto)
     return texto
   }
@@ -76,6 +78,7 @@ try {
   assert(Buffer.byteLength(llms) <= 8192, "llms.txt precisa ter no máximo 8 KB.")
   assert.match(llms, /^# .+/m)
   assert.match(llms, /\[.+?\]\(.+?\)/)
+  assert.match(llms, /cr[eé]ditos?\s+pagos?/i, "llms.txt precisa explicar que fichas completas exigem créditos pagos.")
   const robots = await ler("robots.txt")
   assert.match(robots, /User-agent:\s*\*[\s\S]*?Allow:\s*\//i)
   assert(!/^Disallow:\s*\/\s*$/mi.test(robots), "robots.txt não pode bloquear toda a publicação.")
@@ -92,6 +95,10 @@ try {
   }
   for (const arquivo of ["index.md", "produtor/index.md", "servico.md", "privacidade.md", "fontes.md", "dados/index.md"])
     await ler(arquivo)
+  const fichaGeral = await ler("produtor/index.md")
+  assert.match(fichaGeral, /cr[eé]ditos?\s+pagos?/i, "A página geral da ficha deve explicar o acesso com créditos pagos.")
+  assert.match(fichaGeral, /autentica|sess[aã]o|conta|[aá]rea de clientes/i,
+    "A página geral da ficha deve explicar que a consulta depende de autenticação.")
 
   // Percorre todos os links Markdown locais anunciados pelo llms e pelo catálogo, incluindo municípios.
   const fila = [new URL("llms.txt", pages.origem + prefixo).href, ...lidos.keys()].filter((u) => u.endsWith(".md") || u.endsWith("llms.txt"))
@@ -118,6 +125,7 @@ try {
   }
   for (const [, json] of scripts) {
     const schema = JSON.parse(json)
+    conferirConteudoPublico(json, "JSON-LD")
     assert.equal(schema["@context"], "https://schema.org", "JSON-LD precisa declarar o contexto schema.org.")
     percorrer(schema)
   }
@@ -127,6 +135,9 @@ try {
     assert(dataset.name && dataset.description && dataset.url, "Dataset sem identificação e contexto.")
     for (const arquivo of dataset.distribution || []) {
       const caminho = new URL(arquivo.contentUrl).pathname
+      conferirCaminhoPublico(caminho, "Dataset.distribution")
+      assert.match(path.basename(caminho), /^resumo_[A-Z]{2}\.csv\.gz$/,
+        "O Dataset público deve anunciar somente resumos agregados por estado.")
       const r = await fetch(pages.origem + caminho, { method: "HEAD" })
       assert.equal(r.status, 200, `Download anunciado no Dataset não existe: ${caminho}`)
     }
