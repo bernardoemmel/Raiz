@@ -3,17 +3,21 @@ de fazenda, busca de interesse em ondas (quem recusa é trocado e o grupo fecha 
 aviso, reserva com Pix de teste, exclusividade (a fazenda reservada some para os outros clientes e volta quando a
 reserva vence), contrato, vigia e aprendizado da chance de aceite. Nada pessoal do dono sai pela API."""
 
+import base64
 import datetime as dt
+import secrets
 
 import pytest
 from fastapi.testclient import TestClient
 from pydantic import SecretStr
 from sqlalchemy import create_engine, text
 
+from raiz import salvaguardas as SG
 from raiz.carga import carregar_pasta
 from raiz.pedidos import servico as S
 from raiz.pessoal import gerar_chave
 from raiz.publica import conta as CT
+from raiz.publica import recibos
 from testes.conftest import AMOSTRA
 
 pytestmark = pytest.mark.banco
@@ -31,6 +35,23 @@ def eng(banco_url):
         c.execute(text("truncate funil.rodada, funil.imovel, negocio.oferta, negocio.cliente cascade"))
         c.execute(text("truncate negocio.interesse_dono, negocio.interesse_evento"))
     carregar_pasta(e, AMOSTRA, dt.date(2026, 11, 12))  # a carga já refaz a oferta do município
+    # A amostra CSV não contém geometria nem documentos. Apenas neste cenário feliz,
+    # polígonos e evidências sintéticos tornam explícita a revisão prévia à reserva.
+    hoje = dt.datetime.now(dt.UTC).date()
+    ev = SG.Evidencia(sha256="c" * 64, data=hoje)
+    SG.registrar_cobertura(e, SG.Cobertura(uf="PA", evidencia=ev, valida_ate=hoje))
+    verificacao = SG.Verificacao(verificacao=ev, territorio_tradicional=False)
+    with e.begin() as c:
+        c.execute(
+            text("""update funil.imovel set geom = ST_Multi(ST_GeomFromText(
+            'POLYGON((-47 -1,-46.99 -1,-46.99 -0.99,-47 -0.99,-47 -1))', 4674))
+            where geom is null""")
+        )
+        c.execute(
+            text("""insert into negocio.salvaguarda (cod_imovel, evidencia)
+            select cod_imovel, cast(:e as jsonb) from funil.imovel"""),
+            {"e": verificacao.model_dump_json()},
+        )
     yield e
     e.dispose()
 
@@ -42,6 +63,8 @@ def chave():
     k = gerar_chave()
     mp = pytest.MonkeyPatch()
     mp.setattr(P, "config", lambda: type("C", (), {"chave_pessoal": SecretStr(k)})())
+    mp.setenv("RAIZ_RECIBO_CHAVE", base64.urlsafe_b64encode(secrets.token_bytes(32)).decode())
+    mp.delenv("RAIZ_ABACATEPAY_CHAVE", raising=False)
     yield k
     mp.undo()
 
@@ -153,6 +176,10 @@ def test_fluxo_completo_com_ondas_reserva_e_exclusividade(eng, chave):
     cob = S.reservar(eng, p["id"], a)
     assert cob["modo_teste"] and cob["pix"]["copia_e_cola"].startswith("RAIZ-TESTE-PIX") and not cob["pago"]
     assert cob["valor_brl"] >= 500 and cob["prazo_dias"] == 60 and "abatida" in cob["abatimento"]
+    assert "<svg" in cob["pix"]["qr_svg"] and cob["pix"]["expira_em"]
+    mandato = recibos.verificar(cob["recibo_aprovacao"], recibos.jwk())
+    assert mandato["empresa"] == a and mandato["pedido"] == p["id"]
+    assert mandato["pagamento_confirmado"] is False and mandato["condicoes"]["agente_pode_pagar"] is False
     b, _ = S.criar_cliente(eng, "Fundo B")
     antes_b = S.criar_pedido(eng, b, CAMPOS)
     with eng.connect() as c:
@@ -186,7 +213,7 @@ def test_fluxo_completo_com_ondas_reserva_e_exclusividade(eng, chave):
         ev = [r[0] for r in c.execute(text("""select e.evento from negocio.reserva_evento e join negocio.reserva r
                                               on r.id = e.reserva_id where r.pedido_id = :p order by e.id"""),
                                       {"p": p["id"]})]  # fmt: skip
-    assert ev == ["criada", "paga", "expirada"]
+    assert ev == ["criada", "confirmada", "paga", "expirada"]
 
 
 def test_contrato_abate_a_reserva_e_pedido_impossivel(eng, chave):
@@ -400,6 +427,8 @@ def test_api_no_contrato_do_front(eng, chave, monkeypatch):
     import raiz.api as api_mod
 
     monkeypatch.setattr(api_mod, "config", lambda: cfg)
+    monkeypatch.setenv("RAIZ_FRONT_URL", "https://painel.raiz.example")
+    monkeypatch.setenv("RAIZ_API_PUBLICA_URL", "https://api.raiz.example")
     links = []
     monkeypatch.setattr(S, "ENVIO_LINK", lambda e, link: links.append(link))
     app = criar_app(engine=eng, grafo=object(), deps=object(), whatsapp=False)
