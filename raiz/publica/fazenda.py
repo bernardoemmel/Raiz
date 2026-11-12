@@ -82,7 +82,7 @@ def de_linha(li: dict) -> dict[str, Any]:
 
 def explicar(engine: Engine, cod_imovel: str) -> dict | None:
     from raiz.front_api import imoveis_do_municipio
-    from raiz.publica.api import sem_dado_pessoal
+    from raiz.publica.privacidade import sem_dado_pessoal
 
     lista = imoveis_do_municipio(engine, cod_imovel=cod_imovel)
     if not lista:

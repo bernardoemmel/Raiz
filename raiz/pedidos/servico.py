@@ -1078,7 +1078,12 @@ def confirmar_pagamento(engine: Engine, externo_id: str, quando: dt.datetime | N
         cob = con.execute(
             text("select * from negocio.cobranca where externo_id = :x for update"), {"x": externo_id}
         ).first()
-        if cob is None:
+        if cob is None:  # cobrança da API pública (recarga do saldo ou sinal da liberação)?
+            from raiz.publica import conta as CT
+
+            r = CT.confirmar_cobranca(engine, externo_id, quando)
+            if r is not None:
+                return r
             raise ErroPedido("cobrança desconhecida")
         if cob.estado == "paga":
             return "ja_paga"
