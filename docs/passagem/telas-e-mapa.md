@@ -75,6 +75,17 @@ Sessão: https://claude.ai/code/session_01VGb88MJumyG9PHt2znaaKE. Branch: `claud
 - `robots.txt` e `llms.txt` ficam prontos para a raiz quando o domínio for ativado. O endereço atual de projeto
   continua com a limitação do robots na raiz de `bernardoemmel.github.io`.
 
+## Verificação real após a migração do Release
+
+- Em 12/11, o cadastro básico atual produziu 365 municípios com desenho em 9 estados e site público de 91 MB.
+  Playwright conferiu busca por Parauapebas, zoom 13 com HTTP Range, pedido no Pará e 360 px, com zero 404.
+- A consulta atual confirma 345.870 fazendas lidas em 144 municípios do Pará. O total de hectares passou a
+  aparecer como desconhecido quando há células ausentes ou suprimidas no novo pacote. A medição de hectares
+  registrada antes nesta passagem pertence ao pacote anterior; não deve substituir a disponibilidade atual.
+- Cena-alvo: [PR #67](https://github.com/bernardoemmel/Raiz/pull/67), integrado com seis checks verdes.
+  Cobertura: [PR #70](https://github.com/bernardoemmel/Raiz/pull/70); ficha: [PR #71](https://github.com/bernardoemmel/Raiz/pull/71).
+  Os demais merges e a publicação devem ser conferidos ao concluir a sequência.
+
 ## Situação das cinco entregas e próximos passos
 
 As cinco entregas estão implementadas e verificadas localmente: cena-alvo ligada ao Release, cobertura diária
