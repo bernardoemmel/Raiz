@@ -167,6 +167,53 @@ def versao(engine: Engine, cod_imovel: str) -> dict | None:
     }
 
 
+SELOS = {"bronze": "achada no CAR", "prata": "título conferido", "ouro": "dono aceitou"}
+
+
+def do_banco(engine: Engine, cod_imovel: str) -> dict:
+    """O que só o banco sabe do imóvel: código curto, aceite do dono, data do dado e série de uso."""
+    with engine.connect() as con:
+        r = con.execute(
+            text("""select k.codigo, a.estado, ro.data_corte from funil.vigente v
+                    join funil.rodada ro on ro.id = v.rodada_id
+                    left join negocio.codigo_curto k on k.cod_imovel = v.cod_imovel
+                    left join negocio.aceite a on a.cod_imovel = v.cod_imovel
+                    where v.cod_imovel = :c"""),
+            {"c": cod_imovel},
+        ).first()
+        serie = con.execute(
+            text("""select ano, mata_pct, pasto_pct, lavoura_pct, agua_pct, colecao from funil.serie_uso
+                    where cod_imovel = :c order by ano"""),
+            {"c": cod_imovel},
+        ).all()
+    return {
+        "codigo_curto": r.codigo if r else None,
+        "aceite": r.estado if r else None,
+        "data_corte": r.data_corte.isoformat() if r and r.data_corte else None,
+        "serie_uso": {
+            "anos": [x.ano for x in serie],
+            "mata_pct": [x.mata_pct for x in serie],
+            "pasto_pct": [x.pasto_pct for x in serie],
+            "lavoura_pct": [x.lavoura_pct for x in serie],
+            "agua_pct": [x.agua_pct for x in serie],
+            "fonte": f"MapBiomas ({serie[0].colecao})" if serie else None,
+        }
+        if serie
+        else None,
+    }
+
+
+def selo_e_etapa(linha: dict, banco: dict) -> tuple[str, str | None]:
+    """Selo: bronze (achada no CAR), prata (título conferido), ouro (dono aceitou). A etapa do funil vem da ficha
+    do motor e sobe para "aceite" quando o dono aceita."""
+    etapa = linha.get("etapa_funil")
+    if banco.get("aceite") == "aceito":
+        return "ouro", "aceite"
+    if motivos_mod._bool(linha, "matricula_conferida"):
+        return "prata", etapa
+    return "bronze", etapa
+
+
 def nao_achado(engine: Engine, cod_imovel: str) -> dict:
     """Corpo do 404: diz o que se sabe do código (município conhecido? já processado?), nunca uma resposta vazia."""
     b = normalizar_codigo(cod_imovel)
@@ -265,7 +312,9 @@ def linhas_para_contexto(engine: Engine, cod_ibge: int) -> list[dict]:
     return [_linha_banco(r, faltando.get(r["rodada_id"], set())) for r in rs]
 
 
-def montar_ficha(alvo: dict, todos: list[dict], geometria: dict | None, versao_dado: dict | None = None) -> dict:
+def montar_ficha(
+    alvo: dict, todos: list[dict], geometria: dict | None, versao_dado: dict | None = None, banco: dict | None = None
+) -> dict:
     """FichaJson: a linha, o contexto do município e o perímetro em polyline (front/compartilhado/dados/ficha.ts).
     A mais, para qualquer cliente: situacao (apta ou não, e por quê), motivos item por item e versao_dado (rodada)."""
     lidos = [ler_imovel(i) for i in todos]
@@ -294,7 +343,21 @@ def montar_ficha(alvo: dict, todos: list[dict], geometria: dict | None, versao_d
         "motivos": motivos_mod.motivos(alvo),
         # meta FLAG (GHG LSR v1.1) separada de crédito/compensação, com requisitos e versão da regra
         "flag": flag_mod.bloco_ficha(alvo),
+        **_do_design_v1(alvo, banco or {}),
         "versao_dado": versao_dado,
+    }
+
+
+def _do_design_v1(alvo: dict, banco: dict) -> dict:
+    """Campos do design v1 do front que dependem do banco ou viram lista (docs/design/dados-para-o-front-v1.md)."""
+    selo, etapa = selo_e_etapa(alvo, banco)
+    return {
+        "codigo_curto": banco.get("codigo_curto"),
+        "nivel_selo": selo,
+        "nivel_selo_texto": SELOS[selo],
+        "etapa_funil": etapa,
+        "criterios_aptidao": motivos_mod.criterios(alvo, banco.get("data_corte")),
+        "serie_uso": banco.get("serie_uso"),
     }
 
 
@@ -462,6 +525,18 @@ def buscar(engine: Engine, q: str, limite: int = MAX_IMOVEIS) -> dict:
                 "municipios": [mun(m) for m in ms]}  # fmt: skip
 
 
+def arquivo_camadas(engine: Engine, cod_ibge: int):
+    """camadas_<mun>.pmtiles na pasta saida/<UF>/ do motor (a UF vem da tabela de municípios)."""
+    from raiz.funil.rodar import dir_trabalho
+
+    with engine.connect() as con:
+        uf = con.execute(text("select uf from funil.municipio_busca where cod_ibge = :c"), {"c": cod_ibge}).scalar()
+    if not uf:
+        return None
+    f = dir_trabalho() / "saida" / uf / f"camadas_{int(cod_ibge)}.pmtiles"
+    return f if f.exists() else None
+
+
 # --- rotas --------------------------------------------------------------------------------------------------------
 
 
@@ -502,7 +577,11 @@ def roteador(engine_de) -> APIRouter:
         lista = imoveis_do_municipio(eng, cod_imovel=cod_imovel)
         if not lista:
             raise HTTPException(404, nao_achado(eng, cod_imovel))
-        return _json(lista[0])
+        linha = lista[0]
+        banco = do_banco(eng, linha["cod_imovel"])
+        selo, etapa = selo_e_etapa(linha, banco)
+        linha.update(codigo_curto=banco["codigo_curto"], nivel_selo=selo, etapa_funil=etapa)
+        return _json(linha)
 
     @r.get("/imoveis/{cod_imovel}/ficha")
     def ficha(cod_imovel: str, request: Request) -> Response:
@@ -519,7 +598,8 @@ def roteador(engine_de) -> APIRouter:
                         where cod_imovel = :c and geom is not null"""),
                 {"c": cod, "t": SIMPLIFICAR_GRAUS},
             ).scalar()
-        return _json(montar_ficha(alvo[0], todos, json.loads(g) if g else None, versao(eng, cod)))
+        banco = do_banco(eng, cod)
+        return _json(montar_ficha(alvo[0], todos, json.loads(g) if g else None, versao(eng, cod), banco))
 
     @r.get("/imoveis/{cod_imovel}/flag/simular")
     def simular_flag(
@@ -531,6 +611,36 @@ def roteador(engine_de) -> APIRouter:
         if not alvo:
             raise HTTPException(404, nao_achado(eng, cod_imovel))
         return _json(flag_mod.simular(alvo[0], silvipastoril_ha, cacau_ha))
+
+    @r.get("/imoveis/{cod_imovel}/camadas.geojson")
+    def camadas_imovel(cod_imovel: str, request: Request) -> Response:
+        """Mata em pé, área que pode voltar a ser mata, pasto, lavoura, água e APP dentro do imóvel."""
+        eng = engine_de(request)
+        with eng.connect() as con:
+            fc = con.execute(
+                text("""
+                select json_build_object('type', 'FeatureCollection', 'features', coalesce(json_agg(
+                    json_build_object('type', 'Feature',
+                        'properties', json_build_object('camada', c.camada, 'ha', c.ha),
+                        'geometry', ST_AsGeoJSON(c.geom, 6)::json) order by c.camada), '[]'::json))
+                from funil.vigente v join geo.camada_imovel c on c.cod_imovel = v.cod_imovel
+                where v.cod_busca = :b"""),
+                {"b": normalizar_codigo(cod_imovel)},
+            ).scalar()
+        if not fc or not fc["features"]:
+            corpo = nao_achado(eng, cod_imovel)
+            if imoveis_do_municipio(eng, cod_imovel=cod_imovel):
+                corpo = {**corpo, "achado": True, "mensagem": "As camadas deste imóvel ainda não foram geradas."}
+            raise HTTPException(404, corpo)
+        return Response(json.dumps(fc, separators=(",", ":")), media_type="application/geo+json")
+
+    @r.get("/geo/{cod_ibge}/camadas.pmtiles")
+    def camadas_municipio(cod_ibge: int, request: Request) -> Response:
+        """PMTiles do município (contorno dos imóveis e camadas dentro deles), com Range."""
+        f = arquivo_camadas(engine_de(request), cod_ibge)
+        if f is None:
+            raise HTTPException(404, "camadas do município ainda não geradas (raiz ficha gerar)")
+        return FileResponse(f, media_type="application/vnd.pmtiles")
 
     @r.get("/imoveis/{cod_imovel}/certidoes")
     def certidoes(cod_imovel: str, request: Request) -> list[dict]:

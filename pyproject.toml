@@ -34,6 +34,8 @@ dependencies = [
     "duckdb>=1.4",
     "requests-cache>=1.2",
     "tifffile>=2024.1",
+    "pmtiles>=3.8.1",
+    "mapbox-vector-tile>=2.2.0",
 ]
 
 [project.optional-dependencies]
@@ -75,7 +77,11 @@ select = ["E", "F", "W", "I", "B", "UP"]
 testpaths = ["testes"]
 markers = ["banco: precisa de PostgreSQL com PostGIS (RAIZ_BANCO_URL_TESTE)"]
 # aviso que nasce dentro do DuckDB (fetch_df usa drop(inplace=True)), não no código da Raíz
-filterwarnings = ["ignore:The inplace keyword in DataFrame.drop is deprecated"]
+filterwarnings = [
+    "ignore:The inplace keyword in DataFrame.drop is deprecated",
+    # de dentro do mapbox-vector-tile (encoder usa shapely.ops.transform)
+    "ignore:The 'shapely.ops.transform\\(\\)' function is deprecated:DeprecationWarning",
+]
 
 [tool.uv.workspace]
 members = [

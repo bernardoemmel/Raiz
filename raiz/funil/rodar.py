@@ -6,6 +6,7 @@
     mapbiomas raiz_mapbiomas.por_imovel (API da Plataforma, colunas mb_*)       -> mapbiomas_<mun>.csv
     extras_direto raiz_extras_direto.municipio (JRC TMF e causas da perda)      -> extras_direto_<mun>.csv
     flag    raiz.flag.calcular_municipio (meta FLAG pela GHG LSR, fora do motor)   -> flag_<mun>.csv
+    ficha   raiz.imovel_dados (design v1 do front: colunas e camadas no imóvel)   -> ficha_, camadas_<mun>
     carga   raiz.carga.carregar_municipio + congelamento das previsões (versão do motor confirmada)
 
 Cada tarefa de cada município pinga o Healthchecks (início, sucesso, falha com log) e fica em operacao.lote.
@@ -32,7 +33,7 @@ from raiz.config import config
 
 log = logging.getLogger(__name__)
 
-TAREFAS = ("funil", "filtros", "direto", "mapbiomas", "extras_direto", "flag", "carga")
+TAREFAS = ("funil", "filtros", "direto", "mapbiomas", "extras_direto", "flag", "ficha", "carga")
 
 
 @dataclass
@@ -183,6 +184,11 @@ def rodar_municipio(cod: int, op: Opcoes, hc=None) -> dict:
         _escrever_csv(t, f, index=False)
         reg.detalhe.update(imoveis=len(t), regra=F.versao(), flag_tco2_ano=round(float(t.flag_tco2_ano.sum()), 1))
 
+    def ficha(reg):
+        from raiz.imovel_dados import escrever_municipio
+
+        reg.detalhe.update(escrever_municipio(pasta, cod, Path("cache")))
+
     imoveis = pasta / f"imoveis_{cod}.csv"
     if not executar("funil", imoveis, funil) or not imoveis.exists():
         return res
@@ -191,6 +197,7 @@ def rodar_municipio(cod: int, op: Opcoes, hc=None) -> dict:
     executar("mapbiomas", pasta / f"mapbiomas_{cod}.csv", mapbiomas)
     executar("extras_direto", pasta / f"extras_direto_{cod}.csv", extras_direto)
     executar("flag", None, flag)  # refaz quando a versão da regra muda
+    executar("ficha", pasta / f"ficha_{cod}.csv", ficha)
     executar("carga", None, carga)
     return res
 

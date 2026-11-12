@@ -8,6 +8,7 @@ comparado sem acento e em minúsculas.
 from __future__ import annotations
 
 import re
+import secrets
 import unicodedata
 
 from sqlalchemy import Connection, text
@@ -59,6 +60,7 @@ def atualizar_vigente(con: Connection, cod_municipio: int) -> int:
         where funil.vigente.rodada_id is distinct from excluded.rodada_id"""),
         {"r": rid},
     )
+    garantir_codigos(con, cod_municipio)
     n, nome, uf = con.execute(
         text("""select count(*), max(r.municipio), max(v.uf) from funil.vigente v
                 join funil.resultado_imovel r on r.rodada_id = v.rodada_id and r.cod_imovel = v.cod_imovel
@@ -98,3 +100,36 @@ def municipios_do_resumo(con: Connection, rodada_resumo: int) -> int:
             {"n": None if n is None else int(n), "c": int(cod)},
         )
     return len(linhas)
+
+
+ALFABETO = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"  # Crockford: sem I, L, O e U (não confunde na leitura)
+TAMANHO_CODIGO = 7
+
+
+def novo_codigo() -> str:
+    return "".join(secrets.choice(ALFABETO) for _ in range(TAMANHO_CODIGO))
+
+
+def garantir_codigos(con: Connection, cod_municipio: int) -> int:
+    """Dá um código curto sorteado (sem relação com o CAR) a cada imóvel vigente do município que ainda não tem.
+    O código fica para sempre com o imóvel. Devolve quantos códigos novos."""
+    novos = 0
+    for _ in range(5):  # sorteio repetido só se bater com um código já usado (32^7 = 34 bilhões)
+        faltam = [
+            c
+            for (c,) in con.execute(
+                text("""select v.cod_imovel from funil.vigente v
+                        left join negocio.codigo_curto k on k.cod_imovel = v.cod_imovel
+                        where v.cod_municipio_ibge = :m and k.cod_imovel is null"""),
+                {"m": cod_municipio},
+            )
+        ]
+        if not faltam:
+            break
+        r = con.execute(
+            text("""insert into negocio.codigo_curto (cod_imovel, codigo)
+                    select * from unnest(cast(:c as text[]), cast(:k as text[])) on conflict do nothing"""),
+            {"c": faltam, "k": [novo_codigo() for _ in faltam]},
+        )
+        novos += r.rowcount or 0
+    return novos

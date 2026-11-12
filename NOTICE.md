@@ -57,3 +57,11 @@ Métodos reescritos, sem copiar código: frases comparativas por índice no esti
 (`front/compartilhado/comparacoes.ts`) e caixa de fatos no formato das "fact boxes" de comunicação de risco
 (`front/compartilhado/cenario.ts`). Dependências só de desenvolvimento: Vite, TypeScript, Vitest, Oxlint (MIT) e,
 no script, requests (Apache-2.0), shapely e pmtiles (BSD-3-Clause).
+
+## OpenStreetMap pelos ladrilhos do Protomaps (cidades e estradas por imóvel)
+
+- `raiz/osm.py` lê as camadas `places` e `roads` do build diário do Protomaps (build.protomaps.com, dados ©
+  colaboradores do OpenStreetMap, ODbL 1.0) por faixa de bytes. As colunas derivadas (cidade_proxima,
+  cidade_proxima_km, cidade_proxima_direcao, estrada_acesso, estrada_acesso_km) formam uma base derivada do OSM: quando
+  publicadas, levam a atribuição "© colaboradores do OpenStreetMap" e seguem a ODbL (oferecer a base derivada sob a
+  mesma licença). Bibliotecas: `pmtiles` (BSD-3) e `mapbox-vector-tile` (MIT), sem copiar código.

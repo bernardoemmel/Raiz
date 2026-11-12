@@ -249,3 +249,67 @@ def situacao(linha: dict) -> dict:
         "status_imovel": linha.get("status_imovel"),
         "porque_nao_apta": porque if not i["apta"] else [],
     }
+
+
+# Lista fixa dos critérios, sempre na mesma ordem (design v1 do front, item 3): id, grupo, fonte
+CRITERIOS = (
+    ("embargo", "decide", "Ibama, termos de embargo"),
+    ("ti", "decide", "FUNAI e INPE TerraBrasilis, terras indígenas"),
+    ("desmate2020", "decide", "INPE PRODES"),
+    ("alerta", "decide", "MapBiomas Alerta"),
+    ("desmate2016", "decide", "INPE PRODES"),
+    ("alem", "decide", "MapBiomas cobertura e Código Florestal (reserva legal)"),
+    ("matricula", "só informa", "INCRA SIGEF"),
+    ("uc", "só informa", "MMA CNUC e INPE TerraBrasilis, unidades de conservação"),
+    ("reserva", "só informa", "Código Florestal, art. 12 (regras da Raíz)"),
+    ("app", "só informa", "INPE PRODES hidrografia e Código Florestal, art. 61-A"),
+    ("eudr", "só informa", "Regulamento europeu contra desmatamento (EUDR)"),
+    ("credito", "só informa", "Resolução do Conselho Monetário Nacional sobre crédito rural"),
+    ("territorial", "só informa", "INCRA quilombos, FUNAI e MMA CNUC"),
+)
+
+
+def criterios(linha: dict, data: str | None = None) -> list[dict]:
+    """Os 13 critérios na ordem fixa, com situação ok, falta ou não se aplica, o grupo (decide a aptidão ou só
+    informa), a fonte e a data do dado (a data de corte da rodada)."""
+    por_id = {m["id"]: m for m in motivos(linha)}
+    i = ler(linha)
+    f_mat = _num(linha, "f_matricula")
+    if f_mat is None:
+        f_mat = _n0(linha, "matricula_ha") / i["ha"] if i["ha"] > 0 else None
+    extras = {
+        "matricula": None
+        if f_mat is None
+        else {
+            "ok": f_mat >= 0.5,
+            "texto": "Pelo menos metade do CAR com matrícula no SIGEF"
+            if f_mat >= 0.5
+            else "Menos da metade do CAR com matrícula no SIGEF",
+            "detalhe": f"{round(100 * f_mat)}% do CAR coberto por parcela SIGEF particular com matrícula",
+        },
+        "uc": {"ok": True, "texto": "Fora de unidade de conservação", "detalhe": "até 1 ha em UC"},
+        "reserva": {"ok": True, "texto": "Reserva legal completa", "detalhe": "déficit de até 1 ha"},
+        "app": {"ok": True, "texto": "Beira de rio (APP) sem área aberta", "detalhe": "até 1 ha aberto em APP"},
+        "territorial": {"ok": True, "texto": "Sem sobreposição territorial", "detalhe": "quilombo, TI ou UC"},
+    }
+    out = []
+    for cid, grupo, fonte in CRITERIOS:
+        m = por_id.get(cid) or extras.get(cid)
+        if cid == "territorial" and linha.get("filtro_territorial") in (None, "") and cid not in por_id:
+            m = None
+        if m is None:
+            out.append({"id": cid, "situacao": "não se aplica", "grupo": grupo, "texto": None, "detalhe": None,
+                        "fonte": fonte, "data": data})  # fmt: skip
+            continue
+        out.append(
+            {
+                "id": cid,
+                "situacao": "ok" if m["ok"] else "falta",
+                "grupo": grupo,
+                "texto": m["texto"],
+                "detalhe": m["detalhe"],
+                "fonte": fonte,
+                "data": data,
+            }
+        )
+    return out

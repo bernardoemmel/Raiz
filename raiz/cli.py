@@ -135,7 +135,7 @@ def funil_rodar(
     municipios: Annotated[list[int] | None, typer.Argument(help="códigos IBGE; sem nada, a UF inteira")] = None,
     tarefas: Annotated[
         str, typer.Option(help="separadas por vírgula")
-    ] = "funil,filtros,direto,mapbiomas,extras_direto,flag,carga",
+    ] = "funil,filtros,direto,mapbiomas,extras_direto,flag,ficha,carga",
     lanes: Annotated[int, typer.Option(help="municípios ao mesmo tempo")] = 3,
     refazer: bool = False,
     data_corte: Annotated[str | None, typer.Option(help="AAAA-MM-DD; padrão: hoje")] = None,
@@ -530,3 +530,34 @@ def flag_recalcular(
     lista = [u.strip().upper() for u in ufs.split(",")] if ufs else None
     r = F.recalcular(pasta, lista, cache_motor=dir_trabalho() / "cache")
     typer.echo(f"regra {F.versao()}: {len(r['refeitos'])} municípios refeitos, {r['em_dia']} já em dia")
+
+
+ficha_cli = typer.Typer(help="Colunas e camadas dentro do imóvel para o front (design v1).", no_args_is_help=True)
+app.add_typer(ficha_cli, name="ficha")
+
+
+@ficha_cli.command("gerar")
+def ficha_gerar(
+    saida: Annotated[
+        str | None, typer.Option(help="pasta saida/ do motor; padrão: a pasta de trabalho do motor")
+    ] = None,
+    ufs: Annotated[str | None, typer.Option(help="só estas UFs, separadas por vírgula")] = None,
+    refazer: Annotated[bool, typer.Option(help="refazer municípios que já têm ficha_<mun>.csv")] = False,
+) -> None:
+    """Gera ficha_<mun>.csv, camadas_<mun>.parquet e camadas_<mun>.pmtiles para os municípios do motor."""
+    from pathlib import Path
+
+    from raiz.carga import municipios_na_pasta
+    from raiz.funil.rodar import dir_trabalho
+    from raiz.imovel_dados import escrever_municipio
+    from raiz.osm import build_recente
+
+    base = Path(saida) if saida else dir_trabalho() / "saida"
+    lista = [u.strip().upper() for u in ufs.split(",")] if ufs else sorted(p.name for p in base.iterdir() if p.is_dir())
+    dia = build_recente()
+    for uf in lista:
+        for cod in municipios_na_pasta(base / uf):
+            if (base / uf / f"ficha_{cod}.csv").exists() and not refazer:
+                continue
+            r = escrever_municipio(base / uf, cod, dir_trabalho() / "cache", dia)
+            typer.echo(f"{uf} {cod}: {r}")

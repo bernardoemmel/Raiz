@@ -28,7 +28,10 @@ from raiz.versoes import motor_commit, motor_versao, regras_versao, sha256_arqui
 
 log = logging.getLogger(__name__)
 
-TIPOS_MUNICIPIO = ("imoveis", "filtros", "extras", "extras_direto", "direto", "ajustes", "alertas", "certidoes", "flag")
+TIPOS_MUNICIPIO = (
+    "imoveis", "filtros", "extras", "extras_direto", "direto", "ajustes", "alertas", "certidoes", "flag", "ficha",
+    "serie_uso",
+)  # fmt: skip
 
 
 @dataclass
@@ -81,6 +84,7 @@ def arquivos_do_municipio(pasta: Path, cod: int) -> dict[str, Path]:
     achados = {t: pasta / f"{t}_{cod}.csv" for t in TIPOS_MUNICIPIO}
     achados["geo"] = pasta / f"geo_{cod}.parquet"
     achados["mapbiomas"] = pasta / f"mapbiomas_{cod}.csv"  # motor/raiz_mapbiomas.py (colunas mb_*, opcionais)
+    achados["camadas"] = pasta / f"camadas_{cod}.parquet"  # raiz/imovel_dados.py (polígonos dentro do imóvel)
     return {t: p for t, p in achados.items() if p.exists()}
 
 
@@ -170,6 +174,42 @@ def _carregar_geo(con: Connection, arquivo: Path) -> int:
     return n
 
 
+def _carregar_camadas(con: Connection, arquivo: Path, cod: int, rid: int) -> int:
+    """Polígonos dentro do imóvel (raiz/imovel_dados.py): troca os do município pelos novos."""
+    import geopandas as gpd
+    import shapely
+
+    g = gpd.read_parquet(arquivo).to_crs(4674)
+    con.execute(text("delete from geo.camada_imovel where cod_ibge = :c"), {"c": cod})
+    linhas = (
+        (str(c), cod, k, float(h), w, rid)
+        for c, k, h, w in zip(
+            g.cod_imovel, g.camada, g.ha, shapely.to_wkb(g.geometry.values, output_dimension=2), strict=True
+        )
+    )
+    con.execute(
+        text("create temp table _cam (cod_imovel text, cod_ibge bigint, camada text, ha float8, wkb bytea, rid bigint)"
+             " on commit drop")
+    )  # fmt: skip
+    n = _copy(con, "_cam", ["cod_imovel", "cod_ibge", "camada", "ha", "wkb", "rid"], linhas)
+    con.execute(
+        text("""insert into geo.camada_imovel (cod_imovel, cod_ibge, camada, ha, geom, rodada_id)
+                select cod_imovel, cod_ibge, camada, ha, ST_SetSRID(ST_GeomFromWKB(wkb), 4674), rid from _cam""")
+    )
+    con.execute(text("drop table _cam"))
+    return n
+
+
+def _carregar_serie_uso(con: Connection, arquivo: Path) -> int:
+    """serie_uso_<mun>.csv (raiz/serie_uso.py): % de mata, pasto, lavoura e água por ano de cada imóvel."""
+    df = pd.read_csv(arquivo)
+    cods = df.cod_imovel.astype(str).unique().tolist()
+    con.execute(text("delete from funil.serie_uso where cod_imovel = any(:c)"), {"c": cods})
+    cols = ["cod_imovel", "ano", "mata_pct", "pasto_pct", "lavoura_pct", "agua_pct", "colecao"]
+    df = df.reindex(columns=cols)
+    return _copy(con, "funil.serie_uso", cols, (tuple(_py(v) for v in r) for r in df.itertuples(index=False)))
+
+
 def _marcar_blocos(con: Connection, rid: int) -> None:
     """Copia a chave de bloco do imóvel (raiz/funil/grade.py, gravada com a geometria) para as tabelas da rodada."""
     for t in ("funil.resultado_imovel", "funil.filtro_imovel", "funil.mapbiomas_imovel"):
@@ -198,7 +238,9 @@ def carregar_municipio(
         atualizar_vigente(con, cod)
         return ResultadoCarga(ex.id, False, ex.tipo, ex.uf, ex.cod_municipio, ex.imoveis or 0)
 
-    leituras = {t: contrato.ler(p, t) for t, p in arquivos.items() if t not in ("geo", "mapbiomas")}
+    leituras = {
+        t: contrato.ler(p, t) for t, p in arquivos.items() if t not in ("geo", "mapbiomas", "camadas", "serie_uso")
+    }
     im = leituras["imoveis"]
     ufs = im.tipadas["uf"].dropna().unique().tolist()
     uf = ufs[0] if ufs else pasta.name.upper()
@@ -240,6 +282,10 @@ def carregar_municipio(
     )
     if "geo" in arquivos:
         _carregar_geo(con, arquivos["geo"])
+    if "camadas" in arquivos:
+        _carregar_camadas(con, arquivos["camadas"], cod, rid)
+    if "serie_uso" in arquivos:
+        _carregar_serie_uso(con, arquivos["serie_uso"])
     _marcar_blocos(con, rid)
 
     novas, faltando, avisos = _fechar_rodada(con, rid, n, list(leituras.values()), mb)
