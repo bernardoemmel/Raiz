@@ -37,8 +37,52 @@ por último. Não substitui os pacotes originais do motor e não grava dados gra
 Inspeção inicial: 144 municípios e 345.870 imóveis no pacote publicado; sem tabelas de desenvolvedor e terra,
 APP pela escadinha presente em 81 municípios. Usa somente dados congelados; não executa downloads geográficos novos.
 Piloto de Nova Esperança do Piriá: 880 imóveis reais calculados, três opções e todos os arquivos gerados localmente.
-Execução integral/publicação: **pendente de rodar o workflow depois do merge do código**. Esta passagem será atualizada
-com URL da execução, hashes e números quando a publicação terminar.
+Código mesclado no [PR #49](https://github.com/bernardoemmel/Raiz/pull/49), após os três checks verdes no
+[CI 43284244212](https://github.com/bernardoemmel/Raiz/actions/runs/43284244212). A
+[execução integral 43285608189](https://github.com/bernardoemmel/Raiz/actions/runs/43285608189), no commit
+`31990520b842fd665152b2c7931b3556a66ca180`, foi cancelada externamente às 19:09 UTC: dez das quinze fatias
+concluíram com sucesso, cinco foram interrompidas e a publicação não começou. O GitHub registra cancelamento pela
+conta `bernardoemmel` e workflow desativado manualmente. **Publicação integral pendente**; nenhuma saída parcial
+foi promovida ao Release. As dez fatias prontas cobrem 98 municípios e 230.295 imóveis; restam 46 municípios e
+115.575 imóveis nas cinco interrompidas. Os onze artefatos (entrada e dez resultados) foram depois preservados no
+draft privado pelo Actions `43289212685` e removidos do armazenamento público de artifacts. A mesma migração,
+conduzida pelo chat Ficha da fazenda, removeu 33 caches de dados, incluindo os quinze caches do lote. As dez fatias
+prontas continuam preservadas; os caches parciais das cinco incompletas não estão mais disponíveis.
+O fundador esclareceu que o cancelamento não
+era intencional para esta entrega e autorizou retomar somente as cinco fatias, aguardando vagas para respeitar o
+limite de quinze jobs junto ao processamento dos estados, sem cancelar trabalhos em andamento.
+
+**Origem identificada:** o chat **RAIZ - Ficha da fazenda** (`6af60423-79ec-8191-bf64-3a51a8470005`), no comando
+`exec-912e58b0-7e6e-41c0-b64a-931f36538908`, executou `PUT .../actions/workflows/416422657/disable` e
+`POST .../actions/runs/43285608189/cancel`. A ação fazia parte da migração autorizada naquele chat para tirar
+camadas pagas por imóvel do Release público. Não foi cancelamento automático por concorrência do GitHub.
+Para evitar repetição, não pausar em bloco workflows de outros chats: preservar os cálculos e coordenar a troca
+do publicador. A ausência de nome/CPF não torna TIR, risco e crédito por imóvel dados abertos.
+
+Repetir os jobs cancelados pelo mecanismo padrão executaria também o publicador público do commit antigo.
+A continuação usa `.github/workflows/retomar-lote-para.yml` e `raiz/restauracao_retomada.py`: reutiliza a entrada
+e as dez fatias concluídas a partir dos ZIPs privados `actions-<id>-<nome>.zip` e calcula apenas `00`, `01`, `02`,
+`05` e `12`. Os comprovantes `artifacts-inventario-43289212685.json` e `artifacts-backup-43289212685.json` vinculam
+IDs, execução original, commit de origem, nomes, tamanhos e SHA256; são conferidos antes de aceitar os ZIPs.
+As cinco incompletas começam sem os caches antigos removidos e preservam os novos checkpoints no draft privado.
+Executa código, amostra e lockfile no commit original, copiando somente o orquestrador privado. Confere hashes de
+entrada e saída, modelo, CARs, contagens e a composição exata de cada fatia antes da reunião. Uma conclusão já
+preservada é validada e reutilizada; não há novo cálculo só porque um passo posterior precisou ser repetido.
+Os arquivos completos irão ao Release
+autenticado `dados-privados` (draft, ID 443383695), sem publicar o draft nem criar novos artifacts/caches públicos.
+Nenhuma das dez fatias prontas deve ser recalculada. Resultado integral e hashes serão registrados após conclusão.
+O fluxo original permanece desativado enquanto seu publicador ainda expuser dados pagos; a continuação protegida
+usa o mesmo grupo de concorrência, no máximo cinco jobs de cálculo e dispara apenas quando houver vagas.
+
+Auditoria do artefato preservado `calculado-03`: 23.023 imóveis em nove municípios, 36 hashes conferidos,
+previsões JSONL consistentes com os CSVs e modelo único `restauracao-2026d+a84f9789`. Nenhuma violação do piso de
+20% (faixa observada 20–60%), da ordem dos quantis, dos preços mínimos TIR15 ≥ TIR12 ou dos limites de área.
+Foram mantidas 1.099 áreas positivas menores que 1 ha. Há 3.811 entradas com inconsistência de área sinalizada
+e limite físico aplicado; as premissas substitutas de distância, declividade, chuva, solo, acesso e linha de base
+estão identificadas. Essa conferência cobre uma fatia e não substitui a validação integral antes da publicação.
+Na entrada congelada completa, as 144 tabelas somam 345.870 linhas e 345.870 CARs únicos, sem vazios nem
+duplicação entre municípios. O ZIP da fatia auditada também corresponde exatamente ao SHA e tamanho dos
+comprovantes privados da migração.
 
 ## Comparação com o real
 
@@ -74,4 +118,15 @@ normativas em P10/P50/P90. A referência SMA/SP de regenerantes permanece separa
 ## Validação
 
 Testes específicos de reserva, preço, salvaguardas, três opções, comparação, persistência e workflow.
-Ruff global conferido. A contagem final de testes e links do CI serão registrados na entrega da execução integral.
+Ruff global conferido. A validação local integrada à main até o PR #68 teve 979 testes aprovados,
+127 dependentes do ambiente ignorados e 1 falha histórica esperada. A continuação privada tem 78 testes específicos
+aprovados e revisão independente, incluindo recusa de
+Release público, origem divergente, alteração do conjunto de CARs e recálculo de fatia pronta. O motor e a amostra
+originais foram conferidos em checkout separado. O CI com PostGIS, testes do front e workflows passou antes do merge do PR #49.
+A exceção autorizada no teste do front foi validada em 24 testes; nenhum código de produção do front foi alterado.
+
+A varredura de segredos com todos os ramos encontrou um falso positivo no PR #69, commit
+`be05cee99ee060b5ca2c9e60d7b077d1fa2a51aa`: URL JDBC sem credenciais em `infra/docker-compose.keycloak.yml:28`.
+A main incorporou em `.gitleaksignore` a exceção do fingerprint exato desse commit, arquivo, regra e linha;
+a continuação usa essa exceção existente, sem ampliar a allowlist. A varredura de todos os ramos permanece ativa.
+Nenhum valor de credencial foi exposto.
