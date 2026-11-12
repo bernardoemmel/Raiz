@@ -99,6 +99,19 @@ where c.id = (select max(c2.id) from conferencia c2
 create view if not exists gabarito_vigente as
 select g.* from gabarito g
 where g.id = (select max(g2.id) from gabarito g2 where g2.leitura_id is g.leitura_id and g2.alvo = g.alvo);
+
+create table if not exists cache_decisao (
+    id integer primary key,
+    arquivo_sha256 text not null,
+    leitura_id integer references leitura (id),
+    decidido_em text not null,
+    decisao_json text not null
+);
+create index if not exists leitura_arquivo on leitura (tipo, arquivo_sha256);
+create trigger if not exists cache_decisao_nao_muda before update on cache_decisao
+    begin select raise(abort, 'decisão de cache é imutável'); end;
+create trigger if not exists cache_decisao_nao_some before delete on cache_decisao
+    begin select raise(abort, 'decisão de cache é imutável'); end;
 """
 
 
@@ -207,6 +220,14 @@ class Armazem:
             return False
         linha = lt.linha()
         return hashlib.sha256(_canonico(linha).encode("utf-8")).hexdigest() == lt.registro_hash
+
+    def gravar_cache_decisao(self, arquivo_sha256: str, decisao: dict) -> None:
+        with self.con() as c:
+            c.execute(
+                """insert into cache_decisao (arquivo_sha256, leitura_id, decidido_em, decisao_json)
+                   values (?, ?, ?, ?)""",
+                (arquivo_sha256, decisao.get("leitura_id"), agora(), _canonico(decisao)),
+            )
 
     # --- conferências ---------------------------------------------------------------------------------------------
 

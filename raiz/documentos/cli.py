@@ -45,6 +45,8 @@ def _mostrar_certidao(r, rotulo: str) -> None:
         print(f"{rotulo}: leitura {lt.id} falhou: {r.erro}")
         return
     print(f"{rotulo}: leitura {lt.id} ({lt.modelo}, {lt.prompt_versao}) chave {lt.chave}")
+    if r.cache:
+        print(f"  cache: {r.cache['motivo']}")
     for c in r.conferencias:
         alvo = c.cod_imovel or "sem imóvel no motor"
         conf = " (pede confirmação)" if c.precisa_confirmar else ""
@@ -58,7 +60,13 @@ def cmd_certidao(a) -> int:
 
     if a.acao == "ler":
         r = leitor.ler_certidao(
-            a.arquivo, cod_imovel=a.imovel, cod_municipio=a.municipio, leitor=_leitor(a), json_manual=_manual(a.manual)
+            a.arquivo,
+            cod_imovel=a.imovel,
+            cod_municipio=a.municipio,
+            leitor=_leitor(a),
+            json_manual=_manual(a.manual),
+            forcar_releitura=a.forcar_releitura,
+            calibracao_cache=a.calibracao_cache,
         )
         _mostrar_certidao(r, f"arquivo {r.leitura.arquivo_sha256[:12]}")
         return 1 if r.erro else 0
@@ -66,7 +74,13 @@ def cmd_certidao(a) -> int:
         pdfs = sorted(Path(a.arquivo).glob("*.pdf"))
         erros = 0
         for i, p in enumerate(pdfs, 1):
-            r = leitor.ler_certidao(p, cod_municipio=a.municipio, leitor=_leitor(a))
+            r = leitor.ler_certidao(
+                p,
+                cod_municipio=a.municipio,
+                leitor=_leitor(a),
+                forcar_releitura=a.forcar_releitura,
+                calibracao_cache=a.calibracao_cache,
+            )
             _mostrar_certidao(r, f"[{i}/{len(pdfs)}] arquivo {r.leitura.arquivo_sha256[:12]}")
             erros += bool(r.erro)
         if a.municipio:
@@ -159,8 +173,15 @@ def cmd_aprendizado(a) -> int:
             campos=campos,
             observado_em=a.data,
             nota=a.nota,
+            leitura_integral=a.leitura_integral,
+            amostra_aleatoria_cache=a.amostra_aleatoria_cache,
         )
         print(json.dumps(g, ensure_ascii=False, indent=2, default=str))
+        return 0
+    if a.acao == "calibrar-cache":
+        from raiz.documentos.certidao.cache import calibrar
+
+        print(json.dumps(calibrar(caminho=a.alvo), ensure_ascii=False, indent=2))
         return 0
     if a.acao == "fila":
         for f in aprendizado.fila_revisao():
@@ -202,6 +223,8 @@ def principal(argv: list[str] | None = None) -> int:
     c.add_argument("--imovel", help="código do CAR do imóvel")
     c.add_argument("--municipio", type=int)
     c.add_argument("--manual", help="JSON da leitura feita por gente (vira modelo 'humano')")
+    c.add_argument("--forcar-releitura", action="store_true", help="ignora o cache calibrado")
+    c.add_argument("--calibracao-cache", help="arquivo de calibração (padrão: pasta de documentos)")
     modelo(c)
     c.set_defaults(func=cmd_certidao)
 
@@ -229,7 +252,7 @@ def principal(argv: list[str] | None = None) -> int:
     g.set_defaults(func=cmd_gerar)
 
     ap = sub.add_parser("aprendizado", help="gabarito, fila de revisão, placar e exportação")
-    ap.add_argument("acao", choices=["marcar", "fila", "placar", "exportar"])
+    ap.add_argument("acao", choices=["marcar", "fila", "placar", "exportar", "calibrar-cache"])
     ap.add_argument("alvo", nargs="?", help="id da leitura (marcar) ou pasta (exportar)")
     ap.add_argument("--fonte", default="conferencia_humana", help="quem conferiu: cartorio, onr, conferencia_humana")
     ap.add_argument("--confirma", action="store_true", help="a certidão real confirma a leitura")
@@ -237,6 +260,14 @@ def principal(argv: list[str] | None = None) -> int:
     ap.add_argument("--campo", action="append", help="campo conferido, ex.: area_ha=290 (repete)")
     ap.add_argument("--data", help="quando foi conferido (AAAA-MM-DD)")
     ap.add_argument("--nota")
+    integral = ap.add_mutually_exclusive_group()
+    integral.add_argument("--leitura-correta", dest="leitura_integral", action="store_const", const=True)
+    integral.add_argument("--leitura-incorreta", dest="leitura_integral", action="store_const", const=False)
+    ap.add_argument(
+        "--amostra-aleatoria-cache",
+        action="store_true",
+        help="a matrícula foi sorteada antes da revisão integral, sem seleção por erro ou confiança",
+    )
     ap.add_argument("--banco", action="store_true", help="registra no banco do back-end em vez de CSV")
     ap.set_defaults(func=cmd_aprendizado)
 

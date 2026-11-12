@@ -2,6 +2,14 @@
 
 ## Retomada no Codex
 
+Integração atual: main `a4c1066`, incluindo aprendizado, avaliação Qwen,
+cena do lote e Calendário. A API paga é a migração **0028**, depois de
+`0027_calendario`; a sequência continua única. Mantidos os controles pagos e
+a revalidação dos desenhos: só aparecem contornos desbloqueados pela empresa,
+e nunca os reservados por outra empresa. O E2E combina a conta paga com a
+nova cena do lote, mantendo a fase de interesse/reserva isolada no teste.
+O recálculo do Pará pertence ao chat Lote e números; não será executado aqui.
+
 Integração mais recente: main `78e13f7` (qualidade e segurança). Mantém o login
 com URL pública configurada, aliases 307 para a política paga, sanitização
 Presidio e `uvicorn` sem access log e sem substituir o formatador seguro.

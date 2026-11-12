@@ -3,7 +3,7 @@
 # O site é estático: o build baixa do Release "dados" o que o motor publicou (front/scripts/baixar-dados.mjs) e grava
 # os CSV limpos e comprimidos, os estados, os pontos de cada estado e as fichas prontas (vite-dados.ts). As geometrias
 # do mapa saem de front/scripts/geo.py, guardadas em cache entre as rodadas. Roda a cada mudança do front na main, todo
-# dia (dados novos do motor) e quando alguém dispara (Actions, "Publicar o site").
+# dia (dados novos do motor), após a coleta do Calendário e quando alguém dispara (Actions, "Publicar o site").
 #
 # Uma vez só, no repositório: Settings > Pages > Build and deployment > Source: "GitHub Actions". O token do Actions não
 # consegue ligar o Pages sozinho; sem isso, o passo "publicar" falha com o aviso do GitHub.
@@ -16,6 +16,10 @@ on:
   schedule:
     - cron: "41 10 * * *"
   workflow_dispatch:
+  workflow_run:
+    workflows: ["Calendário diário da Raíz"]
+    types: [completed]
+    branches: [main]
 
 permissions:
   contents: read
@@ -28,10 +32,23 @@ concurrency:
 
 jobs:
   construir:
+    # Uma fonte indisponível deixa a coleta vermelha, mas o passo always publica o snapshot parcial.
+    # Não filtrar por conclusion=success: o site precisa mostrar também essa cobertura incompleta.
+    # workflow_run pode ter permissões elevadas; só aceitamos a coleta da main deste repositório,
+    # originada pela agenda ou pelo disparo manual. Nunca executamos o código do head recebido.
+    if: >-
+      github.event_name != 'workflow_run' ||
+      (github.event.workflow_run.head_repository.full_name == github.repository &&
+       github.event.workflow_run.head_branch == github.event.repository.default_branch &&
+       github.event.workflow_run.head_branch == 'main' &&
+       (github.event.workflow_run.event == 'schedule' ||
+        github.event.workflow_run.event == 'workflow_dispatch'))
     runs-on: ubuntu-24.04
     timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -41,6 +58,9 @@ jobs:
 
       - name: Dados do motor e polígonos de todos os estados (Release dados)
         run: node front/scripts/baixar-dados.mjs --geo --exigir
+
+      - name: Conferir os três lotes publicados do Pará
+        run: node front/scripts/baixar-lotes.mjs
 
       - name: Geometrias do mapa (do cache)
         uses: actions/cache/restore@v4
