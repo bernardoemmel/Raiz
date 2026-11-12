@@ -366,7 +366,7 @@ def test_vigia_diz_quais_fazendas_novas_melhoram_o_lote(eng, chave):
                  where (atributos->>'elegivel')::boolean and (atributos->>'credito_p50')::float > 5000
                  order by cod_imovel""")) if r[0] not in no_lote][:15]  # fmt: skip
         barato = """update negocio.oferta set atualizado_em = now(),
-                    atributos = jsonb_set(atributos, '{custo_credito_usd}', to_jsonb(0.01))
+                    atributos = atributos || '{"custo_credito_usd": 0.01, "preco_equilibrio_usd": 0.01}'::jsonb
                     where cod_imovel = any(:c)"""
         con.execute(text(barato), {"c": fora})
     S.vigiar(eng)
