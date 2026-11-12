@@ -154,11 +154,12 @@ def rodar_municipio(cod: int, op: Opcoes, hc=None) -> dict:
 
     def carga(reg):
         from raiz.aprendizado.congelar import congelar_rodada
-        from raiz.carga import carregar_municipio
+        from raiz.carga import carregar_municipio, depois_da_carga
 
         with eng.begin() as con:
             r = carregar_municipio(con, pasta.resolve(), cod, op.data_corte, motor_confirmado=True)
             lh, novo, n = congelar_rodada(con, r.rodada_id)
+        depois_da_carga(eng, cod)
         reg.detalhe.update(rodada=r.rodada_id, nova=r.nova, previsoes=n if novo else 0, colunas_novas=r.colunas_novas)
 
     def mapbiomas(reg):

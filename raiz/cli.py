@@ -989,3 +989,88 @@ def municipio_urbana(municipios: Annotated[list[int], typer.Argument(help="códi
             continue
         m = urbana(eng, cod, tifs[-1])
         typer.echo(f"{cod}: " + (f"{m.area * 111.32**2 * 100:.0f} ha (aprox.)" if m is not None else "sede não achada"))
+
+
+pedidos_cli = typer.Typer(
+    help="Pedido de lote (docs/cena-alvo.md): oferta por fazenda, clientes, ondas de contato, reservas e vigia.",
+    no_args_is_help=True,
+)
+app.add_typer(pedidos_cli, name="pedidos")
+
+
+@pedidos_cli.command("oferta")
+def pedidos_oferta(
+    ufs: Annotated[str | None, typer.Option(help="UFs separadas por vírgula; padrão: todos os municípios")] = None,
+) -> None:
+    """Refaz a oferta (negocio.oferta) a partir do banco; a carga de cada município já faz isso sozinha."""
+    from sqlalchemy import text
+
+    from raiz.banco import engine
+    from raiz.pedidos.oferta import atualizar
+
+    eng = engine()
+    with eng.connect() as con:
+        q = "select distinct cod_municipio_ibge from funil.vigente"
+        par = {}
+        if ufs:
+            q += " v where exists (select 1 from funil.imovel i where i.cod_imovel = v.cod_imovel and i.uf = any(:u))"
+            par = {"u": [u.strip().upper() for u in ufs.split(",")]}
+        cods = [r[0] for r in con.execute(text(q), par) if r[0] is not None]
+    total = sum(atualizar(eng, c) for c in cods)
+    typer.echo(f"oferta refeita: {total} fazendas em {len(cods)} municípios")
+
+
+@pedidos_cli.command("cliente")
+def pedidos_cliente(
+    rotulo: Annotated[str, typer.Option(help="nome da empresa (nunca CPF)")],
+    email: Annotated[str | None, typer.Option(help="e-mail de quem entra (fica cifrado)")] = None,
+) -> None:
+    """Cria um cliente e mostra o token da primeira sessão (uma vez só). Depois a pessoa entra pelo link do e-mail."""
+    from raiz.banco import engine
+    from raiz.pedidos import servico as S
+
+    cid, token = S.criar_cliente(engine(), rotulo, email)
+    typer.echo(f"cliente {cid} criado. Token da sessão (guarde agora, não aparece de novo): {token}")
+
+
+@pedidos_cli.command("ciclo")
+def pedidos_ciclo() -> None:
+    """Um passo de tudo o que anda sozinho: ondas (vence quem não respondeu, chama a próxima onda, fecha o grupo),
+    reservas vencidas voltam para a base e o vigia dos pedidos salvos. Rodar de hora em hora (cron)."""
+    from raiz.banco import engine
+    from raiz.pedidos import servico as S
+
+    eng = engine()
+    estados = {pid: S.avancar(eng, pid) for pid in S.pedidos_abertos(eng)}
+    exp = S.expirar_reservas(eng)
+    vig = S.vigiar(eng)
+    typer.echo(f"ondas: {estados or 'nenhum pedido buscando interesse'}; reservas vencidas: {exp}; vigia: {vig}")
+
+
+@pedidos_cli.command("pagar-teste")
+def pedidos_pagar_teste(cobranca: Annotated[str, typer.Argument(help="id da cobrança de teste (teste_...)")]) -> None:
+    """Simula o pagamento de uma cobrança Pix de teste (sem chave da AbacatePay)."""
+    from raiz.banco import engine
+    from raiz.pedidos import servico as S
+
+    if not cobranca.startswith("teste_"):
+        raise typer.BadParameter("só cobrança de teste")
+    typer.echo(f"reserva: {S.confirmar_pagamento(engine(), cobranca, quem='teste')}")
+
+
+@pedidos_cli.command("resposta")
+def pedidos_resposta(
+    cod_imovel: Annotated[str, typer.Argument(help="código do CAR")],
+    nivel: Annotated[
+        str, typer.Option(help="contatado, interessado, aceite_fase1, contrato_firme, recusou, sem_resposta")
+    ],
+    canal: Annotated[str | None, typer.Option(help="whatsapp, carta, email, visita")] = None,
+    motivo: Annotated[str | None, typer.Option(help="por que recusou ou não respondeu")] = None,
+    termo: Annotated[str | None, typer.Option(help="versão do termo LGPD aceito")] = None,
+    pedido: Annotated[str | None, typer.Option(help="id do pedido")] = None,
+) -> None:
+    """Registra a resposta do dono (o nível só sobe com registro; nome e CPF ficam só no esquema pessoal)."""
+    from raiz.banco import engine
+    from raiz.pedidos import servico as S
+
+    typer.echo(S.registrar_resposta(engine(), cod_imovel, nivel, canal, motivo, termo, pedido))
