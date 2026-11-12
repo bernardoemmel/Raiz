@@ -32,6 +32,7 @@ describe("páginas para pessoas e agentes", () => {
     it(`publica agregados e links corretos em ${base}`, () => {
       const saida = preparar()
       paginasAgentes({ saida, base, catalogo })
+      expect(ler(saida, "index.html")).toContain(`<link rel="canonical" href="https://bernardoemmel.github.io${base}"`)
       expect(ler(saida, "index.md")).toContain("11 imóveis, 5 aptos no funil e 123,4 ha")
       expect(ler(saida, "dados/estados/PA.md")).toContain("1 de 144")
       const texto = ler(saida, "dados/municipios/1505536.md")
@@ -159,8 +160,18 @@ describe("páginas para pessoas e agentes", () => {
     paginasAgentes({ saida, base: "/Raiz/", catalogo: dados, siteUrl: "https://raiz.example/" })
     paginasAgentes({ saida, base: "/Raiz/", catalogo: dados, siteUrl: "https://raiz.example/" })
     expect(ler(saida, "index.html").match(/<script/g)).toHaveLength(1)
+    expect(ler(saida, "index.html").match(/rel="canonical"/g)).toHaveLength(1)
     expect(schema(saida)["@graph"][0].url).toBe("https://raiz.example/")
     expect(ler(saida, "dados/estados/PA.md")).not.toContain("</script>")
+  })
+
+  it("domínio próprio anuncia a raiz e a ficha em produtor sem caminho do repositório", () => {
+    for (const produtor of [false, true]) {
+      const saida = preparar()
+      paginasAgentes({ saida, base: "/", produtor, catalogo, siteUrl: "https://mapa.example/" })
+      expect(ler(saida, "index.html")).toContain(`<link rel="canonical" href="https://mapa.example/${produtor ? "produtor/" : ""}"`)
+      expect(ler(saida, "index.md")).not.toContain("/Raiz/")
+    }
   })
 
   it("llms.txt fica abaixo de 8 KB e lista bots atuais sem bloqueio", () => {

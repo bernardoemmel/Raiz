@@ -51,6 +51,12 @@ export function paginasAgentes(opcoes: Opcoes): void {
     fs.mkdirSync(path.dirname(arq), { recursive: true })
     fs.writeFileSync(arq, texto.trim() + "\n", "utf8")
   }
+  const htmlCanonico = path.join(saida, "index.html")
+  if (fs.existsSync(htmlCanonico)) {
+    const canonico = absoluto(produtor ? "produtor/" : "").replace(/&/g, "&amp;").replace(/"/g, "&quot;")
+    const anterior = fs.readFileSync(htmlCanonico, "utf8").replace(/\s*<link\b[^>]*rel=["']canonical["'][^>]*>/gi, "")
+    fs.writeFileSync(htmlCanonico, anterior.replace("</head>", `<link rel="canonical" href="${canonico}" />\n</head>`))
+  }
   if (produtor) {
     gravar("index.md", `# Raíz: ficha da sua fazenda
 

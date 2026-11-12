@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/** Testa o site compilado como no Pages: só arquivos, /Raiz/ e HTTP Range, sem API nem fallback do Vite.
+/** Testa o site compilado: só arquivos e HTTP Range, sem API nem fallback do Vite.
  * Antes: preparar-teste-site.mjs e construir-site.sh com RAIZ_DADOS/RAIZ_GEO apontando à fixture,
  * RAIZ_BASE=/Raiz/ e VITE_RAIZ_TESTE_MAPA=1. PLAYWRIGHT_CHROMIUM_EXECUTABLE é opcional no ambiente local.
  */
@@ -15,6 +15,8 @@ const require = createRequire(path.join(REPO, "front/globo/package.json"))
 const { chromium } = require("playwright")
 const { PNG } = require("pngjs")
 const site = path.join(REPO, "site")
+const prefixo = process.env.RAIZ_BASE || "/Raiz/"
+assert(prefixo.startsWith("/") && prefixo.endsWith("/"), "RAIZ_BASE precisa começar e terminar em /.")
 const resultado = path.join(REPO, "front/.cache/teste-site/resultado")
 fs.mkdirSync(resultado, { recursive: true })
 const tipos = { ".html": "text/html", ".js": "text/javascript", ".mjs": "text/javascript", ".css": "text/css", ".json": "application/json",
@@ -22,9 +24,10 @@ const tipos = { ".html": "text/html", ".js": "text/javascript", ".mjs": "text/ja
 const ausentes = [], faixas = [], erros = [], pedidos = []
 const servidor = http.createServer((req, res) => {
   const url = new URL(req.url, "http://localhost")
-  const rel = decodeURIComponent(url.pathname).replace(/^\/Raiz\//, "")
+  const pathname = decodeURIComponent(url.pathname)
+  const rel = pathname.slice(prefixo.length)
   const arquivo = path.resolve(site, rel || "index.html")
-  if (!url.pathname.startsWith("/Raiz/") || !arquivo.startsWith(site + path.sep) || !fs.existsSync(arquivo) || !fs.statSync(arquivo).isFile()) {
+  if (!pathname.startsWith(prefixo) || !arquivo.startsWith(site + path.sep) || !fs.existsSync(arquivo) || !fs.statSync(arquivo).isFile()) {
     ausentes.push(url.pathname)
     res.writeHead(404).end("Arquivo não encontrado")
     return
@@ -44,7 +47,7 @@ const servidor = http.createServer((req, res) => {
   }
 })
 await new Promise((resolve) => servidor.listen(0, "127.0.0.1", resolve))
-const base = `http://127.0.0.1:${servidor.address().port}/Raiz/`
+const base = `http://127.0.0.1:${servidor.address().port}${prefixo}`
 const navegador = await chromium.launch({
   ...(process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE } : {}),
   args: ["--use-gl=angle", "--use-angle=swiftshader", "--enable-unsafe-swiftshader"],

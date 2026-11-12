@@ -56,6 +56,23 @@ Sessão: https://claude.ai/code/session_01VGb88MJumyG9PHt2znaaKE. Branch: `claud
 - E9 posterior: a calibração do portão depende de 30 cartas reais anonimizadas e avaliação de compreensão,
   sem conjunto pronto segundo resposta do fundador em 12/11. Não usar o corte dos testes sintéticos como calibrado.
 
+## Preparação do domínio próprio (entrega 5, 12/11/2026)
+
+- `front/scripts/configurar-publicacao.mjs` centraliza base, URL canônica e hostname. `RAIZ_DOMINIO` vazio mantém
+  o Pages derivado de `GITHUB_REPOSITORY`; preenchido usa `/`, HTTPS e `site/CNAME`. Recusa protocolo, caminho,
+  porta, IP, hostname inválido e configuração que mandaria os arquivos para um subcaminho do domínio.
+- `construir-site.sh` passa a mesma configuração aos dois builds; produtor não usa mais `/Raiz/` como fallback.
+  HTML do painel e do produtor anunciam canonical; Markdown, JSON-LD, assets e dados acompanham a base.
+- O workflow lê a variável de Actions `RAIZ_DOMINIO`. Nenhum domínio real foi definido. Antes de ligá-la:
+  verificar o domínio na conta, apontar DNS, cadastrar em Settings > Pages > Custom domain e habilitar HTTPS.
+  O CNAME no artefato não configura DNS nem substitui a configuração do Pages.
+- CI executa testes de configuração e duas publicações reais da fixture: `/Raiz/` e `/`, a segunda com o hostname
+  reservado `raiz.example`. Playwright e auditoria de agentes verificam ambos; na raiz, também CNAME e canonical.
+- Validação local: 10 testes de configuração, 131 testes de front (13 pulados), os dois builds e Playwright/Lighthouse
+  nos dois caminhos passaram, com zero 404 e sem expor dados individuais. Ruff check e format passaram.
+- `robots.txt` e `llms.txt` ficam prontos para a raiz quando o domínio for ativado. O endereço atual de projeto
+  continua com a limitação do robots na raiz de `bernardoemmel.github.io`.
+
 ## O que falta, em ordem
 
 1. Acompanhar os checks e a publicação dos PRs destas duas entregas; merge somente com CI verde.

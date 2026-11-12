@@ -38,6 +38,8 @@ jobs:
           node-version: 22
       - name: Preparar os dados pequenos de teste (sem baixar o Release)
         run: node front/scripts/preparar-teste-site.mjs
+      - name: Configuração de domínio e subcaminho
+        run: node --test front/scripts/configurar-publicacao.test.mjs
       - name: Build do site público com a fixture (npm ci e build do painel e da ficha do produtor)
         env:
           RAIZ_DADOS: front/.cache/teste-site/dados
@@ -71,6 +73,28 @@ jobs:
         with:
           name: site-agentes
           path: front/.cache/teste-agentes
+          if-no-files-found: ignore
+
+      - name: Build e navegação na raiz de um domínio configurado
+        env:
+          RAIZ_DADOS: front/.cache/teste-site/dados
+          RAIZ_GEO: front/.cache/teste-site/geo
+          VITE_RAIZ_TESTE_MAPA: "1"
+          RAIZ_DOMINIO: raiz.example
+          RAIZ_BASE: /
+        run: |
+          front/scripts/construir-site.sh
+          cd front/globo
+          npm run test:pages
+          npm run test:agentes
+      - name: Evidências do domínio na raiz
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dominio-proprio
+          path: |
+            front/.cache/teste-site/resultado
+            front/.cache/teste-agentes
           if-no-files-found: ignore
 
   checagens:
