@@ -21,7 +21,7 @@ from pathlib import Path
 import numpy as np
 
 from raiz.documentos.armazem import Armazem, Leitura, _canonico
-from raiz.documentos.certidao import esquema
+from raiz.documentos.certidao import esquema, proveniencia
 from raiz.documentos.claude import falta_campo
 from raiz.documentos.config import pasta_dados
 
@@ -65,6 +65,7 @@ def assinatura(lt: Leitura) -> str:
             esquema=lt.esquema_versao,
             leitor=lt.leitor_versao,
             escore=VERSAO_ESCORE,
+            receita_hash=(lt.derivados or {}).get("receita_hash"),
         )
     )
 
@@ -109,6 +110,7 @@ def calibrar(
         raise ValueError("risco e confiança devem estar entre zero e um")
     armazem = armazem or Armazem()
     gabs = _gabaritos(armazem)
+    receita = proveniencia.receita_hash()
     grupos = defaultdict(dict)
     for lt in armazem.leituras(tipo="certidao"):
         g = gabs.get(lt.id)
@@ -122,6 +124,7 @@ def calibrar(
             or lt.modelo in {None, "humano", "simulado"}
             or der.get("origem_leitura") != "api"
             or der.get("escore_versao") != VERSAO_ESCORE
+            or der.get("receita_hash") != receita
             or not armazem.conferir_hash(lt.id)
         ):
             continue
@@ -131,6 +134,8 @@ def calibrar(
     hoje = hoje or dt.datetime.now(dt.UTC).date()
     resultado = dict(
         versao=VERSAO_ESCORE,
+        receita_hash=receita,
+        calibrador_hash=proveniencia.calibrador_hash(risco=risco, confianca=confianca, cortes=CORTES.tolist()),
         metodo="MAPIE LTT precisão, Bonferroni",
         criado_em=hoje.isoformat(),
         valido_ate=(hoje + dt.timedelta(days=90)).isoformat(),
@@ -209,6 +214,8 @@ def _decidir(armazem, lt, caminho, hoje) -> dict:
     der = lt.derivados or {}
     if lt.erro or der.get("escore_versao") != VERSAO_ESCORE or der.get("origem_leitura") != "api":
         return dict(motivo="leitura sem escore válido de produção")
+    if der.get("receita_hash") != proveniencia.receita_hash():
+        return dict(motivo="receita da leitura mudou: reler")
     if not armazem.conferir_hash(lt.id):
         return dict(motivo="integridade da leitura inválida")
     try:
@@ -219,6 +226,10 @@ def _decidir(armazem, lt, caminho, hoje) -> dict:
             return dict(motivo="calibração vencida ou futura")
         if cal["versao"] != VERSAO_ESCORE:
             return dict(motivo="versão do escore mudou")
+        if cal.get("receita_hash") != der["receita_hash"] or cal.get("calibrador_hash") != proveniencia.calibrador_hash(
+            risco=cal["risco_maximo"], confianca=cal["confianca"], cortes=CORTES.tolist()
+        ):
+            return dict(motivo="receita da calibração mudou: recalibrar")
         gabs = _gabaritos(armazem)
         if cal["gabaritos_hash"] != _hash_gabaritos(gabs):
             return dict(motivo="gabaritos mudaram: recalibrar")
@@ -237,6 +248,8 @@ def _decidir(armazem, lt, caminho, hoje) -> dict:
             escore=score,
             corte=corte,
             calibracao_hash=hashlib.sha256(bruto).hexdigest(),
+            receita_hash=der["receita_hash"],
+            calibrador_hash=cal["calibrador_hash"],
         )
     except (OSError, ValueError, KeyError, TypeError, AttributeError):
         return dict(motivo="calibração ausente ou inválida")

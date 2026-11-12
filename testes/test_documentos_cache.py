@@ -9,7 +9,7 @@ import pytest
 
 from raiz.documentos import aprendizado
 from raiz.documentos.armazem import Armazem
-from raiz.documentos.certidao import cache, esquema
+from raiz.documentos.certidao import cache, esquema, proveniencia
 from raiz.documentos.certidao.leitor import ler_certidao
 from raiz.documentos.claude import LeitorClaude
 from raiz.documentos.cli import principal
@@ -197,3 +197,45 @@ def test_amostra_pequena_nao_libera_e_cli_calibra(amostra, capsys):
     assert g["corte"] is None and g["reutilizaveis"] == 0
     assert principal(["aprendizado", "calibrar-cache"]) == 0
     assert "MAPIE" in capsys.readouterr().out
+
+
+def test_hash_automatico_invalida_codigo_e_dependencia_sem_bump(amostra, tmp_path, monkeypatch):
+    armazem, base = amostra
+    lt = _candidata(armazem, base, pdf_exemplo("proveniência"))
+    cal = cache.calibrar(armazem, hoje=HOJE)
+    assert cache._decidir(armazem, lt, None, HOJE)["reutilizada"]
+    assert cal["receita_hash"] == lt.derivados["receita_hash"]
+
+    # Uma nova versão do MAPIE invalida o corte, mas permite recalibrar os
+    # escores que continuam vindo da mesma implementação de extração.
+    versao_instalada = proveniencia.version
+    with monkeypatch.context() as m:
+        m.setattr(proveniencia, "version", lambda p: "nova" if p == "mapie" else versao_instalada(p))
+        assert proveniencia.receita_hash() == cal["receita_hash"]
+        assert cache._decidir(armazem, lt, None, HOJE)["motivo"] == "receita da calibração mudou: recalibrar"
+
+    # Mudar de diretório não é mudar de build. Mudar o saneamento, mesmo sem
+    # bump em __version__ ou VERSAO_ESCORE, impede reusar leitura e gabaritos.
+    fontes = (*proveniencia.FONTES_EXTRACAO, "documentos/aprendizado.py")
+    for relativo in fontes:
+        destino = tmp_path / "pacote" / relativo
+        destino.parent.mkdir(parents=True, exist_ok=True)
+        destino.write_bytes((proveniencia.PASTA_RAIZ / relativo).read_bytes())
+    monkeypatch.setattr(proveniencia, "PASTA_RAIZ", tmp_path / "pacote")
+    assert proveniencia.receita_hash() == cal["receita_hash"]
+    fonte = proveniencia.PASTA_RAIZ / "documentos/privacidade.py"
+    fonte.write_bytes(fonte.read_bytes() + b"\n# saneamento atualizado\n")
+    assert cache._decidir(armazem, lt, None, HOJE)["motivo"] == "receita da leitura mudou: reler"
+    assert cache.calibrar(armazem, hoje=HOJE)["grupos"] == {}
+
+
+def test_leitura_e_corte_antigos_sem_hash_nao_sao_reutilizados(amostra):
+    armazem, base = amostra
+    lt = _candidata(armazem, base, pdf_exemplo("legado"))
+    cal = cache.calibrar(armazem, hoje=HOJE)
+    del cal["calibrador_hash"]
+    cache.caminho_padrao().write_text(json.dumps(cal), encoding="utf-8")
+    assert cache._decidir(armazem, lt, None, HOJE)["motivo"] == "receita da calibração mudou: recalibrar"
+    legado = replace(base, derivados={k: v for k, v in base.derivados.items() if k != "receita_hash"})
+    leitura = _candidata(armazem, legado, pdf_exemplo("leitura anterior"))
+    assert cache._decidir(armazem, leitura, None, HOJE)["motivo"] == "receita da leitura mudou: reler"
