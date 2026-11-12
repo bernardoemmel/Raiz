@@ -195,12 +195,16 @@ uv run python motor/rodar_estado.py --planejar   # o plano da próxima rodada, s
 - O publicador retroativo reserva uma vaga global sem consumir pedidos de UF. Confere cota antes de cada UF e
   dos globais; a margem de 250 requisições adia trabalho com relatório, sem ocupar a vaga esperando uma hora.
   Repetições de respostas de quota têm limite conjunto de 60 segundos. Falhas comuns de permissão não se repetem.
-- Substituições preservam os bytes originais e metadados antes do DELETE; só removem a cópia após POST confirmado.
-  Se o upload falhar, `recuperacao-release-<tentativa>` guarda os originais por sete dias, e a publicação para.
-  O relatório `catalogo-metadados-<tentativa>` permite retomar UFs pendentes; `somente_globais` retoma apenas o final.
+- Substituições preservam e reconferem os bytes originais no arquivo privado antes do DELETE. Os backups remotos
+  `recuperacao-<identidade>-<sha256>.bin/.json` são imutáveis e permanecem disponíveis após a troca. A pasta local
+  contém apenas marcadores de recuperação, nunca originais enviados a artifacts públicos. Falha interrompe a
+  publicação; o relatório privado `catalogo-relatorio-<run>-<tentativa>.json` permite retomar UFs pendentes.
+  `somente_globais` retoma apenas o final.
 - Execuções futuras de `processar-estados.yml` com ciência fixada em commit antigo usam o publicador do SHA do
   workflow em checkout e ambiente separados. O finalizador confere a reserva original e usa a mesma vaga e prazo,
-  preservando a versão científica, o cache e a continuação. Runs já iniciados precisam da retropublicação.
+  preservando a versão científica, o cache e a continuação. O gate compara SHA-256 do código do publicador,
+  inclusive após squash de PR, e recusa referências com contratos de publicação incompatíveis.
+  Runs já iniciados precisam da retropublicação.
 
 ## Mudança de contrato coordenada com Ficha da fazenda
 

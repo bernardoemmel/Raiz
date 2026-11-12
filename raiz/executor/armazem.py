@@ -795,7 +795,7 @@ class ArmazemRelease:
                                        "application/json")  # fmt: skip
         return feito
 
-    def _publicar_aberto(self, uf: str, info: dict) -> None:
+    def _publicar_aberto(self, uf: str, info: dict, *, catalogar: bool = True) -> None:
         from raiz.executor.publicacao_aberta import ESCOPO, entrada_publica, projetar_csvs, projetar_geo
 
         aberto = self.publico
@@ -826,9 +826,10 @@ class ArmazemRelease:
                     "escopo": ESCOPO,
                 }
             aberto._gravar_indice({uf: entrada})
-            from raiz.catalogo_publico import catalogar_publico
+            if catalogar:
+                from raiz.catalogo_publico import catalogar_publico
 
-            catalogar_publico(aberto, uf)
+                catalogar_publico(aberto, uf)
 
     def _publicar_uf(self, u: str, extra: dict) -> dict:
         import datetime as dt
