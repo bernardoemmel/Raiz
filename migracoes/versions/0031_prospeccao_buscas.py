@@ -1,13 +1,13 @@
 """Buscas salvas e avisos privados de novas fazendas correspondentes.
 
-Revision ID: 0028
-Revises: 0027
+Revision ID: 0031
+Revises: 0030
 """
 
 from alembic import op
 
-revision = "0028"
-down_revision = "0027"
+revision = "0031"
+down_revision = "0030"
 branch_labels = None
 depends_on = None
 

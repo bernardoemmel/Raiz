@@ -5,6 +5,9 @@ Todo chat que constrói a Raíz confere se o seu trabalho aproxima esta cena. Se
 ## A cena
 
 1. O cliente (desenvolvedor de restauração, empresa com meta FLAG, frigorífico, fundo ou banco) entra na **área logada**.
+   O pedido também pode chegar pelo **agente de IA do cliente**, via API pública (`/v1`) ou MCP (`/mcp`), com a
+   chave da empresa: o mesmo caminho, a mesma resposta, e a reserva só sai com a confirmação de uma pessoa da empresa
+   (docs/agentes-ia.md).
 2. Faz um **pedido**: "preciso de 1 milhão de créditos líquidos (toneladas de CO2), no Pará, na Amazônia, no cronograma
    do ProFloresta+, com custo de até US$ X por crédito, só fazendas com tal especificação".
 3. A Raíz filtra o mapa inteiro e responde na hora **"quanto existe na nossa base"**: fazendas, hectares e créditos

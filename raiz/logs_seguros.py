@@ -15,9 +15,27 @@ _trava = threading.RLock()
 _estado = threading.local()
 _SUPRIMIDO = "[log suprimido: sanitização indisponível]"
 _SEGREDO = re.compile(
-    r"(?i)(\b(?:authorization|token|access_token|api_key|password|senha|secret|webhookSecret)\b"
-    r"[\"']?\s*[=:]\s*[\"']?)(?:Bearer\s+)?[^\s\"'&,;\}\]]+"
+    r"(?i)(\b(?:authorization|token|access_token|refresh_token|id_token|api[_-]?key|x-chave-api|"
+    r"password|senha|secret|webhookSecret|sessao|session)\b"
+    r"[\"']?\s*[=:]\s*[\"']?)(?:Bearer\s+)?(?:\[SEGREDO\]|[^\s\"'&,;\}\]]+)"
 )
+
+# Credenciais nos caminhos não têm rótulo "token=". A remoção determinística vem antes
+# do NER: um valor aleatório não é nome de pessoa. Mantém método, rota, sufixo e status.
+_CAMINHO_SIGILOSO = re.compile(r"(?i)(/(?:v1/)?(?:reservas/confirmar|cobrancas)/|\#/entrar/)[^/\s?\#\"'<>]+")
+# Inclui chaves percent-encoded, como ?t%6fken=...; não decodifica nem reescreve o log.
+_CHAVES_QUERY = ("token", "access_token", "refresh_token", "id_token", "code", "session_state", "sessao", "api_key")
+_QUERY_LOGIN = re.compile(
+    r"(?i)([?&#](?:"
+    + "|".join("".join(f"(?:{re.escape(c)}|%{ord(c):02x})" for c in chave) for chave in _CHAVES_QUERY)
+    + r")=)[^&\s\#\"'<>]+"
+)
+
+
+def _sem_credenciais(texto: str) -> str:
+    texto = _CAMINHO_SIGILOSO.sub(r"\1[SEGREDO]", texto)
+    texto = _QUERY_LOGIN.sub(r"\1[SEGREDO]", texto)
+    return _SEGREDO.sub(r"\1[SEGREDO]", texto)
 
 
 @lru_cache(maxsize=1)
@@ -74,7 +92,7 @@ def sanitizar_log(texto: str) -> str:
     try:
         from raiz.privacidade import mascarar
 
-        texto = _SEGREDO.sub(r"\1[SEGREDO]", mascarar(texto))
+        texto = mascarar(_sem_credenciais(texto))
         with _trava:
             analisador, anonimizador = _ferramentas()
             entidades = analisador.analyze(
@@ -98,7 +116,10 @@ def sanitizar_estrutura(dado):
         return {
             k: sanitizar_estrutura(v)
             for k, v in dado.items()
-            if str(k) not in pessoais and not re.search(r"(?i)token|secret|senha|password|authorization", str(k))
+            if str(k) not in pessoais
+            and not re.search(
+                r"(?i)token|secret|senha|password|authorization|api[_-]?key|x-chave-api|sessao|session", str(k)
+            )
         }
     if isinstance(dado, list | tuple):
         return [sanitizar_estrutura(v) for v in dado]

@@ -54,8 +54,10 @@ def test_pix_em_teste_mesmo_com_chave_nao_consulta_provedor(monkeypatch):
         def get(self, *args, **kwargs):
             pytest.fail("O modo teste não consulta pagamento de produção.")
 
-    cobranca = pix.criar(1, "Teste", 3600, cliente=Proibido())
+    cobranca = pix.criar(1, "Teste", 3600, cliente=Proibido(), chave_idempotencia="teste-local-1")
+    repetida = pix.criar(1, "Teste", 3600, cliente=Proibido(), chave_idempotencia="teste-local-1")
     assert cobranca.modo == "teste" and cobranca.externo_id.startswith("teste_")
+    assert repetida.externo_id == cobranca.externo_id
     assert pix.conferir("identificador-de-producao", cliente=Proibido()) == "pendente"
     assert not pix.producao_habilitada()
 

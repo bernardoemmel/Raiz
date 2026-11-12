@@ -29,7 +29,7 @@ COLUNAS = (
     "pico_rs", "multa_rs", "marcos", "marcos_todos", "caminho_terra", "caminho", "risco_terra", "grupo_id",
     "mitigacao", "embargo", "terra_indigena", "uc_protecao_integral", "projeto_carbono", "bloqueio", "problema",
     "elegivel", "restauracao_versao", "cambio", "regeneracao_ha", "semeadura_ha", "plantio_ha", "vazamento_motivo",
-    "vazamento_mitigacao_imovel", "regularizacao_classe",
+    "vazamento_mitigacao_imovel", "regularizacao_classe", "salvaguardas", "elegivel_sem_salvaguardas",
 )  # fmt: skip
 
 
@@ -105,6 +105,11 @@ def de_linha(linha: dict, lon: float | None = None, lat: float | None = None) ->
     if (_num(linha.get("flag_silvipastoril_ha")) or 0) > 0:
         metodos.append("silvipastoril")
     bloqueio = str(linha.get("filtro_territorial") or "").lower() == "bloqueio"
+    from raiz.salvaguardas import avaliar
+
+    elegivel_sem_salvaguardas = area > 0 and caminho is not None and caminho_terra not in NAO_ORIGINA and not bloqueio
+    salvaguardas = avaliar(linha, linha.get("verificacao"))
+    bloqueio = bloqueio or not salvaguardas["pode_originar"]
     elegivel = area > 0 and caminho is not None and caminho_terra not in NAO_ORIGINA and not bloqueio
     cambio = _num(linha.get("restauracao_cambio")) or 5.40
     return {
@@ -149,6 +154,8 @@ def de_linha(linha: dict, lon: float | None = None, lat: float | None = None) ->
         "uc_protecao_integral": (_num(linha.get("uc_protecao_integral_ha")) or 0) > 0,
         "projeto_carbono": (_num(linha.get("projeto_carbono_ha")) or 0) > 0,
         "bloqueio": bloqueio,
+        "salvaguardas": salvaguardas,
+        "elegivel_sem_salvaguardas": elegivel_sem_salvaguardas,
         "problema": _verdade(linha.get("problema")),
         "elegivel": bool(elegivel),
         "restauracao_versao": linha.get("restauracao_versao"),
@@ -253,8 +260,12 @@ def atualizar(engine, cod_municipio: int) -> int:
             text("""select i.cod_imovel, ST_X(ST_PointOnSurface(i.geom)) as x, ST_Y(ST_PointOnSurface(i.geom)) as y
                     from funil.imovel i join funil.vigente v on v.cod_imovel = i.cod_imovel
                     where v.cod_municipio_ibge = :c and i.geom is not null"""), {"c": int(cod_municipio)})}  # fmt: skip
+    from raiz.salvaguardas import do_banco as salvaguardas_do_banco
+
+    verificacoes = salvaguardas_do_banco(engine, [str(li["cod_imovel"]) for li in linhas])
     regs = []
     for li in linhas:
+        li = {**li, **verificacoes.get(str(li["cod_imovel"]), {})}
         o = de_linha(li, *pts.get(str(li["cod_imovel"]), (None, None)))
         if o is not None:
             regs.append(o)
@@ -316,4 +327,15 @@ def do_banco(engine, ufs: list[str] | None = None, municipios: list[int] | None 
             a["cod_imovel"] = r.cod_imovel
             a["marcos"] = {int(k): v for k, v in (a.get("marcos") or {}).items()}
             linhas.append(a)
+    from raiz.salvaguardas import avaliar
+    from raiz.salvaguardas import do_banco as salvaguardas_do_banco
+
+    verificacoes = salvaguardas_do_banco(engine, [li["cod_imovel"] for li in linhas])
+    for li in linhas:
+        dados = {**li, **verificacoes.get(li["cod_imovel"], {})}
+        dados["territorio_tradicional"] = (li.get("salvaguardas") or {}).get("territorio_tradicional", False)
+        li["salvaguardas"] = avaliar(dados, dados.get("verificacao"))
+        li["elegivel"] = (
+            bool(li.get("elegivel_sem_salvaguardas", li.get("elegivel"))) and li["salvaguardas"]["pode_originar"]
+        )
     return tabela(linhas)

@@ -2,8 +2,10 @@
 
 O host entrega o contexto corporativo autenticado por OAuth, compatível com
 ``publica.chaves.Acesso``. Sessão do navegador e chave REST não autenticam MCP.
-O callback obrigatório do host aplica conta paga, sinal, contrato, cobrança,
-limites corporativos e auditoria. Não cria um transporte alternativo ao /v1.
+O callback obrigatório do host aplica conta paga, sinal, contrato, limites
+corporativos e auditoria; a releitura de ficha adquirida não cria nova tarifa.
+O servidor oficial registra consultar_ficha pela ponte /v1; este adaptador
+Python permanece disponível para hosts internos, sem transporte alternativo.
 ``ferramentas`` usa Tool; ``executar`` produz CallToolResult. O host converte
 erros ao protocolo público e mantém seu envelope; o serviço só retorna terra.
 """
@@ -65,8 +67,8 @@ def executar(
 ) -> dict:
     """Só contexto OAuth do host; não libera ficha nem debita carteira por conta própria.
 
-    ``autorizar_detalhes`` é a barreira corporativa do host, que também estorna
-    a chamada se a leitura falhar. Nunca fornecer um callback vazio em produção.
+    ``autorizar_detalhes`` é a barreira corporativa do host, sem nova tarifa
+    pela releitura já paga. Nunca fornecer um callback vazio em produção.
     """
     cliente_id = getattr(contexto, "cliente_id", None)
     if type(cliente_id) is not int or cliente_id < 1 or getattr(contexto, "via", None) != "mcp":
