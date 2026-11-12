@@ -30,7 +30,7 @@ log = logging.getLogger(__name__)
 
 TIPOS_MUNICIPIO = (
     "imoveis", "filtros", "extras", "extras_direto", "direto", "ajustes", "alertas", "certidoes", "flag", "ficha",
-    "desenvolvedor", "terra", "serie_uso",
+    "desenvolvedor", "terra", "serie_uso", "matricula", "regularizacao", "titulo",
 )  # fmt: skip
 
 
@@ -85,6 +85,13 @@ def arquivos_do_municipio(pasta: Path, cod: int) -> dict[str, Path]:
     achados["geo"] = pasta / f"geo_{cod}.parquet"
     achados["mapbiomas"] = pasta / f"mapbiomas_{cod}.csv"  # motor/raiz_mapbiomas.py (colunas mb_*, opcionais)
     achados["camadas"] = pasta / f"camadas_{cod}.parquet"  # raiz/imovel_dados.py (polígonos dentro do imóvel)
+    achados["achados"] = pasta / f"achados_{cod}.csv"  # raiz/titulo: achados de título (várias linhas por imóvel)
+    achados["cadeia"] = pasta / f"cadeia_{cod}.csv"  # raiz/documentos: cadeia dominial das certidões lidas
+    from raiz.titulo.regularizacao import arquivo_documentos
+
+    for t in ("matricula", "cadeia"):  # conferência das certidões: na pasta ou na saída de raiz/documentos
+        if not achados[t].exists():
+            achados[t] = arquivo_documentos(pasta, cod, t) or achados[t]
     return {t: p for t, p in achados.items() if p.exists()}
 
 
@@ -267,7 +274,9 @@ def carregar_municipio(
         return ResultadoCarga(ex.id, False, ex.tipo, ex.uf, ex.cod_municipio, ex.imoveis or 0)
 
     leituras = {
-        t: contrato.ler(p, t) for t, p in arquivos.items() if t not in ("geo", "mapbiomas", "camadas", "serie_uso")
+        t: contrato.ler(p, t)
+        for t, p in arquivos.items()
+        if t not in ("geo", "mapbiomas", "camadas", "serie_uso", "achados", "cadeia")
     }
     im = leituras["imoveis"]
     ufs = im.tipadas["uf"].dropna().unique().tolist()
@@ -289,6 +298,14 @@ def carregar_municipio(
     if "certidoes" in leituras:
         lc = leituras["certidoes"]
         _copy(con, "titulo.certidao_alvo", ["rodada_id", *lc.tipadas.columns, "atributos"], _linhas_leitura(rid, lc))
+    if "achados" in arquivos:
+        from raiz.titulo.banco import carregar_achados
+
+        carregar_achados(con, rid, arquivos["achados"])
+    if "cadeia" in arquivos:
+        from raiz.titulo.banco import carregar_cadeia
+
+        carregar_cadeia(con, arquivos["cadeia"])
     mb = contrato.ler_mapbiomas(arquivos["mapbiomas"]) if "mapbiomas" in arquivos else None
     if mb is not None and len(mb.longa):
         lg = mb.longa

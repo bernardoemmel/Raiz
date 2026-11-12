@@ -62,9 +62,10 @@ RE_OK = re.compile(r"(\d{7})\b.*(imóveis|APP 30 m|nenhum imóvel)")
 ERROS_SEGUIDOS = int(os.environ.get("RAIZ_ERROS_SEGUIDOS", 8))
 MAX_CONTINUACOES = int(os.environ.get("RAIZ_MAX_CONTINUACOES", 40))
 ESPERAS_FONTE_MIN = (10, 30)
-# jobs de estado ao mesmo tempo, somando todas as rodadas do workflow (repositório público: até 20 jobs no GitHub;
-# 18 deixa folga para o planejamento das rodadas e para o CI)
-VAGAS = int(os.environ.get("RAIZ_VAGAS", 18))
+# jobs de estado ao mesmo tempo, somando todas as rodadas do workflow. O GitHub dá no máximo 20 máquinas ao mesmo
+# tempo para o repositório inteiro: 15 para o processamento deixa 5 livres para o CI dos PRs, o site e o planejamento
+# das rodadas. Vale para o próximo planejamento; os jobs que já rodam não são interrompidos.
+VAGAS = int(os.environ.get("RAIZ_VAGAS", 15))
 # fila de manutenção (tarefa nova, código mudado ou reconferência em estado com o funil pronto): no máximo isto, e só
 # com as vagas que sobram dos estados novos
 VAGAS_MANUTENCAO = int(os.environ.get("RAIZ_VAGAS_MANUTENCAO", 4))

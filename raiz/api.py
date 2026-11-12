@@ -172,7 +172,7 @@ def criar_app(
     @app.post("/mensagens/{mensagem_id}/aprovar", dependencies=seguro)
     def aprovar(mensagem_id: int, corpo: Decisao) -> dict:
         from raiz.whatsapp import aprovar as _aprovar
-        from raiz.whatsapp import enviador_pywa, enviar_aprovadas
+        from raiz.whatsapp import enviador_pywa, enviar_aprovadas, pedidor_localizacao_pywa
 
         try:
             _aprovar(app.state.engine, mensagem_id, corpo.quem)
@@ -180,7 +180,9 @@ def criar_app(
             raise HTTPException(409, str(ex)) from ex
         enviadas = 0
         if getattr(app.state, "wa", None) is not None:
-            enviadas = enviar_aprovadas(app.state.engine, enviador_pywa(app.state.wa))
+            enviadas = enviar_aprovadas(
+                app.state.engine, enviador_pywa(app.state.wa), pedir_localizacao=pedidor_localizacao_pywa(app.state.wa)
+            )
         return {"aprovada": mensagem_id, "enviadas": enviadas}
 
     @app.post("/mensagens/{mensagem_id}/descartar", dependencies=seguro)
@@ -252,6 +254,11 @@ def criar_app(
 
     app.include_router(backoffice.roteador(_engine_do_app), dependencies=seguro)
     app.include_router(backoffice.roteador_publico())
+    # painel de acerto das previsões congeladas, no formato do hub (raiz/aprendizado/hub.py)
+    from raiz.aprendizado import hub as hub_acerto
+
+    app.include_router(hub_acerto.roteador(_engine_do_app), dependencies=seguro)
+    app.include_router(hub_acerto.roteador_publico())
     # vigilância das fazendas e dos projetos (raiz/vigilancia): alertas por imóvel, perdas de projeto com o prazo da
     # Verra, rascunho do relatório de perda, avisos e marcação verdadeiro/falso. Lê o estado publicado no Release
     # vigilancia (parte privada com RAIZ_VIGILANCIA_CHAVE), não o PostGIS

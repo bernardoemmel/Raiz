@@ -503,6 +503,13 @@ def calcular_municipio(pasta: str | Path, cod: int, cache_motor: Path | None = N
         im = im.merge(fl[[c for c in fl.columns if c == "cod_imovel" or c not in im.columns]], on="cod_imovel",
                       how="left")  # fmt: skip
     im["cod_imovel"] = im.cod_imovel.astype(str)
+    from raiz.titulo.regularizacao import arquivo_documentos
+
+    fm = arquivo_documentos(pasta, cod, "matricula")  # matrícula conferida no cartório (raiz/documentos)
+    if fm is not None:
+        mt = pd.read_csv(fm, usecols=lambda c: c in ("cod_imovel", "matricula_conferida"), dtype={"cod_imovel": str})
+        im = im.drop(columns=[c for c in ("matricula_conferida",) if c in im.columns]).merge(mt, on="cod_imovel",
+                                                                                             how="left")  # fmt: skip
     por: dict[str, dict] = {}
     geo_f = pasta / f"geo_{cod}.parquet"
     if geo_f.exists():

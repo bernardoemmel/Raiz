@@ -57,6 +57,54 @@ abertos), `/backoffice/custos?por=tarefa|fazenda|municipio|modelo`, `/backoffice
 revisões, aceite, mensagens só com tipo e estado, pedidos, lotes do município e alertas da vigilância). No terminal:
 `uv run raiz operacao painel`.
 
+## Painel de acerto (E7 passo 5)
+
+Toda previsão congelada (aprendizado.previsao) e todo gabarito entram no formato do hub (hubverse):
+
+```bash
+uv run raiz aprendizado hub dados/hub     # hub-config, model-output, model-metadata, target-data, painel
+uv run raiz aprendizado acerto            # notas por modelo, versão e alvo no terminal
+```
+
+Cada (modelo, versão) vira um model_id (`raiz-<modelo>_<versão>`), para comparar versões. Na API, com token:
+`/acerto/placar` e a página `/painel/acerto` (WIS, cobertura do P10 a P90, Brier, log score e acerto; a versão na
+frente por alvo; o acerto da vigilância). A pasta do hub fica no servidor, fora do git: as previsões de aceite dizem
+quem aceitou. Para o painel do hub-dashboard (o mesmo do FluSight), a pasta já traz site-config.yml,
+predevals-config.yml e predtimechart-config.yml.
+
+## Cascata por confiança e teste próprio (E7 passo 10)
+
+**Rota** (`raiz/regras/padroes/cascata.yaml`): o Qwen3-4B só faz classificação curta. Isso quer dizer:
+
+- até 6 campos na saída, todos de lista fechada ou sim/não;
+- resposta de até 400 tokens;
+- nenhuma chamada de ferramenta.
+
+O resto vai para a nuvem: o Haiku responde sozinho e, se falhar, o Sonnet; sem resposta, a fila de revisão.
+
+**Confiança:** o llama-server devolve os logprobs; a confiança é a menor probabilidade entre os tokens dos valores
+(`raiz/modelos/confianca.py`). Com corte calibrado para a tarefa, a resposta do Qwen acima do corte vale sozinha (via
+`confianca`); abaixo, sobe para a votação com o Haiku, como antes. Só os 20 a 30% menos confiantes sobem. Tarefa sem
+corte fica na votação.
+
+**Teste próprio** (`raiz/modelos/avaliacao/banco.yaml`): 120 tarefas do aceite com o prompt de produção, 15% sem
+resposta válida (o modelo tem de dizer que não sabe), 3 tentativas seguidas. O relatório traz acerto, acerto nas 3
+tentativas, consistência, abstenção correta e custo; fica em `dados/avaliacao/`, fora do git.
+
+No servidor, depois de subir o llama (compilado com llguidance, `infra/llama/Dockerfile`) ou de trocar o modelo ou o
+prompt:
+
+```bash
+docker compose -f infra/docker-compose.yml up -d --build llama
+uv run raiz modelos calibrar        # roda o teste no Qwen e grava raiz/regras/padroes/cascata_cortes.yaml
+uv run raiz modelos avaliar --modelo triagem   # o mesmo teste no Haiku, para comparar
+```
+
+O corte só é gravado com o relatório de um modelo local de verdade; se o arquivo do GGUF mudar de nome, os cortes
+antigos deixam de valer. Sem servidor nem chave, `--modelo simulado` roda tudo com regras (linha de base). Cada
+decisão em `operacao.decisao_cascata` guarda rota, confiança, corte e versão da regra e dos cortes. Se a subida real
+sair da faixa por mais de 15 pontos em 7 dias, abre o alerta `cascata_faixa`: recalibrar.
+
 ## Rodar o motor vigiado
 
 ```bash

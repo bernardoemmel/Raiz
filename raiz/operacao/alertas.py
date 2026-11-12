@@ -264,6 +264,42 @@ def _pedidos(con: Connection, regras: dict, agora: dt.datetime) -> list[Novo]:
     ]
 
 
+def _cascata(con: Connection, regras: dict, agora: dt.datetime) -> list[Novo]:
+    """Cascata por confiança (E7 passo 10) subindo fora da faixa calibrada: o corte envelheceu."""
+    from raiz.modelos import rota
+
+    r = regras.get("cascata_fora_da_faixa")
+    if not r:
+        return []
+    lo, hi = (rota.politica().get("confianca") or {}).get("faixa_subida", (0.2, 0.3))
+    dias, margem = int(r.get("dias", 7)), float(r.get("margem", 0.15))
+    rs = con.execute(
+        text("""select tarefa, count(*) as n, count(*) filter (where via <> 'confianca') as sobe
+                from operacao.decisao_cascata
+                where rota = 'local' and corte is not null and criado_em >= :d group by tarefa"""),
+        {"d": agora - dt.timedelta(days=dias)},
+    ).all()
+    out = []
+    for x in rs:
+        if x.n < int(r.get("minimo", 50)):
+            continue
+        f = x.sobe / x.n
+        if f > hi + margem or f < lo - margem:
+            out.append(
+                Novo(
+                    "cascata_faixa",
+                    f"cascata_faixa:{x.tarefa}",
+                    r["gravidade"],
+                    f"Cascata de {x.tarefa}: {f:.0%} das perguntas subindo de modelo",
+                    f"Nos últimos {dias} dias, {x.sobe} de {x.n} perguntas de {x.tarefa} subiram do Qwen para a "
+                    f"votação; o corte foi calibrado para {lo:.0%} a {hi:.0%}. O corte pode ter envelhecido "
+                    "(modelo, prompt ou mensagens mudaram): rode `raiz modelos calibrar` no servidor.",
+                    {"tarefa": x.tarefa, "decisoes": int(x.n), "subiram": int(x.sobe), "fracao": round(f, 4)},
+                )
+            )
+    return out
+
+
 def coletar(engine: Engine, agora: dt.datetime | None = None, vigilancia=None) -> tuple[list[Novo], set[str]]:
     """O que está errado agora e quais origens foram olhadas (uma origem que falhou não fecha os alertas dela)."""
     agora = agora or _agora()
@@ -284,6 +320,7 @@ def coletar(engine: Engine, agora: dt.datetime | None = None, vigilancia=None) -
         ({"orcamento"}, no_banco(_orcamento)),
         ({"revisao_parada", "mensagens_paradas"}, no_banco(_filas)),
         ({"pedido_problema"}, no_banco(_pedidos)),
+        ({"cascata_faixa"}, no_banco(_cascata)),
     ]
     if vigilancia is None:
         try:

@@ -12,22 +12,22 @@ está completo quando tem, em todos os municípios, funil, filtros, MapBiomas, d
 escadinha. Os extras do Earth Engine e as certidões ficam de fora dessa conta (ver abaixo).
 
 <!-- painel:inicio -->
-Gerado do `estados.json` de 12/11/2026 13:12 (horário de Brasília). Brasil: 298 de 5.571 municípios com o funil pronto; 4 de 27 estados completos.
+Gerado do `estados.json` de 12/11/2026 14:42 (horário de Brasília). Brasil: 365 de 5.571 municípios com o funil pronto; 4 de 27 estados completos.
 
 | Estado | Municípios feitos/total | Situação | Última atualização | Motor |
 |---|---|---|---|---|
-| PA Pará | 144/144 | falta APP escadinha 63, FLAG 144, caminho da terra 144, ficha 144, desenvolvedor 144 | 12/11/2026 13:12 | [9365d63](https://github.com/bernardoemmel/Raiz/actions/runs/43230460294) |
+| PA Pará | 144/144 | falta APP escadinha 63, FLAG 144, caminho da terra 144, ficha 144, desenvolvedor 144 (2 fatias em jobs separados) | 12/11/2026 13:12 | [9365d63](https://github.com/bernardoemmel/Raiz/actions/runs/43230460294) |
 | RO Rondônia | 52/52 | completo | 12/11/2026 12:50 | [41f8e22](https://github.com/bernardoemmel/Raiz/actions/runs/43241594895) |
 | RR Roraima | 15/15 | completo | 12/11/2026 11:17 | [9365d63](https://github.com/bernardoemmel/Raiz/actions/runs/43230460294) (parte manual) |
 | AC Acre | 22/22 | completo | 12/11/2026 11:38 | [9365d63](https://github.com/bernardoemmel/Raiz/actions/runs/43230460294) (parte manual) |
 | AP Amapá | 16/16 | completo | 12/11/2026 11:29 | [3537575](https://github.com/bernardoemmel/Raiz/actions/runs/43235780981) (parte manual) |
-| TO Tocantins | 46/139 | falta funil 93, MapBiomas 1, direto 1, TMF e causas 1, FLAG 1, caminho da terra 1, ficha 9, desenvolvedor 9 | 12/11/2026 12:57 | manual |
-| MA Maranhão | 2/217 | falta funil 215 | 12/11/2026 12:58 | manual |
-| AM Amazonas | 0/62 | não começou | — | — |
-| MT Mato Grosso | 0/142 | não começou | — | — |
-| GO Goiás | 1/246 | falta funil 245 | 12/11/2026 12:40 | manual |
-| MS Mato Grosso do Sul | 0/79 | não começou | — | — |
-| MG Minas Gerais | 0/853 | falta funil 853 | — | manual |
+| TO Tocantins | 100/139 | falta funil 39, MapBiomas 1, direto 1, TMF e causas 1, FLAG 1, caminho da terra 1, ficha 16, desenvolvedor 16; 50 erro(s) na última rodada (2 fatias em jobs separados) | 12/11/2026 14:15 | [bd751e8](https://github.com/bernardoemmel/Raiz/actions/runs/43237764443) (parte manual) |
+| MA Maranhão | 2/217 | falta funil 215 (2 fatias em jobs separados) | 12/11/2026 12:58 | manual |
+| AM Amazonas | 0/62 | falta funil 62 | — | manual |
+| MT Mato Grosso | 0/142 | falta funil 142 (2 fatias em jobs separados) | — | manual |
+| GO Goiás | 11/246 | falta funil 235, MapBiomas 1, direto 1, TMF e causas 1, FLAG 1, caminho da terra 1, ficha 1, desenvolvedor 1; 236 erro(s) na última rodada (3 fatias em jobs separados) | 12/11/2026 13:51 | [5e57203](https://github.com/bernardoemmel/Raiz/actions/runs/43244609528) |
+| MS Mato Grosso do Sul | 0/79 | falta funil 79 | — | manual |
+| MG Minas Gerais | 3/853 | falta funil 850; 746 erro(s) na última rodada (8 fatias em jobs separados) | 12/11/2026 14:42 | [5e57203](https://github.com/bernardoemmel/Raiz/actions/runs/43244609528) |
 | BA Bahia | 0/417 | não começou | — | — |
 | PI Piauí | 0/224 | não começou | — | — |
 | CE Ceará | 0/184 | não começou | — | — |
@@ -62,8 +62,8 @@ O `rodar_estado.py` organiza a rodada em volta dele:
    - **manutenção**: funil pronto, mas falta tarefa nova do produto, o código de uma tarefa mudou, o estado é de antes
      do executor (adotar) ou não roda há 6 dias ou mais (o executor refaz só o que mudou nas fontes: CAR, alertas,
      MapBiomas). Só usa as vagas que sobram, e no máximo 4 ao mesmo tempo: nunca segura vaga de estado novo.
-   São até 18 jobs ao mesmo tempo, somando todas as rodadas do workflow (o GitHub dá 20 a repositório público; 2 ficam
-   para o planejamento das rodadas e o CI).
+   São até 15 jobs ao mesmo tempo, somando todas as rodadas do workflow (o GitHub dá no máximo 20 máquinas ao mesmo
+   tempo para o repositório inteiro; 5 ficam livres para o CI dos PRs, o site e o planejamento das rodadas).
 2. **Preparar** (`rodar_estado.py --preparar`): baixa uma vez por dia os arquivos nacionais (lista de municípios,
    embargos do Ibama, biomas, geobr, TMF, causas da perda) e guarda no cache comum do Actions.
 3. **Um job por unidade** (`rodar_estado.py <UF ou fatia, ex. MG-3> --executor`):

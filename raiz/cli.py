@@ -2,6 +2,7 @@
 
 import subprocess
 import sys
+from pathlib import Path
 from typing import Annotated
 
 import typer
@@ -111,6 +112,250 @@ def aprendizado_placar() -> None:
             f"{r.modelo} {r.modelo_versao} {r.alvo}: {r.previsoes} previsões, {r.com_gabarito} com gabarito, "
             f"{r.maturadas} maturadas, acerto {acerto}, erro médio {erro}"
         )
+
+
+@aprendizado.command("sortear")
+def aprendizado_sortear(
+    alvo: Annotated[str, typer.Option(help="alvo das previsões (ex.: titulo_problema_na_busca, f_matricula)")],
+    n: Annotated[int, typer.Option(help="quantas conferências, mais ou menos (metade aleatória, metade dirigida)")],
+    quem: Annotated[str, typer.Option(help="identificador do operador (ex.: fundador), nunca nome")],
+    modelo: Annotated[str | None, typer.Option(help="só previsões deste modelo")] = None,
+    uf: Annotated[str | None, typer.Option(help="só imóveis desta UF")] = None,
+    municipio: Annotated[int | None, typer.Option(help="só imóveis deste município (código IBGE)")] = None,
+    semente: Annotated[int | None, typer.Option(help="semente do sorteio (para refazer igual)")] = None,
+    fracao_aleatoria: Annotated[float, typer.Option(help="parte aleatória do sorteio")] = 0.5,
+    saida: Annotated[str | None, typer.Option(help="CSV com os sorteados e as matrículas a pedir")] = None,
+) -> None:
+    """Sorteia as conferências de um alvo: metade aleatória (mede o erro sem viés), metade dirigida às previsões
+    mais duvidosas (aprende onde o modelo erra). A chance de cada imóvel vai para o gabarito."""
+    from raiz.aprendizado import sorteio as S
+    from raiz.banco import engine
+
+    with engine().begin() as con:
+        r = S.sortear(con, alvo, n, quem, semente, modelo, uf.upper() if uf else None, municipio, fracao_aleatoria)
+        if r["sorteio_id"] is None:
+            typer.echo("nenhuma previsão vigente sem gabarito para este alvo e filtro")
+            return
+        mats = {}
+        if saida:
+            from sqlalchemy import text
+
+            for c, cns, m in con.execute(
+                text("""select distinct on (cod_imovel, registro_cns, registro_matricula) cod_imovel, registro_cns,
+                               registro_matricula from titulo.certidao_alvo where cod_imovel = any(:c)"""),
+                {"c": [i["cod_imovel"] for i in r["itens"]]},
+            ):
+                mats.setdefault(c, []).append(f"{cns}/{m}")
+    al = sum(i["desenho"] == "aleatorio" for i in r["itens"])
+    typer.echo(f"sorteio {r['sorteio_id']} (semente {r['semente']}): {len(r['itens'])} de {r['populacao']} imóveis, "
+               f"{al} no aleatório e {len(r['itens']) - al} no dirigido")  # fmt: skip
+    if saida:
+        import pandas as pd
+
+        df = pd.DataFrame(r["itens"])
+        df["matriculas_a_pedir"] = df.cod_imovel.map(lambda c: "; ".join(mats.get(c, [])) or None)
+        df.to_csv(saida, index=False)
+        typer.echo(f"lista em {saida}")
+
+
+def _fmt_est(nome: str, e: dict | None, pct: bool = True) -> str | None:
+    if not e:
+        return None
+    f = (lambda x: f"{100 * x:.1f}%") if pct else (lambda x: f"{x:,.3f}")
+    return f"  {nome}: {f(e['valor'])} (95%: {f(e['ic95'][0])} a {f(e['ic95'][1])}; {e['n']} gabaritos)"
+
+
+@aprendizado.command("estimar")
+def aprendizado_estimar(sorteio_id: int) -> None:
+    """Taxa real, taxa prevista, Brier e acerto da população pelos gabaritos do sorteio (pesados pela chance)."""
+    from raiz.aprendizado import sorteio as S
+    from raiz.banco import engine
+
+    with engine().connect() as con:
+        e = S.estimar(con, sorteio_id)
+    typer.echo(f"sorteio {sorteio_id} ({e['alvo']}): {e['com_gabarito']} gabaritos de {e['sorteados']} sorteados, "
+               f"população {e['populacao']}")  # fmt: skip
+    for linha in (
+        _fmt_est("taxa real", e.get("taxa_real")),
+        _fmt_est("taxa prevista", e.get("taxa_prevista")),
+        _fmt_est("taxa real sem peso (com viés)", e.get("taxa_real_sem_peso")),
+        _fmt_est("Brier", e.get("brier"), pct=False),
+        _fmt_est("acerto", e.get("acerto")),
+        _fmt_est("acerto sem peso (com viés)", e.get("acerto_sem_peso")),
+        _fmt_est("erro médio", e.get("erro_medio"), pct=False),
+        _fmt_est("erro absoluto médio", e.get("erro_abs_medio"), pct=False),
+    ):
+        if linha:
+            typer.echo(linha)
+
+
+@aprendizado.command("olofsson")
+def aprendizado_olofsson(sorteio_id: int) -> None:
+    """Área de cada classe real com intervalo de 95% (Olofsson), estratificada pela classe prevista."""
+    from raiz.aprendizado import sorteio as S
+    from raiz.banco import engine
+
+    with engine().connect() as con:
+        o = S.olofsson(con, sorteio_id)
+    typer.echo(f"sorteio {sorteio_id}: {o['com_gabarito']} gabaritos, área total {o['area_total_ha']:,.0f} ha")
+    for j, c in o["classes"].items():
+        ua = "-" if c["acerto_usuario"] is None else f"{100 * c['acerto_usuario']:.0f}%"
+        pa = "-" if c["acerto_produtor"] is None else f"{100 * c['acerto_produtor']:.0f}%"
+        typer.echo(f"  {j}: {c['area_ha']:,.0f} ha (95%: {c['ic95_ha'][0]:,.0f} a {c['ic95_ha'][1]:,.0f}); "
+                   f"previsto {c['area_prevista_ha']:,.0f} ha; acerto do usuário {ua}, do produtor {pa}")  # fmt: skip
+
+
+@aprendizado.command("calibracao")
+def aprendizado_calibracao(
+    modelo: Annotated[str, typer.Option(help="modelo das previsões (ex.: regularizacao, triagem_titulo)")],
+    alvo: Annotated[str, typer.Option(help="alvo de chance 0 a 1 com gabarito sim ou não")],
+) -> None:
+    """A chance prevista bate com o que acontece? No total e por UF e porte (módulos fiscais)."""
+    from raiz.aprendizado import calibracao as C
+    from raiz.banco import engine
+
+    with engine().connect() as con:
+        m = C.medir(C.pontos(con, modelo, alvo))
+    if not m["total"]:
+        typer.echo("sem previsões de chance com gabarito para este modelo e alvo")
+        return
+    for nome, r in [("total", m["total"]), *m["segmentos"].items()]:
+        marca = "  FORA" if r["fora"] else ""
+        typer.echo(f"{nome:22} n={r['n']:5} prevista {100 * r['prevista']:5.1f}% real {100 * r['real']:5.1f}% "
+                   f"diferença {100 * r['diferenca']:+5.1f} pp (95%: {100 * r['ic95'][0]:+.1f} a "
+                   f"{100 * r['ic95'][1]:+.1f}) ECE {r['ece']:.3f} Brier {r['brier']:.3f}{marca}")  # fmt: skip
+
+
+@aprendizado.command("folds")
+def aprendizado_folds(
+    modelo: Annotated[str, typer.Option(help="modelo das previsões")],
+    alvo: Annotated[str, typer.Option(help="alvo de chance 0 a 1")],
+    inicio: Annotated[str, typer.Option(help="primeiro corte, AAAA-MM-DD (um por ano até hoje)")],
+    congelar: Annotated[bool, typer.Option(help="congelar as previsões recalibradas como backtest")] = True,
+    pelo_registro: Annotated[bool, typer.Option(help="só gabarito já registrado na data do corte")] = False,
+) -> None:
+    """Teste por tempo da calibração: em cada corte anual, ajusta só com o passado e testa no ano seguinte."""
+    import datetime as dt
+
+    from raiz.aprendizado import folds as F
+    from raiz.banco import engine
+
+    cortes = F.cortes_anuais(dt.date.fromisoformat(inicio), dt.date.today())
+    with engine().begin() as con:
+        res = F.calibracao_por_tempo(con, modelo, alvo, cortes, congelar, pelo_registro=pelo_registro)
+    for f in res:
+        if f["situacao"] != "ok":
+            typer.echo(f"{f['corte']}: pouco dado (treino {f['n_treino']}, teste {f['n_teste']})")
+            continue
+        typer.echo(f"{f['corte']}: treino {f['n_treino']}, teste {f['n_teste']}; Brier {f['brier_base']:.4f} -> "
+                   f"{f['brier_calibrado']:.4f}, ECE {f['ece_base']:.3f} -> {f['ece_calibrado']:.3f} "
+                   f"(desafiante {f['versao']})")  # fmt: skip
+
+
+@aprendizado.command("campeao")
+def aprendizado_campeao(
+    alvo: Annotated[str, typer.Option(help="alvo")],
+    inicial: Annotated[str | None, typer.Option(help="definir o primeiro campeão: modelo:versao")] = None,
+    quem: Annotated[str, typer.Option(help="identificador do operador, nunca nome")] = "fundador",
+) -> None:
+    """Mostra (ou define) o campeão do alvo."""
+    from raiz.aprendizado import campeao as K
+    from raiz.banco import engine
+
+    with engine().begin() as con:
+        if inicial:
+            m, v = inicial.split(":", 1)
+            K.definir_inicial(con, alvo, m, v, quem)
+        c = K.campeao_atual(con, alvo)
+        trava = K.travado(con, alvo)
+    if c is None:
+        typer.echo("sem campeão: defina com --inicial modelo:versao")
+        return
+    typer.echo(f"{alvo}: {c.modelo} {c.modelo_versao} ({c.acao} por {c.quem} em {c.em:%d/%m/%Y})"
+               f"{' · promoção automática travada' if trava else ''}")  # fmt: skip
+
+
+@aprendizado.command("promover")
+def aprendizado_promover(
+    alvo: Annotated[str, typer.Option(help="alvo")],
+    desafiante: Annotated[str, typer.Option(help="modelo:versao do desafiante")],
+    quem: Annotated[str, typer.Option(help="automatico ou o identificador do operador")] = "automatico",
+    forcar: Annotated[bool, typer.Option(help="passa pela trava e pelo intervalo (só gente; o portão vale)")] = False,
+) -> None:
+    """Compara o desafiante com o campeão nos mesmos imóveis maturados e promove se passar no portão."""
+    from raiz.aprendizado import campeao as K
+    from raiz.banco import engine
+
+    m, v = desafiante.split(":", 1)
+    with engine().begin() as con:
+        r = K.promover(con, alvo, (m, v), quem, forcar)
+    c = r["comparacao"]
+    if c.get("pares"):
+        typer.echo(f"{c['pares']} pares; {c['medida']}: campeão {c['perda_campeao']:.4f}, desafiante "
+                   f"{c['perda_desafiante']:.4f}, diferença {c['diferenca']:+.4f} (95%: {c['ic95'][0]:+.4f} a "
+                   f"{c['ic95'][1]:+.4f})")  # fmt: skip
+    typer.echo("promovido" if r["promovido"] else "não promovido: " + "; ".join(r["motivos"]))
+
+
+@aprendizado.command("voltar")
+def aprendizado_voltar(
+    alvo: Annotated[str, typer.Option(help="alvo")],
+    quem: Annotated[str, typer.Option(help="identificador do operador, nunca nome")],
+    motivo: Annotated[str, typer.Option(help="por que voltar")],
+) -> None:
+    """Volta ao campeão anterior (decisão de gente)."""
+    from raiz.aprendizado import campeao as K
+    from raiz.banco import engine
+
+    with engine().begin() as con:
+        v = K.voltar(con, alvo, quem, motivo)
+    typer.echo(f"campeão de {alvo} volta a {v['modelo']} {v['modelo_versao']}")
+
+
+@aprendizado.command("travar")
+def aprendizado_travar(
+    alvo: Annotated[str, typer.Option(help="alvo")],
+    quem: Annotated[str, typer.Option(help="identificador do operador, nunca nome")],
+    motivo: Annotated[str | None, typer.Option(help="por quê")] = None,
+    destravar: Annotated[bool, typer.Option(help="libera de novo a promoção automática")] = False,
+) -> None:
+    """Trava (ou destrava) a promoção automática de um alvo."""
+    from raiz.aprendizado import campeao as K
+    from raiz.banco import engine
+
+    with engine().begin() as con:
+        K.travar(con, alvo, quem, motivo, travar_=not destravar)
+    typer.echo(f"{alvo}: promoção automática {'liberada' if destravar else 'travada'}")
+
+
+@aprendizado.command("hub")
+def aprendizado_hub(
+    pasta: Annotated[str, typer.Argument(help="pasta do hub (fora do git), ex.: dados/hub")],
+    desde: Annotated[str | None, typer.Option(help="AAAA-MM-DD: só rodadas a partir desta data de corte")] = None,
+) -> None:
+    """Grava as previsões congeladas e os gabaritos no formato do hub (hubverse): hub-config, model-output,
+    model-metadata, target-data/oracle-output.csv e a configuração do painel no molde do flusight-dashboard."""
+    import datetime as dt
+
+    from raiz.aprendizado.hub import exportar
+    from raiz.banco import engine
+
+    r = exportar(engine(), pasta, dt.date.fromisoformat(desde) if desde else None)
+    typer.echo(
+        f"{r['previsoes']} previsões de {r['modelos']} modelos em {r['arquivos']} arquivos; "
+        f"{r['gabaritos']} linhas de gabarito; pasta {r['pasta']}"
+    )
+
+
+@aprendizado.command("acerto")
+def aprendizado_acerto() -> None:
+    """Notas por modelo, versão e alvo (WIS, cobertura, Brier, log score, acerto) e a versão na frente por alvo."""
+    import json
+
+    from raiz.aprendizado.hub import placar
+    from raiz.banco import engine
+
+    typer.echo(json.dumps(placar(engine()), ensure_ascii=False, indent=1, default=str))
 
 
 pessoal = typer.Typer(help="Dado pessoal cifrado (telefone e BSUID).", no_args_is_help=True)
@@ -394,6 +639,95 @@ def modelos_testar(modelo: Annotated[str, typer.Option(help="ex.: claude-haiku-5
     else:
         typer.echo(f"falhou: {r.erro}", err=True)
         sys.exit(1)
+
+
+def _modelo_por_nome(nome: str):
+    from raiz.modelos import Claude, LlamaCpp, modelo_conversa, modelo_local, modelo_triagem
+    from raiz.modelos.simulado import Simulado
+
+    atalhos = {"local": modelo_local, "triagem": modelo_triagem, "conversa": modelo_conversa, "simulado": Simulado}
+    if nome in atalhos:
+        return atalhos[nome]()
+    return LlamaCpp(modelo=nome) if nome.startswith("qwen") else Claude(nome)
+
+
+@modelos.command("avaliar")
+def modelos_avaliar(
+    modelo: Annotated[
+        str, typer.Option(help="local (Qwen), triagem (Haiku), conversa (Sonnet), simulado ou o nome")
+    ] = ("local"),
+    tentativas: Annotated[int, typer.Option(help="tentativas seguidas por tarefa")] = 3,
+    tarefa: Annotated[str | None, typer.Option(help="só uma tarefa (ex.: aceite.intencao)")] = None,
+    saida: Annotated[Path, typer.Option(help="pasta do relatório (fora do git)")] = Path("dados/avaliacao"),
+) -> None:
+    """Teste próprio em português (E7 passo 10): 120 tarefas do aceite, 15% sem resposta válida, 3 tentativas cada."""
+    from raiz.modelos import avaliacao as AV
+
+    meta, tarefas = AV.carregar()
+    if tarefa:
+        tarefas = [t for t in tarefas if t.tarefa == tarefa]
+    m = _modelo_por_nome(modelo)
+    typer.echo(f"{meta['versao']}: {len(tarefas)} tarefas x {tentativas} tentativas no {m.nome}")
+    linhas = AV.avaliar(m, tarefas, tentativas, progresso=lambda i, n: i % 20 == 0 and typer.echo(f"  {i}/{n}"))
+    rel = AV.relatorio(meta, m, linhas, tentativas)
+    arq = AV.gravar_relatorio(rel, saida)
+    for t, r in rel["resumo"].items():
+        typer.echo(
+            f"{t}: acerto {r['acerto']:.0%}, nas {tentativas} tentativas {r['acerto_nas_tentativas']:.0%}, "
+            f"consistência {r['consistencia']:.0%}, abstenção correta {r['abstencao_correta'] or 0:.0%}, "
+            f"falhas {r['falhas']}, US$ {r['custo_usd']}"
+        )
+    typer.echo(f"relatório: {arq}")
+
+
+@modelos.command("calibrar")
+def modelos_calibrar(
+    relatorio: Annotated[Path | None, typer.Option(help="relatório do `avaliar`; sem ele, roda o teste no local")] = (
+        None
+    ),
+    cortes: Annotated[Path | None, typer.Option(help="onde gravar (padrão: raiz/regras/padroes/...)")] = None,
+    gravar: Annotated[bool, typer.Option(help="gravar os cortes (sem isso, só mostra)")] = True,
+    saida: Annotated[Path, typer.Option(help="pasta do relatório, quando roda o teste")] = Path("dados/avaliacao"),
+) -> None:
+    """Calibra o corte de confiança da cascata no teste próprio: só os 20 a 30% menos confiantes sobem de modelo.
+    Só grava cortes de um modelo local de verdade (provedor local); o simulado só mostra, salvo com --cortes."""
+    import json
+
+    from raiz.modelos import avaliacao as AV
+    from raiz.modelos import rota
+
+    if relatorio:
+        rel = json.loads(relatorio.read_text())
+    else:
+        meta, tarefas = AV.carregar()
+        m = _modelo_por_nome("local")
+        typer.echo(f"{meta['versao']}: {len(tarefas)} tarefas x 3 tentativas no {m.nome}")
+        linhas = AV.avaliar(m, tarefas, 3, progresso=lambda i, n: i % 20 == 0 and typer.echo(f"  {i}/{n}"))
+        rel = AV.relatorio(meta, m, linhas, 3)
+        typer.echo(f"relatório: {AV.gravar_relatorio(rel, saida)}")
+    pol = rota.politica()
+    c = pol.get("confianca") or {}
+    faixa = tuple(c.get("faixa_subida", (0.2, 0.3)))
+    cal = AV.calibrar(
+        rel["linhas"], faixa, float(c.get("acerto_minimo_aceito", 0.95)), int(c.get("minimo_respostas", 30))
+    )
+    for t, r in cal.items():
+        if r.get("corte") is not None:
+            typer.echo(
+                f"{t}: corte {r['corte']} (sobem {r['subida']:.0%}; acerto do que fica {r['acerto_que_fica']:.0%})"
+            )
+        else:
+            typer.echo(f"{t}: sem corte, fica na votação ({r['motivo']})")
+    if not gravar:
+        return
+    if rel.get("provedor") != "local" and cortes is None:
+        typer.echo(
+            f"não gravei: o relatório é do {rel.get('provedor')}, e o corte vale só para o modelo local", err=True
+        )
+        sys.exit(1)
+    destino = cortes or rota.CORTES
+    AV.gravar_cortes(cal, rel, pol["versao"], destino)
+    typer.echo(f"cortes gravados em {destino}")
 
 
 regras_cli = typer.Typer(help="Parâmetros legais versionados (E2).", no_args_is_help=True)
@@ -967,6 +1301,314 @@ def terra_editais() -> None:
     for f, e in r["erros"].items():
         typer.echo(f"erro em {f}: {e}")
     typer.echo(f"{len(r['novos'])} novos, {r['total']} links guardados")
+
+
+titulo_cli = typer.Typer(
+    help="Título (E5): regularização da posse, achados de título e quem confirmou cada um.", no_args_is_help=True
+)
+app.add_typer(titulo_cli, name="titulo")
+
+
+@titulo_cli.command("recalcular")
+def titulo_recalcular(
+    saida: Annotated[
+        str | None, typer.Option(help="pasta saida/ do motor; padrão: a pasta de trabalho do motor")
+    ] = None,
+    ufs: Annotated[str | None, typer.Option(help="só estas UFs, separadas por vírgula")] = None,
+) -> None:
+    """Refaz regularizacao_<mun>.csv, achados_<mun>.csv e titulo_<mun>.csv que faltam ou estão noutra versão."""
+    from pathlib import Path
+
+    from raiz.funil.rodar import dir_trabalho
+    from raiz.titulo import tarefa as TT
+
+    pasta = Path(saida) if saida else dir_trabalho() / "saida"
+    lista = [u.strip().upper() for u in ufs.split(",")] if ufs else None
+    r = TT.recalcular(pasta, lista)
+    typer.echo(f"versão {TT.versao()}: {len(r['refeitos'])} municípios refeitos, {r['em_dia']} já em dia")
+    for e in r["erros"]:
+        typer.echo(f"  erro {e}")
+
+
+@titulo_cli.command("resumo")
+def titulo_resumo(
+    cod: Annotated[int, typer.Argument(help="código IBGE do município")],
+    saida: Annotated[str | None, typer.Option(help="pasta saida/<UF> do município")] = None,
+) -> None:
+    """Imóveis, hectares e carbono por classe de regularização: o estoque que cada passo destrava."""
+    from pathlib import Path
+
+    from raiz.documentos.config import uf_do_municipio
+    from raiz.funil.rodar import dir_trabalho
+    from raiz.titulo import regularizacao as RG
+
+    pasta = Path(saida) if saida else dir_trabalho() / "saida" / (uf_do_municipio(cod) or "")
+    for linha in RG.resumo(pasta, cod):
+        typer.echo(
+            f"{linha['classe']:28} {linha['imoveis']:6} imóveis {linha['ha']:12,.1f} ha "
+            f"{(linha['carbono_tco2_ano'] or 0):12,.0f} tCO2/ano"
+        )
+
+
+@titulo_cli.command("mutiroes")
+def titulo_mutiroes(
+    cod: Annotated[int, typer.Argument(help="código IBGE do município")],
+    saida: Annotated[str | None, typer.Option(help="pasta saida/<UF> do município")] = None,
+    limite: int = 20,
+) -> None:
+    """Grupos de vizinhas em posse que só precisam do georreferenciamento: uma ida a campo destrava o grupo."""
+    from pathlib import Path
+
+    from raiz.documentos.config import uf_do_municipio
+    from raiz.funil.rodar import dir_trabalho
+    from raiz.titulo import regularizacao as RG
+
+    pasta = Path(saida) if saida else dir_trabalho() / "saida" / (uf_do_municipio(cod) or "")
+    for m in RG.mutiroes(pasta, cod)[:limite]:
+        typer.echo(
+            f"{m['grupo']:24} {m['imoveis']:4} imóveis ({m['pequenas'] or 0} pequenas) {m['ha']:10,.1f} ha "
+            f"{(m['carbono_tco2_ano'] or 0):10,.0f} tCO2/ano"
+        )
+
+
+def _conferir_documento(poligono, cod_imovel: str, origem: str, tolerancia: float, gravar: bool, extra: list) -> None:
+    from raiz.documentos.config import municipio_do_imovel, uf_do_municipio
+    from raiz.funil.rodar import dir_trabalho
+    from raiz.titulo import conferir as C
+
+    cod = municipio_do_imovel(cod_imovel)
+    pasta = dir_trabalho() / "saida" / (uf_do_municipio(cod) or "")
+    car = C.poligono_do_car(pasta, cod, cod_imovel) if poligono is not None else None
+    sigef = C.parcelas_do_sigef(pasta, cod, car or poligono) if poligono is not None else None
+    res, achados = (
+        C.conferir_poligono(poligono, cod_imovel, origem, tolerancia, car, sigef) if poligono is not None else ({}, [])
+    )
+    achados = extra + achados
+    for a in achados:
+        typer.echo(f"  {a.gravidade:9} {a.regra}: {a.mensagem}")
+    if not res:
+        typer.echo("  sem polígono do CAR nem do SIGEF para comparar (geo_<mun>.parquet e espelho do SIGEF)")
+    if gravar:
+        from raiz.banco import engine
+
+        with engine().begin() as con:
+            typer.echo(f"{C.gravar_achados(con, achados)} achados gravados em titulo.achado")
+
+
+@titulo_cli.command("memorial")
+def titulo_memorial(
+    arquivo: Annotated[str, typer.Argument(help="memorial descritivo em .txt ou .pdf")],
+    cod_imovel: Annotated[str, typer.Option(help="código do CAR do imóvel")],
+    modelo: Annotated[bool, typer.Option(help="usa o modelo da Anthropic se a leitura por regras tiver nota baixa")] = (
+        False
+    ),
+    gravar: Annotated[bool, typer.Option(help="grava os achados no banco")] = False,
+) -> None:
+    """Lê o memorial (regras em português; modelo só com nota baixa), fecha o polígono e confere com o CAR e o SIGEF."""
+    from pathlib import Path
+
+    from raiz.titulo import memorial as M
+
+    p = Path(arquivo)
+    if p.suffix.lower() == ".pdf":
+        from pypdf import PdfReader
+
+        texto = "\n".join(pg.extract_text() or "" for pg in PdfReader(str(p)).pages)
+    else:
+        texto = p.read_text(encoding="utf-8", errors="ignore")
+    leitor = None
+    if modelo:
+        from raiz.documentos.claude import LeitorClaude
+
+        leitor = LeitorClaude()
+    lt = M.ler(texto, leitor)
+    f = lt.fechamento
+    typer.echo(
+        f"{len(lt.vertices)} vértices ({lt.sistema}, {lt.fonte}), confiança {lt.confianca:.0%}"
+        + (f", fechamento {f.erro_m:.2f} m ({f.texto_precisao})" if f else "")
+        + (f", área {lt.area_ha:,.4f} ha" if lt.area_ha else "")
+    )
+    _conferir_documento(lt.poligono, cod_imovel, "memorial", 0.5, gravar, lt.achados(cod_imovel))
+
+
+@titulo_cli.command("planilha")
+def titulo_planilha(
+    arquivo: Annotated[str, typer.Argument(help="planilha .ods do georreferenciamento (SIGEF)")],
+    cod_imovel: Annotated[str, typer.Option(help="código do CAR do imóvel")],
+    gravar: Annotated[bool, typer.Option(help="grava os achados no banco")] = False,
+) -> None:
+    """Lê e valida a planilha ODS (precisão por tipo de limite, códigos, polígono) e confere com o CAR e o SIGEF."""
+    from raiz.titulo import planilha as P
+
+    for per in P.perimetros(arquivo):
+        typer.echo(f"aba {per.aba}: {len(per.vertices)} vértices")
+        _conferir_documento(per.poligono, cod_imovel, "planilha", 0.5, gravar, P.validar(per, cod_imovel))
+
+
+@titulo_cli.command("conjunto-teste")
+def titulo_conjunto_teste(
+    cod: Annotated[int, typer.Argument(help="código IBGE do município (parcelas do SIGEF do espelho)")],
+    n: int = 200,
+    saida: Annotated[str, typer.Option(help="pasta dos pares polígono e memorial")] = "dados/titulo/teste",
+) -> None:
+    """Sorteia parcelas do SIGEF, gera o memorial de cada uma e mede o acerto do leitor (placar de regressão)."""
+    from pathlib import Path
+
+    from raiz.documentos.config import uf_do_municipio
+    from raiz.funil import ponte
+    from raiz.titulo import conferir as C
+
+    s = ponte.ler_local(ponte.espelho_padrao(), "sigef", uf_do_municipio(cod) or "", cod)
+    if s is None or len(s) == 0:
+        typer.echo("sem SIGEF do município no espelho")
+        raise typer.Exit(1)
+    s = s.set_crs(4674) if s.crs is None else s.to_crs(4674)
+    pares = C.conjunto_teste(s, n, pasta=Path(saida))
+    typer.echo(f"{len(pares)} memoriais em {saida}/pares.jsonl")
+    for estilo, r in C.avaliar_conjunto(pares).items():
+        typer.echo(f"  {estilo}: acerto {r['acerto']:.1%}, confiança média {r['confianca_media']:.0%}, "
+                   f"{r['para_revisao']} para revisão")  # fmt: skip
+
+
+@titulo_cli.command("pendentes")
+def titulo_pendentes(
+    cod_imovel: Annotated[str | None, typer.Option(help="só este imóvel (código do CAR)")] = None,
+    limite: int = 50,
+) -> None:
+    """Achados que reprovam ou pedem confirmação e ainda não foram confirmados."""
+    from raiz.banco import engine
+    from raiz.titulo import banco as TB
+
+    with engine().begin() as con:
+        for a in TB.pendentes(con, cod_imovel, limite):
+            typer.echo(f"{a.id:8} {a.gravidade:9} {a.cod_imovel} {a.regra}: {a.mensagem}")
+
+
+@titulo_cli.command("confirmar")
+def titulo_confirmar(
+    achado_id: Annotated[int, typer.Argument(help="id do achado (raiz titulo pendentes)")],
+    quem: Annotated[str, typer.Option(help="identificador do operador (ex.: fundador, conferente-02), nunca nome")],
+    decisao: Annotated[str, typer.Option(help="confirmado, descartado ou corrigido")] = "confirmado",
+    nota: Annotated[str | None, typer.Option(help="o que foi visto (sem nome nem CPF)")] = None,
+) -> None:
+    """Registra quem confirmou, descartou ou corrigiu um achado, e quando."""
+    from raiz.banco import engine
+    from raiz.titulo import banco as TB
+
+    with engine().begin() as con:
+        cid = TB.confirmar(con, achado_id, quem, decisao, nota)
+    typer.echo(f"confirmação {cid} gravada")
+
+
+@titulo_cli.command("gabaritar")
+def titulo_gabaritar() -> None:
+    """Gabaritos automáticos: título da posse (matrícula apareceu ou o prazo de 12 meses venceu) e triagem (todas as
+    certidões do imóvel lidas: houve problema ou não)."""
+    from raiz.banco import engine
+    from raiz.titulo import regularizacao as RG
+    from raiz.titulo import triagem as TR
+
+    with engine().begin() as con:
+        typer.echo(f"regularização: {RG.gabaritar(con)}")
+        typer.echo(f"triagem: {TR.gabaritar(con)}")
+
+
+def _pasta_municipio(cod_imovel: str, saida: str | None):
+    from pathlib import Path
+
+    from raiz.documentos.config import uf_do_municipio
+    from raiz.funil.rodar import dir_trabalho
+
+    cod = int(cod_imovel.split("-")[1])
+    return (Path(saida) if saida else dir_trabalho() / "saida" / (uf_do_municipio(cod) or cod_imovel[:2])), cod
+
+
+@titulo_cli.command("laudo")
+def titulo_laudo(
+    cod_imovel: Annotated[str, typer.Argument(help="código do imóvel no CAR")],
+    saida: Annotated[str | None, typer.Option(help="pasta saida/<UF> do município")] = None,
+    destino: Annotated[str, typer.Option(help="onde gravar o laudo")] = "dados/documentos/laudos",
+    pdf: Annotated[bool, typer.Option(help="também em PDF (precisa do LibreOffice)")] = False,
+    banco: Annotated[bool, typer.Option(help="usar o banco: confirmações, sede e cadeia dominial")] = True,
+) -> None:
+    """Laudo de título do imóvel em HTML (e PDF): nota, triagem, achados por fase, cadeia e consultas públicas."""
+    from raiz.titulo import laudo as L
+
+    pasta, cod = _pasta_municipio(cod_imovel, saida)
+    if banco:
+        from raiz.banco import engine
+
+        with engine().connect() as con:
+            out = L.gravar(pasta, cod, cod_imovel, destino, con=con, pdf=pdf)
+    else:
+        out = L.gravar(pasta, cod, cod_imovel, destino, pdf=pdf)
+    for k, v in out.items():
+        typer.echo(f"{k}: {v}")
+
+
+@titulo_cli.command("cadeia")
+def titulo_cadeia(cod_imovel: Annotated[str, typer.Argument(help="código do imóvel no CAR")]) -> None:
+    """Matrículas do imóvel no banco, com os atos (partes sem nome) e onde a cadeia de origem para."""
+    from raiz.banco import engine
+    from raiz.titulo import banco as TB
+
+    with engine().connect() as con:
+        for m in TB.cadeia_do_imovel(con, cod_imovel):
+            typer.echo(f"matrícula {m['matricula']} (cartório {m['cns']}): {m['situacao'] or 'não lida'}, "
+                       f"origem {m['origem_situacao'] or '?'}")  # fmt: skip
+            for a in m["atos"]:
+                typer.echo(f"  {a['numero']:9} {a['data'] or '':10} {a['resumo'] or a['natureza']}")
+
+
+@titulo_cli.command("pedir-sede")
+def titulo_pedir_sede(cod_imovel: Annotated[str, typer.Argument(help="código do imóvel no CAR")]) -> None:
+    """Põe na fila de aprovação o pedido da localização da sede ao dono (botão do WhatsApp)."""
+    from raiz.banco import engine
+    from raiz.titulo import sede as SD
+
+    with engine().begin() as con:
+        mid = SD.pedir(con, cod_imovel)
+    typer.echo(f"mensagem {mid} esperando aprovação" if mid else "imóvel sem conversa de aceite com contato")
+
+
+warc_cli = typer.Typer(help="Consultas públicas gravadas em WARC cifrado para o laudo.", no_args_is_help=True)
+titulo_cli.add_typer(warc_cli, name="warc")
+
+
+@warc_cli.command("consultar")
+def warc_consultar(
+    cod_imovel: Annotated[str, typer.Argument(help="código do imóvel no CAR")],
+    url: Annotated[str, typer.Argument(help="endereço da consulta pública")],
+    motivo: Annotated[str, typer.Option(help="o que a consulta mostra (ex.: parcela do SIGEF)")],
+) -> None:
+    """Consulta a URL e grava pedido e resposta num WARC cifrado (só hashes sem RAIZ_CHAVE_PESSOAL)."""
+    from raiz.titulo import warc
+
+    reg, _ = warc.consultar(url, cod_imovel, motivo)
+    typer.echo(
+        f"{reg.status or reg.erro} · {reg.bytes} bytes · WARC {reg.sha256_warc[:16]} · {reg.arquivo or 'sem chave'}"
+    )
+
+
+@warc_cli.command("listar")
+def warc_listar(cod_imovel: Annotated[str, typer.Argument(help="código do imóvel no CAR")]) -> None:
+    """Consultas gravadas do imóvel."""
+    from raiz.titulo import warc
+
+    for c in warc.consultas(cod_imovel):
+        typer.echo(f"{c['em']} {c['status'] or c['erro']} {c['motivo']}: {c['url']} ({c['arquivo'] or 'sem WARC'})")
+
+
+@warc_cli.command("abrir")
+def warc_abrir(
+    cod_imovel: Annotated[str, typer.Argument(help="código do imóvel no CAR")],
+    arquivo: Annotated[str, typer.Argument(help="nome do WARC (raiz titulo warc listar)")],
+) -> None:
+    """Decifra um WARC e lista os registros (auditoria)."""
+    from raiz.titulo import warc
+
+    for r in warc.abrir(cod_imovel, arquivo):
+        typer.echo(f"{r['tipo']:9} {r['status'] or '':4} {r['bytes']:8} {r['url']}")
 
 
 ficha_cli = typer.Typer(help="Colunas e camadas dentro do imóvel para o front (design v1).", no_args_is_help=True)

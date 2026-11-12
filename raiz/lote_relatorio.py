@@ -182,6 +182,18 @@ def _bloco_preco(res: dict) -> str:
     return "".join(corpo)
 
 
+ORDEM_REGULARIZACAO = ("em_titulacao", "pronta_para_pedir", "falta_georreferenciamento", "pendente", "impedida",
+                       "sem_calculo")  # fmt: skip
+NOMES_REGULARIZACAO = {
+    "em_titulacao": "Em titulação no SIGEF",
+    "pronta_para_pedir": "Pronta para pedir o título",
+    "falta_georreferenciamento": "Só falta o georreferenciamento",
+    "pendente": "Com pendência (embargo, desmatamento recente, CAR, ocupação sem prova)",
+    "impedida": "Não se regulariza (sobreposição)",
+    "sem_calculo": "Ainda sem cálculo",
+}
+
+
 def _bloco_faixa(res: dict) -> str:
     """Faixa do lote lado a lado (soma e carteira), os campos da Portaria MME 102/2016 e as parcelas de campo."""
     fl, mm, pc = res.get("faixa"), res.get("mme102"), res.get("parcelas") or {}
@@ -284,6 +296,21 @@ def _bloco_destrava(res: dict) -> str:
             f'<td class="n">{_n(x["creditos"])}</td><td class="n">{_n(x["creditos_regeneracao"])}</td></tr>'
         )
     corpo.append("</table>")
+    pr = esp.get("por_regularizacao") or {}
+    if pr:  # quão perto do título está a terra em espera (raiz/titulo/regularizacao.py)
+        corpo.append("<p>Quão perto do título está a terra em espera (o que falta, pelo que se vê em satélite e "
+                     "cadastro):</p>"
+                     '<table><tr><th>Situação</th><th class="n">Fazendas</th><th class="n">ha para restaurar</th>'
+                     '<th class="n">Créditos até o ano 25</th></tr>')  # fmt: skip
+        for cl in ORDEM_REGULARIZACAO:
+            if cl in pr:
+                x = pr[cl]
+                nome = _e(NOMES_REGULARIZACAO.get(cl, cl))
+                corpo.append(
+                    f'<tr><td>{nome}</td><td class="n">{_n(x["fazendas"])}</td>'
+                    f'<td class="n">{_n(x["ha"])}</td><td class="n">{_n(x["creditos"])}</td></tr>'
+                )
+        corpo.append("</table>")
     if td:
         eco0, eco1 = res.get("economia") or {}, td.get("economia") or {}
         pm0 = (eco0.get("preco_minimo_usd") or {}).get("12") or {}
