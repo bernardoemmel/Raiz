@@ -697,3 +697,43 @@ cenarios:
 monte_carlo:
   sorteios: 400
   semente: 2026
+
+# --- 12. Faixa do lote e campo (E3) ----------------------------------------------------------------------------------
+# Soma de fazendas lado a lado (Portaria MME 102/2016 e PRMS pedem a faixa do conjunto, não a soma das faixas):
+#  - soma: todas errando para o mesmo lado (o erro da captura comum ao lote inteiro); é a que dimensiona a reserva;
+#  - carteira: modelo de um fator (Vasicek): parte da variância do erro de cada fazenda é comum a todas (a curva do
+#    método, o clima, o preço) e o resto é dela (solo, manejo, fogo local) e se compensa entre fazendas.
+carteira:
+  fracao_comum: 0.6
+  sorteios_log2: 13  # 8.192 sorteios do fator comum numa sequência de Sobol embaralhada (scipy.stats.qmc)
+  semente: 20261112
+  fonte: >-
+    premissa Raíz a calibrar com as primeiras parcelas medidas (E8): 60% da variância do erro da captura é comum às
+    fazendas do lote (a curva da URTX vale para todas; o desvio de cada fazenda é o resto). Modelo de um fator de
+    Vasicek (1987, 2002), o mesmo da carteira de crédito do Basileia; Sobol: scipy.stats.qmc (BSD-3-Clause)
+
+# Parcelas de campo para medir o lote (VM0047 pede o inventário; a regra do MDL dá o tamanho da amostra):
+# n = (t x CV / E)^2 por estrato (método), com alocação proporcional a área x CV e no mínimo 30 parcelas no lote.
+parcelas:
+  confianca: 0.90
+  erro_admissivel: 0.10
+  minimo_lote: 30
+  minimo_estrato: 3
+  area_parcela_ha: 0.1
+  cv_biomassa:
+    regeneracao_assistida: 0.6
+    semeadura_direta: 0.5
+    plantio_total: 0.4
+  fonte: >-
+    UNFCCC, AR-TOOL03 v2.1 (Calculation of the number of sample plots for measurements within A/R CDM project
+    activities): n = (t x CV / E)^2 com 90% de confiança e 10% de erro; mínimo de 30 parcelas (rodada 10). CV da
+    biomassa entre parcelas: premissa Raíz (regeneração mais heterogênea que o plantio), a trocar pelo piloto de
+    campo, como o próprio AR-TOOL03 pede
+
+# Sensibilidade da TIR do lote (tornado): cada entrada no P10 e no P90 com as outras no P50
+sensibilidade:
+  cambio: [0.9, 1.1]
+  preco_usd_t: [55, 74]
+  fonte: >-
+    câmbio 10% para cada lado da PTAX (Banco Central); preço na faixa do ProFloresta+ (US$ 55 a 74, rodada 11); custo e
+    captura nos P10 e P90 das próprias premissas (custo_sfb_rs_ha e captura_curva.incerteza_captura)

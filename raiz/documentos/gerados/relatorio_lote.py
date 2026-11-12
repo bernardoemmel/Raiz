@@ -73,12 +73,13 @@ def contexto(
     cods: list[str],
     lote_nome: str,
     cod_municipio: int | None = None,
-    rho: float = 0.5,
+    rho: float | None = None,
     hoje: dt.date | None = None,
     n_sorteios: int = 20000,
 ) -> dict:
     if not cods:
         raise ValueError("lote sem imóveis")
+    rho = FX.rho_padrao() if rho is None else rho
     cache: dict = {}
     linhas = [linha_imovel(c, cache, cod_municipio) for c in cods]
     fxs = [FX.do_imovel(li) for li in linhas]
@@ -171,7 +172,7 @@ def gerar(
     lote_nome: str,
     saida: Path | None = None,
     cod_municipio: int | None = None,
-    rho: float = 0.5,
+    rho: float | None = None,
     hoje: dt.date | None = None,
 ) -> Path:
     nome = "".join(ch if ch.isalnum() or ch in "-_" else "_" for ch in lote_nome)[:60]
