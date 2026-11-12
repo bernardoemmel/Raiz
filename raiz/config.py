@@ -38,6 +38,11 @@ class Config(BaseSettings):
     mapa_dir: str | None = None
     # imagens de satélite por fazenda (WebP e metadados), geradas na primeira chamada; padrão dados/imagens
     imagens_dir: str | None = None
+    # cartões, adesivos e vídeos públicos por código curto (cache); padrão dados/publico
+    publico_dir: str | None = None
+    # voz do vídeo (Qwen3-TTS, liga quando o pacote qwen-tts está instalado no servidor)
+    voz_modelo: str | None = None
+    voz_falante: str | None = None
 
     # Modelos de linguagem (E7). A chave da Anthropic também é aceita com o nome padrão ANTHROPIC_API_KEY.
     anthropic_api_key: SecretStr | None = Field(

@@ -105,3 +105,13 @@ mudar na nuvem (ETag novo), o cache dele é refeito.
 - `raiz satelite gerar --municipio 1504950` adianta as imagens das fazendas aptas. Num imóvel real de 2.491 ha:
   cena de 28/10/2026, 30 s para as quatro de hoje, 144 KB (1024 px), 76,6 KB (720 px, produtor) e ~57 KB (480 px);
   Landsat 1985 e 2008 em 15 s.
+
+## Link público, cartão e vídeo (design v1 do front, item 6)
+
+- Sem token, pelo código curto: `/p/{codigo}` (HTML com Open Graph), `/cartao/{codigo}/{previa.jpg|retrato.jpg|
+  adesivo.png}` e `/video/{codigo}.mp4` e `-720p.mp4`. Antes do aceite do dono só saem município, hectares, selo e
+  código curto; o código do CAR e a imagem de satélite da fazenda só depois do aceite.
+- Precisa de `npm ci` em `servicos/cartao` (Takumi) e do `ffmpeg` no servidor. A voz do vídeo liga com
+  `uv pip install qwen-tts` (traz torch; o modelo de 0,6 B roda em CPU); sem ela o vídeo sai mudo e o cabeçalho
+  `X-Raiz-Aviso: sem voz` avisa. Cache em `RAIZ_PUBLICO_DIR` (padrão `dados/publico/`), refeito quando o selo muda.
+- Medido aqui: prévia 41 KB, retrato 63 KB, adesivo 12 KB, vídeo 720p de 6 s em 1,4 s.

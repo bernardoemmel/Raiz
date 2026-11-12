@@ -83,3 +83,11 @@ no script, requests (Apache-2.0), shapely e pmtiles (BSD-3-Clause).
   Computer da Microsoft (token anônimo de leitura).
 - Pillow (HPND) para WebP e desenho; fonte DejaVu Sans do sistema para o selo "Simulação". Nada de EOX, Esri, Planet
   NICFI, Google nem imagem gerada por IA.
+
+## Cartão, adesivo e vídeo da fazenda
+
+- Takumi (`@takumi-rs/core` e `@takumi-rs/helpers` 2.20.0, MIT ou Apache-2.0) em `servicos/cartao/render.mjs`, com a
+  fonte Geist que vem embutida (SIL Open Font License). Sem código copiado.
+- FFmpeg (GPL, pacote do sistema) só como processo separado no servidor, para juntar as cenas e o áudio em MP4; não
+  vai no produto distribuído.
+- Voz: Qwen3-TTS (`qwen-tts`, Apache-2.0) quando instalado no servidor (raiz/voz.py).

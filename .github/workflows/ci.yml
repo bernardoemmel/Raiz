@@ -25,6 +25,10 @@ jobs:
       - uses: astral-sh/setup-uv@v6
       - name: Dependências (produto e motor)
         run: uv sync --frozen --all-extras
+      - name: Takumi (cartão e vídeo) e FFmpeg
+        run: |
+          (cd servicos/cartao && npm ci --no-audit --no-fund)
+          sudo apt-get update -q && sudo apt-get install -y -q ffmpeg
       - name: Estilo
         run: |
           uv run ruff check raiz testes scripts migracoes

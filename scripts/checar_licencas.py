@@ -12,7 +12,9 @@ from raiz.licencas import avaliar, falhas, ler_registro, pacotes_cargo, pacotes_
 def main() -> int:
     registro = ler_registro(Path(__file__).with_name("licencas.toml"))
     cargo = pacotes_cargo(RAIZ_REPO / "nativo" / "raiz_iov" / "Cargo.toml")
-    npm = [p for app in ("globo", "produtor") for p in pacotes_npm(RAIZ_REPO / "front" / app / "node_modules")]
+    pastas = [RAIZ_REPO / "front" / app / "node_modules" for app in ("globo", "produtor")]
+    pastas.append(RAIZ_REPO / "servicos" / "cartao" / "node_modules")  # Takumi (cartão e vídeo)
+    npm = [p for pasta in pastas for p in pacotes_npm(pasta)]
     pacotes = avaliar(pacotes_python() + npm + cargo, registro)
     ruins = falhas(pacotes)
     avisos = [p for p in pacotes if p.situacao in {"lgpl", "gpl_servidor"}]

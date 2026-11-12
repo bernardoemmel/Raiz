@@ -218,6 +218,10 @@ def criar_app(
         return request.app.state.engine
 
     app.include_router(front_api.roteador(_engine_do_app), dependencies=seguro)
+    # link público, cartão e vídeo pelo código curto: sem token (só município, hectares, selo e código antes do aceite)
+    from raiz import publico
+
+    app.include_router(publico.roteador(_engine_do_app))
     # JSON grande (São Félix: 26 MB) vai comprimido; o Starlette já não comprime resposta parcial (206), e o PMTiles
     # fica de fora (os ladrilhos já vêm comprimidos e o leitor pede por Range)
     from starlette.middleware.gzip import DEFAULT_EXCLUDED_CONTENT_TYPES, GZipMiddleware
