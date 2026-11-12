@@ -239,6 +239,15 @@ Feito na main fora desta tabela: aprendizado do valor para quem restaura (`raiz/
 
 ## E9. O que as pessoas veem
 
+Cena-alvo com publicação real (12/11/2026): **feito no código**. O formulário parte de um milhão de créditos no
+Pará e permite teto em US$ por crédito. O site lê o ponteiro `lote_PA_central_r11.json`, publicado pelo chat
+Lote e números, e apresenta as três alternativas, P10/P50/P90, TIR do fluxo, hectares, fazendas, pendências e
+“o que destrava”. O cenário publicado fica identificado como referência; um novo teto ou filtro exige recálculo
+na API. Sem publicação, aparecem a cobertura territorial real e o aviso, sem resultados simulados.
+Mapa das três opções com cores e traços distintos aceita somente geometrias autorizadas pela API, de fichas já
+desbloqueadas pelo próprio cliente e fora de reserva alheia. Consultar o mapa não consome novos créditos.
+Contato com donos permanece reservado à fase final. A calibração E9 com 30 cartas reais continua pendente.
+
 Entrega do chat **Ficha da fazenda** (12/11/2026; detalhes em
 `docs/passagem/ficha-da-fazenda.md`):
 
@@ -268,6 +277,14 @@ com portão de 950 MB. Polígonos permanecem por município enquanto couberem; n
 
 A entrega da ficha mantém as bases e limites do mapa nacional, mas restringe os detalhes por CAR à API paga;
 a publicação pública usa os agregados municipais.
+
+Cobertura diária do mapa (12/11/2026): **feito no código**. A rodada diária descobre municípios e UFs do Release,
+incluindo os novos sem lista fixa. O painel do Brasil e de cada estado informa quantos municípios têm desenho
+na base e quantos ainda aguardam; separa esses totais dos municípios processados. A data de geração do mapa e
+a data dos dados publicados no Release aparecem separadas, sem substituir data ausente pela data de hoje.
+O manifesto aberto expõe só cobertura por município, mantendo os desenhos individuais no acesso pago.
+Teste incremental cobre município novo, UF nova e chegada posterior do desenho; Playwright confere contagem,
+datas e avisos de acesso restrito ou desenho ausente.
 
 Conferido contra a main em 12/11/2026: "feito" quer dizer que o código está na main; "parcial" diz o que existe e o
 que falta, com as horas do que falta. O site público (https://bernardoemmel.github.io/Raiz/) mostra o que o front já
@@ -316,6 +333,16 @@ Entrega 3 da continuação de 12/11/2026, sobre a ficha paga do PR #52.
 | Linha do tempo de uso e perdas | **feito**: anos disponíveis, medidas e fontes da ficha paga, além das tabelas completas. Ausência e zero são diferentes; a data de corte não substitui a data da fonte. |
 | Acesso à imagem e ao desenho | **feito**: sessão individual e desbloqueio pago conferidos em todas as rotas, incluindo exclusividade. A imagem é buscada com Bearer, sem token na URL, com `private, no-store`; nenhuma lista ou imagem individual vai ao Pages. |
 | Calibração E9 com cartas reais | **pendente**: ainda não existe o conjunto de 30 cartas anonimizadas com avaliação de compreensão. Esta entrega não inicia contato com proprietários. |
+
+## Qualidade e segurança (12/11/2026)
+
+| Entrega | Situação |
+|---|---|
+| Auditoria PRs #35–#44 integrados e revisão preventiva #45 ainda aberto; correções pequenas com regressões; Release completo e amostra do site | **feito**; evidência e limites em `docs/passagem/qualidade-e-seguranca.md` |
+| Playwright no CI: link, milhão de créditos no Pará, 3 opções, interesse e Pix de teste com API/PostGIS | **feito**; serviços externos controlados, sem pagamento real |
+| Dependabot, Gitleaks no histórico, licenças Python/npm/Rust obrigatórias, cabeçalhos, limite de chamadas e Presidio nos logs | **feito**; limite por processo e restrições operacionais na passagem |
+| CI paralelo com cache uv/npm/Chromium/LanguageTool, build público e coleção completa de testes | **feito**; zero skips ainda **parcial**: falta conjunto real de 144 tabelas desenvolvedor do Pará; demais dependências opcionais instaladas no CI |
+| Instruções para proteger a main | **feito** em `docs/operacao.md`; ativação manual pelo fundador |
 
 ## Continuidade de documentos, vigilância e calendário (12/11/2026)
 

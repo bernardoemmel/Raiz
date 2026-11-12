@@ -322,7 +322,9 @@ describe("sem RAIZ_DADOS e sem internet: a amostra", () => {
     expect(e.pasta).toBe("amostra")
     expect(e.estados.find((x: { uf: string }) => x.uf === "PA").situacao).toBe("completo")
     const pontos = JSON.parse((await servir("/amostra/pontos_PA.json")).corpo)
-    expect(pontos.fazendas).toBe(196136)
+    // Com contornos locais há grupos menores que cinco; o total também deve ser protegido por subtração.
+    expect(pontos.fazendas).toBe(pontos.suprimidos ? null : 196136)
+    expect(pontos.pontos.every((p: number[]) => p[5] >= 5)).toBe(true)
   }, 60_000)
 
   it("RAIZ_SEM_DOWNLOAD=1 pula o download sem tentar a rede", () => {
