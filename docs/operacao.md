@@ -76,3 +76,14 @@ mudar na nuvem (ETag novo), o cache dele é refeito.
 | O que precisa de decisão humana | `operacao.fila_revisao` (API: `GET /revisoes`) |
 | Mensagens esperando aprovação | `pessoal.mensagem_saida` (API: `GET /mensagens/pendentes`) |
 | Acerto das previsões | `uv run raiz aprendizado placar` e `aprendizado.previsao_contra_gabarito` |
+
+## Blocos de 0,5 grau: recalcular só o que mudou (E2 passo 4)
+
+- Cada imóvel tem um bloco (`raiz/funil/grade.py`, mesma grade do cache do motor, como `-47.0_-3.5`), gravado em
+  `funil.imovel` e nas tabelas da rodada.
+- Depois do histórico, a rodada da coleta lê os arquivos do espelho que mudaram (CAR, SIGEF, embargos) e grava em
+  `funil.bloco_manifesto` o hash do que cada camada tem em cada bloco, por município. Mudança só em campo volátil não
+  suja o bloco. O resumo da rodada traz a lista `blocos`.
+- `manifesto_blocos.sujos(con)` lista os blocos com alguma camada que mudou depois do último cálculo;
+  `marcar_calculados` fecha o bloco quando o funil termina. No município 1504950: CAR em 5 blocos, SIGEF em 9,
+  embargos em 2; a segunda leitura, sem mudança, leva 4 ms.

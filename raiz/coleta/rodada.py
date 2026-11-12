@@ -18,6 +18,7 @@ from sqlalchemy import Engine
 from raiz.coleta import bruto, car, sigef
 from raiz.coleta.espelho import Espelho
 from raiz.coleta.fila import planejar, registrar_reconciliacao
+from raiz.funil import manifesto_blocos
 from raiz.operacao.healthchecks import Healthchecks
 from raiz.operacao.lotes import lote
 
@@ -82,6 +83,9 @@ def rodada_car(
                 registrar_reconciliacao(con, car.FONTE)
         if historico and not _uf_travada(engine, hc, uf, cods, resumo):
             resumo["historico"] += sincronizar_historico(engine, espelho, uf, cods, hc, agora, url)
+            # blocos de 0,5 grau que a coleta tocou: o funil recalcula só eles (E2 passo 4)
+            mudaram = manifesto_blocos.atualizar_do_espelho(engine, espelho, uf, cods, agora)
+            resumo["blocos"] = sorted(set(resumo.get("blocos", [])).union(*mudaram.values()))
     if historico:
         with engine.begin() as con:
             for t in ("car_imovel", "sigef_parcela"):
