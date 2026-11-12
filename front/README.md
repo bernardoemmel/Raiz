@@ -37,7 +37,8 @@ controlada e confere bloqueio, débito, contato, recompra, recuperação do Pix,
 
 ```bash
 pip install requests shapely pmtiles
-python front/scripts/geo.py 1507300 1504950
+node front/scripts/baixar-dados.mjs --geo --exigir
+python front/scripts/geo.py --dados dados/estados
 ```
 
 ```bash
@@ -102,21 +103,36 @@ Tudo passa por `compartilhado/dados/` (`FonteDeDados`). As telas não sabem de o
   agregados, limites municipais/estaduais e mapa base. Não publica fichas, códigos do CAR, CSV individuais nem
   geometrias de imóveis. O plugin remove sobras de builds anteriores; o servidor de desenvolvimento aplica a mesma
   restrição, inclusive ao acesso direto aos arquivos. Grupos com menos de cinco imóveis têm números suprimidos.
-  `RAIZ_BUILD_DADOS=0` não grava dados; `RAIZ_BASE` muda o caminho do site; `VITE_RAIZ_DADOS_BASE` escolhe a pasta dos
+  `RAIZ_BUILD_DADOS=0` não grava dados, mas mantém páginas explicativas em Markdown; `RAIZ_BASE` muda o caminho do site; `VITE_RAIZ_DADOS_BASE` escolhe a pasta dos
   agregados. A ficha antiga do produtor não é reconstruída a partir de dados públicos.
 
 ## Site público (GitHub Pages)
 
 `.github/workflows/publicar-site.yml` publica o painel em https://bernardoemmel.github.io/Raiz/ e a ficha do produtor
 em https://bernardoemmel.github.io/Raiz/produtor/?car=<código do CAR>. Roda a cada mudança do front na main, todo dia
-(dados novos do motor) e quando alguém dispara. O build baixa o Release "dados" com `baixar-dados.mjs`, gera o que falta
-do mapa com `geo.py` (guardado em cache entre as rodadas; se um servidor público estiver fora, segue com o resto) e
-publica o resultado. Uma vez só, no repositório: Settings, Pages, Source "GitHub Actions" (o token do Actions não liga
+(dados novos do motor) e quando alguém dispara. O build baixa o Release "dados" com `baixar-dados.mjs --geo --exigir`, exporta os polígonos de todos os
+municípios com `geo.py --dados dados/estados` e gera fundos PMTiles compartilhados por estado. A base nacional
+continua por overzoom; o município cujo desenho não consta no Release recebe aviso. Falha de download ou de
+cobertura da base interrompe a publicação, preservando o site anterior. Uma vez só, no repositório: Settings, Pages, Source "GitHub Actions" (o token do Actions não liga
 o Pages sozinho).
 
 O build do site é um script só, `front/scripts/construir-site.sh` (npm ci, build do painel e da ficha, pasta `site/`).
-O CI de todo PR roda o mesmo script, sem os dados e sem publicar, e o actionlint em `.github/workflows`: lock fora de
-sincronia, front que não compila ou workflow que não abre deixam o PR vermelho antes do merge.
+O CI de todo PR usa dados fictícios isolados em `RAIZ_DADOS`/`RAIZ_GEO`, executa o mesmo build e testa o artefato
+como Pages pelo Playwright (subcaminho `/Raiz/`, busca por Parauapebas, mapa agregado, zoom, Range e zero 404).
+Actionlint, lock fora de sincronia e erros de compilação também deixam o PR vermelho.
+
+O site oferece `llms.txt`, `robots.txt` e `index.md` ao lado dos dois HTMLs, com links alternativos. O catálogo em
+`dados/index.md` leva aos Markdown de estados/municípios; números suprimidos no agregado continuam suprimidos no
+Markdown e no JSON-LD, sem links para CSV ou geometrias individuais. `servico.md`, `fontes.md` e `privacidade.md` explicam o
+produto. JSON-LD no HTML lista Dataset somente dos estados publicados, Service e Offer com valores sob proposta.
+`RAIZ_SITE_URL` define a URL canônica em outro domínio. A API aceita `Accept: text/markdown` nas leituras textuais,
+sem alterar autenticação; a ficha pública também oferece `/p/{codigo}.md` com a mesma regra de aceite.
+
+`npm run test:agentes` confere arquivos e links sob `/Raiz/` e roda Lighthouse 13.6.0 (`agentic-browsing`, experimental).
+O portão exige `llms.txt`, árvore de acessibilidade e CLS até 0,1. WebMCP e ARD são apenas relatados. O gatherer busca
+`/llms.txt` na raiz da origem, por isso a auditoria usa outra origem local com o artefato na raiz. No Pages de projeto,
+`/Raiz/robots.txt` não governa a origem: o site da conta precisa publicar também `/robots.txt`, ou usar domínio próprio.
+O relatório local não comprova esses arquivos na raiz pública.
 
 O que funciona sem back-end: mapa, estados, municípios e resumos agregados. Ficha completa, busca por fazenda,
 créditos, Pix e pedidos de contato precisam do back-end (`raiz/`, FastAPI com PostgreSQL e PostGIS). Os componentes

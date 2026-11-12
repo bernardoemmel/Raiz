@@ -120,6 +120,10 @@ describe("site aberto somente agregado", () => {
       const estados = JSON.parse(fs.readFileSync(path.join(saida, "amostra", "estados.json"), "utf8"))
       expect(estados.acesso).toBe("agregado")
       expect(estados.estados.every((e: { com_lista: string[] }) => !e.com_lista.length)).toBe(true)
+      const markdown = fs.readFileSync(path.join(saida, "dados/municipios/1507300.md"), "utf8")
+      expect(markdown).toContain("| Imóveis analisados | Suprimido |")
+      expect(markdown).not.toContain(car)
+      expect(fs.readFileSync(path.join(saida, "dados/estados/PA.md"), "utf8")).not.toContain("imoveis_1504950.csv")
     } finally {
       if (anterior === undefined) delete process.env.RAIZ_BUILD_DADOS
       else process.env.RAIZ_BUILD_DADOS = anterior

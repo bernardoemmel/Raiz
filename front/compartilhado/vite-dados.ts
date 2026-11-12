@@ -9,8 +9,10 @@ import path from "node:path"
 import zlib from "node:zlib"
 import { buscar } from "./dados/busca"
 import { escreverCsv, lerCsv } from "./dados/csv"
+import { lerFunil } from "./dados/funil"
 import { UFS } from "./formato"
 import { abrirPasta, nomeSeguro, pastaPadrao } from "./pasta-dados"
+import { paginasAgentes } from "./paginas-agentes"
 
 interface Requisicao {
   url?: string
@@ -48,7 +50,7 @@ export function dadosRaiz(opcoes: { repo: string; raizDados?: string | null; cac
   const arquivosPublicos = (uf: string) => pasta.arquivos(uf).filter(resumoPermitido)
   const estadosPublicos = () => {
     const estados = pasta.estados()
-    return { ...estados, acesso: "agregado", estados: estados.estados.map((e) => ({ ...e, com_lista: [] })) }
+    return { ...estados, acesso: "agregado" as const, estados: estados.estados.map((e) => ({ ...e, com_lista: [] })) }
   }
   const colunasResumo = new Set([
     "cod_ibge", "municipio", "imoveis", "sem_problema", "def_RL", "aptas_carbono", "ha_carbono",
@@ -114,6 +116,8 @@ export function dadosRaiz(opcoes: { repo: string; raizDados?: string | null; cac
     return [...new Set([...Object.values(indice.brasil), ...Object.values(indice.municipios).flatMap(Object.values)].map((item) => item.arquivo))]
   }
   let saida = "dist"
+  let base = "/"
+  let produtor = false
   // o Vite chama closeBundle também ao fechar o servidor (e o Vitest fecha um no fim): só grava no vite build
   let construindo = false
 
@@ -202,12 +206,14 @@ export function dadosRaiz(opcoes: { repo: string; raizDados?: string | null; cac
 
   return {
     name: "raiz-dados",
-    configResolved(config: { root: string; command: string; build: { outDir: string }; env?: Record<string, unknown> }) {
+    configResolved(config: { root: string; command: string; base?: string; build: { outDir: string }; env?: Record<string, unknown> }) {
       if (config.command === "build" && ["VITE_RAIZ_TOKEN", "VITE_RAIZ_API_TOKEN"].some((chave) => config.env?.[chave] || process.env[chave])) {
         throw new Error("VITE_RAIZ_TOKEN e VITE_RAIZ_API_TOKEN não podem entrar no site. Use a sessão de cliente na API de prospecção.")
       }
       saida = path.resolve(config.root, config.build.outDir)
       construindo = config.command === "build"
+      produtor = path.basename(config.root) === "produtor"
+      base = produtor ? (process.env.RAIZ_BASE || "/Raiz/") : (config.base || "/")
     },
     configureServer(server: Servidor) {
       const ufs = pasta.ufs()
@@ -274,7 +280,16 @@ export function dadosRaiz(opcoes: { repo: string; raizDados?: string | null; cac
       })
     },
     async closeBundle() {
-      if (!construindo || !fs.existsSync(saida) || process.env.RAIZ_BUILD_DADOS === "0") return
+      if (!construindo || !fs.existsSync(saida)) return
+      const comDados = !produtor && process.env.RAIZ_BUILD_DADOS !== "0"
+      // Markdown e JSON-LD recebem exatamente o mesmo recorte público, com as mesmas supressões dos CSV.
+      const municipios = comDados ? pasta.ufs().flatMap((uf) =>
+        arquivosPublicos(uf).flatMap((nome) => lerCsv(resumoPublico(nome) ?? "").linhas.map((linha) => lerFunil(linha, uf)))) : []
+      paginasAgentes({
+        saida, base, produtor, siteUrl: process.env.RAIZ_SITE_URL,
+        ...(comDados ? { catalogo: { estados: estadosPublicos(), municipios, arquivos: Object.fromEntries(pasta.ufs().map((uf) => [uf, arquivosPublicos(uf)])) } } : {}),
+      })
+      if (!comDados) return
       const dAmostra = path.join(saida, "amostra")
       const dGeo = path.join(saida, "geo")
       // Remove a publicação anterior para nenhum arquivo individual sobreviver a um rebuild.

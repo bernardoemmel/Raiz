@@ -1,6 +1,7 @@
 # Passagem do chat "Ficha da fazenda"
 
 Entrega de 12/11/2026. Branch `codex/ficha-da-fazenda`.
+PR: https://github.com/bernardoemmel/Raiz/pull/52.
 
 ## O que foi entregue
 
@@ -109,9 +110,9 @@ ao implantar para que o endereço represente o cliente real.
 
 ## Verificação
 
-Validação local desta entrega: suíte completa com PostGIS, 674 testes aprovados,
-dois ignorados e um xfail já existente; após as últimas correções, os 92 testes
-dos quatro módulos de prospecção passaram. Depois de integrar a main do mapa nacional (#47), o front passou em 93 testes,
+Validação local desta entrega: suíte completa com PostGIS, 703 testes aprovados após integrar o mapa nacional,
+dois ignorados e um xfail já existente; após as últimas correções, os testes focados dos quatro módulos de prospecção passaram, inclusive o
+fallback do total contratual de crédito. Depois de integrar a main do mapa nacional (#47), o front passou em 93 testes,
 com 13 ignorados, e no build dos dois aplicativos. Chromium confirmou bloqueio,
 desbloqueio, pedido de contato, recuperação de compra, recompra, troca de sessão
 e largura de 360 px, usando API controlada de teste. O script reproduzível é
@@ -120,6 +121,11 @@ zoom 13 sobre a base nacional, MVT desenhado, HTTP Range, busca por nome/IBGE,
 nenhum 404 e nenhum arquivo individual no pacote ou na rede. As correções do
 mapa nacional foram preservadas na integração; o detalhamento por CAR passa
 pela nova ficha paga.
+
+A integração posterior das entregas de dados e páginas para agentes (#46 e #50)
+passou nos 107 testes focados de prospecção, busca, Markdown, API do front e fila
+de processamento. Markdown, catálogo de downloads e dados estruturados públicos
+seguem o mesmo recorte agregado do site; as rotas administrativas mantêm Bearer.
 
 Testes unitários e com PostGIS cobrem contrato sem dados pessoais, ausência de
 dados, filtros combinados, exclusividade, agregados, concorrência de compra e

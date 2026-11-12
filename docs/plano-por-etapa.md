@@ -22,6 +22,20 @@ Actions, com até 15 jobs ao mesmo tempo e os estados grandes em fatias; a colet
 e o banco (PostGIS, migrações 0001 a 0018) existem, mas a coleta ainda não está agendada. Atualizado no fim do dia 12/11:
 E3, E5, E7, E8 e E9 têm a coluna Situação conferida contra a main; E1 e E2 também (abaixo).
 
+## Entregas de Dados do Brasil
+
+Retomada em 12/11/2026, seguindo a passagem `docs/passagem/raiz-dados-do-brasil.md`.
+
+| Ordem | Entrega | Situação |
+|---|---|---|
+| 1 | Limite global de 15 jobs de processamento, sem cancelar os existentes | **feito**: #43 mesclado com CI de push e PR verdes; admissão atômica na ref `raiz-fila-processamento`, incluindo pedidos manuais e continuações; falha de consulta bloqueia novas vagas. Pedidos sem vaga ficam persistidos e são retomados a cada 15 minutos |
+| 2–3 | Fichas Croissant 1.1/schema.org e publicação no Release | a fazer |
+| 4 | Quantis públicos no formato hubverse, com versão do modelo | a fazer |
+| 5 | Cartão do modelo | a fazer |
+| 6 | Atestação dos arquivos publicados pelo Actions | a fazer |
+| 7 | Cronograma dos lotes no vocabulário CAD Trust | a fazer |
+| 8 | Pendências E1/E2 da passagem, na ordem de dependência | a fazer |
+
 ## E1. Coleta de dados públicos
 
 Conferido contra a main em 12/11/2026: "feito" quer dizer que o código está na main; "parcial" diz o que existe e o
@@ -236,6 +250,15 @@ Entrega do chat **Ficha da fazenda** (12/11/2026; detalhes em
 | Agregados abertos no site, nova ficha completa só na API autenticada e paga | **feito** no site e nas rotas novas; Release histórico de dados continua aberto, migração de armazenamento privado deve ser coordenada com dados |
 | Integração da nova ficha com navegação do mapa | **feito**, sem reescrever o mapa; produtor precisa de autenticação própria para voltar a acessar detalhes no site |
 
+Site legível por agentes (12/11/2026): **feito** — `llms.txt`, `robots.txt`, páginas Markdown do Brasil, estados,
+municípios, produtor, serviço, fontes e privacidade; alternates no HTML; JSON-LD `Dataset`, `Service` e `Offer`
+sem transformar premissa em preço comercial. API aceita `text/markdown` nas leituras, preservando Bearer e
+privacidade da ficha pública. Lighthouse 13.6.0, categoria experimental `agentic-browsing`, no CI com verificação
+separada de arquivos, links e dados estruturados. No Pages de projeto, `robots.txt` em `/Raiz/` não controla a raiz
+da origem; isso depende do site da conta ou de domínio próprio.
+
+A publicação Markdown segue a mesma regra do site agregado: nenhuma ficha individual aberta por CAR.
+
 Entrega do mapa nacional (12/11/2026): o workflow publica os desenhos de todos os municípios com dados no Release,
 reaproveitando os GeoParquet do motor como GeoJSON gzip. Fundo PMTiles compartilhado por UF e base nacional em
 overzoom; busca estática por nome/IBGE/CAR e aviso de desenho ausente. CI com Playwright em `/Raiz/`: Parauapebas,
@@ -257,7 +280,7 @@ faz sem back-end.
 | 2 | Servidor LanguageTool em contêiner, só com as regras de estilo e legibilidade do português, chamado antes de todo envio | passo 1 | feito (infra/languagetool, serviço "revisor" do compose; raiz/revisor.py guarda os avisos de estilo com a nota de cada mensagem ao dono e de cada aviso) |
 | 2 | Produzir a imagem antes e depois de cada fazenda (Sentinel-2 por STAC, lógica do Sentinel2Timelapse-QGIS) e o mapa do imóvel | E9 passo 1 | feito (raiz/satelite.py: Sentinel-2 hoje, Landsat em 1985 e 2008, simulação; testes/test_satelite.py) |
 | 2 | Ficha em Preact com 'mapa sob demanda' (padrão Uber Lite): texto, cartão WebP e ThumbHash na primeira abertura; MapLibre e PMTiles só no toque | passo 1 | feito (front/produtor/src/Ficha.tsx: capa de satélite WebP com o borrão do ThumbHash na primeira abertura, texto e contorno pela polyline sem baixar mapa, MapLibre e PMTiles só no toque; raiz/thumbhash.py e a capa em raiz/satelite.py; a página do servidor usa o mesmo borrão sem JavaScript) |
-| 3 | Portão no estilo da lei da Flórida: nota mínima calibrada com 30 cartas reais, sem contar termos do glossário e tabelas, nota gravada no laudo | passos 1 e 2 | 3 a 5 |
+| 3 | Portão no estilo da lei da Flórida: nota mínima calibrada com 30 cartas reais, sem contar termos do glossário e tabelas, nota gravada no laudo | passos 1 e 2 | pendente: fundador confirmou em 12/11 que ainda não há conjunto pronto das 30 cartas; não calibrar com exemplos sintéticos |
 | 3 | Escrever o texto por fazenda e por município com frases comparativas por índice (método do Census Reporter) dentro do kit do ONS, com modelo de campos abertos como o do g1 | E9 passo 1 | parcial: frases por índice e posição (front/compartilhado/comparacoes.ts) e frase do município (raiz/municipio_dados.py); falta o kit do ONS com campos abertos (4 a 6) |
 | 3 | Gravar no lote anual, por fazenda: ThumbHash da miniatura, perímetro em polyline (6 casas), Plus Code da porteira e link omaps.app | funil E2 com o polígono final | feito (`raiz ficha lote`: polyline de 6 casas, ThumbHash da capa, Plus Code e link omaps.app de um ponto dentro do imóvel em cada ficha, raiz/localizacao.py; o ponto exato só sai no rows.json depois do aceite; a porteira de verdade vem do dono ou da visita) |
 | 4 | Modelos de texto com campos condicionais no formato do GOV.UK Notify, mais extenso.js ou num2words, pluralizador e verbecc; aviso curto na ordem fonte, fato, fazenda, prazo, o que fazer | passo 3 | parcial: o aviso curto na ordem fonte, fato, fazenda, prazo e o que fazer existe (raiz/vigilancia/aviso.py, raiz/agentes/textos.py); faltam os campos condicionais e o número por extenso (3 a 6) |

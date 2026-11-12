@@ -66,6 +66,8 @@ export interface BuscaProspeccao {
   pagina: number
   limite: number
   tem_mais: boolean
+  total_agrupamentos?: number
+  agrupamentos_limitados?: boolean
   totais: {
     fazendas: number | null
     area_ha: number | null
