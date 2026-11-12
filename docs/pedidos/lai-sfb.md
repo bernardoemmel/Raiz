@@ -1,7 +1,7 @@
 # Pedido de acesso à informação ao Serviço Florestal Brasileiro (SICAR)
 
 **Órgão:** Serviço Florestal Brasileiro (SFB)
-**Assunto:** Data de atualização e lista de exclusões do Cadastro Ambiental Rural nos serviços WFS do SICAR
+**Assunto:** Data de atualização, lista de exclusões e quadro de áreas do Cadastro Ambiental Rural
 
 ---
 
@@ -23,6 +23,13 @@ Com base na Lei 12.527/2011 (arts. 10 e 11) e na Política de Dados Abertos do P
 3. **Dicionário de dados** das camadas `sicar_imoveis_<uf>`: significado, unidade e regra de preenchimento de cada
    campo, inclusive `status_imovel`, `condicao`, `m_fiscal` e `data_atualizacao`.
 
+4. **Quadro de áreas de cada imóvel** (o demonstrativo que o SICAR calcula), por UF, em formato aberto: código do
+   imóvel, área total, área de reserva legal mínima exigida pela lei (`num_area_reserva_legal_minima_lei`, se esse
+   for o nome do campo), reserva legal declarada, APP, remanescente de vegetação nativa, área rural consolidada e
+   módulos fiscais usados no cálculo, com a data do cálculo. A camada pública não traz essas áreas, e só a consulta
+   imóvel a imóvel mostra o demonstrativo. Com o quadro, quem calcula a reserva legal fora do SICAR consegue conferir
+   o próprio cálculo contra o oficial e apontar diferenças de regra ao SFB.
+
 **Por que isso importa.** O art. 8º, § 3º, III, da Lei 12.527/2011 pede que as informações permitam o acesso
 automatizado por sistemas externos em formatos abertos, estruturados e legíveis por máquina. Uma data de atualização
 confiável e uma lista de exclusões permitem que quem usa os dados baixe só o que mudou, o que reduz a carga sobre o
@@ -30,8 +37,8 @@ servidor do SICAR. É a prática de outras bases públicas: o Land Information N
 camada (só o que mudou entre duas datas), o padrão SDMX de estatísticas oficiais aceita o parâmetro `updatedAfter`, e a
 SEC dos Estados Unidos publica um índice diário dos documentos novos.
 
-Não peço dado pessoal: nenhum nome, CPF ou CNPJ de proprietário ou possuidor, só o código do imóvel, a situação e as
-datas.
+Não peço dado pessoal: nenhum nome, CPF ou CNPJ de proprietário ou possuidor, só o código do imóvel, a situação, as
+áreas e as datas.
 
 Fico à disposição para esclarecer o pedido.
 

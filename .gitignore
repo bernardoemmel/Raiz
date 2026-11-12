@@ -37,3 +37,4 @@ nativo/raiz_iov/target/
 # Catala: saídas do clerk (o Python gerado vai para raiz/regras/gerado/)
 raiz/regras/catala/_build/
 raiz/regras/catala/_target/
+dados/validacao/

@@ -354,6 +354,38 @@ def regras_gerar(
     typer.echo(f"{info['catala']}: {len(info['arquivos'])} arquivos em raiz/regras/gerado/")
 
 
+@regras_cli.command("validar")
+def regras_validar(
+    arquivo: Annotated[str, typer.Argument(help="tabela da outra fonte por imóvel (CSV ou Parquet)")],
+    fonte: Annotated[str, typer.Option(help="sicar | geocar | landschaft")],
+    pasta: Annotated[str, typer.Option(help="pasta com imoveis_<município>.csv do motor")],
+    municipio: Annotated[int, typer.Option(help="código IBGE do município piloto")],
+    n: Annotated[int, typer.Option(help="quantas diferenças explicar")] = 10,
+) -> None:
+    """Validação cruzada (E2 passo 4): o laudo da Raíz contra outra fonte, imóvel a imóvel."""
+    from pathlib import Path
+
+    import pandas as pd
+
+    from raiz import RAIZ_REPO
+    from raiz.regras import validacao
+
+    im = pd.read_csv(Path(pasta) / f"imoveis_{municipio}.csv")
+    ext = pd.read_parquet(arquivo) if arquivo.endswith(".parquet") else pd.read_csv(arquivo)
+    rel = validacao.comparar(im, ext, fonte)
+    if validacao.FONTES[fonte].get("provisorio"):
+        typer.echo(f"atenção: o mapa de colunas de {fonte} é provisório; confira com o arquivo (validacao.FONTES)")
+    typer.echo(rel.resumo.to_string())
+    for k, v in rel.sem_par.items():
+        typer.echo(f"{k}: {len(v)} imóveis")
+    saida = RAIZ_REPO / "dados" / "validacao" / f"{fonte}_{municipio}.csv"
+    saida.parent.mkdir(parents=True, exist_ok=True)
+    rel.linhas.to_csv(saida, index=False)
+    for linha in validacao.explicar_diferencas(rel, im, n):
+        typer.echo(linha)
+    typer.echo(f"todas as linhas em {saida}")
+
+
 @regras_cli.command("publicar")
 def regras_publicar() -> None:
     """Grava no banco a versão atual dos parâmetros legais (raiz/regras/parametros/*.yaml) e lista as pendências."""
