@@ -446,3 +446,12 @@ def test_numero_do_edital_nao_vem_de_item_do_corpo():
     assert coleta._referencia("deste edital 2. objeto do leilao") is None
     assert coleta._referencia("edital nº 5") == "5"
     assert coleta._referencia("edital 12/2026") == "12/2026"
+
+
+def test_sbti_oficial_exclui_contratacao_e_inclui_survey_ate_data():
+    f = fonte("sbti")
+    eventos, _ = coleta.extrair((FIXTURES / "sbti.html").read_text(), f, f["urls"][0], AGORA)
+    assert [(e.data, e.marco) for e in eventos] == [
+        (dt.date(2026, 12, 4), "consulta"),
+        (dt.date(2026, 12, 6), "consulta"),
+    ]

@@ -171,6 +171,8 @@ def _tipo(texto: str, fonte: dict) -> str | None:
     t = _normal(texto)
     if re.search(r"credenciamento de leiloeir|leiloeir.{0,30}credenciad|vaga de emprego|open tender", t):
         return None
+    if fonte["id"] == "sbti" and re.search(r"\btender\b|freelance|secondment|recruit|vacanc|job opportunit|hiring", t):
+        return None  # a página Take part mistura consultas e contratação de serviços
     if "profloresta" in t:
         return "profloresta"
     if "fundo amazonia" in t or "restaura amazonia" in t:
@@ -204,7 +206,9 @@ def _marco(antes: str, depois: str, tipo: str) -> str | None:
         return "propostas"
     if re.search(r"inscrico|inscricao|registration|applications", antes):
         return "inscricoes"
-    if re.search(r"deadline|closes|closing|comment period|consulta|contribuico|comments|respond.*by", antes):
+    if re.search(
+        r"deadline|closes|closing|comment period|consulta|contribuico|comments|respond.*by|survey.{0,70}until", antes
+    ):
         return "consulta"
     if re.search(
         r"vigencia|aplicacao|aplica.*partir|entry into application|apply from|operators|"
