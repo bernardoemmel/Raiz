@@ -139,3 +139,29 @@ cd front/globo && npm test
 ```bash
 RAIZ_BUILD_DADOS=0 front/scripts/construir-site.sh
 ```
+
+
+## Entrega 4: celular, teclado e desempenho (12/11/2026)
+
+- A escala nacional usa SVG Natural Earth já existente no repositório, com estados coloridos pela cobertura real,
+  nomes acessíveis, links por estado e a mesma busca. Escolher estado ou município carrega MapLibre e a base PMTiles;
+  depois o mapa detalhado permanece montado nas trocas. Isso reduz o JS inicial de cerca de 1,6 MB para 320 KB
+  (aproximadamente 104 KB gzip), sem baixar contornos municipais na abertura nacional.
+- Menus continuam disponíveis a 360 px. Atalho de teclado pula para o conteúdo, as rotas levam foco ao main,
+  a alça da gaveta e os controles têm 48 px, os resultados da busca quebram linha e tabelas roláveis recebem foco e rótulo.
+- `npm run test:acessibilidade` serve o artefato com gzip/Range, verifica teclado (pular conteúdo, gaveta e busca),
+  largura de 360 px e axe WCAG 2.1 A/AA no Brasil, município, login com erro, novo pedido (filtros fechados/abertos)
+  e produtor. `test:prospeccao` também audita a ficha desbloqueada e a busca autenticada. Não expõe dados pessoais.
+- Lighthouse 13.6.0 mede as categorias oficiais performance e accessibility em mobile de 360 px, com throttling
+  `simulate` padrão. São **três execuções fixas** de Brasil, entrar e produtor: exige mediana de desempenho >= 90
+  e acessibilidade >= 90 em cada execução. Erro de coleta, nota ausente/nula e troca para desktop/rede sem simulação
+  reprovam. Salva todas as amostras HTML/JSON, axe e capturas em `front/.cache/teste-acessibilidade` e no CI.
+- A série fixa com gzip, após otimizar, deu medianas de desempenho 100 no Brasil, 95 na entrada e 100 no produtor,
+  com acessibilidade 100 nas nove medições. A primeira medição diagnóstica usava servidor sem gzip e não deve ser
+  comparada diretamente com a publicação.
+  Runners concorrentes afetam TBT: a mediana tem três amostras fixas, sem repetir até passar ou escolher a melhor.
+- Ficam pendentes avaliação humana completa WCAG e a calibração E9 com cartas reais. O teste automatizado não é
+  declaração de conformidade total e não inicia contato com proprietários.
+
+Validação local da entrega 4: build travado, 138 testes do front, Pages com zero 404, prospecção com axe e
+Lighthouse Agentic Browsing aprovados. O portão mobile final passou nas nove medições fixas; E9 real não foi calibrado.

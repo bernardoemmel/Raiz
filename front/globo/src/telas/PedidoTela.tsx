@@ -224,7 +224,7 @@ function Moldura({ titulo, children }: { titulo: string; children: React.ReactNo
   return (
     <div className="tela-pedidos tela-pedido">
       <Cabecalho atual="pedidos" />
-      <main className="pedido-main">{children}</main>
+      <main id="conteudo" tabIndex={-1} className="pedido-main">{children}</main>
     </div>
   )
 }

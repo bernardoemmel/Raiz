@@ -259,6 +259,16 @@ da origem; isso depende do site da conta ou de domínio próprio.
 
 A publicação Markdown segue a mesma regra do site agregado: nenhuma ficha individual aberta por CAR.
 
+Celular e acessibilidade (12/11/2026): **feito** no código. Entrada nacional em SVG com estados acessíveis,
+sem baixar WebGL ou geometria municipal antes de aproximar; rotas carregadas ao abrir. Navegação disponível a 360 px,
+atalho para o conteúdo, foco após troca de tela, alça e controles com 48 px, tabelas roláveis pelo teclado.
+CI verifica axe WCAG 2.1 A/AA, busca e gaveta pelo teclado, novo pedido com filtros, ficha desbloqueada e prospecção.
+Lighthouse mobile a 360 px conserva rede/CPU simuladas: três execuções fixas por página (Brasil, entrar, produtor),
+mediana de desempenho >= 90 e acessibilidade >= 90 em todas. Relatórios completos e capturas ficam nos artefatos.
+As verificações automatizadas não substituem avaliação humana de todos os critérios WCAG; a calibração E9 de
+compreensão com 30 cartas reais continua pendente e nenhum contato com dono é disparado por estes testes.
+
+
 Entrega do mapa nacional (12/11/2026): o workflow publica os desenhos de todos os municípios com dados no Release,
 reaproveitando os GeoParquet do motor como GeoJSON gzip. Fundo PMTiles compartilhado por UF e base nacional em
 overzoom; busca estática por nome/IBGE/CAR e aviso de desenho ausente. CI com Playwright em `/Raiz/`: Parauapebas,

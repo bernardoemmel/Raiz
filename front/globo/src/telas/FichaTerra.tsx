@@ -17,7 +17,7 @@ export function Medida({ dado }: { dado: MedidaTerra }) {
   </span>
 }
 function Faixas({ titulo, dados }: { titulo: string; dados: { p10: MedidaTerra; p50: MedidaTerra; p90: MedidaTerra } }) {
-  return <div className="tabela-terra"><table className="tabela-simples"><caption>{titulo}</caption><thead><tr><th>P10</th><th>P50</th><th>P90</th></tr></thead><tbody><tr>{(["p10", "p50", "p90"] as const).map((p) => <td key={p}><Medida dado={dados[p]} /></td>)}</tr></tbody></table></div>
+  return <div className="tabela-terra" tabIndex={0} role="region" aria-label={titulo}><table className="tabela-simples"><caption>{titulo}</caption><thead><tr><th>P10</th><th>P50</th><th>P90</th></tr></thead><tbody><tr>{(["p10", "p50", "p90"] as const).map((p) => <td key={p}><Medida dado={dados[p]} /></td>)}</tr></tbody></table></div>
 }
 /** A rota antiga da fazenda também entra aqui: nenhum CSV público desbloqueia a ficha. */
 export function FichaTerra({ car }: { car: string }) {
@@ -58,7 +58,7 @@ export function FichaTerra({ car }: { car: string }) {
   if (prospeccao.disponivel && !sessao) return <Entrar token={null} volta={location.hash} />
   return <div className="tela-pedidos">
     <Cabecalho atual="fazendas" linkMapa={ficha?.cod_ibge ? linkMunicipio(String(ficha.cod_ibge)) : "#/"} />
-    <main className="pagina ficha-terra">
+    <main id="conteudo" tabIndex={-1} className="pagina ficha-terra">
       <a href={linkProspeccao}>Buscar fazendas no Brasil</a>
       <h1>Ficha da terra</h1>
       <p className="car-terra">CAR <code>{car}</code></p>
@@ -77,8 +77,8 @@ export function FichaTerra({ car }: { car: string }) {
         <section><h2>Crédito de carbono estimado</h2><p>{ficha.credito.base === "liquido_contrato" ? "Créditos líquidos ao longo do contrato." : ficha.credito.base === "liquido_anual" ? "Créditos líquidos por ano." : "Créditos líquidos ainda não calculados."}</p><Faixas titulo="Faixa de créditos líquidos" dados={ficha.credito} /><p>{ficha.credito.metodo}</p>{ficha.credito.versao_modelo && <p className="legenda-frase">Versão do modelo: {ficha.credito.versao_modelo}.</p>}
           <Faixas titulo={`TIR ${ficha.tir.tipo === "com_financiamento" ? "com" : "sem"} financiamento`} dados={ficha.tir} />
         </section>
-        <section><h2>Uso da terra ao longo dos anos</h2>{!ficha.serie_uso.length ? <p>Série anual ainda não disponível.</p> : <div className="tabela-terra"><table className="tabela-simples"><thead><tr><th>Ano</th><th>Mata</th><th>Pasto</th><th>Lavoura</th><th>Água</th></tr></thead><tbody>{ficha.serie_uso.map((s) => <tr key={s.ano}><th scope="row">{s.ano}</th>{(["mata", "pasto", "lavoura", "agua"] as const).map((c) => <td key={c}><Medida dado={s[c]} /></td>)}</tr>)}</tbody></table></div>}</section>
-        <section><h2>Perdas ao longo dos anos</h2>{!ficha.perdas.length ? <p>Histórico de perdas ainda não disponível.</p> : <div className="tabela-terra"><table className="tabela-simples"><thead><tr><th>Período</th><th>O que foi observado</th><th>Área</th></tr></thead><tbody>{ficha.perdas.map((p, i) => <tr key={`${p.tipo}-${p.ano}-${i}`}><th scope="row">{p.ano ?? "Período da fonte"}</th><td>{p.rotulo}</td><td><Medida dado={p.area} /></td></tr>)}</tbody></table></div>}</section>
+        <section><h2>Uso da terra ao longo dos anos</h2>{!ficha.serie_uso.length ? <p>Série anual ainda não disponível.</p> : <div className="tabela-terra" tabIndex={0} role="region" aria-label="Uso da terra por ano"><table className="tabela-simples"><thead><tr><th>Ano</th><th>Mata</th><th>Pasto</th><th>Lavoura</th><th>Água</th></tr></thead><tbody>{ficha.serie_uso.map((s) => <tr key={s.ano}><th scope="row">{s.ano}</th>{(["mata", "pasto", "lavoura", "agua"] as const).map((c) => <td key={c}><Medida dado={s[c]} /></td>)}</tr>)}</tbody></table></div>}</section>
+        <section><h2>Perdas ao longo dos anos</h2>{!ficha.perdas.length ? <p>Histórico de perdas ainda não disponível.</p> : <div className="tabela-terra" tabIndex={0} role="region" aria-label="Perdas por período"><table className="tabela-simples"><thead><tr><th>Período</th><th>O que foi observado</th><th>Área</th></tr></thead><tbody>{ficha.perdas.map((p, i) => <tr key={`${p.tipo}-${p.ano}-${i}`}><th scope="row">{p.ano ?? "Período da fonte"}</th><td>{p.rotulo}</td><td><Medida dado={p.area} /></td></tr>)}</tbody></table></div>}</section>
         <section><h2>Agrupar fazendas pequenas</h2><p>{ficha.agrupamento.pequena ? "Esta fazenda pode compor um grupo. A viabilidade depende de confirmar a proximidade e as condições das outras áreas." : ficha.agrupamento.pequena === null ? "Porte ainda não informado. A busca não elimina fazendas pequenas." : "Fazendas de qualquer tamanho podem compor um lote."}</p>{ficha.agrupamento.grupo_id && <dl className="grade-terra"><div><dt>Fazendas no grupo indicado</dt><dd><Medida dado={ficha.agrupamento.imoveis} /></dd></div><div><dt>Área do grupo</dt><dd><Medida dado={ficha.agrupamento.area} /></dd></div></dl>}</section>
         <section><h2>Próximo passo</h2><p>O pedido fica registrado na Raíz. O contato será tratado depois.</p><button className="botao principal" type="button" disabled={ocupado || !!contato} onClick={pedirContato}>{contato ? "Pedido de contato recebido" : ocupado ? "Registrando pedido" : "Pedir contato"}</button>{contato && <p role="status">{contato}</p>}</section>
       </>}

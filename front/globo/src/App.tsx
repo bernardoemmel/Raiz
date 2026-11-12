@@ -1,21 +1,40 @@
+import { lazy, Suspense, useEffect, useRef } from "react"
 import { useRota } from "./rota"
 import { useSessao } from "./pedidos"
-import { Entrar } from "./telas/Entrar"
 import { Explorar } from "./telas/Explorar"
-import { FichaTerra } from "./telas/FichaTerra"
-import { Prospeccao } from "./telas/Prospeccao"
-import { Grupo } from "./telas/Grupo"
-import { MeusPedidos } from "./telas/MeusPedidos"
-import { NovoPedido } from "./telas/NovoPedido"
-import { PedidoTela } from "./telas/PedidoTela"
+
+const Entrar = lazy(() => import("./telas/Entrar").then((m) => ({ default: m.Entrar })))
+const FichaTerra = lazy(() => import("./telas/FichaTerra").then((m) => ({ default: m.FichaTerra })))
+const Prospeccao = lazy(() => import("./telas/Prospeccao").then((m) => ({ default: m.Prospeccao })))
+const Grupo = lazy(() => import("./telas/Grupo").then((m) => ({ default: m.Grupo })))
+const MeusPedidos = lazy(() => import("./telas/MeusPedidos").then((m) => ({ default: m.MeusPedidos })))
+const NovoPedido = lazy(() => import("./telas/NovoPedido").then((m) => ({ default: m.NovoPedido })))
+const PedidoTela = lazy(() => import("./telas/PedidoTela").then((m) => ({ default: m.PedidoTela })))
 
 /**
  * A entrada é o mapa do Brasil, sem abertura: quem chega já vê os estados pintados pelo que a Raíz já leu. Tocar num
  * estado aproxima e carrega só ele; a busca e o toque num município levam ao painel dele; o código do CAR leva direto
  * à ficha. A área logada (pedido de lote da cena-alvo) pede a entrada por e-mail com link.
  */
-export default function App() {
+function TelaAtual() {
   const rota = useRota()
+  const primeira = useRef(true)
+  useEffect(() => {
+    if (primeira.current) { primeira.current = false; return }
+    // A rota pode chegar em um chunk separado: espera o conteúdo, sem prender o teclado no carregamento.
+    const focar = () => {
+      const principal = document.querySelector<HTMLElement>('main:not([aria-busy="true"])')
+      if (!principal) return false
+      principal.tabIndex = -1
+      principal.focus({ preventScroll: true })
+      window.scrollTo(0, 0)
+      return true
+    }
+    if (focar()) return
+    const observer = new MutationObserver(() => { if (focar()) observer.disconnect() })
+    observer.observe(document.getElementById("root")!, { childList: true, subtree: true })
+    return () => observer.disconnect()
+  }, [rota])
   const sessao = useSessao()
   if (rota.tela === "fazenda") return <FichaTerra key={`${rota.car}-${sessao?.token ?? "publica"}`} car={rota.car} />
   if (rota.tela === "prospeccao") return <Prospeccao key={sessao?.token ?? "publica"} />
@@ -31,4 +50,9 @@ export default function App() {
   return (
     <Explorar municipio={rota.tela === "municipio" ? rota.municipio : null} uf={rota.tela === "estado" ? rota.uf : null} />
   )
+}
+
+/** A entrada não baixa telas de consulta, pagamento e lote antes de serem abertas. */
+export default function App() {
+  return <Suspense fallback={<main id="conteudo" tabIndex={-1} className="pagina" aria-busy="true"><p role="status">Abrindo a tela…</p></main>}><TelaAtual /></Suspense>
 }

@@ -254,3 +254,10 @@ como serviço no servidor; nada dele é embutido no produto distribuído. O `inf
 `.devops/cpu.Dockerfile` do llama.cpp (MIT, Copyright (c) 2023-2026 The ggml authors), sem a interface web. A
 confiança dos logprobs, a calibração do corte e o banco de tarefas em português foram escritos para a Raíz, sem
 código copiado.
+
+### Auditoria de acessibilidade em celular
+
+O CI usa `@axe-core/playwright` 4.14.0 e seu motor `axe-core` (MPL-2.0), somente nas ferramentas de teste,
+para verificar WCAG 2.1 A e AA. Origem: https://github.com/dequelabs/axe-core-npm e
+https://github.com/dequelabs/axe-core. Lighthouse 13.6.0 (Apache-2.0, já registrado acima) mede as categorias
+oficiais performance e accessibility em celular de 360 px, com rede e CPU simuladas.

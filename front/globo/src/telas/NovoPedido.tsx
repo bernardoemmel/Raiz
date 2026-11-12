@@ -88,7 +88,7 @@ export function NovoPedido() {
   return (
     <div className="tela-pedidos">
       <Cabecalho atual="pedidos" />
-      <main className="pagina pagina-media">
+      <main id="conteudo" tabIndex={-1} className="pagina pagina-media">
         <ol className="migalhas" aria-label="Onde você está">
           <li>
             <a href={linkPedidos}>Meus pedidos</a>

@@ -30,7 +30,7 @@ jobs:
 
   front:
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -71,6 +71,16 @@ jobs:
         with:
           name: site-agentes
           path: front/.cache/teste-agentes
+          if-no-files-found: ignore
+
+      - name: Celular, teclado, WCAG 2.1 AA e Lighthouse >= 90
+        run: cd front/globo && npm run test:acessibilidade
+      - name: Evidências de acessibilidade e desempenho
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: celular-acessibilidade
+          path: front/.cache/teste-acessibilidade
           if-no-files-found: ignore
 
   checagens:

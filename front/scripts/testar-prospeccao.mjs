@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 /** Fluxo de consulta no Chromium com API controlada: bloqueio, débito, contato, recompra, troca de sessão e celular. */
 import assert from "node:assert/strict"
+import { conferirPaginaAcessivel } from "./conferir-acessibilidade.mjs"
 import fs from "node:fs"
 import { createRequire } from "node:module"
 import path from "node:path"
@@ -9,6 +10,7 @@ import { fileURLToPath, pathToFileURL } from "node:url"
 const globo = fileURLToPath(new URL("../globo/", import.meta.url))
 const require = createRequire(path.join(globo, "package.json"))
 const { chromium } = require("playwright")
+const { default: AxeBuilder } = await import(pathToFileURL(require.resolve("@axe-core/playwright")).href)
 const { createServer } = await import(pathToFileURL(require.resolve("vite")).href)
 process.env.VITE_RAIZ_API = "/teste-api"
 const servidor = await createServer({ root: globo, configFile: path.join(globo, "vite.config.ts"), server: { port: 0 }, logLevel: "error" })
@@ -77,6 +79,7 @@ try {
   assert.equal(chaves.length, 2); assert.notEqual(chaves[0], chaves[1])
   await page.setViewportSize({ width: 360, height: 800 })
   await print("ficha-terra-360.png")
+  await conferirPaginaAcessivel(page, AxeBuilder, "ficha-desbloqueada-360", prints)
   assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), "Ficha cabe no celular")
   await page.evaluate(() => { localStorage.setItem("raiz.sessao", JSON.stringify({ token: "cliente-b", email: "outra@raiz.invalid" })); window.dispatchEvent(new Event("raiz-sessao")) })
   await page.getByRole("button", { name: "Desbloquear por 1 crédito" }).waitFor()
@@ -88,6 +91,7 @@ try {
   await page.getByRole("button", { name: "Aplicar filtros" }).click()
   await page.getByRole("heading", { name: "Quanto existe na base" }).waitFor()
   await print("busca-terra-360.png")
+  await conferirPaginaAcessivel(page, AxeBuilder, "prospeccao-360", prints)
   assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), "Busca cabe no celular")
   assert.equal(await page.locator('a[href="#/"]').count() > 0, true)
   await page.evaluate(() => { localStorage.removeItem("raiz.sessao"); window.dispatchEvent(new Event("raiz-sessao")) })

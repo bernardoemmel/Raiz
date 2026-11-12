@@ -91,6 +91,8 @@ try {
   conferirPublicacao()
   console.log("Abrindo o build estático agregado no Chromium...")
   await pagina.goto(base)
+  await pagina.getByRole("group", { name: "Mapa do Brasil por estado" }).waitFor()
+  await pagina.locator('.mapa-nacional-leve a[href="#/estado/PA"]').click()
   await mapaPronto()
   await pagina.waitForFunction(() => {
     const m = document.querySelector(".mapa-brasil .mapa").__mapa

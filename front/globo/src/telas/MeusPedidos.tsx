@@ -36,7 +36,7 @@ export function MeusPedidos() {
   return (
     <div className="tela-pedidos">
       <Cabecalho atual="pedidos" />
-      <main className="pagina pagina-media">
+      <main id="conteudo" tabIndex={-1} className="pagina pagina-media">
         <div className="secao-cabeca">
           <h1>Meus pedidos</h1>
           <a className="botao principal" href={linkNovoPedido}>
