@@ -25,3 +25,5 @@ venv/
 # sistema
 .DS_Store
 motor/iovbench/target/
+# pacotes montados pelo publicar_dados.py (sobem para o Release; no fluxo antigo, git add -f)
+dados-entrada/

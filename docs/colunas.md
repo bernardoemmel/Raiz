@@ -19,7 +19,7 @@ ignorar colunas que não conhece. Áreas em hectares (`_ha`), carbono em tCO2 po
 | sigef_ha / matricula_ha / assentamento_ha | parcelas SIGEF (todas / particulares com matrícula / assentamentos) |
 | f_matricula | fração do CAR coberta por parcela com matrícula |
 | projeto_carbono_ha | sobreposição com projetos de carbono já registrados |
-| alerta_ha / alerta_pos2020_ha / alerta_ultimo_ano | MapBiomas Alerta |
+| alerta_ha / alerta_pos2020_ha / alerta_ultimo_ano | MapBiomas Alerta (alertas publicados, do WFS público da plataforma) |
 | app_desmatada_ha | beira de rio aberta, faixa fixa de 30 m (cenário integral) |
 | app_escadinha_ha | idem pela escadinha do art. 61-A (5/8/15/20/30 m por módulo fiscal) |
 | app_recompor_ha | escadinha com o teto do art. 61-B (10% até 2 MF, 20% de 2 a 4 MF) |
@@ -49,3 +49,4 @@ ignorar colunas que não conhece. Áreas em hectares (`_ha`), carbono em tCO2 po
 | certidoes_<mun>.csv | cartório (CNS) e número de matrícula das parcelas SIGEF de cada imóvel, para pedir certidão |
 | geo_<mun>.parquet | polígono de cada imóvel (cod_imovel + geometria) |
 | resumo_<UF>.csv | uma linha por município com o funil somado |
+| sem_imoveis_<UF>.csv | cod_ibge, municipio, verificado_em: municípios sem nenhum imóvel IRU no CAR (ex.: Uiramutã, RR); contam como prontos |

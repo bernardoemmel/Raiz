@@ -8,7 +8,9 @@ e comparada com o resultado real.
 
 ## O que já existe
 
-**Motor de dados (`motor/`)**: funil por imóvel do CAR, município por município, para todos os estados.
+**Motor de dados (`motor/`)**: funil por imóvel do CAR, município por município, para todos os estados. Roda sozinho no
+GitHub Actions (`.github/workflows/processar-estados.yml`), 4 estados por vez, e publica no Release `dados`, de onde o
+front baixa. Painel com o andamento de cada estado em [`motor/README.md`](motor/README.md).
 
 | Script | O que faz |
 |---|---|
@@ -19,10 +21,12 @@ e comparada com o resultado real.
 | `raiz_direto.py` | YbYrá e Global Pasture Watch lidos direto dos arquivos públicos, sem Earth Engine |
 | `raiz_mapbiomas.py` | MapBiomas (cobertura, desmatamento, fogo, pasto) pela API da Plataforma, sem login e sem Earth Engine |
 | `raiz_app.py` | aplica a escadinha da APP a municípios rodados antes dela |
+| `rodar_estado.py` | roda um estado inteiro, etapa por etapa, dentro do prazo do job (é o que o GitHub Actions chama) |
+| `publicar_dados.py`, `painel.py` | publicam no Release `dados` e atualizam o painel do motor |
 | `raiz_ajustes.py` | ajustes da pesquisa (cenários de carbono etc.) por cima da saída |
 | `mapbiomas_alerta.py` | API do MapBiomas Alerta (credenciais em variáveis de ambiente) |
 | `iovbench/` | teste da interseção pelo iOverlay (Rust) contra o GEOS nos mesmos pares: 2,1x mais rápido em São Félix do Xingu e Altamira, mesma área |
-| `fila*.sh` | filas que rodam o país inteiro, estado por estado, retomando de onde pararam |
+| `fila*.sh` | filas antigas que rodam o país inteiro num computador só, estado por estado |
 
 Desempenho: cerca de 30 a 40 s por município com 3 municípios ao mesmo tempo (4 núcleos, 15 GB); Brasil inteiro em cerca de 2 dias.
 
@@ -41,9 +45,11 @@ python raiz_estado.py PA 1504950      # um município (código IBGE)
 python raiz_estado.py PA              # o estado inteiro
 python raiz_filtros.py PA
 python raiz_direto.py PA
+python rodar_estado.py PA             # todas as etapas que faltam, na ordem
 ```
 
-Saída em `motor/saida/<UF>/`. Para o MapBiomas Alerta, copie `.env.example` para `.env` e preencha.
+Saída em `motor/saida/<UF>/`. O MapBiomas Alerta do funil vem do WFS público da plataforma, sem login; o
+`mapbiomas_alerta.py` (API com login) precisa do `.env` (copie `.env.example` e preencha).
 
 ## Etapas do produto
 
