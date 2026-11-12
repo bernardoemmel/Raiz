@@ -309,15 +309,23 @@ def coletar(engine: Engine, agora: dt.datetime | None = None, vigilancia=None) -
 # --------------------------------------------------------------------------- registrar
 
 
-def registrar(con: Connection, novos: list[Novo], olhadas: set[str], versao: str | None = None) -> dict:
+def registrar(
+    con: Connection,
+    novos: list[Novo],
+    olhadas: set[str],
+    versao: str | None = None,
+    agora: dt.datetime | None = None,
+) -> dict:
+    """Abre os alertas novos e fecha os estados que passaram. `agora` é o relógio da rodada (o mesmo do escalar)."""
     versao = versao or politica()["versao"]
+    agora = agora or _agora()
     abertos = 0
     for n in novos:
         if n.gravidade not in GRAVIDADES:
             raise ValueError(f"gravidade {n.gravidade}")
         r = con.execute(
-            text("""insert into operacao.alerta (origem, chave, gravidade, titulo, texto, detalhe, regra_versao)
-                    values (:o, :c, :g, :ti, :tx, cast(:d as jsonb), :v)
+            text("""insert into operacao.alerta (origem, chave, gravidade, titulo, texto, detalhe, regra_versao,
+                    criado_em) values (:o, :c, :g, :ti, :tx, cast(:d as jsonb), :v, :agora)
                     on conflict (chave) where resolvido_em is null do nothing returning id"""),
             {
                 "o": n.origem,
@@ -327,16 +335,17 @@ def registrar(con: Connection, novos: list[Novo], olhadas: set[str], versao: str
                 "tx": mascarar(n.texto)[:2000],
                 "d": json.dumps({**n.detalhe, "continuo": n.continuo}, default=str),
                 "v": versao,
+                "agora": agora,
             },
         ).first()
         abertos += r is not None
     # estado que deixou de valer fecha sozinho (só nas origens que foram olhadas agora)
     vivas = [n.chave for n in novos]
     fechados = con.execute(
-        text("""update operacao.alerta set resolvido_em = now(), resolucao = 'a condição acabou'
+        text("""update operacao.alerta set resolvido_em = :agora, resolucao = 'a condição acabou'
                 where resolvido_em is null and (detalhe->>'continuo')::boolean
                 and origem = any(:o) and not (chave = any(:v)) returning id"""),
-        {"o": sorted(olhadas), "v": vivas},
+        {"o": sorted(olhadas), "v": vivas, "agora": agora},
     ).all()
     return {"abertos": abertos, "fechados_sozinhos": len(fechados)}
 
@@ -457,6 +466,6 @@ def ciclo(engine: Engine, agora: dt.datetime | None = None, vigilancia=None, env
     agora = agora or _agora()
     novos, olhadas = coletar(engine, agora, vigilancia)
     with engine.begin() as con:
-        reg = registrar(con, novos, olhadas)
+        reg = registrar(con, novos, olhadas, agora=agora)
         env = escalar(con, agora, enviador)
     return {**reg, "envios": env, "olhadas": sorted(olhadas)}

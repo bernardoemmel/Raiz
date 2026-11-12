@@ -116,9 +116,9 @@ def test_coleta_registra_escala_e_fecha_sozinho(eng, monkeypatch):
     assert next(n for n in novos if n.origem == "orcamento").gravidade == "aviso"  # 90% do orçamento
     env = EnviadorFalso()
     with eng.begin() as c:
-        r = A.registrar(c, novos, olhadas)
+        r = A.registrar(c, novos, olhadas, agora=AGORA)
         assert r["abertos"] == len(novos)
-        assert A.registrar(c, novos, olhadas)["abertos"] == 0  # o mesmo problema não abre outro alerta
+        assert A.registrar(c, novos, olhadas, agora=AGORA)["abertos"] == 0  # o mesmo problema não abre outro alerta
         primeiro = A.escalar(c, AGORA, env)
     assert len(primeiro) == len(novos) and all(e["nivel"] == 0 for e in primeiro)
     assert {e["estado"] for e in primeiro} == {"simulado"}
@@ -143,7 +143,7 @@ def test_coleta_registra_escala_e_fecha_sozinho(eng, monkeypatch):
     # a vigilância voltou: o alerta de atraso fecha sozinho; o lote que falhou (fato) continua aberto
     novos2, olhadas2 = A.coletar(eng, AGORA, VigilanciaFalsa(atrasada=False))
     with eng.begin() as c:
-        A.registrar(c, novos2, olhadas2)
+        A.registrar(c, novos2, olhadas2, agora=AGORA)
         abertos = {r[0] for r in c.execute(text("select chave from operacao.alerta where resolvido_em is null"))}
     assert "vigilancia_atrasada" not in abertos and any(k.startswith("lote_falhou:funil") for k in abertos)
 
@@ -165,7 +165,11 @@ def test_backoffice_so_leitura_pela_api(eng, monkeypatch):
         assert pagina.status_code == 200 and "token da API" in pagina.text  # a página não traz dado
         r = cl.get("/backoffice/resumo", headers=h).json()
         assert r["saude"]["banco"] is True and r["custo"]["orcamento_usd"] == 10.0
-        assert r["custo"]["gasto_usd"] >= 9.0 and r["filas"]["revisoes_abertas"] >= 1
+        from raiz.operacao.custo import gasto_do_mes
+
+        with eng.connect() as c:  # o mês do relógio de verdade (o teste pode rodar em outro mês)
+            esperado = round(gasto_do_mes(c, dt.datetime.now(dt.UTC).date()), 4)
+        assert r["custo"]["gasto_usd"] == esperado and r["filas"]["revisoes_abertas"] >= 1
         assert r["alertas"] and all("texto" in a for a in r["alertas"])
         f = cl.get("/backoffice/fazenda/PA-1504950-X", headers=h).json()
         assert f["custo_modelos_usd"] == 9.0 and f["chamadas_modelo"][0]["modelo"] == "claude-haiku-5-5"
