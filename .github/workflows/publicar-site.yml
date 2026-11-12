@@ -53,7 +53,8 @@ jobs:
           pip install --quiet requests shapely pmtiles
           python front/scripts/geo.py 1507300 1504950
 
-      - name: Guardar as geometrias (mesmo as de uma rodada pela metade: o geo.py só baixa o que falta)
+      # guarda mesmo as de uma rodada pela metade: o geo.py só baixa o que falta
+      - name: Guardar as geometrias
         if: always()
         uses: actions/cache/save@v4
         with:
