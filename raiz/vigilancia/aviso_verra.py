@@ -35,6 +35,9 @@ def preparar(
     if perda and prazo_informado and prazo != prazo_informado:
         raise ValueError("prazo informado diverge do estado do evento; confira a descoberta antes de preparar")
     pendencias = ["Conferir os fatos e preencher a assinatura e o contato do proponente no cliente de e-mail."]
+    bloqueado = bool(
+        perda and (perda["estado"] in ("descartada", "relatada") or perda["prazo"].get("aviso_verra_feito_em"))
+    )
     registro = projeto.get("verra_id")
     if not registro:
         pendencias.append("Preencher o ID do projeto no registro da Verra.")
@@ -54,8 +57,8 @@ def preparar(
             "Monitoring sources: " + "; ".join(FONTES.get(f, (f, f))[1] for f in perda["fontes"]) + ".",
             "Field confirmation, the cause and carbon stock impact remain subject to assessment.",
         ]
-        if perda["estado"] in ("descartada", "relatada") or perda["prazo"].get("aviso_verra_feito_em"):
-            pendencias.append("Evento encerrado ou aviso já registrado: conferir antes de repetir o envio.")
+        if bloqueado:
+            pendencias.append("Evento encerrado ou aviso já registrado: exportação de novo aviso inicial bloqueada.")
     else:
         pendencias.append("Restaurar o estado privado do projeto e conferir descoberta, área, fontes e caracterização.")
         linhas += [
@@ -83,7 +86,13 @@ def preparar(
         "dias_restantes": (prazo - hoje).days,
         "origem_prazo": "estado_do_evento" if perda else "informado_pelo_operador",
         "regra_versao": regras.versao,
-        "estado": "rascunho_aguardando_conferencia",
+        "estado": "exportacao_bloqueada" if bloqueado else "rascunho_aguardando_conferencia",
+        "pode_exportar": not bloqueado,
+        "aviso_registrado_em": (
+            perda["prazo"]["aviso_verra_feito_em"].isoformat()
+            if perda and perda["prazo"].get("aviso_verra_feito_em")
+            else None
+        ),
         "enviado": False,
         "pendencias": pendencias,
     }
@@ -91,6 +100,8 @@ def preparar(
 
 def eml(aviso: dict) -> str:
     """Arquivo abrível no cliente de e-mail; sem remetente inventado nem envio SMTP."""
+    if not aviso["pode_exportar"]:
+        raise ValueError("evento encerrado ou aviso já registrado: exportação bloqueada")
     mensagem = EmailMessage(policy=policy.SMTP)
     mensagem["To"] = aviso["destinatario"]
     mensagem["Subject"] = aviso["assunto"]

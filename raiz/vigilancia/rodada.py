@@ -194,9 +194,12 @@ def rodar(
                         relatorio.rascunho(p, pe, regras, hoje, idioma), encoding="utf-8"
                     )
                 (pasta_rel / f"{pe['perda_id']}.kml").write_text(relatorio.kml_da_perda(p, pe), encoding="utf-8")
-                (pasta_rel / f"{pe['perda_id']}_aviso_verra.eml").write_text(
-                    aviso_verra.eml(aviso_verra.preparar(p, pe["perda_id"], regras, hoje, perda=pe)), encoding="utf-8"
-                )
+                rascunho = aviso_verra.preparar(p, pe["perda_id"], regras, hoje, perda=pe)
+                arquivo_aviso = pasta_rel / f"{pe['perda_id']}_aviso_verra.eml"
+                if rascunho["pode_exportar"]:
+                    arquivo_aviso.write_text(aviso_verra.eml(rascunho), encoding="utf-8")
+                else:
+                    arquivo_aviso.unlink(missing_ok=True)
                 avs += aviso.avisos(pe, p, regras, ev, criados, hoje)
             resumo_proj[p.id] = {
                 "perdas_abertas": sum(1 for x in lista_perdas if x["estado"] in ("suspeita", "confirmada")),

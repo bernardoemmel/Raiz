@@ -136,6 +136,8 @@ def roteador(servico: Callable[[], Vigilancia] | None = None, prefixo: str = "/v
         d = s().aviso_verra(projeto_id, perda_id)
         if d is None:
             raise HTTPException(404, "evento de perda não encontrado")
+        if not d["pode_exportar"]:
+            raise HTTPException(409, "evento encerrado ou aviso já registrado: exportação bloqueada")
         return Response(
             eml(d),
             media_type="message/rfc822",

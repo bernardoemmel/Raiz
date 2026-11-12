@@ -221,3 +221,12 @@ def test_aviso_ja_enviado_exige_conferencia(cliente):
     cliente.post(base + "/eventos", json={"tipo": "verra_avisada", "quem": "fundador", "data": "2026-11-12"})
     d = cliente.get(base + "/aviso-verra").json()
     assert any("aviso já registrado" in p for p in d["pendencias"])
+    assert d["aviso_registrado_em"] == "2026-11-12"
+    assert cliente.get(base + "/aviso-verra.eml").status_code == 409
+
+
+def test_rodada_remove_rascunho_de_evento_encerrado(rodado, cfg, poligonos, lista_projetos, regras):
+    v = Vigilancia(cfg, None, regras, lista_projetos, poligonos)
+    v.evento("perda", "PTESTE_LE1", "perda_descartada", HOJE, "fundador", "revisão")
+    rodada.rodar(cfg=cfg, hoje=HOJE, poligonos=poligonos, lista_projetos=lista_projetos)
+    assert not (cfg.estado / "privado" / "relatorios" / "PTESTE_LE1_aviso_verra.eml").exists()

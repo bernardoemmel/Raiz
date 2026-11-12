@@ -163,6 +163,9 @@ def main(argv: list[str] | None = None) -> int:
             _imprimir({"erro": str(ex)})
             return 2
         if args.saida:
+            if not d["pode_exportar"]:
+                _imprimir(d)
+                return 2
             destino = Path(args.saida)
             destino.parent.mkdir(parents=True, exist_ok=True)
             destino.write_text(eml(d), encoding="utf-8")
