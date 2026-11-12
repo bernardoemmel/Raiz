@@ -46,6 +46,7 @@ def linhas(g: gpd.GeoDataFrame, chave: str, cod_municipio: int, volateis: tuple[
     """Retrato do município pronto para o dlt: geometria em WKT, hash da linha e o município como merge_key."""
     df = pd.DataFrame(g.drop(columns="geometry"))
     from raiz.coleta.espelho import geometria_canonica
+    from raiz.funil import grade
 
     geoms = [geometria_canonica(x) for x in g.geometry.values]
     estaveis = sorted(c for c in df.columns if c not in volateis)
@@ -56,6 +57,9 @@ def linhas(g: gpd.GeoDataFrame, chave: str, cod_municipio: int, volateis: tuple[
     df["_hash"] = [hashlib.sha256(t.encode() + b"|" + w).hexdigest()[:32] for t, w in zip(textos, wkb, strict=True)]
     df["geom"] = [None if x is None else shapely.to_wkt(x, rounding_precision=-1) for x in geoms]
     df["cod_municipio_ibge"] = int(cod_municipio)
+    # chave de bloco de 0,5 grau (raiz/funil/grade.py); fora do hash, que só olha o dado da fonte
+    graus = g.geometry.values if g.crs is None or g.crs.is_geographic else g.geometry.to_crs(4674).values
+    df["bloco"] = grade.chaves(graus)
     for c in df.columns:  # datas como texto ISO (o dlt infere o tipo a partir do primeiro lote)
         if pd.api.types.is_datetime64_any_dtype(df[c]):
             df[c] = df[c].astype(str)

@@ -22,6 +22,7 @@ from psycopg.types.json import Jsonb
 from sqlalchemy import Connection, text
 
 from raiz import contrato
+from raiz.funil import grade
 from raiz.versoes import motor_commit, motor_versao, regras_versao, sha256_arquivo
 
 log = logging.getLogger(__name__)
@@ -149,19 +150,33 @@ def _carregar_geo(con: Connection, arquivo: Path) -> int:
     g = g.to_crs(4674)
     geoms = shapely.normalize(g.geometry.values)
     wkb = shapely.to_wkb(geoms, output_dimension=2)
-    linhas = ((c, w, hashlib.sha256(w).hexdigest()[:32]) for c, w in zip(g.cod_imovel.astype(str), wkb, strict=True))
-    con.execute(text("create temp table _geo (cod_imovel text, wkb bytea, geom_hash text) on commit drop"))
-    n = _copy(con, "_geo", ["cod_imovel", "wkb", "geom_hash"], linhas)
+    blocos = grade.chaves(geoms)
+    linhas = (
+        (c, w, hashlib.sha256(w).hexdigest()[:32], b)
+        for c, w, b in zip(g.cod_imovel.astype(str), wkb, blocos, strict=True)
+    )
+    con.execute(text("create temp table _geo (cod_imovel text, wkb bytea, geom_hash text, bloco text) on commit drop"))
+    n = _copy(con, "_geo", ["cod_imovel", "wkb", "geom_hash", "bloco"], linhas)
     con.execute(
         text("""
-        insert into funil.imovel (cod_imovel, geom, geom_hash)
-        select cod_imovel, ST_Multi(ST_CollectionExtract(ST_GeomFromWKB(wkb, 4674), 3)), geom_hash from _geo
+        insert into funil.imovel (cod_imovel, geom, geom_hash, bloco)
+        select cod_imovel, ST_Multi(ST_CollectionExtract(ST_GeomFromWKB(wkb, 4674), 3)), geom_hash, bloco from _geo
         on conflict (cod_imovel) do update
-        set geom = excluded.geom, geom_hash = excluded.geom_hash, atualizado_em = now()
-        where funil.imovel.geom_hash is distinct from excluded.geom_hash""")
+        set geom = excluded.geom, geom_hash = excluded.geom_hash, bloco = excluded.bloco, atualizado_em = now()
+        where (funil.imovel.geom_hash, funil.imovel.bloco) is distinct from (excluded.geom_hash, excluded.bloco)""")
     )
     con.execute(text("drop table _geo"))
     return n
+
+
+def _marcar_blocos(con: Connection, rid: int) -> None:
+    """Copia a chave de bloco do imóvel (raiz/funil/grade.py, gravada com a geometria) para as tabelas da rodada."""
+    for t in ("funil.resultado_imovel", "funil.filtro_imovel", "funil.mapbiomas_imovel"):
+        con.execute(
+            text(f"""update {t} r set bloco = i.bloco from funil.imovel i
+                     where r.rodada_id = :rid and r.cod_imovel = i.cod_imovel and i.bloco is not null"""),
+            {"rid": rid},
+        )
 
 
 def carregar_municipio(
@@ -223,6 +238,7 @@ def carregar_municipio(
     )
     if "geo" in arquivos:
         _carregar_geo(con, arquivos["geo"])
+    _marcar_blocos(con, rid)
 
     novas, faltando, avisos = _fechar_rodada(con, rid, n, list(leituras.values()), mb)
     log.info("município %s: rodada %s com %s imóveis", cod, rid, n)

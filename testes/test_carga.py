@@ -94,6 +94,9 @@ def test_geometria_e_complementos(engine, tmp_path):
     )
     area = _n(engine, "select st_area(geom::geography) / 1e4 from funil.imovel where geom is not null limit 1")
     assert 120 < area < 125  # 0,01 grau x 0,01 grau perto do equador ~ 123 ha
+    # chave de bloco de 0,5 grau (raiz/funil/grade.py) no imóvel e na rodada
+    assert _n(engine, "select array_agg(distinct bloco) from funil.imovel where geom is not null") == ["-47.5_-2.5"]
+    assert _n(engine, "select count(*) from funil.resultado_imovel where bloco = '-47.5_-2.5'") == 3
     assert _n(engine, "select count(*) from funil.complemento_imovel where tipo = 'direto'") == 3
     assert _n(
         engine, "select (atributos->>'gpw_ugpp') is null from funil.complemento_imovel order by cod_imovel limit 1"

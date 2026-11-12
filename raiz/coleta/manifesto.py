@@ -57,6 +57,7 @@ class Fonte(BaseModel):
     tipo: TIPOS
     url: str | None
     recorte: Literal["municipio", "uf", "bbox", "brasil"]
+    densidade: Literal["densa", "esparsa", "cadastro", "tabela"]
     sinal: dict[str, Any]
     calendario: str | dict[str, Any]
     licenca: str

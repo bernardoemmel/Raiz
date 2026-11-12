@@ -2,6 +2,9 @@
 #
 # tipo:        wfs | arcgis | arquivo (HTTP com ETag) | cog (raster na nuvem) | api_mapbiomas | graphql | sidra | parquet
 # recorte:     municipio | uf | bbox | brasil       (unidade de replicação e de checagem)
+# densidade:   densa (cobre todo pixel: MapBiomas, YbYrá, pasto; soma por janela) | esparsa (poucos polígonos ou
+#              pixels marcados: PRODES, DETER, embargos, alertas, territórios; cruzamento ou 'pixels em polígonos') |
+#              cadastro (a base de imóveis) | tabela (sem geometria). Decide o caminho do funil (E2 passo 3).
 # sinal:       como saber que mudou antes de baixar (campo_data | etag | ano | last_edit | hash | publicado_em | calendario)
 # calendario:  diario | dias_semana [0=seg ... 6=dom] | meses [1-12] | rodizio_uf (cada UF num dia da semana)
 # licenca / pode_treinar: dado sem licença conferida não entra em treino (pode_treinar: false) até alguém conferir.
@@ -13,6 +16,7 @@ fontes:
     nome: Cadastro Ambiental Rural, imóveis
     orgao: SFB
     tipo: wfs
+    densidade: cadastro
     url: https://geoserver.car.gov.br/geoserver/sicar/wfs
     camada: "sicar:sicar_imoveis_{uf}"
     versao_wfs: "2.0.0"
@@ -31,6 +35,7 @@ fontes:
     nome: SIGEF, parcelas certificadas
     orgao: INCRA
     tipo: wfs
+    densidade: cadastro
     url: https://geoportal.incra.gov.br/geoserver/ows
     camada: "geonode:sigef_geo"
     versao_wfs: "2.0.0"
@@ -49,6 +54,7 @@ fontes:
     nome: Termos de embargo do Ibama
     orgao: Ibama
     tipo: arquivo
+    densidade: esparsa
     url: https://stibamadadosabertosprd.blob.core.windows.net/dados-abertos/dados/TERMOS_DE_EMBARGO/TERMO_EMBARGO/termo_de_embargo.csv
     recorte: brasil
     chave: SEQ_TAD
@@ -62,6 +68,7 @@ fontes:
     nome: Histórico dos termos de embargo (changelog)
     orgao: Ibama
     tipo: arquivo
+    densidade: tabela
     url: null
     recorte: brasil
     sinal: {tipo: etag}
@@ -75,6 +82,7 @@ fontes:
     nome: PRODES (desmatamento anual, acumulado, não floresta, hidrografia), por bioma
     orgao: INPE
     tipo: wfs
+    densidade: esparsa
     url: https://terrabrasilis.dpi.inpe.br/geoserver/ows
     camada: "{espaco}:{camada}"   # espaços e camadas por bioma: motor/raiz_estado.py (BIOMA_WS, AMZ_LEGAL)
     versao_wfs: "1.0.0"
@@ -90,6 +98,7 @@ fontes:
     nome: DETER (alertas de desmatamento)
     orgao: INPE
     tipo: wfs
+    densidade: esparsa
     url: https://terrabrasilis.dpi.inpe.br/geoserver/ows
     camada: "deter-amz:deter_amz"
     versao_wfs: "2.0.0"
@@ -106,6 +115,7 @@ fontes:
     nome: MapBiomas pela API da Plataforma (exportação por ESTADO, GeoTIFF), coletado por motor/raiz_mapbiomas.py
     orgao: MapBiomas
     tipo: api_mapbiomas
+    densidade: densa
     url: https://prd.plataforma.mapbiomas.org/api/v1/brazil
     cabecalhos: {tenant-id: mapbiomas}
     categoria_estado: 214
@@ -130,6 +140,7 @@ fontes:
     nome: MapBiomas Alerta (desmatamento validado)
     orgao: MapBiomas
     tipo: graphql
+    densidade: esparsa
     url: https://plataforma.alerta.mapbiomas.org/api/v2/graphql
     credenciais: [MAPBIOMAS_ALERTA_EMAIL, MAPBIOMAS_ALERTA_SENHA]
     recorte: uf
@@ -142,6 +153,7 @@ fontes:
     nome: YbYrá-BR v8.1, vegetação secundária (idade e incremento)
     orgao: YbYrá-BR (Source Cooperative)
     tipo: cog
+    densidade: densa
     url: https://data.source.coop/ybyra-br/secondary-forest/{produto}/ybyra_secondary_forest_{produto}_brazil_v8_1_{ano}.tif
     produtos: [age, increment]
     anos: [2024]
@@ -156,6 +168,7 @@ fontes:
     nome: Global Pasture Watch, altura da vegetação baixa e uGPP
     orgao: OpenGeoHub
     tipo: cog
+    densidade: densa
     url: https://s3.opengeohub.org/gpw/arco/gpw_{produto}_30m_s_{ano}0101_{ano}1231_go_epsg.4326_v1.tif
     produtos: [short.veg.height_egbt_m, ugpp_lue.model_m]
     anos: [2024]
@@ -169,6 +182,7 @@ fontes:
     nome: Quilombos (INCRA), terras indígenas (FUNAI) e unidades de conservação (CNUC), via geobr/Ipea
     orgao: Ipea (geobr)
     tipo: parquet
+    densidade: esparsa
     url: https://www.ipea.gov.br/geobr/data_v2.0.0/{arquivo}
     arquivos: [quilombolalands_202605.parquet, indigenouslands_2025.parquet, conservationunits_202503.parquet]
     recorte: brasil
@@ -181,6 +195,7 @@ fontes:
     nome: Pesquisa da Pecuária Municipal (efetivo dos rebanhos)
     orgao: IBGE
     tipo: sidra
+    densidade: tabela
     url: https://apisidra.ibge.gov.br/values/t/3939
     produto_calendario: 9107
     url_calendario: https://servicodados.ibge.gov.br/api/v3/calendario/9107
@@ -195,6 +210,7 @@ fontes:
     nome: SIGMINE (processos minerários)
     orgao: ANM
     tipo: arquivo
+    densidade: esparsa
     url: null
     recorte: brasil
     sinal: {tipo: etag}
