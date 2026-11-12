@@ -356,7 +356,6 @@ Entrega 3 da continuação de 12/11/2026, sobre a ficha paga do PR #52.
 | CI paralelo com cache uv/npm/Chromium/LanguageTool, build público e coleção completa de testes | **feito**; zero skips ainda **parcial**: falta conjunto real de 144 tabelas desenvolvedor do Pará; demais dependências opcionais instaladas no CI |
 | Instruções para proteger a main | **feito** em `docs/operacao.md`; ativação manual pelo fundador |
 
-
 ## Continuidade de documentos, vigilância e calendário (12/11/2026)
 
 - **Feito:** aviso inicial à Verra em JSON e `.eml`, pela API, CLI e rodada diária, separado do relatório de perda. Preparar não envia nem registra `verra_avisada`. Rascunho URTX_LE1 para o desenvolvedor cliente em `docs/pedidos/urtx-le1-aviso-verra.md`, prazo **15/11/2026** registrado no projeto e no alerta interno. Campos desconhecidos: “a preencher pelo proponente”. A Raíz não é proponente e nunca envia; não depende de estado privado.
