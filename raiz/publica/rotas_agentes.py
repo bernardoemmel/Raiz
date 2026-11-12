@@ -22,6 +22,7 @@ from raiz.publica.oauth import ESCOPOS, administrador_da_empresa
 from raiz.publica.privacidade import para_resposta
 
 ESCOPOS_ACAO = {
+    "consultar_ficha": "consultar",
     "consultar_disponibilidade": "consultar",
     "pedir_lote": "pedir",
     "comparar_lotes": "consultar",

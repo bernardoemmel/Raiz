@@ -196,6 +196,61 @@ def test_itens_do_pedido_so_revelam_detalhes_dos_cars_liberados_pelo_proprio_cli
     )
 
 
+def test_andamento_revalida_fichas_por_cliente_sem_alterar_agregados_ou_cobrar(eng):
+    clientes = [S.criar_cliente(eng, "Andamento do lote")[0], S.criar_cliente(eng, "Outro andamento")[0]]
+    pedidos = [str(uuid.uuid4()), str(uuid.uuid4())]
+    with eng.begin() as con:
+        codigos = list(con.execute(text("""select cod_imovel from negocio.oferta
+            where (atributos->>'elegivel')::boolean and (atributos->>'credito_p50')::float > 0
+            order by cod_imovel limit 2""")).scalars())  # fmt: skip
+        for cliente, pedido in zip(clientes, pedidos, strict=True):
+            con.execute(
+                text("insert into negocio.pedido(id,cliente_id,campos) values (:id,:c,cast(:campos as jsonb))"),
+                {"id": pedido, "c": cliente, "campos": S.CamposPedido.model_validate(CAMPOS).model_dump_json()},
+            )
+            con.execute(
+                text("""insert into negocio.pedido_fazenda(pedido_id,cod_imovel,papel,ordem)
+                    values (:p,:cod,:papel,:ordem)"""),
+                [
+                    {"p": pedido, "cod": cod, "papel": "lote" if k == 0 else "reserva", "ordem": k}
+                    for k, cod in enumerate(codigos)
+                ],  # fmt: skip
+            )
+
+    premium = ("creditos", "hectares", "metodo", "caminho", "custo_usd_credito", "risco_terra")
+    inicial = S.andamento(eng, pedidos[0], clientes[0])
+    assert {item["cod_imovel"] for item in inicial["fazendas"]} == set(codigos)
+    assert all(not item["ficha_liberada"] for item in inicial["fazendas"])
+    assert all(item[campo] is None for item in inicial["fazendas"] for campo in premium)
+
+    with eng.begin() as con:
+        con.execute(
+            text("insert into negocio.prospeccao_desbloqueio(cliente_id,cod_imovel) values (:c,:cod)"),
+            [{"c": cliente, "cod": cod} for cliente, cod in zip(clientes, codigos, strict=True)],
+        )
+    for cliente, pedido, autorizado in zip(clientes, pedidos, codigos, strict=True):
+        atual = S.andamento(eng, pedido, cliente)
+        assert {k: v for k, v in atual.items() if k not in ("fazendas", "pedido")} == {
+            k: v for k, v in inicial.items() if k not in ("fazendas", "pedido")
+        }
+        for item in atual["fazendas"]:
+            assert item["ficha_liberada"] == (item["cod_imovel"] == autorizado)
+            if item["ficha_liberada"]:
+                assert item["creditos"]["p50"] > 0 and item["hectares"] > 0
+            else:
+                assert all(item[campo] is None for campo in premium)
+            assert "geometria" not in item
+        _sem_pessoal(atual)
+
+    with eng.begin() as con:
+        con.execute(text("delete from negocio.prospeccao_desbloqueio where cliente_id=:c"), {"c": clientes[0]})
+    assert S.andamento(eng, pedidos[0], clientes[0]) == inicial
+    with eng.connect() as con:
+        for tabela in ("prospeccao_movimento", "lancamento_api"):
+            assert con.execute(text(f"select count(*) from negocio.{tabela} where cliente_id=any(:cs)"),
+                               {"cs": clientes}).scalar_one() == 0  # fmt: skip
+
+
 def test_fluxo_completo_com_ondas_reserva_e_exclusividade(eng, chave):
     # cliente A entra sem senha, pelo link do e-mail
     enviados = []

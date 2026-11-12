@@ -223,7 +223,7 @@ Feito na main fora desta tabela: caminho da terra com risco por imóvel (`raiz/t
 | Ordem | Entrega | Situação |
 |---|---|---|
 | A | API paga: 3 testes por empresa, sinal Pix e contrato, cobrança/estorno, limite SlowAPI, CLI e privacidade | **feito no código**, PR #45 com CI verde (1.072 testes Python); migração 0028 após o calendário |
-| B | MCP oficial Python 2.3.0/protocolo 2026-07-28 no mesmo app, seis ferramentas e resumo único até 8 KiB | **feito no código**, PR #69 com CI verde (1.384 testes Python); descoberta e chamadas testadas com o cliente oficial |
+| B | MCP oficial Python 2.3.0/protocolo 2026-07-28 no mesmo app, sete ferramentas e resumo único até 8 KiB | **feito no código**, base do PR #69 com CI verde (1.384 testes Python), acrescida de `consultar_ficha` para releitura de CAR já adquirido, sem nova tarifa; descoberta e chamadas testadas com o cliente oficial |
 | C | OAuth 2.1/Keycloak; consultar/pedir/reservar, reserva desligada até administrador da empresa habilitar | **feito no código**; JWT, emissor, audiência, PKCE e isolamento testados; produção depende da configuração da instalação |
 | D | Fila durável, Idempotency-Key, Standard Webhooks, aprovação humana/Pix/JWS, OpenTelemetry | **feito no código**; testes de concorrência, queda do processo, assinatura e prazo; conta/API/worker precisam da mesma base e cofre |
 | E | Gabarito de 24 tarefas, quatro sessões por tarefa, meta pass^4 ≥ 80% e zero chamada proibida | **feito**: gabarito e avaliador; desempenho de agente real ainda não medido |
@@ -288,8 +288,8 @@ Continuação de Ficha da fazenda (12/11/2026; validação e operação na passa
 |---|---|
 | Contrato aberto com agregado municipal/estadual e CAR/situação básica; camadas exclusivas e retratos históricos do aprendizado no arquivo privado | **feito**: 40 originais preservados no privado e 22 assets básicos publicados; SHA-256 e bloqueio anônimo conferidos, provas em `docs/dados-publicados.md`; 18 artifacts preservados/removidos e 33 caches antigos descartados; retomada do Pará reutiliza as dez fatias preservadas |
 | Preços em YAML provisório, Pix em teste e roteiro de ativação no servidor | **feito**; valores a definir pelo fundador, venda real fechada |
-| Comparar até cinco fichas pagas, salvar busca/avisos internos e PDF com fontes/datas | **feito** no código; buscas salvas na migração 0028 após 0027 do calendário; agendar verificação no servidor ao implantar |
-| `consultar_ficha` compartilhado pela API e adaptador MCP, alinhado à passagem Produto e regras | **feito**; registro no transporte corporativo permanece com Produto e regras |
+| Comparar até cinco fichas pagas, salvar busca/avisos internos e PDF com fontes/datas | **feito** no código; buscas salvas na migração 0031 após 0030 da plataforma de agentes; agendar verificação no servidor ao implantar |
+| `consultar_ficha` compartilhado pela API e MCP oficial, alinhado à passagem Produto e regras | **feito**; ferramenta registrada no servidor corporativo, com OAuth, gates e releitura de CAR já pago, sem tarifa nova |
 
 Site legível por agentes (12/11/2026): **feito** — `llms.txt`, `robots.txt`, páginas Markdown do Brasil, estados,
 municípios, produtor, serviço, fontes e privacidade; alternates no HTML; JSON-LD `Dataset`, `Service` e `Offer`
@@ -417,7 +417,7 @@ Entrega 3 da continuação de 12/11/2026, sobre a ficha paga do PR #52.
 | Eventos com tipo, data/prazo, UF/município, fonte/link, coleta e confiança | **feito**: esquema `calendario`, migração 0027 após 0022–0025 do título/aprendizado e 0026 da prospecção; histórico, UID e sequência preservados nas retificações |
 | Coleta diária de leilões rurais, penhoras, BNDES, ProFloresta+, Fundo Amazônia, concessões, crédito e SBCE/Verra/ICVCM/SBTi/EUDR | **feito**: 17 fontes oficiais em `raiz/calendario/fontes.yaml`, HTTP/PDF/Firecrawl opcional, workflow diário com snapshot no Release `calendario`; cobertura inicial e falhas explícitas, sem inventar prazos |
 | Vínculo de leilão/penhora ao CAR | **feito**: CAR explícito, CNS+matrícula vigente ou interseção SIGEF; sem corte por tamanho; vínculo insuficiente fica pendente; CAR inferido fica interno, só CAR explícito no edital aparece na consulta pública; nenhum nome ou documento pessoal persistido |
-| API e integração | **feito**: `GET /eventos` com tipo/estado/período/CAR, `GET /eventos.ics` e função Python `proximos_eventos` pronta; o calendário ainda não está registrado no transporte MCP, e o servidor pago mantém suas seis ferramentas |
+| API e integração | **feito**: `GET /eventos` com tipo/estado/período/CAR, `GET /eventos.ics` e função Python `proximos_eventos` pronta; o calendário ainda não está registrado no transporte MCP, e o servidor pago oferece sete ferramentas, incluindo releitura de ficha já adquirida |
 | Site e pedidos | **feito**: aba Calendário, filtros, fonte/data de coleta, feed, selos no mapa/ficha/tabela e aviso deduplicado aos lotes; ficha individual mantém acesso por créditos, e-mail/WhatsApp permanecem simulados. Publicação do site após a coleta |
 | Agenda no servidor | **feito no código**: `scripts/instalar_cron_alertas.py --tarefa calendario --instalar`, diário com banco, trava e `.env`; instalação em produção depende de acesso ao servidor |
 

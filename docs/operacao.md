@@ -609,7 +609,7 @@ não lê a compra. A implementação está coberta por `testes/test_prospeccao_a
 
 ### Avisos de buscas salvas
 
-Depois de migrar o banco até `0028` (buscas salvas, após `0027` do calendário), executar
+Depois de migrar o banco até `0031` (buscas salvas, após `0030` da plataforma de agentes), executar
 `uv run raiz prospeccao verificar-buscas` após cada carga do motor,
 ou pelo cron do operador. O comando usa `RAIZ_BANCO_URL`, imprime somente as quantidades verificadas e sai com
 erro se a consulta falhar. Para repetir uma única busca: `uv run raiz prospeccao verificar-buscas --busca <UUID>`.

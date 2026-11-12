@@ -108,7 +108,8 @@ interesse, reservas e cálculo persistido foram preservados, sem cobrança nova.
 A integração das telas, antes da nova ficha visual, passou em 186 testes do front, build, Pages, prospecção,
 cena-alvo e Lighthouse, preservando também o calendário recém-integrado.
 Onze testes de pedidos com PostGIS e 76 testes da integração de fichas e migrações
-passaram em banco novo, com `0028` como revisão final.
+passaram em banco novo, então com `0028` como revisão final; buscas salvas foram renumeradas para `0031`
+na integração posterior da API corporativa, preservando as migrações `0028` a `0030` da main.
 
 A ficha visual integrada da main preserva mapa, Sentinel-2 e linha do tempo junto
 com a comparação e o PDF. As rotas `/fichas/{car}/visual`, `/visual/satelite` e
@@ -121,22 +122,26 @@ oferta financeira estática é incluída no build aberto.
 
 ## Função compartilhada para API e MCP
 
-A passagem `produto-e-regras.md` foi lida na branch do PR #45, onde estava disponível.
-Ela exige conta empresarial, sinal, contrato, cobrança e limites do host, OAuth no
-MCP e ausência de dados pessoais. O transporte corporativo não foi reescrito.
+A passagem `produto-e-regras.md` e o servidor real dos PRs #45/#69 foram integrados.
+O MCP oficial registra `consultar_ficha`, com OAuth e escopo `consultar`, e usa a
+ponte existente para `GET /v1/fazendas/{CAR}/ficha`. Conta empresarial, sinal,
+contrato, limites e auditoria do host continuam obrigatórios.
 
 `raiz.prospeccao_servico.consultar_ficha(engine, cliente_id, codigo_car)` devolve o
 mesmo DTO fechado usado pela rota HTTP. A identidade vem de autenticação, nunca
 do corpo da ferramenta. O parâmetro opcional `desbloquear=True` pertence ao fluxo
 explícito de compra da interface humana; a ferramenta só lê ficha já liberada.
 
-`raiz.prospeccao_mcp.ferramentas()` fornece schemas de `consultar_ficha` e
-`comparar_fichas`. `executar` exige contexto OAuth corporativo do host com escopo
-`consultar` e callback de autorização dos detalhes, que aplica conta, sinal,
-contrato, cobrança, estorno e auditoria. Sessão do navegador e chave REST não
-substituem esse contexto. O host preserva seu envelope, erros RFC 9457 e tracing;
-o adaptador retorna `content`, `structuredContent` e `isError`, sem transporte novo.
-A integração de registro no servidor MCP corporativo continua com Produto e regras.
+Essa operação é uma **releitura de ficha já adquirida**, sem tarifa adicional,
+consumo dos testes corporativos ou desbloqueio implícito. Sem liberação daquele
+CAR pela própria conta, devolve 402. A análise corporativa de R$ 1.500 permanece
+produto separado. REST e MCP preservam fontes, datas, `null`, cache privado,
+exposição para controle de raspagem e limites compartilhados com a prospecção.
+
+O adaptador Python `raiz.prospeccao_mcp` permanece disponível para hosts internos
+que forneçam contexto OAuth e autorização corporativa; não abre servidor alternativo.
+Comparação de fichas continua na API autenticada da prospecção; somente
+`consultar_ficha` foi acrescentada ao catálogo MCP corporativo nesta integração.
 
 ## Validação e limites reais
 

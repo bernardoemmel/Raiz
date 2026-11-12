@@ -110,6 +110,24 @@ def test_projecao_preserva_fatos_e_nao_altera_evidencia_interna():
     assert andamento["ondas"][0]["canais"] == ["email"]
 
 
+@pytest.mark.parametrize("liberada", [False, True])
+def test_rest_preserva_autorizacao_e_creditos_nulos_da_projecao_por_car(liberada):
+    original = bruto()
+    original["opcoes"] = servico._limpar_opcoes(original["opcoes"], {}, set(), {CAR} if liberada else set())
+    original["fazendas"] = original["opcoes"][0]["itens"]
+    copia = copy.deepcopy(original)
+
+    pedido = A.pedido(original)
+    andamento = A.andamento(original)
+    for item in (pedido["opcoes"][0]["itens"][0], andamento["fazendas"][0]):
+        assert item["ficha_liberada"] is liberada
+        assert item["creditos"] == ({"p10": 10, "p50": 20, "p90": 30} if liberada else None)
+        assert item["hectares"] == (3 if liberada else None)
+        sem_texto(item)
+    assert pedido["opcoes"][0]["creditos"] == {"p10": 10, "p50": 20, "p90": 30}
+    assert original == copia
+
+
 def test_analise_so_publica_numeros_enum_e_rotulos_controlados():
     x = {
         "cod_imovel": CAR,

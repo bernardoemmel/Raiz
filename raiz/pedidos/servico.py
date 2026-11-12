@@ -930,13 +930,15 @@ def andamento(engine: Engine, pedido_id: str, cliente_id: int | None) -> dict:
                                             and detalhe ? 'afrouxar' order by id desc limit 1"""),
             {"p": p["id"]},
         ).scalar()
-    cods = sorted(set(pf) | set(ja.cod_imovel))
+        cods = sorted(set(pf) | set(ja.cod_imovel))
+        liberadas = _fichas_desbloqueadas(con, p["cliente_id"], [cod for cod in cods if cod not in fora])
     of = _oferta(engine, c)
     of = of[of.cod_imovel.isin(cods) & ~of.cod_imovel.isin(fora)]
     fazendas = []
     for li in of.to_dict("records"):
         papel, trocou = pf.get(li["cod_imovel"], ("reserva", None))
         fazendas.append(Z.fazenda_do_lote(li, papel, nv.get(li["cod_imovel"], "sem_contato"), trocou))
+    fazendas = _limpar_opcoes([{"itens": fazendas}], nv, fora, set(liberadas))[0]["itens"]
     return {
         "pedido": str(p["id"]),
         "status": p["estado"],

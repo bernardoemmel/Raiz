@@ -250,7 +250,7 @@ def para_resposta(x: Any, *, _campo: str = "", _pai: str = "") -> Any:
         return x
     if _campo in _IDS and _uuid(x):
         return x
-    if _campo == "cod_imovel":
+    if _campo in {"cod_imovel", "codigo_car"}:
         return x if _CAR.fullmatch(x) else None
     if _campo == "agente_modelo":
         import hashlib
