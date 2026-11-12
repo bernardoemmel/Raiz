@@ -1,7 +1,9 @@
 """Instalação de cron preserva os trabalhos existentes e não duplica alertas."""
 
 import fcntl
+import shutil
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -54,6 +56,34 @@ def test_comando_roda_do_repositorio_com_trava_e_caminho_com_espacos(tmp_path):
 def test_caminho_nao_injeta_linha_ou_entrada_no_cron(caminho):
     with pytest.raises(ValueError):
         bloco(Path(caminho), "/opt/uv", "/usr/bin/flock")
+
+
+def test_cron_carrega_dotenv_no_ambiente_sem_executar_shell(tmp_path, monkeypatch):
+    uv_real = shutil.which("uv")
+    if uv_real is None:
+        pytest.skip("integração do dotenv exige uv")
+    monkeypatch.delenv("RAIZ_VIGILANCIA_DIR", raising=False)
+    monkeypatch.setenv("UV_OFFLINE", "1")
+    # O valor parece código shell de propósito: uv deve tratá-lo como texto, sem executar nada.
+    valor = "$(touch arquivo_que_nao_deve_existir)"
+    (tmp_path / ".env").write_text(f"RAIZ_VIGILANCIA_DIR='{valor}'\n")
+    prova = (
+        "import os; from pathlib import Path; "
+        f"Path('ambiente_ok').write_text(str(os.environ.get('RAIZ_VIGILANCIA_DIR') == {valor!r}))"
+    )
+    uv_teste = tmp_path / "uv_teste"
+    # Só troca o comando da aplicação por uma sonda; o dotenv é lido pelo binário uv de verdade.
+    uv_teste.write_text(
+        f"#!{sys.executable}\nimport os,sys\n"
+        f"os.execv({uv_real!r}, [{uv_real!r}, 'run', '--no-project', "
+        f"*sys.argv[2:sys.argv.index('raiz')], {sys.executable!r}, '-c', {prova!r}])\n"
+    )
+    uv_teste.chmod(0o700)
+    linha = bloco(tmp_path, str(uv_teste), "/usr/bin/flock").splitlines()[1]
+    resultado = subprocess.run(["/bin/sh", "-c", linha.split(" ", 5)[5]], capture_output=True, text=True, check=True)
+    assert (tmp_path / "ambiente_ok").read_text() == "True"
+    assert not (tmp_path / "arquivo_que_nao_deve_existir").exists()
+    assert valor not in resultado.stdout + resultado.stderr
 
 
 def test_falha_ao_ler_cron_nao_apaga_agendamentos(monkeypatch):

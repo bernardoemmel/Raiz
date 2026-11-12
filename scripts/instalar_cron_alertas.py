@@ -20,14 +20,15 @@ FIM = "# FIM RAIZ ALERTAS"
 
 def bloco(repositorio: Path, uv: str, flock: str) -> str:
     """Caminhos absolutos, diretório do .env e trava contra rodadas simultâneas."""
-    caminhos = [str(repositorio.resolve()), uv, flock]
+    caminhos = [str(repositorio.resolve()), str(Path(uv).resolve()), str(Path(flock).resolve())]
     if any(any(c in caminho for c in "\n\r%") for caminho in caminhos):
         # O cron interpreta % mesmo dentro de aspas; não aceitar caminhos ambíguos.
         raise ValueError("Os caminhos não podem conter quebra de linha nem %.")
     repo, uv, flock = map(shlex.quote, caminhos)
     comando = (
         f"cd {repo} && /bin/mkdir -p dados/operacao && "
-        f"{flock} -n -E 0 dados/operacao/alertas.lock {uv} run --frozen raiz operacao alertas"
+        "if [ -f .env ]; then set -- --env-file .env; else set --; fi && "
+        f'{flock} -n -E 0 dados/operacao/alertas.lock {uv} run "$@" --frozen raiz operacao alertas'
     )
     return f"{INICIO}\n*/15 * * * * {comando}\n{FIM}\n"
 

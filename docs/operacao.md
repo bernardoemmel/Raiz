@@ -37,7 +37,9 @@ crontab -l
 
 O instalador preserva os outros trabalhos e substitui apenas o bloco marcado da Raíz; pode ser repetido. Usa o
 caminho absoluto do `uv`, entra na raiz do repositório (onde a configuração lê o `.env`), exige o lockfile com
-`--frozen` e usa `flock` para não sobrepor rodadas. Precisa de `cron` ativo e `flock` (`util-linux`) no servidor.
+`--frozen` e usa `flock` para não sobrepor rodadas. Se existir `.env`, usa `uv run --env-file .env` para exportar
+também as variáveis lidas diretamente por `os.environ` na vigilância; não executa o arquivo como código shell.
+Precisa de `cron` ativo e `flock` (`util-linux`) no servidor.
 Não instala serviços nem preenche credenciais. Sem ntfy e GoAlert, continua em envio simulado; sem banco acessível
 e migrado, a rodada falha. A prévia não ativa nada. Um ambiente de desenvolvimento sem acesso ao servidor não
 comprova que o agendamento esteja ativo em produção.
