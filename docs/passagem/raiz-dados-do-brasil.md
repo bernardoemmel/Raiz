@@ -166,3 +166,15 @@ uv run ruff check raiz testes scripts migracoes && uv run ruff format --check ra
 uv run raiz privacidade varrer && uv run python scripts/checar_licencas.py
 uv run python motor/rodar_estado.py --planejar   # o plano da próxima rodada, só lendo o estados.json publicado
 ```
+
+## Validação de escala e modelos na retomada
+
+- Suíte integrada após atualizar a main: 854 testes passaram com PostGIS (2 pulados, 1 xfail).
+- RO real: 521 CSVs, 14.020 campos e 5.073.915 linhas de quantis; 3.476 diagnósticos de faixas financeiras cruzadas,
+  sem ordenar ou inventar valores. A ficha Croissant permanece byte a byte idêntica após limitar a memória.
+- Baker e mlcroissant são executados em partes, em filhos sequenciais; checagens globais conferem IDs e referências.
+  No RO, o pico simultâneo pai+filho foi 314 MiB, ante 1,083 GiB na geração anterior.
+- O registro histórico fechado da regra `restauracao-2026c+421970fd` recupera os YAMLs do commit
+  `8eebc6a90bc20bce585520cee81bbebdd1ff93df` e confere hashes integrais. RO gerou 25 estimativas CAD Trust sem
+  diagnósticos, com soma e marcos conferidos. A seleção usa o otimizador atual, identificado separadamente;
+  previsões individuais e curva histórica são preservadas.

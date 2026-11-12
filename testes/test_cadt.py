@@ -155,7 +155,7 @@ def test_sem_fazendas_ou_lote_elegivel_publica_diagnostico(tmp_path, monkeypatch
         {"codigo": "sem_fazendas_com_estimativa"}
     ]
     monkeypatch.setattr(L, "ler_uf", lambda *a, **kw: {"oferta": pd.DataFrame({"cod_imovel": ["nao_publicar"]})})
-    monkeypatch.setattr(L, "montar", lambda *a, **kw: {"resumo": {"cronograma_lote": None}})
+    monkeypatch.setattr(cadt, "_resumo_cronograma", lambda *a, **kw: {"cronograma_lote": None})
     assert cadt.cadt_uf(pasta, "PA", data_inicio="2027-01-01")["diagnosticos"] == [{"codigo": "sem_lote_elegivel"}]
 
 
@@ -244,3 +244,110 @@ def test_cenario_da_amostra_passando_pelo_lote_real(tmp_path):
     assert out["metadados"]["cobertura_municipios"]["lidos"] == 1
     assert out["metadados"]["cobertura_municipios"]["no_estado"] == 2
     assert "cod_imovel" not in json.dumps(out)
+
+
+def test_resumo_cadt_preserva_selecao_p50_e_marcos_do_lote_atual(monkeypatch):
+    selecionar, selecoes = L._selecionar, []
+
+    def registrar(*args, **kwargs):
+        sel = selecionar(*args, **kwargs)
+        selecoes.append((set(sel["tit"].cod_imovel), set(sel["res"].cod_imovel)))
+        return sel
+
+    monkeypatch.setattr(L, "_selecionar", registrar)
+    dados = L.ler_pasta(AMOSTRA, "PA")
+    r, c = R.regra(), R.cenario("central_r11")
+    completo = L.montar(dados, r=r, c=c, sensibilidade_ligada=False)["resumo"]
+    simples = cadt._resumo_cronograma(dados, r, c)
+    assert selecoes[0] == selecoes[-1]
+    for campo in ("titulares", "reservas", "pequenas", "versao_premissas", "versao_otimizador", "versao_edital"):
+        assert simples[campo] == completo[campo]
+    assert simples["cronograma_lote"] == completo["cronograma_lote"]
+    assert all(simples["municipios"][k] == completo["municipios"][k] for k in simples["municipios"])
+
+
+HISTORICA = "restauracao-2026c+421970fd"
+COMMIT_HISTORICO = "8eebc6a90bc20bce585520cee81bbebdd1ff93df"
+SHA_HISTORICO = "421970fd238e3771fb423b808dca31eadf9efee51a14bd7ded6e98d1d6b49edd"
+
+
+@pytest.fixture
+def fonte_historica(tmp_path):
+    """Fixture sintética de proveniência; os créditos da amostra são mantidos literalmente."""
+    pasta = tmp_path / "PA"
+    pasta.mkdir()
+    for arquivo in AMOSTRA.glob("*.csv"):
+        shutil.copyfile(arquivo, pasta / arquivo.name)
+    for arquivo in pasta.glob("desenvolvedor_*.csv"):
+        tabela = pd.read_csv(arquivo)
+        tabela["restauracao_versao"] = HISTORICA
+        tabela.to_csv(arquivo, index=False)
+    return pasta
+
+
+def test_regra_historica_uniforme_gera_cronograma_sem_recalcular_previsoes(fonte_historica, monkeypatch):
+    from raiz.regras.historico import carregar
+
+    r, proveniencia = carregar(HISTORICA)
+    assert r["versao_completa"] == HISTORICA
+    assert "carteira" not in r and "parcelas" not in r  # sem completar a regra antiga com ciência atual
+    assert proveniencia["regra_source_commit"] == COMMIT_HISTORICO
+    assert proveniencia["regra_source_sha256"] == SHA_HISTORICO
+    assert carregar("regra_inventada") is None
+    monkeypatch.setattr(R, "fluxo_p50", lambda *a, **kw: pytest.fail("previsão individual não deve ser refeita"))
+    monkeypatch.setattr(L, "montar", lambda *a, **kw: pytest.fail("relatório econômico não deve ser calculado"))
+    out = cadt.cadt_uf(fonte_historica, "PA", data_inicio="2027-01-01", data_referencia="2026-11-12")
+    assert not out["diagnosticos"] and len(out["projeto"]["estimations"]) == 25
+    m = out["metadados"]
+    assert m["regra_source_commit"] == COMMIT_HISTORICO and m["regra_source_sha256"] == SHA_HISTORICO
+    assert m["regra_source_versao"] == m["versoes"]["versao_premissas"] == HISTORICA
+    assert m["versoes"]["versao_otimizador"].endswith(HISTORICA)
+    assert m["previsoes_individuais_recalculadas"] is False
+    assert m["selecao_lote"] == "otimizador atual aplicado aos créditos publicados"
+    assert "cod_imovel" not in json.dumps(out)
+    assert sum(e["unitCount"] for e in out["projeto"]["estimations"]) == math.floor(m["credito_contrato_p50"] + 0.5)
+    for marco in m["marcos"]:
+        assert sum(e["unitCount"] for e in out["projeto"]["estimations"][: marco["ano"]]) == marco["acumulado_inteiro"]
+
+
+def test_regra_explicita_nunca_eh_substituida_pelo_registro_historico(fonte_historica, monkeypatch):
+    import raiz.regras.historico
+
+    monkeypatch.setattr(raiz.regras.historico, "carregar", lambda *a: pytest.fail("regra explícita é estrita"))
+    out = cadt.cadt_uf(fonte_historica, "PA", data_inicio="2027-01-01", r=R.regra())
+    assert out["projeto"] is None and out["diagnosticos"] == [{"codigo": "versao_da_fonte_incompativel"}]
+
+
+def test_versoes_conhecidas_mistas_tambem_recusadas(fonte_historica, monkeypatch):
+    arquivo = next(fonte_historica.glob("desenvolvedor_*.csv"))
+    tabela = pd.read_csv(arquivo)
+    tabela.loc[0, "restauracao_versao"] = R.versao()
+    tabela.to_csv(arquivo, index=False)
+    monkeypatch.setattr(L, "ler_uf", lambda *a: pytest.fail("não pode selecionar parte da UF"))
+    out = cadt.cadt_uf(fonte_historica, "PA", data_inicio="2027-01-01")
+    assert out["projeto"] is None and out["diagnosticos"] == [{"codigo": "versao_da_fonte_incompativel"}]
+
+
+@pytest.mark.parametrize(
+    "nome",
+    [
+        "manifesto.json",
+        "restauracao.yaml",
+        "restauracao_cambio.yaml",
+        "edital_profloresta.yaml",
+        "restauracao_calibracao.yaml",
+    ],
+)
+def test_registro_historico_adulterado_nao_publica_cronograma(fonte_historica, tmp_path, monkeypatch, nome):
+    from raiz.regras import historico
+
+    pasta = tmp_path / "registro"
+    shutil.copytree(historico.PASTA / HISTORICA, pasta / HISTORICA)
+    arquivo = pasta / HISTORICA / nome
+    arquivo.write_bytes((arquivo.read_bytes() if arquivo.exists() else b"") + b"\n# NAO_PUBLICAR\n")
+    monkeypatch.setattr(historico, "PASTA", pasta)
+    with pytest.raises(ValueError, match="registro histórico de restauração inválido"):
+        historico.carregar(HISTORICA)
+    out = cadt.cadt_uf(fonte_historica, "PA", data_inicio="2027-01-01")
+    assert out["projeto"] is None and out["diagnosticos"] == [{"codigo": "registro_historico_invalido"}]
+    assert "NAO_PUBLICAR" not in json.dumps(out)

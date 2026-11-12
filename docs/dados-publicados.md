@@ -69,7 +69,9 @@ São dados de fontes públicas (CAR, MapBiomas, INPE, FUNAI, INCRA, ICMBio), sem
 O publicador do executor gera `croissant_<UF>.json` com o SHA-256 do `raiz_<UF>.tar.gz` efetivamente publicado,
 um `FileObject` por CSV e `FileSet` por tabela. Cada CSV preserva seu próprio esquema, inclusive quando um município
 tem colunas mais novas que outro. O baker 0.8.3 infere os tipos percorrendo o CSV; o mlcroissant 1.1.1 valida a ficha
-sem baixar o pacote. Um teste também carrega registros reais de um tar local pelo mlcroissant.
+sem baixar o pacote. Um teste também carrega registros reais de um tar local pelo mlcroissant. Geração e validação
+trabalham em partes de até 1.500 campos, com processos isolados e checagem global de IDs/referências; a ficha
+publicada continua integral. Isso limita a memória sem retirar campos nem aceitar grafos inconsistentes.
 
 Pacotes de geometria, camadas e arquivos de controle recebem `croissant_<nome-do-arquivo>.json`; esses arquivos
 não tabulares são descritos como distribuições, sem prometer um leitor de registros para formatos não suportados.
@@ -119,8 +121,10 @@ No Actions, `RAIZ_CADT_INICIO_CENARIO` usa **2027-01-01** por padrão e pode ser
 É uma âncora hipotética para comparar cronogramas. `Listed` representa a listagem neste catálogo de cenários;
 VM0047 é referência metodológica. O arquivo não afirma registro no CAD Trust/Verra, certificação ou emissão de
 créditos. Estado sem lote elegível ou cronograma válido recebe diagnóstico.
-Resultados do desenvolvedor com versão científica ou cenário ausentes/incompatíveis também impedem a exportação
-do projeto estadual; o exportador não aplica silenciosamente a curva atual a previsões de outro modelo.
+Resultados do desenvolvedor com versão científica/cenário ausentes, versões misturadas ou sem regra verificável
+impedem o projeto estadual. O registro em `raiz/regras/historico/` recupera explicitamente a versão
+`restauracao-2026c+421970fd`, com commit e hashes integrais; preserva previsões e curva originais, aplicando o
+otimizador atual aos créditos publicados. A proveniência distingue a regra histórica da seleção atual.
 
 ## Atestação e atualização dos arquivos existentes
 

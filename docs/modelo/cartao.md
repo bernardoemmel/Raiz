@@ -113,8 +113,12 @@ acumulados e calcula a diferença entre anos, preservando o total inteiro e conf
 do cenário no Actions é **01/01/2027**, uma hipótese configurável em `RAIZ_CADT_INICIO_CENARIO`, sem afirmar data
 contratada de implantação. `Listed` significa listagem no catálogo de cenários da Raíz. Ausência de área elegível,
 cronograma ou premissas válidas gera diagnóstico, sem inventar um projeto.
-CSV do desenvolvedor sem versão/cenário ou com identificação diferente da regra usada no cronograma impede o
-projeto estadual, mesmo que os números pareçam compatíveis. Uma curva nova não reinterpreta uma previsão antiga.
+CSV do desenvolvedor sem versão/cenário, com versões misturadas ou sem uma regra correspondente verificável impede
+o projeto estadual, mesmo que os números pareçam compatíveis. A versão histórica `restauracao-2026c+421970fd` foi
+recuperada do commit `8eebc6a90bc20bce585520cee81bbebdd1ff93df`; o registro fechado confere hashes integrais da regra,
+do câmbio e do edital. O cronograma conserva o P50 publicado e a curva original, enquanto a seleção do lote usa
+o otimizador atual, identificado separadamente. Não recalcula os fluxos individuais nem atribui a versão nova
+a uma previsão antiga. Outras versões precisam de registro verificável; não são inferidas por prefixo.
 
 ## 5. Avaliação e métricas
 
