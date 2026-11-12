@@ -129,7 +129,7 @@ export function Principal({ municipio, abertura }: Props) {
   }, [municipio])
 
   const [filtros, setFiltros] = useState<F>(FILTROS_INICIAIS)
-  const [camadas, setCamadas] = useState<Camadas>({ secundaria: false, alertas: true, areas: true, rios: true })
+  const [camadas, setCamadas] = useState<Camadas>({ fogo: false, secundaria: false, alertas: true, areas: true, rios: true })
   const [destaque, setDestaque] = useState<string | null>(null)
   const [projeto, setProjeto] = useState(false)
 
@@ -145,7 +145,7 @@ export function Principal({ municipio, abertura }: Props) {
 
   return (
     <>
-      <Cabecalho atual="mapa" imoveis={dados} linkMapa={linkMunicipio(municipio)} />
+      <Cabecalho atual="mapa" linkMapa={linkMunicipio(municipio)} />
       <main className="pagina">
         <div className="cabeca">
           <div>

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react"
 import { Globe, type GlobeMarker } from "../components/ui/cobe-globe"
 import { fmtInt } from "../../../compartilhado/formato"
+import { Busca } from "./Busca"
 import { IconeRaiz } from "./Icones"
 
 /**
@@ -171,6 +172,9 @@ export function Abertura({ local, nome, uf, imoveis, mapaPronto, aoRevelar, aoTe
       <div className="abertura-fundo" ref={fundo} />
       <div className="abertura-marca">
         <IconeRaiz /> Raíz
+      </div>
+      <div className="abertura-busca">
+        <Busca aoEscolher={pular} />
       </div>
       <div className="abertura-globo" ref={globo}>
         <Globe

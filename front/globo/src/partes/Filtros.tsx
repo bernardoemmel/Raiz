@@ -2,6 +2,7 @@ import type { Imovel } from "../../../compartilhado/dados"
 import { DESMATES, FRENTES, TITULOS, type Filtros as F, type TituloId } from "../filtros"
 
 export interface Camadas {
+  fogo: boolean
   secundaria: boolean
   alertas: boolean
   areas: boolean
@@ -20,8 +21,8 @@ export function Filtros({ filtros, mudar, camadas, mudarCamadas, imoveis }: Prop
   const semDado = !imoveis
   const alternarTitulo = (t: TituloId) =>
     mudar({ ...filtros, titulos: filtros.titulos.includes(t) ? filtros.titulos.filter((x) => x !== t) : [...filtros.titulos, t] })
-  const temColuna = (c: string) => !!imoveis?.some((i) => i.linha[c] !== undefined && i.linha[c] !== "")
-  const temFogo = temColuna("mb_fogo_2025_ha") || temColuna("anos_fogo")
+  // a camada de fogo liga quando o motor entrega fogo_anos_max (extras_) ou mb_fogo_<ano>_ha (mapbiomas_)
+  const temFogo = !!imoveis?.some((i) => i.fogo_anos_max !== null || i.mb_fogo_ha !== null)
 
   return (
     <aside className="painel filtros" aria-label="Filtros">
@@ -108,8 +109,16 @@ export function Filtros({ filtros, mudar, camadas, mudarCamadas, imoveis }: Prop
           />
           Alertas de desmatamento
         </label>
-        <label className={"marcar" + (temFogo ? "" : " desligado")} title="O motor ainda não entrega os anos de fogo nesta amostra">
-          <input type="checkbox" disabled={!temFogo} checked={false} onChange={() => undefined} />
+        <label
+          className={"marcar" + (temFogo ? "" : " desligado")}
+          title="Contorno pelos anos com fogo de 1985 a 2024 (MapBiomas Fogo) e círculo onde queimou no ano mais recente"
+        >
+          <input
+            type="checkbox"
+            disabled={!temFogo}
+            checked={temFogo && camadas.fogo}
+            onChange={() => mudarCamadas({ ...camadas, fogo: !camadas.fogo })}
+          />
           <span>
             Fogo (anos queimados)
             {!temFogo && <small>chega com o MapBiomas Fogo no motor</small>}

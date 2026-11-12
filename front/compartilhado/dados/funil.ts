@@ -35,6 +35,17 @@ export function lerImovel(bruta: Linha, complementos: Linha[] = []): Imovel {
   const com_matricula = apta && f_matricula >= 0.5
   const assentamento = frente === "assentamento_agrupado" || (ha > 0 && assentamento_ha / ha >= 0.5)
 
+  // MapBiomas pela API: o ano mais recente que vier nas colunas mb_fogo_<ano>_ha
+  const anos = Object.keys(l)
+    .map((c) => /^mb_fogo_(\d{4})_ha$/.exec(c)?.[1])
+    .filter((a): a is string => !!a)
+    .sort()
+  const mb = anos.length ? anos[anos.length - 1] : null
+  const inteiro = (c: string) => {
+    const v = num(l, c)
+    return v === null ? null : Math.round(v)
+  }
+
   const imovel: Imovel = {
     cod_imovel: l.cod_imovel,
     uf: texto(l, "uf") ?? l.cod_imovel?.slice(0, 2) ?? "",
@@ -81,6 +92,15 @@ export function lerImovel(bruta: Linha, complementos: Linha[] = []): Imovel {
     credito_rural_ok: bool(l, "credito_rural_ok"),
     compra_arrendamento: bool(l, "compra_arrendamento"),
     cacau_aptidao: num(l, "cacau_aptidao"),
+    fogo_anos_max: num(l, "fogo_anos_max"),
+    mb_ano: mb ? Number(mb) : null,
+    mb_fogo_ha: mb ? num(l, `mb_fogo_${mb}_ha`) : null,
+    mb_fogo_mes: mb ? inteiro(`mb_fogo_mes_principal_${mb}`) : null,
+    mb_classe: mb ? inteiro(`mb_classe_principal_${mb}`) : null,
+    tmf_classe: inteiro("tmf_classe"),
+    tmf_floresta_pct: num(l, "tmf_floresta_pct"),
+    tmf_regeneracao_pct: num(l, "tmf_regeneracao_pct"),
+    causa_perda: inteiro("causa_perda"),
     filtro_territorial: texto(l, "filtro_territorial"),
     quilombo_ha: num(l, "quilombo_ha"),
     ti_funai_ha: num(l, "ti_funai_ha"),

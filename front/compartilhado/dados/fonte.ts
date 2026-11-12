@@ -8,6 +8,7 @@
  */
 
 export { comoLinha } from "./colunas"
+import type { RespostaBusca } from "./busca"
 import type { Ficha } from "./ficha"
 import type { CamadaGeo, FunilMunicipio, Geo, Imovel } from "./tipos"
 
@@ -34,6 +35,8 @@ export interface FonteDeDados {
   ficha(cod_imovel: string): Promise<Ficha | null>
   /** cartório (CNS) e matrícula das parcelas SIGEF do imóvel, quando o motor gerou certidoes_<mun>.csv */
   certidoes(cod_imovel: string): Promise<Certidao[]>
+  /** GET /busca?q=: código do CAR (inteiro ou começo) ou nome do município; diz por que não achou */
+  buscar(q: string, sinal?: AbortSignal): Promise<RespostaBusca>
   /** quais municípios têm dado por fazenda */
   municipiosComImoveis(): Promise<string[]>
   geo: {
