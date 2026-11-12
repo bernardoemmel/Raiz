@@ -40,11 +40,18 @@ O painel abre em `http://localhost:5173/` e a ficha do produtor em `http://local
   código do CAR vai direto para a ficha, com o mapa saindo do município e pousando na fazenda; nome de município vai
   para o mapa dele, inclusive de estado ainda não processado (o painel avisa).
 
+- **Pedidos** (`#/pedidos`, área logada): entrar sem senha (e-mail com link, `#/entrar`), "Meus pedidos" com o status
+  de cada um, "Novo pedido" (`#/pedidos/novo`) com os campos da cena-alvo já preenchidos, o pedido (`#/pedidos/<id>`)
+  com "Quanto existe na nossa base", as 3 opções em abas e o lote no mapa, a busca de interesse dos donos em ondas, e o
+  grupo (`#/pedidos/<id>/grupo`) com a reserva por Pix. Ver "Pedido de lote" abaixo.
+
 Testes: `cd front/globo && npm test` (dados, funil, busca, rotas, design, ausência do globo e dados por estado: estado
 completo, incompleto, estados.json baixado, cache dos pontos, queda para a amostra sem RAIZ_DADOS e sem internet, CPF
 e CNPJ mascarados) e `npm run test:e2e` (sem internet o predev avisa e segue; sobe o Vite com a amostra e confere no
 Chromium a entrada por estado, o toque no estado e no município, a busca por município e por CAR e a gaveta no
-celular; precisa do Playwright com o Chromium e de `front/geo/` gerado).
+celular; depois, o pedido de lote de ponta a ponta: entrar pelo link, novo pedido com os padrões, base, 3 opções,
+troca, busca de interesse até o grupo pronto, reserva com Pix, exclusividade e o celular sem passar da tela; precisa do
+Playwright com o Chromium e de `front/geo/` gerado).
 
 ## Dados
 
@@ -100,6 +107,27 @@ roda no navegador.
 Colunas que o front já sabe usar quando o motor entregar: `matricula_conferida` (troca o selo "matrícula a
 conferir" por "conferida"), `rebanho_cabecas` (linha de gado na caixa de fatos), `fogo_anos_max` e `mb_fogo_<ano>_ha` (camada de fogo, já ligada). A frente Cacau e o raio do
 frigorífico ficam desligados de propósito, mesmo quando as colunas chegarem.
+
+## Pedido de lote (cena-alvo)
+
+O contrato com o back-end está em `compartilhado/pedidos/tipos.ts` (rotas no comentário do topo): `POST /entrar`,
+`POST /entrar/confirmar`, `GET /pedidos`, `POST /pedidos`, `GET /pedidos/{id}`, `POST /pedidos/{id}/lote` (tirar ou
+trocar), `POST /pedidos/{id}/solicitar-interesse`, `GET /pedidos/{id}/andamento`, `POST /pedidos/{id}/reservar` e
+`GET /pedidos/{id}/reserva`, com o token da sessão no cabeçalho. Com `VITE_RAIZ_API`, as telas falam com essas rotas.
+
+Sem a API, a **resposta de exemplo** (`compartilhado/pedidos/exemplo.ts`) roda no navegador com o mesmo formato, e a
+tela avisa. O lote sai de fazendas aptas de verdade (as que têm contorno em `front/geo/`: hoje São Félix do Xingu e
+Cumaru do Norte). Custo, TIR, chance de cada marco, aceite dos donos e ondas de contato são simulados, com as
+premissas escritas em `PREMISSAS` e em "Ver como calculamos". A mais barata ordena por custo por crédito, a mais
+segura por risco da terra e chance de aceite (e fecha a meta no P10), a mais compacta pelas vizinhas de onde há mais
+crédito. Na busca de interesse, a primeira onda contata mais donos do que a meta pede. Quem recusa ou não responde
+sai, e entram reservas até a meta caber na chance de aceite esperada. A onda é de 20 s no exemplo; o teste de tela
+usa `localStorage["raiz.exemplo.onda_ms"]`. O exemplo guarda os pedidos no navegador, separados por e-mail. O Pix de
+exemplo não é um código de banco e não paga nada.
+
+Exclusividade: fazenda reservada por outro cliente some do mapa do município, da lista, da ficha, da busca e de todo
+lote (`compartilhado/pedidos/exclusividade.ts`; no exemplo, cerca de 1,5% das fazendas). Com a API, quem esconde é o
+servidor. A ficha do produtor não passa por essa camada: o dono sempre vê a própria fazenda.
 
 ## Regras que as telas seguem
 

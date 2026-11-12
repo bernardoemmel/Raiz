@@ -27,6 +27,9 @@ Distribuídas dentro do produto (vão no pacote que o navegador baixa), sem alte
 | Preact 10.29.8 | `front/produtor` | MIT |
 | Fontes Familjen Grotesk, Atkinson Hyperlegible Next e IBM Plex Mono (@fontsource 5.3.0, só woff2 latino) | `front/globo`; o produtor usa só a Atkinson | SIL Open Font License 1.1 |
 | Ícones Lucide (lucide-react e lucide-preact 1.62.0, importados um a um) | `front/globo`, `front/produtor` | ISC |
+| Radix Primitives: @radix-ui/react-tabs 1.2.1 e @radix-ui/react-dialog 1.3.1 (abas das opções do lote e janela do Pix; e as dependências deles: aria-hidden, react-remove-scroll, use-callback-ref, use-sidecar, get-nonce, detect-node-es, MIT; tslib, 0BSD) | `front/globo` | MIT |
+| NumberFlow (@number-flow/react 0.6.2 e number-flow, esm-env) nos números do andamento | `front/globo` | MIT |
+| uqr 0.1.3 (código QR do Pix em SVG) | `front/globo` | MIT |
 
 Gerados por `front/scripts/geo.py` e servidos junto (fora do git): recorte do mapa base do build diário do Protomaps,
 com dados © colaboradores do OpenStreetMap (ODbL 1.0, atribuição no canto do mapa); letras dos rótulos Noto Sans
