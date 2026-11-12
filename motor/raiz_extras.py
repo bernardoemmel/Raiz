@@ -16,7 +16,26 @@ Retoma de onde parou.
 """
 import sys, os, glob, warnings
 import pandas as pd, geopandas as gpd, numpy as np, rasterio
-from exactextract import exact_extract
+from exactextract import exact_extract as _ee
+
+
+def exact_extract(r, g, ops, output='pandas', include_cols=None, lote=300):
+    """exactextract em lotes; se um lote falhar ('Never get here' com polígono minúsculo/degenerado), roda um a um
+    e deixa vazio só o imóvel problemático, em vez de derrubar o município inteiro."""
+    import pandas as pd
+    g = g.reset_index(drop=True); partes = []
+    for i in range(0, len(g), lote):
+        s = g.iloc[i:i + lote]
+        try:
+            partes.append(_ee(r, s, ops, include_cols=include_cols, output='pandas'))
+        except RuntimeError:
+            for j in range(len(s)):
+                try: partes.append(_ee(r, s.iloc[j:j + 1], ops, include_cols=include_cols, output='pandas'))
+                except RuntimeError:
+                    row = {o: float('nan') for o in ops}
+                    if include_cols: row.update({c: s.iloc[j][c] for c in include_cols})
+                    partes.append(pd.DataFrame([row]))
+    return pd.concat(partes, ignore_index=True)
 warnings.filterwarnings('ignore')
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
@@ -27,16 +46,30 @@ CLASSES = {'cultura', 'tmf', 'causa_perda'}  # bandas de classe: vale a classe q
 BANDAS = BANDAS_V1
 
 
+def limpa(g):
+    """Conserta polígono inválido (um só já derruba o exactextract/GDAL com 'Never get here' e falha de segmentação)."""
+    import shapely
+    bad = ~g.is_valid
+    if bad.any():
+        g = g.copy()
+        g.loc[bad, 'geometry'] = [shapely.make_valid(x) for x in g.geometry[bad]]
+        g.loc[bad, 'geometry'] = g.geometry[bad].apply(
+            lambda x: x if x.geom_type in ('Polygon', 'MultiPolygon') else shapely.MultiPolygon(
+                [p for p in getattr(x, 'geoms', []) if p.geom_type == 'Polygon'] +
+                [q for p in getattr(x, 'geoms', []) if p.geom_type == 'MultiPolygon' for q in p.geoms]))
+    return g[~g.is_empty & g.geometry.notna()]
+
+
 def geometria(uf, cod, pasta):
     f = f'{pasta}/geo_{cod}.parquet'
     if os.path.exists(f):
-        return gpd.read_parquet(f)
+        return limpa(gpd.read_parquet(f))
     import raiz_estado as R  # baixa o CAR do município de novo (só o perímetro)
     car = R.car_mun(uf, cod)
     car = car[(car.status_imovel != 'CA') & (car.tipo_imovel == 'IRU')]
     g = gpd.GeoDataFrame({'cod_imovel': car.cod_imovel.values}, geometry=car.geometry.values, crs=car.crs)
     g.to_parquet(f)
-    return g
+    return limpa(g)
 
 
 def zonal(g, rasters):

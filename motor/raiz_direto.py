@@ -22,8 +22,7 @@ os.environ.update(GDAL_DISABLE_READDIR_ON_OPEN='EMPTY_LIST', CPL_VSIL_CURL_ALLOW
 warnings.filterwarnings('ignore')
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import pandas as pd
-from exactextract import exact_extract
-from raiz_extras import geometria
+from raiz_extras import geometria, exact_extract
 
 ANO = 2024
 YB = 'https://data.source.coop/ybyra-br/secondary-forest/{p}/ybyra_secondary_forest_{p}_brazil_v8_1_{a}.tif'
