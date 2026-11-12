@@ -27,6 +27,21 @@ olha o resto de 15 em 15 minutos e sobe a escada do que ninguém reconheceu:
 */15 * * * *  uv run raiz operacao alertas   # lotes, orçamento, vigilância, prazo da Verra, filas, grupos
 ```
 
+Para instalar sem depender do diretório e do `PATH` do cron, no servidor e com o usuário da aplicação:
+
+```bash
+uv run python scripts/instalar_cron_alertas.py             # mostra o bloco
+uv run python scripts/instalar_cron_alertas.py --instalar  # ativa a cada 15 minutos
+crontab -l
+```
+
+O instalador preserva os outros trabalhos e substitui apenas o bloco marcado da Raíz; pode ser repetido. Usa o
+caminho absoluto do `uv`, entra na raiz do repositório (onde a configuração lê o `.env`), exige o lockfile com
+`--frozen` e usa `flock` para não sobrepor rodadas. Precisa de `cron` ativo e `flock` (`util-linux`) no servidor.
+Não instala serviços nem preenche credenciais. Sem ntfy e GoAlert, continua em envio simulado; sem banco acessível
+e migrado, a rodada falha. A prévia não ativa nada. Um ambiente de desenvolvimento sem acesso ao servidor não
+comprova que o agendamento esteja ativo em produção.
+
 | O que | Gravidade |
 |---|---|
 | lote que falhou nas últimas 24 h (um alerta por tarefa e dia) | aviso |
