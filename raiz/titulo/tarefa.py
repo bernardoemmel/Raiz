@@ -6,7 +6,8 @@ Grava na pasta do município:
                            com as parcelas do SIGEF que o cobrem (quando há polígonos: geo_<mun>.parquet e o SIGEF do
                            espelho), a origem da cadeia dominial (raiz/titulo/cadeia.py) e as bandeiras de contexto e
                            auditoria (raiz/titulo/contexto.py);
-  titulo_<mun>.csv         nota de 1 a 5, bandeiras e decisão (raiz/titulo/nota.py), com titulo_versao.
+  titulo_<mun>.csv         nota de 1 a 5, bandeiras e decisão (raiz/titulo/nota.py) e a triagem: checagem rápida,
+                           busca completa ou regularização (raiz/titulo/triagem.py), com titulo_versao.
 A versão da tarefa junta a das três regras; mudou alguma, o executor refaz.
 """
 
@@ -22,6 +23,7 @@ from raiz.titulo import contexto as CX
 from raiz.titulo import geometria as G
 from raiz.titulo import nota as N
 from raiz.titulo import regularizacao as RG
+from raiz.titulo import triagem as T
 from raiz.titulo.achados import COLUNAS, Achado, chave_registro
 
 VERSAO_GEOMETRIA = "geometria-car-sigef-2026a"
@@ -30,7 +32,7 @@ TOLERANCIA_CAR_M = G.TOLERANCIA_M["inacessivel"]  # o CAR é declarado: a toler�
 
 
 def versao() -> str:
-    return f"{RG.versao()}|{N.versao()}|{VERSAO_GEOMETRIA}|{CA.VERSAO}|{CX.VERSAO}"
+    return f"{RG.versao()}|{N.versao()}|{T.versao()}|{VERSAO_GEOMETRIA}|{CA.VERSAO}|{CX.VERSAO}"
 
 
 def geometria_car_sigef(geo, sigef) -> list[Achado]:
@@ -124,19 +126,22 @@ def escrever_municipio(pasta: str | Path, cod: int, espelho: Path | None = None)
     ach = pd.concat([ach, *[x for x in extras if len(x)]], ignore_index=True)
     # nota: terra + regularização + matrícula conferida + achados do imóvel
     im = RG.entrada_municipio(pasta, cod).merge(
-        reg[["cod_imovel", "regularizacao_classe"]], on="cod_imovel", how="left"
+        reg[["cod_imovel", "regularizacao_classe", "regularizacao_proximo_passo"]], on="cod_imovel", how="left"
     )
     fm = RG.arquivo_documentos(pasta, cod, "matricula")
     if fm is not None:
         mt = pd.read_csv(fm, dtype={"cod_imovel": str})
-        cols = [c for c in ("cod_imovel", "matricula_situacao", "matricula_onus_graves") if c in mt.columns]
+        quero = ("cod_imovel", "matricula_situacao", "matricula_onus_graves", "matricula_conferida")
+        cols = [c for c in quero if c in mt.columns]
         im = im.merge(mt[cols], on="cod_imovel", how="left")
     por = {c: g.to_dict("records") for c, g in ach.groupby("cod_imovel")} if len(ach) else {}
-    r = N.regra()
+    r, rt = N.regra(), T.regra()
     notas = []
     for linha in im.to_dict("records"):
         linha = {k: _limpo(v) for k, v in linha.items()}
-        n = N.nota_do_imovel(linha, por.get(linha["cod_imovel"], []), r)
+        doimovel = por.get(linha["cod_imovel"], [])
+        n = N.nota_do_imovel(linha, doimovel, r)
+        n.update(T.triar({**linha, **n}, doimovel, rt))
         n["titulo_versao"] = versao()
         notas.append(n)
     nt = pd.DataFrame(notas)
@@ -149,6 +154,7 @@ def escrever_municipio(pasta: str | Path, cod: int, espelho: Path | None = None)
         "comparados_car_sigef": len(geom),
         **{f"classe_{k}": int(v) for k, v in reg.regularizacao_classe.value_counts().items()},
         **{f"decisao_{k}": int(v) for k, v in nt.titulo_decisao.value_counts().items()},
+        **{f"triagem_{k}": int(v) for k, v in nt.titulo_triagem.value_counts().items()},
     }
 
 

@@ -106,4 +106,8 @@ def congelar_rodada(con: Connection, rodada_id: int) -> tuple[str, bool, int]:
     from raiz.titulo.regularizacao import congelar_regularizacao
 
     congelar_regularizacao(con, rodada_id)
+    # a chance de a busca completa achar problema no título, idem (raiz/titulo/triagem.py)
+    from raiz.titulo.triagem import congelar_triagem
+
+    congelar_triagem(con, rodada_id)
     return lh, novo, len(previsoes)

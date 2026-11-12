@@ -1082,12 +1082,113 @@ def titulo_confirmar(
 
 @titulo_cli.command("gabaritar")
 def titulo_gabaritar() -> None:
-    """Gabarito das previsões de título da posse: matrícula apareceu (1) ou o prazo de 12 meses venceu (0)."""
+    """Gabaritos automáticos: título da posse (matrícula apareceu ou o prazo de 12 meses venceu) e triagem (todas as
+    certidões do imóvel lidas: houve problema ou não)."""
     from raiz.banco import engine
     from raiz.titulo import regularizacao as RG
+    from raiz.titulo import triagem as TR
 
     with engine().begin() as con:
-        typer.echo(RG.gabaritar(con))
+        typer.echo(f"regularização: {RG.gabaritar(con)}")
+        typer.echo(f"triagem: {TR.gabaritar(con)}")
+
+
+def _pasta_municipio(cod_imovel: str, saida: str | None):
+    from pathlib import Path
+
+    from raiz.documentos.config import uf_do_municipio
+    from raiz.funil.rodar import dir_trabalho
+
+    cod = int(cod_imovel.split("-")[1])
+    return (Path(saida) if saida else dir_trabalho() / "saida" / (uf_do_municipio(cod) or cod_imovel[:2])), cod
+
+
+@titulo_cli.command("laudo")
+def titulo_laudo(
+    cod_imovel: Annotated[str, typer.Argument(help="código do imóvel no CAR")],
+    saida: Annotated[str | None, typer.Option(help="pasta saida/<UF> do município")] = None,
+    destino: Annotated[str, typer.Option(help="onde gravar o laudo")] = "dados/documentos/laudos",
+    pdf: Annotated[bool, typer.Option(help="também em PDF (precisa do LibreOffice)")] = False,
+    banco: Annotated[bool, typer.Option(help="usar o banco: confirmações, sede e cadeia dominial")] = True,
+) -> None:
+    """Laudo de título do imóvel em HTML (e PDF): nota, triagem, achados por fase, cadeia e consultas públicas."""
+    from raiz.titulo import laudo as L
+
+    pasta, cod = _pasta_municipio(cod_imovel, saida)
+    if banco:
+        from raiz.banco import engine
+
+        with engine().connect() as con:
+            out = L.gravar(pasta, cod, cod_imovel, destino, con=con, pdf=pdf)
+    else:
+        out = L.gravar(pasta, cod, cod_imovel, destino, pdf=pdf)
+    for k, v in out.items():
+        typer.echo(f"{k}: {v}")
+
+
+@titulo_cli.command("cadeia")
+def titulo_cadeia(cod_imovel: Annotated[str, typer.Argument(help="código do imóvel no CAR")]) -> None:
+    """Matrículas do imóvel no banco, com os atos (partes sem nome) e onde a cadeia de origem para."""
+    from raiz.banco import engine
+    from raiz.titulo import banco as TB
+
+    with engine().connect() as con:
+        for m in TB.cadeia_do_imovel(con, cod_imovel):
+            typer.echo(f"matrícula {m['matricula']} (cartório {m['cns']}): {m['situacao'] or 'não lida'}, "
+                       f"origem {m['origem_situacao'] or '?'}")  # fmt: skip
+            for a in m["atos"]:
+                typer.echo(f"  {a['numero']:9} {a['data'] or '':10} {a['resumo'] or a['natureza']}")
+
+
+@titulo_cli.command("pedir-sede")
+def titulo_pedir_sede(cod_imovel: Annotated[str, typer.Argument(help="código do imóvel no CAR")]) -> None:
+    """Põe na fila de aprovação o pedido da localização da sede ao dono (botão do WhatsApp)."""
+    from raiz.banco import engine
+    from raiz.titulo import sede as SD
+
+    with engine().begin() as con:
+        mid = SD.pedir(con, cod_imovel)
+    typer.echo(f"mensagem {mid} esperando aprovação" if mid else "imóvel sem conversa de aceite com contato")
+
+
+warc_cli = typer.Typer(help="Consultas públicas gravadas em WARC cifrado para o laudo.", no_args_is_help=True)
+titulo_cli.add_typer(warc_cli, name="warc")
+
+
+@warc_cli.command("consultar")
+def warc_consultar(
+    cod_imovel: Annotated[str, typer.Argument(help="código do imóvel no CAR")],
+    url: Annotated[str, typer.Argument(help="endereço da consulta pública")],
+    motivo: Annotated[str, typer.Option(help="o que a consulta mostra (ex.: parcela do SIGEF)")],
+) -> None:
+    """Consulta a URL e grava pedido e resposta num WARC cifrado (só hashes sem RAIZ_CHAVE_PESSOAL)."""
+    from raiz.titulo import warc
+
+    reg, _ = warc.consultar(url, cod_imovel, motivo)
+    typer.echo(
+        f"{reg.status or reg.erro} · {reg.bytes} bytes · WARC {reg.sha256_warc[:16]} · {reg.arquivo or 'sem chave'}"
+    )
+
+
+@warc_cli.command("listar")
+def warc_listar(cod_imovel: Annotated[str, typer.Argument(help="código do imóvel no CAR")]) -> None:
+    """Consultas gravadas do imóvel."""
+    from raiz.titulo import warc
+
+    for c in warc.consultas(cod_imovel):
+        typer.echo(f"{c['em']} {c['status'] or c['erro']} {c['motivo']}: {c['url']} ({c['arquivo'] or 'sem WARC'})")
+
+
+@warc_cli.command("abrir")
+def warc_abrir(
+    cod_imovel: Annotated[str, typer.Argument(help="código do imóvel no CAR")],
+    arquivo: Annotated[str, typer.Argument(help="nome do WARC (raiz titulo warc listar)")],
+) -> None:
+    """Decifra um WARC e lista os registros (auditoria)."""
+    from raiz.titulo import warc
+
+    for r in warc.abrir(cod_imovel, arquivo):
+        typer.echo(f"{r['tipo']:9} {r['status'] or '':4} {r['bytes']:8} {r['url']}")
 
 
 ficha_cli = typer.Typer(help="Colunas e camadas dentro do imóvel para o front (design v1).", no_args_is_help=True)

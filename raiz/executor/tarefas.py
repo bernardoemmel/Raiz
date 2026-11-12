@@ -37,6 +37,7 @@ CODIGO = {
         "raiz/titulo/geometria.py",
         "raiz/titulo/cadeia.py",
         "raiz/titulo/contexto.py",
+        "raiz/titulo/triagem.py",
         "raiz/titulo/tarefa.py",
     ),
     "ficha": (

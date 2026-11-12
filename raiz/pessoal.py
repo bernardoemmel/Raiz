@@ -51,6 +51,15 @@ class Cofre:
         except InvalidToken as ex:
             raise SemChavePessoal("chave não abre este dado (chave trocada sem manter a antiga?)") from ex
 
+    def cifrar_bytes(self, dado: bytes) -> bytes:
+        return self._f.encrypt(dado)
+
+    def decifrar_bytes(self, dado: bytes | memoryview) -> bytes:
+        try:
+            return self._f.decrypt(bytes(dado))
+        except InvalidToken as ex:
+            raise SemChavePessoal("chave não abre este dado (chave trocada sem manter a antiga?)") from ex
+
     def indice(self, valor: str) -> str:
         return hmac.new(self._hmac, valor.encode("utf-8"), hashlib.sha256).hexdigest()
 

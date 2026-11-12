@@ -13,7 +13,7 @@ from sqlalchemy import text
 from raiz.documentos.certidao.cadeia import COLUNAS, cadeia_das_conferencias, linhas_da_leitura
 from raiz.documentos.certidao.leitor import sanear
 from raiz.documentos.certidao.regras import derivar, normalizar_cns, normalizar_matricula
-from raiz.documentos.simulacao import leitura_exemplo
+from raiz.documentos.simulacao import cpf_ficticio, leitura_exemplo
 from raiz.titulo import cadeia as CA
 from raiz.titulo import contexto as CX
 from raiz.titulo import sede as SD
@@ -288,8 +288,8 @@ def test_cadeia_no_banco(con, tmp_path):
     ato = con.execute(text("select id from titulo.ato where leitura_hash = 'h5178' and numero = 'R-1'")).scalar()
     with pytest.raises(Exception, match="check"):
         with con.begin_nested():
-            con.execute(text("insert into titulo.ato_parte (ato_id, papel, documento) values (:a, 'adquirente', "
-                             "'52998224725')"), {"a": ato})  # fmt: skip
+            con.execute(text("insert into titulo.ato_parte (ato_id, papel, documento) values (:a, 'adquirente', :d)"),
+                        {"a": ato, "d": cpf_ficticio()})  # fmt: skip
     cad = TB.cadeia_do_imovel(con, IMOVEL)
     por = {m["matricula"]: m for m in cad}
     assert set(por) == {"5178", "5177"}

@@ -68,12 +68,18 @@ def area_redonda(ha: float | None) -> str | None:
     if ha is None or (isinstance(ha, float) and math.isnan(ha)) or ha < 10:
         return None
     if abs(ha - round(ha)) < 1e-6 and round(ha) % 5 == 0:
-        return f"{round(ha):,} ha".replace(",", ".")
+        return f"{_br(round(ha), 0)} ha"
     for nome, k in ALQUEIRES.items():
         n = ha / k
         if n >= 5 and abs(n - round(n)) < 1e-3 and round(n) % 5 == 0:
             return f"{round(n)} alqueires ({nome})"
     return None
+
+
+def _br(x: float, casas: int = 1) -> str:
+    from raiz.agentes.textos import num
+
+    return num(x, casas)
 
 
 def _num(v) -> float | None:
@@ -115,6 +121,10 @@ def achados_de_contexto(pasta: str | Path, cod: int) -> pd.DataFrame:
     conf = pd.read_csv(f, dtype={"cod_imovel": str, "registro_cns": str, "registro_matricula": str})
     if conf.empty:
         return pd.DataFrame(columns=COLUNAS)
+    for c in ("situacao", "area_matricula_ha"):  # arquivo antigo ou parcial: tolera a coluna que falta
+        if c not in conf.columns:
+            conf[c] = None
+    conf["area_matricula_ha"] = pd.to_numeric(conf.area_matricula_ha, errors="coerce")
     conf["cns"] = conf.registro_cns.map(normalizar_cns)
     conf["mat"] = conf.registro_matricula.map(normalizar_matricula)
     conf["lida"] = conf.situacao.fillna("a_conferir") != "a_conferir"
@@ -143,7 +153,7 @@ def achados_de_contexto(pasta: str | Path, cod: int) -> pd.DataFrame:
     cm = cercas([r[0] for r in razoes.values()], piso=PISO_RAZAO)
     for c, (r, mats, car) in razoes.items():
         soma = r * car
-        base = f"as {len(mats)} matrícula(s) somam {soma:,.1f} ha para {car:,.1f} ha do CAR (razão {r:.2f})"
+        base = f"as {len(mats)} matrícula(s) somam {_br(soma)} ha para {_br(car)} ha do CAR (razão {_br(r, 2)})"
         if r > GLEBAS_MAX:
             out.append(_ach(c, mats, "coerencia", "auditoria.soma_glebas", "conferir", "confirmar",
                             f"{base}: o título passa do CAR (título sobreposto ou CAR menor que a terra)",
@@ -159,7 +169,7 @@ def achados_de_contexto(pasta: str | Path, cod: int) -> pd.DataFrame:
         if pos:
             out.append(_ach(c, mats, "coerencia", "contexto.municipio", "conferir",
                             "confirmar" if pos.startswith("externa") else "info",
-                            f"razão título ÷ CAR de {r:.2f}, {_texto_cerca(pos, cm, lambda x: f'{x:.2f}')} do "
+                            f"razão título ÷ CAR de {_br(r, 2)}, {_texto_cerca(pos, cm, lambda x: _br(x, 2))} do "
                             f"município", "razao", pos, "imóveis do município com certidão lida"))  # fmt: skip
 
     # --- área redonda (auditoria) -------------------------------------------------------------------------------
@@ -187,8 +197,10 @@ def achados_de_contexto(pasta: str | Path, cod: int) -> pd.DataFrame:
         for r in conf[conf.cns == cns].itertuples(index=False):
             out.append(_ach(r.cod_imovel, [(r.cns, r.mat)], "referencia", "contexto.cartorio", "conferir",
                             "confirmar" if pos == "externa_alta" else "info",
-                            f"o cartório {cns} tem {taxa:.0%} das {n} matrículas lidas divergentes ou canceladas, "
-                            f"{_texto_cerca(pos, cc, lambda x: f'{x:.0%}')} dos cartórios", "taxa", f"{taxa:.3f}",
+                            f"o cartório {cns} tem {_br(100 * taxa, 0)}% das {n} matrículas lidas divergentes ou "
+                            f"canceladas, "
+                            f"{_texto_cerca(pos, cc, lambda x: _br(100 * x, 0) + '%')} dos cartórios", "taxa",
+                            f"{taxa:.3f}",
                             "certidões lidas do município"))  # fmt: skip
 
     # --- dono: área somada do mesmo documento mascarado ----------------------------------------------------------
@@ -210,8 +222,8 @@ def achados_de_contexto(pasta: str | Path, cod: int) -> pd.DataFrame:
             chaves = {k for k, _ in xs}
             for r in conf[[(a, b) in chaves for a, b in zip(conf.cns, conf.mat, strict=True)]].itertuples(index=False):
                 out.append(_ach(r.cod_imovel, [(r.cns, r.mat)], "cadeia", "contexto.dono", "conferir", "confirmar",
-                                f"o mesmo dono (documento {d}) tem {len(xs)} matrícula(s) que somam {tot[d]:,.0f} ha "
-                                f"no município, {_texto_cerca(pos, cd, lambda x: f'{x:,.0f} ha')} dos donos; a "
+                                f"o mesmo dono (documento {d}) tem {len(xs)} matrícula(s) que somam {_br(tot[d], 0)} "
+                                f"ha no município, {_texto_cerca(pos, cd, lambda x: _br(x, 0) + ' ha')} dos donos; a "
                                 f"máscara pode juntar donos diferentes: confirmar", "area_dono_ha", f"{tot[d]:.1f}",
                                 "certidões lidas do município"))  # fmt: skip
     return pd.DataFrame(out, columns=COLUNAS)

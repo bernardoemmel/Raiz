@@ -2,7 +2,8 @@
 
 A posse é o maior gargalo dos lotes: no primeiro lote, 623 de 702 fazendas estavam em posse. Este módulo diz, para
 cada imóvel em posse ou lote de assentamento, **quão perto do título ele está e o que fazer primeiro**, e junta todo
-achado de título (regularização e certidões) numa tabela só, com quem confirmou cada um.
+achado de título (regularização, certidões, geometria, cadeia dominial, contexto e sede) numa tabela só, com quem
+confirmou cada um, e gera o laudo de título por imóvel.
 
 ## Regularização da posse
 
@@ -98,6 +99,74 @@ situação, gravidade (reprova, confirmar, info) e fase (formato, geometria, coe
 regularização). Os motivos de cada certidão lida em `raiz/documentos` entram com a fase certa. A carga grava em
 `titulo.achado`; a confirmação (`titulo.confirmacao`) só recebe linhas novas, guarda o identificador do operador (nunca
 nome) e vale para a mesma regra do mesmo imóvel enquanto o valor não mudar (`titulo.achado_vigente`).
+
+## Cadeia dominial no Postgres
+
+```bash
+raiz titulo cadeia PA-1504950-...        # matrículas do imóvel, atos (partes sem nome) e onde a cadeia de origem para
+```
+
+Cada certidão lida em `raiz/documentos` vira `cadeia_<mun>.csv` (um ato por linha) e a carga leva para o banco, no
+molde do ACRIS: `titulo.matricula` (uma linha por leitura: situação, origem e matrícula de origem, área, destino,
+versões do modelo), `titulo.ato` (cada ato, com o ato de transmissão anterior, quem o cancela e a quebra de
+continuidade), `titulo.ato_parte` (só rótulo P1, P2, tipo e documento mascarado; o banco recusa documento sem
+máscara; nome só de órgão público e banco) e `titulo.matricula_imovel` (o imóvel do CAR de cada matrícula, pelo
+`certidao_alvo`). `titulo.cadeia_origem` segue a matrícula de origem até onde houver leitura e diz onde a cadeia para.
+A mesma leitura carregada de novo não duplica.
+
+Achado `cadeia.origem` (fase cadeia): **chega ao título de origem** (título público, usucapião ou ato originário na
+cadeia), **falta ler a origem** (pede a certidão da matrícula ou transcrição de origem) ou **origem desconhecida**. A
+continuidade é a da Lei 6.015/1973 (arts. 195 e 237); na Amazônia, a cadeia precisa chegar ao destaque do patrimônio
+público, não só ser contínua.
+
+## Bandeiras de contexto e auditoria
+
+`raiz/titulo/contexto.py`, no padrão Cardinal: cada número contra os do mesmo município, cartório e dono, por quartis
+e cercas de Tukey (interna 1,5 IQR é informação; externa 3 IQR pede confirmação; grupo com menos de 8 valores não tem
+cerca; IQR mínimo para o grupo em que quase todos são iguais).
+
+- `auditoria.soma_glebas`: matrículas do imóvel somadas ÷ área do CAR, com todas lidas. Acima de 1,10 o título passa
+  do CAR; abaixo de 0,90 parte do CAR está sem matrícula (posse junto do título).
+- `contexto.municipio`: a mesma razão contra a dos outros imóveis do município.
+- `auditoria.area_redonda`: matrícula com área inteira múltipla de 5 ha ou número redondo de alqueires (medida
+  antiga ou declarada); redonda e georreferenciada pede confirmação.
+- `contexto.cartorio` (fase referência): parte das matrículas lidas do cartório que saiu divergente ou cancelada.
+- `contexto.dono` (fase cadeia): área somada das matrículas do mesmo documento mascarado no município. A máscara
+  guarda 6 dígitos e pode juntar donos diferentes: a bandeira só pede confirmação. Nunca nome.
+
+## Localização da sede
+
+Logo depois do aceite, o robô põe na fila de aprovação o pedido da localização da sede (`pedido_sede`), que sai com o
+botão "Enviar localização" do WhatsApp. Quando o dono manda, o webhook confere se o ponto cai dentro do polígono do
+CAR (até 50 m fora conta como divisa) e grava só o resultado como achado `sede.dentro_do_imovel`: o ponto não é
+gravado nem vai para o log. Dono com mais de um imóvel: vale o que contém o ponto. `raiz titulo pedir-sede <imóvel>`
+pede de novo.
+
+## Laudo por imóvel e consultas públicas em WARC
+
+```bash
+raiz titulo laudo PA-1504950-... [--pdf] [--no-banco]       # dados/documentos/laudos/laudo_<imóvel>.html (e .pdf)
+raiz titulo warc consultar PA-1504950-... <url> --motivo "parcela do SIGEF"
+raiz titulo warc listar PA-1504950-...
+raiz titulo warc abrir PA-1504950-... <arquivo>              # auditoria: decifra e lista os registros
+```
+
+O laudo (HTML; PDF pelo LibreOffice) junta nota, decisão e triagem, caminho da terra e regularização, localização da
+sede, achados por fase com quem confirmou, cadeia dominial ato por ato (partes como P1, P2, documento mascarado), as
+consultas públicas usadas e como ler cada regra. Cada consulta pública vai para um WARC (warcio) com pedido e
+resposta; como página do SIGEF ou do CAR pode trazer nome do detentor, o WARC é cifrado com a chave pessoal antes de
+ir para o disco, e o laudo mostra só URL, data, situação e o hash SHA-256. Sem a chave, ficam só os hashes.
+
+## Triagem: checagem rápida ou busca completa
+
+`titulo_triagem` em `titulo_<mun>.csv` (regra em `raiz/regras/padroes/triagem_titulo.yaml`): **rápida** quando a nota
+é até 2, sem achado que reprova, matrícula lida e conferida, cadeia até o título de origem, sem ônus grave e CAR
+batendo com o SIGEF; **completa** quando falta algum item (os motivos e o que pedir no cartório vão junto: inteiro
+teor, vintenária até a origem, ônus e ações, e a certidão de origem que faltar); **regularização** na posse e no
+assentamento sem matrícula. A chance de a busca completa achar problema (5% na rápida, 35% na completa, a priori) é
+congelada como previsão (modelo `triagem_titulo`, alvo `titulo_problema_na_busca`); `raiz titulo gabaritar` registra
+o gabarito quando todas as certidões do imóvel forem lidas (1 se alguma saiu divergente, cancelada, com quebra ou ônus
+grave).
 
 ## Matrícula conferida e selo prata
 
