@@ -10,6 +10,9 @@ PostGIS que a carga do motor já preenche. Mesmo contrato da amostra: as colunas
     GET /geo/{cod_ibge}/{camada}.geojson    municipio | imoveis | ti | uc | rios
     GET /geo/{cod_ibge}/base.pmtiles        mapa base, com Range
 
+As leituras textuais também aceitam ``Accept: text/markdown``. O JSON continua sendo o padrão; os dois formatos
+usam os mesmos dados já limpos e a mesma autenticação, e respondem com ``Vary: Accept``.
+
 Privacidade: coluna com cara de dado pessoal não sai, e todo texto passa pela máscara de CPF/CNPJ (a mesma de
 raiz/privacidade.py). A ficha segue as regras do funil do front (front/compartilhado/dados/funil.ts), que são as do
 motor: apta = sem problema, área de carbono > 0 e até 5 ha desmatados depois de 2016.
@@ -33,6 +36,7 @@ from sqlalchemy import Engine, text
 from raiz import contrato
 from raiz import flag as flag_mod
 from raiz import localizacao as localizacao_mod
+from raiz import markdown as markdown_mod
 from raiz import motivos as motivos_mod
 from raiz import restauracao as restauracao_mod
 from raiz import terra as terra_mod
@@ -75,9 +79,15 @@ def _limpa(d: dict, permitir: tuple[str, ...] = ()) -> dict:
     return {k: _valor(v) for k, v in d.items() if not _pessoal(k, permitir)}
 
 
-def _json(dado) -> Response:
+def _json(dado, request: Request | None = None, titulo: str = "Dados da Raíz") -> Response:
     """JSON direto (sem o codificador genérico do FastAPI, lento em listas de 10 mil imóveis)."""
-    return Response(json.dumps(dado, ensure_ascii=False, separators=(",", ":")), media_type="application/json")
+    if request is not None and markdown_mod.prefere_markdown(request.headers.get("accept")):
+        return markdown_mod.resposta(markdown_mod.documento(dado, titulo))
+    return Response(
+        json.dumps(dado, ensure_ascii=False, separators=(",", ":")),
+        media_type="application/json",
+        headers={"Vary": "Accept"} if request is not None else None,
+    )
 
 
 def _linha_banco(m: dict, faltando: set[str] = frozenset()) -> dict:
@@ -638,7 +648,7 @@ def roteador(engine_de) -> APIRouter:
     r = APIRouter()
 
     @r.get("/municipios")
-    def municipios(request: Request) -> list[dict]:
+    def municipios(request: Request) -> Response:
         eng = engine_de(request)
         with eng.connect() as con:
             linhas = con.execute(
@@ -655,7 +665,7 @@ def roteador(engine_de) -> APIRouter:
             d = _linha_banco(m)
             d["uf"] = m["uf"]
             out.append(_limpa(d))
-        return out
+        return _json(out, request, "Municípios analisados pela Raíz")
 
     @r.get("/municipios/{cod_ibge}")
     def municipio(cod_ibge: int, request: Request) -> Response:
@@ -666,7 +676,7 @@ def roteador(engine_de) -> APIRouter:
         d = municipio_dados.dados(engine_de(request), cod_ibge)
         if d is None:
             raise HTTPException(404, {"mensagem": "Município ainda não processado pela Raíz."})
-        return _json(d)
+        return _json(d, request, f"Município {cod_ibge}")
 
     @r.get("/municipios/{cod_ibge}/urbana.geojson")
     def urbana(cod_ibge: int, request: Request) -> Response:
@@ -702,7 +712,7 @@ def roteador(engine_de) -> APIRouter:
             lista = restauracao_mod.ordenar_filtrar(lista, ordem, modo, tir_min, so_lote_fecha)
         except ValueError as ex:
             raise HTTPException(422, {"mensagem": str(ex)}) from ex
-        return _json(lista)
+        return _json(lista, request, f"Imóveis do município {cod_ibge}")
 
     @r.get("/municipios/{cod_ibge}/lotes")
     def lotes(cod_ibge: int, request: Request) -> Response:
@@ -710,7 +720,7 @@ def roteador(engine_de) -> APIRouter:
         lista = imoveis_do_municipio(engine_de(request), cod_ibge=cod_ibge)
         if not lista:
             raise HTTPException(404, "município ainda sem imóveis carregados")
-        return _json(restauracao_mod.lotes(lista))
+        return _json(restauracao_mod.lotes(lista), request, f"Lotes do município {cod_ibge}")
 
     @r.get("/terra-publica")
     def terra_publica(
@@ -738,12 +748,13 @@ def roteador(engine_de) -> APIRouter:
             msg = f"Terra pública de {uf.upper()} ainda não gerada (raiz terra publica)."
             raise HTTPException(404, {"mensagem": msg})
         return _json({"uf": uf.upper(), "aviso": restauracao_mod.regra()["aviso"], "areas": linhas,
-                      "regra": terra_mod.regra()["caminhos"]["publica_sem_destinacao"]["aviso"]})  # fmt: skip
+                      "regra": terra_mod.regra()["caminhos"]["publica_sem_destinacao"]["aviso"]},
+                     request, f"Terras públicas de {uf.upper()}")  # fmt: skip
 
     @r.get("/restauracao/cenarios")
-    def cenarios_restauracao() -> Response:
+    def cenarios_restauracao(request: Request) -> Response:
         """Cenários do fluxo de caixa (ProFloresta+...), cada parâmetro com a fonte, para o simulador."""
-        return _json(restauracao_mod.cenarios_publicos())
+        return _json(restauracao_mod.cenarios_publicos(), request, "Cenários de restauração")
 
     @r.get("/imoveis/{cod_imovel}/restauracao/simular")
     def simular_restauracao(cod_imovel: str, request: Request) -> Response:
@@ -756,7 +767,7 @@ def roteador(engine_de) -> APIRouter:
             raise HTTPException(404, nao_achado(eng, cod_imovel))
         try:
             nome, muda = restauracao_mod.parametros_da_consulta(dict(request.query_params))
-            return _json(restauracao_mod.simular(alvo[0], nome, **muda))
+            return _json(restauracao_mod.simular(alvo[0], nome, **muda), request, "Simulação de restauração")
         except ValueError as ex:
             raise HTTPException(422, {"mensagem": str(ex)}) from ex
 
@@ -809,7 +820,7 @@ def roteador(engine_de) -> APIRouter:
         banco = do_banco(eng, linha["cod_imovel"])
         selo, etapa = selo_e_etapa(linha, banco)
         linha.update(codigo_curto=banco["codigo_curto"], nivel_selo=selo, etapa_funil=etapa)
-        return _json(linha)
+        return _json(linha, request, "Imóvel analisado pela Raíz")
 
     @r.get("/imoveis/{cod_imovel}/ficha")
     def ficha(cod_imovel: str, request: Request) -> Response:
@@ -827,7 +838,11 @@ def roteador(engine_de) -> APIRouter:
                 {"c": cod, "t": SIMPLIFICAR_GRAUS},
             ).scalar()
         banco = {**do_banco(eng, cod), "capa": capa_da_ficha(cod)}
-        return _json(montar_ficha(alvo[0], todos, json.loads(g) if g else None, versao(eng, cod), banco))
+        return _json(
+            montar_ficha(alvo[0], todos, json.loads(g) if g else None, versao(eng, cod), banco),
+            request,
+            "Ficha da fazenda",
+        )
 
     @r.get("/imoveis/{cod_imovel}/flag/simular")
     def simular_flag(
@@ -838,7 +853,7 @@ def roteador(engine_de) -> APIRouter:
         alvo = imoveis_do_municipio(eng, cod_imovel=cod_imovel)
         if not alvo:
             raise HTTPException(404, nao_achado(eng, cod_imovel))
-        return _json(flag_mod.simular(alvo[0], silvipastoril_ha, cacau_ha))
+        return _json(flag_mod.simular(alvo[0], silvipastoril_ha, cacau_ha), request, "Simulação FLAG")
 
     @r.get("/imoveis/{cod_imovel}/camadas.geojson")
     def camadas_imovel(cod_imovel: str, request: Request) -> Response:
@@ -892,7 +907,7 @@ def roteador(engine_de) -> APIRouter:
         return _json(meta)
 
     @r.get("/imoveis/{cod_imovel}/certidoes")
-    def certidoes(cod_imovel: str, request: Request) -> list[dict]:
+    def certidoes(cod_imovel: str, request: Request) -> Response:
         with engine_de(request).connect() as con:
             linhas = con.execute(
                 text("""select c.* from funil.vigente v
@@ -900,12 +915,12 @@ def roteador(engine_de) -> APIRouter:
                         where v.cod_busca = :b order by c.registro_cns, c.registro_matricula"""),
                 {"b": normalizar_codigo(cod_imovel)},
             ).all()
-        return [_limpa(_linha_banco(dict(x._mapping))) for x in linhas]
+        return _json([_limpa(_linha_banco(dict(x._mapping))) for x in linhas], request, "Certidões da fazenda")
 
     @r.get("/busca")
     def busca(request: Request, q: str = "", limite: int = 8) -> Response:
         """Código do CAR (inteiro ou começo, com ou sem pontos e traços) e nome de município (sem acento)."""
-        return _json(buscar(engine_de(request), q, max(1, min(limite, MAX_IMOVEIS))))
+        return _json(buscar(engine_de(request), q, max(1, min(limite, MAX_IMOVEIS))), request, "Busca da Raíz")
 
     @r.get("/mapa/manifesto.json")
     def mapa_manifesto() -> Response:
