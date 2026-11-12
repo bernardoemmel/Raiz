@@ -211,6 +211,13 @@ jobs:
       - name: Rodar pelo executor (fontes, adoção, motor e tarefas do produto) e publicar no Release dados
         run: uv run python motor/rodar_estado.py "$UNIDADE" --executor
 
+      - name: Preservar retratos imutáveis somente no arquivo privado
+        if: always() && steps.privacidade.outcome == 'success'
+        run: |
+          if [ -f raiz/aprendizado/transporte.py ]; then
+            uv run raiz aprendizado publicar-retratos --uf "$UF"
+          fi
+
       - name: Guardar o cache da unidade somente no arquivo privado
         if: always() && steps.privacidade.outcome == 'success'
         continue-on-error: true

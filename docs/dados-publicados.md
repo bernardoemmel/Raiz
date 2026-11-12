@@ -69,8 +69,9 @@ projeta e valida os arquivos abertos. Travas por UF e por manifesto preservam
 publicações concorrentes. Os nomes canônicos privados (`raiz_<UF>`, `raiz_geo_<UF>`,
 `raiz_camadas_<UF>`, controles e `estados.json`) permitem retomar a coleta e carregar
 o banco. Snapshots históricos usam nomes imutáveis e não substituem o canônico.
-A vigilância por CAR e os cálculos completos do lote também usam armazenamento
-privado. Não enviar esses conteúdos como artifacts ou caches de Actions públicos.
+A vigilância por CAR, os cálculos completos do lote e os retratos imutáveis do
+aprendizado também usam armazenamento privado. Os Releases diários de histórico
+são drafts autenticados, com a visibilidade reconferida na leitura e escrita. Não enviar esses conteúdos como artifacts ou caches de Actions públicos.
 
 ## Arquivos históricos encontrados
 

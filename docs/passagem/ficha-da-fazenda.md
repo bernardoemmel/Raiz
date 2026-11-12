@@ -105,8 +105,10 @@ rejeita qualquer snapshot financeiro antigo no build público. No retorno de
 pedidos, valores por CAR também exigem liberação da própria conta; `ficha_liberada`
 distingue bloqueio de ausência, e a projeção remove campos inesperados. Totais,
 interesse, reservas e cálculo persistido foram preservados, sem cobrança nova.
-A integração passou em 179 testes do front, build, Pages, prospecção, cena-alvo e
-Lighthouse; 11 testes de pedidos com PostGIS passaram.
+A integração das telas passou em 186 testes do front, build, Pages, prospecção,
+cena-alvo e Lighthouse, preservando também o calendário recém-integrado.
+Onze testes de pedidos com PostGIS e 76 testes da integração de fichas e migrações
+passaram em banco novo, com `0028` como revisão final.
 
 ## Função compartilhada para API e MCP
 
@@ -142,6 +144,19 @@ A implantação do servidor e a venda real dependem do roteiro operacional e dos
 preços aprovados pelo fundador. Verificação local antes da última atualização da main: 1.053 testes Python
 passaram, dois pulados e um xfail existente; mais 47 testes focados passaram após
 proteger logs de URLs assinadas. Front: 161 testes, build, Pages, prospecção,
-Lighthouse e cena-alvo com API/PostGIS reais passaram. Privacidade e 624 licenças
-conferidas; Ruff, formatação e actionlint aprovados. Resultado final de CI e
-migração remota: registrar antes de encerrar a entrega.
+Lighthouse e cena-alvo com API/PostGIS reais passaram. Privacidade e 640 licenças
+conferidas; Ruff, formatação e actionlint aprovados. O PR #72 concentra o resultado
+do CI da revisão final; a integração exige todos os jobs verdes. As provas da
+migração remota concluída estão acima e em `dados-publicados.md`.
+
+A atualização da main também trouxe os retratos automáticos do aprendizado. Eles
+seguem a mesma fronteira privada, inclusive os pacotes imutáveis e os recibos:
+nenhum Release diário público de histórico por CAR pode ser criado. O alerta do
+Gitleaks para uma URL JDBC histórica sem credenciais tem exceção restrita ao
+fingerprint já revisado e integrado pela main, conforme `operacao.md`.
+
+Após a integração, reativar os cinco workflows pausados, atualizar as refs da fila
+com `scripts/atualizar_fila_privada.py` e retomar as unidades interrompidas com o
+commit protegido: BA-1 a BA-4, CE-1/2, PI-1/2 e RN-1, sem duplicar reservas ativas.
+O lote do Pará e o site devem rodar novamente na main; a publicação do site passa
+a consumir os 22 assets básicos, sem depender dos originais preservados.

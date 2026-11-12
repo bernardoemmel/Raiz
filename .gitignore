@@ -65,3 +65,6 @@ dados-entrada/
 
 # Publicação mínima para o site (reconstruída do Release, nunca no git)
 dados/publicos/
+
+# Retratos imutáveis de entradas do executor (arquivo privado, nunca no git)
+dados/historico_aprendizado/
