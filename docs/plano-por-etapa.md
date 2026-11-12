@@ -256,6 +256,11 @@ Feito na main fora desta tabela: aprendizado do valor para quem restaura (`raiz/
 
 ## E9. O que as pessoas veem
 
+As cinco entregas de Telas e mapa foram integradas com CI verde em 12/11/2026: cena-alvo (#67), cobertura diária
+(#70), ficha visual (#71), celular/acessibilidade (#73) e domínio/Markdown (#74). A publicação do site acompanha
+a retomada coordenada da migração privada (#72). Lotes ainda ausentes no Release, domínio real e calibração
+com cartas reais permanecem explicitamente pendentes; contato com o dono fica na fase final.
+
 Cena-alvo com publicação real (12/11/2026): **feito no código**. O formulário parte de um milhão de créditos no
 Pará e permite teto em US$ por crédito. O site lê o ponteiro `lote_PA_central_r11.json`, publicado pelo chat
 Lote e números, e apresenta as três alternativas, P10/P50/P90, TIR do fluxo, hectares, fazendas, pendências e
