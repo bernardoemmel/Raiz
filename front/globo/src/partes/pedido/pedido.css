@@ -1,0 +1,149 @@
+.pedido-corpo {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+.pedido-mapa-pendente {
+  display: block;
+  height: auto;
+  align-self: start;
+  padding: var(--e6);
+}
+.pedido-mapa-pendente h2 {
+  margin-top: 0;
+}
+.comparacao-lotes .tabela-comparacao {
+  min-width: 640px;
+  font-size: var(--t-texto);
+}
+.tabela-comparacao th,
+.tabela-comparacao td {
+  padding: var(--e3) var(--e2);
+  font-variant-numeric: tabular-nums;
+}
+.tabela-comparacao thead th {
+  color: var(--tinta);
+}
+.tabela-comparacao th:first-child {
+  min-width: 130px;
+}
+.tabela-comparacao td {
+  min-width: 140px;
+}
+.opcao-marca {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--e2);
+  text-align: left;
+  min-height: 48px;
+  font: inherit;
+}
+.opcao-marca i {
+  display: inline-block;
+  width: 24px;
+  height: 12px;
+  flex-shrink: 0;
+  border: 3px solid currentColor;
+}
+.opcao-barata,
+.opcao-marca.opcao-barata {
+  color: var(--mata-texto);
+}
+.opcao-segura,
+.opcao-marca.opcao-segura {
+  color: var(--agua-texto);
+}
+.opcao-segura i {
+  border-style: dashed;
+}
+.opcao-compacta,
+.opcao-marca.opcao-compacta {
+  color: var(--terra-texto);
+}
+.opcao-compacta i {
+  border-style: dotted;
+}
+.mapa-lote-conjunto {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+}
+.mapa-lote-conjunto .mapa-lote {
+  flex: 1;
+  min-height: 200px;
+}
+.mapa-lote-aviso {
+  margin: var(--e2) 0 0;
+}
+.pedido-mapa .mapa-legenda-fixa {
+  flex-wrap: wrap;
+}
+.pedido-cena-resumo {
+  padding: var(--e4);
+  background: var(--nevoa);
+}
+.pedido-painel .tabela-rolagem:focus-visible {
+  outline: 3px solid var(--tinta);
+  outline-offset: 2px;
+}
+.pedido-painel .fontes-pedido {
+  overflow-wrap: anywhere;
+}
+.pedido-corpo.pedido-sem-mapa {
+  grid-template-columns: minmax(0, 1fr);
+  max-width: 1200px;
+  margin-inline: auto;
+}
+.pedido-sem-mapa .pedido-painel {
+  max-height: none;
+  overflow: visible;
+}
+.pedido-sem-mapa .pedido-mapa-pendente {
+  position: relative;
+  min-height: 0;
+  height: auto;
+  padding: var(--e5);
+}
+@media (max-width: 1000px) {
+  .pedido-corpo {
+    grid-template-columns: 1fr;
+  }
+  .pedido-painel {
+    max-height: none;
+    overflow: visible;
+  }
+  .pedido-mapa {
+    position: relative;
+    order: -1;
+  }
+  .pedido-mapa-pendente {
+    order: 1;
+    padding: var(--e4);
+  }
+}
+@media (max-width: 700px) {
+  .pedido-painel .tabela-simples,
+  .pedido-painel .legenda-frase,
+  .pedido-painel .aba,
+  .pedido-painel small,
+  .pedido-form small,
+  .pedido-mapa .mapa-legenda-fixa {
+    font-size: 16px;
+  }
+  .pedido-mapa {
+    height: auto;
+    min-height: 48vh;
+  }
+  .pedido-mapa-pendente {
+    min-height: 0;
+  }
+  .pedido-mapa .mapa-lote {
+    min-height: 300px;
+  }
+  .pedido-painel .abas {
+    flex-wrap: wrap;
+  }
+  .pedido-painel .aba {
+    min-width: 90px;
+    min-height: 48px;
+  }
+}
