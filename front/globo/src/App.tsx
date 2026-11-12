@@ -2,6 +2,7 @@ import { useRota } from "./rota"
 import { useSessao } from "./pedidos"
 import { Entrar } from "./telas/Entrar"
 import { Explorar } from "./telas/Explorar"
+import { Calendario } from "./telas/Calendario"
 import { Fazenda } from "./telas/Fazenda"
 import { Grupo } from "./telas/Grupo"
 import { MeusPedidos } from "./telas/MeusPedidos"
@@ -16,6 +17,7 @@ import { PedidoTela } from "./telas/PedidoTela"
 export default function App() {
   const rota = useRota()
   const sessao = useSessao()
+  if (rota.tela === "calendario") return <Calendario key={rota.car || "todos"} car={rota.car} />
   if (rota.tela === "fazenda") return <Fazenda key={rota.car} car={rota.car} />
   if (rota.tela === "entrar") return <Entrar token={rota.token} />
   if (rota.tela === "pedidos" || rota.tela === "pedido-novo" || rota.tela === "pedido" || rota.tela === "grupo") {

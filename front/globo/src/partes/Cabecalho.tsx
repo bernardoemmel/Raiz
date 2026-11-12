@@ -1,11 +1,12 @@
 import { useSessao } from "../pedidos"
-import { linkPedidos } from "../rota"
+import { linkCalendario, linkPedidos } from "../rota"
 import { Busca } from "./Busca"
 import { IconeRaiz, User } from "./Icones"
 
 const MENU = [
   { id: "mapa", rotulo: "Mapa" },
   { id: "pedidos", rotulo: "Pedidos" },
+  { id: "calendario", rotulo: "Calendário" },
   { id: "fazendas", rotulo: "Fazendas" },
   { id: "agrupados", rotulo: "Projetos agrupados" },
   { id: "carteira", rotulo: "Carteira" },
@@ -23,9 +24,9 @@ export function Cabecalho({ atual, linkMapa = "#/" }: { atual: string; linkMapa?
       <nav aria-label="Principal">
         <ul className="menu">
           {MENU.map((m) =>
-            m.id === "mapa" || m.id === "pedidos" ? (
-              <li key={m.id}>
-                <a href={m.id === "mapa" ? linkMapa : linkPedidos} aria-current={atual === m.id ? "page" : undefined}>
+            m.id === "mapa" || m.id === "pedidos" || m.id === "calendario" ? (
+              <li key={m.id} className="menu-ativo">
+                <a href={m.id === "mapa" ? linkMapa : m.id === "calendario" ? linkCalendario : linkPedidos} aria-current={atual === m.id ? "page" : undefined}>
                   {m.rotulo}
                 </a>
               </li>

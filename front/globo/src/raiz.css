@@ -1273,8 +1273,11 @@ button.link:hover {
 }
 
 /* ---------- telas menores ---------- */
-@media (max-width: 1240px) {
-  .menu {
+@media (max-width: 1400px) {
+  .topo { gap: var(--e3); padding-inline: var(--e4); }
+  .topo-dir { gap: var(--e2); }
+  .busca { width: clamp(160px, 25vw, 320px); }
+  .menu li:not(.menu-ativo) {
     display: none;
   }
 }
@@ -2184,4 +2187,27 @@ button.link:hover {
 }
 .fb-partes .parte-so_mostrar::before {
   background: repeating-linear-gradient(45deg, var(--situacao-nao-apta) 0 2px, var(--superficie) 2px 4px);
+}
+
+/* Calendário: datas e fonte sempre junto do evento, sem depender da cor para ler a situação. */
+.calendario { max-width: 1200px; margin: 0 auto; }
+.calendario-filtros { display: grid; grid-template-columns: 2fr 2fr 1fr 1fr; gap: var(--e4); margin: var(--e5) 0; }
+.calendario-filtros label { display: grid; gap: var(--e1); }
+.calendario-filtros input, .calendario-filtros select { min-width: 0; width: 100%; padding: var(--e2); border: 1px solid var(--pedra); background: var(--superficie); border-radius: var(--raio-botao); }
+.calendario-lista { padding: 0; list-style: none; }
+.calendario-evento h2 { font-size: var(--t-subtitulo); margin: var(--e2) 0; }
+.calendario-evento { display: grid; grid-template-columns: 140px 1fr; gap: var(--e5); border-top: var(--linha); padding: var(--e5) 0; }
+.calendario-evento p { margin: var(--e2) 0; }
+.calendario-dia { font-variant-numeric: tabular-nums; font-weight: 700; }
+.calendario-dia small { display: block; font-weight: 400; }
+.calendario-fonte, .calendario-atualizacao { color: var(--pedra); }
+.calendario-cars { display: flex; flex-wrap: wrap; gap: var(--e2) var(--e4); list-style: none; padding: 0; }
+.calendario-paginas { display: flex; align-items: center; justify-content: space-between; gap: var(--e3); }
+.calendario .aviso { margin: var(--e3) 0; }
+@media (max-width: 700px) {
+  .topo nav { margin-left: auto; }
+  .menu { gap: var(--e1); font-size: var(--t-legenda); }
+  .calendario-filtros { grid-template-columns: 1fr 1fr; }
+  .calendario-evento { grid-template-columns: 1fr; gap: var(--e2); }
+  .calendario-dia { display: flex; gap: var(--e2); }
 }

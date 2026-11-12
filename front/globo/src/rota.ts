@@ -5,6 +5,7 @@ import { normalizar, UFS } from "../../compartilhado/formato"
 /** Entrada (o Brasil), um estado, um município, a ficha de uma fazenda e a área logada (entrar e pedidos de lote). */
 export type Rota =
   | { tela: "entrada" }
+  | { tela: "calendario"; car?: string }
   | { tela: "estado"; uf: string }
   | { tela: "municipio"; municipio: string }
   | { tela: "fazenda"; car: string }
@@ -16,6 +17,7 @@ export type Rota =
 
 export function lerRota(hash: string): Rota {
   const partes = hash.replace(/^#\/?/, "").split("/").map(decodeURIComponent)
+  if (partes[0] === "calendario") return /^[A-Z]{2}[0-9]{7}[A-F0-9]{32}$/i.test((partes[1] || "").replace(/[^a-z0-9]/gi, "")) ? { tela: "calendario", car: partes[1] } : { tela: "calendario" }
   if (partes[0] === "fazenda" && partes[1]) return { tela: "fazenda", car: partes[1] }
   if (partes[0] === "entrar") return { tela: "entrar", token: partes[1] || null }
   if (partes[0] === "pedidos") {
@@ -30,6 +32,8 @@ export function lerRota(hash: string): Rota {
 }
 
 export const linkEstado = (uf: string) => `#/estado/${uf}`
+export const linkCalendario = "#/calendario"
+export const linkCalendarioImovel = (car: string) => `${linkCalendario}/${encodeURIComponent(car)}`
 export const linkPedidos = "#/pedidos"
 export const linkNovoPedido = "#/pedidos/novo"
 export const linkPedido = (id: string) => `#/pedidos/${encodeURIComponent(id)}`
