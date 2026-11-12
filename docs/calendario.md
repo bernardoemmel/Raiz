@@ -36,11 +36,11 @@ O extrator separa anúncios por blocos conhecidos. ICVCM usa os cartões do índ
 
 ## Imóveis e avisos
 
-O vínculo usa CAR explícito; na ausência dele, exige CNS **e** matrícula compatíveis com `titulo.matricula_imovel`, ou parcela SIGEF sobreposta ao imóvel vigente com área de interseção positiva. Matrícula sem CNS não determina um CAR. Não existe corte de tamanho da fazenda. Município é um código IBGE, sem nomes de pessoas ou inferência pelo endereço do titular. Evento sem chave suficiente fica `pendente` e aparece sem selo de leilão para um imóvel específico.
+O vínculo usa CAR explícito; na ausência dele, exige CNS **e** matrícula compatíveis com `titulo.matricula_imovel` e a rodada de `funil.vigente`, ou parcela SIGEF sobreposta ao imóvel vigente com área de interseção positiva. Matrícula sem CNS não determina um CAR. Vínculos derivados são revalidados ao importar/coletar o evento; uma matrícula corrigida ou removida da rodada vigente não mantém o CAR anterior. Não existe corte de tamanho da fazenda. Município é um código IBGE, sem nomes de pessoas ou inferência pelo endereço do titular. Evento sem chave suficiente fica `pendente` e aparece sem selo de leilão para um imóvel específico.
 
 Avisos de leilão futuro e penhora entram nos pedidos ativos que contêm o CAR. Deduplicação usa evento, versão e imóvel; o painel fica disponível e email/WhatsApp ficam **simulados**, mesmo se outro módulo tiver enviador configurado. Nenhuma mensagem externa é enviada pela coleta ou importação.
 
-Retificações na mesma publicação conservam o UID e aumentam `SEQUENCE`. Cancelamento sem repetir a data reaproveita o ato anterior quando há a mesma referência na mesma URL, a mesma referência e CAR em outra publicação, ou o mesmo permalink individual. Sem vínculo seguro, o coletor não adivinha qual ato cancelar e registra cobertura incompleta. Desaparecer da página não equivale a cancelamento. Histórico anterior é conservado, inclusive quando uma fonte falha.
+Retificações na mesma publicação conservam o UID e aumentam `SEQUENCE`. Cancelamento sem repetir a data reaproveita o ato anterior quando há a mesma referência na mesma URL, a mesma referência e CAR em outra publicação, ou o mesmo permalink individual. Sem vínculo seguro, o coletor não adivinha qual ato cancelar e registra cobertura incompleta. Na mesma coleta, cancelamento prevalece sobre o edital original mesmo que a resposta ou a paginação o apresentem primeiro. Desaparecer da página não equivale a cancelamento. Histórico anterior é conservado, inclusive quando uma fonte falha.
 
 ## API, feed e MCP
 

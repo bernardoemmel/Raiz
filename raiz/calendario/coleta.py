@@ -493,7 +493,15 @@ def coletar_fonte(fonte: dict, agora: dt.datetime, obter=None, anteriores=()) ->
         try:
             texto, formato = obter(url, fonte)
             novos, sem = extrair(texto, fonte, url, agora, formato, anteriores)
-            eventos.update({e.id: e for e in novos})
+            for evento in novos:
+                anterior = eventos.get(evento.id)
+                # Uma resposta pode repetir o edital original depois de sua
+                # retificação, inclusive em outra página. A ordem da fonte não
+                # pode reabrir um cancelamento observado nesta mesma rodada.
+                prioridade = {"previsto": 0, "adiado": 1, "cancelado": 2}
+                if anterior and prioridade[anterior.situacao] > prioridade[evento.situacao]:
+                    continue
+                eventos[evento.id] = evento
             sem_data += sem
             if formato == "html":
                 fila.extend(u for u in _links(texto, url, fonte) if u not in vistos and u not in fila)

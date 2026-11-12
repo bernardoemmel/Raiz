@@ -52,14 +52,18 @@ def cruzar(con, evento: Evento) -> Evento:
     Nunca usa só o número da matrícula (que se repete entre cartórios), nomes ou
     CPF. Fazendas pequenas não recebem corte de hectares.
     """
-    cods, vinculo = set(evento.codigos_car), evento.vinculo
+    # CAR explícito sobrevive à coleta; vínculo derivado precisa ser conferido
+    # novamente contra a rodada vigente ao importar um snapshot ou retificação.
+    cods = set(evento.codigos_car) if evento.vinculo in ("car", "pendente") else set()
+    vinculo = "pendente"
     if cods:
         vinculo = "car"
     elif evento.cns and evento.matricula:
         rows = con.execute(
             text("""
-            select cod_imovel from titulo.matricula_imovel
-            where cns = :cns and matricula = :matricula
+            select m.cod_imovel from titulo.matricula_imovel m
+            join funil.vigente v on v.cod_imovel=m.cod_imovel and v.rodada_id=m.rodada_id
+            where m.cns = :cns and m.matricula = :matricula
         """),
             {"cns": evento.cns, "matricula": evento.matricula},
         )
