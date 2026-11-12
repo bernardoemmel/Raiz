@@ -8,7 +8,7 @@ import { addProtocol, setWorkerUrl, type LayerSpecification, type StyleSpecifica
 import workerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?url"
 import { Protocol } from "pmtiles"
 import { COR, MAPA } from "../../../compartilhado/cores"
-import { ATRIBUICAO_MAPA, CORES_MAPA } from "../../../compartilhado/mapa-cores"
+import { ATRIBUICAO_MAPA, CORES_MAPA, FILTRO_PAISES } from "../../../compartilhado/mapa-cores"
 
 let pronto = false
 
@@ -51,7 +51,10 @@ export function estiloBase(base: string | null, opcoes: { rotulos?: boolean } = 
 export function camadasBase(rotulos = true): LayerSpecification[] {
   return layers("protomaps", SABOR_RAIZ, { lang: "pt" }).flatMap((l): LayerSpecification[] => {
     if (l.id === "pois" || l.id.startsWith("address") || l.id === "buildings") return []
+    // nome de estado sai do mapa base: a tela de entrada escreve o dela, com o que a Raíz já leu de cada um
+    if (l.id === "places_region") return []
     if (l.type === "symbol" && !rotulos) return []
+    if (l.id === "places_country") l = { ...l, filter: FILTRO_PAISES } as unknown as LayerSpecification
     if (l.type === "symbol" && l.layout && "icon-image" in l.layout) {
       if (l.id !== "places_locality") return []
       const layout = Object.fromEntries(Object.entries(l.layout).filter(([k]) => !k.startsWith("icon-")))
@@ -77,6 +80,15 @@ export function camadasBase(rotulos = true): LayerSpecification[] {
  * Hachura diagonal a 45 graus, linha de 1,5 px a cada 8 px (guia, item 2.1, parte 3), em imagem de 16 px com
  * pixelRatio 2. Com `cruzada`, as duas diagonais (não apta, item 2.2).
  */
+/** Listras deitadas: fazenda de reserva no mapa do pedido (a diagonal é só da área que volta a ser mata, a cruzada da não apta). */
+export function imagemListras(cor: string = COR.mata): { width: number; height: number; data: Uint8Array } {
+  const t = 8
+  const data = new Uint8Array(t * t * 4)
+  const [r, g, b] = [1, 3, 5].map((i) => parseInt(cor.slice(i, i + 2), 16))
+  for (let y = 0; y < t; y++) for (let x = 0; x < t; x++) data.set([r, g, b, y % t < 2 ? 220 : 0], (y * t + x) * 4)
+  return { width: t, height: t, data }
+}
+
 export function imagemHachura(cor: string = COR.mata, cruzada = false): { width: number; height: number; data: Uint8Array } {
   const t = 16
   const data = new Uint8Array(t * t * 4)

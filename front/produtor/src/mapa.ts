@@ -19,7 +19,7 @@ import "maplibre-gl/dist/maplibre-gl.css"
 import workerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?url"
 import { Protocol } from "pmtiles"
 import { COR, MAPA } from "../../compartilhado/cores"
-import { ATRIBUICAO_MAPA, CORES_MAPA } from "../../compartilhado/mapa-cores"
+import { ATRIBUICAO_MAPA, CORES_MAPA, FILTRO_PAISES } from "../../compartilhado/mapa-cores"
 
 const SABOR: Flavor = { ...namedFlavor("white"), ...CORES_MAPA, landcover: { ...CORES_MAPA.landcover } }
 
@@ -27,6 +27,7 @@ const SABOR: Flavor = { ...namedFlavor("white"), ...CORES_MAPA, landcover: { ...
 function camadas(): LayerSpecification[] {
   return layers("protomaps", SABOR, { lang: "pt" }).flatMap((l): LayerSpecification[] => {
     if (l.id === "pois" || l.id.startsWith("address") || l.id === "buildings") return []
+    if (l.id === "places_country") l = { ...l, filter: FILTRO_PAISES } as unknown as LayerSpecification
     if (l.type === "symbol" && l.layout && "icon-image" in l.layout) {
       if (l.id !== "places_locality") return []
       const layout = Object.fromEntries(Object.entries(l.layout).filter(([k]) => !k.startsWith("icon-")))

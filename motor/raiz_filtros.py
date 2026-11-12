@@ -18,7 +18,7 @@ filtro_territorial:
   ok         resto (APA não impede restauração privada, só entra como informação)
 Retoma de onde parou.
 """
-import sys, os, glob, warnings, requests
+import sys, os, glob, time, warnings, requests
 import pandas as pd, geopandas as gpd
 warnings.filterwarnings('ignore')
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -30,16 +30,27 @@ ARQ = {'quilombo': 'quilombolalands_202605.parquet', 'ti': 'indigenouslands_2025
 CAMADAS = {}
 
 
-def camada(k):
-    if k not in CAMADAS:
-        f = f'cache/{ARQ[k]}'
-        if not os.path.exists(f):
-            print('baixando', ARQ[k])
+def baixar(k, tentativas=6):
+    """Baixa uma vez para cache/ o arquivo do geobr, com espera crescente se o servidor do Ipea recusar."""
+    f = f'cache/{ARQ[k]}'
+    if os.path.exists(f): return f
+    os.makedirs('cache', exist_ok=True)
+    for i in range(tentativas):
+        try:
+            print('baixando', ARQ[k], flush=True)
             with requests.get(BASE + ARQ[k], stream=True, timeout=1800) as r, open(f + '.tmp', 'wb') as o:
                 r.raise_for_status()
                 for ch in r.iter_content(1 << 20): o.write(ch)
-            os.replace(f + '.tmp', f)
-        CAMADAS[k] = gpd.read_parquet(f).to_crs(4674)
+            os.replace(f + '.tmp', f); return f
+        except Exception as ex:
+            if i == tentativas - 1: raise
+            print(f'   geobr {ARQ[k]}: tentativa {i + 1} falhou ({str(ex)[:120]}); espero {30 * 2 ** i} s', flush=True)
+            time.sleep(30 * 2 ** i)
+
+
+def camada(k):
+    if k not in CAMADAS:
+        CAMADAS[k] = gpd.read_parquet(baixar(k)).to_crs(4674)
     return CAMADAS[k]
 
 
@@ -84,7 +95,7 @@ def main():
         if os.path.exists(f): continue
         try:
             t = filtros(geometria(uf, cod, pasta))
-            t.to_csv(f, index=False)
+            t.to_csv(f + '.tmp', index=False); os.replace(f + '.tmp', f)
             print(f'[{i}/{len(cods)}] {cod}: {len(t)} imóveis, {int((t.filtro_territorial == "bloqueio").sum())} bloqueio, '
                   f'{int((t.filtro_territorial == "atencao").sum())} atenção', flush=True)
         except Exception as ex:

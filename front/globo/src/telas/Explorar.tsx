@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from "react"
+import { ufDoCodigo } from "../../../compartilhado/formato"
 import type { Foco } from "../../../compartilhado/funil-etapas"
 import { fonte, useCarga } from "../dados"
 import { MapaBrasil, type CamadaAssunto, type GeoMunicipio } from "../mapa/MapaBrasil"
 import { Cabecalho } from "../partes/Cabecalho"
 import { PainelBrasil } from "../partes/PainelBrasil"
 import { PainelMunicipio } from "../partes/PainelMunicipio"
-import { linkMunicipio } from "../rota"
+import { linkEstado, linkMunicipio } from "../rota"
 
 type Altura = "baixa" | "meia" | "alta"
 const ALTURAS: Altura[] = ["baixa", "meia", "alta"]
@@ -18,34 +19,38 @@ function cobertura(altura: Altura): number {
 }
 
 /**
- * A tela de entrada: o mapa plano do Brasil com a busca fixa no topo. Sem município, o Brasil inteiro com os
- * municípios processados e as fazendas aptas agrupadas; com município (pela busca ou por um toque no mapa), o mapa voa
- * até ele, pinta as fazendas pela situação e abre o painel com o funil em barras ligado ao mapa. O mesmo mapa fica
- * montado o tempo todo: trocar de município não recarrega nada além das camadas dele.
+ * A tela de entrada: o mapa plano do Brasil com a busca fixa no topo. Sem nada escolhido, o Brasil com cada estado
+ * pintado pelo que a Raíz já leu (completo, incompleto com a contagem, ou ainda não processado). Tocar num estado
+ * aproxima e carrega só as fazendas aptas dele, agrupadas; com município (pela busca ou por um toque), o mapa voa até
+ * ele, pinta as fazendas pela situação e abre o painel com o funil em barras ligado ao mapa. O mesmo mapa fica montado
+ * o tempo todo: trocar de estado ou de município não recarrega nada além das camadas dele.
  */
-export function Explorar({ municipio }: { municipio: string | null }) {
+export function Explorar({ municipio, uf }: { municipio: string | null; uf: string | null }) {
   const brasil = useCarga(() => fonte.geo.brasil(), [])
+  const estados = useCarga(() => fonte.estados(), [])
   const municipios = useCarga(() => fonte.municipios(), [])
-  const comLista = useCarga(() => fonte.municipiosComImoveis(), [])
-  const pontos = useCarga(() => fonte.pontos(), [])
+  // o estado em foco: o escolhido, ou o do município aberto; os pontos são só dele
+  const ufFoco = municipio ? ufDoCodigo(municipio) : uf
+  const pontos = useCarga(() => (ufFoco ? fonte.pontos(ufFoco) : Promise.resolve([])), [ufFoco])
   const funil = useCarga(() => (municipio ? fonte.municipio(municipio) : Promise.resolve(null)), [municipio])
   const imoveis = useCarga(() => (municipio ? fonte.imoveis(municipio) : Promise.resolve(null)), [municipio])
   const geoMunicipio = useCarga<GeoMunicipio | null>(async () => {
     if (!municipio) return null
-    const [m, i, ti, rios, terraPublica] = await Promise.all([
+    const [m, i, ti, uc, rios, terraPublica] = await Promise.all([
       fonte.geo.camada(municipio, "municipio"),
       fonte.geo.camada(municipio, "imoveis"),
       fonte.geo.camada(municipio, "ti"),
+      fonte.geo.camada(municipio, "uc"),
       fonte.geo.camada(municipio, "rios"),
       fonte.geo.camada(municipio, "terra_publica").catch(() => null), // só a API tem; a amostra não
     ])
-    return { municipio: m, imoveis: i, ti, rios, terraPublica }
+    return { municipio: m, imoveis: i, ti, uc, rios, terraPublica }
   }, [municipio])
 
   const [foco, setFoco] = useState<Foco>(null)
   const [camada, setCamada] = useState<CamadaAssunto>("situacao")
   const [destaque, setDestaque] = useState<string | null>(null)
-  // no celular, sem município o mapa ocupa quase tudo; com município a gaveta sobe até a metade
+  // no celular, sem município o mapa ocupa quase tudo (Brasil ou estado); com município a gaveta sobe até a metade
   const [altura, setAltura] = useState<Altura>(municipio ? "meia" : "baixa")
   const [margem, setMargem] = useState(() => cobertura(municipio ? "meia" : "baixa"))
 
@@ -67,7 +72,7 @@ export function Explorar({ municipio }: { municipio: string | null }) {
   }, [altura])
 
   const processados = useMemo(() => new Set((municipios.dado ?? []).map((m) => m.cod_ibge)), [municipios.dado])
-  const listas = useMemo(() => new Set(comLista.dado ?? []), [comLista.dado])
+  const listas = useMemo(() => new Set((estados.dado?.estados ?? []).flatMap((e) => e.com_lista)), [estados.dado])
   const feicao = municipio ? brasil.dado?.municipios?.features.find((f) => String(f.properties.cod_ibge) === municipio) : undefined
   const centro = useMemo<[number, number] | null>(() => {
     if (!feicao) return null
@@ -103,7 +108,10 @@ export function Explorar({ municipio }: { municipio: string | null }) {
     <div className="explorar">
       <Cabecalho atual="mapa" linkMapa="#/" />
       <div className="explorar-corpo">
-        <aside className={`painel-lateral gaveta-${altura}`} aria-label={municipio ? "Painel do município" : "O Brasil na Raíz"}>
+        <aside
+          className={`painel-lateral gaveta-${altura}`}
+          aria-label={municipio ? "Painel do município" : uf ? "O estado na Raíz" : "O Brasil na Raíz"}
+        >
           <button
             type="button"
             className="gaveta-alca"
@@ -139,7 +147,14 @@ export function Explorar({ municipio }: { municipio: string | null }) {
                 aoPassar={setDestaque}
               />
             ) : (
-              <PainelBrasil municipios={municipios.dado} comLista={listas} carregando={municipios.carregando} />
+              <PainelBrasil
+                municipios={municipios.dado}
+                comLista={listas}
+                estados={estados.dado}
+                uf={uf}
+                pontos={uf ? pontos.dado : undefined}
+                carregando={municipios.carregando || estados.carregando}
+              />
             )}
           </div>
         </aside>
@@ -147,7 +162,9 @@ export function Explorar({ municipio }: { municipio: string | null }) {
           brasil={brasil.dado}
           processados={processados}
           comLista={listas}
+          estados={estados.dado}
           pontos={pontos.dado ?? []}
+          uf={uf}
           municipio={municipio}
           geoMunicipio={geoMunicipio.dado ?? null}
           imoveis={imoveis.dado ?? null}
@@ -156,6 +173,7 @@ export function Explorar({ municipio }: { municipio: string | null }) {
           destaque={destaque}
           margemBaixo={margem}
           aoEscolherMunicipio={(cod) => (location.hash = linkMunicipio(cod))}
+          aoEscolherEstado={(sigla) => (location.hash = linkEstado(sigla))}
         />
       </div>
     </div>

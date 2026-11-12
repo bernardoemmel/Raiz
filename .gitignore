@@ -5,6 +5,11 @@
 # dados grandes e gerados pelo motor (ficam fora do git; só dados/amostra entra)
 motor/saida/
 dados/estados/
+# leituras de certidão, estado da busca e documentos gerados (raiz/documentos): nunca no git
+dados/documentos/
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
 motor/cache/
 motor/extras/
 motor/mapbiomas/
@@ -47,3 +52,5 @@ dados/armazem_local/
 dados/mapa/
 dados/imagens/
 dados/publico/
+# pacotes montados pelo publicar_dados.py (sobem para o Release; no fluxo antigo, git add -f)
+dados-entrada/

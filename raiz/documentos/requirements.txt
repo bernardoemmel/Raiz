@@ -1,0 +1,10 @@
+# Dependências de raiz/documentos (pip install -r raiz/documentos/requirements.txt). Licenças conferidas em NOTICE.md.
+anthropic>=2.0          # Apache-2.0: leitura de certidão e edital pela API da Anthropic
+docxtpl>=0.20           # LGPL-2.1: modelos .docx com Jinja (usado como biblioteca, sem alterar o código)
+python-docx>=1.1        # MIT: monta os modelos .docx
+pypdf>=5.0              # BSD-3-Clause: conta páginas do PDF
+pandas>=2.2             # BSD-3-Clause
+numpy>=1.26             # BSD-3-Clause: faixa P10 a P90 da carteira
+requests>=2.31          # Apache-2.0
+beautifulsoup4>=4.12    # MIT: links das páginas de editais
+reportlab>=4.0          # BSD: PDF de exemplo dos testes

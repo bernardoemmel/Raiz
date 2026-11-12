@@ -10,7 +10,7 @@
 export { comoLinha } from "./colunas"
 import type { RespostaBusca } from "./busca"
 import type { Ficha } from "./ficha"
-import type { CamadaGeo, FunilMunicipio, Geo, Imovel, PontoFazenda } from "./tipos"
+import type { CamadaGeo, Estados, FunilMunicipio, Geo, Imovel, PontoFazenda } from "./tipos"
 
 export interface Certidao {
   cod_imovel: string
@@ -37,16 +37,20 @@ export interface FonteDeDados {
   certidoes(cod_imovel: string): Promise<Certidao[]>
   /** GET /busca?q=: código do CAR (inteiro ou começo) ou nome do município; diz por que não achou */
   buscar(q: string, sinal?: AbortSignal): Promise<RespostaBusca>
-  /** fazendas aptas como pontos, de todos os municípios com lista por fazenda (mapa do Brasil) */
-  pontos(): Promise<PontoFazenda[]>
+  /** os 27 estados: quantos municípios o motor já processou, de quantos (lista do IBGE), e se está completo */
+  estados(): Promise<Estados>
+  /** fazendas aptas de UM estado como pontos (o mapa carrega só o estado escolhido) */
+  pontos(uf: string): Promise<PontoFazenda[]>
   /** quais municípios têm dado por fazenda */
   municipiosComImoveis(): Promise<string[]>
   geo: {
     camada(cod_ibge: string, camada: CamadaGeo): Promise<Geo | null>
+    /** municípios com o contorno de cada fazenda (imoveis_<cod>.geojson) */
+    comContorno(): Promise<string[]>
     /** URL do mapa base em PMTiles do município, ou null se ainda não foi gerado */
     base(cod_ibge: string): Promise<string | null>
-    /** o Brasil: contorno de todos os municípios e o mapa base único (do país ao município) */
-    brasil(): Promise<{ municipios: Geo | null; base: string | null }>
+    /** o Brasil: contorno de todos os municípios, dos 27 estados e o mapa base único (do país ao município) */
+    brasil(): Promise<{ municipios: Geo | null; estados: Geo | null; base: string | null }>
   }
 }
 
@@ -80,4 +84,21 @@ export async function buscarTexto(url: string): Promise<string | null> {
   if (!r.ok) throw new Error(`${r.status} ao ler ${url}`)
   if ((r.headers.get("content-type") ?? "").includes("text/html")) return null
   return r.text()
+}
+
+/** Os pontos como o plugin e a API mandam: { campos, pontos: [[lon, lat, situacao, ha, cod_ibge, n], ...] }. */
+export function lerPontos(json: { campos?: string[]; pontos?: unknown[][] } | unknown[] | null): PontoFazenda[] {
+  if (!json) return []
+  // a API pode mandar a lista de objetos direto
+  if (Array.isArray(json)) return (json as PontoFazenda[]).map((p) => ({ ...p, n: p.n ?? 1 }))
+  const campos = json.campos ?? ["lon", "lat", "situacao", "ha", "cod_ibge", "n"]
+  const i = (c: string) => campos.indexOf(c)
+  return (json.pontos ?? []).map((p) => ({
+    lon: Number(p[i("lon")]),
+    lat: Number(p[i("lat")]),
+    situacao: p[i("situacao")] === "apta" ? "apta" : "pendencia",
+    ha: Number(p[i("ha")]) || 0,
+    cod_ibge: String(p[i("cod_ibge")]),
+    n: i("n") >= 0 ? Number(p[i("n")]) || 1 : 1,
+  }))
 }

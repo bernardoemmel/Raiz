@@ -1,2 +1,4 @@
 # geometrias geradas por scripts/geo.py (dado público, mas grande; regenerar com o script)
 geo/
+# cache do plugin de dados (pontos de cada estado, refeitos quando o CSV muda)
+.cache/

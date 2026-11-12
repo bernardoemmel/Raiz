@@ -8,7 +8,9 @@ e comparada com o resultado real.
 
 ## O que já existe
 
-**Motor de dados (`motor/`)**: funil por imóvel do CAR, município por município, para todos os estados.
+**Motor de dados (`motor/`)**: funil por imóvel do CAR, município por município, para todos os estados. Roda sozinho no
+GitHub Actions (`.github/workflows/processar-estados.yml`), 4 estados por vez, e publica no Release `dados`, de onde o
+front baixa. Painel com o andamento de cada estado em [`motor/README.md`](motor/README.md).
 
 | Script | O que faz |
 |---|---|
@@ -19,15 +21,23 @@ e comparada com o resultado real.
 | `raiz_direto.py` | YbYrá e Global Pasture Watch lidos direto dos arquivos públicos, sem Earth Engine |
 | `raiz_mapbiomas.py` | MapBiomas (cobertura, desmatamento, fogo, pasto) pela API da Plataforma, sem login e sem Earth Engine |
 | `raiz_app.py` | aplica a escadinha da APP a municípios rodados antes dela |
+| `rodar_estado.py` | roda um estado inteiro, etapa por etapa, dentro do prazo do job (é o que o GitHub Actions chama) |
+| `publicar_dados.py`, `painel.py` | publicam no Release `dados` e atualizam o painel do motor |
 | `raiz_ajustes.py` | ajustes da pesquisa (cenários de carbono etc.) por cima da saída |
 | `mapbiomas_alerta.py` | API do MapBiomas Alerta (credenciais em variáveis de ambiente) |
 | `iovbench/` | teste da interseção pelo iOverlay (Rust) contra o GEOS nos mesmos pares: 2,1x mais rápido em São Félix do Xingu e Altamira, mesma área |
-| `fila*.sh` | filas que rodam o país inteiro, estado por estado, retomando de onde pararam |
+| `fila*.sh` | filas antigas que rodam o país inteiro num computador só, estado por estado |
 
 Desempenho: cerca de 30 a 40 s por município com 3 municípios ao mesmo tempo (4 núcleos, 15 GB); Brasil inteiro em cerca de 2 dias.
 
 **Amostra (`dados/amostra/`)**: resumo do Pará (144 municípios) e, para Nova Esperança do Piriá (1504950) e São Félix do Xingu (1507300), todos os arquivos por município: imoveis, filtros, certidoes, direto, extras, extras_direto e mapbiomas (sem CPF, CNPJ ou nome).
 Os dados completos não ficam no repositório (são grandes); o motor gera de novo.
+
+**Documentos (`raiz/documentos/`)**: leitor de certidão de matrícula pela API da Anthropic, conferido com o
+`certidoes_<mun>.csv` do motor (conferida, divergente ou cancelada), busca semanal de registros e editais (Verra, SFB,
+Ideflor-Bio, Diário Oficial), documentos em .docx (folha de 3 páginas para o dono, relatório do lote com faixa P10 a
+P90, checklist do edital) e aprendizado (cada leitura com a versão do modelo, marcada quando a certidão real confirma ou
+desmente). Guia: `docs/documentos.md`.
 
 **Documentação (`docs/`)**: `colunas.md` (o que cada coluna significa; é o contrato entre motor e produto) e
 `plano-por-etapa.md` (o que construir, em que ordem, com horas estimadas).
@@ -83,16 +93,18 @@ O S3 fica pronto para quando o volume pedir (Cloudflare R2, sem taxa de saída, 
 --env-file .env -f infra/docker-compose.yml --profile armazem up -d armazem`), com `RAIZ_S3_ENDPOINT`,
 `RAIZ_S3_ACCESS_KEY_ID` e `RAIZ_S3_SECRET_ACCESS_KEY` só no `.env`. Hoje não é usado.
 
-No GitHub Actions (workflow `processar-estados.yml`), cada estado roda assim, retoma do ponto em que a rodada
-anterior parou e publica no Release antes do limite de 6 horas do job:
+No GitHub Actions (workflow `processar-estados.yml`, explicado com o painel em [`motor/README.md`](motor/README.md)),
+`motor/rodar_estado.py --executor` organiza a rodada e chama o executor: escolhe os estados (4 ao mesmo tempo, na
+ordem do país), adota o estado publicado antes do executor (com a APP pela escadinha antes, onde faltava), roda
+`raiz executor rodar --ufs <UF> --lanes 3 --ate-minutos <o que sobra das 5h30>` com `RAIZ_SEM_BANCO=1`, roda os
+extras do Earth Engine se houver GeoTIFF e, se o prazo acabou, dispara a continuação do estado:
 
 ```bash
-RAIZ_SEM_BANCO=1 GH_TOKEN=${{ github.token }} \
-  uv run raiz executor rodar --ufs PA --lanes 3 --ate-minutos 330
+RAIZ_SEM_BANCO=1 GH_TOKEN=... uv run python motor/rodar_estado.py PA --executor
 ```
 
 Um estado que já está no Release mas foi feito antes do executor (sem marcas): `uv run raiz executor adotar --ufs PA`
-grava as marcas a partir do que está publicado, sem rodar o motor de novo.
+grava as marcas a partir do que está publicado, sem rodar o motor de novo (o `--executor` faz isso sozinho).
 
 Um estado à mão:
 
@@ -124,8 +136,18 @@ estado, o back-end carrega no banco. Exemplo no cron do servidor:
 Ou deixar rodando: `uv run raiz executor vigiar --intervalo-h 24 --lanes 3`. O painel fica em
 `/painel/processamento` (pede o token da API) e os números em `GET /brasil`, `GET /estados` e `GET /processamento`.
 
-Os scripts do motor (`motor/raiz_estado.py` e os outros) continuam rodando sozinhos como antes
-(`cd motor && python raiz_estado.py PA`), mas o que o site mostra vem do executor.
+Os scripts do motor (`motor/raiz_estado.py` e os outros) continuam rodando sozinhos como antes, mas o que o site
+mostra vem do executor:
+
+```bash
+pip install -r requirements.txt
+cd motor
+python raiz_estado.py PA 1504950      # um município (código IBGE)
+python rodar_estado.py PA             # todas as etapas do motor que faltam no estado, na ordem, sem o executor
+```
+
+Saída em `motor/saida/<UF>/`. O MapBiomas Alerta do funil vem do WFS público da plataforma, sem login; o
+`mapbiomas_alerta.py` (API com login) precisa do `.env` (copie `.env.example` e preencha).
 
 ## Etapas do produto
 
