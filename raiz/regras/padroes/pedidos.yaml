@@ -1,0 +1,83 @@
+# Premissas do pedido de lote (raiz/pedidos/, docs/cena-alvo.md). Cada número diz de onde veio. A versão (com o
+# hash deste arquivo) fica guardada em cada lote sugerido, junto da versão do valor para quem restaura.
+versao: pedidos-2026a
+
+# Interesse do dono: níveis em ordem (só sobem com registro de data, canal e versão do termo)
+niveis: [sem_contato, contatado, interessado, aceite_fase1, contrato_firme]
+niveis_fim: [recusou, sem_resposta]
+termo_versao_atual: termo-lgpd-2026a
+
+# Chance de aceite do dono por perfil, antes de ter histórico (a priori). Com contatos registrados, a chance de cada
+# perfil (faixa de tamanho, caminho da terra, estado e forma de pagamento) é atualizada (beta-binomial).
+aceite:
+  base: 0.30
+  peso_a_priori: 10  # equivale a 10 contatos imaginários na chance base
+  por_caminho:
+    privada_matricula_conferida: 1.0
+    publica_sob_concessao: 1.2
+    posse_em_titulacao: 0.8
+    assentamento: 0.7
+  faixas_ha: [50, 300, 1500]  # pequena, média, grande, muito grande
+  por_faixa: [1.15, 1.0, 0.9, 0.8]
+  por_pagamento:
+    participacao: 1.0
+    duas_fases: 1.15
+    arrendamento: 1.1
+  fonte: >-
+    premissa Raíz a calibrar com os primeiros contatos (aceite de projetos de carbono com pequenos e médios
+    proprietários na Amazônia costuma ficar entre 20 e 40%); a terra em concessão pública já tem dono interessado
+    (o concessionário), a posse e o assentamento pedem mais conversa
+
+# Ondas de contato
+ondas:
+  folga: 1.5  # a 1ª onda contata fazendas até a soma (chance de aceite x crédito) dar 1,5 vez a meta
+  folga_seguintes: 1.2
+  prazo_resposta_dias: 15
+  maximo: 12
+  recontato_apos_dias: 365  # recusa e falta de resposta valem por um ano; depois a fazenda pode ser contatada de novo
+  canal_padrao: whatsapp  # sem WhatsApp do dono: carta; visita: parceiro local credenciado
+  envio_simulado: true  # por enquanto as ondas, as filas e os estados rodam com envio simulado
+  fonte: premissa Raíz (o prazo e a folga se ajustam com o aprendizado)
+
+# Otimizador (HiGHS pelo scipy.optimize.milp)
+otimizador:
+  versao: otimizador-2026a
+  candidatos_max: 3000  # pré-seleção pelos melhores de cada critério antes do solver
+  tempo_limite_s: 15
+  folga_gap: 0.002
+  reserva_fracao: 0.15  # fazendas de reserva: 10 a 20% da meta (aqui 15%)
+  # pesos de cada opção (custo por crédito; risco: terra, marcos e aceite; compacidade: grupos de vizinhas)
+  pesos:
+    barata: {custo: 1.0, risco: 0.0, compacta: 0.0}
+    segura: {custo: 0.3, risco: 1.0, compacta: 0.0}
+    compacta: {custo: 0.5, risco: 0.2, compacta: 1.0}
+  risco_terra:  # peso do risco do caminho da terra no custo de risco (US$ por crédito)
+    baixo: 0.0
+    medio: 8.0
+    alto: 20.0
+  risco_marcos_usd: 20.0  # US$ por crédito por ponto de chance de falhar em algum marco (0 a 1)
+  risco_aceite_usd: 15.0  # US$ por crédito por ponto de chance de recusa (0 a 1)
+  custo_grupo_usd: 25000  # custo fixo de abrir mais um grupo de vizinhas (logística: viveiro, equipe)
+  diametro_km_padrao: 15
+  correlacao_captura: 0.6  # sorteios dos créditos entre fazendas: parte comum (clima, preço) e parte de cada uma
+  sorteios: 400
+  semente: 2026
+  fonte: >-
+    premissa Raíz; os pesos dão as 3 opções do mesmo solver (cena-alvo); HiGHS (MIT) vem dentro do scipy
+
+# Reserva do grupo
+reserva:
+  dias_padrao: 60
+  conexao_rs_ha: 30.0  # taxa de conexão por ha cobrada sobre o grupo que assinou
+  fracao_da_conexao: 0.2  # a reserva é uma parte da conexão, abatida quando o contrato fecha
+  minimo_rs: 500.0
+  pix_validade_s: 86400
+  fonte: premissa Raíz a definir com o fundador (valores da conexão e da reserva)
+
+# Exclusões padrão de todo pedido (cena-alvo): terra indígena, UC de proteção integral, embargo, sobreposição com
+# projeto de carbono existente, bloqueio territorial do motor
+exclusoes_padrao: [embargo, terra_indigena, uc_protecao_integral, projeto_carbono, bloqueio]
+
+# Alertas do pedido salvo
+vigia:
+  melhora_minima: 0.03  # o lote melhorou: custo por crédito 3% menor ou 3% mais crédito com o mesmo custo

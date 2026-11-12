@@ -54,7 +54,7 @@ export function situacaoTitulo(i: Imovel): SituacaoTitulo {
   return {
     selo: "sem_matricula",
     rotulo: "Sem matrícula no SIGEF",
-    tom: "ruim",
-    texto: "Nenhuma parcela SIGEF com matrícula no CAR: posse ou terra pública, título a regularizar antes do contrato.",
+    tom: "conferir",
+    texto: "Nenhuma parcela SIGEF com matrícula no CAR. A fazenda continua no mapa e segue o caminho da terra acima.",
   }
 }

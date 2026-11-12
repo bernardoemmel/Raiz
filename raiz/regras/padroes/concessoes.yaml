@@ -1,0 +1,86 @@
+# Concessões e editais de concessão em terra pública (SFB, gov.br/florestal, e Ideflor-Bio, Pará). Cada entrada guarda
+# a data e o link da fonte; `raiz terra editais` confere as páginas das duas fontes e avisa quando mudam.
+# vinculo: como achar a área no mapa. uc = nome da unidade de conservação no CNUC (o polígono inteiro, quando a
+# concessão cobre só parte dele, area_exata fica false); cnfp = nome da gleba no Cadastro Nacional de Florestas
+# Públicas. Imóvel do CAR só vira "pública sob concessão" quando a área é exata ou a UC é toda de domínio público.
+versao: concessoes-2026b
+conferido_em: "2026-11-12"
+fontes:
+  sfb: https://www.gov.br/florestal/pt-br/assuntos/concessoes-e-monitoramento/editais-em-licitacao
+  ideflor_bio: https://ideflorbio.pa.gov.br/licitacoes-e-contratos/
+
+concessoes:
+  - id: ur_triunfo_do_xingu
+    nome: Unidade de Recuperação Triunfo do Xingu
+    orgao: Ideflor-Bio (Pará)
+    uf: PA
+    tipo: concessao_restauracao
+    situacao: contratada
+    data: "2025-07-01"
+    marcos:
+      - {data: "2024-11-01", texto: "edital lançado na COP 29 (Concorrência Pública 002/2024)"}
+      - {data: "2025-04-17", texto: "resultado da licitação no Diário Oficial do Estado"}
+      - {data: "2025-07-01", texto: "contrato assinado, 40 anos (mês de julho de 2025)"}
+    area_ha: 10346
+    # polígono exato: intervenções propostas da Systemica (25/04/2025), no Release dados; vale a união das áreas de
+    # restauração (plantio em área total, regeneração ativa e regeneração passiva, ~9.826 ha)
+    vinculo:
+      arquivo: URTX.kml
+      url: https://github.com/bernardoemmel/raiz/releases/download/dados/URTX.kml
+      classes: [Plantio área total, Regeneração ativa, Regeneração passiva]
+      campo_classe: Name
+    area_exata: true
+    nota: >-
+      Área pública dentro da APA Triunfo do Xingu (Altamira). O polígono da APA não classifica imóveis (a APA tem terra
+      privada); o polígono das áreas de restauração da URTX classifica.
+    link: https://ideflorbio.pa.gov.br/unidade-de-recuperacao-triunfo-do-xingu/
+    link_contrato: https://ideflorbio.pa.gov.br/wp-content/uploads/2025/07/Contrato-de-Concessao-Florestal-na-Unidade-de-Recuperacao-Triunfo-1.pdf
+  - id: flona_bom_futuro_um2
+    nome: Floresta Nacional do Bom Futuro, Unidade de Manejo II
+    orgao: Serviço Florestal Brasileiro
+    uf: RO
+    tipo: concessao_restauracao
+    situacao: contratada
+    data: "2026-10-14"
+    area_ha: 59000
+    area_restauracao_ha: 6290
+    vinculo: {uc: "FLORESTA NACIONAL DO BOM FUTURO"}
+    area_exata: false
+    link: https://www.gov.br/florestal/pt-br/assuntos/noticias/2026/outubro/sfb-assina-contrato-de-concessao-para-restauracao-florestal-na-flona-de-bom-futuro
+  - id: flona_bom_futuro_lote2
+    nome: Floresta Nacional do Bom Futuro, lote 2
+    orgao: Serviço Florestal Brasileiro
+    uf: RO
+    tipo: concessao_restauracao
+    situacao: edital
+    data: "2026-09-10"
+    marcos:
+      - {data: "2026-09-10", texto: "edital lançado"}
+      - {data: "2026-11-04", texto: "entrega dos envelopes na B3"}
+    area_ha: 39000
+    area_restauracao_ha: 6400
+    vinculo: {uc: "FLORESTA NACIONAL DO BOM FUTURO"}
+    area_exata: false
+    link: https://www.gov.br/florestal/pt-br/assuntos/noticias/2026/setembro/sfb-lanca-edital-de-concessao-florestal-voltada-ao-mercado-de-carbono-e-restauracao
+  - id: flona_altamira
+    nome: Floresta Nacional de Altamira (restauração em duas unidades de manejo)
+    orgao: Serviço Florestal Brasileiro
+    uf: PA
+    tipo: concessao_restauracao
+    situacao: edital_em_consulta
+    data: "2026-09-01"
+    marcos:
+      - {data: "2026-10-30", texto: "fim das contribuições à consulta pública do edital"}
+    vinculo: {uc: "FLORESTA NACIONAL DE ALTAMIRA"}
+    area_exata: false
+    link: https://www.gov.br/florestal/pt-br/assuntos/noticias/2026/setembro/sfb-abre-consulta-publica-sobre-edital-de-concessao-florestal-na-flona-de-altamira
+  - id: gleba_castanho
+    nome: Gleba Castanho (primeira concessão florestal em gleba pública federal fora de UC)
+    orgao: Serviço Florestal Brasileiro
+    uf: AM
+    tipo: concessao_florestal
+    situacao: edital
+    data: "2026-04-01"
+    vinculo: {cnfp: "CASTANHO"}
+    area_exata: false
+    link: https://www.gov.br/florestal/pt-br/assuntos/noticias/2026/abril/governo-federal-lanca-edital-para-a-primeira-concessao-florestal-em-gleba-publica

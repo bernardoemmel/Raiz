@@ -38,18 +38,100 @@ desmente). Guia: `docs/documentos.md`.
 **Documentação (`docs/`)**: `colunas.md` (o que cada coluna significa; é o contrato entre motor e produto) e
 `plano-por-etapa.md` (o que construir, em que ordem, com horas estimadas).
 
-## Rodar o motor
+**Produto (`raiz/`)**: pacote Python em cima do motor. Arquitetura aprovada em `docs/arquitetura.md`.
+
+| Peça | O que faz |
+|---|---|
+| `raiz/contrato.py` | lê as saídas do motor pelo nome das colunas; coluna nova vai para `atributos` em vez de quebrar |
+| `raiz/carga.py` | carrega `saida/<UF>/` no PostgreSQL + PostGIS, uma rodada por município, sem duplicar |
+| `raiz/aprendizado/` | previsões congeladas (data de corte, horizonte, versões, hash do lote) e previsão contra gabarito |
+| `raiz/privacidade.py` | máscara de CPF/CNPJ (inclusive alfanumérico), log mascarado, varredura do repositório |
+| `raiz/licencas.py` | derruba o build se alguma dependência tiver licença proibida pelo CLAUDE.md |
+| `raiz/coleta/` | E1: manifesto de camadas, checagem HEAD, WFS e ArcGIS com conferência de contagem, CAR e SIGEF incrementais no espelho Parquet por município, histórico scd2 no PostGIS, Ibama sem dado pessoal, MapBiomas pela API da Plataforma, índice de blocos de COG |
+| `raiz/funil/` | roda o motor sem editá-lo, lendo CAR e SIGEF do espelho (ponte), com lotes vigiados |
+| `raiz/modelos/` | Claude (Sonnet 5.5, Haiku 5.5) e Qwen3-4B no llama.cpp atrás de uma interface; cascata ABC; custo e Langfuse |
+| `raiz/agentes/`, `raiz/whatsapp.py`, `raiz/api.py` | aceite do dono no WhatsApp (PyWa 4, BSUID), LangGraph com conversa cifrada, mensagens só com aprovação |
+| `raiz/operacao/` | Healthchecks por lote, custo por tarefa, fazenda e município |
+| `migracoes/` | esquemas `coleta`, `bruto`, `funil`, `regras`, `titulo`, `negocio`, `aprendizado`, `pessoal`, `operacao` |
+
+**Pedidos do dia 1 (`docs/pedidos/`)**: convênio com o ONR e pedidos de LAI ao SFB e ao INCRA, prontos para enviar.
+
+## Rodar o produto
 
 ```bash
-pip install -r requirements.txt
-cd motor
-python raiz_estado.py PA 1504950      # um município (código IBGE)
-python raiz_estado.py PA              # o estado inteiro
-python raiz_filtros.py PA
-python raiz_direto.py PA
+uv sync --all-extras                                   # dependências do produto e do motor
+docker compose --env-file .env -f infra/docker-compose.yml up -d   # PostGIS (ou um Postgres com PostGIS local)
+uv run raiz banco migrar
+uv run raiz carregar dados/amostra --data-corte 2026-11-12   # carrega e congela as previsões do motor
+uv run raiz aprendizado placar
+uv run raiz coleta fontes                              # o que olhar hoje e o que está pendente no manifesto
+uv run raiz api                                        # aceites, mensagens a aprovar, revisões, webhook do WhatsApp
+uv run pytest                                          # com RAIZ_BANCO_URL_TESTE no .env, testa também o banco
 ```
 
-Saída em `motor/saida/<UF>/`. Para o MapBiomas Alerta, copie `.env.example` para `.env` e preencha.
+## Rodar o motor (dentro do produto: agente Dados)
+
+O motor roda pelo produto, município a município, e grava cada arquivo no armazém com a versão da tarefa e a data.
+A marca de concluído por município guarda a versão de cada tarefa: se a máquina reiniciar, ele retoma de onde parou;
+se o motor ou uma regra mudar, refaz só o que a mudança afeta.
+
+O armazém de produção é o Release `dados` do GitHub (o mesmo que o front baixa, ver docs/dados-publicados.md). É o
+padrão: sem configurar nada, o executor lê de lá; grava só onde há o token do GitHub Actions (`GH_TOKEN` ou
+`GITHUB_TOKEN`, só por variável de ambiente). Outros armazéns, pelo `RAIZ_ARMAZEM_URL` no `.env`:
+
+```bash
+RAIZ_ARMAZEM_URL=release-github://bernardoemmel/raiz/dados   # padrão (produção)
+RAIZ_ARMAZEM_URL=dados/armazem                               # pasta local (desenvolvimento e testes)
+RAIZ_ARMAZEM_URL=s3://raiz-motor/producao                    # compatível com S3 (opção futura, ver abaixo)
+```
+
+O S3 fica pronto para quando o volume pedir (Cloudflare R2, sem taxa de saída, ou SeaweedFS local: `docker compose
+--env-file .env -f infra/docker-compose.yml --profile armazem up -d armazem`), com `RAIZ_S3_ENDPOINT`,
+`RAIZ_S3_ACCESS_KEY_ID` e `RAIZ_S3_SECRET_ACCESS_KEY` só no `.env`. Hoje não é usado.
+
+No GitHub Actions (workflow `processar-estados.yml`), cada estado roda assim, retoma do ponto em que a rodada
+anterior parou e publica no Release antes do limite de 6 horas do job:
+
+```bash
+RAIZ_SEM_BANCO=1 GH_TOKEN=${{ github.token }} \
+  uv run raiz executor rodar --ufs PA --lanes 3 --ate-minutos 330
+```
+
+Um estado que já está no Release mas foi feito antes do executor (sem marcas): `uv run raiz executor adotar --ufs PA`
+grava as marcas a partir do que está publicado, sem rodar o motor de novo.
+
+Um estado à mão:
+
+```bash
+uv sync --all-extras
+uv run raiz executor plano --uf PA                   # o que rodaria agora, sem rodar
+uv run raiz executor rodar --ufs PA --lanes 3        # roda e retoma; pode matar e rodar de novo
+uv run raiz executor rodar --ufs PA --municipios 1504950,1507300
+uv run raiz executor estado                          # prontos, em andamento, com erro, versão do motor
+uv run raiz executor sincronizar --ufs PA            # o back-end espelha o armazém e carrega no banco
+```
+
+O Brasil inteiro (27 estados, 5.571 municípios):
+
+```bash
+uv run raiz executor rodar --ufs brasil --lanes 3
+```
+
+Agenda: `raiz executor ciclo` faz uma volta. A volta é completa (refaz todos os municípios) quando muda a coleção do
+MapBiomas que o motor usa (uma vez por ano). No resto do tempo é parcial: refaz só o que mudou, seja a versão de
+uma tarefa, seja uma fonte do município (CAR, SIGEF e embargos do espelho, alertas na área dele). Depois de cada
+estado, o back-end carrega no banco. Exemplo no cron do servidor:
+
+```bash
+# todo dia às 2h40: coleta das fontes diárias e a volta do executor
+40 2 * * * cd /srv/raiz && uv run raiz coleta car && uv run raiz coleta ibama && uv run raiz executor ciclo --lanes 3
+```
+
+Ou deixar rodando: `uv run raiz executor vigiar --intervalo-h 24 --lanes 3`. O painel fica em
+`/painel/processamento` (pede o token da API) e os números em `GET /brasil`, `GET /estados` e `GET /processamento`.
+
+Os scripts do motor (`motor/raiz_estado.py` e os outros) continuam rodando sozinhos como antes
+(`cd motor && python raiz_estado.py PA`), mas o que o site mostra vem do executor.
 
 ## Etapas do produto
 

@@ -1,0 +1,324 @@
+"""Pedido de lote com o banco (docs/cena-alvo.md): entrar sem senha, pedido salvo com a base e as 3 opções, troca
+de fazenda, busca de interesse em ondas (quem recusa é trocado e o grupo fecha a meta de novo), grupo pronto com
+aviso, reserva com Pix de teste, exclusividade (a fazenda reservada some para os outros clientes e volta quando a
+reserva vence), contrato, vigia e aprendizado da chance de aceite. Nada pessoal do dono sai pela API."""
+
+import datetime as dt
+
+import pytest
+from fastapi.testclient import TestClient
+from pydantic import SecretStr
+from sqlalchemy import create_engine, text
+
+from raiz.carga import carregar_pasta
+from raiz.pedidos import servico as S
+from raiz.pessoal import gerar_chave
+from testes.conftest import AMOSTRA
+
+pytestmark = pytest.mark.banco
+TOKEN = "token-interno-de-teste"
+TODA_TERRA = ["matricula_conferida", "matricula_a_conferir", "concessao", "assentamento", "posse_em_titulacao"]
+CAMPOS = {"meta": {"tipo": "creditos", "valor": 400_000}, "onde": {"ufs": ["PA"], "biomas": ["Amazônia"]},
+          "terra": TODA_TERRA}  # fmt: skip
+PESSOAL = ("cpf", "cnpj", "telefone", "nome_dono", "email")
+
+
+@pytest.fixture(scope="module")
+def eng(banco_url):
+    e = create_engine(banco_url)
+    with e.begin() as c:
+        c.execute(text("truncate funil.rodada, funil.imovel, negocio.oferta, negocio.cliente cascade"))
+        c.execute(text("truncate negocio.interesse_dono, negocio.interesse_evento"))
+    carregar_pasta(e, AMOSTRA, dt.date(2026, 11, 12))  # a carga já refaz a oferta do município
+    yield e
+    e.dispose()
+
+
+@pytest.fixture(scope="module")
+def chave():
+    import raiz.pessoal as P
+
+    k = gerar_chave()
+    mp = pytest.MonkeyPatch()
+    mp.setattr(P, "config", lambda: type("C", (), {"chave_pessoal": SecretStr(k)})())
+    yield k
+    mp.undo()
+
+
+def _sem_pessoal(obj) -> None:
+    txt = str(obj).lower()
+    for k in PESSOAL:
+        assert f"'{k}'" not in txt, k
+
+
+def test_carga_monta_a_oferta(eng):
+    with eng.connect() as c:
+        n, eleg = c.execute(text("""select count(*), count(*) filter (where (atributos->>'elegivel')::boolean)
+                                    from negocio.oferta""")).one()  # fmt: skip
+    assert n == 880 and eleg > 700
+
+
+def test_fluxo_completo_com_ondas_reserva_e_exclusividade(eng, chave):
+    # cliente A entra sem senha, pelo link do e-mail
+    enviados = []
+    S.ENVIO_LINK = lambda email, link: enviados.append((email, link))
+    try:
+        tok = S.pedir_link(eng, "Compras@Frigorifico.example")
+    finally:
+        S.ENVIO_LINK = None
+    assert enviados and enviados[0][0] == "compras@frigorifico.example" and tok in enviados[0][1]
+    sess = S.confirmar_link(eng, tok)
+    assert sess["email"] == "compras@frigorifico.example"
+    with pytest.raises(S.ErroPedido):
+        S.confirmar_link(eng, tok)  # link de uso único
+    a = S.cliente_da_sessao(eng, sess["token"])
+    with eng.connect() as c:  # o e-mail fica só cifrado, no esquema pessoal
+        bruto = c.execute(text("select email_cifrado from pessoal.cliente_contato where cliente_id = :c"),
+                          {"c": a}).scalar()  # fmt: skip
+    assert b"frigorifico" not in bytes(bruto)
+
+    p = S.criar_pedido(eng, a, CAMPOS)
+    assert p["status"] == "lote_montado" and p["base"]["alcanca_meta"] and len(p["opcoes"]) == 3
+    assert p["versao_modelo"].startswith("pedidos-2026a+")
+    _sem_pessoal(p)
+    seg = next(o for o in p["opcoes"] if o["id"] == "segura")
+    assert seg["alcanca_meta"] and seg["creditos"]["p50"] >= 400_000
+
+    # trocar uma fazenda do lote por uma de reserva (refaz os números)
+    sai = next(i for i in seg["itens"] if i["papel"] == "lote")["cod_imovel"]
+    p2 = S.mudar_lote(eng, p["id"], a, {"opcao": "segura", "acao": "trocar", "cod_imovel": sai})
+    seg2 = next(o for o in p2["opcoes"] if o["id"] == "segura")
+    lote2 = [i for i in seg2["itens"] if i["papel"] == "lote"]
+    assert sai not in {i["cod_imovel"] for i in lote2} and any(i["trocou"] == sai for i in lote2)
+    with pytest.raises(S.ErroPedido):  # outro cliente não vê o pedido
+        b0, _ = S.criar_cliente(eng, "Outro"), None
+        S.obter_pedido(eng, p["id"], b0[0])
+
+    # busca de interesse em ondas: a 1ª contata bem mais fazendas do que a meta pede
+    S.solicitar_interesse(eng, p["id"], a, "segura")
+    an = S.andamento(eng, p["id"], a)
+    assert an["status"] == "buscando_interesse" and len(an["ondas"]) == 1
+    contatados1 = S.contatados_do_pedido(eng, p["id"])
+    meta_fazendas = len([i for i in seg2["itens"] if i["papel"] == "lote"])
+    assert len(contatados1) > 2 * meta_fazendas
+    with eng.connect() as c:  # a chance de aceite de cada contatada ficou congelada, com a versão do modelo
+        n_prev = c.execute(text("select count(*) from aprendizado.previsao where alvo = 'aceite_dono'")).scalar()
+    assert n_prev == len(contatados1)
+
+    # os 10 primeiros recusam; os demais não respondem no prazo: vem a 2ª onda com fazendas novas
+    for cod in contatados1[:10]:
+        S.registrar_resposta(eng, cod, "recusou", "whatsapp", "não quer mudar o uso da terra", None, p["id"],
+                             avancar_pedidos=False)  # fmt: skip
+    depois = dt.datetime.now(dt.UTC) + dt.timedelta(days=16)
+    assert S.avancar(eng, p["id"], depois) == "buscando_interesse"
+    contatados2 = S.contatados_do_pedido(eng, p["id"])
+    novos = [c for c in contatados2 if c not in contatados1]
+    assert novos and len(S.andamento(eng, p["id"], a)["ondas"]) == 2
+    # os novos se interessam (com a versão do termo) e o grupo fecha a meta sem quem recusou
+    for cod in novos:
+        S.registrar_resposta(eng, cod, "interessado", "whatsapp", None, "termo-lgpd-2026a", p["id"],
+                             avancar_pedidos=False)  # fmt: skip
+    estado = S.avancar(eng, p["id"])
+    an = S.andamento(eng, p["id"], a)
+    if estado != "grupo_pronto":  # se ainda faltar, mais ondas até fechar
+        for _ in range(8):
+            for cod in [c for c in S.contatados_do_pedido(eng, p["id"]) if c not in contatados2]:
+                S.registrar_resposta(eng, cod, "interessado", "carta", None, "termo-lgpd-2026a", p["id"],
+                                     avancar_pedidos=False)  # fmt: skip
+            contatados2 = S.contatados_do_pedido(eng, p["id"])
+            estado = S.avancar(eng, p["id"])
+            if estado == "grupo_pronto":
+                break
+        an = S.andamento(eng, p["id"], a)
+    assert estado == "grupo_pronto" and an["status"] == "grupo_pronto" and an["grupo_pronto_em"]
+    assert an["com_interessado"] >= 400_000 and an["recusas"] == 10 and an["sem_resposta"] > 0
+    assert {"motivo": "não quer mudar o uso da terra", "fazendas": 10} in an["motivos"]
+    grupo = [f for f in an["fazendas"] if f["papel"] == "lote"]
+    assert grupo and not {f["cod_imovel"] for f in grupo} & set(contatados1[:10])
+    assert all(f["interesse"] in ("interessado", "aceite_fase1", "contrato_firme") for f in grupo)
+    assert any(f["trocou"] for f in grupo)  # quem entrou no lugar de quem recusou ou não respondeu
+    _sem_pessoal(an)
+    with eng.connect() as c:  # grupo pronto avisa o cliente no painel, por e-mail e por WhatsApp
+        canais = {r[0] for r in c.execute(text("""select canal from negocio.notificacao where pedido_id = :p
+                                                 and tipo = 'grupo_pronto'"""), {"p": p["id"]})}  # fmt: skip
+    assert canais == {"painel", "email", "whatsapp"}
+    # o nível só sobe: quem está interessado não volta para contatado; sem termo não sobe
+    with pytest.raises(S.ErroPedido):
+        S.registrar_resposta(eng, grupo[0]["cod_imovel"], "contatado", "carta")
+    with pytest.raises(S.ErroPedido):
+        S.registrar_resposta(eng, grupo[0]["cod_imovel"], "aceite_fase1", "carta")
+
+    # reserva com Pix de teste; paga, as fazendas somem para o cliente B
+    cob = S.reservar(eng, p["id"], a)
+    assert cob["modo_teste"] and cob["pix"]["copia_e_cola"].startswith("RAIZ-TESTE-PIX") and not cob["pago"]
+    assert cob["valor_brl"] >= 500 and cob["prazo_dias"] == 60 and "abatida" in cob["abatimento"]
+    b, _ = S.criar_cliente(eng, "Fundo B")
+    antes_b = S.criar_pedido(eng, b, CAMPOS)
+    with eng.connect() as c:
+        ext = c.execute(text("""select c.externo_id from negocio.cobranca c join negocio.reserva r
+                                on r.id = c.reserva_id where r.pedido_id = :p"""), {"p": p["id"]}).scalar()  # fmt: skip
+    assert S.confirmar_pagamento(eng, ext) == "ativa"
+    assert S.confirmar_pagamento(eng, ext) == "ja_paga"
+    pa = S.obter_pedido(eng, p["id"], a)
+    assert pa["status"] == "reservado" and pa["reservado_ate"]
+    reservadas = {f["cod_imovel"] for f in grupo}
+    pb = S.criar_pedido(eng, b, CAMPOS)
+    itens_b = {i["cod_imovel"] for o in pb["opcoes"] for i in o["itens"]}
+    assert not itens_b & reservadas
+    assert pb["base"]["fazendas"] == antes_b["base"]["fazendas"] - len(reservadas)
+    velho_b = S.obter_pedido(eng, antes_b["id"], b)  # pedido antigo de B também esconde as reservadas
+    assert not {i["cod_imovel"] for o in velho_b["opcoes"] for i in o["itens"]} & reservadas
+    # nunca em duas reservas ao mesmo tempo
+    with eng.begin() as c, pytest.raises(Exception):  # noqa: B017 - índice único parcial do banco
+        rid = c.execute(text("""insert into negocio.reserva (pedido_id, cliente_id, estado, ha, valor_rs, dias)
+                                values (:p, :c, 'ativa', 1, 1, 60) returning id"""),
+                        {"p": antes_b["id"], "c": b}).scalar()  # fmt: skip
+        c.execute(text("insert into negocio.reserva_fazenda (reserva_id, cod_imovel, ativa) values (:r, :c, true)"),
+                  {"r": rid, "c": next(iter(reservadas))})  # fmt: skip
+
+    # vence o prazo sem contrato: o grupo volta para a base
+    assert S.expirar_reservas(eng, dt.datetime.now(dt.UTC) + dt.timedelta(days=61)) == 1
+    assert S.obter_pedido(eng, p["id"], a)["status"] == "reserva_vencida"
+    pb2 = S.criar_pedido(eng, b, CAMPOS)
+    assert pb2["base"]["fazendas"] == antes_b["base"]["fazendas"]
+    with eng.connect() as c:
+        ev = [r[0] for r in c.execute(text("""select e.evento from negocio.reserva_evento e join negocio.reserva r
+                                              on r.id = e.reserva_id where r.pedido_id = :p order by e.id"""),
+                                      {"p": p["id"]})]  # fmt: skip
+    assert ev == ["criada", "paga", "expirada"]
+
+
+def test_contrato_abate_a_reserva_e_pedido_impossivel(eng, chave):
+    c, _ = S.criar_cliente(eng, "Desenvolvedor C")
+    p = S.criar_pedido(eng, c, {**CAMPOS, "meta": {"tipo": "creditos", "valor": 100_000}})
+    S.solicitar_interesse(eng, p["id"], c, "barata")
+    for cod in S.contatados_do_pedido(eng, p["id"]):
+        S.registrar_resposta(eng, cod, "interessado", "visita", None, "termo-lgpd-2026a", p["id"],
+                             avancar_pedidos=False)  # fmt: skip
+    assert S.avancar(eng, p["id"]) == "grupo_pronto"
+    S.reservar(eng, p["id"], c)
+    with eng.connect() as con:
+        ext, rid = con.execute(
+            text("""select co.externo_id, r.id from negocio.cobranca co join negocio.reserva r
+                    on r.id = co.reserva_id where r.pedido_id = :p"""),
+            {"p": p["id"]},
+        ).one()
+    S.confirmar_pagamento(eng, ext)
+    out = S.converter_reserva(eng, rid, ha_assinados=1000)
+    assert out["conexao_rs"] == 30000 and out["abatido_rs"] > 0 and out["a_pagar_rs"] == 30000 - out["abatido_rs"]
+    assert S.obter_pedido(eng, p["id"], c)["status"] == "contrato"
+    with eng.connect() as con:  # o aceite virou gabarito da chance de aceite congelada
+        n = con.execute(text("select count(*) from aprendizado.gabarito where alvo = 'aceite_dono'")).scalar()
+    assert n > 0
+    # pedido impossível: a busca acaba e diz o que faltou
+    d, _ = S.criar_cliente(eng, "Empresa D")
+    imp = S.criar_pedido(eng, d, {**CAMPOS, "meta": {"tipo": "creditos", "valor": 50_000_000}})
+    assert not imp["base"]["alcanca_meta"] and imp["base"]["falta"] > 0
+    assert imp["base"]["afrouxar"][0]["campo"] == "base"  # aceita toda terra e o PA inteiro: falta base, não filtro
+    S.solicitar_interesse(eng, imp["id"], d, "barata")
+    for _ in range(15):
+        for cod in S.contatados_do_pedido(eng, imp["id"]):
+            try:
+                S.registrar_resposta(eng, cod, "recusou", "carta", "sem interesse", None, imp["id"],
+                                     avancar_pedidos=False)  # fmt: skip
+            except S.ErroPedido:
+                pass
+        if S.avancar(eng, imp["id"]) == "faltou":
+            break
+    an = S.andamento(eng, imp["id"], d)
+    assert an["status"] == "faltou" and an["faltou"]["falta"] > 0
+    # recusa vale por um ano: depois a fazenda pode ser contatada de novo
+    recusou = S.contatados_do_pedido(eng, imp["id"])[0]
+    with eng.begin() as con:
+        assert S.niveis(con, [recusou]) == {recusou: "recusou"}
+        con.execute(text("update negocio.interesse_dono set atualizado_em = now() - interval '400 days' "
+                         "where cod_imovel = :c"), {"c": recusou})  # fmt: skip
+        assert S.niveis(con, [recusou]) == {recusou: "sem_contato"}
+
+
+def test_vigia_avisa_lote_melhorou_e_fazenda_com_problema(eng, chave):
+    with eng.begin() as con:  # o pedido impossível fez todo mundo recusar: começa limpo
+        con.execute(text("truncate negocio.interesse_dono"))
+    c, _ = S.criar_cliente(eng, "Cliente E")
+    p = S.criar_pedido(eng, c, {**CAMPOS, "meta": {"tipo": "creditos", "valor": 200_000}})
+    op = next(o for o in p["opcoes"] if o["id"] == "barata")
+    cod = next(i["cod_imovel"] for i in op["itens"] if i["papel"] == "lote")
+    with eng.begin() as con:  # embargo novo numa fazenda do lote
+        con.execute(text("""update negocio.oferta set atributos = atributos || '{"embargo": true}'::jsonb
+                            where cod_imovel = :c"""), {"c": cod})  # fmt: skip
+        con.execute(text("""update negocio.oferta set atributos = jsonb_set(atributos, '{custo_credito_usd}',
+                            to_jsonb(((atributos->>'custo_credito_usd')::float) * 0.5))
+                            where atributos->>'custo_credito_usd' is not null"""))  # fmt: skip
+    out = S.vigiar(eng)
+    assert out["fazenda_com_problema"] >= 1 and out["lote_melhorou"] >= 1
+    tipos = {x["tipo"] for x in S.obter_pedido(eng, p["id"], c)["alertas"]}
+    assert tipos >= {"fazenda_com_problema", "lote_melhorou"}
+    assert S.vigiar(eng)["fazenda_com_problema"] == 0  # não repete o mesmo alerta
+    from raiz.pedidos.oferta import atualizar
+
+    with eng.begin() as con:
+        con.execute(text("delete from negocio.oferta"))
+    assert atualizar(eng, 1504950) == 880  # a oferta se refaz do banco
+
+
+def test_api_no_contrato_do_front(eng, chave, monkeypatch):
+    from raiz.api import criar_app
+
+    cfg = type("C", (), {"api_token": SecretStr(TOKEN), "api_origens": "http://localhost:5173"})()
+    import raiz.api as api_mod
+
+    monkeypatch.setattr(api_mod, "config", lambda: cfg)
+    links = []
+    monkeypatch.setattr(S, "ENVIO_LINK", lambda e, link: links.append(link))
+    app = criar_app(engine=eng, grafo=object(), deps=object(), whatsapp=False)
+    with TestClient(app) as cl:
+        assert cl.post("/entrar", json={"email": "analista@fundo.example"}).json() == {"enviado": True}
+        tok = links[-1].rsplit("/", 1)[1]
+        assert cl.post("/entrar/confirmar", json={"token": "errado"}).status_code == 401
+        sess = cl.post("/entrar/confirmar", json={"token": tok}).json()
+        h = {"Authorization": f"Bearer {sess['token']}"}
+        assert cl.get("/pedidos").status_code == 401  # sem sessão
+        p = cl.post("/pedidos", json=CAMPOS, headers=h).json()
+        assert set(p) >= {"id", "criado_em", "campos", "status", "base", "opcoes", "opcao_escolhida", "reservado_ate",
+                          "alertas", "versao_modelo"}  # fmt: skip
+        assert set(p["base"]) >= {"fazendas", "hectares", "creditos", "por_caminho", "por_interesse", "alcanca_meta",
+                                  "falta", "afrouxar"}  # fmt: skip
+        o = p["opcoes"][0]
+        assert set(o) >= {"id", "creditos", "hectares", "fazendas", "pequenas", "tir", "custo_usd_credito",
+                          "pico_caixa_usd", "marcos", "multa_esperada_usd", "mistura_terra", "metodos", "itens",
+                          "alcanca_meta", "falta"}  # fmt: skip
+        campos_item = {"cod_imovel", "cod_ibge", "municipio", "uf", "papel", "hectares", "creditos", "metodo",
+                       "caminho", "custo_usd_credito", "pequena", "interesse", "lon", "lat"}  # fmt: skip
+        assert set(o["itens"][0]) >= campos_item
+        _sem_pessoal(p)
+        lista = cl.get("/pedidos", headers=h).json()
+        assert lista[0]["id"] == p["id"] and "créditos em PA" in lista[0]["titulo"]
+        sai = next(i for i in o["itens"] if i["papel"] == "lote")["cod_imovel"]
+        r = cl.post(f"/pedidos/{p['id']}/lote", json={"opcao": o["id"], "acao": "tirar", "cod_imovel": sai}, headers=h)
+        assert r.status_code == 200
+        assert sai not in {i["cod_imovel"] for i in r.json()["opcoes"][0]["itens"] if i["papel"] == "lote"}
+        assert cl.patch(f"/pedidos/{p['id']}", json={"opcao": "barata", "acao": "tirar", "cod_imovel": "nao-existe"},
+                        headers=h).status_code == 422  # fmt: skip
+        r = cl.post(f"/pedidos/{p['id']}/solicitar-interesse", json={"opcao": "segura"}, headers=h)
+        assert r.json()["status"] == "buscando_interesse" and r.json()["opcao_escolhida"] == "segura"
+        an = cl.get(f"/pedidos/{p['id']}/andamento", headers=h).json()
+        assert set(an) >= {"pedido", "status", "meta", "com_interessado", "com_aceite", "com_contrato", "ondas",
+                           "contatados", "recusas", "sem_resposta", "motivos", "fazendas", "grupo_pronto_em",
+                           "proxima_onda_em"}  # fmt: skip
+        assert an["proxima_onda_em"] and an["ondas"][0]["canais"]
+        cobranca = cl.get(f"/pedidos/{p['id']}/reserva", headers=h).json()
+        assert cobranca["pix"] is None and cobranca["prazo_dias"] == 60
+        assert cl.post(f"/pedidos/{p['id']}/reservar", headers=h).status_code == 422  # grupo ainda não pronto
+        # resposta do dono pela rota interna (token da API)
+        cod = an["fazendas"][0]["cod_imovel"]
+        assert cl.post(f"/interesse/{cod}", json={"nivel": "interessado"}).status_code == 401
+        hi = {"Authorization": f"Bearer {TOKEN}"}
+        resp = {"nivel": "interessado", "canal": "whatsapp", "versao_termo": "termo-lgpd-2026a", "pedido_id": p["id"]}
+        r = cl.post(f"/interesse/{cod}", json=resp, headers=hi)
+        assert r.json() == {"cod_imovel": cod, "nivel": "interessado"}
+        assert cl.post("/pedidos-vigiar", headers=hi).status_code == 200
+        assert cl.post("/reservas/expirar", headers=hi).json() == {"expiradas": 0}
+        # aviso de pagamento: sem o segredo, recusa
+        assert cl.post("/pagamentos/abacatepay?webhookSecret=x", json={"event": "billing.paid"}).status_code == 401
+        assert cl.get("/notificacoes", headers=h).status_code == 200
+        assert cl.get(f"/pedidos/{p['id']}/alertas", headers=h).status_code == 200

@@ -223,73 +223,82 @@ COLS_GABARITO = [
 ]
 
 
+HORIZONTE_DIAS = 30  # a certidão vale 30 dias para contrato: a conferência real (cartório, ONR) chega nesse prazo
+CHAVE_PREVISAO = ("cod_imovel", "alvo", "modelo_versao", "entradas_versao", "data_corte", "horizonte_dias", "tipo")
+CHAVE_GABARITO = ("cod_imovel", "alvo", "observado_em", "fonte", "referencia", "valor_texto")
+
+
+def data_corte(lt) -> str:
+    """Data de corte da previsão = emissão da certidão (a informação que o leitor viu); sem ela, o dia anterior à
+    leitura. Na E8 o gabarito só casa com a previsão quando é observado depois do corte."""
+    lido = dt.date.fromisoformat((lt.lido_em or dt.date.today().isoformat())[:10])
+    try:
+        d = dt.date.fromisoformat(str(((lt.dados or {}).get("documento") or {}).get("data_emissao"))[:10])
+    except ValueError:
+        d = None
+    if d is None or d >= lido:
+        d = lido - dt.timedelta(days=1)
+    return d.isoformat()
+
+
 def previsoes_e_gabaritos(armazem: Armazem | None = None) -> tuple[list[dict], list[dict]]:
+    """Previsões e gabaritos no formato da E8, sem repetir a chave única de cada tabela."""
     armazem = armazem or Armazem()
     gab_sit = {g["leitura_id"]: g for g in armazem.gabaritos() if g["alvo"] == "situacao"}
-    prevs, gabs = [], []
+    prevs: dict[tuple, dict] = {}
+    gabs: dict[tuple, dict] = {}
     for c in armazem.conferencias_por_leitura():
         if not c["cod_imovel"]:
             continue
         lt = armazem.leitura(c["leitura_id"])
-        corte = (lt.lido_em or "")[:10]
+        corte = data_corte(lt)
         ref = f"leitura:{lt.id}"
-        prevs.append(
+        motor = Path(c["motor_arquivo"]).name if c["motor_arquivo"] else "motor"
+        for p in (
             dict(
-                tipo="ao_vivo",
-                cod_imovel=c["cod_imovel"],
                 alvo=ALVO_LEITOR,
                 valor_texto=c["situacao"],
-                data_corte=corte,
-                horizonte_dias=0,
                 modelo="leitor_certidao",
                 modelo_versao=f"{lt.modelo}|{lt.prompt_versao}",
                 entradas_versao=lt.arquivo_sha256[:16],
                 regras_versao=c["regras_versao"],
-                referencia=ref,
-            )
-        )
-        motor = Path(c["motor_arquivo"]).name if c["motor_arquivo"] else "motor"
-        prevs.append(
+            ),
             dict(
-                tipo="ao_vivo",
-                cod_imovel=c["cod_imovel"],
                 alvo=ALVO_MOTOR,
                 valor_texto="sim",
-                data_corte=corte,
-                horizonte_dias=0,
                 modelo="motor_sigef",
                 modelo_versao=motor,
                 entradas_versao=f"{c['registro_cns']}|{c['registro_matricula']}",
+                regras_versao=None,
+            ),
+        ):
+            p.update(
+                tipo="ao_vivo",
+                cod_imovel=c["cod_imovel"],
+                data_corte=corte,
+                horizonte_dias=HORIZONTE_DIAS,
                 referencia=ref,
             )
-        )
+            prevs[tuple(p[k] for k in CHAVE_PREVISAO)] = p
         g = gab_sit.get(lt.id)
-        if g is not None:
-            gabs.append(
-                dict(
-                    cod_imovel=c["cod_imovel"],
-                    alvo=ALVO_LEITOR,
-                    valor_texto=g["valor_real"],
-                    observado_em=g["observado_em"],
-                    fonte=g["fonte"],
-                    referencia=ref,
-                    desenho_amostral="oportunidade",
-                )
-            )
         real = g["valor_real"] if g is not None else (c["situacao"] if lt.modelo == "humano" else None)
-        if real is not None:
-            gabs.append(
-                dict(
-                    cod_imovel=c["cod_imovel"],
-                    alvo=ALVO_MOTOR,
-                    valor_texto="sim" if real == "conferida" else "nao",
-                    observado_em=(g or {}).get("observado_em") or corte,
-                    fonte=(g or {}).get("fonte") or "leitura_humana",
-                    referencia=ref,
-                    desenho_amostral="oportunidade",
-                )
-            )
-    return prevs, gabs
+        if real is None:
+            continue
+        observado = (g or {}).get("observado_em") or (lt.lido_em or "")[:10]
+        fonte = (g or {}).get("fonte") or "leitura_humana"
+        base = dict(
+            cod_imovel=c["cod_imovel"],
+            observado_em=observado[:10],
+            fonte=fonte,
+            referencia=ref,
+            desenho_amostral="oportunidade",
+        )
+        novos = [dict(base, alvo=ALVO_MOTOR, valor_texto="sim" if real == "conferida" else "nao")]
+        if g is not None:
+            novos.append(dict(base, alvo=ALVO_LEITOR, valor_texto=real))
+        for x in novos:
+            gabs[tuple(x[k] for k in CHAVE_GABARITO)] = x
+    return list(prevs.values()), list(gabs.values())
 
 
 def exportar(pasta: Path, armazem: Armazem | None = None) -> tuple[Path, Path]:
@@ -304,36 +313,55 @@ def exportar(pasta: Path, armazem: Armazem | None = None) -> tuple[Path, Path]:
     return a, b
 
 
-def enviar_ao_banco(armazem: Armazem | None = None) -> str:
-    """Registra no banco do back-end (aprendizado.previsao e aprendizado.gabarito), quando o pacote existe."""
-    try:
-        from raiz.aprendizado.registro import Previsao, Versoes, registrar_gabarito, registrar_lote  # type: ignore
-        from raiz.banco import engine  # type: ignore
-    except ImportError as ex:
-        raise RuntimeError("o back-end (raiz.aprendizado) não está instalado: use exportar() e carregue os CSV") from ex
+def enviar_ao_banco(armazem: Armazem | None = None, con=None) -> str:
+    """Registra em aprendizado.previsao (um lote congelado por leitura) e aprendizado.gabarito. Pode rodar de novo:
+    o que já está no banco não entra outra vez. Sem `con`, abre a conexão do back-end (RAIZ_BANCO_URL)."""
+    from sqlalchemy import text
+
+    from raiz.aprendizado.registro import Previsao, Versoes, registrar_gabarito, registrar_lote
+
+    if con is None:
+        from raiz.banco import engine
+
+        with engine().begin() as c:
+            return enviar_ao_banco(armazem, c)
     prevs, gabs = previsoes_e_gabaritos(armazem)
+    ja = {
+        tuple(str(x) for x in r)
+        for r in con.execute(
+            text("""select cod_imovel, alvo, modelo_versao, entradas_versao, data_corte, horizonte_dias, tipo
+                    from aprendizado.previsao where modelo in ('leitor_certidao', 'motor_sigef')""")
+        )
+    }
+    prevs = [p for p in prevs if tuple(str(p[k]) for k in CHAVE_PREVISAO) not in ja]
     lotes = defaultdict(list)
     for p in prevs:
-        lotes[(p["modelo"], p["modelo_versao"], p.get("regras_versao"), p["data_corte"])].append(p)
-    n = 0
-    with engine().begin() as con:
-        for (modelo, versao, regras, corte), ps in lotes.items():
-            v = Versoes(modelo, versao, ps[0]["entradas_versao"], dt.date.fromisoformat(corte), regras)
-            registrar_lote(
-                con,
-                [Previsao(p["cod_imovel"], p["alvo"], 0, valor_texto=p["valor_texto"]) for p in ps],
-                v,
-                descricao="raiz.documentos",
-            )
-            n += len(ps)
-        for g in gabs:
-            registrar_gabarito(
-                con,
-                g["cod_imovel"],
-                g["alvo"],
-                dt.date.fromisoformat(g["observado_em"][:10]),
-                g["fonte"],
-                valor_texto=g["valor_texto"],
-                referencia=g["referencia"],
-            )
-    return json.dumps({"previsoes": n, "gabaritos": len(gabs)})
+        lotes[(p["modelo"], p["modelo_versao"], p["entradas_versao"], p["regras_versao"], p["data_corte"])].append(p)
+    for (modelo, versao, entradas, regras, corte), ps in lotes.items():
+        v = Versoes(modelo, versao, entradas, dt.date.fromisoformat(corte), regras)
+        registrar_lote(
+            con,
+            [Previsao(p["cod_imovel"], p["alvo"], p["horizonte_dias"], valor_texto=p["valor_texto"]) for p in ps],
+            v,
+            descricao="raiz.documentos",
+        )
+    ja_g = {
+        tuple(str(x) for x in r)
+        for r in con.execute(
+            text("""select cod_imovel, alvo, observado_em, fonte, referencia, valor_texto from aprendizado.gabarito
+                    where alvo in (:a, :b)"""),
+            {"a": ALVO_LEITOR, "b": ALVO_MOTOR},
+        )
+    }
+    gabs = [g for g in gabs if tuple(str(g[k]) for k in CHAVE_GABARITO) not in ja_g]
+    for g in gabs:
+        registrar_gabarito(
+            con,
+            g["cod_imovel"],
+            g["alvo"],
+            dt.date.fromisoformat(g["observado_em"]),
+            g["fonte"],
+            valor_texto=g["valor_texto"],
+            referencia=g["referencia"],
+        )
+    return json.dumps({"previsoes": len(prevs), "gabaritos": len(gabs)})

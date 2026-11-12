@@ -155,7 +155,9 @@ python -m raiz.documentos aprendizado exportar pasta/                        # C
   disse que a matrícula do SIGEF vale para o imóvel (`motor_matricula_valida`). O motor só ganha gabarito de leitura
   confirmada por gente ou feita por gente.
 - `exportar` grava `previsoes_documentos.csv` e `gabaritos_documentos.csv` com as colunas de `aprendizado.previsao` e
-  `aprendizado.gabarito` do back-end; `exportar --banco` registra direto quando o pacote do back-end está instalado.
+  `aprendizado.gabarito`; `exportar --banco` registra direto no PostgreSQL (`RAIZ_BANCO_URL`), um lote congelado por
+  leitura, e pode rodar de novo sem repetir linha. Data de corte = emissão da certidão (sem ela, o dia anterior à
+  leitura); horizonte de 30 dias (validade da certidão). O acerto aparece em `aprendizado.previsao_contra_gabarito`.
 
 ## Privacidade
 
@@ -189,7 +191,8 @@ dados são os da `dados/amostra/`. O teste das 3 páginas da folha roda quando o
   Diário Oficial do Pará (onde o Ideflor-Bio publica) ainda não entra: acrescentar em `paginas` quando houver busca
   pública estável.
 - **CNS**: muita certidão não imprime o CNS do cartório; aí a conferência é pelo número e pede confirmação.
-- **Pacote do back-end**: este subpacote roda sozinho no main. Quando o `raiz/` do back-end entrar, a máscara passa a vir
-  de `raiz/privacidade.py` (já ligado) e `aprendizado exportar --banco` grava direto no PostgreSQL.
+- **Selo prata no back-end**: a máscara já vem de `raiz/privacidade.py`, mas a carga (`raiz/carga.py`) ainda não lê o
+  `matricula_<mun>.csv`; enquanto isso o `matricula_conferida` não chega ao `selo_prata` de `raiz/terra.py` nem ao
+  caminho `matricula_conferida` do pedido de lote. Falta pôr `matricula` nas tabelas da carga e do contrato.
 - **ONR**: quando o convênio sair (E5 passo 9), as certidões podem chegar pelo Monitor Registral e entrar em
   `certidao lote` sem passo manual.
