@@ -122,3 +122,10 @@ Painel e `reserva.atualizada` na outbox são gravados na transação, sem envio 
 Erro de infraestrutura reverte a transação inteira, permitindo repetir o aviso de pagamento com segurança.
 Os testes cobrem cancelamento versus pagamento, duas reservas concorrendo pela mesma fazenda, repetição idempotente,
 prazos/valores/grupos divergentes e falha de outbox seguida de nova tentativa.
+
+A ordem de travas também vale para aprovação humana, expiração e conversão em contrato. A aprovação busca o pedido
+pelo token e só decide depois de travar pedido e reserva e reler token, prazo e estado. A expiração ordena os pedidos
+candidatos e revalida as reservas sob trava; a conversão relê o estado depois de esperar o pedido. Assim, um replay
+de pagamento não disputa essas rotinas na ordem inversa. Escritas do grupo travam o pedido antes de alterar fazendas;
+um fechamento atrasado só prossegue se ainda estiver `buscando_interesse`, preservando reserva ou cancelamento
+concluídos enquanto o cálculo rodava.

@@ -235,3 +235,137 @@ def test_revogacao_administrativa_antes_worker_impede_reserva(eng, empresa, monk
     resultado = T.executar_proximo(eng)
     assert resultado["estado"] == "failed"
     assert resultado["erro"]["status"] == 403
+
+
+@pytest.mark.parametrize("acao", ["expirar", "converter"])
+def test_expiracao_conversao_nao_invertem_travas_com_replay_pago(eng, empresa, acao):
+    import datetime as dt
+
+    from sqlalchemy import event
+
+    pid, rid, externo = _reserva(eng, empresa)
+    assert S.confirmar_pagamento(eng, externo) == "ativa"
+    aguardando_pedido = threading.Event()
+
+    def observar(con, cursor, statement, parameters, context, executemany):
+        sql = statement.lower()
+        if threading.current_thread().name.startswith("writer-reserva") and "negocio.pedido" in sql:
+            if "for update" in sql or "update negocio.pedido" in sql:
+                aguardando_pedido.set()
+
+    event.listen(eng, "before_cursor_execute", observar)
+    try:
+        with ThreadPoolExecutor(max_workers=1, thread_name_prefix="writer-reserva") as pool:
+            with eng.begin() as con:
+                con.execute(text("select id from negocio.pedido where id=:p for update"), {"p": pid})
+                futuro = (
+                    pool.submit(S.expirar_reservas, eng, S._agora() + dt.timedelta(days=31))
+                    if acao == "expirar"
+                    else (pool.submit(S.converter_reserva, eng, rid, 10))
+                )
+                assert aguardando_pedido.wait(3)
+                # O writer aguarda pedido sem reter reserva: replay consegue seguir sem ciclo de deadlock.
+                con.execute(text("select id from negocio.reserva where id=:r for update nowait"), {"r": rid})
+                assert S.confirmar_pagamento(T.ConexaoVinculada(con), externo) == "ja_paga"
+            resultado = futuro.result(3)
+        assert resultado == 1 if acao == "expirar" else resultado["abatido_rs"] == 100
+        estado = _estado(eng, rid)
+        assert estado[:2] == (("expirada", "reserva_vencida") if acao == "expirar" else ("convertida", "contrato"))
+        assert estado[3] is (acao == "converter")
+    finally:
+        event.remove(eng, "before_cursor_execute", observar)
+
+
+def test_fechamento_atrasado_nao_troca_grupo_pago(eng, empresa, monkeypatch):
+    import pandas as pd
+    from sqlalchemy import event
+
+    from raiz.pedidos.campos import CamposPedido
+
+    pid, rid, externo = _reserva(eng, empresa)
+    with eng.connect() as con:
+        antigo = dict(S._linha_pedido(con, pid, empresa))
+        grupo = S._grupo(con, pid)
+    antigo["estado"] = "buscando_interesse"  # avanço que iniciou antes de outro fechamento
+    monkeypatch.setattr(S, "_oferta", lambda *a: pd.DataFrame([{"cod_imovel": "nova-fazenda", "area_ha": 10}]))
+    monkeypatch.setattr(S.A, "chances", lambda *a: [1])
+    monkeypatch.setattr(S.Z, "resolver", lambda *a: {"sel": [0]})
+    pagamento_travado, liberar_pagamento, fechamento_chegou = (threading.Event() for _ in range(3))
+
+    def depois(con, cursor, statement, parameters, context, executemany):
+        if (
+            threading.current_thread().name.startswith("pagar-grupo")
+            and "negocio.pedido" in statement
+            and "for update" in statement
+        ):
+            pagamento_travado.set()
+            assert liberar_pagamento.wait(5)
+
+    def antes(con, cursor, statement, parameters, context, executemany):
+        if threading.current_thread().name.startswith("fechar-grupo") and "negocio.pedido" in statement:
+            fechamento_chegou.set()
+
+    event.listen(eng, "after_cursor_execute", depois)
+    event.listen(eng, "before_cursor_execute", antes)
+    try:
+        with (
+            ThreadPoolExecutor(max_workers=1, thread_name_prefix="pagar-grupo") as pagador,
+            ThreadPoolExecutor(max_workers=1, thread_name_prefix="fechar-grupo") as fechador,
+        ):
+            pagamento = pagador.submit(S.confirmar_pagamento, eng, externo)
+            assert pagamento_travado.wait(3)
+            fechamento = fechador.submit(
+                S._fechar_grupo, eng, antigo, CamposPedido(), {"niveis": {"nova-fazenda": "interessado"}}, S._agora()
+            )
+            try:
+                assert fechamento_chegou.wait(3)
+            finally:
+                liberar_pagamento.set()
+            assert pagamento.result(3) == "ativa"
+            fechamento.result(3)
+        with eng.connect() as con:
+            assert S._grupo(con, pid) == grupo
+        assert _estado(eng, rid)[:2] == ("ativa", "reservado")
+    finally:
+        liberar_pagamento.set()
+        event.remove(eng, "after_cursor_execute", depois)
+        event.remove(eng, "before_cursor_execute", antes)
+
+
+def test_aprovacao_revalida_token_depois_de_aguardar_pedido(eng, empresa, monkeypatch):
+    from sqlalchemy import event
+
+    from raiz.publica.aprovacao import ErroAprovacao, aprovar
+
+    pid, rid, _ = _reserva(eng, empresa, cobranca=False)
+    token = uuid.uuid4().hex
+    with eng.begin() as con:
+        con.execute(text("update negocio.reserva set confirmacao_hash=:h where id=:r"), {"h": S._hash(token), "r": rid})
+    monkeypatch.setattr(S, "_cobrar", lambda *a, **k: pytest.fail("token revogado não gera Pix"))
+    aguardando_pedido = threading.Event()
+
+    def observar(con, cursor, statement, parameters, context, executemany):
+        if (
+            threading.current_thread().name.startswith("aprovar-grupo")
+            and "negocio.pedido" in statement
+            and "for update" in statement
+        ):
+            aguardando_pedido.set()
+
+    event.listen(eng, "before_cursor_execute", observar)
+    try:
+        with ThreadPoolExecutor(max_workers=1, thread_name_prefix="aprovar-grupo") as pool:
+            with eng.begin() as con:
+                con.execute(text("select id from negocio.pedido where id=:p for update"), {"p": pid})
+                futuro = pool.submit(aprovar, eng, token, empresa)
+                assert aguardando_pedido.wait(3)
+                con.execute(
+                    text("""update negocio.reserva set estado='cancelada',confirmacao_hash=null,
+                confirmacao_token_cifrado=null where id=:r"""),
+                    {"r": rid},
+                )
+            with pytest.raises(ErroAprovacao) as erro:
+                futuro.result(3)
+            assert erro.value.status == 410
+    finally:
+        event.remove(eng, "before_cursor_execute", observar)
