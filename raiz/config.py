@@ -29,6 +29,9 @@ class Config(BaseSettings):
     motor_dir_trabalho: str | None = None
     # espelho local da coleta (E1), em Parquet por município: <espelho>/car/<UF>/<mun>.parquet, sigef/...
     espelho_dir: str | None = None
+    # cache em disco dos blocos de rasters na nuvem (YbYrá, GPW...): a próxima rodada lê do disco
+    raster_cache_dir: str | None = None
+    raster_cache_gb: float = 20.0
 
     # Modelos de linguagem (E7). A chave da Anthropic também é aceita com o nome padrão ANTHROPIC_API_KEY.
     anthropic_api_key: SecretStr | None = Field(

@@ -28,15 +28,64 @@ GDAL_REMOTO = dict(
 )
 
 
-class ArquivoRemoto(io.RawIOBase):
-    """Arquivo de leitura sobre HTTP com Range, em pedaços de `bloco` bytes guardados em memória."""
+class CacheDisco:
+    """Pedaços de arquivos remotos guardados em disco entre rodadas (chave = endereço + ETag: se o arquivo mudar na
+    nuvem, a chave muda e o cache velho sai pela poda). Teto em GB; a poda apaga os pedaços usados há mais tempo."""
 
-    def __init__(self, url: str, s: requests.Session | None = None, bloco: int = 1 << 16):
+    def __init__(self, pasta: str | Path, limite_gb: float = 20.0):
+        self.pasta = Path(pasta)
+        self.limite = int(limite_gb * 2**30)
+        self.pasta.mkdir(parents=True, exist_ok=True)
+        self._gravados = 0
+
+    @staticmethod
+    def chave(url: str, etag: str | None, tamanho: int) -> str:
+        import hashlib
+
+        return hashlib.sha256(f"{url}|{etag or ''}|{tamanho}".encode()).hexdigest()[:24]
+
+    def ler(self, chave: str, i: int) -> bytes | None:
+        f = self.pasta / chave / f"{i}.bin"
+        if not f.exists():
+            return None
+        os.utime(f)  # marca uso recente para a poda
+        return f.read_bytes()
+
+    def gravar(self, chave: str, i: int, dados: bytes) -> None:
+        d = self.pasta / chave
+        d.mkdir(exist_ok=True)
+        tmp = d / f"{i}.{os.getpid()}.tmp"
+        tmp.write_bytes(dados)
+        os.replace(tmp, d / f"{i}.bin")
+        self._gravados += len(dados)
+        if self._gravados > self.limite // 20:  # poda de vez em quando, não a cada pedaço
+            self.podar()
+            self._gravados = 0
+
+    def podar(self) -> None:
+        arqs = [(f.stat().st_mtime, f.stat().st_size, f) for f in self.pasta.glob("*/*.bin")]
+        total = sum(t for _, t, _ in arqs)
+        for _, tam, f in sorted(arqs):
+            if total <= self.limite:
+                break
+            f.unlink(missing_ok=True)
+            total -= tam
+
+
+class ArquivoRemoto(io.RawIOBase):
+    """Arquivo de leitura sobre HTTP com Range, em pedaços de `bloco` bytes guardados em memória e, com `cache`,
+    também em disco (próxima rodada não baixa de novo)."""
+
+    def __init__(
+        self, url: str, s: requests.Session | None = None, bloco: int = 1 << 16, cache: CacheDisco | None = None
+    ):
         self.url, self.s, self.bloco = url, s or requests.Session(), bloco
         self.pos, self._cache = 0, {}
         r = self.s.head(url, allow_redirects=True, timeout=30)
         r.raise_for_status()
         self.tamanho = int(r.headers["Content-Length"])
+        self.disco = cache
+        self.chave = CacheDisco.chave(url, r.headers.get("ETag"), self.tamanho) if cache else None
         self.pedidos = 0
 
     def readable(self):
@@ -53,6 +102,10 @@ class ArquivoRemoto(io.RawIOBase):
         return self.pos
 
     def _pedaco(self, i: int) -> bytes:
+        if i not in self._cache and self.disco is not None:
+            guardado = self.disco.ler(self.chave, i)
+            if guardado is not None:
+                self._cache[i] = guardado
         if i not in self._cache:
             ini = i * self.bloco
             fim = min(ini + self.bloco, self.tamanho) - 1
@@ -61,6 +114,8 @@ class ArquivoRemoto(io.RawIOBase):
                 raise OSError(f"servidor não aceitou Range ({r.status_code})")
             self._cache[i] = r.content
             self.pedidos += 1
+            if self.disco is not None:
+                self.disco.gravar(self.chave, i, r.content)
         return self._cache[i]
 
     def readinto(self, b) -> int:
@@ -137,3 +192,37 @@ def salvar_indice(ind: pd.DataFrame, destino: Path) -> None:
     tmp = destino.with_suffix(f".{os.getpid()}.tmp")
     ind.to_parquet(tmp, index=False)
     os.replace(tmp, destino)
+
+
+SIDECARS = (".aux.xml", ".ovr", ".msk", ".tfw", ".xml", ".imd", ".rpb", ".rpc")
+
+
+def abrir_com_cache(url: str, cache: CacheDisco, s: requests.Session | None = None, bloco: int = 1 << 20):
+    """Abre o raster remoto no rasterio lendo pelos pedaços em disco (opener). Arquivos auxiliares que o GDAL procura
+    ao lado (.aux.xml, .ovr...) respondem 'não existe' sem ir à rede."""
+    import rasterio
+
+    s = s or requests.Session()
+
+    class _Abridor:
+        def open(self, caminho, mode="rb", **_):
+            if str(caminho) != url:
+                raise FileNotFoundError(caminho)
+            return ArquivoRemoto(url, s, bloco, cache)
+
+        def isfile(self, caminho):
+            return str(caminho) == url
+
+        def isdir(self, caminho):
+            return False
+
+        def ls(self, caminho):
+            return []
+
+        def mtime(self, caminho):
+            return 0
+
+        def size(self, caminho):
+            return ArquivoRemoto(url, s, bloco, cache).tamanho if str(caminho) == url else 0
+
+    return rasterio.open(url, opener=_Abridor())

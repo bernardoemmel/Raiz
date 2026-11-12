@@ -120,3 +120,49 @@ def test_ler_janela(cog):
     m, transform, crs = blocos.ler_janela(str(f), (-47.9, -2.2, -47.8, -2.1))
     assert m.shape == (10, 10) and crs.to_epsg() == 4326
     assert np.array_equal(m, dados[10:20, 10:20])
+
+
+def _servidor_de(conteudo, etag='"v1"'):
+    def responder(metodo, base, p, h):
+        if metodo == "HEAD":
+            return 200, {"Content-Length": str(len(conteudo)), "ETag": etag}, ""
+        ini, fim = map(int, h["Range"].removeprefix("bytes=").split("-"))
+        return 206, {}, conteudo[ini : fim + 1]
+
+    return sessao_falsa(responder)
+
+
+def test_cache_em_disco_le_da_segunda_vez_sem_rede(cog, tmp_path):
+    f, dados = cog
+    s, srv = _servidor_de(f.read_bytes())
+    cache = blocos.CacheDisco(tmp_path / "cache")
+    with blocos.abrir_com_cache("https://nuvem.exemplo/cog.tif", cache, s, bloco=1024) as ds:
+        assert np.array_equal(ds.read(1), dados)
+    gets = sum(1 for p in srv.pedidos if p[0] == "GET")
+    with blocos.abrir_com_cache("https://nuvem.exemplo/cog.tif", cache, s, bloco=1024) as ds:
+        assert np.array_equal(ds.read(1), dados)
+    assert gets > 0 and sum(1 for p in srv.pedidos if p[0] == "GET") == gets  # segunda vez: só o HEAD
+
+
+def test_cache_poda_e_etag_novo(tmp_path):
+    cache = blocos.CacheDisco(tmp_path, limite_gb=3000 / 2**30)  # 3000 bytes
+    for i in range(5):
+        cache.gravar("k", i, b"x" * 1000)
+    cache.podar()
+    assert sum(f.stat().st_size for f in tmp_path.glob("*/*.bin")) <= 3000
+    assert blocos.CacheDisco.chave("u", '"v1"', 10) != blocos.CacheDisco.chave("u", '"v2"', 10)
+
+
+def test_ponte_raster_troca_e_devolve(cog, tmp_path, monkeypatch):
+    from types import SimpleNamespace
+
+    from raiz.funil import ponte
+
+    f, dados = cog
+    s, _ = _servidor_de(f.read_bytes())
+    monkeypatch.setattr(blocos, "requests", SimpleNamespace(Session=lambda: s))
+    modulo = SimpleNamespace(U={"idade": "/vsicurl/https://nuvem.exemplo/cog.tif", "local": "/tmp/x.tif"})
+    original = modulo.U
+    with ponte.ponte_raster(modulo, cache=blocos.CacheDisco(tmp_path)) as u:
+        assert u["local"] == "/tmp/x.tif" and np.array_equal(u["idade"].read(1), dados)
+    assert modulo.U is original

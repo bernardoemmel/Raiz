@@ -28,6 +28,7 @@ services:
       - "127.0.0.1:5432:5432"  # só a própria máquina
     volumes:
       - banco:/var/lib/postgresql/data
+      - ./banco/init:/docker-entrypoint-initdb.d:ro  # cria a base do Langfuse no primeiro start
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U raiz -d raiz"]
       interval: 10s

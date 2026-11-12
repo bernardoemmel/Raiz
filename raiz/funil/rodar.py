@@ -130,7 +130,10 @@ def rodar_municipio(cod: int, op: Opcoes, hc=None) -> dict:
         import raiz_direto
         from raiz_extras import geometria
 
-        t = raiz_direto.direto(geometria(uf, cod, str(pasta)))
+        from raiz.funil.ponte import ponte_raster
+
+        with ponte_raster(raiz_direto):  # blocos do YbYrá e do GPW em cache no disco
+            t = raiz_direto.direto(geometria(uf, cod, str(pasta)))
         _escrever_csv(t, pasta / f"direto_{cod}.csv", index=False)
         reg.detalhe.update(imoveis=len(t))
 

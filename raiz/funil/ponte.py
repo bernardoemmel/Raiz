@@ -70,3 +70,31 @@ def ponte(R, uf: str, cod: int, espelho: Path | None = None):
         yield origem
     finally:
         R.car_mun, R.sigef = car_original, sigef_original
+
+
+@contextlib.contextmanager
+def ponte_raster(modulo, atributo: str = "U", cache=None):
+    """Troca, durante a chamada, os endereços /vsicurl/ de um dicionário do motor (ex.: raiz_direto.U) por rasters
+    abertos com o cache de blocos em disco (raiz.coleta.blocos). O zonal_janela do motor aceita o raster aberto.
+    Sem editar o motor; no fim, os endereços originais voltam e os rasters são fechados."""
+    from raiz.coleta.blocos import CacheDisco, abrir_com_cache
+
+    cache = cache or CacheDisco(cache_raster_padrao(), config().raster_cache_gb)
+    original = getattr(modulo, atributo)
+    trocado, abertos = dict(original), []
+    for k, v in original.items():
+        if isinstance(v, str) and v.startswith("/vsicurl/"):
+            ds = abrir_com_cache(v.removeprefix("/vsicurl/"), cache)
+            abertos.append(ds)
+            trocado[k] = ds
+    setattr(modulo, atributo, trocado)
+    try:
+        yield trocado
+    finally:
+        setattr(modulo, atributo, original)
+        for ds in abertos:
+            ds.close()
+
+
+def cache_raster_padrao() -> Path:
+    return Path(config().raster_cache_dir) if config().raster_cache_dir else RAIZ_REPO / "dados" / "cache_raster"
