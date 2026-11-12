@@ -1,5 +1,6 @@
 import type { FunilMunicipio } from "../../../compartilhado/dados"
 import { fmtHa, fmtInt, UFS } from "../../../compartilhado/formato"
+import { fraseDoBrasil, numerosDoBrasil } from "../../../compartilhado/funil-etapas"
 import { linkMunicipio } from "../rota"
 import { Estado } from "./Estado"
 
@@ -12,29 +13,26 @@ export function PainelBrasil({ municipios, comLista, carregando }: { municipios:
         <p>O mapa mostra os municípios assim que o motor rodar o primeiro estado.</p>
       </Estado>
     )
-  const soma = (k: keyof FunilMunicipio) => municipios.reduce((s, m) => s + (Number(m[k]) || 0), 0)
+  const n = numerosDoBrasil(municipios)
   const ufs = [...new Set(municipios.map((m) => UFS[m.uf] ?? m.uf))]
   const top = [...municipios].sort((a, b) => b.ha_carbono - a.ha_carbono).slice(0, 8)
   return (
     <div className="painel-conteudo">
       <h1>Onde dá para restaurar, com dono e título</h1>
-      <p className="frase">
-        A Raíz já leu {fmtInt(municipios.length)} municípios ({ufs.join(", ")}): {fmtInt(soma("imoveis"))} imóveis do Cadastro
-        Ambiental Rural (CAR). {fmtInt(soma("aptas_com_matricula"))} fazendas estão prontas para conversar e{" "}
-        {fmtInt(soma("aptas_carbono") - soma("aptas_com_matricula"))} podem entrar com o título em dia.
-      </p>
+      <p className="frase">{fraseDoBrasil(n, ufs, fmtInt)}</p>
+      {/* urucum só no número que mais importa para a ação: a área que pode voltar a ser mata */}
       <dl className="numeros">
         <div>
           <dt>Imóveis lidos</dt>
-          <dd className="num">{fmtInt(soma("imoveis"))}</dd>
+          <dd className="num">{fmtInt(n.imoveis)}</dd>
         </div>
         <div>
           <dt>Fazendas aptas</dt>
-          <dd className="num">{fmtInt(soma("aptas_carbono"))}</dd>
+          <dd className="num">{fmtInt(n.aptas)}</dd>
         </div>
         <div>
           <dt>Podem voltar a ser mata</dt>
-          <dd className="num">{fmtHa(soma("ha_carbono"))}</dd>
+          <dd className="num destaque">{fmtHa(n.ha)}</dd>
         </div>
       </dl>
       <section className="secao-painel" aria-labelledby="top-titulo">

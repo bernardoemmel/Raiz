@@ -191,3 +191,36 @@ export function fraseDoMunicipio(f: FunilMunicipio | null, etapas: EtapaFunil[],
   }
   return `${base}; a maior perda está ${onde[maior.etapa.id]}.`
 }
+
+/** Os números do Brasil na tela de entrada, somados do resumo de cada município processado. */
+export interface NumerosBrasil {
+  municipios: number
+  imoveis: number
+  /** aptas: passaram no funil (o número de "Fazendas aptas") */
+  aptas: number
+  /** aptas com matrícula: prontas para conversar */
+  prontas: number
+  /** aptas sem matrícula no SIGEF: apta com pendência, falta o título (a mesma legenda do mapa) */
+  faltaTitulo: number
+  /** hectares que podem voltar a ser mata */
+  ha: number
+}
+
+export function numerosDoBrasil(municipios: FunilMunicipio[]): NumerosBrasil {
+  const soma = (k: keyof FunilMunicipio) => municipios.reduce((s, m) => s + (Number(m[k]) || 0), 0)
+  const aptas = soma("aptas_carbono")
+  const prontas = soma("aptas_com_matricula")
+  return { municipios: municipios.length, imoveis: soma("imoveis"), aptas, prontas, faltaTitulo: aptas - prontas, ha: soma("ha_carbono") }
+}
+
+/**
+ * Frase da tela de entrada. As duas partes das aptas somam o número de "Fazendas aptas": prontas (com matrícula) e
+ * as que passam em tudo mas ainda não têm o título (apta com pendência, como diz a legenda do mapa).
+ */
+export function fraseDoBrasil(n: NumerosBrasil, estados: string[], fmt: (n: number) => string): string {
+  const lidos = `A Raíz já leu ${fmt(n.municipios)} ${n.municipios === 1 ? "município" : "municípios"} (${estados.join(", ")}): ${fmt(n.imoveis)} imóveis do Cadastro Ambiental Rural (CAR).`
+  const prontas = `${fmt(n.prontas)} ${n.prontas === 1 ? "fazenda está pronta" : "fazendas estão prontas"} para conversar`
+  if (!n.faltaTitulo) return `${lidos} ${prontas}.`
+  const outras = `${n.faltaTitulo === 1 ? "outra" : "outras"} ${fmt(n.faltaTitulo)} ${n.faltaTitulo === 1 ? "passa" : "passam"} em tudo, mas ainda falta o título`
+  return `${lidos} ${prontas} e ${outras}.`
+}
