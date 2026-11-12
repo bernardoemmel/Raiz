@@ -261,3 +261,9 @@ como serviço no servidor; nada dele é embutido no produto distribuído. O `inf
 `.devops/cpu.Dockerfile` do llama.cpp (MIT, Copyright (c) 2023-2026 The ggml authors), sem a interface web. A
 confiança dos logprobs, a calibração do corte e o banco de tarefas em português foram escritos para a Raíz, sem
 código copiado.
+
+O peso Q4_K_M usado na validação local de 12/11/2026 é a conversão GGUF de
+[Unsloth/Qwen3-4B-Instruct-2507-GGUF](https://huggingface.co/unsloth/Qwen3-4B-Instruct-2507-GGUF), derivada de
+[Qwen/Qwen3-4B-Instruct-2507](https://huggingface.co/Qwen/Qwen3-4B-Instruct-2507), ambos sob Apache-2.0
+([licença original](https://huggingface.co/Qwen/Qwen3-4B-Instruct-2507/blob/main/LICENSE)). O peso fica fora do git;
+a revisão e o SHA-256 conferidos estão em `docs/operacao.md`.

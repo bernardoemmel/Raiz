@@ -11,6 +11,16 @@ from raiz.vigilancia.projetos import Projeto
 from raiz.vigilancia.regras import Regras
 from raiz.vigilancia.relatorio import FONTES, TIPOS
 
+PREENCHER = "[a preencher pelo proponente]"
+
+
+def prazo_registrado(projeto: Projeto, perda_id: str) -> dt.date | None:
+    """Prazo informado pelo cliente, independente da existência de alertas ou estado privado."""
+    for registro in projeto.get("avisos_verra_informados") or []:
+        if registro["perda_id"] == perda_id:
+            return dt.date.fromisoformat(str(registro["prazo"]))
+    return None
+
 
 def preparar(
     projeto: Projeto,
@@ -26,7 +36,7 @@ def preparar(
     acompanham o rascunho; a mensagem só é registrada como enviada por evento separado.
     """
     if perda is None and prazo_informado is None:
-        raise ValueError("evento indisponível: restaure o estado privado ou informe o prazo conhecido")
+        raise ValueError("evento indisponível: informe ou registre o prazo conhecido do proponente")
     if not perda_id.startswith(f"{projeto.id}_LE") or not perda_id.removeprefix(f"{projeto.id}_LE").isdigit():
         raise ValueError("evento de perda não é deste projeto")
     if perda and perda["perda_id"] != perda_id:
@@ -34,18 +44,18 @@ def preparar(
     prazo = perda["prazo"]["aviso_verra_ate"] if perda else prazo_informado
     if perda and prazo_informado and prazo != prazo_informado:
         raise ValueError("prazo informado diverge do estado do evento; confira a descoberta antes de preparar")
-    pendencias = ["Conferir os fatos e preencher a assinatura e o contato do proponente no cliente de e-mail."]
+    pendencias = ["Assinatura, contato e conferência dos fatos: a preencher pelo proponente."]
     bloqueado = bool(
         perda and (perda["estado"] in ("descartada", "relatada") or perda["prazo"].get("aviso_verra_feito_em"))
     )
     registro = projeto.get("verra_id")
     if not registro:
-        pendencias.append("Preencher o ID do projeto no registro da Verra.")
+        pendencias.append("ID do projeto no registro da Verra: a preencher pelo proponente.")
     linhas = [
         "Dear Verra Registry Team,",
         "",
         f"This is an initial notification of a potential loss event concerning project {projeto.nome}.",
-        f"Verra project ID: {registro or '[to be completed]'}.",
+        f"Verra project ID: {registro or PREENCHER}.",
         f"Internal event reference: {perda_id}.",
         "",
     ]
@@ -60,11 +70,12 @@ def preparar(
         if bloqueado:
             pendencias.append("Evento encerrado ou aviso já registrado: exportação de novo aviso inicial bloqueada.")
     else:
-        pendencias.append("Restaurar o estado privado do projeto e conferir descoberta, área, fontes e caracterização.")
+        pendencias.append("Descoberta, área, fontes e caracterização: a preencher pelo proponente.")
         linhas += [
-            "Discovery date: [to be completed from the event record].",
-            "Nature, location and preliminary affected area: [to be completed from the event record].",
-            "The detailed monitoring record is being reviewed; this draft does not assert a confirmed reversal.",
+            f"Discovery date: {PREENCHER}.",
+            f"Nature, location and preliminary affected area: {PREENCHER}.",
+            "Event details must be completed by the project proponent; "
+            "this draft does not assert a confirmed reversal.",
         ]
     linhas += [
         "",
@@ -73,8 +84,8 @@ def preparar(
         "The loss event report, where applicable, will be handled separately under the applicable VCS requirements.",
         "",
         "Kind regards,",
-        "[project proponent / authorized representative — complete before sending]",
-        "[contact details — complete in the email client]",
+        f"Project proponent / authorized representative: {PREENCHER}",
+        f"Contact details: {PREENCHER}",
     ]
     return {
         "projeto_id": projeto.id,
@@ -94,6 +105,9 @@ def preparar(
             else None
         ),
         "enviado": False,
+        "destino_rascunho": "desenvolvedor_cliente",
+        "responsavel_pelo_envio": "proponente",
+        "orientacao": "A Raíz prepara o rascunho para o desenvolvedor cliente e nunca envia o aviso à Verra.",
         "pendencias": pendencias,
     }
 

@@ -32,17 +32,20 @@ def registrar(app: typer.Typer) -> None:
 
     @app.command("reexecutar")
     def reexecutar(
-        catalogo: Annotated[Path, typer.Option(help="JSON com a cobertura conferida de cada fonte scd2")],
         uf: Annotated[str, typer.Option(help="UF do município")],
         municipio: Annotated[int, typer.Option(help="Código IBGE do município")],
         inicio: Annotated[str, typer.Option(help="Primeiro corte anual (AAAA-MM-DD, às 00:00 UTC)")],
         fim: Annotated[str, typer.Option(help="Último corte anual (AAAA-MM-DD)")],
+        catalogo: Annotated[
+            Path | None, typer.Option(help="JSON externo; omitido usa o arquivo automático do banco")
+        ] = None,
         modelos: Annotated[
-            str, typer.Option(help="motor,flag,restauracao separados por vírgula")
-        ] = "motor,flag,restauracao",
+            str, typer.Option(help="modelos separados por vírgula")
+        ] = "motor,flag,restauracao,regularizacao,triagem,rebanho",
         congelar: Annotated[bool, typer.Option(help="Guardar previsões como backtest no registro E8")] = True,
     ) -> None:
-        """Refaz os modelos com as fontes do corte; falta de histórico interrompe a rodada."""
+        """Refaz modelos com fontes do corte; informa separadamente os que ainda não têm histórico."""
+        from raiz.aprendizado.arquivo_historico import catalogo as catalogo_do_banco
         from raiz.aprendizado.folds import cortes_anuais
         from raiz.aprendizado.reexecucao import ler_catalogo
         from raiz.aprendizado.reexecucao import reexecutar as executar
@@ -52,11 +55,11 @@ def registrar(app: typer.Typer) -> None:
             de, ate = dt.date.fromisoformat(inicio), dt.date.fromisoformat(fim)
             if de > ate:
                 raise ValueError("início depois do fim")
-            fontes = ler_catalogo(catalogo)
             cortes = [dt.datetime.combine(c, dt.time(), dt.UTC) for c in cortes_anuais(de, ate)]
             # As fontes de um fold pertencem à mesma visão do banco, mesmo que a
             # coleta diária grave outra versão enquanto o modelo está rodando.
             with engine().connect().execution_options(isolation_level="REPEATABLE READ") as con, con.begin():
+                fontes = ler_catalogo(catalogo) if catalogo else catalogo_do_banco(con, municipio)
                 resultado = executar(
                     con, cortes, uf, municipio, fontes, tuple(m.strip() for m in modelos.split(",")), congelar
                 )

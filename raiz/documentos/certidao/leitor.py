@@ -21,7 +21,7 @@ import pandas as pd
 
 from raiz.documentos import __version__, tabelas
 from raiz.documentos.armazem import Armazem, Leitura
-from raiz.documentos.certidao import cache, esquema
+from raiz.documentos.certidao import cache, esquema, proveniencia
 from raiz.documentos.certidao.conferencia import Conferencia, conferir, versao_regras
 from raiz.documentos.certidao.regras import Derivados, derivar, normalizar_cns, normalizar_matricula
 from raiz.documentos.claude import LeitorClaude, falta_campo
@@ -184,6 +184,7 @@ def ler_certidao(
     qualidade = dict(
         escore_confianca=cache.escore(dados),
         escore_versao=cache.VERSAO_ESCORE,
+        receita_hash=proveniencia.receita_hash(),
         origem_leitura=(
             "manual"
             if json_manual is not None

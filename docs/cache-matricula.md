@@ -10,6 +10,13 @@ simulação) nos derivados imutáveis. O escore de 0 a 1 combina confiança decl
 legibilidade e campos presentes; **não é probabilidade de acerto**. As decisões ficam
 na tabela `cache_decisao` do SQLite dos documentos, com hash da calibração e sem o PDF.
 
+A leitura também guarda `receita_hash`, calculado automaticamente dos arquivos de
+extração, saneamento e escore, versão do Python e dependências Anthropic/PDF. Alterar
+esses componentes exige reler, mesmo sem mudar a versão manual do pacote. Os cortes
+guardam `calibrador_hash`, incluindo MAPIE, scikit-learn, NumPy, SciPy, código dos
+gabaritos e parâmetros do controle de risco; alterar essa base exige recalibrar.
+Leituras e relatórios antigos sem esses hashes não são aceitos no cache.
+
 A calibração usa MAPIE (BSD-3), Learn Then Test, precisão mínima de 95%, confiança de
 95% e correção de Bonferroni para cinco cortes fixos. Esses limites valem sob a hipótese
 de que as matrículas conferidas representam a produção. Antes de conferir, sorteie
