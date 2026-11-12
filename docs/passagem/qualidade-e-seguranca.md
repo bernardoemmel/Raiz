@@ -1,6 +1,6 @@
 # Qualidade e segurança — passagem
 
-Entrega inicial de 12/11/2026 (#51); revisão de continuidade em 12/11/2026, até a main `3546687`. Área: CI, E2E, infraestrutura e segurança. Correções em produto são pontuais,
+Entrega inicial de 12/11/2026 (#51); revisão de continuidade em 12/11/2026, até a main `74ab7fc`. Área: CI, E2E, infraestrutura e segurança. Correções em produto são pontuais,
 com regressões. Mudanças de contrato/arquitetura ficam para os chats responsáveis abaixo.
 
 ## Continuidade desta entrega (12/11/2026)
@@ -245,7 +245,7 @@ produzir um conjunto utilizável. Não foram disparados envios à Verra nem proc
 
 ## Revisão contínua — continuação de 12/11/2026
 
-Marco inicial: merge do #51 (`78e13f7`). Main conferida até `3546687`; não foram confundidos PRs abertos com
+Marco inicial: merge do #51 (`78e13f7`). Main conferida até `74ab7fc`; não foram confundidos PRs abertos com
 código integrado. O histórico acima descreve a entrega inicial; esta seção registra mudanças posteriores.
 
 | PR integrado | Diff revisado | Resultado e responsável |
@@ -373,3 +373,10 @@ resolver os achados de qualidade; a conclusão do cálculo privado não libera a
   fictícia da integração. Valkey concorrente, portões de publicação e observabilidade estão cobertos pela suíte.
 
 Os números descrevem as execuções locais. O resultado remoto e o commit de integração ficam registrados no PR.
+
+
+### Integração do #75 — fechamento de Telas e mapa
+
+Revisado o diff `3546687..74ab7fc`: somente passagem e plano, sem mudança executável, dado pessoal ou segredo
+identificado. Preservadas as notas sobre domínio real, lotes ausentes e publicação coordenada com a migração
+privada. A main foi incorporada antes do merge; os oito jobs foram exigidos novamente no commit atualizado.
