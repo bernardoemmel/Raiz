@@ -43,16 +43,19 @@
   flex-shrink: 0;
   border: 3px solid currentColor;
 }
-.opcao-barata {
+.opcao-barata,
+.opcao-marca.opcao-barata {
   color: var(--mata-texto);
 }
-.opcao-segura {
+.opcao-segura,
+.opcao-marca.opcao-segura {
   color: var(--agua-texto);
 }
 .opcao-segura i {
   border-style: dashed;
 }
-.opcao-compacta {
+.opcao-compacta,
+.opcao-marca.opcao-compacta {
   color: var(--terra-texto);
 }
 .opcao-compacta i {

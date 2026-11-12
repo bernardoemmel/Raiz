@@ -104,6 +104,8 @@ async function pagina(base, publicacao, autenticada = false) {
   await p.getByRole("heading", { name: "Quanto existe na nossa base", exact: true }).waitFor()
   assert(await p.getByRole("button", { name: "Solicitar interesse dos donos", exact: true }).isDisabled())
   assert.equal(await p.locator(".tabela-comparacao thead button").count(), 3)
+  const coresCabecalho = await p.locator(".tabela-comparacao thead button").evaluateAll((botoes) => botoes.map((botao) => getComputedStyle(botao).color))
+  assert.equal(new Set(coresCabecalho).size, 3, "A legenda da tabela deve distinguir as cores das três opções.")
   return p
 }
 
