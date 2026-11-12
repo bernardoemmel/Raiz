@@ -674,8 +674,9 @@ Os oito jobs rodam em paralelo, sem filtro de caminhos nem seleção de testes. 
 continua travada (`uv sync --frozen --all-extras`, `npm ci`). Não se reutiliza `node_modules` de outro lock.
 
 - `front` constrói o mesmo site público e executa os testes unitários, com geometrias de teste determinísticas.
-- `checagens` executa toda a coleta pytest, inclusive PostGIS, Rust, cartão, vídeo, PDF e LanguageTool. O portão de resultados recusa novos skips/xfails;
-  preserva somente o conjunto real do Pará ausente e a divergência conhecida de TIR, detalhados na passagem.
+- `checagens` executa toda a coleta pytest, inclusive PostGIS, Rust, cartão, vídeo, PDF, LanguageTool e o conjunto
+  privado completo do Pará. O portão exige o caso estadual exatamente uma vez, aprovado, e recusa novos skips/xfails;
+  a divergência conhecida de TIR continua executada como `xfail`, detalhada na passagem.
 - `e2e` abre Chromium e usa API/PostGIS reais: link de entrada, milhão de créditos no Pará, três opções, interesse
   e reserva Pix local. E-mail e respostas dos donos são controlados; nenhuma credencial de pagamento real é
   aceita. Veja `testes/e2e/README.md`. Não há trace com tokens nos artefatos.
@@ -683,6 +684,30 @@ continua travada (`uv sync --frozen --all-extras`, `npm ci`). Não se reutiliza 
   Inventário ausente/ilegível falha. AGPL, SSPL, Business Source, EUPL e NC são bloqueadas; `BSL-1.0` é a licença
   Boost, permitida, enquanto Business Source (`BUSL-1.1`) é proibida. Exceções manuais não liberam licença proibida.
 - `segredos` usa Gitleaks com saída ocultada; `workflows` valida todos os workflows com actionlint.
+
+### Teste estadual com o snapshot privado do Pará
+
+O teste usa as 144 tabelas de desenvolvedor e terra, as entradas e as geometrias congeladas da rodada
+`restauracao-2026d+a84f9789`, sem recalcular os municípios nem alterar a sensibilidade do teste. O preparador
+`scripts/testar_para_privado.py` fixa o Release draft, os manifests e seus SHA256; confere os pacotes, os hashes
+municipais, o modelo, o cenário e a identidade dos 345.870 imóveis. Mudança de modelo exige uma referência
+compatível de **Lote e números**; não reetiquetar previsões antigas para fazer o CI passar.
+
+No CI, somente o passo de preparação recebe `RAIZ_DADOS_PRIVADOS_TOKEN=${{ github.token }}`, com permissão
+`contents: read`. A suíte recebe apenas a pasta em `$RUNNER_TEMP/raiz-pa` e `RAIZ_TESTE_PA_OBRIGATORIO=1`.
+O teste reconfere os arquivos e roda o mesmo caso estadual em subprocesso sem credenciais; stdout, stderr e
+JUnit desse filho ficam privados e são apagados. O JUnit público contém apenas o resultado do caso e uma mensagem
+fixa se falhar. A pasta tem modo 0700, fica fora do checkout e é removida no passo `always()`.
+
+Não guardar esses arquivos financeiros em Actions cache ou artifact público. PR de fork não recebe credencial
+nem os dados: a validação estadual fica explicitamente bloqueada, e o CI não a apresenta como aprovada. Falha
+de acesso, hash, modelo ou preparação também deixa o job vermelho; os demais testes ainda são executados.
+
+Para medir localmente, configure as duas variáveis do arquivo privado descritas em `docs/dados-publicados.md` e
+execute `uv run python scripts/testar_para_privado.py`. A CLI prepara uma pasta temporária, executa o caso real,
+informa somente contagens, tempo e memória e apaga os dados temporários. Para preparar antes da suíte completa,
+use `--preparar /caminho/privado/raiz-pa` e forneça somente `RAIZ_TESTE_PA_PASTA` e `RAIZ_TESTE_PA_OBRIGATORIO=1`
+ao pytest, retirando as credenciais desse processo; remova a pasta após o ensaio.
 
 A API acrescenta cabeçalhos de proteção e `no-store` nas respostas autenticadas e de pedidos. Por padrão, há
 120 chamadas por minuto/IP e 10 chamadas de login por minuto/IP; ajuste `RAIZ_API_LIMITE_MINUTO` e

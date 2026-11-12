@@ -187,8 +187,11 @@ jobs:
       RAIZ_BANCO_URL_TESTE: postgresql+psycopg://raiz:raiz@localhost:5432/raiz_teste
       RAIZ_LANGUAGETOOL_URL_TESTE: http://localhost:8010
       RAIZ_VALKEY_URL_TESTE: redis://localhost:6379/15
+      RAIZ_TESTE_PA_OBRIGATORIO: "1"
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: astral-sh/setup-uv@v6
         with:
           enable-cache: true
@@ -228,18 +231,31 @@ jobs:
             sleep 1
           done
           curl --fail --silent http://localhost:8010/v2/languages > /dev/null
+      - name: Preparar a referência privada do Pará com hashes e geometria originais
+        env:
+          RAIZ_DADOS_PRIVADOS_URL: release-github://${{ github.repository }}/dados-privados
+          # Somente este passo recebe a credencial; PR externo não recebe acesso ao draft.
+          RAIZ_DADOS_PRIVADOS_TOKEN: ${{ (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && github.token || '' }}
+        run: uv run python scripts/testar_para_privado.py --preparar "$RUNNER_TEMP/raiz-pa"
       - name: Todos os testes Python, com PostGIS
+        # Uma falha de preparação deixa o job vermelho e o teste estadual falha sem esconder os demais testes.
+        if: ${{ !cancelled() }}
+        env:
+          RAIZ_TESTE_PA_PASTA: ${{ runner.temp }}/raiz-pa
         run: uv run pytest -q --junitxml=resultado-pytest.xml
       - name: Impedir novos testes pulados por dependência ausente
         if: always()
         run: uv run python scripts/conferir_testes_ci.py resultado-pytest.xml
-      - name: Resultado dos testes (inclui motivos de testes opcionais pendentes)
+      - name: Resultado dos testes (sem dados do arquivo privado)
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: resultado-pytest
           path: resultado-pytest.xml
           retention-days: 7
+      - name: Apagar a referência privada temporária
+        if: always()
+        run: rm -rf "$RUNNER_TEMP/raiz-pa"
 
   e2e:
     runs-on: ubuntu-24.04

@@ -1,6 +1,6 @@
 # Qualidade e segurança — passagem
 
-Entrega inicial de 12/11/2026 (#51); revisão de continuidade em 12/11/2026, até a main `b624b10`. Área: CI, E2E, infraestrutura e segurança. Correções em produto são pontuais,
+Entrega inicial de 12/11/2026 (#51); revisão de continuidade em 12/11/2026, até a main `436c7b6` (#81). Área: CI, E2E, infraestrutura e segurança. Correções em produto são pontuais,
 com regressões. Mudanças de contrato/arquitetura ficam para os chats responsáveis abaixo.
 
 ## Continuidade desta entrega (12/11/2026)
@@ -19,7 +19,7 @@ com regressões. Mudanças de contrato/arquitetura ficam para os chats responsá
   de **Produto e regras**: o MCP oferece ferramentas de pedidos para agentes externos, sem agente leitor de certidão,
   edital ou arquivo. Não se simula essa leitura nem sua aprovação. A exceção anterior do fundador era somente ausência
   de servidor; com o servidor presente, o runner exige a integração e registra falha explícita do corpus pendente.
-- **Revisão contínua:** PRs #53, #56, #67, #54, #68, #70, #71, #73, #74, #55, #75, a integração #45/#69, #72 e #77 revisados,
+- **Revisão contínua:** PRs #53, #56, #67, #54, #68, #70, #71, #73, #74, #55, #75, a integração #45/#69, #72, #77, #79 e #80 revisados,
   com correções pequenas de privacidade, calendário e idempotência abaixo.
   Scanners e testes rodam a cada push. O fundador optou por manter somente essas checagens por push, sem automação horária.
 
@@ -31,13 +31,15 @@ pasto em 1.084 linhas; máximos respectivamente 2.423,632799, 710,894784, 4.368,
 O pacote real AC tem `data_atualizacao=0` em 648/3.849 linhas de Acrelândia. Falhas verificadas sem expor CAR/dono.
 
 **Dados** precisa conferir união de sobreposições, projeção/raster, ausência como nulo e recalcular. Qualidade não
-alterou ciência nem aplicou clamp. Pacotes legados que violam esses contratos não podem ser republicados. O KML
+alterou ciência nem aplicou clamp. Esses dados legados não recebem aprovação de qualidade; o arquivo privado pode preservar
+os bytes originais, sem liberá-los como produto público. O KML
 URTX real foi validado inteiro (1,26 s); o pacote AC foi bloqueado (4,66 s), não aprovado nem usado como benchmark
-integral de lote válido. **Lote e números / Telas e mapa** precisam separar folhas individuais/HTML privados do
-pacote público da rodada; enquanto o contrato não existir, essa publicação permanece bloqueada.
+integral de lote válido. A separação de folhas individuais/HTML privados e projeção pública básica foi entregue
+pelo #72; os portões desta continuação validam a projeção antes do primeiro upload público.
 
 As demais pendências maiores seguem atribuídas nas seções históricas, reconciliadas pela revisão da main. O dado
-real do Pará e o critério TIR continuam com seus donos; a ativação da proteção da main continua manual.
+real do Pará já está no arquivo privado: sua integração protegida ao teste é de **Qualidade e segurança**, com contrato
+e novos snapshots de **Lote e números**. O critério TIR continua com seu dono; a proteção da main continua manual.
 
 ## Entrega inicial (#51)
 
@@ -54,8 +56,12 @@ real do Pará e o critério TIR continuam com seus donos; a ativação da prote�
 
 Nenhum teste foi retirado ou selecionado parcialmente para acelerar o CI. O teste opcional preexistente
 `test_lote_do_para_inteiro_fecha_ou_diz_o_que_falta` ainda depende das 144 tabelas reais `desenvolvedor` do Pará,
-que não existem no Release atual. Portanto a exigência literal de zero skips **não está concluída**.
-O chat **Raiz dados do Brasil**, com **Lote e números**, precisa publicar o conjunto versionado; então o CI deverá baixar/conferir/cachear o snapshot.
+que não estavam preparadas nos ensaios históricos registrados abaixo. A publicação privada integral foi concluída
+por **Lote e números**. **Qualidade e segurança** já executou o teste real com download autenticado, hashes e
+entradas/geometrias congeladas: 144 municípios, 345.870 imóveis, nenhum skip, em 446,2 s e pico de 6.840,2 MiB.
+O teste e o portão desta continuação não aceitam mais a exceção estadual; falta comprovar no CI o acesso com
+`contents: read` e integrar a entrega independente à main. Nenhum pacote financeiro vai para cache ou artifact
+público; a recomendação histórica de cache abaixo está superada.
 Além disso, permanece o `xfail` preexistente de TIR do plantio (`test_plantio_da_7_a_9_pct_no_central_r11`):
 o teste executa, mas a conta ainda diverge da referência de 7–9%; o chat **Lote e números**, com **Produto e regras**, deve resolver o critério
 em `docs/restauracao-rodada11.md`. O portão de resultados recusa qualquer outro skip/xfail novo.
@@ -522,7 +528,9 @@ do catálogo confirma por CAS o escopo e a tentativa atual, mantendo a cota glob
 Os testes focados exercitam nomes/contatos e segredos sintéticos no retorno, nos caminhos, nas exceções e nos
 warnings; cobrem também listas de atestação legadas, aliases, versões de conteúdo e a corrida de reexecução.
 **190 testes focados passaram, sem skips**, em 31,17 s. Ruff e formatação globais, actionlint 1.7.12 e a conferência
-do diff passaram. O CI integral será exigido no PR antes do merge. Nenhum upload de dados ou processamento de produção foi
+do diff passaram. O [CI final do #81](https://github.com/bernardoemmel/Raiz/actions/runs/43315818208) aprovou os seis
+jobs e 2.003 testes Python, com o skip estadual e o xfail de TIR então herdados. O merge foi feito em `436c7b6`,
+depois de atualizar a main e confirmar o CI verde. Nenhum upload de dados ou processamento de produção foi
 disparado por esta validação.
 
 Os demais portões de qualidade dos dados, observabilidade, carga e a integração adversarial do MCP continuam no
@@ -555,4 +563,26 @@ A publicação privada integral já foi concluída por **Lote e números**, conf
 está integrando no #76 a preparação autenticada das previsões e entradas/geometrias congeladas, conferência de hashes
 e execução do teste estadual. **Lote e números** mantém o contrato, modelo e futuros snapshots. Esses dados financeiros
 por imóvel não devem ir para cache ou artifact público; a recomendação histórica de cache público está superada.
-Até a integração demonstrar a execução real, o skip herdado continua explicitamente pendente e não vale como teste aprovado.
+O ensaio real posterior passou, conforme a seção seguinte; os resultados anteriores com skip continuam históricos.
+
+### Referência estadual autenticada e limite Valkey — continuação após #81
+
+O teste estadual foi executado com asserções e sensibilidade originais, sem recalcular municípios: **144 municípios,
+345.870 imóveis, 446,2 s, pico RSS 6.840,2 MiB**. Download de 334.001.998 bytes em 9,4 s; preparação em 8 s,
+com aproximadamente 1,42 GB temporários. O preparador confere manifests, hashes, cenário, modelo, identidades e
+geometrias congeladas. O token fica somente no passo de preparação; o teste roda em processo sem credenciais,
+com saída e JUnit privados apagados. Timeout e interrupção encerram também os descendentes do processo.
+**73 regressões do preparador/supervisor/portão passaram**; não foi criado cache ou artifact público desses dados.
+O CI agora exige exatamente um caso estadual aprovado e não aceita mais seu skip. PR de fork é explicitamente
+bloqueado antes de acesso ou credenciais; os demais testes continuam sendo executados. O acesso do token automático
+de leitura e a suíte integral ainda precisam ser confirmados no commit final pelo CI.
+
+Corrigida uma opção de configuração do limitador compartilhado: a query da URL do Valkey não pode substituir
+os prazos de conexão/leitura nem habilitar retries ou health checks adicionais. URLs válidas com banco, keepalive
+e TLS foram preservadas. **31 testes de limites passaram**, incluindo Valkey real e rejeição antes de criar conexão.
+
+O CI anterior do #76 (`1efc7c3`, run `43311611896`) aprovou sete dos oito jobs e **2.224 testes Python**, com o
+skip estadual e o xfail conhecidos. A suíte local desse marco passou com **2.147 testes**, antes de #79/#80.
+O único job vermelho daquele CI foi o corpus MCP: latência e carga passaram, mas falta o agente leitor de documentos
+de **Produto e regras**. Essa pendência permanece explícita; nenhuma aprovação de corpus ou merge com CI vermelho
+foi feita. A entrega independente #81 não altera essa política.

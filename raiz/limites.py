@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import hashlib
 import hmac
-from urllib.parse import urlsplit
+from urllib.parse import parse_qsl, urlsplit
 
 # Uma operação: verificar ambos os tetos e, só quando aceita, incrementar ambos.
 # O relógio e a expiração são os do servidor, iguais em todos os workers.
@@ -28,8 +28,14 @@ return 0
 
 class LimiteCompartilhado:
     def __init__(self, url: str, chave: str, *, cliente=None):
-        if urlsplit(url).scheme not in {"redis", "rediss"}:
+        partes = urlsplit(url)
+        if partes.scheme not in {"redis", "rediss"}:
             raise ValueError("limite compartilhado exige URL redis:// ou rediss:// do Valkey")
+        # O cliente dá precedência à query da URL sobre os argumentos abaixo.
+        # Mesma política do limite corporativo, sem depender da API paga.
+        protegidas = {"socket_timeout", "socket_connect_timeout", "health_check_interval", "redis_connect_func"}
+        if any(k in protegidas or k.startswith("retry") for k, _ in parse_qsl(partes.query, keep_blank_values=True)):
+            raise ValueError("a URL do limitador não pode alterar prazos nem repetições")
         if len(chave.encode()) < 32:
             raise ValueError("RAIZ_API_LIMITE_CHAVE precisa de pelo menos 32 bytes")
         from redis.asyncio import Redis
@@ -41,7 +47,9 @@ class LimiteCompartilhado:
             socket_connect_timeout=1,
             socket_timeout=1,
             retry_on_timeout=False,
+            retry_on_error=[],
             retry=Retry(NoBackoff(), 0),
+            health_check_interval=0,
             max_connections=50,
         )
         self.chave = chave.encode()

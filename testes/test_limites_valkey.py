@@ -124,6 +124,49 @@ def test_backend_recusa_chave_fraca_e_protocolo_errado():
         LimiteCompartilhado("https://localhost", secrets.token_hex(32))
 
 
+@pytest.mark.parametrize(
+    "query",
+    [
+        "socket_timeout=30",
+        "socket_connect_timeout=45",
+        "retry_on_timeout=true",
+        "retry_on_error=TimeoutError",
+        "retry=outra_politica",
+        "health_check_interval=1",
+        "redis_connect_func=outro_conector",
+        "%73ocket_timeout=30",
+        "db=15&socket_timeout=1&socket_timeout=30",
+        "socket_timeout=",
+    ],
+)
+def test_url_nao_pode_substituir_prazos_ou_repeticoes_antes_de_criar_cliente(monkeypatch, query):
+    from redis.asyncio import Redis
+
+    def criar(*_args, **_kwargs):
+        pytest.fail("URL inválida não deve criar cliente nem abrir conexão")
+
+    monkeypatch.setattr(Redis, "from_url", criar)
+    url = f"redis://:segredo-sintetico@localhost:6379/15?{query}"
+    with pytest.raises(ValueError, match="não pode alterar prazos nem repetições") as erro:
+        LimiteCompartilhado(url, secrets.token_hex(32))
+    assert "segredo-sintetico" not in str(erro.value) and query not in str(erro.value)
+
+
+@pytest.mark.parametrize("tls", [False, True])
+def test_url_preserva_banco_keepalive_e_tls_sem_desfazer_prazo(tls):
+    esquema = "rediss" if tls else "redis"
+    query = "db=14&socket_keepalive=true" + ("&ssl_cert_reqs=required&ssl_check_hostname=true" if tls else "")
+    backend = LimiteCompartilhado(f"{esquema}://localhost:6379/15?{query}", secrets.token_hex(32))
+    opcoes = backend.cliente.connection_pool.connection_kwargs
+    assert opcoes["db"] == 14 and opcoes["socket_keepalive"] is True
+    if tls:
+        assert opcoes["ssl_cert_reqs"] == "required" and opcoes["ssl_check_hostname"] is True
+    assert opcoes["socket_connect_timeout"] == opcoes["socket_timeout"] == 1
+    assert opcoes["retry_on_timeout"] is False and opcoes["retry_on_error"] == []
+    assert opcoes["retry"].get_retries() == 0 and opcoes["health_check_interval"] == 0
+    asyncio.run(backend.fechar())
+
+
 def test_servidor_travado_falha_fechado_sem_repeticoes_demorradas():
     async def rodar():
         encerrar = asyncio.Event()
