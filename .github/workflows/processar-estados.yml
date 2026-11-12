@@ -1,14 +1,17 @@
 # Roda o motor da Raíz estado por estado, sozinho, e publica no Release `dados` (de onde o front baixa).
 # Explicação completa e painel: motor/README.md. Repositório público: os minutos do Actions são grátis.
 #
-# planejar  -> lê o estados.json publicado e escolhe os estados (incompletos ou com código mudado), na ordem do país,
-#              até 4 ao mesmo tempo contando as outras rodadas em andamento
+# planejar  -> lê o estados.json publicado e escolhe as unidades: estado inteiro, ou fatia de estado grande (mais de
+#              120 municípios vira fatias de até 120, por faixa de longitude: MG 8, SP 6, RS 5, BA 4, PR 4...). Duas
+#              filas: estado novo (funil incompleto) pega as vagas primeiro; manutenção (tarefa nova em estado feito)
+#              só o que sobra, até 4. Até 18 jobs ao mesmo tempo, contando as outras rodadas em andamento
 # preparar  -> baixa uma vez por dia os arquivos nacionais e guarda no cache comum
 # processar -> um job por estado: motor/rodar_estado.py --executor baixa as fontes do estado, adota o que foi publicado
 #              antes do executor (com a APP pela escadinha onde faltava) e chama `raiz executor rodar` (o motor e as
 #              tarefas do produto, município a município, retomando das marcas no Release), que para antes de 5h30 e
-#              publica. Se parou pelo prazo, dispara este workflow de novo só para aquele estado (continuação); se
-#              terminou, passa a vez ao próximo da fila. Ficam sempre 4 cadeias rodando, na ordem, até o Brasil inteiro.
+#              publica (fatias do mesmo estado publicam relendo umas às outras, dentro da trava do estado). Se parou
+#              pelo prazo, dispara este workflow de novo só para aquela unidade (continuação); se terminou, passa a vez
+#              ao próximo da fila. Ficam sempre até 18 cadeias rodando, até o Brasil inteiro.
 name: Processar estados (motor)
 
 run-name: >-
@@ -20,7 +23,7 @@ on:
   workflow_dispatch:
     inputs:
       ufs:
-        description: "Estados separados por espaço (ex.: TO MA). Vazio: todos os incompletos ou com código do motor mudado"
+        description: "Estados ou fatias separados por espaço (ex.: TO MA, ou MG-3). Vazio: o plano automático (as duas filas)"
         required: false
         default: ""
       refazer:
@@ -126,21 +129,21 @@ jobs:
             --jq '.[] | select(.key != env.NOVA) | .id' | xargs -r -n1 gh cache delete -R "$GITHUB_REPOSITORY"
 
   processar:
-    name: ${{ matrix.uf }}
+    name: ${{ matrix.unidade }}
     needs: [planejar, preparar]
     if: ${{ !cancelled() && needs.planejar.outputs.tem == '1' }}
     runs-on: ubuntu-latest
     timeout-minutes: 345 # o executor para sozinho e publica antes; isto é só a rede de segurança
     strategy:
       fail-fast: false
-      max-parallel: 4
+      max-parallel: 18
       matrix:
-        uf: ${{ fromJSON(needs.planejar.outputs.matriz) }}
-    concurrency: # nunca dois jobs no mesmo estado ao mesmo tempo
-      group: motor-estado-${{ matrix.uf }}
+        unidade: ${{ fromJSON(needs.planejar.outputs.matriz) }}
+    concurrency: # nunca dois jobs na mesma unidade (estado inteiro ou fatia) ao mesmo tempo
+      group: motor-estado-${{ matrix.unidade }}
       cancel-in-progress: false
     env:
-      UF: ${{ matrix.uf }}
+      UNIDADE: ${{ matrix.unidade }}
       GH_TOKEN: ${{ github.token }}
       OGR_GEOJSON_MAX_OBJ_SIZE: "0"
       LANES: "3"
@@ -150,10 +153,12 @@ jobs:
       RAIZ_RASTER_CACHE_GB: "5"
       RAIZ_CONTINUACAO: ${{ inputs.continuacao || '0' }}
       RAIZ_REFAZER: ${{ inputs.refazer }}
-      CACHE_UF_CHAVE: motor-uf-v1-${{ matrix.uf }}-${{ github.run_id }}-${{ github.run_attempt }}
+      CACHE_UF_CHAVE: motor-uf-v1-${{ matrix.unidade }}-${{ github.run_id }}-${{ github.run_attempt }}
     steps:
-      - name: Marcar o início (o prazo de 5h30 conta daqui)
-        run: echo "RAIZ_INICIO=$(date +%s)" >> "$GITHUB_ENV"
+      - name: Marcar o início (o prazo de 5h30 conta daqui) e o estado da unidade
+        run: |
+          echo "RAIZ_INICIO=$(date +%s)" >> "$GITHUB_ENV"
+          echo "UF=${UNIDADE%%-*}" >> "$GITHUB_ENV"
 
       - uses: actions/checkout@v4
 
@@ -176,15 +181,17 @@ jobs:
           key: motor-comum-v1-${{ needs.planejar.outputs.dia }}
           restore-keys: motor-comum-v1-
 
-      - name: Recuperar o cache do estado (blocos do TerraBrasilis, MapBiomas, Alerta)
+      - name: Recuperar o cache da unidade (blocos do TerraBrasilis, MapBiomas, Alerta)
         uses: actions/cache/restore@v4
         with:
           path: |
             motor/cache/tb
-            motor/cache/mapbiomas/${{ matrix.uf }}
+            motor/cache/mapbiomas
             motor/cache/alerta
           key: ${{ env.CACHE_UF_CHAVE }}
-          restore-keys: motor-uf-v1-${{ matrix.uf }}-
+          restore-keys: |
+            motor-uf-v1-${{ matrix.unidade }}-
+            motor-uf-v1-${{ env.UF }}-
 
       - name: Insumos opcionais (Release insumos)
         run: |
@@ -201,9 +208,9 @@ jobs:
           fi
 
       - name: Rodar pelo executor (fontes, adoção, motor e tarefas do produto) e publicar no Release dados
-        run: uv run python motor/rodar_estado.py "$UF" --executor
+        run: uv run python motor/rodar_estado.py "$UNIDADE" --executor
 
-      - name: Guardar o cache do estado
+      - name: Guardar o cache da unidade
         id: salvar
         if: always()
         continue-on-error: true
@@ -211,17 +218,17 @@ jobs:
         with:
           path: |
             motor/cache/tb
-            motor/cache/mapbiomas/${{ matrix.uf }}
+            motor/cache/mapbiomas
             motor/cache/alerta
           key: ${{ env.CACHE_UF_CHAVE }}
 
-      - name: Continuar este estado (se parou pelo prazo) ou passar a vez ao próximo da fila
+      - name: Continuar esta unidade (se parou pelo prazo) ou passar a vez ao próximo da fila
         if: always()
-        run: uv run python motor/rodar_estado.py --continuar "$UF"
+        run: uv run python motor/rodar_estado.py --continuar "$UNIDADE"
 
-      - name: Apagar caches antigos deste estado
+      - name: Apagar caches antigos desta unidade
         if: always() && steps.salvar.outcome == 'success'
         continue-on-error: true
         run: |
-          gh cache list -R "$GITHUB_REPOSITORY" --key "motor-uf-v1-${UF}-" --limit 100 --json id,key \
+          gh cache list -R "$GITHUB_REPOSITORY" --key "motor-uf-v1-${UNIDADE}-" --limit 100 --json id,key \
             --jq '.[] | select(.key != env.CACHE_UF_CHAVE) | .id' | xargs -r -n1 gh cache delete -R "$GITHUB_REPOSITORY"

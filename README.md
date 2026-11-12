@@ -9,8 +9,8 @@ e comparada com o resultado real.
 ## O que já existe
 
 **Motor de dados (`motor/`)**: funil por imóvel do CAR, município por município, para todos os estados. Roda sozinho no
-GitHub Actions (`.github/workflows/processar-estados.yml`), 4 estados por vez, e publica no Release `dados`, de onde o
-front baixa. Painel com o andamento de cada estado em [`motor/README.md`](motor/README.md).
+GitHub Actions (`.github/workflows/processar-estados.yml`), até 18 jobs por vez (estado grande em fatias), e publica
+no Release `dados`, de onde o front baixa. Painel com o andamento de cada estado em [`motor/README.md`](motor/README.md).
 
 | Script | O que faz |
 |---|---|
@@ -94,8 +94,8 @@ O S3 fica pronto para quando o volume pedir (Cloudflare R2, sem taxa de saída, 
 `RAIZ_S3_ACCESS_KEY_ID` e `RAIZ_S3_SECRET_ACCESS_KEY` só no `.env`. Hoje não é usado.
 
 No GitHub Actions (workflow `processar-estados.yml`, explicado com o painel em [`motor/README.md`](motor/README.md)),
-`motor/rodar_estado.py --executor` organiza a rodada e chama o executor: escolhe os estados (4 ao mesmo tempo, na
-ordem do país), adota o estado publicado antes do executor (com a APP pela escadinha antes, onde faltava), roda
+`motor/rodar_estado.py --executor` organiza a rodada e chama o executor: escolhe os estados (até 18 jobs, estado grande
+em fatias, na ordem do país), adota o estado publicado antes do executor (com a APP pela escadinha antes, onde faltava), roda
 `raiz executor rodar --ufs <UF> --lanes 3 --ate-minutos <o que sobra das 5h30>` com `RAIZ_SEM_BANCO=1`, roda os
 extras do Earth Engine se houver GeoTIFF e, se o prazo acabou, dispara a continuação do estado:
 

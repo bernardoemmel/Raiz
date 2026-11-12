@@ -53,27 +53,36 @@ e quando alguém dispara à mão. O trabalho município a município é do **exe
 desenvolvedor), guarda uma marca por município com a versão de cada tarefa, retoma de onde parou e publica no Release.
 O `rodar_estado.py` organiza a rodada em volta dele:
 
-1. **Planejar** (`rodar_estado.py --planejar`): lê o `estados.json` publicado e escolhe os estados, nesta ordem: PA,
-   RO, RR, AC, AP (completar o que já está publicado), TO, MA, AM, MT (resto da Amazônia Legal), GO, MS, MG, BA, PI, CE,
-   RN, PB, PE, AL, SE, ES, RJ, SP, PR, SC, RS, DF. Entra quem não começou, quem está incompleto, quem foi publicado
-   antes do executor (para adotar), quem tem tarefa com código mudado e quem está completo mas não roda há 6 dias ou
-   mais (o executor refaz só o que mudou nas fontes: CAR, alertas, MapBiomas). Ficam 4 estados rodando ao mesmo tempo,
-   somando todas as rodadas do workflow.
+1. **Planejar** (`rodar_estado.py --planejar`): lê o `estados.json` publicado e escolhe as **unidades** de trabalho.
+   Estado com até 120 municípios é uma unidade; estado maior vira **fatias** de até 120 municípios, em faixas de
+   longitude (cada job baixa só os blocos da faixa dele), que rodam em jobs separados ao mesmo tempo: MG 8, SP 6, RS 5,
+   BA 4, PR 4, SC 3, GO 3 e PA, TO, MA, MT, PI, PB, PE, CE, RN 2 cada (62 unidades no Brasil). Duas filas:
+   - **novo**: estado que não começou ou com o funil incompleto. Pega as vagas primeiro, na ordem PA, RO, RR, AC, AP,
+     TO, MA, AM, MT, GO, MS, MG, BA, PI, CE, RN, PB, PE, AL, SE, ES, RJ, SP, PR, SC, RS, DF;
+   - **manutenção**: funil pronto, mas falta tarefa nova do produto, o código de uma tarefa mudou, o estado é de antes
+     do executor (adotar) ou não roda há 6 dias ou mais (o executor refaz só o que mudou nas fontes: CAR, alertas,
+     MapBiomas). Só usa as vagas que sobram, e no máximo 4 ao mesmo tempo: nunca segura vaga de estado novo.
+   São até 18 jobs ao mesmo tempo, somando todas as rodadas do workflow (o GitHub dá 20 a repositório público; 2 ficam
+   para o planejamento das rodadas e o CI).
 2. **Preparar** (`rodar_estado.py --preparar`): baixa uma vez por dia os arquivos nacionais (lista de municípios,
    embargos do Ibama, biomas, geobr, TMF, causas da perda) e guarda no cache comum do Actions.
-3. **Um job por estado** (`rodar_estado.py <UF> --executor`):
+3. **Um job por unidade** (`rodar_estado.py <UF ou fatia, ex. MG-3> --executor`):
    - baixa as fontes do estado (MapBiomas Alerta, os 5 temas do MapBiomas, geobr, TMF, causas) antes de tudo, para a
      assinatura de cada município no executor já nascer com elas;
    - estado publicado antes do executor (sem marcas): roda a APP pela escadinha (`raiz_app.py`) onde ela falta, põe o
      `imoveis_` novo no armazém e só então adota (`raiz executor adotar`), sem refazer o funil;
-   - chama `raiz executor rodar --ufs <UF> --lanes 3 --ate-minutos <o que sobra>`; o executor para de começar
-     municípios no prazo, dá 10 min de folga aos que estão em curso e publica;
+   - chama `raiz executor rodar --ufs <UF> --lanes 3 --ate-minutos <o que sobra>` (fatia: `--municipios` com os da
+     fatia); o executor para de começar municípios no prazo, dá 10 min de folga aos que estão em curso e publica;
    - se houver GeoTIFF do Earth Engine em `extras/`, roda `raiz_extras.py` e põe o resultado no armazém;
    - publica de novo com a rodada (commit, versões, se parou pelo prazo, erros) e atualiza o painel acima.
-   O `estados.json` é relido e regravado dentro de uma trava (tag `trava-publicar-dados`), só com a entrada do estado,
-   para os 4 jobs que publicam ao mesmo tempo não apagarem um ao outro.
-4. **Prazo de 5h30 por job**: se o estado parou pelo prazo e avançou, o job dispara o workflow de novo só para ele; se
-   terminou, passa a vez ao próximo estado da fila. Estado que parou sem avançar nenhum município não se dispara de novo
+   Publicar tem duas travas (tags criadas pela API, que só um job consegue criar por vez): a do estado
+   (`trava-publicar-<UF>`), dentro da qual o job relê o pacote publicado, junta com o que fez (o que outras fatias do
+   mesmo estado já publicaram entra; o que este job gravou fica) e sobe; e a do `estados.json`
+   (`trava-publicar-dados`), dentro da qual ele relê o índice e troca só a entrada do estado. Fatia publica no meio da
+   rodada de hora em hora (o pacote sobe inteiro), refaz no fim o `resumo_<UF>.csv` do estado inteiro e anota a rodada
+   dela em `motor.fatias`.
+4. **Prazo de 5h30 por job**: se a unidade parou pelo prazo e avançou, o job dispara o workflow de novo só para ela; se
+   terminou, passa a vez ao próximo da fila. Unidade que parou sem avançar nenhum município não se dispara de novo
    (a rodada semanal tenta outra vez).
 
 ### Quando uma fonte recusa o GitHub
@@ -102,7 +111,8 @@ sem comentários nem docstrings (`raiz_situacao.ETAPAS`), e uma tabela feita com
 
 No GitHub: Actions, "Processar estados (motor)", "Run workflow". Campos:
 
-- `ufs`: estados separados por espaço (ex.: `TO MA`). Vazio: o plano automático.
+- `ufs`: estados ou fatias separados por espaço (ex.: `TO MA` ou `MG-3`; um estado grande vira todas as fatias dele).
+  Vazio: o plano automático, com as duas filas.
 - `refazer`: tarefas para refazer nesses estados (`funil`, `filtros`, `mapbiomas`, `direto`, `extras_direto`, `flag`,
   `terra`, `ficha`, `desenvolvedor`, `extras` ou `tudo`; várias com vírgula): a marca da tarefa é apagada e o executor
   a refaz. Ex.: uma fonte publicou ano novo. Refazer o funil refaz tudo. Sem `ufs`, vale para todos os publicados.
