@@ -3,7 +3,7 @@
 # código copiado para o produto. Só o português é usado; as outras línguas ficam no pacote, mas não carregam.
 #   docker compose --env-file .env -f infra/docker-compose.yml up -d revisor
 #   RAIZ_LANGUAGETOOL_URL=http://localhost:8010 no .env
-FROM eclipse-temurin:21-jre-noble
+FROM eclipse-temurin:24-jre-noble
 
 ARG LT_VERSAO=6.6
 RUN apt-get update \
