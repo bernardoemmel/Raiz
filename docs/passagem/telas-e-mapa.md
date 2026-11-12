@@ -82,19 +82,28 @@ Sessão: https://claude.ai/code/session_01VGb88MJumyG9PHt2znaaKE. Branch: `claud
 - A consulta atual confirma 345.870 fazendas lidas em 144 municípios do Pará. O total de hectares passou a
   aparecer como desconhecido quando há células ausentes ou suprimidas no novo pacote. A medição de hectares
   registrada antes nesta passagem pertence ao pacote anterior; não deve substituir a disponibilidade atual.
-- Cena-alvo: [PR #67](https://github.com/bernardoemmel/Raiz/pull/67), integrado com seis checks verdes.
-  Cobertura: [PR #70](https://github.com/bernardoemmel/Raiz/pull/70); ficha: [PR #71](https://github.com/bernardoemmel/Raiz/pull/71).
-  Os demais merges e a publicação devem ser conferidos ao concluir a sequência.
+- As cinco entregas foram integradas à main com os seis checks verdes em cada PR:
+  [cena-alvo #67](https://github.com/bernardoemmel/Raiz/pull/67),
+  [cobertura #70](https://github.com/bernardoemmel/Raiz/pull/70),
+  [ficha visual #71](https://github.com/bernardoemmel/Raiz/pull/71),
+  [celular e acessibilidade #73](https://github.com/bernardoemmel/Raiz/pull/73) e
+  [domínio e Markdown #74](https://github.com/bernardoemmel/Raiz/pull/74).
+- A suíte Python da entrega final passou com 1.043 testes, um skip e um xfail já aceitos pelo portão do CI.
+  Lighthouse no CI: desempenho entre 98 e 100; acessibilidade 100 nas cinco páginas.
+- A publicação é coordenada com a migração privada do [PR #72](https://github.com/bernardoemmel/Raiz/pull/72),
+  do chat Ficha da fazenda. O workflow foi pausado durante a limpeza de artifacts/caches; a retomada dos
+  publicadores pertence a essa migração. Não confundir merge do código com publicação efetiva:
+  conferir a última execução de [Publicar o site](https://github.com/bernardoemmel/Raiz/actions/workflows/publicar-site.yml).
 
 ## Situação das cinco entregas e próximos passos
 
-As cinco entregas estão implementadas e verificadas localmente: cena-alvo ligada ao Release, cobertura diária
-sem lista fixa, ficha visual com acesso controlado, navegação mobile com portão Lighthouse e domínio configurável.
-Os PRs e a publicação final ainda precisam ter seus resultados de CI e integração conferidos; esta descrição não
-antecipa o merge de uma entrega que ainda esteja em revisão.
+Cena-alvo ligada ao Release, cobertura diária sem lista fixa, ficha visual com acesso controlado, navegação
+mobile com portão Lighthouse e domínio configurável estão na main. Os resultados e hashes de cada entrega
+estão nos PRs acima. A revisão final também corrigiu totais Markdown incompletos e não encontrou outros
+problemas acionáveis de autorização da ficha, navegação ou caminhos do domínio.
 
-1. Acompanhar o CI de cada PR e a publicação final; conferir o site no ar, as datas da cobertura e os caminhos
-   públicos após a integração. Registrar aqui os links e resultados dos PRs ao fechar cada entrega.
+1. Conferir a publicação após a retomada coordenada com #72 e acompanhar as rodadas diárias: datas da cobertura,
+   municípios novos e caminhos públicos. As evidências locais da build com o Release real estão registradas acima.
 2. Aguardar o ponteiro `lote_PA_central_r11.json` no Release; a rotina diária já o incorpora quando existir.
    Enquanto faltar, a tela mantém o aviso e não inventa os três lotes nem suas faixas de crédito/TIR.
 3. E9 passo 3: aguardar as 30 cartas reais anonimizadas e uma avaliação de compreensão, confirmadas como ainda
