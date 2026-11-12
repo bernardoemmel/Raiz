@@ -113,6 +113,36 @@ def aprendizado_placar() -> None:
         )
 
 
+@aprendizado.command("hub")
+def aprendizado_hub(
+    pasta: Annotated[str, typer.Argument(help="pasta do hub (fora do git), ex.: dados/hub")],
+    desde: Annotated[str | None, typer.Option(help="AAAA-MM-DD: só rodadas a partir desta data de corte")] = None,
+) -> None:
+    """Grava as previsões congeladas e os gabaritos no formato do hub (hubverse): hub-config, model-output,
+    model-metadata, target-data/oracle-output.csv e a configuração do painel no molde do flusight-dashboard."""
+    import datetime as dt
+
+    from raiz.aprendizado.hub import exportar
+    from raiz.banco import engine
+
+    r = exportar(engine(), pasta, dt.date.fromisoformat(desde) if desde else None)
+    typer.echo(
+        f"{r['previsoes']} previsões de {r['modelos']} modelos em {r['arquivos']} arquivos; "
+        f"{r['gabaritos']} linhas de gabarito; pasta {r['pasta']}"
+    )
+
+
+@aprendizado.command("acerto")
+def aprendizado_acerto() -> None:
+    """Notas por modelo, versão e alvo (WIS, cobertura, Brier, log score, acerto) e a versão na frente por alvo."""
+    import json
+
+    from raiz.aprendizado.hub import placar
+    from raiz.banco import engine
+
+    typer.echo(json.dumps(placar(engine()), ensure_ascii=False, indent=1, default=str))
+
+
 pessoal = typer.Typer(help="Dado pessoal cifrado (telefone e BSUID).", no_args_is_help=True)
 app.add_typer(pessoal, name="pessoal")
 

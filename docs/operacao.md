@@ -57,6 +57,21 @@ abertos), `/backoffice/custos?por=tarefa|fazenda|municipio|modelo`, `/backoffice
 revisões, aceite, mensagens só com tipo e estado, pedidos, lotes do município e alertas da vigilância). No terminal:
 `uv run raiz operacao painel`.
 
+## Painel de acerto (E7 passo 5)
+
+Toda previsão congelada (aprendizado.previsao) e todo gabarito entram no formato do hub (hubverse):
+
+```bash
+uv run raiz aprendizado hub dados/hub     # hub-config, model-output, model-metadata, target-data, painel
+uv run raiz aprendizado acerto            # notas por modelo, versão e alvo no terminal
+```
+
+Cada (modelo, versão) vira um model_id (`raiz-<modelo>_<versão>`), para comparar versões. Na API, com token:
+`/acerto/placar` e a página `/painel/acerto` (WIS, cobertura do P10 a P90, Brier, log score e acerto; a versão na
+frente por alvo; o acerto da vigilância). A pasta do hub fica no servidor, fora do git: as previsões de aceite dizem
+quem aceitou. Para o painel do hub-dashboard (o mesmo do FluSight), a pasta já traz site-config.yml,
+predevals-config.yml e predtimechart-config.yml.
+
 ## Rodar o motor vigiado
 
 ```bash
