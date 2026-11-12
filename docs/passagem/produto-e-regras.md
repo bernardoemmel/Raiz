@@ -2,6 +2,12 @@
 
 ## Retomada no Codex
 
+O PR #45 incorporou também a main `3b21e78` (mapa nacional e busca estática).
+O único conflito era a formatação da lista de complementos no teste do front;
+a comparação exata, incluindo regularização, foi preservada. As funcionalidades
+da API paga permaneceram intactas. Ruff, privacidade, licenças e os 80 testes
+do front passaram após essa integração; o CI completo volta a validar o merge.
+
 O PR #45 foi atualizado com a main. A migração da API passou de 0020 para 0026,
 porque 0020 já pertencia aos alertas da main. Cobrança, estorno idempotente e
 limites compartilhados por empresa recebem testes de integração em PostGIS.
