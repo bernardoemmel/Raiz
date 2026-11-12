@@ -4,6 +4,7 @@ import hashlib
 import json
 import shutil
 import stat
+import subprocess
 import tarfile
 import zipfile
 from copy import deepcopy
@@ -42,6 +43,54 @@ def _snapshot():
 
 
 PRONTAS = {"03", "04", "06", "07", "08", "09", "10", "11", "13", "14"}
+
+
+@pytest.mark.parametrize(
+    "endpoint,accept",
+    [
+        ("repos/bernardoemmel/Raiz/actions/artifacts/123/zip", "application/vnd.github+json"),
+        ("repos/bernardoemmel/Raiz/releases/assets/456", "application/octet-stream"),
+    ],
+)
+def test_download_usa_accept_proprio_de_artifact_ou_asset(tmp_path, monkeypatch, endpoint, accept):
+    chamadas = []
+    corpo = b"\x1f\x8b\x00\xffconteudo-binario"
+
+    def executar(cmd, *, stdout, stderr, check):
+        chamadas.append(cmd)
+        assert check is True
+        assert stderr is subprocess.PIPE
+        stdout.write(corpo)
+
+    monkeypatch.setattr(RT.subprocess, "run", executar)
+    destino = tmp_path / "entrada" / "pacote.bin"
+    RT._api_baixar(endpoint, destino)
+    assert len(chamadas) == 1
+    assert chamadas[0][:3] == ["gh", "api", endpoint]
+    assert chamadas[0][chamadas[0].index("-H") + 1] == f"Accept: {accept}"
+    assert destino.read_bytes() == corpo
+    assert not destino.with_suffix(".bin.download").exists()
+
+
+def test_falha_de_download_nao_expoe_url_assinada_no_erro(tmp_path, monkeypatch):
+    endpoint = "repos/bernardoemmel/Raiz/actions/artifacts/123/zip"
+
+    def executar(cmd, *, stdout, stderr, check):
+        assert stderr is subprocess.PIPE and check is True
+        stdout.write(b"download parcial")
+        raise subprocess.CalledProcessError(22, cmd, stderr=b"https://blob.example/arquivo?sig=segredo")
+
+    monkeypatch.setattr(RT.subprocess, "run", executar)
+    destino = tmp_path / "pacote.bin"
+    destino.write_bytes(b"arquivo anterior")
+    with pytest.raises(RuntimeError) as erro:
+        RT._api_baixar(endpoint, destino)
+    texto = str(erro.value)
+    assert endpoint in texto and "22" in texto
+    assert "sig=" not in texto and "segredo" not in texto and "blob.example" not in texto
+    assert erro.value.__cause__ is None
+    assert erro.value.__suppress_context__ is True
+    assert destino.read_bytes() == b"arquivo anterior"
 
 
 @pytest.mark.parametrize("muda", [{"draft": False}, {"id": 1}, {"tag_name": "dados"}])

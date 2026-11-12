@@ -111,7 +111,7 @@ normativas em P10/P50/P90. A referência SMA/SP de regenerantes permanece separa
 Testes específicos de reserva, preço, salvaguardas, três opções, comparação, persistência e workflow.
 Ruff global conferido. A validação local anterior à integração de qualidade teve 761 testes aprovados; depois da
 integração do PR #51, 810 passaram, 109 dependentes do ambiente ficaram ignorados e 1 falha histórica esperada
-permaneceu. A continuação privada acrescenta 28 testes aprovados e revisão independente, incluindo recusa de
+permaneceu. A continuação privada tem testes específicos aprovados e revisão independente, incluindo recusa de
 Release público, origem divergente, alteração do conjunto de CARs e recálculo de fatia pronta. O motor e a amostra
 originais foram conferidos em checkout separado. O CI com PostGIS, testes do front e workflows passou antes do merge do PR #49.
 A exceção autorizada no teste do front foi validada em 24 testes; nenhum código de produção do front foi alterado.

@@ -37,8 +37,15 @@ def _api_json(argumentos: list[str]):
 def _api_baixar(endpoint: str, destino: Path) -> None:
     destino.parent.mkdir(parents=True, exist_ok=True)
     temporario = destino.with_suffix(destino.suffix + ".download")
+    aceita = "application/vnd.github+json" if endpoint.endswith("/zip") else "application/octet-stream"
     with temporario.open("wb") as f:
-        subprocess.run(["gh", "api", endpoint, "-H", "Accept: application/octet-stream"], stdout=f, check=True)
+        try:
+            subprocess.run(
+                ["gh", "api", endpoint, "-H", f"Accept: {aceita}"], stdout=f, stderr=subprocess.PIPE, check=True
+            )
+        except subprocess.CalledProcessError as erro:
+            # gh pode incluir a URL temporária assinada do armazenamento no stderr.
+            raise RuntimeError(f"Falha no download autenticado de {endpoint} (código {erro.returncode}).") from None
     temporario.replace(destino)
 
 
