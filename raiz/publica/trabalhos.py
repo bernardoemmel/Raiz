@@ -25,6 +25,7 @@ from raiz.pedidos.campos import CAMINHOS, METODOS, CamposPedido
 from raiz.publica import conta as CT
 from raiz.publica import webhooks as W
 from raiz.publica.privacidade import sem_dado_pessoal
+from raiz.publica.telemetria import chamada
 from raiz.salvaguardas import ErroSalvaguarda
 
 FERRAMENTAS = frozenset(
@@ -388,6 +389,7 @@ def cancelar(engine: Engine, cliente_id: int, pedido_id: str) -> dict[str, Any]:
     try:
         with engine.begin() as con:
             con.execute(text("select set_config('lock_timeout', '500ms', true)"))
+            con.execute(text("select set_config('statement_timeout', '3s', true)"))
             r = (
                 con.execute(
                     text("""select * from negocio.trabalho_api where id=:id and cliente_id=:c
@@ -459,6 +461,14 @@ def _executar(vinculo: ConexaoVinculada, r) -> tuple[dict, str, str | None]:
     if r["ferramenta"] == "pedir_lote":
         resultado = S.criar_pedido(vinculo, r["cliente_id"], r["corpo"])
         return resultado, "completed", resultado["id"]
+    # A permissão pode ser revogada entre submissão e execução. A trava compartilhada
+    # lineariza a preparação com a alteração administrativa até o commit do worker.
+    permitido = vinculo.conexao.execute(
+        text("select reservar_habilitado from negocio.conta_api where cliente_id=:c for share"),
+        {"c": r["cliente_id"]},
+    ).scalar()
+    if not permitido:
+        raise _erro("reserva_desabilitada", "um administrador da empresa precisa habilitar reservar", 403)
     corpo = r["corpo"]
     resultado = S.reservar(
         vinculo,
@@ -494,7 +504,7 @@ def executar_proximo(engine: Engine) -> dict[str, Any] | None:
         vinculo = ConexaoVinculada(con)
         try:
             # Erro normal reverte só o trabalho; o estorno e o estado failed confirmam na transação externa.
-            with con.begin_nested():
+            with chamada(r["ferramenta"], "worker", r["cliente_id"]), con.begin_nested():
                 resultado, estado, pedido = _executar(vinculo, r)
                 resultado_json = json.dumps(jsonable_encoder(sem_dado_pessoal(resultado)), allow_nan=False)
         except Exception as ex:

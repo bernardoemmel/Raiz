@@ -100,8 +100,9 @@ precisam ser preservados sem máscaras que corrompam o protocolo.
 Eventos são persistidos na mesma transação da mudança de estado e entregues pelo
 worker com `webhook-id`, `webhook-timestamp` e `webhook-signature`, conforme
 Standard Webhooks. O receptor deve verificar assinatura e timestamp e deduplicar
-`webhook-id`. Inscrições são administrativas, por
-`raiz.publica.webhooks.cadastrar_inscricao`; não há ferramenta MCP de cadastro.
+`webhook-id`. Uma pessoa administra as inscrições com `POST /v1/webhooks` (Idempotency-Key),
+`GET /v1/webhooks` e `DELETE /v1/webhooks/{id}`. O segredo aparece uma vez;
+não há ferramenta MCP de cadastro. Veja [eventos-agentes.md](eventos-agentes.md).
 Somente hosts HTTPS exatos previamente autorizados são aceitos. O operador deve
 restringir também o tráfego de saída quando usar proxy.
 

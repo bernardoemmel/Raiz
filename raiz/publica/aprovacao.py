@@ -62,6 +62,14 @@ def aprovar(engine: Engine, token: str, cliente_id: int) -> dict:
     if not isinstance(token, str) or not 24 <= len(token) <= 200:
         raise ErroAprovacao("link de confirmação inválido, usado ou vencido", 410)
     with engine.begin() as con:
+        pedido_id = con.execute(
+            text("select pedido_id from negocio.reserva where cliente_id=:c and confirmacao_hash=:h"),
+            {"c": cliente_id, "h": S._hash(token)},
+        ).scalar()
+        if pedido_id is None:
+            raise ErroAprovacao("link de confirmação inválido, usado ou vencido", 410)
+        # Serializa decisão humana com fechamento, pagamento, cancelamento e expiração do grupo.
+        p = S._linha_pedido(con, str(pedido_id), cliente_id, travar=True)
         res = (
             con.execute(
                 text("""select * from negocio.reserva
@@ -74,7 +82,6 @@ def aprovar(engine: Engine, token: str, cliente_id: int) -> dict:
         )
         if res is None:
             raise ErroAprovacao("link de confirmação inválido, usado ou vencido", 410)
-        p = S._linha_pedido(con, str(res["pedido_id"]), cliente_id)
         if p["estado"] != "grupo_pronto":
             raise ErroAprovacao("o grupo mudou; prepare a reserva novamente")
         cods = [

@@ -12,6 +12,7 @@ from __future__ import annotations
 import contextlib
 import hmac
 import logging
+import os
 
 from fastapi import Depends, FastAPI, Header, HTTPException
 from pydantic import BaseModel
@@ -86,6 +87,11 @@ def criar_app(
 
     app = FastAPI(title="Raíz", lifespan=ciclo)
     app.state.engine, app.state.grafo, app.state.deps = engine, grafo, deps
+    from raiz.pedidos import servico as pedidos_servico
+    from raiz.publica.email_login import enviador
+
+    if pedidos_servico.ENVIO_LINK is None:
+        pedidos_servico.ENVIO_LINK = enviador()
     app.state.armazem = armazem  # arquivos do motor (raiz/executor/armazem.py); padrão: o da configuração
 
     if whatsapp:
@@ -276,8 +282,44 @@ def criar_app(
             app.state.engine = engine_padrao()
         return app.state.engine
 
-    app.mount("/v1", publica_api.criar(_engine_principal))
-    # O MCP antigo foi retirado: a próxima entrega exige OAuth e a política paga.
+    from fastapi.responses import PlainTextResponse
+
+    from raiz.publica.contrato import RESUMO
+    from raiz.publica.telemetria import TelemetriaMiddleware, configurar_telemetria
+
+    configurar_telemetria()
+    app.add_middleware(TelemetriaMiddleware)
+
+    @app.get("/llms.txt", response_class=PlainTextResponse, include_in_schema=False)
+    def llms():
+        return RESUMO
+
+    verificador = None
+    if os.environ.get("RAIZ_OAUTH_ISSUER") and os.environ.get("RAIZ_MCP_RESOURCE"):
+        from raiz.publica.oauth import VerificadorKeycloak, rotas_metadados
+        from raiz.publica.rotas_agentes import base_publica
+        from raiz.publica.servidor_mcp import ApiRaiz, app_http
+
+        def eng():
+            return _engine_principal(None)
+
+        verificador = VerificadorKeycloak(eng)
+        app.state.mcp, mcp_app = app_http(
+            ApiRaiz(app=app, url=base_publica().removesuffix("/v1"), engine_de=eng),
+            config().mcp_hosts,
+            verificador=verificador,
+        )
+        app.router.routes.extend(rotas_metadados(verificador))
+        app.mount("/mcp", mcp_app)
+    else:
+
+        @app.post("/mcp/", include_in_schema=False)
+        def mcp_fechado():
+            from raiz.publica.problemas import problema
+
+            return problema(503, "oauth_nao_configurado", "MCP aguarda configuração do Keycloak", "avise a Raíz")
+
+    app.mount("/v1", publica_api.criar(_engine_principal, verificador))
     # link público, cartão e vídeo pelo código curto: sem token (só município, hectares, selo e código antes do aceite)
     from raiz import publico
 

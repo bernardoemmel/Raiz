@@ -1827,14 +1827,52 @@ def pedidos_chave(
 
 
 @app.command("mcp")
-def mcp_stdio(
-    url: Annotated[str | None, typer.Option(help="endereço da API; padrão RAIZ_API_URL")] = None,
-) -> None:
-    """Servidor MCP da Raíz por stdio, para o Claude Desktop, o Claude Code e outros clientes locais (a chave da
-    empresa vem de RAIZ_CHAVE_API). O remoto, por HTTP, fica em /mcp na própria API (docs/agentes-ia.md)."""
-    from raiz.publica.servidor_mcp import ApiRaiz, criar_servidor
+def mcp_stdio() -> None:
+    """Mostra como conectar ao MCP remoto com OAuth."""
+    typer.echo("Conecte ao endereço /mcp/ da API com OAuth 2.1. Chaves de API e stdio não autenticam o MCP.")
+    raise typer.Exit(2)
 
-    criar_servidor(ApiRaiz(url=url)).run("stdio")
+
+@api_cli.command("worker")
+def api_worker(uma: Annotated[bool, typer.Option(help="executa um ciclo e termina")] = False) -> None:
+    """Processa operações persistidas e entregas de eventos, fora da resposta HTTP."""
+    import time
+
+    from sqlalchemy import text
+
+    from raiz.banco import engine
+    from raiz.pessoal import Cofre, SemChavePessoal
+    from raiz.publica import trabalhos, webhooks
+    from raiz.publica.telemetria import configurar_telemetria
+
+    try:
+        cofre = Cofre()
+    except (SemChavePessoal, ValueError) as ex:
+        raise typer.BadParameter("configure RAIZ_CHAVE_PESSOAL antes de iniciar o worker") from ex
+    eng = engine()
+    provider = configurar_telemetria()
+    try:
+        while True:
+            try:
+                trabalhos.executar_proximo(eng)
+                with eng.connect() as con:
+                    clientes = list(
+                        con.execute(
+                            text("select distinct cliente_id from negocio.webhook_inscricao where ativa")
+                        ).scalars()
+                    )
+                for cid in clientes:
+                    webhooks.entregar_proximo(eng, cid, cofre=cofre)
+            except Exception as ex:
+                # Nunca imprimir exceção/SQL: parâmetros podem conter segredo ou dado de terceiros.
+                typer.echo(f"ciclo do worker falhou ({type(ex).__name__}); a fila permanece persistida", err=True)
+                if uma:
+                    raise typer.Exit(1) from None
+            if uma:
+                return
+            time.sleep(0.5)
+    finally:
+        provider.shutdown()
 
 
 @pedidos_cli.command("ciclo")

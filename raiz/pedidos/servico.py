@@ -248,12 +248,14 @@ def criar_pedido(engine: Engine, cliente_id: int, campos: CamposPedido | dict) -
     return obter_pedido(engine, str(pid), cliente_id)
 
 
-def _linha_pedido(con, pedido_id: str, cliente_id: int | None):
+def _linha_pedido(con, pedido_id: str, cliente_id: int | None, *, travar: bool = False):
     try:
         uuid.UUID(str(pedido_id))
     except ValueError as ex:
         raise ErroPedido("pedido não encontrado") from ex
     q = "select * from negocio.pedido where id = :id" + (" and cliente_id = :c" if cliente_id is not None else "")
+    if travar:
+        q += " for update"
     r = con.execute(text(q), {"id": pedido_id, "c": cliente_id}).mappings().first()
     if r is None:  # pedido de outro cliente é como se não existisse
         raise ErroPedido("pedido não encontrado")
@@ -410,6 +412,9 @@ def mudar_lote(engine: Engine, pedido_id: str, cliente_id: int, mudanca: dict) -
     novo["solver"] = "troca_manual"
     ops = [novo if o["id"] == opcao else o for o in ops]
     with engine.begin() as con:
+        atual = _linha_pedido(con, pedido_id, cliente_id, travar=True)
+        if atual["estado"] in ("reservado", "contrato", "cancelado"):
+            raise ErroPedido("o estado do pedido mudou: a troca passa pela Raíz")
         _salvar_sugestao(con, p["id"], f"{acao}:{cod}", s["base"], ops)
         con.execute(text("update negocio.pedido set atualizado_em = now() where id = :id"), {"id": p["id"]})
     return obter_pedido(engine, pedido_id, cliente_id)
@@ -543,7 +548,9 @@ def nova_onda(engine: Engine, pedido_id: str, agora: dt.datetime | None = None) 
     agora = agora or _agora()
     pr = premissas()["ondas"]
     with engine.begin() as con:
-        p = _linha_pedido(con, pedido_id, None)
+        p = _linha_pedido(con, pedido_id, None, travar=True)
+        if p["estado"] != "buscando_interesse":
+            return 0
         c = CamposPedido.model_validate(p["campos"])
         rk = _ranking(engine, con, p, c)
         ja = _contatados(con, p["id"])
@@ -630,7 +637,7 @@ def solicitar_interesse(engine: Engine, pedido_id: str, cliente_id: int, opcao: 
     if opcao not in ("barata", "segura", "compacta"):
         raise ErroPedido("opção desconhecida")
     with engine.begin() as con:
-        p = _linha_pedido(con, pedido_id, cliente_id)
+        p = _linha_pedido(con, pedido_id, cliente_id, travar=True)
         if p["estado"] not in ("lote_montado", "faltou"):
             raise ErroPedido("a busca de interesse já começou")
         s = _ultima_sugestao(con, p["id"])
@@ -745,6 +752,9 @@ def _fechar_grupo(engine: Engine, p, c: CamposPedido, pg: dict, agora: dt.dateti
     r = Z.resolver(f, c, p["opcao_escolhida"] or "segura", chance)
     grupo = list(f.cod_imovel.iloc[r["sel"]])
     with engine.begin() as con:
+        atual = _linha_pedido(con, str(p["id"]), p["cliente_id"], travar=True)
+        if atual["estado"] != "buscando_interesse":
+            return
         orig = [
             x.cod_imovel
             for x in con.execute(
@@ -797,6 +807,9 @@ def _faltou(engine: Engine, p, c: CamposPedido, pg: dict) -> None:
     falta = max(c.meta.valor - pg["com_interessado"], 0.0)
     afr = Z.afrouxar(oferta, c, nv, fora, float(Z.quantidade(Z.filtrar(oferta, c, nv, fora), c.meta.tipo).sum()))
     with engine.begin() as con:
+        atual = _linha_pedido(con, str(p["id"]), p["cliente_id"], travar=True)
+        if atual["estado"] != "buscando_interesse":
+            return
         con.execute(
             text("update negocio.pedido set estado = 'faltou', atualizado_em = now() where id = :id"), {"id": p["id"]}
         )
@@ -1020,19 +1033,6 @@ def mensagem_confirmacao_reserva(pedido_id: str, valor: float, ha: float, dias: 
     )
 
 
-def mensagem_confirmacao_reserva(pedido_id: str, valor: float, ha: float, dias: int, base_url: str, token: str) -> str:
-    """Mensagem humana: formata apenas números, preservando domínio e token do link de aprovação."""
-    trocar = str.maketrans(",.", ".,")
-    dinheiro = f"{valor:,.2f}".translate(trocar)
-    hectares = f"{ha:,.0f}".translate(trocar)
-    link = f"{base_url.rstrip('/')}/reservas/confirmar/{token}"
-    return (
-        f"O agente de IA da sua empresa pediu a reserva do grupo do pedido {str(pedido_id)[:8]} "
-        f"(R$ {dinheiro}, {hectares} ha, {dias} dias). Uma pessoa da empresa precisa "
-        f"confirmar para gerar o Pix: {link} (vale por 48 horas)."
-    )
-
-
 def reservar(engine: Engine, pedido_id: str, cliente_id: int, por_agente: str | None = None,
              base_url: str = "") -> dict:  # fmt: skip
     """Prepara reserva para uma pessoa da empresa. Agente recebe link, nunca aprova nem paga.
@@ -1046,8 +1046,7 @@ def reservar(engine: Engine, pedido_id: str, cliente_id: int, por_agente: str | 
 
     token = None
     with engine.begin() as con:
-        p = _linha_pedido(con, pedido_id, cliente_id)
-        p = con.execute(text("select * from negocio.pedido where id=:p for update"), {"p": p["id"]}).mappings().one()
+        p = _linha_pedido(con, pedido_id, cliente_id, travar=True)
         if p["estado"] != "grupo_pronto":
             raise ErroPedido("a reserva vale para o grupo pronto (todos os donos com interesse)")
         cods = _grupo(con, p["id"])
@@ -1158,107 +1157,165 @@ def confirmar_reserva(engine: Engine, token: str, quem: str = "pessoa", cliente_
 
 
 def confirmar_pagamento(engine: Engine, externo_id: str, quando: dt.datetime | None = None, quem: str = "pix") -> str:
-    """Pagamento entrou: a reserva vale pelo prazo e as fazendas somem para os outros clientes. Se alguma fazenda já
-    estiver em outra reserva ativa, a reserva fica em conflito (o dinheiro volta) e o cliente é avisado."""
-    quando = quando or _agora()
-    with engine.begin() as con:
-        cob = con.execute(
-            text("select * from negocio.cobranca where externo_id = :x for update"), {"x": externo_id}
-        ).first()
-        if cob is None:  # cobrança da API pública (recarga do saldo ou sinal da liberação)?
-            from raiz.publica import conta as CT
+    """Registra o pagamento e decide a exclusividade na mesma transação.
 
-            r = CT.confirmar_cobranca(engine, externo_id, quando)
-            if r is not None:
-                return r
+    Estado, prazo, valor ou grupo divergentes preservam o fato financeiro e exigem
+    revisão humana. Não autoriza estorno nem reativa reserva cancelada/vencida.
+    """
+    from raiz import salvaguardas as SG
+    from raiz.publica.trabalhos import ConexaoVinculada
+    from raiz.publica.webhooks import enfileirar
+
+    quando = quando or _agora()
+    with engine.connect() as con:
+        alvo = con.execute(
+            text("""select c.id, c.reserva_id, r.pedido_id from negocio.cobranca c
+            join negocio.reserva r on r.id=c.reserva_id where c.externo_id=:x"""),
+            {"x": externo_id},
+        ).first()
+    if alvo is None:
+        from raiz.publica import conta as CT
+
+        resultado = CT.confirmar_cobranca(engine, externo_id, quando)
+        if resultado is not None:
+            return resultado
+        raise ErroPedido("cobrança desconhecida")
+    with engine.begin() as con:
+        # Mesma ordem do cancelamento e da preparação: pedido, reserva, cobrança.
+        pedido = con.execute(text("select * from negocio.pedido where id=:p for update"), {"p": alvo.pedido_id}).first()
+        res = con.execute(text("select * from negocio.reserva where id=:r for update"), {"r": alvo.reserva_id}).first()
+        cob = con.execute(text("select * from negocio.cobranca where id=:c for update"), {"c": alvo.id}).first()
+        if pedido is None or res is None or cob is None:
             raise ErroPedido("cobrança desconhecida")
         if cob.estado == "paga":
             return "ja_paga"
-        res = con.execute(text("select * from negocio.reserva where id = :r"), {"r": cob.reserva_id}).first()
-        con.execute(
-            text("update negocio.cobranca set estado = 'paga', paga_em = :q where id = :id"),
-            {"q": quando, "id": cob.id},
+        cods = set(
+            con.execute(
+                text("select cod_imovel from negocio.reserva_fazenda where reserva_id=:r"), {"r": res.id}
+            ).scalars()
         )
-    try:
-        with engine.begin() as con:
-            fim = quando + dt.timedelta(days=int(res.dias))
-            con.execute(text("update negocio.reserva_fazenda set ativa = true where reserva_id = :r"), {"r": res.id})
-            con.execute(
-                text("""update negocio.reserva set estado = 'ativa', inicio = :i, fim = :f where id = :r"""),
-                {"i": quando, "f": fim, "r": res.id},
-            )
-            con.execute(
-                text("update negocio.pedido set estado = 'reservado', atualizado_em = now() where id = :p"),
-                {"p": res.pedido_id},
-            )
-            con.execute(
-                text("""insert into negocio.reserva_evento (reserva_id, evento, quem, valor_rs, detalhe)
-                                values (:r, 'paga', :q, :v, cast(:d as jsonb))"""),
-                {
-                    "r": res.id,
-                    "q": quem,
-                    "v": cob.valor_rs,
-                    "d": json.dumps({"inicio": quando.isoformat(), "fim": fim.isoformat()}),
-                },
-            )
-            notificar(
-                con,
-                res.cliente_id,
-                res.pedido_id,
-                "reservado",
-                f"Reserva paga: o grupo é seu com exclusividade até {fim:%d/%m/%Y}.",
-            )
-        return "ativa"
-    except IntegrityError:
-        with engine.begin() as con:
-            con.execute(text("update negocio.reserva set estado = 'conflito' where id = :r"), {"r": res.id})
-            con.execute(
-                text("""insert into negocio.reserva_evento (reserva_id, evento, quem, valor_rs)
-                                values (:r, 'conflito', :q, :v)"""),
-                {"r": res.id, "q": quem, "v": cob.valor_rs},
-            )
-            notificar(
-                con,
-                res.cliente_id,
-                res.pedido_id,
-                "reserva_conflito",
-                "Uma fazenda do grupo foi reservada por outro cliente antes do pagamento; o valor será "
-                "devolvido e o grupo refeito.",
-            )
-        return "conflito"
+        motivo = None
+        if pedido.estado != "grupo_pronto" or res.estado != "aguardando_pagamento" or cob.estado != "pendente":
+            motivo = "estado_alterado"
+        elif res.cliente_id != pedido.cliente_id or cob.valor_rs != res.valor_rs:
+            motivo = "cobranca_divergente"
+        elif (
+            cob.expira_em is None
+            or res.preco_valido_ate is None
+            or quando > cob.expira_em
+            or quando > res.preco_valido_ate
+            or quando + dt.timedelta(days=int(res.dias)) <= _agora()
+        ):
+            motivo = "prazo_vencido"
+        elif not cods or cods != set(_grupo(con, pedido.id)):
+            motivo = "grupo_alterado"
+        if motivo is None:
+            try:
+                SG.exigir_para_reserva(ConexaoVinculada(con), sorted(cods))
+            except SG.ErroSalvaguarda:
+                motivo = "salvaguarda_pendente"
+        con.execute(
+            text("update negocio.cobranca set estado='paga', paga_em=:q where id=:c"),
+            {"q": quando, "c": cob.id},
+        )
+        fim = quando + dt.timedelta(days=int(res.dias))
+        conflito = False
+        if motivo is None:
+            try:
+                # Colisão da exclusividade reverte apenas a ativação, nunca o pagamento recebido.
+                with con.begin_nested():
+                    con.execute(
+                        text("update negocio.reserva_fazenda set ativa=true where reserva_id=:r"), {"r": res.id}
+                    )
+                    con.execute(
+                        text("update negocio.reserva set estado='ativa',inicio=:i,fim=:f where id=:r"),
+                        {"r": res.id, "i": quando, "f": fim},
+                    )
+                    con.execute(
+                        text("update negocio.pedido set estado='reservado',atualizado_em=now() where id=:p"),
+                        {"p": pedido.id},
+                    )
+            except IntegrityError as ex:
+                # Só a exclusividade conhecida vira revisão; outro erro deve permitir retry integral.
+                if getattr(getattr(ex.orig, "diag", None), "constraint_name", None) != "reserva_fazenda_uma_ativa":
+                    raise
+                motivo, conflito = "fazenda_ja_reservada", True
+        if motivo is None:
+            estado, evento = "ativa", "paga"
+            detalhe = {"inicio": quando.isoformat(), "fim": fim.isoformat()}
+            mensagem = f"Reserva paga: o grupo é seu com exclusividade até {fim:%d/%m/%Y}."
+        else:
+            estado, evento = "conflito", "pagamento_revisao"
+            detalhe = {"motivo": motivo, "estado": "input-required", "pagamento_confirmado": True}
+            # Um fato financeiro não desfaz cancelamento, expiração ou contrato já registrado.
+            if res.estado == "aguardando_pagamento":
+                con.execute(text("update negocio.reserva set estado='conflito' where id=:r"), {"r": res.id})
+            mensagem = "Pagamento recebido. A reserva exige revisão humana; nenhuma exclusividade nova foi concedida."
+        con.execute(
+            text("""insert into negocio.reserva_evento(reserva_id,evento,quem,valor_rs,detalhe)
+            values(:r,:e,:q,:v,cast(:d as jsonb))"""),
+            {"r": res.id, "e": evento, "q": quem, "v": cob.valor_rs, "d": json.dumps(detalhe)},
+        )
+        # Nenhum envio externo dentro da transação: painel e outbox confirmam junto com o pagamento.
+        notificar(
+            con,
+            res.cliente_id,
+            pedido.id,
+            "reservado" if motivo is None else "reserva_revisao",
+            mensagem,
+            canais=("painel",),
+        )
+        enfileirar(con, res.cliente_id, "reserva.atualizada", str(pedido.id), estado, reserva_id=res.id)
+        return "ativa" if motivo is None else ("conflito" if conflito else "input-required")
 
 
 def expirar_reservas(engine: Engine, agora: dt.datetime | None = None) -> int:
-    """Reserva que venceu sem contrato: o grupo volta para a base. Reserva do agente que ninguém confirmou em 48 horas
-    é cancelada (nada foi cobrado)."""
+    """Vence reservas sob a mesma ordem de travas de pagamento/cancelamento: pedido, reserva."""
     agora = agora or _agora()
+    expiradas = 0
     with engine.begin() as con:
-        for r in con.execute(
-            text("""update negocio.reserva set estado = 'cancelada', confirmacao_hash = null,
-                    confirmacao_token_cifrado = null
-                    where estado = 'aguardando_confirmacao' and confirmacao_expira < :a returning id"""),
-            {"a": agora},
-        ).all():
+        # Trava todos os pedidos candidatos em ordem estável ANTES de qualquer reserva.
+        pedidos = list(
             con.execute(
-                text("""insert into negocio.reserva_evento (reserva_id, evento, quem)
-                        values (:r, 'sem_confirmacao', 'raiz')"""),
-                {"r": r.id},
-            )
-        rs = con.execute(
-            text("""update negocio.reserva set estado = 'expirada' where estado = 'ativa' and fim < :a
-                                 returning id, pedido_id, cliente_id, valor_rs"""),
-            {"a": agora},
+                text("""select p.id from negocio.pedido p where exists (
+                select 1 from negocio.reserva r where r.pedido_id=p.id and (
+                    (r.estado='aguardando_confirmacao' and r.confirmacao_expira < :a)
+                    or (r.estado='ativa' and r.fim < :a))) order by p.id for update"""),
+                {"a": agora},
+            ).scalars()
+        )
+        if not pedidos:
+            return 0
+        # Revalida depois de esperar as travas: uma conversão pode ter acabado de concluir.
+        reservas = con.execute(
+            text("""select * from negocio.reserva where pedido_id=any(:ps) and (
+                (estado='aguardando_confirmacao' and confirmacao_expira < :a)
+                or (estado='ativa' and fim < :a)) order by pedido_id,id for update"""),
+            {"ps": pedidos, "a": agora},
         ).all()
-        for r in rs:
-            con.execute(text("update negocio.reserva_fazenda set ativa = false where reserva_id = :r"), {"r": r.id})
+        for r in reservas:
+            if r.estado == "aguardando_confirmacao":
+                con.execute(
+                    text("""update negocio.reserva set estado='cancelada',confirmacao_hash=null,
+                    confirmacao_token_cifrado=null where id=:r"""),
+                    {"r": r.id},
+                )
+                con.execute(
+                    text("""insert into negocio.reserva_evento(reserva_id,evento,quem)
+                    values(:r,'sem_confirmacao','raiz')"""),
+                    {"r": r.id},
+                )
+                continue
+            con.execute(text("update negocio.reserva set estado='expirada' where id=:r"), {"r": r.id})
+            con.execute(text("update negocio.reserva_fazenda set ativa=false where reserva_id=:r"), {"r": r.id})
             con.execute(
-                text("""update negocio.pedido set estado = 'reserva_vencida', atualizado_em = now()
-                                where id = :p"""),
+                text("""update negocio.pedido set estado='reserva_vencida',atualizado_em=now()
+                where id=:p and estado='reservado'"""),
                 {"p": r.pedido_id},
             )
             con.execute(
-                text("""insert into negocio.reserva_evento (reserva_id, evento, quem, valor_rs)
-                                values (:r, 'expirada', 'raiz', :v)"""),
+                text("""insert into negocio.reserva_evento(reserva_id,evento,quem,valor_rs)
+                values(:r,'expirada','raiz',:v)"""),
                 {"r": r.id, "v": r.valor_rs},
             )
             notificar(
@@ -1268,7 +1325,8 @@ def expirar_reservas(engine: Engine, agora: dt.datetime | None = None) -> int:
                 "reserva_vencida",
                 "A reserva venceu sem contrato: as fazendas voltaram para a base.",
             )
-    return len(rs)
+            expiradas += 1
+    return expiradas
 
 
 def converter_reserva(engine: Engine, reserva_id: int, ha_assinados: float, quem: str = "raiz") -> dict:
@@ -1276,10 +1334,12 @@ def converter_reserva(engine: Engine, reserva_id: int, ha_assinados: float, quem
     As fazendas seguem fora da base dos outros clientes."""
     r = premissas()["reserva"]
     with engine.begin() as con:
-        res = con.execute(
-            text("select * from negocio.reserva where id = :r and estado = 'ativa'"), {"r": reserva_id}
-        ).first()
-        if res is None:
+        pedido_id = con.execute(text("select pedido_id from negocio.reserva where id=:r"), {"r": reserva_id}).scalar()
+        if pedido_id is None:
+            raise ErroPedido("reserva ativa não encontrada")
+        pedido = _linha_pedido(con, str(pedido_id), None, travar=True)
+        res = con.execute(text("select * from negocio.reserva where id=:r for update"), {"r": reserva_id}).first()
+        if res is None or res.estado != "ativa" or pedido["estado"] != "reservado":
             raise ErroPedido("reserva ativa não encontrada")
         conexao = float(r["conexao_rs_ha"]) * ha_assinados
         abatido = min(float(res.valor_rs), conexao)

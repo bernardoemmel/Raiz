@@ -1,38 +1,62 @@
 # Passagem do chat "Produto e regras" (12/11/2026)
 
-## Retomada no Codex
+## Retomada no Codex: plataforma integrada
 
-O PR #45 foi atualizado com a main. A migração da API passou de 0020 para 0026,
-porque 0020 já pertencia aos alertas da main. Cobrança, estorno idempotente e
-limites compartilhados por empresa recebem testes de integração em PostGIS.
-CLI e análise da fazenda foram migrados. O adaptador MCP grátis foi retirado;
-nenhuma chave em URL ou rota antiga permanece como atalho.
+A API paga do PR #45 foi migrada e recebeu a main, com a migração de conta renumerada
+para 0026. Conta e três testes são por empresa; saldo não pula sinal Pix/contrato.
+O caminho legado redireciona para a política paga; recusas contam no SlowAPI.
+A análise usa projeções explícitas e marca ausência de certidão/camada como não verificado.
 
-A API mantém três créditos de teste por empresa, sinal Pix e contrato para
-montagem/detalhes, anti-raspagem e ausência de dados pessoais. Os termos estão em
-`docs/termos-api.md`. A análise informa quando faltam certidão/camada; não inventa
-conferência. A licença administrativa usa `raiz api licenca --cliente ID --aprovar`.
+A plataforma está implementada no mesmo FastAPI: SDK oficial `mcp==2.3.0`, protocolo
+2026-07-28, transporte HTTP e OAuth 2.1 via Keycloak 26.8.2. A chave de API vale só na REST.
+Seis ferramentas: consultar_disponibilidade, pedir_lote, comparar_lotes,
+acompanhar_contato, preparar_reserva e cancelar. Reservar começa desligado e só o
+administrador da própria empresa habilita; o worker revalida antes de executar.
 
-Próxima entrega: SDK MCP 2.3.0/protocolo 2026-07-28 no mesmo app; Keycloak OAuth
-2.1; seis ferramentas; fila persistida e idempotência; Standard Webhooks;
-OpenTelemetry e resumo único; aprovação humana com Pix e recibo assinado;
-gabarito com pass^4. Reservar começa desabilitado por empresa.
+As cinco operações de cálculo/preparo entram em fila PostgreSQL e devolvem 202 com
+`pedido_id` e estado. O worker confirma resultado, efeitos, débito/estorno e outbox
+na mesma transação; uma queda antes do commit permite recuperação sem duplicação.
+`Idempotency-Key` protege a intenção e rejeita outro corpo. O cancelamento tem
+registro idempotente e nunca cancela Pix já emitido ou contrato. O MCP limita a
+espera da ponte a 3 s; uma operação que já entrou continua identificável pela mesma chave.
 
-Correções legais verificadas: piso 20% como política conservadora Raíz; art.47
-exige mínimo 50% para remoção e 70% para REDD+ de mercado, além de CLPI; art.43
-requer evidência de exclusão e impede dupla contagem; revisão humana é compromisso
-Raíz ao atender LGPD art.20. Não confundir falta de camada com ausência de risco.
+O agente nunca aprova ou paga. Preparação entrega link para uma pessoa da empresa;
+a página exige sessão/login e clique após ver valor e prazos. A aprovação gera Pix
+com QR e vencimento e recibo JWS Ed25519. O recibo não é comprovante de pagamento nem
+certificação AP2. A exclusividade começa somente com confirmação do provedor;
+pagamento fora das condições preserva o fato financeiro e exige revisão humana.
+O suporte a Idempotency-Key do provedor Pix v1 não está confirmado e não é presumido.
 
-O Pará tem 144 municípios no pacote publicado. O recálculo será apenas no Actions,
-com fonte e premissas congeladas, validação dos municípios e publicação no Release.
-Não cancelar outros workflows em execução. Não calcular o lote no contêiner.
+Standard Webhooks: corpo estável, assinatura v1, timestamp, proteção de repetição,
+outbox/retry e destinos HTTPS aprovados. Uma pessoa administra as inscrições;
+segredo aparece uma vez e destino/segredo ficam cifrados. Proxy de saída precisa
+bloquear redes privadas no ambiente de produção. Telemetria OpenTelemetry registra
+chamadas e recusas com atributos permitidos, sem corpo, credenciais ou texto livre.
+O resumo único `contrato.RESUMO` alimenta /llms.txt, MCP e topo do OpenAPI, até 8 KiB.
 
-Validação local da entrega IA-A: 629 testes passaram, 4 pulados, 1 xfail;
-27 testes específicos passaram após os ajustes finais e 9 testes do caminho
-legado passaram. Ruff, formatação, varredura de documentos e licenças aprovados.
-Rotas legadas redirecionam à API paga; recusas também contam no limitador.
-PR: https://github.com/bernardoemmel/Raiz/pull/45. Merge condicionado ao CI verde.
-Registrar os resultados do lote/Release na próxima entrega.
+O gabarito tem 24 tarefas e exige 96 tentativas em sessões novas: meta pass^4 ≥ 80%,
+zero chamada proibida e zero violação crítica. Os testes validam o avaliador e as
+barreiras do servidor. **Não há medição de desempenho de agente real nesta entrega.**
+Texto de terceiros permanece dado; projeções positivas excluem nomes, documentos,
+contatos e motivos livres das respostas das ferramentas. O filtro de texto não é
+apresentado como detector confiável de nomes próprios.
+
+Salvaguardas: piso conservador Raíz 20%; art. 47 exige 50% para remoção e 70% para REDD+
+de mercado, além de CLPI; art. 43 exige evidência de exclusão e impede dupla contagem.
+A revisão humana é o compromisso Raíz ao atender LGPD art. 20. Falta de camada/evidência
+bloqueia reserva. A migração 0027 contém essas tabelas; 0028 contém fila, eventos,
+permissão, aprovação e recibos. Migração nova precisa de banco atualizado, não apenas código novo.
+
+Implantação detalhada: `docs/agentes-ia.md`, `docs/trabalhos-agentes.md`,
+`docs/eventos-agentes.md` e `docs/avaliacao-agentes.md`. Keycloak foi testado em
+contêiner local; não afirmar implantação pública. Configure TLS, vínculo empresa/role,
+Valkey para limites compartilhados, cofre, assinante, SMTP, provedor Pix e coletor OTLP.
+Não reutilizar segredos dos testes. Não enviar mensagens reais durante validação.
+
+O Pará segue execução exclusiva pelo Actions, em 144 municípios/12 fatias e commit
+congelado, com manifestação dos hashes das fontes/resultados e publicação no Release.
+Não calcular no contêiner e não cancelar workflows de outros chats. Registrar o
+run, o manifesto, os resultados e os PRs efetivamente incorporados após terminar.
 
 ---
 

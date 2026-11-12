@@ -253,7 +253,7 @@ class ProblemasHTTP:
                         "mcp_http",
                         "requisição MCP recusada",
                         "confira OAuth, escopos, host e a revisão 2026-07-28",
-                        scope["path"],
+                        "/mcp",
                         headers=hs,
                     )
                     await resposta(scope, receive, send)

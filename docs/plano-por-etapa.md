@@ -207,13 +207,18 @@ Feito na main fora desta tabela: caminho da terra com risco por imóvel (`raiz/t
 
 | Ordem | Entrega | Situação |
 |---|---|---|
-| A | API paga sem plano grátis: 3 testes por empresa, sinal Pix e contrato, cobrança e estorno, limite SlowAPI por empresa, bloqueio de raspagem, CLI e análise sem dados pessoais | implementado e validado no PR #45; aguardando CI para merge |
-| B | MCP oficial Python v2 / especificação 2026-07-28, seis ferramentas e resumo único até 8 KB | em implementação; adaptador antigo retirado |
-| C | OAuth 2.1 com Keycloak; consultar/pedir e reservar desabilitado por padrão, habilitado por administrador da empresa | em implementação |
-| D | Trabalhos persistidos, Idempotency-Key, Standard Webhooks, aprovação humana/Pix/recibo e OpenTelemetry | em implementação |
-| E | Gabarito de 20–30 tarefas; meta pass^4 >= 80% e nenhuma chamada proibida | pendente de avaliação |
-| F | Piso de reversão 20%, REDD+ jurisdicional, CLPI e participação territorial, revisão humana | em implementação |
-| G | Recálculo dos 144 municípios do Pará pelo Actions e publicação do lote no Release | preparação; não executado no contêiner |
+| A | API paga: 3 testes por empresa, sinal Pix e contrato, cobrança/estorno, limite SlowAPI, CLI e privacidade | PR #45 atualizado com main; CI e merge acompanhados separadamente |
+| B | MCP oficial Python 2.3.0/protocolo 2026-07-28 no mesmo app, seis ferramentas e resumo único até 8 KiB | implementado; descoberta e chamadas testadas com o cliente oficial |
+| C | OAuth 2.1/Keycloak; consultar/pedir/reservar, reserva desligada até administrador da empresa habilitar | implementado; JWT, emissor, audiência, PKCE e isolamento testados; produção depende da configuração da instalação |
+| D | Fila durável, Idempotency-Key, Standard Webhooks, aprovação humana/Pix/JWS, OpenTelemetry | implementado; testes de concorrência, queda do processo, assinatura e prazo; conta/API/worker precisam da mesma base e cofre |
+| E | Gabarito de 24 tarefas, quatro sessões por tarefa, meta pass^4 ≥ 80% e zero chamada proibida | gabarito e avaliador prontos; desempenho de agente real ainda não medido |
+| F | Piso de reversão 20%, REDD+ jurisdicional, CLPI 50%/70% e revisão humana | entrega das salvaguardas com evidência vigente e bloqueio quando falta dado; camada oficial precisa ser carregada pelo operador |
+| G | Recálculo dos 144 municípios do Pará pelo Actions e publicação no Release | workflow auditável preparado em entrega própria; resultados e manifesto registrados após terminar a execução |
+
+Operação e limites: `docs/agentes-ia.md`, `docs/trabalhos-agentes.md`, `docs/eventos-agentes.md` e
+`docs/avaliacao-agentes.md`. O Pix só é gerado após aprovação de uma pessoa autenticada. Recibo Ed25519
+comprova aprovação, não pagamento. Sem SMTP, chave de assinatura ou evidência territorial, a ação fica indisponível.
+
 
 ## E8. Aprendizado contínuo
 
