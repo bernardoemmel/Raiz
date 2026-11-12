@@ -41,6 +41,7 @@ class Especificacao:
     chave: str | None = None
     municipal: bool = True
     geometria: bool = False
+    campos_json: tuple[str, ...] = ()
 
 
 # Lista fechada: nenhuma coluna de pessoa, mesmo se estiver presente no bruto.
@@ -65,6 +66,23 @@ FONTES = {
     "regeneracao": Especificacao("mapbiomas_regeneracao", ("cod_imovel", "car_hash", "pasto_ha",
                                                             "secundaria_ha", "pasto_ate1km_ha"), "cod_imovel"),
 }  # fmt: skip
+FONTES_MOTOR = tuple(FONTES)
+MODELOS = ("motor", "flag", "restauracao", "regularizacao", "triagem", "rebanho")
+for _modelo in MODELOS[1:]:
+    FONTES[f"entrada_{_modelo}"] = Especificacao(
+        f"entrada_{_modelo}",
+        ("cod_imovel", "atributos", "contexto"),
+        "cod_imovel",
+        campos_json=("atributos", "contexto"),
+    )
+
+
+def fontes_dos_modelos(modelos: tuple[str, ...]) -> tuple[str, ...]:
+    if not modelos or set(modelos) - set(MODELOS):
+        raise ValueError(f"modelos aceitos: {', '.join(MODELOS)}")
+    nomes = set(FONTES_MOTOR) if "motor" in modelos else set()
+    nomes.update(f"entrada_{m}" for m in modelos if m != "motor")
+    return tuple(sorted(nomes))
 
 
 @dataclass(frozen=True)
@@ -111,16 +129,24 @@ def ler_catalogo(caminho: Path) -> dict[str, Fonte]:
     return out
 
 
-def ler_retrato(con: Connection, corte: dt.datetime, uf: str, cod_municipio: int, fontes: dict[str, Fonte]) -> Retrato:
+def ler_retrato(
+    con: Connection,
+    corte: dt.datetime,
+    uf: str,
+    cod_municipio: int,
+    fontes: dict[str, Fonte],
+    requeridas: tuple[str, ...] = FONTES_MOTOR,
+) -> Retrato:
     """Cada consulta usa o intervalo [valid_from, valid_to), com o mesmo corte UTC."""
     if corte.tzinfo is None:
         raise ValueError("corte exige data/hora com fuso")
-    faltam = set(FONTES) - set(fontes)
+    faltam = set(requeridas) - set(fontes)
     if faltam:
         raise HistoricoInsuficiente(f"fontes sem cobertura histórica: {', '.join(sorted(faltam))}")
     corte = corte.astimezone(dt.UTC)
     dados, hashes = {}, {}
-    for nome, esp in FONTES.items():
+    for nome in requeridas:
+        esp = FONTES[nome]
         f = fontes[nome]
         if not f.desde <= corte <= f.ate:
             raise HistoricoInsuficiente(f"{nome}: corte fora da cobertura histórica conferida")
@@ -149,14 +175,14 @@ def ler_retrato(con: Connection, corte: dt.datetime, uf: str, cod_municipio: int
         )
         hashes[nome] = hashlib.sha256("\n".join(linhas).encode()).hexdigest()
         dados[nome] = df
-    if dados["car"].empty:
+    if "car" in dados and dados["car"].empty:
         raise HistoricoInsuficiente("CAR sem imóveis no corte; não gerar lote vazio")
     manifesto = {
         "corte": corte.isoformat(),
         "uf": uf.upper(),
         "municipio": cod_municipio,
         "fontes": hashes,
-        "cobertura": {n: fontes[n].referencia for n in FONTES},
+        "cobertura": {n: fontes[n].referencia for n in requeridas},
     }
     h = hashlib.sha256(json.dumps(manifesto, sort_keys=True).encode()).hexdigest()
     return Retrato(corte, cod_municipio, uf.upper(), dados, h)
@@ -181,9 +207,9 @@ def motor_no_retrato(retrato: Retrato) -> pd.DataFrame:
     if d["biomas"].empty:
         raise HistoricoInsuficiente("cartografia histórica dos biomas vazia")
     reg = d["regeneracao"].set_index("cod_imovel")
-    ativos = car[(car.status_imovel != "CA") & (car.tipo_imovel == "IRU")]
-    for cod, h in ativos[["cod_imovel", "_hash"]].itertuples(index=False, name=None):
-        if cod not in reg.index or pd.isna(h) or reg.at[cod, "car_hash"] != h:
+    hashes_car = car.set_index("cod_imovel")["_hash"].to_dict()
+    for cod, h in reg.car_hash.items():
+        if pd.isna(h) or hashes_car.get(cod) != h:
             raise HistoricoInsuficiente("zonal do MapBiomas não corresponde à versão histórica do CAR")
     numericas = ["pasto_ha", "secundaria_ha", "pasto_ate1km_ha"]
     valores = reg[numericas].apply(pd.to_numeric, errors="coerce").to_numpy(dtype=float)
@@ -206,6 +232,8 @@ def motor_no_retrato(retrato: Retrato) -> pd.DataFrame:
         alvo = c.frente.isin(["carbono", "regularizar_antes", "assentamento_agrupado"])
         if not alvo.any():
             return c
+        if any(cod not in reg.index for cod in c.index[alvo]):
+            raise HistoricoInsuficiente("falta o zonal histórico de imóvel na frente de regeneração")
         for campo in numericas:
             c[campo] = reg[campo].reindex(c.index).where(alvo)
         c["carbono_ha"] = np.minimum(c.alem_RL_ha, c.pasto_ate1km_ha.fillna(0))
@@ -214,7 +242,7 @@ def motor_no_retrato(retrato: Retrato) -> pd.DataFrame:
 
     R.regeneracao = regeneracao
     ibama = d["ibama"].rename(columns={c: c.upper() for c in d["ibama"].columns}).copy()
-    ibama["COD_MUNICIPIO"] = ibama.COD_MUNICIPIO.astype(str)
+    ibama["COD_MUNICIPIO"] = pd.to_numeric(ibama.COD_MUNICIPIO, errors="raise").astype("Int64").astype(str)
     with tempfile.TemporaryDirectory(prefix="raiz-fold-") as pasta, contextlib.redirect_stdout(io.StringIO()):
         df, _ = R.municipio(retrato.uf, retrato.cod_municipio, ibama, pasta)
     if df is None:
@@ -245,25 +273,38 @@ def _previsoes_motor(df: pd.DataFrame) -> list[Previsao]:
     return out
 
 
-def prever(retrato: Retrato, modelos: tuple[str, ...] = ("motor", "flag", "restauracao")) -> dict[str, tuple]:
-    """Versões atuais dos modelos contra entradas históricas, como desafiantes.
+def _entradas(retrato: Retrato, modelo: str):
+    from raiz.aprendizado.captura import sanitizar_entrada
 
-    Restauração usa premissas fixas, sem carregar a calibração nem a PTAX de hoje.
-    Não se apresenta esta rodada como versão de produção daquele ano.
+    nome = f"entrada_{modelo}"
+    if nome not in retrato.dados or retrato.dados[nome].empty:
+        raise HistoricoInsuficiente(f"sem entradas históricas de {modelo}")
+    for row in retrato.dados[nome].itertuples(index=False):
+        atributos, contexto = sanitizar_entrada(nome, row.atributos, row.contexto)
+        if atributos.get("cod_imovel") not in (None, row.cod_imovel):
+            raise HistoricoInsuficiente("CAR da entrada não corresponde à chave do registro")
+        yield {**atributos, "cod_imovel": row.cod_imovel}, contexto
+
+
+def prever(retrato: Retrato, modelos: tuple[str, ...] = ("motor", "flag", "restauracao")) -> dict[str, tuple]:
+    """Modelos atuais contra entradas históricas, como desafiantes.
+
+    Cada modelo recebe sua entrada completa observada, inclusive complementos do
+    MapBiomas e parâmetros geográficos; não troca falta de histórico por zero.
+    Restauração não carrega a calibração nem a PTAX de hoje.
     """
-    from raiz import flag, restauracao
+    from raiz import flag, rebanho, restauracao
+    from raiz.titulo import regularizacao, triagem
     from raiz.versoes import motor_versao
 
-    if not modelos or set(modelos) - {"motor", "flag", "restauracao"}:
-        raise ValueError("modelos aceitos: motor, flag, restauracao")
-    df = motor_no_retrato(retrato)
+    fontes_dos_modelos(modelos)
     out = {}
     if "motor" in modelos:
-        out["motor"] = (_previsoes_motor(df), motor_versao())
+        out["motor"] = (_previsoes_motor(motor_no_retrato(retrato)), motor_versao())
     if "flag" in modelos:
         ps = []
-        for li in df.to_dict("records"):
-            a = flag.por_imovel(li)
+        for li, ctx in _entradas(retrato, "flag"):
+            a = flag.por_imovel(li, ctx.get("pasto_baixo_vigor_ha"))
             ps.append(Previsao(li["cod_imovel"], "flag_tco2_ano", 365, valor_num=a["flag_tco2_ano"]))
         out["flag"] = (ps, flag.versao())
     if "restauracao" in modelos:
@@ -273,7 +314,7 @@ def prever(retrato: Retrato, modelos: tuple[str, ...] = ("motor", "flag", "resta
         with tempfile.TemporaryDirectory(prefix="raiz-fold-regra-") as pasta:
             vazio = Path(pasta) / "ausente.yaml"
             r = restauracao.regra(calibracao=vazio, cambio=vazio)
-            for li in df.to_dict("records"):
+            for li, _ in _entradas(retrato, "restauracao"):
                 a = restauracao.por_imovel(li, r=r)
                 if a["restauracao_area_ha"] <= 0:
                     continue
@@ -290,6 +331,72 @@ def prever(retrato: Retrato, modelos: tuple[str, ...] = ("motor", "flag", "resta
                     )
                 ps.append(Previsao(li["cod_imovel"], ALVO_MODO, 730, valor_texto=a["modo_restauracao"]))
         out["restauracao"] = (ps, f"{r['versao_completa']}-sem-calibracao")
+    if "regularizacao" in modelos:
+        ps = []
+        for li, _ in _entradas(retrato, "regularizacao"):
+            a, _ = regularizacao.avaliar(li)
+            ch = a.get("regularizacao_chance_12m")
+            if ch is not None:
+                ps.append(
+                    Previsao(
+                        li["cod_imovel"],
+                        regularizacao.ALVO,
+                        regularizacao.HORIZONTE_DIAS,
+                        valor_num=float(ch),
+                        valor_texto=a["regularizacao_classe"],
+                    )
+                )
+        out["regularizacao"] = (ps, regularizacao.versao())
+    if "triagem" in modelos:
+        ps = []
+        for li, ctx in _entradas(retrato, "triagem"):
+            a = triagem.triar(li, ctx["achados"])
+            ch = a["titulo_triagem_chance_problema"]
+            if ch is not None:
+                ps.append(
+                    Previsao(
+                        li["cod_imovel"],
+                        triagem.ALVO,
+                        triagem.HORIZONTE_DIAS,
+                        valor_num=float(ch),
+                        valor_texto=a["titulo_triagem"],
+                    )
+                )
+        out[triagem.MODELO] = (ps, triagem.versao())
+    if "rebanho" in modelos:
+        entradas = list(_entradas(retrato, "rebanho"))
+        contextos = {json.dumps(ctx, sort_keys=True) for _, ctx in entradas}
+        if len(contextos) != 1:
+            raise HistoricoInsuficiente("totais históricos do rebanho divergem no mesmo município")
+        totais = entradas[0][1]["totais"]
+        linhas = rebanho.espalhar([li for li, _ in entradas], retrato.cod_municipio, totais=totais)
+        ps = []
+        for li in linhas:
+            if "rebanho_cab_p50" in li:
+                for alvo in ("rebanho_cab", "metano_tco2e_ano"):
+                    ps.append(
+                        Previsao(
+                            li["cod_imovel"],
+                            alvo,
+                            365,
+                            p10=li[f"{alvo}_p10"],
+                            p50=li[f"{alvo}_p50"],
+                            p90=li[f"{alvo}_p90"],
+                        )
+                    )
+        out["rebanho"] = (ps, rebanho.versao())
+    modulos = {
+        "flag": flag,
+        "restauracao": restauracao,
+        "regularizacao": regularizacao,
+        triagem.MODELO: triagem,
+        "rebanho": rebanho,
+    }
+    for nome, modulo in modulos.items():
+        if nome in out:
+            ps, versao = out[nome]
+            codigo = hashlib.sha256(Path(modulo.__file__).read_bytes()).hexdigest()[:12]
+            out[nome] = (ps, f"{versao}+codigo-{codigo}")
     return out
 
 
@@ -303,39 +410,68 @@ def reexecutar(
     congelar: bool = True,
 ) -> list[dict]:
     """Lotes separados por modelo e fold, idempotentes e imutáveis no registro E8."""
-    out = []
-    from raiz import flag, restauracao
+    from raiz import flag, rebanho, restauracao
+    from raiz.aprendizado import captura
+    from raiz.titulo import regularizacao, triagem
 
+    fontes_dos_modelos(modelos)
+    out = []
     receita = hashlib.sha256(
-        b"\n".join(Path(p).read_bytes() for p in (__file__, flag.__file__, restauracao.__file__))
+        b"\n".join(
+            Path(p).read_bytes()
+            for p in (
+                __file__,
+                captura.__file__,
+                flag.__file__,
+                restauracao.__file__,
+                regularizacao.__file__,
+                triagem.__file__,
+                rebanho.__file__,
+            )
+        )
     ).hexdigest()
     for corte in cortes:
-        retrato = ler_retrato(con, corte, uf, cod_municipio, fontes)
-        previstos = prever(retrato, modelos)
-        for modelo, (ps, versao) in previstos.items():
-            v = Versoes(
-                modelo,
-                versao,
-                retrato.entradas_hash,
-                corte.astimezone(dt.UTC).date(),
-                regras_versao=versao,
-                receita_hash=receita,
-                tipo="backtest",
-            )
-            lh, novo = (
-                registrar_lote(con, ps, v, f"reexecução scd2, município {cod_municipio}, corte {corte.isoformat()}")
-                if congelar and ps
-                else (None, False)
-            )
-            out.append(
-                {
-                    "corte": corte.isoformat(),
-                    "modelo": modelo,
-                    "modelo_versao": versao,
-                    "entradas_versao": retrato.entradas_hash,
-                    "previsoes": len(ps),
-                    "lote_hash": lh,
-                    "novo": novo,
-                }
-            )
+        for selecionado in modelos:
+            try:
+                retrato = ler_retrato(con, corte, uf, cod_municipio, fontes, fontes_dos_modelos((selecionado,)))
+                previstos = prever(retrato, (selecionado,))
+            except HistoricoInsuficiente as ex:
+                out.append(
+                    {
+                        "corte": corte.isoformat(),
+                        "modelo": selecionado,
+                        "situacao": "historico_insuficiente",
+                        "motivo": str(ex),
+                        "previsoes": 0,
+                        "novo": False,
+                    }
+                )
+                continue
+            for modelo, (ps, versao) in previstos.items():
+                v = Versoes(
+                    modelo,
+                    versao,
+                    retrato.entradas_hash,
+                    corte.astimezone(dt.UTC).date(),
+                    regras_versao=versao,
+                    receita_hash=receita,
+                    tipo="backtest",
+                )
+                lh, novo = (
+                    registrar_lote(con, ps, v, f"reexecução scd2, município {cod_municipio}, corte {corte.isoformat()}")
+                    if congelar and ps
+                    else (None, False)
+                )
+                out.append(
+                    {
+                        "corte": corte.isoformat(),
+                        "modelo": modelo,
+                        "situacao": "ok",
+                        "modelo_versao": versao,
+                        "entradas_versao": retrato.entradas_hash,
+                        "previsoes": len(ps),
+                        "lote_hash": lh,
+                        "novo": novo,
+                    }
+                )
     return out

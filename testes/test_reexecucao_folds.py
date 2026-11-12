@@ -52,6 +52,27 @@ def _dados():
             "pasto_ate1km_ha": [0.1],
         }
     )
+    attrs = {
+        "ha": 5.0,
+        "uf": "PA",
+        "bioma": "Amazônia",
+        "alem_RL_ha": 5.0,
+        "app_recompor_ha": 0.0,
+        "pasto_ha": 0.2,
+        "carbono_ha": 0.1,
+        "carbono_tco2_ano": 1.0,
+        "caminho_terra": "posse_em_titulacao",
+        "m_fiscal": 0.01,
+        "status_imovel": "AT",
+    }
+    for nome in R.MODELOS[1:]:
+        ctx = {"irrelevante": 0}
+        if nome == "rebanho":
+            ctx = {"totais": {"ppm": 10.0, "ppm_2017": 8.0, "censo_2017": 9.0}}
+        elif nome == "triagem":
+            ctx = {"achados": [{"regra": "cadeia.origem", "valor": "falta_ler_origem"}]}
+        a = {**attrs, "caminho_terra": "privada_matricula"} if nome == "triagem" else attrs
+        d[f"entrada_{nome}"] = pd.DataFrame([{"cod_imovel": COD, "atributos": a, "contexto": ctx}])
     return d
 
 
@@ -116,7 +137,7 @@ def _banco_historico(con):
     con.execute(text(f"create schema {esquema}"))
     catalogo = {}
     for nome, esp in R.FONTES.items():
-        cols = [f"{c} text" for c in esp.campos]
+        cols = [f"{c} {'jsonb' if c in esp.campos_json else 'text'}" for c in esp.campos]
         if esp.geometria:
             cols += ["geom geometry(Geometry,4674)"]
         cols += ["cod_municipio_ibge integer", "_dlt_valid_from timestamptz", "_dlt_valid_to timestamptz"]
@@ -131,10 +152,19 @@ def _banco_historico(con):
             cols, valores = [], []
             for k in row:
                 cols.append(k)
-                valores.append(f"ST_GeomFromText(:{k},4674)" if k == "geom" else f":{k}")
+                valores.append(
+                    f"ST_GeomFromText(:{k},4674)"
+                    if k == "geom"
+                    else f"cast(:{k} as jsonb)"
+                    if k in esp.campos_json
+                    else f":{k}"
+                )
             con.execute(
                 text(f"insert into {esquema}.{esp.tabela} ({','.join(cols)}) values ({','.join(valores)})"),
-                {k: str(v) if k in esp.campos else v for k, v in row.items()},
+                {
+                    k: json.dumps(v) if k in esp.campos_json else str(v) if k in esp.campos else v
+                    for k, v in row.items()
+                },
             )
     return esquema, catalogo
 
