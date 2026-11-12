@@ -1,0 +1,85 @@
+name: Migrar publicação de dados privados
+
+on:
+  workflow_dispatch:
+    inputs:
+      fase:
+        description: "Preservar originais, trocar Release público ou retirar artifacts após backup"
+        required: true
+        type: choice
+        default: preservar
+        options: [preservar, publicar-basico, retirar-artifacts]
+      retomar:
+        description: "Só para corte interrompido: nome corte-HASH-inventario.json privado"
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: migrar-dados-privados
+  cancel-in-progress: false
+
+jobs:
+  migrar:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RAIZ_ARMAZEM_URL: release-github://${{ github.repository }}/dados
+      RAIZ_DADOS_PRIVADOS_URL: release-github://${{ github.repository }}/dados-privados
+      RAIZ_DADOS_PRIVADOS_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - name: Instalar dependências
+        run: uv sync --frozen --all-extras
+      - name: Exigir escritores parados antes de qualquer remoção
+        if: inputs.fase != 'preservar'
+        run: |
+          for workflow in processar-estados.yml publicar-dados.yml lote-para.yml vigilancia.yml; do
+            estado=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/$workflow" --jq .state)
+            test "$estado" = disabled_manually || { echo "Pause o workflow $workflow antes do corte."; exit 1; }
+            for estado_run in in_progress queued pending waiting requested; do
+              quantidade=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/$workflow/runs?status=$estado_run&per_page=100" --jq .total_count)
+              test "$quantidade" = 0 || { echo "Há execução $estado_run em $workflow."; exit 1; }
+            done
+          done
+      - name: Inventariar todos os Releases publicados
+        if: inputs.fase == 'preservar'
+        run: uv run python scripts/migrar_dados_privados.py inventariar --origem "$GITHUB_REPOSITORY" --diretorio /tmp/raiz-migracao
+      - name: Copiar, rebaixar e verificar SHA-256 e bloqueio anônimo
+        if: inputs.fase == 'preservar'
+        run: uv run python scripts/migrar_dados_privados.py copiar --destino "$GITHUB_REPOSITORY" --tag dados-privados --diretorio /tmp/raiz-migracao --executar
+      - name: Preservar comprovantes somente no Release privado
+        if: inputs.fase == 'preservar'
+        run: |
+          mkdir /tmp/raiz-comprovantes
+          cp /tmp/raiz-migracao/inventario.json "/tmp/raiz-comprovantes/inventario-$GITHUB_RUN_ID.json"
+          cp /tmp/raiz-migracao/backup-verificado.json "/tmp/raiz-comprovantes/backup-verificado-$GITHUB_RUN_ID.json"
+          gh release upload dados-privados /tmp/raiz-comprovantes/*.json --repo "$GITHUB_REPOSITORY"
+          echo 'Backup completo verificado por SHA-256 e HTTP 404 sem autenticação. Nenhum arquivo público removido nesta fase.' >> "$GITHUB_STEP_SUMMARY"
+      - name: Preservar completo, publicar básico e retirar os originais respaldados
+        if: inputs.fase == 'publicar-basico'
+        env:
+          RAIZ_RETOMAR: ${{ inputs.retomar }}
+        run: |
+          argumentos=()
+          if [ -n "$RAIZ_RETOMAR" ]; then argumentos+=(--retomar "$RAIZ_RETOMAR"); fi
+          uv run python -m scripts.publicar_projecao_aberta --origem "$GITHUB_REPOSITORY" --destino "$GITHUB_REPOSITORY" --diretorio /tmp/raiz-corte --executar "${argumentos[@]}"
+          echo 'Release público contém somente a projeção básica validada. Originais e comprovantes estão no arquivo privado.' >> "$GITHUB_STEP_SUMMARY"
+      - name: Preservar e retirar artifacts de dados completos
+        if: inputs.fase == 'retirar-artifacts'
+        run: |
+          uv run python scripts/migrar_artifacts_privados.py inventariar --origem "$GITHUB_REPOSITORY" --diretorio /tmp/raiz-artifacts-privados
+          uv run python scripts/migrar_artifacts_privados.py copiar --destino "$GITHUB_REPOSITORY" --diretorio /tmp/raiz-artifacts-privados --executar
+          mkdir /tmp/raiz-comprovantes
+          cp /tmp/raiz-artifacts-privados/inventario-artifacts.json "/tmp/raiz-comprovantes/artifacts-inventario-$GITHUB_RUN_ID.json"
+          cp /tmp/raiz-artifacts-privados/backup-verificado.json "/tmp/raiz-comprovantes/artifacts-backup-$GITHUB_RUN_ID.json"
+          gh release upload dados-privados /tmp/raiz-comprovantes/*.json --repo "$GITHUB_REPOSITORY"
+          uv run python scripts/migrar_artifacts_privados.py remover --destino "$GITHUB_REPOSITORY" --diretorio /tmp/raiz-artifacts-privados --executar-remocao
+          cp /tmp/raiz-artifacts-privados/remocao-artifacts-progresso.json "/tmp/raiz-comprovantes/artifacts-remocao-$GITHUB_RUN_ID.json"
+          gh release upload dados-privados "/tmp/raiz-comprovantes/artifacts-remocao-$GITHUB_RUN_ID.json" --repo "$GITHUB_REPOSITORY"
+          echo 'Artifacts completos foram preservados no privado e removidos do Actions. Evidências de testes foram mantidas.' >> "$GITHUB_STEP_SUMMARY"

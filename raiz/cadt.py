@@ -19,11 +19,12 @@ from pathlib import Path
 from urllib.parse import quote
 
 import numpy as np
+import pandas as pd
 
 from raiz import lote as L
 from raiz import restauracao as R
 
-VERSAO = "raiz-cadt-cenarios-1.0.0"
+VERSAO = "raiz-cadt-cenarios-1.2.0"
 CADT_COMMIT = "58927db8f4b4fe558842a688d33f173c41944279"
 REFERENCIA = f"https://github.com/Chia-Network/cadt/tree/{CADT_COMMIT}"
 AVISO = (
@@ -38,22 +39,89 @@ class CronogramaInvalido(ValueError):
     """Dado inconsistente; o publicador registra o código, sem publicar um projeto inventado."""
 
 
-def _validar_fontes(pasta: Path, versao: str, cenario: str) -> None:
-    """Não aplica a curva atual a créditos calculados sob outra regra ou cenário."""
-    campos = (("restauracao_versao", versao, "versao"), ("restauracao_cenario", cenario, "cenario"))
+def _catalogo_privado(url: str) -> None:
+    from raiz.metadados import _url_acesso
+
+    try:
+        _url_acesso(url, escopo="privado")
+        if not url.endswith("/cadt_lotes.json"):
+            raise ValueError("arquivo de catálogo diferente")
+    except ValueError as ex:
+        raise CronogramaInvalido("catalogo_privado_invalido") from ex
+
+
+def _identificar_fontes(pasta: Path) -> tuple[str | None, str | None]:
+    """Exige uma única versão e cenário em todas as linhas, inclusive fora da oferta elegível."""
+    campos = (("restauracao_versao", "versao"), ("restauracao_cenario", "cenario"))
+    encontrados: dict[str, set[str]] = {nome: set() for _, nome in campos}
     for arquivo in sorted(pasta.glob("desenvolvedor_*.csv")):
         with arquivo.open(newline="", encoding="utf-8-sig") as entrada:
             leitor = csv.DictReader(entrada)
-            for campo, _, nome in campos:
+            for campo, nome in campos:
                 if campo not in (leitor.fieldnames or []):
                     raise CronogramaInvalido(f"{nome}_da_fonte_ausente")
             for linha in leitor:
-                for campo, esperado, nome in campos:
+                for campo, nome in campos:
                     valor = linha.get(campo)
                     if valor is None or not valor.strip():
                         raise CronogramaInvalido(f"{nome}_da_fonte_ausente")
-                    if valor != esperado:
+                    encontrados[nome].add(valor)
+                    if len(encontrados[nome]) > 1:
                         raise CronogramaInvalido(f"{nome}_da_fonte_incompativel")
+    return next(iter(encontrados["versao"]), None), next(iter(encontrados["cenario"]), None)
+
+
+def _validar_fontes(pasta: Path, versao: str, cenario: str) -> None:
+    """Não aplica uma regra a créditos calculados sob outra versão ou cenário."""
+    v, c = _identificar_fontes(pasta)
+    if v is not None and v != versao:
+        raise CronogramaInvalido("versao_da_fonte_incompativel")
+    if c is not None and c != cenario:
+        raise CronogramaInvalido("cenario_da_fonte_incompativel")
+
+
+def _resumo_cronograma(dados: dict, r: dict, c: dict, *, edital_versao: str | None = None) -> dict:
+    """Seleciona o lote e soma o P50 publicado; não refaz fluxos, custos ou previsões individuais.
+
+    O otimizador usa suas premissas atuais, identificadas separadamente; a curva e o cenário são exatamente os
+    da versão das previsões. Evita L.montar, cujo relatório completo recalcula a economia de cada fazenda.
+    """
+    oferta = dados["oferta"]
+    if len(oferta) and not oferta.restauracao_versao.eq(r["versao_completa"]).all():
+        raise CronogramaInvalido("versao_da_fonte_incompativel")
+    if not {"salvaguardas_planejamento", "salvaguardas_comercializavel"} <= set(oferta.columns):
+        raise CronogramaInvalido("salvaguardas_da_oferta_ausentes")
+    lt = L.premissas_lote(r)
+    volume, chance = float(lt["creditos"]), float(lt["chance_alvo_reserva"])
+    precisa50 = R.contrato_para_marcos(volume, c, r)
+    precisa_alvo = precisa50 / R.fator_captura_alvo(chance, r)
+    sel = L._selecionar(dados["oferta"], dados["uf"], precisa50, precisa_alvo, c)
+    tit, res = sel["tit"], sel["res"]
+    lote = pd.concat([tit, res], ignore_index=True)
+    credito = float(lote.credito_p50.sum())
+    if credito <= 0:
+        return {"cronograma_lote": None}
+    municipios = set(lote.cod_ibge.dropna().astype(int))
+    return {
+        "uf": dados["uf"],
+        "data": dt.date.today().isoformat(),
+        "cenario": c["cenario"],
+        "versao_premissas": r["versao_completa"],
+        "versao_otimizador": L.versao_modelo(),
+        "versao_modelo_lote": L.versao_lote(c),
+        "versao_salvaguardas": L.S.regra()["versao_completa"],
+        "versao_edital": edital_versao or L.edital(r).get("versao"),
+        "cronograma_lote": R.cronograma_lote(credito, c, r, volume),
+        "titulares": int(len(tit)),
+        "reservas": int(len(res)),
+        "pequenas": int(lote.pequena.sum()),
+        "municipios": {
+            "no_estado": len(dados["municipios_estado"]),
+            "lidos": len(dados["municipios_lidos"]),
+            "com_fazenda_elegivel": int(sel["f"].cod_ibge.nunique()),
+            "no_lote": len(municipios),
+        },
+    }
 
 
 def _data(valor: dt.date | str, campo: str) -> dt.date:
@@ -147,12 +215,14 @@ def projeto_do_resumo(
     uf: str,
     *,
     data_inicio: dt.date | str,
+    url_catalogo: str,
     data_referencia: dt.date | str | None = None,
     r: dict | None = None,
     c: dict | None = None,
     repo: str = REPO,
 ) -> dict:
     """Converte somente o resumo agregado do lote, com hipótese temporal explícita."""
+    _catalogo_privado(url_catalogo)
     uf = uf.upper()
     if not re.fullmatch(r"[A-Z]{2}", uf):
         raise CronogramaInvalido("uf_invalida")
@@ -168,6 +238,9 @@ def projeto_do_resumo(
     if not cronograma:
         raise CronogramaInvalido("sem_cronograma")
     versoes = {k: resumo.get(k) for k in ("versao_premissas", "versao_otimizador", "versao_edital")}
+    for campo in ("versao_modelo_lote", "versao_salvaguardas"):
+        if resumo.get(campo):
+            versoes[campo] = resumo[campo]
     if not versoes["versao_premissas"] or not versoes["versao_otimizador"]:
         raise CronogramaInvalido("versao_modelo_ausente")
     estimativas, marcos = estimativas_anuais(cronograma, inicio, c["prazo_anos"], R.forma_curva(r))
@@ -185,7 +258,7 @@ def projeto_do_resumo(
         "originProjectId": identificador,
         "registryOfOrigin": "Raíz — catálogo de cenários",
         "projectName": f"Cenário ProFloresta+ Raíz — {uf} — início hipotético {inicio.isoformat()}",
-        "projectLink": f"https://github.com/{repo}/releases/download/dados/cadt_lotes.json#{quote(identificador)}",
+        "projectLink": f"{url_catalogo}#{quote(identificador)}",
         "projectDeveloper": "Raíz — modelagem de cenário",
         "sector": "Agriculture; forestry and fishing",
         "projectType": "Reforestation and Revegetation",
@@ -199,6 +272,7 @@ def projeto_do_resumo(
     }
     cobertura = resumo.get("municipios") or {}
     metadados = {
+        "escopo": "privado",
         "versao_exportador": VERSAO,
         "referencia_vocabulario": REFERENCIA,
         "cenario": c["cenario"],
@@ -225,6 +299,7 @@ def cadt_uf(
     uf: str,
     *,
     data_inicio: dt.date | str | None,
+    url_catalogo: str,
     data_referencia: dt.date | str | None = None,
     r: dict | None = None,
     c: dict | None = None,
@@ -236,8 +311,14 @@ def cadt_uf(
     projeto com estimativas fabricadas. Erros inesperados de leitura/cálculo não
     são escondidos pelo exportador.
     """
+    _catalogo_privado(url_catalogo)
     pasta, uf = Path(pasta), uf.upper()
-    base = {"uf": uf, "projeto": None, "metadados": {"versao_exportador": VERSAO, "aviso": AVISO}, "diagnosticos": []}
+    base = {
+        "uf": uf,
+        "projeto": None,
+        "metadados": {"escopo": "privado", "versao_exportador": VERSAO, "aviso": AVISO},
+        "diagnosticos": [],
+    }
 
     def ausente(codigo: str) -> dict:
         base["diagnosticos"].append({"codigo": codigo})
@@ -249,22 +330,66 @@ def cadt_uf(
         raise ValueError("pasta deve ser a pasta da UF informada")
     if not any(pasta.glob("desenvolvedor_*.csv")) or not any(pasta.glob("imoveis_*.csv")):
         return ausente("sem_tabelas_do_produto")
-    r = r or R.regra()
-    c = c or R.cenario("central_r11", r=r)
+    proveniencia = {}
     try:
-        _validar_fontes(pasta, r["versao_completa"], c["cenario"])
+        versao_fonte, cenario_fonte = _identificar_fontes(pasta)
+        if r is None:
+            r = R.regra()
+            if versao_fonte is not None and versao_fonte != r["versao_completa"]:
+                from raiz.regras.historico import carregar
+
+                try:
+                    historica = carregar(versao_fonte)
+                except ValueError as ex:
+                    raise CronogramaInvalido("registro_historico_invalido") from ex
+                if historica is None:
+                    raise CronogramaInvalido("versao_da_fonte_incompativel")
+                r, proveniencia = historica
+        if c is None and proveniencia:
+            from raiz.regras.historico import cenario
+
+            try:
+                c = cenario("central_r11", r)
+            except ValueError as ex:
+                raise CronogramaInvalido("registro_historico_invalido") from ex
+        else:
+            c = c or R.cenario("central_r11", r=r)
+        if versao_fonte is not None and versao_fonte != r["versao_completa"]:
+            raise CronogramaInvalido("versao_da_fonte_incompativel")
+        if cenario_fonte is not None and cenario_fonte != c["cenario"]:
+            raise CronogramaInvalido("cenario_da_fonte_incompativel")
     except CronogramaInvalido as ex:
         return ausente(str(ex))
     dados = L.ler_uf(pasta.parent, uf)
     if dados["oferta"].empty:
         return ausente("sem_fazendas_com_estimativa")
-    resumo = L.montar(dados, c=c, r=r, sensibilidade_ligada=False)["resumo"]
+    try:
+        resumo = _resumo_cronograma(dados, r, c, edital_versao=proveniencia.get("regra_source_edital_versao"))
+    except CronogramaInvalido as ex:
+        return ausente(str(ex))
     if not resumo.get("cronograma_lote"):
         return ausente("sem_lote_elegivel")
     try:
-        return projeto_do_resumo(
-            resumo, uf, data_inicio=data_inicio, data_referencia=data_referencia, r=r, c=c, repo=repo
+        resultado = projeto_do_resumo(
+            resumo,
+            uf,
+            data_inicio=data_inicio,
+            url_catalogo=url_catalogo,
+            data_referencia=data_referencia,
+            r=r,
+            c=c,
+            repo=repo,
         )
+        resultado["metadados"].update(proveniencia)
+        resultado["metadados"]["origem_creditos"] = "P50 dos arquivos publicados; previsões individuais preservadas"
+        resultado["metadados"]["selecao_lote"] = "otimizador atual aplicado aos créditos publicados"
+        resultado["metadados"]["previsoes_individuais_recalculadas"] = False
+        resultado["metadados"]["comercializacao"] = {
+            "situacao": "pendente",
+            "aviso": "Lote potencial para diligência, sem liberação de venda. Conferir exclusão jurisdicional, "
+            "CLPI, título, aceite e certificação.",
+        }
+        return resultado
     except CronogramaInvalido as ex:
         return ausente(str(ex))
 
@@ -284,6 +409,7 @@ def combinar_estados(estados: Mapping[str, dict]) -> dict:
             "diagnosticos": resultado.get("diagnosticos") or [],
         }
     return {
+        "escopo": "privado",
         "versao_exportador": VERSAO,
         "referencia_vocabulario": REFERENCIA,
         "aviso": AVISO,

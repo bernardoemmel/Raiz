@@ -1,4 +1,8 @@
+import type { SituacaoBasica } from "../../../compartilhado/dados/basico"
+import { PainelMunicipioBasico } from "../partes/PainelMunicipioBasico"
 import { useEffect, useMemo, useRef, useState } from "react"
+import { codigosEmLeilao } from "../../../compartilhado/calendario"
+import { calendario } from "../calendario"
 import { ufDoCodigo } from "../../../compartilhado/formato"
 import type { Foco } from "../../../compartilhado/funil-etapas"
 import { fonte, useCarga } from "../dados"
@@ -31,9 +35,13 @@ export function Explorar({ municipio, uf }: { municipio: string | null; uf: stri
   const municipios = useCarga(() => fonte.municipios(), [])
   // o estado em foco: o escolhido, ou o do município aberto; os pontos são só dele
   const ufFoco = municipio ? ufDoCodigo(municipio) : uf
+  const leiloes = useCarga(() => municipio ? calendario.leiloes({ estado: ufFoco || undefined }) : Promise.resolve(null), [municipio, ufFoco])
+  const emLeilao = useMemo(() => codigosEmLeilao(leiloes.dado?.eventos ?? []), [leiloes.dado])
   const pontos = useCarga(() => (ufFoco ? fonte.pontos(ufFoco) : Promise.resolve([])), [ufFoco])
   const funil = useCarga(() => (municipio ? fonte.municipio(municipio) : Promise.resolve(null)), [municipio])
   const imoveis = useCarga(() => (municipio ? fonte.imoveis(municipio) : Promise.resolve(null)), [municipio])
+  const basicos = useCarga(() => (municipio && fonte.basicos ? fonte.basicos(municipio) : Promise.resolve(null)), [municipio])
+  const [situacaoBasica, setSituacaoBasica] = useState<SituacaoBasica | null>(null)
   const geoMunicipio = useCarga<GeoMunicipio | null>(async () => {
     if (!municipio) return null
     const [m, i, ti, uc, rios, terraPublica, base] = await Promise.all([
@@ -60,6 +68,7 @@ export function Explorar({ municipio, uf }: { municipio: string | null; uf: stri
   if (ultimo !== municipio) {
     setUltimo(municipio)
     setFoco(null)
+    setSituacaoBasica(null)
     setCamada("situacao")
     if (!municipio) setAltura("baixa")
     else if (altura === "baixa") setAltura("meia")
@@ -139,7 +148,21 @@ export function Explorar({ municipio, uf }: { municipio: string | null; uf: stri
                 {listas.has(municipio) && " Os dados e a lista continuam disponíveis."}
               </p>
             )}
-            {municipio ? (
+            {municipio && estados.dado?.acesso === "publico_basico" ? (
+              <PainelMunicipioBasico
+                key={municipio}
+                nome={funil.dado?.municipio ?? (feicao?.properties.nome as string | undefined) ?? "Município"}
+                uf={ufFoco ?? ""}
+                centro={centro}
+                funil={funil.dado ?? null}
+                imoveis={basicos.carregando ? undefined : basicos.dado ?? null}
+                situacao={situacaoBasica}
+                mudarSituacao={setSituacaoBasica}
+                aoPassar={setDestaque}
+                emLeilao={emLeilao}
+                atualizadoEm={estados.dado.estados.find((e) => e.uf === ufFoco)?.atualizado_em ?? estados.dado.gerado_em}
+              />
+            ) : municipio ? (
               <PainelMunicipio
                 cod={municipio}
                 nome={(feicao?.properties.nome as string | undefined) ?? null}
@@ -152,6 +175,7 @@ export function Explorar({ municipio, uf }: { municipio: string | null; uf: stri
                 camada={camada}
                 mudarCamada={setCamada}
                 aoPassar={setDestaque}
+                emLeilao={emLeilao}
               />
             ) : (
               <PainelBrasil
@@ -175,9 +199,12 @@ export function Explorar({ municipio, uf }: { municipio: string | null; uf: stri
           municipio={municipio}
           geoMunicipio={geoMunicipio.carregando ? null : (geoMunicipio.dado ?? null)}
           imoveis={imoveis.dado ?? null}
+          basicos={basicos.dado ?? null}
+          situacaoBasica={situacaoBasica}
           foco={foco}
           camada={camada}
           destaque={destaque}
+          emLeilao={emLeilao}
           margemBaixo={margem}
           aoEscolherMunicipio={(cod) => (location.hash = linkMunicipio(cod))}
           aoEscolherEstado={(sigla) => (location.hash = linkEstado(sigla))}

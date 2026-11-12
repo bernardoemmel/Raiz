@@ -28,12 +28,12 @@ Retomada em 12/11/2026, seguindo a passagem `docs/passagem/raiz-dados-do-brasil.
 
 | Ordem | Entrega | Situação |
 |---|---|---|
-| 1 | Limite global de 15 jobs de processamento, sem cancelar os existentes | **feito**: #43 e #46 mesclados com CI verde; admissão atômica na ref `raiz-fila-processamento`, incluindo pedidos manuais e continuações; falha de consulta bloqueia novas vagas. Pedidos sem vaga ficam persistidos e são retomados a cada 15 minutos. Nenhum job foi cancelado |
-| 2–3 | Fichas Croissant 1.1/schema.org e publicação no Release | **feito no publicador**: `raiz/metadados.py`, baker 0.8.3 e mlcroissant 1.1.1; fichas por pacote CSV, geometria, camadas e controle, catálogo geral e ficha do índice sob as travas existentes. SHA-256 dos bytes reais, leitura de tar testada e nenhuma licença de dados presumida. A atualização retroativa de todos os assets será conferida na entrega final |
-| 4 | Quantis públicos no formato hubverse, com versão do modelo | **feito no publicador**: Parquet longo, hub nativo por UF, tasks v6 e metadados por versão; data/versão ausentes geram diagnóstico. FLAG usa hipótese triangular explícita; P50 legado do desenvolvedor preserva o cenário central. Publicação retroativa pendente de execução |
+| 1 | Limite global de 15 jobs de processamento, sem cancelar os existentes | **feito**: #43 e #46 mesclados com CI verde; admissão atômica na ref `raiz-fila-processamento`, incluindo pedidos manuais e continuações; falha de consulta bloqueia novas vagas. Pedidos sem vaga ficam persistidos e são retomados a cada 15 minutos. Nenhum job foi cancelado pela retomada; pausa manual externa registrada na passagem |
+| 2–3 | Fichas Croissant 1.1/schema.org e publicação no Release | **feito no publicador**: `raiz/metadados.py`, baker 0.8.3 e mlcroissant 1.1.1; fichas por pacote CSV, geometria, camadas e controle, com catálogos separados por acesso; o público recebe só fichas básicas, o privado recebe os derivados completos. SHA-256 dos bytes reais, leitura de tar testada e nenhuma licença de dados presumida. Baker e validador trabalham em subprocessos limitados por campos, preservando a ficha integral. A atualização retroativa de todos os assets será conferida na entrega final |
+| 4 | Quantis privados no formato hubverse, com versão do modelo | **feito no publicador**: Parquet longo, hub nativo por UF, tasks v6 e metadados por versão; data/versão ausentes geram diagnóstico. FLAG usa hipótese triangular explícita; P50 legado do desenvolvedor preserva o cenário central. Publicação retroativa pendente de execução |
 | 5 | Cartão do modelo | **feito**: `docs/modelo/cartao.md`, publicado como `cartao_modelo.md`; usos, dados, métodos, versões, métricas ainda sem validação de campo e limites |
-| 6 | Atestação dos arquivos publicados pelo Actions | **feito no workflow**: checksums dos uploads concluídos e `actions/attest-build-provenance@v2`, com OIDC e permissão de atestação. A execução e a verificação dos arquivos existentes serão registradas após o merge |
-| 7 | Cronograma dos lotes no vocabulário CAD Trust | **feito no publicador**: cenários ProFloresta+ por UF, incrementos anuais inteiros cuja soma preserva o total P50; `cadt_lotes.json`, proveniência e diagnósticos. Âncora hipotética de 01/01/2027 configurável; não declara registro, certificação ou emissão |
+| 6 | Atestação dos arquivos publicados pelo Actions | **feito no workflow**: checksums dos uploads concluídos e `actions/attest-build-provenance@v2`, com OIDC e permissão de atestação. Finalizador da versão atual atende também execuções científicas fixadas em commits antigos. A execução e a verificação dos arquivos existentes serão registradas após o merge |
+| 7 | Cronograma dos lotes no vocabulário CAD Trust | **feito no publicador**: cenários ProFloresta+ privados por UF, incrementos anuais inteiros cuja soma preserva o total P50; `cadt_lotes.json`, proveniência e diagnósticos. Âncora hipotética de 01/01/2027 configurável; não declara registro, certificação ou emissão |
 | 8 | Pendências E1/E2 da passagem, na ordem de dependência | **feito no código**: manifesto ArcGIS, assinaturas SIGEF/PRODES, CLI/replicação ArcGIS, Ibama no SCD2, alertas de qualidade e DuckDB/restrições no funil de produção; testes com PostGIS. A coleta continua dependendo de servidor e agendamento |
 
 ## E1. Coleta de dados públicos
@@ -227,7 +227,7 @@ Feito na main fora desta tabela: caminho da terra com risco por imóvel (`raiz/t
 | 2 | Modelos do funil por município (INCREMENTAL_BY_PARTITION por cod_municipio) e resultados por imóvel (INCREMENTAL_BY_UNIQUE_KEY cod_imovel e ano); interseções caras pré-calculadas em modelo próprio (como o brewgis) | passo 1 | 8 a 12 | parcial: o executor refaz por município só o que mudou e a carga grava por rodada no esquema `funil` (`raiz/executor/`, `raiz/carga.py`), sem SQLMesh |
 | 3 | Fila de municípios ou células sujas alimentada pelo diff da E1, job que esvazia a fila em lotes e reconciliação completa semanal (padrão osmpbudynkiv2 e osm2pgsql) | passo 2 e E1 passo 7 | 6 a 10 | **feito**: `raiz/coleta/fila.py` (sujos primeiro, disjuntor de 15%, reconciliação mensal em vez de semanal), `raiz/funil/manifesto_blocos.py` e `raiz/executor/agenda.py` |
 | 4 | Tabela única de previsões: previsão ao vivo e folds de backtest juntos, com model_version, data de corte, horizonte e hash da receita (padrão OCF e PostHog) | passo 2 | 4 a 6 | **feito**: `aprendizado.previsao` e `aprendizado.lote_previsao` (migração 0002), `raiz/aprendizado/registro.py` e `congelar.py` |
-| 5 | Teste por tempo: folds anuais que só leem dados 'como estavam' na data de corte (filtro _dlt_valid_from <= corte e _dlt_valid_to > corte no scd2) | passo 4 e E1 passo 4 | 8 a 12 | parcial: `raiz/aprendizado/folds.py` com `como_estava` (scd2 da coleta num dia) e folds anuais da calibração (`raiz aprendizado folds`), que só usam gabarito observado até o corte e congelam o recalibrado como backtest; **feito no código:** captura automática no executor com banco e reexecução do motor, FLAG, restauração, regularização, triagem e rebanho a partir de retratos scd2, sem ler fontes/caches atuais (`raiz aprendizado reexecutar`); `arquivar-fold` grava retratos com hora real e catálogo. Falta acumular histórico real; Actions sem banco não arquiva entradas. Modelos só rodam com todas as fontes disponíveis no corte |
+| 5 | Teste por tempo: folds anuais que só leem dados 'como estavam' na data de corte (filtro _dlt_valid_from <= corte e _dlt_valid_to > corte no scd2) | passo 4 e E1 passo 4 | 8 a 12 | parcial: `raiz/aprendizado/folds.py` com `como_estava` (scd2 da coleta num dia) e folds anuais da calibração (`raiz aprendizado folds`), que só usam gabarito observado até o corte e congelam o recalibrado como backtest; **feito no código:** captura automática no executor com banco e reexecução do motor, FLAG, restauração, regularização, triagem e rebanho a partir de retratos scd2, sem ler fontes/caches atuais (`raiz aprendizado reexecutar`); `arquivar-fold` grava retratos com hora real e catálogo. Captura também em Actions sem banco: retratos imutáveis, publicação periódica/final em Releases diários e importação na sincronização, com datas observada/registrada separadas e intervalos preservados na chegada atrasada. Falta acumular histórico real desde as próximas execuções; não retrodata tarefas antigas. Modelos só rodam com todas as fontes disponíveis no corte |
 | 6 | Campeão e desafiante: portão de promoção com score probabilístico e calibração dentro de tolerância, promoção automática com intervalo, trava e volta atrás manual; nota só quando o horizonte amadurecer | passo 5 | 6 a 10 | **feito**: migração 0025 e `raiz/aprendizado/campeao.py`: portão com pares maturados, bootstrap pareado e ECE, promoção automática com trava e intervalo de 30 dias, volta atrás à mão (`raiz aprendizado campeao/promover/voltar/travar`) |
 | 7 | Orquestração: Dagster com sensor de dado novo, partições município x ano, condição de automação 'needs_updating' e memória declarada por asset (ou cron com sqlmesh run, se preferir não usar Dagster) | passos 3 e 6 | 6 a 10 | parcial: agenda por cron (`raiz executor vigiar`, `raiz/executor/agenda.py`), sem Dagster |
 | 10 | Modelo de sobrevivência do aceite do dono (lifelines) e regra de canário para modelos novos no SQLMesh | histórico de contatos | 5 a 8 | parcial: chance de aceite por perfil, beta-binomial (`raiz/pedidos/aceite.py`); **feito no código:** tempo até aceite com lifelines, recusa competitiva e censura, corte temporal estrito, previsões congeladas e placar Brier (`raiz/pedidos/sobrevivencia.py`); exige 30 contatos reais/5 aceites e seguimento suficiente. Otimizador mantém beta-binomial até avaliação real |
@@ -240,6 +240,15 @@ Feito na main fora desta tabela: aprendizado do valor para quem restaura (`raiz/
 
 ## E9. O que as pessoas veem
 
+Cena-alvo com publicação real (12/11/2026): **feito no código**. O formulário parte de um milhão de créditos no
+Pará e permite teto em US$ por crédito. O site lê o ponteiro `lote_PA_central_r11.json`, publicado pelo chat
+Lote e números, e apresenta as três alternativas, P10/P50/P90, TIR do fluxo, hectares, fazendas, pendências e
+“o que destrava”. O cenário publicado fica identificado como referência; um novo teto ou filtro exige recálculo
+na API. Sem publicação, aparecem a cobertura territorial real e o aviso, sem resultados simulados.
+Mapa das três opções com cores e traços distintos aceita somente geometrias autorizadas pela API, de fichas já
+desbloqueadas pelo próprio cliente e fora de reserva alheia. Consultar o mapa não consome novos créditos.
+Contato com donos permanece reservado à fase final. A calibração E9 com 30 cartas reais continua pendente.
+
 Entrega do chat **Ficha da fazenda** (12/11/2026; detalhes em
 `docs/passagem/ficha-da-fazenda.md`):
 
@@ -249,8 +258,17 @@ Entrega do chat **Ficha da fazenda** (12/11/2026; detalhes em
 | Busca nacional combinando estado, município, bioma, área, terra, crédito e risco; pequenas preservadas e agrupamentos indicados | **feito** sobre a cobertura processada; vizinhança do agrupamento ainda precisa de conferência |
 | Botão pedir contato, registro interno na Raíz | **feito**; não envia contato nesta etapa |
 | Créditos pagos, Pix confirmado no provedor, débito atômico/idempotente, limites persistidos contra raspagem | **feito** no código; operação exige catálogo de preços e chave Pix de produção |
-| Agregados abertos no site, nova ficha completa só na API autenticada e paga | **feito** no site e nas rotas novas; Release histórico de dados continua aberto, migração de armazenamento privado deve ser coordenada com dados |
+| Agregados abertos no site, nova ficha completa só na API autenticada e paga | **feito** no site e nas rotas novas; migração do Release histórico e contrato básico descritos na continuação abaixo |
 | Integração da nova ficha com navegação do mapa | **feito**, sem reescrever o mapa; produtor precisa de autenticação própria para voltar a acessar detalhes no site |
+
+Continuação de Ficha da fazenda (12/11/2026; validação e operação na passagem):
+
+| Entrega | Situação |
+|---|---|
+| Contrato aberto com agregado municipal/estadual e CAR/situação básica; camadas exclusivas e retratos históricos do aprendizado no arquivo privado | **feito**: 40 originais preservados no privado e 22 assets básicos publicados; SHA-256 e bloqueio anônimo conferidos, provas em `docs/dados-publicados.md`; 18 artifacts preservados/removidos e 33 caches antigos descartados |
+| Preços em YAML provisório, Pix em teste e roteiro de ativação no servidor | **feito**; valores a definir pelo fundador, venda real fechada |
+| Comparar até cinco fichas pagas, salvar busca/avisos internos e PDF com fontes/datas | **feito** no código; buscas salvas na migração 0028 após 0027 do calendário; agendar verificação no servidor ao implantar |
+| `consultar_ficha` compartilhado pela API e adaptador MCP, alinhado à passagem Produto e regras | **feito**; registro no transporte corporativo permanece com Produto e regras |
 
 Site legível por agentes (12/11/2026): **feito** — `llms.txt`, `robots.txt`, páginas Markdown do Brasil, estados,
 municípios, produtor, serviço, fontes e privacidade; alternates no HTML; JSON-LD `Dataset`, `Service` e `Offer`
@@ -268,7 +286,7 @@ zoom, polígonos coloridos, HTTP Range e zero 404. Build limita fichas pré-gera
 com portão de 950 MB. Polígonos permanecem por município enquanto couberem; não foi necessário tippecanoe nesta rodada.
 
 A entrega da ficha mantém as bases e limites do mapa nacional, mas restringe os detalhes por CAR à API paga;
-a publicação pública usa os agregados municipais.
+a publicação pública usa agregados municipais e situação básica por CAR, sem camadas exclusivas.
 
 Conferido contra a main em 12/11/2026: "feito" quer dizer que o código está na main; "parcial" diz o que existe e o
 que falta, com as horas do que falta. O site público (https://bernardoemmel.github.io/Raiz/) mostra o que o front já
@@ -323,3 +341,19 @@ faz sem back-end.
 - **Feito:** passagens unificadas em `docs/passagem/continuidade-raiz.md`; PRs #35 e #44 já integrados; migrações do título/aprendizado corrigidas para 0022–0025.
 
 - **Feito:** instalador idempotente de cron dos alertas a cada 15 minutos (`scripts/instalar_cron_alertas.py`), com trava de execução e caminho do ambiente. Instalação real no servidor continua pendente de acesso; nenhuma notificação externa foi enviada.
+
+## Calendário da Raíz
+
+| Entrega | Situação |
+|---|---|
+| Eventos com tipo, data/prazo, UF/município, fonte/link, coleta e confiança | **feito**: esquema `calendario`, migração 0027 após 0022–0025 do título/aprendizado e 0026 da prospecção; histórico, UID e sequência preservados nas retificações |
+| Coleta diária de leilões rurais, penhoras, BNDES, ProFloresta+, Fundo Amazônia, concessões, crédito e SBCE/Verra/ICVCM/SBTi/EUDR | **feito**: 17 fontes oficiais em `raiz/calendario/fontes.yaml`, HTTP/PDF/Firecrawl opcional, workflow diário com snapshot no Release `calendario`; cobertura inicial e falhas explícitas, sem inventar prazos |
+| Vínculo de leilão/penhora ao CAR | **feito**: CAR explícito, CNS+matrícula vigente ou interseção SIGEF; sem corte por tamanho; vínculo insuficiente fica pendente; CAR inferido fica interno, só CAR explícito no edital aparece na consulta pública; nenhum nome ou documento pessoal persistido |
+| API e integração | **feito**: `GET /eventos` com tipo/estado/período/CAR, `GET /eventos.ics` e função MCP `proximos_eventos` pronta; transporte MCP depende de servidor, ainda ausente no repositório |
+| Site e pedidos | **feito**: aba Calendário, filtros, fonte/data de coleta, feed, selos no mapa/ficha/tabela e aviso deduplicado aos lotes; ficha individual mantém acesso por créditos, e-mail/WhatsApp permanecem simulados. Publicação do site após a coleta |
+| Agenda no servidor | **feito no código**: `scripts/instalar_cron_alertas.py --tarefa calendario --instalar`, diário com banco, trava e `.env`; instalação em produção depende de acesso ao servidor |
+
+Limites verificados em 12/11/2026: DJEN/CNJ respondeu HTTP 403; diários estaduais começam por PA/MT; PDF escaneado sem texto ainda não tem OCR. Erro de fonte não elimina os eventos anteriores. Testes com trechos oficiais gravados e PostGIS; detalhes em `docs/calendario.md`.
+
+A primeira execução no Actions identificou ausência de `rg` no runner; a verificação do Release inicial usa agora
+`grep`, disponível na imagem padrão, preservando a interrupção em erros que não sejam Release inexistente.

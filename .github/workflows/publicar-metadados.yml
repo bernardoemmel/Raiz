@@ -1,5 +1,5 @@
 name: Publicar metadados do Release
-run-name: Metadados dos dados publicados (${{ inputs.ufs || 'todos os estados' }})
+run-name: Metadados dos dados publicados (${{ inputs.somente_globais && 'somente arquivos globais' || inputs.ufs || 'todos os estados' }})
 
 on:
   workflow_dispatch:
@@ -8,6 +8,11 @@ on:
         description: "UFs para retomar, separadas por espaço. Vazio: todos os pacotes já publicados."
         required: false
         default: ""
+      somente_globais:
+        description: "Retomar só os arquivos globais, sem reprocessar UFs. Não combinar com UFs específicas."
+        type: boolean
+        required: false
+        default: false
 
 permissions:
   contents: write
@@ -23,9 +28,12 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
       RAIZ_REPO: ${{ github.repository }}
+      RAIZ_DADOS_PRIVADOS_URL: ${{ vars.RAIZ_DADOS_PRIVADOS_URL || format('release-github://{0}/dados-privados', github.repository) }}
+      RAIZ_DADOS_PRIVADOS_TOKEN: ${{ secrets.RAIZ_DADOS_PRIVADOS_TOKEN || github.token }}
       RAIZ_SEM_BANCO: "1"
       RAIZ_WORKFLOW: processar-estados.yml
       RAIZ_CATALOGO_UFS: ${{ inputs.ufs }}
+      RAIZ_CATALOGO_SOMENTE_GLOBAIS: ${{ inputs.somente_globais }}
       # Data de cenário, não data de implantação/contrato de um projeto real.
       RAIZ_CADT_INICIO_CENARIO: ${{ vars.RAIZ_CADT_INICIO_CENARIO || '2027-01-01' }}
     steps:
@@ -39,22 +47,33 @@ jobs:
         run: uv sync --frozen --all-extras
       - name: Completar fichas, quantis, cartão e cronogramas dos arquivos já publicados
         run: uv run --all-extras python scripts/publicar_metadados.py --publicar --limite-minutos 280
-      - name: Conferir se há bytes publicados ou verificados para atestar
+      - name: Conferir listas separadas dos bytes públicos e privados
         id: atestar
         if: always()
         run: |
-          if test -s "$RUNNER_TEMP/atestar.txt"; then
-            echo "tem=1" >> "$GITHUB_OUTPUT"
-          fi
-      - name: Atestar a procedência dos bytes publicados ou verificados
-        if: always() && steps.atestar.outputs.tem == '1'
+          if test -s "$RUNNER_TEMP/atestar.txt"; then echo "publico=1" >> "$GITHUB_OUTPUT"; fi
+          if test -s "$RUNNER_TEMP/atestar-privado.txt"; then echo "privado=1" >> "$GITHUB_OUTPUT"; fi
+      - name: Atestar os arquivos básicos públicos
+        if: always() && steps.atestar.outputs.publico == '1'
         uses: actions/attest-build-provenance@v2
         with:
           subject-checksums: ${{ runner.temp }}/atestar.txt
-      - name: Guardar relatório para retomar as UFs pendentes
-        if: always()
-        uses: actions/upload-artifact@v4
+          show-summary: false
+      # Só nomes, hashes e proveniência ficam públicos; os bytes completos continuam privados.
+      - name: Atestar os hashes dos arquivos completos mantidos privados
+        if: always() && steps.atestar.outputs.privado == '1'
+        uses: actions/attest-build-provenance@v2
         with:
-          name: catalogo-metadados
-          path: ${{ runner.temp }}/catalogo-metadados.json
-          if-no-files-found: ignore
+          subject-checksums: ${{ runner.temp }}/atestar-privado.txt
+          show-summary: false
+      - name: Guardar o relatório somente no arquivo privado
+        if: always()
+        env:
+          RODADA: ${{ github.run_id }}
+          TENTATIVA: ${{ github.run_attempt }}
+        run: |
+          if test -f "$RUNNER_TEMP/catalogo-metadados.json"; then
+            uv run python -m raiz.executor.transferencia_privada enviar-arquivo --imutavel \
+              --nome "catalogo-relatorio-${RODADA}-${TENTATIVA}.json" \
+              --caminho "$RUNNER_TEMP/catalogo-metadados.json"
+          fi

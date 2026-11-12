@@ -1,10 +1,9 @@
-/**
- * Onde as telas de pedido falam com o back-end. Com VITE_RAIZ_API, as rotas de pedidos/tipos.ts; sem ela, a resposta
- * de exemplo (pedidos/exemplo.ts), no próprio navegador, com o mesmo formato. O exemplo guarda os pedidos no
- * navegador (localStorage), o que serve só para mostrar e testar as telas: o pedido de verdade fica no servidor.
+/** Com API, pedidos e lotes autenticados. Sem ela, guarda critérios no navegador
+ * e consulta somente cobertura agregada municipal/estadual, sem números financeiros de lotes.
  */
 
 import type { FonteDeDados } from "../dados/fonte"
+import { bool, num } from "../dados/colunas"
 import { pontoDentro } from "../rotulos-mapa"
 import {
   candidatoDe,
@@ -20,10 +19,13 @@ import {
 } from "./exemplo"
 import type { Andamento, CamposPedido, Cobranca, IdOpcao, MudancaLote, Pedido, ResumoPedido, Sessao } from "./tipos"
 import { tituloDoPedido } from "./texto"
+import { projetarPublicacaoLote } from "./release"
 
 export interface FontePedidos {
   /** resposta de exemplo (sem back-end): a tela avisa */
   readonly exemplo: boolean
+  /** Consulta local à cobertura territorial, sem autenticação simulada nem acesso a lotes pagos. */
+  readonly publica?: boolean
   sessao(): Sessao | null
   /** manda o link de entrada por e-mail; no exemplo, devolve o link para abrir direto */
   entrar(email: string): Promise<{ enviado: boolean; link_exemplo?: string }>
@@ -315,13 +317,66 @@ export function fontePedidosExemplo(fonte: FonteDeDados, agora: () => Date = () 
 
   async function hectaresDoGrupo(a: Andamento): Promise<number> {
     const grupo = new Set(grupoDe(a))
-    return a.fazendas.filter((f) => grupo.has(f.cod_imovel)).reduce((s, f) => s + f.hectares, 0)
+    return a.fazendas.filter((f) => grupo.has(f.cod_imovel)).reduce((s, f) => s + (f.hectares ?? 0), 0)
   }
 }
 
-/** Com VITE_RAIZ_API, a API; sem ela, a resposta de exemplo em cima da fonte de dados da tela. */
-export function escolherFontePedidos(env: { VITE_RAIZ_API?: string; BASE_URL?: string }, fonte: FonteDeDados): FontePedidos {
-  return env.VITE_RAIZ_API ? fontePedidosApi(env.VITE_RAIZ_API) : fontePedidosExemplo(fonte)
+/** Compatibilidade: guarda critérios locais e lê apenas cobertura regional. Nenhum lote sai do Release. */
+export function fontePedidosRelease(_base: string, fonte: FonteDeDados, agora: () => Date = () => new Date()): FontePedidos {
+  const g = guarda()
+  const chave = "raiz.consultas.release.v1"
+  type Consulta = { id: string; criado_em: string; campos: CamposPedido }
+  const ler = (): Record<string, Consulta> => {
+    try { return JSON.parse(g.ler(chave) ?? "{}") } catch { return {} }
+  }
+  const bloquear = async (): Promise<never> => { throw new Error("Esta consulta pública não inicia contato nem reserva. Essa etapa ficará para a fase final, na área autenticada.") }
+  async function montar(c: Consulta): Promise<Pedido> {
+    const publicacao = projetarPublicacaoLote(null)
+    if (publicacao.estado === "ausente") {
+      const municipios = (await fonte.municipios()).filter((m) => (!c.campos.onde.ufs.length || c.campos.onde.ufs.includes(m.uf)) && (!c.campos.onde.municipios.length || c.campos.onde.municipios.includes(m.cod_ibge)))
+      const somaCompleta = (coluna: string): number | null => {
+        let soma = 0
+        for (const m of municipios) {
+          const linha = m.linha ?? {}
+          const valor = num(linha, coluna)
+          if (bool(linha, "dados_suprimidos") === true || valor === null) return null
+          soma += valor
+        }
+        return soma
+      }
+      const fazendas = somaCompleta("imoveis"), hectares = somaCompleta("ha_carbono")
+      publicacao.cobertura = {
+        municipios: municipios.length,
+        estados: new Set(municipios.map((m) => m.uf)).size,
+        fazendas, hectares,
+        ...(fazendas === null || hectares === null ? { observacao: "O total não está disponível: há municípios com dados suprimidos ou valores ainda não publicados. As contagens de municípios e estados permanecem conhecidas." } : {}),
+      }
+    }
+    return {
+      ...c, status: "lote_montado", publicacao,
+      // Compatibilidade do envelope da API. A UI pública usa exclusivamente publicacao (nulos são desconhecidos).
+      base: { fazendas: 0, hectares: 0, creditos: { p10: 0, p50: 0, p90: 0 }, por_caminho: [], por_interesse: [], alcanca_meta: false, falta: 0, afrouxar: [], observacao: publicacao.aviso },
+      opcoes: [], opcao_escolhida: null, reservado_ate: null, alertas: [],
+      versao_modelo: "consulta-territorial-publica", exemplo: false,
+    }
+  }
+  return {
+    exemplo: false, publica: true, sessao: () => null, sair: () => {}, entrar: bloquear, confirmar: bloquear,
+    listar: async () => Object.values(ler()).map((c) => ({ id: c.id, criado_em: c.criado_em, titulo: tituloDoPedido(c.campos), status: "lote_montado", reservado_ate: null, com_interesse: null, alertas: 0 })),
+    async criar(campos) {
+      const c = { id: aleatorio(10), criado_em: agora().toISOString(), campos }
+      const p = await montar(c)
+      g.gravar(chave, JSON.stringify({ ...ler(), [c.id]: c }))
+      return p
+    },
+    async pedido(id) { const c = ler()[id]; return c ? montar(c) : null },
+    mudarLote: bloquear, solicitarInteresse: bloquear, andamento: async () => null, reservar: bloquear, reserva: async () => null,
+  }
+}
+
+/** Com API, o solver autenticado; sem ela, somente a cobertura regional aberta. */
+export function escolherFontePedidos(env: { VITE_RAIZ_API?: string; VITE_RAIZ_DADOS_BASE?: string; BASE_URL?: string }, fonte: FonteDeDados): FontePedidos {
+  return env.VITE_RAIZ_API ? fontePedidosApi(env.VITE_RAIZ_API) : fontePedidosRelease(env.VITE_RAIZ_DADOS_BASE || env.BASE_URL || "/", fonte)
 }
 
 export { CAMPOS_PADRAO }

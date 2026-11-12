@@ -35,7 +35,7 @@ class SegurancaAPI:
             CORSMiddleware(
                 self._atender,
                 allow_origins=origens,
-                allow_methods=["GET", "POST", "PATCH"],
+                allow_methods=["GET", "POST", "PATCH", "DELETE"],
                 allow_headers=["Authorization", "Range", "Content-Type"],
                 expose_headers=["Content-Range", "Accept-Ranges", "Content-Length", "ETag", "Retry-After"],
             )

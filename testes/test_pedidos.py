@@ -219,6 +219,7 @@ def test_pix_de_teste_e_aviso_de_pagamento(monkeypatch):
             return Resp({"data": {"status": "PAID"}})
 
     monkeypatch.setenv("RAIZ_ABACATEPAY_CHAVE", "chave-de-teste")
+    monkeypatch.setenv("RAIZ_PIX_MODO", "producao")
     c2 = pix.criar(1234.5, "Reserva Raíz com nome comprido demais para a AbacatePay", 3600, cliente=Cli())
     assert c2.externo_id == "pix_x" and c2.modo == "teste" and c2.copia_e_cola == "000201..."
     assert pix.conferir("pix_x", cliente=Cli()) == "paga"

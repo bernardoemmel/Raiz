@@ -3,7 +3,7 @@ import { escolherFontePedidos } from "../../compartilhado/pedidos/fonte-pedidos"
 import type { Sessao } from "../../compartilhado/pedidos/tipos"
 import { fonte } from "./dados"
 
-/** Os pedidos de lote: a API se VITE_RAIZ_API estiver no .env; sem ela, a resposta de exemplo no navegador. */
+/** Os pedidos de lote: a API se VITE_RAIZ_API estiver no .env; sem ela, a cobertura regional e os critérios salvos no navegador. */
 export const pedidos = escolherFontePedidos(import.meta.env, fonte)
 
 const EVENTO = "raiz-sessao"

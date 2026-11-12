@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /** Testa o site compilado como no Pages: só arquivos, /Raiz/ e HTTP Range, sem API nem fallback do Vite.
  * Antes: preparar-teste-site.mjs e construir-site.sh com RAIZ_DADOS/RAIZ_GEO apontando à fixture,
- * RAIZ_BASE=/Raiz/ e VITE_RAIZ_TESTE_MAPA=1. PLAYWRIGHT_CHROMIUM_EXECUTABLE é opcional no ambiente local.
+ * RAIZ_CALENDARIO_DADOS apontando ao calendário da fixture, RAIZ_BASE=/Raiz/ e VITE_RAIZ_TESTE_MAPA=1. PLAYWRIGHT_CHROMIUM_EXECUTABLE é opcional no ambiente local.
  */
 import assert from "node:assert/strict"
 import fs from "node:fs"
@@ -9,7 +9,7 @@ import http from "node:http"
 import { createRequire } from "node:module"
 import path from "node:path"
 import zlib from "node:zlib"
-import { CAR, CARS, MUNICIPIO, REPO, SEM_DESENHO } from "./preparar-teste-site.mjs"
+import { CANARIO_PRIVADO, CAR, CARS, MUNICIPIO, REPO, SEM_DESENHO } from "./preparar-teste-site.mjs"
 
 const require = createRequire(path.join(REPO, "front/globo/package.json"))
 const { chromium } = require("playwright")
@@ -60,16 +60,53 @@ function conferirPublicacao() {
     const arquivo = path.join(pasta, item.name)
     return item.isDirectory() ? arquivos(arquivo) : [arquivo]
   })
-  for (const pasta of ["amostra", "geo"]) for (const arquivo of arquivos(path.join(site, pasta))) {
+  const estados = JSON.parse(fs.readFileSync(path.join(site, "amostra/estados.json"), "utf8"))
+  assert.equal(estados.acesso, "publico_basico", "A camada individual requer o contrato público básico explícito.")
+  const permitidos = new Set()
+  const todos = ["amostra", "geo"].flatMap((pasta) => arquivos(path.join(site, pasta)))
+  // A fixture usa municípios sem vírgulas: cabeçalho e linhas exatos impedem colunas privadas no CSV servido.
+  for (const arquivo of todos.filter((a) => /imoveis_basicos_\d{7}\.csv\.gz$/.test(a))) {
+    const texto = zlib.gunzipSync(fs.readFileSync(arquivo)).toString("utf8")
+    const [cabecalho, ...linhas] = texto.trimEnd().split(/\r?\n/)
+    assert.equal(cabecalho, "cod_imovel,cod_ibge,municipio,uf,situacao_basica")
+    for (const linha of linhas) {
+      const campos = linha.split(",")
+      assert.equal(campos.length, 5, "Somente cinco campos básicos por imóvel.")
+      assert.match(campos[0], /^[A-Z]{2}-\d{7}-[A-F0-9]{32}$/)
+      assert(["apto", "com_pendencia", "nao_apto"].includes(campos[4]))
+      permitidos.add(campos[0])
+    }
+  }
+  assert.equal(permitidos.size, CARS.length + 1, "A publicação básica inclui todas as fazendas da fixture.")
+  for (const arquivo of todos) {
     const nome = path.relative(site, arquivo)
-    assert(!/(?:^|\/)(?:car_|imoveis_|filtros_|ficha_|certidoes_|desenvolvedor_)/.test(nome), `Arquivo individual publicado: ${nome}`)
+    assert(!/(?:^|\/)(?:imoveis_\d{7}\.csv|filtros_|ficha_|certidoes_|desenvolvedor_)/.test(nome), `Camada paga publicada: ${nome}`)
     assert(!nome.includes("/fichas/"), `Ficha individual publicada: ${nome}`)
     if (!/\.(json|geojson|csv)(\.gz)?$/.test(nome)) continue
     const bytes = fs.readFileSync(arquivo)
     const texto = (nome.endsWith(".gz") ? zlib.gunzipSync(bytes) : bytes).toString("utf8")
-    assert(!texto.includes("cod_imovel"), `Identificador individual publicado em ${nome}`)
-    assert(CARS.every((car) => !texto.includes(car)), `CAR privado publicado em ${nome}`)
-    assert(!/[A-Z]{2}-[0-9]{7}-[A-F0-9]{32}/.test(texto), `Código CAR publicado em ${nome}`)
+    assert(!texto.includes(CANARIO_PRIVADO), `Conteúdo pago publicado: ${nome}`)
+    if (/imoveis_basicos_\d{7}\.csv\.gz$/.test(nome)) continue
+    if (/imoveis_\d{7}\.geojson\.gz$/.test(nome)) {
+      const geo = JSON.parse(texto)
+      assert.equal(geo.type, "FeatureCollection")
+      assert.equal(geo.features.length, CARS.length, "CAR sem registro básico precisa ser excluído da geometria.")
+      for (const f of geo.features) {
+        assert.deepEqual(Object.keys(f).sort(), ["geometry", "properties", "type"])
+        assert.deepEqual(Object.keys(f.properties), ["cod_imovel"], "A geometria não pode carregar métricas pagas.")
+        assert(permitidos.has(f.properties.cod_imovel))
+      }
+      continue
+    }
+    if (/car_[A-Z]{2}\.json$/.test(nome)) {
+      for (const [car, cod] of Object.entries(JSON.parse(texto))) {
+        assert(permitidos.has(car), "O índice CAR só admite registros do contrato básico.")
+        assert.match(cod, /^\d{7}$/)
+      }
+      continue
+    }
+    assert(!texto.includes("cod_imovel"), `Identificador individual fora do contrato básico: ${nome}`)
+    assert(!/[A-Z]{2}-[0-9]{7}-[A-F0-9]{32}/.test(texto), `CAR fora do contrato básico: ${nome}`)
   }
 }
 
@@ -89,7 +126,7 @@ async function mapaPronto() {
 
 try {
   conferirPublicacao()
-  console.log("Abrindo o build estático agregado no Chromium...")
+  console.log("Abrindo o build estático básico no Chromium...")
   await pagina.goto(base)
   await mapaPronto()
   await pagina.waitForFunction(() => {
@@ -100,7 +137,10 @@ try {
   assert(baseNacional.includes("base_brasil.pmtiles"), "A entrada precisa usar o PMTiles nacional.")
   console.log("Buscando Parauapebas...")
   await buscar("Parauapebas", `#/municipio/${MUNICIPIO}`)
-  await pagina.locator(".funil-barras").waitFor()
+  await pagina.locator(".lista-basica").waitFor()
+  const leilaoNaLista = pagina.locator(".lista-basica").getByRole("link", { name: "Em leilão", exact: true })
+  await leilaoNaLista.waitFor()
+  assert.equal(await leilaoNaLista.getAttribute("href"), `#/calendario/${encodeURIComponent(CAR)}`)
   await mapaPronto()
   await pagina.waitForFunction((cod) => {
     const m = document.querySelector(".mapa-brasil .mapa").__mapa
@@ -108,7 +148,7 @@ try {
   }, MUNICIPIO)
   assert.equal(await pagina.evaluate(() => { const fonte = document.querySelector(".mapa-brasil .mapa").__mapa.getStyle().sources.protomaps; return fonte.url ?? fonte.tiles?.[0] }), baseNacional,
     "O município precisa reutilizar a mesma base nacional.")
-  await pagina.screenshot({ path: path.join(resultado, "municipio-agregado.png"), fullPage: true })
+  await pagina.screenshot({ path: path.join(resultado, "municipio-basico.png"), fullPage: true })
   // Usa o controle que o visitante usa; não pula direto para um estado interno do mapa.
   console.log("Aproximando pelo botão do mapa...")
   while (await pagina.evaluate(() => document.querySelector(".mapa-brasil .mapa").__mapa.getZoom()) < 13) {
@@ -121,8 +161,31 @@ try {
   }, null, { timeout: 30000 })
   const zoom = await pagina.evaluate(() => document.querySelector(".mapa-brasil .mapa").__mapa.getZoom())
   assert(zoom > 6, "O teste precisa aproximar além do zoom 6 disponível na base.")
-  const individuais = await pagina.evaluate(() => document.querySelector(".mapa-brasil .mapa").__mapa.queryRenderedFeatures({ layers: ["imoveis"] }).length)
-  assert.equal(individuais, 0, "O mapa aberto não pode desenhar os polígonos individuais da origem privada.")
+  const individuais = await pagina.evaluate(() => {
+    const m = document.querySelector(".mapa-brasil .mapa").__mapa
+    return m.queryRenderedFeatures({ layers: ["imoveis"] }).map((f) => ({ car: f.properties.cod_imovel, g: m.getFeatureState({ source: "imoveis", id: f.properties.cod_imovel }).g }))
+  })
+  assert.deepEqual([...new Set(individuais.map((f) => f.car))].sort(), [...CARS].sort(), "Todos os polígonos básicos precisam aparecer.")
+  assert.deepEqual([...new Set(individuais.map((f) => f.g))].sort(), [0, 1, 2], "As três situações básicas precisam colorir o mapa.")
+  await pagina.waitForFunction((car) => {
+    const m = document.querySelector(".mapa-brasil .mapa").__mapa
+    return m.getFeatureState({ source: "imoveis", id: car }).emLeilao === true
+  }, CAR)
+  const destaqueLeilao = await pagina.evaluate((cars) => {
+    const m = document.querySelector(".mapa-brasil .mapa").__mapa
+    return { tracejado: m.getPaintProperty("imoveis-leilao", "line-dasharray"),
+      marcados: cars.filter((car) => m.getFeatureState({ source: "imoveis", id: car }).emLeilao === true) }
+  }, CARS)
+  assert.deepEqual(destaqueLeilao.tracejado, [2, 2], "O contorno do leilão precisa ser tracejado.")
+  assert.deepEqual(destaqueLeilao.marcados, [CAR], "O calendário marca somente o imóvel vinculado ao evento.")
+  assert.equal(await pagina.locator(".lista-basica li").count(), 6)
+  await pagina.getByRole("combobox", { name: /^Situação básica/ }).selectOption("com_pendencia")
+  assert.equal(await pagina.locator(".lista-basica li").count(), 2)
+  await pagina.waitForFunction(() => {
+    const m = document.querySelector(".mapa-brasil .mapa").__mapa
+    return m.queryRenderedFeatures({ layers: ["imoveis"] }).every((f) => [1, 3].includes(m.getFeatureState({ source: "imoveis", id: f.properties.cod_imovel }).g))
+  })
+  await pagina.getByRole("combobox", { name: /^Situação básica/ }).selectOption("")
   const corAgua = await pagina.evaluate(() => {
     const m = document.querySelector(".mapa-brasil .mapa").__mapa
     const contexto = document.createElement("canvas").getContext("2d")
@@ -140,13 +203,18 @@ try {
     `O MVT da fixture cobre a tela de água; o canvas precisa pintá-la: ${agua} pixels da cor ${corAgua}.`)
   assert(faixas.some((f) => f.arquivo.endsWith("base_brasil.pmtiles")), "A base precisa ser lida por HTTP Range.")
   assert(faixas.every((f) => f.arquivo.endsWith("base_brasil.pmtiles")), "A mesma base nacional deve atender o município.")
-  console.log(`ok: país e município desenhados; zoom ${zoom.toFixed(1)}, base visível com overzoom e sem polígonos privados.`)
+  console.log(`ok: país e município desenhados; zoom ${zoom.toFixed(1)}, base visível com overzoom e polígonos básicos nas três situações.`)
 
   await buscar(SEM_DESENHO, `#/municipio/${SEM_DESENHO}`)
   await pagina.getByText("O desenho das fazendas deste município ainda não está disponível.", { exact: false }).waitFor()
   await buscar(MUNICIPIO, `#/municipio/${MUNICIPIO}`)
-  await pagina.locator(".funil-barras").waitFor()
-  // O CAR não fica no índice público. A abertura manual leva ao acesso pago, sem baixar dados individuais.
+  await pagina.locator(".lista-basica").waitFor()
+  // Os links básicos abrem o portão pago e nunca entregam a ficha completa no site.
+  await pagina.locator('.lista-basica a[href^="#/fazenda/"]').first().click()
+  await pagina.getByRole("heading", { name: "Ficha da terra", exact: true }).waitFor()
+  await pagina.getByText("A ficha exige créditos pagos e conexão com a Raíz.", { exact: false }).waitFor()
+  await buscar(CAR.toLowerCase().replaceAll("-", ""), `#/fazenda/${CAR}`)
+  // A entrada manual de CAR continua disponível fora do mapa.
   await pagina.getByRole("link", { name: "Fazendas", exact: true }).click()
   await pagina.getByRole("heading", { name: "Prospectar terras no Brasil" }).waitFor()
   await pagina.getByLabel("Abrir ficha pelo código do CAR").fill(CAR)
@@ -157,12 +225,22 @@ try {
   assert.equal(await pagina.getByRole("button", { name: "Pedir contato", exact: true }).count(), 0,
     "O site aberto não concede acesso à ficha ou ao pedido de contato.")
   await pagina.waitForLoadState("networkidle")
+  assert.equal(await pagina.getByRole("link", { name: "Em leilão: conferir edital e prazo", exact: true }).count(), 0,
+    "A ficha bloqueada não expõe os vínculos individuais do calendário.")
+  await pagina.getByRole("link", { name: "Calendário", exact: true }).click()
+  await pagina.getByRole("heading", { name: "Calendário da Raíz" }).waitFor()
+  await pagina.getByRole("heading", { name: "Leilão fictício para teste do Pages" }).waitFor()
+  assert.equal(await pagina.locator(".calendario-evento").count(), 1)
+  const feed = await pagina.getByRole("link", { name: "Baixar agenda completa (.ics)" }).getAttribute("href")
+  const respostaFeed = await pagina.request.get(new URL(feed, base).href)
+  assert.equal(respostaFeed.status(), 200)
+  assert((await respostaFeed.text()).startsWith("BEGIN:VCALENDAR"))
   assert(!pedidos.some((u) => new URL(u).pathname.endsWith("/busca")), "A busca estática não pode pedir /busca.")
-  assert(!pedidos.some((u) => /\/(?:imoveis_|car_|fichas\/|certidoes_|desenvolvedor_)/.test(new URL(u).pathname)),
-    "A navegação aberta não pode requisitar CSV, CAR, geometria ou ficha individuais.")
+  assert(!pedidos.some((u) => /\/(?:imoveis_\d{7}\.csv|fichas\/|certidoes_|desenvolvedor_)/.test(new URL(u).pathname)),
+    "A navegação aberta não pode requisitar camadas ou fichas pagas.")
   assert.deepEqual(ausentes, [], "Nenhum arquivo pode responder 404.")
   assert.deepEqual(erros, [], "Nenhum erro de rede, JavaScript ou renderização.")
-  console.log("ok: busca por nome e IBGE, acesso pago pelo CAR, publicação sem dados individuais, zero 404 e zero erro no navegador.")
+  console.log("ok: busca por nome, IBGE e CAR, acesso pago pela lista e pelo CAR, publicação somente básica, calendário e feed ICS, zero 404 e zero erro no navegador.")
 } catch (erro) {
   await pagina.screenshot({ path: path.join(resultado, "falha.png"), fullPage: true }).catch(() => {})
   console.error(JSON.stringify({ ausentes, erros }, null, 2))

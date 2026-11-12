@@ -122,12 +122,16 @@ def rodar_municipio(cod: int, op: Opcoes, hc=None) -> dict:
                 else:
                     from raiz.aprendizado.captura import Captura
 
-                    captura = Captura(uf, cod) if eng is not None else None
+                    captura = Captura(uf, cod)
                     with captura.modelos() if captura else contextlib.nullcontext():
                         fn(reg)
-                    if captura is not None:
+                    if eng is not None:
                         with eng.begin() as con:
                             reg.detalhe["historico_aprendizado"] = captura.publicar(con)
+                    else:
+                        from raiz.aprendizado.retratos import guardar
+
+                        reg.detalhe["historico_aprendizado"] = guardar(captura, tarefa)
             res[tarefa] = "pulado" if reg.pulado else "sucesso"
             return True
         except Exception as ex:  # noqa: BLE001 - o lote já registrou e pingou a falha

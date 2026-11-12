@@ -146,6 +146,7 @@ SITUACOES_TERRA = ("pronta_agora", "em_espera", "so_mostrar", "sem_dados")
 UNIDADE_CREDITO = "tCO2e líquidos no contrato"
 FONTE_PROSPECCAO = "SICAR e cálculos da Raíz da rodada vigente (terra e restauração)"
 CRITERIO_AGRUPAMENTO = "Até 4 módulos fiscais ou assentamento no mesmo município e bioma; vizinhança a conferir."
+FILTROS_PAGOS = ("credito_min", "credito_max", "risco", "caminho_terra", "situacao_terra")
 
 
 class FiltrosProspeccao(BaseModel):
@@ -231,6 +232,46 @@ def _texto_normalizado_sql(coluna: str) -> str:
     return f"translate(lower(trim({coluna})), 'áàâãäéèêëíìîïóòôõöúùûüç', 'aaaaaeeeeiiiiooooouuuuc')"
 
 
+def exigir_filtros_pagos(con: Connection, filtros: FiltrosProspeccao, cliente_id: int | None) -> None:
+    """Faixa/risco descobrem novas fazendas como serviço pago, sem cobrança implícita.
+
+    Uma sessão ou saldo arbitrário não habilitam filtros: exige pagamento real
+    registrado ou liberação com débito auditado. CAR junto de filtro avançado
+    só é aceito quando completo e já liberado; prefixos não viram um oráculo.
+    """
+    if not any(getattr(filtros, k) is not None for k in FILTROS_PAGOS):
+        return
+    from raiz.prospeccao_acesso import ErroAcesso
+
+    habilitado = con.execute(
+        text("""select exists (
+            select 1 from negocio.cliente cl where cl.id = :c and cl.ativo and (
+                exists (select 1 from negocio.prospeccao_compra compra
+                    join negocio.prospeccao_movimento m on m.compra_id = compra.id
+                    and m.cliente_id = compra.cliente_id and m.quantidade > 0
+                    where compra.cliente_id = cl.id and compra.estado = 'paga' and compra.modo = 'producao')
+                or exists (select 1 from negocio.prospeccao_desbloqueio d
+                    join negocio.prospeccao_movimento m on m.cliente_id = d.cliente_id
+                    and m.cod_imovel = d.cod_imovel and m.quantidade = -1 where d.cliente_id = cl.id)
+            ))"""),
+        {"c": cliente_id},
+    ).scalar_one()
+    if not habilitado:
+        raise ErroAcesso(402, "Filtros por crédito, risco e caminho da terra exigem crédito pago ou ficha já liberada.")
+    q = filtros.q or ""
+    if parece_codigo(q) and not (q.isdigit() and len(q) == 7):
+        liberada = con.execute(
+            text("""select 1 from negocio.prospeccao_desbloqueio d
+                join funil.vigente v on v.cod_imovel = d.cod_imovel
+                where d.cliente_id = :c and v.cod_busca = :q"""),
+            {"c": cliente_id, "q": normalizar_codigo(q)},
+        ).scalar()
+        if liberada is None:
+            raise ErroAcesso(
+                402, "Para combinar CAR e filtros avançados, informe o CAR completo de uma ficha liberada."
+            )
+
+
 def _consulta_prospeccao(filtros: FiltrosProspeccao, cliente_id: int | None) -> tuple[str, dict]:
     """Consulta só da rodada vigente; seleção ocorre no Postgres, antes de paginar."""
     par: dict = {"cliente_id": cliente_id}
@@ -279,11 +320,21 @@ def _consulta_prospeccao(filtros: FiltrosProspeccao, cliente_id: int | None) -> 
     sql = f"""with origem as (
         select v.cod_imovel as codigo_car, v.uf, v.cod_municipio_ibge as cod_ibge,
                r.municipio, r.bioma, r.ha, r.m_fiscal, r.tipo_imovel, r.carbono_ha, ro.data_corte,
+               liberada.cod_imovel is not null as ficha_liberada,
+               case when coalesce(r.problema, coalesce(r.embargo_ha > 1 and r.embargo_ha < 'Infinity'::float8, false)
+                    or coalesce(r.ti_ha > 1 and r.ti_ha < 'Infinity'::float8, false)
+                    or coalesce(r.desm_pos2020_ha > 1 and r.desm_pos2020_ha < 'Infinity'::float8, false)
+                    or coalesce(r.alerta_pos2020_ha > 1 and r.alerta_pos2020_ha < 'Infinity'::float8, false))
+                    then 'com_pendencia'
+                    when r.carbono_ha > 0 and r.carbono_ha < 'Infinity'::float8
+                         and coalesce(r.desm_pos2016_ha, 0) <= 5 then 'apto' else 'nao_apto' end as situacao_basica,
                coalesce(d.atributos, '{{}}'::jsonb) || coalesce(f.atributos, '{{}}'::jsonb)
                    || coalesce(t.atributos, '{{}}'::jsonb) || r.atributos as a
         from funil.vigente v
         join funil.resultado_imovel r on r.rodada_id = v.rodada_id and r.cod_imovel = v.cod_imovel
         join funil.rodada ro on ro.id = v.rodada_id
+        left join negocio.prospeccao_desbloqueio liberada on liberada.cod_imovel = v.cod_imovel
+             and liberada.cliente_id = cast(:cliente_id as bigint)
         left join funil.complemento_imovel d on d.rodada_id = v.rodada_id
              and d.cod_imovel = v.cod_imovel and d.tipo = 'desenvolvedor'
         left join funil.complemento_imovel f on f.rodada_id = v.rodada_id
@@ -292,7 +343,7 @@ def _consulta_prospeccao(filtros: FiltrosProspeccao, cliente_id: int | None) -> 
              and t.cod_imovel = v.cod_imovel and t.tipo = 'terra'
         where {" and ".join(iniciais)}
     ), medidas as (
-        select codigo_car, uf, cod_ibge, municipio, bioma, data_corte,
+        select codigo_car, uf, cod_ibge, municipio, bioma, data_corte, ficha_liberada, situacao_basica,
                case when ha >= 0 and ha < 'Infinity'::float8 then ha end as area_ha,
                coalesce({area}, case when carbono_ha >= 0 and carbono_ha < 'Infinity'::float8
                                     then carbono_ha end) as area_restauravel_ha,
@@ -343,16 +394,24 @@ def buscar_prospeccao(
     if not incluir_imoveis:
         validar_agregado_publico(filtros)
     sql, par = _consulta_prospeccao(filtros, cliente_id)
+    # Na busca que identifica CARs, somas privadas só incluem fichas liberadas.
+    # Caso contrário q=CAR revelaria a ficha pela soma, mesmo com a linha fechada.
+    soma_privada = "filter (where ficha_liberada)" if incluir_imoveis else ""
     with engine.connect().execution_options(isolation_level="REPEATABLE READ") as con:
+        if incluir_imoveis:
+            exigir_filtros_pagos(con, filtros, cliente_id)
         totais = dict(
             con.execute(
                 text(
                     sql
-                    + """
+                    + f"""
             select count(*) as fazendas, sum(area_ha) as area_ha,
-                   sum(area_restauravel_ha) as area_restauravel_ha,
-                   sum(credito_p10) as credito_p10, sum(credito_p50) as credito_p50, sum(credito_p90) as credito_p90,
-                   count(credito_p50) as com_credito, count(*) filter (where pequena) as pequenas,
+                   sum(area_restauravel_ha) {soma_privada} as area_restauravel_ha,
+                   sum(credito_p10) {soma_privada} as credito_p10,
+                   sum(credito_p50) {soma_privada} as credito_p50,
+                   sum(credito_p90) {soma_privada} as credito_p90,
+                   count(credito_p50) {soma_privada} as com_credito, count(*) filter (where pequena) as pequenas,
+                   count(*) filter (where ficha_liberada) as fichas_liberadas,
                    count(area_ha) as n_area_ha, count(area_restauravel_ha) as n_area_restauravel_ha,
                    count(credito_p10) as n_credito_p10, count(credito_p50) as n_credito_p50,
                    count(credito_p90) as n_credito_p90,
@@ -369,9 +428,10 @@ def buscar_prospeccao(
             for r in con.execute(
                 text(
                     sql
-                    + """
+                    + f"""
             select uf, cod_ibge, municipio, bioma, count(*) as fazendas, sum(area_ha) as area_ha,
-                   sum(credito_p50) as credito_p50, min(data_corte) as data_corte_min,
+                   sum(credito_p50) {soma_privada} as credito_p50, min(data_corte) as data_corte_min,
+                   count(*) filter (where ficha_liberada) as fichas_liberadas,
                    count(area_ha) as n_area_ha, count(credito_p50) as n_credito_p50,
                    max(data_corte) as data_corte_max, count(*) over () as total_agrupamentos
             from selecionadas where agrupar
@@ -389,10 +449,15 @@ def buscar_prospeccao(
                     text(
                         sql
                         + """
-                select codigo_car, uf, cod_ibge, municipio, bioma, area_ha, area_restauravel_ha,
-                       caminho_terra, situacao_terra, risco, pequena, agrupar,
-                       credito_p10, credito_p50, credito_p90, data_corte
-                from selecionadas order by credito_p50 desc nulls last, codigo_car
+                select codigo_car, uf, cod_ibge, municipio, bioma, area_ha, ficha_liberada, situacao_basica,
+                       case when ficha_liberada then area_restauravel_ha end as area_restauravel_ha,
+                       case when ficha_liberada then caminho_terra end as caminho_terra,
+                       case when ficha_liberada then situacao_terra end as situacao_terra,
+                       case when ficha_liberada then risco end as risco, pequena, agrupar,
+                       case when ficha_liberada then credito_p10 end as credito_p10,
+                       case when ficha_liberada then credito_p50 end as credito_p50,
+                       case when ficha_liberada then credito_p90 end as credito_p90, data_corte
+                from selecionadas order by codigo_car
                 limit :limite offset :inicio"""
                     ),
                     {**par, "limite": limite, "inicio": (pagina - 1) * limite},
@@ -415,6 +480,7 @@ def buscar_prospeccao(
             if not incluir_imoveis and n is not None and n < 5:
                 resumo[campo] = None
         if not incluir_imoveis:
+            resumo.pop("fichas_liberadas", None)
             for campo in ("fazendas", "pequenas", "com_credito"):
                 if 0 < (resumo.get(campo) or 0) < 5:
                     resumo[campo] = None
@@ -430,12 +496,15 @@ def buscar_prospeccao(
         "total_agrupamentos": n_grupos,
         "agrupamentos_limitados": n_grupos > len(grupos),
         "credito_unidade": UNIDADE_CREDITO,
+        "escopo_metricas": "fichas_liberadas" if incluir_imoveis else "agregado_regional",
         "aviso": "Cobertura restrita às fazendas já processadas, de qualquer estado. Datas são cortes da rodada, "
         "não datas de observação de cada fonte. Crédito e área restaurável são estimativas; ausências "
         "não viram zero. P10/P90 somados não são uma simulação conjunta de lote. "
         "Agrupamento sugere análise conjunta; vizinhança ainda precisa ser conferida. "
         "Filtros de terra usam a classificação já processada. No agregado aberto, valores com menos de cinco "
-        "fazendas são omitidos para proteger a ficha individual.",
+        "fazendas são omitidos para proteger a ficha individual. Na busca por fazendas, crédito e área restaurável "
+        "nas linhas e somas incluem somente fichas liberadas. Filtros avançados pagos informam pertinência à faixa, "
+        "sem liberar a ficha nem consumir outro crédito.",
     }
     if incluir_imoveis:
         resposta["imoveis"] = imoveis
@@ -452,3 +521,5 @@ def validar_agregado_publico(filtros: FiltrosProspeccao) -> None:
         raise ValueError("Busca por CAR exige entrada na conta. No agregado, selecione o município.")
     if any(getattr(filtros, k) is not None for k in ("area_min_ha", "area_max_ha", "credito_min", "credito_max")):
         raise ValueError("Filtros por tamanho e crédito exigem entrada na conta.")
+    if any(getattr(filtros, k) is not None for k in ("risco", "caminho_terra", "situacao_terra")):
+        raise ValueError("Filtros por risco e caminho da terra exigem acesso pago; o agregado aberto é regional.")

@@ -19,7 +19,7 @@ Branch seguinte, com as seis pendências E1/E2: `codex/dados-e1-e2`.
 ## Onde parou
 
 - **#43 fechado e conferido:** os runs `43256751563` (PR) e `43256738203` (push) terminaram com sucesso.
-  Na retomada havia 13 jobs de processamento ativos. Nenhum foi cancelado. A revisão encontrou caminhos que
+  Na retomada havia 13 jobs de processamento ativos. Nenhum foi cancelado pela retomada. A revisão encontrou caminhos que
   ainda furavam o limite (pedidos explícitos, `refazer`, continuações, planejadores concorrentes e falha da API).
   A entrega 1 fecha esses caminhos com `motor/fila_processamento.py` e a ref `raiz-fila-processamento`.
   Reservas só são liberadas depois de o Actions confirmar o job concluído, incluindo seus passos finais.
@@ -188,3 +188,56 @@ uv run ruff check raiz testes scripts migracoes && uv run ruff format --check ra
 uv run raiz privacidade varrer && uv run python scripts/checar_licencas.py
 uv run python motor/rodar_estado.py --planejar   # o plano da próxima rodada, só lendo o estados.json publicado
 ```
+
+## Validação de escala e modelos na retomada
+
+- Suíte integrada após atualizar a main: 854 testes passaram com PostGIS (2 pulados, 1 xfail).
+- RO real: 521 CSVs, 14.020 campos e 5.073.915 linhas de quantis; 3.476 diagnósticos de faixas financeiras cruzadas,
+  sem ordenar ou inventar valores. A ficha Croissant permanece byte a byte idêntica após limitar a memória.
+- Baker e mlcroissant são executados em partes, em filhos sequenciais; checagens globais conferem IDs e referências.
+  No RO, o pico simultâneo pai+filho foi 314 MiB, ante 1,083 GiB na geração anterior.
+- Escala MG sintética: cabeçalhos reais replicados em 853 municípios, sem linhas de dados; 8.530 CSVs e
+  230.310 campos. Ficha integral de 120.286.760 bytes, 157 partes baker e 158 validações mlcroissant em 840 s.
+  Pico de 519 MiB durante geração/validação e 919 MiB na serialização final, com apenas o processo principal.
+- O registro histórico fechado da regra `restauracao-2026c+421970fd` recupera os YAMLs do commit
+  `8eebc6a90bc20bce585520cee81bbebdd1ff93df` e confere hashes integrais. RO gerou 25 estimativas CAD Trust sem
+  diagnósticos, com soma e marcos conferidos; repetido em 120 s com as salvaguardas da nova main. A seleção usa
+  o otimizador e as salvaguardas atuais, identificados separadamente;
+  previsões individuais e curva histórica são preservadas.
+
+## Continuidade operacional e pausa externa (12/11, 19h UTC)
+
+- A API registra `processar-estados.yml` como `disabled_manually` desde 19h09min20s UTC. Os runs
+  `43285999423` e `43286899548`, além dos cancelamentos de BA/PI/CE desse intervalo, têm a anotação
+  `The run was canceled by @bernardoemmel.` Isso identifica a conta, sem identificar pessoa, interface ou token.
+  A retomada não solicitou cancelamentos nem desfez a desativação; a intenção da pausa foi perguntada ao fundador.
+- O cancelamento automático de BA-1 em `43256269335`, às 18h42min05s, antecede o merge #46 às 18h43min39s.
+  Não houve evidência de duplicação causada pela fila nova. Reservas canceladas passam a pedidos bloqueados na
+  reconciliação; não devem ser confundidas com solicitações ainda ativas.
+- O publicador retroativo reserva uma vaga global sem consumir pedidos de UF. Confere cota antes de cada UF e
+  dos globais; a margem de 250 requisições adia trabalho com relatório, sem ocupar a vaga esperando uma hora.
+  Repetições de respostas de quota têm limite conjunto de 60 segundos. Falhas comuns de permissão não se repetem.
+- Substituições preservam os bytes originais e metadados antes do DELETE; só removem a cópia após POST confirmado.
+  Se o upload falhar, `recuperacao-release-<tentativa>` guarda os originais por sete dias, e a publicação para.
+  O relatório `catalogo-metadados-<tentativa>` permite retomar UFs pendentes; `somente_globais` retoma apenas o final.
+- Execuções futuras de `processar-estados.yml` com ciência fixada em commit antigo usam o publicador do SHA do
+  workflow em checkout e ambiente separados. O finalizador confere a reserva original e usa a mesma vaga e prazo,
+  preservando a versão científica, o cache e a continuação. Runs já iniciados precisam da retropublicação.
+
+## Mudança de contrato coordenada com Ficha da fazenda
+
+Durante a retomada, o fundador determinou no chat “RAIZ - Ficha da fazenda” que cálculos detalhados por CAR
+ficassem privados. A pausa do motor faz parte dessa migração, não de uma falha do teto de jobs.
+O Actions `43288984765` preservou os originais no draft autenticado `dados-privados` (não publicar esse draft) e
+substituiu o Release `dados` por 22 arquivos básicos. A retomada de Dados não reativa os publicadores antigos.
+
+A entrega de metadados passou a ter dois escopos: Croissant básico e cartão metodológico no público; quantis,
+tasks, modelos, diagnósticos, CADT e fichas completas no privado. O catálogo aberto não reescreve o manifesto
+básico, e backups de arquivos privados nunca usam artifacts públicos. A dependência do contrato da Ficha será
+integrada antes do PR e da execução retroativa. A implementação anterior foi validada em 1.141 testes com
+PostGIS (2 skips, 1 xfail), além de 52 testes das atualizações posteriores de calendário/pedidos; a integração
+privada exige nova validação antes da entrega.
+
+O fundador autorizou explicitamente reativar o processamento e retomar os lotes pendentes. A retomada será feita
+após CI e merge do publicador integrado, migrando as referências da fila para esse código, reabrindo os pedidos
+interrompidos e mantendo o teto global de 15. Nenhum job novo usará o publicador que expunha dados completos.

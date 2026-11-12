@@ -129,6 +129,7 @@ def versao(nome: str) -> str:
     # execução, mesmo quando o CSV final teria os mesmos números.
     historico = (
         "raiz/aprendizado/captura.py",
+        "raiz/aprendizado/retratos.py",
         "raiz/aprendizado/arquivo_historico.py",
         "raiz/aprendizado/reexecucao.py",
         "raiz/funil/rodar.py",

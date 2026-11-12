@@ -1,20 +1,5 @@
 #!/usr/bin/env node
-/**
- * Baixa sozinho os dados do motor publicados no Release `dados` do GitHub para dados/estados/<UF>/.
- * Roda antes do `npm run dev` (predev) e pode rodar no deploy. Só baixa o estado que mudou: compara a versão
- * de cada estado no estados.json publicado com a cópia local (dados/estados/estados.json).
- *
- * Uso (da pasta front/globo ou front/produtor, ou de qualquer lugar):
- *   node ../scripts/baixar-dados.mjs              # todos os estados publicados, só CSV
- *   node ../scripts/baixar-dados.mjs PA RO        # só alguns
- *   node ../scripts/baixar-dados.mjs --geo        # também os polígonos (geo_<cod>.parquet)
- *   node ../scripts/baixar-dados.mjs --geo --exigir # publicação: erro no download interrompe o build
- * Variáveis: RAIZ_DADOS (pasta de destino; padrão dados/estados na raiz do repositório),
- *            RAIZ_DADOS_URL (onde está o estados.json; padrão o Release `dados` do repositório),
- *            RAIZ_SEM_DOWNLOAD=1 (pula tudo, ex.: sem internet).
- * Sem internet ou com erro, avisa e segue: o front cai na amostra (dados/amostra).
- * Precisa só do Node 18+ e do `tar` (vem no Linux, no macOS e no Windows 10+). Sem dependências.
- */
+/** Baixa somente o contrato publico_basico v1. Pacotes legados e campos desconhecidos falham fechados. */
 import { execFileSync } from "node:child_process"
 import fs from "node:fs"
 import os from "node:os"
@@ -22,84 +7,169 @@ import path from "node:path"
 import { fileURLToPath } from "node:url"
 
 const RAIZ_REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..")
-const DESTINO = path.resolve(RAIZ_REPO, process.env.RAIZ_DADOS || "dados/estados")
+const DESTINO = path.resolve(RAIZ_REPO, process.env.RAIZ_DADOS || "dados/publicos")
 const URL_BASE = process.env.RAIZ_DADOS_URL || "https://github.com/bernardoemmel/raiz/releases/download/dados"
 const args = process.argv.slice(2)
 const comGeo = args.includes("--geo")
 const exigir = args.includes("--exigir")
 const pedidos = args.filter((a) => /^[A-Z]{2}$/.test(a))
+const UFS = new Set("AC AL AP AM BA CE DF ES GO MA MT MS MG PA PB PR PE PI RJ RN RS RO RR SC SP SE TO".split(" "))
+const BASICAS = ["cod_imovel", "cod_ibge", "municipio", "uf", "situacao_basica"]
+const RESUMO = new Set(("cod_ibge municipio imoveis sem_problema def_RL aptas_carbono ha_carbono tco2_ano_aptas aptas_com_matricula ha_carbono_matricula cota_reserva redd_imoveis redd_ha app_imoveis app_ha frigorifico_imoveis frigorifico_ha compensacao_ha eudr_ok credito_rural_ok compra_arrendamento alerta_pos2020_imoveis frente_regularizar_antes frente_carbono frente_silvipastoril frente_desbloqueio frente_carbono_revisar_desm10anos frente_assentamento_agrupado frente_carbono_so_plantio frente_fora_TI frente_ja_tem_projeto").split(" "))
+const SEM_IMOVEIS = new Set(["cod_ibge", "municipio", "verificado_em"])
+const SITUACOES = new Set(["apto", "com_pendencia", "nao_apto"])
+const CHAVES_ESTADO = new Set("versao_publicacao escopo municipios sem_imoveis total_ibge completo funil_completo tamanho versao atualizado_em motor_versao situacao faltam tabelas versoes url geo".split(" "))
+const objeto = (v) => v !== null && typeof v === "object" && !Array.isArray(v)
+const marcado = (v) => objeto(v) && v.versao_publicacao === 1 && v.escopo === "publico_basico"
 
-async function baixarJson(url) {
-  const r = await fetch(url, { redirect: "follow" })
-  if (!r.ok) throw new Error(`${url}: HTTP ${r.status}`)
-  return r.json()
+function chaves(dado, permitidas, rotulo) {
+  if (!objeto(dado) || Object.keys(dado).some((k) => !permitidas.has(k))) throw new Error(`${rotulo}: metadados fora do contrato público`)
+}
+function urlPacote(url, uf, geo = false) {
+  const esperado = `raiz_${geo ? "geo_" : ""}${uf}.tar.gz`
+  const u = new URL(url)
+  const base = new URL(URL_BASE)
+  if (!['https:', 'http:'].includes(u.protocol) || u.origin !== base.origin || u.username || u.password || path.posix.basename(u.pathname) !== esperado)
+    throw new Error(`${uf}: endereço fora do pacote público esperado`)
+  return u.href
+}
+function validarManifesto(m) {
+  chaves(m, new Set(["versao_publicacao", "escopo", "gerado_em", "repo", "tag", "estados"]), "manifesto")
+  if (!marcado(m) || !objeto(m.estados)) throw new Error("manifesto legado ou versão pública desconhecida")
+  if ((m.repo !== undefined && (typeof m.repo !== "string" || !/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(m.repo))) ||
+      (m.tag !== undefined && (typeof m.tag !== "string" || !/^[A-Za-z0-9_.-]+$/.test(m.tag))))
+    throw new Error("manifesto: repositório ou tag inválidos")
+  for (const [uf, estado] of Object.entries(m.estados)) {
+    if (!UFS.has(uf) || !marcado(estado)) throw new Error("estado sem marca publico_basico v1")
+    chaves(estado, CHAVES_ESTADO, uf)
+    if (estado.url) urlPacote(estado.url, uf)
+    else if (estado.municipios || estado.tamanho) throw new Error(`${uf}: pacote público sem endereço`)
+    if (estado.geo) {
+      chaves(estado.geo, new Set(["url", "versao", "tamanho", "municipios", "escopo", "versao_publicacao"]), `${uf}/geo`)
+      if (estado.geo.escopo !== "publico_basico" || (estado.geo.versao_publicacao !== undefined && estado.geo.versao_publicacao !== 1))
+        throw new Error(`${uf}: geometria sem marca pública`)
+      if (estado.geo.municipios !== undefined && (!Number.isInteger(estado.geo.municipios) || estado.geo.municipios < 0))
+        throw new Error(`${uf}: quantidade de municípios da geometria inválida`)
+      urlPacote(estado.geo.url, uf, true)
+    }
+  }
+  return m
 }
 
-async function baixarEExtrair(url, uf) {
-  const r = await fetch(url, { redirect: "follow" })
-  if (!r.ok) throw new Error(`${url}: HTTP ${r.status}`)
-  const tmp = path.join(os.tmpdir(), `raiz_${uf}_${process.pid}.tar.gz`)
-  fs.writeFileSync(tmp, Buffer.from(await r.arrayBuffer()))
-  try {
-    fs.mkdirSync(DESTINO, { recursive: true })
-    execFileSync("tar", ["-xzf", tmp, "-C", DESTINO], { stdio: "inherit" })
-  } finally {
-    fs.rmSync(tmp, { force: true })
+function linhasCsv(texto) {
+  const linhas = []
+  let campos = [], campo = "", aspas = false
+  const s = texto.replace(/^\uFEFF/, "")
+  for (let i = 0; i < s.length; i++) {
+    const c = s[i]
+    if (c === '"') {
+      if (aspas && s[i + 1] === '"') { campo += '"'; i++ }
+      else aspas = !aspas
+    } else if (!aspas && (c === "," || c === "\n" || c === "\r")) {
+      campos.push(campo); campo = ""
+      if (c !== ",") {
+        if (campos.some(Boolean)) linhas.push(campos)
+        campos = []
+        if (c === "\r" && s[i + 1] === "\n") i++
+      }
+    } else campo += c
+  }
+  if (aspas) throw new Error("CSV com aspas sem fechamento")
+  if (campo || campos.length) { campos.push(campo); linhas.push(campos) }
+  return linhas
+}
+function validarCsv(nome, dado, uf) {
+  const [colunas, ...linhas] = linhasCsv(dado.toString("utf8"))
+  const basico = /^imoveis_basicos_\d{7}\.csv$/.test(nome)
+  const permitidas = basico ? new Set(BASICAS) : nome === `resumo_${uf}.csv` ? RESUMO : nome === `sem_imoveis_${uf}.csv` ? SEM_IMOVEIS : new Set()
+  if (!colunas?.length || new Set(colunas).size !== colunas.length || colunas.some((c) => !permitidas.has(c)) || (basico && colunas.join() !== BASICAS.join()))
+    throw new Error(`${nome}: colunas fora do contrato público`)
+  for (const campos of linhas) {
+    if (campos.length !== colunas.length) throw new Error(`${nome}: CSV ambíguo`)
+    const r = Object.fromEntries(colunas.map((c, i) => [c, campos[i]]))
+    if (!/^\d{7}$/.test(r.cod_ibge)) throw new Error(`${nome}: município inválido`)
+    if (basico && (!/^[A-Z]{2}-\d{7}-[0-9A-F]{32}$/.test(r.cod_imovel) || r.cod_imovel.slice(0, 2) !== uf || r.cod_ibge !== nome.slice(16, 23) || r.uf !== uf || !SITUACOES.has(r.situacao_basica)))
+      throw new Error(`${nome}: identificação ou situação básica inválida`)
   }
 }
-
+function arquivoPermitido(nome, uf, geo) {
+  return geo ? new RegExp(`^${uf}/geo_\\d{7}\\.parquet$`).test(nome)
+    : new RegExp(`^${uf}/(resumo_${uf}|sem_imoveis_${uf}|imoveis_basicos_\\d{7})\\.csv$`).test(nome)
+}
+async function baixarEExtrair(url, uf, destino, geo = false) {
+  const r = await fetch(urlPacote(url, uf, geo), { redirect: "follow" })
+  if (!r.ok) throw new Error(`pacote ${uf}: HTTP ${r.status}`)
+  const tmp = path.join(destino, `pacote${geo ? "-geo" : ""}.tar.gz`)
+  fs.writeFileSync(tmp, Buffer.from(await r.arrayBuffer()))
+  try {
+    const nomes = execFileSync("tar", ["-tzf", tmp], { encoding: "utf8", maxBuffer: 16 * 1024 * 1024 }).trim().split("\n").filter(Boolean)
+    const detalhes = execFileSync("tar", ["-tvzf", tmp], { encoding: "utf8", maxBuffer: 16 * 1024 * 1024 }).trim().split("\n").filter(Boolean)
+    if (!nomes.length || new Set(nomes).size !== nomes.length || nomes.some((n) => !arquivoPermitido(n, uf, geo)) || detalhes.length !== nomes.length || detalhes.some((l) => !l.startsWith("-")))
+      throw new Error(`${uf}: pacote contém caminho, link ou arquivo fora do contrato público`)
+    // Extração apenas por stdout: nenhum caminho ou link contido no tar pode escrever no workspace.
+    for (const nome of nomes) {
+      const dado = execFileSync("tar", ["-xOzf", tmp, "--", nome], { maxBuffer: 512 * 1024 * 1024 })
+      if (!geo) validarCsv(path.basename(nome), dado, uf)
+      fs.writeFileSync(path.join(destino, path.basename(nome)), dado)
+    }
+  } finally { fs.rmSync(tmp, { force: true }) }
+}
+function pastaConforme(uf, info) {
+  const dir = path.join(DESTINO, uf)
+  if (!marcado(info) || !fs.existsSync(dir)) return false
+  return fs.readdirSync(dir, { withFileTypes: true }).every((f) => f.isFile() && (
+    arquivoPermitido(`${uf}/${f.name}`, uf, false) || (info.geo && arquivoPermitido(`${uf}/${f.name}`, uf, true))
+  ))
+}
 async function main() {
   if (process.env.RAIZ_SEM_DOWNLOAD === "1") return
   let remoto
   try {
-    remoto = await baixarJson(`${URL_BASE}/estados.json`)
+    const r = await fetch(`${URL_BASE}/estados.json`, { redirect: "follow" })
+    if (!r.ok) throw new Error(`HTTP ${r.status}`)
+    remoto = validarManifesto(await r.json())
   } catch (e) {
     if (exigir) throw e
-    console.warn(`[dados] não consegui ler o estados.json publicado (${e.message}); sigo com o que já tenho.`)
+    console.warn(`[dados] não consegui ler o estados.json público (${e.message}); nenhum pacote legado será baixado.`)
     return
   }
   const arqLocal = path.join(DESTINO, "estados.json")
-  let local = { estados: {} }
-  try {
-    local = JSON.parse(fs.readFileSync(arqLocal, "utf8"))
-  } catch {}
-
-  const ufs = Object.keys(remoto.estados).filter((uf) => !pedidos.length || pedidos.includes(uf))
+  let local = { versao_publicacao: 1, escopo: "publico_basico", estados: {} }
+  try { local = validarManifesto(JSON.parse(fs.readFileSync(arqLocal, "utf8"))) } catch {}
   const falhas = []
-  for (const uf of ufs) {
-    const r = remoto.estados[uf]
-    const l = local.estados[uf] || {}
-    const rotulo = `${uf} (${r.municipios}/${r.total_ibge ?? "?"} municípios${r.completo ? "" : ", incompleto"})`
-    // O executor anuncia estados em andamento antes de criar o primeiro pacote. Não pedir um arquivo inexistente.
-    if (!r.municipios && !r.tamanho) {
-      local.estados[uf] = r
-      continue
-    }
+  let mudou = false
+  for (const uf of Object.keys(remoto.estados).filter((uf) => !pedidos.length || pedidos.includes(uf))) {
+    const r = remoto.estados[uf], l = local.estados[uf]
+    if (!r.url) { local.estados[uf] = r; mudou = true; continue }
+    if (pastaConforme(uf, l) && l.versao === r.versao && (!comGeo || l.geo?.versao === r.geo?.versao)) continue
+    const staging = fs.mkdtempSync(path.join(os.tmpdir(), `raiz-publico-${uf}-`))
     try {
-      if (l.versao !== r.versao || !fs.existsSync(path.join(DESTINO, uf))) {
-        console.log(`[dados] baixando ${rotulo}, ${((r.tamanho || 0) / 1e6).toFixed(0)} MB`)
-        await baixarEExtrair(r.url, uf)
-        l.versao = r.versao
-      }
-      if (comGeo && r.geo && l.geo?.versao !== r.geo.versao) {
-        console.log(`[dados] baixando polígonos de ${uf}, ${(r.geo.tamanho / 1e6).toFixed(0)} MB`)
-        await baixarEExtrair(r.geo.url, uf)
-        l.geo = r.geo
-      }
-      local.estados[uf] = { ...r, versao: l.versao, geo: l.geo }
-      fs.writeFileSync(arqLocal, JSON.stringify({ ...remoto, estados: local.estados }, null, 1))
+      const atual = path.join(DESTINO, uf)
+      if (fs.existsSync(atual) && fs.readdirSync(atual).length && !marcado(l))
+        throw new Error(`${uf}: destino legado preservado; escolha uma pasta vazia para os dados públicos`)
+      console.log(`[dados] baixando pacote público de ${uf}`)
+      await baixarEExtrair(r.url, uf, staging)
+      if (comGeo && r.geo) await baixarEExtrair(r.geo.url, uf, staging, true)
+      fs.mkdirSync(DESTINO, { recursive: true })
+      // A pasta do estado só é substituída depois de todos os arquivos passarem pelo contrato.
+      const proximo = path.join(DESTINO, `.${uf}-${process.pid}`)
+      fs.rmSync(proximo, { recursive: true, force: true })
+      fs.cpSync(staging, proximo, { recursive: true })
+      fs.rmSync(path.join(DESTINO, uf), { recursive: true, force: true })
+      fs.renameSync(proximo, path.join(DESTINO, uf))
+      const { geo: _geo, ...metadados } = r
+      local.estados[uf] = { ...metadados, ...(comGeo && r.geo ? { geo: r.geo } : {}) }
+      mudou = true
     } catch (e) {
       falhas.push(uf)
       console.warn(`[dados] falhou ${uf}: ${e.message}`)
-    }
+    } finally { fs.rmSync(staging, { recursive: true, force: true }) }
   }
-  fs.mkdirSync(DESTINO, { recursive: true })
-  fs.writeFileSync(arqLocal, JSON.stringify({ ...remoto, estados: local.estados }, null, 1))
+  if (mudou) {
+    fs.mkdirSync(DESTINO, { recursive: true })
+    fs.writeFileSync(arqLocal, JSON.stringify({ ...remoto, estados: local.estados }, null, 1))
+  }
   if (exigir && falhas.length) throw new Error(`não consegui atualizar os estados: ${falhas.join(", ")}`)
-  console.log(`[dados] pronto em ${path.relative(RAIZ_REPO, DESTINO) || DESTINO}: ${Object.keys(local.estados).join(", ")}`)
+  console.log(`[dados] pacotes públicos em ${path.relative(RAIZ_REPO, DESTINO) || DESTINO}: ${Object.keys(local.estados).join(", ")}`)
 }
-
-main().catch((e) => {
-  console.error(`[dados] ${e.message}`)
-  process.exitCode = 1
-})
+main().catch((e) => { console.error(`[dados] ${e.message}`); process.exitCode = 1 })

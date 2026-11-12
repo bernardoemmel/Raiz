@@ -89,14 +89,47 @@ def _ambiente(tmp_path, monkeypatch):
     monkeypatch.setenv("RUNNER_TEMP", str(tmp_path))
     monkeypatch.setenv("GITHUB_REPOSITORY", "bernardoemmel/raiz")
     monkeypatch.setenv("RAIZ_SEM_BANCO", "1")
+    monkeypatch.setenv("GH_TOKEN", "segredo")
+    monkeypatch.setenv("RAIZ_DADOS_PRIVADOS_URL", "release-github://exemplo/privado/dados-privados")
+    monkeypatch.setenv("RAIZ_DADOS_PRIVADOS_TOKEN", "segredo")
     monkeypatch.setenv("RAIZ_CADT_INICIO_CENARIO", "2027-01-01")
     monkeypatch.setattr(P, "confirmar_reserva", lambda: None)
+    monkeypatch.setattr(P, "conferir_orcamento", lambda relatorio: True)
 
     def seguro(relatorio):
         relatorio["seguranca_processamento"] = {"seguro": True}
         return relatorio["seguranca_processamento"]
 
     monkeypatch.setattr(P, "conferir_processamento_seguro", seguro)
+
+
+def _fabrica(github, classe=None):
+    from raiz.executor.armazem import ArmazemRelease
+
+    classe = classe or ArmazemRelease
+    if not hasattr(github, "publico"):
+        github.publico = GitHubFalso()
+        github.publico.privado = False
+        github.publico.assets["estados.json"] = json.dumps(
+            {
+                "escopo": "publico_basico",
+                "versao_publicacao": 1,
+                "repo": "bernardoemmel/raiz",
+                "tag": "dados",
+                "gerado_em": "2026-11-12T00:00:00Z",
+                "estados": {},
+            }
+        ).encode()
+
+    def responder(req):
+        privado = "/repos/exemplo/privado/" in req.url.path or req.url.path == "/repos/exemplo/privado"
+        return (github if privado else github.publico)(req)
+
+    def fabricar(repo, tag, espelho, **kw):
+        kw.setdefault("token", "segredo")
+        return classe(repo, tag, espelho, cliente=httpx.Client(transport=httpx.MockTransport(responder)), **kw)
+
+    return fabricar
 
 
 def _preflight(tmp_path, monkeypatch, runs, estado=None, comparacao="ahead"):
@@ -114,12 +147,23 @@ def _preflight(tmp_path, monkeypatch, runs, estado=None, comparacao="ahead"):
             for job in run["jobs"]
         ]
     monkeypatch.setattr(fila.Repositorio, "ler", lambda self: ("", estado))
-    monkeypatch.setattr(fila, "rodadas", lambda *args: runs)
+    monkeypatch.setattr(fila, "rodadas", lambda *args, **kwargs: runs)
     chamadas = []
 
     def comparar(caminho):
         chamadas.append(caminho)
-        return {"status": comparacao}
+        if "contents/raiz/executor/armazem.py" in caminho:
+            if comparacao not in {"ahead", "identical", "behind", "diverged"}:
+                return {"encoding": "desconhecida"}
+            codigo = (
+                (P.RAIZ / "raiz/executor/armazem.py").read_bytes()
+                if comparacao in {"ahead", "identical"}
+                else b"legado"
+            )
+            return {"encoding": "base64", "content": base64.b64encode(codigo).decode()}
+        if "/contents/" in caminho:
+            return {"encoding": "base64", "content": base64.b64encode(b"workflow com matrix.ref").decode()}
+        pytest.fail("endpoint inesperado")
 
     monkeypatch.setattr(fila, "api", comparar)
     return fila, chamadas
@@ -134,8 +178,11 @@ def test_preflight_permite_codigo_com_travas_e_cacheia_apenas_commit(tmp_path, m
     runs = {"11": _run(), "12": _run()}
     _, consultas = _preflight(tmp_path, monkeypatch, runs, comparacao=status)
     assert P.conferir_processamento_seguro()["seguro"]
-    assert consultas == [f"repos/exemplo/raiz/compare/{P.COMMIT_TRAVAS_UF}...{'a' * 40}"]
-    # O cache da ancestralidade não transforma um snapshot dos runs em cache.
+    assert consultas == [
+        f"repos/exemplo/raiz/contents/raiz/executor/armazem.py?ref={'a' * 40}",
+        f"repos/exemplo/raiz/contents/.github/workflows/processar-estados.yml?ref={'a' * 40}",
+    ]
+    # O cache dos bytes auditados não transforma um snapshot dos runs em cache.
     runs["13"] = _run(sha=None)
     with pytest.raises(P.ProcessamentoInseguro):
         P.conferir_processamento_seguro()
@@ -181,7 +228,10 @@ def test_ref_antiga_da_matriz_bloqueia_somente_reserva_ainda_viva(tmp_path, monk
     estado["reservas"] = [{"run_id": "123", "unidade": "MA", "pedido": {"ref": "b" * 40}}]
     runs = {"123": _run(job_status="completed" if terminal else "in_progress")}
     fila, _ = _preflight(tmp_path, monkeypatch, runs, estado)
-    monkeypatch.setattr(fila, "api", lambda caminho: {"status": "behind" if caminho.endswith("b" * 40) else "ahead"})
+    original = fila.api
+    monkeypatch.setattr(
+        fila, "api", lambda caminho: {"status": "behind"} if caminho.endswith("b" * 40) else original(caminho)
+    )
     if terminal:
         assert P.conferir_processamento_seguro()["seguro"]
     else:
@@ -226,6 +276,11 @@ def test_pre_cap_sem_reserva_so_passa_com_checkout_default_comprovado(tmp_path, 
 
     def api(caminho):
         chamadas.append(caminho)
+        if "contents/raiz/executor/armazem.py" in caminho:
+            return {
+                "encoding": "base64",
+                "content": base64.b64encode((P.RAIZ / "raiz/executor/armazem.py").read_bytes()).decode(),
+            }
         if "/contents/" in caminho:
             return {"encoding": "base64", "content": base64.b64encode(workflow.encode()).decode()}
         return {"status": "ahead"}
@@ -235,7 +290,7 @@ def test_pre_cap_sem_reserva_so_passa_com_checkout_default_comprovado(tmp_path, 
         resultado = P.conferir_processamento_seguro()
         assert resultado["seguro"] and resultado["checkouts_head_confirmados"] == ["123"]
         assert P.conferir_processamento_seguro()["seguro"]
-        assert len([c for c in chamadas if "/contents/" in c]) == 1
+        assert len([c for c in chamadas if "/contents/" in c]) == 2
     else:
         with pytest.raises(P.ProcessamentoInseguro):
             P.conferir_processamento_seguro()
@@ -264,8 +319,8 @@ def test_reconfere_dentro_da_trava_antes_de_publicar_uf(tmp_path, monkeypatch):
     github = GitHubFalso()
     github.assets["raiz_PA.tar.gz"] = github.tar("PA", {"imoveis_1504950.csv": b"cod_imovel,ha\nCAR-A,3\n"})
     snapshots = iter([{}, {"123": _run()}])
-    monkeypatch.setattr(fila, "rodadas", lambda *args: next(snapshots))
-    resultado = P.publicar(fabrica=lambda repo, tag, espelho: _armazem(github, espelho))
+    monkeypatch.setattr(fila, "rodadas", lambda *args, **kwargs: next(snapshots))
+    resultado = P.publicar(fabrica=_fabrica(github))
     assert not github.uploads
     assert resultado["pendentes"] == ["PA"] and not resultado["global_concluido"]
     assert resultado["falhas"][0]["etapa"] == "seguranca_processamento"
@@ -278,8 +333,8 @@ def test_reconfere_dentro_da_trava_antes_de_publicar_globais(tmp_path, monkeypat
     monkeypatch.setattr(P, "conferir_processamento_seguro", real)
     github = GitHubFalso()
     snapshots = iter([{}, {"123": _run()}])
-    monkeypatch.setattr(fila, "rodadas", lambda *args: next(snapshots))
-    resultado = P.publicar(fabrica=lambda repo, tag, espelho: _armazem(github, espelho))
+    monkeypatch.setattr(fila, "rodadas", lambda *args, **kwargs: next(snapshots))
+    resultado = P.publicar(fabrica=_fabrica(github))
     assert not github.uploads
     assert not resultado["global_concluido"]
     assert resultado["falhas"][0]["etapa"] == "seguranca_processamento"
@@ -296,8 +351,7 @@ def test_retropreenche_csv_controle_orfao_e_kml_sem_refazer_motor(tmp_path, monk
     github.assets["estados.json"] = json.dumps({"estados": {"AM": {"situacao": "em_curso"}}}).encode()
     classe = P.classe_armazem()
 
-    def fabrica(repo, tag, espelho):
-        return classe(repo, tag, espelho, token="segredo", cliente=httpx.Client(transport=httpx.MockTransport(github)))
+    fabrica = _fabrica(github, classe)
 
     relatorio = P.publicar(fabrica=fabrica)
     assert relatorio["falhas"] == []
@@ -311,7 +365,7 @@ def test_retropreenche_csv_controle_orfao_e_kml_sem_refazer_motor(tmp_path, monk
     for nome in ("URTX.kml", "raiz_controle_AM.json"):
         ficha = json.loads(github.assets[f"croissant_{nome}.json"])
         assert ficha["distribution"][0]["sha256"] == hashlib.sha256(github.assets[nome]).hexdigest()
-    assinados = P.checksums()
+    assinados = P.checksums(privado=True)
     assert set(github.assets) <= set(assinados)
     assert all(assinados[n] == hashlib.sha256(d).hexdigest() for n, d in github.assets.items())
     assert not any(n.startswith("croissant_croissant") for n in github.assets)
@@ -332,10 +386,7 @@ def test_falha_de_uma_uf_preserva_anterior_e_continua(tmp_path, monkeypatch):
                 raise RuntimeError("falha simulada")
             return super().publicar(uf, extra)
 
-    def fabrica(repo, tag, espelho):
-        return ComFalha(
-            repo, tag, espelho, token="segredo", cliente=httpx.Client(transport=httpx.MockTransport(github))
-        )
+    fabrica = _fabrica(github, ComFalha)
 
     relatorio = P.publicar(fabrica=fabrica)
     assert relatorio["concluidas"] == ["PA"] and relatorio["pendentes"] == ["AC"]
@@ -372,3 +423,413 @@ def test_workflow_reserva_antes_de_dependencias_e_atesta_mesmo_com_falha():
     assert atestar["with"]["subject-checksums"] == "${{ runner.temp }}/atestar.txt"
     assert workflow["permissions"]["attestations"] == "write"
     assert workflow["permissions"]["id-token"] == "write"
+    assert all(not p.get("uses", "").startswith("actions/upload-artifact") for p in passos)
+    privado = next(p for p in passos if p.get("with", {}).get("subject-checksums", "").endswith("atestar-privado.txt"))
+    assert privado["with"]["show-summary"] is False
+    relatorio = next(p for p in passos if "enviar-arquivo --imutavel" in p.get("run", ""))
+    assert relatorio["if"] == "always()"
+    assert "transferencia_privada" in relatorio["run"]
+
+
+def test_rodadas_preserva_jobs_por_padrao_e_permite_consulta_leve(monkeypatch):
+    fila, _ = P.modulos_fila()
+    chamadas = []
+
+    def paginas(caminho, campo):
+        chamadas.append(caminho)
+        if campo == "jobs":
+            return [{"name": "MA", "status": "in_progress"}]
+        return [{"id": 123, "status": "in_progress"}] if "status=in_progress" in caminho else []
+
+    monkeypatch.setattr(fila, "paginas", paginas)
+    assert fila.rodadas("exemplo/raiz", "processar-estados.yml")["123"]["jobs"]
+    chamadas.clear()
+    assert "jobs" not in fila.rodadas("exemplo/raiz", "processar-estados.yml", incluir_jobs=False)["123"]
+    assert len(chamadas) == 5 and not any("/jobs?" in c for c in chamadas)
+
+
+def test_guard_pre_cap_auditado_nao_consulta_jobs_mas_reconfere_runs(tmp_path, monkeypatch):
+    runs = {str(i): {"head_sha": "a" * 40, "status": "in_progress"} for i in range(10)}
+    fila, _ = P.modulos_fila()
+    _preflight(tmp_path, monkeypatch, runs, fila.vazio())
+    monkeypatch.setattr(P, "checkout_do_head", lambda *args: True)
+    monkeypatch.setattr(fila, "paginas", lambda *args: pytest.fail("checkout auditado não precisa dos jobs"))
+    chamadas = []
+    monkeypatch.setattr(fila, "rodadas", lambda *args, **kw: chamadas.append(kw) or runs)
+    assert P.conferir_processamento_seguro()["seguro"]
+    assert P.conferir_processamento_seguro()["seguro"]
+    assert chamadas == [{"incluir_jobs": False}, {"incluir_jobs": False}]
+
+
+@pytest.mark.parametrize("restantes,permitido", [(249, False), (250, True)])
+def test_cota_insuficiente_vira_checkpoint_sem_esperar_reset(tmp_path, monkeypatch, restantes, permitido):
+    monkeypatch.setenv("RUNNER_TEMP", str(tmp_path))
+    fila, _ = P.modulos_fila()
+    monkeypatch.setattr(
+        fila, "api", lambda caminho: {"resources": {"core": {"remaining": restantes, "reset": 9999999999}}}
+    )
+    monkeypatch.setattr(P.time, "sleep", lambda _: pytest.fail("cota curta deve terminar, não ocupar vaga esperando"))
+    relatorio = {}
+    assert P.conferir_orcamento(relatorio) is permitido
+    assert bool(relatorio.get("adiado_por_cota")) is not permitido
+
+
+def test_queda_de_cota_preserva_uf_concluida_e_pendentes(tmp_path, monkeypatch):
+    real = P.conferir_orcamento
+    _ambiente(tmp_path, monkeypatch)
+    monkeypatch.setattr(P, "conferir_orcamento", real)
+    fila, _ = P.modulos_fila()
+    cotas = iter([250, 249])
+    monkeypatch.setattr(
+        fila, "api", lambda caminho: {"resources": {"core": {"remaining": next(cotas), "reset": 9999999999}}}
+    )
+    github = GitHubFalso()
+    for uf in ("AC", "PA"):
+        github.assets[f"raiz_{uf}.tar.gz"] = github.tar(uf, {"imoveis_1504950.csv": b"cod_imovel,ha\nCAR-A,3\n"})
+    resultado = P.publicar(fabrica=_fabrica(github))
+    assert resultado["concluidas"] == ["AC"] and resultado["pendentes"] == ["PA"]
+    assert resultado["adiado_por_cota"] and not resultado["global_concluido"]
+    assert not any("PA" in nome for nome in github.uploads)
+    assert not github.refs
+
+
+def test_erro_ao_consultar_cota_bloqueia_sem_expor_resposta(tmp_path, monkeypatch):
+    monkeypatch.setenv("RUNNER_TEMP", str(tmp_path))
+    fila, _ = P.modulos_fila()
+
+    def falhar(*args):
+        raise RuntimeError("RESPOSTA_PRIVADA")
+
+    monkeypatch.setattr(fila, "api", falhar)
+    relatorio = {}
+    with pytest.raises(P.ProcessamentoInseguro) as erro:
+        P.conferir_orcamento(relatorio)
+    assert relatorio["adiado_por_cota"]
+    assert "RESPOSTA_PRIVADA" not in json.dumps(relatorio) + str(erro.value)
+
+
+@pytest.mark.parametrize(
+    "status,headers,esperado",
+    [
+        (429, {"Retry-After": "2"}, 2),
+        (429, {"Retry-After": "Thu, 01 Jan 1970 00:16:43 GMT"}, 3),
+        (403, {"x-ratelimit-remaining": "0", "x-ratelimit-reset": "1004"}, 4),
+    ],
+)
+def test_retry_repete_apenas_request_recusada_com_mesmos_bytes(monkeypatch, status, headers, esperado):
+    chamadas, esperas = [], []
+    monkeypatch.setattr(P.time, "time", lambda: 1000)
+    monkeypatch.setattr(P.time, "monotonic", lambda: 100)
+    monkeypatch.setattr(P.time, "sleep", esperas.append)
+
+    def responder(req):
+        chamadas.append((req.method, req.url, req.content, dict(req.headers)))
+        return httpx.Response(status, headers=headers) if len(chamadas) == 1 else httpx.Response(201)
+
+    with httpx.Client(transport=P.transporte_com_retry(200, httpx.MockTransport(responder))) as cliente:
+        assert cliente.post("https://uploads.github.com/arquivo", content=b"arquivo inteiro").status_code == 201
+    assert chamadas[0] == chamadas[1]
+    assert esperas == [esperado]
+
+
+@pytest.mark.parametrize(
+    "status,headers,prazo",
+    [
+        (403, {}, 200),
+        (429, {"Retry-After": "3600"}, 5000),
+        (429, {"Retry-After": "2"}, 101),
+        (429, {"Retry-After": "invalido"}, 200),
+        (429, {"Retry-After": "nan"}, 200),
+        (401, {}, 200),
+    ],
+)
+def test_retry_nao_monopoliza_trava_nem_repete_permissao_negada(monkeypatch, status, headers, prazo):
+    chamadas = []
+    monkeypatch.setattr(P.time, "monotonic", lambda: 100)
+    monkeypatch.setattr(P.time, "sleep", lambda _: pytest.fail("não deve aguardar esta resposta"))
+
+    def responder(req):
+        chamadas.append(req.method)
+        return httpx.Response(status, headers=headers)
+
+    with httpx.Client(transport=P.transporte_com_retry(prazo, httpx.MockTransport(responder))) as cliente:
+        assert cliente.delete("https://api.github.com/repos/exemplo/raiz/git/refs/tags/trava").status_code == status
+    assert chamadas == ["DELETE"]
+
+
+def _armazem_backup(github, tmp_path, responder, prazo=None):
+    classe = P.classe_armazem(prazo)
+    return classe(
+        "exemplo/privado",
+        "dados-privados",
+        tmp_path / "espelho",
+        token="segredo",
+        privado=True,
+        cliente=httpx.Client(transport=httpx.MockTransport(responder)),
+    )
+
+
+def test_backup_sobrevive_post_falho_e_original_ausente_no_retry(tmp_path, monkeypatch):
+    _ambiente(tmp_path, monkeypatch)
+    github = GitHubFalso()
+    nome, original = "raiz_PA.tar.gz", b"original irrecuperavel"
+    github.assets[nome] = original
+    chamadas = []
+
+    def responder(req):
+        chamadas.append((req.method, req.url.host, req.url.path))
+        if req.method == "POST" and req.url.host == "uploads.github.com" and req.url.params["name"] == nome:
+            return httpx.Response(429)
+        return github(req)
+
+    a = _armazem_backup(github, tmp_path, responder)
+    with pytest.raises(P.ProcessamentoInseguro):
+        a._subir(a._release(), nome, b"novo")
+    assert nome not in github.assets
+    marcadores = list((tmp_path / "recuperacao-release").glob("*.json"))
+    assert len(marcadores) == 1
+    meta = json.loads(marcadores[0].read_bytes())
+    assert meta["origem"] == "exemplo/privado/dados-privados/" + nome
+    assert meta["sha256"] == hashlib.sha256(original).hexdigest()
+    assert github.assets[meta["arquivo"]] == original
+    assert not any(host == "github.com" for _, host, _ in chamadas)
+    assert not (tmp_path / "atestar.txt").exists()
+    assert nome not in P.checksums(privado=True)
+    # A retomada não perde o backup remoto nem precisa baixar o original ausente.
+    a.cli = httpx.Client(transport=httpx.MockTransport(github))
+    a._subir(a._release(), nome, b"novo")
+    assert github.assets[nome] == b"novo" and github.assets[meta["arquivo"]] == original
+    assert not list((tmp_path / "recuperacao-release").glob("*.json"))
+    assert P.checksums(privado=True)[nome] == hashlib.sha256(b"novo").hexdigest()
+
+
+def test_backup_divergente_impede_delete_do_original(tmp_path, monkeypatch):
+    _ambiente(tmp_path, monkeypatch)
+    github = GitHubFalso()
+    github.assets["estados.json"] = b'{"estados":{}}'
+    a = _armazem_backup(github, tmp_path, github)
+    rel = a._release()
+    rel["assets"][0]["digest"] = "sha256:" + "0" * 64
+    with pytest.raises(P.ProcessamentoInseguro):
+        a._subir(rel, "estados.json", b"novo")
+    assert github.assets["estados.json"] == b'{"estados":{}}' and not github.uploads
+
+
+def test_backup_preserva_versao_intermediaria_publicada_por_outro_job(tmp_path, monkeypatch):
+    _ambiente(tmp_path, monkeypatch)
+    github = GitHubFalso()
+    nome = "estados.json"
+
+    def responder(req):
+        if req.method == "POST" and req.url.host == "uploads.github.com" and req.url.params["name"] == nome:
+            return httpx.Response(429)
+        return github(req)
+
+    a = _armazem_backup(github, tmp_path, responder)
+    for original in (b"original1", b"original2"):
+        github.assets[nome] = original
+        with pytest.raises(P.ProcessamentoInseguro):
+            a._subir(a._release(), nome, b"novo")
+    preservados = {b for n, b in github.assets.items() if n.startswith("recuperacao-") and n.endswith(".bin")}
+    assert preservados == {b"original1", b"original2"}
+    assert nome not in github.assets
+
+
+def test_403_permissao_nao_e_classificado_como_cota():
+    assert not P.resposta_de_cota(httpx.Response(403))
+    assert P.resposta_de_cota(httpx.Response(403, headers={"x-ratelimit-remaining": "0"}))
+
+
+def test_checkpoint_global_retoma_sem_reprocessar_ufs(tmp_path, monkeypatch):
+    real = P.conferir_orcamento
+    _ambiente(tmp_path, monkeypatch)
+    monkeypatch.setattr(P, "conferir_orcamento", real)
+    fila, _ = P.modulos_fila()
+    cotas = iter([250, 249, 250])
+    monkeypatch.setattr(
+        fila, "api", lambda caminho: {"resources": {"core": {"remaining": next(cotas), "reset": 9999999999}}}
+    )
+    github = GitHubFalso()
+    original = b"cod_imovel,ha\nCAR-A,3\n"
+    github.assets["raiz_PA.tar.gz"] = github.tar("PA", {"imoveis_1504950.csv": original})
+    github.assets["URTX.kml"] = b"<kml/>"
+    publicadas = []
+    classe = P.classe_armazem()
+
+    class Contar(classe):
+        def publicar(self, uf=None, extra=None):
+            publicadas.append(uf)
+            return super().publicar(uf, extra)
+
+    fabrica = _fabrica(github, Contar)
+
+    primeiro = P.publicar(fabrica=fabrica)
+    assert primeiro["concluidas"] == ["PA"] and primeiro["pendentes"] == []
+    assert not primeiro["global_concluido"]
+    segundo = P.publicar(ufs=[], fabrica=fabrica)
+    assert segundo["global_concluido"] and not segundo["falhas"]
+    assert publicadas == ["PA"]
+    assert github.membros("raiz_PA.tar.gz")["PA/imoveis_1504950.csv"] == original
+    assert "croissant_URTX.kml.json" in github.assets
+
+
+def test_cli_globais_rejeita_ufs_antes_de_reservar(monkeypatch):
+    monkeypatch.setenv("RAIZ_CATALOGO_UFS", "PA")
+    monkeypatch.setattr(P.sys, "argv", ["publicar_metadados.py", "--reservar", "--somente-globais"])
+    monkeypatch.setattr(P, "reservar_vaga", lambda: pytest.fail("combinação inválida não deve reservar vaga"))
+    with pytest.raises(ValueError, match="não pode ser combinado"):
+        P.main()
+
+
+def _ambiente_finalizador(tmp_path, monkeypatch):
+    confirmar = P.confirmar_reserva
+    _ambiente(tmp_path, monkeypatch)
+    monkeypatch.setattr(P, "confirmar_reserva", confirmar)
+    for nome, valor in {
+        "GITHUB_ACTIONS": "true",
+        "GITHUB_JOB": "processar",
+        "GITHUB_RUN_ID": "123",
+        "UNIDADE": "MG-3",
+        "RAIZ_EXECUTOR_REF": "b" * 40,
+        "RAIZ_PUBLICADOR_REF": "a" * 40,
+        "RAIZ_INICIO": str(P.time.time() - 300 * 60),
+    }.items():
+        monkeypatch.setenv(nome, valor)
+    monkeypatch.delenv("RAIZ_CATALOGO_UFS", raising=False)
+    monkeypatch.delenv("RAIZ_CATALOGO_SOMENTE_GLOBAIS", raising=False)
+    fila, _ = P.modulos_fila()
+    estado = fila.vazio()
+    estado["reservas"] = [{"run_id": "123", "unidade": "MG-3", "pedido": {"ref": "b" * 40}}]
+    monkeypatch.setattr(fila.Repositorio, "ler", lambda self: ("", estado))
+    monkeypatch.setattr(fila, "comando", lambda args: "a" * 40)
+    monkeypatch.setattr(fila, "reservar", lambda **kw: pytest.fail("finalizador não pode reservar outra vaga"))
+    return fila, estado
+
+
+@pytest.mark.parametrize("invalido", ["reserva", "job", "executor", "publicador", "uf", "globais"])
+def test_finalizador_rejeita_escopo_ou_referencia_incompativel_antes_de_dados(tmp_path, monkeypatch, invalido):
+    fila, estado = _ambiente_finalizador(tmp_path, monkeypatch)
+    ufs, globais = ["MG"], False
+    if invalido == "reserva":
+        estado["reservas"][0]["unidade"] = "MG-2"
+    elif invalido == "job":
+        monkeypatch.setenv("GITHUB_JOB", "catalogo")
+    elif invalido == "executor":
+        monkeypatch.setenv("RAIZ_EXECUTOR_REF", "c" * 40)
+    elif invalido == "publicador":
+        monkeypatch.setattr(fila, "comando", lambda args: "c" * 40)
+    elif invalido == "uf":
+        ufs = ["PA"]
+    else:
+        globais = True
+    with pytest.raises((RuntimeError, ValueError)):
+        P.publicar(
+            ufs=ufs,
+            incluir_globais=globais,
+            unidade_reservada="MG-3",
+            fabrica=lambda *a: pytest.fail("não deve criar armazém antes da autorização exata"),
+        )
+
+
+def test_finalizador_atual_completa_executor_antigo_na_mesma_reserva(tmp_path, monkeypatch):
+    _, estado = _ambiente_finalizador(tmp_path, monkeypatch)
+    antes = json.dumps(estado, sort_keys=True)
+    github = GitHubFalso()
+    fonte = (
+        b"cod_imovel,flag_regra_versao,flag_tco2_ano_min,flag_tco2_ano,flag_tco2_ano_max\n"
+        b"MG-3100001-AAAA,ghg-lsr-1.1+antiga,0,2,10\n"
+    )
+    versoes = {"flag_3100001.csv": {"tarefa": "flag", "versao": "tarefa-antiga", "data": "2026-11-12T10:00:00Z"}}
+    github.assets["raiz_MG.tar.gz"] = github.tar(
+        "MG",
+        {
+            "flag_3100001.csv": fonte,
+            "_versoes.json": json.dumps(versoes).encode(),
+        },
+    )
+    github.assets["URTX.kml"] = b"<kml/>"
+    github.assets["raiz_controle_PA.json"] = b'{"estado":{"situacao":"preservar"}}'
+    (tmp_path / "atestar-privado.txt").write_text("d" * 64 + "  legado.json\n")
+    classe = P.classe_armazem()
+    resultados = []
+    publicar = P.publicar
+
+    def executar(*args, **kwargs):
+        resultado = publicar(
+            *args,
+            **kwargs,
+            fabrica=_fabrica(github, classe),
+        )
+        resultados.append(resultado)
+        return resultado
+
+    monkeypatch.setattr(P, "publicar", executar)
+    monkeypatch.setattr(P.sys, "argv", ["publicar_metadados.py", "--finalizar-unidade"])
+    assert P.main() == 0
+    assert resultados[0]["escopo"] == "uf_reservada" and resultados[0]["concluidas"] == ["MG"]
+    assert not resultados[0]["global_concluido"]
+    assert json.dumps(estado, sort_keys=True) == antes
+    assert github.membros("raiz_MG.tar.gz")["MG/flag_3100001.csv"] == fonte
+    ficha = json.loads(github.assets["croissant_MG.json"])
+    digest = hashlib.sha256(github.assets["raiz_MG.tar.gz"]).hexdigest()
+    assert ficha["distribution"][0]["sha256"] == digest == P.checksums(privado=True)["raiz_MG.tar.gz"]
+    assert json.loads(github.assets["estados.json"])["estados"]["MG"]["quantis"]["linhas"] == 3
+    assert P.checksums(privado=True)["legado.json"] == "d" * 64
+    assert "croissant_URTX.kml.json" not in github.assets
+    assert github.assets["raiz_controle_PA.json"] == b'{"estado":{"situacao":"preservar"}}'
+
+
+def test_prazo_finalizador_reserva_dez_minutos_para_cache_e_assinatura(monkeypatch):
+    monkeypatch.setenv("RAIZ_INICIO", "1000")
+    monkeypatch.setattr(P.time, "time", lambda: 1000 + 315 * 60)
+    assert P.minutos_para_finalizar() == 20
+    monkeypatch.setattr(P.time, "time", lambda: 1000 + 334 * 60)
+    with pytest.raises(RuntimeError, match="sem prazo seguro"):
+        P.minutos_para_finalizar()
+
+
+@pytest.mark.parametrize("expira_no_backup", [False, True])
+def test_prazo_nao_autoriza_delete_apos_calculo_ou_backup_demorar(tmp_path, monkeypatch, expira_no_backup):
+    _ambiente(tmp_path, monkeypatch)
+    relogio = [99 if expira_no_backup else 100]
+    monkeypatch.setattr(P.time, "monotonic", lambda: relogio[0])
+    github = GitHubFalso()
+    github.assets["estados.json"] = b"original"
+
+    def responder(req):
+        if req.method == "GET" and "/releases/assets/" in req.url.path:
+            relogio[0] = 101
+        return github(req)
+
+    a = _armazem_backup(github, tmp_path, responder, prazo=100)
+    with pytest.raises(P.ProcessamentoInseguro):
+        a._subir(a._release(), "estados.json", b"novo")
+    assert github.assets["estados.json"] == b"original"
+    assert "estados.json" not in github.uploads
+    assert bool(list((tmp_path / "recuperacao-release").glob("*.json"))) is expira_no_backup
+
+
+def test_workflow_finalizador_separa_checkout_e_preserva_executor_e_continuacao():
+    caminho = Path(__file__).parents[1] / ".github/workflows/processar-estados.yml"
+    job = yaml.safe_load(caminho.read_text())["jobs"]["processar"]
+    passos = job["steps"]
+    checkout = next(p for p in passos if p.get("id") == "publicador_checkout")
+    assert checkout["with"] == {"ref": "${{ github.workflow_sha }}", "path": "publicador-atual"}
+    assert "matrix.ref != github.workflow_sha" in checkout["if"] and "!cancelled()" in checkout["if"]
+    final = next(p for p in passos if "--finalizar-unidade" in p.get("run", ""))
+    assert final["working-directory"] == "publicador-atual"
+    assert final["env"] == {
+        "RAIZ_EXECUTOR_REF": "${{ matrix.ref }}",
+        "RAIZ_PUBLICADOR_REF": "${{ github.workflow_sha }}",
+    }
+    atestar = next(p for p in passos if p.get("uses", "").startswith("actions/attest-build-provenance"))
+    continuar = next(p for p in passos if '--continuar "$UNIDADE"' in p.get("run", ""))
+    assert passos.index(final) < passos.index(atestar) < passos.index(continuar)
+    assert "working-directory" not in continuar
+    fila, _ = P.modulos_fila()
+    executor = next(p for p in passos if p.get("name") == fila.PASSO_EXECUTOR)
+    assert "working-directory" not in executor and "--executor" in executor["run"]
+    for passo in passos:
+        if passo.get("uses", "").startswith("actions/upload-artifact"):
+            assert passo["if"] == "always()"
+            assert "matrix.unidade" in passo["with"]["name"] and "github.run_attempt" in passo["with"]["name"]
