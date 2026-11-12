@@ -97,6 +97,12 @@ class Config(BaseSettings):
     api_token: SecretStr | None = None
     # origens do front que podem chamar a API pelo navegador (CORS), separadas por vírgula; vazio = nenhuma
     api_origens: str = ""
+    # URL pública canônica do painel (inclua /Raiz/ se houver subpasta); nunca vem do Origin do visitante.
+    # Sem ela, o login usa a primeira origem explicitamente permitida em api_origens.
+    login_base_url: str | None = None
+    # Limites por IP e por processo, em janelas de 60 segundos; não podem ser desligados por engano.
+    api_limite_minuto: int = Field(default=120, ge=1)
+    api_login_limite_minuto: int = Field(default=10, ge=1)
 
 
 @lru_cache
