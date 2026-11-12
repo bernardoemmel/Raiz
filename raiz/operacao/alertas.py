@@ -168,8 +168,10 @@ def _vigilancia(vig, regras: dict, hoje: dt.date) -> list[Novo]:
                     {"fonte": nome},
                 )
             )
+    perdas_vistas = set()
     for pid in vig.projetos:
         for pe in vig.perdas(pid, hoje)[0]:
+            perdas_vistas.add(pe["perda_id"])
             if pe["estado"] in ("descartada", "relatada"):
                 continue
             pr = pe["prazo"]
@@ -184,7 +186,7 @@ def _vigilancia(vig, regras: dict, hoje: dt.date) -> list[Novo]:
                         "o aviso à Verra por e-mail "
                         f"vence em {pr['aviso_verra_ate']:%d/%m/%Y} ({pr['aviso_verra_dias_restantes']} dias). "
                         f"Rascunho: /vigilancia/projeto/{pid}/perdas/{pe['perda_id']}/aviso-verra. "
-                        "Registrar 'verra_avisada' na vigilância depois de enviar.",
+                        "O envio cabe ao proponente, nunca à Raíz. Registrar 'verra_avisada' só após confirmação dele.",
                         {"perda_id": pe["perda_id"], "projeto_id": pid, "dias": pr["aviso_verra_dias_restantes"]},
                     )
                 )
@@ -200,6 +202,27 @@ def _vigilancia(vig, regras: dict, hoje: dt.date) -> list[Novo]:
                         {"perda_id": pe["perda_id"], "projeto_id": pid},
                     )
                 )
+    for d in getattr(vig, "avisos_verra_informados", lambda _hoje: [])(hoje):
+        if d["perda_id"] in perdas_vistas or not d["pode_exportar"] or d["dias_restantes"] > 7:
+            continue
+        prazo = dt.date.fromisoformat(d["prazo"])
+        out.append(
+            Novo(
+                "verra_prazo",
+                f"verra_aviso:{d['perda_id']}",
+                regras["verra_aviso_urgente"]["gravidade"],
+                f"Verra: prazo do proponente para {d['perda_id']} em {prazo:%d/%m/%Y}",
+                f"Rascunho para o desenvolvedor cliente: {d['rascunho']}. "
+                f"Prazo informado: {prazo:%d/%m/%Y} ({d['dias_restantes']} dias). "
+                "Campos a preencher pelo proponente. A Raíz nunca envia o aviso à Verra.",
+                {
+                    "perda_id": d["perda_id"],
+                    "projeto_id": d["projeto_id"],
+                    "dias": d["dias_restantes"],
+                    "responsavel_pelo_envio": "proponente",
+                },
+            )
+        )
     return out
 
 

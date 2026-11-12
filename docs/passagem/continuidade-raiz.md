@@ -5,15 +5,14 @@ O plano de entrega está em `docs/plano-por-etapa.md`; esta passagem guarda cont
 
 ## Urgência: URTX_LE1
 
-O fundador informou prazo de **15/11/2026** para avisar `registry@verra.org`. O produto já calculava o prazo,
-abria alerta crítico `verra_aviso:URTX_LE1` e gerava o relatório de perda; faltava o e-mail inicial. Agora gera
-rascunho JSON/`.eml`, pela API, CLI e rodada diária. Preparar nunca envia nem registra `verra_avisada`.
+**Prazo registrado: 15/11/2026** para o aviso do proponente a `registry@verra.org`. A Raíz não é proponente do
+URTX: prepara somente o rascunho para o desenvolvedor cliente e **nunca envia o aviso**. Não existe estado
+privado do URTX a restaurar. Campos desconhecidos ficam como **a preencher pelo proponente**; não pedir novos
+dados sobre isso. O prazo em `raiz/vigilancia/projetos.yaml` aparece no projeto e no alerta crítico interno
+`verra_aviso:URTX_LE1`, sem fabricar uma perda ou deduzir descoberta/área/causa.
 
-Rascunho em `docs/pedidos/urtx-le1-aviso-verra.md`. Este ambiente não tem `RAIZ_VIGILANCIA_CHAVE` nem
-`RAIZ_PROJETOS_PRIVADO`; o Release `vigilancia` não foi encontrado. O prazo é o informado pelo fundador, não uma
-confirmação de estado real: ainda é preciso restaurar o estado, conferir eventual envio anterior, ID Verra,
-descoberta, área e causa, e completar assinatura/contato no cliente de e-mail. Não deduzir descoberta a partir do
-prazo nem tratar dados de teste como evento real.
+Rascunho pronto em `docs/pedidos/urtx-le1-aviso-verra.md`, gerado por API/CLI/rodada diária em JSON e `.eml`.
+Preparação não registra `verra_avisada`; envio e preenchimento cabem exclusivamente ao proponente.
 
 ## O que já está na main
 
@@ -33,21 +32,19 @@ prazo nem tratar dados de teste como evento real.
 
 ## O que falta e quem pode concluir
 
-1. **Aviso Verra:** rascunho preparado; conferência dos dados privados e envio pelo proponente/fundador pendentes.
-   Só depois do envio efetivo registrar `verra_avisada`, com a data correta e comprovante privado.
+1. **Aviso Verra:** entregue como rascunho ao desenvolvedor cliente; prazo registrado em 15/11/2026 e campos “a preencher pelo proponente”. A Raíz nunca envia. Não há pendência de estado privado URTX.
 2. **E7 passo 8:** cache calibrado da matrícula implementado em `raiz/documentos/certidao/cache.py`. Escore numérico
    por leitura, corte calibrado em gabaritos da leitura integral e risco controlado; sem calibração suficiente,
    reler. Confiança declarada alta/média/baixa não prova acerto. MAPIE LTT implementado; ver `docs/cache-matricula.md`. Coletar a amostra real e calibrar antes da ativação.
 3. **E8:** reexecutar motor/outros modelos por fold com scd2 `folds.como_estava`, e sobrevivência do aceite
-   (tempo até aceite; lifelines MIT), implementados. Folds têm adaptadores motor/FLAG/restauração e arquivador SCD2; exigem todas as fontes do corte. Sobrevivência exige 30 contatos reais/5 aceites. Ver `docs/aprendizado-por-tempo.md`. Não usar camadas de hoje nos folds históricos.
+   (tempo até aceite; lifelines MIT), implementados. Captura automática no executor com banco e seis adaptadores: motor, FLAG, restauração, regularização, triagem e rebanho. Catálogo parcial aceita só modelos com todas as fontes do corte. Actions sem banco ainda não arquiva entradas. Sobrevivência exige 30 contatos reais/5 aceites. Ver `docs/aprendizado-por-tempo.md`. Não usar camadas de hoje nos folds históricos.
 4. **Servidor:** subir llama.cpp/llguidance com GGUF `qwen3-4b-instruct-2507-q4_k_m.gguf`; testar, calibrar 120
    tarefas x 3 tentativas e comparar Haiku. Os cortes de `cascata_cortes.yaml` ficam vazios até avaliação real.
-   Resultado “sem corte, fica na votação” é válido se o acerto retido não atingir 95%. Rodada local em validação;
-   produção sem acesso neste ambiente. Relatório de avaliação fica fora do git; cortes reais em PR próprio.
+   Resultado “sem corte, fica na votação” é válido se o acerto retido não atingir 95%. Build local corrigido e validado (b12300/llguidance, Rust 1.100.0, JSON real Qwen); calibração completa real em execução. Produção sem acesso neste ambiente. Relatório de avaliação fica fora do git; cortes reais em PR próprio.
 5. **Cron operacional:** `uv run raiz operacao alertas` a cada 15 minutos; sem ntfy/GoAlert, simulado e registrado.
    Este ambiente não tem acesso SSH, banco ou credenciais de produção. Instalador idempotente pronto: `uv run python scripts/instalar_cron_alertas.py` mostra a prévia; `--instalar` aplica no servidor. Preparar o script não equivale a instalar no servidor.
 6. **Segredos pendentes:** `MAPBIOMAS_ALERTA_EMAIL`, `MAPBIOMAS_ALERTA_SENHA`, `RAIZ_VIGILANCIA_CHAVE`,
-   `RAIZ_PROJETOS_PRIVADO`; opcionais `FIRMS_MAP_KEY`, `RAIZ_NTFY_TOPICO`, `RAIZ_NTFY_TOKEN`, `RAIZ_GOALERT_URL`.
+   `RAIZ_PROJETOS_PRIVADO` somente quando existirem projetos privados (não exigido para URTX); opcionais `FIRMS_MAP_KEY`, `RAIZ_NTFY_TOPICO`, `RAIZ_NTFY_TOKEN`, `RAIZ_GOALERT_URL`.
    Configurar no servidor e nos secrets da vigilância no GitHub. Nunca pedir valores no chat. Envio simulado até lá.
 7. **Calendário da Raíz, depois das pendências:** leilões rurais/penhoras ligados ao CAR/SIGEF, BNDES,
    ProFloresta+, Fundo Amazônia, concessões, leilões de créditos, SBCE/Verra/ICVCM/SBTi/EUDR; coleta diária, banco,
