@@ -142,7 +142,7 @@ def observacoes_mombak() -> list[dict]:
 
 
 def calibrar_inicio_plantio(anual: np.ndarray) -> tuple[np.ndarray, dict]:
-    """Ajusta a janela 1–3 anos; preserva estoque no ano 7 e total de 40 anos.
+    """Ajusta a janela 1–3 anos; reencontra o estoque no ano 10 e preserva 40 anos.
 
     Ajuste regional linear pela origem, pesos iguais por sítio. O observado é
     biomassa lenhosa líquida pré-buffer; usar esse valor para o total de pools
@@ -150,17 +150,19 @@ def calibrar_inicio_plantio(anual: np.ndarray) -> tuple[np.ndarray, dict]:
     microdados de coorte, não se ajusta taxa por espécie ou P10/P90 empírico.
     """
     anual = np.asarray(anual, dtype=float)
-    if anual.ndim != 1 or len(anual) < 8 or not np.isfinite(anual).all() or (anual < 0).any() or anual[0] != 0:
-        raise ValueError("curva requer anos 0..7, valores finitos não negativos e estoque inicial zero")
+    if anual.ndim != 1 or len(anual) < 11 or not np.isfinite(anual).all() or (anual < 0).any() or anual[0] != 0:
+        raise ValueError("curva requer anos 0..10, valores finitos não negativos e estoque inicial zero")
     obs = observacoes_mombak()
     x = np.array([o["idade_projeto_anos"] for o in obs])
     y = np.array([o["remocao_tco2e_ha"] for o in obs])
     beta = float(x @ y / (x @ x))
     acumulado = anual.cumsum()
-    limite = min(beta * 3, acumulado[7])
+    # Preservar o estoque antigo no ano 7 forçaria crescimento zero em 4–7.
+    # A ponte até 10 permite crescimento positivo sem aumentar o estoque final.
+    limite = min(beta * 3, acumulado[10])
     novo = acumulado.copy()
     novo[:4] = np.arange(4) * limite / 3
-    novo[4:8] = np.linspace(limite, acumulado[7], 5)[1:]
+    novo[4:11] = np.linspace(limite, acumulado[10], 8)[1:]
     comparacoes = []
     for o in obs:
         antigo = float(np.interp(o["idade_projeto_anos"], np.arange(len(anual)), acumulado))
@@ -182,6 +184,8 @@ def calibrar_inicio_plantio(anual: np.ndarray) -> tuple[np.ndarray, dict]:
         "calibracao_sitios": 2,
         "validacao_independente": False,
         "taxa_ajustada_tco2e_ha_ano": beta,
+        "taxa_aplicada_tco2e_ha_ano": limite / 3,
+        "ancora_estoque_ano": 10,
         "p10_p90": "mantida incerteza do modelo; dois sítios não estimam quantis regionais",
         "anos_1_3": [
             {"ano": t, "anterior_acumulado": float(acumulado[t]), "ajustado_acumulado": float(novo[t])}

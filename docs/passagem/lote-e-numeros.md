@@ -220,3 +220,19 @@ cancelamento/desativação. Merge e publicação do diagnóstico privado ainda f
 O nacional de 786 municípios está salvo no PR #94 (draft). Depois: finalizar ARR,
 sensibilidade, ecologia, recalcular PA/R12 e publicar comparativo privado.
 Dryad: CC0 confirmado, CSV ainda bloqueado 401/403; não inventar erro por idade.
+
+### Continuação R12 preservada
+
+Integração inclui sensibilidade com seleção refeita (9 cenários × 3 opções),
+sete referências ecológicas contextuais e relatório reproduzível 5511/Mombak/ARR.
+A curva inicial reencontra o acumulado no ano 10, preservando estoque final;
+cronograma do lote usa a mistura real selecionada. Dimensionamento da meta ainda
+usa a curva mais lenta, conservadoramente. Workflow R12 congela as mesmas entradas
+R11 e preserva checkpoints privados. Testes focados e 866 licenças passaram;
+a suíte integral, CI, PR/merge e execução estadual R12 ainda precisam concluir.
+
+Fontes abertas insuficientes: Dryad CSV retorna 401/403, portanto nenhum erro
+real em Mg/ha foi calculado; controle sintético real depende de painel pré/pós
+harmonizado. Ecologia: contagens totais por fazenda continuam pendentes quando
+não há suporte comparável; as referências publicadas nunca preenchem esses
+campos com riqueza por parcela ou fustes.

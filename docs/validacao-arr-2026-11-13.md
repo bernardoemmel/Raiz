@@ -114,3 +114,26 @@ quantidades inválidas, emissão parcial, equivalência contábil, incompatibili
 de área/período/coortes/pools, reserva histórica, independência, pequenas áreas,
 versões e histórico imutável. A normalização também foi conferida no extrato
 Berkeley real.
+
+## Complemento da rodada 12
+
+O relatório `restauracao_pesquisa.gravar` registra novamente as cinco
+confrontações na versão corrente e acrescenta a reprodução contábil do 5511:
+230.119,89 t com os percentuais arredondados informados (230.119,90 observados).
+Esse teste verifica denominadores; não transforma a plantação mista de eucalipto
+e espécies nativas do Cerrado em curva de restauração nativa da Amazônia.
+
+A verificação Isometric da Mombak fornece duas âncoras iniciais de plantio ativo:
+26,3574 t/ha no Candiru e 32,2642 t/ha em Três Irmãos, líquidas **antes** da reserva.
+O cenário `central_r12` ajusta os anos 1–3 e liga o acumulado ao ano 10, preservando
+o estoque final. Não impõe uma pausa artificial de crescimento nos anos 4–7.
+Usar o líquido lenhoso observado como referência conservadora do bruto inicial
+é uma aproximação declarada: não há microdados de coortes para harmonizar todos
+os pools. Os dois sítios são desenvolvimento; não validação independente.
+
+Os marcos do lote R12 usam a curva composta das fazendas selecionadas. A meta de
+seleção continua dimensionada pela curva mais lenta (regeneração), de forma
+conservadora, até haver otimização explícita de restrições temporais por método.
+A publicação conserva a curva e as diferenças antes/depois, fonte e versão.
+Os parâmetros de captura da regeneração não foram recalibrados com o Dryad:
+o download público continua indisponível neste ambiente e o erro real é pendente.

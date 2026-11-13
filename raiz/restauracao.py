@@ -1031,7 +1031,7 @@ def renda_pecuaria(linha: dict, r: dict | None = None) -> dict | None:
 
 
 def cronograma_lote(credito_contrato_p50: float, c: dict | None = None, r: dict | None = None,
-                    volume: float | None = None) -> dict:  # fmt: skip
+                    volume: float | None = None, *, acumulado_ano=None) -> dict:  # fmt: skip
     """Chance de cumprir cada marco, multa esperada e chance de rescisão de um lote com `credito_contrato_p50` créditos
     líquidos até o fim do contrato (P50), contra o volume contratado (padrão: o próprio P50). O erro da captura é um
     fator comum ao lote inteiro (não se cancela entre fazendas); a multa de R$ 1.000 por dia de marco é do contrato.
@@ -1041,8 +1041,20 @@ def cronograma_lote(credito_contrato_p50: float, c: dict | None = None, r: dict 
     volume = float(volume if volume is not None else credito_contrato_p50)
     T = int(c["prazo_anos"])
     forma = forma_curva(r)
-    acum_ano = np.cumsum(forma)
-    acum_ano = acum_ano / acum_ano[min(T, len(acum_ano) - 1)] * credito_contrato_p50
+    if acumulado_ano is None:
+        acum_ano = np.cumsum(forma)
+        acum_ano = acum_ano / acum_ano[min(T, len(acum_ano) - 1)] * credito_contrato_p50
+    else:
+        acum_ano = np.asarray(acumulado_ano, dtype=float)
+        if (
+            acum_ano.shape != forma.shape
+            or not np.isfinite(acum_ano).all()
+            or (np.diff(acum_ano) < -1e-7).any()
+            or acum_ano[0] != 0
+        ):
+            raise ValueError("perfil acumulado inválido para os marcos")
+        if not np.isclose(acum_ano[T], credito_contrato_p50, rtol=1e-3, atol=1):
+            raise ValueError("perfil temporal diverge do crédito selecionado")
     passo = 1 / 12
     tempo = np.arange(0, len(forma) - 1 + passo / 2, passo)
     acum50 = np.interp(tempo, np.arange(len(forma)), acum_ano)
@@ -1090,7 +1102,9 @@ def cronograma_lote(credito_contrato_p50: float, c: dict | None = None, r: dict 
         resc |= atraso_max > float(limite)
     return {"marcos": marcos, "chance_todos": float(cumpre_todos.mean()), "multa_esperada_rs": float(multas.mean()),
             "chance_rescisao": float(resc.mean()), "valor_contrato_rs": valor, "volume": volume,
-            "credito_contrato_p50": credito_contrato_p50}  # fmt: skip
+            "credito_contrato_p50": credito_contrato_p50,
+            "perfil_temporal": "fazendas_selecionadas" if acumulado_ano is not None else "curva_referencia",
+            }  # fmt: skip
 
 
 def faixa_lote(p10, p50, p90, r: dict | None = None, fracao_comum: float | None = None) -> dict:
@@ -1351,6 +1365,7 @@ def fluxo_p50(linha: dict, c: dict | None = None, r: dict | None = None, fator_c
                        ())  # fmt: skip
     return {"area_ha": float(m["area_ha"]), "metodo": escolhido, "modo": m["modo"], "F": s["F"][0], "K": s["K"][0],
             "B": _parte_do_preco(s, c), "vendidos": s["vendidos"][0],
+            "credito_acumulado_ha": s["N"][0],
             "creditos_contrato_ha": float(s["N"][0, int(c["prazo_anos"])]),
             "preco_equilibrio_usd": _equilibrio(s, c)}  # fmt: skip
 
@@ -1431,7 +1446,9 @@ def preco_para_tir(fl: dict, c: dict, alvo: float, alavancada: bool = True, teto
     return round(hi, 2)
 
 
-def calcular(linha: dict, c: dict | None = None, r: dict | None = None) -> tuple[dict, dict]:
+def calcular(
+    linha: dict, c: dict | None = None, r: dict | None = None, *, financeiro_p50: bool = False
+) -> tuple[dict, dict]:
     """Colunas de desenvolvedor_<mun>.csv para um imóvel (sem as do lote) e o resultado da simulação (fluxos)."""
     r = r or regra()
     c = c or cenario(r=r)
@@ -1451,7 +1468,13 @@ def calcular(linha: dict, c: dict | None = None, r: dict | None = None) -> tuple
         return simular_fluxos(args[0], mcus if sorteios else [], args[1], mcap if sorteios else [], args[2], args[3],
                               cc, r, tirs)  # fmt: skip
 
-    s = rodar(c)
+    s = rodar(c, tirs=() if financeiro_p50 else ("projeto", "alavancada"))
+    if financeiro_p50:
+        # Sensibilidade precisa reavaliar a oferta inteira. Mantém todos os
+        # sorteios de crédito; calcula somente a TIR central, identificando
+        # como ausentes os quantis financeiros e preços mínimos por fazenda.
+        s["tir_projeto"][0] = _tir(s["F"][0])[0]
+        s["tir_alavancada"][0] = _tir(s["L"][0])[0]
     sd = slice(1, None)  # os sorteios (a linha 0 é o caminho do P50)
     area = m["area_ha"]
     cred_ano = s["N"][:, H] / H
@@ -1482,7 +1505,7 @@ def calcular(linha: dict, c: dict | None = None, r: dict | None = None) -> tuple
         reprecificar = lambda p: rodar({**c, "preco_usd_t": p}, sorteios=False, tirs=())  # noqa: E731
     precos = (
         precos_minimos_tir(s, c, reprecificar)
-        if area > 0
+        if area > 0 and not financeiro_p50
         else {f"preco_minimo_tir_{a}_{t}_usd_t": None for a in (12, 15) for t in ("projeto", "alavancada")}
     )
 
@@ -1592,6 +1615,11 @@ def calcular(linha: dict, c: dict | None = None, r: dict | None = None) -> tuple
             vazamento_comprovado=dsc["vazamento_mitigacao"],
             vazamento_motivo=("destino_documentado" if dsc["vazamento_mitigacao"] else "destino_gado_pendente"),
         )
+    out["restauracao_tipo_calculo"] = "sensibilidade_financeira_p50" if financeiro_p50 else "completo"
+    if financeiro_p50:
+        for tipo in ("projeto", "alavancada"):
+            for q in ("p10", "p90"):
+                out[f"tir_{tipo}_pct_{q}"] = None
     return out, {"sim": s, "custo": cus, "captura": cap, "descontos": dsc, "linha_base": lb, "modos": m}
 
 
@@ -1701,7 +1729,7 @@ ENTRADAS_GRAVADAS = ("pasto_d0_ha", "pasto_d1_ha", "pasto_d2_ha", "pasto_d3_ha",
                      "chuva_mm_ano", "solo_cec_cmolc_kg", "linha_base_taxa_d0", "linha_base_taxa_d1",
                      "linha_base_taxa_d2", "linha_base_taxa_d3", "linha_base_fonte", "estrada_acesso_km",
                      "cidade_proxima_km", "taxa_supressao_secundaria_municipio", "vazamento_plano_json",
-                     "area_georreferenciar_ha", "matriculas_confirmadas")  # fmt: skip
+                     "area_georreferenciar_ha", "matriculas_referenciadas")  # fmt: skip
 
 
 def taxa_supressao_secundaria(im) -> float | None:
@@ -1742,11 +1770,16 @@ def linhas_para_refazer(pasta: str | Path, cod: int, so: set[str] | None = None)
     im = linhas_do_municipio(pasta, cod)
     if so is not None:
         im = im[im.cod_imovel.isin({str(x) for x in so})]
+    from raiz.lote import matriculas
+
+    contagem = matriculas(pasta, cod)
     gravadas = _gravado(pasta, cod)
     out = {}
     for li in im.to_dict("records"):
         g = gravadas.get(str(li["cod_imovel"]), {})
         li = {**li, **{k: v for k, v in g.items() if k in ENTRADAS_GRAVADAS and pd.notna(v)}}
+        if str(li["cod_imovel"]) in contagem:
+            li["matriculas_referenciadas"] = contagem[str(li["cod_imovel"])]
         if str(g.get("vazamento_motivo")) in ("mitigacao_vizinha", "sem_gado"):
             li["vazamento_mitigacao"] = True
         out[str(li["cod_imovel"])] = li
@@ -1822,7 +1855,14 @@ def calcular_municipio(
     if sup_mun is None and gravado:
         sup_mun = _num(next(iter(gravado.values())), "taxa_supressao_secundaria_municipio")
     registros = []
+    contagem_matriculas = {}
+    if c.get("rodada") == 12:
+        from raiz.lote import matriculas
+
+        contagem_matriculas = matriculas(pasta, cod)
     for li in im.to_dict("records"):
+        if str(li["cod_imovel"]) in contagem_matriculas:
+            li["matriculas_referenciadas"] = contagem_matriculas[str(li["cod_imovel"])]
         g = gravado.get(str(li["cod_imovel"]), {})
         extra = {k: g[k] for k in acesso if pd.isna(li.get(k)) and k in g and pd.notna(g[k])}
         registros.append({**li, **por.get(li["cod_imovel"], {}), **extra,

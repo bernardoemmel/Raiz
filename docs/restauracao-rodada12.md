@@ -97,3 +97,26 @@ sensibilidade com nova seleção, referências ecológicas no produto,
 recálculo/publicação privada e comparação final dos três lotes, suíte integral,
 PR e merge. O Dryad continua sem download acessível neste ambiente; não há MAE
 real calculado nem controle sintético real sem painel pré/pós disponível.
+
+## Sensibilidade e referências ecológicas integradas
+
+Nove cenários reavaliam todos os candidatos fundiária/geograficamente elegíveis,
+inclusive imóveis pequenos: central, três preços observados do ProFloresta,
+reservas de 30% e 40%, descontos de 12% e 15%, e pessimista combinado. As três
+seleções são refeitas em cada caso; a tabela mostra entradas/saídas, hectares,
+P10/P50/P90 e economia. JSONL privado guarda previsões por versão e as decisões
+textuais para revisão humana. O modo rápido preserva todos os sorteios de
+créditos e a TIR P50; quantis financeiros e preços mínimos por fazenda ficam
+explicitamente ausentes nesse estudo. A entrega central usa o cálculo completo.
+
+Sete referências ecológicas abertas foram incorporadas como contexto separado,
+com unidade, esforço amostral, licença e hash. Riqueza por 900 m² ou 25 fustes
+não vira total de espécies do imóvel. Fustes de Tefé não são árvores distintas
+nem são aplicados automaticamente ao Pará. O experimento Cava do Cerrado foi
+rejeitado: MAE de 298,26 contra 186,29 da constante. Lacunas de contagem por
+fazenda continuam nulas e explicadas, sem descartar fazendas pequenas.
+
+O workflow aceita `central_r12` e `estresse_r12`, reutilizando as entradas R11
+congeladas por SHA256. R11 mantém seu ponteiro separado. Sensibilidade e pesquisa
+seguem no pacote privado, com retomada dos cenários concluídos. Nenhum workflow
+foi cancelado ou desativado. Licenças: 866 pacotes conferidos, zero problemas.

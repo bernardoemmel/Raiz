@@ -21,6 +21,8 @@ from pathlib import Path
 
 import yaml
 
+from raiz import restauracao_ecologia_regional as ER
+
 ARQUIVO = Path(__file__).parent / "regras" / "padroes" / "restauracao_ecologia.yaml"
 Q = ("p10", "p50", "p90")
 TIPOS_PROJECAO = {"cenario_planejamento", "projecao_calibrada"}
@@ -36,13 +38,15 @@ SEM_DADO = (
 def _regra(marca: tuple) -> dict:
     bruto = ARQUIVO.read_bytes()
     r = yaml.safe_load(bruto)
-    h = hashlib.sha256(bruto + Path(__file__).read_bytes()).hexdigest()[:12]
+    h = hashlib.sha256(bruto + Path(__file__).read_bytes() + ER.versao().encode()).hexdigest()[:12]
     r["versao_completa"] = f"{r['versao']}+{h}"
     return r
 
 
 def regra() -> dict:
-    marca = tuple((p.stat().st_mtime_ns, p.stat().st_size) for p in (ARQUIVO, Path(__file__)))
+    marca = tuple(
+        (p.stat().st_mtime_ns, p.stat().st_size) for p in (ARQUIVO, Path(__file__), ER.ARQUIVO, Path(ER.__file__))
+    )
     return copy.deepcopy(_regra(marca))
 
 
@@ -120,8 +124,11 @@ def projetar(linha: dict, modelo_versao: str) -> dict:
         horizontes.append(
             {
                 "ano": ano,
+                "referencia_regional_padronizada": ER.referencias(linha, ano),
                 "situacao": status,
-                "situacao_regional": "pendente_harmonizacao_de_dados_abertos"
+                "situacao_regional": "referencia_contextual_disponivel"
+                if ER.referencias(linha, ano)
+                else "pendente_harmonizacao_de_dados_abertos"
                 if entrada is None
                 else "projecao_documentada",
                 "rotulo_regional": ROTULO_REGIONAL if entrada is None else None,
@@ -158,6 +165,8 @@ def projetar(linha: dict, modelo_versao: str) -> dict:
             "não é atribuída ao pasto a restaurar. MapBiomas mede idade da cobertura, não árvores ou espécies."
         ),
         "fontes_publicas_avaliadas": r["fontes_publicas"],
+        "pendencias_ecologicas_atualizadas": ER.catalogo()["pendencias"],
+        "experimentos_rejeitados": ER.catalogo()["experimentos_rejeitados"],
         "base_regional_candidata": r["base_regional"],
         "incerteza": projecao["incerteza"] if projecao else SEM_DADO,
         "horizontes": horizontes,

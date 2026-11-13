@@ -95,10 +95,10 @@ def provisao_terra(linha: dict, area_restaurada_ha: float) -> dict:
             return None
 
     area = numero("area_georreferenciar_ha")
-    mats = numero("matriculas_confirmadas")
+    mats = numero("matriculas_referenciadas")
     pendencias = []
     if area is None:
-        area = max(numero("area_ha") or 0, area_restaurada_ha)
+        area = max(numero("area_ha") or numero("ha") or 0, area_restaurada_ha)
         pendencias.append("confirmar escopo do georreferenciamento; provisão sobre a área integral disponível")
     if mats is None or int(mats) != mats:
         mats = 1
@@ -106,6 +106,8 @@ def provisao_terra(linha: dict, area_restaurada_ha: float) -> dict:
     resultado = custos_terra(matriculas=int(mats), tipo_certidao="conjunta", area_georreferenciar_ha=area)
     resultado["pendencias"] = pendencias
     resultado["natureza"] = "provisão de custo; não comprova título nem dispensa georreferenciamento"
+    if linha.get("uf") != "PA":
+        pendencias.append("emolumentos do PA usados como referência; conferir tabela do estado do imóvel")
     return resultado
 
 

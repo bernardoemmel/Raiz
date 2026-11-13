@@ -405,3 +405,10 @@ Dados e fatos científicos não herdam as licenças das bibliotecas:
   (https://github.com/coin-or/Cbc). Não foi copiado código do solver para a Raíz.
 - Embrapa, ASOP 25 e relatórios Verra: fatos, método e atribuição; implementação
   própria, sem reproduzir integralmente textos ou dados sem licença aberta.
+- Referências ecológicas derivadas: Boeschoten et al. (2026), Zenodo 18244528,
+  CC-BY-4.0; Rozendaal et al. (2019), DANS-XH8-GH92, CC0-1.0; Giles et al.
+  (2024)/Jakovac et al. (2015), Zenodo 13970371, CC-BY-4.0. Atribuição,
+  licença, hash da fonte, recorte, unidade e versão de cálculo acompanham cada
+  faixa em `ecologia_referencias_abertas.json`. Quantis foram calculados por
+  código próprio. Cava (Zenodo 4941557, CC0) aparece como experimento rejeitado,
+  sem promover a curva a previsão. Nenhum dado ou código NC foi incorporado.

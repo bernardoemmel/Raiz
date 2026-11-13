@@ -100,7 +100,7 @@ def test_motor_r12_preserva_estoque_e_registra_curva_custos_e_classe():
     a = R.captura(li, m, r, R.cenario("central_r11"))
     b = R.captura(li, m, r, c)
     assert b["bruto_ano"][:4].sum() > a["bruto_ano"][:4].sum()
-    assert b["bruto_ano"][:8].sum() == pytest.approx(a["bruto_ano"][:8].sum())
+    assert b["bruto_ano"][:11].sum() == pytest.approx(a["bruto_ano"][:11].sum())
     assert b["bruto_ano"].sum() == pytest.approx(a["bruto_ano"].sum())
     out = R.por_imovel(li, c, r)
     assert out["divida_fracao"] == 0

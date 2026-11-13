@@ -46,9 +46,10 @@ def test_mombak_confronta_acumulado_periodo_e_preserva_total_curva():
     original = R.forma_curva() * 588.8
     anual, rel = E.calibrar_inicio_plantio(original)
     assert anual.sum() == pytest.approx(original.sum())
-    assert anual[:8].sum() == pytest.approx(original[:8].sum())
+    assert anual[:11].sum() == pytest.approx(original[:11].sum())
     assert np.all(anual >= 0)
-    np.testing.assert_allclose(anual[8:], original[8:])
+    assert np.all(anual[4:11] > 0)
+    np.testing.assert_allclose(anual[11:], original[11:])
     candiru, irmaos = rel["comparacoes"]
     assert candiru["remocao_tco2e_ha"] == pytest.approx(26.3573988289)
     assert irmaos["remocao_tco2e_ha"] == pytest.approx(32.2641618497)
