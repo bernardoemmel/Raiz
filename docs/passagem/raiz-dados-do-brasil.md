@@ -434,3 +434,9 @@ A prioridade continua sendo concluir as 27 UFs com até 15 jobs. Depois de impla
    Não reconstruir valores exatos de gráficos, inferir meses ou publicar produtores/estabelecimentos.
 
 A extensão dos formatos Lote PA e o retropreenchimento do catálogo continuam preservados e pendentes.
+
+Validação da entrega urgente (12/11, 22h42 de Brasília): suíte completa local com 2.477 testes aprovados;
+o caso estadual exigiu preparar a referência privada e passou depois em execução isolada (144 municípios,
+345.870 imóveis, 425,58 s). LanguageTool depende do servidor presente no CI; uma divergência de TIR já
+documentada permanece como falha esperada. Frontend: 292 testes e build; Ruff/actionlint verdes;
+857 pacotes com licenças conferidas. PR/CI/merge e confirmação operacional ainda pendentes neste registro.
