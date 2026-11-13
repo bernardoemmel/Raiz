@@ -36,18 +36,43 @@ PROMOCOES_BASE_PR82 = {
 
 # Correção urgente: destino fechado com checkpoint, publicação estável e telemetria.
 # A auditoria anterior continua válida para seu destino histórico; a extensão declara cada delta.
-DESTINO_CONTINUACAO = 'ebb13cae969c56f88619aab45e01088116eb347f'
+DESTINO_URGENTE_PR95 = "ebb13cae969c56f88619aab45e01088116eb347f"
+PROMOCOES_URGENTE_PR95 = {
+    "88860b64ee09f811b66e283f5c57997ebcdb3fd5": DESTINO_URGENTE_PR95,
+    "b624b108b0350135003e1099d9c928fa7cc24151": DESTINO_URGENTE_PR95,
+    "6a53cfbf514f369f694ea0bd3bc594ef8295a3b4": DESTINO_URGENTE_PR95,
+    "bea53bd06c7178daf2a53c392e5a9d54c55e7bc7": DESTINO_URGENTE_PR95,
+    "436c7b636f6a8867b47403a1dfad4e4c741dc150": DESTINO_URGENTE_PR95,
+    "be452620f868537251fa832a10cb14bfb5c8efe3": DESTINO_URGENTE_PR95,
+    "6f49dfcfe680c7da204dd06818025e1ff47cbb7f": DESTINO_URGENTE_PR95,
+    "cf306256e0b562b1e05415b8ca0df1ca835c2155": DESTINO_URGENTE_PR95,
+    "c3bf907cd8838056d3b1c1633159b37df7133a82": DESTINO_URGENTE_PR95,
+    "2b6e8af444cab964b6503c0a3365ecb9cbde8c89": DESTINO_URGENTE_PR95,
+}
+
+# Rodada 12: fontes/bytes conferidos por município e tempos monotônicos.
+# As duas auditorias anteriores permanecem imutáveis e vinculadas pela prova nova.
+DESTINO_CONTINUACAO = "30ace967b885d07c2579c8625a9b5eb9cd4ec53b"
 PROMOCOES_CONTINUACAO = {
-    "88860b64ee09f811b66e283f5c57997ebcdb3fd5": DESTINO_CONTINUACAO,
-    "b624b108b0350135003e1099d9c928fa7cc24151": DESTINO_CONTINUACAO,
-    "6a53cfbf514f369f694ea0bd3bc594ef8295a3b4": DESTINO_CONTINUACAO,
-    "bea53bd06c7178daf2a53c392e5a9d54c55e7bc7": DESTINO_CONTINUACAO,
-    "436c7b636f6a8867b47403a1dfad4e4c741dc150": DESTINO_CONTINUACAO,
-    "be452620f868537251fa832a10cb14bfb5c8efe3": DESTINO_CONTINUACAO,
-    "6f49dfcfe680c7da204dd06818025e1ff47cbb7f": DESTINO_CONTINUACAO,
-    "cf306256e0b562b1e05415b8ca0df1ca835c2155": DESTINO_CONTINUACAO,
-    "c3bf907cd8838056d3b1c1633159b37df7133a82": DESTINO_CONTINUACAO,
-    "2b6e8af444cab964b6503c0a3365ecb9cbde8c89": DESTINO_CONTINUACAO,
+    origem: DESTINO_CONTINUACAO
+    for origem in (
+        *PROMOCOES_URGENTE_PR95,
+        DESTINO_URGENTE_PR95,
+        "10a94d4278493c5b1776479b192ed62866007d13",
+        "c65d7bbe670f29e3074c71a659b4f0998f062be2",
+        "91c993ec322fea64ca2e96098e212c0f5c2dc613",
+        "888add1e45d259463a708a9d32f1231f8754a7d7",
+        "6e7ca38da623e6c95d461c1528beabb408b34ee5",
+        "be4e0801467e2a71302c1f9574ccc1fe074eb5af",
+        "e877e359689be7e813a0dfe06ba85d3013729491",
+        "0f94767755f44655fb0a4c765230ff3f6ef41390",
+    )
+}
+
+# A origem pós-#93 conserva a carga estrita: não pode voltar ao destino anterior.
+# Par fechado conferido em auditoria-promocao-carga-estrita.json, com CI verde.
+PROMOCOES_CARGA_ESTRITA = {
+    "6e69cc042a9d93d772b4ac5cda419773fe03754f": "c89d0ac5790e1947b52fb64ce5af285ab02c50f0",
 }
 
 
@@ -172,7 +197,7 @@ def promover_continuacoes(estado: dict) -> int:
         continuacao = pedido.get("continuacao", 0)
         falhas = pedido.get("falhas", 0)
         origem = pedido.get("ref")
-        destino = PROMOCOES_CONTINUACAO.get(origem)
+        destino = PROMOCOES_CONTINUACAO.get(origem) or PROMOCOES_CARGA_ESTRITA.get(origem)
         if (
             pedido.get("bloqueado")
             or type(continuacao) is not int
