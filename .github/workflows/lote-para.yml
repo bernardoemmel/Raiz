@@ -30,7 +30,7 @@ jobs:
       - name: Reservar capacidade global antes de preparar os dados
         id: reserva
         run: python scripts/reservar_lote.py --reservar 15
-      - uses: astral-sh/setup-uv@v6
+      - uses: astral-sh/setup-uv@v7
         with:
           version: "0.13.6"
       - run: uv sync --frozen --extra motor
@@ -79,7 +79,7 @@ jobs:
         env:
           VAGAS: ${{ needs.preparar.outputs.vagas }}
         run: python scripts/reservar_lote.py --confirmar "$VAGAS"
-      - uses: astral-sh/setup-uv@v6
+      - uses: astral-sh/setup-uv@v7
         with:
           version: "0.13.6"
       - run: uv sync --frozen --extra motor
@@ -123,7 +123,7 @@ jobs:
         env:
           VAGAS: ${{ needs.preparar.outputs.vagas }}
         run: python scripts/reservar_lote.py --confirmar "$VAGAS"
-      - uses: astral-sh/setup-uv@v6
+      - uses: astral-sh/setup-uv@v7
         with:
           version: "0.13.6"
       - run: uv sync --frozen --extra motor

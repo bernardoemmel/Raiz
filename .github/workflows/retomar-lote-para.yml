@@ -49,7 +49,7 @@ jobs:
           path: motor-origem
       - name: Copiar somente o orquestrador privado para o checkout original
         run: cp raiz/restauracao_retomada.py motor-origem/raiz/restauracao_retomada.py
-      - uses: astral-sh/setup-uv@v6
+      - uses: astral-sh/setup-uv@v7
         with:
           version: "0.13.6"
           enable-cache: false
@@ -90,7 +90,7 @@ jobs:
           ref: ${{ env.SHA_ORIGEM }}
           path: motor-origem
       - run: cp raiz/restauracao_retomada.py motor-origem/raiz/restauracao_retomada.py
-      - uses: astral-sh/setup-uv@v6
+      - uses: astral-sh/setup-uv@v7
         with:
           version: "0.13.6"
           enable-cache: false
@@ -134,7 +134,7 @@ jobs:
           ref: ${{ env.SHA_ORIGEM }}
           path: motor-origem
       - run: cp raiz/restauracao_retomada.py motor-origem/raiz/restauracao_retomada.py
-      - uses: astral-sh/setup-uv@v6
+      - uses: astral-sh/setup-uv@v7
         with:
           version: "0.13.6"
           enable-cache: false
