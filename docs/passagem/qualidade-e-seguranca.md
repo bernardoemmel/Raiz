@@ -839,3 +839,32 @@ as oito ferramentas responderam em até **0,279 s**; Locust normal teve 30 chama
 e saturação teve 370 chamadas sem falhas, **275 respostas 429 válidas** e máximo 841 ms. Isso comprova
 transporte/tempo/carga; não aprova o corpus. Ruff, formatação (603 arquivos), actionlint, 1.098 arquivos
 sem CPF/CNPJ e Gitleaks dos dois commits novos da main passaram.
+
+### Integração da main #95 — checkpoints e telemetria municipal
+
+Revisado o delta de `52118b5`: preservação privada, confirmação de hashes, exceção geométrica histórica
+restrita, metadados Arrow, painel público por contagens, recortes de fronteira e admissão global. As novas
+instruções de continuidade do AGENTS.md foram lidas; nenhum processamento, reserva ou checkpoint foi alterado.
+Os conflitos conservam os portões Pandera/privacidade e os dados de outra UF encontrados no recorte do SICAR.
+Contornos e CSVs exigem origem cadastral válida sem reescrever o CAR; o arquivo continua vinculado ao recorte.
+
+O portão verifica o destino configurado antes de reconhecer links exatos de assets como técnicos: isso corrige
+o falso positivo de nome em um link do RN sem abrir URLs arbitrárias. A telemetria conserva sua lista fechada.
+Fixtures de retrato passam a usar CAR/hash sintéticos válidos e município oficial, sem dispensar privacidade.
+A auditoria de promoção reexecuta o **commit fechado** em checkout isolado, com conferência da origem dos módulos;
+não compara nem reetiqueta os resultados antigos com hashes da main. O job Python baixa o histórico Git para
+essa prova, sem rede dentro do teste e sem modificar as referências de promoção ou os jobs vivos.
+
+Validação focada: 328 testes da primeira combinação passaram; as 32 incompatibilidades foram tratadas acima.
+Depois dos ajustes, **97 testes de retratos/auditoria** e **39 de publicação** passaram. Gitleaks examinou os
+13 commits novos (275.246 bytes), sem achado, e a varredura aprovou 1.123 arquivos sem CPF/CNPJ.
+
+**Achado maior — dono: Dados.** `ArmazemRelease.publicar` troca temporariamente `self.local` pela cópia da
+publicação. Uma escrita concorrente feita pelo mesmo objeto (`por_bytes`, como a escrita de estado do monitor)
+é desviada para essa pasta temporária e pode desaparecer ao encerrá-la. Reprodução isolada com GitHub falso:
+gravação de `estado/RN.json` dentro de `_publicar_uf`, seguida de falha controlada, deixa apenas o estado anterior
+no espelho original. Os testes existentes de concorrência escrevem diretamente na variável `original`, por isso
+não cobrem esse caminho. Separar a visão de leitura da publicação do destino persistente das escritas, sem
+interromper executores ou descartar checkpoints; manter a prova de que todos os produtos leem o mesmo retrato.
+Os **346 testes completos do front**, TypeScript, Ruff (616 arquivos), formatação e actionlint também passaram
+na combinação #95. O CI final e o corpus real continuam necessários; nenhuma referência de ausência foi renovada.

@@ -25,7 +25,8 @@ import tarfile
 import tempfile
 from pathlib import Path
 
-from raiz.aprendizado.retratos import MAX_COMPRIMIDO, descomprimir, validar_retrato
+from raiz.aprendizado.compat_retratos import validar_retrato
+from raiz.aprendizado.retratos import MAX_COMPRIMIDO, descomprimir
 from raiz.executor.armazem import Armazem, ArmazemLocal, ArmazemRelease, ArmazemS3
 
 MAX_PACOTE = 64 * 1024 * 1024

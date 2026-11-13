@@ -268,7 +268,7 @@ def criar_app(
         return request.app.state.armazem
 
     app.include_router(painel.roteador(_engine_do_app, _armazem_do_app), dependencies=seguro)
-    app.include_router(painel.roteador_publico())
+    app.include_router(painel.roteador_publico(_armazem_do_app))
     # pedido de lote (docs/cena-alvo.md): rotas do cliente (sessão própria), internas (token da API) e o aviso de
     # pagamento do Pix (segredo do webhook)
     from raiz.pedidos import api as pedidos_api

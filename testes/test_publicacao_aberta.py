@@ -295,3 +295,83 @@ def test_pacote_publico_confere_todos_os_bytes_sem_expor_conteudo(defeito):
         validar_asset_publico("raiz_PA.tar.gz", pacote)
 
     assert marcador.decode() not in "".join(traceback.format_exception(erro.value))
+
+
+@pytest.mark.parametrize("uf,cod,origem", [("RN", "2400604", "PB-2500106"), ("PI", "2200103", "PE-2600054")])
+def test_recorte_estadual_preserva_car_de_outra_uf(uf, cod, origem):
+    from raiz.qualidade_dados import _municipios
+
+    car = origem + "-" + "B" * 32
+    municipio = _municipios()[cod]
+    fonte = ("cod_imovel,municipio,ha,problema\n" + f"{car},{municipio},0.01,False\n").encode()
+    projetados = projetar_csvs(uf, {f"imoveis_{cod}.csv": fonte})
+    validar_asset_publico(f"raiz_{uf}.tar.gz", ArmazemRelease._tar(uf, projetados))
+    linhas = projetados[f"imoveis_basicos_{cod}.csv"].decode().splitlines()
+    assert len(linhas) == 2
+    assert linhas[1].split(",")[:4] == [car, cod, municipio, uf]
+    assert linhas[0].split(",") == list(COLUNAS_BASICAS)
+
+
+@pytest.mark.parametrize("origem", ["ZZ-2500106", "PB-2400604"])
+def test_origem_cadastral_invalida_continua_bloqueada(origem):
+    car = origem + "-" + "A" * 32
+    fonte = (f"cod_imovel,ha\n{car},1\n").encode()
+    projetados = projetar_csvs("RN", {"imoveis_2400604.csv": fonte})
+    with pytest.raises(ValueError, match="valores omitidos"):
+        validar_asset_publico("raiz_RN.tar.gz", ArmazemRelease._tar("RN", projetados))
+
+
+def test_arquivo_de_municipio_fora_da_uf_do_recorte_continua_bloqueado():
+    projetados = projetar_csvs("RN", {"imoveis_1504950.csv": CSV})
+    with pytest.raises(ValueError, match="valores omitidos"):
+        validar_asset_publico("raiz_RN.tar.gz", ArmazemRelease._tar("RN", projetados))
+
+
+def test_processamento_publico_filtra_detalhes_e_recusa_injecao_aninhada():
+    from raiz.executor.publicacao_aberta import entrada_publica
+
+    observacao = {
+        "versao": 1,
+        "escopo": "unidade",
+        "unidade": "RN-1",
+        "municipios_total": 4,
+        "municipios": {"prontos": 1, "em_execucao": 1, "com_erro": 1, "pendentes": 1, "desconhecidos": 0},
+        "observado_em": "2026-11-13T00:00:00+00:00",
+        "ultima_mudanca_em": "2026-11-12T23:59:30+00:00",
+        "valido_ate": "2026-11-13T00:02:00+00:00",
+        "erro": "DETALHE_INTERNO",
+    }
+    entrada = entrada_publica({"processamento": observacao}, uf="RN")
+    entrada["url"] = f"https://github.com/{REPO}/releases/download/{TAG}/raiz_RN.tar.gz"
+    manifesto = {
+        "escopo": "publico_basico",
+        "versao_publicacao": 1,
+        "repo": REPO,
+        "tag": TAG,
+        "estados": {"RN": entrada},
+    }
+    assert "DETALHE_INTERNO" not in json.dumps(manifesto)
+    validar_asset_publico("estados.json", json.dumps(manifesto).encode())
+    entrada["processamento"]["municipios"]["cod_imovel"] = "DETALHE_INTERNO"
+    with pytest.raises(ValueError, match="valores omitidos"):
+        validar_asset_publico("estados.json", json.dumps(manifesto).encode())
+
+
+@pytest.mark.parametrize("origem,aprovado", [("PB-2500106", True), ("PB-2400604", False), ("ZZ-2500106", False)])
+def test_geo_do_recorte_preserva_outra_uf_mas_exige_origem_valida(origem, aprovado):
+    car = origem + "-" + "B" * 32
+    g = gpd.GeoDataFrame({"cod_imovel": [car]}, geometry=[box(-36, -6, -35, -5)], crs=4674)
+    bruto = io.BytesIO()
+    g.to_parquet(bruto, index=False)
+    pacote = ArmazemRelease._tar("RN", {"geo_2400604.parquet": projetar_geo(bruto.getvalue())})
+    if aprovado:
+        validar_asset_publico("raiz_geo_RN.tar.gz", pacote)
+    else:
+        with pytest.raises(ValueError):
+            validar_asset_publico("raiz_geo_RN.tar.gz", pacote)
+
+
+def test_manifesto_nao_pode_escolher_outro_destino_para_escapar_do_portao():
+    m = {"escopo": "publico_basico", "versao_publicacao": 1, "repo": "outro/projeto", "tag": TAG, "estados": {}}
+    with pytest.raises(ValueError):
+        validar_asset_publico("estados.json", json.dumps(m).encode(), repo=REPO, tag=TAG)

@@ -163,7 +163,7 @@ def montar(saida: Path, destino: Path, ufs: list[str], publicado: dict, partes: 
             else:
                 info["geo"] = antigo["geo"]
         info["motor"], info["erros"] = motor, erros
-        novas[uf] = {**entrada_publica(info), "url": info["url"], **({"geo": info["geo"]} if info.get("geo") else {})}
+        novas[uf] = {**entrada_publica(info, uf=uf), "url": info["url"], **({"geo": info["geo"]} if info.get("geo") else {})}
     return novas, arquivos
 
 
