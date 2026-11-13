@@ -64,7 +64,7 @@ const opcoes = ids.map((id, i) => {
 const pedido = {
   id: "fixture", criado_em: "2026-11-12T12:00:00Z", campos, status: "lote_montado", opcoes,
   base: { fazendas: 321, hectares: 10_000, creditos: { p10: 2_000_000, p50: 2_500_000, p90: 3_000_000 }, por_caminho: [], por_interesse: [], alcanca_meta: true, falta: 0, afrouxar: [] },
-  opcao_escolhida: null, reservado_ate: null, alertas: [], versao_modelo: "fixture-cena-v1",
+  opcao_escolhida: null, reservado_ate: null, alertas: [], versao_modelo: "fixture-cena-v1", revisao_lote: "a".repeat(64),
 }
 const carFechado = "PA-1505536-CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC"
 const pedidoComFichaFechada = {
@@ -168,7 +168,7 @@ try {
 
   api = await servidor(true)
   p = await pagina(api.base, publicado, true)
-  await conferirSensibilidade(p, AxeBuilder, resultado)
+  await conferirSensibilidade(p, AxeBuilder, resultado, pedido)
   await p.waitForFunction(() => {
     const m = document.querySelector(".mapa-lote")?.__mapa
     return m?.loaded() && m.queryRenderedFeatures({ layers: ["lote-area"] }).length >= 3

@@ -64,6 +64,7 @@ class GradeSensibilidade(BaseModel):
     model_config = ConfigDict(extra="forbid")
     pedido_id: uuid.UUID
     modelo_versao: Annotated[str, Field(min_length=1)]
+    revisao_lote: Annotated[str, Field(pattern=r"^[a-f0-9]{64}$")]
     atualizado_em: dt.datetime
     fonte: Annotated[str, Field(min_length=1)]
     aviso: Annotated[str, Field(min_length=1)]
@@ -88,6 +89,7 @@ def consultar(pedido: dict, parametros: ParametrosSensibilidade) -> dict:
         "fonte": "Lote e números, Release privado",
         "atualizado_em": None,
         "modelo_versao": None,
+        "revisao_lote": pedido.get("revisao_lote"),
         "opcoes": [],
         "aviso": "A grade de sensibilidade dos três lotes ainda não está disponível. "
         "O cenário central do Pará não foi recalculado. São necessárias saídas do motor para estas premissas.",
@@ -101,7 +103,11 @@ def consultar(pedido: dict, parametros: ParametrosSensibilidade) -> dict:
         grade = GradeSensibilidade.model_validate_json(arquivo.read_text(encoding="utf-8"))
     except (OSError, ValueError, KeyError, ValidationError):
         return resposta
-    if grade.pedido_id != pedido_id or grade.modelo_versao != pedido.get("versao_modelo"):
+    if (
+        grade.pedido_id != pedido_id
+        or grade.modelo_versao != pedido.get("versao_modelo")
+        or grade.revisao_lote != pedido.get("revisao_lote")
+    ):
         return resposta
     cenario = next((c for c in grade.cenarios if c.parametros == parametros), None)
     if cenario is None:
