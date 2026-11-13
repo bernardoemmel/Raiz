@@ -98,7 +98,7 @@ describe("Release público básico", () => {
     }))
     const fonte = fonteAmostra("/Raiz/")
     const f = fontePedidosRelease("/Raiz/", fonte)
-    const pedido = await f.criar({ ...CAMPOS_PADRAO, onde: { ...CAMPOS_PADRAO.onde, ufs: ["PA"] } })
+    const pedido = await f.criar({ ...CAMPOS_PADRAO, onde: { ...CAMPOS_PADRAO.onde, biomas: [], ufs: ["PA"] } })
     expect(pedido.publicacao?.cobertura).toEqual({ municipios: 1, estados: 1, fazendas: 12, hectares: 120 })
     expect(pedido.publicacao?.base.creditos.p50).toBeNull()
     expect(pedido.opcoes).toEqual([])

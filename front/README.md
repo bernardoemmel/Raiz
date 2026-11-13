@@ -210,13 +210,15 @@ O contrato com o back-end está em `compartilhado/pedidos/tipos.ts` (rotas no co
 trocar), `POST /pedidos/{id}/solicitar-interesse`, `GET /pedidos/{id}/andamento`, `POST /pedidos/{id}/reservar` e
 `GET /pedidos/{id}/reserva`, com o token da sessão no cabeçalho. Com `VITE_RAIZ_API`, as telas falam com essas rotas.
 
-Sem API, o front salva apenas os critérios no navegador e mostra a cobertura agregada por estado e município.
-O build ignora qualquer `lote_PA_central_r11.json` financeiro encontrado em `RAIZ_LOTES` ou `dados/lotes`;
-publica somente um marcador de acesso privado para clientes estáticos antigos. O navegador também ignora caches
-legados, sem baixar o ponteiro do Release. `scripts/baixar-lotes.mjs` permanece como compatibilidade: não usa
-rede nem lê ou altera snapshots financeiros locais. O workflow do site não executa esse downloader.
-A comparação real, os ganhos por pendência e os desenhos dos lotes vêm exclusivamente da API autenticada.
-O cenário sintético do teste de navegador é interceptado somente pelo Playwright e nunca entra no build público.
+Sem API, o front salva os critérios no navegador e mostra a cobertura agregada por estado e município.
+O workflow projeta o manifesto privado com `python -m raiz.lotes_publicos`, usando token somente nesse passo.
+Somente o contrato `publico_lotes` v1 vai para `dados/lotes-publicos/lote_PA_central_r11.json`: três resumos
+com créditos P10/P50/P90, hectares, fazendas (titulares e reservas), custo médio e meta com terra documentada.
+Não baixa pacotes individuais. Build e navegador reaplicam uma lista positiva, sem TIR, CAR, desenhos, travas
+ou referências privadas. Os filtros do novo pedido não recalculam o snapshot. O build continua ignorando
+qualquer arquivo financeiro em `RAIZ_LOTES` ou `dados/lotes`; `scripts/baixar-lotes.mjs` permanece como
+compatibilidade sem rede nem leitura ou alteração de snapshots privados.
+A composição, os ganhos por pendência e os desenhos dos lotes vêm exclusivamente da API autenticada.
 
 As três opções têm cores e traços diferentes. Na API, a geometria vem junto do item apenas quando a ficha já foi
 desbloqueada pelo mesmo cliente ativo; medidas individuais de itens fechados chegam como `null`, com
