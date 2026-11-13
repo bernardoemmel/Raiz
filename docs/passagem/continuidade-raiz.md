@@ -150,3 +150,18 @@ antigo por conexão via socket; preferir TCP e executar a suíte inteira, como n
   em consultas reais; MapBiomas retornou “Token de acesso inválido” para alertas, apesar do índice público abrir.
   Exige as credenciais MapBiomas já documentadas. Nada foi enviado a clientes, proprietários ou Verra.
 - Contrato e ativação em `docs/vigilancia-lotes.md`; dados privados nunca vão ao Release público ou ao cache do Actions.
+
+## Entrega 4 — quando chegar a primeira certidão
+
+- API principal recebe PDF em `POST /documentos/certidoes`, com sessão de pessoa da empresa liberada,
+  pedido e CAR autorizado. Original e previsão ficam cifrados em armazém privado separado por empresa.
+  Nunca usar `dados/amostra` como previsão real; na API, a projeção vem da rodada vigente do PostGIS.
+- Previsão é congelada antes de ler, com hash/data. Validação de PDF isolada (20 MiB, 100 páginas, sem senha,
+  conteúdo ativo ou anexos), idempotência, limites de armazenamento, leitura explícita e recuperação de interrupção.
+- Leitura/gabarito/sincronização exigem operação interna. Gabarito humano separado da previsão, com origem/data,
+  campos técnicos fechados e declaração de conferência. Um cliente ou modelo não pode promover sua saída a verdade.
+  Sem previsão anterior, não grava suposto erro do motor; sem custo informado, não grava zero inventado.
+- Referências E8 incluem a empresa; data de captura impede retrodatação pela emissão da certidão.
+  Original só sai como anexo privado ao revisor. Nenhum PDF, nome, CPF/CNPJ ou texto bruto vai a treino/log/site.
+- **Ainda falta a primeira certidão real** e sua conferência humana. Os testes não constituem conjunto de avaliação
+  nem autorizam calibrar E7/E8. Procedimento completo e rotas: `docs/primeira-certidao.md`.

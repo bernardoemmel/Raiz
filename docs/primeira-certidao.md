@@ -43,7 +43,8 @@ cria outra leitura ou outro gabarito. Reusar a chave com outro PDF ou outro gaba
 para o mesmo pedido e CAR também é deduplicado, mesmo com chave nova.
 
 Limites: 20 MiB por PDF, 1 a 100 páginas e 512 MiB de originais por empresa nesta entrada. PDFs protegidos por senha,
-quebrados, com ações, JavaScript ou anexos incorporados são recusados. O tamanho é limitado também durante o streaming,
+quebrados, com ações, JavaScript ou anexos incorporados são recusados. A validação do PDF roda em processo
+isolado, com 1 GiB de memória, limite de CPU e 20 segundos de parede; saída e diagnóstico são fechados. O tamanho é limitado também durante o streaming,
 mesmo sem `Content-Length`. A sessão tem limite persistido de 30 chamadas por minuto. Nenhum documento de uma empresa
 é localizado pela sessão de outra; recibos não contêm nomes de pessoa, texto bruto, caminho local nem erro do provedor.
 

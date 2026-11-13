@@ -9,17 +9,17 @@ from __future__ import annotations
 import base64
 import datetime as dt
 import hashlib
-import io
 import json
 import re
+import sys
 import uuid
 from contextlib import contextmanager
 from pathlib import Path
 
 import pandas as pd
-from pypdf import PdfReader
 from sqlalchemy import text
 
+from raiz.calendario.processo_limitado import executar
 from raiz.documentos import aprendizado, config, tabelas
 from raiz.documentos.armazem import Armazem, agora
 from raiz.documentos.certidao import leitor
@@ -97,29 +97,14 @@ def validar_pdf(pdf: bytes) -> int:
     if not pdf.startswith(b"%PDF-"):
         raise ErroEntrada(422, "arquivo_nao_e_pdf")
     try:
-        p = PdfReader(io.BytesIO(pdf), strict=True)
-        if p.is_encrypted:
-            raise ErroEntrada(422, "pdf_protegido_por_senha")
-        paginas = len(p.pages)
-        if not 1 <= paginas <= MAX_PAGINAS:
-            raise ErroEntrada(422, "pdf_deve_ter_1_a_100_paginas")
-        raiz = p.trailer["/Root"]
-        if any(k in raiz for k in ("/OpenAction", "/AA")) or any(
-            k in raiz.get("/Names", {}) for k in ("/JavaScript", "/EmbeddedFiles")
-        ):
-            raise ErroEntrada(422, "pdf_com_conteudo_ativo")
-        for pagina in p.pages:
-            if "/AA" in pagina:
-                raise ErroEntrada(422, "pdf_com_conteudo_ativo")
-            for anotacao in pagina.get("/Annots", []):
-                a = anotacao.get_object()
-                if "/AA" in a or "/A" in a or a.get("/Subtype") == "/FileAttachment":
-                    raise ErroEntrada(422, "pdf_com_conteudo_ativo")
-        return paginas
-    except ErroEntrada:
-        raise
-    except Exception as exc:  # o parser pode incluir trechos do PDF na mensagem
-        raise ErroEntrada(422, "pdf_invalido") from exc
+        resultado = json.loads(
+            executar([sys.executable, "-m", "raiz.documentos.certidao.validacao_pdf"], pdf, 20, 1024)
+        )
+    except Exception:
+        raise ErroEntrada(422, "pdf_invalido_ou_acima_dos_limites") from None
+    if resultado.get("erro"):
+        raise ErroEntrada(422, resultado["erro"])
+    return int(resultado["paginas"])
 
 
 def capturar_previsao(cod_imovel: str) -> dict:
