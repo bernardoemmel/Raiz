@@ -72,3 +72,10 @@ dados/historico_aprendizado/
 # Relatórios locais de qualidade, sem artefatos grandes no git
 resultado-mcp/
 resultado-carga/
+# Segredos locais da pilha API/MCP
+.env.*
+!.env.example
+
+# Saídas locais da conferência MCP/OpenAPI e métricas de execução
+/.cache/
+/servicos/conferencia-agentes/node_modules/
