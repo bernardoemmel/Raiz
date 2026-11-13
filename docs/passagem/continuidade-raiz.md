@@ -37,7 +37,7 @@ Preparação não registra `verra_avisada`; envio e preenchimento cabem exclusiv
    por leitura, corte calibrado em gabaritos da leitura integral e risco controlado; sem calibração suficiente,
    reler. Confiança declarada alta/média/baixa não prova acerto. MAPIE LTT implementado; ver `docs/cache-matricula.md`. Coletar a amostra real e calibrar antes da ativação.
 3. **E8:** reexecutar motor/outros modelos por fold com scd2 `folds.como_estava`, e sobrevivência do aceite
-   (tempo até aceite; lifelines MIT), implementados. Captura automática no executor com banco e seis adaptadores: motor, FLAG, restauração, regularização, triagem e rebanho. Catálogo parcial aceita só modelos com todas as fontes do corte. Actions sem banco também captura retratos imutáveis, publica periodicamente/ao finalizar em Releases `historico-AAAA-MM-DD` e importa na sincronização, sem nomes ou documentos pessoais. Datas observada e registrada são separadas; chegada atrasada preserva intervalos scd2, com deduplicação por hash. O histórico acumula desde as próximas execuções, sem retrodatação de tarefas antigas. Sobrevivência exige 30 contatos reais/5 aceites. Ver `docs/aprendizado-por-tempo.md`. Não usar camadas de hoje nos folds históricos.
+   (tempo até aceite; lifelines MIT), implementados. Captura automática no executor com banco e seis adaptadores: motor, FLAG, restauração, regularização, triagem e rebanho. Catálogo parcial aceita só modelos com todas as fontes do corte. Actions sem banco também captura retratos imutáveis, guarda periodicamente/ao finalizar em Releases **privados em rascunho** `historico-AAAA-MM-DD` e importa na sincronização, sem nomes ou documentos pessoais. Datas observada e registrada são separadas; chegada atrasada preserva intervalos scd2, com deduplicação por hash. O histórico acumula desde as próximas execuções, sem retrodatação de tarefas antigas. Sobrevivência exige 30 contatos reais/5 aceites. Ver `docs/aprendizado-por-tempo.md`. Não usar camadas de hoje nos folds históricos.
 4. **Servidor/modelos:** build local de llama.cpp b12300 com llguidance e Rust 1.100.0 corrigido e validado.
    Avaliação real concluída em 12/11/2026: 120 tarefas × 3, nenhuma falha técnica, 67,92% de acerto em intenção
    e 43,33% em compreensão. Nenhum corte atingiu 95%; o YAML gerado mantém cortes vazios e votação Qwen + Haiku.
@@ -54,10 +54,10 @@ Preparação não registra `verra_avisada`; envio e preenchimento cabem exclusiv
    API `/eventos`, `.ics`, função MCP `proximos_eventos`, aba do site, selos por CAR e avisos de lotes simulados.
    Cancelamentos/retificações preservam UID; nenhuma pessoa ou documento pessoal persistido. CAR inferido por
    matrícula/SIGEF fica interno; consulta pública só mostra CAR explícito no edital. Ficha mantém acesso pago. Fonte sem chave
-   CAR/CNS/SIGEF fica pendente. DJEN respondeu 403, cobertura de diários inicial PA/MT, sem OCR de PDF escaneado.
+   CAR/CNS/SIGEF fica pendente. DJEN segue 403; DOE PA foi recuperado, diários selecionados pela cobertura real e PDFs/OCR isolados. Ver continuação abaixo.
    Ver `docs/calendario.md`. Site publica depois da coleta. No servidor, instalar o cron com
    `uv run python scripts/instalar_cron_alertas.py --tarefa calendario --instalar` após migrar o banco;
-   não foi instalado em produção por ausência de acesso. Não existe transporte MCP no repositório.
+   não foi instalado em produção por ausência de acesso. O servidor MCP pago existe; a função `proximos_eventos` ainda não está registrada nele.
 8. **Decisões já reservadas ao fundador:** SQLMesh/Dagster (o executor próprio continua nos E8 1/2/7); envio do
    convênio ONR (`docs/pedidos/onr-convenio.md`, E5 9); WhatsApp real e chaves de produção continuam adiados.
    MCGrad/mapaccuracy só após licença conferida; calibração e Olofsson próprios já implementados, sem depender deles.
@@ -81,8 +81,7 @@ Preparação não registra `verra_avisada`; envio e preenchimento cabem exclusiv
 - Antes de cada entrega, buscar main, conferir migrações e `uv run alembic heads`: uma cabeça só. Resolver
   conflitos, abrir PR e fazer merge com CI verde. Em entregas encadeadas, preservar a ancestralidade evita
   reapresentar alterações já revisadas. Sem force-push na main.
-- Não cancelar “Processar estados” para liberar CI. “Vigilância diária” roda às 09:17 UTC e publica no Release
-  `vigilancia`; “Busca semanal” também já existe. Filas do CI podem levar até 40 minutos.
+- Não cancelar “Processar estados” para liberar CI. “Vigilância diária” roda às 09:17 UTC; dados de clientes e rascunhos devem permanecer no arquivo privado; “Busca semanal” também já existe. Filas do CI podem levar até 40 minutos.
 
 ## Verificação de entrega
 
@@ -98,3 +97,87 @@ uv run pytest -q
 A suíte de banco exige PostGIS e `RAIZ_BANCO_URL_TESTE` num banco **exclusivo de testes**: o fixture desfaz e
 recria o esquema. Agentes em paralelo precisam de bancos separados. O teste de coleta CAR falhava no ambiente
 antigo por conexão via socket; preferir TCP e executar a suíte inteira, como no CI.
+
+## Continuação em ordem: entrega 1 — fontes
+
+- DOE PA recuperado no índice `/pages/2026/` e PDF oficial de 12/11/2026. Leitura real de 137 páginas;
+  verificação integrada com três visitas sem falha HTTP. Zero eventos nessa amostra não significa ausência de editais.
+- Diários escolhidos diariamente por `estados.json` com `escopo=publico_basico`, município processado > 0:
+  AC/AP/BA/CE/GO/MA/MG/PA/PI/RN/RO/RR/TO. UFs com zero não entram; não há piso de área ou número de fazendas.
+  Uma nova UF sem fonte produz `cobertura_diarios=erro`, conservando as demais coletas.
+- CAIXA: CSV nacional e detalhe individual; prova pública de matrícula só do mesmo bem. BB: destaques parciais.
+  TRT16: índice + dois editais reais lidos; um leilão rural histórico, CAR pendente. Sem relação inequívoca ao CAR,
+  o evento pode existir na agenda, mas nunca gera selo/alerta de uma fazenda presumida.
+- HTTP transitório tem retentativas com espera; 401/403/CAPTCHA não têm contorno. PDF/OCR em RAM e subprocessos
+  limitados; OCR sozinho e CAR de confrontante não confirmam vínculo. Identidade separa editais homônimos e praças.
+  Retirar identificador ambíguo corrige o evento de correspondência única, conservando UID; não duplica a agenda
+  nem conserva matrícula descartada como vigente. Releitura real da Fomento confirmou a correção.
+- **Pendências externas:** DJEN continua 403 na API e caderno oficiais; BA/MG/TO tiveram indisponibilidade.
+  A sondagem posterior também registrou leitura incompleta em AC/PI/RN/RO e restrição em RR. O índice PA oscilou;
+  há consulta direta de PDFs ordinários oficiais como alternativa, mantendo extras/cobertura parcial explícitos.
+  Não substituir a API de produção pelo ambiente de homologação. Não marcar fonte saudável só porque o índice abre.
+- Evidência e limites em `docs/calendario.md`; resultado integrado em `/workspace/entregas/calendario-fontes/`, fora do git.
+  Próximas entregas: avaliação/custo por documento, vigilância dos lotes e percurso da primeira certidão real.
+- Coleta integral local conferida em 12/11/2026, depois da correção de UIDs: **50 eventos, 11 futuros, 198 visitas**,
+  sem duplicatas exatas. Foram consultadas 31 fontes reais e a cobertura dos diários; o snapshot conserva também
+  o estado histórico de MT (33 entradas de cobertura). PA parcial em 14 visitas; DJEN/BA/MG/TO em erro.
+  Nenhum dos 50 eventos confirmou CAR; não se gerou alerta de fazenda presumida nem envio externo.
+  Evidência: `/workspace/entregas/calendario-integracao-completa/`, fora do git. Isso é validação local;
+  o resultado operacional publicado deve ser conferido na execução do workflow na main.
+- `ANTHROPIC_API_KEY` ausente/vazia neste processo. Consulta de nomes de secrets no GitHub foi negada por escopo
+  da integração (403), portanto não prova presença nem ausência em produção. Nunca pedir ou imprimir seu valor.
+- Release `dados` agora contém somente cadastro básico/agregados. `dados-privados` e históricos completos são
+  **rascunhos privados**; nunca publicar esses Releases nem usar `dados/amostra` como previsão real de certidão.
+
+## Entrega 2 — avaliação da cascata
+
+- `raiz modelos avaliar-cascata --documentos <manifesto-privado>` pronto. Qwen primeiro nas tarefas curtas
+  compatíveis; confiança baixa/sem corte aprovado chama Haiku. PDF visual/entrada longa registra o motivo da
+  rota direta. Toda tentativa/modelo/tokens/cache/preço/duração entra no custo por hash do documento.
+- Acerto exige gabarito humano integral com origem e data. Sem rótulo, acerto é `null`; uso ou preço não informado
+  deixa custo desconhecido. Custo da máquina local é separado da tarifa de API e não foi presumido gratuito.
+- As 120 tarefas de aceite continuam explicitamente um benchmark de tarefas, nunca um conjunto de certidões.
+  Tentativa real do comando em 12/11/2026 parou antes das chamadas: `ANTHROPIC_API_KEY` ausente/vazia;
+  `RAIZ_ANTHROPIC_API_KEY` também não encontrada. Nenhuma medição Haiku foi produzida.
+- Detalhes, contrato do manifesto privado e comando de retomada: `docs/avaliacao-cascata-documentos.md`.
+  Os cortes locais continuam vazios; nenhuma avaliação sintética os aprovou.
+
+## Entrega 3 — vigilância dos lotes
+
+- Workflow diário às 06h17 de Brasília usa `rodar --lotes`, DETER, MapBiomas Alerta e FIRMS NOAA-20/21.
+  Recorta os polígonos pelas fazendas de pedidos não cancelados de clientes ativos, sem excluir fazendas pequenas.
+  Geometria ausente é cobertura parcial, nunca licença para ampliar o monitoramento a todos os imóveis.
+- Banco real identifica o dono. Sem banco, exige `lotes-vigilancia.json` no Release privado em rascunho,
+  renovado há no máximo 36 horas. `lotes-ciclo --publicar` e o instalador de cron `vigilancia_lotes` fazem a ponte
+  automática servidor/Actions/painel a cada 15 minutos; implantação real ainda depende de acesso ao servidor.
+- Relatórios na rota `/v1/pedidos/{id}/vigilancia/relatorios` e `.md`, somente pessoa autenticada da empresa
+  liberada e dona do pedido. A projeção genérica de alertas não expõe o rascunho. Revalida dono/fazenda ao importar.
+- Um rascunho por fato/dono; NOAA no mesmo CAR/dia não soma pixels como área queimada. Foco é indício, não perda
+  confirmada. Causa, estoque, área afetada, proponente e prazo regulatório ficam a conferir; nenhum projeto Verra
+  é fabricado a partir de um lote. Todas as evidências falsas descartam também o rascunho já preparado.
+- **Operação pendente:** o arquivo privado acessível não tinha `lotes-vigilancia.json` nem `vigilancia.json`;
+  sem banco/servidor real não é possível atribuir lotes a clientes por suposição. NOAA-20/21 e DETER responderam
+  em consultas reais; MapBiomas retornou “Token de acesso inválido” para alertas, apesar do índice público abrir.
+  Exige as credenciais MapBiomas já documentadas. Nada foi enviado a clientes, proprietários ou Verra.
+- Contrato e ativação em `docs/vigilancia-lotes.md`; dados privados nunca vão ao Release público ou ao cache do Actions.
+
+## Entrega 4 — quando chegar a primeira certidão
+
+- API principal recebe PDF em `POST /documentos/certidoes`, com sessão de pessoa da empresa liberada,
+  pedido e CAR autorizado. Original e previsão ficam cifrados em armazém privado separado por empresa.
+  Nunca usar `dados/amostra` como previsão real; na API, a projeção vem da rodada vigente do PostGIS.
+- Previsão é congelada antes de ler, com hash/data. Validação de PDF isolada (20 MiB, 100 páginas, sem senha,
+  conteúdo ativo ou anexos), idempotência, limites de armazenamento, leitura explícita e recuperação de interrupção.
+- Leitura/gabarito/sincronização exigem operação interna. Gabarito humano separado da previsão, com origem/data,
+  campos técnicos fechados e declaração de conferência. Um cliente ou modelo não pode promover sua saída a verdade.
+  Sem previsão anterior, não grava suposto erro do motor; sem custo informado, não grava zero inventado.
+- Referências E8 incluem a empresa; data de captura impede retrodatação pela emissão da certidão.
+  Original fica cifrado para leitura e prova; a API não devolve o PDF bruto com CPF/CNPJ. A pessoa revisora usa a via
+  recebida do proponente. Nenhum PDF, nome, CPF/CNPJ ou texto bruto vai a treino/log/site.
+- **Ainda falta a primeira certidão real** e sua conferência humana. Os testes não constituem conjunto de avaliação
+  nem autorizam calibrar E7/E8. Procedimento completo e rotas: `docs/primeira-certidao.md`.
+
+As entregas desta continuação estão nos PRs [fontes #87](https://github.com/bernardoemmel/Raiz/pull/87),
+[cascata #88](https://github.com/bernardoemmel/Raiz/pull/88),
+[vigilância #91](https://github.com/bernardoemmel/Raiz/pull/91) e
+[primeira certidão #92](https://github.com/bernardoemmel/Raiz/pull/92), nessa ordem.

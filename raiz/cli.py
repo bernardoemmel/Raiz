@@ -722,6 +722,50 @@ def modelos_avaliar(
     typer.echo(f"relatório: {arq}")
 
 
+@modelos.command("avaliar-cascata")
+def modelos_avaliar_cascata(
+    documentos: Annotated[Path | None, typer.Option(help="manifesto privado de PDF/TXT reais e seus gabaritos")] = None,
+    benchmark_aceite: Annotated[bool, typer.Option(help="usar as 120 tarefas de aceite; não são certidões")] = False,
+    tentativas: Annotated[int, typer.Option(min=1, max=10, help="leituras por documento ou tarefa")] = 1,
+    saida: Annotated[Path, typer.Option(help="pasta privada do relatório (fora do git)")] = Path("dados/avaliacao"),
+) -> None:
+    """Mede acerto e custo por entrada na cascata real, sem salvar texto nem gabarito no relatório."""
+    from raiz.config import config
+    from raiz.modelos.avaliacao import cascata as AC
+    from raiz.modelos.cascata import cascata_padrao
+
+    if bool(documentos) == benchmark_aceite:
+        raise typer.BadParameter("escolha --documentos ou --benchmark-aceite")
+    # Falha antes de rodar dezenas de chamadas locais quando o fallback solicitado não pode funcionar.
+    if not config().anthropic_api_key:
+        typer.echo(
+            "avaliação bloqueada: ANTHROPIC_API_KEY ausente ou vazia; "
+            "RAIZ_ANTHROPIC_API_KEY também não foi encontrada no ambiente/.env. "
+            "Nenhum acerto ou custo Haiku foi medido.",
+            err=True,
+        )
+        raise typer.Exit(1)
+    try:
+        meta, casos = AC.documentos(documentos) if documentos else AC.banco_aceite()
+    except (ValueError, OSError) as ex:
+        # Falhas de arquivo podem conter nome de pessoa; só as validações explícitas são mostradas.
+        typer.echo(str(ex) if isinstance(ex, ValueError) else "não foi possível ler o manifesto/documentos", err=True)
+        raise typer.Exit(1) from None
+    unidade = "documentos" if documentos else "tarefas de aceite (não são certidões)"
+    typer.echo(f"{len(casos)} {unidade} × {tentativas} tentativa(s); modelo local primeiro quando a entrada cabe.")
+    linhas = AC.avaliar(cascata_padrao(), casos, tentativas, progresso=lambda i, n: typer.echo(f"  {i}/{n}"))
+    rel = AC.relatorio(meta, linhas)
+    arq = AC.gravar(rel, saida)
+    r = rel["resumo"]
+    acerto = f"{r['acerto']:.1%}" if r["acerto"] is not None else "não medido: sem gabarito"
+    custo = f"US$ {r['custo_usd']:.6f}" if r["custo_usd"] is not None else "incompleto: uso/preço ausente"
+    typer.echo(f"acerto: {acerto}; revisões: {r['revisoes']}; custo de API: {custo}")
+    typer.echo(f"relatório por entrada: {arq}")
+    if any(c["falha"] for r in linhas for c in r["chamadas"]):
+        typer.echo("houve falhas de modelo; consulte a cobertura no relatório", err=True)
+        raise typer.Exit(1)
+
+
 @modelos.command("calibrar")
 def modelos_calibrar(
     relatorio: Annotated[Path | None, typer.Option(help="relatório do `avaliar`; sem ele, roda o teste no local")] = (

@@ -72,6 +72,9 @@ def rodar(
     ufs: list[str] | None = None,
     lista_projetos: list | None = None,
     poligonos: Poligonos | None = None,
+    lotes: bool = False,
+    catalogo_lotes: list | None = None,
+    banco=None,
 ) -> dict:
     cfg = cfg or config()
     hoje = hoje or hoje_brasil()
@@ -92,6 +95,39 @@ def rodar(
 
     lista = lista_projetos if lista_projetos is not None else projetos.carregar()
     pol = poligonos or Poligonos(cfg, ufs)
+    if lotes or catalogo_lotes is not None:
+        from raiz.vigilancia import lotes as lotes_mod
+
+        try:
+            banco = banco if banco is not None else lotes_mod.engine_configurado()
+            if catalogo_lotes is None:
+                catalogo_lotes, origem = lotes_mod.carregar_catalogo(cfg, banco, inicio)
+            else:
+                origem = {"origem": "catalogo_injetado"}
+            pol = lotes_mod.PoligonosLotes(pol, catalogo_lotes)
+            if lista_projetos is None:
+                lista = []  # lote comercial não cadastra nem autoriza inferir projeto de carbono
+            res["lotes"] = {
+                **origem,
+                "lotes": len(catalogo_lotes),
+                "imoveis": len(pol.codigos),
+                "imoveis_cobertos": len(pol.presentes),
+                "imoveis_sem_poligono_processado": len(pol.codigos - pol.presentes),
+            }
+            # No servidor, o cron diário renova o catálogo para o Actions, mesmo se nenhuma fazenda mudou.
+            if banco is not None and publicar:
+                res["lotes"]["catalogo_publicado"] = lotes_mod.exportar_catalogo(cfg, banco, inicio)
+            if not pol.presentes:
+                res["lotes"]["situacao"] = "parcial" if pol.codigos else "ok"
+                res["fontes"] = {}
+                res["publico"] = {"hoje": hoje.isoformat(), "regra": regras.versao, "lotes": res["lotes"]}
+                return res  # caixa vazia jamais significa consultar o Brasil inteiro
+        except Exception as ex:  # noqa: BLE001
+            # Não coletar todas as fazendas como substituto de um catálogo indisponível e não apagar estado antigo.
+            res["lotes"] = {"situacao": "erro", "erro": lotes_mod.diagnostico(ex)}
+            res["fontes"] = {}
+            res["publico"] = {"hoje": hoje.isoformat(), "regra": regras.versao, "lotes": res["lotes"]}
+            return res
     areas: dict[str, gpd.GeoDataFrame] = {}
     for p in lista:
         try:
@@ -113,6 +149,9 @@ def rodar(
     for nome in fontes or list(NOMES):
         t0 = time.monotonic()
         anterior = estado.get(nome, {})
+        recorte = getattr(pol, "assinatura", None)
+        if recorte and anterior.get("recorte_lotes") != recorte:
+            anterior = {}  # lote novo exige reler a publicação atual, mesmo sem edição nova da fonte
         try:
             leitura = _ler(nome, ctx, anterior, arm, refazer_ibama)
             oc = leitura.ocorrencias.reset_index(drop=True)
@@ -127,22 +166,25 @@ def rodar(
                 arm.gravar_espelho_ibama(leitura.extras["espelho"])
             leituras[nome] = leitura
             im = novos[novos["alvo_tipo"] == "imovel"] if len(novos) else novos
+            falhas = leitura.extras.get("falhas") or {}
             por_fonte[nome] = {
-                "situacao": "ok",
+                "situacao": "parcial" if falhas else "ok",
                 "ocorrencias": int(len(oc)),
                 "alertas_novos_imovel": int(len(im)),
                 "imoveis_com_alerta_novo": int(im["alvo_id"].nunique()) if len(im) else 0,
                 "alertas_novos_projeto": int(len(novos) - len(im)),
                 "nota": leitura.nota,
+                **({"falhas": falhas} if falhas else {}),
             }
             estado[nome] = {
                 "ultima_leitura": dt.datetime.now(dt.UTC).isoformat(timespec="seconds"),
                 "primeira_leitura": anterior.get("primeira_leitura") or hoje.isoformat(),
-                "ok": True,
-                "situacao": "ok",
-                "erro": None,
+                "ok": not falhas,
+                "situacao": "parcial" if falhas else "ok",
+                "erro": json_falhas(falhas),
                 "cursor": leitura.cursor,
                 "nota": leitura.nota,
+                "recorte_lotes": recorte,
             }
         except mapbiomas_alerta.SemCredencial as ex:
             por_fonte[nome] = {"situacao": "sem_credencial", "nota": str(ex)}
@@ -223,6 +265,19 @@ def rodar(
     arm.gravar_privado_json("acerto.json", aprendizado.acerto(arm.alertas(), arm.marcacoes()))
     res["projetos"] = resumo_proj  # fica fora do público: vai só no log local e na parte cifrada
 
+    if catalogo_lotes is not None:
+        try:
+            rascunhos = lotes_mod.preparar_rascunhos(arm, catalogo_lotes, hoje, pol.presentes)
+            res["lotes"]["rascunhos_disponiveis"] = len(rascunhos)
+            res["lotes"]["avisos_painel_novos"] = (
+                lotes_mod.registrar_no_banco(banco, rascunhos) if banco is not None else 0
+            )
+            res["lotes"]["situacao"] = "parcial" if pol.codigos - pol.presentes else "ok"
+            if publicar and rascunhos and not cfg.chave:
+                res["lotes"].update(situacao="erro", erro="sem RAIZ_VIGILANCIA_CHAVE para guardar os rascunhos")
+        except Exception as ex:  # noqa: BLE001
+            res["lotes"].update(situacao="erro", erro=lotes_mod.diagnostico(ex))
+
     fim = dt.datetime.now(dt.UTC)
     publico = {
         "inicio": res["inicio"],
@@ -234,6 +289,8 @@ def rodar(
         "ufs": ufs_vig,
         "poligonos": versoes,
     }
+    if "lotes" in res:
+        publico["lotes"] = res["lotes"]  # somente contagens/estado, sem cliente, pedido ou CAR
     arm.registrar_rodada(publico)
     res["fim"] = publico["fim"]
     if publicar:
@@ -247,6 +304,10 @@ def rodar(
     res["publico"] = publico
     res["sem_chave"] = not cfg.chave
     return res
+
+
+def json_falhas(falhas):
+    return "; ".join(f"{nome}: {erro}" for nome, erro in falhas.items()) if falhas else None
 
 
 def perdas_do_projeto(vig: Vigilancia, p, registro: pd.DataFrame, hoje: dt.date):
@@ -282,6 +343,15 @@ def resumo_markdown(res: dict) -> str:
     erros = {n: f.get("erro") or f.get("nota") for n, f in res.get("fontes", {}).items() if f.get("situacao") != "ok"}
     for n, e in erros.items():
         linhas.append(f"- {n}: {e}")
+    if res.get("lotes"):
+        lote = res["lotes"]
+        linhas.append(
+            f"Lotes: {lote.get('lotes', 0)}; imóveis cobertos: {lote.get('imoveis_cobertos', 0)}; "
+            f"sem polígono processado: {lote.get('imoveis_sem_poligono_processado', 0)}; "
+            f"rascunhos: {lote.get('rascunhos_disponiveis', 0)}. Nenhuma mensagem externa enviada."
+        )
+        if lote.get("erro"):
+            linhas.append(f"- Catálogo/rascunhos dos lotes: {lote['erro']}")
     if res.get("sem_chave"):
         linhas.append("- Sem RAIZ_VIGILANCIA_CHAVE: a parte privada (projetos, perdas, marcações) não foi guardada.")
     pub = res.get("publicar") or {}

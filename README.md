@@ -44,6 +44,9 @@ desmente). Guia: `docs/documentos.md`.
 
 **Produto (`raiz/`)**: pacote Python em cima do motor. Arquitetura aprovada em `docs/arquitetura.md`.
 
+**Vigilância dos lotes**: DETER, MapBiomas Alerta e NOAA-20/21 em coleta diária, com rascunhos no painel privado do
+desenvolvedor e sem envio externo. Configuração, cobertura e limites em [`docs/vigilancia-lotes.md`](docs/vigilancia-lotes.md).
+
 | Peça | O que faz |
 |---|---|
 | `raiz/contrato.py` | lê as saídas do motor pelo nome das colunas; coluna nova vai para `atributos` em vez de quebrar |

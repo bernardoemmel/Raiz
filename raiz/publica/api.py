@@ -374,6 +374,10 @@ def criar(engine_de: Callable[[Request], Any], verificador=None) -> FastAPI:
     Pessoa = Annotated[K.Acesso, Depends(pessoa)]
     Pid = Annotated[str, Path(description="Id do pedido (uuid).")]
 
+    from raiz.vigilancia.lotes_api import registrar as registrar_vigilancia_lotes
+
+    registrar_vigilancia_lotes(app, engine_de, pessoa)
+
     @app.get("/", tags=["Pedido de lote"], summary="Sobre a API")
     def sobre() -> dict:
         return {"nome": "Raíz", "versao": VERSAO, "documentacao": "/v1/docs", "openapi": "/v1/openapi.json",
