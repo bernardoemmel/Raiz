@@ -89,6 +89,7 @@ def _links_csv(texto: str, fonte: dict) -> list[str]:
         raise ValueError("índice de imóveis sem o cabeçalho público esperado")
     idx_uf, idx_link = cabecalho.index("uf"), cabecalho.index("link de acesso")
     idx_desc = next(i for i, c in enumerate(cabecalho) if c.startswith("descri"))
+    idx_modalidade = cabecalho.index("modalidade de venda") if "modalidade de venda" in cabecalho else None
     links = []
     for linha in leitor:
         if len(linha) != len(cabecalho) or linha[idx_uf].strip().upper() not in _ufs(fonte):
@@ -101,8 +102,12 @@ def _links_csv(texto: str, fonte: dict) -> list[str]:
         if _caixa_detalhe(bruto) is not None:
             # Elimina parâmetros opcionais do portal; não transporta texto do CSV.
             codigo = parse_qs(urlsplit(bruto).query)["hdnimovel"][0]
-            links.append(f"{CAIXA}/sistema/detalhe-imovel.asp?hdnimovel={codigo}")
-    return list(dict.fromkeys(links))
+            modalidade = _normal(linha[idx_modalidade]) if idx_modalidade is not None else ""
+            prioridade = 0 if "leilao" in modalidade else 1
+            links.append((prioridade, f"{CAIXA}/sistema/detalhe-imovel.asp?hdnimovel={codigo}"))
+    # O orçamento da rodada deve chegar primeiro aos leilões explicitamente
+    # anunciados; mantém outras modalidades como candidatas, sem inventar datas.
+    return list(dict.fromkeys(link for _, link in sorted(links, key=lambda item: item[0])))
 
 
 def _escopo_caixa(texto: str) -> tuple[BeautifulSoup, str, str | None]:
