@@ -135,3 +135,22 @@ antigo por conexão via socket; preferir TCP e executar a suíte inteira, como n
   `RAIZ_ANTHROPIC_API_KEY` também não encontrada. Nenhuma medição Haiku foi produzida.
 - Detalhes, contrato do manifesto privado e comando de retomada: `docs/avaliacao-cascata-documentos.md`.
   Os cortes locais continuam vazios; nenhuma avaliação sintética os aprovou.
+
+## Entrega 3 — vigilância dos lotes
+
+- Workflow diário às 06h17 de Brasília usa `rodar --lotes`, DETER, MapBiomas Alerta e FIRMS NOAA-20/21.
+  Recorta os polígonos pelas fazendas de pedidos não cancelados de clientes ativos, sem excluir fazendas pequenas.
+  Geometria ausente é cobertura parcial, nunca licença para ampliar o monitoramento a todos os imóveis.
+- Banco real identifica o dono. Sem banco, exige `lotes-vigilancia.json` no Release privado em rascunho,
+  renovado há no máximo 36 horas. `lotes-ciclo --publicar` e o instalador de cron `vigilancia_lotes` fazem a ponte
+  automática servidor/Actions/painel a cada 15 minutos; implantação real ainda depende de acesso ao servidor.
+- Relatórios na rota `/v1/pedidos/{id}/vigilancia/relatorios` e `.md`, somente pessoa autenticada da empresa
+  liberada e dona do pedido. A projeção genérica de alertas não expõe o rascunho. Revalida dono/fazenda ao importar.
+- Um rascunho por fato/dono; NOAA no mesmo CAR/dia não soma pixels como área queimada. Foco é indício, não perda
+  confirmada. Causa, estoque, área afetada, proponente e prazo regulatório ficam a conferir; nenhum projeto Verra
+  é fabricado a partir de um lote. Todas as evidências falsas descartam também o rascunho já preparado.
+- **Operação pendente:** o arquivo privado acessível não tinha `lotes-vigilancia.json` nem `vigilancia.json`;
+  sem banco/servidor real não é possível atribuir lotes a clientes por suposição. NOAA-20/21 e DETER responderam
+  em consultas reais; MapBiomas retornou “Token de acesso inválido” para alertas, apesar do índice público abrir.
+  Exige as credenciais MapBiomas já documentadas. Nada foi enviado a clientes, proprietários ou Verra.
+- Contrato e ativação em `docs/vigilancia-lotes.md`; dados privados nunca vão ao Release público ou ao cache do Actions.
