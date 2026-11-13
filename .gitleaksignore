@@ -3,8 +3,15 @@
 be05cee99ee060b5ca2c9e60d7b077d1fa2a51aa:infra/docker-compose.keycloak.yml:generic-api-key:28
 4d28942bb247e10af4e29e4b87feeb7b9c73753d:infra/docker-compose.keycloak.yml:generic-api-key:28
 
+# Mesma URL JDBC interna do serviço de avaliação, sem usuário, senha ou parâmetros.
+e0e8ccdde14d0980ce33a1be48fde126ddeb1a31:infra/docker-compose.avaliacao.yml:generic-api-key:46
+
 # SHA-256 dos arquivos de código conferidos pela auditoria MCP; não são credenciais.
 # Os três valores correspondem aos bytes dos arquivos no commit e7074b4.
 e7074b4a170d745f34a4732072fcd954c0cad6f9:testes/mcp/sem_leitor_auditado.json:generic-api-key:3
 e7074b4a170d745f34a4732072fcd954c0cad6f9:testes/mcp/sem_leitor_auditado.json:generic-api-key:5
 e7074b4a170d745f34a4732072fcd954c0cad6f9:testes/mcp/sem_leitor_auditado.json:generic-api-key:14
+
+# KC_DB_URL do Compose de avaliação da Ficha: URL JDBC interna, sem usuário,
+# senha, query ou fragmento; ocorrência histórica específica, sem ignorar o arquivo.
+e0e8ccdde14d0980ce33a1be48fde126ddeb1a31:infra/docker-compose.avaliacao.yml:generic-api-key:46

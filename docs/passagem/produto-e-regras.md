@@ -40,6 +40,19 @@ As interações originais e as correções ficam no VCR, com contagem e consumo 
 Validação desta etapa: suíte local com 2.305 testes aprovados, um xfail esperado e
 o caso estadual reservado ao job privado do CI; após o ajuste do juiz, 47 testes
 focados passaram. O Chromium validou login, contrato e geração de Pix só após clique.
+O PR #96 teve 2.308 testes Python aprovados no Actions, mais o caso estadual no job
+separado; front, segurança, workflows e e2e passaram. Inspector/OAuth, vacuum e manifesto
+confirmaram oito ferramentas, 39 rotas e resumo de 5.431 bytes. O ensaio determinístico
+foi atualizado para conferir o Problem Details estruturado, sem depender de espaços
+no JSON; os 24 cenários passaram novamente no diagnóstico local (máximo 0,129 s).
+Gitleaks encontrou uma URL JDBC sem credencial no histórico de outra branch; a exceção
+restrita ao fingerprint foi comprovada com a varredura dos 518 commits, sem achados.
+A terceira [campanha real](https://github.com/bernardoemmel/Raiz/actions/runs/43349634089)
+usa `23ec54c` e o juiz v3; aguarda-se o relatório completo, sem antecipar pass^4.
+A integração posterior com a main `c65d7bb` preserva a entrada de certidões, a
+vigilância dos lotes e as novas fontes do Calendário. O conflito na montagem da API
+foi resolvido mantendo os dois registros independentes de rotas.
+
 
 
 A preparação foi feita na branch `produto-agentes-validacao`. O gabarito v2 preserva os 24 desafios e a meta,
