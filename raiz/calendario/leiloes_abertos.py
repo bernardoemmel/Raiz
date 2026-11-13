@@ -120,6 +120,8 @@ def _escopo_caixa(texto: str) -> tuple[BeautifulSoup, str, str | None]:
 
 def _identificadores(texto: str) -> str:
     """Projeta somente identificadores; texto pessoal nunca sai do adaptador."""
+    if re.search(r"confront|lim[ií]trof|im[oó]vel vizinho|matr[ií]cula de origem", texto, re.I):
+        return ""
     partes = []
     for m in CAR.finditer(texto):
         try:
@@ -187,6 +189,8 @@ def texto_evento(texto: str, url: str, fonte: dict) -> str | None:
                 m := re.fullmatch(r"Data do leil[aã]o:\s*(" + _DATA + r")(?:\s+.*)?", h.get_text(" ", strip=True), re.I)
             )
         ]
+        if len(set(datas)) > 1:
+            return ""  # vários cartões/datas no HTML não comprovam a data do próprio imóvel
         ids = _identificadores(desc)
     if not datas:
         return ""
@@ -228,6 +232,10 @@ def complemento_matricula(texto: str, url: str, texto_pdf: str, url_pdf: str, fo
     # matrículas anteriores na cadeia dominial não bastam para comprovar o bem.
     prim = _MAT.search(texto_pdf[:3000])
     if not prim or normalizar_matricula(prim[1]) != esperada:
+        return None
+    # A menção pode descrever um vizinho ou a matrícula de origem. Na dúvida,
+    # exige conferência humana; unicidade sintática não comprova titularidade.
+    if re.search(r"confront|lim[ií]trof|im[oó]vel vizinho|matr[ií]cula de origem", texto_pdf, re.I):
         return None
     try:
         codigos = {normalizar_car(m[0]) for m in CAR.finditer(texto_pdf)}

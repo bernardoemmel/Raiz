@@ -13,11 +13,13 @@ uv run raiz calendario importar dados/calendario/estado.json
 uv run raiz calendario proximos --estado PA --dias 90
 ```
 
-`coletar` usa o banco configurado, atualiza vínculos de imóveis e prepara avisos dos pedidos. Grava `eventos.json`, `eventos.ics` e `estado.json` em `dados/calendario/`, fora do git. `--sem-banco` permite gerar o snapshot público; `--anterior` conserva eventos e sequências da rodada anterior. `importar` aceita apenas fontes/links do manifesto, repõe rótulos institucionais e nunca confia em texto livre do arquivo.
+`coletar` usa o banco configurado, atualiza vínculos de imóveis e prepara avisos dos pedidos. Grava `eventos.json`, `eventos.ics` e `estado.json` em `dados/calendario/`, fora do git. `--sem-banco` permite gerar o snapshot público; `--anterior` conserva eventos e sequências da rodada anterior. `importar` aceita apenas fontes/links do manifesto, repõe rótulos institucionais e nunca confia em texto livre do arquivo. Sem `--fontes`, seleciona as fontes nacionais e os diários das UFs com ao menos um município processado no manifesto público `estados.json`; `--manifesto-estados` permite usar a cópia baixada pelo workflow. Não exige área ou quantidade mínima de fazendas.
 
 O workflow `.github/workflows/calendario.yml` coleta diariamente às 06h11 de Brasília, publica os três arquivos no Release `calendario` e permite execução manual por fonte na branch padrão. Uma fonte totalmente indisponível deixa o job vermelho **depois** de salvar/publicar os resultados úteis das demais. O estado anterior só pode ser omitido se o Release ainda não existe; erro ao recuperá-lo aborta para não perder histórico. O site publica após essa coleta terminar. O cron do servidor deve rodar o comando com banco para alimentar API/MCP e pedidos; a publicação no GitHub, sozinha, não altera o Postgres.
 
-As requisições usam o HTTP já existente da busca documental, com quatro fontes em paralelo, máximo de páginas por fonte, 16 MiB por resposta, até 250 páginas por PDF e redirecionamentos limitados aos hosts oficiais do manifesto. `FIRECRAWL_API_KEY` é opcional, para o mesmo serviço hospedado usado pela busca documental. A API DJEN não usa esse fallback. Falhas ficam em mensagens fixas, sem texto da exceção ou do edital.
+As requisições têm quatro fontes em paralelo, máximo de visitas por fonte, limite de bytes por resposta, até 250 páginas por PDF e redirecionamentos limitados aos hosts oficiais do manifesto. Falhas transitórias de conexão, HTTP 429 e 5xx recebem tentativas limitadas com espera; `Retry-After` acima do orçamento interrompe a tentativa. HTTP 401/403 não provoca contorno nem troca para extração terceirizada. `FIRECRAWL_API_KEY` é opcional para falhas transitórias de HTML. Falhas ficam em mensagens fixas, sem texto da exceção ou do edital.
+
+PDFs escaneados podem passar por Poppler e Tesseract no servidor, com limites de páginas, tamanho da imagem e tempo. Texto e imagens permanecem em memória; atingir um limite mantém a fonte parcial, sem usar um recorte incompleto como prova. O workflow instala Poppler, Tesseract e português. A extração de CAR exige formato literal: não converte letras ambíguas do OCR em números.
 
 ## Fontes e cobertura
 
@@ -25,18 +27,21 @@ O manifesto `raiz/calendario/fontes.yaml` registra os endereços oficiais, termo
 
 | Frente | Fonte inicial | Limite observado |
 |---|---|---|
-| Leilões rurais e penhoras | DJEN/CNJ, TRF2, Fomento Paraná, DOU, DOE PA e MT | A API pública DJEN respondeu HTTP 403 na verificação de 12/11/2026. Não houve contorno do bloqueio; seu parser tem teste do contrato JSON, não captura real de resposta. |
+| Leilões rurais e penhoras | DJEN/CNJ, TRF2, TRT16, CAIXA, Banco do Brasil, Fomento Paraná, DOU e diários das UFs processadas | CAIXA usa CSV nacional filtrado por tipo rural e UF; BB e TRT16 têm cobertura parcial explícita. DJEN continua HTTP 403 neste ambiente. |
+| Diários estaduais | AC, AP, BA, CE, GO, MA, MG, PA, PI, RN, RO, RR e TO na cobertura observada; MT disponível manualmente | Índices/APIs oficiais, PDFs e consulta HTML pública. Cadastro da fonte não prova disponibilidade da edição. UF nova sem adaptador gera erro de cobertura sem interromper as outras fontes. |
 | Editais e crédito | BNDES Florestas, ProFloresta+, Fundo Amazônia, BNDES Créditos de Carbono | Só datas explícitas; página institucional sem prazo não cria evento. |
 | Concessões florestais | Serviço Florestal Brasileiro e Ideflor-Bio | Cobertura inicial, sem declaração de cobertura de todos os estados. |
 | Regulação e padrões | Fazenda/SBCE, Verra, ICVCM, SBTi e Comissão Europeia/EUDR | São consultas e prazos publicados, sem previsão de datas ainda não anunciadas. |
 
-Os estados são `ok`, `parcial`, `erro` e `sem_data`. `ok` significa apenas que as páginas visitadas foram processadas; os limites de páginas, falhas ou atos com data não reconhecida aparecem como cobertura parcial. A coleta sem eventos não prova inexistência de editais. A busca dos diários é uma janela móvel de sete dias. PDF escaneado sem camada de texto não passa por OCR nesta entrega. Edições inteiras sem separação reconhecível de editais não são cruzadas com CAR para evitar vínculos falsos.
+Os estados são `ok`, `parcial`, `erro` e `sem_data`. `ok` significa apenas que as páginas visitadas foram processadas; os limites de páginas, falhas ou atos com data não reconhecida aparecem como cobertura parcial. A coleta sem eventos não prova inexistência de editais. A busca dos diários é uma janela móvel de sete dias. Edições inteiras sem separação reconhecível de editais não são cruzadas com CAR para evitar vínculos falsos.
 
 O extrator separa anúncios por blocos conhecidos, elimina repetição de data no mesmo ato e exclui datas de edição de leis citadas. Portais florestais só geram concessão quando o texto a identifica; pregões comuns de compra/serviço não herdam esse tipo. ICVCM usa os cartões do índice oficial, sem duplicar consultas por traduções, PDFs e fusos diferentes das páginas de detalhe. Testes guardam trechos oficiais de ICVCM, EUDR, SBTi e Fomento Paraná capturados em 12/11/2026. O trecho de Fomento conserva apenas os títulos e cláusulas de data/objeto; pessoas e outros elementos foram omitidos. O quadro EUDR usa linhas de aplicação, excluindo a entrada em vigor e a data histórica de corte de desmatamento. A confiança `0.85` é um rótulo heurístico de extração de data explícita, não uma probabilidade calibrada.
 
 ## Imóveis e avisos
 
 O vínculo usa CAR explícito; na ausência dele, exige CNS **e** matrícula compatíveis com `titulo.matricula_imovel` e a rodada de `funil.vigente`, ou parcela SIGEF sobreposta ao imóvel vigente com área de interseção positiva. Matrícula sem CNS não determina um CAR. Vínculos derivados são revalidados ao importar/coletar o evento; uma matrícula corrigida ou removida da rodada vigente não mantém o CAR anterior. Não existe corte de tamanho da fazenda. Município é um código IBGE, sem nomes de pessoas ou inferência pelo endereço do titular. Evento sem chave suficiente fica `pendente` e aparece sem selo de leilão para um imóvel específico.
+
+Nos leilões CAIXA, uma matrícula pública só pode complementar o CAR quando o PDF pertence ao mesmo identificador do imóvel e seu cabeçalho confirma a matrícula anunciada. A prova precisa identificar o próprio imóvel, com CAR único e UF compatível; CAR de confrontante ou texto ambíguo não serve. `car_fonte_url` guarda a fonte dessa prova, validada nos mesmos hosts do manifesto, e aparece na consulta pública/feed quando há CAR explícito. Editais de vários bens são separados antes da associação; número da primeira/segunda praça é conservado mesmo se apenas uma delas estiver publicada.
 
 Avisos de leilão futuro e penhora entram nos pedidos ativos que contêm o CAR. Deduplicação usa evento, versão e imóvel; o painel fica disponível e email/WhatsApp ficam **simulados**, mesmo se outro módulo tiver enviador configurado. Nenhuma mensagem externa é enviada pela coleta ou importação.
 
@@ -92,3 +97,31 @@ O diagnóstico direto confirmou **HTTP 403 no DJEN** e **HTTP 500 no DOE PA**. E
 Os arquivos JSON público, estado e feed passaram na varredura de CPF/CNPJ. Não houve nomes, texto bruto, envio de avisos, atualização de produção ou publicação de Release. Vínculos CAR/CNS/SIGEF, matrícula corrigida/removida, cancelamento independente da ordem, consulta pública sem enriquecimento e fonte indisponível estão cobertos pelos 28 testes do calendário com PostGIS.
 
 A revisão independente confirmou os seis prazos futuros nos textos oficiais: consultas SBTi em 04/12/2026 e 06/12/2026; ICVCM em 04/12/2026; aplicação EUDR em 30/12/2026, 30/06/2027 e 30/12/2027. A contratação SBTi de 30/11/2026 foi excluída. Esses dias são evidência da rodada, não prazos fixados no código; a coleta seguinte volta às fontes.
+
+## Continuação: fontes e PDFs (12/11/2026, Brasília)
+
+O DOE PA foi recuperado pelo índice oficial `https://www.ioepa.com.br/pages/2026/` e pelo PDF
+`https://www.ioepa.com.br/pages/2026/2026.11.12.DOE.pdf`: 137 páginas e texto legível, sem guardar o conteúdo bruto.
+A confirmação final, já no leitor isolado, visitou índice e dois PDFs sem falha HTTP; zero eventos nessa amostra.
+O limite de três visitas deixou a cobertura parcial, não completa.
+
+Amapá respondeu pela API/PDF oficial em HTTP, sem credenciais. Ceará respondeu pelos cadernos oficiais da SEPLAG;
+a capa enumera os volumes da mesma edição. Edições extras continuam fora dessa enumeração e a fonte fica parcial.
+Goiás, Maranhão e Roraima tiveram leitura real de edição; RR usa o formulário público na mesma sessão.
+Bahia oferece HTML público, mas PDF/FLIP exige cadastro: não se usa esse download. BA, MG e TO apresentaram
+indisponibilidade de origem nesta verificação e não foram declarados recuperados.
+
+TRT16 respondeu no índice e nos dois PDFs mais recentes. Um imóvel rural do edital de 16/09/2026 entrou como evento
+histórico, matrícula identificada e CAR pendente. CAIXA teve páginas e matrículas individuais reais acessíveis;
+os PDFs examinados eram escaneados e o OCR não confirmou CAR. Mesmo um CAR sintaticamente válido vindo só de OCR
+permanece sem vínculo, sem matrícula/SIGEF para inferir vínculo e com cobertura parcial. Não foi inventado selo por CAR.
+
+DJEN permanece bloqueado com **HTTP 403**, tanto nas consultas quanto no caderno público. O portal e a configuração
+pública confirmam `https://comunicaapi.pje.jus.br/api/v1`; a documentação de homologação não é fonte de publicações
+reais. Retentativas atendem falhas transitórias, não autorização negada. A recuperação do DJEN depende de uma resposta
+pública válida no ambiente de execução; não há afirmação de que essa parte esteja concluída.
+
+A revisão acrescentou isolamento de PDF/OCR em processos com 1 GiB de memória, 60 segundos de CPU, prazo de parede
+e saída limitada durante a leitura. `stderr` é descartado. CAR de confrontante não comprova o imóvel, atos homônimos
+no mesmo PDF conservam identidades distintas e segunda praça conserva UID quando a primeira desaparece.
+As regressões são sintéticas e verificam contratos; não constituem conjunto real de certidões nem medem acerto do modelo.

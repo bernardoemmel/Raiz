@@ -37,7 +37,7 @@ Preparação não registra `verra_avisada`; envio e preenchimento cabem exclusiv
    por leitura, corte calibrado em gabaritos da leitura integral e risco controlado; sem calibração suficiente,
    reler. Confiança declarada alta/média/baixa não prova acerto. MAPIE LTT implementado; ver `docs/cache-matricula.md`. Coletar a amostra real e calibrar antes da ativação.
 3. **E8:** reexecutar motor/outros modelos por fold com scd2 `folds.como_estava`, e sobrevivência do aceite
-   (tempo até aceite; lifelines MIT), implementados. Captura automática no executor com banco e seis adaptadores: motor, FLAG, restauração, regularização, triagem e rebanho. Catálogo parcial aceita só modelos com todas as fontes do corte. Actions sem banco também captura retratos imutáveis, publica periodicamente/ao finalizar em Releases `historico-AAAA-MM-DD` e importa na sincronização, sem nomes ou documentos pessoais. Datas observada e registrada são separadas; chegada atrasada preserva intervalos scd2, com deduplicação por hash. O histórico acumula desde as próximas execuções, sem retrodatação de tarefas antigas. Sobrevivência exige 30 contatos reais/5 aceites. Ver `docs/aprendizado-por-tempo.md`. Não usar camadas de hoje nos folds históricos.
+   (tempo até aceite; lifelines MIT), implementados. Captura automática no executor com banco e seis adaptadores: motor, FLAG, restauração, regularização, triagem e rebanho. Catálogo parcial aceita só modelos com todas as fontes do corte. Actions sem banco também captura retratos imutáveis, guarda periodicamente/ao finalizar em Releases **privados em rascunho** `historico-AAAA-MM-DD` e importa na sincronização, sem nomes ou documentos pessoais. Datas observada e registrada são separadas; chegada atrasada preserva intervalos scd2, com deduplicação por hash. O histórico acumula desde as próximas execuções, sem retrodatação de tarefas antigas. Sobrevivência exige 30 contatos reais/5 aceites. Ver `docs/aprendizado-por-tempo.md`. Não usar camadas de hoje nos folds históricos.
 4. **Servidor/modelos:** build local de llama.cpp b12300 com llguidance e Rust 1.100.0 corrigido e validado.
    Avaliação real concluída em 12/11/2026: 120 tarefas × 3, nenhuma falha técnica, 67,92% de acerto em intenção
    e 43,33% em compreensão. Nenhum corte atingiu 95%; o YAML gerado mantém cortes vazios e votação Qwen + Haiku.
@@ -54,10 +54,10 @@ Preparação não registra `verra_avisada`; envio e preenchimento cabem exclusiv
    API `/eventos`, `.ics`, função MCP `proximos_eventos`, aba do site, selos por CAR e avisos de lotes simulados.
    Cancelamentos/retificações preservam UID; nenhuma pessoa ou documento pessoal persistido. CAR inferido por
    matrícula/SIGEF fica interno; consulta pública só mostra CAR explícito no edital. Ficha mantém acesso pago. Fonte sem chave
-   CAR/CNS/SIGEF fica pendente. DJEN respondeu 403, cobertura de diários inicial PA/MT, sem OCR de PDF escaneado.
+   CAR/CNS/SIGEF fica pendente. DJEN segue 403; DOE PA foi recuperado, diários selecionados pela cobertura real e PDFs/OCR isolados. Ver continuação abaixo.
    Ver `docs/calendario.md`. Site publica depois da coleta. No servidor, instalar o cron com
    `uv run python scripts/instalar_cron_alertas.py --tarefa calendario --instalar` após migrar o banco;
-   não foi instalado em produção por ausência de acesso. Não existe transporte MCP no repositório.
+   não foi instalado em produção por ausência de acesso. O servidor MCP pago existe; a função `proximos_eventos` ainda não está registrada nele.
 8. **Decisões já reservadas ao fundador:** SQLMesh/Dagster (o executor próprio continua nos E8 1/2/7); envio do
    convênio ONR (`docs/pedidos/onr-convenio.md`, E5 9); WhatsApp real e chaves de produção continuam adiados.
    MCGrad/mapaccuracy só após licença conferida; calibração e Olofsson próprios já implementados, sem depender deles.
@@ -81,8 +81,7 @@ Preparação não registra `verra_avisada`; envio e preenchimento cabem exclusiv
 - Antes de cada entrega, buscar main, conferir migrações e `uv run alembic heads`: uma cabeça só. Resolver
   conflitos, abrir PR e fazer merge com CI verde. Em entregas encadeadas, preservar a ancestralidade evita
   reapresentar alterações já revisadas. Sem force-push na main.
-- Não cancelar “Processar estados” para liberar CI. “Vigilância diária” roda às 09:17 UTC e publica no Release
-  `vigilancia`; “Busca semanal” também já existe. Filas do CI podem levar até 40 minutos.
+- Não cancelar “Processar estados” para liberar CI. “Vigilância diária” roda às 09:17 UTC; dados de clientes e rascunhos devem permanecer no arquivo privado; “Busca semanal” também já existe. Filas do CI podem levar até 40 minutos.
 
 ## Verificação de entrega
 
@@ -98,3 +97,24 @@ uv run pytest -q
 A suíte de banco exige PostGIS e `RAIZ_BANCO_URL_TESTE` num banco **exclusivo de testes**: o fixture desfaz e
 recria o esquema. Agentes em paralelo precisam de bancos separados. O teste de coleta CAR falhava no ambiente
 antigo por conexão via socket; preferir TCP e executar a suíte inteira, como no CI.
+
+## Continuação em ordem: entrega 1 — fontes
+
+- DOE PA recuperado no índice `/pages/2026/` e PDF oficial de 12/11/2026. Leitura real de 137 páginas;
+  verificação integrada com três visitas sem falha HTTP. Zero eventos nessa amostra não significa ausência de editais.
+- Diários escolhidos diariamente por `estados.json` com `escopo=publico_basico`, município processado > 0:
+  AC/AP/BA/CE/GO/MA/MG/PA/PI/RN/RO/RR/TO. UFs com zero não entram; não há piso de área ou número de fazendas.
+  Uma nova UF sem fonte produz `cobertura_diarios=erro`, conservando as demais coletas.
+- CAIXA: CSV nacional e detalhe individual; prova pública de matrícula só do mesmo bem. BB: destaques parciais.
+  TRT16: índice + dois editais reais lidos; um leilão rural histórico, CAR pendente. Sem relação inequívoca ao CAR,
+  o evento pode existir na agenda, mas nunca gera selo/alerta de uma fazenda presumida.
+- HTTP transitório tem retentativas com espera; 401/403/CAPTCHA não têm contorno. PDF/OCR em RAM e subprocessos
+  limitados; OCR sozinho e CAR de confrontante não confirmam vínculo. Identidade separa editais homônimos e praças.
+- **Pendências externas:** DJEN continua 403 na API e caderno oficiais; BA/MG/TO tiveram indisponibilidade.
+  Não substituir a API de produção pelo ambiente de homologação. Não marcar fonte saudável só porque o índice abre.
+- Evidência e limites em `docs/calendario.md`; resultado integrado em `/workspace/entregas/calendario-fontes/`, fora do git.
+  Próximas entregas: avaliação/custo por documento, vigilância dos lotes e percurso da primeira certidão real.
+- `ANTHROPIC_API_KEY` ausente/vazia neste processo. Consulta de nomes de secrets no GitHub foi negada por escopo
+  da integração (403), portanto não prova presença nem ausência em produção. Nunca pedir ou imprimir seu valor.
+- Release `dados` agora contém somente cadastro básico/agregados. `dados-privados` e históricos completos são
+  **rascunhos privados**; nunca publicar esses Releases nem usar `dados/amostra` como previsão real de certidão.

@@ -246,6 +246,25 @@ def test_coleta_caixa_confirma_car_somente_no_pdf_do_mesmo_anuncio_e_conta_limit
     limitados, estado = coleta.coletar_fonte({**fonte, "max_paginas": 2}, AGORA, obter=obter)
     assert len(limitados) == 2 and all(not e.codigos_car and e.car_fonte_url is None for e in limitados)
     assert estado.situacao == "parcial" and estado.paginas == 2
+    paginas[DETALHE] = (detalhe(car=OUTRO), "html")
+    conflitantes, estado = coleta.coletar_fonte(fonte, AGORA, obter=obter)
+    assert all(not e.codigos_car and e.car_fonte_url is None and e.vinculo == "pendente" for e in conflitantes)
+    assert estado.situacao == "parcial"
+
+
+def test_caixa_segunda_praca_conserva_uid_quando_primeira_sai_do_anuncio():
+    from testes.test_calendario_leiloes_abertos import DETALHE, FONTE, detalhe
+
+    completo = detalhe()
+    so_segunda = completo.replace("Data do 1º Leilão - 12/12/2026 - 10h00<br>", "")
+
+    def ler(html):
+        tx = coleta.leiloes_abertos.texto_evento(html, DETALHE, FONTE)
+        return coleta.extrair(tx, FONTE, DETALHE, AGORA)[0]
+
+    dois, um = ler(completo), ler(so_segunda)
+    assert len(dois) == 2 and len(um) == 1
+    assert dois[1].id == um[0].id and dois[0].id != um[0].id
 
 
 def test_retificacao_em_outro_pdf_preserva_uid_so_com_correspondencia_unica():

@@ -10,6 +10,8 @@ import shutil
 import subprocess
 import time
 
+from raiz.calendario.processo_limitado import executar
+
 
 class FalhaOCR(Exception):
     pass
@@ -17,12 +19,9 @@ class FalhaOCR(Exception):
 
 def _executar(args: list[str], entrada: bytes | None, timeout: float, limite: int) -> bytes:
     try:
-        r = subprocess.run(args, input=entrada, capture_output=True, timeout=timeout)
-    except (OSError, subprocess.TimeoutExpired):
+        return executar(args, entrada, timeout, limite)
+    except (OSError, ValueError, subprocess.TimeoutExpired):
         raise FalhaOCR("OCR indisponível ou acima do tempo permitido") from None
-    if r.returncode or len(r.stdout) > limite:
-        raise FalhaOCR("OCR não pôde ler o documento dentro dos limites")
-    return r.stdout
 
 
 def extrair(conteudo: bytes, paginas: list[int]) -> dict[int, str]:

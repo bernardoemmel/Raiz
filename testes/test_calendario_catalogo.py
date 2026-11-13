@@ -44,8 +44,11 @@ def test_cobertura_invalida_nao_vira_todas_ufs(d):
 
 
 def test_estado_novo_sem_fonte_e_erro_visivel():
-    with pytest.raises(ValueError, match="sem diário no catálogo: SC"):
-        catalogo.selecionar(coleta.fontes(), cobertura(SC=1))
+    selecionadas = catalogo.selecionar(coleta.fontes(), cobertura(SC=1, PA=1))
+    assert "doe_pa" in {f["id"] for f in selecionadas}
+    fonte = next(f for f in selecionadas if f["id"] == catalogo.COBERTURA_ID)
+    eventos, estado = coleta.coletar_fonte(fonte, dt.datetime.now(dt.UTC))
+    assert not eventos and estado.situacao == "erro" and "SC" in estado.erro
 
 
 def test_manifesto_local_recusa_snapshot_completo_e_grande(tmp_path):

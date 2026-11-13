@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from raiz.calendario.catalogo import COBERTURA_ID, COBERTURA_NOME
 from raiz.calendario.coleta import _permitida, fontes
 from raiz.calendario.feed import ics
 from raiz.calendario.modelos import Evento, FonteEstado, filtrar
@@ -25,6 +26,7 @@ def ler(caminho: Path) -> tuple[list[Evento], list[FonteEstado]]:
         # revisados no manifesto e mensagens fixas são publicados/importados.
         eventos.append(e.model_copy(update={"fonte_nome": f["nome"]}))
     estados = []
+    confiaveis[COBERTURA_ID] = {"nome": COBERTURA_NOME}
     for item in dados.get("fontes", []):
         s = FonteEstado.model_validate(item)
         if s.id not in confiaveis:

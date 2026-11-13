@@ -11,6 +11,8 @@ from raiz.calendario.modelos import UFS
 
 MANIFESTO_PUBLICO = "https://github.com/bernardoemmel/Raiz/releases/download/dados/estados.json"
 MAX_MANIFESTO = 2 * 1024 * 1024
+COBERTURA_ID = "cobertura_diarios"
+COBERTURA_NOME = "Cobertura dos diários estaduais"
 
 
 def carregar_manifesto(caminho: Path | None = None) -> dict:
@@ -60,9 +62,6 @@ def selecionar(fontes: list[dict], manifesto: dict) -> list[dict]:
     """Mantém fontes nacionais e todos os diários das UFs já processadas, sem piso de cobertura."""
     ufs = estados_processados(manifesto)
     diarios = {f.get("uf") for f in fontes if f.get("grupo") == "diario_estadual"}
-    if ufs - diarios:
-        # A UF nova não pode desaparecer da cobertura silenciosamente.
-        raise ValueError("há estado processado sem diário no catálogo: " + ", ".join(sorted(ufs - diarios)))
     selecionadas = []
     for fonte in fontes:
         if fonte.get("grupo") == "diario_estadual" and fonte.get("uf") not in ufs:
@@ -70,4 +69,13 @@ def selecionar(fontes: list[dict], manifesto: dict) -> list[dict]:
         if fonte.get("grupo") == "leilao_regional" and not ufs.intersection(fonte.get("ufs", [])):
             continue
         selecionadas.append({**fonte, "_ufs_processadas": sorted(ufs)})
+    selecionadas.append(
+        {
+            "id": COBERTURA_ID,
+            "nome": COBERTURA_NOME,
+            "urls": [],
+            "_ufs_processadas": sorted(ufs),
+            "sem_fonte": sorted(ufs - diarios),
+        }
+    )
     return selecionadas
