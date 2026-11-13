@@ -149,5 +149,14 @@
     "mesma_falha_reproduzida_na_guarda": 50,
     "motivo": "embargo_ativo_sem_geometria_utilizavel",
     "run": 43355236141
+  },
+  "conferencia_geosservico": {
+    "servico": "https://pamgia.ibama.gov.br/server/rest/services/01_Publicacoes_Bases/adm_embargos_ibama_a/FeatureServer/0",
+    "consulta": "Somente seq_tad, origem_geom, cod_municipio, dat_ult_alter_geom e geometria, em amostra de cinco termos sem WKT de um município RN; resposta mantida privada.",
+    "termos_consultados": 5,
+    "termos_retornados": 5,
+    "sem_geometria": 1,
+    "origem_ponto_com_rings": 4,
+    "conclusao": "A amostra não fornece cinco polígonos de área comprovados: quatro têm origem declarada Ponto e um continua sem geometria. Nenhum dado foi usado para substituir restrições nem liberar o município."
   }
 }
