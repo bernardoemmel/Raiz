@@ -167,6 +167,7 @@ try {
   assert.equal(inicial.propriedades.sem_medida, 1)
   assert.equal(inicial.propriedades.point_count, 2, "Dois pontos representam onze fazendas, não duas.")
   assert.equal(pedidosSatelite.length, 0, "A entrada nacional não baixa imagens de satélite.")
+  await pagina.locator(".cartografia-resumo > summary").click()
   await pagina.getByText("Explorar grupos com teclado", { exact: true }).click()
   const listaGrupos = pagina.locator(".cartografia-grupos-lista")
   await listaGrupos.getByRole("button").first().click()

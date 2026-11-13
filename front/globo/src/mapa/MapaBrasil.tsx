@@ -761,7 +761,7 @@ export function MapaBrasil(props: Props) {
     <div className="mapa-brasil" role="region" aria-label={nomeMun ? `Mapa de ${nomeMun}` : nomeUf ? `Mapa de ${nomeUf}` : "Mapa do Brasil"}>
       <div className="mapa" ref={caixa} />
       {brasil && <div className={`cartografia-legenda${!uf && !municipio && zoom < ZOOM_FAZENDAS ? " cartografia-legenda-nacional" : ""}`} aria-label="Como ler o mapa">
-        <details className="cartografia-resumo" open={margemBaixo === 0}>
+        <details className="cartografia-resumo" open={margemBaixo === 0 && zoom >= ZOOM_FAZENDAS}>
         <summary><strong>{zoom < ZOOM_FAZENDAS ? "Grupos de fazendas" : "Limites do CAR"}</strong></summary>
         {zoom < ZOOM_FAZENDAS ? <>
           {(uf || municipio) && <p>Contagem de fazendas e hectares conhecidos. Cobertura parcial.</p>}

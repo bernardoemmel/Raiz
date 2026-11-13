@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest"
+import { createExpression } from "@maplibre/maplibre-gl-style-spec"
 import { Supercluster } from "@maplibre/geojson-vt"
 import type { Geo } from "../../../compartilhado/dados"
-import { descreverGrupo, fonteGrupos, lerGrupo, prepararPontosAgregados } from "./grupos"
+import { camadasGrupos, descreverGrupo, fonteGrupos, lerGrupo, prepararPontosAgregados } from "./grupos"
 
 const ponto = (h3: string, fazendas: number, ha: number | null, lon = -50): Geo["features"][number] => ({
   type: "Feature", geometry: { type: "Point", coordinates: [lon, -6] }, properties: { h3, fazendas, potencial_ha: ha, cod_imovel: "NAO-PUBLICAR" },
@@ -32,6 +33,14 @@ describe("grupos públicos do mapa", () => {
     const grupo = lerGrupo(geo.features[0])!
     expect(grupo.hectares).toBeNull()
     expect(descreverGrupo(grupo)).toContain("hectares não informados")
+  })
+
+  it("arredonda hectares grandes no texto real do MapLibre, sem uma cauda de decimais", () => {
+    const camada = camadasGrupos().find(c => c.type === "symbol")!
+    const expr = createExpression(camada.layout!["text-field"], "layers[0].layout.text-field")
+    expect(expr.result).toBe("success")
+    if (expr.result !== "success") throw new Error("Expressão inválida")
+    expect(expr.value.evaluate({ zoom: 3 }, { type: 1, properties: { fazendas: 415575, com_medida: 4, ha_conhecidos: 596074.0744 } })).toBe("415.575\n596.074 ha")
   })
 
   it("não arredonda uma área positiva pequena para zero", () => {

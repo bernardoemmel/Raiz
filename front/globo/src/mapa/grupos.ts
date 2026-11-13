@@ -45,11 +45,11 @@ export function camadasGrupos(): LayerSpecification[] {
     { id: "grupos-numeros", type: "symbol", source: FONTE_GRUPOS, maxzoom: ZOOM_IMOVEIS,
       layout: { "text-font": ["Noto Sans Regular"], "text-size": 16, "text-line-height": 1.25,
         "text-allow-overlap": true, "text-field": ["concat",
-          ["number-format", ["get", "fazendas"], { locale: "pt-BR", "max-fraction-digits": 0 }], "\n",
+          ["number-format", ["get", "fazendas"], { locale: "pt-BR", "max-fraction-digits": ["literal", 0] }], "\n",
           ["case", ["==", ["get", "com_medida"], 0], "Sem medida",
             ["<", ["get", "ha_conhecidos"], 0.1], "<0,1 ha",
             ["concat", ["case", [">=", ["get", "ha_conhecidos"], 10],
-              ["number-format", ["get", "ha_conhecidos"], { locale: "pt-BR", "max-fraction-digits": 0 }],
+              ["number-format", ["get", "ha_conhecidos"], { locale: "pt-BR", "max-fraction-digits": ["literal", 0] }],
               ["number-format", ["get", "ha_conhecidos"], { locale: "pt-BR", "max-fraction-digits": 1 }]], " ha"]],
         ] }, paint: { "text-color": COR.superficie } },
   ]
