@@ -23,6 +23,7 @@ interface Props {
 function situacaoDoEstado(e: EstadoDados): string {
   if (e.situacao === "sem_dados") return "Ainda não processado"
   if (e.situacao === "completo") return `Completo: todos os ${fmtInt(e.municipios_ibge)} municípios`
+  if (e.municipios >= e.municipios_ibge) return `Todos os ${fmtInt(e.municipios_ibge)} municípios com dados`
   return `${fmtInt(e.municipios)} de ${fmtInt(e.municipios_ibge)} municípios`
 }
 
@@ -60,7 +61,7 @@ export function PainelBrasil({ municipios, comLista, estados, uf, pontos, carreg
                     <strong>{e.nome}</strong>
                     <small>{situacaoDoEstado(e)}</small>
                   </span>
-                  <span className={`selo ${e.situacao === "completo" ? "ok" : "neutro"}`}>{e.situacao === "completo" ? "Completo" : "Incompleto"}</span>
+                  <span className={`selo ${e.situacao === "completo" ? "ok" : "neutro"}`}>{e.situacao === "completo" ? "Completo" : "Dados parciais"}</span>
                 </a>
               </li>
             ))}
@@ -87,7 +88,7 @@ function TituloBrasil() {
   return <div className="painel-titulo"><MiniBrasil uf={null} titulo="Onde estamos: Brasil" className="mini-titulo" /><h1>Onde dá para restaurar, com dono e título</h1></div>
 }
 
-function PainelEstado({ uf, municipios, comLista, estados, pontos, cobertura }: Omit<Props, "uf" | "carregando"> & { uf: string }) {
+function PainelEstado({ uf, municipios, comLista, estados, cobertura }: Omit<Props, "uf" | "carregando"> & { uf: string }) {
   const e = estados?.estados.find((x) => x.uf === uf)
   const nome = e?.nome ?? UFS[uf] ?? uf
   const migalhas = (
@@ -120,8 +121,7 @@ function PainelEstado({ uf, municipios, comLista, estados, pontos, cobertura }: 
       </div>
     )
   const doUf = municipios.filter((m) => m.uf === uf)
-  const faltam = e.municipios_ibge - e.municipios
-  const noMapa = pontos?.reduce((s, p) => s + p.n, 0)
+  const faltam = Math.max(0, e.municipios_ibge - e.municipios)
   return (
     <div className="painel-conteudo">
       {migalhas}
@@ -129,9 +129,11 @@ function PainelEstado({ uf, municipios, comLista, estados, pontos, cobertura }: 
       <p className={`estado-situacao ${e.situacao}`}>
         {e.situacao === "completo"
           ? `Completo: todos os ${fmtInt(e.municipios_ibge)} municípios ${doEstado(uf)} já foram processados.`
-          : `Incompleto: ${fmtInt(e.municipios)} de ${fmtInt(e.municipios_ibge)} municípios processados. ${
-              faltam === 1 ? "Falta 1, em cinza no mapa." : `Faltam ${fmtInt(faltam)}, em cinza no mapa.`
-            }`}
+          : faltam === 0
+            ? `Todos os ${fmtInt(e.municipios_ibge)} municípios têm dados. O Release ainda registra o conjunto estadual como parcial.`
+            : `${fmtInt(e.municipios)} de ${fmtInt(e.municipios_ibge)} municípios têm dados. ${
+                faltam === 1 ? "Falta 1, em cinza no mapa." : `Faltam ${fmtInt(faltam)}, em cinza no mapa.`
+              } O conjunto estadual é parcial.`}
         {e.atualizado_em && ` Dados de ${new Date(e.atualizado_em).toLocaleDateString("pt-BR")}.`}
       </p>
       <PainelCobertura cobertura={cobertura} uf={uf} />
@@ -147,9 +149,8 @@ function PainelEstado({ uf, municipios, comLista, estados, pontos, cobertura }: 
         </p>
       )}
       <p className="legenda-frase">
-        Os círculos juntam as fazendas aptas do estado, com o número dentro
-        {noMapa !== undefined ? ` (${fmtInt(noMapa)} no mapa)` : ""}. Município sem o contorno das fazendas aparece num
-        círculo só, no meio dele. Toque num município para abrir o funil.
+        De longe, as células mostram potencial conhecido com cobertura parcial. Ao aproximar, aparecem os limites
+        transparentes do CAR sobre o mosaico histórico. Toque num município para consultar seus dados.
       </p>
     </div>
   )
