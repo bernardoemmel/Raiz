@@ -13,7 +13,7 @@ def ler(conteudo: bytes) -> dict:
     pdf = PdfReader(io.BytesIO(conteudo))
     if pdf.is_encrypted or len(pdf.pages) > 250:
         raise ValueError("PDF fora dos limites")
-    paginas, escaneadas, tamanho = [], [], 0
+    paginas, escaneadas, tamanho, visual = [], [], 0, False
     for n, pagina in enumerate(pdf.pages, 1):
         texto = pagina.extract_text() or ""
         tamanho += len(texto.encode("utf-8"))
@@ -23,9 +23,10 @@ def ler(conteudo: bytes) -> dict:
         # Consultar recursos evita decodificar cada imagem só para contá-la.
         recursos = pagina.get("/Resources", {})
         recursos = recursos.get_object() if hasattr(recursos, "get_object") else recursos
+        visual = visual or not texto.strip() or bool(recursos.get("/XObject"))
         if len(texto.strip()) < 200 and recursos.get("/XObject"):
             escaneadas.append(n)
-    return {"paginas": paginas, "escaneadas": escaneadas}
+    return {"paginas": paginas, "escaneadas": escaneadas, "visual": visual}
 
 
 if __name__ == "__main__":
