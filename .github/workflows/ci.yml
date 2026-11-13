@@ -1,4 +1,4 @@
-# Jobs independentes, sem filtro de caminhos nem seleção parcial da suíte.
+# Suíte completa: o caso estadual roda isolado e em paralelo; o portão reúne os resultados.
 name: CI
 
 on:
@@ -218,7 +218,7 @@ jobs:
         run: uv run python scripts/checar_licencas.py
 
 
-  checagens:
+  testes_python:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     services:
@@ -237,6 +237,8 @@ jobs:
       RAIZ_LANGUAGETOOL_URL_TESTE: http://localhost:8010
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: astral-sh/setup-uv@v6
         with:
           enable-cache: true
@@ -276,18 +278,90 @@ jobs:
             sleep 1
           done
           curl --fail --silent http://localhost:8010/v2/languages > /dev/null
-      - name: Todos os testes Python, com PostGIS
-        run: uv run pytest -q --junitxml=resultado-pytest.xml
-      - name: Impedir novos testes pulados por dependência ausente
-        if: always()
-        run: uv run python scripts/conferir_testes_ci.py resultado-pytest.xml
-      - name: Resultado dos testes (inclui motivos de testes opcionais pendentes)
+      - name: Testes Python com PostGIS; o caso estadual roda no job paralelo
+        run: uv run pytest -q --deselect=testes/test_lote.py::test_lote_do_para_inteiro_fecha_ou_diz_o_que_falta --junitxml=resultado-pytest.xml
+      - name: Resultado dos testes gerais (sem dados do arquivo privado)
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: resultado-pytest
           path: resultado-pytest.xml
           retention-days: 7
+
+  referencia_para:
+    # Fork não recebe o job privilegiado; checagens reprova explicitamente a validação ausente.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    permissions:
+      # GitHub exige acesso de escrita para ler releases em rascunho. Não há operação de publicação.
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+      - name: Dependências travadas do teste estadual
+        run: uv sync --frozen --all-extras
+      - name: Preparar a referência privada do Pará com hashes e geometria originais
+        env:
+          RAIZ_DADOS_PRIVADOS_URL: release-github://${{ github.repository }}/dados-privados
+          RAIZ_DADOS_PRIVADOS_TOKEN: ${{ (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && github.token || '' }}
+        run: uv run python scripts/testar_para_privado.py --preparar "$RUNNER_TEMP/raiz-pa"
+      - name: Executar o caso estadual original sem credenciais no processo
+        if: ${{ !cancelled() }}
+        env:
+          RAIZ_TESTE_PA_PASTA: ${{ runner.temp }}/raiz-pa
+          RAIZ_TESTE_PA_OBRIGATORIO: "1"
+        run: uv run pytest -q testes/test_lote.py::test_lote_do_para_inteiro_fecha_ou_diz_o_que_falta --junitxml=resultado-para.xml
+      - name: Resultado estadual sem dados ou diagnósticos privados
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: resultado-para
+          path: resultado-para.xml
+          retention-days: 7
+      - name: Apagar a referência privada temporária
+        if: always()
+        run: rm -rf "$RUNNER_TEMP/raiz-pa"
+
+  # Nome preservado para que regras existentes da main continuem exigindo a suíte inteira.
+  checagens:
+    needs: [testes_python, referencia_para]
+    if: always()
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    env:
+      RAIZ_TESTE_PA_OBRIGATORIO: "1"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Exigir as duas partes da suíte aprovadas
+        env:
+          GERAIS: ${{ needs.testes_python.result }}
+          ESTADUAL: ${{ needs.referencia_para.result }}
+        run: |
+          if [ "$GERAIS" != success ] || [ "$ESTADUAL" != success ]; then
+            echo '::error::Suíte incompleta ou reprovada; PR de fork não executa a referência privada e não recebe aprovação estadual.'
+            exit 1
+          fi
+      - uses: actions/download-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: resultado-pytest
+          path: resultados/gerais
+      - uses: actions/download-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: resultado-para
+          path: resultados/para
+      - name: Conferir cobertura estadual única, falhas e testes pulados no conjunto
+        if: ${{ !cancelled() }}
+        run: python3 scripts/conferir_testes_ci.py resultados/gerais/resultado-pytest.xml resultados/para/resultado-para.xml
 
   e2e:
     runs-on: ubuntu-24.04

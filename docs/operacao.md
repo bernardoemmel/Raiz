@@ -765,8 +765,11 @@ New branch ruleset**. Dê o nome `main protegida`, selecione **Active** e inclua
 1. Exija pull request antes de integrar. Para o fundador trabalhar sozinho, não exija aprovação de uma segunda
    pessoa; exija resolver todas as conversas abertas. Se houver revisor, pode exigir uma aprovação e invalidá-la
    quando o código mudar.
-2. Em **Require status checks to pass**, selecione os seis checks do workflow **CI**: `workflows`, `segredos`,
-   `front`, `seguranca`, `checagens` e `e2e`. Prefira a origem **GitHub Actions**, quando disponível. Marque
+2. Em **Require status checks to pass**, selecione os oito checks do workflow **CI**: `workflows`, `segredos`,
+   `front`, `seguranca`, `testes_python`, `referencia_para`, `checagens` e `e2e`. O check obrigatório antigo
+   `checagens` agora é o portão final: reúne os dois relatórios e exige a aprovação estadual, preservando a
+   proteção de quem já o exigia antes da divisão. Prefira a origem
+   **GitHub Actions**, quando disponível. Marque
    **Require branches to be up to date before merging**. Os nomes só aparecem depois de uma execução.
 3. Ative **Block force pushes** e **Restrict deletions**. Mantenha a lista de bypass vazia, incluindo para
    administradores, salvo uma política de emergência explícita. Não habilite merge automático do Dependabot
@@ -778,6 +781,11 @@ New branch ruleset**. Dê o nome `main protegida`, selecione **Active** e inclua
 A automação atual do motor atualiza `motor/README.md` por push direto. A proteção impedirá esse push: o chat
 Dados/operação precisa transformar a atualização em PR. Não conceda bypass geral ao token para contornar isso.
 Esta entrega documenta a configuração; não altera as regras da conta do fundador.
+
+Em **Settings → Actions → General**, mantenha desabilitado o envio de tokens de escrita e de segredos para
+workflows de PRs de forks, se essas opções forem oferecidas. A consulta administrativa dessa configuração
+retornou 403 para a integração usada nesta entrega; seu estado não foi confirmado nem alterado. A guarda no
+workflow não substitui a restrição de permissões do GitHub, porque um PR pode alterar seu próprio workflow.
 
 Em **Settings → Code security**, habilite **Dependabot alerts**, **Dependabot security updates** e, quando
 oferecidos pelo plano, **Secret scanning** e **Push protection**. `.github/dependabot.yml` já agenda atualizações
@@ -792,13 +800,18 @@ retirá-la do último commit não a apaga do histórico.
 
 ## CI e controles de segurança
 
-Os seis jobs rodam em paralelo, sem filtro de caminhos nem seleção de testes. `setup-uv` guarda cache pelo
+São oito jobs: os testes gerais e o caso estadual rodam em paralelo; o portão final reúne seus resultados.
+Não há filtro de caminhos nem retirada de testes. `setup-uv` guarda cache pelo
 `uv.lock`, `setup-node` guarda o cache npm pelos locks, e o Chromium/LanguageTool têm caches separados. A instalação
 continua travada (`uv sync --frozen --all-extras`, `npm ci`). Não se reutiliza `node_modules` de outro lock.
 
 - `front` constrói o mesmo site público e executa os testes unitários, com geometrias de teste determinísticas.
-- `checagens` executa toda a coleta pytest, inclusive PostGIS, Rust, cartão, vídeo, PDF e LanguageTool. O portão de resultados recusa novos skips/xfails;
-  preserva somente o conjunto real do Pará ausente e a divergência conhecida de TIR, detalhados na passagem.
+- `testes_python` executa os testes Python gerais, inclusive PostGIS, Rust, cartão, vídeo, PDF e LanguageTool. Seu
+  único `--deselect` é o caso estadual executado em `referencia_para`; uma regressão confere a seleção real para
+  impedir que esse seletor esconda um teste vizinho. O corpo original do teste estadual é preservado.
+- `checagens` exige os dois jobs aprovados e confere seus JUnits juntos: exatamente um estadual aprovado,
+  nenhum caso duplicado, resultado ausente, falha ou skip novo. Permanece somente o xfail conhecido de TIR,
+  que precisa ter executado; `xfail(run=False)` também reprova.
 - `e2e` abre Chromium e usa API/PostGIS reais: link de entrada, milhão de créditos no Pará, três opções, interesse
   e reserva Pix local. E-mail e respostas dos donos são controlados; nenhuma credencial de pagamento real é
   aceita. Veja `testes/e2e/README.md`. Não há trace com tokens nos artefatos.
@@ -806,6 +819,50 @@ continua travada (`uv sync --frozen --all-extras`, `npm ci`). Não se reutiliza 
   Inventário ausente/ilegível falha. AGPL, SSPL, Business Source, EUPL e NC são bloqueadas; `BSL-1.0` é a licença
   Boost, permitida, enquanto Business Source (`BUSL-1.1`) é proibida. Exceções manuais não liberam licença proibida.
 - `segredos` usa Gitleaks com saída ocultada; `workflows` valida todos os workflows com actionlint.
+
+### Teste estadual privado do Pará
+
+O teste usa as previsões reais e as entradas/geometrias congeladas da rodada `central_r11`: **144 municípios e
+345.870 imóveis**, modelo `restauracao-2026d+a84f9789`. `scripts/testar_para_privado.py` ancora o manifesto e o plano
+em SHA-256, confere os pacotes, o modelo, a cobertura e as identidades por município. Alteração de bytes, conjunto
+incompleto ou modelo incompatível falha. O cálculo municipal não é repetido nem substituído por dados sintéticos.
+**Lote e números** mantém a referência e precisa publicar uma nova versão compatível quando o modelo mudar.
+
+O GitHub exige [acesso de escrita/push para ler releases em rascunho](https://docs.github.com/en/rest/releases/releases#list-releases);
+a tentativa com `contents: read` foi recusada.
+Por isso, somente o job interno `referencia_para` usa `contents: write`. Os demais mantêm leitura. A permissão é
+do job inteiro, incluindo suas actions, que podem [acessar `github.token` implicitamente](https://docs.github.com/en/actions/tutorials/authenticate-with-github_token#using-the-github_token-in-a-workflow); uma variável de ambiente
+em um passo não reduz essa permissão. Não há operação de publicação nem credencial estática nova.
+
+Apenas o processo de preparação recebe `RAIZ_DADOS_PRIVADOS_TOKEN=${{ github.token }}`. Ele executa
+`uv run python scripts/testar_para_privado.py --preparar "$RUNNER_TEMP/raiz-pa"`, usando
+`RAIZ_DADOS_PRIVADOS_URL=release-github://bernardoemmel/Raiz/dados-privados`. O checkout não persiste credenciais.
+O pytest recebe somente `RAIZ_TESTE_PA_PASTA` e `RAIZ_TESTE_PA_OBRIGATORIO=1`; seu subprocesso usa um ambiente
+restrito sem credenciais. Token ausente, acesso recusado, referência inválida ou falha de teste deixam o CI vermelho.
+
+PR de fork não executa o job privilegiado, e `checagens` reprova explicitamente a validação estadual ausente.
+Não se usa `pull_request_target` para executar código do PR. O token de execuções originadas pelo Dependabot
+também pode permanecer limitado a leitura; nesse caso, depois de revisar a alteração, um mantenedor a promove
+para uma branch confiável do repositório para executar a validação privada. Não conceder escrita ou segredos a
+forks para contornar esse bloqueio.
+
+O caso estadual ainda é tentado após falha da preparação, enquanto o job não estiver cancelado, e registra uma
+falha fixa. Os testes gerais continuam no job independente. O caso estadual roda em subprocesso; stdout, stderr e JUnit internos
+ficam em diretório privado temporário e são apagados também após erro, timeout ou interrupção. O JUnit público
+recebe apenas sucesso ou mensagem fixa de falha; nomes, CARs, métricas por imóvel e diagnósticos internos não são
+publicados. O portão final exige exatamente esse caso no conjunto dos dois relatórios, sem skip/xfail ou resultado ausente.
+
+O snapshot fica fora do checkout, em pasta `0700`, sem cache ou artifact público. A etapa `always()` apaga
+`$RUNNER_TEMP/raiz-pa`, inclusive após preparação incompleta. Os caches uv/npm/Chromium/LanguageTool continuam
+restritos às dependências. Para executar localmente, prepare uma pasta privada fora do checkout com o mesmo CLI,
+retire as credenciais do ambiente antes de executar o pytest com as duas variáveis `RAIZ_TESTE_PA_*` e apague a
+pasta ao terminar; não publique o conteúdo nem os diagnósticos do subprocesso.
+
+A execução real de referência levou **446,2 s (7 min 26 s)**, com pico de RSS de **6.840,2 MiB**. Download e preparo
+levaram 9,4 s e 8 s, respectivamente; o conjunto preparado ocupou cerca de 1,42 GB. `testes_python` mantém o limite
+de **30 minutos**; `referencia_para` tem **25 minutos**, em paralelo, e o portão `checagens` tem 5 minutos. A suíte anterior
+levou 13 min 29 s; isolar o caso estadual evita somar seus 7 min 26 s ao caminho dos testes gerais. Essas medições
+locais orientam o orçamento; o CI da entrega precisa confirmar o acesso ao draft e a duração no runner.
 
 A API acrescenta cabeçalhos de proteção e `no-store` nas respostas autenticadas e de pedidos. Por padrão, há
 120 chamadas por minuto/IP e 10 chamadas de login por minuto/IP; ajuste `RAIZ_API_LIMITE_MINUTO` e
