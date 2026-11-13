@@ -18,12 +18,39 @@ const BASICAS = ["cod_imovel", "cod_ibge", "municipio", "uf", "situacao_basica"]
 const RESUMO = new Set(("cod_ibge municipio imoveis sem_problema def_RL aptas_carbono ha_carbono tco2_ano_aptas aptas_com_matricula ha_carbono_matricula cota_reserva redd_imoveis redd_ha app_imoveis app_ha frigorifico_imoveis frigorifico_ha compensacao_ha eudr_ok credito_rural_ok compra_arrendamento alerta_pos2020_imoveis frente_regularizar_antes frente_carbono frente_silvipastoril frente_desbloqueio frente_carbono_revisar_desm10anos frente_assentamento_agrupado frente_carbono_so_plantio frente_fora_TI frente_ja_tem_projeto").split(" "))
 const SEM_IMOVEIS = new Set(["cod_ibge", "municipio", "verificado_em"])
 const SITUACOES = new Set(["apto", "com_pendencia", "nao_apto"])
-const CHAVES_ESTADO = new Set("versao_publicacao escopo municipios sem_imoveis total_ibge completo funil_completo tamanho versao atualizado_em motor_versao situacao faltam tabelas versoes url geo".split(" "))
+const CHAVES_ESTADO = new Set("versao_publicacao escopo municipios sem_imoveis total_ibge completo funil_completo tamanho versao atualizado_em motor_versao situacao faltam tabelas versoes url geo processamento".split(" "))
 const objeto = (v) => v !== null && typeof v === "object" && !Array.isArray(v)
 const marcado = (v) => objeto(v) && v.versao_publicacao === 1 && v.escopo === "publico_basico"
 
 function chaves(dado, permitidas, rotulo) {
   if (!objeto(dado) || Object.keys(dado).some((k) => !permitidas.has(k))) throw new Error(`${rotulo}: metadados fora do contrato público`)
+}
+/** Telemetria municipal pública v1; nunca aceita mensagens livres ou identificadores de imóveis. */
+function validarProcessamento(dado, uf) {
+  const campos = ["versao", "escopo", "unidade", "municipios_total", "municipios", "observado_em", "ultima_mudanca_em", "valido_ate"]
+  const contagens = ["prontos", "em_execucao", "com_erro", "pendentes", "desconhecidos"]
+  const exatas = (v, nomes) => objeto(v) && Object.keys(v).length === nomes.length && nomes.every((n) => Object.hasOwn(v, n))
+  const inteiro = (v) => Number.isSafeInteger(v) && v >= 0 && v <= 6000
+  // Date.parse sozinho normaliza datas inexistentes, como 30 de fevereiro.
+  const instante = (v) => {
+    if (typeof v !== "string" || v.length > 40) return null
+    const m = /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})(?:\.\d{1,9})?(Z|([+-])(\d{2}):(\d{2}))$/.exec(v)
+    if (!m) return null
+    const ms = Date.parse(v), horas = Number(m[4] || 0), minutos = Number(m[5] || 0)
+    if (!Number.isFinite(ms) || horas > 23 || minutos > 59) return null
+    const fuso = (horas * 60 + minutos) * (m[3] === "-" ? -1 : 1)
+    return new Date(ms + fuso * 60_000).toISOString().slice(0, 19) === m[1] ? ms : null
+  }
+  if (!exatas(dado, campos) || dado.versao !== 1 || !["uf", "unidade"].includes(dado.escopo)
+    || typeof dado.unidade !== "string" || !new RegExp(`^${uf}(?:-[1-9][0-9]?)?$`).test(dado.unidade)
+    || (dado.escopo === "uf" && dado.unidade !== uf) || !inteiro(dado.municipios_total)
+    || !exatas(dado.municipios, contagens) || !contagens.every((c) => inteiro(dado.municipios[c]))
+    || contagens.reduce((soma, c) => soma + dado.municipios[c], 0) !== dado.municipios_total)
+    throw new Error(`${uf}: processamento fora do contrato público`)
+  const observado = instante(dado.observado_em), mudanca = instante(dado.ultima_mudanca_em), validade = instante(dado.valido_ate)
+  if (observado === null || mudanca === null || validade === null || mudanca > observado
+    || validade <= observado || validade - observado > 60 * 60 * 1000)
+    throw new Error(`${uf}: processamento fora do contrato público`)
 }
 function urlPacote(url, uf, geo = false) {
   const esperado = `raiz_${geo ? "geo_" : ""}${uf}.tar.gz`
@@ -42,6 +69,7 @@ function validarManifesto(m) {
   for (const [uf, estado] of Object.entries(m.estados)) {
     if (!UFS.has(uf) || !marcado(estado)) throw new Error("estado sem marca publico_basico v1")
     chaves(estado, CHAVES_ESTADO, uf)
+    if (Object.hasOwn(estado, "processamento")) validarProcessamento(estado.processamento, uf)
     if (estado.url) urlPacote(estado.url, uf)
     else if (estado.municipios || estado.tamanho) throw new Error(`${uf}: pacote público sem endereço`)
     if (estado.geo) {
@@ -53,7 +81,12 @@ function validarManifesto(m) {
       urlPacote(estado.geo.url, uf, true)
     }
   }
-  return m
+  // O mapa usa cobertura publicada, não execução corrente. Valida a nova telemetria,
+  // mas não a copia para o cache nem para o site antes da integração do painel próprio.
+  return { ...m, estados: Object.fromEntries(Object.entries(m.estados).map(([uf, estado]) => {
+    const { processamento: _processamento, ...publico } = estado
+    return [uf, publico]
+  })) }
 }
 
 function linhasCsv(texto) {
@@ -154,9 +187,15 @@ async function main() {
   }
   const arqLocal = path.join(DESTINO, "estados.json")
   let local = { versao_publicacao: 1, escopo: "publico_basico", estados: {} }
-  try { local = validarManifesto(JSON.parse(fs.readFileSync(arqLocal, "utf8"))) } catch {}
-  const falhas = []
   let mudou = false
+  try {
+    const original = JSON.parse(fs.readFileSync(arqLocal, "utf8"))
+    local = validarManifesto(original)
+    mudou = JSON.stringify(local) !== JSON.stringify(original)
+  } catch (erro) {
+    if (erro.code !== "ENOENT") throw new Error("manifesto local fora do contrato público; última publicação preservada")
+  }
+  const falhas = []
   for (const uf of Object.keys(remoto.estados).filter((uf) => !pedidos.length || pedidos.includes(uf))) {
     const r = remoto.estados[uf], l = local.estados[uf]
     if (!r.url) {
