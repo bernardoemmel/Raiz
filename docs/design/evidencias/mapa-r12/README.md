@@ -39,7 +39,7 @@ O detalhe conserva contornos de 1 px sem preenchimento, tracejado nos limites co
 
 Nenhuma hachura de restauração foi criada a partir do CAR. A fonte autorizada está vazia no mapa aberto; a ficha paga consulta a geometria real pela API quando disponível. A carga desse recorte no mapa geral continua pendente, portanto estas capturas não demonstram essa integração.
 
-O Playwright Pages passou com a revisão `c1d42a4`, nos caminhos `/Raiz/` e `/`. O roteiro confere grupos com medida ausente, soma e rótulos, abertura por Enter com foco preservado, reutilização do botão, transição para município e remoção dos marcadores no detalhe. Também verifica fallback gzip, alerta e ausência de marcadores quando o GeoJSON falha. As **sete verificações axe** da fixture terminaram sem violações WCAG 2.1 AA em 360 px, com teclado e gaveta móvel.
+O Playwright Pages passou com a revisão `c1d42a4` no caminho `/Raiz/`. A última conferência no caminho `/` pertence à revisão `4b72f85`; ela não é atribuída ao candidato final. O roteiro confere grupos com medida ausente, soma e rótulos, abertura por Enter com foco preservado, reutilização do botão, transição para município e remoção dos marcadores no detalhe. Também verifica fallback gzip, alerta e ausência de marcadores quando o GeoJSON falha. As **sete verificações axe** da fixture terminaram sem violações WCAG 2.1 AA em 360 px, com teclado e gaveta móvel.
 
 ## Desempenho
 
@@ -47,7 +47,7 @@ A única série fixa de três execuções Lighthouse mobile da revisão **`c1d42
 
 A fixture sintética completa passou suas **18 medições fixas**, três por rota: medianas **Brasil 92, entrar 98, novo pedido 97, prospecção 98, acerto 97 e produtor 100**. A série nacional foi **89/95/92**, incluindo a amostra **89** abaixo de 90. Acessibilidade foi **100 nas 18 amostras**; sete auditorias axe terminaram sem violações. A fixture inclui nome e cobertura estadual efetivamente desenhados. As duas séries permanecem separadas em [lighthouse.json](lighthouse.json), com todas as notas, datas e hashes dos relatórios.
 
-A revisão final conserva o enquadramento e as camadas. Distribui a inicialização em tarefas cooperativas, mantém o índice de grupos em worker próprio e prepara os programas gráficos nacionais fora da interface quando o navegador oferece suporte. O contexto WebGL solicita `desynchronized` pela API pública; a aceitação depende do navegador. A abertura também evita cálculos de datas enquanto não há calendário carregado. Não houve temporizador artificial, identificação do Lighthouse, troca de dados, redução do portão ou troca de motor de mapa.
+A revisão final conserva o enquadramento e as camadas. Distribui a inicialização em tarefas cooperativas, mantém o índice de grupos em worker próprio, aquece o shader SDF dos rótulos em worker e prepara as quatro variantes nacionais no cache do renderizador, na thread principal, antes dos desenhos. O contexto WebGL solicita `desynchronized` pela API pública; a aceitação depende do navegador. A abertura também evita cálculos de datas enquanto não há calendário carregado. Não houve temporizador artificial, identificação do Lighthouse, troca de dados, redução do portão ou troca de motor de mapa.
 
 As séries abaixo pertencem a revisões anteriores. Os resultados reprovados foram preservados e não são atribuídos ao candidato final:
 

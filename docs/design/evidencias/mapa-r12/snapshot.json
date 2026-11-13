@@ -289,7 +289,7 @@
     "produtor/index.html": "12f9c7317f005cf6caff775a40a8cd1769f591e637fb9d2ac65f2a65c9458395"
   },
   "preparacao_grafica": {
-    "preflight": "Compila os programas nacionais em worker quando o navegador oferece o contexto necessário; o mapa mantém fallback.",
+    "preflight": "Aquece o shader SDF dos rótulos em worker quando o navegador oferece o contexto necessário e prepara quatro variantes nacionais no cache do renderizador, na thread principal, antes dos desenhos; o mapa mantém fallback.",
     "desynchronized": "Solicita menor latência pela API pública WebGL; suporte é decisão do navegador.",
     "guarda_calendario": "Evita calcular datas antes de existir calendário carregado.",
     "nota": "Sem detecção de Lighthouse, espera artificial, troca de dados ou redução do portão."
