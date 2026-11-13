@@ -439,3 +439,7 @@ com as novas previsões. Rodada antiga não é reetiquetada. O importador está
 testado nas guardas; a importação real depende da publicação PA R12. Fontes
 canônicas dos demais estados continuam incrementais. Benchmark passa a declarar
 o cenário padrão vigente também na oferta sintética e nos parâmetros do pedido.
+A sincronização com a main `60e17b0` preservou as entregas do chat Ficha. O
+exportador CADT continua explicitamente em R11: sua fixture agora declara esse
+cenário ao gerar a amostra, em vez de herdar o novo padrão R12. Os 52 testes do
+CADT passaram; o exportador, a API, o MCP e o front não foram alterados.

@@ -562,3 +562,5 @@ A primeira execução no Actions identificou ausência de `rg` no runner; a veri
 - [ ] Controle Dryad: aquisição pública no runner, SHA256 e vínculo IBGE
   implementados; publicar MAE por idade somente após acesso aos 126 registros e
   validação por município. Falhas HTTP continuam como pendência, sem números fictícios.
+- [x] Compatibilidade do teste CADT após mudança do padrão: amostra declara R11,
+  o cenário explícito do exportador; 52 testes aprovados, sem alterar sua implementação.
