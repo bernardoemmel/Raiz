@@ -4,6 +4,24 @@ Sessão: https://claude.ai/code/session_01VGb88MJumyG9PHt2znaaKE. Branch: `claud
 
 ## Redesenho cartográfico e rodada 12: PR #90 (13/11/2026 UTC)
 
+- Revisão cartográfica **`650db81`**, após investigar os perfis do CI: o enquadramento passou para
+  `fitBounds` imediatamente após criar o mapa, eliminando um redimensionamento redundante, e as fontes/
+  camadas nacionais passaram a compor um único estilo inicial. Dados, camadas, ordem, centro e zoom
+  foram preservados; comparação de 360 px sem pixels diferentes. O Pages passou com zero 404/erros,
+  e os 508 testes unitários do front passaram nessa composição.
+  A bateria local final, em Chrome 157, passou nas seis rotas: medianas **90/98/97/96/97/100**,
+  acessibilidade **100 nas 18 amostras**, sete verificações axe/teclado sem violações. A entrada da fixture
+  marcou **88/90/94**; o snapshot real de 444 municípios/13 UFs marcou **82/90/90 (mediana 90)**,
+  acessibilidade 100 nas três. Todas as amostras foram mantidas. Há dispersão e pouca folga; não há
+  garantia de 90 em toda abertura. As capturas e relatórios finais identificam esta revisão e o snapshot.
+  A nova execução do CI e a conferência da publicação continuam obrigatórias antes de fechar a entrega.
+- O CI `43431157242`, anterior a essas duas correções, também reprovou o front com **81/85/85**.
+  A comparação com o CI verde de `d00ea94` encontrou os mesmos assets, dados, Chrome 157 e simulação,
+  mas CPU do runner menos favorável. Os perfis orientaram mudanças concretas; a execução não foi
+  repetida para selecionar notas. O resize isolado passou na fixture, mas reprovou o snapshot real
+  em **86/86/92**; por isso não encerrou a revisão. O estilo único reduz validações e mensagens, embora
+  parte do trabalho mude de fase: os perfis não atribuem toda a melhora ao patch. A série final válida
+  é a de `650db81` acima, e não a melhor nota dos experimentos anteriores.
 - O [CI `43369596942`](https://github.com/bernardoemmel/Raiz/actions/runs/43369596942), head `d00ea94`,
   concluiu os nove jobs com sucesso: 3.075 testes Python gerais e a referência original do Pará em job
   separado; 508 testes do front, API/MCP real, segurança, licenças e navegação aprovados. Lighthouse
@@ -44,7 +62,7 @@ Sessão: https://claude.ai/code/session_01VGb88MJumyG9PHt2znaaKE. Branch: `claud
   verifica também a ordem das camadas. Os grupos visíveis são botões HTML, com índice Supercluster no worker;
   a legenda única recolhida preserva as contagens em 360 px. O build evita compilar céu totalmente transparente
   no MapLibre, com versão/hash conferidos e licença completa distribuída. Não remove dados para a auditoria.
-- A série fixa final no snapshot real, frontend `1412642`, marcou desempenho **88/98/92 (mediana 92)** e
+- A série anterior no snapshot real, frontend `1412642`, marcou desempenho **88/98/92 (mediana 92)** e
   acessibilidade **100/100/100**, em 360 px com CPU/rede simuladas. LCP 1,46/1,43/1,49 s; TBT
   431,5/152/319 ms. As três amostras foram preservadas, inclusive a de 88; não houve repetição para escolher
   notas melhores nem alteração do portão. A inicialização gráfica ainda varia entre execuções. Os 399 testes
