@@ -1,0 +1,84 @@
+name: Lotes privados por estado, bioma e Brasil
+
+on:
+  workflow_dispatch:
+    inputs:
+      ufs:
+        description: "UFs separadas por espaço; vazio atualiza todos os recortes publicados"
+        type: string
+        default: ""
+      bioma:
+        description: "Bioma exato, opcional (Amazônia, Caatinga, Cerrado, Mata Atlântica, Pampa, Pantanal)"
+        type: string
+        default: ""
+      brasil:
+        description: "Consultar Brasil inteiro na cobertura disponível"
+        type: boolean
+        default: false
+      pedido:
+        description: "JSON CamposPedido; vazio usa meta de um milhão de créditos e central_r11"
+        type: string
+        default: ""
+  workflow_run:
+    workflows: ["Processar estados (motor)"]
+    types: [completed]
+    branches: [main]
+  schedule:
+    - cron: "41 */2 * * *"
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: lote-nacional-privado
+  cancel-in-progress: false
+
+env:
+  GH_TOKEN: ${{ github.token }}
+  RAIZ_DADOS_PRIVADOS_URL: ${{ vars.RAIZ_DADOS_PRIVADOS_URL || format('release-github://{0}/dados-privados', github.repository) }}
+  RAIZ_DADOS_PRIVADOS_TOKEN: ${{ secrets.RAIZ_DADOS_PRIVADOS_TOKEN || github.token }}
+  OPENBLAS_NUM_THREADS: "1"
+  OMP_NUM_THREADS: "1"
+
+jobs:
+  preparar:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 350
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main # workflow_run nunca executa código do evento que o acionou
+      - name: Esperar uma cota na fila global antes dos dados
+        run: python scripts/reservar_lote.py --reservar 1 --aguardar-minutos 180
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: false
+      - run: uv sync --frozen --extra motor
+      - name: Atualizar índices e publicar consultas somente no arquivo privado
+        env:
+          INPUT_UFS: ${{ inputs.ufs }}
+          INPUT_BIOMA: ${{ inputs.bioma }}
+          INPUT_BRASIL: ${{ inputs.brasil }}
+          INPUT_PEDIDO: ${{ inputs.pedido }}
+        run: |
+          uv run python - <<'PY'
+          import os, pathlib, subprocess, sys
+          pasta = pathlib.Path(os.environ['RUNNER_TEMP']) / 'lote-nacional'
+          pasta.mkdir(mode=0o700, exist_ok=True)
+          args = [sys.executable, '-m', 'raiz.restauracao_nacional_rodada',
+                  '--trabalho', str(pasta), '--limite-minutos', '120', '--consultar', '--manutencao']
+          for uf in os.environ.get('INPUT_UFS', '').split():
+              args.extend(['--uf', uf])
+          if os.environ.get('INPUT_BIOMA'):
+              args.extend(['--bioma', os.environ['INPUT_BIOMA']])
+          if os.environ.get('INPUT_BRASIL') == 'true':
+              args.append('--brasil')
+          if os.environ.get('INPUT_PEDIDO'):
+              pedido = pasta / 'pedido.json'
+              pedido.write_text(os.environ['INPUT_PEDIDO'])
+              pedido.chmod(0o600)
+              args.extend(['--pedido', str(pedido)])
+          subprocess.run(args, check=True)
+          PY

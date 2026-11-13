@@ -10,6 +10,7 @@ import argparse
 import os
 import re
 import sys
+import time
 from pathlib import Path
 
 MOTOR = Path(__file__).resolve().parents[1] / "motor"
@@ -18,6 +19,10 @@ import fila_processamento as F  # noqa: E402
 import rodar_estado as O  # noqa: E402
 
 PREFIXO = "lote-pa-vaga-"
+
+
+class SemVagaGlobal(RuntimeError):
+    """Admissão consultada com sucesso, mas as quinze cotas estão ocupadas."""
 
 
 def contexto() -> tuple[str, int]:
@@ -70,7 +75,7 @@ def reservar(maximo: int) -> int:
         _, estado = F.Repositorio().ler()
         reservas = cotas(estado, run_id)
     if not 1 <= len(reservas) <= maximo:
-        raise RuntimeError("sem vaga global para o Lote; aguarde término natural e reexecute o workflow completo")
+        raise SemVagaGlobal("sem vaga global para o Lote; aguarde término natural e reexecute o workflow completo")
     confirmar(len(reservas))
     return len(reservas)
 
@@ -97,15 +102,30 @@ def main() -> None:
     modo = parser.add_mutually_exclusive_group(required=True)
     modo.add_argument("--reservar", type=int, metavar="MAXIMO")
     modo.add_argument("--confirmar", type=int, metavar="VAGAS")
+    parser.add_argument("--aguardar-minutos", type=float, default=0)
     args = parser.parse_args()
     if args.reservar is not None:
-        vagas = reservar(args.reservar)
+        vagas = aguardar(args.reservar, args.aguardar_minutos)
         with Path(os.environ["GITHUB_OUTPUT"]).open("a") as saida:
             saida.write(f"vagas={vagas}\n")
         print(f"Lote com {vagas} cotas na fila global de 15; nenhum trabalho foi cancelado.")
     else:
         confirmar(args.confirmar)
         print("Cotas globais confirmadas antes de acessar os dados do Lote.")
+
+
+def aguardar(maximo: int, minutos: float = 0) -> int:
+    if not 0 <= minutos <= 240:
+        raise ValueError("Espera deve ficar entre zero e 240 minutos.")
+    prazo = time.monotonic() + minutos * 60
+    while True:
+        try:
+            return reservar(maximo)
+        except SemVagaGlobal:
+            if time.monotonic() >= prazo:
+                raise
+            print("Quinze cotas ocupadas; aguardando conclusão natural, sem cancelar trabalhos.", flush=True)
+            time.sleep(min(60, max(0, prazo - time.monotonic())))
 
 
 if __name__ == "__main__":

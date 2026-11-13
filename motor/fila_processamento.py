@@ -19,7 +19,7 @@ TETO = 15
 ESTADOS_ATIVOS = ("queued", "in_progress", "waiting", "pending", "requested")
 PASSO_EXECUTOR = "Rodar pelo executor (fontes, adoção, motor e tarefas do produto) e publicar no Release dados"
 MAX_FALHAS = 3
-WORKFLOWS_LOTE = ("lote-para.yml", "retomar-lote-para.yml")
+WORKFLOWS_LOTE = ("lote-para.yml", "retomar-lote-para.yml", "desbloqueio-lote.yml", "lote-nacional.yml")
 # #55: workflow inteiro conferido neste commit imutável, max-parallel=5,
 # preparo e publicação sequenciais. Nenhum outro head herda esta exceção.
 CAPACIDADE_LEGADA_LOTE = {("retomar-lote-para.yml", "3546687c66ec07ef9bd875d181efcff57ff1d312"): 5}
