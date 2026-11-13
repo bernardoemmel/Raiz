@@ -689,3 +689,7 @@ Contrato, acessibilidade e desenho: [docs/design/graficos-resultados.md](../desi
   passou por upgrade, downgrade até a base e novo upgrade, com uma única cabeça. As 169 regressões de ficha,
   versões, proteção, gráficos e autorização passaram; Ruff conferiu o conjunto Python. Nenhuma migração
   foi aplicada em banco de produção nesta conferência.
+- A main avançou depois para `3b962e7` (PR #97, Calendário no MCP) e foi integrada sem conflitos.
+  Passaram 205 testes focados de calendário/MCP, OAuth, telemetria, privacidade, EPREL e ficha de crédito,
+  além de Ruff e actionlint dos workflows envolvidos. O CI já iniciado é preservado até terminar; só depois
+  a branch é atualizada para a validação completa da integração, sem cancelar a execução anterior.
