@@ -17,7 +17,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 120
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           persist-credentials: false
       - name: Preparar relatório de preparação incompleta
@@ -81,7 +81,7 @@ jobs:
           --saida .cache/agentes-real --cassetes .cache/agentes-real/cassetes
       - name: Guardar somente as evidências sanitizadas para revisão e replay
         if: always() && steps.evidencias.outcome == 'success'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: medicao-agente-real
           path: |
@@ -97,7 +97,7 @@ jobs:
           if-no-files-found: error
       - name: Guardar diagnóstico quando a medição não chegou a iniciar
         if: always() && hashFiles('.cache/agentes-real/relatorio.json') == ''
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: medicao-agente-nao-iniciada
           path: .cache/agentes-status/relatorio.json

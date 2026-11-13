@@ -175,6 +175,9 @@ async function pontoDaFazenda(camera, car, etapa) {
     return imoveis.features.some(f => f.properties.cod_imovel === car)
       && limite.features.some(f => String(f.properties.cod_ibge) === municipio)
   }, { car, municipio: MUNICIPIO })
+  // Fontes em cache podem estar prontas antes do commit da nova rota. Dois frames
+  // deixam o efeito de enquadramento iniciar; mapaPronto espera esse voo terminar.
+  await pagina.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))))
   await mapaPronto()
   const evidencia = await pagina.evaluate(async camera => {
     const m = document.querySelector(".mapa-brasil .mapa").__mapa

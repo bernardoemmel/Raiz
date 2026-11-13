@@ -38,12 +38,12 @@ jobs:
       plano: ${{ steps.plano.outputs.plano }}
       plano_sha256: ${{ steps.plano.outputs.plano_sha256 }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Reservar capacidade global antes de preparar os dados
         id: reserva
         run: python scripts/reservar_lote.py --reservar 5
       - name: Motor e amostra congelados na versão original
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           ref: ${{ env.SHA_ORIGEM }}
           path: motor-origem
@@ -79,13 +79,13 @@ jobs:
       PLANO_SHA256: ${{ needs.preparar.outputs.plano_sha256 }}
       FATIA: ${{ matrix.fatia }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Confirmar as cotas globais antes dos dados e das dependências
         id: reserva
         env:
           VAGAS: ${{ needs.preparar.outputs.vagas }}
         run: python scripts/reservar_lote.py --confirmar "$VAGAS"
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ env.SHA_ORIGEM }}
           path: motor-origem
@@ -123,13 +123,13 @@ jobs:
       PLANO: ${{ needs.preparar.outputs.plano }}
       PLANO_SHA256: ${{ needs.preparar.outputs.plano_sha256 }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Confirmar as cotas globais antes dos dados e das dependências
         id: reserva
         env:
           VAGAS: ${{ needs.preparar.outputs.vagas }}
         run: python scripts/reservar_lote.py --confirmar "$VAGAS"
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ env.SHA_ORIGEM }}
           path: motor-origem
