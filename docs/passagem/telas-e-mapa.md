@@ -143,6 +143,9 @@ problemas acionáveis de autorização da ficha, navegação ou caminhos do dom�
 - Próximas entregas, nesta ordem: resumo aberto/detalhes por API; sensibilidade; pedido por UF, bioma ou Brasil;
   painel de acerto por versão. A rodada privada do Pará não calculou sensibilidade (`sensibilidade_ligada=False`);
   a demonstração ficará identificada até haver resultados reais. E9 continua aguardando as cartas reais.
+- O CI encontrou três falsos positivos no histórico de outra branch remota: hashes de código do atestado MCP
+  no commit `e7074b4a`. Foram comparados byte a byte aos arquivos versionados e permitidos somente pelos três
+  fingerprints exatos em `.gitleaksignore`. A varredura de todas as branches e as regras oficiais permanecem.
 
 ## Nova entrega 1: cena-alvo ligada ao Release (12/11/2026)
 
