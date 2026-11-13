@@ -359,3 +359,9 @@ A sincronização com a main `60e17b0` preservou as entregas do chat Ficha. O
 exportador CADT continua explicitamente em R11: sua fixture agora declara esse
 cenário ao gerar a amostra, em vez de herdar o novo padrão R12. Os 52 testes do
 CADT passaram; o exportador, a API, o MCP e o front não foram alterados.
+
+Revisão da sensibilidade: o filtro compartilhado exigia crédito central positivo.
+Agora usa área restaurável positiva para formar a população invariante, e
+recalcula também a pequena com crédito central zero nos outros cenários. Três
+testes passaram, incluindo esse caso, seis chamadas de seleção e retomada com
+integridade das decisões. Nenhum piso de tamanho foi introduzido.

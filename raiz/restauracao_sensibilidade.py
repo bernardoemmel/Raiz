@@ -50,6 +50,10 @@ def executar(dados: dict, destino: Path, *, casos=None, volume: float | None = N
     casos = casos or cenarios()
     volume = float(volume or L.premissas_lote(r)["creditos"])
     ped = L._pedido(dados["uf"], 1, R.cenario("central_r12"))
+    # O filtro compartilhado exige quantidade positiva. Aqui a quantidade
+    # invariante é a área restaurável: crédito central zero não pode eliminar
+    # uma fazenda antes de recalcular os demais cenários.
+    ped.meta.tipo = "hectares"
     candidatos = Z.filtrar(oferta, ped).copy()
     if "salvaguardas_planejamento" in candidatos:
         candidatos = candidatos[candidatos.salvaguardas_planejamento.eq(True)]

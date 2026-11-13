@@ -69,6 +69,7 @@ def test_estudo_refaz_as_tres_selecoes_e_reusa_checkpoint_sem_perder_pequenas(tm
         registros.append(O.de_linha({**li, **calc}, -52.5, -6.5))
     oferta = O.tabela(registros)
     oferta["elegivel"] = True
+    oferta.loc[oferta.cod_imovel == "PEQUENA", ["credito_p10", "credito_p50", "credito_p90"]] = 0
     dados = dict(oferta=oferta, uf="PA", pasta=tmp_path)
     monkeypatch.setattr(L.Linhas, "entradas", lambda self, cods: {str(k): entradas[str(k)] for k in cods})
     vistas = []

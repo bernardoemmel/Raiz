@@ -555,3 +555,5 @@ A primeira execução no Actions identificou ausência de `rg` no runner; a veri
   validação por município. Falhas HTTP continuam como pendência, sem números fictícios.
 - [x] Compatibilidade do teste CADT após mudança do padrão: amostra declara R11,
   o cenário explícito do exportador; 52 testes aprovados, sem alterar sua implementação.
+- [x] Sensibilidade preserva pequenas com crédito central zero na população a
+  reavaliar; seleção continua sendo refeita a cada cenário. Três testes aprovados.
