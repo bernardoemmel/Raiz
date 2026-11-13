@@ -470,3 +470,9 @@ informa apenas a meta ou a TIR mínima não herda silenciosamente os US$55 do
 schema legado; preço explicitamente informado continua preservado e divergência
 exige reavaliação. Sem alteração no schema/API/front. Dezessete testes de pedido,
 fluxo e publicação passaram. O benchmark será repetido com a nova versão do seletor.
+
+Benchmark final do pedido parcial: 7 milhões, 80% pequenas, **65,29 s** (1,09 min)
+para três opções/auditoria; preparo 11,10 s, pico 2.395 MiB, quatro CPUs; seletor
+`lote-nacional-1+1b59b29b534e`, modelo `restauracao-2026d+490ab152`. Arquivo:
+`/tmp/raiz-benchmark-nacional-r12-pedidos/benchmark.json`. Sem cálculo municipal
+ou financeiro das selecionadas, conforme limite declarado nas medições anteriores.

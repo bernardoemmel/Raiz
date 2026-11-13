@@ -87,3 +87,9 @@ sintético 10,71 s; pico 2.386 MiB. Seletor `lote-nacional-1+63098e6a63a3`, índ
 Execução em cgroup de quatro CPUs, com testes Python concorrentes no ambiente;
 não mede coleta, previsões municipais nem recomposição financeira. O resultado
 completo está em `/tmp/raiz-benchmark-nacional-r12/benchmark.json` até a publicação.
+
+Após corrigir a herança de preço nos pedidos parciais, nova execução sem cache:
+**65,29 s (1,09 min)** para as três seleções e auditoria; 11,10 s de preparo;
+2.395 MiB, quatro CPUs. Seletor `lote-nacional-1+1b59b29b534e`, mesmo índice/modelo
+financeiro. Resultado em `/tmp/raiz-benchmark-nacional-r12-pedidos/benchmark.json`.
+Os números anteriores permanecem como medições das versões anteriores.

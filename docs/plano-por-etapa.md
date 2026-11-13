@@ -571,3 +571,5 @@ A primeira execução no Actions identificou ausência de `rg` no runner; a veri
   um xfail; replay estadual aprovado separadamente na R12; Ruff/formatação aprovados.
 - [x] Pedidos nacionais parciais usam preço/dívida do cenário vigente quando
   omitidos; valores explícitos não são trocados. Dezessete testes focados aprovados.
+- [x] Benchmark repetido após herança do cenário: sete milhões, 80% pequenas,
+  65,29 s para seleção/auditoria, 11,10 s de preparo, 2.395 MiB; versão identificada na passagem.
