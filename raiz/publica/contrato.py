@@ -6,20 +6,37 @@ Faça um pedido, por exemplo 1 milhão de créditos líquidos no Pará, com loca
 cronograma, orçamento, métodos, risco da terra e interesse desejado. A Raíz agrupa
 fazendas pequenas e compara opções mais barata, mais segura e mais compacta.
 Estimativas são P10/P50/P90, não créditos emitidos nem garantia de entrega.
+Explique os percentis: P10, P50 e P90 são os percentis 10, 50 (mediana) e 90.
+Para VOLUME de créditos, P10 é conservador e P90 otimista; para CUSTO, P90 é
+adverso (mais caro) e P10 favorável. Não inverta essa leitura. Há incerteza e resultados podem ficar
+fora dessa faixa; não basta listar os números nem afirmar viabilidade garantida.
+Se a pessoa já tem um pedido e pede conferir seu custo, risco ou cronograma, use
+comparar_lotes com o ID comercial informado. Não consulte nova oferta nem crie outro pedido.
+Para uma NOVA meta com teto, use consultar_disponibilidade: confira a
+viabilidade antes de criar pedido. Use pedir_lote quando a pessoa solicitar
+expressamente montar/calcular/criar o lote. Preserve o teto; se faltar oferta,
+informe o déficit central e ofereça alternativas para a pessoa escolher.
+Omita filtros não especificados para manter os padrões do esquema; listas vazias
+não significam usar os padrões. Nunca invente que um filtro omitido está desligado.
 
 API paga, sem plano gratuito: três créditos de teste por empresa, compartilhados
 entre chaves. Depois, cobrança por uso. Detalhes e montagem de lote exigem sinal
 Pix pago e contrato aceito; saldo não remove esses requisitos. Limites são por
-empresa. 402 indica recarga humana; 429 traz Retry-After. Nunca contorne bloqueios.
+empresa. Esgotados os testes, oriente recarga humana; não ofereça outro produto como
+substituto gratuito da intenção bloqueada. 402 indica recarga; 429 traz Retry-After. Nunca contorne bloqueios.
+Liberação e recarga são feitas por uma pessoa no canal oficial da Raíz,
+/v1/conta/gerenciar. Entregue o link humano do erro 402; não invoque pagamento.
 
 REST: /v1/openapi.json e /v1/docs. Chaves só em cabeçalhos da REST. MCP: /mcp,
 SDK oficial Python v2 e protocolo 2026-07-28, OAuth 2.1 com Keycloak. Escopos:
 consultar, pedir, reservar. Reservar nasce desabilitado e exige habilitação pelo
-administrador da própria empresa. Não envie credenciais em URLs.
+administrador da própria empresa. Se a intenção depende de permissão ausente, explique
+a pendência e encaminhe ao administrador; não execute outras operações pagas não solicitadas.
+Não envie credenciais em URLs.
 
 Ferramentas:
-- proximos_eventos: consulta o calendário já público, sem cobrança, com fonte e cobertura; não libera ficha.
 - consultar_ficha: relê CAR já adquirido, com fontes/datas; sem nova tarifa nem desbloqueio implícito.
+- proximos_eventos: calendário público por tipo, UF ou CAR, com fonte/data/confiança; não envia avisos.
 - consultar_disponibilidade: totais do pedido e lacunas da base.
 - pedir_lote: submete cálculo durável; requer Idempotency-Key.
 - comparar_lotes: opções e limites do pedido da própria empresa.
@@ -29,10 +46,27 @@ Ferramentas:
 
 A releitura da ficha exige a liberação paga daquele CAR, sinal e contrato da empresa.
 Não substitui a análise corporativa de fazenda, cobrada separadamente pela tabela vigente.
+O calendário é leitura auxiliar sem tarifa adicional, com conta ativa e os limites da empresa.
+Ausência de evento não comprova ausência de risco. Confirme os prazos no portal oficial indicado.
 
-Operações demoradas devolvem pedido_id e estado: submitted, working,
-input-required, completed, failed ou canceled. Consulte o estado; não duplique o
-pedido. Reuse a mesma Idempotency-Key somente com o mesmo corpo. Eventos seguem
+Operações devolvem pedido_id da OPERAÇÃO e estado: submitted, working,
+input-required, completed, failed ou canceled. submitted/working são o estado do
+cálculo, não do pedido comercial nem do interesse dos donos. Continue a tarefa:
+use acompanhar_contato com o pedido_id devolvido, sem pedir nova confirmação.
+Esse acompanhamento técnico é uma leitura sem tarifa adicional. Respeite
+consultar_apos_segundos e não repita a ferramenta que criou a operação.
+Ao concluir, leia resultado. negocio_pedido_id identifica o PEDIDO COMERCIAL:
+use esse outro ID para comparar_lotes, preparar_reserva ou cancelar. Para custo e
+cronograma, comece por comparar_lotes; não consulte contato do pedido comercial.
+Explique as faixas P10/P50/P90, custo líquido por crédito, cenários adversos,
+versão e limites retornados. Probabilidades de marcos não são garantia. Se o cenário
+adverso supera o teto, diga isso e peça à pessoa decidir entre manter o teto ou aceitar
+maior risco; não recomende avançar ou reservar presumindo essa tolerância.
+Interesse, aceite e contrato são fases distintas; use os números retornados.
+Se continuar demorado, devolva ID, estado e intervalo para continuar depois.
+input-required exige uma pessoa; não aprova nem paga automaticamente.
+Em retry por timeout, reuse a mesma Idempotency-Key com o mesmo corpo e reconcilie
+o recibo original. Não acrescente comparação paga se a pessoa só pediu repetir o envio. Eventos seguem
 Standard Webhooks e devem ser autenticados antes de processar. Erros são RFC9457.
 
 O agente nunca paga nem aprova por uma pessoa. A preparação devolve link; somente

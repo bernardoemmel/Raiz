@@ -26,7 +26,7 @@ EXCLUSOES: tuple[str, ...] = ("embargo", "terra_indigena", "uc_protecao_integral
 
 
 class Meta(BaseModel):
-    tipo: TipoMeta = "creditos"
+    tipo: TipoMeta = Field("creditos", description="creditos significa créditos líquidos estimados, não emitidos.")
     valor: float = Field(1_000_000, gt=0)
 
 
@@ -83,10 +83,16 @@ class CamposPedido(BaseModel):
     marcos_proprios: list[MarcoProprio] | None = None
     onde: Onde = Field(default_factory=Onde)
     dinheiro: Dinheiro = Field(default_factory=Dinheiro)
-    metodos: list[Metodo] = Field(default_factory=lambda: ["regeneracao_assistida", "semeadura_direta",
-                                                           "plantio_total"])  # fmt: skip
-    terra: list[CaminhoFront] = Field(default_factory=lambda: ["matricula_conferida", "matricula_a_conferir",
-                                                               "concessao"])  # fmt: skip
+    metodos: list[Metodo] = Field(
+        default_factory=lambda: ["regeneracao_assistida", "semeadura_direta", "plantio_total"],
+        min_length=1,
+        description="Omita para usar regeneração assistida, semeadura direta e plantio total. Nunca envie [].",
+    )
+    terra: list[CaminhoFront] = Field(
+        default_factory=lambda: ["matricula_conferida", "matricula_a_conferir", "concessao"],
+        min_length=1,
+        description="Omita para usar matrícula conferida/a conferir e concessão. Nunca envie [].",
+    )
     forma: Forma = Field(default_factory=Forma)
     interesse: FiltroInteresse = "qualquer"
     exclusoes: list[Exclusao] = Field(default_factory=lambda: list(EXCLUSOES))

@@ -652,8 +652,9 @@ async def _smoke(args):
                         latencia = time.monotonic() - antes
                         status_esperado = {"saldo_insuficiente": 402, "limite_empresa": 429}.get(tarefa.id)
                         if status_esperado:
-                            texto = " ".join(getattr(c, "text", "") for c in resposta.content)
-                            assert resposta.is_error and f'"status": {status_esperado}' in texto
+                            problema = json.loads(resposta.content[0].text)
+                            assert resposta.is_error and problema == resposta.structured_content
+                            assert problema["status"] == status_esperado and problema["type"].startswith("https://")
                             relatorio["tarefas"].append(
                                 {"id": tarefa.id, "status": status_esperado, "latencia_segundos": round(latencia, 3)}
                             )

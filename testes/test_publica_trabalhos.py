@@ -77,6 +77,11 @@ def test_submissao_nao_executa_trabalho_e_replay_nao_cobra(eng, empresa, monkeyp
     primeiro = T.submeter(eng, empresa, "pedir_lote", {}, "chave-teste-01")
     assert time.monotonic() - inicio < 5
     assert primeiro["estado"] == "submitted"
+    assert primeiro["acompanhamento"] == {
+        "ferramenta": "acompanhar_contato",
+        "argumentos": {"pedido_id": primeiro["pedido_id"]},
+    }
+    assert primeiro["consultar_apos_segundos"] == 1
     assert T.submeter(eng, empresa, "pedir_lote", {}, "chave-teste-01") == primeiro
     assert _saldo(eng, empresa) == 1600
     assert _pedidos(eng, empresa) == 0

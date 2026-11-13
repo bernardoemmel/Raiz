@@ -217,7 +217,17 @@ def criar(engine_de: Callable[[Request], Any], verificador=None) -> FastAPI:
 
     @app.exception_handler(CT.ErroConta)
     async def _conta(request: Request, ex: CT.ErroConta):
-        return problema(ex.status, ex.slug, ex.detalhe, ex.corrigir, instancia(request), **ex.extra)
+        extra = dict(ex.extra)
+        if ex.status == 402 or ex.slug == "liberacao_pendente":
+            from raiz.publica.rotas_agentes import base_publica
+
+            base = (
+                base_publica()
+                if os.getenv("RAIZ_API_PUBLICA_URL") or os.getenv("RAIZ_MCP_RESOURCE")
+                else _base(request) + "/v1"
+            )
+            extra["link_para_uma_pessoa"] = base + "/conta/gerenciar"
+        return problema(ex.status, ex.slug, ex.detalhe, ex.corrigir, instancia(request), **extra)
 
     from raiz.publica.aprovacao import ErroAprovacao
     from raiz.publica.email_login import ErroEnvioLogin
@@ -377,6 +387,49 @@ def criar(engine_de: Callable[[Request], Any], verificador=None) -> FastAPI:
     Pessoa = Annotated[K.Acesso, Depends(pessoa)]
     Pid = Annotated[str, Path(description="Id do pedido (uuid).")]
 
+    @app.get("/eventos", tags=["Calendário"], summary="Consultar os próximos eventos públicos")
+    @limiter.shared_limit(LIMITE, scope="empresa")
+    def proximos_eventos(
+        request: Request,
+        a: Acesso,
+        tipo: Annotated[str | None, Query(max_length=40)] = None,
+        estado: Annotated[str | None, Query(min_length=2, max_length=2)] = None,
+        dias: Annotated[int, Query(ge=1, le=3660)] = 90,
+        cod_imovel: Annotated[str | None, Query(max_length=80)] = None,
+        limite: Annotated[int, Query(ge=1, le=1000)] = 100,
+    ) -> JSONResponse:
+        """Reutiliza o Calendário, sem coleta nova, envio de avisos ou acesso à ficha paga."""
+        from raiz.calendario.mcp import proximos_eventos as consultar_calendario
+        from raiz.publica.rotas_agentes import exigir_escopo
+
+        eng = engine_de(request)
+        request.state.ferramenta = "proximos_eventos"
+        exigir_escopo(eng, a, "proximos_eventos")
+        CT.exigir(eng, a.cliente_id)
+        try:
+            eventos = consultar_calendario(tipo, estado, dias, cod_imovel, limite, engine=eng)
+        except ValueError:
+            raise HTTPException(
+                422,
+                {
+                    "slug": "filtro_evento_invalido",
+                    "mensagem": "filtro do calendário inválido",
+                    "corrigir": "confira o tipo do evento, a UF, o CAR e os limites de dias e resultados",
+                },
+            ) from None
+        try:
+            publico = AP.eventos(eventos)
+        except (ValueError, TypeError, KeyError):
+            raise HTTPException(
+                502,
+                {
+                    "slug": "calendario_invalido",
+                    "mensagem": "a resposta do calendário não pôde ser validada",
+                    "corrigir": "tente novamente",
+                },
+            ) from None
+        return ok(publico)
+
     from raiz.vigilancia.lotes_api import registrar as registrar_vigilancia_lotes
 
     registrar_vigilancia_lotes(app, engine_de, pessoa)
@@ -407,6 +460,32 @@ def criar(engine_de: Callable[[Request], Any], verificador=None) -> FastAPI:
     @limiter.shared_limit(LIMITE, scope="empresa")
     def ver_conta(request: Request, a: Acesso) -> JSONResponse:
         return ok(CT.exigir(engine_de(request), a.cliente_id))
+
+    @app.get("/conta/gerenciar", tags=["Conta da empresa"], response_class=HTMLResponse)
+    def pagina_conta() -> HTMLResponse:
+        """Canal humano: entrar, conferir contrato e solicitar Pix; nunca paga automaticamente."""
+        from raiz.publica.pagina_conta import pagina
+
+        return pagina(CT.premissas())
+
+    @app.post("/conta/gerenciar/entrar", tags=["Conta da empresa"])
+    @limiter.shared_limit("5/minute", scope="login_aprovacao")
+    def entrar_conta(request: Request, email: Annotated[str, Body(embed=True, min_length=3, max_length=254)]):
+        from sqlalchemy import text
+
+        from raiz.pessoal import Cofre
+        from raiz.publica.rotas_agentes import base_publica
+
+        if S.ENVIO_LINK is None:
+            raise HTTPException(503, "envio de login por e-mail indisponível")
+        with engine_de(request).connect() as con:
+            existe = con.execute(
+                text("select 1 from pessoal.cliente_contato where email_hmac=:h"),
+                {"h": Cofre().indice(email.strip().lower())},
+            ).scalar()
+        if existe:
+            S.pedir_link(engine_de(request), email, base_publica() + "/conta/gerenciar")
+        return JSONResponse({"enviado": True}, headers={"Cache-Control": "no-store"})
 
     @app.get("/conta/extrato", tags=["Conta da empresa"], summary="Extrato (testes, débitos, estornos, recargas)")
     @limiter.shared_limit(LIMITE, scope="empresa")

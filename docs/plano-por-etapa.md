@@ -306,12 +306,18 @@ Feito na main fora desta tabela: caminho da terra com risco por imóvel (`raiz/t
 
 ## IA. Plataforma para agentes das empresas
 
-Próxima entrega em andamento (`produto-agentes-validacao`): medição Claude em 96 sessões via MCP,
-replay VCR, conferência Inspector/vacuum, manifesto do registro e Compose de operação. Gabarito v2
-corrige a permissão de acompanhar operações assíncronas sem reduzir critérios ou meta. Resultado real,
-gravações e dimensionamento ainda dependem de conclusão dos ensaios; não estão marcados como feitos.
-O Compose completo subiu no CI do PR #85. O ensaio revelou e corrigiu a ausência do mapper
-`sub` no realm Keycloak; Inspector autenticado por PKCE real confirmou a revisão 2026-07-28.
+O CI `43431663359` do PR #96 aprovou os nove jobs (3.005 testes Python e
+referência estadual separada). A main `fea0dd2`, com Calendário #103, dados #99
+e formatos #102, foi integrada sem conflitos; 309 testes focados e Ruff passaram.
+Aguarda CI do conjunto antes do merge. A campanha Claude `43436094524` permanece congelada na próxima branch.
+
+O [PR #85](https://github.com/bernardoemmel/Raiz/pull/85) entrou na main com os nove jobs verdes:
+2.297 testes Python, caso estadual separado e 24 cenários pela pilha Compose real. O ensaio corrigiu
+a ausência do mapper `sub` no realm Keycloak; Inspector autenticado por PKCE confirmou 2026-07-28.
+O gabarito v2 permite acompanhar a operação assíncrona da própria tentativa, sem reduzir critérios ou meta.
+A primeira [campanha Claude de 96 sessões](https://github.com/bernardoemmel/Raiz/actions/runs/43341704532)
+foi disparada na main. Resultado real, cassetes para replay diário e dimensionamento sob essa carga
+continuam em andamento na branch `produto-agentes-medicao`.
 
 | Ordem | Entrega | Situação |
 |---|---|---|
@@ -319,9 +325,13 @@ O Compose completo subiu no CI do PR #85. O ensaio revelou e corrigiu a ausênci
 | B | MCP oficial Python 2.3.0/protocolo 2026-07-28 no mesmo app, oito ferramentas e resumo único até 8 KiB | **feito no código**, base do PR #69 com CI verde (1.384 testes Python), acrescida de `consultar_ficha` para releitura de CAR já adquirido, sem nova tarifa, e `proximos_eventos` para o calendário já público; descoberta e chamadas testadas com o cliente oficial |
 | C | OAuth 2.1/Keycloak; consultar/pedir/reservar, reserva desligada até administrador da empresa habilitar | **feito no código**; JWT, emissor, audiência, PKCE e isolamento testados; produção depende da configuração da instalação |
 | D | Fila durável, Idempotency-Key, Standard Webhooks, aprovação humana/Pix/JWS, OpenTelemetry | **feito no código**; testes de concorrência, queda do processo, assinatura e prazo; conta/API/worker precisam da mesma base e cofre |
-| E | Gabarito de 24 tarefas, quatro sessões por tarefa, meta pass^4 ≥ 80% e zero chamada proibida | **feito**: gabarito e avaliador; desempenho de agente real ainda não medido |
+| E | Gabarito de 24 tarefas, quatro sessões por tarefa, meta pass^4 ≥ 80% e zero chamada proibida | **feito**: gabarito e avaliador; quatro campanhas reais incompletas, sem pass^4 válido |
 | F | Piso de reversão 20%, REDD+ jurisdicional, CLPI 50%/70% e revisão humana | **feito no código**, com evidência vigente e bloqueio quando falta dado; camada oficial precisa ser carregada pelo operador |
 | G | Recálculo dos 144 municípios do Pará pelo Actions e publicação no Release | responsabilidade exclusiva do chat "Lote e números", por orientação do fundador; este chat não altera execução nem Release |
+| H | Pilha com API/MCP, PostGIS, Keycloak, Valkey, migrações, worker e agenda em um comando; manual de operação | **feito no código**, PR #85; pilha integral e 24 cenários conferidos no Actions; dimensionamento sob Claude ainda em medição; integração com a main `6b9c377` preserva avaliação de carbono/equidade, pasta do banco/comprador, versões da ficha, agenda e processamento; Calendário unificado com cota e projeção validada |
+| I | Inspector oficial, lint OpenAPI com vacuum e server.json para registro MCP | **feito**, PR #85; no PR #96, protocolo 2026-07-28, 42 caminhos OpenAPI sem erros de lint e resumo de 6.097 bytes; manifesto validado sem publicação; uv 0.13.8 fixado em CI/medição para instalação reproduzível |
+| J | Claude real, pass^4, passos/tempos, vcrpy diário e workflow semanal | runner e workflow entregues no PR #85; campanhas incompletas: 35/17/64/3 tentativas; quinta em execução; contrato refinado, juiz v6 com citações por IDs, evidência temporal/financeira e indisponibilidade explícita; **pendentes** nova campanha completa e cassetes reais no CI diário |
+| K | Reutilizar `consultar_ficha` e `proximos_eventos` no MCP | ficha **feita** no PR #72; Calendário integrado na branch `produto-agentes-medicao`, por adaptador da função existente, com escopo, limite, projeção e telemetria |
 
 Operação e limites: `docs/agentes-ia.md`, `docs/trabalhos-agentes.md`, `docs/eventos-agentes.md` e
 `docs/avaliacao-agentes.md`. O Pix só é gerado após aprovação de uma pessoa autenticada. Recibo Ed25519
@@ -587,7 +597,7 @@ e [gráficos](design/graficos-resultados.md).
 | Eventos com tipo, data/prazo, UF/município, fonte/link, coleta e confiança | **feito**: esquema `calendario`, migração 0027 após 0022–0025 do título/aprendizado e 0026 da prospecção; histórico, UID e sequência preservados nas retificações |
 | Coleta diária de leilões rurais, penhoras, BNDES, ProFloresta+, Fundo Amazônia, concessões, crédito e SBCE/Verra/ICVCM/SBTi/EUDR | **feito**: 17 fontes oficiais em `raiz/calendario/fontes.yaml`, HTTP/PDF/Firecrawl opcional, workflow diário com snapshot no Release `calendario`; cobertura inicial e falhas explícitas, sem inventar prazos |
 | Vínculo de leilão/penhora ao CAR | **feito**: CAR explícito, CNS+matrícula vigente ou interseção SIGEF; sem corte por tamanho; vínculo insuficiente fica pendente; CAR inferido fica interno, só CAR explícito no edital aparece na consulta pública; nenhum nome ou documento pessoal persistido |
-| API e integração | **feito**: `GET /eventos` com tipo/estado/período/CAR, `GET /eventos.ics` e `proximos_eventos` registrada no MCP com OAuth/escopo `consultar`; consulta somente o calendário já público, sem cobrança ou aquisição de ficha. Projeção positiva preserva UID/CAR e oculta vínculos inferidos e identificadores privados |
+| API e integração | **feito**: `GET /eventos` com tipo/estado/período/CAR, `GET /eventos.ics` e `proximos_eventos` registrada no MCP com OAuth/escopo `consultar`; consulta somente o calendário já público pela ponte `/v1/eventos`, com conta ativa e limite por empresa, sem cobrança ou aquisição de ficha. Projeção positiva preserva UID/CAR e oculta vínculos inferidos e identificadores privados |
 | Site e pedidos | **feito**: aba Calendário, filtros, fonte/data de coleta, feed, selos no mapa/ficha/tabela e aviso deduplicado aos lotes; ficha individual mantém acesso por créditos, e-mail/WhatsApp permanecem simulados. Publicação do site após a coleta |
 | Agenda no servidor | **feito no código**: `scripts/instalar_cron_alertas.py --tarefa calendario --instalar`, diário com banco, trava e `.env`; instalação em produção depende de acesso ao servidor |
 
@@ -929,3 +939,22 @@ privacidade e avaliação foram conferidos juntos. Ruff, formatação, actionlin
 de CPF/CNPJ e **874 licenças** passaram. O teste de registro que não rodou sem banco no #99
 passou nesta árvore integrada. O CI anterior do #102 terminou; a correção do link que
 acionava o detector segue agora junto da integração, sem cancelar jobs.
+
+### Calendário — preservar histórico e publicar por REST (13/11/2026)
+
+O PR #103 passou no CI e foi integrado. A verificação automática mostrou que a descoberta de Release por `gh`
+podia tratar o Release existente como ausente, deixando a coleta sem histórico e terminando em 422 ao recriá-lo.
+A rodada de 44 eventos não substituiu os 50 já publicados; site e Release permaneceram íntegros.
+
+**Feito no código:** uv fixado na versão 0.13.8 já validada, sem consultar a API para descobrir a versão;
+recuperação obrigatória do histórico público, limitada e validada antes de escrever;
+falha nunca vira agenda vazia. Publicação REST do Release público já existente, com upload temporário dos três
+arquivos e SHA-256/tamanho conferidos antes da promoção; cópias anteriores preservadas até os três nomes novos
+estarem publicados. Tentativa de restauração se a promoção falhar, sem prometer atomicidade entre três arquivos.
+Recuperação real confirmou os 50 eventos e o histórico de MT. Nenhuma migração nova ou envio externo.
+
+Validação: 3.009 testes na suíte integral, um skip local de LanguageTool e uma divergência esperada;
+referência real do Pará incluída. Os 24 testes específicos atuais passaram, assim como Ruff, formatação,
+actionlint, privacidade, gitleaks e 869 licenças. CI integral exigido novamente na árvore final do PR.
+Após incorporar a main #99: 362 testes de calendário/MCP e armazenamento/executor aprovados, 874 licenças
+conferidas e 1.129 arquivos sem CPF/CNPJ. Uma única cabeça de migração (0035); nenhuma migração desta correção.
