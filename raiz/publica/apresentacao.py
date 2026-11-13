@@ -139,7 +139,10 @@ def eventos(x):
     pessoas até na URL; o agente recebe a referência e o portal oficial para conferência humana.
     """
     from raiz.calendario.coleta import fontes
+    from raiz.calendario.mcp import resposta_publica
     from raiz.calendario.modelos import Evento, FonteEstado
+
+    x = resposta_publica(x)
 
     catalogo = {f["id"]: f for f in fontes()}
     out = {"eventos": [], "fontes": [], "total": _num(x.get("total")), "coletado_em": _data(x.get("coletado_em"))}

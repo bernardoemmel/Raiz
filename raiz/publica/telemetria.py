@@ -17,8 +17,8 @@ from opentelemetry.trace import SpanKind, Status, StatusCode
 
 FERRAMENTAS = frozenset(
     {
-        "consultar_ficha",
         "proximos_eventos",
+        "consultar_ficha",
         "consultar_disponibilidade",
         "pedir_lote",
         "comparar_lotes",

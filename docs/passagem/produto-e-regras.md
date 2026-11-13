@@ -1,5 +1,20 @@
 # Passagem do chat "Produto e regras" (13/11/2026)
 
+## Integração com Calendário e processamento publicados na main
+
+A main `52118b5` (PRs #95 e #97) foi incorporada ao PR #96. Os dois registros de
+`proximos_eventos` foram unificados: permanece a ponte corporativa `/v1/eventos`,
+com OAuth, conta ativa, cota por empresa e telemetria, reutilizando a função do
+Calendário. A projeção incorpora `resposta_publica` e sua conferência de fontes,
+UID, CAR público e identificadores privados; a resposta do MCP conserva seu contrato.
+Os testes do Calendário da main foram preservados/adaptados para a ponte única.
+As mudanças de processamento e sua política de continuidade vieram intactas;
+nenhum workflow de lotes ou motor foi cancelado ou alterado por este trabalho.
+O CI anterior conferiu oito ferramentas, 42 rotas OpenAPI, resumo de 6.097 bytes,
+24 cenários em Compose (máximo 0,057 s), front, e2e, segurança e referência estadual.
+Passaram 48 testes focados com PostGIS e Ruff; a nova integração terá seu próprio CI antes do merge.
+
+
 ## Integração da main com versões da ficha
 
 A main `60e17b0` (PR #93) foi incorporada ao PR #96, preservando versões da ficha,
