@@ -37,10 +37,10 @@ export function AcertoModelo() {
     <main id="conteudo" tabIndex={-1} className="pagina acerto-modelo">
       <h1>Acerto do modelo</h1>
       <p className="frase">Quanto as previsões de cada versão se aproximaram do que foi observado no mundo real.</p>
-      <p>As notas vêm do aprendizado e de observações com fonte e data, após o prazo de cada previsão. Avaliações ao vivo e retrospectivas aparecem separadas.</p>
+      <p>As notas usam observações na data-alvo de cada previsão, com fonte e registro congelado. Avaliações ao vivo e retrospectivas aparecem separadas.</p>
       <div aria-live="polite" aria-busy={carga.carregando}>
         {carga.carregando ? <Estado tipo="carregando" titulo="Consultando o aprendizado" /> : carga.erro ? <Estado tipo="erro" titulo="Não foi possível consultar o aprendizado agora."><p>Os resultados não foram substituídos por zero.</p><button className="botao" onClick={() => setTentativa((t) => t + 1)}>Tentar de novo</button></Estado> : !resumo?.versoes.length ? <Estado tipo="vazio" titulo="Ainda não há comparações reais publicáveis.">
-          <p>O painel aguarda observações com fonte e data. Cada grupo precisa de pelo menos {resumo?.minimo_imoveis ?? 5} imóveis distintos para preservar os dados individuais. Um grupo sem evidência suficiente não recebe nota zero.</p>
+          <p>O painel aguarda observações na data-alvo e registros que comprovem a cronologia. Dados de outro período ou sem essa prova ficam fora, sem receber nota zero. Cada grupo precisa de pelo menos {resumo?.minimo_imoveis ?? 5} imóveis distintos para preservar os dados individuais. Um grupo sem evidência suficiente não recebe nota zero.</p>
           <p>{resumo?.gerado_em ? `Última conferência do aprendizado: ${data(resumo.gerado_em)}.` : "Ainda não há uma publicação do aprendizado ligada a este site."}</p>
         </Estado> : <>
           <p className="acerto-fonte">Fonte: {resumo.fonte}. Resumo gerado em <time dateTime={resumo.gerado_em!}>{data(resumo.gerado_em!)}</time>. Nenhuma fazenda ou proprietário é identificado.</p>
@@ -53,7 +53,7 @@ export function AcertoModelo() {
           <p className="aviso">Compare o mesmo alvo e horizonte. Versões podem ter sido observadas em imóveis e períodos diferentes; estas médias não provam que uma versão seja melhor. As observações disponíveis podem não representar todas as fazendas. A troca do modelo exige a avaliação própria de campeão e desafiante.</p>
           <div className="acerto-grupos">{linhas.map((v) => <section className="acerto-grupo" key={`${v.modelo}-${v.versao}-${v.alvo}-${v.horizonte_dias}-${v.tipo}-${v.avaliacao}`} aria-label={`${v.modelo}, versão ${v.versao}, ${v.alvo}`}>
             <h2>{v.modelo} <span>versão {v.versao}</span></h2>
-            <p><strong>{v.avaliacao === "backtest" ? "Avaliação retrospectiva" : "Avaliação ao vivo"}</strong>. {v.avaliacao === "backtest" ? "Reexecução do modelo sobre o histórico; não comprova acerto em operação ao vivo." : "Previsões registradas durante a operação, comparadas com observações posteriores ao corte."}</p>
+            <p><strong>{v.avaliacao === "backtest" ? "Avaliação retrospectiva" : "Avaliação ao vivo"}</strong>. {v.avaliacao === "backtest" ? "Reexecução declarada no registro; esta nota não comprova separação entre treino e teste nem acerto em operação ao vivo." : "O registro imutável comprova congelamento antes do dia observado. O gabarito corresponde à data-alvo do horizonte."}</p>
             <p><strong>{nomeAlvo(v.alvo)}</strong>. Horizonte de {numero.format(v.horizonte_dias)} dias.</p>
             <p>{numero.format(v.comparacoes)} comparações em {numero.format(v.imoveis_observados)} imóveis distintos. Uma fazenda pode ter mais de uma previsão.</p>
             {v.imoveis_observados < 30 && <p className="aviso">Evidência inicial: menos de 30 imóveis observados. A nota pode mudar bastante com novas observações.</p>}
@@ -65,7 +65,7 @@ export function AcertoModelo() {
           </section>)}</div>
         </>}
       </div>
-      <section className="acerto-leitura"><h2>Como ler as notas</h2><p>Crédito, custo e área usam erros na unidade do alvo. Previsões de categoria usam a parcela correta. Uma chance precisa ser avaliada também pelo erro de probabilidade: acertar uma categoria não basta.</p><p>A faixa P10 a P90 deve conter aproximadamente 80% das observações ao longo do tempo. Uma única nota não resume modelos que fazem tarefas diferentes. Grupos ainda sem resultado, com menos de cinco imóveis ou com tipos incompatíveis não são misturados.</p></section>
+      <section className="acerto-leitura"><h2>Como ler as notas</h2><p>Crédito, custo e área usam erros na unidade do alvo. Previsões de categoria usam a parcela correta. Uma chance precisa ser avaliada também pelo erro de probabilidade: acertar uma categoria não basta.</p><p>A faixa P10 a P90 deve conter aproximadamente 80% das observações ao longo do tempo. Uma única nota não resume modelos que fazem tarefas diferentes. Sem um período de medição estruturado, só a data-alvo exata confirma o mesmo horizonte. Medições antecipadas ou tardias e eventos sem janela comprovada ficam fora. Essa cobertura restrita não representa todas as observações. Grupos ainda sem resultado, com menos de cinco imóveis ou com tipos incompatíveis não são misturados.</p></section>
     </main>
   </>
 }

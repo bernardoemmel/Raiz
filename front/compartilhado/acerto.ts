@@ -14,6 +14,8 @@ const POR_TIPO: Record<string, MetricaAcerto[]> = { faixa: ["wis", "ae_mediana",
 export interface VersaoAcerto {
   modelo: string; versao: string; alvo: string; horizonte_dias: number; tipo: string
   avaliacao: "ao_vivo" | "backtest"
+  criterio_temporal: "observacao_na_data_alvo"
+  cronologia: "congelada_antes_da_observacao" | "backtest_declarado"
   comparacoes: number; imoveis_observados: number
   primeiro_corte: string; ultimo_corte: string; ultima_observacao: string
   metricas: Partial<Record<MetricaAcerto, number>>
@@ -39,7 +41,10 @@ export function lerResumoAcerto(valor: unknown): ResumoAcerto {
   if (r.gerado_em === null && r.versoes.length) throw new Error("As observações precisam da data de publicação.")
   const versoes = r.versoes.map((valor) => {
     const v = objeto(valor)
-    if ((v.avaliacao !== "ao_vivo" && v.avaliacao !== "backtest") || !id(v.modelo) || !id(v.versao) || !id(v.alvo) || !inteiro(v.horizonte_dias) || typeof v.tipo !== "string" || !Object.hasOwn(POR_TIPO, v.tipo) || !inteiro(v.comparacoes) || !inteiro(v.imoveis_observados) || v.imoveis_observados < (r.minimo_imoveis as number) || v.comparacoes < v.imoveis_observados || !dia(v.primeiro_corte) || !dia(v.ultimo_corte) || !dia(v.ultima_observacao) || v.primeiro_corte > v.ultimo_corte || v.ultima_observacao <= v.primeiro_corte) throw new Error("Grupo do resumo de acerto inválido ou pequeno demais.")
+    if ((v.avaliacao !== "ao_vivo" && v.avaliacao !== "backtest") || !id(v.modelo) || !id(v.versao) || !id(v.alvo) || (!inteiro(v.horizonte_dias) || v.horizonte_dias === 0) || typeof v.tipo !== "string" || !Object.hasOwn(POR_TIPO, v.tipo) || !inteiro(v.comparacoes) || !inteiro(v.imoveis_observados) || v.imoveis_observados < (r.minimo_imoveis as number) || v.comparacoes < v.imoveis_observados || !dia(v.primeiro_corte) || !dia(v.ultimo_corte) || !dia(v.ultima_observacao) || v.primeiro_corte > v.ultimo_corte || v.ultima_observacao <= v.primeiro_corte) throw new Error("Grupo do resumo de acerto inválido ou pequeno demais.")
+    if (v.criterio_temporal !== "observacao_na_data_alvo" || v.cronologia !== (v.avaliacao === "ao_vivo" ? "congelada_antes_da_observacao" : "backtest_declarado")) throw new Error("O grupo não comprova a referência temporal da avaliação.")
+    const dataAlvo = Date.parse(v.ultimo_corte) + v.horizonte_dias * 86400000
+    if (Date.parse(v.ultima_observacao) !== dataAlvo) throw new Error("A observação não corresponde ao horizonte avaliado.")
     const publicado = Date.parse(r.gerado_em as string)
     if (Date.parse(v.ultima_observacao) > publicado || Date.parse(v.ultimo_corte) + v.horizonte_dias * 86400000 > publicado) throw new Error("O grupo tem observação futura ou previsão ainda não maturada.")
     const metricas: Partial<Record<MetricaAcerto, number>> = {}
@@ -49,7 +54,7 @@ export function lerResumoAcerto(valor: unknown): ResumoAcerto {
       if (typeof n !== "number" || !Number.isFinite(n) || n < 0 || (METRICAS_ACERTO[nome].percentual && n > 1)) throw new Error("Métrica de acerto inválida.")
       metricas[nome] = n
     }
-    return { modelo: v.modelo, versao: v.versao, alvo: v.alvo, horizonte_dias: v.horizonte_dias, tipo: v.tipo, avaliacao: v.avaliacao as "ao_vivo" | "backtest", comparacoes: v.comparacoes, imoveis_observados: v.imoveis_observados, primeiro_corte: v.primeiro_corte, ultimo_corte: v.ultimo_corte, ultima_observacao: v.ultima_observacao, metricas }
+    return { modelo: v.modelo, versao: v.versao, alvo: v.alvo, horizonte_dias: v.horizonte_dias, tipo: v.tipo, avaliacao: v.avaliacao as "ao_vivo" | "backtest", criterio_temporal: "observacao_na_data_alvo" as const, cronologia: v.cronologia as VersaoAcerto["cronologia"], comparacoes: v.comparacoes, imoveis_observados: v.imoveis_observados, primeiro_corte: v.primeiro_corte, ultimo_corte: v.ultimo_corte, ultima_observacao: v.ultima_observacao, metricas }
   })
   return { schema: ACERTO_AUSENTE.schema, fonte: ACERTO_AUSENTE.fonte, gerado_em: r.gerado_em as string | null, minimo_imoveis: r.minimo_imoveis, versoes }
 }

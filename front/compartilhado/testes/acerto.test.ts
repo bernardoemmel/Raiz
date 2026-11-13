@@ -3,7 +3,7 @@ import { ACERTO_AUSENTE, fonteAcerto, lerResumoAcerto } from "../acerto"
 
 export const resumoAcertoTeste = () => ({
   ...ACERTO_AUSENTE, gerado_em: "2026-11-12T12:00:00Z", cod_imovel: "NUNCA-PUBLICAR",
-  versoes: [{ modelo: "motor", versao: "v1", alvo: "area_ha", horizonte_dias: 365, tipo: "numero", avaliacao: "ao_vivo", comparacoes: 10, imoveis_observados: 5, primeiro_corte: "2025-01-01", ultimo_corte: "2025-06-01", ultima_observacao: "2026-11-01", metricas: { ae: 0, eq: 0, segredo: 1200 }, cod_imovel: "NUNCA-PUBLICAR", nomes: ["NUNCA-PUBLICAR"] }],
+  versoes: [{ modelo: "motor", versao: "v1", alvo: "area_ha", horizonte_dias: 365, tipo: "numero", avaliacao: "ao_vivo", criterio_temporal: "observacao_na_data_alvo", cronologia: "congelada_antes_da_observacao", comparacoes: 10, imoveis_observados: 5, primeiro_corte: "2025-01-01", ultimo_corte: "2025-06-01", ultima_observacao: "2026-06-01", metricas: { ae: 0, eq: 0, segredo: 1200 }, cod_imovel: "NUNCA-PUBLICAR", nomes: ["NUNCA-PUBLICAR"] }],
 })
 describe("resumo de acerto real", () => {
   it("preserva zero observado e reconstrói somente os agregados permitidos", () => {
@@ -30,6 +30,13 @@ describe("resumo de acerto real", () => {
   })
   it("reprova datas impossíveis, futuras e horizontes ainda não encerrados", () => {
     for (const mudanca of [{ ultima_observacao: "2026-02-30" }, { ultima_observacao: "2027-01-01" }, { horizonte_dias: 1000 }]) {
+      const r = resumoAcertoTeste(); Object.assign(r.versoes[0], mudanca)
+      expect(() => lerResumoAcerto(r)).toThrow()
+    }
+  })
+  it("exige a data-alvo e a cronologia declarada na projeção, sem confiar em rótulo ao vivo sozinho", () => {
+    for (const mudanca of [{ ultima_observacao: "2026-05-31" }, { ultima_observacao: "2026-06-02" },
+      { criterio_temporal: undefined }, { cronologia: undefined }, { cronologia: "backtest_declarado" }]) {
       const r = resumoAcertoTeste(); Object.assign(r.versoes[0], mudanca)
       expect(() => lerResumoAcerto(r)).toThrow()
     }

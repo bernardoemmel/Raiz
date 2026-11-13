@@ -23,7 +23,7 @@ await servidor.listen()
 const navegador = await chromium.launch({ executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE || (fs.existsSync("/usr/bin/chromium") ? "/usr/bin/chromium" : undefined), args: ["--no-sandbox"] })
 const base = servidor.resolvedUrls.local[0]
 const ausencia = { schema: "raiz.acerto.publico.v1", gerado_em: null, fonte: "Banco de aprendizado da Raíz", minimo_imoveis: 5, versoes: [] }
-const versao = (versao, ae) => ({ modelo: "motor_teste", versao, alvo: "area_ha", horizonte_dias: 365, tipo: "numero", avaliacao: versao === "v1" ? "ao_vivo" : "backtest", comparacoes: 12, imoveis_observados: 8, primeiro_corte: "2025-01-01", ultimo_corte: "2025-06-01", ultima_observacao: "2026-11-01", metricas: { ae, eq: ae * ae } })
+const versao = (versao, ae) => ({ modelo: "motor_teste", versao, alvo: "area_ha", horizonte_dias: 365, tipo: "numero", avaliacao: versao === "v1" ? "ao_vivo" : "backtest", criterio_temporal: "observacao_na_data_alvo", cronologia: versao === "v1" ? "congelada_antes_da_observacao" : "backtest_declarado", comparacoes: 12, imoveis_observados: 8, primeiro_corte: "2025-01-01", ultimo_corte: "2025-06-01", ultima_observacao: "2026-06-01", metricas: { ae, eq: ae * ae } })
 try {
   for (const largura of [1440, 360]) {
     const contexto = await navegador.newContext({ viewport: { width: largura, height: 900 } })

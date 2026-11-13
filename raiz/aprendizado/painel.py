@@ -1,7 +1,8 @@
 """Resumo público do aprendizado, sem linhas, imóveis ou detalhes pagos.
 
-As notas usam somente previsões maturadas, com gabarito posterior ao corte e
-não futuro. Horizontes e tipos de nota não são misturados. Um grupo só aparece
+As notas usam somente previsões maturadas, com gabarito na data-alvo e
+cronologia imutável comprovada. Sem período estruturado no gabarito, outra data
+não comprova o horizonte. Horizontes e tipos de nota não são misturados. Um grupo só aparece
 com cinco imóveis distintos observados; nenhuma contagem de grupos suprimidos
 é divulgada. O placar interno e o hub completo continuam autenticados.
 """
@@ -30,9 +31,72 @@ IDENTIFICADOR = re.compile(r"[A-Za-z][A-Za-z0-9_.+:-]{0,119}\Z")
 
 def _dia(valor) -> dt.date | None:
     try:
-        return dt.date.fromisoformat(str(valor)[:10])
+        return dt.date.fromisoformat(str(valor))
     except ValueError:
         return None
+
+
+def _instante(valor) -> dt.datetime | None:
+    try:
+        instante = dt.datetime.fromisoformat(str(valor))
+        return instante.astimezone(dt.UTC) if instante.tzinfo else None
+    except ValueError:
+        return None
+
+
+FALSOS = {"0", "0.0", "false", "falso", "não", "nao", "recusou", "recusado", "não aceitou", "nao aceitou"}
+AUSENTES = {
+    "",
+    "desconhecido",
+    "desconhecida",
+    "pendente",
+    "indisponivel",
+    "indisponível",
+    "não informado",
+    "nao informado",
+    "sem informação",
+    "sem informacao",
+    "null",
+    "none",
+    "n/a",
+}
+
+
+def _linha_valida(r: Mapping) -> dict | None:
+    """Valida somente a projeção; nunca modifica os registros congelados ou o cálculo histórico de notas."""
+    numeros = [r.get(k) for k in ("valor_num", "real_num", "p10", "p50", "p90")]
+    if any(
+        v is not None and (not isinstance(v, int | float) or isinstance(v, bool) or not math.isfinite(v))
+        for v in numeros
+    ):
+        return None
+    if all(r.get(k) is not None for k in ("p10", "p50", "p90")) and not r["p10"] <= r["p50"] <= r["p90"]:
+        return None
+    if acerto.e_probabilidade(r["alvo"]):
+        previsto = r.get("valor_num")
+        if previsto is None or not 0 <= previsto <= 1:
+            return None  # o clamp do placar legado não é evidência válida
+        real = r.get("real_num")
+        if real is not None and real not in (0, 1):
+            return None
+        if r.get("real_texto") is not None:
+            texto = str(r["real_texto"]).strip().lower()
+            if texto in acerto.VERDADE:
+                do_texto = 1
+            elif texto in FALSOS:
+                do_texto = 0
+            else:
+                return None  # ausência/desconhecimento nunca vira falso, mesmo com zero numérico
+            if real is not None and real != do_texto:
+                return None  # gabarito contraditório também não comprova resultado
+            real = do_texto
+        if real is None:
+            return None
+        return {**r, "real_num": real, "real_texto": None}
+    for campo in ("valor_texto", "real_texto"):
+        if r.get(campo) is not None and str(r[campo]).strip().lower() in AUSENTES:
+            return None
+    return dict(r)
 
 
 def resumir(linhas: Iterable[Mapping], agora: dt.datetime | None = None) -> dict:
@@ -40,7 +104,9 @@ def resumir(linhas: Iterable[Mapping], agora: dt.datetime | None = None) -> dict
     agora = agora or dt.datetime.now(dt.UTC)
     grupos: dict[tuple, list] = defaultdict(list)
     for r in linhas:
-        ids = tuple(str(r.get(k, "")) for k in ("modelo", "modelo_versao", "alvo"))
+        ids = tuple(r.get(k) for k in ("modelo", "modelo_versao", "alvo"))
+        if not all(isinstance(v, str) for v in ids):
+            continue
         # Versões podem começar por dígitos, mas não recebem texto livre.
         if not IDENTIFICADOR.fullmatch(ids[0]) or not IDENTIFICADOR.fullmatch(ids[2]):
             continue
@@ -51,18 +117,40 @@ def resumir(linhas: Iterable[Mapping], agora: dt.datetime | None = None) -> dict
             continue
         horizonte = r.get("horizonte_dias")
         corte, fim, observado = (_dia(r.get(k)) for k in ("data_corte", "horizonte_em", "observado_em"))
-        if not isinstance(horizonte, int) or horizonte < 0 or not corte or not fim or fim > agora.date():
+        if (
+            not isinstance(horizonte, int)
+            or isinstance(horizonte, bool)
+            or horizonte <= 0
+            or not corte
+            or not fim
+            or fim > agora.date()
+        ):
             continue
-        if not observado or not corte < observado <= agora.date() or not r.get("gabarito_id"):
+        # Gabaritos não têm início/fim do período medido. Só a data-alvo exata comprova a mesma referência;
+        # evento antecipado ou medição tardia não recebe uma janela inventada pelo painel.
+        if (fim - corte).days != horizonte or observado != fim or not r.get("gabarito_id"):
             continue
-        if not r.get("cod_imovel") or not r.get("gabarito_fonte"):
+        criada = _instante(r.get("previsao_criada_em"))
+        registrada = _instante(r.get("gabarito_registrado_em"))
+        if (
+            not criada
+            or not registrada
+            or criada > agora
+            or registrada > agora
+            or criada.date() < corte
+            or registrada.date() < observado
+        ):
             continue
-        numeros = [r.get(k) for k in ("valor_num", "real_num", "p10", "p50", "p90")]
-        if any(v is not None and not math.isfinite(v) for v in numeros):
+        # observado_em só tem o dia. Mesmo dia não comprova que a previsão antecedeu o resultado.
+        # Falta de prova não transforma um registro ao vivo em backtest válido.
+        if avaliacao == "ao_vivo" and (criada.date() >= observado or criada > registrada):
             continue
-        if all(r.get(k) is not None for k in ("p10", "p50", "p90")) and not r["p10"] <= r["p50"] <= r["p90"]:
+        if not r.get("cod_imovel") or not str(r.get("gabarito_fonte") or "").strip():
             continue
-        nota = acerto.nota(r)
+        validada = _linha_valida(r)
+        if validada is None:
+            continue
+        nota = acerto.nota(validada)
         if nota is None or any(not math.isfinite(v) for k, v in nota.items() if k != "tipo"):
             continue
         grupos[(*ids, horizonte, nota["tipo"], avaliacao)].append((r, nota))
@@ -79,6 +167,8 @@ def resumir(linhas: Iterable[Mapping], agora: dt.datetime | None = None) -> dict
                 "horizonte_dias": horizonte,
                 "tipo": tipo,
                 "avaliacao": avaliacao,
+                "criterio_temporal": "observacao_na_data_alvo",
+                "cronologia": ("congelada_antes_da_observacao" if avaliacao == "ao_vivo" else "backtest_declarado"),
                 "comparacoes": len(pares),
                 "imoveis_observados": len({r["cod_imovel"] for r, _ in pares}),
                 "primeiro_corte": str(min(_dia(r["data_corte"]) for r, _ in pares)),
@@ -101,14 +191,16 @@ def ler(engine: Engine) -> dict:
         # Empurra o corte para o banco antes de parear/materializar previsões ainda sem resultado.
         linhas = con.execute(
             text("""
-            select modelo, modelo_versao, alvo, tipo, horizonte_dias, cod_imovel,
-                   data_corte, horizonte_em, observado_em, gabarito_id, gabarito_fonte,
-                   valor_num, valor_texto, real_num, real_texto, p10, p50, p90
-            from aprendizado.previsao_contra_gabarito
-            where horizonte_em <= current_date
-              and observado_em > data_corte and observado_em <= current_date
-              and gabarito_id is not null and gabarito_fonte is not null and gabarito_fonte <> ''
-              and tipo in ('ao_vivo', 'backtest')
+            select v.modelo, v.modelo_versao, v.alvo, v.tipo, v.horizonte_dias, v.cod_imovel,
+                   v.data_corte, v.horizonte_em, v.observado_em, v.gabarito_id, v.gabarito_fonte,
+                   v.valor_num, v.valor_texto, v.real_num, v.real_texto, v.p10, v.p50, v.p90,
+                   p.criada_em as previsao_criada_em, g.registrado_em as gabarito_registrado_em
+            from aprendizado.previsao_contra_gabarito v
+            join aprendizado.previsao p on p.id = v.previsao_id
+            join aprendizado.gabarito g on g.id = v.gabarito_id
+            where v.horizonte_em <= current_date and v.observado_em = v.horizonte_em
+              and v.gabarito_fonte is not null and trim(v.gabarito_fonte) <> ''
+              and v.tipo in ('ao_vivo', 'backtest')
         """)
         ).mappings()
         return resumir(linhas)
