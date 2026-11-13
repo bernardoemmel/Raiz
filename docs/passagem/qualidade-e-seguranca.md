@@ -1,6 +1,6 @@
 # Qualidade e segurança — passagem
 
-Entrega inicial de 12/11/2026 (#51); revisão de continuidade em 12/11/2026, até a main `6f49dfc` (#83). Área: CI, E2E, infraestrutura e segurança. Correções em produto são pontuais,
+Entrega inicial de 12/11/2026 (#51); revisão de continuidade em 12/11/2026, até a main `cf30625` (#82). Área: CI, E2E, infraestrutura e segurança. Correções em produto são pontuais,
 com regressões. Mudanças de contrato/arquitetura ficam para os chats responsáveis abaixo.
 
 ## Continuidade desta entrega (12/11/2026)
@@ -716,3 +716,11 @@ inválidos foi preservado. **96 testes focados passaram**, além de Ruff global 
 O #82 foi rechecado até `720e21f`: o delta após `805904f` só registra os mesmos três falsos positivos de SHA-256
 com fingerprint exato e documentação. Não houve nova alteração operacional; o PR ainda não estava na main.
 O CI integral do fechamento e o resultado do merge ficam no [PR #76](https://github.com/bernardoemmel/Raiz/pull/76).
+
+### Integração do #82 durante o fechamento
+
+O #82 entrou na main como `cf30625`; seus arquivos correspondem exatamente ao head `720e21f` já revisado.
+Os conflitos foram resolvidos preservando a aquisição e a retomada novas do MapBiomas: a proteção contra erro
+de ZIP com nome remoto foi levada para `_geotiff`. As fixtures de adoção mantêm tanto os CSVs completos quanto
+o comprovante `_versoes.json` agora exigido. As exceções de Gitleaks continuam nas mesmas três linhas/commit.
+O finalizador histórico permanece com **Raiz dados do Brasil**, conforme o achado acima; não foi relaxado.
