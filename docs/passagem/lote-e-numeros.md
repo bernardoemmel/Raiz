@@ -186,3 +186,47 @@ A varredura de segredos com todos os ramos encontrou um falso positivo no PR #69
 A main incorporou em `.gitleaksignore` a exceção do fingerprint exato desse commit, arquivo, regra e linha;
 a continuação usa essa exceção existente, sem ampliar a allowlist. A varredura de todos os ramos permanece ativa.
 Nenhum valor de credencial foi exposto.
+
+## Etapa seguinte 1 — diagnóstico das fazendas selecionadas
+
+`raiz/restauracao_desbloqueio.py` gera JSON, CSV, Markdown e HTML com as travas das titulares e reservas,
+sem misturar imóveis em espera ou áreas de mitigação na contagem do lote. Cada trava traz hectares restauráveis,
+créditos P10/P50/P90, documento, conferência, responsável, fonte e marco de prazo. Dias permanecem nulos quando
+não existe SLA comprovado. Requisitos do projeto e pendências do checklist são separados de sobreposições físicas;
+referência documental recebida não libera uma trava. As linhas do quadro se sobrepõem e não são somáveis.
+
+Terra documentada na classificação publicada compreende matrícula conferida ou concessão; `matricula_a_conferir`
+não é terra pronta. A meta é repartida sem duplicação entre terra documentada, pendente e oferta faltante,
+com excedente separado. O percentual inicial de homologação do edital não é tratado como título conferido sobre
+o projeto inteiro. O relatório preserva a classificação do snapshot, sem autenticar documento por conta própria.
+
+As métricas distinguem preço do cenário, custo ponderado pelos créditos, equilíbrio individual ponderado e
+equilíbrio do fluxo agregado. A mediana de TIR é entre as fazendas selecionadas, sem ponderação; o caminho central
+legado não se transforma em mediana de Monte Carlo e a sentinela `-100` não entra como taxa válida. Falta de métrica
+não vira zero. O teste inclui fazenda de 0,01 ha e a preserva integralmente.
+
+O relatório foi conferido contra os três pacotes históricos do Pará. `lote_relatorio.gravar_lote` também o inclui
+nas próximas gerações. `raiz/restauracao_complementos.py` e `.github/workflows/desbloqueio-lote.yml` permitem
+publicá-lo como complemento privado sem refazer cálculo financeiro ou otimização: verificam manifesto, SHA256,
+tamanho, resumo, versão e cenário; mantêm a origem e publicam o manifesto derivado somente depois de conferir o
+pacote recuperável. A geração não altera as previsões imutáveis de `restauracao-2026d+a84f9789`.
+
+O workflow usa uma única cota na mesma fila CAS de quinze compartilhada com os estados. A única alteração no
+motor é registrar esse workflow na lista de consumidores da fila, para que sua vaga não fique invisível aos
+demais trabalhos. Nenhum processamento em curso é cancelado. Não houve mudança na API, MCP ou front.
+
+Próximas entregas, na ordem solicitada: catálogo e lote nacional incremental; comparação ARR com emissões e
+calibração apenas em pares comparáveis; sensibilidade com nova seleção; referências ecológicas com unidades,
+fontes, licença e suporte amostral explícitos. Pesquisas preparatórias não autorizam tratar resultado projetado
+como emissão observada nem riqueza padronizada de uma parcela como riqueza total da fazenda.
+
+A varredura de todos os ramos do PR #86 apontou três hashes SHA-256 de código no commit
+`e7074b4a170d745f34a4732072fcd954c0cad6f9`, linhas 3, 5 e 14 de `testes/mcp/sem_leitor_auditado.json`.
+Os hashes foram recalculados a partir dos arquivos daquele commit e conferem. A exceção restrita já preparada
+na frente de dados foi aplicada somente aos três fingerprints; nenhuma regra foi desativada nem arquivo MCP alterado.
+
+No PR #86, a referência estadual autenticada passou localmente com os 144 municípios e 345.870 imóveis
+(437,53 segundos, sem recalcular previsões). O CI `43336812571` aprovou testes Python com PostGIS,
+referência privada, front, e2e, segurança e workflows no código do diagnóstico. A única falha foi a varredura
+dos três hashes acima; a mesma varredura local de todos os ramos passou após as exceções restritas.
+O merge e a publicação dependem da nova execução verde no head que inclui essa correção.

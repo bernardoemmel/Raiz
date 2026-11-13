@@ -672,6 +672,10 @@ def gravar_lote(lote: dict, pasta: str | Path, c: dict | None = None, r: dict | 
     Path(out["ecologia"]).write_text(
         json.dumps(L.json_seguro(ecologia), ensure_ascii=False, indent=1), encoding="utf-8"
     )
+    from raiz import restauracao_desbloqueio as D
+
+    for nome, caminho in D.gravar(D.relatorio(t, lote["resumo"]), pasta).items():
+        out[f"desbloqueio_{nome}"] = caminho
     n = 0
     if folhas:
         t = lote["tabela"]

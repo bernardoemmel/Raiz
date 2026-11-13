@@ -219,6 +219,7 @@ def test_api_inclui_ambos_lotes_so_quando_solicitado(monkeypatch):
     assert len(consultados) == 5 * (1 + len(F.WORKFLOWS_LOTE))
     assert any("/retomar-lote-para.yml/" in u for u in consultados)
     assert any("/lote-para.yml/" in u for u in consultados)
+    assert any("/desbloqueio-lote.yml/" in u for u in consultados)
 
 
 def test_falha_consulta_lote_nao_vira_zero(monkeypatch):
