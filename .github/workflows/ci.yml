@@ -1,4 +1,4 @@
-# Jobs independentes, sem filtro de caminhos nem seleção parcial da suíte.
+# Suíte completa: o caso estadual roda isolado e em paralelo; o portão reúne os resultados.
 name: CI
 
 on:
@@ -10,17 +10,73 @@ permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.event.pull_request.number || github.sha }}
-  cancel-in-progress: true
+  group: ci-${{ github.event.pull_request.number || github.ref }}-${{ github.sha }}
+  cancel-in-progress: false
 
 jobs:
+  agentes:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.13.6" # Pin compartilhado com os demais workflows; não consulta latest.
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.22.1
+          cache: npm
+          cache-dependency-path: servicos/conferencia-agentes/package-lock.json
+      - name: Dependências travadas dos contratos e do agente
+        run: |
+          uv sync --frozen
+          npm --prefix servicos/conferencia-agentes ci --no-audit --no-fund
+          echo "63cf623955e229747c4ff59bcbd7ebe39f5a1e8965894fb2b0944793486bf28b  servicos/conferencia-agentes/node_modules/@quobix/vacuum/bin/vacuum" | sha256sum -c -
+      - name: API, MCP, PostGIS, Keycloak e worker reais em Compose
+        run: uv run python -m scripts.pilha_agentes teste --env-file .env.agentes-teste
+      - name: Empresa sintética e token OAuth por PKCE
+        run: >-
+          uv run python -m scripts.cenarios_agentes --bootstrap-ci
+          --token-file .cache/agentes/token-mcp.txt
+      - name: Inspector oficial, vacuum e manifesto do registro sem publicação
+        run: >-
+          uv run python -m scripts.verificar_protocolo_agentes
+          --openapi-url http://localhost:18000/v1/openapi.json
+          --mcp-url http://localhost:18000/mcp/
+          --token-file .cache/agentes/token-mcp.txt
+      - name: Conferir os 24 cenários pela pilha real, sem modelo
+        run: >-
+          uv run python -m scripts.cenarios_agentes --smoke
+          --saida .cache/protocolo-agentes/cenarios.json
+      - name: Memória e disco da pilha de teste
+        if: always() && hashFiles('.env.agentes-teste') != ''
+        run: >-
+          uv run python -m scripts.pilha_agentes medir --teste --env-file .env.agentes-teste
+          --saida .cache/protocolo-agentes/recursos.json --amostras 5 --intervalo 2
+      - name: Relatórios sem tokens nem traces privados
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: contratos-agentes
+          path: |
+            .cache/protocolo-agentes
+          retention-days: 14
+          if-no-files-found: error
+      - name: Encerrar a pilha local
+        if: always() && hashFiles('.env.agentes-teste') != ''
+        run: uv run python -m scripts.pilha_agentes parar --teste --env-file .env.agentes-teste
+
   workflows:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - name: actionlint
-        uses: docker://rhysd/actionlint:1.7.7
+        uses: docker://rhysd/actionlint:1.7.12
         with:
           args: -color -shellcheck= -pyflakes=
 
@@ -43,7 +99,11 @@ jobs:
 
   front:
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 35
+    env:
+      # O build de CI usa a telemetria da fixture, como os demais dados locais.
+      # Não depende da existência da ref pública nem simula processamento real.
+      VITE_RAIZ_PROCESSAMENTO_URL: ./amostra/processamento.json
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -55,10 +115,13 @@ jobs:
             front/produtor/package-lock.json
       - name: Preparar os dados pequenos de teste (sem baixar o Release)
         run: node front/scripts/preparar-teste-site.mjs
+      - name: Configuração de domínio e subcaminho
+        run: node --test front/scripts/configurar-publicacao.test.mjs
       - name: Build do site público com a fixture (npm ci e build do painel e da ficha do produtor)
         env:
           RAIZ_DADOS: front/.cache/teste-site/dados
           RAIZ_GEO: front/.cache/teste-site/geo
+          RAIZ_CALENDARIO_DADOS: front/.cache/teste-site/calendario
           VITE_RAIZ_TESTE_MAPA: "1"
           RAIZ_BASE: /Raiz/
         run: front/scripts/construir-site.sh
@@ -77,6 +140,48 @@ jobs:
         env:
           RAIZ_PRINTS: ${{ github.workspace }}/front/.cache/teste-site/resultado/prospeccao
         run: cd front/globo && npm run test:prospeccao
+      - name: Calendário no navegador (filtros, teclado, axe e celular)
+        run: cd front/globo && npm run test:calendario
+      - name: Pasta do fiador (grade, teclado, celular, bloqueios e troca de sessão)
+        env:
+          RAIZ_EVIDENCIAS_PASTA: ${{ github.workspace }}/front/.cache/teste-pasta
+        run: cd front/globo && npm run test:pasta
+      - name: Evidências sintéticas da pasta
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pasta-fiador
+          path: front/.cache/teste-pasta
+          include-hidden-files: true
+          if-no-files-found: error
+      - name: Acerto do modelo (versões, privacidade, teclado e celular)
+        run: cd front/globo && npm run test:acerto
+      - name: Cena-alvo (cobertura pública, bloqueio de lote legado e três lotes autorizados)
+        run: cd front/globo && npm run test:cena
+      - name: Pedido nacional (estados, biomas, cobertura, teclado e celular)
+        run: cd front/globo && node ../scripts/testar-pedido-nacional.mjs
+      - name: Ficha de crédito (base comparável, revisão, acesso pago e celular)
+        run: node front/scripts/testar-ficha-credito.mjs
+      - name: Gráficos autorizados (ECharts, Vega-Lite, evidência, teclado e celular)
+        env:
+          RAIZ_GRAFICOS_EVIDENCIAS: ${{ github.workspace }}/front/.cache/teste-graficos
+        run: node front/scripts/testar-graficos.mjs
+      - name: Evidências da ficha de crédito e dos gráficos
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ficha-credito-graficos
+          path: |
+            front/.cache/teste-ficha-credito
+            front/.cache/teste-graficos
+          if-no-files-found: ignore
+      - name: Evidências da cena-alvo
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cena-alvo
+          path: front/.cache/teste-cena-alvo
+          if-no-files-found: ignore
       - name: Evidências do teste do Pages
         if: always()
         uses: actions/upload-artifact@v4
@@ -95,6 +200,39 @@ jobs:
           path: front/.cache/teste-agentes
           if-no-files-found: ignore
 
+      - name: Celular, teclado, WCAG 2.1 AA e Lighthouse >= 90
+        run: cd front/globo && npm run test:acessibilidade
+      - name: Evidências de acessibilidade e desempenho
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: celular-acessibilidade
+          path: front/.cache/teste-acessibilidade
+          if-no-files-found: ignore
+
+      - name: Build e navegação na raiz de um domínio configurado
+        env:
+          RAIZ_DADOS: front/.cache/teste-site/dados
+          RAIZ_GEO: front/.cache/teste-site/geo
+          RAIZ_CALENDARIO_DADOS: front/.cache/teste-site/calendario
+          VITE_RAIZ_TESTE_MAPA: "1"
+          RAIZ_DOMINIO: raiz.example
+          RAIZ_BASE: /
+        run: |
+          front/scripts/construir-site.sh
+          cd front/globo
+          npm run test:pages
+          npm run test:agentes
+      - name: Evidências do domínio na raiz
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dominio-proprio
+          path: |
+            front/.cache/teste-site/resultado
+            front/.cache/teste-agentes
+          if-no-files-found: ignore
+
   seguranca:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
@@ -102,6 +240,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
         with:
+          version: "0.13.6" # Pin compartilhado com os demais workflows; não consulta latest.
           enable-cache: true
           cache-dependency-glob: uv.lock
       - name: Dependências travadas (inclusive extensão Rust)
@@ -114,10 +253,17 @@ jobs:
         run: uv run raiz privacidade varrer
       - name: Licenças de Python, Rust e de todos os locks npm
         run: uv run python scripts/checar_licencas.py
+      - name: Contratos de avaliação e pacote sem scpi/vegan
+        run: |
+          uv run python scripts/esquemas_avaliacao.py --conferir
+          uv build --wheel --out-dir "$RUNNER_TEMP/pacote-raiz"
+          uv run python scripts/conferir_pacote.py "$RUNNER_TEMP"/pacote-raiz/raiz-*.whl
 
-  checagens:
+
+  testes_python:
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    # Versões antes/depois da carga acrescentam gravações PostGIS à suíte integral.
+    timeout-minutes: 45
     services:
       banco:
         image: postgis/postgis:16-3.5
@@ -134,22 +280,47 @@ jobs:
       RAIZ_LANGUAGETOOL_URL_TESTE: http://localhost:8010
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0 # Reexecutar a referência histórica fechada da auditoria de promoções.
       - uses: astral-sh/setup-uv@v6
         with:
+          version: "0.13.6" # Pin compartilhado com os demais workflows; não consulta latest.
           enable-cache: true
           cache-dependency-glob: uv.lock
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: servicos/cartao/package-lock.json
+          cache-dependency-path: |
+            servicos/cartao/package-lock.json
+            front/globo/package-lock.json
       - name: Dependências (produto e motor)
         run: uv sync --frozen --all-extras
-      - name: Takumi, FFmpeg e LibreOffice (inclui testes de PDF)
+      - name: Takumi, FFmpeg, LibreOffice e OCR (inclui testes de PDF)
         run: |
           npm --prefix servicos/cartao ci --no-audit --no-fund
           sudo apt-get update -q
-          sudo apt-get install -y -q --no-install-recommends ffmpeg libreoffice-writer
+          sudo apt-get install -y -q --no-install-recommends ffmpeg libreoffice-writer poppler-utils tesseract-ocr tesseract-ocr-por
+      - name: Dependências do smoke visual da ficha pública
+        run: npm --prefix front/globo ci --no-audit --no-fund
+      - name: Cache do Chromium da ficha pública
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('front/globo/package-lock.json') }}
+      - name: Chromium para a ficha pública
+        run: cd front/globo && npx playwright install --with-deps chromium
+      - name: Ficha pública datada (HTML real, aviso de versão, teclado, axe e celular; sem banco)
+        run: uv run node front/scripts/testar-ficha-publica.mjs
+      - name: Evidências da ficha pública datada
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ficha-publica-versionada
+          path: front/.cache/teste-ficha-publica
+          retention-days: 14
+          if-no-files-found: ignore
       - name: Cache do LanguageTool
         uses: actions/cache@v4
         with:
@@ -173,18 +344,91 @@ jobs:
             sleep 1
           done
           curl --fail --silent http://localhost:8010/v2/languages > /dev/null
-      - name: Todos os testes Python, com PostGIS
-        run: uv run pytest -q --junitxml=resultado-pytest.xml
-      - name: Impedir novos testes pulados por dependência ausente
-        if: always()
-        run: uv run python scripts/conferir_testes_ci.py resultado-pytest.xml
-      - name: Resultado dos testes (inclui motivos de testes opcionais pendentes)
+      - name: Testes Python com PostGIS; o caso estadual roda no job paralelo
+        run: uv run pytest -q --deselect=testes/test_lote.py::test_lote_do_para_inteiro_fecha_ou_diz_o_que_falta --junitxml=resultado-pytest.xml
+      - name: Resultado dos testes gerais (sem dados do arquivo privado)
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: resultado-pytest
           path: resultado-pytest.xml
           retention-days: 7
+
+  referencia_para:
+    # Fork não recebe o job privilegiado; checagens reprova explicitamente a validação ausente.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    permissions:
+      # GitHub exige acesso de escrita para ler releases em rascunho. Não há operação de publicação.
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.13.6" # Pin compartilhado com os demais workflows; não consulta latest.
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+      - name: Dependências travadas do teste estadual
+        run: uv sync --frozen --all-extras
+      - name: Preparar a referência privada do Pará com hashes e geometria originais
+        env:
+          RAIZ_DADOS_PRIVADOS_URL: release-github://${{ github.repository }}/dados-privados
+          RAIZ_DADOS_PRIVADOS_TOKEN: ${{ (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && github.token || '' }}
+        run: uv run python scripts/testar_para_privado.py --preparar "$RUNNER_TEMP/raiz-pa"
+      - name: Executar o caso estadual original sem credenciais no processo
+        if: ${{ !cancelled() }}
+        env:
+          RAIZ_TESTE_PA_PASTA: ${{ runner.temp }}/raiz-pa
+          RAIZ_TESTE_PA_OBRIGATORIO: "1"
+        run: uv run pytest -q testes/test_lote.py::test_lote_do_para_inteiro_fecha_ou_diz_o_que_falta --junitxml=resultado-para.xml
+      - name: Resultado estadual sem dados ou diagnósticos privados
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: resultado-para
+          path: resultado-para.xml
+          retention-days: 7
+      - name: Apagar a referência privada temporária
+        if: always()
+        run: rm -rf "$RUNNER_TEMP/raiz-pa"
+
+  # Nome preservado para que regras existentes da main continuem exigindo a suíte inteira.
+  checagens:
+    needs: [testes_python, referencia_para]
+    if: always()
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    env:
+      RAIZ_TESTE_PA_OBRIGATORIO: "1"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Exigir as duas partes da suíte aprovadas
+        env:
+          GERAIS: ${{ needs.testes_python.result }}
+          ESTADUAL: ${{ needs.referencia_para.result }}
+        run: |
+          if [ "$GERAIS" != success ] || [ "$ESTADUAL" != success ]; then
+            echo '::error::Suíte incompleta ou reprovada; PR de fork não executa a referência privada e não recebe aprovação estadual.'
+            exit 1
+          fi
+      - uses: actions/download-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: resultado-pytest
+          path: resultados/gerais
+      - uses: actions/download-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: resultado-para
+          path: resultados/para
+      - name: Conferir cobertura estadual única, falhas e testes pulados no conjunto
+        if: ${{ !cancelled() }}
+        run: python3 scripts/conferir_testes_ci.py resultados/gerais/resultado-pytest.xml resultados/para/resultado-para.xml
 
   e2e:
     runs-on: ubuntu-24.04
@@ -206,6 +450,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
         with:
+          version: "0.13.6" # Pin compartilhado com os demais workflows; não consulta latest.
           enable-cache: true
           cache-dependency-glob: uv.lock
       - uses: actions/setup-node@v4
@@ -225,5 +470,7 @@ jobs:
       - name: Chromium e bibliotecas do sistema
         working-directory: front/globo
         run: npx playwright install --with-deps chromium
-      - name: Login por link, pedido no Pará, três lotes, interesse e Pix de teste
+      - name: Login, conta paga, pedido no Pará e fase posterior isolada de interesse e Pix
         run: npm --prefix front/globo run test:e2e:api
+      - name: Aprovação humana do link MCP (rede simulada, sem pagamento)
+        run: node front/scripts/testar-aprovacao.mjs

@@ -4,6 +4,8 @@ import type { Imovel } from "../../../compartilhado/dados"
 import { colunaConhecida, NOMES_COLUNAS } from "../../../compartilhado/dados/contrato"
 import { escreverCsv } from "../../../compartilhado/dados/csv"
 import { abreviarCar, fmt1, fmtDestaque, fmtHa, fmtInt, fmtModulos, fmtPct, STATUS_CAR, UFS } from "../../../compartilhado/formato"
+import { codigosEmLeilao, normalizarCar } from "../../../compartilhado/calendario"
+import { calendario } from "../calendario"
 import { motivos } from "../../../compartilhado/motivos"
 import { lerTerra, NOME_RISCO, SITUACOES } from "../../../compartilhado/terra"
 import { situacaoTitulo } from "../../../compartilhado/titulo"
@@ -15,7 +17,7 @@ import { Estado } from "../partes/Estado"
 import { Download, IconeSituacao } from "../partes/Icones"
 import { ParaQuemRestaura } from "../partes/ParaQuemRestaura"
 import { Satelite } from "../partes/Satelite"
-import { consumirVoo, linkMunicipio } from "../rota"
+import { consumirVoo, linkCalendarioImovel, linkMunicipio } from "../rota"
 
 const URL_PRODUTOR: string =
   import.meta.env.VITE_RAIZ_URL_PRODUTOR ?? (import.meta.env.DEV ? "http://localhost:5174/" : `${import.meta.env.BASE_URL}produtor/`)
@@ -97,6 +99,8 @@ function baixarLinha(i: Imovel) {
 }
 
 export function Fazenda({ car }: { car: string }) {
+  const leiloes = useCarga(() => calendario.leiloes({ cod_imovel: car }), [car])
+  const emLeilao = codigosEmLeilao(leiloes.dado?.eventos ?? []).has(normalizarCar(car))
   const ficha = useCarga(() => fonte.ficha(car), [car])
   const [voar] = useState(() => consumirVoo(car))
   const i = ficha.dado?.imovel
@@ -127,7 +131,7 @@ export function Fazenda({ car }: { car: string }) {
     return (
       <>
         <Cabecalho atual="fazenda" />
-        <main className="pagina">
+        <main id="conteudo" tabIndex={-1} className="pagina">
           <Estado tipo="carregando" titulo="Carregando a ficha da fazenda" />
         </main>
       </>
@@ -136,7 +140,7 @@ export function Fazenda({ car }: { car: string }) {
     return (
       <>
         <Cabecalho atual="fazenda" />
-        <main className="pagina">
+        <main id="conteudo" tabIndex={-1} className="pagina">
           {ficha.erro ? (
             <Estado tipo="erro" titulo="Não deu para abrir a ficha agora.">
               <p>Confira a conexão e recarregue a página.</p>
@@ -164,7 +168,7 @@ export function Fazenda({ car }: { car: string }) {
   return (
     <>
       <Cabecalho atual="fazenda" linkMapa={linkMunicipio(cod)} />
-      <main className="pagina ficha">
+      <main id="conteudo" tabIndex={-1} className="pagina ficha">
         <div className="cabeca">
           <div>
             <ol className="migalhas" aria-label="Onde você está">
@@ -197,6 +201,7 @@ export function Fazenda({ car }: { car: string }) {
               )}
             </p>
             <div className="selos">
+              {emLeilao && <a className="selo conferir" href={linkCalendarioImovel(car)}>Em leilão: conferir edital e prazo</a>}
               {i.apta ? <span className="selo ok">Apta ao carbono</span> : <span className="selo ruim">Fora do funil</span>}
               <span className={"selo " + titulo.tom}>{titulo.rotulo}</span>
               {i.pequena && <span className="selo neutro">Pequena: entra em projeto agrupado</span>}
@@ -229,7 +234,7 @@ export function Fazenda({ car }: { car: string }) {
               <div className="mapa-carregando">Carregando o mapa de {i.municipio}…</div>
             </div>
           ) : (
-            <MapaImovel
+            <MapaImovel emLeilao={emLeilao}
               aneis={ficha.dado.aneis}
               cod={i.cod_imovel}
               ha={i.ha}

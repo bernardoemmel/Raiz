@@ -1,0 +1,19 @@
+.comparar-fazendas { min-width: 0; margin-block: var(--e7); padding-block: var(--e5); border-top: var(--linha); }
+.comparar-fazendas .formulario { max-width: 44rem; }
+.comparar-fazendas textarea { font-family: var(--fonte-codigo); }
+.comparacao-rolagem { max-width: 100%; overflow-x: auto; margin-block: var(--e5); border: var(--linha); }
+.comparacao-tabela { width: 100%; border-collapse: collapse; }
+.comparacao-tabela caption { padding: var(--e4); text-align: left; font-weight: 600; }
+.comparacao-tabela th, .comparacao-tabela td { padding: var(--e4); text-align: left; vertical-align: top; border-bottom: var(--linha); }
+.comparacao-tabela th { background: var(--papel); }
+.comparacao-tabela th:first-child { min-width: 11rem; }
+.comparacao-tabela td, .comparacao-tabela thead th:not(:first-child) { min-width: 16rem; max-width: 24rem; }
+.comparacao-tabela code { overflow-wrap: anywhere; }
+.comparacao-tabela thead span { display: block; margin-top: var(--e2); font-weight: 400; }
+.comparacao-tabela ul { margin: 0; padding-left: var(--e4); }
+.comparacao-medida { display: grid; gap: var(--e2); }
+.comparacao-medida small { font-size: var(--t-legenda); color: var(--pedra); }
+@media (max-width: 600px) {
+  .comparacao-tabela th, .comparacao-tabela td { padding: var(--e3); }
+  .comparacao-tabela th:first-child { min-width: 9rem; }
+}

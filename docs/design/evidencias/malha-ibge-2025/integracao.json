@@ -1,0 +1,38 @@
+{
+  "integracao": "f2eeb18",
+  "commit_local_integracao": "47cde0b",
+  "commit_final": "569187f93f48d918c0fb20ed23f50767cd6aa97a",
+  "alteracao_adicional": "Somente o rótulo de páginas6a9 na referência do IBGE; URL preservada.",
+  "testes": {
+    "passaram": 601,
+    "arquivos": 56
+  },
+  "builds": [
+    "painel",
+    "produtor"
+  ],
+  "typescript": "aprovado pelos dois builds",
+  "design": "aprovado após remover en dash do rótulo",
+  "lint": "aprovado com avisos preexistentes",
+  "pages": {
+    "base": "/Raiz/",
+    "chrome": "157.0.8103.78",
+    "status": "aprovado",
+    "pedidos": 199,
+    "faixas_http": 98,
+    "ausentes": [],
+    "erros": [],
+    "axe_360_violacoes": 0
+  },
+  "lighthouse_executado": false,
+  "logs": {
+    "build-produtor.log": "04aea252172f854210fcb79ffb3c5ac60d522e94cb97401c759723ffa2c1738a",
+    "testes-corrigidos.log": "bf98686e18eeec25e5ae4835bbb3bcab2362eef9ec651c2cb0949ac8275b4edb",
+    "pages-raiz.log": "d1c461fa09c3db4649eabdd7d0c7b9dbad64200bf2766fa26de65cea17f0fc8d",
+    "lint-corrigido.log": "5fa864c60f496d1b4ec2d2933693a5b00bd810707be43df4d9435c2ea2daf880",
+    "build-globo-corrigido.log": "01361c3ae246cc19721aaea4101fe65a62186f5deedeaa89b33bc90e134e3124",
+    "build-globo.log": "bcb16fe61909d7c510767d78dbc6ddf1002a5004d92348094b83bb3b2743259a",
+    "testes.log": "6ad2be36c08c21e28bc898704e8af3ef94dbe607eee8c8aa7b29ceeb659b68f9",
+    "lint.log": "e1c1899c6185466bc1b40e035e86010564b64737d44da756d21053206e85668b"
+  }
+}

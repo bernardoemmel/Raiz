@@ -2,7 +2,8 @@
 # (raiz/modelos/avaliacao/banco.yaml) rodado no modelo local de verdade. Não editar à mão.
 # Tarefa sem corte fica na votação A+B (Qwen e Haiku), como antes.
 nome: cortes
-gerado_em: null
-modelo_local: null
-banco: null
+gerado_em: '2026-11-12T19:05:03+00:00'
+modelo_local: qwen3-4b-instruct-2507
+banco: banco-pt-2026.11a+01697528
+politica: cascata-2026.11a+fb4a9c2d
 cortes: {}

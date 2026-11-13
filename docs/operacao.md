@@ -1,5 +1,355 @@
 # Operação: como saber na hora quando algo parou
 
+## Medição do processamento dos estados — rodada 12
+
+`uv run python -m raiz.executor.tempos controles/raiz_controle_*.json --saida tempos.json`
+produz somente estatísticas por UF e conjunto de versões, com hashes das fontes. Os controles completos
+permanecem privados. Mediana e p95 usam interpolação linear (tipo 7); nunca se substitui duração ausente por zero.
+Snapshots repetidos não duplicam municípios, e versões diferentes não entram na mesma amostra.
+
+Leitura de 16 controles privados em **12/11/2026 às 23h05 de Brasília**: os valores abaixo são a **soma dos
+segundos das últimas tarefas concluídas de cada município**, na versão declarada pelo controle. Não são tempo
+corrido de uma execução: as tarefas podem vir de retomadas diferentes. Marcas adotadas, incompletas, com erro,
+versão divergente ou sem duração foram excluídas. Ter duração não substitui a prova de integridade dos arquivos.
+
+| UF | Municípios medidos | Mediana (s) | p95 (s) | Municípios excluídos no controle |
+|---|---:|---:|---:|---:|
+| BA | 151 | 272,70 | 798,25 | 7 |
+| CE | 91 | 193,10 | 652,00 | 7 |
+| GO | 10 | 313,10 | 997,39 | 236 |
+| MA | 2 | 876,50 | 894,86 | 215 |
+| MG | 3 | 910,70 | 1.211,03 | 746 |
+| PI | 47 | 95,70 | 217,50 | 140 |
+| RN | 34 | 38,00 | 87,61 | 50 |
+| RR | 1 | 0,70 | 0,70 | 14 |
+| TO | 76 | 77,80 | 361,35 | 63 |
+
+A única amostra municipal de RR é um município sem imóveis, com somente a tarefa inicial; não representa o
+custo dos municípios habitados. AC, AP, AM, MS, MT e RO não têm amostra municipal completa nessa leitura.
+PA não tem controle estadual com versões/duração suficiente; as demais UFs ainda não têm controle disponível.
+O relatório agregado reproduzível fica em `docs/medicoes/processamento-2026-11-12.json`.
+
+Para **estado inteiro calculado na mesma rodada**, a amostra é zero: não há mediana/p95 defensáveis ainda.
+Há quatro rodadas históricas que percorreram toda a UF, mas aproveitaram tarefas adotadas sem duração:
+
+| UF | Rodadas | Mediana (s) | p95 (s) |
+|---|---:|---:|---:|
+| AC | 1 | 2.407 | 2.407 |
+| AP | 1 | 423 | 423 |
+| RO | 1 | 3.328 | 3.328 |
+| RR | 1 | 1.380 | 1.380 |
+
+Com uma rodada, mediana e p95 coincidem; isso não mede a cauda da distribuição nem o custo de refazer a UF.
+Fatias, execuções com erro, rodadas ainda abertas e retomadas sem recalcular todos os municípios não contam
+como execução estadual inteira. Esses números não fundamentam estados/dia nem uma data para os 27 estados.
+A previsão nacional deve usar avanço municipal íntegro observado após a correção da publicação, em janelas
+repetidas com ocupação da fila, falhas e escopo científico registrados.
+
+A instrumentação nova mede cada tentativa municipal com relógio monotônico, início/fim, tarefas efetivamente
+rodadas e versões no evento privado. O estado registra `segundos_executor`; inclui preparação/cálculo e
+publicações periódicas, termina antes da publicação final. Tentativas com erro ficam separadas das bem-sucedidas.
+A ref pública do painel mantém somente a lista permitida de situação/horário; não recebe marcas ou dados pessoais.
+
+### Integridade e ensaio de retomada
+
+Cada partição municipal recebe `integridade.situacao=integro` somente depois de conferir versões, assinaturas,
+sidecars e bytes de todas as saídas exigidas. O SHA do selo identifica tarefas e saídas; não substitui a
+validação científica. Mudança de fonte, versão, arquivo ou erro invalida o selo. A retomada preserva as tarefas
+já íntegras, inclusive dentro do município interrompido, e processa os municípios pendentes; não presume que
+os municípios terminam em ordem quando há várias lanes.
+
+`testes/test_executor_integridade.py` executa os 15 códigos de RR com propriedades e geometrias **sintéticas**,
+interrompe um filho local com SIGKILL depois de seis municípios completos e retoma. Compara todos os CSVs,
+GeoParquets e relatórios de qualidade por SHA-256 com uma execução inteira: 45 imóveis, 15 nulos de área,
+15 geometrias nulas e 15 geometrias sem área, iguais nos dois caminhos. As seis marcas completas ficam
+byte a byte iguais; a fonte já concluída do sétimo município também não roda de novo. Nenhum workflow
+ou job do Actions é interrompido por esse ensaio. É uma prova do mecanismo de retomada, não um novo
+processamento científico de Roraima em produção.
+
+### Conferência de checkpoints reais e capacidade observada
+
+Em 13/11/2026, três checkpoints do arquivo privado foram restaurados em pastas temporárias privadas,
+com comparação de todos os hashes antes da escrita e remoção das cópias ao final. Nenhum arquivo remoto
+foi alterado. Foram 2.242 arquivos e 182.073.038 bytes:
+
+| Unidade | Arquivos | Bytes | SHA-256 do manifesto |
+|---|---:|---:|---|
+| AM | 494 | 75.162.907 | `a012d77e477b938f3daea82c25666f50ed5c03836e3515a6493674d685d36fe5` |
+| GO-3 | 1.239 | 95.591.491 | `b409cce21c88e44282b900c38bda38d062e06e0caba000e8a0b4bde15d9119ed` |
+| MA-2 | 509 | 11.318.640 | `c28e43cee8dcfaf70e6fbacd039fa793332f3a1b2b4636cc717db7287bfdeb9c` |
+
+Esses resultados comprovam recuperação do que chegou ao checkpoint remoto. Não recuperam arquivos que
+nunca foram enviados e não validam cientificamente os retratos opacos. O selo municipal e os testes de
+retomada local não garantem perda zero se o runner inteiro desaparecer antes da persistência remota.
+
+O [painel em produção](https://bernardoemmel.github.io/Raiz/) foi conferido após o
+[deploy](https://github.com/bernardoemmel/Raiz/actions/runs/43364180632): 27 UFs, horários de Brasília,
+leitura periódica da ref pública e ausência de erros JavaScript/transbordamento horizontal no celular.
+
+Às 04h36 UTC havia 15 reservas de processamento, mas somente três jobs de processamento executando.
+O Actions tinha outros 17 jobs ativos de CI/verificações e 77 jobs aguardando ao todo. O limite CAS
+impede admitir mais de 15 processadores; não controla a ordem de concessão de runners do GitHub.
+A fila repôs vagas liberadas naturalmente, sem cancelar trabalhos. Não houve nova UF concluída na
+janela desde a retomada paralela das 02h53 UTC; geometria ausente no Ibama e filas de runners impedem
+uma previsão nacional defensável. Não confundir os quatro estados completos de rodadas históricas
+no índice com quatro novos estados concluídos nessa janela.
+
+### Conferência Ibis, sem troca de ingestão
+
+`uv run --extra conferencia python -m raiz.conferencia.ibis_contagem PASTA --saida conferencia.json`
+executa a mesma expressão de contagem por município em DuckDB e SQLite. O Ibis 12.0.0 é Apache-2.0;
+os bancos efêmeros recebem somente códigos municipais. O relatório guarda versões, SQL de cada mecanismo,
+hash da entrada, contagens e igualdade; divergência retorna código de falha. Os motores de ingestão permanecem
+nas versões travadas anteriores. Não trocar o motor com base apenas nesse teste de contagem.
+
+Conferência real concluída em 12/11/2026: **PI, 130 municípios e 185.791 imóveis; RN, 84 municípios e
+56.217 imóveis**. DuckDB, SQLite e contagem de referência concordaram em todos os municípios. Os 242.008
+registros foram lidos de pacotes privados congelados e conferidos por SHA; nenhum dado foi publicado por esse
+ensaio. Evidência agregada: `docs/medicoes/ibis-contagens-rn-pi-2026-11-12.json`.
+## Falhas concorrentes e impedimento da fonte — 13/11/2026
+
+A rodada `43355236141` confirmou erro HTTP 404 na leitura de `estados.json` depois de
+substituição concorrente do asset. A leitura por nome agora relê a lista e o novo ID, até quatro
+tentativas. Ausência transitória depois de um 404 não vira manifesto vazio. Erros de acesso e
+formato continuam falhando; o download de um ID congelado não aceita outro arquivo. A paginação
+revalida o cache HTTP e reinicia todas as páginas ao detectar sobreposição.
+
+A reprodução do funil com o cache oficial confirmou **50 de 50** erros municipais examinados
+no RN: embargo ativo sem geometria utilizável. No arquivo de 117.197 termos, 92.033 são ativos
+pelo critério vigente e 40.270 não têm WKT. No RN, isso alcança 98 municípios; em GO, 195;
+no MA, 168. A presença de WKT, por si só, não atesta sua validade. A evidência agregada, sem
+termos nem pessoas, está em `docs/medicoes/ibama-impedimentos-2026-11-13.json`.
+
+A guarda permanece: não converter restrição desconhecida em área zero nem descartar os imóveis.
+Os logs sem banco/Healthchecks agora registram tipo, arquivo, linha e o motivo fixo
+`embargo_ativo_sem_geometria_utilizavel`, sem texto livre da exceção, variáveis ou geometrias.
+A conclusão nacional depende de resolver esses dados de origem; a janela observada não teve
+UF nova concluída e não permite estimar uma data de término. O processamento dos demais municípios
+e a preservação do progresso continuam.
+
+O destino fechado foi atualizado para `30ace967b885d07c2579c8625a9b5eb9cd4ec53b`, com **19 origens**
+e as 11 versões científicas preservadas. A prova por AST delimita três métodos de leitura/tratamento
+de erro e a classe que transporta somente o status HTTP; o restante do armazém é idêntico ao urgente.
+A ciência do commit preservado não recebe a mudança de hash da carga da main #93. As auditorias
+históricas continuam intactas e reservas vivas não são alteradas. Validação: **66 testes** do leitor,
+diagnóstico, armazém, transferência e checkpoint; **182 testes** de integração da promoção/fila.
+
+Conferência complementar do impedimento Ibama: o geosserviço oficial PAMGIA devolveu os cinco
+termos da amostra RN sem WKT, mas quatro declaram `origem_geom=Ponto`, embora o formato tenha
+anéis, e um permanece sem geometria. Essa resposta não comprova cinco polígonos de área e
+não foi usada para liberar o município. Consulta restrita a identificador do termo, origem,
+código municipal, data geométrica e geometria; nenhum atributo de pessoa foi requisitado.
+Fonte: https://pamgia.ibama.gov.br/server/rest/services/01_Publicacoes_Bases/adm_embargos_ibama_a/FeatureServer/0.
+
+
+### Alcance da regra contra interrupções
+
+O `AGENTS.md` proíbe todos os agentes/chats de desativar ou cancelar processamento sem nova ordem
+explícita do fundador. Isso não cria isolamento de permissões no GitHub: a mesma permissão
+`Actions: write` autoriza disparar e desativar workflows. Uma sessão com essa credencial continua
+tecnicamente capaz de chamar esses endpoints. Não foi retirada a permissão necessária à continuação
+automática; separar credenciais/políticas externas é necessário para impor um bloqueio técnico entre
+sessões. Fonte: [permissões dos endpoints de workflows](https://docs.github.com/en/rest/actions/workflows).
+
+
+## Ficha: fontes, versões, cobertura e rastreio
+
+Antes de iniciar esta continuação no servidor, aplique `uv run --env-file .env raiz
+banco migrar` até a ponta atual (0034 nesta entrega). A API, o sincronizador e os
+jobs precisam usar o mesmo PostGIS. As migrações 0032–0034 guardam fontes e
+compromissos privados, versões/observações da terra, baselines das contas, marcas
+de exportação e detecção de varredura. Não publicar esses dados no site ou em
+artifacts abertos do Actions.
+
+Com `RAIZ_DADOS_PRIVADOS_URL` e `RAIZ_DADOS_PRIVADOS_TOKEN` no ambiente do servidor:
+
+```bash
+uv run --env-file .env raiz prospeccao atualizar-base
+uv run --env-file .env raiz prospeccao coletar-compromissos
+uv run --env-file .env raiz prospeccao coletar-compromissos --fonte verra --limite-verra 25
+uv run --env-file .env raiz prospeccao verificar-buscas
+```
+
+`atualizar-base` lê o manifesto privado inteiro, descobre UFs novas e carrega
+somente o que mudou. `--ufs PA,RO` restringe uma intervenção manual; não usar uma
+lista fixa no job nacional. O mesmo fluxo do `raiz vigiar` preserva o estado
+antes/depois da carga e refaz compromissos quando as fontes mudam. Falha na
+carga ou no processamento posterior deixa o checkpoint pendente para a próxima
+volta. Não é necessário recalcular o motor para preparar a ficha.
+
+Na pilha Compose, a agenda executa `atualizar-base` e `verificar-buscas` a cada
+15 minutos, com retomada após falha e arquivos `.env`/espelho privados. Fora da
+pilha, configure uma única agenda com trava de processo. A coleta de compromissos
+pode rodar semanalmente; a fase Verra é explícita para controlar o tráfego e
+pode ser repartida com `--limite-verra`. Para continuar uma coleta parcial,
+`--retomar-desde AAAA-MM-DD` pula projetos Verra persistidos com sucesso desde
+esse dia UTC. Uma rodada nova sem esse argumento revisita os registros e pode
+identificar retiradas. Não tratar um checkpoint antigo como dispensa permanente
+de atualização. As fontes disponíveis e limites da cobertura estão em
+[terra-comprometida.md](terra-comprometida.md).
+
+`reindexar` refaz os derivados quando o catálogo de fontes ou os programas
+estaduais cadastrados mudarem, sem executar o motor. `--forcar` permite uma
+conferência completa. Um retorno `pendente` ou uma fonte indisponível exige
+acompanhar a próxima tentativa; não significa que a terra esteja livre.
+O sincronizador não publica dados pagos e nunca usa o pacote público reduzido
+como substituto do arquivo completo. A implantação e os agendamentos deste
+servidor não foram executados no ambiente de desenvolvimento.
+
+Para habilitar **exportações** (PDF/JSON/CSV), configure no cofre/ambiente:
+
+- `RAIZ_PROTECAO_CHAVES`: objeto JSON de versão para segredo aleatório de ao menos
+  32 bytes. Não reutilize segredos de teste nem coloque o valor em variável `VITE_`.
+- `RAIZ_PROTECAO_VERSAO`: chave ativa desse objeto. A rotação exige versão nova;
+  mantenha as antigas para conferência e preserve o registro privado das marcas.
+- `RAIZ_PROTECAO_REGRAS`: opcional, caminho privado do YAML de limiares e retenção.
+
+Sem chave, a exportação retorna 503; a leitura autenticada normal continua
+funcionando. A marca é um identificador pseudônimo, não o nome ou documento do
+cliente ou do dono. A sentinela é explicitamente administrativa: não é uma
+fazenda fictícia nem modifica hectares, créditos, TIR ou séries históricas.
+Ela permite rastrear uma cópia; não impede captura de tela ou remoção manual.
+
+```bash
+uv run --env-file .env raiz prospeccao alertas-protecao
+uv run --env-file .env raiz prospeccao alertas-protecao --apenas-ativos
+uv run --env-file .env raiz prospeccao rastrear-marca 'MARCA_ENCONTRADA_NA_COPIA'
+uv run --env-file .env raiz prospeccao limpar-eventos-protecao
+```
+
+Esses comandos são administrativos e exigem acesso ao ambiente privado do
+servidor. Os alertas registram regra, versão, janela, métricas e reavaliação;
+são indícios para análise e não prova de abuso. Uma licença de dados aprovada
+preserva o uso autorizado em volume. A retenção padrão dos eventos brutos é de
+90 dias; marcas e alertas auditados são preservados. O detector não envia
+mensagens externas nem muda automaticamente a licença comercial.
+
+## Pilha API/MCP, OAuth e processamento
+
+A pilha `infra/docker-compose.agentes.yml` sobe PostGIS, banco separado do Keycloak, Keycloak 26.8.2,
+Valkey, migração, API/MCP no mesmo processo, worker e agenda. Todos usam o código e as dependências travadas do
+mesmo checkout. A imagem final roda como usuário sem privilégios, com sistema de arquivos somente leitura;
+`dados/` e os bancos têm volumes persistentes. Não inclui publicação de domínio, compra de VPS ou ativação de Pix.
+
+### Teste local descartável
+
+Com Docker Engine, Compose **2.24.4 ou superior** e Python 3.12:
+
+```bash
+python scripts/pilha_agentes.py teste
+```
+
+O comando gera `.env.agentes-teste` com permissões `0600` e segredos aleatórios, constrói a imagem, sobe as
+bases e aplica as migrações antes de iniciar API e worker. Repeti-lo conserva os segredos e os volumes. As fontes ficam congeladas na imagem; `/app/proveniencia.json`
+registra seus hashes e os rótulos Docker identificam a revisão e se o checkout estava alterado. A API fica
+em `http://localhost:18000`, MCP em `/mcp/`, Keycloak em `http://localhost:18180` e PostGIS na porta local `15432`,
+base `raiz_agentes_teste`. Os endereços só escutam loopback. O realm mantém Authorization Code/PKCE S256, sem
+password grant para agentes; a instrumentação cria somente identidades e empresas sintéticas por Admin API.
+O override compartilha a rede da API com o Keycloak para validar o emissor `localhost` sem exceção de segurança
+no código de OAuth. Em produção são contêineres de rede independentes e URLs HTTPS.
+
+API, MCP, fila e banco são reais. Pix fica obrigatoriamente em teste; SMTP e credenciais externas não são
+herdados do host. A agenda exercita seu ciclo sem coletar a internet nem enviar avisos no modo de teste.
+O modo `--desenvolvimento` monta fontes do checkout somente para depuração e é recusado pelo runner de campanhas
+reais. A chave Anthropic pertence ao runner fora dos contêineres: não entra na imagem, API, worker ou arquivo de teste.
+
+```bash
+python scripts/pilha_agentes.py medir --teste --amostras 12 --intervalo 5 \
+  --saida dados/operacao/recursos-agentes.json
+python scripts/pilha_agentes.py parar --teste
+```
+
+`parar` conserva os volumes. Não use `down -v` em uma instalação com dados. O teste de recursos traz RAM e CPU por
+serviço, picos **amostrados**, tamanhos dos volumes e soma conservadora das imagens; esta última não desconta
+camadas compartilhadas. Faça uma amostragem durante a campanha além do repouso. O relatório não contém env,
+credenciais ou dados de empresas. Um catálogo sintético não dimensiona o processamento dos 144 municípios.
+
+### Preparar a produção
+
+1. Reserve um checkout da revisão aprovada e Docker com Compose 2.24.4+. Copie
+   `infra/agentes.env.example` para `producao.env` e restrinja a leitura (`chmod 600 producao.env`). Nunca use
+   `.env.agentes-teste` na produção. Gere senhas diferentes, por exemplo com `openssl rand -hex 32`;
+   a senha do banco deve usar apenas letras ASCII, números, hífen e sublinhado, com pelo menos 24 caracteres.
+2. Configure `RAIZ_CHAVE_PESSOAL` com uma chave Fernet nova (`uv run raiz pessoal gerar-chave`) e
+   `RAIZ_RECIBO_CHAVE` com 32 bytes aleatórios codificados em base64url, sem padding. Guarde cópias em cofre fora da
+   VPS: perder a primeira impede abrir os dados cifrados; trocar o assinante exige manter as chaves públicas antigas
+   para verificar recibos emitidos. `RAIZ_API_TOKEN` é exclusivo do backoffice e não autentica o MCP.
+3. Preencha URLs HTTPS reais: `RAIZ_KEYCLOAK_URL`, seu `/realms/raiz` em `RAIZ_OAUTH_ISSUER`,
+   `RAIZ_MCP_RESOURCE` terminado em `/mcp`, `RAIZ_API_PUBLICA_URL` com a origem da API (sem `/v1`),
+   `RAIZ_LOGIN_BASE_URL`, `RAIZ_FRONT_URL`, `RAIZ_API_ORIGENS` e callback exato em `RAIZ_OAUTH_REDIRECT_URI`.
+   Não use curinga. Um proxy HTTPS da VPS encaminha a API para `127.0.0.1:8000` e o Keycloak para
+   `127.0.0.1:8180`; deve substituir, não acrescentar valores arbitrários de `X-Forwarded-*`. Não exponha os bancos,
+   Valkey ou a porta de administração/saúde 9000. Restrinja o console administrativo OAuth ao operador.
+4. Configure SMTP com SSL ou STARTTLS, remetente e autenticação. Sem SMTP, o login por e-mail permanece
+   indisponível. Configure o coletor OTLP/HTTP em `RAIZ_OTEL_ENDPOINT` para persistir a telemetria; a ausência de
+   coletor não constitui registro externo. Use destinos de webhook HTTPS exatos em `RAIZ_WEBHOOK_HOSTS` e
+   política de saída no proxy/firewall que bloqueie IPs privados, loopback, link-local e metadados após DNS.
+   O allowlist de nomes, sozinho, não protege contra DNS rebinding.
+5. Configure o arquivo privado de dados em `RAIZ_DADOS_PRIVADOS_URL` e o token só no servidor, carregue as ofertas
+   no PostGIS e importe as evidências territoriais vigentes. Ficha paga, reserva e contrato continuam bloqueados
+   quando falta habilitação ou evidência; nenhum dado de proprietário deve entrar em URLs ou logs.
+6. Use somente a pilha local de teste até a conferência do provedor. Para produção, configure `RAIZ_ABACATEPAY_CHAVE`,
+   `RAIZ_ABACATEPAY_WEBHOOK_SEGREDO`, `RAIZ_ABACATEPAY_WEBHOOK_CHAVE_PUBLICA` e só então `RAIZ_PIX_MODO=producao`.
+   O webhook de pedidos fica em `/pagamentos/abacatepay`; confirme a rota e o contrato de assinatura no OpenAPI da
+   revisão instalada. A ficha individual usa o webhook próprio de prospecção, documentado abaixo: não misture os
+   dois produtos nem seus segredos. Não ative `RAIZ_ABACATEPAY_IDEMPOTENCIA_SUPORTADA` sem confirmação contratual.
+   O agente só prepara um link; uma pessoa autenticada aprova e o provedor confirma o pagamento. O recibo JWS
+   comprova aprovação, não liquidação financeira.
+7. Com o `.env` pronto e o proxy configurado, um comando constrói e sobe a pilha completa:
+
+   ```bash
+   python scripts/pilha_agentes.py subir --env-file producao.env
+   ```
+
+   O comando recusa placeholders de domínio, HTTP e Pix simulado na produção; exige as credenciais do provedor. Ele espera os healthchecks e a migração
+   `head` (incluindo checkpointer cifrado do LangGraph) antes de liberar API/worker/agenda. Para usar uma imagem já
+   construída da mesma revisão, acrescente `--sem-build`; `RAIZ_IMAGEM_TAG` deve identificar a revisão publicada
+   internamente pelo operador. Não reutilize `local` entre versões sem reconstruir.
+8. No Keycloak, crie usuários e vincule `empresa_id` à empresa já aberta na API. O usuário não pode editar esse
+   atributo. Atribua `raiz-api/admin_empresa` somente ao administrador daquela empresa. O cliente `raiz-agentes`
+   usa PKCE S256 e escopos `consultar`/`pedir`; `reservar` é opcional, começa desabilitado também na conta e só
+   o administrador da empresa habilita. Confira `/.well-known/oauth-protected-resource/mcp`, emissor, audiência,
+   expiração, `sub` e callback com o cliente real. O escopo padrão `raiz-identidade` inclui o mapper
+   `oidc-sub-mapper` (Subject), com `access.token.claim=true`; sem ele o Keycloak 26.8 emite um token
+   sem sujeito e o MCP o recusa. Em realms existentes, adicione esse mapper por administração antes
+   de testar a conexão. O import inicial não altera realms já existentes; mudanças exigem
+   migração administrativa deliberada. Remova/rotacione o administrador de bootstrap depois do provisionamento.
+
+### Atualizações, agenda e recuperação
+
+Antes de atualizar, guarde backup consistente dos dois bancos, volume `dados`, realm/configuração e chaves em
+armazenamento privado fora da VPS. Restrinja os arquivos de backup com `umask 077`; use `pg_dump -Fc` e ensaie
+`pg_restore` em banco separado. Arquivo SQL completo ou dump nunca é artefato público de CI. Não basta copiar
+um volume PostgreSQL enquanto ele escreve. Confira espaço para WAL, backup e duas versões de imagem.
+
+Para atualizar a mesma instalação: pare `api`, `worker` e `agenda` com o compose e o mesmo `--env-file`, construa
+na revisão aprovada e repita `subir`. O serviço `migrar` precisa terminar com sucesso; uma falha impede os outros
+serviços de iniciar. Não reverta schema automaticamente nem inicialize volumes vazios sobre o banco existente.
+Depois, confira `/saude`, descoberta OAuth/MCP, uma consulta autorizada, fila/outbox e recibo de aprovação de teste.
+
+A agenda `scripts/agendar_servicos.py` reutiliza as CLIs existentes: alertas a cada 15 minutos, ciclo dos pedidos
+por hora, atualização de fichas e buscas salvas a cada 15 minutos e Calendário diariamente às 06h47 no fuso `RAIZ_AGENDA_FUSO`
+(padrão `America/Sao_Paulo`). Ela mantém uma trava exclusiva e horários concluídos no volume `dados`, não duplica
+horário concluído após reinício e repete falhas depois de cinco minutos. Tarefas distintas podem executar juntas,
+mas a mesma tarefa nunca se sobrepõe. Instale somente uma agenda para esse volume; não deixe os mesmos trabalhos
+ativos também no crontab. A agenda do motor estadual/Pará continua pertencendo ao chat “Lote e números”.
+
+O worker processa fila e Standard Webhooks continuamente. Seu healthcheck confirma acesso ao banco, não prova
+avanço dos pedidos; monitore idade de `submitted/working`, vencimento de leases, outbox e alertas no backoffice.
+A agenda tem heartbeat próprio. Docker reinicia processos que saem, mas não reinicia automaticamente todo processo
+marcado `unhealthy`: um monitor externo deve avisar o operador. Os logs Docker têm rotação de três arquivos de
+10 MiB por contêiner; não habilite access log bruto com query strings ou tokens.
+
+As amostras reais e seus limites devem acompanhar o relatório da campanha no Actions e a passagem de Produto e
+regras. O teste local construiu a imagem e validou migrações, API e descoberta OAuth; a tentativa de manter a pilha
+inteira foi interrompida pelo espaço do Docker VFS do ambiente. VFS copia camadas inteiras por contêiner e os
+erros de criação deixaram resíduos: isso não representa o consumo de uma VPS com overlay2. Nenhuma medição de RAM
+completa ou recomendação numérica de VPS é atribuída a essa tentativa. A campanha no Actions usa a imagem
+congelada e amostra recursos durante as tarefas, incluindo identificação das imagens. Para dimensionar
+uma VPS, some margem de sistema operacional, PostgreSQL/WAL, concorrência dos workers e crescimento dos dados;
+repita a medição com o catálogo e a simultaneidade pretendidos. Esta entrega não contrata nem publica servidor.
+
+
 ## Healthchecks (alerta fora do servidor)
 
 O alerta não pode depender do servidor da Raíz: se ele cair, o aviso tem de sair de outro lugar. Por isso o padrão é
@@ -26,6 +376,38 @@ olha o resto de 15 em 15 minutos e sobe a escada do que ninguém reconheceu:
 ```
 */15 * * * *  uv run raiz operacao alertas   # lotes, orçamento, vigilância, prazo da Verra, filas, grupos
 ```
+
+Para instalar sem depender do diretório e do `PATH` do cron, no servidor e com o usuário da aplicação:
+
+```bash
+uv run python scripts/instalar_cron_alertas.py             # mostra o bloco
+uv run python scripts/instalar_cron_alertas.py --instalar  # ativa a cada 15 minutos
+crontab -l
+```
+
+O instalador preserva os outros trabalhos e substitui apenas o bloco marcado da Raíz; pode ser repetido. Usa o
+caminho absoluto do `uv`, entra na raiz do repositório (onde a configuração lê o `.env`), exige o lockfile com
+`--frozen` e usa `flock` para não sobrepor rodadas. Se existir `.env`, usa `uv run --env-file .env` para exportar
+também as variáveis lidas diretamente por `os.environ` na vigilância; não executa o arquivo como código shell.
+Precisa de `cron` ativo e `flock` (`util-linux`) no servidor.
+Não instala serviços nem preenche credenciais. Sem ntfy e GoAlert, continua em envio simulado; sem banco acessível
+e migrado, a rodada falha. A prévia não ativa nada. Um ambiente de desenvolvimento sem acesso ao servidor não
+comprova que o agendamento esteja ativo em produção.
+
+O Calendário da Raíz usa um bloco separado no mesmo instalador:
+
+```bash
+uv run raiz banco migrar
+uv run python scripts/instalar_cron_alertas.py --tarefa calendario            # prévia
+uv run python scripts/instalar_cron_alertas.py --tarefa calendario --instalar # diário
+```
+
+Ele executa `uv run raiz calendario coletar` todos os dias às **06:47 no fuso configurado no servidor**, com trava
+própria, sem alterar o fuso dos demais trabalhos. O banco do `.env` precisa estar acessível e migrado (incluindo
+0026). Essa rodada persiste os eventos, cruza CAR/SIGEF, atualiza API/MCP e prepara os avisos do painel; os canais
+externos continuam simulados. A rodada do GitHub Actions com `--sem-banco` publica o Release e não substitui esse
+agendamento do banco. Instalar ou repetir um bloco preserva o outro. Instale no diretório permanente da aplicação:
+`dados/calendario/` guarda o estado da coleta entre as rodadas.
 
 | O que | Gravidade |
 |---|---|
@@ -100,10 +482,79 @@ uv run raiz modelos calibrar        # roda o teste no Qwen e grava raiz/regras/p
 uv run raiz modelos avaliar --modelo triagem   # o mesmo teste no Haiku, para comparar
 ```
 
+O GGUF validado para o nome usado no compose é o Q4_K_M de
+[Unsloth/Qwen3-4B-Instruct-2507-GGUF](https://huggingface.co/unsloth/Qwen3-4B-Instruct-2507-GGUF), revisão
+`a06e946bb6b655725eafa393f4a9745d460374c9` (2.497.281.120 bytes), sob Apache-2.0. Salve-o como
+`infra/modelos/qwen3-4b-instruct-2507-q4_k_m.gguf`, fora do git, e confira antes de subir:
+
+```bash
+sha256sum infra/modelos/qwen3-4b-instruct-2507-q4_k_m.gguf
+```
+
+SHA-256 esperado: `3605803b982cb64aead44f6c1b2ae36e3acdb41d8e46c8a94c6533bc4c67e597`.
+O download verificado em 12/11/2026 veio da revisão acima; trocar a quantização ou o conteúdo do arquivo exige
+recalibrar, mesmo que o nome permaneça igual. Guarde esse SHA junto do relatório de avaliação. Antes de rodar as
+360 chamadas, `uv run raiz modelos testar --modelo qwen3-4b-instruct-2507` confere a conexão e a saída JSON.
+
+O Dockerfile fixa Rust 1.100.0 e copia o header da mesma revisão do llguidance depois de compilar o Rust. Isso
+corrige a falha `llguidance.h: No such file or directory` da combinação b12300/llguidance 1.0.1 com o novo layout
+de diretórios do Cargo. Se o ambiente usa proxy TLS, o certificado pode ser montado apenas durante o build:
+
+```bash
+docker build --secret id=proxy_ca,src=/etc/ssl/certs/ca-certificates.crt \
+  -t raiz/llama-server:b12300-llguidance infra/llama
+docker compose -f infra/docker-compose.yml up -d --no-build llama
+```
+
+Sem proxy, o segredo é opcional e o comando normal do compose continua suficiente. A imagem final não recebe o
+certificado do ambiente de construção.
+
+Validação local em 12/11/2026: imagem construída com esse Dockerfile, `llama-server --version` em
+`ccd360f` (b12300), `/health` saudável e teste CLI do Qwen respondendo JSON válido em 1.253 ms. A intenção e a
+explicação amostradas do teste próprio levaram 3.868 e 7.392 ms, com logprobs disponíveis. Isso confirma o build e
+a conexão local; não afirma implantação no servidor nem substitui as 360 respostas da calibração.
+
 O corte só é gravado com o relatório de um modelo local de verdade; se o arquivo do GGUF mudar de nome, os cortes
 antigos deixam de valer. Sem servidor nem chave, `--modelo simulado` roda tudo com regras (linha de base). Cada
 decisão em `operacao.decisao_cascata` guarda rota, confiança, corte e versão da regra e dos cortes. Se a subida real
 sair da faixa por mais de 15 pontos em 7 dias, abre o alerta `cascata_faixa`: recalibrar.
+
+Os 95% exigidos pelo calibrador são o acerto observado no mesmo banco usado para escolher o corte; não há amostra
+independente de validação nem garantia estatística desse acerto em produção. As três tentativas medem repetição e
+consistência, não equivalem a três mensagens independentes. O runtime confere o nome do modelo; conferir também
+SHA do GGUF, versão do llama.cpp e prompt é parte da promoção operacional dos cortes.
+
+### Resultado real do Qwen em 12/11/2026
+
+A rodada terminou às 16h05 de Brasília (19h05 UTC): **120 mensagens do banco próprio, três tentativas por
+mensagem, 360 respostas completas**, todas com confiança numérica e nenhuma falha técnica. São mensagens de
+teste, não contatos reais de produtores. Banco `banco-pt-2026.11a+01697528`, política
+`cascata-2026.11a+fb4a9c2d`, Qwen/llama/GGUF identificados acima, três threads e contexto de 8.192 tokens.
+
+| Tarefa | Mensagens / respostas | Acerto observado | Acerto nas três tentativas | Abstenção correta | Latência mediana |
+|---|---|---|---|---|---|
+| Intenção do aceite | 80 / 240 | 163/240 (67,92%) | 67,50% | 7,14% | 1.914 ms |
+| Compreensão da proposta | 40 / 120 | 52/120 (43,33%) | 42,50% | 25,00% | 5.465 ms |
+
+**Nenhum corte foi aprovado.** No melhor candidato da faixa de subida, a intenção manteria 79,43% de acerto no
+que fica no Qwen, com 27,08% subindo; a compreensão manteria 49,47%, com 20,83% subindo. Ambos ficaram abaixo dos
+95% exigidos. O arquivo `cascata_cortes.yaml` foi gerado pela CLI com os metadados desta rodada e `cortes: {}`;
+as duas tarefas continuam na votação Qwen + Haiku. Não foi ajustado o banco nem forçado um corte para melhorar a
+nota. A interpretação continua sendo empírica, no mesmo banco de escolha do corte, conforme a limitação acima.
+
+A soma do tempo de inferência foi de 24 min 27 s; havia outros testes rodando na máquina, portanto os tempos não
+são um compromisso de desempenho em produção. A comparação com Haiku ficou pendente: o teste real da CLI
+retornou `sem credencial da Anthropic` neste ambiente, sem benchmark simulado nem pedido de chave pelo chat.
+Implantação e agendamento no servidor de produção não foram realizados neste ambiente local.
+
+Evidência fora do git, em `dados/avaliacao/qwen-2026-11-12/`:
+
+- Relatório: `2026-11-12T190503_qwen3-4b-instruct-2507.json`, SHA-256
+  `0f23332758a33238ee48289caa4cb39b93a1f0d5072ecfc3dd3d2b4b1d6f4c87`.
+- Proveniência do peso, imagem, compilador e parâmetros: `proveniencia.json`, SHA-256
+  `35a215f3ece2240d5878182a69de8f9fda421fe97b642790fc08fb026c169abe`.
+- `verificacao.json` registra a conferência dos 120 IDs, três tentativas por ID, versão do banco, modelo, provedor,
+  métricas e decisões do calibrador. As 360 respostas brutas não foram incluídas no repositório.
 
 ## Rodar o motor vigiado
 
@@ -351,8 +802,9 @@ front/compartilhado/pedidos/tipos.ts.
   pedidos ciclo` (de hora em hora no cron) vence quem não respondeu em 15 dias, chama a próxima onda, fecha o grupo
   quando os interessados alcançam a meta (aviso no painel, e-mail e WhatsApp) ou diz o que faltou.
   `GET /pedidos/{id}/andamento` mostra a meta com interessado, aceite e contrato, as ondas, recusas e motivos.
-- Reserva: `POST /pedidos/{id}/reservar` cria a cobrança Pix pela AbacatePay (`RAIZ_ABACATEPAY_CHAVE`; sem chave,
-  cobrança de teste, paga com `raiz pedidos pagar-teste <id>` ou `POST /pagamentos/teste/{id}/pagar`). O aviso de
+- Reserva: `POST /pedidos/{id}/reservar` cria a cobrança Pix pela AbacatePay somente com `RAIZ_PIX_MODO=producao`
+  e `RAIZ_ABACATEPAY_CHAVE`; por padrão é cobrança de teste, paga com `raiz pedidos pagar-teste <id>` ou
+  `POST /pagamentos/teste/{id}/pagar`. O aviso de
   pagamento chega em `POST /pagamentos/abacatepay?webhookSecret=...` (`RAIZ_ABACATEPAY_WEBHOOK_SEGREDO`). Paga, as
   fazendas ficam do cliente por 60 dias (`reserva_dias` no pedido) e somem das buscas, contas e pedidos dos outros;
   uma fazenda nunca está em duas reservas (índice único). Venceu sem contrato, voltam para a base (`raiz pedidos
@@ -363,6 +815,18 @@ front/compartilhado/pedidos/tipos.ts.
 - Aprendizado: cada onda congela a chance de aceite de cada fazenda contatada (aprendizado, alvo `aceite_dono`, com a
   versão do modelo); o aceite ou a recusa viram gabarito, e a chance por perfil (tamanho, caminho da terra, estado e
   forma de pagamento) é atualizada a cada contato.
+
+## API pública e MCP para os agentes de IA dos clientes (docs/agentes-ia.md)
+
+- API pública em `/v1` (OpenAPI em `/v1/openapi.json`, Swagger em `/v1/docs`) e servidor MCP remoto em `/mcp/`
+  (streamable HTTP, sem estado); local por stdio com `raiz mcp` (RAIZ_API_URL e RAIZ_CHAVE_API).
+- Chave por empresa: `POST /v1/chaves` na sessão do login por e-mail ou `raiz pedidos chave --cliente <id>`; só o hash
+  fica em `negocio.chave_api`; limite por minuto e por dia (429 com Retry-After).
+- Cada chamada fica em `negocio.chamada_api` (empresa, chave, via api/mcp/sessao, ferramenta, pedido, fazenda, status,
+  tempo, versão do modelo e modelo do agente): limite, auditoria (`GET /v1/chamadas`) e aprendizado.
+- Reserva pedida por agente: `negocio.reserva.estado = aguardando_confirmacao`, link de uso único (48 horas) no e-mail
+  da empresa (`/v1/reservas/confirmar/{token}`); sem confirmação, o `raiz pedidos ciclo` cancela (nada foi cobrado).
+- Em produção: `RAIZ_MCP_HOSTS` com os hosts do MCP remoto (liga a proteção contra DNS rebinding).
 
 ## Lote do ProFloresta+ por estado (relatório para o desenvolvedor e folha do dono)
 
@@ -394,6 +858,141 @@ reservas). Responde quantos municípios entraram e, se não fecha 1 milhão com 
   Agro 2017 corrigido pelo IPCA, e a sobra pela margem de referência da CNA) e com o aluguel do Censo. Sem nome, CPF
   ou CNPJ: só o código do CAR.
 
+## Preparar o servidor de fichas e o pagamento de consultas
+
+**Situação desta entrega:** roteiro e código preparados; não há servidor da Raíz implantado por este chat e nenhuma
+venda foi ativada. `raiz/regras/padroes/precos.yaml` propõe pacotes de 1, 10 e 50 consultas, com `valor_rs: null`,
+`status: provisorio` e o aviso literal **a definir pelo fundador**. Crédito de consulta não é crédito de carbono.
+
+1. Provisionar uma máquina com Python 3.12+, `uv`, PostgreSQL 16/PostGIS 3.5, armazenamento privado e backups.
+   O compose em `infra/docker-compose.yml` oferece o banco; sua porta fica em `127.0.0.1:5432`. Escolher o endereço
+   HTTPS da API e um proxy que termine TLS; manter a porta do banco e a porta interna da API fora da internet.
+2. Instalar a versão revisada do repositório com `uv sync --frozen --all-extras`. Criar um arquivo privado de ambiente
+   a partir de `.env.example`, protegido contra leitura de outros usuários. Configurar `RAIZ_BANCO_URL`,
+   `RAIZ_API_TOKEN`, `RAIZ_API_ORIGENS` com a origem exata do front e `RAIZ_CHAVE_PESSOAL`. A chave pessoal cifra o
+   e-mail do comprador; nome, CPF e contato do dono não entram nas fichas de prospecção.
+3. Injetar as variáveis no processo. Nos comandos manuais abaixo, `--env-file .env` faz essa injeção, inclusive para
+   os módulos Pix que leem `os.environ`; não basta o arquivo existir. Aplicar as migrações antes de iniciar a API:
+
+   ```bash
+   uv run --env-file .env raiz banco migrar
+   uv run --env-file .env raiz api --host 127.0.0.1 --porta 8000
+   ```
+
+   Em operação contínua, usar um gerenciador de processos com reinício, ambiente privado e logs sem tokens ou corpos
+   de webhook. A migração 0026 cria carteira, compras, movimentos, desbloqueios, pedidos de contato e limites. Usar
+   `head` para aplicar também as migrações posteriores. Carregar o funil vigente no banco pelo fluxo do executor.
+4. Confirmar `/saude` e `GET /prospeccao/planos`. Nesta fase a resposta deve mostrar pacotes provisórios,
+   `pix_modo: teste` e `pagamento_disponivel: false`, mesmo se alguém já configurou uma chave da AbacatePay.
+   A ficha exige sessão individual e crédito pago; o token operacional não é token de cliente e nunca vai no build
+   do front. A publicação estática continua só com agregados. Configurar `VITE_RAIZ_API` com o endereço HTTPS da API
+   e reconstruir o front quando o servidor estiver pronto.
+5. Preparar o envio real do link de entrada: o serviço de sessões já grava links de uso único e sessões, mas o
+   adaptador `raiz.pedidos.servico.ENVIO_LINK` precisa estar ligado a um envio autorizado. Sem ele, o endpoint de
+   entrada não entrega e-mail. Validar o ciclo de entrada e saída antes de oferecer fichas aos clientes.
+
+### Catálogo aprovado e chaves reais, somente na futura ativação
+
+O fundador precisa definir os valores e aprovar a política comercial. Depois disso, criar um YAML privado no mesmo
+formato de `precos.yaml`, com uma nova `versao`, `status: aprovado`, `aprovado_em` em `AAAA-MM-DD` e os preços reais
+positivos, em reais, com até duas casas decimais. `creditos` é a quantidade de consultas de cada pacote e pode ser
+alterada no catálogo. Apontar `RAIZ_PRECOS_ARQUIVO` para esse arquivo. Não marcar o YAML provisório do repositório
+como aprovado apenas para testar o botão.
+
+O catálogo agora distingue `por_ficha`, `por_lote` e `assinatura`, com hipóteses de 1, 10 e 50 consultas;
+o ciclo mensal da assinatura também é proposto. Fórmulas de receita e parâmetros de simulação ficam em
+`docs/precos-e-receita.md`. A assinatura permanece indisponível mesmo com preço aprovado e Pix de produção:
+cobrança e direitos por ciclo ainda precisam ser implementados. Preencher o YAML não ativa recorrência nem
+autoriza tratar uma compra pontual de cinquenta consultas como assinatura. Conferir `pagamento_disponivel`
+por item, além do indicador geral do catálogo.
+
+O override `RAIZ_PROSPECCAO_PLANOS` aceita o mesmo envelope em JSON (`versao`, `status`, `aprovado_em`, `planos`).
+Uma lista JSON no formato antigo continua legível, mas permanece provisória. Aprovação sem data ou sem preço válido
+para ficha ou lote fecha o catálogo com erro; preço ausente nunca vira zero. A assinatura ainda não vendável pode
+continuar sem preço. A compra congela pacote, quantidade e valor no banco, e a conciliação ou repetição idempotente
+de compras antigas independe da mudança dos IDs no catálogo.
+
+Na futura ativação autorizada, configurar os valores reais destas variáveis no servidor:
+
+| Variável | Uso |
+|---|---|
+| `RAIZ_PIX_MODO` | `teste` por padrão; só o literal `producao` permite chamar o provedor. |
+| `RAIZ_ABACATEPAY_CHAVE` | Chave privada da conta no ambiente e na versão compatíveis com o adaptador. |
+| `RAIZ_ABACATEPAY_WEBHOOK_SEGREDO` | Segredo aleatório privado de pelo menos 32 caracteres, igual ao cadastrado no webhook. |
+| `RAIZ_ABACATEPAY_WEBHOOK_CHAVE_PUBLICA` | Chave pública HMAC publicada pela AbacatePay, copiada da documentação oficial. |
+| `RAIZ_PRECOS_ARQUIVO` | Caminho do catálogo aprovado, fora do repositório. |
+
+Uma chave configurada, isoladamente, não ativa a compra. O catálogo precisa estar aprovado, com preços válidos, e o
+modo Pix precisa ser explicitamente de produção. Uma resposta `devMode: true` do provedor continua sendo teste e
+nunca libera crédito pago. Nenhum teste deste repositório faz pagamento real.
+
+**Compatibilidade do adaptador:** `raiz/pedidos/pix.py` ainda usa a API legada v1 (`pixQrCode/create` e
+`pixQrCode/check`, evento `billing.paid`). A documentação oficial atual descreve v2 (`transparents/*`). Conferir
+com a conta se as chaves e webhooks v1 continuam disponíveis; se a conta só aceitar v2, manter vendas desativadas
+e migrar o adaptador em uma entrega própria. A integração de produção não foi validada com uma conta real.
+
+### Webhook de consultas e conciliação
+
+Para consultas, cadastrar a URL HTTPS `https://<api>/pagamentos/prospeccao/abacatepay` no ambiente e versão
+compatíveis do provedor. O webhook antigo `/pagamentos/abacatepay` pertence às reservas de lote; ele não credita
+a carteira de consultas. Não chamar os endpoints de teste de reservas para tentar liberar fichas pagas.
+
+O novo webhook exige as duas provas descritas na
+[documentação de segurança da AbacatePay](https://docs.abacatepay.com/pages/notificacoes/seguranca):
+
+- `X-Webhook-Secret`, ou o parâmetro legado `webhookSecret`, confere o segredo privado em tempo constante.
+- `X-Webhook-Signature` contém HMAC-SHA256 em base64 dos bytes originais do corpo, usando a chave pública do
+  provedor. Essa assinatura garante integridade; ela não substitui o segredo privado.
+
+Preservar o corpo bruto no proxy. Preferir o segredo no cabeçalho e retirar a query dos logs quando a versão legada
+a exigir. Segredo/assinatura ausentes ou inválidos devolvem 401; corpo acima de 256 KiB devolve 413. Eventos de
+teste são ignorados. O código não grava o corpo recebido e não usa preços, quantidade de créditos ou cliente
+informados pelo evento: identifica a compra local e confere novamente o pagamento pela API autenticada do provedor.
+Somente o estado confirmado como pago credita a carteira. A trava da carteira e o movimento único por compra
+impedem crédito duplicado por reentrega, concorrência ou consulta pelo navegador.
+
+O comprador pode recuperar o histórico em `GET /prospeccao/compras` e conferir uma cobrança em
+`GET /prospeccao/compras/{id}`, com sua própria sessão. O botão **Conferir pagamento** usa essa conciliação; se for
+automatizada, respeitar intervalo de pelo menos 15 segundos e o limite de 15 verificações por minuto. Falha do
+provedor no webhook responde 502 para permitir nova entrega; o polling cobre um evento perdido. Cobrança pendente,
+expirada ou cancelada não gera saldo. Se o provedor corrigir posteriormente para paga, a conciliação ainda credita
+uma única vez.
+
+Antes da futura ativação, validar o fluxo em ambiente separado: assinatura errada não altera saldo, evento de teste
+não libera ficha, reentrega não duplica crédito, o último crédito não abre duas fichas concorrentes e outra sessão
+não lê a compra. A implementação está coberta por `testes/test_prospeccao_acesso.py` e
+`testes/test_prospeccao_webhook.py`. Fontes consultadas para o protocolo:
+[segurança](https://docs.abacatepay.com/pages/notificacoes/seguranca),
+[Pix v2](https://docs.abacatepay.com/pages/transparents/create) e
+[consulta de estado v2](https://docs.abacatepay.com/pages/transparents/check).
+
+### Avisos de buscas salvas
+
+Depois de migrar o banco até `0031` (buscas salvas, após `0030` da plataforma de agentes), executar
+`uv run raiz prospeccao verificar-buscas` após cada carga do motor,
+ou pelo cron do operador. O comando usa `RAIZ_BANCO_URL`, imprime somente as quantidades verificadas e sai com
+erro se a consulta falhar. Para repetir uma única busca: `uv run raiz prospeccao verificar-buscas --busca <UUID>`.
+Esta entrega fornece o comando; não instala uma agenda em produção.
+
+A primeira gravação da busca guarda as correspondências sem avisar a base antiga. As próximas verificações
+comparam códigos do CAR, independentemente da data do arquivo. Snapshot e avisos são gravados na mesma transação,
+com trava por busca; repetir o job ou executá-lo em paralelo não duplica avisos. Os avisos aparecem somente na
+conta do cliente e ocultam fazendas reservadas por outro cliente. O job não envia e-mail ou WhatsApp e não libera
+fichas pagas. Cada cliente pode manter até 20 buscas salvas; excluir uma remove seu snapshot e seus avisos.
+
+Crédito, risco e caminho da terra são filtros pagos: exigem compra real confirmada com movimento de crédito ou
+liberação de ficha com débito auditado. A gravação e cada execução do job conferem essa habilitação; buscas que
+a perderem ficam sem novos avisos e entram na contagem `buscas_sem_habilitacao`. Nenhuma nova cobrança é criada
+ao filtrar. A pertinência de um CAR a uma faixa é parte desse serviço pago. Combinar filtro avançado com CAR exige
+o código completo de uma ficha já liberada; prefixos não permitem deduzir seu valor.
+
+Na lista autenticada, medidas, risco e caminho de uma ficha fechada são nulos. As somas de crédito e área
+restaurável abrangem somente as fichas liberadas, com `escopo_metricas=fichas_liberadas` e a quantidade na
+cobertura `totais.fichas_liberadas`; contagens, tamanho e sugestões de agrupamento mantêm o universo filtrado.
+A ordem da lista é por CAR, sem revelar um ranking de crédito. O agregado regional aberto permanece separado,
+sem filtros privados e com a supressão das métricas com menos de cinco fazendas. Os limites persistidos de
+consulta continuam valendo para filtros, ficha, comparação e exportação.
+
 ## Proteção da main (o fundador ativa à mão)
 
 Depois do primeiro CI desta entrega ficar verde, abra o repositório no GitHub, **Settings → Rules → Rulesets →
@@ -402,8 +1001,11 @@ New branch ruleset**. Dê o nome `main protegida`, selecione **Active** e inclua
 1. Exija pull request antes de integrar. Para o fundador trabalhar sozinho, não exija aprovação de uma segunda
    pessoa; exija resolver todas as conversas abertas. Se houver revisor, pode exigir uma aprovação e invalidá-la
    quando o código mudar.
-2. Em **Require status checks to pass**, selecione os seis checks do workflow **CI**: `workflows`, `segredos`,
-   `front`, `seguranca`, `checagens` e `e2e`. Prefira a origem **GitHub Actions**, quando disponível. Marque
+2. Em **Require status checks to pass**, selecione os oito checks do workflow **CI**: `workflows`, `segredos`,
+   `front`, `seguranca`, `testes_python`, `referencia_para`, `checagens` e `e2e`. O check obrigatório antigo
+   `checagens` agora é o portão final: reúne os dois relatórios e exige a aprovação estadual, preservando a
+   proteção de quem já o exigia antes da divisão. Prefira a origem
+   **GitHub Actions**, quando disponível. Marque
    **Require branches to be up to date before merging**. Os nomes só aparecem depois de uma execução.
 3. Ative **Block force pushes** e **Restrict deletions**. Mantenha a lista de bypass vazia, incluindo para
    administradores, salvo uma política de emergência explícita. Não habilite merge automático do Dependabot
@@ -416,22 +1018,36 @@ A automação atual do motor atualiza `motor/README.md` por push direto. A prote
 Dados/operação precisa transformar a atualização em PR. Não conceda bypass geral ao token para contornar isso.
 Esta entrega documenta a configuração; não altera as regras da conta do fundador.
 
+Em **Settings → Actions → General**, mantenha desabilitado o envio de tokens de escrita e de segredos para
+workflows de PRs de forks, se essas opções forem oferecidas. A consulta administrativa dessa configuração
+retornou 403 para a integração usada nesta entrega; seu estado não foi confirmado nem alterado. A guarda no
+workflow não substitui a restrição de permissões do GitHub, porque um PR pode alterar seu próprio workflow.
+
 Em **Settings → Code security**, habilite **Dependabot alerts**, **Dependabot security updates** e, quando
 oferecidos pelo plano, **Secret scanning** e **Push protection**. `.github/dependabot.yml` já agenda atualizações
 semanais de uv, npm, Cargo, Actions e imagens Docker. Gitleaks varre todo o histórico acessível em cada PR, mesmo
-sem o recurso pago do GitHub; nunca publica o valor encontrado. A única exceção é o nome exato de uma coluna de
-`docs/colunas.md` confundido com chave, restrito ao arquivo. Credencial real encontrada deve ser revogada primeiro;
+sem o recurso pago do GitHub; nunca publica o valor encontrado. As exceções verificadas são o nome exato de uma
+coluna de `docs/colunas.md`, restrito ao arquivo, e uma ocorrência histórica de `KC_DB_URL` em
+`infra/docker-compose.keycloak.yml:28`, commit `be05cee99ee060b5ca2c9e60d7b077d1fa2a51aa`. Esta última contém
+somente esquema JDBC, serviço interno, porta e banco, sem usuário, senha ou parâmetros; as credenciais são
+variáveis obrigatórias separadas. `.gitleaksignore` restringe a exceção ao fingerprint dessa ocorrência na branch
+antiga, sem liberar outras URLs, arquivos ou commits. Credencial real encontrada deve ser revogada primeiro;
 retirá-la do último commit não a apaga do histórico.
 
 ## CI e controles de segurança
 
-Os seis jobs rodam em paralelo, sem filtro de caminhos nem seleção de testes. `setup-uv` guarda cache pelo
+São oito jobs: os testes gerais e o caso estadual rodam em paralelo; o portão final reúne seus resultados.
+Não há filtro de caminhos nem retirada de testes. `setup-uv` guarda cache pelo
 `uv.lock`, `setup-node` guarda o cache npm pelos locks, e o Chromium/LanguageTool têm caches separados. A instalação
 continua travada (`uv sync --frozen --all-extras`, `npm ci`). Não se reutiliza `node_modules` de outro lock.
 
 - `front` constrói o mesmo site público e executa os testes unitários, com geometrias de teste determinísticas.
-- `checagens` executa toda a coleta pytest, inclusive PostGIS, Rust, cartão, vídeo, PDF e LanguageTool. O portão de resultados recusa novos skips/xfails;
-  preserva somente o conjunto real do Pará ausente e a divergência conhecida de TIR, detalhados na passagem.
+- `testes_python` executa os testes Python gerais, inclusive PostGIS, Rust, cartão, vídeo, PDF e LanguageTool. Seu
+  único `--deselect` é o caso estadual executado em `referencia_para`; uma regressão confere a seleção real para
+  impedir que esse seletor esconda um teste vizinho. O corpo original do teste estadual é preservado.
+- `checagens` exige os dois jobs aprovados e confere seus JUnits juntos: exatamente um estadual aprovado,
+  nenhum caso duplicado, resultado ausente, falha ou skip novo. Permanece somente o xfail conhecido de TIR,
+  que precisa ter executado; `xfail(run=False)` também reprova.
 - `e2e` abre Chromium e usa API/PostGIS reais: link de entrada, milhão de créditos no Pará, três opções, interesse
   e reserva Pix local. E-mail e respostas dos donos são controlados; nenhuma credencial de pagamento real é
   aceita. Veja `testes/e2e/README.md`. Não há trace com tokens nos artefatos.
@@ -439,6 +1055,50 @@ continua travada (`uv sync --frozen --all-extras`, `npm ci`). Não se reutiliza 
   Inventário ausente/ilegível falha. AGPL, SSPL, Business Source, EUPL e NC são bloqueadas; `BSL-1.0` é a licença
   Boost, permitida, enquanto Business Source (`BUSL-1.1`) é proibida. Exceções manuais não liberam licença proibida.
 - `segredos` usa Gitleaks com saída ocultada; `workflows` valida todos os workflows com actionlint.
+
+### Teste estadual privado do Pará
+
+O teste usa as previsões reais e as entradas/geometrias congeladas da rodada `central_r11`: **144 municípios e
+345.870 imóveis**, modelo `restauracao-2026d+a84f9789`. `scripts/testar_para_privado.py` ancora o manifesto e o plano
+em SHA-256, confere os pacotes, o modelo, a cobertura e as identidades por município. Alteração de bytes, conjunto
+incompleto ou modelo incompatível falha. O cálculo municipal não é repetido nem substituído por dados sintéticos.
+**Lote e números** mantém a referência e precisa publicar uma nova versão compatível quando o modelo mudar.
+
+O GitHub exige [acesso de escrita/push para ler releases em rascunho](https://docs.github.com/en/rest/releases/releases#list-releases);
+a tentativa com `contents: read` foi recusada.
+Por isso, somente o job interno `referencia_para` usa `contents: write`. Os demais mantêm leitura. A permissão é
+do job inteiro, incluindo suas actions, que podem [acessar `github.token` implicitamente](https://docs.github.com/en/actions/tutorials/authenticate-with-github_token#using-the-github_token-in-a-workflow); uma variável de ambiente
+em um passo não reduz essa permissão. Não há operação de publicação nem credencial estática nova.
+
+Apenas o processo de preparação recebe `RAIZ_DADOS_PRIVADOS_TOKEN=${{ github.token }}`. Ele executa
+`uv run python scripts/testar_para_privado.py --preparar "$RUNNER_TEMP/raiz-pa"`, usando
+`RAIZ_DADOS_PRIVADOS_URL=release-github://bernardoemmel/Raiz/dados-privados`. O checkout não persiste credenciais.
+O pytest recebe somente `RAIZ_TESTE_PA_PASTA` e `RAIZ_TESTE_PA_OBRIGATORIO=1`; seu subprocesso usa um ambiente
+restrito sem credenciais. Token ausente, acesso recusado, referência inválida ou falha de teste deixam o CI vermelho.
+
+PR de fork não executa o job privilegiado, e `checagens` reprova explicitamente a validação estadual ausente.
+Não se usa `pull_request_target` para executar código do PR. O token de execuções originadas pelo Dependabot
+também pode permanecer limitado a leitura; nesse caso, depois de revisar a alteração, um mantenedor a promove
+para uma branch confiável do repositório para executar a validação privada. Não conceder escrita ou segredos a
+forks para contornar esse bloqueio.
+
+O caso estadual ainda é tentado após falha da preparação, enquanto o job não estiver cancelado, e registra uma
+falha fixa. Os testes gerais continuam no job independente. O caso estadual roda em subprocesso; stdout, stderr e JUnit internos
+ficam em diretório privado temporário e são apagados também após erro, timeout ou interrupção. O JUnit público
+recebe apenas sucesso ou mensagem fixa de falha; nomes, CARs, métricas por imóvel e diagnósticos internos não são
+publicados. O portão final exige exatamente esse caso no conjunto dos dois relatórios, sem skip/xfail ou resultado ausente.
+
+O snapshot fica fora do checkout, em pasta `0700`, sem cache ou artifact público. A etapa `always()` apaga
+`$RUNNER_TEMP/raiz-pa`, inclusive após preparação incompleta. Os caches uv/npm/Chromium/LanguageTool continuam
+restritos às dependências. Para executar localmente, prepare uma pasta privada fora do checkout com o mesmo CLI,
+retire as credenciais do ambiente antes de executar o pytest com as duas variáveis `RAIZ_TESTE_PA_*` e apague a
+pasta ao terminar; não publique o conteúdo nem os diagnósticos do subprocesso.
+
+A execução real de referência levou **446,2 s (7 min 26 s)**, com pico de RSS de **6.840,2 MiB**. Download e preparo
+levaram 9,4 s e 8 s, respectivamente; o conjunto preparado ocupou cerca de 1,42 GB. `testes_python` mantém o limite
+de **30 minutos**; `referencia_para` tem **25 minutos**, em paralelo, e o portão `checagens` tem 5 minutos. A suíte anterior
+levou 13 min 29 s; isolar o caso estadual evita somar seus 7 min 26 s ao caminho dos testes gerais. Essas medições
+locais orientam o orçamento; o CI da entrega precisa confirmar o acesso ao draft e a duração no runner.
 
 A API acrescenta cabeçalhos de proteção e `no-store` nas respostas autenticadas e de pedidos. Por padrão, há
 120 chamadas por minuto/IP e 10 chamadas de login por minuto/IP; ajuste `RAIZ_API_LIMITE_MINUTO` e
@@ -455,3 +1115,48 @@ Healthchecks, Langfuse e erros publicados pelo executor. Se a análise falhar, o
 padrão do Uvicorn fica desligado para não gravar tokens de links/webhooks nas URLs. Isso não autoriza registrar
 texto pessoal bruto: o reconhecimento de nomes tem falsos negativos. Mantenha apenas códigos internos e métricas
 nos eventos. Limites da auditoria e pendências estão em `docs/passagem/qualidade-e-seguranca.md`.
+
+## Avaliação de modelos e arquivo cego (rodada 12)
+
+O procedimento, contratos e comandos estão em [avaliação da rodada 12](modelo/avaliacao-rodada12.md).
+Antes de treinar um candidato, o custodiante fixa plano, conjunto cego, previsões antigas, política de equidade
+e controle estável. O CLI exige recibo anterior e reprova dados insuficientes, mudança de denominador, regressão
+por subgrupo ou controle instável. Conservar o arquivo em armazenamento privado imutável com backup; separar a
+conta de treino da conta que lê gabaritos. O portão emite decisão, não altera automaticamente o campeão atual.
+A integração com a promoção e o retorno transacional é a pendência de Produto e regras indicada na passagem.
+
+O CI executa os ensaios sintéticos no pytest completo, inclusive o solver real nas três opções. O job `seguranca`
+confere os esquemas e constrói/inspeciona o wheel para bloquear scpi/vegan, inclusive dependências indiretas.
+Esses resultados demonstram o funcionamento das checagens; não são métricas de acerto empírico do carbono.
+O CI não cancela uma execução anterior ao chegar outro commit (`cancel-in-progress: false`).
+A auditoria de promoções reexecuta o commit histórico fechado em um checkout isolado. O job Python usa
+histórico Git completo; em clone local raso, execute `git fetch --unshallow` antes da suíte. Não substitua os
+hashes do registro antigo pelos hashes da main nem altere as referências dos executores em andamento.
+
+## Medição semanal de agentes
+
+O workflow **Agente real semanal** (`agentes-real.yml`) usa `ANTHROPIC_API_KEY` dos segredos
+do repositório, com acionamento manual e segunda às 06:00 de Brasília. Instruções
+de ativação, limites, artefatos e códigos de saída estão em
+[medicao-agentes-actions.md](medicao-agentes-actions.md). O banco da campanha é
+descartável e sintético; não depende do servidor de produção nem usa o arquivo
+privado. Sem a chave, o relatório indica campanha incompleta, não aprovação.
+
+
+## Pasta do banco fiador (rodada 12)
+
+Aplicar a migração **0035** pelo comando de migração já usado no servidor, depois
+de 0032–0034. Guardar documentos/JSON/relatórios fora do diretório público. O
+operador confere os documentos e usa `python -m raiz.pasta_fiador.operacao` para
+validar e anexar versões; contrato e exemplos de comando em
+[docs/pasta-fiador.md](pasta-fiador.md). Não há upload de modelo ou alteração de
+conferência pelo cliente. Rascunho pode ter pendências, mas a geração falha enquanto
+houver campo/documento obrigatório sem comprovação.
+
+Exportações dependem das chaves `RAIZ_PROTECAO_CHAVES` e `RAIZ_PROTECAO_VERSAO`
+configuradas no back-end. A API verifica acesso pago a todos os CARs e recalcula
+validade/composição no momento da entrega. Testar com conta sintética, abrir os
+HTML do banco e comprador e conferir referência, impressão e marca. As rotas
+não enviam ao banco; o operador lê o relatório antes de entregar. Não ativam Pix,
+assinatura ou envio a terceiros. O catálogo conservador Raíz não substitui as
+exigências que um banco específico fornecer para revisão de regras.

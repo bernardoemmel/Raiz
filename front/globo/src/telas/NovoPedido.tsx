@@ -1,6 +1,6 @@
 import { X } from "lucide-react"
-import { useMemo, useState } from "react"
-import { fmtInt, UFS } from "../../../compartilhado/formato"
+import { lazy, Suspense, useMemo, useState } from "react"
+import { fmtInt } from "../../../compartilhado/formato"
 import { CAMPOS_PADRAO, marcosDo } from "../../../compartilhado/pedidos/exemplo"
 import {
   ROTULO_CAMINHO,
@@ -12,13 +12,14 @@ import {
 } from "../../../compartilhado/pedidos/texto"
 import type { CaminhoTerra, CamposPedido, Cronograma, Exclusao, FiltroInteresse, Metodo, TipoMeta } from "../../../compartilhado/pedidos/tipos"
 import { fonte, useCarga } from "../dados"
-import { MapaDesenho } from "../mapa/MapaDesenho"
 import { pedidos } from "../pedidos"
 import { Cabecalho } from "../partes/Cabecalho"
 import { AvisoExemplo } from "../partes/pedido/AvisoExemplo"
+import { OndePedido } from "../partes/pedido/OndePedido"
+import "../partes/pedido/pedido.css"
 import { linkPedido, linkPedidos } from "../rota"
 
-const BIOMAS = ["Amazônia", "Cerrado", "Mata Atlântica", "Caatinga", "Pantanal", "Pampa"]
+const MapaDesenho = lazy(() => import("../mapa/MapaDesenho").then((m) => ({ default: m.MapaDesenho })))
 
 const DICA_INTERESSE: Record<FiltroInteresse, string> = {
   qualquer: "O lote sai da base inteira; a Raíz busca o aceite dos donos depois.",
@@ -40,14 +41,14 @@ const lerNumero = (s: string): number | null => {
  * ficam em "Mais filtros", já preenchidos.
  */
 export function NovoPedido() {
-  const [c, setC] = useState<CamposPedido>(() => structuredClone(CAMPOS_PADRAO))
+  const [c, setC] = useState<CamposPedido>(() => ({ ...structuredClone(CAMPOS_PADRAO), onde: { ...structuredClone(CAMPOS_PADRAO.onde), ufs: ["PA"] } }))
   const [metaTexto, setMetaTexto] = useState(fmtInt(CAMPOS_PADRAO.meta.valor))
   const [desenhar, setDesenhar] = useState(false)
   const [raio, setRaio] = useState(false)
   const [mun, setMun] = useState("")
   const [enviando, setEnviando] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
-  const brasil = useCarga(() => fonte.geo.brasil(), [])
+  const brasil = useCarga(() => desenhar ? fonte.geo.brasil() : Promise.resolve(null), [desenhar])
   const municipios = useCarga(() => fonte.municipios(), [])
   const opcoesMun = useMemo(() => new Map((municipios.dado ?? []).map((m) => [`${m.municipio} (${m.uf})`, m])), [municipios.dado])
 
@@ -63,6 +64,7 @@ export function NovoPedido() {
     e.preventDefault()
     const meta = lerNumero(metaTexto)
     if (!meta || meta <= 0) return setErro("Diga a meta: um número maior que zero.")
+    if (c.dinheiro.custo_max_usd_credito !== null && c.dinheiro.custo_max_usd_credito <= 0) return setErro("O custo máximo por crédito deve ser maior que zero.")
     if (!c.metodos.length) return setErro("Escolha pelo menos um método de restauração.")
     if (!c.terra.length) return setErro("Escolha pelo menos um caminho da terra.")
     if (desenhar && (c.onde.poligono?.length ?? 0) < 4) return setErro("Marque pelo menos 3 cantos da área no mapa, ou desligue o desenho.")
@@ -88,7 +90,7 @@ export function NovoPedido() {
   return (
     <div className="tela-pedidos">
       <Cabecalho atual="pedidos" />
-      <main className="pagina pagina-media">
+      <main id="conteudo" tabIndex={-1} className="pagina pagina-media">
         <ol className="migalhas" aria-label="Onde você está">
           <li>
             <a href={linkPedidos}>Meus pedidos</a>
@@ -96,12 +98,13 @@ export function NovoPedido() {
           <li aria-current="page">Novo pedido</li>
         </ol>
         <h1>Novo pedido</h1>
-        <p className="frase">Diga o que precisa. A Raíz mostra na hora quanto existe na base e monta o melhor lote em três opções.</p>
+        <p className="frase">Diga o que precisa. Compare quanto existe na base e os lotes mais barato, mais seguro e mais compacto já calculados.</p>
         <AvisoExemplo ativo={pedidos.exemplo} />
+        <p className="pedido-cena-resumo">O pedido começa com 1 milhão de créditos líquidos no Pará. Você pode escolher qualquer estado, bioma ou o Brasil inteiro. Nenhum dono será contatado nesta etapa.</p>
 
         <form className="formulario pedido-form" onSubmit={enviar} noValidate>
           <section aria-labelledby="np-quanto">
-            <h2 id="np-quanto">Quanto e quando</h2>
+            <h2 id="np-quanto">Quanto e por qual custo</h2>
             <div className="campos-linha">
               <label className="campo">
                 <span>Meta</span>
@@ -126,6 +129,7 @@ export function NovoPedido() {
                 />
               </label>
             </div>
+            <CampoNumero rotulo="Custo máximo (US$ por crédito)" vazio="Defina o teto, ou deixe sem limite" valor={c.dinheiro.custo_max_usd_credito} mudar={(v) => mudar((x) => (x.dinheiro.custo_max_usd_credito = v))} />
             <fieldset className="campo-grupo">
               <legend>Cronograma</legend>
               {(Object.keys(ROTULO_CRONOGRAMA) as Cronograma[]).map((k) => (
@@ -184,34 +188,8 @@ export function NovoPedido() {
 
           <section aria-labelledby="np-onde">
             <h2 id="np-onde">Onde</h2>
-            <fieldset className="campo-grupo">
-              <legend>Bioma</legend>
-              <div className="opcoes-linha">
-                {BIOMAS.map((b) => (
-                  <label key={b} className="opcao">
-                    <input type="checkbox" checked={c.onde.biomas.includes(b)} onChange={() => mudar((x) => (x.onde.biomas = alternar(x.onde.biomas, b)))} />
-                    <span>{b}</span>
-                  </label>
-                ))}
-              </div>
-            </fieldset>
+            <OndePedido onde={c.onde} mudar={(onde) => mudar((x) => (x.onde = onde))} mudarAlcance={() => { setRaio(false); setDesenhar(false); setMun("") }} />
             <div className="campos-linha">
-              <label className="campo">
-                <span>Estados (sem nenhum: todos)</span>
-                <select
-                  value=""
-                  onChange={(e) => e.target.value && mudar((x) => (x.onde.ufs = [...new Set([...x.onde.ufs, e.target.value])]))}
-                >
-                  <option value="">Escolher um estado</option>
-                  {Object.entries(UFS)
-                    .sort((a, b) => a[1].localeCompare(b[1], "pt-BR"))
-                    .map(([uf, nome]) => (
-                      <option key={uf} value={uf} disabled={c.onde.ufs.includes(uf)}>
-                        {nome}
-                      </option>
-                    ))}
-                </select>
-              </label>
               <label className="campo">
                 <span>Municípios</span>
                 <input
@@ -233,16 +211,8 @@ export function NovoPedido() {
                 </datalist>
               </label>
             </div>
-            {(c.onde.ufs.length > 0 || c.onde.municipios.length > 0) && (
+            {c.onde.municipios.length > 0 && (
               <ul className="fichas-escolhidas" aria-label="Lugares escolhidos">
-                {c.onde.ufs.map((uf) => (
-                  <li key={uf}>
-                    {UFS[uf]}
-                    <button type="button" aria-label={`Tirar ${UFS[uf]}`} onClick={() => mudar((x) => (x.onde.ufs = x.onde.ufs.filter((u) => u !== uf)))}>
-                      <X size={16} aria-hidden="true" />
-                    </button>
-                  </li>
-                ))}
                 {c.onde.municipios.map((cod) => {
                   const m = [...opcoesMun.values()].find((x) => x.cod_ibge === cod)
                   return (
@@ -286,11 +256,11 @@ export function NovoPedido() {
               <div className="desenho">
                 <p className="legenda-frase">Toque no mapa para marcar os cantos da área. A partir de 3 cantos, a área se fecha sozinha.</p>
                 {brasil.dado && (
-                  <MapaDesenho
+                  <Suspense fallback={<p role="status">Abrindo o mapa para desenhar…</p>}><MapaDesenho
                     base={brasil.dado.base}
                     pontos={(c.onde.poligono ?? []).slice(0, -1)}
                     mudar={(p) => mudar((x) => (x.onde.poligono = p.length ? [...p, p[0]] : null))}
-                  />
+                  /></Suspense>
                 )}
                 <div className="acoes">
                   <span className="legenda-frase">{cantos === 1 ? "1 canto" : `${cantos} cantos`}</span>
@@ -333,7 +303,6 @@ export function NovoPedido() {
             <section aria-labelledby="np-dinheiro">
               <h3 id="np-dinheiro">Dinheiro</h3>
               <div className="campos-linha">
-                <CampoNumero rotulo="Custo máximo (US$ por crédito)" vazio="sem limite" valor={c.dinheiro.custo_max_usd_credito} mudar={(v) => mudar((x) => (x.dinheiro.custo_max_usd_credito = v))} />
                 <CampoNumero rotulo="TIR mínima (% ao ano)" vazio="sem mínimo" valor={c.dinheiro.tir_min === null ? null : c.dinheiro.tir_min * 100} mudar={(v) => mudar((x) => (x.dinheiro.tir_min = v === null ? null : v / 100))} />
                 <CampoNumero rotulo="Preço de venda (US$ por crédito)" valor={c.dinheiro.preco_venda_usd} mudar={(v) => mudar((x) => (x.dinheiro.preco_venda_usd = v ?? 0))} />
                 <CampoNumero rotulo="Parte financiada (%)" valor={c.dinheiro.fracao_financiada * 100} mudar={(v) => mudar((x) => (x.dinheiro.fracao_financiada = (v ?? 0) / 100))} />

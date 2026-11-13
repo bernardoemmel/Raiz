@@ -1,0 +1,277 @@
+# Só endereços oficiais, conferidos em 12/11/2026. Nenhum prazo é fixado aqui.
+# Uma fonte sem data explícita aparece como sem_data, nunca como calendário completo.
+# O coletor lê páginas e PDFs em memória, sem guardar texto, nomes, CPF ou CNPJ.
+versao: 2
+fontes:
+  - id: djen
+    nome: Diário de Justiça Eletrônico Nacional (CNJ)
+    modo: djen
+    urls: [https://comunicaapi.pje.jus.br/api/v1/comunicacao]
+    termos: [leilão rural, penhora rural, leilão SIGEF, leilão CAR]
+    max_paginas: 12
+  - id: trf2
+    nome: Justiça Federal da 2ª Região
+    urls: [https://www.trf2.jus.br/jfrj/consultas-e-servicos/busca-de-editais, https://www.trf2.jus.br/jfes/consultas-e-servicos/editais-de-leilao]
+    palavras: [edital, leilão, rural]
+    max_paginas: 12
+  - id: fomento_pr
+    nome: Fomento Paraná
+    urls: [https://www.fomento.pr.gov.br/Transparencia/Editais]
+    palavras: [leilão, rural, edital, imóvel]
+    max_paginas: 8
+  - id: dou
+    nome: Diário Oficial da União
+    modo: dou
+    urls: [https://www.in.gov.br/consulta/-/buscar/dou]
+    termos: ['"leilão" "imóvel rural"', '"penhora" "rural"', '"concessão florestal"', '"ProFloresta"', '"Fundo Amazônia"', '"créditos de carbono"', '"SBCE"']
+    max_paginas: 15
+  - id: doe_pa
+    nome: Diário Oficial do Pará
+    uf: PA
+    grupo: diario_estadual
+    ocr: true
+    modo: diario_pa
+    urls: [https://www.ioepa.com.br/pages]
+    dias: 7
+    max_paginas: 20
+    max_bytes: 67108864
+  - id: doe_mt
+    nome: Diário Oficial de Mato Grosso
+    grupo: diario_estadual
+    ocr: true
+    uf: MT
+    urls: [https://www.iomat.mt.gov.br/]
+    palavras: [edição, edição completa, diário, leilão, penhora, concessão, carbono]
+    max_paginas: 6
+  - id: bndes
+    nome: BNDES Florestas
+    tipo: edital_bndes
+    urls: [https://florestas.bndes.gov.br/]
+    palavras: [edital, chamada, floresta viva, consulta]
+    max_paginas: 8
+  - id: profloresta
+    nome: BNDES ProFloresta+
+    tipo: profloresta
+    urls: [https://florestas.bndes.gov.br/iniciativas/bndes-profloresta/]
+    hosts: [florestas.bndes.gov.br, www.bndes.gov.br, agenciadenoticias.bndes.gov.br]
+    palavras: [edital, profloresta, leilão, chamada, cronograma]
+    max_paginas: 8
+  - id: fundo_amazonia
+    nome: Fundo Amazônia
+    tipo: fundo_amazonia
+    urls: [https://www.fundoamazonia.gov.br/pt/como-apresentar-projetos/chamadas-publicas/]
+    palavras: [chamada, edital, restaura, cronograma]
+    max_paginas: 10
+  - id: sfb
+    nome: Serviço Florestal Brasileiro
+    tipo: concessao
+    urls: [https://www.gov.br/florestal/pt-br/assuntos/concessoes-e-monitoramento/editais-em-licitacao]
+    palavras: [edital, concessão, floresta, audiência, cronograma]
+    max_paginas: 10
+  - id: ideflor_bio
+    nome: Ideflor-Bio
+    tipo: concessao
+    uf: PA
+    urls: [https://ideflorbio.pa.gov.br/licitacoes-e-contratos/, https://ideflorbio.pa.gov.br/concessao-florestal/]
+    palavras: [edital, concessão, floresta, audiência, cronograma]
+    max_paginas: 8
+  - id: bndes_creditos
+    nome: BNDES Créditos de Carbono
+    tipo: leilao_credito
+    urls: [https://www.bndes.gov.br/wps/portal/site/home/mercado-de-capitais/creditos-de-carbono]
+    palavras: [edital, chamada, carbono, cronograma]
+    max_paginas: 6
+  - id: sbce
+    nome: Ministério da Fazenda (SBCE)
+    tipo: sbce
+    urls: [https://www.gov.br/fazenda/pt-br/composicao/orgaos/mercado-de-carbono, https://brasilparticipativo.presidencia.gov.br/processes/obrigacoesmrvsbce]
+    palavras: [consulta, cronograma, implementação, prazo, leilão, sbce]
+    max_paginas: 8
+  - id: verra
+    nome: Verra
+    tipo: verra
+    urls: [https://verra.org/consultations/public-consultation/]
+    palavras: [consultation, deadline, program, methodology]
+    max_paginas: 8
+  - id: icvcm
+    seguir_links: false
+    nome: ICVCM
+    tipo: icvcm
+    urls: [https://icvcm.org/consultations/]
+    palavras: [consultation, clarification, deadline, framework]
+    max_paginas: 8
+  - id: sbti
+    nome: SBTi
+    tipo: sbti
+    urls: [https://sciencebasedtargets.org/take-part, https://sciencebasedtargets.org/sectors/forest-land-and-agriculture]
+    palavras: [consultation, flag, standard, evidence, deadline]
+    max_paginas: 8
+  - id: eudr
+    nome: Comissão Europeia (EUDR)
+    tipo: eudr
+    urls: [https://environment.ec.europa.eu/topics/forests/deforestation/eu-deforestation-regulation-eudr_en, https://green-forum.ec.europa.eu/nature-and-biodiversity/deforestation-regulation-implementation_en]
+    palavras: [implementation, timeline, application, obligation, responsibility]
+    max_paginas: 6
+
+  # A CLI seleciona diariamente os diários das UFs com municípios processados no
+  # manifesto público. Fonte indisponível fica em erro/parcial, nunca é omitida.
+  - id: doe_ac
+    nome: Diário Oficial do Acre
+    grupo: diario_estadual
+    ocr: true
+    uf: AC
+    modo: diario_ac
+    urls: [https://www.diario.ac.gov.br/]
+    hosts: [diario.ac.gov.br]
+    max_paginas: 8
+  - id: doe_ap
+    nome: Diário Oficial do Amapá
+    grupo: diario_estadual
+    ocr: true
+    uf: AP
+    modo: diario_portal
+    # O portal oficial publica HTTP; HTTPS apresentou timeout nesta verificação.
+    urls: [http://diofe.portal.ap.gov.br]
+    indice: ultimas
+    dias: 7
+    max_paginas: 32
+    max_bytes: 67108864
+  - id: doe_ba
+    nome: Diário Oficial da Bahia
+    grupo: diario_estadual
+    ocr: true
+    uf: BA
+    modo: diario_portal
+    urls: [https://www2.egba.ba.gov.br]
+    formato_edicao: html
+    # PDF/FLIP exigem cadastro; somente consulta HTML pública é admitida.
+    cobertura_parcial: true
+    dias: 7
+    max_paginas: 32
+    max_bytes: 67108864
+  - id: doe_ce
+    nome: Diário Oficial do Ceará
+    grupo: diario_estadual
+    ocr: true
+    uf: CE
+    modo: diario_ce
+    urls: [https://imagens.seplag.ce.gov.br/PDF]
+    # Cadernos regulares enumerados pela capa. Índice de extras indisponível.
+    cobertura_parcial: true
+    dias: 7
+    max_paginas: 24
+    max_bytes: 67108864
+  - id: doe_go
+    nome: Diário Oficial de Goiás
+    grupo: diario_estadual
+    ocr: true
+    uf: GO
+    modo: diario_portal
+    urls: [https://diariooficial.abc.go.gov.br]
+    dias: 7
+    max_paginas: 32
+    max_bytes: 67108864
+  - id: doe_ma
+    nome: Diário Oficial do Maranhão
+    grupo: diario_estadual
+    ocr: true
+    uf: MA
+    modo: diario_ma
+    urls: [https://diariooficial.ma.gov.br/]
+    hosts: [www.diariooficial.ma.gov.br]
+    dias: 7
+    max_paginas: 16
+    max_bytes: 67108864
+  - id: doe_mg
+    nome: Diário Oficial de Minas Gerais
+    grupo: diario_estadual
+    ocr: true
+    uf: MG
+    modo: diario_links
+    urls: [https://www.jornalminasgerais.mg.gov.br/]
+    hosts: [jornalminasgerais.mg.gov.br]
+    dias: 7
+    max_paginas: 24
+    max_bytes: 67108864
+  - id: doe_pi
+    nome: Diário Oficial do Piauí
+    grupo: diario_estadual
+    ocr: true
+    uf: PI
+    modo: diario_pi
+    urls: [https://www.diario.pi.gov.br/doe/Api/listardiarios.json]
+    base_documentos: https://www.diario.pi.gov.br/doe/
+    dias: 7
+    max_paginas: 24
+    max_bytes: 67108864
+  - id: doe_rn
+    nome: Diário Oficial do Rio Grande do Norte
+    grupo: diario_estadual
+    ocr: true
+    uf: RN
+    modo: diario_links
+    urls: [https://diariooficial.rn.gov.br/dei/dorn3/default.aspx]
+    hosts: [www.diariooficial.rn.gov.br, webdisk.diariooficial.rn.gov.br]
+    arquivos_correntes: [sdoe.pdf]
+    dias: 7
+    max_paginas: 16
+    max_bytes: 67108864
+  - id: doe_ro
+    nome: Diário Oficial de Rondônia
+    grupo: diario_estadual
+    ocr: true
+    uf: RO
+    modo: diario_links
+    urls: [https://diof.ro.gov.br/]
+    dias: 7
+    max_paginas: 24
+    max_bytes: 67108864
+  - id: doe_rr
+    nome: Diário Oficial de Roraima
+    grupo: diario_estadual
+    ocr: true
+    uf: RR
+    modo: diario_rr
+    urls: [https://imprensaoficial.rr.gov.br/_inicial/]
+    hosts: [www.imprensaoficial.rr.gov.br]
+    dias: 7
+    max_paginas: 16
+    max_bytes: 67108864
+  - id: doe_to
+    nome: Diário Oficial do Tocantins
+    grupo: diario_estadual
+    ocr: true
+    uf: TO
+    modo: diario_links
+    urls: [https://diariooficial.to.gov.br/]
+    dias: 7
+    max_paginas: 24
+    max_bytes: 67108864
+
+  - id: caixa_imoveis
+    nome: CAIXA Imóveis à Venda
+    grupo: leilao
+    modo: caixa_csv
+    urls: [https://venda-imoveis.caixa.gov.br/listaweb/Lista_imoveis_geral.csv]
+    max_paginas: 40
+    ocr: true
+  - id: bb_imoveis
+    nome: Banco do Brasil — Seu Imóvel BB
+    grupo: leilao
+    modo: bb_imoveis
+    urls: [https://www.seuimovelbb.com.br/]
+    hosts: [seuimovelbb.com.br]
+    max_paginas: 12
+    cobertura_parcial: true
+
+  - id: trt16_leiloes
+    nome: Leilões judiciais do TRT da 16ª Região
+    grupo: leilao
+    uf: MA
+    modo: trt16_leiloes
+    urls: [https://www.trt16.jus.br/servicos/publicacoes/leilao-judicial]
+    max_paginas: 3
+    max_editais: 2
+    ocr: true
+    # Os dois editais mais recentes; o índice hoje oferece editais de 2026.
+    cobertura_parcial: true

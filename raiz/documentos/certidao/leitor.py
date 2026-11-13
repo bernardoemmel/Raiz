@@ -21,7 +21,7 @@ import pandas as pd
 
 from raiz.documentos import __version__, tabelas
 from raiz.documentos.armazem import Armazem, Leitura
-from raiz.documentos.certidao import esquema
+from raiz.documentos.certidao import cache, esquema, proveniencia
 from raiz.documentos.certidao.conferencia import Conferencia, conferir, versao_regras
 from raiz.documentos.certidao.regras import Derivados, derivar, normalizar_cns, normalizar_matricula
 from raiz.documentos.claude import LeitorClaude, falta_campo
@@ -38,6 +38,7 @@ class ResultadoCertidao:
     leitura: Leitura
     derivados: Derivados | None = None
     conferencias: list[Conferencia] = field(default_factory=list)
+    cache: dict | None = None
 
     @property
     def erro(self) -> str | None:
@@ -115,6 +116,10 @@ def ler_certidao(
     armazem: Armazem | None = None,
     json_manual: dict | None = None,
     hoje: dt.date | None = None,
+    forcar_releitura: bool = False,
+    calibracao_cache: str | Path | None = None,
+    comparacao: tuple[pd.DataFrame | None, pd.DataFrame | None, str | None] | None = None,
+    comparacao_capturada_em: str | None = None,
 ) -> ResultadoCertidao:
     pdf = arquivo if isinstance(arquivo, bytes) else Path(arquivo).read_bytes()
     sha = hashlib.sha256(pdf).hexdigest()
@@ -128,6 +133,7 @@ def ler_certidao(
         leitor_versao=__version__,
         regras_versao=versao_regras(),
     )
+    decisao_cache = None
     if json_manual is not None:
         erro = falta_campo(json_manual, esquema.ESQUEMA)
         if erro:
@@ -135,6 +141,29 @@ def ler_certidao(
         dados_brutos, info = json_manual, dict(modelo_pedido="humano", modelo="humano")
     else:
         leitor = leitor or LeitorClaude()
+        if not forcar_releitura:
+            existente, decisao_cache = cache.consultar(
+                armazem,
+                arquivo_sha256=sha,
+                modelo=leitor.modelo,
+                esforco=leitor.esforco,
+                prompt_versao=base["prompt_versao"],
+                esquema_versao=base["esquema_versao"],
+                leitor_versao=base["leitor_versao"],
+                caminho=calibracao_cache,
+                hoje=hoje,
+            )
+            if existente:
+                # O cache guarda a extração. Derivação e conferência usam a data,
+                # as regras e o motor de agora, inclusive para outro CAR.
+                der = derivar(existente.dados, hoje=hoje)
+                confs = _conferir_e_gravar(
+                    armazem, existente, existente.dados, der, cod_imovel, cod_municipio, hoje, comparacao
+                )
+                return ResultadoCertidao(existente, der, confs, decisao_cache)
+        else:
+            decisao_cache = dict(reutilizada=False, motivo="releitura forçada", leitura_id=None)
+            armazem.gravar_cache_decisao(sha, decisao_cache)
         log.info("lendo certidão: %d bytes, %s páginas, modelo %s", len(pdf), base["paginas"], leitor.modelo)
         r = leitor.ler_pdf(pdf, esquema.SISTEMA, esquema.PEDIDO, esquema.ESQUEMA)
         info = dict(
@@ -142,36 +171,55 @@ def ler_certidao(
             modelo=r.modelo,
             esforco=leitor.esforco,
             duracao_ms=r.duracao_ms,
-            tokens_entrada=r.uso.entrada,
-            tokens_saida=r.uso.saida,
-            tokens_cache_leitura=r.uso.cache_leitura,
-            tokens_cache_escrita=r.uso.cache_escrita,
+            tokens_entrada=r.uso.entrada if r.uso_informado else None,
+            tokens_saida=r.uso.saida if r.uso_informado else None,
+            tokens_cache_leitura=r.uso.cache_leitura if r.uso_informado else None,
+            tokens_cache_escrita=r.uso.cache_escrita if r.uso_informado else None,
             custo_usd=r.custo_usd,
         )
         if not r.ok:
             lt = Leitura(chave=f"sha:{sha[:16]}", dados={}, erro=r.erro, **base, **info)
             armazem.gravar_leitura(lt)
-            return ResultadoCertidao(lt)
+            return ResultadoCertidao(lt, cache=decisao_cache)
         dados_brutos = r.dados
 
     dados = sanear(dados_brutos)
     der = derivar(dados, hoje=hoje)
+    qualidade = dict(
+        escore_confianca=cache.escore(dados),
+        escore_versao=cache.VERSAO_ESCORE,
+        receita_hash=proveniencia.receita_hash(),
+        origem_leitura=(
+            "manual"
+            if json_manual is not None
+            else "simulada"
+            if getattr(leitor._cliente, "simulado", False)
+            else "api"
+        ),
+    )
+    if comparacao_capturada_em is not None:
+        qualidade["comparacao_capturada_em"] = comparacao_capturada_em
+        qualidade["comparacao_disponivel"] = (
+            comparacao is not None and comparacao[0] is not None and not comparacao[0].empty
+        )
     lt = Leitura(
         chave=chave_certidao(dados),
         dados=dados,
-        derivados=der.para_dict(),
+        derivados={**der.para_dict(), **qualidade},
         situacao_documento=der.situacao_documento,
         confianca=dados.get("confianca"),
         **base,
         **info,
     )
     armazem.gravar_leitura(lt)
-    confs = _conferir_e_gravar(armazem, lt, dados, der, cod_imovel, cod_municipio, hoje)
-    return ResultadoCertidao(lt, der, confs)
+    confs = _conferir_e_gravar(armazem, lt, dados, der, cod_imovel, cod_municipio, hoje, comparacao)
+    return ResultadoCertidao(lt, der, confs, decisao_cache)
 
 
-def _conferir_e_gravar(armazem, lt, dados, der, cod_imovel, cod_municipio, hoje) -> list[Conferencia]:
-    motor, imoveis, arquivo = _motor(dados, cod_imovel, cod_municipio)
+def _conferir_e_gravar(armazem, lt, dados, der, cod_imovel, cod_municipio, hoje, comparacao=None) -> list[Conferencia]:
+    # Upload: a previsão é congelada antes da leitura; um motor atualizado depois
+    # não pode ser tratado como o que havia sido previsto para esta certidão.
+    motor, imoveis, arquivo = comparacao if comparacao is not None else _motor(dados, cod_imovel, cod_municipio)
     confs = conferir(dados, der, motor, cod_imovel=cod_imovel, imoveis=imoveis, motor_arquivo=arquivo, hoje=hoje)
     rv = versao_regras()
     for c in confs:

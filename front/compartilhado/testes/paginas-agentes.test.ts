@@ -28,10 +28,24 @@ const ler = (saida: string, arquivo: string) => fs.readFileSync(path.join(saida,
 const schema = (saida: string) => JSON.parse(ler(saida, "index.html").match(/<script id="raiz-dados-estruturados" type="application\/ld\+json">([\s\S]*?)<\/script>/)![1])
 
 describe("páginas para pessoas e agentes", () => {
+  it("explica a malha substituída por UF, sua edição, origem e generalização", () => {
+    const saida = preparar()
+    paginasAgentes({ saida, base: "/Raiz/", catalogo, malhas: { MT: { fonte: "IBGE", ano: 2025, sha256: "a".repeat(64) } } })
+    const fontes = ler(saida, "fontes.md")
+    expect(fontes).toContain("MT: [IBGE, Malha Municipal Digital 2025]")
+    expect(fontes).toContain("/municipio_2025/UFs/MT/MT_Municipios_2025.zip")
+    expect(fontes).toContain("não se aplica ao Brasil inteiro")
+    expect(fontes).toContain("A generalização altera os vetores originais")
+    expect(fontes).toContain("CC BY 4.0")
+    expect(fontes).toContain("SHA-256 do ZIP de origem: " + "a".repeat(64))
+    expect(fontes).not.toContain("PA: [IBGE")
+  })
+
   for (const base of ["/", "/Raiz/"]) {
     it(`publica agregados e links corretos em ${base}`, () => {
       const saida = preparar()
       paginasAgentes({ saida, base, catalogo })
+      expect(ler(saida, "index.html")).toContain(`<link rel="canonical" href="https://bernardoemmel.github.io${base}"`)
       expect(ler(saida, "index.md")).toContain("11 imóveis, 5 aptos no funil e 123,4 ha")
       expect(ler(saida, "dados/estados/PA.md")).toContain("1 de 144")
       const texto = ler(saida, "dados/municipios/1505536.md")
@@ -87,6 +101,40 @@ describe("páginas para pessoas e agentes", () => {
     paginasAgentes({ saida, base: "/Raiz/", catalogo: { ...catalogo, municipios: [suprimido] } })
     expect(ler(saida, "dados/municipios/1505536.md")).toContain("| Imóveis analisados | Suprimido |")
     expect(ler(saida, "dados/municipios/1505536.md")).not.toContain("| Imóveis analisados | 0 |")
+  })
+
+  it("distingue medida ausente de zero e não publica soma parcial como total", () => {
+    const saida = preparar()
+    const ausente = lerFunil({ ...municipio.linha, cod_ibge: "1506401", municipio: "Santa Cruz do Arari", imoveis: "130", aptas_carbono: "0", ha_carbono: "" }, "PA")
+    const zero = lerFunil({ ...municipio.linha, cod_ibge: "1507706", municipio: "São Sebastião da Boa Vista", imoveis: "40", aptas_carbono: "0", ha_carbono: "0" }, "PA")
+    paginasAgentes({ saida, base: "/", catalogo: { ...catalogo, municipios: [ausente, zero] } })
+    expect(ler(saida, "dados/municipios/1506401.md")).toContain("| Área de carbono nas fazendas aptas (ha) | Ainda não publicado |")
+    expect(ler(saida, "dados/municipios/1506401.md")).toContain("| Imóveis aptos para carbono | 0 |")
+    expect(ler(saida, "dados/municipios/1507706.md")).toContain("| Área de carbono nas fazendas aptas (ha) | 0 |")
+    const estadual = ler(saida, "dados/estados/PA.md")
+    expect(estadual).toContain("| 1506401 | 130 | 0 | Ainda não publicado |")
+    expect(estadual).toContain("| 1507706 | 40 | 0 | 0 |")
+    for (const arquivo of ["index.md", "dados/index.md", "dados/estados/PA.md"]) {
+      const texto = ler(saida, arquivo)
+      expect(texto).toContain("Há medidas ainda não publicadas neste recorte.")
+      expect(texto).toContain("Imóveis: 170. Aptos no funil: 0. Área de carbono nas fazendas aptas (ha): Ainda não publicado.")
+      expect(texto).not.toContain("0 ha de área de carbono")
+      expect(texto).not.toContain("totais deste recorte foram suprimidos")
+    }
+    // O JSON-LD descreve a cobertura e o download; não deve introduzir uma soma parcial de área.
+    expect(ler(saida, "index.html")).not.toContain("0 ha de área de carbono")
+  })
+
+  it("não chama contagem ausente de supressão nem abre medidas sem grupo mínimo conhecido", () => {
+    const saida = preparar()
+    const semContagem = lerFunil({ ...municipio.linha, imoveis: "", ha_carbono: "987.65" }, "PA")
+    paginasAgentes({ saida, base: "/", catalogo: { ...catalogo, municipios: [semContagem] } })
+    const local = ler(saida, "dados/municipios/1505536.md")
+    expect(local).toContain("| Imóveis analisados | Ainda não publicado |")
+    expect(local).not.toContain("Suprimido")
+    expect(local).not.toContain("987,65")
+    expect(ler(saida, "index.md")).toContain("Área de carbono nas fazendas aptas (ha): Ainda não publicado.")
+    expect(ler(saida, "index.md")).not.toContain("987,65")
   })
 
   it.each([undefined, "", "NaN", "NA"])("não transforma indicador opcional ausente (%s) em zero", (vazio) => {
@@ -159,8 +207,18 @@ describe("páginas para pessoas e agentes", () => {
     paginasAgentes({ saida, base: "/Raiz/", catalogo: dados, siteUrl: "https://raiz.example/" })
     paginasAgentes({ saida, base: "/Raiz/", catalogo: dados, siteUrl: "https://raiz.example/" })
     expect(ler(saida, "index.html").match(/<script/g)).toHaveLength(1)
+    expect(ler(saida, "index.html").match(/rel="canonical"/g)).toHaveLength(1)
     expect(schema(saida)["@graph"][0].url).toBe("https://raiz.example/")
     expect(ler(saida, "dados/estados/PA.md")).not.toContain("</script>")
+  })
+
+  it("domínio próprio anuncia a raiz e a ficha em produtor sem caminho do repositório", () => {
+    for (const produtor of [false, true]) {
+      const saida = preparar()
+      paginasAgentes({ saida, base: "/", produtor, catalogo, siteUrl: "https://mapa.example/" })
+      expect(ler(saida, "index.html")).toContain(`<link rel="canonical" href="https://mapa.example/${produtor ? "produtor/" : ""}"`)
+      expect(ler(saida, "index.md")).not.toContain("/Raiz/")
+    }
   })
 
   it("llms.txt fica abaixo de 8 KB e lista bots atuais sem bloqueio", () => {

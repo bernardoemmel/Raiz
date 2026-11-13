@@ -10,6 +10,18 @@
 .grade-terra { margin-block: var(--e4); }
 .grade-terra dt { font-weight: 700; margin-bottom: var(--e2); }
 .grade-terra dd { margin: 0; }
+.compromissos-terra, .versoes-ficha, .mudancas-terra, .historico-ficha { min-width: 0; overflow-wrap: anywhere; }
+.mudancas-terra { list-style: none; padding: 0; }
+.mudancas-terra > li, .historico-ficha > li { margin-block: var(--e3); }
+.mudancas-terra summary, .historico-ficha summary { cursor: pointer; padding-block: var(--e3); min-height: 48px; }
+.antes-depois > div { min-width: 0; }
+.antes-depois > div > strong { display: block; margin-bottom: var(--e3); }
+.valores-mudanca { margin: var(--e2) 0; }
+.valores-mudanca > div { margin-block: var(--e3); }
+.valores-mudanca dt { font-weight: 600; }
+.valores-mudanca dd { margin: var(--e2) 0 0; }
+.condicoes-plano { flex-basis: 100%; }
+.mapa-ficha-terra .maplibregl-ctrl-attrib a { text-decoration: underline; }
 .medida-terra { display: flex; flex-direction: column; gap: var(--e1); }
 .medida-terra small { color: var(--pedra); font-size: var(--t-legenda); }
 .tabela-terra { overflow-x: auto; max-width: 100%; margin-block: var(--e4); }
@@ -821,6 +833,10 @@
 .painel-conteudo {
   padding: var(--e5) var(--e5) var(--e7);
 }
+/* As consultas independentes ocupam sua posição definitiva desde a primeira pintura.
+   Reserva aproximada da frase/números e da cobertura; some no sucesso, vazio ou erro. */
+.resumo-brasil-carregando { min-block-size: 20rem; display: flow-root; }
+.cobertura-carregando { min-block-size: 24rem; }
 .painel-conteudo h1 {
   margin: 0;
   font-size: var(--t-titulo);
@@ -1158,6 +1174,8 @@ button.link:hover {
 }
 
 /* mapa da entrada */
+.mapa-area { position: relative; min-height: 0; }
+.mapa-area > .mapa-brasil { position: absolute; inset: 0; }
 .mapa-brasil {
   position: relative;
   min-height: 0;
@@ -1211,6 +1229,7 @@ button.link:hover {
   .explorar-corpo {
     display: block;
   }
+  .mapa-area { position: absolute; inset: 0; }
   .mapa-brasil {
     position: absolute;
     inset: 0;
@@ -1294,8 +1313,11 @@ button.link:hover {
 }
 
 /* ---------- telas menores ---------- */
-@media (max-width: 1240px) {
-  .menu {
+@media (max-width: 1400px) {
+  .topo { gap: var(--e3); padding-inline: var(--e4); }
+  .topo-dir { gap: var(--e2); }
+  .busca { width: clamp(160px, 25vw, 320px); }
+  .menu li:not(.menu-ativo) {
     display: none;
   }
 }
@@ -2205,4 +2227,62 @@ button.link:hover {
 }
 .fb-partes .parte-so_mostrar::before {
   background: repeating-linear-gradient(45deg, var(--situacao-nao-apta) 0 2px, var(--superficie) 2px 4px);
+}
+
+/* Lista pública: apenas identidade territorial e situação básica. */
+.lista-basica { list-style: none; margin: 0; padding: 0; }
+.lista-basica li { border-top: 1px solid var(--nevoa); }
+.lista-basica a:not(.selo) { display: grid; gap: var(--e1); padding: var(--e3) 0; color: var(--tinta); text-decoration: none; }
+.lista-basica a:hover, .lista-basica a:focus-visible { color: var(--mata-texto); }
+.lista-basica a span:first-child { font-family: var(--fonte-codigo); overflow-wrap: anywhere; }
+.lista-basica a small { color: var(--pedra); }
+/* Navegação pelo teclado e mapa nacional leve, antes do detalhe WebGL. */
+.pular-conteudo {
+  position: fixed;
+  z-index: 100;
+  top: var(--e2);
+  left: var(--e2);
+  padding: var(--e3) var(--e4);
+  color: var(--tinta);
+  background: var(--superficie);
+  transform: translateY(-200%);
+}
+.pular-conteudo:focus { transform: none; }
+@media (max-width: 1240px) {
+  .menu { display: flex; }
+  .menu li:has([aria-disabled]) { display: none; }
+  .topo { gap: var(--e3); }
+  .menu a { min-height: 48px; display: flex; align-items: center; }
+}
+@media (max-width: 700px) {
+  .topo > nav { margin-left: auto; }
+  .topo .marca { gap: var(--e1); font-size: 18px; }
+  .menu { gap: 0; }
+  .menu a { padding-inline: var(--e1); }
+  .gaveta-alca { height: 48px; }
+  .opcao, .aba, summary { min-height: 48px; }
+  :focus-visible { scroll-margin-block: 160px; }
+  .maplibregl-ctrl-group button { width: 48px; height: 48px; }
+  .busca li { flex-wrap: wrap; min-height: 48px; }
+}
+
+/* Calendário: datas e fonte sempre junto do evento, sem depender da cor para ler a situação. */
+.calendario { max-width: 1200px; margin: 0 auto; }
+.calendario-filtros { display: grid; grid-template-columns: 2fr 2fr 1fr 1fr; gap: var(--e4); margin: var(--e5) 0; }
+.calendario-filtros label { display: grid; gap: var(--e1); }
+.calendario-filtros input, .calendario-filtros select { min-width: 0; min-height: 48px; width: 100%; padding: var(--e2); border: 1px solid var(--pedra); background: var(--superficie); border-radius: var(--raio-botao); }
+.calendario-lista { padding: 0; list-style: none; }
+.calendario-evento h2 { font-size: var(--t-subtitulo); margin: var(--e2) 0; }
+.calendario-evento { display: grid; grid-template-columns: 140px 1fr; gap: var(--e5); border-top: var(--linha); padding: var(--e5) 0; }
+.calendario-evento p { margin: var(--e2) 0; }
+.calendario-dia { font-variant-numeric: tabular-nums; font-weight: 700; }
+.calendario-dia small { display: block; font-weight: 400; }
+.calendario-fonte, .calendario-atualizacao { color: var(--pedra); }
+.calendario-cars { display: flex; flex-wrap: wrap; gap: var(--e2) var(--e4); list-style: none; padding: 0; }
+.calendario-paginas { display: flex; align-items: center; justify-content: space-between; gap: var(--e3); }
+.calendario .aviso { margin: var(--e3) 0; }
+@media (max-width: 700px) {
+  .calendario-filtros { grid-template-columns: 1fr 1fr; }
+  .calendario-evento { grid-template-columns: 1fr; gap: var(--e2); }
+  .calendario-dia { display: flex; gap: var(--e2); }
 }

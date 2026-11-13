@@ -1,5 +1,46 @@
 # Código e dados de terceiros
 
+Agrupamento público do mapa: Supercluster, implementação `ClusterTileIndex` de
+`@maplibre/geojson-vt` 6.3.1, já utilizada pelo worker GeoJSON do MapLibre GL JS 6.15.0.
+Licenças MIT (MapLibre contributors, 2025) e ISC (Mapbox, 2024), conferidas no LICENSE do pacote instalado.
+O texto completo acompanha os dois sites em `licencas/supercluster.txt`.
+O Globo declara esse mesmo pacote como dependência direta: o índice público roda em um worker próprio e
+envia à interface apenas os grupos da janela visível. O mapa não cria uma segunda fonte GeoJSON para esses grupos.
+Nenhum código do agrupador foi copiado; limites do CAR continuam nas fontes próprias do MapLibre.
+Origem: https://github.com/maplibre/geojson-vt e https://github.com/mapbox/supercluster.
+
+A fixture de navegador inclui a faixa 0–255 dos glifos Noto Sans Regular distribuídos por
+protomaps/basemaps-assets (SIL OFL 1.1), para testar números reais dos grupos sem rede no CI.
+Arquivo e licença: `front/scripts/fixtures/fontes/`; licença da família Noto Sans conferida em
+https://github.com/google/fonts/blob/main/ofl/notosans/OFL.txt. Nenhuma alteração nos glifos.
+
+## Fontes da camada de terra comprometida
+
+[Berkeley Carbon Trading Project, Voluntary Registry Offsets Database](https://gspp.berkeley.edu/berkeley-carbon-trading-project/offsets-database),
+versão v2026-08, **CC BY 4.0**. Usamos a seleção de projetos florestais brasileiros;
+nomes de projetos, proponentes e contatos não entram na ficha. A Raíz produz o
+cruzamento e suas conclusões, sem endosso dos autores.
+
+[An open-access database of nature-based carbon offset project boundaries](https://doi.org/10.5281/zenodo.11459391),
+Zenodo 11459391, **CC BY 4.0**, autores conforme ficha DOI. A seleção de polígonos
+brasileiros é tratada como indício secundário; pontos são descartados. Geometrias
+e dados brutos não são redistribuídos nesta entrega. Não copiamos código da pesquisa.
+
+Verra, SFB, ART e publicações estaduais são referências públicas para análise
+privada. Os documentos e limites sem licença expressa de redistribuição não são
+publicados no Release ou site. Consulte [fontes e limites](docs/terra-comprometida.md)
+e o catálogo versionado `raiz/terra_comprometida_fontes.json`.
+
+Cache calibrado da matrícula: MAPIE 1.6 (BSD-3-Clause, Copyright 2021 Vianney Taquet,
+Grégoire Martinon, Nicolas Brunel, Issam Ibnouhsein, François Deheeger e contribuidores),
+usado como dependência, sem copiar código. `BinaryClassificationController` controla a
+precisão por Learn Then Test com correção de Bonferroni. Licença conferida no pacote
+instalado (`mapie-1.6.0.dist-info/licenses/LICENSE`). Origem: https://github.com/scikit-learn-contrib/MAPIE.
+
+Sobrevivência do aceite: lifelines 0.30.3 (MIT, Copyright 2017 Cameron Davidson-Pilon),
+usado como dependência, sem copiar código. Licença conferida no pacote instalado
+(`lifelines-0.30.3.dist-info/licenses/LICENSE`). Origem: https://github.com/CamDavidsonPilon/lifelines.
+
 | O quê | Onde é usado | Licença | Origem |
 |---|---|---|---|
 | Desenho do serviço de agentes: checkpointer aberto no início do serviço e retomada do grafo pelo thread_id quando há pausa pendente (reescrito, sem copiar código) | `raiz/api.py`, `raiz/agentes/memoria.py` | MIT, Copyright (c) 2024 Joshua Carroll | https://github.com/JoshuaC215/agent-service-toolkit |
@@ -22,6 +63,11 @@ do IBGE em CSV de https://github.com/kelvins/municipios-brasileiros (MIT), baixa
 
 Dependências usadas sem copiar código: `i_overlay` (MIT/Apache-2.0) e `serde_json` (MIT/Apache-2.0) no teste `motor/iovbench/`.
 
+H3 (`h3` para Python e `h3-js` somente no build): índice hexagonal e limites das células,
+Apache-2.0, Uber Technologies e contribuidores; https://github.com/uber/h3,
+https://github.com/uber/h3-py e https://github.com/uber/h3-js. Código usado como dependência,
+sem cópia ou alteração. A célula representa alocação estatística, não uma medida de restauração dentro do hexágono.
+
 Extensão `nativo/raiz_iov` (Rust, sem código copiado): `i_overlay` (MIT/Apache-2.0), `pyo3` (MIT/Apache-2.0),
 `numpy`/rust-numpy (BSD-2), `ndarray` (MIT/Apache-2.0), `rayon` (MIT/Apache-2.0). A conta da área segue o teste do
 fundador em `motor/iovbench/` (EvenOdd, contorno externo menos buracos).
@@ -41,6 +87,13 @@ fundador em `motor/iovbench/` (EvenOdd, contorno externo menos buracos).
 - Origem: https://languagetool.org, versão 6.6, baixada pelo `infra/languagetool/Dockerfile` ao montar o contêiner.
 - Licença: LGPL-2.1 ou posterior. Roda só como serviço separado no servidor (`revisor` em `infra/docker-compose.yml`);
   nenhum código dele é copiado para o produto. `raiz/revisor.py` só chama a API HTTP dele.
+
+## Conferência independente de contagens (rodada 12)
+
+Ibis **12.0.0** ([ibis-project/ibis](https://github.com/ibis-project/ibis), Apache-2.0),
+no extra opcional `conferencia`, executa a mesma expressão de contagem municipal em DuckDB e SQLite.
+Recebe apenas códigos municipais; não substitui a ingestão, não recebe produtores e não altera versões
+travadas dos motores existentes. Nenhum código-fonte de terceiros foi copiado.
 
 ## Extensão spatial do DuckDB
 
@@ -68,8 +121,16 @@ Distribuídas dentro do produto (vão no pacote que o navegador baixa), sem alte
 Gerados por `front/scripts/geo.py` e servidos junto (fora do git): recorte do mapa base do build diário do Protomaps,
 com dados © colaboradores do OpenStreetMap (ODbL 1.0, atribuição no canto do mapa); letras dos rótulos Noto Sans
 (SIL Open Font License 1.1) de protomaps/basemaps-assets; polígonos do CAR (SICAR/SFB) e camadas do INPE TerraBrasilis,
-inclusive o contorno dos 5.570 municípios da tela de entrada (camadas de municípios por bioma, juntadas pelo código
-IBGE) e o dos 27 estados (os mesmos municípios juntados por estado).
+inclusive contornos municipais por bioma, juntados pelo código IBGE, e os 27 estados. Quando um município publicado
+ainda não existe nessa divisão, o gerador substitui **toda a UF** pela mesma edição da Malha Municipal Digital do
+IBGE, incluindo seus municípios de origem. A edição é descoberta no
+[índice oficial](https://geoftp.ibge.gov.br/organizacao_do_territorio/malhas_territoriais/malhas_municipais/);
+UF, ano e SHA-256 do ZIP são registrados no índice público e em `fontes.md`. O cache conserva a origem conferida.
+A [nota técnica da edição 2025](https://www.ibge.gov.br/biblioteca/visualizacao/livros/liv102268.pdf), p. 9,
+declara licença compatível com **CC BY 4.0**, inclusive uso comercial. Os vetores são reprojetados e simplificados
+para visualização, alteração indicada no crédito e nas fontes. São limites de referência estatística, sem valor
+de demarcação ou comprovação de propriedade; as limitações estão nas p. 6–9 da nota. A atribuição da edição é por
+UF: não representa atualização homogênea de toda a base nacional.
 
 Removidos: o globo da abertura saiu do produto em novembro de 2026 (a tela de entrada passou a ser o mapa plano do
 Brasil). Foram apagados a biblioteca `cobe` 2.0.1 (MIT) e os componentes `cobe-globe.tsx` e `cobe-globe-demo.tsx`
@@ -80,8 +141,13 @@ Métodos reescritos, sem copiar código: frases comparativas por índice no esti
 (`front/compartilhado/comparacoes.ts`) e caixa de fatos no formato das "fact boxes" de comunicação de risco
 (`front/compartilhado/cenario.ts`). Dependências só de desenvolvimento: Vite, TypeScript, Vitest, Oxlint (MIT) e,
 no script, requests (Apache-2.0), shapely e pmtiles (BSD-3-Clause). Teste do site estático no Chromium:
-Playwright 1.65.0 (Apache-2.0) e pngjs 7.0.0 (MIT), usados como bibliotecas, sem código copiado. Auditoria
-Agentic Browsing: Lighthouse 13.6.0 (Apache-2.0), somente no desenvolvimento/CI. O arquivo llms.txt segue a
+Playwright 1.65.0 (Apache-2.0) e pngjs 7.0.0 (MIT), usados como bibliotecas, sem código copiado.
+
+Validação dos estilos internos no build/CI: `@maplibre/maplibre-gl-style-spec` 26.6.0,
+https://github.com/maplibre/maplibre-style-spec. O pacote declara ISC; seu `LICENSE.txt` preserva também
+os avisos BSD-3-Clause e MIT dos componentes incorporados. O MapLibre já inclui essa especificação no navegador.
+
+Auditoria Agentic Browsing: Lighthouse 13.6.0 (Apache-2.0), somente no desenvolvimento/CI. O arquivo llms.txt segue a
 proposta do llmstxt.org; JSON-LD usa o vocabulário schema.org, sem copiar código de implementação.
 
 ## OpenStreetMap pelos ladrilhos do Protomaps (cidades e estradas por imóvel)
@@ -100,6 +166,18 @@ proposta do llmstxt.org; JSON-LD usa o vocabulário schema.org, sem copiar códi
 - Fontes Noto Sans (SIL Open Font License 1.1) e sprites do protomaps/basemaps-assets, baixados por
   `raiz mapa atualizar` (licença dos sprites a conferir no repositório basemaps-assets antes de publicar).
 
+## Mosaico histórico no mapa público
+
+- Fundo público de aproximação: **EOxCloudless vintage 2016**, camada `s2cloudless_3857`, imagens Sentinel-2
+  de 2016/2017, **CC BY 4.0**. Licença e permissão de uso comercial do endpoint WMTS conferidas em 12/11/2026
+  nas fontes oficiais: [licença por ano](https://cloudless.eox.at/license-non-commercial) e
+  [FAQ de uso comercial e serviço](https://cloudless.eox.at/documentation/faq). Não usar os anos 2018 a 2025,
+  licenciados como não comerciais. A camada histórica tem 10 m; não prova a situação atual do imóvel.
+  Crédito visível: “EOxCloudless https://cloudless.eox.at by EOX IT Services GmbH (Contains modified Copernicus
+  Sentinel data 2016 & 2017)”. O serviço público aceita tráfego comercial razoável, sem SLA; a aplicação busca
+  somente os tiles visíveis a partir de z12, com overzoom após z14 e cache HTTP do navegador. Não distribui o
+  mosaico bruto como dataset nem copia os tiles para o Release. As capturas devem preservar o crédito.
+
 ## Imagens de satélite por fazenda
 
 - Sentinel-2 L2A: "Contains modified Copernicus Sentinel data [ano]" (licença Copernicus, uso livre inclusive
@@ -107,8 +185,8 @@ proposta do llmstxt.org; JSON-LD usa o vocabulário schema.org, sem copiar códi
   (metadados.json, cabeçalho X-Raiz-Credito).
 - Landsat 5 Collection 2 nível 2: domínio público, crédito "Landsat 5, cortesia do USGS", lido pelo Planetary
   Computer da Microsoft (token anônimo de leitura).
-- Pillow (HPND) para WebP e desenho; fonte DejaVu Sans do sistema para o selo "Simulação". Nada de EOX, Esri, Planet
-  NICFI, Google nem imagem gerada por IA.
+- Pillow (HPND) para WebP e desenho; fonte DejaVu Sans do sistema para o selo "Simulação". Nas imagens atuais da ficha,
+  não usar EOX, Esri, Planet NICFI, Google nem imagem gerada por IA.
 
 ## Cartão, adesivo e vídeo da fazenda
 
@@ -177,6 +255,12 @@ HiGHS dentro. Sem código copiado. A cobrança Pix da reserva usa a API da Abaca
   SIDRA 6899, 6753, 6910 e 6881), Banco Central (IPCA, série 433; PTAX), CNA (Campo Futuro), Verra (VM0047, VMD0054,
   VCS v5.0).
 
+## Servidor MCP (SDK oficial do Model Context Protocol)
+
+`raiz/publica/servidor_mcp.py` usa o SDK oficial do Model Context Protocol em Python (pacote `mcp`, versão 2.x,
+licença MIT, Copyright (c) 2024 Anthropic, PBC; https://github.com/modelcontextprotocol/python-sdk) para o servidor
+MCP remoto (/mcp) e local (`raiz mcp`) e para o agente de teste. Sem código copiado.
+
 ## Armazenamento compatível com S3
 
 boto3 e botocore (Apache-2.0) no produto; moto (Apache-2.0) só nos testes. Servidor próprio, quando não se usa o
@@ -196,7 +280,14 @@ Dados lidos todo dia (cada um com seus termos; nenhum com licença não comercia
 | NASA FIRMS, VIIRS 375 m NOAA-20 e NOAA-21 (VJ114IMGTDL_NRT, VJ214IMGTDL_NRT) | dado aberto da NASA, sem restrição de uso | "LANCE FIRMS, NASA EOSDIS" |
 | MapBiomas Alerta (API v2, com conta) | CC BY 4.0 segundo os termos do Alerta (o site geral do MapBiomas cita CC BY-SA; conferir antes de redistribuir derivado) | "MapBiomas Alerta, plataforma.alerta.mapbiomas.org, acesso em <data>" |
 | INPE TerraBrasilis: DETER (Amazônia e Cerrado) e PRODES (Amazônia Legal e Cerrado) | dado público do INPE | "INPE, TerraBrasilis" |
-| Ibama, termos de embargo (dados abertos) | dado público; nome, CPF/CNPJ, nome do imóvel e textos livres são descartados na leitura | "Ibama, dados abertos" |
+| Ibama, termos de embargo (dados abertos) | ODbL 1.0, conforme https://dadosabertos.ibama.gov.br/dataset/termos-de-embargo; nome, CPF/CNPJ, nome do imóvel e textos livres são descartados na leitura | "Ibama, dados abertos" |
+
+As fontes ArcGIS do manifesto distinguem o serviço original PAMGIA/Ibama dos snapshots hospedados pelo SFB.
+O CNFP 2025 e o espelho SFB têm licença de redistribuição/treino pendente de confirmação; ficam desabilitados
+para treino. `editingInfo.lastEditDate` informa edição do serviço, não a data histórica de todas as feições.
+No PRODES, `created` do catálogo TerraBrasilis sinaliza atualização do arquivo; não é data de desmatamento nem
+checksum dos bytes do raster. As integrações da coleta e os filtros E2 foram escritos na Raíz, sem copiar código
+de terceiros; continuam usando as bibliotecas e extensões já atribuídas neste NOTICE.
 
 Estrutura do rascunho do relatório de perda: títulos das seções do Loss Event Report Template v5.0 da Verra
 (modelo obrigatório para quem reporta perda ao VCS), preenchidos com texto próprio. Regra dos prazos: Verra,
@@ -216,7 +307,7 @@ Dependências usadas como biblioteca, sem copiar nem alterar o código (`raiz/do
 | beautifulsoup4 | links das páginas de editais | MIT |
 | requests | páginas e APIs públicas | Apache-2.0 |
 | pandas, numpy | tabelas do motor e faixa P10 a P90 da carteira | BSD-3-Clause |
-| reportlab | PDF de exemplo dos testes | BSD |
+| reportlab | PDF privado da ficha da fazenda e PDF de exemplo dos testes | BSD |
 
 Programas e serviços chamados de fora, sem embutir código: LibreOffice (MPL-2.0) converte .docx em PDF no servidor;
 Firecrawl só pela API hospedada (o código do Firecrawl é AGPL: não instalar nem hospedar). Fontes públicas da busca
@@ -238,6 +329,28 @@ subscrição de seguro. Tolerâncias de georreferenciamento do INCRA (0,50 m art
 estudo do próprio INCRA; 7,50 m inacessível). Base legal da regularização da posse em
 `raiz/regras/padroes/regularizacao.yaml`, com a marca do que o jurídico ainda não conferiu.
 
+## Metadados do Release (`raiz/metadados.py`)
+
+Bibliotecas usadas sem copiar nem alterar código: croissant-baker 0.8.3 (MIT, Copyright (c) 2025 MIT Laboratory for
+Computational Physiology; https://github.com/MIT-LCP/croissant-baker) e mlcroissant 1.1.1 (Apache-2.0,
+https://github.com/mlcommons/croissant). O extra `metadados` inclui as dependências de leitura de arquivos do baker,
+conferidas pelo mesmo verificador de licenças do projeto. As fichas seguem Croissant 1.1
+(https://docs.mlcommons.org/croissant/docs/croissant-spec-1.1.html) e schema.org Dataset.
+
+A licença de redistribuição dos dados derivados da Raíz ainda não foi definida. As fichas não atribuem a licença
+do software nem uma licença aberta presumida aos dados. As fontes conservam os termos e créditos registrados neste
+NOTICE; disponibilidade pública do arquivo não concede licença adicional.
+
+O exportador `raiz/quantis.py` segue os esquemas v6.0.0 do hubverse-org/schemas e as convenções de hubverse-org/hubDocs,
+sem copiar implementação. O cartão de modelo segue a estrutura de Mitchell et al., *Model Cards for Model Reporting*
+(2019), sem reproduzir texto do artigo.
+
+O vocabulário dos cronogramas em `raiz/cadt.py` foi conferido no CAD Trust
+(https://github.com/Chia-Network/cadt, commit `58927db8f4b4fe558842a688d33f173c41944279`, Apache-2.0).
+Nenhum código do CADT foi copiado; campos e listas são usados para interoperabilidade, sem afirmar registro no CAD Trust.
+A procedência dos uploads usa a ação externa actions/attest-build-provenance v2 (MIT), que chama actions/attest;
+não incorpora seu código no produto.
+
 ## Aprendizado no formato do hub (`raiz/aprendizado/hub.py`, `raiz/aprendizado/acerto.py`)
 
 Nenhum código copiado. O formato das pastas e arquivos segue a documentação do hubverse (hubverse-org/hubDocs, esquemas
@@ -255,6 +368,38 @@ como serviço no servidor; nada dele é embutido no produto distribuído. O `inf
 confiança dos logprobs, a calibração do corte e o banco de tarefas em português foram escritos para a Raíz, sem
 código copiado.
 
+O peso Q4_K_M usado na validação local de 12/11/2026 é a conversão GGUF de
+[Unsloth/Qwen3-4B-Instruct-2507-GGUF](https://huggingface.co/unsloth/Qwen3-4B-Instruct-2507-GGUF), derivada de
+[Qwen/Qwen3-4B-Instruct-2507](https://huggingface.co/Qwen/Qwen3-4B-Instruct-2507), ambos sob Apache-2.0
+([licença original](https://huggingface.co/Qwen/Qwen3-4B-Instruct-2507/blob/main/LICENSE)). O peso fica fora do git;
+a revisão e o SHA-256 conferidos estão em `docs/operacao.md`.
+
+### Auditoria de acessibilidade em celular
+
+O CI usa `@axe-core/playwright` 4.14.0 e seu motor `axe-core` (MPL-2.0), somente nas ferramentas de teste,
+para verificar WCAG 2.1 A e AA. Origem: https://github.com/dequelabs/axe-core-npm e
+https://github.com/dequelabs/axe-core. Lighthouse 13.6.0 (Apache-2.0, já registrado acima) mede as categorias
+oficiais performance e accessibility em celular de 360 px, com rede e CPU simuladas.
+
+## API paga (`raiz/publica/`)
+
+Limites por empresa implementados com SlowAPI (MIT) e limits (MIT). Nenhum código
+copiado. Plataforma MCP no mesmo app: SDK oficial MCP Python 2.3.0 (MIT), PyJWT (MIT),
+cryptography (Apache-2.0/BSD-3-Clause), qrcode (BSD-3-Clause), OpenTelemetry Python
+(Apache-2.0) e cliente redis-py (MIT). Standard Webhooks implementado a partir da
+especificação pública (MIT), sem copiar código. OAuth via Keycloak26.8.2 (Apache-2.0)
+em contêiner separado. O armazenamento compartilhado dos limites usa Valkey (BSD-3-Clause),
+compatível com o protocolo Redis; o servidor Redis com licença restritiva não é distribuído.
+
+O harness de avaliação usa VCR.py (MIT, https://github.com/kevin1024/vcrpy), sem código copiado,
+para gravar e reproduzir chamadas ao modelo em testes. Os replays não contam como medição nova de agente real.
+
+A conferência de protocolo usa MCP Inspector 2.15.0 (Apache-2.0, com código legado MIT,
+https://github.com/modelcontextprotocol/inspector), vacuum 0.40.1 (MIT,
+https://github.com/daveshanley/vacuum) e o esquema oficial do registro MCP de 2025-12-11
+(Apache-2.0 e MIT, https://github.com/modelcontextprotocol/registry). A licença e o hash
+do esquema acompanham a cópia em `infra/mcp/`; nenhum servidor é publicado por essas ferramentas.
+
 ## Sanitização de logs (`raiz/logs_seguros.py`)
 
 Microsoft Presidio Analyzer e Anonymizer ([microsoft/presidio](https://github.com/microsoft/presidio), MIT) são usados
@@ -266,10 +411,21 @@ O modelo roda só no servidor, instalado do Release oficial com hash no `uv.lock
 
 ## Ferramentas de qualidade e segurança
 
-Gitleaks 8.24.3 (MIT, https://github.com/gitleaks/gitleaks) e actionlint 1.7.7
+Gitleaks 8.24.3 (MIT, https://github.com/gitleaks/gitleaks) e actionlint 1.7.12
 (MIT, https://github.com/rhysd/actionlint) verificam o repositório no CI. Playwright 1.65.0
 (Apache-2.0, https://github.com/microsoft/playwright) executa o navegador de teste. Usados como ferramentas,
 sem código-fonte copiado para o produto.
+
+## OCR dos editais e matrículas públicos
+
+O calendário chama os executáveis Poppler (`pdftoppm`, GPL-2.0/GPL-3.0,
+https://poppler.freedesktop.org/) e Tesseract (Apache-2.0,
+https://github.com/tesseract-ocr/tesseract), com os modelos de português/inglês do
+Tesseract (`tessdata_fast`, Apache-2.0, https://github.com/tesseract-ocr/tessdata_fast). Rodam apenas no
+servidor e nos testes, instalados pelos pacotes do sistema; os binários não são
+embutidos no produto distribuído nem no navegador. Nenhum código foi copiado.
+PDF, imagem renderizada e texto do OCR passam em memória por stdin/stdout; a saída
+persistida contém somente os campos permitidos do calendário e a URL pública da prova.
 
 ## Lighthouse e SDK de telemetria
 
@@ -284,3 +440,75 @@ que não é aceita pelo projeto. A versão 10.78.0 evita essa dependência e man
 original do Lighthouse; sua compatibilidade é verificada com o teste de agentes e com eventos de telemetria
 capturados em transporte local, sem envio ao Sentry. Ao atualizar o Lighthouse ou esse pin, repetir essas
 verificações e a checagem integral de licenças; não liberar FSL nem instalar a CLI como exceção.
+
+## Preparação dos programas e correção do céu — MapLibre GL JS 6.15.0
+
+`front/globo/src/mapa/shader-simbolo.generated.ts` contém os shaders `symbolSDF` de Mercator do
+MapLibre GL JS **6.15.0**, sob **BSD-3-Clause**, gerados pelo preparador do próprio fornecedor.
+Versão, SHA-256 do pacote, defines e bytes finais são conferidos antes do build. A licença completa
+está em `front/terceiros/maplibre-gl.LICENSE.txt` e acompanha o site em `licencas/maplibre-gl.txt`.
+O worker compila essa variante para preparar o cache
+gráfico; o mapa mantém seus próprios programas e o caminho normal quando o aquecimento falha.
+
+`front/globo/src/mapa/preparar-programas-nacionais.ts` usa os construtores e o cache reais do mesmo
+pacote assim que houver um bucket, antes dos desenhos desse frame, somente no estilo nacional 2D
+com propriedades uniformes. O adaptador
+privado é limitado à versão/hash conferidos e restaura o renderizador original após preparar ou recusar
+o estilo. A configuração SDF estadual fixa conserva os bytes aquecidos no worker; as demais variantes
+preservam os nomes de macros/uniforms, mesmo quando a ordem das macros independentes muda. Não há
+substituição de desenhos, stencil, framebuffer ou eventos de prontidão. Os testes usam as classes
+originais do fornecedor, com a semântica de campos de classe de seu build restrita ao harness de testes.
+
+`front/compartilhado/vite-maplibre-ceu.ts` aplica, em memória durante build e desenvolvimento,
+uma correção pequena ao `drawSky` do pacote MapLibre GL JS **6.15.0**, sob **BSD-3-Clause**.
+Origem: https://github.com/maplibre/maplibre-gl-js, arquivos
+`src/webgl/draw/draw_sky.ts` e `src/shaders/glsl/sky.fragment.glsl`.
+O LICENSE e os avisos do pacote permanecem na distribuição; esta alteração é da Raíz.
+
+O fragment shader mistura as cores do céu e do horizonte. Se ambas têm alfa zero, o patch retorna
+antes de calcular uniforms ou compilar/desenhar o programa de céu, sem alterar céu visível, neblina,
+atmosfera, cartografia ou dados. O pacote original não é modificado em `node_modules`.
+A versão, o SHA-256 do módulo distribuído e o trecho são conferidos antes de qualquer transformação.
+Atualizações da biblioteca exigem nova revisão; o build falha caso não corresponda ao código conferido.
+O teste executa a função real alterada e verifica os casos transparente, opaco e parcialmente transparente.
+
+## Gráficos de resultados da ficha autorizada
+
+Apache ECharts **6.1.0** (Apache-2.0, <https://github.com/apache/echarts>) e seu renderizador
+zrender **6.1.0** (BSD-3-Clause, <https://github.com/ecomfe/zrender>) desenham contratado,
+emitido e entregue. Só os módulos de linha, eixos, legenda e SVG são registrados.
+Vega-Lite **6.5.0** (BSD-3-Clause, <https://github.com/vega/vega-lite>) e Vega **6.4.0**
+(BSD-3-Clause, <https://github.com/vega/vega>) desenham as faixas previstas e observações por método.
+As licenças dos pacotes instalados foram conferidas em 13/11/2026. Os textos integrais e o NOTICE do Apache ECharts são preservados em
+`front/globo/public/licencas/graficos.txt`, incluindo as dependências adicionadas; nenhum código-fonte foi copiado. Ambos os gráficos são carregados
+sob demanda, apenas quando o cliente abre o painel, e usam dados da ficha autenticada. O runtime
+Vega recebe somente valores locais e tem seu carregador de fontes externas bloqueado.
+
+## Avaliação de modelos (rodada 12)
+
+Dependências usadas sem copiar código. Licenças conferidas nos metadados e arquivos dos pacotes travados:
+
+| Pacote | Versão | Licença | Uso e origem |
+|---|---|---|---|
+| properscoring | 0.1 | Apache-2.0 | CRPS de distribuições congeladas; https://github.com/properscoring/properscoring |
+| sktime | 1.3.0 | BSD-3-Clause | Origens móveis na avaliação; https://github.com/sktime/sktime |
+| aif360 | 0.6.1 | Apache-2.0 | Diferença de seleção por município, aptidão e porte; https://github.com/Trusted-AI/AIF360 |
+| imbalanced-learn | 0.14.2 | MIT | Reamostragem apenas no treino; https://github.com/scikit-learn-contrib/imbalanced-learn |
+| forestci | 0.9 | MIT | Variância IJ da floresta; https://github.com/scikit-learn-contrib/forest-confidence-interval |
+| probscale (mpl-probscale) | 0.3.0 | BSD-3-Clause | Caudas do erro em gráfico privado; https://github.com/matplotlib/mpl-probscale |
+
+Properscoring e seu backend Numba 0.68.1 (BSD-2-Clause) / llvmlite 0.50.0 (BSD-2-Clause,
+LLVM Apache-2.0 com exceção LLVM) entram nas dependências normais da aplicação; os demais são ferramentas de avaliação/treino
+no grupo de desenvolvimento. `scpi`, `scpi-pkg` e `vegan` não são dependências nem código incorporado. O CI
+confere o wheel e todas as dependências distribuíveis, inclusive extras e transitivas.
+
+## Pasta do banco fiador e comprador
+
+Jinja2 **3.1.6**, Pallets ([documentação](https://jinja.palletsprojects.com/)),
+**BSD-3-Clause**: modelos próprios com StrictUndefined, sandbox e escape; não
+se aceita modelo fornecido por cliente ou terceiro. Biblioteca já travada no uv.lock.
+
+Tabulator **6.7.1**, Oli Folkerd ([código](https://github.com/olifolkerd/tabulator)),
+**MIT**, e `@types/tabulator-tables` **6.3.6**, DefinitelyTyped, **MIT**: grade da pasta
+no front. Instalação travada no npm, sem CDN, módulos de exportação ou código copiado.
+Adaptações de teclado/semântica ARIA estão no componente próprio da Raíz.

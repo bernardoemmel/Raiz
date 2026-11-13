@@ -8,13 +8,19 @@ from typing import Annotated
 import typer
 
 from raiz import RAIZ_REPO
+from raiz.aprendizado.cli_folds import registrar as registrar_folds
+from raiz.aprendizado.cli_sobrevivencia import registrar as registrar_sobrevivencia
+from raiz.calendario.cli import app as calendario_cli
+from raiz.coleta.arcgis_cli import coletar_arcgis
 from raiz.privacidade import configurar_log, varrer
+from raiz.prospeccao_operacao import registrar as registrar_prospeccao
 
 app = typer.Typer(help="Raíz: coleta, funil, título, agentes e aprendizado em cima do motor.", no_args_is_help=True)
 privacidade = typer.Typer(help="Guarda de CPF/CNPJ.", no_args_is_help=True)
 banco = typer.Typer(help="Banco PostgreSQL + PostGIS.", no_args_is_help=True)
 app.add_typer(privacidade, name="privacidade")
 app.add_typer(banco, name="banco")
+app.add_typer(calendario_cli, name="calendario")
 
 
 @app.callback()
@@ -66,6 +72,8 @@ def carregar(
 
 aprendizado = typer.Typer(help="Previsões congeladas e gabaritos (E8).", no_args_is_help=True)
 app.add_typer(aprendizado, name="aprendizado")
+registrar_folds(aprendizado)
+registrar_sobrevivencia(aprendizado)
 
 
 @aprendizado.command("gabarito")
@@ -358,6 +366,18 @@ def aprendizado_acerto() -> None:
     typer.echo(json.dumps(placar(engine()), ensure_ascii=False, indent=1, default=str))
 
 
+@aprendizado.command("acerto-publico")
+def aprendizado_acerto_publico(
+    destino: Annotated[str, typer.Argument(help="JSON agregado, ex.: dados/acerto/placar.json")],
+) -> None:
+    """Exporta somente métricas de grupos com pelo menos cinco imóveis observados."""
+    from raiz.aprendizado.painel import exportar
+    from raiz.banco import engine
+
+    exportar(engine(), destino)
+    typer.echo("Resumo agregado do aprendizado exportado.")
+
+
 pessoal = typer.Typer(help="Dado pessoal cifrado (telefone e BSUID).", no_args_is_help=True)
 app.add_typer(pessoal, name="pessoal")
 
@@ -490,6 +510,7 @@ def operacao_painel() -> None:
 
 coleta = typer.Typer(help="Coleta de dados públicos (E1).", no_args_is_help=True)
 app.add_typer(coleta, name="coleta")
+coleta.command("arcgis")(coletar_arcgis)
 
 
 @coleta.command("fontes")
@@ -537,7 +558,7 @@ def coleta_car(
     municipio: Annotated[list[int] | None, typer.Option(help="só estes municípios (repita a opção)")] = None,
     historico: Annotated[bool, typer.Option(help="gravar o histórico scd2 no PostGIS")] = True,
 ) -> None:
-    """Rodada do CAR (e do SIGEF dos municípios que mudaram): assinatura, fila, espelho por município, histórico."""
+    """Rodada do CAR e do SIGEF com assinaturas e filas independentes, espelho por município e histórico."""
     import datetime as dt
 
     from raiz.banco import engine
@@ -576,20 +597,53 @@ def coleta_liberar(fonte: str, recorte: str) -> None:
 
 @coleta.command("ibama")
 def coleta_ibama() -> None:
-    """Embargos do Ibama: pedido condicional, sem dado pessoal, espelho por município e CSV limpo para o motor."""
+    """Embargos: espelho sem dado pessoal, CSV do motor e retomada do histórico scd2, inclusive depois de 304."""
+    import datetime as dt
+
     from raiz import MOTOR_DIR
     from raiz.banco import engine
     from raiz.coleta.espelho import Espelho
     from raiz.coleta.http import sessao
     from raiz.coleta.ibama import coletar
+    from raiz.coleta.replicacao import sincronizar_fontes
+    from raiz.coleta.rodada import sincronizar_historico
     from raiz.funil.ponte import espelho_padrao
+    from raiz.operacao.healthchecks import Healthchecks
 
-    with engine().begin() as con:
-        r = coletar(sessao(), con, Espelho(espelho_padrao()), MOTOR_DIR / "cache")
+    eng, esp, hc = engine(), Espelho(espelho_padrao()), Healthchecks()
+    with eng.begin() as con:
+        sincronizar_fontes(con)
+        r = coletar(sessao(), con, esp, MOTOR_DIR / "cache", hc=hc)
+    historico = 0
+    # Varre os retratos aceitos, não só os alterados nesta chamada: uma falha anterior pode estar pendente em 304.
+    municipios: dict[str, list[int]] = {}
+    for f in sorted((esp.raiz / "ibama").glob("*/*.parquet")):
+        municipios.setdefault(f.parent.name, []).append(int(f.stem))
+    for uf, cods in municipios.items():
+        historico += sincronizar_historico(eng, esp, uf, cods, hc, dt.datetime.now(dt.UTC))
     typer.echo(
         f"{r.acao}: {r.linhas} termos, {len(r.municipios)} municípios mudaram; "
-        f"colunas pessoais removidas: {', '.join(r.removidas) or 'nenhuma'}"
+        f"colunas pessoais removidas: {', '.join(r.removidas) or 'nenhuma'}; cargas no histórico: {historico}"
     )
+    if r.acao == "travado":
+        raise typer.Exit(1)
+
+
+@coleta.command("prodes")
+def coleta_prodes() -> None:
+    """Compara o catálogo oficial de downloads do PRODES sem baixar os arquivos grandes."""
+    from dataclasses import asdict
+
+    from raiz.banco import engine
+    from raiz.coleta.http import sessao
+    from raiz.coleta.prodes import verificar
+    from raiz.coleta.replicacao import sincronizar_fontes
+
+    with engine().begin() as con:
+        sincronizar_fontes(con)
+        resultado = verificar(sessao(), con)
+    for r in resultado:
+        typer.echo(asdict(r))
 
 
 @coleta.command("indice")
@@ -678,6 +732,50 @@ def modelos_avaliar(
             f"falhas {r['falhas']}, US$ {r['custo_usd']}"
         )
     typer.echo(f"relatório: {arq}")
+
+
+@modelos.command("avaliar-cascata")
+def modelos_avaliar_cascata(
+    documentos: Annotated[Path | None, typer.Option(help="manifesto privado de PDF/TXT reais e seus gabaritos")] = None,
+    benchmark_aceite: Annotated[bool, typer.Option(help="usar as 120 tarefas de aceite; não são certidões")] = False,
+    tentativas: Annotated[int, typer.Option(min=1, max=10, help="leituras por documento ou tarefa")] = 1,
+    saida: Annotated[Path, typer.Option(help="pasta privada do relatório (fora do git)")] = Path("dados/avaliacao"),
+) -> None:
+    """Mede acerto e custo por entrada na cascata real, sem salvar texto nem gabarito no relatório."""
+    from raiz.config import config
+    from raiz.modelos.avaliacao import cascata as AC
+    from raiz.modelos.cascata import cascata_padrao
+
+    if bool(documentos) == benchmark_aceite:
+        raise typer.BadParameter("escolha --documentos ou --benchmark-aceite")
+    # Falha antes de rodar dezenas de chamadas locais quando o fallback solicitado não pode funcionar.
+    if not config().anthropic_api_key:
+        typer.echo(
+            "avaliação bloqueada: ANTHROPIC_API_KEY ausente ou vazia; "
+            "RAIZ_ANTHROPIC_API_KEY também não foi encontrada no ambiente/.env. "
+            "Nenhum acerto ou custo Haiku foi medido.",
+            err=True,
+        )
+        raise typer.Exit(1)
+    try:
+        meta, casos = AC.documentos(documentos) if documentos else AC.banco_aceite()
+    except (ValueError, OSError) as ex:
+        # Falhas de arquivo podem conter nome de pessoa; só as validações explícitas são mostradas.
+        typer.echo(str(ex) if isinstance(ex, ValueError) else "não foi possível ler o manifesto/documentos", err=True)
+        raise typer.Exit(1) from None
+    unidade = "documentos" if documentos else "tarefas de aceite (não são certidões)"
+    typer.echo(f"{len(casos)} {unidade} × {tentativas} tentativa(s); modelo local primeiro quando a entrada cabe.")
+    linhas = AC.avaliar(cascata_padrao(), casos, tentativas, progresso=lambda i, n: typer.echo(f"  {i}/{n}"))
+    rel = AC.relatorio(meta, linhas)
+    arq = AC.gravar(rel, saida)
+    r = rel["resumo"]
+    acerto = f"{r['acerto']:.1%}" if r["acerto"] is not None else "não medido: sem gabarito"
+    custo = f"US$ {r['custo_usd']:.6f}" if r["custo_usd"] is not None else "incompleto: uso/preço ausente"
+    typer.echo(f"acerto: {acerto}; revisões: {r['revisoes']}; custo de API: {custo}")
+    typer.echo(f"relatório por entrada: {arq}")
+    if any(c["falha"] for r in linhas for c in r["chamadas"]):
+        typer.echo("houve falhas de modelo; consulte a cobertura no relatório", err=True)
+        raise typer.Exit(1)
 
 
 @modelos.command("calibrar")
@@ -826,15 +924,39 @@ def banco_migrar(alvo: str = "head") -> None:
         typer.echo("sem RAIZ_CHAVE_PESSOAL: tabelas de conversa não criadas")
 
 
-@app.command("api")
-def api(porta: int = 8000, host: str = "127.0.0.1") -> None:
+api_cli = typer.Typer(help="Servidor da API e administração local da licença de dados.", invoke_without_command=True)
+app.add_typer(api_cli, name="api")
+
+
+@api_cli.callback()
+def api(ctx: typer.Context, porta: int = 8000, host: str = "127.0.0.1") -> None:
     """Sobe a API (aceites, mensagens a aprovar, revisões e webhook do WhatsApp em /whatsapp)."""
+    if ctx.invoked_subcommand is not None:
+        return
     import uvicorn
 
     from raiz.api import criar_app
 
     # O access log padrão expõe query strings (link de login e segredo do webhook Pix).
     uvicorn.run(criar_app(), host=host, port=porta, log_config=None, access_log=False)
+
+
+@api_cli.command("licenca")
+def api_licenca(
+    cliente: Annotated[int, typer.Option(help="id da empresa cuja licença o fundador aprovou", min=1)],
+    aprovar: Annotated[bool, typer.Option("--aprovar", help="registrar a aprovação e desbloquear a conta")] = False,
+) -> None:
+    """Administração local pelo fundador; não disponível à chave da empresa nem ao MCP."""
+    from raiz.banco import engine
+    from raiz.publica import conta
+
+    if not aprovar:
+        raise typer.BadParameter("informe --aprovar para registrar a licença de dados")
+    eng = engine()
+    if conta.ver(eng, cliente) is None:
+        raise typer.BadParameter("a empresa ainda não abriu a conta da API")
+    conta.aprovar_licenca(eng, cliente)
+    typer.echo(f"licença de dados aprovada para a empresa {cliente}; limites e cobrança por chamada continuam valendo")
 
 
 if __name__ == "__main__":
@@ -1784,6 +1906,74 @@ def pedidos_cliente(
     typer.echo(f"cliente {cid} criado. Token da sessão (guarde agora, não aparece de novo): {token}")
 
 
+@pedidos_cli.command("chave")
+def pedidos_chave(
+    cliente: Annotated[int, typer.Option(help="id do cliente (empresa)")],
+    rotulo: Annotated[str | None, typer.Option(help="qual agente usa a chave")] = None,
+) -> None:
+    """Cria a chave de API da empresa para o agente de IA dela (a chave aparece uma vez só). A própria empresa também
+    cria pela API: POST /v1/chaves, na sessão do login por e-mail. A conta com CNPJ e termos deve estar aberta;
+    os limites e os 3 créditos de teste são por empresa, não por chave."""
+    from raiz.banco import engine
+    from raiz.publica import chaves as K
+    from raiz.publica.conta import ErroConta
+
+    try:
+        k = K.criar(engine(), cliente, rotulo)
+    except ErroConta as ex:
+        raise typer.BadParameter(f"{ex.detalhe}. {ex.corrigir}") from ex
+    typer.echo(f"chave {k['prefixo']}... criada (guarde agora, não aparece de novo): {k['chave']}")
+
+
+@app.command("mcp")
+def mcp_stdio() -> None:
+    """Mostra como conectar ao MCP remoto com OAuth."""
+    typer.echo("Conecte ao endereço /mcp/ da API com OAuth 2.1. Chaves de API e stdio não autenticam o MCP.")
+    raise typer.Exit(2)
+
+
+@api_cli.command("worker")
+def api_worker(uma: Annotated[bool, typer.Option(help="executa um ciclo e termina")] = False) -> None:
+    """Processa operações persistidas e entregas de eventos, fora da resposta HTTP."""
+    import time
+
+    from sqlalchemy import text
+
+    from raiz.banco import engine
+    from raiz.pessoal import Cofre, SemChavePessoal
+    from raiz.publica import trabalhos, webhooks
+    from raiz.publica.telemetria import configurar_telemetria
+
+    try:
+        cofre = Cofre()
+    except (SemChavePessoal, ValueError) as ex:
+        raise typer.BadParameter("configure RAIZ_CHAVE_PESSOAL antes de iniciar o worker") from ex
+    eng = engine()
+    provider = configurar_telemetria()
+    try:
+        while True:
+            try:
+                trabalhos.executar_proximo(eng)
+                with eng.connect() as con:
+                    clientes = list(
+                        con.execute(
+                            text("select distinct cliente_id from negocio.webhook_inscricao where ativa")
+                        ).scalars()
+                    )
+                for cid in clientes:
+                    webhooks.entregar_proximo(eng, cid, cofre=cofre)
+            except Exception as ex:
+                # Nunca imprimir exceção/SQL: parâmetros podem conter segredo ou dado de terceiros.
+                typer.echo(f"ciclo do worker falhou ({type(ex).__name__}); a fila permanece persistida", err=True)
+                if uma:
+                    raise typer.Exit(1) from None
+            if uma:
+                return
+            time.sleep(0.5)
+    finally:
+        provider.shutdown()
+
+
 @pedidos_cli.command("ciclo")
 def pedidos_ciclo() -> None:
     """Um passo de tudo o que anda sozinho: ondas (vence quem não respondeu, chama a próxima onda, fecha o grupo),
@@ -1947,3 +2137,42 @@ def legibilidade_modelos() -> None:
             f"{nome:14} {m['palavras']:8} {m['palavras_por_frase']:7.1f} {m['flesch_alt']:6.1f} "
             f"{m['flesch_martins']:7.1f} {m['flesch_languagetool']:6.1f} {m['resultado_alt']:9.1f}"
         )
+
+
+prospeccao_cli = typer.Typer(help="Fichas pagas e avisos de buscas salvas.", no_args_is_help=True)
+app.add_typer(prospeccao_cli, name="prospeccao")
+registrar_prospeccao(prospeccao_cli)
+
+
+@prospeccao_cli.command("verificar-buscas")
+def prospeccao_verificar_buscas(
+    busca_id: Annotated[str | None, typer.Option("--busca", help="só esta busca salva (UUID)")] = None,
+) -> None:
+    """Registra no painel novas fazendas e mudanças das buscas salvas; não envia mensagens externas.
+
+    Rodar depois da carga do motor ou por cron. Repetir é seguro: a mesma
+    transição gera um aviso por busca, mesmo com dois executores concorrentes.
+    """
+    from sqlalchemy.exc import SQLAlchemyError
+
+    from raiz.banco import engine
+    from raiz.prospeccao_acesso import ErroAcesso
+    from raiz.prospeccao_buscas import verificar, verificar_todas
+
+    try:
+        banco_engine = engine()
+        if busca_id:
+            resultado = verificar(banco_engine, busca_id)
+            quantidade = 1
+        else:
+            resultado = verificar_todas(banco_engine)
+            quantidade = resultado["buscas_verificadas"]
+    except ErroAcesso as erro:
+        typer.echo(str(erro), err=True)
+        raise typer.Exit(1) from erro
+    except SQLAlchemyError as erro:
+        typer.echo("Não foi possível verificar as buscas salvas. Confira o banco e as migrações.", err=True)
+        raise typer.Exit(1) from erro
+    typer.echo(f"Buscas verificadas: {quantidade}; novas fazendas: {resultado['novas_fazendas']}.")
+    if resultado.get("buscas_sem_habilitacao"):
+        typer.echo(f"Buscas sem habilitação para os filtros pagos: {resultado['buscas_sem_habilitacao']}.")

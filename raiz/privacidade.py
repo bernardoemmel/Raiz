@@ -92,6 +92,15 @@ def mascarar(texto: str) -> str:
     return texto
 
 
+def documento_em_identificador(texto: str) -> bool:
+    """CPF/CNPJ não vira rótulo público ao receber prefixo de versão e separador."""
+    if mascarar(texto) != texto or re.search(
+        r"\d{3}\.\d{3}\.\d{3}-\d{2}|[0-9A-Z]{2}\.[0-9A-Z]{3}\.[0-9A-Z]{3}/[0-9A-Z]{4}-\d{2}", texto, re.I
+    ):
+        return True
+    return any(cpf_valido(p) or cnpj_valido(p) for p in re.split(r"[_.+:/-]", texto))
+
+
 # --- log ---------------------------------------------------------------------------------------------------------
 
 

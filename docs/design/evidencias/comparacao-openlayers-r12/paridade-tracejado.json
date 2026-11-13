@@ -1,0 +1,28 @@
+{
+  "360": {
+    "expected_period_px": 11.178886970836789,
+    "engines": {
+      "ml": {
+        "measured_period_px": 10.44,
+        "autocorrelation": 0.486
+      },
+      "ol": {
+        "measured_period_px": 10.69,
+        "autocorrelation": 0.635
+      }
+    }
+  },
+  "960": {
+    "expected_period_px": 8.459698248200814,
+    "engines": {
+      "ml": {
+        "measured_period_px": 8.27,
+        "autocorrelation": 0.923
+      },
+      "ol": {
+        "measured_period_px": 8.27,
+        "autocorrelation": 0.853
+      }
+    }
+  }
+}

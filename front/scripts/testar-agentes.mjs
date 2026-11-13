@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /** Confere a publicação para agentes e roda a categoria experimental oficial do Lighthouse.
- * O Pages é testado sob /Raiz/ sem fallback. O Lighthouse busca /llms.txt na raiz da origem:
+ * O caminho RAIZ_BASE é testado sem fallback. O Lighthouse busca /llms.txt na raiz da origem:
  * sua auditoria roda em outra origem local com o site montado na raiz. Isso não comprova que
  * /robots.txt ou /llms.txt existem na raiz pública de bernardoemmel.github.io.
  * WebMCP e ARD são relatados, sem exigir recursos que o produto ainda não implementou.
@@ -12,6 +12,7 @@ import { createRequire } from "node:module"
 import path from "node:path"
 import { fileURLToPath, pathToFileURL } from "node:url"
 import { conferirAuditoriaAgentes, conferirCaminhoPublico, conferirConteudoPublico } from "./conferir-auditoria-agentes.mjs"
+import { configurarPublicacao } from "./configurar-publicacao.mjs"
 
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..")
 const require = createRequire(path.join(repo, "front/globo/package.json"))
@@ -19,7 +20,7 @@ const { default: lighthouse } = await import(pathToFileURL(require.resolve("ligh
 const { launch } = await import(pathToFileURL(require.resolve("chrome-launcher")).href)
 const site = path.join(repo, "site")
 const saida = path.join(repo, "front/.cache/teste-agentes")
-const prefixo = process.env.RAIZ_BASE || "/Raiz/"
+const prefixo = configurarPublicacao(process.env).base
 assert(prefixo.startsWith("/") && prefixo.endsWith("/"), "RAIZ_BASE precisa começar e terminar em /.")
 fs.mkdirSync(saida, { recursive: true })
 const tipos = { ".html": "text/html", ".js": "text/javascript", ".mjs": "text/javascript", ".css": "text/css",
@@ -87,6 +88,12 @@ try {
 
   for (const pagina of ["index.html", "produtor/index.html"]) {
     const html = await ler(pagina)
+    if (process.env.RAIZ_DOMINIO) {
+      const { siteUrl, dominio } = configurarPublicacao(process.env)
+      assert.equal((await ler("CNAME")).trim(), dominio)
+      const canonico = new URL(pagina === "index.html" ? "" : "produtor/", siteUrl).href
+      assert(html.includes(`<link rel="canonical" href="${canonico}"`), `${pagina}: URL canônica fora do domínio configurado.`)
+    }
     const link = [...html.matchAll(/<link\b[^>]*>/gi)].map((m) => m[0]).find((l) => /rel=["']alternate["']/i.test(l) && /type=["']text\/markdown["']/i.test(l))
     assert(link, `${pagina} precisa anunciar sua versão Markdown.`)
     const href = /href=["']([^"']+)["']/i.exec(link)?.[1]
@@ -158,13 +165,16 @@ try {
   const { lhr, report } = resultado
   fs.writeFileSync(path.join(saida, "lighthouse.json"), report[0])
   fs.writeFileSync(path.join(saida, "lighthouse.html"), report[1])
+  for (const parte of ["Trace", "DevtoolsLog"]) {
+    if (resultado.artifacts?.[parte]) fs.writeFileSync(path.join(saida, `lighthouse-${parte}.json`), JSON.stringify(resultado.artifacts[parte]))
+  }
   const categoria = conferirAuditoriaAgentes(lhr)
   const resumo = {
     lighthouse: lhr.lighthouseVersion, navegador: lhr.environment.hostUserAgent,
     categoria: categoria.id, score: categoria.score,
     portao: { acessibilidade: 1, llms_txt: 1, cls_maximo: 0.1, nota_cls_minima: 0.9 },
     auditorias: categoria.auditRefs.map(({ id }) => ({ id, score: lhr.audits[id].score, modo: lhr.audits[id].scoreDisplayMode })),
-    escopo: "Arquivos e links conferidos sob /Raiz/. Lighthouse executado em origem local com site na raiz; não comprova a descoberta dos arquivos na raiz pública do GitHub Pages. WebMCP e ARD apenas relatados.",
+    escopo: `Arquivos e links conferidos sob ${prefixo}. Lighthouse executado em origem local com site na raiz; não comprova DNS ou a descoberta na origem pública. WebMCP e ARD apenas relatados.`,
   }
   fs.writeFileSync(path.join(saida, "resumo.json"), JSON.stringify(resumo, null, 2) + "\n")
   console.log(`ok: Lighthouse ${lhr.lighthouseVersion}, categoria experimental agentic-browsing, acessibilidade e llms-txt aprovados, CLS até 0,1 e nenhum erro de execução.`)

@@ -2,18 +2,18 @@
 
 Uso (da raiz do repositório):
   node front/scripts/baixar-dados.mjs --geo --exigir
-  python front/scripts/geo.py --dados dados/estados  # todos os municípios do Release
+  python front/scripts/geo.py --dados dados/publicos  # todos os municípios do Release
   python front/scripts/geo.py 1507300 1504950        # consulta direta antiga, para diagnóstico
 
 Saída em front/geo/ (fora do git, é dado gerado e pode ser grande):
-  municipio_<cod>.geojson   divisa do município (TerraBrasilis, municipalities_legal_amazon)
+  municipio_<cod>.geojson   divisa do município (TerraBrasilis; IBGE quando a divisão precisa de atualização)
   imoveis_<cod>.geojson.gz  polígonos do GeoParquet do motor, só CAR e geometry, gzip lido no navegador
   ti_<cod>.geojson          terras indígenas na caixa do município (TerraBrasilis)
   uc_<cod>.geojson          unidades de conservação na caixa do município (TerraBrasilis)
   rios_<cod>.geojson        hidrografia do PRODES na caixa do município (a mesma que o motor usa para a APP)
   base_<UF>.pmtiles         fundo uniforme do estado até z10, compartilhado por todos os seus municípios
   fontes/<fonte>/<faixa>.pbf  letras dos rótulos do mapa (Noto Sans, licença OFL, do protomaps/basemaps-assets)
-  brasil_municipios.geojson municípios do Brasil, simplificados para a escala do país (TerraBrasilis, por bioma)
+  brasil_municipios.geojson municípios simplificados (TerraBrasilis por bioma, atualização integral da UF pelo IBGE)
   brasil_estados.geojson    os 27 estados (os mesmos municípios juntados), com o ponto do rótulo
   base_brasil.pmtiles       Brasil inteiro até z6, com overzoom; detalhe estadual sobreposto no navegador
 E grava no front (vão para o git, são pequenos):
@@ -34,6 +34,7 @@ import gzip
 import hashlib
 import json
 import math
+import re
 import time
 from concurrent.futures import ThreadPoolExecutor
 from functools import lru_cache
@@ -52,6 +53,8 @@ CAR_WFS = "https://geoserver.car.gov.br/geoserver/sicar/wfs"
 TB_WFS = "https://terrabrasilis.dpi.inpe.br/geoserver/ows"
 PROTOMAPS = "https://build.protomaps.com/{}.pmtiles"
 BRASIL = (-74.0, -34.0, -34.0, 5.5)
+MALHAS_IBGE = "https://geoftp.ibge.gov.br/organizacao_do_territorio/malhas_territoriais/malhas_municipais/"
+
 
 class TLSAntigo(requests.adapters.HTTPAdapter):
     """O servidor do CAR usa TLS antigo; o Python novo recusa sem isto (o mesmo ajuste de motor/raiz_estado.py)."""
@@ -416,9 +419,33 @@ MUNICIPIOS_BIOMA = [
     ("prodes-pantanal-nb", "municipalities_pantanal_biome"),
 ]
 UF_IBGE = {
-    "11": "RO", "12": "AC", "13": "AM", "14": "RR", "15": "PA", "16": "AP", "17": "TO", "21": "MA", "22": "PI",
-    "23": "CE", "24": "RN", "25": "PB", "26": "PE", "27": "AL", "28": "SE", "29": "BA", "31": "MG", "32": "ES",
-    "33": "RJ", "35": "SP", "41": "PR", "42": "SC", "43": "RS", "50": "MS", "51": "MT", "52": "GO", "53": "DF",
+    "11": "RO",
+    "12": "AC",
+    "13": "AM",
+    "14": "RR",
+    "15": "PA",
+    "16": "AP",
+    "17": "TO",
+    "21": "MA",
+    "22": "PI",
+    "23": "CE",
+    "24": "RN",
+    "25": "PB",
+    "26": "PE",
+    "27": "AL",
+    "28": "SE",
+    "29": "BA",
+    "31": "MG",
+    "32": "ES",
+    "33": "RJ",
+    "35": "SP",
+    "41": "PR",
+    "42": "SC",
+    "43": "RS",
+    "50": "MS",
+    "51": "MT",
+    "52": "GO",
+    "53": "DF",
 }
 
 
@@ -524,13 +551,153 @@ def estados_brasil() -> None:
         g = valido(shapely.union_all(gs).buffer(0.0005).buffer(-0.0005))
         g = arredondar(g.simplify(0.01, preserve_topology=True), 3)
         p = shapely.ops.polylabel(max(getattr(g, "geoms", [g]), key=lambda x: x.area), tolerance=0.01)
-        feicoes.append(feicao(g, {
-            "uf": uf,
-            "cod": next(c for c, u in UF_IBGE.items() if u == uf),
-            "rotulo": [round(p.x, 3), round(p.y, 3)],
-        }))
+        feicoes.append(
+            feicao(
+                g,
+                {
+                    "uf": uf,
+                    "cod": next(c for c, u in UF_IBGE.items() if u == uf),
+                    "rotulo": [round(p.x, 3), round(p.y, 3)],
+                },
+            )
+        )
     tam = salvar(arq.name, feicoes)
     print(f"   {len(feicoes)} estados, {tam / 1e6:.1f} MB")
+
+
+def atualizar_malha_ibge(publicados: dict[str, Path]) -> None:
+    """Município novo exige a UF inteira da mesma edição, nunca um enxerto sobre seus municípios de origem.
+
+    O TerraBrasilis pode ainda usar uma divisão anterior à DTB. Só as UFs com lacuna são promovidas à edição
+    mais recente da Malha Municipal Digital do IBGE. As já promovidas reaplicam seu ZIP conferido, inclusive
+    após uma interrupção entre gravações ou reconstrução do cache TerraBrasilis. CAR e bases não são apagados.
+    """
+    import geopandas as gpd
+
+    caminho_municipios = SAIDA / "brasil_municipios.geojson"
+    municipios = json.loads(caminho_municipios.read_text())["features"]
+    existentes = {str(f["properties"]["cod_ibge"]) for f in municipios}
+    faltantes = set(publicados) - existentes
+    cache = SAIDA / "cache"
+    registro = cache / "malhas-ibge-v1.json"
+    malhas = json.loads(registro.read_text()) if registro.exists() else {}
+    novas_ufs = {UF_IBGE[cod[:2]] for cod in faltantes}
+    if not isinstance(malhas, dict) or any(uf not in UF_IBGE.values() for uf in malhas):
+        raise ValueError("registro de malhas IBGE contém UF inválida")
+    if not novas_ufs and not malhas:
+        return
+    ano_recente = None
+
+    def edicao_recente():
+        nonlocal ano_recente
+        if ano_recente is not None:
+            return ano_recente
+        anos = [
+            int(a)
+            for a in re.findall(r'href="municipio_(\d{4})/"', baixar(MALHAS_IBGE, timeout=120).text)
+            if 2000 <= int(a) <= dt.datetime.now(dt.UTC).year
+        ]
+        if not anos:
+            raise RuntimeError("nenhuma edição da malha municipal no índice do IBGE")
+        ano_recente = max(anos)
+        return ano_recente
+
+    cache.mkdir(exist_ok=True)
+    estados = json.loads((SAIDA / "brasil_estados.geojson").read_text())["features"]
+    atualizadas: dict[str, list[dict]] = {}
+    estados_novos: dict[str, dict] = {}
+    for uf in sorted(set(malhas) | novas_ufs):
+        anterior = malhas.get(uf)
+        if anterior is not None and (
+            not isinstance(anterior, dict)
+            or set(anterior) != {"fonte", "ano", "sha256"}
+            or anterior["fonte"] != "IBGE"
+            or type(anterior["ano"]) is not int
+            or not 2000 <= anterior["ano"] <= dt.datetime.now(dt.UTC).year
+            or not re.fullmatch(r"[0-9a-f]{64}", str(anterior["sha256"]))
+        ):
+            raise ValueError(f"registro inválido da malha IBGE de {uf}")
+        ano = anterior["ano"] if anterior else edicao_recente()
+        prefixo = next(c for c, sigla in UF_IBGE.items() if sigla == uf)
+        esperados = {cod for cod in existentes | set(publicados) if cod.startswith(prefixo)}
+        # Tenta a edição registrada antes de consultar a rede: reconstruir uma saída não exige fonte nova.
+        for tentativa in range(2):
+            nome = f"{uf}_Municipios_{ano}.zip"
+            origem = cache / nome
+            conteudo = origem.read_bytes() if origem.exists() else None
+            if conteudo is None:
+                url = f"{MALHAS_IBGE}municipio_{ano}/UFs/{uf}/{nome}"
+                print(f" malha IBGE {ano}: {uf}", flush=True)
+                conteudo = baixar(url, timeout=600).content
+                temporario = origem.with_suffix(".baixando.zip")
+                temporario.write_bytes(conteudo)
+                origem_lida = temporario
+            else:
+                origem_lida = origem
+            if anterior and anterior["ano"] == ano and hashlib.sha256(conteudo).hexdigest() != anterior["sha256"]:
+                raise ValueError(f"hash da malha IBGE de {uf} diverge da origem registrada")
+            dados = gpd.read_file(
+                f"/vsizip/{origem_lida.resolve()}/{uf}_Municipios_{ano}.shp", columns=["CD_MUN", "NM_MUN"]
+            )
+            if dados.crs is None or dados.crs.to_epsg() != 4674:
+                raise ValueError(f"malha IBGE de {uf} sem referência SIRGAS 2000")
+            if not {"CD_MUN", "NM_MUN", "geometry"} <= set(dados.columns):
+                raise ValueError(f"colunas ausentes na malha IBGE de {uf}")
+            dados = dados.to_crs(4326)
+            por_codigo = {}
+            for cod, nome_municipio, geometria in zip(dados.CD_MUN, dados.NM_MUN, dados.geometry, strict=True):
+                if not isinstance(cod, str) or not re.fullmatch(prefixo + r"\d{5}", cod) or cod in por_codigo:
+                    raise ValueError(f"código inválido ou duplicado na malha IBGE de {uf}")
+                if not isinstance(nome_municipio, str) or not nome_municipio.strip() or geometria is None:
+                    raise ValueError(f"nome ou geometria ausente na malha IBGE de {uf}")
+                geometria = so_poligonos(valido(geometria))
+                if geometria.is_empty:
+                    raise ValueError(f"geometria vazia na malha IBGE de {uf}")
+                por_codigo[cod] = (nome_municipio, geometria)
+            if esperados <= por_codigo.keys():
+                break
+            if tentativa == 0 and anterior and edicao_recente() > ano:
+                ano = edicao_recente()
+                continue
+            raise RuntimeError(f"malha IBGE {ano} de {uf} incompleta: {sorted(esperados - por_codigo.keys())}")
+        # Simplifica a cobertura inteira quando suportado, preservando as divisas compartilhadas.
+        geometrias = [g for _, g in por_codigo.values()]
+        if hasattr(shapely, "coverage_simplify") and shapely.coverage_is_valid(geometrias):
+            menores = shapely.coverage_simplify(geometrias, 0.01)
+        else:
+            menores = [g.simplify(0.01, preserve_topology=True) for g in geometrias]
+        feicoes = []
+        for (cod, (nome_municipio, original)), menor in zip(por_codigo.items(), menores, strict=True):
+            menor = arredondar(menor, 3)
+            feicoes.append(
+                feicao(menor if not menor.is_empty else original, {"cod_ibge": cod, "nome": nome_municipio, "uf": uf})
+            )
+        atualizadas[uf] = feicoes
+        g = arredondar(valido(shapely.union_all(geometrias)).simplify(0.01, preserve_topology=True), 3)
+        p = shapely.ops.polylabel(max(getattr(g, "geoms", [g]), key=lambda x: x.area), tolerance=0.01)
+        estados_novos[uf] = feicao(g, {"uf": uf, "cod": prefixo, "rotulo": [round(p.x, 3), round(p.y, 3)]})
+        if origem_lida != origem:
+            origem_lida.replace(origem)
+        malhas[uf] = {"fonte": "IBGE", "ano": ano, "sha256": hashlib.sha256(conteudo).hexdigest()}
+    # Registra primeiro os ZIPs validados: uma interrupção reaplica exatamente essas edições na próxima rodada.
+    temporario = registro.with_suffix(".tmp")
+    temporario.write_text(json.dumps(malhas, sort_keys=True))
+    temporario.replace(registro)
+    municipios = [f for f in municipios if UF_IBGE.get(str(f["properties"]["cod_ibge"])[:2]) not in atualizadas]
+    municipios.extend(f for fs in atualizadas.values() for f in fs)
+    salvar(caminho_municipios.name, sorted(municipios, key=lambda f: f["properties"]["cod_ibge"]))
+    estados = [f for f in estados if f["properties"]["uf"] not in estados_novos]
+    salvar("brasil_estados.geojson", sorted([*estados, *estados_novos.values()], key=lambda f: f["properties"]["uf"]))
+    # Os municípios de origem também mudaram: um recorte antigo não pode sobreviver à atualização da UF.
+    for fs in atualizadas.values():
+        for f in fs:
+            cod = f["properties"]["cod_ibge"]
+            destino = SAIDA / f"municipio_{cod}.geojson"
+            comprimido = SAIDA / f"municipio_{cod}.geojson.gz"
+            if cod in publicados or destino.exists() or comprimido.exists():
+                salvar(destino.name, [f])
+                if comprimido.exists():
+                    salvar(comprimido.name, [f])
 
 
 DTB = "https://geoftp.ibge.gov.br/organizacao_do_territorio/estrutura_territorial/divisao_territorial/"
@@ -676,7 +843,7 @@ def base_regiao(nome: str, caixa, dia: str | None, zoom: int) -> None:
     with temporario.open("wb") as f, ThreadPoolExecutor(16) as ex:
         w = Writer(f)
         for inicio in range(0, len(ids), 128):
-            lote = ids[inicio:inicio + 128]
+            lote = ids[inicio : inicio + 128]
             for tid, dado in zip(lote, ex.map(remoto.ladrilho, lote), strict=True):
                 if dado:
                     w.write_tile(tid, dado)
@@ -705,7 +872,9 @@ def base_brasil(dia: str | None, cods: list[str] | None = None) -> None:
     base_regiao("base_brasil.pmtiles", BRASIL, dia, 6)
 
 
-def indice(cods: list[str] | None = None, falhas: dict[str, str] | None = None) -> None:
+def indice(
+    cods: list[str] | None = None, falhas: dict[str, str] | None = None, dados_publicados_em: str | None = None
+) -> None:
     itens: dict[str, dict] = {}
     for f in sorted(SAIDA.glob("*_*.*")):
         nome = f.name.removesuffix(".gz")
@@ -736,7 +905,11 @@ def indice(cods: list[str] | None = None, falhas: dict[str, str] | None = None) 
         json.dumps(
             {
                 "gerado_em": dt.datetime.now(dt.UTC).isoformat(timespec="seconds"),
+                "dados_publicados_em": dados_publicados_em,
                 "brasil": brasil,
+                "malhas": json.loads((SAIDA / "cache" / "malhas-ibge-v1.json").read_text())
+                if (SAIDA / "cache" / "malhas-ibge-v1.json").exists()
+                else {},
                 "municipios": itens,
                 "sem_contorno": {cod: motivo for cod, motivo in (falhas or {}).items()},
             },
@@ -746,26 +919,42 @@ def indice(cods: list[str] | None = None, falhas: dict[str, str] | None = None) 
 
 
 def municipios_publicados(dados: Path) -> dict[str, Path]:
-    """Só municípios com dados por fazenda; a lista vem do Release, nunca de dois códigos fixos."""
+    """Somente a publicação mínima explícita; pacotes legados nunca alimentam o mapa público."""
     manifesto = dados / "estados.json"
-    ufs = json.loads(manifesto.read_text())["estados"] if manifesto.exists() else UF_IBGE.values()
+    publicado = json.loads(manifesto.read_text()) if manifesto.exists() else {}
+    if publicado.get("versao_publicacao") != 1 or publicado.get("escopo") != "publico_basico":
+        raise ValueError("o mapa exige manifesto publico_basico v1; pacotes legados não são aceitos")
+    ufs = publicado.get("estados", {})
+    if any(uf not in UF_IBGE.values() for uf in ufs):
+        raise ValueError("manifesto público contém UF inválida")
+    if any(estado.get("versao_publicacao") != 1 or estado.get("escopo") != "publico_basico" for estado in ufs.values()):
+        raise ValueError("estado exige marca publico_basico v1; pacotes legados não são aceitos")
     return {
-        f.stem.removeprefix("imoveis_"): f
+        f.stem.removeprefix("imoveis_basicos_"): f
         for uf in sorted(ufs)
-        for f in sorted((dados / uf).glob("imoveis_???????.csv"))
-        if f.stem.removeprefix("imoveis_").isdigit()
+        for f in sorted((dados / uf).glob("imoveis_basicos_???????.csv"))
+        if f.stem.removeprefix("imoveis_basicos_").isdigit()
     }
 
 
 def exportar_geometria(csv_imoveis: Path, cache: dict) -> tuple[int, int]:
     """GeoParquet do próprio Release; expõe só CAR e contorno, preservando inclusive áreas pequenas."""
     import geopandas as gpd
+    import pyarrow.parquet as pq
 
-    cod = csv_imoveis.stem.removeprefix("imoveis_")
+    cod = csv_imoveis.stem.removeprefix("imoveis_basicos_")
+    if not cod.isdigit() or len(cod) != 7:
+        raise ValueError("o mapa exige imoveis_basicos_<cod>.csv")
     origem = csv_imoveis.with_name(f"geo_{cod}.parquet")
     if not origem.exists():
         raise FileNotFoundError("o Release ainda não contém o desenho deste município")
     destino = SAIDA / f"imoveis_{cod}.geojson.gz"
+    colunas_geo = pq.read_schema(origem).names
+    if len(colunas_geo) != 2 or set(colunas_geo) != {"cod_imovel", "geometry"}:
+        raise ValueError("GeoParquet público contém campos fora do contrato mínimo")
+    with csv_imoveis.open(encoding="utf-8-sig", newline="") as f:
+        if csv.DictReader(f).fieldnames != ["cod_imovel", "cod_ibge", "municipio", "uf", "situacao_basica"]:
+            raise ValueError("CSV público contém campos fora do contrato mínimo")
     assinatura = hashlib.sha256(origem.read_bytes() + csv_imoveis.read_bytes()).hexdigest()
     if cache.get(cod, {}).get("sha256") == assinatura and destino.exists():
         return cache[cod]["imoveis"], destino.stat().st_size
@@ -836,6 +1025,7 @@ def do_release(dados: Path, sem_base: bool = False) -> None:
         caminho_cache.write_text(json.dumps(cache))
     municipios_brasil()
     estados_brasil()
+    atualizar_malha_ibge(publicados)
     fronteiras = {
         str(f["properties"]["cod_ibge"]): f
         for f in json.loads((SAIDA / "brasil_municipios.geojson").read_text())["features"]
@@ -855,12 +1045,14 @@ def do_release(dados: Path, sem_base: bool = False) -> None:
             if uf in ufs:
                 caixa = shape(f["geometry"]).bounds
                 # Margem para rios/estradas na borda e cobertura até z10 em todo estado, sem municípios em branco.
-                caixa = (caixa[0] - .05, caixa[1] - .05, caixa[2] + .05, caixa[3] + .05)
+                caixa = (caixa[0] - 0.05, caixa[1] - 0.05, caixa[2] + 0.05, caixa[3] + 0.05)
                 base_regiao(f"base_{uf}.pmtiles", caixa, dia, 10)
     # Retira bases municipais duplicadas do cache antigo. O índice aponta todos para a mesma base estadual.
     for arq in SAIDA.glob("base_???????.pmtiles"):
         arq.unlink()
-    indice(list(publicados), falhas)
+    manifesto = dados / "estados.json"
+    publicado_em = json.loads(manifesto.read_text()).get("gerado_em") if manifesto.exists() else None
+    indice(list(publicados), falhas, dados_publicados_em=publicado_em)
     print(f" {len(publicados) - len(falhas)}/{len(publicados)} municípios com desenho; {total / 1e6:.1f} MB gzip")
 
 

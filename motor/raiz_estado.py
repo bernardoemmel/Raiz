@@ -506,6 +506,43 @@ def alertas(uf, bbox):
     return a.cx[bbox[0]:bbox[2], bbox[1]:bbox[3]] if len(a) else a
 
 
+def embargos_municipio(embargos, cod):
+    """Embargo ativo sem polígono utilizável bloqueia o funil; nunca vira ausência de restrição.
+
+    Usa a mesma reparação do motor legado, sem depender dos módulos E1. A validação
+    não altera as geometrias retornadas nem exclui polígonos por tamanho.
+    """
+    exigidas = {'COD_MUNICIPIO', 'SIT_CANCELADO', 'SIT_DESEMBARGO'}
+    if not exigidas <= set(embargos.columns):
+        raise ValueError('embargos sem colunas obrigatórias; cálculo bloqueado')
+    codigos = pd.to_numeric(embargos.COD_MUNICIPIO, errors='coerce')
+    ativos = embargos.loc[(codigos == int(cod)) & (embargos.SIT_CANCELADO != 'S') &
+                          (embargos.SIT_DESEMBARGO != 'S')]
+    try:
+        if isinstance(ativos, gpd.GeoDataFrame):
+            g = gpd.GeoDataFrame(geometry=ativos.geometry, crs=ativos.crs).to_crs(4674)
+        else:
+            if 'GEOM_AREA_EMBARGADA' not in ativos:
+                raise ValueError('coluna de geometria ausente')
+            geoms = [wkt.loads(s) if isinstance(s, str) and s.strip() else None for s in ativos.GEOM_AREA_EMBARGADA]
+            g = gpd.GeoDataFrame(geometry=geoms, crs=4674)
+        if g.geometry.isna().any() or g.geometry.is_empty.any():
+            raise ValueError('geometria ausente ou vazia')
+        # Uma projeção não linear pode dar área artificial a um anel colinear.
+        # Confere também a geometria original, com a mesma regra buffer(0).
+        originais = [geom if geom.is_valid else geom.buffer(0) for geom in g.geometry]
+        if any(not np.isfinite(geom.area) or geom.area <= 0 for geom in originais):
+            raise ValueError('sem área poligonal na geometria original')
+        reparadas = fix(g, sub=False)
+        areas = reparadas.area
+        if len(reparadas) != len(g) or not (np.isfinite(areas) & (areas > 0)).all():
+            raise ValueError('sem área poligonal após reparo')
+    except Exception:
+        # Parsers podem incluir o WKT original no erro; só divulga o diagnóstico fixo.
+        raise ValueError('embargo ativo sem geometria poligonal válida; cálculo bloqueado') from None
+    return g
+
+
 def municipio(uf, cod, EMB, out='.'):
     global PROJ
     if PROJ is None: PROJ = projetos_carbono()
@@ -514,6 +551,7 @@ def municipio(uf, cod, EMB, out='.'):
     if len(car) == 0: return None, nome  # o SICAR devolve zero imóveis (ex.: Uiramutã, RR): sem colunas para filtrar
     car = car[(car.status_imovel != 'CA') & (car.tipo_imovel == 'IRU')]
     if len(car) == 0: return None, nome
+    e = embargos_municipio(EMB, cod)
     bbox = [round(v, 4) for v in car.total_bounds]
     print(f'  {nome}: {len(car)} imóveis; baixando PRODES, TI, UC, SIGEF...')
     L, toca = camadas(uf, bbox)
@@ -524,10 +562,6 @@ def municipio(uf, cod, EMB, out='.'):
     yd = fix(yd)
     if 'main_class' in yd: yd = yd[yd.main_class.str.upper() == 'DESMATAMENTO']
     if 'year' not in yd: yd['year'] = pd.Series(dtype=float)  # fora do bioma Amazônia o PRODES desta camada vem vazio
-    e = EMB[EMB.COD_MUNICIPIO == str(cod)]
-    e = e[(e.SIT_CANCELADO != 'S') & (e.SIT_DESEMBARGO != 'S') & e.GEOM_AREA_EMBARGADA.notna()].copy()
-    e['geometry'] = e.GEOM_AREA_EMBARGADA.apply(lambda s: wkt.loads(s) if isinstance(s, str) and s.strip() else None)
-    e = gpd.GeoDataFrame(e[e.geometry.notna()], geometry='geometry', crs=4674)
     c = car.set_index('cod_imovel')
     c['desm_pos2008_ha'] = ov(base, yd[yd.year >= 2009])
     c['desm_pos2020_ha'] = ov(base, yd[yd.year >= 2021])

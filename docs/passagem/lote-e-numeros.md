@@ -29,16 +29,116 @@ O workflow novo é a infraestrutura necessária para rodar o pedido no Actions.
 
 ## Execução e publicação
 
-`.github/workflows/lote-para.yml`, comando `python -m raiz.restauracao_rodada`: congela os IDs e hashes dos pacotes
-`raiz_PA.tar.gz` e `raiz_geo_PA.tar.gz` do Release `dados`, distribui 144 municípios por 15 jobs, confere versões e
-cobertura, monta as três opções e publica pacotes imutáveis por execução. O ponteiro `lote_PA_central_r11.json` sobe
-por último. Não substitui os pacotes originais do motor e não grava dados grandes no git.
+O fluxo original `.github/workflows/lote-para.yml`, comando `python -m raiz.restauracao_rodada`, congelou os IDs
+e hashes dos pacotes `raiz_PA.tar.gz` e `raiz_geo_PA.tar.gz` do Release `dados` e distribuiu 144 municípios por
+15 jobs. Seu publicador público foi desativado na migração descrita abaixo. A continuação protegida confere
+versões e cobertura, monta as três opções e preserva pacotes imutáveis no Release privado; não atualiza o
+ponteiro público `lote_PA_central_r11.json`. Não substitui os pacotes do motor nem grava dados grandes no git.
 
 Inspeção inicial: 144 municípios e 345.870 imóveis no pacote publicado; sem tabelas de desenvolvedor e terra,
 APP pela escadinha presente em 81 municípios. Usa somente dados congelados; não executa downloads geográficos novos.
 Piloto de Nova Esperança do Piriá: 880 imóveis reais calculados, três opções e todos os arquivos gerados localmente.
-Execução integral/publicação: **pendente de rodar o workflow depois do merge do código**. Esta passagem será atualizada
-com URL da execução, hashes e números quando a publicação terminar.
+Código mesclado no [PR #49](https://github.com/bernardoemmel/Raiz/pull/49), após os três checks verdes no
+[CI 43284244212](https://github.com/bernardoemmel/Raiz/actions/runs/43284244212). A
+[execução integral 43285608189](https://github.com/bernardoemmel/Raiz/actions/runs/43285608189), no commit
+`31990520b842fd665152b2c7931b3556a66ca180`, foi cancelada externamente às 19:09 UTC: dez das quinze fatias
+concluíram com sucesso, cinco foram interrompidas e a publicação não começou. O GitHub registra cancelamento pela
+conta `bernardoemmel` e workflow desativado manualmente. A publicação dessa execução não ocorreu; nenhuma saída
+parcial foi promovida ao Release. As dez fatias prontas cobrem 98 municípios e 230.295 imóveis; ficaram 46 municípios
+e 115.575 imóveis nas cinco interrompidas. Os onze artefatos (entrada e dez resultados) foram depois preservados no
+draft privado pelo Actions `43289212685` e removidos do armazenamento público de artifacts. A mesma migração,
+conduzida pelo chat Ficha da fazenda, removeu 33 caches de dados, incluindo os quinze caches do lote. As dez fatias
+prontas continuam preservadas; os caches parciais das cinco incompletas não estão mais disponíveis.
+O fundador esclareceu que o cancelamento não
+era intencional para esta entrega e autorizou retomar somente as cinco fatias, aguardando vagas para respeitar o
+limite de quinze jobs junto ao processamento dos estados, sem cancelar trabalhos em andamento.
+
+**Origem identificada:** o chat **RAIZ - Ficha da fazenda** (`6af60423-79ec-8191-bf64-3a51a8470005`), no comando
+`exec-912e58b0-7e6e-41c0-b64a-931f36538908`, executou `PUT .../actions/workflows/416422657/disable` e
+`POST .../actions/runs/43285608189/cancel`. A ação fazia parte da migração autorizada naquele chat para tirar
+camadas pagas por imóvel do Release público. Não foi cancelamento automático por concorrência do GitHub.
+Para evitar repetição, não pausar em bloco workflows de outros chats: preservar os cálculos e coordenar a troca
+do publicador. A ausência de nome/CPF não torna TIR, risco e crédito por imóvel dados abertos.
+
+Repetir os jobs cancelados pelo mecanismo padrão executaria também o publicador público do commit antigo.
+A continuação usa `.github/workflows/retomar-lote-para.yml` e `raiz/restauracao_retomada.py`: reutiliza a entrada
+e as dez fatias concluídas a partir dos ZIPs privados `actions-<id>-<nome>.zip` e calcula apenas `00`, `01`, `02`,
+`05` e `12`. Os comprovantes `artifacts-inventario-43289212685.json` e `artifacts-backup-43289212685.json` vinculam
+IDs, execução original, commit de origem, nomes, tamanhos e SHA256; são conferidos antes de aceitar os ZIPs.
+As cinco incompletas começam sem os caches antigos removidos e preservam os novos checkpoints no draft privado.
+Executa código, amostra e lockfile no commit original, copiando somente o orquestrador privado. Confere hashes de
+entrada e saída, modelo, CARs, contagens e a composição exata de cada fatia antes da reunião. Uma conclusão já
+preservada é validada e reutilizada; não há novo cálculo só porque um passo posterior precisou ser repetido.
+Os arquivos completos têm como destino o Release
+autenticado `dados-privados` (draft, ID 443383695), sem publicar o draft nem criar novos artifacts/caches públicos.
+Depois da execução documentada abaixo, a integração do PR #72 atualizou o orquestrador para usar
+`RAIZ_DADOS_PRIVADOS_URL` e `RAIZ_DADOS_PRIVADOS_TOKEN`, como o arquivo privado da rodada atual;
+por preservar as provas históricas, recusa outro repositório/tag ou ausência de token. Sua identidade de origem
+fica no próprio orquestrador, sem depender de `REPO` no módulo atual da rodada. O token segue somente no ambiente
+do processo autenticado; erros de API e download não expõem URLs assinadas. Motor e lockfile continuam no SHA original.
+Nenhuma das dez fatias prontas deve ser recalculada.
+O fluxo original foi desativado durante a retirada do publicador público; a continuação protegida
+usa o mesmo grupo de concorrência, no máximo cinco jobs de cálculo e dispara apenas quando houver vagas.
+Após a integração do PR #72, ambos os workflows estão ativos e o fluxo original também publica apenas no arquivo
+privado. Não foi disparada uma nova rodada integral: a entrega reutiliza exatamente as dez fatias anteriores.
+
+A continuação foi integrada no [PR #55](https://github.com/bernardoemmel/Raiz/pull/55), com os seis checks verdes
+no [CI 43296782776](https://github.com/bernardoemmel/Raiz/actions/runs/43296782776). A
+[retomada 43299409156](https://github.com/bernardoemmel/Raiz/actions/runs/43299409156) foi iniciada às
+17h20 de 12/11/2026 (Brasília), no commit `3546687c66ec07ef9bd875d181efcff57ff1d312`, após conferir nove jobs
+ativos no repositório. Não foi cancelado nenhum trabalho para abrir vaga. A preparação validou e preservou as
+dez fatias prontas; as cinco autorizadas concluíram com sucesso. Motor, amostra e entradas continuam congelados
+no commit original, com modelo `restauracao-2026d+a84f9789`.
+
+**Publicação integral concluída:** a retomada terminou com sucesso às 17h47 de 12/11/2026 (Brasília), cobrindo
+144 municípios e 345.870 imóveis. Os quatro pacotes foram baixados novamente e conferidos por tamanho e SHA256.
+O [Release privado](https://github.com/bernardoemmel/Raiz/releases/tag/untagged-cecbbef1c8d8aa0a27d5) continua em
+rascunho e exige autenticação. Os resultados detalhados não foram recolocados no Release público `dados`.
+A descrição desse Release contém a nota de auditoria posterior, incluindo a limitação dos campos legados de TIR.
+
+Manifesto: `lote_PA_central_r11_retomada_43299409156_1_b29eb3fe8887a676.json`, asset `741030570`,
+SHA256 `b29eb3fe8887a676bbf5ad1ea7a040c68a0cc90d0863b27c5d3bd6e9ff34854c`.
+Os nomes abaixo são precedidos por `lote_PA_central_r11_retomada_43299409156_1_`; o manifesto contém o SHA completo
+de cada arquivo e os quinze comprovantes de origem, distinguindo dez reutilizações de cinco conclusões novas.
+
+| Pacote privado | Asset | Bytes | Conteúdo |
+|---|---|---:|---|
+| `barata_387255d9db78dbcf.tar.gz` | `741026329` | 81.877.508 | Lote mais barato, CSV por fazenda, relatório, decisões e ecologia |
+| `segura_f9a00ea18159548f.tar.gz` | `741027168` | 81.949.402 | Lote mais seguro, mesmos produtos e critérios |
+| `compacta_0d4b6f7925a4f238.tar.gz` | `741028120` | 81.947.222 | Lote mais compacto, mesmos produtos e critérios |
+| `previsoes_50dd1bd0501054dc.tar.gz` | `741030043` | 143.253.367 | Previsões imutáveis, fontes, 144 marcas municipais, comparação real e decisões de entrada |
+
+Cada opção contém P10/P50/P90, TIR por fazenda, preços mínimos para TIR de 12% e 15% (projeto e alavancada),
+quadro “o que destrava”, hectares e créditos por pendência. As três alternativas não são somáveis; as linhas de
+pendência também se sobrepõem. Todos os lotes continuam **potenciais para diligência, sem liberação de venda**.
+Os quantis ecológicos permanecem pendentes pelos motivos documentados abaixo, sem substituir nulos por zero.
+
+A auditoria posterior conferiu as 345.870 previsões CSV/JSONL e os 576 hashes municipais, sem perda ou duplicação
+de CAR. Reserva observada de 20% a 60%; faixas de crédito ordenadas, preços mínimos TIR15 ≥ TIR12 e limites
+físicos de área preservados. Permanecem 27.185 áreas positivas menores que 1 ha, incluindo 1.502 de até 0,05 ha.
+As 110.813 ausências de `pasto_ha` têm alternativa publicada `mb_pasto_2025_ha`; não foram convertidas em zero
+por falta de informação. As 38.676 inconsistências de área estão sinalizadas nas premissas substitutas e receberam
+o limite físico. Os três lotes reconciliam resumo, CSV e manifesto; suas TIRs e quatro preços mínimos por fazenda
+estão preenchidos. Foram conferidas 4.579.801 decisões de seleção e entrada, com critério, versão e revisão humana.
+
+**Limitação financeira do modelo congelado:** os campos legados `tir_*_pct_p50` guardam a TIR do caminho central,
+não a mediana dos sorteios. Em 1.908 registros estaduais esse valor supera o P90 dos sorteios; nenhum pertence
+às fazendas selecionadas ou às linhas de espera dos três lotes. O valor `-100` nesses indicadores é a sentinela
+legada de TIR não encontrada pela busca, não uma TIR medida nem prova de perda integral. Não ordenar os três
+valores artificialmente nem apresentar a tripla como quantis estatísticos completos. As previsões originais
+permanecem imutáveis; a distinção entre cenário central, quantis e TIR não definida fica registrada na auditoria
+para evolução do modelo, sem recalcular as dez fatias preservadas. Os quantis de créditos e os valores publicados
+de preços/TIRs das selecionadas permanecem inalterados; para elas, “P50” da TIR também significa caminho central.
+
+Auditoria do artefato preservado `calculado-03`: 23.023 imóveis em nove municípios, 36 hashes conferidos,
+previsões JSONL consistentes com os CSVs e modelo único `restauracao-2026d+a84f9789`. Nenhuma violação do piso de
+20% (faixa observada 20–60%), da ordem dos quantis de crédito, dos preços mínimos TIR15 ≥ TIR12 ou dos limites de área.
+Foram mantidas 1.099 áreas positivas menores que 1 ha. Há 3.811 entradas com inconsistência de área sinalizada
+e limite físico aplicado; as premissas substitutas de distância, declividade, chuva, solo, acesso e linha de base
+estão identificadas. Essa conferência cobre uma fatia e não substitui a validação integral antes da publicação.
+Na entrada congelada completa, as 144 tabelas somam 345.870 linhas e 345.870 CARs únicos, sem vazios nem
+duplicação entre municípios. O ZIP da fatia auditada também corresponde exatamente ao SHA e tamanho dos
+comprovantes privados da migração.
 
 ## Comparação com o real
 
@@ -74,4 +174,70 @@ normativas em P10/P50/P90. A referência SMA/SP de regenerantes permanece separa
 ## Validação
 
 Testes específicos de reserva, preço, salvaguardas, três opções, comparação, persistência e workflow.
-Ruff global conferido. A contagem final de testes e links do CI serão registrados na entrega da execução integral.
+Ruff global conferido. A validação local integrada à main `88860b6` teve 1.395 testes aprovados,
+232 dependentes do ambiente ignorados e 1 falha histórica esperada. A continuação privada tem 78 testes específicos
+aprovados e revisão independente, incluindo recusa de
+Release público, origem divergente, alteração do conjunto de CARs e recálculo de fatia pronta. O motor e a amostra
+originais foram conferidos em checkout separado. O CI com PostGIS, testes do front e workflows passou antes do merge do PR #49.
+A exceção autorizada no teste do front foi validada em 24 testes; nenhum código de produção do front foi alterado.
+
+A varredura de segredos com todos os ramos encontrou um falso positivo no PR #69, commit
+`be05cee99ee060b5ca2c9e60d7b077d1fa2a51aa`: URL JDBC sem credenciais em `infra/docker-compose.keycloak.yml:28`.
+A main incorporou em `.gitleaksignore` a exceção do fingerprint exato desse commit, arquivo, regra e linha;
+a continuação usa essa exceção existente, sem ampliar a allowlist. A varredura de todos os ramos permanece ativa.
+Nenhum valor de credencial foi exposto.
+
+## Etapa seguinte 1 — diagnóstico das fazendas selecionadas
+
+`raiz/restauracao_desbloqueio.py` gera JSON, CSV, Markdown e HTML com as travas das titulares e reservas,
+sem misturar imóveis em espera ou áreas de mitigação na contagem do lote. Cada trava traz hectares restauráveis,
+créditos P10/P50/P90, documento, conferência, responsável, fonte e marco de prazo. Dias permanecem nulos quando
+não existe SLA comprovado. Requisitos do projeto e pendências do checklist são separados de sobreposições físicas;
+referência documental recebida não libera uma trava. As linhas do quadro se sobrepõem e não são somáveis.
+
+Terra documentada na classificação publicada compreende matrícula conferida ou concessão; `matricula_a_conferir`
+não é terra pronta. A meta é repartida sem duplicação entre terra documentada, pendente e oferta faltante,
+com excedente separado. O percentual inicial de homologação do edital não é tratado como título conferido sobre
+o projeto inteiro. O relatório preserva a classificação do snapshot, sem autenticar documento por conta própria.
+
+As métricas distinguem preço do cenário, custo ponderado pelos créditos, equilíbrio individual ponderado e
+equilíbrio do fluxo agregado. A mediana de TIR é entre as fazendas selecionadas, sem ponderação; o caminho central
+legado não se transforma em mediana de Monte Carlo e a sentinela `-100` não entra como taxa válida. Falta de métrica
+não vira zero. O teste inclui fazenda de 0,01 ha e a preserva integralmente.
+
+O relatório foi conferido contra os três pacotes históricos do Pará. `lote_relatorio.gravar_lote` também o inclui
+nas próximas gerações. `raiz/restauracao_complementos.py` e `.github/workflows/desbloqueio-lote.yml` permitem
+publicá-lo como complemento privado sem refazer cálculo financeiro ou otimização: verificam manifesto, SHA256,
+tamanho, resumo, versão e cenário; mantêm a origem e publicam o manifesto derivado somente depois de conferir o
+pacote recuperável. A geração não altera as previsões imutáveis de `restauracao-2026d+a84f9789`.
+
+O workflow usa uma única cota na mesma fila CAS de quinze compartilhada com os estados. A única alteração no
+motor é registrar esse workflow na lista de consumidores da fila, para que sua vaga não fique invisível aos
+demais trabalhos. Nenhum processamento em curso é cancelado. Não houve mudança na API, MCP ou front.
+
+Próximas entregas, na ordem solicitada: catálogo e lote nacional incremental; comparação ARR com emissões e
+calibração apenas em pares comparáveis; sensibilidade com nova seleção; referências ecológicas com unidades,
+fontes, licença e suporte amostral explícitos. Pesquisas preparatórias não autorizam tratar resultado projetado
+como emissão observada nem riqueza padronizada de uma parcela como riqueza total da fazenda.
+
+A varredura de todos os ramos do PR #86 apontou três hashes SHA-256 de código no commit
+`e7074b4a170d745f34a4732072fcd954c0cad6f9`, linhas 3, 5 e 14 de `testes/mcp/sem_leitor_auditado.json`.
+Os hashes foram recalculados a partir dos arquivos daquele commit e conferem. A exceção restrita já preparada
+na frente de dados foi aplicada somente aos três fingerprints; nenhuma regra foi desativada nem arquivo MCP alterado.
+
+No PR #86, a referência estadual autenticada passou localmente com os 144 municípios e 345.870 imóveis
+(437,53 segundos, sem recalcular previsões). O CI `43336812571` aprovou testes Python com PostGIS,
+referência privada, front, e2e, segurança e workflows no código do diagnóstico. A única falha foi a varredura
+dos três hashes acima; a mesma varredura local de todos os ramos passou após as exceções restritas.
+O merge e a publicação dependem da nova execução verde no head que inclui essa correção.
+
+Na execução `43342797534`, os testes Python, referência integral do Pará, front, e2e, segurança,
+workflows e agentes passaram. A varredura global encontrou uma ocorrência nova em outro ramo:
+`e0e8ccdde14d0980ce33a1be48fde126ddeb1a31:infra/docker-compose.avaliacao.yml:generic-api-key:46`.
+Conferido: é `KC_DB_URL`, URL JDBC interna sem usuário ou senha. Foi acrescentado somente esse
+fingerprint; a varredura local dos 493 commits passou. Nenhum workflow foi cancelado ou desligado.
+
+A expansão nacional (786 municípios) está preservada no PR **#94, rascunho**, branch
+`codex/lote-nacional`, commit `aea5d25`. O salvamento inclui as pendências de teste integral,
+integração com a main e publicação. Ordem atual: concluir #86 e publicação privada; concluir ARR,
+sensibilidade e ecologia, incorporando as evidências solicitadas na rodada 12.

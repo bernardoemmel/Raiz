@@ -3,16 +3,22 @@ de fazenda, busca de interesse em ondas (quem recusa é trocado e o grupo fecha 
 aviso, reserva com Pix de teste, exclusividade (a fazenda reservada some para os outros clientes e volta quando a
 reserva vence), contrato, vigia e aprendizado da chance de aceite. Nada pessoal do dono sai pela API."""
 
+import base64
 import datetime as dt
+import secrets
+import uuid
 
 import pytest
 from fastapi.testclient import TestClient
 from pydantic import SecretStr
 from sqlalchemy import create_engine, text
 
+from raiz import salvaguardas as SG
 from raiz.carga import carregar_pasta
 from raiz.pedidos import servico as S
 from raiz.pessoal import gerar_chave
+from raiz.publica import conta as CT
+from raiz.publica import recibos
 from testes.conftest import AMOSTRA
 
 pytestmark = pytest.mark.banco
@@ -30,6 +36,23 @@ def eng(banco_url):
         c.execute(text("truncate funil.rodada, funil.imovel, negocio.oferta, negocio.cliente cascade"))
         c.execute(text("truncate negocio.interesse_dono, negocio.interesse_evento"))
     carregar_pasta(e, AMOSTRA, dt.date(2026, 11, 12))  # a carga já refaz a oferta do município
+    # A amostra CSV não contém geometria nem documentos. Apenas neste cenário feliz,
+    # polígonos e evidências sintéticos tornam explícita a revisão prévia à reserva.
+    hoje = dt.datetime.now(dt.UTC).date()
+    ev = SG.Evidencia(sha256="c" * 64, data=hoje)
+    SG.registrar_cobertura(e, SG.Cobertura(uf="PA", evidencia=ev, valida_ate=hoje))
+    verificacao = SG.Verificacao(verificacao=ev, territorio_tradicional=False)
+    with e.begin() as c:
+        c.execute(
+            text("""update funil.imovel set geom = ST_Multi(ST_GeomFromText(
+            'POLYGON((-47 -1,-46.99 -1,-46.99 -0.99,-47 -0.99,-47 -1))', 4674))
+            where geom is null""")
+        )
+        c.execute(
+            text("""insert into negocio.salvaguarda (cod_imovel, evidencia)
+            select cod_imovel, cast(:e as jsonb) from funil.imovel"""),
+            {"e": verificacao.model_dump_json()},
+        )
     yield e
     e.dispose()
 
@@ -41,6 +64,8 @@ def chave():
     k = gerar_chave()
     mp = pytest.MonkeyPatch()
     mp.setattr(P, "config", lambda: type("C", (), {"chave_pessoal": SecretStr(k)})())
+    mp.setenv("RAIZ_RECIBO_CHAVE", base64.urlsafe_b64encode(secrets.token_bytes(32)).decode())
+    mp.delenv("RAIZ_ABACATEPAY_CHAVE", raising=False)
     yield k
     mp.undo()
 
@@ -56,6 +81,180 @@ def test_carga_monta_a_oferta(eng):
         n, eleg = c.execute(text("""select count(*), count(*) filter (where (atributos->>'elegivel')::boolean)
                                     from negocio.oferta""")).one()  # fmt: skip
     assert n == 880 and eleg > 700
+
+
+def test_contornos_do_lote_exigem_desbloqueio_atual_sem_nova_cobranca(eng):
+    cliente = S.criar_cliente(eng, "Consulta do mapa")[0]
+    outro = S.criar_cliente(eng, "Outra consulta do mapa")[0]
+    with eng.connect() as con:
+        codigos = list(con.execute(text("select cod_imovel from funil.vigente order by cod_imovel limit 3")).scalars())
+        con.execute(
+            text("""update funil.imovel set geom = ST_Multi(ST_GeomFromText(
+                'POLYGON((-50 -6,-49.99 -6,-49.99 -5.99,-50 -5.99,-50 -6))',4674))
+                where cod_imovel = any(:codigos)"""),
+            {"codigos": codigos},
+        )
+        assert S._contornos_desbloqueados(con, cliente, codigos) == {}
+        con.execute(
+            text("insert into negocio.prospeccao_desbloqueio(cliente_id,cod_imovel) values (:cliente,:cod)"),
+            [{"cliente": cliente, "cod": cod} for cod in codigos[:2]],
+        )
+        assert set(S._contornos_desbloqueados(con, cliente, codigos)) == set(codigos[:2])
+        assert set(S._contornos_desbloqueados(con, cliente, [codigos[0]])) == {codigos[0]}
+        assert S._contornos_desbloqueados(con, outro, codigos) == {}
+        pedido = str(uuid.uuid4())
+        con.execute(
+            text("insert into negocio.pedido(id,cliente_id,campos) values (:id,:cliente,'{}')"),
+            {"id": pedido, "cliente": outro},
+        )
+        reserva = con.execute(
+            text("""insert into negocio.reserva(pedido_id,cliente_id,estado,ha,valor_rs,dias)
+                values (:pedido,:cliente,'ativa',10,1,30) returning id"""),
+            {"pedido": pedido, "cliente": outro},
+        ).scalar_one()
+        con.execute(
+            text("insert into negocio.reserva_fazenda(reserva_id,cod_imovel,ativa) values (:id,:cod,true)"),
+            {"id": reserva, "cod": codigos[0]},
+        )
+        desenhos = S._contornos_desbloqueados(con, cliente, codigos)
+        assert set(desenhos) == {codigos[1]}
+        assert desenhos[codigos[1]]["type"] == "MultiPolygon"
+        assert "properties" not in desenhos[codigos[1]]
+        assert (
+            con.execute(
+                text("select count(*) from negocio.prospeccao_movimento where cliente_id=:id"), {"id": cliente}
+            ).scalar_one()
+            == 0
+        )
+        con.execute(text("update negocio.cliente set ativo=false where id=:id"), {"id": cliente})
+        assert S._contornos_desbloqueados(con, cliente, codigos) == {}
+        # Desfaz dados geográficos/autorização de teste ao fechar a conexão.
+
+
+def test_sugestao_antiga_nao_carrega_geometria_sem_revalidar_autorizacao():
+    opcoes = [{"id": "barata", "itens": [{"cod_imovel": "CAR-teste", "geometria": {"type": "Polygon"}}]}]
+    assert "geometria" not in S._limpar_opcoes(opcoes, {}, set())[0]["itens"][0]
+
+
+def test_itens_do_pedido_so_revelam_detalhes_dos_cars_liberados_pelo_proprio_cliente(eng):
+    clientes = [S.criar_cliente(eng, "Consulta paga do lote")[0], S.criar_cliente(eng, "Outro lote")[0]]
+    pedidos = [str(uuid.uuid4()), str(uuid.uuid4())]
+    with eng.begin() as con:
+        codigos = list(con.execute(text("select cod_imovel from funil.vigente order by cod_imovel limit 2")).scalars())
+        # A autorização da ficha independe de existir um desenho no banco.
+        con.execute(text("update funil.imovel set geom=null where cod_imovel=any(:cods)"), {"cods": codigos})
+        itens = [{"cod_imovel": cod, "cod_ibge": "1504950", "municipio": "Pacajá", "uf": "PA", "papel": papel,
+                  "hectares": 12, "creditos": {"p10": 100, "p50": 200, "p90": 300, "nome_dono": "não publicar"},
+                  "metodo": "regeneracao", "caminho": "matricula_a_conferir", "custo_usd_credito": 5,
+                  "risco_terra": "medio", "pequena": True, "interesse": "contatado", "lon": -50, "lat": -6,
+                  "nome_dono": "não publicar", "cpf": "não publicar", "telefone": "não publicar",
+                  "detalhe_novo": {"email": "não publicar"}, "geometria": {"type": "Polygon"}}
+                 for cod, papel in zip(codigos, ("lote", "reserva"), strict=True)]  # fmt: skip
+        opcoes = [{"id": opcao, "creditos": {"p10": 100, "p50": 200, "p90": 300}, "hectares": 12,
+                   "fazendas": 1, "itens": itens} for opcao in ("barata", "segura", "compacta")]  # fmt: skip
+        base = {"fazendas": 2, "hectares": 24, "creditos": {"p10": 200, "p50": 400, "p90": 600}}
+        for cliente, pedido in zip(clientes, pedidos, strict=True):
+            con.execute(text("insert into negocio.pedido(id,cliente_id,campos) values (:id,:c,'{}')"),
+                        {"id": pedido, "c": cliente})  # fmt: skip
+            S._salvar_sugestao(con, pedido, "criado", base, opcoes)
+    premium = ("creditos", "hectares", "metodo", "caminho", "custo_usd_credito", "risco_terra")
+    gratuito = S.obter_pedido(eng, pedidos[0], clientes[0])
+    assert gratuito["base"] == base and len(gratuito["opcoes"]) == 3
+    for opcao in gratuito["opcoes"]:
+        assert {k: v for k, v in opcao.items() if k not in ("itens", "ficha_credito")} == {
+            k: v for k, v in opcoes[0].items() if k not in ("itens", "id")
+        } | {"id": opcao["id"]}
+        ficha = opcao["ficha_credito"]
+        assert ficha["estado"] == "indisponivel" and ficha["opcao_id"] == opcao["id"]
+        assert all(
+            ficha[campo] is None
+            for campo in ("base", "creditos_lote", "creditos_por_ha", "area_elegivel_ha", "resultados")
+        )
+        for item in opcao["itens"]:
+            assert not item["ficha_liberada"] and all(item[campo] is None for campo in premium)
+            assert item["pequena"] and item["papel"] in ("lote", "reserva")
+            assert item["interesse"] == "sem_contato" and "geometria" not in item
+    _sem_pessoal(gratuito)
+    with eng.begin() as con:
+        con.execute(text("insert into negocio.prospeccao_desbloqueio(cliente_id,cod_imovel) values (:c,:cod)"),
+                    [{"c": c, "cod": cod} for c, cod in zip(clientes, codigos, strict=True)])  # fmt: skip
+    for cliente, pedido, autorizado in zip(clientes, pedidos, codigos, strict=True):
+        resposta = S.obter_pedido(eng, pedido, cliente)
+        for opcao in resposta["opcoes"]:
+            for item in opcao["itens"]:
+                assert item["ficha_liberada"] == (item["cod_imovel"] == autorizado)
+                if item["ficha_liberada"]:
+                    assert item["creditos"] == {"p10": 100, "p50": 200, "p90": 300}
+                    assert item["hectares"] == 12 and item["custo_usd_credito"] == 5
+                    assert item["caminho"] == "matricula_a_conferir" and item["risco_terra"] == "medio"
+                else:
+                    assert all(item[campo] is None for campo in premium)
+                assert "geometria" not in item and "detalhe_novo" not in item
+        _sem_pessoal(resposta)
+    with eng.connect() as con:
+        assert S._ultima_sugestao(con, pedidos[0])["opcoes"] == opcoes  # cálculo/persistência intactos
+        assert con.execute(text("select count(*) from negocio.prospeccao_movimento where cliente_id=any(:cs)"),
+                           {"cs": clientes}).scalar_one() == 0  # sem débito implícito  # fmt: skip
+    with eng.begin() as con:
+        con.execute(text("delete from negocio.prospeccao_desbloqueio where cliente_id=:c"), {"c": clientes[0]})
+    assert not any(
+        i["ficha_liberada"] for o in S.obter_pedido(eng, pedidos[0], clientes[0])["opcoes"] for i in o["itens"]
+    )
+
+
+def test_andamento_revalida_fichas_por_cliente_sem_alterar_agregados_ou_cobrar(eng):
+    clientes = [S.criar_cliente(eng, "Andamento do lote")[0], S.criar_cliente(eng, "Outro andamento")[0]]
+    pedidos = [str(uuid.uuid4()), str(uuid.uuid4())]
+    with eng.begin() as con:
+        codigos = list(con.execute(text("""select cod_imovel from negocio.oferta
+            where (atributos->>'elegivel')::boolean and (atributos->>'credito_p50')::float > 0
+            order by cod_imovel limit 2""")).scalars())  # fmt: skip
+        for cliente, pedido in zip(clientes, pedidos, strict=True):
+            con.execute(
+                text("insert into negocio.pedido(id,cliente_id,campos) values (:id,:c,cast(:campos as jsonb))"),
+                {"id": pedido, "c": cliente, "campos": S.CamposPedido.model_validate(CAMPOS).model_dump_json()},
+            )
+            con.execute(
+                text("""insert into negocio.pedido_fazenda(pedido_id,cod_imovel,papel,ordem)
+                    values (:p,:cod,:papel,:ordem)"""),
+                [
+                    {"p": pedido, "cod": cod, "papel": "lote" if k == 0 else "reserva", "ordem": k}
+                    for k, cod in enumerate(codigos)
+                ],  # fmt: skip
+            )
+
+    premium = ("creditos", "hectares", "metodo", "caminho", "custo_usd_credito", "risco_terra")
+    inicial = S.andamento(eng, pedidos[0], clientes[0])
+    assert {item["cod_imovel"] for item in inicial["fazendas"]} == set(codigos)
+    assert all(not item["ficha_liberada"] for item in inicial["fazendas"])
+    assert all(item[campo] is None for item in inicial["fazendas"] for campo in premium)
+
+    with eng.begin() as con:
+        con.execute(
+            text("insert into negocio.prospeccao_desbloqueio(cliente_id,cod_imovel) values (:c,:cod)"),
+            [{"c": cliente, "cod": cod} for cliente, cod in zip(clientes, codigos, strict=True)],
+        )
+    for cliente, pedido, autorizado in zip(clientes, pedidos, codigos, strict=True):
+        atual = S.andamento(eng, pedido, cliente)
+        assert {k: v for k, v in atual.items() if k not in ("fazendas", "pedido")} == {
+            k: v for k, v in inicial.items() if k not in ("fazendas", "pedido")
+        }
+        for item in atual["fazendas"]:
+            assert item["ficha_liberada"] == (item["cod_imovel"] == autorizado)
+            if item["ficha_liberada"]:
+                assert item["creditos"]["p50"] > 0 and item["hectares"] > 0
+            else:
+                assert all(item[campo] is None for campo in premium)
+            assert "geometria" not in item
+        _sem_pessoal(atual)
+
+    with eng.begin() as con:
+        con.execute(text("delete from negocio.prospeccao_desbloqueio where cliente_id=:c"), {"c": clientes[0]})
+    assert S.andamento(eng, pedidos[0], clientes[0]) == inicial
+    with eng.connect() as con:
+        for tabela in ("prospeccao_movimento", "lancamento_api"):
+            assert con.execute(text(f"select count(*) from negocio.{tabela} where cliente_id=any(:cs)"),
+                               {"cs": clientes}).scalar_one() == 0  # fmt: skip
 
 
 def test_fluxo_completo_com_ondas_reserva_e_exclusividade(eng, chave):
@@ -152,6 +351,10 @@ def test_fluxo_completo_com_ondas_reserva_e_exclusividade(eng, chave):
     cob = S.reservar(eng, p["id"], a)
     assert cob["modo_teste"] and cob["pix"]["copia_e_cola"].startswith("RAIZ-TESTE-PIX") and not cob["pago"]
     assert cob["valor_brl"] >= 500 and cob["prazo_dias"] == 60 and "abatida" in cob["abatimento"]
+    assert "<svg" in cob["pix"]["qr_svg"] and cob["pix"]["expira_em"]
+    mandato = recibos.verificar(cob["recibo_aprovacao"], recibos.jwk())
+    assert mandato["empresa"] == a and mandato["pedido"] == p["id"]
+    assert mandato["pagamento_confirmado"] is False and mandato["condicoes"]["agente_pode_pagar"] is False
     b, _ = S.criar_cliente(eng, "Fundo B")
     antes_b = S.criar_pedido(eng, b, CAMPOS)
     with eng.connect() as c:
@@ -185,7 +388,7 @@ def test_fluxo_completo_com_ondas_reserva_e_exclusividade(eng, chave):
         ev = [r[0] for r in c.execute(text("""select e.evento from negocio.reserva_evento e join negocio.reserva r
                                               on r.id = e.reserva_id where r.pedido_id = :p order by e.id"""),
                                       {"p": p["id"]})]  # fmt: skip
-    assert ev == ["criada", "paga", "expirada"]
+    assert ev == ["criada", "confirmada", "paga", "expirada"]
 
 
 def test_contrato_abate_a_reserva_e_pedido_impossivel(eng, chave):
@@ -272,7 +475,7 @@ def _canais(eng, pedido_id, tipo):
         )
 
 
-def test_vigia_avisa_fato_novo_do_grupo_em_todos_os_canais_sem_repetir(eng, chave):
+def test_vigia_guarda_vigilancia_so_no_painel_sem_repetir(eng, chave):
     from raiz.vigilancia.pedidos import Fato
 
     c, _ = S.criar_cliente(eng, "Cliente G")
@@ -313,13 +516,13 @@ def test_vigia_avisa_fato_novo_do_grupo_em_todos_os_canais_sem_repetir(eng, chav
         con.execute(text("update negocio.alerta_pedido set visto_em = now() where pedido_id = :p"), {"p": p["id"]})
     S.vigiar(eng, fatos_de=fatos_de)
     assert len([a for a in S.obter_pedido(eng, p["id"], c)["alertas"] if a["tipo"] == "fazenda_com_problema"]) == 3
-    # grupo em formação: fato novo vai também por WhatsApp (simulado)
+    # Mesmo no grupo em formação, vigilância não chama e-mail nem WhatsApp.
     S.solicitar_interesse(eng, p["id"], c, "barata")
     fatos.append(Fato(lote[1], "desmatamento", "vigilancia:t3", hoje, "Fazenda do grupo com derrubada: 1,0 ha.",
                       {"fonte": "mapbiomas_alerta"}))  # fmt: skip
     S.vigiar(eng, fatos_de=fatos_de)
     novos = [x for x in _canais(eng, p["id"], "fazenda_com_problema") if x[0] == "whatsapp"]
-    assert novos == [("whatsapp", "simulada")]
+    assert novos == []
 
 
 def test_vigia_le_a_vigilancia_e_as_certidoes(eng, chave, tmp_path, monkeypatch):
@@ -382,6 +585,16 @@ def test_vigia_diz_quais_fazendas_novas_melhoram_o_lote(eng, chave):
     assert atualizar(eng, 1504950) == 880
 
 
+def _abrir_conta_de_teste(eng, cliente_id):
+    # Documento sintético: construído em teste, não armazenado em texto no repositório.
+    cnpj = f"73{cliente_id:010d}"
+    for tamanho in (12, 13):
+        pesos = list(range(tamanho - 7, 1, -1)) + list(range(9, 1, -1))
+        resto = sum(int(x) * w for x, w in zip(cnpj, pesos, strict=True)) % 11
+        cnpj += str(0 if resto < 2 else 11 - resto)
+    CT.abrir(eng, cliente_id, cnpj, True)
+
+
 def test_api_no_contrato_do_front(eng, chave, monkeypatch):
     from raiz.api import criar_app
 
@@ -389,6 +602,8 @@ def test_api_no_contrato_do_front(eng, chave, monkeypatch):
     import raiz.api as api_mod
 
     monkeypatch.setattr(api_mod, "config", lambda: cfg)
+    monkeypatch.setenv("RAIZ_FRONT_URL", "https://painel.raiz.example")
+    monkeypatch.setenv("RAIZ_API_PUBLICA_URL", "https://api.raiz.example")
     links = []
     monkeypatch.setattr(S, "ENVIO_LINK", lambda e, link: links.append(link))
     app = criar_app(engine=eng, grafo=object(), deps=object(), whatsapp=False)
@@ -399,7 +614,22 @@ def test_api_no_contrato_do_front(eng, chave, monkeypatch):
         sess = cl.post("/entrar/confirmar", json={"token": tok}).json()
         h = {"Authorization": f"Bearer {sess['token']}"}
         assert cl.get("/pedidos").status_code == 401  # sem sessão
-        p = cl.post("/pedidos", json=CAMPOS, headers=h).json()
+        # O caminho antigo preserva o contrato do front, mas não pode contornar a conta paga.
+        recusado = cl.post("/pedidos", json=CAMPOS, headers=h)
+        assert recusado.status_code == 403 and recusado.history[0].status_code == 307
+        cliente_id = S.cliente_da_sessao(eng, sess["token"])
+        _abrir_conta_de_teste(eng, cliente_id)
+        CT.aceitar_contrato(eng, cliente_id)
+        assert cl.post("/pedidos", json=CAMPOS, headers=h).status_code == 403  # ainda sem sinal
+        with eng.begin() as con:
+            con.execute(
+                text("update negocio.conta_api set sinal_pago_em=now(), saldo_rs=5000 where cliente_id=:c"),
+                {"c": cliente_id},
+            )
+        criado = cl.post("/pedidos", json=CAMPOS, headers=h)
+        assert criado.status_code == 200, criado.text
+        p = criado.json()
+        assert CT.ver(eng, cliente_id)["saldo_rs"] == 4600  # uma cobrança, no destino /v1
         assert set(p) >= {"id", "criado_em", "campos", "status", "base", "opcoes", "opcao_escolhida", "reservado_ate",
                           "alertas", "versao_modelo"}  # fmt: skip
         assert set(p["base"]) >= {"fazendas", "hectares", "creditos", "por_caminho", "por_interesse", "alcanca_meta",
@@ -411,6 +641,8 @@ def test_api_no_contrato_do_front(eng, chave, monkeypatch):
         campos_item = {"cod_imovel", "cod_ibge", "municipio", "uf", "papel", "hectares", "creditos", "metodo",
                        "caminho", "custo_usd_credito", "pequena", "interesse", "lon", "lat"}  # fmt: skip
         assert set(o["itens"][0]) >= campos_item
+        assert not o["itens"][0]["ficha_liberada"]
+        assert all(o["itens"][0][k] is None for k in ("creditos", "custo_usd_credito", "caminho", "risco_terra"))
         _sem_pessoal(p)
         lista = cl.get("/pedidos", headers=h).json()
         assert lista[0]["id"] == p["id"] and "créditos em PA" in lista[0]["titulo"]
@@ -443,3 +675,52 @@ def test_api_no_contrato_do_front(eng, chave, monkeypatch):
         assert cl.post("/pagamentos/abacatepay?webhookSecret=x", json={"event": "billing.paid"}).status_code == 401
         assert cl.get("/notificacoes", headers=h).status_code == 200
         assert cl.get(f"/pedidos/{p['id']}/alertas", headers=h).status_code == 200
+
+
+def test_grade_sensibilidade_antiga_e_recusada_depois_de_troca_e_remocao(eng, tmp_path, monkeypatch):
+    import json
+
+    from raiz.pedidos import sensibilidade
+
+    monkeypatch.setenv("RAIZ_SENSIBILIDADE_DIRETORIO", str(tmp_path))
+    cliente = S.criar_cliente(eng, "Revisão de sensibilidade")[0]
+    pedido = S.criar_pedido(eng, cliente, CAMPOS)
+    parametros = sensibilidade.ParametrosSensibilidade(
+        preco_credito_usd=55, reserva_reversao=0.2, taxa_desconto=0.092, pessimista=False
+    )
+    for acao in ("trocar", "tirar"):
+        grade = {
+            "pedido_id": pedido["id"],
+            "modelo_versao": pedido["versao_modelo"],
+            "revisao_lote": pedido["revisao_lote"],
+            "atualizado_em": "2026-11-12T12:00:00Z",
+            "fonte": "Fixture sintética de teste",
+            "aviso": "Não usar em proposta.",
+            "cenarios": [
+                {
+                    "parametros": parametros.model_dump(),
+                    "opcoes": [
+                        {
+                            "id": id_,
+                            "creditos": {"p10": 0, "p50": 0, "p90": 0},
+                            "hectares": 0,
+                            "fazendas": 0,
+                            "vpl_usd": None,
+                            "tir_projeto": None,
+                            "alcanca_meta": False,
+                        }
+                        for id_ in ("barata", "segura", "compacta")
+                    ],
+                }
+            ],
+        }
+        (tmp_path / f"{pedido['id']}.json").write_text(json.dumps(grade))
+        assert sensibilidade.consultar(pedido, parametros)["estado"] == "disponivel"
+        antiga = pedido
+        opcao = next(o for o in pedido["opcoes"] if o["id"] == "segura")
+        sai = next(i["cod_imovel"] for i in opcao["itens"] if i["papel"] == "lote")
+        pedido = S.mudar_lote(eng, pedido["id"], cliente, {"opcao": "segura", "acao": acao, "cod_imovel": sai})
+        assert pedido["id"] == antiga["id"] and pedido["versao_modelo"] == antiga["versao_modelo"]
+        assert pedido["revisao_lote"] != antiga["revisao_lote"]
+        resposta = sensibilidade.consultar(pedido, parametros)
+        assert resposta["estado"] == "indisponivel" and resposta["opcoes"] == []

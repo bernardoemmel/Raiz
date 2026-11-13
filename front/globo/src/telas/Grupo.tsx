@@ -37,6 +37,7 @@ export function Grupo({ id }: { id: string }) {
         setPedido(p)
         setAndamento(a)
         setCobranca(c)
+        setErro(null)
       },
       (e: Error) => setErro(e.message),
     )
@@ -76,7 +77,12 @@ export function Grupo({ id }: { id: string }) {
   if (pedido === undefined || andamento === undefined)
     return (
       <Moldura>
-        <Estado tipo="carregando" titulo="Lendo o grupo" />
+        {erro ? (
+          <Estado tipo="erro" titulo="Não foi possível ler o grupo">
+            <p>{erro.startsWith("429 ") ? "A empresa atingiu o limite de consultas. Aguarde um minuto e tente de novo." : erro}</p>
+            <button type="button" className="botao" onClick={() => { setErro(null); void ler() }}>Tentar de novo</button>
+          </Estado>
+        ) : <Estado tipo="carregando" titulo="Lendo o grupo" />}
       </Moldura>
     )
   if (!pedido)
@@ -100,7 +106,7 @@ export function Grupo({ id }: { id: string }) {
     )
 
   const reservado = pedido.status === "reservado"
-  const hectares = itens.reduce((s, i) => s + i.hectares, 0)
+  const hectares = itens.every((i) => i.hectares !== null) ? itens.reduce((s, i) => s + (i.hectares ?? 0), 0) : null
   return (
     <Moldura>
       <div className="pedido-corpo">
@@ -113,7 +119,7 @@ export function Grupo({ id }: { id: string }) {
           {reservado && pedido.reservado_ate && <ContagemRegressiva ate={pedido.reservado_ate} />}
           <AvisoExemplo ativo={!!pedido.exemplo} />
           <p className="frase">
-            {fmtInt(itens.length)} {itens.length === 1 ? "fazenda" : "fazendas"} com dono interessado: {fmtHa(hectares)} e {fmtMeta(andamento.com_interessado, pedido.campos.meta.tipo)},{" "}
+            {fmtInt(itens.length)} {itens.length === 1 ? "fazenda" : "fazendas"} com dono interessado: {hectares === null ? "área disponível nas fichas pagas" : fmtHa(hectares)} e {fmtMeta(andamento.com_interessado, pedido.campos.meta.tipo)},{" "}
             {fmtPct(andamento.com_interessado / Math.max(1, andamento.meta))} da meta. Fechou em {dataLonga(andamento.grupo_pronto_em)}.
           </p>
           <dl className="numeros">
@@ -192,7 +198,7 @@ export function Grupo({ id }: { id: string }) {
                 <tbody>
                   {itens.map((i) => {
                     const n = i.interesse
-                    const selo = seloDeNivel(i.caminho, n)
+                    const selo = i.caminho ? seloDeNivel(i.caminho, n) : { classe: "", texto: "Ficha paga" }
                     return (
                       <tr key={i.cod_imovel} aria-selected={escolhida === i.cod_imovel}>
                         <th scope="row">
@@ -201,7 +207,7 @@ export function Grupo({ id }: { id: string }) {
                           </a>
                           <small>{i.municipio}</small>
                         </th>
-                        <td className="num">{fmtHa(i.hectares, false)}</td>
+                        <td className="num">{i.hectares === null ? "Ficha paga" : fmtHa(i.hectares, false)}</td>
                         <td>{ROTULO_INTERESSE[n]}</td>
                         <td>
                           <span className={`selo-nivel ${selo.classe}`}>{selo.texto}</span>
@@ -341,7 +347,7 @@ function Moldura({ children }: { children: React.ReactNode }) {
   return (
     <div className="tela-pedidos tela-pedido">
       <Cabecalho atual="pedidos" />
-      <main className="pedido-main">{children}</main>
+      <main id="conteudo" tabIndex={-1} className="pedido-main">{children}</main>
     </div>
   )
 }
