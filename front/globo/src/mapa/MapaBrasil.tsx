@@ -266,6 +266,7 @@ export function MapaBrasil(props: Props) {
     for (const camada of m.getSource("protomaps") ? [...camadasBase()].reverse() : []) {
       if (!m.getLayer(camada.id)) m.addLayer(camada, antes)
       else if (camada.type === "symbol" && camada.layout?.["text-font"]) m.setLayoutProperty(camada.id, "text-font", camada.layout["text-font"])
+      else if (camada.type === "line" && camada.paint?.["line-dasharray"]) m.setPaintProperty(camada.id, "line-dasharray", camada.paint["line-dasharray"])
       antes = camada.id
     }
     montar(m, brasil?.municipios ?? null, false)

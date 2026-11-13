@@ -167,6 +167,7 @@ try {
   assert.equal(inicial.propriedades.sem_medida, 1)
   assert.equal(inicial.propriedades.point_count, 2, "Dois pontos representam onze fazendas, não duas.")
   assert.equal(pedidosSatelite.length, 0, "A entrada nacional não baixa imagens de satélite.")
+  assert.equal(await pagina.evaluate(() => document.querySelector(".mapa-brasil .mapa").__mapa.getPaintProperty("boundaries_country", "line-dasharray")), undefined, "Fronteiras iniciais contínuas reutilizam o programa dos estados.")
   await pagina.locator(".cartografia-resumo > summary").click()
   await pagina.getByText("Explorar grupos com teclado", { exact: true }).click()
   const listaGrupos = pagina.locator(".cartografia-grupos-lista")
@@ -184,6 +185,8 @@ try {
   await mapaPronto()
   pedidosSatelite.length = 0
   await pagina.locator('.lista-estados a[href="#/estado/PA"]').click()
+  await pagina.waitForURL(u => u.hash === "#/estado/PA")
+  await pagina.getByRole("heading", { name: "Pará", exact: true }).waitFor()
   await mapaPronto()
   await pagina.waitForFunction(() => {
     const m = document.querySelector(".mapa-brasil .mapa").__mapa
@@ -192,6 +195,7 @@ try {
   const baseNacional = await pagina.evaluate(() => { const fonte = document.querySelector(".mapa-brasil .mapa").__mapa.getStyle().sources.protomaps; return fonte.url ?? fonte.tiles?.[0] })
   assert(baseNacional.includes("base_brasil.pmtiles"), "A entrada precisa usar o PMTiles nacional.")
   assert.equal(pedidosSatelite.length, 0, "A escala estadual não pode baixar imagens de satélite.")
+  assert(await pagina.evaluate(() => !!document.querySelector(".mapa-brasil .mapa").__mapa.getPaintProperty("boundaries_country", "line-dasharray")), "O estilo regional restaura o tracejado das fronteiras.")
   console.log("Buscando Parauapebas...")
   await buscar("Parauapebas", `#/municipio/${MUNICIPIO}`)
   await pagina.locator(".lista-basica").waitFor()

@@ -48,9 +48,18 @@ export function estiloBase(base: string | null, opcoes: { rotulos?: boolean; nac
 /** No país cabem terra, água, fronteiras e nomes. Estradas e usos locais entram quando a pessoa aproxima. */
 export function camadasBaseNacionais(): LayerSpecification[] {
   const ids = new Set(["background", "earth", "water", "boundaries_country", "water_label_ocean", "places_country"])
-  return camadasBase().filter((camada) => ids.has(camada.id)).map((camada) => camada.type === "fill"
-    ? { ...camada, paint: { ...camada.paint, "fill-antialias": false } }
-    : camada.type === "symbol" ? { ...camada, layout: { ...camada.layout, "text-font": ["Noto Sans Regular"] } } : camada)
+  return camadasBase().filter((camada) => ids.has(camada.id)).map((camada) => {
+    if (camada.type === "fill") return { ...camada, paint: { ...camada.paint, "fill-antialias": false } }
+    if (camada.type === "symbol") return { ...camada, layout: { ...camada.layout, "text-font": ["Noto Sans Regular"] } }
+    if (camada.type === "line") {
+      // Fronteira contínua na visão do país: usa o mesmo programa gráfico dos limites estaduais.
+      // O tracejado do estilo detalhado volta ao selecionar um lugar ou aproximar.
+      const paint = { ...camada.paint }
+      delete paint["line-dasharray"]
+      return { ...camada, paint }
+    }
+    return camada
+  })
 }
 
 /**
