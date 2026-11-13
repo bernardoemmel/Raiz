@@ -118,6 +118,8 @@ def ler_certidao(
     hoje: dt.date | None = None,
     forcar_releitura: bool = False,
     calibracao_cache: str | Path | None = None,
+    comparacao: tuple[pd.DataFrame | None, pd.DataFrame | None, str | None] | None = None,
+    comparacao_capturada_em: str | None = None,
 ) -> ResultadoCertidao:
     pdf = arquivo if isinstance(arquivo, bytes) else Path(arquivo).read_bytes()
     sha = hashlib.sha256(pdf).hexdigest()
@@ -155,7 +157,9 @@ def ler_certidao(
                 # O cache guarda a extração. Derivação e conferência usam a data,
                 # as regras e o motor de agora, inclusive para outro CAR.
                 der = derivar(existente.dados, hoje=hoje)
-                confs = _conferir_e_gravar(armazem, existente, existente.dados, der, cod_imovel, cod_municipio, hoje)
+                confs = _conferir_e_gravar(
+                    armazem, existente, existente.dados, der, cod_imovel, cod_municipio, hoje, comparacao
+                )
                 return ResultadoCertidao(existente, der, confs, decisao_cache)
         else:
             decisao_cache = dict(reutilizada=False, motivo="releitura forçada", leitura_id=None)
@@ -167,10 +171,10 @@ def ler_certidao(
             modelo=r.modelo,
             esforco=leitor.esforco,
             duracao_ms=r.duracao_ms,
-            tokens_entrada=r.uso.entrada,
-            tokens_saida=r.uso.saida,
-            tokens_cache_leitura=r.uso.cache_leitura,
-            tokens_cache_escrita=r.uso.cache_escrita,
+            tokens_entrada=r.uso.entrada if r.uso_informado else None,
+            tokens_saida=r.uso.saida if r.uso_informado else None,
+            tokens_cache_leitura=r.uso.cache_leitura if r.uso_informado else None,
+            tokens_cache_escrita=r.uso.cache_escrita if r.uso_informado else None,
             custo_usd=r.custo_usd,
         )
         if not r.ok:
@@ -193,6 +197,11 @@ def ler_certidao(
             else "api"
         ),
     )
+    if comparacao_capturada_em is not None:
+        qualidade["comparacao_capturada_em"] = comparacao_capturada_em
+        qualidade["comparacao_disponivel"] = (
+            comparacao is not None and comparacao[0] is not None and not comparacao[0].empty
+        )
     lt = Leitura(
         chave=chave_certidao(dados),
         dados=dados,
@@ -203,12 +212,14 @@ def ler_certidao(
         **info,
     )
     armazem.gravar_leitura(lt)
-    confs = _conferir_e_gravar(armazem, lt, dados, der, cod_imovel, cod_municipio, hoje)
+    confs = _conferir_e_gravar(armazem, lt, dados, der, cod_imovel, cod_municipio, hoje, comparacao)
     return ResultadoCertidao(lt, der, confs, decisao_cache)
 
 
-def _conferir_e_gravar(armazem, lt, dados, der, cod_imovel, cod_municipio, hoje) -> list[Conferencia]:
-    motor, imoveis, arquivo = _motor(dados, cod_imovel, cod_municipio)
+def _conferir_e_gravar(armazem, lt, dados, der, cod_imovel, cod_municipio, hoje, comparacao=None) -> list[Conferencia]:
+    # Upload: a previsão é congelada antes da leitura; um motor atualizado depois
+    # não pode ser tratado como o que havia sido previsto para esta certidão.
+    motor, imoveis, arquivo = comparacao if comparacao is not None else _motor(dados, cod_imovel, cod_municipio)
     confs = conferir(dados, der, motor, cod_imovel=cod_imovel, imoveis=imoveis, motor_arquivo=arquivo, hoje=hoje)
     rv = versao_regras()
     for c in confs:
