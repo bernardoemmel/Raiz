@@ -180,7 +180,15 @@ def test_avisos_sem_unlock_nao_entregam_tipo_pago_nem_medidas(base):
     buscas.verificar(engine, salva["id"])
     aviso = buscas.avisos(engine, cliente)["avisos"][0]
     assert aviso["tipo"] == "atualizacao_disponivel" and aviso["mudancas"] == []
-    assert "789" not in json.dumps(aviso) and "embargo" not in json.dumps(aviso)
+    # IDs e frações de segundo podem conter 789 sem revelar uma medida.
+    # Confere todo o conteúdo restante, incluindo qualquer campo novo inesperado.
+    metadados = {"id", "busca_id", "nome_busca", "codigo_car", "criada_em", "lida_em"}
+    assert {k: v for k, v in aviso.items() if k not in metadados} == {
+        "tipo": "atualizacao_disponivel",
+        "ficha_liberada": False,
+        "mudancas": [],
+        "mensagem": "Há atualizações da terra ou da seleção. Consulte a ficha liberada.",
+    }
     with pytest.raises(ErroAcesso):
         versoes.historico(engine, cliente, car)
 

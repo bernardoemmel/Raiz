@@ -624,3 +624,6 @@ sem alterar as reservas, as saídas ou o destino da promoção. Novos pedidos da
 
 - [x] Auditoria histórica da fila compatível com a mudança intencional R12:
   dez tarefas preservadas e desenvolvedor distinto; 70 testes aprovados.
+
+- [x] Integração do padrão R12 e privacidade de avisos: três falhas do CI
+  corrigidas apenas nos testes; seis casos aprovados com PostGIS real local.
