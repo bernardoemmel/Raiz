@@ -49,7 +49,8 @@ export function estiloBase(base: string | null, opcoes: { rotulos?: boolean; nac
 export function camadasBaseNacionais(): LayerSpecification[] {
   const ids = new Set(["background", "earth", "water", "boundaries_country", "water_label_ocean", "places_country"])
   return camadasBase().filter((camada) => ids.has(camada.id)).map((camada) => camada.type === "fill"
-    ? { ...camada, paint: { ...camada.paint, "fill-antialias": false } } : camada)
+    ? { ...camada, paint: { ...camada.paint, "fill-antialias": false } }
+    : camada.type === "symbol" ? { ...camada, layout: { ...camada.layout, "text-font": ["Noto Sans Regular"] } } : camada)
 }
 
 /**

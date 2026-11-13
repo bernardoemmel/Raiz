@@ -34,7 +34,11 @@ export function fonteAmostra(base = "/"): FonteDeDados {
   const indiceCompleto = memo(async () => (await buscarJson<IndiceGeo>(urlGeo("indice.json"))) ?? { municipios: {} })
   const indiceFichas = memo(async () => new Set((await buscarJson<{ codigos: string[] }>(urlAmostra("fichas/indice.json")))?.codigos ?? []))
   const indiceGeo = async (_: string) => (await indiceCompleto("")).municipios
-  const pontos = memo(async (uf: string) => lerPontos(await buscarJson(urlAmostra(`pontos_${uf}.json`))))
+  const pontos = memo(async (uf: string) => {
+    const estado = (await estados("")).estados.find((e) => e.uf === uf)
+    if (!estado || estado.situacao === "sem_dados") return []
+    return lerPontos(await buscarJson(urlAmostra(`pontos_${uf}.json`)))
+  })
 
   // o site estático guarda os CSV comprimidos (.csv.gz); o servidor de desenvolvimento serve os dois
   const csv = memo(async (arq: string) => {
@@ -58,7 +62,8 @@ export function fonteAmostra(base = "/"): FonteDeDados {
   const basicos = memo(async (cod: string) => {
     if ((await estados("")).acesso !== "publico_basico") return null
     const uf = ufDoCodigo(cod)
-    if (!uf || !(await indice(uf)).includes(`imoveis_basicos_${cod}.csv`)) return null
+    const estado = (await estados("")).estados.find((e) => e.uf === uf)
+    if (!uf || !estado?.com_lista.includes(cod) || !(await indice(uf)).includes(`imoveis_basicos_${cod}.csv`)) return null
     return ((await csv(`imoveis_basicos_${cod}.csv`)) ?? []).flatMap((linha) => {
       const basico = lerBasico(linha)
       return basico && basico.cod_ibge === cod && basico.uf === uf ? [basico] : []

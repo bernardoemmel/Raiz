@@ -222,7 +222,7 @@ export function MapaBrasil(props: Props) {
         m.once("idle", () => {
           if (!m.getSource("protomaps")) return
           for (const camada of camadasBaseNacionais()) {
-            if (!m.getLayer(camada.id)) m.addLayer(camada, camada.type === "symbol" ? "estados-rotulo" : "estados-preenchimento")
+            if (!m.getLayer(camada.id)) m.addLayer(camada, camada.type === "symbol" ? "estados-rotulo-sem-dados" : "estados-preenchimento")
           }
         })
       })
@@ -247,6 +247,7 @@ export function MapaBrasil(props: Props) {
     let antes: string | undefined = "estados-preenchimento"
     for (const camada of m.getSource("protomaps") ? [...camadasBase()].reverse() : []) {
       if (!m.getLayer(camada.id)) m.addLayer(camada, antes)
+      else if (camada.type === "symbol" && camada.layout?.["text-font"]) m.setLayoutProperty(camada.id, "text-font", camada.layout["text-font"])
       antes = camada.id
     }
     montar(m, brasil?.municipios ?? null, brasil?.estados ?? null, false)
@@ -303,6 +304,7 @@ export function MapaBrasil(props: Props) {
     if (!m || !pronto) return
     m.setFilter("estado-escolhido", ["==", ["get", "uf"], municipio ? "" : (uf ?? "")])
     m.setLayoutProperty("estados-preenchimento", "visibility", uf || municipio ? "none" : "visible")
+    m.setLayoutProperty("estados-sem-dados", "visibility", uf || municipio ? "none" : "visible")
   }, [pronto, uf, municipio])
 
   // fazendas aptas do estado em foco, agrupadas; a soma de um município (sem o contorno das fazendas) fica num ponto só
@@ -491,7 +493,7 @@ export function MapaBrasil(props: Props) {
 
   function montar(m: MapaGL, municipiosBrasil: Geo | null, estadosBrasil: Geo | null, nacional: boolean) {
     const antesDosRotulos = m.getStyle().layers.find((l) => l.type === "symbol")?.id
-    const camadasNacionais = new Set(["estados-preenchimento", "estados-linha", "estado-escolhido", "estados-rotulo"])
+    const camadasNacionais = new Set(["estados-preenchimento", "estados-sem-dados", "estados-linha", "estado-sobre", "estado-escolhido", "estados-rotulo", "estados-rotulo-sem-dados"])
     const fontesNacionais = new Set(["brasil-estados", "estados-rotulos"])
     const add = (l: LayerSpecification, emCima = false) => {
       if (!m.getLayer(l.id) && (!nacional || camadasNacionais.has(l.id))) m.addLayer(l, emCima ? undefined : antesDosRotulos)
@@ -519,9 +521,12 @@ export function MapaBrasil(props: Props) {
       clusterProperties: { n: ["+", ["get", "n"]] },
     })
 
-    add({ id: "estados-preenchimento", type: "fill", source: "brasil-estados",
-      paint: { "fill-antialias": false, "fill-color": ["match", ["get", "s"], 2, COR.restaurar, 1, COR.restaurar, COR.nevoa],
-        "fill-opacity": ["match", ["get", "s"], 2, 0.35, 1, 0.35, 0.8] } })
+    // As cores constantes reutilizam os programas gráficos do fundo. Os filtros são mutuamente exclusivos.
+    const processado = ["in", ["coalesce", ["get", "s"], -1], ["literal", [1, 2]]] as const
+    add({ id: "estados-preenchimento", type: "fill", source: "brasil-estados", filter: processado as never,
+      paint: { "fill-antialias": false, "fill-color": COR.restaurar, "fill-opacity": 0.35 } })
+    add({ id: "estados-sem-dados", type: "fill", source: "brasil-estados", filter: ["!", processado] as never,
+      paint: { "fill-antialias": false, "fill-color": COR.nevoa, "fill-opacity": 0.8 } })
     add({ id: "potencial-h3", type: "fill", source: "potencial", maxzoom: ZOOM_FAZENDAS,
       filter: ["!=", ["get", "potencial_ha"], null],
       paint: { "fill-color": ["interpolate", ["linear"], ["get", "potencial_ha"], 0, COR.nevoa, 100, COR.restaurar, 1000, COR.mata, 10000, COR.mataTexto, 50000, COR.tinta], "fill-opacity": 0.78 } })
@@ -552,11 +557,13 @@ export function MapaBrasil(props: Props) {
       type: "line",
       source: "brasil-estados",
       paint: {
-        "line-color": ["case", ["boolean", ["feature-state", "sobre"], false], COR.tinta, COR.pedra],
-        "line-width": ["case", ["boolean", ["feature-state", "sobre"], false], 2, 0.6],
+        "line-color": COR.pedra,
+        "line-width": 0.6,
         "line-opacity": ["interpolate", ["linear"], ["zoom"], 4, 0.9, ZOOM_FAZENDAS, 0.5],
       },
     })
+    add({ id: "estado-sobre", type: "line", source: "brasil-estados", filter: ["==", ["get", "uf"], ""],
+      paint: { "line-color": COR.tinta, "line-width": 2, "line-opacity": ["interpolate", ["linear"], ["zoom"], 4, 0.9, ZOOM_FAZENDAS, 0.5] } })
     add({
       id: "estado-escolhido",
       type: "line",
@@ -625,21 +632,22 @@ export function MapaBrasil(props: Props) {
       true,
     )
     // nome do estado e o que a Raíz já leu dele; o que ainda não foi processado em pedra
-    add(
+    for (const semDados of [true, false]) add(
       {
-        id: "estados-rotulo",
+        id: semDados ? "estados-rotulo-sem-dados" : "estados-rotulo",
         type: "symbol",
         source: "estados-rotulos",
+        filter: [semDados ? "==" : "!=", ["get", "s"], 0],
         maxzoom: ZOOM_ROTULO_ESTADO,
         layout: {
           "text-field": [
             "format",
             ["get", "nome"],
-            { "font-scale": 1, "text-font": ["literal", ["Noto Sans Medium"]] },
+            { "font-scale": 1 },
             "\n",
             {},
             ["get", "linha"],
-            { "font-scale": 0.85, "text-font": ["literal", ["Noto Sans Regular"]] },
+            { "font-scale": 0.85 },
           ],
           "text-font": ["Noto Sans Regular"],
           "text-size": ["interpolate", ["linear"], ["zoom"], 3, 11, 6, 14],
@@ -648,7 +656,7 @@ export function MapaBrasil(props: Props) {
           "symbol-sort-key": ["get", "ordem"],
         },
         paint: {
-          "text-color": ["case", ["==", ["get", "s"], 0], COR.pedra, COR.tinta],
+          "text-color": semDados ? COR.pedra : COR.tinta,
           "text-halo-color": COR.superficie,
           "text-halo-width": 1.5,
         },
@@ -724,7 +732,10 @@ export function MapaBrasil(props: Props) {
   }
 
   function ligarEventos(m: MapaGL) {
-    const feicoes = (ponto: { x: number; y: number }, camada: string) => m.getLayer(camada) ? m.queryRenderedFeatures([ponto.x, ponto.y], { layers: [camada] }) : []
+    const feicoes = (ponto: { x: number; y: number }, camada: string) => {
+      const layers = (camada === "estados-preenchimento" ? [camada, "estados-sem-dados"] : [camada]).filter((id) => m.getLayer(id))
+      return layers.length ? m.queryRenderedFeatures([ponto.x, ponto.y], { layers }) : []
+    }
     const popup = new Popup({ closeButton: true, maxWidth: "320px", offset: 6 })
     let selecionado: string | null = null
     const limparSelecao = () => {
@@ -744,9 +755,11 @@ export function MapaBrasil(props: Props) {
     }
     let sobre: { fonte: string; id: string | number } | null = null
     const marcar = (fonte: string, id: string | number | undefined) => {
-      if (sobre) m.setFeatureState({ source: sobre.fonte, id: sobre.id }, { sobre: false })
+      if (sobre?.fonte === fonte && sobre.id === id) return
+      if (sobre && sobre.fonte !== "brasil-estados") m.setFeatureState({ source: sobre.fonte, id: sobre.id }, { sobre: false })
       sobre = id === undefined ? null : { fonte, id }
-      if (sobre) m.setFeatureState({ source: sobre.fonte, id: sobre.id }, { sobre: true })
+      if (sobre && sobre.fonte !== "brasil-estados") m.setFeatureState({ source: sobre.fonte, id: sobre.id }, { sobre: true })
+      m.setFilter("estado-sobre", ["==", ["get", "uf"], sobre?.fonte === "brasil-estados" ? String(sobre.id) : ""])
       m.getCanvas().style.cursor = sobre ? "pointer" : ""
     }
     m.on("click", (e) => {
@@ -819,7 +832,7 @@ export function MapaBrasil(props: Props) {
           <strong>Potencial conhecido, cobertura parcial</strong>
           {props.potencialCarregando ? <p role="status">Carregando o agregado…</p> : props.potencial?.geo.features.length ? <>
             <p>Verde mais escuro: mais hectares por célula.</p>
-            <div className="cartografia-escala" aria-label="Escala única de 0 a 50 mil hectares por célula"><i /><i /><i /><i /><i /></div>
+            <div className="cartografia-escala" role="img" aria-label="Escala única de 0 a 50 mil hectares por célula"><i /><i /><i /><i /><i /></div>
             <p>0 / 100 / 1.000 / 10.000 / 50.000 ha</p>
             <details><summary>Fonte e limites</summary><p>{props.potencial.metadados.aviso}</p><p>Fonte: {props.potencial.metadados.fonte}. Atualização: {props.potencial.metadados.atualizado_em ? new Date(props.potencial.metadados.atualizado_em).toLocaleDateString("pt-BR") : "não informada"}.</p></details>
           </> : <p>Potencial ainda não publicado para este recorte. Não é área zero.</p>}

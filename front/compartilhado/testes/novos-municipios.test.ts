@@ -47,6 +47,22 @@ describe("municípios novos desde a publicação anterior", () => {
 })
 
 describe("fundo e estados antes dos limites municipais", () => {
+  it("não consulta arquivos inexistentes ao escolher um estado ou município ainda sem dados", async () => {
+    const pedidos: string[] = []
+    vi.stubGlobal("fetch", async (url: string) => {
+      pedidos.push(url)
+      expect(url).toBe("/amostra/estados.json")
+      return new Response(JSON.stringify({ acesso: "publico_basico", estados: [
+        { uf: "AM", situacao: "sem_dados", com_lista: [] },
+        { uf: "PA", situacao: "incompleto", com_lista: ["1505536"] },
+      ] }), { headers: { "content-type": "application/json" } })
+    })
+    const fonte = fonteAmostra("/")
+    expect(await fonte.pontos("AM")).toEqual([])
+    expect(await fonte.basicos?.("1302603")).toBeNull()
+    expect(await fonte.basicos?.("1501402")).toBeNull()
+    expect(pedidos).toEqual(["/amostra/estados.json"])
+  })
   it("não baixa o GeoJSON nacional de municípios na entrada e reutiliza os estados ao aproximar", async () => {
     const pedidos: string[] = []
     const geo = { type: "FeatureCollection", features: [] }
