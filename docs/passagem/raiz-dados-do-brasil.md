@@ -481,3 +481,10 @@ O navegador do CI #95 encontrou um 404 na ref pública de processamento, ainda i
 implantação. A fixture do build agora usa `./amostra/processamento.json`, servido pelo próprio site de teste.
 O Playwright exige as 27 UFs, ausência de erros e ausência de execução inventada; a configuração de produção
 continua consultando a ref pública. O teste de referência estadual, agentes, segurança, workflows e e2e já passaram.
+
+Integração da rodada 12 com a main atual: **185 testes direcionados passaram**, incluindo os dois
+casos reais de cartão/vídeo antes pulados e as novas rotas de certidão/calendário/vigilância. A promoção
+fechada das continuações para `91c993ec322fea64ca2e96098e212c0f5c2dc613` passou em **216 testes** de fila,
+promoção e catálogo. A prova em `auditoria-promocao-rodada12.json` preserva os hashes das duas auditorias
+anteriores, as 11 versões atuais de tarefas e todas as dependências existentes; Ibis permanece opcional.
+Reservas vivas e pedidos bloqueados não mudam. O destino não acompanha a main automaticamente.
