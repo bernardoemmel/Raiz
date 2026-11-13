@@ -76,6 +76,16 @@ describe("download fechado ao contrato público", () => {
     expect((await baixar(destino)).sucesso).toBe(true)
     expect(fs.readFileSync(path.join(destino, "PA", "imoveis_basicos_1504950.csv"), "utf8")).toContain(vizinho)
   })
+  it("preserva CAR de outra UF quando origem cadastral e recorte são coerentes", async () => {
+    const fronteira = "MT-5100201-BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB"
+    preparar({ "imoveis_basicos_1504950.csv": `${header}${fronteira},1504950,Cumaru do Norte,PA,apto\n` })
+    const destino = path.join(temp, "fronteira-uf")
+    expect((await baixar(destino)).sucesso).toBe(true)
+    expect(fs.readFileSync(path.join(destino, "PA", "imoveis_basicos_1504950.csv"), "utf8"))
+      .toBe(`${header}${fronteira},1504950,Cumaru do Norte,PA,apto\n`)
+    preparar({ "imoveis_basicos_1504950.csv": `${header}${fronteira},1504950,Cumaru do Norte,MT,apto\n` })
+    expect((await baixar(path.join(temp, "recorte-incoerente"))).sucesso).toBe(false)
+  })
   it("recusa manifesto legado e metadado desconhecido antes de pedir pacote", async () => {
     preparar(basicos)
     delete manifesto.escopo
@@ -85,7 +95,7 @@ describe("download fechado ao contrato público", () => {
     expect((await baixar(path.join(temp, "desconhecido"))).sucesso).toBe(false)
     expect(pedidos).toEqual(["/estados.json"])
   })
-  it("recusa metadados permitidos malformados e CAR de outra UF", async () => {
+  it("recusa metadados malformados e origem cadastral incoerente", async () => {
     preparar(basicos)
     manifesto.repo = "empresa/repo/privado"
     expect((await baixar(path.join(temp, "repo-invalido"))).sucesso).toBe(false)

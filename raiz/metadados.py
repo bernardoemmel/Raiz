@@ -450,10 +450,11 @@ def _processar_lote(tarefa: str, dados: dict):
     class CSVCompleto(CSVHandler):
         @staticmethod
         def _parse_conflict(msg):
-            # Arrow inclui Row #... na leitura sequencial. O baker 0.8.3
-            # só reconhece a mensagem paralela e converteria áreas em texto.
-            normalizada = re.sub(r"(In CSV column #\d+: )Row #\d+: ", r"\1", msg, count=1)
-            return CSVHandler._parse_conflict(normalizada)
+            # Arrow 26 acrescenta a linha no leitor de uma CPU. O Baker 0.8.3
+            # reconhece o mesmo conflito sem esse prefixo; demais erros mantêm
+            # seu fallback conservador para texto, sem expor valores do CSV.
+            msg = re.sub(r"(In CSV column #\d+: )Row #\d+: (?=CSV conversion error to \w+)", r"\1", msg, count=1)
+            return CSVHandler._parse_conflict(msg)
 
         def _stream_csv(self, source, count_rows=False):
             # A inferência lê inclusive decimais/texto depois do primeiro bloco.

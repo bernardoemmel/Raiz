@@ -5,6 +5,8 @@ import fs from "node:fs"
 import os from "node:os"
 import path from "node:path"
 import { fileURLToPath } from "node:url"
+import { lerProcessamentoPublicado } from "../compartilhado/dados/processamento-publicado.ts"
+import { municipiosDoEstado } from "../compartilhado/ibge-municipios.ts"
 
 const RAIZ_REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..")
 const DESTINO = path.resolve(RAIZ_REPO, process.env.RAIZ_DADOS || "dados/publicos")
@@ -14,11 +16,12 @@ const comGeo = args.includes("--geo")
 const exigir = args.includes("--exigir")
 const pedidos = args.filter((a) => /^[A-Z]{2}$/.test(a))
 const UFS = new Set("AC AL AP AM BA CE DF ES GO MA MT MS MG PA PB PR PE PI RJ RN RS RO RR SC SP SE TO".split(" "))
+const UF_IBGE = Object.fromEntries([...UFS].map((uf) => [uf, municipiosDoEstado(uf)[0].slice(0, 2)]))
 const BASICAS = ["cod_imovel", "cod_ibge", "municipio", "uf", "situacao_basica"]
 const RESUMO = new Set(("cod_ibge municipio imoveis sem_problema def_RL aptas_carbono ha_carbono tco2_ano_aptas aptas_com_matricula ha_carbono_matricula cota_reserva redd_imoveis redd_ha app_imoveis app_ha frigorifico_imoveis frigorifico_ha compensacao_ha eudr_ok credito_rural_ok compra_arrendamento alerta_pos2020_imoveis frente_regularizar_antes frente_carbono frente_silvipastoril frente_desbloqueio frente_carbono_revisar_desm10anos frente_assentamento_agrupado frente_carbono_so_plantio frente_fora_TI frente_ja_tem_projeto").split(" "))
 const SEM_IMOVEIS = new Set(["cod_ibge", "municipio", "verificado_em"])
 const SITUACOES = new Set(["apto", "com_pendencia", "nao_apto"])
-const CHAVES_ESTADO = new Set("versao_publicacao escopo municipios sem_imoveis total_ibge completo funil_completo tamanho versao atualizado_em motor_versao situacao faltam tabelas versoes url geo".split(" "))
+const CHAVES_ESTADO = new Set("versao_publicacao escopo municipios sem_imoveis total_ibge completo funil_completo tamanho versao atualizado_em motor_versao situacao faltam tabelas versoes url geo processamento".split(" "))
 const objeto = (v) => v !== null && typeof v === "object" && !Array.isArray(v)
 const marcado = (v) => objeto(v) && v.versao_publicacao === 1 && v.escopo === "publico_basico"
 
@@ -42,6 +45,8 @@ function validarManifesto(m) {
   for (const [uf, estado] of Object.entries(m.estados)) {
     if (!UFS.has(uf) || !marcado(estado)) throw new Error("estado sem marca publico_basico v1")
     chaves(estado, CHAVES_ESTADO, uf)
+    if (estado.processamento !== undefined && !lerProcessamentoPublicado(estado.processamento, uf))
+      throw new Error(`${uf}: processamento fora do contrato público`)
     if (estado.url) urlPacote(estado.url, uf)
     else if (estado.municipios || estado.tamanho) throw new Error(`${uf}: pacote público sem endereço`)
     if (estado.geo) {
@@ -88,7 +93,7 @@ function validarCsv(nome, dado, uf) {
     if (campos.length !== colunas.length) throw new Error(`${nome}: CSV ambíguo`)
     const r = Object.fromEntries(colunas.map((c, i) => [c, campos[i]]))
     if (!/^\d{7}$/.test(r.cod_ibge)) throw new Error(`${nome}: município inválido`)
-    if (basico && (!/^[A-Z]{2}-\d{7}-[0-9A-F]{32}$/.test(r.cod_imovel) || r.cod_imovel.slice(0, 2) !== uf || r.cod_ibge !== nome.slice(16, 23) || r.uf !== uf || !SITUACOES.has(r.situacao_basica)))
+    if (basico && (!/^[A-Z]{2}-\d{7}-[0-9A-F]{32}$/.test(r.cod_imovel) || r.cod_imovel.slice(3, 5) !== UF_IBGE[r.cod_imovel.slice(0, 2)] || r.cod_ibge.slice(0, 2) !== UF_IBGE[uf] || r.cod_ibge !== nome.slice(16, 23) || r.uf !== uf || !SITUACOES.has(r.situacao_basica)))
       throw new Error(`${nome}: identificação ou situação básica inválida`)
   }
 }
@@ -170,7 +175,15 @@ async function main() {
       if (marcado(l)) fs.rmSync(atual, { recursive: true, force: true })
       local.estados[uf] = r; mudou = true; continue
     }
-    if (pastaConforme(uf, l) && l.versao === r.versao && (!comGeo || l.geo?.versao === r.geo?.versao)) continue
+    if (pastaConforme(uf, l) && l.versao === r.versao && (!comGeo || l.geo?.versao === r.geo?.versao)) {
+      // A observação muda independentemente do pacote; ausência nova também retira a telemetria antiga.
+      if (JSON.stringify(l.processamento) !== JSON.stringify(r.processamento)) {
+        const { processamento: _anterior, ...resto } = l
+        local.estados[uf] = { ...resto, ...(r.processamento !== undefined ? { processamento: r.processamento } : {}) }
+        mudou = true
+      }
+      continue
+    }
     const staging = fs.mkdtempSync(path.join(os.tmpdir(), `raiz-publico-${uf}-`))
     try {
       const atual = path.join(DESTINO, uf)

@@ -17,6 +17,7 @@ from raiz.publica.servidor_mcp import ApiRaiz, app_http, criar_servidor
 from testes.test_publica_oauth import assinador, verificador  # noqa: F401
 
 FERRAMENTAS = {
+    "proximos_eventos",
     "consultar_ficha",
     "consultar_disponibilidade",
     "pedir_lote",

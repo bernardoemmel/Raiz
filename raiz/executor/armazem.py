@@ -781,12 +781,20 @@ class ArmazemRelease:
         for u in ufs:
             with self._trava(f"trava-publicar-{u}", 1800):
                 self.garantir_uf(u, forcar=True)  # junta o que outras fatias do estado já publicaram
-                feito[u] = self._publicar_uf(u, (extra or {}).get(u, {}))
-                self._gravar_indice({u: feito[u]})
-                if self.publico:
-                    # Ainda sob a trava privada da UF: outra fatia não consegue publicar dados mais novos
-                    # antes da projeção desta. Snapshot íntegro e manifesto privado já estão confirmados.
-                    self._publicar_aberto(u, feito[u])
+                from raiz.executor.snapshot_publicacao import congelar
+
+                # Outras lanes escrevem no espelho original. Pacote, metadados
+                # e projeção básica precisam ler os mesmos bytes já capturados.
+                original = self.local
+                with congelar(original, u) as copia:
+                    self.local = copia
+                    try:
+                        feito[u] = self._publicar_uf(u, (extra or {}).get(u, {}))
+                        self._gravar_indice({u: feito[u]})
+                        if self.publico:
+                            self._publicar_aberto(u, feito[u])
+                    finally:
+                        self.local = original
         if self._sujos.pop("_global", 0) or not uf:
             glob = {k: json.loads(self.local.ler(k)) for k in self.local.listar("estado/")
                     if self._uf_da_chave(k) is None}  # fmt: skip
@@ -810,7 +818,7 @@ class ArmazemRelease:
                 geos[nome] = projetar_geo(self.local.ler(chave))
         basicos = projetar_csvs(uf, csvs)
         pacote = self._tar(uf, basicos)
-        entrada = entrada_publica(info)
+        entrada = entrada_publica(info, uf=uf)
         entrada.update(url=aberto.url(f"raiz_{uf}.tar.gz"), tamanho=len(pacote), versao=sha256_bytes(pacote)[:16])
         with aberto._trava(f"trava-publicar-{uf}", 1800):
             aberto._subir(aberto._release(), f"raiz_{uf}.tar.gz", pacote, "application/gzip")
@@ -921,6 +929,10 @@ class ArmazemRelease:
             controle=self.url(f"raiz_controle_{u}.json"),
         )
         info.update(extra)
+        if isinstance(est.get("processamento"), dict):
+            info["processamento"] = est["processamento"]
+        else:
+            info.pop("processamento", None)
         from raiz.quantis import quantis_uf
 
         quantis = quantis_uf(self.local.raiz / "saida" / u, u, vers)
