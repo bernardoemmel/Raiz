@@ -216,9 +216,10 @@ def test_api_inclui_ambos_lotes_so_quando_solicitado(monkeypatch):
     assert len(consultados) == 5
     consultados.clear()
     assert F.rodadas("exemplo/raiz", "processar-estados.yml", incluir_lotes=True) == {}
-    assert len(consultados) == 15
+    assert len(consultados) == 20
     assert any("/retomar-lote-para.yml/" in u for u in consultados)
     assert any("/lote-para.yml/" in u for u in consultados)
+    assert any("/desbloqueio-lote.yml/" in u for u in consultados)
 
 
 def test_falha_consulta_lote_nao_vira_zero(monkeypatch):

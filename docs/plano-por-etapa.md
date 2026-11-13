@@ -186,6 +186,8 @@ legais anteriores permanecem, inclusive embargo sobreposto a TI, sem apagar sua 
 | 10 | Pedido de lote (docs/cena-alvo.md): oferta por fazenda (negocio.oferta, refeita a cada carga), pedido com os campos da cena-alvo, quanto existe na base por caminho da terra e interesse do dono com P10/P50/P90, o que falta e o que afrouxar, 3 opções do mesmo solver (HiGHS pelo scipy: mais barata, mais segura, mais compacta, com forma do lote e vazamento zero com fazenda de mitigação) e 10 a 20% de reserva, troca de fazenda, entrar sem senha, interesse do dono por nível (só o nível sai na API), ondas de contato dimensionadas pela chance de aceite (envio simulado), andamento, grupo pronto com aviso (painel, e-mail, WhatsApp), reserva com Pix da AbacatePay (modo de teste) e exclusividade de 60 dias, contrato com abatimento, vigia do pedido salvo e chance de aceite que aprende com cada contato | passos 6 e 9 | feito |
 | 10b | Rodada 11 unificada (um só arquivo de premissas e um só cálculo, com a branch premissas-rodada11: curva oficial da URTX, teto por bioma, P10/P90 de custo publicados, último marco a 100%, vazamento por vizinha VMD0054, renda do gado do Censo) e lote do ProFloresta+ por estado (`raiz lote montar`): titulares e reserva pela chance de 90% com erro comum da captura, fluxo do lote pela soma das fazendas, preço mínimo para TIR de 12% e 15%, o que destrava o lote (posse e assentamento), certidões para os 5% homologados, checklist do edital, relatório para o desenvolvedor e folha do dono; o otimizador põe a regeneração antes do plantio que o preço não paga | passos 6 e 10 | feito |
 | 10c | Lote e números: piso20 de reversão, três opções, preços TIR12/15 por fazenda, salvaguardas jurisdicionais/CLPI/partilha, decisões explicadas e revisão humana, previsões versionadas e comparação real; workflow PA144 com separação entre aberto e pago | 10b | **código e execução integral feitos**: PRs #49 e #55 com CI verde; retomada 43299409156 concluída, 144 municípios e 345.870 imóveis, dez fatias reutilizadas e somente cinco calculadas. Quatro pacotes e manifesto preservados no Release privado, com tamanho/SHA256 conferidos; nenhuma venda liberada automaticamente. Cancelamento anterior identificado e documentado; limite de quinze jobs respeitado, sem cancelar outros trabalhos. Fontes/licenças e quatro horizontes regionais auditados; quantis ecológicos pendentes de harmonização de parcelas, unidades e métodos (**parcial**, conforme autorização do fundador). Detalhes em `docs/passagem/lote-e-numeros.md` |
+| 10d | Diagnóstico dos três lotes do Pará: travas por selecionada, documento/conferência/marco, terra documentada versus pendente na meta, custo/preço e mediana das TIRs centrais; complemento privado sem recálculo | 10c | **gerador e conferência real feitos**; relatório versionado em JSON/CSV/Markdown/HTML, integrado às próximas gerações; workflow privado com uma cota global e integridade da origem. Publicação do complemento acompanhada na passagem |
+| 10e | Expansão incremental do lote para UF, bioma e Brasil, agrupamento de pequenas e benchmark em minutos; validação ARR por projeto/coorte/período; sensibilidade com nova seleção; ecologia regional aberta | 10d | **em andamento**; expansão de 786 municípios salva no PR #94 (rascunho), com pendências na passagem. Ordem atual: merge #86, complemento privado, ARR, sensibilidade e ecologia/rodada 12. Camadas pagas somente no arquivo privado; fontes de treino não contam como validação independente |
 | 11 | Ligar o envio de verdade das ondas (agente de aceite no WhatsApp com o termo, carta e parceiro local) e a chave de produção da AbacatePay; calibrar a chance de aceite e o valor da conexão com os primeiros pedidos | passo 10 e clientes | 6 a 10 |
 
 ## E4. Rebanho, metano e solo
@@ -468,10 +470,10 @@ faz sem back-end.
 |---|---|
 | Publicação após #72, sem alterar o PR do outro chat | **feito** em 12/11/2026: workflow ativo; atualização 43331843113 concluída com 444 municípios em 13 estados; site ao vivo com busca, aproximação, pedido e 360 px sem 404 ou erros de JavaScript |
 | Conferir que arquivos pagos não ficaram públicos | **feito**: 36 assets do Release validados pela lista positiva; os dois artefatos foram conferidos, o mais recente com 1.849 arquivos, 444 CSV básicos e 444 geometrias sem medidas pagas. Evidências e hashes na passagem |
-| Resumos abertos dos três lotes; composição, travas e desenho somente pela API autenticada | **em andamento**: resultados reais do Pará estão no Release privado, conforme #78; o ponteiro completo não deve voltar ao público |
-| Sensibilidade de preço, reserva, desconto e cenário pessimista | **pendente**: a rodada do Pará não calculou esses cenários; demonstração identificada enquanto faltar a saída real |
-| Pedido por estado, bioma ou Brasil com cobertura e lacunas explícitas | **pendente** |
-| Painel de acerto do modelo por versão e comparação observada | **pendente**; não apresentar ausência de avaliações como 0% de acerto |
+| Resumos abertos dos três lotes; composição, travas e desenho somente pela API autenticada | **feito no código**: projeção positiva do manifesto privado do #78; público só vê quantis de créditos, ha, quantidade de fazendas, custo médio e terra documentada. Detalhes pela API; demonstração optativa inteiramente fictícia e sem cobrança/contato |
+| Sensibilidade de preço, reserva, desconto e cenário pessimista | **feito no código**: controles, comparação das três opções e grade privada vinculada à revisão do pedido; demonstração fictícia identificada. **Pendente de dados reais**: a rodada do Pará não calculou esses cenários |
+| Pedido por estado, bioma ou Brasil com cobertura e lacunas explícitas | **feito no código**: 27 UFs, seis biomas e Brasil; cobertura dinâmica do manifesto, estados parciais/faltantes e ausência explícita do recorte exato. Não extrapola os lotes do Pará |
+| Painel de acerto do modelo por versão e comparação observada | **feito no código**: métricas agregadas, período e proveniência verificados, mínimo de cinco imóveis; API/exportador disponíveis. **Pendente de dados reais elegíveis** no Release; ausência não é 0% de acerto |
 
 ## Telas e mapa: ficha visual da terra
 
@@ -512,7 +514,14 @@ Entrega 3 da continuação de 12/11/2026, sobre a ficha paga do PR #52.
 | Site e pedidos | **feito**: aba Calendário, filtros, fonte/data de coleta, feed, selos no mapa/ficha/tabela e aviso deduplicado aos lotes; ficha individual mantém acesso por créditos, e-mail/WhatsApp permanecem simulados. Publicação do site após a coleta |
 | Agenda no servidor | **feito no código**: `scripts/instalar_cron_alertas.py --tarefa calendario --instalar`, diário com banco, trava e `.env`; instalação em produção depende de acesso ao servidor |
 
-Limites verificados em 12/11/2026: DJEN/CNJ respondeu HTTP 403; diários estaduais começam por PA/MT; PDF escaneado sem texto ainda não tem OCR. Erro de fonte não elimina os eventos anteriores. Testes com trechos oficiais gravados e PostGIS; detalhes em `docs/calendario.md`.
+Limites da primeira entrega em 12/11/2026: DJEN/CNJ respondeu HTTP 403; cobertura inicial PA/MT. A ampliação e o OCR estão descritos na continuação abaixo. Erro de fonte não elimina os eventos anteriores. Testes com trechos oficiais gravados e PostGIS; detalhes em `docs/calendario.md`.
+
+Conferência posterior das fontes: retirada de matrícula/CAR ambíguo preserva o UID quando o ato corresponde a um
+único evento já publicado. Releitura real da Fomento Paraná manteve seus 11 eventos, sem duplicar quatro registros
+ao retirar identificadores descartados; 118 testes do calendário passaram com PostGIS.
+Coleta integral local posterior: **50 eventos, 11 futuros, 198 visitas e zero duplicatas exatas**. PA parcial;
+DJEN/BA/MG/TO em erro. Os 50 vínculos com CAR continuam pendentes; nenhum alerta foi atribuído por suposição.
+O teste local não comprova implantação no servidor; execução/publicação diária deve ser conferida na main.
 
 - [x] Integração da entrega mobile com o Calendário: rota sob demanda, quatro links visíveis a 360 px, filtros
   com 48 px e teste CI de teclado/axe em três larguras; 186 testes do front e fluxos de ficha/lote aprovados.
@@ -533,3 +542,13 @@ A primeira execução no Actions identificou ausência de `rg` no runner; a veri
 - [x] Runner conserva recusas do próprio agente sem chamar o juiz para texto vazio;
   julgamento malformado é indisponível e não interrompe as outras tarefas. Só
   evidência válida pode compor pass^4 completo; integridade/modelo divergente falha.
+
+## Continuação solicitada: fontes, cascata, vigilância e primeira certidão
+
+| Entrega | Situação em 12/11/2026 (Brasília) |
+|---|---|
+| Recuperar fontes e ampliar diários | **Parcial operacionalmente:** DOE PA recuperado por PDF oficial; seleção diária de AC/AP/BA/CE/GO/MA/MG/PA/PI/RN/RO/RR/TO pelo manifesto real, sem piso de municípios. HTTP com espera limitada, APIs/formulários públicos e PDF/OCR isolados. DJEN segue 403; BA/MG/TO indisponíveis nesta verificação. Falhas não apagam histórico nem interrompem fontes úteis. |
+| Leilões judiciais e extrajudiciais abertos | **Feito no código, cobertura parcial:** CAIXA CSV nacional, BB e TRT16, além das fontes existentes. Vínculo só com prova inequívoca do próprio imóvel; OCR/confrontante/ausência de CAR ficam pendentes. Feed, API e site mostram a fonte da prova quando confirmada; CPF/CNPJ e texto pessoal não são persistidos. |
+| Avaliação local primeiro/Haiku | **Feito no código; medição Haiku bloqueada:** `raiz modelos avaliar-cascata` registra acerto integral/por campo, revisão, tokens, custo real por documento e todas as chamadas. Exige documento real e revisão humana para medir acerto. A execução real parou antes das chamadas porque `ANTHROPIC_API_KEY` está ausente/vazia neste processo; custo/acerto Haiku não foram inventados. |
+| Vigilância de fazendas em lotes | **Feito no código; ativação pendente:** coleta diária DETER/MapBiomas/NOAA-20/21 recortada ao catálogo privado de pedidos, rascunhos por dono e painel autenticado. Ponte de 15 minutos renova catálogo/importa resultados. Sem servidor/banco real neste ambiente, sem catálogo privado disponível e sem credencial válida MapBiomas, a vigilância nacional não foi declarada ativa. Nenhum envio. |
+| Primeira certidão real | **Caminho pronto, dado real pendente:** upload PDF cifrado por empresa/pedido/CAR, validação isolada, previsão vigente congelada antes da leitura, comparação, gabarito humano imutável e sincronização E8. Ausência de previsão não vira erro do motor. Ainda não há certidão/gabarito real nem métrica de acerto; fixtures servem somente para testes funcionais. |

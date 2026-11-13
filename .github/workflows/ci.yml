@@ -149,8 +149,12 @@ jobs:
           path: front/.cache/teste-pasta
           include-hidden-files: true
           if-no-files-found: error
+      - name: Acerto do modelo (versões, privacidade, teclado e celular)
+        run: cd front/globo && npm run test:acerto
       - name: Cena-alvo (cobertura pública, bloqueio de lote legado e três lotes autorizados)
         run: cd front/globo && npm run test:cena
+      - name: Pedido nacional (estados, biomas, cobertura, teclado e celular)
+        run: cd front/globo && node ../scripts/testar-pedido-nacional.mjs
       - name: Evidências da cena-alvo
         if: always()
         uses: actions/upload-artifact@v4
@@ -263,11 +267,11 @@ jobs:
           cache-dependency-path: servicos/cartao/package-lock.json
       - name: Dependências (produto e motor)
         run: uv sync --frozen --all-extras
-      - name: Takumi, FFmpeg e LibreOffice (inclui testes de PDF)
+      - name: Takumi, FFmpeg, LibreOffice e OCR (inclui testes de PDF)
         run: |
           npm --prefix servicos/cartao ci --no-audit --no-fund
           sudo apt-get update -q
-          sudo apt-get install -y -q --no-install-recommends ffmpeg libreoffice-writer
+          sudo apt-get install -y -q --no-install-recommends ffmpeg libreoffice-writer poppler-utils tesseract-ocr tesseract-ocr-por
       - name: Cache do LanguageTool
         uses: actions/cache@v4
         with:
