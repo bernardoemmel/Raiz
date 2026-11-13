@@ -1,0 +1,105 @@
+{
+  "formato": 1,
+  "origem": "6e69cc042a9d93d772b4ac5cda419773fe03754f",
+  "destino": "c89d0ac5790e1947b52fb64ce5af285ab02c50f0",
+  "contrato": "Somente continuações e retentativas pendentes não bloqueadas desta origem exata. Reservas vivas, pedidos iniciais e bloqueios não mudam. Ciência e chamada estrita da carga preservadas.",
+  "commits": {
+    "6e69cc042a9d93d772b4ac5cda419773fe03754f": {
+      "versoes": {
+        "funil": "funil-3c3cfc2cd2b3",
+        "filtros": "filtros-3e5f911c6af8",
+        "direto": "direto-69f6f3d9cf66",
+        "mapbiomas": "mapbiomas-d72372253d47",
+        "extras_direto": "extras_direto-cc2931b7fe50",
+        "flag": "flag-e617055186db",
+        "terra": "terra-286f4cfacafa",
+        "titulo": "titulo-0bd308842ad3",
+        "ficha": "ficha-407e79a22566",
+        "rebanho": "rebanho-df262a5af674",
+        "desenvolvedor": "desenvolvedor-59ddf0f71570"
+      },
+      "armazem": "f2cb4321f29d6420333a483e70b7c193a9d5895b03e0a0d1a30b10cb163aa069",
+      "codigo_nativo_sha256": "f55d787caad693cadaf11dc084c03a928f465dbc8913adf1556aed77b31de12d",
+      "rodar_sha256": "0cc698a34ad0aa881176192b2822e29ebdeed753ad2678d907906494ad8c8212",
+      "restante_armazem_ast_sha256": "c3fd3a70ed8b2c02dbdb1775e4ada686131b118869a85558433c6bac2acba113",
+      "modulos_historicos_conferidos": true
+    },
+    "c89d0ac5790e1947b52fb64ce5af285ab02c50f0": {
+      "versoes": {
+        "funil": "funil-3c3cfc2cd2b3",
+        "filtros": "filtros-3e5f911c6af8",
+        "direto": "direto-69f6f3d9cf66",
+        "mapbiomas": "mapbiomas-d72372253d47",
+        "extras_direto": "extras_direto-cc2931b7fe50",
+        "flag": "flag-e617055186db",
+        "terra": "terra-286f4cfacafa",
+        "titulo": "titulo-0bd308842ad3",
+        "ficha": "ficha-407e79a22566",
+        "rebanho": "rebanho-df262a5af674",
+        "desenvolvedor": "desenvolvedor-59ddf0f71570"
+      },
+      "armazem": "28783a1e9031ca76a8f7f50ee001307ef0fb629373258328b80465ada162fc0d",
+      "codigo_nativo_sha256": "f55d787caad693cadaf11dc084c03a928f465dbc8913adf1556aed77b31de12d",
+      "rodar_sha256": "0cc698a34ad0aa881176192b2822e29ebdeed753ad2678d907906494ad8c8212",
+      "restante_armazem_ast_sha256": "c3fd3a70ed8b2c02dbdb1775e4ada686131b118869a85558433c6bac2acba113",
+      "modulos_historicos_conferidos": true
+    }
+  },
+  "tarefas_preservadas": [
+    "desenvolvedor",
+    "direto",
+    "extras_direto",
+    "ficha",
+    "filtros",
+    "flag",
+    "funil",
+    "mapbiomas",
+    "rebanho",
+    "terra",
+    "titulo"
+  ],
+  "tarefas_alteradas": [],
+  "pacotes_preservados": 239,
+  "pacotes_origem_sha256": "7822c34181749e279d79e70ca6b9d537bfff1d59025fa4e953c0fef142e346b8",
+  "diff_sha256": "652a7f756a3a7f601c9fc29326216a6f7298ae74b9fc3d0c1b2c22054b65169a",
+  "arquivos_status": [
+    "M\tmotor/fila_processamento.py",
+    "M\tpyproject.toml",
+    "M\traiz/calendario/arquivos.py",
+    "M\traiz/calendario/mcp.py",
+    "M\traiz/calendario/modelos.py",
+    "A\traiz/conferencia/__init__.py",
+    "A\traiz/conferencia/ibis_contagem.py",
+    "M\traiz/executor/armazem.py",
+    "M\traiz/executor/executor.py",
+    "A\traiz/executor/integridade.py",
+    "M\traiz/executor/processamento.py",
+    "A\traiz/executor/tempos.py",
+    "M\traiz/operacao/lotes.py",
+    "A\traiz/pasta_fiador/__init__.py",
+    "A\traiz/pasta_fiador/esquema.py",
+    "A\traiz/pasta_fiador/geracao.py",
+    "A\traiz/pasta_fiador/modelos/banco.html",
+    "A\traiz/pasta_fiador/modelos/base.html",
+    "A\traiz/pasta_fiador/modelos/comprador.html",
+    "A\traiz/pasta_fiador/operacao.py",
+    "A\traiz/pasta_fiador/servico.py",
+    "A\traiz/pasta_fiador/validacao.py",
+    "M\traiz/prospeccao_api.py",
+    "M\traiz/prospeccao_protecao.py",
+    "M\traiz/publica/contrato.py",
+    "M\traiz/publica/servidor_mcp.py",
+    "M\traiz/publica/telemetria.py",
+    "A\traiz/regras/padroes/pasta_fiador.yaml",
+    "M\tuv.lock"
+  ],
+  "leitura_assets": {
+    "metodos_alterados": [
+      "_assets",
+      "_baixar_asset",
+      "_erros_privados"
+    ],
+    "classe_status": "FalhaHTTPPrivada",
+    "restante_identico": true
+  }
+}

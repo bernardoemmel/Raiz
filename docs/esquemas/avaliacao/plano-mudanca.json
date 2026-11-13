@@ -1,0 +1,167 @@
+{
+  "$defs": {
+    "Estrato": {
+      "additionalProperties": false,
+      "properties": {
+        "municipio": {
+          "maximum": 9999999,
+          "minimum": 1000000,
+          "title": "Municipio",
+          "type": "integer"
+        },
+        "porte": {
+          "enum": [
+            "pequena",
+            "media",
+            "grande"
+          ],
+          "title": "Porte",
+          "type": "string"
+        },
+        "aptidao": {
+          "enum": [
+            "baixa",
+            "media",
+            "alta"
+          ],
+          "title": "Aptidao",
+          "type": "string"
+        }
+      },
+      "required": [
+        "municipio",
+        "porte",
+        "aptidao"
+      ],
+      "title": "Estrato",
+      "type": "object"
+    },
+    "Tolerancia": {
+      "additionalProperties": false,
+      "properties": {
+        "estrato": {
+          "$ref": "#/$defs/Estrato"
+        },
+        "minimo": {
+          "minimum": 2,
+          "title": "Minimo",
+          "type": "integer"
+        },
+        "aumento_crps_max": {
+          "minimum": 0,
+          "title": "Aumento Crps Max",
+          "type": "number"
+        },
+        "crps_max": {
+          "minimum": 0,
+          "title": "Crps Max",
+          "type": "number"
+        }
+      },
+      "required": [
+        "estrato",
+        "minimo",
+        "aumento_crps_max",
+        "crps_max"
+      ],
+      "title": "Tolerancia",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "plano_id": {
+      "format": "uuid",
+      "title": "Plano Id",
+      "type": "string"
+    },
+    "fixado_em": {
+      "format": "date-time",
+      "title": "Fixado Em",
+      "type": "string"
+    },
+    "inicio_treino_em": {
+      "format": "date-time",
+      "title": "Inicio Treino Em",
+      "type": "string"
+    },
+    "modelo_anterior_sha256": {
+      "pattern": "^[a-f0-9]{64}$",
+      "title": "Modelo Anterior Sha256",
+      "type": "string"
+    },
+    "receita_candidata_sha256": {
+      "pattern": "^[a-f0-9]{64}$",
+      "title": "Receita Candidata Sha256",
+      "type": "string"
+    },
+    "previsoes_anteriores_sha256": {
+      "pattern": "^[a-f0-9]{64}$",
+      "title": "Previsoes Anteriores Sha256",
+      "type": "string"
+    },
+    "conjunto_cego_sha256": {
+      "pattern": "^[a-f0-9]{64}$",
+      "title": "Conjunto Cego Sha256",
+      "type": "string"
+    },
+    "controle_sha256": {
+      "pattern": "^[a-f0-9]{64}$",
+      "title": "Controle Sha256",
+      "type": "string"
+    },
+    "politica_equidade_sha256": {
+      "pattern": "^[a-f0-9]{64}$",
+      "title": "Politica Equidade Sha256",
+      "type": "string"
+    },
+    "coorte_inclusao_sha256": {
+      "pattern": "^[a-f0-9]{64}$",
+      "title": "Coorte Inclusao Sha256",
+      "type": "string"
+    },
+    "mudancas": {
+      "items": {
+        "enum": [
+          "calibracao",
+          "pesos",
+          "variaveis"
+        ],
+        "type": "string"
+      },
+      "minItems": 1,
+      "title": "Mudancas",
+      "type": "array"
+    },
+    "tolerancias": {
+      "items": {
+        "$ref": "#/$defs/Tolerancia"
+      },
+      "minItems": 1,
+      "title": "Tolerancias",
+      "type": "array"
+    },
+    "condicao_retorno": {
+      "const": "qualquer_subgrupo_ou_controle_fora_da_tolerancia",
+      "title": "Condicao Retorno",
+      "type": "string"
+    }
+  },
+  "required": [
+    "plano_id",
+    "fixado_em",
+    "inicio_treino_em",
+    "modelo_anterior_sha256",
+    "receita_candidata_sha256",
+    "previsoes_anteriores_sha256",
+    "conjunto_cego_sha256",
+    "controle_sha256",
+    "politica_equidade_sha256",
+    "coorte_inclusao_sha256",
+    "mudancas",
+    "tolerancias",
+    "condicao_retorno"
+  ],
+  "title": "PlanoMudanca",
+  "type": "object"
+}

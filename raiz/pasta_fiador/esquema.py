@@ -3,11 +3,15 @@
 from __future__ import annotations
 
 import datetime as dt
+import re
 from decimal import Decimal
 from typing import Annotated, Literal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints, field_validator, model_validator
+
+from raiz.logs_seguros import sanitizar_log
+from raiz.privacidade import documento_em_identificador
 
 Codigo = Annotated[str, StringConstraints(pattern=r"^[a-zA-Z0-9][a-zA-Z0-9_.:/-]{0,119}$")]
 Hash = Annotated[str, StringConstraints(pattern=r"^[a-f0-9]{64}$")]
@@ -18,7 +22,7 @@ Metodo = Literal["regeneracao_assistida", "semeadura_direta", "plantio_total", "
 
 
 class Fechado(BaseModel):
-    model_config = ConfigDict(extra="forbid", validate_assignment=True)
+    model_config = ConfigDict(extra="forbid", validate_assignment=True, hide_input_in_errors=True)
 
 
 class Documento(Fechado):
@@ -93,6 +97,17 @@ class CreditoMetodo(Fechado):
     fontes: list[FonteCampo] = Field(default_factory=list, max_length=20)
     # Identidade da série é estável; cada revisão persistida recebe referência própria.
     previsao_id: UUID
+
+    @field_validator("modelo_versao")
+    @classmethod
+    def versao_sem_dado_pessoal(cls, valor):
+        if valor is None:
+            return valor
+        # Separadores de versão não podem esconder documento civil ou nome de pessoa.
+        legivel = re.sub(r"[_./-]+", " ", valor)
+        if documento_em_identificador(valor) or any(sanitizar_log(v) != v for v in (valor, legivel)):
+            raise ValueError("Versão do modelo contém dado pessoal ou conteúdo não aprovado")
+        return valor
 
 
 class Titulo(Fechado):

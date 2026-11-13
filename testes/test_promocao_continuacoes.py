@@ -1,8 +1,13 @@
 """Promoções fechadas com deltas de validação explícitos, sem alterar os jobs vivos."""
 
+import ast
 import copy
 import hashlib
 import json
+import subprocess
+import sys
+import tarfile
+import tomllib
 from pathlib import Path
 
 import pytest
@@ -18,6 +23,7 @@ PROMOCOES = {ORIGEM: DESTINO, BASE: DESTINO,
              "bea53bd06c7178daf2a53c392e5a9d54c55e7bc7": DESTINO,
              "436c7b636f6a8867b47403a1dfad4e4c741dc150": DESTINO}  # fmt: skip
 RAIZ = Path(__file__).resolve().parents[1]
+TODAS_PROMOCOES = F.PROMOCOES_CONTINUACAO | F.PROMOCOES_CARGA_ESTRITA
 
 
 def _antigo(**campos):
@@ -25,7 +31,7 @@ def _antigo(**campos):
 
 
 def _promovido(pedido):
-    destino = F.PROMOCOES_CONTINUACAO[pedido["ref"]]
+    destino = TODAS_PROMOCOES[pedido["ref"]]
     return {**pedido, "ref": destino, "promocao_publicador": {"origem": pedido["ref"], "destino": destino}}
 
 
@@ -105,7 +111,7 @@ def test_promocao_fechada_declara_upgrade_e1_e2_guardas_e_versoes_por_origem():
     )
 
 
-@pytest.mark.parametrize("origem", F.PROMOCOES_CONTINUACAO)
+@pytest.mark.parametrize("origem", TODAS_PROMOCOES)
 def test_continuacao_promovida_preserva_pedido_e_reserva_viva(origem):
     vivo = _antigo(continuacao=1, id="anterior/BA-1/1", ref=origem)
     pendente = _antigo(falhas=1, ref=origem)
@@ -120,7 +126,7 @@ def test_continuacao_promovida_preserva_pedido_e_reserva_viva(origem):
     assert F.admitir(estado, runs, "2", [], O._e_unidade) == [_promovido(pendente)]
 
 
-@pytest.mark.parametrize("origem", F.PROMOCOES_CONTINUACAO)
+@pytest.mark.parametrize("origem", TODAS_PROMOCOES)
 def test_falha_reconciliada_promove_retentativa_sem_continuacao(origem):
     pedido = _antigo(continuacao=0, ref=origem)
     estado = {**F.vazio(), "planejadores": ["1", "2"],
@@ -130,7 +136,7 @@ def test_falha_reconciliada_promove_retentativa_sem_continuacao(origem):
 
 
 @pytest.mark.parametrize("cancelado", [True, False])
-@pytest.mark.parametrize("origem", F.PROMOCOES_CONTINUACAO)
+@pytest.mark.parametrize("origem", TODAS_PROMOCOES)
 def test_reconciliacao_nao_promove_cancelados_nem_erros_bloqueados(cancelado, origem):
     pedido = _antigo(falhas=0 if cancelado else 2, ref=origem)
     estado = {**F.vazio(), "planejadores": ["1", "2"],
@@ -158,8 +164,9 @@ def test_reconciliacao_nao_promove_cancelados_nem_erros_bloqueados(cancelado, or
         {"falhas": -1},
     ],
 )
-def test_pedidos_fora_do_contrato_nao_mudam(campos):
-    estado = {**F.vazio(), "fila": [_antigo(**campos)]}
+@pytest.mark.parametrize("origem", [ORIGEM, *F.PROMOCOES_CARGA_ESTRITA])
+def test_pedidos_fora_do_contrato_nao_mudam(campos, origem):
+    estado = {**F.vazio(), "fila": [_antigo(**{"ref": origem, **campos})]}
     antes = copy.deepcopy(estado)
     assert F.promover_continuacoes(estado) == 0
     assert estado == antes
@@ -177,7 +184,7 @@ def test_continuacao_tardia_sera_promovida_sem_reordenar_fila():
     assert F.promover_continuacoes(estado) == 0
 
 
-@pytest.mark.parametrize("origem", F.PROMOCOES_CONTINUACAO)
+@pytest.mark.parametrize("origem", TODAS_PROMOCOES)
 def test_conflito_cas_rele_reserva_antiga_sem_reescrever_job_ja_admitido(monkeypatch, origem):
     pedido = _antigo(ref=origem)
     estado = {**F.vazio(), "planejadores": ["1", "2"], "fila": [copy.deepcopy(pedido)]}
@@ -233,24 +240,40 @@ def test_gatilho_unico_nao_confia_em_codigo_de_outro_run(mudanca, autorizado):
     assert checkout["uses"] == "actions/checkout@v4" and "with" not in checkout
 
 
-def _conferir_versoes_antes_da_carga_estrita(esperadas, monkeypatch):
-    from raiz.executor import tarefas
+def _codigo_fechado(ref, tmp_path):
+    # A referência histórica é executada em checkout separado: a ciência da main
+    # pode evoluir sem renomear as saídas dos executores que já estão rodando.
+    pacote = tmp_path / "codigo.tar"
+    with pacote.open("wb") as arquivo:
+        subprocess.run(["git", "archive", "--format=tar", ref], cwd=RAIZ, stdout=arquivo, check=True, timeout=30)
+    checkout = tmp_path / "checkout"
+    with tarfile.open(pacote) as arquivo:
+        arquivo.extractall(checkout, filter="data")
+    codigo = """
+import hashlib, json, sys
+from pathlib import Path
+raiz = Path(sys.argv[1]).resolve()
+sys.path.insert(0, str(raiz))
+from raiz.executor import tarefas
+versoes = {n: tarefas.versao(n) for n in tarefas.CODIGO}
+assert all(Path(m.__file__).resolve().is_relative_to(raiz)
+           for n, m in sys.modules.items() if (n == 'raiz' or n.startswith('raiz.')) and getattr(m, '__file__', None))
+digest = hashlib.sha256((raiz / 'raiz/executor/armazem.py').read_bytes()).hexdigest()
+print(json.dumps({'versoes': versoes, 'armazem': digest}))
+"""
+    resultado = subprocess.run(
+        [sys.executable, "-I", "-c", codigo, str(checkout)],
+        cwd=checkout,
+        capture_output=True,
+        text=True,
+        check=True,
+        timeout=60,
+    )
+    fechado = json.loads(resultado.stdout)
+    return fechado
 
-    # #93 mudou só a chamada da carga em rodar.py, que participa do hash das 11 tarefas.
-    # A fila continua no commit fechado anterior; não atribuir a versão da main aos seus resultados.
-    rodar = RAIZ / "raiz/funil/rodar.py"
-    novo = rodar.read_bytes()
-    chamada = b"depois_da_carga(eng, cod, estrito=True)"
-    assert novo.count(chamada) == 1
-    anterior_rodar = novo.replace(chamada, b"depois_da_carga(eng, cod)")
-    ler = Path.read_bytes
-    with monkeypatch.context() as m:
-        m.setattr(Path, "read_bytes", lambda p: anterior_rodar if p == rodar else ler(p))
-        assert esperadas == {n: tarefas.versao(n) for n in tarefas.CODIGO}
-    assert all(esperadas[n] != tarefas.versao(n) for n in tarefas.CODIGO)
 
-
-def test_promocao_urgente_vincula_prova_anterior_e_codigo_corrigido(monkeypatch):
+def test_promocao_urgente_vincula_prova_anterior_e_codigo_corrigido(tmp_path):
     prova = json.loads((RAIZ / "docs/passagem/auditoria-promocao-urgente.json").read_text())
     anterior = RAIZ / "docs/passagem/auditoria-promocao-publicador.json"
     assert prova["auditoria_anterior_sha256"] == hashlib.sha256(anterior.read_bytes()).hexdigest()
@@ -259,9 +282,10 @@ def test_promocao_urgente_vincula_prova_anterior_e_codigo_corrigido(monkeypatch)
     assert F.PROMOCOES_URGENTE_PR95 == {o: prova["destino"] for o in prova["origens"]}
     assert set(PROMOCOES) < set(prova["origens"])
     atual = prova["commits"][prova["destino"]]
-    _conferir_versoes_antes_da_carga_estrita(atual["versoes_tarefas"], monkeypatch)
+    fechado = _codigo_fechado(prova["destino"], tmp_path)
+    assert atual["versoes_tarefas"] == fechado["versoes"]
     assert atual["versoes_tarefas"] == prova["commits"][DESTINO]["versoes_tarefas"]
-    assert len(atual["armazem_sha256"]) == 64  # bytes históricos; o leitor mudou na rodada 12
+    assert atual["armazem_sha256"] == fechado["armazem"]
     assert {p["origem"] for p in prova["comparacoes"]} == set(F.PROMOCOES_URGENTE_PR95)
     for par in prova["comparacoes"]:
         origem = prova["commits"][par["origem"]]
@@ -274,7 +298,7 @@ def test_promocao_urgente_vincula_prova_anterior_e_codigo_corrigido(monkeypatch)
         assert set(par["tarefas_preservadas"]) == set(atual["versoes_tarefas"]) - mudaram
 
 
-def test_promocao_rodada12_preserva_ciencia_e_vincula_as_duas_provas(monkeypatch):
+def test_promocao_rodada12_preserva_ciencia_e_vincula_as_duas_provas(tmp_path):
     prova = json.loads((RAIZ / "docs/passagem/auditoria-promocao-rodada12.json").read_text())
     for chave, nome in (
         ("auditoria_anterior_sha256", "auditoria-promocao-publicador.json"),
@@ -284,8 +308,9 @@ def test_promocao_rodada12_preserva_ciencia_e_vincula_as_duas_provas(monkeypatch
     assert prova["destino"] == F.DESTINO_CONTINUACAO
     assert F.PROMOCOES_CONTINUACAO == {o: prova["destino"] for o in prova["origens"]}
     destino = prova["commits"][prova["destino"]]
-    _conferir_versoes_antes_da_carga_estrita(destino["versoes_tarefas"], monkeypatch)
-    assert destino["armazem_sha256"] == hashlib.sha256((RAIZ / "raiz/executor/armazem.py").read_bytes()).hexdigest()
+    fechado = _codigo_fechado(prova["destino"], tmp_path)
+    assert destino["versoes_tarefas"] == fechado["versoes"]
+    assert destino["armazem_sha256"] == fechado["armazem"]
     assert {p["origem"] for p in prova["comparacoes"]} == set(F.PROMOCOES_CONTINUACAO)
     anterior = json.loads((RAIZ / "docs/passagem/auditoria-promocao-urgente.json").read_text())
     anteriores = {p["origem"]: p for p in anterior["comparacoes"]}
@@ -302,10 +327,18 @@ def test_promocao_rodada12_preserva_ciencia_e_vincula_as_duas_provas(monkeypatch
 
 
 def test_armazem_so_altera_leitura_na_prova_rodada12():
-    import ast
 
     prova = json.loads((RAIZ / "docs/passagem/auditoria-promocao-rodada12.json").read_text())
-    arvore = ast.parse((RAIZ / "raiz/executor/armazem.py").read_text())
+    historico = subprocess.run(
+        ["git", "show", f"{prova['destino']}:raiz/executor/armazem.py"],
+        cwd=RAIZ,
+        capture_output=True,
+        text=True,
+        check=True,
+        timeout=30,
+    ).stdout
+    assert hashlib.sha256(historico.encode()).hexdigest() == prova["commits"][prova["destino"]]["armazem_sha256"]
+    arvore = ast.parse(historico)
     classe = next(n for n in arvore.body if isinstance(n, ast.ClassDef) and n.name == "ArmazemRelease")
     alterados = {"_assets", "_baixar_asset", "_erros_privados"}
     classe.body = [n for n in classe.body if not (isinstance(n, ast.FunctionDef) and n.name in alterados)]
@@ -318,3 +351,46 @@ def test_armazem_so_altera_leitura_na_prova_rodada12():
     assert (
         guarda["restante_ast_sha256"] == hashlib.sha256(ast.dump(arvore, include_attributes=False).encode()).hexdigest()
     )
+
+
+def test_promocao_carga_estrita_confere_codigo_historico_e_dependencias(tmp_path):
+    prova = json.loads((RAIZ / "docs/passagem/auditoria-promocao-carga-estrita.json").read_text())
+    origem, destino = prova["origem"], prova["destino"]
+    assert F.PROMOCOES_CARGA_ESTRITA == {origem: destino}
+    assert not F.PROMOCOES_CARGA_ESTRITA.keys() & F.PROMOCOES_CONTINUACAO.keys()
+    assert destino != F.DESTINO_CONTINUACAO
+    assert prova["tarefas_alteradas"] == []
+    assert len(prova["tarefas_preservadas"]) == 11
+    pacotes = {}
+    for ref in (origem, destino):
+        pasta = tmp_path / ref
+        pasta.mkdir()
+        fechado = _codigo_fechado(ref, pasta)
+        auditado = prova["commits"][ref]
+        assert fechado == {k: auditado[k] for k in ("versoes", "armazem")}
+        checkout = pasta / "checkout"
+        rodar = (checkout / "raiz/funil/rodar.py").read_bytes()
+        assert rodar.count(b"depois_da_carga(eng, cod, estrito=True)") == 1
+        assert hashlib.sha256(rodar).hexdigest() == auditado["rodar_sha256"]
+        nativo = hashlib.sha256()
+        for arquivo in sorted((checkout / "nativo").rglob("*")):
+            if arquivo.is_file():
+                nome = arquivo.relative_to(checkout).as_posix()
+                nativo.update(nome.encode() + b"\0" + arquivo.read_bytes() + b"\0")
+        assert nativo.hexdigest() == auditado["codigo_nativo_sha256"]
+        arvore = ast.parse((checkout / "raiz/executor/armazem.py").read_bytes())
+        classe = next(n for n in arvore.body if isinstance(n, ast.ClassDef) and n.name == "ArmazemRelease")
+        permitidos = {"_assets", "_baixar_asset", "_erros_privados"}
+        classe.body = [n for n in classe.body if not (isinstance(n, ast.FunctionDef) and n.name in permitidos)]
+        arvore.body = [n for n in arvore.body if not (isinstance(n, ast.ClassDef) and n.name == "FalhaHTTPPrivada")]
+        resto = hashlib.sha256(ast.dump(arvore, include_attributes=False).encode()).hexdigest()
+        assert resto == auditado["restante_armazem_ast_sha256"]
+        pacotes[ref] = tomllib.loads((checkout / "uv.lock").read_text())["package"]
+    antes, depois = (prova["commits"][r] for r in (origem, destino))
+    for campo in ("versoes", "rodar_sha256", "codigo_nativo_sha256", "restante_armazem_ast_sha256"):
+        assert antes[campo] == depois[campo]
+    preservados = [p for p in pacotes[origem] if p.get("source") != {"editable": "."}]
+    assert len(preservados) == prova["pacotes_preservados"]
+    assert all(p in pacotes[destino] for p in preservados)
+    canonico = json.dumps(preservados, sort_keys=True, separators=(",", ":")).encode()
+    assert hashlib.sha256(canonico).hexdigest() == prova["pacotes_origem_sha256"]
