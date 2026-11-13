@@ -26,11 +26,11 @@ jobs:
       vagas: ${{ steps.reserva.outputs.vagas }}
       matriz: ${{ steps.plano.outputs.matriz }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Reservar capacidade global antes de preparar os dados
         id: reserva
         run: python scripts/reservar_lote.py --reservar 15
-      - uses: astral-sh/setup-uv@v6
+      - uses: astral-sh/setup-uv@v7
         with:
           version: "0.13.6"
       - run: uv sync --frozen --extra motor
@@ -73,13 +73,13 @@ jobs:
       OMP_NUM_THREADS: "1"
       FATIA: ${{ matrix.fatia }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Confirmar as cotas globais antes dos dados e das dependências
         id: reserva
         env:
           VAGAS: ${{ needs.preparar.outputs.vagas }}
         run: python scripts/reservar_lote.py --confirmar "$VAGAS"
-      - uses: astral-sh/setup-uv@v6
+      - uses: astral-sh/setup-uv@v7
         with:
           version: "0.13.6"
       - run: uv sync --frozen --extra motor
@@ -117,13 +117,13 @@ jobs:
       OPENBLAS_NUM_THREADS: "1"
       OMP_NUM_THREADS: "1"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Confirmar as cotas globais antes dos dados e das dependências
         id: reserva
         env:
           VAGAS: ${{ needs.preparar.outputs.vagas }}
         run: python scripts/reservar_lote.py --confirmar "$VAGAS"
-      - uses: astral-sh/setup-uv@v6
+      - uses: astral-sh/setup-uv@v7
         with:
           version: "0.13.6"
       - run: uv sync --frozen --extra motor
