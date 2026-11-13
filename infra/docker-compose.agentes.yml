@@ -1,0 +1,198 @@
+# Uma imagem para a API/MCP, migração, worker e tarefas agendadas. TLS termina no proxy da VPS.
+# python scripts/pilha_agentes.py subir --env-file producao.env
+name: raiz-agentes
+x-app: &app
+  image: raiz/agentes:${RAIZ_IMAGEM_TAG:-local}
+  build:
+    context: ..
+    dockerfile: infra/agentes/Dockerfile
+  restart: unless-stopped
+  init: true
+  mem_limit: ${RAIZ_APP_MEMORIA:-2g}
+  read_only: true
+  tmpfs:
+    - /tmp:size=128m,mode=1777
+  environment: &ambiente
+    RAIZ_BANCO_URL: postgresql+psycopg://raiz:${RAIZ_BANCO_SENHA:?defina a senha do banco}@banco:5432/${RAIZ_BANCO_NOME:-raiz}
+    RAIZ_CHAVE_PESSOAL: ${RAIZ_CHAVE_PESSOAL:?defina o cofre}
+    RAIZ_RECIBO_CHAVE: ${RAIZ_RECIBO_CHAVE:?defina o assinante Ed25519}
+    RAIZ_API_TOKEN: ${RAIZ_API_TOKEN:?defina o token operacional}
+    RAIZ_OAUTH_ISSUER: ${RAIZ_OAUTH_ISSUER:?defina o emissor OAuth}
+    RAIZ_MCP_RESOURCE: ${RAIZ_MCP_RESOURCE:?defina o recurso MCP}
+    RAIZ_API_PUBLICA_URL: ${RAIZ_API_PUBLICA_URL:?defina a URL da API}
+    RAIZ_MCP_HOSTS: ${RAIZ_MCP_HOSTS:-}
+    RAIZ_API_ORIGENS: ${RAIZ_API_ORIGENS:-}
+    RAIZ_LOGIN_BASE_URL: ${RAIZ_LOGIN_BASE_URL:-}
+    RAIZ_FRONT_URL: ${RAIZ_FRONT_URL:-}
+    RAIZ_PIX_MODO: ${RAIZ_PIX_MODO:?defina explicitamente o modo Pix}
+    RAIZ_ABACATEPAY_CHAVE: ${RAIZ_ABACATEPAY_CHAVE:-}
+    RAIZ_ABACATEPAY_WEBHOOK_SEGREDO: ${RAIZ_ABACATEPAY_WEBHOOK_SEGREDO:-}
+    RAIZ_ABACATEPAY_WEBHOOK_CHAVE_PUBLICA: ${RAIZ_ABACATEPAY_WEBHOOK_CHAVE_PUBLICA:-}
+    RAIZ_ABACATEPAY_IDEMPOTENCIA_SUPORTADA: ${RAIZ_ABACATEPAY_IDEMPOTENCIA_SUPORTADA:-0}
+    RAIZ_SMTP_HOST: ${RAIZ_SMTP_HOST:-}
+    RAIZ_SMTP_PORT: ${RAIZ_SMTP_PORT:-465}
+    RAIZ_SMTP_TLS: ${RAIZ_SMTP_TLS:-ssl}
+    RAIZ_SMTP_FROM: ${RAIZ_SMTP_FROM:-}
+    RAIZ_SMTP_USER: ${RAIZ_SMTP_USER:-}
+    RAIZ_SMTP_PASSWORD: ${RAIZ_SMTP_PASSWORD:-}
+    RAIZ_WEBHOOK_HOSTS: ${RAIZ_WEBHOOK_HOSTS:-}
+    RAIZ_OTEL_ENDPOINT: ${RAIZ_OTEL_ENDPOINT:-}
+    RAIZ_REVISAO_HUMANA_TOKEN: ${RAIZ_REVISAO_HUMANA_TOKEN:-}
+    RAIZ_DADOS_PRIVADOS_URL: ${RAIZ_DADOS_PRIVADOS_URL:-}
+    RAIZ_DADOS_PRIVADOS_TOKEN: ${RAIZ_DADOS_PRIVADOS_TOKEN:-}
+    RAIZ_AGENDA_FUSO: ${RAIZ_AGENDA_FUSO:-America/Sao_Paulo}
+    RAIZ_AGENDA_MODO: ${RAIZ_AGENDA_MODO:-producao}
+    RAIZ_API_LIMIT_STORAGE_URI: redis://valkey:6379/0
+    RAIZ_MOTOR_DIR_TRABALHO: /app/dados/motor
+    NO_PROXY: localhost,127.0.0.1,banco,valkey,keycloak,banco-oauth
+    no_proxy: localhost,127.0.0.1,banco,valkey,keycloak,banco-oauth
+  volumes:
+    - dados:/app/dados
+  security_opt:
+    - no-new-privileges:true
+  cap_drop: [ALL]
+  logging: &logs
+    driver: json-file
+    options:
+      max-size: 10m
+      max-file: "3"
+  stop_grace_period: 45s
+
+services:
+  banco:
+    image: postgis/postgis:16-3.5
+    mem_limit: 1g
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: raiz
+      POSTGRES_DB: ${RAIZ_BANCO_NOME:-raiz}
+      POSTGRES_PASSWORD: ${RAIZ_BANCO_SENHA:?defina a senha do banco}
+    command: [postgres, -c, shared_buffers=256MB, -c, max_connections=100, -c, max_wal_size=1GB]
+    shm_size: 256m
+    volumes:
+      - banco:/var/lib/postgresql/data
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U raiz -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+    logging: *logs
+  banco-oauth:
+    image: postgres:16.11
+    mem_limit: 512m
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: keycloak
+      POSTGRES_DB: keycloak
+      POSTGRES_PASSWORD: ${RAIZ_KEYCLOAK_BANCO_SENHA:?defina a senha OAuth}
+    volumes:
+      - oauth:/var/lib/postgresql/data
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U keycloak -d keycloak"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+    logging: *logs
+  valkey:
+    image: valkey/valkey:8.1.4-alpine
+    mem_limit: 192m
+    restart: unless-stopped
+    command: [valkey-server, --appendonly, "yes", --maxmemory, 128mb, --maxmemory-policy, noeviction]
+    volumes:
+      - limites:/data
+    healthcheck:
+      test: [CMD, valkey-cli, ping]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    logging: *logs
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.8.2
+    mem_limit: 1g
+    restart: unless-stopped
+    command: [start, --import-realm]
+    depends_on:
+      banco-oauth:
+        condition: service_healthy
+    environment:
+      KC_DB: postgres
+      KC_DB_URL_HOST: banco-oauth
+      KC_DB_URL_DATABASE: keycloak
+      KC_DB_USERNAME: keycloak
+      KC_DB_PASSWORD: ${RAIZ_KEYCLOAK_BANCO_SENHA:?defina a senha OAuth}
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${RAIZ_KEYCLOAK_ADMIN:?defina administrador OAuth}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${RAIZ_KEYCLOAK_ADMIN_SENHA:?defina senha do administrador OAuth}
+      KC_HOSTNAME: ${RAIZ_KEYCLOAK_URL:?defina URL HTTPS externa do Keycloak}
+      KC_HTTP_ENABLED: "true"
+      KC_PROXY_HEADERS: xforwarded
+      KC_HEALTH_ENABLED: "true"
+      JAVA_OPTS_KC_HEAP: -Xms128m -Xmx512m
+      RAIZ_MCP_RESOURCE: ${RAIZ_MCP_RESOURCE:?defina URL externa MCP}
+      RAIZ_OAUTH_REDIRECT_URI: ${RAIZ_OAUTH_REDIRECT_URI:?defina callback exato OAuth}
+    ports:
+      - "127.0.0.1:8180:8080"
+    volumes:
+      - ./keycloak/raiz-realm.json:/opt/keycloak/data/import/raiz-realm.json:ro
+    healthcheck:
+      test: [CMD-SHELL, "bash -c 'exec 3<>/dev/tcp/127.0.0.1/9000; printf \"GET /health/ready HTTP/1.0\\r\\n\\r\\n\" >&3; grep -q \"200 OK\" <&3'"]
+      start_period: 60s
+      interval: 10s
+      timeout: 5s
+      retries: 30
+    logging: *logs
+  migrar:
+    <<: *app
+    restart: "no"
+    command: [raiz, banco, migrar]
+    depends_on:
+      banco:
+        condition: service_healthy
+  api:
+    <<: *app
+    command: [raiz, api, --host, 0.0.0.0, --porta, "8000"]
+    depends_on:
+      migrar:
+        condition: service_completed_successfully
+      keycloak:
+        condition: service_healthy
+      valkey:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:8000:8000"
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/saude', timeout=3)"]
+      start_period: 60s
+      interval: 10s
+      timeout: 5s
+      retries: 20
+  worker:
+    <<: *app
+    command: [raiz, api, worker]
+    depends_on:
+      migrar:
+        condition: service_completed_successfully
+      valkey:
+        condition: service_healthy
+    healthcheck:
+      test: [CMD, python, -c, "from raiz.banco import engine; from sqlalchemy import text; c=engine().connect(); c.execute(text('select 1')); c.close()"]
+      start_period: 30s
+      interval: 30s
+      timeout: 10s
+      retries: 3
+  agenda:
+    <<: *app
+    command: [python, scripts/agendar_servicos.py]
+    depends_on:
+      migrar:
+        condition: service_completed_successfully
+    healthcheck:
+      test: [CMD, python, scripts/agendar_servicos.py, --saude]
+      start_period: 30s
+      interval: 30s
+      timeout: 5s
+      retries: 3
+volumes:
+  banco:
+  oauth:
+  limites:
+  dados:
