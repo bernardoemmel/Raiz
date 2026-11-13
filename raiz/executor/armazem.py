@@ -439,25 +439,36 @@ class ArmazemRelease:
     def _assets(self, rel: dict | None = None) -> list[dict]:
         """Lista todas as páginas, inclusive snapshots e checkpoints no arquivo privado."""
         rel = rel or self._release()
-        ativos, nomes = [], set()
-        for pagina in range(1, 1001):
-            r = self.cli.get(
-                f"{self.API}/repos/{self.repo}/releases/{rel['id']}/assets",
-                headers=self._cabecalhos(),
-                params={"per_page": 100, "page": pagina},
-            )
-            r.raise_for_status()
-            itens = r.json()
-            if not isinstance(itens, list):
-                raise RuntimeError("resposta inválida ao listar os arquivos do Release")
-            for ativo in itens:
-                if ativo["name"] in nomes:
-                    raise RuntimeError("arquivos mudaram durante a paginação do Release; tente novamente")
-                nomes.add(ativo["name"])
-                ativos.append(ativo)
-            if len(itens) < 100:
-                return ativos
-        raise RuntimeError("Release excedeu a paginação de assets")
+        for tentativa in range(4):
+            ativos, nomes = [], set()
+            mudou = False
+            for pagina in range(1, 1001):
+                r = self.cli.get(
+                    f"{self.API}/repos/{self.repo}/releases/{rel['id']}/assets",
+                    headers=self._cabecalhos(),
+                    params={"per_page": 100, "page": pagina},
+                )
+                r.raise_for_status()
+                itens = r.json()
+                if not isinstance(itens, list):
+                    raise RuntimeError("resposta inválida ao listar os arquivos do Release")
+                for ativo in itens:
+                    if ativo["name"] in nomes:
+                        mudou = True
+                        break
+                    nomes.add(ativo["name"])
+                    ativos.append(ativo)
+                if mudou:
+                    break
+                if len(itens) < 100:
+                    return ativos
+            if not mudou:
+                raise RuntimeError("Release excedeu a paginação de assets")
+            if tentativa < 3:
+                # Reinicia todas as páginas: nenhuma parte da leitura ambígua é
+                # reaproveitada. Só esta corrida de leitura permite repetição.
+                time.sleep(0.25 * 2**tentativa)
+        raise RuntimeError("arquivos mudaram durante a paginação do Release; tente novamente")
 
     @_erro_http_privado("download")
     def _baixar_ativo(self, ativo: dict) -> bytes:

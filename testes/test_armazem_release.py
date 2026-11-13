@@ -18,6 +18,55 @@ from raiz.executor.executor import Executor, Tarefa
 REPO, TAG = "bernardoemmel/raiz", "dados"
 
 
+@pytest.mark.parametrize("persistente", [False, True])
+def test_listagem_recomeça_todas_paginas_quando_publicacao_concorrente_desloca_assets(
+    tmp_path, monkeypatch, persistente
+):
+    import raiz.executor.armazem as A
+
+    chamadas, esperas = [], []
+    tentativa = 0
+    base = [{"id": i, "name": f"produto-{i}"} for i in range(101)]
+
+    def servidor(req):
+        nonlocal tentativa
+        assert req.method == "GET"
+        pagina = int(req.url.params["page"])
+        chamadas.append(pagina)
+        if pagina == 1:
+            tentativa += 1
+            return httpx.Response(200, json=base[:100])
+        if persistente or tentativa == 1:
+            return httpx.Response(200, json=[base[99], base[100]])
+        return httpx.Response(200, json=base[100:])
+
+    monkeypatch.setattr(A.time, "sleep", esperas.append)
+    with httpx.Client(transport=httpx.MockTransport(servidor)) as cliente:
+        arm = ArmazemRelease(REPO, TAG, tmp_path, token="segredo", cliente=cliente)
+        if persistente:
+            with pytest.raises(RuntimeError, match="arquivos mudaram"):
+                arm._assets({"id": 7})
+            assert chamadas == [1, 2] * 4 and esperas == [0.25, 0.5, 1]
+        else:
+            assert arm._assets({"id": 7}) == base
+            assert chamadas == [1, 2, 1, 2] and esperas == [0.25]
+
+
+@pytest.mark.parametrize("status,corpo", [(403, []), (200, {})])
+def test_listagem_nao_repete_falha_de_acesso_ou_formato(tmp_path, status, corpo):
+    chamadas = []
+
+    def servidor(req):
+        chamadas.append(req.url)
+        return httpx.Response(status, json=corpo)
+
+    with httpx.Client(transport=httpx.MockTransport(servidor)) as cliente:
+        arm = ArmazemRelease(REPO, TAG, tmp_path, token="segredo", cliente=cliente)
+        with pytest.raises((httpx.HTTPStatusError, RuntimeError)):
+            arm._assets({"id": 7})
+    assert len(chamadas) == 1
+
+
 class GitHubFalso:
     """Release com assets em memória: download público, API com token para apagar e subir."""
 

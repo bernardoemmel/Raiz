@@ -488,3 +488,22 @@ fechada das continuações para `91c993ec322fea64ca2e96098e212c0f5c2dc613` passo
 promoção e catálogo. A prova em `auditoria-promocao-rodada12.json` preserva os hashes das duas auditorias
 anteriores, as 11 versões atuais de tarefas e todas as dependências existentes; Ibis permanece opcional.
 Reservas vivas e pedidos bloqueados não mudam. O destino não acompanha a main automaticamente.
+
+Retomada operacional iniciada em **12/11 às 23h53 de Brasília**, antes do merge para não deixar vagas
+ociosas enquanto o CI espera runners: [run 43355236141](https://github.com/bernardoemmel/Raiz/actions/runs/43355236141),
+na referência fixa `10a94d4278493c5b1776479b192ed62866007d13`. Novo pedido explícito para RN, GO, MA, MT, MS
+e AM, sem refazer saídas comprovadas. Às **23h57**, a admissão CAS confirmou **15 reservas globais**:
+cinco jobs anteriores e dez unidades novas (BA-1/3, RN-1/2, GO-1/2/3, MA-1/2 e MT-1). As novas unidades
+ainda aguardavam o preparo comum; reserva não foi contada como município em execução. Os demais pedidos
+continuam persistidos. RN-1 antigo permanece bloqueado no histórico; o pedido novo não apagou esse registro.
+Nenhum workflow foi cancelado/desativado. PR #95 aguarda todos os checks; referência Pará, frontend,
+workflows e segurança já passaram. A main recebeu o #89 durante essa espera e foi integrada sem conflitos
+na rodada 12; seus 188 testes relacionados e 334 testes do frontend passaram, com build.
+
+Na retomada `43355236141`, o preparo comum e MT-1 falharam **antes do cálculo** ao listar os assets
+privados: arquivos mudaram entre páginas. A correção foi estendida ao leitor comum do armazém, com
+quatro tentativas completas, espera limitada e erro explícito se a leitura continuar ambígua. Nenhuma
+lista parcial é aceita. **65 testes** de armazém, transferência, checkpoint e integridade passaram;
+cinco consultas reais consecutivas ao arquivo privado leram 301 assets sem duplicação (2,80–2,99 s).
+O contrato estrito do catálogo continua exigindo a compatibilidade dos escritores ativos.
+A integração visual com a main #89 passou em Pages, acerto, pedido nacional, cena e acessibilidade.
