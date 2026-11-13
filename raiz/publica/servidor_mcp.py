@@ -262,7 +262,8 @@ def criar_servidor(api: ApiRaiz | None = None, *, verificador: VerificadorKeyclo
         """Monta opções barata, segura e compacta quando a pessoa pede criar/calcular/montar um lote;
         exige sinal Pix e contrato. Para apenas verificar viabilidade/meta/teto, use consultar_disponibilidade.
         Devolve operação: acompanhe seu pedido_id até concluir; então use negocio_pedido_id em comparar_lotes
-        para ler as opções. Continue sem nova confirmação. Repetições preservam a Idempotency-Key e o corpo."""
+        para ler as opções de um NOVO lote. Em retry por timeout, preserve Idempotency-Key e corpo,
+        devolva o recibo original e não inicie comparação paga não solicitada."""
         return await api.chamar(
             "POST", "/agentes/pedir_lote", "pedir_lote", ctx, _campos_json(campos), idempotency_key=idempotency_key
         )
@@ -271,7 +272,8 @@ def criar_servidor(api: ApiRaiz | None = None, *, verificador: VerificadorKeyclo
     async def comparar_lotes(pedido_id: UUID, ctx: Context) -> dict[str, Any]:
         """Obtém P10/P50/P90, custo líquido, risco e cronograma do pedido COMERCIAL (negocio_pedido_id).
         Exige sinal e contrato. Continue com acompanhar_contato usando o NOVO pedido_id da operação devolvida,
-        até ler resultado; não use o ID comercial para esse acompanhamento. Explique cenários, versão e limites.
+        até ler resultado; não use o ID comercial para esse acompanhamento. P90 de custo é cenário adverso;
+        se exceder o teto, peça decisão humana sobre tolerância ao risco. Não presuma aceitação.
         Agrega as fazendas sem nome, CPF, contato ou lista de códigos do dono."""
         return await api.chamar(
             "POST",
@@ -307,7 +309,8 @@ def criar_servidor(api: ApiRaiz | None = None, *, verificador: VerificadorKeyclo
 
     @mcp.tool(annotations=ToolAnnotations(idempotentHint=True, destructiveHint=False, openWorldHint=False))
     async def preparar_reserva(pedido_id: UUID, idempotency_key: ChaveIdempotencia, ctx: Context) -> dict[str, Any]:
-        """Prepara a reserva quando o administrador habilitou reservar. Devolve link para uma pessoa aprovar;
+        """Prepara a reserva quando o administrador habilitou reservar e o token tem esse escopo. Se faltar,
+        explique a pendência sem executar operações pagas alternativas. Devolve link para uma pessoa aprovar;
         a página humana apresenta Pix com QR e vencimento e recibo assinado. O agente nunca aprova nem paga."""
         return await api.chamar(
             "POST",

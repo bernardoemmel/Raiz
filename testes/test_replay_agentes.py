@@ -98,17 +98,24 @@ def test_nota_congelada_nao_supera_barreira_atual(referencia):
     assert ref.registros[tarefa.id, 1].criterios == dict.fromkeys(tarefa.esperado, True)
 
 
-def test_correcoes_do_juiz_nao_entram_no_replay_do_agente(referencia, tmp_path):
+@pytest.mark.parametrize("chamadas_juiz", [0, 3])
+def test_correcoes_do_juiz_nao_entram_no_replay_do_agente(referencia, tmp_path, chamadas_juiz):
     relatorio = json.loads((referencia / "relatorio.json").read_text())
     metrica = relatorio["metricas"][0]
+    if chamadas_juiz == 0:
+        arquivo_registros = referencia / "execucoes.jsonl"
+        registros = [Execucao.model_validate_json(linha) for linha in arquivo_registros.read_text().splitlines()]
+        registros[0].criterios = dict.fromkeys(registros[0].criterios, False)
+        arquivo_registros.write_text("\n".join(r.model_dump_json() for r in registros))
+        relatorio.update(avaliar(registros, *carregar_gabarito()))
     nome = f"{metrica['tarefa_id']}-{metrica['tentativa']}.yaml"
     arquivo = referencia / "cassetes" / nome
     dados = yaml.safe_load(arquivo.read_text())
-    dados["interactions"].extend(dados["interactions"][-1:] * 2)
+    dados["interactions"] = dados["interactions"][:1] + dados["interactions"][-1:] * chamadas_juiz
     arquivo.write_text(yaml.safe_dump(dados))
-    metrica.update(chamadas_juiz=3, cassete_sha256=hashlib.sha256(arquivo.read_bytes()).hexdigest())
+    metrica.update(chamadas_juiz=chamadas_juiz, cassete_sha256=hashlib.sha256(arquivo.read_bytes()).hexdigest())
     (referencia / "relatorio.json").write_text(json.dumps(relatorio))
     destino = tmp_path / "replay-com-correcao"
     Referencia(referencia).cassetes_do_agente(destino)
     assert len(yaml.safe_load((destino / nome).read_text())["interactions"]) == 1
-    assert len(yaml.safe_load(arquivo.read_text())["interactions"]) == 4
+    assert len(yaml.safe_load(arquivo.read_text())["interactions"]) == 1 + chamadas_juiz

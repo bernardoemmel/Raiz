@@ -71,7 +71,8 @@ class Referencia:
                 type(passos) is not int
                 or not 1 <= passos <= self.max_passos
                 or type(chamadas_juiz) is not int
-                or not 1 <= chamadas_juiz <= 3
+                or not 0 <= chamadas_juiz <= 3
+                or (chamadas_juiz == 0 and any(self.registros[chave].criterios.values()))
                 or len(interacoes) != passos + chamadas_juiz
             ):
                 raise ValueError("quantidade de inferências ou chamadas do juiz diverge da referência")
