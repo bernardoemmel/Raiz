@@ -1,13 +1,12 @@
-# Vigilância diária das fazendas e dos projetos (raiz/vigilancia/README.md).
-# Lê MapBiomas Alerta, FIRMS (NOAA-20/21), embargos do Ibama, DETER e PRODES, cruza somente CAR de lotes ativos
-# e com os projetos, e publica no arquivo privado: alertas de imóvel e histórico autenticados; projetos, perdas
-# e marcações também cifrados (RAIZ_VIGILANCIA_CHAVE). Fonte com erro deixa a execução vermelha (o GitHub avisa por e-mail), depois de
-# publicar o que deu certo.
+# Vigilância diária dos lotes ativos (docs/vigilancia-lotes.md).
+# Lê DETER, MapBiomas Alerta e FIRMS (NOAA-20/21) e cruza somente CARs do catálogo privado de pedidos.
+# Alertas ficam no arquivo autenticado e rascunhos por dono também cifrados (RAIZ_VIGILANCIA_CHAVE).
+# Fonte com erro/credencial ausente ou cobertura parcial deixa a execução vermelha após guardar o resultado útil.
 #
 # Segredos do repositório (Settings > Secrets and variables > Actions):
 #   MAPBIOMAS_ALERTA_EMAIL, MAPBIOMAS_ALERTA_SENHA   conta da Plataforma MapBiomas Alerta
 #   RAIZ_VIGILANCIA_CHAVE                             chave Fernet (python -m raiz.vigilancia chave)
-#   RAIZ_PROJETOS_PRIVADO                             (opcional) YAML com os dados comerciais dos projetos
+#   RAIZ_BANCO_URL                                   (opcional) banco; sem ele, usa snapshot privado renovado pelo servidor
 #   FIRMS_MAP_KEY                                     (opcional) chave da API do FIRMS
 name: Vigilância diária
 
@@ -21,7 +20,7 @@ on:
         required: false
         default: ""
       ufs:
-        description: "Só estas UFs do Release dados (vírgula)"
+        description: "Só estas UFs do arquivo privado processado (vírgula)"
         required: false
         default: ""
 

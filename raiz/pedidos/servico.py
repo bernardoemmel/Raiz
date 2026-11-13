@@ -297,7 +297,12 @@ def _alertas(con, pedido_id) -> list[dict]:
             # desmatamento, embargo, matricula_cancelada, bloqueio, caminho_terra, saiu_da_base (fazenda_com_problema)
             "motivo": (r.detalhe or {}).get("motivo"),
             # fonte, data do evento, área, link da fonte, fazendas novas no lote (lote_melhorou); nada pessoal
-            "detalhe": {k: v for k, v in (r.detalhe or {}).items() if k not in ("texto", "chave", "motivo")},
+            # Rascunho privado só sai pela rota com sessão de pessoa e reconferência do dono congelado.
+            "detalhe": {
+                k: v
+                for k, v in (r.detalhe or {}).items()
+                if k not in ("texto", "chave", "motivo", "rascunho_vigilancia")
+            },
         }
         for r in rs
     ]

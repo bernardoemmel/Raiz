@@ -138,6 +138,7 @@ def test_reconfere_cancelamento_membro_e_titularidade_na_importacao(cenario):
     assert lotes.registrar_no_banco(eng, [documento]) == 1
     with eng.begin() as con:
         con.execute(text("update negocio.pedido set cliente_id=:c where id=:p"), {"p": pedidos[0], "c": clientes[1]})
+        assert all("rascunho_vigilancia" not in a["detalhe"] for a in servico._alertas(con, pedidos[0]))
     assert lotes.relatorios_do_pedido(eng, pedidos[0], clientes[1]) == []
     assert lotes.registrar_no_banco(eng, [documento]) == 0
 
