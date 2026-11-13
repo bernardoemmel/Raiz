@@ -19,6 +19,7 @@ import { MOTIVOS, etapaDe, noFoco, situacaoDe, type Foco, type MotivoId } from "
 import { abreviarCar, fmtHa, fmtInt, ufDoCodigo } from "../../../compartilhado/formato"
 import { rotulosDeAreas } from "../../../compartilhado/rotulos-mapa"
 import { fonteMapaBase } from "../../../compartilhado/mapa-base"
+import { cederProcessamento } from "../../../compartilhado/ceder-processamento"
 import { tituloDe } from "../filtros"
 import { linkCalendarioImovel, linkFazenda } from "../rota"
 import { camadasBase, estiloBase, imagemHachura, prepararMapLibre } from "./estilo"
@@ -182,6 +183,7 @@ export function MapaBrasil(props: Props) {
   const [erroAgregadosNoMapa, setErroAgregadosNoMapa] = useState(false)
   const listaGruposAberta = useRef(false)
   const marcadoresGrupos = useRef<MarcadoresGrupos | null>(null)
+  const gruposAgendados = useRef<MapaGL | null>(null)
   const geracaoGrupos = useRef(0)
   const gruposProntos = useRef(false)
   const municipioPorZoom = useRef<string | null>(null)
@@ -196,12 +198,18 @@ export function MapaBrasil(props: Props) {
     if (!brasil || !caixa.current || mapaRef.current) return
     let removido = false
     let instancia: MapaGL | null = null
-    void prepararGpu().then((liberar) => {
+    let liberarGpu: (() => void) | undefined
+    void prepararGpu().then(async (liberar) => {
+      liberarGpu = liberar
       if (removido || !caixa.current) { liberar(); return }
       prepararMapLibre()
+      const estilo = estiloBase(brasil.base, { nacional: true })
+      // Montar o estilo, criar o contexto nativo e instalar controles são trabalhos independentes.
+      // Cada continuação entrega a thread à entrada e à pintura, sem esperar um prazo ou ociosidade.
+      await cederProcessamento()
+      if (removido || !caixa.current) { liberar(); return }
       const m = new MapaGL({
         container: caixa.current,
-        style: estiloBase(brasil.base, { nacional: true }),
         attributionControl: false,
         pixelRatio: Math.min(window.devicePixelRatio || 1, 2),
         fadeDuration: 0,
@@ -209,12 +217,15 @@ export function MapaBrasil(props: Props) {
         pitchWithRotate: false,
         locale: { "NavigationControl.ZoomIn": "Aproximar", "NavigationControl.ZoomOut": "Afastar", "Popup.Close": "Fechar ficha breve" },
       })
+      instancia = m
       // bounds no construtor faz o MapLibre redimensionar o canvas duas vezes.
       // O enquadramento imediato usa o tamanho final antes do primeiro frame.
       m.fitBounds(BRASIL, { padding: { top: 48, left: 48, right: 48, bottom: 48 + margemBaixo }, duration: 0 })
-      instancia = m
       margemAplicada.current = margemBaixo
       liberar()
+      liberarGpu = undefined
+      await cederProcessamento()
+      if (removido) return
       m.addControl(new AttributionControl({ compact: false }), "bottom-right")
       m.addControl(new NavigationControl({ showCompass: false }), "top-right")
       m.addControl(new ScaleControl({ unit: "metric" }), "bottom-right")
@@ -233,7 +244,7 @@ export function MapaBrasil(props: Props) {
           if (m.getZoom() >= 6) atual.current.props.aoAproximar()
         })
         m.on("idle", () => {
-          atualizarGruposVisiveis(m)
+          agendarGruposVisiveis(m)
           if (m.getZoom() < ZOOM_FAZENDAS || atual.current.props.municipio || !m.getLayer("brasil-mun")) return
           const p = m.project(m.getCenter())
           const municipio = m.queryRenderedFeatures(p, { layers: ["brasil-mun"] })[0]
@@ -244,15 +255,21 @@ export function MapaBrasil(props: Props) {
           }
         })
       })
+      // Registra os eventos antes do estilo: nenhuma resposta rápida pode perder o primeiro load.
+      // As variantes deste estilo interno passam pela especificação MapLibre no build.
+      // As camadas e filtros acrescentados depois continuam com a validação padrão.
+      m.setStyle(estilo, { validate: false })
     })
     return () => {
       removido = true
+      liberarGpu?.()
       limparSatelite.current?.()
       limparSatelite.current = undefined
       setPronto(false)
       setRegional(false)
       geracaoGrupos.current++
       gruposProntos.current = false
+      gruposAgendados.current = null
       marcadoresGrupos.current?.limpar()
       marcadoresGrupos.current = null
       instancia?.remove()
@@ -611,6 +628,16 @@ export function MapaBrasil(props: Props) {
       filter: ["==", ["get", "cod_ibge"], ""],
       maxzoom: ZOOM_FAZENDAS,
       paint: { "line-color": COR.tinta, "line-width": 2 },
+    })
+  }
+
+  function agendarGruposVisiveis(m: MapaGL) {
+    if (gruposAgendados.current === m) return
+    gruposAgendados.current = m
+    void cederProcessamento().then(() => {
+      if (gruposAgendados.current !== m) return
+      gruposAgendados.current = null
+      if (mapaRef.current === m) atualizarGruposVisiveis(m)
     })
   }
 

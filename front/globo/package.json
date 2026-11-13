@@ -7,7 +7,7 @@
     "predev": "node ../scripts/baixar-dados.mjs && node ../scripts/baixar-calendario.mjs",
     "dados": "node ../scripts/baixar-dados.mjs",
     "dev": "vite",
-    "build": "node ../scripts/verificar-design.mjs && tsc -b && vite build",
+    "build": "node ../scripts/verificar-design.mjs && vitest run src/mapa/estilo.test.ts && tsc -b && vite build",
     "lint": "oxlint",
     "preview": "vite preview",
     "test": "vitest run",
@@ -45,6 +45,7 @@
   },
   "devDependencies": {
     "@axe-core/playwright": "4.14.0",
+    "@maplibre/maplibre-gl-style-spec": "26.6.0",
     "@playwright/test": "1.65.0",
     "@types/node": "^24.19.2",
     "@types/react": "^19.3.0",

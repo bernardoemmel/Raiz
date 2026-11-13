@@ -41,9 +41,8 @@ export class MarcadoresGrupos {
           this.abrir(atual.grupo)
         })
         this.visiveis.set(grupo.chave, item)
-      }
+      } else if (item.grupo.centro[0] !== grupo.centro[0] || item.grupo.centro[1] !== grupo.centro[1]) item.marcador.setLngLat(grupo.centro)
       item.grupo = grupo
-      item.marcador.setLngLat(grupo.centro)
       item.botao.style.setProperty("--diametro-grupo", `${raioGrupo(grupo) * 2}px`)
       const [contagem, hectares] = rotulosGrupo(grupo)
       item.botao.setAttribute("aria-label", `${contagem} ${hectares}. ${descreverGrupo(grupo)} Aproximar.`)
