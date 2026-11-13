@@ -369,6 +369,9 @@ def pedido(x):
         "reservado_ate": _data(x.get("reservado_ate")),
         "alertas": alertas(x.get("alertas")),
         "versao_modelo": _versao(x.get("versao_modelo")),
+        "revisao_lote": x.get("revisao_lote")
+        if re.fullmatch(r"[a-f0-9]{64}", str(x.get("revisao_lote", "")))
+        else None,
     }
 
 
