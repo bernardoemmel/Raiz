@@ -5,6 +5,7 @@ import fs from "node:fs"
 import os from "node:os"
 import path from "node:path"
 import { fileURLToPath } from "node:url"
+import { lerProcessamentoPublicado } from "../compartilhado/dados/processamento-publicado.ts"
 
 const RAIZ_REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..")
 const DESTINO = path.resolve(RAIZ_REPO, process.env.RAIZ_DADOS || "dados/publicos")
@@ -18,7 +19,7 @@ const BASICAS = ["cod_imovel", "cod_ibge", "municipio", "uf", "situacao_basica"]
 const RESUMO = new Set(("cod_ibge municipio imoveis sem_problema def_RL aptas_carbono ha_carbono tco2_ano_aptas aptas_com_matricula ha_carbono_matricula cota_reserva redd_imoveis redd_ha app_imoveis app_ha frigorifico_imoveis frigorifico_ha compensacao_ha eudr_ok credito_rural_ok compra_arrendamento alerta_pos2020_imoveis frente_regularizar_antes frente_carbono frente_silvipastoril frente_desbloqueio frente_carbono_revisar_desm10anos frente_assentamento_agrupado frente_carbono_so_plantio frente_fora_TI frente_ja_tem_projeto").split(" "))
 const SEM_IMOVEIS = new Set(["cod_ibge", "municipio", "verificado_em"])
 const SITUACOES = new Set(["apto", "com_pendencia", "nao_apto"])
-const CHAVES_ESTADO = new Set("versao_publicacao escopo municipios sem_imoveis total_ibge completo funil_completo tamanho versao atualizado_em motor_versao situacao faltam tabelas versoes url geo".split(" "))
+const CHAVES_ESTADO = new Set("versao_publicacao escopo municipios sem_imoveis total_ibge completo funil_completo tamanho versao atualizado_em motor_versao situacao faltam tabelas versoes url geo processamento".split(" "))
 const objeto = (v) => v !== null && typeof v === "object" && !Array.isArray(v)
 const marcado = (v) => objeto(v) && v.versao_publicacao === 1 && v.escopo === "publico_basico"
 
@@ -42,6 +43,8 @@ function validarManifesto(m) {
   for (const [uf, estado] of Object.entries(m.estados)) {
     if (!UFS.has(uf) || !marcado(estado)) throw new Error("estado sem marca publico_basico v1")
     chaves(estado, CHAVES_ESTADO, uf)
+    if (estado.processamento !== undefined && !lerProcessamentoPublicado(estado.processamento, uf))
+      throw new Error(`${uf}: processamento fora do contrato público`)
     if (estado.url) urlPacote(estado.url, uf)
     else if (estado.municipios || estado.tamanho) throw new Error(`${uf}: pacote público sem endereço`)
     if (estado.geo) {
@@ -170,7 +173,15 @@ async function main() {
       if (marcado(l)) fs.rmSync(atual, { recursive: true, force: true })
       local.estados[uf] = r; mudou = true; continue
     }
-    if (pastaConforme(uf, l) && l.versao === r.versao && (!comGeo || l.geo?.versao === r.geo?.versao)) continue
+    if (pastaConforme(uf, l) && l.versao === r.versao && (!comGeo || l.geo?.versao === r.geo?.versao)) {
+      // A observação muda independentemente do pacote; ausência nova também retira a telemetria antiga.
+      if (JSON.stringify(l.processamento) !== JSON.stringify(r.processamento)) {
+        const { processamento: _anterior, ...resto } = l
+        local.estados[uf] = { ...resto, ...(r.processamento !== undefined ? { processamento: r.processamento } : {}) }
+        mudou = true
+      }
+      continue
+    }
     const staging = fs.mkdtempSync(path.join(os.tmpdir(), `raiz-publico-${uf}-`))
     try {
       const atual = path.join(DESTINO, uf)

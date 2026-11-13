@@ -11,6 +11,8 @@ import { MapaNacionalLeve } from "../mapa/MapaNacionalLeve"
 import { Cabecalho } from "../partes/Cabecalho"
 import { PainelBrasil } from "../partes/PainelBrasil"
 import { PainelMunicipio } from "../partes/PainelMunicipio"
+import { PainelProcessamentoEstados } from "../partes/PainelProcessamentoEstados"
+import { useProcessamentoEstados } from "../processamento-estados"
 import { linkEstado, linkMunicipio } from "../rota"
 
 const MapaBrasil = lazy(() => import("../mapa/MapaBrasil").then((m) => ({ default: m.MapaBrasil })))
@@ -33,6 +35,7 @@ function cobertura(altura: Altura): number {
  * o tempo todo: trocar de estado ou de município não recarrega nada além das camadas dele.
  */
 export function Explorar({ municipio, uf }: { municipio: string | null; uf: string | null }) {
+  const processamento = useProcessamentoEstados(!municipio)
   const [abriuDetalhe, setAbriuDetalhe] = useState(Boolean(municipio || uf))
   if (!abriuDetalhe && (municipio || uf)) setAbriuDetalhe(true)
   const brasil = useCarga(() => abriuDetalhe ? fonte.geo.brasil() : Promise.resolve({ municipios: null, estados: null, base: null }), [abriuDetalhe])
@@ -194,6 +197,7 @@ export function Explorar({ municipio, uf }: { municipio: string | null; uf: stri
                 pontos={uf ? pontos.dado : undefined}
                 carregando={municipios.carregando || estados.carregando}
                 cobertura={coberturaMapa.dado}
+                andamento={<PainelProcessamentoEstados carga={processamento} uf={uf} />}
               />
             )}
           </div>
