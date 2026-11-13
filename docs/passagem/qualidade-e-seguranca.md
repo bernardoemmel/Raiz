@@ -724,3 +724,6 @@ Os conflitos foram resolvidos preservando a aquisição e a retomada novas do Ma
 de ZIP com nome remoto foi levada para `_geotiff`. As fixtures de adoção mantêm tanto os CSVs completos quanto
 o comprovante `_versoes.json` agora exigido. As exceções de Gitleaks continuam nas mesmas três linhas/commit.
 O finalizador histórico permanece com **Raiz dados do Brasil**, conforme o achado acima; não foi relaxado.
+**47 testes de MapBiomas, privacidade e armazenamento passaram** após resolver os conflitos, além de Ruff global
+(522 arquivos), formatação e actionlint. A referência auditada da superfície API/MCP permanece idêntica, sem
+renovação da exceção. O CI completo é reexecutado sobre a combinação atualizada antes do merge.
