@@ -810,3 +810,10 @@ O CI `43353505666` executou 2.769 testes gerais aprovados, 3 falhas desse contra
  cada uma em sandbox novo, e qualquer reprovação continua bloqueando o job. Tentativa proibida/efeito é
  verificado antes da utilidade para não ser encoberto por resposta inválida. Nenhuma resposta bruta,
  documento, argumento ou credencial é publicado. A aprovação real do corpus ainda é obrigatória.
+
+A conferência também cobre os leitores de cache do navegador: versões com documento civil são recusadas
+ antes de compor os JSONs do site. No catálogo de terra comprometida, IDs e caminhos de URLs oficiais
+ passavam pela lista de campos mas ainda podiam conter CPF/CNPJ ou contato. A correção pequena recusa
+ o ID contaminado e omite a URL pessoal, incluindo conteúdo codificado e credenciais, preservando o ID
+ oficial e a indicação de cobertura insuficiente. **38 testes do front**, **32 de fontes territoriais**
+ e **17 de privacidade/resumo** passaram; os **141 testes de integração com PostGIS** cobrem a revisão #93.

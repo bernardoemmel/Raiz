@@ -119,3 +119,12 @@ def test_repositorio_sem_cpf_cnpj():
     arquivos = subprocess.run(["git", "ls-files"], cwd=RAIZ_REPO, capture_output=True, text=True).stdout.split()
     achados = P.varrer([RAIZ_REPO / a for a in arquivos])
     assert achados == [], achados
+
+
+def test_documento_no_identificador_com_prefixo_e_formatacao():
+    from raiz.privacidade import documento_em_identificador
+
+    cpf_fmt = f"{CPF[:3]}.{CPF[3:6]}.{CPF[6:9]}-{CPF[9:]}"
+    for v in (CPF, CNPJ, cpf_fmt):
+        assert documento_em_identificador("modelo-" + v)
+    assert not documento_em_identificador("restauracao-2026d+a84f9789")

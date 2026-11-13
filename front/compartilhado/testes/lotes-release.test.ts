@@ -170,3 +170,11 @@ describe("consulta estática aos lotes", () => {
     if (esperado.fazendas === null || esperado.hectares === null) expect(p.publicacao?.cobertura.observacao).toContain("suprimidos")
   })
 })
+
+it("não publica CPF/CNPJ em uma versão nem ao usar um cache antigo", () => {
+  const cpf = ["123", "456", "789"].join("") + "09"
+  const cnpj = ["11", "222", "333", "0001", "81"].join("")
+  for (const documento of [cpf, cnpj, `${cpf.slice(0, 3)}.${cpf.slice(3, 6)}.${cpf.slice(6, 9)}-${cpf.slice(9)}`]) {
+    expect(lerPublicacaoLote({ ...aberto(), modelo_versao: `modelo-${documento}` }).estado).toBe("ausente")
+  }
+})

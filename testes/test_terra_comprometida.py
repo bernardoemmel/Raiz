@@ -160,3 +160,19 @@ def test_redd_estadual_apenas_car_intersectado_sem_dado_pessoal(con):
     assert r["PA-CONTEXTO"]["area_confirmada"]["valor"] is None
     assert r["PA-FORA"]["contexto_jurisdicional"] == []
     assert "NAO_PUBLICAR" not in json.dumps(r)
+
+
+def test_identificador_e_caminho_oficial_nao_sao_excecao_para_dados_pessoais():
+    from urllib.parse import quote
+
+    from testes.test_privacidade import CNPJ, CPF
+
+    for documento in (CPF, CNPJ, "".join(c for c in CPF if c.isdigit()), "".join(c for c in CNPJ if c.isalnum())):
+        with pytest.raises(ValueError, match="identificadores reconhecidos"):
+            tc.normalizar(reg(objeto_id="projeto-" + documento))
+        r = tc.normalizar(reg(fonte_url="https://registry.verra.org/" + quote(documento, safe="")))
+        assert r["fonte_url"] is None
+    for sufixo in ("/contato%40example.invalid", "/nome-Pessoa-Sintetica", "/%0Aconteudo"):
+        assert tc.normalizar(reg(fonte_url="https://www.gov.br" + sufixo))["fonte_url"] is None
+    assert tc.normalizar(reg(fonte_url="https://:segredo-sintetico@www.gov.br/anexo"))["fonte_url"] is None
+    assert tc.normalizar(reg())["fonte_url"].endswith("/projects/665")
