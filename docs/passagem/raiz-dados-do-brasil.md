@@ -2,7 +2,7 @@
 
 Passagem original de 12/11/2026, 13h20 de Brasília. Retomada pelo Codex na mesma data, a partir da main.
 Formatos e procedência foram integrados pelo #77; as seis pendências E1/E2, pelo #79.
-Entrega #82 integrada; correção urgente em `codex/dados-snapshot`.
+Entregas #82 e #95 integradas; rodada 12 em #99. Formatos do Lote PA em validação final.
 
 ## O que este chat fez
 
@@ -482,6 +482,40 @@ implantação. A fixture do build agora usa `./amostra/processamento.json`, serv
 O Playwright exige as 27 UFs, ausência de erros e ausência de execução inventada; a configuração de produção
 continua consultando a ref pública. O teste de referência estadual, agentes, segurança, workflows e e2e já passaram.
 
+## Produtos finais imutáveis do Lote PA — integração preparada
+
+O catalogador reconhece o manifesto e os quatro TARs finais da retomada `43299409156`; exige IDs, tamanhos
+e SHA-256 registrados. Gera fichas Croissant 1.1 com todos os membros e esquemas dos CSVs, três perfis
+hubverse (resumos, previsões individuais e opções), cartão e CAD Trust dos cinco períodos publicados.
+Os cinco originais não são reenviados ou recalculados. As versões ausentes de tarefa/execução individual
+continuam nulas, com diagnóstico; origem e retomada conservam commits e execuções separados.
+
+Validação local com os bytes reais: 345.870 imóveis, 144 municípios, 8.289.432 linhas de quantis das previsões,
+3.629.238 das opções e nove dos resumos; 19 derivados em 61,09 s. Foram mantidos 3.981 diagnósticos,
+inclusive valores ausentes/faixas cruzadas; nenhum quantil foi reordenado. CADT conserva os cinco marcos
+e o total fracionário, com unidades inteiras por diferença dos acumulados arredondados; não interpola anos.
+A data de início de cenário é hipotética, não a implantação de um projeto nem emissão de créditos.
+
+A falha observada no catálogo `43346089594` motivou repetição limitada da listagem inteira quando um escritor
+concorrente desloca as páginas do Release. Quatro tentativas, com prazo preservado; nunca aceita lista parcial
+nem oculta outras falhas. A repetição passou ao leitor comum na rodada 12, protegendo também caches e checkpoints. O gate de compatibilidade continua estrito.
+
+O verificador portátil confere bytes reais, fichas, quantis, CADT e atestações dos dois escopos. CI, merge,
+execução retroativa e verificação remota integral ainda pendentes; os números acima são validação local.
+
+Verificador do Lote PA executado também nos cinco originais reais congelados: os **19 derivados foram
+reproduzidos com os mesmos hashes**, incluindo os três pacotes hubverse e os cinco períodos CAD Trust por
+opção. Foram conferidos **987 membros** nos quatro TARs, sem exigir um manifesto estadual inexistente
+no contrato do Lote. Prova agregada em `docs/medicoes/lote-pa-formatos-2026-11-12.json`; duração 152,41 s.
+Além dos 146 testes do catalogador/formatos, passaram 68 de conteúdo/derivados e 42 de snapshots,
+atestação e CLI. Publicação remota e assinaturas continuam pendentes; esta prova é local.
+
+Validação integral dos formatos: **2.835 testes passaram**, com PostGIS, LanguageTool e referência
+completa do Pará; dois casos de cartão/vídeo foram repetidos após preparar Takumi e os três testes
+desse módulo passaram. A divergência histórica de TIR permanece como xfail. Os 110 testes específicos
+do verificador foram executados após ampliar a conferência dos produtos finais do Lote PA.
+CI, merge e catálogo remoto seguem pendentes neste registro.
+
 Integração da rodada 12 com a main atual: **185 testes direcionados passaram**, incluindo os dois
 casos reais de cartão/vídeo antes pulados e as novas rotas de certidão/calendário/vigilância. A promoção
 fechada das continuações para `91c993ec322fea64ca2e96098e212c0f5c2dc613` passou em **216 testes** de fila,
@@ -558,6 +592,55 @@ históricas continuam intactas e reservas vivas não são alteradas. Validação
 diagnóstico, armazém, transferência e checkpoint; **182 testes** de integração da promoção/fila.
 
 
+Conferência complementar do impedimento Ibama: o geosserviço oficial PAMGIA devolveu os cinco
+termos da amostra RN sem WKT, mas quatro declaram `origem_geom=Ponto`, embora o formato tenha
+anéis, e um permanece sem geometria. Essa resposta não comprova cinco polígonos de área e
+não foi usada para liberar o município. Consulta restrita a identificador do termo, origem,
+código municipal, data geométrica e geometria; nenhum atributo de pessoa foi requisitado.
+Fonte: https://pamgia.ibama.gov.br/server/rest/services/01_Publicacoes_Bases/adm_embargos_ibama_a/FeatureServer/0.
+
+
+O run `43360973064` parou antes do planejamento em HTTP 403 no acesso privado. Uma execução
+estritamente de leitura (`43361940684`) conferiu a mesma seleção de credencial às 03h56 UTC:
+HTTP 200 no repositório e 4.001 chamadas restantes de 5.000. A causa específica do 403 anterior
+não ficou registrada; não foi classificada como permissão permanente nem como cota comprovada.
+O diagnóstico não publicou dados nem alterou permissões. A branch `codex/diagnostico-acesso-actions`
+contém apenas essa substituição temporária do workflow para consulta: **não abrir PR nem mesclar
+essa branch na main**. Os workflows de produção e jobs existentes permaneceram ativos.
+
+
+## Entrega urgente integrada — PR #95
+
+O PR #95 foi mesclado na main em `52118b5da31e7985394a74aa559376296b49efd3`, após os nove
+jobs do CI `43359990841` passarem. A integração com a main #93 preservou os registros de ambas
+as entregas e as versões fechadas da fila. Frontend local: 338 testes e build; o CI conferiu
+Python, referência real do Pará, navegador, agentes, ponta a ponta, segurança, segredos e workflows.
+O código da fila paralela, checkpoint, proteção dos retratos e painel está na main; a implantação
+do site ainda será conferida. A rodada 12 #99 segue no seu CI, sem cancelamentos automáticos por push.
+
+
+## Validação final dos formatos do Lote PA
+
+A suíte completa integrada passou em **3.200 testes**, sem skips e com apenas o xfail de TIR já
+documentado, em 35min34s, com PostGIS, LanguageTool real, Takumi e a referência completa do Pará.
+A main foi puxada novamente; #95 e #97 estão integrados sem conflito. Os 42 testes relacionados
+a calendário/MCP/privacidade passaram depois desse merge. Ruff, formatação, actionlint, 862 licenças
+e Gitleaks em 429 commits passaram. O frontend é idêntico ao do #95 mais a main já conferida.
+
+A prova real do Lote PA gerou 19 derivados e os reconstruiu com SHA-256 idêntico, conferindo 987
+membros originais. Os cinco produtos originais não são reenviados. Croissant, quantis hubverse com
+versão, cartão e CAD Trust ficam integrados ao catalogador e ao verificador portátil. A entrega
+ainda aguarda CI/merge e publicação/atestação remotas; não declarar o Release inteiro conferido
+antes de executar o verificador com atestações.
+
+O acesso do cliente real ao arquivo privado foi confirmado pelo diagnóstico `43363773180`,
+às 04h14 UTC: repositório 200, tag 404 esperada para draft, lista de Releases 200 e draft confirmado.
+As continuações `43363213890` e [continuação das 04h07 UTC](https://github.com/bernardoemmel/Raiz/actions/runs/43363458134) também passaram. A fila tinha 15 reservas globais
+(12 do Lote PA em `43361839589`, mais MT-2, AM e GO-1) e 29 pedidos, sete bloqueados no histórico.
+As reservas vivas continuam intactas; novos trabalhos aguardam vaga. A causa específica dos
+403 anteriores permanece não comprovada.
+
+
 ## Conferência em produção — 13/11/2026, 04h36 UTC
 
 O [deploy do painel](https://github.com/bernardoemmel/Raiz/actions/runs/43364180632) passou e a
@@ -602,6 +685,16 @@ Validação após integrar #98: **338 testes** de fila, promoção, catálogo, p
 com PostGIS real. Ruff, formatação, actionlint, detector de CPF/CNPJ e diff conferidos. As seções
 de contagem/Ibis e falhas do processamento ficaram junto dos temas correspondentes nos documentos.
 
+O inventário local dos pares recompostos não foi enviado: o endpoint de upload do Release respondeu
+HTTP 401 neste ambiente, tanto pelo cliente Python quanto pelo gh. Os dois blocos originais já estão
+no draft privado e permanecem intactos; o índice local não foi apresentado como checkpoint remoto
+concluído. Nenhum ponteiro ou marca de processamento foi alterado.
+
+Na integração dos formatos com #98 e a retomada atualizada, **311 testes** de quantis, Croissant,
+manifestos imutáveis, atestação/verificador, promoção e pasta fiador passaram com PostGIS real.
+A correção documental de privacidade não altera o detector nem o código do produto.
+
+
 
 ## Integração da main de avaliação — 13/11/2026
 
@@ -633,3 +726,11 @@ A integração preserva o CI sem cancelamento da main #100. Os testes focados de
 fila, catálogo, privacidade e avaliação passaram (227; um caso condicional não executado).
 Ruff, formatação, actionlint e varredura de CPF/CNPJ passaram. O CI completo será conferido
 novamente antes do merge. Não há nova UF concluída comprovada nem previsão nacional válida.
+
+
+Integração dos formatos com a main #100/#103 e a retomada atualizada: **451 testes** passaram,
+sem skips, com PostGIS real. As novas provas históricas, metadados do Lote, verificador,
+privacidade e avaliação foram conferidos juntos. Ruff, formatação, actionlint, varredura
+de CPF/CNPJ e **874 licenças** passaram. O teste de registro que não rodou sem banco no #99
+passou nesta árvore integrada. O CI anterior do #102 terminou; a correção do link que
+acionava o detector segue agora junto da integração, sem cancelar jobs.

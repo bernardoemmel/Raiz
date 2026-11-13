@@ -168,6 +168,7 @@ def test_sem_fazendas_ou_lote_elegivel_publica_diagnostico(tmp_path, monkeypatch
         {"codigo": "sem_fazendas_com_estimativa"}
     ]
     monkeypatch.setattr(L, "ler_uf", lambda *a, **kw: {"oferta": pd.DataFrame({"cod_imovel": ["nao_publicar"]})})
+    monkeypatch.setattr(cadt, "_oferta_p50_publicado", lambda p, oferta, **kw: oferta)
     monkeypatch.setattr(cadt, "_resumo_cronograma", lambda *a, **kw: {"cronograma_lote": None})
     assert cadt.cadt_uf(pasta, "PA", data_inicio="2027-01-01", url_catalogo=CATALOGO_PRIVADO)["diagnosticos"] == [
         {"codigo": "sem_lote_elegivel"}
@@ -255,14 +256,29 @@ def amostra_atual(tmp_path_factory):
     return pasta
 
 
-def test_cenario_da_amostra_passando_pelo_lote_real(amostra_atual):
+def test_cenario_da_amostra_passando_pelo_lote_real(amostra_atual, monkeypatch):
     pasta = amostra_atual
+    totais = {}
+    for arquivo in pasta.glob("desenvolvedor_*.csv"):
+        tabela = pd.read_csv(arquivo, dtype={"cod_imovel": str})
+        totais.update(zip(tabela.cod_imovel, tabela.credito_liquido_tco2_contrato, strict=True))
+    original, selecionados = L._selecionar, []
+
+    def selecionar(*args, **kwargs):
+        sel = original(*args, **kwargs)
+        carteira = pd.concat([sel["tit"], sel["res"]])
+        assert carteira.credito_p50.tolist() == [totais[codigo] for codigo in carteira.cod_imovel]
+        selecionados.append(sum(totais[codigo] for codigo in carteira.cod_imovel))
+        return sel
+
+    monkeypatch.setattr(L, "_selecionar", selecionar)
     out = cadt.cadt_uf(
         pasta, "PA", data_inicio="2027-01-01", data_referencia="2026-11-12", url_catalogo=CATALOGO_PRIVADO
     )
     assert not out["diagnosticos"]
     assert len(out["projeto"]["estimations"]) == 25
     total = out["metadados"]["credito_contrato_p50"]
+    assert total == selecionados[-1]
     assert sum(e["unitCount"] for e in out["projeto"]["estimations"]) == math.floor(total + 0.5)
     assert [m["ano"] for m in out["metadados"]["marcos"]] == [7, 12, 17, 22, 25]
     assert out["metadados"]["fazendas"]["pequenas"] > 0
@@ -321,11 +337,26 @@ def test_regra_historica_uniforme_gera_cronograma_sem_recalcular_previsoes(fonte
     assert carregar("regra_inventada") is None
     monkeypatch.setattr(R, "fluxo_p50", lambda *a, **kw: pytest.fail("previsão individual não deve ser refeita"))
     monkeypatch.setattr(L, "montar", lambda *a, **kw: pytest.fail("relatório econômico não deve ser calculado"))
+    totais = {}
+    for arquivo in fonte_historica.glob("desenvolvedor_*.csv"):
+        tabela = pd.read_csv(arquivo, dtype={"cod_imovel": str})
+        totais.update(zip(tabela.cod_imovel, tabela.credito_liquido_tco2_contrato, strict=True))
+    original, selecionados = L._selecionar, []
+
+    def selecionar(*args, **kwargs):
+        sel = original(*args, **kwargs)
+        carteira = pd.concat([sel["tit"], sel["res"]])
+        assert carteira.credito_p50.tolist() == [totais[codigo] for codigo in carteira.cod_imovel]
+        selecionados.append(sum(totais[codigo] for codigo in carteira.cod_imovel))
+        return sel
+
+    monkeypatch.setattr(L, "_selecionar", selecionar)
     out = cadt.cadt_uf(
         fonte_historica, "PA", data_inicio="2027-01-01", data_referencia="2026-11-12", url_catalogo=CATALOGO_PRIVADO
     )
     assert not out["diagnosticos"] and len(out["projeto"]["estimations"]) == 25
     m = out["metadados"]
+    assert m["credito_contrato_p50"] == selecionados[-1]
     assert m["regra_source_commit"] == COMMIT_HISTORICO and m["regra_source_sha256"] == SHA_HISTORICO
     assert m["regra_source_versao"] == m["versoes"]["versao_premissas"] == HISTORICA
     assert m["versoes"]["versao_otimizador"] == L.versao_modelo()

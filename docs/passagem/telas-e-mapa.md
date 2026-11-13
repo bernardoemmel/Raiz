@@ -809,3 +809,12 @@ Contrato, acessibilidade e desenho: [docs/design/graficos-resultados.md](../desi
   em 617 arquivos e o lock foi conferido (256 pacotes). Nenhum workflow foi cancelado ou desligado.
   A revisão completa será enviada ao CI; merge e auditoria do site continuam condicionados aos seus
   resultados, sem reaproveitar o CI de um HEAD anterior como aprovação da integração.
+
+- Integração seguinte da main `fea0dd2` (PR #102, formatos imutáveis do Lote PA), sem conflito ou
+  alteração do front/dependências/workflows. Passaram **440 testes focados**, sem falhas/skips, cobrindo
+  formatos, quantis, metadados, histórico, CADT, atestação, verificador e nossos resumos públicos/ficha
+  de crédito; Ruff passou nos 19 arquivos alterados. Os derivados e seus cartões de modelo continuam
+  privados. Eles **não criam o anexo `ficha_credito v1`** nem a base comum de área elegível, exclusões e
+  evidência exigida pela ficha; o aviso de ausência real permanece correto, sem inferir esses campos.
+  Relatórios/caches do verificador privado não devem ir ao PR ou ao Pages. As evidências públicas do mapa
+  continuam ligadas a `650db81`, sem repetir medições pela integração de arquivos do servidor.
