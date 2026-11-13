@@ -160,6 +160,7 @@ jobs:
       RAIZ_CONTINUACAO: ${{ matrix.continuacao }}
       RAIZ_REFAZER: ${{ matrix.refazer }}
       CACHE_UF: |
+        motor/cache/car_nacional
         motor/cache/tb
         motor/cache/mapbiomas
         motor/cache/alerta

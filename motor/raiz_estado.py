@@ -227,6 +227,11 @@ def gj(r):
 
 
 def car_mun(uf, cod):
+    from raiz.coleta.car_nacional import ler
+    return ler(uf, cod, car_mun_wfs, CACHE)
+
+
+def car_mun_wfs(uf, cod):
     out, start = [], 0
     while True:
         r = get(CAR_WFS, dict(service='WFS', version='2.0.0', request='GetFeature',
@@ -235,7 +240,9 @@ def car_mun(uf, cod):
         g = gj(r); out.append(g)
         if len(g) < 10000: break
         start += 10000
-    g = pd.concat(out).drop_duplicates('cod_imovel')
+    g = pd.concat(out)
+    if not len(g): return gpd.GeoDataFrame(geometry=[], crs=4674)
+    g = g.drop_duplicates('cod_imovel')
     return g.set_crs(4674, allow_override=True)
 
 

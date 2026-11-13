@@ -30,6 +30,7 @@ COLUNAS = (
     "mitigacao", "embargo", "terra_indigena", "uc_protecao_integral", "projeto_carbono", "bloqueio", "problema",
     "elegivel", "restauracao_versao", "cambio", "regeneracao_ha", "semeadura_ha", "plantio_ha", "vazamento_motivo",
     "vazamento_mitigacao_imovel", "regularizacao_classe", "salvaguardas", "elegivel_sem_salvaguardas",
+    "car_conferido_em", "car_conferencia", "car_situacao", "car_geometria_alterada",
 )  # fmt: skip
 
 
@@ -105,6 +106,8 @@ def de_linha(linha: dict, lon: float | None = None, lat: float | None = None) ->
     if (_num(linha.get("flag_silvipastoril_ha")) or 0) > 0:
         metodos.append("silvipastoril")
     bloqueio = str(linha.get("filtro_territorial") or "").lower() == "bloqueio"
+    if linha.get("car_situacao") in ("a_conferir", "fora_do_lote", "recalcular"):
+        bloqueio = True
     from raiz.salvaguardas import avaliar
 
     elegivel_sem_salvaguardas = area > 0 and caminho is not None and caminho_terra not in NAO_ORIGINA and not bloqueio
@@ -113,6 +116,7 @@ def de_linha(linha: dict, lon: float | None = None, lat: float | None = None) ->
     elegivel = area > 0 and caminho is not None and caminho_terra not in NAO_ORIGINA and not bloqueio
     cambio = _num(linha.get("restauracao_cambio")) or 5.40
     return {
+        **{k: linha.get(k) for k in ("car_conferido_em", "car_conferencia", "car_situacao", "car_geometria_alterada")},
         "cod_imovel": str(linha["cod_imovel"]),
         "cod_ibge": cod_ibge,
         "municipio": linha.get("municipio")

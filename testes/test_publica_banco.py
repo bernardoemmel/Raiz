@@ -27,7 +27,7 @@ from raiz.publica import conta as CT
 from raiz.publica import trabalhos as T
 from testes.conftest import AMOSTRA
 
-pytestmark = pytest.mark.banco
+pytestmark = [pytest.mark.banco, pytest.mark.usefixtures("car_conferido_sintetico")]
 TODA_TERRA = ["matricula_conferida", "matricula_a_conferir", "concessao", "assentamento", "posse_em_titulacao"]
 PEDIDO = {
     "meta": {"tipo": "creditos", "valor": 1_000_000},

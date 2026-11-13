@@ -298,7 +298,7 @@ def test_resumo_cadt_preserva_selecao_p50_e_marcos_do_lote_atual(monkeypatch, am
     monkeypatch.setattr(L, "_selecionar", registrar)
     dados = L.ler_pasta(amostra_atual, "PA")
     r, c = R.regra(), R.cenario("central_r11")
-    completo = L.montar(dados, r=r, c=c, sensibilidade_ligada=False)["resumo"]
+    completo = L.montar(dados, r=r, c=c, sensibilidade_ligada=False, conferir_car=False)["resumo"]
     simples = cadt._resumo_cronograma(dados, r, c)
     assert selecoes[0] == selecoes[-1]
     for campo in ("titulares", "reservas", "pequenas", "versao_premissas", "versao_otimizador", "versao_edital"):

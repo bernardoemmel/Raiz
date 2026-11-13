@@ -53,6 +53,10 @@ COLUNAS_TABELA = (
     "pedir_certidao", "vazamento_motivo", "vazamento_mitigacao_imovel", "grupo_id", "restauracao_versao",
 )  # fmt: skip
 COLUNAS_TABELA += COLUNAS_FINANCEIRAS + (
+    "car_conferido_em",
+    "car_conferencia",
+    "car_situacao",
+    "car_geometria_alterada",
     "tir_p10",
     "tir_p90",
     "tir_projeto",
@@ -65,9 +69,12 @@ COLUNAS_TABELA += COLUNAS_FINANCEIRAS + (
 
 def versao_lote(c: dict) -> str:
     """Identidade do algoritmo, pesos, salvaguardas e cenário efetivamente usados na escolha."""
+    from raiz.coleta import car_conferencia
+
     conteudo = (
         Path(__file__).read_bytes()
         + Path(Z.__file__).read_bytes()
+        + Path(car_conferencia.__file__).read_bytes()
         + S.regra()["versao_completa"].encode()
         + json.dumps(c, sort_keys=True, ensure_ascii=False).encode()
     )
@@ -431,8 +438,18 @@ def _resumo_lote(sel: dict, precisa50: float, precisa_alvo: float, volume: float
 
 def montar(dados: dict, volume: float | None = None, c: dict | None = None, r: dict | None = None,
            chance_alvo: float | None = None, sensibilidade_ligada: bool = True,
-           opcao: str = "barata") -> dict:  # fmt: skip
+           opcao: str = "barata", conferir_car: bool = True) -> dict:  # fmt: skip
     """O lote do estado com reserva, marcos, preço mínimo, o que destrava o lote, certidões e o checklist."""
+    if conferir_car:
+        return montar_atual(
+            dados,
+            volume=volume,
+            c=c,
+            r=r,
+            chance_alvo=chance_alvo,
+            sensibilidade_ligada=sensibilidade_ligada,
+            opcao=opcao,
+        )
     r = r or R.regra()
     c = c or R.cenario(r=r)
     if opcao not in OPCOES:
@@ -529,6 +546,25 @@ def montar(dados: dict, volume: float | None = None, c: dict | None = None, r: d
             *decisoes_contrafactuais,
         ],
     }
+
+
+def montar_atual(dados: dict, **kwargs) -> dict:
+    """Entrada de produção: verifica selecionadas no WFS e refaz a seleção após mudanças."""
+    from raiz.coleta.car_conferencia import conferir_pasta
+
+    vistos: set[str] = set()
+    sensibilidade_ligada = kwargs.pop("sensibilidade_ligada", True)
+    while True:
+        previa = montar(dados, **kwargs, sensibilidade_ligada=False, conferir_car=False)
+        t = previa["tabela"]
+        selecionadas = t[t.papel.isin(["titular", "reserva"])]
+        novas = set(selecionadas.cod_imovel) - vistos
+        if not novas:
+            return montar(dados, **kwargs, sensibilidade_ligada=sensibilidade_ligada, conferir_car=False)
+        for cod, g in selecionadas[selecionadas.cod_imovel.isin(novas)].groupby("cod_ibge"):
+            conferir_pasta(dados["pasta"], dados["uf"], int(cod), set(g.cod_imovel))
+        vistos.update(novas)
+        dados = ler_pasta(dados["pasta"], dados["uf"], dados["municipios_lidos"])
 
 
 def montar_opcoes(dados: dict, **kwargs) -> dict[str, dict]:
