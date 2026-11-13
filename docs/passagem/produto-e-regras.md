@@ -1,5 +1,16 @@
 # Passagem do chat "Produto e regras" (13/11/2026)
 
+## Integração com a pasta do banco e comprador
+
+O PR #96 incorporou a main `692663c` (PR #98), preservando a pasta com fontes,
+histórico, proteção das exportações e migração 0035. O conflito no registro de
+medições foi resolvido conservando a campanha anterior do chat Ficha e o juiz v6
+desta entrega. A sétima campanha do Produto permanece fixada em `ea25614`, na
+próxima branch; esta integração não altera sua configuração nem suas evidências.
+Passaram 52 testes focados com PostGIS, incluindo a migração da pasta, MCP e
+Calendário, além de Ruff. O CI completo confere esta revisão antes do merge.
+
+
 ## Integração com Calendário e processamento publicados na main
 
 A main `52118b5` (PRs #95 e #97) foi incorporada ao PR #96. Os dois registros de

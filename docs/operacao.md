@@ -986,3 +986,21 @@ de ativação, limites, artefatos e códigos de saída estão em
 [medicao-agentes-actions.md](medicao-agentes-actions.md). O banco da campanha é
 descartável e sintético; não depende do servidor de produção nem usa o arquivo
 privado. Sem a chave, o relatório indica campanha incompleta, não aprovação.
+
+## Pasta do banco fiador (rodada 12)
+
+Aplicar a migração **0035** pelo comando de migração já usado no servidor, depois
+de 0032–0034. Guardar documentos/JSON/relatórios fora do diretório público. O
+operador confere os documentos e usa `python -m raiz.pasta_fiador.operacao` para
+validar e anexar versões; contrato e exemplos de comando em
+[docs/pasta-fiador.md](pasta-fiador.md). Não há upload de modelo ou alteração de
+conferência pelo cliente. Rascunho pode ter pendências, mas a geração falha enquanto
+houver campo/documento obrigatório sem comprovação.
+
+Exportações dependem das chaves `RAIZ_PROTECAO_CHAVES` e `RAIZ_PROTECAO_VERSAO`
+configuradas no back-end. A API verifica acesso pago a todos os CARs e recalcula
+validade/composição no momento da entrega. Testar com conta sintética, abrir os
+HTML do banco e comprador e conferir referência, impressão e marca. As rotas
+não enviam ao banco; o operador lê o relatório antes de entregar. Não ativam Pix,
+assinatura ou envio a terceiros. O catálogo conservador Raíz não substitui as
+exigências que um banco específico fornecer para revisão de regras.
