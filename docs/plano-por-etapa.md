@@ -521,3 +521,8 @@ PR urgente #95 aberto; CI `43347013537` parcialmente aprovado em 12/11 às 23h13
 (incluindo referência estadual do Pará). Exceção estrita de falso positivo Gitleaks confirmada localmente;
 aguarda término natural do CI antes do push para evitar cancelamento automático. Catálogo automático antigo
 `43346089594` falhou e continua pendente. Nenhum workflow foi cancelado ou desativado por este chat.
+
+O navegador do CI #95 encontrou um 404 na ref pública de processamento, ainda inexistente antes da primeira
+implantação. A fixture do build agora usa `./amostra/processamento.json`, servido pelo próprio site de teste.
+O Playwright exige as 27 UFs, ausência de erros e ausência de execução inventada; a configuração de produção
+continua consultando a ref pública. O teste de referência estadual, agentes, segurança, workflows e e2e já passaram.

@@ -449,3 +449,8 @@ confirmado preparada. Varredura local de 492 commits passou após essa exceção
 o término natural do CI atual para não acionar seu cancelamento automático. Catálogo automático antigo
 `43346089594` terminou com falha: AC/RuntimeError e AP/ProcessamentoInseguro; a preservação do relatório
 falhou porque os assets mudaram durante a paginação. Nada foi cancelado; catálogo completo continua pendente.
+
+O navegador do CI #95 encontrou um 404 na ref pública de processamento, ainda inexistente antes da primeira
+implantação. A fixture do build agora usa `./amostra/processamento.json`, servido pelo próprio site de teste.
+O Playwright exige as 27 UFs, ausência de erros e ausência de execução inventada; a configuração de produção
+continua consultando a ref pública. O teste de referência estadual, agentes, segurança, workflows e e2e já passaram.
