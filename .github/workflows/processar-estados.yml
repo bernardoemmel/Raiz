@@ -204,7 +204,7 @@ jobs:
         run: |
           mkdir -p motor/extras
           if gh release download insumos -R "$GITHUB_REPOSITORY" -D motor/extras -p "raiz_extras*_${UF}*.tif" 2>/dev/null; then
-            echo "GeoTIFFs do Earth Engine: $(ls motor/extras | wc -l)"
+            echo "GeoTIFFs do Earth Engine: $(find motor/extras -maxdepth 1 -type f -name '*.tif' -printf '.' | wc -c)"
           else
             echo "sem GeoTIFF do Earth Engine para $UF: a etapa extras é pulada"
           fi

@@ -111,6 +111,31 @@ class Executor:
         corpo = {"versao": self.versoes()[t.nome], "externas": t.externas(uf, cod, marca), "entradas": entradas}
         return hashlib.sha256(json.dumps(corpo, sort_keys=True, default=str).encode()).hexdigest()
 
+    def _saidas_adotaveis(self, t: Tarefa, uf: str, cod: int) -> dict[str, str] | None:
+        """Só atribui a versão atual quando todos os arquivos presentes comprovam essa origem."""
+        versao = self.versoes()[t.nome]
+        if not isinstance(versao, str) or not versao or versao == "publicado":
+            return None
+        saidas = {}
+        for padrao in t.saidas:
+            arq = padrao.format(cod=cod)
+            meta = self.a.meta(self.chave_saida(uf, arq))
+            if meta is None:
+                continue
+            if not meta.get("sha256") or meta.get("versao") != versao:
+                return None
+            if meta.get("tarefa") not in (None, t.nome):
+                return None
+            saidas[arq] = meta["sha256"]
+        return saidas if t.saidas[0].format(cod=cod) in saidas else None
+
+    def _adocao_comprovada(self, t: Tarefa, uf: str, cod: int, feito: dict) -> bool:
+        """Marcas adotadas antigas não legitimam CSV legado por terem uma assinatura atual."""
+        if not feito.get("adotado"):
+            return True
+        saidas = self._saidas_adotaveis(t, uf, cod)
+        return bool(saidas) and feito.get("versao") == self.versoes()[t.nome] and feito.get("saidas") == saidas
+
     def plano(self, uf: str, cod: int, refazer: bool = False) -> list[str]:
         """Tarefas que rodariam agora (supondo que as anteriores saiam iguais). Para o painel e para decidir."""
         m = self.marca(uf, cod)
@@ -119,7 +144,13 @@ class Executor:
             feito = m["tarefas"].get(t.nome)
             if any((m["tarefas"].get(d) or {}).get("vazio") for d in t.depende):
                 continue
-            if refazer or not feito or feito.get("erro") or feito.get("assinatura") != self.assinatura(t, uf, cod, m):
+            if (
+                refazer
+                or not feito
+                or feito.get("erro")
+                or not self._adocao_comprovada(t, uf, cod, feito)
+                or feito.get("assinatura") != self.assinatura(t, uf, cod, m)
+            ):
                 out.append(t.nome)
         return out
 
@@ -148,7 +179,13 @@ class Executor:
                 continue
             a = self.assinatura(t, uf, cod, m)
             feito = m["tarefas"].get(t.nome)
-            if not refazer and feito and not feito.get("erro") and feito.get("assinatura") == a:
+            if (
+                not refazer
+                and feito
+                and not feito.get("erro")
+                and self._adocao_comprovada(t, uf, cod, feito)
+                and feito.get("assinatura") == a
+            ):
                 res["puladas"].append(t.nome)
                 continue
             try:
@@ -307,8 +344,11 @@ class Executor:
         return estado
 
     def adotar(self, uf: str, cods: list[int] | None = None) -> dict:
-        """Dá marca de concluído às saídas que já estão no armazém sem marca (ex.: o PA publicado antes do executor),
-        como se fossem da versão atual de cada tarefa. Daí em diante só roda o que faltar ou o que mudar."""
+        """Adota saídas sem marca somente quando sua versão corresponde à tarefa atual.
+
+        Arquivos legados, sem versão ou divergentes permanecem intactos e sem
+        marca de concluído; o executor poderá recalculá-los pelo fluxo normal.
+        """
         uf = uf.upper()
         if hasattr(self.a, "garantir_uf"):
             self.a.garantir_uf(uf)
@@ -331,16 +371,12 @@ class Executor:
             for t in self.tarefas:
                 if any(d not in m["tarefas"] for d in t.depende):
                     continue
-                saidas = {}
-                for padrao in t.saidas:
-                    arq = padrao.format(cod=cod)
-                    meta = self.a.meta(self.chave_saida(uf, arq))
-                    if meta and meta.get("sha256"):
-                        saidas[arq] = meta["sha256"]
-                if t.saidas[0].format(cod=cod) not in saidas:
+                saidas = self._saidas_adotaveis(t, uf, cod)
+                if saidas is None:
                     continue
+                origem = self.a.meta(self.chave_saida(uf, t.saidas[0].format(cod=cod)))
                 m["tarefas"][t.nome] = {"versao": self.versoes()[t.nome], "assinatura": self.assinatura(t, uf, cod, m),
-                                        "saidas": saidas, "data": _agora(), "adotado": True}  # fmt: skip
+                                        "saidas": saidas, "data": origem.get("data"), "adotado": True}  # fmt: skip
                 out["tarefas"][t.nome] = out["tarefas"].get(t.nome, 0) + 1
             if m["tarefas"]:
                 por_json(self.a, self.chave_marca(uf, cod), m)

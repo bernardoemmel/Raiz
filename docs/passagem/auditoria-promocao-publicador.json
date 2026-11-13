@@ -1,0 +1,657 @@
+{
+  "versao_auditoria": 3,
+  "destino": "be452620f868537251fa832a10cb14bfb5c8efe3",
+  "origens": [
+    "88860b64ee09f811b66e283f5c57997ebcdb3fd5",
+    "b624b108b0350135003e1099d9c928fa7cc24151",
+    "6a53cfbf514f369f694ea0bd3bc594ef8295a3b4",
+    "bea53bd06c7178daf2a53c392e5a9d54c55e7bc7",
+    "436c7b636f6a8867b47403a1dfad4e4c741dc150"
+  ],
+  "criterio": "Promoção intencional a E1/E2 protegido de continuações ou retentativas pendentes não bloqueadas. Reservas vivas permanecem no SHA original; novos pedidos fora desse contrato não mudam. O destino é um SHA fechado, nunca HEAD.",
+  "efeito_cientifico": "As duas origens anteriores ao #79 recebem E1/E2: coleta incremental, histórico Ibama, controles de qualidade e restrições territoriais no funil com DuckDB/iOverlay. Essa mudança pode alterar os resultados. Não se afirma igualdade da árvore científica entre essas origens e o destino. Todas as onze versões de tarefa mudam porque rodar.py também integra o hash compartilhado de captura do histórico. Saídas antigas não são reetiquetadas; o executor verifica versão e hash, preserva datas originais e recalcula conforme versões, fontes e dependentes.",
+  "referencias": {
+    "upgrade_e1_e2_pr79": "6a53cfbf514f369f694ea0bd3bc594ef8295a3b4",
+    "protecao_pr81": "436c7b636f6a8867b47403a1dfad4e4c741dc150",
+    "embargo_legado_e_adocao": "be452620f868537251fa832a10cb14bfb5c8efe3"
+  },
+  "metodo": "Versões executadas em checkouts Git temporários com origem do módulo conferida. Diff completo motor/raiz/nativo/uv.lock identificado por SHA256 por par. Fórmulas e configuração MapBiomas comparadas por nós AST completos e únicos. Dependências integrais do lock comparadas por par, exceto projeto raiz editável; árvore nativa conferida. Provas AST das guardas deduplicadas da auditoria anterior, vinculadas novamente aos bytes de cada origem e destino.",
+  "scripts_auditoria_sha256": {
+    "raiz-auditar-promocoes-e1.py": "1b093b6f426f89358928fa7c448029b32157826f985e2adfda45002b53293ee3",
+    "raiz-auditar-promocoes-protegidas.py": "a39a4166a5c90d7446ba09307f7e9354925c7f3997925432753d1224fdc4f05a",
+    "raiz_auditoria_guardas.py": "e73e1c3ee14e79d8a6c50a8593fc8544157535e83462276ecb14e99826d57bca"
+  },
+  "prova_ast_anterior_commit": "c0923aa2a1b89fb2faa9f142efdc66e1c27bee97",
+  "mapbiomas": {
+    "formulas": [
+      "ha_pixel",
+      "por_imovel"
+    ],
+    "configuracao": [
+      "API",
+      "H",
+      "CAT_MUNICIPIO",
+      "CAT_ESTADO",
+      "NOME_UF",
+      "ANO",
+      "CACHE",
+      "TEMAS",
+      "FLORESTA",
+      "PASTO",
+      "AGRICULTURA",
+      "SILVICULTURA"
+    ]
+  },
+  "guardas_comuns": {
+    "embargo_legado": {
+      "arquivo": "motor/raiz_estado.py",
+      "origens": [
+        "88860b64ee09f811b66e283f5c57997ebcdb3fd5",
+        "b624b108b0350135003e1099d9c928fa7cc24151",
+        "6a53cfbf514f369f694ea0bd3bc594ef8295a3b4",
+        "bea53bd06c7178daf2a53c392e5a9d54c55e7bc7",
+        "436c7b636f6a8867b47403a1dfad4e4c741dc150"
+      ],
+      "tipo": "embargo_legado",
+      "arquivo_antes_sha256": "3b90d96ac7f3ebe95fe6f935cfd46ff68835074b7d9b886e11c6553e50267a68",
+      "arquivo_depois_sha256": "573689252da8d0b96b7500b13dc5376af94cf379445190c2ef379e1bdfd25908",
+      "modulo_antes_ast_sha256": "b83dfd2ddd44eb3982a3ca59d6fb3af70f78114b8122b1ffceb019bfaa149841",
+      "modulo_depois_ast_sha256": "26e6ef954bb00c5d36f54fecdd48cefa68c14ed0aaef8b6bdee2dcd33778c348",
+      "municipio_antes_ast_sha256": "98077a2c55550be7f018ef6588f930d0d1bdcb89cf96fdb31494f664149beb12",
+      "municipio_depois_ast_sha256": "240aa08f7038e2cae71a8333d6bb91cbe13781a2f68f4eaeabf6655ce00663b4",
+      "helper_depois_ast_sha256": "788800f565d9e40fc8ca7ef6915267ed928ffa139393188ed82ea1d5600e1064",
+      "bloco_antes_ast_sha256": "1ac870e08f19c7fc2e8f0d5320ada650873c4687a849762a8d068555394d2a5f",
+      "chamada_depois_ast_sha256": "0b68bf9a05042c3dcac4f8672cca6996540bf982efc64eecbd49a72b86fe45f7",
+      "ocorrencias": {
+        "helper_antes": 0,
+        "helper_depois": 1,
+        "bloco_antes": 1,
+        "chamada_depois": 1
+      },
+      "resto_municipio": {
+        "antes_sha256": "ff4c8b7af6f5065311d4519fbe2da20a20eb96c9284b9c2ecaf721157caeb135",
+        "depois_sha256": "ff4c8b7af6f5065311d4519fbe2da20a20eb96c9284b9c2ecaf721157caeb135",
+        "iguais": true
+      },
+      "resto_modulo": {
+        "antes_sha256": "fe35d791afda21e1a5c4e5ee10dca9fc843e1c73a8c71b04d0f8a3ceb416569f",
+        "depois_sha256": "fe35d791afda21e1a5c4e5ee10dca9fc843e1c73a8c71b04d0f8a3ceb416569f",
+        "iguais": true
+      },
+      "diff_sha256": "4052c6ef31d70e1a430da5ff4cb456d79c8694230dbd88dcf27d5331053ef86e"
+    },
+    "adocao_comprovada": {
+      "arquivo": "raiz/executor/executor.py",
+      "origens": [
+        "88860b64ee09f811b66e283f5c57997ebcdb3fd5",
+        "b624b108b0350135003e1099d9c928fa7cc24151",
+        "6a53cfbf514f369f694ea0bd3bc594ef8295a3b4",
+        "bea53bd06c7178daf2a53c392e5a9d54c55e7bc7",
+        "436c7b636f6a8867b47403a1dfad4e4c741dc150"
+      ],
+      "tipo": "adocao_comprovada",
+      "referencia": "be452620f868537251fa832a10cb14bfb5c8efe3",
+      "arquivo_antes_sha256": "a197d590ee4bb9c216661a371fa9eff95c5cb1e73d14272e9e73e0192c5052e3",
+      "arquivo_depois_sha256": "f9734a8b76b96b74472b6832804cd95305f802a3c8f559afcee57b7f064b42df",
+      "resto_modulo": {
+        "antes_sha256": "8ef737407e815fdc8d8fcccfda7cf2cba9ac948d01c6227d2b3a9e16d12b3280",
+        "depois_sha256": "8ef737407e815fdc8d8fcccfda7cf2cba9ac948d01c6227d2b3a9e16d12b3280",
+        "iguais": true
+      },
+      "funcoes_antes": {
+        "plano": "1de553cd8149aa204fbb3ab37d92a3eb27075653d0d7a08bfd2e422fb9b2ccf2",
+        "processar_municipio": "6f71161aaca937d89f6e3b53e03f6c9e63609dd72c689db15ec675a6d99aa33f",
+        "adotar": "a60e30f004ff480bf0853e51b7b2716e36371f9402a58eb2e636b102371001d0"
+      },
+      "funcoes_depois": {
+        "_saidas_adotaveis": "9a9230b22ca4fead8fc70e40be064500b488900476e3adfdd5b9bf3ffa2c304c",
+        "_adocao_comprovada": "feef26fbf5cbe57f364139c246784d0a705f9e5129783dc86e05b136a2da0d71",
+        "plano": "2680987396575acba88ff791bbe936f33a7ff568aa3f04ffb5024a0d4d3e1964",
+        "processar_municipio": "3363f9ffd8c0e6978cc25916b49fb82c8365da944775fb9fca27f7ac40ccbc72",
+        "adotar": "09f91cb95ce7eef7b4f8e143f29bcc1ce23a84bed35a0651941ff2929c5d4d82"
+      },
+      "resto_plano_execucao_sha256": {
+        "plano": "1de553cd8149aa204fbb3ab37d92a3eb27075653d0d7a08bfd2e422fb9b2ccf2",
+        "processar_municipio": "6f71161aaca937d89f6e3b53e03f6c9e63609dd72c689db15ec675a6d99aa33f"
+      },
+      "canonical_conferido": true,
+      "contrato": "Versão e hash comprovados antes de adotar ou reutilizar marca adotada; data original preservada, inclusive None. Não reetiqueta legado.",
+      "diff_sha256": "70aa7f0b851175fe3c4255e2f3f0cedcc478f7a36d5220ff14c5625072473f04"
+    }
+  },
+  "guardas_pr81": {
+    "_falha": {
+      "arquivo": "raiz/coleta/sigef.py",
+      "origem": "6a53cfbf514f369f694ea0bd3bc594ef8295a3b4",
+      "destino": "436c7b636f6a8867b47403a1dfad4e4c741dc150",
+      "tipo": "funcao_isolada",
+      "funcao": "_falha",
+      "arquivo_antes_sha256": "a1b215a44f7920f2851e0e64becd50c69fbfc65bdd48223b58ea5927a4115888",
+      "arquivo_depois_sha256": "64ca0a93e22332c27ae9950f8fb32953788b768fb9f1cc39b7a11fa215773557",
+      "modulo_antes_ast_sha256": "bc8f765b97536cf78033497843d041444523909581fe50e497306c323017304c",
+      "modulo_depois_ast_sha256": "5233d95e2717672ba25951f93409a3a33342f478d5d4035311e7df8b1651d981",
+      "funcao_antes_ast_sha256": "2c0d82c70ea2dde4df3ff9ede2748d91aec3fa415fc3bf78da649649fe131886",
+      "funcao_depois_ast_sha256": "9c2f7871debc41148160ab5f9557cc74dadfcd6e6aec29e596afee895c9fa837",
+      "resto_modulo": {
+        "antes_sha256": "ac4112a80cd99de217ac4762c96cc7eb9eb804c84ccfa4d322c17248a91875ee",
+        "depois_sha256": "ac4112a80cd99de217ac4762c96cc7eb9eb804c84ccfa4d322c17248a91875ee",
+        "iguais": true
+      },
+      "imports_permitidos": [
+        {
+          "ast_sha256": "e8aae8e316cec755746a9a3c294afbe056916882467d76bf295d74ff66be0ced",
+          "antes": 0,
+          "depois": 1
+        }
+      ],
+      "canonical_conferido": true,
+      "canonical": {
+        "arquivo_sha256": "64ca0a93e22332c27ae9950f8fb32953788b768fb9f1cc39b7a11fa215773557",
+        "funcao_ast_sha256": "9c2f7871debc41148160ab5f9557cc74dadfcd6e6aec29e596afee895c9fa837"
+      },
+      "diff_sha256": "eba3ddb37b0d1555ee4c0f8b35867477ccab235d1fb8f33b6ba7eea00fd31436"
+    },
+    "embargos_ativos": {
+      "arquivo": "raiz/funil/filtros.py",
+      "origem": "6a53cfbf514f369f694ea0bd3bc594ef8295a3b4",
+      "destino": "436c7b636f6a8867b47403a1dfad4e4c741dc150",
+      "tipo": "funcao_isolada",
+      "funcao": "embargos_ativos",
+      "arquivo_antes_sha256": "d0965d10ad98c3ba8807a3449fd4be7634356e82b4eb5f3319338101274515cf",
+      "arquivo_depois_sha256": "f3993ba16a4fe2da57a451d27f135ea8f669cff7bbc187e550553a2aa18617f3",
+      "modulo_antes_ast_sha256": "2518c7c7dc503800c1ec445c01ed21bc948f13f3c33fd13cdef727228be39e45",
+      "modulo_depois_ast_sha256": "7d1bcfffc8e62f75c1a3eb0e4da947d2ab874adc1a2ff49ed1eb7f2884478a6f",
+      "funcao_antes_ast_sha256": "6eae1307479769decb98d14578379b4013efd7772028e14cb5eec974fc4b6b1c",
+      "funcao_depois_ast_sha256": "f4bbf517cd077df797682499d561783cd2e3b63f6aba6c88f2ea25a6d123014a",
+      "resto_modulo": {
+        "antes_sha256": "bbfcf5e91d7b57de1c377020b1ff3b2f807489e8c07f5ebe9b32a92a8cf2bbaa",
+        "depois_sha256": "bbfcf5e91d7b57de1c377020b1ff3b2f807489e8c07f5ebe9b32a92a8cf2bbaa",
+        "iguais": true
+      },
+      "imports_permitidos": [],
+      "canonical_conferido": true,
+      "canonical": {
+        "arquivo_sha256": "f3993ba16a4fe2da57a451d27f135ea8f669cff7bbc187e550553a2aa18617f3",
+        "funcao_ast_sha256": "f4bbf517cd077df797682499d561783cd2e3b63f6aba6c88f2ea25a6d123014a"
+      },
+      "diff_sha256": "feb1bf28b0f18140dbd7f2febcb034bb59c8d0c2297ad2f7e4fbbe942b67eb23"
+    }
+  },
+  "upgrade_pr79": {
+    "origem": "7748730264b81d896dbb21102a61c4b86689027d",
+    "destino": "6a53cfbf514f369f694ea0bd3bc594ef8295a3b4",
+    "escopos": [
+      "motor/",
+      "raiz/",
+      "nativo/",
+      "uv.lock"
+    ],
+    "diff_sha256": "7837cae83d61054e0fb1ed5689553d49a56aedb157924e961108c70b3a04a6e9",
+    "arquivos_status": [
+      "M\traiz/cli.py",
+      "M\traiz/coleta/arcgis.py",
+      "A\traiz/coleta/arcgis_cli.py",
+      "M\traiz/coleta/bruto.py",
+      "M\traiz/coleta/car.py",
+      "M\traiz/coleta/espelho.py",
+      "M\traiz/coleta/fila.py",
+      "M\traiz/coleta/ibama.py",
+      "M\traiz/coleta/manifesto.yaml",
+      "A\traiz/coleta/prodes.py",
+      "M\traiz/coleta/rodada.py",
+      "M\traiz/coleta/sigef.py",
+      "M\traiz/coleta/wfs.py",
+      "M\traiz/executor/tarefas.py",
+      "M\traiz/funil/duck.py",
+      "A\traiz/funil/filtros.py",
+      "M\traiz/funil/ponte.py",
+      "M\traiz/funil/restricoes.py",
+      "M\traiz/funil/rodar.py"
+    ]
+  },
+  "commits": {
+    "88860b64ee09f811b66e283f5c57997ebcdb3fd5": {
+      "versoes_tarefas": {
+        "funil": "funil-1642afe89067",
+        "filtros": "filtros-9c1ae2374773",
+        "direto": "direto-a3ccf1633dd7",
+        "mapbiomas": "mapbiomas-732fe6f08784",
+        "extras_direto": "extras_direto-76b44c187164",
+        "flag": "flag-2d2dc7a85797",
+        "terra": "terra-b02bcaf5d54e",
+        "titulo": "titulo-305df336f77f",
+        "ficha": "ficha-92dcead7aefb",
+        "rebanho": "rebanho-afd05b1264a5",
+        "desenvolvedor": "desenvolvedor-d590ebd0cd76"
+      },
+      "versao_motor": "motor-b1c546e8d42c",
+      "modulo_temporario_conferido": true,
+      "codigo_tarefas_sha256": "0eb72f3ead7b44011ca3af95d1dd8cb14055ca984a8a89cddf04215abfe29652",
+      "depende_sha256": "ef61df674c8c1b08b9d92e21d1ac6dbec41d1547b6eaaf7d820689d7dd16ffc6",
+      "mapbiomas_formulas_sha256": "6958501f62ef67c16a8865555f4409bfc20e73c7aee69ba04db7cbef22efb3e5",
+      "mapbiomas_configuracao_sha256": "3b3683711db60b606f3244efc08582a8129c0653ee1faa5af9b7856a10a94746",
+      "codigo_nativo_sha256": "f55d787caad693cadaf11dc084c03a928f465dbc8913adf1556aed77b31de12d"
+    },
+    "b624b108b0350135003e1099d9c928fa7cc24151": {
+      "versoes_tarefas": {
+        "funil": "funil-1642afe89067",
+        "filtros": "filtros-9c1ae2374773",
+        "direto": "direto-a3ccf1633dd7",
+        "mapbiomas": "mapbiomas-732fe6f08784",
+        "extras_direto": "extras_direto-76b44c187164",
+        "flag": "flag-2d2dc7a85797",
+        "terra": "terra-b02bcaf5d54e",
+        "titulo": "titulo-305df336f77f",
+        "ficha": "ficha-92dcead7aefb",
+        "rebanho": "rebanho-afd05b1264a5",
+        "desenvolvedor": "desenvolvedor-d590ebd0cd76"
+      },
+      "versao_motor": "motor-409c68f0434e",
+      "modulo_temporario_conferido": true,
+      "codigo_tarefas_sha256": "0eb72f3ead7b44011ca3af95d1dd8cb14055ca984a8a89cddf04215abfe29652",
+      "depende_sha256": "ef61df674c8c1b08b9d92e21d1ac6dbec41d1547b6eaaf7d820689d7dd16ffc6",
+      "mapbiomas_formulas_sha256": "6958501f62ef67c16a8865555f4409bfc20e73c7aee69ba04db7cbef22efb3e5",
+      "mapbiomas_configuracao_sha256": "3b3683711db60b606f3244efc08582a8129c0653ee1faa5af9b7856a10a94746",
+      "codigo_nativo_sha256": "f55d787caad693cadaf11dc084c03a928f465dbc8913adf1556aed77b31de12d"
+    },
+    "6a53cfbf514f369f694ea0bd3bc594ef8295a3b4": {
+      "versoes_tarefas": {
+        "funil": "funil-c9ffafe84027",
+        "filtros": "filtros-ffaf4ea2b227",
+        "direto": "direto-dd60b18775e7",
+        "mapbiomas": "mapbiomas-2b56e24653e3",
+        "extras_direto": "extras_direto-49e961b4e835",
+        "flag": "flag-20a62662fdab",
+        "terra": "terra-578e392a6726",
+        "titulo": "titulo-f6c7bf3945f4",
+        "ficha": "ficha-a120ba6c5bb9",
+        "rebanho": "rebanho-47ef2fbebb24",
+        "desenvolvedor": "desenvolvedor-7662657eb966"
+      },
+      "versao_motor": "motor-409c68f0434e",
+      "modulo_temporario_conferido": true,
+      "codigo_tarefas_sha256": "f24d04540c6c4ea9ad5a7b8a15ed9e9cccf9b04196a2bb990f3de15842a14e3b",
+      "depende_sha256": "ef61df674c8c1b08b9d92e21d1ac6dbec41d1547b6eaaf7d820689d7dd16ffc6",
+      "mapbiomas_formulas_sha256": "6958501f62ef67c16a8865555f4409bfc20e73c7aee69ba04db7cbef22efb3e5",
+      "mapbiomas_configuracao_sha256": "3b3683711db60b606f3244efc08582a8129c0653ee1faa5af9b7856a10a94746",
+      "codigo_nativo_sha256": "f55d787caad693cadaf11dc084c03a928f465dbc8913adf1556aed77b31de12d"
+    },
+    "bea53bd06c7178daf2a53c392e5a9d54c55e7bc7": {
+      "versoes_tarefas": {
+        "funil": "funil-c9ffafe84027",
+        "filtros": "filtros-ffaf4ea2b227",
+        "direto": "direto-dd60b18775e7",
+        "mapbiomas": "mapbiomas-2b56e24653e3",
+        "extras_direto": "extras_direto-49e961b4e835",
+        "flag": "flag-20a62662fdab",
+        "terra": "terra-578e392a6726",
+        "titulo": "titulo-f6c7bf3945f4",
+        "ficha": "ficha-a120ba6c5bb9",
+        "rebanho": "rebanho-47ef2fbebb24",
+        "desenvolvedor": "desenvolvedor-7662657eb966"
+      },
+      "versao_motor": "motor-409c68f0434e",
+      "modulo_temporario_conferido": true,
+      "codigo_tarefas_sha256": "f24d04540c6c4ea9ad5a7b8a15ed9e9cccf9b04196a2bb990f3de15842a14e3b",
+      "depende_sha256": "ef61df674c8c1b08b9d92e21d1ac6dbec41d1547b6eaaf7d820689d7dd16ffc6",
+      "mapbiomas_formulas_sha256": "6958501f62ef67c16a8865555f4409bfc20e73c7aee69ba04db7cbef22efb3e5",
+      "mapbiomas_configuracao_sha256": "3b3683711db60b606f3244efc08582a8129c0653ee1faa5af9b7856a10a94746",
+      "codigo_nativo_sha256": "f55d787caad693cadaf11dc084c03a928f465dbc8913adf1556aed77b31de12d"
+    },
+    "436c7b636f6a8867b47403a1dfad4e4c741dc150": {
+      "versoes_tarefas": {
+        "funil": "funil-c9ffafe84027",
+        "filtros": "filtros-f6a1b5d63913",
+        "direto": "direto-dd60b18775e7",
+        "mapbiomas": "mapbiomas-2b56e24653e3",
+        "extras_direto": "extras_direto-49e961b4e835",
+        "flag": "flag-20a62662fdab",
+        "terra": "terra-578e392a6726",
+        "titulo": "titulo-f6c7bf3945f4",
+        "ficha": "ficha-a120ba6c5bb9",
+        "rebanho": "rebanho-47ef2fbebb24",
+        "desenvolvedor": "desenvolvedor-7662657eb966"
+      },
+      "versao_motor": "motor-409c68f0434e",
+      "modulo_temporario_conferido": true,
+      "codigo_tarefas_sha256": "f24d04540c6c4ea9ad5a7b8a15ed9e9cccf9b04196a2bb990f3de15842a14e3b",
+      "depende_sha256": "ef61df674c8c1b08b9d92e21d1ac6dbec41d1547b6eaaf7d820689d7dd16ffc6",
+      "mapbiomas_formulas_sha256": "6958501f62ef67c16a8865555f4409bfc20e73c7aee69ba04db7cbef22efb3e5",
+      "mapbiomas_configuracao_sha256": "3b3683711db60b606f3244efc08582a8129c0653ee1faa5af9b7856a10a94746",
+      "codigo_nativo_sha256": "f55d787caad693cadaf11dc084c03a928f465dbc8913adf1556aed77b31de12d"
+    },
+    "be452620f868537251fa832a10cb14bfb5c8efe3": {
+      "versoes_tarefas": {
+        "funil": "funil-9222a79e7478",
+        "filtros": "filtros-f6a1b5d63913",
+        "direto": "direto-dd60b18775e7",
+        "mapbiomas": "mapbiomas-2df346dbb625",
+        "extras_direto": "extras_direto-49e961b4e835",
+        "flag": "flag-20a62662fdab",
+        "terra": "terra-578e392a6726",
+        "titulo": "titulo-f6c7bf3945f4",
+        "ficha": "ficha-a120ba6c5bb9",
+        "rebanho": "rebanho-47ef2fbebb24",
+        "desenvolvedor": "desenvolvedor-7662657eb966"
+      },
+      "versao_motor": "motor-7946ac2c3369",
+      "modulo_temporario_conferido": true,
+      "codigo_tarefas_sha256": "f24d04540c6c4ea9ad5a7b8a15ed9e9cccf9b04196a2bb990f3de15842a14e3b",
+      "depende_sha256": "ef61df674c8c1b08b9d92e21d1ac6dbec41d1547b6eaaf7d820689d7dd16ffc6",
+      "mapbiomas_formulas_sha256": "6958501f62ef67c16a8865555f4409bfc20e73c7aee69ba04db7cbef22efb3e5",
+      "mapbiomas_configuracao_sha256": "3b3683711db60b606f3244efc08582a8129c0653ee1faa5af9b7856a10a94746",
+      "codigo_nativo_sha256": "f55d787caad693cadaf11dc084c03a928f465dbc8913adf1556aed77b31de12d"
+    }
+  },
+  "comparacoes": [
+    {
+      "origem": "88860b64ee09f811b66e283f5c57997ebcdb3fd5",
+      "destino": "be452620f868537251fa832a10cb14bfb5c8efe3",
+      "escopos": [
+        "motor/",
+        "raiz/",
+        "nativo/",
+        "uv.lock"
+      ],
+      "diff_sha256": "d8873587746fe7d783a7989416d466a846fc7d9396e61e4067412800061068b8",
+      "arquivos_status": [
+        "M\tmotor/fila_processamento.py",
+        "M\tmotor/painel.py",
+        "M\tmotor/raiz_estado.py",
+        "M\tmotor/raiz_mapbiomas.py",
+        "M\tmotor/rodar_estado.py",
+        "A\traiz/atestacao.py",
+        "A\traiz/cadt.py",
+        "A\traiz/catalogo_publico.py",
+        "M\traiz/cli.py",
+        "M\traiz/coleta/arcgis.py",
+        "A\traiz/coleta/arcgis_cli.py",
+        "M\traiz/coleta/bruto.py",
+        "M\traiz/coleta/car.py",
+        "M\traiz/coleta/espelho.py",
+        "M\traiz/coleta/fila.py",
+        "M\traiz/coleta/ibama.py",
+        "M\traiz/coleta/manifesto.yaml",
+        "A\traiz/coleta/prodes.py",
+        "M\traiz/coleta/rodada.py",
+        "M\traiz/coleta/sigef.py",
+        "M\traiz/coleta/wfs.py",
+        "M\traiz/executor/armazem.py",
+        "M\traiz/executor/executor.py",
+        "M\traiz/executor/publicacao_aberta.py",
+        "M\traiz/executor/publicar_entrada.py",
+        "A\traiz/executor/rodadas.py",
+        "M\traiz/executor/tarefas.py",
+        "M\traiz/funil/duck.py",
+        "A\traiz/funil/filtros.py",
+        "M\traiz/funil/ponte.py",
+        "M\traiz/funil/restricoes.py",
+        "M\traiz/funil/rodar.py",
+        "A\traiz/metadados.py",
+        "A\traiz/quantis.py",
+        "A\traiz/regras/historico/README.md",
+        "A\traiz/regras/historico/__init__.py",
+        "A\traiz/regras/historico/restauracao-2026c+421970fd/edital_profloresta.yaml",
+        "A\traiz/regras/historico/restauracao-2026c+421970fd/manifesto.json",
+        "A\traiz/regras/historico/restauracao-2026c+421970fd/restauracao.yaml",
+        "A\traiz/regras/historico/restauracao-2026c+421970fd/restauracao_cambio.yaml",
+        "M\tuv.lock"
+      ],
+      "upgrade_e1_e2": true,
+      "tarefas_alteradas": [
+        "desenvolvedor",
+        "direto",
+        "extras_direto",
+        "ficha",
+        "filtros",
+        "flag",
+        "funil",
+        "mapbiomas",
+        "rebanho",
+        "terra",
+        "titulo"
+      ],
+      "tarefas_preservadas": [],
+      "dependencias": {
+        "pacotes_origem": 212,
+        "pacotes_origem_sha256": "7ed6db346fda1852bddc9e47bf8df33cdf8ad481a089a1b78f3493e7eb069726",
+        "todos_preservados_integralmente": true,
+        "projeto_editavel_excluido": [
+          "raiz"
+        ]
+      },
+      "guardas_comuns_comprovadas": [
+        "embargo_legado",
+        "adocao_comprovada"
+      ],
+      "protecao_pr81": "adicionada"
+    },
+    {
+      "origem": "b624b108b0350135003e1099d9c928fa7cc24151",
+      "destino": "be452620f868537251fa832a10cb14bfb5c8efe3",
+      "escopos": [
+        "motor/",
+        "raiz/",
+        "nativo/",
+        "uv.lock"
+      ],
+      "diff_sha256": "629fd37a90e344d2431f2ab9ba5e41331fb968464b13655c7e4df0bb78553b46",
+      "arquivos_status": [
+        "M\tmotor/fila_processamento.py",
+        "M\tmotor/painel.py",
+        "M\tmotor/raiz_estado.py",
+        "M\tmotor/raiz_mapbiomas.py",
+        "M\tmotor/rodar_estado.py",
+        "M\traiz/atestacao.py",
+        "M\traiz/cli.py",
+        "M\traiz/coleta/arcgis.py",
+        "A\traiz/coleta/arcgis_cli.py",
+        "M\traiz/coleta/bruto.py",
+        "M\traiz/coleta/car.py",
+        "M\traiz/coleta/espelho.py",
+        "M\traiz/coleta/fila.py",
+        "M\traiz/coleta/ibama.py",
+        "M\traiz/coleta/manifesto.yaml",
+        "A\traiz/coleta/prodes.py",
+        "M\traiz/coleta/rodada.py",
+        "M\traiz/coleta/sigef.py",
+        "M\traiz/coleta/wfs.py",
+        "M\traiz/executor/executor.py",
+        "M\traiz/executor/publicar_entrada.py",
+        "A\traiz/executor/rodadas.py",
+        "M\traiz/executor/tarefas.py",
+        "M\traiz/funil/duck.py",
+        "A\traiz/funil/filtros.py",
+        "M\traiz/funil/ponte.py",
+        "M\traiz/funil/restricoes.py",
+        "M\traiz/funil/rodar.py",
+        "M\traiz/metadados.py"
+      ],
+      "upgrade_e1_e2": true,
+      "tarefas_alteradas": [
+        "desenvolvedor",
+        "direto",
+        "extras_direto",
+        "ficha",
+        "filtros",
+        "flag",
+        "funil",
+        "mapbiomas",
+        "rebanho",
+        "terra",
+        "titulo"
+      ],
+      "tarefas_preservadas": [],
+      "dependencias": {
+        "pacotes_origem": 238,
+        "pacotes_origem_sha256": "b8ae38bb9bf97a92c0bfa0ffc524bbe58d0bed5e5554ba6b42e002c64d121118",
+        "todos_preservados_integralmente": true,
+        "projeto_editavel_excluido": [
+          "raiz"
+        ]
+      },
+      "guardas_comuns_comprovadas": [
+        "embargo_legado",
+        "adocao_comprovada"
+      ],
+      "protecao_pr81": "adicionada"
+    },
+    {
+      "origem": "6a53cfbf514f369f694ea0bd3bc594ef8295a3b4",
+      "destino": "be452620f868537251fa832a10cb14bfb5c8efe3",
+      "escopos": [
+        "motor/",
+        "raiz/",
+        "nativo/",
+        "uv.lock"
+      ],
+      "diff_sha256": "100327056644b93262ac4c109161dc0082c0c6ca0fb03aaa3ef19e1858df3b23",
+      "arquivos_status": [
+        "M\tmotor/fila_processamento.py",
+        "M\tmotor/painel.py",
+        "M\tmotor/raiz_estado.py",
+        "M\tmotor/raiz_mapbiomas.py",
+        "M\tmotor/rodar_estado.py",
+        "M\traiz/atestacao.py",
+        "M\traiz/coleta/sigef.py",
+        "M\traiz/executor/executor.py",
+        "M\traiz/executor/publicar_entrada.py",
+        "A\traiz/executor/rodadas.py",
+        "M\traiz/funil/filtros.py",
+        "M\traiz/metadados.py"
+      ],
+      "upgrade_e1_e2": false,
+      "tarefas_alteradas": [
+        "filtros",
+        "funil",
+        "mapbiomas"
+      ],
+      "tarefas_preservadas": [
+        "desenvolvedor",
+        "direto",
+        "extras_direto",
+        "ficha",
+        "flag",
+        "rebanho",
+        "terra",
+        "titulo"
+      ],
+      "dependencias": {
+        "pacotes_origem": 238,
+        "pacotes_origem_sha256": "b8ae38bb9bf97a92c0bfa0ffc524bbe58d0bed5e5554ba6b42e002c64d121118",
+        "todos_preservados_integralmente": true,
+        "projeto_editavel_excluido": [
+          "raiz"
+        ]
+      },
+      "guardas_comuns_comprovadas": [
+        "embargo_legado",
+        "adocao_comprovada"
+      ],
+      "protecao_pr81": "adicionada"
+    },
+    {
+      "origem": "bea53bd06c7178daf2a53c392e5a9d54c55e7bc7",
+      "destino": "be452620f868537251fa832a10cb14bfb5c8efe3",
+      "escopos": [
+        "motor/",
+        "raiz/",
+        "nativo/",
+        "uv.lock"
+      ],
+      "diff_sha256": "100327056644b93262ac4c109161dc0082c0c6ca0fb03aaa3ef19e1858df3b23",
+      "arquivos_status": [
+        "M\tmotor/fila_processamento.py",
+        "M\tmotor/painel.py",
+        "M\tmotor/raiz_estado.py",
+        "M\tmotor/raiz_mapbiomas.py",
+        "M\tmotor/rodar_estado.py",
+        "M\traiz/atestacao.py",
+        "M\traiz/coleta/sigef.py",
+        "M\traiz/executor/executor.py",
+        "M\traiz/executor/publicar_entrada.py",
+        "A\traiz/executor/rodadas.py",
+        "M\traiz/funil/filtros.py",
+        "M\traiz/metadados.py"
+      ],
+      "upgrade_e1_e2": false,
+      "tarefas_alteradas": [
+        "filtros",
+        "funil",
+        "mapbiomas"
+      ],
+      "tarefas_preservadas": [
+        "desenvolvedor",
+        "direto",
+        "extras_direto",
+        "ficha",
+        "flag",
+        "rebanho",
+        "terra",
+        "titulo"
+      ],
+      "dependencias": {
+        "pacotes_origem": 238,
+        "pacotes_origem_sha256": "b8ae38bb9bf97a92c0bfa0ffc524bbe58d0bed5e5554ba6b42e002c64d121118",
+        "todos_preservados_integralmente": true,
+        "projeto_editavel_excluido": [
+          "raiz"
+        ]
+      },
+      "guardas_comuns_comprovadas": [
+        "embargo_legado",
+        "adocao_comprovada"
+      ],
+      "protecao_pr81": "adicionada"
+    },
+    {
+      "origem": "436c7b636f6a8867b47403a1dfad4e4c741dc150",
+      "destino": "be452620f868537251fa832a10cb14bfb5c8efe3",
+      "escopos": [
+        "motor/",
+        "raiz/",
+        "nativo/",
+        "uv.lock"
+      ],
+      "diff_sha256": "b9b9e0419e2a41ad6da561833da8baeffa73f04675977da49273ffa9a5051956",
+      "arquivos_status": [
+        "M\tmotor/fila_processamento.py",
+        "M\tmotor/painel.py",
+        "M\tmotor/raiz_estado.py",
+        "M\tmotor/raiz_mapbiomas.py",
+        "M\tmotor/rodar_estado.py",
+        "M\traiz/executor/executor.py",
+        "A\traiz/executor/rodadas.py"
+      ],
+      "upgrade_e1_e2": false,
+      "tarefas_alteradas": [
+        "funil",
+        "mapbiomas"
+      ],
+      "tarefas_preservadas": [
+        "desenvolvedor",
+        "direto",
+        "extras_direto",
+        "ficha",
+        "filtros",
+        "flag",
+        "rebanho",
+        "terra",
+        "titulo"
+      ],
+      "dependencias": {
+        "pacotes_origem": 238,
+        "pacotes_origem_sha256": "b8ae38bb9bf97a92c0bfa0ffc524bbe58d0bed5e5554ba6b42e002c64d121118",
+        "todos_preservados_integralmente": true,
+        "projeto_editavel_excluido": [
+          "raiz"
+        ]
+      },
+      "guardas_comuns_comprovadas": [
+        "embargo_legado",
+        "adocao_comprovada"
+      ],
+      "protecao_pr81": "ja_presente"
+    }
+  ]
+}

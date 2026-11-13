@@ -1,8 +1,8 @@
 # Passagem do chat "Raíz · Dados do Brasil" (processamento de dados)
 
 Passagem original de 12/11/2026, 13h20 de Brasília. Retomada pelo Codex na mesma data, a partir da main.
-Branch da entrega de formatos e procedência: `codex/dados-croissant`.
-Branch seguinte, com as seis pendências E1/E2: `codex/dados-e1-integracao`.
+Formatos e procedência foram integrados pelo #77; as seis pendências E1/E2, pelo #79.
+Branch da entrega operacional: `codex/dados-operacao`.
 
 ## O que este chat fez
 
@@ -13,8 +13,8 @@ Branch seguinte, com as seis pendências E1/E2: `codex/dados-e1-integracao`.
 | #38 | Situação de E1 e E2 no `docs/plano-por-etapa.md`; versão nomeada das regras (`regras-2026b+hash`) em cada previsão (`raiz/versoes.py`, `raiz/carga.py`); manifesto com os 4 produtos do YbYrá e os subtemas da API do MapBiomas | mesclado |
 | #43 | Limite padrão de 15 jobs de processamento (5 máquinas livres para CI e site), mais esta passagem | mesclado em 12/11, 13h30 de Brasília; CI de push e PR verdes |
 | #46 | Teto global de 15, reserva atômica, fila persistente de pedidos e continuações, consulta paginada e bloqueio de admissão se a API falhar | mesclado; os três checks do run `43281492727` passaram |
-| Retomada, entrega 2 | Itens 2–7: Croissant 1.1/schema.org, quantis hubverse, cartão, actions/attest e cronogramas CAD Trust; publicação sob as travas do estado e do índice | implementado; workflow de preenchimento retroativo será executado após CI e merge |
-| Retomada, entrega 3 | As seis pendências E1/E2 do item 8, na ordem de dependência | implementado; integração e testes PostGIS na entrega seguinte |
+| #77 | Itens 2–7: Croissant 1.1/schema.org, quantis hubverse, cartão, actions/attest e cronogramas CAD Trust; publicação sob as travas do estado e do índice | mesclado em `b624b108`; CI do PR `43304760101` verde, 1.859 testes; CI de push `43308323363` também verde |
+| #79 | As seis pendências E1/E2 do item 8, na ordem de dependência | mesclado em `6a53cfbf`; CI do PR `43305894156` verde, 1.936 testes; CI de push `43308991599` também verde |
 
 ## Onde parou
 
@@ -26,15 +26,22 @@ Branch seguinte, com as seis pendências E1/E2: `codex/dados-e1-integracao`.
   A agenda de 15 minutos apenas drena pedidos pendentes; a rodada semanal mantém seu escopo.
 - **Itens 2–7 implementados:** fichas validadas antes do upload, quantis e hub nativo por UF, metadados globais,
   cartão do modelo, checksums para atestação OIDC e cronogramas CAD Trust. O preenchimento dos assets existentes e
-  a verificação das assinaturas ainda dependem da execução do novo workflow após merge. As fichas não concedem
+  a verificação das assinaturas ainda dependem da execução retroativa após o término natural dos escritores
+  anteriores ao #77. O código já está na main. As fichas não concedem
   licença presumida aos dados, e o cartão diferencia cenário central, quantil e hipótese triangular de FLAG.
-  A suíte da entrega passou com PostGIS (711 testes, 2 pulados, 1 xfail); correções adicionais de proveniência e
-  os novos formatos passaram em 88 testes focados. A atualização retroativa verifica o término natural de
-  runs anteriores à trava por UF. MA, run `43239448949`, terminou com sucesso; conferido às 19h02 UTC, sem cancelamento.
+  A rodada `43305564503`, iniciada após a reativação, usa o contrato privado do #72, mas ainda as travas antigas.
+  Às 22h38 UTC, oito jobs de BA, CE e PI continuavam ativos, além de um RN em rodada posterior: nove vagas
+  ocupadas de quinze. O preflight confirmou essa rodada antiga como único bloqueio à catalogação.
+  Nenhum job foi cancelado por este chat.
 - **E1/E2 implementados:** fontes ArcGIS no manifesto e CLI/replicação, assinaturas SIGEF/PRODES, Ibama no SCD2,
   alertas de qualidade e DuckDB/restrições no funil de produção. Não confundir código com operação agendada:
   a coleta com PostGIS continua sem servidor permanente. Pendências maiores do plano que não estavam nos seis
   itens desta passagem continuam explícitas no plano, como changelog oficial Ibama, cubo e grade raster.
+- **Retomada autorizada e efetivada:** o workflow foi reativado às 20h57 UTC na integração da Ficha. RN-1 e RN-2
+  terminaram com status de sucesso, mas sem avanço: uma resposta HTTP 422 do MapBiomas era tratada apenas como
+  aviso antes dos municípios. Sem CSV, a tentativa não entrava no índice; a fila voltava a selecionar RN.
+  A correção operacional foi validada localmente; sua confirmação em produção continua pendente.
+  Sucesso do job não deve ser usado como evidência de dados produzidos.
 
 ## O que falta, em ordem
 
@@ -116,7 +123,8 @@ como não habilitada para treino no manifesto.
 
 ## PRs abertos e branches sem merge
 
-- **#43 e #46:** mesclados. As entregas da retomada seguem PR, CI verde e merge; o PR corrente aparece nos artefatos do chat.
+- **#43, #46, #77 e #79:** mesclados com CI verde. A próxima entrega reúne a promoção auditada de continuações,
+  o gatilho de catalogação após o término natural e a correção do loop de falhas das fontes.
 
 ## Trabalhos rodando no Actions e como conferir
 
@@ -144,8 +152,8 @@ como não habilitada para treino no manifesto.
   - O `adotar` grava a caixa do município; sem ela, todo alerta novo refaria o funil adotado.
 - **Espelho do Release:** não troca o que a máquina gravou e não publicou (meta `gravado_aqui`).
 - **Travas:** tags `trava-publicar-dados` (o `estados.json`) e `trava-publicar-<UF>` (o pacote do estado; as fatias
-  relêem e juntam). Não apagar essas tags à mão, salvo se ficarem órfãs mais de 30 min.
-  O publicador novo falha sem upload quando não consegue adquirir a trava e não a apaga pelo tempo de espera.
+  relêem e juntam), com sufixo privado no destino autenticado. O publicador novo falha sem upload quando não
+  consegue adquirir a trava e não a apaga pelo tempo de espera. Idade não comprova que uma trava ficou órfã.
 - **Fila de processamento:** `raiz-fila-processamento` contém reservas e pedidos pendentes, atualizada com
   compare-and-swap (`force-with-lease` somente nessa ref; nunca na main). Não apagar nem liberar por idade:
   a reconciliação consulta o estado real dos jobs. Falha de autenticação, rede ou leitura impede novas admissões.
@@ -173,7 +181,9 @@ como não habilitada para treino no manifesto.
   certificação ou emissão. Referência do vocabulário: CADT `58927db8f4b4fe558842a688d33f173c41944279`.
   Versão científica/cenário ausentes ou diferentes nos CSV impedem o projeto da UF, com diagnóstico.
 - **Atestação:** `actions/attest-build-provenance@v2` aceita `subject-checksums` (action.yml conferido). Os uploads
-  concluídos registram SHA-256 em `RUNNER_TEMP/atestar.txt`; a última versão de cada nome no job é atestada.
+  públicos concluídos registram SHA-256 e nome em `RUNNER_TEMP/atestar.txt`. No canal privado, a lista separada
+  usa somente `privado-sha256-<digest dos bytes>`, nunca o nome original; aliases do mesmo conteúdo colapsam,
+  mas versões distintas permanecem atestadas. O gate do #81 impede atestar uma lista privada legada inválida.
 - **Rede desta retomada:** GitHub conectado e `gh` autenticado; Docker/PostGIS local disponível para testes.
   Não pressupor que os bloqueios da sessão original ainda valem: conferir a fonte antes de concluir indisponibilidade.
 - **Fila de máquinas:** com 18 jobs, o CI dos PRs ficou na fila por dezenas de minutos. Daí o limite de 15.
@@ -208,12 +218,12 @@ uv run python motor/rodar_estado.py --planejar   # o plano da próxima rodada, s
   o otimizador e as salvaguardas atuais, identificados separadamente;
   previsões individuais e curva histórica são preservadas.
 
-## Continuidade operacional e pausa externa (12/11, 19h UTC)
+## Histórico da pausa externa (12/11, 19h UTC; reativada às 20h57 UTC)
 
-- A API registra `processar-estados.yml` como `disabled_manually` desde 19h09min20s UTC. Os runs
+- A API registrou `processar-estados.yml` como `disabled_manually` às 19h09min20s UTC. Os runs
   `43285999423` e `43286899548`, além dos cancelamentos de BA/PI/CE desse intervalo, têm a anotação
   `The run was canceled by @bernardoemmel.` Isso identifica a conta, sem identificar pessoa, interface ou token.
-  A retomada não solicitou cancelamentos nem desfez a desativação; a intenção da pausa foi perguntada ao fundador.
+  Este chat não solicitou os cancelamentos. O fundador posteriormente autorizou expressamente reativar e retomar.
 - O cancelamento automático de BA-1 em `43256269335`, às 18h42min05s, antecede o merge #46 às 18h43min39s.
   Não houve evidência de duplicação causada pela fila nova. Reservas canceladas passam a pedidos bloqueados na
   reconciliação; não devem ser confundidas com solicitações ainda ativas.
@@ -240,14 +250,14 @@ substituiu o Release `dados` por 22 arquivos básicos. A retomada de Dados não 
 
 A entrega de metadados passou a ter dois escopos: Croissant básico e cartão metodológico no público; quantis,
 tasks, modelos, diagnósticos, CADT e fichas completas no privado. O catálogo aberto não reescreve o manifesto
-básico, e backups de arquivos privados nunca usam artifacts públicos. A dependência do contrato da Ficha será
-integrada antes do PR e da execução retroativa. A implementação anterior foi validada em 1.141 testes com
+básico, e backups de arquivos privados nunca usam artifacts públicos. O contrato da Ficha foi integrado pelo #72
+antes do merge #77. A implementação anterior foi validada em 1.141 testes com
 PostGIS (2 skips, 1 xfail), além de 52 testes das atualizações posteriores de calendário/pedidos; a integração
-privada exige nova validação antes da entrega.
+privada teve validações adicionais e os CIs finais registrados no início desta passagem.
 
-O fundador autorizou explicitamente reativar o processamento e retomar os lotes pendentes. A retomada será feita
-após CI e merge do publicador integrado, migrando as referências da fila para esse código, reabrindo os pedidos
-interrompidos e mantendo o teto global de 15. Nenhum job novo usará o publicador que expunha dados completos.
+O fundador autorizou explicitamente reativar o processamento e retomar os lotes pendentes. A integração da Ficha
+reativou o motor e reabriu RN-1/RN-2 usando o contrato privado do #72. As rodadas seguintes já usam #77/#79;
+a rodada inicial precisa terminar naturalmente antes da catalogação retroativa. O teto global permanece em 15.
 
 ## Capacidade conjunta com o Lote do Pará
 
@@ -256,10 +266,10 @@ mesma ref CAS do motor e do catálogo, antes de instalar dependências ou ler da
 apenas as cotas obtidas; preparo, checkpoints e publicação ficam cobertos até o término confirmado da rodada.
 Reruns conferem cotas por tentativa antes de acessar os dados; uma reexecução parcial sem reserva falha sem calcular.
 
-A rodada `43299409156`, iniciada pelo chat do Lote no SHA `3546687c66ec07ef9bd875d181efcff57ff1d312`, continua intacta.
-Esse workflow imutável foi conferido e ocupa cinco vagas durante toda a execução. Outros Lotes legados desconhecidos
+A rodada `43299409156`, iniciada pelo chat do Lote no SHA `3546687c66ec07ef9bd875d181efcff57ff1d312`, terminou com sucesso.
+Esse workflow imutável foi conferido e ocupou cinco vagas durante toda a execução. Outros Lotes legados desconhecidos
 consomem conservadoramente as 15 vagas até terminar. Nenhuma reserva é liberada por idade ou por cancelamento solicitado.
-A fila do motor preserva RN-1 e RN-2, cancelados na pausa externa; o fundador autorizou reabri-los com referência segura.
+RN-1 e RN-2, cancelados na pausa externa, foram reabertos com autorização; a falha de fonte está descrita acima.
 
 Entradas congeladas, fatias intermediárias e checkpoints do Lote ficam fora da retrocatalogação, assim como caches e
 backups. Os produtos finais continuam elegíveis a ficha e atestação; o processamento científico do outro chat não muda.
@@ -277,3 +287,84 @@ backups. Os produtos finais continuam elegíveis a ficha e atestação; o proces
   lista positiva. As fichas e assinaturas ainda serão preenchidas pelo workflow após o merge.
 - O run do Lote `43299409156` terminou com sucesso por conta própria. Não foi cancelado, reexecutado ou alterado
   por este chat; a reserva conservadora de cinco vagas deixa de pesar após a confirmação do término pela API.
+
+## Continuidade depois dos merges #77 e #79
+
+- Uma migração manual da fila não alcança continuações que um job antigo ainda vai enfileirar. A admissão CAS
+  promove somente pedidos não bloqueados de continuação ou retentativa entre referências exatas, sem seguir
+  a main: as cinco origens `88860b64`, `b624b108`, `6a53cfbf`, `bea53bd0` e `436c7b63` passam
+  ao destino fixo `be452620`. Ele inclui E1/E2 do #79, a aquisição corrigida, as proteções operacionais do #81
+  e as guardas de embargo e adoção descritas abaixo.
+  Preserva ID, parâmetros, contador e falhas; registra origem e destino.
+  Reservas vivas não mudam. O catálogo aplica a mesma promoção antes do preflight, para não depender da ordem
+  entre o último job e o cron de 15 minutos.
+- A evidência está em `auditoria-promocao-publicador.json`. A aquisição mantém fórmulas, temas e ano do MapBiomas.
+  A prova declara as mudanças de versão por origem e a entrada intencional de E1/E2 nos pedidos anteriores ao #79.
+  Nas duas origens anteriores ao #79, mudam as 11 versões de tarefa: `rodar.py` integra o hash compartilhado
+  do histórico. A guarda de adoção permite esse avanço sem atribuir a ciência nova a arquivos antigos. Tarefas com versão
+  alterada e saídas sem versão comprovada seguem para o recálculo normal; checkpoints, prazos e limite de 15
+  continuam valendo. Previsões históricas conservam suas versões; não se usa HEAD móvel como destino.
+- O `workflow_run` da catalogação é restrito ao término de `43305564503`, no SHA `88860b64` completo, branch main
+  e repositório de origem igual ao atual. Executa o código da main e não baixa artifacts do gatilho. O preflight
+  continua exigindo a ausência de qualquer escritor antigo, antes de reservar uma das 15 vagas.
+  O disparo automático é uma tentativa: falta de vaga, cota ou outro escritor antigo exige retomar manualmente
+  `publicar-metadados.yml` após resolver a condição, sem cancelar trabalhos nem afrouxar o gate.
+- RN expôs uma falha anterior: HTTP 422 em `/maps/exports` era aviso, não falha do job; a tentativa sem CSV não
+  chegava ao índice e `continuar` disparava outro planejamento. O frontend oficial do MapBiomas associa 422 a
+  limite temporário de geração; os temas, ano 2025 e `exportType=range` conferem com seu catálogo e interface.
+  Referência: [bundle oficial](https://plataforma.mapbiomas.org/assets/index-DkZM_66U.js), SHA-256
+  `ea2e4ae615bb44b8cc03d5b7dc0064c2aed812f25bb5c0d4a85a4a3ca71cbe4c`. O corpo da resposta que afetou RN não
+  ficou registrado; seu motivo específico não foi confirmado. O cliente novo só repete 422 com indicação
+  explícita de limite de geração; validação de ano/campo e respostas ambíguas falham com diagnóstico sanitizado.
+  A correção operacional reaproveita e consome exports aceitos antes de abrir novos, respeita prazo e retries,
+  registra a tentativa no índice privado e impede o encadeamento imediato de jobs com erro e avanço zero.
+  Não se deve mudar ano, omitir fonte obrigatória ou declarar dados concluídos para contornar essa resposta.
+  A aquisição integra o hash da tarefa MapBiomas: pedidos novos com essa correção terão nova versão de tarefa,
+  embora o cálculo por imóvel permaneça igual. A promoção auditada inclui a aquisição corrigida no destino
+  fixo; não se atribui a versão nova a previsões já publicadas.
+- Conferência real somente por GET: os caches privados de RN-1/RN-2 tiveram visibilidade e SHA-256 conferidos;
+  contêm os mesmos três pedidos aceitos, um READY e dois QUEUED. O export pronto foi baixado sem criar pedidos:
+  ZIP de 8.429.316 bytes, GeoTIFF de 8.425.445 bytes, uma banda em EPSG:4326, todas as janelas lidas sem erro.
+  Nenhum dado foi publicado nessa validação. O resultado prova que havia uma exportação pronta ainda não
+  consumida pelo fluxo antigo; não confirma o motivo específico da recusa do quarto pedido.
+- O registro de tentativa fica em módulo separado (`raiz/executor/rodadas.py`), usando as mesmas travas e o mesmo
+  publicador. `armazem.py` permanece idêntico ao #77, preservando a conferência estrita de compatibilidade.
+  A promoção final e o catálogo passaram em 155 testes de integração, com Ruff e actionlint 1.7.12.
+- Suíte completa da integração protegida (`56a6354`, mesma árvore de código de `be452620`): **2.115 passaram,
+  2 pulados e 1 xfail**, com PostGIS, em 1.102,57 s. Takumi e os testes de cartões/vídeo estavam disponíveis.
+  Skips: dados do Pará inteiro e servidor LanguageTool; xfail: TIR central r11 já documentada. A execução anterior
+  interrompida pela reinicialização da interface não foi contada. Depois da promoção final, **285 testes** de integração de fila, catálogo, fontes, atestação e guardas
+  passaram. Ruff (476 arquivos) e actionlint 1.7.12 passaram; o novo CI será conferido antes do merge. Atestações e arquivos reais ainda exigem a execução retroativa.
+
+## Proteções incorporadas à retomada operacional
+
+- O CI do #82 na referência `7ab4852` passou. Antes do merge, foi incorporado o #83 da main, que torna
+  obrigatória a referência privada completa do Pará e exige sua execução exatamente uma vez no CI.
+  Os 256 testes locais relacionados passaram após essa integração; o CI atualizado ainda será conferido.
+- O Gitleaks dessa rodada encontrou três SHA-256 de código no commit externo `e7074b4`, examinado por `--all`.
+  Cada valor foi conferido contra os bytes do arquivo correspondente. Foram incluídos somente os três
+  fingerprints exatos em `.gitleaksignore`; nenhuma regra foi desativada. A reprodução com Gitleaks 8.24.3
+  passou sem achados. O novo push espera o término natural do CI anterior, para não cancelá-lo por concorrência.
+- O #81 foi integrado antes da atualização final do PR #82: atestação privada identificada somente pelo digest
+  dos bytes, sanitização de erros e reserva do catálogo por rodada/tentativa. O catálogo não libera uma vaga
+  com base no término de uma tentativa anterior. A combinação passou em 174 testes focados; um cenário de
+  14 jobs mais o catálogo não admitiu um 16º job, mesmo com promoção pendente e snapshot antigo do Actions.
+- O caminho legado do funil também descartava embargo ativo sem WKT, produzindo falsa ausência de restrição.
+  A guarda portável exige geometria poligonal utilizável antes dos cálculos, sem eliminar fazendas pequenas.
+  Áreas válidas e reparáveis mantêm o cálculo anterior; geometria ausente, vazia ou sem área bloqueia o município.
+- A adoção exige versão comprovada e hashes das saídas. Arquivo sem versão ou de outra versão permanece intacto
+  e segue para o recálculo normal, sem ser carimbado como resultado atual. Marcas adotadas anteriores também são
+  revalidadas. A data original é preservada; `adotado_em` registra separadamente a adoção. Essas guardas passaram
+  em 74 testes focados antes da integração, com revisão cruzada.
+
+## Validação offline dos demais produtos privados
+
+- Além do RO real já validado, oito pacotes do cache autenticado tiveram SHA-256 e conteúdo conferidos sem rede
+  nem publicação: AC, AP, GO, MA, MG, PA, RR e TO. As cópias temporárias privadas incluíram as geometrias reais.
+  Foram 44 operações sem falha inesperada: 2.696 CSVs, 57.863 campos Croissant e 4.283.214 linhas de quantis;
+  423,886 s somados e pico de cerca de 302 MiB, com um gerador por vez.
+- Faixas cruzadas permaneceram como diagnóstico, sem reordenação: GO 8.898, MG 1.366 e TO 190. PA não contém
+  tabelas financeiras/FLAG; AM, MS e MT não têm pacote tabular privado. A ausência não gera previsões inventadas.
+- CADT de GO/MG indicou ausência de lote elegível. AC/AP/MA/RR/TO usam uniformemente
+  `restauracao-2026b+cenarios-2026b+dbc2776a`, cenário `central_r11`; o registro fechado dessa versão está sendo
+  recuperado no Git antes de gerar seus cronogramas. Os cálculos individuais publicados permanecem preservados.
