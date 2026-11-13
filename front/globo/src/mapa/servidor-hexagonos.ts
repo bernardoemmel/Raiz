@@ -69,7 +69,11 @@ export class ServidorHexagonos {
     }
     try {
       if (!this.indice || pedido.acao !== "consultar") throw new Error("Índice indisponível.")
-      this.responder({ id, geracao, tipo: "hexagonos", consulta: this.indice.consultar(pedido.bbox, pedido.zoom, pedido.destaques) })
+      const { geo, hexagonos, legenda } = this.indice.consultar(pedido.bbox, pedido.zoom, pedido.destaques)
+      // Evita desserializar a árvore de coordenadas no main para o MapLibre serializá-la novamente.
+      // Blob é clonável sem transferList; o consumidor cria a URL e a fonte lê os bytes no worker do MapLibre.
+      const geojson = new Blob([JSON.stringify(geo)], { type: "application/geo+json" })
+      this.responder({ id, geracao, tipo: "hexagonos", consulta: { geojson, hexagonos, legenda } })
     } catch {
       this.responder({ id, geracao, tipo: "erro", mensagem: "Não foi possível consultar os hexágonos públicos." })
     }

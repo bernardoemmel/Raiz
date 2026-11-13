@@ -1,9 +1,9 @@
-import type { CaixaHexagonos, ConsultaHexagonos, ResumoHexagonos } from "./hexagonos"
+import type { CaixaHexagonos, ResumoHexagonos } from "./hexagonos"
 import type { Geo } from "../../../compartilhado/dados"
-import type { EntradaHexagonos, RequisicaoHexagonos, RespostaHexagonos } from "./protocolo-hexagonos"
+import type { ConsultaHexagonosSerializada, EntradaHexagonos, RequisicaoHexagonos, RespostaHexagonos } from "./protocolo-hexagonos"
 
-export type { EntradaHexagonos } from "./protocolo-hexagonos"
-export type { CaixaHexagonos, ConsultaHexagonos, ResumoHexagonos } from "./hexagonos"
+export type { ConsultaHexagonosSerializada, EntradaHexagonos } from "./protocolo-hexagonos"
+export type { CaixaHexagonos, ResumoHexagonos } from "./hexagonos"
 
 interface Pendente { resolver: (valor: RespostaHexagonos) => void; rejeitar: (erro: Error) => void }
 const cancelamento = () => new DOMException("A consulta foi substituída.", "AbortError")
@@ -58,7 +58,7 @@ export class WorkerHexagonos {
     return resposta.resumo
   }
 
-  async consultar(bbox: CaixaHexagonos, zoom: number, destaques: readonly string[] = []): Promise<ConsultaHexagonos> {
+  async consultar(bbox: CaixaHexagonos, zoom: number, destaques: readonly string[] = []): Promise<ConsultaHexagonosSerializada> {
     const resposta = await this.enviar({ id: ++this.sequencia, geracao: this.geracao, acao: "consultar", bbox, zoom, destaques })
     if (resposta.tipo !== "hexagonos") throw new Error("Resposta dos hexágonos inválida.")
     return resposta.consulta

@@ -29,6 +29,8 @@ import type { AgregadosMapa } from "../../../compartilhado/dados/agregados"
 import { type HexagonoMapa, type LegendaHexagonos } from "./hexagonos"
 import { WorkerHexagonos } from "./worker-hexagonos"
 import { prepararContextoMapa } from "./preparar-contexto"
+import { FonteGeojsonBlob } from "./fonte-geojson-blob"
+import { completarEstiloNacional, separarEstiloNacional } from "./estilo-progressivo"
 import { aplicarEscalaHexagonos, camadasHexagonos, descreverHexagono, fontePublicaHexagonos } from "./camadas-hexagonos"
 import { desenhoDePontos, poligonoDesenhado } from "./desenho-area"
 import { filtroEstadosProcessados, type DadosNacionais } from "./nacional"
@@ -236,6 +238,7 @@ export function MapaBrasil(props: Props) {
   const hexagonosAgendados = useRef<MapaGL | null>(null)
   const dadosAplicados = useRef<{ geometria: Geo | null | undefined; estados: Estados | undefined; urlEstados?: string } | null>(null)
   const workerHexagonos = useRef<WorkerHexagonos | null>(null)
+  const fonteHexagonosBlob = useRef(new FonteGeojsonBlob())
   const consultaHexagonos = useRef(0)
   const geracoesVisiveis = useRef(new WeakMap<HexagonoMapa, number>())
   const geracaoHexagonos = useRef(0)
@@ -262,7 +265,9 @@ export function MapaBrasil(props: Props) {
     let instancia: MapaGL | null = null
     let liberarContexto: (() => void) | undefined
     void (async () => {
-      liberarContexto = await prepararContextoMapa()
+      const preparo = prepararContextoMapa()
+      liberarContexto = preparo.cancelar
+      await preparo.pronto
       if (removido || !caixa.current) { liberarContexto(); return }
       prepararMapLibre()
       const iniciais = atual.current.props
@@ -281,7 +286,7 @@ export function MapaBrasil(props: Props) {
         fadeDuration: 0,
         dragRotate: false,
         pitchWithRotate: false,
-        locale: { "NavigationControl.ZoomIn": "Aproximar", "NavigationControl.ZoomOut": "Afastar", "Popup.Close": "Fechar ficha breve" },
+        locale: { "NavigationControl.ZoomIn": "Aproximar", "NavigationControl.ZoomOut": "Afastar", "Popup.Close": "Fechar ficha breve", "AttributionControl.ToggleAttribution": "Mostrar ou recolher créditos do mapa" },
       })
       instancia = m
       // O contexto auxiliar permanece vivo até a desmontagem, evitando seu descarte
@@ -293,18 +298,20 @@ export function MapaBrasil(props: Props) {
       margemAplicada.current = { baixo: margemBaixo, direita: props.margemDireita ?? 0 }
       await cederProcessamento()
       if (removido) return
-      m.addControl(new NavigationControl({ showCompass: false }), "top-right")
-      // O controle lê largura do DOM: instala junto ao primeiro desenho, depois da montagem do estilo.
-      // O evento ainda antecede a apresentação do frame; não espera os dados nacionais terminarem.
-      m.once("render", () => {
-        if (removido) return
-        m.addControl(new AttributionControl({ compact: true }), "bottom-right")
-        m.addControl(new ScaleControl({ unit: "metric" }), "bottom-right")
-      })
-      if (import.meta.env.DEV || import.meta.env.VITE_RAIZ_TESTE_MAPA === "1") Object.assign(caixa.current, { __mapa: m })
       mapaRef.current = m
       dadosAplicados.current = { geometria: iniciais.brasil?.estados, estados: iniciais.estados, urlEstados: iniciais.brasil?.urlEstados }
-      m.once("load", () => {
+      let carregou = false, montouCamadas = false, ativado = false
+      const ativarMapa = () => {
+        if (removido || ativado || !carregou || !montouCamadas) return
+        ativado = true
+        m.addControl(new NavigationControl({ showCompass: false }), "top-right")
+        // Estes controles leem o layout: entram no frame seguinte, com o estilo já completo.
+        m.once("render", () => {
+          if (removido) return
+          m.addControl(new AttributionControl({ compact: true }), "bottom-right")
+          m.addControl(new ScaleControl({ unit: "metric" }), "bottom-right")
+        })
+        if (import.meta.env.DEV || import.meta.env.VITE_RAIZ_TESTE_MAPA === "1") Object.assign(caixa.current!, { __mapa: m })
         const antes = m.getStyle().layers.find(l => l.type === "symbol")?.id
         m.addSource("hexagonos", { type: "geojson", data: VAZIO as never, promoteId: "h3" })
         for (const camada of camadasHexagonos()) m.addLayer(camada, antes)
@@ -335,11 +342,20 @@ export function MapaBrasil(props: Props) {
             atual.current.props.aoEscolherMunicipio(cod)
           }
         })
+      }
+      // load pode chegar entre as continuações; registra ambos antes de carregar o estilo.
+      m.once("load", () => { carregou = true; ativarMapa() })
+      const etapas = separarEstiloNacional(estilo)
+      m.once("style.load", () => {
+        void completarEstiloNacional(m, etapas, () => removido).then(completo => {
+          montouCamadas = completo
+          ativarMapa()
+        }).catch(erro => { if (!removido) m.fire("error", { error: erro }) })
       })
       // Registra os eventos antes do estilo: nenhuma resposta rápida pode perder o primeiro load.
       // As variantes deste estilo interno passam pela especificação MapLibre no build.
       // As camadas e filtros acrescentados depois continuam com a validação padrão.
-      m.setStyle(estilo, { validate: false })
+      m.setStyle(etapas.inicial, { validate: false })
     })()
     return () => {
       removido = true
@@ -357,6 +373,7 @@ export function MapaBrasil(props: Props) {
       dadosAplicados.current = null
       limparHexagonosVisiveis()
       instancia?.remove()
+      fonteHexagonosBlob.current.encerrar()
       mapaRef.current = null
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -844,12 +861,15 @@ export function MapaBrasil(props: Props) {
         || !hexagonosProntos.current || m.getZoom() !== zoomAtual) return
       for (const hex of resposta.hexagonos) geracoesVisiveis.current.set(hex, geracao)
       hexagonosAtuais.current = resposta.hexagonos
-      ;(m.getSource("hexagonos") as GeoJSONSource).setData(resposta.geo as never)
+      // Os polígonos vão do worker H3 ao worker MapLibre por bytes. A interface
+      // recebe somente os metadados de navegação, sem copiar a árvore de coordenadas.
+      const atualizacao = fonteHexagonosBlob.current.aplicar(m.getSource("hexagonos") as GeoJSONSource, resposta.geojson)
       legendaHexagonos.current = resposta.legenda
       aplicarVisibilidadeHexagonos(m)
       atual.current.props.aoMudarLegenda?.(resposta.legenda)
       if (import.meta.env.DEV || import.meta.env.VITE_RAIZ_TESTE_MAPA === "1") Object.assign(caixa.current!, { __hexagonos: resposta.hexagonos })
       if (listaHexagonosAberta.current) setHexagonosLista(resposta.hexagonos)
+      await atualizacao
     } catch (erro) {
       if (consulta === consultaHexagonos.current && geracao === geracaoHexagonos.current && mapaRef.current === m && !(erro instanceof Error && erro.name === "AbortError")) {
         hexagonosProntos.current = false

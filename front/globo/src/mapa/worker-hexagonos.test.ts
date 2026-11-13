@@ -2,7 +2,7 @@ import { latLngToCell } from "h3-js"
 import { afterEach, describe, expect, it, vi } from "vitest"
 import type { Geo } from "../../../compartilhado/dados"
 import { IndiceHexagonos } from "./hexagonos"
-import type { RequisicaoHexagonos, RespostaHexagonos } from "./protocolo-hexagonos"
+import type { ConsultaHexagonosSerializada, RequisicaoHexagonos, RespostaHexagonos } from "./protocolo-hexagonos"
 import { ServidorHexagonos } from "./servidor-hexagonos"
 import { WorkerHexagonos } from "./worker-hexagonos"
 
@@ -12,10 +12,19 @@ const dados: Geo = { type: "FeatureCollection", features: [
 ] }
 const indice = new IndiceHexagonos(dados)
 const resumo = indice.resumo
-const resultado = indice.consultar([-70, -30, -30, 10], 3)
+const resultadoIndice = indice.consultar([-70, -30, -30, 10], 3)
+const resultado: ConsultaHexagonosSerializada = { geojson: new Blob([JSON.stringify(resultadoIndice.geo)], { type: "application/geo+json" }), hexagonos: resultadoIndice.hexagonos, legenda: resultadoIndice.legenda }
 const consulta = (id: number, geracao = 1): RequisicaoHexagonos => ({ acao: "consultar", id, geracao, bbox: [-70, -30, -30, 10], zoom: 3 })
 const area: Geo = { type: "FeatureCollection", features: [{ type: "Feature", properties: { cod_imovel: "AREA-PRIVADA", nome: "NAO-PUBLICAR" },
   geometry: { type: "Polygon", coordinates: [[[-50.001, -6.001], [-49.999, -6.001], [-49.999, -5.999], [-50.001, -5.999], [-50.001, -6.001]]] } }] }
+
+async function lerGeo(resposta: RespostaHexagonos): Promise<Geo> {
+  if (resposta.tipo !== "hexagonos") throw new Error("A resposta não contém hexágonos.")
+  return JSON.parse(await resposta.consulta.geojson.text())
+}
+async function textosRespostas(respostas: RespostaHexagonos[]): Promise<string> {
+  return JSON.stringify(respostas) + (await Promise.all(respostas.map(r => r.tipo === "hexagonos" ? r.consulta.geojson.text() : ""))).join("")
+}
 
 describe("protocolo de hexágonos públicos", () => {
   afterEach(() => vi.unstubAllGlobals())
@@ -39,7 +48,8 @@ describe("protocolo de hexágonos públicos", () => {
     expect(transporte).toHaveBeenCalledWith(url, expect.objectContaining({ credentials: "omit", redirect: "error", signal: expect.any(AbortSignal) }))
     await servidor.receber(consulta(2))
     expect(respostas[1]).toMatchObject({ tipo: "hexagonos", consulta: resultado })
-    expect(JSON.stringify(respostas)).not.toContain("NAO-PUBLICAR")
+    expect(await lerGeo(respostas[1])).toEqual(resultadoIndice.geo)
+    expect(await textosRespostas(respostas)).not.toContain("NAO-PUBLICAR")
     let geracao = 1
     for (const arquivo of [url + "?token=segredo", url + "#privado", "https://outro.example/privado", "https://usuario:senha@raiz.example/Raiz/geo/agregados_brasil.geojson"]) {
       await servidor.receber({ acao: "carregar", id: ++geracao, geracao, entrada: arquivo })
@@ -73,7 +83,8 @@ describe("protocolo de hexágonos públicos", () => {
     await servidor.receber(consulta(3, 2))
     await servidor.receber(consulta(4, 1))
     expect(respostas.map(r => [r.id, r.tipo])).toEqual([[2, "pronto"], [3, "hexagonos"], [4, "erro"]])
-    expect(respostas[1]).toMatchObject({ consulta: { geo: { features: [] }, hexagonos: [] } })
+    expect(respostas[1]).toMatchObject({ consulta: { hexagonos: [] } })
+    expect(await lerGeo(respostas[1])).toEqual({ type: "FeatureCollection", features: [] })
     expect(respostas[2]).toMatchObject({ cancelado: true })
   })
 
@@ -84,16 +95,16 @@ describe("protocolo de hexágonos públicos", () => {
     expect(respostas[0]).toEqual({ id: 1, geracao: 0, tipo: "autorizado" })
     await servidor.receber({ acao: "carregar", id: 2, geracao: 1, entrada: dados })
     await servidor.receber(consulta(3))
-    expect(respostas.at(-1)).toMatchObject({ tipo: "hexagonos", consulta: { geo: { features: [{ properties: { selecionado: true } }] } } })
+    expect(await lerGeo(respostas.at(-1)!)).toMatchObject({ features: [{ properties: { selecionado: true } }] })
     await servidor.receber({ acao: "carregar", id: 4, geracao: 2, entrada: dados })
     await servidor.receber({ acao: "autorizar", id: 5, geracao: 1, geo: null })
     expect(respostas.at(-1)).toMatchObject({ tipo: "erro", cancelado: true })
     await servidor.receber(consulta(6, 2))
-    expect(respostas.at(-1)).toMatchObject({ consulta: { geo: { features: [{ properties: { selecionado: true } }] } } })
+    expect(await lerGeo(respostas.at(-1)!)).toMatchObject({ features: [{ properties: { selecionado: true } }] })
     await servidor.receber({ acao: "autorizar", id: 7, geracao: 2, geo: null })
     await servidor.receber(consulta(8, 2))
-    expect(respostas.at(-1)).toMatchObject({ consulta: { geo: { features: [{ properties: { selecionado: false } }] } } })
-    for (const proibido of ["AREA-PRIVADA", "NAO-PUBLICAR", "cod_imovel", "nome"]) expect(JSON.stringify(respostas)).not.toContain(proibido)
+    expect(await lerGeo(respostas.at(-1)!)).toMatchObject({ features: [{ properties: { selecionado: false } }] })
+    for (const proibido of ["AREA-PRIVADA", "NAO-PUBLICAR", "cod_imovel", "nome"]) expect(await textosRespostas(respostas)).not.toContain(proibido)
   })
 
   it("uma autorização inválida retorna erro sanitizado e não derruba o índice público", async () => {
@@ -104,7 +115,28 @@ describe("protocolo de hexágonos públicos", () => {
     await servidor.receber({ acao: "autorizar", id: 3, geracao: 1, geo: dados })
     expect(respostas.at(-1)).toEqual({ id: 3, geracao: 1, tipo: "erro", mensagem: "Não foi possível aplicar a área autorizada." })
     await servidor.receber(consulta(4))
-    expect(respostas.at(-1)).toMatchObject({ tipo: "hexagonos", consulta: { geo: { features: [{ properties: { selecionado: false, fazendas: 8 } }] } } })
+    expect(await lerGeo(respostas.at(-1)!)).toMatchObject({ features: [{ properties: { selecionado: false, fazendas: 8 } }] })
+  })
+
+  it("transporta os polígonos como Blob clonável, sem árvore duplicada, e permite leitura por object URL", async () => {
+    const respostas: RespostaHexagonos[] = []
+    const servidor = new ServidorHexagonos(url, r => respostas.push(structuredClone(r)))
+    await servidor.receber({ acao: "carregar", id: 1, geracao: 1, entrada: dados })
+    await servidor.receber(consulta(2))
+    const resposta = respostas[1]
+    if (resposta.tipo !== "hexagonos") throw new Error("Resposta inválida.")
+    expect(Object.keys(resposta.consulta).sort()).toEqual(["geojson", "hexagonos", "legenda"])
+    expect(resposta.consulta.geojson).toBeInstanceOf(Blob)
+    expect(resposta.consulta.geojson.type).toBe("application/geo+json")
+    expect(JSON.stringify(resposta)).not.toContain("coordinates")
+    expect(resposta.consulta.hexagonos).toEqual(resultadoIndice.hexagonos)
+    expect(resposta.consulta.legenda).toEqual(resultadoIndice.legenda)
+    const objetoUrl = URL.createObjectURL(resposta.consulta.geojson)
+    try {
+      const arquivo = await fetch(objetoUrl)
+      expect(arquivo.ok).toBe(true)
+      expect(await arquivo.json()).toEqual(resultadoIndice.geo)
+    } finally { URL.revokeObjectURL(objetoUrl) }
   })
 })
 
@@ -118,7 +150,7 @@ class WorkerFalso {
   constructor() { WorkerFalso.ultimo = this }
   postMessage(pedido: RequisicaoHexagonos) { this.enviados.push(pedido) }
   terminate() { this.encerrado = true }
-  responder(resposta: RespostaHexagonos) { this.onmessage?.({ data: resposta } as MessageEvent<RespostaHexagonos>) }
+  responder(resposta: RespostaHexagonos) { this.onmessage?.({ data: structuredClone(resposta) } as MessageEvent<RespostaHexagonos>) }
 }
 
 describe("cliente do worker de hexágonos", () => {

@@ -54,7 +54,9 @@
 .explorar-v2 .mapa-brasil .maplibregl-ctrl-top-right { top: 74px; right: 6px; }
 .explorar-v2.com-pedido .mapa-brasil .maplibregl-ctrl-top-right { right: 452px; }
 .explorar-v2 .maplibregl-ctrl-bottom-left { display: none; }
-.explorar-v2 .maplibregl-ctrl-bottom-right { bottom: 62px; }
+.explorar-v2 .mapa-brasil .maplibregl-ctrl-bottom-right { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; right: 16px; bottom: 72px; }
+.explorar-v2 .mapa-brasil .maplibregl-ctrl-bottom-right > .maplibregl-ctrl { margin: 0; float: none; }
+.explorar-v2.com-pedido .mapa-brasil .maplibregl-ctrl-bottom-right { right: 462px; bottom: 16px; }
 .maplibregl-popup .maplibregl-popup-content { background: var(--superficie); color: var(--tinta); }
 .maplibregl-popup-anchor-top .maplibregl-popup-tip,
 .maplibregl-popup-anchor-top-left .maplibregl-popup-tip,
@@ -69,10 +71,13 @@
   .legenda-v2-posicao { left: auto; right: 16px; transform: none; bottom: 72px; }
   .com-pedido .cartao-v2-posicao { width: min(340px, calc(100vw - 494px)); }
   .com-pedido .cartao-v2-numeros { grid-template-columns: 1fr; }
+  .explorar-v2 .mapa-brasil .maplibregl-ctrl-bottom-right { bottom: 168px; }
+  .explorar-v2.com-pedido .mapa-brasil .maplibregl-ctrl-bottom-right { top: 176px; bottom: auto; max-width: calc(100vw - 478px); }
+  .explorar-v2.com-pedido .maplibregl-ctrl.maplibregl-ctrl-attrib { max-width: min(320px, calc(100vw - 478px)); }
 }
 @media (max-width: 700px) {
-  .cartao-v2-posicao { left: 8px; right: 8px; bottom: 0; width: auto; }
-  .cartao-territorio-v2 { position: relative; border-radius: 18px 18px 0 0; padding: 24px 18px 12px; }
+  .cartao-v2-posicao { left: 8px; right: 8px; bottom: 8px; width: auto; }
+  .cartao-territorio-v2 { position: relative; border-radius: 18px 18px 12px 12px; padding: 24px 18px 12px; }
   .cartao-territorio-v2 h1 { margin-bottom: 12px; }
   .cartao-v2-alca { position: absolute; display: flex; align-items: center; justify-content: center; top: 0; left: calc(50% - 40px); width: 80px; height: 22px; border: 0; padding: 0; background: none; touch-action: none; cursor: ns-resize; }
   .cartao-v2-alca span { width: 32px; height: 3px; border-radius: 3px; background: var(--pedra); }
@@ -92,8 +97,8 @@
   .camadas-v2-abrir { position: absolute; right: 12px; top: 84px; display: inline-flex; align-items: center; gap: 6px; min-height: 44px; color: var(--tinta); border: var(--borda); background: var(--vidro); border-radius: 22px; padding: 0 14px; font-size: 14px; z-index: 2; }
   .explorar-v2 .mapa-brasil .maplibregl-ctrl-top-right { top: 132px; right: 2px; }
   .explorar-v2.com-pedido .mapa-brasil .maplibregl-ctrl-top-right { display: none; }
-  .explorar-v2 .maplibregl-ctrl-bottom-right { bottom: calc(var(--altura-gaveta, 0px) + 8px); }
-  .explorar-v2.com-pedido .maplibregl-ctrl-bottom-right { bottom: 0; }
+  .explorar-v2 .mapa-brasil .maplibregl-ctrl-bottom-right { right: 12px; bottom: calc(var(--altura-gaveta, 0px) + 12px); }
+  .explorar-v2.com-pedido .mapa-brasil .maplibregl-ctrl-bottom-right { right: 12px; bottom: 12px; }
   .com-pedido .cartao-v2-posicao { visibility: hidden; }
   .dialogo-mapa-v2 { padding: 18px; }
   .dialogo-mapa-v2 > header h2 { font-size: 20px; }

@@ -37,6 +37,24 @@ export async function conferirCicloMapa(navegador, base) {
   await pagina.evaluate(() => window.__pendentes.splice(0).forEach(resolve => resolve()))
   assert.equal(await pagina.locator("canvas").count(), 0)
   assert.equal(await pagina.evaluate(() => window.__ativos.size), 0)
+  // As duas continuações seguintes constroem linhas e símbolos. Sair em qualquer
+  // uma precisa remover o canvas e os workers antes de liberar o trabalho pendente.
+  for (const pausa of [2, 3]) {
+    await pagina.evaluate(() => { location.hash = "#/" })
+    for (let etapa = 0; etapa <= pausa; etapa++) {
+      await pagina.waitForFunction(() => window.__pendentes.length === 1)
+      if (etapa < pausa) await pagina.evaluate(() => window.__pendentes.shift()())
+    }
+    assert.equal(await pagina.locator("canvas.maplibregl-canvas").count(), 1)
+    assert.equal(await pagina.evaluate(() => Boolean(document.querySelector(".mapa-brasil .mapa")?.__mapa)), false,
+      "O mapa não pode anunciar conclusão antes da última classe de camada.")
+    await pagina.evaluate(() => { location.hash = "#/entrar" })
+    await pagina.getByRole("heading", { name: "Entrar na Raíz" }).waitFor()
+    assert.equal(await pagina.locator("canvas").count(), 0)
+    assert.equal(await pagina.evaluate(() => window.__ativos.size), 0)
+    await pagina.evaluate(() => window.__pendentes.splice(0).forEach(resolve => resolve()))
+    assert.equal(await pagina.locator("canvas").count(), 0)
+  }
   assert.deepEqual(erros, [])
   await contexto.close()
 

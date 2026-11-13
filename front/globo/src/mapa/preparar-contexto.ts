@@ -1,38 +1,41 @@
 /** Inicia o processo gráfico fora da interface. O MapLibre continua dono do canvas e dos seus programas. */
-let preparacao: Promise<() => void> | undefined
+export interface PreparoContextoMapa {
+  pronto: Promise<void>
+  cancelar(): void
+}
 
-export function prepararContextoMapa(): Promise<() => void> {
+let preparacao: PreparoContextoMapa | undefined
+
+export function prepararContextoMapa(): PreparoContextoMapa {
   if (preparacao) return preparacao
-  const atual = new Promise<() => void>(resolve => {
-    if (typeof Worker === "undefined" || typeof OffscreenCanvas === "undefined") { resolve(() => {}); return }
-    let worker: Worker
-    try { worker = new Worker(new URL("./preparar-contexto.worker.ts", import.meta.url), { type: "module" }) }
-    catch { resolve(() => {}); return }
-    let concluido = false, liberado = false
-    const liberar = () => {
+  let concluir!: () => void
+  const pronto = new Promise<void>(resolve => { concluir = resolve })
+  let worker: Worker | undefined
+  let limite: ReturnType<typeof setTimeout> | undefined
+  let liberado = false
+  const atual: PreparoContextoMapa = {
+    pronto,
+    cancelar() {
       if (liberado) return
       liberado = true
-      worker.terminate()
+      clearTimeout(limite)
+      worker?.terminate()
       if (preparacao === atual) preparacao = undefined
-    }
-    const falhou = () => {
-      if (concluido) return
-      concluido = true
-      clearTimeout(limite)
-      liberar()
-      resolve(() => {})
-    }
-    // Só uma falha/travamento usa o prazo. O caminho normal conclui assim que o driver fica pronto.
-    const limite = setTimeout(falhou, 5000)
-    worker.onmessage = evento => {
-      if (concluido || evento.data?.pronto !== true) return
-      concluido = true
-      clearTimeout(limite)
-      resolve(liberar)
-    }
-    worker.onerror = falhou
-    worker.onmessageerror = falhou
-  })
+      concluir()
+    },
+  }
   preparacao = atual
+  if (typeof Worker === "undefined" || typeof OffscreenCanvas === "undefined") { atual.cancelar(); return atual }
+  try { worker = new Worker(new URL("./preparar-contexto.worker.ts", import.meta.url), { type: "module" }) }
+  catch { atual.cancelar(); return atual }
+  // Só uma falha/travamento usa o prazo. Desmontar cancela imediatamente, mesmo antes de pronto.
+  limite = setTimeout(atual.cancelar, 5000)
+  worker.onmessage = evento => {
+    if (liberado || evento.data?.pronto !== true) return
+    clearTimeout(limite)
+    concluir()
+  }
+  worker.onerror = atual.cancelar
+  worker.onmessageerror = atual.cancelar
   return atual
 }

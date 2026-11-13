@@ -1,0 +1,190 @@
+{
+  "metodo": "Três navegações fixas por versão, dados públicos reais auditados; Lighthouse mobile 360×800, DPR 1, rede e CPU simulate, SwiftShader. Todas as amostras preservadas. Diagnósticos instrumentados não entram na aprovação.",
+  "portao": {
+    "performance_mediana_minima": 90,
+    "acessibilidade_minima_em_todas": 90
+  },
+  "series": [
+    {
+      "serie": 1,
+      "snapshot": "site-v2-4",
+      "amostras": [
+        {
+          "performance": 71,
+          "accessibility": 96,
+          "lcp": 758.8875,
+          "tbt": 2291,
+          "cls": 0.00806215277777778
+        },
+        {
+          "performance": 75,
+          "accessibility": 96,
+          "lcp": 752.4149,
+          "tbt": 1331.7925500000001,
+          "cls": 1.548611111111111e-05
+        },
+        {
+          "performance": 75,
+          "accessibility": 96,
+          "lcp": 752.8281999999999,
+          "tbt": 1378.5,
+          "cls": 1.548611111111111e-05
+        }
+      ],
+      "aprovado": false,
+      "erro": "A mediana de desempenho precisa chegar a 90; recebeu 75.",
+      "navegador": "Chromium 157.0.8103.78"
+    },
+    {
+      "serie": 2,
+      "snapshot": "site-v2-5",
+      "amostras": [
+        {
+          "performance": 74,
+          "accessibility": 100,
+          "lcp": 753.7738999999999,
+          "tbt": 1452.5565249999995,
+          "cls": 1.548611111111111e-05
+        },
+        {
+          "performance": 78,
+          "accessibility": 100,
+          "lcp": 753.1696,
+          "tbt": 1017.5000000000005,
+          "cls": 0
+        },
+        {
+          "performance": 77,
+          "accessibility": 100,
+          "lcp": 751.6400000000001,
+          "tbt": 1096.5,
+          "cls": 1.548611111111111e-05
+        }
+      ],
+      "aprovado": false,
+      "erro": "A mediana de desempenho precisa chegar a 90; recebeu 77.",
+      "navegador": "Chromium 157.0.8103.78"
+    },
+    {
+      "serie": 3,
+      "snapshot": "site-v2-6",
+      "amostras": [
+        {
+          "performance": 74,
+          "accessibility": 100,
+          "lcp": 754.5731000000001,
+          "tbt": 1532.21345,
+          "cls": 0.00806215277777778
+        },
+        {
+          "performance": 79,
+          "accessibility": 100,
+          "lcp": 753.6190999999999,
+          "tbt": 857.5,
+          "cls": 1.548611111111111e-05
+        },
+        {
+          "performance": 74,
+          "accessibility": 100,
+          "lcp": 752.2032999999999,
+          "tbt": 1337.5,
+          "cls": 1.548611111111111e-05
+        }
+      ],
+      "aprovado": false,
+      "erro": "A mediana de desempenho precisa chegar a 90; recebeu 74.",
+      "navegador": "Chromium 157.0.8103.78"
+    },
+    {
+      "serie": 4,
+      "snapshot": "site-v2-7",
+      "amostras": [
+        {
+          "performance": 82,
+          "accessibility": 100,
+          "lcp": 754.6512,
+          "tbt": 741.1744,
+          "cls": 0.00806215277777778
+        },
+        {
+          "performance": 76,
+          "accessibility": 100,
+          "lcp": 751.7184,
+          "tbt": 1138.6408000000001,
+          "cls": 1.548611111111111e-05
+        },
+        {
+          "performance": 80,
+          "accessibility": 100,
+          "lcp": 751.8958,
+          "tbt": 818.0521,
+          "cls": 0
+        }
+      ],
+      "aprovado": false,
+      "erro": "A mediana de desempenho precisa chegar a 90; recebeu 80.",
+      "navegador": "Chromium 157.0.8103.78"
+    },
+    {
+      "serie": 5,
+      "snapshot": "site-v2-8",
+      "amostras": [
+        {
+          "performance": 78,
+          "accessibility": 100,
+          "lcp": 756.643,
+          "tbt": 1006,
+          "cls": 0.00806215277777778
+        },
+        {
+          "performance": 75,
+          "accessibility": 100,
+          "lcp": 753.5223000000001,
+          "tbt": 1211.7388500000002,
+          "cls": 0.008046666666666667
+        },
+        {
+          "performance": 82,
+          "accessibility": 100,
+          "lcp": 751.3968,
+          "tbt": 708.3016,
+          "cls": 0.008046666666666667
+        }
+      ],
+      "aprovado": false,
+      "erro": "A mediana de desempenho precisa chegar a 90; recebeu 78.",
+      "navegador": "Chromium 157.0.8103.78"
+    },
+    {
+      "serie": 6,
+      "snapshot": "site-v2-10",
+      "navegador": "Chromium 158.0.8127.18, versão do Playwright fixado no CI",
+      "amostras": [
+        {
+          "performance": 84,
+          "accessibility": 100,
+          "lcp": 756.9276,
+          "tbt": 604.0362,
+          "cls": 0.008046666666666667
+        },
+        {
+          "performance": 79,
+          "accessibility": 100,
+          "lcp": 752.2055,
+          "tbt": 872.5,
+          "cls": 0.00806215277777778
+        },
+        {
+          "performance": 79,
+          "accessibility": 100,
+          "lcp": 753.2406000000001,
+          "tbt": 896.8797,
+          "cls": 0.00806215277777778
+        }
+      ],
+      "aprovado": false,
+      "erro": "A mediana de desempenho precisa chegar a 90; recebeu 79."
+    }
+  ],
+  "situacao": "Desempenho ainda pendente; nenhuma série aprovada."
+}

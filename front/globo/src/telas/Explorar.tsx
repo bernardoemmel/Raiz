@@ -48,7 +48,7 @@ export function Explorar({ municipio: municipioRota, uf: ufRota, pedidoId }: { m
   }
   useEffect(() => {
     const preparo = prepararContextoMapa()
-    return () => { void preparo.then(liberar => liberar()) }
+    return preparo.cancelar
   }, [])
   const sessao = useSessao()
   const [tentativaPedido, setTentativaPedido] = useState(0)
@@ -119,16 +119,23 @@ export function Explorar({ municipio: municipioRota, uf: ufRota, pedidoId }: { m
     setFoco(null); setSituacaoBasica(null); setCamada("situacao"); setDestaque(null)
   }, [municipio])
   useEffect(() => {
-    const medir = () => {
+    let alturaCartao = 0
+    const aplicarMargens = () => {
       const celular = matchMedia("(max-width: 700px)").matches
-      setMargem(celular && !pedidoAberto ? cartao.current?.getBoundingClientRect().height ?? 240 : 0)
+      setMargem(celular && !pedidoAberto ? alturaCartao + 8 : 0)
       setMargemDireita(!celular && pedidoAberto ? 462 : 0)
     }
-    medir()
-    const observer = new ResizeObserver(medir)
+    aplicarMargens()
+    // O navegador entrega a medida após o layout; não força uma leitura síncrona
+    // enquanto React ainda está montando a entrada e carregando as fontes.
+    const observer = new ResizeObserver(([entrada]) => {
+      if (!entrada) return
+      alturaCartao = entrada.borderBoxSize[0]?.blockSize ?? entrada.contentRect.height
+      aplicarMargens()
+    })
     if (cartao.current) observer.observe(cartao.current)
-    window.addEventListener("resize", medir)
-    return () => { observer.disconnect(); window.removeEventListener("resize", medir) }
+    window.addEventListener("resize", aplicarMargens)
+    return () => { observer.disconnect(); window.removeEventListener("resize", aplicarMargens) }
   }, [ampliado, pedidoAberto])
 
   const processados = useMemo(() => new Set((municipios.dado ?? []).map((m) => m.cod_ibge)), [municipios.dado])
@@ -153,8 +160,12 @@ export function Explorar({ municipio: municipioRota, uf: ufRota, pedidoId }: { m
   }, [feicao])
 
   const ufExibida = pedidoId && uf ? uf : (pedidoAberto || desenhando) && selecaoPedido?.uf ? selecaoPedido.uf : uf
-  const nome = municipio ? `Brasil / ${UFS[ufFoco ?? ""] ?? ufFoco ?? ""} / ${funil.dado?.municipio ?? String(feicao?.properties.nome ?? "Município")}` : ufExibida ? `Brasil / ${UFS[ufExibida] ?? ufExibida}` : "Brasil"
-  const resumo = useMemo(() => municipio ? (funil.carregando ? undefined : funil.dado ? [funil.dado] : []) : municipios.dado?.filter(m => !ufExibida || m.uf === ufExibida), [municipio, funil.dado, funil.carregando, municipios.dado, ufExibida])
+  // A identidade protege também o primeiro render da nova rota, antes do efeito de useCarga.
+  const funilAtual = funil.dado?.cod_ibge === municipio ? funil.dado : null
+  const nomeMunicipio = funilAtual?.municipio ?? String(feicao?.properties.nome ?? municipio ?? "Município")
+  const carregandoFunilAtual = funil.carregando || Boolean(funil.dado && !funilAtual)
+  const nome = municipio ? `Brasil / ${UFS[ufFoco ?? ""] ?? ufFoco ?? ""} / ${nomeMunicipio}` : ufExibida ? `Brasil / ${UFS[ufExibida] ?? ufExibida}` : "Brasil"
+  const resumo = useMemo(() => municipio ? (carregandoFunilAtual ? undefined : funilAtual ? [funilAtual] : []) : municipios.dado?.filter(m => !ufExibida || m.uf === ufExibida), [municipio, funilAtual, carregandoFunilAtual, municipios.dado, ufExibida])
   const contagem = coberturaMapa.dado ? contarCobertura(coberturaMapa.dado) : null
   const abrirFiltro = (mensagem: string) => { setAvisoFiltro(mensagem); filtrosDialogo.current?.showModal() }
   const filtros = <>
@@ -215,7 +226,7 @@ export function Explorar({ municipio: municipioRota, uf: ufRota, pedidoId }: { m
           aoEscolherEstado={sigla => escolherTerritorio({ uf: sigla })}
         /></Suspense>
         </div>
-        {!desenhando && <div ref={cartao} className="cartao-v2-posicao"><CartaoTerritorioV2 nome={nome} municipios={resumo} carregando={municipio ? funil.carregando : municipios.carregando} aoAbrirDados={() => { setDadosAbertos(true); dadosDialogo.current?.showModal() }} ampliado={ampliado} aoAlternar={() => setAmpliado(v => !v)} aoArrastar={y => { arraste.current = y }} aoSoltar={soltar} /></div>}
+        {!desenhando && <div ref={cartao} className="cartao-v2-posicao"><CartaoTerritorioV2 nome={nome} municipios={resumo} carregando={municipio ? carregandoFunilAtual : municipios.carregando} aoAbrirDados={() => { setDadosAbertos(true); dadosDialogo.current?.showModal() }} ampliado={ampliado} aoAlternar={() => setAmpliado(v => !v)} aoArrastar={y => { arraste.current = y }} aoSoltar={soltar} /></div>}
         {!pedidoAberto && !desenhando && <>
           <nav className="camadas-v2" aria-label="Camadas do mapa">{camadas}</nav>
           <button type="button" className="camadas-v2-abrir" onClick={() => camadasDialogo.current?.showModal()}><Layers size={18} aria-hidden="true" />Camadas</button>
@@ -240,10 +251,10 @@ export function Explorar({ municipio: municipioRota, uf: ufRota, pedidoId }: { m
             <Suspense fallback={<p className="painel-conteudo" role="status">Abrindo o município…</p>}>{municipio && estados.dado?.acesso === "publico_basico" ? (
               <PainelMunicipioBasico
                 key={municipio}
-                nome={funil.dado?.municipio ?? (feicao?.properties.nome as string | undefined) ?? "Município"}
+                nome={nomeMunicipio}
                 uf={ufFoco ?? ""}
                 centro={centro}
-                funil={funil.dado ?? null}
+                funil={funilAtual}
                 imoveis={basicos.carregando ? undefined : basicos.dado ?? null}
                 situacao={situacaoBasica}
                 mudarSituacao={setSituacaoBasica}
@@ -257,7 +268,7 @@ export function Explorar({ municipio: municipioRota, uf: ufRota, pedidoId }: { m
                 nome={(feicao?.properties.nome as string | undefined) ?? null}
                 uf={(feicao?.properties.uf as string | undefined) ?? null}
                 centro={centro}
-                funil={funil.carregando ? undefined : (funil.dado ?? null)}
+                funil={carregandoFunilAtual ? undefined : funilAtual}
                 imoveis={imoveis.carregando ? undefined : (imoveis.dado ?? null)}
                 foco={foco}
                 aoFocar={(f) => setFoco(f)}

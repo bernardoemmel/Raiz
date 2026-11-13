@@ -217,6 +217,8 @@ async function conferirPainelAutorizadoV2(base) {
   })
   const depoisDoZoom = await p.evaluate(() => document.querySelector(".mapa-brasil .mapa").__mapa.getSource("lote-autorizado").serialize().data.features)
   assert.deepEqual(depoisDoZoom.map(f => f.geometry), [geometriaInicial], "O contorno autorizado deve permanecer depois da carga municipal.")
+  const ordemCamadas = await p.evaluate(() => document.querySelector(".mapa-brasil .mapa").__mapa.getStyle().layers.map(l => l.id))
+  assert(ordemCamadas.indexOf("lote-autorizado-linha") > ordemCamadas.indexOf("sentinel-publico-veu"), "O contorno autorizado precisa ficar por cima do satélite e do véu.")
   await p.screenshot({ path: path.join(resultado, "painel-pedido-v2-api-zoom12.png") })
   await painel.locator(".pedido-mapa-v2-abas").getByRole("button", { name: "Mais seguro", exact: true }).click()
   await p.waitForFunction(esperado => {

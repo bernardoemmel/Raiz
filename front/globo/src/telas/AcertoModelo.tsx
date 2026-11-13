@@ -38,6 +38,7 @@ export function AcertoModelo() {
       <h1>Acerto do modelo</h1>
       <p className="frase">Quanto as previsões de cada versão se aproximaram do que foi observado no mundo real.</p>
       <p>As notas usam observações na data-alvo de cada previsão, com fonte e registro congelado. Avaliações ao vivo e retrospectivas aparecem separadas.</p>
+      <details className="acerto-leitura"><summary>Como ler as notas</summary><p>Crédito, custo e área usam erros na unidade do alvo. Previsões de categoria usam a parcela correta. Uma chance precisa ser avaliada também pelo erro de probabilidade: acertar uma categoria não basta.</p><p>A faixa P10 a P90 deve conter aproximadamente 80% das observações ao longo do tempo. Uma única nota não resume modelos que fazem tarefas diferentes. Sem um período de medição estruturado, só a data-alvo exata confirma o mesmo horizonte. Medições antecipadas ou tardias e eventos sem janela comprovada ficam fora. Essa cobertura restrita não representa todas as observações. Grupos ainda sem resultado, com menos de cinco imóveis ou com tipos incompatíveis não são misturados.</p></details>
       <div aria-live="polite" aria-busy={carga.carregando}>
         {carga.carregando ? <Estado tipo="carregando" titulo="Consultando o aprendizado" /> : carga.erro ? <Estado tipo="erro" titulo="Não foi possível consultar o aprendizado agora."><p>Os resultados não foram substituídos por zero.</p><button className="botao" onClick={() => setTentativa((t) => t + 1)}>Tentar de novo</button></Estado> : !resumo?.versoes.length ? <Estado tipo="vazio" titulo="Ainda não há comparações reais publicáveis.">
           <p>O painel aguarda observações na data-alvo e registros que comprovem a cronologia. Dados de outro período ou sem essa prova ficam fora, sem receber nota zero. Cada grupo precisa de pelo menos {resumo?.minimo_imoveis ?? 5} imóveis distintos para preservar os dados individuais. Um grupo sem evidência suficiente não recebe nota zero.</p>
@@ -65,7 +66,6 @@ export function AcertoModelo() {
           </section>)}</div>
         </>}
       </div>
-      <section className="acerto-leitura"><h2>Como ler as notas</h2><p>Crédito, custo e área usam erros na unidade do alvo. Previsões de categoria usam a parcela correta. Uma chance precisa ser avaliada também pelo erro de probabilidade: acertar uma categoria não basta.</p><p>A faixa P10 a P90 deve conter aproximadamente 80% das observações ao longo do tempo. Uma única nota não resume modelos que fazem tarefas diferentes. Sem um período de medição estruturado, só a data-alvo exata confirma o mesmo horizonte. Medições antecipadas ou tardias e eventos sem janela comprovada ficam fora. Essa cobertura restrita não representa todas as observações. Grupos ainda sem resultado, com menos de cinco imóveis ou com tipos incompatíveis não são misturados.</p></section>
     </main>
   </>
 }
