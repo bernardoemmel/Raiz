@@ -12,7 +12,9 @@ traz a fonte, a data e as contagens públicas. O build limita o gzip a 560.000 b
 `FonteDeDados.geo.agregados()` lê o índice uma vez e, quando o anúncio normal é válido, entrega uma
 URL estática da mesma origem ao mapa. Somente o caminho público `geo/agregados_brasil.geojson`, sob a
 base configurada, é aceito. O worker do MapLibre busca e interpreta o arquivo diretamente: a thread
-principal não precisa descomprimir, ler as feições e serializá-las de novo. Os hashes registram os
+principal não precisa descomprimir, validar as feições e serializá-las de novo no adaptador da Raíz.
+O MapLibre ainda pode manter uma cópia interna do GeoJSON na fonte; não se afirma ausência total de
+cópias ou trabalho na thread principal. Os hashes registram os
 bytes conferidos no build; não significam verificação criptográfica pelo navegador. O transporte pode
 usar compressão HTTP conforme o servidor, sem alterar o arquivo publicado. Índices antigos continuam
 usando o gzip e o parser com projeção positiva no navegador. Sem anúncio, a fonte retorna ausência sem

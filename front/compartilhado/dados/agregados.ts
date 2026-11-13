@@ -39,7 +39,7 @@ export function lerMetadadosAgregados(valor: unknown): AgregadosMapa["metadados"
   }
 }
 
-/** URL pública fixa, sem corpo na thread principal. O SHA é conferido no build, não pelo worker. */
+/** URL pública fixa, sem ler as feições neste adaptador. O SHA é conferido no build, não pelo worker. */
 export function lerAgregadosMapaUrl(valor: unknown, base: string, origem: string, pagina = origem): AgregadosMapa | null {
   const item = objeto(valor), normal = objeto(item.normal), metadados = lerMetadadosAgregados(item.metadados)
   const hash = (v: unknown) => typeof v === "string" && v.length === 64 && /^[0-9a-f]{64}$/.test(v)
