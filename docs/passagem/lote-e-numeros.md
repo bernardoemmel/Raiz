@@ -424,3 +424,11 @@ não são alargados artificialmente para conter a curva; histórico recusa alter
 41 testes focados adicionais passaram. O processo da execução integral anterior
 terminou sem registrar conclusão (nenhum workflow cancelado); a bateria será
 repetida após sincronizar a main.
+
+Integração nacional da R12: cronograma e multas das selecionadas agora seguem
+a soma de suas curvas por método/bioma; os fluxos são reutilizados na economia.
+Atualização e consultas automáticas usam o cenário padrão vigente e seus preço
+e fração máxima de dívida, preservando pedidos explícitos. Nove testes de fluxo
+e publicação passaram; 53 testes nacionais/fila passaram após resolver conflitos.
+Ainda falta importar a rodada PA R12 publicada, indexar a cobertura vigente,
+repetir benchmark, concluir CI e publicação nacional. O PR #94 permanece rascunho.

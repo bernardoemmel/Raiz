@@ -164,7 +164,7 @@ def atualizar(arm, trabalho: Path, *, max_ufs: int = 27, limite_minutos: float =
         identidade = {
             "ativos": "PA144_historico" if historico else {n: ativos[n]["id"] for n in nomes},
             "modelo": R.versao(),
-            "cenario": "central_r11",
+            "cenario": R.cenario()["cenario"],
             "indice": C.versao_indice(),
         }
         chave = hashlib.sha256(C._json(identidade)).hexdigest()
@@ -185,7 +185,9 @@ def atualizar(arm, trabalho: Path, *, max_ufs: int = 27, limite_minutos: float =
         partes = []
         for arquivo in sorted(fonte.glob("imoveis_*.csv")):
             cod = int(arquivo.stem.rsplit("_", 1)[1])
-            partes.append(C.indexar_municipio(fonte, uf, cod, indice, modelo=R.versao(), cenario="central_r11"))
+            partes.append(
+                C.indexar_municipio(fonte, uf, cod, indice, modelo=R.versao(), cenario=R.cenario()["cenario"])
+            )
         vazios = _vazios(fonte, uf)
         catalogo = C.consolidar_catalogo(
             partes, indice, municipios_esperados={uf: esperados[uf]}, sem_imoveis={uf: vazios}, proveniencia=captura
@@ -318,7 +320,10 @@ def consultar(arm, atual, trabalho, *, recortes=None, pedido=None) -> dict:
     catalogo = reunir_catalogo(arm, atual, trabalho)
     if not atual["ufs"]:
         return {"consultas_publicadas": 0}
-    pedido = pedido or CamposPedido()
+    cenario = R.cenario()
+    pedido = pedido or CamposPedido(
+        dinheiro={"preco_venda_usd": cenario["preco_usd_t"], "fracao_financiada": cenario["fracao_financiada"]}
+    )
     recortes = recortes or {
         **{u: N.normalizar_recorte(ufs=[u]) for u in atual["ufs"]},
         **{b: N.normalizar_recorte(biomas=[b]) for b in N.BIOMAS},
@@ -338,7 +343,7 @@ def consultar(arm, atual, trabalho, *, recortes=None, pedido=None) -> dict:
             and anterior.get("pedido") == normalizado.model_dump()
         ):
             continue
-        argumentos = dict(modelo=R.versao(), cenario="central_r11", destino=trabalho / "consultas")
+        argumentos = dict(modelo=R.versao(), cenario=cenario["cenario"], destino=trabalho / "consultas")
         selecionado = N.montar_tres_opcoes(catalogo, pedido, recorte, **argumentos)
         origens = fontes_selecionadas(arm, atual, selecionado, trabalho, cache)
         completo = (

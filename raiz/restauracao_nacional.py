@@ -262,11 +262,16 @@ def _quadro_terra(con):
     """
     acoes = {
         "privada_matricula": "Inteiro teor e certidão de ônus atuais; conferir titular, limites e direitos de carbono.",
-        "posse_em_titulacao": "Concluir titulação no órgão competente e conferir título registrado; protocolo não libera venda.",
+        "posse_em_titulacao": (
+            "Concluir titulação no órgão competente e conferir título registrado; protocolo não libera venda."
+        ),
         "assentamento": "Conferir título ou concessão, anuência do INCRA e direitos de uso e carbono.",
         "publica_concessao": "Conferir concessão vigente, anuência do ente público e direito contratual sobre carbono.",
         "publica_sem_destinacao": "Definir destinação legal pelo ente competente; sem contrato de carbono antes disso.",
-        "terra_indigena_ou_tradicional": "Consulta livre, prévia e informada, representação legítima e regra de 50%; conferir regime jurídico aplicável.",
+        "terra_indigena_ou_tradicional": (
+            "Consulta livre, prévia e informada, representação legítima e regra de 50%; "
+            "conferir regime jurídico aplicável."
+        ),
     }
     consulta = """select uf, coalesce(caminho_terra,'nao_classificada') caminho_terra,
         situacao_previsao, restauracao_versao modelo_origem, restauracao_cenario cenario_origem,
@@ -289,7 +294,10 @@ def _quadro_terra(con):
             ),
             prazo="Não estimado: depende do documento, órgão e caso concreto; registrar prazo após conferência.",
             habilita_venda=False,
-            criterio_texto="Classificação fundiária recebida da fonte; sem exclusão por tamanho. Outras salvaguardas continuam exigidas.",
+            criterio_texto=(
+                "Classificação fundiária recebida da fonte; sem exclusão por tamanho. "
+                "Outras salvaguardas continuam exigidas."
+            ),
             revisao_humana_disponivel=True,
             faixa_tipo="soma_dos_quantis_individuais_nao_quantis_de_carteira",
         )
@@ -569,6 +577,14 @@ def montar_tres_opcoes(
                     extras["economia"] = economia_selecionadas(
                         Path(tabela_info["caminho"]), fontes_selecionadas, c=cenario_financeiro, r=regra, volume=v
                     )
+                    if "cronograma_lote" in extras["economia"]:
+                        for nome_cron in ("cronograma_lote", "cronograma_titulares"):
+                            extras[nome_cron] = extras["economia"].pop(nome_cron)
+                            for marco in extras[nome_cron]["marcos"]:
+                                marco["falta_p50"] = max(0.0, marco["limiar"] - marco["acumulado_p50"])
+                        extras["chance_alvo_atingida"] = (
+                            extras["cronograma_lote"]["chance_todos"] >= contrato["chance_alvo"]
+                        )
                 else:
                     extras["economia"] = {
                         "situacao": "entradas_selecionadas_pendentes",

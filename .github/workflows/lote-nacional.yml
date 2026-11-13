@@ -16,7 +16,7 @@ on:
         type: boolean
         default: false
       pedido:
-        description: "JSON CamposPedido; vazio usa meta de um milhão de créditos e central_r11"
+        description: "JSON CamposPedido; vazio usa um milhão de créditos e o cenário padrão vigente"
         type: string
         default: ""
   workflow_run:

@@ -2,6 +2,7 @@
 
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 
 from raiz import lote as L
@@ -46,6 +47,19 @@ def economia_selecionadas(tabela_parquet: Path, origens: dict[int, Path], *, c: 
         raise ValueError("Versão/cenário da seleção diverge das premissas do fluxo.")
     if t.empty:
         return {"situacao": "sem_selecionadas", "fazendas_com_fluxo": 0}
-    cron = R.cronograma_lote(float(t.credito_p50.sum()), c, r, volume)
-    resultado = L._economia(t, EntradasSelecionadas(t, origens), c, r, volume, cron, {})
-    return {"situacao": "calculada", "modelo_versao": r["versao_completa"], **resultado}
+    entradas = EntradasSelecionadas(t, origens)
+    partes = {}
+    extras = {}
+    if c.get("rodada") == 12:
+        partes = {car: R.fluxo_p50(li, c, r) for car, li in entradas.entradas(t.cod_imovel).items()}
+        for nome, selecionadas in (("titulares", t[t.papel == "titular"]), ("lote", t)):
+            acumulado = sum(
+                (partes[car]["area_ha"] * partes[car]["credito_acumulado_ha"] for car in selecionadas.cod_imovel),
+                np.zeros(int(c["horizonte_anos"]) + 1),
+            )
+            extras[f"cronograma_{nome}"] = R.cronograma_lote(
+                float(selecionadas.credito_p50.sum()), c, r, volume, acumulado_ano=acumulado
+            )
+    cron = extras.get("cronograma_lote") or R.cronograma_lote(float(t.credito_p50.sum()), c, r, volume)
+    resultado = L._economia(t, entradas, c, r, volume, cron, partes)
+    return {"situacao": "calculada", "modelo_versao": r["versao_completa"], **resultado, **extras}
