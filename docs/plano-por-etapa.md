@@ -646,3 +646,7 @@ sem alterar as reservas, as saídas ou o destino da promoção. Novos pedidos da
 
 - [x] Integração do padrão R12 e privacidade de avisos: três falhas do CI
   corrigidas apenas nos testes; seis casos aprovados com PostGIS real local.
+
+- [x] Validação integral após main `52118b5`: 2.725 aprovados, 294 skips de
+  ambiente, um xfail; replay PA aprovado separadamente no CI e seis testes
+  de integração aprovados com PostGIS local.

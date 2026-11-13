@@ -520,3 +520,9 @@ nos microssegundos do horário do aviso. Agora confere o conteúdo protegido
 integralmente, excluindo apenas os metadados identificadores/temporais conhecidos.
 Os seis testes desses módulos/casos passaram com PostGIS real local em 51,23s.
 Nenhuma implementação de API, MCP ou front foi alterada por essas correções.
+
+Suíte integral da integração nacional + R12 + main `52118b5`: **2.725 aprovados,
+294 skips de ambiente, um deselect (replay PA já aprovado no CI) e um xfail**,
+em 658,63s, código de saída zero. Arquivo local:
+`/tmp/raiz-integracao-main-final.log`. Soma-se à execução focada com PostGIS
+dos seis casos ajustados. Ruff/formatação dos 607 arquivos passaram.
