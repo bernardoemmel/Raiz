@@ -4,7 +4,9 @@ Sessão: https://claude.ai/code/session_01VGb88MJumyG9PHt2znaaKE. Branch: `claud
 
 ## Redesenho cartográfico e rodada 12: PR #90 (13/11/2026 UTC)
 
-- Estado atual: **PR #90 aberto, sem merge**. A main `e959023` (PR #105) está integrada em `9a37e3b`:
+- Entrega registrada no [PR #90](https://github.com/bernardoemmel/Raiz/pull/90), com implementação,
+  evidências e resultados locais descritos abaixo. O resultado remoto do CI, merge e auditoria da
+  publicação é registrado no próprio PR. A main `e959023` (PR #105) está integrada em `9a37e3b`:
   retomadas/cotas preservadas e leitores públicos aceitando as subdivisões de até quatro dígitos.
   O único conflito foi o pin do `uv`; a revisão `110773f` alinha os cinco jobs à versão 0.13.6
   compartilhada pela main e exigida pelo teste de retomadas, sem consultar `latest`. O CI
@@ -27,8 +29,8 @@ Sessão: https://claude.ai/code/session_01VGb88MJumyG9PHt2znaaKE. Branch: `claud
   mediana 91**, acessibilidade 100. Todas as amostras foram mantidas, sem repetição para escolher nota.
   A dispersão permanece: a aprovação é pela mediana de três, não significa 90 em toda abertura.
   A imagem nacional não mudou. Ruff passou no escopo do CI, com 637 arquivos formatados; a fila
-  alterada também passou no lint. O CI completo desta composição e a auditoria da publicação ainda
-  são obrigatórios antes de fechar o PR.
+  alterada também passou no lint. Os nove jobs do CI completo são obrigatórios para o merge;
+  a auditoria do artefato e do site publicado conclui a entrega, com evidências no PR.
   O candidato solicita `desynchronized` pela API pública do MapLibre e evita
   calcular a data do calendário nacional sem agenda carregada. No ensaio A/B/B/A, tarefas nativas de
   apresentação de 80/119 ms passaram para 74/57 ms, ainda com espera residual; imagens nacionais e
