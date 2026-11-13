@@ -28,6 +28,19 @@ const ler = (saida: string, arquivo: string) => fs.readFileSync(path.join(saida,
 const schema = (saida: string) => JSON.parse(ler(saida, "index.html").match(/<script id="raiz-dados-estruturados" type="application\/ld\+json">([\s\S]*?)<\/script>/)![1])
 
 describe("páginas para pessoas e agentes", () => {
+  it("explica a malha substituída por UF, sua edição, origem e generalização", () => {
+    const saida = preparar()
+    paginasAgentes({ saida, base: "/Raiz/", catalogo, malhas: { MT: { fonte: "IBGE", ano: 2025, sha256: "a".repeat(64) } } })
+    const fontes = ler(saida, "fontes.md")
+    expect(fontes).toContain("MT: [IBGE, Malha Municipal Digital 2025]")
+    expect(fontes).toContain("/municipio_2025/UFs/MT/MT_Municipios_2025.zip")
+    expect(fontes).toContain("não se aplica ao Brasil inteiro")
+    expect(fontes).toContain("A generalização altera os vetores originais")
+    expect(fontes).toContain("CC BY 4.0")
+    expect(fontes).toContain("SHA-256 do ZIP de origem: " + "a".repeat(64))
+    expect(fontes).not.toContain("PA: [IBGE")
+  })
+
   for (const base of ["/", "/Raiz/"]) {
     it(`publica agregados e links corretos em ${base}`, () => {
       const saida = preparar()

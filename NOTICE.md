@@ -121,8 +121,16 @@ Distribuídas dentro do produto (vão no pacote que o navegador baixa), sem alte
 Gerados por `front/scripts/geo.py` e servidos junto (fora do git): recorte do mapa base do build diário do Protomaps,
 com dados © colaboradores do OpenStreetMap (ODbL 1.0, atribuição no canto do mapa); letras dos rótulos Noto Sans
 (SIL Open Font License 1.1) de protomaps/basemaps-assets; polígonos do CAR (SICAR/SFB) e camadas do INPE TerraBrasilis,
-inclusive o contorno dos 5.570 municípios da tela de entrada (camadas de municípios por bioma, juntadas pelo código
-IBGE) e o dos 27 estados (os mesmos municípios juntados por estado).
+inclusive contornos municipais por bioma, juntados pelo código IBGE, e os 27 estados. Quando um município publicado
+ainda não existe nessa divisão, o gerador substitui **toda a UF** pela mesma edição da Malha Municipal Digital do
+IBGE, incluindo seus municípios de origem. A edição é descoberta no
+[índice oficial](https://geoftp.ibge.gov.br/organizacao_do_territorio/malhas_territoriais/malhas_municipais/);
+UF, ano e SHA-256 do ZIP são registrados no índice público e em `fontes.md`. O cache conserva a origem conferida.
+A [nota técnica da edição 2025](https://www.ibge.gov.br/biblioteca/visualizacao/livros/liv102268.pdf), p. 9,
+declara licença compatível com **CC BY 4.0**, inclusive uso comercial. Os vetores são reprojetados e simplificados
+para visualização, alteração indicada no crédito e nas fontes. São limites de referência estatística, sem valor
+de demarcação ou comprovação de propriedade; as limitações estão nas p. 6–9 da nota. A atribuição da edição é por
+UF: não representa atualização homogênea de toda a base nacional.
 
 Removidos: o globo da abertura saiu do produto em novembro de 2026 (a tela de entrada passou a ser o mapa plano do
 Brasil). Foram apagados a biblioteca `cobe` 2.0.1 (MIT) e os componentes `cobe-globe.tsx` e `cobe-globe-demo.tsx`

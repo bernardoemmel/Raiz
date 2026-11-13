@@ -13,6 +13,7 @@ import { lerBasico } from "./dados/basico"
 import { escreverCsv, lerCsv } from "./dados/csv"
 import { lerFunil } from "./dados/funil"
 import { coberturaDoIndice } from "./dados/cobertura-mapa"
+import { malhasPublicas } from "./dados/malhas-mapa"
 import { UFS } from "./formato"
 import { abrirPasta, nomeSeguro, pastaPadrao } from "./pasta-dados"
 import { paginasAgentes } from "./paginas-agentes"
@@ -149,7 +150,7 @@ export function dadosRaiz(opcoes: { repo: string; raizDados?: string | null; cac
         cobertura.com_desenho = Object.keys(municipios).filter((cod) => municipios[cod].imoveis).sort()
         cobertura.sem_desenho = [...new Set([...cobertura.sem_desenho, ...Object.keys(municipios)])].filter((cod) => !cobertura.com_desenho.includes(cod)).sort()
       }
-      return { brasil, municipios, cobertura, potencial: potencial().indice, potencial_metadados: potencial().metadados, agregados: potencial().agregados }
+      return { brasil, municipios, cobertura, malhas: malhasPublicas(origem.malhas), potencial: potencial().indice, potencial_metadados: potencial().metadados, agregados: potencial().agregados }
     }
     // Compatibilidade com pastas antigas, antes do manifesto: só limites e bases com nome conhecido.
     for (const arquivo of listar(geo).filter(geoPermitido)) {
@@ -160,7 +161,7 @@ export function dadosRaiz(opcoes: { repo: string; raizDados?: string | null; cac
         brasil[arquivo === "base_brasil.pmtiles" ? "base" : arquivo.includes("municipios") ? "municipios" : "estados"] = item
     }
     adicionarGeometriasBasicas(municipios)
-    return { brasil, municipios, potencial: potencial().indice, potencial_metadados: potencial().metadados, agregados: potencial().agregados }
+    return { brasil, municipios, malhas: {}, potencial: potencial().indice, potencial_metadados: potencial().metadados, agregados: potencial().agregados }
   }
   function arquivosGeo() {
     const indice = indiceGeoPublico()
@@ -366,6 +367,7 @@ export function dadosRaiz(opcoes: { repo: string; raizDados?: string | null; cac
         arquivosPublicos(uf).filter(resumoPermitido).flatMap((nome) => lerCsv(resumoPublico(nome) ?? "").linhas.map((linha) => lerFunil(linha, uf)))) : []
       paginasAgentes({
         saida, base, produtor, siteUrl: process.env.RAIZ_SITE_URL,
+        ...(comDados ? { malhas: indiceGeoPublico().malhas } : {}),
         ...(comDados ? { catalogo: { estados: estadosPublicos(), municipios, arquivos: Object.fromEntries(pasta.ufs().map((uf) => [uf, arquivosPublicos(uf)])) } } : {}),
       })
       const dAmostra = path.join(saida, "amostra")
