@@ -617,3 +617,25 @@ as entregas e as versões fechadas da fila. Frontend local: 338 testes e build; 
 Python, referência real do Pará, navegador, agentes, ponta a ponta, segurança, segredos e workflows.
 O código da fila paralela, checkpoint, proteção dos retratos e painel está na main; a implantação
 do site ainda será conferida. A rodada 12 #99 segue no seu CI, sem cancelamentos automáticos por push.
+
+
+## Validação final dos formatos do Lote PA
+
+A suíte completa integrada passou em **3.200 testes**, sem skips e com apenas o xfail de TIR já
+documentado, em 35min34s, com PostGIS, LanguageTool real, Takumi e a referência completa do Pará.
+A main foi puxada novamente; #95 e #97 estão integrados sem conflito. Os 42 testes relacionados
+a calendário/MCP/privacidade passaram depois desse merge. Ruff, formatação, actionlint, 862 licenças
+e Gitleaks em 429 commits passaram. O frontend é idêntico ao do #95 mais a main já conferida.
+
+A prova real do Lote PA gerou 19 derivados e os reconstruiu com SHA-256 idêntico, conferindo 987
+membros originais. Os cinco produtos originais não são reenviados. Croissant, quantis hubverse com
+versão, cartão e CAD Trust ficam integrados ao catalogador e ao verificador portátil. A entrega
+ainda aguarda CI/merge e publicação/atestação remotas; não declarar o Release inteiro conferido
+antes de executar o verificador com atestações.
+
+O acesso do cliente real ao arquivo privado foi confirmado pelo diagnóstico `43363773180`,
+às 04h14 UTC: repositório 200, tag 404 esperada para draft, lista de Releases 200 e draft confirmado.
+As continuações `43363213890` e `43363458134` também passaram. A fila tinha 15 reservas globais
+(12 do Lote PA em `43361839589`, mais MT-2, AM e GO-1) e 29 pedidos, sete bloqueados no histórico.
+As reservas vivas continuam intactas; novos trabalhos aguardam vaga. A causa específica dos
+403 anteriores permanece não comprovada.
