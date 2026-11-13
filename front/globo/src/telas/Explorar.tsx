@@ -51,7 +51,7 @@ export function Explorar({ municipio, uf }: { municipio: string | null; uf: stri
   const ufFoco = municipio ? ufDoCodigo(municipio) : uf
   const agregados = useCarga(() => fonte.geo.agregados ? fonte.geo.agregados() : Promise.resolve(null), [])
   const leiloes = useCarga(() => municipio ? calendario.leiloes({ estado: ufFoco || undefined }) : Promise.resolve(null), [municipio, ufFoco])
-  const emLeilao = useMemo(() => codigosEmLeilao(leiloes.dado?.eventos ?? []), [leiloes.dado])
+  const emLeilao = useMemo(() => leiloes.dado ? codigosEmLeilao(leiloes.dado.eventos) : new Set<string>(), [leiloes.dado])
   const funil = useCarga(() => (municipio ? fonte.municipio(municipio) : Promise.resolve(null)), [municipio])
   const imoveis = useCarga(() => (municipio ? fonte.imoveis(municipio) : Promise.resolve(null)), [municipio])
   const basicos = useCarga(() => (municipio && fonte.basicos ? fonte.basicos(municipio) : Promise.resolve(null)), [municipio])
