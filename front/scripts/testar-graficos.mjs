@@ -50,7 +50,9 @@ createRoot(document.getElementById("root")!).render(<div className="pagina"><h1>
   })
   await new Promise((resolve) => servidor.listen(0, "127.0.0.1", resolve))
   const origem = `http://127.0.0.1:${servidor.address().port}`
-  navegador = await chromium.launch({ executablePath: process.env.CHROME_PATH || "/usr/bin/chromium", headless: true, args: ["--no-sandbox"] })
+  const executablePath = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE || process.env.CHROME_PATH
+    || await fs.access("/usr/bin/chromium").then(() => "/usr/bin/chromium", () => chromium.executablePath())
+  navegador = await chromium.launch({ executablePath, headless: true, args: ["--no-sandbox"] })
   const resultados = []
   for (const largura of [360, 1280]) {
     const contexto = await navegador.newContext({ viewport: { width: largura, height: 900 }, reducedMotion: "reduce" })

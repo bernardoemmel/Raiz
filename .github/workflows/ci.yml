@@ -143,6 +143,21 @@ jobs:
         run: cd front/globo && npm run test:cena
       - name: Pedido nacional (estados, biomas, cobertura, teclado e celular)
         run: cd front/globo && node ../scripts/testar-pedido-nacional.mjs
+      - name: Ficha de crédito (base comparável, revisão, acesso pago e celular)
+        run: node front/scripts/testar-ficha-credito.mjs
+      - name: Gráficos autorizados (ECharts, Vega-Lite, evidência, teclado e celular)
+        env:
+          RAIZ_GRAFICOS_EVIDENCIAS: ${{ github.workspace }}/front/.cache/teste-graficos
+        run: node front/scripts/testar-graficos.mjs
+      - name: Evidências da ficha de crédito e dos gráficos
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ficha-credito-graficos
+          path: |
+            front/.cache/teste-ficha-credito
+            front/.cache/teste-graficos
+          if-no-files-found: ignore
       - name: Evidências da cena-alvo
         if: always()
         uses: actions/upload-artifact@v4
