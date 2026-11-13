@@ -97,3 +97,41 @@ def test_verificar_acesso_nao_depende_da_paginacao_dos_assets(tmp_path, monkeypa
     gh.privado = False
     with pytest.raises(PermissionError):
         arm.verificar_publicacao()
+
+
+@pytest.mark.parametrize("alteracao", ["nenhuma", "publicado", "apagado", "acesso_recusado"])
+def test_rascunho_reutiliza_id_mas_revalida_privacidade_e_existencia(tmp_path, alteracao):
+    chamadas = []
+    repeticao = False
+
+    def servidor(req):
+        chamadas.append(req.url.path)
+        if req.url.path.endswith("/teste/repo"):
+            return httpx.Response(200, json={"private": False})
+        if req.url.path.endswith("/tags/privado"):
+            return httpx.Response(404)
+        if req.url.path.endswith("/releases/7"):
+            if alteracao == "acesso_recusado":
+                return httpx.Response(403)
+            if alteracao == "apagado":
+                return httpx.Response(404)
+            return httpx.Response(200, json={"id": 7, "tag_name": "privado", "draft": alteracao != "publicado"})
+        assert req.url.path.endswith("/releases")
+        ident = 8 if repeticao and alteracao == "apagado" else 7
+        return httpx.Response(200, json=[{"id": ident, "tag_name": "privado", "draft": True, "assets": []}])
+
+    with httpx.Client(transport=httpx.MockTransport(servidor)) as cli:
+        arm = ArmazemRelease("teste/repo", "privado", tmp_path, token="segredo", cliente=cli, privado=True)
+        arm.verificar_publicacao()
+        repeticao = True
+        if alteracao == "publicado":
+            with pytest.raises(PermissionError):
+                arm.verificar_publicacao()
+        elif alteracao == "acesso_recusado":
+            with pytest.raises(FalhaHTTPPrivada, match="403"):
+                arm.verificar_publicacao()
+        else:
+            arm.verificar_publicacao()
+        assert arm._release_id == (8 if alteracao == "apagado" else 7)
+    assert chamadas.count("/repos/teste/repo/releases/tags/privado") == (2 if alteracao == "apagado" else 1)
+    assert chamadas.count("/repos/teste/repo") == 2

@@ -667,6 +667,18 @@ class ArmazemRelease:
     @_erro_http_privado("consultar Release")
     def _release(self, *, listar_assets: bool = True) -> dict:
         h = self._cabecalhos()
+        if identificador := getattr(self, "_release_id", None):
+            # Rascunhos retornam 404 na rota por tag. O ID evita repetir esse
+            # erro e a listagem de releases, mas nunca dispensa acesso remoto.
+            r = self.cli.get(f"{self.API}/repos/{self.repo}/releases/{identificador}", headers=h)
+            if r.status_code != 404:
+                r.raise_for_status()
+                rel = r.json()
+                if rel.get("tag_name") == self.tag and rel.get("id") == identificador:
+                    if listar_assets:
+                        rel["assets"] = self._assets(rel)
+                    return rel
+            self._release_id = None
         r = self.cli.get(f"{self.API}/repos/{self.repo}/releases/tags/{self.tag}", headers=h)
         if r.status_code == 404 and self.privado:
             # Rascunhos podem não ter referência de tag publicada; continuam listados para o token autorizado.
@@ -678,6 +690,7 @@ class ArmazemRelease:
                 releases = pagina_r.json()
                 for release in releases:
                     if release.get("tag_name") == self.tag:
+                        self._release_id = release["id"]
                         if listar_assets:
                             release["assets"] = self._assets(release)
                         return release
@@ -685,6 +698,8 @@ class ArmazemRelease:
                     break
         r.raise_for_status()
         rel = r.json()
+        if rel.get("tag_name") == self.tag:
+            self._release_id = rel["id"]
         if listar_assets:
             rel["assets"] = self._assets(rel)
         return rel

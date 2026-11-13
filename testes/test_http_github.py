@@ -48,6 +48,25 @@ def test_revalidacao_sempre_remota_preserva_bytes_gzip_e_cota():
         assert all(r.headers["authorization"] == CABECALHOS["Authorization"] for r in chamadas)
 
 
+def test_revalidacao_comporta_metadados_do_release_real_sem_cache_de_binarios():
+    dados = b"x" * 1_300_000
+    chamadas = []
+
+    def servidor(req):
+        chamadas.append(req)
+        if req.headers.get("if-none-match"):
+            return httpx.Response(304)
+        return httpx.Response(200, content=dados, headers={"ETag": '"grande"'})
+
+    with httpx.Client(transport=httpx.MockTransport(servidor)) as cli:
+        c = H.ClienteGitHub(cli)
+        assert c.get(URL, headers=CABECALHOS).content == dados
+        assert c.get(URL, headers=CABECALHOS).content == dados
+        assert chamadas[-1].headers["if-none-match"] == '"grande"'
+        c.get(URL, headers={**CABECALHOS, "Accept": "application/octet-stream"})
+        assert "if-none-match" not in chamadas[-1].headers
+
+
 @pytest.mark.parametrize("status", [401, 403, 404, 500])
 def test_falha_nunca_reaproveita_resposta_anterior(status):
     respostas = [httpx.Response(200, json={"draft": True}, headers={"ETag": '"v1"'}),

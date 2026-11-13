@@ -116,7 +116,7 @@ class ClienteGitHub:
                 return httpx.Response(200, content=corpo, headers=combinados, request=resposta.request)
             self._cache.pop(chave, None)
             if (resposta.status_code == 200 and resposta.headers.get("etag")
-                    and len(resposta.content) <= 512 * 1024):  # fmt: skip
+                    and len(resposta.content) <= 2 * 1024 * 1024):  # fmt: skip
                 self._cache[chave] = (resposta.headers["etag"], resposta.content, dict(resposta.headers))
                 while len(self._cache) > 64:
                     self._cache.popitem(last=False)
