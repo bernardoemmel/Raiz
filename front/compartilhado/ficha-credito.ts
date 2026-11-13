@@ -11,6 +11,7 @@ export interface SecaoFichaCredito {
 export interface BaseFichaCredito {
   horizonte_anos: number
   unidade: "tCO2e"
+  metrica: "credito_carbono" | "credito_liquido" | "reducao_flag"
   /** Declara quais imóveis compõem tanto o numerador como a área elegível. */
   escopo_carteira: "titulares" | "titulares_e_reservas"
   inicio: string | null
@@ -57,13 +58,19 @@ export interface FichaCredito {
 }
 
 export const SECOES_FICHA_CREDITO: readonly SecaoFichaCreditoId[] = ["titulo", "metodo", "perdas", "garantias", "risco_nao_entrega"]
-export const FONTES_FICHA_CREDITO = ["Raíz, motor de lotes", "Raíz, revisão técnica", "SICAR, polígono do CAR", "Ibama, embargos", "Funai, terras indígenas", "CNUC, unidades de conservação", "Registro de projeto de carbono", "Registro de emissão", "Registro de entrega", "Contrato assinado"] as const
+export const FONTES_FICHA_CREDITO = ["Raíz, motor de lotes", "Raíz, revisão técnica", "SICAR, polígono do CAR", "Ibama, embargos", "Funai, terras indígenas", "CNUC, unidades de conservação", "Registro de projeto de carbono", "Registro de emissão", "Registro de entrega", "Relatório de verificação", "Contrato assinado"] as const
 export const TEXTOS_SECAO_FICHA: Record<SecaoFichaCreditoId, readonly string[]> = {
   titulo: ["Documentação da terra ainda não conferida.", "Documentação da terra conferida; acompanhar a validade das certidões.", "Há pendências documentais no lote."],
-  metodo: ["Estimativa agregada do motor para a composição e o horizonte desta ficha.", "Resultado verificado para a composição e o horizonte desta ficha."],
+  metodo: ["Estimativa agregada do motor para a composição e o horizonte desta ficha.", "Resultado verificado para a composição e o horizonte desta ficha.", "Créditos emitidos no registro para a composição e o horizonte desta ficha.", "Entrega comprovada para a composição e o horizonte desta ficha."],
   perdas: ["Perdas incorporadas na estimativa do motor; conferir as premissas na fonte.", "Perdas ainda não documentadas para este horizonte."],
   garantias: ["Garantias ainda não documentadas.", "Garantias documentadas; conferir escopo, validade e condições na fonte."],
   risco_nao_entrega: ["Risco de não entrega ainda não avaliado.", "Risco de não entrega avaliado; conferir as condições e limitações na fonte."],
+}
+export const ORIGEM_EVIDENCIA_FICHA: Record<BaseFichaCredito["classe_evidencia"], readonly [string, string]> = {
+  estimativa_modelo: ["Raíz, motor de lotes", TEXTOS_SECAO_FICHA.metodo[0]],
+  verificado: ["Relatório de verificação", TEXTOS_SECAO_FICHA.metodo[1]],
+  emitido: ["Registro de emissão", TEXTOS_SECAO_FICHA.metodo[2]],
+  entregue: ["Registro de entrega", TEXTOS_SECAO_FICHA.metodo[3]],
 }
 
 export function fichaCreditoIndisponivel(opcao_id: FichaCredito["opcao_id"], revisao_lote: string | null = null, exemplo = false): FichaCredito {
@@ -90,6 +97,20 @@ function faixa(v: unknown) {
   return { p10, p50, p90 }
 }
 
+function mesmosResultados(resultados: ResultadosGraficos, base: BaseFichaCredito, area: number | null, publicada_em: string): boolean {
+  if (Date.parse(resultados.gerado_em) > Date.parse(publicada_em)) return false
+  if (!resultados.contratos.length && !resultados.comparacoes.length) return true
+  if (base.inicio === null || base.fim === null || area === null) return false
+  const referencias = [...resultados.contratos.map(s => s.referencia), ...resultados.comparacoes.flatMap(c => [c.previsao.referencia, c.observado.referencia])]
+  if (referencias.some(r => r.classe !== base.classe_ativo || r.metrica !== base.metrica
+    || r.escopo_carteira !== base.escopo_carteira || r.area_elegivel_carteira_ha !== area
+    || r.inicio !== base.inicio || r.fim !== base.fim
+    || r.horizonte_dias !== (Date.parse(base.fim!) - Date.parse(base.inicio!)) / 86400000
+    || r.unidade !== (r.escala === "lote" ? base.unidade : `${base.unidade}/ha`)
+    || r.area_base_ha !== (r.escala === "lote" ? area : 1))) return false
+  return resultados.contratos.every(s => s.marcos.every(m => m.data >= base.inicio! && m.data <= base.fim!))
+}
+
 /** Projeção positiva; legado, inconsistência e revisão antiga viram desconhecido, jamais zero. */
 export function lerFichaCredito(valor: unknown, esperado: { opcao_id: FichaCredito["opcao_id"]; revisao_lote: string | null; exemplo: boolean }): FichaCredito {
   const ausente = fichaCreditoIndisponivel(esperado.opcao_id, esperado.revisao_lote, esperado.exemplo)
@@ -113,12 +134,17 @@ export function lerFichaCredito(valor: unknown, esperado: { opcao_id: FichaCredi
       if (esperadoFim.toISOString().slice(0, 10) !== fim) return ausente
     }
     if (b.unidade !== "tCO2e" || !["titulares", "titulares_e_reservas"].includes(String(b.escopo_carteira))
+      || !["credito_carbono", "credito_liquido", "reducao_flag"].includes(String(b.metrica))
+      || ((b.classe_ativo === "flag") !== (b.metrica === "reducao_flag"))
       || !["credito_carbono", "flag"].includes(String(b.classe_ativo))
       || !["estimativa_modelo", "verificado", "emitido", "entregue"].includes(String(b.classe_evidencia))
       || (b.classe_ativo === "flag" && ["emitido", "entregue"].includes(String(b.classe_evidencia)))) return ausente
-    const base: BaseFichaCredito = { horizonte_anos, inicio, fim, unidade: "tCO2e", escopo_carteira: b.escopo_carteira as BaseFichaCredito["escopo_carteira"], classe_ativo: b.classe_ativo as BaseFichaCredito["classe_ativo"], classe_evidencia: b.classe_evidencia as BaseFichaCredito["classe_evidencia"], metodo: id(b.metodo), modelo_versao: id(b.modelo_versao), fonte: origem(b.fonte), data_referencia: referencia(b.data_referencia), evidencia_id: id(b.evidencia_id) }
+    const base: BaseFichaCredito = { horizonte_anos, inicio, fim, unidade: "tCO2e", metrica: b.metrica as BaseFichaCredito["metrica"], escopo_carteira: b.escopo_carteira as BaseFichaCredito["escopo_carteira"], classe_ativo: b.classe_ativo as BaseFichaCredito["classe_ativo"], classe_evidencia: b.classe_evidencia as BaseFichaCredito["classe_evidencia"], metodo: id(b.metodo), modelo_versao: id(b.modelo_versao), fonte: origem(b.fonte), data_referencia: referencia(b.data_referencia), evidencia_id: id(b.evidencia_id) }
+    const [fonteEvidencia, textoMetodo] = ORIGEM_EVIDENCIA_FICHA[base.classe_evidencia]
+    if (esperado.exemplo ? (base.classe_evidencia !== "estimativa_modelo" || base.fonte !== "Demonstração fictícia") : base.fonte !== fonteEvidencia) return ausente
     if (base.classe_evidencia !== "estimativa_modelo" && (fim === null || fim > base.data_referencia)) return ausente
     const creditos_lote = faixa(r.creditos_lote), area_total_ha = opcional(r.area_total_ha, numero), area_elegivel_ha = opcional(r.area_elegivel_ha, numero)
+    if (["emitido", "entregue"].includes(base.classe_evidencia) && new Set(Object.values(creditos_lote)).size !== 1) return ausente
     const fonte_area = opcional(r.fonte_area, origem), data_referencia_area = opcional(r.data_referencia_area, referencia), evidencia_area_id = opcional(r.evidencia_area_id, id)
     if (area_elegivel_ha !== null && (area_elegivel_ha <= 0 || (area_total_ha !== null && area_elegivel_ha > area_total_ha) || !fonte_area || !data_referencia_area || !evidencia_area_id)) return ausente
     if ((area_total_ha !== null || area_elegivel_ha !== null) && (!fonte_area || !data_referencia_area || !evidencia_area_id)) return ausente
@@ -143,8 +169,10 @@ export function lerFichaCredito(valor: unknown, esperado: { opcao_id: FichaCredi
       if (t !== null && !TEXTOS_SECAO_FICHA[id].includes(t)) return falha()
       return [id, { texto: t, fonte, data_referencia, revisado_em }]
     })) as FichaCredito["secoes"]
+    if (secoes.metodo.texto !== textoMetodo || secoes.metodo.fonte !== base.fonte || secoes.metodo.data_referencia !== base.data_referencia) return ausente
     const resultados = r.resultados == null ? null : lerResultadosGraficos(r.resultados)
     if (resultados && (resultados.origem === "demonstracao") !== esperado.exemplo) return ausente
+    if (resultados && !mesmosResultados(resultados, base, area_elegivel_ha, publicada_em)) return ausente
     return { contrato: "ficha_credito", versao: 1, estado: "disponivel", documento_versao, publicada_em, revisao_lote: esperado.revisao_lote, opcao_id: esperado.opcao_id, exemplo: esperado.exemplo, aviso: texto(r.aviso), base, creditos_lote, creditos_por_ha, area_total_ha, area_elegivel_ha, fonte_area, data_referencia_area, evidencia_area_id, exclusoes, secoes, resultados }
   } catch { return ausente }
 }

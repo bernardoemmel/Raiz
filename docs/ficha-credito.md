@@ -48,6 +48,13 @@ evidência se aplicam à mesma composição e área. Horizonte sem calendário �
 somente para estimativa. Verificado/emitido/entregue exige período completo que
 termine antes da referência. FLAG não recebe os estados emitido ou entregue.
 
+`metrica` identifica crédito de carbono, crédito líquido ou redução FLAG. A classe
+de evidência não é um rótulo livre: estimativa exige origem do motor; verificado
+exige relatório de verificação; emitido e entregue exigem seus registros próprios.
+A seção Método deve declarar a mesma origem, data e conclusão compatível. Uma
+revisão técnica da terra não verifica crédito de carbono. Quantidade efetivamente
+emitida ou entregue é pontual (P10 = P50 = P90), não uma faixa do motor renomeada.
+
 `documento_versao` é SHA-256 do documento validado, incluindo a revisão do lote e
 as evidências; mudar uma revisão técnica muda essa identidade. Esse hash comprova
 a identidade do conteúdo recebido, não guarda sozinho o histórico nem substitui
@@ -69,6 +76,15 @@ vêm de estimativas. Comparações com observações reais precisam de referênc
 unidade, área e período compatíveis, versão e cronologia documentadas. Não há
 invenção de série para preencher um gráfico vazio. Gráficos de demonstração são
 recusados em fichas de pedidos reais.
+
+O acompanhamento também precisa pertencer a esta ficha: `gerado_em` e todos os
+registros limitados por ele antecedem `publicada_em`; classe, métrica, escopo,
+período e horizonte coincidem com a base. Para o total, área e unidade coincidem
+com a área elegível e tCO2e. Por hectare usa tCO2e/ha e base 1, mas conserva o
+denominador original em `area_elegivel_carteira_ha`. Sem calendário ou denominador
+comprovado não há acompanhamento. Períodos anuais e estudos independentes não
+podem ser anexados como se fossem o total deste lote. O anexo inteiro participa
+do hash que já vincula pedido, opção e revisão; não há acesso separado ao gráfico.
 
 ## Demonstração e verificação
 

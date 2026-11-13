@@ -38,6 +38,7 @@ FONTES = {
     "Registro de projeto de carbono",
     "Registro de emissão",
     "Registro de entrega",
+    "Relatório de verificação",
     "Contrato assinado",
 }
 TEXTOS_SECAO = {
@@ -49,6 +50,8 @@ TEXTOS_SECAO = {
     "metodo": {
         "Estimativa agregada do motor para a composição e o horizonte desta ficha.",
         "Resultado verificado para a composição e o horizonte desta ficha.",
+        "Créditos emitidos no registro para a composição e o horizonte desta ficha.",
+        "Entrega comprovada para a composição e o horizonte desta ficha.",
     },
     "perdas": {
         "Perdas incorporadas na estimativa do motor; conferir as premissas na fonte.",
@@ -62,6 +65,15 @@ TEXTOS_SECAO = {
         "Risco de não entrega ainda não avaliado.",
         "Risco de não entrega avaliado; conferir as condições e limitações na fonte.",
     },
+}
+ORIGEM_EVIDENCIA = {
+    "estimativa_modelo": (
+        "Raíz, motor de lotes",
+        "Estimativa agregada do motor para a composição e o horizonte desta ficha.",
+    ),
+    "verificado": ("Relatório de verificação", "Resultado verificado para a composição e o horizonte desta ficha."),
+    "emitido": ("Registro de emissão", "Créditos emitidos no registro para a composição e o horizonte desta ficha."),
+    "entregue": ("Registro de entrega", "Entrega comprovada para a composição e o horizonte desta ficha."),
 }
 
 
@@ -84,6 +96,7 @@ class Faixa(Fechado):
 class BaseCredito(Fechado):
     horizonte_anos: Annotated[int, Field(strict=True, gt=0, le=100)]
     unidade: Literal["tCO2e"]
+    metrica: Literal["credito_carbono", "credito_liquido", "reducao_flag"]
     escopo_carteira: Literal["titulares", "titulares_e_reservas"]
     inicio: dt.date | None
     fim: dt.date | None
@@ -97,6 +110,8 @@ class BaseCredito(Fechado):
 
     @model_validator(mode="after")
     def periodo(self):
+        if self.fonte != ORIGEM_EVIDENCIA[self.classe_evidencia][0]:
+            raise ValueError("a classe de evidência não corresponde à origem documental")
         if (self.inicio is None) != (self.fim is None):
             raise ValueError("o período precisa das duas datas ou de horizonte sem calendário")
         if self.inicio is not None:
@@ -108,6 +123,8 @@ class BaseCredito(Fechado):
                 raise ValueError("horizonte incompatível com as datas")
         if self.classe_ativo == "flag" and self.classe_evidencia in {"emitido", "entregue"}:
             raise ValueError("resultado FLAG não é crédito emitido ou entregue")
+        if (self.classe_ativo == "flag") != (self.metrica == "reducao_flag"):
+            raise ValueError("métrica e classe de ativo precisam representar a mesma quantidade")
         if self.classe_evidencia != "estimativa_modelo" and (self.fim is None or self.fim > self.data_referencia):
             raise ValueError("resultado realizado exige período completo anterior à evidência")
         return self
@@ -173,6 +190,11 @@ class DocumentoFichaCredito(Fechado):
             raise ValueError("publicação exige instante passado com fuso")
         if self.base.data_referencia > self.publicada_em.date():
             raise ValueError("a referência não pode ser posterior à publicação")
+        if (
+            self.base.classe_evidencia in {"emitido", "entregue"}
+            and len(set(self.creditos_lote.model_dump().values())) != 1
+        ):
+            raise ValueError("uma quantidade emitida ou entregue é um registro pontual, não uma faixa do modelo")
         if self.area_elegivel_ha is not None:
             if self.area_elegivel_ha <= 0:
                 raise ValueError("a ficha exige área elegível positiva ou desconhecida")
@@ -199,6 +221,13 @@ class DocumentoFichaCredito(Fechado):
                 raise ValueError("revisão anterior à evidência desta seção")
         if any(d is not None and d > self.publicada_em.date() for d in datas):
             raise ValueError("referência ou revisão posterior à publicação")
+        metodo = self.secoes.metodo
+        if (
+            metodo.texto != ORIGEM_EVIDENCIA[self.base.classe_evidencia][1]
+            or metodo.fonte != self.base.fonte
+            or metodo.data_referencia != self.base.data_referencia
+        ):
+            raise ValueError("a seção Método não comprova a mesma classe e origem dos números")
         # O documento é editorial e agregado: jamais uma certidão bruta ou contato do dono.
         from raiz.publica.privacidade import limpar
 
@@ -211,7 +240,43 @@ class DocumentoFichaCredito(Fechado):
             raise ValueError("fonte fora do catálogo; não publicar nomes livres")
         if self.resultados is not None and self.resultados.origem != "real":
             raise ValueError("demonstrações não entram em fichas de pedidos reais")
+        self._conferir_resultados()
         return self
+
+    def _conferir_resultados(self):
+        """Um acompanhamento desta carteira não pode trazer o período ou a área de outro estudo."""
+        r = self.resultados
+        if r is None:
+            return
+        if dt.datetime.fromisoformat(r.gerado_em) > self.publicada_em:
+            raise ValueError("os gráficos foram gerados depois desta ficha")
+        if not r.contratos and not r.comparacoes:
+            return
+        b = self.base
+        if b.inicio is None or b.fim is None or self.area_elegivel_ha is None:
+            raise ValueError("o acompanhamento exige calendário e denominador elegível da ficha")
+        referencias = [s.referencia for s in r.contratos]
+        referencias.extend(ref for c in r.comparacoes for ref in (c.previsao.referencia, c.observado.referencia))
+        for ref in referencias:
+            if (
+                ref.classe != b.classe_ativo
+                or ref.metrica != b.metrica
+                or ref.escopo_carteira != b.escopo_carteira
+                or ref.area_elegivel_carteira_ha != self.area_elegivel_ha
+                or ref.inicio != b.inicio.isoformat()
+                or ref.fim != b.fim.isoformat()
+                or ref.horizonte_dias != (b.fim - b.inicio).days
+            ):
+                raise ValueError("o gráfico não acompanha a mesma referência da ficha")
+            unidade = b.unidade if ref.escala == "lote" else f"{b.unidade}/ha"
+            area = self.area_elegivel_ha if ref.escala == "lote" else 1
+            if ref.unidade != unidade or ref.area_base_ha != area:
+                raise ValueError("unidade ou denominador do gráfico incompatível com a ficha")
+        # O DTO do gráfico já verifica congelamento/registro e fontes <= gerado_em.
+        # Os marcos precisam estar dentro do próprio horizonte, além de anteriores à ficha.
+        for serie in r.contratos:
+            if any(not b.inicio.isoformat() <= m.data <= b.fim.isoformat() for m in serie.marcos):
+                raise ValueError("marco do acompanhamento fora do período da ficha")
 
     def _textos(self):
         yield self.base.fonte
