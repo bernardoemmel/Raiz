@@ -14,14 +14,17 @@ com regressões. Mudanças de contrato/arquitetura ficam para os chats responsá
 - Correções pequenas encontradas na revisão: rebanho zero, gabarito de certidão em revisão, índice WARC e alertas.
 - Procedimento manual da proteção da main em [operação](../operacao.md#proteção-da-main-o-fundador-ativa-à-mão).
 
-## Pendência explícita: zero testes pulados
+## Estado dos testes: Pará obrigatório e TIR pendente
 
-Nenhum teste foi retirado ou selecionado parcialmente para acelerar o CI. O teste opcional preexistente
-`test_lote_do_para_inteiro_fecha_ou_diz_o_que_falta` ainda depende das 144 tabelas reais `desenvolvedor` do Pará,
-que não existem no Release atual. Portanto a exigência literal de zero skips **não está concluída**.
-O chat Dados precisa publicar o conjunto versionado; então o CI deverá baixar/conferir/cachear o snapshot.
+Nenhum teste foi retirado para acelerar o CI. O teste estadual roda isolado em paralelo aos demais e o portão
+reúne os dois relatórios. O teste antes opcional
+`test_lote_do_para_inteiro_fecha_ou_diz_o_que_falta` passou a exigir o snapshot privado real de 144 municípios,
+publicado por **Lote e números**. A execução real foi demonstrada e a entrega independente abaixo integra a
+preparação autenticada no CI; sem snapshot ou com skip, o resultado falha. Dados financeiros por imóvel nunca
+entram em cache/artifact público. O GitHub recusou o token somente de leitura para acessar o draft; o acesso
+necessário fica restrito ao job estadual interno, e a aprovação integral do CI permanece exigida antes do merge.
 Além disso, permanece o `xfail` preexistente de TIR do plantio (`test_plantio_da_7_a_9_pct_no_central_r11`):
-o teste executa, mas a conta ainda diverge da referência de 7–9%; o chat Produto/regras deve resolver o critério
+o teste executa, mas a conta ainda diverge da referência de 7–9%; **Lote e números / Produto e regras** devem resolver o critério
 em `docs/restauracao-rodada11.md`. O portão de resultados recusa qualquer outro skip/xfail novo.
 O teste da cena-alvo usa a amostra real do repositório e já roda inteiro, sem esse pré-requisito nacional.
 
@@ -248,11 +251,61 @@ O verificador não existe nessas referências: procurá-lo sempre na raiz bloque
 finalizador atual. **31 testes de atestação passaram**, incluindo execução real do passo em checkout legado,
 recusa de subject legado e falha fechada quando o checkout atual falha; actionlint e Ruff passaram.
 
+O [PR #81](https://github.com/bernardoemmel/Raiz/pull/81) foi integrado na main `436c7b6` com os seis checks verdes
+no [CI 43315818208](https://github.com/bernardoemmel/Raiz/actions/runs/43315818208): **2.003 testes passaram,
+1 skip estadual herdado e 1 xfail de TIR**. A entrega abaixo elimina a exceção do skip estadual.
+
 ### Estado atualizado da referência real do Pará
 
 A publicação privada integral já foi concluída por **Lote e números**, conforme sua passagem: 144 municípios e
 345.870 imóveis. A pendência histórica acima não é mais produzir as tabelas `desenvolvedor`. **Qualidade e segurança**
-está integrando no #76 a preparação autenticada das previsões e entradas/geometrias congeladas, conferência de hashes
-e execução do teste estadual. **Lote e números** mantém o contrato, modelo e futuros snapshots. Esses dados financeiros
-por imóvel não devem ir para cache ou artifact público; a recomendação histórica de cache público está superada.
-Até a integração demonstrar a execução real, o skip herdado continua explicitamente pendente e não vale como teste aprovado.
+integra a referência em entrega independente a partir de `436c7b6`, preservando toda a cobertura anterior em oito
+jobs. O job geral passa a se chamar `testes_python`, com 30 minutos; `referencia_para` executa o estadual e
+`checagens` passa a ser o portão final, mantendo o nome do check obrigatório antigo. Não há novas dependências.
+**Lote e números** mantém o contrato, modelo e futuros snapshots. Dados
+financeiros por imóvel não devem ir para cache ou artifact público; a recomendação histórica de cache está superada.
+
+A execução estadual real, com entradas, geometrias e sensibilidade completas, passou em **446,2 s**, com pico de
+RSS de **6.840,2 MiB**, cobrindo os 144 municípios e 345.870 imóveis. A cópia dos cinco arquivos de preparação,
+supervisão e regressões foi conferida por SHA-256. Não houve novo benchmark isolado; a suíte integral desta entrega
+inclui o caso estadual uma vez. A tentativa inicial de CI com `contents: read` foi recusada pelo GitHub, como registra
+o [run 43319627024 do #76](https://github.com/bernardoemmel/Raiz/actions/runs/43319627024): 2.327 outros testes
+passaram, o estadual falhou explicitamente por falta de preparação e a divergência conhecida de TIR continuou
+como xfail. O corpus MCP desse PR continua uma falha separada e não foi dispensado.
+
+A correção da permissão foi comprovada no [job estadual do CI 43324357697](https://github.com/bernardoemmel/Raiz/actions/runs/43324357697/job/131552929571):
+preparação autenticada aprovada, **1 teste estadual passou em 484,76 s**, e limpeza dos dados temporários aprovada.
+Isso comprova o acesso ao draft no job isolado, mas não substitui a aprovação da suíte completa e do CI desta
+entrega independente antes do merge.
+
+Releases em rascunho exigem acesso de escrita/push. Somente `referencia_para`, para código interno, recebe
+`contents: write`; os demais jobs mantêm leitura. Essa permissão alcança também as actions do job, não apenas
+o passo que recebe o token no ambiente. Não foi criada credencial estática nem adicionada operação de publicação.
+O checkout não persiste credenciais; o processo pytest recebe apenas a pasta preparada. Seu subprocesso usa
+ambiente restrito e diagnósticos/JUnit privados apagados ao terminar. O JUnit público recebe
+mensagem fixa em falhas; os dados temporários são apagados por `always()`. Sem preparação válida, caso ausente,
+duplicado, pulado ou falho, o portão recusa o resultado. O caso estadual é a única exclusão do job geral, pois
+é executado no job paralelo; uma regressão compara a coleção real com e sem esse seletor. O portão exige ambos
+os jobs aprovados e exatamente um estadual no conjunto dos dois XMLs, sem permitir que um relatório esconda
+falha do outro. O xfail conhecido de TIR também precisa executar: `xfail(run=False)` reprova.
+
+Fork não executa o job privilegiado e o portão sinaliza a validação privada ausente. Dependabot também pode
+receber token restrito a leitura; alterações revisadas precisam ser promovidas para uma branch confiável para
+essa validação. As opções administrativas de enviar escrita/segredos a forks não foram verificadas (consulta
+recusada com 403) nem alteradas; devem permanecer desativadas, conforme o guia manual. O workflow alterável
+por um PR não substitui essa fronteira do GitHub. Operação: [teste estadual privado](../operacao.md#teste-estadual-privado-do-pará).
+
+A primeira suíte local desta worktree foi interrompida pelo reinício do ambiente perto de 70%, depois de
+executar o estadual; ela não é contabilizada como suíte aprovada. O resultado aprovado é o da retomada abaixo,
+registrado em log persistente.
+
+A retomada integral terminou com **2.079 testes aprovados, nenhum skip e 1 xfail conhecido de TIR**, em
+**1.390,97 s (23 min 10 s)**, com PostGIS, LanguageTool e o snapshot estadual real. Após essa execução, a partição
+do CI foi atualizada para o job privado isolado e o portão conjunto; o corpo científico do teste, seu helper e
+os arquivos do snapshot permaneceram idênticos. **106 testes focados do preparador, supervisor, seleção e portão
+passaram**, em 6,29 s; Ruff global (473 arquivos), actionlint e diff passaram. O portão novo também aprovou o XML
+real da suíte integral, aceitando somente o xfail de TIR executado. O CI da entrega independente ainda é exigido
+antes do merge.
+
+Os demais portões, observabilidade, carga e corpus permanecem no PR #76. O corpus continua bloqueado; esta entrega
+não altera sua política nem equivale a aprovação dos testes de injeção pendentes.

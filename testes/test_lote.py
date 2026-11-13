@@ -1,9 +1,10 @@
 """Lote do ProFloresta+ (raiz/lote.py): um só cálculo da fazenda ao lote, reserva pela chance alvo, preço mínimo para
 12% e 15%, o que destrava o lote, certidões para os 5% homologados, regeneração antes do plantio que o preço não paga,
-checklist do edital, relatório e folha do dono. A amostra roda no CI; o Pará inteiro, quando os dados estão na
-máquina."""
+checklist do edital, relatório e folha do dono. O CI roda a amostra e o snapshot estadual privado autenticado;
+o processo estadual isolado preserva geometria, modelo e sensibilidade, sem publicar diagnósticos."""
 
 import json
+import os
 import re
 import shutil
 from pathlib import Path
@@ -16,9 +17,6 @@ from raiz import lote as L
 from raiz import lote_relatorio as LR
 from raiz import restauracao as R
 from testes.conftest import AMOSTRA
-
-RAIZ = Path(__file__).resolve().parents[1]
-PA_REAL = RAIZ / "dados" / "armazem_local" / "saida" / "PA"
 
 
 @pytest.fixture(scope="module")
@@ -206,10 +204,29 @@ def test_numeros_do_dono_comparam_com_o_gado_e_o_aluguel():
     assert x["pecuaria"]["receita_bruta_rs_ha_ano"] > x["pecuaria"]["sobra_referencia_rs_ha_ano"] > 0
 
 
-@pytest.mark.skipif(len(list(PA_REAL.glob("desenvolvedor_*.csv"))) < 100,
-                    reason="dados do Pará inteiro não estão na máquina (Release dados)")  # fmt: skip
-def test_lote_do_para_inteiro_fecha_ou_diz_o_que_falta():
-    dados = L.ler_uf(PA_REAL.parent, "PA")
+def test_lote_do_para_inteiro_fecha_ou_diz_o_que_falta(monkeypatch):
+    from scripts.testar_para_privado import conferir_preparado, executar_preparado
+
+    preparado = os.environ.get("RAIZ_TESTE_PA_PASTA")
+    if not preparado:
+        pytest.fail("A preparação autenticada do snapshot estadual privado é obrigatória.", pytrace=False)
+    if os.environ.get("RAIZ_TESTE_PA_FILHO") != "1":
+        try:
+            executar_preparado(Path(preparado))
+        except Exception:
+            pytest.fail(
+                "Teste estadual privado não aprovado; os diagnósticos privados não são publicados.", pytrace=False
+            )
+        return
+    pasta = conferir_preparado(Path(preparado))
+
+    def nao_recalcular(*args, **kwargs):
+        pytest.fail(
+            "O teste estadual deve reutilizar previsões; novo cálculo municipal não é permitido.", pytrace=False
+        )
+
+    monkeypatch.setattr(R, "calcular_municipio", nao_recalcular)
+    dados = L.ler_uf(pasta.parent, "PA")
     lote = L.montar(dados)
     r = lote["resumo"]
     assert r["municipios"]["no_estado"] == 144 and r["municipios"]["lidos"] == 144
