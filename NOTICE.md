@@ -69,6 +69,13 @@ fundador em `motor/iovbench/` (EvenOdd, contorno externo menos buracos).
 - Licença: LGPL-2.1 ou posterior. Roda só como serviço separado no servidor (`revisor` em `infra/docker-compose.yml`);
   nenhum código dele é copiado para o produto. `raiz/revisor.py` só chama a API HTTP dele.
 
+## Conferência independente de contagens (rodada 12)
+
+Ibis **12.0.0** ([ibis-project/ibis](https://github.com/ibis-project/ibis), Apache-2.0),
+no extra opcional `conferencia`, executa a mesma expressão de contagem municipal em DuckDB e SQLite.
+Recebe apenas códigos municipais; não substitui a ingestão, não recebe produtores e não altera versões
+travadas dos motores existentes. Nenhum código-fonte de terceiros foi copiado.
+
 ## Extensão spatial do DuckDB
 
 - Origem: https://github.com/duckdb/duckdb-spatial (MIT), baixada de extensions.duckdb.org em tempo de execução, não
@@ -390,9 +397,13 @@ original do Lighthouse; sua compatibilidade é verificada com o teste de agentes
 capturados em transporte local, sem envio ao Sentry. Ao atualizar o Lighthouse ou esse pin, repetir essas
 verificações e a checagem integral de licenças; não liberar FSL nem instalar a CLI como exceção.
 
-## Conferência independente de contagens (rodada 12)
+## Pasta do banco fiador e comprador
 
-Ibis **12.0.0** ([ibis-project/ibis](https://github.com/ibis-project/ibis), Apache-2.0),
-no extra opcional `conferencia`, executa a mesma expressão de contagem municipal em DuckDB e SQLite.
-Recebe apenas códigos municipais; não substitui a ingestão, não recebe produtores e não altera versões
-travadas dos motores existentes. Nenhum código-fonte de terceiros foi copiado.
+Jinja2 **3.1.6**, Pallets ([documentação](https://jinja.palletsprojects.com/)),
+**BSD-3-Clause**: modelos próprios com StrictUndefined, sandbox e escape; não
+se aceita modelo fornecido por cliente ou terceiro. Biblioteca já travada no uv.lock.
+
+Tabulator **6.7.1**, Oli Folkerd ([código](https://github.com/olifolkerd/tabulator)),
+**MIT**, e `@types/tabulator-tables` **6.3.6**, DefinitelyTyped, **MIT**: grade da pasta
+no front. Instalação travada no npm, sem CDN, módulos de exportação ou código copiado.
+Adaptações de teclado/semântica ARIA estão no componente próprio da Raíz.

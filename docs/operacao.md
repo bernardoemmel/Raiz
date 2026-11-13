@@ -66,6 +66,34 @@ byte a byte iguais; a fonte já concluída do sétimo município também não ro
 ou job do Actions é interrompido por esse ensaio. É uma prova do mecanismo de retomada, não um novo
 processamento científico de Roraima em produção.
 
+### Conferência de checkpoints reais e capacidade observada
+
+Em 13/11/2026, três checkpoints do arquivo privado foram restaurados em pastas temporárias privadas,
+com comparação de todos os hashes antes da escrita e remoção das cópias ao final. Nenhum arquivo remoto
+foi alterado. Foram 2.242 arquivos e 182.073.038 bytes:
+
+| Unidade | Arquivos | Bytes | SHA-256 do manifesto |
+|---|---:|---:|---|
+| AM | 494 | 75.162.907 | `a012d77e477b938f3daea82c25666f50ed5c03836e3515a6493674d685d36fe5` |
+| GO-3 | 1.239 | 95.591.491 | `b409cce21c88e44282b900c38bda38d062e06e0caba000e8a0b4bde15d9119ed` |
+| MA-2 | 509 | 11.318.640 | `c28e43cee8dcfaf70e6fbacd039fa793332f3a1b2b4636cc717db7287bfdeb9c` |
+
+Esses resultados comprovam recuperação do que chegou ao checkpoint remoto. Não recuperam arquivos que
+nunca foram enviados e não validam cientificamente os retratos opacos. O selo municipal e os testes de
+retomada local não garantem perda zero se o runner inteiro desaparecer antes da persistência remota.
+
+O [painel em produção](https://bernardoemmel.github.io/Raiz/) foi conferido após o
+[deploy](https://github.com/bernardoemmel/Raiz/actions/runs/43364180632): 27 UFs, horários de Brasília,
+leitura periódica da ref pública e ausência de erros JavaScript/transbordamento horizontal no celular.
+
+Às 04h36 UTC havia 15 reservas de processamento, mas somente três jobs de processamento executando.
+O Actions tinha outros 17 jobs ativos de CI/verificações e 77 jobs aguardando ao todo. O limite CAS
+impede admitir mais de 15 processadores; não controla a ordem de concessão de runners do GitHub.
+A fila repôs vagas liberadas naturalmente, sem cancelar trabalhos. Não houve nova UF concluída na
+janela desde a retomada paralela das 02h53 UTC; geometria ausente no Ibama e filas de runners impedem
+uma previsão nacional defensável. Não confundir os quatro estados completos de rodadas históricas
+no índice com quatro novos estados concluídos nessa janela.
+
 ### Conferência Ibis, sem troca de ingestão
 
 `uv run --extra conferencia python -m raiz.conferencia.ibis_contagem PASTA --saida conferencia.json`
@@ -78,6 +106,34 @@ Conferência real concluída em 12/11/2026: **PI, 130 municípios e 185.791 imó
 56.217 imóveis**. DuckDB, SQLite e contagem de referência concordaram em todos os municípios. Os 242.008
 registros foram lidos de pacotes privados congelados e conferidos por SHA; nenhum dado foi publicado por esse
 ensaio. Evidência agregada: `docs/medicoes/ibis-contagens-rn-pi-2026-11-12.json`.
+## Falhas concorrentes e impedimento da fonte — 13/11/2026
+
+A rodada `43355236141` confirmou erro HTTP 404 na leitura de `estados.json` depois de
+substituição concorrente do asset. A leitura por nome agora relê a lista e o novo ID, até quatro
+tentativas. Ausência transitória depois de um 404 não vira manifesto vazio. Erros de acesso e
+formato continuam falhando; o download de um ID congelado não aceita outro arquivo. A paginação
+revalida o cache HTTP e reinicia todas as páginas ao detectar sobreposição.
+
+A reprodução do funil com o cache oficial confirmou **50 de 50** erros municipais examinados
+no RN: embargo ativo sem geometria utilizável. No arquivo de 117.197 termos, 92.033 são ativos
+pelo critério vigente e 40.270 não têm WKT. No RN, isso alcança 98 municípios; em GO, 195;
+no MA, 168. A presença de WKT, por si só, não atesta sua validade. A evidência agregada, sem
+termos nem pessoas, está em `docs/medicoes/ibama-impedimentos-2026-11-13.json`.
+
+A guarda permanece: não converter restrição desconhecida em área zero nem descartar os imóveis.
+Os logs sem banco/Healthchecks agora registram tipo, arquivo, linha e o motivo fixo
+`embargo_ativo_sem_geometria_utilizavel`, sem texto livre da exceção, variáveis ou geometrias.
+A conclusão nacional depende de resolver esses dados de origem; a janela observada não teve
+UF nova concluída e não permite estimar uma data de término. O processamento dos demais municípios
+e a preservação do progresso continuam.
+
+O destino fechado foi atualizado para `30ace967b885d07c2579c8625a9b5eb9cd4ec53b`, com **19 origens**
+e as 11 versões científicas preservadas. A prova por AST delimita três métodos de leitura/tratamento
+de erro e a classe que transporta somente o status HTTP; o restante do armazém é idêntico ao urgente.
+A ciência do commit preservado não recebe a mudança de hash da carga da main #93. As auditorias
+históricas continuam intactas e reservas vivas não são alteradas. Validação: **66 testes** do leitor,
+diagnóstico, armazém, transferência e checkpoint; **182 testes** de integração da promoção/fila.
+
 ## Ficha: fontes, versões, cobertura e rastreio
 
 Antes de iniciar esta continuação no servidor, aplique `uv run --env-file .env raiz
@@ -1052,30 +1108,20 @@ descartável e sintético; não depende do servidor de produção nem usa o arqu
 privado. Sem a chave, o relatório indica campanha incompleta, não aprovação.
 
 
-## Falhas concorrentes e impedimento da fonte — 13/11/2026
+## Pasta do banco fiador (rodada 12)
 
-A rodada `43355236141` confirmou erro HTTP 404 na leitura de `estados.json` depois de
-substituição concorrente do asset. A leitura por nome agora relê a lista e o novo ID, até quatro
-tentativas. Ausência transitória depois de um 404 não vira manifesto vazio. Erros de acesso e
-formato continuam falhando; o download de um ID congelado não aceita outro arquivo. A paginação
-revalida o cache HTTP e reinicia todas as páginas ao detectar sobreposição.
+Aplicar a migração **0035** pelo comando de migração já usado no servidor, depois
+de 0032–0034. Guardar documentos/JSON/relatórios fora do diretório público. O
+operador confere os documentos e usa `python -m raiz.pasta_fiador.operacao` para
+validar e anexar versões; contrato e exemplos de comando em
+[docs/pasta-fiador.md](pasta-fiador.md). Não há upload de modelo ou alteração de
+conferência pelo cliente. Rascunho pode ter pendências, mas a geração falha enquanto
+houver campo/documento obrigatório sem comprovação.
 
-A reprodução do funil com o cache oficial confirmou **50 de 50** erros municipais examinados
-no RN: embargo ativo sem geometria utilizável. No arquivo de 117.197 termos, 92.033 são ativos
-pelo critério vigente e 40.270 não têm WKT. No RN, isso alcança 98 municípios; em GO, 195;
-no MA, 168. A presença de WKT, por si só, não atesta sua validade. A evidência agregada, sem
-termos nem pessoas, está em `docs/medicoes/ibama-impedimentos-2026-11-13.json`.
-
-A guarda permanece: não converter restrição desconhecida em área zero nem descartar os imóveis.
-Os logs sem banco/Healthchecks agora registram tipo, arquivo, linha e o motivo fixo
-`embargo_ativo_sem_geometria_utilizavel`, sem texto livre da exceção, variáveis ou geometrias.
-A conclusão nacional depende de resolver esses dados de origem; a janela observada não teve
-UF nova concluída e não permite estimar uma data de término. O processamento dos demais municípios
-e a preservação do progresso continuam.
-
-O destino fechado foi atualizado para `30ace967b885d07c2579c8625a9b5eb9cd4ec53b`, com **19 origens**
-e as 11 versões científicas preservadas. A prova por AST delimita três métodos de leitura/tratamento
-de erro e a classe que transporta somente o status HTTP; o restante do armazém é idêntico ao urgente.
-A ciência do commit preservado não recebe a mudança de hash da carga da main #93. As auditorias
-históricas continuam intactas e reservas vivas não são alteradas. Validação: **66 testes** do leitor,
-diagnóstico, armazém, transferência e checkpoint; **182 testes** de integração da promoção/fila.
+Exportações dependem das chaves `RAIZ_PROTECAO_CHAVES` e `RAIZ_PROTECAO_VERSAO`
+configuradas no back-end. A API verifica acesso pago a todos os CARs e recalcula
+validade/composição no momento da entrega. Testar com conta sintética, abrir os
+HTML do banco e comprador e conferir referência, impressão e marca. As rotas
+não enviam ao banco; o operador lê o relatório antes de entregar. Não ativam Pix,
+assinatura ou envio a terceiros. O catálogo conservador Raíz não substitui as
+exigências que um banco específico fornecer para revisão de regras.

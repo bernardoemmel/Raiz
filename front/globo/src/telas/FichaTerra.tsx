@@ -7,6 +7,7 @@ import { Cabecalho } from "../partes/Cabecalho"
 import { CreditosConsulta } from "../partes/CreditosConsulta"
 import { Medida } from "../partes/MedidaTerra"
 import { TerraComprometida } from "../partes/TerraComprometida"
+import { PastasDaFicha } from "../partes/PastasDaFicha"
 import { VersoesFicha } from "../partes/VersoesFicha"
 import { Estado } from "../partes/Estado"
 import { useSessao } from "../pedidos"
@@ -107,6 +108,7 @@ export function FichaTerra({ car }: { car: string }) {
         </section>
         <section><h2>Linha do tempo da fazenda</h2><LinhaTempoTerra ficha={ficha} /></section>
         <VersoesFicha ficha={ficha} />
+        <PastasDaFicha car={ficha.codigo_car} />
         <section><h2>Uso da terra ao longo dos anos</h2>{!ficha.serie_uso.length ? <p>Série anual ainda não disponível.</p> : <div className="tabela-terra" tabIndex={0} role="region" aria-label="Uso da terra por ano"><table className="tabela-simples"><thead><tr><th>Ano</th><th>Mata</th><th>Pasto</th><th>Lavoura</th><th>Água</th></tr></thead><tbody>{ficha.serie_uso.map((s) => <tr key={s.ano}><th scope="row">{s.ano}</th>{(["mata", "pasto", "lavoura", "agua"] as const).map((c) => <td key={c}><Medida dado={s[c]} /></td>)}</tr>)}</tbody></table></div>}</section>
         <section><h2>Perdas ao longo dos anos</h2>{!ficha.perdas.length ? <p>Histórico de perdas ainda não disponível.</p> : <div className="tabela-terra" tabIndex={0} role="region" aria-label="Perdas por período"><table className="tabela-simples"><thead><tr><th>Período</th><th>O que foi observado</th><th>Área</th></tr></thead><tbody>{ficha.perdas.map((p, i) => <tr key={`${p.tipo}-${p.ano}-${i}`}><th scope="row">{p.ano ?? "Período da fonte"}</th><td>{p.rotulo}</td><td><Medida dado={p.area} /></td></tr>)}</tbody></table></div>}</section>
 

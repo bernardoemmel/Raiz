@@ -556,3 +556,48 @@ de erro e a classe que transporta somente o status HTTP; o restante do armazém 
 A ciência do commit preservado não recebe a mudança de hash da carga da main #93. As auditorias
 históricas continuam intactas e reservas vivas não são alteradas. Validação: **66 testes** do leitor,
 diagnóstico, armazém, transferência e checkpoint; **182 testes** de integração da promoção/fila.
+
+
+## Conferência em produção — 13/11/2026, 04h36 UTC
+
+O [deploy do painel](https://github.com/bernardoemmel/Raiz/actions/runs/43364180632) passou e a
+[publicação real](https://bernardoemmel.github.io/Raiz/) foi conferida no Chromium: 27 UFs,
+hora da última mudança, duas leituras HTTP 200 da telemetria, nenhum erro JavaScript e sem
+transbordamento horizontal no celular. Observação vencida permanece identificada; ausência não vira zero.
+
+A restauração somente de leitura de três checkpoints privados recuperou **2.242 arquivos e
+182.073.038 bytes**, com todos os hashes conferidos: AM (494 arquivos), GO-3 (1.239) e MA-2 (509).
+As cópias temporárias privadas foram removidas após a conferência. Essa prova verifica os bytes
+preservados; não atesta que os municípios com erro ou os retratos opacos estejam cientificamente concluídos.
+O único manifesto sem ponteiro encontrado nessa leitura era de BA-1, com apenas um evento de
+processamento de 455 bytes; não continha saídas científicas recuperáveis.
+
+A fila repôs a vaga de AM com PI-2 na versão auditada `30ace967`, mantendo 15 reservas globais.
+Às 04h36 UTC, o inventário do Actions tinha 20 jobs executando: três de processamento e 17 de
+CI/outras verificações; 77 aguardavam. Reservas são limites de admissão, não garantia de runner imediato.
+Às 04h44 UTC, PI-2 já executava o motor. Nenhuma rodada foi cancelada ou desativada.
+
+O preflight do catálogo continuava bloqueado por escritores/pedidos antigos; nenhum upload foi
+iniciado por essa conferência. O índice público ainda declarava AC/AP/RO/RR completos de rodadas
+anteriores. Nenhuma UF nova fechou na janela desde a retomada paralela; não extrapolar uma taxa
+estadual por dia nem uma data nacional dos 15 leases. Os impedimentos Ibama permanecem explícitos.
+
+O CI do PR #102 identificou um número de run isolado como CPF pelos dígitos verificadores.
+A referência foi convertida em link explícito para o Actions; o detector não foi alterado nem
+recebeu exceções. O envio desta correção aguarda o término natural dos jobs do CI anterior.
+
+Na inspeção adicional, dois blocos privados sem manifesto final continham 534.669.362 bytes
+em partes consecutivas do RN. A recomposição conferiu 1.382 pares de arquivo/sidecar; 1.231
+receberam caminho inequívoco, cobrindo 90 municípios (2.462 arquivos, 505.451.201 bytes).
+Outros 151 pares permanecem sem caminho inequívoco. As fontes imutáveis continuam no arquivo privado;
+nenhum ponteiro de checkpoint foi alterado e nenhuma marca municipal íntegra foi criada pela recuperação.
+Dois arquivos mapeados não tinham hash nos controles consultados; isso não basta para provar conclusão
+de suas tarefas. A descoberta não autoriza atribuir versões, fontes ou assinaturas ausentes.
+
+O CI completo do #99 passou nos nove jobs antes da integração da main #98. Os dois conflitos
+foram somente em NOTICE e operação, resolvidos preservando ambas as entregas. O novo commit
+seguirá novamente pelo CI; o processamento continua nos destinos imutáveis já auditados.
+
+Validação após integrar #98: **338 testes** de fila, promoção, catálogo, pasta fiador e MCP passaram,
+com PostGIS real. Ruff, formatação, actionlint, detector de CPF/CNPJ e diff conferidos. As seções
+de contagem/Ibis e falhas do processamento ficaram junto dos temas correspondentes nos documentos.

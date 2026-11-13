@@ -3,6 +3,35 @@
 Gerado da rodada 8 de pesquisa (12/11/2026). Ordem geral: E1 → E2 → E5 → E7 (em paralelo) → E3/E4 → E6 → E8 → E9.
 Pedidos que só o fundador faz, no dia 1: convênio com o ONR e pedidos por LAI ao SFB e ao INCRA.
 
+## Rodada 12: ficha e pasta do banco fiador
+
+- [x] Pasta privada com duas saídas Jinja do mesmo lote, referências de valores e
+  documentos, falha em campos obrigatórios e nenhum modelo externo.
+- [x] Regras YAML versionadas: garantia e titularidade obrigatórias; documento
+  vencido, dispensado, substituído e revogado; relatório campo a campo inspirado
+  no UCD, sem declarar certificação MISMO ou aprovação de banco.
+- [x] Grade Tabulator MIT por área, estágio, título, documento e validade; crédito
+  por método e preço com moeda, unidade, período, natureza e origem. Sem contato.
+- [x] Retificações anexadas, IDs estáveis e referências novas das previsões ligadas
+  às anteriores; autorização paga atual, marca por cliente e proteção contra raspagem.
+- [x] Amostra territorial pública do Pará ligada à prospecção; histórico, exportação
+  e alertas detalhados pagos. Referências comerciais sem cópia de dados ou mudança
+  de preços; Pix permanece em teste.
+
+Detalhes e limites: [pasta do fiador](pasta-fiador.md). Banco específico ainda não
+forneceu catálogo próprio; perfil conservador Raíz. Migração 0035 e conferência dos
+documentos exigem o back-end privado. Não há envio automático nem implantação
+pública nesta entrega. Validação e PR: [passagem](passagem/ficha-da-fazenda.md).
+Validação local: 2.462 testes Python, mais os dois testes de mídia executados após
+instalar Takumi; um xfail conhecido e a referência privada do Pará no job próprio.
+Integração da main `3a73879`, 275 testes do front, build e Chromium/axe/celular
+aprovados, além de 170 testes focados após a integração. O CI da entrega reúne
+também o caso original do Pará e a pilha real.
+PR da pasta: [#98](https://github.com/bernardoemmel/Raiz/pull/98). Base da ficha
+integrada pelo [#93](https://github.com/bernardoemmel/Raiz/pull/93), CI completo
+verde com 2.577 testes Python. A branch da pasta incorpora explicitamente o merge
+`60e17b0`, sem alterar os arquivos de código já validados.
+
 ## Ordem geral
 
 | Ordem | O quê | Depende de | Horas | Por quê |
@@ -287,7 +316,7 @@ O Compose completo subiu no CI do PR #85. O ensaio revelou e corrigiu a ausênci
 | Ordem | Entrega | Situação |
 |---|---|---|
 | A | API paga: 3 testes por empresa, sinal Pix e contrato, cobrança/estorno, limite SlowAPI, CLI e privacidade | **feito no código**, PR #45 com CI verde (1.072 testes Python); migração 0028 após o calendário |
-| B | MCP oficial Python 2.3.0/protocolo 2026-07-28 no mesmo app, sete ferramentas e resumo único até 8 KiB | **feito no código**, base do PR #69 com CI verde (1.384 testes Python), acrescida de `consultar_ficha` para releitura de CAR já adquirido, sem nova tarifa; descoberta e chamadas testadas com o cliente oficial |
+| B | MCP oficial Python 2.3.0/protocolo 2026-07-28 no mesmo app, oito ferramentas e resumo único até 8 KiB | **feito no código**, base do PR #69 com CI verde (1.384 testes Python), acrescida de `consultar_ficha` para releitura de CAR já adquirido, sem nova tarifa, e `proximos_eventos` para o calendário já público; descoberta e chamadas testadas com o cliente oficial |
 | C | OAuth 2.1/Keycloak; consultar/pedir/reservar, reserva desligada até administrador da empresa habilitar | **feito no código**; JWT, emissor, audiência, PKCE e isolamento testados; produção depende da configuração da instalação |
 | D | Fila durável, Idempotency-Key, Standard Webhooks, aprovação humana/Pix/JWS, OpenTelemetry | **feito no código**; testes de concorrência, queda do processo, assinatura e prazo; conta/API/worker precisam da mesma base e cofre |
 | E | Gabarito de 24 tarefas, quatro sessões por tarefa, meta pass^4 ≥ 80% e zero chamada proibida | **feito**: gabarito e avaliador; desempenho de agente real ainda não medido |
@@ -372,11 +401,15 @@ Nova continuação de Ficha da fazenda (12/11/2026):
 | Ficha automática para UFs atuais e futuras, com retomada da carga e atualização das fontes | Feito: descoberta pelo manifesto privado, backfill idempotente e falha mantida pendente para nova tentativa |
 | Marcas por cliente em PDF/JSON/CSV e alertas de varredura na API | Feito: HMAC versionado, sentinela separada dos dados, detecção persistida e consulta operacional dos alertas |
 | Três modalidades de créditos e conta de receita por cliente | Feito: por ficha, por lote e assinatura; preços a definir pelo fundador e simulação mensal/anual sem ativar vendas |
-| Medição real das 24 tarefas por agente Anthropic no GitHub Actions, manual e semanal | Feito: integrado ao workflow único agentes-real.yml (PR #85), pilha isolada, OAuth real e artefatos. Primeira campanha 43341704532 incompleta: 35/96 tentativas, falha na citação literal do juiz; nenhum pass^4 aprovado |
+| Medição real das 24 tarefas por agente Anthropic no GitHub Actions, manual e semanal | Feito: workflow único agentes-real.yml, pilha isolada, OAuth real e artefatos. Campanha 43354046452 concluiu 96/96; reprovada, 25 chamadas proibidas e cinco julgamentos indisponíveis. Pass^4 nulo, limite inferior 16,7%. As campanhas incompletas anteriores ficam preservadas |
 
 O PR #93 corrige a citação inválida do juiz com uma única nova conversa, sem
 alterar notas válidas ou relaxar a conferência literal; consumo e tentativas
-ficam registrados. A correção exige nova campanha completa de 96 sessões.
+ficam registrados. A campanha completa `43354046452` mediu o commit `e8c13f1`:
+190 passos, 109 chamadas MCP, 677,94 s de agente e 1.252,32 s incluindo pilha e juiz.
+Cinco violações foram classificadas como instrução de terceiro. O resultado não
+aprova o agente, nem mede as mudanças posteriores do PR #96. Ver
+[relatório e limites](medicao-agentes-actions.md).
 
 Site legível por agentes (12/11/2026): **feito** — `llms.txt`, `robots.txt`, páginas Markdown do Brasil, estados,
 municípios, produtor, serviço, fontes e privacidade; alternates no HTML; JSON-LD `Dataset`, `Service` e `Offer`
@@ -515,7 +548,7 @@ Entrega 3 da continuação de 12/11/2026, sobre a ficha paga do PR #52.
 | Eventos com tipo, data/prazo, UF/município, fonte/link, coleta e confiança | **feito**: esquema `calendario`, migração 0027 após 0022–0025 do título/aprendizado e 0026 da prospecção; histórico, UID e sequência preservados nas retificações |
 | Coleta diária de leilões rurais, penhoras, BNDES, ProFloresta+, Fundo Amazônia, concessões, crédito e SBCE/Verra/ICVCM/SBTi/EUDR | **feito**: 17 fontes oficiais em `raiz/calendario/fontes.yaml`, HTTP/PDF/Firecrawl opcional, workflow diário com snapshot no Release `calendario`; cobertura inicial e falhas explícitas, sem inventar prazos |
 | Vínculo de leilão/penhora ao CAR | **feito**: CAR explícito, CNS+matrícula vigente ou interseção SIGEF; sem corte por tamanho; vínculo insuficiente fica pendente; CAR inferido fica interno, só CAR explícito no edital aparece na consulta pública; nenhum nome ou documento pessoal persistido |
-| API e integração | **feito**: `GET /eventos` com tipo/estado/período/CAR, `GET /eventos.ics` e função Python `proximos_eventos` pronta; o calendário ainda não está registrado no transporte MCP, e o servidor pago oferece sete ferramentas, incluindo releitura de ficha já adquirida |
+| API e integração | **feito**: `GET /eventos` com tipo/estado/período/CAR, `GET /eventos.ics` e `proximos_eventos` registrada no MCP com OAuth/escopo `consultar`; consulta somente o calendário já público, sem cobrança ou aquisição de ficha. Projeção positiva preserva UID/CAR e oculta vínculos inferidos e identificadores privados |
 | Site e pedidos | **feito**: aba Calendário, filtros, fonte/data de coleta, feed, selos no mapa/ficha/tabela e aviso deduplicado aos lotes; ficha individual mantém acesso por créditos, e-mail/WhatsApp permanecem simulados. Publicação do site após a coleta |
 | Agenda no servidor | **feito no código**: `scripts/instalar_cron_alertas.py --tarefa calendario --instalar`, diário com banco, trava e `.env`; instalação em produção depende de acesso ao servidor |
 
@@ -527,6 +560,8 @@ ao retirar identificadores descartados; 118 testes do calendário passaram com P
 Coleta integral local posterior: **50 eventos, 11 futuros, 198 visitas e zero duplicatas exatas**. PA parcial;
 DJEN/BA/MG/TO em erro. Os 50 vínculos com CAR continuam pendentes; nenhum alerta foi atribuído por suposição.
 O teste local não comprova implantação no servidor; execução/publicação diária deve ser conferida na main.
+O workflow também coleta quando alterações do calendário chegam à main, mantendo a publicação alinhada ao leitor
+validado no CI. A ferramenta MCP registrada consulta esse calendário público, com OAuth e escopo `consultar`.
 
 - [x] Integração da entrega mobile com o Calendário: rota sob demanda, quatro links visíveis a 360 px, filtros
   com 48 px e teste CI de teclado/axe em três larguras; 186 testes do front e fluxos de ficha/lote aprovados.
@@ -654,3 +689,48 @@ de erro e a classe que transporta somente o status HTTP; o restante do armazém 
 A ciência do commit preservado não recebe a mudança de hash da carga da main #93. As auditorias
 históricas continuam intactas e reservas vivas não são alteradas. Validação: **66 testes** do leitor,
 diagnóstico, armazém, transferência e checkpoint; **182 testes** de integração da promoção/fila.
+
+
+## Conferência em produção — 13/11/2026, 04h36 UTC
+
+O [deploy do painel](https://github.com/bernardoemmel/Raiz/actions/runs/43364180632) passou e a
+[publicação real](https://bernardoemmel.github.io/Raiz/) foi conferida no Chromium: 27 UFs,
+hora da última mudança, duas leituras HTTP 200 da telemetria, nenhum erro JavaScript e sem
+transbordamento horizontal no celular. Observação vencida permanece identificada; ausência não vira zero.
+
+A restauração somente de leitura de três checkpoints privados recuperou **2.242 arquivos e
+182.073.038 bytes**, com todos os hashes conferidos: AM (494 arquivos), GO-3 (1.239) e MA-2 (509).
+As cópias temporárias privadas foram removidas após a conferência. Essa prova verifica os bytes
+preservados; não atesta que os municípios com erro ou os retratos opacos estejam cientificamente concluídos.
+O único manifesto sem ponteiro encontrado nessa leitura era de BA-1, com apenas um evento de
+processamento de 455 bytes; não continha saídas científicas recuperáveis.
+
+A fila repôs a vaga de AM com PI-2 na versão auditada `30ace967`, mantendo 15 reservas globais.
+Às 04h36 UTC, o inventário do Actions tinha 20 jobs executando: três de processamento e 17 de
+CI/outras verificações; 77 aguardavam. Reservas são limites de admissão, não garantia de runner imediato.
+Às 04h44 UTC, PI-2 já executava o motor. Nenhuma rodada foi cancelada ou desativada.
+
+O preflight do catálogo continuava bloqueado por escritores/pedidos antigos; nenhum upload foi
+iniciado por essa conferência. O índice público ainda declarava AC/AP/RO/RR completos de rodadas
+anteriores. Nenhuma UF nova fechou na janela desde a retomada paralela; não extrapolar uma taxa
+estadual por dia nem uma data nacional dos 15 leases. Os impedimentos Ibama permanecem explícitos.
+
+O CI do PR #102 identificou um número de run isolado como CPF pelos dígitos verificadores.
+A referência foi convertida em link explícito para o Actions; o detector não foi alterado nem
+recebeu exceções. O envio desta correção aguarda o término natural dos jobs do CI anterior.
+
+Na inspeção adicional, dois blocos privados sem manifesto final continham 534.669.362 bytes
+em partes consecutivas do RN. A recomposição conferiu 1.382 pares de arquivo/sidecar; 1.231
+receberam caminho inequívoco, cobrindo 90 municípios (2.462 arquivos, 505.451.201 bytes).
+Outros 151 pares permanecem sem caminho inequívoco. As fontes imutáveis continuam no arquivo privado;
+nenhum ponteiro de checkpoint foi alterado e nenhuma marca municipal íntegra foi criada pela recuperação.
+Dois arquivos mapeados não tinham hash nos controles consultados; isso não basta para provar conclusão
+de suas tarefas. A descoberta não autoriza atribuir versões, fontes ou assinaturas ausentes.
+
+O CI completo do #99 passou nos nove jobs antes da integração da main #98. Os dois conflitos
+foram somente em NOTICE e operação, resolvidos preservando ambas as entregas. O novo commit
+seguirá novamente pelo CI; o processamento continua nos destinos imutáveis já auditados.
+
+Validação após integrar #98: **338 testes** de fila, promoção, catálogo, pasta fiador e MCP passaram,
+com PostGIS real. Ruff, formatação, actionlint, detector de CPF/CNPJ e diff conferidos. As seções
+de contagem/Ibis e falhas do processamento ficaram junto dos temas correspondentes nos documentos.

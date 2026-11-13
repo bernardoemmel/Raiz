@@ -124,6 +124,8 @@ class Evento(BaseModel):
     def validar_referencia(cls, v):
         if v and not re.fullmatch(r"\d{1,5}(?:[/.-]\d{1,4}){0,3}", v):
             raise ValueError("referência deve conter só o número do edital")
+        if v and (mascarar(v) != v or cpf_valido(v) or cnpj_valido(v)):
+            raise ValueError("referência não pode conter documento pessoal")
         return v
 
     @field_validator("codigos_car")
