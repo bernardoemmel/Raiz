@@ -1,5 +1,20 @@
 # Passagem do chat "Produto e regras" (13/11/2026)
 
+## CI verde e integração das entregas de dados
+
+O CI `43431663359` aprovou os nove jobs do PR #96 em `c37f5ee`: 3.005 testes
+Python, um xfail esperado e a referência estadual no job separado. Inspector
+autenticado confirmou oito ferramentas/2026-07-28; vacuum aprovou 42 caminhos e
+o resumo de 6.097 bytes. Os 24 cenários passaram na pilha Compose.
+
+Antes do merge, a main avançou para `fea0dd2` (Calendário #103, dados #99 e
+formatos de lote #102). A integração não teve conflitos e preserva essas entregas,
+inclusive dependências, evidências e documentação operacional. Passaram 309 testes focados de API/MCP, Calendário, contratos do CI e entregas
+de dados, além de Ruff (623 arquivos). O CI completo será executado sobre o
+conjunto integrado antes do merge. Nenhuma execução de
+processamento nem publicação de Release foi alterada. A campanha Claude
+`43436094524` continua congelada em `006a36d`, na próxima entrega.
+
 ## Retomada: correção do teste do agregador e main de avaliação
 
 O CI `43369152999` aprovou 2.936 testes Python, mas o teste do agregador ainda

@@ -1,0 +1,638 @@
+{
+  "versao": 1,
+  "quantil": "linear tipo 7",
+  "grupos": [
+    {
+      "uf": "AC",
+      "versoes": {
+        "funil": "funil-868e8ed97c5e",
+        "filtros": "filtros-230d428c0316",
+        "direto": "direto-9f5c5b2db1ef",
+        "mapbiomas": "mapbiomas-ca206668f06b",
+        "extras_direto": "extras_direto-091fffcb98e9",
+        "flag": "flag-cbcb666f51cd",
+        "terra": "terra-adf1e7cfe633",
+        "ficha": "ficha-195b526294d6",
+        "desenvolvedor": "desenvolvedor-4e142d4bfca2"
+      },
+      "versoes_sha256": "ff2c2f891cb35b622379b4446ae78c3ea228b08119206d7bfaf72547c36acb9f",
+      "municipio_soma_tarefas": {
+        "amostras": 0,
+        "mediana_s": null,
+        "p95_s": null
+      },
+      "datas_tarefas": {
+        "primeira": null,
+        "ultima": null
+      },
+      "estado_inteiro": {
+        "amostras": 0,
+        "mediana_s": null,
+        "p95_s": null
+      },
+      "estado_rodada_sem_medicao_integral": {
+        "amostras": 1,
+        "mediana_s": 2407.0,
+        "p95_s": 2407.0
+      },
+      "municipios_excluidos": 22
+    },
+    {
+      "uf": "AM",
+      "versoes": {
+        "funil": "funil-868e8ed97c5e",
+        "filtros": "filtros-230d428c0316",
+        "direto": "direto-9f5c5b2db1ef",
+        "mapbiomas": "mapbiomas-ca206668f06b",
+        "extras_direto": "extras_direto-091fffcb98e9",
+        "flag": "flag-cbcb666f51cd",
+        "terra": "terra-adf1e7cfe633",
+        "ficha": "ficha-195b526294d6",
+        "desenvolvedor": "desenvolvedor-59f38ae40fcd"
+      },
+      "versoes_sha256": "7f55e733a4617b3935a6c3d138e90957d4a395db9fb878d5a0010d5701fe1050",
+      "municipio_soma_tarefas": {
+        "amostras": 0,
+        "mediana_s": null,
+        "p95_s": null
+      },
+      "datas_tarefas": {
+        "primeira": null,
+        "ultima": null
+      },
+      "estado_inteiro": {
+        "amostras": 0,
+        "mediana_s": null,
+        "p95_s": null
+      },
+      "estado_rodada_sem_medicao_integral": {
+        "amostras": 0,
+        "mediana_s": null,
+        "p95_s": null
+      },
+      "municipios_excluidos": 62
+    },
+    {
+      "uf": "AP",
+      "versoes": {
+        "funil": "funil-868e8ed97c5e",
+        "filtros": "filtros-230d428c0316",
+        "direto": "direto-9f5c5b2db1ef",
+        "mapbiomas": "mapbiomas-ca206668f06b",
+        "extras_direto": "extras_direto-091fffcb98e9",
+        "flag": "flag-cbcb666f51cd",
+        "terra": "terra-adf1e7cfe633",
+        "ficha": "ficha-195b526294d6",
+        "desenvolvedor": "desenvolvedor-4e142d4bfca2"
+      },
+      "versoes_sha256": "ff2c2f891cb35b622379b4446ae78c3ea228b08119206d7bfaf72547c36acb9f",
+      "municipio_soma_tarefas": {
+        "amostras": 0,
+        "mediana_s": null,
+        "p95_s": null
+      },
+      "datas_tarefas": {
+        "primeira": null,
+        "ultima": null
+      },
+      "estado_inteiro": {
+        "amostras": 0,
+        "mediana_s": null,
+        "p95_s": null
+      },
+      "estado_rodada_sem_medicao_integral": {
+        "amostras": 1,
+        "mediana_s": 423.0,
+        "p95_s": 423.0
+      },
+      "municipios_excluidos": 16
+    },
+    {
+      "uf": "BA",
+      "versoes": {
+        "funil": "funil-1642afe89067",
+        "filtros": "filtros-9c1ae2374773",
+        "direto": "direto-a3ccf1633dd7",
+        "mapbiomas": "mapbiomas-732fe6f08784",
+        "extras_direto": "extras_direto-76b44c187164",
+        "flag": "flag-2d2dc7a85797",
+        "terra": "terra-b02bcaf5d54e",
+        "titulo": "titulo-305df336f77f",
+        "ficha": "ficha-92dcead7aefb",
+        "rebanho": "rebanho-afd05b1264a5",
+        "desenvolvedor": "desenvolvedor-d590ebd0cd76"
+      },
+      "versoes_sha256": "568cc3e28b6178aa54afdf2ac87e23159db45384dcbb8ecb705bda3c45dfdfd6",
+      "municipio_soma_tarefas": {
+        "amostras": 151,
+        "mediana_s": 272.7,
+        "p95_s": 798.25
+      },
+      "datas_tarefas": {
+        "primeira": "2026-11-12T22:42:57+00:00",
+        "ultima": "2026-11-13T00:00:02+00:00"
+      },
+      "estado_inteiro": {
+        "amostras": 0,
+        "mediana_s": null,
+        "p95_s": null
+      },
+      "estado_rodada_sem_medicao_integral": {
+        "amostras": 0,
+        "mediana_s": null,
+        "p95_s": null
+      },
+      "municipios_excluidos": 7
+    },
+    {
+      "uf": "CE",
+      "versoes": {
+        "funil": "funil-1642afe89067",
+        "filtros": "filtros-9c1ae2374773",
+        "direto": "direto-a3ccf1633dd7",
+        "mapbiomas": "mapbiomas-732fe6f08784",
+        "extras_direto": "extras_direto-76b44c187164",
+        "flag": "flag-2d2dc7a85797",
+        "terra": "terra-b02bcaf5d54e",
+        "titulo": "titulo-305df336f77f",
+        "ficha": "ficha-92dcead7aefb",
+        "rebanho": "rebanho-afd05b1264a5",
+        "desenvolvedor": "desenvolvedor-d590ebd0cd76"
+      },
+      "versoes_sha256": "568cc3e28b6178aa54afdf2ac87e23159db45384dcbb8ecb705bda3c45dfdfd6",
+      "municipio_soma_tarefas": {
+        "amostras": 91,
+        "mediana_s": 193.1,
+        "p95_s": 652.0
+      },
+      "datas_tarefas": {
+        "primeira": "2026-11-12T23:31:18+00:00",
+        "ultima": "2026-11-13T00:36:41+00:00"
+      },
+      "estado_inteiro": {
+        "amostras": 0,
+        "mediana_s": null,
+        "p95_s": null
+      },
+      "estado_rodada_sem_medicao_integral": {
+        "amostras": 0,
+        "mediana_s": null,
+        "p95_s": null
+      },
+      "municipios_excluidos": 7
+    },
+    {
+      "uf": "GO",
+      "versoes": {
+        "funil": "funil-868e8ed97c5e",
+        "filtros": "filtros-230d428c0316",
+        "direto": "direto-9f5c5b2db1ef",
+        "mapbiomas": "mapbiomas-ca206668f06b",
+        "extras_direto": "extras_direto-091fffcb98e9",
+        "flag": "flag-cbcb666f51cd",
+        "terra": "terra-adf1e7cfe633",
+        "ficha": "ficha-195b526294d6",
+        "desenvolvedor": "desenvolvedor-59f38ae40fcd"
+      },
+      "versoes_sha256": "7f55e733a4617b3935a6c3d138e90957d4a395db9fb878d5a0010d5701fe1050",
+      "municipio_soma_tarefas": {
+        "amostras": 10,
+        "mediana_s": 313.1,
+        "p95_s": 997.385
+      },
+      "datas_tarefas": {
+        "primeira": "2026-11-12T15:39:28+00:00",
+        "ultima": "2026-11-12T16:51:24+00:00"
+      },
+      "estado_inteiro": {
+        "amostras": 0,
+        "mediana_s": null,
+        "p95_s": null
+      },
+      "estado_rodada_sem_medicao_integral": {
+        "amostras": 0,
+        "mediana_s": null,
+        "p95_s": null
+      },
+      "municipios_excluidos": 236
+    },
+    {
+      "uf": "MA",
+      "versoes": {
+        "funil": "funil-868e8ed97c5e",
+        "filtros": "filtros-230d428c0316",
+        "direto": "direto-9f5c5b2db1ef",
+        "mapbiomas": "mapbiomas-ca206668f06b",
+        "extras_direto": "extras_direto-091fffcb98e9",
+        "flag": "flag-cbcb666f51cd",
+        "terra": "terra-adf1e7cfe633",
+        "ficha": "ficha-195b526294d6",
+        "desenvolvedor": "desenvolvedor-4e142d4bfca2"
+      },
+      "versoes_sha256": "ff2c2f891cb35b622379b4446ae78c3ea228b08119206d7bfaf72547c36acb9f",
+      "municipio_soma_tarefas": {
+        "amostras": 2,
+        "mediana_s": 876.5,
+        "p95_s": 894.86
+      },
+      "datas_tarefas": {
+        "primeira": "2026-11-12T15:29:33+00:00",
+        "ultima": "2026-11-12T15:30:14+00:00"
+      },
+      "estado_inteiro": {
+        "amostras": 0,
+        "mediana_s": null,
+        "p95_s": null
+      },
+      "estado_rodada_sem_medicao_integral": {
+        "amostras": 0,
+        "mediana_s": null,
+        "p95_s": null
+      },
+      "municipios_excluidos": 215
+    },
+    {
+      "uf": "MG",
+      "versoes": {
+        "funil": "funil-868e8ed97c5e",
+        "filtros": "filtros-230d428c0316",
+        "direto": "direto-9f5c5b2db1ef",
+        "mapbiomas": "mapbiomas-ca206668f06b",
+        "extras_direto": "extras_direto-091fffcb98e9",
+        "flag": "flag-cbcb666f51cd",
+        "terra": "terra-adf1e7cfe633",
+        "ficha": "ficha-195b526294d6",
+        "desenvolvedor": "desenvolvedor-59f38ae40fcd"
+      },
+      "versoes_sha256": "7f55e733a4617b3935a6c3d138e90957d4a395db9fb878d5a0010d5701fe1050",
+      "municipio_soma_tarefas": {
+        "amostras": 3,
+        "mediana_s": 910.7,
+        "p95_s": 1211.03
+      },
+      "datas_tarefas": {
+        "primeira": "2026-11-12T15:53:37+00:00",
+        "ultima": "2026-11-12T17:34:37+00:00"
+      },
+      "estado_inteiro": {
+        "amostras": 0,
+        "mediana_s": null,
+        "p95_s": null
+      },
+      "estado_rodada_sem_medicao_integral": {
+        "amostras": 0,
+        "mediana_s": null,
+        "p95_s": null
+      },
+      "municipios_excluidos": 746
+    },
+    {
+      "uf": "MS",
+      "versoes": {
+        "funil": "funil-868e8ed97c5e",
+        "filtros": "filtros-230d428c0316",
+        "direto": "direto-9f5c5b2db1ef",
+        "mapbiomas": "mapbiomas-ca206668f06b",
+        "extras_direto": "extras_direto-091fffcb98e9",
+        "flag": "flag-cbcb666f51cd",
+        "terra": "terra-adf1e7cfe633",
+        "ficha": "ficha-195b526294d6",
+        "desenvolvedor": "desenvolvedor-59f38ae40fcd"
+      },
+      "versoes_sha256": "7f55e733a4617b3935a6c3d138e90957d4a395db9fb878d5a0010d5701fe1050",
+      "municipio_soma_tarefas": {
+        "amostras": 0,
+        "mediana_s": null,
+        "p95_s": null
+      },
+      "datas_tarefas": {
+        "primeira": null,
+        "ultima": null
+      },
+      "estado_inteiro": {
+        "amostras": 0,
+        "mediana_s": null,
+        "p95_s": null
+      },
+      "estado_rodada_sem_medicao_integral": {
+        "amostras": 0,
+        "mediana_s": null,
+        "p95_s": null
+      },
+      "municipios_excluidos": 79
+    },
+    {
+      "uf": "MT",
+      "versoes": {
+        "funil": "funil-868e8ed97c5e",
+        "filtros": "filtros-230d428c0316",
+        "direto": "direto-9f5c5b2db1ef",
+        "mapbiomas": "mapbiomas-ca206668f06b",
+        "extras_direto": "extras_direto-091fffcb98e9",
+        "flag": "flag-cbcb666f51cd",
+        "terra": "terra-adf1e7cfe633",
+        "ficha": "ficha-195b526294d6",
+        "desenvolvedor": "desenvolvedor-59f38ae40fcd"
+      },
+      "versoes_sha256": "7f55e733a4617b3935a6c3d138e90957d4a395db9fb878d5a0010d5701fe1050",
+      "municipio_soma_tarefas": {
+        "amostras": 0,
+        "mediana_s": null,
+        "p95_s": null
+      },
+      "datas_tarefas": {
+        "primeira": null,
+        "ultima": null
+      },
+      "estado_inteiro": {
+        "amostras": 0,
+        "mediana_s": null,
+        "p95_s": null
+      },
+      "estado_rodada_sem_medicao_integral": {
+        "amostras": 0,
+        "mediana_s": null,
+        "p95_s": null
+      },
+      "municipios_excluidos": 142
+    },
+    {
+      "uf": "PI",
+      "versoes": {
+        "funil": "funil-9222a79e7478",
+        "filtros": "filtros-f6a1b5d63913",
+        "direto": "direto-dd60b18775e7",
+        "mapbiomas": "mapbiomas-2df346dbb625",
+        "extras_direto": "extras_direto-49e961b4e835",
+        "flag": "flag-20a62662fdab",
+        "terra": "terra-578e392a6726",
+        "titulo": "titulo-f6c7bf3945f4",
+        "ficha": "ficha-a120ba6c5bb9",
+        "rebanho": "rebanho-47ef2fbebb24",
+        "desenvolvedor": "desenvolvedor-7662657eb966"
+      },
+      "versoes_sha256": "7b4510dcacbe6cc331b52a204d287264064f688a46b8ed3830d4e1a0ed9b6e80",
+      "municipio_soma_tarefas": {
+        "amostras": 47,
+        "mediana_s": 95.7,
+        "p95_s": 217.5
+      },
+      "datas_tarefas": {
+        "primeira": "2026-11-13T01:13:32+00:00",
+        "ultima": "2026-11-13T01:41:24+00:00"
+      },
+      "estado_inteiro": {
+        "amostras": 0,
+        "mediana_s": null,
+        "p95_s": null
+      },
+      "estado_rodada_sem_medicao_integral": {
+        "amostras": 0,
+        "mediana_s": null,
+        "p95_s": null
+      },
+      "municipios_excluidos": 140
+    },
+    {
+      "uf": "RN",
+      "versoes": {
+        "funil": "funil-9222a79e7478",
+        "filtros": "filtros-f6a1b5d63913",
+        "direto": "direto-dd60b18775e7",
+        "mapbiomas": "mapbiomas-2df346dbb625",
+        "extras_direto": "extras_direto-49e961b4e835",
+        "flag": "flag-20a62662fdab",
+        "terra": "terra-578e392a6726",
+        "titulo": "titulo-f6c7bf3945f4",
+        "ficha": "ficha-a120ba6c5bb9",
+        "rebanho": "rebanho-47ef2fbebb24",
+        "desenvolvedor": "desenvolvedor-7662657eb966"
+      },
+      "versoes_sha256": "7b4510dcacbe6cc331b52a204d287264064f688a46b8ed3830d4e1a0ed9b6e80",
+      "municipio_soma_tarefas": {
+        "amostras": 34,
+        "mediana_s": 38.0,
+        "p95_s": 87.605
+      },
+      "datas_tarefas": {
+        "primeira": "2026-11-13T00:43:21+00:00",
+        "ultima": "2026-11-13T00:45:05+00:00"
+      },
+      "estado_inteiro": {
+        "amostras": 0,
+        "mediana_s": null,
+        "p95_s": null
+      },
+      "estado_rodada_sem_medicao_integral": {
+        "amostras": 0,
+        "mediana_s": null,
+        "p95_s": null
+      },
+      "municipios_excluidos": 50
+    },
+    {
+      "uf": "RO",
+      "versoes": {
+        "funil": "funil-868e8ed97c5e",
+        "filtros": "filtros-230d428c0316",
+        "direto": "direto-9f5c5b2db1ef",
+        "mapbiomas": "mapbiomas-ca206668f06b",
+        "extras_direto": "extras_direto-091fffcb98e9",
+        "flag": "flag-cbcb666f51cd",
+        "terra": "terra-adf1e7cfe633",
+        "ficha": "ficha-195b526294d6",
+        "desenvolvedor": "desenvolvedor-59f38ae40fcd"
+      },
+      "versoes_sha256": "7f55e733a4617b3935a6c3d138e90957d4a395db9fb878d5a0010d5701fe1050",
+      "municipio_soma_tarefas": {
+        "amostras": 0,
+        "mediana_s": null,
+        "p95_s": null
+      },
+      "datas_tarefas": {
+        "primeira": null,
+        "ultima": null
+      },
+      "estado_inteiro": {
+        "amostras": 0,
+        "mediana_s": null,
+        "p95_s": null
+      },
+      "estado_rodada_sem_medicao_integral": {
+        "amostras": 1,
+        "mediana_s": 3328.0,
+        "p95_s": 3328.0
+      },
+      "municipios_excluidos": 52
+    },
+    {
+      "uf": "RR",
+      "versoes": {
+        "funil": "funil-868e8ed97c5e",
+        "filtros": "filtros-230d428c0316",
+        "direto": "direto-9f5c5b2db1ef",
+        "mapbiomas": "mapbiomas-ca206668f06b",
+        "extras_direto": "extras_direto-091fffcb98e9",
+        "flag": "flag-cbcb666f51cd",
+        "terra": "terra-adf1e7cfe633",
+        "ficha": "ficha-195b526294d6",
+        "desenvolvedor": "desenvolvedor-4e142d4bfca2"
+      },
+      "versoes_sha256": "ff2c2f891cb35b622379b4446ae78c3ea228b08119206d7bfaf72547c36acb9f",
+      "municipio_soma_tarefas": {
+        "amostras": 1,
+        "mediana_s": 0.7,
+        "p95_s": 0.7
+      },
+      "datas_tarefas": {
+        "primeira": "2026-11-12T14:05:54+00:00",
+        "ultima": "2026-11-12T14:05:54+00:00"
+      },
+      "estado_inteiro": {
+        "amostras": 0,
+        "mediana_s": null,
+        "p95_s": null
+      },
+      "estado_rodada_sem_medicao_integral": {
+        "amostras": 1,
+        "mediana_s": 1380.0,
+        "p95_s": 1380.0
+      },
+      "municipios_excluidos": 14
+    },
+    {
+      "uf": "TO",
+      "versoes": {
+        "funil": "funil-868e8ed97c5e",
+        "filtros": "filtros-230d428c0316",
+        "direto": "direto-9f5c5b2db1ef",
+        "mapbiomas": "mapbiomas-ca206668f06b",
+        "extras_direto": "extras_direto-091fffcb98e9",
+        "flag": "flag-cbcb666f51cd",
+        "terra": "terra-adf1e7cfe633",
+        "ficha": "ficha-195b526294d6",
+        "desenvolvedor": "desenvolvedor-4e142d4bfca2"
+      },
+      "versoes_sha256": "ff2c2f891cb35b622379b4446ae78c3ea228b08119206d7bfaf72547c36acb9f",
+      "municipio_soma_tarefas": {
+        "amostras": 76,
+        "mediana_s": 77.8,
+        "p95_s": 361.35
+      },
+      "datas_tarefas": {
+        "primeira": "2026-11-12T14:39:59+00:00",
+        "ultima": "2026-11-12T17:14:50+00:00"
+      },
+      "estado_inteiro": {
+        "amostras": 0,
+        "mediana_s": null,
+        "p95_s": null
+      },
+      "estado_rodada_sem_medicao_integral": {
+        "amostras": 0,
+        "mediana_s": null,
+        "p95_s": null
+      },
+      "municipios_excluidos": 63
+    }
+  ],
+  "fontes": [
+    {
+      "uf": "AC",
+      "asset_id": 740794198,
+      "sha256": "463933f99e6557b696fabebdbc3caa0c62d97487cb83f999a4b76756df709e56",
+      "atualizado_em": "2026-11-12T19:28:23Z"
+    },
+    {
+      "uf": "AM",
+      "asset_id": 740794269,
+      "sha256": "f032305142092143d431cc5563d260992086841a7cc08871eab243a3d91d2006",
+      "atualizado_em": "2026-11-12T19:28:25Z"
+    },
+    {
+      "uf": "AP",
+      "asset_id": 740794321,
+      "sha256": "2a74f5997bf4d36985d978036227c9e0fe3be4dfe9adb765d2aa02e7bc3df138",
+      "atualizado_em": "2026-11-12T19:28:26Z"
+    },
+    {
+      "uf": "BA",
+      "asset_id": 741569163,
+      "sha256": "8311ba9324586d657eb10f70d9b08c9223dbe922da211d3cfb4057cf6884bbd1",
+      "atualizado_em": "2026-11-13T00:00:09Z"
+    },
+    {
+      "uf": "CE",
+      "asset_id": 741672246,
+      "sha256": "cdb73ff0e1f6022e3528dcbac6c4abe57359e4ffd3ca531c449858cdb1cbce98",
+      "atualizado_em": "2026-11-13T00:40:09Z"
+    },
+    {
+      "uf": "GO",
+      "asset_id": 740794382,
+      "sha256": "784a411c4f87a3e9cedea9ad2389a68e396d7ebda9aa501dda0e5ab93f3e168a",
+      "atualizado_em": "2026-11-12T19:28:28Z"
+    },
+    {
+      "uf": "MA",
+      "asset_id": 740794473,
+      "sha256": "cd637805dcab4a195a0788cc675ce7f0883f1344f927bfa1224745176f5c6b3c",
+      "atualizado_em": "2026-11-12T19:28:30Z"
+    },
+    {
+      "uf": "MG",
+      "asset_id": 740794541,
+      "sha256": "964a4d2865e25cb8778280856390e0231e2e384bb6d85c0faaa37b110c56eb9a",
+      "atualizado_em": "2026-11-12T19:28:32Z"
+    },
+    {
+      "uf": "MS",
+      "asset_id": 740794617,
+      "sha256": "1bcd1354af36fa5dcc129318c7faf8d207ae73d68806a56f6bbbd1572326b1e4",
+      "atualizado_em": "2026-11-12T19:28:34Z"
+    },
+    {
+      "uf": "MT",
+      "asset_id": 740794680,
+      "sha256": "2369fa5f5aff698dc5d73d0beff54368a049e1ef69c2aefc027054ffa4258600",
+      "atualizado_em": "2026-11-12T19:28:36Z"
+    },
+    {
+      "uf": "PA",
+      "asset_id": 740794775,
+      "sha256": "cfc0342c2e5c74e4394e86a7c467c0d82844fb5079422c459f62799ca6bce32a",
+      "atualizado_em": "2026-11-12T19:28:38Z"
+    },
+    {
+      "uf": "PI",
+      "asset_id": 741855857,
+      "sha256": "d13de306588ab4a5d7529095a8ee80a17ed1a8e667f83609e47fe12a34ff8766",
+      "atualizado_em": "2026-11-13T01:49:08Z"
+    },
+    {
+      "uf": "RN",
+      "asset_id": 741703932,
+      "sha256": "0ebd0e0060829738c5f96c3fe8fef0d8733684b5ec3ea9dc3e2dd8e775ed726b",
+      "atualizado_em": "2026-11-13T00:51:50Z"
+    },
+    {
+      "uf": "RO",
+      "asset_id": 740794852,
+      "sha256": "00fa020ce258ab050c2e1c4843c561bc3914dcde3d8d9beb2f105fbcd8e5ff65",
+      "atualizado_em": "2026-11-12T19:28:40Z"
+    },
+    {
+      "uf": "RR",
+      "asset_id": 740794953,
+      "sha256": "927992bdfd870c9411d91b0842c32a6b7d7fa5ccb659595e7174a99ab96fa90b",
+      "atualizado_em": "2026-11-12T19:28:42Z"
+    },
+    {
+      "uf": "TO",
+      "asset_id": 740795080,
+      "sha256": "a0dbf3b2b3420842ae034a4ed09166eb58435883fad34947c3c2f18749f7ec99",
+      "atualizado_em": "2026-11-12T19:28:44Z"
+    }
+  ],
+  "observado_em": "2026-11-13T02:05:45.959300+00:00"
+}
