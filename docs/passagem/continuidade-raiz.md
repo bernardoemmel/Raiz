@@ -256,5 +256,6 @@ As entregas desta continuação estão nos PRs [fontes #87](https://github.com/b
   incorreto, falha durante upload e restauração após falha na promoção. Não são documentos reais para aprendizado.
 - Validação local antes do PR: suíte integral com 3.009 aprovações, um skip do LanguageTool local e uma
   divergência esperada, incluindo a referência real do Pará; mais 24 testes específicos da versão final.
-  Ruff, formatação, actionlint, privacidade, gitleaks e 869 licenças conferidos. Main #99 será incorporada
-  com verificação direcionada; o CI confere novamente a árvore final antes do merge.
+  Ruff, formatação, actionlint, privacidade, gitleaks e 869 licenças conferidos. Main #99 incorporada sem conflito:
+  362 testes de integração aprovados, 874 licenças e 1.129 arquivos conferidos sem CPF/CNPJ. Cabeça única 0035.
+  O CI confere novamente a árvore final antes do merge.

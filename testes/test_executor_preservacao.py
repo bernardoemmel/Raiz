@@ -186,6 +186,8 @@ def test_eventos_reais_inicio_fim_lease_e_whitelist(tmp_path, monkeypatch):
     # O evento vencido em execução fica desconhecido; um pronto não é apagado pelo lease.
     arquivo = ctx["pasta"] / "1500001.json"
     salvo = json.loads(arquivo.read_text())
+    assert salvo["segundos"] >= 0
+    assert "versoes" in salvo and "tarefas_rodadas" in salvo
     salvo["situacao"] = "em_execucao"
     arquivo.write_text(json.dumps(salvo))
     perto_de_vencer = dt.datetime.fromisoformat(salvo["valido_ate"]) - dt.timedelta(seconds=2)
