@@ -521,9 +521,9 @@ export function MapaBrasil(props: Props) {
     const m = mapaRef.current
     if (!m || !pronto) return
     const rota = municipio ? `municipio-${municipio}` : uf ? `estado-${uf}` : "brasil"
-    // Carregar as divisas depois de expandir um grupo não desfaz o zoom escolhido.
-    if (rota === "brasil" && enquadramento.current === rota) return
-    enquadramento.current = rota
+    // Uma divisa que chega depois não desfaz o zoom escolhido na mesma rota.
+    // Município só fica marcado depois de encontrar um limite válido.
+    if ((rota === "brasil" || municipio) && enquadramento.current === rota) return
     const alvo = municipio
       ? (limitesDe(brasil?.municipios, (f) => String(f.properties.cod_ibge) === municipio) ??
         limitesDe(geoMunicipio?.municipio))
@@ -533,6 +533,7 @@ export function MapaBrasil(props: Props) {
           new LngLatBounds([BRASIL[0], BRASIL[1]], [BRASIL[2], BRASIL[3]]))
         : new LngLatBounds([BRASIL[0], BRASIL[1]], [BRASIL[2], BRASIL[3]])
     if (!alvo) return
+    enquadramento.current = rota
     if (municipio && municipioPorZoom.current === municipio) { alvoRef.current = m.getBounds(); return }
     municipioPorZoom.current = null
     alvoRef.current = alvo
