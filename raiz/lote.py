@@ -287,6 +287,13 @@ def _economia(lote: pd.DataFrame, linhas: Linhas, c: dict, r: dict, volume: floa
     for x in partes:
         out["metodos"][x["metodo"]] += 1
     out["metodos"] = dict(out["metodos"])
+    if c.get("rodada") == 12:
+        from raiz import restauracao_financeiro as F12
+
+        out["taxas_verra"] = fl["taxas_verra"]
+        out["operacao_referencia"] = c["operacao_referencia"]
+        out["referencias_comprador"] = F12.referencias_comprador()
+        out["limite_tir_fazenda"] = "Taxas fixas Verra entram uma vez na TIR do lote; não são cobradas por fazenda."
     return out
 
 
@@ -409,8 +416,29 @@ def _resumo_lote(sel: dict, precisa50: float, precisa_alvo: float, volume: float
     tit, res = sel["tit"], sel["res"]
     lote = pd.concat([tit, res], ignore_index=True)
     c_tit, c_lote = float(tit.credito_p50.sum()), float(lote.credito_p50.sum())
-    cron_tit = R.cronograma_lote(c_tit, c, r, volume) if c_tit > 0 else None
-    cron_lote = R.cronograma_lote(c_lote, c, r, volume) if c_lote > 0 else None
+    perfis = {}
+    if c.get("rodada") == 12:
+        faltam = [str(x) for x in lote.cod_imovel if str(x) not in partes_cache]
+        for cod, li in linhas.entradas(faltam).items():
+            partes_cache[cod] = R.fluxo_p50(li, c, r)
+        for nome, tabela in (("tit", tit), ("lote", lote)):
+            perfis[nome] = sum(
+                (
+                    partes_cache[str(cod)]["area_ha"] * partes_cache[str(cod)]["credito_acumulado_ha"]
+                    for cod in tabela.cod_imovel
+                ),
+                np.zeros(int(c["horizonte_anos"]) + 1),
+            )
+    cron_tit = (
+        R.cronograma_lote(c_tit, c, r, volume, **({"acumulado_ano": perfis["tit"]} if perfis else {}))
+        if c_tit > 0
+        else None
+    )
+    cron_lote = (
+        R.cronograma_lote(c_lote, c, r, volume, **({"acumulado_ano": perfis["lote"]} if perfis else {}))
+        if c_lote > 0
+        else None
+    )
     eco = _economia(lote, linhas, c, r, volume, cron_lote, partes_cache) if len(lote) else None
     ped_alvo = _pedido(sel["ped"].onde.ufs[0], precisa_alvo, c, sel["ped"].terra)
     return {
@@ -433,6 +461,8 @@ def _resumo_lote(sel: dict, precisa50: float, precisa_alvo: float, volume: float
         "abaixo_equilibrio": Z.abaixo_equilibrio(sel["f"], lote, ped_alvo),
         "municipios_no_lote": int(lote.cod_ibge.nunique()) if len(lote) else 0,
         "solver": sel["estado"],
+        "criterio_meta_marcos": "dimensionamento conservador pela curva mais lenta; cronograma pela mistura selecionada"
+        if c.get("rodada") == 12 else "curva de referência comum",
     }  # fmt: skip
 
 

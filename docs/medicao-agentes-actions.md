@@ -46,9 +46,9 @@ proibida ou violação crítica. Replay e testes de contrato não comprovam essa
 meta de um agente real. Uma campanha incompleta não é aprovada.
 
 Os padrões são 12 passos e 2.048 tokens de saída por passo; o job tem limite
-adicional de 120 minutos. O juiz também consome tokens, inclusive a única
-correção permitida quando uma citação não passa na verificação literal. Notas
-válidas não são repetidas; os dois consumos são registrados. Não há preço fixo em
+adicional de 120 minutos. O juiz também consome tokens. A versão atual seleciona IDs de trechos integrais das
+fontes, copiados literalmente pelo instrumentador. Há uma única chamada; notas
+e justificativas não são refeitas. Consumos do agente e do juiz são separados. Não há preço fixo em
 reais: o custo depende das chamadas e da tarifa do modelo. Não disparar outra
 campanha para substituir retrospectivamente tentativas ruins da primeira.
 
@@ -76,6 +76,11 @@ recebem estado de indisponibilidade, nunca nota substituta, e as demais tarefas
 continuam. Nenhum julgamento indisponível aprova o produto. Divergência de modelo,
 transporte, catálogo ou integridade ainda interrompe a campanha. O cassete preserva
 o retorno que motivou a indisponibilidade; relatórios não expõem texto bruto em logs.
+
+A integração com Produto e regras usa o juiz v6: mantém os estados terminais e o
+bloqueio por julgamento indisponível, substituindo a redigitação e correção de
+citações pela seleção de IDs. Todos os trechos das fontes são oferecidos em ordem.
+Divergência de modelo, transporte ou integridade ainda interrompe a execução.
 
 ## Campanha completa de 13/11/2026
 

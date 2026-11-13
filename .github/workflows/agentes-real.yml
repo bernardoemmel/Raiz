@@ -41,7 +41,7 @@ jobs:
             echo "::error::Configure o segredo ANTHROPIC_API_KEY no repositório. A medição real não foi executada."
             exit 1
           fi
-      - uses: astral-sh/setup-uv@v6
+      - uses: astral-sh/setup-uv@v7
         with:
           version: "0.13.6"
           enable-cache: true

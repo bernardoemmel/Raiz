@@ -239,7 +239,9 @@ def test_workflows_reservam_antes_de_dados_e_guardam_reruns(nome, maximo):
     assert workflow["concurrency"]["cancel-in-progress"] is False
     jobs = workflow["jobs"]
     reserva = jobs["preparar"]["steps"][1]
-    assert reserva["id"] == "reserva" and reserva["run"].endswith(f"--reservar {maximo}")
+    assert reserva["id"] == "reserva" and f"--reservar {maximo}" in reserva["run"]
+    if nome == "lote-para.yml":
+        assert "--aguardar-minutos 180" in reserva["run"]
     assert jobs["calcular"]["strategy"]["max-parallel"] == "${{ fromJSON(needs.preparar.outputs.vagas) }}"
     assert jobs["calcular"]["strategy"]["fail-fast"] is False
     for nome_job in ("calcular", "publicar"):
@@ -250,3 +252,26 @@ def test_workflows_reservam_antes_de_dados_e_guardam_reruns(nome, maximo):
                 assert "steps.reserva.outcome == 'success'" in passo["if"]
     assert workflow["permissions"]["contents"] == "write"
     assert workflow["permissions"]["actions"] == "read"
+
+
+def test_fila_cheia_espera_vaga_sem_cancelar_ou_consumir_fila(monkeypatch):
+    _ambiente(monkeypatch)
+    monkeypatch.setenv("GITHUB_JOB", "preparar")
+    estado = {"reservas": []}
+    monkeypatch.setattr(F, "Repositorio", lambda: type("Repo", (), {"ler": lambda self: ("v", estado)})())
+    tentativas, esperas = [], []
+
+    def reservar(**kwargs):
+        tentativas.append(kwargs)
+        if len(tentativas) == 2:
+            estado["reservas"] = [
+                {"run_id": "123", "unidade": "lote-pa-vaga-0", "pedido": _pedido("lote-pa-vaga-0", tentativa=2)}
+            ]
+
+    monkeypatch.setattr(F, "reservar", reservar)
+    monkeypatch.setattr(L, "confirmar", lambda n: None)
+    monkeypatch.setattr(L.time, "monotonic", lambda: 0)
+    monkeypatch.setattr(L.time, "sleep", esperas.append)
+    assert L.reservar(15, aguardar_minutos=1) == 1
+    assert esperas == [30] and len(tentativas) == 2
+    assert all(t["consumir_fila"] is False and t["limite"] == 15 for t in tentativas)

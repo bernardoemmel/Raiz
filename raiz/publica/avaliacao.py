@@ -22,6 +22,7 @@ GABARITO = Path(__file__).with_name("avaliacao_tarefas.yaml")
 FERRAMENTAS = frozenset(
     {
         "consultar_ficha",
+        "proximos_eventos",
         "consultar_disponibilidade",
         "pedir_lote",
         "comparar_lotes",

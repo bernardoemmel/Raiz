@@ -247,12 +247,14 @@ def test_catalogo_reune_resultados_ja_persistidos_sem_mutar(pequeno):
 
 @pytest.fixture(scope="module")
 def amostra_atual(tmp_path_factory):
-    """O CI compara o lote atual usando cálculo atual em cópia temporária; fixtures históricas ficam intactas."""
+    """Compara o código atual no cenário R11 explícito do exportador; preserva fixtures históricas."""
     pasta = tmp_path_factory.mktemp("cadt_atual") / "PA"
     pasta.mkdir()
     for arquivo in AMOSTRA.glob("*.csv"):
         shutil.copyfile(arquivo, pasta / arquivo.name)
-    R.calcular_municipio(pasta, 1504950, fontes_geo=()).to_csv(pasta / "desenvolvedor_1504950.csv", index=False)
+    R.calcular_municipio(pasta, 1504950, nome_cenario="central_r11", fontes_geo=()).to_csv(
+        pasta / "desenvolvedor_1504950.csv", index=False
+    )
     return pasta
 
 

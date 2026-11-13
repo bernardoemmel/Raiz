@@ -1,7 +1,17 @@
-name: Lote do Pará (central_r11)
+name: Lote do Pará (cenário versionado)
 
 on:
   workflow_dispatch:
+    inputs:
+      cenario:
+        description: R12 usa as mesmas entradas congeladas da R11
+        type: choice
+        required: true
+        default: central_r12
+        options:
+          - central_r12
+          - central_r11
+          - estresse_r12
 
 permissions:
   contents: write
@@ -21,7 +31,7 @@ concurrency:
 jobs:
   preparar:
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 200
     outputs:
       vagas: ${{ steps.reserva.outputs.vagas }}
       matriz: ${{ steps.plano.outputs.matriz }}
@@ -29,8 +39,8 @@ jobs:
       - uses: actions/checkout@v7
       - name: Reservar capacidade global antes de preparar os dados
         id: reserva
-        run: python scripts/reservar_lote.py --reservar 15
-      - uses: astral-sh/setup-uv@v6
+        run: python scripts/reservar_lote.py --reservar 15 --aguardar-minutos 180
+      - uses: astral-sh/setup-uv@v7
         with:
           version: "0.13.6"
       - run: uv sync --frozen --extra motor
@@ -39,9 +49,11 @@ jobs:
           uv run python -m raiz.executor.transferencia_privada baixar-pasta
           --nome "lote_PA_entradas_${GITHUB_RUN_ID}.tar.gz" --caminho rodada/entradas --opcional
       - name: Congelar os dados dos 144 municípios
+        env:
+          CENARIO: ${{ inputs.cenario || 'central_r11' }}
         run: |
           if [ ! -f rodada/entradas/snapshot.json ]; then
-            uv run python -m raiz.restauracao_rodada preparar --destino rodada/entradas
+            uv run python -m raiz.restauracao_rodada preparar --destino rodada/entradas --cenario "$CENARIO"
           fi
       - name: Distribuir os municípios por quantidade de imóveis
         id: plano
@@ -79,7 +91,7 @@ jobs:
         env:
           VAGAS: ${{ needs.preparar.outputs.vagas }}
         run: python scripts/reservar_lote.py --confirmar "$VAGAS"
-      - uses: astral-sh/setup-uv@v6
+      - uses: astral-sh/setup-uv@v7
         with:
           version: "0.13.6"
       - run: uv sync --frozen --extra motor
@@ -112,10 +124,11 @@ jobs:
   publicar:
     needs: [preparar, calcular]
     runs-on: ubuntu-24.04
-    timeout-minutes: 120
+    timeout-minutes: 240
     env:
       OPENBLAS_NUM_THREADS: "1"
       OMP_NUM_THREADS: "1"
+      RAIZ_PESQUISA_ONLINE: "1"
     steps:
       - uses: actions/checkout@v7
       - name: Confirmar as cotas globais antes dos dados e das dependências
@@ -123,7 +136,7 @@ jobs:
         env:
           VAGAS: ${{ needs.preparar.outputs.vagas }}
         run: python scripts/reservar_lote.py --confirmar "$VAGAS"
-      - uses: astral-sh/setup-uv@v6
+      - uses: astral-sh/setup-uv@v7
         with:
           version: "0.13.6"
       - run: uv sync --frozen --extra motor
@@ -147,9 +160,21 @@ jobs:
               nome = f"lote_PA_calculado_{os.environ['GITHUB_RUN_ID']}_{fatia}.tar.gz"
               baixar_arquivo(nome, Path(f'rodada/calculados/calculado_{fatia}.tar.gz'), arm=arm)
           PY
+      - name: Recuperar cenários de sensibilidade já concluídos nesta execução
+        run: >-
+          uv run python -m raiz.executor.transferencia_privada baixar-pasta
+          --nome "lote_PA_sensibilidade_${GITHUB_RUN_ID}.tar.gz"
+          --caminho rodada/entrega/produto/sensibilidade --opcional
       - name: Conferir os 144 municípios e montar os três lotes
         run: >-
           uv run python -m raiz.restauracao_rodada reunir
           --entradas rodada/entradas --calculados rodada/calculados --destino rodada/entrega
+      - name: Preservar sensibilidade no arquivo privado mesmo se a reunião parar
+        if: always() && steps.reserva.outcome == 'success'
+        run: |
+          if [ -d rodada/entrega/produto/sensibilidade ]; then
+            uv run python -m raiz.executor.transferencia_privada enviar-pasta \
+              --nome "lote_PA_sensibilidade_${GITHUB_RUN_ID}.tar.gz" --caminho rodada/entrega/produto/sensibilidade
+          fi
       - name: Guardar lotes e previsões versionadas somente no arquivo privado
         run: uv run python -m raiz.restauracao_rodada publicar --destino rodada/entrega

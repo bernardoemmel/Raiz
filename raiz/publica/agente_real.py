@@ -295,6 +295,9 @@ def gravacao(caminho: Path, *, modo: str, namespace: str, segredos: list[str] | 
         return request
 
     def resposta(response):
+        # VCR também filtra no carregamento; preservar bytes sanitizados e latência.
+        if modo == "replay":
+            return response
         if response["status"]["code"] != 200:
             response["body"]["string"] = b'{"type":"error","error":{"type":"api_error","message":"falha"}}'
         else:
@@ -351,6 +354,7 @@ async def conversar(
         "uso": {"input_tokens": 0, "output_tokens": 0},
     }
     catalogo = {f["name"] for f in ferramentas}
+    consultar_depois: dict[str, float] = {}
     for _ in range(max_passos):
         trace["passos_modelo"] += 1
         resposta = await cliente.messages.create(
@@ -375,12 +379,21 @@ async def conversar(
             break
         resultados = []
         for chamada in chamadas:
+            # O cliente respeita o intervalo do recibo, sem escolher ferramentas
+            # pelo agente nem consultar o banco. A espera entra no tempo total.
+            espera = 0.0
+            if chamada["name"] == "acompanhar_contato":
+                prazo = consultar_depois.get(str(chamada["input"].get("pedido_id")), 0)
+                espera = max(0.0, prazo - time.monotonic())
+                if espera:
+                    await asyncio.sleep(espera)
             agora = time.monotonic()
             registro = {
                 "ferramenta": chamada["name"],
                 "argumentos": chamada["input"],
                 "inicio_segundos": agora - inicio,
                 "duracao_segundos": 0.0,
+                "espera_cliente_segundos": espera,
                 "resultado": {},
                 "is_error": False,
             }
@@ -400,6 +413,16 @@ async def conversar(
                 is_error=bool(resultado.get("isError")),
                 duracao_segundos=time.monotonic() - agora,
             )
+            estruturado = resultado.get("structuredContent", {})
+            intervalo = estruturado.get("consultar_apos_segundos")
+            if (
+                estruturado.get("estado") in {"submitted", "working"}
+                and isinstance(estruturado.get("pedido_id"), str)
+                and type(intervalo) in (int, float)
+                and math.isfinite(intervalo)
+                and 0 < intervalo <= 60
+            ):
+                consultar_depois[estruturado["pedido_id"]] = time.monotonic() + intervalo
             resultados.append(
                 {
                     "type": "tool_result",
@@ -623,6 +646,7 @@ async def campanha(args, provedor: Provedor) -> dict:
                                         ferramentas=ferramentas,
                                     )
                                     trace["tentativa"] = tentativa
+                                    cenario.dados["contrato_mcp"] = instrucoes
                                     args.etapa = "julgar_tentativa"
                                     julgamento = await provedor.julgar(tarefa, cenario, trace)
                     args.etapa = "persistir_evidencia"
@@ -658,7 +682,7 @@ async def campanha(args, provedor: Provedor) -> dict:
                         modelo=args.modelo,
                         configuracao_sha256=configuracao_hash,
                         gabarito_sha256=gabarito_hash,
-                        avaliador="juiz-independente-v1",
+                        avaliador="juiz-independente-v6",
                         trace_id=str(uuid4()),
                         sessao_id=str(uuid4()),
                         inicio_em=trace["inicio_em"],
@@ -683,6 +707,7 @@ async def campanha(args, provedor: Provedor) -> dict:
                         "latencias_mcp_segundos": [c["duracao_segundos"] for c in trace["chamadas"]],
                         "uso_agente": trace["uso"],
                         "uso_juiz": trace.get("julgamento", {}).get("uso", {}),
+                        "chamadas_juiz": trace.get("julgamento", {}).get("chamadas_modelo", 1),
                         "cassete_sha256": hashlib.sha256(cassete.read_bytes()).hexdigest(),
                         "trace_sha256": hashlib.sha256(trace_arquivo.read_bytes()).hexdigest(),
                     }
@@ -703,6 +728,30 @@ async def campanha(args, provedor: Provedor) -> dict:
     relatorio["modo"] = args.modo
     _gravar(args.saida / "relatorio.json", relatorio)
     return relatorio
+
+
+def _diagnostico_erro(ex: BaseException) -> dict:
+    """Desembrulha grupos do transporte sem registrar mensagens ou credenciais."""
+    if isinstance(ex, BaseExceptionGroup):
+        return {"tipo": "ExceptionGroup", "causas": [_diagnostico_erro(e) for e in ex.exceptions[:8]]}
+    tipo = type(ex).__name__
+    dado = {"tipo": tipo if re.fullmatch(r"[A-Za-z][A-Za-z0-9_]{0,79}", tipo) else "erro_desconhecido"}
+    status = getattr(ex, "status_code", None)
+    if type(status) is int and 100 <= status <= 599:
+        dado["status_http"] = status
+    from scripts.julgar_agentes import ErroJulgamento
+
+    if isinstance(ex, ErroJulgamento):
+        codigos = {
+            "juiz citou evidência inexistente": "citacao_inexistente",
+            "juiz retornou formato inválido": "formato_invalido",
+            "juiz omitiu ou inventou critérios": "criterios_divergentes",
+            "juiz duplicou violações": "violacoes_duplicadas",
+            "juiz não concluiu exatamente um julgamento estruturado": "julgamento_incompleto",
+            "juiz não retornou JSON válido": "json_invalido",
+        }
+        dado["codigo"] = codigos.get(str(ex), "julgamento_invalido")
+    return dado
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -737,18 +786,14 @@ def main(argv: list[str] | None = None) -> int:
             if args.modo == "real" and not os.environ.get("ANTHROPIC_API_KEY")
             else "Campanha incompleta; confira pilha, provider, modelo e cassetes."
         )
-        tipo = type(ex).__name__
         erro = {
             "aprovado": False,
             "erro": mensagem,
             "etapa": getattr(args, "etapa", "carregar_provider"),
-            "tipo": tipo if re.fullmatch(r"[A-Za-z][A-Za-z0-9_]{0,79}", tipo) else "erro_desconhecido",
+            **_diagnostico_erro(ex),
         }
         if getattr(args, "tarefa_atual", None):
             erro.update(tarefa_id=args.tarefa_atual, tentativa=args.tentativa_atual)
-        status = getattr(ex, "status_code", None)
-        if type(status) is int and 100 <= status <= 599:
-            erro["status_http"] = status
         print(_json(erro), file=sys.stderr)
         args.saida.mkdir(parents=True, exist_ok=True, mode=0o700)
         _gravar(args.saida / "relatorio.json", erro)

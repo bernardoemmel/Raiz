@@ -117,8 +117,13 @@ def planejar(pasta: Path, fatias: int = 15) -> list[dict]:
     return [x for x in saida if x["municipios"]]
 
 
-def preparar(destino: Path, fatias: int = 15) -> dict:
+def preparar(destino: Path, fatias: int = 15, cenario: str = CENARIO) -> dict:
     """Baixa IDs imutáveis dos assets, guarda SHA256 e congela a mesma entrada para todos os jobs."""
+    from raiz import restauracao as R
+
+    R.cenario(cenario)  # recusa cenário desconhecido antes de acessar dados
+    if cenario != CENARIO:
+        return preparar_referencia_r12(destino, cenario)
     destino.mkdir(parents=True, exist_ok=True)
     arm = arquivo_privado()
     rel = arm._release()
@@ -153,6 +158,41 @@ def preparar(destino: Path, fatias: int = 15) -> dict:
         "cobertura": cobertura,
         "plano": plano,
     }
+    _json(destino / "snapshot.json", snapshot)
+    return snapshot
+
+
+def preparar_referencia_r12(destino: Path, cenario: str) -> dict:
+    """Mesmas entradas da R11: a comparação mede mudança do modelo, não da base."""
+    from raiz import restauracao as R
+    from raiz.executor.transferencia_privada import baixar_arquivo
+    from raiz.executor.transferencia_privada import extrair as extrair_privado
+
+    if R.cenario(cenario).get("rodada") != 12:
+        raise ValueError("rodada alternativa exige cenário R12")
+    nome = "retomada_PA_43285608189_entradas_42a37d06c245092d.tar.gz"
+    digest = "42a37d06c245092dbab4f464ab9915a2553af485037a8ba82cce42e67ce4fbe0"
+    destino.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory() as td:
+        pacote = Path(td) / "entradas.tar.gz"
+        baixar_arquivo(nome, pacote)
+        if sha256(pacote) != digest:
+            raise ValueError("entrada histórica divergente; não comparar bases diferentes")
+        extrair_privado(pacote, destino)
+    if {f.name for f in destino.iterdir()} != {*PACOTES, "estados.json", "snapshot.json"}:
+        raise ValueError("conteúdo inesperado na entrada histórica")
+    snapshot = _ler(destino / "snapshot.json")
+    if snapshot["cenario"] != CENARIO:
+        raise ValueError("referência não é a rodada 11")
+    for arquivo, fonte in snapshot["fontes"].items():
+        if sha256(destino / arquivo) != fonte["sha256"]:
+            raise ValueError("fonte histórica alterada")
+    snapshot["referencia_r11"] = {
+        "arquivo": nome,
+        "sha256": digest,
+        "snapshot_sha256": sha256(destino / "snapshot.json"),
+    }
+    snapshot.update(cenario=cenario, acesso="privado")
     _json(destino / "snapshot.json", snapshot)
     return snapshot
 
@@ -196,6 +236,8 @@ def calcular(entradas: Path, destino: Path, fatia: str) -> dict:
     from raiz.restauracao_validacao import registrar_previsoes, validar_area
 
     snapshot = _ler(entradas / "snapshot.json")
+    cenario = snapshot.get("cenario", CENARIO)
+    R.cenario(cenario)
     plano = next(x for x in snapshot["plano"] if x["fatia"] == fatia)
     cods = set(plano["municipios"])
     destino.mkdir(parents=True, exist_ok=True)
@@ -215,6 +257,7 @@ def calcular(entradas: Path, destino: Path, fatia: str) -> dict:
             anterior = _ler(marca)
             if (
                 anterior["modelo_versao"] == modelo
+                and anterior.get("cenario") == cenario
                 and anterior["entradas_versao"] == hash_entrada
                 and anterior.get("previsoes", {}).get("arquivo") in anterior["arquivos"]
                 and all(
@@ -242,7 +285,7 @@ def calcular(entradas: Path, destino: Path, fatia: str) -> dict:
                 f.write(json.dumps(validacao, ensure_ascii=False, allow_nan=False) + "\n")
         terra, reusadas = terra_dos_dados_publicados(pasta, cod, im)
         terra.to_csv(pasta / f"terra_{cod}.csv", index=False)
-        df = R.calcular_municipio(pasta, cod, nome_cenario=CENARIO, fontes_geo=())
+        df = R.calcular_municipio(pasta, cod, nome_cenario=cenario, fontes_geo=())
         if len(df) != len(im) or not df.cod_imovel.is_unique:
             raise ValueError(f"O cálculo perdeu ou duplicou imóveis em {cod}.")
         df["entradas_versao"] = hash_entrada
@@ -259,7 +302,7 @@ def calcular(entradas: Path, destino: Path, fatia: str) -> dict:
             "imoveis": len(df),
             "modelo_versao": modelo,
             "entradas_versao": hash_entrada,
-            "cenario": CENARIO,
+            "cenario": cenario,
             "arquivos": arquivos,
             "previsoes": registro,
             "imoveis_com_pendencia_area": sum(bool(x["pendencias"]) for x in validacoes),
@@ -283,7 +326,7 @@ def calcular(entradas: Path, destino: Path, fatia: str) -> dict:
         "municipios": len(marcas),
         "imoveis": sum(x["imoveis"] for x in marcas),
         "modelo_versao": R.versao(),
-        "cenario": CENARIO,
+        "cenario": cenario,
     }
     _json(destino / f"fatia_{fatia}.json", resumo)
     with tarfile.open(destino / f"calculado_{fatia}.tar.gz", "w:gz") as tar:
@@ -291,7 +334,7 @@ def calcular(entradas: Path, destino: Path, fatia: str) -> dict:
     return resumo
 
 
-def conferir_calculos(pasta: Path, cobertura: dict, modelo: str) -> list[dict]:
+def conferir_calculos(pasta: Path, cobertura: dict, modelo: str, cenario: str = CENARIO) -> list[dict]:
     import pandas as pd
 
     esperados = set(cobertura["com_imoveis"])
@@ -301,7 +344,7 @@ def conferir_calculos(pasta: Path, cobertura: dict, modelo: str) -> list[dict]:
     marcas = []
     for cod in sorted(esperados):
         m = _ler(pasta / f"rodada_{cod}.json")
-        if m["modelo_versao"] != modelo or m["cenario"] != CENARIO:
+        if m["modelo_versao"] != modelo or m["cenario"] != cenario:
             raise ValueError(f"Versão ou cenário divergente em {cod}.")
         previsoes = m.get("previsoes", {})
         if (
@@ -327,6 +370,8 @@ def reunir(entradas: Path, calculados: Path, destino: Path) -> dict:
     from raiz.restauracao_validacao import comparar_pastas, confrontar_referencia
 
     snapshot = _ler(entradas / "snapshot.json")
+    cenario = snapshot.get("cenario", CENARIO)
+    R.cenario(cenario)
     trabalho = destino / "trabalho"
     for nome in PACOTES:
         if sha256(entradas / nome) != snapshot["fontes"][nome]["sha256"]:
@@ -338,7 +383,7 @@ def reunir(entradas: Path, calculados: Path, destino: Path) -> dict:
             tar.extractall(trabalho, filter="data")
     pasta = trabalho / "PA"
     cobertura = conferir_cobertura(pasta)
-    marcas = conferir_calculos(pasta, cobertura, R.versao())
+    marcas = conferir_calculos(pasta, cobertura, R.versao(), cenario)
     produto = destino / "produto"
     produto.mkdir(parents=True, exist_ok=True)
     _json(produto / "fontes.json", snapshot)
@@ -353,7 +398,7 @@ def reunir(entradas: Path, calculados: Path, destino: Path) -> dict:
         for decisao in decisoes:
             f.write(json.dumps(L.json_seguro(decisao), ensure_ascii=False) + "\n")
     del decisoes
-    r, c = R.regra(), R.cenario(CENARIO)
+    r, c = R.regra(), R.cenario(cenario)
     resumos = {}
     for nome in OPCOES:
         print(f"Montando a opção {nome}", flush=True)
@@ -364,6 +409,14 @@ def reunir(entradas: Path, calculados: Path, destino: Path) -> dict:
         resumos[nome] = lote["resumo"]
         del lote
     _json(produto / "tres_lotes_PA.json", resumos)
+    pesquisa, sensibilidade = None, None
+    if c.get("rodada") == 12:
+        from raiz import restauracao_pesquisa as P12
+        from raiz import restauracao_sensibilidade as S12
+
+        pesquisa = P12.gravar(produto / "pesquisa")
+        print("Reavaliando a oferta para a sensibilidade dos três lotes", flush=True)
+        sensibilidade = S12.executar(dados, produto / "sensibilidade")
     previsoes = produto / "previsoes"
     previsoes.mkdir(exist_ok=True)
     for padrao in ("desenvolvedor_*.csv", "terra_*.csv", "validacao_entradas_*.jsonl"):
@@ -372,7 +425,7 @@ def reunir(entradas: Path, calculados: Path, destino: Path) -> dict:
     if (pasta / "previsoes").exists():
         shutil.copytree(pasta / "previsoes", previsoes / "registros", dirs_exist_ok=True)
     manifesto = {
-        "cenario": CENARIO,
+        "cenario": cenario,
         "uf": "PA",
         "municipios": cobertura["total"],
         "municipios_calculados": len(marcas),
@@ -384,6 +437,8 @@ def reunir(entradas: Path, calculados: Path, destino: Path) -> dict:
         "opcoes": list(OPCOES),
         "fontes": snapshot["fontes"],
         "resumos": resumos,
+        "pesquisa_rodada12": pesquisa,
+        "sensibilidade_rodada12": sensibilidade,
         "qualidade_dados": {
             "imoveis_com_pendencia_area": sum(m.get("imoveis_com_pendencia_area", 0) for m in marcas),
             "pendencias_area": dict(sum((Counter(m.get("pendencias_area", {})) for m in marcas), Counter())),
@@ -423,7 +478,11 @@ def publicar(destino: Path) -> dict:
     tentativa = os.environ.get("GITHUB_RUN_ATTEMPT", "1")
     if not run_id or not run_id.isdigit() or not tentativa.isdigit():
         raise ValueError("A publicação exige uma execução identificada do GitHub Actions.")
-    base = f"lote_PA_{CENARIO}_{run_id}_{tentativa}"
+    from raiz import restauracao as R
+
+    cenario = manifesto["cenario"]
+    R.cenario(cenario)
+    base = f"lote_PA_{cenario}_{run_id}_{tentativa}"
     arquivos = []
     for nome in OPCOES:
         arquivo = destino / f"{base}_{nome}.tar.gz"
@@ -445,7 +504,7 @@ def publicar(destino: Path) -> dict:
     _json(imutavel, manifesto)
     for f in [*arquivos, imutavel]:
         enviar_arquivo(f.name, f, imutavel=True, arm=arm)
-    atual = destino / "lote_PA_central_r11.json"
+    atual = destino / f"lote_PA_{cenario}.json"
     _json(atual, manifesto)
     enviar_arquivo(atual.name, atual, arm=arm)
     return manifesto
@@ -458,9 +517,10 @@ def main() -> None:
     parser.add_argument("--entradas", type=Path)
     parser.add_argument("--calculados", type=Path)
     parser.add_argument("--fatia")
+    parser.add_argument("--cenario", default=CENARIO)
     args = parser.parse_args()
     if args.etapa == "preparar":
-        resultado = preparar(args.destino)
+        resultado = preparar(args.destino, cenario=args.cenario)
         print(json.dumps({"fatias": len(resultado["plano"]), "cobertura": resultado["cobertura"]}))
     elif args.etapa == "calcular":
         print(json.dumps(calcular(args.entradas, args.destino, args.fatia)))

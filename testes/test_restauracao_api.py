@@ -81,7 +81,7 @@ def test_ficha_tem_o_bloco_para_quem_restaura(cliente):
     for k in ("custo_rs_ha", "captura_tco2_ha_ano", "credito_liquido_tco2_ha_ano", "vpl_rs_ha", "tir_projeto_pct",
               "tir_alavancada_pct", "pico_capital_proprio_rs_ha"):  # fmt: skip
         assert b[k]["p10"] <= b[k]["p50"] <= b[k]["p90"], k
-    assert b["versao"] == R.versao() and b["cenario"]["cenario"] == "central_r11"
+    assert b["versao"] == R.versao() and b["cenario"]["cenario"] == "central_r12"
     assert [d["id"] for d in b["descontos"]] == ["linha_base", "vazamento", "reserva_risco", "incerteza"]
     assert b["marcos"]["lista"] and b["pagamento_dono"]["comparacao"][0]["atual"]
     # a amostra traz as entradas já medidas (distância à mata, YbYrá, relevo, chuva, solo, acesso): nada faltou
@@ -117,7 +117,7 @@ def test_simulador_e_cenarios(cliente):
     cl, _, _ = cliente
     alvo = _um_com_area(cl)
     cods = cl.get("/restauracao/cenarios").json()
-    assert cods["padrao"] == "central_r11"
+    assert cods["padrao"] == "central_r12"
     assert {"central_r11_74", "estresse_r11", "otimista_fundador", "otimista_fundador_74"} <= set(cods["cenarios"])
     assert cods["cenarios"]["central_r11"]["fontes"]["preco_usd_t"].startswith("fundador, rodada 11")
     assert "duas_fases" in cods["opcoes"]["pagamento_dono"]

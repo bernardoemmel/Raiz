@@ -13,6 +13,7 @@ import tarfile
 import threading
 import time
 import urllib.error
+from contextlib import nullcontext
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -557,7 +558,34 @@ def test_estadual_filho_confere_antes_de_ler_e_proibe_recalculo(tmp_path, monkey
         }
 
     monkeypatch.setattr(P, "conferir_preparado", conferir)
+    monkeypatch.setattr(P, "modelo_historico", lambda: nullcontext(estadual.R))
     monkeypatch.setattr(estadual.L, "ler_uf", ler_uf)
     monkeypatch.setattr(estadual.L, "montar", montar)
     estadual.test_lote_do_para_inteiro_fecha_ou_diz_o_que_falta(monkeypatch)
     assert chamadas == ["conferir", "ler", "montar"]
+
+
+@pytest.mark.parametrize("corromper", [False, True])
+def test_replay_usa_codigo_ancorado_sem_renomear_o_modelo_atual(monkeypatch, corromper):
+    from raiz import restauracao as atual
+
+    versao_atual = atual.versao()
+    codigo = (f'def versao(): return {P.MODELO!r}\ndef cenario(): return {{"cenario": "central_r11"}}\n').encode()
+    monkeypatch.setattr(P, "FONTES_MODELO", {"raiz/restauracao.py": hashlib.sha256(codigo).hexdigest()})
+    chamadas = []
+
+    def mostrar(cmd, **kwargs):
+        chamadas.append(cmd)
+        return SimpleNamespace(returncode=0, stdout=codigo + (b"alterado" if corromper else b""))
+
+    monkeypatch.setattr(P.subprocess, "run", mostrar)
+    if corromper:
+        with pytest.raises(P.FalhaPrivada):
+            with P.modelo_historico():
+                pytest.fail("não pode executar fonte adulterada")
+    else:
+        with P.modelo_historico() as historico:
+            assert historico.versao() == P.MODELO
+            assert historico is not atual
+    assert atual.versao() == versao_atual
+    assert chamadas == [["git", "show", f"{P.ORIGEM}:raiz/restauracao.py"]]

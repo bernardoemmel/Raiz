@@ -108,3 +108,30 @@ libera automaticamente o imóvel. A trilha de entrada é comum às três opçõe
 `ecologia_PA.json` tem quatro horizontes por CAR (3, 5, 10 e 15 anos), fontes, unidade de amostragem e incerteza.
 Previsão ausente fica nula: metas de regenerantes de São Paulo não são uma previsão de árvores adultas no Pará;
 riqueza de espécies não é multiplicada pela área da fazenda.
+
+### Complementos da restauração na rodada 12
+
+- `restauracao_tipo_calculo`: `completo` ou `sensibilidade_financeira_p50`. O segundo
+  preserva todos os sorteios de crédito, mas deixa TIR P10/P90 e preços mínimos por
+  fazenda vazios; não copia faixas de outro cenário.
+- `credito_classe`, `credito_estagio_contrato`, `credito_classificacao_versao`:
+  volume modelado/medido/emitido × estágio contratual, com versão. Modelado não
+  significa emitido, contratado ou liberado para venda.
+- `financeiro_versao`, `operacao_fundo_clima`, `divida_modelo_versao`,
+  `divida_motivo_sem_divida`: fonte financeira e motivo para dívida zero por ICSD.
+- `captura_curva_bruta_json`: vetor anual bruto da mistura de métodos R12, usado
+  na reconstrução dos marcos sem recuperar a forma histórica R11.
+- `provisao_terra_json`: certidão, quantidade referenciada de matrículas, área
+  georreferenciada, custo e limitações da provisão; não comprova titularidade.
+- `vazamento_comprovado`, `vazamento_plano_json`: decisão e plano de receptores
+  com UA, capacidade seca, documentos e revisão humana. O plano acompanha a
+  previsão para permitir auditoria; encontrá-lo não autentica seus documentos.
+- Entradas opcionais `matriculas_referenciadas`, `area_georreferenciar_ha`:
+  contagem de referências e área do serviço. Na ausência, a provisão usa uma
+  certidão mínima e a área integral conhecida, com a insuficiência explícita.
+- `financeiro_p50_tipo`: `fluxo_com_premissas_centrais`; o caminho financeiro
+  nominal, historicamente chamado P50, não é a mediana dos sorteios de TIR.
+  `tir_projeto_central_fora_faixa` e `tir_alavancada_central_fora_faixa` avisam
+  quando ele cai fora de P10–P90 de Monte Carlo (vazios no cálculo rápido).
+  Não se ajustam quantis para forçar o enquadramento, inclusive em imóveis pequenos
+  com taxas fixas predominantes e fluxos com mais de uma troca de sinal.

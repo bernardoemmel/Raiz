@@ -441,6 +441,51 @@ original do Lighthouse; sua compatibilidade é verificada com o teste de agentes
 capturados em transporte local, sem envio ao Sentry. Ao atualizar o Lighthouse ou esse pin, repetir essas
 verificações e a checagem integral de licenças; não liberar FSL nem instalar a CLI como exceção.
 
+# Rodada 12 — cálculo científico e fontes
+
+Integrações por API Python, sem código de terceiros copiado:
+
+- [pysyncon](https://github.com/sdfordham/pysyncon), MIT; controle sintético.
+- [CVXPY](https://github.com/cvxpy/cvxpy), Apache-2.0; otimização convexa.
+- [PuLP](https://github.com/coin-or/pulp), MIT; programação inteira.
+- [NetworkX](https://github.com/networkx/networkx), BSD-3-Clause; fluxo em redes.
+- [scpi](https://github.com/nppackages/scpi), GPL-3.0-only: dependência **apenas**
+  de `infra/scpi/requirements.txt`, ambiente separado de servidor. Não consta nas
+  dependências do produto nem no wheel; `infra/scpi` é excluído do sdist. A ponte
+  local é código próprio; nenhum código GPL foi incorporado ao pacote `raiz`.
+
+Dados e fatos científicos não herdam as licenças das bibliotecas:
+
+- Cardoso et al. 2026, DOI 10.5061/dryad.6t1g1jxdp: CC0-1.0. Metadados conferidos;
+  extração das observações ainda pendente de download. Não guardar a coluna
+  `responsible` em dados de ajuste ou resultados.
+- Bousfield e Edwards, Zenodo 15120870: CC-BY-4.0; idade da floresta em 2023.
+- IBGE, Malha Municipal Digital 2025 do Pará: atribuição CC-BY-4.0 conforme
+  termos da MMD, https://www.ibge.gov.br/biblioteca/visualizacao/livros/liv102152.pdf.
+  Download limitado e SHA256 ancorado; usada somente para vincular parcelas
+  públicas a municípios, sem incorporar a malha ao pacote distribuído.
+- Verra VCS 5511 e Isometric 84R7: documentos públicos sem licença aberta de
+  redistribuição localizada. Guardados fatos, referências e hashes, não cópias dos
+  PDFs ou planilhas proprietários no produto.
+
+
+- Dados abertos BNDES, operações diretas/indiretas não automáticas: ODbL-1.0,
+  https://dadosabertos.bndes.gov.br/dataset/operacoes-financiamento. Somente fatos
+  financeiros das tranches de referência foram transcritos; não distribuímos
+  cadastro de tomadores. SIDRA/IBGE: fonte oficial e consulta identificada em
+  `rodada12_financeiro.json`; números do Censo 2017 corrigidos pelo IPCA.
+- O solver CBC, chamado pelo PuLP como executável separado, usa EPL-2.0
+  (https://github.com/coin-or/Cbc). Não foi copiado código do solver para a Raíz.
+- Embrapa, ASOP 25 e relatórios Verra: fatos, método e atribuição; implementação
+  própria, sem reproduzir integralmente textos ou dados sem licença aberta.
+- Referências ecológicas derivadas: Boeschoten et al. (2026), Zenodo 18244528,
+  CC-BY-4.0; Rozendaal et al. (2019), DANS-XH8-GH92, CC0-1.0; Giles et al.
+  (2024)/Jakovac et al. (2015), Zenodo 13970371, CC-BY-4.0. Atribuição,
+  licença, hash da fonte, recorte, unidade e versão de cálculo acompanham cada
+  faixa em `ecologia_referencias_abertas.json`. Quantis foram calculados por
+  código próprio. Cava (Zenodo 4941557, CC0) aparece como experimento rejeitado,
+  sem promover a curva a previsão. Nenhum dado ou código NC foi incorporado.
+
 ## Preparação dos programas e correção do céu — MapLibre GL JS 6.15.0
 
 `front/globo/src/mapa/shader-simbolo.generated.ts` contém os shaders `symbolSDF` de Mercator do
