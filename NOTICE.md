@@ -323,6 +323,15 @@ especificação pública (MIT), sem copiar código. OAuth via Keycloak26.8.2 (Ap
 em contêiner separado. O armazenamento compartilhado dos limites usa Valkey (BSD-3-Clause),
 compatível com o protocolo Redis; o servidor Redis com licença restritiva não é distribuído.
 
+O harness de avaliação usa VCR.py (MIT, https://github.com/kevin1024/vcrpy), sem código copiado,
+para gravar e reproduzir chamadas ao modelo em testes. Os replays não contam como medição nova de agente real.
+
+A conferência de protocolo usa MCP Inspector 2.15.0 (Apache-2.0, com código legado MIT,
+https://github.com/modelcontextprotocol/inspector), vacuum 0.40.1 (MIT,
+https://github.com/daveshanley/vacuum) e o esquema oficial do registro MCP de 2025-12-11
+(Apache-2.0 e MIT, https://github.com/modelcontextprotocol/registry). A licença e o hash
+do esquema acompanham a cópia em `infra/mcp/`; nenhum servidor é publicado por essas ferramentas.
+
 ## Sanitização de logs (`raiz/logs_seguros.py`)
 
 Microsoft Presidio Analyzer e Anonymizer ([microsoft/presidio](https://github.com/microsoft/presidio), MIT) são usados
