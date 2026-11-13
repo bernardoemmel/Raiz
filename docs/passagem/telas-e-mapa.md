@@ -2,7 +2,7 @@
 
 Sessão: https://claude.ai/code/session_01VGb88MJumyG9PHt2znaaKE. Branch: `claude/upbeat-goodall-iwsrai`.
 
-## Redesenho cartográfico e rodada 12: em validação (12/11/2026, Brasília)
+## Redesenho cartográfico e rodada 12: PR #90 (13/11/2026 UTC)
 
 - A entrada usa MapLibre com países, oceano e estados: verde-claro com municípios lidos/esperados;
   cinza e “ainda não processado” onde faltam dados. O SVG grande foi retirado e o pequeno minimapa permanece.
@@ -35,8 +35,16 @@ Sessão: https://claude.ai/code/session_01VGb88MJumyG9PHt2znaaKE. Branch: `claud
 - Hachura verde exige geometria de restauração medida e autorizada. O mapa geral aberto não baixa essa
   camada paga; a ficha autenticada conserva a leitura pela API. Não desenhar uma fração fictícia do CAR.
 - Revisão visual detectou e corrigiu a base detalhada/satélite encobrindo os contornos; o Playwright agora
-  verifica também a ordem das camadas. Capturas reais e desempenho estão em validação. O portão Lighthouse
-  permanece ≥ 90; a abertura direta não será considerada pronta enquanto a série fixa não o atingir.
+  verifica também a ordem das camadas. Os grupos visíveis são botões HTML, com índice Supercluster no worker;
+  a legenda única recolhida preserva as contagens em 360 px. O build evita compilar céu totalmente transparente
+  no MapLibre, com versão/hash conferidos e licença completa distribuída. Não remove dados para a auditoria.
+- A série fixa final no snapshot real, frontend `1412642`, marcou desempenho **88/98/92 (mediana 92)** e
+  acessibilidade **100/100/100**, em 360 px com CPU/rede simuladas. LCP 1,46/1,43/1,49 s; TBT
+  431,5/152/319 ms. As três amostras foram preservadas, inclusive a de 88; não houve repetição para escolher
+  notas melhores nem alteração do portão. A inicialização gráfica ainda varia entre execuções. Os 399 testes
+  do front passaram. Prints nacionais antes/depois, 360 px e detalhe real estão em
+  [evidências da rodada 12](../design/evidencias/mapa-r12/README.md). O CI mantém três medições em cada uma
+  de seis páginas e precisa ter todos os nove jobs verdes antes do merge, além da conferência da publicação.
 - MapLibre foi mantido. OpenLayers só poderá substituí-lo após vencer o teste comparativo pedido, com
   um imóvel sobreposto e outro sem sobreposição; esse teste de troca não foi realizado. Não foi usado bpmn-js.
 - E9 continua aguardando as cartas reais. Contato com donos apenas na fase final; nenhuma identidade ou

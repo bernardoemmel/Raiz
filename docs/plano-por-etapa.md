@@ -459,10 +459,10 @@ faz sem back-end.
 
 | Entrega | Situação |
 |---|---|
-| Abrir direto no MapLibre, com países, oceano e cobertura por estado | **implementado, em validação**: SVG restrito ao minimapa; fundo nacional primeiro, detalhes regionais sob demanda; contador compara o índice com o último site publicado |
-| Grupos nacionais/estaduais e contornos finos a partir de zoom 12 | **implementado, em validação**: Supercluster (ISC) com contagem de fazendas e hectares conhecidos; H3 fica como unidade interna, com supressão e cobertura parcial. Sem preenchimento das fazendas, sobreposições tracejadas e hachura só com geometria medida e autorizada |
-| Satélite com licença comercial conferida | **implementado, em validação**: Sentinel-2 EOxCloudless vintage 2016, cenas 2016/2017, CC BY 4.0, atribuição e ano visíveis; véu claro e retorno à base vetorial em falha |
-| Prova visual antes/depois, zero 404 e Lighthouse ≥ 90 | **em andamento**: seis capturas com dados reais; testes de ordem das camadas; desempenho inicial ainda bloqueia o merge até atingir o portão existente |
+| Abrir direto no MapLibre, com países, oceano e cobertura por estado | **feito no PR #90**: SVG restrito ao minimapa; fundo nacional primeiro, detalhes regionais sob demanda; contador compara o índice com o último site publicado |
+| Grupos nacionais/estaduais e contornos finos a partir de zoom 12 | **feito no PR #90**: Supercluster com contagem de fazendas e hectares conhecidos, botões visíveis acessíveis e licenças MIT/ISC completas. H3 fica como unidade interna, com supressão e cobertura parcial. Sem preenchimento das fazendas, sobreposições tracejadas e hachura só com geometria medida e autorizada |
+| Satélite com licença comercial conferida | **feito no PR #90**: Sentinel-2 EOxCloudless vintage 2016, cenas 2016/2017, CC BY 4.0, atribuição e ano visíveis; véu claro e retorno à base vetorial em falha |
+| Prova visual antes/depois, zero 404 e Lighthouse ≥ 90 | **feito localmente no PR #90**: Brasil antes/depois, estado, município, fazenda e 360 px com dados reais. Série fixa final 88/98/92, mediana 92; acessibilidade 100 nas três. Testes de ordem das camadas, teclado e rede; nove jobs do CI e publicação são portões separados antes da entrega. Evidências na passagem |
 
 ## Telas e mapa: ficha visual da terra
 
