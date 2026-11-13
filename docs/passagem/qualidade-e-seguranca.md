@@ -309,3 +309,31 @@ antes do merge.
 
 Os demais portões, observabilidade, carga e corpus permanecem no PR #76. O corpus continua bloqueado; esta entrega
 não altera sua política nem equivale a aprovação dos testes de injeção pendentes.
+
+## Rodada 12 — medição do acerto e protocolo de mudança
+
+Entrega em preparação na branch `qualidade-avaliacao-modelos`, baseada na main `2b6e8af` (#84).
+
+- CRPS com properscoring, sorteios finitos e denominador `crps_n` no placar existente. Corrigido bug pequeno:
+  distribuição estava fora do hash das previsões congeladas. Novo hash inclui o conteúdo; versão antiga não é
+  sobrescrita. Hashes legados com distribuição exigem atestação adicional, sem reescrever o histórico.
+- sktime separa origens pelo calendário e exige que evento, conhecimento e entradas já existissem no corte.
+  imbalanced-learn fica no fit da Pipeline; forestci e mpl-probscale são diagnósticos de avaliação, sem trocar modelo.
+- AIF360 mede todas as classes por município/aptidão. Política inicial de 5 pp e mínimo de 30 casos distintos:
+  a consulta sobre o limite foi feita ao fundador; na ausência de resposta, adotado 5 pp explicitamente.
+  CI tem contrafactuais no solver real e regressão que reprova viés local escondido na média nacional.
+- Plano PCCP, gabarito cego, controle estável e funil de denominador fixo têm contratos fechados sem identificação
+  civil/contato. CLI exige fixação anterior ao treino, arquiva ambas as versões e reprova regressões/insuficiência.
+  Formatos inspirados nas referências; sem alegar acreditação, aprovação FDA ou acerto empírico já medido.
+- CI confere esquemas e pacote distribuível contra scpi/vegan, inclusive extras/transitivas. Não cancela workflows.
+
+Pendências de outros chats, sem reescrever suas funcionalidades:
+
+| Dono | Integração/evidência necessária |
+|---|---|
+| Lote e números | Exportar e congelar os sorteios originais de cada previsão de carbono. Hoje o arquivo preserva quantis e parâmetros; não inventar distribuição com três quantis. Fornecer aptidão definida antes da escolha e resultados de inclusão para toda a coorte. |
+| Dados | Constituir gabarito independente, amostras cegas, rastreabilidade das medições e controles reais. Cobertura insuficiente não aprova modelo. Produzir retratos temporais com disponibilidade verificável e atestar lotes históricos com distribuição sob hash legado. |
+| Produto e regras | Ligar o portão privado à transação de `campeao.promover`/`voltar` e aos caminhos de recalibração, impedindo promoção sem protocolo aprovado. Preservar segregação entre custodiante do cego e treino. O CLI desta entrega decide/aponta retorno, mas não muda campeão. |
+| Fundador/infra de produção | Prover arquivo privado imutável, backup, relógio confiável e permissões segregadas. Um hash local não prova a veracidade das datas ou da medição. |
+
+Sem contato com dono, sem agendamento de revisão e sem dados individuais em Release/site/artefatos CI.

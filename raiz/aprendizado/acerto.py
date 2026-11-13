@@ -60,7 +60,14 @@ def nota(r: dict) -> dict | None:
         }
     if p10 is not None and p50 is not None and p90 is not None and y_num is not None:
         y = float(y_num)
+        extras = {}
+        dist = r.get("distribuicao")
+        if isinstance(dist, dict) and dist.get("tipo") == "empirica":
+            from raiz.avaliacao.metricas import crps_distribuicao
+
+            extras["crps"] = crps_distribuicao(y, dist)
         return {
+            **extras,
             "tipo": "faixa",
             "wis": wis(y, float(p10), float(p50), float(p90)),
             "ae_mediana": abs(y - float(p50)),
@@ -76,7 +83,7 @@ def nota(r: dict) -> dict | None:
 
 
 METRICAS = {
-    "faixa": ("wis", "ae_mediana", "cobertura_80"),
+    "faixa": ("wis", "ae_mediana", "cobertura_80", "crps"),
     "numero": ("ae", "eq"),
     "chance": ("brier", "log_score", "acerto"),
     "categoria": ("acerto", "brier"),
@@ -105,6 +112,8 @@ def placar(linhas: list[dict]) -> list[dict]:
             for m in METRICAS[tipo]:
                 vals = [n[m] for n in g["notas"] if m in n]
                 medias[m] = round(sum(vals) / len(vals), 6) if vals else None
+                if m == "crps":
+                    medias["crps_n"] = len(vals)
         out.append(
             {
                 "modelo": modelo,

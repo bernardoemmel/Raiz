@@ -487,3 +487,12 @@ A primeira execução no Actions identificou ausência de `rg` no runner; a veri
 
 - [x] Markdown do site preserva medidas ausentes e zeros explícitos; totais incompletos não são apresentados
   como totais completos. Regressões cobrem páginas estaduais/municipais e proteção de grupos pequenos.
+
+### Qualidade — avaliação da rodada 12
+
+Feito no código: contratos de prova cega/controle estável/PCCP e funil de denominador fixo; CRPS com denominador
+explícito; origens móveis sem acesso ao futuro; equidade por município/aptidão/porte com solver no CI; diagnóstico
+forestci/caudas; reamostragem só no treino; bloqueio de scpi/vegan no pacote. Ver
+[protocolo e limites](modelo/avaliacao-rodada12.md) e [responsáveis pela integração](passagem/qualidade-e-seguranca.md).
+Acurácia empírica e promoção automática via esse protocolo aguardam os dados/integrações indicados; não são
+marcadas como concluídas por passar nos casos sintéticos.

@@ -361,3 +361,21 @@ que não é aceita pelo projeto. A versão 10.78.0 evita essa dependência e man
 original do Lighthouse; sua compatibilidade é verificada com o teste de agentes e com eventos de telemetria
 capturados em transporte local, sem envio ao Sentry. Ao atualizar o Lighthouse ou esse pin, repetir essas
 verificações e a checagem integral de licenças; não liberar FSL nem instalar a CLI como exceção.
+
+## Avaliação de modelos (rodada 12)
+
+Dependências usadas sem copiar código. Licenças conferidas nos metadados e arquivos dos pacotes travados:
+
+| Pacote | Versão | Licença | Uso e origem |
+|---|---|---|---|
+| properscoring | 0.1 | Apache-2.0 | CRPS de distribuições congeladas; https://github.com/properscoring/properscoring |
+| sktime | 1.3.0 | BSD-3-Clause | Origens móveis na avaliação; https://github.com/sktime/sktime |
+| aif360 | 0.6.1 | Apache-2.0 | Diferença de seleção por município, aptidão e porte; https://github.com/Trusted-AI/AIF360 |
+| imbalanced-learn | 0.14.2 | MIT | Reamostragem apenas no treino; https://github.com/scikit-learn-contrib/imbalanced-learn |
+| forestci | 0.9 | MIT | Variância IJ da floresta; https://github.com/scikit-learn-contrib/forest-confidence-interval |
+| probscale (mpl-probscale) | 0.3.0 | BSD-3-Clause | Caudas do erro em gráfico privado; https://github.com/matplotlib/mpl-probscale |
+
+Properscoring e seu backend Numba 0.68.1 (BSD-2-Clause) / llvmlite 0.50.0 (BSD-2-Clause,
+LLVM Apache-2.0 com exceção LLVM) entram nas dependências normais da aplicação; os demais são ferramentas de avaliação/treino
+no grupo de desenvolvimento. `scpi`, `scpi-pkg` e `vegan` não são dependências nem código incorporado. O CI
+confere o wheel e todas as dependências distribuíveis, inclusive extras e transitivas.
