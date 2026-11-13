@@ -34,29 +34,27 @@ jobs:
         run: |
           uv sync --frozen
           npm --prefix servicos/conferencia-agentes ci --no-audit --no-fund
+          echo "63cf623955e229747c4ff59bcbd7ebe39f5a1e8965894fb2b0944793486bf28b  servicos/conferencia-agentes/node_modules/@quobix/vacuum/bin/vacuum" | sha256sum -c -
       - name: API, MCP, PostGIS, Keycloak e worker reais em Compose
-        run: uv run python scripts/pilha_agentes.py teste --env-file .env.agentes-teste
+        run: uv run python -m scripts.pilha_agentes teste --env-file .env.agentes-teste
       - name: Empresa sintética e token OAuth por PKCE
         run: >-
-          uv run python scripts/cenarios_agentes.py --bootstrap-ci
+          uv run python -m scripts.cenarios_agentes --bootstrap-ci
           --token-file .cache/agentes/token-mcp.txt
       - name: Inspector oficial, vacuum e manifesto do registro sem publicação
         run: >-
-          uv run python scripts/verificar_protocolo_agentes.py
+          uv run python -m scripts.verificar_protocolo_agentes
           --openapi-url http://localhost:18000/v1/openapi.json
           --mcp-url http://localhost:18000/mcp/
           --token-file .cache/agentes/token-mcp.txt
-      - name: Repetir as respostas gravadas do agente, sem chave nem chamadas à Anthropic
+      - name: Conferir os 24 cenários pela pilha real, sem modelo
         run: >-
-          uv run python scripts/avaliar_agente_real.py
-          --provider scripts.cenarios_agentes:provedor
-          --modelo claude-sonnet-5-5 --modo replay
-          --cassetes testes/cassetes/agentes --saida .cache/agentes-replay
-          --campanha replay-${{ github.run_id }}-${{ github.run_attempt }}
+          uv run python -m scripts.cenarios_agentes --smoke
+          --saida .cache/protocolo-agentes/cenarios.json
       - name: Memória e disco da pilha de teste
-        if: always()
+        if: always() && hashFiles('.env.agentes-teste') != ''
         run: >-
-          uv run python scripts/pilha_agentes.py medir --teste --env-file .env.agentes-teste
+          uv run python -m scripts.pilha_agentes medir --teste --env-file .env.agentes-teste
           --saida .cache/protocolo-agentes/recursos.json --amostras 5 --intervalo 2
       - name: Relatórios sem tokens nem traces privados
         if: always()
@@ -65,12 +63,11 @@ jobs:
           name: contratos-agentes
           path: |
             .cache/protocolo-agentes
-            .cache/agentes-replay/relatorio.json
           retention-days: 14
           if-no-files-found: error
       - name: Encerrar a pilha local
-        if: always()
-        run: uv run python scripts/pilha_agentes.py parar --teste --env-file .env.agentes-teste
+        if: always() && hashFiles('.env.agentes-teste') != ''
+        run: uv run python -m scripts.pilha_agentes parar --teste --env-file .env.agentes-teste
 
   workflows:
     runs-on: ubuntu-24.04

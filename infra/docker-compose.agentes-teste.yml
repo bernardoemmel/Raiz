@@ -30,23 +30,15 @@ services:
     environment: *teste-ambiente
   api:
     environment: *teste-ambiente
-    volumes:
-      - ../raiz:/app/raiz:ro
-      - ../scripts:/app/scripts:ro
     network_mode: service:keycloak
     ports: !reset []
   worker:
     environment: *teste-ambiente
-    volumes:
-      - ../raiz:/app/raiz:ro
-      - ../scripts:/app/scripts:ro
     network_mode: service:keycloak
     depends_on:
       keycloak:
         condition: service_healthy
   agenda:
-    volumes:
-      - ../scripts:/app/scripts:ro
     environment:
       <<: *teste-ambiente
       RAIZ_AGENDA_MODO: teste

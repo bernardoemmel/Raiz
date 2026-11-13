@@ -77,12 +77,15 @@ def test_inspector_tem_config_privada_e_reporta_somente_metadados(monkeypatch):
             "tools/list": {"tools": [{"name": n} for n in ESCOPOS_FERRAMENTAS]},
             "tools/call": {"structuredContent": {"pedido_id": "uuid-sintetico", "estado": "submitted"}},
         }[metodo]
+        if "acompanhar_contato" in comando:
+            resposta = {"structuredContent": {"pedido_id": "uuid-sintetico", "estado": "completed"}}
         return subprocess.CompletedProcess(comando, 0, json.dumps({"result": resposta}), "")
 
     monkeypatch.setattr(conferencia, "executar", executar)
     resultado = conferencia.conferir_mcp("http://localhost:18000/mcp/", token)
     assert token not in json.dumps(resultado)
     assert resultado["protocolo"] == conferencia.PROTOCOLO
+    assert resultado["estado"] == "completed"
     assert not any(p.exists() for p in configuracoes)
 
 

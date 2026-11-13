@@ -1,12 +1,14 @@
 # Conferência dos contratos para agentes
 
 O CI usa o **MCP Inspector oficial 2.15.0**, pela CLI, e **vacuum 0.40.1**. O npm lock de
-`servicos/conferencia-agentes` fixa as dependências e suas integridades. Node precisa ser 22.23.4 ou posterior
-na linha 22, 24.22.1 ou posterior na linha 24, ou 26.12.1 ou posterior. A auditoria de licenças inclui esse lock.
+`servicos/conferencia-agentes` fixa as dependências e suas integridades. O conjunto exige Node 24.22.1 ou posterior
+na linha 24, ou 26.12.1 ou posterior. A auditoria de licenças inclui esse lock. O CI também confere o SHA-256 do
+binário Linux x86_64 do vacuum: o instalador npm o baixa separadamente do pacote. O binário foi comparado com o
+arquivo oficial da versão 0.40.1, cujo SHA-256 é `22d29c3184043eee53a6fc759fd4acc42095c030db9c4765199580bd85d20678`.
 
 ```bash
 npm --prefix servicos/conferencia-agentes ci --no-audit --no-fund
-uv run python scripts/verificar_protocolo_agentes.py
+uv run python -m scripts.verificar_protocolo_agentes
 ```
 
 Esse comando gera o OpenAPI da **aplicação real em `/v1`**, confere que seu topo contém o resumo comum de até
@@ -16,7 +18,7 @@ e não são suprimidos. A aplicação administrativa em `/openapi.json` não é 
 Com a pilha de teste e uma empresa sintética preparada, a conferência completa é:
 
 ```bash
-uv run python scripts/verificar_protocolo_agentes.py \
+uv run python -m scripts.verificar_protocolo_agentes \
   --openapi-url http://localhost:18000/v1/openapi.json \
   --mcp-url http://localhost:18000/mcp/ \
   --token-file .cache/agentes/token-mcp.txt
@@ -24,7 +26,8 @@ uv run python scripts/verificar_protocolo_agentes.py \
 
 O token vem do Keycloak de teste, nunca de produção. O Inspector negocia a era moderna, exige o protocolo
 2026-07-28, compara o resumo e o catálogo, verifica portabilidade dos esquemas com `--strict` e executa uma
-consulta de disponibilidade. Essa consulta consome um crédito sintético. A configuração temporária tem permissão
+consulta de disponibilidade. Acompanha o pedido pelo MCP até o worker concluir, antes de liberar a base para o
+replay seguinte. Essa consulta consome um crédito sintético. A configuração temporária tem permissão
 0600 e é removida ao terminar; token não entra em argumentos, logs nem relatório. Falha do Inspector reprova o CI.
 
 ## Manifesto do registro MCP
@@ -38,7 +41,7 @@ Sem domínio, o CI renderiza `.cache/protocolo-agentes/server.json` com `https:/
 reservado que não anuncia servidor. Para preparar o arquivo com o domínio escolhido:
 
 ```bash
-uv run python scripts/verificar_protocolo_agentes.py --dominio https://api.DOMINIO-ESCOLHIDO
+uv run python -m scripts.verificar_protocolo_agentes --dominio https://api.DOMINIO-ESCOLHIDO
 ```
 
 O comando exige a origem HTTPS e rejeita credenciais, parâmetros e caminhos; **não publica**. A publicação no
@@ -60,9 +63,13 @@ vacuum: MIT. As licenças completas acompanham os pacotes; esta documentação n
 ## CI sem modelo e campanha semanal
 
 O job `agentes` do CI sobe a pilha real, cria uma empresa sintética, obtém um token por PKCE e executa o Inspector.
-Depois repete os cassetes gravados da campanha com `vcrpy`, sem chave Anthropic; cassette ausente ou requisição
-divergente falha, sem acesso alternativo ao modelo. O relatório de replay é evidência de regressão, não uma nova
-medição de pass^4 de agente real.
+Também prepara os 24 cenários pela pilha real, confere descoberta, worker e os estados de erro/resultado esperados
+com chamadas determinísticas; essa verificação é marcada como contrato e não mede o desempenho de um agente.
+Na entrega inicial, a suíte Python confere o contrato do runner e do VCR com respostas sintéticas. **O replay
+integral das 96 tentativas só entra no PR seguinte**, depois da primeira campanha real e da revisão dos cassetes;
+esta entrega não contém um passo que pule silenciosamente uma gravação ausente. No replay, cassette ausente ou
+requisição divergente falha sem acesso alternativo ao modelo. Seu relatório será evidência de regressão, não uma
+nova medição de pass^4 de agente real.
 
 O workflow `agentes-real.yml` roda às **06h de segunda-feira em America/Sao_Paulo** e admite execução manual.
 Usa o snapshot fixo `claude-sonnet-5-5`, 24 tarefas e quatro sessões novas por tarefa. O segredo
@@ -73,3 +80,7 @@ de conferência da sua presença e execução do modelo, sem passá-lo aos servi
 Os artefatos do Actions guardam os relatórios técnicos e de recursos. Não incluem `.env`, tokens, traces brutos
 ou os cassetes da nova campanha. Mudanças aprovadas nos cassetes do CI são revisadas por PR, nunca sobrescritas
 automaticamente por um workflow. Nenhum desses workflows publica no registro MCP ou contrata servidor.
+
+A medição de recursos semanal ocorre **durante** a campanha: Docker amostrado a cada dez segundos até o agente
+terminar, além do disco dos volumes e das imagens. O código de saída do agente é preservado; falha do medidor
+também reprova o job. O maior valor amostrado não garante o pico entre amostras nem dimensiona a base nacional.

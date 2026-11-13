@@ -4398,6 +4398,7 @@ nativo = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "httpx2" },
     { name = "hypothesis" },
     { name = "jsonschema" },
     { name = "maturin" },
@@ -4477,6 +4478,7 @@ provides-extras = ["metadados", "motor", "nativo"]
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "httpx2", specifier = ">=2.16,<3" },
     { name = "hypothesis", specifier = ">=6.100" },
     { name = "jsonschema", specifier = ">=4.23,<5" },
     { name = "maturin", specifier = ">=1.7" },

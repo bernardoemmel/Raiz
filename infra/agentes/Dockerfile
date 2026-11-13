@@ -20,6 +20,7 @@ COPY . .
 RUN --mount=type=secret,id=proxy_ca \
     if [ -f /run/secrets/proxy_ca ]; then export SSL_CERT_FILE=/run/secrets/proxy_ca CARGO_HTTP_CAINFO=/run/secrets/proxy_ca; fi; \
     uv sync --frozen --all-extras --no-dev --no-editable && rm -rf nativo/raiz_iov/target
+RUN python scripts/proveniencia_imagem.py --saida /app/proveniencia.json
 
 FROM python:3.12.12-slim-bookworm AS executar
 ENV PATH="/app/.venv/bin:$PATH" PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1 \
@@ -27,7 +28,7 @@ ENV PATH="/app/.venv/bin:$PATH" PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /app
 RUN groupadd --gid 10001 raiz && useradd --uid 10001 --gid 10001 --no-create-home raiz
 COPY --from=construir --chown=10001:10001 /app /app
-RUN mkdir -p /app/dados && chown 10001:10001 /app/dados
+RUN chmod -R a+rX /app && mkdir -p /app/dados && chown 10001:10001 /app/dados
 USER 10001:10001
 EXPOSE 8000
 CMD ["raiz", "api", "--host", "0.0.0.0", "--porta", "8000"]

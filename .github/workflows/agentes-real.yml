@@ -36,21 +36,28 @@ jobs:
       - name: Dependências travadas
         run: uv sync --frozen
       - name: Subir pilha sintética isolada
-        run: uv run python scripts/pilha_agentes.py teste --env-file .env.agentes-teste
+        run: uv run python -m scripts.pilha_agentes teste --env-file .env.agentes-teste
       - name: Claude por MCP, 24 tarefas em quatro sessões independentes
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-        run: >-
-          uv run python scripts/avaliar_agente_real.py
-          --provider scripts.cenarios_agentes:provedor
-          --modelo claude-sonnet-5-5 --modo real
-          --cassetes .cache/agentes-real/cassetes --saida .cache/agentes-real
-          --campanha semanal-${{ github.run_id }}-${{ github.run_attempt }}
-      - name: Medir memória e disco após a campanha
-        if: always()
-        run: >-
-          uv run python scripts/pilha_agentes.py medir --teste --env-file .env.agentes-teste
-          --saida .cache/agentes-real/recursos.json --amostras 5 --intervalo 2
+        run: |
+          mkdir -p .cache/agentes-real
+          fim=".cache/agentes-real/campanha-encerrada"
+          uv run python -m scripts.pilha_agentes medir --teste --env-file .env.agentes-teste \
+            --saida .cache/agentes-real/recursos.json --amostras 720 --intervalo 10 \
+            --ate-arquivo "$fim" &
+          medidor_pid=$!
+          trap 'touch "$fim"; wait "$medidor_pid" || true' EXIT
+          codigo=0
+          uv run python -m scripts.avaliar_agente_real \
+            --provider scripts.cenarios_agentes:provedor \
+            --modelo claude-sonnet-5-5 --modo real \
+            --cassetes .cache/agentes-real/cassetes --saida .cache/agentes-real \
+            --campanha semanal-${{ github.run_id }}-${{ github.run_attempt }} || codigo=$?
+          touch "$fim"
+          wait "$medidor_pid"
+          trap - EXIT
+          exit "$codigo"
       - name: Guardar somente o relatório técnico como artefato do workflow
         if: always()
         uses: actions/upload-artifact@v4
@@ -62,5 +69,5 @@ jobs:
           retention-days: 30
           if-no-files-found: error
       - name: Encerrar a pilha local
-        if: always()
-        run: uv run python scripts/pilha_agentes.py parar --teste --env-file .env.agentes-teste
+        if: always() && hashFiles('.env.agentes-teste') != ''
+        run: uv run python -m scripts.pilha_agentes parar --teste --env-file .env.agentes-teste

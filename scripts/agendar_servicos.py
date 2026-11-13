@@ -101,8 +101,17 @@ def rodar(uma: bool = False, pasta: Path = Path("dados/operacao/agenda")) -> Non
                     ):
                         ativos[tarefa] = (identificador, pool.submit(executar, tarefa, teste))
                 if uma:
-                    for _, futuro in ativos.values():
-                        futuro.result()
+                    falhou = False
+                    for tarefa, (identificador, futuro) in ativos.items():
+                        if futuro.result():
+                            estado[tarefa] = identificador
+                        else:
+                            falhou = True
+                    temporario = estado_path.with_suffix(".tmp")
+                    temporario.write_text(json.dumps(estado, sort_keys=True))
+                    temporario.replace(estado_path)
+                    if falhou:
+                        raise SystemExit(1)
                     return
                 time.sleep(1)
 

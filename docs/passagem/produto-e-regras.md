@@ -9,8 +9,9 @@ O cenário de injeção na sugestão verifica a remoção do texto pela projeç�
 injetar uma resposta fictícia depois do MCP. A versão e os hashes serão congelados antes da campanha.
 
 Runner Claude/MCP, juiz separado, VCR, Compose, Inspector, vacuum e workflow semanal estão em validação.
-**Ainda não houve chamada real ao Claude nem medição pass^4 desta entrega.** A chave adicionada pelo
-fundador ainda não foi propagada à sessão Cloud atual; os valores de segredos não foram exibidos.
+**Ainda não houve chamada real ao Claude nem medição pass^4 desta entrega.** O fundador configurou
+`ANTHROPIC_API_KEY` nos Secrets do GitHub Actions e autorizou a primeira campanha assim que o workflow
+estiver na main. Não é necessário trazer o segredo para o Cloud; seus valores não foram exibidos.
 Não publicar cassetes como evidência real antes da execução. O replay sempre terá origem de contrato.
 
 `consultar_ficha` já veio na main pelo PR #72. A integração de `proximos_eventos` está isolada

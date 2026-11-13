@@ -13,6 +13,7 @@ import os
 import subprocess
 import sys
 import tempfile
+import time
 from pathlib import Path
 from urllib.parse import urlsplit
 
@@ -99,7 +100,7 @@ def conferir_openapi(saida: Path, url: str | None = None) -> dict:
     return {"caminhos": len(documento["paths"]), "resumo_bytes": len(RESUMO.encode()), "vacuum": "aprovado"}
 
 
-def conferir_mcp(url: str, token: str) -> dict:
+def conferir_mcp(url: str, token: str, *, prazo_trabalho: float = 45) -> dict:
     from raiz.publica.contrato import RESUMO
     from raiz.publica.servidor_mcp import ESCOPOS_FERRAMENTAS
 
@@ -163,8 +164,25 @@ def conferir_mcp(url: str, token: str) -> dict:
         )
         if resposta.get("isError") or not resposta.get("structuredContent", {}).get("pedido_id"):
             raise ValueError("a consulta MCP não devolveu um pedido rastreável")
+        recibo = resposta["structuredContent"]
+        fim = time.monotonic() + prazo_trabalho
+        while recibo.get("estado") in {"submitted", "working"} and time.monotonic() < fim:
+            time.sleep(0.25)
+            acompanhamento = pedir(
+                "--method",
+                "tools/call",
+                "--tool-name",
+                "acompanhar_contato",
+                "--tool-args-json",
+                json.dumps({"pedido_id": recibo["pedido_id"]}),
+            )
+            if acompanhamento.get("isError"):
+                raise ValueError("não foi possível acompanhar a consulta MCP")
+            recibo = acompanhamento.get("structuredContent", {})
+        if recibo.get("estado") != "completed":
+            raise ValueError("o worker não concluiu a consulta sintética no prazo")
         # Somente metadados seguros vão ao relatório; resultado, token e configuração temporária não são copiados.
-        return {"protocolo": PROTOCOLO, "ferramentas": sorted(nomes), "consulta": "aprovada"}
+        return {"protocolo": PROTOCOLO, "ferramentas": sorted(nomes), "consulta": "aprovada", "estado": "completed"}
 
 
 def main() -> int:

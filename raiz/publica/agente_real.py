@@ -16,9 +16,11 @@ import importlib
 import inspect
 import json
 import logging
+import math
 import os
 import re
 import statistics
+import subprocess
 import sys
 import time
 from contextlib import contextmanager
@@ -29,7 +31,7 @@ from typing import Any, Protocol
 from urllib.parse import urlsplit
 from uuid import NAMESPACE_URL, uuid4, uuid5
 
-import httpx
+import httpx2 as httpx
 from anthropic import AsyncAnthropic
 from mcp import ClientSession
 from mcp.client.streamable_http import streamable_http_client
@@ -39,11 +41,12 @@ from raiz.publica.avaliacao import GABARITO, Chamada, Execucao, Tarefa, avaliar,
 VERSAO = "claude-mcp-v1"
 _UUID = re.compile(r"\b[0-9a-fA-F]{8}(?:-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}\b")
 _DATA = re.compile(r"\b\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})\b")
-_ALIAS = re.compile(r"__RAIZ_(?:UUID|DATA|TOKEN)_\d{4}__")
+_ALIAS = re.compile(r"__RAIZ_(?:UUID|DATA|TOKEN|PRAZO_(?:FUTURO|VENCIDO)_\d+M)_\d{4}__")
 _mapa_atual = contextvars.ContextVar("mapa_cassete", default=None)
 _TOKEN_URL = re.compile(r"(/(?:v1/)?(?:reservas/confirmar|cobrancas)/)[A-Za-z0-9_-]{24,128}")
 _MODELO = re.compile(r"^[a-z][a-z0-9.-]{2,100}$")
 _DATAS_TECNICAS = {"criado_em", "criada_em", "atualizado_em", "registrado_em", "inicio_em", "resolvida_em"}
+_PRAZOS = {"expira_em", "confirmacao_expira", "preco_valido_ate"}
 
 
 def _opaco(tipo: str, valor: str) -> str:
@@ -73,6 +76,19 @@ def _json(dado: Any) -> str:
 
 def hash_json(dado: Any) -> str:
     return hashlib.sha256(_json(dado).encode()).hexdigest()
+
+
+def _sem_segredos(dado: Any, segredos: list[str]) -> Any:
+    if isinstance(dado, str):
+        for segredo in segredos:
+            if segredo:
+                dado = dado.replace(segredo, "[CREDENCIAL_REMOVIDA]")
+        return dado
+    if isinstance(dado, dict):
+        return {k: _sem_segredos(v, segredos) for k, v in dado.items()}
+    if isinstance(dado, list):
+        return [_sem_segredos(v, segredos) for v in dado]
+    return dado
 
 
 @dataclass
@@ -112,6 +128,7 @@ class MapaCassete:
         self.valores: dict[str, str] = {}
         self.originais: dict[str, str] = {}
         self.contadores: dict[str, int] = {}
+        self.inicio_requisicao: float | None = None
 
     def _alias(self, valor: str, tipo: str) -> str:
         if valor not in self.valores:
@@ -137,9 +154,15 @@ class MapaCassete:
             dado = _UUID.sub(lambda m: self._alias(m[0], "UUID"), dado)
             if chave in _DATAS_TECNICAS and _DATA.fullmatch(dado):
                 return self._alias(dado, "DATA")
-            # Prazos e datas de negócio NÃO são normalizados: mudar vencimento
-            # deve invalidar a cassette, mesmo que a quantidade de datas seja igual.
-            return dado
+            if chave in _PRAZOS and _DATA.fullmatch(dado):
+                if dado not in self.valores:
+                    restante = (datetime.fromisoformat(dado.replace("Z", "+00:00")) - datetime.now(UTC)).total_seconds()
+                    estado = "FUTURO" if restante > 0 else "VENCIDO"
+                    return self._alias(dado, f"PRAZO_{estado}_{round(abs(restante) / 60)}M")
+                return self.valores[dado]
+            # Texto que cita um prazo já visto recebe o MESMO alias sem perder
+            # a relação. Outras datas de negócio ficam integrais.
+            return _DATA.sub(lambda m: self.valores.get(m[0], m[0]), dado)
         if isinstance(dado, dict):
             return {k: self.normalizar(v, k) for k, v in dado.items()}
         if isinstance(dado, list):
@@ -165,8 +188,20 @@ class MapaCassete:
 async def _restaurar_resposta(response: httpx.Response) -> None:
     mapa = _mapa_atual.get()
     if mapa is not None and response.request.url.host == "api.anthropic.com":
+        duracao = float(response.headers.get("x-raiz-inferencia-segundos", "0"))
+        if not math.isfinite(duracao) or not 0 <= duracao <= 180:
+            raise ValueError("duração inválida na cassette")
+        # O worker continua real. Reproduzir o tempo da inferência evita adiantar
+        # artificialmente o próximo polling quando o Claude é reproduzido localmente.
+        await asyncio.sleep(duracao)
         corpo = await response.aread()
         response._content = mapa.restaurar(corpo.decode()).encode()
+
+
+async def _marcar_inicio(request: httpx.Request) -> None:
+    mapa = _mapa_atual.get()
+    if mapa is not None and request.url.host == "api.anthropic.com":
+        mapa.inicio_requisicao = time.monotonic()
 
 
 def cliente_claude(*, modo: str = "real") -> AsyncAnthropic:
@@ -178,25 +213,58 @@ def cliente_claude(*, modo: str = "real") -> AsyncAnthropic:
         api_key=chave,
         base_url="https://api.anthropic.com",
         max_retries=0,
-        http_client=httpx.AsyncClient(timeout=90, event_hooks={"response": [_restaurar_resposta]}),
+        http_client=httpx.AsyncClient(
+            timeout=90,
+            event_hooks={
+                "request": [_marcar_inicio],
+                "response": [_restaurar_resposta] if modo == "replay" else [],
+            },
+        ),
     )
 
 
+def _sanitizar_texto(texto: str) -> str:
+    from raiz.logs_seguros import sanitizar_log
+
+    # Presidio não deve destruir o alias opaco de um link que será reidratado.
+    partes, posicao = [], 0
+    for m in _ALIAS.finditer(texto):
+        partes.extend((sanitizar_log(texto[posicao : m.start()]), m[0]))
+        posicao = m.end()
+    partes.append(sanitizar_log(texto[posicao:]))
+    return "".join(partes)
+
+
+def _sanitizar_input(dado: Any) -> Any:
+    from raiz.publica.privacidade import chave_pessoal
+
+    if isinstance(dado, str):
+        return _sanitizar_texto(dado)
+    if isinstance(dado, list):
+        return [_sanitizar_input(v) for v in dado]
+    if isinstance(dado, dict):
+        return {
+            k: _sanitizar_input(v)
+            for k, v in dado.items()
+            if not chave_pessoal(k) and not re.search(r"(?i)token|secret|senha|password|authorization", k)
+        }
+    return dado
+
+
 def _sanitizar_resposta_modelo(dado: dict) -> dict:
-    from raiz.logs_seguros import sanitizar_estrutura, sanitizar_log
 
     for bloco in dado.get("content", []):
         if bloco.get("type") == "text":
-            bloco["text"] = sanitizar_log(bloco.get("text", ""))
+            bloco["text"] = _sanitizar_texto(bloco.get("text", ""))
         elif bloco.get("type") == "tool_use":
-            bloco["input"] = sanitizar_estrutura(bloco.get("input", {}))
+            bloco["input"] = _sanitizar_input(bloco.get("input", {}))
         elif bloco.get("type") not in {"thinking", "redacted_thinking"}:
             raise ValueError("tipo de conteúdo do modelo não configurado para a avaliação")
     return dado
 
 
 @contextmanager
-def gravacao(caminho: Path, *, modo: str, namespace: str):
+def gravacao(caminho: Path, *, modo: str, namespace: str, segredos: list[str] | None = None):
     import vcr
 
     if modo == "real" and caminho.exists():
@@ -204,6 +272,7 @@ def gravacao(caminho: Path, *, modo: str, namespace: str):
     if modo == "replay" and not caminho.is_file():
         raise ValueError("cassete real ausente; replay não pode chamar o fornecedor")
     mapa = MapaCassete(namespace)
+    segredos = [*(segredos or []), os.environ.get("ANTHROPIC_API_KEY", "")]
     token = _mapa_atual.set(mapa)
 
     def pedido(request):
@@ -212,7 +281,7 @@ def gravacao(caminho: Path, *, modo: str, namespace: str):
         bruto = json.loads(request.body)
         # O prompt não é gravado: apenas seu hash canônico permite casar o replay.
         if set(bruto) != {"raiz_requisicao_sha256"}:
-            bruto = mapa.normalizar(_ocultar_raciocinio(bruto))
+            bruto = mapa.normalizar(_ocultar_raciocinio(_sem_segredos(bruto, segredos)))
             # A cassette sanitiza respostas antes de persistir. A mesma projeção
             # nos blocos já presentes na conversa mantém o casamento estrito.
             for mensagem in bruto.get("messages", []):
@@ -228,9 +297,10 @@ def gravacao(caminho: Path, *, modo: str, namespace: str):
             response["body"]["string"] = b'{"type":"error","error":{"type":"api_error","message":"falha"}}'
         else:
             bruto = json.loads(response["body"]["string"])
-            bruto = _sanitizar_resposta_modelo(mapa.normalizar(_ocultar_raciocinio(bruto)))
+            bruto = _sanitizar_resposta_modelo(mapa.normalizar(_ocultar_raciocinio(_sem_segredos(bruto, segredos))))
             response["body"]["string"] = _json(bruto).encode()
-        response["headers"] = {"content-type": ["application/json"]}
+        duracao = time.monotonic() - mapa.inicio_requisicao if mapa.inicio_requisicao is not None else 0
+        response["headers"] = {"content-type": ["application/json"], "x-raiz-inferencia-segundos": [str(duracao)]}
         return response
 
     recorder = vcr.VCR(
@@ -289,6 +359,8 @@ async def conversar(
             tools=ferramentas,
             messages=mensagens,
         )
+        if resposta.model != modelo:
+            raise ValueError("o fornecedor respondeu com outro modelo")
         for k in trace["uso"]:
             trace["uso"][k] += getattr(resposta.usage, k, 0)
         blocos = [b.model_dump(mode="json", exclude_none=True) for b in resposta.content]
@@ -366,13 +438,81 @@ async def _descobrir(session) -> tuple[str, list[dict]]:
 
 def _hash_codigo(provedor) -> dict:
     raiz = Path(__file__).resolve().parents[2]
-    caminhos = [Path(__file__), raiz / "uv.lock", raiz / "scripts/julgar_agentes.py"]
+    rastreados = (
+        subprocess.run(
+            [
+                "git",
+                "ls-files",
+                "-co",
+                "--exclude-standard",
+                "-z",
+                "--",
+                "raiz",
+                "migracoes",
+                "infra",
+                "motor",
+                "scripts",
+                "nativo",
+                "uv.lock",
+                "pyproject.toml",
+                "alembic.ini",
+            ],
+            cwd=raiz,
+            check=True,
+            capture_output=True,
+        )
+        .stdout.decode()
+        .split("\0")
+    )
+    caminhos = [raiz / p for p in sorted(set(rastreados)) if p]
     origem = inspect.getsourcefile(type(provedor))
     if origem:
         caminhos.append(Path(origem))
     extras = getattr(provedor, "arquivos_configuracao", [])
     caminhos.extend(Path(p) for p in extras)
-    return {p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in caminhos if p.is_file()}
+    head = (
+        subprocess.run(["git", "rev-parse", "HEAD"], cwd=raiz, check=True, capture_output=True).stdout.decode().strip()
+    )
+    arquivos = {
+        str(p.relative_to(raiz)) if p.is_relative_to(raiz) else p.name: hashlib.sha256(p.read_bytes()).hexdigest()
+        for p in caminhos
+        if p.is_file()
+    }
+    return {"git_head": head, "arquivos": arquivos}
+
+
+def _imagens(cenario: Cenario) -> dict:
+    if cenario.dados.get("fontes_montadas") is not False:
+        raise ValueError("medição exige imagens imutáveis, sem fontes montadas do host")
+    imagens = cenario.dados.get("imagens_servico")
+    if not isinstance(imagens, dict) or not {"api", "worker", "banco", "keycloak"} <= imagens.keys():
+        raise ValueError("provider não comprovou as imagens dos quatro serviços")
+    if any(not isinstance(v, str) or not re.fullmatch(r"sha256:[a-f0-9]{64}", v) for v in imagens.values()):
+        raise ValueError("identidade de imagem inválida")
+    return imagens
+
+
+def _proveniencia(cenario: Cenario, codigo: dict) -> dict:
+    manifestos = cenario.dados.get("proveniencia_servico", {})
+    if not isinstance(manifestos, dict) or not {"api", "worker"} <= manifestos.keys():
+        raise ValueError("API e worker precisam do manifesto de código embutido na imagem")
+    obrigatorios = {
+        "raiz/api.py",
+        "raiz/publica/servidor_mcp.py",
+        "raiz/publica/trabalhos.py",
+        "uv.lock",
+        "pyproject.toml",
+        "alembic.ini",
+    }
+    for manifesto in manifestos.values():
+        if not isinstance(manifesto, dict) or manifesto.get("versao") != 1:
+            raise ValueError("manifesto de código da imagem inválido")
+        arquivos = manifesto.get("arquivos", {})
+        if not isinstance(arquivos, dict) or not obrigatorios <= arquivos.keys():
+            raise ValueError("manifesto de código da imagem incompleto")
+        if any(codigo["arquivos"].get(k) != v for k, v in arquivos.items()):
+            raise ValueError("imagem e checkout têm códigos diferentes; reconstrua a pilha")
+    return manifestos
 
 
 def _nome_chamada(nome: str) -> str:
@@ -387,10 +527,12 @@ def _gravar(caminho: Path, dado: Any) -> None:
 async def campanha(args, provedor: Provedor) -> dict:
     from raiz.logs_seguros import sanitizar_estrutura
 
+    args.etapa = "preflight"
     gabarito, gabarito_hash = carregar_gabarito(args.gabarito)
     if args.modo == "real" and not os.environ.get("ANTHROPIC_API_KEY"):
         raise ValueError("ANTHROPIC_API_KEY ausente; nenhuma medição real foi feita")
     execucoes, metricas, configuracao_hash = [], [], None
+    inicio_campanha = time.monotonic()
     if (args.saida / "execucoes.jsonl").exists():
         raise ValueError("pasta de evidências já usada; cada campanha exige uma pasta nova")
     args.saida.mkdir(parents=True, exist_ok=True, mode=0o700)
@@ -398,37 +540,63 @@ async def campanha(args, provedor: Provedor) -> dict:
     async with cliente_claude(modo=args.modo) as cliente:
         for tarefa in gabarito.tarefas:
             for tentativa in range(1, 5):
+                args.etapa, args.tarefa_atual, args.tentativa_atual = "preparar_cenario", tarefa.id, tentativa
                 cenario = await provedor.preparar(tarefa, tentativa, args.campanha)
                 cenario.dados.update(modelo_juiz=args.modelo_juiz, modo_avaliacao=args.modo)
                 try:
+                    endereco = urlsplit(cenario.mcp_url)
+                    if (
+                        endereco.scheme != "http"
+                        or endereco.hostname not in {"localhost", "127.0.0.1"}
+                        or endereco.path != "/mcp/"
+                        or endereco.username
+                        or endereco.password
+                        or endereco.query
+                        or endereco.fragment
+                    ):
+                        raise ValueError("a avaliação só aceita o MCP da pilha sintética local")
                     async with httpx.AsyncClient(
                         headers={"Authorization": "Bearer " + cenario.access_token},
                         timeout=httpx.Timeout(10, read=10),
                         follow_redirects=False,
                     ) as http:
+                        args.etapa = "conectar_mcp"
                         async with streamable_http_client(cenario.mcp_url, http_client=http) as transporte:
                             async with ClientSession(transporte[0], transporte[1]) as session:
+                                args.etapa = "descobrir_mcp"
                                 instrucoes, ferramentas = await _descobrir(session)
-                                atual = hash_json(
-                                    {
-                                        "agente": VERSAO,
-                                        "modelo": args.modelo,
-                                        "modelo_juiz": args.modelo_juiz,
-                                        "max_passos": args.max_passos,
-                                        "max_tokens": args.max_tokens,
-                                        "effort": "medium",
-                                        "thinking": "adaptive-default",
-                                        "provedor": provedor.versao,
-                                        "codigo": _hash_codigo(provedor),
-                                        "instrucoes": instrucoes,
-                                        "ferramentas": ferramentas,
-                                    }
-                                )
+                                codigo = _hash_codigo(provedor)
+                                configuracao = {
+                                    "agente": VERSAO,
+                                    "modelo": args.modelo,
+                                    "modelo_juiz": args.modelo_juiz,
+                                    "max_passos": args.max_passos,
+                                    "max_tokens": args.max_tokens,
+                                    "effort": "medium",
+                                    "thinking": "adaptive-default",
+                                    "provedor": provedor.versao,
+                                    "codigo": codigo,
+                                    "imagens_servico": _imagens(cenario),
+                                    "proveniencia_servico": _proveniencia(cenario, codigo),
+                                    "gabarito_sha256": gabarito_hash,
+                                    "instrucoes": instrucoes,
+                                    "ferramentas": ferramentas,
+                                }
+                                atual = hash_json(configuracao)
                                 if configuracao_hash is not None and configuracao_hash != atual:
                                     raise ValueError("configuração ou catálogo mudou durante a campanha")
+                                if configuracao_hash is None:
+                                    _gravar(args.saida / "configuracao.json", configuracao)
                                 configuracao_hash = atual
                                 cassete = args.cassetes / f"{tarefa.id}-{tentativa}.yaml"
-                                with gravacao(cassete, modo=args.modo, namespace=f"{tarefa.id}-{tentativa}"):
+                                args.etapa = "cassete"
+                                with gravacao(
+                                    cassete,
+                                    modo=args.modo,
+                                    namespace=f"{tarefa.id}-{tentativa}",
+                                    segredos=[cenario.access_token],
+                                ):
+                                    args.etapa = "agente_claude"
                                     trace = await conversar(
                                         tarefa,
                                         cenario,
@@ -441,7 +609,9 @@ async def campanha(args, provedor: Provedor) -> dict:
                                         ferramentas=ferramentas,
                                     )
                                     trace["tentativa"] = tentativa
+                                    args.etapa = "julgar_tentativa"
                                     julgamento = await provedor.julgar(tarefa, cenario, trace)
+                    args.etapa = "persistir_evidencia"
                     if trace["erro"]:
                         julgamento.criterios = dict.fromkeys(tarefa.esperado, False)
                     if set(julgamento.criterios) != set(tarefa.esperado):
@@ -456,6 +626,12 @@ async def campanha(args, provedor: Provedor) -> dict:
                         )
                         for i, c in enumerate(trace["chamadas"])
                     ]
+                    trace_seguro = sanitizar_estrutura(
+                        _sem_segredos(
+                            {k: v for k, v in trace.items() if k != "mensagens"},
+                            [cenario.access_token, os.environ.get("ANTHROPIC_API_KEY", "")],
+                        )
+                    )
                     registro = Execucao(
                         campanha_id=args.campanha,
                         tarefa_id=tarefa.id,
@@ -469,7 +645,7 @@ async def campanha(args, provedor: Provedor) -> dict:
                         trace_id=str(uuid4()),
                         sessao_id=str(uuid4()),
                         inicio_em=trace["inicio_em"],
-                        resposta_sha256=hash_json(trace["resposta"]),
+                        resposta_sha256=hash_json(trace_seguro["resposta"]),
                         criterios=julgamento.criterios,
                         chamadas=chamadas,
                         violacoes=julgamento.violacoes,
@@ -478,7 +654,8 @@ async def campanha(args, provedor: Provedor) -> dict:
                     with (args.saida / "execucoes.jsonl").open("a", encoding="utf-8") as arquivo:
                         arquivo.write(registro.model_dump_json() + "\n")
                     (args.saida / "execucoes.jsonl").chmod(0o600)
-                    _gravar(args.saida / f"trace-{tarefa.id}-{tentativa}.json", sanitizar_estrutura(trace))
+                    trace_arquivo = args.saida / f"trace-{tarefa.id}-{tentativa}.json"
+                    _gravar(trace_arquivo, trace_seguro)
                     metrica = {
                         "tarefa_id": tarefa.id,
                         "tentativa": tentativa,
@@ -487,8 +664,9 @@ async def campanha(args, provedor: Provedor) -> dict:
                         "duracao_segundos": trace["duracao_segundos"],
                         "latencias_mcp_segundos": [c["duracao_segundos"] for c in trace["chamadas"]],
                         "uso_agente": trace["uso"],
-                        "uso_juiz": trace.get("uso_juiz", {}),
+                        "uso_juiz": trace.get("julgamento", {}).get("uso", {}),
                         "cassete_sha256": hashlib.sha256(cassete.read_bytes()).hexdigest(),
+                        "trace_sha256": hashlib.sha256(trace_arquivo.read_bytes()).hexdigest(),
                     }
                     metricas.append(metrica)
                     # Somente identificadores controlados e contagens; nunca respostas, token ou exceção bruta.
@@ -502,6 +680,7 @@ async def campanha(args, provedor: Provedor) -> dict:
     relatorio["metricas"] = metricas
     relatorio["passos_medios"] = statistics.mean(m["passos_modelo"] for m in metricas)
     relatorio["tempo_total_segundos"] = sum(m["duracao_segundos"] for m in metricas)
+    relatorio["tempo_pilha_agente_juiz_segundos"] = time.monotonic() - inicio_campanha
     relatorio["latencia_mcp_max_segundos"] = max((v for m in metricas for v in m["latencias_mcp_segundos"]), default=0)
     relatorio["modo"] = args.modo
     _gravar(args.saida / "relatorio.json", relatorio)
@@ -527,15 +706,31 @@ def main(argv: list[str] | None = None) -> int:
     if not 1 <= args.max_passos <= 40 or not 256 <= args.max_tokens <= 8192:
         parser.error("limites de passos ou tokens inválidos")
     # Bibliotecas HTTP/VCR não podem registrar o conteúdo das requisições de teste.
-    for nome in ("vcr", "httpx", "httpcore", "anthropic", "mcp"):
+    for nome in ("vcr", "httpx", "httpcore", "httpx2", "httpcore2", "anthropic", "mcp"):
         logging.getLogger(nome).setLevel(logging.CRITICAL)
     try:
         modulo, objeto = args.provider.split(":", 1)
         provedor = getattr(importlib.import_module(modulo), objeto)
         relatorio = asyncio.run(campanha(args, provedor))
-    except Exception:
+    except Exception as ex:
         # Não reproduzir mensagem de SDK/HTTP: pode conter requisição ou credencial.
-        erro = {"aprovado": False, "erro": "Campanha incompleta; confira credencial, pilha, provider e cassetes."}
+        mensagem = (
+            "ANTHROPIC_API_KEY ausente; nenhuma medição real foi feita."
+            if args.modo == "real" and not os.environ.get("ANTHROPIC_API_KEY")
+            else "Campanha incompleta; confira pilha, provider, modelo e cassetes."
+        )
+        tipo = type(ex).__name__
+        erro = {
+            "aprovado": False,
+            "erro": mensagem,
+            "etapa": getattr(args, "etapa", "carregar_provider"),
+            "tipo": tipo if re.fullmatch(r"[A-Za-z][A-Za-z0-9_]{0,79}", tipo) else "erro_desconhecido",
+        }
+        if getattr(args, "tarefa_atual", None):
+            erro.update(tarefa_id=args.tarefa_atual, tentativa=args.tentativa_atual)
+        status = getattr(ex, "status_code", None)
+        if type(status) is int and 100 <= status <= 599:
+            erro["status_http"] = status
         print(_json(erro), file=sys.stderr)
         args.saida.mkdir(parents=True, exist_ok=True, mode=0o700)
         _gravar(args.saida / "relatorio.json", erro)

@@ -54,7 +54,12 @@ class KeycloakTeste:
     def __init__(self, env: dict[str, str]):
         self.issuer = _local(env["RAIZ_OAUTH_ISSUER"])
         self.base = self.issuer.split("/realms/", 1)[0]
-        self.callback = _local(env["RAIZ_OAUTH_REDIRECT_URI"])
+        self.callback = env["RAIZ_OAUTH_REDIRECT_URI"]
+        # Domínio reservado, sem DNS/servidor. O harness captura Location, confere state e
+        # troca o código diretamente no Keycloak; nunca faz uma requisição ao callback.
+        # Mantém o perfil OAuth 2.1 de cliente público web exigindo callback HTTPS.
+        if self.callback != "https://cliente.raiz.example/callback":
+            raise ValueError("O teste PKCE exige o callback HTTPS reservado cliente.raiz.example/callback")
         self.admin = env["RAIZ_KEYCLOAK_ADMIN"]
         self.senha_admin = env["RAIZ_KEYCLOAK_ADMIN_SENHA"]
 

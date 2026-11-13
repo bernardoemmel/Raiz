@@ -61,7 +61,7 @@ def ambiente_teste(caminho: Path) -> None:
         "RAIZ_OAUTH_ISSUER": "http://localhost:18180/realms/raiz",
         "RAIZ_MCP_RESOURCE": "http://localhost:18000/mcp",
         "RAIZ_API_PUBLICA_URL": "http://localhost:18000",
-        "RAIZ_OAUTH_REDIRECT_URI": "http://localhost:18765/callback",
+        "RAIZ_OAUTH_REDIRECT_URI": "https://cliente.raiz.example/callback",
         "RAIZ_MCP_HOSTS": "localhost:18000,127.0.0.1:18000,localhost:8000,127.0.0.1:8000",
         "RAIZ_API_ORIGENS": "http://localhost:18000",
         "RAIZ_LOGIN_BASE_URL": "http://localhost:18000",
@@ -126,7 +126,7 @@ def validar(dados: dict[str, str], teste: bool) -> None:
         raise ValueError("a pilha de teste exige RAIZ_PIX_MODO=teste")
 
 
-def comando_compose(env_file: Path, teste: bool) -> list[str]:
+def comando_compose(env_file: Path, teste: bool, desenvolvimento: bool = False) -> list[str]:
     base = [
         "docker",
         "compose",
@@ -139,6 +139,8 @@ def comando_compose(env_file: Path, teste: bool) -> list[str]:
     ]
     if teste:
         base.extend(["-f", str(REPO / "infra/docker-compose.agentes-teste.yml")])
+    if desenvolvimento:
+        base.extend(["-f", str(REPO / "infra/docker-compose.agentes-dev.yml")])
     return base
 
 
@@ -156,7 +158,7 @@ def memoria_bytes(texto: str) -> int:
     return int(float(numero) * (1024 if "i" in unidade else 1000) ** ordem)
 
 
-def medir(compose: list[str], saida: Path, amostras: int, intervalo: float) -> None:
+def medir(compose: list[str], saida: Path, amostras: int, intervalo: float, ate_arquivo: Path | None = None) -> None:
     ids = executar([*compose, "ps", "-q"], capturar=True).split()
     if not ids:
         raise ValueError("a pilha não tem serviços ativos")
@@ -173,6 +175,8 @@ def medir(compose: list[str], saida: Path, amostras: int, intervalo: float) -> N
                 {"servico": p["Name"], "memoria_bytes": uso, "cpu_percentual": float(p["CPUPerc"].rstrip("%"))}
             )
         coleta.append({"em": dt.datetime.now(dt.UTC).isoformat(), "servicos": pontos})
+        if ate_arquivo is not None and ate_arquivo.exists():
+            break
         if n + 1 < amostras:
             time.sleep(intervalo)
     imagens = executar([*compose, "images", "-q"], capturar=True).split()
@@ -193,6 +197,16 @@ def medir(compose: list[str], saida: Path, amostras: int, intervalo: float) -> N
         "soma_picos_memoria_bytes": sum(pico.values()),
         "volumes_bytes": discos,
         "imagens_bytes_soma_sem_deduplicar_camadas": sum(i["Size"] for i in tamanhos),
+        "imagens": [
+            {
+                "id": i["Id"],
+                "referencias": i.get("RepoTags", []),
+                "bytes": i["Size"],
+                "revisao": (i.get("Config", {}).get("Labels") or {}).get("org.opencontainers.image.revision"),
+                "checkout": (i.get("Config", {}).get("Labels") or {}).get("br.raiz.checkout"),
+            }
+            for i in tamanhos
+        ],
         "limites": "Amostras da carga observada; não é pico garantido nem dimensionamento do catálogo nacional. "
         "Imagens compartilham camadas; a soma é limite conservador. WAL, backups e margem de disco são adicionais.",
     }
@@ -207,9 +221,11 @@ def main() -> None:
     p.add_argument("--env-file", type=Path)
     p.add_argument("--teste", action="store_true", help="seleciona pilha descartável para medir/parar")
     p.add_argument("--sem-build", action="store_true")
+    p.add_argument("--desenvolvimento", action="store_true", help="monta fontes mutáveis; proibido em medição real")
     p.add_argument("--saida", type=Path, default=REPO / "dados/operacao/recursos-agentes.json")
     p.add_argument("--amostras", type=int, default=5)
     p.add_argument("--intervalo", type=float, default=5)
+    p.add_argument("--ate-arquivo", type=Path, help="encerra após uma amostra quando o arquivo existir")
     a = p.parse_args()
     teste = a.acao == "teste" or a.teste
     env_file = (a.env_file or REPO / (".env.agentes-teste" if teste else "producao.env")).resolve()
@@ -217,16 +233,18 @@ def main() -> None:
         ambiente_teste(env_file)
     if not env_file.is_file():
         p.error("arquivo env ausente; copie infra/agentes.env.example e preencha os segredos")
+    if a.desenvolvimento and not teste:
+        p.error("fontes mutáveis só são permitidas na pilha de teste")
     dados = ler_env(env_file)
     try:
         validar(dados, teste)
-        compose = comando_compose(env_file, teste)
+        compose = comando_compose(env_file, teste, a.desenvolvimento)
         if a.acao == "parar":
             executar([*compose, "down"])  # preserva dados; nunca apaga volumes implicitamente
         elif a.acao == "medir":
             if not 1 <= a.amostras <= 720 or not 0 <= a.intervalo <= 60:
                 p.error("use de 1 a 720 amostras e intervalo de 0 a 60 segundos")
-            medir(compose, a.saida, a.amostras, a.intervalo)
+            medir(compose, a.saida, a.amostras, a.intervalo, a.ate_arquivo)
         else:
             executar([*compose, "config", "--quiet"])
             if not a.sem_build:
@@ -238,6 +256,16 @@ def main() -> None:
                     "-t",
                     "raiz/agentes:" + dados.get("RAIZ_IMAGEM_TAG", "local"),
                 ]
+                revisao = executar(["git", "rev-parse", "HEAD"], capturar=True).strip()
+                alterado = bool(executar(["git", "status", "--porcelain"], capturar=True).strip())
+                cmd.extend(
+                    [
+                        "--label",
+                        "org.opencontainers.image.revision=" + revisao,
+                        "--label",
+                        "br.raiz.checkout=" + ("alterado" if alterado else "limpo"),
+                    ]
+                )
                 # Apenas build: CA da plataforma não entra na imagem final.
                 if os.environ.get("CODEX_PROXY_CERT"):
                     cmd.extend(["--secret", "id=proxy_ca,src=/etc/ssl/certs/ca-certificates.crt"])

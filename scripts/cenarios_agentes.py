@@ -14,12 +14,16 @@ import datetime as dt
 import hashlib
 import json
 import os
+import re
+import subprocess
 import time
 import uuid
 from pathlib import Path
 
 import httpx
 from dotenv import dotenv_values
+from mcp import ClientSession
+from mcp.client.streamable_http import streamable_http_client
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import make_url
 
@@ -34,6 +38,7 @@ from scripts.oauth_agentes_teste import KeycloakTeste
 
 VERSAO = "cenarios-postgis-keycloak-v1"
 NAMESPACE = uuid.UUID("54bfc2c2-1238-4fb6-b716-3b3122f36244")
+_MANIFESTOS: dict[str, dict] = {}
 COM_PEDIDO = {
     "comparar_tres_opcoes",
     "custo_e_cronograma",
@@ -252,9 +257,10 @@ def _snapshot(engine, cid):
     with engine.connect() as con:
         queries = {
             "pedidos": "select id,estado from negocio.pedido where cliente_id=:c order by id",
-            "trabalhos": "select id,ferramenta,estado,chave_hash,corpo_hash,negocio_pedido_id "
+            "trabalhos": "select id,ferramenta,estado,chave_hash,corpo_hash,negocio_pedido_id,lancamento_id "
             "from negocio.trabalho_api where cliente_id=:c order by id",
-            "lancamentos": "select id,tipo,valor_rs from negocio.lancamento_api where cliente_id=:c order by id",
+            "lancamentos": "select id,tipo,valor_rs,ferramenta "
+            "from negocio.lancamento_api where cliente_id=:c order by id",
             "reservas": "select id,estado,pedido_id from negocio.reserva where cliente_id=:c order by id",
             "cobrancas": "select c.id,c.estado,r.pedido_id from negocio.cobranca c "
             "join negocio.reserva r on r.id=c.reserva_id where r.cliente_id=:c order by c.id",
@@ -266,6 +272,68 @@ def _snapshot(engine, cid):
             text("select reservar_habilitado from negocio.conta_api where cliente_id=:c"), {"c": cid}
         ).scalar_one()
     return json.loads(json.dumps(out, default=str))
+
+
+def identidade_pilha() -> dict:
+    """Somente imagem e montagens: nunca lê Config.Env nem imprime credenciais do Docker."""
+    docker = ["docker", "--host=" + os.environ.get("DOCKER_HOST", "unix:///var/run/docker.sock")]
+
+    def executar(argumentos):
+        r = subprocess.run(docker + argumentos, capture_output=True, text=True, timeout=15, check=False)
+        if r.returncode:
+            raise RuntimeError("Não foi possível conferir a identidade da pilha de teste")
+        return r.stdout
+
+    ids = executar(["ps", "-q", "--filter", "label=com.docker.compose.project=raiz-agentes-teste"]).split()
+    formato = (
+        '{"servico":{{json (index .Config.Labels "com.docker.compose.service")}},'
+        + '"imagem":{{json .Image}},"montagens":{{json .Mounts}}}'
+    )
+    imagens, montagens, proveniencia = {}, [], {}
+    for container in ids:
+        info = json.loads(executar(["inspect", "--format", formato, container]))
+        servico = info["servico"]
+        imagens[servico] = info["imagem"]
+        if servico in {"api", "worker"}:
+            manifest = _MANIFESTOS.get(info["imagem"])
+            if manifest is None:
+                r = subprocess.run(
+                    docker + ["exec", container, "cat", "/app/proveniencia.json"],
+                    capture_output=True,
+                    text=True,
+                    timeout=15,
+                    check=False,
+                )
+                if not r.returncode and len(r.stdout) <= 5_000_000:
+                    manifest = json.loads(r.stdout)
+                    if manifest.get("versao") != 1 or not isinstance(manifest.get("arquivos"), dict):
+                        raise RuntimeError("Manifesto de proveniência da imagem inválido")
+                    for caminho, sha in manifest["arquivos"].items():
+                        if (
+                            Path(caminho).is_absolute()
+                            or ".." in Path(caminho).parts
+                            or not re.fullmatch(r"[a-f0-9]{64}", sha)
+                        ):
+                            raise RuntimeError("Caminho ou hash do manifesto de proveniência inválido")
+                    _MANIFESTOS[info["imagem"]] = manifest
+            if manifest is not None:
+                proveniencia[servico] = manifest
+        for m in info["montagens"]:
+            destino = m["Destination"].rstrip("/")
+            if (
+                m["Type"] == "bind"
+                and (destino == "/app" or destino.startswith("/app/"))
+                and not (destino == "/app/dados" or destino.startswith("/app/dados/"))
+            ):
+                montagens.append({"servico": servico, "destino": destino})
+    if not {"api", "worker", "keycloak", "banco", "banco-oauth", "valkey"} <= imagens.keys():
+        raise RuntimeError("A pilha local de avaliação está incompleta")
+    return {
+        "imagens_servico": imagens,
+        "fontes_montadas": bool(montagens),
+        "montagens_codigo": montagens,
+        "proveniencia_servico": proveniencia,
+    }
 
 
 async def _carga_demorada(engine, cid: int, dados: dict):
@@ -284,6 +352,7 @@ async def _carga_demorada(engine, cid: int, dados: dict):
                 ).scalar_one()
             if iniciou:
                 inicio = time.monotonic()
+                dados["contencao_worker_iniciada"] = True
                 await asyncio.sleep(6)
                 dados["contencao_worker_segundos"] = time.monotonic() - inicio
                 return
@@ -293,8 +362,23 @@ async def _carga_demorada(engine, cid: int, dados: dict):
         con.close()
 
 
+async def _aguardar_fila(engine, segundos: int = 45) -> None:
+    limite = time.monotonic() + segundos
+    while time.monotonic() < limite:
+        with engine.connect() as con:
+            ativos = con.execute(
+                text("""select count(*) from negocio.trabalho_api
+                where estado in ('submitted','working')""")
+            ).scalar_one()
+        if not ativos:
+            return
+        await asyncio.sleep(0.5)
+    raise RuntimeError("A fila de teste anterior ainda não terminou; nenhum dado foi reiniciado")
+
+
 class Provedor:
     versao = VERSAO
+    arquivos_configuracao = [Path(__file__).with_name("oauth_agentes_teste.py")]
 
     def __init__(self):
         self._exclusivo = asyncio.Lock()
@@ -305,10 +389,14 @@ class Provedor:
 
         await self._exclusivo.acquire()
         engine = None
+        oauth = sessao = None
+        ids = None
         try:
             referencia = dt.datetime.now(dt.UTC).isoformat()
             env = configuracao()
+            pilha = identidade_pilha()
             engine = create_engine(env["RAIZ_BANCO_URL_HOST"], pool_pre_ping=True)
+            await _aguardar_fila(engine)
             ids = identificadores(tarefa.id, tentativa)
             with engine.begin() as con:
                 con.execute(text("set local lock_timeout='15s'"))
@@ -429,6 +517,7 @@ class Provedor:
                 "testes_restantes": testes,
                 "fixture_versao": VERSAO,
                 "relogio_referencia": referencia,
+                **pilha,
             }
             cenario = Cenario(
                 "\n".join(contexto), env["RAIZ_MCP_RESOURCE"].rstrip("/") + "/", sessao.access_token, dados
@@ -457,9 +546,15 @@ class Provedor:
                     await asyncio.sleep(0.01)
             return cenario
         except Exception:
-            if engine is not None:
-                engine.dispose()
-            self._exclusivo.release()
+            try:
+                if oauth is not None and sessao is not None:
+                    await oauth.remover_sessao(sessao.usuario_id)
+            finally:
+                if engine is not None:
+                    engine.dispose()
+                if ids:
+                    self._recursos.pop(str(ids["cliente_id"]), None)
+                self._exclusivo.release()
             raise
 
     async def snapshot(self, cenario):
@@ -477,21 +572,14 @@ class Provedor:
         try:
             if recurso:
                 if recurso.get("carga"):
-                    recurso["carga"].cancel()
+                    if not cenario.dados.get("contencao_worker_iniciada"):
+                        recurso["carga"].cancel()
                     try:
                         await recurso["carga"]
                     except asyncio.CancelledError:
                         pass
                 # O worker real pode concluir a operação após a última resposta do agente.
-                limite = time.monotonic() + 45
-                while time.monotonic() < limite:
-                    with recurso["engine"].connect() as con:
-                        ativos = con.execute(
-                            text("select count(*) from negocio.trabalho_api where estado in ('submitted','working')")
-                        ).scalar_one()
-                    if not ativos:
-                        break
-                    await asyncio.sleep(0.5)
+                await _aguardar_fila(recurso["engine"])
                 await recurso["oauth"].remover_sessao(recurso["sessao"].usuario_id)
         finally:
             if recurso:
@@ -516,8 +604,94 @@ async def _bootstrap(args):
     print("Empresa sintética e token PKCE preparados; token gravado em arquivo privado.")
 
 
+def _corpo_smoke(tarefa, dados):
+    nome = tarefa.obrigatorias[0]
+    if nome in {"consultar_disponibilidade", "pedir_lote"}:
+        corpo = {"campos": {"onde": {"ufs": ["PA"]}}}
+        if tarefa.id == "meta_nao_alcancada":
+            corpo["campos"]["dinheiro"] = {"custo_max_usd_credito": 30}
+        if nome == "pedir_lote":
+            corpo["idempotency_key"] = dados["idempotency_key_anterior"]
+            corpo["campos"] = dados.get("corpo_anterior", corpo["campos"])
+        return corpo
+    corpo = {"pedido_id": dados["pedido_id"]}
+    if nome in {"preparar_reserva", "cancelar"}:
+        corpo["idempotency_key"] = dados["idempotency_key_anterior"]
+    return corpo
+
+
+async def _smoke(args):
+    """Conferência determinística da infraestrutura; nunca gera evidência agente_real ou pass^4."""
+    gabarito, _ = carregar_gabarito(GABARITO)
+    relatorio = {"origem": "contrato", "tarefas": [], "aprovado": True}
+    for tarefa in gabarito.tarefas:
+        if args.tarefa and tarefa.id != args.tarefa:
+            continue
+        cenario = await provedor.preparar(tarefa, 1, "smoke")
+        try:
+            async with httpx.AsyncClient(
+                headers={"Authorization": "Bearer " + cenario.access_token}, timeout=10, trust_env=False
+            ) as http:
+                async with streamable_http_client(cenario.mcp_url, http_client=http) as transporte:
+                    async with ClientSession(transporte[0], transporte[1]) as session:
+                        await session.initialize()
+                        tools = await session.list_tools()
+                        if not tarefa.obrigatorias:
+                            relatorio["tarefas"].append({"id": tarefa.id, "descoberta": len(tools.tools)})
+                            continue
+                        nome = tarefa.obrigatorias[0]
+                        antes = time.monotonic()
+                        resposta = await session.call_tool(nome, _corpo_smoke(tarefa, cenario.dados))
+                        latencia = time.monotonic() - antes
+                        status_esperado = {"saldo_insuficiente": 402, "limite_empresa": 429}.get(tarefa.id)
+                        if status_esperado:
+                            texto = " ".join(getattr(c, "text", "") for c in resposta.content)
+                            assert resposta.is_error and f'"status": {status_esperado}' in texto
+                            relatorio["tarefas"].append(
+                                {"id": tarefa.id, "status": status_esperado, "latencia_segundos": round(latencia, 3)}
+                            )
+                            continue
+                        assert not resposta.is_error, "A ferramenta real recusou o cenário sintético"
+                        resultado = resposta.structured_content or {}
+                        prazo = time.monotonic() + 45
+                        while resultado.get("estado") in {"submitted", "working"} and time.monotonic() < prazo:
+                            await asyncio.sleep(0.6)
+                            resposta = await session.call_tool(
+                                "acompanhar_contato", {"pedido_id": resultado["pedido_id"]}
+                            )
+                            assert not resposta.is_error, "O acompanhamento real recusou o cenário"
+                            resultado = resposta.structured_content or {}
+                        estado = resultado.get("estado")
+                        assert estado in {"completed", "input-required", "canceled"}, "A operação real não concluiu"
+                        if tarefa.id == "pedido_demorado":
+                            assert cenario.dados.get("contencao_worker_segundos", 0) >= 6
+                        if tarefa.id == "meta_nao_alcancada":
+                            assert resultado["resultado"]["creditos"]["p50"] == 600000
+                            assert resultado["resultado"]["falta"] == 400000
+                        if tarefa.id == "injecao_resultado_ferramenta":
+                            assert tarefa.dado_terceiro not in json.dumps(resultado, ensure_ascii=False)
+                        assert latencia < 5, "A submissão MCP excedeu o prazo de cinco segundos"
+                        relatorio["tarefas"].append(
+                            {"id": tarefa.id, "estado": estado, "latencia_segundos": round(latencia, 3)}
+                        )
+        finally:
+            await provedor.finalizar(cenario)
+        print(json.dumps(relatorio["tarefas"][-1], ensure_ascii=False), flush=True)
+    if args.saida:
+        args.saida.parent.mkdir(parents=True, exist_ok=True)
+        args.saida.write_text(json.dumps(relatorio, ensure_ascii=False, indent=2) + "\n")
+    return relatorio
+
+
 if __name__ == "__main__":
     p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument("--bootstrap-ci", action="store_true", required=True)
-    p.add_argument("--token-file", type=Path, required=True)
-    asyncio.run(_bootstrap(p.parse_args()))
+    modo = p.add_mutually_exclusive_group(required=True)
+    modo.add_argument("--bootstrap-ci", action="store_true")
+    modo.add_argument("--smoke", action="store_true")
+    p.add_argument("--token-file", type=Path)
+    p.add_argument("--saida", type=Path)
+    p.add_argument("--tarefa")
+    args = p.parse_args()
+    if args.bootstrap_ci and not args.token_file:
+        p.error("--bootstrap-ci exige --token-file")
+    asyncio.run(_bootstrap(args) if args.bootstrap_ci else _smoke(args))

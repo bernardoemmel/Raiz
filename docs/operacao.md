@@ -16,7 +16,8 @@ python scripts/pilha_agentes.py teste
 ```
 
 O comando gera `.env.agentes-teste` com permissões `0600` e segredos aleatórios, constrói a imagem, sobe as
-bases e aplica as migrações antes de iniciar API e worker. Repeti-lo conserva os segredos e os volumes. A API fica
+bases e aplica as migrações antes de iniciar API e worker. Repeti-lo conserva os segredos e os volumes. As fontes ficam congeladas na imagem; `/app/proveniencia.json`
+registra seus hashes e os rótulos Docker identificam a revisão e se o checkout estava alterado. A API fica
 em `http://localhost:18000`, MCP em `/mcp/`, Keycloak em `http://localhost:18180` e PostGIS na porta local `15432`,
 base `raiz_agentes_teste`. Os endereços só escutam loopback. O realm mantém Authorization Code/PKCE S256, sem
 password grant para agentes; a instrumentação cria somente identidades e empresas sintéticas por Admin API.
@@ -25,7 +26,8 @@ no código de OAuth. Em produção são contêineres de rede independentes e URL
 
 API, MCP, fila e banco são reais. Pix fica obrigatoriamente em teste; SMTP e credenciais externas não são
 herdados do host. A agenda exercita seu ciclo sem coletar a internet nem enviar avisos no modo de teste.
-A chave Anthropic pertence ao runner fora dos contêineres: não entra na imagem, API, worker ou arquivo de teste.
+O modo `--desenvolvimento` monta fontes do checkout somente para depuração e é recusado pelo runner de campanhas
+reais. A chave Anthropic pertence ao runner fora dos contêineres: não entra na imagem, API, worker ou arquivo de teste.
 
 ```bash
 python scripts/pilha_agentes.py medir --teste --amostras 12 --intervalo 5 \
@@ -111,7 +113,12 @@ A agenda tem heartbeat próprio. Docker reinicia processos que saem, mas não re
 marcado `unhealthy`: um monitor externo deve avisar o operador. Os logs Docker têm rotação de três arquivos de
 10 MiB por contêiner; não habilite access log bruto com query strings ou tokens.
 
-As amostras reais desta entrega e seus limites ficam registradas na passagem de Produto e regras. Para dimensionar
+As amostras reais e seus limites devem acompanhar o relatório da campanha no Actions e a passagem de Produto e
+regras. O teste local construiu a imagem e validou migrações, API e descoberta OAuth; a tentativa de manter a pilha
+inteira foi interrompida pelo espaço do Docker VFS do ambiente. VFS copia camadas inteiras por contêiner e os
+erros de criação deixaram resíduos: isso não representa o consumo de uma VPS com overlay2. Nenhuma medição de RAM
+completa ou recomendação numérica de VPS é atribuída a essa tentativa. A campanha no Actions usa a imagem
+congelada e amostra recursos durante as tarefas, incluindo identificação das imagens. Para dimensionar
 uma VPS, some margem de sistema operacional, PostgreSQL/WAL, concorrência dos workers e crescimento dos dados;
 repita a medição com o catálogo e a simultaneidade pretendidos. Esta entrega não contrata nem publica servidor.
 
