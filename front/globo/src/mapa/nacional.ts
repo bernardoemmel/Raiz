@@ -1,5 +1,5 @@
 /** Cartografia nacional preparada em um único estilo; as fontes recebem dados quando chegarem. */
-import type { LayerSpecification, SourceSpecification } from "maplibre-gl"
+import type { ExpressionSpecification, LayerSpecification, SourceSpecification } from "maplibre-gl"
 import type { Geo } from "../../../compartilhado/dados"
 import { COR } from "../../../compartilhado/cores"
 import { ZOOM_IMOVEIS } from "./cartografia"
@@ -7,7 +7,12 @@ import { ZOOM_IMOVEIS } from "./cartografia"
 const ZOOM_FAZENDAS = ZOOM_IMOVEIS
 const ZOOM_ROTULO_ESTADO = 6.5
 
-export interface DadosNacionais { areas: Geo; rotulos: Geo }
+export interface DadosNacionais { areas: Geo | string; rotulos: Geo; processadas: string[] }
+
+/** Cobertura muda pelos códigos, sem copiar nem reenviar os contornos dos estados. */
+export function filtroEstadosProcessados(ufs: readonly string[]): ExpressionSpecification {
+  return ["in", ["get", "uf"], ["literal", [...ufs]]]
+}
 
 export function fontesNacionais(dados?: DadosNacionais): Record<string, SourceSpecification> {
   const data = { type: "FeatureCollection" as const, features: [] }
@@ -17,11 +22,11 @@ export function fontesNacionais(dados?: DadosNacionais): Record<string, SourceSp
   }
 }
 
-export function camadasNacionais(): LayerSpecification[] {
+export function camadasNacionais(processadas: readonly string[] = []): LayerSpecification[] {
   const camadas: LayerSpecification[] = []
   const add = (camada: LayerSpecification) => { camadas.push(camada) }
   // As cores constantes reutilizam os programas gráficos do fundo. Os filtros são mutuamente exclusivos.
-  const processado = ["in", ["coalesce", ["get", "s"], -1], ["literal", [1, 2]]] as const
+  const processado = filtroEstadosProcessados(processadas)
   add({ id: "estados-preenchimento", type: "fill", source: "brasil-estados", filter: processado as never,
     paint: { "fill-antialias": false, "fill-color": COR.restaurar, "fill-opacity": 0.35 } })
   add({ id: "estados-sem-dados", type: "fill", source: "brasil-estados", filter: ["!", processado] as never,

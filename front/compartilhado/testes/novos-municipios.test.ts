@@ -75,9 +75,32 @@ describe("fundo e estados antes dos limites municipais", () => {
     const fonte = fonteAmostra("/")
     const inicial = await fonte.geo.brasil({ municipios: false })
     expect(inicial.base).toBe("https://raiz.example/geo/base_brasil.pmtiles")
+    expect(inicial.urlEstados).toBe("https://raiz.example/geo/brasil_estados.geojson")
     expect(inicial.municipios).toBeNull()
     expect(pedidos).toEqual(["/geo/indice.json", "/geo/brasil_estados.geojson"])
     await fonte.geo.brasil()
     expect(pedidos).toEqual(["/geo/indice.json", "/geo/brasil_estados.geojson", "/geo/brasil_municipios.geojson"])
+  })
+  it.each(["/", "/Raiz/"])("anuncia o mesmo GeoJSON estadual público sob %s", async (base) => {
+    vi.stubGlobal("location", { href: `https://raiz.example${base}` })
+    const geo = { type: "FeatureCollection", features: [] }
+    vi.stubGlobal("fetch", async (url: string) => new Response(JSON.stringify(url.endsWith("indice.json")
+      ? { municipios: {}, brasil: { estados: { arquivo: "brasil_estados.geojson" } } } : geo)))
+    const dado = await fonteAmostra(base).geo.brasil({ municipios: false })
+    expect(dado.urlEstados).toBe(`https://raiz.example${base}geo/brasil_estados.geojson`)
+    expect(dado.estados).toEqual(geo)
+  })
+  it.each([
+    ["/", "estados-legados.geojson"],
+    ["https://outra.example/", "brasil_estados.geojson"],
+    ["/", "../privado/brasil_estados.geojson"],
+  ])("mantém o objeto sem promover a URL não pública ou não padronizada (%s, %s)", async (base, arquivo) => {
+    vi.stubGlobal("location", { href: "https://raiz.example/" })
+    const geo = { type: "FeatureCollection", features: [] }
+    vi.stubGlobal("fetch", async (url: string) => new Response(JSON.stringify(url.endsWith("indice.json")
+      ? { municipios: {}, brasil: { estados: { arquivo } } } : geo)))
+    const dado = await fonteAmostra(base).geo.brasil({ municipios: false })
+    expect(dado.urlEstados).toBeUndefined()
+    expect(dado.estados).toEqual(geo)
   })
 })

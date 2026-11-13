@@ -37,7 +37,7 @@ export function estiloBase(base: string | null, opcoes: { rotulos?: boolean; nac
   }
   if (opcoes.nacional) {
     const baseNacional = base ? camadasBaseNacionais() : fundo.layers
-    const dadosNacionais = camadasNacionais()
+    const dadosNacionais = camadasNacionais(opcoes.dadosNacionais?.processadas)
     // Registra o estilo uma vez; o fundo aparece enquanto estados e agregados chegam.
     // Mantém fronteiras abaixo dos estados e nomes dos países abaixo dos rótulos de cobertura.
     return { ...fundo, sources: { ...(base ? { protomaps: fonteMapaBase(base) } : {}), ...fontesNacionais(opcoes.dadosNacionais) }, layers: [

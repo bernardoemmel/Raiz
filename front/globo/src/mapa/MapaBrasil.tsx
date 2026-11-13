@@ -29,6 +29,7 @@ import { MarcadoresGrupos } from "./marcadores-grupos"
 import type { AgregadosMapa } from "../../../compartilhado/dados/agregados"
 import { descreverGrupo, raioGrupo, urlAgregadosPublica, type GrupoMapa } from "./grupos"
 import { WorkerGrupos } from "./worker-grupos"
+import { filtroEstadosProcessados, type DadosNacionais } from "./nacional"
 import { adicionarSatelitePublico, SATELITE_PUBLICO, type EstadoSatelitePublico } from "./satelite-publico"
 import "./cartografia.css"
 import { camadasImoveis, ordenarImoveis, ZOOM_IMOVEIS } from "./cartografia"
@@ -55,7 +56,7 @@ interface Props {
   agregadosCarregando?: boolean
   agregadosErro?: boolean
   aoAproximar: () => void
-  brasil: { municipios: Geo | null; estados: Geo | null; base: string | null } | undefined
+  brasil: { municipios: Geo | null; estados: Geo | null; urlEstados?: string; base: string | null } | undefined
   /** o que a Raíz já leu de cada estado (completo, incompleto, sem dados) */
   estados: Estados | undefined
   /** municípios com funil (resumo) e com lista por fazenda */
@@ -115,12 +116,12 @@ const MOTIVO_G: Record<MotivoId, number> = {
 
 const VAZIO: Geo = { type: "FeatureCollection", features: [] }
 
-/** Enriquece a mesma geometria antes da primeira carga e nas atualizações de cobertura. */
-function prepararCobertura(geometria: Geo | null | undefined, estados: Estados | undefined): { areas: Geo; rotulos: Geo } {
-  if (!geometria || !estados) return { areas: VAZIO, rotulos: VAZIO }
+/** Só os rótulos recebem a cobertura; os contornos públicos seguem por URL para o worker. */
+function prepararCobertura(geometria: Geo | null | undefined, estados: Estados | undefined, urlEstados?: string): DadosNacionais {
+  if (!geometria) return { areas: VAZIO, rotulos: VAZIO, processadas: [] }
   const porUf = new Map((estados?.estados ?? []).map((e) => [e.uf, e]))
   const rotulos: Geo["features"] = []
-  const fs = geometria.features.map((f) => {
+  for (const f of geometria.features) {
     const sigla = String(f.properties.uf)
     const e = porUf.get(sigla)
     const s = e ? SITUACAO_ESTADO[e.situacao] : -1
@@ -133,9 +134,9 @@ function prepararCobertura(geometria: Geo | null | undefined, estados: Estados |
         properties: { uf: sigla, nome: e.nome, linha: rotuloDoEstado(e), s, ordem: (2 - s) * 10000 - e.municipios_ibge },
         geometry: { type: "Point", coordinates: ponto },
       })
-    return { ...f, properties: { ...f.properties, s } }
-  })
-  return { areas: { type: "FeatureCollection", features: fs }, rotulos: { type: "FeatureCollection", features: rotulos } }
+  }
+  return { areas: urlEstados ?? geometria, rotulos: { type: "FeatureCollection", features: rotulos },
+    processadas: [...porUf.values()].filter(e => e.situacao === "completo" || e.situacao === "incompleto").map(e => e.uf) }
 }
 
 function dadosDosGrupos(agregados: AgregadosMapa | null | undefined): { url: string } | { geo: Geo | null } {
@@ -214,7 +215,7 @@ export function MapaBrasil(props: Props) {
   const listaGruposAberta = useRef(false)
   const marcadoresGrupos = useRef<MarcadoresGrupos | null>(null)
   const gruposAgendados = useRef<MapaGL | null>(null)
-  const dadosAplicados = useRef<{ geometria: Geo | null | undefined; estados: Estados | undefined } | null>(null)
+  const dadosAplicados = useRef<{ geometria: Geo | null | undefined; estados: Estados | undefined; urlEstados?: string } | null>(null)
   const workerGrupos = useRef<WorkerGrupos | null>(null)
   const consultaGrupos = useRef(0)
   const geracoesVisiveis = useRef(new WeakMap<GrupoMapa, number>())
@@ -246,10 +247,8 @@ export function MapaBrasil(props: Props) {
       if (removido || !caixa.current) { liberar(); return }
       prepararMapLibre()
       const iniciais = atual.current.props
-      const cobertura = prepararCobertura(iniciais.brasil?.estados, iniciais.estados)
-      const estilo = estiloBase(brasil.base, { nacional: true, dadosNacionais: {
-        areas: cobertura.areas, rotulos: cobertura.rotulos,
-      } })
+      const cobertura = prepararCobertura(iniciais.brasil?.estados, iniciais.estados, iniciais.brasil?.urlEstados)
+      const estilo = estiloBase(brasil.base, { nacional: true, dadosNacionais: cobertura })
       // Montar o estilo, criar o contexto nativo e instalar controles são trabalhos independentes.
       // Cada continuação entrega a thread à entrada e à pintura, sem esperar um prazo ou ociosidade.
       await cederProcessamento()
@@ -283,7 +282,7 @@ export function MapaBrasil(props: Props) {
       if (import.meta.env.DEV || import.meta.env.VITE_RAIZ_TESTE_MAPA === "1") Object.assign(caixa.current, { __mapa: m })
       mapaRef.current = m
       marcadoresGrupos.current = new MarcadoresGrupos(m, grupo => { void aproximarGrupo(m, grupo) })
-      dadosAplicados.current = { geometria: iniciais.brasil?.estados, estados: iniciais.estados }
+      dadosAplicados.current = { geometria: iniciais.brasil?.estados, estados: iniciais.estados, urlEstados: iniciais.brasil?.urlEstados }
       m.once("load", () => {
         ligarEventos(m)
         setPronto(true)
@@ -388,11 +387,15 @@ export function MapaBrasil(props: Props) {
     const m = mapaRef.current
     if (!m || !pronto || !brasil?.estados || !estados) return
     const aplicados = dadosAplicados.current
-    if (aplicados?.geometria === brasil.estados && aplicados.estados === estados) return
-    const cobertura = prepararCobertura(brasil.estados, estados)
-    if (aplicados) { aplicados.geometria = brasil.estados; aplicados.estados = estados }
-    ;(m.getSource("brasil-estados") as GeoJSONSource).setData(cobertura.areas as never)
+    if (aplicados?.geometria === brasil.estados && aplicados.estados === estados && aplicados.urlEstados === brasil.urlEstados) return
+    const cobertura = prepararCobertura(brasil.estados, estados, brasil.urlEstados)
+    if (!aplicados || aplicados.geometria !== brasil.estados || aplicados.urlEstados !== brasil.urlEstados)
+      (m.getSource("brasil-estados") as GeoJSONSource).setData(cobertura.areas as never)
     ;(m.getSource("estados-rotulos") as GeoJSONSource).setData(cobertura.rotulos as never)
+    const processado = filtroEstadosProcessados(cobertura.processadas)
+    m.setFilter("estados-preenchimento", processado)
+    m.setFilter("estados-sem-dados", ["!", processado])
+    dadosAplicados.current = { geometria: brasil.estados, estados, urlEstados: brasil.urlEstados }
   }, [pronto, brasil, estados])
 
   // o estado escolhido ganha o contorno forte (no município, quem tem o contorno forte é o município)

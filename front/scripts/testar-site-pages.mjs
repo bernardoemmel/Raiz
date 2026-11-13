@@ -147,6 +147,8 @@ try {
   console.log("Abrindo o build estático básico no Chromium...")
   await pagina.goto(base)
   await mapaPronto()
+  assert.equal(await pagina.evaluate(() => document.querySelector(".mapa-brasil .mapa").__mapa.getStyle().sources["brasil-estados"].data),
+    new URL("geo/brasil_estados.geojson", base).href, "Os estados públicos chegam ao worker pela URL anunciada.")
   assert.equal(await pagina.locator(".mapa-brasil svg").count(), 0, "A entrada abre no MapLibre, sem o SVG nacional.")
   await pagina.getByRole("heading", { name: "Cobertura do mapa", exact: true }).waitFor()
   await pagina.waitForFunction(() => document.querySelectorAll(".processamento-estado").length === 27)
@@ -425,7 +427,12 @@ try {
     const resposta = await rota.fetch(), indice = await resposta.json()
     delete indice.agregados.normal
     delete indice.agregados.metadados
+    indice.brasil.estados.arquivo = "estados-legados.geojson"
     await rota.fulfill({ response: resposta, json: indice })
+  })
+  await legado.route("**/geo/estados-legados.geojson", async rota => {
+    const resposta = await rota.fetch({ url: new URL("geo/brasil_estados.geojson", base).href })
+    await rota.fulfill({ response: resposta })
   })
   await legado.goto(base)
   await legado.waitForFunction(() => {
@@ -433,6 +440,8 @@ try {
   })
   assert(pedidosLegados.some(url => url.endsWith("/agregados_brasil.geojson.gz")), "Índice antigo usa o gzip legado.")
   assert(!pedidosLegados.some(url => url.endsWith("/agregados_brasil.geojson")), "Índice antigo não presume um arquivo novo não anunciado.")
+  assert.equal(await legado.evaluate(() => document.querySelector(".mapa-brasil .mapa").__mapa.getStyle().sources["brasil-estados"].data.type),
+    "FeatureCollection", "Geometria estadual legada continua funcionando como objeto.")
   await legado.close()
   // A falha do GeoJSON do worker é visível e não deixa marcadores de outro snapshot.
   const semAgregados = await contexto.newPage()

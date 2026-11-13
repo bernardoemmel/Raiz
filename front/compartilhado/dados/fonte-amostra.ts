@@ -234,7 +234,16 @@ export function fonteAmostra(base = "/"): FonteDeDados {
           opcoes?.municipios !== false && b.municipios ? geoNacional(b.municipios.arquivo) : null,
           b.estados ? geoNacional(b.estados.arquivo) : null,
         ])
-        return { municipios, estados, base: b.base ? new URL(urlGeo(b.base.arquivo), location.href).href : null, cobertura: indice.cobertura }
+        // A URL pública anunciada permite ao worker ler a geometria sem serializá-la de novo na interface.
+        // Fontes autenticadas ou formatos antigos continuam usando o objeto já lido.
+        let urlEstados: string | undefined
+        if (estados && b.estados?.arquivo === "brasil_estados.geojson" && typeof location !== "undefined") {
+          try {
+            const url = new URL(urlGeo(b.estados.arquivo), location.href)
+            if (url.origin === new URL(location.href).origin && !url.username && !url.password && !url.search && !url.hash) urlEstados = url.href
+          } catch { /* Mantém o objeto quando a raiz não formar uma URL pública válida. */ }
+        }
+        return { municipios, estados, ...(urlEstados ? { urlEstados } : {}), base: b.base ? new URL(urlGeo(b.base.arquivo), location.href).href : null, cobertura: indice.cobertura }
       },
       async comContorno() {
         return Object.entries(await indiceGeo(""))
