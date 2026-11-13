@@ -8,6 +8,7 @@ import json
 import os
 import re
 import threading
+import time
 import uuid
 from pathlib import Path
 
@@ -45,9 +46,11 @@ def _gravar(ctx: dict, cod: int, evento: dict) -> None:
 @contextlib.contextmanager
 def acompanhar(ctx: dict, cod: int):
     inicio = agora()
+    cronometro = time.monotonic()
     evento = {k: ctx[k] for k in ("uf", "unidade", "run", "tentativa", "execucao")}
     evento.update(versao=1, municipio=int(cod), situacao="em_execucao", inicio=inicio.isoformat(),
                   ultima_mudanca_em=inicio.isoformat())  # fmt: skip
+    evento["versoes"] = ctx.get("versoes", {})
     parar = threading.Event()
 
     def bater():
@@ -77,6 +80,8 @@ def acompanhar(ctx: dict, cod: int):
         fim = agora()
         evento.update(situacao="com_erro" if resultado["erro"] else "pronto", fim=fim.isoformat(),
                       ultima_mudanca_em=fim.isoformat())  # fmt: skip
+        evento["segundos"] = round(time.monotonic() - cronometro, 6)
+        evento["tarefas_rodadas"] = resultado.get("tarefas_rodadas", [])
         bater()
 
 

@@ -442,6 +442,33 @@ documentada permanece como falha esperada. Frontend: 292 testes e build; Ruff/ac
 857 pacotes com licenças conferidas. PR/CI/merge e confirmação operacional ainda pendentes neste registro.
 
 
+## Rodada 12 — implementação local de integridade e conferência
+
+Trabalho em `codex/dados-rodada12`, separado da correção urgente #95 até seu CI/merge:
+
+- Marcador municipal explícito `integro`, invalidado por fonte/versão/bytes/erro; conserva tarefas já
+  concluídas e não depende da ordem de término das lanes. Marcas legadas só recebem selo depois da conferência.
+- Ensaio com SIGKILL em filho local, 15 códigos de RR e dados sintéticos: retomada e execução inteira têm
+  arquivos idênticos, 45 imóveis, 15 nulos de área, 15 geometrias nulas e 15 sem área. Nenhum Actions interrompido.
+- Relógio monotônico por tentativa municipal e duração do executor por rodada; controles privados medidos
+  com mediana/p95, amostras e versões em `docs/operacao.md`. 415 municípios com tempos de tarefas utilizáveis;
+  nenhuma rodada estadual integral sem adoção/medição ausente. Não derivar estados/dia desses números.
+- Ibis 12.0.0, Apache-2.0, extra opcional: mesma consulta em DuckDB e SQLite; nenhuma dependência existente
+  mudou de versão. Prova real: PI 185.791 imóveis/130 municípios e RN 56.217/84, contagens iguais nos dois bancos.
+  Só códigos municipais entram na conferência; relatórios agregados com versões e hashes em `docs/medicoes/`.
+- Camada bovina PA/2016 continua aguardando tabela agregada municipal/mensal. O artigo foi consultado:
+  os dados foram fornecidos aos autores pela ADEPARÁ; tabelas publicadas são totais estaduais, e os meses
+  aparecem em gráficos. Não inventar os valores municipais nem importar identificação de produtores.
+
+Validações locais específicas: 53 testes aprovados inicialmente; 28 de tempos/preservação repetidos após
+separar rodadas históricas que reaproveitaram tarefas adotadas. Suíte completa/CI/PR/merge desta rodada pendentes.
+
+Validação integral da rodada 12 em 12/11 às 23h39 de Brasília: **2.509 testes passaram**, incluindo
+PostGIS, LanguageTool real e a referência estadual privada completa do Pará; duas verificações de
+cartão/vídeo dependem da instalação local do Takumi e serão repetidas após prepará-lo. A divergência de
+TIR central r11 permanece como falha esperada já documentada. Ruff/formatação passaram; 862 pacotes
+conferidos sem problemas de licença. CI, merge e conferência dos novos marcadores em produção pendentes.
+
 Acompanhamento do PR #95 em 12/11 às 23h13 de Brasília: referência privada completa do Pará, agentes e
 workflows passaram no CI `43347013537`; demais jobs ainda em andamento/fila. Gitleaks apontou somente
 `KC_DB_URL` no commit `e0e8ccdd`, uma URL JDBC interna sem usuário/senha; exceção limitada ao fingerprint
@@ -471,7 +498,7 @@ A data de início de cenário é hipotética, não a implantação de um projeto
 
 A falha observada no catálogo `43346089594` motivou repetição limitada da listagem inteira quando um escritor
 concorrente desloca as páginas do Release. Quatro tentativas, com prazo preservado; nunca aceita lista parcial
-nem oculta outras falhas. A classe base do publicador e seu contrato de compatibilidade permanecem idênticos.
+nem oculta outras falhas. A repetição passou ao leitor comum na rodada 12, protegendo também caches e checkpoints. O gate de compatibilidade continua estrito.
 
 O verificador portátil confere bytes reais, fichas, quantis, CADT e atestações dos dois escopos. CI, merge,
 execução retroativa e verificação remota integral ainda pendentes; os números acima são validação local.
@@ -488,3 +515,35 @@ completa do Pará; dois casos de cartão/vídeo foram repetidos após preparar T
 desse módulo passaram. A divergência histórica de TIR permanece como xfail. Os 110 testes específicos
 do verificador foram executados após ampliar a conferência dos produtos finais do Lote PA.
 CI, merge e catálogo remoto seguem pendentes neste registro.
+
+Integração da rodada 12 com a main atual: **185 testes direcionados passaram**, incluindo os dois
+casos reais de cartão/vídeo antes pulados e as novas rotas de certidão/calendário/vigilância. A promoção
+fechada das continuações para `91c993ec322fea64ca2e96098e212c0f5c2dc613` passou em **216 testes** de fila,
+promoção e catálogo. A prova em `auditoria-promocao-rodada12.json` preserva os hashes das duas auditorias
+anteriores, as 11 versões atuais de tarefas e todas as dependências existentes; Ibis permanece opcional.
+Reservas vivas e pedidos bloqueados não mudam. O destino não acompanha a main automaticamente.
+
+Retomada operacional iniciada em **12/11 às 23h53 de Brasília**, antes do merge para não deixar vagas
+ociosas enquanto o CI espera runners: [run 43355236141](https://github.com/bernardoemmel/Raiz/actions/runs/43355236141),
+na referência fixa `10a94d4278493c5b1776479b192ed62866007d13`. Novo pedido explícito para RN, GO, MA, MT, MS
+e AM, sem refazer saídas comprovadas. Às **23h57**, a admissão CAS confirmou **15 reservas globais**:
+cinco jobs anteriores e dez unidades novas (BA-1/3, RN-1/2, GO-1/2/3, MA-1/2 e MT-1). As novas unidades
+ainda aguardavam o preparo comum; reserva não foi contada como município em execução. Os demais pedidos
+continuam persistidos. RN-1 antigo permanece bloqueado no histórico; o pedido novo não apagou esse registro.
+Nenhum workflow foi cancelado/desativado. PR #95 aguarda todos os checks; referência Pará, frontend,
+workflows e segurança já passaram. A main recebeu o #89 durante essa espera e foi integrada sem conflitos
+na rodada 12; seus 188 testes relacionados e 334 testes do frontend passaram, com build.
+
+Na retomada `43355236141`, o preparo comum e MT-1 falharam **antes do cálculo** ao listar os assets
+privados: arquivos mudaram entre páginas. A correção foi estendida ao leitor comum do armazém, com
+quatro tentativas completas, espera limitada e erro explícito se a leitura continuar ambígua. Nenhuma
+lista parcial é aceita. **65 testes** de armazém, transferência, checkpoint e integridade passaram;
+cinco consultas reais consecutivas ao arquivo privado leram 301 assets sem duplicação (2,80–2,99 s).
+O contrato estrito do catálogo continua exigindo a compatibilidade dos escritores ativos.
+A integração visual com a main #89 passou em Pages, acerto, pedido nacional, cena e acessibilidade.
+
+Destino final auditado da rodada 12: `6e7ca38da623e6c95d461c1528beabb408b34ee5`, incluindo a retomada
+municipal e a leitura de assets com quatro tentativas/revalidação HTTP. São 17 origens fechadas e
+**245 testes** de fila, promoção e catálogo aprovados. As duas provas históricas permanecem intactas;
+a nova prova confere por AST que somente `_assets` mudou no armazém. A validação não relaxa o gate
+de compatibilidade dos publicadores ativos nem reescreve reservas.

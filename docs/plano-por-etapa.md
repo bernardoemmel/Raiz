@@ -31,8 +31,11 @@ RN/PI, preservar e retomar o progresso, preencher as vagas com várias UFs/fatia
 municípios prontos, em execução e com erro no painel, com última mudança. As extensões restantes dos formatos
 do Lote PA permanecem preservadas, mas aguardam essa correção operacional.
 Rodada 12 recebida: marcador municipal íntegro, tempos mediana/p95, ensaio de falha/retomada, conferência Ibis
-em dois mecanismos e camada bovina PA/2016 agregada por município/mês. Implementação e provas pendentes,
-com fontes e limites registrados na passagem; a prioridade segue sendo a fila dos 27 estados.
+em dois mecanismos e camada bovina PA/2016 agregada por município/mês. Integridade, instrumentação e
+conferência implementadas localmente em `codex/dados-rodada12`: ensaio sintético dos 15 municípios de RR
+retoma com bytes/contagens iguais; Ibis confere 242.008 registros reais de RN/PI em DuckDB e SQLite.
+Medições de 415 municípios estão em `docs/operacao.md`, com exclusões e limites. Faltam suíte completa,
+CI/PR/merge e implantação; a camada bovina aguarda a tabela municipal/mensal. A prioridade segue sendo a fila dos 27 estados.
 
 O **#82 foi mesclado** em `cf306256`, após os oito checks do CI `43335410339` passarem, incluindo a referência
 privada completa do Pará. O workflow do motor foi conferido como `active`. A falha posterior de RN-1 veio da
@@ -452,10 +455,10 @@ faz sem back-end.
 |---|---|
 | Publicação após #72, sem alterar o PR do outro chat | **feito** em 12/11/2026: workflow ativo; atualização 43331843113 concluída com 444 municípios em 13 estados; site ao vivo com busca, aproximação, pedido e 360 px sem 404 ou erros de JavaScript |
 | Conferir que arquivos pagos não ficaram públicos | **feito**: 36 assets do Release validados pela lista positiva; os dois artefatos foram conferidos, o mais recente com 1.849 arquivos, 444 CSV básicos e 444 geometrias sem medidas pagas. Evidências e hashes na passagem |
-| Resumos abertos dos três lotes; composição, travas e desenho somente pela API autenticada | **em andamento**: resultados reais do Pará estão no Release privado, conforme #78; o ponteiro completo não deve voltar ao público |
-| Sensibilidade de preço, reserva, desconto e cenário pessimista | **pendente**: a rodada do Pará não calculou esses cenários; demonstração identificada enquanto faltar a saída real |
-| Pedido por estado, bioma ou Brasil com cobertura e lacunas explícitas | **pendente** |
-| Painel de acerto do modelo por versão e comparação observada | **pendente**; não apresentar ausência de avaliações como 0% de acerto |
+| Resumos abertos dos três lotes; composição, travas e desenho somente pela API autenticada | **feito no código**: projeção positiva do manifesto privado do #78; público só vê quantis de créditos, ha, quantidade de fazendas, custo médio e terra documentada. Detalhes pela API; demonstração optativa inteiramente fictícia e sem cobrança/contato |
+| Sensibilidade de preço, reserva, desconto e cenário pessimista | **feito no código**: controles, comparação das três opções e grade privada vinculada à revisão do pedido; demonstração fictícia identificada. **Pendente de dados reais**: a rodada do Pará não calculou esses cenários |
+| Pedido por estado, bioma ou Brasil com cobertura e lacunas explícitas | **feito no código**: 27 UFs, seis biomas e Brasil; cobertura dinâmica do manifesto, estados parciais/faltantes e ausência explícita do recorte exato. Não extrapola os lotes do Pará |
+| Painel de acerto do modelo por versão e comparação observada | **feito no código**: métricas agregadas, período e proveniência verificados, mínimo de cinco imóveis; API/exportador disponíveis. **Pendente de dados reais elegíveis** no Release; ausência não é 0% de acerto |
 
 ## Telas e mapa: ficha visual da terra
 
@@ -523,6 +526,12 @@ o caso estadual exigiu preparar a referência privada e passou depois em execuç
 documentada permanece como falha esperada. Frontend: 292 testes e build; Ruff/actionlint verdes;
 857 pacotes com licenças conferidas. PR/CI/merge e confirmação operacional ainda pendentes neste registro.
 
+Validação integral da rodada 12 em 12/11 às 23h39 de Brasília: **2.509 testes passaram**, incluindo
+PostGIS, LanguageTool real e a referência estadual privada completa do Pará; duas verificações de
+cartão/vídeo dependem da instalação local do Takumi e serão repetidas após prepará-lo. A divergência de
+TIR central r11 permanece como falha esperada já documentada. Ruff/formatação passaram; 862 pacotes
+conferidos sem problemas de licença. CI, merge e conferência dos novos marcadores em produção pendentes.
+
 
 PR urgente #95 aberto; CI `43347013537` parcialmente aprovado em 12/11 às 23h13 de Brasília
 (incluindo referência estadual do Pará). Exceção estrita de falso positivo Gitleaks confirmada localmente;
@@ -562,3 +571,35 @@ completa do Pará; dois casos de cartão/vídeo foram repetidos após preparar T
 desse módulo passaram. A divergência histórica de TIR permanece como xfail. Os 110 testes específicos
 do verificador foram executados após ampliar a conferência dos produtos finais do Lote PA.
 CI, merge e catálogo remoto seguem pendentes neste registro.
+
+Integração da rodada 12 com a main atual: **185 testes direcionados passaram**, incluindo os dois
+casos reais de cartão/vídeo antes pulados e as novas rotas de certidão/calendário/vigilância. A promoção
+fechada das continuações para `91c993ec322fea64ca2e96098e212c0f5c2dc613` passou em **216 testes** de fila,
+promoção e catálogo. A prova em `auditoria-promocao-rodada12.json` preserva os hashes das duas auditorias
+anteriores, as 11 versões atuais de tarefas e todas as dependências existentes; Ibis permanece opcional.
+Reservas vivas e pedidos bloqueados não mudam. O destino não acompanha a main automaticamente.
+
+Retomada operacional iniciada em **12/11 às 23h53 de Brasília**, antes do merge para não deixar vagas
+ociosas enquanto o CI espera runners: [run 43355236141](https://github.com/bernardoemmel/Raiz/actions/runs/43355236141),
+na referência fixa `10a94d4278493c5b1776479b192ed62866007d13`. Novo pedido explícito para RN, GO, MA, MT, MS
+e AM, sem refazer saídas comprovadas. Às **23h57**, a admissão CAS confirmou **15 reservas globais**:
+cinco jobs anteriores e dez unidades novas (BA-1/3, RN-1/2, GO-1/2/3, MA-1/2 e MT-1). As novas unidades
+ainda aguardavam o preparo comum; reserva não foi contada como município em execução. Os demais pedidos
+continuam persistidos. RN-1 antigo permanece bloqueado no histórico; o pedido novo não apagou esse registro.
+Nenhum workflow foi cancelado/desativado. PR #95 aguarda todos os checks; referência Pará, frontend,
+workflows e segurança já passaram. A main recebeu o #89 durante essa espera e foi integrada sem conflitos
+na rodada 12; seus 188 testes relacionados e 334 testes do frontend passaram, com build.
+
+Na retomada `43355236141`, o preparo comum e MT-1 falharam **antes do cálculo** ao listar os assets
+privados: arquivos mudaram entre páginas. A correção foi estendida ao leitor comum do armazém, com
+quatro tentativas completas, espera limitada e erro explícito se a leitura continuar ambígua. Nenhuma
+lista parcial é aceita. **65 testes** de armazém, transferência, checkpoint e integridade passaram;
+cinco consultas reais consecutivas ao arquivo privado leram 301 assets sem duplicação (2,80–2,99 s).
+O contrato estrito do catálogo continua exigindo a compatibilidade dos escritores ativos.
+A integração visual com a main #89 passou em Pages, acerto, pedido nacional, cena e acessibilidade.
+
+Destino final auditado da rodada 12: `6e7ca38da623e6c95d461c1528beabb408b34ee5`, incluindo a retomada
+municipal e a leitura de assets com quatro tentativas/revalidação HTTP. São 17 origens fechadas e
+**245 testes** de fila, promoção e catálogo aprovados. As duas provas históricas permanecem intactas;
+a nova prova confere por AST que somente `_assets` mudou no armazém. A validação não relaxa o gate
+de compatibilidade dos publicadores ativos nem reescreve reservas.

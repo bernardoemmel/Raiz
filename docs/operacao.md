@@ -1,5 +1,84 @@
 # Operação: como saber na hora quando algo parou
 
+## Medição do processamento dos estados — rodada 12
+
+`uv run python -m raiz.executor.tempos controles/raiz_controle_*.json --saida tempos.json`
+produz somente estatísticas por UF e conjunto de versões, com hashes das fontes. Os controles completos
+permanecem privados. Mediana e p95 usam interpolação linear (tipo 7); nunca se substitui duração ausente por zero.
+Snapshots repetidos não duplicam municípios, e versões diferentes não entram na mesma amostra.
+
+Leitura de 16 controles privados em **12/11/2026 às 23h05 de Brasília**: os valores abaixo são a **soma dos
+segundos das últimas tarefas concluídas de cada município**, na versão declarada pelo controle. Não são tempo
+corrido de uma execução: as tarefas podem vir de retomadas diferentes. Marcas adotadas, incompletas, com erro,
+versão divergente ou sem duração foram excluídas. Ter duração não substitui a prova de integridade dos arquivos.
+
+| UF | Municípios medidos | Mediana (s) | p95 (s) | Municípios excluídos no controle |
+|---|---:|---:|---:|---:|
+| BA | 151 | 272,70 | 798,25 | 7 |
+| CE | 91 | 193,10 | 652,00 | 7 |
+| GO | 10 | 313,10 | 997,39 | 236 |
+| MA | 2 | 876,50 | 894,86 | 215 |
+| MG | 3 | 910,70 | 1.211,03 | 746 |
+| PI | 47 | 95,70 | 217,50 | 140 |
+| RN | 34 | 38,00 | 87,61 | 50 |
+| RR | 1 | 0,70 | 0,70 | 14 |
+| TO | 76 | 77,80 | 361,35 | 63 |
+
+A única amostra municipal de RR é um município sem imóveis, com somente a tarefa inicial; não representa o
+custo dos municípios habitados. AC, AP, AM, MS, MT e RO não têm amostra municipal completa nessa leitura.
+PA não tem controle estadual com versões/duração suficiente; as demais UFs ainda não têm controle disponível.
+O relatório agregado reproduzível fica em `docs/medicoes/processamento-2026-11-12.json`.
+
+Para **estado inteiro calculado na mesma rodada**, a amostra é zero: não há mediana/p95 defensáveis ainda.
+Há quatro rodadas históricas que percorreram toda a UF, mas aproveitaram tarefas adotadas sem duração:
+
+| UF | Rodadas | Mediana (s) | p95 (s) |
+|---|---:|---:|---:|
+| AC | 1 | 2.407 | 2.407 |
+| AP | 1 | 423 | 423 |
+| RO | 1 | 3.328 | 3.328 |
+| RR | 1 | 1.380 | 1.380 |
+
+Com uma rodada, mediana e p95 coincidem; isso não mede a cauda da distribuição nem o custo de refazer a UF.
+Fatias, execuções com erro, rodadas ainda abertas e retomadas sem recalcular todos os municípios não contam
+como execução estadual inteira. Esses números não fundamentam estados/dia nem uma data para os 27 estados.
+A previsão nacional deve usar avanço municipal íntegro observado após a correção da publicação, em janelas
+repetidas com ocupação da fila, falhas e escopo científico registrados.
+
+A instrumentação nova mede cada tentativa municipal com relógio monotônico, início/fim, tarefas efetivamente
+rodadas e versões no evento privado. O estado registra `segundos_executor`; inclui preparação/cálculo e
+publicações periódicas, termina antes da publicação final. Tentativas com erro ficam separadas das bem-sucedidas.
+A ref pública do painel mantém somente a lista permitida de situação/horário; não recebe marcas ou dados pessoais.
+
+### Integridade e ensaio de retomada
+
+Cada partição municipal recebe `integridade.situacao=integro` somente depois de conferir versões, assinaturas,
+sidecars e bytes de todas as saídas exigidas. O SHA do selo identifica tarefas e saídas; não substitui a
+validação científica. Mudança de fonte, versão, arquivo ou erro invalida o selo. A retomada preserva as tarefas
+já íntegras, inclusive dentro do município interrompido, e processa os municípios pendentes; não presume que
+os municípios terminam em ordem quando há várias lanes.
+
+`testes/test_executor_integridade.py` executa os 15 códigos de RR com propriedades e geometrias **sintéticas**,
+interrompe um filho local com SIGKILL depois de seis municípios completos e retoma. Compara todos os CSVs,
+GeoParquets e relatórios de qualidade por SHA-256 com uma execução inteira: 45 imóveis, 15 nulos de área,
+15 geometrias nulas e 15 geometrias sem área, iguais nos dois caminhos. As seis marcas completas ficam
+byte a byte iguais; a fonte já concluída do sétimo município também não roda de novo. Nenhum workflow
+ou job do Actions é interrompido por esse ensaio. É uma prova do mecanismo de retomada, não um novo
+processamento científico de Roraima em produção.
+
+### Conferência Ibis, sem troca de ingestão
+
+`uv run --extra conferencia python -m raiz.conferencia.ibis_contagem PASTA --saida conferencia.json`
+executa a mesma expressão de contagem por município em DuckDB e SQLite. O Ibis 12.0.0 é Apache-2.0;
+os bancos efêmeros recebem somente códigos municipais. O relatório guarda versões, SQL de cada mecanismo,
+hash da entrada, contagens e igualdade; divergência retorna código de falha. Os motores de ingestão permanecem
+nas versões travadas anteriores. Não trocar o motor com base apenas nesse teste de contagem.
+
+Conferência real concluída em 12/11/2026: **PI, 130 municípios e 185.791 imóveis; RN, 84 municípios e
+56.217 imóveis**. DuckDB, SQLite e contagem de referência concordaram em todos os municípios. Os 242.008
+registros foram lidos de pacotes privados congelados e conferidos por SHA; nenhum dado foi publicado por esse
+ensaio. Evidência agregada: `docs/medicoes/ibis-contagens-rn-pi-2026-11-12.json`.
+
 ## Pilha API/MCP, OAuth e processamento
 
 A pilha `infra/docker-compose.agentes.yml` sobe PostGIS, banco separado do Keycloak, Keycloak 26.8.2,

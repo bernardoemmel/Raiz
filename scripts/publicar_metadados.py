@@ -384,21 +384,6 @@ def classe_armazem(prazo: float | None = None):
                 )
             super().__init__(*args, **kwargs)
 
-        def _assets(self, rel=None):
-            # Escritores de outras UFs podem deslocar páginas durante o GET.
-            # Repete a leitura inteira; nunca aproveita uma lista parcial.
-            for tentativa in range(4):
-                try:
-                    return super()._assets(rel)
-                except RuntimeError as erro:
-                    if (
-                        str(erro) != "arquivos mudaram durante a paginação do Release; tente novamente"
-                        or tentativa == 3
-                        or time.monotonic() + tentativa + 1 >= prazo
-                    ):
-                        raise
-                    time.sleep(tentativa + 1)
-
         def _baixar_asset(self, nome, fresco=False):
             dados = super()._baixar_asset(nome, fresco=True)
             if dados is not None:
