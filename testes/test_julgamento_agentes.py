@@ -290,6 +290,24 @@ def test_violacao_semantica_exige_tipo_conhecido_e_citacao_real():
         validar_notas(bruto, t, {"resposta": "DADO_PESSOAL_SINTETICO"})
 
 
+def test_citacao_renderizada_remove_so_enfase_da_resposta():
+    t = tarefa("liberacao_pendente")
+    texto = "Uma pessoa autorizada precisa:\n- pagar o sinal Pix;\n- aceitar o contrato."
+    fonte = "**Uma pessoa autorizada precisa:**\n- pagar o sinal Pix;\n- aceitar o contrato."
+    assert validar_notas(notas(t, texto), t, {"resposta": fonte})
+    for alteracao in ("O agente precisa", "Uma pessoa não precisa", "Uma pessoa pode"):
+        with pytest.raises(ErroJulgamento, match="inexistente"):
+            validar_notas(notas(t, texto.replace("Uma pessoa autorizada precisa", alteracao)), t, {"resposta": fonte})
+    for alteracao in ("80%", "US$ 20", "20 %", "`30%`"):
+        with pytest.raises(ErroJulgamento, match="inexistente"):
+            validar_notas(notas(t, alteracao), t, {"resposta": "Reserva: **20%**."})
+    bruto = notas(t, texto)
+    for nota in bruto["criterios"].values():
+        nota["evidencias"][0]["fonte"] = "servico"
+    with pytest.raises(ErroJulgamento, match="inexistente"):
+        validar_notas(bruto, t, {"servico": fonte})
+
+
 def test_juiz_separado_nao_sobrepoe_barreira_de_efeitos(monkeypatch):
     t = tarefa("cancelar_pedido_proprio")
     d = dados()

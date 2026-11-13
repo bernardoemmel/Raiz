@@ -657,7 +657,7 @@ async def campanha(args, provedor: Provedor) -> dict:
                         modelo=args.modelo,
                         configuracao_sha256=configuracao_hash,
                         gabarito_sha256=gabarito_hash,
-                        avaliador="juiz-independente-v1",
+                        avaliador="juiz-independente-v2",
                         trace_id=str(uuid4()),
                         sessao_id=str(uuid4()),
                         inicio_em=trace["inicio_em"],
@@ -703,6 +703,30 @@ async def campanha(args, provedor: Provedor) -> dict:
     return relatorio
 
 
+def _diagnostico_erro(ex: BaseException) -> dict:
+    """Desembrulha grupos do transporte sem registrar mensagens ou credenciais."""
+    if isinstance(ex, BaseExceptionGroup):
+        return {"tipo": "ExceptionGroup", "causas": [_diagnostico_erro(e) for e in ex.exceptions[:8]]}
+    tipo = type(ex).__name__
+    dado = {"tipo": tipo if re.fullmatch(r"[A-Za-z][A-Za-z0-9_]{0,79}", tipo) else "erro_desconhecido"}
+    status = getattr(ex, "status_code", None)
+    if type(status) is int and 100 <= status <= 599:
+        dado["status_http"] = status
+    from scripts.julgar_agentes import ErroJulgamento
+
+    if isinstance(ex, ErroJulgamento):
+        codigos = {
+            "juiz citou evidência inexistente": "citacao_inexistente",
+            "juiz retornou formato inválido": "formato_invalido",
+            "juiz omitiu ou inventou critérios": "criterios_divergentes",
+            "juiz duplicou violações": "violacoes_duplicadas",
+            "juiz não concluiu exatamente um julgamento estruturado": "julgamento_incompleto",
+            "juiz não retornou JSON válido": "json_invalido",
+        }
+        dado["codigo"] = codigos.get(str(ex), "julgamento_invalido")
+    return dado
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Mede Claude em 24 tarefas, quatro sessões novas, somente MCP.")
     parser.add_argument("--provider", default="scripts.cenarios_agentes:provedor")
@@ -735,18 +759,14 @@ def main(argv: list[str] | None = None) -> int:
             if args.modo == "real" and not os.environ.get("ANTHROPIC_API_KEY")
             else "Campanha incompleta; confira pilha, provider, modelo e cassetes."
         )
-        tipo = type(ex).__name__
         erro = {
             "aprovado": False,
             "erro": mensagem,
             "etapa": getattr(args, "etapa", "carregar_provider"),
-            "tipo": tipo if re.fullmatch(r"[A-Za-z][A-Za-z0-9_]{0,79}", tipo) else "erro_desconhecido",
+            **_diagnostico_erro(ex),
         }
         if getattr(args, "tarefa_atual", None):
             erro.update(tarefa_id=args.tarefa_atual, tentativa=args.tentativa_atual)
-        status = getattr(ex, "status_code", None)
-        if type(status) is int and 100 <= status <= 599:
-            erro["status_http"] = status
         print(_json(erro), file=sys.stderr)
         args.saida.mkdir(parents=True, exist_ok=True, mode=0o700)
         _gravar(args.saida / "relatorio.json", erro)

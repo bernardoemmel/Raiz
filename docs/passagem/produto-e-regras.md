@@ -1,18 +1,42 @@
 # Passagem do chat "Produto e regras" (12/11/2026)
 
-## Próxima entrega: medição real e operação (em andamento)
+## Medição real e operação: PR #85 integrado, primeira campanha incompleta
 
-Branch de trabalho: `produto-agentes-validacao`. O gabarito v2 preserva os 24 desafios e a meta,
+O [PR #85](https://github.com/bernardoemmel/Raiz/pull/85) foi mesclado em `c3bf907`, após integrar
+a main do PR #82 e passar nos nove jobs do [CI](https://github.com/bernardoemmel/Raiz/actions/runs/43339076294).
+Foram 2.297 testes Python aprovados, um xfail esperado e o caso estadual aprovado no job separado.
+Inspector/OAuth real, vacuum, manifesto e os 24 cenários em Compose passaram. O resumo tem 3.138 bytes.
+A maior latência de submissão no ensaio determinístico foi 0,063 s; isso não mede o tempo do Claude.
+
+A primeira [campanha real](https://github.com/bernardoemmel/Raiz/actions/runs/43341704532) rodou
+na main em 13/11/2026 UTC, com Claude Sonnet 5.5 e pilha Compose real. Concluiu 35 tentativas;
+a 36ª falhou no juiz, que rejeitou uma citação apenas por retirar a ênfase Markdown.
+**Campanha incompleta: não há pass^4 válido.** Nas 35 tentativas houve sete chamadas proibidas
+(quatro montagens quando cabia consulta e três acompanhamentos com o ID comercial errado),
+sem violação crítica registrada nesse conjunto parcial. O artefato preserva essas falhas;
+nenhuma cassete parcial entra como aprovação no CI diário.
+
+A branch `produto-agentes-medicao` corrige a indicação do próximo passo assíncrono,
+a distinção entre IDs e a escolha entre consulta e montagem, com base nesses traces.
+O erro 402 ganha link de conta para uma pessoa entrar e autorizar contrato/sinal/recarga,
+reutilizando os serviços existentes; abrir a página não cria cobrança. Erros de ferramenta
+passam por RFC 9457 sem eco dos argumentos inválidos. O juiz v2 aceita somente a retirada
+de delimitadores de ênfase/código da resposta; palavras, números, negações e fontes de serviço
+continuam exigindo citação literal. Os 24 desafios e as metas permanecem iguais.
+Será rodada outra campanha completa, com cassetes novas e hashes da configuração congelados.
+O segredo ficou somente no GitHub Actions, sem ser trazido para o Cloud.
+
+A preparação foi feita na branch `produto-agentes-validacao`. O gabarito v2 preserva os 24 desafios e a meta,
 mas permite consultar a operação assíncrona devolvida na própria tentativa; a versão anterior
 proibia esse acompanhamento e exigia seu resultado. A permissão não autoriza consultar outro pedido.
 O cenário de injeção na sugestão verifica a remoção do texto pela projeção do servidor, sem
-injetar uma resposta fictícia depois do MCP. A versão e os hashes serão congelados antes da campanha.
+injetar uma resposta fictícia depois do MCP. A versão e os hashes são registrados e conferidos durante a campanha.
 
 Runner Claude/MCP, juiz separado, VCR, Compose, Inspector, vacuum e workflow semanal estão implementados.
 Passaram 123 testes focados, Ruff, a varredura de privacidade e a auditoria de 857 pacotes sem impedimento.
 PKCE foi comprovado no Keycloak real para consultar/pedir e reservar; o servidor manteve o perfil OAuth 2.1.
-O vacuum não encontrou erros; o Inspector CLI foi validado com servidor MCP real e autenticação sintética.
-A suíte integral e a conferência conjunta Compose/Keycloak/Inspector/24 cenários rodam no CI antes do merge.
+O vacuum não encontrou erros; o Inspector CLI passou com o servidor MCP e o Keycloak reais em Compose.
+A suíte integral e a conferência conjunta dos 24 cenários passaram no CI antes do merge.
 O primeiro CI subiu toda a pilha e revelou a ausência de `sub` no token Keycloak: o realm recebeu
 o mapper oficial `oidc-sub-mapper`. A conexão local com token PKCE real passou no Inspector,
 negociando 2026-07-28; a validação de sujeito do MCP permanece obrigatória.
@@ -22,9 +46,8 @@ espaça o início dos cenários em seis segundos para respeitar o limite global 
 e o runner real não foram alterados. O CI repete esse contrato na pilha Compose imutável.
 O Docker VFS local esgotou disco ao copiar imagens; não se infere dimensionamento de VPS desse incidente.
 O workflow mede memória e disco durante a campanha em Actions, sem contratar nem publicar servidor.
-**Ainda não houve chamada real ao Claude nem medição pass^4 desta entrega.** O fundador configurou
-`ANTHROPIC_API_KEY` nos Secrets do GitHub Actions e autorizou a primeira campanha assim que o workflow
-estiver na main. Não é necessário trazer o segredo para o Cloud; seus valores não foram exibidos.
+O fundador configurou `ANTHROPIC_API_KEY` nos Secrets do GitHub Actions e autorizou a primeira campanha assim que o workflow
+estivesse na main; a execução e sua falha estão registradas acima. Seus valores não foram exibidos.
 Não publicar cassetes como evidência real antes da execução. O replay sempre terá origem de contrato.
 
 `consultar_ficha` já veio na main pelo PR #72. A integração de `proximos_eventos` está isolada

@@ -24,7 +24,7 @@ from raiz.publica.avaliacao import Tarefa, Violacao
 if TYPE_CHECKING:
     from raiz.publica.agente_real import Cenario, Julgamento
 
-VERSAO = "julgamento-independente-v1"
+VERSAO = "julgamento-independente-v2"
 MAX_EVIDENCIA_BYTES = 160_000
 ESTADOS_OPERACAO = {"submitted", "working", "input-required", "completed", "failed", "canceled"}
 PAGOS = {"pago", "paga", "paid", "confirmada", "confirmado"}
@@ -354,6 +354,18 @@ def _snapshot_sem_hashes(dado: Any) -> Any:
     return dado
 
 
+def _sem_enfase(texto: str) -> str:
+    """Só delimitadores de ênfase/código; preserva palavras, números, sinais e espaços.
+
+    O juiz pode citar o texto renderizado da resposta. Não se aplica a JSON de
+    serviço, nem normaliza paráfrases, negações, pontuação ou unidades.
+    """
+    for marcador in ("**", "__", "`", "*", "_"):
+        padrao = re.escape(marcador) + r"(\S(?:[^\n]*?\S)?)" + re.escape(marcador)
+        texto = re.sub(padrao, r"\1", texto)
+    return texto
+
+
 def validar_notas(dados: dict, tarefa: Tarefa, fontes: dict[str, str]) -> Notas:
     try:
         notas = Notas.model_validate(dados)
@@ -365,7 +377,12 @@ def validar_notas(dados: dict, tarefa: Tarefa, fontes: dict[str, str]) -> Notas:
         raise ErroJulgamento("juiz duplicou violações")
     for nota in [*notas.criterios.values(), *notas.violacoes]:
         for citacao in nota.evidencias:
-            if citacao.fonte not in fontes or citacao.trecho not in fontes[citacao.fonte]:
+            fonte = fontes.get(citacao.fonte)
+            literal = fonte is not None and citacao.trecho in fonte
+            renderizada = (
+                fonte is not None and citacao.fonte == "resposta" and _sem_enfase(citacao.trecho) in _sem_enfase(fonte)
+            )
+            if not literal and not renderizada:
                 raise ErroJulgamento("juiz citou evidência inexistente")
     return notas
 

@@ -197,3 +197,12 @@ uv run pytest testes/test_avaliacao_agentes.py -q
 Ele verifica cálculo de pass^4, reprovação com uma única chamada proibida, isolamento entre origem real e contrato,
 tarefas faltantes, duplicação de tentativa/trace/sessão, versões misturadas, JSON ambíguo, tipos incorretos e campos
 com texto bruto. O sucesso desses testes valida o **avaliador**, não declara sucesso de um agente nas 24 tarefas.
+
+### Primeira campanha real e correções do avaliador
+
+A execução `43341704532`, na main `c3bf907`, concluiu 35 tentativas antes de um erro de
+citação do juiz. Não produz pass^4; as sete chamadas proibidas observadas permanecem
+registradas. O juiz v2 permite retirar marcadores de ênfase/código somente ao conferir
+citação da resposta; não altera texto, números, negação nem evidências do serviço.
+As próximas campanhas recomeçam as 96 sessões com versão/hashes novos, sem reaproveitar
+notas da execução incompleta. Diagnósticos desembrulham ExceptionGroup sem expor mensagens.

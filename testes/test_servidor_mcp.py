@@ -211,3 +211,21 @@ def test_deadline_nao_espera_rota_sincrona_e_preserva_execucao_unica_com_chave_o
             auth_context_var.reset(marcador)
 
     anyio.run(executar)
+
+
+def test_erros_de_validacao_sao_rfc9457_sem_eco_de_argumentos():
+    async def executar():
+        async with Client(criar_servidor()) as c:
+            for nome, args, status in (
+                ("comparar_lotes", {"pedido_id": "DADO_PESSOAL_NAO_DEVOLVER"}, 422),
+                ("consultar_disponibilidade", {"campos": {"metodos": [], "terra": []}}, 422),
+                ("DADO_PESSOAL_NAO_DEVOLVER", {}, 404),
+            ):
+                r = await c.call_tool(nome, args)
+                assert r.is_error
+                p = json.loads(r.content[0].text)
+                assert p == r.structured_content and p["status"] == status
+                assert p["type"].startswith("https://") and p["corrigir"]
+                assert "DADO_PESSOAL_NAO_DEVOLVER" not in r.model_dump_json()
+
+    anyio.run(executar)

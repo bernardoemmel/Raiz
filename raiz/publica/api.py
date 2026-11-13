@@ -216,7 +216,17 @@ def criar(engine_de: Callable[[Request], Any], verificador=None) -> FastAPI:
 
     @app.exception_handler(CT.ErroConta)
     async def _conta(request: Request, ex: CT.ErroConta):
-        return problema(ex.status, ex.slug, ex.detalhe, ex.corrigir, instancia(request), **ex.extra)
+        extra = dict(ex.extra)
+        if ex.status == 402 or ex.slug == "liberacao_pendente":
+            from raiz.publica.rotas_agentes import base_publica
+
+            base = (
+                base_publica()
+                if os.getenv("RAIZ_API_PUBLICA_URL") or os.getenv("RAIZ_MCP_RESOURCE")
+                else _base(request) + "/v1"
+            )
+            extra["link_para_uma_pessoa"] = base + "/conta/gerenciar"
+        return problema(ex.status, ex.slug, ex.detalhe, ex.corrigir, instancia(request), **extra)
 
     from raiz.publica.aprovacao import ErroAprovacao
     from raiz.publica.email_login import ErroEnvioLogin
@@ -400,6 +410,32 @@ def criar(engine_de: Callable[[Request], Any], verificador=None) -> FastAPI:
     @limiter.shared_limit(LIMITE, scope="empresa")
     def ver_conta(request: Request, a: Acesso) -> JSONResponse:
         return ok(CT.exigir(engine_de(request), a.cliente_id))
+
+    @app.get("/conta/gerenciar", tags=["Conta da empresa"], response_class=HTMLResponse)
+    def pagina_conta() -> HTMLResponse:
+        """Canal humano: entrar, conferir contrato e solicitar Pix; nunca paga automaticamente."""
+        from raiz.publica.pagina_conta import pagina
+
+        return pagina(CT.premissas())
+
+    @app.post("/conta/gerenciar/entrar", tags=["Conta da empresa"])
+    @limiter.shared_limit("5/minute", scope="login_aprovacao")
+    def entrar_conta(request: Request, email: Annotated[str, Body(embed=True, min_length=3, max_length=254)]):
+        from sqlalchemy import text
+
+        from raiz.pessoal import Cofre
+        from raiz.publica.rotas_agentes import base_publica
+
+        if S.ENVIO_LINK is None:
+            raise HTTPException(503, "envio de login por e-mail indisponível")
+        with engine_de(request).connect() as con:
+            existe = con.execute(
+                text("select 1 from pessoal.cliente_contato where email_hmac=:h"),
+                {"h": Cofre().indice(email.strip().lower())},
+            ).scalar()
+        if existe:
+            S.pedir_link(engine_de(request), email, base_publica() + "/conta/gerenciar")
+        return JSONResponse({"enviado": True}, headers={"Cache-Control": "no-store"})
 
     @app.get("/conta/extrato", tags=["Conta da empresa"], summary="Extrato (testes, débitos, estornos, recargas)")
     @limiter.shared_limit(LIMITE, scope="empresa")

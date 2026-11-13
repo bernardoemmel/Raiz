@@ -250,12 +250,13 @@ Feito na main fora desta tabela: caminho da terra com risco por imóvel (`raiz/t
 
 ## IA. Plataforma para agentes das empresas
 
-Próxima entrega em andamento (`produto-agentes-validacao`): medição Claude em 96 sessões via MCP,
-replay VCR, conferência Inspector/vacuum, manifesto do registro e Compose de operação. Gabarito v2
-corrige a permissão de acompanhar operações assíncronas sem reduzir critérios ou meta. Resultado real,
-gravações e dimensionamento ainda dependem de conclusão dos ensaios; não estão marcados como feitos.
-O Compose completo subiu no CI do PR #85. O ensaio revelou e corrigiu a ausência do mapper
-`sub` no realm Keycloak; Inspector autenticado por PKCE real confirmou a revisão 2026-07-28.
+O [PR #85](https://github.com/bernardoemmel/Raiz/pull/85) entrou na main com os nove jobs verdes:
+2.297 testes Python, caso estadual separado e 24 cenários pela pilha Compose real. O ensaio corrigiu
+a ausência do mapper `sub` no realm Keycloak; Inspector autenticado por PKCE confirmou 2026-07-28.
+O gabarito v2 permite acompanhar a operação assíncrona da própria tentativa, sem reduzir critérios ou meta.
+A primeira [campanha Claude de 96 sessões](https://github.com/bernardoemmel/Raiz/actions/runs/43341704532)
+foi disparada na main. Resultado real, cassetes para replay diário e dimensionamento sob essa carga
+continuam em andamento na branch `produto-agentes-medicao`.
 
 | Ordem | Entrega | Situação |
 |---|---|---|
@@ -263,9 +264,13 @@ O Compose completo subiu no CI do PR #85. O ensaio revelou e corrigiu a ausênci
 | B | MCP oficial Python 2.3.0/protocolo 2026-07-28 no mesmo app, sete ferramentas e resumo único até 8 KiB | **feito no código**, base do PR #69 com CI verde (1.384 testes Python), acrescida de `consultar_ficha` para releitura de CAR já adquirido, sem nova tarifa; descoberta e chamadas testadas com o cliente oficial |
 | C | OAuth 2.1/Keycloak; consultar/pedir/reservar, reserva desligada até administrador da empresa habilitar | **feito no código**; JWT, emissor, audiência, PKCE e isolamento testados; produção depende da configuração da instalação |
 | D | Fila durável, Idempotency-Key, Standard Webhooks, aprovação humana/Pix/JWS, OpenTelemetry | **feito no código**; testes de concorrência, queda do processo, assinatura e prazo; conta/API/worker precisam da mesma base e cofre |
-| E | Gabarito de 24 tarefas, quatro sessões por tarefa, meta pass^4 ≥ 80% e zero chamada proibida | **feito**: gabarito e avaliador; desempenho de agente real ainda não medido |
+| E | Gabarito de 24 tarefas, quatro sessões por tarefa, meta pass^4 ≥ 80% e zero chamada proibida | **feito**: gabarito e avaliador; primeira campanha real incompleta, sem pass^4 válido |
 | F | Piso de reversão 20%, REDD+ jurisdicional, CLPI 50%/70% e revisão humana | **feito no código**, com evidência vigente e bloqueio quando falta dado; camada oficial precisa ser carregada pelo operador |
 | G | Recálculo dos 144 municípios do Pará pelo Actions e publicação no Release | responsabilidade exclusiva do chat "Lote e números", por orientação do fundador; este chat não altera execução nem Release |
+| H | Pilha com API/MCP, PostGIS, Keycloak, Valkey, migrações, worker e agenda em um comando; manual de operação | **feito no código**, PR #85; pilha integral e 24 cenários conferidos no Actions; dimensionamento sob Claude ainda em medição |
+| I | Inspector oficial, lint OpenAPI com vacuum e server.json para registro MCP | **feito**, PR #85; protocolo 2026-07-28, 36 caminhos OpenAPI sem erros de lint e resumo de 3.138 bytes; manifesto validado sem publicação |
+| J | Claude real, pass^4, passos/tempos, vcrpy diário e workflow semanal | runner e workflow entregues no PR #85; primeira campanha incompleta: 35 tentativas, sete chamadas proibidas; correções de ferramentas/juiz em validação; **pendentes** nova campanha completa e cassetes reais no CI diário |
+| K | Reutilizar `consultar_ficha` e `proximos_eventos` no MCP | ficha **feita** no PR #72; Calendário preparado na branch `produto-agentes-ferramentas`, aguardando a primeira medição |
 
 Operação e limites: `docs/agentes-ia.md`, `docs/trabalhos-agentes.md`, `docs/eventos-agentes.md` e
 `docs/avaliacao-agentes.md`. O Pix só é gerado após aprovação de uma pessoa autenticada. Recibo Ed25519

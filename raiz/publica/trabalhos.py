@@ -106,7 +106,7 @@ def _recibo(r) -> dict[str, Any]:
     # O snapshot é evidência interna. Detalhes atuais passam por comparar_lotes e suas exclusões de reservas.
     if r["ferramenta"] == "pedir_lote" and resultado is not None:
         resultado = {"id": str(r["negocio_pedido_id"])}
-    return {
+    recibo = {
         "pedido_id": str(r["id"]),
         "ferramenta": r["ferramenta"],
         "estado": r["estado"],
@@ -114,6 +114,12 @@ def _recibo(r) -> dict[str, Any]:
         "resultado": resultado,
         "erro": r["erro"],
     }
+    if r["estado"] in {"submitted", "working"}:
+        recibo.update(
+            consultar_apos_segundos=1,
+            acompanhamento={"ferramenta": "acompanhar_contato", "argumentos": {"pedido_id": str(r["id"])}},
+        )
+    return recibo
 
 
 def _acesso(engine: Engine, cliente_id: int, ferramenta: str) -> None:

@@ -406,3 +406,5 @@ jobs:
         run: npm --prefix front/globo run test:e2e:api
       - name: Aprovação humana do link MCP (rede simulada, sem pagamento)
         run: node front/scripts/testar-aprovacao.mjs
+      - name: Conta humana e recarga por decisão explícita (rede simulada)
+        run: node front/scripts/testar-conta.mjs

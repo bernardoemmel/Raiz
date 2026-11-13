@@ -345,3 +345,17 @@ def test_modelo_divergente_nao_se_torna_medicao_do_modelo_solicitado():
                 ferramentas=[],
             )
         )
+
+
+def test_diagnostico_de_grupo_preserva_causa_sem_mensagem_sensivel():
+    from scripts.julgar_agentes import ErroJulgamento
+
+    erro = ExceptionGroup(
+        "segredo-na-mensagem", [ValueError("segredo-na-folha"), ErroJulgamento("juiz citou evidência inexistente")]
+    )
+    dado = A._diagnostico_erro(erro)
+    assert dado == {
+        "tipo": "ExceptionGroup",
+        "causas": [{"tipo": "ValueError"}, {"tipo": "ErroJulgamento", "codigo": "citacao_inexistente"}],
+    }
+    assert "segredo" not in json.dumps(dado)

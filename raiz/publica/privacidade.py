@@ -87,7 +87,9 @@ def _link_pagamento(valor: str) -> bool:
                 or (url.scheme == "http" and url.hostname in {"localhost", "127.0.0.1", "testserver"})
             ):
                 return False
-        return bool(re.fullmatch(r"/(?:v1/)?(?:reservas/confirmar|cobrancas)/[A-Za-z0-9_-]{24,128}", url.path))
+        return url.path == "/v1/conta/gerenciar" or bool(
+            re.fullmatch(r"/(?:v1/)?(?:reservas/confirmar|cobrancas)/[A-Za-z0-9_-]{24,128}", url.path)
+        )
     except ValueError:
         return False
 
