@@ -10,8 +10,8 @@ permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.event.pull_request.number || github.sha }}
-  cancel-in-progress: true
+  group: ci-${{ github.event.pull_request.number || github.ref }}-${{ github.sha }}
+  cancel-in-progress: false
 
 jobs:
   agentes:
@@ -251,6 +251,11 @@ jobs:
         run: uv run raiz privacidade varrer
       - name: Licenças de Python, Rust e de todos os locks npm
         run: uv run python scripts/checar_licencas.py
+      - name: Contratos de avaliação e pacote sem scpi/vegan
+        run: |
+          uv run python scripts/esquemas_avaliacao.py --conferir
+          uv build --wheel --out-dir "$RUNNER_TEMP/pacote-raiz"
+          uv run python scripts/conferir_pacote.py "$RUNNER_TEMP"/pacote-raiz/raiz-*.whl
 
 
   testes_python:
@@ -275,6 +280,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
+          fetch-depth: 0 # Reexecutar a referência histórica fechada da auditoria de promoções.
       - uses: astral-sh/setup-uv@v6
         with:
           enable-cache: true

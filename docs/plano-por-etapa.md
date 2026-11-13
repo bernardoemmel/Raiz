@@ -518,7 +518,8 @@ faz sem back-end.
 | Grupos nacionais/estaduais e contornos finos a partir de zoom 12 | **feito no PR #90**: Supercluster com contagem de fazendas e hectares conhecidos, botões visíveis acessíveis e licenças MIT/ISC completas. H3 fica como unidade interna, com supressão e cobertura parcial. Sem preenchimento das fazendas, sobreposições tracejadas e hachura só com geometria medida e autorizada |
 | Satélite com licença comercial conferida | **feito no PR #90**: Sentinel-2 EOxCloudless vintage 2016, cenas 2016/2017, CC BY 4.0, atribuição e ano visíveis; véu claro e retorno à base vetorial em falha |
 | Painel público de processamento integrado ao mapa | **integrado após main `52118b5` (PR #95), com validação local**: 27 UFs, contagens municipais com fonte e validade próprias, sem confundir execução com cobertura ou aptidão. Contrato estrito único preserva a observação validada no cache e na projeção pública; atualização do site não renova seus horários. MapLibre direto e minimapa preservados, com cobertura acima do andamento. Passaram 494 testes do front, 122 Python, Ruff, actionlint, builds e Playwright em `/Raiz/` e `/` com zero 404/erros. Painel nacional a 360 px: teclado e 32 regras axe sem violações; a composição final passou no Lighthouse local abaixo, com CI pendente |
-| Integração da pasta do banco/comprador da main #98 | **integrada após `692663c`**: rotas da pasta e ficha R12 preservadas, com autorização própria e sem inferir os números de uma a partir da outra. Migração EPREL inédita renomeada para `0036_publico_eprel`, após `0035`; ciclo upgrade/downgrade/upgrade aprovado em banco novo. Passaram 508 testes front, 248 Python, TypeScript/lint, Ruff/actionlint, 927 licenças e smokes de pasta, ficha de crédito, gráficos, prospecção e ficha pública datada. Mapa e evidências de `f0a7c96` preservados; desempenho do conjunto novo e nove jobs dependem do CI |
+| Integração da pasta do banco/comprador da main #98 | **integrada após `692663c`**: rotas da pasta e ficha R12 preservadas, com autorização própria e sem inferir os números de uma a partir da outra. Migração EPREL inédita renomeada para `0036_publico_eprel`, após `0035`; ciclo upgrade/downgrade/upgrade aprovado em banco novo. Passaram 508 testes front, 248 Python, TypeScript/lint, Ruff/actionlint, 927 licenças e smokes de pasta, ficha de crédito, gráficos, prospecção e ficha pública datada. Mapa e evidências de `f0a7c96` preservados. O CI `43369596942`, head `d00ea94`, passou nos nove jobs; desempenho mediano 91/98/97/96/97/100 e acessibilidade 100. A integração posterior da main #100 precisa de nova validação |
+| Integração da avaliação de modelos da main #100 | **integrada após `6b9c377`**: front preservado; CRPS interno e projeção pública restrita mantidos. Lock conferido, 279 testes focados e Ruff em 608 arquivos passaram. Dois testes de mídia sem ferramentas locais não substituem a suíte completa do CI, que permanece obrigatória antes do merge |
 | Prova visual antes/depois, zero 404 e Lighthouse ≥ 90 | **validação local da composição `f0a7c96` no PR #90**: Pages com zero 404/erros e sete telas com axe/teclado a 360 px sem violações. As 18 medições fixas nas seis páginas deram medianas 98/98/97/97/97/100, com acessibilidade 100. Dados reais: 82/95/95, mediana 95, acessibilidade 100; a amostra 82 foi mantida, registrando a variação gráfica. Capturas Brasil antes/depois, estado, município, fazenda e 360 px nas evidências. Nove jobs do CI e publicação continuam portões separados |
 
 ## Telas e mapa: ficha visual da terra
@@ -600,6 +601,15 @@ A primeira execução no Actions identificou ausência de `rg` no runner; a veri
 
 - [x] Markdown do site preserva medidas ausentes e zeros explícitos; totais incompletos não são apresentados
   como totais completos. Regressões cobrem páginas estaduais/municipais e proteção de grupos pequenos.
+
+### Qualidade — avaliação da rodada 12
+
+Feito no código: contratos de prova cega/controle estável/PCCP e funil de denominador fixo; CRPS com denominador
+explícito; origens móveis sem acesso ao futuro; equidade por município/aptidão/porte com solver no CI; diagnóstico
+forestci/caudas; reamostragem só no treino; bloqueio de scpi/vegan no pacote. Ver
+[protocolo e limites](modelo/avaliacao-rodada12.md) e [responsáveis pela integração](passagem/qualidade-e-seguranca.md).
+Acurácia empírica e promoção automática via esse protocolo aguardam os dados/integrações indicados; não são
+marcadas como concluídas por passar nos casos sintéticos.
 
 Validação da entrega urgente (12/11, 22h42 de Brasília): suíte completa local com 2.477 testes aprovados;
 o caso estadual exigiu preparar a referência privada e passou depois em execução isolada (144 municípios,

@@ -1,0 +1,137 @@
+{
+  "$defs": {
+    "Estrato": {
+      "additionalProperties": false,
+      "properties": {
+        "municipio": {
+          "maximum": 9999999,
+          "minimum": 1000000,
+          "title": "Municipio",
+          "type": "integer"
+        },
+        "porte": {
+          "enum": [
+            "pequena",
+            "media",
+            "grande"
+          ],
+          "title": "Porte",
+          "type": "string"
+        },
+        "aptidao": {
+          "enum": [
+            "baixa",
+            "media",
+            "alta"
+          ],
+          "title": "Aptidao",
+          "type": "string"
+        }
+      },
+      "required": [
+        "municipio",
+        "porte",
+        "aptidao"
+      ],
+      "title": "Estrato",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "caso_id": {
+      "format": "uuid",
+      "title": "Caso Id",
+      "type": "string"
+    },
+    "estrato": {
+      "$ref": "#/$defs/Estrato"
+    },
+    "unidade": {
+      "const": "tco2e_ha_ano",
+      "default": "tco2e_ha_ano",
+      "title": "Unidade",
+      "type": "string"
+    },
+    "valor": {
+      "title": "Valor",
+      "type": "number"
+    },
+    "incerteza_padrao": {
+      "minimum": 0,
+      "title": "Incerteza Padrao",
+      "type": "number"
+    },
+    "horizonte_em": {
+      "format": "date-time",
+      "title": "Horizonte Em",
+      "type": "string"
+    },
+    "medido_em": {
+      "format": "date-time",
+      "title": "Medido Em",
+      "type": "string"
+    },
+    "registrado_em": {
+      "format": "date-time",
+      "title": "Registrado Em",
+      "type": "string"
+    },
+    "revelado_em": {
+      "format": "date-time",
+      "title": "Revelado Em",
+      "type": "string"
+    },
+    "laboratorio_id": {
+      "format": "uuid",
+      "title": "Laboratorio Id",
+      "type": "string"
+    },
+    "amostra_cega_id": {
+      "format": "uuid",
+      "title": "Amostra Cega Id",
+      "type": "string"
+    },
+    "procedimento_sha256": {
+      "pattern": "^[a-f0-9]{64}$",
+      "title": "Procedimento Sha256",
+      "type": "string"
+    },
+    "evidencia_sha256": {
+      "pattern": "^[a-f0-9]{64}$",
+      "title": "Evidencia Sha256",
+      "type": "string"
+    },
+    "metodo": {
+      "enum": [
+        "campo_independente",
+        "laboratorio_independente"
+      ],
+      "title": "Metodo",
+      "type": "string"
+    },
+    "controle_id": {
+      "format": "uuid",
+      "title": "Controle Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "caso_id",
+    "estrato",
+    "valor",
+    "incerteza_padrao",
+    "horizonte_em",
+    "medido_em",
+    "registrado_em",
+    "revelado_em",
+    "laboratorio_id",
+    "amostra_cega_id",
+    "procedimento_sha256",
+    "evidencia_sha256",
+    "metodo",
+    "controle_id"
+  ],
+  "title": "GabaritoCego",
+  "type": "object"
+}

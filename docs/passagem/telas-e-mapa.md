@@ -4,6 +4,12 @@ Sessão: https://claude.ai/code/session_01VGb88MJumyG9PHt2znaaKE. Branch: `claud
 
 ## Redesenho cartográfico e rodada 12: PR #90 (13/11/2026 UTC)
 
+- O [CI `43369596942`](https://github.com/bernardoemmel/Raiz/actions/runs/43369596942), head `d00ea94`,
+  concluiu os nove jobs com sucesso: 3.075 testes Python gerais e a referência original do Pará em job
+  separado; 508 testes do front, API/MCP real, segurança, licenças e navegação aprovados. Lighthouse
+  mobile no CI: medianas **91/98/97/96/97/100**, acessibilidade **100 nas 18 amostras**. As verificações
+  de Pages e domínio na raiz passaram com zero 404. Antes do merge, a main avançou para `6b9c377`
+  (PR #100); a integração dessa revisão preserva o front e requer seu próprio CI completo.
 - A entrada usa MapLibre com países, oceano e estados: verde-claro com municípios lidos/esperados;
   cinza e “ainda não processado” onde faltam dados. O SVG grande foi retirado e o pequeno minimapa permanece.
   O fundo chega primeiro; polígonos e base municipal só são carregados quando necessários. Municípios novos
@@ -758,3 +764,11 @@ Contrato, acessibilidade e desenho: [docs/design/graficos-resultados.md](../desi
   O mapa, a entrada e as evidências não foram alterados nesta integração: os prints e notas Lighthouse
   acima continuam atribuídos a `f0a7c96`; não representam uma medição do novo conjunto. O CI completo
   medirá este HEAD antes de merge e publicação, sem cancelar workflows.
+
+- Integração da main `6b9c377` (PR #100), depois do CI verde de `d00ea94`: conflitos de NOTICE e
+  dependências resolvidos preservando H3, gráficos e avaliação de modelos; lock conferido com 251 pacotes.
+  O front não mudou. A revisão confirmou CRPS interno, métricas públicas em lista fechada, autorização
+  paga e EPREL preservados. Passaram 279 testes focados e Ruff em 608 arquivos; dois testes locais de
+  cartão/vídeo foram pulados por ausência de Takumi/FFmpeg no ambiente retomado. O CI completo instala
+  essas ferramentas e continua exigindo a suíte inteira, sem tratar esses skips locais como aprovação.
+  Nenhum workflow foi cancelado; a política da main mantém `cancel-in-progress: false` no CI.
