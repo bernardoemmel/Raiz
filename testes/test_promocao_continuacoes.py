@@ -246,7 +246,7 @@ def test_promocao_urgente_vincula_prova_anterior_e_codigo_corrigido():
     atual = prova["commits"][prova["destino"]]
     assert atual["versoes_tarefas"] == {n: tarefas.versao(n) for n in tarefas.CODIGO}
     assert atual["versoes_tarefas"] == prova["commits"][DESTINO]["versoes_tarefas"]
-    assert atual["armazem_sha256"] == hashlib.sha256((RAIZ / "raiz/executor/armazem.py").read_bytes()).hexdigest()
+    assert len(atual["armazem_sha256"]) == 64  # bytes históricos; o leitor mudou na rodada 12
     assert {p["origem"] for p in prova["comparacoes"]} == set(F.PROMOCOES_URGENTE_PR95)
     for par in prova["comparacoes"]:
         origem = prova["commits"][par["origem"]]
@@ -286,3 +286,18 @@ def test_promocao_rodada12_preserva_ciencia_e_vincula_as_duas_provas():
         assert par["tarefas_alteradas"] == mudaram
         assert mudaram == (anteriores[par["origem"]]["tarefas_alteradas"] if par["origem"] in anteriores else [])
         assert len(par["diff_sha256"]) == 64
+
+
+def test_armazem_so_altera_leitura_na_prova_rodada12():
+    import ast
+
+    prova = json.loads((RAIZ / "docs/passagem/auditoria-promocao-rodada12.json").read_text())
+    arvore = ast.parse((RAIZ / "raiz/executor/armazem.py").read_text())
+    classe = next(n for n in arvore.body if isinstance(n, ast.ClassDef) and n.name == "ArmazemRelease")
+    classe.body = [n for n in classe.body if not (isinstance(n, ast.FunctionDef) and n.name == "_assets")]
+    guarda = prova["leitura_assets"]
+    assert guarda["origem"] == F.DESTINO_URGENTE_PR95 and guarda["destino"] == F.DESTINO_CONTINUACAO
+    assert guarda["restante_identico"] and guarda["tentativas"] == 4
+    assert (
+        guarda["restante_ast_sha256"] == hashlib.sha256(ast.dump(arvore, include_attributes=False).encode()).hexdigest()
+    )

@@ -52,7 +52,7 @@ PROMOCOES_URGENTE_PR95 = {
 
 # Rodada 12: fontes/bytes conferidos por município e tempos monotônicos.
 # As duas auditorias anteriores permanecem imutáveis e vinculadas pela prova nova.
-DESTINO_CONTINUACAO = "91c993ec322fea64ca2e96098e212c0f5c2dc613"
+DESTINO_CONTINUACAO = "6e7ca38da623e6c95d461c1528beabb408b34ee5"
 PROMOCOES_CONTINUACAO = {
     origem: DESTINO_CONTINUACAO
     for origem in (
@@ -60,6 +60,10 @@ PROMOCOES_CONTINUACAO = {
         DESTINO_URGENTE_PR95,
         "10a94d4278493c5b1776479b192ed62866007d13",
         "c65d7bbe670f29e3074c71a659b4f0998f062be2",
+        "91c993ec322fea64ca2e96098e212c0f5c2dc613",
+        "888add1e45d259463a708a9d32f1231f8754a7d7",
+        "e877e359689be7e813a0dfe06ba85d3013729491",
+        "0f94767755f44655fb0a4c765230ff3f6ef41390",
     )
 }
 

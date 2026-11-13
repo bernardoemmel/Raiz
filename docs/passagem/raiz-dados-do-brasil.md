@@ -507,3 +507,9 @@ lista parcial é aceita. **65 testes** de armazém, transferência, checkpoint e
 cinco consultas reais consecutivas ao arquivo privado leram 301 assets sem duplicação (2,80–2,99 s).
 O contrato estrito do catálogo continua exigindo a compatibilidade dos escritores ativos.
 A integração visual com a main #89 passou em Pages, acerto, pedido nacional, cena e acessibilidade.
+
+Destino final auditado da rodada 12: `6e7ca38da623e6c95d461c1528beabb408b34ee5`, incluindo a retomada
+municipal e a leitura de assets com quatro tentativas/revalidação HTTP. São 17 origens fechadas e
+**245 testes** de fila, promoção e catálogo aprovados. As duas provas históricas permanecem intactas;
+a nova prova confere por AST que somente `_assets` mudou no armazém. A validação não relaxa o gate
+de compatibilidade dos publicadores ativos nem reescreve reservas.
