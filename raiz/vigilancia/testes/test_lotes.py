@@ -166,3 +166,29 @@ def test_catalogo_privado_rejeita_campos_extras_e_nao_consulta_release_publico(m
     monkeypatch.setattr(publicacao, "Release", Release)
     carregados, origem = lotes.carregar_catalogo(cfg, agora=AGORA)
     assert carregados[0].cliente_id == 1 and origem["origem"] == "arquivo_privado"
+
+
+def test_pixel_com_centro_fora_da_caixa_ainda_cobre_fazenda_pequena(cfg, regras):
+    caixa = (-53.001, -6.0005, -53.0005, -5.9995)
+    ctx = Contexto(regras, cfg, HOJE, caixas=[caixa])
+    df = firms_mod._csv(
+        "latitude,longitude,acq_date,acq_time,confidence\n-6,-53,2026-11-12,415,h\n-6,-54,2026-11-12,415,h\n",
+        "N20",
+    )
+    linhas = firms_mod.normalizar(df, ctx)
+    assert len(linhas) == 1
+    assert linhas[0]["atributos"]["lon"] > caixa[2]
+    assert linhas[0]["geometry"].bounds[0] < caixa[0]
+
+
+def test_cli_catalogo_nao_imprime_corpo_de_erro_do_banco(monkeypatch, capsys):
+    from raiz.vigilancia import __main__ as cli
+
+    def falhar():
+        raise ValueError("configuração inválida com detalhe privado")
+
+    monkeypatch.setattr(lotes, "engine_configurado", falhar)
+    for comando in (["exportar-lotes"], ["exportar-lotes", "--publicar"], ["lotes-ciclo", "--publicar"]):
+        assert cli.main(comando) == 1
+        saida = capsys.readouterr().out
+        assert "ValueError" in saida and "detalhe privado" not in saida

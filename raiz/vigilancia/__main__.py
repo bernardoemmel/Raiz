@@ -128,27 +128,26 @@ def main(argv: list[str] | None = None) -> int:
         from raiz.vigilancia import lotes
         from raiz.vigilancia.config import config
 
-        eng = lotes.engine_configurado()
-        if eng is None:
-            _imprimir({"erro": "defina RAIZ_BANCO_URL para ler os lotes atuais"})
-            return 1
-        if args.cmd == "lotes-ciclo":
-            try:
+        try:
+            eng = lotes.engine_configurado()
+            if eng is None:
+                raise lotes.ErroLotes("defina RAIZ_BANCO_URL para ler os lotes atuais")
+            if args.cmd == "lotes-ciclo":
                 _imprimir(lotes.ciclo(config(), eng))
-            except Exception as ex:  # noqa: BLE001
-                _imprimir({"erro": lotes.diagnostico(ex), "envios_externos": 0})
-                return 1
-        elif args.publicar:
-            _imprimir(lotes.exportar_catalogo(config(), eng))
-        else:
-            catalogo = lotes.catalogo_do_banco(eng)
-            _imprimir(
-                {
-                    "lotes": len(catalogo["lotes"]),
-                    "publicado": False,
-                    "aviso": "use --publicar para atualizar o snapshot privado; não exporta clientes no log",
-                }
-            )
+            elif args.publicar:
+                _imprimir(lotes.exportar_catalogo(config(), eng))
+            else:
+                catalogo = lotes.catalogo_do_banco(eng)
+                _imprimir(
+                    {
+                        "lotes": len(catalogo["lotes"]),
+                        "publicado": False,
+                        "aviso": "use --publicar para atualizar o snapshot privado; não exporta clientes no log",
+                    }
+                )
+        except Exception as ex:  # noqa: BLE001
+            _imprimir({"erro": lotes.diagnostico(ex), "envios_externos": 0})
+            return 1
         return 0
 
     if args.cmd == "chave":

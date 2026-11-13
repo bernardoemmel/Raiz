@@ -85,12 +85,12 @@ def normalizar(df: pd.DataFrame, ctx: Contexto) -> list[dict]:
         lon, lat = float(r.longitude), float(r.latitude)
         if not (x0 <= lon <= x1 and y0 <= lat <= y1):
             continue
-        if not caixa_toca(ctx.caixas, lon, lat, lon, lat):
-            continue
         d = data(getattr(r, "acq_date", None))
         hora = str(getattr(r, "acq_time", "")).zfill(4)
         sat = str(getattr(r, "satellite", ""))
         geo, ha = pixel(lon, lat, getattr(r, "scan", None), getattr(r, "track", None), padrao_m)
+        if not caixa_toca(ctx.caixas, *geo.bounds):
+            continue
         conf = _confianca(getattr(r, "confidence", "n"))
         linhas.append(
             {
