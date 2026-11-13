@@ -131,6 +131,26 @@ Informação desconhecida mantém uma pendência de diligência, sem liberar ven
 comercialização pendente; não publica decisões por imóvel. Não recalcula os fluxos individuais nem atribui a
 versão nova a uma previsão antiga. Outras versões precisam de registro verificável; não são inferidas por prefixo.
 
+Para `restauracao-2026b+cenarios-2026b+dbc2776a`, o registro do commit
+`deec7a776378056509b2cd37e0894f4d00922b84` preserva a curva com cauda decrescente após o ano 14 e a reserva histórica
+de 12%. O hash dos três YAMLs, os hashes do código original e a tarefa `desenvolvedor-4e142d4bfca2` identificam
+esse perfil. Cada arquivo de origem deve ter a tarefa original e SHA-256 compatível; um carimbo de adoção atual
+não basta. A seleção de carteira usa a política atual identificada separadamente, sem reaplicar reservas ou
+descontos aos créditos antigos. O método `cronograma-deterministico-2026b-1` distribui somente o P50 já publicado
+pela curva histórica até o ano 25, conservando o total. Ele não recupera probabilidades históricas do lote, multas
+ou fluxos individuais. Método e política de seleção entram na identidade CAD Trust; os parâmetros modernos não
+são acrescentados aos YAMLs históricos.
+O adaptador confere as áreas publicadas com tolerância de 0,0002 ha pelos arredondamentos e exige que
+o P50 por hectare do horizonte de 40 anos supere o do contrato de 25 anos por mais de 0,1. Essa diferença
+comprova que o teto de captura não foi atingido até o ano 25; casos inconclusivos geram diagnóstico.
+O cronograma não recupera a precisão anterior ao arredondamento nem trajetórias individuais não publicadas.
+
+O exportador CADT `raiz-cadt-cenarios-1.3.0` usa o total literal `credito_liquido_tco2_contrato` em todas as
+versões suportadas. O total por fazenda e o P50 por hectare foram arredondados separadamente; multiplicar a
+coluna por hectare pela área poderia alterar os créditos publicados. Total ausente, não finito, negativo,
+fracionário ou sem correspondência única gera diagnóstico. Uma UF sem caminho fundiário elegível conserva
+a proveniência resolvida e as contagens de seleção, mas não recebe um cronograma fictício.
+
 ## 5. Avaliação e métricas
 
 O repositório contém testes de contratos, regressão e propriedades: por exemplo, 72 casos de referência do Pará

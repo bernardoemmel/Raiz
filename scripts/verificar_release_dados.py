@@ -12,6 +12,7 @@ from __future__ import annotations
 import argparse
 import calendar
 import contextlib
+import csv
 import datetime as dt
 import hashlib
 import json
@@ -25,6 +26,7 @@ import tarfile
 import tempfile
 import time
 import warnings
+from decimal import Decimal
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -375,7 +377,21 @@ def validar_quantis(caminho, uf, metadados, globais, entrada, *, auxiliares=None
                 and len(diagnosticos) == entrada["quantis"].get("diagnosticos"),
                 "contagem_diagnosticos_divergente",
             )
-            hashes = {d["contentUrl"]: d.get("sha256") for d in auxiliares["ficha_pacote"].get("distribution", [])}
+            hashes = {}
+            for distribuicao in auxiliares["ficha_pacote"].get("distribution", []):
+                if distribuicao.get("@type") != "cr:FileObject" or "containedIn" not in distribuicao:
+                    continue
+                url, digest = distribuicao.get("contentUrl"), distribuicao.get("sha256")
+                exigir(
+                    distribuicao["containedIn"] == {"@id": "arquivo"}
+                    and isinstance(url, str)
+                    and re.fullmatch(rf"{uf}/[A-Za-z0-9_.-]+\.csv", url)
+                    and isinstance(digest, str)
+                    and SHA.fullmatch(digest),
+                    "fonte_quantis_na_ficha_invalida",
+                )
+                exigir(url not in hashes, "fonte_quantis_na_ficha_duplicada")
+                hashes[url] = digest
             for fonte in fontes:
                 exigir(
                     hashes.get(f"{uf}/{fonte['arquivo']}") == fonte.get("sha256") and fonte.get("sha256"),
@@ -402,7 +418,152 @@ def validar_quantis(caminho, uf, metadados, globais, entrada, *, auxiliares=None
         con.close()
 
 
-def validar_cadt(dado, uf, entrada, pacote_sha, url_pacote, url_catalogo):
+def _origem_cadt(pacote, uf, pacote_sha, proveniencia_sha):
+    """Confere os bytes e lê somente versão, cenário e total; não retém linhas individuais."""
+
+    def objeto_unico(pares):
+        objeto = {}
+        for chave, valor in pares:
+            exigir(chave not in objeto, "cadt_manifesto_fonte_duplicado")
+            objeto[chave] = valor
+        return objeto
+
+    try:
+        exigir(sha_arquivo(pacote) == pacote_sha, "cadt_hash_pacote_divergente")
+        vistos, fontes, manifesto = set(), {}, None
+        versoes, cenarios, total = set(), set(), 0
+        with tarfile.open(pacote, "r|gz") as tar:
+            for membro in tar:
+                partes = Path(membro.name).parts
+                exigir(
+                    membro.isfile()
+                    and len(partes) == 2
+                    and partes[0] == uf
+                    and ".." not in partes
+                    and membro.name == f"{uf}/{partes[1]}",
+                    "cadt_membro_tar_invalido",
+                )
+                exigir(membro.name not in vistos, "cadt_membro_tar_duplicado")
+                vistos.add(membro.name)
+                nome = partes[1]
+                if nome == "_versoes.json":
+                    with tar.extractfile(membro) as arquivo:
+                        bruto = arquivo.read()
+                    exigir(hashlib.sha256(bruto).hexdigest() == proveniencia_sha, "cadt_hash_proveniencia_divergente")
+                    manifesto = json.loads(bruto, object_pairs_hook=objeto_unico)
+                    exigir(isinstance(manifesto, dict), "cadt_manifesto_fonte_invalido")
+                    continue
+                if not re.fullmatch(r"desenvolvedor_\d{7}\.csv", nome):
+                    exigir(not nome.startswith("desenvolvedor_"), "cadt_nome_fonte_invalido")
+                    continue
+                h, quantidade = hashlib.sha256(), 0
+                with tar.extractfile(membro) as arquivo:
+
+                    def linhas(entrada=arquivo, digest=h):
+                        for numero, linha in enumerate(entrada):
+                            digest.update(linha)
+                            yield linha.decode("utf-8-sig" if numero == 0 else "utf-8")
+
+                    leitor = csv.reader(linhas())
+                    cabecalho = next(leitor, [])
+                    exigir(len(set(cabecalho)) == len(cabecalho), "cadt_coluna_fonte_ausente_ou_duplicada")
+                    campos = ("restauracao_versao", "restauracao_cenario", "credito_liquido_tco2_contrato")
+                    exigir(all(cabecalho.count(c) == 1 for c in campos), "cadt_coluna_fonte_ausente_ou_duplicada")
+                    indices = [cabecalho.index(c) for c in campos]
+                    for linha in leitor:
+                        exigir(len(linha) == len(cabecalho), "cadt_linha_fonte_invalida")
+                        versao, cenario, credito = (linha[i] for i in indices)
+                        exigir(bool(versao.strip()) and bool(cenario.strip()), "cadt_versao_ou_cenario_fonte_ausente")
+                        versoes.add(versao)
+                        cenarios.add(cenario)
+                        exigir(len(versoes) == len(cenarios) == 1, "cadt_versao_ou_cenario_fonte_misto")
+                        valor = Decimal(credito)
+                        exigir(
+                            valor.is_finite()
+                            and 0 <= valor <= Decimal(str(sys.float_info.max))
+                            and valor == valor.to_integral_value(),
+                            "cadt_total_fonte_invalido",
+                        )
+                        if versao == "restauracao-2026b+cenarios-2026b+dbc2776a" and valor > 0:
+                            campos_curva = ("credito_liquido_tco2_ha_contrato_p50", "credito_liquido_tco2_ha_horizonte")
+                            exigir(
+                                all(cabecalho.count(c) == 1 for c in campos_curva), "cadt_curva_fonte_nao_comprovada"
+                            )
+                            contrato, horizonte = (Decimal(linha[cabecalho.index(c)]) for c in campos_curva)
+                            # Ambos foram arredondados a 0,1. Intervalos disjuntos
+                            # demonstram N40 > N25 e excluem teto já atingido em25.
+                            exigir(
+                                contrato.is_finite()
+                                and horizonte.is_finite()
+                                and contrato >= 0
+                                and horizonte >= 0
+                                and horizonte - contrato > Decimal("0.1"),
+                                "cadt_curva_fonte_nao_comprovada",
+                            )
+                        total += int(valor)
+                        quantidade += 1
+                fontes[nome] = {"sha256": h.hexdigest(), "linhas": quantidade}
+        exigir(isinstance(manifesto, dict) and fontes and versoes, "cadt_origem_fonte_ausente")
+        exigir(
+            {n for n in manifesto if n.startswith("desenvolvedor_")} == set(fontes),
+            "cadt_arquivos_manifesto_divergentes",
+        )
+        tarefas = set()
+        for nome, fonte in fontes.items():
+            meta = manifesto[nome]
+            exigir(
+                isinstance(meta, dict)
+                and meta.get("tarefa") == "desenvolvedor"
+                and isinstance(meta.get("versao"), str)
+                and bool(meta["versao"].strip()),
+                "cadt_tarefa_fonte_invalida",
+            )
+            exigir(meta.get("sha256") == fonte["sha256"], "cadt_sha256_fonte_divergente")
+            tarefas.add(meta["versao"])
+        exigir(len(tarefas) == 1, "cadt_tarefas_fonte_mistas")
+        exigir(total <= sys.float_info.max, "cadt_total_fonte_invalido")
+        return {
+            "versao": next(iter(versoes)),
+            "cenario": next(iter(cenarios)),
+            "tarefa": next(iter(tarefas)),
+            "arquivos": len(fontes),
+            "credito_total": total,
+        }
+    except FalhaSegura:
+        raise
+    except (OSError, ValueError, TypeError, KeyError, ArithmeticError, csv.Error, tarfile.TarError):
+        raise FalhaSegura("cadt_pacote_fonte_invalido") from None
+
+
+def _vincular_origem_cadt(m, fonte):
+    from raiz import restauracao
+    from raiz.regras.historico import carregar
+
+    versao = m.get("versoes", {}).get("versao_premissas")
+    exigir(versao == fonte["versao"], "cadt_versao_diverge_fonte")
+    exigir(m.get("cenario") == fonte["cenario"] == "central_r11", "cadt_cenario_diverge_fonte")
+    registro = carregar(versao)
+    historicos = {k for k in m if k.startswith("regra_source_") or k == "versao_tarefa_referencia"}
+    if registro:
+        prova = registro[1]
+        exigir(
+            historicos == set(prova) and all(m.get(k) == v for k, v in prova.items()),
+            "cadt_prova_historica_divergente",
+        )
+        exigir(fonte["tarefa"] == prova["versao_tarefa_referencia"], "cadt_tarefa_historica_diverge_fonte")
+    else:
+        exigir(versao == restauracao.versao(), "cadt_versao_fonte_nao_suportada")
+        exigir(not historicos, "cadt_prova_historica_contraditoria")
+    if "versao_tarefa_fonte_verificada" in m:
+        exigir(m["versao_tarefa_fonte_verificada"] == fonte["tarefa"], "cadt_tarefa_verificada_diverge_fonte")
+    if "arquivos_fonte_verificados" in m:
+        exigir(
+            type(m["arquivos_fonte_verificados"]) is int and m["arquivos_fonte_verificados"] == fonte["arquivos"],
+            "cadt_contagem_fontes_divergente",
+        )
+
+
+def validar_cadt(dado, uf, entrada, pacote_sha, url_pacote, url_catalogo, *, pacote=None):
     def sem_identificacao(valor):
         if isinstance(valor, dict):
             for chave, item in valor.items():
@@ -428,6 +589,60 @@ def validar_cadt(dado, uf, entrada, pacote_sha, url_pacote, url_catalogo):
         == {"pacote_sha256": pacote_sha, "proveniencia_sha256": entrada.get("proveniencia_sha256"), "url": url_pacote},
         "cadt_origem_divergente",
     )
+    declara_origem = bool(m.get("versoes")) or any(
+        k.startswith("regra_source_")
+        or k
+        in {
+            "versao_tarefa_referencia",
+            "versao_tarefa_fonte_verificada",
+            "arquivos_fonte_verificados",
+            "evidencia_tarefa",
+            "metodo_cronograma",
+            "probabilidade_historica_lote",
+            "politica_selecao",
+            "descontos_reaplicados_ao_p50",
+        }
+        for k in m
+    )
+    fonte = None
+    if projeto is not None or declara_origem:
+        exigir(pacote is not None, "cadt_pacote_fonte_ausente")
+        fonte = _origem_cadt(pacote, uf, pacote_sha, entrada.get("proveniencia_sha256"))
+        _vincular_origem_cadt(m, fonte)
+    versao_2026b = "restauracao-2026b+cenarios-2026b+dbc2776a"
+    metodo_2026b = "cronograma-deterministico-2026b-1"
+    legado = m.get("versoes", {}).get("versao_premissas") == versao_2026b
+    if legado:
+        from raiz.regras.historico import carregar
+
+        _, prova = carregar(versao_2026b)
+        exigir(
+            m.get("metodo_cronograma") == m["versoes"].get("versao_metodo_cronograma") == metodo_2026b
+            and isinstance(m["versoes"].get("versao_premissas_selecao"), str)
+            and bool(m["versoes"]["versao_premissas_selecao"])
+            and m.get("probabilidade_historica_lote") == "nao_disponivel"
+            and m.get("descontos_reaplicados_ao_p50") is False
+            and m.get("politica_selecao") == "politica_atual_seleciona_carteira_sem_recalcular_creditos",
+            "cadt_metodo_historico_incompativel",
+        )
+        exigir(
+            all(m.get(chave) == valor for chave, valor in prova.items())
+            and m.get("versao_tarefa_fonte_verificada") == prova["versao_tarefa_referencia"]
+            and type(m.get("arquivos_fonte_verificados")) is int
+            and m["arquivos_fonte_verificados"] == fonte["arquivos"]
+            and m.get("evidencia_tarefa") == "metadados_do_arquivo_e_sha256_dos_bytes",
+            "cadt_codigo_historico_nao_comprovado",
+        )
+    else:
+        exigir(
+            "metodo_cronograma" not in m
+            and "versao_metodo_cronograma" not in m.get("versoes", {})
+            and "regra_source_perfil" not in m
+            and not {"probabilidade_historica_lote", "politica_selecao", "descontos_reaplicados_ao_p50"}.intersection(
+                m
+            ),
+            "cadt_metodo_historico_incompativel",
+        )
     if projeto is None:
         exigir(bool(dado.get("diagnosticos")), "cadt_ausente_sem_diagnostico")
         return {"projeto": False, "diagnosticos": len(dado["diagnosticos"])}
@@ -486,7 +701,12 @@ def validar_cadt(dado, uf, entrada, pacote_sha, url_pacote, url_catalogo):
         )
     total = sum(e["unitCount"] for e in es)
     credito = m["credito_contrato_p50"]
-    exigir(math.isfinite(credito) and credito > 0, "cadt_credito_invalido")
+    exigir(
+        (type(credito) is int or (type(credito) is float and math.isfinite(credito) and credito.is_integer()))
+        and credito > 0,
+        "cadt_credito_invalido",
+    )
+    exigir(credito <= fonte["credito_total"], "cadt_credito_supera_fonte")
     exigir(total == m["total_inteiro_tco2e"] == math.floor(credito + 0.5), "cadt_total_nao_conservado")
     marcos = m["marcos"]
     exigir([v["ano"] for v in marcos] == [7, 12, 17, 22, 25], "cadt_anos_marcos_divergentes")
@@ -497,6 +717,36 @@ def validar_cadt(dado, uf, entrada, pacote_sha, url_pacote, url_catalogo):
             == math.floor(marco["acumulado_p50"] + 0.5),
             "cadt_marco_nao_conservado",
         )
+    if legado:
+        # Reconstrução racional independente do adaptador: pontos do YAML
+        # auditado e cauda linear do código 2026b, sem executar código histórico.
+        from fractions import Fraction
+
+        pico, primeiro = Fraction(3029, 100), Fraction(336, 25)
+        pesos = [Fraction(0)]
+        for ano in range(1, 26):
+            valor = (
+                primeiro * (ano - 2) / 5
+                if ano <= 7
+                else primeiro + (pico - primeiro) * (ano - 7) / 7
+                if ano <= 14
+                else pico - Fraction(20027, 17550) * (ano - 14)
+            )
+            pesos.append(max(valor, 0))
+        acumulado = Fraction(0)
+        total_pesos = sum(pesos)
+        inteiros = 0
+        marcos_por_ano = {marco["ano"]: marco for marco in marcos}
+        for ano, estimativa in enumerate(es, 1):
+            acumulado += pesos[ano]
+            esperado = float(acumulado / total_pesos) * credito
+            inteiros += estimativa["unitCount"]
+            exigir(abs(inteiros - esperado) <= 0.500001, "cadt_curva_historica_divergente")
+            if ano in marcos_por_ano:
+                exigir(
+                    math.isclose(marcos_por_ano[ano]["acumulado_p50"], esperado, rel_tol=1e-12, abs_tol=1e-6),
+                    "cadt_curva_historica_divergente",
+                )
     return {"projeto": True, "anos": 25, "marcos": 5, "total_inteiro_tco2e": total}
 
 
@@ -694,6 +944,7 @@ def _executar_escopo(args, escopo, cache, relatorio, publicador, metadados, arma
                             arquivos[f"raiz_{uf}.tar.gz"][1],
                             armazem.url_metadados(f"raiz_{uf}.tar.gz"),
                             armazem.url_metadados("cadt_lotes.json"),
+                            pacote=arquivos[f"raiz_{uf}.tar.gz"][0],
                         ),
                     )
 
