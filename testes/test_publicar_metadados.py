@@ -82,16 +82,7 @@ def test_reserva_auxiliar_recusa_sem_vaga_e_nao_enfileira(monkeypatch):
 
 
 @pytest.mark.parametrize("rodada_terminou", [True, False])
-@pytest.mark.parametrize(
-    "origem,destino",
-    [
-        ("88860b64ee09f811b66e283f5c57997ebcdb3fd5", "be452620f868537251fa832a10cb14bfb5c8efe3"),
-        ("b624b108b0350135003e1099d9c928fa7cc24151", "be452620f868537251fa832a10cb14bfb5c8efe3"),
-        ("6a53cfbf514f369f694ea0bd3bc594ef8295a3b4", "be452620f868537251fa832a10cb14bfb5c8efe3"),
-        ("bea53bd06c7178daf2a53c392e5a9d54c55e7bc7", "be452620f868537251fa832a10cb14bfb5c8efe3"),
-        ("436c7b636f6a8867b47403a1dfad4e4c741dc150", "be452620f868537251fa832a10cb14bfb5c8efe3"),
-    ],
-)
+@pytest.mark.parametrize("origem,destino", list(P.modulos_fila()[0].PROMOCOES_CONTINUACAO.items()))
 def test_catalogo_promove_ultima_continuacao_antes_do_gate_sem_admitir_motor(
     tmp_path, monkeypatch, rodada_terminou, origem, destino
 ):

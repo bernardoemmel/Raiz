@@ -271,6 +271,8 @@ def criar_servidor(api: ApiRaiz | None = None, *, verificador: VerificadorKeyclo
     @mcp.tool(annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=False, openWorldHint=False))
     async def comparar_lotes(pedido_id: UUID, ctx: Context) -> dict[str, Any]:
         """Obtém P10/P50/P90, custo líquido, risco e cronograma do pedido COMERCIAL (negocio_pedido_id).
+        Use também para conferir requisitos de reserva solicitados pela pessoa ou subsidiar revisão humana.
+        Não informa andamento de contato: para isso use acompanhar_contato com o ID comercial.
         Exige sinal e contrato. Continue com acompanhar_contato usando o NOVO pedido_id da operação devolvida,
         até ler resultado; não use o ID comercial para esse acompanhamento. P90 de custo é cenário adverso;
         se exceder o teto, peça decisão humana sobre tolerância ao risco. Não presuma aceitação.
@@ -290,6 +292,8 @@ def criar_servidor(api: ApiRaiz | None = None, *, verificador: VerificadorKeyclo
         """Com pedido_id de OPERAÇÃO devolvido por outra ferramenta: consulta gratuita do cálculo. Continue
         até completed/input-required/failed/canceled, respeitando consultar_apos_segundos. submitted/working
         não são o estado do negócio. Leia resultado; não peça nova confirmação para concluir a tarefa.
+        Para ANDAMENTO de pedido existente ou atualização após webhook, use o ID COMERCIAL aqui;
+        comparar_lotes só calcula opções e não substitui essa consulta de contato.
         Com ID COMERCIAL: inicia consulta de interesse/aceite/contrato agregados, somente quando solicitada;
         depois acompanhe o NOVO pedido_id da operação. Para custo/cronograma comece por comparar_lotes.
         O contato passa pela Raíz; nunca sai contato pessoal."""

@@ -105,6 +105,10 @@ jobs:
   front:
     runs-on: ubuntu-24.04
     timeout-minutes: 35
+    env:
+      # O build de CI usa a telemetria da fixture, como os demais dados locais.
+      # Não depende da existência da ref pública nem simula processamento real.
+      VITE_RAIZ_PROCESSAMENTO_URL: ./amostra/processamento.json
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -342,7 +346,8 @@ jobs:
   # Nome preservado para que regras existentes da main continuem exigindo a suíte inteira.
   checagens:
     needs: [testes_python, referencia_para]
-    if: always()
+    # Uma revisão substituída não deve enfileirar o agregador nem reter a próxima execução do PR.
+    if: always() && !cancelled()
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     env:

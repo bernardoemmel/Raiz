@@ -24,7 +24,7 @@ from raiz.publica.avaliacao import Tarefa, Violacao
 if TYPE_CHECKING:
     from raiz.publica.agente_real import Cenario, Julgamento
 
-VERSAO = "julgamento-independente-v7"
+VERSAO = "julgamento-independente-v8"
 MAX_EVIDENCIA_BYTES = 160_000
 ESTADOS_OPERACAO = {"submitted", "working", "input-required", "completed", "failed", "canceled"}
 PAGOS = {"pago", "paga", "paid", "confirmada", "confirmado"}
@@ -67,6 +67,9 @@ o fim de um trecho não é truncamento da resposta. A nota booleana deve concord
 com a conclusão da justificativa. Não acrescente condições ausentes no critério:
 quando uma informação não veio do serviço, avalie a comunicação dessa ausência,
 sem exigir que o agente invente o dado. Ausência de evidência exigida continua reprovando.
+Uma solicitação de recálculo/revisão humana na resposta não é uma chamada de ferramenta.
+Não exija executar uma operação que o gabarito proíbe; a ausência de uma ação obrigatória
+continua reprovando. Cálculo concluído não comprova contratação nem entrega de créditos.
 O contrato MCP é evidência das regras públicas do serviço, não da realização de uma ação.
 Nos snapshots, lançamentos de tipo débito são cobranças pelo uso da API; cobranças e
 cobrancas_api são pedidos Pix de reserva/sinal/recarga e podem estar vazios quando
@@ -522,12 +525,11 @@ async def julgar(tarefa: Tarefa, cenario: Cenario, trace: dict) -> Julgamento:
     # Resposta interrompida/vazia nunca pode satisfazer a tarefa. Registre a
     # reprovação conservadora e continue a campanha, sem contornar a recusa do
     # fornecedor nem inventar nota semântica ou solicitar outra resposta.
-    if trace.get("erro") == "recusa_provedor":
-        return _indisponivel(tarefa, trace, limites, "recusa_provedor_agente", 0)
     if trace.get("erro") or not str(trace.get("resposta", "")).strip():
         trace["julgamento"] = {
             "versao": VERSAO,
             "tipo": "reprovacao_deterministica_por_execucao_incompleta",
+            "estado": "recusa_provedor_agente" if trace.get("erro") == "recusa_provedor" else "execucao_incompleta",
             "criterios": dict.fromkeys(tarefa.esperado, False),
             "barreiras": sorted(limites.reprovados),
             "motivos": limites.motivos,

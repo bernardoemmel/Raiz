@@ -81,3 +81,9 @@ A integração com Produto e regras usa o juiz v6: mantém os estados terminais 
 bloqueio por julgamento indisponível, substituindo a redigitação e correção de
 citações pela seleção de IDs. Todos os trechos das fontes são oferecidos em ordem.
 Divergência de modelo, transporte ou integridade ainda interrompe a execução.
+
+Na revisão v8, resposta vazia/interrompida do agente, inclusive recusa do fornecedor,
+é fracasso observado de concluir a tarefa, sem chamada ao juiz. O estado de recusa
+permanece no trace e não há retry. Isso difere de o juiz recusar uma resposta
+completa: nesse caso o julgamento continua indisponível, com pass^4 exato ausente
+e aprovação bloqueada. Campanhas antigas conservam sua metodologia e seus resultados.

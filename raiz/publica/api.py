@@ -415,7 +415,18 @@ def criar(engine_de: Callable[[Request], Any], verificador=None) -> FastAPI:
                     "corrigir": "confira o tipo do evento, a UF, o CAR e os limites de dias e resultados",
                 },
             ) from None
-        return ok(AP.eventos(eventos))
+        try:
+            publico = AP.eventos(eventos)
+        except (ValueError, TypeError, KeyError):
+            raise HTTPException(
+                502,
+                {
+                    "slug": "calendario_invalido",
+                    "mensagem": "a resposta do calendário não pôde ser validada",
+                    "corrigir": "tente novamente",
+                },
+            ) from None
+        return ok(publico)
 
     from raiz.vigilancia.lotes_api import registrar as registrar_vigilancia_lotes
 

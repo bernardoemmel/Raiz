@@ -12,7 +12,13 @@ from raiz.calendario.modelos import Evento, FonteEstado, filtrar
 
 
 def ler(caminho: Path) -> tuple[list[Evento], list[FonteEstado]]:
-    dados = json.loads(caminho.read_text(encoding="utf-8"))
+    return validar(json.loads(caminho.read_text(encoding="utf-8")))
+
+
+def validar(dados: dict) -> tuple[list[Evento], list[FonteEstado]]:
+    """Valida dados de arquivo ou resposta, sem confiar em nomes/textos recebidos."""
+    if not isinstance(dados, dict):
+        raise ValueError("snapshot deve ser um objeto")
     confiaveis = {f["id"]: f for f in fontes()}
     eventos = []
     for item in dados.get("eventos", []):

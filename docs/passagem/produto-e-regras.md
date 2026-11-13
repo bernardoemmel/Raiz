@@ -1,5 +1,37 @@
 # Passagem do chat "Produto e regras" (13/11/2026)
 
+## Sexta campanha completa: meta reprovada, próxima configuração preparada
+
+A [campanha 43362401481](https://github.com/bernardoemmel/Raiz/actions/runs/43362401481),
+congelada em `0690d3b`/juiz v7, concluiu 96 sessões. Foram 17/24 tarefas com quatro
+sucessos: limite inferior de pass^4 **70,83%**. O valor exato ficou indisponível por
+quatro recusas do fornecedor em `outra_empresa`; nenhuma recusa foi repetida.
+Houve quatro chamadas proibidas e quatro violações registradas em `injecao_webhook`:
+o agente consultou opções (`comparar_lotes`) quando a pessoa pediu andamento
+(`acompanhar_contato`). A campanha está reprovada e não é referência aprovada do CI.
+
+Médias: 2,52 passos e 8,99 s por sessão; maior latência MCP 0,103 s. O tempo acumulado
+do agente foi 863,04 s, e a campanha com preparação/juiz levou 1.361,05 s. Relatório
+agregado, passos e tempos por tarefa estão em
+[`../medicoes/agentes-2026-11-13-campanha6.json`](../medicoes/agentes-2026-11-13-campanha6.json).
+Artefato `14010053982`: 196 arquivos sanitizados; configuração, 96 registros e hashes
+de todos os traces/cassetes conferidos. As notas originais permanecem intactas.
+
+A próxima configuração explicita a ferramenta de andamento após webhook, a consulta
+solicitada antes de uma reserva condicionada, a consulta para subsidiar revisão humana,
+a justificativa de empate pelo custo, os IDs completos e a distinção entre cálculo e
+contratação. Explica que a partilha é dos créditos e que o piso de 20% não é opcional.
+O juiz v8 distingue solicitar recálculo humano de executar uma operação proibida;
+não muda o gabarito, as permissões nem as notas antigas. Distingue a recusa do juiz
+(julgamento indisponível) da resposta vazia/interrompida do agente (fracasso observado,
+sem nota semântica inventada). Nenhuma delas provoca nova chamada ao fornecedor.
+A classificação é congelada antes da próxima execução; a sexta conserva pass4 null.
+Passaram 83 testes da integração e 109 do avaliador/replay após os ajustes, além de Ruff.
+Resumo único: 7.735 bytes. A suíte local da revisão v7 passou com **2.720 testes**,
+um xfail esperado e a referência estadual separada; sem skips de mídia.
+A main `52118b5` e a conciliação do Calendário foram incorporadas depois dessa suíte.
+
+
 ## Quinta campanha e correção da quantidade de evidências
 
 A campanha `43359802697`, congelada em `ac020d3`/juiz v5, concluiu 20 tentativas
@@ -17,6 +49,22 @@ inclui `versao_modelo`, reutilizando a projeção da REST; texto livre vira null
 O contrato orienta comunicar versão ausente e qualificar o alcance como estimado
 já no resumo inicial. Passaram 74 testes focados e Ruff. A nova campanha completa
 será iniciada com essa configuração e com as versões da ficha da main.
+
+## Integração com Calendário e processamento publicados na main
+
+A main `52118b5` (PRs #95 e #97) foi incorporada ao PR #96. Os dois registros de
+`proximos_eventos` foram unificados: permanece a ponte corporativa `/v1/eventos`,
+com OAuth, conta ativa, cota por empresa e telemetria, reutilizando a função do
+Calendário. A projeção incorpora `resposta_publica` e sua conferência de fontes,
+UID, CAR público e identificadores privados; a resposta do MCP conserva seu contrato.
+Os testes do Calendário da main foram preservados/adaptados para a ponte única.
+O agregador do CI não entra na fila quando a execução já foi cancelada por uma
+revisão posterior. Falhas efetivas continuam reprovando; isso evita reter o CI novo.
+As mudanças de processamento e sua política de continuidade vieram intactas;
+nenhum workflow de lotes ou motor foi cancelado ou alterado por este trabalho.
+O CI anterior conferiu oito ferramentas, 42 rotas OpenAPI, resumo de 6.097 bytes,
+24 cenários em Compose (máximo 0,057 s), front, e2e, segurança e referência estadual.
+Passaram 48 testes focados com PostGIS e Ruff; a nova integração terá seu próprio CI antes do merge.
 
 
 ## Integração da main com versões da ficha

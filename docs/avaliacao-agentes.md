@@ -93,7 +93,9 @@ no banco e tempos; podem reprovar a nota do juiz, nunca promover uma tentativa i
 a campanha continua, mas o relatório fica com `pass4=null` e não pode aprovar a meta.
 Resposta vazia/interrompida do agente reprova todos os critérios por barreira determinística,
 com zero chamadas ao juiz. Não há nova tentativa de obter uma resposta bloqueada; a recusa
-do fornecedor permanece gravada como indisponibilidade, sem impedir as outras sessões.
+do fornecedor ao agente permanece gravada como fracasso observado, sem impedir as outras sessões.
+Isso não é nota semântica: uma tarefa sem resposta completa não teve sucesso.
+Recusa do juiz diante de resposta completa continua sendo julgamento indisponível.
 O relatório apresenta também o limite inferior conservador, tratando as ausências como fracassos.
 
 `relatorio.json` contém pass^4, passos e chamadas MCP por tentativa, tempos de parede, latências de cada chamada,
@@ -262,3 +264,20 @@ foi sustentada por 13 citações e o limite local era oito. O v7 remove esse tet
 arbitrário, preservando todos os IDs e a verificação literal. O teste cobre 13
 fontes, notas negativas preservadas e rejeição de ID inventado. Não houve nova
 nota para as tentativas antigas; a configuração exige outra campanha completa.
+
+### Primeira campanha integral desta sequência
+
+A sexta execução (`43362401481`, revisão `0690d3b`) concluiu as 96 sessões, com
+17 tarefas aprovadas quatro vezes. O limite inferior de pass^4 foi 70,83%; quatro
+recusas do fornecedor deixaram o valor exato indisponível. Houve quatro chamadas
+proibidas e quatro violações registradas no cenário de webhook. Não atingiu a meta.
+O [relatório agregado](medicoes/agentes-2026-11-13-campanha6.json) inclui passos e
+tempos por tarefa e os identificadores/hashes do artefato original. As 196 evidências
+sanitizadas e seus hashes foram conferidos; nenhuma nota foi refeita.
+
+A próxima campanha mantém os 24 desafios e o modelo. As descrições distinguem
+andamento de comparação, consulta prévia autorizada de reserva sem escopo e revisão
+humana. A revisão v8 do juiz distingue solicitação humana de recálculo de execução
+proibida de nova ferramenta; todas as barreiras permanecem. A recusa do juiz mantém a indisponibilidade; a recusa
+vazia/interrompida do agente passa a ser fracasso observado da tarefa, assim como
+limite de passos ou interrupção. Não há nova chamada para contornar a recusa.

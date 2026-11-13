@@ -402,15 +402,17 @@ def test_intervalo_do_recibo_e_verificado_e_exposto_ao_juiz():
         assert fontes["contrato_mcp"] == "Regras públicas."
 
 
-def test_resposta_interrompida_reprova_sem_contornar_recusa_do_fornecedor(monkeypatch):
+@pytest.mark.parametrize("erro", ["resposta_interrompida", "recusa_provedor"])
+def test_resposta_interrompida_reprova_sem_contornar_recusa_do_fornecedor(monkeypatch, erro):
     def proibido(**_):
         pytest.fail("não deve pedir ao juiz que reinterprete uma resposta vazia")
 
     monkeypatch.setattr("raiz.publica.agente_real.cliente_claude", proibido)
     t = tarefa("outra_empresa")
     c = Cenario("contexto", "http://localhost/mcp", "", dados())
-    r = {"resposta": "", "chamadas": [], "erro": "resposta_interrompida"}
+    r = {"resposta": "", "chamadas": [], "erro": erro}
     nota = asyncio.run(julgar(t, c, r))
+    assert nota.disponivel  # a tarefa falhou observavelmente; não é ausência de julgamento semântico
     assert nota.criterios == dict.fromkeys(t.esperado, False)
     assert r["julgamento"]["chamadas_modelo"] == 0
     assert r["julgamento"]["tipo"] == "reprovacao_deterministica_por_execucao_incompleta"
@@ -492,8 +494,13 @@ def test_falha_terminal_preserva_campanha_sem_nota_inventada(monkeypatch, estado
         assert len(pedidos) == 1
     else:
         resultado = asyncio.run(julgar(t, c, r))
-        assert not resultado.disponivel and not any(resultado.criterios.values())
-        assert "criterios" not in r["julgamento"]
+        assert resultado.disponivel is (estado == "recusa_provedor")
+        assert not any(resultado.criterios.values())
+        if estado == "recusa_provedor":
+            assert r["julgamento"]["tipo"] == "reprovacao_deterministica_por_execucao_incompleta"
+            assert r["julgamento"]["chamadas_modelo"] == 0
+        else:
+            assert "criterios" not in r["julgamento"]
         assert len(pedidos) == (0 if estado == "recusa_provedor" else 1)
         assert r["julgamento"]["estado"] == (
             "recusa_provedor_agente" if estado == "recusa_provedor" else "formato_ou_citacao_invalida"

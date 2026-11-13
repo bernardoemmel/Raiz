@@ -682,7 +682,7 @@ async def campanha(args, provedor: Provedor) -> dict:
                         modelo=args.modelo,
                         configuracao_sha256=configuracao_hash,
                         gabarito_sha256=gabarito_hash,
-                        avaliador=getattr(provedor, "avaliador", "juiz-independente-v7"),
+                        avaliador=getattr(provedor, "avaliador", "juiz-independente-v8"),
                         trace_id=str(uuid4()),
                         sessao_id=str(uuid4()),
                         inicio_em=trace["inicio_em"],
