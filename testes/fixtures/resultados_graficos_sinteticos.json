@@ -1,0 +1,239 @@
+{
+  "schema": "raiz.resultados.graficos.v1",
+  "origem": "demonstracao",
+  "gerado_em": "2026-01-03T00:00:00Z",
+  "contratos": [
+    {
+      "id": "serie-sintetica",
+      "metodo": "regeneracao_assistida",
+      "referencia": {
+        "classe": "credito_carbono",
+        "metrica": "credito_liquido",
+        "unidade": "tCO2e",
+        "escala": "lote",
+        "area_base_ha": 20,
+        "inicio": "2025-01-01",
+        "fim": "2026-01-01",
+        "horizonte_dias": 365
+      },
+      "regime": "acumulado",
+      "marcos": [
+        {
+          "data": "2025-01-01",
+          "contratado": {
+            "natureza": "contrato_assinado",
+            "valor": 100,
+            "fonte": {
+              "nome": "Demonstração sintética",
+              "registro_id": "sintetico-contrato_assinado-2025-01-01",
+              "data": "2025-01-01"
+            }
+          },
+          "emitido": null,
+          "entregue": null
+        },
+        {
+          "data": "2025-06-01",
+          "contratado": {
+            "natureza": "contrato_assinado",
+            "valor": 100,
+            "fonte": {
+              "nome": "Demonstração sintética",
+              "registro_id": "sintetico-contrato_assinado-2025-06-01",
+              "data": "2025-06-01"
+            }
+          },
+          "emitido": {
+            "natureza": "emissao_registrada",
+            "valor": 0,
+            "fonte": {
+              "nome": "Demonstração sintética",
+              "registro_id": "sintetico-emissao_registrada-2025-06-01",
+              "data": "2025-06-01"
+            }
+          },
+          "entregue": null
+        },
+        {
+          "data": "2026-01-01",
+          "contratado": {
+            "natureza": "contrato_assinado",
+            "valor": 100,
+            "fonte": {
+              "nome": "Demonstração sintética",
+              "registro_id": "sintetico-contrato_assinado-2026-01-01",
+              "data": "2026-01-01"
+            }
+          },
+          "emitido": {
+            "natureza": "emissao_registrada",
+            "valor": 80,
+            "fonte": {
+              "nome": "Demonstração sintética",
+              "registro_id": "sintetico-emissao_registrada-2026-01-01",
+              "data": "2026-01-01"
+            }
+          },
+          "entregue": {
+            "natureza": "entrega_comprovada",
+            "valor": 50,
+            "fonte": {
+              "nome": "Demonstração sintética",
+              "registro_id": "sintetico-entrega_comprovada-2026-01-01",
+              "data": "2026-01-01"
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "comparacoes": [
+    {
+      "id": "sintetico-metodo-1",
+      "metodo": "regeneracao_assistida",
+      "modelo": "ensaio_interface",
+      "versao": "v1-sintetica",
+      "avaliacao": "ao_vivo",
+      "previsao": {
+        "referencia": {
+          "classe": "credito_carbono",
+          "metrica": "credito_liquido",
+          "unidade": "tCO2e",
+          "escala": "lote",
+          "area_base_ha": 20,
+          "inicio": "2025-01-01",
+          "fim": "2026-01-01",
+          "horizonte_dias": 365
+        },
+        "corte": "2025-01-01",
+        "congelada_em": "2025-01-01T00:00:00Z",
+        "p10": 50,
+        "p50": 80,
+        "p90": 100,
+        "fonte": {
+          "nome": "Demonstração sintética",
+          "registro_id": "sintetico-prev-0",
+          "data": "2025-01-01"
+        }
+      },
+      "observado": {
+        "referencia": {
+          "classe": "credito_carbono",
+          "metrica": "credito_liquido",
+          "unidade": "tCO2e",
+          "escala": "lote",
+          "area_base_ha": 20,
+          "inicio": "2025-01-01",
+          "fim": "2026-01-01",
+          "horizonte_dias": 365
+        },
+        "data": "2026-01-01",
+        "registrado_em": "2026-01-02T00:00:00Z",
+        "valor": 75,
+        "fonte": {
+          "nome": "Demonstração sintética",
+          "registro_id": "sintetico-obs-0",
+          "data": "2026-01-02"
+        }
+      }
+    },
+    {
+      "id": "sintetico-metodo-2",
+      "metodo": "semeadura_direta",
+      "modelo": "ensaio_interface",
+      "versao": "v1-sintetica",
+      "avaliacao": "ao_vivo",
+      "previsao": {
+        "referencia": {
+          "classe": "credito_carbono",
+          "metrica": "credito_liquido",
+          "unidade": "tCO2e",
+          "escala": "lote",
+          "area_base_ha": 20,
+          "inicio": "2025-01-01",
+          "fim": "2026-01-01",
+          "horizonte_dias": 365
+        },
+        "corte": "2025-01-01",
+        "congelada_em": "2025-01-01T00:00:00Z",
+        "p10": 60,
+        "p50": 90,
+        "p90": 110,
+        "fonte": {
+          "nome": "Demonstração sintética",
+          "registro_id": "sintetico-prev-1",
+          "data": "2025-01-01"
+        }
+      },
+      "observado": {
+        "referencia": {
+          "classe": "credito_carbono",
+          "metrica": "credito_liquido",
+          "unidade": "tCO2e",
+          "escala": "lote",
+          "area_base_ha": 20,
+          "inicio": "2025-01-01",
+          "fim": "2026-01-01",
+          "horizonte_dias": 365
+        },
+        "data": "2026-01-01",
+        "registrado_em": "2026-01-02T00:00:00Z",
+        "valor": 87,
+        "fonte": {
+          "nome": "Demonstração sintética",
+          "registro_id": "sintetico-obs-1",
+          "data": "2026-01-02"
+        }
+      }
+    },
+    {
+      "id": "sintetico-metodo-3",
+      "metodo": "plantio_total",
+      "modelo": "ensaio_interface",
+      "versao": "v1-sintetica",
+      "avaliacao": "ao_vivo",
+      "previsao": {
+        "referencia": {
+          "classe": "credito_carbono",
+          "metrica": "credito_liquido",
+          "unidade": "tCO2e",
+          "escala": "lote",
+          "area_base_ha": 20,
+          "inicio": "2025-01-01",
+          "fim": "2026-01-01",
+          "horizonte_dias": 365
+        },
+        "corte": "2025-01-01",
+        "congelada_em": "2025-01-01T00:00:00Z",
+        "p10": 70,
+        "p50": 100,
+        "p90": 120,
+        "fonte": {
+          "nome": "Demonstração sintética",
+          "registro_id": "sintetico-prev-2",
+          "data": "2025-01-01"
+        }
+      },
+      "observado": {
+        "referencia": {
+          "classe": "credito_carbono",
+          "metrica": "credito_liquido",
+          "unidade": "tCO2e",
+          "escala": "lote",
+          "area_base_ha": 20,
+          "inicio": "2025-01-01",
+          "fim": "2026-01-01",
+          "horizonte_dias": 365
+        },
+        "data": "2026-01-01",
+        "registrado_em": "2026-01-02T00:00:00Z",
+        "valor": 99,
+        "fonte": {
+          "nome": "Demonstração sintética",
+          "registro_id": "sintetico-obs-2",
+          "data": "2026-01-02"
+        }
+      }
+    }
+  ]
+}
