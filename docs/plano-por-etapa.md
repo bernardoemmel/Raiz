@@ -505,3 +505,8 @@ A primeira execução no Actions identificou ausência de `rg` no runner; a veri
 
 - [x] Markdown do site preserva medidas ausentes e zeros explícitos; totais incompletos não são apresentados
   como totais completos. Regressões cobrem páginas estaduais/municipais e proteção de grupos pequenos.
+
+- [x] Medição: recusa explícita do provedor preservada como julgamento indisponível,
+  sem repetição nem troca de modelo; mantém a execução das demais tarefas e impede
+  aprovação/declaração de pass^4 completo quando faltar julgamento. Campanhas
+  incompletas anteriores continuam preservadas, sem selecionar apenas sucessos.

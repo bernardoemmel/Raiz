@@ -322,3 +322,13 @@ def test_saida_nao_sobrescreve_entrada(gabarito, tmp_path, capsys):
     assert main([str(p), "--saida", str(p)]) == 2
     assert p.read_bytes() == antes
     assert not json.loads(capsys.readouterr().err)["aprovado"]
+
+
+def test_juiz_indisponivel_nao_vira_medicao_completa_ou_aprovacao(gabarito):
+    registros = _registros(gabarito, origem="agente_real")
+    registros[0]["julgamento_disponivel"] = False
+    rel = _avaliar(registros, gabarito)
+    assert rel["pass4"] is None
+    assert rel["pass4_limite_inferior"] == 23 / 24
+    assert rel["julgamentos_indisponiveis"] == 1
+    assert not rel["aprovado"] and not rel["criterios_numericos_atendidos"]

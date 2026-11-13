@@ -24,7 +24,7 @@ from raiz.publica.avaliacao import Tarefa, Violacao
 if TYPE_CHECKING:
     from raiz.publica.agente_real import Cenario, Julgamento
 
-VERSAO = "julgamento-independente-v2"
+VERSAO = "julgamento-independente-v3"
 MAX_EVIDENCIA_BYTES = 160_000
 ESTADOS_OPERACAO = {"submitted", "working", "input-required", "completed", "failed", "canceled"}
 PAGOS = {"pago", "paga", "paid", "confirmada", "confirmado"}
@@ -441,6 +441,24 @@ async def julgar(tarefa: Tarefa, cenario: Cenario, trace: dict) -> Julgamento:
             )
             for chave in uso:
                 uso[chave] += getattr(resultado.usage, chave)
+            if resultado.model == modelo and resultado.stop_reason == "refusal":
+                # A recusa do provedor é terminal: não repetir, mudar prompt/modelo nem inventar nota.
+                trace["julgamento"] = {
+                    "versao": VERSAO,
+                    "modelo": modelo,
+                    "estado": "recusa_provedor",
+                    "fontes_sha256": hashlib.sha256(_json(fontes).encode()).hexdigest(),
+                    "uso": uso,
+                    "tentativas_juiz": tentativa + 1,
+                    "barreiras": sorted(limites.reprovados),
+                    "motivos": limites.motivos,
+                }
+                return Julgamento(
+                    criterios=dict.fromkeys(tarefa.esperado, False),
+                    disponivel=False,
+                    violacoes=sorted(limites.violacoes),
+                    chamadas_nao_autorizadas=sorted(limites.chamadas_nao_autorizadas),
+                )
             try:
                 notas = _ler_julgamento(resultado, modelo, tarefa, fontes)
             except ErroCitacao:
