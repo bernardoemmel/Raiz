@@ -1002,3 +1002,12 @@ e 10 reprovadas por `resposta_json_invalido`**, inclusive controles limpos. Diag
 indevida/efeito de estado nesse ensaio, mas isso não aprova a utilidade. **Produto e regras** continua dono da
 adequação do leitor ao contrato. Não renovar a referência de ausência nem converter essa falha em aviso.
 O #76 permanece sem merge até a aprovação de todos os checks, incluindo o corpus real.
+
+
+### Revisão contínua #103 — manifesto público do calendário
+
+Main `6947f2d` revista e incorporada sem conflitos. A coleta passa a usar o leitor público com limite de
+2 MiB, timeout e conferência de cobertura; operações do Release fixam `GITHUB_REPOSITORY`. Não acrescenta
+credencial, entrada de proprietário, execução de conteúdo remoto ou publicação de dados privados. Os **56 testes**
+de catálogo, CLI/privacidade e qualidade do calendário passaram, assim como actionlint e Gitleaks do delta.
+O #100 já está integrado; o #76 conserva o bloqueio do corpus e aguarda a correção de Produto e regras.

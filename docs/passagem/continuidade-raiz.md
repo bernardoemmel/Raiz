@@ -1,6 +1,6 @@
 # Passagem única: documentos, título, vigilância, aprendizado e calendário
 
-Atualizada em 12/11/2026. Substitui `documentos-titulo-e-aprendizado.md` e `vigilancia-e-alertas.md`.
+Atualizada em 13/11/2026. Substitui `documentos-titulo-e-aprendizado.md` e `vigilancia-e-alertas.md`.
 O plano de entrega está em `docs/plano-por-etapa.md`; esta passagem guarda contexto, decisões e pendências.
 
 ## Urgência: URTX_LE1
@@ -193,3 +193,40 @@ As entregas desta continuação estão nos PRs [fontes #87](https://github.com/b
   das demais ferramentas continuam sendo aplicados nas suas próprias rotas.
 - Alterações do coletor/workflow na main disparam uma rodada, além da agenda diária. Conferir seu resultado
   publicado: indisponibilidade externa pode deixar o job vermelho depois de publicar o snapshot útil.
+
+## Compatibilidade da publicação — 13/11/2026
+
+- PR #97 integrado com CI verde. A árvore final, incluindo a main do PR #93, passou nos 129 testes de calendário/MCP.
+  O CI aprovou 2.580 testes gerais, o caso real do Pará e a conferência dos relatórios. A nova execução somente da
+  conferência final preservou os oito jobs aprovados; nenhuma exigência de teste foi removida.
+- A coleta automática `43362263763` parou antes de consultar as fontes: `gh release download dados` respondeu
+  `release not found`. O manifesto continuava acessível no endereço público. O workflow passa a usar
+  `carregar_manifesto`, com limite de bytes e validação de cobertura. As operações do Release do calendário
+  fixam o repositório pelo contexto do workflow e conservam o estado anterior.
+- A publicação `43362263677` parou no manifesto público: GO já tinha o campo agregado `processamento`, ainda não
+  reconhecido pelo leitor. O PR #95 foi integrado à main durante a verificação e corrigiu essa compatibilidade:
+  versão, UF/unidade, soma das contagens, intervalos e fusos explícitos; extras privados são recusados antes de
+  baixar qualquer pacote. A correção própria desta continuação ficou restrita ao acesso ao manifesto na coleta.
+- O leitor também confere a origem cadastral do CAR e o recorte por seus códigos IBGE; não presume que a UF de
+  cadastro tenha de coincidir com o recorte. Uma observação nova ou retirada atualiza o cache sem renovar seus horários.
+- O download real dos 16 pacotes públicos foi conferido com o leitor do PR #95; o calendário seleciona as 13 UFs
+  que têm municípios processados. Nenhum pacote privado foi publicado ou convertido em público.
+- A publicação do site `43364180632` passou na main do PR #95. Os JSON/ICS servidos continuavam iguais ao
+  snapshot anterior: 43 eventos, seis futuros. Isso não foi confundido com a coleta ampliada local.
+- Nova coleta real em 13/11, com o coletor já integrado: 50 eventos, 11 futuros, 191 visitas nesta rodada
+  (197 no retrato que inclui o histórico de MT), 31 fontes consultadas e a conferência de cobertura dos diários.
+  Zero duplicatas exatas e zero CAR confirmado. JSON, estado e ICS passaram na validação e no mascaramento.
+  PA parcial; DJEN/BA/MG/TO continuam em erro, sem simular sucesso ou atribuir evento a fazenda presumida.
+- O upload local ao Release público retornou 401 após remover os assets anteriores. As duas cópias foram
+  preservadas e o site continuou servindo o retrato anterior. A execução operacional `43366965069` restaurou
+  os três arquivos públicos com sucesso; hashes do Release conferidos byte a byte contra a coleta validada.
+  A publicação do site `43367227736` passou: JSON e ICS do site têm os mesmos hashes da coleta e do Release,
+  com 50 eventos, 11 futuros. Não repetir upload local com `--clobber` neste ambiente:
+  a autenticação funcionou em `api.github.com`, mas foi recusada em `uploads.github.com`.
+  Evidências em `/workspace/entregas/calendario-13nov-main/`, fora da branch de produto.
+- Validação local antes do PR: 2.890 testes Python aprovados, um teste opcional pulado e uma divergência esperada,
+  incluindo a referência real do Pará; 338 testes do front e build na base #95. Ruff/formatação, actionlint,
+  privacidade, gitleaks e 857 licenças conferidos. Main #98 incorporada sem conflito, preservando a migração 0035;
+  a correção do calendário não acrescenta migração. Na árvore atualizada passaram 205 testes de calendário/MCP,
+  pasta e API, mais 341 testes do front e build. O teste local pulado requer `RAIZ_LANGUAGETOOL_URL_TESTE`;
+  o CI fornece esse serviço e confere a suíte integral sem dispensar suas exigências.
