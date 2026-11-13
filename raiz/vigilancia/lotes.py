@@ -309,6 +309,20 @@ def preparar_rascunhos(arm: Armazem, lotes: list[Lote], hoje: dt.date, presentes
     falsos = set(vigentes.loc[~vigentes.verdadeiro.astype(bool), "alerta_id"]) if len(vigentes) else set()
     existentes = arm.ler_privado_json("rascunhos_lotes.json", {}) or {}
     disponiveis = {}
+    retirados = []
+    for identificador, documento in existentes.items():
+        ids = set(documento.get("alerta_ids") or [documento["alerta_id"]])
+        if ids and ids <= falsos and documento.get("estado") != "descartado_por_revisao":
+            documento = {
+                **documento,
+                "estado": "descartado_por_revisao",
+                "revisado_em": hoje.isoformat(),
+                "relatorio": "# Ocorrência descartada por revisão\n\n"
+                "Todas as evidências deste rascunho foram marcadas como falso positivo. "
+                "Não usar este documento como relatório de perda. Nada foi enviado.\n",
+            }
+            existentes[identificador] = documento
+            retirados.append(documento)
     for lote in lotes:
         candidatos = alertas[alertas.alvo_id.isin(set(lote.imoveis) & presentes)]
         for alerta in candidatos.to_dict("records"):
@@ -340,7 +354,7 @@ def preparar_rascunhos(arm: Armazem, lotes: list[Lote], hoje: dt.date, presentes
         )
         existentes[identificador] = documento
     arm.gravar_privado_json("rascunhos_lotes.json", existentes)
-    return list(disponiveis.values())
+    return [*disponiveis.values(), *retirados]
 
 
 def registrar_no_banco(engine, rascunhos: list[dict]) -> int:
@@ -373,6 +387,14 @@ def registrar_no_banco(engine, rascunhos: list[dict]) -> int:
             ).scalar_one_or_none()
             if d["cod_imovel"] not in _codigos(fazendas, opcoes, p.opcao_escolhida):
                 continue
+            if d.get("estado") == "descartado_por_revisao":
+                con.execute(
+                    text("""update negocio.alerta_pedido
+                    set detalhe=jsonb_set(detalhe,'{rascunho_vigilancia}',cast(:d as jsonb))
+                    where pedido_id=:p and detalhe->>'chave'=:k"""),
+                    {"p": d["pedido_id"], "k": d["chave_fato"], "d": json.dumps(d)},
+                )
+                continue  # revisão não cria outro alerta nem notificação
             mensagem = f"Alerta {d['fonte']} no CAR {d['cod_imovel']}: rascunho de relatório disponível; nada enviado."
             if _alerta(
                 con,

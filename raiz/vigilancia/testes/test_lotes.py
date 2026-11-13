@@ -73,6 +73,22 @@ def test_rodada_deduplica_relatorios_por_dono_e_nao_inventa_projeto(monkeypatch,
     assert PEDIDO not in resumo and OUTRO not in resumo and COD_B not in resumo
 
 
+def test_falso_positivo_descarta_rascunho_ja_preparado(monkeypatch, cfg, poligonos):
+    from raiz.vigilancia.aprendizado import marcacao
+
+    lote = lotes.Lote(PEDIDO, 1, dt.date(2026, 11, 1), (COD_B,))
+    oc = ocorrencias(ocorrencia("deter", "d1", "desmatamento_cr", quadrado_m(1090, -10, 100), HOJE, HOJE))
+    monkeypatch.setattr(rodada, "_ler", lambda *args: Leitura("deter", oc))
+    rodada.rodar(cfg, HOJE, ["deter"], poligonos=poligonos, catalogo_lotes=[lote])
+    arm = Armazem(cfg.estado)
+    documento = next(iter(arm.ler_privado_json("rascunhos_lotes.json", {}).values()))
+    arm.gravar_marcacoes([marcacao(documento["alerta_id"], False, "campo", "campo", observado_em=HOJE)])
+    atualizados = lotes.preparar_rascunhos(arm, [lote], HOJE, {COD_B})
+    assert len(atualizados) == 1 and atualizados[0]["estado"] == "descartado_por_revisao"
+    assert "Não usar" in atualizados[0]["relatorio"]
+    assert lotes.preparar_rascunhos(arm, [lote], HOJE, {COD_B}) == []
+
+
 def test_catalogo_indisponivel_preserva_estado_e_nao_expande_universo(monkeypatch, cfg, poligonos):
     arm = Armazem(cfg.estado)
     arm.gravar_privado_json("rascunhos_lotes.json", {"anterior": {"estado": "rascunho_nao_enviado"}})

@@ -75,3 +75,7 @@ O draft autenticado `dados-privados` foi conferido: contém `cadt_lotes.json`, m
 Os testes cobrem polígonos, fazenda menor que um hectare, recorte, catálogo vencido, mudança de lote, NOAA duplicado,
 falha parcial, duas empresas e concorrência em PostgreSQL/PostGIS. Fixtures verificam funcionamento; não são
 conjunto real para medir acerto nem dados reais de clientes.
+
+Revisões posteriores também chegam ao painel: quando todas as evidências de um rascunho forem marcadas como falso
+positivo, seu estado passa a `descartado_por_revisao`, conservando a identidade e sem criar nova notificação.
+NOAA-20/21 no mesmo CAR/dia mantêm evidências separadas; uma evidência ainda válida impede descartar o conjunto.

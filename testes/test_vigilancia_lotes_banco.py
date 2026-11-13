@@ -129,6 +129,7 @@ def test_reconfere_cancelamento_membro_e_titularidade_na_importacao(cenario):
     with eng.begin() as con:
         con.execute(text("update negocio.pedido_fazenda set papel='fora' where pedido_id=:p"), {"p": pedidos[0]})
     assert lotes.registrar_no_banco(eng, [documento]) == 0
+
     with eng.begin() as con:
         con.execute(text("update negocio.pedido_fazenda set papel='lote' where pedido_id=:p"), {"p": pedidos[0]})
         con.execute(text("update negocio.pedido set estado='cancelado' where id=:p"), {"p": pedidos[0]})
@@ -198,3 +199,19 @@ def test_router_exige_pessoa_liberada_e_dono_do_pedido(cenario, monkeypatch):
     assert md.status_code == 200 and "Rascunho não enviado" in md.text
     bloqueados.add(clientes[0])
     assert cliente.get(url, headers={"x-cliente": str(clientes[0])}).status_code == 402
+
+
+def test_revisao_atualiza_rascunho_sem_nova_notificacao(cenario):
+    eng, clientes, pedidos = cenario
+    documento = _documento(clientes[0], pedidos[0])
+    assert lotes.registrar_no_banco(eng, [documento]) == 1
+    descartado = {**documento, "estado": "descartado_por_revisao", "relatorio": "Ocorrência descartada."}
+    assert lotes.registrar_no_banco(eng, [descartado]) == 0
+    assert lotes.relatorios_do_pedido(eng, pedidos[0], clientes[0])[0]["estado"] == "descartado_por_revisao"
+    with eng.connect() as con:
+        assert (
+            con.execute(
+                text("select count(*) from negocio.notificacao where pedido_id=:p"), {"p": pedidos[0]}
+            ).scalar_one()
+            == 1
+        )
