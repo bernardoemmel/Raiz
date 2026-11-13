@@ -198,6 +198,8 @@ export interface Pedido {
   alertas: Alerta[]
   /** versão do modelo e das premissas (para aprender depois com o que aconteceu) */
   versao_modelo: string
+  /** Identidade da sugestão e composição atuais, para rejeitar cálculos derivados antigos. */
+  revisao_lote?: string | null
   /** true na resposta de exemplo (sem back-end): a tela avisa */
   exemplo?: boolean
   /** Consulta pública ao cenário publicado. Não é uma execução do pedido nem libera detalhes das fazendas. */

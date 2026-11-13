@@ -11,7 +11,7 @@ from raiz.pedidos import sensibilidade as S
 from raiz.publica import api, chaves, conta, rotas_agentes
 
 PID = "aaaaaaaa-bbbb-4ccc-8ddd-aaaaaaaaaaaa"
-PEDIDO = {"id": PID, "versao_modelo": "modelo-fixture-v1"}
+PEDIDO = {"id": PID, "versao_modelo": "modelo-fixture-v1", "revisao_lote": "a" * 64}
 PARAMETROS = {"preco_credito_usd": 55, "reserva_reversao": 0.2, "taxa_desconto": 0.092, "pessimista": False}
 
 
@@ -19,6 +19,7 @@ def grade():
     return {
         "pedido_id": PID,
         "modelo_versao": PEDIDO["versao_modelo"],
+        "revisao_lote": PEDIDO["revisao_lote"],
         "atualizado_em": "2026-11-12T15:00:00Z",
         "fonte": "Grade sintética de teste",
         "aviso": "Não é resultado real.",
@@ -80,6 +81,7 @@ def test_falta_grade_ou_combinacao_nao_inventa_resultado(publicar):
     [
         lambda d: d.update(pedido_id="bbbbbbbb-bbbb-4ccc-8ddd-aaaaaaaaaaaa"),
         lambda d: d.update(modelo_versao="outro-modelo"),
+        lambda d: d.update(revisao_lote="b" * 64),
         lambda d: d.update(atualizado_em="2026-11-12T15:00:00"),
         lambda d: d["cenarios"][0]["opcoes"].pop(),
         lambda d: d["cenarios"][0]["opcoes"][0].update(cod_imovel="DEMONSTRACAO-1"),
@@ -132,7 +134,9 @@ def test_api_autoriza_conta_e_pedido_antes_de_ler_arquivo(monkeypatch):
         assert eventos == []
         assert (
             cl.post(
-                f"/pedidos/{PID}/sensibilidade", json=PARAMETROS, headers={"Authorization": "Bearer sessao-fixture"}
+                f"/pedidos/{PID}/sensibilidade",
+                json=PARAMETROS,
+                headers={"Authorization": "Bearer sessao-fixture", "If-Match": f'"{PEDIDO["revisao_lote"]}"'},
             ).status_code
             == 404
         )
@@ -150,8 +154,29 @@ def test_api_responde_ausencia_sem_404_e_sem_cache(monkeypatch):
     monkeypatch.setattr(servico, "obter_pedido", lambda *a: PEDIDO)
     with TestClient(api.criar(lambda _: object())) as cl:
         r = cl.post(
-            f"/pedidos/{PID}/sensibilidade", json=PARAMETROS, headers={"Authorization": "Bearer sessao-fixture"}
+            f"/pedidos/{PID}/sensibilidade",
+            json=PARAMETROS,
+            headers={"Authorization": "Bearer sessao-fixture", "If-Match": f'"{PEDIDO["revisao_lote"]}"'},
         )
     assert r.status_code == 200
     assert r.json()["estado"] == "indisponivel"
     assert r.headers["cache-control"] == "private, no-store"
+
+
+def test_api_recusa_revisao_antiga_antes_de_ler_grade(monkeypatch):
+    from raiz.pedidos import servico
+
+    monkeypatch.setattr(servico, "cliente_da_sessao", lambda *_: 42)
+    monkeypatch.setattr(chaves, "registrar", lambda *a, **k: None)
+    monkeypatch.setattr(rotas_agentes, "exigir_escopo", lambda *a: None)
+    monkeypatch.setattr(conta, "exigir_liberacao", lambda *a: None)
+    monkeypatch.setattr(servico, "obter_pedido", lambda *a: PEDIDO)
+    monkeypatch.setattr(S, "consultar", lambda *a: pytest.fail("grade de revisão antiga não deve ser lida"))
+    with TestClient(api.criar(lambda _: object())) as cl:
+        for if_match in (None, '"' + "b" * 64 + '"', "*"):
+            headers = {"Authorization": "Bearer sessao-fixture"}
+            if if_match is not None:
+                headers["If-Match"] = if_match
+            resposta = cl.post(f"/pedidos/{PID}/sensibilidade", json=PARAMETROS, headers=headers)
+            assert resposta.status_code == 412
+            assert resposta.json()["type"].endswith("#erro-lote_alterado")

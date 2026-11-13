@@ -56,13 +56,13 @@ describe("sensibilidade: premissas, procedência e resposta completa", () => {
     expect(r.atualizado_em).toBeNull()
   })
   it("API recebe credencial por cabeçalho e corpo exato; sem sessão não faz chamada", async () => {
-    const fetch = vi.fn().mockResolvedValue(new Response(JSON.stringify(simularSensibilidade(p))))
+    const fetch = vi.fn().mockResolvedValue(new Response(JSON.stringify({ ...simularSensibilidade(p), revisao_lote: "a".repeat(64) })))
     vi.stubGlobal("fetch", fetch)
     await expect(consultarSensibilidadeApi("https://api.example/v1", "id", () => null)(p)).rejects.toThrow("Entre")
     expect(fetch).not.toHaveBeenCalled()
-    await consultarSensibilidadeApi("https://api.example/v1/", "id com espaço", () => "sessao-ficticia")(p)
+    await consultarSensibilidadeApi("https://api.example/v1/", "id com espaço", () => "sessao-ficticia", "a".repeat(64))(p)
     expect(fetch).toHaveBeenCalledWith("https://api.example/v1/pedidos/id%20com%20espa%C3%A7o/sensibilidade", expect.objectContaining({
-      method: "POST", cache: "no-store", headers: expect.objectContaining({ Authorization: "Bearer sessao-ficticia" }), body: JSON.stringify(p),
+      method: "POST", cache: "no-store", headers: expect.objectContaining({ Authorization: "Bearer sessao-ficticia", "If-Match": `"${"a".repeat(64)}"` }), body: JSON.stringify(p),
     }))
   })
   it("não confunde respostas de outras premissas, parciais, duplicadas ou sem data", () => {
@@ -83,5 +83,21 @@ describe("sensibilidade: premissas, procedência e resposta completa", () => {
     expect(JSON.stringify(r)).not.toContain("geometria")
     expect(r.opcoes[0].tir_projeto).toBeNull()
     expect(r.opcoes[0].vpl_usd).toBe(0)
+  })
+})
+
+
+describe("revisão da sensibilidade", () => {
+  it("recusa resposta em voo de outra composição mesmo com premissas iguais", () => {
+    const r = { ...simularSensibilidade(p), exemplo: false, revisao_lote: "a".repeat(64) }
+    expect(() => conferirResultadoSensibilidade(r, p, "b".repeat(64))).toThrow(/revisão/)
+    expect(conferirResultadoSensibilidade(r, p, "a".repeat(64)).revisao_lote).toBe("a".repeat(64))
+  })
+  it("recusa pedido sem revisão antes de buscar a API e apresenta rejeição otimista", async () => {
+    const fetch = vi.fn().mockResolvedValue(new Response("", { status: 412 }))
+    vi.stubGlobal("fetch", fetch)
+    await expect(consultarSensibilidadeApi("https://api.example", "id", () => "sessao")(p)).rejects.toThrow(/revisão/)
+    expect(fetch).not.toHaveBeenCalled()
+    await expect(consultarSensibilidadeApi("https://api.example", "id", () => "sessao", "a".repeat(64))(p)).rejects.toThrow(/lote mudou/)
   })
 })

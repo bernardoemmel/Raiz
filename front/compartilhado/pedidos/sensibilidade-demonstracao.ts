@@ -27,7 +27,7 @@ export function simularSensibilidade(parametros: ParametrosSensibilidade, agora 
   const custo = parametros.pessimista ? 1.3 : 1
   return {
     estado: "disponivel", exemplo: true, parametros: { ...parametros }, fonte: "Demonstração fictícia no navegador",
-    atualizado_em: agora.toISOString(), modelo_versao: "demonstracao-sensibilidade-v1",
+    atualizado_em: agora.toISOString(), modelo_versao: "demonstracao-sensibilidade-v1", revisao_lote: null,
     aviso: "Valores fictícios para experimentar os controles. A composição dos três exemplos fica fixa; não há seleção de fazendas reais. No exemplo pessimista, a captura cai 40% e os custos sobem 30%. Essas premissas não representam o modelo do Pará e não servem para proposta comercial.",
     opcoes: EXEMPLOS.map((e) => {
       const fator = captura * (1 - parametros.reserva_reversao) / 0.8
