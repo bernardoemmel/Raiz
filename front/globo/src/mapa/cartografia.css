@@ -14,9 +14,7 @@
 }
 .cartografia-legenda p { margin: var(--e1) 0; }
 .cartografia-legenda summary { min-height: 48px; display: flex; align-items: center; cursor: pointer; text-decoration: underline; }
-.cartografia-escala { display: flex; margin-top: var(--e2); }
-.cartografia-escala i { height: 12px; flex: 1; background: var(--nevoa); }
-.cartografia-escala i:nth-child(2) { background: var(--restaurar); }
-.cartografia-escala i:nth-child(3) { background: var(--mata); }
-.cartografia-escala i:nth-child(4) { background: var(--mata-texto); }
-.cartografia-escala i:nth-child(5) { background: var(--tinta); }
+.cartografia-resumo > summary { text-decoration: none; }
+.cartografia-legenda-nacional { top: 120px; }
+.cartografia-grupos-lista { list-style: none; margin: 8px 0 0; padding: 0; }
+.cartografia-grupos-lista button { min-height: 48px; width: 100%; text-align: left; padding: 8px; border: 1px solid var(--nevoa); background: var(--superficie); color: var(--tinta); font: inherit; }

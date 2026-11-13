@@ -38,17 +38,17 @@ export function Explorar({ municipio, uf }: { municipio: string | null; uf: stri
     return () => { void preparacao.then((liberar) => liberar()) }
   }, [])
   // O MapLibre abre desde a primeira tela. Os limites dos 5.571 municípios só entram ao aproximar.
-  const detalhe = Boolean(municipio || uf)
+  const [aproximou, setAproximou] = useState(false)
+  const detalhe = Boolean(municipio || uf || aproximou)
   const brasil = useCarga(() => fonte.geo.brasil({ municipios: detalhe }), [detalhe])
   const coberturaMapa = useCarga(() => fonte.geo.cobertura(), [])
   const estados = useCarga(() => fonte.estados(), [])
   const municipios = useCarga(() => fonte.municipios(), [])
   // o estado em foco: o escolhido, ou o do município aberto; os pontos são só dele
   const ufFoco = municipio ? ufDoCodigo(municipio) : uf
-  const potencial = useCarga(() => ufFoco && fonte.geo.potencial ? fonte.geo.potencial(ufFoco) : Promise.resolve(null), [ufFoco])
+  const agregados = useCarga(() => fonte.geo.agregados ? fonte.geo.agregados() : Promise.resolve(null), [])
   const leiloes = useCarga(() => municipio ? calendario.leiloes({ estado: ufFoco || undefined }) : Promise.resolve(null), [municipio, ufFoco])
   const emLeilao = useMemo(() => codigosEmLeilao(leiloes.dado?.eventos ?? []), [leiloes.dado])
-  const pontos = useCarga(() => (ufFoco ? fonte.pontos(ufFoco) : Promise.resolve([])), [ufFoco])
   const funil = useCarga(() => (municipio ? fonte.municipio(municipio) : Promise.resolve(null)), [municipio])
   const imoveis = useCarga(() => (municipio ? fonte.imoveis(municipio) : Promise.resolve(null)), [municipio])
   const basicos = useCarga(() => (municipio && fonte.basicos ? fonte.basicos(municipio) : Promise.resolve(null)), [municipio])
@@ -196,7 +196,7 @@ export function Explorar({ municipio, uf }: { municipio: string | null; uf: stri
                 comLista={listas}
                 estados={estados.dado}
                 uf={uf}
-                pontos={uf ? pontos.dado : undefined}
+                pontos={undefined}
                 carregando={municipios.carregando || estados.carregando}
                 cobertura={coberturaMapa.dado}
               />
@@ -204,15 +204,16 @@ export function Explorar({ municipio, uf }: { municipio: string | null; uf: stri
           </div>
         </aside>
         <div className="mapa-area">
-        {!uf && !municipio && <p className="legenda-nacional" aria-label="Como ler o mapa">Estados em verde têm municípios processados. Cinza: ainda sem dados.</p>}
+        {!uf && !municipio && <p className="legenda-nacional">Grupos mostram fazendas e hectares conhecidos. Cobertura parcial; toque para aproximar.</p>}
         <Suspense fallback={<div className="mapa-brasil" aria-busy="true"><p className="mapa-aviso aviso" role="status">Abrindo o mapa do Brasil…</p></div>}><MapaBrasil
           brasil={brasil.dado}
           processados={processados}
           comLista={listas}
           estados={estados.dado}
-          pontos={pontos.dado ?? []}
-          potencial={potencial.dado ?? null}
-          potencialCarregando={potencial.carregando}
+          agregados={agregados.dado ?? null}
+          agregadosCarregando={agregados.carregando}
+          agregadosErro={Boolean(agregados.erro)}
+          aoAproximar={() => setAproximou(true)}
           uf={uf}
           municipio={municipio}
           geoMunicipio={geoMunicipio.carregando ? null : (geoMunicipio.dado ?? null)}

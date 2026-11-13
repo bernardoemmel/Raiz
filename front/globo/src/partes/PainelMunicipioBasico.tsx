@@ -32,7 +32,7 @@ export function PainelMunicipioBasico({ nome, uf, centro, funil, imoveis, situac
     {funil && funil.linha.dados_suprimidos !== "true" && <p>{fmtInt(funil.imoveis)} imóveis no município. {fmtHa(funil.ha_carbono)} com potencial de restauração no agregado municipal.</p>}
     <p className="legenda-frase">Fonte: CAR e classificação territorial da Raíz. Publicação: {data}. A situação básica não substitui uma análise da terra.</p>
     {imoveis === undefined ? <Estado tipo="carregando" titulo="Carregando a situação das fazendas" /> : imoveis === null ? <Estado tipo="vazio" titulo="A camada básica deste município ainda não foi publicada." /> : <>
-      <p className="legenda-frase">De longe, o mapa mostra o potencial conhecido por célula, com cobertura parcial. Ao aproximar, mostra os limites do CAR sem preencher as fazendas. O filtro de pendências acende os contornos em urucum.</p>
+      <p className="legenda-frase">De longe, o mapa mostra os grupos de fazendas e hectares conhecidos, com cobertura parcial. Ao aproximar, mostra os limites do CAR sem preencher as fazendas. O filtro de pendências acende os contornos em urucum.</p>
       <section className="secao-painel" aria-labelledby="lista-basica-titulo">
         <h2 id="lista-basica-titulo">Fazendas</h2>
         <div className="ordem-restauro"><label>Situação básica<select value={situacao ?? ""} onChange={(e) => mudarSituacao((e.target.value || null) as SituacaoBasica | null)}>

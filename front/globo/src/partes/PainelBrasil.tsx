@@ -75,7 +75,7 @@ export function PainelBrasil({ municipios, comLista, estados, uf, pontos, carreg
       <TopMunicipios municipios={municipios} comLista={comLista} />
       <p className="legenda-frase">
         No mapa, verde-claro indica estados com municípios processados e cinza é o que a Raíz ainda não leu.
-        Toque num estado para aproximar e consultar o potencial conhecido por célula.
+        Toque num estado para aproximar e consultar os grupos de fazendas e hectares conhecidos.
       </p>
       {carregando && <span className="sr">Carregando</span>}
     </div>
@@ -147,7 +147,7 @@ function PainelEstado({ uf, municipios, comLista, estados, cobertura }: Omit<Pro
         </p>
       )}
       <p className="legenda-frase">
-        De longe, as células mostram potencial conhecido com cobertura parcial. Ao aproximar, aparecem os limites
+        De longe, os grupos mostram contagem de fazendas e hectares conhecidos, com cobertura parcial. Ao aproximar, aparecem os limites
         transparentes do CAR sobre o mosaico histórico. Toque num município para consultar seus dados.
       </p>
     </div>
