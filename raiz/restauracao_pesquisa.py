@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 from pathlib import Path
 
 from raiz import restauracao as R
@@ -49,6 +50,10 @@ def relatorio() -> dict:
 def gravar(destino: Path) -> dict:
     destino.mkdir(parents=True, exist_ok=True)
     dado = relatorio()
+    if os.environ.get("RAIZ_PESQUISA_ONLINE") == "1":
+        from raiz import restauracao_controle_externo as C
+
+        dado["dryad"] = C.avaliar(destino / "regeneracao")
     bruto = json.dumps(dado, ensure_ascii=False, sort_keys=True, allow_nan=False).encode()
     sha = hashlib.sha256(bruto).hexdigest()
     caminho = destino / f"rodada12_{sha}.json"

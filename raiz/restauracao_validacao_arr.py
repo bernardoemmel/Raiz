@@ -292,7 +292,9 @@ def diagnosticar_janela_inicial(observado: dict) -> dict:
     inicio = dt.date.fromisoformat(_data(observado.get("intervencao_inicio"), "intervencao_inicio"))
     fim = dt.date.fromisoformat(_data(observado.get("periodo_fim"), "periodo_fim"))
     idade = (fim - inicio).days / 365.2425
-    forma = rs.forma_curva()
+    # A forma-base preserva o arranque R11; a calibração amazônica R12 é
+    # aplicada depois, por método e bioma, no motor de restauração.
+    forma = rs.forma_curva(rs.regra())
     if idade <= 0 or idade > len(forma) - 1:
         raise ValueError("janela fora do horizonte da curva")
     # Cada índice anual é o fluxo daquele ano. Interpolar o acumulado é
@@ -305,6 +307,7 @@ def diagnosticar_janela_inicial(observado: dict) -> dict:
     registro = {
         "esquema": ESQUEMA,
         "tipo": "diagnostico_temporal_sem_pareamento_de_coortes_e_pools",
+        "cenario_diagnosticado": "central_r11",
         "modelo_versao": rs.versao(),
         "entradas_sha256": sha256(observado),
         "observado": observado,

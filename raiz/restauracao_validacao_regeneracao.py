@@ -69,10 +69,10 @@ def validar_municipios(parcelas: pd.DataFrame, *, fonte_sha256: str) -> dict:
         treino = t[t.cod_ibge != municipio]
         parametros, residuos = _ajustar(treino)
         hash_treino = hashlib.sha256(treino.to_csv(index=False, float_format="%.12g").encode()).hexdigest()
-        qs = np.quantile(residuos, [0.1, 0.9], method="linear")
+        qs = np.quantile(residuos, [0.1, 0.5, 0.9], method="linear")
         for _, li in fora.iterrows():
-            p50 = float(_curva(li.forest_age_years, parametros))
-            p10, p90 = max(0.0, min(p50, p50 + qs[0])), max(p50, p50 + qs[1])
+            curva = float(_curva(li.forest_age_years, parametros))
+            p10, p50, p90 = np.maximum(0.0, curva + qs).tolist()
             observado = float(li.biomass_total_Mg_ha)
             registros.append(
                 {
@@ -83,6 +83,7 @@ def validar_municipios(parcelas: pd.DataFrame, *, fonte_sha256: str) -> dict:
                     "p10": p10,
                     "p50": p50,
                     "p90": p90,
+                    "curva_sem_correcao_residual_Mg_ha": curva,
                     "erro_Mg_ha": p50 - observado,
                     "referencia_constante_treino_Mg_ha": float(treino.biomass_total_Mg_ha.mean()),
                     "treino_sha256": hash_treino,
@@ -123,7 +124,7 @@ def validar_municipios(parcelas: pd.DataFrame, *, fonte_sha256: str) -> dict:
         "previsoes": registros,
         "substitui_credito_liquido": False,
         "limites": [
-            "Cronsossequência regional, não inventário de fazendas Raíz.",
+            "Cronossequência regional, não inventário de fazendas Raíz.",
             "Intervalos residuais avaliados fora do município; cobertura empírica é publicada.",
             "Não inclui raízes, solo, serapilheira, baseline, vazamento ou buffer.",
         ],
@@ -135,5 +136,10 @@ def gravar(relatorio: dict, pasta: Path) -> Path:
     texto = json.dumps(relatorio, ensure_ascii=False, sort_keys=True, indent=2, allow_nan=False) + "\n"
     pasta.mkdir(parents=True, exist_ok=True)
     arquivo = pasta / f"regeneracao_{hashlib.sha256(texto.encode()).hexdigest()}.json"
-    arquivo.write_text(texto)
+    try:
+        with arquivo.open("x", encoding="utf-8") as f:
+            f.write(texto)
+    except FileExistsError:
+        if arquivo.read_text(encoding="utf-8") != texto:
+            raise ValueError("relatório existente alterado") from None
     return arquivo

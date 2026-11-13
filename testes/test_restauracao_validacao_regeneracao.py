@@ -43,6 +43,19 @@ def test_gravacao_preserva_previsoes_e_identidade(tmp_path):
     assert V.gravar(r, tmp_path) == p
     assert all(x["modelo_versao"] == V.versao() for x in r["previsoes"])
     assert "responsible" not in p.read_text()
+    p.write_text("alterado")
+    with pytest.raises(ValueError, match="existente alterado"):
+        V.gravar(r, tmp_path)
+
+
+@pytest.mark.parametrize("sinal", [-1, 1])
+def test_quantis_residuais_nao_sao_forcados_a_conter_curva(monkeypatch, sinal):
+    monkeypatch.setattr(V, "_ajustar", lambda _: (np.array([200, 20]), sinal * np.array([2, 4, 8])))
+    r = V.validar_municipios(parcelas(), fonte_sha256="a" * 64)
+    for p in r["previsoes"]:
+        base = p["curva_sem_correcao_residual_Mg_ha"]
+        esperado = np.maximum(0, base + np.quantile(sinal * np.array([2, 4, 8]), [0.1, 0.5, 0.9]))
+        assert [p["p10"], p["p50"], p["p90"]] == pytest.approx(esperado)
 
 
 def test_juncao_usa_geometria_e_recusa_parcela_fora_ou_ambigua():

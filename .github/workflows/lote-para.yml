@@ -124,6 +124,7 @@ jobs:
     env:
       OPENBLAS_NUM_THREADS: "1"
       OMP_NUM_THREADS: "1"
+      RAIZ_PESQUISA_ONLINE: "1"
     steps:
       - uses: actions/checkout@v4
       - name: Confirmar as cotas globais antes dos dados e das dependências

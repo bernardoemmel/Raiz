@@ -525,3 +525,6 @@ A primeira execução no Actions identificou ausência de `rg` no runner; a veri
   comparação ARR, nove cenários com nova seleção e contexto ecológico integrados;
   código preservado remotamente. Falta validar o padrão global, CI/merge e
   executar/publicar os três lotes PA com comparação à referência R11.
+- [ ] Controle Dryad: aquisição pública no runner, SHA256 e vínculo IBGE
+  implementados; publicar MAE por idade somente após acesso aos 126 registros e
+  validação por município. Falhas HTTP continuam como pendência, sem números fictícios.

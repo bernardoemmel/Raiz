@@ -391,6 +391,10 @@ Dados e fatos científicos não herdam as licenças das bibliotecas:
   extração das observações ainda pendente de download. Não guardar a coluna
   `responsible` em dados de ajuste ou resultados.
 - Bousfield e Edwards, Zenodo 15120870: CC-BY-4.0; idade da floresta em 2023.
+- IBGE, Malha Municipal Digital 2025 do Pará: atribuição CC-BY-4.0 conforme
+  termos da MMD, https://www.ibge.gov.br/biblioteca/visualizacao/livros/liv102152.pdf.
+  Download limitado e SHA256 ancorado; usada somente para vincular parcelas
+  públicas a municípios, sem incorporar a malha ao pacote distribuído.
 - Verra VCS 5511 e Isometric 84R7: documentos públicos sem licença aberta de
   redistribuição localizada. Guardados fatos, referências e hashes, não cópias dos
   PDFs ou planilhas proprietários no produto.

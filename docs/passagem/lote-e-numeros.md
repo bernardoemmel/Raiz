@@ -343,3 +343,14 @@ A provisão fixa expôs um caso válido de TIR em área de 1 m²: o caminho com
 premissas centrais pode cair fora dos quantis Monte Carlo quando o fluxo muda
 mais de uma vez de sinal. O imóvel é preservado; os quantis reais não são
 forçados a conter a TIR central. Tipo e aviso acompanham a previsão.
+
+O controle Dryad tentará a rota pública no runner da publicação R12, sem
+credencial nem contorno de bloqueio. Tamanho/SHA256 do CSV e da malha IBGE são
+conferidos antes do vínculo; exige 126 parcelas e 16 municípios. Erro real só
+será publicado se essa conferência passar. Falha de acesso permanece explícita,
+sem substituir observações por exemplos. A coluna pessoal `responsible` não
+entra na tabela de trabalho. Quantis residuais incluem a mediana do resíduo e
+não são alargados artificialmente para conter a curva; histórico recusa alteração.
+41 testes focados adicionais passaram. O processo da execução integral anterior
+terminou sem registrar conclusão (nenhum workflow cancelado); a bateria será
+repetida após sincronizar a main.
