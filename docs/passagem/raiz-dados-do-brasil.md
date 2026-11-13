@@ -43,7 +43,38 @@ Branch da entrega operacional: `codex/dados-operacao`.
   A correção operacional foi validada localmente; sua confirmação em produção continua pendente.
   Sucesso do job não deve ser usado como evidência de dados produzidos.
 
-## O que falta, em ordem
+## Prioridade urgente — processamento, 12/11/2026 à noite
+
+O fundador priorizou esta sequência sobre a extensão dos formatos: corrigir a falha real de RN/PI, preservar
+resultados mesmo quando a publicação falhar, retomar várias UFs/fatias em paralelo até o teto global de 15,
+registrar a proibição de desativar/cancelar no `AGENTS.md` e publicar o painel de andamento municipal por estado.
+Não iniciar estimativa de conclusão do Brasil por simples contagem de jobs: medir municípios concluídos e
+comparar escopo/versões, incluindo os erros e o tempo efetivo após a correção.
+
+- **#82 mesclado:** `cf306256e0b562b1e05415b8ca0df1ca835c2155`, CI `43335410339` com oito checks verdes,
+  incluindo Pará completo. Workflow do motor consultado e ativo. Nenhum job cancelado por este chat.
+- **Causa comprovada RN-1 (`43316654812`):** a projeção pública rejeitou um CAR cadastrado em PB no recorte RN.
+  PI também contém um CAR válido de PE. Todos os identificadores desses dois pacotes têm formato e prefixos
+  IBGE coerentes; UF do recorte e origem cadastral são campos distintos. Não descartar nem alterar esses CARs.
+  A publicação privada ocorre antes dessa projeção; os pacotes e controles privados conferidos são recuperáveis.
+- **Outras falhas PI-2:** HTTP 502 ao conferir o Release privado interrompeu uma publicação periódica; CHIRPS
+  respondeu 429 em tarefas municipais. A exceção de publicação saía de `anota()` e encerrava o Pool de trabalho.
+  O cache salvo pelo workflow contém fontes, mas não garante a preservação de todas as saídas e retratos locais.
+  Um checkpoint privado independente da catalogação está sendo implementado para fechar essa lacuna.
+- **Retratos:** o passo de preservação falhou na validação local. As tags diárias consultadas não comprovaram
+  preservação remota; a causa de normalização ainda está sendo reproduzida. Não chamar esses retratos de válidos
+  nem enfraquecer a validação. O checkpoint deve preservar os bytes sem afirmar validação científica.
+- **Correção local da projeção:** 16 testes passaram; a validação dos pacotes reais preservou 185.791 registros
+  em 130 CSVs de PI e 56.217 em 84 CSVs de RN, inclusive os dois identificadores de outra UF. Nenhum upload nessa prova.
+- **Cópia estável:** a publicação agora lê pacote, Croissant, quantis, CADT e projeção básica da mesma cópia privada.
+  Fecha a corrida observada em RN (ficha com 44 CSVs, pacote com 41); outras lanes continuam no espelho original.
+  Bytes e SHA do sidecar precisam corresponder antes da cópia. O preflight mantém comparação exata do publicador:
+  publicadores antigos devem terminar naturalmente; não liberar o catálogo por uma exceção de compatibilidade.
+- **Ainda a fazer nesta urgência:** completar checkpoint/telemetria/painel, atualizar a promoção auditada para
+  a referência fixa corrigida, executar suíte/CI, merge e admissão das vagas disponíveis pela fila CAS. Conferir
+  dados realmente publicados, medir vazão e só então estimar estados por dia e conclusão do Brasil.
+
+## O que falta, em ordem (formatos, após a prioridade urgente)
 
 1. **Fechar o #43 — feito.** Merge e os dois CIs conferidos. O complemento da retomada torna 15 um teto global,
    inclusive com pedidos simultâneos, e preserva na fila os pedidos que ainda não cabem. Não cancelar os jobs.

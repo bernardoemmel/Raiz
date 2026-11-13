@@ -10,3 +10,14 @@ Resumo do que não pode faltar:
 - Nunca descartar fazenda por tamanho; CPF e CNPJ sempre mascarados; segredos só em variáveis de ambiente.
 - Licenças: sem AGPL, EUPL, SSPL, BSL ou NC; registrar código de terceiros em `NOTICE.md`.
 - Testes (iguais ao CI): `uv run ruff check raiz testes scripts migracoes`, `uv run ruff format --check raiz testes scripts migracoes` e `uv run pytest -q` antes de abrir o PR.
+
+## Continuidade obrigatória do processamento
+
+- Nenhum agente ou outro chat pode desativar o workflow **Processar estados (motor)**, cancelar seus runs/jobs
+  ou interromper os workflows de processamento de lotes. Somente uma ordem posterior e explícita do fundador
+  autoriza uma interrupção. Revisão, publicação, manutenção, troca de branch e limpeza não são autorização.
+- Manter até **15 jobs de processamento no total**, somando motor, lotes e catálogo, pela admissão atômica
+  compartilhada. O teto não é de 15 por workflow. Usar várias UFs e as fatias dos estados grandes em paralelo.
+- Uma falha de publicação não autoriza descartar resultados, marcas ou retratos já calculados. Preservar o
+  progresso no arquivo privado autenticado e retomar de hashes e versões conferidos; nunca usar artifacts
+  públicos para os dados completos. Não apagar uma trava apenas porque passou tempo.

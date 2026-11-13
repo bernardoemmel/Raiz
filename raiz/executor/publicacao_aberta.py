@@ -54,6 +54,12 @@ COLUNAS_GEO = ("cod_imovel", "geometry")
 SITUACOES = ("apto", "com_pendencia", "nao_apto")
 _CAR = re.compile(r"^[A-Z]{2}-\d{7}-[0-9A-F]{32}$")
 _MUN = re.compile(r"^\d{7}$")
+UF_IBGE = {
+    "RO": "11", "AC": "12", "AM": "13", "RR": "14", "PA": "15", "AP": "16", "TO": "17",
+    "MA": "21", "PI": "22", "CE": "23", "RN": "24", "PB": "25", "PE": "26", "AL": "27",
+    "SE": "28", "BA": "29", "MG": "31", "ES": "32", "RJ": "33", "SP": "35", "PR": "41",
+    "SC": "42", "RS": "43", "MS": "50", "MT": "51", "GO": "52", "DF": "53",
+}  # fmt: skip
 
 
 def _csv(dados: bytes) -> tuple[list[str], list[dict]]:
@@ -167,10 +173,18 @@ def _validar_csv(nome: str, dados: bytes, uf: str) -> None:
                 raise ValueError(f"{nome}: identificador inválido")
             if r.get("situacao_basica") not in SITUACOES or r.get("uf") != uf:
                 raise ValueError(f"{nome}: situação ou UF inválida")
-            # O recorte SICAR inclui imóveis limítrofes cadastrados no município vizinho.
-            # cod_ibge identifica o arquivo/recorte processado, não reescreve o município no CAR.
-            if r["cod_imovel"][:2] != uf or r["cod_ibge"] != nome.removeprefix("imoveis_basicos_")[:-4]:
-                raise ValueError(f"{nome}: UF do CAR ou município do recorte divergente")
+            # O recorte SICAR pode incluir imóveis cadastrados em outra UF.
+            # UF/cod_ibge da linha identificam o recorte; o CAR conserva a
+            # origem cadastral. Ambos precisam ser válidos, sem reescrever CARs.
+            car = r["cod_imovel"]
+            if car[:2] not in UF_IBGE or car[3:5] != UF_IBGE[car[:2]]:
+                raise ValueError(f"{nome}: origem cadastral do CAR inválida")
+            if (
+                uf not in UF_IBGE
+                or r["cod_ibge"][:2] != UF_IBGE[uf]
+                or r["cod_ibge"] != nome.removeprefix("imoveis_basicos_")[:-4]
+            ):
+                raise ValueError(f"{nome}: município do recorte divergente")
     elif nome == f"resumo_{uf}.csv":
         if not colunas or not set(colunas) <= set(COLUNAS_RESUMO):
             raise ValueError(f"{nome}: colunas fora do agregado permitido")
