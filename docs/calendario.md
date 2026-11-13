@@ -125,3 +125,9 @@ A revisão acrescentou isolamento de PDF/OCR em processos com 1 GiB de memória,
 e saída limitada durante a leitura. `stderr` é descartado. CAR de confrontante não comprova o imóvel, atos homônimos
 no mesmo PDF conservam identidades distintas e segunda praça conserva UID quando a primeira desaparece.
 As regressões são sintéticas e verificam contratos; não constituem conjunto real de certidões nem medem acerto do modelo.
+
+A sondagem posterior dos 13 diários, limitada a duas visitas por fonte, mostrou acesso oscilante: AP/CE/GO/MA
+responderam dentro desse orçamento; AC/PI/RN/RO tiveram leitura incompleta; BA/MG/TO falharam; RR restringiu acesso;
+o índice do PA também falhou nessa rodada. O coletor agora consulta diretamente os PDFs ordinários oficiais do PA
+se o índice falhar, e lê a edição descoberta antes de consultar outra data. Isso não comprova a cobertura de extras.
+A situação atual é sempre a do JSON da rodada, não uma promessa permanente de disponibilidade da fonte.

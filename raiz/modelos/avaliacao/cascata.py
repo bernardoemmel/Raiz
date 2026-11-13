@@ -9,9 +9,9 @@ from __future__ import annotations
 import copy
 import datetime as dt
 import hashlib
-import io
 import json
 import re
+import sys
 import time
 from collections import Counter, defaultdict
 from dataclasses import asdict, dataclass
@@ -22,8 +22,8 @@ from pathlib import Path
 from genai_prices import Usage as UsoPreco
 from genai_prices import calc_price
 from genai_prices.types import calc_unit_price
-from pypdf import PdfReader
 
+from raiz.calendario.processo_limitado import executar
 from raiz.documentos.claude import LeitorClaude, falta_campo
 from raiz.modelos import rota
 from raiz.modelos.avaliacao import carregar, pedido
@@ -85,12 +85,13 @@ def documentos(caminho: Path) -> tuple[dict, list[Caso]]:
         pdf_visual = False
         try:
             if pdf is not None:
-                paginas = list(PdfReader(io.BytesIO(conteudo)).pages)
-                if not paginas:
+                extraido = json.loads(
+                    executar([sys.executable, "-m", "raiz.calendario.pdf_worker"], conteudo, 65, 32 * 1024 * 1024)
+                )
+                if not extraido["paginas"]:
                     raise ValueError("PDF sem páginas")
-                textos = [p.extract_text() or "" for p in paginas]
-                pdf_visual = any(not texto.strip() or len(p.images) for p, texto in zip(paginas, textos, strict=True))
-                texto = "\n".join(textos)
+                pdf_visual = extraido["visual"]
+                texto = "\n".join(extraido["paginas"])
             else:
                 texto = conteudo.decode("utf-8")
         except Exception:  # noqa: BLE001 - não expor texto/nome do documento na falha do parser
