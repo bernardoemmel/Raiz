@@ -3,6 +3,35 @@
 Gerado da rodada 8 de pesquisa (12/11/2026). Ordem geral: E1 → E2 → E5 → E7 (em paralelo) → E3/E4 → E6 → E8 → E9.
 Pedidos que só o fundador faz, no dia 1: convênio com o ONR e pedidos por LAI ao SFB e ao INCRA.
 
+## Rodada 12: ficha e pasta do banco fiador
+
+- [x] Pasta privada com duas saídas Jinja do mesmo lote, referências de valores e
+  documentos, falha em campos obrigatórios e nenhum modelo externo.
+- [x] Regras YAML versionadas: garantia e titularidade obrigatórias; documento
+  vencido, dispensado, substituído e revogado; relatório campo a campo inspirado
+  no UCD, sem declarar certificação MISMO ou aprovação de banco.
+- [x] Grade Tabulator MIT por área, estágio, título, documento e validade; crédito
+  por método e preço com moeda, unidade, período, natureza e origem. Sem contato.
+- [x] Retificações anexadas, IDs estáveis e referências novas das previsões ligadas
+  às anteriores; autorização paga atual, marca por cliente e proteção contra raspagem.
+- [x] Amostra territorial pública do Pará ligada à prospecção; histórico, exportação
+  e alertas detalhados pagos. Referências comerciais sem cópia de dados ou mudança
+  de preços; Pix permanece em teste.
+
+Detalhes e limites: [pasta do fiador](pasta-fiador.md). Banco específico ainda não
+forneceu catálogo próprio; perfil conservador Raíz. Migração 0035 e conferência dos
+documentos exigem o back-end privado. Não há envio automático nem implantação
+pública nesta entrega. Validação e PR: [passagem](passagem/ficha-da-fazenda.md).
+Validação local: 2.462 testes Python, mais os dois testes de mídia executados após
+instalar Takumi; um xfail conhecido e a referência privada do Pará no job próprio.
+Integração da main `3a73879`, 275 testes do front, build e Chromium/axe/celular
+aprovados, além de 170 testes focados após a integração. O CI da entrega reúne
+também o caso original do Pará e a pilha real.
+PR da pasta: [#98](https://github.com/bernardoemmel/Raiz/pull/98). Base da ficha
+integrada pelo [#93](https://github.com/bernardoemmel/Raiz/pull/93), CI completo
+verde com 2.577 testes Python. A branch da pasta incorpora explicitamente o merge
+`60e17b0`, sem alterar os arquivos de código já validados.
+
 ## Ordem geral
 
 | Ordem | O quê | Depende de | Horas | Por quê |
@@ -291,7 +320,7 @@ continuam em andamento na branch `produto-agentes-medicao`.
 | E | Gabarito de 24 tarefas, quatro sessões por tarefa, meta pass^4 ≥ 80% e zero chamada proibida | **feito**: gabarito e avaliador; 96 sessões concluídas na sexta campanha; limite inferior 70,83%, quatro chamadas proibidas e quatro julgamentos indisponíveis; meta reprovada |
 | F | Piso de reversão 20%, REDD+ jurisdicional, CLPI 50%/70% e revisão humana | **feito no código**, com evidência vigente e bloqueio quando falta dado; camada oficial precisa ser carregada pelo operador |
 | G | Recálculo dos 144 municípios do Pará pelo Actions e publicação no Release | responsabilidade exclusiva do chat "Lote e números", por orientação do fundador; este chat não altera execução nem Release |
-| H | Pilha com API/MCP, PostGIS, Keycloak, Valkey, migrações, worker e agenda em um comando; manual de operação | **feito no código**, PR #85; pilha integral e 24 cenários conferidos no Actions; dimensionamento sob Claude ainda em medição; integração com a main `52118b5` preserva versões da ficha, agenda e processamento; Calendário unificado com cota e projeção validada |
+| H | Pilha com API/MCP, PostGIS, Keycloak, Valkey, migrações, worker e agenda em um comando; manual de operação | **feito no código**, PR #85; pilha integral e 24 cenários conferidos no Actions; dimensionamento sob Claude ainda em medição; integração com a main `692663c` preserva pasta do banco/comprador, versões da ficha, agenda e processamento; Calendário unificado com cota e projeção validada |
 | I | Inspector oficial, lint OpenAPI com vacuum e server.json para registro MCP | **feito**, PR #85; no PR #96, protocolo 2026-07-28, 42 caminhos OpenAPI sem erros de lint e resumo de 6.097 bytes; manifesto validado sem publicação |
 | J | Claude real, pass^4, passos/tempos, vcrpy diário e workflow semanal | runner e workflow entregues no PR #85; sexta campanha completa auditada e reprovada (17/24 tarefas consistentes); 2.720 testes locais passaram; contrato refinado e juiz v8 preparados para nova medição; replay implementado, aguardando referência aprovada |
 | K | Reutilizar `consultar_ficha` e `proximos_eventos` no MCP | ficha **feita** no PR #72; Calendário integrado na branch `produto-agentes-medicao`, por adaptador da função existente, com escopo, limite, projeção e telemetria |
@@ -374,11 +403,15 @@ Nova continuação de Ficha da fazenda (12/11/2026):
 | Ficha automática para UFs atuais e futuras, com retomada da carga e atualização das fontes | Feito: descoberta pelo manifesto privado, backfill idempotente e falha mantida pendente para nova tentativa |
 | Marcas por cliente em PDF/JSON/CSV e alertas de varredura na API | Feito: HMAC versionado, sentinela separada dos dados, detecção persistida e consulta operacional dos alertas |
 | Três modalidades de créditos e conta de receita por cliente | Feito: por ficha, por lote e assinatura; preços a definir pelo fundador e simulação mensal/anual sem ativar vendas |
-| Medição real das 24 tarefas por agente Anthropic no GitHub Actions, manual e semanal | Feito: integrado ao workflow único agentes-real.yml (PR #85), pilha isolada, OAuth real e artefatos. Primeira campanha 43341704532 incompleta: 35/96 tentativas, falha na citação literal do juiz; nenhum pass^4 aprovado |
+| Medição real das 24 tarefas por agente Anthropic no GitHub Actions, manual e semanal | Feito: workflow único agentes-real.yml, pilha isolada, OAuth real e artefatos. Campanha 43354046452 concluiu 96/96; reprovada, 25 chamadas proibidas e cinco julgamentos indisponíveis. Pass^4 nulo, limite inferior 16,7%. As campanhas incompletas anteriores ficam preservadas |
 
 O PR #93 corrige a citação inválida do juiz com uma única nova conversa, sem
 alterar notas válidas ou relaxar a conferência literal; consumo e tentativas
-ficam registrados. A correção exige nova campanha completa de 96 sessões.
+ficam registrados. A campanha completa `43354046452` mediu o commit `e8c13f1`:
+190 passos, 109 chamadas MCP, 677,94 s de agente e 1.252,32 s incluindo pilha e juiz.
+Cinco violações foram classificadas como instrução de terceiro. O resultado não
+aprova o agente, nem mede as mudanças posteriores do PR #96. Ver
+[relatório e limites](medicao-agentes-actions.md).
 
 Site legível por agentes (12/11/2026): **feito** — `llms.txt`, `robots.txt`, páginas Markdown do Brasil, estados,
 municípios, produtor, serviço, fontes e privacidade; alternates no HTML; JSON-LD `Dataset`, `Service` e `Offer`

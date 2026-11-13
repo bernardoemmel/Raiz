@@ -143,3 +143,34 @@ describe("mapa e imagem privados", () => {
     for (const [, opcoes] of buscar.mock.calls) expect(opcoes).toMatchObject({ headers: { Authorization: "Bearer sessao-privada" }, cache: "no-store" })
   })
 })
+
+describe('pasta privada do lote', () => {
+  it('consulta e histórico exigem sessão, sem cache e sem modelo enviado', async () => {
+    const buscar = vi.fn().mockImplementation(() => Promise.resolve(new Response('{}')))
+    vi.stubGlobal('fetch', buscar)
+    const api = fonteProspeccao('/api', () => 'sessao')
+    const controle = new AbortController()
+    await api.pasta('pedido', 'segura', 'versao', controle.signal)
+    await api.historicoPasta('pedido', 'segura', controle.signal)
+    expect(buscar.mock.calls[0][0]).toBe('/api/prospeccao/pastas/pedido/segura?versao_id=versao')
+    expect(buscar.mock.calls.every(([, r]) => r.cache === 'no-store' && r.method === 'GET' && r.body === undefined && r.signal === controle.signal)).toBe(true)
+    await expect(fonteProspeccao('/api', () => null).pasta('pedido', 'segura')).rejects.toMatchObject({ status: 401 })
+  })
+  it('exportação recusa HTML e preserva bloqueio por pendência', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce(new Response('{}', { status: 409 }))
+      .mockResolvedValueOnce(new Response('<html>', { headers: { 'Content-Type': 'text/html' } }))
+      .mockResolvedValueOnce(new Response('ZIP', { headers: { 'Content-Type': 'application/zip' } })))
+    const api = fonteProspeccao('/api', () => 'sessao')
+    await expect(api.exportarPasta('pedido', 'segura')).rejects.toMatchObject({ status: 409 })
+    await expect(api.exportarPasta('pedido', 'segura')).rejects.toMatchObject({ status: 502 })
+    expect(await (await api.exportarPasta('pedido', 'segura')).text()).toBe('ZIP')
+    expect(lerRota('#/pedidos/pedido/pasta')).toEqual({ tela: 'pasta', id: 'pedido' })
+  })
+})
+
+it('preço decimal preserva centavos além da precisão de um Number', async () => {
+  const { numeroPasta } = await import('../../compartilhado/pasta-fiador')
+  expect(numeroPasta('1234567890123456.12')).toBe('1.234.567.890.123.456,12')
+  expect(numeroPasta('0.25')).toBe('0,25')
+  expect(numeroPasta(null)).toBe('Não informado')
+})

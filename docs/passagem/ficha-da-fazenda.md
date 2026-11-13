@@ -1,11 +1,58 @@
 # Passagem do chat "Ficha da fazenda"
 
-Atualização de 12/11/2026 (Brasília). Continuação implementada na branch
-`codex/ficha-compromissos-versoes`, com integração da main `2b6e8af`.
-PR desta continuação: [#93](https://github.com/bernardoemmel/Raiz/pull/93), aguardando CI e merge.
+Atualização de 13/11/2026 (UTC). Rodada 12 implementada na branch
+`codex/pasta-fiador`, com integração da main `60e17b0` e da continuação
+`codex/ficha-compromissos-versoes`.
+PR desta rodada: [#98](https://github.com/bernardoemmel/Raiz/pull/98).
+A continuação [#93](https://github.com/bernardoemmel/Raiz/pull/93) foi integrada
+em `60e17b0`, com CI verde: 2.577 testes Python e referência original do Pará,
+front, Compose, E2E, workflows, privacidade, licenças e segredos aprovados.
 Entregas anteriores integradas pelos [PR #72](https://github.com/bernardoemmel/Raiz/pull/72)
 e [PR #80](https://github.com/bernardoemmel/Raiz/pull/80), commit `bea53bd`.
 Entrega anterior integrada: [PR #52](https://github.com/bernardoemmel/Raiz/pull/52).
+
+## Rodada 12: pasta do fiador e comprador
+
+Implementada na branch `codex/pasta-fiador`, sobre a continuação do PR #93.
+Contrato e operação em [docs/pasta-fiador.md](../pasta-fiador.md). Serviço privado
+novo `raiz/pasta_fiador/`, migração 0035, YAML próprio e grade Tabulator 6.7.1 MIT.
+Duas apresentações Jinja 3.1.6 BSD do mesmo retrato, fontes por campo, preços
+completos e validação antes de gerar. Modelo externo e campos de pessoa/contato
+são recusados pelo contrato. Não são copiados dados de concorrentes.
+
+A pasta só fica pronta com garantia, titularidade, área, previsão e preço
+conferidos. Documentos vencidos/dispensados/substituídos têm tratamento explícito;
+a exportação revalida datas, composição atual, conta, desbloqueios e exclusividade.
+Retificação não sobrescreve: ID da pasta e da série permanece; versão de previsão
+recebe referência nova ligada à anterior. Triggers impedem UPDATE/DELETE.
+ZIP contém banco/comprador em HTML imprimível, dados, validação e hashes, todos
+marcados por licença. Não inclui certidão bruta. A ficha individual mantém seu PDF.
+
+Acesso pela tela do pedido, sem reescrever mapa ou API. A amostra do Pará usa só os
+agregados/CAR básicos públicos; demais estados abertos continuam disponíveis.
+O DTO global `consultar_ficha` e a ponte MCP permanecem compatíveis: pasta é dado
+do pedido/cliente e não contamina snapshots globais da terra.
+
+Validação local: 76 testes de pasta/API/PostGIS passaram, cobrindo
+concorrência, imutabilidade, troca de documento, fonte/validade, preço incompleto,
+proibição de contato/modelo e isolamento entre contas. O CLI também invalida um
+relatório antigo quando a entrada seguinte falha, sem ecoar valores. A suíte
+completa passou em 2.462 testes, com um xfail conhecido de TIR e o caso original
+do Pará separado para o job que dispõe do snapshot privado. Os dois testes de
+mídia inicialmente pulados passaram após instalar Takumi e executar com PostGIS.
+Depois de incorporar a main, build e 275 testes do front passaram;
+170 testes focados de pasta, API, pedidos, certidões e vigilância também passaram.
+Chromium desktop 1440 e celular 360 passaram
+com teclado, axe, bloqueio por pendência, exportação e troca de sessão. Capturas
+sintéticas em `/tmp/raiz-pasta-fiador-final`; o CI publica o artefato `pasta-fiador`.
+A regressão da prospecção no Chromium também passou após a integração.
+A impressão dos dois HTML sintéticos gerou seis páginas A4 por destinatário,
+com a marca em todas as páginas e fontes/valores preservados. Incorporar o commit
+de merge `60e17b0` não alterou a árvore de arquivos validada da pasta; torna explícita
+a ascendência da main para a conciliação do PR.
+Ruff/formatação, privacidade (1.063 arquivos), licenças (859 pacotes, nenhum
+problema), Gitleaks (444 commits) e empacotamento dos modelos/YAML passaram.
+CI verde e merge continuam sendo condições da entrega, sem cancelar workflows.
 
 ## Continuação: terra comprometida, versões e proteção
 
@@ -294,3 +341,16 @@ vazia e o juiz respondeu com citações vazias, rejeitadas pelo esquema. O juiz 
 não reenvia desafios recusados ao juiz e isola julgamentos inválidos por tentativa,
 sempre como indisponíveis (pass^4 nulo; limite inferior separado; aprovação falsa).
 Não aceita citação vazia e não troca modelo, instrução ou regra para obter aprovação.
+
+A campanha [43354046452](https://github.com/bernardoemmel/Raiz/actions/runs/43354046452),
+commit `e8c13f1`, concluiu **96/96 sessões** e publicou o artefato
+[14006204813](https://github.com/bernardoemmel/Raiz/actions/runs/43354046452/artifacts/14006204813).
+São 190 passos (média 1,98), 109 chamadas MCP, 677,94 s de agente e 1.252,32 s
+incluindo pilha/agente/juiz. Resultado **reprovado**: 25 chamadas proibidas pelo
+gabarito e cinco violações classificadas como `instrucao_de_terceiro`.
+Quatro recusas do agente pelo provedor (`outra_empresa`) e uma citação inválida
+do juiz (`injecao_resultado_ferramenta`, tentativa 1) tornam cinco julgamentos
+indisponíveis. Pass^4 é nulo; limite inferior 16,7% (4/24 tarefas com quatro
+sucessos), não pass^4 aprovado. A campanha antecede as mudanças de continuidade
+MCP do PR #96; não comprova a eficácia delas. Não repetir para escolher nota
+melhor. Detalhes em [medição no Actions](../medicao-agentes-actions.md).

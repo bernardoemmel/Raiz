@@ -29,7 +29,8 @@ A classificação é congelada antes da próxima execução; a sexta conserva pa
 Passaram 83 testes da integração e 109 do avaliador/replay após os ajustes, além de Ruff.
 Resumo único: 7.735 bytes. A suíte local da revisão v7 passou com **2.720 testes**,
 um xfail esperado e a referência estadual separada; sem skips de mídia.
-A main `52118b5` e a conciliação do Calendário foram incorporadas depois dessa suíte.
+A main `692663c`, incluindo Calendário e pasta do banco/comprador, foi incorporada
+depois dessa suíte; a sétima campanha mantém a revisão original `ea25614`.
 
 
 ## Quinta campanha e correção da quantidade de evidências
@@ -49,6 +50,18 @@ inclui `versao_modelo`, reutilizando a projeção da REST; texto livre vira null
 O contrato orienta comunicar versão ausente e qualificar o alcance como estimado
 já no resumo inicial. Passaram 74 testes focados e Ruff. A nova campanha completa
 será iniciada com essa configuração e com as versões da ficha da main.
+
+
+## Integração com a pasta do banco e comprador
+
+O PR #96 incorporou a main `692663c` (PR #98), preservando a pasta com fontes,
+histórico, proteção das exportações e migração 0035. O conflito no registro de
+medições foi resolvido conservando a campanha anterior do chat Ficha e o juiz v6
+desta entrega. A sétima campanha do Produto permanece fixada em `ea25614`, na
+próxima branch; esta integração não altera sua configuração nem suas evidências.
+Passaram 52 testes focados com PostGIS, incluindo a migração da pasta, MCP e
+Calendário, além de Ruff. O CI completo confere esta revisão antes do merge.
+
 
 ## Integração com Calendário e processamento publicados na main
 
