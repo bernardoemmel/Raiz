@@ -183,7 +183,8 @@ def test_preparar_le_ids_imutaveis_do_arquivo_privado(tmp_path, monkeypatch):
     assert all("api.github.com" in f["url"] for f in snapshot["fontes"].values())
 
 
-def test_publicacao_recusa_destino_aberto_antes_primeiro_upload(tmp_path, monkeypatch):
+@pytest.mark.parametrize("cenario", ["central_r11", "central_r12"])
+def test_publicacao_recusa_destino_aberto_antes_primeiro_upload(tmp_path, monkeypatch, cenario):
     from testes.test_armazem_release import GitHubFalso, _armazem
 
     gh = GitHubFalso()
@@ -192,14 +193,14 @@ def test_publicacao_recusa_destino_aberto_antes_primeiro_upload(tmp_path, monkey
     monkeypatch.setattr(RR, "arquivo_privado", lambda: arm)
     produto = tmp_path / "produto"
     produto.mkdir()
-    (produto / "manifesto.json").write_text(json.dumps({"municipios": 144}))
+    (produto / "manifesto.json").write_text(json.dumps({"municipios": 144, "cenario": cenario}))
     for nome in RR.OPCOES:
         (produto / nome).mkdir()
     monkeypatch.setenv("GITHUB_RUN_ID", "12345")
     with pytest.raises(PermissionError):
         RR.publicar(tmp_path)
     assert gh.uploads == []
-    assert not (tmp_path / "lote_PA_central_r11.json").exists()
+    assert not (tmp_path / f"lote_PA_{cenario}.json").exists()
 
 
 def test_portao_publico_reprova_manifesto_incompleto(tmp_path):
