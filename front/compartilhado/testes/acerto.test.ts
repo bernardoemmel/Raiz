@@ -52,6 +52,19 @@ describe("resumo de acerto real", () => {
   it("falha de consulta não vira ausência de observações", async () => {
     await expect(fonteAcerto({ pedir: async () => new Response("", { status: 503 }) })()).rejects.toThrow(/consultar/)
   })
+  it("preserva a versão oficial modelo|prompt do leitor, mantendo grupos pequenos e datas inválidas fora", () => {
+    const r = resumoAcertoTeste()
+    r.versoes[0].modelo = "leitor_certidao"; r.versoes[0].versao = "claude-haiku-4-5-20251001|certidao-v1.abcdef1234"
+    expect(lerResumoAcerto(r).versoes[0].versao).toBe(r.versoes[0].versao)
+    expect(JSON.stringify(lerResumoAcerto(r))).not.toContain("NUNCA-PUBLICAR")
+    for (const mudanca of [{ imoveis_observados: 4 }, { ultima_observacao: "2026-05-31" }, { modelo: "motor" }]) {
+      expect(() => lerResumoAcerto({ ...r, versoes: [{ ...r.versoes[0], ...mudanca }] })).toThrow()
+    }
+  })
+  it.each(["modelo|", "|prompt", "modelo||prompt", "modelo|prompt|outro", "modelo|texto livre", "modelo|prompt\n", "modelo|<script>", "modelo|" + "p".repeat(114)])("recusa versão documental inválida %j", (versao) => {
+    const r = resumoAcertoTeste(); Object.assign(r.versoes[0], { modelo: "leitor_certidao", versao })
+    expect(() => lerResumoAcerto(r)).toThrow(/Grupo/)
+  })
 })
 
 it("rejeita documento civil usado como identificador de modelo ou versão", () => {

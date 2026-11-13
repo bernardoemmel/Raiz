@@ -7,6 +7,15 @@ const ateUmaCasa = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 1 })
 export const fmtInt = (n: number) => inteiro.format(Math.round(n))
 export const fmt1 = (n: number) => umaCasa.format(n)
 
+/** Mantém as datas do painel no fuso de Brasília e reutiliza o formatador entre linhas e renderizações. */
+let dataHoraBrasilia: Intl.DateTimeFormat | undefined
+export function fmtDataHoraBrasilia(valor: string): string {
+  const data = new Date(valor)
+  if (!Number.isFinite(data.getTime())) return data.toLocaleString("pt-BR")
+  dataHoraBrasilia ??= new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", dateStyle: "short", timeStyle: "short" })
+  return dataHoraBrasilia.format(data)
+}
+
 /** Hectares: inteiro a partir de 10 ha, uma casa abaixo disso. */
 export function fmtHa(n: number, unidade = true): string {
   const v = Math.abs(n) >= 10 || n === 0 ? fmtInt(n) : ateUmaCasa.format(n)

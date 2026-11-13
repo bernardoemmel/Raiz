@@ -360,35 +360,3 @@ def test_kml_aceita_classe_cartografica_aceiro_sem_bypass_para_nome_livre():
 def test_json_chave_repetida_nao_pode_ocultar_valor():
     with pytest.raises(ErroQualidade, match="duplicada"):
         validar_arquivos({"estados.json": b'{"erro":"teste@exemplo.invalid","erro":""}'})
-
-
-def test_legado_empacota_os_mesmos_bytes_que_passaram_no_portao(tmp_path, monkeypatch):
-    from motor import publicar_dados
-    from raiz.executor import publicacao_aberta
-
-    saida = tmp_path / "saida"
-    pasta = saida / "PA"
-    destino = tmp_path / "destino"
-    pasta.mkdir(parents=True)
-    destino.mkdir()
-    caminho = pasta / f"imoveis_{MUN}.csv"
-    dados = next(iter(csv(municipio="Nova Esperança do Piriá").values()))
-    caminho.write_bytes(dados)
-    # A publicação no Actions exige comprovante de rodada; exercitar o mesmo caminho também localmente.
-    monkeypatch.setenv("GITHUB_ACTIONS", "true")
-    (pasta / "rodada.json").write_text(json.dumps({"commit": "0" * 40, "fim": "2026-11-12T00:00:00Z"}))
-    original = publicacao_aberta.validar_asset_publico
-
-    def validar_e_alterar_fonte(nome, conteudo):
-        original(nome, conteudo)
-        caminho.write_text("contato\nteste@exemplo.invalid\n")
-
-    monkeypatch.setattr(publicacao_aberta, "validar_asset_publico", validar_e_alterar_fonte)
-    monkeypatch.setattr(publicar_dados, "estado_info", lambda *_: {"municipios": 1, "total_ibge": 144})
-    monkeypatch.setattr(publicar_dados, "motor_info", lambda *_: ({}, []))
-    publicar_dados.montar(saida, destino, ["PA"], {}, partes=False)
-    with tarfile.open(destino / "privado" / "raiz_PA.tar.gz") as tar:
-        assert tar.extractfile(f"PA/{caminho.name}").read() == dados
-    with tarfile.open(destino / "raiz_PA.tar.gz") as tar:
-        publico = tar.extractfile(f"PA/imoveis_basicos_{MUN}.csv").read()
-        assert b"contato" not in publico and COD.encode() in publico

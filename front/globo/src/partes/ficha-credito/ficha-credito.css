@@ -1,0 +1,44 @@
+.ficha-lote-credito { max-width: 960px; }
+.ficha-lote-credito .aviso-exemplo { margin-block: var(--e5); }
+.ficha-lote-cabeca { margin-block: var(--e5); }
+.ficha-lote-cabeca h1 { margin-bottom: var(--e2); }
+.ficha-lote-cabeca .criterio { color: var(--pedra); }
+.ficha-lote-identidade { margin-block: var(--e5); overflow-wrap: anywhere; }
+.ficha-lote-identidade dt { font-weight: 700; }
+.ficha-lote-identidade dd { margin: var(--e1) 0 var(--e3); }
+.secao-ficha-banco { margin-block: var(--e7); padding-top: var(--e4); border-top: var(--linha); }
+.secao-ficha-banco h2 { margin: 0; }
+.revisao-ficha, .fonte-ficha { color: var(--pedra); }
+.revisao-ficha { margin-top: var(--e2); }
+.fatos-credito { margin-top: var(--e6); padding: var(--e4); border: 1px solid var(--tinta); background: var(--superficie); color: var(--tinta); }
+.fatos-credito h3 { margin: 0; font: 600 var(--t-titulo)/1.1 var(--fonte-titulo); }
+.fatos-credito .fatos-base { border-bottom: 10px solid var(--tinta); padding-bottom: var(--e3); margin-bottom: var(--e3); }
+.fatos-credito p { margin-block: var(--e3); }
+.fatos-credito table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+.fatos-credito caption { text-align: left; font-weight: 700; border-top: 4px solid var(--tinta); padding-block: var(--e3); }
+.fatos-credito th, .fatos-credito td { padding: var(--e3) var(--e1); vertical-align: top; border-bottom: 1px solid var(--tinta); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.fatos-credito th:first-child { width: 20%; text-align: left; }
+.fatos-credito th:not(:first-child), .fatos-credito td { text-align: right; }
+.fatos-credito .fatos-central { font-weight: 700; }
+.fatos-credito .fatos-central td { font-size: var(--t-subtitulo); }
+.fatos-area { margin: 0; border-top: 4px solid var(--tinta); }
+.fatos-area > div { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--e3); padding-block: var(--e3); border-bottom: 1px solid var(--tinta); }
+.fatos-area dd { margin: 0; font-weight: 700; text-align: right; font-variant-numeric: tabular-nums; }
+.fatos-credito h4 { margin: var(--e4) 0 var(--e3); padding-top: var(--e3); border-top: 4px solid var(--tinta); font-size: var(--t-texto); }
+.fatos-exclusoes > div { padding-block: var(--e3); border-bottom: 1px solid var(--tinta); }
+.fatos-exclusoes dt { font-weight: 700; }
+.fatos-exclusoes dd { margin: var(--e1) 0 0; }
+.fatos-exclusoes span { display: block; margin-top: var(--e1); }
+.fatos-nota { font-weight: 700; }
+.ficha-lote-credito code { overflow-wrap: anywhere; }
+@media (max-width: 700px) {
+  .fatos-credito { padding: var(--e3); }
+  .fatos-credito .fatos-central td { font-size: var(--t-texto); }
+  .fatos-area > div { grid-template-columns: minmax(0, 1fr); gap: var(--e1); }
+  .fatos-area dd { text-align: left; }
+}
+@media print {
+  .ficha-lote-credito { max-width: none; }
+  .ficha-lote-voltar { display: none; }
+  .fatos-credito, .secao-ficha-banco { break-inside: avoid; }
+}

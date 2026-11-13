@@ -55,6 +55,11 @@ async function baixar(destino: string) {
   }
 }
 const basicos = { "imoveis_basicos_1504950.csv": `${header}${car},1504950,Cumaru do Norte,PA,apto\n` }
+const processamento = () => ({
+  versao: 1, escopo: "uf", unidade: "PA", municipios_total: 144,
+  municipios: { prontos: 100, em_execucao: 1, com_erro: 2, pendentes: 40, desconhecidos: 1 },
+  observado_em: "2026-11-13T10:00:00+00:00", ultima_mudanca_em: "2026-11-13T09:59:00+00:00", valido_ate: "2026-11-13T10:02:00+00:00",
+})
 
 describe("download fechado ao contrato público", () => {
   it("baixa somente básicos e mantém todos os portes sem medidas privadas", async () => {
@@ -78,13 +83,19 @@ describe("download fechado ao contrato público", () => {
   })
   it("preserva CAR de outra UF quando origem cadastral e recorte são coerentes", async () => {
     const fronteira = "MT-5100201-BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB"
-    preparar({ "imoveis_basicos_1504950.csv": `${header}${fronteira},1504950,Cumaru do Norte,PA,apto\n` })
+    const conteudo = `${header}${fronteira},1504950,Cumaru do Norte,PA,apto\n`
+    preparar({ "imoveis_basicos_1504950.csv": conteudo })
     const destino = path.join(temp, "fronteira-uf")
     expect((await baixar(destino)).sucesso).toBe(true)
-    expect(fs.readFileSync(path.join(destino, "PA", "imoveis_basicos_1504950.csv"), "utf8"))
-      .toBe(`${header}${fronteira},1504950,Cumaru do Norte,PA,apto\n`)
+    expect(fs.readFileSync(path.join(destino, "PA", "imoveis_basicos_1504950.csv"), "utf8")).toBe(conteudo)
     preparar({ "imoveis_basicos_1504950.csv": `${header}${fronteira},1504950,Cumaru do Norte,MT,apto\n` })
-    expect((await baixar(path.join(temp, "recorte-incoerente"))).sucesso).toBe(false)
+    expect((await baixar(path.join(temp, "recorte-uf-divergente"))).sucesso).toBe(false)
+  })
+  it("recusa origem cadastral desconhecida e município de outra UF dentro do pacote", async () => {
+    preparar({ "imoveis_basicos_1504950.csv": `${header}${car.replace("PA-", "ZZ-")},1504950,Cumaru do Norte,PA,apto\n` })
+    expect((await baixar(path.join(temp, "car-uf-desconhecida"))).sucesso).toBe(false)
+    preparar({ "imoveis_basicos_2413409.csv": `${header}${car},2413409,Serra Negra do Norte,PA,apto\n` })
+    expect((await baixar(path.join(temp, "pacote-municipio-divergente"))).sucesso).toBe(false)
   })
   it("recusa manifesto legado e metadado desconhecido antes de pedir pacote", async () => {
     preparar(basicos)
@@ -95,7 +106,7 @@ describe("download fechado ao contrato público", () => {
     expect((await baixar(path.join(temp, "desconhecido"))).sucesso).toBe(false)
     expect(pedidos).toEqual(["/estados.json"])
   })
-  it("recusa metadados malformados e origem cadastral incoerente", async () => {
+  it("recusa metadados permitidos malformados e origem cadastral incoerente", async () => {
     preparar(basicos)
     manifesto.repo = "empresa/repo/privado"
     expect((await baixar(path.join(temp, "repo-invalido"))).sucesso).toBe(false)
@@ -129,6 +140,98 @@ describe("download fechado ao contrato público", () => {
   })
 })
 
+describe("compatibilidade estrita com a telemetria pública municipal", () => {
+  it.each([
+    processamento(),
+    { ...processamento(), escopo: "unidade", unidade: "PA-2" },
+    { ...processamento(), observado_em: "2020-01-01T08:00:00-03:00", ultima_mudanca_em: "2020-01-01T07:59:00-03:00", valido_ate: "2020-01-01T09:00:00-03:00" },
+  ])("preserva a observação pública validada e seus horários, inclusive quando vencida: %j", async (observacao) => {
+    preparar(basicos, { processamento: observacao })
+    const destino = fs.mkdtempSync(path.join(temp, "telemetria-valida-"))
+    expect((await baixar(destino)).sucesso).toBe(true)
+    const salvo = JSON.parse(fs.readFileSync(path.join(destino, "estados.json"), "utf8"))
+    expect(salvo.estados.PA.processamento).toEqual(observacao)
+    expect(salvo.estados.PA.municipios).toBe(1)
+    expect(fs.readdirSync(path.join(destino, "PA"))).toEqual(["imoveis_basicos_1504950.csv"])
+  })
+
+  it("preserva telemetria válida do cache existente sem baixar de novo o mesmo pacote", async () => {
+    preparar(basicos)
+    const destino = path.join(temp, "telemetria-no-cache")
+    expect((await baixar(destino)).sucesso).toBe(true)
+    const arq = path.join(destino, "estados.json")
+    const local = JSON.parse(fs.readFileSync(arq, "utf8"))
+    local.estados.PA.processamento = processamento()
+    fs.writeFileSync(arq, JSON.stringify(local))
+    preparar(basicos, { processamento: processamento() })
+    expect((await baixar(destino)).sucesso).toBe(true)
+    expect(pedidos).toEqual(["/estados.json"])
+    expect(JSON.parse(fs.readFileSync(arq, "utf8")).estados.PA.processamento).toEqual(processamento())
+  })
+
+  it("mantém zero cobertura sem URL e preserva separadamente a observação operacional", async () => {
+    preparar(basicos, { processamento: processamento(), municipios: 0, tamanho: 0, url: undefined })
+    const destino = path.join(temp, "telemetria-sem-pacote")
+    expect((await baixar(destino)).sucesso).toBe(true)
+    expect(pedidos).toEqual(["/estados.json"])
+    const salvo = JSON.parse(fs.readFileSync(path.join(destino, "estados.json"), "utf8"))
+    expect(salvo.estados.PA.municipios).toBe(0)
+    expect(salvo.estados.PA.processamento).toEqual(processamento())
+  })
+
+  it("recusa cache inválido mesmo quando o manifesto remoto não oferece estados", async () => {
+    preparar(basicos)
+    const destino = path.join(temp, "cache-invalido-remoto-vazio")
+    expect((await baixar(destino)).sucesso).toBe(true)
+    const arq = path.join(destino, "estados.json")
+    const local = JSON.parse(fs.readFileSync(arq, "utf8"))
+    local.estados.PA.processamento = { ...processamento(), erro: "MENSAGEM_PRIVADA" }
+    const anterior = JSON.stringify(local)
+    fs.writeFileSync(arq, anterior)
+    manifesto.estados = {}
+    pedidos.length = 0
+    const resultado = await baixar(destino)
+    expect(resultado.sucesso).toBe(false)
+    expect(resultado.texto).toContain("manifesto local fora do contrato público")
+    expect(resultado.texto).not.toContain("MENSAGEM_PRIVADA")
+    expect(pedidos).toEqual(["/estados.json"])
+    expect(fs.readFileSync(arq, "utf8")).toBe(anterior)
+  })
+
+  it.each([
+    null,
+    [],
+    { ...processamento(), versao: 2 },
+    { ...processamento(), erro: "MENSAGEM_PRIVADA" },
+    { ...processamento(), cod_imovel: car },
+    { ...processamento(), municipios: { ...processamento().municipios, identificadores: [car] } },
+    { ...processamento(), municipios: { ...processamento().municipios, prontos: "100" } },
+    { ...processamento(), municipios: { ...processamento().municipios, em_execucao: true } },
+    { ...processamento(), municipios: { ...processamento().municipios, prontos: -1 } },
+    { ...processamento(), municipios: { ...processamento().municipios, prontos: 0.5 } },
+    { ...processamento(), municipios: { ...processamento().municipios, prontos: 99 } },
+    { ...processamento(), municipios_total: 6001 },
+    { ...processamento(), unidade: "GO" },
+    { ...processamento(), unidade: car },
+    { ...processamento(), unidade: "PA-2" },
+    { ...processamento(), escopo: "unidade", unidade: "PA-0" },
+    { ...processamento(), observado_em: "2026-11-13T10:00:00" },
+    { ...processamento(), observado_em: "2026-02-30T10:00:00Z" },
+    { ...processamento(), ultima_mudanca_em: "2026-11-13T10:01:00Z" },
+    { ...processamento(), valido_ate: "2026-11-13T10:00:00Z" },
+    { ...processamento(), valido_ate: "2026-11-13T11:00:01Z" },
+    { ...processamento(), valido_ate: undefined },
+  ])("recusa bloco inválido antes de baixar pacotes e não ecoa seus valores: %j", async (observacao) => {
+    preparar(basicos, { processamento: observacao })
+    const destino = fs.mkdtempSync(path.join(temp, "telemetria-invalida-"))
+    const resultado = await baixar(destino)
+    expect(resultado.sucesso).toBe(false)
+    expect(resultado.texto).not.toContain(car)
+    expect(resultado.texto).not.toContain("MENSAGEM_PRIVADA")
+    expect(pedidos).toEqual(["/estados.json"])
+    expect(fs.existsSync(path.join(destino, "estados.json"))).toBe(false)
+  })
+})
 
 describe("novas tentativas apenas para transporte e HTTP transitório", () => {
   it("aceita manifesto UTF-8 com BOM sem repetir a leitura", async () => {

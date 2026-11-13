@@ -69,7 +69,7 @@ def validar_eventos(eventos: object, *, agora: dt.datetime) -> list[dict]:
         if not isinstance(cod, str) or not isinstance(unidade, str) or not isinstance(run, str):
             raise ValueError("identificação operacional inválida")
         uf = unidade[:2]
-        if uf not in ibge or cod not in ibge[uf] or not re.fullmatch(rf"{uf}(?:-[1-9][0-9]?)?", unidade):
+        if uf not in ibge or cod not in ibge[uf] or not re.fullmatch(rf"{uf}(?:-[1-9][0-9]{{0,3}})?", unidade):
             raise ValueError("município ou unidade fora da lista oficial")
         if cod in vistos:
             raise ValueError("observação municipal duplicada")

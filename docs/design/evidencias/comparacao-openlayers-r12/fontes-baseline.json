@@ -1,0 +1,27 @@
+[
+  {
+    "path": "front/compartilhado/vite-maplibre-ceu.ts",
+    "sha256": "05cc605f7f9f47c7558d50e8cc6bd9ac0e382f16725cc5c17b71bf711400e37d",
+    "identical_to_commit": "7fe3539"
+  },
+  {
+    "path": "front/globo/src/mapa/preparar-gpu.ts",
+    "sha256": "ceed50c460d30d024af16edd9ea668fe046f5b5e6ec1a95330147c9fce28e027",
+    "identical_to_commit": "7fe3539"
+  },
+  {
+    "path": "front/globo/src/mapa/preparar-gpu.worker.ts",
+    "sha256": "f6385d7eb8c2f149b70c49cf43336f355586d81254cca91dfd508c8b483c730f",
+    "identical_to_commit": "7fe3539"
+  },
+  {
+    "path": "front/globo/src/mapa/aquecer-simbolo.ts",
+    "sha256": "091ecb051f887c73c7d5b4fd3a4933d2e71a027bfaf206cf91afdb54be7daf40",
+    "identical_to_commit": "7fe3539"
+  },
+  {
+    "path": "front/globo/src/mapa/shader-simbolo.generated.ts",
+    "sha256": "433ff23343cb700dccaf15016e9b7b12574be7f12dcb7f41b0e9024bf70523a0",
+    "identical_to_commit": "7fe3539"
+  }
+]

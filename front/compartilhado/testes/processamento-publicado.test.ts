@@ -9,7 +9,7 @@ import { dadosRaiz } from "../vite-dados"
 
 const AGORA = Date.parse("2026-11-13T10:01:00Z")
 const observacao = () => ({
-  versao: 1, escopo: "unidade", unidade: "PA-2", municipios_total: 10,
+  versao: 1, escopo: "unidade", unidade: "PA-1001", municipios_total: 10,
   municipios: { prontos: 4, em_execucao: 1, com_erro: 2, pendentes: 2, desconhecidos: 1 },
   observado_em: "2026-11-13T10:00:00Z", ultima_mudanca_em: "2026-11-13T09:59:30Z", valido_ate: "2026-11-13T10:02:00Z",
 })

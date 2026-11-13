@@ -3,9 +3,10 @@ import { fontePedidosApi, type FontePedidos } from "./fonte-pedidos"
 import { CAMPOS_PADRAO } from "./exemplo"
 import type { CamposPedido, IdOpcao, MudancaLote, Opcao, Pedido } from "./tipos"
 import { tituloDoPedido } from "./texto"
+import { fichaCreditoDemonstracao } from "./ficha-credito-demonstracao"
+import { CHAVE_DEMONSTRACAO, type guarda } from "./sessao"
 
 const TOKEN = "demonstracao-local-sem-valor-de-autenticacao"
-const CHAVE = "raiz.demonstracao.sessao"
 const IDS: IdOpcao[] = ["barata", "segura", "compacta"]
 
 /** Contornos artificiais: não são os limites de imóveis reais nem IDs do CAR. */
@@ -16,6 +17,7 @@ export function pedidoDemonstracao(campos: CamposPedido = structuredClone(CAMPOS
     const hectares = 5_000 + i * 100
     return {
       id, creditos, hectares, fazendas: 2, pequenas: 1,
+      ficha_credito: fichaCreditoDemonstracao({ id, creditos, hectares }),
       tir: { p10: 0.08, p50: 0.12 + i / 100, p90: 0.17 },
       custo_usd_credito: { p10: 18 + i, p50: 20 + i, p90: 24 + i },
       pico_caixa_usd: 500_000, marcos: [{ ano: 7, fracao: 0.12, chance: 0.8 }],
@@ -42,7 +44,7 @@ export function pedidoDemonstracao(campos: CamposPedido = structuredClone(CAMPOS
   }
 }
 
-export function fontePedidosSimulada(): FontePedidos {
+export function fontePedidosSimulada(armazenamento?: ReturnType<typeof guarda>): FontePedidos {
   let pedido = pedidoDemonstracao()
   let iniciada = false
   const responder = (corpo: unknown, status = 200) => new Response(JSON.stringify(corpo), { status, headers: { "Content-Type": "application/json", "Cache-Control": "no-store" } })
@@ -70,6 +72,8 @@ export function fontePedidosSimulada(): FontePedidos {
       // A edição demonstra a interação; não recalcula nem se apresenta como resultado do solver.
       const removida = opcao.itens.find((f) => f.cod_imovel === m.cod_imovel)
       if (removida) {
+        // A ficha é uma fotografia da composição; editar não inventa outra evidência/revisão.
+        delete opcao.ficha_credito
         opcao.itens = opcao.itens.filter((f) => f !== removida)
         opcao.fazendas = opcao.itens.length
         opcao.pequenas = opcao.itens.filter((f) => f.pequena).length
@@ -83,6 +87,6 @@ export function fontePedidosSimulada(): FontePedidos {
     // Nem a demonstração inicia contato ou cobrança, ainda que chamada fora da interface.
     return responder({ erro: "Etapa indisponível na demonstração." }, 409)
   }
-  const api = fontePedidosApi("https://demonstracao.invalid/", { transporte, chaveSessao: CHAVE })
+  const api = fontePedidosApi("https://demonstracao.invalid/", { transporte, chaveSessao: CHAVE_DEMONSTRACAO, armazenamento })
   return { ...api, exemplo: true }
 }

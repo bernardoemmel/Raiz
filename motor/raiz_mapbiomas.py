@@ -146,15 +146,11 @@ def _geotiff(conteudo):
     import rasterio
     from rasterio.io import MemoryFile
     if conteudo[:2] == b'PK':
-        try:
-            with zipfile.ZipFile(io.BytesIO(conteudo)) as z:
-                nomes = [n for n in z.namelist() if n.lower().endswith(('.tif', '.tiff'))]
-                if len(nomes) != 1:
-                    raise RuntimeError('MapBiomas: ZIP deve conter exatamente um GeoTIFF para o ano solicitado')
-                conteudo = z.read(nomes[0])
-        except zipfile.BadZipFile:
-            # A exceção de CRC inclui o nome remoto, que pode conter dados pessoais.
-            raise RuntimeError('MapBiomas: ZIP inválido ou incompleto') from None
+        with zipfile.ZipFile(io.BytesIO(conteudo)) as z:
+            nomes = [n for n in z.namelist() if n.lower().endswith(('.tif', '.tiff'))]
+            if len(nomes) != 1:
+                raise RuntimeError('MapBiomas: ZIP deve conter exatamente um GeoTIFF para o ano solicitado')
+            conteudo = z.read(nomes[0])
     if conteudo[:4] not in (b'II\x2a\x00', b'MM\x00\x2a', b'II\x2b\x00', b'MM\x00\x2b'):
         raise RuntimeError('MapBiomas: download não é TIFF nem BigTIFF')
     try:

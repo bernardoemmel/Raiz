@@ -1,4 +1,5 @@
-import { fmtInt, UFS } from "../../../compartilhado/formato"
+import { memo } from "react"
+import { fmtDataHoraBrasilia, fmtInt, UFS } from "../../../compartilhado/formato"
 import { situacaoProcessamento, type ProcessamentoEstado } from "../../../compartilhado/dados/processamento-estados"
 import type { CargaProcessamento } from "../processamento-estados"
 import { linkEstado } from "../rota"
@@ -6,7 +7,7 @@ import "./PainelProcessamentoEstados.css"
 
 function Data({ valor }: { valor: string | null }) {
   if (!valor || !Number.isFinite(Date.parse(valor))) return <>não informada</>
-  return <time dateTime={valor}>{new Date(valor).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", dateStyle: "short", timeStyle: "short" })}</time>
+  return <time dateTime={valor}>{fmtDataHoraBrasilia(valor)}</time>
 }
 
 function numero(valor: number | null): string {
@@ -38,7 +39,7 @@ function Linha({ estado, agora }: { estado: ProcessamentoEstado; agora: number }
   </li>
 }
 
-export function PainelProcessamentoEstados({ carga, uf }: { carga: CargaProcessamento; uf?: string | null }) {
+export const PainelProcessamentoEstados = memo(function PainelProcessamentoEstados({ carga, uf }: { carga: CargaProcessamento; uf?: string | null }) {
   const estados = (carga.dado?.estados ?? []).filter((e) => !uf || e.uf === uf).sort((a, b) => UFS[a.uf].localeCompare(UFS[b.uf], "pt-BR"))
   return <section className="secao-painel processamento-estados" aria-labelledby="processamento-titulo">
     <h2 id="processamento-titulo">Processamento dos municípios</h2>
@@ -47,4 +48,4 @@ export function PainelProcessamentoEstados({ carga, uf }: { carga: CargaProcessa
     {!carga.dado && !carga.erro && <p role="status">{carga.carregando ? "Consultando o processamento dos municípios." : "As contagens ainda não foram informadas."}</p>}
     {estados.length > 0 && <ol className="processamento-lista">{estados.map((estado) => <Linha key={estado.uf} estado={estado} agora={carga.agora} />)}</ol>}
   </section>
-}
+})

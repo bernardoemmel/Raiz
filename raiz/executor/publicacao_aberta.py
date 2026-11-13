@@ -11,20 +11,7 @@ import io
 import json
 import math
 import re
-
-import pandas as pd
-import pandera.pandas as pa
-
-from raiz.pacotes_seguros import abrir_tar_seguro
-from raiz.qualidade_dados import (
-    ErroQualidade,
-    _carregar_json,
-    _municipios,
-    _normalizar_lugar,
-    _saltos,
-    validar_arquivos,
-    validar_json,
-)
+import tarfile
 
 VERSAO_PUBLICACAO = 1
 ESCOPO = "publico_basico"
@@ -67,15 +54,6 @@ COLUNAS_GEO = ("cod_imovel", "geometry")
 SITUACOES = ("apto", "com_pendencia", "nao_apto")
 _CAR = re.compile(r"^[A-Z]{2}-\d{7}-[0-9A-F]{32}$")
 _MUN = re.compile(r"^\d{7}$")
-_UFS = set("AC AL AP AM BA CE DF ES GO MA MT MS MG PA PB PR PE PI RJ RN RS RO RR SC SP SE TO".split())
-_MEDIDAS_GRUPOS = (
-    ("ha_carbono", "aptas_carbono"),
-    ("tco2_ano_aptas", "aptas_carbono"),
-    ("ha_carbono_matricula", "aptas_com_matricula"),
-    ("redd_ha", "redd_imoveis"),
-    ("app_ha", "app_imoveis"),
-    ("frigorifico_ha", "frigorifico_imoveis"),
-)
 UF_IBGE = {
     "RO": "11", "AC": "12", "AM": "13", "RR": "14", "PA": "15", "AP": "16", "TO": "17",
     "MA": "21", "PI": "22", "CE": "23", "RN": "24", "PB": "25", "PE": "26", "AL": "27",
@@ -138,7 +116,14 @@ def projetar_csvs(uf: str, csvs: dict[str, bytes]) -> dict[str, bytes]:
                     for c in colunas:
                         if c not in ("cod_ibge", "municipio", "imoveis") and n < 5:
                             r[c] = ""
-                    for medida, contagem in _MEDIDAS_GRUPOS:
+                    for medida, contagem in (
+                        ("ha_carbono", "aptas_carbono"),
+                        ("tco2_ano_aptas", "aptas_carbono"),
+                        ("ha_carbono_matricula", "aptas_com_matricula"),
+                        ("redd_ha", "redd_imoveis"),
+                        ("app_ha", "app_imoveis"),
+                        ("frigorifico_ha", "frigorifico_imoveis"),
+                    ):
                         if medida in r and (_numero(r.get(contagem)) or 0) < 5:
                             r[medida] = ""
             out[nome] = _gravar_csv(colunas, projetadas)
@@ -224,63 +209,9 @@ def _validar_csv(nome: str, dados: bytes, uf: str) -> None:
         raise ValueError(f"{nome}: arquivo reservado ao armazenamento privado")
     if len(colunas) != len(set(colunas)) or any(None in r for r in linhas):
         raise ValueError(f"{nome}: CSV ambíguo")
-    # O contrato básico tem identidade/situação, sem métricas privadas do contrato completo.
-    obrigatorias = (
-        COLUNAS_BASICAS
-        if nome.startswith("imoveis_basicos_")
-        else COLUNAS_SEM_IMOVEIS
-        if nome.startswith("sem_imoveis_")
-        else ("cod_ibge", "municipio", "imoveis")
-    )
-    tabela = pd.DataFrame(linhas, columns=colunas)
-    schema = pa.DataFrameSchema({c: pa.Column(str, nullable=False) for c in obrigatorias}, strict=False)
-    try:
-        schema.validate(tabela, lazy=True)
-    except (pa.errors.SchemaError, pa.errors.SchemaErrors):
-        raise ErroQualidade("publicação aberta bloqueada: colunas obrigatórias ausentes ou nulas") from None
-    if "cod_imovel" in tabela and tabela["cod_imovel"].duplicated().any():
-        raise ErroQualidade("publicação aberta bloqueada: CAR duplicado")
-    for linha in linhas:
-        validar_json(linha)
-        codigo = linha["cod_ibge"]
-        # SICAR conserva o CAR original; o nome pode referir-se à origem ou ao recorte atual.
-        municipio_origem = linha["cod_imovel"][3:10] if "cod_imovel" in linha else codigo
-        nomes_permitidos = {_municipios().get(codigo), _municipios().get(municipio_origem)}
-        if codigo not in _municipios() or _normalizar_lugar(linha["municipio"]) not in nomes_permitidos:
-            raise ErroQualidade("publicação aberta bloqueada: município fora do contrato IBGE")
-        if nome.startswith("sem_imoveis_") and pd.isna(
-            pd.to_datetime(linha["verificado_em"], errors="coerce", utc=True)
-        ):
-            raise ErroQualidade("publicação aberta bloqueada: data inválida")
-    if nome.startswith("resumo_"):
-        if tabela["cod_ibge"].duplicated().any():
-            raise ErroQualidade("publicação aberta bloqueada: município duplicado no resumo")
-        intensidades = {}
-        for linha in linhas:
-            n = _numero(linha["imoveis"])
-            if n is None or not n.is_integer():
-                raise ErroQualidade("publicação aberta bloqueada: contagem municipal inválida")
-            if n < 5 and any(
-                v not in (None, "") for c, v in linha.items() if c not in ("cod_ibge", "municipio", "imoveis")
-            ):
-                raise ErroQualidade("publicação aberta bloqueada: medida de grupo pequeno não suprimida")
-            for medida, contagem in _MEDIDAS_GRUPOS:
-                if linha.get(medida) not in (None, "") and (_numero(linha.get(contagem)) or 0) < 5:
-                    raise ErroQualidade("publicação aberta bloqueada: medida de grupo pequeno não suprimida")
-            area, carbono = _numero(linha.get("ha_carbono")), _numero(linha.get("tco2_ano_aptas"))
-            if area is not None and area > 0 and carbono is not None:
-                intensidade = carbono / area
-                if not math.isfinite(intensidade):
-                    raise ErroQualidade("publicação aberta bloqueada: intensidade municipal não finita")
-                intensidades[f"resumo_{linha['cod_ibge']}.csv"] = (
-                    "resumo",
-                    pd.DataFrame({"taxa_tco2_ha_ano": [intensidade]}),
-                )
-        # Mesma triagem de escala do contrato completo; não compara totais ou tamanhos municipais.
-        _saltos(intensidades)
 
 
-def _validar_asset_publico(nome: str, dados: bytes, *, repo: str, tag: str) -> None:
+def validar_asset_publico(nome: str, dados: bytes, *, repo: str = "bernardoemmel/Raiz", tag: str = "dados") -> None:
     """Falha antes do upload se qualquer arquivo/coluna não pertence à projeção pública."""
     if nome == "cartao_modelo.md":
         from raiz import RAIZ_REPO
@@ -294,21 +225,18 @@ def _validar_asset_publico(nome: str, dados: bytes, *, repo: str, tag: str) -> N
         validar_ficha_publica(nome, dados, repo=repo, tag=tag)
         return
     if nome == "estados.json":
-        manifesto = _carregar_json(dados)
-        validar_json({k: v for k, v in manifesto.items() if k != "estados"})
+        manifesto = json.loads(dados)
         if set(manifesto) - {"escopo", "versao_publicacao", "gerado_em", "repo", "tag", "estados"}:
             raise ValueError("manifesto público contém campo desconhecido")
         if manifesto.get("escopo") != ESCOPO or manifesto.get("versao_publicacao") != VERSAO_PUBLICACAO:
             raise ValueError("manifesto público sem marca de projeção")
-        if manifesto.get("repo", "").casefold() != repo.casefold() or manifesto.get("tag") != tag:
-            raise ValueError("destino do manifesto diverge do publicador")
-        repo, tag = manifesto["repo"], manifesto["tag"]
+        repo, tag = manifesto.get("repo", ""), manifesto.get("tag", "")
         if not re.fullmatch(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+", repo) or not re.fullmatch(r"[A-Za-z0-9_.-]+", tag):
             raise ValueError("destino do manifesto inválido")
         for uf, info in manifesto.get("estados", {}).items():
             projetada = entrada_publica(info, uf=uf)
             permitidos = set(projetada) | {"url", "geo"}
-            if uf not in _UFS or set(info) - permitidos:
+            if not re.fullmatch(r"[A-Z]{2}", uf) or set(info) - permitidos:
                 raise ValueError("manifesto público contém detalhe privado")
             if info.get("escopo") != ESCOPO or info.get("versao_publicacao") != VERSAO_PUBLICACAO:
                 raise ValueError("estado sem marca de projeção")
@@ -322,28 +250,18 @@ def _validar_asset_publico(nome: str, dados: bytes, *, repo: str, tag: str) -> N
                     raise ValueError("geometria no manifesto contém detalhe privado")
                 if geo.get("url") != f"{base}/raiz_geo_{uf}.tar.gz":
                     raise ValueError("geometria deve apontar ao Release público do manifesto")
-            # Os links acima coincidem exatamente com o destino configurado e o nome fechado do asset.
-            # NER não deve interpretar esse caminho técnico como nome de pessoa; os demais valores passam inteiros.
-            sem_links = {k: v for k, v in info.items() if k not in {"url", "geo"}}
-            if geo:
-                sem_links["geo"] = {k: v for k, v in geo.items() if k != "url"}
-            validar_json(sem_links)
         return
     m = re.fullmatch(r"raiz_(geo_)?([A-Z]{2})\.tar\.gz", nome)
     if not m:
         raise ValueError(f"{nome}: asset não permitido no Release aberto")
     geo, uf = m.groups()
-    if uf not in _UFS:
-        raise ValueError("UF fora do contrato")
-    with abrir_tar_seguro(dados) as tar:
+    with tarfile.open(fileobj=io.BytesIO(dados), mode="r:gz") as tar:
         vistos = set()
         for membro in tar:
             partes = membro.name.split("/")
             if not membro.isfile() or len(partes) != 2 or partes[0] != uf or membro.name in vistos:
                 raise ValueError(f"{nome}: membro inválido no pacote")
             vistos.add(membro.name)
-            if membro.uname or membro.gname or membro.pax_headers or tar.pax_headers:
-                raise ValueError("metadados TAR fora do contrato")
             arq = partes[1]
             conteudo = tar.extractfile(membro).read()
             if geo:
@@ -359,30 +277,5 @@ def _validar_asset_publico(nome: str, dados: bytes, *, repo: str, tag: str) -> N
                 pandas = json.loads((schema.metadata or {}).get(b"pandas", b"{}"))
                 if pandas.get("attributes"):
                     raise ValueError(f"{nome}: geometria contém atributos em metadados")
-                # Inspeção integral das colunas, valores, metadados Arrow/CRS e geometria.
-                validar_arquivos({arq: conteudo})
-                cars = pq.read_table(io.BytesIO(conteudo), columns=["cod_imovel"])["cod_imovel"].to_pylist()
-                if arq[4:11][:2] != UF_IBGE[uf] or arq[4:11] not in _municipios():
-                    raise ValueError("município da geometria fora do recorte")
-                if any(
-                    not isinstance(car, str)
-                    or not _CAR.fullmatch(car)
-                    or car[:2] not in UF_IBGE
-                    or car[3:5] != UF_IBGE[car[:2]]
-                    for car in cars
-                ):
-                    raise ValueError("CAR da geometria fora do contrato")
             else:
                 _validar_csv(arq, conteudo, uf)
-
-
-def validar_asset_publico(nome: str, dados: bytes, *, repo: str = "bernardoemmel/Raiz", tag: str = "dados") -> None:
-    """Contrato, Pandera e privacidade sobre os bytes enviados, sem ecoar valores dos parsers."""
-    try:
-        _validar_asset_publico(nome, dados, repo=repo, tag=tag)
-    except ErroQualidade:
-        raise
-    except Exception:
-        raise ErroQualidade(
-            "publicação aberta bloqueada: arquivo ou atributos privados fora do contrato; valores omitidos"
-        ) from None

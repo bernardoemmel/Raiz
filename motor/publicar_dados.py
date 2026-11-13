@@ -39,16 +39,14 @@ def manifesto_publicado() -> dict:
     return S.ler_manifesto()
 
 
-def empacotar(uf: str, arquivos: list[Path] | dict[str, bytes]) -> bytes:
-    # O upload usa exatamente o snapshot conferido; não reabre fontes depois do portão.
-    conteudos = arquivos if isinstance(arquivos, dict) else {f.name: f.read_bytes() for f in arquivos}
+def empacotar(uf: str, arquivos: list[Path]) -> bytes:
     buf = io.BytesIO()
     with tarfile.open(fileobj=buf, mode="w:gz", compresslevel=6) as tar:
-        for nome, dados in sorted(conteudos.items()):
-            info = tarfile.TarInfo(f"{uf}/{nome}")
-            info.size = len(dados)
+        for f in sorted(arquivos):
+            info = tar.gettarinfo(str(f), arcname=f"{uf}/{f.name}")
             info.mtime, info.uid, info.gid, info.uname, info.gname = 0, 0, 0, "", ""
-            tar.addfile(info, io.BytesIO(dados))
+            with open(f, "rb") as fh:
+                tar.addfile(info, fh)
     return buf.getvalue()
 
 
@@ -64,12 +62,11 @@ def gravar(destino: Path, nome: str, conteudo: bytes, partes: bool = True) -> li
     return out
 
 
-def versao(arquivos: list[Path] | dict[str, bytes]) -> str:
-    conteudos = arquivos if isinstance(arquivos, dict) else {f.name: f.read_bytes() for f in arquivos}
+def versao(arquivos: list[Path]) -> str:
     h = __import__("hashlib").sha256()
-    for nome, dados in sorted(conteudos.items()):
-        h.update(nome.encode())
-        h.update(dados)
+    for f in sorted(arquivos):
+        h.update(f.name.encode())
+        h.update(f.read_bytes())
     return h.hexdigest()[:16]
 
 
@@ -107,7 +104,7 @@ def motor_info(pasta: Path, antigo: dict) -> tuple[dict, list[dict]]:
 def montar(saida: Path, destino: Path, ufs: list[str], publicado: dict, partes: bool) -> tuple[dict, list[Path]]:
     """Monta os pacotes que mudaram. Devolve as entradas novas do estados.json e os arquivos a subir."""
     from raiz.executor.armazem import ArmazemRelease
-    from raiz.executor.publicacao_aberta import entrada_publica, projetar_csvs, projetar_geo, validar_asset_publico
+    from raiz.executor.publicacao_aberta import entrada_publica, projetar_csvs, projetar_geo
 
     privado = destino / "privado"
     privado.mkdir(parents=True, exist_ok=True)
@@ -128,18 +125,13 @@ def montar(saida: Path, destino: Path, ufs: list[str], publicado: dict, partes: 
             S.acao_github("warning", f"publicar {uf}", "o estado é do executor (raiz executor): publique com "
                           "`uv run raiz executor publicar --ufs " + uf + "`; não troco o pacote dele")
             continue
-        geos = sorted(pasta.glob("geo_*.parquet"))
-        conteudos = {f.name: f.read_bytes() for f in [*csvs, *geos]}
-        csvs_conferidos = {f.name: conteudos[f.name] for f in csvs}
-        geos_conferidos = {f.name: conteudos[f.name] for f in geos}
-        motor, erros = motor_info(pasta, antigo)
+        conferir_privacidade(csvs)
         info = estado_info(pasta, uf)
-        completos = csvs_conferidos
+        completos = {f.name: f.read_bytes() for f in csvs}
         # A cópia completa fica separada, para o publicador autenticado. Nunca subir esses arquivos ao aberto.
-        gravar(privado, f"raiz_{uf}.tar.gz", empacotar(uf, csvs_conferidos), partes=False)
+        gravar(privado, f"raiz_{uf}.tar.gz", empacotar(uf, csvs), partes=False)
         publicos = projetar_csvs(uf, completos)
         pacote = ArmazemRelease._tar(uf, publicos)
-        validar_asset_publico(f"raiz_{uf}.tar.gz", pacote)
         v = __import__("hashlib").sha256(pacote).hexdigest()[:16]
         if antigo.get("versao") != v:
             arquivos += gravar(destino, f"raiz_{uf}.tar.gz", pacote, partes)
@@ -151,9 +143,8 @@ def montar(saida: Path, destino: Path, ufs: list[str], publicado: dict, partes: 
         info.update(versao=v, url=f"{BASE}/raiz_{uf}.tar.gz")
         geos = sorted(pasta.glob("geo_*.parquet"))
         if geos:
-            gravar(privado, f"raiz_geo_{uf}.tar.gz", empacotar(uf, geos_conferidos), partes=False)
-            pg = ArmazemRelease._tar(uf, {nome: projetar_geo(dados) for nome, dados in geos_conferidos.items()})
-            validar_asset_publico(f"raiz_geo_{uf}.tar.gz", pg)
+            gravar(privado, f"raiz_geo_{uf}.tar.gz", empacotar(uf, geos), partes=False)
+            pg = ArmazemRelease._tar(uf, {f.name: projetar_geo(f.read_bytes()) for f in geos})
             vg = __import__("hashlib").sha256(pg).hexdigest()[:16]
             if (antigo.get("geo") or {}).get("versao") != vg:
                 arquivos += gravar(destino, f"raiz_geo_{uf}.tar.gz", pg, partes)
@@ -162,7 +153,7 @@ def montar(saida: Path, destino: Path, ufs: list[str], publicado: dict, partes: 
                 print(f"{uf}: raiz_geo_{uf}.tar.gz {len(pg) / 1e6:.1f} MB")
             else:
                 info["geo"] = antigo["geo"]
-        info["motor"], info["erros"] = motor, erros
+        info["motor"], info["erros"] = motor_info(pasta, antigo)
         novas[uf] = {**entrada_publica(info, uf=uf), "url": info["url"], **({"geo": info["geo"]} if info.get("geo") else {})}
     return novas, arquivos
 

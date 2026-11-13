@@ -36,6 +36,7 @@ jobs:
         with:
           enable-cache: true
           cache-dependency-glob: uv.lock
+          version: "0.13.6"
       - name: Dependências
         run: uv sync --frozen
       - name: Leitura de PDFs e OCR dos documentos escaneados

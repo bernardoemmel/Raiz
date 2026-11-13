@@ -30,6 +30,7 @@ jobs:
         with:
           enable-cache: true
           cache-dependency-glob: uv.lock
+          version: "0.13.6"
       - name: Dependências do publicador e da validação geográfica
         run: uv sync --frozen --all-extras
 

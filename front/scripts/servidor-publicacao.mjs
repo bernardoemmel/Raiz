@@ -4,7 +4,7 @@ import http from "node:http"
 import path from "node:path"
 import { gzipSync } from "node:zlib"
 
-const tipos = { ".html": "text/html", ".js": "text/javascript", ".css": "text/css", ".json": "application/json", ".geojson": "application/geo+json", ".svg": "image/svg+xml", ".woff2": "font/woff2", ".txt": "text/plain", ".md": "text/markdown", ".png": "image/png", ".webp": "image/webp" }
+const tipos = { ".html": "text/html", ".js": "text/javascript", ".mjs": "text/javascript", ".css": "text/css", ".json": "application/json", ".geojson": "application/geo+json", ".svg": "image/svg+xml", ".woff2": "font/woff2", ".txt": "text/plain", ".md": "text/markdown", ".png": "image/png", ".webp": "image/webp" }
 export async function servirPublicacao(site, base) {
   const cache = new Map()
   const servidor = http.createServer((req, res) => {

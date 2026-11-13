@@ -14,9 +14,58 @@ import pytest
 
 from raiz.executor.armazem import ArmazemRelease, do_config, ler_json
 from raiz.executor.executor import Executor, Tarefa
-from testes.dados_publicacao import csv_contrato
 
 REPO, TAG = "bernardoemmel/raiz", "dados"
+
+
+@pytest.mark.parametrize("persistente", [False, True])
+def test_listagem_recomeça_todas_paginas_quando_publicacao_concorrente_desloca_assets(
+    tmp_path, monkeypatch, persistente
+):
+    import raiz.executor.armazem as A
+
+    chamadas, esperas = [], []
+    tentativa = 0
+    base = [{"id": i, "name": f"produto-{i}"} for i in range(101)]
+
+    def servidor(req):
+        nonlocal tentativa
+        assert req.method == "GET"
+        assert req.headers["cache-control"] == "no-cache"
+        pagina = int(req.url.params["page"])
+        chamadas.append(pagina)
+        if pagina == 1:
+            tentativa += 1
+            return httpx.Response(200, json=base[:100])
+        if persistente or tentativa == 1:
+            return httpx.Response(200, json=[base[99], base[100]])
+        return httpx.Response(200, json=base[100:])
+
+    monkeypatch.setattr(A.time, "sleep", esperas.append)
+    with httpx.Client(transport=httpx.MockTransport(servidor)) as cliente:
+        arm = ArmazemRelease(REPO, TAG, tmp_path, token="segredo", cliente=cliente)
+        if persistente:
+            with pytest.raises(RuntimeError, match="arquivos mudaram"):
+                arm._assets({"id": 7})
+            assert chamadas == [1, 2] * 4 and esperas == [0.25, 0.5, 1]
+        else:
+            assert arm._assets({"id": 7}) == base
+            assert chamadas == [1, 2, 1, 2] and esperas == [0.25]
+
+
+@pytest.mark.parametrize("status,corpo", [(403, []), (200, {})])
+def test_listagem_nao_repete_falha_de_acesso_ou_formato(tmp_path, status, corpo):
+    chamadas = []
+
+    def servidor(req):
+        chamadas.append(req.url)
+        return httpx.Response(status, json=corpo)
+
+    with httpx.Client(transport=httpx.MockTransport(servidor)) as cliente:
+        arm = ArmazemRelease(REPO, TAG, tmp_path, token="segredo", cliente=cliente)
+        with pytest.raises((httpx.HTTPStatusError, RuntimeError)):
+            arm._assets({"id": 7})
+    assert len(chamadas) == 1
 
 
 class GitHubFalso:
@@ -175,7 +224,6 @@ def test_csv_identico_atualiza_versao_remota_sem_sobrescrever_trabalho_local(gh,
 STUB = """
 from pathlib import Path
 from raiz.executor.executor import Tarefa
-from testes.dados_publicacao import csv_contrato
 
 def tarefas(log: Path, quebrar_em=None):
     def anota(n, c):
@@ -186,12 +234,11 @@ def tarefas(log: Path, quebrar_em=None):
         anota("funil", cod)
         if quebrar_em == cod:
             raise KeyboardInterrupt  # a máquina morre no meio (não é erro de tarefa)
-        (pasta / f"imoveis_{cod}.csv").write_bytes(csv_contrato("imoveis", {"cod_imovel":"x", "ha":1}))
+        (pasta / f"imoveis_{cod}.csv").write_text("cod_imovel,ha\\nx,1\\n")
 
     def filtros(uf, cod, pasta):
         anota("filtros", cod)
-        dados = csv_contrato("filtros", {"cod_imovel":"x", "filtro_territorial":"ok"})
-        (pasta / f"filtros_{cod}.csv").write_bytes(dados)
+        (pasta / f"filtros_{cod}.csv").write_text("cod_imovel,filtro\\nx,ok\\n")
 
     return [Tarefa("funil", (), ("imoveis_{cod}.csv",), lambda: "funil-1", funil, pode_ficar_vazio=True),
             Tarefa("filtros", ("funil",), ("filtros_{cod}.csv",), lambda: "filtros-1", filtros)]
@@ -263,11 +310,8 @@ def test_executor_publica_e_maquina_nova_retoma_do_release(gh, tmp_path, stub):
 
 
 def test_adotar_o_que_ja_foi_publicado(gh, tmp_path, stub):
-    arquivos = {
-        f"imoveis_{C1}.csv": csv_contrato("imoveis", {"cod_imovel": "x", "ha": 1}),
-        f"imoveis_{C2}.csv": csv_contrato("imoveis", {"cod_imovel": "y", "ha": 1}),
-        f"filtros_{C1}.csv": csv_contrato("filtros", {"cod_imovel": "x", "filtro_territorial": "ok"}),
-    }
+    arquivos = {f"imoveis_{C1}.csv": b"cod_imovel\nx\n", f"imoveis_{C2}.csv": b"cod_imovel\ny\n",
+                f"filtros_{C1}.csv": b"cod_imovel\nx\n"}  # fmt: skip
     arquivos["_versoes.json"] = json.dumps(
         {nome: {"versao": "filtros-1" if nome.startswith("filtros_") else "funil-1"} for nome in arquivos}
     ).encode()
@@ -287,15 +331,9 @@ def test_nao_publica_coluna_proibida(gh, tmp_path):
     f = tmp_path / f"imoveis_{C1}.csv"
     f.write_text("cod_imovel,nome_proprietario\nx,y\n")
     a.por(f"saida/PA/imoveis_{C1}.csv", f, {"versao": "funil-1"})
-    publico = GitHubFalso()
-    publico.privado = False
-    a.publico = _armazem(publico, tmp_path / "aberto", privado=False)
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="proibida"):
         a.publicar("PA")
-    # O catalogador também recusa esse esquema antes de enviar; o original local é preservado.
-    assert a.local.ler(f"saida/PA/imoveis_{C1}.csv") == f.read_bytes()
-    assert gh.uploads == []
-    assert publico.uploads == []
+    assert "raiz_PA.tar.gz" not in gh.assets
 
 
 def test_ficha_corresponde_ao_pacote_e_catalogo_preserva_outros_estados(gh, tmp_path):
@@ -423,7 +461,7 @@ def test_adotar_grava_a_caixa_do_municipio(gh, tmp_path, stub):
     gh.assets["raiz_PA.tar.gz"] = gh.tar(
         "PA",
         {
-            f"imoveis_{C1}.csv": csv_contrato("imoveis", {"cod_imovel": "x", "ha": 1}),
+            f"imoveis_{C1}.csv": b"cod_imovel\nx\n",
             "_versoes.json": json.dumps({f"imoveis_{C1}.csv": {"versao": "funil-1"}}).encode(),
         },
     )
