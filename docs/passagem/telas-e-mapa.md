@@ -49,6 +49,17 @@ Sessão: https://claude.ai/code/session_01VGb88MJumyG9PHt2znaaKE. Branch: `claud
   novo pedido 97, prospecção 96, acerto 97 e produtor 100, sempre com acessibilidade mínima 100. As sete
   auditorias axe tiveram zero violações, incluindo teclado, gaveta mobile e produtor sem JavaScript.
   Os textos completos de MIT/ISC do agrupamento foram conferidos nos dois sites compilados.
+- O primeiro CI completo desta composição (`43362021791`, head `ba541cd`) identificou dois ajustes antes do
+  merge: Lighthouse nacional 82/86/72 (mediana 82) num runner mais lento e uma regra antiga que admitia somente
+  o XML como artifact Python. Os outros 2.849 testes Python passaram. A regra agora permite exatamente o XML
+  e a pasta das capturas sintéticas da ficha pública; o job com referência privada continua limitado ao XML,
+  com os mesmos bloqueios de cache/caminho. Seus oito testes passaram. Os três perfis nacionais passam a ser
+  guardados pelo CI, sem alterar o cálculo das notas ou repetir medições para selecionar resultados.
+- O fundo sólido nacional passa ao CSS, mantendo o raster e os dados no MapLibre; a comparação em 360 px
+  encontrou zero pixels diferentes e confirmou a retirada do programa gráfico redundante. O fundo GL normal
+  retorna na escala regional. O experimento separado de preparação de stencil não sustentou ganho e foi
+  descartado. A composição final com processamento e busca entre UFs tem 504 testes do front aprovados;
+  Lighthouse e CI finais ainda precisam confirmar o portão na revisão enviada.
 - A publicação posterior `43358821157` da main parou fechada quando o Release passou a incluir
   `processamento` em GO/MT/RN, antes desconhecido pelo leitor. A correção inicial validou os oito campos
   desse contrato público v1, contagens, UF e cronologia; seus 47 testes e o manifesto real de 22.659 bytes
