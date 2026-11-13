@@ -26,12 +26,13 @@ aprovação da FDA, OSHA, SEC ou de qualquer certificador.
 ## Duas colunas, uma base
 
 P10, P50 e P90 são apresentados por hectare elegível e para todo o lote. A base
-declarada ao lado da tabela fixa horizonte, período quando conhecido, método,
+declarada ao lado da tabela fixa horizonte, período quando conhecido, métrica, método,
 versão do modelo, classe de ativo, classe de evidência e composição (titulares,
 ou titulares e reservas). A coluna por hectare usa a área elegível documentada
 do mesmo bloco, nunca a área total do CAR nem uma área calculada pela diferença
 das exclusões. FLAG e créditos de carbono permanecem separados. Estimativa de
-modelo não recebe rótulo de emissão, entrega ou crédito líquido.
+modelo não recebe rótulo de emissão ou entrega. A tabela só diz crédito líquido
+quando essa é a métrica declarada e validada; reduções FLAG têm rótulo próprio.
 
 O leitor do contrato confere a opção e a revisão do lote antes de exibir os
 valores. Documento antigo, horizonte incompatível ou denominador sem evidência

@@ -22,7 +22,7 @@ const secoes = Object.fromEntries(Object.entries(textos).map(([id, texto]) => [i
 const ficha = {
   contrato: "ficha_credito", versao: 1, estado: "disponivel", documento_versao: "d".repeat(64),
   publicada_em: "2026-11-12T12:00:00Z", revisao_lote: revisao, opcao_id: "barata", exemplo: true, aviso: "Ficha inteiramente fictícia para o teste de interface.",
-  base: { horizonte_anos: 25, inicio: "2026-01-01", fim: "2051-01-01", classe_ativo: "credito_carbono", unidade: "tCO2e", escopo_carteira: "titulares_e_reservas", classe_evidencia: "estimativa_modelo", metodo: "regeneracao_assistida", modelo_versao: "fixture-v1", fonte: "Demonstração fictícia", data_referencia: "2026-10-01", evidencia_id: "fixture-evidencia" },
+  base: { horizonte_anos: 25, inicio: "2026-01-01", fim: "2051-01-01", classe_ativo: "credito_carbono", metrica: "credito_carbono", unidade: "tCO2e", escopo_carteira: "titulares_e_reservas", classe_evidencia: "estimativa_modelo", metodo: "regeneracao_assistida", modelo_versao: "fixture-v1", fonte: "Demonstração fictícia", data_referencia: "2026-10-01", evidencia_id: "fixture-evidencia" },
   creditos_lote: { p10: 10000, p50: 15000, p90: 20000 }, creditos_por_ha: { p10: 100, p50: 150, p90: 200 },
   area_total_ha: 140, area_elegivel_ha: 100, fonte_area: "Demonstração fictícia", data_referencia_area: "2026-10-01", evidencia_area_id: "fixture-area",
   exclusoes: [{ motivo: "embargo", hectares: 30, fonte: "Demonstração fictícia", data_referencia: "2026-10-01" }, { motivo: "inelegivel_metodo", hectares: 20, fonte: "Demonstração fictícia", data_referencia: "2026-10-01" }], secoes,

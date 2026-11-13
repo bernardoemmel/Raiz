@@ -9,6 +9,11 @@ const EVIDENCIAS = {
   emitido: "Créditos emitidos",
   entregue: "Créditos entregues",
 } as const
+const METRICAS = {
+  credito_carbono: "Créditos de carbono",
+  credito_liquido: "Créditos líquidos de carbono",
+  reducao_flag: "Reduções para meta FLAG",
+} as const
 const EXCLUSOES = {
   embargo: "Embargo", terra_indigena: "Terra indígena", uc_protecao_integral: "Unidade de conservação de proteção integral",
   projeto_carbono: "Projeto de carbono existente", inelegivel_metodo: "Área não elegível para o método", outra: "Outra exclusão documentada",
@@ -25,7 +30,7 @@ export function FatosCredito({ ficha }: { ficha: FichaCredito }) {
   return <section className="fatos-credito" aria-labelledby={id}>
     <h3 id={id}>Fatos do lote</h3>
     <p className="fatos-base">{base ? `No mesmo horizonte de ${numeroTerra(base.horizonte_anos)} anos.` : "Horizonte ainda não informado."}</p>
-    <p>{base ? `${EVIDENCIAS[base.classe_evidencia]}. ${flag ? "Remoções para meta FLAG." : "Créditos de carbono."}` : "Classe de evidência ainda não informada."}</p>
+    <p>{base ? `${EVIDENCIAS[base.classe_evidencia]}. ${METRICAS[base.metrica]}.` : "Classe de evidência ainda não informada."}</p>
     <p>{base ? `Carteira: ${base.escopo_carteira === "titulares_e_reservas" ? "titulares e reservas" : "titulares"}. A mesma composição nas duas colunas.` : "Composição da carteira ainda não informada."}</p>
     {base && <p className="fatos-periodo">Início: {dataTerra(base.inicio)}. Fim: {dataTerra(base.fim)}.</p>}
     <dl className="fatos-area">
@@ -33,7 +38,7 @@ export function FatosCredito({ ficha }: { ficha: FichaCredito }) {
       <div><dt>Área total da carteira</dt><dd>{numeroTerra(ficha.area_total_ha)}{ficha.area_total_ha !== null && " ha"}</dd></div>
     </dl>
     <table>
-      <caption>{!base ? "Resultado do lote, em tCO₂e" : flag ? "Remoções para meta FLAG, em tCO₂e" : "Créditos de carbono, em tCO₂e"}</caption>
+      <caption>{base ? METRICAS[base.metrica] : "Resultado do lote"}, em tCO₂e</caption>
       <thead><tr><th scope="col">Faixa</th><th scope="col">Por hectare elegível</th><th scope="col">Total do lote</th></tr></thead>
       <tbody>{(["p10", "p50", "p90"] as const).map((quantil) => <tr key={quantil} className={quantil === "p50" ? "fatos-central" : undefined}>
         <th scope="row">{quantil.toUpperCase()}</th><td>{numeroTerra(porHa?.[quantil])}</td><td>{numeroTerra(total?.[quantil])}</td>
@@ -52,6 +57,6 @@ export function FatosCredito({ ficha }: { ficha: FichaCredito }) {
       <p>As áreas de exclusão podem se sobrepor. Não some as linhas.</p>
     </>}
     {base?.classe_evidencia === "estimativa_modelo" && <p className="fatos-nota">Estimativa de modelo não é crédito emitido nem entregue.</p>}
-    {flag && <p className="fatos-nota">Remoções para meta FLAG não são somadas a créditos de carbono vendáveis.</p>}
+    {flag && <p className="fatos-nota">Reduções para meta FLAG não são somadas a créditos de carbono vendáveis.</p>}
   </section>
 }
