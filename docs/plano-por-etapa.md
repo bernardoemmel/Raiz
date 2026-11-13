@@ -428,6 +428,15 @@ faz sem back-end.
 | Pedido por estado, bioma ou Brasil com cobertura e lacunas explícitas | **pendente** |
 | Painel de acerto do modelo por versão e comparação observada | **pendente**; não apresentar ausência de avaliações como 0% de acerto |
 
+## Telas e mapa: redesenho cartográfico e entrada direta
+
+| Entrega | Situação |
+|---|---|
+| Abrir direto no MapLibre, com países, oceano e cobertura por estado | **implementado, em validação**: SVG restrito ao minimapa; fundo nacional primeiro, detalhes regionais sob demanda; contador compara o índice com o último site publicado |
+| Hexágonos de potencial até zoom 11 e contornos finos a partir de zoom 12 | **implementado, em validação**: H3 com medida conhecida e cobertura parcial; sem preenchimento das fazendas, sobreposições tracejadas e hachura só com geometria medida e autorizada |
+| Satélite com licença comercial conferida | **implementado, em validação**: Sentinel-2 EOxCloudless vintage 2016, cenas 2016/2017, CC BY 4.0, atribuição e ano visíveis; véu claro e retorno à base vetorial em falha |
+| Prova visual antes/depois, zero 404 e Lighthouse ≥ 90 | **em andamento**: seis capturas com dados reais; testes de ordem das camadas; desempenho inicial ainda bloqueia o merge até atingir o portão existente |
+
 ## Telas e mapa: ficha visual da terra
 
 Entrega 3 da continuação de 12/11/2026, sobre a ficha paga do PR #52.

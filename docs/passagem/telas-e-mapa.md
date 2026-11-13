@@ -2,6 +2,35 @@
 
 Sessão: https://claude.ai/code/session_01VGb88MJumyG9PHt2znaaKE. Branch: `claude/upbeat-goodall-iwsrai`.
 
+## Redesenho cartográfico e entrada direta: em validação (12/11/2026, Brasília)
+
+- A entrada usa MapLibre com países, oceano e estados: verde-claro com municípios lidos/esperados;
+  cinza e “ainda não processado” onde faltam dados. O SVG grande foi retirado e o pequeno minimapa permanece.
+  O fundo chega primeiro; polígonos e base municipal só são carregados quando necessários. Municípios novos
+  são a diferença em relação ao último índice realmente publicado, nunca uma contagem inventada na sessão.
+- Até zoom 11, o detalhe é H3 em uma escala fixa de verde, com moldura municipal. A partir de zoom 12,
+  fazendas sem preenchimento, contorno de 1 px, hover, máscara ao selecionar e ficha breve. Pendência em
+  urucum depende do filtro; “não apto” tem contorno cinza discreto. CARs maiores ficam abaixo dos menores.
+  O tracejado identifica um CAR com interseção confirmada, não o perímetro exato da área sobreposta.
+- Potencial é a medida conhecida `carbono_ha`, sem misturar métricas ou deduzir desenho restaurável.
+  O projetor autenticado confere hashes/proveniência dos pares CSV/GeoParquet, deduplica CARs, verifica
+  interseções reais e soma apenas contribuintes não sobrepostos. Cada célula numérica exige cinco
+  contribuintes positivos; ausências não viram zero. A geometria H3 é reconstruída pelo build.
+- Snapshot verificado: 13 UFs, 6.787 células distintas, 3.717 com valor, 147.762 contribuintes e
+  1.572.045,21 hectares conhecidos, com cobertura parcial. H3 comprimido: 560.434 bytes. Os 444 arquivos
+  públicos mantêm 912.853 contornos e recebem somente o booleano de sobreposição, sem medidas pagas.
+  Fontes publicadas entre `2026-11-12T19:27:40Z` e `2026-11-13T00:35:56Z`; detalhes em `docs/mapa-potencial.md`.
+- O mosaico aberto usa **Sentinel-2 histórico 2016/2017**, vintage EOxCloudless 2016, CC BY 4.0 com uso
+  comercial conferido nas páginas oficiais. O ano e o crédito completo ficam visíveis. Não usar os anos
+  recentes da EOX com licença não comercial. Documento: `docs/design/satelite-publico.md`.
+- Hachura verde exige geometria de restauração medida e autorizada. O mapa geral aberto não baixa essa
+  camada paga; a ficha autenticada conserva a leitura pela API. Não desenhar uma fração fictícia do CAR.
+- Revisão visual detectou e corrigiu a base detalhada/satélite encobrindo os contornos; o Playwright agora
+  verifica também a ordem das camadas. Capturas reais e desempenho estão em validação. O portão Lighthouse
+  permanece ≥ 90; a abertura direta não será considerada pronta enquanto a série fixa não o atingir.
+- E9 continua aguardando as cartas reais. Contato com donos apenas na fase final; nenhuma identidade ou
+  contato pessoal foi acrescentado aos mapas.
+
 ## O que este chat fez
 
 - Front inteiro do design v1: entrada com o mapa do Brasil por estado, painel, funil, ficha da fazenda, ficha leve do
