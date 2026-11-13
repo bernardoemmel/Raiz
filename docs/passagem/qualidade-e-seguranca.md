@@ -1,6 +1,6 @@
 # Qualidade e segurança — passagem
 
-Entrega inicial de 12/11/2026 (#51); revisão de continuidade em 12/11/2026, até a main `c3bf907` (#85). Área: CI, E2E, infraestrutura e segurança. Correções em produto são pontuais,
+Entrega inicial de 12/11/2026 (#51); revisão de continuidade em 12/11/2026, até a main `2b6e8af` (#84, após #85). Área: CI, E2E, infraestrutura e segurança. Correções em produto são pontuais,
 com regressões. Mudanças de contrato/arquitetura ficam para os chats responsáveis abaixo.
 
 ## Continuidade desta entrega (12/11/2026)
@@ -19,7 +19,7 @@ com regressões. Mudanças de contrato/arquitetura ficam para os chats responsá
   a referência histórica não foi renovada. O adaptador agora liga os seis ataques e seis controles ao loop Claude
   real, com observação independente. O ensaio completo precisa passar no CI antes do merge do #76; resultados
   na seção final e no PR. Ausência de chave/modelo/adaptador ou falha de caso reprova, sem retorno ao aviso.
-- **Revisão contínua:** PRs #53, #56, #67, #54, #68, #70, #71, #73, #74, #55, #75, a integração #45/#69, #72, #77, #79, #80, #82 e #85 revisados,
+- **Revisão contínua:** PRs #53, #56, #67, #54, #68, #70, #71, #73, #74, #55, #75, a integração #45/#69, #72, #77, #79, #80, #82, #85 e #84 revisados,
   com correções pequenas de privacidade, calendário e idempotência abaixo.
   Scanners e testes rodam a cada push. O fundador optou por manter somente essas checagens por push, sem automação horária.
 
@@ -760,3 +760,8 @@ Gitleaks examinou cinco commits novos e 365.674 bytes do #85 sem detectar segred
 evidências, OAuth, Compose, cenários e workflows; não equivale a aprovação da campanha pass^4 ainda conduzida
 por **Produto e regras**. O job `agentes` herdado foi preservado: são onze checks obrigatórios na proteção manual.
 Ruff, formatação, actionlint, resultado do corpus e CI completo ficam vinculados ao fechamento do #76.
+
+O #84 entrou em `2b6e8af`: seu delta sobre #85 altera somente a passagem de Telas e mapa e o plano,
+com resultados de conferência da publicação. Revisado sem achado de lógica, dado pessoal ou segredo nesse diff.
+Integrado sem conflito operacional; os onze jobs executam a combinação atualizada. Ruff e formatação passaram
+nos 539 arquivos, além de actionlint. A referência histórica de ausência continua intacta.
