@@ -30,7 +30,7 @@ def test_lista_positiva_nunca_envia_coluna_nova_ao_cartao(tmp_path, monkeypatch)
         "carbono_ha": 99,
         "tir": 18,
         "nome_dono": "SEGREDO",
-        "cpf": "000.000.000-00",
+        "cpf": "DOCUMENTO_FICTICIO_NAO_PUBLICAR",
         "_cod_imovel": CAR,
     }
     monkeypatch.setattr(publico, "pasta", lambda: tmp_path)
@@ -97,7 +97,7 @@ def rodada(
                 "ha": ha,
                 "problema": problema,
                 "carbono": carbono,
-                "atributos": json.dumps({"nome_dono": "SEGREDO", "tir": 99, "cpf": "000.000.000-00"}),
+                "atributos": json.dumps({"nome_dono": "SEGREDO", "tir": 99, "cpf": "DOCUMENTO_FICTICIO_NAO_PUBLICAR"}),
             },
         )
         con.execute(
@@ -234,7 +234,7 @@ def test_rotulos_livres_e_numero_invalido_nao_passam_na_projecao(banco):
             resposta = cl.get(caminho)
             assert resposta.status_code == 200
             assert "Pessoa Fictícia" not in resposta.text and "ZZ" not in resposta.text
-            assert "SEGREDO" not in resposta.text and "000.000.000-00" not in resposta.text
+            assert "SEGREDO" not in resposta.text and "DOCUMENTO_FICTICIO_NAO_PUBLICAR" not in resposta.text
         assert "Não informada" in cl.get(versao.caminho).text
 
 
