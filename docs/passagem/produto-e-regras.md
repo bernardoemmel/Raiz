@@ -67,6 +67,10 @@ Passaram 104 testes focados; resumo único com 6.097 bytes. Será iniciada nova 
 A integração posterior com a main `c65d7bb` preserva a entrada de certidões, a
 vigilância dos lotes e as novas fontes do Calendário. O conflito na montagem da API
 foi resolvido mantendo os dois registros independentes de rotas.
+A main avançou novamente para `3a73879` (painel de acerto, alcance nacional,
+sensibilidade e diagnóstico de travas); incorporada sem conflito, preservando
+as novas rotas e o teste do pedido nacional. Passaram 96 testes focados e Ruff
+nessa integração. Nenhuma rodada do Pará foi executada.
 
 
 
