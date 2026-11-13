@@ -799,3 +799,13 @@ Contrato, acessibilidade e desenho: [docs/design/graficos-resultados.md](../desi
   confirma que a versão explícita dispensa a consulta à API de versões. Actionlint 1.7.12 passou com
   os mesmos argumentos do CI. A execução em andamento é preservada até terminar, sem cancelamento;
   a próxima revisão precisa concluir todos os nove jobs antes do merge.
+
+- A main `929b4f3` (PR #99) foi integrada sem conflitos, após as evidências cartográficas finais.
+  Não altera o front: a fonte das capturas e medições continua `650db81`. Foram preservadas as leituras
+  privadas por ID congelado, conferência de hashes e pares CSV/GeoParquet, publicação por projeção
+  positiva e admissão global de 15 jobs. Ibis permanece no extra opcional de conferência, sem substituir
+  a ingestão. Passaram **319 testes focados**, sem falhas/skips, incluindo ambos os projetores públicos,
+  leitura concorrente, retomadas, checkpoints, publicação, promoção e Ibis em DuckDB/SQLite. Ruff passou
+  em 617 arquivos e o lock foi conferido (256 pacotes). Nenhum workflow foi cancelado ou desligado.
+  A revisão completa será enviada ao CI; merge e auditoria do site continuam condicionados aos seus
+  resultados, sem reaproveitar o CI de um HEAD anterior como aprovação da integração.

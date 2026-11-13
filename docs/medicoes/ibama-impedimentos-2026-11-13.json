@@ -1,0 +1,153 @@
+{
+  "observado_em": "2026-11-13T03:39:39.583848+00:00",
+  "fonte": "cache privado do arquivo oficial termo_de_embargo.csv usado pelo motor",
+  "sha256": "d4d91f49533f4981f3ae5869721137e573b6136709cb1d4c4358bb7a48ed7800",
+  "bytes": 213835243,
+  "linhas": 117197,
+  "criterio_ativo": "SIT_CANCELADO != S e SIT_DESEMBARGO != S, idêntico ao motor",
+  "validacao": "Ausência de WKT, sem publicar dados de termos, imóveis ou pessoas. Geometria presente não implica validação geométrica. Município com termo sem WKT permanece bloqueado pela guarda vigente.",
+  "ufs": {
+    "AC": {
+      "termos_ativos": 4176,
+      "termos_ativos_sem_wkt": 796,
+      "municipios_com_termo_sem_wkt": 21
+    },
+    "AL": {
+      "termos_ativos": 1697,
+      "termos_ativos_sem_wkt": 878,
+      "municipios_com_termo_sem_wkt": 77
+    },
+    "AM": {
+      "termos_ativos": 9576,
+      "termos_ativos_sem_wkt": 2538,
+      "municipios_com_termo_sem_wkt": 56
+    },
+    "AP": {
+      "termos_ativos": 577,
+      "termos_ativos_sem_wkt": 275,
+      "municipios_com_termo_sem_wkt": 16
+    },
+    "BA": {
+      "termos_ativos": 3972,
+      "termos_ativos_sem_wkt": 2574,
+      "municipios_com_termo_sem_wkt": 294
+    },
+    "CE": {
+      "termos_ativos": 2463,
+      "termos_ativos_sem_wkt": 494,
+      "municipios_com_termo_sem_wkt": 96
+    },
+    "DF": {
+      "termos_ativos": 710,
+      "termos_ativos_sem_wkt": 646,
+      "municipios_com_termo_sem_wkt": 2
+    },
+    "ES": {
+      "termos_ativos": 2564,
+      "termos_ativos_sem_wkt": 2055,
+      "municipios_com_termo_sem_wkt": 76
+    },
+    "GO": {
+      "termos_ativos": 3155,
+      "termos_ativos_sem_wkt": 1840,
+      "municipios_com_termo_sem_wkt": 195
+    },
+    "MA": {
+      "termos_ativos": 2467,
+      "termos_ativos_sem_wkt": 1738,
+      "municipios_com_termo_sem_wkt": 168
+    },
+    "MG": {
+      "termos_ativos": 4704,
+      "termos_ativos_sem_wkt": 4176,
+      "municipios_com_termo_sem_wkt": 628
+    },
+    "MS": {
+      "termos_ativos": 801,
+      "termos_ativos_sem_wkt": 498,
+      "municipios_com_termo_sem_wkt": 70
+    },
+    "MT": {
+      "termos_ativos": 8120,
+      "termos_ativos_sem_wkt": 2708,
+      "municipios_com_termo_sem_wkt": 123
+    },
+    "PA": {
+      "termos_ativos": 17850,
+      "termos_ativos_sem_wkt": 5955,
+      "municipios_com_termo_sem_wkt": 130
+    },
+    "PB": {
+      "termos_ativos": 1975,
+      "termos_ativos_sem_wkt": 955,
+      "municipios_com_termo_sem_wkt": 138
+    },
+    "PE": {
+      "termos_ativos": 1169,
+      "termos_ativos_sem_wkt": 923,
+      "municipios_com_termo_sem_wkt": 122
+    },
+    "PI": {
+      "termos_ativos": 386,
+      "termos_ativos_sem_wkt": 233,
+      "municipios_com_termo_sem_wkt": 78
+    },
+    "PR": {
+      "termos_ativos": 2164,
+      "termos_ativos_sem_wkt": 426,
+      "municipios_com_termo_sem_wkt": 112
+    },
+    "RJ": {
+      "termos_ativos": 1676,
+      "termos_ativos_sem_wkt": 1642,
+      "municipios_com_termo_sem_wkt": 85
+    },
+    "RN": {
+      "termos_ativos": 860,
+      "termos_ativos_sem_wkt": 655,
+      "municipios_com_termo_sem_wkt": 98
+    },
+    "RO": {
+      "termos_ativos": 10914,
+      "termos_ativos_sem_wkt": 3373,
+      "municipios_com_termo_sem_wkt": 52
+    },
+    "RR": {
+      "termos_ativos": 2264,
+      "termos_ativos_sem_wkt": 270,
+      "municipios_com_termo_sem_wkt": 15
+    },
+    "RS": {
+      "termos_ativos": 911,
+      "termos_ativos_sem_wkt": 623,
+      "municipios_com_termo_sem_wkt": 169
+    },
+    "SC": {
+      "termos_ativos": 2195,
+      "termos_ativos_sem_wkt": 1459,
+      "municipios_com_termo_sem_wkt": 214
+    },
+    "SE": {
+      "termos_ativos": 1072,
+      "termos_ativos_sem_wkt": 303,
+      "municipios_com_termo_sem_wkt": 49
+    },
+    "SP": {
+      "termos_ativos": 1496,
+      "termos_ativos_sem_wkt": 1359,
+      "municipios_com_termo_sem_wkt": 203
+    },
+    "TO": {
+      "termos_ativos": 2119,
+      "termos_ativos_sem_wkt": 878,
+      "municipios_com_termo_sem_wkt": 123
+    }
+  },
+  "reproducao_rn": {
+    "controle": "raiz_controle_RN.json observado em 2026-11-13",
+    "municipios_com_erro_funil": 50,
+    "mesma_falha_reproduzida_na_guarda": 50,
+    "motivo": "embargo_ativo_sem_geometria_utilizavel",
+    "run": 43355236141
+  }
+}

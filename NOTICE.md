@@ -86,6 +86,13 @@ fundador em `motor/iovbench/` (EvenOdd, contorno externo menos buracos).
 - Licença: LGPL-2.1 ou posterior. Roda só como serviço separado no servidor (`revisor` em `infra/docker-compose.yml`);
   nenhum código dele é copiado para o produto. `raiz/revisor.py` só chama a API HTTP dele.
 
+## Conferência independente de contagens (rodada 12)
+
+Ibis **12.0.0** ([ibis-project/ibis](https://github.com/ibis-project/ibis), Apache-2.0),
+no extra opcional `conferencia`, executa a mesma expressão de contagem municipal em DuckDB e SQLite.
+Recebe apenas códigos municipais; não substitui a ingestão, não recebe produtores e não altera versões
+travadas dos motores existentes. Nenhum código-fonte de terceiros foi copiado.
+
 ## Extensão spatial do DuckDB
 
 - Origem: https://github.com/duckdb/duckdb-spatial (MIT), baixada de extensions.duckdb.org em tempo de execução, não
