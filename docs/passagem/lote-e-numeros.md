@@ -219,3 +219,8 @@ Próximas entregas, na ordem solicitada: catálogo e lote nacional incremental; 
 calibração apenas em pares comparáveis; sensibilidade com nova seleção; referências ecológicas com unidades,
 fontes, licença e suporte amostral explícitos. Pesquisas preparatórias não autorizam tratar resultado projetado
 como emissão observada nem riqueza padronizada de uma parcela como riqueza total da fazenda.
+
+A varredura de todos os ramos do PR #86 apontou três hashes SHA-256 de código no commit
+`e7074b4a170d745f34a4732072fcd954c0cad6f9`, linhas 3, 5 e 14 de `testes/mcp/sem_leitor_auditado.json`.
+Os hashes foram recalculados a partir dos arquivos daquele commit e conferem. A exceção restrita já preparada
+na frente de dados foi aplicada somente aos três fingerprints; nenhuma regra foi desativada nem arquivo MCP alterado.
