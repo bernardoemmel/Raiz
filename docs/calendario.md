@@ -124,6 +124,9 @@ pública válida no ambiente de execução; não há afirmação de que essa par
 A revisão acrescentou isolamento de PDF/OCR em processos com 1 GiB de memória, 60 segundos de CPU, prazo de parede
 e saída limitada durante a leitura. `stderr` é descartado. CAR de confrontante não comprova o imóvel, atos homônimos
 no mesmo PDF conservam identidades distintas e segunda praça conserva UID quando a primeira desaparece.
+Ao retirar uma matrícula/CAR ambíguo de um único evento já publicado, preserva o UID e corrige o registro vigente.
+A releitura real dos oito documentos/páginas da Fomento Paraná confirmou 11 eventos sem criar quatro duplicatas
+nem manter as matrículas descartadas. Uma correspondência com mais de um ato permanece sem resolução automática.
 As regressões são sintéticas e verificam contratos; não constituem conjunto real de certidões nem medem acerto do modelo.
 
 A sondagem posterior dos 13 diários, limitada a duas visitas por fonte, mostrou acesso oscilante: AP/CE/GO/MA
