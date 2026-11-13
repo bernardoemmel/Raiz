@@ -32,7 +32,7 @@ export function estiloBase(base: string | null, opcoes: { rotulos?: boolean; nac
     version: 8,
     glyphs: glyphs(),
     sources: {},
-    layers: [{ id: "background", type: "background", paint: { "background-color": SABOR_RAIZ.earth } }],
+    layers: [{ id: "background", type: "background", paint: { "background-color": SABOR_RAIZ.earth, ...(opcoes.nacional ? { "background-opacity": 0 } : {}) } }],
   }
   if (!base) return fundo
   // O primeiro frame pinta a geografia; os rótulos entram quando esse fundo estiver pronto.
@@ -49,6 +49,9 @@ export function estiloBase(base: string | null, opcoes: { rotulos?: boolean; nac
 export function camadasBaseNacionais(): LayerSpecification[] {
   const ids = new Set(["background", "earth", "water", "boundaries_country", "water_label_ocean", "places_country"])
   return camadasBase().filter((camada) => ids.has(camada.id)).map((camada) => {
+    // O container nacional já tem a mesma cor sólida: não compila um programa gráfico só para ela.
+    // A camada permanece como âncora de ordem; terra e água continuam sendo desenhadas pelo mapa real.
+    if (camada.type === "background") return { ...camada, paint: { ...camada.paint, "background-opacity": 0 } }
     if (camada.type === "fill") return { ...camada, paint: { ...camada.paint, "fill-antialias": false } }
     if (camada.type === "symbol") return { ...camada, layout: { ...camada.layout, "text-font": ["Noto Sans Regular"] } }
     if (camada.type === "line") {

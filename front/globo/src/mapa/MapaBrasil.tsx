@@ -278,6 +278,7 @@ export function MapaBrasil(props: Props) {
     let antes: string | undefined = "estados-preenchimento"
     for (const camada of m.getSource("protomaps") ? [...camadasBase()].reverse() : []) {
       if (!m.getLayer(camada.id)) m.addLayer(camada, antes)
+      else if (camada.type === "background") m.setPaintProperty(camada.id, "background-opacity", camada.paint?.["background-opacity"] ?? 1)
       else if (camada.type === "symbol" && camada.layout?.["text-font"]) m.setLayoutProperty(camada.id, "text-font", camada.layout["text-font"])
       else if (camada.type === "line" && camada.paint?.["line-dasharray"]) m.setPaintProperty(camada.id, "line-dasharray", camada.paint["line-dasharray"])
       antes = camada.id
@@ -801,7 +802,7 @@ export function MapaBrasil(props: Props) {
   const falhaNosAgregados = props.agregadosErro || erroAgregadosNoMapa
   return (
     <div className="mapa-brasil" role="region" aria-label={nomeMun ? `Mapa de ${nomeMun}` : nomeUf ? `Mapa de ${nomeUf}` : "Mapa do Brasil"}>
-      <div className="mapa" ref={caixa} />
+      <div className="mapa" ref={caixa} style={{ backgroundColor: MAPA.terra }} />
       {brasil && <div className="cartografia-legenda" aria-label="Como ler o mapa">
         {zoom < ZOOM_FAZENDAS && falhaNosAgregados && <p role="alert">Não foi possível carregar os agregados. Confira a conexão e recarregue a página.</p>}
         <details className="cartografia-resumo" open={margemBaixo === 0 && zoom >= ZOOM_FAZENDAS}>
