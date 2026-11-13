@@ -57,6 +57,12 @@ def test_csv_alterado_e_falha_explicita():
         leiloes.links("erro do servidor", leiloes.CAIXA + "/listaweb/Lista_imoveis_PA.csv", FONTE)
 
 
+def test_csv_prioriza_leilao_dentro_do_orcamento_de_visitas():
+    venda = DETALHE.replace("42", "43")
+    texto = csv(f"43;PA;Cidade;Imóvel rural;Venda direta;{venda}", f"42;PA;Cidade;Imóvel rural;Leilão SFI;{DETALHE}")
+    assert leiloes.links(texto, leiloes.sementes(FONTE, dt.date.today())[0], FONTE) == [DETALHE, venda]
+
+
 def test_detalhe_caixa_reune_datas_do_proprio_bem_e_descarta_texto_pessoal():
     bruto = detalhe(car=CAR).replace("Área de imóvel rural", "Texto pessoal que deve desaparecer. Área de imóvel rural")
     tx = leiloes.texto_evento(bruto, DETALHE, FONTE)
