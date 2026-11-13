@@ -69,7 +69,8 @@ comparar escopo/versões, incluindo os erros e o tempo efetivo após a correçã
   atributos originais; valida a cópia canônica e conserva o original. 67 testes e os 28 casos reais passaram.
   As tags diárias anteriores não comprovaram preservação remota; não afirmar recuperação do que não foi salvo.
 - **Correção local da projeção:** 16 testes passaram; a validação dos pacotes reais preservou 185.791 registros
-  em 130 CSVs de PI e 56.217 em 84 CSVs de RN, inclusive os dois identificadores de outra UF. Nenhum upload nessa prova.
+  em 130 CSVs de PI e 56.217 em 84 CSVs de RN, inclusive os dois identificadores de outra UF. O downloader
+  do site também foi corrigido e conferido com os mesmos 214 CSVs: bytes idênticos no destino. Nenhum upload nessa prova.
 - **Cópia estável:** a publicação agora lê pacote, Croissant, quantis, CADT e projeção básica da mesma cópia privada.
   Fecha a corrida observada em RN (ficha com 44 CSVs, pacote com 41); outras lanes continuam no espelho original.
   Bytes e SHA do sidecar precisam corresponder antes da cópia. O preflight mantém comparação exata do publicador:
@@ -87,7 +88,7 @@ comparar escopo/versões, incluindo os erros e o tempo efetivo após a correçã
 - **Reposição de paralelismo:** removido o limite de uma admissão no modo `proximo`. O cron de 15 minutos
   também preenche vagas com UFs incompletas, sem iniciar manutenção; pedidos persistidos continuam prioritários.
   Toda escolha passa pela mesma admissão CAS. Testes cobrem 0, 7, 14 e 15 vagas ocupadas e várias UFs:
-  194 testes de fila/promoção/catálogo passaram. Frontend: 291 testes e build aprovados; actionlint e Ruff verdes.
+  194 testes de fila/promoção/catálogo passaram. Frontend: 292 testes e build aprovados; actionlint e Ruff verdes.
 - **Ainda a fazer nesta urgência:** suíte integrada/CI, PR/merge e admissão das vagas disponíveis pela fila
   CAS. Conferir dados publicados, medir vazão e só então estimar estados por dia e conclusão do Brasil.
   Workflow consultado ativo às 22h17 de Brasília em 12/11; nenhum cancelamento por este chat.
@@ -417,3 +418,19 @@ backups. Os produtos finais continuam elegíveis a ficha e atestação; o proces
 - CADT de GO/MG indicou ausência de lote elegível. AC/AP/MA/RR/TO usam uniformemente
   `restauracao-2026b+cenarios-2026b+dbc2776a`, cenário `central_r11`; o registro fechado dessa versão está sendo
   recuperado no Git antes de gerar seus cronogramas. Os cálculos individuais publicados permanecem preservados.
+
+## Rodada 12 — instruções recebidas durante a correção urgente
+
+A prioridade continua sendo concluir as 27 UFs com até 15 jobs. Depois de implantar a correção acima:
+
+1. Explicitar o marcador municipal de integridade e a retomada da última partição íntegra.
+2. Medir mediana e p95 por município/UF e publicar método, amostras e números em `docs/operacao.md`.
+3. Interromper um processo executor de teste em estado pequeno e comparar retomada e execução inteira
+   por contagem de imóveis, nulos e geometrias sem área. Não desligar nem cancelar workflows.
+4. Usar Ibis Apache-2.0 somente para conferir a mesma contagem municipal em dois mecanismos; não trocar ingestão.
+5. Camada agregada de movimentação bovina PA/2016 e circuitos pecuários: só totais por município/mês.
+   Artigo localizado: https://www.astesj.com/v03/i05/p12/ (DOI 10.25046/aj030512). A tabela municipal/mensal
+   ainda não foi localizada; o link da pesquisa/base foi solicitado, sem bloquear a correção urgente.
+   Não reconstruir valores exatos de gráficos, inferir meses ou publicar produtores/estabelecimentos.
+
+A extensão dos formatos Lote PA e o retropreenchimento do catálogo continuam preservados e pendentes.

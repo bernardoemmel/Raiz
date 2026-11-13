@@ -30,6 +30,9 @@ Retomada em 12/11/2026, seguindo a passagem `docs/passagem/raiz-dados-do-brasil.
 RN/PI, preservar e retomar o progresso, preencher as vagas com várias UFs/fatias (teto global 15), e mostrar
 municípios prontos, em execução e com erro no painel, com última mudança. As extensões restantes dos formatos
 do Lote PA permanecem preservadas, mas aguardam essa correção operacional.
+Rodada 12 recebida: marcador municipal íntegro, tempos mediana/p95, ensaio de falha/retomada, conferência Ibis
+em dois mecanismos e camada bovina PA/2016 agregada por município/mês. Implementação e provas pendentes,
+com fontes e limites registrados na passagem; a prioridade segue sendo a fila dos 27 estados.
 
 O **#82 foi mesclado** em `cf306256`, após os oito checks do CI `43335410339` passarem, incluindo a referência
 privada completa do Pará. O workflow do motor foi conferido como `active`. A falha posterior de RN-1 veio da
