@@ -179,11 +179,15 @@ def ocupada(unidade: str, ativas: set[str]) -> bool:
     uf = unidade.split("-", 1)[0]
     if unidade in ativas or uf in ativas or ("-" not in unidade and any(u.startswith(uf + "-") for u in ativas)):
         return True
-    numero = int(unidade.split("-", 1)[1]) if "-" in unidade else 0
+    sufixo = unidade.partition("-")[2]
+    numero = int(sufixo) if sufixo.isdigit() else 0
     for ativa in ativas:
         if not ativa.startswith(uf + "-"):
             continue
-        outro = int(ativa.split("-", 1)[1])
+        sufixo_ativo = ativa.partition("-")[2]
+        if not sufixo_ativo.isdigit():
+            continue  # reservas auxiliares, como lote-pa-vaga-0, não são fatias de UF
+        outro = int(sufixo_ativo)
         if (numero >= 1000 and numero // 1000 == outro) or (outro >= 1000 and outro // 1000 == numero):
             return True
     return False
