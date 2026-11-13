@@ -37,6 +37,8 @@ class ReferenciaResultado(Fechado):
     unidade: Literal["tCO2e", "tCO2e/ha", "tCO2e/ha/ano", "tCO2e/ano"]
     escala: Literal["por_hectare", "lote"]
     area_base_ha: Annotated[float, Field(gt=0)]
+    area_elegivel_carteira_ha: Annotated[float, Field(gt=0)]
+    escopo_carteira: Literal["titulares", "titulares_e_reservas"]
     inicio: Dia
     fim: Dia
     horizonte_dias: Annotated[int, Field(gt=0)]
@@ -47,6 +49,8 @@ class ReferenciaResultado(Fechado):
             raise ValueError("O horizonte não corresponde ao período informado.")
         if (self.escala == "por_hectare") != ("/ha" in self.unidade):
             raise ValueError("Unidade e escala não correspondem.")
+        if self.escala == "lote" and self.area_base_ha != self.area_elegivel_carteira_ha:
+            raise ValueError("A base do lote precisa corresponder à área elegível da carteira.")
         if self.escala == "por_hectare" and self.area_base_ha != 1:
             raise ValueError("A base por hectare precisa ser um hectare.")
         return self

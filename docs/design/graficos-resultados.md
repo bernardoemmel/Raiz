@@ -10,7 +10,9 @@ por método; não se pode reconstruir observações a partir dessas notas nem pu
   Contrato exige `contrato_assinado`; emissão exige `emissao_registrada`; entrega exige `entrega_comprovada`.
   Cada valor tem fonte do catálogo, data e identificador do registro. `null` produz lacuna; zero continua zero.
 - Vega-Lite: faixa P10/P90, ponto circular P50 e losango para o observado. Cada par comprova a mesma classe
-  (crédito ou FLAG), métrica, unidade, escala, área de referência, início, fim e horizonte em dias.
+  (crédito ou FLAG), métrica, unidade, escala, área de referência, início, fim e horizonte em dias. `escopo_carteira` declara titulares ou titulares e reservas;
+  `area_elegivel_carteira_ha` preserva o denominador original mesmo quando `area_base_ha` é um hectare.
+  A escala do lote exige igualdade entre as duas áreas.
   A previsão ao vivo foi congelada antes do dia observado, e o gabarito corresponde à data-alvo exata.
   Reexecuções retrospectivas são declaradas e separadas. Versões e métodos ficam escritos na tabela;
   o desenho não seleciona vencedor nem comprova superioridade entre populações diferentes.

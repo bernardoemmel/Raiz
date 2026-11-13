@@ -14,7 +14,9 @@
         "area_base_ha": 20,
         "inicio": "2025-01-01",
         "fim": "2026-01-01",
-        "horizonte_dias": 365
+        "horizonte_dias": 365,
+        "area_elegivel_carteira_ha": 20,
+        "escopo_carteira": "titulares"
       },
       "regime": "acumulado",
       "marcos": [
@@ -103,7 +105,9 @@
           "area_base_ha": 20,
           "inicio": "2025-01-01",
           "fim": "2026-01-01",
-          "horizonte_dias": 365
+          "horizonte_dias": 365,
+          "area_elegivel_carteira_ha": 20,
+          "escopo_carteira": "titulares"
         },
         "corte": "2025-01-01",
         "congelada_em": "2025-01-01T00:00:00Z",
@@ -125,7 +129,9 @@
           "area_base_ha": 20,
           "inicio": "2025-01-01",
           "fim": "2026-01-01",
-          "horizonte_dias": 365
+          "horizonte_dias": 365,
+          "area_elegivel_carteira_ha": 20,
+          "escopo_carteira": "titulares"
         },
         "data": "2026-01-01",
         "registrado_em": "2026-01-02T00:00:00Z",
@@ -152,7 +158,9 @@
           "area_base_ha": 20,
           "inicio": "2025-01-01",
           "fim": "2026-01-01",
-          "horizonte_dias": 365
+          "horizonte_dias": 365,
+          "area_elegivel_carteira_ha": 20,
+          "escopo_carteira": "titulares"
         },
         "corte": "2025-01-01",
         "congelada_em": "2025-01-01T00:00:00Z",
@@ -174,7 +182,9 @@
           "area_base_ha": 20,
           "inicio": "2025-01-01",
           "fim": "2026-01-01",
-          "horizonte_dias": 365
+          "horizonte_dias": 365,
+          "area_elegivel_carteira_ha": 20,
+          "escopo_carteira": "titulares"
         },
         "data": "2026-01-01",
         "registrado_em": "2026-01-02T00:00:00Z",
@@ -201,7 +211,9 @@
           "area_base_ha": 20,
           "inicio": "2025-01-01",
           "fim": "2026-01-01",
-          "horizonte_dias": 365
+          "horizonte_dias": 365,
+          "area_elegivel_carteira_ha": 20,
+          "escopo_carteira": "titulares"
         },
         "corte": "2025-01-01",
         "congelada_em": "2025-01-01T00:00:00Z",
@@ -223,7 +235,9 @@
           "area_base_ha": 20,
           "inicio": "2025-01-01",
           "fim": "2026-01-01",
-          "horizonte_dias": 365
+          "horizonte_dias": 365,
+          "area_elegivel_carteira_ha": 20,
+          "escopo_carteira": "titulares"
         },
         "data": "2026-01-01",
         "registrado_em": "2026-01-02T00:00:00Z",

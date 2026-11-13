@@ -5,6 +5,9 @@ export interface ReferenciaResultado {
   unidade: "tCO2e" | "tCO2e/ha" | "tCO2e/ha/ano" | "tCO2e/ano"
   escala: "por_hectare" | "lote"
   area_base_ha: number
+  /** Denominador original documentado, preservado mesmo quando a escala é por hectare. */
+  area_elegivel_carteira_ha: number
+  escopo_carteira: "titulares" | "titulares_e_reservas"
   inicio: string
   fim: string
   horizonte_dias: number
@@ -71,14 +74,15 @@ const dia = (v: unknown): string => typeof v === "string" && /^\d{4}-\d{2}-\d{2}
 const instante = (v: unknown): string => typeof v === "string" && /^\d{4}-\d{2}-\d{2}T.*(?:Z|[+-]\d{2}:\d{2})$/.test(v) && Number.isFinite(Date.parse(v)) ? v : falha()
 const lista = (v: unknown): unknown[] => Array.isArray(v) && v.length <= 100 ? v : falha()
 function referencia(v: unknown): ReferenciaResultado {
-  const r = registro(v), inicio = dia(r.inicio), fim = dia(r.fim), horizonte_dias = numero(r.horizonte_dias), area_base_ha = numero(r.area_base_ha)
+  const r = registro(v), inicio = dia(r.inicio), fim = dia(r.fim), horizonte_dias = numero(r.horizonte_dias), area_base_ha = numero(r.area_base_ha), area_elegivel_carteira_ha = numero(r.area_elegivel_carteira_ha)
   if ((r.classe !== "credito_carbono" && r.classe !== "flag") || !["tCO2e", "tCO2e/ha", "tCO2e/ha/ano", "tCO2e/ano"].includes(String(r.unidade)) || (r.escala !== "por_hectare" && r.escala !== "lote") || area_base_ha <= 0 || horizonte_dias <= 0 || Date.parse(fim) - Date.parse(inicio) !== horizonte_dias * 86400000) return falha()
+  if (!["titulares", "titulares_e_reservas"].includes(String(r.escopo_carteira)) || area_elegivel_carteira_ha <= 0 || (r.escala === "lote" && area_base_ha !== area_elegivel_carteira_ha)) return falha()
   if ((r.escala === "por_hectare") !== String(r.unidade).includes("/ha") || (r.escala === "por_hectare" && area_base_ha !== 1)) return falha()
-  return { classe: r.classe, metrica: id(r.metrica), unidade: r.unidade as ReferenciaResultado["unidade"], escala: r.escala, area_base_ha, inicio, fim, horizonte_dias }
+  return { classe: r.classe, metrica: id(r.metrica), unidade: r.unidade as ReferenciaResultado["unidade"], escala: r.escala, area_base_ha, area_elegivel_carteira_ha, escopo_carteira: r.escopo_carteira as ReferenciaResultado["escopo_carteira"], inicio, fim, horizonte_dias }
 }
 /** Esta chave também impede que a interface reúna classes, bases e períodos diferentes no mesmo eixo. */
 export function chaveReferencia(r: ReferenciaResultado): string {
-  return JSON.stringify([r.classe, r.metrica, r.unidade, r.escala, r.area_base_ha, r.inicio, r.fim, r.horizonte_dias])
+  return JSON.stringify([r.classe, r.metrica, r.unidade, r.escala, r.area_base_ha, r.area_elegivel_carteira_ha, r.escopo_carteira, r.inicio, r.fim, r.horizonte_dias])
 }
 function fonte(v: unknown, limite: string): FonteResultado {
   const f = registro(v), data = dia(f.data)

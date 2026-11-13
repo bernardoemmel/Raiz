@@ -16,7 +16,7 @@ describe("evidências dos gráficos privados", () => {
     expect(opcoes.series[1].data).toEqual([null, 0, 80])
     expect(opcoes.series[1].connectNulls).toBe(false)
   })
-  it.each(["classe", "area_base_ha", "metrica", "unidade", "fim"])("rejeita referência divergente em %s", (campo) => {
+  it.each(["classe", "area_base_ha", "area_elegivel_carteira_ha", "escopo_carteira", "metrica", "unidade", "fim"])("rejeita referência divergente em %s", (campo) => {
     const r = exemplo(); r.comparacoes[0].observado.referencia[campo] = campo === "area_base_ha" ? 21 : "incompativel"
     expect(() => lerResultadosGraficos(r)).toThrow(/compatíveis/)
   })
@@ -46,12 +46,22 @@ describe("evidências dos gráficos privados", () => {
     expect(() => lerResultadosGraficos(r)).toThrow()
   })
   it("a demonstração acompanha a área, o horizonte e as faixas do documento fictício", () => {
-    const demo = resultadosDemonstracao({ area_ha: 4000, inicio: "2000-01-01", fim: "2025-01-01", creditos: { p10: 800000, p50: 1000000, p90: 1200000 } })
+    const demo = resultadosDemonstracao({ area_ha: 4000, escopo_carteira: "titulares", inicio: "2000-01-01", fim: "2025-01-01", creditos: { p10: 800000, p50: 1000000, p90: 1200000 } })
     const r = lerResultadosGraficos(demo)
     expect(r.origem).toBe("demonstracao")
+    expect(r.comparacoes[0].previsao.referencia.area_elegivel_carteira_ha).toBe(4000)
+    expect(r.comparacoes[0].previsao.referencia.escopo_carteira).toBe("titulares")
     expect(r.comparacoes[0].previsao.referencia.area_base_ha).toBe(4000)
     expect(r.comparacoes[0].previsao.referencia.horizonte_dias).toBe(9132)
     expect(r.comparacoes[0].previsao.p50).toBe(1000000)
+  })
+
+  it("por hectare preserva denominador original e escopo; não aceita carteira divergente", () => {
+    const d = exemplo()
+    for (const c of d.comparacoes) for (const k of ["previsao", "observado"]) Object.assign(c[k].referencia, { escala: "por_hectare", unidade: "tCO2e/ha", area_base_ha: 1 })
+    expect(lerResultadosGraficos(d).comparacoes[0].previsao.referencia.area_elegivel_carteira_ha).toBe(20)
+    d.comparacoes[0].observado.referencia.area_elegivel_carteira_ha = 30
+    expect(() => lerResultadosGraficos(d)).toThrow()
   })
 
 })

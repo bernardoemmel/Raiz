@@ -2,11 +2,11 @@ import type { Faixa } from "./tipos"
 import type { FonteResultado, MedidaConfirmada, ReferenciaResultado, ResultadosGraficos } from "../graficos-resultados"
 
 /** Só o modo simulado chama esta função. Todas as etapas e observações são fictícias. */
-export function resultadosDemonstracao({ area_ha, inicio, fim, creditos }: { area_ha: number; inicio: string; fim: string; creditos: Faixa }): ResultadosGraficos {
+export function resultadosDemonstracao({ area_ha, escopo_carteira, inicio, fim, creditos }: { area_ha: number; escopo_carteira: ReferenciaResultado["escopo_carteira"]; inicio: string; fim: string; creditos: Faixa }): ResultadosGraficos {
   const horizonte = (Date.parse(fim) - Date.parse(inicio)) / 86400000
   const depois = new Date(Date.parse(fim) + 86400000).toISOString()
   const meio = new Date(Date.parse(inicio) + Math.floor(horizonte / 2) * 86400000).toISOString().slice(0, 10)
-  const referencia: ReferenciaResultado = { classe: "credito_carbono", metrica: "credito_liquido", unidade: "tCO2e", escala: "lote", area_base_ha: area_ha, inicio, fim, horizonte_dias: horizonte }
+  const referencia: ReferenciaResultado = { classe: "credito_carbono", metrica: "credito_liquido", unidade: "tCO2e", escala: "lote", area_base_ha: area_ha, area_elegivel_carteira_ha: area_ha, escopo_carteira, inicio, fim, horizonte_dias: horizonte }
   const fonte = (id: string, data: string): FonteResultado => ({ nome: "Demonstração sintética", registro_id: `sintetico-${id}`, data })
   const valor = (n: number) => Math.round(n * 100) / 100
   const medida = (n: number, natureza: MedidaConfirmada["natureza"], data: string): MedidaConfirmada => ({ natureza, valor: valor(n), fonte: fonte(`${natureza}-${data}`, data) })

@@ -16,7 +16,7 @@ function AbrirGrafico({ titulo, children }: { titulo: string; children: ReactNod
   return <div className="painel-grafico"><button type="button" className="botao" aria-expanded={aberto} aria-controls={id} onClick={() => setAberto(!aberto)}>{aberto ? "Fechar gráfico" : `Abrir gráfico: ${titulo}`}</button><div id={id}>{aberto && <ProtecaoGrafico><Suspense fallback={<p role="status">Carregando o gráfico…</p>}>{children}</Suspense></ProtecaoGrafico>}</div></div>
 }
 function Referencia({ dado }: { dado: ReferenciaResultado }) {
-  return <p className="resultado-referencia">{dado.classe === "flag" ? "Meta FLAG" : "Crédito de carbono"}. {dado.metrica.replaceAll("_", " ")}, {dado.unidade}. {dado.escala === "por_hectare" ? "Por hectare" : `Base de ${numeroResultado(dado.area_base_ha)} ha do lote`}. De {dataResultado(dado.inicio)} a {dataResultado(dado.fim)}; horizonte de {numeroResultado(dado.horizonte_dias)} dias.</p>
+  return <p className="resultado-referencia">{dado.classe === "flag" ? "Meta FLAG" : "Crédito de carbono"}. {dado.metrica.replaceAll("_", " ")}, {dado.unidade}. {dado.escala === "por_hectare" ? `Por hectare da carteira de ${numeroResultado(dado.area_elegivel_carteira_ha)} ha elegíveis` : `Base de ${numeroResultado(dado.area_elegivel_carteira_ha)} ha elegíveis do lote`}. Carteira: {dado.escopo_carteira === "titulares" ? "titulares" : "titulares e reservas"}. De {dataResultado(dado.inicio)} a {dataResultado(dado.fim)}; horizonte de {numeroResultado(dado.horizonte_dias)} dias.</p>
 }
 function Fonte({ dado }: { dado: FonteResultado }) {
   return <small>Fonte: {dado.nome}. Data: <time dateTime={dado.data}>{dataResultado(dado.data)}</time>. Registro: <code>{dado.registro_id}</code>.</small>
