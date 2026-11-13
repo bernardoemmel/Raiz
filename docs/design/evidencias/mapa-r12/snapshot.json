@@ -1,10 +1,10 @@
 {
-  "capturado_em": "2026-11-13T03:46:32.744575+00:00",
+  "capturado_em": "2026-11-13T04:52:31.937Z",
   "viewport": {
     "largura": 1440,
     "altura": 1000
   },
-  "frontend": "14126428f8b8cbf711900032ae1fd4f9599d7da7",
+  "frontend": "f0a7c96055d26ee8a81461b6a77a6c308e132fd7",
   "exportador": "6bc77c1",
   "antes": {
     "url": "https://bernardoemmel.github.io/Raiz/",
@@ -16,7 +16,7 @@
       "height": 1000
     }
   },
-  "dados_publicados_em": "2026-11-12T23:54:43+00:00",
+  "dados_publicados_em": "2026-11-12T23:46:50+00:00",
   "municipios": 444,
   "estados": 13,
   "agregado": {
@@ -28,16 +28,29 @@
     "hectares_conhecidos": 1572045.2084039983,
     "atualizado_em": "2026-11-13T00:35:56.000Z",
     "ufs": 13,
-    "fallback_gzip_bytes": 215591
+    "fallback_gzip_bytes": 215591,
+    "sha256": "c55dd9c937f3bca2f97f51c21862b69ac4d846a48b5b3781bc495ea15b64f422",
+    "fallback_gzip_sha256": "5ad92a2138b0c78dc8ea7bfe9bd16bcedbebf095f05c80a8262737025fc04816"
   },
   "mapa_inicial": "MapLibre com Supercluster no worker e botões somente para grupos visíveis; sem SVG nacional grande",
   "rede": {
-    "requisicoes_desktop": 107,
+    "requisicoes_desktop": 108,
+    "requisicoes_celular": 55,
+    "respostas_desktop": {
+      "200": 72,
+      "206": 36
+    },
+    "respostas_celular": {
+      "200": 52,
+      "206": 3
+    },
     "erros": [],
     "tiles_satelite": 9,
     "todos_tiles_http_200": true,
     "endpoints_pagos_solicitados": false,
-    "celular_erros": []
+    "fonte_processamento": "amostra/processamento.json",
+    "raw_vivo_solicitado": false,
+    "escopo": "Build local final, com snapshot congelado; não comprova a publicação ao vivo."
   },
   "render": {
     "zoom": 14.319882480562114,
@@ -49,31 +62,42 @@
   },
   "imagens": {
     "brasil-360-depois.png": {
-      "sha256": "922027165adedee222f3fb81cc254ba27081e862088817860fa466f3c9cd6546",
-      "bytes": 68114
+      "sha256": "71db67a4340c68d38ff5800842f5fe0a2f2a84ff41dcf5ce16ee0edbe74cf22c",
+      "bytes": 82578,
+      "capturado_em": "2026-11-13T04:52:26.682Z"
     },
     "brasil-antes.png": {
       "sha256": "fd7942bd28a0ac1e486a8d8d57a9a85e92d11e43545ed4f0f31093c7bb1fb794",
-      "bytes": 220015
+      "bytes": 220015,
+      "capturado_em": "2026-11-13T02:14:31.344Z"
     },
     "brasil-depois.png": {
-      "sha256": "50079b8d2f9ce04d169296dfe6d87088a3d17003cd9d2c4fac2b658cc09df750",
-      "bytes": 335097
+      "sha256": "f61c42bad997c6812e54d7b761dc1f1ffb757b1b9fa361def1fb1d1a5024f99f",
+      "bytes": 336821,
+      "capturado_em": "2026-11-13T04:52:25.249Z"
     },
     "estado-depois.png": {
-      "sha256": "337712c611be26fdd1475fe92a32c8e5ccee07a14300ba7106786bb801fb400e",
-      "bytes": 501198
+      "sha256": "492b983f95dfed6afeb5ae66c4f33931cc0652ab2c83800daf763826d6c057e0",
+      "bytes": 484329,
+      "capturado_em": "2026-11-13T04:52:29.011Z"
     },
     "fazenda-depois.png": {
       "sha256": "0681e9c9b73760b224ece45dfcf0fef64a678b9a39fabe37a18534744df44a2e",
-      "bytes": 637195
+      "bytes": 637195,
+      "capturado_em": "2026-11-13T04:52:31.937Z"
     },
     "municipio-depois.png": {
       "sha256": "9e35b8956260ccfc3ca4ce10ffd74628263d1075fceba918b66b12b6b11c4f2c",
-      "bytes": 215498
+      "bytes": 215498,
+      "capturado_em": "2026-11-13T04:52:30.080Z"
+    },
+    "processamento-depois.png": {
+      "sha256": "b014750d1781ec2efef07e9c5188670471be70fe4aca159079ded061a7130654",
+      "bytes": 295716,
+      "capturado_em": "2026-11-13T04:52:26.886Z"
     }
   },
-  "index_sha256": "80d9a36c373c23fb6c7ec62672846fcc740d51f3935822d675567b67482b5610",
+  "index_sha256": "1e3ddeca5f514887bcb3940549220a6853cb8e5982dcb7e49a253cd41a05c179",
   "renderer": "307755d",
   "legenda": "1412642",
   "viewport_celular": {
@@ -82,8 +106,56 @@
   },
   "lighthouse": {
     "arquivo": "lighthouse.json",
-    "performance_mediana": 92,
+    "performance_mediana": 95,
     "acessibilidade_minima": 100,
-    "amostras": 3
+    "amostras": 3,
+    "fixture_rotas": 6,
+    "fixture_amostras": 18
+  },
+  "exportador_nota": "Origem histórica do agregado público congelado; não é a versão do painel de processamento.",
+  "indice_cartografico_gerado_em": "2026-11-12T23:54:43+00:00",
+  "resumo_aptidao": {
+    "municipios": 365,
+    "estados": 9,
+    "data_propria_informada": false
+  },
+  "fundo_css": "ce9f24f",
+  "painel_processamento": "2c0eaf8",
+  "build_env": {
+    "RAIZ_BASE": "/Raiz/",
+    "VITE_RAIZ_TESTE_MAPA": "1",
+    "VITE_RAIZ_PROCESSAMENTO_URL": "./amostra/processamento.json"
+  },
+  "processamento": {
+    "fonte": "amostra/processamento.json",
+    "sha256": "ab4a354a7d19b434fef0c10ad4d58ac4876ba345c5be9c43c4ee2b800c2d49f2",
+    "gerado_em": "2026-11-13T04:49:46.363Z",
+    "observacoes": 0,
+    "estados_sem_telemetria": 27,
+    "nota": "Projeção local criada para a comparação congelada. O snapshot não contém observações de execução; contagens e datas de observação permanecem null. gerado_em é a criação da projeção e não renova nem inventa observações.",
+    "estados_renderizados_sem_informacao": 27,
+    "contagens_renderizadas_nao_informadas": 81
+  },
+  "arquivos_fonte_confirmados": {
+    "geo/indice.json": {
+      "sha256": "fd7641f8d96632f9c362e0e87613b965f2eb219598d6fea84716e6838fb96fff",
+      "bytes": 94758,
+      "identico_ao_snapshot_congelado": true
+    },
+    "geo/agregados_brasil.geojson": {
+      "sha256": "c55dd9c937f3bca2f97f51c21862b69ac4d846a48b5b3781bc495ea15b64f422",
+      "bytes": 1227580,
+      "identico_ao_snapshot_congelado": true
+    },
+    "geo/agregados_brasil.geojson.gz": {
+      "sha256": "5ad92a2138b0c78dc8ea7bfe9bd16bcedbebf095f05c80a8262737025fc04816",
+      "bytes": 215591,
+      "identico_ao_snapshot_congelado": true
+    },
+    "amostra/estados.json": {
+      "sha256": "9d893685e8e7e4951bec713868d6b3284cdb94b1e7e1d61427fe6d4f86510aae",
+      "bytes": 11827,
+      "identico_ao_snapshot_congelado": true
+    }
   }
 }

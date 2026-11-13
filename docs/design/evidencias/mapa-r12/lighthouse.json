@@ -1,42 +1,228 @@
 {
-  "commit": "14126428f8b8cbf711900032ae1fd4f9599d7da7",
+  "commit": "f0a7c96055d26ee8a81461b6a77a6c308e132fd7",
   "artefato": "43331843113",
   "municipios": 444,
   "estados": 13,
+  "projecao_processamento": {
+    "fonte": "amostra/processamento.json",
+    "sha256": "ab4a354a7d19b434fef0c10ad4d58ac4876ba345c5be9c43c4ee2b800c2d49f2",
+    "gerado_em": "2026-11-13T04:49:46.363Z",
+    "observacoes": 0,
+    "estados_sem_telemetria": 27,
+    "nota": "Projeção local criada para a comparação congelada. O snapshot não contém observações de execução; contagens e datas de observação permanecem null. gerado_em é a criação da projeção e não renova nem inventa observações.",
+    "estados_renderizados_sem_informacao": 27,
+    "contagens_renderizadas_nao_informadas": 81
+  },
   "amostras": [
     {
       "rodada": 1,
-      "performance": 88,
+      "performance": 82,
       "accessibility": 100,
-      "lcp": 1464.3814,
-      "tbt": 431.50000000000045
+      "lcp": 1494.5418,
+      "tbt": 709.0000000000009,
+      "iniciado_em": "2026-11-13T04:50:02.805Z",
+      "relatorio_sha256": "3fa6130a83530eedf658027f19a045732f0452ad8620aa3dd3eff5a9f9ea2fcb"
     },
     {
       "rodada": 2,
-      "performance": 98,
+      "performance": 95,
       "accessibility": 100,
-      "lcp": 1430.0482,
-      "tbt": 152
+      "lcp": 1425.5384,
+      "tbt": 232.49999999999955,
+      "iniciado_em": "2026-11-13T04:50:10.685Z",
+      "relatorio_sha256": "ae5f71e3e3284dac4389f54e2205747c51a7ab31abf8240da5ef015d66a5063b"
     },
     {
       "rodada": 3,
-      "performance": 92,
+      "performance": 95,
       "accessibility": 100,
-      "lcp": 1489.9449,
-      "tbt": 318.99999999999955
+      "lcp": 1428.199,
+      "tbt": 261.00000000000045,
+      "iniciado_em": "2026-11-13T04:50:18.041Z",
+      "relatorio_sha256": "091360d6eae88fcb56b3b5ffdf9c208ed93e8446d90d033ad8bb891f2ccd30c1"
     }
   ],
-  "mediana_desempenho": 92,
+  "mediana_desempenho": 95,
   "minimo_acessibilidade": 100,
   "metodo": "Lighthouse mobile 360 × 800, CPU/rede simuladas, três execuções consecutivas fixas em um Chrome, sem escolher a melhor amostra",
-  "baseline_worker": [
-    78,
-    84,
-    90
-  ],
-  "dom_antes_legenda": [
-    91,
-    93,
-    97
-  ]
+  "limite": "Snapshot público congelado. A mediana supera 90, mas a primeira amostra 82 permanece registrada; a inicialização gráfica ainda varia neste ambiente.",
+  "fixture": {
+    "commit": "f0a7c96055d26ee8a81461b6a77a6c308e132fd7",
+    "dados": "Fixture sintética do CI, distinta do snapshot real de 444 municípios.",
+    "rotas": 6,
+    "amostras_por_rota": 3,
+    "axe": [
+      {
+        "pagina": "brasil-360",
+        "regras": 32,
+        "violacoes": 0
+      },
+      {
+        "pagina": "municipio-360",
+        "regras": 31,
+        "violacoes": 0
+      },
+      {
+        "pagina": "entrada-erro-360",
+        "regras": 25,
+        "violacoes": 0
+      },
+      {
+        "pagina": "novo-pedido-360",
+        "regras": 27,
+        "violacoes": 0
+      },
+      {
+        "pagina": "novo-pedido-filtros-360",
+        "regras": 27,
+        "violacoes": 0
+      },
+      {
+        "pagina": "prospeccao-publica-360",
+        "regras": 26,
+        "violacoes": 0
+      },
+      {
+        "pagina": "produtor-360",
+        "regras": 13,
+        "violacoes": 0
+      }
+    ],
+    "lighthouse": [
+      {
+        "pagina": "brasil",
+        "performance": 98,
+        "accessibility": 100,
+        "amostras": [
+          {
+            "performance": 98,
+            "accessibility": 100
+          },
+          {
+            "performance": 99,
+            "accessibility": 100
+          },
+          {
+            "performance": 97,
+            "accessibility": 100
+          }
+        ]
+      },
+      {
+        "pagina": "entrar",
+        "performance": 98,
+        "accessibility": 100,
+        "amostras": [
+          {
+            "performance": 98,
+            "accessibility": 100
+          },
+          {
+            "performance": 98,
+            "accessibility": 100
+          },
+          {
+            "performance": 98,
+            "accessibility": 100
+          }
+        ]
+      },
+      {
+        "pagina": "novo-pedido",
+        "performance": 97,
+        "accessibility": 100,
+        "amostras": [
+          {
+            "performance": 97,
+            "accessibility": 100
+          },
+          {
+            "performance": 97,
+            "accessibility": 100
+          },
+          {
+            "performance": 97,
+            "accessibility": 100
+          }
+        ]
+      },
+      {
+        "pagina": "prospeccao",
+        "performance": 97,
+        "accessibility": 100,
+        "amostras": [
+          {
+            "performance": 97,
+            "accessibility": 100
+          },
+          {
+            "performance": 97,
+            "accessibility": 100
+          },
+          {
+            "performance": 96,
+            "accessibility": 100
+          }
+        ]
+      },
+      {
+        "pagina": "acerto",
+        "performance": 97,
+        "accessibility": 100,
+        "amostras": [
+          {
+            "performance": 97,
+            "accessibility": 100
+          },
+          {
+            "performance": 97,
+            "accessibility": 100
+          },
+          {
+            "performance": 97,
+            "accessibility": 100
+          }
+        ]
+      },
+      {
+        "pagina": "produtor",
+        "performance": 100,
+        "accessibility": 100,
+        "amostras": [
+          {
+            "performance": 100,
+            "accessibility": 100
+          },
+          {
+            "performance": 100,
+            "accessibility": 100
+          },
+          {
+            "performance": 100,
+            "accessibility": 100
+          }
+        ]
+      }
+    ]
+  },
+  "historico": {
+    "nota": "Séries anteriores preservadas como histórico, não como resultado do build final.",
+    "worker_antes_dom": [
+      78,
+      84,
+      90
+    ],
+    "dom_antes_legenda": [
+      91,
+      93,
+      97
+    ],
+    "integrado_1412642": [
+      88,
+      98,
+      92
+    ]
+  },
+  "lighthouse_versao": "13.6.0",
+  "navegador": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/156.0.0.0 Safari/537.36"
 }
