@@ -15,10 +15,10 @@ const ANTES = 'function BN(e,t){let n=t.context,r=n.gl,{sky:i,pixelRatio:a}=t.da
 const DEPOIS = 'function BN(e,t){let n=t.context,r=n.gl,{sky:i,pixelRatio:a}=t.data;'
   + 'if(i["sky-color"].a===0&&i["horizon-color"].a===0)return;let o=mM(i,t.transform,a)'
 
-/** Recusa atualizações do fornecedor até conferir novamente o código, o hash e o comportamento. */
+/** Este pin também protege o adaptador privado de programas nacionais; ambos exigem revisão ao atualizar. */
 export function corrigirCeuTransparente(codigo: string, versao: string): string {
   if (versao !== VERSAO || createHash('sha256').update(codigo).digest('hex') !== SHA256 || codigo.split(ANTES).length !== 2)
-    throw new Error('MapLibre diferente de 6.15.0 conferido: revise a correção do céu transparente antes de atualizar.')
+    throw new Error('MapLibre diferente de 6.15.0 conferido: revise a correção do céu e o adaptador de programas nacionais antes de atualizar.')
   return codigo.replace(ANTES, DEPOIS)
 }
 

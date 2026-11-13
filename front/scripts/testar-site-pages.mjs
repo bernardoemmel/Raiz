@@ -64,8 +64,10 @@ const pagina = await contexto.newPage()
 await pagina.addInitScript(() => {
   const fontes = new WeakMap(), programas = new WeakMap()
   window.__shadersMapa = []
+  window.__compilacoesMapa = []
+  let desenhos = 0
   const proto = WebGL2RenderingContext.prototype
-  for (const nome of ["shaderSource", "attachShader", "linkProgram"]) {
+  for (const nome of ["shaderSource", "attachShader", "linkProgram", "drawElements", "drawArrays"]) {
     const original = proto[nome]
     proto[nome] = function (...args) {
       if (nome === "shaderSource") fontes.set(args[0], { fonte: args[1], tipo: this.getShaderParameter(args[0], this.SHADER_TYPE) })
@@ -74,7 +76,11 @@ await pagina.addInitScript(() => {
         lista.push(fontes.get(args[1]))
         programas.set(args[0], lista)
       }
-      if (nome === "linkProgram") window.__shadersMapa.push(programas.get(args[0]) ?? [])
+      if (nome === "linkProgram") {
+        window.__shadersMapa.push(programas.get(args[0]) ?? [])
+        window.__compilacoesMapa.push({ desenhosAnteriores: desenhos })
+      }
+      if (nome === "drawElements" || nome === "drawArrays") desenhos++
       return original.apply(this, args)
     }
   }
@@ -176,6 +182,9 @@ try {
   assert(rotulos.some(p => p.nome === "Pará" && /municípios/.test(p.linha)), "Nome e cobertura do Pará devem aparecer no mapa inicial.")
   const simbolos = (await pagina.evaluate(() => window.__shadersMapa)).filter(fontes => fontes.some(s => s.fonte.includes("u_is_halo")))
   assert(simbolos.length > 0, "O teste deve exercer o programa symbolSDF no contexto real do mapa.")
+  const compilacoes = await pagina.evaluate(() => window.__compilacoesMapa)
+  assert.equal(compilacoes.length, 4, "O nacional usa clipping, fill, line e symbolSDF, sem variantes extras.")
+  assert(compilacoes.every(c => c.desenhosAnteriores === 0), "Na fixture nacional, os quatro programas devem estar prontos antes do primeiro draw real.")
   for (const fontes of simbolos) {
     const hash = tipo => createHash("sha256").update(fontes.find(s => s.tipo === tipo).fonte).digest("hex")
     assert.equal(hash(35632), "3cc8044beb3c42bdac74105917f0125ed32a9e3773c12be108fd8236f04af4bf", "Fragmento nacional precisa coincidir com o aquecido no worker.")

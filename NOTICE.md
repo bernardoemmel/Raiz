@@ -433,7 +433,7 @@ original do Lighthouse; sua compatibilidade é verificada com o teste de agentes
 capturados em transporte local, sem envio ao Sentry. Ao atualizar o Lighthouse ou esse pin, repetir essas
 verificações e a checagem integral de licenças; não liberar FSL nem instalar a CLI como exceção.
 
-## Preparação do símbolo e correção do céu — MapLibre GL JS 6.15.0
+## Preparação dos programas e correção do céu — MapLibre GL JS 6.15.0
 
 `front/globo/src/mapa/shader-simbolo.generated.ts` contém os shaders `symbolSDF` de Mercator do
 MapLibre GL JS **6.15.0**, sob **BSD-3-Clause**, gerados pelo preparador do próprio fornecedor.
@@ -441,6 +441,15 @@ Versão, SHA-256 do pacote, defines e bytes finais são conferidos antes do buil
 está em `front/terceiros/maplibre-gl.LICENSE.txt` e acompanha o site em `licencas/maplibre-gl.txt`.
 O worker compila essa variante para preparar o cache
 gráfico; o mapa mantém seus próprios programas e o caminho normal quando o aquecimento falha.
+
+`front/globo/src/mapa/preparar-programas-nacionais.ts` usa os construtores e o cache reais do mesmo
+pacote assim que houver um bucket, antes dos desenhos desse frame, somente no estilo nacional 2D
+com propriedades uniformes. O adaptador
+privado é limitado à versão/hash conferidos e restaura o renderizador original após preparar ou recusar
+o estilo. A configuração SDF estadual fixa conserva os bytes aquecidos no worker; as demais variantes
+preservam os nomes de macros/uniforms, mesmo quando a ordem das macros independentes muda. Não há
+substituição de desenhos, stencil, framebuffer ou eventos de prontidão. Os testes usam as classes
+originais do fornecedor, com a semântica de campos de classe de seu build restrita ao harness de testes.
 
 `front/compartilhado/vite-maplibre-ceu.ts` aplica, em memória durante build e desenvolvimento,
 uma correção pequena ao `drawSky` do pacote MapLibre GL JS **6.15.0**, sob **BSD-3-Clause**.

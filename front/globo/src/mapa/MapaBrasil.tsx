@@ -24,6 +24,7 @@ import { tituloDe } from "../filtros"
 import { linkCalendarioImovel, linkFazenda } from "../rota"
 import { camadasBase, estiloBase, imagemHachura, prepararMapLibre } from "./estilo"
 import { prepararGpu } from "./preparar-gpu"
+import { instalarPreparoProgramasNacionais } from "./preparar-programas-nacionais"
 import { MarcadoresGrupos } from "./marcadores-grupos"
 
 import type { AgregadosMapa } from "../../../compartilhado/dados/agregados"
@@ -242,6 +243,7 @@ export function MapaBrasil(props: Props) {
     let removido = false
     let instancia: MapaGL | null = null
     let liberarGpu: (() => void) | undefined
+    let restaurarProgramas: (() => void) | undefined
     void prepararGpu().then(async (liberar) => {
       liberarGpu = liberar
       if (removido || !caixa.current) { liberar(); return }
@@ -263,6 +265,7 @@ export function MapaBrasil(props: Props) {
         locale: { "NavigationControl.ZoomIn": "Aproximar", "NavigationControl.ZoomOut": "Afastar", "Popup.Close": "Fechar ficha breve" },
       })
       instancia = m
+      restaurarProgramas = instalarPreparoProgramasNacionais(m)
       // bounds no construtor faz o MapLibre redimensionar o canvas duas vezes.
       // O enquadramento imediato usa o tamanho final antes do primeiro frame.
       m.fitBounds(BRASIL, { padding: { top: 48, left: 48, right: 48, bottom: 48 + margemBaixo }, duration: 0 })
@@ -314,6 +317,7 @@ export function MapaBrasil(props: Props) {
     return () => {
       removido = true
       liberarGpu?.()
+      restaurarProgramas?.()
       limparSatelite.current?.()
       limparSatelite.current = undefined
       setPronto(false)

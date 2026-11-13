@@ -7,7 +7,7 @@
     "predev": "node ../scripts/baixar-dados.mjs && node ../scripts/baixar-calendario.mjs",
     "dados": "node ../scripts/baixar-dados.mjs",
     "dev": "vite",
-    "build": "node ../scripts/verificar-design.mjs && vitest run src/mapa/estilo.test.ts ../compartilhado/gerar-shader-simbolo.test.ts && tsc -b && vite build",
+    "build": "node ../scripts/verificar-design.mjs && vitest run src/mapa/estilo.test.ts src/mapa/preparar-programas-nacionais.test.ts ../compartilhado/gerar-shader-simbolo.test.ts && tsc -b && vite build",
     "lint": "oxlint",
     "preview": "vite preview",
     "test": "vitest run",
