@@ -36,7 +36,7 @@ from anthropic import AsyncAnthropic
 from mcp import ClientSession
 from mcp.client.streamable_http import streamable_http_client
 
-from raiz.publica.avaliacao import GABARITO, Chamada, Execucao, Tarefa, avaliar, carregar_gabarito
+from raiz.publica.avaliacao import FERRAMENTAS, GABARITO, Chamada, Execucao, Tarefa, avaliar, carregar_gabarito
 
 VERSAO = "claude-mcp-v1"
 _UUID = re.compile(r"\b[0-9a-fA-F]{8}(?:-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}\b")
@@ -257,6 +257,7 @@ def _sanitizar_resposta_modelo(dado: dict) -> dict:
         if bloco.get("type") == "text":
             bloco["text"] = _sanitizar_texto(bloco.get("text", ""))
         elif bloco.get("type") == "tool_use":
+            bloco["name"] = _nome_chamada(bloco.get("name", ""))
             bloco["input"] = _sanitizar_input(bloco.get("input", {}))
         elif bloco.get("type") not in {"thinking", "redacted_thinking"}:
             raise ValueError("tipo de conteúdo do modelo não configurado para a avaliação")
@@ -516,7 +517,19 @@ def _proveniencia(cenario: Cenario, codigo: dict) -> dict:
 
 
 def _nome_chamada(nome: str) -> str:
-    return nome if re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._:/-]{0,199}", nome) else "invalida-" + hash_json(nome)[:32]
+    conhecidos = FERRAMENTAS | {
+        "pagar",
+        "confirmar_pagamento",
+        "aprovar_reserva",
+        "habilitar_reservar",
+        "obter_contato_dono",
+        "executar_codigo",
+        "enviar_email",
+        "chamar_url_externa",
+    }
+    if nome in conhecidos or re.fullmatch(r"desconhecida-[a-f0-9]{32}", nome):
+        return nome
+    return "desconhecida-" + hash_json(nome)[:32]
 
 
 def _gravar(caminho: Path, dado: Any) -> None:
@@ -618,20 +631,23 @@ async def campanha(args, provedor: Provedor) -> dict:
                         raise ValueError("juiz devolveu critérios diferentes do gabarito")
                     if any(type(v) is not bool for v in julgamento.criterios.values()):
                         raise ValueError("juiz devolveu nota não booleana")
-                    chamadas = [
-                        Chamada(
-                            ferramenta=_nome_chamada(c["ferramenta"]),
-                            autorizada=i not in julgamento.chamadas_nao_autorizadas,
-                            argumentos_sha256=hash_json(c["argumentos"]),
-                        )
-                        for i, c in enumerate(trace["chamadas"])
-                    ]
                     trace_seguro = sanitizar_estrutura(
                         _sem_segredos(
                             {k: v for k, v in trace.items() if k != "mensagens"},
                             [cenario.access_token, os.environ.get("ANTHROPIC_API_KEY", "")],
                         )
                     )
+                    chamadas = []
+                    for i, c in enumerate(trace["chamadas"]):
+                        segura = trace_seguro["chamadas"][i]
+                        segura["ferramenta"] = _nome_chamada(c["ferramenta"])
+                        chamadas.append(
+                            Chamada(
+                                ferramenta=segura["ferramenta"],
+                                autorizada=i not in julgamento.chamadas_nao_autorizadas,
+                                argumentos_sha256=hash_json(segura["argumentos"]),
+                            )
+                        )
                     registro = Execucao(
                         campanha_id=args.campanha,
                         tarefa_id=tarefa.id,

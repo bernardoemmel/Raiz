@@ -42,7 +42,7 @@ jobs:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
           mkdir -p .cache/agentes-real
-          fim=".cache/agentes-real/campanha-encerrada"
+          fim=".cache/agentes-campanha-encerrada"
           uv run python -m scripts.pilha_agentes medir --teste --env-file .env.agentes-teste \
             --saida .cache/agentes-real/recursos.json --amostras 720 --intervalo 10 \
             --ate-arquivo "$fim" &
@@ -58,13 +58,25 @@ jobs:
           wait "$medidor_pid"
           trap - EXIT
           exit "$codigo"
-      - name: Guardar somente o relatório técnico como artefato do workflow
-        if: always()
+      - name: Conferir que as evidências exportáveis não contêm segredos nem raciocínio bruto
+        id: evidencias
+        if: always() && hashFiles('.cache/agentes-real/*.json', '.cache/agentes-real/*.jsonl', '.cache/agentes-real/cassetes/*.yaml') != ''
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: >-
+          uv run python -m scripts.verificar_evidencias_agentes
+          --saida .cache/agentes-real --cassetes .cache/agentes-real/cassetes
+      - name: Guardar somente as evidências sanitizadas para revisão e replay
+        if: always() && steps.evidencias.outcome == 'success'
         uses: actions/upload-artifact@v4
         with:
           name: medicao-agente-real
           path: |
             .cache/agentes-real/relatorio.json
+            .cache/agentes-real/execucoes.jsonl
+            .cache/agentes-real/configuracao.json
+            .cache/agentes-real/trace-*.json
+            .cache/agentes-real/cassetes/*.yaml
             .cache/agentes-real/recursos.json
           retention-days: 30
           if-no-files-found: error

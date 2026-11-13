@@ -260,3 +260,88 @@ def test_chave_ausente_falha_explicitamente_sem_inventar_resultado(tmp_path, mon
     relatorio = json.loads((tmp_path / "evidencias/relatorio.json").read_text())
     assert relatorio["aprovado"] is False and "pass4" not in relatorio
     assert not (tmp_path / "cassetes").exists()
+
+
+def test_replay_preserva_ritmo_da_inferencia_sem_bloquear_event_loop(monkeypatch):
+    esperas = []
+
+    async def esperar(segundos):
+        esperas.append(segundos)
+
+    monkeypatch.setattr(A.asyncio, "sleep", esperar)
+    resposta = httpx.Response(
+        200,
+        json={"content": []},
+        headers={"x-raiz-inferencia-segundos": "3.25"},
+        request=httpx.Request("POST", "https://api.anthropic.com/v1/messages"),
+    )
+    token = A._mapa_atual.set(A.MapaCassete("ritmo"))
+    try:
+        asyncio.run(A._restaurar_resposta(resposta))
+    finally:
+        A._mapa_atual.reset(token)
+    assert esperas == [3.25]
+
+
+def test_proveniencia_rejeita_imagem_diferente_do_checkout():
+    caminhos = [
+        "raiz/api.py",
+        "raiz/publica/servidor_mcp.py",
+        "raiz/publica/trabalhos.py",
+        "uv.lock",
+        "pyproject.toml",
+        "alembic.ini",
+    ]
+    arquivos = dict.fromkeys(caminhos, "a" * 64)
+    manifesto = {"versao": 1, "arquivos": arquivos}
+    cenario = A.Cenario(
+        "", "http://localhost/mcp/", "token", {"proveniencia_servico": {"api": manifesto, "worker": manifesto}}
+    )
+    assert A._proveniencia(cenario, {"arquivos": arquivos})
+    alterados = {**arquivos, "raiz/api.py": "b" * 64}
+    with pytest.raises(ValueError, match="códigos diferentes"):
+        A._proveniencia(cenario, {"arquivos": alterados})
+
+
+def test_upload_recusa_credenciais_raciocinio_e_arquivos_extras(tmp_path):
+    from scripts.verificar_evidencias_agentes import verificar
+
+    saida, cassetes = tmp_path / "saida", tmp_path / "cassetes"
+    saida.mkdir()
+    A._gravar(saida / "relatorio.json", {"aprovado": False})
+    assert verificar(saida, cassetes) == 1
+    A._gravar(saida / "trace-disponibilidade_pa-1.json", {"resposta": "segredo-conhecido"})
+    with pytest.raises(ValueError, match="credencial"):
+        verificar(saida, cassetes, chave_api="segredo-conhecido")
+    A._gravar(saida / "trace-disponibilidade_pa-1.json", {"type": "thinking", "thinking": "privado"})
+    with pytest.raises(ValueError, match="raciocínio"):
+        verificar(saida, cassetes)
+    (saida / "trace-disponibilidade_pa-1.json").unlink()
+    (saida / ".env").write_text("ENV=teste")
+    with pytest.raises(ValueError, match="fora da lista"):
+        verificar(saida, cassetes)
+
+
+def test_modelo_divergente_nao_se_torna_medicao_do_modelo_solicitado():
+    class Cliente:
+        def __init__(self):
+            self.messages = self
+
+        async def create(self, **kwargs):
+            return SimpleNamespace(model="outro-modelo")
+
+    tarefa = carregar_gabarito()[0].tarefas[0]
+    with pytest.raises(ValueError, match="outro modelo"):
+        asyncio.run(
+            A.conversar(
+                tarefa,
+                A.Cenario("contexto", "http://localhost/mcp/", "token"),
+                object(),
+                Cliente(),
+                modelo="claude-sonnet-5-5",
+                max_passos=2,
+                max_tokens=512,
+                instrucoes="Contrato",
+                ferramentas=[],
+            )
+        )

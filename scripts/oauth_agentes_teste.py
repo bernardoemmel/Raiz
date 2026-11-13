@@ -11,6 +11,7 @@ import hashlib
 import secrets
 from dataclasses import dataclass, field
 from html.parser import HTMLParser
+from http.cookiejar import DefaultCookiePolicy
 from urllib.parse import parse_qs, urljoin, urlsplit
 
 import httpx
@@ -81,6 +82,20 @@ class KeycloakTeste:
         username = "fixture-" + hashlib.sha256(identificador.encode()).hexdigest()[:24]
         senha = secrets.token_urlsafe(32)
         async with httpx.AsyncClient(timeout=20, follow_redirects=False, trust_env=False) as cl:
+            # Chromium trata localhost como contexto seguro e envia estes cookies Secure.
+            # http.cookiejar não implementa essa exceção. Este cliente é exclusivo do
+            # Keycloak HTTP local, com destinos/redirects validados e callback nunca acessado.
+            cl.cookies.jar.set_policy(DefaultCookiePolicy(secure_protocols=("https", "http")))
+
+            async def cookies_locais(request):
+                if (request.url.scheme, request.url.netloc.decode()) != ("http", urlsplit(self.base).netloc):
+                    raise RuntimeError("O bootstrap não pode enviar credenciais fora do Keycloak local")
+                # httpx copia o jar ao preparar a requisição e perde a política particular.
+                # Reaplica a política original depois dessa preparação, só nesta origem local.
+                request.headers.pop("Cookie", None)
+                cl.cookies.set_cookie_header(request)
+
+            cl.event_hooks["request"].append(cookies_locais)
             headers = await self._admin(cl)
             users = f"{self.base}/admin/realms/raiz/users"
             r = await cl.get(users, params={"username": username, "exact": "true"}, headers=headers)

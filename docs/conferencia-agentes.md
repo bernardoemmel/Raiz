@@ -75,11 +75,14 @@ O workflow `agentes-real.yml` roda às **06h de segunda-feira em America/Sao_Pau
 Usa o snapshot fixo `claude-sonnet-5-5`, 24 tarefas e quatro sessões novas por tarefa. O segredo
 `ANTHROPIC_API_KEY` precisa ser cadastrado em **Settings → Secrets and variables → Actions** no repositório.
 Sem ele, a execução falha explicitamente antes de subir a pilha. O segredo é disponibilizado somente nas etapas
-de conferência da sua presença e execução do modelo, sem passá-lo aos serviços de API, banco ou OAuth.
+de conferência da sua presença, execução do modelo e conferência de ausência nas evidências exportadas, sem passá-lo
+aos serviços de API, banco ou OAuth.
 
-Os artefatos do Actions guardam os relatórios técnicos e de recursos. Não incluem `.env`, tokens, traces brutos
-ou os cassetes da nova campanha. Mudanças aprovadas nos cassetes do CI são revisadas por PR, nunca sobrescritas
-automaticamente por um workflow. Nenhum desses workflows publica no registro MCP ou contrata servidor.
+Os artefatos do Actions guardam os relatórios técnicos e de recursos, execuções, configuração, traces sanitizados
+e cassetes da campanha. O verificador de evidências precisa aprovar esses arquivos antes do upload. Não incluem
+`.env`, tokens nem raciocínio bruto do modelo: a conversa interna não vai ao trace exportado e blocos de raciocínio
+do VCR são substituídos por hashes opacos. Mudanças aprovadas nos cassetes do CI são revisadas por PR, nunca
+sobrescritas automaticamente por um workflow. Nenhum desses workflows publica no registro MCP ou contrata servidor.
 
 A medição de recursos semanal ocorre **durante** a campanha: Docker amostrado a cada dez segundos até o agente
 terminar, além do disco dos volumes e das imagens. O código de saída do agente é preservado; falha do medidor

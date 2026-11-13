@@ -8,7 +8,13 @@ proibia esse acompanhamento e exigia seu resultado. A permissão não autoriza c
 O cenário de injeção na sugestão verifica a remoção do texto pela projeção do servidor, sem
 injetar uma resposta fictícia depois do MCP. A versão e os hashes serão congelados antes da campanha.
 
-Runner Claude/MCP, juiz separado, VCR, Compose, Inspector, vacuum e workflow semanal estão em validação.
+Runner Claude/MCP, juiz separado, VCR, Compose, Inspector, vacuum e workflow semanal estão implementados.
+Passaram 123 testes focados, Ruff, a varredura de privacidade e a auditoria de 857 pacotes sem impedimento.
+PKCE foi comprovado no Keycloak real para consultar/pedir e reservar; o servidor manteve o perfil OAuth 2.1.
+O vacuum não encontrou erros; o Inspector CLI foi validado com servidor MCP real e autenticação sintética.
+A suíte integral e a conferência conjunta Compose/Keycloak/Inspector/24 cenários rodam no CI antes do merge.
+O Docker VFS local esgotou disco ao copiar imagens; não se infere dimensionamento de VPS desse incidente.
+O workflow mede memória e disco durante a campanha em Actions, sem contratar nem publicar servidor.
 **Ainda não houve chamada real ao Claude nem medição pass^4 desta entrega.** O fundador configurou
 `ANTHROPIC_API_KEY` nos Secrets do GitHub Actions e autorizou a primeira campanha assim que o workflow
 estiver na main. Não é necessário trazer o segredo para o Cloud; seus valores não foram exibidos.
