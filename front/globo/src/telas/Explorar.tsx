@@ -33,7 +33,10 @@ function cobertura(altura: Altura): number {
  * o tempo todo: trocar de estado ou de município não recarrega nada além das camadas dele.
  */
 export function Explorar({ municipio, uf }: { municipio: string | null; uf: string | null }) {
-  useEffect(() => { void prepararGpu() }, [])
+  useEffect(() => {
+    const preparacao = prepararGpu()
+    return () => { void preparacao.then((liberar) => liberar()) }
+  }, [])
   // O MapLibre abre desde a primeira tela. Os limites dos 5.571 municípios só entram ao aproximar.
   const detalhe = Boolean(municipio || uf)
   const brasil = useCarga(() => fonte.geo.brasil({ municipios: detalhe }), [detalhe])

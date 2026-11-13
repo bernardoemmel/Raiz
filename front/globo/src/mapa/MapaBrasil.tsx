@@ -21,7 +21,7 @@ import { rotulosDeAreas } from "../../../compartilhado/rotulos-mapa"
 import { fonteMapaBase } from "../../../compartilhado/mapa-base"
 import { tituloDe } from "../filtros"
 import { linkCalendarioImovel, linkFazenda } from "../rota"
-import { camadasBase, estiloBase, imagemHachura, prepararMapLibre } from "./estilo"
+import { camadasBase, camadasBaseNacionais, estiloBase, imagemHachura, prepararMapLibre } from "./estilo"
 import { prepararGpu } from "./preparar-gpu"
 
 import type { PotencialMapa } from "../../../compartilhado/dados/potencial"
@@ -210,12 +210,19 @@ export function MapaBrasil(props: Props) {
       m.addControl(new ScaleControl({ unit: "metric" }), "bottom-right")
       if (import.meta.env.DEV || import.meta.env.VITE_RAIZ_TESTE_MAPA === "1") Object.assign(caixa.current, { __mapa: m })
       mapaRef.current = m
-      m.once("style.load", () => {
+      m.once("load", () => {
         montar(m, null, brasil.estados, true)
         ligarEventos(m)
         setPronto(true)
         setZoom(m.getZoom())
         m.on("zoomend", () => setZoom(m.getZoom()))
+        // Pinta os estados antes de preparar os rótulos adicionais do fundo.
+        m.once("idle", () => {
+          if (!m.getSource("protomaps")) return
+          for (const camada of camadasBaseNacionais()) {
+            if (!m.getLayer(camada.id)) m.addLayer(camada, camada.type === "symbol" ? "estados-rotulo" : "estados-preenchimento")
+          }
+        })
       })
     })
     return () => {
@@ -236,7 +243,7 @@ export function MapaBrasil(props: Props) {
     const m = mapaRef.current
     if (!m || !pronto || regional || (!uf && !municipio && zoom < 6)) return
     let antes: string | undefined = "estados-preenchimento"
-    for (const camada of [...camadasBase()].reverse()) {
+    for (const camada of m.getSource("protomaps") ? [...camadasBase()].reverse() : []) {
       if (!m.getLayer(camada.id)) m.addLayer(camada, antes)
       antes = camada.id
     }
@@ -508,7 +515,7 @@ export function MapaBrasil(props: Props) {
     })
 
     add({ id: "estados-preenchimento", type: "fill", source: "brasil-estados",
-      paint: { "fill-color": ["match", ["get", "s"], 2, COR.restaurar, 1, COR.restaurar, COR.nevoa],
+      paint: { "fill-antialias": false, "fill-color": ["match", ["get", "s"], 2, COR.restaurar, 1, COR.restaurar, COR.nevoa],
         "fill-opacity": ["match", ["get", "s"], 2, 0.35, 1, 0.35, 0.8] } })
     add({ id: "potencial-h3", type: "fill", source: "potencial", maxzoom: ZOOM_FAZENDAS,
       filter: ["!=", ["get", "potencial_ha"], null],

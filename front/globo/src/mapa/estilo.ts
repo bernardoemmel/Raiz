@@ -35,7 +35,8 @@ export function estiloBase(base: string | null, opcoes: { rotulos?: boolean; nac
     layers: [{ id: "background", type: "background", paint: { "background-color": SABOR_RAIZ.earth } }],
   }
   if (!base) return fundo
-  const camadas = opcoes.nacional ? camadasBaseNacionais() : camadasBase(opcoes.rotulos !== false)
+  // O primeiro frame pinta a geografia; os rótulos entram quando esse fundo estiver pronto.
+  const camadas = opcoes.nacional ? camadasBaseNacionais().filter((camada) => camada.type === "background" || camada.type === "fill") : camadasBase(opcoes.rotulos !== false)
   return {
     version: 8,
     glyphs: glyphs(),
@@ -47,7 +48,8 @@ export function estiloBase(base: string | null, opcoes: { rotulos?: boolean; nac
 /** No país cabem terra, água, fronteiras e nomes. Estradas e usos locais entram quando a pessoa aproxima. */
 export function camadasBaseNacionais(): LayerSpecification[] {
   const ids = new Set(["background", "earth", "water", "boundaries_country", "water_label_ocean", "places_country"])
-  return camadasBase().filter((camada) => ids.has(camada.id))
+  return camadasBase().filter((camada) => ids.has(camada.id)).map((camada) => camada.type === "fill"
+    ? { ...camada, paint: { ...camada.paint, "fill-antialias": false } } : camada)
 }
 
 /**

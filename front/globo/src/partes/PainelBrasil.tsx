@@ -75,8 +75,8 @@ export function PainelBrasil({ municipios, comLista, estados, uf, pontos, carreg
       )}
       <TopMunicipios municipios={municipios} comLista={comLista} />
       <p className="legenda-frase">
-        No mapa, verde-claro é município já processado e cinza é o que a Raíz ainda não leu. Toque num estado para
-        aproximar e ver as fazendas aptas dele, agrupadas em círculos com o número dentro.
+        No mapa, verde-claro indica estados com municípios processados e cinza é o que a Raíz ainda não leu.
+        Toque num estado para aproximar e consultar o potencial conhecido por célula.
       </p>
       {carregando && <span className="sr">Carregando</span>}
     </div>
