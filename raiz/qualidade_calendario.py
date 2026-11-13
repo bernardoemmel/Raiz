@@ -172,6 +172,11 @@ def _evento(item: dict, fontes: dict) -> dict:
         if car[:2] not in UFS:
             _falhar()
     cars = sorted(set(cars)) if vinculo in {"car", "pendente"} else []
+    car_fonte_url = item.get("car_fonte_url")
+    if car_fonte_url is not None:
+        if not cars:
+            _falhar()
+        car_fonte_url = validar_url_publica(car_fonte_url, fontes[fid]["hosts"])
     return {
         "id": _texto(item.get("id"), r"[a-f0-9]{24}"),
         "tipo": tipo,
@@ -183,6 +188,7 @@ def _evento(item: dict, fontes: dict) -> dict:
         "uf": uf,
         "municipio": municipio,
         "codigos_car": cars,
+        "car_fonte_url": car_fonte_url,
         "vinculo": "car" if cars else "pendente",
         "fonte_id": fid,
         "fonte_nome": fontes[fid]["nome"],

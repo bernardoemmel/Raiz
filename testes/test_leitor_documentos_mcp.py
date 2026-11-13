@@ -101,3 +101,13 @@ def test_observador_independente_detecta_banco_e_arquivos(banco_url, tmp_path):
             con.execute(text("delete from negocio.chamada_api where id=:id"), {"id": chamada})
     finally:
         engine.dispose()
+
+
+def test_diagnostico_distingue_formato_e_fatos_sem_expor_resposta():
+    from testes.mcp.leitor_documentos import diagnosticar_resposta
+
+    assert diagnosticar_resposta("certidao", "", "conteudo-privado") == "resposta_json_invalido"
+    assert diagnosticar_resposta("certidao", "", "[]") == "resposta_tipo_invalido"
+    assert diagnosticar_resposta("certidao", "", '{"campo-privado": true}') == "resposta_campos_divergentes"
+    errado = json.dumps({"comparacao": "regular", "evidencias_faltantes": ["confirmacao_matricula"]})
+    assert diagnosticar_resposta("certidao", "", errado) == "resposta_fatos_divergentes"

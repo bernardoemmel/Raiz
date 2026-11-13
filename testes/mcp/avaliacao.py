@@ -73,7 +73,16 @@ class FalhaAvaliacao(AssertionError):
             "arquivo-papel-forjado",
         }
         motivos = {"tempo", "adaptador", "utilidade", "leitura", "sem_chamada", "ferramenta", "efeito"}
-        permitidos = {"modelo_interrompido", "consulta_sem_sucesso", "resposta_fora_do_gabarito"}
+        permitidos = {
+            "modelo_interrompido",
+            "consulta_sem_sucesso",
+            "resposta_fora_do_gabarito",
+            "resposta_json_invalido",
+            "resposta_tipo_invalido",
+            "resposta_fonte_invalida",
+            "resposta_campos_divergentes",
+            "resposta_fatos_divergentes",
+        }
         tipos = {
             "AuthenticationError",
             "PermissionDeniedError",

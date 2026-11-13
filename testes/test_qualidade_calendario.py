@@ -262,3 +262,28 @@ def test_erros_padronizados_da_coleta_sao_legitimos(tmp_path, snapshot):
     p.write_text(json.dumps(dados))
     with pytest.raises(ValueError):
         Q.validar_pasta(tmp_path)
+
+
+def test_prova_do_car_preservada_no_site_release_e_feed(tmp_path, snapshot):
+    e = snapshot["eventos"][0]
+    e.update(codigos_car=["PA-1500800-" + "A" * 32], car_fonte_url="https://www.gov.br/florestal/anexo.pdf")
+    publicado = Q.projetar_snapshot(snapshot)
+    assert publicado["agenda"]["eventos"][0]["car_fonte_url"] == e["car_fonte_url"]
+    assert publicado["ics"] == ics([Evento.model_validate(e)])
+    _publicar(tmp_path, snapshot)
+    assert Q.validar_pasta(tmp_path)["eventos"] == 1
+
+
+@pytest.mark.parametrize(
+    "url", ["https://atacante.invalid/anexo.pdf", "https://www.gov.br/?owner=Pessoa", "https://www.gov.br/" + CPF]
+)
+def test_prova_do_car_nao_contorna_privacidade_ou_manifesto(snapshot, url):
+    snapshot["eventos"][0].update(codigos_car=["PA-1500800-" + "A" * 32], car_fonte_url=url)
+    with pytest.raises(Q.ErroCalendarioPublico):
+        Q.projetar_snapshot(snapshot)
+
+
+def test_prova_do_car_sem_codigo_explicito_e_recusada(snapshot):
+    snapshot["eventos"][0]["car_fonte_url"] = "https://www.gov.br/florestal/anexo.pdf"
+    with pytest.raises(Q.ErroCalendarioPublico):
+        Q.projetar_snapshot(snapshot)
