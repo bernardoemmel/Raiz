@@ -37,6 +37,8 @@ def ics(eventos: list[Evento]) -> str:
         )
         if e.codigos_car_publicos:
             descricao += " CAR: " + ", ".join(e.codigos_car_publicos)
+            if e.car_fonte_url:
+                descricao += ". Documento que informa o CAR: " + e.car_fonte_url
         linhas += [
             "BEGIN:VEVENT",
             f"UID:{e.id}@calendario.raiz",

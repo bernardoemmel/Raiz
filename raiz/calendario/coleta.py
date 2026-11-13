@@ -9,29 +9,29 @@ from __future__ import annotations
 
 import datetime as dt
 import hashlib
-import io
 import json
-import logging
 import re
+import sys
+import time
 import unicodedata
 from concurrent.futures import ThreadPoolExecutor
+from email.utils import parsedate_to_datetime
 from pathlib import Path
 from urllib.parse import parse_qs, quote_plus, urlencode, urljoin, urlsplit
+from zoneinfo import ZoneInfo
 
 import requests
 import yaml
 from bs4 import BeautifulSoup
-from pypdf import PdfReader
 
-from raiz.calendario.modelos import CAR, SIGEF, Evento, FonteEstado, identificador, normalizar_car, url_publica
+from raiz.calendario import atos_pdf, catalogo, diario_pa, diarios, leiloes_abertos, ocr_pdf
+from raiz.calendario.modelos import CAR, SIGEF, UFS, Evento, FonteEstado, identificador, normalizar_car, url_publica
+from raiz.calendario.processo_limitado import executar
 from raiz.documentos.busca import http
 from raiz.documentos.certidao.regras import normalizar_cns, normalizar_matricula
 
 MANIFESTO = Path(__file__).with_name("fontes.yaml")
-MAX_BYTES = 16 * 1024 * 1024
-# PDFs públicos podem conter pessoas até em objetos malformados. O pypdf pode
-# registrar esses objetos completos em warnings; a coleta só divulga falha fixa.
-logging.getLogger("pypdf").setLevel(logging.CRITICAL + 1)
+MAX_BYTES = 64 * 1024 * 1024
 MESES = {
     "janeiro": 1,
     "fevereiro": 2,
@@ -120,21 +120,45 @@ class _Sessao:
         self.resposta = None
         self.sessao = requests.Session()
 
+    def _requisitar(self, metodo, url, **kw):
+        """Só repete leituras transitórias; 401/403 nunca provocam troca de identidade."""
+        for tentativa in range(3):
+            try:
+                r = self.sessao.request(metodo, url, stream=True, allow_redirects=False, **kw)
+            except (requests.Timeout, requests.ConnectionError):
+                if tentativa == 2 or metodo.upper() not in {"GET", "HEAD"}:
+                    raise
+                time.sleep(2 ** (tentativa + 1))
+                continue
+            if r.status_code not in {429, 500, 502, 503, 504} or tentativa == 2:
+                return r
+            if metodo.upper() not in {"GET", "HEAD"}:
+                return r
+            espera = _espera_retry(r.headers.get("Retry-After"), tentativa)
+            # Não encurta Retry-After. Esperas longas ficam para a próxima rodada,
+            # evitando manter um worker preso ou fazer outra chamada antes da hora.
+            if espera > 60:
+                return r
+            r.close()
+            time.sleep(espera)
+        raise http.FalhaDownload("fonte indisponível após tentativas limitadas")
+
     def request(self, metodo, url, **kw):
         for _ in range(5):
             if not _permitida(url, self.fonte):
-                raise http.FalhaDownload("redirecionamento fora das fontes permitidas")
-            r = self.sessao.request(metodo, url, stream=True, allow_redirects=False, **kw)
+                raise AcessoRestrito("redirecionamento fora das fontes permitidas")
+            r = self._requisitar(metodo, url, **kw)
             if r.is_redirect:
                 url = urljoin(url, r.headers.get("Location", ""))
                 r.close()
                 continue
-            blocos, total = [], 0
+            blocos, total, inicio = [], 0, time.monotonic()
+            limite = min(MAX_BYTES, int(self.fonte.get("max_bytes", 16 * 1024 * 1024)))
             try:
                 for bloco in r.iter_content(65536):
                     total += len(bloco)
-                    if total > MAX_BYTES:
-                        raise http.FalhaDownload("documento acima do limite de leitura")
+                    if total > limite or time.monotonic() - inicio > 90:
+                        raise LimiteLeitura("documento acima do limite de leitura")
                     blocos.append(bloco)
             finally:
                 r.close()
@@ -144,22 +168,89 @@ class _Sessao:
         raise http.FalhaDownload("redirecionamentos em excesso")
 
 
+class AcessoRestrito(http.FalhaDownload):
+    """O acesso exige intervenção da fonte; não usar um intermediário para contorná-lo."""
+
+
+class LimiteLeitura(http.FalhaDownload):
+    """Um intermediário não pode tornar irrelevantes os limites locais do documento."""
+
+
+def _espera_retry(valor: str | None, tentativa: int, agora: dt.datetime | None = None) -> float:
+    if valor:
+        try:
+            return max(0.0, float(valor))
+        except ValueError:
+            try:
+                prazo = parsedate_to_datetime(valor)
+                if prazo.tzinfo is None:
+                    prazo = prazo.replace(tzinfo=dt.UTC)
+                return max(0.0, (prazo - (agora or dt.datetime.now(dt.UTC))).total_seconds())
+            except (TypeError, ValueError, OverflowError):
+                pass
+    return float(2 ** (tentativa + 1))
+
+
 def baixar(url: str, fonte: dict) -> tuple[str, str]:
     """HTML ou texto PDF, sempre em memória. Sem driblar login, CAPTCHA ou bloqueio."""
     s = _Sessao(fonte)
+    pedido = {}
     try:
-        pagina = http.direto(url, timeout=25, sessao=s)
+        preparacao = diarios.preparacao(fonte, url)
+        indice = http.direto(preparacao, timeout=25, sessao=s).texto if preparacao else None
+        pedido = diarios.pedido(fonte, url, indice) or {}
+        if "dados_form" in pedido:
+            r = s.request(
+                pedido.get("metodo", "POST"),
+                url,
+                data=pedido["dados_form"],
+                headers={"User-Agent": http.AGENTE, "Accept-Language": "pt-BR,pt;q=0.9"},
+                timeout=25,
+            )
+            if r.status_code >= 400:
+                raise http.FalhaDownload(f"HTTP {r.status_code}")
+            r.encoding = r.encoding or "utf-8"
+            pagina = http.Pagina(r.text, "direto", url, r.status_code)
+        else:
+            pagina = http.direto(url, timeout=25, sessao=s, **pedido)
         r = s.resposta
+        if fonte.get("modo") == "caixa_csv" and urlsplit(url).path.lower().endswith(".csv"):
+            # O CSV institucional usa Windows-1252/Latin-1. Nunca deixar o decode
+            # com replacement trocar “Imóvel rural” por “Im�vel” e esvaziar a busca.
+            for codificacao in ("utf-8-sig", "cp1252", "latin-1"):
+                try:
+                    return r.content.decode(codificacao), "html"
+                except UnicodeDecodeError:
+                    continue
         if r.content.startswith(b"%PDF"):
-            pdf = PdfReader(io.BytesIO(r.content))
-            if len(pdf.pages) > 250:
-                raise http.FalhaDownload("PDF acima do limite de páginas")
-            return "\n\n".join(p.extract_text() or "" for p in pdf.pages), "pdf"
+            try:
+                dados = json.loads(
+                    executar([sys.executable, "-m", "raiz.calendario.pdf_worker"], r.content, 65, 32 * 1024 * 1024)
+                )
+                paginas, sem_texto = dados["paginas"], dados["escaneadas"]
+                if sem_texto:
+                    if not fonte.get("ocr"):
+                        raise ValueError("OCR não habilitado")
+                    reconhecidas = ocr_pdf.extrair(r.content, sem_texto)
+                    for i, texto in reconhecidas.items():
+                        paginas[i - 1] = texto
+                return "\n\f\n".join(paginas), "pdf_ocr" if sem_texto else "pdf"
+            except Exception:
+                raise LimiteLeitura("PDF não pôde ser lido dentro dos limites") from None
         if re.search(r"just a moment|verify you are human|captcha|access denied", pagina.texto[:3000], re.I):
-            raise http.FalhaDownload("fonte exige acesso interativo")
+            raise AcessoRestrito("fonte exige acesso interativo")
         return pagina.texto, "html"
+    except (AcessoRestrito, LimiteLeitura):
+        raise
     except http.FalhaDownload:
-        if fonte.get("modo") == "djen" or not http.chave_firecrawl() or urlsplit(url).path.lower().endswith(".pdf"):
+        if s.resposta is not None and s.resposta.status_code in {401, 403, 429}:
+            raise AcessoRestrito(f"fonte indisponível: HTTP {s.resposta.status_code}") from None
+        if (
+            fonte.get("modo") == "djen"
+            or pedido.get("metodo") == "POST"
+            or not http.chave_firecrawl()
+            or urlsplit(url).path.lower().endswith(".pdf")
+        ):
             raise
         # A mesma API hospedada já usada pela busca semanal; não instala código AGPL.
         return http.firecrawl(url, timeout=60).texto, "html"
@@ -228,6 +319,8 @@ def _marco(antes: str, depois: str, tipo: str) -> str | None:
 
 
 def _identificadores(texto: str) -> dict:
+    if re.search(r"confront|lim[ií]trof|im[oó]vel vizinho|matr[ií]cula de origem", texto, re.I):
+        return {"codigos_car": [], "cns": None, "matricula": None, "sigef": [], "vinculo": "pendente"}
     cods = []
     for m in CAR.finditer(texto):
         try:
@@ -252,7 +345,8 @@ def _identificadores(texto: str) -> dict:
 
 def _referencia(texto: str) -> str | None:
     padrao = (
-        r"\bedital(?:\s+(?:de\s+)?(?:concorrencia(?:\s+publica)?|leilao|pregao(?:\s+eletronico)?))?"
+        r"\bedital(?:\s+(?:de\s+)?(?:concorrencia(?:\s+publica)?|"
+        r"leilao(?:\s+(?:rural|judicial|extrajudicial|eletronico)){0,3}|pregao(?:\s+eletronico)?))?"
         r"\s*(?P<indicador>n[º°o.]*)?\s*(?P<numero>\d{1,5}(?:[/.-]\d{1,4}){0,3})"
     )
     for m in re.finditer(padrao, texto):
@@ -296,7 +390,12 @@ def _extrair(texto: str, fonte: dict, url: str, agora: dt.datetime, chave: str, 
             if fim and fim >= data and marco in ("consulta", "propostas", "inscricoes"):
                 prazo = fim
         conta[marco] = conta.get(marco, 0) + 1
-        eid = identificador(fonte["id"], url, tipo, f"{chave}:{marco}:{conta[marco]}")
+        ordinal = None
+        if tipo == "leilao_imovel" and fonte.get("modo") in {"caixa_csv", "trt16_leiloes"}:
+            ordinais = re.findall(r"\b([12])(?:[º°oªa])?\s*(?:leilao|praca)\b", antes)
+            ordinal = ordinais[-1] if ordinais else None
+        posicao = f"praca{ordinal}" if ordinal else str(conta[marco])
+        eid = identificador(fonte["id"], url, tipo, f"{chave}:{marco}:{posicao}")
         out.append(
             Evento(
                 id=eid,
@@ -329,12 +428,34 @@ def _extrair(texto: str, fonte: dict, url: str, agora: dt.datetime, chave: str, 
                 antigo.fonte_id == fonte["id"]
                 and antigo.tipo == tipo
                 and ((mesmo_edital and (mesmo_imovel or antigo.fonte_url == url)) or (mesma_publicacao and not ref))
+                and (not ids["codigos_car"] or set(antigo.codigos_car) == set(ids["codigos_car"]))
             ):
                 retificados.append(
                     antigo.model_copy(update={"situacao": situacao, "coletado_em": agora, "fonte_url": url})
                 )
-        if retificados:
+        identidades = {(tuple(e.codigos_car), e.cns, e.matricula, tuple(e.sigef)) for e in retificados}
+        if retificados and len(identidades) == 1:
             return retificados
+    if (
+        len(out) == 1
+        and ref
+        and ids["codigos_car"]
+        and re.search(r"\bretifica\w*|\bprorrog\w*|\badiad\w*|\bnova data\b", n)
+    ):
+        novo = out[0]
+        candidatos = [
+            e
+            for e in anteriores
+            if e.fonte_id == fonte["id"]
+            and e.tipo == tipo
+            and e.marco == novo.marco
+            and e.referencia == ref
+            and set(e.codigos_car) == set(ids["codigos_car"])
+        ]
+        # Uma referência homônima ou duas praças anteriores não provam qual data
+        # mudou. A continuidade em outro PDF exige correspondência única.
+        if len(candidatos) == 1:
+            return [novo.model_copy(update={"id": candidatos[0].id})]
     return out
 
 
@@ -367,7 +488,13 @@ def extrair(
     url = url_publica(url)
     if fonte.get("modo") == "djen":
         out, sem = [], 0
-        for item in json.loads(texto).get("items", []):
+        dados = json.loads(texto)
+        if not isinstance(dados, dict) or not isinstance(dados.get("items"), list):
+            raise ValueError("resposta DJEN fora do contrato público")
+        for item in dados["items"]:
+            if not isinstance(item, dict):
+                sem += 1
+                continue
             h = str(item.get("hash") or "")
             if not re.fullmatch(r"[a-zA-Z0-9]{10,100}", h):
                 sem += 1
@@ -379,16 +506,50 @@ def extrair(
             if not novos and _tipo(tx, fonte):
                 sem += 1
         return _deduplicar(out), sem
-    if formato == "pdf":
+    if formato in {"pdf", "pdf_ocr"}:
+        if fonte.get("modo") == "caixa_csv":
+            return [], 0  # matrícula só prova o CAR do anúncio; não é novo leilão
         # Edições podem trazer vários editais na mesma página. Separa também pelo
         # cabeçalho; nunca usa todos os CARs da edição em todos os eventos.
-        cabecalho = r"(?=\bEDITAL DE (?:LEILÃO|HASTA|PENHORA))"
-        if fonte["id"] in {"dou", "doe_pa", "doe_mt"} and not re.search(cabecalho, texto):
+        blocos, delimitado = atos_pdf.blocos(texto, fonte)
+        if not delimitado:
             return [], 1  # edição inteira sem limites claros de atos: não adivinhar vínculos
-        blocos = [b for b in re.split(cabecalho, texto) if b.strip()]
         out = []
+        ocorrencias = {}
         for bloco in blocos:
-            out.extend(_extrair(bloco, fonte, url, agora, _chave_bloco(bloco), anteriores))
+            ids = _identificadores(bloco)
+            identidade = json.dumps(ids, sort_keys=True)
+            chave = _chave_bloco(bloco) + ":" + hashlib.sha256(identidade.encode()).hexdigest()[:16]
+            ocorrencias[chave] = ocorrencias.get(chave, 0) + 1
+            out.extend(_extrair(bloco, fonte, url, agora, f"{chave}:{ocorrencias[chave]}", anteriores))
+
+        # Preserva UIDs já publicados antes de separar atos homônimos. Retirar
+        # um identificador ambíguo também corrige o evento antigo, em vez de
+        # duplicá-lo e deixar a matrícula suspeita no histórico vigente.
+        def marco(e):
+            return e.fonte_id, e.fonte_url, e.tipo, e.referencia, e.marco, e.data
+
+        contagem_marcos = {}
+        for evento in out:
+            contagem_marcos[marco(evento)] = contagem_marcos.get(marco(evento), 0) + 1
+        for i, evento in enumerate(out):
+            candidatos = [e for e in anteriores if marco(e) == marco(evento)]
+            iguais = [
+                e
+                for e in candidatos
+                if e.codigos_car == evento.codigos_car
+                and e.cns == evento.cns
+                and e.matricula == evento.matricula
+                and e.sigef == evento.sigef
+            ]
+            if (
+                not any((evento.codigos_car, evento.cns, evento.matricula, evento.sigef))
+                and len(candidatos) == 1
+                and contagem_marcos[marco(evento)] == 1
+            ):
+                iguais = candidatos
+            if len(iguais) == 1:
+                out[i] = evento.model_copy(update={"id": iguais[0].id})
         return _deduplicar(out), max(0, sum(1 for b in blocos if _tipo(b, fonte)) - len(out))
     sopa = BeautifulSoup(texto, "html.parser")
     for tag in sopa(["nav", "header", "footer", "style", "script", "form"]):
@@ -423,6 +584,8 @@ def extrair(
         if cab is not None and cab.name in {"h1", "h2", "h3", "h4"}:
             tx = cab.get_text(" ", strip=True) + " " + tx
         chave = b.get("id") or _chave_bloco(tx)
+        if fonte.get("modo") == "caixa_csv":
+            chave = "imovel"  # o permalink identifica um único bem, mesmo que a primeira praça desapareça
         link = url
         # Cards de consulta têm um permalink que conserva a identidade mesmo
         # quando o cartão muda de posição ou o prazo é retificado.
@@ -453,6 +616,10 @@ def _chave_bloco(texto: str) -> str:
 
 
 def _sementes(fonte: dict, hoje: dt.date) -> list[str]:
+    for adaptador in (diario_pa, diarios, leiloes_abertos):
+        especificas = adaptador.sementes(fonte, hoje)
+        if especificas is not None:
+            return especificas
     base = fonte["urls"][0]
     if fonte.get("modo") == "djen":
         desde = hoje - dt.timedelta(days=int(fonte.get("dias", 7)))
@@ -478,9 +645,18 @@ def _sementes(fonte: dict, hoje: dt.date) -> list[str]:
     return list(fonte["urls"])
 
 
-def _links(texto: str, url: str, fonte: dict) -> list[str]:
+def _links(texto: str, url: str, fonte: dict, hoje: dt.date | None = None) -> list[str]:
     if fonte.get("seguir_links") is False:
         return []
+    especificos = diario_pa.links(texto, url, fonte, hoje or dt.date.today())
+    if especificos is not None:
+        return [u for u in especificos if _permitida(u, fonte)]
+    especificos = diarios.descobrir(fonte, url, texto, hoje or dt.date.today())
+    if especificos is not None:
+        return [u for u in especificos if _permitida(u, fonte)]
+    especificos = leiloes_abertos.links(texto, url, fonte)
+    if especificos is not None:
+        return [u for u in especificos if _permitida(u, fonte)]
     if fonte.get("modo") == "djen":
         d = json.loads(texto)
         p = urlsplit(url)
@@ -522,10 +698,24 @@ def _links(texto: str, url: str, fonte: dict) -> list[str]:
 
 
 def coletar_fonte(fonte: dict, agora: dt.datetime, obter=None, anteriores=()) -> tuple[list[Evento], FonteEstado]:
+    if fonte["id"] == catalogo.COBERTURA_ID:
+        faltantes = sorted(set(fonte.get("sem_fonte", [])) & UFS)
+        return [], FonteEstado(
+            id=catalogo.COBERTURA_ID,
+            nome=catalogo.COBERTURA_NOME,
+            coletado_em=agora,
+            situacao="erro" if faltantes else "ok",
+            paginas=0,
+            eventos=0,
+            erro="Diário ainda sem adaptador: " + ", ".join(faltantes) if faltantes else None,
+        )
     obter = obter or baixar
-    fila, vistos, eventos, falhas, sem_data = _sementes(fonte, agora.date()), set(), {}, 0, 0
+    hoje = agora.astimezone(ZoneInfo("America/Sao_Paulo")).date()
+    fila, vistos, eventos, falhas, sem_data = _sementes(fonte, hoje), set(), {}, 0, 0
     maximo = int(fonte.get("max_paginas", 8))
-    conhecidos = [e.fonte_url for e in anteriores if e.fonte_id == fonte["id"] and e.dia >= agora.date()]
+    acesso_restrito = False
+    complementos = {}
+    conhecidos = [e.fonte_url for e in anteriores if e.fonte_id == fonte["id"] and e.dia >= hoje]
     # Reconsulta detalhes de eventos ainda futuros para observar cancelamentos.
     # A API DJEN já busca as novas publicações; suas certidões são PDFs, não JSON.
     if fonte.get("modo") != "djen" and fonte.get("seguir_links") is not False:
@@ -537,7 +727,39 @@ def coletar_fonte(fonte: dict, agora: dt.datetime, obter=None, anteriores=()) ->
         vistos.add(url)
         try:
             texto, formato = obter(url, fonte)
-            novos, sem = extrair(texto, fonte, url, agora, formato, anteriores)
+            especifico = (
+                leiloes_abertos.texto_evento(texto, url, fonte)
+                if formato == "html"
+                else leiloes_abertos.texto_pdf(texto, url, fonte)
+            )
+            novos, sem = extrair(
+                especifico if especifico is not None else texto,
+                fonte,
+                url,
+                agora,
+                "html" if especifico is not None else formato,
+                anteriores,
+            )
+            if formato == "pdf_ocr":
+                # OCR não é prova: nem CAR, matrícula ou SIGEF podem enriquecer o vínculo.
+                novos = [
+                    Evento.model_validate(
+                        {
+                            **e.model_dump(),
+                            "codigos_car": [],
+                            "cns": None,
+                            "matricula": None,
+                            "sigef": [],
+                            "vinculo": "pendente",
+                            "car_fonte_url": None,
+                            "municipio": None,
+                            "uf": fonte.get("uf"),
+                            "confianca": min(e.confianca, 0.5),
+                        }
+                    )
+                    for e in novos
+                ]
+                sem += 1
             for evento in novos:
                 anterior = eventos.get(evento.id)
                 # Uma resposta pode repetir o edital original depois de sua
@@ -547,20 +769,72 @@ def coletar_fonte(fonte: dict, agora: dt.datetime, obter=None, anteriores=()) ->
                 if anterior and prioridade[anterior.situacao] > prioridade[evento.situacao]:
                     continue
                 eventos[evento.id] = evento
+            if formato == "pdf" and url in complementos:
+                detalhe, origem, ids_eventos = complementos.pop(url)
+                prova = leiloes_abertos.complemento_matricula(detalhe, origem, texto, url, fonte)
+                if prova:
+                    for eid in ids_eventos:
+                        evento = eventos[eid]
+                        if evento.codigos_car and set(evento.codigos_car) != set(prova["codigos_car"]):
+                            sem += 1  # anúncio e documento discordam; não escolhe uma versão
+                            eventos[eid] = evento.model_copy(
+                                update={
+                                    "codigos_car": [],
+                                    "car_fonte_url": None,
+                                    "vinculo": "pendente",
+                                    "municipio": None,
+                                    "uf": fonte.get("uf"),
+                                }
+                            )
+                            continue
+                        codigo = prova["codigos_car"][0]
+                        eventos[eid] = Evento.model_validate(
+                            {**evento.model_dump(), **prova, "uf": codigo[:2], "municipio": codigo.split("-")[1]}
+                        )
+                else:
+                    sem += 1  # PDF sem matrícula/CAR inequívocos permanece pendente
+            if formato == "pdf_ocr" and url in complementos:
+                complementos.pop(url)
+                sem += 1
             sem_data += sem
+            if formato in {"pdf", "pdf_ocr"}:
+                links = diarios.descobrir_pdf(fonte, url, texto, hoje)
+                fila[0:0] = [u for u in links if u not in vistos and u not in fila]
             if formato == "html":
-                fila.extend(u for u in _links(texto, url, fonte) if u not in vistos and u not in fila)
+                links = _links(texto, url, fonte, hoje)
+                documento = leiloes_abertos.documento_matricula(texto, url, fonte)
+                if documento and novos and _permitida(documento, fonte) and documento not in vistos:
+                    complementos[documento] = (texto, url, [e.id for e in novos])
+                    # A prova do imóvel conta no mesmo limite de páginas e tem
+                    # prioridade sobre o próximo anúncio, sem segundo downloader.
+                    if documento in fila:
+                        fila.remove(documento)
+                    fila.insert(0, documento)
+                descobertos = [u for u in links if u not in vistos and u not in fila]
+                if atos_pdf.diario(fonte):
+                    fila[0:0] = descobertos  # lê a edição antes de consultar outro dia
+                else:
+                    fila.extend(descobertos)
+        except AcessoRestrito:
+            falhas += 1
+            acesso_restrito = True
+            fila.clear()  # não dispara as próximas buscas contra a mesma restrição/limite
+            break
         except Exception:  # noqa: BLE001 - uma fonte não derruba as outras; nunca grava a exceção com texto pessoal
             falhas += 1
-    parcial = bool(falhas or fila or (eventos and sem_data))
+    parcial = bool(falhas or fila or sem_data or fonte.get("cobertura_parcial"))
     situacao = "erro" if falhas == len(vistos) else ("parcial" if parcial else ("ok" if eventos else "sem_data"))
     erro = None
     if falhas:
         erro = f"{falhas} página(s) não puderam ser lidas; consulte a fonte oficial."
-    if sem_data and eventos:
-        erro = (erro + " " if erro else "") + "Há atos cuja data não pôde ser confirmada."
+    if acesso_restrito:
+        erro = "Fonte restringiu o acesso ou pediu espera; consultas interrompidas sem contornar a restrição."
+    if sem_data:
+        erro = (erro + " " if erro else "") + "Há atos cuja data ou vínculo com o imóvel não pôde ser confirmado."
     if fila:
         erro = (erro + " " if erro else "") + "Limite de páginas da rodada atingido; cobertura parcial."
+    if fonte.get("cobertura_parcial"):
+        erro = (erro + " " if erro else "") + "A fonte cobre parte das publicações; confira também seu portal oficial."
     estado = FonteEstado(
         id=fonte["id"],
         nome=fonte["nome"],
