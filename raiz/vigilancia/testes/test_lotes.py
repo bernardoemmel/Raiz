@@ -36,6 +36,11 @@ def test_catalogo_rejeita_vencido_futuro_e_campos_pessoais():
         lotes.validar_catalogo(base, AGORA)
 
 
+def test_catalogo_nao_silencia_car_invalido_de_lote_ativo():
+    with pytest.raises(lotes.ErroLotes, match="CAR inválido"):
+        lotes._codigos([{"papel": "lote", "cod_imovel": "imovel-sem-car"}], None, None)
+
+
 def test_recorte_preserva_pequena_e_nao_acrescenta_car_de_fonte(poligonos):
     lote = lotes.Lote(PEDIDO, 1, HOJE, (COD_B,))
     pol = lotes.PoligonosLotes(poligonos, [lote])
