@@ -348,6 +348,17 @@ Gitleaks 8.24.3 (MIT, https://github.com/gitleaks/gitleaks) e actionlint 1.7.7
 (Apache-2.0, https://github.com/microsoft/playwright) executa o navegador de teste. Usados como ferramentas,
 sem código-fonte copiado para o produto.
 
+## OCR dos editais e matrículas públicos
+
+O calendário chama os executáveis Poppler (`pdftoppm`, GPL-2.0/GPL-3.0,
+https://poppler.freedesktop.org/) e Tesseract (Apache-2.0,
+https://github.com/tesseract-ocr/tesseract), com os modelos de português/inglês do
+Tesseract (`tessdata_fast`, Apache-2.0, https://github.com/tesseract-ocr/tessdata_fast). Rodam apenas no
+servidor e nos testes, instalados pelos pacotes do sistema; os binários não são
+embutidos no produto distribuído nem no navegador. Nenhum código foi copiado.
+PDF, imagem renderizada e texto do OCR passam em memória por stdin/stdout; a saída
+persistida contém somente os campos permitidos do calendário e a URL pública da prova.
+
 ## Lighthouse e SDK de telemetria
 
 Lighthouse **13.6.0** ([GoogleChrome/lighthouse](https://github.com/GoogleChrome/lighthouse), Apache-2.0) mantém

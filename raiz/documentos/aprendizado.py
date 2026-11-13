@@ -250,6 +250,11 @@ CHAVE_GABARITO = ("cod_imovel", "alvo", "observado_em", "fonte", "referencia", "
 def data_corte(lt) -> str:
     """Data de corte da previsão = emissão da certidão (a informação que o leitor viu); sem ela, o dia anterior à
     leitura. Na E8 o gabarito só casa com a previsão quando é observado depois do corte."""
+    capturada = (lt.derivados or {}).get("comparacao_capturada_em")
+    if capturada:
+        # A primeira certidão enviada congela a previsão na entrada. A emissão do
+        # PDF não pode retrodatá-la. Folds exigem gabarito observado após este dia.
+        return dt.datetime.fromisoformat(capturada).date().isoformat()
     lido = dt.date.fromisoformat((lt.lido_em or dt.date.today().isoformat())[:10])
     try:
         d = dt.date.fromisoformat(str(((lt.dados or {}).get("documento") or {}).get("data_emissao"))[:10])
@@ -270,6 +275,10 @@ def previsoes_e_gabaritos(armazem: Armazem | None = None) -> tuple[list[dict], l
         if not c["cod_imovel"]:
             continue
         lt = armazem.leitura(c["leitura_id"])
+        if (lt.derivados or {}).get("comparacao_disponivel") is False:
+            # Sem previsão anterior, a ausência de comparação não prova erro do
+            # motor. Campos e leitura integral continuam no placar do leitor/cache.
+            continue
         corte = data_corte(lt)
         ref = f"leitura:{lt.id}"
         motor = Path(c["motor_arquivo"]).name if c["motor_arquivo"] else "motor"
@@ -332,7 +341,7 @@ def exportar(pasta: Path, armazem: Armazem | None = None) -> tuple[Path, Path]:
     return a, b
 
 
-def enviar_ao_banco(armazem: Armazem | None = None, con=None) -> str:
+def enviar_ao_banco(armazem: Armazem | None = None, con=None, *, referencia_prefixo: str = "") -> str:
     """Registra em aprendizado.previsao (um lote congelado por leitura) e aprendizado.gabarito. Pode rodar de novo:
     o que já está no banco não entra outra vez. Sem `con`, abre a conexão do back-end (RAIZ_BANCO_URL)."""
     from sqlalchemy import text
@@ -343,8 +352,11 @@ def enviar_ao_banco(armazem: Armazem | None = None, con=None) -> str:
         from raiz.banco import engine
 
         with engine().begin() as c:
-            return enviar_ao_banco(armazem, c)
+            return enviar_ao_banco(armazem, c, referencia_prefixo=referencia_prefixo)
     prevs, gabs = previsoes_e_gabaritos(armazem)
+    if referencia_prefixo:
+        for registro in [*prevs, *gabs]:
+            registro["referencia"] = referencia_prefixo + registro["referencia"]
     ja = {
         tuple(str(x) for x in r)
         for r in con.execute(
