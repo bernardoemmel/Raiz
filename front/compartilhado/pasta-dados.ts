@@ -321,7 +321,7 @@ export function abrirPasta(opcoes: OpcoesPasta) {
         const car = String(f.properties?.cod_imovel ?? "")
         const g = f.geometry
         if (!permitidos.has(car) || !g || !["Polygon", "MultiPolygon"].includes(g.type) || !coordenadasValidas(g.coordinates)) return []
-        return [{ type: "Feature" as const, properties: { cod_imovel: car }, geometry: { type: g.type, coordinates: g.coordinates } }]
+        return [{ type: "Feature" as const, properties: { cod_imovel: car, ...(typeof f.properties.sobreposto === "boolean" ? { sobreposto: f.properties.sobreposto } : {}) }, geometry: { type: g.type, coordinates: g.coordinates } }]
       }),
     }
   }

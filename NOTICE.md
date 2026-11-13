@@ -32,6 +32,11 @@ do IBGE em CSV de https://github.com/kelvins/municipios-brasileiros (MIT), baixa
 
 Dependências usadas sem copiar código: `i_overlay` (MIT/Apache-2.0) e `serde_json` (MIT/Apache-2.0) no teste `motor/iovbench/`.
 
+H3 (`h3` para Python e `h3-js` somente no build): índice hexagonal e limites das células,
+Apache-2.0, Uber Technologies e contribuidores; https://github.com/uber/h3,
+https://github.com/uber/h3-py e https://github.com/uber/h3-js. Código usado como dependência,
+sem cópia ou alteração. A célula representa alocação estatística, não uma medida de restauração dentro do hexágono.
+
 Extensão `nativo/raiz_iov` (Rust, sem código copiado): `i_overlay` (MIT/Apache-2.0), `pyo3` (MIT/Apache-2.0),
 `numpy`/rust-numpy (BSD-2), `ndarray` (MIT/Apache-2.0), `rayon` (MIT/Apache-2.0). A conta da área segue o teste do
 fundador em `motor/iovbench/` (EvenOdd, contorno externo menos buracos).

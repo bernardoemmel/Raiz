@@ -30,6 +30,9 @@ privado. O build e o servidor de desenvolvimento também aplicam a lista positiv
 Sem dados básicos publicados, o site mostra cobertura indisponível; não busca
 arquivos antigos completos como alternativa.
 
+A camada H3 de potencial conhecido usa o contrato e os limites de supressão descritos em
+[`mapa-potencial.md`](mapa-potencial.md). A fonte é privada; somente células agregadas e contagens globais chegam ao site.
+
 ## O que é pago e permanece privado
 
 Por imóvel: certidão lida por IA, cadeia e pendências detalhadas da terra,

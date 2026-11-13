@@ -17,6 +17,7 @@ import { UFS } from "./formato"
 import { abrirPasta, nomeSeguro, pastaPadrao } from "./pasta-dados"
 import { paginasAgentes } from "./paginas-agentes"
 import { projetarPublicacaoLote } from "./pedidos/release"
+import { potencialPublicado } from "./potencial-publico"
 
 interface Requisicao {
   url?: string
@@ -113,6 +114,8 @@ export function dadosRaiz(opcoes: { repo: string; raizDados?: string | null; cac
     }
   }
   const geoPermitido = (nome: string) => /^(brasil_(municipios|estados)\.geojson|municipio_\d{7}\.geojson(?:\.gz)?|base_(brasil|[A-Z]{2}|\d{7})\.pmtiles)$/.test(nome)
+  let potencialCache: ReturnType<typeof potencialPublicado> | null = null
+  const potencial = () => potencialCache ??= potencialPublicado(geo)
   function indiceGeoPublico() {
     const municipios: Record<string, Record<string, { arquivo: string; bytes: number }>> = {}
     const brasil: Record<string, { arquivo: string; bytes: number }> = {}
@@ -144,7 +147,7 @@ export function dadosRaiz(opcoes: { repo: string; raizDados?: string | null; cac
         cobertura.com_desenho = Object.keys(municipios).filter((cod) => municipios[cod].imoveis).sort()
         cobertura.sem_desenho = [...new Set([...cobertura.sem_desenho, ...Object.keys(municipios)])].filter((cod) => !cobertura.com_desenho.includes(cod)).sort()
       }
-      return { brasil, municipios, cobertura }
+      return { brasil, municipios, cobertura, potencial: potencial().indice, potencial_metadados: potencial().metadados }
     }
     // Compatibilidade com pastas antigas, antes do manifesto: só limites e bases com nome conhecido.
     for (const arquivo of listar(geo).filter(geoPermitido)) {
@@ -155,7 +158,7 @@ export function dadosRaiz(opcoes: { repo: string; raizDados?: string | null; cac
         brasil[arquivo === "base_brasil.pmtiles" ? "base" : arquivo.includes("municipios") ? "municipios" : "estados"] = item
     }
     adicionarGeometriasBasicas(municipios)
-    return { brasil, municipios }
+    return { brasil, municipios, potencial: potencial().indice, potencial_metadados: potencial().metadados }
   }
   function arquivosGeo() {
     const indice = indiceGeoPublico()
@@ -328,6 +331,13 @@ export function dadosRaiz(opcoes: { repo: string; raizDados?: string | null; cac
           return fs.existsSync(arq) ? enviarArquivo(req, res, arq) : naoAchou(res)
         }
         if (url === "/geo/indice.json") return json(req, res, indiceGeoPublico())
+        if ((m = /^\/geo\/(potencial_[A-Z]{2}\.geojson\.gz)$/.exec(url))) {
+          const dado = potencial().arquivos[m[1]]
+          if (!dado) return naoAchou(res)
+          res.setHeader("Content-Type", "application/gzip")
+          res.end(dado)
+          return
+        }
         if ((m = /^\/geo\/imoveis_(\d{7})\.geojson\.gz$/.exec(url))) {
           const arq = geometriaBasicaPublicada(m[1])
           return arq ? enviarArquivo(req, res, arq) : naoAchou(res)
@@ -371,6 +381,7 @@ export function dadosRaiz(opcoes: { repo: string; raizDados?: string | null; cac
       fs.writeFileSync(path.join(dAmostra, "estados.json"), JSON.stringify(estadosPublicos()))
       fs.writeFileSync(path.join(dAmostra, "lote_PA_central_r11.json"), JSON.stringify(lotePublicado()))
       fs.writeFileSync(path.join(dGeo, "indice.json"), JSON.stringify(indiceGeoPublico()))
+      for (const [nome, dado] of Object.entries(potencial().arquivos)) fs.writeFileSync(path.join(dGeo, nome), dado)
       for (const f of arquivosGeo()) {
         const m = /^imoveis_(\d{7})\.geojson\.gz$/.exec(f)
         const origem = m ? geometriaBasicaPublicada(m[1]) : path.join(geo, f)
