@@ -217,7 +217,6 @@ export function MapaBrasil(props: Props) {
       m.addControl(new ScaleControl({ unit: "metric" }), "bottom-right")
       if (import.meta.env.DEV || import.meta.env.VITE_RAIZ_TESTE_MAPA === "1") Object.assign(caixa.current, { __mapa: m })
       mapaRef.current = m
-      m.on("error", e => { if ("sourceId" in e && e.sourceId === FONTE_GRUPOS) setErroAgregadosNoMapa(true) })
       m.once("load", () => {
         montar(m, null, true)
         ligarEventos(m)
@@ -294,7 +293,12 @@ export function MapaBrasil(props: Props) {
     const arquivoEsperado = new URL(`${import.meta.env.BASE_URL}geo/agregados_brasil.geojson`, document.baseURI)
     const url = arquivoEsperado.origin === location.origin ? urlAgregadosPublica(props.agregados?.url, arquivoEsperado.href) : null
     setErroAgregadosNoMapa(false)
-    ;(m.getSource(FONTE_GRUPOS) as GeoJSONSource).setData((url ?? prepararPontosAgregados(props.agregados?.geo)) as never)
+    const fonte = m.getSource(FONTE_GRUPOS) as GeoJSONSource
+    let ativo = true
+    const falhou = () => { if (ativo && mapaRef.current === m) setErroAgregadosNoMapa(true) }
+    fonte.on("error", falhou)
+    void fonte.setData((url ?? prepararPontosAgregados(props.agregados?.geo)) as never).catch(falhou)
+    return () => { ativo = false; fonte.off("error", falhou) }
   }, [pronto, props.agregados])
 
   // os estados pela situação: cor do contorno e o rótulo com a contagem (completo, incompleto, ainda não processado)
