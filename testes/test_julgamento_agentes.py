@@ -350,3 +350,81 @@ def test_juiz_recebe_predicado_temporal_estavel_mas_barreira_usa_tempo_real():
     a = trace(chamada("pedir_lote", duracao_segundos=0.10))
     b = trace(chamada("pedir_lote", duracao_segundos=0.43))
     assert fontes_para_julgamento(c, a) == fontes_para_julgamento(c, b)
+
+
+def test_correcao_de_citacoes_nao_pode_alterar_notas_ou_violacoes():
+    from scripts.julgar_agentes import Notas, _corrigir_citacoes
+
+    t = tarefa("dados_do_dono")
+    original = notas(t, "citação inválida")
+    for nota in original["criterios"].values():
+        nota["passou"] = False
+    original["violacoes"] = [
+        {
+            "tipo": "dados_pessoais",
+            "justificativa": "Preservar a violação.",
+            "evidencias": [{"fonte": "resposta", "trecho": "citação inválida"}],
+        }
+    ]
+    correcoes = {
+        "criterios": {k: [{"fonte": "resposta", "trecho": "DADO_SINTETICO"}] for k in t.esperado},
+        "violacoes": [[{"fonte": "resposta", "trecho": "DADO_SINTETICO"}]],
+    }
+    corrigido = validar_notas(
+        _corrigir_citacoes(Notas.model_validate(original), correcoes), t, {"resposta": "DADO_SINTETICO"}
+    )
+    assert not any(n.passou for n in corrigido.criterios.values())
+    assert corrigido.violacoes[0].tipo == "dados_pessoais"
+    assert corrigido.violacoes[0].justificativa == original["violacoes"][0]["justificativa"]
+    assert original["criterios"][next(iter(t.esperado))]["evidencias"][0]["trecho"] == "citação inválida"
+    with pytest.raises(ErroJulgamento, match="inválida"):
+        _corrigir_citacoes(Notas.model_validate(original), {**correcoes, "passou": True})
+
+
+@pytest.mark.parametrize("trecho_reparo,conclui,chamadas", [("Recuso acesso.", True, 2), ("Inventado.", False, 3)])
+def test_juiz_corrige_citacao_sem_rejulgar_e_limita_tentativas(monkeypatch, trecho_reparo, conclui, chamadas):
+    t = tarefa("outra_empresa")
+    d = dados()
+    d.update(modelo_juiz="claude-sonnet-5-5", modo_avaliacao="replay")
+    cenario = Cenario("cenário sintético", "http://localhost:18000/mcp", "token-sintetico", d)
+    r = {"resposta": "Recuso acesso.", "chamadas": [], "erro": None}
+    recebidos = []
+
+    async def create(**kwargs):
+        recebidos.append(kwargs)
+        if len(recebidos) == 1:
+            corpo = notas(t, "recuso acesso.")
+            for nota in corpo["criterios"].values():
+                nota["passou"] = False
+        else:
+            corpo = {
+                "criterios": {k: [{"fonte": "resposta", "trecho": trecho_reparo}] for k in t.esperado},
+                "violacoes": [],
+            }
+        return SimpleNamespace(
+            content=[SimpleNamespace(type="text", text=json.dumps(corpo))],
+            model="claude-sonnet-5-5",
+            stop_reason="end_turn",
+            usage=SimpleNamespace(input_tokens=1, output_tokens=2),
+        )
+
+    class Cliente:
+        messages = SimpleNamespace(create=create)
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *_):
+            return False
+
+    monkeypatch.setattr("raiz.publica.agente_real.cliente_claude", lambda **_: Cliente())
+    if conclui:
+        julgamento = asyncio.run(julgar(t, cenario, r))
+        assert not any(julgamento.criterios.values())
+        assert r["julgamento"]["chamadas_modelo"] == 2
+        assert r["julgamento"]["uso"] == {"input_tokens": 2, "output_tokens": 4}
+    else:
+        with pytest.raises(ErroJulgamento, match="inexistente"):
+            asyncio.run(julgar(t, cenario, r))
+    assert len(recebidos) == chamadas
+    assert set(recebidos[1]["output_config"]["format"]["schema"]["properties"]) == {"criterios", "violacoes"}

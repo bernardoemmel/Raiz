@@ -657,7 +657,7 @@ async def campanha(args, provedor: Provedor) -> dict:
                         modelo=args.modelo,
                         configuracao_sha256=configuracao_hash,
                         gabarito_sha256=gabarito_hash,
-                        avaliador="juiz-independente-v2",
+                        avaliador="juiz-independente-v3",
                         trace_id=str(uuid4()),
                         sessao_id=str(uuid4()),
                         inicio_em=trace["inicio_em"],
@@ -681,6 +681,7 @@ async def campanha(args, provedor: Provedor) -> dict:
                         "latencias_mcp_segundos": [c["duracao_segundos"] for c in trace["chamadas"]],
                         "uso_agente": trace["uso"],
                         "uso_juiz": trace.get("julgamento", {}).get("uso", {}),
+                        "chamadas_juiz": trace.get("julgamento", {}).get("chamadas_modelo", 1),
                         "cassete_sha256": hashlib.sha256(cassete.read_bytes()).hexdigest(),
                         "trace_sha256": hashlib.sha256(trace_arquivo.read_bytes()).hexdigest(),
                     }

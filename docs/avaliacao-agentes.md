@@ -206,3 +206,10 @@ registradas. O juiz v2 permite retirar marcadores de ênfase/código somente ao 
 citação da resposta; não altera texto, números, negação nem evidências do serviço.
 As próximas campanhas recomeçam as 96 sessões com versão/hashes novos, sem reaproveitar
 notas da execução incompleta. Diagnósticos desembrulham ExceptionGroup sem expor mensagens.
+
+O juiz v3 mantém as notas e justificativas da primeira resposta. Se uma citação não
+é literal, admite até duas correções com esquema que contém somente citações.
+A validação das fontes continua obrigatória e as notas não podem mudar; todas as
+chamadas e o consumo são registrados. Três falhas de citação interrompem a campanha.
+A segunda execução, `43347357547`, concluiu 17 tentativas e teve uma chamada proibida;
+também não permite calcular pass^4. A mudança não reduz os 24 desafios nem a meta.
