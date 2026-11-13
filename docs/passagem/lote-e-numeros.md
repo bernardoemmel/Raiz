@@ -432,3 +432,10 @@ e fração máxima de dívida, preservando pedidos explícitos. Nove testes de f
 e publicação passaram; 53 testes nacionais/fila passaram após resolver conflitos.
 Ainda falta importar a rodada PA R12 publicada, indexar a cobertura vigente,
 repetir benchmark, concluir CI e publicação nacional. O PR #94 permanece rascunho.
+
+A ponte PA R12 confere o manifesto privado vigente, versão, 144 municípios,
+345.870 imóveis e SHA256 dos pacotes antes de compor as entradas históricas
+com as novas previsões. Rodada antiga não é reetiquetada. O importador está
+testado nas guardas; a importação real depende da publicação PA R12. Fontes
+canônicas dos demais estados continuam incrementais. Benchmark passa a declarar
+o cenário padrão vigente também na oferta sintética e nos parâmetros do pedido.

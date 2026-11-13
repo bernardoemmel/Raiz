@@ -523,6 +523,9 @@ A primeira execução no Actions identificou ausência de `rg` no runner; a veri
   Estado sem elegíveis mantém auditoria e potencial pendente. 21 testes focados.
 - [ ] Nacional: integrar a Rodada 12, concluir suíte/CI, merge e execução privada;
   medir novamente após a integração e conferir os arquivos publicados.
+- [x] Ponte de leitura da rodada PA R12 implementada com conferência de versão,
+  cobertura e hashes; fontes antigas não recebem versão nova. Cronograma
+  nacional soma as curvas das selecionadas e preserva o cenário em cada pedido.
 - [ ] Rodada 12 — **parcial, código preservado**: 67 testes focados aprovados;
   cenário R12 com curva inicial, operações, provisões de terra, dívida por ICSD,
   plano de gado em UA e credibilidade. Falta validação integral, recálculo do Pará,

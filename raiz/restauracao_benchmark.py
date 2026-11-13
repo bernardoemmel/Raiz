@@ -29,6 +29,7 @@ def main():
     f = base / "oferta.parquet"
     inicio = time.monotonic()
     n = a.linhas
+    cenario = R.cenario()
     if f.exists():
         raise ValueError("Use destino novo para medir uma execução sem cache de resultado")
     if not f.exists():
@@ -48,10 +49,10 @@ def main():
                     "bioma": "Amazônia",
                     "modo": "regeneracao_assistida",
                     "caminho": "matricula_a_conferir",
-                    "caminho_terra": "registro_imovel",
+                    "caminho_terra": "privada_matricula",
                     "risco_terra": "baixo",
                     "restauracao_versao": R.versao(),
-                    "restauracao_cenario": "central_r11",
+                    "restauracao_cenario": cenario["cenario"],
                     "entradas_versao": "sintetico",
                     "situacao_previsao": "compativel",
                     "pendencias": "jurisdicional_a_conferir",
@@ -115,10 +116,12 @@ def main():
     preparo = time.monotonic() - inicio
     r = N.montar_tres_opcoes(
         catalogo,
-        CamposPedido(),
+        CamposPedido(
+            dinheiro={"preco_venda_usd": cenario["preco_usd_t"], "fracao_financiada": cenario["fracao_financiada"]}
+        ),
         N.normalizar_recorte(brasil=True),
         modelo=R.versao(),
-        cenario="central_r11",
+        cenario=cenario["cenario"],
         destino=base / "consultas",
     )
     saida = {

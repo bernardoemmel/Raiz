@@ -24,6 +24,7 @@ from raiz import restauracao_catalogo as C
 from raiz import restauracao_desbloqueio as D
 from raiz import restauracao_nacional as N
 from raiz import restauracao_nacional_fontes as F
+from raiz import restauracao_nacional_pa as PA
 from raiz.executor.transferencia_privada import arquivo_privado, empacotar, enviar_arquivo, extrair
 from raiz.pedidos.campos import CamposPedido
 
@@ -31,7 +32,9 @@ PONTEIRO = "lote_nacional_atual.json"
 
 
 def versao_publicador():
-    return hashlib.sha256(Path(__file__).read_bytes() + D.regra()["versao_completa"].encode()).hexdigest()
+    return hashlib.sha256(
+        Path(__file__).read_bytes() + Path(PA.__file__).read_bytes() + D.regra()["versao_completa"].encode()
+    ).hexdigest()
 
 
 def municipios() -> dict[str, list[int]]:
@@ -150,22 +153,27 @@ def atualizar(arm, trabalho: Path, *, max_ufs: int = 27, limite_minutos: float =
     atual, esperados = _ler_atual(arm), municipios()
     arm._exigir_privado()
     ativos = {a["name"]: a for a in arm._assets()}
+    rodada_pa = PA.referencia(arm, ativos)
     estado = arm.manifesto(fresco=True)
     novas, inicio = [], time.monotonic()
     for uf in N.UFS:
+        rodada = rodada_pa if uf == "PA" else None
         nomes = (f"raiz_{uf}.tar.gz", f"raiz_geo_{uf}.tar.gz")
         historico = (
             uf == "PA"
             and R.versao() == "restauracao-2026d+a84f9789"
             and (estado.get("estados", {}).get(uf, {}).get("tabelas", {}).get("desenvolvedor", 0) < 144)
         )
-        if not historico and any(nome not in ativos for nome in nomes):
+        if not historico and not rodada and any(nome not in ativos for nome in nomes):
             continue
         identidade = {
-            "ativos": "PA144_historico" if historico else {n: ativos[n]["id"] for n in nomes},
+            "ativos": rodada["manifesto_sha256"]
+            if rodada
+            else ("PA144_historico" if historico else {n: ativos[n]["id"] for n in nomes}),
             "modelo": R.versao(),
             "cenario": R.cenario()["cenario"],
             "indice": C.versao_indice(),
+            "importador_pa": hashlib.sha256(Path(PA.__file__).read_bytes()).hexdigest() if rodada else None,
         }
         chave = hashlib.sha256(C._json(identidade)).hexdigest()
         anterior = atual["ufs"].get(uf)
@@ -177,7 +185,9 @@ def atualizar(arm, trabalho: Path, *, max_ufs: int = 27, limite_minutos: float =
         indice = pasta / "indice"
         if anterior:
             _restaurar_indice(arm, anterior["indice"], indice, trabalho)
-        if historico:
+        if rodada:
+            fonte, captura = PA.importar(arm, rodada, pasta / "rodada")
+        elif historico:
             fonte, captura = _importar_pa_historico(arm, pasta / "historico")
         else:
             captura = F.capturar_uf(arm, uf, pasta / "captura")
