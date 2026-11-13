@@ -15,6 +15,7 @@ from sqlalchemy import Engine, text
 
 from raiz.busca import FiltrosProspeccao, _consulta_prospeccao, exigir_filtros_pagos
 from raiz.prospeccao_acesso import ErroAcesso, limitar
+from raiz.prospeccao_versoes import LOTES_SQL
 
 _VISIVEL = """exists (
     select 1 from funil.vigente v where v.cod_imovel = a.cod_imovel
@@ -76,8 +77,14 @@ def salvar(engine: Engine, cliente_id: int, nome: str, filtros: FiltrosProspecca
         con.execute(
             text(
                 sql
-                + """insert into negocio.prospeccao_busca_vista(busca_id, cod_imovel)
-                select :id, codigo_car from selecionadas on conflict do nothing"""
+                + ", lotes as ("
+                + LOTES_SQL
+                + """), inicial as (
+                    select s.codigo_car,a.observacao_id,coalesce(l.lotes,'[]'::jsonb) as lotes
+                    from selecionadas s left join negocio.prospeccao_ficha_atual a on a.cod_imovel=s.codigo_car
+                    left join lotes l on l.cod_imovel=s.codigo_car)
+                insert into negocio.prospeccao_busca_vista(busca_id,cod_imovel,observacao_id,lotes)
+                select :id,codigo_car,observacao_id,lotes from inicial on conflict do nothing"""
             ),
             {**parametros, "id": ident},
         )
@@ -123,34 +130,127 @@ def verificar(engine: Engine, busca_id: str) -> dict:
         filtros = FiltrosProspeccao.model_validate(registro.filtros)
         exigir_filtros_pagos(con, filtros, registro.cliente_id)
         sql, parametros = _consulta_prospeccao(filtros, registro.cliente_id)
+        # Materializa somente códigos/ponteiros no Postgres, não fichas nem milhões de linhas em Python.
+        # A lista monitorada é permanente: sair do filtro não interrompe avisos de mudanças da terra.
+        con.execute(
+            text(
+                "create temporary table selecao_prospeccao on commit drop as "
+                + sql
+                + "select codigo_car from selecionadas"
+            ),
+            parametros,
+        )
+        con.execute(text("create unique index on selecao_prospeccao(codigo_car)"))
         novas = con.execute(
             text(
-                sql
-                + """, novas as (
-                insert into negocio.prospeccao_busca_vista(busca_id, cod_imovel)
-                select :id, codigo_car from selecionadas on conflict do nothing returning cod_imovel
+                """with lotes as ("""
+                + LOTES_SQL
+                + """), novas as (
+                insert into negocio.prospeccao_busca_vista(busca_id,cod_imovel,observacao_id,lotes)
+                select :id,s.codigo_car,a.observacao_id,coalesce(l.lotes,'[]'::jsonb)
+                from selecao_prospeccao s left join negocio.prospeccao_ficha_atual a on a.cod_imovel=s.codigo_car
+                left join lotes l on l.cod_imovel=s.codigo_car
+                on conflict do nothing returning cod_imovel
             ), avisos as (
-                insert into negocio.prospeccao_busca_aviso(busca_id, cod_imovel)
-                select :id, cod_imovel from novas on conflict do nothing returning id
+                insert into negocio.prospeccao_busca_aviso(busca_id,cod_imovel)
+                select :id,cod_imovel from novas on conflict do nothing returning id
             ) select count(*) from avisos"""
             ),
-            {**parametros, "id": ident},
+            {"id": ident, "cliente_id": registro.cliente_id},
         ).scalar_one()
+        # Nenhum estado de reservas de outras contas é copiado para histórico ou para avisos.
+        # A invisibilidade temporária também não fabrica um evento "saiu do filtro".
+        visivel_monitoramento = """not exists (select 1 from negocio.reserva_fazenda rf
+            join negocio.reserva rs on rs.id=rf.reserva_id where rf.cod_imovel=v.cod_imovel
+            and rf.ativa and rs.cliente_id<>:cliente_id)"""
+        con.execute(
+            text(
+                """create temporary table monitoramento_prospeccao on commit drop as
+            with lotes as ("""
+                + LOTES_SQL
+                + """)
+            select v.cod_imovel,v.observacao_id as anterior_observacao,a.observacao_id as atual_observacao,
+                coalesce(v.observacao_id,(select min(o.id) from negocio.prospeccao_ficha_observacao o
+                    where o.cod_imovel=v.cod_imovel)) as inicio_observacao,
+                v.corresponde,s.codigo_car is not null as agora_corresponde,v.transicao,
+                v.lotes as antes_lotes,coalesce(l.lotes,'[]'::jsonb) as agora_lotes
+            from negocio.prospeccao_busca_vista v
+            left join negocio.prospeccao_ficha_atual a on a.cod_imovel=v.cod_imovel
+            left join selecao_prospeccao s on s.codigo_car=v.cod_imovel
+            left join lotes l on l.cod_imovel=v.cod_imovel
+            where v.busca_id=:id and """
+                + visivel_monitoramento
+            ),
+            {"id": ident, "cliente_id": registro.cliente_id},
+        )
+        alteradas = con.execute(
+            text("""with inseridas as (
+            insert into negocio.prospeccao_busca_aviso(busca_id,cod_imovel,tipo,evento_chave,detalhes,observacao_id)
+            select :id,m.cod_imovel,'alteracao_terra','terra:'||o.id,o.mudancas,o.id
+            from monitoramento_prospeccao m join negocio.prospeccao_ficha_observacao o
+                on o.cod_imovel=m.cod_imovel and o.id>m.inicio_observacao and o.id<=m.atual_observacao
+            where jsonb_array_length(o.mudancas)>0
+            on conflict do nothing returning id) select count(*) from inseridas"""),
+            {"id": ident},
+        ).scalar_one()
+        filtro = con.execute(
+            text("""with inseridas as (
+            insert into negocio.prospeccao_busca_aviso(busca_id,cod_imovel,tipo,evento_chave,detalhes)
+            select :id,m.cod_imovel,case when agora_corresponde then 'entrou_filtro' else 'saiu_filtro' end,
+                'filtro:'||(transicao+1),jsonb_build_array(jsonb_build_object(
+                    'tipo',case when agora_corresponde then 'entrou_filtro' else 'saiu_filtro' end,
+                    'campo','corresponde_busca','antes',corresponde,'depois',agora_corresponde,
+                    'fonte','Raíz, filtros da busca salva','data_referencia',null,'data_corte',null))
+            from monitoramento_prospeccao m where corresponde is distinct from agora_corresponde
+            on conflict do nothing returning id) select count(*) from inseridas"""),
+            {"id": ident},
+        ).scalar_one()
+        lotes = con.execute(
+            text("""with mudancas as (
+            select m.*,t.tipo from monitoramento_prospeccao m cross join (values ('entrou_lote'),('saiu_lote')) t(tipo)
+            where (t.tipo='entrou_lote' and not antes_lotes @> agora_lotes)
+               or (t.tipo='saiu_lote' and not agora_lotes @> antes_lotes)
+            ), inseridas as (
+            insert into negocio.prospeccao_busca_aviso(busca_id,cod_imovel,tipo,evento_chave,detalhes)
+            select :id,cod_imovel,tipo,tipo||':'||(transicao+1),jsonb_build_array(jsonb_build_object(
+                'tipo',tipo,'campo','lotes_da_conta','antes',antes_lotes,'depois',agora_lotes,
+                'fonte','Raíz, pedidos da própria conta','data_referencia',null,'data_corte',null))
+            from mudancas on conflict do nothing returning id) select count(*) from inseridas"""),
+            {"id": ident},
+        ).scalar_one()
+        con.execute(
+            text("""update negocio.prospeccao_busca_vista v set
+            observacao_id=m.atual_observacao,corresponde=m.agora_corresponde,lotes=m.agora_lotes,
+            transicao=v.transicao+case when m.corresponde is distinct from m.agora_corresponde
+                or m.antes_lotes is distinct from m.agora_lotes then 1 else 0 end
+            from monitoramento_prospeccao m where v.busca_id=:id and v.cod_imovel=m.cod_imovel"""),
+            {"id": ident},
+        )
         con.execute(text("update negocio.prospeccao_busca set verificada_em = now() where id = :id"), {"id": ident})
-    return {"id": str(ident), "novas_fazendas": novas}
+    return {
+        "id": str(ident),
+        "novas_fazendas": novas,
+        "alteracoes_terra": alteradas,
+        "alteracoes_filtro": filtro,
+        "alteracoes_lote": lotes,
+    }
 
 
 def verificar_todas(engine: Engine) -> dict:
     """Entrada para o agendador/coleta; sem disparo externo nem concessão de acesso."""
     with engine.connect() as con:
         ids = (
-            con.execute(
+            con.execution_options(yield_per=100)
+            .execute(
                 text("""select b.id from negocio.prospeccao_busca b
-                join negocio.cliente c on c.id = b.cliente_id and c.ativo order by b.id""")
+            join negocio.cliente c on c.id=b.cliente_id and c.ativo order by b.id""")
             )
             .scalars()
-            .all()
         )
+        return _verificar_ids(engine, ids)
+
+
+def _verificar_ids(engine, ids) -> dict:
     feitas, novas, sem_acesso = 0, 0, 0
     for ident in ids:
         try:
@@ -173,8 +273,12 @@ def avisos(engine: Engine, cliente_id: int, *, depois: int = 0, limite: int = 50
     with engine.connect() as con:
         _cliente(con, cliente_id)
         linhas = con.execute(
-            text(f"""select a.id, a.busca_id, a.cod_imovel, a.criada_em, a.lida_em, b.nome
+            text(f"""select a.id, a.busca_id, a.cod_imovel, a.criada_em, a.lida_em, b.nome,a.tipo,
+                case when liberada.cod_imovel is not null then a.detalhes else '[]'::jsonb end as detalhes,
+                liberada.cod_imovel is not null as ficha_liberada
                 from negocio.prospeccao_busca_aviso a
+                left join negocio.prospeccao_desbloqueio liberada on liberada.cliente_id=:cliente_id
+                    and liberada.cod_imovel=a.cod_imovel
                 join negocio.prospeccao_busca b on b.id = a.busca_id
                 where b.cliente_id = :cliente_id and a.id > :depois and {_VISIVEL}
                 order by a.id limit :limite"""),
@@ -189,7 +293,12 @@ def avisos(engine: Engine, cliente_id: int, *, depois: int = 0, limite: int = 50
                 "codigo_car": r.cod_imovel,
                 "criada_em": r.criada_em.isoformat(),
                 "lida_em": r.lida_em.isoformat() if r.lida_em else None,
-                "mensagem": "Nova fazenda corresponde à sua busca salva. A ficha completa exige liberação.",
+                "tipo": r.tipo if r.ficha_liberada or r.tipo == "nova_fazenda" else "atualizacao_disponivel",
+                "ficha_liberada": r.ficha_liberada,
+                "mudancas": r.detalhes,
+                "mensagem": "Nova fazenda corresponde à sua busca salva. A ficha completa exige liberação."
+                if r.tipo == "nova_fazenda"
+                else "Há atualizações da terra ou da seleção. Consulte a ficha liberada.",
             }
             for r in linhas[:limite]
         ],

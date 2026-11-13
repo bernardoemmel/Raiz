@@ -76,7 +76,14 @@ def test_releitura_exige_gates_e_liberacao_propria_preserva_dto_sem_nova_tarifa(
     for _ in range(2):
         r = cl.get(rota, headers=_h(empresa))
         assert r.status_code == 200, r.text
-        assert r.json() == esperado  # fontes, datas e nulls permanecem iguais ao DTO da interface
+        recebido = r.json()
+        # A terra é idêntica entre canais; a última consulta da conta avança em cada releitura.
+        assert {k: v for k, v in recebido.items() if k != "o_que_mudou"} == {
+            k: v for k, v in esperado.items() if k != "o_que_mudou"
+        }
+        assert recebido["o_que_mudou"]["primeira_consulta"] is False
+        assert recebido["o_que_mudou"]["mudancas"] == []
+        assert recebido["o_que_mudou"]["versao_anterior_id"] == recebido["versao_ficha"]["id"]
         assert r.headers["cache-control"] == "private, no-store"
         assert "X-Chave-API" in r.headers["vary"]
     _sem_cobranca_nova(eng, cid)
@@ -119,7 +126,13 @@ def test_ferramenta_real_oauth_chama_mesmo_servico_e_recusa_escopo_ou_car_fechad
     _liberar_car(eng, cid, car)
     resposta = anyio.run(chamar, ["consultar"])
     assert not resposta.is_error
-    assert resposta.structured_content == servico.consultar_ficha(eng, cid, car)
+    releitura = servico.consultar_ficha(eng, cid, car)
+    assert {k: v for k, v in resposta.structured_content.items() if k != "o_que_mudou"} == {
+        k: v for k, v in releitura.items() if k != "o_que_mudou"
+    }
+    assert resposta.structured_content["o_que_mudou"]["primeira_consulta"] is True
+    assert releitura["o_que_mudou"]["primeira_consulta"] is False
+    assert releitura["o_que_mudou"]["mudancas"] == []
     assert resposta.structured_content["codigo_car"] == car
     _sem_cobranca_nova(eng, cid)
     with eng.connect() as con:

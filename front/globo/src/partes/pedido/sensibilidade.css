@@ -1,0 +1,9 @@
+.sensibilidade-lote fieldset { display: grid; gap: var(--e3); min-width: 0; margin: var(--e4) 0; padding: var(--e4); border: var(--linha); }
+.sensibilidade-lote legend { font-weight: 600; padding: 0 var(--e2); }
+.sensibilidade-lote label { display: grid; gap: var(--e2); min-width: 0; }
+.sensibilidade-lote input[type="number"] { width: 100%; min-height: 48px; border: 1px solid var(--pedra); border-radius: var(--raio-botao); padding: var(--e2) var(--e3); background: var(--superficie); }
+.sensibilidade-lote .sensibilidade-pessimista { display: flex; align-items: center; gap: var(--e3); min-height: 48px; }
+.sensibilidade-pessimista input { width: 24px; height: 24px; flex-shrink: 0; accent-color: var(--mata); }
+.sensibilidade-acoes { display: flex; flex-wrap: wrap; gap: var(--e3); margin: var(--e4) 0; }
+.sensibilidade-acoes button { min-height: 48px; max-width: 100%; white-space: normal; }
+.sensibilidade-lote caption { text-align: left; padding: var(--e3) 0; }

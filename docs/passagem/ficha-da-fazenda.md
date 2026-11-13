@@ -1,9 +1,90 @@
 # Passagem do chat "Ficha da fazenda"
 
-Atualização de 12/11/2026. Entrega integrada na main pelo
-[PR #72](https://github.com/bernardoemmel/Raiz/pull/72), commit `88860b6`.
-Correção de retomada do download público: branch `codex/repetir-download-publico`.
+Atualização de 12/11/2026 (Brasília). Continuação implementada na branch
+`codex/ficha-compromissos-versoes`, com integração da main `2b6e8af`.
+PR desta continuação: [#93](https://github.com/bernardoemmel/Raiz/pull/93), aguardando CI e merge.
+Entregas anteriores integradas pelos [PR #72](https://github.com/bernardoemmel/Raiz/pull/72)
+e [PR #80](https://github.com/bernardoemmel/Raiz/pull/80), commit `bea53bd`.
 Entrega anterior integrada: [PR #52](https://github.com/bernardoemmel/Raiz/pull/52).
+
+## Continuação: terra comprometida, versões e proteção
+
+A ficha ganha `terra_comprometida`, `versao_ficha` e `o_que_mudou`. O mesmo serviço
+continua atendendo interface, REST e MCP. Os detalhes permanecem pagos e privados;
+não há novos campos exclusivos no Release público ou em arquivos estáticos do site.
+
+- Compromissos: evidências territoriais versionadas, cruzamento com o CAR, união
+  das áreas para evitar soma duplicada e fonte/data/certeza por evidência. Um
+  catálogo sem polígono não confirma compromisso do imóvel. Programas estaduais
+  de REDD+ entram como contexto, inclusive os já cadastrados em `geo.redd_programa`.
+  Ausência ou falha de cobertura não significa terra livre. Coleta e limitações
+  reais das fontes estão em `docs/terra-comprometida.md`.
+- Versões: a carga preserva o estado antes e depois, incluindo imóveis removidos.
+  O conteúdo é imutável e deduplicado; voltar de A para B para A gera nova
+  observação sem duplicar a versão A. A última leitura pertence à conta e só
+  avança após resposta/renderização concluída. Comparação e PDF mantêm esse cuidado.
+- Avisos: buscas monitoram mudanças da terra e entrada/saída de filtros e dos
+  lotes da própria conta. O job não altera a última leitura do cliente. Detalhes
+  dos avisos continuam exigindo desbloqueio e visibilidade; nenhuma reserva ou
+  lote de outra conta é revelado. Não envia e-mail ou WhatsApp nesta entrega.
+- Cobertura: `raiz prospeccao atualizar-base` descobre as UFs no manifesto privado;
+  `reindexar` atualiza os derivados após mudança de fontes, mesmo sem CSV novo.
+  Falhas da carga não avançam o checkpoint. O fluxo existente de sincronização
+  e vigilância local chama os mesmos hooks. A agenda Compose também atualiza a
+  base e confere buscas a cada 15 minutos. Não recalcula o motor do Pará.
+- Exportações: PDF com marca d'água em cada página e linha-sentinela; JSON e CSV
+  com a mesma marca pseudônima, separada das medidas da terra. A marca não inclui
+  nome, documento ou contato. Sem chave do servidor a exportação retorna 503;
+  a leitura normal da ficha continua independente da chave de marcação.
+- Proteção: tentativas bem-sucedidas e recusadas entram no detector persistido
+  de volume/diversidade, sequência de CAR e paginação. O alerta é indício para
+  análise, deduplicado e com regras versionadas; licenças de dados autorizadas
+  não recebem alerta por navegação bem-sucedida em volume. Correções de falha
+  posterior à renderização preservam a trilha e reavaliam o alerta.
+
+Migrações desta continuação: **0032** (fontes/compromissos) → **0033** (versões e
+avisos) → **0034** (marcas e proteção), após a 0031. As chaves
+`RAIZ_PROTECAO_CHAVES` e `RAIZ_PROTECAO_VERSAO` ficam só no servidor; a rotação
+preserva as versões antigas para rastreio. A consulta operacional usa
+`raiz prospeccao alertas-protecao` e `rastrear-marca`.
+
+Rotas adicionais autenticadas: `GET /prospeccao/fichas/{car}/historico` e
+`GET /prospeccao/fichas/{car}/exportar?formato=json|csv`. O PDF mantém sua rota.
+Todos os formatos passam pelo mesmo desbloqueio, exclusividade e limites.
+
+O catálogo passa a propor **por ficha (1 crédito), por lote (10) e assinatura
+mensal (50)**. As quantidades/ciclo são propostas e os preços permanecem nulos,
+com “a definir pelo fundador”. Assinatura não pode ser vendida como um pacote
+avulso; permanece fechada até haver gestão real de ciclos. O simulador
+`raiz prospeccao simular-receita` calcula receita por cliente/mês e ano, carteira,
+consumo e margem quando os custos são informados, sem persistir hipóteses ou
+chamar o Pix. Ver `docs/precos-e-receita.md`.
+
+A medição usa o workflow único `.github/workflows/agentes-real.yml`, integrado
+pelo PR #85: manual e segunda às 06:00 de Brasília, 24 tarefas × quatro tentativas,
+com `ANTHROPIC_API_KEY` apenas no Actions. A conciliação mantém seu runner, Compose,
+OAuth real, juiz, evidências sanitizadas e gabarito v2. Não adiciona segunda campanha
+semanal. Este PR garante também artefato de diagnóstico se a preparação falhar,
+e upload explícito dos arquivos conferidos que estão dentro de `.cache`.
+
+A execução 43341704532 chamou Claude e publicou o artefato 14000228551. Concluiu
+35 de 96 tentativas e parou ao julgar `liberacao_pendente`, tentativa 4: a citação
+da resposta omitiu marcadores Markdown e falhou na conferência literal. O relatório
+permanece incompleto (`aprovado=false`); não há pass^4 válido. A evidência da campanha
+deve ser preservada, e qualquer correção do juiz exige nova campanha integral.
+Este PR inclui `julgamento-independente-v2`: instrução explícita sobre Markdown
+e uma única nova conversa quando a citação é inválida, com consumo e tentativas
+registrados. Não repete nota válida nem flexibiliza a verificação literal.
+Os 39 testes do runner/juiz passaram, incluindo falha repetida e nota negativa.
+Ver `docs/medicao-agentes-actions.md`. A pilha de produção não foi implantada.
+
+Validações locais antes da conciliação: 2.227 testes Python aprovados e uma falha
+exclusiva da referência estadual sem snapshot privado; 230 testes do front;
+navegador/celular/axe; integração PostGIS de marcas, histórico e rollback. O teste
+estadual exige o snapshot privado preparado pelo job `referencia_para`; não se
+substitui por fixture pequena. O CI completo é obrigatório antes do merge.
+Após conciliar a main: 223 testes focados aprovados, mais 11 da agenda/pilha;
+Ruff e privacidade aprovados; 857 pacotes auditados sem licença proibida.
 
 ## Publicação aberta e arquivo privado
 
@@ -45,7 +126,7 @@ arquivo privado antes de iniciar o preparo dos insumos.
 
 ## Preços e operação
 
-`raiz/regras/padroes/precos.yaml` define pacotes de 1, 10 e 50 consultas, todos com
+`raiz/regras/padroes/precos.yaml` define as três modalidades propostas acima, todas com
 `valor_rs: null` e **a definir pelo fundador**. Não há preço comercial inventado.
 `RAIZ_PIX_MODO=teste` é o padrão, mesmo se houver chave. Catálogo provisório não
 abre venda. Produção exige catálogo aprovado, ativação explícita e credenciais.
@@ -187,9 +268,29 @@ A correção passou em 226 testes do front, incluindo 19 cenários locais de dow
 (conexão/corpo interrompidos, HTTP transitório, limite, 404 e conteúdo inválido).
 
 O lote do Pará tem retomada específica na main (`retomar-lote-para.yml`, PR #55):
-a execução 43299409156 já foi iniciada, reutilizando dez fatias preservadas e
-calculando só as cinco interrompidas, no privado e com motor/lockfile originais.
+a execução 43299409156 concluiu, reutilizando dez fatias preservadas e
+calculando só as cinco interrompidas, no privado e com motor/lockfile originais:
+144 municípios e 345.870 imóveis no conjunto privado.
 Não disparar também o lote genérico de quinze fatias. A compatibilidade do
 orquestrador histórico com o armazém atual deve permanecer coberta nos testes.
-O site deve ser republicado na main com os 22 assets básicos, sem depender dos
-originais preservados.
+O site foi republicado na main pela execução 43311812890, com os 22 assets
+básicos e sem depender dos originais preservados. O download de Rondônia
+precisou da segunda tentativa e concluiu. Foram verificados no endereço público
+os arquivos básicos e os 404 dos antigos caminhos de ficha, imóvel e certidão.
+
+### Continuidade da medição em 13/11/2026 UTC
+
+Campanha `43344990197`: 64/96 sessões; agente e juiz recusaram o cenário seguinte
+no provedor. Artefato preservado, sem pass^4 completo. Tratamento explícito de
+`refusal` permite terminar as demais sessões sem contornar o bloqueio; julgamento
+indisponível reprova a campanha e deixa pass^4 nulo, com limite inferior separado.
+O CI do commit `f259b18` aprovou Python, front, referência privada original do
+Pará, Compose, E2E, segurança e licenças; o único problema foi falso positivo
+histórico da URL JDBC sem credenciais, com fingerprint específico documentado.
+Nenhum workflow foi desligado ou cancelado nesta entrega.
+
+A campanha `43349391767` também concluiu 64/96: a recusa do agente produziu resposta
+vazia e o juiz respondeu com citações vazias, rejeitadas pelo esquema. O juiz v4
+não reenvia desafios recusados ao juiz e isola julgamentos inválidos por tentativa,
+sempre como indisponíveis (pass^4 nulo; limite inferior separado; aprovação falsa).
+Não aceita citação vazia e não troca modelo, instrução ou regra para obter aprovação.

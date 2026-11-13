@@ -24,6 +24,7 @@ from raiz.pedidos import otimizador as Z
 from raiz.pedidos import pix
 from raiz.pedidos.campos import CamposPedido, titulo
 from raiz.pedidos.premissas import premissas, versao_modelo
+from raiz.pedidos.revisao import revisao_lote
 
 ORDEM_NIVEL = {"sem_contato": 0, "contatado": 1, "interessado": 2, "aceite_fase1": 3, "contrato_firme": 4}
 NIVEIS = (*ORDEM_NIVEL, "recusou", "sem_resposta")
@@ -265,7 +266,8 @@ def _linha_pedido(con, pedido_id: str, cliente_id: int | None, *, travar: bool =
 def _ultima_sugestao(con, pedido_id) -> dict:
     r = (
         con.execute(
-            text("""select base, opcoes, premissas_versao, criada_em from negocio.pedido_sugestao where pedido_id = :p
+            text("""select id, base, opcoes, premissas_versao, otimizador_versao, criada_em
+                from negocio.pedido_sugestao where pedido_id = :p
                 order by id desc limit 1"""),
             {"p": pedido_id},
         )
@@ -399,6 +401,7 @@ def obter_pedido(engine: Engine, pedido_id: str, cliente_id: int | None) -> dict
             "reservado_ate": _reservado_ate(con, p["id"]),
             "alertas": _alertas(con, p["id"]),
             "versao_modelo": s["premissas_versao"],
+            "revisao_lote": revisao_lote(p["id"], p["campos"], s, opcoes),
         }
 
 

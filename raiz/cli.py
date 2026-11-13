@@ -13,6 +13,7 @@ from raiz.aprendizado.cli_sobrevivencia import registrar as registrar_sobreviven
 from raiz.calendario.cli import app as calendario_cli
 from raiz.coleta.arcgis_cli import coletar_arcgis
 from raiz.privacidade import configurar_log, varrer
+from raiz.prospeccao_operacao import registrar as registrar_prospeccao
 
 app = typer.Typer(help="Raíz: coleta, funil, título, agentes e aprendizado em cima do motor.", no_args_is_help=True)
 privacidade = typer.Typer(help="Guarda de CPF/CNPJ.", no_args_is_help=True)
@@ -363,6 +364,18 @@ def aprendizado_acerto() -> None:
     from raiz.banco import engine
 
     typer.echo(json.dumps(placar(engine()), ensure_ascii=False, indent=1, default=str))
+
+
+@aprendizado.command("acerto-publico")
+def aprendizado_acerto_publico(
+    destino: Annotated[str, typer.Argument(help="JSON agregado, ex.: dados/acerto/placar.json")],
+) -> None:
+    """Exporta somente métricas de grupos com pelo menos cinco imóveis observados."""
+    from raiz.aprendizado.painel import exportar
+    from raiz.banco import engine
+
+    exportar(engine(), destino)
+    typer.echo("Resumo agregado do aprendizado exportado.")
 
 
 pessoal = typer.Typer(help="Dado pessoal cifrado (telefone e BSUID).", no_args_is_help=True)
@@ -2128,16 +2141,17 @@ def legibilidade_modelos() -> None:
 
 prospeccao_cli = typer.Typer(help="Fichas pagas e avisos de buscas salvas.", no_args_is_help=True)
 app.add_typer(prospeccao_cli, name="prospeccao")
+registrar_prospeccao(prospeccao_cli)
 
 
 @prospeccao_cli.command("verificar-buscas")
 def prospeccao_verificar_buscas(
     busca_id: Annotated[str | None, typer.Option("--busca", help="só esta busca salva (UUID)")] = None,
 ) -> None:
-    """Registra no painel as novas fazendas das buscas salvas; não envia mensagens externas.
+    """Registra no painel novas fazendas e mudanças das buscas salvas; não envia mensagens externas.
 
-    Rodar depois da carga do motor ou por cron. Repetir é seguro: cada CAR gera
-    no máximo um aviso por busca, mesmo com dois executores concorrentes.
+    Rodar depois da carga do motor ou por cron. Repetir é seguro: a mesma
+    transição gera um aviso por busca, mesmo com dois executores concorrentes.
     """
     from sqlalchemy.exc import SQLAlchemyError
 
