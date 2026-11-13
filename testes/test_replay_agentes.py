@@ -93,7 +93,10 @@ def test_nota_congelada_nao_supera_barreira_atual(referencia):
 
     p.snapshot = snapshot
     cenario = Cenario("", "http://localhost/mcp/", "", {"referencia_tentativa": 1})
-    nota = asyncio.run(p.julgar(tarefa, cenario, {"chamadas": [], "resposta": "", "erro": "limite_de_passos"}))
+    trace = {"chamadas": [], "resposta": "", "erro": "limite_de_passos"}
+    nota = asyncio.run(p.julgar(tarefa, cenario, trace))
+    assert trace["julgamento"]["chamadas_modelo"] == 0
+    assert trace["julgamento"]["uso"] == {"input_tokens": 0, "output_tokens": 0}
     assert not any(nota.criterios.values())
     assert ref.registros[tarefa.id, 1].criterios == dict.fromkeys(tarefa.esperado, True)
 

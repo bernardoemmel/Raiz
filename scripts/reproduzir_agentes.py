@@ -114,6 +114,8 @@ class ProvedorReplay(ProvedorCenarios):
         trace["julgamento"] = {
             "versao": self.avaliador,
             "referencia_sha256": referencia.sha256,
+            "chamadas_modelo": 0,
+            "uso": {"input_tokens": 0, "output_tokens": 0},
             "barreiras": sorted(limites.reprovados),
             "motivos": limites.motivos,
         }
