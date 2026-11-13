@@ -1,8 +1,8 @@
 import { contarCobertura, type CoberturaMapa } from "../../../compartilhado/dados/cobertura-mapa"
-import { fmtInt, plural, ufDoCodigo } from "../../../compartilhado/formato"
+import { fmtDataHoraBrasilia, fmtInt, plural, ufDoCodigo } from "../../../compartilhado/formato"
 
 function Data({ valor }: { valor: string }) {
-  return <time dateTime={valor}>{new Date(valor).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", dateStyle: "short", timeStyle: "short" })} (Brasília)</time>
+  return <time dateTime={valor}>{fmtDataHoraBrasilia(valor)} (Brasília)</time>
 }
 
 export function PainelCobertura({ cobertura, uf }: { cobertura?: CoberturaMapa; uf?: string | null }) {

@@ -1,4 +1,4 @@
-import { fmtInt, UFS } from "../../../compartilhado/formato"
+import { fmtDataHoraBrasilia, fmtInt, UFS } from "../../../compartilhado/formato"
 import { situacaoProcessamento, type ProcessamentoEstado } from "../../../compartilhado/dados/processamento-estados"
 import type { CargaProcessamento } from "../processamento-estados"
 import { linkEstado } from "../rota"
@@ -6,7 +6,7 @@ import "./PainelProcessamentoEstados.css"
 
 function Data({ valor }: { valor: string | null }) {
   if (!valor || !Number.isFinite(Date.parse(valor))) return <>não informada</>
-  return <time dateTime={valor}>{new Date(valor).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", dateStyle: "short", timeStyle: "short" })}</time>
+  return <time dateTime={valor}>{fmtDataHoraBrasilia(valor)}</time>
 }
 
 function numero(valor: number | null): string {
