@@ -7,13 +7,21 @@ import type { Foco } from "../../../compartilhado/funil-etapas"
 import { fonte, useCarga } from "../dados"
 import type { CamadaAssunto, GeoMunicipio } from "../mapa/MapaBrasil"
 import { prepararGpu } from "../mapa/preparar-gpu"
+import { cederProcessamento } from "../../../compartilhado/ceder-processamento"
 import { Cabecalho } from "../partes/Cabecalho"
 import { PainelBrasil } from "../partes/PainelBrasil"
 import { PainelProcessamentoEstados } from "../partes/PainelProcessamentoEstados"
 import { useProcessamentoEstados } from "../processamento-estados"
 import { linkEstado, linkMunicipio } from "../rota"
 
-const MapaBrasil = lazy(() => import("../mapa/MapaBrasil").then((m) => ({ default: m.MapaBrasil })))
+const MapaBrasil = lazy(async () => {
+  // Avaliar a biblioteca gráfica e montar o componente na mesma tarefa bloqueia a entrada.
+  // A dependência fica em cache; a continuação entrega a thread antes de avaliar o mapa.
+  await import("../mapa/estilo")
+  await cederProcessamento()
+  const m = await import("../mapa/MapaBrasil")
+  return { default: m.MapaBrasil }
+})
 const PainelMunicipio = lazy(() => import("../partes/PainelMunicipio").then((m) => ({ default: m.PainelMunicipio })))
 const PainelMunicipioBasico = lazy(() => import("../partes/PainelMunicipioBasico").then((m) => ({ default: m.PainelMunicipioBasico })))
 
