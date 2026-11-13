@@ -664,3 +664,10 @@ HTTP/catálogo passaram (conjuntos sobrepostos). A promoção da cota usa o dest
 `04ed42b4e1a2be9e2cf5ea09c92d2de682ce47ab`, três origens auditadas e as mesmas 11 versões
 científicas, carga estrita, código nativo e dependências. Não há exceção de compatibilidade
 no preflight do catálogo. A suíte completa final e o CI continuam obrigatórios.
+
+
+Às 10h41 de Brasília, a segunda conferência confirmou ausência de jobs, reservas e pedidos
+elegíveis de GO, MA, PB e RN, sem catálogo ou Lote ativo que pudesse manter suas travas.
+As quatro refs correspondentes também foram liberadas por compare-and-swap dos SHAs exatos.
+A prova complementar está no mesmo JSON. As travas vivas de PR, SC e SP foram preservadas;
+os pedidos bloqueados continuam exigindo correção e novo pedido explícito.

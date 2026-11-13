@@ -43,5 +43,33 @@
   "reservas_nas_ufs": false,
   "conclusao": "Nenhum escritor ainda ativo pode ser dono destas cinco refs antigas. Manter todas as outras travas. Exclusão somente por compare-and-swap dos SHAs conferidos.",
   "remocao_cas_utc": "2026-11-13T13:38:40.767582+00:00",
-  "referencias_apos_cas": []
+  "referencias_apos_cas": [],
+  "segunda_conferencia_por_uf": {
+    "verificado_utc": "2026-11-13T13:41:49.639412+00:00",
+    "refs": {
+      "refs/tags/trava-publicar-GO-dados-privados": "692663c7e2326fe9d2e57a5b679a68a558d9aa70",
+      "refs/tags/trava-publicar-MA-dados-privados": "692663c7e2326fe9d2e57a5b679a68a558d9aa70",
+      "refs/tags/trava-publicar-PB-dados-privados": "692663c7e2326fe9d2e57a5b679a68a558d9aa70",
+      "refs/tags/trava-publicar-RN-dados-privados": "692663c7e2326fe9d2e57a5b679a68a558d9aa70"
+    },
+    "sem_jobs_nas_ufs": true,
+    "sem_reservas_nas_ufs": true,
+    "sem_pedidos_elegiveis_nas_ufs": true,
+    "sem_catalogo_ou_lotes_ativos": true,
+    "rodadas_ativas": [
+      "https://github.com/bernardoemmel/Raiz/actions/runs/43433684165",
+      "https://github.com/bernardoemmel/Raiz/actions/runs/43427422930",
+      "https://github.com/bernardoemmel/Raiz/actions/runs/43425198271",
+      "https://github.com/bernardoemmel/Raiz/actions/runs/43424282235",
+      "https://github.com/bernardoemmel/Raiz/actions/runs/43403684811",
+      "https://github.com/bernardoemmel/Raiz/actions/runs/43402855136"
+    ],
+    "travas_vivas_preservadas": [
+      "refs/tags/trava-publicar-PR-dados-privados",
+      "refs/tags/trava-publicar-SC-dados-privados",
+      "refs/tags/trava-publicar-SP-dados-privados"
+    ],
+    "remocao_cas_utc": "2026-11-13T13:41:50.744215+00:00",
+    "referencias_apos_cas": []
+  }
 }
