@@ -21,6 +21,7 @@ import uuid
 from pathlib import Path
 
 import httpx
+import httpx2
 from dotenv import dotenv_values
 from mcp import ClientSession
 from mcp.client.streamable_http import streamable_http_client
@@ -629,7 +630,7 @@ async def _smoke(args):
             continue
         cenario = await provedor.preparar(tarefa, 1, "smoke")
         try:
-            async with httpx.AsyncClient(
+            async with httpx2.AsyncClient(
                 headers={"Authorization": "Bearer " + cenario.access_token}, timeout=10, trust_env=False
             ) as http:
                 async with streamable_http_client(cenario.mcp_url, http_client=http) as transporte:

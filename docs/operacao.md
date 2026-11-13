@@ -85,7 +85,10 @@ credenciais ou dados de empresas. Um catálogo sintético não dimensiona o proc
    atributo. Atribua `raiz-api/admin_empresa` somente ao administrador daquela empresa. O cliente `raiz-agentes`
    usa PKCE S256 e escopos `consultar`/`pedir`; `reservar` é opcional, começa desabilitado também na conta e só
    o administrador da empresa habilita. Confira `/.well-known/oauth-protected-resource/mcp`, emissor, audiência,
-   expiração e callback com o cliente real. O import inicial não altera realms já existentes; mudanças exigem
+   expiração, `sub` e callback com o cliente real. O escopo padrão `raiz-identidade` inclui o mapper
+   `oidc-sub-mapper` (Subject), com `access.token.claim=true`; sem ele o Keycloak 26.8 emite um token
+   sem sujeito e o MCP o recusa. Em realms existentes, adicione esse mapper por administração antes
+   de testar a conexão. O import inicial não altera realms já existentes; mudanças exigem
    migração administrativa deliberada. Remova/rotacione o administrador de bootstrap depois do provisionamento.
 
 ### Atualizações, agenda e recuperação

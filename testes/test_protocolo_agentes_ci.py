@@ -55,6 +55,21 @@ def test_erro_externo_nao_copia_saida_ou_credencial(monkeypatch):
     assert "segredo" not in str(exc.value) and "privado" not in str(exc.value)
 
 
+def test_diagnostico_do_inspector_preserva_apenas_codigos_conhecidos():
+    comando = ["mcp-inspector", "--method", "initialize"]
+    r = subprocess.CompletedProcess(
+        comando, 3, "Bearer segredo", '{"error":{"code":"auth_required","message":"Bearer segredo"}}'
+    )
+    erro = conferencia.FalhaFerramenta(comando, r)
+    assert erro.diagnostico == {
+        "programa": "mcp-inspector",
+        "codigo_saida": 3,
+        "metodo": "initialize",
+        "motivo": "auth_required",
+    }
+    assert "segredo" not in json.dumps(erro.diagnostico)
+
+
 def test_inspector_tem_config_privada_e_reporta_somente_metadados(monkeypatch):
     from raiz.publica.contrato import RESUMO
     from raiz.publica.servidor_mcp import ESCOPOS_FERRAMENTAS

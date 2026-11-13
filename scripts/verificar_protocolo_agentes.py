@@ -28,6 +28,25 @@ PROTOCOLO = "2026-07-28"
 BASE_TESTE = "https://raiz.invalid"
 
 
+class FalhaFerramenta(RuntimeError):
+    """Diagnóstico por campos permitidos; nunca inclui a saída do processo externo."""
+
+    def __init__(self, comando: list[str], resultado: subprocess.CompletedProcess):
+        super().__init__("a conferência externa falhou")
+        self.diagnostico = {"programa": Path(comando[0]).name, "codigo_saida": resultado.returncode}
+        if "--method" in comando:
+            metodo = comando[comando.index("--method") + 1]
+            if metodo in {"initialize", "tools/list", "tools/call"}:
+                self.diagnostico["metodo"] = metodo
+        for linha in resultado.stderr.splitlines():
+            try:
+                erro = json.loads(linha).get("error", {}).get("code")
+            except (ValueError, AttributeError):
+                continue
+            if erro in {"auth_required", "unreachable", "invalid_config", "protocol_error"}:
+                self.diagnostico["motivo"] = erro
+
+
 def manifesto(base: str | None = None) -> dict:
     """Renderiza server.json; .invalid é apenas a fixture de CI, nunca um domínio anunciado."""
     base = base or BASE_TESTE
@@ -59,7 +78,7 @@ def executar(comando: list[str], *, ambiente: dict | None = None) -> subprocess.
     """Saída capturada: uma ferramenta externa não pode imprimir credenciais através de um erro."""
     resultado = subprocess.run(comando, env=ambiente, text=True, capture_output=True, timeout=90, check=False)
     if resultado.returncode:
-        raise RuntimeError(f"{Path(comando[0]).name} falhou (código {resultado.returncode}); confira a configuração")
+        raise FalhaFerramenta(comando, resultado)
     return resultado
 
 
@@ -210,6 +229,8 @@ def main() -> int:
     except (ValueError, RuntimeError, OSError, httpx.HTTPError, subprocess.SubprocessError) as exc:
         # Não reproduzir mensagem externa: ela pode conter token, URL ou dados de resposta.
         relatorio["erro"] = type(exc).__name__
+        if isinstance(exc, FalhaFerramenta):
+            relatorio["diagnostico"] = exc.diagnostico
     (args.saida / "resultado.json").write_text(json.dumps(relatorio, ensure_ascii=False, indent=2) + "\n")
     print(json.dumps(relatorio, ensure_ascii=False))
     return 0 if relatorio["aprovado"] else 1

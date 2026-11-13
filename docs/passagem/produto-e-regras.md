@@ -13,6 +13,9 @@ Passaram 123 testes focados, Ruff, a varredura de privacidade e a auditoria de 8
 PKCE foi comprovado no Keycloak real para consultar/pedir e reservar; o servidor manteve o perfil OAuth 2.1.
 O vacuum não encontrou erros; o Inspector CLI foi validado com servidor MCP real e autenticação sintética.
 A suíte integral e a conferência conjunta Compose/Keycloak/Inspector/24 cenários rodam no CI antes do merge.
+O primeiro CI subiu toda a pilha e revelou a ausência de `sub` no token Keycloak: o realm recebeu
+o mapper oficial `oidc-sub-mapper`. A conexão local com token PKCE real passou no Inspector,
+negociando 2026-07-28; a validação de sujeito do MCP permanece obrigatória.
 O Docker VFS local esgotou disco ao copiar imagens; não se infere dimensionamento de VPS desse incidente.
 O workflow mede memória e disco durante a campanha em Actions, sem contratar nem publicar servidor.
 **Ainda não houve chamada real ao Claude nem medição pass^4 desta entrega.** O fundador configurou

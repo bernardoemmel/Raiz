@@ -232,6 +232,8 @@ Próxima entrega em andamento (`produto-agentes-validacao`): medição Claude em
 replay VCR, conferência Inspector/vacuum, manifesto do registro e Compose de operação. Gabarito v2
 corrige a permissão de acompanhar operações assíncronas sem reduzir critérios ou meta. Resultado real,
 gravações e dimensionamento ainda dependem de conclusão dos ensaios; não estão marcados como feitos.
+O Compose completo subiu no CI do PR #85. O ensaio revelou e corrigiu a ausência do mapper
+`sub` no realm Keycloak; Inspector autenticado por PKCE real confirmou a revisão 2026-07-28.
 
 | Ordem | Entrega | Situação |
 |---|---|---|
