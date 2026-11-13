@@ -399,8 +399,8 @@ faz sem back-end.
 
 | Entrega | Situação |
 |---|---|
-| Publicação após #72, sem alterar o PR do outro chat | **feito** em 12/11/2026: workflow ativo; execução 43311812890 concluída; site ao vivo com busca, aproximação, pedido e 360 px sem 404 ou erros de JavaScript |
-| Conferir que arquivos pagos não ficaram públicos | **feito**: 36 assets do Release validados pela lista positiva; artefato publicado com 1.596 arquivos, 365 CSV básicos e 365 geometrias sem medidas pagas. Evidências e hash na passagem |
+| Publicação após #72, sem alterar o PR do outro chat | **feito** em 12/11/2026: workflow ativo; atualização 43331843113 concluída com 444 municípios em 13 estados; site ao vivo com busca, aproximação, pedido e 360 px sem 404 ou erros de JavaScript |
+| Conferir que arquivos pagos não ficaram públicos | **feito**: 36 assets do Release validados pela lista positiva; os dois artefatos foram conferidos, o mais recente com 1.849 arquivos, 444 CSV básicos e 444 geometrias sem medidas pagas. Evidências e hashes na passagem |
 | Resumos abertos dos três lotes; composição, travas e desenho somente pela API autenticada | **em andamento**: resultados reais do Pará estão no Release privado, conforme #78; o ponteiro completo não deve voltar ao público |
 | Sensibilidade de preço, reserva, desconto e cenário pessimista | **pendente**: a rodada do Pará não calculou esses cenários; demonstração identificada enquanto faltar a saída real |
 | Pedido por estado, bioma ou Brasil com cobertura e lacunas explícitas | **pendente** |

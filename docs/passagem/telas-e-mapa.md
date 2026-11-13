@@ -134,6 +134,12 @@ problemas acionáveis de autorização da ficha, navegação ou caminhos do dom�
 - O cadastro básico de todas as fazendas permanece aberto, conforme #72. Isso não autoriza revelar quais
   fazendas compõem um lote: os resumos comerciais terão contrato próprio, sem CAR nem geometria da seleção.
   Respostas 404 ao tentar endereços antigos de camadas pagas são a retirada esperada, não falhas de navegação.
+- Uma atualização foi disparada e concluiu na execução
+  [43331843113](https://github.com/bernardoemmel/Raiz/actions/runs/43331843113), sobre a main `6f49dfc`.
+  A nova publicação incorporou automaticamente **444 municípios, 13 estados e 912.853 fazendas básicas**,
+  com índice de `2026-11-12T23:54:43+00:00`. A mesma navegação ao vivo passou novamente com zero 404/erros.
+  O novo artefato tem 1.849 arquivos, 444 CSV básicos e 444 geometrias; todos foram revalidados sem medidas pagas.
+  SHA256 do tar: `c0a32ce66a78872c417e850ede2ae930154796a75bc1730070ffe3eefc7dec52`.
 - Próximas entregas, nesta ordem: resumo aberto/detalhes por API; sensibilidade; pedido por UF, bioma ou Brasil;
   painel de acerto por versão. A rodada privada do Pará não calculou sensibilidade (`sensibilidade_ligada=False`);
   a demonstração ficará identificada até haver resultados reais. E9 continua aguardando as cartas reais.
