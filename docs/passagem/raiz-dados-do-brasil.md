@@ -513,3 +513,17 @@ municipal e a leitura de assets com quatro tentativas/revalidação HTTP. São 1
 **245 testes** de fila, promoção e catálogo aprovados. As duas provas históricas permanecem intactas;
 a nova prova confere por AST que somente `_assets` mudou no armazém. A validação não relaxa o gate
 de compatibilidade dos publicadores ativos nem reescreve reservas.
+
+Acompanhamento em 13/11/2026, 00h33 de Brasília: o CI `43352641267` do PR #95 concluiu todos
+os nove jobs com sucesso. A main recebeu #86, #89 e #93 durante a execução; o conflito somente textual
+no plano foi resolvido preservando as duas entregas, antes de nova validação e novo CI. O run
+`43355236141` admitiu dez unidades junto de cinco reservas já existentes; seis unidades foram observadas
+no passo do executor simultaneamente. As leituras concorrentes de assets expuseram uma falha de paginação
+antes do executor em três unidades, corrigida e testada separadamente no PR #99. A ref pública de status
+recebe eventos municipais reais de RN, GO e MA. Erros no funil ainda impedem estimativa confiável de
+UFs/dia ou data nacional. Nenhum workflow foi cancelado/desativado; o teto compartilhado continua em 15.
+
+A integração do #93 acrescenta `estrito=True` à carga em `rodar.py`; esse arquivo participa do hash
+compartilhado e, por isso, as 11 versões na main mudam. A fila permanece no destino imutável `ebb13cae`
+com as versões originais: a prova agora recompõe exatamente a chamada anterior e confere todas as versões,
+sem alterar as reservas, as saídas ou o destino da promoção. Novos pedidos da main seguem a versão nova.

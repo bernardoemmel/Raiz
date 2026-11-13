@@ -1,0 +1,26 @@
+# Limiares operacionais revisáveis; alerta é indício para análise, não prova de abuso.
+# Override privado: RAIZ_PROTECAO_REGRAS=/caminho/protecao.yaml. Mudar sobe o hash da versão.
+versao: protecao-2026a
+janela_s: 900
+deduplicacao_s: 86400
+retencao_eventos_dias: 90
+sequencia_max_eventos: 512
+padrao:
+  monitorar_sucessos: true
+  volume_min: 300
+  diversidade_car_min: 100
+  sequencia_car_min: 25
+  paginas_consecutivas_min: 12
+  falhas_min: 40
+  taxa_falhas_min: 0.8
+licenciada:
+  # A licença aprovada em publica.conta autoriza volume: navegação bem-sucedida
+  # não gera alerta por quantidade, ordem de CAR ou paginação. Tentativas negadas
+  # continuam auditadas e só alertam com diversidade/padrão e os limiares abaixo.
+  monitorar_sucessos: false
+  volume_min: 3000
+  diversidade_car_min: 200
+  sequencia_car_min: 100
+  paginas_consecutivas_min: 50
+  falhas_min: 100
+  taxa_falhas_min: 0.9

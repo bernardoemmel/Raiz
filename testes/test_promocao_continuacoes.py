@@ -233,7 +233,7 @@ def test_gatilho_unico_nao_confia_em_codigo_de_outro_run(mudanca, autorizado):
     assert checkout["uses"] == "actions/checkout@v4" and "with" not in checkout
 
 
-def test_promocao_urgente_vincula_prova_anterior_e_codigo_corrigido():
+def test_promocao_urgente_vincula_prova_anterior_e_codigo_corrigido(monkeypatch):
     from raiz.executor import tarefas
 
     prova = json.loads((RAIZ / "docs/passagem/auditoria-promocao-urgente.json").read_text())
@@ -244,7 +244,18 @@ def test_promocao_urgente_vincula_prova_anterior_e_codigo_corrigido():
     assert F.PROMOCOES_URGENTE_PR95 == {o: prova["destino"] for o in prova["origens"]}
     assert set(PROMOCOES) < set(prova["origens"])
     atual = prova["commits"][prova["destino"]]
-    assert atual["versoes_tarefas"] == {n: tarefas.versao(n) for n in tarefas.CODIGO}
+    # #93 mudou só a chamada da carga em rodar.py, que participa do hash das 11 tarefas.
+    # A fila continua no commit fechado anterior; não atribuir a versão da main aos seus resultados.
+    rodar = RAIZ / "raiz/funil/rodar.py"
+    novo = rodar.read_bytes()
+    chamada = b"depois_da_carga(eng, cod, estrito=True)"
+    assert novo.count(chamada) == 1
+    anterior_rodar = novo.replace(chamada, b"depois_da_carga(eng, cod)")
+    ler = Path.read_bytes
+    with monkeypatch.context() as m:
+        m.setattr(Path, "read_bytes", lambda p: anterior_rodar if p == rodar else ler(p))
+        assert atual["versoes_tarefas"] == {n: tarefas.versao(n) for n in tarefas.CODIGO}
+    assert all(atual["versoes_tarefas"][n] != tarefas.versao(n) for n in tarefas.CODIGO)
     assert atual["versoes_tarefas"] == prova["commits"][DESTINO]["versoes_tarefas"]
     assert len(atual["armazem_sha256"]) == 64  # bytes históricos; o leitor mudou na rodada 12
     assert {p["origem"] for p in prova["comparacoes"]} == set(F.PROMOCOES_URGENTE_PR95)

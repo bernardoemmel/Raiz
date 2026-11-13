@@ -183,7 +183,7 @@ def rodar_municipio(cod: int, op: Opcoes, hc=None) -> dict:
         with eng.begin() as con:
             r = carregar_municipio(con, pasta.resolve(), cod, op.data_corte, motor_confirmado=True)
             lh, novo, n = congelar_rodada(con, r.rodada_id)
-        depois_da_carga(eng, cod)
+        depois_da_carga(eng, cod, estrito=True)
         reg.detalhe.update(rodada=r.rodada_id, nova=r.nova, previsoes=n if novo else 0, colunas_novas=r.colunas_novas)
 
     def mapbiomas(reg):
