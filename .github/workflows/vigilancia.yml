@@ -1,5 +1,5 @@
 # Vigilância diária das fazendas e dos projetos (raiz/vigilancia/README.md).
-# Lê MapBiomas Alerta, FIRMS (NOAA-20/21), embargos do Ibama, DETER e PRODES, cruza com os polígonos do Release dados
+# Lê MapBiomas Alerta, FIRMS (NOAA-20/21), embargos do Ibama, DETER e PRODES, cruza somente CAR de lotes ativos
 # e com os projetos, e publica no arquivo privado: alertas de imóvel e histórico autenticados; projetos, perdas
 # e marcações também cifrados (RAIZ_VIGILANCIA_CHAVE). Fonte com erro deixa a execução vermelha (o GitHub avisa por e-mail), depois de
 # publicar o que deu certo.
@@ -65,13 +65,14 @@ jobs:
           FIRMS_MAP_KEY: ${{ secrets.FIRMS_MAP_KEY }}
           RAIZ_VIGILANCIA_CHAVE: ${{ secrets.RAIZ_VIGILANCIA_CHAVE }}
           RAIZ_PROJETOS_PRIVADO: ${{ secrets.RAIZ_PROJETOS_PRIVADO }}
+          RAIZ_BANCO_URL: ${{ secrets.RAIZ_BANCO_URL }}
           GITHUB_TOKEN: ${{ github.token }}
           RAIZ_DADOS_PRIVADOS_URL: ${{ vars.RAIZ_DADOS_PRIVADOS_URL || format('release-github://{0}/dados-privados', github.repository) }}
           RAIZ_DADOS_PRIVADOS_TOKEN: ${{ secrets.RAIZ_DADOS_PRIVADOS_TOKEN || github.token }}
           FONTES: ${{ inputs.fontes }}
           UFS: ${{ inputs.ufs }}
         run: |
-          args=(rodar --baixar --publicar --resumo "$GITHUB_STEP_SUMMARY")
-          [ -n "$FONTES" ] && args+=(--fontes "$FONTES")
+          args=(rodar --lotes --baixar --publicar --resumo "$GITHUB_STEP_SUMMARY")
+          args+=(--fontes "${FONTES:-deter,mapbiomas_alerta,firms}")
           [ -n "$UFS" ] && args+=(--ufs "$UFS")
           python -m raiz.vigilancia "${args[@]}"

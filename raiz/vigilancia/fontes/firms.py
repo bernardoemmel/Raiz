@@ -46,17 +46,19 @@ def pixel(lon: float, lat: float, scan_km: float | None, track_km: float | None,
 
 def _csv(texto: str, sat: str) -> pd.DataFrame:
     if not texto.strip() or texto.lstrip().startswith("<"):
-        return pd.DataFrame()
+        raise ValueError("FIRMS não retornou CSV de focos; não equivale a zero ocorrências")
     df = pd.read_csv(io.StringIO(texto))
+    if not {"latitude", "longitude", "acq_date", "acq_time"}.issubset(df.columns):
+        raise ValueError("CSV do FIRMS não tem as colunas obrigatórias")
     if "satellite" not in df:
         df["satellite"] = sat
     return df
 
 
-def baixar(ctx: Contexto, primeira: bool) -> pd.DataFrame:
+def baixar(ctx: Contexto, primeira: bool) -> tuple[pd.DataFrame, dict]:
     regra = ctx.regras.fonte("firms")
     chave = os.environ.get("FIRMS_MAP_KEY")
-    partes = []
+    partes, falhas = [], {}
     for sat, s in regra["satelites"].items():
         if chave:
             dias = 5 if primeira else 2
@@ -65,8 +67,13 @@ def baixar(ctx: Contexto, primeira: bool) -> pd.DataFrame:
         else:
             janela = regra.get("primeira_janela", "7d") if primeira else regra.get("janela", "48h")
             url = BASE_PUBLICA.format(pasta=s["pasta"], prefixo=s["prefixo"], janela=janela)
-        partes.append(_csv(rede.pedir("GET", url, timeout=300).text, sat))
-    return pd.concat(partes, ignore_index=True) if partes else pd.DataFrame()
+        try:
+            partes.append(_csv(rede.pedir("GET", url, timeout=300).text, sat))
+        except (RuntimeError, ValueError) as ex:
+            falhas[sat] = rede.limpo(str(ex))[:200]
+    if not partes:
+        raise RuntimeError("FIRMS NOAA-20 e NOAA-21 indisponíveis: " + "; ".join(falhas.values()))
+    return pd.concat(partes, ignore_index=True), falhas
 
 
 def normalizar(df: pd.DataFrame, ctx: Contexto) -> list[dict]:
@@ -124,8 +131,14 @@ def _num(v):
 
 def ler(ctx: Contexto, estado: dict) -> Leitura:
     primeira = not estado.get("ultima_leitura")
-    df = baixar(ctx, primeira)
+    df, falhas = baixar(ctx, primeira)
     linhas = normalizar(df, ctx) if len(df) else []
     oc = montar(linhas).drop_duplicates("chave")
     modo = "api" if os.environ.get("FIRMS_MAP_KEY") else "arquivo público"
-    return Leitura("firms", oc, cursor={"modo": modo}, nota=f"{len(df)} focos na América do Sul ({modo})")
+    return Leitura(
+        "firms",
+        oc,
+        cursor={"modo": modo},
+        extras={"falhas": falhas},
+        nota=f"{len(df)} focos na América do Sul ({modo}); satélites indisponíveis: {len(falhas)}",
+    )

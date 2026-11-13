@@ -1579,7 +1579,10 @@ def vigiar(engine: Engine, fatos_de=None) -> dict:
                 if _alerta(con, p["id"], "fazenda_com_problema", cod, tx, det, chave):
                     out["fazenda_com_problema"] += 1
                     out["fatos"][det["motivo"]] = out["fatos"].get(det["motivo"], 0) + 1
-                    notificar(con, p["cliente_id"], p["id"], "fazenda_com_problema", tx, canais=canais)
+                    canais_do_fato = (
+                        ("painel",) if det.get("fonte") in {"deter", "firms", "mapbiomas_alerta"} else canais
+                    )
+                    notificar(con, p["cliente_id"], p["id"], "fazenda_com_problema", tx, canais=canais_do_fato)
         if p["estado"] not in ("lote_montado", "faltou"):
             continue
         b, ops, _ = Z.opcoes(oferta, c, nv, fora, hist, _pagamento(c))

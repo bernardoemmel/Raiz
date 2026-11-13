@@ -62,6 +62,16 @@ def main(argv: list[str] | None = None) -> int:
     r.add_argument("--hoje", help="data da rodada (AAAA-MM-DD); padrão: hoje em Brasília")
     r.add_argument("--resumo", help="arquivo onde acrescentar o resumo em Markdown (ex.: $GITHUB_STEP_SUMMARY)")
     r.add_argument("--detalhe", action="store_true", help="mostrar também os projetos (não usar em log público)")
+    r.add_argument("--lotes", action="store_true", help="vigiar só CAR de lotes ativos do catálogo privado")
+    e_lotes = sub.add_parser("exportar-lotes", help="renovar o catálogo dos lotes atuais no arquivo privado")
+    e_lotes.add_argument("--publicar", action="store_true", help="publicar no destino privado autenticado")
+    ciclo_lotes = sub.add_parser("lotes-ciclo", help="ponte automática dos lotes entre banco, Actions e painel")
+    ciclo_lotes.add_argument(
+        "--publicar",
+        action="store_true",
+        required=True,
+        help="renovar o catálogo privado e importar rascunhos, sem enviar mensagens",
+    )
 
     i = sub.add_parser("imovel")
     i.add_argument("cod")
@@ -114,6 +124,33 @@ def main(argv: list[str] | None = None) -> int:
 
     args = ap.parse_args(argv)
 
+    if args.cmd in {"exportar-lotes", "lotes-ciclo"}:
+        from raiz.vigilancia import lotes
+        from raiz.vigilancia.config import config
+
+        eng = lotes.engine_configurado()
+        if eng is None:
+            _imprimir({"erro": "defina RAIZ_BANCO_URL para ler os lotes atuais"})
+            return 1
+        if args.cmd == "lotes-ciclo":
+            try:
+                _imprimir(lotes.ciclo(config(), eng))
+            except Exception as ex:  # noqa: BLE001
+                _imprimir({"erro": lotes.diagnostico(ex), "envios_externos": 0})
+                return 1
+        elif args.publicar:
+            _imprimir(lotes.exportar_catalogo(config(), eng))
+        else:
+            catalogo = lotes.catalogo_do_banco(eng)
+            _imprimir(
+                {
+                    "lotes": len(catalogo["lotes"]),
+                    "publicado": False,
+                    "aviso": "use --publicar para atualizar o snapshot privado; não exporta clientes no log",
+                }
+            )
+        return 0
+
     if args.cmd == "chave":
         from raiz.vigilancia.publicacao import gerar_chave
 
@@ -137,13 +174,16 @@ def main(argv: list[str] | None = None) -> int:
             baixar=args.baixar,
             publicar=args.publicar,
             ufs=[u.strip().upper() for u in args.ufs.split(",")] if args.ufs else None,
+            lotes=args.lotes,
         )
         _imprimir(res if args.detalhe else {k: res[k] for k in ("publico", "entradas") if k in res})
         if args.resumo:
             with open(args.resumo, "a", encoding="utf-8") as f:
                 f.write(resumo_markdown(res))
-        erro = any(f.get("situacao") == "erro" for f in res.get("fontes", {}).values())
+        falhas = {"erro", "parcial", "sem_credencial"} if args.lotes else {"erro", "parcial"}
+        erro = any(f.get("situacao") in falhas for f in res.get("fontes", {}).values())
         erro = erro or bool((res.get("publicar") or {}).get("erro")) or bool((res.get("baixar") or {}).get("erro"))
+        erro = erro or (res.get("lotes") or {}).get("situacao") in {"erro", "parcial"}
         return 1 if erro else 0
 
     from raiz.vigilancia.servico import Vigilancia

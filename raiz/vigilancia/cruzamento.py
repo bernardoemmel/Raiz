@@ -144,6 +144,9 @@ def cruzar_imoveis(oc: gpd.GeoDataFrame, poligonos) -> pd.DataFrame:
     extras = []
     for k, r in oc.reset_index(drop=True).iterrows():
         for cod_imovel, ha in (r.get("car_fonte") or {}).items():
+            permitidos = getattr(poligonos, "presentes", None)
+            if permitidos is not None and cod_imovel not in permitidos:
+                continue  # recorte de lotes nunca amplia o universo para CAR citado fora do Brasil processado
             uf = str(cod_imovel)[:2].upper()
             if uf in ufs:
                 continue
