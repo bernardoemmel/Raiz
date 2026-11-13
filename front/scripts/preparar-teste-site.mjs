@@ -91,7 +91,7 @@ export function preparar() {
   const municipio = retangulo([-50.05, -6.3, -49.84, -5.95], { cod_ibge: MUNICIPIO, nome: "Parauapebas", uf: "PA" })
   const semDesenho = retangulo([-49.7, -6.2, -49.6, -6.1], { cod_ibge: SEM_DESENHO, nome: "Curionópolis", uf: "PA" })
   salvar("brasil_municipios.geojson", colecao([municipio, semDesenho]))
-  salvar("brasil_estados.geojson", colecao([retangulo([-58, -10, -46, 2], { uf: "PA", nome: "Pará" })]))
+  salvar("brasil_estados.geojson", colecao([retangulo([-58, -10, -46, 2], { uf: "PA", nome: "Pará", rotulo: [-52, -4] })]))
   salvar(`municipio_${MUNICIPIO}.geojson`, colecao([municipio]))
   // A origem contém campos privados e um CAR fora do contrato; o build deve projetar só a camada básica.
   salvar(`imoveis_${MUNICIPIO}.geojson`, colecao(CARS.map((car, i) =>
@@ -104,7 +104,7 @@ export function preparar() {
     metadados: { contrato: "potencial_h3", versao: 1, resolucao: 5, minimo_contribuintes: 5, dominio_ha: [0,100,1000,10000,50000], atualizado_em: "2026-11-12T10:41:00Z", fonte: "Fixture fictícia de teste", metodo: "ponto_interior_estatistico", cobertura: "parcial" },
   })
   fs.writeFileSync(path.join(geo, "base_brasil.pmtiles"), basePmtiles())
-  // Letras reais dos números do cluster; snapshot pequeno e licenciado, sem rede no CI.
+  // Letras reais do nome/cobertura estadual; snapshot pequeno e licenciado, sem rede no CI.
   fs.cpSync(path.join(REPO, "front/scripts/fixtures/fontes"), path.join(geo, "fontes"), { recursive: true })
   fs.writeFileSync(path.join(geo, "potencial_PA.geojson.gz"), gzipSync(fs.readFileSync(path.join(geo, "potencial_PA.geojson"))))
   const item = (arquivo) => ({ arquivo, bytes: fs.statSync(path.join(geo, arquivo)).size })

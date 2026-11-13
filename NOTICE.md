@@ -433,7 +433,14 @@ original do Lighthouse; sua compatibilidade é verificada com o teste de agentes
 capturados em transporte local, sem envio ao Sentry. Ao atualizar o Lighthouse ou esse pin, repetir essas
 verificações e a checagem integral de licenças; não liberar FSL nem instalar a CLI como exceção.
 
-## Correção local do céu transparente — MapLibre GL JS 6.15.0
+## Preparação do símbolo e correção do céu — MapLibre GL JS 6.15.0
+
+`front/globo/src/mapa/shader-simbolo.generated.ts` contém os shaders `symbolSDF` de Mercator do
+MapLibre GL JS **6.15.0**, sob **BSD-3-Clause**, gerados pelo preparador do próprio fornecedor.
+Versão, SHA-256 do pacote, defines e bytes finais são conferidos antes do build. A licença completa
+está em `front/terceiros/maplibre-gl.LICENSE.txt` e acompanha o site em `licencas/maplibre-gl.txt`.
+O worker compila essa variante para preparar o cache
+gráfico; o mapa mantém seus próprios programas e o caminho normal quando o aquecimento falha.
 
 `front/compartilhado/vite-maplibre-ceu.ts` aplica, em memória durante build e desenvolvimento,
 uma correção pequena ao `drawSky` do pacote MapLibre GL JS **6.15.0**, sob **BSD-3-Clause**.

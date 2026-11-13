@@ -5,6 +5,7 @@
  * e VITE_RAIZ_PROCESSAMENTO_URL=./amostra/processamento.json. PLAYWRIGHT_CHROMIUM_EXECUTABLE é opcional no ambiente local.
  */
 import assert from "node:assert/strict"
+import { createHash } from "node:crypto"
 import { conferirCicloMapa } from "./conferir-ciclo-mapa.mjs"
 import { conferirProcessamentoEstavel } from "./conferir-processamento-estavel.mjs"
 import { configurarPublicacao } from "./configurar-publicacao.mjs"
@@ -59,6 +60,25 @@ const navegador = await chromium.launch({
 })
 const contexto = await navegador.newContext({ viewport: { width: 1440, height: 900 }, reducedMotion: "reduce" })
 const pagina = await contexto.newPage()
+// Observa o GLSL enviado ao driver no mapa real, sem substituir compilação ou desenho.
+await pagina.addInitScript(() => {
+  const fontes = new WeakMap(), programas = new WeakMap()
+  window.__shadersMapa = []
+  const proto = WebGL2RenderingContext.prototype
+  for (const nome of ["shaderSource", "attachShader", "linkProgram"]) {
+    const original = proto[nome]
+    proto[nome] = function (...args) {
+      if (nome === "shaderSource") fontes.set(args[0], { fonte: args[1], tipo: this.getShaderParameter(args[0], this.SHADER_TYPE) })
+      if (nome === "attachShader") {
+        const lista = programas.get(args[0]) ?? []
+        lista.push(fontes.get(args[1]))
+        programas.set(args[0], lista)
+      }
+      if (nome === "linkProgram") window.__shadersMapa.push(programas.get(args[0]) ?? [])
+      return original.apply(this, args)
+    }
+  }
+})
 // Apenas o mosaico do teste é sintético. O raster percorre o protocolo real do MapLibre, sem acesso externo no CI.
 const tile = new PNG({ width: 256, height: 256 })
 for (let i = 0; i < tile.data.length; i += 4) tile.data.set([70, 100, 65, 255], i)
@@ -150,6 +170,17 @@ try {
   await mapaPronto()
   assert.equal(pedidos.filter(url => url === new URL("geo/brasil_estados.geojson", base).href).length, 2,
     "A geometria é lida para enquadramento e pela URL no worker; o navegador pode reutilizar o cache HTTP.")
+  assert(pedidos.some(url => /\/fontes\/Noto(?:%20| )Sans(?:%20| )Regular\/0-255\.pbf$/.test(url)), "A fixture nacional precisa desenhar rótulos reais com os glyphs licenciados.")
+  const rotulos = await pagina.evaluate(() => document.querySelector(".mapa-brasil .mapa").__mapa
+    .queryRenderedFeatures({ layers: ["estados-rotulo"] }).map(f => f.properties))
+  assert(rotulos.some(p => p.nome === "Pará" && /municípios/.test(p.linha)), "Nome e cobertura do Pará devem aparecer no mapa inicial.")
+  const simbolos = (await pagina.evaluate(() => window.__shadersMapa)).filter(fontes => fontes.some(s => s.fonte.includes("u_is_halo")))
+  assert(simbolos.length > 0, "O teste deve exercer o programa symbolSDF no contexto real do mapa.")
+  for (const fontes of simbolos) {
+    const hash = tipo => createHash("sha256").update(fontes.find(s => s.tipo === tipo).fonte).digest("hex")
+    assert.equal(hash(35632), "3cc8044beb3c42bdac74105917f0125ed32a9e3773c12be108fd8236f04af4bf", "Fragmento nacional precisa coincidir com o aquecido no worker.")
+    assert.equal(hash(35633), "6f6019ae07a2e2c610c7f80ad95bd2a1dd8e8f4abb3db1c3845484e19039c283", "Vértice nacional precisa coincidir com o aquecido no worker.")
+  }
   assert.equal(await pagina.locator(".mapa-brasil svg").count(), 0, "A entrada abre no MapLibre, sem o SVG nacional.")
   await pagina.getByRole("heading", { name: "Cobertura do mapa", exact: true }).waitFor()
   await pagina.waitForFunction(() => document.querySelectorAll(".processamento-estado").length === 27)
