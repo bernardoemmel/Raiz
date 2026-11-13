@@ -66,6 +66,34 @@ byte a byte iguais; a fonte já concluída do sétimo município também não ro
 ou job do Actions é interrompido por esse ensaio. É uma prova do mecanismo de retomada, não um novo
 processamento científico de Roraima em produção.
 
+### Conferência de checkpoints reais e capacidade observada
+
+Em 13/11/2026, três checkpoints do arquivo privado foram restaurados em pastas temporárias privadas,
+com comparação de todos os hashes antes da escrita e remoção das cópias ao final. Nenhum arquivo remoto
+foi alterado. Foram 2.242 arquivos e 182.073.038 bytes:
+
+| Unidade | Arquivos | Bytes | SHA-256 do manifesto |
+|---|---:|---:|---|
+| AM | 494 | 75.162.907 | `a012d77e477b938f3daea82c25666f50ed5c03836e3515a6493674d685d36fe5` |
+| GO-3 | 1.239 | 95.591.491 | `b409cce21c88e44282b900c38bda38d062e06e0caba000e8a0b4bde15d9119ed` |
+| MA-2 | 509 | 11.318.640 | `c28e43cee8dcfaf70e6fbacd039fa793332f3a1b2b4636cc717db7287bfdeb9c` |
+
+Esses resultados comprovam recuperação do que chegou ao checkpoint remoto. Não recuperam arquivos que
+nunca foram enviados e não validam cientificamente os retratos opacos. O selo municipal e os testes de
+retomada local não garantem perda zero se o runner inteiro desaparecer antes da persistência remota.
+
+O [painel em produção](https://bernardoemmel.github.io/Raiz/) foi conferido após o
+[deploy](https://github.com/bernardoemmel/Raiz/actions/runs/43364180632): 27 UFs, horários de Brasília,
+leitura periódica da ref pública e ausência de erros JavaScript/transbordamento horizontal no celular.
+
+Às 04h36 UTC havia 15 reservas de processamento, mas somente três jobs de processamento executando.
+O Actions tinha outros 17 jobs ativos de CI/verificações e 77 jobs aguardando ao todo. O limite CAS
+impede admitir mais de 15 processadores; não controla a ordem de concessão de runners do GitHub.
+A fila repôs vagas liberadas naturalmente, sem cancelar trabalhos. Não houve nova UF concluída na
+janela desde a retomada paralela das 02h53 UTC; geometria ausente no Ibama e filas de runners impedem
+uma previsão nacional defensável. Não confundir os quatro estados completos de rodadas históricas
+no índice com quatro novos estados concluídos nessa janela.
+
 ### Conferência Ibis, sem troca de ingestão
 
 `uv run --extra conferencia python -m raiz.conferencia.ibis_contagem PASTA --saida conferencia.json`

@@ -720,7 +720,36 @@ antes de executar o verificador com atestações.
 
 O acesso do cliente real ao arquivo privado foi confirmado pelo diagnóstico `43363773180`,
 às 04h14 UTC: repositório 200, tag 404 esperada para draft, lista de Releases 200 e draft confirmado.
-As continuações `43363213890` e `43363458134` também passaram. A fila tinha 15 reservas globais
+As continuações `43363213890` e [continuação das 04h07 UTC](https://github.com/bernardoemmel/Raiz/actions/runs/43363458134) também passaram. A fila tinha 15 reservas globais
 (12 do Lote PA em `43361839589`, mais MT-2, AM e GO-1) e 29 pedidos, sete bloqueados no histórico.
 As reservas vivas continuam intactas; novos trabalhos aguardam vaga. A causa específica dos
 403 anteriores permanece não comprovada.
+
+
+## Conferência em produção — 13/11/2026, 04h36 UTC
+
+O [deploy do painel](https://github.com/bernardoemmel/Raiz/actions/runs/43364180632) passou e a
+[publicação real](https://bernardoemmel.github.io/Raiz/) foi conferida no Chromium: 27 UFs,
+hora da última mudança, duas leituras HTTP 200 da telemetria, nenhum erro JavaScript e sem
+transbordamento horizontal no celular. Observação vencida permanece identificada; ausência não vira zero.
+
+A restauração somente de leitura de três checkpoints privados recuperou **2.242 arquivos e
+182.073.038 bytes**, com todos os hashes conferidos: AM (494 arquivos), GO-3 (1.239) e MA-2 (509).
+As cópias temporárias privadas foram removidas após a conferência. Essa prova verifica os bytes
+preservados; não atesta que os municípios com erro ou os retratos opacos estejam cientificamente concluídos.
+O único manifesto sem ponteiro encontrado nessa leitura era de BA-1, com apenas um evento de
+processamento de 455 bytes; não continha saídas científicas recuperáveis.
+
+A fila repôs a vaga de AM com PI-2 na versão auditada `30ace967`, mantendo 15 reservas globais.
+Às 04h36 UTC, o inventário do Actions tinha 20 jobs executando: três de processamento e 17 de
+CI/outras verificações; 77 aguardavam. Reservas são limites de admissão, não garantia de runner imediato.
+Às 04h44 UTC, PI-2 já executava o motor. Nenhuma rodada foi cancelada ou desativada.
+
+O preflight do catálogo continuava bloqueado por escritores/pedidos antigos; nenhum upload foi
+iniciado por essa conferência. O índice público ainda declarava AC/AP/RO/RR completos de rodadas
+anteriores. Nenhuma UF nova fechou na janela desde a retomada paralela; não extrapolar uma taxa
+estadual por dia nem uma data nacional dos 15 leases. Os impedimentos Ibama permanecem explícitos.
+
+O CI do PR #102 identificou um número de run isolado como CPF pelos dígitos verificadores.
+A referência foi convertida em link explícito para o Actions; o detector não foi alterado nem
+recebeu exceções. O envio desta correção aguarda o término natural dos jobs do CI anterior.
