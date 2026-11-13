@@ -1,5 +1,5 @@
 {
-  "commit": "f0a7c96055d26ee8a81461b6a77a6c308e132fd7",
+  "commit": "650db81bd1bb489393817580d6a0588f21add2a9",
   "artefato": "43331843113",
   "municipios": 444,
   "estados": 13,
@@ -18,36 +18,36 @@
       "rodada": 1,
       "performance": 82,
       "accessibility": 100,
-      "lcp": 1494.5418,
-      "tbt": 709.0000000000009,
-      "iniciado_em": "2026-11-13T04:50:02.805Z",
-      "relatorio_sha256": "3fa6130a83530eedf658027f19a045732f0452ad8620aa3dd3eff5a9f9ea2fcb"
+      "lcp": 757.7979,
+      "tbt": 716.1010500000004,
+      "iniciado_em": "2026-11-13T13:47:20.586Z",
+      "relatorio_sha256": "c8dbdaa1a136fdd57dcb6851a940cbf59a2ad21742a0283e0a57fe93063b8bd3"
     },
     {
       "rodada": 2,
-      "performance": 95,
+      "performance": 90,
       "accessibility": 100,
-      "lcp": 1425.5384,
-      "tbt": 232.49999999999955,
-      "iniciado_em": "2026-11-13T04:50:10.685Z",
-      "relatorio_sha256": "ae5f71e3e3284dac4389f54e2205747c51a7ab31abf8240da5ef015d66a5063b"
+      "lcp": 1797.1969,
+      "tbt": 341.5,
+      "iniciado_em": "2026-11-13T13:47:28.604Z",
+      "relatorio_sha256": "b2fc28415e77f07f31d9c00fc9b8efa9e63ddd2729bbe9a64c6ddcf8b2013e7c"
     },
     {
       "rodada": 3,
-      "performance": 95,
+      "performance": 90,
       "accessibility": 100,
-      "lcp": 1428.199,
-      "tbt": 261.00000000000045,
-      "iniciado_em": "2026-11-13T04:50:18.041Z",
-      "relatorio_sha256": "091360d6eae88fcb56b3b5ffdf9c208ed93e8446d90d033ad8bb891f2ccd30c1"
+      "lcp": 752.5773999999999,
+      "tbt": 407.5,
+      "iniciado_em": "2026-11-13T13:47:35.796Z",
+      "relatorio_sha256": "5ff8538096a0a6446de18f32a14e20789bc26ec7f7d210e91db00741cc31931b"
     }
   ],
-  "mediana_desempenho": 95,
+  "mediana_desempenho": 90,
   "minimo_acessibilidade": 100,
   "metodo": "Lighthouse mobile 360 × 800, CPU/rede simuladas, três execuções consecutivas fixas em um Chrome, sem escolher a melhor amostra",
-  "limite": "Snapshot público congelado. A mediana supera 90, mas a primeira amostra 82 permanece registrada; a inicialização gráfica ainda varia neste ambiente.",
+  "limite": "Snapshot público congelado. Mediana exatamente no mínimo 90, sem folga; amostra 82 preservada. A inicialização ainda varia, e estes números não substituem o CI ou a conferência do site publicado.",
   "fixture": {
-    "commit": "f0a7c96055d26ee8a81461b6a77a6c308e132fd7",
+    "commit": "650db81bd1bb489393817580d6a0588f21add2a9",
     "dados": "Fixture sintética do CI, distinta do snapshot real de 444 municípios.",
     "rotas": 6,
     "amostras_por_rota": 3,
@@ -79,7 +79,7 @@
       },
       {
         "pagina": "prospeccao-publica-360",
-        "regras": 26,
+        "regras": 27,
         "violacoes": 0
       },
       {
@@ -91,19 +91,19 @@
     "lighthouse": [
       {
         "pagina": "brasil",
-        "performance": 98,
+        "performance": 90,
         "accessibility": 100,
         "amostras": [
           {
-            "performance": 98,
+            "performance": 88,
             "accessibility": 100
           },
           {
-            "performance": 99,
+            "performance": 90,
             "accessibility": 100
           },
           {
-            "performance": 97,
+            "performance": 94,
             "accessibility": 100
           }
         ]
@@ -148,7 +148,7 @@
       },
       {
         "pagina": "prospeccao",
-        "performance": 97,
+        "performance": 96,
         "accessibility": 100,
         "amostras": [
           {
@@ -156,7 +156,7 @@
             "accessibility": 100
           },
           {
-            "performance": 97,
+            "performance": 96,
             "accessibility": 100
           },
           {
@@ -179,7 +179,7 @@
             "accessibility": 100
           },
           {
-            "performance": 97,
+            "performance": 93,
             "accessibility": 100
           }
         ]
@@ -221,8 +221,70 @@
       88,
       98,
       92
-    ]
+    ],
+    "integrado_f0a7c96": {
+      "commit": "f0a7c96055d26ee8a81461b6a77a6c308e132fd7",
+      "amostras": [
+        {
+          "rodada": 1,
+          "performance": 82,
+          "accessibility": 100,
+          "lcp": 1494.5418,
+          "tbt": 709.0000000000009,
+          "iniciado_em": "2026-11-13T04:50:02.805Z",
+          "relatorio_sha256": "3fa6130a83530eedf658027f19a045732f0452ad8620aa3dd3eff5a9f9ea2fcb"
+        },
+        {
+          "rodada": 2,
+          "performance": 95,
+          "accessibility": 100,
+          "lcp": 1425.5384,
+          "tbt": 232.49999999999955,
+          "iniciado_em": "2026-11-13T04:50:10.685Z",
+          "relatorio_sha256": "ae5f71e3e3284dac4389f54e2205747c51a7ab31abf8240da5ef015d66a5063b"
+        },
+        {
+          "rodada": 3,
+          "performance": 95,
+          "accessibility": 100,
+          "lcp": 1428.199,
+          "tbt": 261.00000000000045,
+          "iniciado_em": "2026-11-13T04:50:18.041Z",
+          "relatorio_sha256": "091360d6eae88fcb56b3b5ffdf9c208ed93e8446d90d033ad8bb891f2ccd30c1"
+        }
+      ],
+      "mediana_desempenho": 95,
+      "fixture_medianas": [
+        98,
+        98,
+        97,
+        97,
+        97,
+        100
+      ]
+    },
+    "resize_acb140c": {
+      "commit": "acb140c565d39637ad318344fe2ce8f5b91bb795",
+      "amostras_desempenho": [
+        86,
+        86,
+        92
+      ],
+      "mediana_desempenho": 86,
+      "resultado": "reprovado no snapshot real; não foi repetido para selecionar outra nota"
+    }
   },
   "lighthouse_versao": "13.6.0",
-  "navegador": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/156.0.0.0 Safari/537.36"
+  "navegador": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/157.0.0.0 Safari/537.36",
+  "browser_versao": "Chrome for Testing 157.0.8103.78",
+  "proveniencia_fontes": {
+    "commit_fonte": "650db81bd1bb489393817580d6a0588f21add2a9",
+    "commit_na_medicao": "acb140c565d39637ad318344fe2ce8f5b91bb795",
+    "nota": "A medição foi feita com estes mesmos arquivos antes do commit; hashes preservados neste documento e conferidos contra o commit. Os relatórios Lighthouse brutos não foram alterados.",
+    "sha256": {
+      "front/globo/src/mapa/MapaBrasil.tsx": "4a16ddbc3c429d26dd8c8bf100ddf2825c82c7d747877884a5b2c5abccfc71f6",
+      "front/globo/src/mapa/estilo.ts": "be71cf597f9709c17f09c40f82d6a449430e6d09ba6f9bb6806ff53ffbce5df0",
+      "front/globo/src/mapa/nacional.ts": "238e89c96d230d330c6fe1163b77c06cb9f80a1f061802bebf1327e0e1f0183e"
+    }
+  }
 }

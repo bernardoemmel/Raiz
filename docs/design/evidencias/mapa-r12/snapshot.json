@@ -1,10 +1,10 @@
 {
-  "capturado_em": "2026-11-13T04:52:31.937Z",
+  "capturado_em": "2026-11-13T13:55:42.192Z",
   "viewport": {
     "largura": 1440,
     "altura": 1000
   },
-  "frontend": "f0a7c96055d26ee8a81461b6a77a6c308e132fd7",
+  "frontend": "650db81bd1bb489393817580d6a0588f21add2a9",
   "exportador": "6bc77c1",
   "antes": {
     "url": "https://bernardoemmel.github.io/Raiz/",
@@ -34,23 +34,24 @@
   },
   "mapa_inicial": "MapLibre com Supercluster no worker e botões somente para grupos visíveis; sem SVG nacional grande",
   "rede": {
-    "requisicoes_desktop": 108,
-    "requisicoes_celular": 55,
+    "requisicoes_desktop": 109,
+    "requisicoes_celular": 56,
     "respostas_desktop": {
-      "200": 72,
+      "200": 73,
       "206": 36
     },
     "respostas_celular": {
-      "200": 52,
+      "200": 53,
       "206": 3
     },
     "erros": [],
+    "cancelamentos_naturais": 0,
     "tiles_satelite": 9,
     "todos_tiles_http_200": true,
     "endpoints_pagos_solicitados": false,
     "fonte_processamento": "amostra/processamento.json",
     "raw_vivo_solicitado": false,
-    "escopo": "Build local final, com snapshot congelado; não comprova a publicação ao vivo."
+    "escopo": "Build local medido, com snapshot congelado; não comprova a publicação ao vivo."
   },
   "render": {
     "zoom": 14.319882480562114,
@@ -64,7 +65,7 @@
     "brasil-360-depois.png": {
       "sha256": "71db67a4340c68d38ff5800842f5fe0a2f2a84ff41dcf5ce16ee0edbe74cf22c",
       "bytes": 82578,
-      "capturado_em": "2026-11-13T04:52:26.682Z"
+      "capturado_em": "2026-11-13T13:55:36.787Z"
     },
     "brasil-antes.png": {
       "sha256": "fd7942bd28a0ac1e486a8d8d57a9a85e92d11e43545ed4f0f31093c7bb1fb794",
@@ -74,30 +75,30 @@
     "brasil-depois.png": {
       "sha256": "f61c42bad997c6812e54d7b761dc1f1ffb757b1b9fa361def1fb1d1a5024f99f",
       "bytes": 336821,
-      "capturado_em": "2026-11-13T04:52:25.249Z"
+      "capturado_em": "2026-11-13T13:55:35.573Z"
     },
     "estado-depois.png": {
       "sha256": "492b983f95dfed6afeb5ae66c4f33931cc0652ab2c83800daf763826d6c057e0",
       "bytes": 484329,
-      "capturado_em": "2026-11-13T04:52:29.011Z"
+      "capturado_em": "2026-11-13T13:55:39.307Z"
     },
     "fazenda-depois.png": {
       "sha256": "0681e9c9b73760b224ece45dfcf0fef64a678b9a39fabe37a18534744df44a2e",
       "bytes": 637195,
-      "capturado_em": "2026-11-13T04:52:31.937Z"
+      "capturado_em": "2026-11-13T13:55:42.192Z"
     },
     "municipio-depois.png": {
       "sha256": "9e35b8956260ccfc3ca4ce10ffd74628263d1075fceba918b66b12b6b11c4f2c",
       "bytes": 215498,
-      "capturado_em": "2026-11-13T04:52:30.080Z"
+      "capturado_em": "2026-11-13T13:55:40.574Z"
     },
     "processamento-depois.png": {
       "sha256": "b014750d1781ec2efef07e9c5188670471be70fe4aca159079ded061a7130654",
       "bytes": 295716,
-      "capturado_em": "2026-11-13T04:52:26.886Z"
+      "capturado_em": "2026-11-13T13:55:36.991Z"
     }
   },
-  "index_sha256": "1e3ddeca5f514887bcb3940549220a6853cb8e5982dcb7e49a253cd41a05c179",
+  "index_sha256": "070c545a1392447ffa8da1eb6ceed6c64221b4b5412812678971b4873d99f831",
   "renderer": "307755d",
   "legenda": "1412642",
   "viewport_celular": {
@@ -106,7 +107,7 @@
   },
   "lighthouse": {
     "arquivo": "lighthouse.json",
-    "performance_mediana": 95,
+    "performance_mediana": 90,
     "acessibilidade_minima": 100,
     "amostras": 3,
     "fixture_rotas": 6,
@@ -156,6 +157,24 @@
       "sha256": "9d893685e8e7e4951bec713868d6b3284cdb94b1e7e1d61427fe6d4f86510aae",
       "bytes": 11827,
       "identico_ao_snapshot_congelado": true
+    },
+    "amostra/processamento.json": {
+      "sha256": "ab4a354a7d19b434fef0c10ad4d58ac4876ba345c5be9c43c4ee2b800c2d49f2",
+      "bytes": 7327,
+      "identico_ao_snapshot_congelado": true
     }
+  },
+  "browser": "Chrome for Testing 157.0.8103.78",
+  "resize_unico": "acb140c565d39637ad318344fe2ce8f5b91bb795",
+  "estilo_nacional_em_lote": "650db81bd1bb489393817580d6a0588f21add2a9",
+  "fontes_do_front_conferidas": {
+    "front/globo/src/mapa/MapaBrasil.tsx": "4a16ddbc3c429d26dd8c8bf100ddf2825c82c7d747877884a5b2c5abccfc71f6",
+    "front/globo/src/mapa/estilo.ts": "be71cf597f9709c17f09c40f82d6a449430e6d09ba6f9bb6806ff53ffbce5df0",
+    "front/globo/src/mapa/nacional.ts": "238e89c96d230d330c6fe1163b77c06cb9f80a1f061802bebf1327e0e1f0183e"
+  },
+  "medicao_antes_do_commit": {
+    "base": "acb140c565d39637ad318344fe2ce8f5b91bb795",
+    "fonte_final": "650db81bd1bb489393817580d6a0588f21add2a9",
+    "nota": "A série real foi medida com os arquivos exatos da revisão 650db81 antes de gravar o commit. Seus hashes foram conferidos no checkout; relatórios brutos preservados."
   }
 }
