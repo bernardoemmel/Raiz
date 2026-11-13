@@ -242,6 +242,9 @@ def criar_app(
     from raiz.calendario import api as calendario_api
 
     app.include_router(calendario_api.roteador(_engine_do_app))
+    from raiz.documentos.certidao import api as certidao_api
+
+    app.include_router(certidao_api.roteador(_engine_do_app, _exigir_token))
     # processamento do motor dentro do produto (agente Dados) e números do Brasil e dos estados
     from raiz.executor import painel
 
@@ -283,6 +286,9 @@ def criar_app(
 
     app.include_router(hub_acerto.roteador(_engine_do_app), dependencies=seguro)
     app.include_router(hub_acerto.roteador_publico())
+    from raiz.aprendizado import painel as painel_acerto
+
+    app.include_router(painel_acerto.roteador(_engine_do_app))
     # vigilância das fazendas e dos projetos (raiz/vigilancia): alertas por imóvel, perdas de projeto com o prazo da
     # Verra, rascunho do relatório de perda, avisos e marcação verdadeiro/falso. Lê o estado publicado no Release
     # vigilancia (parte privada com RAIZ_VIGILANCIA_CHAVE), não o PostGIS

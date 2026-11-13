@@ -7,8 +7,7 @@ export function AvisoExemplo({ ativo }: { ativo: boolean }) {
     <p className="aviso aviso-exemplo" role="note">
       <Info size={20} aria-hidden="true" />
       <span>
-        <strong>Resposta de exemplo.</strong> O back-end de pedidos ainda não está ligado: o lote sai de fazendas aptas de
-        verdade, mas custo, TIR, chance e o andamento dos contatos são simulados, no mesmo formato da resposta final.
+        <strong>Demonstração com dados fictícios.</strong> Fazendas, contornos e números são inventados para conhecer a tela, no mesmo formato da API. Este exemplo fixo não representa os lotes reais do Release nem recalcula seus filtros. Nenhum contato, cobrança ou acesso a dados pagos é iniciado.
       </span>
     </p>
   )

@@ -1,0 +1,13 @@
+# Somente depuração local. Não usar em campanha real: o código deve permanecer congelado na imagem.
+services:
+  api:
+    volumes:
+      - ../raiz:/app/raiz:ro
+      - ../scripts:/app/scripts:ro
+  worker:
+    volumes:
+      - ../raiz:/app/raiz:ro
+      - ../scripts:/app/scripts:ro
+  agenda:
+    volumes:
+      - ../scripts:/app/scripts:ro

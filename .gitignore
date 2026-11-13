@@ -68,3 +68,16 @@ dados/publicos/
 
 # Retratos imutáveis de entradas do executor (arquivo privado, nunca no git)
 dados/historico_aprendizado/
+
+# Resumo comercial aberto derivado do manifesto privado durante a publicação.
+dados/lotes-publicos/
+# Resumo do aprendizado, reconstruído da fonte configurada
+dados/acerto/
+
+# Segredos locais da pilha API/MCP
+.env.*
+!.env.example
+
+# Saídas locais da conferência MCP/OpenAPI e métricas de execução
+/.cache/
+/servicos/conferencia-agentes/node_modules/

@@ -151,10 +151,37 @@ def test_catalogo_provisorio_nao_chama_provedor_nem_cria_compra(eng, cliente, mo
 
     monkeypatch.setattr(pix, "criar", proibido)
     with pytest.raises(A.ErroAcesso) as erro:
-        A.iniciar_compra(eng, cliente, "avulsa", str(uuid.uuid4()))
+        A.iniciar_compra(eng, cliente, "por_ficha", str(uuid.uuid4()))
     assert erro.value.status == 503
     assert A.listar_compras(eng, cliente) == []
     assert A.saldo(eng, cliente)["creditos"] == 0
+
+
+@pytest.mark.banco
+def test_assinatura_aprovada_nao_cria_cobranca_pontual(eng, cliente, catalogo, monkeypatch):
+    planos = [*CATALOGO, {"id": "assinatura", "nome": "Assinatura", "creditos": 50, "valor_rs": 50}]
+    monkeypatch.setenv("RAIZ_PROSPECCAO_PLANOS", json.dumps(_catalogo_aprovado(planos)))
+    assert A.planos()["pagamento_disponivel"]  # Ficha avulsa habilitada no cenário isolado.
+    monkeypatch.setattr(pix, "criar", lambda *a, **kw: pytest.fail("Assinatura não pode virar cobrança avulsa."))
+    with pytest.raises(A.ErroAcesso, match="cobrança por ciclo") as erro:
+        A.iniciar_compra(eng, cliente, "assinatura", str(uuid.uuid4()))
+    assert erro.value.status == 503
+    assert A.listar_compras(eng, cliente) == [] and A.saldo(eng, cliente)["creditos"] == 0
+
+
+@pytest.mark.banco
+def test_compra_antiga_continua_repetivel_e_conciliavel_apos_troca_do_catalogo(eng, cliente, provedor, monkeypatch):
+    chave = str(uuid.uuid4())
+    anterior = A.iniciar_compra(eng, cliente, "avulsa", chave)
+    monkeypatch.delenv("RAIZ_PROSPECCAO_PLANOS")
+    monkeypatch.delenv("RAIZ_PRECOS_ARQUIVO", raising=False)
+    assert all(p["id"] != "avulsa" for p in A.planos()["planos"])
+    assert A.iniciar_compra(eng, cliente, "avulsa", chave) == anterior
+    assert len(provedor) == 1
+    monkeypatch.setattr(pix, "conferir", lambda _: "paga")
+    assert A.conferir_compra(eng, cliente, anterior["id"])["estado"] == "paga"
+    assert A.conferir_compra(eng, cliente, anterior["id"])["estado"] == "paga"
+    assert A.saldo(eng, cliente)["creditos"] == 1
 
 
 @pytest.mark.banco

@@ -14,6 +14,61 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  agentes:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.22.1
+          cache: npm
+          cache-dependency-path: servicos/conferencia-agentes/package-lock.json
+      - name: Dependências travadas dos contratos e do agente
+        run: |
+          uv sync --frozen
+          npm --prefix servicos/conferencia-agentes ci --no-audit --no-fund
+          echo "63cf623955e229747c4ff59bcbd7ebe39f5a1e8965894fb2b0944793486bf28b  servicos/conferencia-agentes/node_modules/@quobix/vacuum/bin/vacuum" | sha256sum -c -
+      - name: API, MCP, PostGIS, Keycloak e worker reais em Compose
+        run: uv run python -m scripts.pilha_agentes teste --env-file .env.agentes-teste
+      - name: Empresa sintética e token OAuth por PKCE
+        run: >-
+          uv run python -m scripts.cenarios_agentes --bootstrap-ci
+          --token-file .cache/agentes/token-mcp.txt
+      - name: Inspector oficial, vacuum e manifesto do registro sem publicação
+        run: >-
+          uv run python -m scripts.verificar_protocolo_agentes
+          --openapi-url http://localhost:18000/v1/openapi.json
+          --mcp-url http://localhost:18000/mcp/
+          --token-file .cache/agentes/token-mcp.txt
+      - name: Conferir os 24 cenários pela pilha real, sem modelo
+        run: >-
+          uv run python -m scripts.cenarios_agentes --smoke
+          --saida .cache/protocolo-agentes/cenarios.json
+      - name: Memória e disco da pilha de teste
+        if: always() && hashFiles('.env.agentes-teste') != ''
+        run: >-
+          uv run python -m scripts.pilha_agentes medir --teste --env-file .env.agentes-teste
+          --saida .cache/protocolo-agentes/recursos.json --amostras 5 --intervalo 2
+      - name: Relatórios sem tokens nem traces privados
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: contratos-agentes
+          path: |
+            .cache/protocolo-agentes
+          retention-days: 14
+          if-no-files-found: error
+      - name: Encerrar a pilha local
+        if: always() && hashFiles('.env.agentes-teste') != ''
+        run: uv run python -m scripts.pilha_agentes parar --teste --env-file .env.agentes-teste
+
   workflows:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
@@ -82,8 +137,12 @@ jobs:
         run: cd front/globo && npm run test:prospeccao
       - name: Calendário no navegador (filtros, teclado, axe e celular)
         run: cd front/globo && npm run test:calendario
+      - name: Acerto do modelo (versões, privacidade, teclado e celular)
+        run: cd front/globo && npm run test:acerto
       - name: Cena-alvo (cobertura pública, bloqueio de lote legado e três lotes autorizados)
         run: cd front/globo && npm run test:cena
+      - name: Pedido nacional (estados, biomas, cobertura, teclado e celular)
+        run: cd front/globo && node ../scripts/testar-pedido-nacional.mjs
       - name: Evidências da cena-alvo
         if: always()
         uses: actions/upload-artifact@v4
@@ -165,7 +224,8 @@ jobs:
 
   testes_python:
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    # Versões antes/depois da carga acrescentam gravações PostGIS à suíte integral.
+    timeout-minutes: 45
     services:
       banco:
         image: postgis/postgis:16-3.5
@@ -195,11 +255,11 @@ jobs:
           cache-dependency-path: servicos/cartao/package-lock.json
       - name: Dependências (produto e motor)
         run: uv sync --frozen --all-extras
-      - name: Takumi, FFmpeg e LibreOffice (inclui testes de PDF)
+      - name: Takumi, FFmpeg, LibreOffice e OCR (inclui testes de PDF)
         run: |
           npm --prefix servicos/cartao ci --no-audit --no-fund
           sudo apt-get update -q
-          sudo apt-get install -y -q --no-install-recommends ffmpeg libreoffice-writer
+          sudo apt-get install -y -q --no-install-recommends ffmpeg libreoffice-writer poppler-utils tesseract-ocr tesseract-ocr-por
       - name: Cache do LanguageTool
         uses: actions/cache@v4
         with:
@@ -245,6 +305,8 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
+          # O replay usa blobs auditados do motor R11; não renomeia previsões antigas.
+          fetch-depth: 0
       - uses: astral-sh/setup-uv@v6
         with:
           enable-cache: true

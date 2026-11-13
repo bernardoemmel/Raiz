@@ -246,7 +246,13 @@ def grupo_reserva(eng, chaves_reserva):
             {"p": pid, "c": cod},
         )
     _verificar_grupo(eng, cod)
-    return cid, pid, cod
+    try:
+        yield cid, pid, cod
+    finally:
+        # O catálogo diário consulta todas as contas ativas. O grupo sintético
+        # desta fixture não pode vazar para outros testes como um lote real.
+        with eng.begin() as con:
+            con.execute(text("update negocio.cliente set ativo=false where id=:c"), {"c": cid})
 
 
 def _verificar_grupo(eng, cod):

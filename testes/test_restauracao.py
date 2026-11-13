@@ -80,12 +80,12 @@ def test_otimista_do_fundador_reproduz_tir_de_30_com_financiamento():
 R11 = {"cambio_brl_usd": 5.40}  # o câmbio marcado pelo fundador (a PTAX gravada não mexe no teste)
 
 
-def test_central_r11_e_o_padrao_e_da_a_tir_de_referencia():
+def test_central_r11_explicito_preserva_a_tir_de_referencia():
     """Rodada 11 com piso de reserva de 20%, US$ 55: regeneração dá ~11,9% com Fundo Clima; plantio fica abaixo
     da referência do fundador (ver o teste marcado como falha esperada logo abaixo); a US$ 74 sobe, no estresse (linha
     de base e vazamento de 40%) cai."""
-    c = R.cenario(**R11)
-    assert c["cenario"] == "central_r11" and R.regra()["cenarios"]["padrao"] == "central_r11"
+    c = R.cenario("central_r11", **R11)
+    assert c["cenario"] == "central_r11"
     assert (c["juros_ano"], c["carencia_anos"], c["icsd_minimo"], c["taxa_desconto"]) == (0.0494, 8, 1.3, 0.092)
     assert (c["fracao_financiada"], c["fracao_financiada_minima"], c["horizonte_anos"]) == (0.5, 0.35, 40)
     plantio = R.por_imovel(_linha(), c)
@@ -115,12 +115,12 @@ def test_central_r11_e_o_padrao_e_da_a_tir_de_referencia():
     " ~4,1% de TIR alavancada a US$ 55 com reserva de 20%, abaixo dos 7 a 9% da referência do fundador;"
     " ver docs/restauracao-rodada11.md"))  # fmt: skip
 def test_plantio_da_7_a_9_pct_no_central_r11():
-    assert 7.0 <= R.por_imovel(_linha(), R.cenario(**R11))["tir_alavancada_pct_p50"] <= 9.0
+    assert 7.0 <= R.por_imovel(_linha(), R.cenario("central_r11", **R11))["tir_alavancada_pct_p50"] <= 9.0
 
 
 def test_curva_de_captura_da_urtx_custos_do_sfb_e_descontos_em_ordem():
     r = R.regra()
-    c = R.cenario(**R11)
+    c = R.cenario("central_r11", **R11)
     forma = R.forma_curva(r) * 588.8
     # forma oficial da URTX (Anexo 20) escalada para o total do método: a curva só diz quando o carbono entra
     assert forma[1] == forma[2] == 0 and forma[14] / forma[7] == pytest.approx(30.29 / 13.44)
@@ -160,7 +160,7 @@ def test_curva_de_captura_da_urtx_custos_do_sfb_e_descontos_em_ordem():
 
 
 def test_marcos_do_profloresta_multas_e_rescisao():
-    c = R.cenario(**R11)
+    c = R.cenario("central_r11", **R11)
     o, x = R.calcular(_linha(), c)
     chances = [o[f"marco_{a}_chance_pct"] for a in (7, 12, 17, 22, 25)]
     assert all(0 <= p <= 100 for p in chances)
@@ -169,10 +169,10 @@ def test_marcos_do_profloresta_multas_e_rescisao():
     assert o["multa_esperada_rs_ha"] > 0 and 0 <= o["rescisao_chance_pct"] < 50
     assert o["volume_contratado_tco2_ha"] == pytest.approx(o["credito_liquido_tco2_ha_contrato_p50"], rel=1e-3)
     # sem multa (como no otimista), a chance é a mesma e a multa some
-    o2 = R.por_imovel(_linha(), R.cenario(multa_credito_dia_rs=0, multa_marco_dia_rs=0, **R11))
+    o2 = R.por_imovel(_linha(), R.cenario("central_r11", multa_credito_dia_rs=0, multa_marco_dia_rs=0, **R11))
     assert o2["multa_esperada_rs_ha"] == 0 and o2["marco_7_chance_pct"] == chances[0]
     # captura muito abaixo do contratado, fazenda fechando o contrato sozinha: multa até 20% do contrato e rescisão
-    so = R.cenario(multas_no_fluxo=True, rescisao_atraso_marco_dias=10**9, **R11)
+    so = R.cenario("central_r11", multas_no_fluxo=True, rescisao_atraso_marco_dias=10**9, **R11)
     s = R.simular_fluxos(x["custo"]["por_ano_p50"], [1.0], x["captura"]["bruto_ano"], [0.3], 650.0,
                          x["descontos"]["fator"], so)  # fmt: skip
     assert s["rescindido"][1] and not s["rescindido"][0]
@@ -189,7 +189,7 @@ def test_marcos_do_profloresta_multas_e_rescisao():
 def test_cronograma_do_lote_com_erro_comum_da_captura():
     """Os marcos do lote inteiro: o erro da captura é comum às fazendas (não se cancela); com o P50 que cumpre os
     marcos e a folga do P10, a chance de cumprir todos sobe para perto de 90%."""
-    c = R.cenario(**R11)
+    c = R.cenario("central_r11", **R11)
     justo = R.cronograma_lote(1e6, c, volume=1e6)
     assert [m["ano"] for m in justo["marcos"]] == [7, 12, 17, 22, 25]
     assert justo["marcos"][-1]["fracao"] == 1.0 and justo["marcos"][-1]["limiar"] == pytest.approx(1e6)
@@ -205,7 +205,7 @@ def test_cronograma_do_lote_com_erro_comum_da_captura():
 
 def test_pagamento_ao_dono_aluguel_fixo_derruba_a_tir():
     """Parte do crédito + piso (padrão) contra o aluguel fixo do Censo Agro 2017 e o aceite em duas fases."""
-    c = R.cenario(**R11)
+    c = R.cenario("central_r11", **R11)
     sfx = R.por_imovel(_linha(cod_municipio_ibge=1507300), c)  # São Félix do Xingu: R$ 532/ha/ano
     assert sfx["arrendamento_referencia_rs_ha_ano"] == 532 and sfx["arrendamento_referencia_fonte"] == "municipio"
     assert sfx["tir_projeto_pct_arrendamento"] < sfx["tir_projeto_pct_p50"]
@@ -229,7 +229,7 @@ def test_pagamento_ao_dono_aluguel_fixo_derruba_a_tir():
 
 
 def test_divida_pelo_icsd():
-    c = R.cenario(**R11)
+    c = R.cenario("central_r11", **R11)
     _, x = R.calcular(_linha(**PERTO), c)
     s = x["sim"]
     d = s["divida"]
@@ -250,7 +250,7 @@ def test_fazenda_perto_de_mata_e_regeneracao_assistida_barata_com_linha_de_base_
     longe = R.por_imovel(_linha())
     assert perto["modo_restauracao"] == "regeneracao_assistida"
     assert perto["restauracao_regeneracao_assistida_ha"] == pytest.approx(100)
-    assert perto["custo_restauracao_ha_p50"] == 4230 + 800  # SFB, condução da regeneração
+    assert perto["custo_restauracao_ha_p50"] == round(4230 + 800 + 104.78 + 196.25 / 100)
     # onde a mata volta sozinha o desconto da linha de base é alto e aparece na coluna, não some
     assert (
         perto["desconto_linha_base_pct"] >= 15 and perto["desconto_linha_base_pct"] > longe["desconto_linha_base_pct"]
@@ -265,7 +265,7 @@ def test_fazenda_longe_de_mata_e_plantio_total():
     longe = R.por_imovel(_linha())
     assert longe["modo_restauracao"] == "plantio_total"
     assert longe["restauracao_plantio_total_ha"] == pytest.approx(100)
-    assert longe["custo_restauracao_ha_p50"] == 15830 + 3544  # SFB, plantio total
+    assert longe["custo_restauracao_ha_p50"] == round(15830 + 3544 + 104.78 + 196.25 / 100)
     assert longe["linha_base_medida_pct"] < 2 and longe["desconto_linha_base_pct"] == 10  # piso de 10%
     assert longe["captura_total_tco2_ha_p50"] == pytest.approx(588.8, abs=0.1)  # Amazônia, chuva e solo na referência
     assert longe["captura_tco2_ha_ano_p50"] == pytest.approx(588.8 / 40, abs=0.01)
@@ -327,10 +327,11 @@ def test_sem_entrada_geografica_usa_premissa_neutra_e_diz_o_que_faltou():
     fogo=st.floats(0, 3),
     vigor=st.sampled_from([1, 2, 3]),
     decl=st.floats(0, 80),
-    alem=st.floats(0, 2000),
-    pasto=st.floats(0, 2000),
+    alem=st.integers(0, 20_000_000).map(lambda n: n / 10000),
+    pasto=st.integers(0, 20_000_000).map(lambda n: n / 10000),
 )
 def test_propriedades(d, idade, fogo, vigor, decl, alem, pasto):
+    # Áreas na resolução de 4 casas do contrato; inclui zero e 1 m², sem corte de elegibilidade.
     li = _linha(pasto_d0_ha=d[0], pasto_d1_ha=d[1], pasto_d2_ha=d[2], pasto_d3_ha=d[3], mb_pasto_idade_anos_media=idade,
                 fogo_anos_media=fogo, mb_pasto_vigor_principal=vigor, declividade_media_pct=decl, alem_RL_ha=alem,
                 pasto_ha=pasto)  # fmt: skip
@@ -338,8 +339,13 @@ def test_propriedades(d, idade, fogo, vigor, decl, alem, pasto):
     area = c["restauracao_area_ha"]
     assert area <= min(alem, pasto) + 1e-4  # arredondado a 4 casas
     assert sum(c[f"restauracao_{m}_ha"] for m in R.regra()["modos"]) == pytest.approx(area, abs=1e-3)
-    for base in ("custo_restauracao_ha", "captura_tco2_ha_ano", "vpl_rs_ha", "tir_alavancada_pct"):
+    for base in ("custo_restauracao_ha", "captura_tco2_ha_ano"):
         assert c[f"{base}_p10"] <= c[f"{base}_p50"] <= c[f"{base}_p90"]
+    # TIR não é monotônica em fluxos com mais de uma troca de sinal. O caminho
+    # de premissas centrais não é a mediana de Monte Carlo; não forçar os quantis.
+    for base in ("vpl_rs_ha", "tir_alavancada_pct"):
+        assert c[f"{base}_p10"] <= c[f"{base}_p90"]
+        assert np.isfinite(c[f"{base}_p50"])
     assert 0 <= c["credito_liquido_tco2_ha_ano"] <= c["captura_tco2_ha_ano_p50"]
     assert 0 <= c["desconto_linha_base_pct"] <= 100
 
@@ -365,7 +371,7 @@ def test_lote_junta_pequenas_e_nao_descarta_nenhuma():
 def test_contrato_de_um_milhao_pede_3_a_4_5_mil_ha_no_plantio():
     """1 milhão de créditos líquidos até o ano 25: ~3,4 mil ha de plantio no central (curva da URTX); 3,5 a 4,5 mil
     ha nas premissas antigas do fundador."""
-    c = R.por_imovel(_linha(), R.cenario(**R11))
+    c = R.por_imovel(_linha(), R.cenario("central_r11", **R11))
     assert 3000 <= 1e6 / c["credito_liquido_tco2_ha_contrato_p50"] <= 4500
     ot = R.por_imovel(_linha(), R.cenario("otimista_fundador"))
     assert 3500 <= 1e6 / ot["credito_liquido_tco2_ha_contrato_p50"] <= 4500
@@ -411,7 +417,7 @@ def test_ficha_separa_faixas_e_avisa():
     assert [m["ano"] for m in b["marcos"]["lista"]] == [7, 12, 17, 22, 25]
     assert b["marcos"]["lista"][0]["minimo_pct"] == 9.0 and b["marcos"]["multa_esperada_rs_ha"] is not None
     assert b["curva_p50"]["bruto_tco2_ha"][1] == 0 and len(b["curva_p50"]["anos"]) == 41
-    assert b["divida"]["sistema"] == "icsd" and b["captura_tco2_ha_ano"]["modelo"] == "curva"
+    assert b["divida"]["sistema"] == "icsd_cvxpy" and b["captura_tco2_ha_ano"]["modelo"] == "curva"
     assert "SFB" in b["premissas"]["custo"]["plantio_total"] and "Systemica" in b["premissas"]["custo"]["plantio_total"]
     ot = {**_linha(**PERTO), **R.por_imovel(_linha(**PERTO), R.cenario("otimista_fundador"))}
     assert "pendente" in R.bloco_ficha(ot)["do_bruto_ao_liquido"]["vazamento_situacao"]
@@ -468,7 +474,7 @@ def test_versao_muda_com_as_premissas(tmp_path):
     v1 = R.regra(a, cambio=tmp_path / "nao_existe.yaml")["versao_completa"]
     assert v1.startswith("restauracao-2026d+")
     r = R.regra(a, cambio=tmp_path / "nao_existe.yaml")
-    assert r["cenarios"]["padrao"] == "central_r11" and "so_contrato_25" in r["cenarios"]["cenarios"]
+    assert r["cenarios"]["padrao"] == "central_r12" and "so_contrato_25" in r["cenarios"]["cenarios"]
     a.write_text(a.read_text().replace("valor: 5.40", "valor: 5.10"))
     assert R.regra(a, cambio=tmp_path / "nao_existe.yaml")["versao_completa"] != v1
     assert not (RAIZ / "raiz" / "regras" / "padroes" / "cenarios_restauracao.yaml").exists()
@@ -573,7 +579,7 @@ def test_nome_do_ladrilho_do_copernicus():
 def test_reserva_de_nao_permanencia_por_fazenda():
     """E3 passo 4: frequência vezes severidade do fogo e da derrubada da vegetação secundária, menos a mitigação, mais
     o risco interno e externo; nunca abaixo da reserva do cenário nem acima do teto."""
-    c = R.cenario(**R11)
+    c = R.cenario("central_r11", **R11)
     r = R.regra()
     npm = r["nao_permanencia"]
     x = R.nao_permanencia({"fogo_anos_media": 0.28, "taxa_supressao_secundaria_municipio": 0.0085}, c, r)

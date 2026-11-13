@@ -1,6 +1,6 @@
 import { X } from "lucide-react"
 import { lazy, Suspense, useMemo, useState } from "react"
-import { fmtInt, UFS } from "../../../compartilhado/formato"
+import { fmtInt } from "../../../compartilhado/formato"
 import { CAMPOS_PADRAO, marcosDo } from "../../../compartilhado/pedidos/exemplo"
 import {
   ROTULO_CAMINHO,
@@ -15,12 +15,11 @@ import { fonte, useCarga } from "../dados"
 import { pedidos } from "../pedidos"
 import { Cabecalho } from "../partes/Cabecalho"
 import { AvisoExemplo } from "../partes/pedido/AvisoExemplo"
+import { OndePedido } from "../partes/pedido/OndePedido"
 import "../partes/pedido/pedido.css"
 import { linkPedido, linkPedidos } from "../rota"
 
 const MapaDesenho = lazy(() => import("../mapa/MapaDesenho").then((m) => ({ default: m.MapaDesenho })))
-
-const BIOMAS = ["Amazônia", "Cerrado", "Mata Atlântica", "Caatinga", "Pantanal", "Pampa"]
 
 const DICA_INTERESSE: Record<FiltroInteresse, string> = {
   qualquer: "O lote sai da base inteira; a Raíz busca o aceite dos donos depois.",
@@ -101,7 +100,7 @@ export function NovoPedido() {
         <h1>Novo pedido</h1>
         <p className="frase">Diga o que precisa. Compare quanto existe na base e os lotes mais barato, mais seguro e mais compacto já calculados.</p>
         <AvisoExemplo ativo={pedidos.exemplo} />
-        <p className="pedido-cena-resumo">O pedido começa com 1 milhão de créditos líquidos no Pará. Ajuste a meta e o custo máximo abaixo. Nenhum dono será contatado nesta etapa.</p>
+        <p className="pedido-cena-resumo">O pedido começa com 1 milhão de créditos líquidos no Pará. Você pode escolher qualquer estado, bioma ou o Brasil inteiro. Nenhum dono será contatado nesta etapa.</p>
 
         <form className="formulario pedido-form" onSubmit={enviar} noValidate>
           <section aria-labelledby="np-quanto">
@@ -189,34 +188,8 @@ export function NovoPedido() {
 
           <section aria-labelledby="np-onde">
             <h2 id="np-onde">Onde</h2>
-            <fieldset className="campo-grupo">
-              <legend>Bioma</legend>
-              <div className="opcoes-linha">
-                {BIOMAS.map((b) => (
-                  <label key={b} className="opcao">
-                    <input type="checkbox" checked={c.onde.biomas.includes(b)} onChange={() => mudar((x) => (x.onde.biomas = alternar(x.onde.biomas, b)))} />
-                    <span>{b}</span>
-                  </label>
-                ))}
-              </div>
-            </fieldset>
+            <OndePedido onde={c.onde} mudar={(onde) => mudar((x) => (x.onde = onde))} mudarAlcance={() => { setRaio(false); setDesenhar(false); setMun("") }} />
             <div className="campos-linha">
-              <label className="campo">
-                <span>Estados (sem nenhum: todos)</span>
-                <select
-                  value=""
-                  onChange={(e) => e.target.value && mudar((x) => (x.onde.ufs = [...new Set([...x.onde.ufs, e.target.value])]))}
-                >
-                  <option value="">Escolher um estado</option>
-                  {Object.entries(UFS)
-                    .sort((a, b) => a[1].localeCompare(b[1], "pt-BR"))
-                    .map(([uf, nome]) => (
-                      <option key={uf} value={uf} disabled={c.onde.ufs.includes(uf)}>
-                        {nome}
-                      </option>
-                    ))}
-                </select>
-              </label>
               <label className="campo">
                 <span>Municípios</span>
                 <input
@@ -238,16 +211,8 @@ export function NovoPedido() {
                 </datalist>
               </label>
             </div>
-            {(c.onde.ufs.length > 0 || c.onde.municipios.length > 0) && (
+            {c.onde.municipios.length > 0 && (
               <ul className="fichas-escolhidas" aria-label="Lugares escolhidos">
-                {c.onde.ufs.map((uf) => (
-                  <li key={uf}>
-                    {UFS[uf]}
-                    <button type="button" aria-label={`Tirar ${UFS[uf]}`} onClick={() => mudar((x) => (x.onde.ufs = x.onde.ufs.filter((u) => u !== uf)))}>
-                      <X size={16} aria-hidden="true" />
-                    </button>
-                  </li>
-                ))}
                 {c.onde.municipios.map((cod) => {
                   const m = [...opcoesMun.values()].find((x) => x.cod_ibge === cod)
                   return (

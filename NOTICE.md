@@ -1,5 +1,22 @@
 # Código e dados de terceiros
 
+## Fontes da camada de terra comprometida
+
+[Berkeley Carbon Trading Project, Voluntary Registry Offsets Database](https://gspp.berkeley.edu/berkeley-carbon-trading-project/offsets-database),
+versão v2026-08, **CC BY 4.0**. Usamos a seleção de projetos florestais brasileiros;
+nomes de projetos, proponentes e contatos não entram na ficha. A Raíz produz o
+cruzamento e suas conclusões, sem endosso dos autores.
+
+[An open-access database of nature-based carbon offset project boundaries](https://doi.org/10.5281/zenodo.11459391),
+Zenodo 11459391, **CC BY 4.0**, autores conforme ficha DOI. A seleção de polígonos
+brasileiros é tratada como indício secundário; pontos são descartados. Geometrias
+e dados brutos não são redistribuídos nesta entrega. Não copiamos código da pesquisa.
+
+Verra, SFB, ART e publicações estaduais são referências públicas para análise
+privada. Os documentos e limites sem licença expressa de redistribuição não são
+publicados no Release ou site. Consulte [fontes e limites](docs/terra-comprometida.md)
+e o catálogo versionado `raiz/terra_comprometida_fontes.json`.
+
 Cache calibrado da matrícula: MAPIE 1.6 (BSD-3-Clause, Copyright 2021 Vianney Taquet,
 Grégoire Martinon, Nicolas Brunel, Issam Ibnouhsein, François Deheeger e contribuidores),
 usado como dependência, sem copiar código. `BinaryClassificationController` controla a
@@ -323,6 +340,15 @@ especificação pública (MIT), sem copiar código. OAuth via Keycloak26.8.2 (Ap
 em contêiner separado. O armazenamento compartilhado dos limites usa Valkey (BSD-3-Clause),
 compatível com o protocolo Redis; o servidor Redis com licença restritiva não é distribuído.
 
+O harness de avaliação usa VCR.py (MIT, https://github.com/kevin1024/vcrpy), sem código copiado,
+para gravar e reproduzir chamadas ao modelo em testes. Os replays não contam como medição nova de agente real.
+
+A conferência de protocolo usa MCP Inspector 2.15.0 (Apache-2.0, com código legado MIT,
+https://github.com/modelcontextprotocol/inspector), vacuum 0.40.1 (MIT,
+https://github.com/daveshanley/vacuum) e o esquema oficial do registro MCP de 2025-12-11
+(Apache-2.0 e MIT, https://github.com/modelcontextprotocol/registry). A licença e o hash
+do esquema acompanham a cópia em `infra/mcp/`; nenhum servidor é publicado por essas ferramentas.
+
 ## Sanitização de logs (`raiz/logs_seguros.py`)
 
 Microsoft Presidio Analyzer e Anonymizer ([microsoft/presidio](https://github.com/microsoft/presidio), MIT) são usados
@@ -339,6 +365,17 @@ Gitleaks 8.24.3 (MIT, https://github.com/gitleaks/gitleaks) e actionlint 1.7.7
 (Apache-2.0, https://github.com/microsoft/playwright) executa o navegador de teste. Usados como ferramentas,
 sem código-fonte copiado para o produto.
 
+## OCR dos editais e matrículas públicos
+
+O calendário chama os executáveis Poppler (`pdftoppm`, GPL-2.0/GPL-3.0,
+https://poppler.freedesktop.org/) e Tesseract (Apache-2.0,
+https://github.com/tesseract-ocr/tesseract), com os modelos de português/inglês do
+Tesseract (`tessdata_fast`, Apache-2.0, https://github.com/tesseract-ocr/tessdata_fast). Rodam apenas no
+servidor e nos testes, instalados pelos pacotes do sistema; os binários não são
+embutidos no produto distribuído nem no navegador. Nenhum código foi copiado.
+PDF, imagem renderizada e texto do OCR passam em memória por stdin/stdout; a saída
+persistida contém somente os campos permitidos do calendário e a URL pública da prova.
+
 ## Lighthouse e SDK de telemetria
 
 Lighthouse **13.6.0** ([GoogleChrome/lighthouse](https://github.com/GoogleChrome/lighthouse), Apache-2.0) mantém
@@ -352,3 +389,47 @@ que não é aceita pelo projeto. A versão 10.78.0 evita essa dependência e man
 original do Lighthouse; sua compatibilidade é verificada com o teste de agentes e com eventos de telemetria
 capturados em transporte local, sem envio ao Sentry. Ao atualizar o Lighthouse ou esse pin, repetir essas
 verificações e a checagem integral de licenças; não liberar FSL nem instalar a CLI como exceção.
+# Rodada 12 — cálculo científico e fontes
+
+Integrações por API Python, sem código de terceiros copiado:
+
+- [pysyncon](https://github.com/sdfordham/pysyncon), MIT; controle sintético.
+- [CVXPY](https://github.com/cvxpy/cvxpy), Apache-2.0; otimização convexa.
+- [PuLP](https://github.com/coin-or/pulp), MIT; programação inteira.
+- [NetworkX](https://github.com/networkx/networkx), BSD-3-Clause; fluxo em redes.
+- [scpi](https://github.com/nppackages/scpi), GPL-3.0-only: dependência **apenas**
+  de `infra/scpi/requirements.txt`, ambiente separado de servidor. Não consta nas
+  dependências do produto nem no wheel; `infra/scpi` é excluído do sdist. A ponte
+  local é código próprio; nenhum código GPL foi incorporado ao pacote `raiz`.
+
+Dados e fatos científicos não herdam as licenças das bibliotecas:
+
+- Cardoso et al. 2026, DOI 10.5061/dryad.6t1g1jxdp: CC0-1.0. Metadados conferidos;
+  extração das observações ainda pendente de download. Não guardar a coluna
+  `responsible` em dados de ajuste ou resultados.
+- Bousfield e Edwards, Zenodo 15120870: CC-BY-4.0; idade da floresta em 2023.
+- IBGE, Malha Municipal Digital 2025 do Pará: atribuição CC-BY-4.0 conforme
+  termos da MMD, https://www.ibge.gov.br/biblioteca/visualizacao/livros/liv102152.pdf.
+  Download limitado e SHA256 ancorado; usada somente para vincular parcelas
+  públicas a municípios, sem incorporar a malha ao pacote distribuído.
+- Verra VCS 5511 e Isometric 84R7: documentos públicos sem licença aberta de
+  redistribuição localizada. Guardados fatos, referências e hashes, não cópias dos
+  PDFs ou planilhas proprietários no produto.
+
+
+- Dados abertos BNDES, operações diretas/indiretas não automáticas: ODbL-1.0,
+  https://dadosabertos.bndes.gov.br/dataset/operacoes-financiamento. Somente fatos
+  financeiros das tranches de referência foram transcritos; não distribuímos
+  cadastro de tomadores. SIDRA/IBGE: fonte oficial e consulta identificada em
+  `rodada12_financeiro.json`; números do Censo 2017 corrigidos pelo IPCA.
+- O solver CBC, chamado pelo PuLP como executável separado, usa EPL-2.0
+  (https://github.com/coin-or/Cbc). Não foi copiado código do solver para a Raíz.
+- Embrapa, ASOP 25 e relatórios Verra: fatos, método e atribuição; implementação
+  própria, sem reproduzir integralmente textos ou dados sem licença aberta.
+- Referências ecológicas derivadas: Boeschoten et al. (2026), Zenodo 18244528,
+  CC-BY-4.0; Rozendaal et al. (2019), DANS-XH8-GH92, CC0-1.0; Giles et al.
+  (2024)/Jakovac et al. (2015), Zenodo 13970371, CC-BY-4.0. Atribuição,
+  licença, hash da fonte, recorte, unidade e versão de cálculo acompanham cada
+  faixa em `ecologia_referencias_abertas.json`. Quantis foram calculados por
+  código próprio. Cava (Zenodo 4941557, CC0) aparece como experimento rejeitado,
+  sem promover a curva a previsão. Nenhum dado ou código NC foi incorporado.

@@ -102,16 +102,50 @@ mobile com portão Lighthouse e domínio configurável estão na main. Os result
 estão nos PRs acima. A revisão final também corrigiu totais Markdown incompletos e não encontrou outros
 problemas acionáveis de autorização da ficha, navegação ou caminhos do domínio.
 
-1. Conferir a publicação após a retomada coordenada com #72 e acompanhar as rodadas diárias: datas da cobertura,
-   municípios novos e caminhos públicos. As evidências locais da build com o Release real estão registradas acima.
-2. Aguardar o ponteiro `lote_PA_central_r11.json` no Release; a rotina diária já o incorpora quando existir.
-   Enquanto faltar, a tela mantém o aviso e não inventa os três lotes nem suas faixas de crédito/TIR.
+1. Publicação após #72 conferida na seção abaixo; acompanhar as rodadas diárias, datas da cobertura,
+   municípios novos e caminhos públicos. Não alterar o PR do chat Ficha da fazenda.
+2. Os três lotes do Pará foram concluídos no **Release privado**, conforme #78. O ponteiro completo não deve
+   voltar ao Release público. A próxima entrega publica somente uma projeção explícita dos resumos autorizados;
+   seleção de fazendas, desenho dos lotes, tabela individual, travas e “o que destrava” vêm da API autenticada.
 3. E9 passo 3: aguardar as 30 cartas reais anonimizadas e uma avaliação de compreensão, confirmadas como ainda
    indisponíveis pelo fundador. Depois calibrar o portão e gravar a nota no laudo. Contato com o dono somente na fase final.
 4. Quando houver domínio real, configurar DNS e Pages e preencher `RAIZ_DOMINIO`; conferir HTTPS, CNAME,
    `robots.txt` e `llms.txt` na raiz. Nenhum domínio real foi escolhido ou ativado nesta entrega.
 5. Continuar os demais itens E9 na ordem do plano: texto por fazenda no kit ONS/campos abertos, condicionais e
    extenso, KMZ e os demais. A geometria de reserva legal ainda não está nas camadas; não deduzir seu desenho de percentuais.
+
+## Continuação: publicação após #72 e fronteira aberto/pago (12/11/2026)
+
+- **Entrega 1 feita:** #72 já estava mesclado; não foi alterado por este chat. O workflow `publicar-site.yml`
+  estava ativo e a publicação [43311812890](https://github.com/bernardoemmel/Raiz/actions/runs/43311812890)
+  concluiu com sucesso após o conserto de downloads do #80. A publicação diária continua ativa, sem lista fixa.
+- Conferência independente no [site ao vivo](https://bernardoemmel.github.io/Raiz/): busca por Parauapebas,
+  contornos básicos coloridos, aproximação com fundo recebido por HTTP Range 206, novo pedido e tela de 360 px.
+  **Zero HTTP 404 e zero erros de JavaScript** nessas navegações. A cobertura publicada era de 365 municípios,
+  9 estados e 712.601 registros básicos; índice gerado em `2026-11-12T21:47:25+00:00`.
+- O artefato efetivamente publicado foi baixado novamente: 1.596 arquivos, 365 CSV básicos e 365 GeoJSON,
+  com 712.601 contornos. Cada CSV passou pela lista positiva; cada contorno contém somente CAR e geometria.
+  Não há ficha, certidão, tabela financeira individual, lote completo ou identificador de fazenda em agregado.
+  SHA256 do `artifact.tar`: `0965c217d1619fd830962d3e8c1eafff78997e94973e6093965c9248b00bb1d6`.
+- Também foram baixados e validados **todos os 36 assets** então presentes no Release público `dados`
+  (199.862.136 bytes), incluindo os novos estados e as fichas metodológicas Croissant. Todos passaram pela
+  função `validar_asset_publico`; nenhum pacote de camadas pagas ou de lotes completos estava publicado.
+  Contagens do Release mais recente podem superar as do site até a próxima publicação.
+- O cadastro básico de todas as fazendas permanece aberto, conforme #72. Isso não autoriza revelar quais
+  fazendas compõem um lote: os resumos comerciais terão contrato próprio, sem CAR nem geometria da seleção.
+  Respostas 404 ao tentar endereços antigos de camadas pagas são a retirada esperada, não falhas de navegação.
+- Uma atualização foi disparada e concluiu na execução
+  [43331843113](https://github.com/bernardoemmel/Raiz/actions/runs/43331843113), sobre a main `6f49dfc`.
+  A nova publicação incorporou automaticamente **444 municípios, 13 estados e 912.853 fazendas básicas**,
+  com índice de `2026-11-12T23:54:43+00:00`. A mesma navegação ao vivo passou novamente com zero 404/erros.
+  O novo artefato tem 1.849 arquivos, 444 CSV básicos e 444 geometrias; todos foram revalidados sem medidas pagas.
+  SHA256 do tar: `c0a32ce66a78872c417e850ede2ae930154796a75bc1730070ffe3eefc7dec52`.
+- Próximas entregas, nesta ordem: resumo aberto/detalhes por API; sensibilidade; pedido por UF, bioma ou Brasil;
+  painel de acerto por versão. A rodada privada do Pará não calculou sensibilidade (`sensibilidade_ligada=False`);
+  a demonstração ficará identificada até haver resultados reais. E9 continua aguardando as cartas reais.
+- O CI encontrou três falsos positivos no histórico de outra branch remota: hashes de código do atestado MCP
+  no commit `e7074b4a`. Foram comparados byte a byte aos arquivos versionados e permitidos somente pelos três
+  fingerprints exatos em `.gitleaksignore`. A varredura de todas as branches e as regras oficiais permanecem.
 
 ## Nova entrega 1: cena-alvo ligada ao Release (12/11/2026)
 
@@ -370,3 +404,98 @@ relatórios Lighthouse passaram pelo portão fixo. E9 real não foi calibrado e 
   não libera medidas de grupos cujo tamanho mínimo não pode ser confirmado. Dezenove testes focados passaram.
 - A atualização da main para o histórico automático foi incorporada; preservadas a nota do Calendário
   sobre o runner e a exceção exata de URL JDBC sem credenciais.
+
+## Continuação, entrega 2: lotes abertos e detalhes autenticados (13/11/2026 UTC)
+
+- `raiz.lotes_publicos` lê **somente o manifesto privado**, depois de conferir a visibilidade autenticada,
+  tamanho e hash. A projeção `publico_lotes` v1 publica apenas os sete indicadores autorizados; não baixa
+  os pacotes por fazenda. Token restrito ao passo do Actions, sem variável `VITE_`, cache ou artifact privado.
+  O build e o navegador reaplicam a lista positiva. O formato completo antigo é recusado.
+- Fonte real: rodada `central_r11`, modelo `restauracao-2026d+a84f9789`, publicada em
+  `2026-11-12T20:47:42Z`, 144 municípios e 345.870 fazendas calculadas no Pará. Pedido de referência:
+  um milhão de créditos, contrato de US$ 55 por crédito. Alterar os critérios não recalcula esse snapshot.
+- A comparação aberta usa o mesmo conjunto de titulares **e fazendas de reserva** em cada medida:
+
+| Opção | P10 / P50 / P90 de créditos | Hectares | Fazendas | Custo médio por crédito |
+|---|---|---:|---:|---:|
+| Mais barata | 1.298.148 / 1.871.150 / 2.309.231 | 9.561,3 | 95 | US$ 26,83 |
+| Mais segura | 1.310.708 / 1.891.833 / 2.332.670 | 9.942,8 | 270 | US$ 27,68 |
+| Mais compacta | 1.339.520 / 1.950.679 / 2.426.929 | 10.838,4 | 25 | US$ 33,29 |
+
+- **Terra documental pronta: zero créditos e 0% da meta nas três opções.** O indicador exige matrícula
+  conferida ou concessão; não usa a oferta estadual do solver, que também aceita matrícula a conferir.
+  Uma futura mistura sem quantis separados permanece desconhecida: não ratear créditos por hectares ou fazendas.
+  Isso não afirma que uma concessão ou matrícula por si só libera a venda; os lotes continuam sujeitos à diligência.
+- A tela aberta não mostra TIR, composição, CAR, mapa da seleção, tabela por fazenda, travas ou “o que destrava”.
+  O cadastro básico geral permanece aberto, separado da identidade das fazendas de cada lote.
+- Na área autenticada, os detalhes usam o transporte e o DTO da API. Sem servidor, a opção explícita
+  “Conhecer a demonstração da área logada” abre uma sessão separada e dados inteiramente fictícios, com IDs
+  `DEMONSTRACAO-*` e contornos artificiais. Não lê o Release privado, não libera fichas reais, não cobra e não
+  inicia contato. Uma API configurada sempre prevalece sobre essa demonstração.
+- Quadro “o que destrava” usa somente a opção consultada; sem dado específico, informa ausência. Não reutiliza
+  as estatísticas gerais como se fossem a diligência daquele lote. Pequenas fazendas continuam incluídas.
+- Verificação: seis testes do projetor privado, 233 testes do front, TypeScript, Ruff, design e actionlint;
+  Playwright integrou resumo ausente/legado/permitido, demonstração, três lotes autorizados, ficha bloqueada,
+  teclado e axe a 360 px, sem 404. Pages também passou com publicação básica e zero erros no navegador.
+  Revisões independentes da projeção e do acesso não encontraram vazamento. O rótulo “custo médio” distingue
+  o custo estimado do preço de venda de US$ 55. E9 continua aguardando as cartas reais.
+
+## Continuação, entrega 3: sensibilidade do lote (12/11/2026, Brasília)
+
+- A comparação autenticada ganha controles de preço do crédito, reserva contra reversão (mínimo 20%),
+  taxa de desconto e cenário pessimista. Mostra as três opções, quantis de créditos, área, fazendas, VPL e
+  TIR do projeto, com fonte, data, versão e premissas. Desconto altera VPL; não altera a TIR do mesmo fluxo.
+- O endpoint exige identidade, escopo, liberação e propriedade do pedido antes de ler qualquer arquivo.
+  A grade privada é exata, sem interpolação: combinações inexistentes respondem ausência explícita, sem 404.
+  Pedido, modelo, critérios e composição precisam corresponder à revisão do lote; uma edição invalida a
+  comparação antiga. O componente limpa resultados defasados e descarta respostas em voo de outra revisão.
+- A rodada real do Pará publicou `sensibilidade: []`. O quadro informa essa ausência; a demonstração optativa
+  usa composições e fluxos inteiramente fictícios, sem ler dados pagos nem registrar resultados no aprendizado.
+  Publicar a grade real continua pendente no motor; não apresentamos o exemplo como previsão calibrada.
+- Contrato operacional em `docs/sensibilidade-lote.md`. Testes cobrem limites, grade exata, autorização antes
+  da leitura, ausência, distinção entre desconto/TIR e invalidação após editar o lote. Playwright cobre os quatro
+  controles, teclado, axe/360 px e respostas indisponíveis sem 404.
+
+## Continuação, entrega 4: pedido por estado, bioma ou Brasil (12/11/2026, Brasília)
+
+- Novo pedido permite as 27 UFs, seis biomas ou Brasil inteiro. Trocar o alcance limpa município, desenho e
+  raio ocultos da seleção anterior. Nenhuma lista de estados processados é fixa: a disponibilidade vem do
+  manifesto atual, com data, municípios lidos/esperados, estados parciais, ausentes e desconhecidos.
+- Os critérios seguem para a API existente, que filtra as fazendas pelo recorte. No modo aberto, cobertura
+  estadual não vira oferta do bioma: totais de fazendas/hectares ficam desconhecidos quando o recorte exato
+  não foi publicado. Municípios são deduplicados e informação suprimida não vira zero.
+- O resumo do Pará continua identificado como cenário publicado; não é extrapolado para outro estado,
+  bioma, Brasil inteiro ou novos filtros financeiros. A demonstração também conserva seu aviso fictício.
+- Testes cobrem estado recém-processado, disponibilidade parcial, troca de alcance e ausência. Playwright
+  passou por estado, bioma e Brasil com teclado, axe em 1440/360 px e zero 404; entra no CI junto da cena-alvo.
+
+## Continuação, entrega 5: acerto do modelo por versão (12/11/2026, Brasília)
+
+- O painel `#/acerto` compara previsões com observações elegíveis, separadas por modelo, versão, alvo,
+  horizonte e tipo de avaliação. Explica erro/viés, faixas e probabilidades na unidade adequada; não inventa
+  uma taxa geral nem elege um vencedor entre tarefas diferentes. WIS/Brier menores indicam menor erro.
+- API e exportador publicam somente agregados com pelo menos cinco imóveis distintos. CAR, resultados
+  individuais, fontes livres e medidas de grupos pequenos não entram no DTO aberto. O placar completo
+  permanece no endpoint operacional protegido. Cache público curto, fontes/data e limite de cobertura visíveis.
+- A avaliação exige valor/gabarito válidos e referência temporal compatível com a previsão. “Ao vivo” exige
+  prova de que a previsão foi congelada antes da observação; ausência de cronologia não vira comprovação.
+  A projeção não altera os retratos históricos nem os registros originais do aprendizado.
+- Ainda não há placar real anunciado no Release público. Sem `RAIZ_ACERTO_URL` ou API com dados elegíveis,
+  o site mostra ausência explícita, nunca 0% de acerto. O contrato e a operação estão em `docs/painel-acerto.md`.
+- Testes cobrem supressão, valores desconhecidos, proveniência e período. Playwright/axe passou em 1440/360 px
+  nas bases `/` e `/Raiz/`, sem 404. O painel também entra na série fixa de três medições Lighthouse no CI.
+
+## Integração das entregas 2 a 5 (12/11/2026, Brasília)
+
+- Reunidas no PR #89. A main foi incorporada, preservando a separação aberto/pago e os novos jobs do CI.
+  Os percursos integrados passaram em 13 auditorias axe, com teclado, 360 px, zero 404 e nenhum contato.
+- No CI, as seis páginas tiveram medianas de desempenho 100, 98, 98, 98, 98 e 100, com acessibilidade 100
+  em todas as medições. A abertura direta em MapLibre tem validação própria no PR #90; essas notas não a cobrem.
+- O E2E da API foi ajustado aos rótulos do formulário nacional, conservando as verificações de Pará, meta,
+  pagamento, autorização e privacidade. O fluxo inteiro passou localmente com API/PostGIS e novamente no CI.
+- A varredura completa do histórico encontrou outra URL JDBC interna no compose de avaliação do commit
+  `e0e8ccd`, linha 46: `KC_DB_URL`, host local e porta 5432, sem usuário nem senha na URL. A exceção é somente
+  esse fingerprint; as regras oficiais, a ocultação dos valores e a varredura de todas as branches continuam.
+- Rodada 12 recebida: Supercluster nacional/estadual, ficha de créditos com base de comparação explícita,
+  versão pública datada, sequência de risco e gráficos. Essa continuação conserva o MapLibre e o acesso pago;
+  não cancela nem desliga workflows. E9 permanece aguardando o conjunto de cartas reais.

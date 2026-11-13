@@ -54,13 +54,14 @@ def cotas(estado: dict, run_id: str) -> list[dict]:
     return reservas
 
 
-def reservar(maximo: int) -> int:
+def reservar(maximo: int, aguardar_minutos: float = 0) -> int:
     run_id, _ = contexto()
-    if os.environ["GITHUB_JOB"] != "preparar" or not 1 <= maximo <= F.TETO:
+    if os.environ["GITHUB_JOB"] != "preparar" or not 1 <= maximo <= F.TETO or not 0 <= aguardar_minutos <= 180:
         raise ValueError("a reserva inicial exige o preparo e limite entre 1 e 15")
     _, estado = F.Repositorio().ler()
     reservas = cotas(estado, run_id)
-    if not reservas:
+    prazo = time.monotonic() + aguardar_minutos * 60
+    while not reservas:
         F.reservar(
             candidatos=[f"{PREFIXO}{i}" for i in range(maximo)],
             pedidos=[],
@@ -74,6 +75,12 @@ def reservar(maximo: int) -> int:
         )
         _, estado = F.Repositorio().ler()
         reservas = cotas(estado, run_id)
+        if not reservas:
+            restante = prazo - time.monotonic()
+            if restante <= 0:
+                break
+            print("Fila global cheia; aguardando término natural, sem cancelar workflows.", flush=True)
+            time.sleep(min(30, restante))
     if not 1 <= len(reservas) <= maximo:
         raise SemVagaGlobal("sem vaga global para o Lote; aguarde término natural e reexecute o workflow completo")
     confirmar(len(reservas))

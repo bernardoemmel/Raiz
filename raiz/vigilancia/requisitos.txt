@@ -18,3 +18,7 @@ pt-core-news-sm @ https://github.com/explosion/spacy-models/releases/download/pt
 # testes
 pytest>=8
 httpx>=0.27
+sqlalchemy>=2.0
+psycopg[binary]>=3.2
+alembic>=1.13
+pydantic-settings>=2.0
