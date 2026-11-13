@@ -3,7 +3,8 @@ import fs from "node:fs"
 import path from "node:path"
 import zlib from "node:zlib"
 import { createRequire } from "node:module"
-import { AVISO_AGREGADOS } from "./dados/agregados"
+import { createHash } from "node:crypto"
+import { AVISO_AGREGADOS, LIMITE_AGREGADOS_GZIP, LIMITE_AGREGADOS_NORMAL, LIMITE_AGREGADOS_TOTAL } from "./dados/agregados"
 
 // O módulo compartilhado fica fora de globo/node_modules e também participa do build do produtor.
 const { cellToBoundary, cellToLatLng, getResolution, isValidCell } = createRequire(new URL("../globo/package.json", import.meta.url))("h3-js") as {
@@ -79,7 +80,8 @@ export function potencialPublicado(geo: string) {
   const indice: Record<string, { arquivo: string; bytes: number }> = {}
   const arquivos: Record<string, Buffer> = {}
   const colecoes: unknown[] = []
-  let agregados: { arquivo: string; bytes: number } | null = null
+  let agregados: { arquivo: string; bytes: number; sha256: string; bytes_total: number;
+    normal: { arquivo: string; bytes: number; sha256: string }; metadados: NonNullable<ReturnType<typeof projetarAgregados>>["metadados"] } | null = null
   let metadados: ReturnType<typeof projetarPotencial>["metadados"] | null = null
   if (!fs.existsSync(arquivo)) return { indice, arquivos, metadados, agregados }
   const origem = objeto(JSON.parse(fs.readFileSync(arquivo, "utf8")))
@@ -97,10 +99,15 @@ export function potencialPublicado(geo: string) {
   }
   const nacional = projetarAgregados(colecoes)
   if (nacional) {
-    const nome = "agregados_brasil.geojson.gz", dados = zlib.gzipSync(JSON.stringify(nacional), { level: 6 })
-    if (dados.length > 560_000) throw new Error("O agregado nacional excedeu o limite de 560 KB")
+    const nomeNormal = "agregados_brasil.geojson", normal = Buffer.from(JSON.stringify(nacional))
+    if (normal.length > LIMITE_AGREGADOS_NORMAL) throw new Error("O agregado nacional excedeu o limite de 2,5 MB sem compressão")
+    const nome = `${nomeNormal}.gz`, dados = zlib.gzipSync(normal, { level: 6 })
+    if (dados.length > LIMITE_AGREGADOS_GZIP || dados.length + normal.length > LIMITE_AGREGADOS_TOTAL) throw new Error("O agregado nacional excedeu o limite de 560 KB comprimidos ou 3,06 MB somados")
+    const sha256 = (b: Buffer) => createHash("sha256").update(b).digest("hex")
     arquivos[nome] = dados
-    agregados = { arquivo: nome, bytes: dados.length }
+    arquivos[nomeNormal] = normal
+    agregados = { arquivo: nome, bytes: dados.length, sha256: sha256(dados), bytes_total: dados.length + normal.length,
+      normal: { arquivo: nomeNormal, bytes: normal.length, sha256: sha256(normal) }, metadados: nacional.metadados }
   }
   return { indice, arquivos, metadados, agregados }
 }

@@ -2,10 +2,21 @@
 
 ## Pontos nacionais para agrupamento na tela
 
-O build deriva `geo/agregados_brasil.geojson.gz` exclusivamente das coleções H3 públicas já aprovadas.
-O arquivo é anunciado em `geo/indice.json.agregados`, com nome e tamanho, e limitado a 560.000 bytes
-comprimidos. `FonteDeDados.geo.agregados()` baixa somente o índice e esse arquivo uma vez; se o índice
-não anunciar o agregado, retorna ausência sem tentar caminhos estaduais ou provocar 404.
+O build deriva `geo/agregados_brasil.geojson` e sua versão `.gz` exclusivamente das coleções H3 públicas
+já aprovadas. As duas representações saem do mesmo JSON sanitizado, anunciado em
+`geo/indice.json.agregados`: `arquivo`/`bytes`/`sha256` descrevem o gzip; `normal` contém os mesmos três
+campos para o GeoJSON sem compressão; `bytes_total` soma o espaço das duas representações e `metadados`
+traz a fonte, a data e as contagens públicas. O build limita o gzip a 560.000 bytes, o JSON normal a
+2.500.000 bytes e a soma a 3.060.000 bytes.
+
+`FonteDeDados.geo.agregados()` lê o índice uma vez e, quando o anúncio normal é válido, entrega uma
+URL estática da mesma origem ao mapa. Somente o caminho público `geo/agregados_brasil.geojson`, sob a
+base configurada, é aceito. O worker do MapLibre busca e interpreta o arquivo diretamente: a thread
+principal não precisa descomprimir, ler as feições e serializá-las de novo. Os hashes registram os
+bytes conferidos no build; não significam verificação criptográfica pelo navegador. O transporte pode
+usar compressão HTTP conforme o servidor, sem alterar o arquivo publicado. Índices antigos continuam
+usando o gzip e o parser com projeção positiva no navegador. Sem anúncio, a fonte retorna ausência sem
+tentar caminhos estaduais ou provocar 404.
 
 Cada ponto tem apenas `h3`, `fazendas` e `potencial_ha`. Sua coordenada é o centro da célula H3,
 reconstruído no build, e não a localização de uma fazenda. Cópias idênticas das células de fronteira
@@ -18,7 +29,8 @@ um grupo deve preservar a contagem de células com valor desconhecido, sem trans
 afirmação de área zero. Os metadados registram essas regras, a fonte/data, o número de células sem
 medida e a população representada. Não se publicam totais de hectares suprimidos.
 
-Conferência com a projeção pública das 13 UFs, de 13/11/2026: **215.591 bytes**, 6.787 pontos únicos,
+Conferência com a projeção pública das 13 UFs, de 13/11/2026: **215.591 bytes no gzip**,
+**1.227.580 bytes no JSON normal** e **1.443.171 bytes somados**, com 6.787 pontos únicos,
 dos quais 3.717 têm hectares conhecidos; 1.626.268 fazendas representadas no agregado e
 1.572.045,21 ha conhecidos. A conversão conserva as contagens e medidas publicadas, sem nova leitura
 de dados privados. Os hexágonos permanecem a unidade interna de agregação; o arquivo nacional

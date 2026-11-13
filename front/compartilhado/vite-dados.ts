@@ -332,10 +332,11 @@ export function dadosRaiz(opcoes: { repo: string; raizDados?: string | null; cac
           return fs.existsSync(arq) ? enviarArquivo(req, res, arq) : naoAchou(res)
         }
         if (url === "/geo/indice.json") return json(req, res, indiceGeoPublico())
-        if ((m = /^\/geo\/((?:potencial_[A-Z]{2}|agregados_brasil)\.geojson\.gz)$/.exec(url))) {
+        if ((m = /^\/geo\/(potencial_[A-Z]{2}\.geojson\.gz|agregados_brasil\.geojson(?:\.gz)?)$/.exec(url))) {
           const dado = potencial().arquivos[m[1]]
           if (!dado) return naoAchou(res)
-          res.setHeader("Content-Type", "application/gzip")
+          res.setHeader("Content-Type", m[1].endsWith(".gz") ? "application/gzip" : "application/geo+json")
+          res.setHeader("Content-Length", dado.length)
           res.end(dado)
           return
         }

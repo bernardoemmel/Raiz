@@ -4,7 +4,7 @@
  */
 
 import { lerPotencialMapa } from "./potencial"
-import { lerAgregadosMapa } from "./agregados"
+import { lerAgregadosMapa, lerAgregadosMapaUrl } from "./agregados"
 import { lerBasico } from "./basico"
 import { n0, texto } from "./colunas"
 import { buscar, normalizarCar, pareceCar } from "./busca"
@@ -20,7 +20,7 @@ import type { CoberturaMapa } from "./cobertura-mapa"
 interface IndiceGeo {
   cobertura?: CoberturaMapa
   potencial?: Record<string, { arquivo: string; bytes: number }>
-  agregados?: { arquivo: string; bytes: number } | null
+  agregados?: { arquivo: string; bytes: number; sha256?: string; bytes_total?: number; metadados?: unknown; normal?: { arquivo: string; bytes: number; sha256: string } } | null
   brasil?: Partial<Record<"municipios" | "estados" | "base", { arquivo: string; bytes: number }>>
   municipios: Record<string, Partial<Record<CamadaGeo | "base", { arquivo: string; bytes: number }>>>
 }
@@ -99,6 +99,9 @@ export function fonteAmostra(base = "/"): FonteDeDados {
   const agregadosNacionais = memo(async () => {
     const item = (await indiceCompleto("")).agregados
     if (!item || item.arquivo !== "agregados_brasil.geojson.gz") return null
+    const direto = typeof location === "undefined" ? null : lerAgregadosMapaUrl(item, raiz, location.origin,
+      typeof document === "undefined" ? location.href ?? location.origin : document.baseURI)
+    if (direto) return direto
     const texto = await buscarTextoGz(urlGeo(item.arquivo))
     return texto ? lerAgregadosMapa(JSON.parse(texto)) : null
   })
