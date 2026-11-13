@@ -52,7 +52,7 @@ export function lerProcessamentoEstados(valor: unknown): ProcessamentoEstados {
     if (e.escopo !== "uf" && e.escopo !== "unidade" && e.escopo !== "indisponivel") throw new Error("Escopo de processamento inválido")
     if (e.situacao !== "atual" && e.situacao !== "desatualizado" && e.situacao !== "sem_telemetria") throw new Error("Situação de processamento inválida")
     const n = objeto(e.municipios)
-    const unidade = typeof e.unidade === "string" && new RegExp(`^${e.uf}(?:-[1-9][0-9]?)?$`).test(e.unidade)
+    const unidade = typeof e.unidade === "string" && new RegExp(`^${e.uf}(?:-[1-9][0-9]{0,3})?$`).test(e.unidade)
       && (e.escopo !== "uf" || e.unidade === e.uf) ? e.unidade : null
     const estado: ProcessamentoEstado = {
       uf: e.uf,

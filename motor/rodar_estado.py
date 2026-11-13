@@ -249,6 +249,18 @@ def planejar(pedidos: list[str], refazer: set[str], modo: str = "automatico", li
     a vaga só fica livre quando a API confirma o job concluído, inclusive seus passos finais.
     No Actions a fila/reserva persistente serializa a admissão entre rodadas, sem cancelar jobs."""
     pub = S.ler_manifesto().get("estados", {})
+    prioridade_solicitada = os.environ.get("RAIZ_PRIORIDADE_FUNIL") == "1"
+    funis_prontos = {uf for uf, total in S.TOTAL_IBGE.items()
+                    if (pub.get(uf, {}).get("municipios", 0) + (pub.get(uf, {}).get("sem_imoveis") or 0)) >= total}
+    prioridade = prioridade_solicitada and len(funis_prontos) < len(S.TOTAL_IBGE)
+    if prioridade:
+        from fila_processamento import ORDEM_FUNIL
+        ordem = [uf for uf in ORDEM_FUNIL if uf in S.ORDEM]
+        pedidos = [u for u in pedidos if S.ler_unidade(u)[0] not in funis_prontos]
+        if refazer:
+            raise ValueError("manutenção suspensa até concluir os 27 funis; pedido de refazer preservado sem execução")
+    else:
+        ordem = S.ORDEM
     atual = S.versoes()
     atual_exec = versoes_executor()
     if refazer and not pedidos:
@@ -256,27 +268,30 @@ def planejar(pedidos: list[str], refazer: set[str], modo: str = "automatico", li
         S.acao_github("notice", "refazer", f"sem lista de estados: refaço {', '.join(sorted(refazer))} em todos os publicados")
     no_actions = os.environ.get("GITHUB_ACTIONS") == "true"
     ativas, planejando = (set(), 0) if no_actions else ufs_ativas()
-    inteiro_ativo = {u for u in ativas if "-" not in u}  # job antigo do estado inteiro: as fatias dele esperam
-
     def ocupada(u: str) -> bool:
-        uf, i, _ = S.ler_unidade(u)
-        return u in ativas or uf in inteiro_ativo or (i == 0 and any(a.startswith(uf + "-") for a in ativas))
+        from fila_processamento import ocupada as unidade_ocupada
+        return unidade_ocupada(u, ativas)
 
     manut_ativas = sum(1 for u in ativas if motivo(pub.get(S.ler_unidade(u)[0]), atual, atual_exec, u)[2] != "novo")
     vagas = max(0, min(VAGAS, 15) - len(ativas) - planejando)
     vagas_manut = vagas if pedidos else max(0, VAGAS_MANUTENCAO - manut_ativas)
     filas = {"novo": [], "manutencao": []}
     linhas, prontas = [], 0
-    for uf in S.ORDEM:
+    for uf in ordem:
         e = pub.get(uf)
         for u in S.unidades(uf):
+            if prioridade and uf in funis_prontos:
+                prontas += 1
+                continue
             if pedidos:
                 if u not in pedidos:
                     continue
                 razao, mudou, classe = "pedido" + (f" (refazer {', '.join(sorted(refazer))})" if refazer else ""), False, "novo"
             else:
                 razao, mudou, classe = motivo(e, atual, atual_exec, u)
-                if razao and modo == "proximo" and not mudou and e and tentado_ha_pouco(e, S.ler_unidade(u)[1]):
+                if prioridade:
+                    razao, mudou, classe = "completar o funil; manutenção suspensa", False, "novo"
+                if not prioridade and razao and modo == "proximo" and not mudou and e and tentado_ha_pouco(e, S.ler_unidade(u)[1]):
                     linhas.append((u, e, f"{razao} (tentada há pouco; fica para a rodada semanal)", None))
                     continue
             if razao and ocupada(u):
@@ -288,7 +303,19 @@ def planejar(pedidos: list[str], refazer: set[str], modo: str = "automatico", li
             filas[classe].append(u)
             linhas.append((u, e, razao, classe))
     escolhidas = filas["novo"][:vagas]
-    if modo != "fila":
+    if prioridade and not no_actions:
+        frente = [uf for uf in ordem if uf not in funis_prontos][:3]
+        ufs_ocupadas = {S.ler_unidade(u)[0] for u in ativas}
+        escolhidas = []
+        for u in filas["novo"]:
+            uf = S.ler_unidade(u)[0]
+            if uf not in frente or (uf not in ufs_ocupadas and len(ufs_ocupadas) >= 3):
+                continue
+            if len(escolhidas) >= vagas:
+                break
+            escolhidas.append(u)
+            ufs_ocupadas.add(uf)
+    if modo != "fila" and not prioridade:
         escolhidas += filas["manutencao"][:max(0, min(vagas - len(escolhidas), vagas_manut))]
     matriz = escolhidas
     if no_actions:
@@ -296,9 +323,12 @@ def planejar(pedidos: list[str], refazer: set[str], modo: str = "automatico", li
 
         manutencao = {u for uf in S.ORDEM for u in S.unidades(uf)
                      if motivo(pub.get(uf), atual, atual_exec, u)[2] == "manutencao"}
+        if prioridade:
+            manutencao = set()
         candidatos = filas["novo"] if modo == "fila" else filas["novo"] + filas["manutencao"]
+        opcoes = {"funis_prontos": funis_prontos} if prioridade_solicitada else {}
         matriz = reservar(candidatos, pedidos, refazer, _e_unidade, VAGAS, continuacao,
-                          None, manutencao, VAGAS_MANUTENCAO)
+                          None, manutencao, 0 if prioridade else VAGAS_MANUTENCAO, **opcoes)
         escolhidas = [p["unidade"] for p in matriz]
     tabela = []
     for u, e, razao, classe in linhas:
