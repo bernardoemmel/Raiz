@@ -98,6 +98,11 @@ jobs:
           RAIZ_DOMINIO: ${{ vars.RAIZ_DOMINIO }}
         run: front/scripts/construir-site.sh
 
+      - name: Contar municípios novos desde o último site publicado
+        env:
+          RAIZ_DOMINIO: ${{ vars.RAIZ_DOMINIO }}
+        run: node front/scripts/comparar-cobertura.mjs
+
       - uses: actions/upload-pages-artifact@v3
         with:
           path: site

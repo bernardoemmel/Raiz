@@ -3,6 +3,7 @@ import { doEstado, fmtHa, fmtInt, UFS } from "../../../compartilhado/formato"
 import { fraseDoBrasil, numerosDoBrasil } from "../../../compartilhado/funil-etapas"
 import { linkEstado, linkMunicipio } from "../rota"
 import { Estado } from "./Estado"
+import { MiniBrasil } from "./MiniBrasil"
 import { PainelCobertura } from "./PainelCobertura"
 import type { CoberturaMapa } from "../../../compartilhado/dados/cobertura-mapa"
 
@@ -44,6 +45,7 @@ export function PainelBrasil({ municipios, comLista, estados, uf, pontos, carreg
   const semDado = (estados?.estados.length ?? 0) - comDado.length
   return (
     <div className="painel-conteudo">
+      <MiniBrasil uf={null} titulo="Onde estamos: Brasil" />
       <h1>Onde dá para restaurar, com dono e título</h1>
       <p className="frase">{fraseDoBrasil(n, ufs, fmtInt)}</p>
       <Numeros municipios={municipios} />

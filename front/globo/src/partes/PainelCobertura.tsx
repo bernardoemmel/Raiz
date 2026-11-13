@@ -1,5 +1,5 @@
 import { contarCobertura, type CoberturaMapa } from "../../../compartilhado/dados/cobertura-mapa"
-import { fmtInt, plural } from "../../../compartilhado/formato"
+import { fmtInt, plural, ufDoCodigo } from "../../../compartilhado/formato"
 
 function Data({ valor }: { valor: string }) {
   return <time dateTime={valor}>{new Date(valor).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", dateStyle: "short", timeStyle: "short" })} (Brasília)</time>
@@ -8,6 +8,8 @@ function Data({ valor }: { valor: string }) {
 export function PainelCobertura({ cobertura, uf }: { cobertura?: CoberturaMapa; uf?: string | null }) {
   if (!cobertura) return <p className="legenda-frase">A cobertura dos desenhos e a data de atualização ainda não foram informadas.</p>
   const n = contarCobertura(cobertura, uf)
+  const comparacao = cobertura.novos_desde
+  const novos = comparacao ? [...new Set(comparacao.municipios)].filter((cod) => !uf || ufDoCodigo(cod) === uf).length : null
   return (
     <section className="secao-painel" aria-labelledby="cobertura-titulo">
       <h2 id="cobertura-titulo">Cobertura do mapa</h2>
@@ -22,6 +24,7 @@ export function PainelCobertura({ cobertura, uf }: { cobertura?: CoberturaMapa; 
         <br />
         Dados publicados no Release: {cobertura.dados_publicados_em ? <Data valor={cobertura.dados_publicados_em} /> : "data não informada"}.
       </p>
+      <p className="novos-municipios">{novos === null || !comparacao ? "A comparação com a publicação anterior ainda não está disponível." : <><strong>{plural(novos, "município novo", "municípios novos")}</strong> desde a publicação de <Data valor={comparacao.anterior_em} />.</>}</p>
       <p className="legenda-frase">A publicação diária inclui os municípios novos do processamento.</p>
     </section>
   )

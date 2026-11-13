@@ -32,7 +32,8 @@ try {
   const erros = []
   page.on("pageerror", (erro) => erros.push(erro.message))
   await page.goto(servidor.url)
-  await page.getByRole("group", { name: "Mapa do Brasil por estado" }).waitFor()
+  await page.locator(".mapa-brasil .maplibregl-canvas").waitFor()
+  assert.equal(await page.locator(".mapa-nacional-leve").count(), 0, "A primeira tela deve abrir direto no MapLibre.")
   await page.getByRole("heading", { level: 1 }).waitFor()
   // Tab chega ao atalho e Enter transfere o foco para o conteúdo, sem mudar a rota.
   await page.keyboard.press("Tab")

@@ -86,6 +86,8 @@ export function fonteAmostra(base = "/"): FonteDeDados {
     return buscarJson<Geo>(urlGeo(item.arquivo))
   }
 
+  const geoNacional = memo(async (arquivo: string) => buscarJson<Geo>(urlGeo(arquivo)))
+
   const municipiosComImoveis = async () => (await estados("")).estados.flatMap((e) => e.com_lista)
 
   // códigos do CAR que o motor pôs no arquivo de outro município (o plugin monta junto com os pontos do estado)
@@ -185,12 +187,12 @@ export function fonteAmostra(base = "/"): FonteDeDados {
     municipiosComImoveis,
     geo: {
       cobertura: async () => (await indiceCompleto("")).cobertura,
-      async brasil() {
+      async brasil(opcoes) {
         const indice = await indiceCompleto("")
         const b = indice.brasil ?? {}
         const [municipios, estados] = await Promise.all([
-          b.municipios ? buscarJson<Geo>(urlGeo(b.municipios.arquivo)) : null,
-          b.estados ? buscarJson<Geo>(urlGeo(b.estados.arquivo)) : null,
+          opcoes?.municipios !== false && b.municipios ? geoNacional(b.municipios.arquivo) : null,
+          b.estados ? geoNacional(b.estados.arquivo) : null,
         ])
         return { municipios, estados, base: b.base ? new URL(urlGeo(b.base.arquivo), location.href).href : null, cobertura: indice.cobertura }
       },

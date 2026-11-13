@@ -2229,16 +2229,6 @@ button.link:hover {
   transform: translateY(-200%);
 }
 .pular-conteudo:focus { transform: none; }
-.mapa-nacional-leve { display: grid; place-items: center; padding: var(--e4); }
-.mapa-nacional-leve > svg { width: 100%; height: 100%; min-height: 0; max-height: calc(100dvh - 160px); }
-.estado-vetor path { fill: var(--situacao-nao-apta); stroke: var(--superficie); stroke-width: 0.35; }
-.estado-vetor.incompleto path { fill: var(--restaurar); }
-.estado-vetor.completo path { fill: var(--mata); }
-.estado-vetor:focus-visible { outline: none; }
-.estado-vetor:focus-visible path, .estado-vetor:hover path { stroke: var(--tinta); stroke-width: 1; }
-.estado-vetor text { fill: var(--tinta); font-size: 6.5px; font-weight: 700; text-anchor: middle; dominant-baseline: middle; pointer-events: none; }
-.estado-vetor.completo text { fill: var(--superficie); }
-.mapa-nacional-legenda { margin: 0; padding: var(--e2); background: var(--superficie); color: var(--pedra); font-size: var(--t-legenda); }
 @media (max-width: 1240px) {
   .menu { display: flex; }
   .menu li:has([aria-disabled]) { display: none; }
@@ -2253,9 +2243,6 @@ button.link:hover {
   .gaveta-alca { height: 48px; }
   .opcao, .aba, summary { min-height: 48px; }
   :focus-visible { scroll-margin-block: 160px; }
-  .mapa-nacional-leve > svg { max-height: 100%; }
-  .mapa-nacional-legenda { position: absolute; bottom: 140px; left: var(--e3); right: var(--e3); }
-  .mapa-nacional-leve { padding-bottom: 220px; }
   .maplibregl-ctrl-group button { width: 48px; height: 48px; }
   .busca li { flex-wrap: wrap; min-height: 48px; }
 }

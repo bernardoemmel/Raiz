@@ -7,7 +7,6 @@ import { ufDoCodigo } from "../../../compartilhado/formato"
 import type { Foco } from "../../../compartilhado/funil-etapas"
 import { fonte, useCarga } from "../dados"
 import type { CamadaAssunto, GeoMunicipio } from "../mapa/MapaBrasil"
-import { MapaNacionalLeve } from "../mapa/MapaNacionalLeve"
 import { Cabecalho } from "../partes/Cabecalho"
 import { PainelBrasil } from "../partes/PainelBrasil"
 import { PainelMunicipio } from "../partes/PainelMunicipio"
@@ -33,9 +32,9 @@ function cobertura(altura: Altura): number {
  * o tempo todo: trocar de estado ou de município não recarrega nada além das camadas dele.
  */
 export function Explorar({ municipio, uf }: { municipio: string | null; uf: string | null }) {
-  const [abriuDetalhe, setAbriuDetalhe] = useState(Boolean(municipio || uf))
-  if (!abriuDetalhe && (municipio || uf)) setAbriuDetalhe(true)
-  const brasil = useCarga(() => abriuDetalhe ? fonte.geo.brasil() : Promise.resolve({ municipios: null, estados: null, base: null }), [abriuDetalhe])
+  // O MapLibre abre desde a primeira tela. Os limites dos 5.571 municípios só entram ao aproximar.
+  const detalhe = Boolean(municipio || uf)
+  const brasil = useCarga(() => fonte.geo.brasil({ municipios: detalhe }), [detalhe])
   const coberturaMapa = useCarga(() => fonte.geo.cobertura(), [])
   const estados = useCarga(() => fonte.estados(), [])
   const municipios = useCarga(() => fonte.municipios(), [])
@@ -198,7 +197,7 @@ export function Explorar({ municipio, uf }: { municipio: string | null; uf: stri
             )}
           </div>
         </aside>
-        {abriuDetalhe ? <Suspense fallback={<MapaNacionalLeve estados={estados.dado} carregandoDetalhe />}><MapaBrasil
+        <Suspense fallback={<div className="mapa-brasil" aria-busy="true"><p className="mapa-aviso aviso" role="status">Abrindo o mapa do Brasil…</p></div>}><MapaBrasil
           brasil={brasil.dado}
           processados={processados}
           comLista={listas}
@@ -217,7 +216,7 @@ export function Explorar({ municipio, uf }: { municipio: string | null; uf: stri
           margemBaixo={margem}
           aoEscolherMunicipio={(cod) => (location.hash = linkMunicipio(cod))}
           aoEscolherEstado={(sigla) => (location.hash = linkEstado(sigla))}
-        /></Suspense> : <MapaNacionalLeve estados={estados.dado} />}
+        /></Suspense>
       </main>
     </div>
   )
