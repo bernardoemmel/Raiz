@@ -36,14 +36,14 @@ on:
         required: false
         default: "0"
   schedule:
-    - cron: "23 5 * * 1" # segunda-feira, 02:23 em Brasília: refaz o que mudou e continua o que falta
-    - cron: "*/15 * * * *" # drena pedidos e preenche vagas com UFs incompletas; não inicia manutenção
+    - cron: "17 * * * *" # uma vez por hora; somente conclusão dos funis
 
 permissions:
   contents: write # subir no Release, trava do estados.json, painel do README
   actions: write # ver as rodadas em andamento e disparar a continuação e o próximo da fila
 
 env:
+  RAIZ_PRIORIDADE_FUNIL: "1"
   RAIZ_REPO: ${{ github.repository }}
   RAIZ_ARMAZEM_URL: release-github://${{ github.repository }}/dados # o armazém do executor é o Release "dados"
   RAIZ_DADOS_PRIVADOS_URL: ${{ vars.RAIZ_DADOS_PRIVADOS_URL || format('release-github://{0}/dados-privados', github.repository) }}
@@ -74,6 +74,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
         with:
+          version: "0.13.6"
           enable-cache: true
       - name: Dependências (produto e motor)
         run: uv sync --frozen --all-extras
@@ -88,7 +89,7 @@ jobs:
           RAIZ_UFS: ${{ inputs.ufs }}
           RAIZ_REFAZER: ${{ inputs.refazer }}
           RAIZ_CONTINUACAO: ${{ inputs.continuacao }}
-          RAIZ_SO_FILA: ${{ github.event_name == 'schedule' && github.event.schedule == '*/15 * * * *' && '1' || '0' }}
+          RAIZ_SO_FILA: ${{ github.event_name == 'schedule' && github.event.schedule == '17 * * * *' && '1' || '0' }}
         run: uv run python motor/rodar_estado.py --planejar
 
   preparar:
@@ -96,10 +97,13 @@ jobs:
     if: needs.planejar.outputs.tem == '1'
     runs-on: ubuntu-latest
     timeout-minutes: 90
+    env:
+      RAIZ_GITHUB_ESPERA_MAX_S: "3700"
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
         with:
+          version: "0.13.6"
           enable-cache: true
       - run: uv sync --frozen --all-extras
       - name: Já existe o cache privado comum de hoje?
@@ -148,7 +152,7 @@ jobs:
       OGR_GEOJSON_MAX_OBJ_SIZE: "0"
       LANES: "3"
       RAIZ_LIMITE_MIN: "330" # 5h30 por job
-      RAIZ_MARGEM_MIN: "25" # tempo guardado para guardar o cache e continuar
+      RAIZ_MARGEM_MIN: "105" # até 75 min para checkpoint/cota e 30 min para publicação e continuação
       RAIZ_GRACA_MIN: "10" # folga para os municípios em curso quando o executor para de começar novos
       RAIZ_RASTER_CACHE_GB: "5"
       RAIZ_CONTINUACAO: ${{ matrix.continuacao }}
@@ -174,6 +178,7 @@ jobs:
 
       - uses: astral-sh/setup-uv@v6
         with:
+          version: "0.13.6"
           enable-cache: true
 
       - name: Dependências (produto e motor)
@@ -181,6 +186,9 @@ jobs:
 
       - name: Exigir publicador seguro no commit preservado pela fila
         id: privacidade
+        timeout-minutes: 75
+        env:
+          RAIZ_GITHUB_ESPERA_MAX_S: "3700"
         run: |
           uv run python - <<'PY'
           from raiz.executor.publicacao_aberta import ESCOPO, VERSAO_PUBLICACAO
@@ -191,11 +199,17 @@ jobs:
           PY
 
       - name: Recuperar o cache comum autenticado
+        timeout-minutes: 75
+        env:
+          RAIZ_GITHUB_ESPERA_MAX_S: "3700"
         run: >-
           uv run python -m raiz.executor.transferencia_privada baixar-pasta
           --nome cache_motor_comum.tar.gz --caminho .
 
       - name: Recuperar o cache privado da unidade (blocos do TerraBrasilis, MapBiomas, Alerta)
+        timeout-minutes: 75
+        env:
+          RAIZ_GITHUB_ESPERA_MAX_S: "3700"
         run: >-
           uv run python -m raiz.executor.transferencia_privada baixar-pasta
           --nome "cache_motor_unidade_${UNIDADE}.tar.gz" --caminho . --opcional
@@ -230,11 +244,14 @@ jobs:
 
       - name: Recuperar resultados e marcas do checkpoint privado da unidade
         id: checkpoint_restaurado
+        timeout-minutes: 75
+        env:
+          RAIZ_GITHUB_ESPERA_MAX_S: "3700"
         if: ${{ !cancelled() && steps.privacidade.outcome == 'success' && (matrix.ref == github.workflow_sha || steps.publicador_dependencias.outcome == 'success') }}
         working-directory: ${{ steps.publicador_checkout.outcome == 'success' && 'publicador-atual' || '.' }}
         run: >-
           uv run --all-extras python -m raiz.executor.checkpoint restaurar
-          --unidade "$UNIDADE" --repositorio "$GITHUB_WORKSPACE"
+          --unidade "$UNIDADE" --repositorio "$GITHUB_WORKSPACE" --herdar-particao
 
       # Nome preservado: fila_processamento reconhece este passo ao retomar falhas posteriores ao cálculo.
       - name: Rodar pelo executor (fontes, adoção, motor e tarefas do produto) e publicar no Release dados
@@ -243,7 +260,9 @@ jobs:
 
       - name: Preservar resultados e retratos opacos no checkpoint privado
         if: ${{ always() && steps.privacidade.outcome == 'success' && steps.checkpoint_restaurado.outcome == 'success' && steps.executor.outcome != 'skipped' }}
-        timeout-minutes: 20
+        timeout-minutes: 75 # comporta a renovação da cota horária sem perder os bytes locais
+        env:
+          RAIZ_GITHUB_ESPERA_MAX_S: "3700"
         working-directory: ${{ steps.publicador_checkout.outcome == 'success' && 'publicador-atual' || '.' }}
         run: >-
           uv run --all-extras python -m raiz.executor.checkpoint salvar
@@ -277,18 +296,18 @@ jobs:
 
       - name: Atestar os arquivos básicos públicos
         if: always() && steps.atestar.outputs.publico == '1'
-        uses: actions/attest-build-provenance@v2
+        uses: ./.github/actions/atestar-com-retry
         with:
           subject-checksums: ${{ runner.temp }}/atestar.txt
-          show-summary: false
+          token: ${{ github.token }}
 
       # Somente hashes, identificadores derivados do conteúdo e proveniência seguem para a ação.
       - name: Atestar os hashes dos arquivos completos mantidos privados
         if: always() && steps.atestar.outputs.privado == '1'
-        uses: actions/attest-build-provenance@v2
+        uses: ./.github/actions/atestar-com-retry
         with:
           subject-checksums: ${{ runner.temp }}/atestar-privado.txt
-          show-summary: false
+          token: ${{ github.token }}
 
       - name: Guardar o relatório somente no arquivo privado
         if: always() && steps.privacidade.outcome == 'success'

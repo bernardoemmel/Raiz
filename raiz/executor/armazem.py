@@ -365,8 +365,10 @@ class ArmazemRelease:
     def __init__(self, repo: str = "bernardoemmel/raiz", tag: str = "dados", espelho: Path | None = None,
                  token: str | None = None, cliente=None, intervalo_s: float | None = None,
                  a_cada: int = 20, *, privado: bool = False,
-                 publico: ArmazemRelease | None = None):  # fmt: skip
+                 publico: ArmazemRelease | None = None, cota_no_transporte: bool = False):  # fmt: skip
         import httpx
+
+        from raiz.executor.http_github import ClienteGitHub
 
         self.repo, self.tag = repo, tag
         self.privado, self.publico = privado, publico
@@ -375,8 +377,11 @@ class ArmazemRelease:
             raiz_espelho = raiz_espelho.with_name(raiz_espelho.name + "_privado")
         self.local = ArmazemLocal(espelho or raiz_espelho)
         self.token = token if token is not None else (os.environ.get("GH_TOKEN") or os.environ.get("GITHUB_TOKEN"))
-        self.cli = cliente or httpx.Client(timeout=300, follow_redirects=True,
-                                            headers={"User-Agent": "raiz-executor"})  # fmt: skip
+        self.cli = cliente if isinstance(cliente, ClienteGitHub) else ClienteGitHub(
+                                cliente or httpx.Client(timeout=300, follow_redirects=True,
+                                            headers={"User-Agent": "raiz-executor"}),
+                                espera_max_s=float(os.environ.get("RAIZ_GITHUB_ESPERA_MAX_S", "120")),
+                                gerenciar_cota=not cota_no_transporte)  # fmt: skip
         self.descricao = f"Release {tag} de {repo}"
         # de quanto em quanto tempo publica no meio da rodada (RAIZ_PUBLICAR_MIN; fatias de estado grande: 60)
         if intervalo_s is None:
@@ -431,7 +436,15 @@ class ArmazemRelease:
         if self.privado:
             rel = self._exigir_privado()
             for tentativa in range(4):
-                ativo = next((a for a in self._assets(rel) if a.get("name") == nome), None)
+                # A resposta do Release pode conter o asset procurado. Só uma
+                # presença inequívoca dispensa a paginação; ausência nunca prova
+                # que o arquivo não existe. Após 404, consulte a lista de novo.
+                presentes = [a for a in rel.get("assets", []) if a.get("name") == nome] if tentativa == 0 else []
+                ativo = (
+                    presentes[0]
+                    if len(presentes) == 1
+                    else next((a for a in self._assets(rel) if a.get("name") == nome), None)
+                )
                 if ativo is None and tentativa == 0:
                     return None
                 if ativo is not None:
@@ -520,10 +533,9 @@ class ArmazemRelease:
     def verificar_publicacao(self) -> None:
         """Pré-requisito da rodada: falha antes de processar se o arquivo privado não está disponível."""
         self._exigir_privado()
-        self._release()
         if self.publico:
             self.publico._cabecalhos()
-            self.publico._release()
+            self.publico._release(listar_assets=False)
 
     @staticmethod
     def _uf_da_chave(chave: str) -> str | None:
@@ -781,12 +793,28 @@ class ArmazemRelease:
         if not sha:
             raise RuntimeError("não consegui identificar o commit para adquirir a trava de publicação")
         t0 = time.monotonic()
+        ocupada = False
         while True:
+            if ocupada:
+                # Revalidar a ref não modificada com ETag evita gastar a cota
+                # repetindo POST enquanto outro executor mantém a mesma trava.
+                existente = self.cli.get(f"{self.API}/repos/{self.repo}/git/ref/tags/{nome}", headers=h)
+                if existente.status_code == 404:
+                    ocupada = False
+                else:
+                    existente.raise_for_status()
+                    if time.monotonic() - t0 >= velha_s:
+                        raise TimeoutError(
+                            f"trava {nome} ocupada; não publico nem removo uma trava sem confirmar seu dono"
+                        )
+                    time.sleep(random.uniform(5, 15))
+                    continue
             r = self.cli.post(f"{self.API}/repos/{self.repo}/git/refs", headers=h,
                               json={"ref": f"refs/tags/{nome}", "sha": sha})  # fmt: skip
             if r.status_code == 201:
                 break
             if r.status_code == 422 and "already exists" in r.text.lower():
+                ocupada = True
                 if time.monotonic() - t0 >= velha_s:
                     raise TimeoutError(f"trava {nome} ocupada; não publico nem removo uma trava sem confirmar seu dono")
                 time.sleep(random.uniform(5, 15))
