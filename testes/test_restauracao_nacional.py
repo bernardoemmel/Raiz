@@ -83,6 +83,31 @@ def test_cache_do_pedido_e_catalogo_imutavel(catalogo, tmp_path):
     assert rodar(catalogo, tmp_path, N.normalizar_recorte(ufs=["PA"])) == json.loads(json.dumps(r))
 
 
+def test_terra_pendente_permanece_mesmo_sem_lote_e_sem_previsao(tmp_path):
+    fonte, indice = tmp_path / "fonte", tmp_path / "indice"
+    criar_fonte(fonte, uf="BA", cod=2927408, n=2, modelo="historico")
+    terra = pd.read_csv(fonte / "terra_2927408.csv")
+    terra["caminho_terra"] = "posse_em_titulacao"
+    terra.to_csv(fonte / "terra_2927408.csv", index=False)
+    dev = pd.read_csv(fonte / "desenvolvedor_2927408.csv")
+    dev.iloc[:1].to_csv(fonte / "desenvolvedor_2927408.csv", index=False)
+    particao = C.indexar_municipio(fonte, "BA", 2927408, indice, modelo="modelo-teste", cenario="central_r11")
+    cat = C.consolidar_catalogo([particao], indice, municipios_esperados={"BA": [2927408]})
+    r = rodar(cat, tmp_path, N.normalizar_recorte(ufs=["BA"]))
+    assert all(o["fazendas"] == 0 for o in r["opcoes"].values())
+    quadro = r["quadro_terra"]
+    assert all(i["caminho_terra"] == "posse_em_titulacao" for i in quadro)
+    assert sum(i["fazendas"] for i in quadro) == 2
+    assert sum(i["pequenas"] for i in quadro) == 2
+    antigo = next(i for i in quadro if i["modelo_origem"] == "historico")
+    assert antigo["soma_creditos_p50"] == 20
+    assert antigo["situacao_previsao"] == "modelo_incompativel"
+    ausente = next(i for i in quadro if i["situacao_previsao"] == "previsao_ausente")
+    assert ausente["soma_creditos_p50"] is None
+    assert ausente["fazendas_sem_creditos_estimados"] == 1
+    assert all(i["revisao_humana_disponivel"] and not i["habilita_venda"] for i in quadro)
+
+
 def test_exclusao_guarda_criterio_financeiro_que_falhou(catalogo, tmp_path):
     pedido = CamposPedido(meta={"valor": 20}, cronograma="livre", dinheiro={"custo_max_usd_credito": 1})
     r = N.montar_tres_opcoes(

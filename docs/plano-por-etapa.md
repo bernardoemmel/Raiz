@@ -472,3 +472,9 @@ A primeira execução no Actions identificou ausência de `rg` no runner; a veri
 
 - [x] Markdown do site preserva medidas ausentes e zeros explícitos; totais incompletos não são apresentados
   como totais completos. Regressões cobrem páginas estaduais/municipais e proteção de grupos pequenos.
+
+- [x] Código nacional: quadro de terra inclui posse e previsões ausentes/antigas,
+  com documentos/conferência, contagem de pequenas e valores separados por versão.
+  Estado sem elegíveis mantém auditoria e potencial pendente. 21 testes focados.
+- [ ] Nacional: integrar a Rodada 12, concluir suíte/CI, merge e execução privada;
+  medir novamente após a integração e conferir os arquivos publicados.

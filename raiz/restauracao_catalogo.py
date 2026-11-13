@@ -216,6 +216,8 @@ def _registro(li, uf, cod, pontos, modelo, cenario):
         cod_imovel=car,
         uf=uf,
         cod_ibge=cod,
+        caminho_terra=li.get("caminho_terra"),
+        risco_terra=li.get("risco_terra"),
         metodos=list(o.get("metodos") or []),
         restauracao_versao=origem,
         restauracao_cenario=cen,

@@ -254,6 +254,49 @@ def _prior_sql(p):
     )
 
 
+def _quadro_terra(con):
+    """Todo imóvel do recorte aparece, inclusive posse e previsão ausente.
+
+    Créditos históricos ficam separados por versão/cenário. A área é potencial
+    restaurável, não área titulada; soma de quantis não é quantil de carteira.
+    """
+    acoes = {
+        "privada_matricula": "Inteiro teor e certidão de ônus atuais; conferir titular, limites e direitos de carbono.",
+        "posse_em_titulacao": "Concluir titulação no órgão competente e conferir título registrado; protocolo não libera venda.",
+        "assentamento": "Conferir título ou concessão, anuência do INCRA e direitos de uso e carbono.",
+        "publica_concessao": "Conferir concessão vigente, anuência do ente público e direito contratual sobre carbono.",
+        "publica_sem_destinacao": "Definir destinação legal pelo ente competente; sem contrato de carbono antes disso.",
+        "terra_indigena_ou_tradicional": "Consulta livre, prévia e informada, representação legítima e regra de 50%; conferir regime jurídico aplicável.",
+    }
+    consulta = """select uf, coalesce(caminho_terra,'nao_classificada') caminho_terra,
+        situacao_previsao, restauracao_versao modelo_origem, restauracao_cenario cenario_origem,
+        count(*) fazendas, count(*) filter(where pequena) pequenas,
+        sum(area_ha) hectares_restauraveis_estimados,
+        count(*) filter(where area_ha is null) fazendas_sem_area_estimada,
+        sum(credito_p10) soma_creditos_p10, sum(credito_p50) soma_creditos_p50,
+        sum(credito_p90) soma_creditos_p90,
+        count(*) filter(where credito_p50 is null) fazendas_sem_creditos_estimados,
+        count(*) filter(where salvaguardas_comercializavel) fazendas_com_salvaguardas_prontas
+        from recorte group by all order by uf, caminho_terra, modelo_origem, cenario_origem"""
+    cursor = con.execute(consulta)
+    nomes = [c[0] for c in cursor.description]
+    quadro = []
+    for linha in cursor.fetchall():
+        item = dict(zip(nomes, linha, strict=True))
+        item.update(
+            o_que_destrava=acoes.get(
+                item["caminho_terra"], "Classificar a situação fundiária com documento e conferência humana."
+            ),
+            prazo="Não estimado: depende do documento, órgão e caso concreto; registrar prazo após conferência.",
+            habilita_venda=False,
+            criterio_texto="Classificação fundiária recebida da fonte; sem exclusão por tamanho. Outras salvaguardas continuam exigidas.",
+            revisao_humana_disponivel=True,
+            faixa_tipo="soma_dos_quantis_individuais_nao_quantis_de_carteira",
+        )
+        quadro.append(item)
+    return quadro
+
+
 def _agregar_grupos(con, pedido):
     p = premissas()
     o = p["otimizador"]
@@ -456,6 +499,7 @@ def montar_tres_opcoes(
         filtro = _filtro_pedido(pedido, modelo, cenario, somente_comercializaveis)
         con.sql(f"CREATE TEMP VIEW elegiveis AS SELECT * FROM recorte WHERE {filtro}")
         cobertura = _cobertura(catalogo_dados, recorte, con, modelo, cenario)
+        quadro_terra = _quadro_terra(con)
         t = time.monotonic()
         pontos = con.sql("select cod_imovel,lon,lat,pequena,local_aproximado from elegiveis").fetchdf()
         agrupados = S.agrupar_oferta(
@@ -582,6 +626,7 @@ def montar_tres_opcoes(
         "opcoes": resultados,
         "auditoria": auditoria,
         "pendencias": pendencias,
+        "quadro_terra": quadro_terra,
         "tempos": tempos,
         "cronograma_contratual_validado": regra is not None,
         "aviso": "Planejamento sobre cobertura disponível. Consulte os marcos e pendências antes de contratar. "

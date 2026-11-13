@@ -285,3 +285,19 @@ que o workflow termine e os arquivos sejam conferidos. Nenhum job de outros chat
 A pesquisa ARR está preservada no commit local `2418a84bfbd79548375e1a14311d56b78df3d151`, ramo
 `codex/validacao-arr-brasil`, ainda sem integração. Sensibilidade e integração das novas referências ecológicas
 continuam pendentes. Não confundir a pesquisa de fontes com entrega publicada ou calibração aprovada.
+
+### Retomada nacional durante o fechamento da Rodada 12
+
+O quadro de terra agora cobre todos os imóveis do recorte, incluindo posse,
+previsões antigas e ausência de previsão. Agrupa por UF/caminho/versão/cenário,
+mostra pequenas, hectares estimados e faltantes, soma dos quantis individuais
+(sem chamá-la de faixa da carteira), documento/conferência e prazo ainda não
+estimado. Não muda os caminhos de terra pedidos nem autoriza comercialização.
+Corrigido também o agrupamento vazio: mantém CAR textual no Parquet, evitando
+erro quando um estado inteiro fica pendente. 21 testes focados passaram.
+
+PR #86 já foi mergeado com CI verde (`3a738792`) e o complemento privado foi
+publicado/conferido na execução `43355525759/2`. ARR, sensibilidade e referências
+ecológicas estão integrados no branch `codex/lote-rodada12`, em validação antes
+do PR. O nacional ainda aguarda essa integração, suíte completa/CI, despacho e
+conferência dos pacotes privados. Não houve cancelamento/desativação de workflows.

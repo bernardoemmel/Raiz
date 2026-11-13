@@ -69,7 +69,14 @@ def agrupar_oferta(oferta: pd.DataFrame, *, diametro_km: float = 15.0, max_membr
     n = len(f)
     if not n:
         return pd.DataFrame(
-            columns=["cod_imovel", "grupo_id", "grupo_lon", "grupo_lat", "grupo_raio_km", "agrupamento_pendente"]
+            {
+                "cod_imovel": pd.Series(dtype="string"),
+                "grupo_id": pd.Series(dtype="string"),
+                "grupo_lon": pd.Series(dtype="float64"),
+                "grupo_lat": pd.Series(dtype="float64"),
+                "grupo_raio_km": pd.Series(dtype="float64"),
+                "agrupamento_pendente": pd.Series(dtype="bool"),
+            }
         )
     lon, lat = f.lon.to_numpy(float), f.lat.to_numpy(float)
     valido = np.isfinite(lon) & np.isfinite(lat) & (np.abs(lon) <= 180) & (np.abs(lat) <= 90)
