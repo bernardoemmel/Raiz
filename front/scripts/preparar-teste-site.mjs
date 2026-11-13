@@ -4,6 +4,7 @@
  * O PMTiles contém MVT de verdade, lido pelo mesmo protocolo HTTP Range do site.
  */
 import fs from "node:fs"
+import { gzipSync } from "node:zlib"
 import path from "node:path"
 import { fileURLToPath } from "node:url"
 
@@ -92,15 +93,23 @@ export function preparar() {
   salvar(`municipio_${MUNICIPIO}.geojson`, colecao([municipio]))
   // A origem contém campos privados e um CAR fora do contrato; o build deve projetar só a camada básica.
   salvar(`imoveis_${MUNICIPIO}.geojson`, colecao(CARS.map((car, i) =>
-    retangulo([-49.93 + i * 0.01, -6.108, -49.922 + i * 0.01, -6.096], { cod_imovel: car, certidao_ia: CANARIO_PRIVADO, credito_p50: 987654.32 }),
+    retangulo([-49.93 + i * 0.01 - (i === 1 ? 0.006 : 0), -6.108, -49.922 + i * 0.01, -6.096], { cod_imovel: car, sobreposto: i < 2, certidao_ia: CANARIO_PRIVADO, credito_p50: 987654.32 }),
   ).concat(retangulo([-49.95, -6.11, -49.94, -6.10], { cod_imovel: `PA-${MUNICIPIO}-${"9".repeat(32)}`, certidao_ia: CANARIO_PRIVADO }))))
+  salvar("potencial_PA.geojson", {
+    ...colecao([{ type: "Feature", properties: { h3: "85814e6bfffffff", potencial_ha: 1000, fazendas: 6 },
+      geometry: { type: "Polygon", coordinates: [[[-49.8984495939181, -6.260471150530112], [-49.847870642465764, -6.178610266870429], [-49.89342649424477, -6.093467393596889], [-49.989516791316845, -6.090200910457667], [-50.04007122789514, -6.1720383434742745], [-49.994560011151954, -6.257165702980741], [-49.8984495939181, -6.260471150530112]]] } }]),
+    metadados: { contrato: "potencial_h3", versao: 1, resolucao: 5, minimo_contribuintes: 5, dominio_ha: [0,100,1000,10000,50000], atualizado_em: "2026-11-12T10:41:00Z", fonte: "Fixture fictícia de teste", metodo: "ponto_interior_estatistico", cobertura: "parcial" },
+  })
   fs.writeFileSync(path.join(geo, "base_brasil.pmtiles"), basePmtiles())
+  fs.writeFileSync(path.join(geo, "potencial_PA.geojson.gz"), gzipSync(fs.readFileSync(path.join(geo, "potencial_PA.geojson"))))
   const item = (arquivo) => ({ arquivo, bytes: fs.statSync(path.join(geo, arquivo)).size })
+  salvar("potencial_indice.json", { potencial: { PA: item("potencial_PA.geojson.gz") } })
   salvar("indice.json", {
     gerado_em: "2026-11-12T10:41:00Z", dados_publicados_em: "2026-11-11T18:00:00Z",
     brasil: {
       municipios: item("brasil_municipios.geojson"), estados: item("brasil_estados.geojson"), base: item("base_brasil.pmtiles"),
     },
+    potencial: { PA: item("potencial_PA.geojson.gz") },
     municipios: { [MUNICIPIO]: { municipio: item(`municipio_${MUNICIPIO}.geojson`), imoveis: item(`imoveis_${MUNICIPIO}.geojson`) } },
     sem_contorno: { [SEM_DESENHO]: "Ainda não publicado" },
   })

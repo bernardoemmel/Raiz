@@ -1,6 +1,5 @@
 import { useState } from "react"
 import { normalizarCar } from "../../../compartilhado/calendario"
-import { SITUACAO } from "../../../compartilhado/cores"
 import { SITUACOES_BASICAS, type ImovelBasico, type SituacaoBasica } from "../../../compartilhado/dados/basico"
 import type { FunilMunicipio } from "../../../compartilhado/dados"
 import { abreviarCar, fmtHa, fmtInt, UFS } from "../../../compartilhado/formato"
@@ -8,7 +7,6 @@ import { linkCalendarioImovel, linkEstado, linkFazenda } from "../rota"
 import { MiniBrasil } from "./MiniBrasil"
 import { Estado } from "./Estado"
 
-const CORES = { apto: SITUACAO.apta, com_pendencia: SITUACAO.pendencia, nao_apto: SITUACAO.naoApta }
 const POR_PAGINA = 50
 
 /** A lista aberta só recebe o contrato básico, sem acesso ao objeto completo de um imóvel. */
@@ -34,14 +32,14 @@ export function PainelMunicipioBasico({ nome, uf, centro, funil, imoveis, situac
     {funil && funil.linha.dados_suprimidos !== "true" && <p>{fmtInt(funil.imoveis)} imóveis no município. {fmtHa(funil.ha_carbono)} com potencial de restauração no agregado municipal.</p>}
     <p className="legenda-frase">Fonte: CAR e classificação territorial da Raíz. Publicação: {data}. A situação básica não substitui uma análise da terra.</p>
     {imoveis === undefined ? <Estado tipo="carregando" titulo="Carregando a situação das fazendas" /> : imoveis === null ? <Estado tipo="vazio" titulo="A camada básica deste município ainda não foi publicada." /> : <>
-      <ul className="legenda-lista" aria-label="Situação básica no mapa">{Object.entries(SITUACOES_BASICAS).map(([id, rotulo]) => <li key={id}><i style={{ background: CORES[id as SituacaoBasica] }} />{rotulo}</li>)}</ul>
+      <p className="legenda-frase">De longe, o mapa mostra o potencial conhecido por célula, com cobertura parcial. Ao aproximar, mostra os limites do CAR sem preencher as fazendas. O filtro de pendências acende os contornos em urucum.</p>
       <section className="secao-painel" aria-labelledby="lista-basica-titulo">
         <h2 id="lista-basica-titulo">Fazendas</h2>
         <div className="ordem-restauro"><label>Situação básica<select value={situacao ?? ""} onChange={(e) => mudarSituacao((e.target.value || null) as SituacaoBasica | null)}>
           <option value="">Todas as situações</option>{Object.entries(SITUACOES_BASICAS).map(([id, rotulo]) => <option key={id} value={id}>{rotulo}</option>)}
         </select></label></div>
         <p>{fmtInt(lista.length)} fazendas nesta seleção. A ficha completa exige conta e créditos pagos.</p>
-        {!!emLeilao?.size && <p className="legenda-frase">Contorno tracejado no mapa: imóvel em leilão. <a href="#/calendario">Conferir no calendário</a>.</p>}
+        {!!emLeilao?.size && <p className="legenda-frase">O selo identifica imóvel em leilão. <a href="#/calendario">Conferir no calendário</a>.</p>}
         <ul className="lista-basica">{lista.slice(pagina * POR_PAGINA, (pagina + 1) * POR_PAGINA).map((i) => <li key={i.cod_imovel} onMouseEnter={() => aoPassar(i.cod_imovel)} onMouseLeave={() => aoPassar(null)}>
           <a href={linkFazenda(i.cod_imovel)} onFocus={() => aoPassar(i.cod_imovel)} onBlur={() => aoPassar(null)} title={i.cod_imovel}><span>CAR {abreviarCar(i.cod_imovel)}</span><span>{SITUACOES_BASICAS[i.situacao_basica]}</span><small>Abrir ficha completa</small></a>
           {emLeilao?.has(normalizarCar(i.cod_imovel)) && <a className="selo conferir" href={linkCalendarioImovel(i.cod_imovel)}>Em leilão</a>}

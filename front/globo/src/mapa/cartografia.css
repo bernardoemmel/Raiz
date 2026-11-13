@@ -1,0 +1,22 @@
+.cartografia-legenda {
+  position: absolute;
+  top: var(--e3);
+  left: var(--e3);
+  right: 64px;
+  max-width: 340px;
+  max-height: 32%;
+  overflow: auto;
+  z-index: 2;
+  background: var(--papel);
+  padding: var(--e3);
+  border: var(--linha);
+  font-size: var(--t-texto);
+}
+.cartografia-legenda p { margin: var(--e1) 0; }
+.cartografia-legenda summary { min-height: 48px; display: flex; align-items: center; cursor: pointer; text-decoration: underline; }
+.cartografia-escala { display: flex; margin-top: var(--e2); }
+.cartografia-escala i { height: 12px; flex: 1; background: var(--nevoa); }
+.cartografia-escala i:nth-child(2) { background: var(--restaurar); }
+.cartografia-escala i:nth-child(3) { background: var(--mata); }
+.cartografia-escala i:nth-child(4) { background: var(--mata-texto); }
+.cartografia-escala i:nth-child(5) { background: var(--tinta); }

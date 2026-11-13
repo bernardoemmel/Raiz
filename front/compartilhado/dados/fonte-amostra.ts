@@ -3,6 +3,7 @@
  * de arquivos abertos. As listas e os contornos são lidos por município; camadas pagas usam a API de prospecção.
  */
 
+import { lerPotencialMapa } from "./potencial"
 import { lerBasico } from "./basico"
 import { n0, texto } from "./colunas"
 import { buscar, normalizarCar, pareceCar } from "./busca"
@@ -17,6 +18,7 @@ import type { CoberturaMapa } from "./cobertura-mapa"
 
 interface IndiceGeo {
   cobertura?: CoberturaMapa
+  potencial?: Record<string, { arquivo: string; bytes: number }>
   brasil?: Partial<Record<"municipios" | "estados" | "base", { arquivo: string; bytes: number }>>
   municipios: Record<string, Partial<Record<CamadaGeo | "base", { arquivo: string; bytes: number }>>>
 }
@@ -187,6 +189,13 @@ export function fonteAmostra(base = "/"): FonteDeDados {
     municipiosComImoveis,
     geo: {
       cobertura: async () => (await indiceCompleto("")).cobertura,
+      potencial: memo(async (uf: string) => {
+        if (!/^[A-Z]{2}$/.test(uf)) return null
+        const item = (await indiceCompleto("")).potencial?.[uf]
+        if (!item || !/^potencial_[A-Z]{2}\.geojson(?:\.gz)?$/.test(item.arquivo)) return null
+        const texto = await buscarTextoGz(urlGeo(item.arquivo))
+        return texto ? lerPotencialMapa(JSON.parse(texto)) : null
+      }),
       async brasil(opcoes) {
         const indice = await indiceCompleto("")
         const b = indice.brasil ?? {}
