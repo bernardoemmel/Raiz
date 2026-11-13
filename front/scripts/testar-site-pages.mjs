@@ -175,6 +175,9 @@ async function pontoDaFazenda(camera, car, etapa) {
     return imoveis.features.some(f => f.properties.cod_imovel === car)
       && limite.features.some(f => String(f.properties.cod_ibge) === municipio)
   }, { car, municipio: MUNICIPIO })
+  // Fontes em cache podem estar prontas antes do commit da nova rota. Dois frames
+  // deixam o efeito de enquadramento iniciar; mapaPronto espera esse voo terminar.
+  await pagina.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))))
   await mapaPronto()
   const evidencia = await pagina.evaluate(async camera => {
     const m = document.querySelector(".mapa-brasil .mapa").__mapa
@@ -434,8 +437,30 @@ try {
       "A mesma instância do mapa precisa esquecer popup, seleção, hover e máscara ao trocar de município.")
   }
   await conferirSelecaoLimpa()
-  await buscar("Parauapebas", `#/municipio/${MUNICIPIO}`)
-  await pagina.locator(".lista-basica").waitFor()
+  // A malha nacional já permite enquadrar a rota. A divisa local pode chegar só
+  // depois de a pessoa aproximar: essa resposta não pode desfazer a escolha.
+  const divisaUrl = new URL(`geo/municipio_${MUNICIPIO}.geojson`, base).href
+  let liberarDivisa
+  const esperaDivisa = new Promise(resolve => { liberarDivisa = resolve })
+  await pagina.route(divisaUrl, async rota => { await esperaDivisa; await rota.continue() }, { times: 1 })
+  const pedidoDivisa = pagina.waitForRequest(divisaUrl)
+  try {
+    await buscar("Parauapebas", `#/municipio/${MUNICIPIO}`)
+    await pagina.locator(".lista-basica").waitFor()
+    await pedidoDivisa
+    await pagina.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))))
+    await mapaPronto()
+    await pagina.evaluate(camera => document.querySelector(".mapa-brasil .mapa").__mapa.jumpTo(camera), selecaoAntes.camera)
+    await mapaPronto()
+  } finally { liberarDivisa() }
+  await pagina.waitForFunction(async municipio => {
+    const m = document.querySelector(".mapa-brasil .mapa").__mapa
+    return (await m.getSource("municipio").getData()).features.some(f => String(f.properties.cod_ibge) === municipio)
+  }, MUNICIPIO)
+  await pagina.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))))
+  await mapaPronto()
+  assert.equal(await pagina.evaluate(() => document.querySelector(".mapa-brasil .mapa").__mapa.getZoom()), selecaoAntes.camera.zoom,
+    "A divisa local atrasada não pode desfazer o zoom escolhido na mesma rota.")
   const pontoAoVoltar = await pontoDaFazenda(selecaoAntes.camera, selecaoAntes.selecionados[0], "volta")
   await conferirSelecaoLimpa()
   // A limpeza não impede uma seleção nova quando os mesmos CARs voltam à fonte.

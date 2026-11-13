@@ -32,7 +32,7 @@ jobs:
       RAIZ_DADOS_PRIVADOS_URL: release-github://${{ github.repository }}/dados-privados
       RAIZ_DADOS_PRIVADOS_TOKEN: ${{ github.token }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v6
         with:
           version: "0.13.6"
