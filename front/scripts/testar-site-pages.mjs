@@ -202,16 +202,24 @@ try {
   assert(pedidosSatelite.length > 0, "O detalhe precisa renderizar o raster, não um fundo vazio.")
   const desenho = await pagina.evaluate(() => {
     const m = document.querySelector(".mapa-brasil .mapa").__mapa
+    const camadas = m.getStyle().layers
+    const ordem = Object.fromEntries(camadas.map((camada, i) => [camada.id, i]))
     return { contorno: m.getPaintProperty("imoveis-linha", "line-width"), fill: m.getPaintProperty("imoveis", "fill-opacity"),
       h3: m.queryRenderedFeatures({ layers: ["potencial-h3"] }).length,
       sobrepostos: [...new Set(m.queryRenderedFeatures({ layers: ["imoveis-sobrepostos"] }).map(f => f.properties.cod_imovel))],
-      hachura: m.queryRenderedFeatures({ layers: ["restauracao-hachura"] }).length }
+      hachura: m.queryRenderedFeatures({ layers: ["restauracao-hachura"] }).length,
+      ordem, fundoDetalhadoAbaixo: camadas.every(camada => camada.source !== "protomaps-detalhe" || camada.type === "symbol" || ordem[camada.id] < ordem["potencial-h3"]) }
   })
   assert.equal(desenho.contorno, 1)
   assert.equal(desenho.fill, 0)
   assert.equal(desenho.h3, 0, "Hexágonos saem do detalhe para não encobrir o satélite.")
   assert.equal(desenho.sobrepostos.length, 2, "Sobreposições confirmadas precisam aparecer tracejadas.")
   assert.equal(desenho.hachura, 0, "Sem geometria de restauração autorizada, não se inventa hachura.")
+  for (const overlay of ["potencial-h3", "brasil-mun-escolhido", "imoveis-linha", "imoveis-sobrepostos", "mascara-fazenda"]) {
+    assert(desenho.ordem["sentinel-publico-veu"] < desenho.ordem[overlay],
+      `O satélite e o véu precisam ficar abaixo de ${overlay}; uma fonte carregada pode estar encoberta no canvas.`)
+  }
+  assert(desenho.fundoDetalhadoAbaixo, "O fundo estadual não pode cobrir o potencial agregado nem os contornos.")
   await pagina.screenshot({ path: path.join(resultado, "depois-detalhe-1440.png"), fullPage: true })
   await pagina.waitForFunction((car) => {
     const m = document.querySelector(".mapa-brasil .mapa").__mapa
