@@ -3,7 +3,7 @@
 ## Ficha: fontes, versões, cobertura e rastreio
 
 Antes de iniciar esta continuação no servidor, aplique `uv run --env-file .env raiz
-banco migrar` até a ponta atual (0034 nesta entrega). A API, o sincronizador e os
+banco migrar` até a ponta atual (0035 nesta entrega). A API, o sincronizador e os
 jobs precisam usar o mesmo PostGIS. As migrações 0032–0034 guardam fontes e
 compromissos privados, versões/observações da terra, baselines das contas, marcas
 de exportação e detecção de varredura. Não publicar esses dados no site ou em
