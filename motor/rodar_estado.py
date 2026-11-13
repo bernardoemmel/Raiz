@@ -208,6 +208,8 @@ def motivo(e: dict | None, atual: dict, atual_exec: dict | None, unidade: str | 
         return "ainda não começou", False, "novo"
     total = e.get("total_ibge") or (S.TOTAL_IBGE.get(uf) if uf else 0)
     funil_ok = (e.get("municipios", 0) + (e.get("sem_imoveis") or 0)) >= (total or 0)
+    if not e.get("controle") and _rodada_da_unidade(e, i).get("falhou_fontes"):
+        return "fontes obrigatórias indisponíveis na última tentativa", False, "novo"
     if not e.get("controle"):
         return ("publicado antes do executor: adotar (com a APP pela escadinha onde faltar) e rodar o que falta", False,
                 "manutencao" if funil_ok else "novo")
@@ -219,6 +221,8 @@ def motivo(e: dict | None, atual: dict, atual_exec: dict | None, unidade: str | 
         mudou = [t for t, v in atual.items() if t != "extras" and (etapas.get(t) or {}).get("versao") not in (None, v)]
     if mudou:
         return "código mudou: " + ", ".join(S.NOME_TABELA.get(t, t) for t in mudou), True, "manutencao"
+    if _rodada_da_unidade(e, i).get("falhou_fontes"):
+        return "fontes obrigatórias indisponíveis na última tentativa", False, "manutencao" if funil_ok else "novo"
     fat = ((e.get("motor") or {}).get("fatias") or {}).get(str(i)) if i else None
     if i and fat is None and not e.get("completo"):  # fatia que nunca rodou sozinha
         return "fatia ainda não rodou", False, "manutencao" if funil_ok else "novo"
@@ -847,9 +851,13 @@ def rodar_executor(unidade: str, refazer: set[str], continuacao: int) -> dict:
         rel["faltam"] = sit["faltam"]
     est = ler_json(a, f"estado/{uf}.json") or {}
     rel["etapas"] = {t: {"versao": v} for t, v in (est.get("versoes") or ex.versoes()).items()}
+    falhou_fontes = any(e.get("etapa") == "fontes" for e in rel["erros"])
+    if falhou_fontes:
+        rel["completo"] = False  # arquivos antigos não provam que as fontes obrigatórias desta rodada foram lidas
     rel["fim"] = S.agora()
     grava()
     rodada = {k: rel[k] for k in ("url", "inicio", "fim", "continuacao", "parou_por_tempo", "progresso")}
+    rodada["falhou_fontes"] = falhou_fontes
     motor = {"commit": rel["commit"], "versao": rel["versao_motor"], "etapas": rel["etapas"], "rodada": rodada}
     if fatia is not None:  # cada fatia anota a sua; o armazém junta as fatias no estados.json
         motor["fatias"] = {str(i_fatia): {"rodada": rodada, "completo": rel["completo"], "faltam": rel.get("faltam"),
@@ -869,9 +877,20 @@ def rodar_executor(unidade: str, refazer: set[str], continuacao: int) -> dict:
             grava()
             raise
     else:
-        log(f"{unidade}: sem token do GitHub (ou nada no estado): não publico")
+        if getattr(a, "token", None) and hasattr(a, "_gravar_indice"):
+            # Falha antes do primeiro CSV também é uma tentativa: persiste o diagnóstico no índice PRIVADO,
+            # sem produzir pacotes vazios nem divulgar detalhes de execução no manifesto aberto.
+            from raiz.executor.rodadas import registrar_tentativa
+            registrar_tentativa(a, uf, extra[uf])
+            import painel
+            painel.atualizar_no_github(a.manifesto(fresco=True))
+            log(f"{unidade}: tentativa registrada sem pacote de dados")
+        else:
+            log(f"{unidade}: sem dados para publicar; a tentativa permanece no relatório local")
     resumo_executor(unidade, rel)
     log(f"{unidade}: fim. Avanço: {rel['progresso']}; completo: {rel['completo']}; parou pelo prazo: {rel['parou_por_tempo']}")
+    if rodada["falhou_fontes"]:
+        raise RuntimeError(f"{unidade}: falha nas fontes obrigatórias; execução incompleta, sem avanço científico")
     return rel
 
 
@@ -923,6 +942,9 @@ def continuar(uf: str) -> None:
         return
     rel = json.loads(arq.read_text(encoding="utf-8"))
     n = int(rel.get("continuacao") or 0)
+    if rel.get("erros") and (rel.get("progresso") or 0) <= 0:
+        log(f"{uf}: falhou sem avançar; não disparo outro job. A fila limita as novas tentativas e conserva o diagnóstico")
+        return
     if rel.get("completo"):
         log(f"{uf}: completo")
     elif not rel.get("parou_por_tempo"):
