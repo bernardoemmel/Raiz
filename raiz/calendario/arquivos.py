@@ -5,10 +5,57 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import requests
+
 from raiz.calendario.catalogo import COBERTURA_ID, COBERTURA_NOME
 from raiz.calendario.coleta import _permitida, fontes
 from raiz.calendario.feed import ics
 from raiz.calendario.modelos import Evento, FonteEstado, filtrar
+from raiz.privacidade import mascarar
+
+ESTADO_PUBLICO = "https://github.com/bernardoemmel/Raiz/releases/download/calendario/estado.json"
+MAX_ESTADO = 32 * 1024 * 1024
+
+
+def recuperar_publico(caminho: Path) -> int:
+    """Recupera o histórico já publicado; falha nunca autoriza começar uma agenda vazia."""
+    try:
+        with requests.get(ESTADO_PUBLICO, timeout=(10, 30), stream=True) as resposta:
+            resposta.raise_for_status()
+            partes, tamanho = [], 0
+            for parte in resposta.iter_content(65536):
+                tamanho += len(parte)
+                if tamanho > MAX_ESTADO:
+                    raise ValueError
+                partes.append(parte)
+        bruto = b"".join(partes).decode("utf-8")
+        if mascarar(bruto) != bruto:
+            raise ValueError
+        dados = json.loads(bruto)
+        decodificado = json.dumps(dados, ensure_ascii=False)
+        if mascarar(decodificado) != decodificado:
+            raise ValueError
+        if (
+            not isinstance(dados, dict)
+            or not isinstance(dados.get("eventos"), list)
+            or not isinstance(dados.get("fontes"), list)
+            or type(dados.get("total")) is not int
+            or dados["total"] != len(dados["eventos"])
+        ):
+            raise ValueError
+        eventos, estados = validar(dados)
+        if len({e.id for e in eventos}) != len(eventos):
+            raise ValueError
+        # Regrava somente os modelos validados: extras e nomes remotos não são transportados.
+        estado = envelope(eventos, estados, limite=len(eventos) or 1)
+        estado["eventos"] = [e.model_dump(mode="json") for e in eventos]
+        caminho.parent.mkdir(parents=True, exist_ok=True)
+        temporario = caminho.with_suffix(caminho.suffix + ".tmp")
+        temporario.write_text(json.dumps(estado, ensure_ascii=False) + "\n", encoding="utf-8")
+        temporario.replace(caminho)
+        return len(eventos)
+    except (OSError, ValueError, requests.RequestException):
+        raise ValueError("não foi possível recuperar e validar o histórico público do calendário") from None
 
 
 class ErroSnapshot(ValueError):
