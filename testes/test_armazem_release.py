@@ -31,6 +31,7 @@ def test_listagem_recomeça_todas_paginas_quando_publicacao_concorrente_desloca_
     def servidor(req):
         nonlocal tentativa
         assert req.method == "GET"
+        assert req.headers["cache-control"] == "no-cache"
         pagina = int(req.url.params["page"])
         chamadas.append(pagina)
         if pagina == 1:

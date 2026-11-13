@@ -445,7 +445,7 @@ class ArmazemRelease:
             for pagina in range(1, 1001):
                 r = self.cli.get(
                     f"{self.API}/repos/{self.repo}/releases/{rel['id']}/assets",
-                    headers=self._cabecalhos(),
+                    headers={**self._cabecalhos(), "Cache-Control": "no-cache"},
                     params={"per_page": 100, "page": pagina},
                 )
                 r.raise_for_status()
