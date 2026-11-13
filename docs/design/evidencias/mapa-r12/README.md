@@ -9,7 +9,7 @@ Capturas reais de Chromium, em 1440 × 1000 px, sem retoque. A entrada passa do 
 | Parauapebas | — | [Município](municipio-depois.png) |
 | Fazenda selecionada | — | [Satélite e contorno sem preenchimento](fazenda-depois.png) |
 
-O “antes” foi capturado em `https://bernardoemmel.github.io/Raiz/`, em 13/11/2026 às 02:14:31 UTC, com zero erros de rede ou JavaScript. O “depois” usa o frontend `971e1b1`, que inclui o renderer Supercluster `c2aae73`, e o exportador nacional `550af32`. As [imagens da etapa H3](../mapa/README.md) permanecem como registro histórico; os hexágonos não são a visualização nacional desta rodada.
+O “antes” foi capturado em `https://bernardoemmel.github.io/Raiz/`, em 13/11/2026 às 02:14:31 UTC, com zero erros de rede ou JavaScript. O “depois” usa o frontend integrado `f13c722`, com as fichas e painéis da rodada 12, o renderer Supercluster `c2aae73` e o exportador nacional `550af32`. Inclui também a fronteira nacional contínua (`2646a16`) e a correção conferida que evita compilar céu totalmente transparente no MapLibre (`d5cc70b`). As [imagens da etapa H3](../mapa/README.md) permanecem como registro histórico; os hexágonos não são a visualização nacional desta rodada.
 
 ## Dados e limites
 

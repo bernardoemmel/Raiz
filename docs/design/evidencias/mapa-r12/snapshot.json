@@ -1,10 +1,10 @@
 {
-  "capturado_em": "2026-11-13T02:23:13.150390+00:00",
+  "capturado_em": "2026-11-13T02:45:50.203613+00:00",
   "viewport": {
     "largura": 1440,
     "altura": 1000
   },
-  "frontend": "971e1b1",
+  "frontend": "f13c722",
   "exportador": "550af32",
   "antes": {
     "url": "https://bernardoemmel.github.io/Raiz/",
@@ -51,8 +51,8 @@
       "bytes": 220015
     },
     "brasil-depois.png": {
-      "sha256": "e985af6a59382b9dffa510401352a2d9ad9d6c2a66a02b2b7b99770686dd84fa",
-      "bytes": 338885
+      "sha256": "4eca38983be0101edb4b89a04a450276e3273f375bf136b036c0773b9c189141",
+      "bytes": 338931
     },
     "estado-depois.png": {
       "sha256": "89fdb50112741b17b23d03698a589fb1174e3fdd2b2284642bef50c3afdececc",
@@ -63,8 +63,9 @@
       "bytes": 637195
     },
     "municipio-depois.png": {
-      "sha256": "e52c40162c369dceebc2b891ee3c7517c6024506699851043d2c3d26d44170a0",
-      "bytes": 223301
+      "sha256": "79cc62c297f0fcc8d74eaf767d271c5a0eb5f2151717172b94e1a89e0f59e3aa",
+      "bytes": 223294
     }
-  }
+  },
+  "index_sha256": "7c3ad5b56d691466844b583e4670e9df3f445233fc95d9d4bc133c176021166d"
 }
