@@ -23,7 +23,7 @@ jobs:
           persist-credentials: false
       - uses: astral-sh/setup-uv@v6
         with:
-          version: "0.13.8" # Mesma versão do CI aprovado; evita consultar a API por latest.
+          version: "0.13.6" # Pin compartilhado com os demais workflows; não consulta latest.
           enable-cache: true
           cache-dependency-glob: uv.lock
       - uses: actions/setup-node@v4
@@ -240,7 +240,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
         with:
-          version: "0.13.8" # Mesma versão do CI aprovado; evita consultar a API por latest.
+          version: "0.13.6" # Pin compartilhado com os demais workflows; não consulta latest.
           enable-cache: true
           cache-dependency-glob: uv.lock
       - name: Dependências travadas (inclusive extensão Rust)
@@ -285,7 +285,7 @@ jobs:
           fetch-depth: 0 # Reexecutar a referência histórica fechada da auditoria de promoções.
       - uses: astral-sh/setup-uv@v6
         with:
-          version: "0.13.8" # Mesma versão do CI aprovado; evita consultar a API por latest.
+          version: "0.13.6" # Pin compartilhado com os demais workflows; não consulta latest.
           enable-cache: true
           cache-dependency-glob: uv.lock
       - uses: actions/setup-node@v4
@@ -368,7 +368,7 @@ jobs:
           persist-credentials: false
       - uses: astral-sh/setup-uv@v6
         with:
-          version: "0.13.8" # Mesma versão do CI aprovado; evita consultar a API por latest.
+          version: "0.13.6" # Pin compartilhado com os demais workflows; não consulta latest.
           enable-cache: true
           cache-dependency-glob: uv.lock
       - name: Dependências travadas do teste estadual
@@ -450,7 +450,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
         with:
-          version: "0.13.8" # Mesma versão do CI aprovado; evita consultar a API por latest.
+          version: "0.13.6" # Pin compartilhado com os demais workflows; não consulta latest.
           enable-cache: true
           cache-dependency-glob: uv.lock
       - uses: actions/setup-node@v4
