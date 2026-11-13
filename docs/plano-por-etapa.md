@@ -510,3 +510,6 @@ A primeira execução no Actions identificou ausência de `rg` no runner; a veri
   sem repetição nem troca de modelo; mantém a execução das demais tarefas e impede
   aprovação/declaração de pass^4 completo quando faltar julgamento. Campanhas
   incompletas anteriores continuam preservadas, sem selecionar apenas sucessos.
+- [x] Runner conserva recusas do próprio agente sem chamar o juiz para texto vazio;
+  julgamento malformado é indisponível e não interrompe as outras tarefas. Só
+  evidência válida pode compor pass^4 completo; integridade/modelo divergente falha.

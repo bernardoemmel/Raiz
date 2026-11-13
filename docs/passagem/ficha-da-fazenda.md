@@ -288,3 +288,9 @@ O CI do commit `f259b18` aprovou Python, front, referência privada original do
 Pará, Compose, E2E, segurança e licenças; o único problema foi falso positivo
 histórico da URL JDBC sem credenciais, com fingerprint específico documentado.
 Nenhum workflow foi desligado ou cancelado nesta entrega.
+
+A campanha `43349391767` também concluiu 64/96: a recusa do agente produziu resposta
+vazia e o juiz respondeu com citações vazias, rejeitadas pelo esquema. O juiz v4
+não reenvia desafios recusados ao juiz e isola julgamentos inválidos por tentativa,
+sempre como indisponíveis (pass^4 nulo; limite inferior separado; aprovação falsa).
+Não aceita citação vazia e não troca modelo, instrução ou regra para obter aprovação.
