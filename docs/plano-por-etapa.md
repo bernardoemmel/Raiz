@@ -22,6 +22,11 @@ Detalhes e limites: [pasta do fiador](pasta-fiador.md). Banco específico ainda 
 forneceu catálogo próprio; perfil conservador Raíz. Migração 0035 e conferência dos
 documentos exigem o back-end privado. Não há envio automático nem implantação
 pública nesta entrega. Validação e PR: [passagem](passagem/ficha-da-fazenda.md).
+Validação local: 2.462 testes Python, mais os dois testes de mídia executados após
+instalar Takumi; um xfail conhecido e a referência privada do Pará no job próprio.
+Integração da main `3a73879`, 275 testes do front, build e Chromium/axe/celular
+aprovados, além de 170 testes focados após a integração. O CI da entrega reúne
+também o caso original do Pará e a pilha real.
 
 ## Ordem geral
 

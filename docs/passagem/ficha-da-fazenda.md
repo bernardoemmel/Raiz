@@ -1,7 +1,8 @@
 # Passagem do chat "Ficha da fazenda"
 
-Atualização de 12/11/2026 (Brasília). Continuação implementada na branch
-`codex/ficha-compromissos-versoes`, com integração da main `2b6e8af`.
+Atualização de 13/11/2026 (UTC). Rodada 12 implementada na branch
+`codex/pasta-fiador`, com integração da main `3a73879` e da continuação
+`codex/ficha-compromissos-versoes`.
 PR desta continuação: [#93](https://github.com/bernardoemmel/Raiz/pull/93), aguardando CI e merge.
 Entregas anteriores integradas pelos [PR #72](https://github.com/bernardoemmel/Raiz/pull/72)
 e [PR #80](https://github.com/bernardoemmel/Raiz/pull/80), commit `bea53bd`.
@@ -29,14 +30,22 @@ agregados/CAR básicos públicos; demais estados abertos continuam disponíveis.
 O DTO global `consultar_ficha` e a ponte MCP permanecem compatíveis: pasta é dado
 do pedido/cliente e não contamina snapshots globais da terra.
 
-Validação local inicial: 72 testes de pasta/API/PostGIS passaram, cobrindo
+Validação local: 76 testes de pasta/API/PostGIS passaram, cobrindo
 concorrência, imutabilidade, troca de documento, fonte/validade, preço incompleto,
 proibição de contato/modelo e isolamento entre contas. O CLI também invalida um
-relatório antigo quando a entrada seguinte falha, sem ecoar valores. Build e 230
-testes anteriores do front passaram; Chromium desktop 1440 e celular 360 passaram
+relatório antigo quando a entrada seguinte falha, sem ecoar valores. A suíte
+completa passou em 2.462 testes, com um xfail conhecido de TIR e o caso original
+do Pará separado para o job que dispõe do snapshot privado. Os dois testes de
+mídia inicialmente pulados passaram após instalar Takumi e executar com PostGIS.
+Depois de incorporar a main, build e 275 testes do front passaram;
+170 testes focados de pasta, API, pedidos, certidões e vigilância também passaram.
+Chromium desktop 1440 e celular 360 passaram
 com teclado, axe, bloqueio por pendência, exportação e troca de sessão. Capturas
-sintéticas em `/tmp/raiz-pasta-fiador`; o CI publica o mesmo artefato. A suíte completa
-está sendo executada antes do PR; resultado final será registrado aqui.
+sintéticas em `/tmp/raiz-pasta-fiador-final`; o CI publica o artefato `pasta-fiador`.
+A regressão da prospecção no Chromium também passou após a integração.
+Ruff/formatação, privacidade (1.063 arquivos), licenças (859 pacotes, nenhum
+problema), Gitleaks (444 commits) e empacotamento dos modelos/YAML passaram.
+CI verde e merge continuam sendo condições da entrega, sem cancelar workflows.
 
 ## Continuação: terra comprometida, versões e proteção
 
