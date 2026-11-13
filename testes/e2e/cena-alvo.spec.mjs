@@ -95,8 +95,9 @@ test("login único → conta paga → milhão no Pará → contato bloqueado →
 
   await page.getByRole("link", { name: "Novo pedido" }).first().click()
   await expect(page.getByLabel("Quantidade (créditos)")).toHaveValue("1.000.000")
-  await expect(page.getByRole("list", { name: "Lugares escolhidos" })).toContainText("Pará")
-  await expect(page.getByLabel("Estados (sem nenhum: todos)").getByRole("option", { name: "Pará", exact: true })).toBeDisabled()
+  await expect(page.getByRole("radio", { name: "Um ou mais estados", exact: true })).toBeChecked()
+  await expect(page.getByRole("list", { name: "Estados escolhidos", exact: true })).toContainText("Pará")
+  await expect(page.getByLabel("Adicionar estado", { exact: true }).getByRole("option", { name: "Pará", exact: true })).toBeDisabled()
   // O alias antigo deve passar pela política paga, mesmo com sessão humana e três créditos de teste.
   const alias = page.waitForResponse((r) => r.url() === `${API}/pedidos` && r.request().method() === "POST")
   const bloqueada = page.waitForResponse((r) => r.url() === `${API}/v1/pedidos` && r.request().method() === "POST")
