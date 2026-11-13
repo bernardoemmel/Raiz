@@ -11,6 +11,7 @@ const Grupo = lazy(() => import("./telas/Grupo").then((m) => ({ default: m.Grupo
 const MeusPedidos = lazy(() => import("./telas/MeusPedidos").then((m) => ({ default: m.MeusPedidos })))
 const NovoPedido = lazy(() => import("./telas/NovoPedido").then((m) => ({ default: m.NovoPedido })))
 const PedidoTela = lazy(() => import("./telas/PedidoTela").then((m) => ({ default: m.PedidoTela })))
+const PastaFiador = lazy(() => import("./telas/PastaFiador").then((m) => ({ default: m.PastaFiador })))
 const Calendario = lazy(() => import("./telas/Calendario").then((m) => ({ default: m.Calendario })))
 
 /**
@@ -42,6 +43,7 @@ function TelaAtual() {
   if (rota.tela === "calendario") return <Calendario key={rota.car || "todos"} car={rota.car} />
   if (rota.tela === "fazenda") return <FichaTerra key={`${rota.car}-${sessao?.token ?? "publica"}`} car={rota.car} />
   if (rota.tela === "prospeccao") return <Prospeccao key={sessao?.token ?? "publica"} />
+  if (rota.tela === "pasta") return sessao ? <PastaFiador key={`${rota.id}-${rota.opcao}-${sessao.token}`} id={rota.id} opcaoInicial={rota.opcao} /> : <Entrar token={null} volta={location.hash} />
   if (rota.tela === "entrar") return <Entrar token={rota.token} />
   if (rota.tela === "pedidos" || rota.tela === "pedido-novo" || rota.tela === "pedido" || rota.tela === "grupo") {
     // sem sessão, entra primeiro e volta para onde ia

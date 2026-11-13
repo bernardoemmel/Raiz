@@ -312,7 +312,7 @@ não altera sua política nem equivale a aprovação dos testes de injeção pen
 
 ## Rodada 12 — medição do acerto e protocolo de mudança
 
-Entrega no [PR #100](https://github.com/bernardoemmel/Raiz/pull/100), atualizada com a main `52118b5` (#95, após #97).
+Entrega no [PR #100](https://github.com/bernardoemmel/Raiz/pull/100), atualizada com a main `692663c` (#98, após #95 e #97).
 Os PRs #87, #88, #91 e #92 foram revistos e incorporados; o protocolo da rodada 12 permanece privado.
 
 - CRPS com properscoring, sorteios finitos e denominador `crps_n` no placar existente. Corrigido bug pequeno:
@@ -388,3 +388,25 @@ Após incorporar #95, **442 testes focados passaram**, cobrindo avaliação da r
 retratos, checkpoints, preservação do executor, publicação, metadados, telemetria e promoção histórica.
 Ruff e formatação passaram nos 589 arquivos; actionlint e diff também aprovaram. O CI completo da nova
 combinação continua sendo a condição de merge.
+
+
+### Revisão da main #98 — pasta privada do banco e comprador
+
+Main `692663c` revista e incorporada: autorização por pedido/conta e por todos os CARs, histórico imutável,
+revalidação de documentos, exportação com marca, modelo Jinja fechado e troca de sessão no navegador.
+Corrigido vazamento pequeno: `modelo_versao` aceitava CPF/CNPJ cru ou com prefixo de versão e os copiava
+para banco, tela e ZIP. A validação agora recusa documentos civis, nomes/contatos reconhecidos e credenciais
+antes da gravação, na leitura e na geração; erros não incluem o valor. Regressões usam documentos sintéticos
+calculados durante o teste, cobrem entrada/relatório/exportação e preservam versões técnicas legítimas.
+
+O corpus real do #76 permanece obrigatório. A campanha de produto registrada no #98 também está reprovada
+(`docs/medicao-agentes-actions.md`, execução `43354046452`): 25 chamadas fora do gabarito e cinco violações
+classificadas como instrução de terceiro. É evidência distinta do nosso corpus; a contagem não significa 25
+vazamentos. **Produto e regras** é dono da correção do leitor/continuidade e de nova campanha versionada.
+Nenhum resultado antigo foi reclassificado, nenhuma exceção de ausência foi renovada.
+
+Validação da combinação #98: **166 testes Python com PostGIS**, **341 testes do front**, TypeScript,
+Playwright da pasta (desktop/celular, teclado, axe, pendência e troca de sessão), Ruff e formatação
+(598 arquivos), actionlint, **1.114 arquivos sem CPF/CNPJ**, **869 licenças sem problema** e Gitleaks dos
+cinco commits novos passaram. Mantida a aprovação integral local anterior (2.758 testes); o CI completo
+do commit final ainda é condição de merge.

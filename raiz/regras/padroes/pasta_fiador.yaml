@@ -1,0 +1,22 @@
+# Catálogo interno revisado por código; não executar expressões ou carregar regras do cliente.
+versao: pasta-fiador-2026a
+perfil: raiz-conservador
+campos_obrigatorios:
+  - area_elegivel
+  - titulo
+  - garantia
+  - creditos
+  - preco
+documentos_nao_dispensaveis: [titularidade, garantia, area_elegivel, previsao, preco]
+documentos_dispensaveis: [complementar]
+titulo_pronto:
+  nivel: conferencia_concluida
+  situacao: conferida
+garantia_pronta: conferida
+unidades:
+  area_elegivel: ha
+  area_metodo: ha
+  credito: tCO2e
+previsao_natureza: estimado
+permitir_area_zero: false
+somar_creditos_de_metodos_alternativos: false

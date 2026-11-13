@@ -1,0 +1,41 @@
+{% macro fontes(refs) -%}
+<ul>{% for f in refs %}<li><a href="#doc-{{ f.documento_id }}">{{ f.documento_id }}</a> · {{ f.localizador }} · referência {{ f.data_referencia }}</li>{% endfor %}</ul>
+{%- endmacro %}
+{% macro medida(m) -%}{{ m.valor|numero }} {{ m.unidade }} ({{ m.natureza }}) {{ fontes(m.fontes) }}{%- endmacro %}
+<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'">
+<title>{% block titulo %}{% endblock %} — Raíz</title>
+<style>
+body{font:16px/1.5 system-ui,sans-serif;color:#192a1c;max-width:1100px;margin:2rem auto;padding:1rem;overflow-wrap:anywhere}
+table{border-collapse:collapse;width:100%}th,td{border:1px solid #8b978d;padding:.6rem;text-align:left;vertical-align:top}
+h1,h2,h3{line-height:1.25}section{margin-block:2rem}a{color:#155a28}small{display:block}li{margin:.25rem 0}
+.marca{position:fixed;inset:42% 0 auto;transform:rotate(-24deg);text-align:center;opacity:.13;pointer-events:none;font-size:22px}
+.sentinela{border-block:2px solid;padding:1rem;font-size:12px}
+@media print{body{margin:0;font-size:10pt}thead{display:table-header-group}h2,h3{break-after:avoid}tr{break-inside:avoid}.marca{position:fixed}}
+</style></head><body>
+<div class="marca" aria-hidden="true">{{ protecao.marca }}</div>
+<header><p>Raíz · dados da terra</p><h1>{{ self.titulo() }}</h1><p>{% block finalidade %}{% endblock %}</p>
+<p>Pasta {{ pasta_id }} · versão {{ numero }} ({{ versao_id }}) · corte {{ dados.data_corte }}.</p>
+<p>Lote {{ dados.pedido_id }} / {{ dados.opcao }} · regra {{ validacao.regra_versao }} · conferência {{ validacao.conferido_em }}.</p>
+<p>Assinatura do retrato: {{ assinatura }}. Banco e comprador usam este mesmo retrato.</p></header>
+<p class="sentinela">{{ protecao.sentinela }} <strong>{{ protecao.marca }}</strong></p>
+{% for i in dados.imoveis %}<section><h2>Imóvel {{ i.codigo_car }}</h2>
+<div>Área elegível: {{ medida(i.area_elegivel) }}</div>
+<h3>Título e garantia</h3><p>Nível do título: {{ i.titulo.nivel|rotulo }} · situação: {{ i.titulo.situacao }}.</p>{{ fontes(i.titulo.fontes) }}
+<p>Garantia: {{ i.garantia.situacao }}.</p>{{ fontes(i.garantia.fontes) }}
+<h3>Crédito por método</h3><p>Métodos são alternativas; suas faixas não devem ser somadas como créditos adicionais da mesma área.</p>
+<table><thead><tr><th>Método, período e modelo</th><th>Área</th><th>P10</th><th>P50</th><th>P90</th></tr></thead><tbody>
+{% for c in i.creditos %}<tr><td>{{ c.metodo|rotulo }}<br>{{ c.periodo.inicio }} a {{ c.periodo.fim }}<br>{{ c.modelo_versao }}{{ fontes(c.fontes) }}</td>
+<td>{{ medida(c.area) }}</td><td>{{ medida(c.p10) }}</td><td>{{ medida(c.p50) }}</td><td>{{ medida(c.p90) }}</td></tr>{% endfor %}</tbody></table>
+<h3>Preço</h3><p>{{ i.preco.valor|numero }} {{ i.preco.moeda }}/{{ i.preco.unidade }} · {{ i.preco.natureza }} · período {{ i.preco.periodo.inicio }} a {{ i.preco.periodo.fim }}.</p>{{ fontes(i.preco.fontes) }}</section>{% endfor %}
+<section><h2>Documentos e validade</h2><p>Referências técnicas, sem dados pessoais ou cópia bruta de certidões.</p>
+{% for d in dados.documentos %}<article id="doc-{{ d.id }}"><h3>{{ d.tipo|rotulo }} · {{ d.referencia }}</h3>
+<p>ID {{ d.id }} · estado {{ d.estado }} · emissão {{ d.emitido_em }} · validade {{ d.valido_ate if d.valido_ate else ('sem vencimento declarado' if d.sem_vencimento else 'não informada') }} · conferido {{ d.conferido_em }}.</p>
+<p>SHA-256: {{ d.sha256 }}.{% if d.substituido_por %} Substituído por <a href="#doc-{{ d.substituido_por }}">{{ d.substituido_por }}</a>.{% endif %}
+{% if d.dispensa_documento_id %} Dispensa documentada em <a href="#doc-{{ d.dispensa_documento_id }}">{{ d.dispensa_documento_id }}</a>.{% endif %}</p></article>{% endfor %}</section>
+<section><h2>Referências de previsão</h2>{% for p in previsoes %}<p>{{ p.codigo_car }} · {{ p.metodo|rotulo }} · {{ p.referencia }}.</p>
+<ul>{% for r in p.relacoes %}<li>{{ r.tipo }}: {{ r.referencia }}</li>{% endfor %}</ul>{% endfor %}</section>
+<section><h2>Conferência campo a campo</h2><p>Regra SHA-256 {{ validacao.regra_sha256 }}. {{ validacao.campos|length }} campos referenciados.</p>
+<table><thead><tr><th>Campo</th><th>Fonte e data</th></tr></thead><tbody>{% for c in validacao.campos %}<tr><td>{{ c.campo }}</td><td>{{ fontes(c.fontes) }}</td></tr>{% endfor %}</tbody></table></section>
+<footer class="sentinela">{{ protecao.sentinela }} {{ protecao.marca }}</footer></body></html>

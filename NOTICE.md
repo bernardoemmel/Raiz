@@ -407,3 +407,14 @@ Properscoring e seu backend Numba 0.68.1 (BSD-2-Clause) / llvmlite 0.50.0 (BSD-2
 LLVM Apache-2.0 com exceção LLVM) entram nas dependências normais da aplicação; os demais são ferramentas de avaliação/treino
 no grupo de desenvolvimento. `scpi`, `scpi-pkg` e `vegan` não são dependências nem código incorporado. O CI
 confere o wheel e todas as dependências distribuíveis, inclusive extras e transitivas.
+
+## Pasta do banco fiador e comprador
+
+Jinja2 **3.1.6**, Pallets ([documentação](https://jinja.palletsprojects.com/)),
+**BSD-3-Clause**: modelos próprios com StrictUndefined, sandbox e escape; não
+se aceita modelo fornecido por cliente ou terceiro. Biblioteca já travada no uv.lock.
+
+Tabulator **6.7.1**, Oli Folkerd ([código](https://github.com/olifolkerd/tabulator)),
+**MIT**, e `@types/tabulator-tables` **6.3.6**, DefinitelyTyped, **MIT**: grade da pasta
+no front. Instalação travada no npm, sem CDN, módulos de exportação ou código copiado.
+Adaptações de teclado/semântica ARIA estão no componente próprio da Raíz.
