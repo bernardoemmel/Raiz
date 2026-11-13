@@ -50,9 +50,10 @@ O fundador configurou `ANTHROPIC_API_KEY` nos Secrets do GitHub Actions e autori
 estivesse na main; a execução e sua falha estão registradas acima. Seus valores não foram exibidos.
 Não publicar cassetes como evidência real antes da execução. O replay sempre terá origem de contrato.
 
-`consultar_ficha` já veio na main pelo PR #72. A integração de `proximos_eventos` está isolada
-na branch `produto-agentes-ferramentas`, commit `629400def7ae86970da8db097ef8c21450ca55bd`,
-para entrar depois da primeira medição. Não foi feita contratação, implantação pública ou registro MCP.
+`consultar_ficha` já veio na main pelo PR #72. Depois da primeira medição,
+`proximos_eventos` foi incorporada à branch `produto-agentes-medicao` pelo adaptador da
+função existente do Calendário, sem reescrever a coleta. São oito ferramentas, com
+escopo consultar, conta ativa, cota por empresa, projeção sem texto pessoal e telemetria. Não foi feita contratação, implantação pública ou registro MCP.
 
 ## Retomada no Codex: plataforma integrada
 
@@ -86,7 +87,7 @@ licença proibida; Gitleaks não encontrou segredos.
 
 A plataforma está implementada no mesmo FastAPI: SDK oficial `mcp==2.3.0`, protocolo
 2026-07-28, transporte HTTP e OAuth 2.1 via Keycloak 26.8.2. A chave de API vale só na REST.
-Sete ferramentas: consultar_ficha, consultar_disponibilidade, pedir_lote, comparar_lotes,
+Oito ferramentas: proximos_eventos, consultar_ficha, consultar_disponibilidade, pedir_lote, comparar_lotes,
 acompanhar_contato, preparar_reserva e cancelar. Reservar começa desligado e só o
 administrador da própria empresa habilita; o worker revalida antes de executar.
 

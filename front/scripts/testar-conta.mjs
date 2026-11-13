@@ -38,7 +38,7 @@ try {
   assert.ok(clique,"A página tentou autorizar sem clique da pessoa")
   if(u.pathname==="/v1/conta/contrato") {contrato=true;return json({})}
   if(["/v1/conta/recarga","/v1/conta/sinal"].includes(u.pathname)) {
-   if(u.pathname.endsWith("recarga")) assert.equal(u.searchParams.get("valor_rs"),"250")
+   if(u.pathname.endsWith("recarga")) assert.equal(u.searchParams.get("valor_rs"),"750")
    return json({link_para_uma_pessoa:invalido?"https://externo.example/pagar":origem+"/v1/cobrancas/"+"a".repeat(32)})
   }
   externas.push(req.url());await route.abort()
@@ -60,7 +60,7 @@ try {
  await pagina.locator("#contrato").waitFor({state:"hidden"})
  await pagina.locator("#sinal").click();await pagina.locator("#pix").waitFor({state:"visible"})
  assert.match(await pagina.locator("#pix").getAttribute("href"),/\/v1\/cobrancas\//)
- await pagina.locator("#valor").fill("250");await pagina.locator("#recarga button").click()
+ await pagina.locator("#valor").fill("750");await pagina.locator("#recarga button").click()
  await pagina.waitForFunction(()=>!document.querySelector('#recarga button').disabled)
  assert.equal(chamadas.filter(c=>c.rota==="/v1/conta/recarga").length,1)
  invalido=true;await pagina.locator("#recarga button").click()
