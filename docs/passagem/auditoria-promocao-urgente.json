@@ -10,11 +10,12 @@
     "be452620f868537251fa832a10cb14bfb5c8efe3",
     "6f49dfcfe680c7da204dd06818025e1ff47cbb7f",
     "cf306256e0b562b1e05415b8ca0df1ca835c2155",
-    "c3bf907cd8838056d3b1c1633159b37df7133a82"
+    "c3bf907cd8838056d3b1c1633159b37df7133a82",
+    "2b6e8af444cab964b6503c0a3365ecb9cbde8c89"
   ],
   "base_cientifica": "be452620f868537251fa832a10cb14bfb5c8efe3",
   "auditoria_anterior_sha256": "7a203dfe308bd6eae28f6ad5c1e13db4e76e2a05a2f371d3513cbf9caac4602a",
-  "script_sha256": "815d5d408e3998940d045b1f24f33e81017acf8aefb36029f08e609856ef5e8e",
+  "script_sha256": "0a51c8e8ccb2a8d73ad66df8e2faf6686a875a049467c09bc883d59042fec981",
   "metodo": "Versões reais executadas em checkouts temporários com origem do módulo conferida. Hashes de dependências, árvore nativa e diff integral de produção por referência. A auditoria anterior permanece vinculada às cinco origens; esta extensão não a reescreve.",
   "contrato": "Só continuações e retentativas pendentes não bloqueadas. Reservas vivas não mudam. Nenhuma saída ganha versão nova sem executar. As duas origens pré-E1 recebem o upgrade científico documentado na auditoria anterior; as demais diferenças de tarefa são declaradas por par.",
   "deltas_operacionais": [
@@ -1549,6 +1550,177 @@
       "codigo_nativo_sha256": "f55d787caad693cadaf11dc084c03a928f465dbc8913adf1556aed77b31de12d",
       "armazem_sha256": "9e49fab62a8206b3f7a714879559d2694948138252c65f047b37a07d5b8b83bb"
     },
+    "2b6e8af444cab964b6503c0a3365ecb9cbde8c89": {
+      "versoes_tarefas": {
+        "funil": "funil-9222a79e7478",
+        "filtros": "filtros-f6a1b5d63913",
+        "direto": "direto-dd60b18775e7",
+        "mapbiomas": "mapbiomas-2df346dbb625",
+        "extras_direto": "extras_direto-49e961b4e835",
+        "flag": "flag-20a62662fdab",
+        "terra": "terra-578e392a6726",
+        "titulo": "titulo-f6c7bf3945f4",
+        "ficha": "ficha-a120ba6c5bb9",
+        "rebanho": "rebanho-47ef2fbebb24",
+        "desenvolvedor": "desenvolvedor-7662657eb966"
+      },
+      "codigo": {
+        "funil": [
+          "motor/raiz_estado.py",
+          "raiz/funil/rodar.py",
+          "raiz/funil/ponte.py",
+          "raiz/funil/duck.py",
+          "raiz/funil/novo.py"
+        ],
+        "filtros": [
+          "motor/raiz_filtros.py",
+          "motor/raiz_extras.py",
+          "raiz/funil/rodar.py",
+          "raiz/funil/filtros.py",
+          "raiz/funil/restricoes.py",
+          "raiz/funil/ponte.py",
+          "raiz/funil/duck.py",
+          "raiz/funil/novo.py"
+        ],
+        "direto": [
+          "motor/raiz_direto.py",
+          "motor/raiz_extras.py",
+          "raiz/funil/ponte.py"
+        ],
+        "mapbiomas": [
+          "motor/raiz_mapbiomas.py"
+        ],
+        "extras_direto": [
+          "motor/raiz_extras_direto.py",
+          "motor/raiz_extras.py"
+        ],
+        "flag": [
+          "raiz/flag.py"
+        ],
+        "terra": [
+          "raiz/terra.py"
+        ],
+        "titulo": [
+          "raiz/titulo/regularizacao.py",
+          "raiz/titulo/achados.py",
+          "raiz/titulo/nota.py",
+          "raiz/titulo/geometria.py",
+          "raiz/titulo/cadeia.py",
+          "raiz/titulo/contexto.py",
+          "raiz/titulo/triagem.py",
+          "raiz/titulo/tarefa.py"
+        ],
+        "ficha": [
+          "raiz/imovel_dados.py",
+          "raiz/osm.py",
+          "raiz/tiles.py",
+          "raiz/motivos.py",
+          "raiz/regras/padroes/faixas.yaml"
+        ],
+        "rebanho": [
+          "raiz/rebanho.py"
+        ],
+        "desenvolvedor": [
+          "raiz/restauracao.py",
+          "raiz/restauracao_geo.py",
+          "raiz/vazamento.py"
+        ]
+      },
+      "depende": {
+        "funil": [],
+        "filtros": [
+          "funil"
+        ],
+        "direto": [
+          "funil"
+        ],
+        "mapbiomas": [
+          "funil"
+        ],
+        "extras_direto": [
+          "funil"
+        ],
+        "flag": [
+          "funil",
+          "mapbiomas",
+          "direto"
+        ],
+        "terra": [
+          "funil",
+          "filtros"
+        ],
+        "titulo": [
+          "funil",
+          "filtros",
+          "terra"
+        ],
+        "ficha": [
+          "funil",
+          "filtros",
+          "mapbiomas",
+          "flag",
+          "terra"
+        ],
+        "rebanho": [
+          "funil",
+          "mapbiomas",
+          "direto"
+        ],
+        "desenvolvedor": [
+          "funil",
+          "filtros",
+          "mapbiomas",
+          "direto",
+          "ficha",
+          "terra",
+          "rebanho"
+        ]
+      },
+      "saidas": {
+        "funil": [
+          "imoveis_{cod}.csv",
+          "geo_{cod}.parquet",
+          "certidoes_{cod}.csv"
+        ],
+        "filtros": [
+          "filtros_{cod}.csv"
+        ],
+        "direto": [
+          "direto_{cod}.csv"
+        ],
+        "mapbiomas": [
+          "mapbiomas_{cod}.csv"
+        ],
+        "extras_direto": [
+          "extras_direto_{cod}.csv"
+        ],
+        "flag": [
+          "flag_{cod}.csv"
+        ],
+        "terra": [
+          "terra_{cod}.csv"
+        ],
+        "titulo": [
+          "titulo_{cod}.csv",
+          "regularizacao_{cod}.csv",
+          "achados_{cod}.csv"
+        ],
+        "ficha": [
+          "ficha_{cod}.csv",
+          "camadas_{cod}.parquet",
+          "camadas_{cod}.pmtiles"
+        ],
+        "rebanho": [
+          "rebanho_{cod}.csv"
+        ],
+        "desenvolvedor": [
+          "desenvolvedor_{cod}.csv"
+        ]
+      },
+      "modulo_temporario_conferido": true,
+      "codigo_nativo_sha256": "f55d787caad693cadaf11dc084c03a928f465dbc8913adf1556aed77b31de12d",
+      "armazem_sha256": "9e49fab62a8206b3f7a714879559d2694948138252c65f047b37a07d5b8b83bb"
+    },
     "ebb13cae969c56f88619aab45e01088116eb347f": {
       "versoes_tarefas": {
         "funil": "funil-9222a79e7478",
@@ -2248,6 +2420,54 @@
     },
     {
       "origem": "c3bf907cd8838056d3b1c1633159b37df7133a82",
+      "destino": "ebb13cae969c56f88619aab45e01088116eb347f",
+      "tarefas_alteradas": [],
+      "tarefas_preservadas": [
+        "desenvolvedor",
+        "direto",
+        "extras_direto",
+        "ficha",
+        "filtros",
+        "flag",
+        "funil",
+        "mapbiomas",
+        "rebanho",
+        "terra",
+        "titulo"
+      ],
+      "pacotes_preservados": 239,
+      "pacotes_origem_sha256": "7822c34181749e279d79e70ca6b9d537bfff1d59025fa4e953c0fef142e346b8",
+      "dependencias_integralmente_preservadas": true,
+      "escopos": [
+        "motor",
+        "raiz",
+        "nativo",
+        "uv.lock",
+        "pyproject.toml",
+        ".github/workflows/processar-estados.yml"
+      ],
+      "diff_sha256": "18d8c5efdd48efc42f79db04f4358d2d539658b3d52ca5cf64288bc8278ea0a6",
+      "arquivos_status": [
+        "M\t.github/workflows/processar-estados.yml",
+        "M\tmotor/publicar_dados.py",
+        "M\traiz/api.py",
+        "A\traiz/aprendizado/compat_retratos.py",
+        "M\traiz/aprendizado/importacao.py",
+        "M\traiz/aprendizado/transporte.py",
+        "M\traiz/executor/armazem.py",
+        "A\traiz/executor/checkpoint.py",
+        "M\traiz/executor/executor.py",
+        "M\traiz/executor/painel.py",
+        "A\traiz/executor/processamento.py",
+        "A\traiz/executor/processamento_publico.py",
+        "M\traiz/executor/publicacao_aberta.py",
+        "A\traiz/executor/snapshot_publicacao.py",
+        "A\traiz/executor/status_publico.py",
+        "M\traiz/metadados.py"
+      ]
+    },
+    {
+      "origem": "2b6e8af444cab964b6503c0a3365ecb9cbde8c89",
       "destino": "ebb13cae969c56f88619aab45e01088116eb347f",
       "tarefas_alteradas": [],
       "tarefas_preservadas": [

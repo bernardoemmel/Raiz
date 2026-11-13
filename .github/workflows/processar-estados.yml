@@ -37,7 +37,7 @@ on:
         default: "0"
   schedule:
     - cron: "23 5 * * 1" # segunda-feira, 02:23 em Brasília: refaz o que mudou e continua o que falta
-    - cron: "*/15 * * * *" # só drena pedidos/continuações persistidos; não começa rodada nova
+    - cron: "*/15 * * * *" # drena pedidos e preenche vagas com UFs incompletas; não inicia manutenção
 
 permissions:
   contents: write # subir no Release, trava do estados.json, painel do README

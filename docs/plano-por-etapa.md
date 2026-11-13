@@ -40,6 +40,8 @@ todos os produtos da publicação. **Implementados na entrega urgente:** checkpo
 restauração antes do cálculo e salvamento `always()`, proteção contra marcas divergentes, leitor de retratos
 legados com prova dos bytes originais e painel das 27 UFs com eventos municipais, lease e última mudança.
 A promoção auditada usa o commit fixo `ebb13cae`, preserva as 11 versões atuais e não altera reservas vivas.
+O modo próximo repõe todas as vagas disponíveis; o cron de 15 minutos também repõe UFs incompletas, com
+prioridade aos pedidos persistidos e teto CAS global de 15. Nenhum dos caminhos cancela jobs.
 Faltam suíte integrada/CI, PR/merge, emissão do painel e retomada confirmada em produção; a estimativa nacional
 depende da vazão medida após a correção. Não declarar a urgência concluída pelo teste local.
 

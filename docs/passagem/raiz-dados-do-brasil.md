@@ -23,7 +23,8 @@ Entrega #82 integrada; correção urgente em `codex/dados-snapshot`.
   ainda furavam o limite (pedidos explícitos, `refazer`, continuações, planejadores concorrentes e falha da API).
   A entrega 1 fecha esses caminhos com `motor/fila_processamento.py` e a ref `raiz-fila-processamento`.
   Reservas só são liberadas depois de o Actions confirmar o job concluído, incluindo seus passos finais.
-  A agenda de 15 minutos apenas drena pedidos pendentes; a rodada semanal mantém seu escopo.
+  Na entrega #46 a agenda só drenava pedidos; a urgência posterior passa a repor também UFs incompletas
+  para recuperar vagas ociosas, mantendo a rodada semanal e o teto da manutenção.
 - **Itens 2–7 implementados:** fichas validadas antes do upload, quantis e hub nativo por UF, metadados globais,
   cartão do modelo, checksums para atestação OIDC e cronogramas CAD Trust. O preenchimento dos assets existentes e
   a verificação das assinaturas ainda dependem da execução retroativa após o término natural dos escritores
@@ -77,12 +78,16 @@ comparar escopo/versões, incluindo os erros e o tempo efetivo após a correçã
   mudança. Usa eventos municipais reais com lease, sem inferir municípios pelo número de jobs; expiração é
   explícita. A ref pública dedicada só recebe códigos IBGE, contagens e metadados operacionais permitidos.
   Ver `docs/processamento-por-estado.md`; primeira emissão em produção ainda pendente.
-- **Promoção fechada:** `auditoria-promocao-urgente.json` vincula a auditoria anterior sem alterá-la. Nove
+- **Promoção fechada:** `auditoria-promocao-urgente.json` vincula a auditoria anterior sem alterá-la. Dez
   origens reconhecidas convergem para `ebb13cae969c56f88619aab45e01088116eb347f`, com as 11 versões iguais
   à base protegida do #82. Upgrades científicos das origens anteriores continuam declarados por par.
   Reservas vivas e pedidos bloqueados não são reescritos. 179 testes de fila/promoção/catálogo passaram.
 - **Marcas:** saídas com hash, bytes ou versão divergentes voltam ao plano; não contam como prontas. A cópia
   estável também exige correspondência entre marcas e arquivos. 20 testes de preservação/cópia passaram.
+- **Reposição de paralelismo:** removido o limite de uma admissão no modo `proximo`. O cron de 15 minutos
+  também preenche vagas com UFs incompletas, sem iniciar manutenção; pedidos persistidos continuam prioritários.
+  Toda escolha passa pela mesma admissão CAS. Testes cobrem 0, 7, 14 e 15 vagas ocupadas e várias UFs:
+  194 testes de fila/promoção/catálogo passaram. Frontend: 291 testes e build aprovados; actionlint e Ruff verdes.
 - **Ainda a fazer nesta urgência:** suíte integrada/CI, PR/merge e admissão das vagas disponíveis pela fila
   CAS. Conferir dados publicados, medir vazão e só então estimar estados por dia e conclusão do Brasil.
   Workflow consultado ativo às 22h17 de Brasília em 12/11; nenhum cancelamento por este chat.
