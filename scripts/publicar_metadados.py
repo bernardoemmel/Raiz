@@ -241,8 +241,13 @@ def minutos_para_finalizar() -> float:
 
 def reservar_vaga() -> None:
     run_id = contexto_actions()
-    conferir_processamento_seguro()  # não ocupa uma vaga esperando os jobs legados
     fila, rodar = modulos_fila()
+    # A última continuação pode chegar depois do cron. Promover só a fila pela
+    # mesma regra auditada, sem admitir cálculo nem tocar nas reservas vivas.
+    _, pendentes = fila.Repositorio().ler()
+    if fila.promover_continuacoes(pendentes):
+        fila.transacao(fila.Repositorio(), fila.promover_continuacoes)
+    conferir_processamento_seguro()  # não ocupa uma vaga esperando os jobs legados
     _, estado = fila.Repositorio().ler()
     if any(r["run_id"] == run_id and r["unidade"] == UNIDADE for r in estado["reservas"]):
         confirmar_reserva()
