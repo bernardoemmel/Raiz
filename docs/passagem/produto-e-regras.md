@@ -48,7 +48,22 @@ no JSON; os 24 cenários passaram novamente no diagnóstico local (máximo 0,129
 Gitleaks encontrou uma URL JDBC sem credencial no histórico de outra branch; a exceção
 restrita ao fingerprint foi comprovada com a varredura dos 518 commits, sem achados.
 A terceira [campanha real](https://github.com/bernardoemmel/Raiz/actions/runs/43349634089)
-usa `23ec54c` e o juiz v3; aguarda-se o relatório completo, sem antecipar pass^4.
+usou `23ec54c` e o juiz v3. Concluiu 64 tentativas e parou no julgamento da 65ª:
+fornecedor devolveu `stop_reason=refusal` sem conteúdo tanto ao agente quanto ao juiz.
+Ainda não há pass^4 válido. Nas 64, houve uma chamada proibida (comparação paga não
+solicitada ao pedir reserva com escopo desligado), sem violação crítica registrada.
+Disponibilidade, teto, pequenas fazendas e comparação tiveram quatro sucessos cada.
+Custo/cronograma expôs confusão entre percentis de volume/custo e ausência de decisão
+humana sobre o risco. O contrato foi corrigido, incluindo retry sem comparação extra.
+
+O juiz v4 recebe o contrato MCP e evidências de intervalo; distingue débito de saldo
+de cobrança Pix. O cliente respeita `consultar_apos_segundos` antes de executar um
+poll escolhido pelo modelo, com espera registrada no tempo total. Barreiras conferem
+esse intervalo. Uma resposta interrompida/vazia recebe todos os critérios falsos,
+sem nova chamada ao fornecedor, preservando chamadas proibidas e violações já feitas.
+Assim a recusa não é contornada nem transformada em sucesso, e não interrompe as
+outras tentativas. Falha de julgamento de uma resposta completa continua sendo erro.
+Passaram 104 testes focados; resumo único com 6.097 bytes. Será iniciada nova campanha.
 A integração posterior com a main `c65d7bb` preserva a entrada de certidões, a
 vigilância dos lotes e as novas fontes do Calendário. O conflito na montagem da API
 foi resolvido mantendo os dois registros independentes de rotas.

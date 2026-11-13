@@ -350,6 +350,7 @@ async def conversar(
         "uso": {"input_tokens": 0, "output_tokens": 0},
     }
     catalogo = {f["name"] for f in ferramentas}
+    consultar_depois: dict[str, float] = {}
     for _ in range(max_passos):
         trace["passos_modelo"] += 1
         resposta = await cliente.messages.create(
@@ -374,12 +375,21 @@ async def conversar(
             break
         resultados = []
         for chamada in chamadas:
+            # O cliente respeita o intervalo do recibo, sem escolher ferramentas
+            # pelo agente nem consultar o banco. A espera entra no tempo total.
+            espera = 0.0
+            if chamada["name"] == "acompanhar_contato":
+                prazo = consultar_depois.get(str(chamada["input"].get("pedido_id")), 0)
+                espera = max(0.0, prazo - time.monotonic())
+                if espera:
+                    await asyncio.sleep(espera)
             agora = time.monotonic()
             registro = {
                 "ferramenta": chamada["name"],
                 "argumentos": chamada["input"],
                 "inicio_segundos": agora - inicio,
                 "duracao_segundos": 0.0,
+                "espera_cliente_segundos": espera,
                 "resultado": {},
                 "is_error": False,
             }
@@ -399,6 +409,16 @@ async def conversar(
                 is_error=bool(resultado.get("isError")),
                 duracao_segundos=time.monotonic() - agora,
             )
+            estruturado = resultado.get("structuredContent", {})
+            intervalo = estruturado.get("consultar_apos_segundos")
+            if (
+                estruturado.get("estado") in {"submitted", "working"}
+                and isinstance(estruturado.get("pedido_id"), str)
+                and type(intervalo) in (int, float)
+                and math.isfinite(intervalo)
+                and 0 < intervalo <= 60
+            ):
+                consultar_depois[estruturado["pedido_id"]] = time.monotonic() + intervalo
             resultados.append(
                 {
                     "type": "tool_result",
@@ -622,6 +642,7 @@ async def campanha(args, provedor: Provedor) -> dict:
                                         ferramentas=ferramentas,
                                     )
                                     trace["tentativa"] = tentativa
+                                    cenario.dados["contrato_mcp"] = instrucoes
                                     args.etapa = "julgar_tentativa"
                                     julgamento = await provedor.julgar(tarefa, cenario, trace)
                     args.etapa = "persistir_evidencia"
@@ -657,7 +678,7 @@ async def campanha(args, provedor: Provedor) -> dict:
                         modelo=args.modelo,
                         configuracao_sha256=configuracao_hash,
                         gabarito_sha256=gabarito_hash,
-                        avaliador="juiz-independente-v3",
+                        avaliador="juiz-independente-v4",
                         trace_id=str(uuid4()),
                         sessao_id=str(uuid4()),
                         inicio_em=trace["inicio_em"],

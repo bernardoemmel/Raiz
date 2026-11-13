@@ -86,7 +86,10 @@ outra campanha integral. O runner recusa sobrescrever cassetes reais ou continua
 Um Claude em outra conversa, sem ferramentas, julga os critérios em JSON estrito. Cada afirmação tem citação
 literal verificada nas fontes da tentativa. Barreiras determinísticas conferem autorização, argumentos, efeitos
 no banco e tempos; podem reprovar a nota do juiz, nunca promover uma tentativa incompleta. O JSONL não é escrito
-quando o juiz retorna um formato inválido ou uma citação inexistente.
+quando o juiz retorna um formato inválido ou uma citação inexistente para uma resposta completa.
+Resposta vazia/interrompida do agente reprova todos os critérios por barreira determinística,
+com zero chamadas ao juiz. Não há nova tentativa de obter uma resposta bloqueada; a recusa
+do fornecedor permanece gravada e conta como fracasso, sem impedir as outras sessões.
 
 `relatorio.json` contém pass^4, passos e chamadas MCP por tentativa, tempos de parede, latências de cada chamada,
 uso de tokens separado entre agente e juiz e SHA-256 de cada cassette e trace sanitizado. O hash da configuração inclui instruções,
@@ -118,7 +121,9 @@ O replay não precisa de chave Anthropic e usa uma credencial fictícia mesmo se
 permite somente respostas já gravadas para `api.anthropic.com`; cassete ausente, pedido diferente ou resposta
 gravada não consumida falha. MCP, OAuth, banco e worker continuam reais. Não se ignora o corpo do pedido no matcher:
 a cassette guarda o hash do JSON canônico, que inclui os números de negócio, argumentos, mensagens e esquemas.
-O tempo de cada inferência é gravado e reproduzido com espera assíncrona: o polling não é antecipado artificialmente
+O cliente também respeita o intervalo `consultar_apos_segundos` antes de um poll escolhido
+pelo modelo; não escolhe ações nem lê o banco por ele. Essa espera entra no tempo total
+da tarefa e fica separada da latência da ferramenta. O tempo de cada inferência é gravado e reproduzido com espera assíncrona: o polling não é antecipado artificialmente
 enquanto o worker real calcula. Se o resultado real divergir, o replay falha; ele não inventa um estado para casar
 a gravação. Portanto, o replay elimina o custo de novas inferências, mas não promete executar instantaneamente.
 
