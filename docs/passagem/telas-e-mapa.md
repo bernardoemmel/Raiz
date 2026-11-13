@@ -527,9 +527,11 @@ relatórios Lighthouse passaram pelo portão fixo. E9 real não foi calibrado e 
 
 ## Integração das entregas 2 a 5 (12/11/2026, Brasília)
 
-- Reunidas no PR #89. A main foi incorporada, preservando a separação aberto/pago e os novos jobs do CI.
+- Reunidas no [PR #89](https://github.com/bernardoemmel/Raiz/pull/89), integrado à main em 13/11/2026 UTC
+  pelo commit `0f947677`, com os nove checks verdes no run `43351801849`. A main foi incorporada,
+  preservando a separação aberto/pago e os novos jobs do CI.
   Os percursos integrados passaram em 13 auditorias axe, com teclado, 360 px, zero 404 e nenhum contato.
-- No CI, as seis páginas tiveram medianas de desempenho 100, 98, 98, 98, 98 e 100, com acessibilidade 100
+- No CI, as seis páginas tiveram medianas de desempenho 100, 98, 97, 97, 92 e 100, com acessibilidade 100
   em todas as medições. A abertura direta em MapLibre tem validação própria no PR #90; essas notas não a cobrem.
 - O E2E da API foi ajustado aos rótulos do formulário nacional, conservando as verificações de Pará, meta,
   pagamento, autorização e privacidade. O fluxo inteiro passou localmente com API/PostGIS e novamente no CI.
@@ -542,9 +544,9 @@ relatórios Lighthouse passaram pelo portão fixo. E9 real não foi calibrado e 
 
 ## Rodada 12: fichas privadas, versão pública datada e gráficos (13/11/2026 UTC)
 
-A implementação destas três partes está integrada. **O CI final da entrega e a publicação ainda estão
-pendentes.** Os resultados de CI e Lighthouse da seção anterior pertencem à entrega anterior; não são
-notas desta rodada. Este registro trata das fichas e dos gráficos, cuja validação usa dados sintéticos.
+As três partes estão integradas ao PR #90, junto do mapa. Os resultados de CI e Lighthouse da seção
+anterior pertencem ao PR #89; não são notas desta rodada. Fichas e gráficos usam dados sintéticos nos testes;
+a validação visual do mapa usa o snapshot real identificado no início desta passagem.
 
 ### Ficha privada e base de comparação
 
@@ -642,7 +644,15 @@ Contrato, acessibilidade e desenho: [docs/design/graficos-resultados.md](../desi
   Comandos: `node front/scripts/testar-ficha-credito.mjs` e `node front/scripts/testar-graficos.mjs`.
   Os artefatos do CI ficam em `front/.cache/teste-ficha-credito` e `front/.cache/teste-graficos`. Os testes de
   navegador usam fixtures sintéticas; não comprovam disponibilidade de dados reais nem substituem Lighthouse
-  do conjunto final. **A validação final integrada/CI e a publicação ainda precisam ser concluídas.**
+  do conjunto final. A ficha pública datada também tem smoke com HTML real, 360/1440 px, teclado, axe e
+  aviso de nova versão; recusas esperadas após revogação são registradas separadamente dos erros de navegação.
+- Validação local integrada: 390 testes do front, build dos dois sites, Ruff global e varredura de 492 commits
+  sem segredos. A suíte Python teve 2.624 aprovações e identificou uma asserção antiga que desconhecia a ficha
+  ausente e um marcador numérico fictício recusado pelo verificador de privacidade. Ambos foram corrigidos;
+  o conjunto de 197 regressões, incluindo essas duas, projeção pública, EPREL e contratos, passou. Os três
+  testes de dependências de sistema ausentes localmente e a referência estadual são executados no CI.
+  As datas civis de evidência usam UTC: representar o mesmo instante com outro fuso não muda a aceitação.
+  O CI completo permanece obrigatório antes do merge; a publicação precisa ser conferida depois dele.
 - E9 continua sem as 30 cartas reais anonimizadas e avaliações de compreensão. Não houve calibração humana
   nem contato com proprietários nesta rodada. Após CI verde e merge, conferir a publicação autorizada sem
   expor arquivos privados; registrar as evidências efetivamente obtidas, sem reaproveitar notas antigas.
