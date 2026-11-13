@@ -141,7 +141,7 @@ def projetar_geo(dados: bytes) -> bytes:
     return out.getvalue()
 
 
-def entrada_publica(info: dict) -> dict:
+def entrada_publica(info: dict, *, uf: str | None = None) -> dict:
     """Manifesto sem controle de retomada, erros livres, caminhos privados ou campos comerciais."""
     out = {"versao_publicacao": VERSAO_PUBLICACAO, "escopo": ESCOPO}
     for k in ("municipios", "sem_imoveis", "total_ibge", "completo", "funil_completo", "tamanho"):
@@ -160,6 +160,11 @@ def entrada_publica(info: dict) -> dict:
                 if re.fullmatch(r"[a-z_]{1,40}", str(n))
                 and (isinstance(v, int) or (isinstance(v, str) and re.fullmatch(r"[A-Za-z0-9_.+-]{1,200}", v)))
             }
+    if uf is not None:
+        from raiz.executor.processamento_publico import sanitizar_processamento
+
+        if processamento := sanitizar_processamento(uf, info.get("processamento")):
+            out["processamento"] = processamento
     return out
 
 
@@ -229,11 +234,14 @@ def validar_asset_publico(nome: str, dados: bytes, *, repo: str = "bernardoemmel
         if not re.fullmatch(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+", repo) or not re.fullmatch(r"[A-Za-z0-9_.-]+", tag):
             raise ValueError("destino do manifesto inválido")
         for uf, info in manifesto.get("estados", {}).items():
-            permitidos = set(entrada_publica(info)) | {"url", "geo"}
+            projetada = entrada_publica(info, uf=uf)
+            permitidos = set(projetada) | {"url", "geo"}
             if not re.fullmatch(r"[A-Z]{2}", uf) or set(info) - permitidos:
                 raise ValueError("manifesto público contém detalhe privado")
             if info.get("escopo") != ESCOPO or info.get("versao_publicacao") != VERSAO_PUBLICACAO:
                 raise ValueError("estado sem marca de projeção")
+            if "processamento" in info and info["processamento"] != projetada.get("processamento"):
+                raise ValueError("processamento público contém campos não permitidos ou observação inválida")
             base = f"https://github.com/{repo}/releases/download/{tag}"
             if info.get("url") != f"{base}/raiz_{uf}.tar.gz":
                 raise ValueError("pacote deve apontar ao Release público do manifesto")

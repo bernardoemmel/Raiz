@@ -818,7 +818,7 @@ class ArmazemRelease:
                 geos[nome] = projetar_geo(self.local.ler(chave))
         basicos = projetar_csvs(uf, csvs)
         pacote = self._tar(uf, basicos)
-        entrada = entrada_publica(info)
+        entrada = entrada_publica(info, uf=uf)
         entrada.update(url=aberto.url(f"raiz_{uf}.tar.gz"), tamanho=len(pacote), versao=sha256_bytes(pacote)[:16])
         with aberto._trava(f"trava-publicar-{uf}", 1800):
             aberto._subir(aberto._release(), f"raiz_{uf}.tar.gz", pacote, "application/gzip")
@@ -929,6 +929,10 @@ class ArmazemRelease:
             controle=self.url(f"raiz_controle_{u}.json"),
         )
         info.update(extra)
+        if isinstance(est.get("processamento"), dict):
+            info["processamento"] = est["processamento"]
+        else:
+            info.pop("processamento", None)
         from raiz.quantis import quantis_uf
 
         quantis = quantis_uf(self.local.raiz / "saida" / u, u, vers)

@@ -170,3 +170,33 @@ def test_arquivo_de_municipio_fora_da_uf_do_recorte_continua_bloqueado():
     projetados = projetar_csvs("RN", {"imoveis_1504950.csv": CSV})
     with pytest.raises(ValueError, match="município do recorte"):
         validar_asset_publico("raiz_RN.tar.gz", ArmazemRelease._tar("RN", projetados))
+
+
+def test_processamento_publico_filtra_detalhes_e_recusa_injecao_aninhada():
+    from raiz.executor.publicacao_aberta import entrada_publica
+
+    observacao = {
+        "versao": 1,
+        "escopo": "unidade",
+        "unidade": "RN-1",
+        "municipios_total": 4,
+        "municipios": {"prontos": 1, "em_execucao": 1, "com_erro": 1, "pendentes": 1, "desconhecidos": 0},
+        "observado_em": "2026-11-13T00:00:00+00:00",
+        "ultima_mudanca_em": "2026-11-12T23:59:30+00:00",
+        "valido_ate": "2026-11-13T00:02:00+00:00",
+        "erro": "DETALHE_INTERNO",
+    }
+    entrada = entrada_publica({"processamento": observacao}, uf="RN")
+    entrada["url"] = f"https://github.com/{REPO}/releases/download/{TAG}/raiz_RN.tar.gz"
+    manifesto = {
+        "escopo": "publico_basico",
+        "versao_publicacao": 1,
+        "repo": REPO,
+        "tag": TAG,
+        "estados": {"RN": entrada},
+    }
+    assert "DETALHE_INTERNO" not in json.dumps(manifesto)
+    validar_asset_publico("estados.json", json.dumps(manifesto).encode())
+    entrada["processamento"]["municipios"]["cod_imovel"] = "DETALHE_INTERNO"
+    with pytest.raises(ValueError, match="processamento público"):
+        validar_asset_publico("estados.json", json.dumps(manifesto).encode())
