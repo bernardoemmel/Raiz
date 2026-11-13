@@ -312,7 +312,7 @@ não altera sua política nem equivale a aprovação dos testes de injeção pen
 
 ## Rodada 12 — medição do acerto e protocolo de mudança
 
-Entrega no [PR #100](https://github.com/bernardoemmel/Raiz/pull/100), atualizada com a main `3b962e7` (#97).
+Entrega no [PR #100](https://github.com/bernardoemmel/Raiz/pull/100), atualizada com a main `52118b5` (#95, após #97).
 Os PRs #87, #88, #91 e #92 foram revistos e incorporados; o protocolo da rodada 12 permanece privado.
 
 - CRPS com properscoring, sorteios finitos e denominador `crps_n` no placar existente. Corrigido bug pequeno:
@@ -358,3 +358,33 @@ O #97 também foi incorporado: calendário público no MCP e disparos de coleta/
 sem alteração nas métricas ou nos arquivos privados da rodada 12. O snapshot autenticado do Pará já
 foi preparado localmente; as tentativas de suíte integral interrompidas pelo ambiente não contam como
 aprovação. Valem o XML de uma execução concluída e os checks verdes do commit final, sem skips ocultos.
+
+
+### Fechamento local da rodada 12 e revisão da main #95
+
+A suíte integral sobre a combinação #97 terminou com **2.758 aprovados, zero falhas, nenhum skip e um
+xfail conhecido de TIR executado**, em 2.096,60 s (34 min 56 s). PostGIS, LanguageTool, LibreOffice/OCR e
+snapshot estadual privado real estavam disponíveis. O XML confirma 2.759 casos; a indisponibilidade anterior
+do Pará foi resolvida, sem dispensar o teste. O CI do commit final continua obrigatório antes do merge.
+
+A main `52118b5` foi incorporada em seguida. A auditoria de promoção agora reexecuta o commit fechado em
+checkout temporário isolado, incluindo conferência da origem dos módulos, em lugar de comparar hashes antigos
+com código corrente. O job Python baixa o histórico para essa prova local; não modifica promoções, reservas
+vivas ou versões calculadas. Os portões de publicação mais estritos e suas integrações permanecem no PR #76.
+
+Achados maiores da revisão, com dono:
+
+- **Dados:** `ArmazemRelease.publicar` troca `self.local` pela cópia temporária. Escrita concorrente via o mesmo
+  objeto pode ser desviada e perdida quando a cópia acaba. Reprodução isolada com GitHub falso confirmou perda
+  da escrita de estado feita dentro de `_publicar_uf` após falha controlada. Separar leitura da publicação e
+  escrita persistente; não interromper executores nem descartar checkpoints. Detalhes da reprodução no PR #76.
+- **Produto e regras:** o corpus real do CI `43360286672` executou 12 variantes; 3 passaram e 9 reprovaram por
+  `resposta_json_invalido`, inclusive controles limpos. Os diagnósticos desta execução não apontaram tentativa
+  indevida ou efeito de estado, mas o ensaio continua reprovado por utilidade. A exceção de ausência expirou;
+  não renovar baseline nem transformar erro em aviso. Adequar o leitor ao contrato de resposta.
+
+
+Após incorporar #95, **442 testes focados passaram**, cobrindo avaliação da rodada 12, placar/painel,
+retratos, checkpoints, preservação do executor, publicação, metadados, telemetria e promoção histórica.
+Ruff e formatação passaram nos 589 arquivos; actionlint e diff também aprovaram. O CI completo da nova
+combinação continua sendo a condição de merge.

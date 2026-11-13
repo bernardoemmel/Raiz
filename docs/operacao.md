@@ -977,6 +977,9 @@ O CI executa os ensaios sintéticos no pytest completo, inclusive o solver real 
 confere os esquemas e constrói/inspeciona o wheel para bloquear scpi/vegan, inclusive dependências indiretas.
 Esses resultados demonstram o funcionamento das checagens; não são métricas de acerto empírico do carbono.
 O CI não cancela uma execução anterior ao chegar outro commit (`cancel-in-progress: false`).
+A auditoria de promoções reexecuta o commit histórico fechado em um checkout isolado. O job Python usa
+histórico Git completo; em clone local raso, execute `git fetch --unshallow` antes da suíte. Não substitua os
+hashes do registro antigo pelos hashes da main nem altere as referências dos executores em andamento.
 
 ## Medição semanal de agentes
 

@@ -211,3 +211,25 @@ conhecidos depois. Nenhuma curva simulada é promovida a evidência de qualidade
 O otimizador mantém a chance beta-binomial por perfil enquanto o modelo temporal
 acumula e mede previsões reais. SQLMesh e Dagster continuam fora desta entrega;
 o executor próprio permanece conforme a decisão anterior.
+
+### Compatibilidade de retratos com fechamento geométrico repetido
+
+O transporte e a importação reconhecem uma falha específica do escritor legado:
+em polígonos 2D com o vértice de fechamento repetido, GEOS pode retirar uma única
+repetição por chamada de `normalize`. Assim, um retrato recém-gravado podia falhar
+na segunda normalização feita pelo validador. O caso foi reproduzido com um
+polígono sintético e em 28 de 56.217 geometrias do pacote privado de RN, cujo
+SHA-256 é `284868f127ceff0f1b46967bcaeed8c555a7e972d338d7bb39c3739014bc07ac`.
+
+O leitor `compat_retratos.py` primeiro usa a validação original. A exceção aceita
+somente repetições finais exatamente iguais ao primeiro vértice de cada anel,
+sem tolerância, reparo ou comparação apenas topológica. Gzip, nome e SHA-256,
+JSON canônico, metadados, hash original de cada linha, atributos e contexto
+continuam obrigatórios. Uma cópia com o fechamento estabilizado passa pelo
+validador completo em pasta temporária; ela não substitui o arquivo de origem.
+
+Publicação, recibos e importação conservam os bytes, o hash, a observação e as
+versões originais. Não há migração, data retroativa ou atribuição de versão nova
+à captura antiga. O escritor e os arquivos que formam as onze versões de tarefas
+permanecem iguais, permitindo retomar marcas já válidas. Uma correção futura da
+escrita precisará registrar sua mudança real de versão.

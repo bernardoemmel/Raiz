@@ -69,10 +69,12 @@ O `rodar_estado.py` organiza a rodada em volta dele:
    - **manutenção**: funil pronto, mas falta tarefa nova do produto, o código de uma tarefa mudou, o estado é de antes
      do executor (adotar) ou não roda há 6 dias ou mais (o executor refaz só o que mudou nas fontes: CAR, alertas,
      MapBiomas). Só usa as vagas que sobram, e no máximo 4 ao mesmo tempo: nunca segura vaga de estado novo.
-   São até 15 jobs ao mesmo tempo, somando todas as rodadas do workflow (o GitHub dá no máximo 20 máquinas ao mesmo
+   O modo próximo repõe todas as vagas livres; o cron de 15 minutos drena pedidos persistidos e repõe UFs
+   incompletas, sem começar manutenção. A admissão CAS inclui motor, lotes e catálogo no teto global de 15.
+   São até 15 jobs ao mesmo tempo (o GitHub dá no máximo 20 máquinas ao mesmo
    tempo para o repositório inteiro; 5 ficam livres para o CI dos PRs, o site e o planejamento das rodadas).
 2. **Preparar** (`rodar_estado.py --preparar`): baixa uma vez por dia os arquivos nacionais (lista de municípios,
-   embargos do Ibama, biomas, geobr, TMF, causas da perda) e guarda no cache comum do Actions.
+   embargos do Ibama, biomas, geobr, TMF, causas da perda) e guarda no cache comum privado autenticado.
 3. **Um job por unidade** (`rodar_estado.py <UF ou fatia, ex. MG-3> --executor`):
    - baixa as fontes do estado (MapBiomas Alerta, os 5 temas do MapBiomas, geobr, TMF, causas) antes de tudo, para a
      assinatura de cada município no executor já nascer com elas;
@@ -91,6 +93,19 @@ O `rodar_estado.py` organiza a rodada em volta dele:
 4. **Prazo de 5h30 por job**: se a unidade parou pelo prazo e avançou, o job dispara o workflow de novo só para ela; se
    terminou, passa a vez ao próximo da fila. Unidade que parou sem avançar nenhum município não se dispara de novo
    (a rodada semanal tenta outra vez).
+
+### Preservação e retomada
+
+Antes do cálculo, o workflow restaura o checkpoint privado da unidade. Ao sair do executor, mesmo com falha de
+publicação, salva resultados, marcas, sidecars originais e retratos opacos antes de finalizar metadados e atestações.
+O salvamento confere cada pacote por download e hash. Nenhum dado completo é enviado a artifacts públicos.
+Uma falha periódica de publicação deixa o cálculo continuar; a falha final continua visível no resultado do job.
+A retomada confere bytes, hashes, versões e assinaturas: resultados íntegros são pulados e saídas divergentes
+são recalculadas. O checkpoint não valida cientificamente um retrato e não recupera o que nunca foi salvo.
+O prazo do executor reserva tempo para esses passos finais; uma perda abrupta do runner antes deles ainda
+depende da última publicação/checkpoint concluído.
+
+O painel municipal está documentado em `docs/processamento-por-estado.md`.
 
 ### Quando uma fonte recusa o GitHub
 

@@ -244,7 +244,8 @@ def planejar(pedidos: list[str], refazer: set[str], modo: str = "automatico", li
     incompleto) pega primeiro as vagas livres (VAGAS menos as unidades já rodando em outras rodadas); a fila
     'manutencao' (funil pronto: tarefa nova, código mudado, adoção, reconferência) pega só o que sobra, até
     VAGAS_MANUTENCAO ao mesmo tempo, e nunca segura vaga de estado novo. No modo 'proximo' (um job terminou e passa a
-    vez), entra no máximo uma unidade, e ficam de fora as tentadas há pouco. `liberou` é apenas informativo:
+    vez), repõe todas as vagas livres e ficam de fora as tentadas há pouco. O cron repõe só a fila nova.
+    `liberou` é apenas informativo:
     a vaga só fica livre quando a API confirma o job concluído, inclusive seus passos finais.
     No Actions a fila/reserva persistente serializa a admissão entre rodadas, sem cancelar jobs."""
     pub = S.ler_manifesto().get("estados", {})
@@ -263,8 +264,6 @@ def planejar(pedidos: list[str], refazer: set[str], modo: str = "automatico", li
 
     manut_ativas = sum(1 for u in ativas if motivo(pub.get(S.ler_unidade(u)[0]), atual, atual_exec, u)[2] != "novo")
     vagas = max(0, min(VAGAS, 15) - len(ativas) - planejando)
-    if modo == "proximo":
-        vagas = min(vagas, 1)
     vagas_manut = vagas if pedidos else max(0, VAGAS_MANUTENCAO - manut_ativas)
     filas = {"novo": [], "manutencao": []}
     linhas, prontas = [], 0
@@ -289,19 +288,18 @@ def planejar(pedidos: list[str], refazer: set[str], modo: str = "automatico", li
             filas[classe].append(u)
             linhas.append((u, e, razao, classe))
     escolhidas = filas["novo"][:vagas]
-    escolhidas += filas["manutencao"][:max(0, min(vagas - len(escolhidas), vagas_manut))]
+    if modo != "fila":
+        escolhidas += filas["manutencao"][:max(0, min(vagas - len(escolhidas), vagas_manut))]
     matriz = escolhidas
     if no_actions:
         from fila_processamento import reservar
 
         manutencao = {u for uf in S.ORDEM for u in S.unidades(uf)
                      if motivo(pub.get(uf), atual, atual_exec, u)[2] == "manutencao"}
-        candidatos = [] if modo == "fila" else filas["novo"] + filas["manutencao"]
+        candidatos = filas["novo"] if modo == "fila" else filas["novo"] + filas["manutencao"]
         matriz = reservar(candidatos, pedidos, refazer, _e_unidade, VAGAS, continuacao,
-                          1 if modo == "proximo" else None, manutencao, VAGAS_MANUTENCAO)
+                          None, manutencao, VAGAS_MANUTENCAO)
         escolhidas = [p["unidade"] for p in matriz]
-    elif modo == "fila":
-        escolhidas, matriz = [], []
     tabela = []
     for u, e, razao, classe in linhas:
         feitos = "—" if not e else f"{e.get('municipios', 0) + (e.get('sem_imoveis') or 0)}/{e.get('total_ibge') or S.TOTAL_IBGE[S.ler_unidade(u)[0]]}"
