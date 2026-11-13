@@ -308,7 +308,12 @@ def roteador(engine_de):
     def ficha_atual(request: Request, codigo: str) -> dict:
         d = achar(request, codigo)
         if d["aceito"] and d.get("_rodada_id"):
-            d = {**d, "_versao": publico_versoes.registrar(engine_de(request), codigo, d["_rodada_id"])}
+            versao = publico_versoes.registrar(engine_de(request), codigo, d["_rodada_id"])
+            if versao is None:
+                # O aceite pode ter sido revogado entre a primeira consulta e a revalidação.
+                # Nunca renderizar o CAR ou a imagem com o estado anterior de autorização.
+                raise HTTPException(404, "ficha não disponível", headers=publico_versoes.SEM_CACHE)
+            d = {**d, "_versao": versao}
         return d
 
     def ficha_datada(request: Request, codigo: str, versao: str, markdown: bool = False) -> Response:

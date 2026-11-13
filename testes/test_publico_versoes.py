@@ -222,6 +222,35 @@ def test_revogacao_bloqueia_tambem_html_markdown_e_versoes_antigas(banco, estado
 
 
 @pytest.mark.banco
+def test_revogacao_entre_leitura_e_revalidacao_nao_renderiza_autorizacao_antiga(banco, monkeypatch):
+    rodada(banco)
+    registrar = v.registrar
+
+    def revogar_antes_de_registrar(engine, codigo, rodada_id):
+        with engine.begin() as con:
+            con.execute(text("update negocio.aceite set estado='cancelado' where cod_imovel=:car"), {"car": CAR})
+        return registrar(engine, codigo, rodada_id)
+
+    def imagem_nao_pode_ser_consultada(_):
+        pytest.fail("A renderização não pode consultar a imagem após a revalidação recusada")
+
+    monkeypatch.setattr(v, "registrar", revogar_antes_de_registrar)
+    monkeypatch.setattr(publico, "_imagens_do_aceite", imagem_nao_pode_ser_consultada)
+    with cliente(banco) as cl:
+        for caminho, headers in (
+            (f"/p/{CODIGO}", {}),
+            (f"/p/{CODIGO}.md", {}),
+            (f"/p/{CODIGO}", {"Accept": "text/markdown"}),
+        ):
+            with banco.begin() as con:
+                con.execute(text("update negocio.aceite set estado='aceito' where cod_imovel=:car"), {"car": CAR})
+            resposta = cl.get(caminho, headers=headers)
+            assert resposta.status_code == 404
+            assert resposta.headers["cache-control"] == "private, no-store"
+            assert CAR not in resposta.text and "satelite.webp" not in resposta.text
+
+
+@pytest.mark.banco
 def test_html_markdown_datados_com_aviso_e_fronteira_paga(banco):
     rodada(banco)
     with cliente(banco) as cl:
