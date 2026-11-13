@@ -526,3 +526,10 @@ Suíte integral da integração nacional + R12 + main `52118b5`: **2.725 aprovad
 em 658,63s, código de saída zero. Arquivo local:
 `/tmp/raiz-integracao-main-final.log`. Soma-se à execução focada com PostGIS
 dos seis casos ajustados. Ruff/formatação dos 607 arquivos passaram.
+
+Main `692663c` (pasta do banco/comprador) integrada; conflito no NOTICE resolvido
+preservando ambas as atribuições. 107 testes da nova pasta e auditoria da fila
+passaram com PostGIS real; Ruff e formatação dos 601 arquivos passaram. Modelo
+R12 permanece `restauracao-2026d+490ab152`. O CI anterior `43361791598` concluiu
+com apenas as duas expectativas R11 já corrigidas; novo head será enviado após
+essa conclusão natural. Oito fatias PA estavam concluídas neste registro.

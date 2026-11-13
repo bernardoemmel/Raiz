@@ -1,0 +1,13 @@
+.pasta-pagina{max-width:1200px;margin:auto;padding:24px;overflow-wrap:anywhere}
+.pasta-comandos{display:flex;gap:16px;flex-wrap:wrap;align-items:end;margin:24px 0}
+.pasta-comandos label{display:grid;gap:8px}.pasta-comandos select,.pasta-comandos button{min-height:48px;padding:12px;font:inherit}
+.pasta-pagina section{margin:var(--e7) 0}.pasta-imovel{border-top:1px solid var(--nevoa);padding:24px 0}
+.pasta-fontes{font-size:var(--t-texto);color:var(--pedra)}.pasta-pagina summary{padding:16px 0;min-height:48px;cursor:pointer}
+.pasta-pagina dd{margin-left:16px}.pasta-grade{max-width:100%;font:inherit;border-color:var(--nevoa)}
+.pasta-grade.tabulator{background:var(--papel)}
+.pasta-grade.tabulator .tabulator-header{color:var(--tinta);background:var(--nevoa)}.pasta-grade .tabulator-row{color:var(--tinta);background:var(--superficie)}
+.pasta-grade .tabulator-row.tabulator-row-even{background:var(--papel)}.pasta-grade .tabulator-cell{white-space:normal}
+.pasta-pagina a:focus-visible,.pasta-pagina button:focus-visible,.pasta-pagina select:focus-visible,.pasta-pagina summary:focus-visible{outline:3px solid var(--mata);outline-offset:3px}
+@media(max-width:600px){.pasta-pagina{padding:16px}.pasta-comandos{display:grid}.pasta-comandos select,.pasta-comandos button{width:100%}}
+
+.pasta-grade [role="columnheader"]:focus-visible{outline:3px solid var(--mata);outline-offset:-3px}
