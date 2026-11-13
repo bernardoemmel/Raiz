@@ -94,7 +94,7 @@ def test_timeout_repete_leitura_mas_limite_de_bytes_nao_relaxa(monkeypatch):
 
 def test_ioepa_seleciona_edicoes_e_extras_da_janela_inclusive_virada_de_ano():
     hoje = dt.date(2027, 1, 3)
-    assert diario_pa.sementes(FONTE, hoje) == [
+    assert diario_pa.sementes(FONTE, hoje)[:2] == [
         "https://www.ioepa.com.br/pages/2027/",
         "https://www.ioepa.com.br/pages/2026/",
     ]
@@ -166,7 +166,9 @@ def test_calendario_usa_dia_brasileiro_na_virada_utc():
         return "<main>Índice sem publicação</main>", "html"
 
     coleta.coletar_fonte(FONTE, dt.datetime(2027, 1, 1, 1, tzinfo=dt.UTC), obter=obter)
-    assert visitadas == ["https://www.ioepa.com.br/pages/2026/"]
+    assert visitadas[0] == "https://www.ioepa.com.br/pages/2026/"
+    assert visitadas[1] == "https://www.ioepa.com.br/pages/2026/2026.12.31.DOE.pdf"
+    assert len(visitadas) == 8
 
 
 def test_restricao_interrompe_as_outras_consultas_da_mesma_fonte():
@@ -180,6 +182,21 @@ def test_restricao_interrompe_as_outras_consultas_da_mesma_fonte():
     _, estado = coleta.coletar_fonte(fonte, AGORA, obter=obter)
     assert len(visitadas) == 1 and estado.situacao == "erro"
     assert "restrição" in estado.erro
+
+
+def test_ioepa_le_pdf_oficial_mesmo_se_indice_falhar():
+    chamadas = []
+
+    def obter(url, _):
+        chamadas.append(url)
+        if url.endswith("/"):
+            raise coleta.http.FalhaDownload("falha transitória do índice")
+        return f"EDITAL DE LEILÃO RURAL Nº 1/2026\nCAR {CAR}. Leilão em 30/11/2026.", "pdf"
+
+    eventos, estado = coleta.coletar_fonte({**FONTE, "max_paginas": 2}, AGORA, obter=obter)
+    assert len(eventos) == 1 and eventos[0].codigos_car == [CAR]
+    assert chamadas[1] == "https://www.ioepa.com.br/pages/2026/2026.11.12.DOE.pdf"
+    assert estado.situacao == "parcial"  # extras continuam sem cobertura confirmada
 
 
 def test_rr_formulario_publico_prepara_a_mesma_sessao_antes_do_pdf(monkeypatch):

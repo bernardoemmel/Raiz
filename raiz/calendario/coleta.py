@@ -801,7 +801,11 @@ def coletar_fonte(fonte: dict, agora: dt.datetime, obter=None, anteriores=()) ->
                     if documento in fila:
                         fila.remove(documento)
                     fila.insert(0, documento)
-                fila.extend(u for u in links if u not in vistos and u not in fila)
+                descobertos = [u for u in links if u not in vistos and u not in fila]
+                if atos_pdf.diario(fonte):
+                    fila[0:0] = descobertos  # lê a edição antes de consultar outro dia
+                else:
+                    fila.extend(descobertos)
         except AcessoRestrito:
             falhas += 1
             acesso_restrito = True
