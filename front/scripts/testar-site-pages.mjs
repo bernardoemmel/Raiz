@@ -168,6 +168,31 @@ async function mapaPronto() {
     return m?.loaded() && !m.isMoving()
   }, null, { timeout: 30000 })
 }
+async function pontoDaFazenda(camera, car, etapa) {
+  await pagina.waitForFunction(async ({ car, municipio }) => {
+    const m = document.querySelector(".mapa-brasil .mapa").__mapa
+    const [imoveis, limite] = await Promise.all([m.getSource("imoveis").getData(), m.getSource("municipio").getData()])
+    return imoveis.features.some(f => f.properties.cod_imovel === car)
+      && limite.features.some(f => String(f.properties.cod_ibge) === municipio)
+  }, { car, municipio: MUNICIPIO })
+  await mapaPronto()
+  const evidencia = await pagina.evaluate(async camera => {
+    const m = document.querySelector(".mapa-brasil .mapa").__mapa
+    // A fonte pode estar pronta antes do efeito React que enquadra a nova rota.
+    // Deixa esse enquadramento apresentar seu frame antes da aproximação do teste.
+    await new Promise(resolve => { m.once("idle", resolve); m.triggerRepaint() })
+    const antes = { center: m.getCenter().toArray(), zoom: m.getZoom() }
+    await new Promise(resolve => { m.once("idle", resolve); m.jumpTo(camera); m.triggerRepaint() })
+    const p = m.project([-49.925, -6.102]), r = m.getCanvas().getBoundingClientRect()
+    return { antes, depois: { center: m.getCenter().toArray(), zoom: m.getZoom() },
+      ponto: { x: r.x + p.x, y: r.y + p.y },
+      feicoes: m.queryRenderedFeatures(p, { layers: ["imoveis"] }).map(f => ({ source: f.source, car: f.properties.cod_imovel })) }
+  }, camera)
+  fs.writeFileSync(path.join(resultado, `selecao-${etapa}.json`), JSON.stringify(evidencia, null, 2))
+  assert.equal(evidencia.depois.zoom, camera.zoom, "O enquadramento precisa terminar antes de reprojetar o ponto do clique.")
+  assert.equal(evidencia.feicoes[0]?.car, car, "O ponto reprojetado precisa atingir o CAR esperado no desenho real.")
+  return evidencia.ponto
+}
 
 try {
   conferirPublicacao()
@@ -411,11 +436,10 @@ try {
   await conferirSelecaoLimpa()
   await buscar("Parauapebas", `#/municipio/${MUNICIPIO}`)
   await pagina.locator(".lista-basica").waitFor()
-  await pagina.evaluate(camera => document.querySelector(".mapa-brasil .mapa").__mapa.jumpTo(camera), selecaoAntes.camera)
-  await mapaPronto()
+  const pontoAoVoltar = await pontoDaFazenda(selecaoAntes.camera, selecaoAntes.selecionados[0], "volta")
   await conferirSelecaoLimpa()
   // A limpeza não impede uma seleção nova quando os mesmos CARs voltam à fonte.
-  await pagina.mouse.click(pontoFazenda.x, pontoFazenda.y)
+  await pagina.mouse.click(pontoAoVoltar.x, pontoAoVoltar.y)
   await pagina.locator(".maplibregl-popup").waitFor()
   const selecaoDepois = await pagina.evaluate(async car => {
     const m = document.querySelector(".mapa-brasil .mapa").__mapa
@@ -462,10 +486,8 @@ try {
   await pagina.getByText("O desenho das fazendas deste município ainda não está disponível.", { exact: false }).waitFor()
   await buscar(MUNICIPIO, `#/municipio/${MUNICIPIO}`)
   await pagina.locator(".lista-basica").waitFor()
-  await pagina.waitForLoadState("networkidle")
-  await pagina.evaluate(camera => document.querySelector(".mapa-brasil .mapa").__mapa.jumpTo(camera), selecaoAntes.camera)
-  await mapaPronto()
-  await pagina.mouse.click(pontoFazenda.x, pontoFazenda.y)
+  const pontoAntesDaSaida = await pontoDaFazenda(selecaoAntes.camera, selecaoAntes.selecionados[0], "saida")
+  await pagina.mouse.click(pontoAntesDaSaida.x, pontoAntesDaSaida.y)
   await pagina.locator(".maplibregl-popup").waitFor()
   await pagina.locator('.lista-basica a[href^="#/fazenda/"]').first().focus()
   await pagina.waitForFunction(() => {
