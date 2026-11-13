@@ -403,3 +403,9 @@ nos microssegundos do horário do aviso. Agora confere o conteúdo protegido
 integralmente, excluindo apenas os metadados identificadores/temporais conhecidos.
 Os seis testes desses módulos/casos passaram com PostGIS real local em 51,23s.
 Nenhuma implementação de API, MCP ou front foi alterada por essas correções.
+
+A suíte integrada com a main e a expansão nacional concluiu com **2.725 testes
+aprovados**, 294 skips de ambiente, um xfail e somente o replay PA desmarcado
+(aprovado separadamente no CI), em 658,63s. Os seis casos que exigem PostGIS passaram
+localmente após corrigir as expectativas. Nenhuma alteração de modelo ocorreu
+após congelar a execução PA R12 `43361839589`.
