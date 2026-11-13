@@ -804,3 +804,15 @@ estadual incluída. Front com 338 testes e build aprovado na base #95; licenças
 conferidos. Main #98 incorporada preservando as duas entregas e a cabeça única 0035, sem migração nova do calendário.
 Na árvore atualizada: 205 testes de integração aprovados, 341 testes do front e build aprovado. O único skip local
 é do servidor LanguageTool, fornecido pelo CI. Nenhuma exigência do CI foi removida.
+
+
+## Correção da cota do arquivo privado — 13/11/2026
+
+O log de AL comprovou esgotamento da API do GitHub durante publicação/checkpoint/atestação.
+A correção revalida ETags, respeita a janela de cota, evita novas chamadas durante a recusa
+e consulta travas ocupadas sem repetir POST. Preservação privada ganha margem para esperar
+a renovação horária; nenhuma reserva viva, trava ou workflow é removido/cancelado.
+A prova real somente de leitura confirmou HTTP 200/304 sem consumir outra unidade de cota.
+75 testes de integração passaram; 21 casos específicos cobrem inclusive checkpoint recusado
+na primeira tentativa e restaurado byte a byte após a renovação simulada. Procedimento,
+fonte oficial e limites em `docs/operacao.md`. Suíte completa e CI seguem antes do merge.

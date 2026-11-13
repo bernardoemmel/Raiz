@@ -148,7 +148,7 @@ jobs:
       OGR_GEOJSON_MAX_OBJ_SIZE: "0"
       LANES: "3"
       RAIZ_LIMITE_MIN: "330" # 5h30 por job
-      RAIZ_MARGEM_MIN: "25" # tempo guardado para guardar o cache e continuar
+      RAIZ_MARGEM_MIN: "105" # até 75 min para checkpoint/cota e 30 min para publicação e continuação
       RAIZ_GRACA_MIN: "10" # folga para os municípios em curso quando o executor para de começar novos
       RAIZ_RASTER_CACHE_GB: "5"
       RAIZ_CONTINUACAO: ${{ matrix.continuacao }}
@@ -243,7 +243,9 @@ jobs:
 
       - name: Preservar resultados e retratos opacos no checkpoint privado
         if: ${{ always() && steps.privacidade.outcome == 'success' && steps.checkpoint_restaurado.outcome == 'success' && steps.executor.outcome != 'skipped' }}
-        timeout-minutes: 20
+        timeout-minutes: 75 # comporta a renovação da cota horária sem perder os bytes locais
+        env:
+          RAIZ_GITHUB_ESPERA_MAX_S: "3700"
         working-directory: ${{ steps.publicador_checkout.outcome == 'success' && 'publicador-atual' || '.' }}
         run: >-
           uv run --all-extras python -m raiz.executor.checkpoint salvar

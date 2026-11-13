@@ -106,6 +106,36 @@ Conferência real concluída em 12/11/2026: **PI, 130 municípios e 185.791 imó
 56.217 imóveis**. DuckDB, SQLite e contagem de referência concordaram em todos os municípios. Os 242.008
 registros foram lidos de pacotes privados congelados e conferidos por SHA; nenhum dado foi publicado por esse
 ensaio. Evidência agregada: `docs/medicoes/ibis-contagens-rn-pi-2026-11-12.json`.
+
+## Cota da API durante publicação e checkpoint
+
+A [execução de AL](https://github.com/bernardoemmel/Raiz/actions/runs/43428404941)
+registrou a recusa explícita `API rate limit exceeded for installation`, afetando publicação,
+checkpoint e atestação às 13h05 UTC de 13/11. Isso comprova o esgotamento nessa execução;
+não transforma os 403 antigos sem cabeçalhos em diagnósticos comprovados.
+
+O cliente revalida metadados autenticados com ETag: somente 304 devolvido pelo servidor
+reaproveita os bytes em memória. Visibilidade privada continua conferida remotamente em
+cada acesso, e 401/403/404/500 não usam resposta antiga. A espera respeita `Retry-After`
+e `x-ratelimit-reset`; recusas conhecidas suspendem novas chamadas do mesmo cliente.
+Erros de permissão e mutações de resultado incerto não são repetidos. Durante uma disputa,
+a trava é consultada por GET condicional; outro POST só ocorre após 404. Nenhuma trava é
+apagada por idade. A [documentação oficial](https://docs.github.com/en/rest/using-the-rest-api/best-practices-for-using-the-rest-api)
+confirma que 304 autenticado não consome cota primária. A prova real de leitura retornou
+200 e 304, com a mesma cota restante (14.775); a credencial dessa prova difere do Actions.
+
+A espera normal é limitada a 120 segundos por chamada. O passo de preservação privada
+permite até 3.700 segundos de espera da cota e tem timeout de 75 minutos. O motor deixa
+105 minutos de margem antes do limite de 330 minutos, mais a tolerância final do job:
+75 para checkpoint/cota e 30 para os demais passos. A margem reduz o tempo de cálculo
+por tentativa para proteger resultados já calculados; a continuação os reaproveita.
+A espera não garante salvamento diante de indisponibilidade prolongada do serviço.
+
+Validação: 75 testes de HTTP, armazém, transferência e checkpoint passaram; a extensão
+chegou a 21 casos específicos de cota/revalidação. O teste injeta uma recusa de cota no
+upload do checkpoint, simula a renovação uma hora depois e confere a restauração de todos
+os bytes, sidecars, marcas e retratos opacos. Não interrompe nem cancela Actions reais.
+
 ## Falhas concorrentes e impedimento da fonte — 13/11/2026
 
 A rodada `43355236141` confirmou erro HTTP 404 na leitura de `estados.json` depois de

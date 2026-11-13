@@ -633,3 +633,15 @@ A integração preserva o CI sem cancelamento da main #100. Os testes focados de
 fila, catálogo, privacidade e avaliação passaram (227; um caso condicional não executado).
 Ruff, formatação, actionlint e varredura de CPF/CNPJ passaram. O CI completo será conferido
 novamente antes do merge. Não há nova UF concluída comprovada nem previsão nacional válida.
+
+
+## Correção da cota do arquivo privado — 13/11/2026
+
+O log de AL comprovou esgotamento da API do GitHub durante publicação/checkpoint/atestação.
+A correção revalida ETags, respeita a janela de cota, evita novas chamadas durante a recusa
+e consulta travas ocupadas sem repetir POST. Preservação privada ganha margem para esperar
+a renovação horária; nenhuma reserva viva, trava ou workflow é removido/cancelado.
+A prova real somente de leitura confirmou HTTP 200/304 sem consumir outra unidade de cota.
+75 testes de integração passaram; 21 casos específicos cobrem inclusive checkpoint recusado
+na primeira tentativa e restaurado byte a byte após a renovação simulada. Procedimento,
+fonte oficial e limites em `docs/operacao.md`. Suíte completa e CI seguem antes do merge.
