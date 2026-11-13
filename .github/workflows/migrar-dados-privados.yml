@@ -34,6 +34,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.13.6"
       - name: Instalar dependências
         run: uv sync --frozen --all-extras
       - name: Exigir escritores parados antes de qualquer remoção

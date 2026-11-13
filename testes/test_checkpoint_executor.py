@@ -83,6 +83,30 @@ def test_checkpoint_restaura_bytes_sidecars_marcas_e_retratos_opacos(tmp_path, m
     assert C.restaurar("PA-1", arm=arm, raizes=destino)["gravados"] == 0
 
 
+def test_subdivisao_herda_checkpoint_antigo_e_depois_retoma_o_proprio(tmp_path, monkeypatch):
+    roots = raizes(tmp_path / "origem")
+    fontes(roots)
+    gh = GitHubFalso()
+    arm = _armazem(gh, tmp_path / "api")
+    monkeypatch.setenv("GITHUB_RUN_ID", "1234")
+    monkeypatch.setenv("GITHUB_RUN_ATTEMPT", "1")
+    C.salvar("PA-1", arm=arm, raizes=roots)
+    destino = raizes(tmp_path / "novo")
+    resultado = C.restaurar("PA-1001", arm=arm, raizes=destino, herdar_particao=True)
+    assert resultado["herdado_de"] == "PA-1"
+    assert bytes_arquivos(destino) == bytes_arquivos(roots)
+    # Progresso próprio diferente do ancestral: uma retomada não o sobrescreve.
+    gravar(destino["motor"], "saida/PA/rodada.json", b'{"situacao":"continuou"}')
+    C.salvar("PA-1001", arm=arm, raizes=destino)
+    retomado = raizes(tmp_path / "retomado")
+    resultado = C.restaurar("PA-1001", arm=arm, raizes=retomado, herdar_particao=True)
+    assert "herdado_de" not in resultado
+    assert (retomado["motor"] / "saida/PA/rodada.json").read_bytes() == b'{"situacao":"continuou"}'
+    ancestral = raizes(tmp_path / "ancestral")
+    C.restaurar("PA-1", arm=arm, raizes=ancestral)
+    assert bytes_arquivos(ancestral) == bytes_arquivos(roots)
+
+
 def test_checkpoint_primeira_rodada_ausente_e_sem_arquivos_nao_muda_latest(tmp_path):
     gh = GitHubFalso()
     arm = _armazem(gh, tmp_path / "api")
@@ -335,7 +359,8 @@ def test_cli_repositorio_original_independe_do_checkout_do_publicador(tmp_path, 
                     "espelho": tmp_path / "dados/armazem_local_privado",
                     "motor": tmp_path / "motor",
                     "retratos": tmp_path / "dados/historico_aprendizado",
-                }
+                },
+                "herdar_particao": False,
             },
         )
     ]

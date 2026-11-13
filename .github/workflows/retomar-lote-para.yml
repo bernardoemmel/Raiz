@@ -51,6 +51,7 @@ jobs:
         run: cp raiz/restauracao_retomada.py motor-origem/raiz/restauracao_retomada.py
       - uses: astral-sh/setup-uv@v6
         with:
+          version: "0.13.6"
           enable-cache: false
       - name: Dependências do lockfile original
         working-directory: motor-origem
@@ -91,6 +92,7 @@ jobs:
       - run: cp raiz/restauracao_retomada.py motor-origem/raiz/restauracao_retomada.py
       - uses: astral-sh/setup-uv@v6
         with:
+          version: "0.13.6"
           enable-cache: false
       - working-directory: motor-origem
         run: uv sync --frozen --extra motor
@@ -134,6 +136,7 @@ jobs:
       - run: cp raiz/restauracao_retomada.py motor-origem/raiz/restauracao_retomada.py
       - uses: astral-sh/setup-uv@v6
         with:
+          version: "0.13.6"
           enable-cache: false
       - working-directory: motor-origem
         run: uv sync --frozen --extra motor

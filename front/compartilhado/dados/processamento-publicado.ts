@@ -39,7 +39,7 @@ export function lerProcessamentoPublicado(valor: unknown, uf: string): Processam
   if (!UFS.has(uf) || !chaves(valor, CAMPOS) || valor.versao !== 1) return null
   if (valor.escopo !== "uf" && valor.escopo !== "unidade") return null
   if (typeof valor.unidade !== "string" ||
-      (valor.escopo === "uf" ? valor.unidade !== uf : !new RegExp(`^${uf}(?:-[1-9][0-9]?)?$`).test(valor.unidade))) return null
+      (valor.escopo === "uf" ? valor.unidade !== uf : !new RegExp(`^${uf}(?:-[1-9][0-9]{0,3})?$`).test(valor.unidade))) return null
   if (!inteiro(valor.municipios_total) || !chaves(valor.municipios, CONTAGENS)) return null
   const n = valor.municipios
   if (!CONTAGENS.every((campo) => inteiro(n[campo]))) return null

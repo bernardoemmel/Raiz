@@ -71,6 +71,11 @@ def test_recusa_duplicacao_no_mesmo_lote_e_futuro():
         S.validar_eventos([evento(observado=AGORA + dt.timedelta(minutes=1))], agora=AGORA)
 
 
+def test_subdivisao_publica_preserva_unidade_e_municipio():
+    dado = evento(unidade="PA-1001")
+    assert S.validar_eventos([dado], agora=AGORA) == [dado]
+
+
 def test_tentativa_nova_prevalece_sobre_worker_antigo_ainda_vivo():
     primeira = evento(run="100", attempt=1, observado=AGORA + dt.timedelta(seconds=30))
     nova = evento(run="100", attempt=2, situacao="pronto")
