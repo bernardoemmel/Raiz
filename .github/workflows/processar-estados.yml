@@ -1,314 +1,41 @@
-# Roda o motor da Raíz: íntegra e caches no arquivo privado; projeção básica no Release aberto `dados`.
-# Explicação completa e painel: motor/README.md. Repositório público: os minutos do Actions são grátis.
-#
-# planejar  -> lê o estados.json publicado e escolhe as unidades: estado inteiro, ou fatia de estado grande (mais de
-#              120 municípios vira fatias de até 120, por faixa de longitude: MG 8, SP 6, RS 5, BA 4, PR 4...). Duas
-#              filas: estado novo (funil incompleto) pega as vagas primeiro; manutenção (tarefa nova em estado feito)
-#              só o que sobra, até 4. Até 15 jobs ao mesmo tempo, contando as outras rodadas em andamento (o GitHub
-#              dá 20 máquinas ao repositório; 5 ficam livres para o CI dos PRs e o site)
-# preparar  -> baixa uma vez por dia os arquivos nacionais e guarda no cache comum
-# processar -> um job por estado: motor/rodar_estado.py --executor baixa as fontes do estado, adota o que foi publicado
-#              antes do executor (com a APP pela escadinha onde faltava) e chama `raiz executor rodar` (o motor e as
-#              tarefas do produto, município a município, retomando das marcas no Release), que para antes de 5h30 e
-#              publica (fatias do mesmo estado publicam relendo umas às outras, dentro da trava do estado). Se parou
-#              pelo prazo, dispara este workflow de novo só para aquela unidade (continuação); se terminou, passa a vez
-#              ao próximo da fila. Ficam sempre até 15 cadeias rodando, até o Brasil inteiro.
 name: Processar estados (motor)
-
-run-name: >-
-  Processar estados: ${{ inputs.ufs || (startsWith(inputs.continuacao, 'proximo') && 'próximo da fila' ||
-  (github.event_name == 'schedule' && 'rodada semanal' || 'plano automático')) }}${{ inputs.continuacao &&
-  inputs.continuacao != '0' && !startsWith(inputs.continuacao, 'proximo') && format(' (continuação {0})', inputs.continuacao) || '' }}
-
+run-name: Diagnóstico somente de leitura do acesso privado e da cota
 on:
   workflow_dispatch:
-    inputs:
-      ufs:
-        description: "Estados ou fatias separados por espaço (ex.: TO MA, ou MG-3). Vazio: o plano automático (as duas filas)"
-        required: false
-        default: ""
-      refazer:
-        description: "Tabelas para apagar e refazer nesses estados: funil, filtros, mapbiomas, direto, extras_direto, extras ou tudo (vírgula). Vazio: nada"
-        required: false
-        default: ""
-      continuacao:
-        description: "Uso interno (número da continuação depois do prazo de 5h30, ou proximo-UF quando um job passa a vez). Deixe 0"
-        required: false
-        default: "0"
-  schedule:
-    - cron: "23 5 * * 1" # segunda-feira, 02:23 em Brasília: refaz o que mudou e continua o que falta
-    - cron: "*/15 * * * *" # drena pedidos e preenche vagas com UFs incompletas; não inicia manutenção
-
 permissions:
-  contents: write # subir no Release, trava do estados.json, painel do README
-  actions: write # ver as rodadas em andamento e disparar a continuação e o próximo da fila
-
-env:
-  RAIZ_REPO: ${{ github.repository }}
-  RAIZ_ARMAZEM_URL: release-github://${{ github.repository }}/dados # o armazém do executor é o Release "dados"
-  RAIZ_DADOS_PRIVADOS_URL: ${{ vars.RAIZ_DADOS_PRIVADOS_URL || format('release-github://{0}/dados-privados', github.repository) }}
-  RAIZ_DADOS_PRIVADOS_TOKEN: ${{ secrets.RAIZ_DADOS_PRIVADOS_TOKEN || github.token }}
-  RAIZ_SEM_BANCO: "1" # sem Postgres no job: a marca do executor guarda o andamento
-  # Âncora HIPOTÉTICA do cenário CAD Trust, sem afirmar data de implantação/contrato de projeto real.
-  RAIZ_CADT_INICIO_CENARIO: ${{ vars.RAIZ_CADT_INICIO_CENARIO || '2027-01-01' }}
-  # Fontes nacionais selecionadas para o cache autenticado; nunca enviadas ao cache público do Actions.
-  CACHE_COMUM: |
-    motor/cache/municipios.csv
-    motor/cache/termo_de_embargo.csv
-    motor/cache/termo_de_embargo.etag
-    motor/cache/embargos_changelog.csv
-    motor/cache/biomas_brasil.gpkg
-    motor/cache/*.parquet
-    motor/cache/drivers
-    motor/cache/tmf
-
+  contents: write
 jobs:
-  planejar:
+  diagnostico:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
-    outputs:
-      matriz: ${{ steps.plano.outputs.matriz }}
-      tem: ${{ steps.plano.outputs.tem }}
-      dia: ${{ steps.plano.outputs.dia }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v6
-        with:
-          enable-cache: true
-      - name: Dependências (produto e motor)
-        run: uv sync --frozen --all-extras
-      - name: Conferir arquivo privado antes de planejar a rodada
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: uv run python -c "from raiz.executor.armazem import do_config; do_config().verificar_publicacao()"
-      - name: Escolher os estados (lê o estados.json publicado e as versões das tarefas do executor)
-        id: plano
-        env:
-          GH_TOKEN: ${{ github.token }}
-          RAIZ_UFS: ${{ inputs.ufs }}
-          RAIZ_REFAZER: ${{ inputs.refazer }}
-          RAIZ_CONTINUACAO: ${{ inputs.continuacao }}
-          RAIZ_SO_FILA: ${{ github.event_name == 'schedule' && github.event.schedule == '*/15 * * * *' && '1' || '0' }}
-        run: uv run python motor/rodar_estado.py --planejar
-
-  preparar:
-    needs: planejar
-    if: needs.planejar.outputs.tem == '1'
-    runs-on: ubuntu-latest
-    timeout-minutes: 90
-    steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v6
-        with:
-          enable-cache: true
-      - run: uv sync --frozen --all-extras
-      - name: Já existe o cache privado comum de hoje?
-        id: hoje
-        env:
-          DIA: ${{ needs.planejar.outputs.dia }}
-        run: |
-          existe=$(uv run python -m raiz.executor.transferencia_privada existe --nome cache_motor_comum.tar.gz --dia "$DIA")
-          echo "cache-hit=$existe" >> "$GITHUB_OUTPUT"
-      - name: Recuperar o cache privado comum anterior
-        if: steps.hoje.outputs.cache-hit != 'true'
-        run: >-
-          uv run python -m raiz.executor.transferencia_privada baixar-pasta
-          --nome cache_motor_comum.tar.gz --caminho . --opcional
-      - name: Baixar os arquivos nacionais (lista de municípios, embargos, biomas, geobr, TMF, causas da perda)
-        if: steps.hoje.outputs.cache-hit != 'true'
-        run: uv run python motor/rodar_estado.py --preparar
-      - name: Guardar o cache comum somente no arquivo privado
-        if: steps.hoje.outputs.cache-hit != 'true'
-        run: >-
-          uv run python -m raiz.executor.transferencia_privada enviar-pasta
-          --nome cache_motor_comum.tar.gz --caminho . --selecao-env CACHE_COMUM
-
-  processar:
-    name: ${{ matrix.unidade }}
-    permissions:
-      contents: write
-      actions: write
-      id-token: write
-      attestations: write
-    needs: [planejar, preparar]
-    if: ${{ !cancelled() && needs.planejar.outputs.tem == '1' }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 345 # o executor para sozinho e publica antes; isto é só a rede de segurança
-    strategy:
-      fail-fast: false
-      max-parallel: 15
-      matrix:
-        include: ${{ fromJSON(needs.planejar.outputs.matriz) }}
-    concurrency: # nunca dois jobs na mesma unidade (estado inteiro ou fatia) ao mesmo tempo
-      group: motor-estado-${{ matrix.unidade }}
-      cancel-in-progress: false
+    timeout-minutes: 5
     env:
-      UNIDADE: ${{ matrix.unidade }}
-      GH_TOKEN: ${{ github.token }}
-      OGR_GEOJSON_MAX_OBJ_SIZE: "0"
-      LANES: "3"
-      RAIZ_LIMITE_MIN: "330" # 5h30 por job
-      RAIZ_MARGEM_MIN: "25" # tempo guardado para guardar o cache e continuar
-      RAIZ_GRACA_MIN: "10" # folga para os municípios em curso quando o executor para de começar novos
-      RAIZ_RASTER_CACHE_GB: "5"
-      RAIZ_CONTINUACAO: ${{ matrix.continuacao }}
-      RAIZ_REFAZER: ${{ matrix.refazer }}
-      CACHE_UF: |
-        motor/cache/tb
-        motor/cache/mapbiomas
-        motor/cache/alerta
+      RAIZ_TOKEN: ${{ secrets.RAIZ_DADOS_PRIVADOS_TOKEN || github.token }}
+      RAIZ_REPO: ${{ github.repository }}
     steps:
-      - name: Marcar o início (o prazo de 5h30 conta daqui) e o estado da unidade
+      - name: Conferir status e cota sem publicar dados nem valores de credenciais
+        shell: python
         run: |
-          echo "RAIZ_INICIO=$(date +%s)" >> "$GITHUB_ENV"
-          echo "UF=${UNIDADE%%-*}" >> "$GITHUB_ENV"
-
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ matrix.ref }} # commit preservado na fila junto do pedido
-
-      - name: Liberar espaço em disco
-        run: |
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL || true
-          df -h /
-
-      - uses: astral-sh/setup-uv@v6
-        with:
-          enable-cache: true
-
-      - name: Dependências (produto e motor)
-        run: uv sync --frozen --all-extras
-
-      - name: Exigir publicador seguro no commit preservado pela fila
-        id: privacidade
-        run: |
-          uv run python - <<'PY'
-          from raiz.executor.publicacao_aberta import ESCOPO, VERSAO_PUBLICACAO
-          from raiz.executor.transferencia_privada import arquivo_privado
-          if ESCOPO != 'publico_basico' or VERSAO_PUBLICACAO != 1:
-              raise RuntimeError('Ref da fila não implementa o contrato público mínimo; atualizar antes de continuar')
-          arquivo_privado()
-          PY
-
-      - name: Recuperar o cache comum autenticado
-        run: >-
-          uv run python -m raiz.executor.transferencia_privada baixar-pasta
-          --nome cache_motor_comum.tar.gz --caminho .
-
-      - name: Recuperar o cache privado da unidade (blocos do TerraBrasilis, MapBiomas, Alerta)
-        run: >-
-          uv run python -m raiz.executor.transferencia_privada baixar-pasta
-          --nome "cache_motor_unidade_${UNIDADE}.tar.gz" --caminho . --opcional
-
-      - name: Insumos opcionais (Release insumos)
-        run: |
-          mkdir -p motor/extras
-          if gh release download insumos -R "$GITHUB_REPOSITORY" -D motor/extras -p "raiz_extras*_${UF}*.tif" 2>/dev/null; then
-            echo "GeoTIFFs do Earth Engine: $(find motor/extras -maxdepth 1 -type f -name '*.tif' -printf '.' | wc -c)"
-          else
-            echo "sem GeoTIFF do Earth Engine para $UF: a etapa extras é pulada"
-          fi
-          if gh release download insumos -R "$GITHUB_REPOSITORY" -D "$RUNNER_TEMP" -p projetos_carbono.tar.gz 2>/dev/null; then
-            tar -xzf "$RUNNER_TEMP/projetos_carbono.tar.gz" -C motor --no-same-owner && echo "projetos de carbono: ok"
-          else
-            echo "sem mapas de projetos de carbono (frente ja_tem_projeto fica de fora)"
-          fi
-
-      - name: Buscar o publicador do workflow para finalizar executores de versões anteriores
-        id: publicador_checkout
-        if: ${{ !cancelled() && steps.privacidade.outcome == 'success' && matrix.ref != github.workflow_sha }}
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.workflow_sha }}
-          path: publicador-atual
-
-      - name: Dependências do publicador atual em ambiente separado
-        id: publicador_dependencias
-        if: ${{ !cancelled() && steps.publicador_checkout.outcome == 'success' }}
-        working-directory: publicador-atual
-        run: uv sync --frozen --all-extras
-
-      - name: Recuperar resultados e marcas do checkpoint privado da unidade
-        id: checkpoint_restaurado
-        if: ${{ !cancelled() && steps.privacidade.outcome == 'success' && (matrix.ref == github.workflow_sha || steps.publicador_dependencias.outcome == 'success') }}
-        working-directory: ${{ steps.publicador_checkout.outcome == 'success' && 'publicador-atual' || '.' }}
-        run: >-
-          uv run --all-extras python -m raiz.executor.checkpoint restaurar
-          --unidade "$UNIDADE" --repositorio "$GITHUB_WORKSPACE"
-
-      # Nome preservado: fila_processamento reconhece este passo ao retomar falhas posteriores ao cálculo.
-      - name: Rodar pelo executor (fontes, adoção, motor e tarefas do produto) e publicar no Release dados
-        id: executor
-        run: uv run python motor/rodar_estado.py "$UNIDADE" --executor
-
-      - name: Preservar resultados e retratos opacos no checkpoint privado
-        if: ${{ always() && steps.privacidade.outcome == 'success' && steps.checkpoint_restaurado.outcome == 'success' && steps.executor.outcome != 'skipped' }}
-        timeout-minutes: 20
-        working-directory: ${{ steps.publicador_checkout.outcome == 'success' && 'publicador-atual' || '.' }}
-        run: >-
-          uv run --all-extras python -m raiz.executor.checkpoint salvar
-          --unidade "$UNIDADE" --repositorio "$GITHUB_WORKSPACE"
-
-      - name: Finalizar metadados da UF com a mesma reserva do executor
-        if: ${{ !cancelled() && steps.publicador_dependencias.outcome == 'success' }}
-        working-directory: publicador-atual
-        env:
-          RAIZ_EXECUTOR_REF: ${{ matrix.ref }}
-          RAIZ_PUBLICADOR_REF: ${{ github.workflow_sha }}
-        run: uv run --all-extras python scripts/publicar_metadados.py --finalizar-unidade
-
-      - name: Preservar retratos imutáveis somente no arquivo privado
-        if: always() && steps.privacidade.outcome == 'success'
-        run: |
-          if [ -f raiz/aprendizado/transporte.py ]; then
-            uv run raiz aprendizado publicar-retratos --uf "$UF"
-          fi
-
-      - name: Conferir listas separadas dos bytes públicos e privados
-        id: atestar
-        if: always()
-        working-directory: ${{ steps.publicador_checkout.outcome == 'success' && 'publicador-atual' || '.' }}
-        run: |
-          if test -s "$RUNNER_TEMP/atestar.txt"; then echo "publico=1" >> "$GITHUB_OUTPUT"; fi
-          if test -s "$RUNNER_TEMP/atestar-privado.txt"; then
-            python3 scripts/conferir_atestacao_privada.py "$RUNNER_TEMP/atestar-privado.txt"
-            echo "privado=1" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Atestar os arquivos básicos públicos
-        if: always() && steps.atestar.outputs.publico == '1'
-        uses: actions/attest-build-provenance@v2
-        with:
-          subject-checksums: ${{ runner.temp }}/atestar.txt
-          show-summary: false
-
-      # Somente hashes, identificadores derivados do conteúdo e proveniência seguem para a ação.
-      - name: Atestar os hashes dos arquivos completos mantidos privados
-        if: always() && steps.atestar.outputs.privado == '1'
-        uses: actions/attest-build-provenance@v2
-        with:
-          subject-checksums: ${{ runner.temp }}/atestar-privado.txt
-          show-summary: false
-
-      - name: Guardar o relatório somente no arquivo privado
-        if: always() && steps.privacidade.outcome == 'success'
-        env:
-          RODADA: ${{ github.run_id }}
-          TENTATIVA: ${{ github.run_attempt }}
-        run: |
-          if test -f "$RUNNER_TEMP/catalogo-metadados.json"; then
-            uv run python -m raiz.executor.transferencia_privada enviar-arquivo --imutavel \
-              --nome "catalogo-relatorio-${RODADA}-${TENTATIVA}-${UNIDADE}.json" \
-              --caminho "$RUNNER_TEMP/catalogo-metadados.json"
-          fi
-
-      - name: Guardar o cache da unidade somente no arquivo privado
-        if: always() && steps.privacidade.outcome == 'success'
-        continue-on-error: true
-        run: >-
-          uv run python -m raiz.executor.transferencia_privada enviar-pasta
-          --nome "cache_motor_unidade_${UNIDADE}.tar.gz" --caminho . --selecao-env CACHE_UF
-
-      - name: Continuar esta unidade (se parou pelo prazo) ou passar a vez ao próximo da fila
-        if: always() && steps.privacidade.outcome == 'success'
-        run: uv run python motor/rodar_estado.py --continuar "$UNIDADE"
+          import json, os, urllib.request, urllib.error
+          repo = os.environ['RAIZ_REPO']
+          for recurso in ('rate_limit', f'repos/{repo}'):
+              req = urllib.request.Request(
+                  'https://api.github.com/' + recurso,
+                  headers={'Authorization': 'Bearer ' + os.environ['RAIZ_TOKEN'],
+                           'Accept': 'application/vnd.github+json', 'User-Agent': 'Raiz-diagnostico'},
+                  method='GET',
+              )
+              try:
+                  resposta = urllib.request.urlopen(req, timeout=30)
+              except urllib.error.HTTPError as erro:
+                  resposta = erro
+              resumo = {'recurso': 'cota' if recurso == 'rate_limit' else 'repositorio',
+                        'status': resposta.status}
+              for nome in ('X-RateLimit-Limit', 'X-RateLimit-Remaining', 'X-RateLimit-Reset', 'Retry-After'):
+                  valor = resposta.headers.get(nome, '')
+                  if valor.isdigit(): resumo[nome.lower()] = int(valor)
+              if recurso == 'rate_limit' and resposta.status == 200:
+                  core = json.load(resposta).get('resources', {}).get('core', {})
+                  resumo['core'] = {k: core[k] for k in ('limit', 'remaining', 'reset', 'used')
+                                    if type(core.get(k)) is int}
+              resposta.close()
+              print(json.dumps(resumo), flush=True)
