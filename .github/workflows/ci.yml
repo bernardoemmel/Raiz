@@ -59,7 +59,7 @@ jobs:
           --saida .cache/protocolo-agentes/recursos.json --amostras 5 --intervalo 2
       - name: Relatórios sem tokens nem traces privados
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: contratos-agentes
           path: |
@@ -148,7 +148,7 @@ jobs:
         run: cd front/globo && npm run test:pasta
       - name: Evidências sintéticas da pasta
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: pasta-fiador
           path: front/.cache/teste-pasta
@@ -168,7 +168,7 @@ jobs:
         run: node front/scripts/testar-graficos.mjs
       - name: Evidências da ficha de crédito e dos gráficos
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ficha-credito-graficos
           path: |
@@ -177,14 +177,14 @@ jobs:
           if-no-files-found: ignore
       - name: Evidências da cena-alvo
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: cena-alvo
           path: front/.cache/teste-cena-alvo
           if-no-files-found: ignore
       - name: Evidências do teste do Pages
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: teste-pages
           path: front/.cache/teste-site/resultado
@@ -194,7 +194,7 @@ jobs:
         run: cd front/globo && npm run test:agentes
       - name: Relatório da auditoria para agentes
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: site-agentes
           path: front/.cache/teste-agentes
@@ -204,7 +204,7 @@ jobs:
         run: cd front/globo && npm run test:acessibilidade
       - name: Evidências de acessibilidade e desempenho
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: celular-acessibilidade
           path: front/.cache/teste-acessibilidade
@@ -225,7 +225,7 @@ jobs:
           npm run test:agentes
       - name: Evidências do domínio na raiz
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: dominio-proprio
           path: |
@@ -315,7 +315,7 @@ jobs:
         run: uv run node front/scripts/testar-ficha-publica.mjs
       - name: Evidências da ficha pública datada
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ficha-publica-versionada
           path: front/.cache/teste-ficha-publica
@@ -348,7 +348,7 @@ jobs:
         run: uv run pytest -q --deselect=testes/test_lote.py::test_lote_do_para_inteiro_fecha_ou_diz_o_que_falta --junitxml=resultado-pytest.xml
       - name: Resultado dos testes gerais (sem dados do arquivo privado)
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: resultado-pytest
           path: resultado-pytest.xml
@@ -386,7 +386,7 @@ jobs:
         run: uv run pytest -q testes/test_lote.py::test_lote_do_para_inteiro_fecha_ou_diz_o_que_falta --junitxml=resultado-para.xml
       - name: Resultado estadual sem dados ou diagnósticos privados
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: resultado-para
           path: resultado-para.xml
