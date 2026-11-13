@@ -1,0 +1,70 @@
+{
+  "capturado_em": "2026-11-13T02:23:13.150390+00:00",
+  "viewport": {
+    "largura": 1440,
+    "altura": 1000
+  },
+  "frontend": "971e1b1",
+  "exportador": "550af32",
+  "antes": {
+    "url": "https://bernardoemmel.github.io/Raiz/",
+    "capturado_em": "2026-11-13T02:14:31.344Z",
+    "svg_inicial": 1,
+    "erros": [],
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    }
+  },
+  "dados_publicados_em": "2026-11-12T23:54:43+00:00",
+  "municipios": 444,
+  "estados": 13,
+  "agregado": {
+    "arquivo": "agregados_brasil.geojson.gz",
+    "bytes": 215591,
+    "celulas": 6787,
+    "celulas_numericas": 3717,
+    "fazendas_no_agregado": 1626268,
+    "hectares_conhecidos": 1572045.2084039983,
+    "atualizado_em": "2026-11-13T00:35:56.000Z",
+    "ufs": 13
+  },
+  "mapa_inicial": "MapLibre com Supercluster; sem SVG nacional grande",
+  "rede": {
+    "requisicoes": 107,
+    "erros": [],
+    "tiles_satelite": 9,
+    "todos_tiles_http_200": true,
+    "endpoints_pagos_solicitados": false
+  },
+  "render": {
+    "zoom": 14.319882480562114,
+    "mascara": 1,
+    "fill": 0,
+    "hachura": 0,
+    "sateliteAbaixo": true,
+    "fundoAbaixo": true
+  },
+  "imagens": {
+    "brasil-antes.png": {
+      "sha256": "fd7942bd28a0ac1e486a8d8d57a9a85e92d11e43545ed4f0f31093c7bb1fb794",
+      "bytes": 220015
+    },
+    "brasil-depois.png": {
+      "sha256": "e985af6a59382b9dffa510401352a2d9ad9d6c2a66a02b2b7b99770686dd84fa",
+      "bytes": 338885
+    },
+    "estado-depois.png": {
+      "sha256": "89fdb50112741b17b23d03698a589fb1174e3fdd2b2284642bef50c3afdececc",
+      "bytes": 507121
+    },
+    "fazenda-depois.png": {
+      "sha256": "0681e9c9b73760b224ece45dfcf0fef64a678b9a39fabe37a18534744df44a2e",
+      "bytes": 637195
+    },
+    "municipio-depois.png": {
+      "sha256": "e52c40162c369dceebc2b891ee3c7517c6024506699851043d2c3d26d44170a0",
+      "bytes": 223301
+    }
+  }
+}
