@@ -75,6 +75,13 @@ def test_detalhe_sem_leilao_nao_inventa_prazo():
     assert leiloes.texto_evento(tx, DETALHE, FONTE) == ""
 
 
+def test_caixa_preserva_numero_da_praca_quando_primeira_desaparece():
+    html = detalhe().replace("Data do 1º Leilão - 12/12/2026 - 10h00<br>", "")
+    texto = leiloes.texto_evento(html, DETALHE, FONTE)
+    assert "Data do 2º leilão: 19/12/2026" in texto
+    assert "1º" not in texto
+
+
 def test_descoberta_so_matricula_do_mesmo_item_sem_edital_multibens():
     assert leiloes.documento_matricula(detalhe(), DETALHE, FONTE) == PDF
     assert leiloes.links(detalhe(), DETALHE, FONTE) == [PDF]
@@ -147,3 +154,90 @@ def test_outros_modos_continuam_no_extrator_original():
     assert leiloes.sementes({}, dt.date.today()) is None
     assert leiloes.links("", "https://fonte.test", {}) is None
     assert leiloes.texto_evento("", "https://fonte.test", {}) is None
+    assert leiloes.texto_pdf("", "https://fonte.test", {}) is None
+
+
+TRT = {"id": "trt16", "nome": "TRT16", "modo": "trt16_leiloes", "uf": "MA", "urls": [leiloes.TRT16]}
+PDF_TRT = leiloes.TRT16 + "/sites/portal/files/roles/leilao_unificado/EDITAL%202026.pdf"
+CAR_MA = "MA-2100055-" + "C" * 32
+
+
+def edital_trt(descricao, *, outra_descricao="Veículo depositado em zona rural"):
+    # Contrato sintético do formato; não é certidão, gabarito nem documento real.
+    return f"""EDITAL DE LEILÃO Nº 02/2026
+    DATA DO LEILÃO: Dia 16 de setembro de 2026, sendo o 1º Leilão às 09 horas,
+    e o 2º Leilão na mesma data, às 11 horas.
+    ANEXO I
+    01. PROCESSO Nº [suprimido]
+    Parte processual omitida
+    Descrição do bem (fls. 1 / Id. abc): {descricao}
+    Avaliação em 15/01/2020.
+    02. PROCESSO Nº [suprimido]
+    Parte processual omitida
+    Descrição do(s) bem(ns): {outra_descricao}
+    """
+
+
+def test_trt16_indice_descobre_somente_editais_publicos_mais_recentes():
+    antigo = PDF_TRT.replace("202026", "202025")
+    novo = PDF_TRT.replace("202026", "202027")
+    html = f"<a href='{antigo}'>Edital</a><a href='{PDF_TRT}'>Edital</a><a href='{novo}'>Edital</a>"
+    html += "<a href='https://fora.test/edital.pdf'>Edital geral</a><a href='/arquivo/regulamento.pdf'>Norma</a>"
+    assert leiloes.links(html, leiloes.TRT16, TRT) == [novo, PDF_TRT]
+    assert leiloes.sementes(TRT, dt.date.today()) == [leiloes.TRT16 + "/servicos/publicacoes/leilao-judicial"]
+    assert leiloes.texto_evento(html, leiloes.TRT16, TRT) == ""
+
+
+def test_trt16_indice_incompativel_nao_vira_fonte_saudavel():
+    with pytest.raises(ValueError, match="índice"):
+        leiloes.links("<main>Erro</main>", leiloes.TRT16, TRT)
+
+
+def test_trt16_separa_cada_bem_e_descarta_partes_datas_historicas_e_car_vizinho():
+    html = leiloes.texto_pdf(
+        edital_trt(f"Imóvel Rural. Matrícula 5178. CAR {CAR_MA}", outra_descricao=f"Imóvel urbano CAR {CAR_OUTRO}"),
+        PDF_TRT,
+        TRT,
+    )
+    assert CAR_MA in html and CAR_OUTRO not in html and "processual" not in html and "2020" not in html
+    eventos, _ = coleta.extrair(html, TRT, PDF_TRT, dt.datetime(2026, 11, 13, tzinfo=dt.UTC))
+    assert len(eventos) == 1
+    assert eventos[0].data == dt.date(2026, 9, 16)
+    assert eventos[0].codigos_car == [CAR_MA] and eventos[0].matricula == "5178"
+
+
+def test_trt16_numero_registrado_no_cartorio_sem_car_continua_pendente():
+    texto = edital_trt(
+        "- Imóvel Rural registrado no Cartório de Registro de Imóveis do Município/MA, sob o nº 4.618, Livro 2."
+    )
+    html = leiloes.texto_pdf(texto, PDF_TRT, TRT)
+    eventos, _ = coleta.extrair(html, TRT, PDF_TRT, dt.datetime(2026, 11, 13, tzinfo=dt.UTC))
+    assert len(eventos) == 1 and eventos[0].matricula == "4618"
+    assert eventos[0].vinculo == "pendente" and eventos[0].codigos_car == [] and eventos[0].cns is None
+
+
+def test_trt16_veiculo_em_zona_rural_nao_e_imovel():
+    assert leiloes.texto_pdf(edital_trt("Veículo em imóvel rural. Matrícula 42"), PDF_TRT, TRT) == ""
+
+
+@pytest.mark.parametrize(
+    "descricao",
+    [
+        f"Imóvel rural. Matrícula 42. CAR {CAR_MA}. CAR {CAR_OUTRO}",
+        f"Imóvel rural. Matrícula 42. Matrícula 43. CAR {CAR_MA}",
+    ],
+)
+def test_trt16_varios_imoveis_sem_limites_continuam_pendentes(descricao):
+    html = leiloes.texto_pdf(edital_trt(descricao), PDF_TRT, TRT)
+    assert CAR_MA not in html and CAR_OUTRO not in html and "Matrícula:" not in html
+
+
+@pytest.mark.parametrize("trocar", ["ANEXO I", "01. PROCESSO Nº", "DATA DO LEILÃO:"])
+def test_trt16_formato_alterado_falha_sem_cruzar_bens(trocar):
+    texto = edital_trt("Imóvel rural. Matrícula 42").replace(trocar, "[alterado]").replace("02. PROCESSO Nº", "")
+    with pytest.raises(ValueError):
+        leiloes.texto_pdf(texto, PDF_TRT, TRT)
+
+
+def test_trt16_nao_processa_pdf_externo():
+    assert leiloes.texto_pdf(edital_trt("Imóvel rural"), "https://fora.test/edital.pdf", TRT) == ""

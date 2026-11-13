@@ -12,7 +12,7 @@ import io
 import re
 import unicodedata
 from html import escape
-from urllib.parse import parse_qs, urljoin, urlsplit
+from urllib.parse import parse_qs, unquote, urljoin, urlsplit
 
 from bs4 import BeautifulSoup
 
@@ -21,6 +21,7 @@ from raiz.documentos.certidao.regras import normalizar_cns, normalizar_matricula
 
 CAIXA = "https://venda-imoveis.caixa.gov.br"
 BB = "https://www.seuimovelbb.com.br"
+TRT16 = "https://www.trt16.jus.br"
 MODOS = {"caixa_csv", "bb_imoveis"}
 _DATA = r"\d{1,2}/\d{1,2}/\d{4}"
 _MAT = re.compile(r"matr[ií]cula(?:\(s\)|s)?\s*(?:n[º°o.]*)?\s*[:.\-]?\s*([\d.]+[A-Z]?)", re.I)
@@ -66,6 +67,8 @@ def sementes(fonte: dict, hoje: dt.date) -> list[str] | None:
         return [f"{CAIXA}/listaweb/Lista_imoveis_geral.csv"]
     if fonte.get("modo") == "bb_imoveis":
         return [f"{BB}/"]
+    if fonte.get("modo") == "trt16_leiloes":
+        return [f"{TRT16}/servicos/publicacoes/leilao-judicial"]
     return None
 
 
@@ -139,6 +142,8 @@ def _identificadores(texto: str) -> str:
 def texto_evento(texto: str, url: str, fonte: dict) -> str | None:
     """Reúne a data e os IDs do mesmo anúncio, sem misturar cartões vizinhos."""
     modo = fonte.get("modo")
+    if modo == "trt16_leiloes":
+        return ""  # o índice reúne datas de vários editais; só o PDF identifica os bens
     if modo not in MODOS:
         return None
     if modo == "caixa_csv":
@@ -150,7 +155,7 @@ def texto_evento(texto: str, url: str, fonte: dict) -> str | None:
         for tag in sopa(["nav", "header", "footer", "script", "style"]):
             tag.decompose()
         tx = sopa.get_text(" ", strip=True)
-        datas = re.findall(r"Data do\s+[12][º°o]?\s+Leil[aã]o\s*[-:]\s*(" + _DATA + ")", tx, re.I)
+        datas = re.findall(r"Data do\s+([12])[º°o]?\s+Leil[aã]o\s*[-:]\s*(" + _DATA + ")", tx, re.I)
         if not datas:
             return ""  # venda direta/online não vira leilão sem data explícita
         descr = next(
@@ -176,7 +181,7 @@ def texto_evento(texto: str, url: str, fonte: dict) -> str | None:
         # A data do leilão é um h4 separado da descrição. Não aceita datas
         # citadas no histórico jurídico nem cartões recomendados do rodapé.
         datas = [
-            m[1]
+            (None, m[1])
             for h in sopa.find_all("h4")
             if (
                 m := re.fullmatch(r"Data do leil[aã]o:\s*(" + _DATA + r")(?:\s+.*)?", h.get_text(" ", strip=True), re.I)
@@ -185,7 +190,7 @@ def texto_evento(texto: str, url: str, fonte: dict) -> str | None:
         ids = _identificadores(desc)
     if not datas:
         return ""
-    clausulas = "; ".join(f"Data do {i}º leilão: {d}" for i, d in enumerate(dict.fromkeys(datas), 1))
+    clausulas = "; ".join(f"Data do {i + 'º ' if i else ''}leilão: {d}" for i, d in dict.fromkeys(datas))
     return '<p data-calendario-evento="1">' + escape(f"Imóvel rural. {clausulas}. {ids}") + "</p>"
 
 
@@ -237,8 +242,103 @@ def complemento_matricula(texto: str, url: str, texto_pdf: str, url_pdf: str, fo
     return {"codigos_car": [codigo], "matricula": esperada, "car_fonte_url": url_pdf, "vinculo": "car"}
 
 
+def _pdf_trt16(url: str) -> bool:
+    try:
+        p = urlsplit(url_publica(url))
+    except ValueError:
+        return False
+    return bool(
+        p.scheme == "https"
+        and p.hostname == "www.trt16.jus.br"
+        and p.path.startswith("/sites/portal/files/roles/leilao_unificado/")
+        and p.path.lower().endswith(".pdf")
+        and not p.query
+    )
+
+
+def texto_pdf(texto: str, url: str, fonte: dict) -> str | None:
+    """Edital unificado: data do cabeçalho + descrição do próprio bem.
+
+    Não trata a edição inteira como um imóvel. Partes processuais, avaliações,
+    endereço e descrição livre nunca saem desta função. Formato alterado é
+    falha explícita; ausência de CAR/CNS continua pendência de vínculo.
+    """
+    if fonte.get("modo") != "trt16_leiloes":
+        return None
+    if not _pdf_trt16(url):
+        return ""
+    anexos = re.split(r"(?im)^\s*ANEXO(?:\s+[IVX]+)?\s*$", texto, maxsplit=1)
+    if len(anexos) != 2:
+        raise ValueError("edital sem separação verificável entre cabeçalho e bens")
+    cabecalho, anexo = anexos
+    padrao_data = rf"(?:{_DATA}|\d{{1,2}}\s+de\s+[a-zç]+\s+de\s+\d{{4}})"
+    datas = re.findall(r"DATA\s+DO\s+LEIL[AÃ]O\s*:\s*(?:Dia\s+)?(" + padrao_data + ")", cabecalho, re.I)
+    if len(set(datas)) != 1:
+        raise ValueError("edital sem data comum inequívoca do leilão")
+    inicios = list(re.finditer(r"(?im)^\s*(\d{1,3})[.]\s*PROCESSO\s+N[º°O.]*\s*", anexo))
+    if not inicios:
+        raise ValueError("edital sem limites verificáveis entre bens")
+    saida = []
+    for i, inicio in enumerate(inicios):
+        bloco = anexo[inicio.end() : inicios[i + 1].start() if i + 1 < len(inicios) else None]
+        desc = re.search(
+            r"Descri[cç][aã]o\s+do(?:\(s\))?\s+bem(?:\(ns\))?[^:\n]{0,140}[:\-]\s*(.*)", bloco, re.I | re.S
+        )
+        if not desc:
+            continue
+        descricao = " ".join(desc[1].split())
+        # Um veículo depositado em zona rural não é imóvel rural. Exige o
+        # tipo do bem no início da descrição, antes dos endereços/confrontantes.
+        if not re.match(
+            r"[-\s]*(?:0?1\s*(?:\(um\))?\s*|um\s+)?(?:im[oó]vel|terreno|propriedade)\s+rural\b", descricao, re.I
+        ):
+            continue
+        mat = re.findall(
+            r"matr[ií]cula\s*(?:registro\s+geral\s*)?(?:n[º°o.]*)?\s*[:.\-]?\s*([\d.]+[A-Z]?)",
+            descricao,
+            re.I,
+        )
+        # Há editais que identificam a matrícula como o número do registro,
+        # sem repetir a palavra matrícula. Exige o contexto cartorial inteiro.
+        registrada = re.search(
+            r"im[oó]vel\s+rural\s+registrado\s+no\s+cart[oó]rio\s+de\s+registro\s+de\s+im[oó]veis"
+            r".{0,180}?\bsob\s+o\s+n[º°o.]+\s*([\d.]+)",
+            descricao,
+            re.I,
+        )
+        if registrada:
+            mat.append(registrada[1])
+        matriculas = {normalizar_matricula(x) for x in mat}
+        codigos = {m[0] for m in CAR.finditer(descricao)}
+        # Mais de um imóvel na mesma descrição não autoriza escolher um CAR.
+        ids = _identificadores(descricao) if len(codigos) <= 1 and len(matriculas) <= 1 else ""
+        if len(matriculas) == 1 and not re.search(r"Matrícula:", ids):
+            ids += "; Matrícula: " + next(iter(matriculas))
+        if len(codigos) > 1:
+            ids = ""
+        # O número do item é identidade do bem; nenhuma parte processual
+        # participa da chave ou do conteúdo persistido.
+        conteudo = f"Imóvel rural. Data do leilão: {datas[0]}. {ids}"
+        saida.append(f'<p data-calendario-evento="1" id="bem-{inicio[1]}">{escape(conteudo)}</p>')
+    return "".join(saida)
+
+
 def links(texto: str, url: str, fonte: dict) -> list[str] | None:
     modo = fonte.get("modo")
+    if modo == "trt16_leiloes":
+        sopa = BeautifulSoup(texto, "html.parser")
+        encontrados = []
+        for a in sopa.select("a[href]"):
+            link = urljoin(url, a["href"])
+            if _pdf_trt16(link):
+                anos = re.findall(r"\b20\d{2}\b", unquote(urlsplit(link).path).replace("_", " "))
+                encontrados.append((max(anos, default="0000"), link))
+        if not encontrados:
+            raise ValueError("tribunal sem o índice público de editais esperado")
+        # O portal mantém o arquivo desde 2008. Lê diariamente os últimos
+        # editais, ordenados por ano, preservando a ordem de publicação no ano.
+        recentes = sorted(encontrados, key=lambda x: x[0], reverse=True)
+        return list(dict.fromkeys(link for _, link in recentes))[: int(fonte.get("max_editais", 2))]
     if modo == "caixa_csv":
         if urlsplit(url).path.lower().endswith(".csv"):
             return _links_csv(texto, fonte)
