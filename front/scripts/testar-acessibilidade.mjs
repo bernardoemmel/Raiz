@@ -101,6 +101,11 @@ try {
       assert(resultado, `${nome}: Lighthouse não entregou relatório.`)
       fs.writeFileSync(path.join(saida, `${nome}-${rodada}-lighthouse.json`), resultado.report[0])
       fs.writeFileSync(path.join(saida, `${nome}-${rodada}-lighthouse.html`), resultado.report[1])
+      // A fixture é pública e sintética. Guarda o perfil da entrada para investigar travamentos
+      // no runner sem repetir a medição nem atribuir o custo apenas pelo nome do bundle.
+      if (nome === "brasil") for (const parte of ["Trace", "DevtoolsLog"]) {
+        if (resultado.artifacts?.[parte]) fs.writeFileSync(path.join(saida, `${nome}-${rodada}-${parte}.json`), JSON.stringify(resultado.artifacts[parte]))
+      }
       amostras.push(resultado.lhr)
     }
     const notas = conferirSerieLighthouseCelular(amostras)
