@@ -110,6 +110,8 @@ antigo por conexão via socket; preferir TCP e executar a suíte inteira, como n
   o evento pode existir na agenda, mas nunca gera selo/alerta de uma fazenda presumida.
 - HTTP transitório tem retentativas com espera; 401/403/CAPTCHA não têm contorno. PDF/OCR em RAM e subprocessos
   limitados; OCR sozinho e CAR de confrontante não confirmam vínculo. Identidade separa editais homônimos e praças.
+  Retirar identificador ambíguo corrige o evento de correspondência única, conservando UID; não duplica a agenda
+  nem conserva matrícula descartada como vigente. Releitura real da Fomento confirmou a correção.
 - **Pendências externas:** DJEN continua 403 na API e caderno oficiais; BA/MG/TO tiveram indisponibilidade.
   A sondagem posterior também registrou leitura incompleta em AC/PI/RN/RO e restrição em RR. O índice PA oscilou;
   há consulta direta de PDFs ordinários oficiais como alternativa, mantendo extras/cobertura parcial explícitos.
