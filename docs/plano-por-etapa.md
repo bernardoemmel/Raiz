@@ -26,6 +26,28 @@ E3, E5, E7, E8 e E9 têm a coluna Situação conferida contra a main; E1 e E2 ta
 
 Retomada em 12/11/2026, seguindo a passagem `docs/passagem/raiz-dados-do-brasil.md`.
 
+**Prioridade urgente determinada pelo fundador em 12/11:** concluir a correção da publicação que interrompe
+RN/PI, preservar e retomar o progresso, preencher as vagas com várias UFs/fatias (teto global 15), e mostrar
+municípios prontos, em execução e com erro no painel, com última mudança. As extensões restantes dos formatos
+do Lote PA permanecem preservadas, mas aguardam essa correção operacional.
+Rodada 12 recebida: marcador municipal íntegro, tempos mediana/p95, ensaio de falha/retomada, conferência Ibis
+em dois mecanismos e camada bovina PA/2016 agregada por município/mês. Implementação e provas pendentes,
+com fontes e limites registrados na passagem; a prioridade segue sendo a fila dos 27 estados.
+
+O **#82 foi mesclado** em `cf306256`, após os oito checks do CI `43335410339` passarem, incluindo a referência
+privada completa do Pará. O workflow do motor foi conferido como `active`. A falha posterior de RN-1 veio da
+projeção pública que confundia a UF de origem cadastral com a UF do recorte. A correção local preservou todos
+os **242.008 registros de 214 CSVs reais de RN/PI**, incluindo os dois CARs de outra UF, sem publicar dados.
+Também está corrigida localmente a corrida entre o pacote e seus metadados: uma cópia privada estável serve
+todos os produtos da publicação. **Implementados na entrega urgente:** checkpoint privado independente com
+restauração antes do cálculo e salvamento `always()`, proteção contra marcas divergentes, leitor de retratos
+legados com prova dos bytes originais e painel das 27 UFs com eventos municipais, lease e última mudança.
+A promoção auditada usa o commit fixo `ebb13cae`, preserva as 11 versões atuais e não altera reservas vivas.
+O modo próximo repõe todas as vagas disponíveis; o cron de 15 minutos também repõe UFs incompletas, com
+prioridade aos pedidos persistidos e teto CAS global de 15. Nenhum dos caminhos cancela jobs.
+Faltam suíte integrada/CI, PR/merge, emissão do painel e retomada confirmada em produção; a estimativa nacional
+depende da vazão medida após a correção. Não declarar a urgência concluída pelo teste local.
+
 Formatos integrados pelo **#77**, com 1.859 testes no CI do PR; CI de push também verde. A validação local incluiu
 PostGIS, API/MCP, Ficha e 681 licenças. Os 22 arquivos públicos e 39 canônicos privados tiveram bytes e hashes
 conferidos antes da catalogação. A publicação retroativa e a verificação das atestações aguardam o término natural
@@ -45,6 +67,11 @@ Essas guardas permitem encaminhar as cinco origens auditadas para a referência 
 são recalculadas pelo fluxo normal, sem atribuir versões novas a arquivos antigos ou mudar reservas vivas.
 O delta final de promoção/fila/catálogo passou em 285 testes, com Ruff e actionlint verdes. A confirmação
 em produção segue o merge desta correção.
+O CI anterior do #82 passou; antes do merge, a integração incorporou o #83, que exige a referência privada
+completa do Pará em um job separado e impede que esse teste seja pulado. Os 256 testes locais relacionados
+passaram; o CI dessa integração será conferido antes do merge.
+O Gitleaks também exigiu três exceções por ocorrência exata: hashes de código da auditoria MCP em uma branch
+externa, comprovados contra os bytes dos arquivos. A varredura completa passou localmente, sem ampliar regras.
 
 Oito pacotes reais adicionais ao RO foram validados offline: 2.696 CSVs, 57.863 campos Croissant e 4.283.214 linhas
 de quantis. Os diagnósticos de faixas cruzadas e ausência de produto foram preservados. Cinco UFs usam a regra
@@ -245,6 +272,13 @@ Feito na main fora desta tabela: caminho da terra com risco por imóvel (`raiz/t
 
 ## IA. Plataforma para agentes das empresas
 
+Próxima entrega em andamento (`produto-agentes-validacao`): medição Claude em 96 sessões via MCP,
+replay VCR, conferência Inspector/vacuum, manifesto do registro e Compose de operação. Gabarito v2
+corrige a permissão de acompanhar operações assíncronas sem reduzir critérios ou meta. Resultado real,
+gravações e dimensionamento ainda dependem de conclusão dos ensaios; não estão marcados como feitos.
+O Compose completo subiu no CI do PR #85. O ensaio revelou e corrigiu a ausência do mapper
+`sub` no realm Keycloak; Inspector autenticado por PKCE real confirmou a revisão 2026-07-28.
+
 | Ordem | Entrega | Situação |
 |---|---|---|
 | A | API paga: 3 testes por empresa, sinal Pix e contrato, cobrança/estorno, limite SlowAPI, CLI e privacidade | **feito no código**, PR #45 com CI verde (1.072 testes Python); migração 0028 após o calendário |
@@ -412,6 +446,17 @@ faz sem back-end.
 | 1 | (busca pública) Busca no navegador por nome e código IBGE do município, sem depender de `/busca` no Pages; CAR leva à ficha paga | mapa nacional | feito |
 | 1 | (busca) Carga contínua das saídas do motor por estado (`raiz vigiar`), só o município que mudou, com a versão anterior guardada | carga do motor | feito |
 
+## Telas e mapa: continuação após a separação aberto/pago
+
+| Entrega | Situação |
+|---|---|
+| Publicação após #72, sem alterar o PR do outro chat | **feito** em 12/11/2026: workflow ativo; atualização 43331843113 concluída com 444 municípios em 13 estados; site ao vivo com busca, aproximação, pedido e 360 px sem 404 ou erros de JavaScript |
+| Conferir que arquivos pagos não ficaram públicos | **feito**: 36 assets do Release validados pela lista positiva; os dois artefatos foram conferidos, o mais recente com 1.849 arquivos, 444 CSV básicos e 444 geometrias sem medidas pagas. Evidências e hashes na passagem |
+| Resumos abertos dos três lotes; composição, travas e desenho somente pela API autenticada | **em andamento**: resultados reais do Pará estão no Release privado, conforme #78; o ponteiro completo não deve voltar ao público |
+| Sensibilidade de preço, reserva, desconto e cenário pessimista | **pendente**: a rodada do Pará não calculou esses cenários; demonstração identificada enquanto faltar a saída real |
+| Pedido por estado, bioma ou Brasil com cobertura e lacunas explícitas | **pendente** |
+| Painel de acerto do modelo por versão e comparação observada | **pendente**; não apresentar ausência de avaliações como 0% de acerto |
+
 ## Telas e mapa: ficha visual da terra
 
 Entrega 3 da continuação de 12/11/2026, sobre a ficha paga do PR #52.
@@ -464,3 +509,20 @@ A primeira execução no Actions identificou ausência de `rg` no runner; a veri
 
 - [x] Markdown do site preserva medidas ausentes e zeros explícitos; totais incompletos não são apresentados
   como totais completos. Regressões cobrem páginas estaduais/municipais e proteção de grupos pequenos.
+
+Validação da entrega urgente (12/11, 22h42 de Brasília): suíte completa local com 2.477 testes aprovados;
+o caso estadual exigiu preparar a referência privada e passou depois em execução isolada (144 municípios,
+345.870 imóveis, 425,58 s). LanguageTool depende do servidor presente no CI; uma divergência de TIR já
+documentada permanece como falha esperada. Frontend: 292 testes e build; Ruff/actionlint verdes;
+857 pacotes com licenças conferidas. PR/CI/merge e confirmação operacional ainda pendentes neste registro.
+
+
+PR urgente #95 aberto; CI `43347013537` parcialmente aprovado em 12/11 às 23h13 de Brasília
+(incluindo referência estadual do Pará). Exceção estrita de falso positivo Gitleaks confirmada localmente;
+aguarda término natural do CI antes do push para evitar cancelamento automático. Catálogo automático antigo
+`43346089594` falhou e continua pendente. Nenhum workflow foi cancelado ou desativado por este chat.
+
+O navegador do CI #95 encontrou um 404 na ref pública de processamento, ainda inexistente antes da primeira
+implantação. A fixture do build agora usa `./amostra/processamento.json`, servido pelo próprio site de teste.
+O Playwright exige as 27 UFs, ausência de erros e ausência de execução inventada; a configuração de produção
+continua consultando a ref pública. O teste de referência estadual, agentes, segurança, workflows e e2e já passaram.

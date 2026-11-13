@@ -2,7 +2,7 @@
 
 Passagem original de 12/11/2026, 13h20 de Brasília. Retomada pelo Codex na mesma data, a partir da main.
 Formatos e procedência foram integrados pelo #77; as seis pendências E1/E2, pelo #79.
-Branch da entrega operacional: `codex/dados-operacao`.
+Entrega #82 integrada; correção urgente em `codex/dados-snapshot`.
 
 ## O que este chat fez
 
@@ -23,7 +23,8 @@ Branch da entrega operacional: `codex/dados-operacao`.
   ainda furavam o limite (pedidos explícitos, `refazer`, continuações, planejadores concorrentes e falha da API).
   A entrega 1 fecha esses caminhos com `motor/fila_processamento.py` e a ref `raiz-fila-processamento`.
   Reservas só são liberadas depois de o Actions confirmar o job concluído, incluindo seus passos finais.
-  A agenda de 15 minutos apenas drena pedidos pendentes; a rodada semanal mantém seu escopo.
+  Na entrega #46 a agenda só drenava pedidos; a urgência posterior passa a repor também UFs incompletas
+  para recuperar vagas ociosas, mantendo a rodada semanal e o teto da manutenção.
 - **Itens 2–7 implementados:** fichas validadas antes do upload, quantis e hub nativo por UF, metadados globais,
   cartão do modelo, checksums para atestação OIDC e cronogramas CAD Trust. O preenchimento dos assets existentes e
   a verificação das assinaturas ainda dependem da execução retroativa após o término natural dos escritores
@@ -43,7 +44,56 @@ Branch da entrega operacional: `codex/dados-operacao`.
   A correção operacional foi validada localmente; sua confirmação em produção continua pendente.
   Sucesso do job não deve ser usado como evidência de dados produzidos.
 
-## O que falta, em ordem
+## Prioridade urgente — processamento, 12/11/2026 à noite
+
+O fundador priorizou esta sequência sobre a extensão dos formatos: corrigir a falha real de RN/PI, preservar
+resultados mesmo quando a publicação falhar, retomar várias UFs/fatias em paralelo até o teto global de 15,
+registrar a proibição de desativar/cancelar no `AGENTS.md` e publicar o painel de andamento municipal por estado.
+Não iniciar estimativa de conclusão do Brasil por simples contagem de jobs: medir municípios concluídos e
+comparar escopo/versões, incluindo os erros e o tempo efetivo após a correção.
+
+- **#82 mesclado:** `cf306256e0b562b1e05415b8ca0df1ca835c2155`, CI `43335410339` com oito checks verdes,
+  incluindo Pará completo. Workflow do motor consultado e ativo. Nenhum job cancelado por este chat.
+- **Causa comprovada RN-1 (`43316654812`):** a projeção pública rejeitou um CAR cadastrado em PB no recorte RN.
+  PI também contém um CAR válido de PE. Todos os identificadores desses dois pacotes têm formato e prefixos
+  IBGE coerentes; UF do recorte e origem cadastral são campos distintos. Não descartar nem alterar esses CARs.
+  A publicação privada ocorre antes dessa projeção; os pacotes e controles privados conferidos são recuperáveis.
+- **Outras falhas PI-2:** HTTP 502 ao conferir o Release privado interrompeu uma publicação periódica; CHIRPS
+  respondeu 429 em tarefas municipais. A exceção de publicação saía de `anota()` e encerrava o Pool de trabalho.
+  O cache salvo pelo workflow contém fontes, mas não garante a preservação de todas as saídas e retratos locais.
+  O checkpoint privado independente da catalogação foi implementado: restaura antes do cálculo e salva com
+  `always()` antes de finalizar/publicar/atestar. Resultados, marcas, versões, sidecars e retratos opacos ficam
+  no arquivo privado. A presença do checkpoint não afirma validade científica do retrato.
+- **Retratos:** causa reproduzida em 28 das 56.217 geometrias de RN: vértice de fechamento repetido, removido
+  gradualmente pelo GEOS. O leitor aceita somente essa diferença exata após conferir bytes, hashes, JSON e
+  atributos originais; valida a cópia canônica e conserva o original. 67 testes e os 28 casos reais passaram.
+  As tags diárias anteriores não comprovaram preservação remota; não afirmar recuperação do que não foi salvo.
+- **Correção local da projeção:** 16 testes passaram; a validação dos pacotes reais preservou 185.791 registros
+  em 130 CSVs de PI e 56.217 em 84 CSVs de RN, inclusive os dois identificadores de outra UF. O downloader
+  do site também foi corrigido e conferido com os mesmos 214 CSVs: bytes idênticos no destino. Nenhum upload nessa prova.
+- **Cópia estável:** a publicação agora lê pacote, Croissant, quantis, CADT e projeção básica da mesma cópia privada.
+  Fecha a corrida observada em RN (ficha com 44 CSVs, pacote com 41); outras lanes continuam no espelho original.
+  Bytes e SHA do sidecar precisam corresponder antes da cópia. O preflight mantém comparação exata do publicador:
+  publicadores antigos devem terminar naturalmente; não liberar o catálogo por uma exceção de compatibilidade.
+- **Painel implementado:** 27 UFs, municípios prontos/em execução/com erro, pendentes/desconhecidos e última
+  mudança. Usa eventos municipais reais com lease, sem inferir municípios pelo número de jobs; expiração é
+  explícita. A ref pública dedicada só recebe códigos IBGE, contagens e metadados operacionais permitidos.
+  Ver `docs/processamento-por-estado.md`; primeira emissão em produção ainda pendente.
+- **Promoção fechada:** `auditoria-promocao-urgente.json` vincula a auditoria anterior sem alterá-la. Dez
+  origens reconhecidas convergem para `ebb13cae969c56f88619aab45e01088116eb347f`, com as 11 versões iguais
+  à base protegida do #82. Upgrades científicos das origens anteriores continuam declarados por par.
+  Reservas vivas e pedidos bloqueados não são reescritos. 179 testes de fila/promoção/catálogo passaram.
+- **Marcas:** saídas com hash, bytes ou versão divergentes voltam ao plano; não contam como prontas. A cópia
+  estável também exige correspondência entre marcas e arquivos. 20 testes de preservação/cópia passaram.
+- **Reposição de paralelismo:** removido o limite de uma admissão no modo `proximo`. O cron de 15 minutos
+  também preenche vagas com UFs incompletas, sem iniciar manutenção; pedidos persistidos continuam prioritários.
+  Toda escolha passa pela mesma admissão CAS. Testes cobrem 0, 7, 14 e 15 vagas ocupadas e várias UFs:
+  194 testes de fila/promoção/catálogo passaram. Frontend: 292 testes e build aprovados; actionlint e Ruff verdes.
+- **Ainda a fazer nesta urgência:** suíte integrada/CI, PR/merge e admissão das vagas disponíveis pela fila
+  CAS. Conferir dados publicados, medir vazão e só então estimar estados por dia e conclusão do Brasil.
+  Workflow consultado ativo às 22h17 de Brasília em 12/11; nenhum cancelamento por este chat.
+
+## O que falta, em ordem (formatos, após a prioridade urgente)
 
 1. **Fechar o #43 — feito.** Merge e os dois CIs conferidos. O complemento da retomada torna 15 um teto global,
    inclusive com pedidos simultâneos, e preserva na fila os pedidos que ainda não cabem. Não cancelar os jobs.
@@ -338,6 +388,13 @@ backups. Os produtos finais continuam elegíveis a ficha e atestação; o proces
 
 ## Proteções incorporadas à retomada operacional
 
+- O CI do #82 na referência `7ab4852` passou. Antes do merge, foi incorporado o #83 da main, que torna
+  obrigatória a referência privada completa do Pará e exige sua execução exatamente uma vez no CI.
+  Os 256 testes locais relacionados passaram após essa integração; o CI atualizado ainda será conferido.
+- O Gitleaks dessa rodada encontrou três SHA-256 de código no commit externo `e7074b4`, examinado por `--all`.
+  Cada valor foi conferido contra os bytes do arquivo correspondente. Foram incluídos somente os três
+  fingerprints exatos em `.gitleaksignore`; nenhuma regra foi desativada. A reprodução com Gitleaks 8.24.3
+  passou sem achados. O novo push espera o término natural do CI anterior, para não cancelá-lo por concorrência.
 - O #81 foi integrado antes da atualização final do PR #82: atestação privada identificada somente pelo digest
   dos bytes, sanitização de erros e reserva do catálogo por rodada/tentativa. O catálogo não libera uma vaga
   com base no término de uma tentativa anterior. A combinação passou em 174 testes focados; um cenário de
@@ -361,3 +418,39 @@ backups. Os produtos finais continuam elegíveis a ficha e atestação; o proces
 - CADT de GO/MG indicou ausência de lote elegível. AC/AP/MA/RR/TO usam uniformemente
   `restauracao-2026b+cenarios-2026b+dbc2776a`, cenário `central_r11`; o registro fechado dessa versão está sendo
   recuperado no Git antes de gerar seus cronogramas. Os cálculos individuais publicados permanecem preservados.
+
+## Rodada 12 — instruções recebidas durante a correção urgente
+
+A prioridade continua sendo concluir as 27 UFs com até 15 jobs. Depois de implantar a correção acima:
+
+1. Explicitar o marcador municipal de integridade e a retomada da última partição íntegra.
+2. Medir mediana e p95 por município/UF e publicar método, amostras e números em `docs/operacao.md`.
+3. Interromper um processo executor de teste em estado pequeno e comparar retomada e execução inteira
+   por contagem de imóveis, nulos e geometrias sem área. Não desligar nem cancelar workflows.
+4. Usar Ibis Apache-2.0 somente para conferir a mesma contagem municipal em dois mecanismos; não trocar ingestão.
+5. Camada agregada de movimentação bovina PA/2016 e circuitos pecuários: só totais por município/mês.
+   Artigo localizado: https://www.astesj.com/v03/i05/p12/ (DOI 10.25046/aj030512). A tabela municipal/mensal
+   ainda não foi localizada; o link da pesquisa/base foi solicitado, sem bloquear a correção urgente.
+   Não reconstruir valores exatos de gráficos, inferir meses ou publicar produtores/estabelecimentos.
+
+A extensão dos formatos Lote PA e o retropreenchimento do catálogo continuam preservados e pendentes.
+
+Validação da entrega urgente (12/11, 22h42 de Brasília): suíte completa local com 2.477 testes aprovados;
+o caso estadual exigiu preparar a referência privada e passou depois em execução isolada (144 municípios,
+345.870 imóveis, 425,58 s). LanguageTool depende do servidor presente no CI; uma divergência de TIR já
+documentada permanece como falha esperada. Frontend: 292 testes e build; Ruff/actionlint verdes;
+857 pacotes com licenças conferidas. PR/CI/merge e confirmação operacional ainda pendentes neste registro.
+
+
+Acompanhamento do PR #95 em 12/11 às 23h13 de Brasília: referência privada completa do Pará, agentes e
+workflows passaram no CI `43347013537`; demais jobs ainda em andamento/fila. Gitleaks apontou somente
+`KC_DB_URL` no commit `e0e8ccdd`, uma URL JDBC interna sem usuário/senha; exceção limitada ao fingerprint
+confirmado preparada. Varredura local de 492 commits passou após essa exceção. O push da correção aguarda
+o término natural do CI atual para não acionar seu cancelamento automático. Catálogo automático antigo
+`43346089594` terminou com falha: AC/RuntimeError e AP/ProcessamentoInseguro; a preservação do relatório
+falhou porque os assets mudaram durante a paginação. Nada foi cancelado; catálogo completo continua pendente.
+
+O navegador do CI #95 encontrou um 404 na ref pública de processamento, ainda inexistente antes da primeira
+implantação. A fixture do build agora usa `./amostra/processamento.json`, servido pelo próprio site de teste.
+O Playwright exige as 27 UFs, ausência de erros e ausência de execução inventada; a configuração de produção
+continua consultando a ref pública. O teste de referência estadual, agentes, segurança, workflows e e2e já passaram.

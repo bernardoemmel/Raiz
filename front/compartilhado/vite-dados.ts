@@ -302,6 +302,7 @@ export function dadosRaiz(opcoes: { repo: string; raizDados?: string | null; cac
           return json(req, res, { ...resultado, municipios: resultado.municipios.map((m) => ({ ...m, imoveis: m.imoveis === null || m.imoveis < 5 ? null : m.imoveis })) })
         }
         if (url === "/amostra/estados.json") return json(req, res, estadosPublicos())
+        if (url === "/amostra/processamento.json") return json(req, res, pasta.processamento())
         if (url === "/amostra/lote_PA_central_r11.json") return json(req, res, lotePublicado())
         if ((m = /^\/amostra\/indice_([A-Z]{2})\.json$/.exec(url))) return json(req, res, { uf: m[1], arquivos: arquivosPublicos(m[1]) })
         if ((m = /^\/amostra\/pontos_([A-Z]{2})\.json$/.exec(url))) {
@@ -349,8 +350,12 @@ export function dadosRaiz(opcoes: { repo: string; raizDados?: string | null; cac
         saida, base, produtor, siteUrl: process.env.RAIZ_SITE_URL,
         ...(comDados ? { catalogo: { estados: estadosPublicos(), municipios, arquivos: Object.fromEntries(pasta.ufs().map((uf) => [uf, arquivosPublicos(uf)])) } } : {}),
       })
-      if (!comDados) return
       const dAmostra = path.join(saida, "amostra")
+      if (!comDados) {
+        fs.mkdirSync(dAmostra, { recursive: true })
+        fs.writeFileSync(path.join(dAmostra, "processamento.json"), JSON.stringify(pasta.processamento()))
+        return
+      }
       const dGeo = path.join(saida, "geo")
       // Remove a publicação anterior para nenhum arquivo individual sobreviver a um rebuild.
       fs.rmSync(dAmostra, { recursive: true, force: true })
@@ -369,6 +374,7 @@ export function dadosRaiz(opcoes: { repo: string; raizDados?: string | null; cac
         if (pasta.publicacaoBasica(uf)) fs.writeFileSync(path.join(dAmostra, `car_${uf}.json`), JSON.stringify(pasta.foraBasicos(uf)))
       }
       fs.writeFileSync(path.join(dAmostra, "estados.json"), JSON.stringify(estadosPublicos()))
+      fs.writeFileSync(path.join(dAmostra, "processamento.json"), JSON.stringify(pasta.processamento()))
       fs.writeFileSync(path.join(dAmostra, "lote_PA_central_r11.json"), JSON.stringify(lotePublicado()))
       fs.writeFileSync(path.join(dGeo, "indice.json"), JSON.stringify(indiceGeoPublico()))
       for (const f of arquivosGeo()) {

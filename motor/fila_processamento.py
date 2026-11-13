@@ -26,12 +26,28 @@ CAPACIDADE_LEGADA_LOTE = {("retomar-lote-para.yml", "3546687c66ec07ef9bd875d181e
 # Destino imutável com E1/E2 e guardas: upgrade científico intencional nas origens antigas.
 # A auditoria declara as versões e os deltas por origem, sem reetiquetar saídas legadas.
 # Só promove continuações/retentativas pendentes elegíveis; reservas vivas ficam intactas.
-PROMOCOES_CONTINUACAO = {
+PROMOCOES_BASE_PR82 = {
     "88860b64ee09f811b66e283f5c57997ebcdb3fd5": "be452620f868537251fa832a10cb14bfb5c8efe3",
     "b624b108b0350135003e1099d9c928fa7cc24151": "be452620f868537251fa832a10cb14bfb5c8efe3",
     "6a53cfbf514f369f694ea0bd3bc594ef8295a3b4": "be452620f868537251fa832a10cb14bfb5c8efe3",
     "bea53bd06c7178daf2a53c392e5a9d54c55e7bc7": "be452620f868537251fa832a10cb14bfb5c8efe3",
     "436c7b636f6a8867b47403a1dfad4e4c741dc150": "be452620f868537251fa832a10cb14bfb5c8efe3",
+}
+
+# Correção urgente: destino fechado com checkpoint, publicação estável e telemetria.
+# A auditoria anterior continua válida para seu destino histórico; a extensão declara cada delta.
+DESTINO_CONTINUACAO = 'ebb13cae969c56f88619aab45e01088116eb347f'
+PROMOCOES_CONTINUACAO = {
+    "88860b64ee09f811b66e283f5c57997ebcdb3fd5": DESTINO_CONTINUACAO,
+    "b624b108b0350135003e1099d9c928fa7cc24151": DESTINO_CONTINUACAO,
+    "6a53cfbf514f369f694ea0bd3bc594ef8295a3b4": DESTINO_CONTINUACAO,
+    "bea53bd06c7178daf2a53c392e5a9d54c55e7bc7": DESTINO_CONTINUACAO,
+    "436c7b636f6a8867b47403a1dfad4e4c741dc150": DESTINO_CONTINUACAO,
+    "be452620f868537251fa832a10cb14bfb5c8efe3": DESTINO_CONTINUACAO,
+    "6f49dfcfe680c7da204dd06818025e1ff47cbb7f": DESTINO_CONTINUACAO,
+    "cf306256e0b562b1e05415b8ca0df1ca835c2155": DESTINO_CONTINUACAO,
+    "c3bf907cd8838056d3b1c1633159b37df7133a82": DESTINO_CONTINUACAO,
+    "2b6e8af444cab964b6503c0a3365ecb9cbde8c89": DESTINO_CONTINUACAO,
 }
 
 

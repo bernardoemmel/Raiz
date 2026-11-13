@@ -1,6 +1,7 @@
 """Promoções fechadas com deltas de validação explícitos, sem alterar os jobs vivos."""
 
 import copy
+import hashlib
 import json
 from pathlib import Path
 
@@ -24,7 +25,7 @@ def _antigo(**campos):
 
 
 def _promovido(pedido):
-    destino = PROMOCOES[pedido["ref"]]
+    destino = F.PROMOCOES_CONTINUACAO[pedido["ref"]]
     return {**pedido, "ref": destino, "promocao_publicador": {"origem": pedido["ref"], "destino": destino}}
 
 
@@ -32,7 +33,7 @@ def test_promocao_fechada_declara_upgrade_e1_e2_guardas_e_versoes_por_origem():
     # O CI raso verifica a prova dos commits imutáveis sem consultar GitHub.
     prova = json.loads((RAIZ / "docs/passagem/auditoria-promocao-publicador.json").read_text())
     assert prova["versao_auditoria"] == 3
-    assert F.PROMOCOES_CONTINUACAO == PROMOCOES
+    assert F.PROMOCOES_BASE_PR82 == PROMOCOES
     assert prova["destino"] == DESTINO
     assert set(prova["origens"]) == set(PROMOCOES)
     assert set(PROMOCOES.values()) == {DESTINO}
@@ -104,7 +105,7 @@ def test_promocao_fechada_declara_upgrade_e1_e2_guardas_e_versoes_por_origem():
     )
 
 
-@pytest.mark.parametrize("origem", PROMOCOES)
+@pytest.mark.parametrize("origem", F.PROMOCOES_CONTINUACAO)
 def test_continuacao_promovida_preserva_pedido_e_reserva_viva(origem):
     vivo = _antigo(continuacao=1, id="anterior/BA-1/1", ref=origem)
     pendente = _antigo(falhas=1, ref=origem)
@@ -119,7 +120,7 @@ def test_continuacao_promovida_preserva_pedido_e_reserva_viva(origem):
     assert F.admitir(estado, runs, "2", [], O._e_unidade) == [_promovido(pendente)]
 
 
-@pytest.mark.parametrize("origem", PROMOCOES)
+@pytest.mark.parametrize("origem", F.PROMOCOES_CONTINUACAO)
 def test_falha_reconciliada_promove_retentativa_sem_continuacao(origem):
     pedido = _antigo(continuacao=0, ref=origem)
     estado = {**F.vazio(), "planejadores": ["1", "2"],
@@ -129,7 +130,7 @@ def test_falha_reconciliada_promove_retentativa_sem_continuacao(origem):
 
 
 @pytest.mark.parametrize("cancelado", [True, False])
-@pytest.mark.parametrize("origem", PROMOCOES)
+@pytest.mark.parametrize("origem", F.PROMOCOES_CONTINUACAO)
 def test_reconciliacao_nao_promove_cancelados_nem_erros_bloqueados(cancelado, origem):
     pedido = _antigo(falhas=0 if cancelado else 2, ref=origem)
     estado = {**F.vazio(), "planejadores": ["1", "2"],
@@ -147,7 +148,7 @@ def test_reconciliacao_nao_promove_cancelados_nem_erros_bloqueados(cancelado, or
     [
         {"continuacao": 0},
         {"ref": "a" * 40},
-        {"ref": DESTINO},
+        {"ref": F.DESTINO_CONTINUACAO},
         {"bloqueado": "cancelado"},
         {"continuacao": True},
         {"continuacao": "2"},
@@ -176,7 +177,7 @@ def test_continuacao_tardia_sera_promovida_sem_reordenar_fila():
     assert F.promover_continuacoes(estado) == 0
 
 
-@pytest.mark.parametrize("origem", PROMOCOES)
+@pytest.mark.parametrize("origem", F.PROMOCOES_CONTINUACAO)
 def test_conflito_cas_rele_reserva_antiga_sem_reescrever_job_ja_admitido(monkeypatch, origem):
     pedido = _antigo(ref=origem)
     estado = {**F.vazio(), "planejadores": ["1", "2"], "fila": [copy.deepcopy(pedido)]}
@@ -230,3 +231,29 @@ def test_gatilho_unico_nao_confia_em_codigo_de_outro_run(mudanca, autorizado):
     assert eval(" ".join(expressao.split()), {"__builtins__": {}}, funcoes) is autorizado
     checkout = workflow["jobs"]["catalogo"]["steps"][0]
     assert checkout["uses"] == "actions/checkout@v4" and "with" not in checkout
+
+
+def test_promocao_urgente_vincula_prova_anterior_e_codigo_corrigido():
+    from raiz.executor import tarefas
+
+    prova = json.loads((RAIZ / "docs/passagem/auditoria-promocao-urgente.json").read_text())
+    anterior = RAIZ / "docs/passagem/auditoria-promocao-publicador.json"
+    assert prova["auditoria_anterior_sha256"] == hashlib.sha256(anterior.read_bytes()).hexdigest()
+    assert prova["base_cientifica"] == DESTINO
+    assert prova["destino"] == F.DESTINO_CONTINUACAO
+    assert F.PROMOCOES_CONTINUACAO == {o: prova["destino"] for o in prova["origens"]}
+    assert set(PROMOCOES) < set(prova["origens"])
+    atual = prova["commits"][prova["destino"]]
+    assert atual["versoes_tarefas"] == {n: tarefas.versao(n) for n in tarefas.CODIGO}
+    assert atual["versoes_tarefas"] == prova["commits"][DESTINO]["versoes_tarefas"]
+    assert atual["armazem_sha256"] == hashlib.sha256((RAIZ / "raiz/executor/armazem.py").read_bytes()).hexdigest()
+    assert {p["origem"] for p in prova["comparacoes"]} == set(F.PROMOCOES_CONTINUACAO)
+    for par in prova["comparacoes"]:
+        origem = prova["commits"][par["origem"]]
+        assert origem["modulo_temporario_conferido"]
+        assert origem["codigo_nativo_sha256"] == atual["codigo_nativo_sha256"]
+        assert par["dependencias_integralmente_preservadas"] and par["pacotes_preservados"] > 200
+        assert len(par["diff_sha256"]) == 64
+        mudaram = {n for n, v in origem["versoes_tarefas"].items() if v != atual["versoes_tarefas"][n]}
+        assert mudaram == set(par["tarefas_alteradas"])
+        assert set(par["tarefas_preservadas"]) == set(atual["versoes_tarefas"]) - mudaram
