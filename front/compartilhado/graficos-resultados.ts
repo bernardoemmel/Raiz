@@ -23,6 +23,12 @@ export interface MedidaConfirmada {
   valor: number
   fonte: FonteResultado
 }
+/** Uma etapa documental não pode ser sustentada somente pelo banco de previsões. */
+export const FONTES_POR_NATUREZA = {
+  contrato_assinado: ["Registro de contratos da Raíz"],
+  emissao_registrada: ["Registro de emissão de créditos", "Registro Verra", "Registro Gold Standard"],
+  entrega_comprovada: ["Comprovante de entrega de créditos"],
+} as const
 export interface SerieContrato {
   id: string
   metodo: string
@@ -93,7 +99,9 @@ function medida(v: unknown, limite: string, natureza: MedidaConfirmada["natureza
   if (v === null) return null
   const m = registro(v)
   if (m.natureza !== natureza) return falha()
-  return { natureza, valor: numero(m.valor), fonte: fonte(m.fonte, limite) }
+  const origem = fonte(m.fonte, limite)
+  if (origem.nome !== "Demonstração sintética" && !(FONTES_POR_NATUREZA[natureza] as readonly string[]).includes(origem.nome)) return falha()
+  return { natureza, valor: numero(m.valor), fonte: origem }
 }
 /** Lista positiva: não aceita especificações de gráfico, URLs, CAR ou dados de dono vindos do servidor. */
 export function lerResultadosGraficos(v: unknown): ResultadosGraficos {

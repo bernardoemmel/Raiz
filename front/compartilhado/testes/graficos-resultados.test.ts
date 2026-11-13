@@ -1,7 +1,7 @@
 import fs from "node:fs"
 import { describe, expect, it } from "vitest"
 import { resultadosDemonstracao } from "../pedidos/graficos-demonstracao"
-import { lerResultadosGraficos } from "../graficos-resultados"
+import { FONTES_POR_NATUREZA, lerResultadosGraficos } from "../graficos-resultados"
 import { especificacaoFaixas, opcaoContratos } from "../../globo/src/partes/graficos/modelos"
 
 const exemplo = () => JSON.parse(fs.readFileSync(new URL("../../../testes/fixtures/resultados_graficos_sinteticos.json", import.meta.url), "utf8"))
@@ -61,6 +61,16 @@ describe("evidências dos gráficos privados", () => {
     for (const c of d.comparacoes) for (const k of ["previsao", "observado"]) Object.assign(c[k].referencia, { escala: "por_hectare", unidade: "tCO2e/ha", area_base_ha: 1 })
     expect(lerResultadosGraficos(d).comparacoes[0].previsao.referencia.area_elegivel_carteira_ha).toBe(20)
     d.comparacoes[0].observado.referencia.area_elegivel_carteira_ha = 30
+    expect(() => lerResultadosGraficos(d)).toThrow()
+  })
+
+  it.each(["contratado", "emitido", "entregue"])("não promove previsão do aprendizado a %s", (campo) => {
+    const d = exemplo(); d.origem = "real"; d.comparacoes = []
+    for (const s of d.contratos) for (const m of s.marcos) for (const k of ["contratado", "emitido", "entregue"]) {
+      if (m[k]) m[k].fonte.nome = FONTES_POR_NATUREZA[m[k].natureza][0]
+    }
+    expect(lerResultadosGraficos(d).origem).toBe("real")
+    d.contratos[0].marcos.at(-1)[campo].fonte.nome = "Banco de aprendizado da Raíz"
     expect(() => lerResultadosGraficos(d)).toThrow()
   })
 

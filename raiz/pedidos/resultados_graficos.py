@@ -14,6 +14,11 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 Identificador = Annotated[str, Field(pattern=r"^[a-zA-Z0-9][a-zA-Z0-9_.:+/-]{0,119}$")]
 Numero = Annotated[float, Field(ge=0)]
 Dia = Annotated[str, Field(pattern=r"^\d{4}-\d{2}-\d{2}$")]
+FONTES_POR_NATUREZA = {
+    "contrato_assinado": {"Registro de contratos da Raíz"},
+    "emissao_registrada": {"Registro de emissão de créditos", "Registro Verra", "Registro Gold Standard"},
+    "entrega_comprovada": {"Comprovante de entrega de créditos"},
+}
 
 
 def _dia(valor: str) -> dt.date:
@@ -82,6 +87,12 @@ class MedidaConfirmada(Fechado):
     natureza: Literal["contrato_assinado", "emissao_registrada", "entrega_comprovada"]
     valor: Numero
     fonte: FonteResultado
+
+    @model_validator(mode="after")
+    def conferir_origem(self) -> Self:
+        if self.fonte.nome != "Demonstração sintética" and self.fonte.nome not in FONTES_POR_NATUREZA[self.natureza]:
+            raise ValueError("A fonte não comprova a natureza documental desta etapa.")
+        return self
 
 
 class MarcoContrato(Fechado):

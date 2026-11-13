@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
-from raiz.pedidos.resultados_graficos import ResultadosGraficos
+from raiz.pedidos.resultados_graficos import FONTES_POR_NATUREZA, ResultadosGraficos
 
 FIXTURE = Path(__file__).parent / "fixtures" / "resultados_graficos_sinteticos.json"
 
@@ -91,5 +91,20 @@ def test_por_hectare_preserva_denominador_original(resultados):
     dado = ResultadosGraficos.model_validate(resultados)
     assert dado.comparacoes[0].previsao.referencia.area_elegivel_carteira_ha == 20
     resultados["comparacoes"][0]["observado"]["referencia"]["area_elegivel_carteira_ha"] = 30
+    with pytest.raises(ValidationError):
+        ResultadosGraficos.model_validate(resultados)
+
+
+@pytest.mark.parametrize("campo", ["contratado", "emitido", "entregue"])
+def test_banco_de_aprendizado_nao_comprova_etapa_documental(resultados, campo):
+    resultados["origem"] = "real"
+    resultados["comparacoes"] = []
+    for serie in resultados["contratos"]:
+        for marco in serie["marcos"]:
+            for nome in ("contratado", "emitido", "entregue"):
+                if medida := marco[nome]:
+                    medida["fonte"]["nome"] = sorted(FONTES_POR_NATUREZA[medida["natureza"]])[0]
+    assert ResultadosGraficos.model_validate(resultados).origem == "real"
+    resultados["contratos"][0]["marcos"][-1][campo]["fonte"]["nome"] = "Banco de aprendizado da Raíz"
     with pytest.raises(ValidationError):
         ResultadosGraficos.model_validate(resultados)
