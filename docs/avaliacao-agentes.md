@@ -206,3 +206,26 @@ registradas. O juiz v2 permite retirar marcadores de ênfase/código somente ao 
 citação da resposta; não altera texto, números, negação nem evidências do serviço.
 As próximas campanhas recomeçam as 96 sessões com versão/hashes novos, sem reaproveitar
 notas da execução incompleta. Diagnósticos desembrulham ExceptionGroup sem expor mensagens.
+
+### Regressão diária com respostas gravadas
+
+`scripts.reproduzir_agentes` exige uma referência completa, real e aprovada, com 96
+sessões, relatório, configuração, traces e cassetes com hashes conferidos. A ausência
+ou alteração dessa referência falha o CI; não há substituição por respostas inventadas.
+O VCR reproduz somente as inferências do agente e exige igualdade do pedido completo,
+incluindo catálogo, instruções, argumentos e resultados atuais do MCP. OAuth, API,
+PostGIS, fila, efeitos e limites continuam reais. Nenhuma chave Anthropic é usada.
+
+O juiz semântico não roda no replay diário. As notas da campanha auditada são a
+referência, e as barreiras determinísticas são recalculadas no banco atual, podendo
+reprovar uma nota anterior. A última interação da cassete, do juiz, fica preservada
+na referência; o replay usa uma cópia explícita só das inferências do agente e exige
+consumir todas. Isso evita tratar um novo julgamento sobre texto sanitizado como se
+fosse a avaliação original. O relatório declara `origem=contrato`, com avaliador próprio,
+e nunca aprova a meta real do produto. A medição semanal continua com agente e juiz
+reais em conversas novas, 96 sessões e configuração congelada.
+
+```bash
+uv run python -m scripts.reproduzir_agentes \
+  --referencia testes/referencias/agente-real --saida .cache/agentes-replay
+```

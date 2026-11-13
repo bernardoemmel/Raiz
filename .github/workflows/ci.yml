@@ -16,7 +16,7 @@ concurrency:
 jobs:
   agentes:
     runs-on: ubuntu-24.04
-    timeout-minutes: 45
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
         with:
@@ -51,6 +51,11 @@ jobs:
         run: >-
           uv run python -m scripts.cenarios_agentes --smoke
           --saida .cache/protocolo-agentes/cenarios.json
+      - name: Reproduzir as 96 sessões gravadas contra o MCP real, sem chave Anthropic
+        run: >-
+          uv run python -m scripts.reproduzir_agentes
+          --referencia testes/referencias/agente-real
+          --saida .cache/agentes-replay
       - name: Memória e disco da pilha de teste
         if: always() && hashFiles('.env.agentes-teste') != ''
         run: >-
@@ -63,6 +68,7 @@ jobs:
           name: contratos-agentes
           path: |
             .cache/protocolo-agentes
+            .cache/agentes-replay/relatorio.json
           retention-days: 14
           if-no-files-found: error
       - name: Encerrar a pilha local
