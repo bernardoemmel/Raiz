@@ -25,7 +25,7 @@ import { camadasBase, camadasBaseNacionais, estiloBase, imagemHachura, prepararM
 import { prepararGpu } from "./preparar-gpu"
 
 import type { AgregadosMapa } from "../../../compartilhado/dados/agregados"
-import { CAMADA_GRUPOS, FONTE_GRUPOS, camadasGrupos, descreverGrupo, fonteGrupos, lerGrupo, prepararPontosAgregados, type GrupoMapa } from "./grupos"
+import { CAMADA_GRUPOS, FONTE_GRUPOS, camadasGrupos, descreverGrupo, fonteGrupos, lerGrupo, prepararPontosAgregados, urlAgregadosPublica, type GrupoMapa } from "./grupos"
 import { adicionarSatelitePublico, SATELITE_PUBLICO, type EstadoSatelitePublico } from "./satelite-publico"
 import "./cartografia.css"
 import { camadasImoveis, ordenarImoveis, ZOOM_IMOVEIS } from "./cartografia"
@@ -180,6 +180,7 @@ export function MapaBrasil(props: Props) {
   const limparSatelite = useRef<(() => void) | undefined>(undefined)
   const [zoom, setZoom] = useState(4)
   const [gruposVisiveis, setGruposVisiveis] = useState<GrupoMapa[]>([])
+  const [erroAgregadosNoMapa, setErroAgregadosNoMapa] = useState(false)
   const listaGruposAberta = useRef(false)
   const municipioPorZoom = useRef<string | null>(null)
   const [satelite, setSatelite] = useState<EstadoSatelitePublico>("carregando")
@@ -216,6 +217,7 @@ export function MapaBrasil(props: Props) {
       m.addControl(new ScaleControl({ unit: "metric" }), "bottom-right")
       if (import.meta.env.DEV || import.meta.env.VITE_RAIZ_TESTE_MAPA === "1") Object.assign(caixa.current, { __mapa: m })
       mapaRef.current = m
+      m.on("error", e => { if ("sourceId" in e && e.sourceId === FONTE_GRUPOS) setErroAgregadosNoMapa(true) })
       m.once("load", () => {
         montar(m, null, true)
         ligarEventos(m)
@@ -289,7 +291,10 @@ export function MapaBrasil(props: Props) {
   useEffect(() => {
     const m = mapaRef.current
     if (!m || !pronto) return
-    ;(m.getSource(FONTE_GRUPOS) as GeoJSONSource).setData(prepararPontosAgregados(props.agregados?.geo) as never)
+    const arquivoEsperado = new URL(`${import.meta.env.BASE_URL}geo/agregados_brasil.geojson`, document.baseURI)
+    const url = arquivoEsperado.origin === location.origin ? urlAgregadosPublica(props.agregados?.url, arquivoEsperado.href) : null
+    setErroAgregadosNoMapa(false)
+    ;(m.getSource(FONTE_GRUPOS) as GeoJSONSource).setData((url ?? prepararPontosAgregados(props.agregados?.geo)) as never)
   }, [pronto, props.agregados])
 
   // os estados pela situação: cor do contorno e o rótulo com a contagem (completo, incompleto, ainda não processado)
@@ -758,15 +763,17 @@ export function MapaBrasil(props: Props) {
     ? (brasil?.municipios?.features.find((f) => String(f.properties.cod_ibge) === municipio)?.properties.nome as string | undefined)
     : undefined
   const nomeUf = !municipio && uf ? estados?.estados.find((e) => e.uf === uf)?.nome : undefined
+  const falhaNosAgregados = props.agregadosErro || erroAgregadosNoMapa
   return (
     <div className="mapa-brasil" role="region" aria-label={nomeMun ? `Mapa de ${nomeMun}` : nomeUf ? `Mapa de ${nomeUf}` : "Mapa do Brasil"}>
       <div className="mapa" ref={caixa} />
       {brasil && <div className={`cartografia-legenda${!uf && !municipio && zoom < ZOOM_FAZENDAS ? " cartografia-legenda-nacional" : ""}`} aria-label="Como ler o mapa">
+        {zoom < ZOOM_FAZENDAS && falhaNosAgregados && <p role="alert">Não foi possível carregar os agregados. Confira a conexão e recarregue a página.</p>}
         <details className="cartografia-resumo" open={margemBaixo === 0 && zoom >= ZOOM_FAZENDAS}>
         <summary><strong>{zoom < ZOOM_FAZENDAS ? "Grupos de fazendas" : "Limites do CAR"}</strong></summary>
         {zoom < ZOOM_FAZENDAS ? <>
           {(uf || municipio) && <p>Contagem de fazendas e hectares conhecidos. Cobertura parcial.</p>}
-          {props.agregadosCarregando ? <p role="status">Carregando os agregados…</p> : props.agregadosErro ? <p role="alert">Não foi possível carregar os agregados. Confira a conexão e recarregue a página.</p> : props.agregados?.geo.features.length ? <>
+          {props.agregadosCarregando ? <p role="status">Carregando os agregados…</p> : falhaNosAgregados ? null : props.agregados?.metadados.contagens.celulas ? <>
             <details><summary>Fonte e limites</summary><p>{props.agregados.metadados.aviso}</p><p>Fonte: {props.agregados.metadados.fonte}. Atualização: {props.agregados.metadados.atualizado_em ? new Date(props.agregados.metadados.atualizado_em).toLocaleDateString("pt-BR") : "não informada"}.</p></details>
             <details onToggle={e => { listaGruposAberta.current = e.currentTarget.open; if (mapaRef.current) atualizarGruposVisiveis(mapaRef.current) }}>
               <summary>Explorar grupos com teclado</summary>

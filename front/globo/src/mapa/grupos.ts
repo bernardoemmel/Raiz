@@ -1,4 +1,4 @@
-import type { GeoJSONSourceSpecification, LayerSpecification } from "maplibre-gl"
+import type { ExpressionSpecification, GeoJSONSourceSpecification, LayerSpecification } from "maplibre-gl"
 import type { Geo } from "../../../compartilhado/dados"
 import { COR } from "../../../compartilhado/cores"
 import { fmtHa, fmtInt } from "../../../compartilhado/formato"
@@ -15,25 +15,40 @@ export interface GrupoMapa {
   semMedida: number
 }
 
-/** O zero interno é só a identidade da soma; com_medida impede apresentá-lo como dado conhecido. */
+/** Compatibilidade com publicações anteriores; a projeção normal pronta é lida direto pelo worker. */
 export function prepararPontosAgregados(geo?: Geo | null): Geo {
   const vistos = new Set<string>()
   return { type: "FeatureCollection", features: (geo?.features ?? []).flatMap(f => {
     const { h3, fazendas, potencial_ha: ha } = f.properties
     if (f.geometry.type !== "Point" || typeof h3 !== "string" || vistos.has(h3) || !Number.isSafeInteger(fazendas) || Number(fazendas) < 5) return []
     vistos.add(h3)
-    const medida = typeof ha === "number" && Number.isFinite(ha) && ha > 0
     return [{ type: "Feature" as const, geometry: f.geometry, properties: {
-      h3, fazendas, ha_conhecidos: medida ? ha : 0, com_medida: medida ? 1 : 0, sem_medida: medida ? 0 : 1,
+      h3, fazendas, potencial_ha: typeof ha === "number" && Number.isFinite(ha) && ha > 0 ? ha : null,
     } }]
   }) }
 }
+
+/** Defesa adicional: o renderer só entrega ao worker o arquivo público desta mesma publicação. */
+export function urlAgregadosPublica(url: string | null | undefined, arquivoEsperado: string): string | null {
+  if (!url) return null
+  try {
+    const esperado = new URL(arquivoEsperado), recebido = new URL(url, esperado)
+    return recebido.href === esperado.href && !recebido.username && !recebido.password ? recebido.href : null
+  } catch { return null }
+}
+
+const HA_PONTO: ExpressionSpecification = ["coalesce", ["get", "potencial_ha"], 0]
+const COM_MEDIDA_PONTO: ExpressionSpecification = ["case", [">", HA_PONTO, 0], 1, 0]
+const HA_GRUPO: ExpressionSpecification = ["coalesce", ["get", "ha_conhecidos"], HA_PONTO]
+const COM_MEDIDA_GRUPO: ExpressionSpecification = ["coalesce", ["get", "com_medida"], COM_MEDIDA_PONTO]
 
 /** Supercluster do MapLibre roda no worker; não há segundo índice no thread da interface. */
 export function fonteGrupos(): GeoJSONSourceSpecification {
   return { type: "geojson", data: { type: "FeatureCollection", features: [] }, cluster: true,
     clusterRadius: 112, clusterMaxZoom: ZOOM_IMOVEIS - 1, clusterMinPoints: 2,
-    clusterProperties: Object.fromEntries(["fazendas", "ha_conhecidos", "com_medida", "sem_medida"].map(c => [c, ["+", ["get", c]]])),
+    // Zero é só a identidade da soma; com_medida preserva a ausência de hectares no resultado.
+    clusterProperties: { fazendas: ["+", ["get", "fazendas"]], ha_conhecidos: ["+", HA_PONTO],
+      com_medida: ["+", COM_MEDIDA_PONTO], sem_medida: ["+", ["-", 1, COM_MEDIDA_PONTO]] },
   }
 }
 
@@ -46,11 +61,11 @@ export function camadasGrupos(): LayerSpecification[] {
       layout: { "text-font": ["Noto Sans Regular"], "text-size": 16, "text-line-height": 1.25,
         "text-allow-overlap": true, "text-field": ["concat",
           ["number-format", ["get", "fazendas"], { locale: "pt-BR", "max-fraction-digits": ["literal", 0] }], "\n",
-          ["case", ["==", ["get", "com_medida"], 0], "Sem medida",
-            ["<", ["get", "ha_conhecidos"], 0.1], "<0,1 ha",
-            ["concat", ["case", [">=", ["get", "ha_conhecidos"], 10],
-              ["number-format", ["get", "ha_conhecidos"], { locale: "pt-BR", "max-fraction-digits": ["literal", 0] }],
-              ["number-format", ["get", "ha_conhecidos"], { locale: "pt-BR", "max-fraction-digits": 1 }]], " ha"]],
+          ["case", ["==", COM_MEDIDA_GRUPO, 0], "Sem medida",
+            ["<", HA_GRUPO, 0.1], "<0,1 ha",
+            ["concat", ["case", [">=", HA_GRUPO, 10],
+              ["number-format", HA_GRUPO, { locale: "pt-BR", "max-fraction-digits": ["literal", 0] }],
+              ["number-format", HA_GRUPO, { locale: "pt-BR", "max-fraction-digits": 1 }]], " ha"]],
         ] }, paint: { "text-color": COR.superficie } },
   ]
 }
@@ -61,8 +76,10 @@ export function lerGrupo(f: { properties: Record<string, unknown> | null; geomet
   if (f.geometry.type !== "Point" || !Array.isArray(c) || c.length !== 2 || !c.every(n => typeof n === "number" && Number.isFinite(n))) return null
   if (!Number.isSafeInteger(p.fazendas) || Number(p.fazendas) < 5) return null
   const cluster = p.cluster === true && typeof p.cluster_id === "number" ? p.cluster_id : undefined
+  const ha = cluster === undefined ? p.potencial_ha : Number(p.com_medida) > 0 ? p.ha_conhecidos : null
+  const hectares = typeof ha === "number" && Number.isFinite(ha) && ha > 0 ? ha : null
   return { chave: cluster === undefined ? String(p.h3) : `grupo-${cluster}`, centro: c as [number, number], cluster,
-    fazendas: Number(p.fazendas), hectares: Number(p.com_medida) > 0 ? Number(p.ha_conhecidos) : null, semMedida: Number(p.sem_medida) }
+    fazendas: Number(p.fazendas), hectares, semMedida: cluster === undefined ? hectares === null ? 1 : 0 : Number(p.sem_medida) }
 }
 
 export function descreverGrupo(grupo: GrupoMapa): string {

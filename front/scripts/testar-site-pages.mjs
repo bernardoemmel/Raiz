@@ -159,8 +159,10 @@ try {
   const inicial = await pagina.evaluate(() => {
     const m = document.querySelector(".mapa-brasil .mapa").__mapa
     const f = m.queryRenderedFeatures({ layers: ["grupos-fazendas"] })[0]
-    return { propriedades: f.properties, hexagonos: !!m.getLayer("potencial-h3"), zoom: m.getZoom() }
+    return { propriedades: f.properties, hexagonos: !!m.getLayer("potencial-h3"), zoom: m.getZoom(), dados: m.getStyle().sources["agregados-nacionais"].data }
   })
+  assert.equal(inicial.dados, new URL("geo/agregados_brasil.geojson", base).href, "O worker deve ler a projeção pública por URL, sem serializar todas as feições na interface.")
+  assert(!pedidos.some(url => url.endsWith("/agregados_brasil.geojson.gz")), "A publicação nova não precisa baixar também o agregado legado.")
   assert.equal(inicial.hexagonos, false, "O H3 é só a agregação de entrada, não o desenho da escala nacional.")
   assert.equal(inicial.propriedades.fazendas, 11)
   assert.equal(inicial.propriedades.ha_conhecidos, 1000)
@@ -371,6 +373,23 @@ try {
   assert.equal(new URL(produtor.url()).pathname, new URL("produtor/", base).pathname,
     "O formulário do produtor precisa conservar a base configurada.")
   await contextoSemJs.close()
+  // Publicações anteriores continuam funcionando quando o índice só anuncia o gzip antigo.
+  const legado = await contexto.newPage()
+  legado.on("pageerror", e => erros.push(e.message))
+  legado.on("response", r => { if (r.status() >= 400) erros.push(`${r.status()} ${r.url()}`) })
+  await legado.route("**/geo/indice.json", async rota => {
+    const resposta = await rota.fetch(), indice = await resposta.json()
+    delete indice.agregados.normal
+    delete indice.agregados.metadados
+    await rota.fulfill({ response: resposta, json: indice })
+  })
+  await legado.goto(base)
+  await legado.waitForFunction(() => {
+    const m = document.querySelector(".mapa-brasil .mapa")?.__mapa
+    return m?.getLayer("grupos-fazendas") && m.queryRenderedFeatures({ layers: ["grupos-fazendas"] }).some(f => f.properties.fazendas === 11 && f.properties.ha_conhecidos === 1000 && f.properties.sem_medida === 1)
+  })
+  assert.equal(await legado.evaluate(() => typeof document.querySelector(".mapa-brasil .mapa").__mapa.getStyle().sources["agregados-nacionais"].data), "object")
+  await legado.close()
   assert.deepEqual(ausentes, [], "Nenhum arquivo pode responder 404.")
   assert.deepEqual(erros, [], "Nenhum erro de rede, JavaScript ou renderização.")
   console.log("ok: busca por nome, IBGE e CAR, acesso pago pela lista e pelo CAR, produtor sem JavaScript, publicação somente básica, calendário e feed ICS, zero 404 e zero erro no navegador.")
