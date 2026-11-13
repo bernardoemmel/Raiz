@@ -4,6 +4,15 @@ import assert from "node:assert/strict"
 const UFS = ["AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS", "MG", "PA", "PB", "PR", "PE", "PI", "RJ", "RN", "RS", "RO", "RR", "SC", "SP", "SE", "TO"]
 const INICIO = Date.parse("2026-11-13T12:05:00Z")
 
+/** No V2 a telemetria fica em Sobre os dados; abrir o diálogo não recria suas linhas. */
+async function abrirDados(pagina) {
+  const dialogo = pagina.locator("dialog.dados-mapa-v2")
+  await pagina.getByRole("button", { name: "Sobre os dados", exact: true }).click()
+  await dialogo.waitFor({ state: "visible" })
+  assert(await dialogo.evaluate(no => no.open), "Sobre os dados abre um diálogo acessível no mapa.")
+  assert.equal(await pagina.locator(".painel-lateral").count(), 0, "A entrada V2 não restaura a coluna lateral.")
+}
+
 function telemetria(rodada) {
   const observado = INICIO + (rodada > 1 ? 30_000 : 0)
   return { versao: 1, gerado_em: new Date(observado).toISOString(), estados: UFS.map(uf => ({
@@ -34,6 +43,7 @@ export async function conferirProcessamentoEstavel(navegador, base) {
     await pagina.route("**/amostra/processamento.json*", rota => rota.fulfill({ json: telemetria(++rodadas) }))
     await pagina.goto(base, { waitUntil: "domcontentloaded" })
     await resumoSolicitado
+    await abrirDados(pagina)
     await pagina.waitForFunction(() => document.querySelectorAll(".processamento-estado").length === 27)
     await pagina.getByText("Lendo os municípios processados", { exact: true }).waitFor()
     const identidade = await pagina.evaluateHandle(() => ({
@@ -98,6 +108,7 @@ export async function conferirEstabilidadePainelBrasil(navegador, base) {
       })
       await pagina.route("**/amostra/processamento.json*", rota => rota.fulfill({ json: telemetria(1) }))
       await pagina.goto(base, { waitUntil: "domcontentloaded" })
+      await abrirDados(pagina)
       await pagina.waitForFunction(() => document.querySelectorAll(".processamento-estado").length === 27)
       if (consulta === "resumo") await pagina.getByText("Lendo os municípios processados", { exact: true }).waitFor()
       else await pagina.locator(".numeros").waitFor()
@@ -110,7 +121,7 @@ export async function conferirEstabilidadePainelBrasil(navegador, base) {
         linhas: [...document.querySelectorAll(".processamento-estado")],
         y: document.querySelector(".processamento-estados").getBoundingClientRect().y,
         coberturaY: document.querySelector('[aria-labelledby="cobertura-titulo"]').getBoundingClientRect().y,
-        scrollTop: document.querySelector(".painel-rolagem").scrollTop,
+        scrollTop: document.querySelector("dialog.dados-mapa-v2").scrollTop,
       }))
       liberar()
       await pagina.getByRole("heading", { name: "Dados disponíveis no mapa", exact: true }).waitFor()
@@ -120,7 +131,7 @@ export async function conferirEstabilidadePainelBrasil(navegador, base) {
         cls: window.__deslocamentosPainel.filter(d => d.inicio >= antes.inicio).reduce((soma, d) => soma + d.valor, 0),
         deslocamento: Math.abs(document.querySelector(".processamento-estados").getBoundingClientRect().y - antes.y),
         coberturaDeslocamento: Math.abs(document.querySelector('[aria-labelledby="cobertura-titulo"]').getBoundingClientRect().y - antes.coberturaY),
-        scroll: document.querySelector(".painel-rolagem").scrollTop - antes.scrollTop,
+        scroll: document.querySelector("dialog.dados-mapa-v2").scrollTop - antes.scrollTop,
         painel: document.querySelector(".processamento-estados") === antes.painel,
         cobertura: document.querySelector('[aria-labelledby="cobertura-titulo"]') === antes.cobertura,
         linhas: antes.linhas.every((linha, i) => linha === document.querySelectorAll(".processamento-estado")[i]),

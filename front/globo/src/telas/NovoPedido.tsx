@@ -1,5 +1,5 @@
 import { X } from "lucide-react"
-import { lazy, Suspense, useMemo, useState } from "react"
+import { lazy, Suspense, useEffect, useMemo, useState } from "react"
 import { fmtInt } from "../../../compartilhado/formato"
 import { CAMPOS_PADRAO, marcosDo } from "../../../compartilhado/pedidos/exemplo"
 import {
@@ -16,6 +16,7 @@ import { pedidos } from "../pedidos"
 import { Cabecalho } from "../partes/Cabecalho"
 import { AvisoExemplo } from "../partes/pedido/AvisoExemplo"
 import { OndePedido } from "../partes/pedido/OndePedido"
+import { aplicarCriteriosDoMapaV2, confirmarCriteriosDoMapaV2, lerCriteriosDoMapaV2 } from "../partes/pedido/criterios-do-mapa-v2"
 import "../partes/pedido/pedido.css"
 import { linkPedido, linkPedidos } from "../rota"
 
@@ -41,9 +42,10 @@ const lerNumero = (s: string): number | null => {
  * ficam em "Mais filtros", já preenchidos.
  */
 export function NovoPedido() {
-  const [c, setC] = useState<CamposPedido>(() => ({ ...structuredClone(CAMPOS_PADRAO), onde: { ...structuredClone(CAMPOS_PADRAO.onde), ufs: ["PA"] } }))
-  const [metaTexto, setMetaTexto] = useState(fmtInt(CAMPOS_PADRAO.meta.valor))
-  const [desenhar, setDesenhar] = useState(false)
+  const [vindoDoMapa] = useState(lerCriteriosDoMapaV2)
+  const [c, setC] = useState<CamposPedido>(() => aplicarCriteriosDoMapaV2({ ...structuredClone(CAMPOS_PADRAO), onde: { ...structuredClone(CAMPOS_PADRAO.onde), ufs: ["PA"] } }, vindoDoMapa))
+  const [metaTexto, setMetaTexto] = useState(() => fmtInt(c.meta.valor))
+  const [desenhar, setDesenhar] = useState(() => !!c.onde.poligono?.length)
   const [raio, setRaio] = useState(false)
   const [mun, setMun] = useState("")
   const [enviando, setEnviando] = useState(false)
@@ -51,6 +53,7 @@ export function NovoPedido() {
   const brasil = useCarga(() => desenhar ? fonte.geo.brasil() : Promise.resolve(null), [desenhar])
   const municipios = useCarga(() => fonte.municipios(), [])
   const opcoesMun = useMemo(() => new Map((municipios.dado ?? []).map((m) => [`${m.municipio} (${m.uf})`, m])), [municipios.dado])
+  useEffect(() => { if (vindoDoMapa) confirmarCriteriosDoMapaV2(vindoDoMapa.transferencia) }, [vindoDoMapa])
 
   const mudar = (f: (x: CamposPedido) => void) =>
     setC((atual) => {
@@ -100,7 +103,8 @@ export function NovoPedido() {
         <h1>Novo pedido</h1>
         <p className="frase">Diga o que precisa. Compare quanto existe na base e os lotes mais barato, mais seguro e mais compacto já calculados.</p>
         <AvisoExemplo ativo={pedidos.exemplo} />
-        <p className="pedido-cena-resumo">O pedido começa com 1 milhão de créditos líquidos no Pará. Você pode escolher qualquer estado, bioma ou o Brasil inteiro. Nenhum dono será contatado nesta etapa.</p>
+        <p className="pedido-cena-resumo">{vindoDoMapa ? "Os critérios vieram do mapa e podem ser editados abaixo. " : "Preencha a meta e escolha qualquer estado, bioma ou o Brasil inteiro. "}Nenhum dono será contatado nesta etapa.</p>
+        {vindoDoMapa?.origem === "publicacao" && <p className="aviso" role="status">A meta e o preço de venda vieram do resumo publicado. O desenho e os demais critérios só serão aplicados a novos lotes quando houver execução pela API autenticada; a consulta pública mantém as opções do cenário de referência.</p>}
 
         <form className="formulario pedido-form" onSubmit={enviar} noValidate>
           <section aria-labelledby="np-quanto">

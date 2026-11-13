@@ -8,7 +8,7 @@ import { lerFunil, lerImovel } from "../dados/funil"
 import { fmtInt } from "../formato"
 import { etapasDoFunil, etapasDoResumo, fraseDoBrasil, noFoco, numerosDoBrasil } from "../funil-etapas"
 import { nomeProprio, pontoDentro, rotulosDeAreas } from "../rotulos-mapa"
-import { destinoDaBusca, lerRota, linkFazenda, linkFichaLote, linkGrupo, linkMunicipio, linkPasta, linkPedido, municipiosSemDados, type MunicipioDoMapa } from "../../globo/src/rota"
+import { destinoDaBusca, lerRota, linkFazenda, linkFichaLote, linkGrupo, linkMunicipio, linkPasta, linkPedido, linkPedidoMapa, municipiosSemDados, type MunicipioDoMapa } from "../../globo/src/rota"
 
 const FRONT = path.resolve(__dirname, "../..")
 const AMOSTRA = path.resolve(FRONT, "../dados/amostra")
@@ -68,6 +68,7 @@ describe("rotas", () => {
     expect(lerRota(linkPasta(id))).toEqual({ tela: "pasta", id })
     expect(lerRota(linkGrupo(id))).toEqual({ tela: "grupo", id })
     expect(lerRota(linkPedido(id))).toEqual({ tela: "pedido", id })
+    expect(lerRota(linkPedidoMapa(id))).toEqual({ tela: "pedido-mapa", id })
   })
 })
 

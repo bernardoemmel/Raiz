@@ -1,4 +1,4 @@
-.sensibilidade-lote fieldset { display: grid; gap: var(--e3); min-width: 0; margin: var(--e4) 0; padding: var(--e4); border: var(--linha); }
+.sensibilidade-lote fieldset { display: grid; gap: var(--e3); min-width: 0; margin: var(--e4) 0; padding: var(--e4); border: var(--borda); }
 .sensibilidade-lote legend { font-weight: 600; padding: 0 var(--e2); }
 .sensibilidade-lote label { display: grid; gap: var(--e2); min-width: 0; }
 .sensibilidade-lote input[type="number"] { width: 100%; min-height: 48px; border: 1px solid var(--pedra); border-radius: var(--raio-botao); padding: var(--e2) var(--e3); background: var(--superficie); }

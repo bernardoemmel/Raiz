@@ -7,8 +7,7 @@ import { layers, namedFlavor, type Flavor } from "@protomaps/basemaps"
 import { addProtocol, setWorkerUrl, type LayerSpecification, type StyleSpecification } from "maplibre-gl"
 import workerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?url"
 import { Protocol } from "pmtiles"
-import { COR, MAPA } from "../../../compartilhado/cores"
-import { CORES_MAPA, FILTRO_PAISES } from "../../../compartilhado/mapa-cores"
+import { COR, COR_MAPA_V2 } from "../../../compartilhado/cores"
 import { fonteMapaBase } from "../../../compartilhado/mapa-base"
 import { camadasNacionais, fontesNacionais, type DadosNacionais } from "./nacional"
 
@@ -21,8 +20,15 @@ export function prepararMapLibre() {
   addProtocol("pmtiles", new Protocol().tile)
 }
 
-/** O "white" do Protomaps recolorido com a paleta do guia (cores em compartilhado/cores.ts). */
-export const SABOR_RAIZ: Flavor = { ...namedFlavor("white"), ...CORES_MAPA, landcover: { ...CORES_MAPA.landcover } }
+export { COR_MAPA_V2 } from "../../../compartilhado/cores"
+
+/** Paleta exclusiva do globo. O produtor conserva seu estilo claro compartilhado. */
+export const SABOR_RAIZ: Flavor = {
+  ...namedFlavor("black"), background: COR_MAPA_V2.terra, earth: COR_MAPA_V2.terra, water: COR_MAPA_V2.agua,
+  boundaries: COR_MAPA_V2.pais, country_label: COR_MAPA_V2.rotulo, city_label: COR_MAPA_V2.rotulo,
+  city_label_halo: COR_MAPA_V2.terra, state_label: COR_MAPA_V2.rotulo, state_label_halo: COR_MAPA_V2.terra,
+  subplace_label: COR_MAPA_V2.rotulo, subplace_label_halo: COR_MAPA_V2.terra, ocean_label: COR_MAPA_V2.rotulo,
+}
 
 /** URL das letras dos rótulos (geradas por front/scripts/geo.py em front/geo/fontes). */
 const glyphs = () => location.origin + import.meta.env.BASE_URL + "geo/fontes/{fontstack}/{range}.pbf"
@@ -33,7 +39,7 @@ export function estiloBase(base: string | null, opcoes: { rotulos?: boolean; nac
     version: 8,
     glyphs: glyphs(),
     sources: {},
-    layers: [{ id: "background", type: "background", paint: { "background-color": SABOR_RAIZ.earth, ...(opcoes.nacional ? { "background-opacity": 0 } : {}) } }],
+    layers: [{ id: "background", type: "background", paint: { "background-color": SABOR_RAIZ.earth,  } }],
   }
   if (opcoes.nacional) {
     const baseNacional = base ? camadasBaseNacionais() : fundo.layers
@@ -60,25 +66,11 @@ export function estiloBase(base: string | null, opcoes: { rotulos?: boolean; nac
 /** No país cabem terra, água, fronteiras e nomes. Estradas e usos locais entram quando a pessoa aproxima. */
 export function camadasBaseNacionais(): LayerSpecification[] {
   const ids = new Set(["background", "earth", "water", "boundaries_country", "water_label_ocean", "places_country"])
-  return camadasBase().filter((camada) => ids.has(camada.id)).map((camada) => {
-    // O container nacional já tem a mesma cor sólida: não compila um programa gráfico só para ela.
-    // A camada permanece como âncora de ordem; terra e água continuam sendo desenhadas pelo mapa real.
-    if (camada.type === "background") return { ...camada, paint: { ...camada.paint, "background-opacity": 0 } }
-    if (camada.type === "fill") return { ...camada, paint: { ...camada.paint, "fill-antialias": false } }
-    if (camada.type === "symbol") return { ...camada, layout: { ...camada.layout, "text-font": ["Noto Sans Regular"] } }
-    if (camada.type === "line") {
-      // Fronteira contínua na visão do país: usa o mesmo programa gráfico dos limites estaduais.
-      // O tracejado do estilo detalhado volta ao selecionar um lugar ou aproximar.
-      const paint = { ...camada.paint }
-      delete paint["line-dasharray"]
-      return { ...camada, paint }
-    }
-    return camada
-  })
+  return camadasBase().filter((camada) => ids.has(camada.id))
 }
 
 /**
- * As camadas do Protomaps com o acabamento do guia (item 2.1, parte 1): rio em #7FAFC4 com 0,6 px no zoom 8, 1,4 no 12
+ * As camadas escuras do Protomaps: rios com 0,6 px no zoom 8, 1,4 no 12
  * e 3 no 15; nomes de cidade sem o ícone (não servimos sprite); rótulos com halo de 1,5 px da cor do fundo; sem pontos
  * de interesse, endereços e prédios.
  */
@@ -88,7 +80,12 @@ export function camadasBase(rotulos = true): LayerSpecification[] {
     // nome de estado sai do mapa base: a tela de entrada escreve o dela, com o que a Raíz já leu de cada um
     if (l.id === "places_region") return []
     if (l.type === "symbol" && !rotulos) return []
-    if (l.id === "places_country") l = { ...l, filter: FILTRO_PAISES } as unknown as LayerSpecification
+    // Estradas, trilhos e pontes não competem com o agregado nacional e estadual.
+    if (l.id.startsWith("roads") || l.id.startsWith("road") || l.id.startsWith("bridge") || l.id.startsWith("tunnel") || l.id.startsWith("rail"))
+      l = { ...l, minzoom: Math.max(l.minzoom ?? 0, 9) }
+    if (l.type === "symbol" && l.layout?.["text-field"])
+      l = { ...l, layout: { ...l.layout, "text-field": ["coalesce", ["get", "name:pt"], ["get", "name"]] },
+        paint: { ...l.paint, "text-halo-color": COR_MAPA_V2.terra, "text-halo-width": 1.5 } }
     if (l.type === "symbol" && l.layout && "icon-image" in l.layout) {
       if (l.id !== "places_locality") return []
       const layout = Object.fromEntries(Object.entries(l.layout).filter(([k]) => !k.startsWith("icon-")))
@@ -99,7 +96,7 @@ export function camadasBase(rotulos = true): LayerSpecification[] {
         {
           ...l,
           paint: {
-            "line-color": MAPA.rio,
+            "line-color": COR_MAPA_V2.rio,
             "line-width": ["interpolate", ["linear"], ["zoom"], 8, l.id === "water_river" ? 0.6 : 0.3, 12, 1.4, 15, 3],
           },
         } as LayerSpecification,

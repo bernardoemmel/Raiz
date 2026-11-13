@@ -4,6 +4,7 @@ import {
   AttributionControl,
   LngLatBounds,
   Map as MapaGL,
+  Marker,
   NavigationControl,
   Popup,
   ScaleControl,
@@ -22,14 +23,13 @@ import { fonteMapaBase } from "../../../compartilhado/mapa-base"
 import { cederProcessamento } from "../../../compartilhado/ceder-processamento"
 import { tituloDe } from "../filtros"
 import { linkCalendarioImovel, linkFazenda } from "../rota"
-import { camadasBase, estiloBase, imagemHachura, prepararMapLibre } from "./estilo"
-import { prepararGpu } from "./preparar-gpu"
-import { instalarPreparoProgramasNacionais } from "./preparar-programas-nacionais"
-import { MarcadoresGrupos } from "./marcadores-grupos"
+import { camadasBase, COR_MAPA_V2, estiloBase, imagemHachura, prepararMapLibre } from "./estilo"
 
 import type { AgregadosMapa } from "../../../compartilhado/dados/agregados"
-import { descreverGrupo, raioGrupo, urlAgregadosPublica, type GrupoMapa } from "./grupos"
-import { WorkerGrupos } from "./worker-grupos"
+import { type HexagonoMapa, type LegendaHexagonos } from "./hexagonos"
+import { WorkerHexagonos } from "./worker-hexagonos"
+import { camadasHexagonos, corHexagonos, descreverHexagono, fontePublicaHexagonos } from "./camadas-hexagonos"
+import { desenhoDePontos, poligonoDesenhado } from "./desenho-area"
 import { filtroEstadosProcessados, type DadosNacionais } from "./nacional"
 import { adicionarSatelitePublico, SATELITE_PUBLICO, type EstadoSatelitePublico } from "./satelite-publico"
 import "./cartografia.css"
@@ -76,12 +76,24 @@ interface Props {
   emLeilao?: Set<string>
   /** espaço que a gaveta ocupa embaixo, no celular (o voo enquadra o município acima dela) */
   margemBaixo: number
+  margemDireita?: number
+  hexagonosVisiveis?: boolean
+  /** Células pertencentes a um lote autorizado pela API; a fonte pública nunca cria essa lista. */
+  destaqueH3Autorizado?: readonly string[]
+  /** Perímetros de itens liberados na API autenticada; ausente em páginas e resumos públicos. */
+  geometriaLoteAutorizada?: Geo | null
+  rotuloLoteAutorizado?: string | null
+  aoMudarLegenda?: (legenda: LegendaHexagonos | null) => void
+  aoMudarZoom?: (zoom: number) => void
+  desenhandoArea?: boolean
+  aoConcluirArea?: (geo: Geo) => void
+  aoCancelarArea?: () => void
   aoEscolherMunicipio: (cod: string) => void
   aoEscolherEstado: (uf: string) => void
 }
 
 const BRASIL: [number, number, number, number] = [-74, -34, -34.5, 5.5]
-/** a partir deste zoom o município aparece por fazenda; abaixo, as fazendas aptas viram círculos com o número */
+/** No detalhe entram os limites reais; abaixo deles, somente agregados públicos H3. */
 const ZOOM_FAZENDAS = ZOOM_IMOVEIS
 const SITUACAO_ESTADO = { completo: 2, incompleto: 1, sem_dados: 0 } as const
 
@@ -140,10 +152,10 @@ function prepararCobertura(geometria: Geo | null | undefined, estados: Estados |
     processadas: [...porUf.values()].filter(e => e.situacao === "completo" || e.situacao === "incompleto").map(e => e.uf) }
 }
 
-function dadosDosGrupos(agregados: AgregadosMapa | null | undefined): { url: string } | { geo: Geo | null } {
+function dadosDosHexagonos(agregados: AgregadosMapa | null | undefined): Geo | string | null {
   const esperado = new URL(`${import.meta.env.BASE_URL}geo/agregados_brasil.geojson`, document.baseURI)
-  const url = esperado.origin === location.origin ? urlAgregadosPublica(agregados?.url, esperado.href) : null
-  return url ? { url } : { geo: agregados?.geo ?? null }
+  const url = esperado.origin === location.origin ? fontePublicaHexagonos(agregados?.url, esperado.href) : null
+  return url ?? agregados?.geo ?? null
 }
 
 function limitesDe(g: Geo | null | undefined, filtro?: (f: Geo["features"][number]) => boolean): LngLatBounds | null {
@@ -212,30 +224,33 @@ export function MapaBrasil(props: Props) {
   const limparSatelite = useRef<(() => void) | undefined>(undefined)
   const limparInteracao = useRef<(() => void) | undefined>(undefined)
   const [zoom, setZoom] = useState(4)
-  const [gruposVisiveis, setGruposVisiveis] = useState<GrupoMapa[]>([])
+  const [hexagonosLista, setHexagonosLista] = useState<HexagonoMapa[]>([])
+  const hexagonosAtuais = useRef<HexagonoMapa[]>([])
+  const [pontosDesenho, setPontosDesenho] = useState<[number, number][]>([])
   const [erroAgregadosNoMapa, setErroAgregadosNoMapa] = useState(false)
-  const listaGruposAberta = useRef(false)
-  const marcadoresGrupos = useRef<MarcadoresGrupos | null>(null)
-  const gruposAgendados = useRef<MapaGL | null>(null)
+  const [erroLote, setErroLote] = useState(false)
+  const etiquetaLote = useRef<Marker | null>(null)
+  const listaHexagonosAberta = useRef(false)
+  const hexagonosAgendados = useRef<MapaGL | null>(null)
   const dadosAplicados = useRef<{ geometria: Geo | null | undefined; estados: Estados | undefined; urlEstados?: string } | null>(null)
-  const workerGrupos = useRef<WorkerGrupos | null>(null)
-  const consultaGrupos = useRef(0)
-  const geracoesVisiveis = useRef(new WeakMap<GrupoMapa, number>())
-  const geracaoGrupos = useRef(0)
-  const gruposProntos = useRef(false)
+  const workerHexagonos = useRef<WorkerHexagonos | null>(null)
+  const consultaHexagonos = useRef(0)
+  const geracoesVisiveis = useRef(new WeakMap<HexagonoMapa, number>())
+  const geracaoHexagonos = useRef(0)
+  const hexagonosProntos = useRef(false)
   const municipioPorZoom = useRef<string | null>(null)
   const [satelite, setSatelite] = useState<EstadoSatelitePublico>("carregando")
-  const margemAplicada = useRef(margemBaixo)
+  const margemAplicada = useRef({ baixo: margemBaixo, direita: props.margemDireita ?? 0 })
   const atual = useRef({ props, porCod: new Map<string, Imovel>(), basicosPorCod: new Map<string, ImovelBasico>() })
   const escolhido = useRef<string | null>(null)
   atual.current.props = props
 
   useEffect(() => {
-    let worker: WorkerGrupos
-    try { worker = new WorkerGrupos() }
+    let worker: WorkerHexagonos
+    try { worker = new WorkerHexagonos() }
     catch { setErroAgregadosNoMapa(true); return }
-    workerGrupos.current = worker
-    return () => { worker.destruir(); workerGrupos.current = null; geracaoGrupos.current++; consultaGrupos.current++ }
+    workerHexagonos.current = worker
+    return () => { worker.encerrar(); workerHexagonos.current = null; geracaoHexagonos.current++; consultaHexagonos.current++ }
   }, [])
 
   // cria o mapa uma vez, quando o mapa base do Brasil chega
@@ -243,11 +258,8 @@ export function MapaBrasil(props: Props) {
     if (!brasil || !caixa.current || mapaRef.current) return
     let removido = false
     let instancia: MapaGL | null = null
-    let liberarGpu: (() => void) | undefined
-    let restaurarProgramas: (() => void) | undefined
-    void prepararGpu().then(async (liberar) => {
-      liberarGpu = liberar
-      if (removido || !caixa.current) { liberar(); return }
+    void (async () => {
+      if (removido || !caixa.current) return
       prepararMapLibre()
       const iniciais = atual.current.props
       const cobertura = prepararCobertura(iniciais.brasil?.estados, iniciais.estados, iniciais.brasil?.urlEstados)
@@ -255,7 +267,7 @@ export function MapaBrasil(props: Props) {
       // Montar o estilo, criar o contexto nativo e instalar controles são trabalhos independentes.
       // Cada continuação entrega a thread à entrada e à pintura, sem esperar um prazo ou ociosidade.
       await cederProcessamento()
-      if (removido || !caixa.current) { liberar(); return }
+      if (removido || !caixa.current) return
       const m = new MapaGL({
         container: caixa.current,
         attributionControl: false,
@@ -268,13 +280,11 @@ export function MapaBrasil(props: Props) {
         locale: { "NavigationControl.ZoomIn": "Aproximar", "NavigationControl.ZoomOut": "Afastar", "Popup.Close": "Fechar ficha breve" },
       })
       instancia = m
-      restaurarProgramas = instalarPreparoProgramasNacionais(m)
       // bounds no construtor faz o MapLibre redimensionar o canvas duas vezes.
       // O enquadramento imediato usa o tamanho final antes do primeiro frame.
-      m.fitBounds(BRASIL, { padding: { top: 48, left: 48, right: 48, bottom: 48 + margemBaixo }, duration: 0 })
-      margemAplicada.current = margemBaixo
-      liberar()
-      liberarGpu = undefined
+      const celular = window.matchMedia("(max-width: 640px)").matches
+      m.jumpTo({ center: celular ? [-52, -12] : [-47.5, -14.2], zoom: celular ? 3.1 : 3.85 })
+      margemAplicada.current = { baixo: margemBaixo, direita: props.margemDireita ?? 0 }
       await cederProcessamento()
       if (removido) return
       m.addControl(new NavigationControl({ showCompass: false }), "top-right")
@@ -282,26 +292,34 @@ export function MapaBrasil(props: Props) {
       // O evento ainda antecede a apresentação do frame; não espera os dados nacionais terminarem.
       m.once("render", () => {
         if (removido) return
-        m.addControl(new AttributionControl({ compact: false }), "bottom-right")
+        m.addControl(new AttributionControl({ compact: true }), "bottom-right")
         m.addControl(new ScaleControl({ unit: "metric" }), "bottom-right")
       })
       if (import.meta.env.DEV || import.meta.env.VITE_RAIZ_TESTE_MAPA === "1") Object.assign(caixa.current, { __mapa: m })
       mapaRef.current = m
-      marcadoresGrupos.current = new MarcadoresGrupos(m, grupo => { void aproximarGrupo(m, grupo) })
       dadosAplicados.current = { geometria: iniciais.brasil?.estados, estados: iniciais.estados, urlEstados: iniciais.brasil?.urlEstados }
       m.once("load", () => {
+        const antes = m.getStyle().layers.find(l => l.type === "symbol")?.id
+        m.addSource("hexagonos", { type: "geojson", data: VAZIO as never, promoteId: "h3" })
+        for (const camada of camadasHexagonos()) m.addLayer(camada, antes)
+        m.addSource("lote-autorizado", { type: "geojson", data: VAZIO as never })
+        m.addLayer({ id: "lote-autorizado-linha", type: "line", source: "lote-autorizado", minzoom: ZOOM_FAZENDAS,
+          paint: { "line-color": COR_MAPA_V2.acao, "line-width": 2.2 } }, antes)
+        montarDesenho(m)
         limparInteracao.current = ligarEventos(m)
         setPronto(true)
         setZoom(m.getZoom())
         m.on("zoom", () => {
-          if (m.getZoom() >= ZOOM_FAZENDAS) { consultaGrupos.current++; limparGruposVisiveis() }
+          aplicarVisibilidadeHexagonos(m)
+          atual.current.props.aoMudarZoom?.(m.getZoom())
         })
         m.on("zoomend", () => {
           setZoom(m.getZoom())
           if (m.getZoom() >= 6) atual.current.props.aoAproximar()
         })
+        m.on("moveend", () => agendarHexagonosVisiveis(m))
+        agendarHexagonosVisiveis(m)
         m.on("idle", () => {
-          agendarGruposVisiveis(m)
           if (m.getZoom() < ZOOM_FAZENDAS || atual.current.props.municipio || !m.getLayer("brasil-mun")) return
           const p = m.project(m.getCenter())
           const municipio = m.queryRenderedFeatures(p, { layers: ["brasil-mun"] })[0]
@@ -316,22 +334,21 @@ export function MapaBrasil(props: Props) {
       // As variantes deste estilo interno passam pela especificação MapLibre no build.
       // As camadas e filtros acrescentados depois continuam com a validação padrão.
       m.setStyle(estilo, { validate: false })
-    })
+    })()
     return () => {
       removido = true
-      liberarGpu?.()
-      restaurarProgramas?.()
       limparInteracao.current?.()
       limparInteracao.current = undefined
       limparSatelite.current?.()
       limparSatelite.current = undefined
+      etiquetaLote.current?.remove()
+      etiquetaLote.current = null
       setPronto(false)
       setRegional(false)
-      consultaGrupos.current++
-      gruposAgendados.current = null
+      consultaHexagonos.current++
+      hexagonosAgendados.current = null
       dadosAplicados.current = null
-      limparGruposVisiveis()
-      marcadoresGrupos.current = null
+      limparHexagonosVisiveis()
       instancia?.remove()
       mapaRef.current = null
     }
@@ -351,6 +368,10 @@ export function MapaBrasil(props: Props) {
       else if (camada.type === "line" && camada.paint?.["line-dasharray"]) m.setPaintProperty(camada.id, "line-dasharray", camada.paint["line-dasharray"])
       antes = camada.id
     }
+    // As cidades regionais recém-instaladas também ficam legíveis sobre o H3.
+    const primeiroRotulo = m.getStyle().layers.find(l => l.type === "symbol")?.id
+    for (const id of ["hexagonos", "hexagonos-linha", "hexagonos-selecionados", "hexagonos-sobre"])
+      if (m.getLayer(id)) m.moveLayer(id, primeiroRotulo)
     montar(m, brasil?.municipios ?? null)
     // A base estadual usa o satélite como âncora; ambos devem ficar abaixo de toda a cartografia regional.
     limparSatelite.current = adicionarSatelitePublico(m, "brasil-mun", setSatelite)
@@ -369,23 +390,23 @@ export function MapaBrasil(props: Props) {
   }, [regional, brasil, processados, comLista])
 
   useEffect(() => {
-    const worker = workerGrupos.current
+    const worker = workerHexagonos.current
     if (!worker) return
-    const geracao = ++geracaoGrupos.current
-    consultaGrupos.current++
-    gruposProntos.current = false
-    limparGruposVisiveis()
-    setGruposVisiveis([])
+    const geracao = ++geracaoHexagonos.current
+    consultaHexagonos.current++
+    hexagonosProntos.current = false
+    limparHexagonosVisiveis()
+    setHexagonosLista([])
     setErroAgregadosNoMapa(false)
     if (props.agregados === undefined) return
     let ativo = true
-    void worker.carregar(dadosDosGrupos(props.agregados)).then(() => {
-      if (!ativo || workerGrupos.current !== worker || geracaoGrupos.current !== geracao) return
-      gruposProntos.current = true
-      if (mapaRef.current?.loaded()) agendarGruposVisiveis(mapaRef.current)
+    void worker.carregar(dadosDosHexagonos(props.agregados)).then(() => {
+      if (!ativo || workerHexagonos.current !== worker || geracaoHexagonos.current !== geracao) return
+      hexagonosProntos.current = true
+      if (mapaRef.current?.getSource("hexagonos")) agendarHexagonosVisiveis(mapaRef.current)
     }).catch(() => {
-      if (!ativo || workerGrupos.current !== worker || geracaoGrupos.current !== geracao) return
-      gruposProntos.current = false
+      if (!ativo || workerHexagonos.current !== worker || geracaoHexagonos.current !== geracao) return
+      hexagonosProntos.current = false
       setErroAgregadosNoMapa(true)
     })
     return () => { ativo = false }
@@ -412,8 +433,6 @@ export function MapaBrasil(props: Props) {
     const m = mapaRef.current
     if (!m || !pronto) return
     m.setFilter("estado-escolhido", ["==", ["get", "uf"], municipio ? "" : (uf ?? "")])
-    m.setLayoutProperty("estados-preenchimento", "visibility", uf || municipio ? "none" : "visible")
-    m.setLayoutProperty("estados-sem-dados", "visibility", uf || municipio ? "none" : "visible")
   }, [pronto, uf, municipio])
 
   // O fundo nacional continua em overzoom. A base do estado entra por cima sem recarregar as fazendas nem o mapa.
@@ -536,24 +555,27 @@ export function MapaBrasil(props: Props) {
     if (municipio && municipioPorZoom.current === municipio) { alvoRef.current = m.getBounds(); return }
     municipioPorZoom.current = null
     alvoRef.current = alvo
-    const padding = { top: 48, left: 48, right: 48, bottom: 48 + margemBaixo }
-    const inicialBrasil = primeiraVez.current && !uf && !municipio
+    const padding = { top: 88, left: 48, right: 48 + (props.margemDireita ?? 0), bottom: 48 + margemBaixo }
     const cortar = primeiraVez.current || aparelhoFraco()
     primeiraVez.current = false
-    if (inicialBrasil) return
-    if (cortar) m.fitBounds(alvo, { padding, duration: 0 })
-    else m.fitBounds(alvo, { padding, speed: 1.2, curve: 1.42, maxDuration: 2500 })
+    if (!uf && !municipio) {
+      const celular = window.matchMedia("(max-width: 640px)").matches
+      m.easeTo({ center: celular ? [-52, -12] : [-47.5, -14.2], zoom: celular ? 3.1 : 3.85, padding: 0, duration: cortar ? 0 : 300 })
+      return
+    }
+    if (cortar) m.fitBounds(alvo, { padding, absolutePadding: true, duration: 0 })
+    else m.fitBounds(alvo, { padding, absolutePadding: true, speed: 1.2, curve: 1.42, maxDuration: 2500 })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pronto, municipio, uf, brasil?.municipios, municipio ? !!geoMunicipio?.municipio : false])
 
   // a gaveta mudou de altura no celular: reenquadra o mesmo alvo, sem voo
   useEffect(() => {
     const m = mapaRef.current
-    if (!m || !pronto || !alvoRef.current || primeiraVez.current) return
-    if (margemAplicada.current === margemBaixo) return
-    margemAplicada.current = margemBaixo
-    m.fitBounds(alvoRef.current, { padding: { top: 48, left: 48, right: 48, bottom: 48 + margemBaixo }, duration: 200 })
-  }, [margemBaixo, pronto])
+    if (!m || !pronto || !alvoRef.current || primeiraVez.current || enquadramento.current === "brasil") return
+    if (margemAplicada.current.baixo === margemBaixo && margemAplicada.current.direita === (props.margemDireita ?? 0)) return
+    margemAplicada.current = { baixo: margemBaixo, direita: props.margemDireita ?? 0 }
+    m.fitBounds(alvoRef.current, { padding: { top: 88, left: 48, right: 48 + (props.margemDireita ?? 0), bottom: 48 + margemBaixo }, absolutePadding: true, duration: 200 })
+  }, [margemBaixo, props.margemDireita, pronto])
 
   // destaque vindo da tabela
   const anterior = useRef<string | null>(null)
@@ -576,6 +598,74 @@ export function MapaBrasil(props: Props) {
     vis("terra-publica-linha", camada === "terra_publica")
   }, [camada, regional])
 
+  useEffect(() => {
+    const m = mapaRef.current
+    if (!m || !pronto) return
+    aplicarVisibilidadeHexagonos(m)
+    agendarHexagonosVisiveis(m)
+  }, [pronto, props.hexagonosVisiveis, props.destaqueH3Autorizado])
+
+  useEffect(() => {
+    const m = mapaRef.current, worker = workerHexagonos.current
+    if (!m || !pronto || !worker) return
+    let ativo = true
+    etiquetaLote.current?.remove()
+    etiquetaLote.current = null
+    ;(m.getSource("lote-autorizado") as GeoJSONSource).setData(VAZIO as never)
+    setErroLote(false)
+    void worker.autorizar(props.geometriaLoteAutorizada ?? null).then(() => {
+      if (!ativo || mapaRef.current !== m) return
+      const geo = props.geometriaLoteAutorizada
+      ;(m.getSource("lote-autorizado") as GeoJSONSource).setData((geo ?? VAZIO) as never)
+      agendarHexagonosVisiveis(m)
+      const limites = limitesDe(geo)
+      if (limites && props.rotuloLoteAutorizado) {
+        const elemento = document.createElement("div")
+        elemento.className = "mapa-lote-etiqueta"
+        elemento.textContent = props.rotuloLoteAutorizado
+        etiquetaLote.current = new Marker({ element: elemento, anchor: "bottom", offset: [0, -8] })
+          .setLngLat([limites.getCenter().lng, limites.getNorth()]).addTo(m)
+      }
+    }).catch(erro => {
+      if (ativo && !(erro instanceof Error && erro.name === "AbortError")) setErroLote(true)
+    })
+    return () => { ativo = false; etiquetaLote.current?.remove(); etiquetaLote.current = null }
+  }, [pronto, props.geometriaLoteAutorizada, props.rotuloLoteAutorizado])
+
+  useEffect(() => {
+    setPontosDesenho([])
+    const m = mapaRef.current
+    if (!m || !pronto) return
+    m.getCanvas().style.cursor = props.desenhandoArea ? "crosshair" : ""
+    if (props.desenhandoArea) m.doubleClickZoom.disable()
+    else m.doubleClickZoom.enable()
+  }, [props.desenhandoArea, pronto])
+
+  useEffect(() => {
+    const m = mapaRef.current
+    if (m?.getSource("area-pedido")) (m.getSource("area-pedido") as GeoJSONSource).setData(desenhoDePontos(pontosDesenho) as never)
+    if (!props.desenhandoArea) return
+    const teclado = (evento: KeyboardEvent) => {
+      if ((evento.target as HTMLElement)?.closest("input,textarea,select,button")) return
+      if (evento.key === "Escape") { evento.preventDefault(); atual.current.props.aoCancelarArea?.() }
+      if (evento.key === "Enter") { evento.preventDefault(); concluirDesenho() }
+    }
+    window.addEventListener("keydown", teclado)
+    return () => window.removeEventListener("keydown", teclado)
+  }, [pontosDesenho, props.desenhandoArea, pronto])
+
+  function concluirDesenho() {
+    const geo = poligonoDesenhado(pontosDesenho)
+    if (geo) atual.current.props.aoConcluirArea?.(geo)
+  }
+
+  function montarDesenho(m: MapaGL) {
+    m.addSource("area-pedido", { type: "geojson", data: VAZIO as never })
+    m.addLayer({ id: "area-pedido-preenchimento", type: "fill", source: "area-pedido", filter: ["==", ["geometry-type"], "Polygon"], paint: { "fill-color": COR_MAPA_V2.acao, "fill-opacity": 0.12 } })
+    m.addLayer({ id: "area-pedido-linha", type: "line", source: "area-pedido", filter: ["!=", ["geometry-type"], "Point"], paint: { "line-color": COR_MAPA_V2.acao, "line-width": 2 } })
+    m.addLayer({ id: "area-pedido-pontos", type: "circle", source: "area-pedido", filter: ["==", ["geometry-type"], "Point"], paint: { "circle-color": COR_MAPA_V2.texto, "circle-radius": 5, "circle-stroke-color": COR_MAPA_V2.acao, "circle-stroke-width": 2 } })
+  }
+
   function montar(m: MapaGL, municipiosBrasil: Geo | null) {
     const antesDosRotulos = m.getStyle().layers.find((l) => l.type === "symbol")?.id
     const add = (l: LayerSpecification, emCima = false) => {
@@ -594,10 +684,11 @@ export function MapaBrasil(props: Props) {
     add({ id: "brasil-mun", type: "fill", source: "brasil-municipios", paint: { "fill-color": COR.nevoa, "fill-opacity": 0 } })
     add({
       id: "brasil-mun-linha",
+      minzoom: 8,
       type: "line",
       source: "brasil-municipios",
       paint: {
-        "line-color": ["case", ["boolean", ["feature-state", "sobre"], false], COR.tinta, COR.pedra],
+        "line-color": ["case", ["boolean", ["feature-state", "sobre"], false], COR_MAPA_V2.texto, COR_MAPA_V2.estado],
         "line-width": [
           "interpolate",
           ["linear"],
@@ -619,9 +710,9 @@ export function MapaBrasil(props: Props) {
         id: `${id}-linha`,
         type: "line",
         source: id,
-        paint: { "line-color": COR.pedra, "line-width": 0.8, "line-opacity": 0.6, "line-dasharray": [3, 2] },
+        paint: { "line-color": COR_MAPA_V2.rotulo, "line-width": 0.8, "line-opacity": 0.6, "line-dasharray": [3, 2] },
       })
-    add({ id: "rios", type: "fill", source: "rios", paint: { "fill-color": MAPA.agua } })
+    add({ id: "rios", type: "fill", source: "rios", paint: { "fill-color": COR_MAPA_V2.agua } })
     // terra pública para restaurar: cor de terra, contorno tracejado; só com a camada de assunto ligada
     add({ id: "terra-publica", type: "fill", source: "terra-publica", layout: { visibility: "none" },
           paint: { "fill-color": COR.terra, "fill-opacity": 0.22 } })  // prettier-ignore
@@ -633,9 +724,9 @@ export function MapaBrasil(props: Props) {
       paint: { "fill-pattern": "hachura-restauracao", "fill-opacity": 0.7 } })
     // O calendário conserva o selo e a ficha. Não disputa a cor com o potencial nem com as pendências.
     add({ id: "imoveis-leilao", type: "line", source: "imoveis", minzoom: ZOOM_FAZENDAS,
-      layout: { visibility: "none" }, paint: { "line-color": COR.pedra, "line-width": 1, "line-dasharray": [2, 2] } })
+      layout: { visibility: "none" }, paint: { "line-color": COR_MAPA_V2.rotulo, "line-width": 1, "line-dasharray": [2, 2] } })
     add({ id: "imoveis-fogo", type: "line", source: "imoveis", minzoom: ZOOM_FAZENDAS,
-      layout: { visibility: "none" }, paint: { "line-color": COR.tinta, "line-width": 1,
+      layout: { visibility: "none" }, paint: { "line-color": COR_MAPA_V2.rotulo, "line-width": 1,
         "line-opacity": ["case", [">", ["coalesce", ["feature-state", "fogo"], 0], 0], 0.8, 0] } })
     add({ id: "mascara", type: "fill", source: "mascara", maxzoom: ZOOM_FAZENDAS, paint: { "fill-color": MAPA.mascaraClara, "fill-opacity": 0 } })
     add({ id: "mascara-fazenda", type: "fill", source: "mascara-fazenda", minzoom: ZOOM_FAZENDAS, paint: { "fill-color": MAPA.mascaraSatelite, "fill-opacity": 0.45 } })
@@ -651,7 +742,7 @@ export function MapaBrasil(props: Props) {
         "circle-radius": ["interpolate", ["linear"], ["sqrt", ["get", "ha"]], 0, 3, 10, 6, 55, 14],
       },
     })
-    add({ id: "municipio", type: "line", source: "municipio", paint: { "line-color": COR.tinta, "line-width": 2 } })
+    add({ id: "municipio", type: "line", source: "municipio", paint: { "line-color": COR_MAPA_V2.rotulo, "line-width": 2 } })
     add(
       {
         id: "nomes",
@@ -665,7 +756,7 @@ export function MapaBrasil(props: Props) {
           "text-max-width": 8,
           "text-padding": 4,
         },
-        paint: { "text-color": COR.pedra, "text-halo-color": COR.nevoa, "text-halo-width": 1.5 },
+        paint: { "text-color": COR_MAPA_V2.rotulo, "text-halo-color": COR_MAPA_V2.terra, "text-halo-width": 1.5 },
       },
       true,
     )
@@ -675,82 +766,81 @@ export function MapaBrasil(props: Props) {
       source: "brasil-municipios",
       filter: ["==", ["get", "cod_ibge"], ""],
       maxzoom: ZOOM_FAZENDAS,
-      paint: { "line-color": COR.tinta, "line-width": 2 },
+      paint: { "line-color": COR_MAPA_V2.rotulo, "line-width": 2 },
     })
   }
 
-  function limparGruposVisiveis() {
-    marcadoresGrupos.current?.limpar()
-    if (listaGruposAberta.current) setGruposVisiveis([])
-    if (caixa.current && (import.meta.env.DEV || import.meta.env.VITE_RAIZ_TESTE_MAPA === "1")) Object.assign(caixa.current, { __grupos: [] })
+  function limparHexagonosVisiveis() {
+    const m = mapaRef.current
+    if (m?.getSource("hexagonos")) (m.getSource("hexagonos") as GeoJSONSource).setData(VAZIO as never)
+    hexagonosAtuais.current = []
+    atual.current.props.aoMudarLegenda?.(null)
+    if (listaHexagonosAberta.current) setHexagonosLista([])
+    if (caixa.current && (import.meta.env.DEV || import.meta.env.VITE_RAIZ_TESTE_MAPA === "1")) Object.assign(caixa.current, { __hexagonos: [] })
   }
 
-  function agendarGruposVisiveis(m: MapaGL) {
-    if (gruposAgendados.current === m) return
-    gruposAgendados.current = m
+  function aplicarVisibilidadeHexagonos(m: MapaGL) {
+    if (!m.getLayer("hexagonos")) return
+    const visivel = atual.current.props.hexagonosVisiveis !== false && m.getZoom() < ZOOM_FAZENDAS
+    const selecionados = !!atual.current.props.destaqueH3Autorizado?.length || !!atual.current.props.geometriaLoteAutorizada?.features.length
+    m.setPaintProperty("hexagonos", "fill-opacity", visivel ? selecionados ? ["case", ["==", ["get", "selecionado"], true], 0.95, 0.35] : 0.92 : 0)
+    m.setPaintProperty("hexagonos-linha", "line-opacity", visivel ? 1 : 0)
+    m.setPaintProperty("hexagonos-selecionados", "line-opacity", visivel ? 1 : 0)
+    m.setPaintProperty("hexagonos-sobre", "line-opacity", visivel ? 1 : 0)
+  }
+
+  function agendarHexagonosVisiveis(m: MapaGL) {
+    if (hexagonosAgendados.current === m) return
+    hexagonosAgendados.current = m
     void cederProcessamento().then(() => {
-      if (gruposAgendados.current !== m) return
-      gruposAgendados.current = null
-      if (mapaRef.current === m) void atualizarGruposVisiveis(m)
+      if (hexagonosAgendados.current !== m) return
+      hexagonosAgendados.current = null
+      if (mapaRef.current === m) void atualizarHexagonosVisiveis(m)
     })
   }
 
-  async function atualizarGruposVisiveis(m: MapaGL) {
-    const worker = workerGrupos.current
-    const consulta = ++consultaGrupos.current, geracao = geracaoGrupos.current
-    if (!worker || !gruposProntos.current || m.getZoom() >= ZOOM_FAZENDAS) {
-      limparGruposVisiveis()
-      if (listaGruposAberta.current) setGruposVisiveis([])
+  async function atualizarHexagonosVisiveis(m: MapaGL) {
+    const worker = workerHexagonos.current
+    const consulta = ++consultaHexagonos.current, geracao = geracaoHexagonos.current
+    if (!worker || !hexagonosProntos.current || !m.getSource("hexagonos")) return
+    const zoomAtual = m.getZoom()
+    if (zoomAtual >= ZOOM_FAZENDAS) {
+      // A fonte permanece durante o fade de 300 ms; a opacidade elimina o agregado no detalhe.
+      aplicarVisibilidadeHexagonos(m)
+      hexagonosAtuais.current = []
+      setHexagonosLista([])
+      atual.current.props.aoMudarLegenda?.(null)
       return
     }
-    const centro = m.getCenter(), zoom = m.getZoom(), rumo = m.getBearing(), inclinacao = m.getPitch()
-    const largura = m.getCanvas().width / m.getPixelRatio(), altura = m.getCanvas().height / m.getPixelRatio()
-    // Inclui botões parcialmente visíveis, como a consulta espacial anterior; o maior tem raio de 56 px.
-    const cantos = [[-56, -56], [largura + 56, -56], [largura + 56, altura + 56], [-56, altura + 56]]
-      .map(ponto => m.unproject(ponto as [number, number]))
-    const bbox: [number, number, number, number] = [Math.min(...cantos.map(p => p.lng)), Math.min(...cantos.map(p => p.lat)),
-      Math.max(...cantos.map(p => p.lng)), Math.max(...cantos.map(p => p.lat))]
+    const bounds = m.getBounds()
+    const bbox: [number, number, number, number] = [bounds.getWest(), bounds.getSouth(), bounds.getEast(), bounds.getNorth()]
     try {
-      const resposta = await worker.consultar(bbox, zoom)
-      if (mapaRef.current !== m || workerGrupos.current !== worker || consulta !== consultaGrupos.current || geracao !== geracaoGrupos.current
-        || !gruposProntos.current || m.getZoom() !== zoom || m.getBearing() !== rumo || m.getPitch() !== inclinacao
-        || m.getCanvas().width / m.getPixelRatio() !== largura || m.getCanvas().height / m.getPixelRatio() !== altura
-        || m.getCenter().lng !== centro.lng || m.getCenter().lat !== centro.lat) return
-      const grupos = new Map<string, GrupoMapa>()
-      for (const recebido of resposta) {
-        const grupo = { ...recebido, centro: [recebido.centro[0] + 360 * Math.round((centro.lng - recebido.centro[0]) / 360), recebido.centro[1]] as [number, number] }
-        const ponto = m.project(grupo.centro), raio = raioGrupo(grupo)
-        const dx = Math.max(0, -ponto.x, ponto.x - largura), dy = Math.max(0, -ponto.y, ponto.y - altura)
-        if (dx * dx + dy * dy > raio * raio) continue
-        geracoesVisiveis.current.set(grupo, geracao)
-        grupos.set(grupo.chave, grupo)
-      }
-      const visiveis = [...grupos.values()].sort((a, b) => b.fazendas - a.fazendas)
-      marcadoresGrupos.current?.atualizar(visiveis)
-      if (import.meta.env.DEV || import.meta.env.VITE_RAIZ_TESTE_MAPA === "1") Object.assign(caixa.current!, { __grupos: visiveis })
-      if (listaGruposAberta.current) setGruposVisiveis(visiveis)
+      const resposta = await worker.consultar(bbox, zoomAtual, atual.current.props.destaqueH3Autorizado)
+      if (mapaRef.current !== m || workerHexagonos.current !== worker || consulta !== consultaHexagonos.current || geracao !== geracaoHexagonos.current
+        || !hexagonosProntos.current || m.getZoom() !== zoomAtual) return
+      for (const hex of resposta.hexagonos) geracoesVisiveis.current.set(hex, geracao)
+      hexagonosAtuais.current = resposta.hexagonos
+      ;(m.getSource("hexagonos") as GeoJSONSource).setData(resposta.geo as never)
+      m.setPaintProperty("hexagonos", "fill-color", corHexagonos(resposta.legenda))
+      aplicarVisibilidadeHexagonos(m)
+      atual.current.props.aoMudarLegenda?.(resposta.legenda)
+      if (import.meta.env.DEV || import.meta.env.VITE_RAIZ_TESTE_MAPA === "1") Object.assign(caixa.current!, { __hexagonos: resposta.hexagonos })
+      if (listaHexagonosAberta.current) setHexagonosLista(resposta.hexagonos)
     } catch (erro) {
-      if (consulta === consultaGrupos.current && geracao === geracaoGrupos.current && mapaRef.current === m && !(erro instanceof Error && erro.name === "AbortError")) {
-        gruposProntos.current = false
-        limparGruposVisiveis()
-        setGruposVisiveis([])
+      if (consulta === consultaHexagonos.current && geracao === geracaoHexagonos.current && mapaRef.current === m && !(erro instanceof Error && erro.name === "AbortError")) {
+        hexagonosProntos.current = false
+        limparHexagonosVisiveis()
+        setHexagonosLista([])
         setErroAgregadosNoMapa(true)
       }
     }
   }
 
-  async function aproximarGrupo(m: MapaGL, grupo: GrupoMapa) {
-    const geracao = geracaoGrupos.current
-    const worker = workerGrupos.current
-    if (!worker || !gruposProntos.current || geracoesVisiveis.current.get(grupo) !== geracao) return
-    try {
-      const z = grupo.cluster === undefined ? ZOOM_FAZENDAS : Math.min(ZOOM_FAZENDAS, await worker.aproximar(grupo.cluster))
-      if (mapaRef.current !== m || geracao !== geracaoGrupos.current || !gruposProntos.current) return
-      atual.current.props.aoAproximar()
-      m.easeTo({ center: grupo.centro, zoom: Math.max(m.getZoom() + 0.5, z), duration: aparelhoFraco() ? 0 : 500 })
-    } catch {
-      // O worker pode encerrar ou substituir o índice enquanto o grupo está sendo aberto.
-    }
+  function aproximarHexagono(m: MapaGL, hexagono: HexagonoMapa) {
+    if (!hexagonosProntos.current || geracoesVisiveis.current.get(hexagono) !== geracaoHexagonos.current) return
+    atual.current.props.aoAproximar()
+    m.easeTo({ center: hexagono.centro, zoom: hexagono.resolucao === 4 ? 5.5 : ZOOM_FAZENDAS, duration: aparelhoFraco() ? 0 : 500 })
+    m.getCanvas().focus({ preventScroll: true })
   }
 
   function ligarEventos(m: MapaGL) {
@@ -759,6 +849,14 @@ export function MapaBrasil(props: Props) {
       return layers.length ? m.queryRenderedFeatures([ponto.x, ponto.y], { layers }) : []
     }
     const popup = new Popup({ closeButton: true, maxWidth: "320px", offset: 6 })
+    const dicaHex = new Popup({ closeButton: false, closeOnClick: false, maxWidth: "290px", offset: 8, className: "hexagono-dica" })
+    let sobreHex: string | null = null
+    const limparHex = () => {
+      sobreHex = null
+      dicaHex.remove()
+      if (m.getLayer("hexagonos-sobre")) m.setFilter("hexagonos-sobre", ["==", ["get", "h3"], ""])
+    }
+    m.on("movestart", limparHex)
     let selecionado: string | null = null
     const limparSelecao = () => {
       ;(m.getSource("mascara-fazenda") as GeoJSONSource | undefined)?.setData(VAZIO as never)
@@ -784,6 +882,15 @@ export function MapaBrasil(props: Props) {
       m.getCanvas().style.cursor = sobre ? "pointer" : ""
     }
     m.on("click", (e) => {
+      if (atual.current.props.desenhandoArea) {
+        setPontosDesenho(pontos => [...pontos, [e.lngLat.wrap().lng, e.lngLat.lat]])
+        return
+      }
+      if (m.getZoom() < ZOOM_FAZENDAS && atual.current.props.hexagonosVisiveis !== false) {
+        const celula = feicoes(e.point, "hexagonos")[0]
+        const hex = celula && hexagonosAtuais.current.find(h => h.h3 === celula.properties.h3)
+        if (hex) { limparHex(); aproximarHexagono(m, hex); return }
+      }
       const fazenda = feicoes(e.point, "imoveis")[0]
       const basico = fazenda && atual.current.basicosPorCod.get(String(fazenda.properties.cod_imovel))
       if (basico) {
@@ -816,6 +923,22 @@ export function MapaBrasil(props: Props) {
       if (cod && cod !== municipio) atual.current.props.aoEscolherMunicipio(cod)
     })
     m.on("mousemove", (e) => {
+      if (atual.current.props.desenhandoArea) { limparHex(); m.getCanvas().style.cursor = "crosshair"; return }
+      if (m.getZoom() < ZOOM_FAZENDAS && atual.current.props.hexagonosVisiveis !== false) {
+        const celula = feicoes(e.point, "hexagonos")[0]
+        const hex = celula && hexagonosAtuais.current.find(h => h.h3 === celula.properties.h3)
+        if (hex) {
+          marcar("", undefined)
+          m.getCanvas().style.cursor = "pointer"
+          if (sobreHex !== hex.h3) {
+            sobreHex = hex.h3
+            m.setFilter("hexagonos-sobre", ["==", ["get", "h3"], hex.h3])
+            dicaHex.setLngLat(e.lngLat).setText(descreverHexagono(hex)).addTo(m)
+          }
+          return
+        }
+      }
+      limparHex()
       const fazenda = feicoes(e.point, "imoveis")[0]
       if (fazenda && (atual.current.porCod.has(String(fazenda.properties.cod_imovel)) || atual.current.basicosPorCod.has(String(fazenda.properties.cod_imovel))))
         return marcar("imoveis", String(fazenda.properties.cod_imovel))
@@ -834,6 +957,7 @@ export function MapaBrasil(props: Props) {
       if (popup.isOpen()) popup.remove()
       else limparSelecao()
       marcar("", undefined)
+      limparHex()
     }
   }
 
@@ -844,29 +968,34 @@ export function MapaBrasil(props: Props) {
   const falhaNosAgregados = props.agregadosErro || erroAgregadosNoMapa
   return (
     <div className="mapa-brasil" role="region" aria-label={nomeMun ? `Mapa de ${nomeMun}` : nomeUf ? `Mapa de ${nomeUf}` : "Mapa do Brasil"}>
-      <div className="mapa" ref={caixa} style={{ backgroundColor: MAPA.terra }} />
-      {brasil && <div className="cartografia-legenda" aria-label="Como ler o mapa">
-        {zoom < ZOOM_FAZENDAS && falhaNosAgregados && <p role="alert">Não foi possível carregar os agregados. Confira a conexão e recarregue a página.</p>}
-        <details className="cartografia-resumo" open={margemBaixo === 0 && zoom >= ZOOM_FAZENDAS}>
-        <summary><strong>{zoom < ZOOM_FAZENDAS ? "Grupos de fazendas" : "Limites do CAR"}</strong></summary>
+      <div className="mapa" ref={caixa} style={{ backgroundColor: COR_MAPA_V2.terra }} />
+      {erroLote && <p className="cartografia-alerta" role="alert">Não foi possível desenhar a geometria autorizada deste lote.</p>}
+      {brasil && (falhaNosAgregados || props.agregadosCarregando) && <p className="cartografia-alerta" role={falhaNosAgregados ? "alert" : "status"}>
+        {falhaNosAgregados ? "Não foi possível carregar os agregados. Confira a conexão e recarregue." : "Carregando os hexágonos…"}
+      </p>}
+      {brasil && <details className="cartografia-ajuda">
+        <summary>Como ler o mapa</summary>
         {zoom < ZOOM_FAZENDAS ? <>
-          <p>Grupos mostram fazendas e hectares conhecidos. Cobertura parcial; toque para aproximar.</p>
-          {props.agregadosCarregando ? <p role="status">Carregando os agregados…</p> : falhaNosAgregados ? null : props.agregados?.metadados.contagens.celulas ? <>
-            <details><summary>Fonte e limites</summary><p>{props.agregados.metadados.aviso}</p><p>Fonte: {props.agregados.metadados.fonte}. Atualização: {props.agregados.metadados.atualizado_em ? new Date(props.agregados.metadados.atualizado_em).toLocaleDateString("pt-BR") : "não informada"}.</p></details>
-            <details onToggle={e => { listaGruposAberta.current = e.currentTarget.open; if (mapaRef.current) void atualizarGruposVisiveis(mapaRef.current) }}>
-              <summary>Explorar grupos com teclado</summary>
-              <ul className="cartografia-grupos-lista">{gruposVisiveis.map(grupo => <li key={grupo.chave}><button type="button" onClick={() => { if (mapaRef.current) void aproximarGrupo(mapaRef.current, grupo) }}>{descreverGrupo(grupo)} Aproximar.</button></li>)}</ul>
+          <p>Hexágonos somam fazendas cadastradas. Verde mais claro representa maior valor; não é uma avaliação da qualidade da terra. Toque para aproximar.</p>
+          {props.agregados?.metadados.contagens.celulas ? <>
+            <p>{props.agregados.metadados.aviso}</p><p>Fonte: {props.agregados.metadados.fonte}. Atualização: {props.agregados.metadados.atualizado_em ? new Date(props.agregados.metadados.atualizado_em).toLocaleDateString("pt-BR") : "não informada"}.</p>
+            <details onToggle={e => { listaHexagonosAberta.current = e.currentTarget.open; if (e.currentTarget.open) setHexagonosLista(hexagonosAtuais.current) }}>
+              <summary>Explorar hexágonos com teclado</summary>
+              <ul className="cartografia-hexagonos-lista">{hexagonosLista.map(hex => <li key={hex.h3}><button type="button" onClick={() => { if (mapaRef.current) aproximarHexagono(mapaRef.current, hex) }}>{descreverHexagono(hex)} Aproximar.</button></li>)}</ul>
             </details>
           </> : <p>Agregados ainda não publicados. A ausência não significa área zero.</p>}
-          {!uf && !municipio && <p>Estados verdes têm municípios processados; cinza indica ausência de dados.</p>}
         </> : <>
-          <p>Sem preenchimento. Tracejado: limites com sobreposição. Limites declarados podem ter erro.</p>
-          <details><summary>Imagem e áreas para restaurar</summary>
-            <p>{satelite === "indisponivel" ? "Satélite indisponível neste momento; a base vetorial continua visível." : `${SATELITE_PUBLICO.titulo}, ${SATELITE_PUBLICO.resolucao}, ${SATELITE_PUBLICO.licenca}. Não mostra a situação atual da terra.`}</p>
-            <p>{geoMunicipio?.restauracaoAutorizada?.features.length ? "Hachura verde: área que pode virar mata, medida e autorizada na API." : "A área que pode virar mata aparece hachurada quando seu recorte medido está disponível na ficha autorizada. Não é deduzida do limite do CAR."}</p>
-          </details>
+          <p>Contornos finos: limites declarados do CAR. Tracejado: sobreposição. Os limites podem ter erro.</p>
+          <p>{zoom < 12 ? "O satélite histórico aparece ao aproximar mais." : satelite === "indisponivel" ? "Satélite indisponível; a base vetorial continua visível." : `${SATELITE_PUBLICO.titulo}, ${SATELITE_PUBLICO.resolucao}, ${SATELITE_PUBLICO.licenca}. Não mostra a situação atual da terra.`}</p>
+          <p>{geoMunicipio?.restauracaoAutorizada?.features.length ? "Hachura verde: área para restaurar, medida e autorizada pela API." : "O recorte medido da área para restaurar aparece quando autorizado pela API. Não é inferido do limite do CAR."}</p>
         </>}
-        </details>
+      </details>}
+      {props.desenhandoArea && <div className="cartografia-desenho" role="group" aria-label="Desenhar área do pedido">
+        <p>Toque nos cantos da área ({pontosDesenho.length}). No teclado, mova o mapa com as setas e adicione o centro.</p>
+        <button type="button" onClick={() => { const c = mapaRef.current?.getCenter(); if (c) setPontosDesenho(p => [...p, [c.lng, c.lat]]) }}>Adicionar centro</button>
+        <button type="button" disabled={!pontosDesenho.length} onClick={() => setPontosDesenho(p => p.slice(0, -1))}>Desfazer</button>
+        <button type="button" disabled={!poligonoDesenhado(pontosDesenho)} onClick={concluirDesenho}>Concluir área</button>
+        <button type="button" onClick={() => atual.current.props.aoCancelarArea?.()}>Cancelar</button>
       </div>}
       {!brasil && (
         <div className="mapa-carregando">

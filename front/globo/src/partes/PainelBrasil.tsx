@@ -32,8 +32,8 @@ function situacaoDoEstado(e: EstadoDados): string {
 }
 
 /**
- * O Brasil na primeira tela (números do que a Raíz já leu, os estados e os municípios com mais área para restaurar) ou,
- * com um estado escolhido, o mesmo painel só daquele estado, dizendo se ele está completo.
+ * Detalhes em Sobre os dados: cobertura, resumos do motor e municípios com área medida.
+ * Com um estado escolhido, restringe o resumo a ele e informa o que falta processar.
  */
 export function PainelBrasil({ municipios, comLista, estados, uf, pontos, carregando, carregandoResumo = carregando, cobertura, carregandoCobertura, andamento }: Props) {
   if (uf) return <PainelEstado uf={uf} municipios={municipios} comLista={comLista} estados={estados} pontos={pontos} cobertura={cobertura} andamento={andamento} />
@@ -78,16 +78,16 @@ export function PainelBrasil({ municipios, comLista, estados, uf, pontos, carreg
           </ol>
           {semDado > 0 && (
             <p className="legenda-frase">
-              {semDado === 1 ? "Um estado ainda não foi processado" : `Os outros ${fmtInt(semDado)} estados ainda não foram processados`}: ficam em cinza no
-              mapa.
+              {semDado === 1 ? "Um estado ainda não tem resumo do motor" : `Os outros ${fmtInt(semDado)} estados ainda não têm resumo do motor`}.
+              A cobertura dos cadastros agregados é independente desse resumo.
             </p>
           )}
         </section>
       )}
       <TopMunicipios municipios={municipios} comLista={comLista} />
       <p className="legenda-frase">
-        No mapa, verde-claro indica estados com municípios processados e cinza é o que a Raíz ainda não leu.
-        Toque num estado para aproximar e consultar os grupos de fazendas e hectares conhecidos.
+        A escala verde dos hexágonos mostra a quantidade de cadastros do CAR: tons mais claros indicam mais cadastros.
+        Não é uma classificação de aptidão. Toque num hexágono para aproximar; a etiqueta informa os hectares conhecidos e quando a medida é parcial.
       </p>
       {carregando && <span className="sr">Carregando</span>}
     </div>
@@ -95,7 +95,7 @@ export function PainelBrasil({ municipios, comLista, estados, uf, pontos, carreg
 }
 
 function TituloBrasil() {
-  return <div className="painel-titulo"><MiniBrasil uf={null} titulo="Onde estamos: Brasil" className="mini-titulo" /><h1>Onde dá para restaurar, com dono e título</h1></div>
+  return <div className="painel-titulo"><MiniBrasil uf={null} titulo="Onde estamos: Brasil" className="mini-titulo" /><h1>Resumo da análise do território</h1></div>
 }
 
 function PainelEstado({ uf, municipios, comLista, estados, cobertura, andamento }: Omit<Props, "uf" | "carregando"> & { uf: string }) {
@@ -127,7 +127,7 @@ function PainelEstado({ uf, municipios, comLista, estados, cobertura, andamento 
         <Estado tipo="vazio" titulo={`O estado ${doEstado(uf)} ainda não foi processado pela Raíz.`}>
           <p>
             Os {fmtInt(e.municipios_ibge)} municípios aparecem aqui assim que o motor rodar o estado. Até lá, o mapa
-            mostra o estado em cinza.
+            mantém a base escura. Isso não significa ausência de cadastros ou de área para restaurar.
           </p>
         </Estado>
       </div>
@@ -145,7 +145,7 @@ function PainelEstado({ uf, municipios, comLista, estados, cobertura, andamento 
           : faltam === 0
             ? `Todos os ${fmtInt(e.municipios_ibge)} municípios têm dados. O Release ainda registra o conjunto estadual como parcial.`
             : `${fmtInt(e.municipios)} de ${fmtInt(e.municipios_ibge)} municípios têm dados. ${
-                faltam === 1 ? "Falta 1, em cinza no mapa." : `Faltam ${fmtInt(faltam)}, em cinza no mapa.`
+                faltam === 1 ? "Falta o resumo de 1 município." : `Faltam os resumos de ${fmtInt(faltam)} municípios.`
               } O conjunto estadual é parcial.`}
         {e.atualizado_em && ` Dados de ${new Date(e.atualizado_em).toLocaleDateString("pt-BR")}.`}
       </p>
@@ -162,8 +162,8 @@ function PainelEstado({ uf, municipios, comLista, estados, cobertura, andamento 
         </p>
       )}
       <p className="legenda-frase">
-        De longe, os grupos mostram contagem de fazendas e hectares conhecidos, com cobertura parcial. Ao aproximar, aparecem os limites
-        transparentes do CAR sobre o mosaico histórico. Toque num município para consultar seus dados.
+        De longe, cada hexágono reúne cadastros do CAR, incluindo imóveis ainda não aptos. Os hectares conhecidos podem cobrir apenas parte da célula.
+        Ao aproximar, aparecem os limites disponíveis do CAR; no detalhe, o mosaico histórico serve de contexto. Toque num município para consultar seus dados.
       </p>
     </div>
   )
@@ -177,14 +177,15 @@ function FraseResumo({ municipios, mostrarEstados = false }: { municipios: Funil
     <p className="frase">
       Resumo de aptidão disponível em {fmtInt(n.municipios)} {n.municipios === 1 ? "município" : "municípios"}
       {mostrarEstados ? ` de ${fmtInt(ufs)} ${ufs === 1 ? "estado" : "estados"}` : ""}: {fmtInt(n.imoveis)} imóveis do Cadastro Ambiental Rural (CAR).
-      {" "}{fmtInt(n.prontas)} {n.prontas === 1 ? "fazenda está pronta" : "fazendas estão prontas"} para conversar
-      {n.faltaTitulo > 0 ? ` e ${n.faltaTitulo === 1 ? "outra" : "outras"} ${fmtInt(n.faltaTitulo)} ${n.faltaTitulo === 1 ? "passa" : "passam"} em tudo, mas ainda falta o título` : ""}.
+      {" "}{fmtInt(n.prontas)} {n.prontas === 1 ? "fazenda tem" : "fazendas têm"} área apta e matrícula identificada
+      {n.faltaTitulo > 0 ? ` e ${n.faltaTitulo === 1 ? "outra" : "outras"} ${fmtInt(n.faltaTitulo)} ${n.faltaTitulo === 1 ? "tem" : "têm"} área apta sem matrícula identificada` : ""}.
+      Isso não comprova interesse do dono nem disponibilidade para venda.
     </p>
     <p className="legenda-frase">Fonte: resumos municipais do motor. A data específica desses resumos não foi informada no pacote. A cobertura atual dos desenhos pode abranger mais municípios.</p>
   </>
 }
 
-/** urucum só no número que mais importa para a ação: a área que pode voltar a ser mata */
+/** Medidas reais do resumo; as cores seguem o tema do analista. */
 function Numeros({ municipios }: { municipios: FunilMunicipio[] }) {
   const n = numerosDoBrasil(municipios)
   return (

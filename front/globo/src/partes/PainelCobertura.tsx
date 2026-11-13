@@ -23,7 +23,7 @@ export function PainelCobertura({ cobertura, uf, carregando = false }: { cobertu
         {n.semDesenho > 0 && ` ${fmtInt(n.semDesenho)} ${n.semDesenho === 1 ? "ainda aguarda" : "ainda aguardam"} o desenho.`}
       </p>
       <p className="legenda-frase">
-        {cobertura.acesso === "restrito" ? "Este mapa aberto mostra os agregados; os desenhos individuais exigem acesso pago." : "O mapa aberto mostra os limites do CAR e a situação básica da terra."}
+        De longe, o mapa mostra hexágonos de cadastros do CAR. {cobertura.acesso === "restrito" ? "Os desenhos individuais exigem acesso pago." : "Ao aproximar, os limites do CAR e a situação básica ficam disponíveis onde foram publicados."}
         {" "}Ao aproximar, o fundo é o mosaico Sentinel-2 2016/2017, histórico. As imagens e análises detalhadas do imóvel ficam na ficha com acesso pago, quando disponíveis.
       </p>
       <p className="legenda-frase">

@@ -1,48 +1,55 @@
-import type { SituacaoBasica } from "../../../compartilhado/dados/basico"
-import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react"
+import { SITUACOES_BASICAS, type SituacaoBasica } from "../../../compartilhado/dados/basico"
+import { lazy, Suspense, useEffect, useMemo, useRef, useState, type CSSProperties } from "react"
 import { codigosEmLeilao } from "../../../compartilhado/calendario"
 import { calendario } from "../calendario"
-import { ufDoCodigo } from "../../../compartilhado/formato"
+import { fmtDataHoraBrasilia, fmtInt, UFS, ufDoCodigo } from "../../../compartilhado/formato"
 import type { Foco } from "../../../compartilhado/funil-etapas"
 import { fonte, useCarga } from "../dados"
 import type { CamadaAssunto, GeoMunicipio } from "../mapa/MapaBrasil"
-import { prepararGpu } from "../mapa/preparar-gpu"
 import { Cabecalho } from "../partes/Cabecalho"
 import { PainelBrasil } from "../partes/PainelBrasil"
 import { PainelProcessamentoEstados } from "../partes/PainelProcessamentoEstados"
 import { useProcessamentoEstados } from "../processamento-estados"
 import { linkEstado, linkMunicipio } from "../rota"
+import type { Geo } from "../../../compartilhado/dados"
+import { contarCobertura } from "../../../compartilhado/dados/cobertura-mapa"
+import { Layers, X, ChevronDown } from "lucide-react"
+import type { LegendaHexagonos } from "../mapa/hexagonos"
+import { CartaoTerritorioV2 } from "../partes/CartaoTerritorioV2"
+import { RotuloMono } from "../partes/RotuloMono"
+import type { SelecaoPedidoMapaV2 } from "../partes/pedido/PainelPedidoMapaV2"
+import type { Pedido } from "../../../compartilhado/pedidos/tipos"
+import { sessaoPedidos, useSessao } from "../sessao"
+import "./explorar-v2.css"
 
+const PainelPedidoMapaV2 = lazy(() => import("../partes/pedido/PainelPedidoMapaV2").then(m => ({ default: m.PainelPedidoMapaV2 })))
 const MapaBrasil = lazy(() => import("../mapa/MapaBrasil").then((m) => ({ default: m.MapaBrasil })))
 const PainelMunicipio = lazy(() => import("../partes/PainelMunicipio").then((m) => ({ default: m.PainelMunicipio })))
 const PainelMunicipioBasico = lazy(() => import("../partes/PainelMunicipioBasico").then((m) => ({ default: m.PainelMunicipioBasico })))
 
-type Altura = "baixa" | "meia" | "alta"
-const ALTURAS: Altura[] = ["baixa", "meia", "alta"]
-
-/** quanto a gaveta cobre do mapa no celular, para o voo enquadrar o município acima dela */
-function cobertura(altura: Altura): number {
-  if (!matchMedia("(max-width: 700px)").matches) return 0
-  const h = window.innerHeight
-  return altura === "baixa" ? 132 : altura === "meia" ? Math.round(h * 0.48) : Math.round(h * 0.86)
-}
-
-/**
- * A tela de entrada: o mapa plano do Brasil com a busca fixa no topo. Sem nada escolhido, o Brasil com cada estado
- * pintado pelo que a Raíz já leu (completo, incompleto com a contagem, ou ainda não processado). Tocar num estado
- * aproxima e carrega só as fazendas aptas dele, agrupadas; com município (pela busca ou por um toque), o mapa voa até
- * ele, pinta as fazendas pela situação e abre o painel com o funil em barras ligado ao mapa. O mesmo mapa fica montado
- * o tempo todo: trocar de estado ou de município não recarrega nada além das camadas dele.
- */
-export function Explorar({ municipio, uf }: { municipio: string | null; uf: string | null }) {
+/** Mapa contínuo, com controles e resumos sobrepostos. Dados extensos só abrem sob demanda. */
+export function Explorar({ municipio, uf, pedidoId }: { municipio: string | null; uf: string | null; pedidoId?: string }) {
+  const sessao = useSessao()
+  const [tentativaPedido, setTentativaPedido] = useState(0)
+  const pedidoApi = useCarga<Pedido | null>(async () => {
+    if (!pedidoId) return null
+    if (sessaoPedidos.modo !== "api") throw new Error("Este mapa exige uma API autenticada conectada. O resumo público não identifica quais fazendas compõem o lote.")
+    if (!sessao) throw new Error("Entre na sua conta para abrir este pedido no mapa.")
+    const { pedidos } = await import("../pedidos")
+    const p = await pedidos.pedido(pedidoId)
+    if (!p) throw new Error("Este pedido não foi encontrado ou não está disponível para a conta atual.")
+    if (p.exemplo || p.publicacao) throw new Error("Esta resposta não autoriza o desenho de um lote real. Consulte o resumo público ou um pedido calculado pela API.")
+    return p
+  }, [pedidoId, sessao?.token, tentativaPedido])
+  const [pedidoAberto, setPedidoAberto] = useState(Boolean(pedidoId))
+  const [selecaoPedido, setSelecaoPedido] = useState<SelecaoPedidoMapaV2 | null>(null)
+  const geometriaLoteAutorizada = useMemo<Geo | null>(() => selecaoPedido?.origem === "api" && sessaoPedidos.modo === "api" && sessao && pedidoApi.dado?.id === selecaoPedido.pedidoId && !pedidoApi.carregando && !pedidoApi.erro
+    ? { type: "FeatureCollection", features: selecaoPedido.fazendas.map(f => ({ type: "Feature", properties: {}, geometry: f.geometria })) } : null, [selecaoPedido, sessao, pedidoApi.dado, pedidoApi.carregando, pedidoApi.erro])
+  const [desenhando, setDesenhando] = useState(false)
   const processamento = useProcessamentoEstados(!municipio)
-  useEffect(() => {
-    const preparacao = prepararGpu()
-    return () => { void preparacao.then((liberar) => liberar()) }
-  }, [])
   // O MapLibre abre desde a primeira tela. Os limites dos 5.571 municípios só entram ao aproximar.
   const [aproximou, setAproximou] = useState(false)
-  const detalhe = Boolean(municipio || uf || aproximou)
+  const detalhe = Boolean(municipio || uf || aproximou || selecaoPedido?.uf)
   const brasil = useCarga(() => fonte.geo.brasil({ municipios: detalhe }), [detalhe])
   const coberturaMapa = useCarga(() => fonte.geo.cobertura(), [])
   const estados = useCarga(() => fonte.estados(), [])
@@ -73,28 +80,34 @@ export function Explorar({ municipio, uf }: { municipio: string | null; uf: stri
   const [foco, setFoco] = useState<Foco>(null)
   const [camada, setCamada] = useState<CamadaAssunto>("situacao")
   const [destaque, setDestaque] = useState<string | null>(null)
-  // no celular, sem município o mapa ocupa quase tudo (Brasil ou estado); com município a gaveta sobe até a metade
-  const [altura, setAltura] = useState<Altura>(municipio ? "meia" : "baixa")
-  const [margem, setMargem] = useState(() => cobertura(municipio ? "meia" : "baixa"))
-
-  // novo município: o funil volta a mostrar tudo
-  const [ultimo, setUltimo] = useState(municipio)
-  if (ultimo !== municipio) {
-    setUltimo(municipio)
-    setFoco(null)
-    setSituacaoBasica(null)
-    setCamada("situacao")
-    setDestaque(null)
-    if (!municipio) setAltura("baixa")
-    else if (altura === "baixa") setAltura("meia")
-  }
-
+  const [legenda, setLegenda] = useState<LegendaHexagonos | null>(null)
+  const [zoom, setZoom] = useState(0)
+  const [ampliado, setAmpliado] = useState(false)
+  const [margem, setMargem] = useState(0)
+  const [margemDireita, setMargemDireita] = useState(0)
+  const [areaDesenhada, setAreaDesenhada] = useState<Geo | null>(null)
+  const [avisoFiltro, setAvisoFiltro] = useState("")
+  const dadosDialogo = useRef<HTMLDialogElement>(null)
+  const camadasDialogo = useRef<HTMLDialogElement>(null)
+  const filtrosDialogo = useRef<HTMLDialogElement>(null)
+  const cartao = useRef<HTMLDivElement>(null)
+  const arraste = useRef<number | null>(null)
+  useEffect(() => { dadosDialogo.current?.close() }, [municipio, uf])
   useEffect(() => {
-    const medir = () => setMargem(cobertura(altura))
+    setFoco(null); setSituacaoBasica(null); setCamada("situacao"); setDestaque(null)
+  }, [municipio])
+  useEffect(() => {
+    const medir = () => {
+      const celular = matchMedia("(max-width: 700px)").matches
+      setMargem(celular && !pedidoAberto ? cartao.current?.getBoundingClientRect().height ?? 240 : 0)
+      setMargemDireita(!celular && pedidoAberto ? 462 : 0)
+    }
     medir()
+    const observer = new ResizeObserver(medir)
+    if (cartao.current) observer.observe(cartao.current)
     window.addEventListener("resize", medir)
-    return () => window.removeEventListener("resize", medir)
-  }, [altura])
+    return () => { observer.disconnect(); window.removeEventListener("resize", medir) }
+  }, [ampliado, pedidoAberto])
 
   const processados = useMemo(() => new Set((municipios.dado ?? []).map((m) => m.cod_ibge)), [municipios.dado])
   const listas = useMemo(() => new Set((estados.dado?.estados ?? []).flatMap((e) => e.com_lista)), [estados.dado])
@@ -117,46 +130,83 @@ export function Explorar({ municipio, uf }: { municipio: string | null; uf: stri
     return [(x0 + x1) / 2, (y0 + y1) / 2]
   }, [feicao])
 
-  // gaveta: toque na alça sobe um degrau (e da mais alta volta para a baixa); arrastar escolhe a mais perto
-  const arraste = useRef<{ y: number; inicio: number } | null>(null)
-  const soltar = (y: number) => {
-    const a = arraste.current
-    arraste.current = null
-    if (!a) return
-    const dy = a.y - y
-    if (Math.abs(dy) < 8) return setAltura(ALTURAS[(ALTURAS.indexOf(altura) + 1) % ALTURAS.length])
-    const k = ALTURAS.indexOf(altura) + (dy > 0 ? 1 : -1) * (Math.abs(dy) > window.innerHeight * 0.3 ? 2 : 1)
-    setAltura(ALTURAS[Math.max(0, Math.min(2, k))])
+  const ufExibida = (pedidoAberto || desenhando) && selecaoPedido?.uf ? selecaoPedido.uf : uf
+  const nome = municipio ? `Brasil / ${UFS[ufFoco ?? ""] ?? ufFoco ?? ""} / ${funil.dado?.municipio ?? String(feicao?.properties.nome ?? "Município")}` : ufExibida ? `Brasil / ${UFS[ufExibida] ?? ufExibida}` : "Brasil"
+  const resumo = useMemo(() => municipio ? (funil.carregando ? undefined : funil.dado ? [funil.dado] : []) : municipios.dado?.filter(m => !ufExibida || m.uf === ufExibida), [municipio, funil.dado, funil.carregando, municipios.dado, ufExibida])
+  const contagem = coberturaMapa.dado ? contarCobertura(coberturaMapa.dado) : null
+  const abrirFiltro = (mensagem: string) => { setAvisoFiltro(mensagem); filtrosDialogo.current?.showModal() }
+  const filtros = <>
+    <button className="topo-pilula filtro-v2" onClick={() => abrirFiltro("Os agregados publicados ainda não têm bioma por célula. Para fazer um pedido por bioma, use os critérios do pedido.")}>Bioma <span>todos</span><ChevronDown size={12} /></button>
+    <button className="topo-pilula filtro-v2" onClick={() => abrirFiltro(municipio ? "Filtre a situação básica dos imóveis deste município. Os hexágonos continuam sendo o total cadastrado." : "A situação individual está disponível ao abrir um município. O agregado nacional conta todos os cadastros, sem inferir aptidão.")}>Situação <span>{situacaoBasica ? SITUACOES_BASICAS[situacaoBasica] : "todas"}</span><ChevronDown size={12} /></button>
+    <button className="topo-pilula filtro-v2" onClick={() => abrirFiltro("O resumo aberto não contém o título de cada fazenda. A análise documental é consultada na ficha autorizada.")}>Título <span>qualquer</span><ChevronDown size={12} /></button>
+    <button className="topo-pilula filtro-v2" onClick={() => abrirFiltro("Os agregados não separam o tamanho dos imóveis. Fazendas pequenas também entram na base e podem formar projetos agrupados.")}>Tamanho <span>todas</span><ChevronDown size={12} /></button>
+  </>
+  const escolherCamada = (valor: CamadaAssunto | "uso" | "vizinhos") => {
+    if (valor === "situacao") { setCamada(valor); return }
+    if (municipio && imoveis.dado?.length && valor === "titulo") { setCamada(valor); return }
+    camadasDialogo.current?.close()
+    abrirFiltro(valor === "fogo" ? "Os recortes de desmatamento não estão neste agregado. Dados de queimadas não substituem a perda de floresta; consulte a ficha autorizada quando essa camada estiver disponível." : valor === "uso" ? "O uso da terra e a área para restaurar são recortes medidos, disponíveis na ficha autorizada quando publicados. O agregado H3 não representa essa geometria." : valor === "vizinhos" ? "A proximidade entre imóveis é analisada no pedido autorizado. O resumo aberto não revela a composição dos lotes." : "Esta camada detalhada depende dos dados do município e do acesso à ficha. Nenhuma classificação foi presumida no mapa aberto.")
   }
+  const camadas = <div className="camadas-v2-opcoes" role="group" aria-label="Assunto do mapa">{([
+    ["situacao", "Fazendas cadastradas"], ["uso", "Uso da terra"], ["titulo", "Título"], ["fogo", "Desmatamento"], ["vizinhos", "Vizinhos"],
+  ] as const).map(([id, rotulo]) => <button type="button" key={id} aria-pressed={camada === id} onClick={() => escolherCamada(id)}><span>{rotulo}</span><i className={id === "situacao" ? "camada-v2-espectro" : ""} aria-hidden="true"><b /><b /><b /><b /></i></button>)}</div>
+  const escala = legenda && zoom < 9 ? <div className="legenda-v2" aria-label={legenda.titulo}>
+    <RotuloMono>{legenda.unidade} por hexágono (cada um ~{fmtInt(legenda.areaAproximadaKm2)} km²)</RotuloMono>
+    <div className="legenda-v2-escala">{legenda.limites.map((n, i) => <div key={i}><i style={{ backgroundColor: legenda.cores[i] }} /><span>{fmtInt(n)}{i === 5 ? "+" : ""}</span></div>)}</div>
+  </div> : null
+  const soltar = (y: number) => { const inicio = arraste.current; arraste.current = null; if (inicio !== null) setAmpliado(Math.abs(inicio - y) < 8 ? !ampliado : inicio > y) }
 
   return (
-    <div className="explorar">
-      <Cabecalho atual="mapa" linkMapa="#/" />
-      <main id="conteudo" tabIndex={-1} className="explorar-corpo">
-        <aside
-          className={`painel-lateral gaveta-${altura}`}
-          aria-label={municipio ? "Painel do município" : uf ? "O estado na Raíz" : "O Brasil na Raíz"}
-        >
-          <button
-            type="button"
-            className="gaveta-alca"
-            aria-label={altura === "alta" ? "Recolher o painel" : "Abrir mais o painel"}
-            onPointerDown={(e) => {
-              arraste.current = { y: e.clientY, inicio: Date.now() }
-              e.currentTarget.setPointerCapture(e.pointerId)
-            }}
-            onPointerUp={(e) => soltar(e.clientY)}
-            onPointerCancel={() => (arraste.current = null)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" || e.key === " ") {
-                e.preventDefault()
-                setAltura(ALTURAS[(ALTURAS.indexOf(altura) + 1) % ALTURAS.length])
-              }
-            }}
-          >
-            <span aria-hidden="true" />
-          </button>
-          <div className="painel-rolagem">
+    <div className={`explorar explorar-v2${pedidoAberto ? " com-pedido" : ""}`}>
+      <Cabecalho atual="mapa" linkMapa="#/" modoMapa aoAbrirPedido={() => setPedidoAberto(v => !v)} pedidoAberto={pedidoAberto} filtros={filtros} />
+      <main id="conteudo" tabIndex={-1} className="explorar-v2-mapa" style={{ "--altura-gaveta": `${margem}px` } as CSSProperties}>
+        <div className="mapa-area">
+        <Suspense fallback={<div className="mapa-brasil" aria-busy="true"><p className="mapa-aviso aviso" role="status">Abrindo o mapa do Brasil…</p></div>}><MapaBrasil
+          brasil={brasil.dado}
+          processados={processados}
+          comLista={listas}
+          estados={estados.dado}
+          agregados={agregados.dado ?? null}
+          agregadosCarregando={agregados.carregando}
+          agregadosErro={Boolean(agregados.erro)}
+          aoAproximar={() => setAproximou(true)}
+          uf={ufExibida}
+          municipio={municipio}
+          geoMunicipio={geoMunicipio.carregando ? null : (geoMunicipio.dado ?? null)}
+          imoveis={imoveis.dado ?? null}
+          basicos={basicos.carregando ? null : basicos.dado ?? null}
+          situacaoBasica={situacaoBasica}
+          foco={foco}
+          camada={camada}
+          destaque={destaque}
+          emLeilao={emLeilao}
+          margemBaixo={margem}
+          margemDireita={margemDireita}
+          aoMudarLegenda={setLegenda}
+          geometriaLoteAutorizada={geometriaLoteAutorizada}
+          rotuloLoteAutorizado={geometriaLoteAutorizada?.features.length && selecaoPedido ? `Lote ${selecaoPedido.rotulo.toLowerCase()}` : null}
+          aoMudarZoom={setZoom}
+          desenhandoArea={desenhando}
+          aoConcluirArea={geo => { setAreaDesenhada(geo); setDesenhando(false); setPedidoAberto(true) }}
+          aoCancelarArea={() => { setDesenhando(false); setPedidoAberto(true) }}
+          aoEscolherMunicipio={(cod) => (location.hash = linkMunicipio(cod))}
+          aoEscolherEstado={(sigla) => (location.hash = linkEstado(sigla))}
+        /></Suspense>
+        </div>
+        {!desenhando && <div ref={cartao} className="cartao-v2-posicao"><CartaoTerritorioV2 nome={nome} municipios={resumo} carregando={municipio ? funil.carregando : municipios.carregando} aoAbrirDados={() => dadosDialogo.current?.showModal()} ampliado={ampliado} aoAlternar={() => setAmpliado(v => !v)} aoArrastar={y => { arraste.current = y }} aoSoltar={soltar} /></div>}
+        {!pedidoAberto && !desenhando && <>
+          <nav className="camadas-v2" aria-label="Camadas do mapa">{camadas}</nav>
+          <button type="button" className="camadas-v2-abrir" onClick={() => camadasDialogo.current?.showModal()}><Layers size={18} aria-hidden="true" />Camadas</button>
+          <div className="legenda-v2-posicao">{escala}</div>
+          <div className="status-mapa-v2"><RotuloMono partes={contagem ? [`${fmtInt(contagem.municipios)} municípios`, `${fmtInt(contagem.estados)} estados`] : ["Lendo a cobertura"]} /><br />{coberturaMapa.dado?.gerado_em && <time dateTime={coberturaMapa.dado.gerado_em}>atualizado {fmtDataHoraBrasilia(coberturaMapa.dado.gerado_em)}</time>}</div>
+        </>}
+        {pedidoAberto && <Suspense fallback={null}><PainelPedidoMapaV2 aberto={pedidoAberto} onFechar={() => { setPedidoAberto(false); setSelecaoPedido(null) }} onSelecionar={setSelecaoPedido} onDesenhar={() => { setDesenhando(true); setPedidoAberto(false) }} areaDesenhada={areaDesenhada}
+          pedidoSolicitado={Boolean(pedidoId)} pedidoAutenticado={!pedidoApi.carregando && !pedidoApi.erro ? pedidoApi.dado : null}
+          carregandoPedido={pedidoApi.carregando} erroPedido={pedidoApi.erro?.message} onRecarregarPedido={() => setTentativaPedido(t => t + 1)}
+        /></Suspense>}
+        <dialog ref={dadosDialogo} className="dialogo-mapa-v2 dados-mapa-v2" aria-labelledby="titulo-dados-v2">
+          <header><h2 id="titulo-dados-v2">Sobre os dados de {nome}</h2><button aria-label="Fechar dados" onClick={() => dadosDialogo.current?.close()}><X size={20} /></button></header>
+          <p>O cartão soma os resumos de aptidão do motor. Os hexágonos contam cadastros do CAR, incluindo imóveis ainda não aptos. São bases com coberturas diferentes; não representam créditos disponíveis para venda.</p>
             {municipio && !geoMunicipio.carregando && !geoMunicipio.dado?.imoveis?.features.length && (
               <p className="aviso" role="status">
                 {coberturaMapa.dado?.acesso === "restrito" && coberturaMapa.dado.com_desenho.includes(municipio)
@@ -208,33 +258,13 @@ export function Explorar({ municipio, uf }: { municipio: string | null; uf: stri
                 andamento={<PainelProcessamentoEstados key="processamento" carga={processamento} uf={uf} />}
               />
             )}</Suspense>
-          </div>
-        </aside>
-        <div className="mapa-area">
-        <Suspense fallback={<div className="mapa-brasil" aria-busy="true"><p className="mapa-aviso aviso" role="status">Abrindo o mapa do Brasil…</p></div>}><MapaBrasil
-          brasil={brasil.dado}
-          processados={processados}
-          comLista={listas}
-          estados={estados.dado}
-          agregados={agregados.dado ?? null}
-          agregadosCarregando={agregados.carregando}
-          agregadosErro={Boolean(agregados.erro)}
-          aoAproximar={() => setAproximou(true)}
-          uf={uf}
-          municipio={municipio}
-          geoMunicipio={geoMunicipio.carregando ? null : (geoMunicipio.dado ?? null)}
-          imoveis={imoveis.dado ?? null}
-          basicos={basicos.dado ?? null}
-          situacaoBasica={situacaoBasica}
-          foco={foco}
-          camada={camada}
-          destaque={destaque}
-          emLeilao={emLeilao}
-          margemBaixo={margem}
-          aoEscolherMunicipio={(cod) => (location.hash = linkMunicipio(cod))}
-          aoEscolherEstado={(sigla) => (location.hash = linkEstado(sigla))}
-        /></Suspense>
-        </div>
+
+        </dialog>
+        <dialog ref={camadasDialogo} className="dialogo-mapa-v2" aria-labelledby="titulo-camadas-v2"><header><h2 id="titulo-camadas-v2">Camadas do mapa</h2><button aria-label="Fechar camadas" onClick={() => camadasDialogo.current?.close()}><X size={20} /></button></header>{camadas}{escala}</dialog>
+        <dialog ref={filtrosDialogo} className="dialogo-mapa-v2" aria-labelledby="titulo-filtros-v2"><header><h2 id="titulo-filtros-v2">Dados disponíveis</h2><button aria-label="Fechar informação" onClick={() => filtrosDialogo.current?.close()}><X size={20} /></button></header><p>{avisoFiltro}</p>
+          {municipio && <label className="campo">Situação básica<select value={situacaoBasica ?? ""} onChange={e => { setSituacaoBasica(e.target.value as SituacaoBasica || null); filtrosDialogo.current?.close() }}><option value="">Todas as situações</option>{Object.entries(SITUACOES_BASICAS).map(([id, rotulo]) => <option key={id} value={id}>{rotulo}</option>)}</select></label>}
+          <a href="#/pedidos/novo">Abrir critérios de um pedido</a>
+        </dialog>
       </main>
     </div>
   )

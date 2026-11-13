@@ -2,7 +2,7 @@
 .acerto-modelo .frase { max-width: 70ch; }
 .acerto-filtros { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: var(--e4); margin-block: var(--e6); }
 .acerto-grupos { display: grid; gap: var(--e6); }
-.acerto-grupo, .acerto-leitura { border-top: var(--linha); padding-block: var(--e6); }
+.acerto-grupo, .acerto-leitura { border-top: var(--borda); padding-block: var(--e6); }
 .acerto-grupo h2 { overflow-wrap: anywhere; }
 .acerto-grupo h2 span { font-weight: 400; }
 .acerto-medidas { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: var(--e5); }

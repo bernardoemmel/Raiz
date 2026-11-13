@@ -33,7 +33,7 @@ import { ComparacaoLotes } from "../partes/pedido/ComparacaoLotes"
 import { AcessoDetalhesLote, AvisoPublicacao, BasePublicada, QuadroDestrava } from "../partes/pedido/PublicacaoPedido"
 import { CoberturaPedido } from "../partes/pedido/CoberturaPedido"
 import "../partes/pedido/pedido.css"
-import { linkFazenda, linkFichaLote, linkGrupo, linkPedidos, linkPasta } from "../rota"
+import { linkFazenda, linkFichaLote, linkGrupo, linkPedidos, linkPasta, linkPedidoMapa } from "../rota"
 
 const MapaLote = lazy(() => import("../mapa/MapaLote").then((m) => ({ default: m.MapaLote })))
 
@@ -146,6 +146,7 @@ export function PedidoTela({ id }: { id: string }) {
             </span>
           </div>
           {!pedido.publicacao && !pedido.exemplo && <p><a href={linkPasta(id, aba)}>Pasta do banco e do comprador</a></p>}
+          {!pedido.publicacao && !pedido.exemplo && <p><a href={linkPedidoMapa(id)}>Comparar lotes no mapa inteiro</a></p>}
           {!pedido.publicacao && <Alertas pedido={pedido} />}
           <AvisoExemplo ativo={!!pedido.exemplo} />
           {pedido.publicacao && <AvisoPublicacao publicacao={pedido.publicacao} />}

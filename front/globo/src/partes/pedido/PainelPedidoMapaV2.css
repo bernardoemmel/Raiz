@@ -1,0 +1,70 @@
+.pedido-mapa-v2 {
+  position: fixed; top: 76px; right: 16px; bottom: 16px; width: 430px; max-width: calc(100vw - 32px);
+  display: flex; flex-direction: column; z-index: 6; overflow: hidden; color: var(--tinta);
+  background: var(--vidro); border: 1px solid var(--linha); border-radius: 14px; outline: none;
+  animation: pedido-mapa-v2-abrir .18s ease-out;
+}
+.pedido-mapa-v2-cabecalho { padding: 18px 22px 16px; border-bottom: 1px solid var(--linha); display: flex; flex-direction: column; gap: 8px; }
+.pedido-mapa-v2-contexto { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.pedido-mapa-v2-contexto .rot { color: var(--pedra); font: 500 11px var(--n); letter-spacing: .08em; }
+.pedido-mapa-v2-fechar { width: 32px; height: 32px; display: grid; place-items: center; padding: 0; border: 0; background: transparent; color: var(--pedra); border-radius: 50%; cursor: pointer; }
+.pedido-mapa-v2 h2 { margin: 0; font: 700 26px/1.1 var(--t); letter-spacing: -.02em; }
+.pedido-mapa-v2 h2 em { color: var(--lima); font-style: normal; }
+.pedido-mapa-v2-abas { display: flex; gap: 6px; margin-top: 2px; }
+.pedido-mapa-v2-abas button { flex: 1; min-width: 0; padding: 8px 7px; border: 1px solid var(--linha); border-radius: 10px; background: transparent; color: var(--pedra); font: 600 13.5px var(--t); cursor: pointer; }
+.pedido-mapa-v2-abas button[aria-pressed="true"] { background: var(--v2-superficie); color: var(--tinta); border-color: var(--mata); }
+.pedido-mapa-v2-corpo { min-height: 0; overflow-y: auto; scrollbar-width: thin; flex: 1; }
+.pedido-mapa-v2-lotes { padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; }
+.pedido-mapa-v2-lote { border: 1px solid var(--linha); border-radius: 12px; padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; }
+.pedido-mapa-v2-lote.ativo { border-color: var(--urucum); background: var(--v2-lote-selecionado); }
+.pedido-mapa-v2-lote-topo { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.pedido-mapa-v2-lote h3 { margin: 0; font: 700 17px var(--t); }
+.pedido-mapa-v2-lote h3 button { font: inherit; color: inherit; background: transparent; border: 0; padding: 0; text-align: left; cursor: pointer; }
+.pedido-mapa-v2-selo { padding: 3px 8px; white-space: nowrap; font: 500 10px var(--n); color: var(--pedra); background: var(--v2-superficie); border-radius: 10px; }
+.pedido-mapa-v2-lote.ativo .pedido-mapa-v2-selo { color: var(--lima); }
+.pedido-mapa-v2-numeros { display: grid; grid-template-columns: .85fr 1fr 1.15fr; gap: 6px; margin: 0; }
+.pedido-mapa-v2-numeros dd { margin: 0 0 3px; font: 700 17px var(--n); letter-spacing: -.02em; white-space: nowrap; }
+.pedido-mapa-v2-numeros dt { font-size: 12px; color: var(--pedra); }
+.pedido-mapa-v2-faixa { display: flex; flex-direction: column; gap: 4px; padding-top: 3px; }
+.pedido-mapa-v2-faixa-barra { position: relative; height: 8px; border-radius: 4px; background: var(--v2-superficie); margin: 0 7px; }
+.pedido-mapa-v2-faixa-barra i { position: absolute; top: 0; bottom: 0; border-radius: 4px; background: var(--v2-faixa); }
+.pedido-mapa-v2-faixa-barra b { position: absolute; top: -3px; width: 14px; height: 14px; border-radius: 7px; background: var(--lima); transform: translateX(-50%); border: 2px solid var(--chao); }
+.pedido-mapa-v2-faixa-rotulos { display: flex; justify-content: space-between; font: 500 11px var(--n); color: var(--pedra); }
+.pedido-mapa-v2-faixa p { margin: 0; font-size: 12px; color: var(--pedra); }
+.pedido-mapa-v2-complemento { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; font-size: 11px; color: var(--pedra); }
+.pedido-mapa-v2-fonte { margin: 0 16px 14px; font-size: 12px; color: var(--pedra); }
+.pedido-mapa-v2-fonte summary { display: flex; align-items: center; justify-content: space-between; cursor: pointer; min-height: 30px; }
+.pedido-mapa-v2-fonte p { margin: 8px 0; }
+.pedido-mapa-v2-fonte a, .pedido-mapa-v2-acesso a { color: var(--lima); }
+.pedido-mapa-v2-estado, .pedido-mapa-v2-acesso, .pedido-mapa-v2-area { padding: 16px; margin: 0; font-size: 14px; }
+.pedido-mapa-v2-estado h3, .pedido-mapa-v2-estado p { margin-top: 0; }
+.pedido-mapa-v2-estado button { color: var(--tinta); background: var(--v2-superficie); border: 1px solid var(--linha); border-radius: 10px; padding: 10px 16px; cursor: pointer; }
+.pedido-mapa-v2-area, .pedido-mapa-v2-acesso { border-top: 1px solid var(--linha); color: var(--pedra); }
+.pedido-mapa-v2-acesso strong { color: var(--tinta); }
+.pedido-mapa-v2-rodape { margin-top: auto; padding: 10px 16px 14px; border-top: 1px solid var(--linha); }
+.pedido-mapa-v2-criterios { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; font-size: 11px; color: var(--pedra); }
+.pedido-mapa-v2-criterios a { display: inline-flex; align-items: center; gap: 5px; color: var(--pedra); }
+.pedido-mapa-v2-acoes { display: flex; gap: 8px; }
+.pedido-mapa-v2-acoes button { min-height: 44px; border-radius: 999px; font: 600 13px var(--t); padding: 9px 14px; cursor: pointer; }
+.pedido-mapa-v2-desenhar { flex: 0 0 auto; border: 1px solid var(--linha); background: transparent; color: var(--tinta); }
+.pedido-mapa-v2-desenhar:disabled { cursor: default; opacity: .55; }
+.pedido-mapa-v2-interesse { flex: 1; border: 1px solid var(--urucum); background: var(--urucum); color: var(--v2-texto-acao); }
+.pedido-mapa-v2 :is(button, a, summary):focus-visible { outline: 2px solid var(--lima); outline-offset: 3px; }
+@keyframes pedido-mapa-v2-abrir { from { transform: translateX(24px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .pedido-mapa-v2 { animation: none; } }
+@media (max-width: 600px) {
+  .pedido-mapa-v2 { top: 70px; right: 8px; bottom: 8px; width: calc(100vw - 16px); max-width: none; }
+  .pedido-mapa-v2-cabecalho { padding: 10px 14px 12px; }
+  .pedido-mapa-v2 h2 { font-size: 24px; }
+  .pedido-mapa-v2-fechar { width: 48px; height: 48px; flex-shrink: 0; }
+  .pedido-mapa-v2-abas button { min-height: 48px; font-size: 13px; padding: 6px; }
+  .pedido-mapa-v2-lotes { padding: 12px; }
+  .pedido-mapa-v2-lote { padding: 12px; }
+  .pedido-mapa-v2-lote h3 button { min-height: 48px; }
+  .pedido-mapa-v2-numeros dd { font-size: 16px; }
+  .pedido-mapa-v2-criterios { flex-wrap: wrap; }
+  .pedido-mapa-v2-criterios a, .pedido-mapa-v2-fonte summary { min-height: 48px; }
+  .pedido-mapa-v2-criterios > span { display: none; }
+  .pedido-mapa-v2-rodape { padding: 2px 12px 12px; }
+  .pedido-mapa-v2-acoes button { min-height: 48px; font-size: 12px; padding: 8px 10px; }
+}

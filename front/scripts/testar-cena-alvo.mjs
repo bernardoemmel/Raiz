@@ -123,6 +123,84 @@ async function pagina(base, publicacao, autenticada = false, pedidoApi = pedido)
   return p
 }
 
+/** O painel novo lê o snapshot de teste, preserva o portão pago e leva critérios reais ao formulário. */
+async function conferirPainelMapaV2(base) {
+  const contexto = await navegador.newContext({ viewport: { width: 1440, height: 900 }, reducedMotion: "reduce" })
+  const p = await contexto.newPage()
+  p.on("pageerror", (erro) => erros.push(erro.message))
+  p.on("response", (r) => { if (r.status() >= 400) erros.push(`${r.status()} ${r.url()}`) })
+  p.on("request", (r) => { if (/solicitar-interesse|reservar/.test(r.url())) contatos.push(r.url()) })
+  const snapshot = { ...publicado, volume_creditos: 700_000, preco_contrato_usd: 39 }
+  await p.route("**/amostra/lote_PA_central_r11.json", rota => rota.fulfill({ json: snapshot }))
+  await p.goto(base)
+  await p.getByRole("button", { name: "Fazer pedido", exact: true }).click()
+  const painel = p.locator(".pedido-mapa-v2")
+  await painel.getByRole("heading", { name: /700 mil créditos/ }).waitFor()
+  assert.equal(await painel.locator(".pedido-mapa-v2-lote").count(), 3)
+  assert.equal(await painel.getByText("resumo público", { exact: true }).count(), 3)
+  assert(!/CAR-FIXTURE|Conferir o georreferenciamento|reserva de 20%|no mapa/.test(await painel.innerText()), "Resumo aberto não inventa localização, reserva ou diligência.")
+  await painel.locator(".pedido-mapa-v2-abas").getByRole("button", { name: "Mais seguro", exact: true }).click()
+  assert.equal(await painel.locator(".pedido-mapa-v2-lote.ativo h3").innerText(), "Mais seguro")
+  assert.equal(await painel.locator(".pedido-mapa-v2-faixa-barra").count(), 3)
+  await painel.getByRole("button", { name: "Buscar interesse dos donos", exact: true }).click()
+  await painel.getByText("Contato somente na fase final", { exact: true }).waitFor()
+  assert.equal(contatos.length, 0, "Abrir a etapa de interesse não envia contatos.")
+  await p.setViewportSize({ width: 390, height: 844 })
+  await conferirPaginaAcessivel(p, AxeBuilder, "painel-pedido-v2-390", resultado)
+  await painel.getByRole("link", { name: "Editar critérios do pedido", exact: true }).click()
+  await p.getByRole("heading", { name: "Novo pedido", exact: true }).waitFor()
+  assert.equal(await p.getByLabel("Quantidade (créditos)").inputValue(), "700.000", "A meta veio da publicação, não do padrão anterior nem da maquete.")
+  assert.equal(await p.getByLabel("Custo máximo (US$ por crédito)").inputValue(), "", "Preço de venda não vira teto de custo.")
+  await p.locator(".mais-filtros summary").click()
+  assert.equal(await p.getByLabel("Preço de venda (US$ por crédito)").inputValue(), "39")
+  assert.match(await p.locator(".pedido-cena-resumo").innerText(), /critérios vieram do mapa/)
+  await contexto.close()
+}
+
+async function conferirPainelAutorizadoV2(base) {
+  const contexto = await navegador.newContext({ viewport: { width: 1440, height: 900 }, reducedMotion: "reduce" })
+  const p = await contexto.newPage()
+  p.on("pageerror", erro => erros.push(erro.message))
+  p.on("response", r => { if (r.status() >= 400) erros.push(`${r.status()} ${r.url()}`) })
+  p.on("request", r => { if (/solicitar-interesse|reservar/.test(r.url())) contatos.push(r.url()) })
+  let leiturasResumo = 0
+  await p.route("**/amostra/lote_PA_central_r11.json", rota => { leiturasResumo++; return rota.fulfill({ json: publicado }) })
+  await p.addInitScript(() => localStorage.setItem("raiz.sessao", JSON.stringify({ token: "sessao-fixture-cliente", email: "cliente@example.test" })))
+  const comNegada = structuredClone(pedidoComFichaFechada)
+  // Mesmo se o payload trouxer geometria por engano, ficha_liberada:false não passa ao mapa.
+  comNegada.opcoes[0].itens[1].geometria = opcoes[1].itens[0].geometria
+  await p.route("**/api/pedidos/fixture", rota => {
+    assert.equal(rota.request().headers().authorization, "Bearer sessao-fixture-cliente")
+    return rota.fulfill({ json: comNegada })
+  })
+  await p.goto(`${base}#/pedidos/fixture/mapa`)
+  const painel = p.locator(".pedido-mapa-v2")
+  await painel.getByRole("heading", { name: /1 milhão de créditos/ }).waitFor()
+  await p.waitForFunction(async () => {
+    const fonte = document.querySelector(".mapa-brasil")?.__mapa?.getSource("lote-autorizado")
+    return fonte && (await fonte.getData()).features.length === 1
+  })
+  const geometria = await p.evaluate(async () => (await document.querySelector(".mapa-brasil").__mapa.getSource("lote-autorizado").getData()).features)
+  assert.equal(geometria.length, 1)
+  assert.deepEqual(geometria[0].geometry, opcoes[0].itens[0].geometria)
+  assert(!JSON.stringify(geometria).includes(carFechado), "O item bloqueado nunca chegou ao source autorizado.")
+  assert.equal(leiturasResumo, 0, "A rota autenticada não usa o resumo do Pará como fallback.")
+  await painel.locator(".pedido-mapa-v2-abas").getByRole("button", { name: "Mais seguro", exact: true }).click()
+  await p.waitForFunction(async esperado => {
+    const fonte = document.querySelector(".mapa-brasil")?.__mapa?.getSource("lote-autorizado")
+    return fonte && JSON.stringify((await fonte.getData()).features[0]?.geometry) === JSON.stringify(esperado)
+  }, opcoes[1].itens[0].geometria)
+  await painel.getByRole("button", { name: "Fechar pedido", exact: true }).click()
+  await p.waitForFunction(async () => {
+    const fonte = document.querySelector(".mapa-brasil")?.__mapa?.getSource("lote-autorizado")
+    return fonte && (await fonte.getData()).features.length === 0
+  })
+  await p.evaluate(() => { localStorage.removeItem("raiz.sessao"); window.dispatchEvent(new Event("storage")) })
+  await p.getByRole("heading", { name: "Entrar na Raíz", exact: true }).waitFor()
+  assert.equal(await p.locator(".mapa-brasil").count(), 0, "O mapa autorizado é desmontado quando a sessão sai.")
+  await contexto.close()
+}
+
 let publico, api
 try {
   publico = await servidor(false)
@@ -163,6 +241,7 @@ try {
   assert(await p.evaluate(() => document.documentElement.scrollWidth <= innerWidth))
   await p.screenshot({ path: path.join(resultado, "demonstracao-360.png"), fullPage: true })
   await p.context().close()
+  await conferirPainelMapaV2(publico.base)
   await publico.vite.close()
   publico = null
 
@@ -220,9 +299,10 @@ try {
   assert(await p.evaluate(() => document.documentElement.scrollWidth <= innerWidth), "A ficha bloqueada ultrapassou 360 px.")
   await conferirPaginaAcessivel(p, AxeBuilder, "lote-com-ficha-bloqueada-360", resultado)
   await p.context().close()
+  await conferirPainelAutorizadoV2(api.base)
   assert.deepEqual(contatos, [], "O teste tentou iniciar contato ou reserva.")
   assert.deepEqual(erros, [], "Há erro HTTP ou JavaScript.")
-  fs.writeFileSync(path.join(resultado, "resumo.json"), JSON.stringify({ cenarios: ["cobertura pública", "snapshot legado ignorado", "resumo público sem campos pagos", "demonstração fictícia", "API autorizada", "item com ficha paga bloqueada"], cores, erros, contatos }, null, 2))
+  fs.writeFileSync(path.join(resultado, "resumo.json"), JSON.stringify({ cenarios: ["cobertura pública", "snapshot legado ignorado", "resumo público sem campos pagos", "painel V2 e passagem de critérios sem contato", "demonstração fictícia", "API autorizada", "item com ficha paga bloqueada"], cores, erros, contatos }, null, 2))
   console.log("Cena-alvo: resumo público sem detalhes pagos, demonstração fictícia, três lotes coloridos autorizados, ficha bloqueada, teclado, 360 px e nenhum contato ou 404.")
 } finally {
   await navegador.close()

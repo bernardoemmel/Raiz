@@ -1,23 +1,7 @@
 #!/usr/bin/env node
-/**
- * Teste da tela de entrada no navegador (front/globo): sobe o Vite com a amostra, abre o Chromium e confere
- *
- *   0. sem internet, o predev (baixar-dados.mjs) avisa e segue, e o front abre com a amostra;
- *   1. a entrada é o mapa do Brasil, sem baixar o cobe nem mostrar abertura; cada estado com a situação (completo,
- *      incompleto com a contagem, ainda não processado) e nenhum ponto de fazenda carregado;
- *   1b. tocar num estado aproxima e carrega só aquele estado; dentro dele, tocar num município abre o município;
- *   2. busca por município leva ao mapa do município, com o funil em barras;
- *   3. tocar num município no mapa faz o mesmo que buscar por ele;
- *   4. busca por código do CAR leva direto à ficha;
- *   5. município de estado ainda não processado abre no mapa com o aviso certo;
- *   6. no celular (360 px): busca no topo, mapa no resto, painel como gaveta que sobe com o município;
- *   7. sem hachura fora das fazendas (teste visual): com as fazendas escondidas, ligar e desligar toda camada com
- *      hachura não muda nenhum pixel do mapa; com elas à mostra, muda (prova de que o teste enxerga hachura);
- *   8. o rótulo "Brasil" do mapa base não aparece.
- *
- * Uso (de front/globo): npm run test:e2e
- * Precisa do Playwright com o Chromium (npx playwright install chromium) e de front/geo/ gerado (python front/scripts/geo.py).
- */
+/** Teste de integração da entrada V2: mapa inteiro, resumo real, menu e busca por teclado,
+ * estado/município/CAR e dados extensos em diálogo. As camadas e geometrias são verificadas
+ * pelo teste Pages e pelos testes unitários do estilo e dos hexágonos. */
 import { execSync, spawnSync } from "node:child_process"
 import fs from "node:fs"
 import { createRequire } from "node:module"
@@ -77,6 +61,10 @@ async function pagina(opcoes) {
 }
 
 async function buscar(p, texto, opcao) {
+  const dados = p.locator(".dados-mapa-v2[open]")
+  if (await dados.count()) await p.getByRole("button", { name: "Fechar dados" }).click()
+  const abrir = p.getByRole("button", { name: "Buscar CAR, município ou estado" })
+  if (await abrir.isVisible()) await abrir.click()
   const caixa = p.locator(".topo .busca input")
   await caixa.fill(texto)
   const item = opcao ? p.locator(".busca li[role=option]", { hasText: opcao }).first() : p.locator(".busca li[role=option]").first()
@@ -85,183 +73,90 @@ async function buscar(p, texto, opcao) {
 }
 
 try {
-  // 1. entrada
   {
     const { p, pedidos, erros } = await pagina({ viewport: { width: 1440, height: 900 } })
     await p.goto(URL_BASE)
     await p.waitForFunction(() => document.querySelector(".mapa-brasil .mapa")?.__mapa?.loaded(), null, { timeout: 30000 })
-    await p.locator('aside[aria-label="O Brasil na Raíz"] h1').waitFor()
+    await p.locator("#territorio-v2-titulo").waitFor()
     conferir(!pedidos.some((u) => /cobe/i.test(u)), "a entrada não baixa o cobe")
     conferir((await p.getByText("Pular abertura").count()) === 0, "não há abertura nem botão de pular")
     conferir(new URL(p.url()).hash === "", "a entrada abre sem nada no endereço")
     conferir(await p.locator(".topo .busca input").isVisible(), "a busca está no topo")
+    conferir(await p.locator(".painel-lateral").count() === 0, "o mapa não divide espaço com uma coluna lateral")
+    const mapa = await p.locator(".mapa-brasil").boundingBox()
+    conferir(mapa.x === 0 && mapa.y === 0 && mapa.width === 1440 && mapa.height === 900, "o mapa ocupa a tela inteira")
     const estados = await (await p.request.get(URL_BASE + "amostra/estados.json")).json()
     conferir(estados.pasta === "amostra", "sem os dados baixados, o front abre com a amostra")
     const rotulos = await p.evaluate(() => Object.fromEntries(document.querySelector(".mapa-brasil .mapa").__mapa.getSource("estados-rotulos").serialize().data.features.map((f) => [f.properties.uf, f.properties.linha])))
-    conferir(/144.*municípios/.test(rotulos.PA), `o Pará aparece com sua cobertura no mapa ("${rotulos.PA}")`)
-    conferir(/ainda não processado/.test(rotulos.GO) && Object.keys(rotulos).length === 27, "os outros 26 estados têm aviso de ausência")
-    conferir(!pedidos.some((u) => /pontos_|brasil_municipios\.geojson/.test(u)), "na escala nacional, carrega o fundo WebGL sem pontos ou limites de todos os municípios")
-    conferir((await p.locator(".mapa-brasil svg").count()) === 0, "o SVG fica só no minimapa lateral")
-    await p.locator('.lista-estados a[href="#/estado/PA"]').click()
-    await p.waitForFunction(() => document.querySelector(".mapa-brasil .mapa")?.__mapa?.loaded(), null, { timeout: 30000 })
-    await p.goto(URL_BASE + "#/")
-    await p.waitForFunction(() => !document.querySelector(".funil-barras"))
-    const processados = await p.evaluate(() => document.querySelector(".mapa-brasil .mapa").__mapa.querySourceFeatures("brasil-municipios").filter((f) => f.properties.p > 0).length)
-    conferir(processados > 0, `municípios processados continuam pintados no mapa detalhado (${processados} pedaços)`)
+    conferir(/144.*municípios/.test(rotulos.PA), "o Pará preserva a cobertura publicada nos rótulos")
+    conferir(/ainda não processado/.test(rotulos.GO) && Object.keys(rotulos).length === 27, "todos os estados preservam o aviso de cobertura")
+    conferir(!pedidos.some((u) => /pontos_|brasil_municipios\.geojson/.test(u)), "a escala nacional não carrega milhares de pontos ou limites municipais")
+    const camadas = await p.evaluate(() => document.querySelector(".mapa-brasil .mapa").__mapa.getStyle().layers)
+    conferir(camadas.some((l) => l.id === "hexagonos" && l.type === "fill"), "o agregado usa uma camada de hexágonos")
+    conferir(!camadas.some((l) => l.source === "hexagonos" && l.type === "circle"), "o agregado não usa bolas verdes")
 
-    // 8. sem o rótulo do país em cima do Pará; os vizinhos continuam com nome
-    const paises = await p.evaluate(() =>
-      document
-        .querySelector(".mapa-brasil .mapa")
-        .__mapa.queryRenderedFeatures({ layers: ["places_country"] })
-        .map((f) => f.properties.wikidata ?? f.properties["name:en"]),
-    )
-    conferir(paises.length > 0 && !paises.includes("Q155") && !paises.includes("Brazil"), `o rótulo "Brasil" não aparece; os vizinhos sim (${paises.length})`)
+    await buscar(p, "Pará", "Pará (PA)")
+    await p.waitForURL(/#\/estado\/PA$/)
+    await p.getByRole("button", { name: "Sobre os dados" }).click()
+    await p.locator(".estado-situacao").waitFor()
+    conferir(/Completo/.test((await p.locator(".estado-situacao").textContent()) ?? ""), "a busca estadual abre a cobertura do Pará")
 
-    // 2. busca por município
     await buscar(p, "são félix", "São Félix do Xingu")
     await p.waitForURL(new RegExp(`#/municipio/${SFX}$`), { timeout: 20000 })
+    conferir((await p.locator("#territorio-v2-titulo").textContent()).includes("São Félix do Xingu"), "a busca municipal atualiza o cartão")
+    await p.getByRole("button", { name: "Sobre os dados" }).click()
     await p.locator(".funil-barras").waitFor({ timeout: 60000 })
-    conferir((await p.locator(".painel-conteudo h1").textContent()) === "São Félix do Xingu", "busca de município abre o painel dele")
-    conferir((await p.locator(".fb-dentro").count()) === 4, "o funil tem as 4 barras")
-    await p.waitForFunction(() => document.querySelector(".mapa-brasil .mapa").__mapa.querySourceFeatures("imoveis").length > 0, null, { timeout: 30000 })
-    conferir(true, "as fazendas do município estão no mapa")
-
-    // 7. hachura só dentro das fazendas (teste visual)
-    const mapa = p.locator(".mapa-brasil canvas")
-    const desenhar = async (fazendas, hachuras) => {
-      await p.evaluate(
-        async ([fazendas, hachuras]) => {
-          const m = document.querySelector(".mapa-brasil .mapa").__mapa
-          for (const l of m.getStyle().layers) {
-            const ehFazenda = l.source === "imoveis"
-            const temHachura = l.type === "fill" && l.paint && "fill-pattern" in l.paint
-            const ver = (ehFazenda ? fazendas : true) && (temHachura ? hachuras : true)
-            m.setLayoutProperty(l.id, "visibility", ver ? "visible" : "none")
-          }
-          await new Promise((r) => {
-            m.once("idle", r)
-            m.triggerRepaint()
-          })
-        },
-        [fazendas, hachuras],
-      )
-      await p.waitForTimeout(400)
-      return mapa.screenshot()
-    }
-    const camadas = await p.evaluate(() =>
-      document
-        .querySelector(".mapa-brasil .mapa")
-        .__mapa.getStyle()
-        .layers.filter((l) => l.type === "fill" && l.paint && "fill-pattern" in l.paint)
-        .map((l) => ({ id: l.id, fonte: l.source, desenho: l.paint["fill-pattern"] })),
-    )
-    conferir(
-      camadas.length > 0 && camadas.every((c) => c.fonte === "imoveis"),
-      `toda camada com hachura é de fazenda (${camadas.map((c) => `${c.id}: ${c.fonte}`).join(", ")})`,
-    )
-    conferir(!JSON.stringify(camadas.map((c) => c.desenho)).includes('"hachura"'), "a hachura diagonal (área que pode voltar a ser mata) não pinta nada além dela")
-    const semFazendasCom = await desenhar(false, true)
-    const semFazendasSem = await desenhar(false, false)
-    conferir(semFazendasCom.equals(semFazendasSem), "sem as fazendas, nenhum pixel de hachura no mapa (nem fora do contorno do município)")
-    const comFazendasCom = await desenhar(true, true)
-    const comFazendasSem = await desenhar(true, false)
-    conferir(!comFazendasCom.equals(comFazendasSem), "com as fazendas, a hachura cruzada das não aptas aparece (o teste enxerga hachura)")
-    // devolve o mapa como estava (fogo e círculo de fogo ficam escondidos fora da camada de fogo)
-    await p.evaluate(() => {
-      const m = document.querySelector(".mapa-brasil .mapa").__mapa
-      for (const l of m.getStyle().layers) m.setLayoutProperty(l.id, "visibility", ["imoveis-fogo", "fogo-recente"].includes(l.id) ? "none" : "visible")
-    })
-
-
-    // tocar na barra deixa no mapa só quem chegou ali
+    conferir((await p.locator(".fb-dentro").count()) === 4, "o detalhe mantém as quatro etapas do funil")
     await p.locator(".fb-dentro").nth(2).click()
-    const pressionada = await p.locator(".fb-dentro").nth(2).getAttribute("aria-pressed")
-    const rodape = await p.locator(".tabela-fazendas tfoot th").first().textContent()
-    conferir(pressionada === "true" && /seleção/.test(rodape ?? ""), "a barra do funil filtra o mapa e a tabela")
+    conferir(await p.locator(".fb-dentro").nth(2).getAttribute("aria-pressed") === "true", "o funil mantém o filtro de imóveis")
+    conferir((await p.locator(".migalhas a", { hasText: "Pará" }).getAttribute("href")) === "#/estado/PA", "a trilha municipal leva ao estado")
 
-    // o nome do estado no caminho do município leva ao estado
-    conferir((await p.locator(".migalhas a", { hasText: "Pará" }).getAttribute("href")) === "#/estado/PA", "no município, o nome do estado leva ao painel do estado")
-
-    // 1b. tocar num estado na escala do país aproxima e carrega só ele
-    await p.goto(URL_BASE + "#/")
-    await p.waitForFunction(() => !document.querySelector(".funil-barras"))
-    const ponto = async (lon, lat, zoom) =>
-      p.evaluate(
-        async ([lon, lat, zoom]) => {
-          const m = document.querySelector(".mapa-brasil .mapa").__mapa
-          if (zoom) m.jumpTo({ center: [lon, lat], zoom })
-          await new Promise((r) => (m.loaded() && !m.isMoving() ? r() : m.once("idle", r)))
-          const c = m.project([lon, lat])
-          const f = m.queryRenderedFeatures(c, { layers: ["brasil-mun"] })[0]
-          const r = m.getCanvas().getBoundingClientRect()
-          return { x: r.left + c.x, y: r.top + c.y, cod: f && String(f.properties.cod_ibge) }
-        },
-        [lon, lat, zoom],
-      )
-    const noPara = await ponto(-52, -4, null)
-    await p.mouse.click(noPara.x, noPara.y)
-    await p.waitForURL(/#\/estado\/PA$/, { timeout: 10000 }).catch(() => {})
-    conferir(p.url().endsWith("#/estado/PA"), "tocar no Pará, na escala do país, abre o estado")
-    await p.locator('aside[aria-label="O estado na Raíz"] h1', { hasText: "Pará" }).waitFor({ timeout: 20000 })
-    conferir(/Completo/.test((await p.locator(".estado-situacao").textContent()) ?? ""), "o painel do estado diz que o Pará está completo")
-    await p.waitForFunction(() => document.querySelector(".mapa-brasil .mapa").__mapa.querySourceFeatures("pontos").length > 0, null, { timeout: 30000 })
-    // os pontos do Pará vieram uma vez só (no município de São Félix, que é do Pará) e nenhum de outro estado
-    const pontosPedidos = pedidos.filter((u) => /pontos_/.test(u))
-    conferir(pontosPedidos.length === 1 && /pontos_PA\.json/.test(pontosPedidos[0]), "carregou os pontos só do Pará, uma vez")
-
-    // 3. dentro do estado, tocar num município (Santarém, sem grupos de pontos por cima) faz o mesmo que buscar por ele
-    const alvo = await ponto(-54.7, -2.6, 7)
-    await p.mouse.click(alvo.x, alvo.y)
-    await p.waitForURL(/#\/municipio\/\d{7}$/, { timeout: 10000 }).catch(() => {})
-    conferir(!!alvo.cod && p.url().endsWith(`#/municipio/${alvo.cod}`), `tocar no município ${alvo.cod} abre o mesmo que buscar por ele`)
-
-    // estado ainda não processado: cinza, com o aviso e o total do IBGE
-    await p.goto(URL_BASE + "#/estado/GO")
+    await buscar(p, "Goiás", "Goiás (GO)")
+    await p.waitForURL(/#\/estado\/GO$/)
+    await p.getByRole("button", { name: "Sobre os dados" }).click()
     await p.getByText("O estado de Goiás ainda não foi processado pela Raíz.").waitFor({ timeout: 20000 })
-    conferir(await p.getByText("Os 246 municípios aparecem aqui").isVisible(), "Goiás abre com o aviso de ainda não processado e os 246 municípios")
+    conferir(await p.getByText("Os 246 municípios aparecem aqui").isVisible(), "um estado sem dados avisa sua cobertura real")
 
-    // 4. busca por código do CAR
     await buscar(p, CAR)
     await p.waitForURL(/#\/fazenda\//, { timeout: 20000 })
-    conferir(decodeURIComponent(p.url()).endsWith(`#/fazenda/${CAR}`), "busca do código do CAR vai direto para a ficha")
+    conferir(decodeURIComponent(p.url()).endsWith(`#/fazenda/${CAR}`), "buscar CAR abre a ficha correspondente")
     await p.locator(".ficha h1, main h1").first().waitFor({ timeout: 30000 })
-    conferir(true, "a ficha abriu")
 
-    // 5. estado ainda não processado
     await buscar(p, "sinop", "Ainda não processado")
     await p.waitForURL(/#\/municipio\/5107909$/, { timeout: 20000 })
+    await p.getByRole("button", { name: "Sobre os dados" }).click()
     await p.getByText("ainda não foi processado").first().waitFor({ timeout: 20000 })
-    conferir(true, "Sinop (MT) abre no mapa com o aviso de que ainda não foi processado")
-
-    conferir(!pedidos.some((u) => /cobe/i.test(u)), "nada do cobe foi baixado em todo o caminho")
+    conferir(!pedidos.some((u) => /\/busca(?:\?|$)/.test(u)), "a busca continua no navegador, sem rota inexistente no Pages")
     conferir(erros.length === 0, `sem erro de JavaScript${erros.length ? ": " + erros[0] : ""}`)
   }
 
-  // 6. celular
-  {
-    const { p, erros } = await pagina({ viewport: { width: 360, height: 780 }, isMobile: true, hasTouch: true })
+  for (const largura of [360, 390]) {
+    const { p, erros } = await pagina({ viewport: { width: largura, height: 844 }, isMobile: true, hasTouch: true })
     await p.goto(URL_BASE)
-    await p.waitForFunction(() => document.querySelector(".mapa-brasil .mapa")?.__mapa?.loaded(), null, { timeout: 30000 })
-    const busca = await p.locator(".topo .busca input").boundingBox()
+    await p.locator("#territorio-v2-titulo").waitFor()
+    const botaoBusca = p.getByRole("button", { name: "Buscar CAR, município ou estado" })
+    const busca = await botaoBusca.boundingBox()
+    conferir(busca.y < 76 && busca.width >= 48 && busca.height >= 48, `${largura}px: a busca tem alvo de toque de 48 px`)
     const mapa = await p.locator(".mapa-brasil").boundingBox()
-    const gaveta = await p.locator(".painel-lateral").boundingBox()
-    conferir(busca.y < 140 && busca.x + busca.width <= 360, "celular: busca no topo, sem passar da tela")
-    conferir(mapa.y >= busca.y + busca.height && mapa.y + mapa.height >= 760, "celular: o mapa ocupa o resto da tela")
-    conferir(gaveta.y > 780 * 0.7, "celular: sem município, a gaveta fica baixa")
-    const largura = await p.evaluate(() => document.documentElement.scrollWidth)
-    conferir(largura <= 360, `celular: sem rolagem para o lado (${largura} px)`)
+    conferir(mapa.x === 0 && mapa.y === 0 && mapa.width === largura && mapa.height === 844, `${largura}px: o mapa ocupa a tela inteira`)
+    conferir(await p.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `${largura}px: sem rolagem horizontal`)
+    const marca = p.getByLabel("Raíz, abrir menu e conta")
+    await marca.focus(); await p.keyboard.press("Enter")
+    conferir(await p.getByRole("navigation", { name: "Principal", exact: true }).getByRole("link", { name: "Pedidos", exact: true }).isVisible(), `${largura}px: o menu da marca mantém o acesso aos pedidos`)
+    await p.keyboard.press("Escape")
+    await p.keyboard.press("/")
+    conferir(await p.locator(".topo-dialogo-busca[open]").count() === 1, `${largura}px: o atalho abre a busca acessível`)
+    await p.getByRole("button", { name: "Fechar busca" }).click()
     await buscar(p, "nova esperança", "Nova Esperança do Piriá")
     await p.waitForURL(/#\/municipio\/1504950$/, { timeout: 20000 })
+    conferir(await p.locator(".topo-dialogo-busca[open]").count() === 0, `${largura}px: escolher resultado fecha a busca`)
+    await p.getByRole("button", { name: "Sobre os dados" }).click()
     await p.locator(".funil-barras").waitFor({ timeout: 60000 })
-    await p.waitForTimeout(400)
-    const subiu = await p.locator(".painel-lateral").boundingBox()
-    conferir(subiu.y < 780 * 0.6 && subiu.y > 780 * 0.3, "celular: com município, a gaveta sobe até a metade")
-    await p.locator(".gaveta-alca").click()
-    await p.waitForTimeout(400)
-    const alta = await p.locator(".painel-lateral").boundingBox()
-    conferir(alta.y < subiu.y, "celular: tocar na alça sobe a gaveta")
-    conferir(erros.length === 0, `celular: sem erro de JavaScript${erros.length ? ": " + erros[0] : ""}`)
+    await p.getByRole("button", { name: "Fechar dados" }).click()
+    await p.getByRole("button", { name: "Expandir resumo" }).focus()
+    await p.keyboard.press("Enter")
+    conferir(await p.locator(".cartao-ampliado").count() === 1, `${largura}px: o resumo expande pelo teclado`)
+    conferir(erros.length === 0, `${largura}px: sem erro de JavaScript${erros.length ? ": " + erros[0] : ""}`)
   }
 } catch (e) {
   falhas++

@@ -976,3 +976,37 @@ Contrato, acessibilidade e desenho: [docs/design/graficos-resultados.md](../desi
   evidência exigida pela ficha; o aviso de ausência real permanece correto, sem inferir esses campos.
   Relatórios/caches do verificador privado não devem ir ao PR ou ao Pages. As evidências públicas do mapa
   continuam ligadas a `650db81`, sem repetir medições pela integração de arquivos do servidor.
+
+
+## Visual V2 aprovado (13/11/2026)
+
+O pacote `raiz-visual-v2-telas.zip` substitui o redesenho anterior ainda não entregue.
+`LEIA-ME-TELAS.md` foi lido inteiro, os três prints foram inspecionados e o guia foi
+incorporado em `docs/design/guia-front-v2.md`. A maquete não foi copiada para o produto:
+o fundo continua Protomaps e os dados continuam nos contratos públicos/autenticados.
+
+A entrada ocupa a tela inteira, com base escura, fontes locais Bricolage Grotesque e
+JetBrains Mono, cartão territorial e pedido flutuantes. H3 r4 no Brasil e r5 ao aproximar
+substituem os círculos; a construção/consulta ocorre em worker. A escala identifica a
+medida que realmente existe. O campo `fazendas` do agregado conta cadastros do CAR,
+não apenas aptos, e grupos com medida ausente não viram zero. Não se presume bioma,
+título ou porte a partir da localização. O produtor permanece claro.
+
+O cartão soma os resumos municipais do motor; o contador cartográfico tem cobertura
+própria. No snapshot público auditado usado para conferir o visual: 20.357.288 ha,
+992.019 imóveis, 574.373 aptas e 102.621 com matrícula identificada nos resumos;
+os desenhos abrangem 1.188 municípios/17 UFs. Esses valores são leitura dos arquivos,
+não constantes do código. A data exibida vem do manifesto.
+
+O painel compara os três lotes reais da publicação, com escala comum para P10/P50/P90,
+hectares, número de fazendas, preço médio e fração da meta com terra pronta. O resumo
+aberto não contém localização/composição; o destaque laranja fictício da maquete não
+foi usado. O desenho autorizado depende de sessão real, API e liberação da ficha.
+Reserva não informada continua ausente, em vez de copiar os 20% ilustrativos.
+Desenhar área cria um critério editável; não recalcula os resumos estáticos nem envia
+mensagem aos donos. E9 continua pendente das cartas reais, ainda não fornecidas.
+
+As capturas iniciais com dados reais encontraram zero 404/erros de JavaScript, mas
+apontaram dois erros de expressão cartográfica, enquadramento mobile e ajustes no
+foco da busca. Foram corrigidos antes da conferência final. Evidências finais e CI
+serão registrados ao concluir esta entrega; esta seção não declara aprovação antecipada.
