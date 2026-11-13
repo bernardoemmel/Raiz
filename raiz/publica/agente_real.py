@@ -294,6 +294,10 @@ def gravacao(caminho: Path, *, modo: str, namespace: str, segredos: list[str] | 
         return request
 
     def resposta(response):
+        # VCR também aplica este filtro ao carregar a cassette. A gravação já está
+        # sanitizada: reprocessá-la apagaria a latência e alteraria seus aliases.
+        if modo == "replay":
+            return response
         if response["status"]["code"] != 200:
             response["body"]["string"] = b'{"type":"error","error":{"type":"api_error","message":"falha"}}'
         else:
