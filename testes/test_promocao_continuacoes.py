@@ -244,8 +244,9 @@ def test_promocao_urgente_vincula_prova_anterior_e_codigo_corrigido(monkeypatch)
     assert F.PROMOCOES_CONTINUACAO == {o: prova["destino"] for o in prova["origens"]}
     assert set(PROMOCOES) < set(prova["origens"])
     atual = prova["commits"][prova["destino"]]
-    # #93 mudou só a chamada da carga em rodar.py, que participa do hash das 11 tarefas.
-    # A fila continua no commit fechado anterior; não atribuir a versão da main aos seus resultados.
+    # #93 mudou a chamada da carga, que participa do hash das 11 tarefas.
+    # R12 também mudou intencionalmente o modelo de desenvolvedor. A fila continua
+    # no commit fechado anterior; não atribuir nenhuma dessas versões aos seus resultados.
     rodar = RAIZ / "raiz/funil/rodar.py"
     novo = rodar.read_bytes()
     chamada = b"depois_da_carga(eng, cod, estrito=True)"
@@ -254,7 +255,9 @@ def test_promocao_urgente_vincula_prova_anterior_e_codigo_corrigido(monkeypatch)
     ler = Path.read_bytes
     with monkeypatch.context() as m:
         m.setattr(Path, "read_bytes", lambda p: anterior_rodar if p == rodar else ler(p))
-        assert atual["versoes_tarefas"] == {n: tarefas.versao(n) for n in tarefas.CODIGO}
+        preservadas = set(tarefas.CODIGO) - {"desenvolvedor"}
+        assert {n: atual["versoes_tarefas"][n] for n in preservadas} == {n: tarefas.versao(n) for n in preservadas}
+        assert tarefas.versao("desenvolvedor") != atual["versoes_tarefas"]["desenvolvedor"]
     assert all(atual["versoes_tarefas"][n] != tarefas.versao(n) for n in tarefas.CODIGO)
     assert atual["versoes_tarefas"] == prova["commits"][DESTINO]["versoes_tarefas"]
     assert atual["armazem_sha256"] == hashlib.sha256((RAIZ / "raiz/executor/armazem.py").read_bytes()).hexdigest()

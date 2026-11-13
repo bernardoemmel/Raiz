@@ -505,3 +505,10 @@ RuntimeError, portanto a causa específica não foi atribuída à falta de vaga.
 A tentativa 2 recebeu 12 cotas, com 15 no total global. Nenhum workflow foi
 cancelado ou desativado. Aguardamos o CI ativo terminar antes de enviar o merge
 da main, pois um novo head dispararia cancelamento no CI compartilhado.
+
+A auditoria de promoções trazida pela main ainda comparava a versão histórica
+de desenvolvedor à atual. O teste agora exige que as outras dez tarefas sejam
+preservadas após recompor a chamada anterior da carga e que desenvolvedor
+tenha mudado com a R12; a prova histórica continua vinculada e inalterada.
+Setenta testes da auditoria, 70 de metadados e Ruff/formatação passaram.
+Nenhum destino de continuação nem resultado em execução foi modificado.
