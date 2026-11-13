@@ -14,6 +14,7 @@ def main() -> int:
     cargo = pacotes_cargo(RAIZ_REPO / "nativo" / "raiz_iov" / "Cargo.toml")
     pastas = [RAIZ_REPO / "front" / app / "package-lock.json" for app in ("globo", "produtor")]
     pastas.append(RAIZ_REPO / "servicos" / "cartao" / "package-lock.json")  # Takumi (cartão e vídeo)
+    pastas.append(RAIZ_REPO / "servicos" / "conferencia-agentes" / "package-lock.json")  # Inspector e vacuum
     npm = [p for lock in pastas for p in pacotes_npm(lock)]
     pacotes = avaliar(pacotes_python() + npm + cargo, registro)
     ruins = falhas(pacotes)

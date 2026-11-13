@@ -1,5 +1,131 @@
 # Operação: como saber na hora quando algo parou
 
+## Pilha API/MCP, OAuth e processamento
+
+A pilha `infra/docker-compose.agentes.yml` sobe PostGIS, banco separado do Keycloak, Keycloak 26.8.2,
+Valkey, migração, API/MCP no mesmo processo, worker e agenda. Todos usam o código e as dependências travadas do
+mesmo checkout. A imagem final roda como usuário sem privilégios, com sistema de arquivos somente leitura;
+`dados/` e os bancos têm volumes persistentes. Não inclui publicação de domínio, compra de VPS ou ativação de Pix.
+
+### Teste local descartável
+
+Com Docker Engine, Compose **2.24.4 ou superior** e Python 3.12:
+
+```bash
+python scripts/pilha_agentes.py teste
+```
+
+O comando gera `.env.agentes-teste` com permissões `0600` e segredos aleatórios, constrói a imagem, sobe as
+bases e aplica as migrações antes de iniciar API e worker. Repeti-lo conserva os segredos e os volumes. As fontes ficam congeladas na imagem; `/app/proveniencia.json`
+registra seus hashes e os rótulos Docker identificam a revisão e se o checkout estava alterado. A API fica
+em `http://localhost:18000`, MCP em `/mcp/`, Keycloak em `http://localhost:18180` e PostGIS na porta local `15432`,
+base `raiz_agentes_teste`. Os endereços só escutam loopback. O realm mantém Authorization Code/PKCE S256, sem
+password grant para agentes; a instrumentação cria somente identidades e empresas sintéticas por Admin API.
+O override compartilha a rede da API com o Keycloak para validar o emissor `localhost` sem exceção de segurança
+no código de OAuth. Em produção são contêineres de rede independentes e URLs HTTPS.
+
+API, MCP, fila e banco são reais. Pix fica obrigatoriamente em teste; SMTP e credenciais externas não são
+herdados do host. A agenda exercita seu ciclo sem coletar a internet nem enviar avisos no modo de teste.
+O modo `--desenvolvimento` monta fontes do checkout somente para depuração e é recusado pelo runner de campanhas
+reais. A chave Anthropic pertence ao runner fora dos contêineres: não entra na imagem, API, worker ou arquivo de teste.
+
+```bash
+python scripts/pilha_agentes.py medir --teste --amostras 12 --intervalo 5 \
+  --saida dados/operacao/recursos-agentes.json
+python scripts/pilha_agentes.py parar --teste
+```
+
+`parar` conserva os volumes. Não use `down -v` em uma instalação com dados. O teste de recursos traz RAM e CPU por
+serviço, picos **amostrados**, tamanhos dos volumes e soma conservadora das imagens; esta última não desconta
+camadas compartilhadas. Faça uma amostragem durante a campanha além do repouso. O relatório não contém env,
+credenciais ou dados de empresas. Um catálogo sintético não dimensiona o processamento dos 144 municípios.
+
+### Preparar a produção
+
+1. Reserve um checkout da revisão aprovada e Docker com Compose 2.24.4+. Copie
+   `infra/agentes.env.example` para `producao.env` e restrinja a leitura (`chmod 600 producao.env`). Nunca use
+   `.env.agentes-teste` na produção. Gere senhas diferentes, por exemplo com `openssl rand -hex 32`;
+   a senha do banco deve usar apenas letras ASCII, números, hífen e sublinhado, com pelo menos 24 caracteres.
+2. Configure `RAIZ_CHAVE_PESSOAL` com uma chave Fernet nova (`uv run raiz pessoal gerar-chave`) e
+   `RAIZ_RECIBO_CHAVE` com 32 bytes aleatórios codificados em base64url, sem padding. Guarde cópias em cofre fora da
+   VPS: perder a primeira impede abrir os dados cifrados; trocar o assinante exige manter as chaves públicas antigas
+   para verificar recibos emitidos. `RAIZ_API_TOKEN` é exclusivo do backoffice e não autentica o MCP.
+3. Preencha URLs HTTPS reais: `RAIZ_KEYCLOAK_URL`, seu `/realms/raiz` em `RAIZ_OAUTH_ISSUER`,
+   `RAIZ_MCP_RESOURCE` terminado em `/mcp`, `RAIZ_API_PUBLICA_URL` com a origem da API (sem `/v1`),
+   `RAIZ_LOGIN_BASE_URL`, `RAIZ_FRONT_URL`, `RAIZ_API_ORIGENS` e callback exato em `RAIZ_OAUTH_REDIRECT_URI`.
+   Não use curinga. Um proxy HTTPS da VPS encaminha a API para `127.0.0.1:8000` e o Keycloak para
+   `127.0.0.1:8180`; deve substituir, não acrescentar valores arbitrários de `X-Forwarded-*`. Não exponha os bancos,
+   Valkey ou a porta de administração/saúde 9000. Restrinja o console administrativo OAuth ao operador.
+4. Configure SMTP com SSL ou STARTTLS, remetente e autenticação. Sem SMTP, o login por e-mail permanece
+   indisponível. Configure o coletor OTLP/HTTP em `RAIZ_OTEL_ENDPOINT` para persistir a telemetria; a ausência de
+   coletor não constitui registro externo. Use destinos de webhook HTTPS exatos em `RAIZ_WEBHOOK_HOSTS` e
+   política de saída no proxy/firewall que bloqueie IPs privados, loopback, link-local e metadados após DNS.
+   O allowlist de nomes, sozinho, não protege contra DNS rebinding.
+5. Configure o arquivo privado de dados em `RAIZ_DADOS_PRIVADOS_URL` e o token só no servidor, carregue as ofertas
+   no PostGIS e importe as evidências territoriais vigentes. Ficha paga, reserva e contrato continuam bloqueados
+   quando falta habilitação ou evidência; nenhum dado de proprietário deve entrar em URLs ou logs.
+6. Use somente a pilha local de teste até a conferência do provedor. Para produção, configure `RAIZ_ABACATEPAY_CHAVE`,
+   `RAIZ_ABACATEPAY_WEBHOOK_SEGREDO`, `RAIZ_ABACATEPAY_WEBHOOK_CHAVE_PUBLICA` e só então `RAIZ_PIX_MODO=producao`.
+   O webhook de pedidos fica em `/pagamentos/abacatepay`; confirme a rota e o contrato de assinatura no OpenAPI da
+   revisão instalada. A ficha individual usa o webhook próprio de prospecção, documentado abaixo: não misture os
+   dois produtos nem seus segredos. Não ative `RAIZ_ABACATEPAY_IDEMPOTENCIA_SUPORTADA` sem confirmação contratual.
+   O agente só prepara um link; uma pessoa autenticada aprova e o provedor confirma o pagamento. O recibo JWS
+   comprova aprovação, não liquidação financeira.
+7. Com o `.env` pronto e o proxy configurado, um comando constrói e sobe a pilha completa:
+
+   ```bash
+   python scripts/pilha_agentes.py subir --env-file producao.env
+   ```
+
+   O comando recusa placeholders de domínio, HTTP e Pix simulado na produção; exige as credenciais do provedor. Ele espera os healthchecks e a migração
+   `head` (incluindo checkpointer cifrado do LangGraph) antes de liberar API/worker/agenda. Para usar uma imagem já
+   construída da mesma revisão, acrescente `--sem-build`; `RAIZ_IMAGEM_TAG` deve identificar a revisão publicada
+   internamente pelo operador. Não reutilize `local` entre versões sem reconstruir.
+8. No Keycloak, crie usuários e vincule `empresa_id` à empresa já aberta na API. O usuário não pode editar esse
+   atributo. Atribua `raiz-api/admin_empresa` somente ao administrador daquela empresa. O cliente `raiz-agentes`
+   usa PKCE S256 e escopos `consultar`/`pedir`; `reservar` é opcional, começa desabilitado também na conta e só
+   o administrador da empresa habilita. Confira `/.well-known/oauth-protected-resource/mcp`, emissor, audiência,
+   expiração, `sub` e callback com o cliente real. O escopo padrão `raiz-identidade` inclui o mapper
+   `oidc-sub-mapper` (Subject), com `access.token.claim=true`; sem ele o Keycloak 26.8 emite um token
+   sem sujeito e o MCP o recusa. Em realms existentes, adicione esse mapper por administração antes
+   de testar a conexão. O import inicial não altera realms já existentes; mudanças exigem
+   migração administrativa deliberada. Remova/rotacione o administrador de bootstrap depois do provisionamento.
+
+### Atualizações, agenda e recuperação
+
+Antes de atualizar, guarde backup consistente dos dois bancos, volume `dados`, realm/configuração e chaves em
+armazenamento privado fora da VPS. Restrinja os arquivos de backup com `umask 077`; use `pg_dump -Fc` e ensaie
+`pg_restore` em banco separado. Arquivo SQL completo ou dump nunca é artefato público de CI. Não basta copiar
+um volume PostgreSQL enquanto ele escreve. Confira espaço para WAL, backup e duas versões de imagem.
+
+Para atualizar a mesma instalação: pare `api`, `worker` e `agenda` com o compose e o mesmo `--env-file`, construa
+na revisão aprovada e repita `subir`. O serviço `migrar` precisa terminar com sucesso; uma falha impede os outros
+serviços de iniciar. Não reverta schema automaticamente nem inicialize volumes vazios sobre o banco existente.
+Depois, confira `/saude`, descoberta OAuth/MCP, uma consulta autorizada, fila/outbox e recibo de aprovação de teste.
+
+A agenda `scripts/agendar_servicos.py` reutiliza as CLIs existentes: alertas a cada 15 minutos, ciclo dos pedidos
+por hora, buscas salvas a cada 30 minutos e Calendário diariamente às 06h47 no fuso `RAIZ_AGENDA_FUSO`
+(padrão `America/Sao_Paulo`). Ela mantém uma trava exclusiva e horários concluídos no volume `dados`, não duplica
+horário concluído após reinício e repete falhas depois de cinco minutos. Tarefas distintas podem executar juntas,
+mas a mesma tarefa nunca se sobrepõe. Instale somente uma agenda para esse volume; não deixe os mesmos trabalhos
+ativos também no crontab. A agenda do motor estadual/Pará continua pertencendo ao chat “Lote e números”.
+
+O worker processa fila e Standard Webhooks continuamente. Seu healthcheck confirma acesso ao banco, não prova
+avanço dos pedidos; monitore idade de `submitted/working`, vencimento de leases, outbox e alertas no backoffice.
+A agenda tem heartbeat próprio. Docker reinicia processos que saem, mas não reinicia automaticamente todo processo
+marcado `unhealthy`: um monitor externo deve avisar o operador. Os logs Docker têm rotação de três arquivos de
+10 MiB por contêiner; não habilite access log bruto com query strings ou tokens.
+
+As amostras reais e seus limites devem acompanhar o relatório da campanha no Actions e a passagem de Produto e
+regras. O teste local construiu a imagem e validou migrações, API e descoberta OAuth; a tentativa de manter a pilha
+inteira foi interrompida pelo espaço do Docker VFS do ambiente. VFS copia camadas inteiras por contêiner e os
+erros de criação deixaram resíduos: isso não representa o consumo de uma VPS com overlay2. Nenhuma medição de RAM
+completa ou recomendação numérica de VPS é atribuída a essa tentativa. A campanha no Actions usa a imagem
+congelada e amostra recursos durante as tarefas, incluindo identificação das imagens. Para dimensionar
+uma VPS, some margem de sistema operacional, PostgreSQL/WAL, concorrência dos workers e crescimento dos dados;
+repita a medição com o catálogo e a simultaneidade pretendidos. Esta entrega não contrata nem publica servidor.
+
+
 ## Healthchecks (alerta fora do servidor)
 
 O alerta não pode depender do servidor da Raíz: se ele cair, o aviso tem de sair de outro lugar. Por isso o padrão é
