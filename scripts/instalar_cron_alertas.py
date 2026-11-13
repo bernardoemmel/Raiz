@@ -20,6 +20,7 @@ FIM = "# FIM RAIZ ALERTAS"
 TAREFAS = {
     "alertas": ("*/15 * * * *", "operacao alertas", "a cada 15 minutos"),
     "calendario": ("47 6 * * *", "calendario coletar", "diariamente às 06:47 (fuso do servidor)"),
+    "vigilancia_lotes": ("*/15 * * * *", "lotes-ciclo --publicar", "a cada 15 minutos"),
 }
 
 
@@ -39,10 +40,11 @@ def bloco(repositorio: Path, uv: str, flock: str, tarefa: str = "alertas") -> st
         # O cron interpreta % mesmo dentro de aspas; não aceitar caminhos ambíguos.
         raise ValueError("Os caminhos não podem conter quebra de linha nem %.")
     repo, uv, flock = map(shlex.quote, caminhos)
+    executavel = "python -m raiz.vigilancia" if tarefa == "vigilancia_lotes" else "raiz"
     comando = (
         f"cd {repo} && /bin/mkdir -p dados/operacao && "
         "if [ -f .env ]; then set -- --env-file .env; else set --; fi && "
-        f'{flock} -n -E 0 dados/operacao/{tarefa}.lock {uv} run "$@" --frozen raiz {tarefa_cli}'
+        f'{flock} -n -E 0 dados/operacao/{tarefa}.lock {uv} run "$@" --frozen {executavel} {tarefa_cli}'
     )
     return f"{inicio}\n{horario} {comando}\n{fim}\n"
 

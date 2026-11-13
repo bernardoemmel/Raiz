@@ -37,6 +37,14 @@ def test_calendario_diario_preserva_alertas_e_vice_versa():
     assert "CRON_TZ" not in calendario  # não muda o fuso dos outros trabalhos
 
 
+def test_ponte_lotes_renova_catalogo_e_importa_rascunhos_sem_coletor_concorrente():
+    ponte = bloco(Path("/srv/raiz"), "/opt/uv", "/usr/bin/flock", "vigilancia_lotes")
+    assert "*/15 * * * *" in ponte
+    assert "python -m raiz.vigilancia lotes-ciclo --publicar" in ponte
+    assert "rodar" not in ponte and "dados/operacao/vigilancia_lotes.lock" in ponte
+    assert atualizar(atualizar("", ponte, "vigilancia_lotes"), ponte, "vigilancia_lotes") == ponte
+
+
 @pytest.mark.parametrize("atual", [INICIO, FIM, FIM + "\n" + INICIO, INICIO + "\n" + INICIO + "\n" + FIM])
 def test_recusa_bloco_incompleto_ou_duplicado(atual):
     with pytest.raises(ValueError, match="incompleto ou duplicado"):

@@ -82,10 +82,12 @@ def fechar(g, pedido: Pedido, resp: Resposta) -> str | None:
                 "output": resp.uso.saida,
                 "cache_read_input_tokens": resp.uso.cache_leitura,
                 "cache_creation_input_tokens": resp.uso.cache_escrita,
-            },
+            }
+            if resp.uso_informado
+            else None,
             cost_details={"total": float(resp.custo_usd)} if resp.custo_usd is not None else None,
             level="ERROR" if resp.erro else ("WARNING" if resp.recusou else "DEFAULT"),
-            status_message=resp.erro,
+            status_message=("falha de modelo em entrada pessoal" if pedido.pessoal and resp.erro else resp.erro),
         )
         return cliente_langfuse().get_current_trace_id()
     except Exception as ex:  # noqa: BLE001 - rastro nunca derruba a tarefa
