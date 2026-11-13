@@ -118,6 +118,12 @@ antigo por conexão via socket; preferir TCP e executar a suíte inteira, como n
   Não substituir a API de produção pelo ambiente de homologação. Não marcar fonte saudável só porque o índice abre.
 - Evidência e limites em `docs/calendario.md`; resultado integrado em `/workspace/entregas/calendario-fontes/`, fora do git.
   Próximas entregas: avaliação/custo por documento, vigilância dos lotes e percurso da primeira certidão real.
+- Coleta integral local conferida em 12/11/2026, depois da correção de UIDs: **50 eventos, 11 futuros, 198 visitas**,
+  sem duplicatas exatas. Foram consultadas 31 fontes reais e a cobertura dos diários; o snapshot conserva também
+  o estado histórico de MT (33 entradas de cobertura). PA parcial em 14 visitas; DJEN/BA/MG/TO em erro.
+  Nenhum dos 50 eventos confirmou CAR; não se gerou alerta de fazenda presumida nem envio externo.
+  Evidência: `/workspace/entregas/calendario-integracao-completa/`, fora do git. Isso é validação local;
+  o resultado operacional publicado deve ser conferido na execução do workflow na main.
 - `ANTHROPIC_API_KEY` ausente/vazia neste processo. Consulta de nomes de secrets no GitHub foi negada por escopo
   da integração (403), portanto não prova presença nem ausência em produção. Nunca pedir ou imprimir seu valor.
 - Release `dados` agora contém somente cadastro básico/agregados. `dados-privados` e históricos completos são
@@ -170,3 +176,8 @@ antigo por conexão via socket; preferir TCP e executar a suíte inteira, como n
   recebida do proponente. Nenhum PDF, nome, CPF/CNPJ ou texto bruto vai a treino/log/site.
 - **Ainda falta a primeira certidão real** e sua conferência humana. Os testes não constituem conjunto de avaliação
   nem autorizam calibrar E7/E8. Procedimento completo e rotas: `docs/primeira-certidao.md`.
+
+As entregas desta continuação estão nos PRs [fontes #87](https://github.com/bernardoemmel/Raiz/pull/87),
+[cascata #88](https://github.com/bernardoemmel/Raiz/pull/88),
+[vigilância #91](https://github.com/bernardoemmel/Raiz/pull/91) e
+[primeira certidão #92](https://github.com/bernardoemmel/Raiz/pull/92), nessa ordem.

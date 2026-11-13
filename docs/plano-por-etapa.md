@@ -468,6 +468,9 @@ Limites da primeira entrega em 12/11/2026: DJEN/CNJ respondeu HTTP 403; cobertur
 Conferência posterior das fontes: retirada de matrícula/CAR ambíguo preserva o UID quando o ato corresponde a um
 único evento já publicado. Releitura real da Fomento Paraná manteve seus 11 eventos, sem duplicar quatro registros
 ao retirar identificadores descartados; 118 testes do calendário passaram com PostGIS.
+Coleta integral local posterior: **50 eventos, 11 futuros, 198 visitas e zero duplicatas exatas**. PA parcial;
+DJEN/BA/MG/TO em erro. Os 50 vínculos com CAR continuam pendentes; nenhum alerta foi atribuído por suposição.
+O teste local não comprova implantação no servidor; execução/publicação diária deve ser conferida na main.
 
 - [x] Integração da entrega mobile com o Calendário: rota sob demanda, quatro links visíveis a 360 px, filtros
   com 48 px e teste CI de teclado/axe em três larguras; 186 testes do front e fluxos de ficha/lote aprovados.
