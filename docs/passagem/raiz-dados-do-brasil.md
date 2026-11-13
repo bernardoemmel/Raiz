@@ -440,3 +440,12 @@ o caso estadual exigiu preparar a referência privada e passou depois em execuç
 345.870 imóveis, 425,58 s). LanguageTool depende do servidor presente no CI; uma divergência de TIR já
 documentada permanece como falha esperada. Frontend: 292 testes e build; Ruff/actionlint verdes;
 857 pacotes com licenças conferidas. PR/CI/merge e confirmação operacional ainda pendentes neste registro.
+
+
+Acompanhamento do PR #95 em 12/11 às 23h13 de Brasília: referência privada completa do Pará, agentes e
+workflows passaram no CI `43347013537`; demais jobs ainda em andamento/fila. Gitleaks apontou somente
+`KC_DB_URL` no commit `e0e8ccdd`, uma URL JDBC interna sem usuário/senha; exceção limitada ao fingerprint
+confirmado preparada. Varredura local de 492 commits passou após essa exceção. O push da correção aguarda
+o término natural do CI atual para não acionar seu cancelamento automático. Catálogo automático antigo
+`43346089594` terminou com falha: AC/RuntimeError e AP/ProcessamentoInseguro; a preservação do relatório
+falhou porque os assets mudaram durante a paginação. Nada foi cancelado; catálogo completo continua pendente.

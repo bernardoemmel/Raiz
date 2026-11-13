@@ -515,3 +515,9 @@ o caso estadual exigiu preparar a referência privada e passou depois em execuç
 345.870 imóveis, 425,58 s). LanguageTool depende do servidor presente no CI; uma divergência de TIR já
 documentada permanece como falha esperada. Frontend: 292 testes e build; Ruff/actionlint verdes;
 857 pacotes com licenças conferidas. PR/CI/merge e confirmação operacional ainda pendentes neste registro.
+
+
+PR urgente #95 aberto; CI `43347013537` parcialmente aprovado em 12/11 às 23h13 de Brasília
+(incluindo referência estadual do Pará). Exceção estrita de falso positivo Gitleaks confirmada localmente;
+aguarda término natural do CI antes do push para evitar cancelamento automático. Catálogo automático antigo
+`43346089594` falhou e continua pendente. Nenhum workflow foi cancelado ou desativado por este chat.
