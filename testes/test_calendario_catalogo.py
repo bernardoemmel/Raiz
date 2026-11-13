@@ -102,6 +102,35 @@ def test_portal_dias_e_suplementos_na_virada_do_ano():
         diarios.descobrir(f, sementes[0], '{"erro":true,"msg":"resposta externa"}', HOJE)
 
 
+def test_amapa_indice_publico_e_bahia_apenas_html_sem_login_pdf():
+    ap, ba = fonte("doe_ap"), fonte("doe_ba")
+    assert diarios.sementes(ap, HOJE) == ["http://diofe.portal.ap.gov.br/apifront/portal/edicoes/ultimas_edicoes.json"]
+    texto = json.dumps({"erro": False, "itens": [{"id": 22830, "data": "12/11/2026"}]})
+    assert diarios.descobrir(ba, diarios.sementes(ba, HOJE)[0], texto, HOJE) == [
+        "https://www2.egba.ba.gov.br/ver-html/22830/"
+    ]
+    assert ba["cobertura_parcial"]
+
+
+def test_ceara_cadernos_anunciados_na_capa_e_limites():
+    f = fonte("doe_ce")
+    sementes = diarios.sementes(f, HOJE)
+    assert len(sementes) == 7
+    assert sementes[0] == "https://imagens.seplag.ce.gov.br/PDF/20261112/do20261112p01.pdf"
+    links = diarios.descobrir_pdf(
+        f, sementes[0], "Fortaleza, 12 de novembro de 2026 | Caderno 1/4 | Poder Executivo", HOJE
+    )
+    assert len(links) == 4 and links[-1].endswith("do20261112p04.pdf")
+    for capa in ["Caderno 1/0", "Caderno 1/21", "Caderno 2/3", "texto sem capa"]:
+        with pytest.raises(ValueError, match="capa"):
+            diarios.descobrir_pdf(f, sementes[0], capa, HOJE)
+    with pytest.raises(ValueError, match="caminho"):
+        diarios.descobrir_pdf(f, sementes[0].replace("/20261112/", "/20261111/"), "Caderno 1/3", HOJE)
+    assert diarios.descobrir_pdf(f, sementes[0], "Caderno 1/3", HOJE - dt.timedelta(days=1)) == []
+    assert diarios.descobrir_pdf(fonte("doe_pa"), "", "", HOJE) == []
+    assert f["cobertura_parcial"]
+
+
 def test_piaui_post_publico_pdf_paginacao_e_host():
     f = fonte("doe_pi")
     u = f["urls"][0]

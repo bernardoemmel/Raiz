@@ -15,7 +15,7 @@ from bs4 import BeautifulSoup
 
 from raiz.calendario.modelos import url_publica
 
-MODOS = {"diario_portal", "diario_ma", "diario_pi", "diario_links", "diario_ac", "diario_rr"}
+MODOS = {"diario_portal", "diario_ma", "diario_pi", "diario_links", "diario_ac", "diario_rr", "diario_ce"}
 
 
 def _dias(fonte: dict) -> int:
@@ -54,11 +54,20 @@ def sementes(fonte: dict, hoje: dt.date) -> list[str] | None:
         return None
     if modo == "diario_portal":
         base = fonte["urls"][0].rstrip("/")
+        if fonte.get("indice") == "ultimas":
+            return [f"{base}/apifront/portal/edicoes/ultimas_edicoes.json"]
         # Mesma rota pública usada pelo seletor de data dos portais GO/AP/BA.
         # Consulta cada dia, incluindo suplementos, sem presumir um único jornal.
         return [
             f"{base}/apifront/portal/edicoes/edicoes_from_data/{(hoje - dt.timedelta(days=i)).isoformat()}.json"
             for i in range(_dias(fonte))
+        ]
+    if modo == "diario_ce":
+        base = fonte["urls"][0].rstrip("/")
+        # O primeiro caderno informa na capa quantos cadernos compõem a edição.
+        # Não presumimos três volumes, nem que fins de semana não publiquem.
+        return [
+            f"{base}/{d:%Y%m%d}/do{d:%Y%m%d}p01.pdf" for i in range(_dias(fonte)) for d in [hoje - dt.timedelta(days=i)]
         ]
     return list(fonte["urls"])
 
@@ -111,7 +120,11 @@ def _portal(fonte: dict, texto: str, hoje: dt.date) -> list[str]:
         eid = str(item.get("id", ""))
         if not re.fullmatch(r"[1-9]\d{0,9}", eid):
             raise ValueError("identificador público de edição inválido")
-        saida.append(f"{base}/portal/edicoes/download/{eid}")
+        # BA libera consulta HTML, mas exige cadastro para PDF e FLIP.
+        if fonte.get("formato_edicao") == "html":
+            saida.append(f"{base}/ver-html/{eid}/")
+        else:
+            saida.append(f"{base}/portal/edicoes/download/{eid}")
     return saida
 
 
@@ -218,3 +231,23 @@ def descobrir(fonte: dict, url: str, texto: str, hoje: dt.date) -> list[str] | N
     else:
         links = _links_pdf(fonte, url, texto, hoje)
     return _seguras(links, fonte)
+
+
+def descobrir_pdf(fonte: dict, url: str, texto: str, hoje: dt.date) -> list[str]:
+    """Volumes anunciados na capa do próprio DOE CE, sem executar o PDF."""
+    if fonte.get("modo") != "diario_ce":
+        return []
+    caminho = re.fullmatch(r"/PDF/(20\d{6})/do(20\d{6})p(\d{2})\.pdf", urlsplit(url).path)
+    if not caminho or caminho[1] != caminho[2]:
+        raise ValueError("caminho de edição do diário inválido")
+    try:
+        dia = dt.datetime.strptime(caminho[1], "%Y%m%d").date()
+    except ValueError as exc:
+        raise ValueError("data da edição do diário inválida") from exc
+    if not _na_janela(dia, fonte, hoje):
+        return []
+    capa = re.search(r"Caderno\s+(\d{1,2})\s*/\s*(\d{1,2})\b", texto[:1200], re.I)
+    if not capa or int(capa[1]) != int(caminho[3]) or not 1 <= int(capa[1]) <= int(capa[2]) <= 20:
+        raise ValueError("a capa não confirmou a quantidade de cadernos da edição")
+    base = fonte["urls"][0].rstrip("/")
+    return _seguras([f"{base}/{dia:%Y%m%d}/do{dia:%Y%m%d}p{n:02d}.pdf" for n in range(1, int(capa[2]) + 1)], fonte)

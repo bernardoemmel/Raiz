@@ -29,6 +29,7 @@ fontes:
     nome: Diário Oficial do Pará
     uf: PA
     grupo: diario_estadual
+    ocr: true
     modo: diario_pa
     urls: [https://www.ioepa.com.br/pages]
     dias: 7
@@ -37,6 +38,7 @@ fontes:
   - id: doe_mt
     nome: Diário Oficial de Mato Grosso
     grupo: diario_estadual
+    ocr: true
     uf: MT
     urls: [https://www.iomat.mt.gov.br/]
     palavras: [edição, edição completa, diário, leilão, penhora, concessão, carbono]
@@ -116,6 +118,7 @@ fontes:
   - id: doe_ac
     nome: Diário Oficial do Acre
     grupo: diario_estadual
+    ocr: true
     uf: AC
     modo: diario_ac
     urls: [https://www.diario.ac.gov.br/]
@@ -124,34 +127,44 @@ fontes:
   - id: doe_ap
     nome: Diário Oficial do Amapá
     grupo: diario_estadual
+    ocr: true
     uf: AP
     modo: diario_portal
     # O portal oficial publica HTTP; HTTPS apresentou timeout nesta verificação.
     urls: [http://diofe.portal.ap.gov.br]
+    indice: ultimas
     dias: 7
     max_paginas: 32
     max_bytes: 67108864
   - id: doe_ba
     nome: Diário Oficial da Bahia
     grupo: diario_estadual
+    ocr: true
     uf: BA
     modo: diario_portal
     urls: [https://www2.egba.ba.gov.br]
+    formato_edicao: html
+    # PDF/FLIP exigem cadastro; somente consulta HTML pública é admitida.
+    cobertura_parcial: true
     dias: 7
     max_paginas: 32
     max_bytes: 67108864
   - id: doe_ce
     nome: Diário Oficial do Ceará
     grupo: diario_estadual
+    ocr: true
     uf: CE
-    modo: diario_links
-    urls: [https://www.ce.gov.br/diario-oficial/]
+    modo: diario_ce
+    urls: [https://imagens.seplag.ce.gov.br/PDF]
+    # Cadernos regulares enumerados pela capa. Índice de extras indisponível.
+    cobertura_parcial: true
     dias: 7
     max_paginas: 24
     max_bytes: 67108864
   - id: doe_go
     nome: Diário Oficial de Goiás
     grupo: diario_estadual
+    ocr: true
     uf: GO
     modo: diario_portal
     urls: [https://diariooficial.abc.go.gov.br]
@@ -161,6 +174,7 @@ fontes:
   - id: doe_ma
     nome: Diário Oficial do Maranhão
     grupo: diario_estadual
+    ocr: true
     uf: MA
     modo: diario_ma
     urls: [https://diariooficial.ma.gov.br/]
@@ -171,6 +185,7 @@ fontes:
   - id: doe_mg
     nome: Diário Oficial de Minas Gerais
     grupo: diario_estadual
+    ocr: true
     uf: MG
     modo: diario_links
     urls: [https://www.jornalminasgerais.mg.gov.br/]
@@ -181,6 +196,7 @@ fontes:
   - id: doe_pi
     nome: Diário Oficial do Piauí
     grupo: diario_estadual
+    ocr: true
     uf: PI
     modo: diario_pi
     urls: [https://www.diario.pi.gov.br/doe/Api/listardiarios.json]
@@ -191,6 +207,7 @@ fontes:
   - id: doe_rn
     nome: Diário Oficial do Rio Grande do Norte
     grupo: diario_estadual
+    ocr: true
     uf: RN
     modo: diario_links
     urls: [https://diariooficial.rn.gov.br/dei/dorn3/default.aspx]
@@ -202,6 +219,7 @@ fontes:
   - id: doe_ro
     nome: Diário Oficial de Rondônia
     grupo: diario_estadual
+    ocr: true
     uf: RO
     modo: diario_links
     urls: [https://diof.ro.gov.br/]
@@ -211,6 +229,7 @@ fontes:
   - id: doe_rr
     nome: Diário Oficial de Roraima
     grupo: diario_estadual
+    ocr: true
     uf: RR
     modo: diario_rr
     urls: [https://imprensaoficial.rr.gov.br/_inicial/]
@@ -221,6 +240,7 @@ fontes:
   - id: doe_to
     nome: Diário Oficial do Tocantins
     grupo: diario_estadual
+    ocr: true
     uf: TO
     modo: diario_links
     urls: [https://diariooficial.to.gov.br/]
@@ -242,4 +262,16 @@ fontes:
     urls: [https://www.seuimovelbb.com.br/]
     hosts: [seuimovelbb.com.br]
     max_paginas: 12
+    cobertura_parcial: true
+
+  - id: trt16_leiloes
+    nome: Leilões judiciais do TRT da 16ª Região
+    grupo: leilao
+    uf: MA
+    modo: trt16_leiloes
+    urls: [https://www.trt16.jus.br/servicos/publicacoes/leilao-judicial]
+    max_paginas: 3
+    max_editais: 2
+    ocr: true
+    # Os dois editais mais recentes; o índice hoje oferece editais de 2026.
     cobertura_parcial: true
