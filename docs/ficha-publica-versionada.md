@@ -41,3 +41,12 @@ recebem uma lista positiva de campos, sem propagação automática de colunas no
 A API autenticada e o histórico privado de compromissos/fichas são contratos separados. Este recurso não
 abre essa área. Os testes em `testes/test_publico_versoes.py` cobrem conteúdo congelado, hash básico, catálogo,
 revogação, caminhos inválidos, retenção, cronologia e equivalência entre HTML e Markdown.
+
+O smoke visual `uv run node front/scripts/testar-ficha-publica.mjs` usa as rotas e o HTML reais,
+com registros e aceite inteiramente fictícios em um servidor local efêmero. Não abre banco nem
+Release. O CI confere a versão antiga com aviso de nova versão e a versão atual em 360 e 1440 px,
+axe WCAG 2.1 A/AA, ausência de transbordamento, foco visível e navegação por teclado até a nova
+versão e o Markdown. Páginas consentidas exigem zero erro HTTP/JavaScript; o 404 intencional após
+retirar o aceite fica separado no relatório. A resposta de bloqueio não ganha HTML fictício para
+passar no axe: ela conserva o contrato real da API. Capturas e relatórios ficam no artefato de CI
+`ficha-publica-versionada`, em `front/.cache/teste-ficha-publica/`.

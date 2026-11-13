@@ -371,7 +371,7 @@ O modelo roda só no servidor, instalado do Release oficial com hash no `uv.lock
 
 ## Ferramentas de qualidade e segurança
 
-Gitleaks 8.24.3 (MIT, https://github.com/gitleaks/gitleaks) e actionlint 1.7.7
+Gitleaks 8.24.3 (MIT, https://github.com/gitleaks/gitleaks) e actionlint 1.7.12
 (MIT, https://github.com/rhysd/actionlint) verificam o repositório no CI. Playwright 1.65.0
 (Apache-2.0, https://github.com/microsoft/playwright) executa o navegador de teste. Usados como ferramentas,
 sem código-fonte copiado para o produto.

@@ -266,7 +266,9 @@ jobs:
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: servicos/cartao/package-lock.json
+          cache-dependency-path: |
+            servicos/cartao/package-lock.json
+            front/globo/package-lock.json
       - name: Dependências (produto e motor)
         run: uv sync --frozen --all-extras
       - name: Takumi, FFmpeg, LibreOffice e OCR (inclui testes de PDF)
@@ -274,6 +276,25 @@ jobs:
           npm --prefix servicos/cartao ci --no-audit --no-fund
           sudo apt-get update -q
           sudo apt-get install -y -q --no-install-recommends ffmpeg libreoffice-writer poppler-utils tesseract-ocr tesseract-ocr-por
+      - name: Dependências do smoke visual da ficha pública
+        run: npm --prefix front/globo ci --no-audit --no-fund
+      - name: Cache do Chromium da ficha pública
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('front/globo/package-lock.json') }}
+      - name: Chromium para a ficha pública
+        run: cd front/globo && npx playwright install --with-deps chromium
+      - name: Ficha pública datada (HTML real, aviso de versão, teclado, axe e celular; sem banco)
+        run: uv run node front/scripts/testar-ficha-publica.mjs
+      - name: Evidências da ficha pública datada
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ficha-publica-versionada
+          path: front/.cache/teste-ficha-publica
+          retention-days: 14
+          if-no-files-found: ignore
       - name: Cache do LanguageTool
         uses: actions/cache@v4
         with:
