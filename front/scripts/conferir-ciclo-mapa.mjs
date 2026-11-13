@@ -49,6 +49,15 @@ export async function conferirCicloMapa(navegador, base) {
     else if (hash.includes("municipio")) await direta.locator(".lista-basica").waitFor()
     assert.equal(await direta.locator("canvas.maplibregl-canvas").count(), 1)
   }
+  // O primeiro grupo pode aparecer antes de outras fontes e fontes tipográficas terminarem.
+  // Observa a estabilidade somente depois da rede quieta e de um frame completo do mapa.
+  await direta.waitForLoadState("networkidle")
+  await direta.waitForFunction(() => document.querySelector(".mapa-brasil .mapa").__mapa.loaded())
+  await direta.evaluate(() => new Promise(resolve => {
+    const mapa = document.querySelector(".mapa-brasil .mapa").__mapa
+    mapa.once("idle", resolve)
+    mapa.triggerRepaint()
+  }))
   const estavel = await direta.evaluate(async () => {
     const mapa = document.querySelector(".mapa-brasil .mapa").__mapa
     let idles = 0
