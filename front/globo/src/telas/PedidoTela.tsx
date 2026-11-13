@@ -31,7 +31,7 @@ import { SeloStatus } from "../partes/pedido/SeloStatus"
 import { ComparacaoLotes } from "../partes/pedido/ComparacaoLotes"
 import { AvisoPublicacao, BasePublicada, QuadroDestrava } from "../partes/pedido/PublicacaoPedido"
 import "../partes/pedido/pedido.css"
-import { linkFazenda, linkGrupo, linkPedidos } from "../rota"
+import { linkFazenda, linkGrupo, linkPedidos, linkPasta } from "../rota"
 
 const MapaLote = lazy(() => import("../mapa/MapaLote").then((m) => ({ default: m.MapaLote })))
 
@@ -142,6 +142,7 @@ export function PedidoTela({ id }: { id: string }) {
               <ShieldCheck size={16} aria-hidden="true" /> {pedido.publicacao ? "Consulta salva neste navegador" : "Pedido salvo"}
             </span>
           </div>
+          {!pedido.publicacao && !pedido.exemplo && <p><a href={linkPasta(id, aba)}>Pasta do banco e do comprador</a></p>}
           {!pedido.publicacao && <Alertas pedido={pedido} />}
           <AvisoExemplo ativo={!!pedido.exemplo} />
           {pedido.publicacao && <AvisoPublicacao publicacao={pedido.publicacao} />}

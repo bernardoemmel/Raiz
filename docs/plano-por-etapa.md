@@ -3,6 +3,26 @@
 Gerado da rodada 8 de pesquisa (12/11/2026). Ordem geral: E1 → E2 → E5 → E7 (em paralelo) → E3/E4 → E6 → E8 → E9.
 Pedidos que só o fundador faz, no dia 1: convênio com o ONR e pedidos por LAI ao SFB e ao INCRA.
 
+## Rodada 12: ficha e pasta do banco fiador
+
+- [x] Pasta privada com duas saídas Jinja do mesmo lote, referências de valores e
+  documentos, falha em campos obrigatórios e nenhum modelo externo.
+- [x] Regras YAML versionadas: garantia e titularidade obrigatórias; documento
+  vencido, dispensado, substituído e revogado; relatório campo a campo inspirado
+  no UCD, sem declarar certificação MISMO ou aprovação de banco.
+- [x] Grade Tabulator MIT por área, estágio, título, documento e validade; crédito
+  por método e preço com moeda, unidade, período, natureza e origem. Sem contato.
+- [x] Retificações anexadas, IDs estáveis e referências novas das previsões ligadas
+  às anteriores; autorização paga atual, marca por cliente e proteção contra raspagem.
+- [x] Amostra territorial pública do Pará ligada à prospecção; histórico, exportação
+  e alertas detalhados pagos. Referências comerciais sem cópia de dados ou mudança
+  de preços; Pix permanece em teste.
+
+Detalhes e limites: [pasta do fiador](pasta-fiador.md). Banco específico ainda não
+forneceu catálogo próprio; perfil conservador Raíz. Migração 0035 e conferência dos
+documentos exigem o back-end privado. Não há envio automático nem implantação
+pública nesta entrega. Validação e PR: [passagem](passagem/ficha-da-fazenda.md).
+
 ## Ordem geral
 
 | Ordem | O quê | Depende de | Horas | Por quê |

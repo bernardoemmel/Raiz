@@ -15,6 +15,7 @@ export type Rota =
   | { tela: "pedido-novo" }
   | { tela: "pedido"; id: string }
   | { tela: "grupo"; id: string }
+  | { tela: "pasta"; id: string; opcao?: string }
 
 export function lerRota(hash: string): Rota {
   const partes = hash.replace(/^#\/?/, "").split("/").map(decodeURIComponent)
@@ -25,7 +26,7 @@ export function lerRota(hash: string): Rota {
   if (partes[0] === "pedidos") {
     if (!partes[1]) return { tela: "pedidos" }
     if (partes[1] === "novo") return { tela: "pedido-novo" }
-    if (/^[a-z0-9-]+$/i.test(partes[1])) return partes[2] === "grupo" ? { tela: "grupo", id: partes[1] } : { tela: "pedido", id: partes[1] }
+    if (/^[a-z0-9-]+$/i.test(partes[1])) return partes[2] === "pasta" ? { tela: "pasta", id: partes[1], ...(["barata", "segura", "compacta"].includes(partes[3]) ? { opcao: partes[3] } : {}) } : partes[2] === "grupo" ? { tela: "grupo", id: partes[1] } : { tela: "pedido", id: partes[1] }
   }
   if (partes[0] === "municipio" && /^\d{7}$/.test(partes[1] ?? "")) return { tela: "municipio", municipio: partes[1] }
   const uf = (partes[1] ?? "").toUpperCase()
@@ -102,3 +103,5 @@ export function consumirVoo(car: string): boolean {
   if (ok) vooPedido = null
   return ok
 }
+
+export const linkPasta = (id: string, opcao?: string) => `#/pedidos/${encodeURIComponent(id)}/pasta${opcao ? `/${encodeURIComponent(opcao)}` : ""}`

@@ -7,6 +7,37 @@ Entregas anteriores integradas pelos [PR #72](https://github.com/bernardoemmel/R
 e [PR #80](https://github.com/bernardoemmel/Raiz/pull/80), commit `bea53bd`.
 Entrega anterior integrada: [PR #52](https://github.com/bernardoemmel/Raiz/pull/52).
 
+## Rodada 12: pasta do fiador e comprador
+
+Implementada na branch `codex/pasta-fiador`, sobre a continuação do PR #93.
+Contrato e operação em [docs/pasta-fiador.md](../pasta-fiador.md). Serviço privado
+novo `raiz/pasta_fiador/`, migração 0035, YAML próprio e grade Tabulator 6.7.1 MIT.
+Duas apresentações Jinja 3.1.6 BSD do mesmo retrato, fontes por campo, preços
+completos e validação antes de gerar. Modelo externo e campos de pessoa/contato
+são recusados pelo contrato. Não são copiados dados de concorrentes.
+
+A pasta só fica pronta com garantia, titularidade, área, previsão e preço
+conferidos. Documentos vencidos/dispensados/substituídos têm tratamento explícito;
+a exportação revalida datas, composição atual, conta, desbloqueios e exclusividade.
+Retificação não sobrescreve: ID da pasta e da série permanece; versão de previsão
+recebe referência nova ligada à anterior. Triggers impedem UPDATE/DELETE.
+ZIP contém banco/comprador em HTML imprimível, dados, validação e hashes, todos
+marcados por licença. Não inclui certidão bruta. A ficha individual mantém seu PDF.
+
+Acesso pela tela do pedido, sem reescrever mapa ou API. A amostra do Pará usa só os
+agregados/CAR básicos públicos; demais estados abertos continuam disponíveis.
+O DTO global `consultar_ficha` e a ponte MCP permanecem compatíveis: pasta é dado
+do pedido/cliente e não contamina snapshots globais da terra.
+
+Validação local inicial: 72 testes de pasta/API/PostGIS passaram, cobrindo
+concorrência, imutabilidade, troca de documento, fonte/validade, preço incompleto,
+proibição de contato/modelo e isolamento entre contas. O CLI também invalida um
+relatório antigo quando a entrada seguinte falha, sem ecoar valores. Build e 230
+testes anteriores do front passaram; Chromium desktop 1440 e celular 360 passaram
+com teclado, axe, bloqueio por pendência, exportação e troca de sessão. Capturas
+sintéticas em `/tmp/raiz-pasta-fiador`; o CI publica o mesmo artefato. A suíte completa
+está sendo executada antes do PR; resultado final será registrado aqui.
+
 ## Continuação: terra comprometida, versões e proteção
 
 A ficha ganha `terra_comprometida`, `versao_ficha` e `o_que_mudou`. O mesmo serviço
