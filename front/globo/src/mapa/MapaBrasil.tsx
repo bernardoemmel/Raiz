@@ -204,8 +204,6 @@ export function MapaBrasil(props: Props) {
       const m = new MapaGL({
         container: caixa.current,
         style: estiloBase(brasil.base, { nacional: true }),
-        bounds: BRASIL,
-        fitBoundsOptions: { padding: { top: 48, left: 48, right: 48, bottom: 48 + margemBaixo } },
         attributionControl: false,
         pixelRatio: Math.min(window.devicePixelRatio || 1, 2),
         fadeDuration: 0,
@@ -213,6 +211,9 @@ export function MapaBrasil(props: Props) {
         pitchWithRotate: false,
         locale: { "NavigationControl.ZoomIn": "Aproximar", "NavigationControl.ZoomOut": "Afastar", "Popup.Close": "Fechar ficha breve" },
       })
+      // bounds no construtor faz o MapLibre redimensionar o canvas duas vezes.
+      // O enquadramento imediato usa o tamanho final antes do primeiro frame.
+      m.fitBounds(BRASIL, { padding: { top: 48, left: 48, right: 48, bottom: 48 + margemBaixo }, duration: 0 })
       instancia = m
       margemAplicada.current = margemBaixo
       liberar()
