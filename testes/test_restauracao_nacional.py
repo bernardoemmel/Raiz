@@ -132,3 +132,15 @@ def test_marcos_e_reserva_nao_se_reduzem_ao_volume_contratado():
     assert pedido.meta.valor == 1000000
     with pytest.raises(ValueError, match="mesma versão"):
         N.preparar_contrato(pedido, "historica", "central_r11")
+
+
+def test_pedido_parcial_herda_cenario_sem_trocar_preco_explicito():
+    pedido = CamposPedido.model_validate({"meta": {"valor": 1000000}, "dinheiro": {"tir_min": 12}})
+    antes = pedido.model_dump()
+    efetivo, _, _, c = N.preparar_contrato(pedido, R.versao(), "central_r12")
+    assert efetivo.dinheiro.preco_venda_usd == c["preco_usd_t"] == 59.2
+    assert efetivo.dinheiro.tir_min == 12
+    assert pedido.model_dump() == antes
+    explicito = CamposPedido(dinheiro={"preco_venda_usd": 55})
+    with pytest.raises(ValueError, match="reavaliar a oferta"):
+        N.preparar_contrato(explicito, R.versao(), "central_r12")

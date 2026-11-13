@@ -365,10 +365,27 @@ def _resumo_faixas(con):
     }
 
 
+def pedido_no_cenario(pedido: CamposPedido, modelo: str, cenario: str) -> CamposPedido:
+    """Campos omitidos usam o cenário vigente; preço explícito nunca é trocado."""
+    from raiz import restauracao as R
+
+    ajustado = pedido.model_copy(deep=True)
+    if modelo == R.versao():
+        c = R.cenario(cenario)
+        for campo, valor in (
+            ("preco_venda_usd", c["preco_usd_t"]),
+            ("fracao_financiada", c["fracao_financiada"]),
+        ):
+            if "dinheiro" not in pedido.model_fields_set or campo not in pedido.dinheiro.model_fields_set:
+                setattr(ajustado.dinheiro, campo, valor)
+    return ajustado
+
+
 def preparar_contrato(pedido: CamposPedido, modelo: str, cenario: str, chance_alvo=None):
     """Traduz volume contratado em oferta necessária, com as mesmas premissas do lote estadual."""
     from raiz import restauracao as R
 
+    pedido = pedido_no_cenario(pedido, modelo, cenario)
     if modelo == R.versao():
         premissa = R.cenario(cenario)
         if not math.isclose(premissa["preco_usd_t"], pedido.dinheiro.preco_venda_usd) or not math.isclose(
@@ -462,7 +479,7 @@ def montar_tres_opcoes(
         raise ValueError("Modelo e cenário são obrigatórios.")
     destino = Path(destino)
     C._diretorio(destino)
-    pedido = pedido.model_copy(deep=True)
+    pedido = pedido_no_cenario(pedido, modelo, cenario)
     pedido.onde.ufs, pedido.onde.biomas = list(recorte.ufs), list(recorte.biomas)
     pedido.onde.municipios = [str(m) for m in recorte.municipios]
     catalogo_dados, arquivos = C.abrir_catalogo(catalogo, conferir_hashes=conferir_hashes)

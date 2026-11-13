@@ -569,3 +569,5 @@ A primeira execução no Actions identificou ausência de `rg` no runner; a veri
   coleta ou previsão municipal. Publicação real permanece pendente.
 - [x] Suíte nacional integrada: 2.539 testes aprovados, 292 skips de ambiente,
   um xfail; replay estadual aprovado separadamente na R12; Ruff/formatação aprovados.
+- [x] Pedidos nacionais parciais usam preço/dívida do cenário vigente quando
+  omitidos; valores explícitos não são trocados. Dezessete testes focados aprovados.

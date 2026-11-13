@@ -334,6 +334,7 @@ def consultar(arm, atual, trabalho, *, recortes=None, pedido=None) -> dict:
     pedido = pedido or CamposPedido(
         dinheiro={"preco_venda_usd": cenario["preco_usd_t"], "fracao_financiada": cenario["fracao_financiada"]}
     )
+    pedido = N.pedido_no_cenario(pedido, R.versao(), cenario["cenario"])
     recortes = recortes or {
         **{u: N.normalizar_recorte(ufs=[u]) for u in atual["ufs"]},
         **{b: N.normalizar_recorte(biomas=[b]) for b in N.BIOMAS},

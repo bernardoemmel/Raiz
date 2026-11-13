@@ -464,3 +464,9 @@ R12 está no PR #101, head `6205807`, CI `43361791598`. A execução PA
 reservar cotas (log não expôs a causa específica do RuntimeError). Após consulta
 completa da fila, a tentativa 2 reservou **12 cotas**, total global **15**, congelou
 as mesmas entradas e segue para cálculo. Nenhuma fatia foi repetida.
+
+Pedido nacional com preço omitido agora herda o cenário vigente. Um JSON que
+informa apenas a meta ou a TIR mínima não herda silenciosamente os US$55 do
+schema legado; preço explicitamente informado continua preservado e divergência
+exige reavaliação. Sem alteração no schema/API/front. Dezessete testes de pedido,
+fluxo e publicação passaram. O benchmark será repetido com a nova versão do seletor.
