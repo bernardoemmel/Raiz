@@ -253,7 +253,7 @@ def planejar(pedidos: list[str], refazer: set[str], modo: str = "automatico", li
     funis_prontos = {uf for uf, total in S.TOTAL_IBGE.items()
                     if (pub.get(uf, {}).get("municipios", 0) + (pub.get(uf, {}).get("sem_imoveis") or 0)) >= total}
     prioridade = prioridade_solicitada and len(funis_prontos) < len(S.TOTAL_IBGE)
-    falhas_funil = {uf: (e.get("motor") or {}).get("commit") for uf, e in pub.items()
+    falhas_funil = {uf: (e.get("versoes") or {}).get("funil") for uf, e in pub.items()
                    if e.get("erros") or any(f.get("erros") for f in ((e.get("motor") or {}).get("fatias") or {}).values())}
     if prioridade:
         from fila_processamento import ORDEM_FUNIL
@@ -316,7 +316,8 @@ def planejar(pedidos: list[str], refazer: set[str], modo: str = "automatico", li
         if prioridade:
             manutencao = set()
         candidatos = filas["novo"] if modo == "fila" else filas["novo"] + filas["manutencao"]
-        opcoes = {"funis_prontos": funis_prontos, "falhas_funil": falhas_funil} if prioridade_solicitada else {}
+        opcoes = {"funis_prontos": funis_prontos, "falhas_funil": falhas_funil,
+                  "versao_funil": (atual_exec or {}).get("funil")} if prioridade_solicitada else {}
         matriz = reservar(candidatos, pedidos, refazer, _e_unidade, VAGAS, continuacao,
                           None, manutencao, 0 if prioridade else VAGAS_MANUTENCAO, **opcoes)
         escolhidas = [p["unidade"] for p in matriz]

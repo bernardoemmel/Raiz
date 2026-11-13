@@ -79,13 +79,47 @@ def test_limite_de_falhas_nao_e_burlado_pelo_candidato_automatico():
     assert estado["fila"][0]["falhas"] == F.MAX_FALHAS and estado["fila"][0]["bloqueado"]
 
 
-@pytest.mark.parametrize("ref_erro,primeira", [("a" * 40, "MA-1001"), ("b" * 40, "TO-1001")])
-def test_erros_publicados_passam_a_vez_so_na_mesma_versao(ref_erro, primeira):
+@pytest.mark.parametrize("versao_erro,primeira", [("funil-v2", "MA-1001"), ("funil-v1", "TO-1001")])
+def test_erros_publicados_passam_a_vez_so_na_mesma_versao(versao_erro, primeira):
     estado = {**F.vazio(), "planejadores": ["1"]}
     candidatos = [_pedido("TO-1001"), _pedido("MA-1001")]
     escolhidos = F.admitir(estado, {"1": _run()}, "1", candidatos, O._e_unidade, max_novos=1,
-                          funis_prontos=set(), ref_funil="a" * 40, falhas_funil={"TO": ref_erro})  # fmt: skip
+                          funis_prontos=set(), ref_funil="a" * 40, falhas_funil={"TO": versao_erro},
+                          versao_funil="funil-v2")  # fmt: skip
     assert escolhidos[0]["unidade"] == primeira
+
+
+def test_versao_da_fila_nao_acompanha_mudanca_da_main():
+    estado = {**F.vazio(), "planejadores": ["1"],
+              "prioridade_funil": {"ref": "a" * 40, "versao_funil": "funil-v2", "frente": ["TO"]}}  # fmt: skip
+    escolhidos = F.admitir(estado, {"1": _run()}, "1", [_pedido("TO-1001"), _pedido("MA-1001")], O._e_unidade,
+                          max_novos=1, funis_prontos=set(), ref_funil="b" * 40, versao_funil="funil-v3",
+                          falhas_funil={"TO": "funil-v2"})  # fmt: skip
+    assert escolhidos[0]["unidade"] == "MA-1001"
+    assert estado["prioridade_funil"]["versao_funil"] == "funil-v2"
+
+
+def test_plano_usa_versao_cientifica_e_nao_commit_do_workflow(monkeypatch):
+    estado = {"TO": {"municipios": 1, "erros": [{"etapa": "funil"}],
+                     "versoes": {"funil": "funil-v2"}, "motor": {"commit": "c" * 40}}}  # fmt: skip
+    monkeypatch.setenv("RAIZ_PRIORIDADE_FUNIL", "1")
+    monkeypatch.setenv("GITHUB_ACTIONS", "true")
+    monkeypatch.delenv("GITHUB_OUTPUT", raising=False)
+    monkeypatch.delenv("GITHUB_STEP_SUMMARY", raising=False)
+    monkeypatch.setattr(S, "ler_manifesto", lambda: {"estados": estado})
+    monkeypatch.setattr(O, "versoes_executor", lambda: {"funil": "funil-v2"})
+    import fila_processamento
+
+    recebidas = {}
+
+    def reservar(*args, **opcoes):
+        recebidas.update(opcoes)
+        return []
+
+    monkeypatch.setattr(fila_processamento, "reservar", reservar)
+    O.planejar([], set())
+    assert recebidas["falhas_funil"] == {"TO": "funil-v2"}
+    assert recebidas["versao_funil"] == "funil-v2"
 
 
 def test_manutencao_so_volta_depois_dos_27_funis():

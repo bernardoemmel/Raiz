@@ -315,6 +315,7 @@ def admitir(
     funis_prontos: set[str] | None = None,
     ref_funil: str | None = None,
     falhas_funil: dict[str, str] | None = None,
+    versao_funil: str | None = None,
 ) -> list[dict]:
     ativas, legados = reconciliar(estado, runs, e_unidade)
     promover_continuacoes(estado)
@@ -324,6 +325,9 @@ def admitir(
         estado["prioridade_funil"] = {
             "prontos": sorted(funis_prontos), "frente": frente,
             "ref": (anterior.get("ref") or ref_funil) if frente else None,
+            "versao_funil": (anterior.get("versao_funil") or (
+                versao_funil if anterior.get("ref") in (None, ref_funil) else None
+            )) if frente else None,
         }
     prioridade = estado.get("prioridade_funil", {})
     frente = prioridade.get("frente")
@@ -340,7 +344,9 @@ def admitir(
     tentadas = {(p["unidade"], p.get("ref")) for p in estado["fila"] if p.get("falhas")}
     if frente:
         falhas = {(_uf_do_funil(u), ref) for u, ref in tentadas}
-        falhas.update((falhas_funil or {}).items())
+        if prioridade.get("versao_funil"):
+            falhas.update((uf, prioridade["ref"]) for uf, versao in (falhas_funil or {}).items()
+                          if versao == prioridade["versao_funil"])
         # Uma UF com erro passa a vez. Só retenta depois das candidatas sem erro;
         # erro em versão anterior não impede executar uma correção aprovada.
         pedidos.sort(key=lambda p: (
@@ -414,6 +420,7 @@ def reservar(
     reserva_rodada: bool = False,
     funis_prontos: set[str] | None = None,
     falhas_funil: dict[str, str] | None = None,
+    versao_funil: str | None = None,
 ) -> list[dict]:
     repo = Repositorio()
     run_id = os.environ["GITHUB_RUN_ID"]
@@ -458,6 +465,7 @@ def reservar(
             funis_prontos=funis_prontos,
             ref_funil=ref_funil,
             falhas_funil=falhas_funil,
+            versao_funil=versao_funil,
         )
         return escolhidos, [p for p in estado["fila"] if p.get("bloqueado")]
 
