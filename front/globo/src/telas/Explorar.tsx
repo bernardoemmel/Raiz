@@ -7,6 +7,7 @@ import { ufDoCodigo } from "../../../compartilhado/formato"
 import type { Foco } from "../../../compartilhado/funil-etapas"
 import { fonte, useCarga } from "../dados"
 import type { CamadaAssunto, GeoMunicipio } from "../mapa/MapaBrasil"
+import { prepararGpu } from "../mapa/preparar-gpu"
 import { Cabecalho } from "../partes/Cabecalho"
 import { PainelBrasil } from "../partes/PainelBrasil"
 import { PainelMunicipio } from "../partes/PainelMunicipio"
@@ -32,6 +33,7 @@ function cobertura(altura: Altura): number {
  * o tempo todo: trocar de estado ou de município não recarrega nada além das camadas dele.
  */
 export function Explorar({ municipio, uf }: { municipio: string | null; uf: string | null }) {
+  useEffect(() => { void prepararGpu() }, [])
   // O MapLibre abre desde a primeira tela. Os limites dos 5.571 municípios só entram ao aproximar.
   const detalhe = Boolean(municipio || uf)
   const brasil = useCarga(() => fonte.geo.brasil({ municipios: detalhe }), [detalhe])
@@ -40,6 +42,7 @@ export function Explorar({ municipio, uf }: { municipio: string | null; uf: stri
   const municipios = useCarga(() => fonte.municipios(), [])
   // o estado em foco: o escolhido, ou o do município aberto; os pontos são só dele
   const ufFoco = municipio ? ufDoCodigo(municipio) : uf
+  const potencial = useCarga(() => ufFoco && fonte.geo.potencial ? fonte.geo.potencial(ufFoco) : Promise.resolve(null), [ufFoco])
   const leiloes = useCarga(() => municipio ? calendario.leiloes({ estado: ufFoco || undefined }) : Promise.resolve(null), [municipio, ufFoco])
   const emLeilao = useMemo(() => codigosEmLeilao(leiloes.dado?.eventos ?? []), [leiloes.dado])
   const pontos = useCarga(() => (ufFoco ? fonte.pontos(ufFoco) : Promise.resolve([])), [ufFoco])
@@ -197,12 +200,16 @@ export function Explorar({ municipio, uf }: { municipio: string | null; uf: stri
             )}
           </div>
         </aside>
+        <div className="mapa-area">
+        {!uf && !municipio && <p className="legenda-nacional" aria-label="Como ler o mapa">Estados em verde têm municípios processados. Cinza: ainda sem dados.</p>}
         <Suspense fallback={<div className="mapa-brasil" aria-busy="true"><p className="mapa-aviso aviso" role="status">Abrindo o mapa do Brasil…</p></div>}><MapaBrasil
           brasil={brasil.dado}
           processados={processados}
           comLista={listas}
           estados={estados.dado}
           pontos={pontos.dado ?? []}
+          potencial={potencial.dado ?? null}
+          potencialCarregando={potencial.carregando}
           uf={uf}
           municipio={municipio}
           geoMunicipio={geoMunicipio.carregando ? null : (geoMunicipio.dado ?? null)}
@@ -217,6 +224,7 @@ export function Explorar({ municipio, uf }: { municipio: string | null; uf: stri
           aoEscolherMunicipio={(cod) => (location.hash = linkMunicipio(cod))}
           aoEscolherEstado={(sigla) => (location.hash = linkEstado(sigla))}
         /></Suspense>
+        </div>
       </main>
     </div>
   )

@@ -8,6 +8,7 @@ import {
   Popup,
   ScaleControl,
   type GeoJSONSource,
+  type SourceSpecification,
   type LayerSpecification,
 } from "maplibre-gl"
 import "maplibre-gl/dist/maplibre-gl.css"
@@ -21,6 +22,7 @@ import { fonteMapaBase } from "../../../compartilhado/mapa-base"
 import { tituloDe } from "../filtros"
 import { linkCalendarioImovel, linkFazenda } from "../rota"
 import { camadasBase, estiloBase, imagemHachura, prepararMapLibre } from "./estilo"
+import { prepararGpu } from "./preparar-gpu"
 
 import type { PotencialMapa } from "../../../compartilhado/dados/potencial"
 import { adicionarSatelitePublico, SATELITE_PUBLICO, type EstadoSatelitePublico } from "./satelite-publico"
@@ -79,10 +81,9 @@ const ZOOM_FAZENDAS = ZOOM_IMOVEIS
 const ZOOM_ROTULO_ESTADO = 6.5
 const SITUACAO_ESTADO = { completo: 2, incompleto: 1, sem_dados: 0 } as const
 
-/** "Goiás" + "5 de 246 municípios"; "Tocantins" + "ainda não processado"; "Pará" + "todos os 144 municípios" */
+/** A cobertura municipal acompanha o nome do estado no mapa. */
 function rotuloDoEstado(e: Estados["estados"][number]): string {
   if (e.situacao === "sem_dados") return "ainda não processado"
-  if (e.situacao === "completo") return `todos os ${fmtInt(e.municipios_ibge)} municípios`
   return `${fmtInt(e.municipios)} de ${fmtInt(e.municipios_ibge)} municípios`
 }
 
@@ -174,6 +175,8 @@ export function MapaBrasil(props: Props) {
   const caixa = useRef<HTMLDivElement>(null)
   const mapaRef = useRef<MapaGL | null>(null)
   const [pronto, setPronto] = useState(false)
+  const [regional, setRegional] = useState(false)
+  const limparSatelite = useRef<(() => void) | undefined>(undefined)
   const [zoom, setZoom] = useState(4)
   const [satelite, setSatelite] = useState<EstadoSatelitePublico>("carregando")
   const atual = useRef({ props, porCod: new Map<string, Imovel>(), basicosPorCod: new Map<string, ImovelBasico>() })
@@ -183,57 +186,81 @@ export function MapaBrasil(props: Props) {
   // cria o mapa uma vez, quando o mapa base do Brasil chega
   useEffect(() => {
     if (!brasil || !caixa.current || mapaRef.current) return
-    prepararMapLibre()
-    const m = new MapaGL({
-      container: caixa.current,
-      style: estiloBase(brasil.base),
-      bounds: BRASIL,
-      fitBoundsOptions: { padding: 24 },
-      attributionControl: false,
-      pixelRatio: Math.min(window.devicePixelRatio || 1, 2),
-      fadeDuration: 150,
-      dragRotate: false,
-      pitchWithRotate: false,
-      locale: { "NavigationControl.ZoomIn": "Aproximar", "NavigationControl.ZoomOut": "Afastar" },
-    })
-    m.addControl(new AttributionControl({ compact: false }), "bottom-right")
-    m.addControl(new NavigationControl({ showCompass: false }), "top-right")
-    m.addControl(new ScaleControl({ unit: "metric" }), "bottom-right")
-    if (import.meta.env.DEV || import.meta.env.VITE_RAIZ_TESTE_MAPA === "1") Object.assign(caixa.current, { __mapa: m })
-    mapaRef.current = m
-    let limparSatelite: (() => void) | undefined
-    m.once("style.load", () => {
-      montar(m, brasil.municipios, brasil.estados)
-      limparSatelite = adicionarSatelitePublico(m, "estados-preenchimento", setSatelite)
-      ligarEventos(m)
-      setPronto(true)
-      setZoom(m.getZoom())
-      m.on("zoomend", () => setZoom(m.getZoom()))
+    let removido = false
+    let instancia: MapaGL | null = null
+    void prepararGpu().then((liberar) => {
+      if (removido || !caixa.current) { liberar(); return }
+      prepararMapLibre()
+      const m = new MapaGL({
+        container: caixa.current,
+        style: estiloBase(brasil.base, { nacional: true }),
+        bounds: BRASIL,
+        fitBoundsOptions: { padding: { top: 48, left: 48, right: 48, bottom: 48 + margemBaixo } },
+        attributionControl: false,
+        pixelRatio: Math.min(window.devicePixelRatio || 1, 2),
+        fadeDuration: 0,
+        dragRotate: false,
+        pitchWithRotate: false,
+        locale: { "NavigationControl.ZoomIn": "Aproximar", "NavigationControl.ZoomOut": "Afastar", "Popup.Close": "Fechar ficha breve" },
+      })
+      instancia = m
+      liberar()
+      m.addControl(new AttributionControl({ compact: false }), "bottom-right")
+      m.addControl(new NavigationControl({ showCompass: false }), "top-right")
+      m.addControl(new ScaleControl({ unit: "metric" }), "bottom-right")
+      if (import.meta.env.DEV || import.meta.env.VITE_RAIZ_TESTE_MAPA === "1") Object.assign(caixa.current, { __mapa: m })
+      mapaRef.current = m
+      m.once("style.load", () => {
+        montar(m, null, brasil.estados, true)
+        ligarEventos(m)
+        setPronto(true)
+        setZoom(m.getZoom())
+        m.on("zoomend", () => setZoom(m.getZoom()))
+      })
     })
     return () => {
-      limparSatelite?.()
-      m.remove()
+      removido = true
+      limparSatelite.current?.()
+      limparSatelite.current = undefined
+      setPronto(false)
+      setRegional(false)
+      instancia?.remove()
       mapaRef.current = null
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [brasil?.base])
 
+  // Estradas, rios e nomes locais não são necessários no enquadramento do país.
+  // Acrescenta o estilo completo à mesma instância quando a pessoa escolhe um lugar ou aproxima.
+  useEffect(() => {
+    const m = mapaRef.current
+    if (!m || !pronto || regional || (!uf && !municipio && zoom < 6)) return
+    let antes: string | undefined = "estados-preenchimento"
+    for (const camada of [...camadasBase()].reverse()) {
+      if (!m.getLayer(camada.id)) m.addLayer(camada, antes)
+      antes = camada.id
+    }
+    montar(m, brasil?.municipios ?? null, brasil?.estados ?? null, false)
+    limparSatelite.current = adicionarSatelitePublico(m, "estados-preenchimento", setSatelite)
+    setRegional(true)
+  }, [pronto, regional, uf, municipio, zoom, brasil])
+
   // municípios processados (mata) e os demais (névoa)
   useEffect(() => {
     const m = mapaRef.current
-    if (!m || !pronto || !brasil?.municipios) return
+    if (!m || !regional || !brasil?.municipios) return
     const fs = brasil.municipios.features.map((f) => {
       const cod = String(f.properties.cod_ibge)
       return { ...f, properties: { ...f.properties, p: comLista.has(cod) ? 2 : processados.has(cod) ? 1 : 0 } }
     })
     ;(m.getSource("brasil-municipios") as GeoJSONSource).setData({ type: "FeatureCollection", features: fs } as never)
-  }, [pronto, brasil, processados, comLista])
+  }, [regional, brasil, processados, comLista])
 
   useEffect(() => {
     const m = mapaRef.current
-    if (!m || !pronto) return
+    if (!m || !regional) return
     ;(m.getSource("potencial") as GeoJSONSource).setData((props.potencial?.geo ?? VAZIO) as never)
-  }, [pronto, props.potencial])
+  }, [regional, props.potencial])
 
   // os estados pela situação: cor do contorno e o rótulo com a contagem (completo, incompleto, ainda não processado)
   useEffect(() => {
@@ -271,7 +298,7 @@ export function MapaBrasil(props: Props) {
   // fazendas aptas do estado em foco, agrupadas; a soma de um município (sem o contorno das fazendas) fica num ponto só
   useEffect(() => {
     const m = mapaRef.current
-    if (!m || !pronto) return
+    if (!m || !regional) return
     const features: Geo["features"] = []
     const somas = new Map<string, { n: number; ha: number; lon: number; lat: number }>()
     // as do município escolhido saem dos grupos: lá cada fazenda aparece com o próprio contorno
@@ -298,13 +325,13 @@ export function MapaBrasil(props: Props) {
         geometry: { type: "Point", coordinates: [a.lon, a.lat] },
       })
     ;(m.getSource("pontos") as GeoJSONSource).setData({ type: "FeatureCollection", features } as never)
-  }, [pronto, pontos, municipio])
+  }, [regional, pontos, municipio])
 
   // O fundo nacional continua em overzoom. A base do estado entra por cima sem recarregar as fazendas nem o mapa.
   useEffect(() => {
     const m = mapaRef.current
     const base = geoMunicipio?.base
-    if (!m || !pronto || !base || base === brasil?.base) return
+    if (!m || !regional || !base || base === brasil?.base) return
     const fonte = "protomaps-detalhe"
     m.addSource(fonte, fonteMapaBase(base))
     const ids: string[] = []
@@ -319,12 +346,12 @@ export function MapaBrasil(props: Props) {
       for (const id of ids) if (m.getLayer(id)) m.removeLayer(id)
       if (m.getSource(fonte)) m.removeSource(fonte)
     }
-  }, [pronto, geoMunicipio?.base, brasil?.base])
+  }, [regional, geoMunicipio?.base, brasil?.base])
 
   // camadas do município escolhido
   useEffect(() => {
     const m = mapaRef.current
-    if (!m || !pronto) return
+    if (!m || !regional) return
     const g = geoMunicipio
     const set = (id: string, d: Geo | null | undefined) => (m.getSource(id) as GeoJSONSource).setData((d ?? VAZIO) as never)
     set("municipio", g?.municipio)
@@ -342,7 +369,7 @@ export function MapaBrasil(props: Props) {
     if (escolhido.current) m.setFeatureState({ source: "brasil-municipios", id: escolhido.current }, { escolhido: false })
     if (municipio) m.setFeatureState({ source: "brasil-municipios", id: municipio }, { escolhido: true })
     escolhido.current = municipio
-  }, [pronto, geoMunicipio, municipio])
+  }, [regional, geoMunicipio, municipio])
 
   // cor de cada fazenda pela situação, pelo foco do funil e pela camada de assunto (estado de feição: rápido)
   useEffect(() => {
@@ -350,7 +377,7 @@ export function MapaBrasil(props: Props) {
     const g = geoMunicipio?.imoveis
     atual.current.porCod = new Map()
     atual.current.basicosPorCod = new Map(basicos?.map((i) => [i.cod_imovel, i]) ?? [])
-    if (!m || !pronto || !g) return
+    if (!m || !regional || !g) return
     if (basicos) {
       for (const f of g.features) {
         const cod = String(f.properties.cod_imovel)
@@ -394,7 +421,7 @@ export function MapaBrasil(props: Props) {
       m.setFeatureState({ source: "imoveis", id: cod }, { g: codigo, pendenciaFiltrada: foco?.lado === "fora" && codigo !== G.apagada, emLeilao: !!emLeilao?.has(normalizarCar(cod)), fogo: i && camada === "fogo" && noFoco(i, foco) ? (i.fogo_anos_max ?? 0) : 0 })
     }
     ;(m.getSource("fogo-recente") as GeoJSONSource).setData({ type: "FeatureCollection", features: fogo } as never)
-  }, [pronto, geoMunicipio, imoveis, basicos, situacaoBasica, foco, camada, emLeilao])
+  }, [regional, geoMunicipio, imoveis, basicos, situacaoBasica, foco, camada, emLeilao])
 
   // voo até o município (curva e duração do guia, item 3.2), ou de volta ao Brasil; sem passar por zoom de mundo
   const primeiraVez = useRef(true)
@@ -413,8 +440,10 @@ export function MapaBrasil(props: Props) {
     if (!alvo) return
     alvoRef.current = alvo
     const padding = { top: 48, left: 48, right: 48, bottom: 48 + margemBaixo }
+    const inicialBrasil = primeiraVez.current && !uf && !municipio
     const cortar = primeiraVez.current || aparelhoFraco()
     primeiraVez.current = false
+    if (inicialBrasil) return
     if (cortar) m.fitBounds(alvo, { padding, duration: 0 })
     else m.fitBounds(alvo, { padding, speed: 1.2, curve: 1.42, maxDuration: 2500 })
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -431,38 +460,45 @@ export function MapaBrasil(props: Props) {
   const anterior = useRef<string | null>(null)
   useEffect(() => {
     const m = mapaRef.current
-    if (!m || !pronto) return
+    if (!m || !regional) return
     if (anterior.current) m.setFeatureState({ source: "imoveis", id: anterior.current }, { destaque: false })
     if (destaque) m.setFeatureState({ source: "imoveis", id: destaque }, { destaque: true })
     anterior.current = destaque
-  }, [destaque, pronto])
+  }, [destaque, regional])
 
   // assunto do mapa: hachura cruzada só na situação, contorno e círculos só no fogo
   useEffect(() => {
     const m = mapaRef.current
-    if (!m || !pronto) return
+    if (!m || !regional) return
     const vis = (id: string, on: boolean) => m.getLayer(id) && m.setLayoutProperty(id, "visibility", on ? "visible" : "none")
     vis("imoveis-fogo", camada === "fogo")
     vis("fogo-recente", camada === "fogo")
     vis("terra-publica", camada === "terra_publica")
     vis("terra-publica-linha", camada === "terra_publica")
-  }, [camada, pronto])
+  }, [camada, regional])
 
-  function montar(m: MapaGL, municipiosBrasil: Geo | null, estadosBrasil: Geo | null) {
+  function montar(m: MapaGL, municipiosBrasil: Geo | null, estadosBrasil: Geo | null, nacional: boolean) {
     const antesDosRotulos = m.getStyle().layers.find((l) => l.type === "symbol")?.id
-    const add = (l: LayerSpecification, emCima = false) => m.addLayer(l, emCima ? undefined : antesDosRotulos)
+    const camadasNacionais = new Set(["estados-preenchimento", "estados-linha", "estado-escolhido", "estados-rotulo"])
+    const fontesNacionais = new Set(["brasil-estados", "estados-rotulos"])
+    const add = (l: LayerSpecification, emCima = false) => {
+      if (!m.getLayer(l.id) && (!nacional || camadasNacionais.has(l.id))) m.addLayer(l, emCima ? undefined : antesDosRotulos)
+    }
+    const fonte = (id: string, especificacao: SourceSpecification) => {
+      if (!m.getSource(id) && (!nacional || fontesNacionais.has(id))) m.addSource(id, especificacao)
+    }
     // A hachura diagonal quer dizer uma coisa só: área que pode voltar a ser mata, dentro da fazenda (guia, item 2.1,
     // parte 3). Ela entra quando o back-end entregar esse recorte por fazenda; aqui só a cruzada da fazenda não apta.
-    m.addImage("hachura-restauracao", imagemHachura(COR.mata), { pixelRatio: 2 })
-    m.addSource("brasil-municipios", { type: "geojson", data: (municipiosBrasil ?? VAZIO) as never, promoteId: "cod_ibge" })
-    m.addSource("brasil-estados", { type: "geojson", data: (estadosBrasil ?? VAZIO) as never, promoteId: "uf" })
-    m.addSource("estados-rotulos", { type: "geojson", data: VAZIO as never })
-    m.addSource("potencial", { type: "geojson", data: VAZIO as never, promoteId: "h3" })
+    if (!nacional && !m.hasImage("hachura-restauracao")) m.addImage("hachura-restauracao", imagemHachura(COR.mata), { pixelRatio: 2 })
+    fonte("brasil-municipios", { type: "geojson", data: (municipiosBrasil ?? VAZIO) as never, promoteId: "cod_ibge" })
+    fonte("brasil-estados", { type: "geojson", data: (estadosBrasil ?? VAZIO) as never, promoteId: "uf" })
+    fonte("estados-rotulos", { type: "geojson", data: VAZIO as never })
+    fonte("potencial", { type: "geojson", data: VAZIO as never, promoteId: "h3" })
     for (const id of ["municipio", "mascara", "ti", "uc", "nomes", "rios", "fogo-recente", "terra-publica", "restauracao-autorizada", "mascara-fazenda"])
-      m.addSource(id, { type: "geojson", data: VAZIO as never })
-    m.addSource("imoveis", { type: "geojson", data: VAZIO as never, promoteId: "cod_imovel" })
+      fonte(id, { type: "geojson", data: VAZIO as never })
+    fonte("imoveis", { type: "geojson", data: VAZIO as never, promoteId: "cod_imovel" })
     // n: quantas fazendas cada ponto representa (a soma de um município sem contorno vem num ponto só)
-    m.addSource("pontos", {
+    fonte("pontos", {
       type: "geojson",
       data: VAZIO as never,
       cluster: true,
@@ -472,7 +508,7 @@ export function MapaBrasil(props: Props) {
     })
 
     add({ id: "estados-preenchimento", type: "fill", source: "brasil-estados",
-      paint: { "fill-color": ["match", ["get", "s"], 2, COR.mata, 1, COR.restaurar, COR.nevoa],
+      paint: { "fill-color": ["match", ["get", "s"], 2, COR.restaurar, 1, COR.restaurar, COR.nevoa],
         "fill-opacity": ["match", ["get", "s"], 2, 0.35, 1, 0.35, 0.8] } })
     add({ id: "potencial-h3", type: "fill", source: "potencial", maxzoom: ZOOM_FAZENDAS,
       filter: ["!=", ["get", "potencial_ha"], null],
@@ -519,7 +555,7 @@ export function MapaBrasil(props: Props) {
     // Dentro do município, o que não é fazenda do CAR fica em névoa lisa: área sem imóvel, terra indígena e unidade de
     // conservação. Vai embaixo da água e das estradas do mapa base, que continuam aparecendo por cima.
     const daAgua = m.getStyle().layers.find((l) => l.id === "water")?.id ?? antesDosRotulos
-    m.addLayer({ id: "municipio-fundo", type: "fill", source: "municipio", maxzoom: ZOOM_FAZENDAS, paint: { "fill-color": COR.nevoa, "fill-opacity": 0.15 } }, daAgua)
+    if (!nacional && !m.getLayer("municipio-fundo")) m.addLayer({ id: "municipio-fundo", type: "fill", source: "municipio", maxzoom: ZOOM_FAZENDAS, paint: { "fill-color": COR.nevoa, "fill-opacity": 0 } }, daAgua)
     // terra indígena e unidade de conservação: só a divisa, fina e tracejada, e o nome por cima (camada "nomes")
     for (const id of ["ti", "uc"])
       add({
@@ -544,7 +580,7 @@ export function MapaBrasil(props: Props) {
     add({ id: "imoveis-fogo", type: "line", source: "imoveis", minzoom: ZOOM_FAZENDAS,
       layout: { visibility: "none" }, paint: { "line-color": COR.tinta, "line-width": 1,
         "line-opacity": ["case", [">", ["coalesce", ["feature-state", "fogo"], 0], 0], 0.8, 0] } })
-    add({ id: "mascara", type: "fill", source: "mascara", maxzoom: ZOOM_FAZENDAS, paint: { "fill-color": MAPA.mascaraClara, "fill-opacity": 0.35 } })
+    add({ id: "mascara", type: "fill", source: "mascara", maxzoom: ZOOM_FAZENDAS, paint: { "fill-color": MAPA.mascaraClara, "fill-opacity": 0 } })
     add({ id: "mascara-fazenda", type: "fill", source: "mascara-fazenda", minzoom: ZOOM_FAZENDAS, paint: { "fill-color": MAPA.mascaraSatelite, "fill-opacity": 0.45 } })
     add({
       id: "fogo-recente",
@@ -676,6 +712,7 @@ export function MapaBrasil(props: Props) {
   }
 
   function ligarEventos(m: MapaGL) {
+    const feicoes = (ponto: { x: number; y: number }, camada: string) => m.getLayer(camada) ? m.queryRenderedFeatures([ponto.x, ponto.y], { layers: [camada] }) : []
     const popup = new Popup({ closeButton: true, maxWidth: "320px", offset: 6 })
     let selecionado: string | null = null
     const limparSelecao = () => {
@@ -701,7 +738,7 @@ export function MapaBrasil(props: Props) {
       m.getCanvas().style.cursor = sobre ? "pointer" : ""
     }
     m.on("click", (e) => {
-      const fazenda = m.queryRenderedFeatures(e.point, { layers: ["imoveis"] })[0]
+      const fazenda = feicoes(e.point, "imoveis")[0]
       const basico = fazenda && atual.current.basicosPorCod.get(String(fazenda.properties.cod_imovel))
       if (basico) {
         popup.setLngLat(e.lngLat).setHTML(
@@ -722,7 +759,7 @@ export function MapaBrasil(props: Props) {
       }
       popup.remove()
       limparSelecao()
-      const grupo = m.queryRenderedFeatures(e.point, { layers: ["pontos-grupo"] })[0]
+      const grupo = feicoes(e.point, "pontos-grupo")[0]
       if (grupo && grupo.properties.cluster_id !== undefined) {
         const fonte = m.getSource("pontos") as GeoJSONSource
         fonte.getClusterExpansionZoom(grupo.properties.cluster_id as number).then((z) =>
@@ -733,22 +770,24 @@ export function MapaBrasil(props: Props) {
       // a soma de um município (círculo sem contorno das fazendas): abre o município
       if (grupo?.properties.cod) return atual.current.props.aoEscolherMunicipio(String(grupo.properties.cod))
       const { uf, municipio } = atual.current.props
-      const mun = m.queryRenderedFeatures(e.point, { layers: ["brasil-mun"] })[0]
+      const estado = feicoes(e.point, "estados-preenchimento")[0]
+      const mun = feicoes(e.point, "brasil-mun")[0]
       const cod = mun && String(mun.properties.cod_ibge)
-      const ufTocada = cod ? ufDoCodigo(cod) : null
+      const ufTocada = cod ? ufDoCodigo(cod) : estado ? String(estado.properties.uf) : null
       const emFoco = municipio ? ufDoCodigo(municipio) : uf
       // na escala do país, o toque escolhe o estado (aproxima e carrega só ele); dentro de um estado, o município
       if (ufTocada && ufTocada !== emFoco) return atual.current.props.aoEscolherEstado(ufTocada)
       if (cod && cod !== municipio) atual.current.props.aoEscolherMunicipio(cod)
     })
     m.on("mousemove", (e) => {
-      const fazenda = m.queryRenderedFeatures(e.point, { layers: ["imoveis"] })[0]
+      const fazenda = feicoes(e.point, "imoveis")[0]
       if (fazenda && (atual.current.porCod.has(String(fazenda.properties.cod_imovel)) || atual.current.basicosPorCod.has(String(fazenda.properties.cod_imovel))))
         return marcar("imoveis", String(fazenda.properties.cod_imovel))
-      const mun = m.queryRenderedFeatures(e.point, { layers: ["brasil-mun"] })[0]
+      const estado = feicoes(e.point, "estados-preenchimento")[0]
+      const mun = feicoes(e.point, "brasil-mun")[0]
       const { uf, municipio } = atual.current.props
       const emFoco = municipio ? ufDoCodigo(municipio) : uf
-      const ufSob = mun ? ufDoCodigo(String(mun.properties.cod_ibge)) : null
+      const ufSob = mun ? ufDoCodigo(String(mun.properties.cod_ibge)) : estado ? String(estado.properties.uf) : null
       // fora do estado em foco, quem acende é o estado inteiro (o toque vai escolher ele)
       if (ufSob && ufSob !== emFoco) return marcar("brasil-estados", ufSob)
       if (mun && m.getZoom() < ZOOM_FAZENDAS) return marcar("brasil-municipios", String(mun.properties.cod_ibge))
@@ -763,7 +802,7 @@ export function MapaBrasil(props: Props) {
   return (
     <div className="mapa-brasil" role="region" aria-label={nomeMun ? `Mapa de ${nomeMun}` : nomeUf ? `Mapa de ${nomeUf}` : "Mapa do Brasil"}>
       <div className="mapa" ref={caixa} />
-      {brasil && <div className="cartografia-legenda" aria-label="Como ler o mapa">
+      {brasil && (uf || municipio) && <div className="cartografia-legenda" aria-label="Como ler o mapa">
         {zoom < ZOOM_FAZENDAS ? uf || municipio ? <>
           <strong>Potencial conhecido, cobertura parcial</strong>
           {props.potencialCarregando ? <p role="status">Carregando o agregado…</p> : props.potencial?.geo.features.length ? <>

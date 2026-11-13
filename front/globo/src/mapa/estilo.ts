@@ -27,7 +27,7 @@ export const SABOR_RAIZ: Flavor = { ...namedFlavor("white"), ...CORES_MAPA, land
 const glyphs = () => location.origin + import.meta.env.BASE_URL + "geo/fontes/{fontstack}/{range}.pbf"
 
 /** Estilo com o mapa base do município (ou só o fundo, se o PMTiles ainda não foi gerado). */
-export function estiloBase(base: string | null, opcoes: { rotulos?: boolean } = {}): StyleSpecification {
+export function estiloBase(base: string | null, opcoes: { rotulos?: boolean; nacional?: boolean } = {}): StyleSpecification {
   const fundo: StyleSpecification = {
     version: 8,
     glyphs: glyphs(),
@@ -35,13 +35,19 @@ export function estiloBase(base: string | null, opcoes: { rotulos?: boolean } = 
     layers: [{ id: "background", type: "background", paint: { "background-color": SABOR_RAIZ.earth } }],
   }
   if (!base) return fundo
-  const camadas = camadasBase(opcoes.rotulos !== false)
+  const camadas = opcoes.nacional ? camadasBaseNacionais() : camadasBase(opcoes.rotulos !== false)
   return {
     version: 8,
     glyphs: glyphs(),
     sources: { protomaps: fonteMapaBase(base) },
     layers: camadas,
   }
+}
+
+/** No país cabem terra, água, fronteiras e nomes. Estradas e usos locais entram quando a pessoa aproxima. */
+export function camadasBaseNacionais(): LayerSpecification[] {
+  const ids = new Set(["background", "earth", "water", "boundaries_country", "water_label_ocean", "places_country"])
+  return camadasBase().filter((camada) => ids.has(camada.id))
 }
 
 /**

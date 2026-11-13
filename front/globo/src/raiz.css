@@ -1158,6 +1158,20 @@ button.link:hover {
 }
 
 /* mapa da entrada */
+.mapa-area { position: relative; min-height: 0; }
+.mapa-area > .mapa-brasil { position: absolute; inset: 0; }
+.legenda-nacional {
+  position: absolute;
+  top: var(--e3);
+  left: var(--e3);
+  right: 64px;
+  max-width: 340px;
+  z-index: 2;
+  margin: 0;
+  padding: var(--e3);
+  background: var(--papel);
+  border: var(--linha);
+}
 .mapa-brasil {
   position: relative;
   min-height: 0;
@@ -1211,6 +1225,7 @@ button.link:hover {
   .explorar-corpo {
     display: block;
   }
+  .mapa-area { position: absolute; inset: 0; }
   .mapa-brasil {
     position: absolute;
     inset: 0;

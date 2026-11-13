@@ -32,7 +32,7 @@ function situacaoDoEstado(e: EstadoDados): string {
  */
 export function PainelBrasil({ municipios, comLista, estados, uf, pontos, carregando, cobertura }: Props) {
   if (uf) return <PainelEstado uf={uf} municipios={municipios} comLista={comLista} estados={estados} pontos={pontos} cobertura={cobertura} />
-  if (!municipios) return <Estado tipo="carregando" titulo="Lendo os municípios processados" />
+  if (!municipios) return <div className="painel-conteudo"><TituloBrasil /><Estado tipo="carregando" titulo="Lendo os municípios processados" /></div>
   if (!municipios.length)
     return (
       <Estado tipo="vazio" titulo="Nenhum município processado ainda.">
@@ -45,8 +45,7 @@ export function PainelBrasil({ municipios, comLista, estados, uf, pontos, carreg
   const semDado = (estados?.estados.length ?? 0) - comDado.length
   return (
     <div className="painel-conteudo">
-      <MiniBrasil uf={null} titulo="Onde estamos: Brasil" />
-      <h1>Onde dá para restaurar, com dono e título</h1>
+      <TituloBrasil />
       <p className="frase">{fraseDoBrasil(n, ufs, fmtInt)}</p>
       <Numeros municipios={municipios} />
       <PainelCobertura cobertura={cobertura} />
@@ -82,6 +81,10 @@ export function PainelBrasil({ municipios, comLista, estados, uf, pontos, carreg
       {carregando && <span className="sr">Carregando</span>}
     </div>
   )
+}
+
+function TituloBrasil() {
+  return <div className="painel-titulo"><MiniBrasil uf={null} titulo="Onde estamos: Brasil" className="mini-titulo" /><h1>Onde dá para restaurar, com dono e título</h1></div>
 }
 
 function PainelEstado({ uf, municipios, comLista, estados, pontos, cobertura }: Omit<Props, "uf" | "carregando"> & { uf: string }) {
