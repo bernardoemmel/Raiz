@@ -802,12 +802,12 @@ export function MapaBrasil(props: Props) {
   return (
     <div className="mapa-brasil" role="region" aria-label={nomeMun ? `Mapa de ${nomeMun}` : nomeUf ? `Mapa de ${nomeUf}` : "Mapa do Brasil"}>
       <div className="mapa" ref={caixa} />
-      {brasil && <div className={`cartografia-legenda${!uf && !municipio && zoom < ZOOM_FAZENDAS ? " cartografia-legenda-nacional" : ""}`} aria-label="Como ler o mapa">
+      {brasil && <div className="cartografia-legenda" aria-label="Como ler o mapa">
         {zoom < ZOOM_FAZENDAS && falhaNosAgregados && <p role="alert">Não foi possível carregar os agregados. Confira a conexão e recarregue a página.</p>}
         <details className="cartografia-resumo" open={margemBaixo === 0 && zoom >= ZOOM_FAZENDAS}>
         <summary><strong>{zoom < ZOOM_FAZENDAS ? "Grupos de fazendas" : "Limites do CAR"}</strong></summary>
         {zoom < ZOOM_FAZENDAS ? <>
-          {(uf || municipio) && <p>Contagem de fazendas e hectares conhecidos. Cobertura parcial.</p>}
+          <p>Grupos mostram fazendas e hectares conhecidos. Cobertura parcial; toque para aproximar.</p>
           {props.agregadosCarregando ? <p role="status">Carregando os agregados…</p> : falhaNosAgregados ? null : props.agregados?.metadados.contagens.celulas ? <>
             <details><summary>Fonte e limites</summary><p>{props.agregados.metadados.aviso}</p><p>Fonte: {props.agregados.metadados.fonte}. Atualização: {props.agregados.metadados.atualizado_em ? new Date(props.agregados.metadados.atualizado_em).toLocaleDateString("pt-BR") : "não informada"}.</p></details>
             <details onToggle={e => { listaGruposAberta.current = e.currentTarget.open; if (mapaRef.current) atualizarGruposVisiveis(mapaRef.current) }}>

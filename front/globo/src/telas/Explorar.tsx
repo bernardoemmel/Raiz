@@ -204,7 +204,6 @@ export function Explorar({ municipio, uf }: { municipio: string | null; uf: stri
           </div>
         </aside>
         <div className="mapa-area">
-        {!uf && !municipio && <p className="legenda-nacional">Grupos mostram fazendas e hectares conhecidos. Cobertura parcial; toque para aproximar.</p>}
         <Suspense fallback={<div className="mapa-brasil" aria-busy="true"><p className="mapa-aviso aviso" role="status">Abrindo o mapa do Brasil…</p></div>}><MapaBrasil
           brasil={brasil.dado}
           processados={processados}
