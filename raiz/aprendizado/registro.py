@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import datetime as dt
 import hashlib
+import json
 import math
 from collections.abc import Iterable
 from dataclasses import dataclass
@@ -47,25 +48,27 @@ def _num(v: float | None) -> str:
 
 
 def _linha(p: Previsao, v: Versoes) -> str:
-    return "|".join(
-        [
-            v.tipo,
-            p.cod_imovel,
-            p.alvo,
-            _num(p.valor_num),
-            p.valor_texto or "",
-            _num(p.p10),
-            _num(p.p50),
-            _num(p.p90),
-            v.data_corte.isoformat(),
-            str(p.horizonte_dias),
-            v.modelo,
-            v.modelo_versao,
-            v.entradas_versao,
-            v.regras_versao or "",
-            v.receita_hash or "",
-        ]
-    )
+    campos = [
+        v.tipo,
+        p.cod_imovel,
+        p.alvo,
+        _num(p.valor_num),
+        p.valor_texto or "",
+        _num(p.p10),
+        _num(p.p50),
+        _num(p.p90),
+        v.data_corte.isoformat(),
+        str(p.horizonte_dias),
+        v.modelo,
+        v.modelo_versao,
+        v.entradas_versao,
+        v.regras_versao or "",
+        v.receita_hash or "",
+    ]
+    if p.distribuicao is not None:
+        # v2 autentica também a distribuição; sem ela, preserva o hash histórico.
+        return "v2:" + json.dumps([campos, p.distribuicao], sort_keys=True, separators=(",", ":"), allow_nan=False)
+    return "|".join(campos)
 
 
 def hash_lote(previsoes: Iterable[Previsao], v: Versoes) -> str:
@@ -77,6 +80,13 @@ def hash_lote(previsoes: Iterable[Previsao], v: Versoes) -> str:
 
 
 def _valida(p: Previsao) -> None:
+    if p.distribuicao is not None:
+        if not isinstance(p.distribuicao, dict):
+            raise ValueError("distribuição precisa ser um objeto JSON")
+        try:
+            json.dumps(p.distribuicao, sort_keys=True, allow_nan=False)
+        except (ValueError, TypeError):
+            raise ValueError("distribuição inválida") from None
     for x in (p.valor_num, p.p10, p.p50, p.p90):
         if x is not None and (not isinstance(x, int | float) or math.isnan(x) or math.isinf(x)):
             raise ValueError(f"valor inválido em {p.cod_imovel}/{p.alvo}: {x!r}")
@@ -177,7 +187,10 @@ def conferir_lote(con: Connection, lote_hash: str) -> bool:
         lote.rodada_id,
     )
     ps = [
-        Previsao(r.cod_imovel, r.alvo, r.horizonte_dias, r.valor_num, r.valor_texto, r.p10, r.p50, r.p90) for r in rows
+        Previsao(
+            r.cod_imovel, r.alvo, r.horizonte_dias, r.valor_num, r.valor_texto, r.p10, r.p50, r.p90, r.distribuicao
+        )
+        for r in rows
     ]
     return hash_lote(ps, v) == lote_hash
 
