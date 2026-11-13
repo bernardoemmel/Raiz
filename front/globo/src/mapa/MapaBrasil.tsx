@@ -179,6 +179,7 @@ export function MapaBrasil(props: Props) {
   const limparSatelite = useRef<(() => void) | undefined>(undefined)
   const [zoom, setZoom] = useState(4)
   const [satelite, setSatelite] = useState<EstadoSatelitePublico>("carregando")
+  const margemAplicada = useRef(margemBaixo)
   const atual = useRef({ props, porCod: new Map<string, Imovel>(), basicosPorCod: new Map<string, ImovelBasico>() })
   const escolhido = useRef<string | null>(null)
   atual.current.props = props
@@ -204,6 +205,7 @@ export function MapaBrasil(props: Props) {
         locale: { "NavigationControl.ZoomIn": "Aproximar", "NavigationControl.ZoomOut": "Afastar", "Popup.Close": "Fechar ficha breve" },
       })
       instancia = m
+      margemAplicada.current = margemBaixo
       liberar()
       m.addControl(new AttributionControl({ compact: false }), "bottom-right")
       m.addControl(new NavigationControl({ showCompass: false }), "top-right")
@@ -248,7 +250,8 @@ export function MapaBrasil(props: Props) {
       antes = camada.id
     }
     montar(m, brasil?.municipios ?? null, brasil?.estados ?? null, false)
-    limparSatelite.current = adicionarSatelitePublico(m, "estados-preenchimento", setSatelite)
+    // A base estadual usa o satélite como âncora; ambos devem ficar abaixo de toda a cartografia regional.
+    limparSatelite.current = adicionarSatelitePublico(m, "potencial-h3", setSatelite)
     setRegional(true)
   }, [pronto, regional, uf, municipio, zoom, brasil])
 
@@ -460,6 +463,8 @@ export function MapaBrasil(props: Props) {
   useEffect(() => {
     const m = mapaRef.current
     if (!m || !pronto || !alvoRef.current || primeiraVez.current) return
+    if (margemAplicada.current === margemBaixo) return
+    margemAplicada.current = margemBaixo
     m.fitBounds(alvoRef.current, { padding: { top: 48, left: 48, right: 48, bottom: 48 + margemBaixo }, duration: 200 })
   }, [margemBaixo, pronto])
 

@@ -1,5 +1,4 @@
 import type { SituacaoBasica } from "../../../compartilhado/dados/basico"
-import { PainelMunicipioBasico } from "../partes/PainelMunicipioBasico"
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react"
 import { codigosEmLeilao } from "../../../compartilhado/calendario"
 import { calendario } from "../calendario"
@@ -10,10 +9,11 @@ import type { CamadaAssunto, GeoMunicipio } from "../mapa/MapaBrasil"
 import { prepararGpu } from "../mapa/preparar-gpu"
 import { Cabecalho } from "../partes/Cabecalho"
 import { PainelBrasil } from "../partes/PainelBrasil"
-import { PainelMunicipio } from "../partes/PainelMunicipio"
 import { linkEstado, linkMunicipio } from "../rota"
 
 const MapaBrasil = lazy(() => import("../mapa/MapaBrasil").then((m) => ({ default: m.MapaBrasil })))
+const PainelMunicipio = lazy(() => import("../partes/PainelMunicipio").then((m) => ({ default: m.PainelMunicipio })))
+const PainelMunicipioBasico = lazy(() => import("../partes/PainelMunicipioBasico").then((m) => ({ default: m.PainelMunicipioBasico })))
 
 type Altura = "baixa" | "meia" | "alta"
 const ALTURAS: Altura[] = ["baixa", "meia", "alta"]
@@ -161,7 +161,7 @@ export function Explorar({ municipio, uf }: { municipio: string | null; uf: stri
                 {listas.has(municipio) && " Os dados e a lista continuam disponíveis."}
               </p>
             )}
-            {municipio && estados.dado?.acesso === "publico_basico" ? (
+            <Suspense fallback={<p className="painel-conteudo" role="status">Abrindo o município…</p>}>{municipio && estados.dado?.acesso === "publico_basico" ? (
               <PainelMunicipioBasico
                 key={municipio}
                 nome={funil.dado?.municipio ?? (feicao?.properties.nome as string | undefined) ?? "Município"}
@@ -200,7 +200,7 @@ export function Explorar({ municipio, uf }: { municipio: string | null; uf: stri
                 carregando={municipios.carregando || estados.carregando}
                 cobertura={coberturaMapa.dado}
               />
-            )}
+            )}</Suspense>
           </div>
         </aside>
         <div className="mapa-area">
