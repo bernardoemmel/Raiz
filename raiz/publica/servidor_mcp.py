@@ -7,11 +7,13 @@ Não há chave na URL, autenticação por chave no MCP, pagamentos automáticos 
 from __future__ import annotations
 
 import asyncio
+import datetime as dt
 import json
 import os
 from typing import Annotated, Any
 from urllib.parse import quote
 from uuid import UUID, uuid4
+from zoneinfo import ZoneInfo
 
 import httpx
 from mcp.server import MCPServer
@@ -22,12 +24,14 @@ from mcp.server.transport_security import TransportSecuritySettings
 from mcp.types import ToolAnnotations
 from pydantic import Field
 
+from raiz.calendario.modelos import Tipo
 from raiz.pedidos.campos import CamposPedido
 from raiz.publica.oauth import VerificadorKeycloak, com_identidade
 from raiz.publica.privacidade import para_resposta
 from raiz.publica.problemas import problema
 
 ESCOPOS_FERRAMENTAS = {
+    "proximos_eventos": "consultar",
     "consultar_ficha": "consultar",
     "consultar_disponibilidade": "consultar",
     "pedir_lote": "pedir",
@@ -99,6 +103,7 @@ class ApiRaiz:
         h = {"X-Raiz-Ferramenta": ferramenta}
         if idempotency_key is not None:
             h["Idempotency-Key"] = idempotency_key
+        calendario_publico = (ferramenta, metodo, rota) == ("proximos_eventos", "GET", "/eventos")
 
         async def requisitar():
             async with httpx.AsyncClient(
@@ -107,7 +112,10 @@ class ApiRaiz:
                 timeout=3,
                 follow_redirects=False,
             ) as cli:
-                return await cli.request(metodo, f"/v1{rota}", json=corpo, headers=h, params=params)
+                # Esta consulta usa o calendário já público. A exceção é fechada
+                # por ferramenta, método e caminho; não abre outras rotas internas.
+                caminho = rota if calendario_publico else f"/v1{rota}"
+                return await cli.request(metodo, caminho, json=corpo, headers=h, params=params)
 
         tarefa = asyncio.create_task(requisitar())
         self._pendentes.add(tarefa)
@@ -130,6 +138,15 @@ class ApiRaiz:
             if r.headers.get("content-type", "").startswith("application/problem+json"):
                 raise ErroRaiz(json.dumps(para_resposta(r.json()), ensure_ascii=False))
             raise _erro(r.status_code, "api_indisponivel", "a operação falhou", "repita com a mesma Idempotency-Key")
+        if calendario_publico:
+            from raiz.calendario.mcp import resposta_publica
+
+            try:
+                return resposta_publica(r.json())
+            except (ValueError, TypeError, KeyError):
+                raise _erro(
+                    502, "calendario_invalido", "a resposta do calendário não pôde ser validada", "tente novamente"
+                ) from None
         data = para_resposta(r.json())
         return data if isinstance(data, dict) else {"opcoes": data}
 
@@ -149,6 +166,23 @@ def criar_servidor(api: ApiRaiz | None = None, *, verificador: VerificadorKeyclo
         auth=verificador.auth if verificador else None,
     )
     instalar_telemetria_mcp(mcp)
+
+    @mcp.tool(annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, openWorldHint=False))
+    async def proximos_eventos(
+        ctx: Context,
+        tipo: Tipo | None = None,
+        estado: Annotated[str | None, Field(min_length=2, max_length=2)] = None,
+        dias: Annotated[int, Field(ge=1, le=3660)] = 90,
+        cod_imovel: Annotated[str | None, Field(min_length=3, max_length=80)] = None,
+        limite: Annotated[int, Field(ge=1, le=1000)] = 100,
+    ) -> dict[str, Any]:
+        """Consulta o calendário público dos próximos dias, com fonte, confiança e cobertura da coleta.
+        Exige OAuth com consultar, sem cobrar ou adquirir ficha. CAR só aparece com vínculo público confirmado.
+        Não envia avisos nem acessa relatórios privados do projeto."""
+        hoje = dt.datetime.now(ZoneInfo("America/Sao_Paulo")).date()
+        params = {"inicio": hoje.isoformat(), "fim": (hoje + dt.timedelta(days=dias)).isoformat(), "limite": limite}
+        params.update({k: v for k, v in {"tipo": tipo, "estado": estado, "cod_imovel": cod_imovel}.items() if v})
+        return await api.chamar("GET", "/eventos", "proximos_eventos", ctx, params=params)
 
     @mcp.tool(annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, openWorldHint=False))
     async def consultar_ficha(

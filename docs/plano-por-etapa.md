@@ -262,7 +262,7 @@ O Compose completo subiu no CI do PR #85. O ensaio revelou e corrigiu a ausênci
 | Ordem | Entrega | Situação |
 |---|---|---|
 | A | API paga: 3 testes por empresa, sinal Pix e contrato, cobrança/estorno, limite SlowAPI, CLI e privacidade | **feito no código**, PR #45 com CI verde (1.072 testes Python); migração 0028 após o calendário |
-| B | MCP oficial Python 2.3.0/protocolo 2026-07-28 no mesmo app, sete ferramentas e resumo único até 8 KiB | **feito no código**, base do PR #69 com CI verde (1.384 testes Python), acrescida de `consultar_ficha` para releitura de CAR já adquirido, sem nova tarifa; descoberta e chamadas testadas com o cliente oficial |
+| B | MCP oficial Python 2.3.0/protocolo 2026-07-28 no mesmo app, oito ferramentas e resumo único até 8 KiB | **feito no código**, base do PR #69 com CI verde (1.384 testes Python), acrescida de `consultar_ficha` para releitura de CAR já adquirido, sem nova tarifa, e `proximos_eventos` para o calendário já público; descoberta e chamadas testadas com o cliente oficial |
 | C | OAuth 2.1/Keycloak; consultar/pedir/reservar, reserva desligada até administrador da empresa habilitar | **feito no código**; JWT, emissor, audiência, PKCE e isolamento testados; produção depende da configuração da instalação |
 | D | Fila durável, Idempotency-Key, Standard Webhooks, aprovação humana/Pix/JWS, OpenTelemetry | **feito no código**; testes de concorrência, queda do processo, assinatura e prazo; conta/API/worker precisam da mesma base e cofre |
 | E | Gabarito de 24 tarefas, quatro sessões por tarefa, meta pass^4 ≥ 80% e zero chamada proibida | **feito**: gabarito e avaliador; desempenho de agente real ainda não medido |
@@ -517,7 +517,7 @@ e [gráficos](design/graficos-resultados.md).
 | Eventos com tipo, data/prazo, UF/município, fonte/link, coleta e confiança | **feito**: esquema `calendario`, migração 0027 após 0022–0025 do título/aprendizado e 0026 da prospecção; histórico, UID e sequência preservados nas retificações |
 | Coleta diária de leilões rurais, penhoras, BNDES, ProFloresta+, Fundo Amazônia, concessões, crédito e SBCE/Verra/ICVCM/SBTi/EUDR | **feito**: 17 fontes oficiais em `raiz/calendario/fontes.yaml`, HTTP/PDF/Firecrawl opcional, workflow diário com snapshot no Release `calendario`; cobertura inicial e falhas explícitas, sem inventar prazos |
 | Vínculo de leilão/penhora ao CAR | **feito**: CAR explícito, CNS+matrícula vigente ou interseção SIGEF; sem corte por tamanho; vínculo insuficiente fica pendente; CAR inferido fica interno, só CAR explícito no edital aparece na consulta pública; nenhum nome ou documento pessoal persistido |
-| API e integração | **feito**: `GET /eventos` com tipo/estado/período/CAR, `GET /eventos.ics` e função Python `proximos_eventos` pronta; o calendário ainda não está registrado no transporte MCP, e o servidor pago oferece sete ferramentas, incluindo releitura de ficha já adquirida |
+| API e integração | **feito**: `GET /eventos` com tipo/estado/período/CAR, `GET /eventos.ics` e `proximos_eventos` registrada no MCP com OAuth/escopo `consultar`; consulta somente o calendário já público, sem cobrança ou aquisição de ficha. Projeção positiva preserva UID/CAR e oculta vínculos inferidos e identificadores privados |
 | Site e pedidos | **feito**: aba Calendário, filtros, fonte/data de coleta, feed, selos no mapa/ficha/tabela e aviso deduplicado aos lotes; ficha individual mantém acesso por créditos, e-mail/WhatsApp permanecem simulados. Publicação do site após a coleta |
 | Agenda no servidor | **feito no código**: `scripts/instalar_cron_alertas.py --tarefa calendario --instalar`, diário com banco, trava e `.env`; instalação em produção depende de acesso ao servidor |
 
@@ -529,6 +529,8 @@ ao retirar identificadores descartados; 118 testes do calendário passaram com P
 Coleta integral local posterior: **50 eventos, 11 futuros, 198 visitas e zero duplicatas exatas**. PA parcial;
 DJEN/BA/MG/TO em erro. Os 50 vínculos com CAR continuam pendentes; nenhum alerta foi atribuído por suposição.
 O teste local não comprova implantação no servidor; execução/publicação diária deve ser conferida na main.
+O workflow também coleta quando alterações do calendário chegam à main, mantendo a publicação alinhada ao leitor
+validado no CI. A ferramenta MCP registrada consulta esse calendário público, com OAuth e escopo `consultar`.
 
 - [x] Integração da entrega mobile com o Calendário: rota sob demanda, quatro links visíveis a 360 px, filtros
   com 48 px e teste CI de teclado/axe em três larguras; 186 testes do front e fluxos de ficha/lote aprovados.
