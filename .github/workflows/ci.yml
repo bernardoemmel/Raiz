@@ -18,15 +18,15 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           persist-credentials: false
-      - uses: astral-sh/setup-uv@v6
+      - uses: astral-sh/setup-uv@v7
         with:
           version: "0.13.6" # Pin compartilhado com os demais workflows; não consulta latest.
           enable-cache: true
           cache-dependency-glob: uv.lock
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 24.22.1
           cache: npm
@@ -59,7 +59,7 @@ jobs:
           --saida .cache/protocolo-agentes/recursos.json --amostras 5 --intervalo 2
       - name: Relatórios sem tokens nem traces privados
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: contratos-agentes
           path: |
@@ -74,7 +74,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: actionlint
         uses: docker://rhysd/actionlint:1.7.12
         with:
@@ -84,7 +84,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - name: Gitleaks em todo o histórico (valores sempre ocultos)
@@ -105,8 +105,8 @@ jobs:
       # Não depende da existência da ref pública nem simula processamento real.
       VITE_RAIZ_PROCESSAMENTO_URL: ./amostra/processamento.json
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
@@ -148,7 +148,7 @@ jobs:
         run: cd front/globo && npm run test:pasta
       - name: Evidências sintéticas da pasta
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: pasta-fiador
           path: front/.cache/teste-pasta
@@ -168,7 +168,7 @@ jobs:
         run: node front/scripts/testar-graficos.mjs
       - name: Evidências da ficha de crédito e dos gráficos
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ficha-credito-graficos
           path: |
@@ -177,14 +177,14 @@ jobs:
           if-no-files-found: ignore
       - name: Evidências da cena-alvo
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: cena-alvo
           path: front/.cache/teste-cena-alvo
           if-no-files-found: ignore
       - name: Evidências do teste do Pages
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: teste-pages
           path: front/.cache/teste-site/resultado
@@ -194,7 +194,7 @@ jobs:
         run: cd front/globo && npm run test:agentes
       - name: Relatório da auditoria para agentes
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: site-agentes
           path: front/.cache/teste-agentes
@@ -204,7 +204,7 @@ jobs:
         run: cd front/globo && npm run test:acessibilidade
       - name: Evidências de acessibilidade e desempenho
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: celular-acessibilidade
           path: front/.cache/teste-acessibilidade
@@ -225,7 +225,7 @@ jobs:
           npm run test:agentes
       - name: Evidências do domínio na raiz
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: dominio-proprio
           path: |
@@ -237,8 +237,8 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v6
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v7
         with:
           version: "0.13.6" # Pin compartilhado com os demais workflows; não consulta latest.
           enable-cache: true
@@ -286,16 +286,16 @@ jobs:
       RAIZ_LANGUAGETOOL_URL_TESTE: http://localhost:8010
       RAIZ_VALKEY_URL_TESTE: redis://localhost:6379/15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           persist-credentials: false
           fetch-depth: 0 # Reexecutar a referência histórica fechada da auditoria de promoções.
-      - uses: astral-sh/setup-uv@v6
+      - uses: astral-sh/setup-uv@v7
         with:
           version: "0.13.6" # Pin compartilhado com os demais workflows; não consulta latest.
           enable-cache: true
           cache-dependency-glob: uv.lock
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
@@ -322,7 +322,7 @@ jobs:
         run: uv run node front/scripts/testar-ficha-publica.mjs
       - name: Evidências da ficha pública datada
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ficha-publica-versionada
           path: front/.cache/teste-ficha-publica
@@ -355,7 +355,7 @@ jobs:
         run: uv run pytest -q --deselect=testes/test_lote.py::test_lote_do_para_inteiro_fecha_ou_diz_o_que_falta --junitxml=resultado-pytest.xml
       - name: Resultado dos testes gerais (sem dados do arquivo privado)
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: resultado-pytest
           path: resultado-pytest.xml
@@ -370,10 +370,10 @@ jobs:
       # GitHub exige acesso de escrita para ler releases em rascunho. Não há operação de publicação.
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           persist-credentials: false
-      - uses: astral-sh/setup-uv@v6
+      - uses: astral-sh/setup-uv@v7
         with:
           version: "0.13.6" # Pin compartilhado com os demais workflows; não consulta latest.
           enable-cache: true
@@ -393,7 +393,7 @@ jobs:
         run: uv run pytest -q testes/test_lote.py::test_lote_do_para_inteiro_fecha_ou_diz_o_que_falta --junitxml=resultado-para.xml
       - name: Resultado estadual sem dados ou diagnósticos privados
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: resultado-para
           path: resultado-para.xml
@@ -412,7 +412,7 @@ jobs:
     env:
       RAIZ_TESTE_PA_OBRIGATORIO: "1"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           persist-credentials: false
       - name: Exigir as duas partes da suíte aprovadas
@@ -455,13 +455,13 @@ jobs:
     env:
       RAIZ_BANCO_URL_TESTE: postgresql+psycopg://raiz:raiz@localhost:5432/raiz_e2e
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v6
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v7
         with:
           version: "0.13.6" # Pin compartilhado com os demais workflows; não consulta latest.
           enable-cache: true
           cache-dependency-glob: uv.lock
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
@@ -502,8 +502,8 @@ jobs:
     env:
       RAIZ_BANCO_URL_CARGA: postgresql+psycopg://raiz:raiz@localhost:5432/raiz_carga
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v6
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v7
         with:
           version: "0.13.6"
           enable-cache: true
@@ -514,7 +514,7 @@ jobs:
         run: uv run python -m testes.carga.rodar --resultado resultado-carga
       - name: Medições de carga sem conteúdo pessoal
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: resultado-carga
           path: resultado-carga/*.json
@@ -538,14 +538,14 @@ jobs:
     env:
       RAIZ_BANCO_URL_MCP_TESTE: postgresql+psycopg://raiz:raiz@localhost:5432/raiz_mcp_teste
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           persist-credentials: false
       - name: Detectar MCP (ausência gera aviso explícito, não aprovação dos ensaios)
         id: detectar
         run: python3 scripts/testar_mcp_ci.py --detectar
       - if: steps.detectar.outputs.disponivel == 'true'
-        uses: astral-sh/setup-uv@v6
+        uses: astral-sh/setup-uv@v7
         with:
           version: "0.13.6"
           enable-cache: true
@@ -560,7 +560,7 @@ jobs:
         run: uv run python scripts/testar_mcp_ci.py
       - name: Estado explícito e evidências MCP
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: resultado-mcp
           path: resultado-mcp/*.json
