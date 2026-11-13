@@ -76,6 +76,11 @@ def linha(uf: str, e: dict | None) -> str:
         sit += " (APP a conferir na primeira rodada automática)"
     m = e.get("motor") or {}
     fatias = m.get("fatias") or {}
+    rodadas = [m.get("rodada") or {}] + [f.get("rodada") or {} for f in fatias.values()]
+    if any(r.get("falhou_fontes") for r in rodadas):
+        if sit == "completo":
+            sit = "acervo completo; última coleta incompleta"
+        sit += "; falha nas fontes obrigatórias"
     erros = sum(int(f.get("erros") or 0) for f in fatias.values()) if fatias else len(e.get("erros") or [])
     if erros:
         sit += f"; {erros} erro(s) na última rodada"
