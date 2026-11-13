@@ -49,10 +49,10 @@ jobs:
       # Data de cenário, não data de implantação/contrato de um projeto real.
       RAIZ_CADT_INICIO_CENARIO: ${{ vars.RAIZ_CADT_INICIO_CENARIO || '2027-01-01' }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Reservar uma das 15 vagas globais antes de qualquer processamento pesado
         run: python scripts/publicar_metadados.py --reservar
-      - uses: astral-sh/setup-uv@v6
+      - uses: astral-sh/setup-uv@v7
         with:
           version: "0.13.6"
           enable-cache: true

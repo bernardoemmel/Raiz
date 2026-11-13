@@ -132,6 +132,50 @@ def base(x):
     return out
 
 
+def eventos(x):
+    """Projeta o Calendário existente sem texto livre nem URLs de documentos de terceiros.
+
+    O título vem do tipo/marco e o portal vem do catálogo versionado. O ato pode conter
+    pessoas até na URL; o agente recebe a referência e o portal oficial para conferência humana.
+    """
+    from raiz.calendario.coleta import fontes
+    from raiz.calendario.mcp import resposta_publica
+    from raiz.calendario.modelos import Evento, FonteEstado
+
+    x = resposta_publica(x)
+
+    catalogo = {f["id"]: f for f in fontes()}
+    out = {"eventos": [], "fontes": [], "total": _num(x.get("total")), "coletado_em": _data(x.get("coletado_em"))}
+    campos = {
+        "tipo", "marco", "referencia", "data", "prazo", "uf", "municipio", "codigos_car",
+        "coletado_em", "confianca", "situacao", "vinculo", "sequencia", "atualizado_em",
+    }  # fmt: skip
+    for registro in _lista(x.get("eventos")):
+        e = Evento.model_validate(registro)
+        fonte = catalogo.get(e.fonte_id)
+        out["eventos"].append(
+            {
+                **{k: v for k, v in e.publico().items() if k in campos},
+                "evento_id": e.id,
+                "titulo": e.titulo,
+                "fonte_id": e.fonte_id if fonte else None,
+                "fonte_portal_url": fonte["urls"][0] if fonte else None,
+            }
+        )
+    for registro in _lista(x.get("fontes")):
+        f = FonteEstado.model_validate(registro)
+        fonte = catalogo.get(f.id)
+        if fonte:
+            out["fontes"].append(
+                {
+                    **f.model_dump(mode="json", exclude={"nome", "erro"}),
+                    "portal_url": fonte["urls"][0],
+                    "falha_coleta": f.situacao == "erro",
+                }
+            )
+    return out
+
+
 def salvaguardas(x):
     x = _obj(x)
     motivos = {

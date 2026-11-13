@@ -31,8 +31,8 @@ jobs:
       GH_TOKEN: ${{ github.token }}
       FIRECRAWL_API_KEY: ${{ secrets.FIRECRAWL_API_KEY }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v6
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v7
         with:
           version: "0.13.6"
       - name: Dependências
@@ -43,13 +43,13 @@ jobs:
           sudo apt-get install -y --no-install-recommends poppler-utils tesseract-ocr tesseract-ocr-por
       - name: Recuperar o estado anterior
         run: |
-          mkdir -p dados/calendario
-          if gh release view calendario -R "$GITHUB_REPOSITORY" --json tagName >/dev/null 2>/tmp/calendario-release-erro; then
-            gh release download calendario -R "$GITHUB_REPOSITORY" -p estado.json -D dados/calendario
-          elif ! grep -Eqi 'release not found|HTTP 404|Not Found' /tmp/calendario-release-erro; then
-            cat /tmp/calendario-release-erro >&2
-            exit 1
-          fi
+          uv run python - <<'PY'
+          from pathlib import Path
+          from raiz.calendario.arquivos import recuperar_publico
+
+          total = recuperar_publico(Path('dados/calendario/estado.json'))
+          print(f'{total} eventos históricos recuperados e validados.')
+          PY
       - name: Conferir a cobertura pública dos estados
         if: inputs.fontes == ''
         run: |
@@ -81,9 +81,14 @@ jobs:
       - name: Publicar o que foi coletado, mesmo com uma fonte indisponível
         if: always() && steps.coleta.outputs.gerado == '1'
         run: |
-          gh release view calendario -R "$GITHUB_REPOSITORY" >/dev/null 2>&1 || gh release create calendario -R "$GITHUB_REPOSITORY" --prerelease --target main \
-            --title "Calendário da Raíz" --notes "Fontes oficiais e prazos extraídos automaticamente. Sem nomes, CPF/CNPJ ou texto bruto de editais. Consulte a situação de cada fonte no JSON."
-          gh release upload calendario -R "$GITHUB_REPOSITORY" dados/calendario/estado.json dados/calendario/eventos.json dados/calendario/eventos.ics --clobber
+          uv run python - <<'PY'
+          import os
+          from pathlib import Path
+          from raiz.calendario.publicacao import publicar_release
+
+          publicar_release(Path('dados/calendario'), os.environ['GITHUB_REPOSITORY'], os.environ['GH_TOKEN'])
+          print('Três arquivos públicos conferidos e publicados; histórico anterior preservado até a promoção.')
+          PY
       - name: Resumo da cobertura
         if: always() && steps.coleta.outputs.gerado == '1'
         run: |

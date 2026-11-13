@@ -362,3 +362,39 @@ def test_alcance_do_log_nao_aceita_texto_arbitrario():
         "biomas": ["Amazônia"],
         "meta": None,
     }
+
+
+def test_saldo_da_fila_devolve_link_humano_sem_criar_cobranca(eng, cl, empresa, monkeypatch):
+    monkeypatch.setenv("RAIZ_API_PUBLICA_URL", "https://api.raiz.example")
+    with eng.begin() as con:
+        con.execute(
+            text("update negocio.conta_api set testes_restantes=0 where cliente_id=:c"), {"c": empresa["cliente_id"]}
+        )
+    monkeypatch.setattr(CT, "criar_cobranca", lambda *a, **kw: pytest.fail("o erro não deve chamar o provedor Pix"))
+    r = cl.post("/v1/agentes/consultar_disponibilidade", json=PEDIDO, headers=_h(empresa))
+    assert r.status_code == 402
+    assert r.json()["link_para_uma_pessoa"] == "https://api.raiz.example/v1/conta/gerenciar"
+    pagina = cl.get("/v1/conta/gerenciar")
+    assert pagina.status_code == 200 and pagina.headers["cache-control"] == "no-store"
+    assert "frame-ancestors 'none'" in pagina.headers["content-security-policy"]
+    assert empresa["chave"] not in pagina.text and empresa["sessao"] not in pagina.text
+    assert "Gerar Pix" in pagina.text
+    assert cl.post("/v1/conta/contrato", headers=_h(empresa)).status_code == 403
+
+
+def test_login_da_conta_so_envia_a_cadastrado_sem_expor_token(eng, cl, empresa, monkeypatch):
+    monkeypatch.setenv("RAIZ_API_PUBLICA_URL", "https://api.raiz.example")
+    enviados = []
+    monkeypatch.setattr(S, "ENVIO_LINK", lambda email, link: enviados.append((email, link)))
+    from raiz.pessoal import Cofre
+
+    with eng.connect() as con:
+        cifrado = con.execute(
+            text("select email_cifrado from pessoal.cliente_contato where cliente_id=:c"), {"c": empresa["cliente_id"]}
+        ).scalar_one()
+    email = Cofre().decifrar(cifrado)
+    for endereco in ("desconhecida@empresa.example", email):
+        r = cl.post("/v1/conta/gerenciar/entrar", json={"email": endereco})
+        assert r.status_code == 200 and r.json() == {"enviado": True}
+    assert len(enviados) == 1 and enviados[0][0] == email
+    assert enviados[0][1].startswith("https://api.raiz.example/v1/conta/gerenciar#/entrar/")
