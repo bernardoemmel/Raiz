@@ -96,6 +96,7 @@ def test_sem_ficha_e_area_desconhecida_nao_viram_zero(publicar):
         lambda d: d["base"].update(fonte="Pessoa Fictícia do Teste"),
         lambda d: d.update(area_elegivel_ha=True),
         lambda d: d.update(area_elegivel_ha=0),
+        lambda d: d.update(area_elegivel_ha=1e-320),
         lambda d: d.update(area_elegivel_ha=101),
         lambda d: d.update(area_elegivel_ha=float("inf")),
         lambda d: d.update(evidencia_area_id=None),

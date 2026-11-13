@@ -11,6 +11,7 @@ from __future__ import annotations
 import datetime as dt
 import hashlib
 import json
+import math
 import os
 import re
 import uuid
@@ -177,6 +178,8 @@ class DocumentoFichaCredito(Fechado):
                 raise ValueError("a ficha exige área elegível positiva ou desconhecida")
             if self.area_total_ha is not None and self.area_elegivel_ha > self.area_total_ha:
                 raise ValueError("área elegível maior que a área total")
+            if any(not math.isfinite(v / self.area_elegivel_ha) for v in self.creditos_lote.model_dump().values()):
+                raise ValueError("a divisão por hectare não é um número finito")
         if self.area_total_ha is not None or self.area_elegivel_ha is not None:
             if not self.fonte_area or not self.data_referencia_area or not self.evidencia_area_id:
                 raise ValueError("área exige fonte, referência e evidência próprias")

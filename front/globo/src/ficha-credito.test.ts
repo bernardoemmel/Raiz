@@ -47,6 +47,7 @@ describe("ficha de crédito com base comum", () => {
     (d: ReturnType<typeof exemplo>) => { d.base!.classe_ativo = "flag"; d.base!.classe_evidencia = "emitido" },
     (d: ReturnType<typeof exemplo>) => { d.creditos_por_ha!.p50 = 2 },
     (d: ReturnType<typeof exemplo>) => { d.area_elegivel_ha = 0 },
+    (d: ReturnType<typeof exemplo>) => { d.area_elegivel_ha = 1e-320 },
     (d: ReturnType<typeof exemplo>) => { d.area_elegivel_ha = 101 },
     (d: ReturnType<typeof exemplo>) => { d.area_elegivel_ha = Number.NaN },
     (d: ReturnType<typeof exemplo>) => { d.evidencia_area_id = null },

@@ -129,7 +129,7 @@ export function lerFichaCredito(valor: unknown, esperado: { opcao_id: FichaCredi
       if (!creditos_por_ha) return ausente
       for (const q of ["p10", "p50", "p90"] as const) {
         const calculado = creditos_lote[q] / area_elegivel_ha
-        if (Math.abs(creditos_por_ha[q] - calculado) > 1e-9 * Math.max(1, calculado)) return ausente
+        if (!Number.isFinite(calculado) || Math.abs(creditos_por_ha[q] - calculado) > 1e-9 * Math.max(1, calculado)) return ausente
       }
     }
     const exclusoes = r.exclusoes === null ? null : Array.isArray(r.exclusoes) && r.exclusoes.length <= 100 ? r.exclusoes.map((v): ExclusaoFichaCredito => {
