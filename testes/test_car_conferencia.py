@@ -164,6 +164,18 @@ def test_api_publica_marca_data_sem_repassar_texto_da_fonte():
     assert sem_data["car_conferencia"] == "CAR a conferir" and sem_data["car_conferido_em"] is None
 
 
+def test_lote_nao_admite_fazenda_sem_municipio_para_conferir(monkeypatch):
+    from raiz import lote as L
+
+    monkeypatch.setattr(
+        L,
+        "montar",
+        lambda *a, **kw: {"tabela": pd.DataFrame({"cod_imovel": ["A"], "cod_ibge": [None], "papel": "titular"})},
+    )
+    with pytest.raises(C.ConferenciaPendente, match="sem município"):
+        L.montar_atual({})
+
+
 @pytest.mark.banco
 def test_conferencia_chega_a_oferta_e_a_resposta_do_pedido(banco_url, tmp_path, monkeypatch):
     import shutil

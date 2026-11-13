@@ -550,7 +550,7 @@ def montar(dados: dict, volume: float | None = None, c: dict | None = None, r: d
 
 def montar_atual(dados: dict, **kwargs) -> dict:
     """Entrada de produção: verifica selecionadas no WFS e refaz a seleção após mudanças."""
-    from raiz.coleta.car_conferencia import conferir_pasta
+    from raiz.coleta.car_conferencia import ConferenciaPendente, conferir_pasta
 
     vistos: set[str] = set()
     sensibilidade_ligada = kwargs.pop("sensibilidade_ligada", True)
@@ -558,6 +558,8 @@ def montar_atual(dados: dict, **kwargs) -> dict:
         previa = montar(dados, **kwargs, sensibilidade_ligada=False, conferir_car=False)
         t = previa["tabela"]
         selecionadas = t[t.papel.isin(["titular", "reserva"])]
+        if selecionadas.cod_ibge.isna().any():
+            raise ConferenciaPendente("Fazenda selecionada sem município para conferir o CAR")
         novas = set(selecionadas.cod_imovel) - vistos
         if not novas:
             return montar(dados, **kwargs, sensibilidade_ligada=sensibilidade_ligada, conferir_car=False)
