@@ -250,6 +250,13 @@ Feito na main fora desta tabela: caminho da terra com risco por imóvel (`raiz/t
 
 ## IA. Plataforma para agentes das empresas
 
+Próxima entrega em andamento (`produto-agentes-validacao`): medição Claude em 96 sessões via MCP,
+replay VCR, conferência Inspector/vacuum, manifesto do registro e Compose de operação. Gabarito v2
+corrige a permissão de acompanhar operações assíncronas sem reduzir critérios ou meta. Resultado real,
+gravações e dimensionamento ainda dependem de conclusão dos ensaios; não estão marcados como feitos.
+O Compose completo subiu no CI do PR #85. O ensaio revelou e corrigiu a ausência do mapper
+`sub` no realm Keycloak; Inspector autenticado por PKCE real confirmou a revisão 2026-07-28.
+
 | Ordem | Entrega | Situação |
 |---|---|---|
 | A | API paga: 3 testes por empresa, sinal Pix e contrato, cobrança/estorno, limite SlowAPI, CLI e privacidade | **feito no código**, PR #45 com CI verde (1.072 testes Python); migração 0028 após o calendário |

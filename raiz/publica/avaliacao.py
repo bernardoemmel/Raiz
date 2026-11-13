@@ -63,6 +63,7 @@ class Tarefa(Estrito):
     permitidas: list[Identificador]
     proibidas: list[Identificador]
     obrigatorias: list[Identificador] = Field(default_factory=list)
+    acompanhamento_tecnico: bool = False
     esperado: dict[Identificador, str] = Field(min_length=1)
 
     @model_validator(mode="after")
@@ -73,6 +74,8 @@ class Tarefa(Estrito):
             raise ValueError("uma ferramenta não pode ser permitida e proibida na mesma tarefa")
         if not set(self.obrigatorias) <= set(self.permitidas):
             raise ValueError("ferramenta obrigatória deve ser permitida")
+        if self.acompanhamento_tecnico and "acompanhar_contato" not in self.permitidas:
+            raise ValueError("acompanhamento técnico exige a ferramenta de consulta da operação")
         if any(not texto.strip() for texto in self.esperado.values()):
             raise ValueError("critério esperado não pode ser vazio")
         return self
