@@ -94,7 +94,12 @@ def estado(uf: str, cache: str | Path = "cache", *, fonte: str = URL) -> Path:
                     """SELECT cod_imovel, mod_fiscal AS m_fiscal, num_area AS area,
                         ind_status AS status_imovel, ind_tipo AS tipo_imovel,
                         des_condic AS condicao, municipio, cod_estado AS uf,
-                        dat_criaca AS dat_criacao, dat_atuali AS data_atualizacao,
+                        strftime(coalesce(try_cast(dat_criaca AS TIMESTAMP),
+                            try_strptime(dat_criaca, ['%d/%m/%Y', '%d/%m/%Y %H:%M:%S'])),
+                            '%Y-%m-%dT%H:%M:%S') AS dat_criacao,
+                        strftime(coalesce(try_cast(dat_atuali AS TIMESTAMP),
+                            try_strptime(dat_atuali, ['%d/%m/%Y', '%d/%m/%Y %H:%M:%S'])),
+                            '%Y-%m-%dT%H:%M:%S') AS data_atualizacao,
                         ST_AsWKB(geometry) AS wkb
                     FROM read_parquet(?) WHERE cod_estado = ?
                     QUALIFY row_number() OVER (PARTITION BY cod_imovel ORDER BY
@@ -146,6 +151,8 @@ def municipio(uf: str, cod: int, cache: str | Path = "cache") -> gpd.GeoDataFram
     if not re.fullmatch(r"\d{7}", str(cod)):
         raise ValueError("Código IBGE inválido")
     limites_uf = gpd.read_parquet(limites(cache), filters=[("abbrev_state", "=", uf)]).to_crs(4326)
+    # Áreas operacionais de lagoas do RS não são municípios (mesmo padrão do geobr).
+    limites_uf = limites_uf[~limites_uf.code_muni.astype(int).isin([4300001, 4300002])]
     lim = limites_uf[limites_uf.code_muni.astype(int) == int(cod)]
     if len(lim) != 1:
         raise ValueError("Limite municipal geobr ausente ou duplicado")

@@ -228,7 +228,11 @@ def _geometria(x):
 
 
 def fazenda(x):
+    data_car = _data(x.get("car_conferido_em"))
     out = {
+        "car_conferido_em": data_car,
+        "car_situacao": _enum(x.get("car_situacao"), {"conferido", "a_conferir", "fora_do_lote", "recalcular"}),
+        "car_conferencia": f"CAR conferido em {data_car[:10]}" if data_car else "CAR a conferir",
         "cod_imovel": _car(x.get("cod_imovel")),
         **_local(x),
         **_numeros(x, ("hectares", "custo_usd_credito", "lon", "lat")),

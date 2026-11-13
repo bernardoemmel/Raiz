@@ -152,6 +152,18 @@ def test_lote_de_producao_rele_dados_depois_da_conferencia(monkeypatch, tmp_path
     assert conferidas[0] == (tmp_path, "MA", COD, {"A"})
 
 
+def test_api_publica_marca_data_sem_repassar_texto_da_fonte():
+    from raiz.publica.apresentacao import fazenda
+
+    atual = fazenda(
+        {"car_conferido_em": QUANDO, "car_situacao": "conferido", "car_conferencia": "texto da fonte que não pode sair"}
+    )
+    assert atual["car_conferencia"] == "CAR conferido em 2026-11-13"
+    assert atual["car_conferido_em"] == QUANDO and atual["car_situacao"] == "conferido"
+    sem_data = fazenda({"car_conferido_em": "não é data", "car_conferencia": "texto não conferido"})
+    assert sem_data["car_conferencia"] == "CAR a conferir" and sem_data["car_conferido_em"] is None
+
+
 @pytest.mark.banco
 def test_conferencia_chega_a_oferta_e_a_resposta_do_pedido(banco_url, tmp_path, monkeypatch):
     import shutil

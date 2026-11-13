@@ -49,6 +49,10 @@ def test_uma_leitura_estadual_deduplica_e_mapeia_sem_cortar_fazenda(fonte):
     assert list(g.cod_imovel) == ["MA-2100001-A", "MA-2100001-B"]
     assert g.m_fiscal.tolist() == [2, 0.001]  # duplicata mais atual; não descarta pequena
     assert g.id.isna().all() and g.car_base.eq("2026-07").all()
+    assert g.data_atualizacao.iloc[0] == "2026-07-01T00:00:00"
+    from raiz.contrato import DATA_HORA, converter
+
+    assert converter(g.data_atualizacao, DATA_HORA).iloc[0].month == 7
     assert g.crs.to_epsg() == 4326 and g.cod_municipio_ibge.eq(2100001).all()
     assert g.loc[g.cod_imovel.eq("MA-2100001-B"), "geometry"].iloc[0].bounds[2] == -43.9
     leste = C.municipio("MA", 2100002, cache)
