@@ -86,6 +86,7 @@ export function Prospeccao() {
     </section>
     <CompararFazendas />
     <BuscasSalvas filtros={consulta.filtros} aoAplicar={(filtros) => { setCampos(filtros); setConsulta({ filtros, pagina: 1 }) }} />
+    <p><a href="#/estado/PA">Ver a amostra aberta do Pará</a>: agregados e situação básica. Histórico detalhado, exportações e avisos por imóvel fazem parte da consulta paga.</p>
     <CreditosConsulta />
   </main></div>
 }

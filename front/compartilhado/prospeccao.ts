@@ -1,3 +1,4 @@
+import type { PastaFiadorDados, HistoricoPasta, PastasDaFichaDados } from "./pasta-fiador"
 import type { Geo } from "./dados/tipos"
 
 /** Contrato da prospecção: somente terra. As permissões e os créditos pertencem ao servidor. */
@@ -228,6 +229,14 @@ export function fonteProspeccao(api: string | undefined, token: () => string | n
   }
   return {
     disponivel: !!api,
+    pastasDaFicha: (car: string, sinal?: AbortSignal) => pedir<PastasDaFichaDados>(`fichas/${encodeURIComponent(car)}/pastas`, undefined, sinal),
+    pasta: (pedido: string, opcao: string, versao?: string, sinal?: AbortSignal) => pedir<PastaFiadorDados>(`pastas/${encodeURIComponent(pedido)}/${encodeURIComponent(opcao)}${versao ? `?versao_id=${encodeURIComponent(versao)}` : ""}`, undefined, sinal),
+    historicoPasta: (pedido: string, opcao: string, sinal?: AbortSignal) => pedir<HistoricoPasta>(`pastas/${encodeURIComponent(pedido)}/${encodeURIComponent(opcao)}/historico`, undefined, sinal),
+    exportarPasta: async (pedido: string, opcao: string, sinal?: AbortSignal) => {
+      const resposta = await respostaDe(`pastas/${encodeURIComponent(pedido)}/${encodeURIComponent(opcao)}/exportar`, undefined, sinal)
+      if (!resposta.headers.get("Content-Type")?.includes("application/zip")) throw new ErroProspeccao(502, "Formato de pasta inválido.")
+      return resposta.blob()
+    },
     comparar: (codigos_car: string[], sinal?: AbortSignal) => pedir<{ fichas: FichaTerraDados[] }>("comparar", { codigos_car }, sinal),
     historico: (car: string, sinal?: AbortSignal) => pedir<HistoricoFicha>(`fichas/${encodeURIComponent(car)}/historico?limite=20`, undefined, sinal),
     exportar: async (car: string, formato: "json" | "csv", sinal?: AbortSignal) => {

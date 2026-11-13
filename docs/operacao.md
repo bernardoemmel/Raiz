@@ -106,6 +106,52 @@ Conferência real concluída em 12/11/2026: **PI, 130 municípios e 185.791 imó
 56.217 imóveis**. DuckDB, SQLite e contagem de referência concordaram em todos os municípios. Os 242.008
 registros foram lidos de pacotes privados congelados e conferidos por SHA; nenhum dado foi publicado por esse
 ensaio. Evidência agregada: `docs/medicoes/ibis-contagens-rn-pi-2026-11-12.json`.
+## Falhas concorrentes e impedimento da fonte — 13/11/2026
+
+A rodada `43355236141` confirmou erro HTTP 404 na leitura de `estados.json` depois de
+substituição concorrente do asset. A leitura por nome agora relê a lista e o novo ID, até quatro
+tentativas. Ausência transitória depois de um 404 não vira manifesto vazio. Erros de acesso e
+formato continuam falhando; o download de um ID congelado não aceita outro arquivo. A paginação
+revalida o cache HTTP e reinicia todas as páginas ao detectar sobreposição.
+
+A reprodução do funil com o cache oficial confirmou **50 de 50** erros municipais examinados
+no RN: embargo ativo sem geometria utilizável. No arquivo de 117.197 termos, 92.033 são ativos
+pelo critério vigente e 40.270 não têm WKT. No RN, isso alcança 98 municípios; em GO, 195;
+no MA, 168. A presença de WKT, por si só, não atesta sua validade. A evidência agregada, sem
+termos nem pessoas, está em `docs/medicoes/ibama-impedimentos-2026-11-13.json`.
+
+A guarda permanece: não converter restrição desconhecida em área zero nem descartar os imóveis.
+Os logs sem banco/Healthchecks agora registram tipo, arquivo, linha e o motivo fixo
+`embargo_ativo_sem_geometria_utilizavel`, sem texto livre da exceção, variáveis ou geometrias.
+A conclusão nacional depende de resolver esses dados de origem; a janela observada não teve
+UF nova concluída e não permite estimar uma data de término. O processamento dos demais municípios
+e a preservação do progresso continuam.
+
+O destino fechado foi atualizado para `30ace967b885d07c2579c8625a9b5eb9cd4ec53b`, com **19 origens**
+e as 11 versões científicas preservadas. A prova por AST delimita três métodos de leitura/tratamento
+de erro e a classe que transporta somente o status HTTP; o restante do armazém é idêntico ao urgente.
+A ciência do commit preservado não recebe a mudança de hash da carga da main #93. As auditorias
+históricas continuam intactas e reservas vivas não são alteradas. Validação: **66 testes** do leitor,
+diagnóstico, armazém, transferência e checkpoint; **182 testes** de integração da promoção/fila.
+
+Conferência complementar do impedimento Ibama: o geosserviço oficial PAMGIA devolveu os cinco
+termos da amostra RN sem WKT, mas quatro declaram `origem_geom=Ponto`, embora o formato tenha
+anéis, e um permanece sem geometria. Essa resposta não comprova cinco polígonos de área e
+não foi usada para liberar o município. Consulta restrita a identificador do termo, origem,
+código municipal, data geométrica e geometria; nenhum atributo de pessoa foi requisitado.
+Fonte: https://pamgia.ibama.gov.br/server/rest/services/01_Publicacoes_Bases/adm_embargos_ibama_a/FeatureServer/0.
+
+
+### Alcance da regra contra interrupções
+
+O `AGENTS.md` proíbe todos os agentes/chats de desativar ou cancelar processamento sem nova ordem
+explícita do fundador. Isso não cria isolamento de permissões no GitHub: a mesma permissão
+`Actions: write` autoriza disparar e desativar workflows. Uma sessão com essa credencial continua
+tecnicamente capaz de chamar esses endpoints. Não foi retirada a permissão necessária à continuação
+automática; separar credenciais/políticas externas é necessário para impor um bloqueio técnico entre
+sessões. Fonte: [permissões dos endpoints de workflows](https://docs.github.com/en/rest/actions/workflows).
+
+
 ## Ficha: fontes, versões, cobertura e rastreio
 
 Antes de iniciar esta continuação no servidor, aplique `uv run --env-file .env raiz
@@ -1080,48 +1126,20 @@ descartável e sintético; não depende do servidor de produção nem usa o arqu
 privado. Sem a chave, o relatório indica campanha incompleta, não aprovação.
 
 
-## Falhas concorrentes e impedimento da fonte — 13/11/2026
+## Pasta do banco fiador (rodada 12)
 
-A rodada `43355236141` confirmou erro HTTP 404 na leitura de `estados.json` depois de
-substituição concorrente do asset. A leitura por nome agora relê a lista e o novo ID, até quatro
-tentativas. Ausência transitória depois de um 404 não vira manifesto vazio. Erros de acesso e
-formato continuam falhando; o download de um ID congelado não aceita outro arquivo. A paginação
-revalida o cache HTTP e reinicia todas as páginas ao detectar sobreposição.
+Aplicar a migração **0035** pelo comando de migração já usado no servidor, depois
+de 0032–0034. Guardar documentos/JSON/relatórios fora do diretório público. O
+operador confere os documentos e usa `python -m raiz.pasta_fiador.operacao` para
+validar e anexar versões; contrato e exemplos de comando em
+[docs/pasta-fiador.md](pasta-fiador.md). Não há upload de modelo ou alteração de
+conferência pelo cliente. Rascunho pode ter pendências, mas a geração falha enquanto
+houver campo/documento obrigatório sem comprovação.
 
-A reprodução do funil com o cache oficial confirmou **50 de 50** erros municipais examinados
-no RN: embargo ativo sem geometria utilizável. No arquivo de 117.197 termos, 92.033 são ativos
-pelo critério vigente e 40.270 não têm WKT. No RN, isso alcança 98 municípios; em GO, 195;
-no MA, 168. A presença de WKT, por si só, não atesta sua validade. A evidência agregada, sem
-termos nem pessoas, está em `docs/medicoes/ibama-impedimentos-2026-11-13.json`.
-
-A guarda permanece: não converter restrição desconhecida em área zero nem descartar os imóveis.
-Os logs sem banco/Healthchecks agora registram tipo, arquivo, linha e o motivo fixo
-`embargo_ativo_sem_geometria_utilizavel`, sem texto livre da exceção, variáveis ou geometrias.
-A conclusão nacional depende de resolver esses dados de origem; a janela observada não teve
-UF nova concluída e não permite estimar uma data de término. O processamento dos demais municípios
-e a preservação do progresso continuam.
-
-O destino fechado foi atualizado para `30ace967b885d07c2579c8625a9b5eb9cd4ec53b`, com **19 origens**
-e as 11 versões científicas preservadas. A prova por AST delimita três métodos de leitura/tratamento
-de erro e a classe que transporta somente o status HTTP; o restante do armazém é idêntico ao urgente.
-A ciência do commit preservado não recebe a mudança de hash da carga da main #93. As auditorias
-históricas continuam intactas e reservas vivas não são alteradas. Validação: **66 testes** do leitor,
-diagnóstico, armazém, transferência e checkpoint; **182 testes** de integração da promoção/fila.
-
-
-Conferência complementar do impedimento Ibama: o geosserviço oficial PAMGIA devolveu os cinco
-termos da amostra RN sem WKT, mas quatro declaram `origem_geom=Ponto`, embora o formato tenha
-anéis, e um permanece sem geometria. Essa resposta não comprova cinco polígonos de área e
-não foi usada para liberar o município. Consulta restrita a identificador do termo, origem,
-código municipal, data geométrica e geometria; nenhum atributo de pessoa foi requisitado.
-Fonte: https://pamgia.ibama.gov.br/server/rest/services/01_Publicacoes_Bases/adm_embargos_ibama_a/FeatureServer/0.
-
-
-### Alcance da regra contra interrupções
-
-O `AGENTS.md` proíbe todos os agentes/chats de desativar ou cancelar processamento sem nova ordem
-explícita do fundador. Isso não cria isolamento de permissões no GitHub: a mesma permissão
-`Actions: write` autoriza disparar e desativar workflows. Uma sessão com essa credencial continua
-tecnicamente capaz de chamar esses endpoints. Não foi retirada a permissão necessária à continuação
-automática; separar credenciais/políticas externas é necessário para impor um bloqueio técnico entre
-sessões. Fonte: [permissões dos endpoints de workflows](https://docs.github.com/en/rest/actions/workflows).
+Exportações dependem das chaves `RAIZ_PROTECAO_CHAVES` e `RAIZ_PROTECAO_VERSAO`
+configuradas no back-end. A API verifica acesso pago a todos os CARs e recalcula
+validade/composição no momento da entrega. Testar com conta sintética, abrir os
+HTML do banco e comprador e conferir referência, impressão e marca. As rotas
+não enviam ao banco; o operador lê o relatório antes de entregar. Não ativam Pix,
+assinatura ou envio a terceiros. O catálogo conservador Raíz não substitui as
+exigências que um banco específico fornecer para revisão de regras.
