@@ -75,6 +75,14 @@ PROMOCOES_CARGA_ESTRITA = {
     "6e69cc042a9d93d772b4ac5cda419773fe03754f": "c89d0ac5790e1947b52fb64ce5af285ab02c50f0",
 }
 
+# Transporte com revalidação e espera de cota; prova por par, sem exceção no catálogo.
+DESTINO_COTA = "04ed42b4e1a2be9e2cf5ea09c92d2de682ce47ab"
+PROMOCOES_COTA = dict.fromkeys((
+    "6e69cc042a9d93d772b4ac5cda419773fe03754f",
+    "c89d0ac5790e1947b52fb64ce5af285ab02c50f0",
+    "1c8a8d7438839e03937a39bea5c3a9ed40da13c3",
+), DESTINO_COTA)  # fmt: skip
+
 
 def comando(args: list[str], entrada: str | None = None) -> str:
     r = subprocess.run(args, input=entrada, capture_output=True, text=True, timeout=120)
@@ -197,7 +205,7 @@ def promover_continuacoes(estado: dict) -> int:
         continuacao = pedido.get("continuacao", 0)
         falhas = pedido.get("falhas", 0)
         origem = pedido.get("ref")
-        destino = PROMOCOES_CONTINUACAO.get(origem) or PROMOCOES_CARGA_ESTRITA.get(origem)
+        destino = PROMOCOES_COTA.get(origem) or PROMOCOES_CONTINUACAO.get(origem) or PROMOCOES_CARGA_ESTRITA.get(origem)
         if (
             pedido.get("bloqueado")
             or type(continuacao) is not int

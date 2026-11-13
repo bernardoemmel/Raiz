@@ -1,0 +1,95 @@
+{
+  "formato": 1,
+  "destino": "04ed42b4e1a2be9e2cf5ea09c92d2de682ce47ab",
+  "origens": [
+    "c89d0ac5790e1947b52fb64ce5af285ab02c50f0",
+    "1c8a8d7438839e03937a39bea5c3a9ed40da13c3"
+  ],
+  "ponte": {
+    "origem": "6e69cc042a9d93d772b4ac5cda419773fe03754f",
+    "intermediario": "c89d0ac5790e1947b52fb64ce5af285ab02c50f0",
+    "auditoria_sha256": "7db7d6d1aca6aa4365deade0ef87f2c19f5ee9f931d8148560212a599bb92a00"
+  },
+  "commits": {
+    "c89d0ac5790e1947b52fb64ce5af285ab02c50f0": {
+      "versoes": {
+        "funil": "funil-3c3cfc2cd2b3",
+        "filtros": "filtros-3e5f911c6af8",
+        "direto": "direto-69f6f3d9cf66",
+        "mapbiomas": "mapbiomas-d72372253d47",
+        "extras_direto": "extras_direto-cc2931b7fe50",
+        "flag": "flag-e617055186db",
+        "terra": "terra-286f4cfacafa",
+        "titulo": "titulo-0bd308842ad3",
+        "ficha": "ficha-407e79a22566",
+        "rebanho": "rebanho-df262a5af674",
+        "desenvolvedor": "desenvolvedor-59ddf0f71570"
+      },
+      "armazem": "28783a1e9031ca76a8f7f50ee001307ef0fb629373258328b80465ada162fc0d",
+      "nativo_sha256": "f55d787caad693cadaf11dc084c03a928f465dbc8913adf1556aed77b31de12d",
+      "restante_armazem_ast_sha256": "3897e8ca705f257a99a3b866a6ee874690b863aec891f6883f34f7a0d38ffe3a",
+      "rodar_sha256": "0cc698a34ad0aa881176192b2822e29ebdeed753ad2678d907906494ad8c8212"
+    },
+    "1c8a8d7438839e03937a39bea5c3a9ed40da13c3": {
+      "versoes": {
+        "funil": "funil-3c3cfc2cd2b3",
+        "filtros": "filtros-3e5f911c6af8",
+        "direto": "direto-69f6f3d9cf66",
+        "mapbiomas": "mapbiomas-d72372253d47",
+        "extras_direto": "extras_direto-cc2931b7fe50",
+        "flag": "flag-e617055186db",
+        "terra": "terra-286f4cfacafa",
+        "titulo": "titulo-0bd308842ad3",
+        "ficha": "ficha-407e79a22566",
+        "rebanho": "rebanho-df262a5af674",
+        "desenvolvedor": "desenvolvedor-59ddf0f71570"
+      },
+      "armazem": "28783a1e9031ca76a8f7f50ee001307ef0fb629373258328b80465ada162fc0d",
+      "nativo_sha256": "f55d787caad693cadaf11dc084c03a928f465dbc8913adf1556aed77b31de12d",
+      "restante_armazem_ast_sha256": "3897e8ca705f257a99a3b866a6ee874690b863aec891f6883f34f7a0d38ffe3a",
+      "rodar_sha256": "0cc698a34ad0aa881176192b2822e29ebdeed753ad2678d907906494ad8c8212"
+    },
+    "04ed42b4e1a2be9e2cf5ea09c92d2de682ce47ab": {
+      "versoes": {
+        "funil": "funil-3c3cfc2cd2b3",
+        "filtros": "filtros-3e5f911c6af8",
+        "direto": "direto-69f6f3d9cf66",
+        "mapbiomas": "mapbiomas-d72372253d47",
+        "extras_direto": "extras_direto-cc2931b7fe50",
+        "flag": "flag-e617055186db",
+        "terra": "terra-286f4cfacafa",
+        "titulo": "titulo-0bd308842ad3",
+        "ficha": "ficha-407e79a22566",
+        "rebanho": "rebanho-df262a5af674",
+        "desenvolvedor": "desenvolvedor-59ddf0f71570"
+      },
+      "armazem": "7eac108e25e68b9c308585816cee8cbf696b13914b5c97b5134d87a22b5904b6",
+      "nativo_sha256": "f55d787caad693cadaf11dc084c03a928f465dbc8913adf1556aed77b31de12d",
+      "restante_armazem_ast_sha256": "3897e8ca705f257a99a3b866a6ee874690b863aec891f6883f34f7a0d38ffe3a",
+      "rodar_sha256": "0cc698a34ad0aa881176192b2822e29ebdeed753ad2678d907906494ad8c8212"
+    }
+  },
+  "comparacoes": [
+    {
+      "origem": "c89d0ac5790e1947b52fb64ce5af285ab02c50f0",
+      "destino": "04ed42b4e1a2be9e2cf5ea09c92d2de682ce47ab",
+      "pacotes_preservados": 244,
+      "pacotes_origem_sha256": "5b0f6d423d37a207b499c94f969b69f45850d27eec15b861a2d2e08d9a081925",
+      "diff_sha256": "93e08e263bb3563f4dea8b1f4d8f1753fb158663c833e771b97c5d2fa664e243"
+    },
+    {
+      "origem": "1c8a8d7438839e03937a39bea5c3a9ed40da13c3",
+      "destino": "04ed42b4e1a2be9e2cf5ea09c92d2de682ce47ab",
+      "pacotes_preservados": 254,
+      "pacotes_origem_sha256": "e65e8ac2cb60aa035a868b54a7193b786d703ae7494078bfe6708bf0e63410ea",
+      "diff_sha256": "34de7be6fe0b01d5cbe955133444c282d6e86b47975e7a7549535600e74918c2"
+    }
+  ],
+  "http_github_sha256": "2c18c7ca5a0e563bcc5c4f75ab5186cc9035374dfaa9a662f128a582a3b8e341",
+  "metodos_armazem_alterados": [
+    "__init__",
+    "_trava_impl"
+  ],
+  "versoes_preservadas": 11,
+  "contrato": "Somente retomadas pendentes não bloqueadas das três origens exatas; ciência, carga estrita e reservas vivas preservadas. O preflight estrito do catálogo não recebe exceção."
+}

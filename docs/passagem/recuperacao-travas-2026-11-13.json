@@ -1,0 +1,47 @@
+{
+  "verificado_utc": "2026-11-13T13:38:22.970895+00:00",
+  "refs": {
+    "refs/tags/trava-publicar-BA-dados-privados": "c3bf907cd8838056d3b1c1633159b37df7133a82",
+    "refs/tags/trava-publicar-CE-dados-privados": "cf306256e0b562b1e05415b8ca0df1ca835c2155",
+    "refs/tags/trava-publicar-MT-dados-privados": "60e17b00a87fd54e2ffa63863dcc52de69b5d43a",
+    "refs/tags/trava-publicar-PI-dados-privados": "60e17b00a87fd54e2ffa63863dcc52de69b5d43a",
+    "refs/tags/trava-publicar-dados-dados-privados": "60e17b00a87fd54e2ffa63863dcc52de69b5d43a"
+  },
+  "rodadas_ativas": [
+    {
+      "url": "https://github.com/bernardoemmel/Raiz/actions/runs/43433684165",
+      "criado": "2026-11-13T13:26:38Z",
+      "head": "c89d0ac5790e1947b52fb64ce5af285ab02c50f0"
+    },
+    {
+      "url": "https://github.com/bernardoemmel/Raiz/actions/runs/43427422930",
+      "criado": "2026-11-13T12:42:15Z",
+      "head": "6e69cc042a9d93d772b4ac5cda419773fe03754f"
+    },
+    {
+      "url": "https://github.com/bernardoemmel/Raiz/actions/runs/43425198271",
+      "criado": "2026-11-13T12:26:42Z",
+      "head": "6e69cc042a9d93d772b4ac5cda419773fe03754f"
+    },
+    {
+      "url": "https://github.com/bernardoemmel/Raiz/actions/runs/43424282235",
+      "criado": "2026-11-13T12:20:11Z",
+      "head": "6e69cc042a9d93d772b4ac5cda419773fe03754f"
+    },
+    {
+      "url": "https://github.com/bernardoemmel/Raiz/actions/runs/43403684811",
+      "criado": "2026-11-13T09:43:25Z",
+      "head": "6e69cc042a9d93d772b4ac5cda419773fe03754f"
+    },
+    {
+      "url": "https://github.com/bernardoemmel/Raiz/actions/runs/43402855136",
+      "criado": "2026-11-13T09:37:22Z",
+      "head": "6e69cc042a9d93d772b4ac5cda419773fe03754f"
+    }
+  ],
+  "catalogo_ativo": false,
+  "reservas_nas_ufs": false,
+  "conclusao": "Nenhum escritor ainda ativo pode ser dono destas cinco refs antigas. Manter todas as outras travas. Exclusão somente por compare-and-swap dos SHAs conferidos.",
+  "remocao_cas_utc": "2026-11-13T13:38:40.767582+00:00",
+  "referencias_apos_cas": []
+}

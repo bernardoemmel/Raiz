@@ -816,3 +816,22 @@ A prova real somente de leitura confirmou HTTP 200/304 sem consumir outra unidad
 75 testes de integração passaram; 21 casos específicos cobrem inclusive checkpoint recusado
 na primeira tentativa e restaurado byte a byte após a renovação simulada. Procedimento,
 fonte oficial e limites em `docs/operacao.md`. Suíte completa e CI seguem antes do merge.
+
+
+Às 10h38 de Brasília, cinco travas antigas (BA, CE, MT, PI e índice global privado)
+foram removidas por compare-and-swap atômico dos SHAs conferidos. O inventário completo
+do Actions confirmou que nenhum escritor ainda ativo poderia ser dono dessas referências:
+as cabeças deixaram de ser main antes de 04h14 UTC e todas as rodadas ativas começaram
+depois de 09h37 UTC; não havia catálogo ativo nem reservas nas quatro UFs. O publicador
+privado consulta a HEAD atual ao criar a trava, e a espera máxima para aquisição é de
+30 minutos. Isso distingue as refs antigas das que os jobs atuais podem adquirir.
+A prova está em `docs/passagem/recuperacao-travas-2026-11-13.json`; a exclusão falharia se
+qualquer SHA mudasse. A trava recente do PR e as demais não foram tocadas. Nenhum job,
+workflow, reserva ou arquivo de dados foi cancelado, desativado ou removido.
+
+A integração com o catálogo mantém seu orçamento próprio de espera, sem somar outra
+camada de retentativas. **327 testes** de fila/promoção/HTTP/catálogo e **126 testes** de
+HTTP/catálogo passaram (conjuntos sobrepostos). A promoção da cota usa o destino fechado
+`04ed42b4e1a2be9e2cf5ea09c92d2de682ce47ab`, três origens auditadas e as mesmas 11 versões
+científicas, carga estrita, código nativo e dependências. Não há exceção de compatibilidade
+no preflight do catálogo. A suíte completa final e o CI continuam obrigatórios.

@@ -23,7 +23,7 @@ PROMOCOES = {ORIGEM: DESTINO, BASE: DESTINO,
              "bea53bd06c7178daf2a53c392e5a9d54c55e7bc7": DESTINO,
              "436c7b636f6a8867b47403a1dfad4e4c741dc150": DESTINO}  # fmt: skip
 RAIZ = Path(__file__).resolve().parents[1]
-TODAS_PROMOCOES = F.PROMOCOES_CONTINUACAO | F.PROMOCOES_CARGA_ESTRITA
+TODAS_PROMOCOES = F.PROMOCOES_CONTINUACAO | F.PROMOCOES_CARGA_ESTRITA | F.PROMOCOES_COTA
 
 
 def _antigo(**campos):
@@ -164,7 +164,7 @@ def test_reconciliacao_nao_promove_cancelados_nem_erros_bloqueados(cancelado, or
         {"falhas": -1},
     ],
 )
-@pytest.mark.parametrize("origem", [ORIGEM, *F.PROMOCOES_CARGA_ESTRITA])
+@pytest.mark.parametrize("origem", [ORIGEM, *F.PROMOCOES_COTA])
 def test_pedidos_fora_do_contrato_nao_mudam(campos, origem):
     estado = {**F.vazio(), "fila": [_antigo(**{"ref": origem, **campos})]}
     antes = copy.deepcopy(estado)
@@ -394,3 +394,54 @@ def test_promocao_carga_estrita_confere_codigo_historico_e_dependencias(tmp_path
     assert all(p in pacotes[destino] for p in preservados)
     canonico = json.dumps(preservados, sort_keys=True, separators=(",", ":")).encode()
     assert hashlib.sha256(canonico).hexdigest() == prova["pacotes_origem_sha256"]
+
+
+def test_promocao_cota_preserva_carga_ciencia_e_demais_metodos(tmp_path):
+    prova = json.loads((RAIZ / "docs/passagem/auditoria-promocao-cota.json").read_text())
+    anterior = RAIZ / "docs/passagem/auditoria-promocao-carga-estrita.json"
+    ponte = prova["ponte"]
+    assert ponte["auditoria_sha256"] == hashlib.sha256(anterior.read_bytes()).hexdigest()
+    antiga = json.loads(anterior.read_text())
+    assert (ponte["origem"], ponte["intermediario"]) == (antiga["origem"], antiga["destino"])
+    assert F.PROMOCOES_COTA == dict.fromkeys([*prova["origens"], ponte["origem"]], F.DESTINO_COTA)
+    assert prova["destino"] == F.DESTINO_COTA
+    locks = {}
+    for ref, auditado in prova["commits"].items():
+        pasta = tmp_path / ref
+        pasta.mkdir()
+        assert _codigo_fechado(ref, pasta) == {k: auditado[k] for k in ("versoes", "armazem")}
+        checkout = pasta / "checkout"
+        rodar = (checkout / "raiz/funil/rodar.py").read_bytes()
+        assert rodar.count(b"depois_da_carga(eng, cod, estrito=True)") == 1
+        assert hashlib.sha256(rodar).hexdigest() == auditado["rodar_sha256"]
+        nativo = hashlib.sha256()
+        for arquivo in sorted((checkout / "nativo").rglob("*")):
+            if arquivo.is_file():
+                nativo.update(arquivo.relative_to(checkout).as_posix().encode() + b"\0" + arquivo.read_bytes() + b"\0")
+        assert nativo.hexdigest() == auditado["nativo_sha256"]
+        arvore = ast.parse((checkout / "raiz/executor/armazem.py").read_bytes())
+        classe = next(n for n in arvore.body if isinstance(n, ast.ClassDef) and n.name == "ArmazemRelease")
+        assert set(prova["metodos_armazem_alterados"]) == {"__init__", "_trava_impl"}
+        classe.body = [
+            n for n in classe.body if not (isinstance(n, ast.FunctionDef) and n.name in {"__init__", "_trava_impl"})
+        ]
+        resto = hashlib.sha256(ast.dump(arvore, include_attributes=False).encode()).hexdigest()
+        assert resto == auditado["restante_armazem_ast_sha256"]
+        locks[ref] = tomllib.loads((checkout / "uv.lock").read_text())["package"]
+        if ref == prova["destino"]:
+            assert (
+                hashlib.sha256((checkout / "raiz/executor/http_github.py").read_bytes()).hexdigest()
+                == prova["http_github_sha256"]
+            )
+    destino = prova["commits"][prova["destino"]]
+    assert len(destino["versoes"]) == 11
+    assert antiga["commits"][ponte["origem"]]["versoes"] == destino["versoes"]
+    for par in prova["comparacoes"]:
+        origem = prova["commits"][par["origem"]]
+        for campo in ("versoes", "rodar_sha256", "nativo_sha256", "restante_armazem_ast_sha256"):
+            assert origem[campo] == destino[campo]
+        pacotes = [p for p in locks[par["origem"]] if p.get("source") != {"editable": "."}]
+        assert len(pacotes) == par["pacotes_preservados"]
+        assert all(p in locks[prova["destino"]] for p in pacotes)
+        canonico = json.dumps(pacotes, sort_keys=True, separators=(",", ":")).encode()
+        assert hashlib.sha256(canonico).hexdigest() == par["pacotes_origem_sha256"]
