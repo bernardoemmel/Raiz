@@ -10,7 +10,7 @@ import { Protocol } from "pmtiles"
 import { COR, MAPA } from "../../../compartilhado/cores"
 import { CORES_MAPA, FILTRO_PAISES } from "../../../compartilhado/mapa-cores"
 import { fonteMapaBase } from "../../../compartilhado/mapa-base"
-import { camadasNacionais, fontesNacionais } from "./nacional"
+import { camadasNacionais, fontesNacionais, type DadosNacionais } from "./nacional"
 
 let pronto = false
 
@@ -28,7 +28,7 @@ export const SABOR_RAIZ: Flavor = { ...namedFlavor("white"), ...CORES_MAPA, land
 const glyphs = () => location.origin + import.meta.env.BASE_URL + "geo/fontes/{fontstack}/{range}.pbf"
 
 /** Estilo com o mapa base do município (ou só o fundo, se o PMTiles ainda não foi gerado). */
-export function estiloBase(base: string | null, opcoes: { rotulos?: boolean; nacional?: boolean } = {}): StyleSpecification {
+export function estiloBase(base: string | null, opcoes: { rotulos?: boolean; nacional?: boolean; dadosNacionais?: DadosNacionais } = {}): StyleSpecification {
   const fundo: StyleSpecification = {
     version: 8,
     glyphs: glyphs(),
@@ -40,7 +40,7 @@ export function estiloBase(base: string | null, opcoes: { rotulos?: boolean; nac
     const dadosNacionais = camadasNacionais()
     // Registra o estilo uma vez; o fundo aparece enquanto estados e agregados chegam.
     // Mantém fronteiras abaixo dos estados e nomes dos países abaixo dos rótulos de cobertura.
-    return { ...fundo, sources: { ...(base ? { protomaps: fonteMapaBase(base) } : {}), ...fontesNacionais() }, layers: [
+    return { ...fundo, sources: { ...(base ? { protomaps: fonteMapaBase(base) } : {}), ...fontesNacionais(opcoes.dadosNacionais) }, layers: [
       ...baseNacional.filter(camada => camada.type !== "symbol"),
       ...dadosNacionais.filter(camada => camada.type === "fill" || camada.type === "line"),
       ...baseNacional.filter(camada => camada.type === "symbol"),

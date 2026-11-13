@@ -11,7 +11,7 @@ export class ServidorGrupos {
   private readonly responder: (resposta: RespostaGrupos) => void
   private readonly transporte: typeof fetch
 
-  constructor(urlPublica: string, responder: (resposta: RespostaGrupos) => void, transporte: typeof fetch = fetch) {
+  constructor(urlPublica: string, responder: (resposta: RespostaGrupos) => void, transporte: typeof fetch = globalThis.fetch.bind(globalThis)) {
     this.urlPublica = urlPublica
     this.responder = responder
     this.transporte = transporte

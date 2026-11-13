@@ -1,10 +1,6 @@
-import type { ExpressionSpecification, GeoJSONSourceSpecification, LayerSpecification } from "maplibre-gl"
 import type { Geo } from "../../../compartilhado/dados"
 import { fmtHa, fmtInt } from "../../../compartilhado/formato"
-import { ZOOM_IMOVEIS } from "./cartografia"
 
-export const FONTE_GRUPOS = "agregados-nacionais"
-export const CAMADA_GRUPOS = "grupos-fazendas"
 export interface GrupoMapa {
   chave: string
   centro: [number, number]
@@ -36,26 +32,6 @@ export function urlAgregadosPublica(url: string | null | undefined, arquivoEsper
   } catch { return null }
 }
 
-const HA_PONTO: ExpressionSpecification = ["coalesce", ["get", "potencial_ha"], 0]
-const COM_MEDIDA_PONTO: ExpressionSpecification = ["case", [">", HA_PONTO, 0], 1, 0]
-
-/** Supercluster do MapLibre roda no worker; não há segundo índice no thread da interface. */
-export function fonteGrupos(): GeoJSONSourceSpecification {
-  return { type: "geojson", data: { type: "FeatureCollection", features: [] }, cluster: true,
-    clusterRadius: 112, clusterMaxZoom: ZOOM_IMOVEIS - 1, clusterMinPoints: 2,
-    // Zero é só a identidade da soma; com_medida preserva a ausência de hectares no resultado.
-    clusterProperties: { fazendas: ["+", ["get", "fazendas"]], ha_conhecidos: ["+", HA_PONTO],
-      com_medida: ["+", COM_MEDIDA_PONTO], sem_medida: ["+", ["-", 1, COM_MEDIDA_PONTO]] },
-  }
-}
-
-/** A camada mantém a consulta espacial; os botões visíveis dispensam o programa gráfico de círculos. */
-export function camadasGrupos(): LayerSpecification[] {
-  return [{ id: CAMADA_GRUPOS, type: "circle", source: FONTE_GRUPOS, maxzoom: ZOOM_IMOVEIS,
-    paint: { "circle-opacity": 0, "circle-stroke-opacity": 0,
-      "circle-radius": ["step", ["get", "fazendas"], 44, 10000, 50, 100000, 56] } }]
-}
-
 export function raioGrupo(grupo: GrupoMapa): number {
   return grupo.fazendas >= 100000 ? 56 : grupo.fazendas >= 10000 ? 50 : 44
 }
@@ -63,7 +39,7 @@ export function raioGrupo(grupo: GrupoMapa): number {
 export function rotulosGrupo(grupo: GrupoMapa): [string, string] {
   const ha = grupo.hectares
   return [fmtInt(grupo.fazendas), ha === null ? "Sem medida" : ha < 0.1 ? "<0,1 ha"
-    : `${ha.toLocaleString("pt-BR", { maximumFractionDigits: ha >= 10 ? 0 : 1 })} ha`]
+    : fmtHa(ha)]
 }
 
 export function lerGrupo(f: { properties: Record<string, unknown> | null; geometry: { type: string; coordinates?: unknown } }): GrupoMapa | null {

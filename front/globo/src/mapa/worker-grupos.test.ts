@@ -11,6 +11,19 @@ const dados: Geo = { type: "FeatureCollection", features: [
 const consulta = (id: number, geracao = 1): RequisicaoGrupos => ({ acao: "consultar", id, geracao, bbox: [-70, -30, -30, 10], zoom: 3 })
 
 describe("protocolo dos agregados", () => {
+  afterEach(() => vi.unstubAllGlobals())
+
+  it("conserva o contexto global exigido pelo fetch nativo do navegador", async () => {
+    vi.stubGlobal("fetch", function (this: unknown) {
+      if (this !== globalThis) throw new TypeError("Illegal invocation")
+      return Promise.resolve(new Response(JSON.stringify(dados)))
+    })
+    const respostas: RespostaGrupos[] = []
+    const servidor = new ServidorGrupos(url, resposta => respostas.push(resposta))
+    await servidor.receber({ acao: "carregar", id: 1, geracao: 1, entrada: { url } })
+    expect(respostas).toEqual([{ id: 1, geracao: 1, tipo: "pronto" }])
+  })
+
   it("lê somente a URL pública, sem credenciais nem redirecionamento, e devolve apenas grupos", async () => {
     const respostas: RespostaGrupos[] = []
     const transporte = vi.fn<typeof fetch>().mockResolvedValue(new Response(JSON.stringify(dados)))

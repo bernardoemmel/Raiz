@@ -70,6 +70,29 @@ export async function conferirCicloMapa(navegador, base) {
   })
   assert(estavel.grupos > 0)
   assert(estavel.idles <= 1, "Os marcadores não podem manter o mapa renderizando sem interação.")
+  // O mesmo enquadramento uma volta adiante conserva os grupos, sem perdê-los no antimeridiano.
+  const original = await direta.evaluate(() => {
+    const caixa = document.querySelector(".mapa-brasil .mapa"), mapa = caixa.__mapa
+    const centro = mapa.getCenter().toArray()
+    const grupos = caixa.__grupos.map(g => [g.chave, g.fazendas, g.hectares])
+    mapa.jumpTo({ center: [centro[0] + 360, centro[1]] })
+    return { centro, grupos }
+  })
+  await direta.waitForFunction(() => document.querySelector(".mapa-brasil .mapa").__grupos?.some(g => g.centro[0] > 180))
+  assert.deepEqual(await direta.evaluate(() => document.querySelector(".mapa-brasil .mapa").__grupos.map(g => [g.chave, g.fazendas, g.hectares])), original.grupos)
+  await direta.evaluate(centro => document.querySelector(".mapa-brasil .mapa").__mapa.jumpTo({ center: centro }), original.centro)
+  await direta.waitForFunction(() => document.querySelector(".mapa-brasil .mapa").__grupos?.some(g => g.centro[0] < 180))
+  // Um evento tardio do botão do índice anterior não pode mover o mapa recém-aberto.
+  await direta.evaluate(() => { window.__botaoAntigo = document.querySelector("button.cartografia-grupo"); location.hash = "#/entrar" })
+  await direta.getByRole("heading", { name: "Entrar na Raíz" }).waitFor()
+  await direta.evaluate(() => { location.hash = "#/" })
+  await direta.locator("button.cartografia-grupo").first().waitFor()
+  const zoomNovo = await direta.evaluate(() => document.querySelector(".mapa-brasil .mapa").__mapa.getZoom())
+  await direta.evaluate(async () => {
+    window.__botaoAntigo.click()
+    await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))
+  })
+  assert.equal(await direta.evaluate(() => document.querySelector(".mapa-brasil .mapa").__mapa.getZoom()), zoomNovo)
   assert.deepEqual(erros, [])
   await fallback.close()
 }

@@ -160,23 +160,24 @@ try {
   await pagina.locator('time[datetime="2026-11-11T18:00:00Z"]').waitFor()
   // Supercluster recebe somente células agregadas, antes de qualquer limite municipal ou CAR.
   await pagina.waitForFunction(() => {
-    const m = document.querySelector(".mapa-brasil .mapa").__mapa
-    return m.queryRenderedFeatures({ layers: ["grupos-fazendas"] }).some(f => f.properties.fazendas === 11)
+    return document.querySelector(".mapa-brasil .mapa").__grupos?.some(grupo => grupo.fazendas === 11)
   })
   assert(!pedidos.some(url => /brasil_municipios|imoveis_\d|imoveis_basicos_/.test(url)), "A entrada não pode baixar milhares de polígonos nem tabelas individuais.")
   const inicial = await pagina.evaluate(() => {
     const m = document.querySelector(".mapa-brasil .mapa").__mapa
-    const f = m.queryRenderedFeatures({ layers: ["grupos-fazendas"] })[0]
-    return { propriedades: f.properties, hexagonos: !!m.getLayer("potencial-h3"), zoom: m.getZoom() }
+    const grupo = document.querySelector(".mapa-brasil .mapa").__grupos[0]
+    return { grupo, hexagonos: !!m.getLayer("potencial-h3"), zoom: m.getZoom(), fonteDuplicada: !!m.getSource("agregados-nacionais"), circulo: !!m.getLayer("grupos-fazendas") }
   })
-  // O MapLibre 6.15 devolve uma cópia do dado carregado à main; serialize().data já não é a URL depois do load.
+  // O worker próprio lê a projeção pública; o mapa recebe somente grupos e não recria a fonte bruta.
   assert(pedidos.includes(new URL("geo/agregados_brasil.geojson", base).href), "O mapa deve carregar a projeção normal anunciada para o worker.")
   assert(!pedidos.some(url => url.endsWith("/agregados_brasil.geojson.gz")), "A publicação nova não precisa baixar também o agregado legado.")
   assert.equal(inicial.hexagonos, false, "O H3 é só a agregação de entrada, não o desenho da escala nacional.")
-  assert.equal(inicial.propriedades.fazendas, 11)
-  assert.equal(inicial.propriedades.ha_conhecidos, 1000)
-  assert.equal(inicial.propriedades.sem_medida, 1)
-  assert.equal(inicial.propriedades.point_count, 2, "Dois pontos representam onze fazendas, não duas.")
+  assert.equal(inicial.grupo.fazendas, 11)
+  assert.equal(inicial.grupo.hectares, 1000)
+  assert.equal(inicial.grupo.semMedida, 1)
+  assert.equal(typeof inicial.grupo.cluster, "number", "Os dois pontos formam um grupo com onze fazendas.")
+  assert.equal(inicial.fonteDuplicada, false, "O GeoJSON agregado não pode voltar à main como uma fonte MapLibre.")
+  assert.equal(inicial.circulo, false, "Os botões não precisam de círculos invisíveis no renderizador.")
   assert.equal(pedidosSatelite.length, 0, "A entrada nacional não baixa imagens de satélite.")
   assert.equal(await pagina.evaluate(() => document.querySelector(".mapa-brasil .mapa").__mapa.getPaintProperty("boundaries_country", "line-dasharray")), undefined, "Fronteiras iniciais contínuas reutilizam o programa dos estados.")
   // CAR cadastrado na PB, publicado em dois recortes do RN: uma opção, sem consultar arquivos da PB.
@@ -198,7 +199,6 @@ try {
   await marcadorInicial.waitFor({ state: "visible" })
   assert.equal(await marcadorInicial.innerText(), "11\n1.000 ha")
   assert.match(await marcadorInicial.getAttribute("aria-label"), /^11 1\.000 ha\. 11 fazendas.*Cobertura parcial.*Aproximar/)
-  assert.equal(await pagina.evaluate(() => document.querySelector(".mapa-brasil .mapa").__mapa.getPaintProperty("grupos-fazendas", "circle-opacity")), 0)
   await marcadorInicial.evaluate(botao => {
     window.__grupoInicial = botao
     const m = document.querySelector(".mapa-brasil .mapa").__mapa
@@ -252,14 +252,15 @@ try {
     "O município precisa reutilizar a mesma base nacional.")
   await pagina.evaluate(() => document.querySelector(".mapa-brasil .mapa").__mapa.jumpTo({ zoom: 11, center: [-49.9, -6.1] }))
   await mapaPronto()
+  await pagina.locator("button.cartografia-grupo").first().waitFor()
   const distante = await pagina.evaluate(() => {
     const m = document.querySelector(".mapa-brasil .mapa").__mapa
     return { fazendas: m.queryRenderedFeatures({ layers: ["imoveis", "imoveis-linha", "imoveis-sobrepostos"] }).length,
-      grupos: m.queryRenderedFeatures({ layers: ["grupos-fazendas"] }).length, preenchimento: m.getPaintProperty("imoveis", "fill-opacity") }
+      grupos: document.querySelectorAll("button.cartografia-grupo").length, preenchimento: m.getPaintProperty("imoveis", "fill-opacity") }
   })
   assert.equal(distante.fazendas, 0, "Nenhum imóvel é desenhado no zoom 11.")
   assert(distante.grupos > 0, "Os grupos com contagem e hectares precisam aparecer na escala regional.")
-  assert(await pagina.locator("button.cartografia-grupo:visible").count() > 0, "A consulta transparente precisa corresponder a botões desenhados.")
+  assert(await pagina.locator("button.cartografia-grupo:visible").count() > 0, "Os grupos do worker precisam corresponder a botões desenhados.")
   assert.equal(distante.preenchimento, 0, "O CAR não recebe preenchimento em nenhum zoom.")
   await pagina.screenshot({ path: path.join(resultado, "depois-regional-1440.png"), fullPage: true })
   // Usa o controle que o visitante usa; não pula direto para um estado interno do mapa.
@@ -286,7 +287,7 @@ try {
     const camadas = m.getStyle().layers
     const ordem = Object.fromEntries(camadas.map((camada, i) => [camada.id, i]))
     return { contorno: m.getPaintProperty("imoveis-linha", "line-width"), fill: m.getPaintProperty("imoveis", "fill-opacity"),
-      grupos: m.queryRenderedFeatures({ layers: ["grupos-fazendas"] }).length,
+      grupos: document.querySelectorAll("button.cartografia-grupo").length,
       sobrepostos: [...new Set(m.queryRenderedFeatures({ layers: ["imoveis-sobrepostos"] }).map(f => f.properties.cod_imovel))],
       hachura: m.queryRenderedFeatures({ layers: ["restauracao-hachura"] }).length,
       ordem, fundoDetalhadoAbaixo: camadas.every(camada => camada.source !== "protomaps-detalhe" || camada.type === "symbol" || ordem[camada.id] < ordem["brasil-mun"]) }
@@ -428,8 +429,7 @@ try {
   })
   await legado.goto(base)
   await legado.waitForFunction(() => {
-    const m = document.querySelector(".mapa-brasil .mapa")?.__mapa
-    return m?.getLayer("grupos-fazendas") && m.queryRenderedFeatures({ layers: ["grupos-fazendas"] }).some(f => f.properties.fazendas === 11 && f.properties.ha_conhecidos === 1000 && f.properties.sem_medida === 1)
+    return document.querySelector(".mapa-brasil .mapa")?.__grupos?.some(grupo => grupo.fazendas === 11 && grupo.hectares === 1000 && grupo.semMedida === 1)
   })
   assert(pedidosLegados.some(url => url.endsWith("/agregados_brasil.geojson.gz")), "Índice antigo usa o gzip legado.")
   assert(!pedidosLegados.some(url => url.endsWith("/agregados_brasil.geojson")), "Índice antigo não presume um arquivo novo não anunciado.")
@@ -439,6 +439,7 @@ try {
   await semAgregados.route("**/geo/agregados_brasil.geojson", rota => rota.fulfill({ status: 503, body: "Falha simulada do agregado" }))
   await semAgregados.goto(base)
   await semAgregados.getByRole("alert").filter({ hasText: "Não foi possível carregar os agregados" }).waitFor()
+  await semAgregados.waitForFunction(() => document.querySelector(".mapa-brasil .mapa")?.__mapa?.loaded())
   await semAgregados.evaluate(() => document.querySelector(".mapa-brasil .mapa").__mapa.fire("idle"))
   assert.equal(await semAgregados.locator("button.cartografia-grupo").count(), 0)
   await semAgregados.close()

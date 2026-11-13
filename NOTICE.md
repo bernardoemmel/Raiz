@@ -4,7 +4,9 @@ Agrupamento público do mapa: Supercluster, implementação `ClusterTileIndex` d
 `@maplibre/geojson-vt` 6.3.1, já utilizada pelo worker GeoJSON do MapLibre GL JS 6.15.0.
 Licenças MIT (MapLibre contributors, 2025) e ISC (Mapbox, 2024), conferidas no LICENSE do pacote instalado.
 O texto completo acompanha os dois sites em `licencas/supercluster.txt`.
-Usado como dependência transitiva, sem copiar código nem incluir um segundo índice na interface.
+O Globo declara esse mesmo pacote como dependência direta: o índice público roda em um worker próprio e
+envia à interface apenas os grupos da janela visível. O mapa não cria uma segunda fonte GeoJSON para esses grupos.
+Nenhum código do agrupador foi copiado; limites do CAR continuam nas fontes próprias do MapLibre.
 Origem: https://github.com/maplibre/geojson-vt e https://github.com/mapbox/supercluster.
 
 A fixture de navegador inclui a faixa 0–255 dos glifos Noto Sans Regular distribuídos por

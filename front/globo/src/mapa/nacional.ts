@@ -1,18 +1,19 @@
 /** Cartografia nacional preparada em um único estilo; as fontes recebem dados quando chegarem. */
 import type { LayerSpecification, SourceSpecification } from "maplibre-gl"
+import type { Geo } from "../../../compartilhado/dados"
 import { COR } from "../../../compartilhado/cores"
 import { ZOOM_IMOVEIS } from "./cartografia"
-import { FONTE_GRUPOS, camadasGrupos, fonteGrupos } from "./grupos"
 
 const ZOOM_FAZENDAS = ZOOM_IMOVEIS
 const ZOOM_ROTULO_ESTADO = 6.5
 
-export function fontesNacionais(): Record<string, SourceSpecification> {
+export interface DadosNacionais { areas: Geo; rotulos: Geo }
+
+export function fontesNacionais(dados?: DadosNacionais): Record<string, SourceSpecification> {
   const data = { type: "FeatureCollection" as const, features: [] }
   return {
-    "brasil-estados": { type: "geojson", data, promoteId: "uf" },
-    "estados-rotulos": { type: "geojson", data },
-    [FONTE_GRUPOS]: fonteGrupos(),
+    "brasil-estados": { type: "geojson", data: (dados?.areas ?? data) as never, promoteId: "uf" },
+    "estados-rotulos": { type: "geojson", data: (dados?.rotulos ?? data) as never },
   }
 }
 
@@ -76,5 +77,5 @@ export function camadasNacionais(): LayerSpecification[] {
       },
     },
   )
-  return [...camadas, ...camadasGrupos()]
+  return camadas
 }
