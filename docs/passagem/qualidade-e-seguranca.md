@@ -817,3 +817,25 @@ A conferência também cobre os leitores de cache do navegador: versões com doc
  o ID contaminado e omite a URL pessoal, incluindo conteúdo codificado e credenciais, preservando o ID
  oficial e a indicação de cobertura insuficiente. **38 testes do front**, **32 de fontes territoriais**
  e **17 de privacidade/resumo** passaram; os **141 testes de integração com PostGIS** cobrem a revisão #93.
+
+
+### Integração da main #97 — calendário no transporte MCP
+
+Main `3b962e7` incorporada, com revisão de filtros, OAuth, projeção pública e gatilhos de coleta/site.
+Preservados cache, portão do Release e erro sanitizado na resolução dos conflitos. As oito ferramentas
+agora pertencem ao manifesto real de tempo/carga e ao catálogo do auditor; evento sintético no banco
+acompanha a data da execução. Um teste exige igualdade entre catálogo registrado e catálogo auditado.
+A validação compartilhada por arquivo/MCP conserva diagnósticos fechados mesmo com entrada pessoal inválida.
+
+O CI `43359871493` passou em tempo/carga e reprovou o corpus no controle `certidao-autoridade`, com
+`resposta_json_invalido`. **Produto e regras** é dono da adequação do leitor ao contrato de resposta;
+o ensaio permanece obrigatório, sem converter falha em aviso, aceitar resposta inventada ou renovar a
+referência histórica de ausência. O próximo ensaio agrega as 12 variantes isoladas para mostrar a extensão
+da falha. O #76 só pode ser integrado quando o CI do commit final inteiro aprovar.
+
+Validação da integração #97: **77 testes focados aprovados**, incluindo PostGIS, catálogo, diagnóstico
+sanitizado e observador independente (agora também inclui o schema calendário). Ensaio real OAuth/MCP:
+as oito ferramentas responderam em até **0,279 s**; Locust normal teve 30 chamadas sem falhas (máximo 436 ms),
+e saturação teve 370 chamadas sem falhas, **275 respostas 429 válidas** e máximo 841 ms. Isso comprova
+transporte/tempo/carga; não aprova o corpus. Ruff, formatação (603 arquivos), actionlint, 1.098 arquivos
+sem CPF/CNPJ e Gitleaks dos dois commits novos da main passaram.

@@ -20,14 +20,11 @@ O gabarito determinístico exige fatos corretos e uma consulta MCP de andamento 
 resposta, diálogo ou credencial é salvo nos relatórios desta suíte. Testes com dublês verificam a instrumentação,
 mas somente o ensaio com modelo real pode aprovar o corpus.
 
-O PR #54 acrescentou a função `raiz.calendario.mcp.proximos_eventos`, pronta para
-registro futuro no servidor. `test_calendario_mcp_seguranca.py` já exercita essa função
-real em Postgres: extrai/importa os seis casos adversariais, exige a resposta útil em
-menos de 5 s, observa SQL somente de leitura e verifica que pedidos, reservas,
-notificações e arquivos não mudam. Rede, shell e envio de avisos são interceptados
-para que uma tentativa proibida falhe. Esse caminho determinístico descarta o texto
-bruto; não inclui transporte MCP/OAuth nem um agente LLM. A cobertura é explicitamente
-da função existente, não da integração futura.
+O #97 registrou `proximos_eventos` no servidor MCP. O manifesto de tempo e carga agora
+cobre as oito ferramentas, com evento sintético no banco dentro da janela móvel. OAuth,
+inventário exato e resposta válida continuam obrigatórios. A suíte determinística
+`test_calendario_mcp_seguranca.py` também observa importação/consulta, SQL somente de
+leitura e ausência de efeitos; ela complementa o corpus com LLM, sem substituí-lo.
 
 O corpus próprio em `ataques.json` segue a ideia de separar tarefa legítima, entrada
 controlada pelo atacante e objetivo proibido do AgentDojo. Não incorpora código nem
@@ -104,20 +101,20 @@ uv run python scripts/testar_mcp_ci.py
 ```
 
 O ambiente não herda segredos de serviços do operador, bloqueia conexão/DNS externos e só usa crédito fictício.
-A amostra do repositório alimenta pedidos e worker reais. As sete ferramentas precisam dar resposta válida;
+A amostra do repositório alimenta pedidos e worker reais. As oito ferramentas precisam dar resposta válida;
 limite mede apenas retorno da ferramenta, que pode admitir um trabalho assíncrono sem executá-lo inteiro.
 O prazo não é tempo de conclusão do cálculo em segundo plano. O servidor conserva os logs sanitizados do produto.
 
 `consultar_ficha` recebe um CAR da amostra adquirido pela própria empresa da fixture: um crédito sintético é
 debitado pelo serviço real de desbloqueio, com movimento auditado, antes do ensaio. A carteira fica zerada e a
 consulta usa OAuth, conta, sinal, contrato, limites e autorização do CAR reais; nenhuma cobrança externa é criada.
-Essa ferramenta somente relê a ficha e não exige chave de idempotência. As outras seis recebem uma chave por
+Essa ferramenta somente relê a ficha e não exige chave de idempotência; o calendário público também não. As outras seis recebem uma chave por
 intenção, preservada nas repetições de carga para não gerar novos trabalhos ou débitos.
 
 A carga repete intenções idempotentes sobre pedidos reais preparados no banco descartável, com seis usuários.
 Na fase normal, cada usuário inicia uma chamada a cada dois segundos (`constant_pacing`), com posições iniciais
-rotacionadas entre as sete ferramentas. São cerca de 26 leituras de ficha por minuto para a mesma empresa, abaixo
-da cota real de 30/min; as sete ferramentas continuam cobertas nos dez segundos do ensaio. A espera não entra no
+rotacionadas entre as oito ferramentas. São cerca de 23 leituras de ficha por minuto para a mesma empresa, abaixo
+da cota real de 30/min; as oito ferramentas continuam cobertas nos dez segundos do ensaio. A espera não entra no
 tempo da chamada, que continua menor que 5 s. Configurações manuais mais agressivas podem exceder legitimamente
 a cota. Não há alteração ou desligamento do limite do produto.
 Isso mede transporte, autorização, consultas e replay seguro; não é capacidade máxima de criação de novos lotes.

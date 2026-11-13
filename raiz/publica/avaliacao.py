@@ -21,6 +21,7 @@ from pydantic import BaseModel, ConfigDict, Field, StringConstraints, Validation
 GABARITO = Path(__file__).with_name("avaliacao_tarefas.yaml")
 FERRAMENTAS = frozenset(
     {
+        "proximos_eventos",
         "consultar_ficha",
         "consultar_disponibilidade",
         "pedir_lote",

@@ -78,7 +78,7 @@ def finalizar(environment, **_):
 
 
 class MCPUsuario(User):
-    # Seis usuários e sete ferramentas: ~26 fichas/min, abaixo da cota real 30/min.
+    # Seis usuários e oito ferramentas: ~23 fichas/min, abaixo da cota real 30/min.
     # A espera fica fora do cronômetro de resposta. Saturação mantém alta demanda.
     wait_time = constant_pacing(2) if FASE == "normal" else between(0.03, 0.08)
 

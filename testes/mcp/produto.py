@@ -1,8 +1,7 @@
 """Integração HTTP/OAuth/SQL real para latência e Locust do MCP da Raíz.
 
-Não inventa um agente de leitura: o produto publica ferramentas de pedidos e ficha para
-agentes externos e não fornece cliente que leia certidão/edital/nomes de arquivo.
-O corpus adversarial exige essa integração adicional e permanece explicitamente pendente.
+O corpus usa o leitor Claude/MCP real pelo adaptador próprio. A ausência histórica
+não autoriza aviso quando esse leitor está presente.
 """
 
 from __future__ import annotations
@@ -178,11 +177,34 @@ def _criar_banco(url: str) -> None:
 
 def _semente(engine) -> dict:
     from raiz import prospeccao_acesso
+    from raiz.calendario import banco as calendario
+    from raiz.calendario.coleta import fontes
+    from raiz.calendario.modelos import Evento, identificador
     from raiz.pedidos import servico
     from raiz.publica import trabalhos
 
     cid, _ = servico.criar_cliente(engine, "Empresa sintética do ensaio MCP")
     with engine.begin() as con:
+        # Calendário real no banco, dentro da janela móvel do servidor e sem texto de terceiros.
+        agora = dt.datetime.now(dt.UTC)
+        fonte = next(f for f in fontes() if f["id"] == "icvcm")
+        calendario.gravar(
+            con,
+            [
+                Evento(
+                    id=identificador("icvcm", "ensaio-mcp", "icvcm", "1"),
+                    tipo="icvcm",
+                    data=agora.date() + dt.timedelta(days=1),
+                    fonte_id=fonte["id"],
+                    fonte_nome=fonte["nome"],
+                    fonte_url=fonte["urls"][0],
+                    coletado_em=agora,
+                    confianca=1,
+                )
+            ],
+            [],
+            cruzar_imoveis=False,
+        )
         # Estado inicial isolado: crédito fictício, permissão administrativa e liberação já concedidas.
         # Não dispara pagamento nem aprovação usando uma ferramenta de agente.
         con.execute(
@@ -214,6 +236,7 @@ def _semente(engine) -> dict:
         raise RuntimeError("O trabalho real da consulta de referência não concluiu")
     cancelamento = trabalhos.submeter(engine, cid, "pedir_lote", CAMPOS, "preparacao-cancelar")
     casos = {
+        "proximos_eventos": {"argumentos": {"tipo": "icvcm", "dias": 7}},
         "consultar_ficha": {"argumentos": {"codigo_car": car}},
         "consultar_disponibilidade": {"argumentos": {"campos": CAMPOS, "idempotency_key": "consulta-manifesto"}},
         "pedir_lote": {"argumentos": {"campos": CAMPOS, "idempotency_key": "pedido-manifesto"}},

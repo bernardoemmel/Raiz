@@ -17,17 +17,26 @@ class ErroSnapshot(ValueError):
 
 def ler(caminho: Path) -> tuple[list[Evento], list[FonteEstado]]:
     try:
-        return _ler(caminho)
+        return validar(json.loads(caminho.read_text(encoding="utf-8")))
     except ErroSnapshot:
         raise
     except (ValueError, TypeError, KeyError, AttributeError, OSError):
-        # ValidationError do Pydantic contém input_value; o JSON pode conter texto de dono.
-        # Não deixar o CLI/traceback publicar esse diagnóstico antes do portão de upload.
+        # O CLI nunca publica os bytes, valores pessoais ou caminho da entrada inválida.
         raise ErroSnapshot("snapshot do calendário inválido; conteúdo omitido") from None
 
 
-def _ler(caminho: Path) -> tuple[list[Evento], list[FonteEstado]]:
-    dados = json.loads(caminho.read_text(encoding="utf-8"))
+def validar(dados: dict) -> tuple[list[Evento], list[FonteEstado]]:
+    """Valida arquivo ou resposta sem expor valores da entrada nos diagnósticos."""
+    try:
+        return _validar(dados)
+    except ErroSnapshot:
+        raise
+    except (ValueError, TypeError, KeyError, AttributeError):
+        # ValidationError do Pydantic contém input_value; não propagá-lo à API nem aos logs.
+        raise ErroSnapshot("snapshot do calendário inválido; conteúdo omitido") from None
+
+
+def _validar(dados: dict) -> tuple[list[Evento], list[FonteEstado]]:
     if not isinstance(dados, dict) or any(not isinstance(dados.get(c), list) for c in ("eventos", "fontes")):
         raise ErroSnapshot("snapshot do calendário inválido; conteúdo omitido")
     confiaveis = {f["id"]: f for f in fontes()}

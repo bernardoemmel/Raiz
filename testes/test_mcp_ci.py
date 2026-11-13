@@ -218,3 +218,10 @@ def test_diagnostico_corpus_so_publica_codigos_fechados(tmp_path, monkeypatch, c
         "criterios": ["resposta_fora_do_gabarito"],
         "tipo": "desconhecido",
     }
+
+
+def test_catalogo_do_auditor_cobre_todas_as_ferramentas_registradas():
+    from raiz.publica.avaliacao import FERRAMENTAS
+    from raiz.publica.servidor_mcp import ESCOPOS_FERRAMENTAS
+
+    assert FERRAMENTAS == set(ESCOPOS_FERRAMENTAS)

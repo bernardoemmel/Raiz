@@ -80,6 +80,7 @@ def test_observador_independente_detecta_banco_e_arquivos(banco_url, tmp_path):
     leitor = LeitorDocumentos(engine, SimpleNamespace(pasta=tmp_path))
     try:
         antes = asyncio.run(leitor.efeitos())
+        assert "calendario.evento" in antes["banco"]
         with engine.begin() as con:
             chamada = con.execute(
                 text("""insert into negocio.chamada_api(via,ferramenta,metodo,rota,status)

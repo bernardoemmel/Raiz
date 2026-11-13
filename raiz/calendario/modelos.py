@@ -10,6 +10,7 @@ from urllib.parse import urlsplit
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from raiz.privacidade import cnpj_valido, cpf_valido, mascarar
 from raiz.qualidade_calendario import validar_url_publica
 
 Tipo = Literal[
@@ -117,6 +118,8 @@ class Evento(BaseModel):
     def validar_referencia(cls, v):
         if v and not re.fullmatch(r"\d{1,5}(?:[/.-]\d{1,4}){0,3}", v):
             raise ValueError("referência deve conter só o número do edital")
+        if v and (mascarar(v) != v or cpf_valido(v) or cnpj_valido(v)):
+            raise ValueError("referência não pode conter documento pessoal")
         return v
 
     @field_validator("codigos_car")

@@ -121,7 +121,7 @@ class LeitorDocumentos:
         banco = {}
         with self.engine.connect() as con:
             insp = inspect(con)
-            for schema in ("negocio", "pessoal", "operacao", "funil", "geo"):
+            for schema in ("negocio", "pessoal", "operacao", "funil", "geo", "calendario"):
                 for tabela in insp.get_table_names(schema=schema):
                     # Registro de acesso é a única escrita esperada na consulta
                     # GET. Saldo, exposição, outbox, reservas e fila são incluídos.

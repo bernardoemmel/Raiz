@@ -74,3 +74,13 @@ app()
     assert resultado.returncode != 0
     assert "falha sintética" in resultado.stderr
     assert PESSOAL not in resultado.stderr + resultado.stdout
+
+
+def test_validacao_compartilhada_com_mcp_nao_expoe_entrada():
+    from raiz.calendario.arquivos import validar
+    from testes.test_privacidade import CPF
+
+    with pytest.raises(ErroSnapshot) as erro:
+        validar({"eventos": [{"id": CPF}], "fontes": []})
+    assert CPF not in str(erro.value)
+    assert "conteúdo omitido" in str(erro.value)

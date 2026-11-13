@@ -21,6 +21,7 @@ from testes.test_publica_oauth import assinador, verificador  # noqa: F401
 from testes.test_publica_trabalhos import empresa, eng  # noqa: F401
 
 FERRAMENTAS = {
+    "proximos_eventos",
     "consultar_ficha",
     "consultar_disponibilidade",
     "pedir_lote",
@@ -57,9 +58,11 @@ def test_ferramentas_sdk_estrutura_e_sem_oauth_falha():
             assert all(
                 "idempotency_key" in ferramenta.input_schema["required"]
                 for nome, ferramenta in tools.items()
-                if nome != "consultar_ficha"
+                if nome not in {"consultar_ficha", "proximos_eventos"}
             )
             assert tools["consultar_ficha"].input_schema["required"] == ["codigo_car"]
+            assert not tools["proximos_eventos"].input_schema.get("required")
+            assert tools["proximos_eventos"].annotations.read_only_hint
             r = await c.call_tool("consultar_disponibilidade", {"campos": {}, "idempotency_key": "consulta-sem-oauth"})
             assert r.is_error and '"status":401' in r.content[0].text
 

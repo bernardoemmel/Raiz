@@ -1,9 +1,24 @@
-"""Ferramenta pronta para registrar no futuro servidor MCP; somente leitura pública."""
+"""Consulta local equivalente à ferramenta registrada no MCP; somente leitura pública."""
 
 import datetime as dt
 from zoneinfo import ZoneInfo
 
 from raiz.calendario.banco import consultar
+
+
+def resposta_publica(dados: dict) -> dict:
+    """Projeção positiva do calendário: preserva UID/CAR, nunca texto livre ou identificador privado."""
+    from raiz.calendario.arquivos import envelope, validar
+
+    if not isinstance(dados, dict) or not all(isinstance(dados.get(k), list) for k in ("eventos", "fontes")):
+        raise ValueError("resposta do calendário inválida")
+    eventos, fontes = validar(dados)
+    total = dados.get("total")
+    if type(total) is not int or total < len(eventos):
+        raise ValueError("total de eventos inválido")
+    resultado = envelope(eventos, fontes, limite=len(eventos) or 1)
+    resultado["total"] = total
+    return resultado
 
 
 def proximos_eventos(
