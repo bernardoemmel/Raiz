@@ -56,6 +56,14 @@ Sessão: https://claude.ai/code/session_01VGb88MJumyG9PHt2znaaKE. Branch: `claud
   passaram; o manifesto real de 22.659 bytes e 16 UFs foi validado sem baixar pacotes. Essa correção não muda
   as contagens de cobertura nem antecipa o painel de processamento do PR #99. A última publicação bem-sucedida
   até essa conferência é a auditada do PR #89. Nenhum workflow foi cancelado ou desativado.
+- A transferência pública completa encontrou um CAR cadastrado na Paraíba no recorte de Serra Negra do Norte
+  (RN). O leitor agora confere separadamente UF/IBGE do CAR e UF/IBGE do recorte, preservando o identificador.
+  Os 49 testes do downloader e os 85 CSV do pacote RN passaram. A execução real terminou com 692 CSV básicos
+  e 692 GeoParquet, 1.353.246 linhas básicas, 13 UFs com dados entre 16 anunciadas e nenhum campo pago.
+  Não faltava geometria municipal; uma geometria extra no PA é excluída pela projeção positiva do site.
+  CE/PI tinham um arquivo municipal a mais que o contador do manifesto: a cobertura cartográfica usa os
+  arquivos efetivos, sem assumir que esse contador é completo. São dados de validação local, não prova de
+  nova publicação. A auditoria territorial registra expressamente a regra de divisa antecipada do PR #99.
 - MapLibre foi mantido. OpenLayers só poderá substituí-lo após vencer o teste comparativo pedido, com
   um imóvel sobreposto e outro sem sobreposição; esse teste de troca não foi realizado. Não foi usado bpmn-js.
 - E9 continua aguardando as cartas reais. Contato com donos apenas na fase final; nenhuma identidade ou
