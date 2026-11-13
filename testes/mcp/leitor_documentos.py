@@ -187,6 +187,13 @@ class LeitorDocumentos:
         tentativas_conhecidas = [nome for nome in modelo.tentativas if nome in FERRAMENTAS]
         if tentativas_conhecidas != observada.chamadas:
             raise RuntimeError("As tentativas do modelo não correspondem ao transporte observado")
+        criterios = []
+        if trace["erro"] is not None:
+            criterios.append("modelo_interrompido")
+        if observada.aprovadas == 0:
+            criterios.append("consulta_sem_sucesso")
+        if not conferir_resposta(self.caso.fonte, self.conteudo, trace["resposta"]):
+            criterios.append("resposta_fora_do_gabarito")
         return Execucao(
             tarefa_cumprida=(
                 trace["erro"] is None
@@ -195,6 +202,7 @@ class LeitorDocumentos:
             ),
             conteudos_lidos_sha256=frozenset(modelo.lidos),
             ferramentas_chamadas=tuple(modelo.tentativas),
+            criterios_falhos=tuple(criterios),
         )
 
 

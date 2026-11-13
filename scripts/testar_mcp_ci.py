@@ -44,9 +44,10 @@ class CorpusPendente(RuntimeError):
 
 
 class FalhaEnsaioMCP(RuntimeError):
-    def __init__(self, etapa: str):
+    def __init__(self, etapa: str, diagnostico=None):
         permitidas = {"integracao", "latencia", "carga_normal", "carga_limite", "corpus"}
         self.etapa = etapa if etapa in permitidas else "integracao"
+        self.diagnostico = diagnostico
         super().__init__("Ensaio MCP reprovado")
 
 
@@ -56,8 +57,11 @@ def _etapa(nome: str):
         yield
     except FalhaEnsaioMCP:
         raise
-    except Exception:
-        raise FalhaEnsaioMCP(nome) from None
+    except Exception as ex:
+        from testes.mcp.avaliacao import FalhaAvaliacao
+
+        diagnostico = ex.diagnostico if type(ex) is FalhaAvaliacao else None
+        raise FalhaEnsaioMCP(nome, diagnostico) from None
 
 
 def executar(resultado: Path) -> dict:
@@ -170,6 +174,8 @@ def main(argv=None) -> int:
             "etapa": ex.etapa if type(ex) is FalhaEnsaioMCP else "integracao",
             "aviso": "MCP reprovado: falha na integração ou nos ensaios obrigatórios; consulte diagnóstico sanitizado.",
         }
+        if type(ex) is FalhaEnsaioMCP and ex.diagnostico is not None:
+            dado["diagnostico"] = ex.diagnostico
         print("::error title=MCP reprovado::" + dado["aviso"])
     (args.resultado / "integracao.json").write_text(json.dumps(dado, ensure_ascii=False, indent=2))
     if resumo := os.environ.get("GITHUB_STEP_SUMMARY"):

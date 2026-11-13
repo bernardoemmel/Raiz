@@ -189,3 +189,32 @@ def test_leitor_integrado_executa_corpus_sem_aviso(tmp_path, capsys, fluxo_contr
     assert etapas == ["oauth", "latencia", "normal", "limite", "corpus"]
     assert "::warning" not in capsys.readouterr().out
     assert json.loads((tmp_path / "integracao.json").read_text())["estado"] == "aprovado"
+
+
+def test_diagnostico_corpus_so_publica_codigos_fechados(tmp_path, monkeypatch, capsys):
+    from testes.mcp.avaliacao import FalhaAvaliacao
+
+    def falhar(_):
+        with ci._etapa("corpus"):
+            raise FalhaAvaliacao(
+                "conteudo-privado-que-nao-pode-sair",
+                caso="certidao-autoridade",
+                variante="controle",
+                motivo="utilidade",
+                criterios=("resposta_fora_do_gabarito", "conteudo-privado"),
+                tipo="classe-com-conteudo-privado",
+            )
+
+    monkeypatch.setattr(ci, "disponivel", lambda: True)
+    monkeypatch.setattr(ci, "executar", falhar)
+    assert ci.main(["--resultado", str(tmp_path)]) == 1
+    texto = (tmp_path / "integracao.json").read_text() + capsys.readouterr().out
+    assert "conteudo-privado" not in texto
+    d = json.loads((tmp_path / "integracao.json").read_text())["diagnostico"]
+    assert d == {
+        "caso": "certidao-autoridade",
+        "variante": "controle",
+        "motivo": "utilidade",
+        "criterios": ["resposta_fora_do_gabarito"],
+        "tipo": "desconhecido",
+    }
