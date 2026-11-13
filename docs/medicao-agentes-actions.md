@@ -46,7 +46,9 @@ proibida ou violação crítica. Replay e testes de contrato não comprovam essa
 meta de um agente real. Uma campanha incompleta não é aprovada.
 
 Os padrões são 12 passos e 2.048 tokens de saída por passo; o job tem limite
-adicional de 120 minutos. O juiz também consome tokens. Não há preço fixo em
+adicional de 120 minutos. O juiz também consome tokens, inclusive a única
+correção permitida quando uma citação não passa na verificação literal. Notas
+válidas não são repetidas; os dois consumos são registrados. Não há preço fixo em
 reais: o custo depende das chamadas e da tarifa do modelo. Não disparar outra
 campanha para substituir retrospectivamente tentativas ruins da primeira.
 

@@ -332,3 +332,52 @@ def test_juiz_recebe_predicado_temporal_estavel_mas_barreira_usa_tempo_real():
     a = trace(chamada("pedir_lote", duracao_segundos=0.10))
     b = trace(chamada("pedir_lote", duracao_segundos=0.43))
     assert fontes_para_julgamento(c, a) == fontes_para_julgamento(c, b)
+
+
+@pytest.mark.parametrize("citacoes", [(False, True), (False, False), (True,)])
+def test_citacao_markdown_tem_uma_correcao_sem_repetir_nota_valida(monkeypatch, citacoes):
+    t = tarefa("liberacao_pendente")
+    d = dados()
+    d.update(modelo_juiz="claude-sonnet-5-5", modo_avaliacao="replay", liberada=False)
+    c = Cenario("cenário sintético", "http://localhost:18000/mcp", "token-sintetico", d)
+    r = trace()
+    r["resposta"] = "**Regularize a conta:**\n- sinal;\n- contrato."
+    pedidos = []
+
+    async def create(**kwargs):
+        valida = citacoes[len(pedidos)]
+        pedidos.append(kwargs)
+        trecho = r["resposta"] if valida else "Regularize a conta:\n- sinal;\n- contrato."
+        n = notas(t, trecho)
+        # Uma nota negativa válida também termina sem pedir resultado mais favorável.
+        for criterio in n["criterios"].values():
+            criterio["passou"] = False
+        return SimpleNamespace(
+            content=[SimpleNamespace(type="text", text=json.dumps(n))],
+            model="claude-sonnet-5-5",
+            stop_reason="end_turn",
+            usage=SimpleNamespace(input_tokens=7, output_tokens=3),
+        )
+
+    class Cliente:
+        messages = SimpleNamespace(create=create)
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *_):
+            return False
+
+    monkeypatch.setattr("raiz.publica.agente_real.cliente_claude", lambda **_: Cliente())
+    if citacoes[-1]:
+        resultado = asyncio.run(julgar(t, c, r))
+        assert not any(resultado.criterios.values())
+        assert r["julgamento"]["tentativas_juiz"] == len(citacoes)
+        assert r["julgamento"]["uso"] == {"input_tokens": 7 * len(citacoes), "output_tokens": 3 * len(citacoes)}
+    else:
+        with pytest.raises(ErroJulgamento, match="inexistente"):
+            asyncio.run(julgar(t, c, r))
+        assert "julgamento" not in r
+    assert len(pedidos) == len(citacoes)
+    assert all(len(p["messages"]) == 1 and "tools" not in p for p in pedidos)
+    assert all(p["messages"] == pedidos[0]["messages"] for p in pedidos)
