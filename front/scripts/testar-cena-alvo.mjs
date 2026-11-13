@@ -87,10 +87,15 @@ const navegador = await chromium.launch({
 async function servidor(api) {
   const vite = await createServer({ root: globo, configFile: path.join(globo, "vite.config.ts"),
     define: { "import.meta.env.VITE_RAIZ_API": JSON.stringify(api ? "/api/" : "") },
-    server: { host: "127.0.0.1", port: 0 }, logLevel: "error",
+    server: { host: "127.0.0.1", port: 0, hmr: false, watch: null }, logLevel: "error",
   })
   await vite.listen()
   return { vite, base: vite.resolvedUrls.local[0] }
+}
+async function celular(p, width = 360, height = 800) {
+  await p.setViewportSize({ width, height })
+  // O cabeçalho troca o input pela busca compacta em resposta ao matchMedia.
+  await p.getByRole("button", { name: "Buscar CAR, município ou estado", exact: true }).waitFor()
 }
 async function pagina(base, publicacao, autenticada = false, pedidoApi = pedido) {
   const contexto = await navegador.newContext({ viewport: { width: 1440, height: 960 }, reducedMotion: "reduce" })
@@ -145,7 +150,7 @@ async function conferirPainelMapaV2(base) {
   await painel.getByRole("button", { name: "Buscar interesse dos donos", exact: true }).click()
   await painel.getByText("Contato somente na fase final", { exact: true }).waitFor()
   assert.equal(contatos.length, 0, "Abrir a etapa de interesse não envia contatos.")
-  await p.setViewportSize({ width: 390, height: 844 })
+  await celular(p, 390, 844)
   await conferirPaginaAcessivel(p, AxeBuilder, "painel-pedido-v2-390", resultado)
   await painel.getByRole("link", { name: "Editar critérios do pedido", exact: true }).click()
   await p.getByRole("heading", { name: "Novo pedido", exact: true }).waitFor()
@@ -176,24 +181,26 @@ async function conferirPainelAutorizadoV2(base) {
   await p.goto(`${base}#/pedidos/fixture/mapa`)
   const painel = p.locator(".pedido-mapa-v2")
   await painel.getByRole("heading", { name: /1 milhão de créditos/ }).waitFor()
-  await p.waitForFunction(async () => {
-    const fonte = document.querySelector(".mapa-brasil")?.__mapa?.getSource("lote-autorizado")
-    return fonte && (await fonte.getData()).features.length === 1
+  const sourcePronto = await p.waitForFunction(() => {
+    const fonte = document.querySelector(".mapa-brasil .mapa")?.__mapa?.getSource("lote-autorizado")
+    if (!fonte) return false
+    const features = fonte.serialize().data?.features
+    return features?.length === 1 ? features : false
   })
-  const geometria = await p.evaluate(async () => (await document.querySelector(".mapa-brasil").__mapa.getSource("lote-autorizado").getData()).features)
+  const geometria = await sourcePronto.jsonValue()
   assert.equal(geometria.length, 1)
   assert.deepEqual(geometria[0].geometry, opcoes[0].itens[0].geometria)
   assert(!JSON.stringify(geometria).includes(carFechado), "O item bloqueado nunca chegou ao source autorizado.")
   assert.equal(leiturasResumo, 0, "A rota autenticada não usa o resumo do Pará como fallback.")
   await painel.locator(".pedido-mapa-v2-abas").getByRole("button", { name: "Mais seguro", exact: true }).click()
-  await p.waitForFunction(async esperado => {
-    const fonte = document.querySelector(".mapa-brasil")?.__mapa?.getSource("lote-autorizado")
-    return fonte && JSON.stringify((await fonte.getData()).features[0]?.geometry) === JSON.stringify(esperado)
+  await p.waitForFunction(esperado => {
+    const fonte = document.querySelector(".mapa-brasil .mapa")?.__mapa?.getSource("lote-autorizado")
+    return fonte && JSON.stringify(fonte.serialize().data?.features?.[0]?.geometry) === JSON.stringify(esperado)
   }, opcoes[1].itens[0].geometria)
   await painel.getByRole("button", { name: "Fechar pedido", exact: true }).click()
-  await p.waitForFunction(async () => {
-    const fonte = document.querySelector(".mapa-brasil")?.__mapa?.getSource("lote-autorizado")
-    return fonte && (await fonte.getData()).features.length === 0
+  await p.waitForFunction(() => {
+    const fonte = document.querySelector(".mapa-brasil .mapa")?.__mapa?.getSource("lote-autorizado")
+    return fonte && fonte.serialize().data?.features?.length === 0
   })
   await p.evaluate(() => { localStorage.removeItem("raiz.sessao"); window.dispatchEvent(new Event("storage")) })
   await p.getByRole("heading", { name: "Entrar na Raíz", exact: true }).waitFor()
@@ -217,7 +224,7 @@ try {
   assert.equal(await p.locator(".tabela-lote").count(), 0, "A consulta pública não expõe lotes individuais.")
   assert.equal(snapshots.length, 2, "O site lê somente a projeção pública, nunca o pacote privado.")
   await p.screenshot({ path: path.join(resultado, "snapshot-legado-ignorado-1440.png") })
-  await p.setViewportSize({ width: 360, height: 800 })
+  await celular(p)
   assert(await p.evaluate(() => document.documentElement.scrollWidth <= innerWidth), "A página ultrapassou 360 px.")
   await conferirPaginaAcessivel(p, AxeBuilder, "cobertura-publica-360", resultado)
   await p.context().close()
@@ -226,7 +233,7 @@ try {
   for (const valor of ["900.000", "1.100.000", "1.300.000", "5.000 ha", "40%", "400.000"]) assert(resumo.includes(valor), `Resumo público incompleto: ${valor}`)
   assert(!/TIR|Pendências|Fazendas de reserva|8 fazendas|Conferir o georreferenciamento/.test(resumo), "O resumo público expôs uma coluna paga.")
   assert.equal(await p.locator(".quadro-destrava, .tabela-lote, .mapa-lote, .pedido-mapa").count(), 0, "O público não renderiza os detalhes nem o mapa de seleção.")
-  await p.setViewportSize({ width: 360, height: 800 })
+  await celular(p)
   await conferirPaginaAcessivel(p, AxeBuilder, "resumo-publico-360", resultado)
   assert(await p.evaluate(() => document.documentElement.scrollWidth <= innerWidth))
   await p.screenshot({ path: path.join(resultado, "resumo-publico-360.png"), fullPage: true })
@@ -276,7 +283,7 @@ try {
   await p.getByRole("tab", { name: "Mais segura", exact: true }).and(p.locator('[aria-selected="true"]')).waitFor()
   assert.equal(await p.getByRole("tab", { name: "Mais segura", exact: true }).getAttribute("aria-selected"), "true")
   await p.screenshot({ path: path.join(resultado, "lotes-autorizados-1440.png") })
-  await p.setViewportSize({ width: 360, height: 800 })
+  await celular(p)
   assert(await p.evaluate(() => document.documentElement.scrollWidth <= innerWidth), "Os lotes autorizados ultrapassaram 360 px.")
   await conferirPaginaAcessivel(p, AxeBuilder, "lotes-autorizados-360", resultado)
   await p.context().close()
@@ -295,7 +302,7 @@ try {
   assert(!/\bNaN\b|undefined|(?:^|\s)0(?:[,.]0+)?(?:\s|%|$)/.test(medidasFechadas.join("\n")), "A ficha bloqueada inventou zero ou exibiu dado inválido.")
   assert.equal(await detalheFechado.getByRole("link", { name: "Abrir a ficha", exact: true }).getAttribute("href"), `#/fazenda/${carFechado}`)
   await p.screenshot({ path: path.join(resultado, "lote-com-ficha-bloqueada-1440.png") })
-  await p.setViewportSize({ width: 360, height: 800 })
+  await celular(p)
   assert(await p.evaluate(() => document.documentElement.scrollWidth <= innerWidth), "A ficha bloqueada ultrapassou 360 px.")
   await conferirPaginaAcessivel(p, AxeBuilder, "lote-com-ficha-bloqueada-360", resultado)
   await p.context().close()
@@ -304,6 +311,18 @@ try {
   assert.deepEqual(erros, [], "Há erro HTTP ou JavaScript.")
   fs.writeFileSync(path.join(resultado, "resumo.json"), JSON.stringify({ cenarios: ["cobertura pública", "snapshot legado ignorado", "resumo público sem campos pagos", "painel V2 e passagem de critérios sem contato", "demonstração fictícia", "API autorizada", "item com ficha paga bloqueada"], cores, erros, contatos }, null, 2))
   console.log("Cena-alvo: resumo público sem detalhes pagos, demonstração fictícia, três lotes coloridos autorizados, ficha bloqueada, teclado, 360 px e nenhum contato ou 404.")
+} catch (erro) {
+  let paginaFalhou = 0
+  for (const contexto of navegador.contexts()) for (const pagina of contexto.pages()) {
+    const nome = `falha-${++paginaFalhou}`
+    await pagina.screenshot({ path: path.join(resultado, `${nome}.png`), fullPage: true }).catch(() => {})
+    const diagnostico = await pagina.evaluate(() => ({
+      url: location.href, largura: innerWidth, larguraDocumento: document.documentElement.scrollWidth,
+      transbordam: [...document.querySelectorAll("body *")].map(el => ({ elemento: el.tagName, classe: el.className, x: el.getBoundingClientRect().x, direita: el.getBoundingClientRect().right })).filter(el => el.direita > innerWidth + 1 || el.x < -1).slice(0, 30),
+    })).catch(() => null)
+    fs.writeFileSync(path.join(resultado, `${nome}.json`), JSON.stringify(diagnostico, null, 2))
+  }
+  throw erro
 } finally {
   await navegador.close()
   await publico?.vite.close()

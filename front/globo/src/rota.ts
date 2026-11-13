@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react"
 import type { RespostaBusca } from "../../compartilhado/dados"
-import { normalizar, UFS } from "../../compartilhado/formato"
+import { normalizar, UFS, ufDoCodigo } from "../../compartilhado/formato"
 import type { IdOpcao } from "../../compartilhado/pedidos/tipos"
 
 /** Entrada (o Brasil), um estado, um município, a ficha de uma fazenda e a área logada (entrar e pedidos de lote). */
@@ -54,6 +54,17 @@ export const linkFichaLote = (id: string, opcao: IdOpcao) => `${linkPedido(id)}/
 export const linkGrupo = (id: string) => `#/pedidos/${encodeURIComponent(id)}/grupo`
 export const linkMunicipio = (cod: string) => `#/municipio/${cod}`
 export const linkFazenda = (car: string) => `#/fazenda/${encodeURIComponent(car)}`
+
+export type FocoTerritorialMapa = { municipio: string | null; uf: string | null }
+
+/** Aproximar um lote conserva a rota do pedido; o foco local usa as mesmas cargas municipais do mapa aberto. */
+export function destinoTerritorialMapa(pedidoId: string | undefined, territorio: { municipio: string } | { uf: string }):
+  { tipo: "foco"; foco: FocoTerritorialMapa } | { tipo: "rota"; hash: string } {
+  if (pedidoId) return { tipo: "foco", foco: "municipio" in territorio
+    ? { municipio: territorio.municipio, uf: ufDoCodigo(territorio.municipio) }
+    : { municipio: null, uf: territorio.uf } }
+  return { tipo: "rota", hash: "municipio" in territorio ? linkMunicipio(territorio.municipio) : linkEstado(territorio.uf) }
+}
 
 /** Município do contorno do Brasil (os 5.570), processado ou não. */
 export interface MunicipioDoMapa {

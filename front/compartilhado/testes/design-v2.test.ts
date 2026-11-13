@@ -102,6 +102,21 @@ describe("escopos do visual v2", () => {
     expect(conferir("globo/src/raiz.css", css)).toEqual(expect.arrayContaining(["box-shadow diferente de none", "degradê de enfeite"]))
   })
 
+  it("recolore somente a ponta triangular do popup MapLibre com a superfície", () => {
+    const arquivo = "globo/src/telas/explorar-v2.css"
+    const seletor = ".maplibregl-popup-anchor-right .maplibregl-popup-tip"
+    expect(conferir(arquivo, `${seletor} { border-left-color: var(--superficie); }`)).toEqual([])
+    for (const css of [
+      `${seletor} { border-left: 4px solid var(--superficie); }`,
+      `${seletor} { border-left-color: var(--urucum); }`,
+      `${seletor}, .aviso { border-left-color: var(--superficie); }`,
+      `${seletor} .conteudo { border-left-color: var(--superficie); }`,
+      `${seletor} { border-left-color: var(--superficie); } .aviso { border-left-color: var(--superficie); }`,
+      ".limpo { border-left: none; } .aviso { border-left: 4px solid var(--mata); }",
+    ]) expect(conferir(arquivo, css)).toContain("borda esquerda colorida")
+    expect(conferir("produtor/src/estilo.css", `${seletor} { border-left-color: var(--superficie); }`)).toContain("borda esquerda colorida")
+  })
+
   it.each(["Familjen Grotesk", "Atkinson Hyperlegible Next"])("rejeita %s no analista e preserva no produtor", (fonte) => {
     const css = `.texto { font-family: "${fonte}", sans-serif; }`
     expect(conferir("globo/src/fontes.css", css)).toEqual(["fonte v1 no analista"])

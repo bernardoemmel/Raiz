@@ -79,12 +79,12 @@ export async function conferirCicloMapa(navegador, base) {
     const caixa = document.querySelector(".mapa-brasil .mapa")
     return { idles, hexagonos: caixa.__hexagonos.length,
       camada: mapa.getLayer("hexagonos").type,
-      preenchimento: mapa.getPaintProperty("hexagonos", "fill-color"),
+      cores: Array.from({ length: 6 }, (_, i) => mapa.getPaintProperty(`hexagonos-faixa-${i}`, "fill-color")),
       antigas: document.querySelectorAll("button.cartografia-grupo").length }
   })
   assert(estavel.hexagonos > 0)
   assert.equal(estavel.camada, "fill")
-  assert.equal(estavel.preenchimento[0], "step")
+  assert.equal(new Set(estavel.cores).size, 6, "As seis faixas preservam a escala com cores constantes, compartilhando o shader da base.")
   assert.equal(estavel.antigas, 0, "A navegação nacional usa polígonos H3; as bolas antigas não podem voltar.")
   assert(estavel.idles <= 1, "Os hexágonos não podem manter o mapa renderizando sem interação.")
   // O mesmo enquadramento uma volta adiante conserva células e medidas, sem duplicar no antimeridiano.
@@ -126,6 +126,10 @@ export async function conferirCicloMapa(navegador, base) {
   await direta.getByRole("heading", { name: "Entrar na Raíz" }).waitFor()
   await direta.evaluate(() => { location.hash = "#/" })
   await direta.waitForFunction(() => document.querySelector(".mapa-brasil .mapa")?.__hexagonos?.length > 0)
+  await direta.waitForFunction(() => {
+    const mapa = document.querySelector(".mapa-brasil .mapa")?.__mapa
+    return mapa?.loaded() && !mapa.isMoving()
+  })
   const zoomNovo = await direta.evaluate(() => document.querySelector(".mapa-brasil .mapa").__mapa.getZoom())
   await direta.evaluate(async () => {
     window.__botaoAntigo.click()

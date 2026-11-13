@@ -28,9 +28,9 @@ export function CartaoTerritorioV2({ nome, municipios, carregando, aoAbrirDados,
     </div>
     <p className="cartao-v2-frase">{n ? <>podem voltar a ser mata nos imóveis avaliados. <span className="cartao-v2-frase-detalhe"> Desses, <strong>{fmtCompacto(n.prontas)}</strong> têm área apta e matrícula identificada.</span></> : carregando ? "Lendo os resumos publicados do motor…" : "O resumo deste território ainda não foi publicado."}</p>
     <dl className="cartao-v2-numeros">
-      <div><dd title={n ? fmtInt(n.imoveis) : undefined}>{n ? fmtCompacto(n.imoveis) : "n/d"}</dd><dt>imóveis lidos</dt></div>
-      <div><dd title={n ? fmtInt(n.aptas) : undefined}>{n ? fmtCompacto(n.aptas) : "n/d"}</dd><dt>fazendas aptas</dt></div>
-      <div><dd title={n ? fmtInt(n.prontas) : undefined}>{n ? fmtCompacto(n.prontas) : "n/d"}</dd><dt>com matrícula</dt></div>
+      <div><dt>imóveis lidos</dt><dd title={n ? fmtInt(n.imoveis) : undefined}>{n ? fmtCompacto(n.imoveis) : "n/d"}</dd></div>
+      <div><dt>fazendas aptas</dt><dd title={n ? fmtInt(n.aptas) : undefined}>{n ? fmtCompacto(n.aptas) : "n/d"}</dd></div>
+      <div><dt>com matrícula</dt><dd title={n ? fmtInt(n.prontas) : undefined}>{n ? fmtCompacto(n.prontas) : "n/d"}</dd></div>
     </dl>
     {ampliado && <p className="cartao-v2-detalhe">{n ? `Resumo de aptidão de ${fmtInt(n.municipios)} ${n.municipios === 1 ? "município" : "municípios"}. ` : ""}Os hexágonos contam todos os cadastros publicados, com cobertura diferente. Área potencial não equivale a créditos emitidos nem a aprovação do título.</p>}
     <button className="cartao-v2-fonte" onClick={aoAbrirDados}>Sobre os dados <ArrowUpRight size={12} aria-hidden="true" /></button>

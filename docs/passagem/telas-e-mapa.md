@@ -1010,3 +1010,25 @@ As capturas iniciais com dados reais encontraram zero 404/erros de JavaScript, m
 apontaram dois erros de expressão cartográfica, enquadramento mobile e ajustes no
 foco da busca. Foram corrigidos antes da conferência final. Evidências finais e CI
 serão registrados ao concluir esta entrega; esta seção não declara aprovação antecipada.
+
+
+Validação intermediária V2: 620 testes do front passaram após integrar a main
+`e0521a9`; conflitos em package/lock resolvidos preservando as fontes V2 e as
+atualizações de Lucide/Vitest. Ruff passou em 640 arquivos. A execução Python local
+teve 3.241 aprovações, 319 skips (316 sem banco, dois sem mídia, um sem LanguageTool),
+um xfail e uma falha por falta de `RAIZ_TESTE_PA_PASTA`. Não equivale a suíte verde:
+o CI obrigatório executa esses serviços e a referência privada do Pará.
+
+O teste completo da cena-alvo passou, incluindo o overlay público em 390 px, axe,
+critérios transferidos ao formulário e a rota autenticada do mapa, com bloqueio de
+ficha não liberada, troca de opção, fechamento e logout. Zero erros HTTP/JavaScript
+e zero envios de contato. As falhas iniciais de seletores/espera do teste novo foram
+preservadas antes da execução final, sem flexibilizar a verificação de acesso.
+
+A primeira série Lighthouse com snapshot público real reprovou: desempenho
+71/75/75, acessibilidade 96. Identificou sobreposição de Camadas/zoom no celular,
+montagem desnecessária do diálogo fechado e variantes gráficas extras na abertura.
+Foram corrigidos os controles, o conteúdo do diálogo passou a montar sob demanda,
+e os seis intervalos H3 usam preenchimentos constantes sobre a mesma fonte. O mapa,
+os agregados e o cartão continuam carregando imediatamente. Nenhuma amostra foi
+apagada; a nova série será registrada separadamente.

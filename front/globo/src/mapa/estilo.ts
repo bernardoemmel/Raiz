@@ -66,7 +66,17 @@ export function estiloBase(base: string | null, opcoes: { rotulos?: boolean; nac
 /** No país cabem terra, água, fronteiras e nomes. Estradas e usos locais entram quando a pessoa aproxima. */
 export function camadasBaseNacionais(): LayerSpecification[] {
   const ids = new Set(["background", "earth", "water", "boundaries_country", "water_label_ocean", "places_country"])
-  return camadasBase().filter((camada) => ids.has(camada.id))
+  return camadasBase().filter((camada) => ids.has(camada.id)).map(camada => {
+    // O container já tem exatamente a cor do chão. Evita um draw redundante enquanto tiles chegam.
+    if (camada.type === "background") return { ...camada, paint: { ...camada.paint, "background-opacity": 0 } }
+    if (camada.type === "fill") return { ...camada, paint: { ...camada.paint, "fill-antialias": false } }
+    if (camada.type === "line") {
+      const paint = { ...camada.paint }
+      delete paint["line-dasharray"]
+      return { ...camada, paint }
+    }
+    return camada
+  })
 }
 
 /**

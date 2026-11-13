@@ -1,5 +1,5 @@
 import { COR_MAPA_V2, CORES_H3_V2 } from "../../../compartilhado/cores"
-import type { ExpressionSpecification, LayerSpecification } from "maplibre-gl"
+import type { ExpressionSpecification, LayerSpecification, Map as MapaGL } from "maplibre-gl"
 import type { HexagonoMapa, LegendaHexagonos } from "./hexagonos"
 import { fmtHa, fmtInt } from "../../../compartilhado/formato"
 
@@ -12,18 +12,29 @@ export function fontePublicaHexagonos(url: string | null | undefined, esperado: 
   } catch { return null }
 }
 
-export function corHexagonos(legenda: LegendaHexagonos): ExpressionSpecification {
-  const expressao: unknown[] = ["step", ["get", "valor"], legenda.cores[0]]
-  for (let i = 1; i < legenda.limites.length; i++) expressao.push(legenda.limites[i], legenda.cores[i])
-  return expressao as ExpressionSpecification
+/** Seis intervalos quantitativos; as bordas inferiores vêm da mesma legenda enviada à interface. */
+export function filtroFaixaHexagonos(legenda: LegendaHexagonos, faixa: number, lote: boolean, selecionados: boolean): ExpressionSpecification {
+  const filtros: ExpressionSpecification[] = [[">=", ["get", "valor"], legenda.limites[faixa]]]
+  if (faixa < 5) filtros.push(["<", ["get", "valor"], legenda.limites[faixa + 1]])
+  if (lote || selecionados) filtros.push([lote ? "==" : "!=", ["get", "selecionado"], true])
+  return ["all", ...filtros]
+}
+
+export function aplicarEscalaHexagonos(m: MapaGL, legenda: LegendaHexagonos, selecionados: boolean): void {
+  for (let faixa = 0; faixa < 6; faixa++) for (const lote of [false, true])
+    m.setFilter(`hexagonos-${lote ? "lote-" : ""}faixa-${faixa}`, filtroFaixaHexagonos(legenda, faixa, lote, selecionados))
 }
 
 export function camadasHexagonos(): LayerSpecification[] {
+  const fills: LayerSpecification[] = []
+  for (let faixa = 0; faixa < 6; faixa++) for (const lote of [false, true]) fills.push({
+    id: `hexagonos-${lote ? "lote-" : ""}faixa-${faixa}`, type: "fill", source: "hexagonos", filter: ["==", ["get", "h3"], ""],
+    paint: { "fill-color": CORES_H3_V2[faixa], "fill-opacity": lote ? 0 : 0.92, "fill-antialias": false, "fill-opacity-transition": { duration: 300 } },
+  })
   return [
-    { id: "hexagonos", type: "fill", source: "hexagonos", paint: {
-      "fill-color": CORES_H3_V2[0], "fill-opacity": 0.92, "fill-antialias": false,
-      "fill-opacity-transition": { duration: 300 }, "fill-color-transition": { duration: 300 },
-    } },
+    // Superfície transparente só para toque/hover. As seis cores constantes compartilham o programa gráfico da base.
+    { id: "hexagonos", type: "fill", source: "hexagonos", paint: { "fill-color": CORES_H3_V2[0], "fill-opacity": 0, "fill-antialias": false } },
+    ...fills,
     { id: "hexagonos-linha", type: "line", source: "hexagonos", paint: {
       "line-color": COR_MAPA_V2.terra, "line-width": 0.5, "line-opacity-transition": { duration: 300 },
     } },

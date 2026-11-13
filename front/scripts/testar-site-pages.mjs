@@ -187,8 +187,8 @@ try {
     const m = document.querySelector(".mapa-brasil .mapa").__mapa
     return { solicitada: m._canvasContextAttributes.desynchronized, efetiva: m.getCanvas().getContext("webgl2").getContextAttributes().desynchronized }
   })
-  assert.equal(apresentacao.solicitada, true, "O mapa solicita apresentação desynchronized pela opção pública do MapLibre.")
-  console.log(`Apresentação desynchronized solicitada; atributo efetivo do navegador: ${apresentacao.efetiva}.`)
+  assert.equal(apresentacao.solicitada, false, "O mapa preserva a composição normal pela opção pública do MapLibre.")
+  assert.equal(apresentacao.efetiva, false, "O navegador compõe mapa e cartões no mesmo ciclo de apresentação.")
   assert.equal(pedidos.filter(url => url === new URL("geo/brasil_estados.geojson", base).href).length, 2,
     "A geometria é lida para enquadramento e pela URL no worker; o navegador pode reutilizar o cache HTTP.")
   assert.equal(await pagina.locator(".mapa-brasil svg").count(), 0, "A entrada abre no MapLibre, sem o SVG nacional.")
@@ -293,7 +293,7 @@ try {
   }, MUNICIPIO)
   assert.equal(await pagina.evaluate(() => { const fonte = document.querySelector(".mapa-brasil .mapa").__mapa.getStyle().sources.protomaps; return fonte.url ?? fonte.tiles?.[0] }), baseNacional,
     "O município precisa reutilizar a mesma base nacional.")
-  await pagina.evaluate(() => document.querySelector(".mapa-brasil .mapa").__mapa.jumpTo({ zoom: 11, center: [-49.9, -6.1] }))
+  await pagina.evaluate(() => document.querySelector(".mapa-brasil .mapa").__mapa.jumpTo({ zoom: 8, center: [-49.9, -6.1] }))
   await mapaPronto()
   await pagina.waitForFunction(() => document.querySelector(".mapa-brasil .mapa").__mapa.queryRenderedFeatures({ layers: ["hexagonos"] }).length > 0)
   const distante = await pagina.evaluate(() => {

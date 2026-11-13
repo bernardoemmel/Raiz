@@ -7,14 +7,13 @@ import type { Foco } from "../../../compartilhado/funil-etapas"
 import { fonte, useCarga } from "../dados"
 import type { CamadaAssunto, GeoMunicipio } from "../mapa/MapaBrasil"
 import { Cabecalho } from "../partes/Cabecalho"
-import { PainelBrasil } from "../partes/PainelBrasil"
-import { PainelProcessamentoEstados } from "../partes/PainelProcessamentoEstados"
 import { useProcessamentoEstados } from "../processamento-estados"
-import { linkEstado, linkMunicipio } from "../rota"
+import { destinoTerritorialMapa, type FocoTerritorialMapa } from "../rota"
 import type { Geo } from "../../../compartilhado/dados"
 import { contarCobertura } from "../../../compartilhado/dados/cobertura-mapa"
 import { Layers, X, ChevronDown } from "lucide-react"
 import type { LegendaHexagonos } from "../mapa/hexagonos"
+import { prepararContextoMapa } from "../mapa/preparar-contexto"
 import { CartaoTerritorioV2 } from "../partes/CartaoTerritorioV2"
 import { RotuloMono } from "../partes/RotuloMono"
 import type { SelecaoPedidoMapaV2 } from "../partes/pedido/PainelPedidoMapaV2"
@@ -22,13 +21,27 @@ import type { Pedido } from "../../../compartilhado/pedidos/tipos"
 import { sessaoPedidos, useSessao } from "../sessao"
 import "./explorar-v2.css"
 
+const PainelBrasil = lazy(() => import("../partes/PainelBrasil").then(m => ({ default: m.PainelBrasil })))
+const PainelProcessamentoEstados = lazy(() => import("../partes/PainelProcessamentoEstados").then(m => ({ default: m.PainelProcessamentoEstados })))
 const PainelPedidoMapaV2 = lazy(() => import("../partes/pedido/PainelPedidoMapaV2").then(m => ({ default: m.PainelPedidoMapaV2 })))
 const MapaBrasil = lazy(() => import("../mapa/MapaBrasil").then((m) => ({ default: m.MapaBrasil })))
 const PainelMunicipio = lazy(() => import("../partes/PainelMunicipio").then((m) => ({ default: m.PainelMunicipio })))
 const PainelMunicipioBasico = lazy(() => import("../partes/PainelMunicipioBasico").then((m) => ({ default: m.PainelMunicipioBasico })))
 
 /** Mapa contínuo, com controles e resumos sobrepostos. Dados extensos só abrem sob demanda. */
-export function Explorar({ municipio, uf, pedidoId }: { municipio: string | null; uf: string | null; pedidoId?: string }) {
+export function Explorar({ municipio: municipioRota, uf: ufRota, pedidoId }: { municipio: string | null; uf: string | null; pedidoId?: string }) {
+  const [focoNoPedido, setFocoNoPedido] = useState<FocoTerritorialMapa>({ municipio: null, uf: null })
+  const municipio = pedidoId ? focoNoPedido.municipio : municipioRota
+  const uf = pedidoId ? focoNoPedido.uf : ufRota
+  const escolherTerritorio = (territorio: { municipio: string } | { uf: string }) => {
+    const destino = destinoTerritorialMapa(pedidoId, territorio)
+    if (destino.tipo === "foco") setFocoNoPedido(destino.foco)
+    else location.hash = destino.hash
+  }
+  useEffect(() => {
+    const preparo = prepararContextoMapa()
+    return () => { void preparo.then(liberar => liberar()) }
+  }, [])
   const sessao = useSessao()
   const [tentativaPedido, setTentativaPedido] = useState(0)
   const pedidoApi = useCarga<Pedido | null>(async () => {
@@ -43,10 +56,11 @@ export function Explorar({ municipio, uf, pedidoId }: { municipio: string | null
   }, [pedidoId, sessao?.token, tentativaPedido])
   const [pedidoAberto, setPedidoAberto] = useState(Boolean(pedidoId))
   const [selecaoPedido, setSelecaoPedido] = useState<SelecaoPedidoMapaV2 | null>(null)
-  const geometriaLoteAutorizada = useMemo<Geo | null>(() => selecaoPedido?.origem === "api" && sessaoPedidos.modo === "api" && sessao && pedidoApi.dado?.id === selecaoPedido.pedidoId && !pedidoApi.carregando && !pedidoApi.erro
-    ? { type: "FeatureCollection", features: selecaoPedido.fazendas.map(f => ({ type: "Feature", properties: {}, geometry: f.geometria })) } : null, [selecaoPedido, sessao, pedidoApi.dado, pedidoApi.carregando, pedidoApi.erro])
+  const geometriaLoteAutorizada = useMemo<Geo | null>(() => pedidoAberto && selecaoPedido?.origem === "api" && sessaoPedidos.modo === "api" && sessao && pedidoApi.dado?.id === selecaoPedido.pedidoId && !pedidoApi.carregando && !pedidoApi.erro
+    ? { type: "FeatureCollection", features: selecaoPedido.fazendas.map(f => ({ type: "Feature", properties: {}, geometry: f.geometria })) } : null, [pedidoAberto, selecaoPedido, sessao, pedidoApi.dado, pedidoApi.carregando, pedidoApi.erro])
   const [desenhando, setDesenhando] = useState(false)
-  const processamento = useProcessamentoEstados(!municipio)
+  const [dadosAbertos, setDadosAbertos] = useState(false)
+  const processamento = useProcessamentoEstados(!municipio && dadosAbertos)
   // O MapLibre abre desde a primeira tela. Os limites dos 5.571 municípios só entram ao aproximar.
   const [aproximou, setAproximou] = useState(false)
   const detalhe = Boolean(municipio || uf || aproximou || selecaoPedido?.uf)
@@ -130,7 +144,7 @@ export function Explorar({ municipio, uf, pedidoId }: { municipio: string | null
     return [(x0 + x1) / 2, (y0 + y1) / 2]
   }, [feicao])
 
-  const ufExibida = (pedidoAberto || desenhando) && selecaoPedido?.uf ? selecaoPedido.uf : uf
+  const ufExibida = pedidoId && uf ? uf : (pedidoAberto || desenhando) && selecaoPedido?.uf ? selecaoPedido.uf : uf
   const nome = municipio ? `Brasil / ${UFS[ufFoco ?? ""] ?? ufFoco ?? ""} / ${funil.dado?.municipio ?? String(feicao?.properties.nome ?? "Município")}` : ufExibida ? `Brasil / ${UFS[ufExibida] ?? ufExibida}` : "Brasil"
   const resumo = useMemo(() => municipio ? (funil.carregando ? undefined : funil.dado ? [funil.dado] : []) : municipios.dado?.filter(m => !ufExibida || m.uf === ufExibida), [municipio, funil.dado, funil.carregando, municipios.dado, ufExibida])
   const contagem = coberturaMapa.dado ? contarCobertura(coberturaMapa.dado) : null
@@ -189,11 +203,11 @@ export function Explorar({ municipio, uf, pedidoId }: { municipio: string | null
           desenhandoArea={desenhando}
           aoConcluirArea={geo => { setAreaDesenhada(geo); setDesenhando(false); setPedidoAberto(true) }}
           aoCancelarArea={() => { setDesenhando(false); setPedidoAberto(true) }}
-          aoEscolherMunicipio={(cod) => (location.hash = linkMunicipio(cod))}
-          aoEscolherEstado={(sigla) => (location.hash = linkEstado(sigla))}
+          aoEscolherMunicipio={cod => escolherTerritorio({ municipio: cod })}
+          aoEscolherEstado={sigla => escolherTerritorio({ uf: sigla })}
         /></Suspense>
         </div>
-        {!desenhando && <div ref={cartao} className="cartao-v2-posicao"><CartaoTerritorioV2 nome={nome} municipios={resumo} carregando={municipio ? funil.carregando : municipios.carregando} aoAbrirDados={() => dadosDialogo.current?.showModal()} ampliado={ampliado} aoAlternar={() => setAmpliado(v => !v)} aoArrastar={y => { arraste.current = y }} aoSoltar={soltar} /></div>}
+        {!desenhando && <div ref={cartao} className="cartao-v2-posicao"><CartaoTerritorioV2 nome={nome} municipios={resumo} carregando={municipio ? funil.carregando : municipios.carregando} aoAbrirDados={() => { setDadosAbertos(true); dadosDialogo.current?.showModal() }} ampliado={ampliado} aoAlternar={() => setAmpliado(v => !v)} aoArrastar={y => { arraste.current = y }} aoSoltar={soltar} /></div>}
         {!pedidoAberto && !desenhando && <>
           <nav className="camadas-v2" aria-label="Camadas do mapa">{camadas}</nav>
           <button type="button" className="camadas-v2-abrir" onClick={() => camadasDialogo.current?.showModal()}><Layers size={18} aria-hidden="true" />Camadas</button>
@@ -204,9 +218,9 @@ export function Explorar({ municipio, uf, pedidoId }: { municipio: string | null
           pedidoSolicitado={Boolean(pedidoId)} pedidoAutenticado={!pedidoApi.carregando && !pedidoApi.erro ? pedidoApi.dado : null}
           carregandoPedido={pedidoApi.carregando} erroPedido={pedidoApi.erro?.message} onRecarregarPedido={() => setTentativaPedido(t => t + 1)}
         /></Suspense>}
-        <dialog ref={dadosDialogo} className="dialogo-mapa-v2 dados-mapa-v2" aria-labelledby="titulo-dados-v2">
+        <dialog ref={dadosDialogo} className="dialogo-mapa-v2 dados-mapa-v2" aria-labelledby="titulo-dados-v2" onClose={() => setDadosAbertos(false)}>
           <header><h2 id="titulo-dados-v2">Sobre os dados de {nome}</h2><button aria-label="Fechar dados" onClick={() => dadosDialogo.current?.close()}><X size={20} /></button></header>
-          <p>O cartão soma os resumos de aptidão do motor. Os hexágonos contam cadastros do CAR, incluindo imóveis ainda não aptos. São bases com coberturas diferentes; não representam créditos disponíveis para venda.</p>
+          {dadosAbertos && <><p>O cartão soma os resumos de aptidão do motor. Os hexágonos contam cadastros do CAR, incluindo imóveis ainda não aptos. São bases com coberturas diferentes; não representam créditos disponíveis para venda.</p>
             {municipio && !geoMunicipio.carregando && !geoMunicipio.dado?.imoveis?.features.length && (
               <p className="aviso" role="status">
                 {coberturaMapa.dado?.acesso === "restrito" && coberturaMapa.dado.com_desenho.includes(municipio)
@@ -249,15 +263,15 @@ export function Explorar({ municipio, uf, pedidoId }: { municipio: string | null
                 municipios={municipios.dado}
                 comLista={listas}
                 estados={estados.dado}
-                uf={uf}
+                uf={ufExibida}
                 pontos={undefined}
                 carregando={municipios.carregando || estados.carregando}
                 carregandoResumo={municipios.carregando}
                 cobertura={coberturaMapa.dado}
                 carregandoCobertura={coberturaMapa.carregando}
-                andamento={<PainelProcessamentoEstados key="processamento" carga={processamento} uf={uf} />}
+                andamento={<PainelProcessamentoEstados key="processamento" carga={processamento} uf={ufExibida} />}
               />
-            )}</Suspense>
+            )}</Suspense></>}
 
         </dialog>
         <dialog ref={camadasDialogo} className="dialogo-mapa-v2" aria-labelledby="titulo-camadas-v2"><header><h2 id="titulo-camadas-v2">Camadas do mapa</h2><button aria-label="Fechar camadas" onClick={() => camadasDialogo.current?.close()}><X size={20} /></button></header>{camadas}{escala}</dialog>

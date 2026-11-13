@@ -14,7 +14,8 @@
 .cartao-v2-frase { font-size: 16px; line-height: 1.4; margin: 0 0 18px; }
 .cartao-v2-frase strong { font-weight: 500; }
 .cartao-v2-numeros { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin: 0; padding-top: 16px; border-top: var(--borda); }
-.cartao-v2-numeros dd { font: 700 17px/1.4 var(--n); white-space: nowrap; margin: 0; letter-spacing: -.04em; }
+.cartao-v2-numeros > div { display: flex; flex-direction: column; }
+.cartao-v2-numeros dd { order: -1; font: 700 17px/1.4 var(--n); white-space: nowrap; margin: 0; letter-spacing: -.04em; }
 .cartao-v2-numeros dt { font-size: 12px; color: var(--pedra); margin-top: 2px; }
 .cartao-v2-fonte { background: none; border: 0; padding: 8px 0 0; min-height: 32px; font-size: 12px; color: var(--pedra); cursor: pointer; display: flex; align-items: center; gap: 5px; }
 .cartao-v2-alca { display: none; }
@@ -50,10 +51,19 @@
 .dialogo-mapa-v2 .camadas-v2-opcoes { align-items: stretch; margin-block: 20px; }
 .dialogo-mapa-v2 .camadas-v2-opcoes button { justify-content: space-between; min-height: 44px; }
 .dialogo-mapa-v2 .legenda-v2 { width: 100%; }
-.explorar-v2 .maplibregl-ctrl-top-right { top: 74px; right: 6px; }
-.explorar-v2.com-pedido .maplibregl-ctrl-top-right { right: 452px; }
+.explorar-v2 .mapa-brasil .maplibregl-ctrl-top-right { top: 74px; right: 6px; }
+.explorar-v2.com-pedido .mapa-brasil .maplibregl-ctrl-top-right { right: 452px; }
 .explorar-v2 .maplibregl-ctrl-bottom-left { display: none; }
 .explorar-v2 .maplibregl-ctrl-bottom-right { bottom: 62px; }
+.maplibregl-popup .maplibregl-popup-content { background: var(--superficie); color: var(--tinta); }
+.maplibregl-popup-anchor-top .maplibregl-popup-tip,
+.maplibregl-popup-anchor-top-left .maplibregl-popup-tip,
+.maplibregl-popup-anchor-top-right .maplibregl-popup-tip { border-bottom-color: var(--superficie); }
+.maplibregl-popup-anchor-bottom .maplibregl-popup-tip,
+.maplibregl-popup-anchor-bottom-left .maplibregl-popup-tip,
+.maplibregl-popup-anchor-bottom-right .maplibregl-popup-tip { border-top-color: var(--superficie); }
+.maplibregl-popup-anchor-left .maplibregl-popup-tip { border-right-color: var(--superficie); }
+.maplibregl-popup-anchor-right .maplibregl-popup-tip { border-left-color: var(--superficie); }
 @media (min-width: 701px) and (max-width: 1200px) {
   .cartao-v2-posicao { width: 340px; }
   .legenda-v2-posicao { left: auto; right: 16px; transform: none; bottom: 72px; }
@@ -80,8 +90,8 @@
   .cartao-ampliado .cartao-v2-frase { margin-block: 18px; }
   .camadas-v2, .legenda-v2-posicao, .status-mapa-v2 { display: none; }
   .camadas-v2-abrir { position: absolute; right: 12px; top: 84px; display: inline-flex; align-items: center; gap: 6px; min-height: 44px; color: var(--tinta); border: var(--borda); background: var(--vidro); border-radius: 22px; padding: 0 14px; font-size: 14px; z-index: 2; }
-  .explorar-v2 .maplibregl-ctrl-top-right { top: 132px; right: 2px; }
-  .explorar-v2.com-pedido .maplibregl-ctrl-top-right { display: none; }
+  .explorar-v2 .mapa-brasil .maplibregl-ctrl-top-right { top: 132px; right: 2px; }
+  .explorar-v2.com-pedido .mapa-brasil .maplibregl-ctrl-top-right { display: none; }
   .explorar-v2 .maplibregl-ctrl-bottom-right { bottom: calc(var(--altura-gaveta, 0px) + 8px); }
   .explorar-v2.com-pedido .maplibregl-ctrl-bottom-right { bottom: 0; }
   .com-pedido .cartao-v2-posicao { visibility: hidden; }

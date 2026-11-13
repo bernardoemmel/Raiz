@@ -13,13 +13,10 @@
   color: var(--tinta);
   font-size: 12px;
 }
-.cartografia-ajuda > summary { padding: 8px 12px; cursor: pointer; }
+.cartografia-ajuda > summary { padding: 8px 12px; min-height: 36px; cursor: pointer; }
 .cartografia-ajuda[open] { padding: 12px; }
 .cartografia-ajuda[open] > summary { padding: 0; min-height: 32px; }
 .cartografia-ajuda p { margin: 8px 0; }
-.cartografia-ajuda:not([open]) { opacity: 0; pointer-events: none; }
-.mapa-brasil:focus-within .cartografia-ajuda,
-.cartografia-ajuda:focus-within { opacity: 1; pointer-events: auto; }
 .cartografia-alerta {
   position: absolute;
   top: 84px;
@@ -50,7 +47,8 @@
 .cartografia-desenho button { min-height: 44px; margin: 2px; border: var(--borda); border-radius: 8px; padding: 6px 10px; background: var(--superficie); color: var(--tinta); }
 .hexagono-dica .maplibregl-popup-content { padding: 10px 12px; font: 500 12px/1.5 var(--fonte-codigo); }
 @media (max-width: 640px) {
-  .cartografia-ajuda { right: 8px; bottom: calc(var(--altura-gaveta, 0px) + 8px); }
+  .cartografia-ajuda { top: 84px; left: 12px; right: auto; bottom: auto; max-width: calc(100vw - 24px); max-height: 40vh; }
+  .cartografia-ajuda > summary { min-height: 44px; }
   .cartografia-desenho { left: 8px; right: 8px; max-width: none; }
 }
 
@@ -69,3 +67,5 @@
 }
 
 .mapa-lote-etiqueta { padding: 4px 8px; border-radius: 8px; background: var(--urucum); color: var(--v2-texto-acao); font: 700 12px var(--fonte-codigo); white-space: nowrap; }
+
+.explorar-v2 .mapa-aviso { top: 80px; }

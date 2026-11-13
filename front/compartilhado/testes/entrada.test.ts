@@ -8,7 +8,7 @@ import { lerFunil, lerImovel } from "../dados/funil"
 import { fmtInt } from "../formato"
 import { etapasDoFunil, etapasDoResumo, fraseDoBrasil, noFoco, numerosDoBrasil } from "../funil-etapas"
 import { nomeProprio, pontoDentro, rotulosDeAreas } from "../rotulos-mapa"
-import { destinoDaBusca, lerRota, linkFazenda, linkFichaLote, linkGrupo, linkMunicipio, linkPasta, linkPedido, linkPedidoMapa, municipiosSemDados, type MunicipioDoMapa } from "../../globo/src/rota"
+import { destinoDaBusca, destinoTerritorialMapa, lerRota, linkFazenda, linkFichaLote, linkGrupo, linkMunicipio, linkPasta, linkPedido, linkPedidoMapa, municipiosSemDados, type MunicipioDoMapa } from "../../globo/src/rota"
 
 const FRONT = path.resolve(__dirname, "../..")
 const AMOSTRA = path.resolve(FRONT, "../dados/amostra")
@@ -69,6 +69,17 @@ describe("rotas", () => {
     expect(lerRota(linkGrupo(id))).toEqual({ tela: "grupo", id })
     expect(lerRota(linkPedido(id))).toEqual({ tela: "pedido", id })
     expect(lerRota(linkPedidoMapa(id))).toEqual({ tela: "pedido-mapa", id })
+  })
+
+  it("o zoom e o clique em município do lote mantêm o pedido e escolhem dados municipais locais", () => {
+    expect(destinoTerritorialMapa("pedido-autorizado", { municipio: "1505536" })).toEqual({ tipo: "foco", foco: { municipio: "1505536", uf: "PA" } })
+    expect(destinoTerritorialMapa("pedido-autorizado", { municipio: "5107909" })).toEqual({ tipo: "foco", foco: { municipio: "5107909", uf: "MT" } })
+    expect(destinoTerritorialMapa("pedido-autorizado", { uf: "RN" })).toEqual({ tipo: "foco", foco: { municipio: null, uf: "RN" } })
+  })
+
+  it("fora de um pedido o mesmo gesto continua abrindo a rota pública do território", () => {
+    expect(destinoTerritorialMapa(undefined, { municipio: "1505536" })).toEqual({ tipo: "rota", hash: "#/municipio/1505536" })
+    expect(destinoTerritorialMapa(undefined, { uf: "MT" })).toEqual({ tipo: "rota", hash: "#/estado/MT" })
   })
 })
 

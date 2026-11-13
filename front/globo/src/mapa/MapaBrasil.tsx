@@ -28,7 +28,8 @@ import { camadasBase, COR_MAPA_V2, estiloBase, imagemHachura, prepararMapLibre }
 import type { AgregadosMapa } from "../../../compartilhado/dados/agregados"
 import { type HexagonoMapa, type LegendaHexagonos } from "./hexagonos"
 import { WorkerHexagonos } from "./worker-hexagonos"
-import { camadasHexagonos, corHexagonos, descreverHexagono, fontePublicaHexagonos } from "./camadas-hexagonos"
+import { prepararContextoMapa } from "./preparar-contexto"
+import { aplicarEscalaHexagonos, camadasHexagonos, descreverHexagono, fontePublicaHexagonos } from "./camadas-hexagonos"
 import { desenhoDePontos, poligonoDesenhado } from "./desenho-area"
 import { filtroEstadosProcessados, type DadosNacionais } from "./nacional"
 import { adicionarSatelitePublico, SATELITE_PUBLICO, type EstadoSatelitePublico } from "./satelite-publico"
@@ -226,6 +227,7 @@ export function MapaBrasil(props: Props) {
   const [zoom, setZoom] = useState(4)
   const [hexagonosLista, setHexagonosLista] = useState<HexagonoMapa[]>([])
   const hexagonosAtuais = useRef<HexagonoMapa[]>([])
+  const legendaHexagonos = useRef<LegendaHexagonos | null>(null)
   const [pontosDesenho, setPontosDesenho] = useState<[number, number][]>([])
   const [erroAgregadosNoMapa, setErroAgregadosNoMapa] = useState(false)
   const [erroLote, setErroLote] = useState(false)
@@ -258,8 +260,10 @@ export function MapaBrasil(props: Props) {
     if (!brasil || !caixa.current || mapaRef.current) return
     let removido = false
     let instancia: MapaGL | null = null
+    let liberarContexto: (() => void) | undefined
     void (async () => {
-      if (removido || !caixa.current) return
+      liberarContexto = await prepararContextoMapa()
+      if (removido || !caixa.current) { liberarContexto(); return }
       prepararMapLibre()
       const iniciais = atual.current.props
       const cobertura = prepararCobertura(iniciais.brasil?.estados, iniciais.estados, iniciais.brasil?.urlEstados)
@@ -271,8 +275,8 @@ export function MapaBrasil(props: Props) {
       const m = new MapaGL({
         container: caixa.current,
         attributionControl: false,
-        // Pede apresentação com menor espera; sem suporte, o navegador mantém seu caminho normal.
-        canvasContextAttributes: { desynchronized: true },
+        // Mantém a composição normal do navegador, também durante o redimensionamento do canvas.
+        canvasContextAttributes: { desynchronized: false },
         pixelRatio: Math.min(window.devicePixelRatio || 1, 2),
         fadeDuration: 0,
         dragRotate: false,
@@ -280,6 +284,8 @@ export function MapaBrasil(props: Props) {
         locale: { "NavigationControl.ZoomIn": "Aproximar", "NavigationControl.ZoomOut": "Afastar", "Popup.Close": "Fechar ficha breve" },
       })
       instancia = m
+      // O contexto auxiliar permanece vivo até a desmontagem, evitando seu descarte
+      // na fila da GPU durante a primeira composição do mapa e dos cartões.
       // bounds no construtor faz o MapLibre redimensionar o canvas duas vezes.
       // O enquadramento imediato usa o tamanho final antes do primeiro frame.
       const celular = window.matchMedia("(max-width: 640px)").matches
@@ -337,6 +343,7 @@ export function MapaBrasil(props: Props) {
     })()
     return () => {
       removido = true
+      liberarContexto?.()
       limparInteracao.current?.()
       limparInteracao.current = undefined
       limparSatelite.current?.()
@@ -370,11 +377,13 @@ export function MapaBrasil(props: Props) {
     }
     // As cidades regionais recém-instaladas também ficam legíveis sobre o H3.
     const primeiroRotulo = m.getStyle().layers.find(l => l.type === "symbol")?.id
-    for (const id of ["hexagonos", "hexagonos-linha", "hexagonos-selecionados", "hexagonos-sobre"])
+    for (const id of camadasHexagonos().map(c => c.id))
       if (m.getLayer(id)) m.moveLayer(id, primeiroRotulo)
     montar(m, brasil?.municipios ?? null)
     // A base estadual usa o satélite como âncora; ambos devem ficar abaixo de toda a cartografia regional.
     limparSatelite.current = adicionarSatelitePublico(m, "brasil-mun", setSatelite)
+    // O perímetro autorizado deve continuar por cima do raster e dos limites comuns no detalhe.
+    m.moveLayer("lote-autorizado-linha", m.getStyle().layers.find(l => l.type === "symbol")?.id)
     setRegional(true)
   }, [pronto, regional, uf, municipio, zoom, brasil])
 
@@ -603,7 +612,7 @@ export function MapaBrasil(props: Props) {
     if (!m || !pronto) return
     aplicarVisibilidadeHexagonos(m)
     agendarHexagonosVisiveis(m)
-  }, [pronto, props.hexagonosVisiveis, props.destaqueH3Autorizado])
+  }, [pronto, props.hexagonosVisiveis, props.destaqueH3Autorizado, props.geometriaLoteAutorizada])
 
   useEffect(() => {
     const m = mapaRef.current, worker = workerHexagonos.current
@@ -627,13 +636,18 @@ export function MapaBrasil(props: Props) {
           .setLngLat([limites.getCenter().lng, limites.getNorth()]).addTo(m)
       }
     }).catch(erro => {
-      if (ativo && !(erro instanceof Error && erro.name === "AbortError")) setErroLote(true)
+      if (ativo && !(erro instanceof Error && erro.name === "AbortError")) {
+        setErroLote(true)
+        // O worker revoga a seleção inválida; apaga também o snapshot antigo até a próxima consulta pública.
+        limparHexagonosVisiveis()
+        agendarHexagonosVisiveis(m)
+      }
     })
     return () => { ativo = false; etiquetaLote.current?.remove(); etiquetaLote.current = null }
   }, [pronto, props.geometriaLoteAutorizada, props.rotuloLoteAutorizado])
 
   useEffect(() => {
-    setPontosDesenho([])
+    if (props.desenhandoArea) setPontosDesenho([])
     const m = mapaRef.current
     if (!m || !pronto) return
     m.getCanvas().style.cursor = props.desenhandoArea ? "crosshair" : ""
@@ -647,12 +661,17 @@ export function MapaBrasil(props: Props) {
     if (!props.desenhandoArea) return
     const teclado = (evento: KeyboardEvent) => {
       if ((evento.target as HTMLElement)?.closest("input,textarea,select,button")) return
-      if (evento.key === "Escape") { evento.preventDefault(); atual.current.props.aoCancelarArea?.() }
+      if (evento.key === "Escape") { evento.preventDefault(); cancelarDesenho() }
       if (evento.key === "Enter") { evento.preventDefault(); concluirDesenho() }
     }
     window.addEventListener("keydown", teclado)
     return () => window.removeEventListener("keydown", teclado)
   }, [pontosDesenho, props.desenhandoArea, pronto])
+
+  function cancelarDesenho() {
+    setPontosDesenho([])
+    atual.current.props.aoCancelarArea?.()
+  }
 
   function concluirDesenho() {
     const geo = poligonoDesenhado(pontosDesenho)
@@ -783,9 +802,13 @@ export function MapaBrasil(props: Props) {
     if (!m.getLayer("hexagonos")) return
     const visivel = atual.current.props.hexagonosVisiveis !== false && m.getZoom() < ZOOM_FAZENDAS
     const selecionados = !!atual.current.props.destaqueH3Autorizado?.length || !!atual.current.props.geometriaLoteAutorizada?.features.length
-    m.setPaintProperty("hexagonos", "fill-opacity", visivel ? selecionados ? ["case", ["==", ["get", "selecionado"], true], 0.95, 0.35] : 0.92 : 0)
+    if (legendaHexagonos.current) aplicarEscalaHexagonos(m, legendaHexagonos.current, selecionados)
+    for (let faixa = 0; faixa < 6; faixa++) {
+      m.setPaintProperty(`hexagonos-faixa-${faixa}`, "fill-opacity", visivel ? selecionados ? 0.35 : 0.92 : 0)
+      m.setPaintProperty(`hexagonos-lote-faixa-${faixa}`, "fill-opacity", visivel && selecionados ? 0.95 : 0)
+    }
     m.setPaintProperty("hexagonos-linha", "line-opacity", visivel ? 1 : 0)
-    m.setPaintProperty("hexagonos-selecionados", "line-opacity", visivel ? 1 : 0)
+    m.setPaintProperty("hexagonos-selecionados", "line-opacity", visivel && selecionados ? 1 : 0)
     m.setPaintProperty("hexagonos-sobre", "line-opacity", visivel ? 1 : 0)
   }
 
@@ -821,7 +844,7 @@ export function MapaBrasil(props: Props) {
       for (const hex of resposta.hexagonos) geracoesVisiveis.current.set(hex, geracao)
       hexagonosAtuais.current = resposta.hexagonos
       ;(m.getSource("hexagonos") as GeoJSONSource).setData(resposta.geo as never)
-      m.setPaintProperty("hexagonos", "fill-color", corHexagonos(resposta.legenda))
+      legendaHexagonos.current = resposta.legenda
       aplicarVisibilidadeHexagonos(m)
       atual.current.props.aoMudarLegenda?.(resposta.legenda)
       if (import.meta.env.DEV || import.meta.env.VITE_RAIZ_TESTE_MAPA === "1") Object.assign(caixa.current!, { __hexagonos: resposta.hexagonos })
@@ -995,13 +1018,16 @@ export function MapaBrasil(props: Props) {
         <button type="button" onClick={() => { const c = mapaRef.current?.getCenter(); if (c) setPontosDesenho(p => [...p, [c.lng, c.lat]]) }}>Adicionar centro</button>
         <button type="button" disabled={!pontosDesenho.length} onClick={() => setPontosDesenho(p => p.slice(0, -1))}>Desfazer</button>
         <button type="button" disabled={!poligonoDesenhado(pontosDesenho)} onClick={concluirDesenho}>Concluir área</button>
-        <button type="button" onClick={() => atual.current.props.aoCancelarArea?.()}>Cancelar</button>
+        <button type="button" onClick={cancelarDesenho}>Cancelar</button>
       </div>}
       {!brasil && (
         <div className="mapa-carregando">
           <span className="girando" aria-hidden="true" /> Carregando o mapa do Brasil
         </div>
       )}
+      {brasil && zoom >= ZOOM_FAZENDAS && !municipio && <p className="cartografia-alerta" role="status">
+        Toque em um município para consultar seus limites do CAR. O desenho aparece quando está publicado.
+      </p>}
       {brasil && !brasil.municipios && (uf || municipio) && (
         <p className="aviso mapa-aviso">
           Os limites municipais ainda não estão disponíveis para esta consulta.

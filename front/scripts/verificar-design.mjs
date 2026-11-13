@@ -251,7 +251,14 @@ function verificarCss(arquivo, fonte, problemas) {
     const linha = k + 1
     const p = (regra) => problemas.push({ arquivo, linha, regra, trecho: l.trim() })
     if (/box-shadow\s*:/.test(l) && !/box-shadow\s*:\s*none\b/.test(l)) p("box-shadow diferente de none")
-    if (/border-left(-color)?\s*:/.test(l) && !/border-left\s*:\s*(0|none)\b/.test(l)) p("borda esquerda colorida")
+    for (const m of l.matchAll(/\bborder-left(-color)?\s*:\s*([^;}]+)/g)) {
+      // A ponta triangular do popup é feita com bordas pelo próprio MapLibre.
+      // Só recolorimos essa ponta com a superfície; não autorizamos barras, outros seletores ou shorthand.
+      const pontaMapLibre = arquivo === "globo/src/telas/explorar-v2.css"
+        && /^\.maplibregl-popup-anchor-right\s+\.maplibregl-popup-tip$/.test(blocoEm(blocos, pos + m.index)?.seletor ?? "")
+        && m[1] === "-color" && m[2].trim() === "var(--superficie)"
+      if (!pontaMapLibre && !(!m[1] && /^(0|none)\b/.test(m[2].trim()))) p("borda esquerda colorida")
+    }
     if (/border-inline-start(-color)?\s*:/.test(l) && !/:\s*(0|none)\b/.test(l)) p("borda esquerda colorida")
     if (/(?<!repeating-)(linear|radial|conic)-gradient\(/.test(l)) p("degradê de enfeite")
     for (const m of l.matchAll(/text-transform\s*:\s*uppercase/g))

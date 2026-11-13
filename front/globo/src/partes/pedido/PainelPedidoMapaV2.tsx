@@ -124,7 +124,7 @@ function CartaoLote({ opcao: o, ativo, escala, aoEscolher }: { opcao: OpcaoMapaV
   const temMapa = o.selecao.origem === "api" && o.selecao.fazendas.length > 0
   return <article className={`pedido-mapa-v2-lote${ativo ? " ativo" : ""}`} aria-label={`Lote ${o.nome.toLowerCase()}`}>
     <div className="pedido-mapa-v2-lote-topo"><h3><button type="button" aria-pressed={ativo} onClick={aoEscolher}>{o.nome}</button></h3><span className="pedido-mapa-v2-selo">{temMapa ? (ativo ? "no mapa" : "ver no mapa") : o.selecao.origem === "publicacao" ? "resumo público" : "sem geometria"}</span></div>
-    <dl className="pedido-mapa-v2-numeros"><div><dd>{mostrar(o.fazendas)}</dd><dt>fazendas</dt></div><div><dd>{mostrar(o.hectares, fmtHa)}</dd><dt>a restaurar</dt></div><div><dd>{mostrar(o.creditos?.p50 ?? null, n => compacto.format(n))}</dd><dt>créditos P50</dt></div></dl>
+    <dl className="pedido-mapa-v2-numeros"><div><dt>fazendas</dt><dd>{mostrar(o.fazendas)}</dd></div><div><dt>a restaurar</dt><dd>{mostrar(o.hectares, fmtHa)}</dd></div><div><dt>créditos P50</dt><dd>{mostrar(o.creditos?.p50 ?? null, n => compacto.format(n))}</dd></div></dl>
     <div className="pedido-mapa-v2-faixa">
       {posicoes && o.creditos ? <><div className="pedido-mapa-v2-faixa-barra" role="img" aria-label={`Créditos P10 ${fmtInt(o.creditos.p10)}, P50 ${fmtInt(o.creditos.p50)}, P90 ${fmtInt(o.creditos.p90)}. Todas as opções usam a mesma escala.`}><i style={{ left: `${posicoes.p10}%`, width: `${posicoes.p90 - posicoes.p10}%` }} /><b style={{ left: `${posicoes.p50}%` }} /></div><div className="pedido-mapa-v2-faixa-rotulos"><span>P10 {compacto.format(o.creditos.p10)}</span><span>P90 {compacto.format(o.creditos.p90)}</span></div></> : <p>Faixa de créditos ainda não publicada.</p>}
     </div>
