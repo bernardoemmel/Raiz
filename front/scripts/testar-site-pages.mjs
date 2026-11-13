@@ -159,9 +159,10 @@ try {
   const inicial = await pagina.evaluate(() => {
     const m = document.querySelector(".mapa-brasil .mapa").__mapa
     const f = m.queryRenderedFeatures({ layers: ["grupos-fazendas"] })[0]
-    return { propriedades: f.properties, hexagonos: !!m.getLayer("potencial-h3"), zoom: m.getZoom(), dados: m.getStyle().sources["agregados-nacionais"].data }
+    return { propriedades: f.properties, hexagonos: !!m.getLayer("potencial-h3"), zoom: m.getZoom() }
   })
-  assert.equal(inicial.dados, new URL("geo/agregados_brasil.geojson", base).href, "O worker deve ler a projeção pública por URL, sem serializar todas as feições na interface.")
+  // O MapLibre 6.15 devolve uma cópia do dado carregado à main; serialize().data já não é a URL depois do load.
+  assert(pedidos.includes(new URL("geo/agregados_brasil.geojson", base).href), "O mapa deve carregar a projeção normal anunciada para o worker.")
   assert(!pedidos.some(url => url.endsWith("/agregados_brasil.geojson.gz")), "A publicação nova não precisa baixar também o agregado legado.")
   assert.equal(inicial.hexagonos, false, "O H3 é só a agregação de entrada, não o desenho da escala nacional.")
   assert.equal(inicial.propriedades.fazendas, 11)
@@ -375,6 +376,8 @@ try {
   await contextoSemJs.close()
   // Publicações anteriores continuam funcionando quando o índice só anuncia o gzip antigo.
   const legado = await contexto.newPage()
+  const pedidosLegados = []
+  legado.on("request", r => pedidosLegados.push(r.url()))
   legado.on("pageerror", e => erros.push(e.message))
   legado.on("response", r => { if (r.status() >= 400) erros.push(`${r.status()} ${r.url()}`) })
   await legado.route("**/geo/indice.json", async rota => {
@@ -388,7 +391,8 @@ try {
     const m = document.querySelector(".mapa-brasil .mapa")?.__mapa
     return m?.getLayer("grupos-fazendas") && m.queryRenderedFeatures({ layers: ["grupos-fazendas"] }).some(f => f.properties.fazendas === 11 && f.properties.ha_conhecidos === 1000 && f.properties.sem_medida === 1)
   })
-  assert.equal(await legado.evaluate(() => typeof document.querySelector(".mapa-brasil .mapa").__mapa.getStyle().sources["agregados-nacionais"].data), "object")
+  assert(pedidosLegados.some(url => url.endsWith("/agregados_brasil.geojson.gz")), "Índice antigo usa o gzip legado.")
+  assert(!pedidosLegados.some(url => url.endsWith("/agregados_brasil.geojson")), "Índice antigo não presume um arquivo novo não anunciado.")
   await legado.close()
   assert.deepEqual(ausentes, [], "Nenhum arquivo pode responder 404.")
   assert.deepEqual(erros, [], "Nenhum erro de rede, JavaScript ou renderização.")
