@@ -2,6 +2,7 @@
 
 Atualização de 12/11/2026 (Brasília). Continuação implementada na branch
 `codex/ficha-compromissos-versoes`, com integração da main `c3bf907`.
+PR desta continuação: [#93](https://github.com/bernardoemmel/Raiz/pull/93), aguardando CI e merge.
 Entregas anteriores integradas pelos [PR #72](https://github.com/bernardoemmel/Raiz/pull/72)
 e [PR #80](https://github.com/bernardoemmel/Raiz/pull/80), commit `bea53bd`.
 Entrega anterior integrada: [PR #52](https://github.com/bernardoemmel/Raiz/pull/52).
@@ -75,6 +76,8 @@ exclusiva da referência estadual sem snapshot privado; 230 testes do front;
 navegador/celular/axe; integração PostGIS de marcas, histórico e rollback. O teste
 estadual exige o snapshot privado preparado pelo job `referencia_para`; não se
 substitui por fixture pequena. O CI completo é obrigatório antes do merge.
+Após conciliar a main: 223 testes focados aprovados, mais 11 da agenda/pilha;
+Ruff e privacidade aprovados; 857 pacotes auditados sem licença proibida.
 
 ## Publicação aberta e arquivo privado
 
