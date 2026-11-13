@@ -262,6 +262,9 @@ def test_executor_publica_e_maquina_nova_retoma_do_release(gh, tmp_path, stub):
 def test_adotar_o_que_ja_foi_publicado(gh, tmp_path, stub):
     arquivos = {f"imoveis_{C1}.csv": b"cod_imovel\nx\n", f"imoveis_{C2}.csv": b"cod_imovel\ny\n",
                 f"filtros_{C1}.csv": b"cod_imovel\nx\n"}  # fmt: skip
+    arquivos["_versoes.json"] = json.dumps(
+        {nome: {"versao": "filtros-1" if nome.startswith("filtros_") else "funil-1"} for nome in arquivos}
+    ).encode()
     gh.assets["raiz_PA.tar.gz"] = gh.tar("PA", arquivos)
     log = tmp_path / "chamadas.log"
     ex = Executor(_armazem(gh, tmp_path / "esp"), tmp_path / "trab", stub.tarefas(log))
@@ -405,7 +408,13 @@ def test_adotar_grava_a_caixa_do_municipio(gh, tmp_path, stub):
 
     geo = tmp_path / "geo.parquet"
     gpd.GeoDataFrame({"cod_imovel": ["x"]}, geometry=[box(-50, -5, -49, -4)], crs=4674).to_parquet(geo)
-    gh.assets["raiz_PA.tar.gz"] = gh.tar("PA", {f"imoveis_{C1}.csv": b"cod_imovel\nx\n"})
+    gh.assets["raiz_PA.tar.gz"] = gh.tar(
+        "PA",
+        {
+            f"imoveis_{C1}.csv": b"cod_imovel\nx\n",
+            "_versoes.json": json.dumps({f"imoveis_{C1}.csv": {"versao": "funil-1"}}).encode(),
+        },
+    )
     gh.assets["raiz_geo_PA.tar.gz"] = gh.tar("PA", {f"geo_{C1}.parquet": geo.read_bytes()})
     ex = Executor(_armazem(gh, tmp_path / "esp"), tmp_path / "trab", stub.tarefas(tmp_path / "log"))
     ex.adotar("PA")

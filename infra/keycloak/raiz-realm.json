@@ -42,6 +42,16 @@
       },
       "protocolMappers": [
         {
+          "name": "sujeito-autenticado",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-sub-mapper",
+          "consentRequired": false,
+          "config": {
+            "access.token.claim": "true",
+            "introspection.token.claim": "true"
+          }
+        },
+        {
           "name": "empresa-gerenciada",
           "protocol": "openid-connect",
           "protocolMapper": "oidc-usermodel-attribute-mapper",
