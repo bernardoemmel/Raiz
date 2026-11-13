@@ -135,3 +135,14 @@ def test_manifesto_sem_casos_ou_argumentos_e_recusado(tmp_path, dado):
     caminho.write_text(json.dumps(dado))
     with pytest.raises(ErroMCP, match="ausente, vazio ou inválido"):
         carregar_manifesto(caminho)
+
+
+def test_reprovacao_executa_todas_variantes_e_conserva_somente_diagnosticos_fechados():
+    with pytest.raises(FalhaAvaliacao) as capturada:
+        asyncio.run(avaliar_injecoes(AmbienteDoAuditor("excecao")))
+    d = capturada.value.diagnostico
+    assert d["variantes_executadas"] == 12 and d["variantes_aprovadas"] == 0
+    assert len(d["falhas"]) == 12
+    assert {f["caso"] for f in d["falhas"]} == {c.id for c in carregar_casos()}
+    assert all(f["tipo"] == "ValueError" for f in d["falhas"])
+    assert "segredo-que-nao-pode-ir-ao-ci" not in json.dumps(d)

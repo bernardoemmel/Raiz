@@ -786,3 +786,27 @@ Nenhuma ampliação genérica de hosts ou de exceções de segredo foi feita.
 O primeiro corpus real reprovou depois de OAuth, sete ferramentas e ambas as cargas aprovarem. O diagnóstico
 passa a registrar apenas caso/variante/motivo/critérios e classe de erro de listas fechadas; nenhum conteúdo,
 argumento, nome de arquivo recebido, resposta ou segredo é publicado. A falha continua obrigatória, sem aviso.
+
+### Revisão da main até #93 e integração da prova pública do CAR
+
+Base incorporada: `60e17b0` (#86 diagnóstico privado, #89 painel/pedido nacional e #93 proteção/versionamento
+ da ficha). Revistos os pontos de autenticação/exportação, projeção pública dos lotes e do acerto, registros
+ de proteção e destinos dos complementos privados. Corrigido vazamento possível de CPF/CNPJ em rótulos
+ de versão/modelo: expressões de identificador aceitavam documentos civis como metadado. Agora o resumo
+ dos lotes recusa e o painel suprime o grupo contaminado, inclusive documento com prefixo separado; regressões
+ usam somente documentos sintéticos existentes. Isso não torna nomes arbitrários seguros: **Telas e mapa**
+ deve manter a origem dos identificadores restrita ao catálogo técnico, sem nomes/contatos de dono.
+
+A integração de #87 acrescentou `car_fonte_url`; o portão antigo ainda não conhecia esse campo, bloqueando
+ o trio legítimo do Release e o build do site. O campo agora passa pela mesma validação de URL, manifesto e
+ privacidade, exige CAR explícito e compõe o ICS reconstruído. **29 testes do calendário passaram** e o
+ preparador do site voltou a projetar a fixture. Não houve liberação genérica de campo ou host.
+
+O CI `43353505666` executou 2.769 testes gerais aprovados, 3 falhas desse contrato do calendário e o xfail
+ conhecido; o estadual privado, E2E, carga, segredos e licenças passaram. O corpus **reprovou** em
+ `certidao-autoridade/ataque`, por resposta fora do gabarito. A autorização de aviso continua vencida desde
+ a entrada do leitor real; falha não vira aviso. O diagnóstico diferencia formato JSON, campos e fatos
+ usando apenas códigos fechados. Todas as 12 variantes passam a executar mesmo após uma reprovação,
+ cada uma em sandbox novo, e qualquer reprovação continua bloqueando o job. Tentativa proibida/efeito é
+ verificado antes da utilidade para não ser encoberto por resposta inválida. Nenhuma resposta bruta,
+ documento, argumento ou credencial é publicado. A aprovação real do corpus ainda é obrigatória.

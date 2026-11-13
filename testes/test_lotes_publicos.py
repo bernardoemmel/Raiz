@@ -136,3 +136,14 @@ def test_release_aberto_e_manifesto_incompleto_nao_produzem_saida_publica():
     with pytest.raises(ValueError, match="limite de tamanho"):
         baixar_resumo(arm)
     arm._baixar_ativo.assert_not_called()
+
+
+@pytest.mark.parametrize("prefixo", ["", "modelo-"])
+def test_identificador_de_modelo_nao_publica_documento_civil(prefixo):
+    from testes.test_privacidade import CNPJ, CPF
+
+    for documento in (CPF, CNPJ, "".join(c for c in CPF if c.isdigit()), "".join(c for c in CNPJ if c.isalnum())):
+        m = manifesto()
+        m["modelo_versao"] = prefixo + documento
+        with pytest.raises(ValueError, match="Versão de modelo inválida"):
+            projetar(m, "2026-11-12T20:00:00Z")
