@@ -148,8 +148,8 @@ try {
   console.log("Abrindo o build estático básico no Chromium...")
   await pagina.goto(base)
   await mapaPronto()
-  assert.equal(await pagina.evaluate(() => document.querySelector(".mapa-brasil .mapa").__mapa.getStyle().sources["brasil-estados"].data),
-    new URL("geo/brasil_estados.geojson", base).href, "Os estados públicos chegam ao worker pela URL anunciada.")
+  assert.equal(pedidos.filter(url => url === new URL("geo/brasil_estados.geojson", base).href).length, 2,
+    "A geometria é lida para enquadramento e pela URL no worker; o navegador pode reutilizar o cache HTTP.")
   assert.equal(await pagina.locator(".mapa-brasil svg").count(), 0, "A entrada abre no MapLibre, sem o SVG nacional.")
   await pagina.getByRole("heading", { name: "Cobertura do mapa", exact: true }).waitFor()
   await pagina.waitForFunction(() => document.querySelectorAll(".processamento-estado").length === 27)
@@ -443,6 +443,8 @@ try {
   assert(!pedidosLegados.some(url => url.endsWith("/agregados_brasil.geojson")), "Índice antigo não presume um arquivo novo não anunciado.")
   assert.equal(await legado.evaluate(() => document.querySelector(".mapa-brasil .mapa").__mapa.getStyle().sources["brasil-estados"].data.type),
     "FeatureCollection", "Geometria estadual legada continua funcionando como objeto.")
+  assert.equal(pedidosLegados.filter(url => url.endsWith("/estados-legados.geojson")).length, 1,
+    "O fallback reaproveita a geometria lida, sem uma segunda requisição pelo worker.")
   await legado.close()
   // A falha do GeoJSON do worker é visível e não deixa marcadores de outro snapshot.
   const semAgregados = await contexto.newPage()
