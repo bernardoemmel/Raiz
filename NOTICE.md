@@ -361,3 +361,10 @@ que não é aceita pelo projeto. A versão 10.78.0 evita essa dependência e man
 original do Lighthouse; sua compatibilidade é verificada com o teste de agentes e com eventos de telemetria
 capturados em transporte local, sem envio ao Sentry. Ao atualizar o Lighthouse ou esse pin, repetir essas
 verificações e a checagem integral de licenças; não liberar FSL nem instalar a CLI como exceção.
+
+## Conferência independente de contagens (rodada 12)
+
+Ibis **12.0.0** ([ibis-project/ibis](https://github.com/ibis-project/ibis), Apache-2.0),
+no extra opcional `conferencia`, executa a mesma expressão de contagem municipal em DuckDB e SQLite.
+Recebe apenas códigos municipais; não substitui a ingestão, não recebe produtores e não altera versões
+travadas dos motores existentes. Nenhum código-fonte de terceiros foi copiado.

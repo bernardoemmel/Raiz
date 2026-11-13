@@ -31,8 +31,11 @@ RN/PI, preservar e retomar o progresso, preencher as vagas com várias UFs/fatia
 municípios prontos, em execução e com erro no painel, com última mudança. As extensões restantes dos formatos
 do Lote PA permanecem preservadas, mas aguardam essa correção operacional.
 Rodada 12 recebida: marcador municipal íntegro, tempos mediana/p95, ensaio de falha/retomada, conferência Ibis
-em dois mecanismos e camada bovina PA/2016 agregada por município/mês. Implementação e provas pendentes,
-com fontes e limites registrados na passagem; a prioridade segue sendo a fila dos 27 estados.
+em dois mecanismos e camada bovina PA/2016 agregada por município/mês. Integridade, instrumentação e
+conferência implementadas localmente em `codex/dados-rodada12`: ensaio sintético dos 15 municípios de RR
+retoma com bytes/contagens iguais; Ibis confere 242.008 registros reais de RN/PI em DuckDB e SQLite.
+Medições de 415 municípios estão em `docs/operacao.md`, com exclusões e limites. Faltam suíte completa,
+CI/PR/merge e implantação; a camada bovina aguarda a tabela municipal/mensal. A prioridade segue sendo a fila dos 27 estados.
 
 O **#82 foi mesclado** em `cf306256`, após os oito checks do CI `43335410339` passarem, incluindo a referência
 privada completa do Pará. O workflow do motor foi conferido como `active`. A falha posterior de RN-1 veio da
@@ -515,3 +518,9 @@ o caso estadual exigiu preparar a referência privada e passou depois em execuç
 345.870 imóveis, 425,58 s). LanguageTool depende do servidor presente no CI; uma divergência de TIR já
 documentada permanece como falha esperada. Frontend: 292 testes e build; Ruff/actionlint verdes;
 857 pacotes com licenças conferidas. PR/CI/merge e confirmação operacional ainda pendentes neste registro.
+
+Validação integral da rodada 12 em 12/11 às 23h39 de Brasília: **2.509 testes passaram**, incluindo
+PostGIS, LanguageTool real e a referência estadual privada completa do Pará; duas verificações de
+cartão/vídeo dependem da instalação local do Takumi e serão repetidas após prepará-lo. A divergência de
+TIR central r11 permanece como falha esperada já documentada. Ruff/formatação passaram; 862 pacotes
+conferidos sem problemas de licença. CI, merge e conferência dos novos marcadores em produção pendentes.

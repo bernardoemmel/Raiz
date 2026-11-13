@@ -191,6 +191,22 @@ class Executor:
 
     # --- um município ---------------------------------------------------------------------------------------------
 
+    def confirmar_integridade(self, uf: str, cod: int) -> bool:
+        """Sela só a partição cujas tarefas, versões e bytes foram conferidos."""
+        from raiz.executor.integridade import identidade
+
+        marca = self.marca(uf, cod)
+        if self.plano(uf, cod) or not self._conclusao_comprovada(uf, cod):
+            if marca.pop("integridade", None) is not None:
+                por_json(self.a, self.chave_marca(uf, cod), marca)
+            return False
+        selo = identidade(uf, cod, self.tarefas, marca)
+        anterior = marca.get("integridade") or {}
+        if any(anterior.get(k) != v for k, v in selo.items()):
+            marca["integridade"] = {**selo, "conferido_em": _agora()}
+            por_json(self.a, self.chave_marca(uf, cod), marca)
+        return True
+
     def _garantir_local(self, uf: str, marca: dict, t: Tarefa) -> None:
         """As saídas das tarefas anteriores precisam estar na pasta de trabalho (a máquina pode ter reiniciado)."""
         pasta = self.pasta(uf)
@@ -209,6 +225,7 @@ class Executor:
         with acompanhar(self._processamento, cod) as evento:
             resultado = self._processar_municipio(uf, cod, refazer)
             evento["erro"] = resultado["erro"] is not None
+            evento["tarefas_rodadas"] = resultado["rodadas"]
             return resultado
 
     def _processar_municipio(self, uf: str, cod: int, refazer: bool = False) -> dict:
@@ -216,6 +233,8 @@ class Executor:
         pasta = self.pasta(uf)
         m = self.marca(uf, cod)
         m.setdefault("tarefas", {})
+        if self.plano(uf, cod, refazer) and m.pop("integridade", None) is not None:
+            por_json(self.a, self.chave_marca(uf, cod), m)
         res = {"cod": int(cod), "rodadas": [], "puladas": [], "vazio": False, "erro": None}
         for t in self.tarefas:
             if any((m["tarefas"].get(d) or {}).get("vazio") for d in t.depende) or any(
@@ -273,6 +292,8 @@ class Executor:
             por_json(self.a, self.chave_marca(uf, cod), m)
             if res["erro"]:
                 break
+        if not self.confirmar_integridade(uf, cod) and res["erro"] is None:
+            res["erro"] = {"tarefa": "integridade", "erro": "fontes, versões ou saídas mudaram durante a execução"}
         return res
 
     # --- um estado ------------------------------------------------------------------------------------------------
@@ -294,6 +315,7 @@ class Executor:
         o que fez; a próxima rodada continua dali. Os municípios em curso têm RAIZ_GRACA_MIN (10) minutos para
         terminar; o que passar disso é interrompido (fica sem marca e roda na próxima vez), para a publicação caber."""
         uf = uf.upper()
+        cronometro_estado = time.monotonic()
         limite = time.time() + ate_s if ate_s is not None else None
         if hasattr(self.a, "garantir_uf"):
             self.a.garantir_uf(uf)  # Release: baixa o estado (saídas, marcas e andamento) uma vez
@@ -322,8 +344,9 @@ class Executor:
         from raiz.executor import processamento
 
         self._processamento = processamento.contexto(self.trabalho, uf)
+        self._processamento["versoes"] = self.versoes()
         sem_tarefa_pendente = set(cods) - set(pendentes)
-        prontos_antes = {cod for cod in sem_tarefa_pendente if self._conclusao_comprovada(uf, cod)}
+        prontos_antes = {cod for cod in sem_tarefa_pendente if self.confirmar_integridade(uf, cod)}
         self._processamento["nao_comprovados"] = sem_tarefa_pendente - prontos_antes
         publicacao_bloqueada = False
         ultimo_painel = 0.0
@@ -452,6 +475,7 @@ class Executor:
         processamento.encerrar(self._processamento)
         estado["situacao"] = "parado_no_prazo" if parou else ("com_erro" if estado["erros"] else "pronto")
         estado["fim"] = _agora()
+        estado["segundos_executor"] = round(time.monotonic() - cronometro_estado, 6)
         andamento(forcar_painel=True)
         if hasattr(self.a, "publicar") and getattr(self.a, "token", None):
             try:

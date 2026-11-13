@@ -440,3 +440,31 @@ o caso estadual exigiu preparar a referência privada e passou depois em execuç
 345.870 imóveis, 425,58 s). LanguageTool depende do servidor presente no CI; uma divergência de TIR já
 documentada permanece como falha esperada. Frontend: 292 testes e build; Ruff/actionlint verdes;
 857 pacotes com licenças conferidas. PR/CI/merge e confirmação operacional ainda pendentes neste registro.
+
+
+## Rodada 12 — implementação local de integridade e conferência
+
+Trabalho em `codex/dados-rodada12`, separado da correção urgente #95 até seu CI/merge:
+
+- Marcador municipal explícito `integro`, invalidado por fonte/versão/bytes/erro; conserva tarefas já
+  concluídas e não depende da ordem de término das lanes. Marcas legadas só recebem selo depois da conferência.
+- Ensaio com SIGKILL em filho local, 15 códigos de RR e dados sintéticos: retomada e execução inteira têm
+  arquivos idênticos, 45 imóveis, 15 nulos de área, 15 geometrias nulas e 15 sem área. Nenhum Actions interrompido.
+- Relógio monotônico por tentativa municipal e duração do executor por rodada; controles privados medidos
+  com mediana/p95, amostras e versões em `docs/operacao.md`. 415 municípios com tempos de tarefas utilizáveis;
+  nenhuma rodada estadual integral sem adoção/medição ausente. Não derivar estados/dia desses números.
+- Ibis 12.0.0, Apache-2.0, extra opcional: mesma consulta em DuckDB e SQLite; nenhuma dependência existente
+  mudou de versão. Prova real: PI 185.791 imóveis/130 municípios e RN 56.217/84, contagens iguais nos dois bancos.
+  Só códigos municipais entram na conferência; relatórios agregados com versões e hashes em `docs/medicoes/`.
+- Camada bovina PA/2016 continua aguardando tabela agregada municipal/mensal. O artigo foi consultado:
+  os dados foram fornecidos aos autores pela ADEPARÁ; tabelas publicadas são totais estaduais, e os meses
+  aparecem em gráficos. Não inventar os valores municipais nem importar identificação de produtores.
+
+Validações locais específicas: 53 testes aprovados inicialmente; 28 de tempos/preservação repetidos após
+separar rodadas históricas que reaproveitaram tarefas adotadas. Suíte completa/CI/PR/merge desta rodada pendentes.
+
+Validação integral da rodada 12 em 12/11 às 23h39 de Brasília: **2.509 testes passaram**, incluindo
+PostGIS, LanguageTool real e a referência estadual privada completa do Pará; duas verificações de
+cartão/vídeo dependem da instalação local do Takumi e serão repetidas após prepará-lo. A divergência de
+TIR central r11 permanece como falha esperada já documentada. Ruff/formatação passaram; 862 pacotes
+conferidos sem problemas de licença. CI, merge e conferência dos novos marcadores em produção pendentes.
