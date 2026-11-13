@@ -79,3 +79,11 @@ uv run python -m raiz.restauracao_benchmark --linhas 7000000 --misto --destino /
 
 O arquivo `benchmark.json` registra versão, identidade do catálogo, tempos, memória, cota de CPU e diagnósticos
 da busca. A base sintética não comprova cobertura do Brasil nem qualidade científica das previsões.
+
+Repetição após integração R12 (13/11/2026 UTC): sete milhões de imóveis, 80%
+pequenos, três seleções e auditoria em **67,43 s (1,12 min)**; preparo do índice
+sintético 10,71 s; pico 2.386 MiB. Seletor `lote-nacional-1+63098e6a63a3`, índice
+`oferta-nacional-1+f6f4b19196b9`, modelo `restauracao-2026d+490ab152`.
+Execução em cgroup de quatro CPUs, com testes Python concorrentes no ambiente;
+não mede coleta, previsões municipais nem recomposição financeira. O resultado
+completo está em `/tmp/raiz-benchmark-nacional-r12/benchmark.json` até a publicação.

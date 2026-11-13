@@ -564,3 +564,6 @@ A primeira execução no Actions identificou ausência de `rg` no runner; a veri
   validação por município. Falhas HTTP continuam como pendência, sem números fictícios.
 - [x] Compatibilidade do teste CADT após mudança do padrão: amostra declara R11,
   o cenário explícito do exportador; 52 testes aprovados, sem alterar sua implementação.
+- [x] Benchmark nacional repetido na R12: 7 milhões sintéticos, 80% pequenas,
+  três seleções e auditoria em 67,43 s; preparo 10,71 s, pico 2.386 MiB. Não mede
+  coleta ou previsão municipal. Publicação real permanece pendente.

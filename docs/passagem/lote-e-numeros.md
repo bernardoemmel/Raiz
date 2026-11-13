@@ -443,3 +443,11 @@ A sincronização com a main `60e17b0` preservou as entregas do chat Ficha. O
 exportador CADT continua explicitamente em R11: sua fixture agora declara esse
 cenário ao gerar a amostra, em vez de herdar o novo padrão R12. Os 52 testes do
 CADT passaram; o exportador, a API, o MCP e o front não foram alterados.
+
+Benchmark nacional R12 concluído: 7 milhões sintéticos, 80% pequenas, 67,43 s
+para três opções e auditoria (1,12 min), 10,71 s de preparo, 2.386 MiB, quatro CPUs
+com testes concorrentes. Seletor `lote-nacional-1+63098e6a63a3`; modelo
+`restauracao-2026d+490ab152`. Não inclui cálculo municipal nem fluxos financeiros.
+59 testes nacionais/fila aprovados após integrar R12. CI do PR #94 no commit
+`a1b88c2` está na fila; não enviar novo head enquanto estiver ativo para evitar
+cancelamento automático pelo CI compartilhado.
