@@ -30,6 +30,35 @@ privado. O build e o servidor de desenvolvimento também aplicam a lista positiv
 Sem dados básicos publicados, o site mostra cobertura indisponível; não busca
 arquivos antigos completos como alternativa.
 
+### Resumo aberto das três opções de lote
+
+O site também oferece o contrato separado `publico_lotes`, versão 1, em
+`amostra/lote_PA_central_r11.json`. A lista positiva contém, por alternativa:
+créditos P10/P50/P90 da carteira, hectares, número de fazendas, custo médio em
+US$/crédito e quanto da meta tem terra documentada. Contagem, área, créditos e
+custo referem-se ao mesmo conjunto de **titulares e reservas**. As três opções
+são alternativas, não se somam. Não entram TIR, CAR, localização, contornos,
+tabela por fazenda, travas, “o que destrava” ou referências aos pacotes privados.
+Medidas de grupos menores que cinco fazendas são suprimidas, sem excluir as
+fazendas do lote.
+
+`python -m raiz.lotes_publicos` lê somente o manifesto no arquivo autenticado,
+reconfere a visibilidade privada e valida tamanho/digest. Nunca baixa os pacotes
+individuais. A projeção grava apenas o resumo em `dados/lotes-publicos/`; o build
+e o navegador aplicam outra lista positiva. Não ler `RAIZ_LOTES` nem a pasta
+legada `dados/lotes` para publicar. O token existe apenas no passo de projeção
+do Actions, nunca no build Vite, cache de dados ou artifact do Pages.
+
+Terra pronta aqui significa matrícula conferida ou concessão documentada no
+lote. `oferta.creditos_terra_pronta` é oferta estadual e também inclui matrícula
+a conferir no solver: não pode preencher esse indicador. O manifesto atual
+confirma zero fazendas documentadas nas três opções; se uma futura publicação
+tiver mistura de terra documentada e pendente sem os créditos separados, a
+medida permanece desconhecida. Nenhum desses valores libera comercialização.
+Data e versão vêm do manifesto privado publicado, e novos filtros não fingem
+recalcular um cenário congelado. Composição e diligência continuam na API
+autenticada, com os controles por cliente e ficha descritos abaixo.
+
 ## O que é pago e permanece privado
 
 Por imóvel: certidão lida por IA, cadeia e pendências detalhadas da terra,

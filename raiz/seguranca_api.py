@@ -47,6 +47,7 @@ class SegurancaAPI:
                     "Content-Type",
                     "X-Chave-API",
                     "Idempotency-Key",
+                    "If-Match",
                     "MCP-Protocol-Version",
                     "MCP-Method",
                     "MCP-Name",

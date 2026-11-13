@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import hashlib
 from collections.abc import Callable
-from typing import Annotated
+from typing import Annotated, Literal
 
 import httpx
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, Response
@@ -48,7 +48,9 @@ def _executar(fn, *args, **kwargs):
     try:
         return fn(*args, **kwargs)
     except acesso.ErroAcesso as exc:
-        cabecalhos = {"Retry-After": str(exc.retry_after or 60)} if exc.status == 429 else None
+        cabecalhos = {"Cache-Control": "private, no-store", "Vary": "Authorization"}
+        if exc.status == 429:
+            cabecalhos["Retry-After"] = str(exc.retry_after or 60)
         raise HTTPException(exc.status, str(exc), headers=cabecalhos) from exc
     except httpx.HTTPError as exc:
         raise HTTPException(502, "O serviço de pagamento está indisponível. Tente novamente.") from exc
@@ -97,16 +99,14 @@ def roteador(engine_de: Callable) -> APIRouter:
         consulta: Annotated[Consulta, Query()],
         cid: int = Depends(cliente),
     ):
-        limite(request, f"cliente:{cid}", "busca", 30)
         filtros = busca.FiltrosProspeccao.model_validate(consulta.model_dump(exclude={"pagina", "limite"}))
         return _executar(
-            busca.buscar_prospeccao,
+            servico.buscar_fazendas,
             engine_de(request),
+            cid,
             filtros,
-            cliente_id=cid,
             pagina=consulta.pagina,
             limite=consulta.limite,
-            incluir_imoveis=True,
         )
 
     @r.get("/saldo")
@@ -133,18 +133,26 @@ def roteador(engine_de: Callable) -> APIRouter:
 
     @r.get("/fichas/{car}/visual")
     def visual(car: str, request: Request, cid: int = Depends(cliente)):
-        _executar(acesso.exigir_desbloqueio, engine_de(request), cid, car)
-        return prospeccao_visual.consultar(engine_de(request), car)
+        return _executar(
+            servico.ler_visual, engine_de(request), cid, car, prospeccao_visual.consultar, acao="visual_ficha"
+        )
 
     @r.get("/fichas/{car}/visual/satelite")
     def satelite(car: str, request: Request, cid: int = Depends(cliente)):
-        _executar(acesso.exigir_desbloqueio, engine_de(request), cid, car)
-        return prospeccao_visual.satelite_disponivel(engine_de(request), car)
+        return _executar(
+            servico.ler_visual,
+            engine_de(request),
+            cid,
+            car,
+            prospeccao_visual.satelite_disponivel,
+            acao="satelite_ficha",
+        )
 
     @r.get("/fichas/{car}/visual/satelite.webp")
     def imagem_satelite(car: str, request: Request, cid: int = Depends(cliente)):
-        _executar(acesso.exigir_desbloqueio, engine_de(request), cid, car)
-        _, arquivo = prospeccao_visual.imagem(engine_de(request), car)
+        _, arquivo = _executar(
+            servico.ler_visual, engine_de(request), cid, car, prospeccao_visual.imagem, acao="imagem_ficha"
+        )
         return FileResponse(
             arquivo, media_type="image/webp", headers={"Cache-Control": "private, no-store", "Vary": "Authorization"}
         )
@@ -163,6 +171,34 @@ def roteador(engine_de: Callable) -> APIRouter:
                 "Cache-Control": "private, no-store",
                 "Vary": "Authorization",
                 "Content-Disposition": 'attachment; filename="ficha-da-terra.pdf"',
+                "X-Content-Type-Options": "nosniff",
+            },
+        )
+
+    @r.get("/fichas/{car}/historico")
+    def historico(
+        car: str,
+        request: Request,
+        limite: int = Query(default=20, ge=1, le=100),
+        cid: int = Depends(cliente),
+    ):
+        return _executar(servico.historico_ficha, engine_de(request), cid, car, limite=limite)
+
+    @r.get("/fichas/{car}/exportar")
+    def exportar(
+        car: str,
+        request: Request,
+        formato: Literal["json", "csv"] = Query(default="json"),
+        cid: int = Depends(cliente),
+    ):
+        conteudo = _executar(servico.exportar_ficha, engine_de(request), cid, car, formato=formato)
+        return Response(
+            conteudo,
+            media_type="application/json" if formato == "json" else "text/csv",
+            headers={
+                "Cache-Control": "private, no-store",
+                "Vary": "Authorization",
+                "Content-Disposition": f'attachment; filename="ficha-da-terra.{formato}"',
                 "X-Content-Type-Options": "nosniff",
             },
         )
