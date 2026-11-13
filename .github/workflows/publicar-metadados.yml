@@ -52,7 +52,7 @@ jobs:
       - uses: actions/checkout@v7
       - name: Reservar uma das 15 vagas globais antes de qualquer processamento pesado
         run: python scripts/publicar_metadados.py --reservar
-      - uses: astral-sh/setup-uv@v6
+      - uses: astral-sh/setup-uv@v7
         with:
           version: "0.13.6"
           enable-cache: true
