@@ -33,7 +33,6 @@ comparação desta certidão. Ausência de previsão fica explícita e não vira
 | Acompanhar | `GET /documentos/certidoes/<documento_id>` | A mesma empresa, com o pedido ainda autorizado |
 | Ler e comparar | `POST /documentos/operacao/<cliente_id>/certidoes/<documento_id>/ler` | Operação interna, com `RAIZ_API_TOKEN` |
 | Conferir a leitura | `GET /documentos/operacao/<cliente_id>/certidoes/<documento_id>` | Revisor interno |
-| Obter o original para conferência | `GET /documentos/operacao/<cliente_id>/certidoes/<documento_id>/original.pdf` | Revisor interno; resposta privada como anexo, nunca link público |
 | Gravar verdade conferida | `POST /documentos/operacao/<cliente_id>/certidoes/<documento_id>/gabarito` | Pessoa revisora autorizada, com `RAIZ_API_TOKEN` |
 | Levar previsões e gabaritos à E8 | `POST /documentos/operacao/<cliente_id>/aprendizado/sincronizar` | Operação interna |
 
@@ -50,7 +49,9 @@ mesmo sem `Content-Length`. A sessão tem limite persistido de 30 chamadas por m
 
 A leitura guarda hash do PDF e da previsão, versões de modelo/prompt/esquema/regras, tokens e custo informado. Custo
 ou uso ausente do provedor permanece desconhecido, nunca zero inventado. O original só é descriptografado em memória.
-As respostas de consulta mostram campos técnicos e códigos de motivos; o PDF original é restrito ao revisor interno.
+As respostas de consulta mostram somente campos técnicos seguros e códigos de motivos. O original cifrado serve
+à leitura no servidor e à preservação da prova; não há rota que devolva o PDF bruto com CPF/CNPJ sem máscara.
+A pessoa revisora confere a via original recebida do proponente e registra a revisão técnica autenticada.
 
 Estados: `recebida`, `processando`, `lida`, `aguardando_previsao`, `falha` e `conferida_por_pessoa`. Em falha, repetir a
 chave devolve o mesmo resultado; uma nova chave pede nova tentativa. Uma leitura em andamento impede outra por 30

@@ -153,21 +153,6 @@ def roteador(engine_de: Callable, exigir_operador: Callable, entrada_de: Callabl
     def consultar_operacao(cliente_id: int, documento_id: UUID):
         return _executar(_executar(entrada_de, cliente_id).obter, str(documento_id))
 
-    @r.get("/operacao/{cliente_id}/certidoes/{documento_id}/original.pdf", dependencies=interno)
-    def original(cliente_id: int, documento_id: UUID):
-        pdf = _executar(_executar(entrada_de, cliente_id).original, str(documento_id))
-        return Response(
-            pdf,
-            media_type="application/pdf",
-            headers={
-                "Cache-Control": "private, no-store",
-                "Vary": "Authorization",
-                "X-Content-Type-Options": "nosniff",
-                "Content-Disposition": 'attachment; filename="certidao.pdf"',
-                "Content-Security-Policy": "sandbox",
-            },
-        )
-
     @r.post("/operacao/{cliente_id}/certidoes/{documento_id}/ler", dependencies=interno)
     def ler(cliente_id: int, documento_id: UUID, idempotency_key: Annotated[UUID, Header()]):
         return _executar(_executar(entrada_de, cliente_id).processar, str(documento_id), chave=str(idempotency_key))

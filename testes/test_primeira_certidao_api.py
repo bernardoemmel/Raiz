@@ -71,11 +71,10 @@ def test_upload_consulta_leitura_humana_e_gabarito(web):
     lida = c.post(f"/documentos/operacao/7/certidoes/{doc}/ler", headers=op)
     assert lida.status_code == 200 and lida.json()["estado"] == "lida"
     assert c.post(f"/documentos/operacao/7/certidoes/{doc}/ler", headers=op).json() == lida.json()
-    pdf = c.get(f"/documentos/operacao/7/certidoes/{doc}/original.pdf", headers=op)
-    assert pdf.status_code == 200 and pdf.content == PDF
-    assert pdf.headers["content-disposition"].startswith("attachment")
-    assert pdf.headers["cache-control"] == "private, no-store"
-    assert c.get(f"/documentos/operacao/7/certidoes/{doc}/original.pdf", headers=h).status_code == 401
+    # O original pode conter CPF/CNPJ: nem a rota interna replica o PDF bruto.
+    for credencial in (op, h):
+        bruto = c.get(f"/documentos/operacao/7/certidoes/{doc}/original.pdf", headers=credencial)
+        assert bruto.status_code == 404 and PDF not in bruto.content
     corpo = {
         "fonte": "conferencia_humana",
         "observado_em": previsao()["capturada_em"][:10],

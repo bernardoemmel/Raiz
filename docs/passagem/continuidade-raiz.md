@@ -164,6 +164,7 @@ antigo por conexão via socket; preferir TCP e executar a suíte inteira, como n
   campos técnicos fechados e declaração de conferência. Um cliente ou modelo não pode promover sua saída a verdade.
   Sem previsão anterior, não grava suposto erro do motor; sem custo informado, não grava zero inventado.
 - Referências E8 incluem a empresa; data de captura impede retrodatação pela emissão da certidão.
-  Original só sai como anexo privado ao revisor. Nenhum PDF, nome, CPF/CNPJ ou texto bruto vai a treino/log/site.
+  Original fica cifrado para leitura e prova; a API não devolve o PDF bruto com CPF/CNPJ. A pessoa revisora usa a via
+  recebida do proponente. Nenhum PDF, nome, CPF/CNPJ ou texto bruto vai a treino/log/site.
 - **Ainda falta a primeira certidão real** e sua conferência humana. Os testes não constituem conjunto de avaliação
   nem autorizam calibrar E7/E8. Procedimento completo e rotas: `docs/primeira-certidao.md`.
