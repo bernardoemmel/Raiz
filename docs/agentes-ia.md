@@ -51,6 +51,7 @@ cabeçalhos externos que pretendam escolher uma empresa.
 | Ferramenta | Escopo | Comportamento |
 |---|---|---|
 | `consultar_ficha` | `consultar` | Relê CAR já pago na carteira de fichas, com fontes/datas; exige sinal e contrato, sem nova tarifa |
+| `proximos_eventos` | `consultar` | Reutiliza o Calendário por tipo, UF ou CAR; conta ativa e limite da empresa, sem tarifa adicional |
 | `consultar_disponibilidade` | `consultar` | Enfileira totais P10/P50/P90; consome teste ou saldo |
 | `pedir_lote` | `pedir` | Enfileira montagem; exige sinal, contrato e `idempotency_key` |
 | `comparar_lotes` | `consultar` | Enfileira comparação agregada das opções; exige liberação |
@@ -77,6 +78,15 @@ datas e ausências. Exige liberação prévia daquele CAR pela própria empresa;
 sem ela retorna 402. Não consome saldo/teste corporativo, não desbloqueia acesso
 e não substitui a análise de fazenda de R$ 1.500. Mantém auditoria, limites e
 controle de raspagem. A carteira de fichas também limita essa leitura.
+
+`proximos_eventos` chama a função existente do Calendário, também usada pela CLI, via
+`GET /v1/eventos`. Não coleta fontes durante a consulta, não envia avisos e não dá
+acesso à ficha de um CAR. A resposta contém datas, prazo, confiança, referência do
+ato e portal oficial do catálogo; omite textos livres e URLs de documentos que
+possam identificar pessoas. Confirme o ato pelo portal: ausência de evento não
+comprova ausência de risco. Filtros inválidos retornam RFC 9457 com status 422;
+contas bloqueadas e falta do escopo `consultar` são recusadas.
+
 Se o adaptador devolver 504 ao atingir o prazo de três segundos, a requisição
 interna já iniciada pode concluir. Repita com a mesma chave idempotente para
 consultar a mesma intenção; o adaptador não dispara outra tentativa por conta própria.
@@ -200,7 +210,7 @@ do servidor Redis sob SSPL, RSAL ou AGPL.
 ## Evidência e meta dos agentes
 
 Os testes HTTP usam o aplicativo completo, JWTs assinados e PostgreSQL/PostGIS
-descartável. Cobrem as sete ferramentas, identidade e escopos, liberação comercial,
+descartável. Cobrem as oito ferramentas, identidade e escopos, liberação comercial,
 fila, idempotência entre REST/MCP, limite por empresa, cancelamento, retorno de
 aprovação e preservação/verificação do recibo. Erros de autenticação são RFC 9457.
 Não use o banco do produto: a fixture de testes desmonta e recria o banco indicado

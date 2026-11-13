@@ -1,0 +1,302 @@
+{
+  "esquema": "referencias-arr-v1",
+  "pesquisado_em": "2026-11-13",
+  "berkeley": {
+    "nome": "Voluntary Registry Offsets Database",
+    "versao": "v2026-08",
+    "data_corte": "2026-08-31",
+    "url": "https://gspp.berkeley.edu/berkeley-carbon-trading-project/offsets-database",
+    "sha256": "cda76b917a574713d040ea27a5098cd77f14f33bc87aa9dfafaf87a3f329cd88",
+    "licenca": "CC-BY-4.0",
+    "atribuicao": "Pamela Quartson, Barbara K Haya, Tyler Bernard, Aline Abayo, Xinyun Rong, Ivy S So, Micah Elias (2026). Voluntary Registry Offsets Database v2026-08. Berkeley Carbon Trading Project, University of California, Berkeley."
+  },
+  "universo": {
+    "brasil_arr_todos_registros": 65,
+    "brasil_arr_vcs": 58,
+    "vcs_com_emissao": 8,
+    "emitido_vcs_no_corte": 2402547
+  },
+  "emissoes_berkeley": [
+    {
+      "id": "VCS665",
+      "nome": "Multi-Species Reforestation in Mato Grosso, Brazil",
+      "situacao": "Registered",
+      "metodologia": "AR-ACM0003 Afforestation and reforestation of lands except wetlands",
+      "creditos_emitidos": 455509,
+      "buffer_depositado": 67019,
+      "primeiro_vintage_inicio": "1999-11-01",
+      "ultimo_vintage_fim": "2020-11-15",
+      "registro_url": "https://registry.verra.org/verra/public/program/VCS/projects/665"
+    },
+    {
+      "id": "VCS1317",
+      "nome": "Reforestation Grouped Project at Pratigi Environmental Protection Area",
+      "situacao": "Registered",
+      "metodologia": "AR-AMS0007 Afforestation and reforestation project activities implemented on lands other than wetlands",
+      "creditos_emitidos": 4573,
+      "buffer_depositado": 541,
+      "primeiro_vintage_inicio": "2011-05-01",
+      "ultimo_vintage_fim": "2021-11-05",
+      "registro_url": "https://registry.verra.org/verra/public/program/VCS/projects/1317"
+    },
+    {
+      "id": "VCS1663",
+      "nome": "Fazenda Sao Paulo Afforestation",
+      "situacao": "On Hold - see notification letter",
+      "metodologia": "AR-ACM0003 Afforestation and reforestation of lands except wetlands",
+      "creditos_emitidos": 199352,
+      "buffer_depositado": 28010,
+      "primeiro_vintage_inicio": "2013-01-01",
+      "ultimo_vintage_fim": "2021-06-30",
+      "registro_url": "https://registry.verra.org/verra/public/program/VCS/projects/1663"
+    },
+    {
+      "id": "VCS2079",
+      "nome": "Fazenda Nascente do Luar Agroforestry Project",
+      "situacao": "On Hold - see notification letter",
+      "metodologia": "AR-ACM0003 Afforestation and reforestation of lands except wetlands",
+      "creditos_emitidos": 112185,
+      "buffer_depositado": 12465,
+      "primeiro_vintage_inicio": "2015-04-20",
+      "ultimo_vintage_fim": "2020-07-20",
+      "registro_url": "https://registry.verra.org/verra/public/program/VCS/projects/2079"
+    },
+    {
+      "id": "VCS3350",
+      "nome": "THE ARR HORIZONTE CARBON PROJECT",
+      "situacao": "Verification approval requested",
+      "metodologia": "AR-ACM0003 Afforestation and reforestation of lands except wetlands",
+      "creditos_emitidos": 1298658,
+      "buffer_depositado": 290095,
+      "primeiro_vintage_inicio": "2017-11-02",
+      "ultimo_vintage_fim": "2023-04-03",
+      "registro_url": "https://registry.verra.org/verra/public/program/VCS/projects/3350"
+    },
+    {
+      "id": "VCS3743",
+      "nome": "RE.GREEN ATLANTIC FOREST REFORESTATION/RESTORATION PROJECT",
+      "situacao": "Registered",
+      "metodologia": "AR-ACM0003 Afforestation and reforestation of lands except wetlands",
+      "creditos_emitidos": 36877,
+      "buffer_depositado": 5029,
+      "primeiro_vintage_inicio": "2023-01-01",
+      "ultimo_vintage_fim": "2025-06-15",
+      "registro_url": "https://registry.verra.org/verra/public/program/VCS/projects/3743"
+    },
+    {
+      "id": "VCS3772",
+      "nome": "RE.GREEN AMAZON FOREST REFORESTATION/RESTORATION PROJECT",
+      "situacao": "Registered",
+      "metodologia": "AR-ACM0003 Afforestation and reforestation of lands except wetlands",
+      "creditos_emitidos": 65274,
+      "buffer_depositado": 11631,
+      "primeiro_vintage_inicio": "2023-09-28",
+      "ultimo_vintage_fim": "2025-05-31",
+      "registro_url": "https://registry.verra.org/verra/public/program/VCS/projects/3772"
+    },
+    {
+      "id": "VCS5511",
+      "nome": "Brazil Cerrado 1",
+      "situacao": "Registered",
+      "metodologia": "VM0047 Afforestation, Reforestation, and Revegetation",
+      "creditos_emitidos": 230119,
+      "buffer_depositado": 31380,
+      "primeiro_vintage_inicio": "2022-08-18",
+      "ultimo_vintage_fim": "2025-05-31",
+      "registro_url": "https://registry.verra.org/verra/public/program/VCS/projects/5511"
+    }
+  ],
+  "fontes_monitoramento": [
+    {
+      "id": "110200000354370",
+      "projeto_id": "VCS3743",
+      "arquivo": "ERR_spreadsheets_PAI001_FINAL_F2.5.xlsx",
+      "sha256": "9e9bd17debef90b04d69e4815e118a87ce807af8ef3b9f69c46455d8778fa1c5",
+      "url": "https://registry.verra.org/verra/public/program/VCS/projects/3743",
+      "licenca_documento": "não identificada",
+      "uso": "extração de fatos numéricos com referência; documento não redistribuído"
+    },
+    {
+      "id": "110200000287406",
+      "projeto_id": "VCS3743",
+      "arquivo": "VCS MR 3743 do Projeto 04OCT2022-15JUN2025_clean1.pdf",
+      "sha256": "b58fdbafdac971d222841626006e58f89864c197ec8bf0cdf9756e416b0a888a",
+      "url": "https://registry.verra.org/verra/public/program/VCS/projects/3743",
+      "licenca_documento": "não identificada",
+      "uso": "extração de fatos numéricos com referência; documento não redistribuído"
+    },
+    {
+      "id": "110200000278736",
+      "projeto_id": "VCS3743",
+      "arquivo": "ERR_spreadsheets_PAI002_FINAL_F2.5.xlsx",
+      "sha256": "298321184a02bf812126afb76249b61939976b76dd4077cd8b20d1c4b9b8acd0",
+      "url": "https://registry.verra.org/verra/public/program/VCS/projects/3743",
+      "licenca_documento": "não identificada",
+      "uso": "extração de fatos numéricos com referência; documento não redistribuído"
+    },
+    {
+      "id": "110200000388691",
+      "projeto_id": "VCS3772",
+      "arquivo": "ERR_spreadsheets_PAI001_ER_updated_F3_TR3.xlsx",
+      "sha256": "888de870a8c269dc4367bac9f96027f1ac8e7a9ef27f7a467ba6534baf8f88e8",
+      "url": "https://registry.verra.org/verra/public/program/VCS/projects/3772",
+      "licenca_documento": "não identificada",
+      "uso": "extração de fatos numéricos com referência; documento não redistribuído"
+    },
+    {
+      "id": "110200000388688",
+      "projeto_id": "VCS3772",
+      "arquivo": "VCS MR 3743 28092023-31052025_clean.v2.0.pdf",
+      "sha256": "5399b00458aeed1e27ce13511f13da67bc287b7a516da4efed9a0623b9fabf93",
+      "url": "https://registry.verra.org/verra/public/program/VCS/projects/3772",
+      "licenca_documento": "não identificada",
+      "uso": "extração de fatos numéricos com referência; documento não redistribuído"
+    }
+  ],
+  "monitoramentos": [
+    {
+      "projeto_id": "VCS3743",
+      "instancia_id": "PAI001",
+      "periodo_inicio": "2022-10-04",
+      "periodo_fim": "2025-06-15",
+      "bioma": "Mata Atlântica",
+      "area_ha": 342.27306196146407,
+      "area_ex_ante_ha": 344.8,
+      "metodo": "mosaico_de_restauracao_com_estratos_MRN_BRN",
+      "pools": [
+        "arvores_e_raizes",
+        "arbustos_nativos",
+        "arbustos_adubacao",
+        "madeira_morta",
+        "serapilheira",
+        "solo"
+      ],
+      "bruto_tco2e": 10383.36911514516,
+      "linha_base_tco2e": 1437.0764028098934,
+      "vazamento_tco2e": 0,
+      "emissoes_projeto_tco2e": 0,
+      "adicional_pre_buffer_tco2e": 8946.292712335267,
+      "buffer_periodo_tco2e": 1073.5551254802322,
+      "reserva_fracao": 0.12,
+      "emitivel_pos_buffer_tco2e": 7872.737586855035,
+      "ex_ante_pre_buffer_tco2e": 11063.260273972603,
+      "fonte_versao": "planilha ERR_spreadsheets_PAI001_FINAL_F2.5.xlsx",
+      "fonte_sha256": "9e9bd17debef90b04d69e4815e118a87ce807af8ef3b9f69c46455d8778fa1c5",
+      "fonte_documento_id": "110200000354370",
+      "mr_documento_id": "110200000287406",
+      "referencia_celulas": "Calculations: parâmetros ΔCACTUAL, ΔCBSL, ΔCAR_CDM, VCUs; Monitored_parameters:A; Section 5.4",
+      "dados_anuais_sao_rateio": true,
+      "conjunto": "candidato_validacao_independente",
+      "pendencias": [
+        "datas_e_area_de_implantacao_por_coorte",
+        "estoque_inicial_e_pools_harmonizados_com_motor",
+        "mapeamento_dos_metodos_por_estrato"
+      ],
+      "implantacao_mais_antiga_mes": null
+    },
+    {
+      "projeto_id": "VCS3743",
+      "instancia_id": "PAI002",
+      "periodo_inicio": "2023-06-10",
+      "periodo_fim": "2025-06-15",
+      "bioma": "Mata Atlântica",
+      "area_ha": 1278.53547429,
+      "area_ex_ante_ha": 1278.5,
+      "metodo": "mosaico_de_restauracao_com_estratos_MRN_BRN",
+      "pools": [
+        "arvores_e_raizes",
+        "arbustos_nativos",
+        "arbustos_adubacao",
+        "madeira_morta",
+        "serapilheira",
+        "solo"
+      ],
+      "bruto_tco2e": 36515.60563698776,
+      "linha_base_tco2e": 3556.4068553173024,
+      "vazamento_tco2e": 0,
+      "emissoes_projeto_tco2e": 0,
+      "adicional_pre_buffer_tco2e": 32959.19878167046,
+      "buffer_periodo_tco2e": 3955.1038538004545,
+      "reserva_fracao": 0.12,
+      "emitivel_pos_buffer_tco2e": 29004.094927870003,
+      "ex_ante_pre_buffer_tco2e": 28312.27397260274,
+      "fonte_versao": "planilha ERR_spreadsheets_PAI002_FINAL_F2.5.xlsx",
+      "fonte_sha256": "298321184a02bf812126afb76249b61939976b76dd4077cd8b20d1c4b9b8acd0",
+      "fonte_documento_id": "110200000278736",
+      "mr_documento_id": "110200000287406",
+      "referencia_celulas": "Calculations: parâmetros ΔCACTUAL, ΔCBSL, ΔCAR_CDM, VCUs; Monitored_parameters:A; Section 5.4",
+      "dados_anuais_sao_rateio": true,
+      "conjunto": "candidato_validacao_independente",
+      "pendencias": [
+        "datas_e_area_de_implantacao_por_coorte",
+        "estoque_inicial_e_pools_harmonizados_com_motor",
+        "mapeamento_dos_metodos_por_estrato"
+      ],
+      "implantacao_mais_antiga_mes": null
+    },
+    {
+      "projeto_id": "VCS3772",
+      "instancia_id": "PAI001",
+      "periodo_inicio": "2023-09-28",
+      "periodo_fim": "2025-05-31",
+      "bioma": "Amazônia",
+      "area_ha": 7183.32357583132,
+      "area_ex_ante_ha": 7319.7,
+      "metodo": "mosaico_de_restauracao_com_estratos_ARN_MRN_BRN",
+      "pools": [
+        "arvores_e_raizes",
+        "arbustos_nativos",
+        "arbustos_adubacao",
+        "madeira_morta",
+        "serapilheira",
+        "solo"
+      ],
+      "bruto_tco2e": 128049.54460461545,
+      "linha_base_tco2e": 31117.62151215743,
+      "vazamento_tco2e": 0,
+      "emissoes_projeto_tco2e": 0,
+      "adicional_pre_buffer_tco2e": 96931.92309245802,
+      "buffer_periodo_tco2e": 11631.830771094961,
+      "reserva_fracao": 0.12,
+      "emitivel_pos_buffer_tco2e": 85300.09232136306,
+      "ex_ante_pre_buffer_tco2e": 86839.86301369863,
+      "fonte_versao": "planilha ERR_spreadsheets_PAI001_ER_updated_F3_TR3.xlsx",
+      "fonte_sha256": "888de870a8c269dc4367bac9f96027f1ac8e7a9ef27f7a467ba6534baf8f88e8",
+      "fonte_documento_id": "110200000388691",
+      "mr_documento_id": "110200000388688",
+      "referencia_celulas": "Calculations: parâmetros ΔCACTUAL, ΔCBSL, ΔCAR_CDM, VCUs; Monitored_parameters:A; Section 5.4",
+      "dados_anuais_sao_rateio": true,
+      "conjunto": "candidato_validacao_independente",
+      "pendencias": [
+        "datas_e_area_de_implantacao_por_coorte",
+        "estoque_inicial_e_pools_harmonizados_com_motor",
+        "mapeamento_dos_metodos_por_estrato"
+      ],
+      "implantacao_mais_antiga_mes": "2023-09"
+    }
+  ],
+  "verra_atual": [
+    {
+      "projeto_id": "VCS3772",
+      "observado_em": "2026-11-13",
+      "url": "https://registry.verra.org/verra/public/program/VCS/projects/3772",
+      "endpoint_publico": "https://prod-us.api.platts.com/ci-raas-prod/raas-credit-api/mixed-unit-manager/public/getAllStatistics",
+      "parametros": {
+        "standard_id": 150000000000001,
+        "project_id": 110200000012110
+      },
+      "resposta_sha256": "203ab98eba7b432f22ff96eafdda6973c4806b396e478ef69f5415229cb1d464",
+      "emitido_tco2e": 85300,
+      "ativo_tco2e": 20026,
+      "aposentado_tco2e": 65274,
+      "buffer_tco2e": 11631,
+      "licenca_documento": "não identificada; fatos numéricos apenas",
+      "comparacao_corte_anterior": "Diferença em relação ao corte Berkeley não mede erro de crescimento; data/causa da mudança não inferidas."
+    }
+  ],
+  "fontes_desenvolvimento": [
+    "VCS665",
+    "VCS5709"
+  ],
+  "calibracao_aplicada": false
+}

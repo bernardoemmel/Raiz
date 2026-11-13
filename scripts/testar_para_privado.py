@@ -8,6 +8,7 @@ Os quatro arquivos estão ancorados nos comprovantes imutáveis da rodada conclu
 import argparse
 import csv
 import hashlib
+import importlib.util
 import json
 import os
 import re
@@ -25,6 +26,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 import xml.etree.ElementTree as ET
+from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 
@@ -34,6 +36,15 @@ RELEASE = 443383695
 URL_PRIVADA = f"release-github://{REPO}/dados-privados"
 MODELO = "restauracao-2026d+a84f9789"
 ORIGEM = "31990520b842fd665152b2c7931b3556a66ca180"
+FONTES_MODELO = {
+    "raiz/restauracao.py": "e65cc5dc46dbdf346f10a51e0d936f23d0ba4eb69a5b2612f16dcc484a9c07a2",
+    "raiz/regras/padroes/restauracao.yaml": "7b820a4584358da11f34df331a6a7350e66c69e32ef6defd196b17b936c71d4d",
+    "raiz/regras/padroes/restauracao_cambio.yaml": "527e402b823bc3b5afd023ed041a18aa4ad2987ba63a3ebbd56f5b91ce1ff6fd",
+    "raiz/regras/padroes/censo_agro_2017_pecuaria.csv": (
+        "f1146ba4a2a97b91888c560943b29369fce731ccb550f058a07656deef304793"
+    ),
+    "raiz/regras/padroes/edital_profloresta.yaml": "ea40b41930b2246548aafbb4cee35d8d3a4f219590eeef18be4474d964095b49",
+}
 NO_TESTE = "testes/test_lote.py::test_lote_do_para_inteiro_fecha_ou_diz_o_que_falta"
 CASO = ("testes.test_lote", "test_lote_do_para_inteiro_fecha_ou_diz_o_que_falta")
 PACOTES = ("raiz_PA.tar.gz", "raiz_geo_PA.tar.gz")
@@ -306,9 +317,6 @@ def conferir_preparado(pasta: Path) -> Path:
     """Reconfere os bytes contra os TARs ancorados; a variável de ambiente não é uma prova."""
     _pasta_privada(pasta)
     snapshot, marcas = _layout(pasta, comparar=True)
-    from raiz import restauracao as R
-
-    _exigir(R.versao() == MODELO and R.cenario()["cenario"] == "central_r11")
     cods = set(snapshot["cobertura"]["com_imoveis"])
     _exigir(len(cods) == len(marcas) == 144 and {m["cod_municipio"] for m in marcas} == cods)
     saida = pasta / "saida" / "PA"
@@ -337,6 +345,31 @@ def conferir_preparado(pasta: Path) -> Path:
             _exigir(_sha(saida / nome) == marca["arquivos"][nome])
     _exigir(len(todos) == 345870)
     return saida
+
+
+@contextmanager
+def modelo_historico():
+    """Reproduz R11 com seu próprio código e premissas, sem rotular R12 como R11.
+
+    Lê apenas blobs do commit público auditado, sem rede ou credenciais.
+    O solver do lote permanece o atual; cálculo financeiro usa o motor que gerou
+    as previsões congeladas. CI deve disponibilizar o histórico do Git.
+    """
+    with tempfile.TemporaryDirectory(prefix="raiz-modelo-r11-") as td:
+        raiz = Path(td)
+        for nome, digest in FONTES_MODELO.items():
+            processo = subprocess.run(
+                ["git", "show", f"{ORIGEM}:{nome}"], cwd=RAIZ, capture_output=True, check=False, timeout=30
+            )
+            _exigir(processo.returncode == 0 and hashlib.sha256(processo.stdout).hexdigest() == digest)
+            arquivo = raiz / nome
+            arquivo.parent.mkdir(parents=True, exist_ok=True)
+            arquivo.write_bytes(processo.stdout)
+        spec = importlib.util.spec_from_file_location("_raiz_modelo_r11", raiz / "raiz/restauracao.py")
+        modelo = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(modelo)
+        _exigir(modelo.versao() == MODELO and modelo.cenario()["cenario"] == "central_r11")
+        yield modelo
 
 
 def _pasta_privada(pasta: Path) -> None:

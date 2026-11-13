@@ -231,6 +231,76 @@ referência privada, front, e2e, segurança e workflows no código do diagnósti
 dos três hashes acima; a mesma varredura local de todos os ramos passou após as exceções restritas.
 O merge e a publicação dependem da nova execução verde no head que inclui essa correção.
 
+
+## Etapa seguinte 2 — catálogo nacional incremental
+
+Implementados índice privado por conteúdo municipal, consulta por UF/bioma/Brasil, grupos indivisíveis de pequenas,
+busca com teto e preferência geográfica na opção compacta, auditoria revisável e fluxo agregado das selecionadas.
+A automação recebe estados novos e reconcilia a cada duas horas. Aguarda vaga CAS; não cancela trabalhos.
+Índices, fontes congeladas, previsões e pacotes completos permanecem no Release privado.
+
+A medição real leu 786 municípios de 13 UFs e 1.530.808 imóveis; 1.100.628 previsões compatíveis, 346.010 antigas
+e 84.170 ausentes. Primeira indexação em 1.474,59 segundos. Consulta das três opções com fluxos financeiros em
+22,77 segundos; RSS máximo 1.137 MiB. Base sintética de 7 milhões (80% pequenas): 66,67 segundos, 2.383 MiB,
+quatro CPUs, sem simulação municipal. Seletor medido `lote-nacional-1+16896488fb3d`; alterações posteriores só
+na guarda de preço/dívida e publicação não devem ser confundidas com nova medição. Reprodução e limites em
+`docs/lote-nacional.md`. Não se anuncia ótimo global nem cobertura completa do país.
+
+AC/AP/GO/MA/MG/RO/RR/TO têm versões financeiras antigas. A automação pede manutenção incremental à fila
+existente, sem reetiquetar esses números e sem apagar tabelas. O Pará histórico de 144 municípios permanece
+congelado enquanto a fonte canônica não tiver 144 previsões; não recalcular suas dez fatias prontas.
+Cada resultado conserva hashes, modelo financeiro, versão do seletor e decisão por imóvel. O diagnóstico
+de travas acompanha os pacotes nacionais com meta de créditos.
+
+Testes de retomada, publicação recuperável, 27 UFs, grupos nas divisas, pequenas de 0,02 ha, versões incompatíveis,
+duplicidade de CAR, fonte adulterada, regras financeiras e espera por cota foram executados. Suíte completa e CI
+em andamento; merge, despacho e referências dos pacotes deverão ser registrados após confirmação real.
+
+### Salvamento solicitado pelo fundador — trabalho ainda incompleto
+
+O ramo `codex/lote-nacional` foi preservado e enviado para revisão em rascunho antes de terminar a entrega,
+conforme instrução explícita. Código, testes e documentação estão no Git; bases municipais completas e resultados
+por imóvel permanecem fora do repositório público. A automação nacional descrita acima está implementada,
+mas ainda não foi integrada nem executada em produção.
+
+Falta, especificamente:
+
+- Concluir a suíte completa em execução, incorporar a main atualizada, revisar o workflow e obter CI verde.
+- Incluir no quadro de oferta os imóveis que ficam fora dos caminhos de terra do pedido. A inspeção real mostrou
+  que BA/CE/PI/RN são classificados sobretudo como `posse_em_titulacao`; o pedido padrão só aceita matrícula
+  conferida/a conferir e concessão. Lote vazio nesse pedido não representa ausência de potencial. A mudança
+  iniciada antes da interrupção NÃO foi aplicada; não apresentar terra pendente como pronta nem alterar o pedido
+  explícito do cliente silenciosamente.
+- Conferir a retomada nacional no Actions, manutenção das oito UFs antigas, publicações privadas por recorte e
+  hashes recuperados. Não há pacote nacional publicado confirmado nesta passagem.
+- Atualizar as medições se mudar o caminho de cálculo. Os números acima pertencem à versão identificada,
+  sem reaproveitá-los como medição de uma implementação posterior.
+- Após salvar este ramo, a ordem do fundador é: terminar o merge do PR #86 com CI verde; publicar o complemento
+  privado do Pará; concluir ARR; sensibilidade com nova seleção; ecologia. Depois encerrar as pendências nacionais.
+
+O PR #86 está separado, com o diagnóstico do Pará. O CI do head `b67b11277c7ca21bd07477e0e7176f320bb2dd62`
+ainda estava em execução no salvamento; o complemento privado não deve ser descrito como publicado antes
+que o workflow termine e os arquivos sejam conferidos. Nenhum job de outros chats foi cancelado.
+
+A pesquisa ARR está preservada no commit local `2418a84bfbd79548375e1a14311d56b78df3d151`, ramo
+`codex/validacao-arr-brasil`, ainda sem integração. Sensibilidade e integração das novas referências ecológicas
+continuam pendentes. Não confundir a pesquisa de fontes com entrega publicada ou calibração aprovada.
+
+### Retomada nacional durante o fechamento da Rodada 12
+
+O quadro de terra agora cobre todos os imóveis do recorte, incluindo posse,
+previsões antigas e ausência de previsão. Agrupa por UF/caminho/versão/cenário,
+mostra pequenas, hectares estimados e faltantes, soma dos quantis individuais
+(sem chamá-la de faixa da carteira), documento/conferência e prazo ainda não
+estimado. Não muda os caminhos de terra pedidos nem autoriza comercialização.
+Corrigido também o agrupamento vazio: mantém CAR textual no Parquet, evitando
+erro quando um estado inteiro fica pendente. 21 testes focados passaram.
+
+PR #86 já foi mergeado com CI verde (`3a738792`) e o complemento privado foi
+publicado/conferido na execução `43355525759/2`. ARR, sensibilidade e referências
+ecológicas estão integrados no branch `codex/lote-rodada12`, em validação antes
+do PR. O nacional ainda aguarda essa integração, suíte completa/CI, despacho e
+conferência dos pacotes privados. Não houve cancelamento/desativação de workflows.
 Na execução `43342797534`, os testes Python, referência integral do Pará, front, e2e, segurança,
 workflows e agentes passaram. A varredura global encontrou uma ocorrência nova em outro ramo:
 `e0e8ccdde14d0980ce33a1be48fde126ddeb1a31:infra/docker-compose.avaliacao.yml:generic-api-key:46`.
@@ -241,3 +311,218 @@ A expansão nacional (786 municípios) está preservada no PR **#94, rascunho**,
 `codex/lote-nacional`, commit `aea5d25`. O salvamento inclui as pendências de teste integral,
 integração com a main e publicação. Ordem atual: concluir #86 e publicação privada; concluir ARR,
 sensibilidade e ecologia, incorporando as evidências solicitadas na rodada 12.
+
+## Rodada 12 em implementação — 12/11/2026 (Brasília)
+
+Branch `codex/lote-rodada12`, iniciada sobre `2b6e8af`. Inclui a comparação ARR
+Berkeley/Verra, a reprodução contábil do VCS 5511 com cada denominador, o ajuste
+regional inicial Mombak, validação por municípios e controle sintético sem mistura
+pré/pós. Fontes, limitações e pendências: `docs/restauracao-rodada12.md`.
+
+Os arquivos de evidência públicos estão em `/tmp/raiz-arr-fontes/5511` e
+`/tmp/raiz-rodada12-fontes`; não confundir pesquisa com publicação. Dryad: metadados
+CC0 e hashes conferidos, downloads 401/403; **sem erro real calculado ainda**.
+Scpi executou seis intervalos num painel sintético em ambiente separado
+`/tmp/raiz-scpi-servidor`; pandas deve ficar abaixo de 3 por compatibilidade do scpi 4.
+
+Antes da entrega: integrar parâmetros/curva/dívida/custos no motor, terminar gado,
+credibilidade, sensibilidade e ecologia; recalcular e publicar apenas no arquivo
+privado; comparar P10/P50/P90 e hectares com os lotes históricos. As 45 verificações
+de evidências/ARR/regeneração e quatro de controle sintético passaram; suíte global,
+CI, PR e merge desta rodada ainda pendentes. Não cancelar nem desativar workflows.
+
+## Checkpoint da integração R12 — 13/11/2026 UTC
+
+Branch `codex/lote-rodada12` preservado remotamente. 67 testes focados passaram:
+contabilidade 5511, curva Mombak, ARR, controle sintético, validação por município,
+finanças/ICSD, gado e credibilidade. Cenário `central_r12` integrado sem substituir
+os resultados R11 imutáveis. Custos de terra são provisões explícitas; taxa fixa
+BNDES é referência de tranche, não aprovação universal de financiamento.
+
+PR #86 atualizado com main `c65d7bb`, sem conflitos; novo head `9882aeb`,
+CI `43352104956` aguardando runners. Conferência registrou 15 jobs ativos; nenhum
+cancelamento/desativação. Merge e publicação do diagnóstico privado ainda faltam.
+O nacional de 786 municípios está salvo no PR #94 (draft). Depois: finalizar ARR,
+sensibilidade, ecologia, recalcular PA/R12 e publicar comparativo privado.
+Dryad: CC0 confirmado, CSV ainda bloqueado 401/403; não inventar erro por idade.
+
+### Continuação R12 preservada
+
+Integração inclui sensibilidade com seleção refeita (9 cenários × 3 opções),
+sete referências ecológicas contextuais e relatório reproduzível 5511/Mombak/ARR.
+A curva inicial reencontra o acumulado no ano 10, preservando estoque final;
+cronograma do lote usa a mistura real selecionada. Dimensionamento da meta ainda
+usa a curva mais lenta, conservadoramente. Workflow R12 congela as mesmas entradas
+R11 e preserva checkpoints privados. Testes focados e 866 licenças passaram;
+a suíte integral, CI, PR/merge e execução estadual R12 ainda precisam concluir.
+
+Fontes abertas insuficientes: Dryad CSV retorna 401/403, portanto nenhum erro
+real em Mg/ha foi calculado; controle sintético real depende de painel pré/pós
+harmonizado. Ecologia: contagens totais por fazenda continuam pendentes quando
+não há suporte comparável; as referências publicadas nunca preenchem esses
+campos com riqueza por parcela ou fustes.
+
+### PR 86 concluído e publicação em andamento — 13/11/2026 UTC
+
+PR #86 incorporado à main no merge `3a738792fa5138f9be0d8d3e4183a3a5522d136b`,
+com os nove checks do CI `43352104956` aprovados. A publicação do complemento
+privado foi disparada na execução `43355525759`, depois de verificar 13 jobs
+ativos e duas vagas. Ainda aguarda runner; não houve cancelamento ou desativação.
+
+A suíte R12 inicial: 2.270 aprovados, 254 dependentes do ambiente ignorados,
+uma falha esperada e três falhas a corrigir/verificar. O teste estadual terá replay
+com código R11 do commit original e SHA256, preservando dados e versão, enquanto
+a execução R12 terá previsões próprias. Nenhum hash antigo será renomeado.
+
+### Diagnóstico privado publicado e conferido
+
+Execução `43355525759`, tentativa 2, concluída. A tentativa 1 não obteve cota global;
+retomada após nova conferência de capacidade, sem cancelar ou desligar trabalhos.
+Release `dados-privados` ID 443383695 segue `draft=true`. Foram baixados novamente
+e conferidos os 13 arquivos (quatro formatos × três opções + manifesto interno).
+
+- Pacote `desbloqueio_lote_PA_b29eb3fe8887a676_0a70d5630caf807d.tar.gz`:
+  98.272 bytes, SHA256 `0a70d5630caf807d37c5294c7440afdabda666caa021ad0e86001226769ddf50`.
+- Manifesto correspondente `.json`: 246.834 bytes,
+  SHA256 `fc0b634b5ca7654e4ec7601a9dd2bb79c344e80cf4710107feca804783642bc6`.
+
+O código original das referências ecológicas está preservado em
+`docs/pesquisa/ecologia/`, com fontes, licenças, hashes e instruções de reprodução.
+
+A falha intermitente de metadados foi reproduzida: PyArrow inclui `Row #...`
+na mensagem da leitura sequencial, e o parser do croissant-baker 0.8.3 só
+reconhecia a forma sem número da linha. A correção mínima no adaptador de CSV
+preserva `Float64` para área decimal encontrada após o primeiro bloco; teste
+passa pelos dois modos de leitura. Não altera API, MCP ou front.
+
+R12 passa a ser o padrão dos novos cálculos, inclusive do processamento futuro.
+`central_r11` permanece explícito e histórico; testes financeiros legados o
+escolhem pelo nome. A dívida padrão segue a tranche fixa Mombak (2,30%, 36+264
+meses), com as outras operações disponíveis e 4,94% somente como estresse na R12.
+O replay estadual executa o motor R11 ancorado, sem migrar suas previsões.
+
+### Verificações adicionais da R12
+
+Wheel e sdist foram construídos e inspecionados: nenhum inclui `infra/scpi` nem
+uma dependência `scpi`. As dependências do serviço GPL continuam isoladas.
+Metadados corrigidos: 60 testes; controles de fila/replay/sensibilidade/finanças:
+104 testes; gado/credibilidade: 8 testes. A mudança de padrão para R12 está em
+nova validação integral antes do PR.
+
+A provisão fixa expôs um caso válido de TIR em área de 1 m²: o caminho com
+premissas centrais pode cair fora dos quantis Monte Carlo quando o fluxo muda
+mais de uma vez de sinal. O imóvel é preservado; os quantis reais não são
+forçados a conter a TIR central. Tipo e aviso acompanham a previsão.
+
+O controle Dryad tentará a rota pública no runner da publicação R12, sem
+credencial nem contorno de bloqueio. Tamanho/SHA256 do CSV e da malha IBGE são
+conferidos antes do vínculo; exige 126 parcelas e 16 municípios. Erro real só
+será publicado se essa conferência passar. Falha de acesso permanece explícita,
+sem substituir observações por exemplos. A coluna pessoal `responsible` não
+entra na tabela de trabalho. Quantis residuais incluem a mediana do resíduo e
+não são alargados artificialmente para conter a curva; histórico recusa alteração.
+41 testes focados adicionais passaram. O processo da execução integral anterior
+terminou sem registrar conclusão (nenhum workflow cancelado); a bateria será
+repetida após sincronizar a main.
+
+Integração nacional da R12: cronograma e multas das selecionadas agora seguem
+a soma de suas curvas por método/bioma; os fluxos são reutilizados na economia.
+Atualização e consultas automáticas usam o cenário padrão vigente e seus preço
+e fração máxima de dívida, preservando pedidos explícitos. Nove testes de fluxo
+e publicação passaram; 53 testes nacionais/fila passaram após resolver conflitos.
+Ainda falta importar a rodada PA R12 publicada, indexar a cobertura vigente,
+repetir benchmark, concluir CI e publicação nacional. O PR #94 permanece rascunho.
+
+A ponte PA R12 confere o manifesto privado vigente, versão, 144 municípios,
+345.870 imóveis e SHA256 dos pacotes antes de compor as entradas históricas
+com as novas previsões. Rodada antiga não é reetiquetada. O importador está
+testado nas guardas; a importação real depende da publicação PA R12. Fontes
+canônicas dos demais estados continuam incrementais. Benchmark passa a declarar
+o cenário padrão vigente também na oferta sintética e nos parâmetros do pedido.
+A sincronização com a main `60e17b0` preservou as entregas do chat Ficha. O
+exportador CADT continua explicitamente em R11: sua fixture agora declara esse
+cenário ao gerar a amostra, em vez de herdar o novo padrão R12. Os 52 testes do
+CADT passaram; o exportador, a API, o MCP e o front não foram alterados.
+
+Benchmark nacional R12 concluído: 7 milhões sintéticos, 80% pequenas, 67,43 s
+para três opções e auditoria (1,12 min), 10,71 s de preparo, 2.386 MiB, quatro CPUs
+com testes concorrentes. Seletor `lote-nacional-1+63098e6a63a3`; modelo
+`restauracao-2026d+490ab152`. Não inclui cálculo municipal nem fluxos financeiros.
+59 testes nacionais/fila aprovados após integrar R12. CI do PR #94 no commit
+`a1b88c2` está na fila; não enviar novo head enquanto estiver ativo para evitar
+cancelamento automático pelo CI compartilhado.
+
+Suíte nacional completa sem o replay estadual duplicado: **2.539 aprovados,
+292 skips de ambiente, um xfail**, em 609,65 s; código de saída zero.
+O replay estadual do mesmo motor passou na suíte integral R12. Ruff e formatação
+dos 593 arquivos passaram. Um reinício do ambiente interrompeu a tentativa local
+anterior; esta execução concluída está em
+`/tmp/raiz-nacional-r12-integral-final.log`. Não houve cancelamento de Actions.
+
+R12 está no PR #101, head `6205807`, CI `43361791598`. A execução PA
+`43361839589` falhou na admissão da tentativa 1, antes de baixar dados e sem
+reservar cotas (log não expôs a causa específica do RuntimeError). Após consulta
+completa da fila, a tentativa 2 reservou **12 cotas**, total global **15**, congelou
+as mesmas entradas e segue para cálculo. Nenhuma fatia foi repetida.
+
+Pedido nacional com preço omitido agora herda o cenário vigente. Um JSON que
+informa apenas a meta ou a TIR mínima não herda silenciosamente os US$55 do
+schema legado; preço explicitamente informado continua preservado e divergência
+exige reavaliação. Sem alteração no schema/API/front. Dezessete testes de pedido,
+fluxo e publicação passaram. O benchmark será repetido com a nova versão do seletor.
+
+Benchmark final do pedido parcial: 7 milhões, 80% pequenas, **65,29 s** (1,09 min)
+para três opções/auditoria; preparo 11,10 s, pico 2.395 MiB, quatro CPUs; seletor
+`lote-nacional-1+1b59b29b534e`, modelo `restauracao-2026d+490ab152`. Arquivo:
+`/tmp/raiz-benchmark-nacional-r12-pedidos/benchmark.json`. Sem cálculo municipal
+ou financeiro das selecionadas, conforme limite declarado nas medições anteriores.
+
+Revisão da sensibilidade: o filtro compartilhado exigia crédito central positivo.
+Agora usa área restaurável positiva para formar a população invariante, e
+recalcula também a pequena com crédito central zero nos outros cenários. Três
+testes passaram, incluindo esse caso, seis chamadas de seleção e retomada com
+integridade das decisões. Nenhum piso de tamanho foi introduzido.
+
+Suíte integral após integrar main: 2.500 aprovados, 292 ignorados por ambiente,
+uma falha esperada e a única falha no cenário implícito da fixture CADT. Essa
+fixture foi corrigida e os 52 testes CADT passaram; a sensibilidade atualizada
+passou nos três testes focados. O replay privado PA144/345.870 passou dentro da
+suíte integral. Ruff e formatação dos 578 arquivos passaram. CI do PR ainda é
+o portão para merge; execução e publicação PA R12 ainda precisam ser conferidas.
+
+### Integração da main e execução PA R12 — 13/11/2026 UTC
+
+PR #101 aberto, CI `43361791598` no head `6205807`: referência privada PA144,
+front, e2e, agentes, workflows, segurança e segredos aprovados; Python ainda
+em execução neste registro. A main `52118b5` foi integrada preservando ambas
+as passagens e a versão mais restrita do adaptador Arrow da main. A versão
+financeira permanece `restauracao-2026d+490ab152`.
+
+A execução PA `43361839589`, tentativa 2, congelou e guardou as entradas dos
+144 municípios; a primeira fatia foi observada calculando. A tentativa 1 falhou
+na admissão, antes dos dados e sem cotas reservadas; seu log expôs apenas
+RuntimeError, portanto a causa específica não foi atribuída à falta de vaga.
+A tentativa 2 recebeu 12 cotas, com 15 no total global. Nenhum workflow foi
+cancelado ou desativado. Aguardamos o CI ativo terminar antes de enviar o merge
+da main, pois um novo head dispararia cancelamento no CI compartilhado.
+
+A auditoria de promoções trazida pela main ainda comparava a versão histórica
+de desenvolvedor à atual. O teste agora exige que as outras dez tarefas sejam
+preservadas após recompor a chamada anterior da carga e que desenvolvedor
+tenha mudado com a R12; a prova histórica continua vinculada e inalterada.
+Setenta testes da auditoria, 70 de metadados e Ruff/formatação passaram.
+Nenhum destino de continuação nem resultado em execução foi modificado.
+
+CI nacional `43361045082`, head antigo `a1b88c2`: Python concluiu em 32min19s
+com 2.828 aprovados e três falhas. Duas expectativas de integração ainda fixavam
+o padrão R11; foram atualizadas para R12. A terceira procurava “789” inclusive
+nos microssegundos do horário do aviso. Agora confere o conteúdo protegido
+integralmente, excluindo apenas os metadados identificadores/temporais conhecidos.
+Os seis testes desses módulos/casos passaram com PostGIS real local em 51,23s.
+Nenhuma implementação de API, MCP ou front foi alterada por essas correções.
+
+Suíte integral da integração nacional + R12 + main `52118b5`: **2.725 aprovados,
+294 skips de ambiente, um deselect (replay PA já aprovado no CI) e um xfail**,
+em 658,63s, código de saída zero. Arquivo local:
+`/tmp/raiz-integracao-main-final.log`. Soma-se à execução focada com PostGIS
+dos seis casos ajustados. Ruff/formatação dos 607 arquivos passaram.

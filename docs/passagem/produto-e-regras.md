@@ -1,18 +1,166 @@
-# Passagem do chat "Produto e regras" (12/11/2026)
+# Passagem do chat "Produto e regras" (13/11/2026)
 
-## Próxima entrega: medição real e operação (em andamento)
+## CI verde e integração das entregas de dados
 
-Branch de trabalho: `produto-agentes-validacao`. O gabarito v2 preserva os 24 desafios e a meta,
+O CI `43431663359` aprovou os nove jobs do PR #96 em `c37f5ee`: 3.005 testes
+Python, um xfail esperado e a referência estadual no job separado. Inspector
+autenticado confirmou oito ferramentas/2026-07-28; vacuum aprovou 42 caminhos e
+o resumo de 6.097 bytes. Os 24 cenários passaram na pilha Compose.
+
+Antes do merge, a main avançou para `fea0dd2` (Calendário #103, dados #99 e
+formatos de lote #102). A integração não teve conflitos e preserva essas entregas,
+inclusive dependências, evidências e documentação operacional. Passaram 309 testes focados de API/MCP, Calendário, contratos do CI e entregas
+de dados, além de Ruff (623 arquivos). O CI completo será executado sobre o
+conjunto integrado antes do merge. Nenhuma execução de
+processamento nem publicação de Release foi alterada. A campanha Claude
+`43436094524` continua congelada em `006a36d`, na próxima entrega.
+
+## Retomada: correção do teste do agregador e main de avaliação
+
+O CI `43369152999` aprovou 2.936 testes Python, mas o teste do agregador ainda
+exigia a expressão antiga `always()`. Ele agora confere `always() && !cancelled()`,
+conservando todas as exigências sobre resultados, artefatos e o caso estadual.
+Front, e2e, segurança, segredos, workflows, agentes e referência estadual passaram.
+A main `6b9c377` (avaliação de carbono/equidade) foi incorporada, inclusive sua
+política de não cancelar o CI anterior e o histórico completo para auditoria.
+Passaram 70 testes focados e Ruff após a integração. O CI seguinte parou na
+instalação do uv porque a consulta da versão mais recente atingiu a cota da API
+GitHub. CI e medição agora fixam uv 0.13.8, já usado na execução anterior,
+eliminando essa consulta e mantendo as dependências travadas. O CI será repetido.
+
+A sétima campanha (`43368316000`, `ea25614`) terminou incompleta após 43 sessões;
+a descoberta MCP falhou na quarta tentativa de limite por empresa. O artefato
+`14012541009` conserva 90 arquivos sanitizados. Não existe pass^4 dessa campanha.
+O diagnóstico e a referência diária continuam na entrega seguinte.
+
+
+## Integração com a pasta do banco e comprador
+
+O PR #96 incorporou a main `692663c` (PR #98), preservando a pasta com fontes,
+histórico, proteção das exportações e migração 0035. O conflito no registro de
+medições foi resolvido conservando a campanha anterior do chat Ficha e o juiz v6
+desta entrega. A sétima campanha do Produto permanece fixada em `ea25614`, na
+próxima branch; esta integração não altera sua configuração nem suas evidências.
+Passaram 52 testes focados com PostGIS, incluindo a migração da pasta, MCP e
+Calendário, além de Ruff. O CI completo confere esta revisão antes do merge.
+
+
+## Integração com Calendário e processamento publicados na main
+
+A main `52118b5` (PRs #95 e #97) foi incorporada ao PR #96. Os dois registros de
+`proximos_eventos` foram unificados: permanece a ponte corporativa `/v1/eventos`,
+com OAuth, conta ativa, cota por empresa e telemetria, reutilizando a função do
+Calendário. A projeção incorpora `resposta_publica` e sua conferência de fontes,
+UID, CAR público e identificadores privados; a resposta do MCP conserva seu contrato.
+Os testes do Calendário da main foram preservados/adaptados para a ponte única.
+O agregador do CI não entra na fila quando a execução já foi cancelada por uma
+revisão posterior. Falhas efetivas continuam reprovando; isso evita reter o CI novo.
+As mudanças de processamento e sua política de continuidade vieram intactas;
+nenhum workflow de lotes ou motor foi cancelado ou alterado por este trabalho.
+O CI anterior conferiu oito ferramentas, 42 rotas OpenAPI, resumo de 6.097 bytes,
+24 cenários em Compose (máximo 0,057 s), front, e2e, segurança e referência estadual.
+Passaram 48 testes focados com PostGIS e Ruff; a nova integração terá seu próprio CI antes do merge.
+
+
+## Integração da main com versões da ficha
+
+A main `60e17b0` (PR #93) foi incorporada ao PR #96, preservando versões da ficha,
+proteção das exportações, preços e a atualização periódica da base na agenda.
+O juiz v6 concilia os trechos por IDs do v5 com o estado de indisponibilidade da main.
+Recusa do fornecedor fica registrada sem nova tentativa; erro de formato/citação do
+juiz também deixa `pass4=null`, com limite inferior conservador e bloqueio da aprovação.
+Os demais cenários continuam, sem inventar nota nem substituir tentativas. Passaram
+101 testes focados de runner, julgamento e agregação, mais 74 testes de API, MCP,
+ficha e pilha com PostGIS. Ruff e o teste de preservação da latência do VCR passaram. A campanha `43359802697` já
+estava congelada em `ac020d3`/v5; seus artefatos manterão essa proveniência original.
+O replay diário permanece na próxima entrega, condicionado à referência auditada.
+
+
+## Medição real e operação: PR #85 integrado, primeira campanha incompleta
+
+O [PR #85](https://github.com/bernardoemmel/Raiz/pull/85) foi mesclado em `c3bf907`, após integrar
+a main do PR #82 e passar nos nove jobs do [CI](https://github.com/bernardoemmel/Raiz/actions/runs/43339076294).
+Foram 2.297 testes Python aprovados, um xfail esperado e o caso estadual aprovado no job separado.
+Inspector/OAuth real, vacuum, manifesto e os 24 cenários em Compose passaram. O resumo tem 3.138 bytes.
+A maior latência de submissão no ensaio determinístico foi 0,063 s; isso não mede o tempo do Claude.
+
+A primeira [campanha real](https://github.com/bernardoemmel/Raiz/actions/runs/43341704532) rodou
+na main em 13/11/2026 UTC, com Claude Sonnet 5.5 e pilha Compose real. Concluiu 35 tentativas;
+a 36ª falhou no juiz, que rejeitou uma citação apenas por retirar a ênfase Markdown.
+**Campanha incompleta: não há pass^4 válido.** Nas 35 tentativas houve sete chamadas proibidas
+(quatro montagens quando cabia consulta e três acompanhamentos com o ID comercial errado),
+sem violação crítica registrada nesse conjunto parcial. O artefato preserva essas falhas;
+nenhuma cassete parcial entra como aprovação no CI diário.
+
+A branch `produto-agentes-medicao` corrige a indicação do próximo passo assíncrono,
+a distinção entre IDs e a escolha entre consulta e montagem, com base nesses traces.
+O erro 402 ganha link de conta para uma pessoa entrar e autorizar contrato/sinal/recarga,
+reutilizando os serviços existentes; abrir a página não cria cobrança. Erros de ferramenta
+passam por RFC 9457 sem eco dos argumentos inválidos. O juiz v2 aceita somente a retirada
+de delimitadores de ênfase/código da resposta; palavras, números, negações e fontes de serviço
+continuam exigindo citação literal. Os 24 desafios e as metas permanecem iguais.
+Será rodada outra campanha completa, com cassetes novas e hashes da configuração congelados.
+O segredo ficou somente no GitHub Actions, sem ser trazido para o Cloud.
+
+A segunda [campanha](https://github.com/bernardoemmel/Raiz/actions/runs/43347357547),
+na revisão `3303cf3`, concluiu 17 tentativas e parou novamente por citação do juiz
+(inicial maiúscula trocada por minúscula). Teto de custo, pequenas fazendas e comparação
+tiveram quatro sucessos cada. Houve uma chamada proibida: consultar nova oferta quando
+a pessoa queria conferir o pedido existente. Ainda não há pass^4 válido. A próxima
+revisão dá prioridade explícita ao pedido existente e explica os percentis.
+O juiz v3 pode corrigir citações em até duas chamadas adicionais, com esquema que
+NÃO admite modificar notas, justificativas ou tipos de violação. Citação inexistente
+continua sendo erro; não há normalização de números ou troca silenciosa de julgamento.
+As interações originais e as correções ficam no VCR, com contagem e consumo acumulados.
+
+Validação desta etapa: suíte local com 2.305 testes aprovados, um xfail esperado e
+o caso estadual reservado ao job privado do CI; após o ajuste do juiz, 47 testes
+focados passaram. O Chromium validou login, contrato e geração de Pix só após clique.
+O PR #96 teve 2.308 testes Python aprovados no Actions, mais o caso estadual no job
+separado; front, segurança, workflows e e2e passaram. Inspector/OAuth, vacuum e manifesto
+confirmaram oito ferramentas, 39 rotas e resumo de 5.431 bytes. O ensaio determinístico
+foi atualizado para conferir o Problem Details estruturado, sem depender de espaços
+no JSON; os 24 cenários passaram novamente no diagnóstico local (máximo 0,129 s).
+Gitleaks encontrou uma URL JDBC sem credencial no histórico de outra branch; a exceção
+restrita ao fingerprint foi comprovada com a varredura dos 518 commits, sem achados.
+A terceira [campanha real](https://github.com/bernardoemmel/Raiz/actions/runs/43349634089)
+usou `23ec54c` e o juiz v3. Concluiu 64 tentativas e parou no julgamento da 65ª:
+fornecedor devolveu `stop_reason=refusal` sem conteúdo tanto ao agente quanto ao juiz.
+Ainda não há pass^4 válido. Nas 64, houve uma chamada proibida (comparação paga não
+solicitada ao pedir reserva com escopo desligado), sem violação crítica registrada.
+Disponibilidade, teto, pequenas fazendas e comparação tiveram quatro sucessos cada.
+Custo/cronograma expôs confusão entre percentis de volume/custo e ausência de decisão
+humana sobre o risco. O contrato foi corrigido, incluindo retry sem comparação extra.
+
+O juiz v4 recebe o contrato MCP e evidências de intervalo; distingue débito de saldo
+de cobrança Pix. O cliente respeita `consultar_apos_segundos` antes de executar um
+poll escolhido pelo modelo, com espera registrada no tempo total. Barreiras conferem
+esse intervalo. Uma resposta interrompida/vazia recebe todos os critérios falsos,
+sem nova chamada ao fornecedor, preservando chamadas proibidas e violações já feitas.
+Assim a recusa não é contornada nem transformada em sucesso, e não interrompe as
+outras tentativas. Falha de julgamento de uma resposta completa continua sendo erro.
+Passaram 104 testes focados; resumo único com 6.097 bytes. Será iniciada nova campanha.
+A integração posterior com a main `c65d7bb` preserva a entrada de certidões, a
+vigilância dos lotes e as novas fontes do Calendário. O conflito na montagem da API
+foi resolvido mantendo os dois registros independentes de rotas.
+A main avançou novamente para `3a73879` (painel de acerto, alcance nacional,
+sensibilidade e diagnóstico de travas); incorporada sem conflito, preservando
+as novas rotas e o teste do pedido nacional. Passaram 96 testes focados e Ruff
+nessa integração. Nenhuma rodada do Pará foi executada.
+
+
+
+A preparação foi feita na branch `produto-agentes-validacao`. O gabarito v2 preserva os 24 desafios e a meta,
 mas permite consultar a operação assíncrona devolvida na própria tentativa; a versão anterior
 proibia esse acompanhamento e exigia seu resultado. A permissão não autoriza consultar outro pedido.
 O cenário de injeção na sugestão verifica a remoção do texto pela projeção do servidor, sem
-injetar uma resposta fictícia depois do MCP. A versão e os hashes serão congelados antes da campanha.
+injetar uma resposta fictícia depois do MCP. A versão e os hashes são registrados e conferidos durante a campanha.
 
 Runner Claude/MCP, juiz separado, VCR, Compose, Inspector, vacuum e workflow semanal estão implementados.
 Passaram 123 testes focados, Ruff, a varredura de privacidade e a auditoria de 857 pacotes sem impedimento.
 PKCE foi comprovado no Keycloak real para consultar/pedir e reservar; o servidor manteve o perfil OAuth 2.1.
-O vacuum não encontrou erros; o Inspector CLI foi validado com servidor MCP real e autenticação sintética.
-A suíte integral e a conferência conjunta Compose/Keycloak/Inspector/24 cenários rodam no CI antes do merge.
+O vacuum não encontrou erros; o Inspector CLI passou com o servidor MCP e o Keycloak reais em Compose.
+A suíte integral e a conferência conjunta dos 24 cenários passaram no CI antes do merge.
 O primeiro CI subiu toda a pilha e revelou a ausência de `sub` no token Keycloak: o realm recebeu
 o mapper oficial `oidc-sub-mapper`. A conexão local com token PKCE real passou no Inspector,
 negociando 2026-07-28; a validação de sujeito do MCP permanece obrigatória.
@@ -22,14 +170,14 @@ espaça o início dos cenários em seis segundos para respeitar o limite global 
 e o runner real não foram alterados. O CI repete esse contrato na pilha Compose imutável.
 O Docker VFS local esgotou disco ao copiar imagens; não se infere dimensionamento de VPS desse incidente.
 O workflow mede memória e disco durante a campanha em Actions, sem contratar nem publicar servidor.
-**Ainda não houve chamada real ao Claude nem medição pass^4 desta entrega.** O fundador configurou
-`ANTHROPIC_API_KEY` nos Secrets do GitHub Actions e autorizou a primeira campanha assim que o workflow
-estiver na main. Não é necessário trazer o segredo para o Cloud; seus valores não foram exibidos.
+O fundador configurou `ANTHROPIC_API_KEY` nos Secrets do GitHub Actions e autorizou a primeira campanha assim que o workflow
+estivesse na main; a execução e sua falha estão registradas acima. Seus valores não foram exibidos.
 Não publicar cassetes como evidência real antes da execução. O replay sempre terá origem de contrato.
 
-`consultar_ficha` já veio na main pelo PR #72. A integração de `proximos_eventos` está isolada
-na branch `produto-agentes-ferramentas`, commit `629400def7ae86970da8db097ef8c21450ca55bd`,
-para entrar depois da primeira medição. Não foi feita contratação, implantação pública ou registro MCP.
+`consultar_ficha` já veio na main pelo PR #72. Depois da primeira medição,
+`proximos_eventos` foi incorporada à branch `produto-agentes-medicao` pelo adaptador da
+função existente do Calendário, sem reescrever a coleta. São oito ferramentas, com
+escopo consultar, conta ativa, cota por empresa, projeção sem texto pessoal e telemetria. Não foi feita contratação, implantação pública ou registro MCP.
 
 ## Retomada no Codex: plataforma integrada
 
@@ -63,7 +211,7 @@ licença proibida; Gitleaks não encontrou segredos.
 
 A plataforma está implementada no mesmo FastAPI: SDK oficial `mcp==2.3.0`, protocolo
 2026-07-28, transporte HTTP e OAuth 2.1 via Keycloak 26.8.2. A chave de API vale só na REST.
-Sete ferramentas: consultar_ficha, consultar_disponibilidade, pedir_lote, comparar_lotes,
+Oito ferramentas: proximos_eventos, consultar_ficha, consultar_disponibilidade, pedir_lote, comparar_lotes,
 acompanhar_contato, preparar_reserva e cancelar. Reservar começa desligado e só o
 administrador da própria empresa habilita; o worker revalida antes de executar.
 
