@@ -59,7 +59,13 @@ Sessão: https://claude.ai/code/session_01VGb88MJumyG9PHt2znaaKE. Branch: `claud
   encontrou zero pixels diferentes e confirmou a retirada do programa gráfico redundante. O fundo GL normal
   retorna na escala regional. O experimento separado de preparação de stencil não sustentou ganho e foi
   descartado. A composição final com processamento e busca entre UFs tem 504 testes do front aprovados;
-  Lighthouse e CI finais ainda precisam confirmar o portão na revisão enviada.
+  O portão local completo no frontend `f0a7c96` passou nas seis páginas: medianas de desempenho
+  **98/98/97/97/97/100**, com acessibilidade 100 nas 18 amostras. As sete verificações axe/teclado
+  a 360 px passaram sem violações; o percurso Pages terminou sem 404 ou erros de execução.
+  A série fixa no snapshot real marcou **82/95/95 (mediana 95)**, acessibilidade 100 nas três,
+  LCP 1,49/1,43/1,43 s e TBT 709/232,5/261 ms. A amostra 82 está preservada: ainda há variação
+  na inicialização gráfica. O portão de mediana passou sem repetição ou redução do mínimo;
+  os nove jobs do CI e a publicação continuam pendentes para esta revisão.
 - A publicação posterior `43358821157` da main parou fechada quando o Release passou a incluir
   `processamento` em GO/MT/RN, antes desconhecido pelo leitor. A correção inicial validou os oito campos
   desse contrato público v1, contagens, UF e cronologia; seus 47 testes e o manifesto real de 22.659 bytes
@@ -77,8 +83,8 @@ Sessão: https://claude.ai/code/session_01VGb88MJumyG9PHt2znaaKE. Branch: `claud
   acima do andamento. A integração passou em 494 testes do front, 122 testes Python focados, Ruff e
   actionlint. Os builds e o Playwright passaram nos dois caminhos, com 27 UFs, busca, camadas, calendário,
   controles de acesso e zero 404 ou erros no navegador. O painel nacional passou em 360 px com teclado,
-  gaveta, 32 regras axe e zero violações WCAG 2.1 A/AA ou largura excedida. As notas Lighthouse acima
-  antecedem esta composição; a medição final e os nove jobs do CI continuam pendentes.
+  gaveta, 32 regras axe e zero violações WCAG 2.1 A/AA ou largura excedida. A composição final
+  `f0a7c96` passou no Lighthouse local descrito acima; os nove jobs do CI continuam pendentes.
 - A transferência pública completa encontrou um CAR cadastrado na Paraíba no recorte de Serra Negra do Norte
   (RN). O leitor agora confere separadamente UF/IBGE do CAR e UF/IBGE do recorte, preservando o identificador.
   Os 49 testes do downloader e os 85 CSV do pacote RN passaram. A execução real terminou com 692 CSV básicos
@@ -731,5 +737,7 @@ Contrato, acessibilidade e desenho: [docs/design/graficos-resultados.md](../desi
   Os contratos integrados passaram em 494 testes do front e 122 testes Python, além de Ruff e actionlint.
   Build e Playwright passaram em `/Raiz/` e `/`, com dados públicos, 27 UFs e zero 404/erros. O painel
   nacional com as 27 UFs passou em teclado e axe a 360 px (32 regras, zero violações ou largura excedida).
-  A medição Lighthouse da composição final e os nove jobs do CI ainda precisam passar; esta integração
-  não reaproveita notas anteriores nem interrompe processamento.
+  A composição final `f0a7c96`, incluindo a busca entre UFs e o fundo nacional em CSS, passou nas 18
+  medições Lighthouse locais (medianas 98/98/97/97/97/100, acessibilidade 100) e na série real
+  82/95/95 (mediana 95, acessibilidade 100), mantendo todas as amostras. Os nove jobs do CI ainda
+  precisam passar; esta integração não reaproveita notas anteriores nem interrompe processamento.
