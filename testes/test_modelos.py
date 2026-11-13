@@ -75,7 +75,8 @@ def test_haiku_sem_reserva_e_esforco_baixo():
 def test_recusa_e_fora_do_esquema():
     c, _ = _cliente(lambda b: _resposta_anthropic(b["model"], stop="refusal", categoria="general_harms"))
     r = Claude("claude-haiku-5-5", cliente=c).responder_json(PEDIDO)
-    assert r.recusou and not r.ok and "general_harms" in r.erro
+    # A categoria vem como texto livre do provedor; não pode ecoar dados do documento no rastro.
+    assert r.recusou and not r.ok and r.erro == "recusa do modelo"
     c, _ = _cliente(lambda b: _resposta_anthropic(b["model"], {"intencao": "talvez", "confianca": 1}))
     r = Claude("claude-haiku-5-5", cliente=c).responder_json(PEDIDO)
     assert not r.ok and "fora da lista" in r.erro

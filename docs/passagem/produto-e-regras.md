@@ -49,6 +49,9 @@ Gitleaks encontrou uma URL JDBC sem credencial no histórico de outra branch; a 
 restrita ao fingerprint foi comprovada com a varredura dos 518 commits, sem achados.
 A terceira [campanha real](https://github.com/bernardoemmel/Raiz/actions/runs/43349634089)
 usa `23ec54c` e o juiz v3; aguarda-se o relatório completo, sem antecipar pass^4.
+A integração posterior com a main `c65d7bb` preserva a entrada de certidões, a
+vigilância dos lotes e as novas fontes do Calendário. O conflito na montagem da API
+foi resolvido mantendo os dois registros independentes de rotas.
 
 
 
