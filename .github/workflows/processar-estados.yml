@@ -73,7 +73,7 @@ jobs:
       tem: ${{ steps.plano.outputs.tem }}
       dia: ${{ steps.plano.outputs.dia }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v6
         with:
           version: "0.13.6"
@@ -102,7 +102,7 @@ jobs:
     env:
       RAIZ_GITHUB_ESPERA_MAX_S: "3700"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v6
         with:
           version: "0.13.6"
@@ -169,7 +169,7 @@ jobs:
           echo "RAIZ_INICIO=$(date +%s)" >> "$GITHUB_ENV"
           echo "UF=${UNIDADE%%-*}" >> "$GITHUB_ENV"
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ matrix.ref }} # commit preservado na fila junto do pedido
 
@@ -233,7 +233,7 @@ jobs:
       - name: Buscar o publicador do workflow para finalizar executores de versões anteriores
         id: publicador_checkout
         if: ${{ !cancelled() && steps.privacidade.outcome == 'success' && matrix.ref != github.workflow_sha }}
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           ref: ${{ github.workflow_sha }}
           path: publicador-atual
