@@ -8,6 +8,8 @@ com OAuth, conta ativa, cota por empresa e telemetria, reutilizando a função d
 Calendário. A projeção incorpora `resposta_publica` e sua conferência de fontes,
 UID, CAR público e identificadores privados; a resposta do MCP conserva seu contrato.
 Os testes do Calendário da main foram preservados/adaptados para a ponte única.
+O agregador do CI não entra na fila quando a execução já foi cancelada por uma
+revisão posterior. Falhas efetivas continuam reprovando; isso evita reter o CI novo.
 As mudanças de processamento e sua política de continuidade vieram intactas;
 nenhum workflow de lotes ou motor foi cancelado ou alterado por este trabalho.
 O CI anterior conferiu oito ferramentas, 42 rotas OpenAPI, resumo de 6.097 bytes,

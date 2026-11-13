@@ -340,7 +340,8 @@ jobs:
   # Nome preservado para que regras existentes da main continuem exigindo a suíte inteira.
   checagens:
     needs: [testes_python, referencia_para]
-    if: always()
+    # Uma revisão substituída não deve enfileirar o agregador nem reter a próxima execução do PR.
+    if: always() && !cancelled()
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     env:
