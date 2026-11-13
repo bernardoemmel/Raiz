@@ -31,6 +31,7 @@ CODIGO = {
         "raiz/funil/novo.py",
     ),
     "filtros": (
+        "motor/raiz_estado.py",
         "motor/raiz_filtros.py",
         "motor/raiz_extras.py",
         "raiz/funil/rodar.py",

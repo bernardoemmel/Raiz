@@ -1,6 +1,4 @@
-"""Conclusão dos 27 funis: três UFs, quinze unidades e nenhuma manutenção."""
-
-import copy
+"""Conclusão dos 27 funis: quinze vagas, erros passam a vez e nenhuma manutenção."""
 
 import pytest
 
@@ -24,28 +22,70 @@ def test_subdivisoes_preservam_fatias_antigas_e_cobrem_uf_sem_sobreposicao(monke
     assert S.unidade_ancestral("MG-3") is None
 
 
-def test_primeiras_tres_ufs_enchem_quinze_e_nao_trocam_quando_uma_fatia_termina(monkeypatch):
+def test_prioridade_enche_quinze_sem_limitar_numero_de_ufs(monkeypatch):
     monkeypatch.setenv("RAIZ_PRIORIDADE_FUNIL", "1")
-    estado = {**F.vazio(), "planejadores": ["1", "2", "3"]}
+    estado = {**F.vazio(), "planejadores": ["1", "2"]}
     candidatos = [_pedido(u) for uf in F.ORDEM_FUNIL for u in S.unidades(uf)]
-    runs = {str(i): _run() for i in (1, 2, 3)}
+    runs = {str(i): _run() for i in (1, 2)}
     escolhidos = F.admitir(estado, runs, "1", candidatos, O._e_unidade, funis_prontos=set())
     assert len(escolhidos) == 15
     assert {p["unidade"].split("-")[0] for p in escolhidos} == {"TO", "MA", "MT"}
-    frente = copy.deepcopy(estado["prioridade_funil"])
     runs["1"] = _run(*(p["unidade"] for p in escolhidos), status="completed", conclusion="success")
-    assert not F.admitir(estado, runs, "2", [_pedido("AM-1001", "2")], O._e_unidade, funis_prontos=set())
-    assert estado["prioridade_funil"] == frente
-    assert F.admitir(estado, {**runs, "3": _run()}, "3", [_pedido("AM-1001", "3")], O._e_unidade,
-                     funis_prontos={"TO"})  # fmt: skip
-    assert estado["prioridade_funil"]["frente"] == ["MA", "MT", "AM"]
+    proxima = _pedido("AM-1001", "2")
+    assert F.admitir(estado, runs, "2", [proxima], O._e_unidade, funis_prontos=set()) == [proxima]
+    assert estado["prioridade_funil"]["frente"] == list(F.ORDEM_FUNIL)
 
 
-def test_reservas_legadas_de_quatro_ufs_terminam_sem_admitir_quinta():
+def test_quatro_ufs_legadas_nao_impedem_preencher_as_quinze_vagas(monkeypatch):
+    monkeypatch.setenv("RAIZ_PRIORIDADE_FUNIL", "1")
     estado = {**F.vazio(), "planejadores": ["novo"]}
     runs = {"legado": _run("SP-1", "PR-1", "SC-1", "RS-1"), "novo": _run()}
-    assert not F.admitir(estado, runs, "novo", [_pedido("TO-1001")], O._e_unidade, funis_prontos=set())
+    candidatos = [_pedido(u) for uf in F.ORDEM_FUNIL for u in S.unidades(uf)]
+    escolhidos = F.admitir(estado, runs, "novo", candidatos, O._e_unidade, funis_prontos=set())
+    assert len(escolhidos) == 11 and escolhidos[0]["unidade"].startswith("TO-")
     assert runs["legado"]["status"] == "in_progress"
+
+
+def test_erro_libera_vaga_para_proxima_uf_sem_zerar_tentativas(monkeypatch):
+    monkeypatch.setenv("RAIZ_PRIORIDADE_FUNIL", "1")
+    falhou = _pedido("TO-1001")
+    estado = {**F.vazio(), "planejadores": ["2", "3"],
+              "reservas": [{"run_id": "1", "unidade": falhou["unidade"], "pedido": falhou}]}  # fmt: skip
+    runs = {"1": _run("TO-1001", status="completed", conclusion="failure"), "2": _run(), "3": _run()}
+    candidatos = [_pedido(u, "2") for uf in F.ORDEM_FUNIL for u in S.unidades(uf)]
+    escolhidos = F.admitir(estado, runs, "2", candidatos, O._e_unidade, funis_prontos=set())
+    assert len(escolhidos) == 15
+    assert {p["unidade"].split("-")[0] for p in escolhidos} == {"MA", "MT", "AM"}
+    assert estado["fila"] == [{**falhou, "falhas": 1}]
+    runs["2"] = _run(*(p["unidade"] for p in escolhidos), status="completed", conclusion="success")
+    # Quando só resta a UF com erro, a retomada conserva o contador original.
+    escolhidos = F.admitir(estado, {**runs, "3": _run()}, "3", [_pedido("TO-1001", "3")], O._e_unidade,
+                          funis_prontos=set(F.ORDEM_FUNIL) - {"TO"})  # fmt: skip
+    assert escolhidos == [{**falhou, "falhas": 1}]
+    assert len(estado["reservas"]) == 1
+
+
+def test_limite_de_falhas_nao_e_burlado_pelo_candidato_automatico():
+    antigo = {**_pedido("TO-1001"), "falhas": 2}
+    estado = {
+        **F.vazio(),
+        "planejadores": ["2"],
+        "reservas": [{"run_id": "1", "unidade": antigo["unidade"], "pedido": antigo}],
+    }
+    runs = {"1": _run("TO-1001", status="completed", conclusion="failure"), "2": _run()}
+    proximo = _pedido("MA-1001", "2")
+    assert F.admitir(estado, runs, "2", [_pedido("TO-1001", "2"), proximo], O._e_unidade,
+                     funis_prontos=set()) == [proximo]  # fmt: skip
+    assert estado["fila"][0]["falhas"] == F.MAX_FALHAS and estado["fila"][0]["bloqueado"]
+
+
+@pytest.mark.parametrize("ref_erro,primeira", [("a" * 40, "MA-1001"), ("b" * 40, "TO-1001")])
+def test_erros_publicados_passam_a_vez_so_na_mesma_versao(ref_erro, primeira):
+    estado = {**F.vazio(), "planejadores": ["1"]}
+    candidatos = [_pedido("TO-1001"), _pedido("MA-1001")]
+    escolhidos = F.admitir(estado, {"1": _run()}, "1", candidatos, O._e_unidade, max_novos=1,
+                          funis_prontos=set(), ref_funil="a" * 40, falhas_funil={"TO": ref_erro})  # fmt: skip
+    assert escolhidos[0]["unidade"] == primeira
 
 
 def test_manutencao_so_volta_depois_dos_27_funis():

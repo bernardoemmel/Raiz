@@ -146,8 +146,8 @@ def test_embargos_ativos_excluem_cancelados_sem_ocultar_erro():
     with pytest.raises(ValueError, match="obrigatórias"):
         embargos_ativos(df.drop(columns="SIT_CANCELADO"), 1504950)
     df.loc[0, "GEOM_AREA_EMBARGADA"] = "geometria inválida"
-    with pytest.raises(shapely.errors.GEOSException):
-        embargos_ativos(df, 1504950)
+    out = embargos_ativos(df, 1504950)
+    assert out.empty and len(out.attrs["embargos_a_conferir"]) == 1
 
 
 @pytest.mark.parametrize(
@@ -155,7 +155,7 @@ def test_embargos_ativos_excluem_cancelados_sem_ocultar_erro():
     [None, "POLYGON EMPTY", "POINT (0 0)", "LINESTRING (0 0, 1 1)", "POLYGON ((0 0, 1 1, 2 2, 0 0))"],
 )
 @pytest.mark.parametrize("espelho", [False, True])
-def test_embargo_ativo_sem_geometria_poligonal_bloqueia_calculo(wkt, espelho):
+def test_embargo_ativo_sem_geometria_poligonal_conserva_pendencia(wkt, espelho):
     df = pd.DataFrame(
         {
             "COD_MUNICIPIO": [1504950],
@@ -166,8 +166,8 @@ def test_embargo_ativo_sem_geometria_poligonal_bloqueia_calculo(wkt, espelho):
     )
     if espelho:
         df = gpd.GeoDataFrame(df, geometry=shapely.from_wkt(df.GEOM_AREA_EMBARGADA), crs=4674)
-    with pytest.raises(ValueError, match="embargo ativo.*geometria"):
-        embargos_ativos(df, 1504950)
+    out = embargos_ativos(df, 1504950)
+    assert out.empty and len(out.attrs["embargos_a_conferir"]) == 1
 
 
 def test_espelho_com_wkt_invalido_nao_vira_restricao_zero(tmp_path):
@@ -185,8 +185,8 @@ def test_espelho_com_wkt_invalido_nao_vira_restricao_zero(tmp_path):
     )
     esp = Espelho(tmp_path)
     esp.gravar("ibama", "PA", 1504950, g, "SEQ_TAD")
-    with pytest.raises(ValueError, match="embargo ativo.*geometria"):
-        embargos_ativos(esp.ler("ibama", "PA", 1504950), 1504950)
+    out = embargos_ativos(esp.ler("ibama", "PA", 1504950), 1504950)
+    assert out.empty and len(out.attrs["embargos_a_conferir"]) == 1
 
 
 @pytest.mark.parametrize("geometria_inativa", [None, "POINT (0 0)"])
@@ -220,3 +220,41 @@ def test_producao_recusa_plano_sem_spatial_join(monkeypatch):
     monkeypatch.setattr(duck, "tem_juncao_espacial", lambda *a: False)
     with pytest.raises(RuntimeError, match="SPATIAL_JOIN"):
         duck.ov(base, base)
+
+
+def test_filtros_excluem_so_o_car_pendente_da_oferta(motor, monkeypatch):
+    R, _, filtros = motor
+    from raiz.funil.filtros import calcular
+    from raiz.pedidos.oferta import de_linha
+
+    centro = gpd.GeoSeries([shapely.Point(-47, -2)], crs=4674).to_crs(5880).iloc[0]
+    x, y = centro.x, centro.y
+    car = _g(
+        [shapely.box(x, y, x + 100, y + 100), shapely.box(x + 1000, y, x + 1010, y + 10)],
+        cod_imovel=["afetada", "pequena_livre"],
+    )
+    vazias = {"ti": _g([], fase_ti=[]), "uc": _g([], grupo=[], categoria=[]), "quilombo": _g([])}
+    monkeypatch.setattr(filtros, "camada", lambda k: vazias[k].to_crs(4674))
+    emb = pd.DataFrame(
+        {
+            "COD_MUNICIPIO": [1504950],
+            "SIT_CANCELADO": ["N"],
+            "SIT_DESEMBARGO": ["N"],
+            "COD_IMOVEL": ["afetada"],
+            "GEOM_AREA_EMBARGADA": [None],
+        }
+    )
+    with ponte_vetorial(R) as con:
+        out = calcular(car, filtros, embargos_ativos(emb, 1504950), con()).set_index("cod_imovel")
+    assert out.loc["afetada", "filtro_territorial"] == "bloqueio"
+    assert pd.isna(out.loc["afetada", "restricao_embargo_ha"])
+    assert out.loc["pequena_livre", "filtro_territorial"] == "ok"
+    for cod, esperado in (("afetada", False), ("pequena_livre", True)):
+        linha = {
+            "cod_imovel": cod,
+            "modo_restauracao": "plantio_total",
+            "restauracao_area_ha": 0.01,
+            "caminho_terra": "privada_matricula",
+            **out.loc[cod].to_dict(),
+        }
+        assert de_linha(linha)["elegivel"] is esperado
