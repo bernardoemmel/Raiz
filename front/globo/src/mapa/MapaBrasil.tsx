@@ -258,6 +258,8 @@ export function MapaBrasil(props: Props) {
       const m = new MapaGL({
         container: caixa.current,
         attributionControl: false,
+        // Pede apresentação com menor espera; sem suporte, o navegador mantém seu caminho normal.
+        canvasContextAttributes: { desynchronized: true },
         pixelRatio: Math.min(window.devicePixelRatio || 1, 2),
         fadeDuration: 0,
         dragRotate: false,

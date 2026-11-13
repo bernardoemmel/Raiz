@@ -174,6 +174,8 @@ try {
   console.log("Abrindo o build estático básico no Chromium...")
   await pagina.goto(base)
   await mapaPronto()
+  assert.equal(await pagina.evaluate(() => document.querySelector(".mapa-brasil .mapa").__mapa.getCanvas().getContext("webgl2").getContextAttributes().desynchronized), true,
+    "O Chromium conferido deve aceitar a apresentação desynchronized no contexto real do mapa.")
   assert.equal(pedidos.filter(url => url === new URL("geo/brasil_estados.geojson", base).href).length, 2,
     "A geometria é lida para enquadramento e pela URL no worker; o navegador pode reutilizar o cache HTTP.")
   assert(pedidos.some(url => /\/fontes\/Noto(?:%20| )Sans(?:%20| )Regular\/0-255\.pbf$/.test(url)), "A fixture nacional precisa desenhar rótulos reais com os glyphs licenciados.")
