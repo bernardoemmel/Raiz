@@ -39,6 +39,7 @@ jobs:
         run: python scripts/reservar_lote.py --reservar 1
       - uses: astral-sh/setup-uv@v6
         with:
+          version: "0.13.6"
           enable-cache: false
       - run: uv sync --frozen --extra motor
       - name: Conferir a origem e publicar o diagnóstico sem recalcular previsões

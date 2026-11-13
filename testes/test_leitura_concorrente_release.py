@@ -60,3 +60,78 @@ def test_download_de_id_congelado_nao_troca_por_outro_asset(tmp_path, monkeypatc
         with pytest.raises(FalhaHTTPPrivada, match="HTTP 404"):
             arm._baixar_ativo({"id": 1, "name": "produto.tar.gz"})
     assert chamadas == ["/repos/teste/repo/releases/assets/1"]
+
+
+@pytest.mark.parametrize("embutido", ["presente", "parcial", "antigo"])
+def test_leitura_usa_presenca_no_release_mas_nunca_infere_ausencia(tmp_path, monkeypatch, embutido):
+    chamadas = []
+
+    def servidor(req):
+        chamadas.append(req.url.path)
+        if req.url.path.endswith("/assets"):
+            assert embutido != "presente", "a paginação concorrente não é necessária para este arquivo"
+            return httpx.Response(200, json=[{"id": 2, "name": "estados.json", "size": 2}])
+        if req.url.path.endswith("/1"):
+            return httpx.Response(404)
+        assert req.url.path.endswith("/2")
+        return httpx.Response(200, content=b"{}")
+
+    ativo = {"id": 1 if embutido == "antigo" else 2, "name": "estados.json", "size": 2}
+    with httpx.Client(transport=httpx.MockTransport(servidor)) as cli:
+        arm = ArmazemRelease("teste/repo", "privado", tmp_path, token="segredo", cliente=cli, privado=True)
+        monkeypatch.setattr(
+            arm, "_exigir_privado", lambda: {"id": 7, "assets": [] if embutido == "parcial" else [ativo]}
+        )
+        monkeypatch.setattr("raiz.executor.armazem.time.sleep", lambda _: None)
+        assert arm._baixar_asset("estados.json") == b"{}"
+    assert sum(p.endswith("/assets") for p in chamadas) == (0 if embutido == "presente" else 1)
+
+
+def test_verificar_acesso_nao_depende_da_paginacao_dos_assets(tmp_path, monkeypatch):
+    from testes.test_armazem_release import GitHubFalso, _armazem
+
+    gh = GitHubFalso()
+    arm = _armazem(gh, tmp_path)
+    monkeypatch.setattr(arm, "_assets", lambda *args: pytest.fail("paginação concorrente desnecessária"))
+    arm.verificar_publicacao()
+    gh.privado = False
+    with pytest.raises(PermissionError):
+        arm.verificar_publicacao()
+
+
+@pytest.mark.parametrize("alteracao", ["nenhuma", "publicado", "apagado", "acesso_recusado"])
+def test_rascunho_reutiliza_id_mas_revalida_privacidade_e_existencia(tmp_path, alteracao):
+    chamadas = []
+    repeticao = False
+
+    def servidor(req):
+        chamadas.append(req.url.path)
+        if req.url.path.endswith("/teste/repo"):
+            return httpx.Response(200, json={"private": False})
+        if req.url.path.endswith("/tags/privado"):
+            return httpx.Response(404)
+        if req.url.path.endswith("/releases/7"):
+            if alteracao == "acesso_recusado":
+                return httpx.Response(403)
+            if alteracao == "apagado":
+                return httpx.Response(404)
+            return httpx.Response(200, json={"id": 7, "tag_name": "privado", "draft": alteracao != "publicado"})
+        assert req.url.path.endswith("/releases")
+        ident = 8 if repeticao and alteracao == "apagado" else 7
+        return httpx.Response(200, json=[{"id": ident, "tag_name": "privado", "draft": True, "assets": []}])
+
+    with httpx.Client(transport=httpx.MockTransport(servidor)) as cli:
+        arm = ArmazemRelease("teste/repo", "privado", tmp_path, token="segredo", cliente=cli, privado=True)
+        arm.verificar_publicacao()
+        repeticao = True
+        if alteracao == "publicado":
+            with pytest.raises(PermissionError):
+                arm.verificar_publicacao()
+        elif alteracao == "acesso_recusado":
+            with pytest.raises(FalhaHTTPPrivada, match="403"):
+                arm.verificar_publicacao()
+        else:
+            arm.verificar_publicacao()
+        assert arm._release_id == (8 if alteracao == "apagado" else 7)
+    assert chamadas.count("/repos/teste/repo/releases/tags/privado") == (2 if alteracao == "apagado" else 1)
+    assert chamadas.count("/repos/teste/repo") == 2

@@ -78,7 +78,7 @@ describe("fonte pública do processamento", () => {
     const lido = lerProcessamentoEstados(dado)
     expect(lido.estados.slice(0, 3).map((e) => e.unidade)).toEqual([null, null, null])
     dado.estados[0].escopo = "unidade"
-    dado.estados[0].unidade = `${dado.estados[0].uf}-1`
+    dado.estados[0].unidade = `${dado.estados[0].uf}-1001`
     expect(lerProcessamentoEstados(dado).estados[0].unidade).toBe(dado.estados[0].unidade)
   })
   it("recusa total excessivo ou soma divergente em observação atual", () => {
