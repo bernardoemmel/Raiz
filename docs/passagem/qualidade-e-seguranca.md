@@ -765,3 +765,11 @@ O #84 entrou em `2b6e8af`: seu delta sobre #85 altera somente a passagem de Tela
 com resultados de conferência da publicação. Revisado sem achado de lógica, dado pessoal ou segredo nesse diff.
 Integrado sem conflito operacional; os onze jobs executam a combinação atualizada. Ruff e formatação passaram
 nos 539 arquivos, além de actionlint. A referência histórica de ausência continua intacta.
+
+### Continuação após #85 — histórico e execução do CI
+
+A varredura de todas as branches encontrou um falso positivo novo: URL JDBC interna sem usuário/senha em
+`infra/docker-compose.avaliacao.yml`, commit `e0e8ccd`, linha 46. A exceção é só desse fingerprint histórico;
+nenhum padrão, arquivo inteiro ou valor futuro foi liberado. O corpus real continua obrigatório.
+Por orientação do fundador, o CI usa grupo por commit e `cancel-in-progress: false`: nem execução ativa nem
+pendente de outro commit do PR é substituída. Nenhum workflow foi desligado ou cancelado nesta entrega.
