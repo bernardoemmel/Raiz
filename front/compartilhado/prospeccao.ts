@@ -9,6 +9,30 @@ export interface MedidaTerra {
   data_corte: string | null
   estimado: boolean
 }
+export interface EvidenciaCompromisso {
+  fonte_id: string; objeto_id: string; registro: string; tipo: string; situacao: string; certeza: string
+  fonte_url: string | null; data_referencia: string | null; observado_em: string | null
+  inicio: string | null; fim: string | null; area: MedidaTerra
+}
+export interface TerraComprometidaDados {
+  versao: number; situacao: string; area_confirmada: MedidaTerra; area_indicio: MedidaTerra
+  evidencias: EvidenciaCompromisso[]; contexto_jurisdicional: EvidenciaCompromisso[]
+  cobertura: { fonte_id: string; estado: string; escopo: string; recorte: string; bbox: number[] | null; url: string | null; licenca: string; data_referencia: string | null; consultado_em: string | null }[]
+  aviso: string
+}
+export interface MudancaTerra {
+  tipo: string; campo: string; antes: unknown; depois: unknown
+  fonte: string; data_referencia: string | null; data_corte: string | null
+}
+export interface VersaoFicha { id: number; hash: string; registrada_em: string }
+export interface MudancasConsulta {
+  primeira_consulta: boolean; consulta_anterior_em: string | null
+  versao_anterior_id: number | null; versao_atual_id: number; mudancas: MudancaTerra[]
+}
+export interface HistoricoFicha {
+  codigo_car: string
+  historico: { id: number; origem: string; registrada_em: string; versao_id: number; anterior_id: number | null; mudancas: MudancaTerra[]; hash_conteudo: string }[]
+}
 export interface FichaTerraDados {
   versao: number
   codigo_car: string
@@ -29,6 +53,9 @@ export interface FichaTerraDados {
   tir: { p10: MedidaTerra; p50: MedidaTerra; p90: MedidaTerra; tipo: string }
   risco: { nivel: string | null; fonte: string; data_referencia: string | null; regra_versao: string | null }
   agrupamento: { pequena: boolean | null; grupo_id: string | null; imoveis: MedidaTerra; area: MedidaTerra }
+  terra_comprometida?: TerraComprometidaDados
+  versao_ficha?: VersaoFicha
+  o_que_mudou?: MudancasConsulta
 }
 export interface VisualTerra {
   imovel: Geo
@@ -112,7 +139,13 @@ export interface BuscaProspeccao {
   aviso: string
 }
 export interface PlanosConsulta {
-  planos: { id: string; nome: string; creditos: number; valor_rs: number | null; status?: "provisorio" | "aprovado"; aviso_preco?: string }[]
+  planos: { id: string; nome: string; creditos: number; valor_rs: number | null; status?: "provisorio" | "aprovado"; aviso_preco?: string
+    modalidade?: "por_ficha" | "por_lote" | "assinatura"; status_quantidade?: "proposta" | "aprovada"
+    pagamento_disponivel?: boolean; cobranca_implementada?: boolean; renovacao_automatica?: boolean
+    creditos_por_ciclo?: number; ciclo_meses?: number; status_ciclo?: "proposta" | "aprovado"; aviso_modalidade?: string
+    validade_creditos_dias?: number | null; acumula_creditos?: boolean | null
+    regra_excedentes?: string; regra_cancelamento?: string; regra_reembolso?: string
+  }[]
   status?: "provisorio" | "aprovado"
   custo_ficha: number
   unidade: string
@@ -134,6 +167,9 @@ export interface AvisoBusca {
   criada_em: string
   lida_em: string | null
   mensagem: string
+  tipo?: string
+  ficha_liberada?: boolean
+  mudancas?: MudancaTerra[]
 }
 export interface PaginaAvisos { avisos: AvisoBusca[]; proximo_cursor: number | null }
 
@@ -193,6 +229,13 @@ export function fonteProspeccao(api: string | undefined, token: () => string | n
   return {
     disponivel: !!api,
     comparar: (codigos_car: string[], sinal?: AbortSignal) => pedir<{ fichas: FichaTerraDados[] }>("comparar", { codigos_car }, sinal),
+    historico: (car: string, sinal?: AbortSignal) => pedir<HistoricoFicha>(`fichas/${encodeURIComponent(car)}/historico?limite=20`, undefined, sinal),
+    exportar: async (car: string, formato: "json" | "csv", sinal?: AbortSignal) => {
+      const resposta = await respostaDe(`fichas/${encodeURIComponent(car)}/exportar?formato=${formato}`, undefined, sinal)
+      const tipo = formato === "json" ? "application/json" : "text/csv"
+      if (!(resposta.headers.get("content-type") ?? "").includes(tipo)) throw new ErroProspeccao(502, `A Raíz não retornou um arquivo ${formato.toUpperCase()} válido. Tente novamente.`)
+      return resposta.blob()
+    },
     pdf: async (car: string, sinal?: AbortSignal) => {
       const resposta = await respostaDe(`fichas/${encodeURIComponent(car)}/pdf`, undefined, sinal)
       if (!(resposta.headers.get("content-type") ?? "").includes("application/pdf")) throw new ErroProspeccao(502, "A Raíz não retornou um PDF válido. Tente novamente.")

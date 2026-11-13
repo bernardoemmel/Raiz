@@ -104,6 +104,7 @@ class Julgamento:
     criterios: dict[str, bool]
     violacoes: list[str] = field(default_factory=list)
     chamadas_nao_autorizadas: list[int] = field(default_factory=list)
+    disponivel: bool = True
 
 
 class Provedor(Protocol):
@@ -370,7 +371,7 @@ async def conversar(
         if not chamadas:
             trace["resposta"] = "\n".join(b["text"] for b in blocos if b["type"] == "text")
             if resposta.stop_reason != "end_turn":
-                trace["erro"] = "resposta_interrompida"
+                trace["erro"] = "recusa_provedor" if resposta.stop_reason == "refusal" else "resposta_interrompida"
             break
         resultados = []
         for chamada in chamadas:
@@ -663,6 +664,7 @@ async def campanha(args, provedor: Provedor) -> dict:
                         inicio_em=trace["inicio_em"],
                         resposta_sha256=hash_json(trace_seguro["resposta"]),
                         criterios=julgamento.criterios,
+                        julgamento_disponivel=julgamento.disponivel,
                         chamadas=chamadas,
                         violacoes=julgamento.violacoes,
                     )

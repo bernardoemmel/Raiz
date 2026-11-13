@@ -12,6 +12,7 @@ import re
 
 from raiz import terra
 from raiz.privacidade import mascarar
+from raiz.terra_comprometida import fechar_dto
 
 _ANO = re.compile(r"^mb_(supressao_primaria|supressao_secundaria|fogo)_(\d{4})_ha$")
 _PERDAS = {
@@ -301,6 +302,7 @@ def ficha(linha: dict, versao: dict | None = None, banco: dict | None = None) ->
         ),
         "caminho_terra": {"codigo": cam, "rotulo": regra_cam["nome"], "situacao": regra_cam["situacao"], **terra_meta},
         "pendencias": _pendencias(linha, cam),
+        "terra_comprometida": fechar_dto(banco.get("terra_comprometida")),
         "sobreposicoes": [
             {
                 "codigo": codigo,
