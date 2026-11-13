@@ -259,7 +259,7 @@ As versões e a disponibilidade variam por estado e tabela. Consulte o catálogo
 Os limites territoriais são simplificados para visualização e não definem propriedade nem demarcação legal. Onde a base TerraBrasilis ainda não contém um município publicado, todos os municípios de sua UF são substituídos juntos pela mesma edição da Malha Municipal Digital do IBGE, sob CC BY 4.0. A generalização altera os vetores originais. As demais UFs conservam sua fonte anterior; a edição abaixo não se aplica ao Brasil inteiro.
 ${Object.entries(malhasPublicas(opcoes.malhas)).sort(([a], [b]) => a.localeCompare(b)).map(([uf, m]) => `\n- ${uf}: [IBGE, Malha Municipal Digital ${m.ano}](${urlMalhaIbge(uf, m.ano)}), simplificada. SHA-256 do ZIP de origem: ${m.sha256}.`).join("") || "\nNenhuma substituição por UF registrada nesta publicação."}
 
-[Condições técnicas e legais da edição 2025, p. 6–9](https://www.ibge.gov.br/biblioteca/visualizacao/livros/liv102268.pdf).
+[Condições técnicas e legais da edição 2025, páginas 6 a 9](https://www.ibge.gov.br/biblioteca/visualizacao/livros/liv102268.pdf).
 
 ${REGRAS}
 
