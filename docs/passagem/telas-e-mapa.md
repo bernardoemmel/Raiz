@@ -45,6 +45,17 @@ Sessão: https://claude.ai/code/session_01VGb88MJumyG9PHt2znaaKE. Branch: `claud
   do front passaram. Prints nacionais antes/depois, 360 px e detalhe real estão em
   [evidências da rodada 12](../design/evidencias/mapa-r12/README.md). O CI mantém três medições em cada uma
   de seis páginas e precisa ter todos os nove jobs verdes antes do merge, além da conferência da publicação.
+- O mesmo gate executado localmente com a fixture completa passou nas seis rotas: Brasil 94, entrada 98,
+  novo pedido 97, prospecção 96, acerto 97 e produtor 100, sempre com acessibilidade mínima 100. As sete
+  auditorias axe tiveram zero violações, incluindo teclado, gaveta mobile e produtor sem JavaScript.
+  Os textos completos de MIT/ISC do agrupamento foram conferidos nos dois sites compilados.
+- A publicação posterior `43358821157` da main parou fechada: o Release passou a incluir `processamento`
+  em GO/MT/RN, antes desconhecido pelo leitor. O PR #90 valida os oito campos desse contrato público v1,
+  contagens, UF e cronologia, e descarta o bloco operacional antes de gravar o manifesto do site; não abre
+  passagem para campos livres. Cache inválido também interrompe, sem ecoar valores. Os 47 testes do downloader
+  passaram; o manifesto real de 22.659 bytes e 16 UFs foi validado sem baixar pacotes. Essa correção não muda
+  as contagens de cobertura nem antecipa o painel de processamento do PR #99. A última publicação bem-sucedida
+  até essa conferência é a auditada do PR #89. Nenhum workflow foi cancelado ou desativado.
 - MapLibre foi mantido. OpenLayers só poderá substituí-lo após vencer o teste comparativo pedido, com
   um imóvel sobreposto e outro sem sobreposição; esse teste de troca não foi realizado. Não foi usado bpmn-js.
 - E9 continua aguardando as cartas reais. Contato com donos apenas na fase final; nenhuma identidade ou
