@@ -19,9 +19,10 @@ jobs:
           PYTHONPATH: .
         run: |
           uv run --no-project --with httpx==0.28.1 python - <<'PYTHON'
-          import json, os
+          import json, os, tempfile
+          from pathlib import Path
           from raiz.executor.armazem import ArmazemRelease
-          arm = ArmazemRelease(os.environ['RAIZ_REPO'], 'dados-privados', token=os.environ['RAIZ_TOKEN'], privado=True)
+          arm = ArmazemRelease(os.environ['RAIZ_REPO'], 'dados-privados', espelho=Path(tempfile.mkdtemp(prefix='raiz-diagnostico-')), token=os.environ['RAIZ_TOKEN'], privado=True)
           def observar(resposta):
               resumo = {'cliente': 'executor', 'status': resposta.status_code}
               caminho = resposta.request.url.path
