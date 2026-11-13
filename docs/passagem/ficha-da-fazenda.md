@@ -308,3 +308,20 @@ O site foi republicado na main pela execução 43311812890, com os 22 assets
 básicos e sem depender dos originais preservados. O download de Rondônia
 precisou da segunda tentativa e concluiu. Foram verificados no endereço público
 os arquivos básicos e os 404 dos antigos caminhos de ficha, imóvel e certidão.
+
+### Continuidade da medição em 13/11/2026 UTC
+
+Campanha `43344990197`: 64/96 sessões; agente e juiz recusaram o cenário seguinte
+no provedor. Artefato preservado, sem pass^4 completo. Tratamento explícito de
+`refusal` permite terminar as demais sessões sem contornar o bloqueio; julgamento
+indisponível reprova a campanha e deixa pass^4 nulo, com limite inferior separado.
+O CI do commit `f259b18` aprovou Python, front, referência privada original do
+Pará, Compose, E2E, segurança e licenças; o único problema foi falso positivo
+histórico da URL JDBC sem credenciais, com fingerprint específico documentado.
+Nenhum workflow foi desligado ou cancelado nesta entrega.
+
+A campanha `43349391767` também concluiu 64/96: a recusa do agente produziu resposta
+vazia e o juiz respondeu com citações vazias, rejeitadas pelo esquema. O juiz v4
+não reenvia desafios recusados ao juiz e isola julgamentos inválidos por tentativa,
+sempre como indisponíveis (pass^4 nulo; limite inferior separado; aprovação falsa).
+Não aceita citação vazia e não troca modelo, instrução ou regra para obter aprovação.

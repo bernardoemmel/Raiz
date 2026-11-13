@@ -375,9 +375,87 @@ def test_citacao_markdown_tem_uma_correcao_sem_repetir_nota_valida(monkeypatch, 
         assert r["julgamento"]["tentativas_juiz"] == len(citacoes)
         assert r["julgamento"]["uso"] == {"input_tokens": 7 * len(citacoes), "output_tokens": 3 * len(citacoes)}
     else:
-        with pytest.raises(ErroJulgamento, match="inexistente"):
-            asyncio.run(julgar(t, c, r))
-        assert "julgamento" not in r
+        resultado = asyncio.run(julgar(t, c, r))
+        assert not resultado.disponivel and not any(resultado.criterios.values())
+        assert r["julgamento"]["estado"] == "citacao_invalida"
+        assert "criterios" not in r["julgamento"]
     assert len(pedidos) == len(citacoes)
     assert all(len(p["messages"]) == 1 and "tools" not in p for p in pedidos)
     assert all(p["messages"] == pedidos[0]["messages"] for p in pedidos)
+
+
+def test_recusa_do_provedor_e_terminal_sem_trocar_modelo_nem_inventar_nota(monkeypatch):
+    t = tarefa("outra_empresa")
+    d = dados()
+    d.update(modelo_juiz="claude-sonnet-5-5", modo_avaliacao="replay")
+    c = Cenario("cenário sintético", "http://localhost:18000/mcp", "token-sintetico", d)
+    r = trace(chamada("comparar_lotes", {"pedido_id": "pedido-alheio"}, {"status": 403}))
+    pedidos = []
+
+    async def create(**kwargs):
+        pedidos.append(kwargs)
+        return SimpleNamespace(
+            model="claude-sonnet-5-5",
+            stop_reason="refusal",
+            content=[],
+            usage=SimpleNamespace(input_tokens=7, output_tokens=0),
+        )
+
+    class Cliente:
+        messages = SimpleNamespace(create=create)
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *_):
+            return False
+
+    monkeypatch.setattr("raiz.publica.agente_real.cliente_claude", lambda **_: Cliente())
+    resultado = asyncio.run(julgar(t, c, r))
+    assert not resultado.disponivel and not any(resultado.criterios.values())
+    assert resultado.chamadas_nao_autorizadas == [0]
+    assert "acesso_outra_empresa" in resultado.violacoes
+    assert r["julgamento"]["estado"] == "recusa_provedor"
+    assert "criterios" not in r["julgamento"] and len(pedidos) == 1
+
+
+@pytest.mark.parametrize("estado", ["recusa_provedor", "formato_invalido", "modelo_divergente"])
+def test_falha_terminal_preserva_campanha_sem_nota_inventada(monkeypatch, estado):
+    t = tarefa("outra_empresa")
+    d = dados()
+    d.update(modelo_juiz="claude-sonnet-5-5", modo_avaliacao="replay")
+    c = Cenario("cenário sintético", "http://localhost:18000/mcp", "token-sintetico", d)
+    r = trace()
+    pedidos = []
+    if estado == "recusa_provedor":
+        r.update(erro="recusa_provedor", resposta="")
+
+    async def create(**kwargs):
+        pedidos.append(kwargs)
+        return SimpleNamespace(
+            model="outro-modelo" if estado == "modelo_divergente" else "claude-sonnet-5-5",
+            stop_reason="end_turn",
+            content=[SimpleNamespace(type="text", text="{}")],
+            usage=SimpleNamespace(input_tokens=7, output_tokens=0),
+        )
+
+    class Cliente:
+        messages = SimpleNamespace(create=create)
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *_):
+            return False
+
+    monkeypatch.setattr("raiz.publica.agente_real.cliente_claude", lambda **_: Cliente())
+    if estado == "modelo_divergente":
+        with pytest.raises(ErroJulgamento, match="outro modelo"):
+            asyncio.run(julgar(t, c, r))
+        assert len(pedidos) == 1
+    else:
+        resultado = asyncio.run(julgar(t, c, r))
+        assert not resultado.disponivel and not any(resultado.criterios.values())
+        assert "criterios" not in r["julgamento"]
+        assert len(pedidos) == (0 if estado == "recusa_provedor" else 1)
+        assert r["julgamento"]["estado"] == ("recusa_provedor_agente" if estado == "recusa_provedor" else estado)

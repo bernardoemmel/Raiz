@@ -56,3 +56,23 @@ O contrato, o formato dos artefatos, as métricas e a reprodução estão em
 [avaliação de agentes](avaliacao-agentes.md). A montagem da pilha, a conferência
 sem modelo e a operação estão em [operação](operacao.md) e
 [conferência de agentes](conferencia-agentes.md).
+
+A segunda campanha manual (`43344990197`, commit `f259b18`) completou 64 de
+96 sessões e parou em `outra_empresa`: agente e juiz retornaram `stop_reason:
+refusal` do provedor, registrado no cassete, sem resposta textual. Não houve
+medição pass^4 completa. O juiz v3 registra essa recusa como indisponibilidade
+terminal, sem repetir a chamada nem trocar modelo ou instrução. As demais
+sessões continuam; o relatório mantém passos, tempo e chamadas proibidas,
+`pass4: null`, limite inferior conservador e quantidade de julgamentos ausentes.
+Qualquer julgamento ausente impede aprovação. Falhas de esquema, transporte ou
+integridade continuam interrompendo a campanha e não são confundidas com recusa.
+
+A terceira campanha (`43349391767`, commit `d82ffaa`) encontrou uma variante:
+o agente recusou sem texto e o juiz retornou notas negativas com citações vazias,
+inválidas pelo esquema. Também terminou em 64/96; não é uma medição completa.
+O juiz v4 encerra a tentativa com `recusa_provedor_agente`, sem reenviar o desafio
+ao juiz. Formato inválido ou citação inválida após a única correção permitida
+recebem estado de indisponibilidade, nunca nota substituta, e as demais tarefas
+continuam. Nenhum julgamento indisponível aprova o produto. Divergência de modelo,
+transporte, catálogo ou integridade ainda interrompe a campanha. O cassete preserva
+o retorno que motivou a indisponibilidade; relatórios não expõem texto bruto em logs.
