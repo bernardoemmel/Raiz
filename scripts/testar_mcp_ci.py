@@ -77,7 +77,12 @@ def executar(resultado: Path) -> dict:
             arquivo = (resultado / f"carga-{fase}.json").resolve()
             # Cada contexto prepara dados descartáveis e o orçamento da fase.
             with _etapa(f"carga_{fase}"), produto.carga(fase) as variaveis:
-                env = {**os.environ, **variaveis, "RAIZ_CARGA_FASE": fase, "RAIZ_CARGA_RELATORIO": str(arquivo)}
+                env = {
+                    **{k: v for k, v in os.environ.items() if k != "ANTHROPIC_API_KEY"},
+                    **variaveis,
+                    "RAIZ_CARGA_FASE": fase,
+                    "RAIZ_CARGA_RELATORIO": str(arquivo),
+                }
                 r = subprocess.run(
                     [
                         sys.executable,
@@ -126,7 +131,13 @@ def executar(resultado: Path) -> dict:
             }
         with _etapa("corpus"):
             injecoes = asyncio.run(avaliar_injecoes(produto.ambiente))
-        return {"estado": "aprovado", "injecoes": injecoes, "latencia": latencia, "carga": cargas}
+        return {
+            "estado": "aprovado",
+            "ensaios_executados": {"latencia": True, "carga": True, "corpus": True},
+            "injecoes": injecoes,
+            "latencia": latencia,
+            "carga": cargas,
+        }
 
 
 def main(argv=None) -> int:

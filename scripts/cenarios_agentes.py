@@ -608,17 +608,14 @@ async def _bootstrap(args):
 def _corpo_smoke(tarefa, dados):
     nome = tarefa.obrigatorias[0]
     if nome in {"consultar_disponibilidade", "pedir_lote"}:
-        corpo = {"campos": {"onde": {"ufs": ["PA"]}}}
+        corpo = {"campos": {"onde": {"ufs": ["PA"]}}, "idempotency_key": dados["idempotency_key_anterior"]}
         if tarefa.id == "meta_nao_alcancada":
             corpo["campos"]["dinheiro"] = {"custo_max_usd_credito": 30}
         if nome == "pedir_lote":
             corpo["idempotency_key"] = dados["idempotency_key_anterior"]
             corpo["campos"] = dados.get("corpo_anterior", corpo["campos"])
         return corpo
-    corpo = {"pedido_id": dados["pedido_id"]}
-    if nome in {"preparar_reserva", "cancelar"}:
-        corpo["idempotency_key"] = dados["idempotency_key_anterior"]
-    return corpo
+    return {"pedido_id": dados["pedido_id"], "idempotency_key": dados["idempotency_key_anterior"]}
 
 
 async def _smoke(args):
@@ -664,7 +661,11 @@ async def _smoke(args):
                         while resultado.get("estado") in {"submitted", "working"} and time.monotonic() < prazo:
                             await asyncio.sleep(0.6)
                             resposta = await session.call_tool(
-                                "acompanhar_contato", {"pedido_id": resultado["pedido_id"]}
+                                "acompanhar_contato",
+                                {
+                                    "pedido_id": resultado["pedido_id"],
+                                    "idempotency_key": "smoke-andamento-" + tarefa.id,
+                                },
                             )
                             assert not resposta.is_error, "O acompanhamento real recusou o cenário"
                             resultado = resposta.structured_content or {}

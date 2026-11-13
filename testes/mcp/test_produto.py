@@ -1,8 +1,8 @@
 """Fronteiras do adaptador: nunca migrar banco alheio nem herdar integrações reais."""
 
+import hashlib
 import json
 import os
-import shutil
 from contextlib import contextmanager
 from types import SimpleNamespace
 
@@ -115,8 +115,30 @@ def _inventario_auditado():
     return json.loads(produto.REFERENCIA_SEM_LEITOR.read_text())["ferramentas"]
 
 
-def test_aviso_exige_ausencia_exata_e_superficie_auditada():
-    assert produto.corpus_pendente(produto.SemAgenteLeitor(), _inventario_auditado()) is True
+@pytest.fixture
+def ausencia_auditada(tmp_path, monkeypatch):
+    """Snapshot sintético só deste teste; nunca renova a exceção do repositório."""
+    arquivos = {"raiz/api.py": "# API sem leitor\n", "raiz/publica/servidor_mcp.py": "# MCP sem leitor\n"}
+    for relativo, conteudo in arquivos.items():
+        destino = tmp_path / relativo
+        destino.parent.mkdir(parents=True, exist_ok=True)
+        destino.write_text(conteudo)
+    referencia = tmp_path / "referencia.json"
+    referencia.write_text(
+        json.dumps(
+            {
+                "codigo": {p: hashlib.sha256(c.encode()).hexdigest() for p, c in arquivos.items()},
+                "ferramentas": _inventario_auditado(),
+            }
+        )
+    )
+    monkeypatch.setattr(produto, "REFERENCIA_SEM_LEITOR", referencia)
+    monkeypatch.setattr(produto, "_modulos_leitor", lambda: (False, False))
+    return tmp_path
+
+
+def test_aviso_exige_ausencia_exata_e_superficie_auditada(ausencia_auditada):
+    assert produto.corpus_pendente(produto.SemAgenteLeitor(), _inventario_auditado(), raiz=ausencia_auditada) is True
 
     class LeitorLigado(produto.SemAgenteLeitor):
         pass
@@ -132,12 +154,8 @@ def test_presenca_de_qualquer_registro_desativa_aviso(monkeypatch, modulos):
 
 
 @pytest.mark.parametrize("mudanca", ["api", "arquivo_novo", "esquema", "descricao"])
-def test_superficie_alterada_exige_integracao_ou_revisao(tmp_path, mudanca):
-    arquivos = json.loads(produto.REFERENCIA_SEM_LEITOR.read_text())["codigo"]
-    for relativo in arquivos:
-        destino = tmp_path / relativo
-        destino.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copyfile(produto.RAIZ_REPO / relativo, destino)
+def test_superficie_alterada_exige_integracao_ou_revisao(ausencia_auditada, mudanca):
+    tmp_path = ausencia_auditada
     inventario = _inventario_auditado()
     assert produto.corpus_pendente(produto.SemAgenteLeitor(), inventario, raiz=tmp_path)
     if mudanca == "api":
@@ -151,6 +169,21 @@ def test_superficie_alterada_exige_integracao_ou_revisao(tmp_path, mudanca):
         inventario["consultar_ficha"]["description"] += " Lê documentos."
     with pytest.raises(RuntimeError, match="Superfície MCP mudou"):
         produto.corpus_pendente(produto.SemAgenteLeitor(), inventario, raiz=tmp_path)
+
+
+def test_leitor_real_da_main_expira_a_excecao_sem_renovar_referencia():
+    assert produto._modulos_leitor() == (True, True)
+    with pytest.raises(RuntimeError, match="registrado exige"):
+        produto.corpus_pendente(produto.SemAgenteLeitor(), _inventario_auditado())
+
+
+def test_leitor_real_sem_adaptador_falha(monkeypatch):
+    monkeypatch.setattr(
+        produto.importlib.util, "find_spec", lambda nome: object() if nome == produto.MODULO_AGENTE_REAL else None
+    )
+    with pytest.raises(RuntimeError, match="sem adaptador"):
+        with produto._ambiente_corpus(engine=None, mcp=None):
+            pytest.fail("O agente real presente não pode renovar o aviso")
 
 
 def test_registro_quebrado_nao_vira_ausencia(monkeypatch):

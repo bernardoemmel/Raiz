@@ -768,8 +768,8 @@ New branch ruleset**. Dê o nome `main protegida`, selecione **Active** e inclua
 1. Exija pull request antes de integrar. Para o fundador trabalhar sozinho, não exija aprovação de uma segunda
    pessoa; exija resolver todas as conversas abertas. Se houver revisor, pode exigir uma aprovação e invalidá-la
    quando o código mudar.
-2. Em **Require status checks to pass**, selecione os dez checks do workflow **CI**: `workflows`, `segredos`,
-   `front`, `seguranca`, `testes_python`, `referencia_para`, `checagens`, `e2e`, `carga` e `mcp`.
+2. Em **Require status checks to pass**, selecione os onze checks do workflow **CI**: `workflows`, `segredos`,
+   `front`, `seguranca`, `testes_python`, `referencia_para`, `checagens`, `e2e`, `carga`, `mcp` e `agentes`.
    O nome `checagens` foi preservado no portão completo: regras existentes continuam exigindo a suíte inteira.
    Prefira a origem **GitHub Actions**, quando disponível. Marque
    **Require branches to be up to date before merging**. Os nomes só aparecem depois de uma execução.
@@ -802,7 +802,7 @@ retirá-la do último commit não a apaga do histórico.
 
 ## CI e controles de segurança
 
-Nove jobs rodam em paralelo; `checagens` reúne as duas partes da suíte Python ao final. Não há filtro
+Dez jobs rodam em paralelo; `checagens` reúne as duas partes da suíte Python ao final. Não há filtro
 de caminhos nem teste retirado da execução. `setup-uv` guarda cache pelo
 `uv.lock`, `setup-node` guarda o cache npm pelos locks, e o Chromium/LanguageTool têm caches separados. A instalação
 continua travada (`uv sync --frozen --all-extras`, `npm ci`). Não se reutiliza `node_modules` de outro lock.
@@ -980,17 +980,23 @@ A main agora inclui o MCP OAuth dos PRs #45/#69 e a ficha do #72. O job testa HT
 as sete ferramentas, prazo e carga com PostGIS descartável. Seu retorno rápido pode ser admissão de trabalho
 assíncrono; não é promessa de cálculo completo em cinco segundos. As intenções da carga são idempotentes.
 
-O corpus de certidão/edital/nome de arquivo ainda depende de **Produto e regras**: as ferramentas atuais não
-oferecem agente cliente nem leitura dessas entradas. Em 12/11/2026, o fundador autorizou **aviso somente para
-essa ausência**, depois de OAuth, todas as ferramentas, latência e carga reais aprovados. O relatório marca a
-integração como parcial e `corpus=false`; não declara resistência a injeção. Qualquer falha nos demais ensaios,
-ou no corpus quando o leitor estiver ligado, reprova o CI. Não simular agente/leitura para liberar CI.
+O #85 trouxe `raiz.publica.agente_real`: o agente recebe texto anexado de terceiro e usa o MCP real.
+A exceção autorizada em 12/11/2026 **expirou**. O adaptador `testes.mcp.leitor_documentos.integracao` executa
+os seis ataques e seis controles pelo mesmo loop, com Claude Sonnet 5.5, empresa e sessão novas por variante.
+A fonte é o contexto textual existente; não se afirma testar extração de PDF, que esse runner não oferece.
 
-A ligação segue o ponto canônico `raiz.publica.agente_documentos`, com o adaptador
-`testes.mcp.leitor_documentos.integracao` descrito no README. Presença de qualquer um torna o corpus obrigatório;
-importação ou adaptação incompleta falha. A exceção também expira quando muda a superfície auditada de API/MCP
-ou o inventário de ferramentas. Revisar a integração antes de renovar a referência de ausência; nunca atualizá-la
-automaticamente para liberar CI. Agentes externos sem registro observável precisam aderir a esse contrato.
+O job `mcp` usa o secret `ANTHROPIC_API_KEY` somente no passo do ensaio. A chave fica no cliente do modelo,
+fora dos processos da API/MCP, dos relatórios e do contexto enviado ao agente. Sem chave, modelo ou adaptador
+funcionando, ou com ataque que vira ação, o CI falha; não volta ao aviso. As chamadas ao modelo usam apenas
+fontes sintéticas. API/MCP não podem acessar rede externa, enviar mensagens ou efetuar pagamentos reais.
+Os relatórios guardam apenas identificadores de casos, tempos, contagens e resultados; não guardam respostas
+ou documentos. Esta suíte curta não substitui a campanha pass^4 de Produto e regras.
+
+O observador confere leitura na entrada do modelo, tentativas de ferramentas, chamadas reais, banco e arquivos.
+O gabarito exige fatos corretos e consulta de andamento aprovada; recusar tudo não passa. O registro de acesso
+`negocio.chamada_api` é a única tabela excluída da fotografia de negócio. Saldo, exposição, fila, reservas e
+outbox continuam monitorados. O ponto canônico `raiz.publica.agente_documentos` continua aceito para leitores
+futuros. A referência histórica de ausência não foi renovada nem pode ser usada para desligar o leitor atual.
 
 O código e os requisitos estão em [`testes/mcp/README.md`](../testes/mcp/README.md). As regressões do auditor
 não comprovam resistência de um agente de produção. A carga usa `testes/carga/locust_mcp.py`, com credenciais
@@ -1030,7 +1036,7 @@ A validação impede nova publicação irregular; não é limpeza retroativa de 
 
 ## Revisão contínua da main
 
-Cada push da main executa os dez jobs de CI, incluindo segredos, licenças, privacidade, testes e carga. A revisão
+Cada push da main executa os onze jobs de CI, incluindo segredos, licenças, privacidade, testes e carga. A revisão
 semântica de cada PR integrado fica registrada em `docs/passagem/qualidade-e-seguranca.md`, com commit e chat dono
 dos achados maiores. Correção pequena precisa de regressão e PR com todos os checks verdes.
 

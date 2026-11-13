@@ -451,7 +451,7 @@ jobs:
 
   mcp:
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 30
     services:
       banco:
         image: postgis/postgis:16-3.5
@@ -467,6 +467,8 @@ jobs:
       RAIZ_BANCO_URL_MCP_TESTE: postgresql+psycopg://raiz:raiz@localhost:5432/raiz_mcp_teste
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - name: Detectar MCP (ausência gera aviso explícito, não aprovação dos ensaios)
         id: detectar
         run: python3 scripts/testar_mcp_ci.py --detectar
@@ -480,6 +482,8 @@ jobs:
         run: uv sync --frozen --all-extras
       - if: steps.detectar.outputs.disponivel == 'true'
         name: Injeções, todas as ferramentas abaixo de 5 s e Locust MCP
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: uv run python scripts/testar_mcp_ci.py
       - name: Estado explícito e evidências MCP
         if: always()

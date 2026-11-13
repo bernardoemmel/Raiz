@@ -45,6 +45,7 @@ AVISO_INJECOES = (
 )
 CAMPOS = {"meta": {"tipo": "creditos", "valor": 1000000}, "onde": {"ufs": ["PA"]}}
 MODULO_LEITOR = "raiz.publica.agente_documentos"
+MODULO_AGENTE_REAL = "raiz.publica.agente_real"
 MODULO_ADAPTADOR = "testes.mcp.leitor_documentos"
 REFERENCIA_SEM_LEITOR = Path(__file__).with_name("sem_leitor_auditado.json")
 
@@ -69,7 +70,8 @@ class SemAgenteLeitor:
 def _modulos_leitor() -> tuple[bool, bool]:
     # find_spec distingue ausência do módulo de falha ao importar sua dependência.
     # Erro de descoberta também reprova, nunca é convertido em ausência.
-    return tuple(importlib.util.find_spec(nome) is not None for nome in (MODULO_LEITOR, MODULO_ADAPTADOR))
+    leitor = any(importlib.util.find_spec(nome) is not None for nome in (MODULO_LEITOR, MODULO_AGENTE_REAL))
+    return leitor, importlib.util.find_spec(MODULO_ADAPTADOR) is not None
 
 
 def _codigo_mcp(raiz: Path) -> dict[str, str]:
@@ -110,7 +112,8 @@ def _ambiente_corpus(*, engine, mcp):
         yield SemAgenteLeitor()
         return
     if leitor:
-        importlib.import_module(MODULO_LEITOR)
+        nome = MODULO_LEITOR if importlib.util.find_spec(MODULO_LEITOR) is not None else MODULO_AGENTE_REAL
+        importlib.import_module(nome)
     if not adaptador:
         raise RuntimeError("Leitor MCP registrado sem adaptador do corpus")
     fabrica = getattr(importlib.import_module(MODULO_ADAPTADOR), "integracao", None)
@@ -231,7 +234,11 @@ def integracao():
     url = _url_banco()
     with tempfile.TemporaryDirectory(prefix="raiz-mcp-") as pasta_bruta, contextlib.ExitStack() as pilha:
         pasta = Path(pasta_bruta)
-        ambiente_limpo = {k: os.environ[k] for k in ("PATH", "HOME", "LANG", "LC_ALL") if k in os.environ}
+        # Somente o cliente do modelo, no processo pai, recebe esta credencial.
+        # O subprocesso API/MCP mantém sua lista própria sem credenciais externas.
+        ambiente_limpo = {
+            k: os.environ[k] for k in ("PATH", "HOME", "LANG", "LC_ALL", "ANTHROPIC_API_KEY") if k in os.environ
+        }
         pilha.enter_context(patch.dict(os.environ, ambiente_limpo, clear=True))
         privada = rsa.generate_private_key(public_exponent=65537, key_size=2048)
         jwk = json.loads(jwt.algorithms.RSAAlgorithm.to_jwk(privada.public_key()))
@@ -347,12 +354,15 @@ def integracao():
                     "RAIZ_MCP_TESTE_PROTOCOLO": "2026-07-28",
                 }
 
-        with instancia("latencia") as principal, _ambiente_corpus(engine=engine, mcp=principal) as ambiente:
-            yield SimpleNamespace(
-                ambiente=ambiente,
-                cliente=principal.cliente,
-                casos=principal.casos,
-                inventario=principal.inventario,
-                carga=carga,
-                aviso_injecoes=AVISO_INJECOES,
-            )
+        with instancia("latencia") as principal:
+            principal.nova_instancia = instancia
+            principal.pasta = pasta
+            with _ambiente_corpus(engine=engine, mcp=principal) as ambiente:
+                yield SimpleNamespace(
+                    ambiente=ambiente,
+                    cliente=principal.cliente,
+                    casos=principal.casos,
+                    inventario=principal.inventario,
+                    carga=carga,
+                    aviso_injecoes=AVISO_INJECOES,
+                )

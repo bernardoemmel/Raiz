@@ -29,7 +29,7 @@ As três rotas tiveram respostas válidas nas duas fases. A recuperação observ
 
 O MCP OAuth dos PRs #45/#69/#72 está na main e o adaptador `testes/mcp/produto.py` o exercita com banco, emissor
 JWKS e credenciais descartáveis. A carga exige manifesto que cubra exatamente `tools/list`; o corpus de agente
-leitor continua pendente, conforme a seção de integração abaixo. Para um sandbox local já iniciado:
+leitor tornou-se obrigatório com o #85, conforme `testes/mcp/README.md`. Para um sandbox local já iniciado:
 
 ```bash
 export RAIZ_MCP_TESTE_URL=http://127.0.0.1:8767/mcp/
@@ -54,7 +54,7 @@ Repita com `RAIZ_CARGA_FASE=limite` e orçamento baixo configurado pelo servidor
 O job MCP executa esse perfil real com as sete ferramentas, incluindo `consultar_ficha`. O CAR da amostra já foi
 adquirido pela própria empresa mediante débito do crédito sintético da fixture; o GET passa pelos gates reais e
 relê a ficha com saldo zerado, sem compra implícita. As demais ferramentas conservam a chave da mesma intenção
-durante os replays. A aprovação de tempo/carga não equivale à aprovação do corpus de leitura de documentos, que continua explicitamente pendente.
+durante os replays. A aprovação de tempo/carga não equivale à aprovação do corpus de leitura de documentos, que agora executa com o leitor do #85 em etapa obrigatória separada.
 
 O perfil **normal** usa seis usuários com `constant_pacing(2)`: cerca de 180 chamadas/min distribuídas pelas sete
 ferramentas, aproximadamente 26 leituras de ficha/min por empresa. A cota real de fichas continua 30/min.
@@ -80,9 +80,9 @@ respectivamente; a medição isolada foi de até 0,149 s. Evidências locais: `/
 `testes/mcp/produto.py` agora inicia o MCP e a API reais com PostGIS local, JWT/JWKS descartáveis e logs sanitizados
 ativos. `uv run python scripts/testar_mcp_ci.py` produz medições de todas as ferramentas e as duas fases Locust;
 exige `RAIZ_BANCO_URL_MCP_TESTE` apontando ao banco local `raiz_mcp_teste`, que é apagado/migrado.
-O fundador autorizou aviso específico quando faltar o agente leitor, somente depois de tempo/carga aprovados;
-os relatórios não aprovam esse corpus. Com o leitor ligado, o corpus é obrigatório e qualquer falha reprova.
-Veja `testes/mcp/README.md` para a pendência e a distinção entre tempo de resposta da
+A exceção de ausência expirou com o agente real do #85. Depois da carga, o runner exige o corpus com Claude real
+e `ANTHROPIC_API_KEY` no cliente de avaliação. Falha de modelo, credencial ou caso reprova, sem aviso de ausência.
+Veja `testes/mcp/README.md` para a integração e a distinção entre tempo de resposta da
 ferramenta e execução assíncrona do cálculo. A carga repete intenções idempotentes, sem pagamentos externos.
 
 Ensaio local após #72, em 12/11/2026: sete ferramentas responderam pela integração real; a maior chamada isolada

@@ -100,6 +100,7 @@ def fluxo_controlado(monkeypatch):
         return {"medicoes": [{"ferramenta": "consultar", "segundos": 0.1}]}
 
     def locust(*_, env, **kwargs):
+        assert "ANTHROPIC_API_KEY" not in env
         fase = env["RAIZ_CARGA_FASE"]
         dado = {
             "fase": fase,
@@ -120,7 +121,12 @@ def fluxo_controlado(monkeypatch):
         return {"integracao_mcp": True, "resultados": []}
 
     monkeypatch.setattr(ci, "disponivel", lambda: True)
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "credencial-sintetica-do-modelo")
     monkeypatch.setattr(produto, "integracao", integracao)
+    # Este cenário reproduz a ausência histórica; a main com leitor tem teste próprio.
+    referencia = json.loads(produto.REFERENCIA_SEM_LEITOR.read_text())
+    monkeypatch.setattr(produto, "_modulos_leitor", lambda: (False, False))
+    monkeypatch.setattr(produto, "_codigo_mcp", lambda _: referencia["codigo"])
     monkeypatch.setattr(latencia, "medir_latencia", medir)
     monkeypatch.setattr(ci.subprocess, "run", locust)
     monkeypatch.setattr(avaliacao, "avaliar_injecoes", corpus)

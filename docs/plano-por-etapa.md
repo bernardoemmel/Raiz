@@ -472,7 +472,7 @@ Limites verificados em 12/11/2026: DJEN/CNJ respondeu HTTP 403; diários estadua
 | Portões de dados/privacidade antes de publicar, Pandera MIT, colunas obrigatórias, faixas, áreas e saltos municipais | **feito**; resultados inválidos e arquivos privados sem contrato ficam bloqueados; Dados corrige/recalcula a origem |
 | Locust MIT no CI com API/PostGIS real, latência, 429/Retry-After e recuperação | **feito**; perfil curto não é capacidade máxima de produção |
 | Logs JSON com Presidio, /saude, limite compartilhado Valkey e GlitchTip próprio MIT | **feito**; testado localmente, configuração de produção documentada em operação |
-| Injeção/latência/carga das ferramentas MCP | **parcial**; MCP/OAuth real com sete ferramentas, tempo e Locust verificados; corpus pronto, agente leitor de documentos aguarda Produto e regras. Aviso somente por essa ausência, autorizado pelo fundador; corpus obrigatório assim que o leitor estiver ligado |
+| Injeção/latência/carga das ferramentas MCP | **feito no código**; MCP/OAuth, sete ferramentas, tempo e Locust reais. O #85 trouxe o leitor e encerrou o aviso: seis ataques e seis controles ligados ao loop Claude/MCP, com modelo real obrigatório no CI e observadores independentes; resultados finais no PR #76 |
 | Revisão contínua dos novos merges | PRs #53/#56/#67/#54/#68/#70/#71/#73/#74 revisados e pequenos bugs corrigidos com teste; CI por push ativo, revisão horária não ativada por decisão do fundador |
 
 - [x] Integração da entrega mobile com o Calendário: rota sob demanda, quatro links visíveis a 360 px, filtros

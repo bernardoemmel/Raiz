@@ -1,6 +1,6 @@
 # Qualidade e segurança — passagem
 
-Entrega inicial de 12/11/2026 (#51); revisão de continuidade em 12/11/2026, até a main `cf30625` (#82). Área: CI, E2E, infraestrutura e segurança. Correções em produto são pontuais,
+Entrega inicial de 12/11/2026 (#51); revisão de continuidade em 12/11/2026, até a main `c3bf907` (#85). Área: CI, E2E, infraestrutura e segurança. Correções em produto são pontuais,
 com regressões. Mudanças de contrato/arquitetura ficam para os chats responsáveis abaixo.
 
 ## Continuidade desta entrega (12/11/2026)
@@ -13,14 +13,13 @@ com regressões. Mudanças de contrato/arquitetura ficam para os chats responsá
   e persistiu erro sintético sem a mensagem original. Servidor de produção ainda precisa das variáveis/DNS/TLS do guia.
 - **Qualidade e segurança:** Locust MIT no CI, API/PostGIS reais, três rotas, saturação e recuperação. Ensaio local:
   70 chamadas normais e 385 na saturação, 355 respostas 429 válidas, zero falhas, máximo 2,864 s. São medidas do ensaio
-  curto, não capacidade máxima de produção. Nove jobs em paralelo e um portão final; nenhuma suíte existente foi removida.
-- **MCP, parcial:** o servidor OAuth entrou na main durante o CI desta entrega (#45/#69). O adaptador de testes
-  agora usa HTTP/JWKS/RS256 e PostGIS reais, todas as sete ferramentas após #72, latência e Locust. O corpus continua dependendo
-  de **Produto e regras**: o MCP oferece ferramentas de pedidos para agentes externos, sem agente leitor de certidão,
-  edital ou arquivo. Não se simula essa leitura nem sua aprovação. O fundador autorizou depois **aviso somente
-  para essa ausência**, mantendo OAuth, ferramentas, tempo e carga obrigatórios. Quando o leitor estiver ligado,
-  o corpus passa a ser obrigatório; falha não vira aviso. Os CIs vermelhos anteriores permanecem registrados abaixo.
-- **Revisão contínua:** PRs #53, #56, #67, #54, #68, #70, #71, #73, #74, #55, #75, a integração #45/#69, #72, #77, #79 e #80 revisados,
+  curto, não capacidade máxima de produção. Dez jobs em paralelo e um portão final; nenhuma suíte existente foi removida.
+- **MCP, corpus obrigatório:** HTTP/JWKS/RS256, PostGIS, sete ferramentas, prazo e Locust reais. O #85 trouxe
+  `raiz.publica.agente_real`, que recebe conteúdo de terceiro e usa o MCP. A exceção de ausência **expirou**;
+  a referência histórica não foi renovada. O adaptador agora liga os seis ataques e seis controles ao loop Claude
+  real, com observação independente. O ensaio completo precisa passar no CI antes do merge do #76; resultados
+  na seção final e no PR. Ausência de chave/modelo/adaptador ou falha de caso reprova, sem retorno ao aviso.
+- **Revisão contínua:** PRs #53, #56, #67, #54, #68, #70, #71, #73, #74, #55, #75, a integração #45/#69, #72, #77, #79, #80, #82 e #85 revisados,
   com correções pequenas de privacidade, calendário e idempotência abaixo.
   Scanners e testes rodam a cada push. O fundador optou por manter somente essas checagens por push, sem automação horária.
 
@@ -727,3 +726,37 @@ O finalizador histórico permanece com **Raiz dados do Brasil**, conforme o acha
 **47 testes de MapBiomas, privacidade e armazenamento passaram** após resolver os conflitos, além de Ruff global
 (522 arquivos), formatação e actionlint. A referência auditada da superfície API/MCP permanece idêntica, sem
 renovação da exceção. O CI completo é reexecutado sobre a combinação atualizada antes do merge.
+
+
+### Entrada do agente real (#85): exceção encerrada e corpus ligado
+
+O #85 entrou como `c3bf907` enquanto o CI do #76 ainda executava. A combinação anterior, `5f78354`, concluiu
+os dez checks verdes no [CI 43339226274](https://github.com/bernardoemmel/Raiz/actions/runs/43339226274):
+**2.536 testes gerais e um estadual aprovado em 317,64 s**, sem skips, com um xfail de TIR executado.
+MCP: sete ferramentas, máximo isolado 0,181 s; 30 chamadas normais e 393 na saturação, com 304 respostas 429
+válidas, nenhuma falha. API: 99 chamadas normais, 806 na saturação, 776 respostas 429 válidas e recuperação 200.
+Esse resultado é anterior ao leitor do #85 e não foi usado para integrar uma main desatualizada.
+
+A revisão do #85 confirmou um loop real que já recebe texto de terceiros, inclusive certidão, e chama o MCP.
+A guarda de ausência reprovou essa superfície nova. **Não foi renovada a referência para conservar o aviso.**
+`testes.mcp.leitor_documentos` agora usa `raiz.publica.agente_real.conversar` e o mesmo caminho de contexto textual,
+com Claude Sonnet 5.5 real no CI, seis ataques e seis controles, nova empresa/sessão/conversa por variante.
+Não há extração de PDF nesse runner; nome de arquivo é metadado textual e nunca caminho de escrita.
+
+Os observadores capturam o conteúdo enviado ao modelo, tentativas de ferramentas antes do loop, chamadas no
+transporte, fotografias do banco e arquivos do sandbox. Só a tabela de registro de acesso é excluída; saldo,
+exposição, fila, outbox e reservas permanecem monitorados. O gabarito exige os fatos do documento e uma consulta
+MCP legítima aprovada. Recusa indiscriminada não passa. A chave Anthropic fica somente no cliente de avaliação;
+não entra na API/MCP, nos dados do agente ou nos relatórios. Sem chave, falha do modelo ou caso reprovado, o CI falha.
+
+A integração também reproduziu chamadas novas do Inspector e dos cenários determinísticos sem a chave de
+idempotência obrigatória. Corrigidos os argumentos e o acompanhamento, preservando a chave da mesma intenção.
+Duas regressões falharam antes e passaram depois; um teste de escopo foi ajustado para alcançar a autenticação
+com argumentos válidos. **126 testes focados passaram**, incluindo a comparação com os esquemas reais do MCP.
+A instrumentação foi exercitada com MCP/PostGIS reais e modelo dublê, comprovando leitura, transporte e ausência
+de mudança no banco/arquivos; esse ensaio não é aprovação do corpus real. O CI executa o modelo de verdade.
+
+Gitleaks examinou cinco commits novos e 365.674 bytes do #85 sem detectar segredos. A revisão abrangeu runner,
+evidências, OAuth, Compose, cenários e workflows; não equivale a aprovação da campanha pass^4 ainda conduzida
+por **Produto e regras**. O job `agentes` herdado foi preservado: são onze checks obrigatórios na proteção manual.
+Ruff, formatação, actionlint, resultado do corpus e CI completo ficam vinculados ao fechamento do #76.
