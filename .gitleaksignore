@@ -2,3 +2,10 @@
 # KC_DB_URL aponta para o serviço banco-oauth, no commit do PR #69.
 be05cee99ee060b5ca2c9e60d7b077d1fa2a51aa:infra/docker-compose.keycloak.yml:generic-api-key:28
 4d28942bb247e10af4e29e4b87feeb7b9c73753d:infra/docker-compose.keycloak.yml:generic-api-key:28
+
+# SHA-256 de código versionado usado na atestação MCP; conferido byte a byte no commit.
+# São hashes de raiz/api.py, raiz/publica/api.py e raiz/publica/oauth.py, não credenciais.
+# Exceções só para estas ocorrências históricas; a varredura de todas as branches continua ativa.
+e7074b4a170d745f34a4732072fcd954c0cad6f9:testes/mcp/sem_leitor_auditado.json:generic-api-key:3
+e7074b4a170d745f34a4732072fcd954c0cad6f9:testes/mcp/sem_leitor_auditado.json:generic-api-key:5
+e7074b4a170d745f34a4732072fcd954c0cad6f9:testes/mcp/sem_leitor_auditado.json:generic-api-key:14
