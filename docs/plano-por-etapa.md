@@ -686,3 +686,7 @@ sem alterar as reservas, as saídas ou o destino da promoção. Novos pedidos da
 
 - [x] R12 integrada à main `692663c`: 107 testes afetados aprovados com
   PostGIS, Ruff/formatação aprovados; versão científica preservada.
+
+- [ ] Pausa solicitada em 13/11/2026: R12 (#101), nacional (#94) e execução
+  privada PA preservados; workflows seguem sem cancelamento. Conferências,
+  merges e publicação final ainda pendentes; retomada na passagem Lote e números.

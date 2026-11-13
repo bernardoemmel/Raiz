@@ -533,3 +533,31 @@ passaram com PostGIS real; Ruff e formatação dos 601 arquivos passaram. Modelo
 R12 permanece `restauracao-2026d+490ab152`. O CI anterior `43361791598` concluiu
 com apenas as duas expectativas R11 já corrigidas; novo head será enviado após
 essa conclusão natural. Oito fatias PA estavam concluídas neste registro.
+
+### Pausa solicitada pelo fundador — 13/11/2026 (Brasília)
+
+Trabalho do chat pausado; nenhum workflow foi cancelado ou desativado.
+Código R12 remoto: PR #101, head `a4ae179`, CI `43369435152`.
+Nacional: PR #94, head remoto `32d1cf9`, CI `43368192712`; integração mais
+recente `cfe503d` salva em `codex/lote-nacional-preservado-r12`.
+Main incorporada: `692663c`. Modelo científico: `restauracao-2026d+490ab152`.
+
+Execução PA `43361839589/2` segue independente do chat. Na última consulta:
+10/15 fatias concluídas, três calculando e duas na fila. A fatia 11 foi baixada
+e conferida: 10 municípios, 22.976 imóveis, 40 hashes internos; pacote
+8.885.360 bytes, SHA256 `895b82c0661355ef9a1a8feeeabd3e8867cc82ea05c07e65a3611ea95cb6f649`.
+
+Ao retomar: conferir os CIs sem enviar novo head enquanto estiverem ativos;
+concluir merge #101 com CI verde; acompanhar a reunião/publicação PA, baixar
+os quatro pacotes privados e conferir hashes; comparar os três lotes com R11
+(P10/P50/P90 e hectares), conferir sensibilidade e resultado da tentativa Dryad;
+finalizar #94, integrar a main, validar/mergear e executar a publicação nacional.
+Scripts locais de conferência: `/tmp/raiz-conferir-publicacao-r12.py`,
+`/tmp/raiz-conferir-fatia-r12.py`; acompanhamento em
+`/tmp/raiz-r12-acompanhamento.json`. Nenhum resultado final PA R12 foi anunciado.
+
+Revisão nacional identificada, ainda NÃO aplicada: o grupo `concurrency` do
+GitHub pode substituir/cancelar execuções pendentes mesmo com
+`cancel-in-progress: false`. Conferir retirada desse grupo, preservando a trava
+privada `trava-lote-nacional` e a admissão CAS compartilhada de 15 cotas; testar
+a serialização e a espera antes de publicar essa mudança.
