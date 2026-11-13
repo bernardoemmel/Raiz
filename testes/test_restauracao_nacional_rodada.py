@@ -109,6 +109,9 @@ def test_espera_vaga_sem_confundir_falha_de_api(monkeypatch):
     assert esperas == [60]
 
 
-def test_preco_diferente_nao_reusa_tir_da_previsao():
+@pytest.mark.parametrize("cronograma", ["livre", "profloresta"])
+def test_preco_diferente_nao_reusa_tir_da_previsao(cronograma):
     with pytest.raises(ValueError, match="reavaliar a oferta"):
-        N.preparar_contrato(CamposPedido(dinheiro={"preco_venda_usd": 40}), A.R.versao(), "central_r11")
+        N.preparar_contrato(
+            CamposPedido(cronograma=cronograma, dinheiro={"preco_venda_usd": 40}), A.R.versao(), "central_r11"
+        )

@@ -230,3 +230,58 @@ No PR #86, a referência estadual autenticada passou localmente com os 144 munic
 referência privada, front, e2e, segurança e workflows no código do diagnóstico. A única falha foi a varredura
 dos três hashes acima; a mesma varredura local de todos os ramos passou após as exceções restritas.
 O merge e a publicação dependem da nova execução verde no head que inclui essa correção.
+
+
+## Etapa seguinte 2 — catálogo nacional incremental
+
+Implementados índice privado por conteúdo municipal, consulta por UF/bioma/Brasil, grupos indivisíveis de pequenas,
+busca com teto e preferência geográfica na opção compacta, auditoria revisável e fluxo agregado das selecionadas.
+A automação recebe estados novos e reconcilia a cada duas horas. Aguarda vaga CAS; não cancela trabalhos.
+Índices, fontes congeladas, previsões e pacotes completos permanecem no Release privado.
+
+A medição real leu 786 municípios de 13 UFs e 1.530.808 imóveis; 1.100.628 previsões compatíveis, 346.010 antigas
+e 84.170 ausentes. Primeira indexação em 1.474,59 segundos. Consulta das três opções com fluxos financeiros em
+22,77 segundos; RSS máximo 1.137 MiB. Base sintética de 7 milhões (80% pequenas): 66,67 segundos, 2.383 MiB,
+quatro CPUs, sem simulação municipal. Seletor medido `lote-nacional-1+16896488fb3d`; alterações posteriores só
+na guarda de preço/dívida e publicação não devem ser confundidas com nova medição. Reprodução e limites em
+`docs/lote-nacional.md`. Não se anuncia ótimo global nem cobertura completa do país.
+
+AC/AP/GO/MA/MG/RO/RR/TO têm versões financeiras antigas. A automação pede manutenção incremental à fila
+existente, sem reetiquetar esses números e sem apagar tabelas. O Pará histórico de 144 municípios permanece
+congelado enquanto a fonte canônica não tiver 144 previsões; não recalcular suas dez fatias prontas.
+Cada resultado conserva hashes, modelo financeiro, versão do seletor e decisão por imóvel. O diagnóstico
+de travas acompanha os pacotes nacionais com meta de créditos.
+
+Testes de retomada, publicação recuperável, 27 UFs, grupos nas divisas, pequenas de 0,02 ha, versões incompatíveis,
+duplicidade de CAR, fonte adulterada, regras financeiras e espera por cota foram executados. Suíte completa e CI
+em andamento; merge, despacho e referências dos pacotes deverão ser registrados após confirmação real.
+
+### Salvamento solicitado pelo fundador — trabalho ainda incompleto
+
+O ramo `codex/lote-nacional` foi preservado e enviado para revisão em rascunho antes de terminar a entrega,
+conforme instrução explícita. Código, testes e documentação estão no Git; bases municipais completas e resultados
+por imóvel permanecem fora do repositório público. A automação nacional descrita acima está implementada,
+mas ainda não foi integrada nem executada em produção.
+
+Falta, especificamente:
+
+- Concluir a suíte completa em execução, incorporar a main atualizada, revisar o workflow e obter CI verde.
+- Incluir no quadro de oferta os imóveis que ficam fora dos caminhos de terra do pedido. A inspeção real mostrou
+  que BA/CE/PI/RN são classificados sobretudo como `posse_em_titulacao`; o pedido padrão só aceita matrícula
+  conferida/a conferir e concessão. Lote vazio nesse pedido não representa ausência de potencial. A mudança
+  iniciada antes da interrupção NÃO foi aplicada; não apresentar terra pendente como pronta nem alterar o pedido
+  explícito do cliente silenciosamente.
+- Conferir a retomada nacional no Actions, manutenção das oito UFs antigas, publicações privadas por recorte e
+  hashes recuperados. Não há pacote nacional publicado confirmado nesta passagem.
+- Atualizar as medições se mudar o caminho de cálculo. Os números acima pertencem à versão identificada,
+  sem reaproveitá-los como medição de uma implementação posterior.
+- Após salvar este ramo, a ordem do fundador é: terminar o merge do PR #86 com CI verde; publicar o complemento
+  privado do Pará; concluir ARR; sensibilidade com nova seleção; ecologia. Depois encerrar as pendências nacionais.
+
+O PR #86 está separado, com o diagnóstico do Pará. O CI do head `b67b11277c7ca21bd07477e0e7176f320bb2dd62`
+ainda estava em execução no salvamento; o complemento privado não deve ser descrito como publicado antes
+que o workflow termine e os arquivos sejam conferidos. Nenhum job de outros chats foi cancelado.
+
+A pesquisa ARR está preservada no commit local `2418a84bfbd79548375e1a14311d56b78df3d151`, ramo
+`codex/validacao-arr-brasil`, ainda sem integração. Sensibilidade e integração das novas referências ecológicas
+continuam pendentes. Não confundir a pesquisa de fontes com entrega publicada ou calibração aprovada.

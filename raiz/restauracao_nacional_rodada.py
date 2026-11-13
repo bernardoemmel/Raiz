@@ -21,12 +21,17 @@ import pandas as pd
 
 from raiz import restauracao as R
 from raiz import restauracao_catalogo as C
+from raiz import restauracao_desbloqueio as D
 from raiz import restauracao_nacional as N
 from raiz import restauracao_nacional_fontes as F
 from raiz.executor.transferencia_privada import arquivo_privado, empacotar, enviar_arquivo, extrair
 from raiz.pedidos.campos import CamposPedido
 
 PONTEIRO = "lote_nacional_atual.json"
+
+
+def versao_publicador():
+    return hashlib.sha256(Path(__file__).read_bytes() + D.regra()["versao_completa"].encode()).hexdigest()
 
 
 def municipios() -> dict[str, list[int]]:
@@ -152,7 +157,7 @@ def atualizar(arm, trabalho: Path, *, max_ufs: int = 27, limite_minutos: float =
         historico = (
             uf == "PA"
             and R.versao() == "restauracao-2026d+a84f9789"
-            and not (estado.get("estados", {}).get(uf, {}).get("tabelas", {}).get("desenvolvedor", 0))
+            and (estado.get("estados", {}).get(uf, {}).get("tabelas", {}).get("desenvolvedor", 0) < 144)
         )
         if not historico and any(nome not in ativos for nome in nomes):
             continue
@@ -266,9 +271,31 @@ def publicar_consulta(arm, resultado: dict, trabalho: Path) -> dict:
         item["caminho"] = Path(item["caminho"]).name
     C.gravar_json(pasta / "lote.json", portatil)
     for opcao, item in resultado["opcoes"].items():
-        pd.read_parquet(item["tabela"]["caminho"]).to_csv(pasta / f"{opcao}.csv", index=False)
+        t = pd.read_parquet(item["tabela"]["caminho"])
+        t.to_csv(pasta / f"{opcao}.csv", index=False)
+        if resultado["pedido"]["meta"]["tipo"] == "creditos":
+            t = t.rename(columns={"pendencias": "salvaguardas_pendencias"})
+            resumo = {
+                "opcao": opcao,
+                "uf": resultado["recorte"]["ufs"][0]
+                if len(resultado["recorte"]["ufs"]) == 1
+                else "Brasil"
+                if resultado["recorte"]["brasil"]
+                else "recorte_" + resultado["id"][:12],
+                "modelo_versao": resultado["modelo"],
+                "versao_modelo_lote": resultado["versao"],
+                "volume_creditos": resultado["pedido"]["meta"]["valor"],
+                "preco_contrato_usd": resultado["pedido"]["dinheiro"]["preco_venda_usd"],
+                "economia": item.get("economia", {}),
+            }
+            D.gravar(D.relatorio(t, resumo), pasta / "diagnostico" / opcao)
     # resultado.json local pode apontar para o cache do runner; não segue no pacote portátil.
-    nomes = ("lote.json", "decisoes.parquet", *(f"{o}.{ext}" for o in N.OPCOES for ext in ("csv", "parquet")))
+    nomes = (
+        "lote.json",
+        "decisoes.parquet",
+        "diagnostico",
+        *(f"{o}.{ext}" for o in N.OPCOES for ext in ("csv", "parquet")),
+    )
     pacote = trabalho / f"consulta_{resultado['id']}.tar.gz"
     empacotar(pasta, pacote, incluir=nomes)
     ref = F.publicar(arm, pacote, "lote_nacional_consulta", ".tar.gz")
@@ -277,6 +304,7 @@ def publicar_consulta(arm, resultado: dict, trabalho: Path) -> dict:
         "catalogo_id": resultado["catalogo_id"],
         "modelo_versao": resultado["modelo"],
         "otimizador_versao": resultado["versao"],
+        "publicador_versao": versao_publicador(),
         "recorte": resultado["recorte"],
         "pedido": resultado["pedido"],
         "pacote": ref,
@@ -306,6 +334,7 @@ def consultar(arm, atual, trabalho, *, recortes=None, pedido=None) -> dict:
         if (
             anterior.get("catalogo_id") == id_catalogo
             and anterior.get("otimizador_versao") == N.versao_nacional()
+            and anterior.get("publicador_versao") == versao_publicador()
             and anterior.get("pedido") == normalizado.model_dump()
         ):
             continue

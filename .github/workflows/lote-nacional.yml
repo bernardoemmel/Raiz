@@ -52,6 +52,8 @@ jobs:
           ref: main # workflow_run nunca executa código do evento que o acionou
       - name: Esperar uma cota na fila global antes dos dados
         run: python scripts/reservar_lote.py --reservar 1 --aguardar-minutos 180
+      - name: Liberar SDKs não usados no runner temporário
+        run: sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
       - uses: astral-sh/setup-uv@v6
         with:
           enable-cache: false

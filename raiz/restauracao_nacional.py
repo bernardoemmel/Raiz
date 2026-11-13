@@ -316,6 +316,16 @@ def _resumo_faixas(con):
 
 def preparar_contrato(pedido: CamposPedido, modelo: str, cenario: str, chance_alvo=None):
     """Traduz volume contratado em oferta necessária, com as mesmas premissas do lote estadual."""
+    from raiz import restauracao as R
+
+    if modelo == R.versao():
+        premissa = R.cenario(cenario)
+        if not math.isclose(premissa["preco_usd_t"], pedido.dinheiro.preco_venda_usd) or not math.isclose(
+            premissa["fracao_financiada"], pedido.dinheiro.fracao_financiada
+        ):
+            raise ValueError(
+                "Preço/dívida diferentes exigem reavaliar a oferta; não reutilizar TIR do cenário original."
+            )
     efetivo = pedido.model_copy(deep=True)
     contrato = {
         "volume_solicitado": float(pedido.meta.valor),
@@ -326,18 +336,12 @@ def preparar_contrato(pedido: CamposPedido, modelo: str, cenario: str, chance_al
     if pedido.meta.tipo != "creditos" or pedido.cronograma == "livre":
         contrato["validado"] = False
         return efetivo, contrato, None, None
-    from raiz import restauracao as R
-
     r = R.regra()
     if modelo != r["versao_completa"]:
         raise ValueError(
             "Marcos exigem a mesma versão do modelo das previsões; não se aplicam regras novas ao histórico."
         )
     c = R.cenario(cenario, r=r)
-    if not math.isclose(c["preco_usd_t"], pedido.dinheiro.preco_venda_usd) or not math.isclose(
-        c["fracao_financiada"], pedido.dinheiro.fracao_financiada
-    ):
-        raise ValueError("Preço/dívida diferentes exigem reavaliar a oferta; não reutilizar TIR do cenário original.")
     if pedido.cronograma == "proprio":
         marcos = pedido.marcos_proprios or []
         anos = [m.ano for m in marcos]
