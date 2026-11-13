@@ -64,6 +64,30 @@ describe("evidências dos gráficos privados", () => {
     expect(() => lerResultadosGraficos(d)).toThrow()
   })
 
+  it.each([
+    ["congelamento_antes_corte", ["2024-12-31T10:00:00Z", "2025-01-01T00:00:00+14:00"]],
+    ["congelamento_no_dia_observado", ["2026-01-01T01:00:00Z", "2025-12-31T23:00:00-02:00"]],
+    ["registro_antes_observacao", ["2025-12-31T10:00:00Z", "2026-01-01T00:00:00+14:00"]],
+  ])("a cronologia usa o dia UTC para %s", (alvo, instantes) => {
+    for (const instante of instantes) {
+      const d = exemplo(), c = d.comparacoes[0]
+      if (alvo === "registro_antes_observacao") c.observado.registrado_em = instante
+      else c.previsao.congelada_em = instante
+      expect(() => lerResultadosGraficos(d)).toThrow()
+    }
+  })
+
+  it.each(["marco", "fonte"])("limita %s ao dia UTC da geração", alvo => {
+    for (const gerado of ["2026-01-02T10:00:00Z", "2026-01-03T00:00:00+14:00"]) {
+      const d = exemplo()
+      d.gerado_em = gerado
+      expect(lerResultadosGraficos(d).gerado_em).toBe(gerado)
+      if (alvo === "marco") d.contratos[0].marcos.at(-1).data = "2026-01-03"
+      else d.comparacoes[0].observado.fonte.data = "2026-01-03"
+      expect(() => lerResultadosGraficos(d)).toThrow()
+    }
+  })
+
   it.each(["contratado", "emitido", "entregue"])("não promove previsão do aprendizado a %s", (campo) => {
     const d = exemplo(); d.origem = "real"; d.comparacoes = []
     for (const s of d.contratos) for (const m of s.marcos) for (const k of ["contratado", "emitido", "entregue"]) {

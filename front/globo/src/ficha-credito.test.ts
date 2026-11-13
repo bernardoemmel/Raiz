@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest"
 import { fichaCreditoIndisponivel, lerFichaCredito, ORIGEM_EVIDENCIA_FICHA } from "../../compartilhado/ficha-credito"
 import { fichaCreditoDemonstracao } from "../../compartilhado/pedidos/ficha-credito-demonstracao"
+import { resultadosDemonstracao } from "../../compartilhado/pedidos/graficos-demonstracao"
 
 const esperado = { opcao_id: "barata" as const, revisao_lote: null, exemplo: true }
 const exemplo = () => fichaCreditoDemonstracao({ id: "barata", creditos: { p10: 100, p50: 200, p90: 300 }, hectares: 100 })
@@ -108,6 +109,31 @@ describe("ficha de crédito com base comum", () => {
     const d = exemplo()
     d.resultados!.gerado_em = "2026-11-12T13:00:00Z"
     expect(lerFichaCredito(d, esperado).estado).toBe("indisponivel")
+  })
+
+  it.each([12, 13])("o fuso não altera a aceitação da observação em %s/11", dia => {
+    for (const publicada of ["2026-11-12T12:00:00Z", "2026-11-13T02:00:00+14:00"]) {
+      for (const instante of ["2026-11-12T10:00:00Z", "2026-11-13T00:00:00+14:00"]) {
+        const d = exemplo(), inicio = `2001-11-${dia}`, fim = `2026-11-${dia}`
+        d.publicada_em = publicada
+        Object.assign(d.base!, { inicio, fim })
+        d.resultados = resultadosDemonstracao({ area_ha: 80, escopo_carteira: "titulares", inicio, fim, creditos: d.creditos_lote! })
+        d.resultados.gerado_em = instante
+        for (const c of d.resultados.comparacoes) c.observado.registrado_em = instante
+        expect(lerFichaCredito(d, esperado).estado).toBe(dia === 12 ? "disponivel" : "indisponivel")
+      }
+    }
+  })
+
+  it.each(["base", "area", "revisao"])("limita %s ao dia UTC da publicação", alvo => {
+    for (const publicada of ["2026-11-12T12:00:00Z", "2026-11-13T02:00:00+14:00"]) {
+      const d = exemplo()
+      d.publicada_em = publicada
+      if (alvo === "base") d.base!.data_referencia = d.secoes.metodo.data_referencia = "2026-11-13"
+      else if (alvo === "area") d.data_referencia_area = "2026-11-13"
+      else d.secoes.titulo.revisado_em = "2026-11-13"
+      expect(lerFichaCredito(d, esperado).estado).toBe("indisponivel")
+    }
   })
 
   it("recusa acompanhamento sem calendário ou denominador comprovado", () => {

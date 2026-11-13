@@ -24,6 +24,13 @@ def test_preserva_zero_ausencia_e_marca_sintetica(resultados):
     assert dado["contratos"][0]["marcos"][1]["emitido"]["valor"] == 0
 
 
+@pytest.mark.parametrize("instante", ["0001-01-01T00:00:00+14:00", "9999-12-31T23:00:00-02:00"])
+def test_fuso_fora_do_calendario_falha_com_validacao(resultados, instante):
+    resultados.update(gerado_em=instante, contratos=[], comparacoes=[])
+    with pytest.raises(ValidationError):
+        ResultadosGraficos.model_validate(resultados)
+
+
 @pytest.mark.parametrize(
     "campo,valor",
     [
@@ -70,6 +77,39 @@ def test_backtest_declarado_fica_separado(resultados):
     c["avaliacao"] = "backtest"
     c["previsao"]["congelada_em"] = "2026-01-02T00:00:00Z"
     assert ResultadosGraficos.model_validate(resultados).comparacoes[0].avaliacao == "backtest"
+
+
+@pytest.mark.parametrize(
+    "alvo,instantes",
+    [
+        ("congelamento_antes_corte", ["2024-12-31T10:00:00Z", "2025-01-01T00:00:00+14:00"]),
+        ("congelamento_no_dia_observado", ["2026-01-01T01:00:00Z", "2025-12-31T23:00:00-02:00"]),
+        ("registro_antes_observacao", ["2025-12-31T10:00:00Z", "2026-01-01T00:00:00+14:00"]),
+    ],
+)
+def test_cronologia_usa_dia_utc_independentemente_do_fuso(resultados, alvo, instantes):
+    for instante in instantes:
+        d = deepcopy(resultados)
+        c = d["comparacoes"][0]
+        if alvo == "registro_antes_observacao":
+            c["observado"]["registrado_em"] = instante
+        else:
+            c["previsao"]["congelada_em"] = instante
+        with pytest.raises(ValidationError):
+            ResultadosGraficos.model_validate(d)
+
+
+@pytest.mark.parametrize("gerado", ["2026-01-02T10:00:00Z", "2026-01-03T00:00:00+14:00"])
+@pytest.mark.parametrize("alvo", ["marco", "fonte"])
+def test_marcos_e_fontes_nao_ultrapassam_dia_utc_de_geracao(resultados, gerado, alvo):
+    resultados["gerado_em"] = gerado
+    assert ResultadosGraficos.model_validate(resultados)
+    if alvo == "marco":
+        resultados["contratos"][0]["marcos"][-1]["data"] = "2026-01-03"
+    else:
+        resultados["comparacoes"][0]["observado"]["fonte"]["data"] = "2026-01-03"
+    with pytest.raises(ValidationError):
+        ResultadosGraficos.model_validate(resultados)
 
 
 @pytest.mark.parametrize("alvo", ["fonte_livre", "origem", "booleano"])

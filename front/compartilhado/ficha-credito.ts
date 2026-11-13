@@ -121,7 +121,7 @@ export function lerFichaCredito(valor: unknown, esperado: { opcao_id: FichaCredi
     if (!esperado.exemplo && (typeof r.revisao_lote !== "string" || !/^[a-f0-9]{64}$/.test(r.revisao_lote))) return ausente
     const documento_versao = typeof r.documento_versao === "string" && (/^[a-f0-9]{64}$/.test(r.documento_versao) || (esperado.exemplo && r.documento_versao === `demonstracao-ficha-v1-${esperado.opcao_id}`)) ? r.documento_versao : falha()
     const publicada_em = typeof r.publicada_em === "string" && /^\d{4}-\d{2}-\d{2}T.*(?:Z|[+-]\d{2}:\d{2})$/.test(r.publicada_em) && Number.isFinite(Date.parse(r.publicada_em)) && Date.parse(r.publicada_em) <= Date.now() ? r.publicada_em : falha()
-    const limite = publicada_em.slice(0, 10)
+    const limite = new Date(publicada_em).toISOString().slice(0, 10)
     const referencia = (v: unknown) => { const d = dia(v); return d <= limite ? d : falha() }
     const origem = (v: unknown) => { const t = texto(v); return (FONTES_FICHA_CREDITO as readonly string[]).includes(t) || (esperado.exemplo && t === "Demonstração fictícia") ? t : falha() }
     const horizonte_anos = numero(b.horizonte_anos), inicio = opcional(b.inicio, dia), fim = opcional(b.fim, dia)

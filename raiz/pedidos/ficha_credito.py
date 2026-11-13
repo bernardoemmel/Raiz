@@ -188,7 +188,11 @@ class DocumentoFichaCredito(Fechado):
     def coerente(self):
         if self.publicada_em.tzinfo is None or self.publicada_em > dt.datetime.now(dt.UTC):
             raise ValueError("publicação exige instante passado com fuso")
-        if self.base.data_referencia > self.publicada_em.date():
+        try:
+            dia_publicado = self.publicada_em.astimezone(dt.UTC).date()
+        except OverflowError as erro:
+            raise ValueError("publicação fora do calendário UTC suportado") from erro
+        if self.base.data_referencia > dia_publicado:
             raise ValueError("a referência não pode ser posterior à publicação")
         if (
             self.base.classe_evidencia in {"emitido", "entregue"}
@@ -219,7 +223,7 @@ class DocumentoFichaCredito(Fechado):
             datas.extend((s.data_referencia, s.revisado_em))
             if s.revisado_em is not None and s.data_referencia is not None and s.revisado_em < s.data_referencia:
                 raise ValueError("revisão anterior à evidência desta seção")
-        if any(d is not None and d > self.publicada_em.date() for d in datas):
+        if any(d is not None and d > dia_publicado for d in datas):
             raise ValueError("referência ou revisão posterior à publicação")
         metodo = self.secoes.metodo
         if (

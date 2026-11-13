@@ -86,6 +86,11 @@ comprovado não há acompanhamento. Períodos anuais e estudos independentes nã
 podem ser anexados como se fossem o total deste lote. O anexo inteiro participa
 do hash que já vincula pedido, opção e revisão; não há acesso separado ao gráfico.
 
+Datas sem horário (`inicio`, `fim`, corte, observação, marcos, fontes e revisões)
+usam o calendário UTC. Antes de comparar um instante com essas datas, o validador
+converte seu fuso para UTC. Representar o mesmo instante com `Z` ou `+14:00` não
+altera a aceitação da ficha nem permite antecipar o dia de uma observação.
+
 ## Demonstração e verificação
 
 `?demonstracao=lotes` é optativo e usa fonte, documentos, datas e números

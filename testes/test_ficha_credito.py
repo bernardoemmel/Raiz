@@ -218,6 +218,48 @@ def test_regressao_exata_anexo_futuro_flag_999ha_em_ficha_carbono_50ha(publicar)
     assert F.consultar(PEDIDO, "barata")["estado"] == "indisponivel"
 
 
+@pytest.mark.parametrize("publicada", ["2026-11-12T12:00:00Z", "2026-11-13T02:00:00+14:00"])
+@pytest.mark.parametrize("instante", ["2026-11-12T10:00:00Z", "2026-11-13T00:00:00+14:00"])
+@pytest.mark.parametrize("dia_observado", [12, 13])
+def test_fuso_nao_antecipa_dia_observado_na_ficha(publicar, publicada, instante, dia_observado):
+    d = com_resultados()
+    inicio, fim = f"2001-11-{dia_observado}", f"2026-11-{dia_observado}"
+    d["publicada_em"] = publicada
+    d["base"].update(inicio=inicio, fim=fim)
+    for ref in referencias(d):
+        ref.update(
+            inicio=inicio, fim=fim, horizonte_dias=(dt.date.fromisoformat(fim) - dt.date.fromisoformat(inicio)).days
+        )
+    r = d["resultados"]
+    r["gerado_em"] = instante
+    r["contratos"][0]["marcos"][0]["data"] = fim
+    c = r["comparacoes"][0]
+    c["previsao"]["corte"] = inicio
+    c["observado"].update(data=fim, registrado_em=instante)
+    c["observado"]["fonte"]["data"] = fim
+    publicar(d)
+    resposta = F.consultar(PEDIDO, "barata")
+    estado = "disponivel" if dia_observado == 12 else "indisponivel"
+    assert resposta["estado"] == estado
+    assert F.projetar_resposta(resposta, PEDIDO, "barata")["estado"] == estado
+
+
+@pytest.mark.parametrize("publicada", ["2026-11-12T12:00:00Z", "2026-11-13T02:00:00+14:00"])
+@pytest.mark.parametrize("alvo", ["base", "area", "revisao"])
+def test_referencias_da_ficha_limitadas_ao_dia_utc_da_publicacao(publicada, alvo):
+    d = documento()
+    d["publicada_em"] = publicada
+    if alvo == "base":
+        d["base"]["data_referencia"] = "2026-11-13"
+        d["secoes"]["metodo"]["data_referencia"] = "2026-11-13"
+    elif alvo == "area":
+        d["data_referencia_area"] = "2026-11-13"
+    else:
+        d["secoes"]["titulo"]["revisado_em"] = "2026-11-13"
+    with pytest.raises(ValidationError):
+        F.DocumentoFichaCredito.model_validate(d)
+
+
 @pytest.mark.parametrize("classe", ["verificado", "emitido", "entregue", "validado", "conservador"])
 def test_estimativa_do_motor_nao_pode_ser_promovida_a_fato(classe):
     d = documento()
@@ -307,6 +349,7 @@ def test_sem_ficha_e_area_desconhecida_nao_viram_zero(publicar):
         lambda d: d.update(pedido_id="bbbbbbbb-bbbb-4ccc-8ddd-aaaaaaaaaaaa"),
         lambda d: d.update(opcao_id="segura"),
         lambda d: d.update(publicada_em="2026-11-12T12:00:00"),
+        lambda d: d.update(publicada_em="0001-01-01T00:00:00+14:00"),
         lambda d: d.update(proprietario="Pessoa Fictícia do Teste"),
         lambda d: d["creditos_lote"].update(p10=400),
         lambda d: d["secoes"]["titulo"].update(texto="Pessoa Fictícia do Teste", fonte="Raíz, revisão técnica"),

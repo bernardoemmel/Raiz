@@ -78,6 +78,8 @@ const id = (v: unknown): string => typeof v === "string" && /^[a-zA-Z0-9][a-zA-Z
 const numero = (v: unknown): number => typeof v === "number" && Number.isFinite(v) && v >= 0 ? v : falha()
 const dia = (v: unknown): string => typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v) && Number.isFinite(Date.parse(v)) && new Date(v).toISOString().slice(0, 10) === v ? v : falha()
 const instante = (v: unknown): string => typeof v === "string" && /^\d{4}-\d{2}-\d{2}T.*(?:Z|[+-]\d{2}:\d{2})$/.test(v) && Number.isFinite(Date.parse(v)) ? v : falha()
+/** As datas civis do contrato usam UTC, independentemente do fuso escrito no instante. */
+const diaUtc = (instante: string): string => new Date(instante).toISOString().slice(0, 10)
 const lista = (v: unknown): unknown[] => Array.isArray(v) && v.length <= 100 ? v : falha()
 function referencia(v: unknown): ReferenciaResultado {
   const r = registro(v), inicio = dia(r.inicio), fim = dia(r.fim), horizonte_dias = numero(r.horizonte_dias), area_base_ha = numero(r.area_base_ha), area_elegivel_carteira_ha = numero(r.area_elegivel_carteira_ha)
@@ -92,7 +94,7 @@ export function chaveReferencia(r: ReferenciaResultado): string {
 }
 function fonte(v: unknown, limite: string): FonteResultado {
   const f = registro(v), data = dia(f.data)
-  if (typeof f.nome !== "string" || !(FONTES_RESULTADOS as readonly string[]).includes(f.nome) || data > limite.slice(0, 10)) return falha()
+  if (typeof f.nome !== "string" || !(FONTES_RESULTADOS as readonly string[]).includes(f.nome) || data > diaUtc(limite)) return falha()
   return { nome: f.nome as FonteResultado["nome"], registro_id: id(f.registro_id), data }
 }
 function medida(v: unknown, limite: string, natureza: MedidaConfirmada["natureza"]): MedidaConfirmada | null {
@@ -112,7 +114,7 @@ export function lerResultadosGraficos(v: unknown): ResultadosGraficos {
     if (s.regime !== "acumulado") return falha()
     const marcos = lista(s.marcos).map((valor) => {
       const m = registro(valor), data = dia(m.data)
-      if (data > gerado_em.slice(0, 10)) return falha()
+      if (data > diaUtc(gerado_em)) return falha()
       return { data, contratado: medida(m.contratado, gerado_em, "contrato_assinado"), emitido: medida(m.emitido, gerado_em, "emissao_registrada"), entregue: medida(m.entregue, gerado_em, "entrega_comprovada") }
     })
     if (marcos.some((m, i) => i > 0 && m.data <= marcos[i - 1].data)) return falha()
@@ -124,8 +126,8 @@ export function lerResultadosGraficos(v: unknown): ResultadosGraficos {
     const previa = referencia(p.referencia), real = referencia(o.referencia)
     const corte = dia(p.corte), data = dia(o.data), congelada_em = instante(p.congelada_em), registrado_em = instante(o.registrado_em)
     const p10 = numero(p.p10), p50 = numero(p.p50), p90 = numero(p.p90)
-    if (chaveReferencia(previa) !== chaveReferencia(real) || p10 > p50 || p50 > p90 || corte !== previa.inicio || data !== previa.fim || data > gerado_em.slice(0, 10) || congelada_em.slice(0, 10) < corte || registrado_em.slice(0, 10) < data || Date.parse(congelada_em) > Date.parse(gerado_em) || Date.parse(registrado_em) > Date.parse(gerado_em)) return falha()
-    if (c.avaliacao === "ao_vivo" && (congelada_em.slice(0, 10) >= data || Date.parse(congelada_em) > Date.parse(registrado_em))) return falha()
+    if (chaveReferencia(previa) !== chaveReferencia(real) || p10 > p50 || p50 > p90 || corte !== previa.inicio || data !== previa.fim || data > diaUtc(gerado_em) || diaUtc(congelada_em) < corte || diaUtc(registrado_em) < data || Date.parse(congelada_em) > Date.parse(gerado_em) || Date.parse(registrado_em) > Date.parse(gerado_em)) return falha()
+    if (c.avaliacao === "ao_vivo" && (diaUtc(congelada_em) >= data || Date.parse(congelada_em) > Date.parse(registrado_em))) return falha()
     return { id: id(c.id), metodo: id(c.metodo), modelo: id(c.modelo), versao: id(c.versao), avaliacao: c.avaliacao, previsao: { referencia: previa, corte, congelada_em, p10, p50, p90, fonte: fonte(p.fonte, gerado_em) }, observado: { referencia: real, data, registrado_em, valor: numero(o.valor), fonte: fonte(o.fonte, gerado_em) } }
   })
   const fontes = [...contratos.flatMap((s) => s.marcos.flatMap((m) => [m.contratado, m.emitido, m.entregue].flatMap((n) => n ? [n.fonte] : []))), ...comparacoes.flatMap((c) => [c.previsao.fonte, c.observado.fonte])]

@@ -29,7 +29,11 @@ def _instante(valor: str) -> dt.datetime:
     instante = dt.datetime.fromisoformat(valor)
     if "T" not in valor or instante.tzinfo is None:
         raise ValueError("O registro precisa de data, hora e fuso.")
-    return instante
+    # Todas as datas civis deste contrato usam o calendário UTC.
+    try:
+        return instante.astimezone(dt.UTC)
+    except OverflowError as erro:
+        raise ValueError("O registro fica fora do calendário UTC suportado.") from erro
 
 
 class Fechado(BaseModel):
@@ -164,9 +168,9 @@ class ComparacaoMetodo(Fechado):
             raise ValueError("Faixas e referências precisam ser compatíveis.")
         if p.corte != p.referencia.inicio or o.data != p.referencia.fim:
             raise ValueError("Só a observação na data-alvo comprova o mesmo horizonte.")
-        if p.congelada_em[:10] < p.corte or o.registrado_em[:10] < o.data:
+        if congelada.date() < _dia(p.corte) or registrada.date() < _dia(o.data):
             raise ValueError("A cronologia dos registros não corresponde às datas informadas.")
-        if self.avaliacao == "ao_vivo" and (p.congelada_em[:10] >= o.data or congelada > registrada):
+        if self.avaliacao == "ao_vivo" and (congelada.date() >= _dia(o.data) or congelada > registrada):
             raise ValueError("Uma previsão ao vivo precisa anteceder o dia observado.")
         return self
 
@@ -181,20 +185,21 @@ class ResultadosGraficos(Fechado):
     @model_validator(mode="after")
     def conferir(self) -> Self:
         gerado = _instante(self.gerado_em)
+        dia_gerado = gerado.date()
         fontes = []
         for serie in self.contratos:
             for marco in serie.marcos:
-                if marco.data > self.gerado_em[:10]:
+                if _dia(marco.data) > dia_gerado:
                     raise ValueError("O retrato ainda não foi observado.")
                 fontes.extend(m.fonte for m in (marco.contratado, marco.emitido, marco.entregue) if m)
         for c in self.comparacoes:
             p, o = c.previsao, c.observado
-            if o.data > self.gerado_em[:10] or max(_instante(p.congelada_em), _instante(o.registrado_em)) > gerado:
+            if _dia(o.data) > dia_gerado or max(_instante(p.congelada_em), _instante(o.registrado_em)) > gerado:
                 raise ValueError("Há resultado ou registro posterior à publicação.")
             fontes.extend([p.fonte, o.fonte])
         if any((f.nome == "Demonstração sintética") != (self.origem == "demonstracao") for f in fontes):
             raise ValueError("Fontes sintéticas e reais precisam permanecer separadas.")
-        if any(f.data > self.gerado_em[:10] for f in fontes):
+        if any(_dia(f.data) > dia_gerado for f in fontes):
             raise ValueError("Há fonte posterior à publicação.")
         for registros in (self.contratos, self.comparacoes):
             if len({r.id for r in registros}) != len(registros):
