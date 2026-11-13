@@ -11,13 +11,14 @@ traz a fonte, a data e as contagens públicas. O build limita o gzip a 560.000 b
 
 `FonteDeDados.geo.agregados()` lê o índice uma vez e, quando o anúncio normal é válido, entrega uma
 URL estática da mesma origem ao mapa. Somente o caminho público `geo/agregados_brasil.geojson`, sob a
-base configurada, é aceito. O worker do MapLibre busca e interpreta o arquivo diretamente: a thread
-principal não precisa descomprimir, validar as feições e serializá-las de novo no adaptador da Raíz.
-O MapLibre ainda pode manter uma cópia interna do GeoJSON na fonte; não se afirma ausência total de
-cópias ou trabalho na thread principal. Os hashes registram os
+base configurada, é aceito. Um worker próprio busca e interpreta o arquivo sem credenciais ou
+redirecionamentos. Ele mantém o índice Supercluster e devolve somente os grupos do enquadramento ou
+o zoom de expansão, sem devolver o GeoJSON à thread principal nem criar uma fonte duplicada no MapLibre.
+Os hashes registram os
 bytes conferidos no build; não significam verificação criptográfica pelo navegador. O transporte pode
 usar compressão HTTP conforme o servidor, sem alterar o arquivo publicado. Índices antigos continuam
-usando o gzip e o parser com projeção positiva no navegador. Sem anúncio, a fonte retorna ausência sem
+usando o gzip e o parser com projeção positiva no navegador, que envia os pontos ao mesmo worker.
+Essa compatibilidade antiga ainda envolve o GeoJSON na thread principal. Sem anúncio, a fonte retorna ausência sem
 tentar caminhos estaduais ou provocar 404.
 
 Cada ponto tem apenas `h3`, `fazendas` e `potencial_ha`. Sua coordenada é o centro da célula H3,
@@ -38,11 +39,42 @@ dos quais 3.717 têm hectares conhecidos; 1.626.268 fazendas representadas no ag
 de dados privados. Os hexágonos permanecem a unidade interna de agregação; o arquivo nacional
 permite mostrar círculos agrupados sem baixar ou desenhar suas geometrias na entrada do site.
 
-O Supercluster incorporado ao MapLibre mantém o índice no worker. Somente os grupos visíveis ganham
+O worker usa a mesma implementação Supercluster de `@maplibre/geojson-vt` 6.3.1 utilizada pelo MapLibre,
+com os mesmos parâmetros, somas e precisão. As consultas incluem a margem dos botões nas bordas e as
+cópias do mundo; respostas e cliques de um índice substituído são descartados. Somente os grupos visíveis ganham
 botões HTML ancorados no mapa, com contagem, hectares e nome acessível; a navegação por teclado abre
 o mesmo grupo. Os botões existentes são reutilizados e somem quando a fonte falha ou chega o detalhe
-de zoom 12. Isso evita compilar um programa gráfico só para os círculos, sem remover os dados da
-abertura. A legenda única começa recolhida e deixa as contagens visíveis também em 360 px.
+de zoom 12. A consulta não depende de uma camada invisível de círculos ou de copiar o índice à interface.
+A legenda única começa recolhida e deixa as contagens visíveis também em 360 px.
+
+Os contornos estaduais também podem ser lidos diretamente pelo worker do MapLibre, pelo arquivo
+`brasil_estados.geojson` da mesma origem. As cores de cobertura usam filtros por UF e os rótulos usam
+27 pontos; atualizar contagens não reenvia os polígonos. A geometria já lida pelo adaptador continua
+disponível para enquadramento, e fontes antigas sem URL preservam o envio do objeto GeoJSON.
+
+A preparação gráfica aquece no `OffscreenCanvas` de um worker o mesmo `symbolSDF` usado pelos rótulos
+nacionais. O arquivo é gerado a partir do MapLibre 6.15.0, com versão, hash e licença conferidos no build;
+o teste do navegador compara os shaders efetivamente usados. Contexto e programa ficam vivos até o
+MapLibre assumir, sem transferir handles nem alterar o desenho. O ganho depende do cache do driver.
+Falha de compilação mantém o caminho normal; o limite de cinco segundos só destrava uma preparação
+sem resposta e é cancelado assim que ela termina. Não há espera fixa, identificação do Lighthouse ou
+retirada de rótulos. A fixture do CI também desenha nome e cobertura do Pará e baixa seus glifos.
+
+Um adaptador restrito ao mapa nacional usa o construtor e o cache reais do MapLibre para preparar
+clipping, preenchimento, linhas e texto assim que chega uma configuração de bucket, sem aguardar
+o bucket de texto. Só aceita pintura uniforme, projeção Mercator e as camadas nacionais conhecidas;
+ícones, efeitos, terreno e depuração seguem o renderizador original. A configuração estadual fixa
+mantém o SDF idêntico ao aquecido no worker. Em fill/line, a ordem das flags independentes pode variar:
+os testes permitem somente essa permutação e exigem todo o restante do GLSL idêntico. Cor, opacidade
+e demais valores continuam vindo dos buckets reais em cada desenho. O adaptador não desenha, não
+agenda frames e não altera `loaded`/`idle`; restaura a função original ao concluir, recusar ou sair.
+O pin obrigatório do fornecedor e os testes das classes reais protegem esse uso de interfaces internas.
+
+O canvas solicita `desynchronized` pela API pública do MapLibre, permitindo ao navegador reduzir a
+espera pela apresentação. É uma sugestão: sem suporte, o caminho normal continua válido. Máscara e
+geometrias permanecem no mesmo canvas; os grupos HTML continuam ancorados pela projeção do mapa.
+O ensaio com Chrome 157 preservou os pixels e o alinhamento após aproximar. Isso não garante o mesmo
+ganho em outros drivers nem sincronização perfeita entre canvas e HTML durante toda animação.
 
 ## Fonte e cálculo do H3
 

@@ -4,16 +4,102 @@ Sessão: https://claude.ai/code/session_01VGb88MJumyG9PHt2znaaKE. Branch: `claud
 
 ## Redesenho cartográfico e rodada 12: PR #90 (13/11/2026 UTC)
 
-- Revisão cartográfica **`650db81`**, após investigar os perfis do CI: o enquadramento passou para
+- Estado atual: **PR #90 aberto, sem merge**. A main `e959023` (PR #105) está integrada em `9a37e3b`:
+  retomadas/cotas preservadas e leitores públicos aceitando as subdivisões de até quatro dígitos.
+  O único conflito foi o pin do `uv`; a revisão `110773f` alinha os cinco jobs à versão 0.13.6
+  compartilhada pela main e exigida pelo teste de retomadas, sem consultar `latest`. O CI
+  [`43439869332`](https://github.com/bernardoemmel/Raiz/actions/runs/43439869332), head `dee13fe`,
+  passou em oito dos nove jobs, incluindo 3.474 testes Python gerais, referência original do Pará,
+  segurança e cenários reais de API/agentes. O front passou nos fluxos funcionais, mas reprovou
+  Lighthouse nacional: **82/87/87, mediana 87**, acessibilidade 100 nas três amostras.
+  Esse CI não autoriza o merge. Nenhum workflow foi cancelado ou desativado.
+- A integração encontrou uma regressão na prioridade da fila: catálogo e lotes eram tratados como UFs
+  fora da frente, tinham sua referência substituída e consumiam o limite de três estados. A correção
+  `4785ac7` restringe essas regras às 27 UFs oficiais, preserva referências/bloqueios auxiliares e continua
+  contando todas as reservas no teto global de 15. Passaram **280 testes focados**, incluindo dez
+  regressões novas, HTTP, hashes/Release concorrente, checkpoint, H3, status e pins, além de Ruff.
+  Nenhum run, reserva viva ou dado publicado foi alterado durante a validação. As atualizações automáticas
+  da main até `1b4a896` também foram integradas; alteram somente o painel em `motor/README.md`.
+- Validação final local do código **`c1d42a4` aprovada**: 587 testes do front, TypeScript, lint,
+  build e Pages com zero 404/erros. As 18 medições fixas da fixture deram medianas
+  **92/98/97/98/97/100**, acessibilidade 100, e sete auditorias axe/teclado sem violações a 360 px.
+  A entrada marcou **89/95/92**; o snapshot real de 444 municípios/13 UFs marcou **84/91/95,
+  mediana 91**, acessibilidade 100. Todas as amostras foram mantidas, sem repetição para escolher nota.
+  A dispersão permanece: a aprovação é pela mediana de três, não significa 90 em toda abertura.
+  A imagem nacional não mudou. Ruff passou no escopo do CI, com 637 arquivos formatados; a fila
+  alterada também passou no lint. O CI completo desta composição e a auditoria da publicação ainda
+  são obrigatórios antes de fechar o PR.
+  O candidato solicita `desynchronized` pela API pública do MapLibre e evita
+  calcular a data do calendário nacional sem agenda carregada. No ensaio A/B/B/A, tarefas nativas de
+  apresentação de 80/119 ms passaram para 74/57 ms, ainda com espera residual; imagens nacionais e
+  após zoom permaneceram idênticas, com o mesmo alinhamento dos grupos e zero erros. A sugestão pode
+  ser ignorada pelo navegador; esse ensaio não substitui Lighthouse nem comprova todos os drivers.
+  A revisão estática de compatibilidade e semântica passou. O Pages confere a solicitação e registra o
+  atributo efetivo, sem exigir que todo navegador aceite a sugestão.
+- A revisão **`b52be9b` passou nos fluxos funcionais, mas reprovou na fixture de desempenho**, com **587 testes do front**, TypeScript, lint e
+  revisão independente aprovados. Um adaptador nacional prepara as quatro variantes gráficas no
+  cache real assim que há uma configuração de bucket, incluindo o texto antes de seu bucket chegar.
+  Mantém o renderizador e os valores atuais dos buckets, sem alterar desenhos, frames ou readiness.
+  Guardas recusam estilos desconhecidos, ícones, efeitos e depuração. A versão/hash do fornecedor são
+  conferidos no build. Os testes usam as classes reais e verificam GLSL, cache, cor/opacidade e cleanup.
+  O ensaio A/B/B/A reduziu os maiores frames de 68,1/42,9 ms para 30/27,2 ms, com zero pixels diferentes
+  e zero erros; não é nota Lighthouse. Fill/line variam somente na ordem de flags sem valores e sem
+  duplicatas, com todo o restante idêntico. A configuração estadual fixa preserva os bytes exatos do
+  SDF aquecido. Build e Pages passaram, incluindo busca, overzoom, ordem dos programas e zero 404/erros.
+  A série nacional marcou **81/84/95, mediana 84**, acessibilidade 100 e sete auditorias axe sem violações.
+  O gate parou nessa rota; as outras cinco e a série real não foram executadas. Na primeira amostra,
+  uma tarefa nativa de apresentação durou 100,1 ms, usando só 2,1 ms de CPU; na segunda, o trabalho de
+  React/importação pesou com CPU menos favorável. O perfil não identifica um comando gráfico específico
+  como causa. Todas as amostras estão preservadas; não atribuir a falha novamente ao link do símbolo.
+  Capturas finais, CI completo e merge continuam pendentes.
+- A composição **`4b72f85` passou nos testes funcionais, mas reprovou no desempenho real**, com
+  559 testes do front aprovados e Pages em `/Raiz/` e `/` sem 404/erros. A fixture reforçada passou
+  nas 18 medições: medianas **92/98/97/98/98/100**, nacional **92/88/94**, acessibilidade 100;
+  sete auditorias axe sem violações. O snapshot real marcou **78/82/82, mediana 82**, acessibilidade
+  100, com todas as amostras preservadas. A preparação gráfica
+  aquece o `symbolSDF` exato em um worker, antes do MapLibre assumir o contexto. Geração, versão, hashes
+  e licença passam pelo build; o Pages verifica os shaders reais. A fixture agora contém o rótulo e
+  a cobertura do Pará, exercitando o caminho de glifos que faltava nas medições anteriores.
+  O experimento fixo A/B/B/A na página real reduziu a consulta síncrona do símbolo de 70,3/75 ms
+  para 34,4/7,4 ms, com zero pixels diferentes e zero erros. Isso não substitui o Lighthouse:
+  é evidência causal para a correção, cujo benefício depende do driver. A extensão KHR paralela foi
+  descartada antes de implementar, pois não existe no Chrome/SwiftShader usado no CI.
+  Os três perfis reais ainda mostram longas esperas gráficas; a redução do símbolo não significa
+  eliminar a espera total. Capturas finais e merge permanecem pendentes.
+- A revisão **`6e23883` passou nos testes funcionais, mas reprovou no desempenho real**.
+  Foram 546 testes do front, Pages em `/Raiz/` e `/` com zero 404/erros e sete auditorias axe sem
+  violações. As 18 medições da fixture passaram: medianas **95/98/97/97/98/100**, nacional
+  **95/93/95**, acessibilidade 100. No snapshot real a série foi **78/80/93, mediana 80**,
+  acessibilidade 100; todas as amostras permanecem preservadas. A imagem nacional permaneceu idêntica.
+  O perfil distingue espera gráfica de trabalho JavaScript: a maior tarefa da primeira medição real
+  teve 137 ms de parede e apenas 2,24 ms de CPU da thread. Uma instrumentação independente encontrou
+  45,3 ms na consulta síncrona de link do programa de rótulos; esse valor não é uma atribuição direta
+  dos 137 ms. Está em avaliação compilar esses programas sem bloquear a interface.
+- O índice Supercluster agora fica em worker próprio,
+  com a mesma implementação, parâmetros e somas do MapLibre; só os grupos visíveis voltam à interface.
+  Retirada a fonte invisível duplicada. Os contornos estaduais são lidos por URL pelo worker do mapa,
+  sem serializar novamente toda a geometria na thread principal; fontes antigas mantêm o fallback.
+  As tarefas de abertura cedem a execução entre etapas, o estilo interno é validado obrigatoriamente
+  no build e a sessão leve deixa a fábrica de pedidos fora da entrada nacional (menos 32.324 bytes
+  no grafo estático, 12.995 bytes gzip). Não há espera artificial ou identificação de auditoria.
+- O resumo municipal preserva agora a identidade do painel de processamento: a regressão confirmou
+  as mesmas 27 linhas, links, foco de teclado e detalhe aberto após a chegada dos dados. Expiração
+  e atualização da telemetria continuam funcionando. A revisão anterior desmontava esse painel.
+- Séries intermediárias preservadas: divisão das tarefas + sessão leve reprovou a fixture em
+  **88/89/92, mediana 89**; worker próprio passou na fixture (**90/92/95**, mediana 92;
+  seis rotas **92/98/97/97/95/100**), mas reprovou no snapshot real em **82/83/91, mediana 83**.
+  Acessibilidade 100 em todas essas amostras. Não houve repetição de código inalterado para escolher nota.
+  A revisão com URL dos estados e preservação do painel foi medida separadamente, com resultado acima.
+- Histórico da revisão cartográfica **`650db81`**, após investigar os perfis do CI: o enquadramento passou para
   `fitBounds` imediatamente após criar o mapa, eliminando um redimensionamento redundante, e as fontes/
   camadas nacionais passaram a compor um único estilo inicial. Dados, camadas, ordem, centro e zoom
   foram preservados; comparação de 360 px sem pixels diferentes. O Pages passou com zero 404/erros,
   e os 508 testes unitários do front passaram nessa composição.
-  A bateria local final, em Chrome 157, passou nas seis rotas: medianas **90/98/97/96/97/100**,
+  A bateria local dessa revisão, em Chrome 157, passou nas seis rotas: medianas **90/98/97/96/97/100**,
   acessibilidade **100 nas 18 amostras**, sete verificações axe/teclado sem violações. A entrada da fixture
   marcou **88/90/94**; o snapshot real de 444 municípios/13 UFs marcou **82/90/90 (mediana 90)**,
   acessibilidade 100 nas três. Todas as amostras foram mantidas. Há dispersão e pouca folga; não há
-  garantia de 90 em toda abertura. As capturas e relatórios finais identificam esta revisão e o snapshot.
+  garantia de 90 em toda abertura. As capturas e relatórios daquela etapa identificam a revisão e o snapshot.
   A nova execução do CI e a conferência da publicação continuam obrigatórias antes de fechar a entrega.
 - O CI `43431157242`, anterior a essas duas correções, também reprovou o front com **81/85/85**.
   A comparação com o CI verde de `d00ea94` encontrou os mesmos assets, dados, Chrome 157 e simulação,
@@ -21,7 +107,7 @@ Sessão: https://claude.ai/code/session_01VGb88MJumyG9PHt2znaaKE. Branch: `claud
   repetida para selecionar notas. O resize isolado passou na fixture, mas reprovou o snapshot real
   em **86/86/92**; por isso não encerrou a revisão. O estilo único reduz validações e mensagens, embora
   parte do trabalho mude de fase: os perfis não atribuem toda a melhora ao patch. A série final válida
-  é a de `650db81` acima, e não a melhor nota dos experimentos anteriores.
+  dessa etapa foi a de `650db81` acima, e não a melhor nota dos experimentos anteriores.
 - O [CI `43369596942`](https://github.com/bernardoemmel/Raiz/actions/runs/43369596942), head `d00ea94`,
   concluiu os nove jobs com sucesso: 3.075 testes Python gerais e a referência original do Pará em job
   separado; 508 testes do front, API/MCP real, segurança, licenças e navegação aprovados. Lighthouse
@@ -32,8 +118,8 @@ Sessão: https://claude.ai/code/session_01VGb88MJumyG9PHt2znaaKE. Branch: `claud
   cinza e “ainda não processado” onde faltam dados. O SVG grande foi retirado e o pequeno minimapa permanece.
   O fundo chega primeiro; polígonos e base municipal só são carregados quando necessários. Municípios novos
   são a diferença em relação ao último índice realmente publicado, nunca uma contagem inventada na sessão.
-- A rodada 12 substitui a exibição dos hexágonos por pontos agrupados com Supercluster (ISC), no worker
-  do MapLibre. Cada grupo informa quantidade de fazendas e hectares conhecidos; quantidade de células
+- A rodada 12 substitui a exibição dos hexágonos por pontos agrupados com Supercluster (ISC), em worker
+  próprio usando a mesma implementação do MapLibre. Cada grupo informa quantidade de fazendas e hectares conhecidos; quantidade de células
   não vira quantidade de fazendas, e medidas ausentes não viram zero. A lista equivalente funciona pelo
   teclado. As molduras municipais aparecem ao aproximar. A partir de zoom 12, fazendas sem preenchimento,
   contorno de 1 px, hover, máscara ao selecionar e ficha breve. Pendência em
