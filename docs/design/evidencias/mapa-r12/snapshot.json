@@ -1,11 +1,11 @@
 {
-  "capturado_em": "2026-11-13T02:45:50.203613+00:00",
+  "capturado_em": "2026-11-13T03:46:32.744575+00:00",
   "viewport": {
     "largura": 1440,
     "altura": 1000
   },
-  "frontend": "f13c722",
-  "exportador": "550af32",
+  "frontend": "14126428f8b8cbf711900032ae1fd4f9599d7da7",
+  "exportador": "6bc77c1",
   "antes": {
     "url": "https://bernardoemmel.github.io/Raiz/",
     "capturado_em": "2026-11-13T02:14:31.344Z",
@@ -20,22 +20,24 @@
   "municipios": 444,
   "estados": 13,
   "agregado": {
-    "arquivo": "agregados_brasil.geojson.gz",
-    "bytes": 215591,
+    "arquivo": "agregados_brasil.geojson",
+    "bytes": 1227580,
     "celulas": 6787,
     "celulas_numericas": 3717,
     "fazendas_no_agregado": 1626268,
     "hectares_conhecidos": 1572045.2084039983,
     "atualizado_em": "2026-11-13T00:35:56.000Z",
-    "ufs": 13
+    "ufs": 13,
+    "fallback_gzip_bytes": 215591
   },
-  "mapa_inicial": "MapLibre com Supercluster; sem SVG nacional grande",
+  "mapa_inicial": "MapLibre com Supercluster no worker e botões somente para grupos visíveis; sem SVG nacional grande",
   "rede": {
-    "requisicoes": 107,
+    "requisicoes_desktop": 107,
     "erros": [],
     "tiles_satelite": 9,
     "todos_tiles_http_200": true,
-    "endpoints_pagos_solicitados": false
+    "endpoints_pagos_solicitados": false,
+    "celular_erros": []
   },
   "render": {
     "zoom": 14.319882480562114,
@@ -46,26 +48,42 @@
     "fundoAbaixo": true
   },
   "imagens": {
+    "brasil-360-depois.png": {
+      "sha256": "922027165adedee222f3fb81cc254ba27081e862088817860fa466f3c9cd6546",
+      "bytes": 68114
+    },
     "brasil-antes.png": {
       "sha256": "fd7942bd28a0ac1e486a8d8d57a9a85e92d11e43545ed4f0f31093c7bb1fb794",
       "bytes": 220015
     },
     "brasil-depois.png": {
-      "sha256": "4eca38983be0101edb4b89a04a450276e3273f375bf136b036c0773b9c189141",
-      "bytes": 338931
+      "sha256": "50079b8d2f9ce04d169296dfe6d87088a3d17003cd9d2c4fac2b658cc09df750",
+      "bytes": 335097
     },
     "estado-depois.png": {
-      "sha256": "89fdb50112741b17b23d03698a589fb1174e3fdd2b2284642bef50c3afdececc",
-      "bytes": 507121
+      "sha256": "337712c611be26fdd1475fe92a32c8e5ccee07a14300ba7106786bb801fb400e",
+      "bytes": 501198
     },
     "fazenda-depois.png": {
       "sha256": "0681e9c9b73760b224ece45dfcf0fef64a678b9a39fabe37a18534744df44a2e",
       "bytes": 637195
     },
     "municipio-depois.png": {
-      "sha256": "79cc62c297f0fcc8d74eaf767d271c5a0eb5f2151717172b94e1a89e0f59e3aa",
-      "bytes": 223294
+      "sha256": "9e35b8956260ccfc3ca4ce10ffd74628263d1075fceba918b66b12b6b11c4f2c",
+      "bytes": 215498
     }
   },
-  "index_sha256": "7c3ad5b56d691466844b583e4670e9df3f445233fc95d9d4bc133c176021166d"
+  "index_sha256": "80d9a36c373c23fb6c7ec62672846fcc740d51f3935822d675567b67482b5610",
+  "renderer": "307755d",
+  "legenda": "1412642",
+  "viewport_celular": {
+    "largura": 360,
+    "altura": 800
+  },
+  "lighthouse": {
+    "arquivo": "lighthouse.json",
+    "performance_mediana": 92,
+    "acessibilidade_minima": 100,
+    "amostras": 3
+  }
 }

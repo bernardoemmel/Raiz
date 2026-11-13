@@ -1,0 +1,42 @@
+{
+  "commit": "14126428f8b8cbf711900032ae1fd4f9599d7da7",
+  "artefato": "43331843113",
+  "municipios": 444,
+  "estados": 13,
+  "amostras": [
+    {
+      "rodada": 1,
+      "performance": 88,
+      "accessibility": 100,
+      "lcp": 1464.3814,
+      "tbt": 431.50000000000045
+    },
+    {
+      "rodada": 2,
+      "performance": 98,
+      "accessibility": 100,
+      "lcp": 1430.0482,
+      "tbt": 152
+    },
+    {
+      "rodada": 3,
+      "performance": 92,
+      "accessibility": 100,
+      "lcp": 1489.9449,
+      "tbt": 318.99999999999955
+    }
+  ],
+  "mediana_desempenho": 92,
+  "minimo_acessibilidade": 100,
+  "metodo": "Lighthouse mobile 360 × 800, CPU/rede simuladas, três execuções consecutivas fixas em um Chrome, sem escolher a melhor amostra",
+  "baseline_worker": [
+    78,
+    84,
+    90
+  ],
+  "dom_antes_legenda": [
+    91,
+    93,
+    97
+  ]
+}
