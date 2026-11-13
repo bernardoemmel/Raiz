@@ -625,9 +625,15 @@ async def _smoke(args):
     """Conferência determinística da infraestrutura; nunca gera evidência agente_real ou pass^4."""
     gabarito, _ = carregar_gabarito(GABARITO)
     relatorio = {"origem": "contrato", "tarefas": [], "aprovado": True}
+    ultima_tarefa = time.monotonic() - 6
     for tarefa in gabarito.tarefas:
         if args.tarefa and tarefa.id != args.tarefa:
             continue
+        # Este cliente determinístico dispara as 24 sessões mais rápido que uma pessoa/agente.
+        # Espaçar o começo dos cenários respeita o limite global por IP, inclusive a preparação
+        # das 30 leituras no cenário de cota. Não altera limites, relógio da chamada ou runner Claude.
+        await asyncio.sleep(max(0, 6 - (time.monotonic() - ultima_tarefa)))
+        ultima_tarefa = time.monotonic()
         cenario = await provedor.preparar(tarefa, 1, "smoke")
         try:
             async with httpx2.AsyncClient(
@@ -677,7 +683,8 @@ async def _smoke(args):
                         )
         finally:
             await provedor.finalizar(cenario)
-        print(json.dumps(relatorio["tarefas"][-1], ensure_ascii=False), flush=True)
+            if relatorio["tarefas"] and relatorio["tarefas"][-1]["id"] == tarefa.id:
+                print(json.dumps(relatorio["tarefas"][-1], ensure_ascii=False), flush=True)
     if args.saida:
         args.saida.parent.mkdir(parents=True, exist_ok=True)
         args.saida.write_text(json.dumps(relatorio, ensure_ascii=False, indent=2) + "\n")

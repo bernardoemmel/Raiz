@@ -16,6 +16,10 @@ A suíte integral e a conferência conjunta Compose/Keycloak/Inspector/24 cenár
 O primeiro CI subiu toda a pilha e revelou a ausência de `sub` no token Keycloak: o realm recebeu
 o mapper oficial `oidc-sub-mapper`. A conexão local com token PKCE real passou no Inspector,
 negociando 2026-07-28; a validação de sujeito do MCP permanece obrigatória.
+Os 24 cenários também concluíram no diagnóstico local com API/worker, PostGIS e Keycloak reais,
+sem Claude e sem alegar proveniência de Compose nessa execução local. O cliente determinístico
+espaça o início dos cenários em seis segundos para respeitar o limite global por IP; as cotas
+e o runner real não foram alterados. O CI repete esse contrato na pilha Compose imutável.
 O Docker VFS local esgotou disco ao copiar imagens; não se infere dimensionamento de VPS desse incidente.
 O workflow mede memória e disco durante a campanha em Actions, sem contratar nem publicar servidor.
 **Ainda não houve chamada real ao Claude nem medição pass^4 desta entrega.** O fundador configurou
