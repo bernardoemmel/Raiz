@@ -241,3 +241,178 @@ A expansão nacional (786 municípios) está preservada no PR **#94, rascunho**,
 `codex/lote-nacional`, commit `aea5d25`. O salvamento inclui as pendências de teste integral,
 integração com a main e publicação. Ordem atual: concluir #86 e publicação privada; concluir ARR,
 sensibilidade e ecologia, incorporando as evidências solicitadas na rodada 12.
+
+## Rodada 12 em implementação — 12/11/2026 (Brasília)
+
+Branch `codex/lote-rodada12`, iniciada sobre `2b6e8af`. Inclui a comparação ARR
+Berkeley/Verra, a reprodução contábil do VCS 5511 com cada denominador, o ajuste
+regional inicial Mombak, validação por municípios e controle sintético sem mistura
+pré/pós. Fontes, limitações e pendências: `docs/restauracao-rodada12.md`.
+
+Os arquivos de evidência públicos estão em `/tmp/raiz-arr-fontes/5511` e
+`/tmp/raiz-rodada12-fontes`; não confundir pesquisa com publicação. Dryad: metadados
+CC0 e hashes conferidos, downloads 401/403; **sem erro real calculado ainda**.
+Scpi executou seis intervalos num painel sintético em ambiente separado
+`/tmp/raiz-scpi-servidor`; pandas deve ficar abaixo de 3 por compatibilidade do scpi 4.
+
+Antes da entrega: integrar parâmetros/curva/dívida/custos no motor, terminar gado,
+credibilidade, sensibilidade e ecologia; recalcular e publicar apenas no arquivo
+privado; comparar P10/P50/P90 e hectares com os lotes históricos. As 45 verificações
+de evidências/ARR/regeneração e quatro de controle sintético passaram; suíte global,
+CI, PR e merge desta rodada ainda pendentes. Não cancelar nem desativar workflows.
+
+## Checkpoint da integração R12 — 13/11/2026 UTC
+
+Branch `codex/lote-rodada12` preservado remotamente. 67 testes focados passaram:
+contabilidade 5511, curva Mombak, ARR, controle sintético, validação por município,
+finanças/ICSD, gado e credibilidade. Cenário `central_r12` integrado sem substituir
+os resultados R11 imutáveis. Custos de terra são provisões explícitas; taxa fixa
+BNDES é referência de tranche, não aprovação universal de financiamento.
+
+PR #86 atualizado com main `c65d7bb`, sem conflitos; novo head `9882aeb`,
+CI `43352104956` aguardando runners. Conferência registrou 15 jobs ativos; nenhum
+cancelamento/desativação. Merge e publicação do diagnóstico privado ainda faltam.
+O nacional de 786 municípios está salvo no PR #94 (draft). Depois: finalizar ARR,
+sensibilidade, ecologia, recalcular PA/R12 e publicar comparativo privado.
+Dryad: CC0 confirmado, CSV ainda bloqueado 401/403; não inventar erro por idade.
+
+### Continuação R12 preservada
+
+Integração inclui sensibilidade com seleção refeita (9 cenários × 3 opções),
+sete referências ecológicas contextuais e relatório reproduzível 5511/Mombak/ARR.
+A curva inicial reencontra o acumulado no ano 10, preservando estoque final;
+cronograma do lote usa a mistura real selecionada. Dimensionamento da meta ainda
+usa a curva mais lenta, conservadoramente. Workflow R12 congela as mesmas entradas
+R11 e preserva checkpoints privados. Testes focados e 866 licenças passaram;
+a suíte integral, CI, PR/merge e execução estadual R12 ainda precisam concluir.
+
+Fontes abertas insuficientes: Dryad CSV retorna 401/403, portanto nenhum erro
+real em Mg/ha foi calculado; controle sintético real depende de painel pré/pós
+harmonizado. Ecologia: contagens totais por fazenda continuam pendentes quando
+não há suporte comparável; as referências publicadas nunca preenchem esses
+campos com riqueza por parcela ou fustes.
+
+### PR 86 concluído e publicação em andamento — 13/11/2026 UTC
+
+PR #86 incorporado à main no merge `3a738792fa5138f9be0d8d3e4183a3a5522d136b`,
+com os nove checks do CI `43352104956` aprovados. A publicação do complemento
+privado foi disparada na execução `43355525759`, depois de verificar 13 jobs
+ativos e duas vagas. Ainda aguarda runner; não houve cancelamento ou desativação.
+
+A suíte R12 inicial: 2.270 aprovados, 254 dependentes do ambiente ignorados,
+uma falha esperada e três falhas a corrigir/verificar. O teste estadual terá replay
+com código R11 do commit original e SHA256, preservando dados e versão, enquanto
+a execução R12 terá previsões próprias. Nenhum hash antigo será renomeado.
+
+### Diagnóstico privado publicado e conferido
+
+Execução `43355525759`, tentativa 2, concluída. A tentativa 1 não obteve cota global;
+retomada após nova conferência de capacidade, sem cancelar ou desligar trabalhos.
+Release `dados-privados` ID 443383695 segue `draft=true`. Foram baixados novamente
+e conferidos os 13 arquivos (quatro formatos × três opções + manifesto interno).
+
+- Pacote `desbloqueio_lote_PA_b29eb3fe8887a676_0a70d5630caf807d.tar.gz`:
+  98.272 bytes, SHA256 `0a70d5630caf807d37c5294c7440afdabda666caa021ad0e86001226769ddf50`.
+- Manifesto correspondente `.json`: 246.834 bytes,
+  SHA256 `fc0b634b5ca7654e4ec7601a9dd2bb79c344e80cf4710107feca804783642bc6`.
+
+O código original das referências ecológicas está preservado em
+`docs/pesquisa/ecologia/`, com fontes, licenças, hashes e instruções de reprodução.
+
+A falha intermitente de metadados foi reproduzida: PyArrow inclui `Row #...`
+na mensagem da leitura sequencial, e o parser do croissant-baker 0.8.3 só
+reconhecia a forma sem número da linha. A correção mínima no adaptador de CSV
+preserva `Float64` para área decimal encontrada após o primeiro bloco; teste
+passa pelos dois modos de leitura. Não altera API, MCP ou front.
+
+R12 passa a ser o padrão dos novos cálculos, inclusive do processamento futuro.
+`central_r11` permanece explícito e histórico; testes financeiros legados o
+escolhem pelo nome. A dívida padrão segue a tranche fixa Mombak (2,30%, 36+264
+meses), com as outras operações disponíveis e 4,94% somente como estresse na R12.
+O replay estadual executa o motor R11 ancorado, sem migrar suas previsões.
+
+### Verificações adicionais da R12
+
+Wheel e sdist foram construídos e inspecionados: nenhum inclui `infra/scpi` nem
+uma dependência `scpi`. As dependências do serviço GPL continuam isoladas.
+Metadados corrigidos: 60 testes; controles de fila/replay/sensibilidade/finanças:
+104 testes; gado/credibilidade: 8 testes. A mudança de padrão para R12 está em
+nova validação integral antes do PR.
+
+A provisão fixa expôs um caso válido de TIR em área de 1 m²: o caminho com
+premissas centrais pode cair fora dos quantis Monte Carlo quando o fluxo muda
+mais de uma vez de sinal. O imóvel é preservado; os quantis reais não são
+forçados a conter a TIR central. Tipo e aviso acompanham a previsão.
+
+O controle Dryad tentará a rota pública no runner da publicação R12, sem
+credencial nem contorno de bloqueio. Tamanho/SHA256 do CSV e da malha IBGE são
+conferidos antes do vínculo; exige 126 parcelas e 16 municípios. Erro real só
+será publicado se essa conferência passar. Falha de acesso permanece explícita,
+sem substituir observações por exemplos. A coluna pessoal `responsible` não
+entra na tabela de trabalho. Quantis residuais incluem a mediana do resíduo e
+não são alargados artificialmente para conter a curva; histórico recusa alteração.
+41 testes focados adicionais passaram. O processo da execução integral anterior
+terminou sem registrar conclusão (nenhum workflow cancelado); a bateria será
+repetida após sincronizar a main.
+
+A sincronização com a main `60e17b0` preservou as entregas do chat Ficha. O
+exportador CADT continua explicitamente em R11: sua fixture agora declara esse
+cenário ao gerar a amostra, em vez de herdar o novo padrão R12. Os 52 testes do
+CADT passaram; o exportador, a API, o MCP e o front não foram alterados.
+
+Revisão da sensibilidade: o filtro compartilhado exigia crédito central positivo.
+Agora usa área restaurável positiva para formar a população invariante, e
+recalcula também a pequena com crédito central zero nos outros cenários. Três
+testes passaram, incluindo esse caso, seis chamadas de seleção e retomada com
+integridade das decisões. Nenhum piso de tamanho foi introduzido.
+
+Suíte integral após integrar main: 2.500 aprovados, 292 ignorados por ambiente,
+uma falha esperada e a única falha no cenário implícito da fixture CADT. Essa
+fixture foi corrigida e os 52 testes CADT passaram; a sensibilidade atualizada
+passou nos três testes focados. O replay privado PA144/345.870 passou dentro da
+suíte integral. Ruff e formatação dos 578 arquivos passaram. CI do PR ainda é
+o portão para merge; execução e publicação PA R12 ainda precisam ser conferidas.
+
+### Integração da main e execução PA R12 — 13/11/2026 UTC
+
+PR #101 aberto, CI `43361791598` no head `6205807`: referência privada PA144,
+front, e2e, agentes, workflows, segurança e segredos aprovados; Python ainda
+em execução neste registro. A main `52118b5` foi integrada preservando ambas
+as passagens e a versão mais restrita do adaptador Arrow da main. A versão
+financeira permanece `restauracao-2026d+490ab152`.
+
+A execução PA `43361839589`, tentativa 2, congelou e guardou as entradas dos
+144 municípios; a primeira fatia foi observada calculando. A tentativa 1 falhou
+na admissão, antes dos dados e sem cotas reservadas; seu log expôs apenas
+RuntimeError, portanto a causa específica não foi atribuída à falta de vaga.
+A tentativa 2 recebeu 12 cotas, com 15 no total global. Nenhum workflow foi
+cancelado ou desativado. Aguardamos o CI ativo terminar antes de enviar o merge
+da main, pois um novo head dispararia cancelamento no CI compartilhado.
+
+A auditoria de promoções trazida pela main ainda comparava a versão histórica
+de desenvolvedor à atual. O teste agora exige que as outras dez tarefas sejam
+preservadas após recompor a chamada anterior da carga e que desenvolvedor
+tenha mudado com a R12; a prova histórica continua vinculada e inalterada.
+Setenta testes da auditoria, 70 de metadados e Ruff/formatação passaram.
+Nenhum destino de continuação nem resultado em execução foi modificado.
+
+CI nacional `43361045082`, head antigo `a1b88c2`: Python concluiu em 32min19s
+com 2.828 aprovados e três falhas. Duas expectativas de integração ainda fixavam
+o padrão R11; foram atualizadas para R12. A terceira procurava “789” inclusive
+nos microssegundos do horário do aviso. Agora confere o conteúdo protegido
+integralmente, excluindo apenas os metadados identificadores/temporais conhecidos.
+Os seis testes desses módulos/casos passaram com PostGIS real local em 51,23s.
+Nenhuma implementação de API, MCP ou front foi alterada por essas correções.
+
+A suíte integrada com a main e a expansão nacional concluiu com **2.725 testes
+aprovados**, 294 skips de ambiente, um xfail e somente o replay PA desmarcado
+(aprovado separadamente no CI), em 658,63s. Os seis casos que exigem PostGIS passaram
+localmente após corrigir as expectativas. Nenhuma alteração de modelo ocorreu
+após congelar a execução PA R12 `43361839589`.
+
+Main `692663c` (pasta do banco/comprador) integrada; conflito no NOTICE resolvido
+preservando ambas as atribuições. 107 testes da nova pasta e auditoria da fila
+passaram com PostGIS real; Ruff e formatação dos 601 arquivos passaram. Modelo
+R12 permanece `restauracao-2026d+490ab152`. O CI anterior `43361791598` concluiu
+com apenas as duas expectativas R11 já corrigidas; novo head será enviado após
+essa conclusão natural. Oito fatias PA estavam concluídas neste registro.

@@ -63,6 +63,11 @@ dependencies = [
     "presidio-anonymizer>=2.2.360",
     "pt-core-news-sm",
     "spacy>=3.8,<3.9",
+    "pysyncon>=1.7,<2",
+    "cvxpy>=1.7,<2",
+    "pulp>=3.3,<4",
+    "networkx>=3.4,<4",
+
     "h3>=4.2,<5",
     "properscoring==0.1",
     "numba>=0.68.1,<0.69",
@@ -105,6 +110,9 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["raiz"]
+
+[tool.hatch.build.targets.sdist]
+exclude = ["/infra/scpi"]
 
 [tool.ruff]
 line-length = 120

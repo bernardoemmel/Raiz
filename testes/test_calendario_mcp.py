@@ -1,128 +1,138 @@
-"""Calendário pelo SDK MCP real, com OAuth, filtros públicos e identificadores íntegros."""
+"""MCP corporativo reaproveita o Calendário público com identidade, limites e projeção segura."""
 
+import copy
 import datetime as dt
-from types import SimpleNamespace
+import json
+from zoneinfo import ZoneInfo
 
 import anyio
 import pytest
-from fastapi import FastAPI, Request
+from fastapi.testclient import TestClient
 from mcp.client.client import Client
 from mcp.server.auth.middleware.auth_context import auth_context_var
 from mcp.server.auth.middleware.bearer_auth import AuthenticatedUser
 from mcp.server.auth.provider import AccessToken
-from pydantic import ValidationError
-from sqlalchemy import create_engine, text
+from sqlalchemy import text
 
 from raiz.calendario import banco
-from raiz.calendario.api import roteador
-from raiz.calendario.mcp import resposta_publica
-from raiz.calendario.modelos import FonteEstado
-from raiz.publica import servidor_mcp as M
-from testes.test_calendario import AGORA, CAR, evento, fonte
-from testes.test_privacidade import CPF
+from raiz.calendario.modelos import Evento, FonteEstado
+from raiz.publica import chaves as K
+from raiz.publica import conta as CT
+from raiz.publica import telemetria as O
+from raiz.publica.servidor_mcp import ApiRaiz, criar_servidor
+from testes.test_publica_banco import _app, _h, cl, cofre, empresa, eng  # noqa: F401
+from testes.test_publica_telemetria import coletor  # noqa: F401
+
+pytestmark = pytest.mark.banco
+CAR = "PA-1504950-" + "A" * 32
 
 
 @pytest.fixture
-def relogio(monkeypatch):
-    class Relogio:
-        @classmethod
-        def now(cls, tz):
-            return dt.datetime(2026, 11, 13, 1, tzinfo=dt.UTC).astimezone(tz)
-
-    monkeypatch.setattr(M, "dt", SimpleNamespace(datetime=Relogio, timedelta=dt.timedelta))
-
-
-def test_mcp_registrado_exige_escopo_e_preserva_projecao_publica(relogio):
-    app = FastAPI()
-    chamadas = []
-    car = "PA-1504950-A12345678901" + "B" * 20
-    e = evento(id="a12345678901" + "b" * 12, codigos_car=[car], cns="123456", matricula="987")
-    estado = FonteEstado(id="djen", nome="Não deve sair", coletado_em=AGORA, situacao="parcial", erro=CPF)
-
-    @app.get("/eventos")
-    def resposta(request: Request):
-        chamadas.append(dict(request.query_params))
-        return {
-            "eventos": [e.model_dump(mode="json") | {"nome_proprietario": "Não deve sair", "cpf": CPF}],
-            "fontes": [estado.model_dump(mode="json")],
-            "total": 5,  # total maior que a página deve sobreviver à projeção
-            "relatorio_privado": "Não deve sair",
-        }
-
-    async def executar():
-        async with Client(M.criar_servidor(M.ApiRaiz(app=app))) as c:
-            tool = next(t for t in (await c.list_tools()).tools if t.name == "proximos_eventos")
-            assert tool.annotations.read_only_hint and tool.annotations.idempotent_hint
-            sem_oauth = await c.call_tool("proximos_eventos", {})
-            assert sem_oauth.is_error and "401" in sem_oauth.content[0].text
-        for escopos in (["pedir"], ["consultar"]):
-            token = AccessToken(token="interno", client_id="agente", scopes=escopos, claims={"empresa_id": 42})
-            marcador = auth_context_var.set(AuthenticatedUser(token))
-            try:
-                async with Client(M.criar_servidor(M.ApiRaiz(app=app))) as c:
-                    r = await c.call_tool("proximos_eventos", {"estado": "pa", "dias": 20, "limite": 1})
-                    if "consultar" not in escopos:
-                        assert r.is_error and "403" in r.content[0].text
-                        continue
-                    assert not r.is_error
-                    dados = r.structured_content
-                    assert dados["total"] == 5 and dados["eventos"][0]["id"] == e.id
-                    assert dados["eventos"][0]["codigos_car"] == [car]
-                    assert dados["eventos"][0]["fonte_nome"] == fonte()["nome"]
-                    assert dados["fontes"][0]["nome"] == fonte()["nome"]
-                    assert not {"cns", "matricula", "cpf", "nome_proprietario"} & dados["eventos"][0].keys()
-                    assert "Não deve sair" not in str(dados) and CPF not in str(dados)
-                    for argumentos in ({"dias": 0}, {"limite": 1001}, {"tipo": "desconhecido"}):
-                        assert (await c.call_tool("proximos_eventos", argumentos)).is_error
-            finally:
-                auth_context_var.reset(marcador)
-
-    anyio.run(executar)
-    assert chamadas == [{"inicio": "2026-11-12", "fim": "2026-12-02", "limite": "1", "estado": "pa"}]
+def calendario(eng):  # noqa: F811
+    agora = dt.datetime.now(ZoneInfo("America/Sao_Paulo"))
+    e = Evento(
+        id="0" * 24,
+        tipo="leilao_imovel",
+        data=agora.date() + dt.timedelta(days=5),
+        uf="PA",
+        codigos_car=[CAR],
+        fonte_id="djen",
+        fonte_nome="texto externo que nunca deve sair",
+        fonte_url="https://comunicaapi.pje.jus.br/ato/NAO-PUBLICAR",
+        coletado_em=agora,
+        confianca=0.85,
+    )
+    fonte = FonteEstado(
+        id="djen", nome="NAO-PUBLICAR", coletado_em=agora, situacao="parcial", erro="NAO-PUBLICAR", eventos=1
+    )
+    with eng.begin() as con:
+        con.execute(text("delete from calendario.evento"))
+        con.execute(text("delete from calendario.fonte_estado"))
+        banco.gravar(con, [e], [fonte])
+    return e
 
 
-@pytest.mark.banco
-def test_mcp_consulta_banco_e_nunca_expoe_car_inferido(con, banco_url, relogio):
-    con.execute(text("delete from calendario.evento"))
-    aberto = evento(data=dt.date(2026, 11, 20), vinculo="car", uf="PA")
-    interno = evento(id="a" * 24, data=dt.date(2026, 11, 21), vinculo="cns_matricula", cns="123456", matricula="987")
-    passado = evento(id="b" * 24, data=dt.date(2026, 11, 11), vinculo="car")
-    banco.gravar(con, [aberto, interno, passado], [], cruzar_imoveis=False)
-    con.commit()
-    eng = create_engine(banco_url)
-    app = FastAPI()
-    app.include_router(roteador(lambda _: eng))
-
-    async def executar():
-        token = AccessToken(token="interno", client_id="agente", scopes=["consultar"], claims={"empresa_id": 42})
-        marcador = auth_context_var.set(AuthenticatedUser(token))
-        try:
-            async with Client(M.criar_servidor(M.ApiRaiz(app=app))) as c:
-                r = await c.call_tool("proximos_eventos", {"cod_imovel": CAR, "dias": 30})
-                assert not r.is_error and r.structured_content["total"] == 1
-                assert r.structured_content["eventos"][0]["id"] == aberto.id
-                r = await c.call_tool("proximos_eventos", {"dias": 30})
-                assert r.structured_content["total"] == 2
-                privado = next(e for e in r.structured_content["eventos"] if e["id"] == interno.id)
-                assert privado["codigos_car"] == [] and privado["vinculo"] == "pendente"
-                assert not {"cns", "matricula", "sigef"} & privado.keys()
-        finally:
-            auth_context_var.reset(marcador)
-
+async def chamar(app, cid, escopos, argumentos):
+    token = AccessToken(token="oauth-teste", client_id="agente", scopes=escopos, claims={"empresa_id": cid})
+    marcador = auth_context_var.set(AuthenticatedUser(token))
     try:
-        anyio.run(executar)
+        async with Client(criar_servidor(ApiRaiz(app=app))) as cliente:
+            return await cliente.call_tool("proximos_eventos", argumentos)
     finally:
-        eng.dispose()
+        auth_context_var.reset(marcador)
 
 
-@pytest.mark.parametrize(
-    "dados", [{}, {"eventos": [], "fontes": [], "total": True}, {"eventos": [], "fontes": [], "total": -1}]
-)
-def test_resposta_malformada_nao_vira_calendario_vazio(dados):
-    with pytest.raises(ValueError):
-        resposta_publica(dados)
+def problema(resposta):
+    texto = resposta.content[0].text
+    return json.loads(texto[texto.index("{") :])
 
 
-def test_numero_de_edital_nao_pode_ser_documento_pessoal():
-    with pytest.raises(ValidationError, match="documento pessoal"):
-        evento(referencia=f"{CPF[:3]}.{CPF[3:6]}.{CPF[6:9]}-{CPF[9:]}")
+def test_calendario_real_por_mcp_preserva_filtros_sem_cobrar_expor_texto_ou_perder_telemetria(
+    eng,  # noqa: F811
+    empresa,  # noqa: F811
+    calendario,
+    coletor,  # noqa: F811
+    monkeypatch,
+):
+    tracer, exportador = coletor
+    monkeypatch.setattr(O, "_tracer", lambda escolhido=None: escolhido or tracer)
+    app, cid = _app(eng), empresa["cliente_id"]
+    r = anyio.run(chamar, app, cid, ["consultar"], {"estado": "pa", "dias": 10, "cod_imovel": CAR})
+    assert not r.is_error
+    out = r.structured_content
+    assert out["total"] == 1
+    evento = out["eventos"][0]
+    assert evento["evento_id"] == calendario.id
+    assert evento["data"] == calendario.data.isoformat() and evento["confianca"] == 0.85
+    assert evento["codigos_car"] == [CAR]
+    assert evento["fonte_portal_url"] == "https://comunicaapi.pje.jus.br/api/v1/comunicacao"
+    assert "NAO-PUBLICAR" not in json.dumps(out) and "texto externo" not in json.dumps(out)
+    assert all("erro" not in f and "nome" not in f for f in out["fontes"])
+    assert CT.ver(eng, cid)["testes_restantes"] == 3  # não libera nem consome o produto pago
+    with eng.connect() as con:
+        assert (
+            con.execute(
+                text("select count(*) from negocio.lancamento_api where cliente_id=:c"), {"c": cid}
+            ).scalar_one()
+            == 0
+        )
+        assert con.execute(
+            text("""select via,status,preco_rs from negocio.chamada_api
+                where cliente_id=:c and ferramenta='proximos_eventos' order by id desc limit 1"""),
+            {"c": cid},
+        ).one() == ("mcp", 200, 0)
+    assert any(s.attributes.get("gen_ai.tool.name") == "proximos_eventos" for s in exportador.get_finished_spans())
+    filtrado = anyio.run(chamar, app, cid, ["consultar"], {"dias": 1})
+    assert not filtrado.is_error and filtrado.structured_content["total"] == 0
+
+
+def test_calendario_exige_oauth_escopo_e_conta_ativa_e_erros_nao_ecoam_filtros(eng, empresa, cl):  # noqa: F811
+    assert cl.get("/v1/eventos").status_code == 401
+    app, cid = _app(eng), empresa["cliente_id"]
+    negado = anyio.run(chamar, app, cid, ["pedir"], {})
+    assert negado.is_error and problema(negado)["status"] == 403
+    invalido = cl.get("/v1/eventos", params={"cod_imovel": "NAO-PUBLICAR"}, headers=_h(empresa))
+    assert invalido.status_code == 422 and "NAO-PUBLICAR" not in invalido.text
+    assert invalido.headers["content-type"].startswith("application/problem+json")
+    with eng.begin() as con:
+        con.execute(
+            text("update negocio.conta_api set bloqueada_em=now(),bloqueio_motivo='limite' where cliente_id=:c"),
+            {"c": cid},
+        )
+    bloqueado = anyio.run(chamar, app, cid, ["consultar"], {})
+    assert bloqueado.is_error and problema(bloqueado)["status"] == 403
+
+
+def test_limite_calendario_compartilhado_com_rest_outra_rota_e_chave(eng, empresa, monkeypatch):  # noqa: F811
+    premissas = copy.deepcopy(CT.premissas())
+    premissas["limites"]["por_minuto"] = 2
+    monkeypatch.setattr(CT, "premissas", lambda: premissas)
+    outra_chave = K.criar(eng, empresa["cliente_id"])
+    app = _app(eng)
+    with TestClient(app) as cliente:
+        assert cliente.get("/v1/conta", headers=_h(empresa)).status_code == 200
+        r = anyio.run(chamar, app, empresa["cliente_id"], ["consultar"], {})
+        assert not r.is_error
+        excedente = cliente.get("/v1/eventos", headers=_h(outra_chave))
+        assert excedente.status_code == 429 and int(excedente.headers["Retry-After"]) > 0
+    assert CT.ver(eng, empresa["cliente_id"])["testes_restantes"] == 3

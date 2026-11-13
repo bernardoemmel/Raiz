@@ -83,16 +83,17 @@ guardam apenas hashes opacos desses blocos. Cada tarefa começa sem memória das
 até 12 passos e 2.048 tokens de saída por passo. Alterar limites, modelo, ferramentas, fixture ou juiz exige
 outra campanha integral. O runner recusa sobrescrever cassetes reais ou continuar uma pasta de evidências usada.
 
-Um Claude em outra conversa, sem ferramentas, julga os critérios em JSON estrito. Cada afirmação tem citação
-literal verificada nas fontes da tentativa. Barreiras determinísticas conferem autorização, argumentos, efeitos
-no banco e tempos; podem reprovar a nota do juiz, nunca promover uma tentativa incompleta. O JSONL não é escrito
-quando o juiz retorna um formato inválido ou uma citação inexistente. Na versão
-`julgamento-independente-v2`, uma citação inválida admite uma única nova conversa
-de julgamento com as mesmas evidências. A instrução exige preservar Markdown e
-copiar trechos contíguos. A conferência literal continua obrigatória; segunda
-falha encerra a campanha como incompleta. Notas válidas, inclusive negativas,
-nunca são repetidas. As duas chamadas ficam na cassette, seu consumo é somado e
-o trace registra `tentativas_juiz`. O agente não é executado novamente.
+Um Claude em outra conversa, sem ferramentas, julga os critérios em JSON estrito. O juiz seleciona IDs
+de trechos previamente identificados; o esquema restringe a seleção aos IDs existentes. Todas as fontes
+entram integralmente e na ordem original, em blocos de até 1.600 caracteres. O instrumentador copia o trecho
+selecionado literalmente, preservando notas e violações, e confere sua origem. Não pede ao juiz redigitar
+números ou citações nem seleciona apenas evidências favoráveis. Barreiras determinísticas conferem autorização, argumentos, efeitos
+no banco e tempos; podem reprovar a nota do juiz, nunca promover uma tentativa incompleta. Formato inválido, citação inexistente ou recusa do juiz são registrados como julgamento indisponível;
+a campanha continua, mas o relatório fica com `pass4=null` e não pode aprovar a meta.
+Resposta vazia/interrompida do agente reprova todos os critérios por barreira determinística,
+com zero chamadas ao juiz. Não há nova tentativa de obter uma resposta bloqueada; a recusa
+do fornecedor permanece gravada como indisponibilidade, sem impedir as outras sessões.
+O relatório apresenta também o limite inferior conservador, tratando as ausências como fracassos.
 
 `relatorio.json` contém pass^4, passos e chamadas MCP por tentativa, tempos de parede, latências de cada chamada,
 uso de tokens separado entre agente e juiz e SHA-256 de cada cassette e trace sanitizado. O hash da configuração inclui instruções,
@@ -124,8 +125,13 @@ O replay não precisa de chave Anthropic e usa uma credencial fictícia mesmo se
 permite somente respostas já gravadas para `api.anthropic.com`; cassete ausente, pedido diferente ou resposta
 gravada não consumida falha. MCP, OAuth, banco e worker continuam reais. Não se ignora o corpo do pedido no matcher:
 a cassette guarda o hash do JSON canônico, que inclui os números de negócio, argumentos, mensagens e esquemas.
-O tempo de cada inferência é gravado e reproduzido com espera assíncrona: o polling não é antecipado artificialmente
-enquanto o worker real calcula. Se o resultado real divergir, o replay falha; ele não inventa um estado para casar
+O cliente também respeita o intervalo `consultar_apos_segundos` antes de um poll escolhido
+pelo modelo; não escolhe ações nem lê o banco por ele. Essa espera entra no tempo total
+da tarefa e fica separada da latência da ferramenta. O tempo de cada inferência é gravado e
+reproduzido com espera assíncrona. O filtro do VCR preserva a gravação já sanitizada ao carregar
+a cassette; reaplicá-lo zerava a latência. O ajuste passou no diagnóstico de cinco fluxos da
+segunda campanha e 16 da terceira, contra serviços reais. Se o resultado divergir, o replay
+falha; ele não inventa um estado para casar
 a gravação. Portanto, o replay elimina o custo de novas inferências, mas não promete executar instantaneamente.
 
 Identificadores UUID e tokens de links gerados pela sessão recebem aliases e são reidratados com os valores da
@@ -204,10 +210,25 @@ Ele verifica cálculo de pass^4, reprovação com uma única chamada proibida, i
 tarefas faltantes, duplicação de tentativa/trace/sessão, versões misturadas, JSON ambíguo, tipos incorretos e campos
 com texto bruto. O sucesso desses testes valida o **avaliador**, não declara sucesso de um agente nas 24 tarefas.
 
+### Primeira campanha real e correções do avaliador
+
+A execução `43341704532`, na main `c3bf907`, concluiu 35 tentativas antes de um erro de
+citação do juiz. Não produz pass^4; as sete chamadas proibidas observadas permanecem
+registradas. O juiz v2 permite retirar marcadores de ênfase/código somente ao conferir
+citação da resposta; não altera texto, números, negação nem evidências do serviço.
+As próximas campanhas recomeçam as 96 sessões com versão/hashes novos, sem reaproveitar
+notas da execução incompleta. Diagnósticos desembrulham ExceptionGroup sem expor mensagens.
+
+O juiz v3 mantém as notas e justificativas da primeira resposta. Se uma citação não
+é literal, admite até duas correções com esquema que contém somente citações.
+A validação das fontes continua obrigatória e as notas não podem mudar; todas as
+chamadas e o consumo são registrados. Três falhas de citação interrompem a campanha.
+A segunda execução, `43347357547`, concluiu 17 tentativas e teve uma chamada proibida;
+também não permite calcular pass^4. A mudança não reduz os 24 desafios nem a meta.
+
 ## Campanha automatizada no Actions
 
 O workflow manual/semanal, a pilha descartável, o segredo `ANTHROPIC_API_KEY`, os
 limites de consumo e os artefatos estão em [Medição no Actions](medicao-agentes-actions.md).
-O gabarito v2 permite acompanhar apenas a operação criada na própria tentativa,
-conforme o contrato acima. A execução real depende da chave e do modelo disponíveis
-na conta Anthropic; testes do runner não são nota de agente.
+O gabarito v2 permite acompanhar apenas a operação criada na própria tentativa.
+Testes do runner não são nota de agente.

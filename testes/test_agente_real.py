@@ -121,7 +121,23 @@ def test_vcr_httpx_grava_claude_e_reidrata_sem_segredo_raciocinio_ou_prompt(tmp_
     for segredo in ("chave-sintetica-nao-publicavel", antigo, token_antigo, "raciocinio privado", "assinatura-privada"):
         assert segredo not in bruto
     assert "__RAIZ_THINKING_SHA256_" in bruto and "raiz_requisicao_sha256" in bruto
+    import yaml
+
+    arquivo = tmp_path / "gravacao.yaml"
+    cassete = yaml.safe_load(arquivo.read_text())
+    for i, interacao in enumerate(cassete["interactions"]):
+        interacao["response"]["headers"]["x-raiz-inferencia-segundos"] = [str(1.25 + i)]
+    arquivo.write_text(yaml.safe_dump(cassete))
+    preservado = arquivo.read_bytes()
+    esperas = []
+
+    async def esperar(segundos):
+        esperas.append(segundos)
+
+    monkeypatch.setattr(A.asyncio, "sleep", esperar)
     asyncio.run(duas_chamadas("replay", atual, token_atual))
+    assert esperas == [1.25, 2.25]
+    assert arquivo.read_bytes() == preservado
     assert len(contador) == 2
     assert not (tmp_path / "gravacao.yaml").stat().st_mode & 0o077
 
@@ -345,3 +361,80 @@ def test_modelo_divergente_nao_se_torna_medicao_do_modelo_solicitado():
                 ferramentas=[],
             )
         )
+
+
+def test_diagnostico_de_grupo_preserva_causa_sem_mensagem_sensivel():
+    from scripts.julgar_agentes import ErroJulgamento
+
+    erro = ExceptionGroup(
+        "segredo-na-mensagem", [ValueError("segredo-na-folha"), ErroJulgamento("juiz citou evidência inexistente")]
+    )
+    dado = A._diagnostico_erro(erro)
+    assert dado == {
+        "tipo": "ExceptionGroup",
+        "causas": [{"tipo": "ValueError"}, {"tipo": "ErroJulgamento", "codigo": "citacao_inexistente"}],
+    }
+    assert "segredo" not in json.dumps(dado)
+
+
+def test_cliente_respeita_intervalo_sem_escolher_acao_pelo_modelo():
+    import time
+
+    from anthropic.types import Message
+    from mcp.types import CallToolResult
+
+    tarefa = carregar_gabarito()[0].tarefas[0]
+    fim_envio = 0.0
+    instante_poll = 0.0
+
+    class Cliente:
+        def __init__(self):
+            self.messages = self
+            self.n = 0
+
+        async def create(self, **_):
+            self.n += 1
+            if self.n > 2:
+                return Message.model_validate(_resposta([{"type": "text", "text": "Concluído."}]))
+            return Message.model_validate(
+                _resposta(
+                    [
+                        {
+                            "type": "tool_use",
+                            "id": f"toolu_{self.n}",
+                            "name": "consultar_disponibilidade" if self.n == 1 else "acompanhar_contato",
+                            "input": {} if self.n == 1 else {"pedido_id": "operacao"},
+                        }
+                    ],
+                    "tool_use",
+                )
+            )
+
+    class Sessao:
+        async def call_tool(self, nome, *_args, **_kwargs):
+            nonlocal fim_envio, instante_poll
+            if nome == "consultar_disponibilidade":
+                fim_envio = time.monotonic()
+                corpo = {"pedido_id": "operacao", "estado": "submitted", "consultar_apos_segundos": 0.03}
+            else:
+                instante_poll = time.monotonic()
+                corpo = {"pedido_id": "operacao", "estado": "completed"}
+            return CallToolResult(content=[], structured_content=corpo)
+
+    r = asyncio.run(
+        A.conversar(
+            tarefa,
+            A.Cenario("contexto", "http://localhost/mcp", ""),
+            Sessao(),
+            Cliente(),
+            modelo="claude-sonnet-5-5",
+            max_passos=3,
+            max_tokens=256,
+            instrucoes="contrato",
+            ferramentas=[{"name": n} for n in ("consultar_disponibilidade", "acompanhar_contato")],
+        )
+    )
+    assert instante_poll - fim_envio >= 0.03
+    assert [c["ferramenta"] for c in r["chamadas"]] == ["consultar_disponibilidade", "acompanhar_contato"]
+    assert r["chamadas"][1]["espera_cliente_segundos"] > 0
+    assert r["duracao_segundos"] >= 0.03
