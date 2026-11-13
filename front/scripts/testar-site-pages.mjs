@@ -383,6 +383,46 @@ try {
   const mascara = await pagina.evaluate(async () => (await document.querySelector(".mapa-brasil .mapa").__mapa.getSource("mascara-fazenda").getData()).features)
   assert.equal(mascara.length, 1)
   assert.equal(mascara[0].geometry.coordinates.length, 2, "A máscara precisa ter um furo no imóvel escolhido.")
+  // Trocar a rota pela busca não clica no canvas: a seleção precisa terminar por conta própria.
+  const selecaoAntes = await pagina.evaluate(cars => {
+    const m = document.querySelector(".mapa-brasil .mapa").__mapa
+    window.__mapaAntesTrocaMunicipio = m
+    return { selecionados: cars.filter(car => m.getFeatureState({ source: "imoveis", id: car }).selecionado),
+      sobre: cars.filter(car => m.getFeatureState({ source: "imoveis", id: car }).sobre),
+      camera: { center: m.getCenter().toArray(), zoom: m.getZoom() } }
+  }, CARS)
+  assert.equal(selecaoAntes.selecionados.length, 1, "O clique seleciona exatamente um CAR.")
+  assert(selecaoAntes.sobre.length > 0, "O percurso também precisa exercer o hover real da fazenda.")
+  await buscar(SEM_DESENHO, `#/municipio/${SEM_DESENHO}`)
+  await pagina.getByText("O desenho das fazendas deste município ainda não está disponível.", { exact: false }).waitFor()
+  await mapaPronto()
+  const conferirSelecaoLimpa = async () => {
+    const estado = await pagina.evaluate(async cars => {
+      const m = document.querySelector(".mapa-brasil .mapa").__mapa
+      return { mesmaInstancia: m === window.__mapaAntesTrocaMunicipio,
+        selecionados: cars.filter(car => m.getFeatureState({ source: "imoveis", id: car }).selecionado),
+        destacados: cars.filter(car => { const f = m.getFeatureState({ source: "imoveis", id: car }); return f.sobre || f.destaque }),
+        mascara: (await m.getSource("mascara-fazenda").getData()).features.length,
+        popup: document.querySelectorAll(".maplibregl-popup").length }
+    }, CARS)
+    assert.deepEqual(estado, { mesmaInstancia: true, selecionados: [], destacados: [], mascara: 0, popup: 0 },
+      "A mesma instância do mapa precisa esquecer popup, seleção, hover e máscara ao trocar de município.")
+  }
+  await conferirSelecaoLimpa()
+  await buscar("Parauapebas", `#/municipio/${MUNICIPIO}`)
+  await pagina.locator(".lista-basica").waitFor()
+  await pagina.evaluate(camera => document.querySelector(".mapa-brasil .mapa").__mapa.jumpTo(camera), selecaoAntes.camera)
+  await mapaPronto()
+  await conferirSelecaoLimpa()
+  // A limpeza não impede uma seleção nova quando os mesmos CARs voltam à fonte.
+  await pagina.mouse.click(pontoFazenda.x, pontoFazenda.y)
+  await pagina.locator(".maplibregl-popup").waitFor()
+  const selecaoDepois = await pagina.evaluate(async car => {
+    const m = document.querySelector(".mapa-brasil .mapa").__mapa
+    return { selecionado: m.getFeatureState({ source: "imoveis", id: car }).selecionado,
+      mascara: (await m.getSource("mascara-fazenda").getData()).features.length }
+  }, selecaoAntes.selecionados[0])
+  assert.deepEqual(selecaoDepois, { selecionado: true, mascara: 1 })
   await pagina.getByRole("button", { name: /^(Fechar ficha breve|Close popup)$/ }).click()
   await pagina.setViewportSize({ width: 360, height: 800 })
   await mapaPronto()
@@ -422,9 +462,28 @@ try {
   await pagina.getByText("O desenho das fazendas deste município ainda não está disponível.", { exact: false }).waitFor()
   await buscar(MUNICIPIO, `#/municipio/${MUNICIPIO}`)
   await pagina.locator(".lista-basica").waitFor()
+  await pagina.waitForLoadState("networkidle")
+  await pagina.evaluate(camera => document.querySelector(".mapa-brasil .mapa").__mapa.jumpTo(camera), selecaoAntes.camera)
+  await mapaPronto()
+  await pagina.mouse.click(pontoFazenda.x, pontoFazenda.y)
+  await pagina.locator(".maplibregl-popup").waitFor()
+  await pagina.locator('.lista-basica a[href^="#/fazenda/"]').first().focus()
+  await pagina.waitForFunction(() => {
+    const car = decodeURIComponent(document.activeElement.getAttribute("href").slice("#/fazenda/".length))
+    return document.querySelector(".mapa-brasil .mapa").__mapa.getFeatureState({ source: "imoveis", id: car }).destaque === true
+  })
+  // Uma fonte já descarregada não pode transformar o fechamento da ficha em erro no teardown.
+  await pagina.evaluate(() => {
+    const m = document.querySelector(".mapa-brasil .mapa").__mapa
+    const fontes = ["imoveis", "mascara-fazenda"]
+    for (const camada of m.getStyle().layers) if (fontes.includes(camada.source)) m.removeLayer(camada.id)
+    for (const fonte of fontes) m.removeSource(fonte)
+  })
   // Os links básicos abrem o portão pago e nunca entregam a ficha completa no site.
-  await pagina.locator('.lista-basica a[href^="#/fazenda/"]').first().click()
+  await pagina.keyboard.press("Enter")
   await pagina.getByRole("heading", { name: "Ficha da terra", exact: true }).waitFor()
+  assert.equal(await pagina.locator(".maplibregl-popup, canvas.maplibregl-canvas").count(), 0,
+    "A saída do mapa remove a ficha breve e o canvas, mesmo com fontes já descarregadas.")
   await pagina.getByText("A ficha exige créditos pagos e conexão com a Raíz.", { exact: false }).waitFor()
   await buscar(CAR.toLowerCase().replaceAll("-", ""), `#/fazenda/${CAR}`)
   // A entrada manual de CAR continua disponível fora do mapa.

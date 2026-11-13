@@ -84,6 +84,7 @@ export function Explorar({ municipio, uf }: { municipio: string | null; uf: stri
     setFoco(null)
     setSituacaoBasica(null)
     setCamada("situacao")
+    setDestaque(null)
     if (!municipio) setAltura("baixa")
     else if (altura === "baixa") setAltura("meia")
   }

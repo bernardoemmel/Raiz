@@ -210,6 +210,7 @@ export function MapaBrasil(props: Props) {
   const [pronto, setPronto] = useState(false)
   const [regional, setRegional] = useState(false)
   const limparSatelite = useRef<(() => void) | undefined>(undefined)
+  const limparInteracao = useRef<(() => void) | undefined>(undefined)
   const [zoom, setZoom] = useState(4)
   const [gruposVisiveis, setGruposVisiveis] = useState<GrupoMapa[]>([])
   const [erroAgregadosNoMapa, setErroAgregadosNoMapa] = useState(false)
@@ -289,7 +290,7 @@ export function MapaBrasil(props: Props) {
       marcadoresGrupos.current = new MarcadoresGrupos(m, grupo => { void aproximarGrupo(m, grupo) })
       dadosAplicados.current = { geometria: iniciais.brasil?.estados, estados: iniciais.estados, urlEstados: iniciais.brasil?.urlEstados }
       m.once("load", () => {
-        ligarEventos(m)
+        limparInteracao.current = ligarEventos(m)
         setPronto(true)
         setZoom(m.getZoom())
         m.on("zoom", () => {
@@ -320,6 +321,8 @@ export function MapaBrasil(props: Props) {
       removido = true
       liberarGpu?.()
       restaurarProgramas?.()
+      limparInteracao.current?.()
+      limparInteracao.current = undefined
       limparSatelite.current?.()
       limparSatelite.current = undefined
       setPronto(false)
@@ -438,6 +441,8 @@ export function MapaBrasil(props: Props) {
   useEffect(() => {
     const m = mapaRef.current
     if (!m || !regional) return
+    // setData preserva feature-state: encerra a seleção antes de trocar os CARs.
+    limparInteracao.current?.()
     const g = geoMunicipio
     const set = (id: string, d: Geo | null | undefined) => (m.getSource(id) as GeoJSONSource).setData((d ?? VAZIO) as never)
     set("municipio", g?.municipio)
@@ -449,7 +454,6 @@ export function MapaBrasil(props: Props) {
     set("terra-publica", g?.terraPublica)
     set("imoveis", ordenarImoveis(g?.imoveis))
     set("restauracao-autorizada", g?.restauracaoAutorizada)
-    set("mascara-fazenda", VAZIO)
     set("fogo-recente", VAZIO)
     m.setFilter("brasil-mun-escolhido", ["==", ["get", "cod_ibge"], municipio ?? ""])
     if (escolhido.current) m.setFeatureState({ source: "brasil-municipios", id: escolhido.current }, { escolhido: false })
@@ -757,9 +761,8 @@ export function MapaBrasil(props: Props) {
     const popup = new Popup({ closeButton: true, maxWidth: "320px", offset: 6 })
     let selecionado: string | null = null
     const limparSelecao = () => {
-      if (!m.getSource("mascara-fazenda")) return
-      ;(m.getSource("mascara-fazenda") as GeoJSONSource).setData(VAZIO as never)
-      if (selecionado) m.setFeatureState({ source: "imoveis", id: selecionado }, { selecionado: false })
+      ;(m.getSource("mascara-fazenda") as GeoJSONSource | undefined)?.setData(VAZIO as never)
+      if (selecionado && m.getSource("imoveis")) m.setFeatureState({ source: "imoveis", id: selecionado }, { selecionado: false })
       selecionado = null
     }
     popup.on("close", limparSelecao)
@@ -774,10 +777,10 @@ export function MapaBrasil(props: Props) {
     let sobre: { fonte: string; id: string | number } | null = null
     const marcar = (fonte: string, id: string | number | undefined) => {
       if (sobre?.fonte === fonte && sobre.id === id) return
-      if (sobre && sobre.fonte !== "brasil-estados") m.setFeatureState({ source: sobre.fonte, id: sobre.id }, { sobre: false })
+      if (sobre && sobre.fonte !== "brasil-estados" && m.getSource(sobre.fonte)) m.setFeatureState({ source: sobre.fonte, id: sobre.id }, { sobre: false })
       sobre = id === undefined ? null : { fonte, id }
-      if (sobre && sobre.fonte !== "brasil-estados") m.setFeatureState({ source: sobre.fonte, id: sobre.id }, { sobre: true })
-      m.setFilter("estado-sobre", ["==", ["get", "uf"], sobre?.fonte === "brasil-estados" ? String(sobre.id) : ""])
+      if (sobre && sobre.fonte !== "brasil-estados" && m.getSource(sobre.fonte)) m.setFeatureState({ source: sobre.fonte, id: sobre.id }, { sobre: true })
+      if (m.getLayer("estado-sobre")) m.setFilter("estado-sobre", ["==", ["get", "uf"], sobre?.fonte === "brasil-estados" ? String(sobre.id) : ""])
       m.getCanvas().style.cursor = sobre ? "pointer" : ""
     }
     m.on("click", (e) => {
@@ -826,6 +829,12 @@ export function MapaBrasil(props: Props) {
       if (mun && m.getZoom() < ZOOM_FAZENDAS) return marcar("brasil-municipios", String(mun.properties.cod_ibge))
       marcar("", undefined)
     })
+    return () => {
+      // Fechar dispara a limpeza uma vez; sem popup aberto, ainda pode haver seleção pendente.
+      if (popup.isOpen()) popup.remove()
+      else limparSelecao()
+      marcar("", undefined)
+    }
   }
 
   const nomeMun = municipio
