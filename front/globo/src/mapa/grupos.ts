@@ -1,6 +1,5 @@
 import type { ExpressionSpecification, GeoJSONSourceSpecification, LayerSpecification } from "maplibre-gl"
 import type { Geo } from "../../../compartilhado/dados"
-import { COR } from "../../../compartilhado/cores"
 import { fmtHa, fmtInt } from "../../../compartilhado/formato"
 import { ZOOM_IMOVEIS } from "./cartografia"
 
@@ -39,8 +38,6 @@ export function urlAgregadosPublica(url: string | null | undefined, arquivoEsper
 
 const HA_PONTO: ExpressionSpecification = ["coalesce", ["get", "potencial_ha"], 0]
 const COM_MEDIDA_PONTO: ExpressionSpecification = ["case", [">", HA_PONTO, 0], 1, 0]
-const HA_GRUPO: ExpressionSpecification = ["coalesce", ["get", "ha_conhecidos"], HA_PONTO]
-const COM_MEDIDA_GRUPO: ExpressionSpecification = ["coalesce", ["get", "com_medida"], COM_MEDIDA_PONTO]
 
 /** Supercluster do MapLibre roda no worker; não há segundo índice no thread da interface. */
 export function fonteGrupos(): GeoJSONSourceSpecification {
@@ -52,22 +49,21 @@ export function fonteGrupos(): GeoJSONSourceSpecification {
   }
 }
 
+/** A camada mantém a consulta espacial; os botões visíveis dispensam o programa gráfico de círculos. */
 export function camadasGrupos(): LayerSpecification[] {
-  return [
-    { id: CAMADA_GRUPOS, type: "circle", source: FONTE_GRUPOS, maxzoom: ZOOM_IMOVEIS,
-      paint: { "circle-color": COR.mata, "circle-stroke-color": COR.superficie, "circle-stroke-width": 2,
-        "circle-radius": ["step", ["get", "fazendas"], 44, 10000, 50, 100000, 56] } },
-    { id: "grupos-numeros", type: "symbol", source: FONTE_GRUPOS, maxzoom: ZOOM_IMOVEIS,
-      layout: { "text-font": ["Noto Sans Regular"], "text-size": 16, "text-line-height": 1.25,
-        "text-allow-overlap": true, "text-field": ["concat",
-          ["number-format", ["get", "fazendas"], { locale: "pt-BR", "max-fraction-digits": ["literal", 0] }], "\n",
-          ["case", ["==", COM_MEDIDA_GRUPO, 0], "Sem medida",
-            ["<", HA_GRUPO, 0.1], "<0,1 ha",
-            ["concat", ["case", [">=", HA_GRUPO, 10],
-              ["number-format", HA_GRUPO, { locale: "pt-BR", "max-fraction-digits": ["literal", 0] }],
-              ["number-format", HA_GRUPO, { locale: "pt-BR", "max-fraction-digits": 1 }]], " ha"]],
-        ] }, paint: { "text-color": COR.superficie } },
-  ]
+  return [{ id: CAMADA_GRUPOS, type: "circle", source: FONTE_GRUPOS, maxzoom: ZOOM_IMOVEIS,
+    paint: { "circle-opacity": 0, "circle-stroke-opacity": 0,
+      "circle-radius": ["step", ["get", "fazendas"], 44, 10000, 50, 100000, 56] } }]
+}
+
+export function raioGrupo(grupo: GrupoMapa): number {
+  return grupo.fazendas >= 100000 ? 56 : grupo.fazendas >= 10000 ? 50 : 44
+}
+
+export function rotulosGrupo(grupo: GrupoMapa): [string, string] {
+  const ha = grupo.hectares
+  return [fmtInt(grupo.fazendas), ha === null ? "Sem medida" : ha < 0.1 ? "<0,1 ha"
+    : `${ha.toLocaleString("pt-BR", { maximumFractionDigits: ha >= 10 ? 0 : 1 })} ha`]
 }
 
 export function lerGrupo(f: { properties: Record<string, unknown> | null; geometry: { type: string; coordinates?: unknown } }): GrupoMapa | null {

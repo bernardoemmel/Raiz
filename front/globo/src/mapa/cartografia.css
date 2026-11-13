@@ -18,3 +18,20 @@
 .cartografia-legenda-nacional { top: 120px; }
 .cartografia-grupos-lista { list-style: none; margin: 8px 0 0; padding: 0; }
 .cartografia-grupos-lista button { min-height: 48px; width: 100%; text-align: left; padding: 8px; border: 1px solid var(--nevoa); background: var(--superficie); color: var(--tinta); font: inherit; }
+.cartografia-grupo {
+  width: var(--diametro-grupo);
+  height: var(--diametro-grupo);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 0;
+  border: 2px solid var(--superficie);
+  border-radius: 50%;
+  background: var(--mata);
+  color: var(--superficie);
+  font: 400 16px/1.25 var(--fonte-texto);
+  white-space: nowrap;
+  cursor: pointer;
+}
+.cartografia-grupo:focus-visible { outline: 3px solid var(--tinta); outline-offset: 2px; }

@@ -23,6 +23,7 @@ import { tituloDe } from "../filtros"
 import { linkCalendarioImovel, linkFazenda } from "../rota"
 import { camadasBase, camadasBaseNacionais, estiloBase, imagemHachura, prepararMapLibre } from "./estilo"
 import { prepararGpu } from "./preparar-gpu"
+import { MarcadoresGrupos } from "./marcadores-grupos"
 
 import type { AgregadosMapa } from "../../../compartilhado/dados/agregados"
 import { CAMADA_GRUPOS, FONTE_GRUPOS, camadasGrupos, descreverGrupo, fonteGrupos, lerGrupo, prepararPontosAgregados, urlAgregadosPublica, type GrupoMapa } from "./grupos"
@@ -182,6 +183,9 @@ export function MapaBrasil(props: Props) {
   const [gruposVisiveis, setGruposVisiveis] = useState<GrupoMapa[]>([])
   const [erroAgregadosNoMapa, setErroAgregadosNoMapa] = useState(false)
   const listaGruposAberta = useRef(false)
+  const marcadoresGrupos = useRef<MarcadoresGrupos | null>(null)
+  const geracaoGrupos = useRef(0)
+  const gruposProntos = useRef(false)
   const municipioPorZoom = useRef<string | null>(null)
   const [satelite, setSatelite] = useState<EstadoSatelitePublico>("carregando")
   const margemAplicada = useRef(margemBaixo)
@@ -217,11 +221,15 @@ export function MapaBrasil(props: Props) {
       m.addControl(new ScaleControl({ unit: "metric" }), "bottom-right")
       if (import.meta.env.DEV || import.meta.env.VITE_RAIZ_TESTE_MAPA === "1") Object.assign(caixa.current, { __mapa: m })
       mapaRef.current = m
+      marcadoresGrupos.current = new MarcadoresGrupos(m, grupo => { void aproximarGrupo(m, grupo) })
       m.once("load", () => {
         montar(m, null, true)
         ligarEventos(m)
         setPronto(true)
         setZoom(m.getZoom())
+        m.on("zoom", () => {
+          if (m.getZoom() >= ZOOM_FAZENDAS) marcadoresGrupos.current?.limpar()
+        })
         m.on("zoomend", () => {
           setZoom(m.getZoom())
           if (m.getZoom() >= 6) atual.current.props.aoAproximar()
@@ -252,6 +260,10 @@ export function MapaBrasil(props: Props) {
       limparSatelite.current = undefined
       setPronto(false)
       setRegional(false)
+      geracaoGrupos.current++
+      gruposProntos.current = false
+      marcadoresGrupos.current?.limpar()
+      marcadoresGrupos.current = null
       instancia?.remove()
       mapaRef.current = null
     }
@@ -295,9 +307,22 @@ export function MapaBrasil(props: Props) {
     setErroAgregadosNoMapa(false)
     const fonte = m.getSource(FONTE_GRUPOS) as GeoJSONSource
     let ativo = true
-    const falhou = () => { if (ativo && mapaRef.current === m) setErroAgregadosNoMapa(true) }
+    const geracao = ++geracaoGrupos.current
+    gruposProntos.current = false
+    marcadoresGrupos.current?.limpar()
+    setGruposVisiveis([])
+    const falhou = () => {
+      if (!ativo || mapaRef.current !== m) return
+      gruposProntos.current = false
+      geracaoGrupos.current++
+      marcadoresGrupos.current?.limpar()
+      setGruposVisiveis([])
+      setErroAgregadosNoMapa(true)
+    }
     fonte.on("error", falhou)
-    void fonte.setData((url ?? prepararPontosAgregados(props.agregados?.geo)) as never).catch(falhou)
+    void fonte.setData((url ?? prepararPontosAgregados(props.agregados?.geo)) as never).then(() => {
+      if (ativo && mapaRef.current === m && geracao === geracaoGrupos.current) gruposProntos.current = true
+    }).catch(falhou)
     return () => { ativo = false; fonte.off("error", falhou) }
   }, [pronto, props.agregados])
 
@@ -496,7 +521,7 @@ export function MapaBrasil(props: Props) {
 
   function montar(m: MapaGL, municipiosBrasil: Geo | null, nacional: boolean) {
     const antesDosRotulos = m.getStyle().layers.find((l) => l.type === "symbol")?.id
-    const camadasNacionais = new Set(["estados-preenchimento", "estados-sem-dados", "estados-linha", "estado-sobre", "estado-escolhido", "estados-rotulo", "estados-rotulo-sem-dados", CAMADA_GRUPOS, "grupos-numeros"])
+    const camadasNacionais = new Set(["estados-preenchimento", "estados-sem-dados", "estados-linha", "estado-sobre", "estado-escolhido", "estados-rotulo", "estados-rotulo-sem-dados", CAMADA_GRUPOS])
     const fontesNacionais = new Set(["brasil-estados", "estados-rotulos", FONTE_GRUPOS])
     const add = (l: LayerSpecification, emCima = false) => {
       if (!m.getLayer(l.id) && (!nacional || camadasNacionais.has(l.id))) m.addLayer(l, emCima ? undefined : antesDosRotulos)
@@ -663,21 +688,31 @@ export function MapaBrasil(props: Props) {
   }
 
   function atualizarGruposVisiveis(m: MapaGL) {
-    if (!listaGruposAberta.current || !m.getLayer(CAMADA_GRUPOS)) return
+    if (!m.getLayer(CAMADA_GRUPOS)) return
     const grupos = new Map<string, GrupoMapa>()
-    for (const f of m.queryRenderedFeatures({ layers: [CAMADA_GRUPOS] })) {
-      const grupo = lerGrupo(f)
-      if (grupo) grupos.set(grupo.chave, grupo)
+    if (gruposProntos.current && m.getZoom() < ZOOM_FAZENDAS) {
+      for (const f of m.queryRenderedFeatures({ layers: [CAMADA_GRUPOS] })) {
+        const grupo = lerGrupo(f)
+        if (grupo) grupos.set(grupo.chave, grupo)
+      }
     }
-    setGruposVisiveis([...grupos.values()].sort((a, b) => b.fazendas - a.fazendas))
+    const visiveis = [...grupos.values()].sort((a, b) => b.fazendas - a.fazendas)
+    marcadoresGrupos.current?.atualizar(visiveis)
+    if (listaGruposAberta.current) setGruposVisiveis(visiveis)
   }
 
   async function aproximarGrupo(m: MapaGL, grupo: GrupoMapa) {
-    const fonte = m.getSource(FONTE_GRUPOS) as GeoJSONSource
-    const z = grupo.cluster === undefined ? ZOOM_FAZENDAS : Math.min(ZOOM_FAZENDAS, await fonte.getClusterExpansionZoom(grupo.cluster))
-    if (mapaRef.current !== m) return
-    atual.current.props.aoAproximar()
-    m.easeTo({ center: grupo.centro, zoom: Math.max(m.getZoom() + 0.5, z), duration: aparelhoFraco() ? 0 : 500 })
+    const geracao = geracaoGrupos.current
+    if (!gruposProntos.current) return
+    try {
+      const fonte = m.getSource(FONTE_GRUPOS) as GeoJSONSource
+      const z = grupo.cluster === undefined ? ZOOM_FAZENDAS : Math.min(ZOOM_FAZENDAS, await fonte.getClusterExpansionZoom(grupo.cluster))
+      if (mapaRef.current !== m || geracao !== geracaoGrupos.current || !gruposProntos.current) return
+      atual.current.props.aoAproximar()
+      m.easeTo({ center: grupo.centro, zoom: Math.max(m.getZoom() + 0.5, z), duration: aparelhoFraco() ? 0 : 500 })
+    } catch {
+      // O worker pode encerrar ou substituir o índice enquanto o grupo está sendo aberto.
+    }
   }
 
   function ligarEventos(m: MapaGL) {
@@ -733,9 +768,6 @@ export function MapaBrasil(props: Props) {
       }
       popup.remove()
       limparSelecao()
-      const grupo = feicoes(e.point, CAMADA_GRUPOS)[0]
-      const agregado = grupo && lerGrupo(grupo)
-      if (agregado) { void aproximarGrupo(m, agregado); return }
       const { uf, municipio } = atual.current.props
       const estado = feicoes(e.point, "estados-preenchimento")[0]
       const mun = feicoes(e.point, "brasil-mun")[0]
@@ -747,7 +779,6 @@ export function MapaBrasil(props: Props) {
       if (cod && cod !== municipio) atual.current.props.aoEscolherMunicipio(cod)
     })
     m.on("mousemove", (e) => {
-      if (feicoes(e.point, CAMADA_GRUPOS).length) { marcar("", undefined); m.getCanvas().style.cursor = "pointer"; return }
       const fazenda = feicoes(e.point, "imoveis")[0]
       if (fazenda && (atual.current.porCod.has(String(fazenda.properties.cod_imovel)) || atual.current.basicosPorCod.has(String(fazenda.properties.cod_imovel))))
         return marcar("imoveis", String(fazenda.properties.cod_imovel))
