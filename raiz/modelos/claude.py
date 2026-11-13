@@ -16,7 +16,6 @@ import anthropic
 from raiz.config import config
 from raiz.modelos.base import Cronometro, Pedido, Resposta, Uso, valida_esquema
 from raiz.modelos.custo import custo
-from raiz.privacidade import mascarar
 
 # modelos com reserva do lado do servidor (beta server-side-fallback-2026-07-01, modo "default")
 COM_RESERVA = {"claude-sonnet-5-5", "claude-opus-5-5", "claude-opus-5", "claude-fable-5-2", "claude-fable-5-1"}
@@ -70,32 +69,54 @@ class Claude:
                     )
                 else:
                     r = self.cliente.messages.create(**self._parametros(pedido))
-            except anthropic.RateLimitError as ex:
-                return Resposta(None, self.nome, self.provedor, erro=f"limite de uso: {mascarar(str(ex))[:200]}")
+            except anthropic.RateLimitError:
+                return Resposta(
+                    None, self.nome, self.provedor, erro="limite de uso da Anthropic (429)", uso_informado=False
+                )
             except anthropic.APIStatusError as ex:
-                return Resposta(None, self.nome, self.provedor, erro=f"API {ex.status_code}: {mascarar(str(ex))[:200]}")
+                return Resposta(
+                    None, self.nome, self.provedor, erro=f"API Anthropic: HTTP {ex.status_code}", uso_informado=False
+                )
             except TypeError as ex:  # o SDK levanta TypeError quando não acha credencial nenhuma
                 if "authentication" not in str(ex).lower():
                     raise
                 return Resposta(
-                    None, self.nome, self.provedor, erro="sem credencial da Anthropic: defina ANTHROPIC_API_KEY"
+                    None,
+                    self.nome,
+                    self.provedor,
+                    erro="sem credencial da Anthropic: defina ANTHROPIC_API_KEY",
+                    uso_informado=False,
                 )
-            except anthropic.APIConnectionError as ex:
-                return Resposta(None, self.nome, self.provedor, erro=f"conexão: {mascarar(str(ex))[:200]}")
-        u = r.usage
+            except anthropic.APIConnectionError:
+                return Resposta(
+                    None, self.nome, self.provedor, erro="falha de conexão com a Anthropic", uso_informado=False
+                )
+        u = getattr(r, "usage", None)
+        informado = u is not None and all(
+            isinstance(getattr(u, campo, None), int)
+            and not isinstance(getattr(u, campo), bool)
+            and getattr(u, campo) >= 0
+            for campo in ("input_tokens", "output_tokens")
+        )
         uso = Uso(
-            entrada=u.input_tokens or 0,
-            saida=u.output_tokens or 0,
+            entrada=getattr(u, "input_tokens", 0) if informado else 0,
+            saida=getattr(u, "output_tokens", 0) if informado else 0,
             cache_leitura=getattr(u, "cache_read_input_tokens", 0) or 0,
             cache_escrita=getattr(u, "cache_creation_input_tokens", 0) or 0,
         )
         modelo = getattr(r, "model", None) or self.nome
-        valor, fonte = custo(uso, modelo, self.provedor)
-        base = dict(modelo=modelo, provedor=self.provedor, uso=uso, custo_usd=valor, custo_fonte=fonte, duracao_ms=t.ms)
+        valor, fonte = custo(uso, modelo, self.provedor) if informado else (None, "sem_uso")
+        base = dict(
+            modelo=modelo,
+            provedor=self.provedor,
+            uso=uso,
+            custo_usd=valor,
+            custo_fonte=fonte,
+            duracao_ms=t.ms,
+            uso_informado=informado,
+        )
         if r.stop_reason == "refusal":
-            det = getattr(r, "stop_details", None)
-            cat = getattr(det, "category", None) if det else None
-            return Resposta(None, recusou=True, erro=f"recusa ({cat or 'sem categoria'})", **base)
+            return Resposta(None, recusou=True, erro="recusa do modelo", **base)
         if r.stop_reason == "max_tokens":
             return Resposta(None, erro="resposta cortada (max_tokens)", **base)
         texto = next((b.text for b in r.content if getattr(b, "type", None) == "text"), None)
@@ -106,5 +127,5 @@ class Claude:
         if dados is None:
             return Resposta(None, erro="sem texto na resposta", **base)
         if err := valida_esquema(dados, pedido.esquema):
-            return Resposta(None, erro=f"fora do esquema: {err}", **base)
+            return Resposta(None, erro="fora do esquema" if pedido.pessoal else f"fora do esquema: {err}", **base)
         return Resposta(dados, **base)
