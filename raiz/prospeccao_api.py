@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 from collections.abc import Callable
 from typing import Annotated, Literal
+from uuid import UUID
 
 import httpx
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, Response
@@ -15,6 +16,7 @@ from raiz import busca, prospeccao_visual
 from raiz import prospeccao_acesso as acesso
 from raiz import prospeccao_buscas as buscas_salvas
 from raiz import prospeccao_servico as servico
+from raiz.pasta_fiador import servico as pastas
 
 
 class Compra(BaseModel):
@@ -113,6 +115,38 @@ def roteador(engine_de: Callable) -> APIRouter:
     def saldo(request: Request, cid: int = Depends(cliente)):
         return _executar(acesso.saldo, engine_de(request), cid)
 
+    @r.get("/pastas/{pedido_id}/{opcao}")
+    def pasta(
+        pedido_id: UUID,
+        opcao: Literal["barata", "segura", "compacta"],
+        request: Request,
+        versao_id: UUID | None = None,
+        cid: int = Depends(cliente),
+    ):
+        return _executar(pastas.consultar, engine_de(request), cid, pedido_id, opcao, versao_id=versao_id)
+
+    @r.get("/pastas/{pedido_id}/{opcao}/historico")
+    def versoes_pasta(
+        pedido_id: UUID, opcao: Literal["barata", "segura", "compacta"], request: Request, cid: int = Depends(cliente)
+    ):
+        return _executar(pastas.historico, engine_de(request), cid, pedido_id, opcao)
+
+    @r.get("/pastas/{pedido_id}/{opcao}/exportar")
+    def exportar_pasta(
+        pedido_id: UUID, opcao: Literal["barata", "segura", "compacta"], request: Request, cid: int = Depends(cliente)
+    ):
+        conteudo = _executar(pastas.exportar, engine_de(request), cid, pedido_id, opcao)
+        return Response(
+            conteudo,
+            media_type="application/zip",
+            headers={
+                "Cache-Control": "private, no-store",
+                "Vary": "Authorization",
+                "Content-Disposition": 'attachment; filename="pasta-banco-comprador.zip"',
+                "X-Content-Type-Options": "nosniff",
+            },
+        )
+
     @r.post("/compras")
     def comprar(corpo: Compra, request: Request, cid: int = Depends(cliente)):
         limite(request, f"cliente:{cid}", "compras", 5)
@@ -130,6 +164,10 @@ def roteador(engine_de: Callable) -> APIRouter:
     @r.get("/fichas/{car}")
     def ficha(car: str, request: Request, cid: int = Depends(cliente)):
         return _executar(servico.consultar_ficha, engine_de(request), cid, car)
+
+    @r.get("/fichas/{car}/pastas")
+    def pastas_da_ficha(car: str, request: Request, cid: int = Depends(cliente)):
+        return _executar(pastas.da_ficha, engine_de(request), cid, car)
 
     @r.get("/fichas/{car}/visual")
     def visual(car: str, request: Request, cid: int = Depends(cliente)):

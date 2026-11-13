@@ -45,7 +45,7 @@ function validarManifesto(m) {
   for (const [uf, estado] of Object.entries(m.estados)) {
     if (!UFS.has(uf) || !marcado(estado)) throw new Error("estado sem marca publico_basico v1")
     chaves(estado, CHAVES_ESTADO, uf)
-    if (estado.processamento !== undefined && !lerProcessamentoPublicado(estado.processamento, uf))
+    if (Object.hasOwn(estado, "processamento") && !lerProcessamentoPublicado(estado.processamento, uf))
       throw new Error(`${uf}: processamento fora do contrato público`)
     if (estado.url) urlPacote(estado.url, uf)
     else if (estado.municipios || estado.tamanho) throw new Error(`${uf}: pacote público sem endereço`)
@@ -58,6 +58,7 @@ function validarManifesto(m) {
       urlPacote(estado.geo.url, uf, true)
     }
   }
+  // A telemetria validada alimenta seu próprio painel; não altera a cobertura do mapa.
   return m
 }
 
@@ -93,6 +94,8 @@ function validarCsv(nome, dado, uf) {
     if (campos.length !== colunas.length) throw new Error(`${nome}: CSV ambíguo`)
     const r = Object.fromEntries(colunas.map((c, i) => [c, campos[i]]))
     if (!/^\d{7}$/.test(r.cod_ibge)) throw new Error(`${nome}: município inválido`)
+    // A origem cadastral pode ficar do outro lado da fronteira estadual.
+    // Confere cada par UF/IBGE separadamente, sem reescrever o identificador.
     if (basico && (!/^[A-Z]{2}-\d{7}-[0-9A-F]{32}$/.test(r.cod_imovel) || r.cod_imovel.slice(3, 5) !== UF_IBGE[r.cod_imovel.slice(0, 2)] || r.cod_ibge.slice(0, 2) !== UF_IBGE[uf] || r.cod_ibge !== nome.slice(16, 23) || r.uf !== uf || !SITUACOES.has(r.situacao_basica)))
       throw new Error(`${nome}: identificação ou situação básica inválida`)
   }
@@ -159,9 +162,15 @@ async function main() {
   }
   const arqLocal = path.join(DESTINO, "estados.json")
   let local = { versao_publicacao: 1, escopo: "publico_basico", estados: {} }
-  try { local = validarManifesto(JSON.parse(fs.readFileSync(arqLocal, "utf8"))) } catch {}
-  const falhas = []
   let mudou = false
+  try {
+    const original = JSON.parse(fs.readFileSync(arqLocal, "utf8"))
+    local = validarManifesto(original)
+    mudou = JSON.stringify(local) !== JSON.stringify(original)
+  } catch (erro) {
+    if (erro.code !== "ENOENT") throw new Error("manifesto local fora do contrato público; última publicação preservada")
+  }
+  const falhas = []
   for (const uf of Object.keys(remoto.estados).filter((uf) => !pedidos.length || pedidos.includes(uf))) {
     const r = remoto.estados[uf], l = local.estados[uf]
     if (!r.url) {

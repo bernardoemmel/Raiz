@@ -1,0 +1,21 @@
+{
+  "segundos": 3.804,
+  "rede_proibida": true,
+  "arquivo_fonte": "/workspace/Raiz-malha-ibge/front/scripts/geo.py",
+  "codigo_sha256": "d5889d70e98035ff08a946b4d68a083f787db9193d28117830c268548479881e",
+  "saidas": {
+    "brasil_municipios.geojson": {
+      "bytes": 3871732,
+      "sha256": "55bb3e72432d5b46083611d67e3d23a0741f14c76d699889ddf8bf6b642b2c18"
+    },
+    "brasil_estados.geojson": {
+      "bytes": 275127,
+      "sha256": "eb472ff70d483b28389bf30a60f46ee89aaa45bb6425ac91e0ba869a90b74fb7"
+    },
+    "municipio_5101837.geojson": {
+      "bytes": 2111,
+      "sha256": "5a39f4ade0e08a2841729883ff5c8f1b5b187af62213a71120433b7be79d56ed"
+    }
+  },
+  "saidas_identicas_ao_primeiro_processamento": true
+}

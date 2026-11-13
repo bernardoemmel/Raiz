@@ -1,0 +1,98 @@
+import assert from "node:assert/strict"
+
+/** Exercita a desmontagem entre etapas cooperativas, fallback e entrada direta sem instâncias órfãs. */
+export async function conferirCicloMapa(navegador, base) {
+  const erros = []
+  const contexto = await navegador.newContext({ viewport: { width: 360, height: 800 } })
+  await contexto.addInitScript(() => {
+    const Original = Worker, ativos = new Set()
+    window.__ativos = ativos
+    window.__pendentes = []
+    window.Worker = class extends Original {
+      constructor(...args) { super(...args); ativos.add(this) }
+      terminate() { ativos.delete(this); super.terminate() }
+    }
+    Object.defineProperty(globalThis, "scheduler", { configurable: true,
+      value: { yield: () => new Promise(resolve => window.__pendentes.push(resolve)) } })
+  })
+  const pagina = await contexto.newPage()
+  pagina.on("pageerror", erro => erros.push(erro.message))
+  await pagina.goto(base)
+  await pagina.waitForFunction(() => window.__pendentes.length === 1)
+  assert.equal(await pagina.locator("canvas").count(), 0)
+  await pagina.evaluate(() => { location.hash = "#/entrar" })
+  await pagina.getByRole("heading", { name: "Entrar na Raíz" }).waitFor()
+  await pagina.evaluate(() => window.__pendentes.splice(0).forEach(resolve => resolve()))
+  assert.equal(await pagina.locator("canvas").count(), 0)
+  assert.equal(await pagina.evaluate(() => window.__ativos.size), 0)
+
+  await pagina.evaluate(() => { location.hash = "#/" })
+  await pagina.waitForFunction(() => window.__pendentes.length === 1)
+  await pagina.evaluate(() => window.__pendentes.shift()())
+  await pagina.waitForFunction(() => window.__pendentes.length === 1 && document.querySelector(".maplibregl-canvas"))
+  await pagina.evaluate(() => { location.hash = "#/entrar" })
+  await pagina.getByRole("heading", { name: "Entrar na Raíz" }).waitFor()
+  await pagina.evaluate(() => window.__pendentes.splice(0).forEach(resolve => resolve()))
+  assert.equal(await pagina.locator("canvas").count(), 0)
+  assert.equal(await pagina.evaluate(() => window.__ativos.size), 0)
+  assert.deepEqual(erros, [])
+  await contexto.close()
+
+  const fallback = await navegador.newContext({ viewport: { width: 360, height: 800 } })
+  await fallback.addInitScript(() => Object.defineProperty(globalThis, "scheduler", { configurable: true, value: undefined }))
+  const direta = await fallback.newPage()
+  direta.on("pageerror", erro => erros.push(erro.message))
+  for (const hash of ["#/estado/PA", "#/municipio/1505536", "#/"]) {
+    await direta.goto(base + hash)
+    await direta.waitForFunction(() => document.querySelector(".mapa-brasil .mapa")?.__mapa?.loaded())
+    if (hash === "#/") await direta.locator("button.cartografia-grupo").first().waitFor()
+    else if (hash.includes("municipio")) await direta.locator(".lista-basica").waitFor()
+    assert.equal(await direta.locator("canvas.maplibregl-canvas").count(), 1)
+  }
+  // O primeiro grupo pode aparecer antes de outras fontes e fontes tipográficas terminarem.
+  // Observa a estabilidade somente depois da rede quieta e de um frame completo do mapa.
+  await direta.waitForLoadState("networkidle")
+  await direta.waitForFunction(() => document.querySelector(".mapa-brasil .mapa").__mapa.loaded())
+  await direta.evaluate(() => new Promise(resolve => {
+    const mapa = document.querySelector(".mapa-brasil .mapa").__mapa
+    mapa.once("idle", resolve)
+    mapa.triggerRepaint()
+  }))
+  const estavel = await direta.evaluate(async () => {
+    const mapa = document.querySelector(".mapa-brasil .mapa").__mapa
+    let idles = 0
+    const contar = () => idles++
+    mapa.on("idle", contar)
+    // Inserir os botões do mapa já carregado não pode alimentar um ciclo infinito de idle/render.
+    for (let i = 0; i < 6; i++) await new Promise(resolve => requestAnimationFrame(resolve))
+    mapa.off("idle", contar)
+    return { idles, grupos: document.querySelectorAll("button.cartografia-grupo").length }
+  })
+  assert(estavel.grupos > 0)
+  assert(estavel.idles <= 1, "Os marcadores não podem manter o mapa renderizando sem interação.")
+  // O mesmo enquadramento uma volta adiante conserva os grupos, sem perdê-los no antimeridiano.
+  const original = await direta.evaluate(() => {
+    const caixa = document.querySelector(".mapa-brasil .mapa"), mapa = caixa.__mapa
+    const centro = mapa.getCenter().toArray()
+    const grupos = caixa.__grupos.map(g => [g.chave, g.fazendas, g.hectares])
+    mapa.jumpTo({ center: [centro[0] + 360, centro[1]] })
+    return { centro, grupos }
+  })
+  await direta.waitForFunction(() => document.querySelector(".mapa-brasil .mapa").__grupos?.some(g => g.centro[0] > 180))
+  assert.deepEqual(await direta.evaluate(() => document.querySelector(".mapa-brasil .mapa").__grupos.map(g => [g.chave, g.fazendas, g.hectares])), original.grupos)
+  await direta.evaluate(centro => document.querySelector(".mapa-brasil .mapa").__mapa.jumpTo({ center: centro }), original.centro)
+  await direta.waitForFunction(() => document.querySelector(".mapa-brasil .mapa").__grupos?.some(g => g.centro[0] < 180))
+  // Um evento tardio do botão do índice anterior não pode mover o mapa recém-aberto.
+  await direta.evaluate(() => { window.__botaoAntigo = document.querySelector("button.cartografia-grupo"); location.hash = "#/entrar" })
+  await direta.getByRole("heading", { name: "Entrar na Raíz" }).waitFor()
+  await direta.evaluate(() => { location.hash = "#/" })
+  await direta.locator("button.cartografia-grupo").first().waitFor()
+  const zoomNovo = await direta.evaluate(() => document.querySelector(".mapa-brasil .mapa").__mapa.getZoom())
+  await direta.evaluate(async () => {
+    window.__botaoAntigo.click()
+    await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))
+  })
+  assert.equal(await direta.evaluate(() => document.querySelector(".mapa-brasil .mapa").__mapa.getZoom()), zoomNovo)
+  assert.deepEqual(erros, [])
+  await fallback.close()
+}

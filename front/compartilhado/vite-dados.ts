@@ -13,10 +13,12 @@ import { lerBasico } from "./dados/basico"
 import { escreverCsv, lerCsv } from "./dados/csv"
 import { lerFunil } from "./dados/funil"
 import { coberturaDoIndice } from "./dados/cobertura-mapa"
+import { malhasPublicas } from "./dados/malhas-mapa"
 import { UFS } from "./formato"
 import { abrirPasta, nomeSeguro, pastaPadrao } from "./pasta-dados"
 import { paginasAgentes } from "./paginas-agentes"
 import { projetarPublicacaoLote } from "./pedidos/release"
+import { potencialPublicado } from "./potencial-publico"
 
 interface Requisicao {
   url?: string
@@ -64,6 +66,7 @@ export function dadosRaiz(opcoes: { repo: string; raizDados?: string | null; cac
   const estadosPublicos = () => {
     const estados = pasta.estados()
     return { ...estados, acesso: pasta.publicacaoBasica() ? "publico_basico" as const : "agregado" as const,
+      ...(Object.keys(pasta.fronteirasBasicas()).length ? { car_fronteira: "car_fronteira.json" as const } : {}),
       estados: estados.estados.map((e) => ({ ...e, com_lista: pasta.comBasicos(e.uf) })) }
   }
   const colunasResumo = new Set([
@@ -114,6 +117,8 @@ export function dadosRaiz(opcoes: { repo: string; raizDados?: string | null; cac
     }
   }
   const geoPermitido = (nome: string) => /^(brasil_(municipios|estados)\.geojson|municipio_\d{7}\.geojson(?:\.gz)?|base_(brasil|[A-Z]{2}|\d{7})\.pmtiles)$/.test(nome)
+  let potencialCache: ReturnType<typeof potencialPublicado> | null = null
+  const potencial = () => potencialCache ??= potencialPublicado(geo)
   function indiceGeoPublico() {
     const municipios: Record<string, Record<string, { arquivo: string; bytes: number }>> = {}
     const brasil: Record<string, { arquivo: string; bytes: number }> = {}
@@ -145,7 +150,7 @@ export function dadosRaiz(opcoes: { repo: string; raizDados?: string | null; cac
         cobertura.com_desenho = Object.keys(municipios).filter((cod) => municipios[cod].imoveis).sort()
         cobertura.sem_desenho = [...new Set([...cobertura.sem_desenho, ...Object.keys(municipios)])].filter((cod) => !cobertura.com_desenho.includes(cod)).sort()
       }
-      return { brasil, municipios, cobertura }
+      return { brasil, municipios, cobertura, malhas: malhasPublicas(origem.malhas), potencial: potencial().indice, potencial_metadados: potencial().metadados, agregados: potencial().agregados }
     }
     // Compatibilidade com pastas antigas, antes do manifesto: só limites e bases com nome conhecido.
     for (const arquivo of listar(geo).filter(geoPermitido)) {
@@ -156,7 +161,7 @@ export function dadosRaiz(opcoes: { repo: string; raizDados?: string | null; cac
         brasil[arquivo === "base_brasil.pmtiles" ? "base" : arquivo.includes("municipios") ? "municipios" : "estados"] = item
     }
     adicionarGeometriasBasicas(municipios)
-    return { brasil, municipios }
+    return { brasil, municipios, malhas: {}, potencial: potencial().indice, potencial_metadados: potencial().metadados, agregados: potencial().agregados }
   }
   function arquivosGeo() {
     const indice = indiceGeoPublico()
@@ -298,9 +303,14 @@ export function dadosRaiz(opcoes: { repo: string; raizDados?: string | null; cac
           const uf = car?.slice(0, 2) ?? ""
           const cods = new Set(car && car.length >= 10 ? [car.slice(3, 10)] : [])
           if (car && car.length >= 10) for (const [codigo, cod] of Object.entries(pasta.foraBasicos(uf))) if (codigo.startsWith(car)) cods.add(cod)
+          if (car && car.length >= 10) for (const cod of pasta.fronteirasBasicas()[car.slice(3, 10)] ?? []) cods.add(cod)
           const basicos = [...cods].flatMap((cod) => pasta.basicos(cod).flatMap((l) => { const b = lerBasico(l); return b ? [b] : [] }))
           const resultado = buscar(q, { municipios: pasta.municipios(), imoveis: [], basicos, comImoveis: new Set(pasta.ufs().flatMap(pasta.comBasicos)) })
           return json(req, res, { ...resultado, municipios: resultado.municipios.map((m) => ({ ...m, imoveis: m.imoveis === null || m.imoveis < 5 ? null : m.imoveis })) })
+        }
+        if (url === "/amostra/car_fronteira.json") {
+          const fronteiras = pasta.fronteirasBasicas()
+          return Object.keys(fronteiras).length ? json(req, res, fronteiras) : naoAchou(res)
         }
         if (url === "/amostra/estados.json") return json(req, res, estadosPublicos())
         if (url === "/amostra/processamento.json") return json(req, res, pasta.processamento())
@@ -330,6 +340,14 @@ export function dadosRaiz(opcoes: { repo: string; raizDados?: string | null; cac
           return fs.existsSync(arq) ? enviarArquivo(req, res, arq) : naoAchou(res)
         }
         if (url === "/geo/indice.json") return json(req, res, indiceGeoPublico())
+        if ((m = /^\/geo\/(potencial_[A-Z]{2}\.geojson\.gz|agregados_brasil\.geojson(?:\.gz)?)$/.exec(url))) {
+          const dado = potencial().arquivos[m[1]]
+          if (!dado) return naoAchou(res)
+          res.setHeader("Content-Type", m[1].endsWith(".gz") ? "application/gzip" : "application/geo+json")
+          res.setHeader("Content-Length", dado.length)
+          res.end(dado)
+          return
+        }
         if ((m = /^\/geo\/imoveis_(\d{7})\.geojson\.gz$/.exec(url))) {
           const arq = geometriaBasicaPublicada(m[1])
           return arq ? enviarArquivo(req, res, arq) : naoAchou(res)
@@ -349,6 +367,7 @@ export function dadosRaiz(opcoes: { repo: string; raizDados?: string | null; cac
         arquivosPublicos(uf).filter(resumoPermitido).flatMap((nome) => lerCsv(resumoPublico(nome) ?? "").linhas.map((linha) => lerFunil(linha, uf)))) : []
       paginasAgentes({
         saida, base, produtor, siteUrl: process.env.RAIZ_SITE_URL,
+        ...(comDados ? { malhas: indiceGeoPublico().malhas } : {}),
         ...(comDados ? { catalogo: { estados: estadosPublicos(), municipios, arquivos: Object.fromEntries(pasta.ufs().map((uf) => [uf, arquivosPublicos(uf)])) } } : {}),
       })
       const dAmostra = path.join(saida, "amostra")
@@ -374,10 +393,13 @@ export function dadosRaiz(opcoes: { repo: string; raizDados?: string | null; cac
         fs.writeFileSync(path.join(dAmostra, `pontos_${uf}.json`), JSON.stringify(await pasta.pontosPublicos(uf)))
         if (pasta.publicacaoBasica(uf)) fs.writeFileSync(path.join(dAmostra, `car_${uf}.json`), JSON.stringify(pasta.foraBasicos(uf)))
       }
+      const fronteiras = pasta.fronteirasBasicas()
+      if (Object.keys(fronteiras).length) fs.writeFileSync(path.join(dAmostra, "car_fronteira.json"), JSON.stringify(fronteiras))
       fs.writeFileSync(path.join(dAmostra, "estados.json"), JSON.stringify(estadosPublicos()))
       fs.writeFileSync(path.join(dAmostra, "processamento.json"), JSON.stringify(pasta.processamento()))
       fs.writeFileSync(path.join(dAmostra, "lote_PA_central_r11.json"), JSON.stringify(lotePublicado()))
       fs.writeFileSync(path.join(dGeo, "indice.json"), JSON.stringify(indiceGeoPublico()))
+      for (const [nome, dado] of Object.entries(potencial().arquivos)) fs.writeFileSync(path.join(dGeo, nome), dado)
       for (const f of arquivosGeo()) {
         const m = /^imoveis_(\d{7})\.geojson\.gz$/.exec(f)
         const origem = m ? geometriaBasicaPublicada(m[1]) : path.join(geo, f)

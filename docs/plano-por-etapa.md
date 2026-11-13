@@ -3,6 +3,35 @@
 Gerado da rodada 8 de pesquisa (12/11/2026). Ordem geral: E1 → E2 → E5 → E7 (em paralelo) → E3/E4 → E6 → E8 → E9.
 Pedidos que só o fundador faz, no dia 1: convênio com o ONR e pedidos por LAI ao SFB e ao INCRA.
 
+## Rodada 12: ficha e pasta do banco fiador
+
+- [x] Pasta privada com duas saídas Jinja do mesmo lote, referências de valores e
+  documentos, falha em campos obrigatórios e nenhum modelo externo.
+- [x] Regras YAML versionadas: garantia e titularidade obrigatórias; documento
+  vencido, dispensado, substituído e revogado; relatório campo a campo inspirado
+  no UCD, sem declarar certificação MISMO ou aprovação de banco.
+- [x] Grade Tabulator MIT por área, estágio, título, documento e validade; crédito
+  por método e preço com moeda, unidade, período, natureza e origem. Sem contato.
+- [x] Retificações anexadas, IDs estáveis e referências novas das previsões ligadas
+  às anteriores; autorização paga atual, marca por cliente e proteção contra raspagem.
+- [x] Amostra territorial pública do Pará ligada à prospecção; histórico, exportação
+  e alertas detalhados pagos. Referências comerciais sem cópia de dados ou mudança
+  de preços; Pix permanece em teste.
+
+Detalhes e limites: [pasta do fiador](pasta-fiador.md). Banco específico ainda não
+forneceu catálogo próprio; perfil conservador Raíz. Migração 0035 e conferência dos
+documentos exigem o back-end privado. Não há envio automático nem implantação
+pública nesta entrega. Validação e PR: [passagem](passagem/ficha-da-fazenda.md).
+Validação local: 2.462 testes Python, mais os dois testes de mídia executados após
+instalar Takumi; um xfail conhecido e a referência privada do Pará no job próprio.
+Integração da main `3a73879`, 275 testes do front, build e Chromium/axe/celular
+aprovados, além de 170 testes focados após a integração. O CI da entrega reúne
+também o caso original do Pará e a pilha real.
+PR da pasta: [#98](https://github.com/bernardoemmel/Raiz/pull/98). Base da ficha
+integrada pelo [#93](https://github.com/bernardoemmel/Raiz/pull/93), CI completo
+verde com 2.577 testes Python. A branch da pasta incorpora explicitamente o merge
+`60e17b0`, sem alterar os arquivos de código já validados.
+
 ## Ordem geral
 
 | Ordem | O quê | Depende de | Horas | Por quê |
@@ -31,8 +60,11 @@ RN/PI, preservar e retomar o progresso, preencher as vagas com várias UFs/fatia
 municípios prontos, em execução e com erro no painel, com última mudança. As extensões restantes dos formatos
 do Lote PA permanecem preservadas, mas aguardam essa correção operacional.
 Rodada 12 recebida: marcador municipal íntegro, tempos mediana/p95, ensaio de falha/retomada, conferência Ibis
-em dois mecanismos e camada bovina PA/2016 agregada por município/mês. Implementação e provas pendentes,
-com fontes e limites registrados na passagem; a prioridade segue sendo a fila dos 27 estados.
+em dois mecanismos e camada bovina PA/2016 agregada por município/mês. Integridade, instrumentação e
+conferência implementadas localmente em `codex/dados-rodada12`: ensaio sintético dos 15 municípios de RR
+retoma com bytes/contagens iguais; Ibis confere 242.008 registros reais de RN/PI em DuckDB e SQLite.
+Medições de 415 municípios estão em `docs/operacao.md`, com exclusões e limites. Faltam suíte completa,
+CI/PR/merge e implantação; a camada bovina aguarda a tabela municipal/mensal. A prioridade segue sendo a fila dos 27 estados.
 
 O **#82 foi mesclado** em `cf306256`, após os oito checks do CI `43335410339` passarem, incluindo a referência
 privada completa do Pará. O workflow do motor foi conferido como `active`. A falha posterior de RN-1 veio da
@@ -189,10 +221,7 @@ legais anteriores permanecem, inclusive embargo sobreposto a TI, sem apagar sua 
 | 10b | Rodada 11 unificada (um só arquivo de premissas e um só cálculo, com a branch premissas-rodada11: curva oficial da URTX, teto por bioma, P10/P90 de custo publicados, último marco a 100%, vazamento por vizinha VMD0054, renda do gado do Censo) e lote do ProFloresta+ por estado (`raiz lote montar`): titulares e reserva pela chance de 90% com erro comum da captura, fluxo do lote pela soma das fazendas, preço mínimo para TIR de 12% e 15%, o que destrava o lote (posse e assentamento), certidões para os 5% homologados, checklist do edital, relatório para o desenvolvedor e folha do dono; o otimizador põe a regeneração antes do plantio que o preço não paga | passos 6 e 10 | feito |
 | 10c | Lote e números: piso20 de reversão, três opções, preços TIR12/15 por fazenda, salvaguardas jurisdicionais/CLPI/partilha, decisões explicadas e revisão humana, previsões versionadas e comparação real; workflow PA144 com separação entre aberto e pago | 10b | **código e execução integral feitos**: PRs #49 e #55 com CI verde; retomada 43299409156 concluída, 144 municípios e 345.870 imóveis, dez fatias reutilizadas e somente cinco calculadas. Quatro pacotes e manifesto preservados no Release privado, com tamanho/SHA256 conferidos; nenhuma venda liberada automaticamente. Cancelamento anterior identificado e documentado; limite de quinze jobs respeitado, sem cancelar outros trabalhos. Fontes/licenças e quatro horizontes regionais auditados; quantis ecológicos pendentes de harmonização de parcelas, unidades e métodos (**parcial**, conforme autorização do fundador). Detalhes em `docs/passagem/lote-e-numeros.md` |
 | 10d | Diagnóstico dos três lotes do Pará: travas por selecionada, documento/conferência/marco, terra documentada versus pendente na meta, custo/preço e mediana das TIRs centrais; complemento privado sem recálculo | 10c | **gerador e conferência real feitos**; relatório versionado em JSON/CSV/Markdown/HTML, integrado às próximas gerações; workflow privado com uma cota global e integridade da origem. Publicação do complemento acompanhada na passagem |
-| 10e | Expansão incremental do lote para UF, bioma e Brasil, agrupamento de pequenas e benchmark em minutos | 10d | **implementação e medição feitas; CI/publicação em andamento**. Índice de 786 municípios/13 UFs, previsões antigas preservadas e manutenção incremental; seleção sintética de 7 milhões em 66,67 s e real com fluxos em 22,77 s. Workflow automático com fila de quinze, resultados somente privados. Detalhes em `docs/lote-nacional.md` e passagem |
-| 10f | Comparação ARR com emissões por projeto/coorte/período, sensibilidade com nova seleção e referências ecológicas abertas | 10e | **em andamento**, nesta ordem; calibração somente com comparações compatíveis e independentes. Fontes de desenvolvimento não viram holdout |
-
-| 10r12 | Evidências verificadas, curva inicial, controle externo, baseline sintética, custos por operação, dívida ICSD, gado e credibilidade (rodada 12) | 10c | **em implementação**; 5511, Mombak e controles testados. Integração e recálculo/publicação pendentes em `docs/restauracao-rodada12.md`; expansão nacional preservada no PR #94 (rascunho) |
+| 10e | Expansão incremental do lote para UF, bioma e Brasil, agrupamento de pequenas e benchmark em minutos; validação ARR por projeto/coorte/período; sensibilidade com nova seleção; ecologia regional aberta | 10d | **em andamento**; expansão de 786 municípios salva no PR #94 (rascunho), com pendências na passagem. Ordem atual: merge #86, complemento privado, ARR, sensibilidade e ecologia/rodada 12. Camadas pagas somente no arquivo privado; fontes de treino não contam como validação independente |
 | 11 | Ligar o envio de verdade das ondas (agente de aceite no WhatsApp com o termo, carta e parceiro local) e a chave de produção da AbacatePay; calibrar a chance de aceite e o valor da conexão com os primeiros pedidos | passo 10 e clientes | 6 a 10 |
 
 ## E4. Rebanho, metano e solo
@@ -372,11 +401,15 @@ Nova continuação de Ficha da fazenda (12/11/2026):
 | Ficha automática para UFs atuais e futuras, com retomada da carga e atualização das fontes | Feito: descoberta pelo manifesto privado, backfill idempotente e falha mantida pendente para nova tentativa |
 | Marcas por cliente em PDF/JSON/CSV e alertas de varredura na API | Feito: HMAC versionado, sentinela separada dos dados, detecção persistida e consulta operacional dos alertas |
 | Três modalidades de créditos e conta de receita por cliente | Feito: por ficha, por lote e assinatura; preços a definir pelo fundador e simulação mensal/anual sem ativar vendas |
-| Medição real das 24 tarefas por agente Anthropic no GitHub Actions, manual e semanal | Feito: integrado ao workflow único agentes-real.yml (PR #85), pilha isolada, OAuth real e artefatos. Primeira campanha 43341704532 incompleta: 35/96 tentativas, falha na citação literal do juiz; nenhum pass^4 aprovado |
+| Medição real das 24 tarefas por agente Anthropic no GitHub Actions, manual e semanal | Feito: workflow único agentes-real.yml, pilha isolada, OAuth real e artefatos. Campanha 43354046452 concluiu 96/96; reprovada, 25 chamadas proibidas e cinco julgamentos indisponíveis. Pass^4 nulo, limite inferior 16,7%. As campanhas incompletas anteriores ficam preservadas |
 
 O PR #93 corrige a citação inválida do juiz com uma única nova conversa, sem
 alterar notas válidas ou relaxar a conferência literal; consumo e tentativas
-ficam registrados. A correção exige nova campanha completa de 96 sessões.
+ficam registrados. A campanha completa `43354046452` mediu o commit `e8c13f1`:
+190 passos, 109 chamadas MCP, 677,94 s de agente e 1.252,32 s incluindo pilha e juiz.
+Cinco violações foram classificadas como instrução de terceiro. O resultado não
+aprova o agente, nem mede as mudanças posteriores do PR #96. Ver
+[relatório e limites](medicao-agentes-actions.md).
 
 Site legível por agentes (12/11/2026): **feito** — `llms.txt`, `robots.txt`, páginas Markdown do Brasil, estados,
 municípios, produtor, serviço, fontes e privacidade; alternates no HTML; JSON-LD `Dataset`, `Service` e `Offer`
@@ -474,11 +507,32 @@ faz sem back-end.
 | Entrega | Situação |
 |---|---|
 | Publicação após #72, sem alterar o PR do outro chat | **feito** em 12/11/2026: workflow ativo; atualização 43331843113 concluída com 444 municípios em 13 estados; site ao vivo com busca, aproximação, pedido e 360 px sem 404 ou erros de JavaScript |
-| Conferir que arquivos pagos não ficaram públicos | **feito**: 36 assets do Release validados pela lista positiva; os dois artefatos foram conferidos, o mais recente com 1.849 arquivos, 444 CSV básicos e 444 geometrias sem medidas pagas. Evidências e hashes na passagem |
-| Resumos abertos dos três lotes; composição, travas e desenho somente pela API autenticada | **feito no código**: projeção positiva do manifesto privado do #78; público só vê quantis de créditos, ha, quantidade de fazendas, custo médio e terra documentada. Detalhes pela API; demonstração optativa inteiramente fictícia e sem cobrança/contato |
-| Sensibilidade de preço, reserva, desconto e cenário pessimista | **feito no código**: controles, comparação das três opções e grade privada vinculada à revisão do pedido; demonstração fictícia identificada. **Pendente de dados reais**: a rodada do Pará não calculou esses cenários |
-| Pedido por estado, bioma ou Brasil com cobertura e lacunas explícitas | **feito no código**: 27 UFs, seis biomas e Brasil; cobertura dinâmica do manifesto, estados parciais/faltantes e ausência explícita do recorte exato. Não extrapola os lotes do Pará |
-| Painel de acerto do modelo por versão e comparação observada | **feito no código**: métricas agregadas, período e proveniência verificados, mínimo de cinco imóveis; API/exportador disponíveis. **Pendente de dados reais elegíveis** no Release; ausência não é 0% de acerto |
+| Conferir que arquivos pagos não ficaram públicos | **feito**: Release e artefatos conferidos pela lista positiva; publicação do PR #89 com 2.345 arquivos, 608 CSV básicos e 608 geometrias sem medidas pagas. Sete arquivos no ar idênticos ao artefato, PMTiles com HTTP 206 e caminhos pagos antigos indisponíveis. Evidências e hashes na passagem |
+| Resumos abertos dos três lotes; composição, travas e desenho somente pela API autenticada | **feito (PR #89 integrado com CI verde)**: projeção positiva do manifesto privado do #78; público só vê quantis de créditos, ha, quantidade de fazendas, custo médio e terra documentada. Detalhes pela API; demonstração optativa inteiramente fictícia e sem cobrança/contato |
+| Sensibilidade de preço, reserva, desconto e cenário pessimista | **feito (PR #89 integrado com CI verde)**: controles, comparação das três opções e grade privada vinculada à revisão do pedido; demonstração fictícia identificada. **Pendente de dados reais**: a rodada do Pará não calculou esses cenários |
+| Pedido por estado, bioma ou Brasil com cobertura e lacunas explícitas | **feito (PR #89 integrado com CI verde)**: 27 UFs, seis biomas e Brasil; cobertura dinâmica do manifesto, estados parciais/faltantes e ausência explícita do recorte exato. Não extrapola os lotes do Pará |
+| Painel de acerto do modelo por versão e comparação observada | **feito (PR #89 integrado com CI verde)**: métricas agregadas, período e proveniência verificados, mínimo de cinco imóveis; API/exportador disponíveis. **Pendente de dados reais elegíveis** no Release; ausência não é 0% de acerto |
+
+## Telas e mapa: redesenho cartográfico e entrada direta
+
+| Entrega | Situação |
+|---|---|
+| Abrir direto no MapLibre, com países, oceano e cobertura por estado | **feito no PR #90**: SVG restrito ao minimapa; fundo nacional primeiro, detalhes regionais sob demanda; contador compara o índice com o último site publicado |
+| Grupos nacionais/estaduais e contornos finos a partir de zoom 12 | **feito no PR #90**: Supercluster com contagem de fazendas e hectares conhecidos, botões visíveis acessíveis e licenças MIT/ISC completas. H3 fica como unidade interna, com supressão e cobertura parcial. Sem preenchimento das fazendas, sobreposições tracejadas e hachura só com geometria medida e autorizada |
+| Satélite com licença comercial conferida | **feito no PR #90**: Sentinel-2 EOxCloudless vintage 2016, cenas 2016/2017, CC BY 4.0, atribuição e ano visíveis; véu claro e retorno à base vetorial em falha |
+| Município novo fora da malha antiga | **corrigido em `bdfe2bb`**: lacuna nos códigos publicados aciona atualização da UF inteira pela edição oficial do IBGE, incluindo vizinhos, sem lista fixa. Prova MT/2025: Brasil com 5.571 códigos únicos, MT com 142, novo município sem sobrepor Sorriso/Nova Ubiratã e outras UFs idênticas. Cache/hash/ZIPs anteriores/CARs/bases preservados; retomada sem rede. Fonte/ano/hash públicos por UF em contrato fechado, CC BY 4.0 e generalização informadas. 27 testes Python e 37 front focados aprovados; [prova](design/evidencias/malha-ibge-2025/README.md) |
+| Seleção ao trocar município e sair do mapa | **corrigida em `75d733c`**: popup, máscara, hover e seleção encerrados antes de trocar os CARs e no teardown; fontes ausentes não causam erro. Regressão reproduzida no build antigo e aprovada em `/` e `/Raiz/`, com a mesma instância, ida/volta, reseleção e teclado. 588 testes, builds/TSC/lint, zero 404/erros e axe 360 sem violações; roteiro espera o enquadramento real, sem atraso fixo |
+| Painel público de processamento integrado ao mapa | **integrado após main `52118b5` (PR #95), com validação local**: 27 UFs, contagens municipais com fonte e validade próprias, sem confundir execução com cobertura ou aptidão. Contrato estrito único preserva a observação validada no cache e na projeção pública; atualização do site não renova seus horários. MapLibre direto e minimapa preservados, com cobertura acima do andamento. Passaram 494 testes do front, 122 Python, Ruff, actionlint, builds e Playwright em `/Raiz/` e `/` com zero 404/erros. Painel nacional a 360 px: teclado e 32 regras axe sem violações; a composição final passou no Lighthouse local abaixo, com CI pendente |
+| Integração da pasta do banco/comprador da main #98 | **integrada após `692663c`**: rotas da pasta e ficha R12 preservadas, com autorização própria e sem inferir os números de uma a partir da outra. Migração EPREL inédita renomeada para `0036_publico_eprel`, após `0035`; ciclo upgrade/downgrade/upgrade aprovado em banco novo. Passaram 508 testes front, 248 Python, TypeScript/lint, Ruff/actionlint, 927 licenças e smokes de pasta, ficha de crédito, gráficos, prospecção e ficha pública datada. Mapa e evidências de `f0a7c96` preservados. O CI `43369596942`, head `d00ea94`, passou nos nove jobs; desempenho mediano 91/98/97/96/97/100 e acessibilidade 100. A integração posterior da main #100 precisa de nova validação |
+| Integração da avaliação de modelos da main #100 | **integrada após `6b9c377`**: front preservado; CRPS interno e projeção pública restrita mantidos. Lock conferido, 279 testes focados e Ruff em 608 arquivos passaram. Dois testes de mídia sem ferramentas locais não substituem a suíte completa do CI, que permanece obrigatória antes do merge |
+| Instalação reproduzível do CI | **corrigida no PR #90**: pin explícito nos cinco jobs evita buscar `latest` na API que limitou a rodada `43431157242`. A primeira correção usou 0.13.8; após #105, `110773f` alinha a 0.13.6 compartilhada pelos workflows e exigida pelos testes da main. Nenhuma execução foi cancelada, nenhum portão reduzido |
+| Integração da leitura concorrente e retomadas da main #99 | **integrada após `929b4f3`**: front e evidências `650db81` preservados; hashes, IDs privados congelados, projeção pública e teto global de 15 mantidos. 319 testes focados sem falhas/skips, Ruff em 617 arquivos e lock de 256 pacotes conferidos. CI completo e auditoria da publicação continuam obrigatórios |
+| Integração dos formatos imutáveis do Lote PA da main #102 | **integrada após `fea0dd2`**: 440 testes focados sem falhas/skips e Ruff nos 19 arquivos alterados. Derivados/cartões seguem privados; não substituem o anexo `ficha_credito v1`, cuja ausência real permanece explícita. Front e evidências de `650db81` preservados |
+| Integração das retomadas e subdivisões da main #105 | **integrada após `e959023`, merge `9a37e3b`**: regras públicas aceitam unidades estaduais de até quatro dígitos; fonte e validade continuam próprias. Pin compartilhado do CI alinhado em `110773f`. Regressão de admissão corrigida em `4785ac7`: prioridade/referência das UFs não bloqueia catálogo/lotes nem os conta como estados; todos continuam no teto global de 15. Referências, bloqueios e reservas preservados. 280 testes focados e Ruff passaram; todos os jobs da composição final continuam obrigatórios |
+| Carregamento nacional e estabilidade do painel | **implementados até `7fe3539` no PR #90**: grupos em worker, contornos por URL e tarefas cooperativas. `56ab91d` reserva espaço para resumo/cobertura e preserva os nós, as 27 linhas, foco, detalhes e rolagem; CLS causal 0,112004 → 0,001828 e auditoria oficial 0,001758. Preload reutiliza as três fontes já usadas. 588 testes front, TypeScript/lint, builds e Pages em `/` e `/Raiz/` aprovados, zero 404/erros; painel pronto preservado |
+| Preparação gráfica sem mudar o desenho | **implementada e validada localmente em `c1d42a4`**: quatro variantes nacionais preparadas no cache real, SDF estadual igual ao worker e fill/line com equivalência canônica restrita. Estilos incompatíveis seguem o renderizador nativo. A opção pública `desynchronized` permite reduzir a espera de apresentação, com fallback do navegador; calendário sem agenda não calcula datas. 587 testes front, TypeScript, lint, build, Pages e revisão independente passaram; imagem nacional idêntica. A reprovação intermediária de `b52be9b` (81/84/95, mediana 84) continua registrada |
+| Prova visual antes/depois, zero 404 e Lighthouse ≥ 90 | **nove jobs verdes no CI `43485577728`, head `91e33ce`, com 3.528 testes Python aprovados**: nacional 96/96/96, seis medianas 96/99/98/98/98/100, A100 nas 18 amostras e sete axe sem violações. Agentic 1,00/CLS 0,001758. O snapshot real local de `7fe3539` permanece reprovado: 78/88/89, mediana 88, A100 e CLS zero; não confundir ambientes nem apagar reprovações. Capturas documentam funcionamento. CI completo da composição final, merge e auditoria têm resultado no [PR #90](https://github.com/bernardoemmel/Raiz/pull/90); nove jobs verdes obrigatórios. Nenhum portão reduzido ou workflow cancelado |
+| Comparação condicional com OpenLayers | **MapLibre mantido**: série corrigida de 16 observações com a mesma coleção de 2.194 CARs. OL abriu mais rápido, mas reprovou interação no imóvel sobreposto (p95 de quadros 82,08 contra 20,12 ms; seleção 58,98 contra 34,81 ms). A série foi concluída em 12+4 observações após interrupção de infraestrutura, sem refazer resultados; o caso sobreposto terminou antes dela. Primeira série sem o plugin do produto preservada como exploratória; baseline corrigido verificado por hashes. Proxies em SwiftShader, acabamento completo e cena nacional não avaliados; nenhuma migração autorizada. [Plano e evidências](design/evidencias/comparacao-openlayers-r12/README.md) |
 
 ## Telas e mapa: ficha visual da terra
 
@@ -490,6 +544,24 @@ Entrega 3 da continuação de 12/11/2026, sobre a ficha paga do PR #52.
 | Linha do tempo de uso e perdas | **feito**: anos disponíveis, medidas e fontes da ficha paga, além das tabelas completas. Ausência e zero são diferentes; a data de corte não substitui a data da fonte. |
 | Acesso à imagem e ao desenho | **feito**: sessão individual e desbloqueio pago conferidos em todas as rotas, incluindo exclusividade. A imagem é buscada com Bearer, sem token na URL, com `private, no-store`; nenhuma lista ou imagem individual vai ao Pages. |
 | Calibração E9 com cartas reais | **pendente**: ainda não existe o conjunto de 30 cartas anonimizadas com avaliação de compreensão. Esta entrega não inicia contato com proprietários. |
+
+## Telas e mapa: fichas e gráficos da rodada 12 (13/11/2026 UTC)
+
+Esta entrega cobre a ficha privada do lote, a versão pública básica datada e os gráficos.
+A implementação está feita; a validação final da integração no CI e a publicação ainda estão pendentes.
+Contratos e limites em [ficha de crédito](ficha-credito.md), [ficha pública versionada](ficha-publica-versionada.md)
+e [gráficos](design/graficos-resultados.md).
+
+| Entrega | Situação |
+|---|---|
+| Ficha resumida de cada opção na área autorizada | **feito no código**: rota própria, tabela por hectare elegível e total com os mesmos quantis, horizonte, classe, métrica e composição. Área elegível exige evidência; não é inferida da área total nem da soma de exclusões. FLAG e crédito não se misturam; ausência não vira zero. |
+| Leitura para análise de crédito | **feito no código**: cinco seções fixas — Título, Método, Perdas, Garantias e Risco de não entrega — com fonte, referência e revisão técnica próprias. Data de publicação não substitui revisão. Tela e tabelas preparadas para 360 px, teclado e leitores de tela; verificação final integrada pendente. |
+| Evidência, identidade e fronteira paga | **feito no código**: autorização antes da leitura, documento ligado à revisão da opção, hash do conteúdo, projeção positiva e cache privado. Estimativa, verificação, emissão e entrega exigem fontes documentais e Método compatíveis; registro emitido/entregue é pontual, não faixa do motor renomeada. Sem dono, CPF, contato, CAR ou geometria no bloco agregado. |
+| Ficha pública básica com código datado, no formato inspirado no EPREL | **feito no código**: conteúdo congelado por código e rodada, URL própria e Markdown, fonte/data de corte separadas do registro da versão e aviso de rodada posterior. Usa o retrato histórico da carga; não recalcula o passado com regras atuais. Cada leitura exige aceite vigente, inclusive de versões antigas. Não publica números pagos, CAR completo, satélite ou contorno no retrato datado. Migração e publicação em produção pendentes. |
+| Contratado × emitido × entregue e faixa prevista × observado por método | **feito no código**: ECharts e Vega-Lite carregados somente ao abrir cada gráfico, com tabelas acessíveis sempre disponíveis. Fontes, unidade, área original, escopo, calendário e cronologia são conferidos contra a ficha; resultados posteriores à sua publicação ou de outro recorte são recusados. Datas civis usam UTC, com regressões para o mesmo instante em `Z` e `+14:00`. Licenças Apache-2.0/BSD-3-Clause registradas em `NOTICE.md`; runtime sem fontes externas. |
+| Dados reais compatíveis e demonstração | **parcial**: contrato e modo fictício optativo feitos. O resumo privado do PR #78 não comprova denominador elegível, exclusões e base de evidência comum; a API atual não entrega as séries reais nesse contrato. A ficha real permanece explicitamente indisponível até essas saídas existirem. A demonstração não lê o Release nem comprova emissão, entrega ou acerto real. |
+| Validação das fichas e gráficos | **feito localmente**: 390 testes do front e 197 regressões finais de integração, Ruff e testes Playwright/axe da ficha privada, gráficos e ficha pública datada. CI completo obrigatório antes do merge, com artefatos; publicação e execução da migração no servidor precisam de conferência própria. As notas do mapa são registradas na entrega cartográfica. |
+| Calibração E9 com pessoas | **pendente**: ainda não existe o conjunto de 30 cartas anonimizadas com avaliações de compreensão. Não houve validação humana dessa calibração nem contato com proprietários nesta entrega. |
 
 ## Qualidade e segurança (12/11/2026)
 
@@ -542,24 +614,26 @@ A primeira execução no Actions identificou ausência de `rg` no runner; a veri
 - [x] Markdown do site preserva medidas ausentes e zeros explícitos; totais incompletos não são apresentados
   como totais completos. Regressões cobrem páginas estaduais/municipais e proteção de grupos pequenos.
 
-- [x] Código nacional: quadro de terra inclui posse e previsões ausentes/antigas,
-  com documentos/conferência, contagem de pequenas e valores separados por versão.
-  Estado sem elegíveis mantém auditoria e potencial pendente. 21 testes focados.
-- [ ] Nacional: integrar a Rodada 12, concluir suíte/CI, merge e execução privada;
-  medir novamente após a integração e conferir os arquivos publicados.
-- [x] Ponte de leitura da rodada PA R12 implementada com conferência de versão,
-  cobertura e hashes; fontes antigas não recebem versão nova. Cronograma
-  nacional soma as curvas das selecionadas e preserva o cenário em cada pedido.
-- [ ] Rodada 12 — **parcial, código preservado**: 67 testes focados aprovados;
-  cenário R12 com curva inicial, operações, provisões de terra, dívida por ICSD,
-  plano de gado em UA e credibilidade. Falta validação integral, recálculo do Pará,
-  sensibilidade, ecologia, publicação privada e merge; ver passagem Lote e números.
+### Qualidade — avaliação da rodada 12
+
+Feito no código: contratos de prova cega/controle estável/PCCP e funil de denominador fixo; CRPS com denominador
+explícito; origens móveis sem acesso ao futuro; equidade por município/aptidão/porte com solver no CI; diagnóstico
+forestci/caudas; reamostragem só no treino; bloqueio de scpi/vegan no pacote. Ver
+[protocolo e limites](modelo/avaliacao-rodada12.md) e [responsáveis pela integração](passagem/qualidade-e-seguranca.md).
+Acurácia empírica e promoção automática via esse protocolo aguardam os dados/integrações indicados; não são
+marcadas como concluídas por passar nos casos sintéticos.
 
 Validação da entrega urgente (12/11, 22h42 de Brasília): suíte completa local com 2.477 testes aprovados;
 o caso estadual exigiu preparar a referência privada e passou depois em execução isolada (144 municípios,
 345.870 imóveis, 425,58 s). LanguageTool depende do servidor presente no CI; uma divergência de TIR já
 documentada permanece como falha esperada. Frontend: 292 testes e build; Ruff/actionlint verdes;
 857 pacotes com licenças conferidas. PR/CI/merge e confirmação operacional ainda pendentes neste registro.
+
+Validação integral da rodada 12 em 12/11 às 23h39 de Brasília: **2.509 testes passaram**, incluindo
+PostGIS, LanguageTool real e a referência estadual privada completa do Pará; duas verificações de
+cartão/vídeo dependem da instalação local do Takumi e serão repetidas após prepará-lo. A divergência de
+TIR central r11 permanece como falha esperada já documentada. Ruff/formatação passaram; 862 pacotes
+conferidos sem problemas de licença. CI, merge e conferência dos novos marcadores em produção pendentes.
 
 
 PR urgente #95 aberto; CI `43347013537` parcialmente aprovado em 12/11 às 23h13 de Brasília
@@ -571,6 +645,12 @@ O navegador do CI #95 encontrou um 404 na ref pública de processamento, ainda i
 implantação. A fixture do build agora usa `./amostra/processamento.json`, servido pelo próprio site de teste.
 O Playwright exige as 27 UFs, ausência de erros e ausência de execução inventada; a configuração de produção
 continua consultando a ref pública. O teste de referência estadual, agentes, segurança, workflows e e2e já passaram.
+
+### Formatos dos produtos finais do Lote PA
+
+- Implementados em branch: Croissant dos membros/CSV, três perfis hubverse com versões históricas, cartão e CAD Trust dos cinco períodos; integração no catalogador e verificador portátil. Os cinco originais são preservados.
+- Validação real local: 19 derivados; 8.289.432 quantis de previsões, 3.629.238 das opções e nove dos resumos. Diagnósticos e lacunas de proveniência preservados.
+- Publicação, atestação e conferência integral remota dependem de CI/merge e execução do catálogo com vaga entre as 15; ainda não marcados como entregues em produção.
 - [x] Medição: recusa explícita do provedor preservada como julgamento indisponível,
   sem repetição nem troca de modelo; mantém a execução das demais tarefas e impede
   aprovação/declaração de pass^4 completo quando faltar julgamento. Campanhas
@@ -589,38 +669,50 @@ continua consultando a ref pública. O teste de referência estadual, agentes, s
 | Vigilância de fazendas em lotes | **Feito no código; ativação pendente:** coleta diária DETER/MapBiomas/NOAA-20/21 recortada ao catálogo privado de pedidos, rascunhos por dono e painel autenticado. Ponte de 15 minutos renova catálogo/importa resultados. Sem servidor/banco real neste ambiente, sem catálogo privado disponível e sem credencial válida MapBiomas, a vigilância nacional não foi declarada ativa. Nenhum envio. |
 | Primeira certidão real | **Caminho pronto, dado real pendente:** upload PDF cifrado por empresa/pedido/CAR, validação isolada, previsão vigente congelada antes da leitura, comparação, gabarito humano imutável e sincronização E8. Ausência de previsão não vira erro do motor. Ainda não há certidão/gabarito real nem métrica de acerto; fixtures servem somente para testes funcionais. |
 
-- [ ] Rodada 12 — sensibilidade (9 cenários × 3 novas seleções), referências
-  ecológicas abertas e relatório 5511/Mombak/ARR integrados no branch; falta
-  concluir suíte integral, CI/merge, recálculo dos 144 municípios e publicação
-  privada com comparação de hectares e P10/P50/P90.
-- [x] Diagnóstico das travas PA publicado no arquivo privado: PR #86 mergeado
-  com CI verde; execução 43355525759/2 concluída, 13 arquivos recuperados e
-  SHA256 conferidos. Histórico R11 preservado, sem liberação automática de venda.
-- [ ] R12 como padrão dos novos cálculos: custos/curva/ICSD/fluxo do gado,
-  comparação ARR, nove cenários com nova seleção e contexto ecológico integrados;
-  código preservado remotamente. Falta validar o padrão global, CI/merge e
-  executar/publicar os três lotes PA com comparação à referência R11.
-- [ ] Controle Dryad: aquisição pública no runner, SHA256 e vínculo IBGE
-  implementados; publicar MAE por idade somente após acesso aos 126 registros e
-  validação por município. Falhas HTTP continuam como pendência, sem números fictícios.
-- [x] Compatibilidade do teste CADT após mudança do padrão: amostra declara R11,
-  o cenário explícito do exportador; 52 testes aprovados, sem alterar sua implementação.
-- [x] Benchmark nacional repetido na R12: 7 milhões sintéticos, 80% pequenas,
-  três seleções e auditoria em 67,43 s; preparo 10,71 s, pico 2.386 MiB. Não mede
-  coleta ou previsão municipal. Publicação real permanece pendente.
-- [x] Suíte nacional integrada: 2.539 testes aprovados, 292 skips de ambiente,
-  um xfail; replay estadual aprovado separadamente na R12; Ruff/formatação aprovados.
-- [x] Pedidos nacionais parciais usam preço/dívida do cenário vigente quando
-  omitidos; valores explícitos não são trocados. Dezessete testes focados aprovados.
-- [x] Benchmark repetido após herança do cenário: sete milhões, 80% pequenas,
-  65,29 s para seleção/auditoria, 11,10 s de preparo, 2.395 MiB; versão identificada na passagem.
+Verificador do Lote PA executado também nos cinco originais reais congelados: os **19 derivados foram
+reproduzidos com os mesmos hashes**, incluindo os três pacotes hubverse e os cinco períodos CAD Trust por
+opção. Foram conferidos **987 membros** nos quatro TARs, sem exigir um manifesto estadual inexistente
+no contrato do Lote. Prova agregada em `docs/medicoes/lote-pa-formatos-2026-11-12.json`; duração 152,41 s.
+Além dos 146 testes do catalogador/formatos, passaram 68 de conteúdo/derivados e 42 de snapshots,
+atestação e CLI. Publicação remota e assinaturas continuam pendentes; esta prova é local.
 
-- [x] Sensibilidade preserva pequenas com crédito central zero na população a
-  reavaliar; seleção continua sendo refeita a cada cenário. Três testes aprovados.
-- [x] Validação local R12: suíte integral com 2.500 aprovados e único erro na
-  fixture CADT, corrigido e coberto por 52 testes aprovados; replay estadual
-  privado aprovado; sensibilidade atualizada e Ruff aprovados. CI/merge pendentes.
+Validação integral dos formatos: **2.835 testes passaram**, com PostGIS, LanguageTool e referência
+completa do Pará; dois casos de cartão/vídeo foram repetidos após preparar Takumi e os três testes
+desse módulo passaram. A divergência histórica de TIR permanece como xfail. Os 110 testes específicos
+do verificador foram executados após ampliar a conferência dos produtos finais do Lote PA.
+CI, merge e catálogo remoto seguem pendentes neste registro.
 
+Integração da rodada 12 com a main atual: **185 testes direcionados passaram**, incluindo os dois
+casos reais de cartão/vídeo antes pulados e as novas rotas de certidão/calendário/vigilância. A promoção
+fechada das continuações para `91c993ec322fea64ca2e96098e212c0f5c2dc613` passou em **216 testes** de fila,
+promoção e catálogo. A prova em `auditoria-promocao-rodada12.json` preserva os hashes das duas auditorias
+anteriores, as 11 versões atuais de tarefas e todas as dependências existentes; Ibis permanece opcional.
+Reservas vivas e pedidos bloqueados não mudam. O destino não acompanha a main automaticamente.
+
+Retomada operacional iniciada em **12/11 às 23h53 de Brasília**, antes do merge para não deixar vagas
+ociosas enquanto o CI espera runners: [run 43355236141](https://github.com/bernardoemmel/Raiz/actions/runs/43355236141),
+na referência fixa `10a94d4278493c5b1776479b192ed62866007d13`. Novo pedido explícito para RN, GO, MA, MT, MS
+e AM, sem refazer saídas comprovadas. Às **23h57**, a admissão CAS confirmou **15 reservas globais**:
+cinco jobs anteriores e dez unidades novas (BA-1/3, RN-1/2, GO-1/2/3, MA-1/2 e MT-1). As novas unidades
+ainda aguardavam o preparo comum; reserva não foi contada como município em execução. Os demais pedidos
+continuam persistidos. RN-1 antigo permanece bloqueado no histórico; o pedido novo não apagou esse registro.
+Nenhum workflow foi cancelado/desativado. PR #95 aguarda todos os checks; referência Pará, frontend,
+workflows e segurança já passaram. A main recebeu o #89 durante essa espera e foi integrada sem conflitos
+na rodada 12; seus 188 testes relacionados e 334 testes do frontend passaram, com build.
+
+Na retomada `43355236141`, o preparo comum e MT-1 falharam **antes do cálculo** ao listar os assets
+privados: arquivos mudaram entre páginas. A correção foi estendida ao leitor comum do armazém, com
+quatro tentativas completas, espera limitada e erro explícito se a leitura continuar ambígua. Nenhuma
+lista parcial é aceita. **65 testes** de armazém, transferência, checkpoint e integridade passaram;
+cinco consultas reais consecutivas ao arquivo privado leram 301 assets sem duplicação (2,80–2,99 s).
+O contrato estrito do catálogo continua exigindo a compatibilidade dos escritores ativos.
+A integração visual com a main #89 passou em Pages, acerto, pedido nacional, cena e acessibilidade.
+
+Destino final auditado da rodada 12: `6e7ca38da623e6c95d461c1528beabb408b34ee5`, incluindo a retomada
+municipal e a leitura de assets com quatro tentativas/revalidação HTTP. São 17 origens fechadas e
+**245 testes** de fila, promoção e catálogo aprovados. As duas provas históricas permanecem intactas;
+a nova prova confere por AST que somente `_assets` mudou no armazém. A validação não relaxa o gate
+de compatibilidade dos publicadores ativos nem reescreve reservas.
 
 Acompanhamento em 13/11/2026, 00h33 de Brasília: o CI `43352641267` do PR #95 concluiu todos
 os nove jobs com sucesso. A main recebeu #86, #89 e #93 durante a execução; o conflito somente textual
@@ -636,17 +728,204 @@ compartilhado e, por isso, as 11 versões na main mudam. A fila permanece no des
 com as versões originais: a prova agora recompõe exatamente a chamada anterior e confere todas as versões,
 sem alterar as reservas, as saídas ou o destino da promoção. Novos pedidos da main seguem a versão nova.
 
-- [x] R12 sincronizada com main `52118b5`, preservando a versão científica
-  `490ab152` e as entregas dos outros chats; referência estadual aprovada no CI.
-- [ ] Publicação PA R12: execução `43361839589/2` com entradas congeladas e
-  cálculo iniciado; aguarda três lotes, sensibilidade e conferência privada.
 
-- [x] Auditoria histórica da fila compatível com a mudança intencional R12:
-  dez tarefas preservadas e desenvolvedor distinto; 70 testes aprovados.
+## Falhas concorrentes e impedimento da fonte — 13/11/2026
 
-- [x] Integração do padrão R12 e privacidade de avisos: três falhas do CI
-  corrigidas apenas nos testes; seis casos aprovados com PostGIS real local.
+A rodada `43355236141` confirmou erro HTTP 404 na leitura de `estados.json` depois de
+substituição concorrente do asset. A leitura por nome agora relê a lista e o novo ID, até quatro
+tentativas. Ausência transitória depois de um 404 não vira manifesto vazio. Erros de acesso e
+formato continuam falhando; o download de um ID congelado não aceita outro arquivo. A paginação
+revalida o cache HTTP e reinicia todas as páginas ao detectar sobreposição.
 
-- [x] Validação integral após main `52118b5`: 2.725 aprovados, 294 skips de
-  ambiente, um xfail; replay PA aprovado separadamente no CI e seis testes
-  de integração aprovados com PostGIS local.
+A reprodução do funil com o cache oficial confirmou **50 de 50** erros municipais examinados
+no RN: embargo ativo sem geometria utilizável. No arquivo de 117.197 termos, 92.033 são ativos
+pelo critério vigente e 40.270 não têm WKT. No RN, isso alcança 98 municípios; em GO, 195;
+no MA, 168. A presença de WKT, por si só, não atesta sua validade. A evidência agregada, sem
+termos nem pessoas, está em `docs/medicoes/ibama-impedimentos-2026-11-13.json`.
+
+A guarda permanece: não converter restrição desconhecida em área zero nem descartar os imóveis.
+Os logs sem banco/Healthchecks agora registram tipo, arquivo, linha e o motivo fixo
+`embargo_ativo_sem_geometria_utilizavel`, sem texto livre da exceção, variáveis ou geometrias.
+A conclusão nacional depende de resolver esses dados de origem; a janela observada não teve
+UF nova concluída e não permite estimar uma data de término. O processamento dos demais municípios
+e a preservação do progresso continuam.
+
+O destino fechado foi atualizado para `30ace967b885d07c2579c8625a9b5eb9cd4ec53b`, com **19 origens**
+e as 11 versões científicas preservadas. A prova por AST delimita três métodos de leitura/tratamento
+de erro e a classe que transporta somente o status HTTP; o restante do armazém é idêntico ao urgente.
+A ciência do commit preservado não recebe a mudança de hash da carga da main #93. As auditorias
+históricas continuam intactas e reservas vivas não são alteradas. Validação: **66 testes** do leitor,
+diagnóstico, armazém, transferência e checkpoint; **182 testes** de integração da promoção/fila.
+
+
+Conferência complementar do impedimento Ibama: o geosserviço oficial PAMGIA devolveu os cinco
+termos da amostra RN sem WKT, mas quatro declaram `origem_geom=Ponto`, embora o formato tenha
+anéis, e um permanece sem geometria. Essa resposta não comprova cinco polígonos de área e
+não foi usada para liberar o município. Consulta restrita a identificador do termo, origem,
+código municipal, data geométrica e geometria; nenhum atributo de pessoa foi requisitado.
+Fonte: https://pamgia.ibama.gov.br/server/rest/services/01_Publicacoes_Bases/adm_embargos_ibama_a/FeatureServer/0.
+
+
+O run `43360973064` parou antes do planejamento em HTTP 403 no acesso privado. Uma execução
+estritamente de leitura (`43361940684`) conferiu a mesma seleção de credencial às 03h56 UTC:
+HTTP 200 no repositório e 4.001 chamadas restantes de 5.000. A causa específica do 403 anterior
+não ficou registrada; não foi classificada como permissão permanente nem como cota comprovada.
+O diagnóstico não publicou dados nem alterou permissões. A branch `codex/diagnostico-acesso-actions`
+contém apenas essa substituição temporária do workflow para consulta: **não abrir PR nem mesclar
+essa branch na main**. Os workflows de produção e jobs existentes permaneceram ativos.
+
+
+## Entrega urgente integrada — PR #95
+
+O PR #95 foi mesclado na main em `52118b5da31e7985394a74aa559376296b49efd3`, após os nove
+jobs do CI `43359990841` passarem. A integração com a main #93 preservou os registros de ambas
+as entregas e as versões fechadas da fila. Frontend local: 338 testes e build; o CI conferiu
+Python, referência real do Pará, navegador, agentes, ponta a ponta, segurança, segredos e workflows.
+O código da fila paralela, checkpoint, proteção dos retratos e painel está na main; a implantação
+do site ainda será conferida. A rodada 12 #99 segue no seu CI, sem cancelamentos automáticos por push.
+
+
+## Validação final dos formatos do Lote PA
+
+A suíte completa integrada passou em **3.200 testes**, sem skips e com apenas o xfail de TIR já
+documentado, em 35min34s, com PostGIS, LanguageTool real, Takumi e a referência completa do Pará.
+A main foi puxada novamente; #95 e #97 estão integrados sem conflito. Os 42 testes relacionados
+a calendário/MCP/privacidade passaram depois desse merge. Ruff, formatação, actionlint, 862 licenças
+e Gitleaks em 429 commits passaram. O frontend é idêntico ao do #95 mais a main já conferida.
+
+A prova real do Lote PA gerou 19 derivados e os reconstruiu com SHA-256 idêntico, conferindo 987
+membros originais. Os cinco produtos originais não são reenviados. Croissant, quantis hubverse com
+versão, cartão e CAD Trust ficam integrados ao catalogador e ao verificador portátil. A entrega
+ainda aguarda CI/merge e publicação/atestação remotas; não declarar o Release inteiro conferido
+antes de executar o verificador com atestações.
+
+O acesso do cliente real ao arquivo privado foi confirmado pelo diagnóstico `43363773180`,
+às 04h14 UTC: repositório 200, tag 404 esperada para draft, lista de Releases 200 e draft confirmado.
+As continuações `43363213890` e [continuação das 04h07 UTC](https://github.com/bernardoemmel/Raiz/actions/runs/43363458134) também passaram. A fila tinha 15 reservas globais
+(12 do Lote PA em `43361839589`, mais MT-2, AM e GO-1) e 29 pedidos, sete bloqueados no histórico.
+As reservas vivas continuam intactas; novos trabalhos aguardam vaga. A causa específica dos
+403 anteriores permanece não comprovada.
+
+
+## Conferência em produção — 13/11/2026, 04h36 UTC
+
+O [deploy do painel](https://github.com/bernardoemmel/Raiz/actions/runs/43364180632) passou e a
+[publicação real](https://bernardoemmel.github.io/Raiz/) foi conferida no Chromium: 27 UFs,
+hora da última mudança, duas leituras HTTP 200 da telemetria, nenhum erro JavaScript e sem
+transbordamento horizontal no celular. Observação vencida permanece identificada; ausência não vira zero.
+
+A restauração somente de leitura de três checkpoints privados recuperou **2.242 arquivos e
+182.073.038 bytes**, com todos os hashes conferidos: AM (494 arquivos), GO-3 (1.239) e MA-2 (509).
+As cópias temporárias privadas foram removidas após a conferência. Essa prova verifica os bytes
+preservados; não atesta que os municípios com erro ou os retratos opacos estejam cientificamente concluídos.
+O único manifesto sem ponteiro encontrado nessa leitura era de BA-1, com apenas um evento de
+processamento de 455 bytes; não continha saídas científicas recuperáveis.
+
+A fila repôs a vaga de AM com PI-2 na versão auditada `30ace967`, mantendo 15 reservas globais.
+Às 04h36 UTC, o inventário do Actions tinha 20 jobs executando: três de processamento e 17 de
+CI/outras verificações; 77 aguardavam. Reservas são limites de admissão, não garantia de runner imediato.
+Às 04h44 UTC, PI-2 já executava o motor. Nenhuma rodada foi cancelada ou desativada.
+
+O preflight do catálogo continuava bloqueado por escritores/pedidos antigos; nenhum upload foi
+iniciado por essa conferência. O índice público ainda declarava AC/AP/RO/RR completos de rodadas
+anteriores. Nenhuma UF nova fechou na janela desde a retomada paralela; não extrapolar uma taxa
+estadual por dia nem uma data nacional dos 15 leases. Os impedimentos Ibama permanecem explícitos.
+
+O CI do PR #102 identificou um número de run isolado como CPF pelos dígitos verificadores.
+A referência foi convertida em link explícito para o Actions; o detector não foi alterado nem
+recebeu exceções. O envio desta correção aguarda o término natural dos jobs do CI anterior.
+
+Na inspeção adicional, dois blocos privados sem manifesto final continham 534.669.362 bytes
+em partes consecutivas do RN. A recomposição conferiu 1.382 pares de arquivo/sidecar; 1.231
+receberam caminho inequívoco, cobrindo 90 municípios (2.462 arquivos, 505.451.201 bytes).
+Outros 151 pares permanecem sem caminho inequívoco. As fontes imutáveis continuam no arquivo privado;
+nenhum ponteiro de checkpoint foi alterado e nenhuma marca municipal íntegra foi criada pela recuperação.
+Dois arquivos mapeados não tinham hash nos controles consultados; isso não basta para provar conclusão
+de suas tarefas. A descoberta não autoriza atribuir versões, fontes ou assinaturas ausentes.
+
+O CI completo do #99 passou nos nove jobs antes da integração da main #98. Os dois conflitos
+foram somente em NOTICE e operação, resolvidos preservando ambas as entregas. O novo commit
+seguirá novamente pelo CI; o processamento continua nos destinos imutáveis já auditados.
+
+Validação após integrar #98: **338 testes** de fila, promoção, catálogo, pasta fiador e MCP passaram,
+com PostGIS real. Ruff, formatação, actionlint, detector de CPF/CNPJ e diff conferidos. As seções
+de contagem/Ibis e falhas do processamento ficaram junto dos temas correspondentes nos documentos.
+
+O inventário local dos pares recompostos não foi enviado: o endpoint de upload do Release respondeu
+HTTP 401 neste ambiente, tanto pelo cliente Python quanto pelo gh. Os dois blocos originais já estão
+no draft privado e permanecem intactos; o índice local não foi apresentado como checkpoint remoto
+concluído. Nenhum ponteiro ou marca de processamento foi alterado.
+
+Na integração dos formatos com #98 e a retomada atualizada, **311 testes** de quantis, Croissant,
+manifestos imutáveis, atestação/verificador, promoção e pasta fiador passaram com PostGIS real.
+A correção documental de privacidade não altera o detector nem o código do produto.
+
+
+
+## Integração da main de avaliação — 13/11/2026
+
+O CI do #99 no commit `c89d0ac` passou nos nove jobs. A main recebeu #100 durante a pausa;
+a integração preserva sua conferência de versões em checkouts históricos isolados e a aplica
+às provas urgente e da rodada 12. As versões e os hashes agora são calculados diretamente nos
+commits imutáveis de cada auditoria, sem normalizar o código corrente nem alterar os destinos
+já em execução. A prova AST do leitor também usa o arquivo do destino histórico. Nenhuma
+prova anterior, reserva ou versão de resultado foi reescrita.
+
+
+## Continuações com carga estrita — 13/11/2026, 10h14 de Brasília
+
+O workflow permanece ativo. A consulta do Actions às 13h13 UTC confirmou oito unidades
+executando o motor simultaneamente em PR, SC e SP, dentro de 15 reservas globais. Havia
+38 pedidos bloqueados, preservados para correção; reservas não equivalem a runners ativos.
+A branch `codex/dados-snapshot`, usada por continuações antigas, avançou sem force-push
+para `c89d0ac`, já aprovado nos nove jobs do CI. Jobs admitidos mantêm seus commits.
+
+A auditoria adicional limita a promoção de `6e69cc0` a `c89d0ac`: 11 versões de tarefas,
+239 dependências, código nativo e chamada de carga estrita idênticos. A parte do armazém
+fora dos três métodos de leitura/tratamento de erro também é idêntica. Essa origem não
+volta ao destino anterior à carga estrita. Somente continuações/retentativas elegíveis
+mudam durante a admissão CAS; pedidos iniciais, bloqueados e reservas vivas não mudam.
+As provas anteriores permanecem intactas. O teste reexecuta ambos os commits em checkouts
+isolados e confere os arquivos reais, incluindo versões, dependências e AST.
+
+A integração preserva o CI sem cancelamento da main #100. Os testes focados de promoção,
+fila, catálogo, privacidade e avaliação passaram (227; um caso condicional não executado).
+Ruff, formatação, actionlint e varredura de CPF/CNPJ passaram. O CI completo será conferido
+novamente antes do merge. Não há nova UF concluída comprovada nem previsão nacional válida.
+
+
+### Compatibilidade da publicação do Calendário — 13/11/2026
+
+O PR #97 foi integrado com CI verde: 2.580 testes Python, referência real do Pará e conferência final dos relatórios;
+129 testes de calendário/MCP também passaram na árvore combinada com a main. A primeira rodada automática revelou
+dois bloqueios operacionais: a API autenticada não encontrou o Release `dados`, embora o manifesto público estivesse
+acessível, e o site rejeitou o novo campo agregado `processamento` de GO.
+
+O PR #95, integrado enquanto essa verificação ocorria, corrigiu o leitor do site: contrato fechado de processamento,
+contagens e horários validados e distinção entre a UF cadastral do CAR e o recorte territorial. O download real dos
+16 pacotes públicos passou; 13 UFs têm municípios processados. Essa compatibilidade já está na main.
+
+**Feito no código nesta continuação:** a coleta usa o leitor público de cobertura já limitado e validado pelo CLI,
+no endereço público do manifesto. As operações do Release fixam o repositório do workflow. Conserva o estado
+anterior e interrompe a coleta quando a cobertura não pode ser conferida. A publicação é verificada nas execuções automáticas da main.
+
+A rodada real de 13/11 produziu 50 eventos, 11 futuros e nenhum CAR confirmado: 31 fontes consultadas,
+191 visitas, cobertura dos 13 estados processados e histórico anterior preservado. JSON/ICS/estado não têm
+CPF/CNPJ expostos ou duplicatas exatas. PA parcial; DJEN/BA/MG/TO em erro. O upload local recebeu 401;
+a execução operacional `43366965069` restaurou os três arquivos no Release público. Os hashes remotos
+correspondem aos locais; nenhum dado privado foi publicado. O site foi publicado em `43367227736`: JSON e ICS
+conferidos byte a byte, 50 eventos e 11 futuros já acessíveis.
+
+Validação local: 2.890 testes Python aprovados, um teste opcional pulado e uma divergência esperada; referência real
+estadual incluída. Front com 338 testes e build aprovado na base #95; licenças, privacidade, Ruff e actionlint
+conferidos. Main #98 incorporada preservando as duas entregas e a cabeça única 0035, sem migração nova do calendário.
+Na árvore atualizada: 205 testes de integração aprovados, 341 testes do front e build aprovado. O único skip local
+é do servidor LanguageTool, fornecido pelo CI. Nenhuma exigência do CI foi removida.
+
+
+Integração dos formatos com a main #100/#103 e a retomada atualizada: **451 testes** passaram,
+sem skips, com PostGIS real. As novas provas históricas, metadados do Lote, verificador,
+privacidade e avaliação foram conferidos juntos. Ruff, formatação, actionlint, varredura
+de CPF/CNPJ e **874 licenças** passaram. O teste de registro que não rodou sem banco no #99
+passou nesta árvore integrada. O CI anterior do #102 terminou; a correção do link que
+acionava o detector segue agora junto da integração, sem cancelar jobs.

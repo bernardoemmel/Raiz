@@ -12,7 +12,7 @@ name: Publicar o site
 on:
   push:
     branches: [main]
-    paths: ["front/**", "raiz/lotes_publicos.py", ".github/workflows/publicar-site.yml"]
+    paths: ["front/**", "raiz/potencial_publico.py", "raiz/lotes_publicos.py", ".github/workflows/publicar-site.yml"]
   schedule:
     - cron: "41 10 * * *"
   workflow_dispatch:
@@ -74,8 +74,14 @@ jobs:
 
       - name: Desenhos de todos os municípios publicados e fundo compartilhado por estado
         run: |
-          pip install --quiet requests shapely pmtiles geopandas pyarrow httpx
+          pip install --quiet requests shapely pmtiles geopandas pyarrow httpx 'h3>=4.2,<5'
           python front/scripts/geo.py --dados dados/publicos
+
+      - name: Potencial conhecido por célula, sem publicar medidas por fazenda
+        env:
+          RAIZ_DADOS_PRIVADOS_URL: release-github://${{ github.repository }}/dados-privados
+          RAIZ_DADOS_PRIVADOS_TOKEN: ${{ github.token }}
+        run: python -m raiz.potencial_publico
 
       - name: Resumo aberto dos lotes, sem baixar composição ou pacotes pagos
         env:
@@ -104,6 +110,11 @@ jobs:
           RAIZ_DOMINIO: ${{ vars.RAIZ_DOMINIO }}
           RAIZ_ACERTO_URL: ${{ vars.RAIZ_ACERTO_URL }}
         run: front/scripts/construir-site.sh
+
+      - name: Contar municípios novos desde o último site publicado
+        env:
+          RAIZ_DOMINIO: ${{ vars.RAIZ_DOMINIO }}
+        run: node front/scripts/comparar-cobertura.mjs
 
       - uses: actions/upload-pages-artifact@v3
         with:

@@ -161,9 +161,15 @@ def test_itens_do_pedido_so_revelam_detalhes_dos_cars_liberados_pelo_proprio_cli
     gratuito = S.obter_pedido(eng, pedidos[0], clientes[0])
     assert gratuito["base"] == base and len(gratuito["opcoes"]) == 3
     for opcao in gratuito["opcoes"]:
-        assert {k: v for k, v in opcao.items() if k != "itens"} == {
+        assert {k: v for k, v in opcao.items() if k not in ("itens", "ficha_credito")} == {
             k: v for k, v in opcoes[0].items() if k not in ("itens", "id")
         } | {"id": opcao["id"]}
+        ficha = opcao["ficha_credito"]
+        assert ficha["estado"] == "indisponivel" and ficha["opcao_id"] == opcao["id"]
+        assert all(
+            ficha[campo] is None
+            for campo in ("base", "creditos_lote", "creditos_por_ha", "area_elegivel_ha", "resultados")
+        )
         for item in opcao["itens"]:
             assert not item["ficha_liberada"] and all(item[campo] is None for campo in premium)
             assert item["pequena"] and item["papel"] in ("lote", "reserva")

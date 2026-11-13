@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useRef } from "react"
 import { useRota } from "./rota"
-import { pedidos, useSessao } from "./pedidos"
+import { pedidosPublicos, useSessao } from "./sessao"
 import { Explorar } from "./telas/Explorar"
 
 const AcertoModelo = lazy(() => import("./telas/AcertoModelo").then((m) => ({ default: m.AcertoModelo })))
@@ -11,6 +11,8 @@ const Grupo = lazy(() => import("./telas/Grupo").then((m) => ({ default: m.Grupo
 const MeusPedidos = lazy(() => import("./telas/MeusPedidos").then((m) => ({ default: m.MeusPedidos })))
 const NovoPedido = lazy(() => import("./telas/NovoPedido").then((m) => ({ default: m.NovoPedido })))
 const PedidoTela = lazy(() => import("./telas/PedidoTela").then((m) => ({ default: m.PedidoTela })))
+const FichaLote = lazy(() => import("./telas/FichaLote").then((m) => ({ default: m.FichaLote })))
+const PastaFiador = lazy(() => import("./telas/PastaFiador").then((m) => ({ default: m.PastaFiador })))
 const Calendario = lazy(() => import("./telas/Calendario").then((m) => ({ default: m.Calendario })))
 
 /**
@@ -42,12 +44,14 @@ function TelaAtual() {
   if (rota.tela === "calendario") return <Calendario key={rota.car || "todos"} car={rota.car} />
   if (rota.tela === "fazenda") return <FichaTerra key={`${rota.car}-${sessao?.token ?? "publica"}`} car={rota.car} />
   if (rota.tela === "prospeccao") return <Prospeccao key={sessao?.token ?? "publica"} />
+  if (rota.tela === "pasta") return sessao ? <PastaFiador key={`${rota.id}-${rota.opcao}-${sessao.token}`} id={rota.id} opcaoInicial={rota.opcao} /> : <Entrar token={null} volta={location.hash} />
   if (rota.tela === "entrar") return <Entrar token={rota.token} />
-  if (rota.tela === "pedidos" || rota.tela === "pedido-novo" || rota.tela === "pedido" || rota.tela === "grupo") {
+  if (rota.tela === "pedidos" || rota.tela === "pedido-novo" || rota.tela === "pedido" || rota.tela === "grupo" || rota.tela === "ficha-lote") {
     // sem sessão, entra primeiro e volta para onde ia
-    if (!sessao && (!pedidos.publica || rota.tela === "grupo")) return <Entrar token={null} volta={location.hash} />
+    if (!sessao && (!pedidosPublicos || rota.tela === "grupo")) return <Entrar token={null} volta={location.hash} />
     if (rota.tela === "pedidos") return <MeusPedidos key={sessao?.token ?? "publica"} />
     if (rota.tela === "pedido-novo") return <NovoPedido key={sessao?.token ?? "publica"} />
+    if (rota.tela === "ficha-lote") return <FichaLote key={`${rota.id}-${rota.opcao}-${sessao?.token ?? "publica"}`} id={rota.id} opcao={rota.opcao} />
     if (rota.tela === "grupo") return <Grupo key={`${rota.id}-${sessao?.token ?? "publica"}`} id={rota.id} />
     return <PedidoTela key={`${rota.id}-${sessao?.token ?? "publica"}`} id={rota.id} />
   }

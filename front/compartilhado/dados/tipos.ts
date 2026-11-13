@@ -176,6 +176,8 @@ export interface EstadoDados {
 export interface Estados {
   /** Publicação aberta: somente o CAR e a situação básica por imóvel; demais camadas pela API paga. */
   acesso?: "agregado" | "publico_basico"
+  /** Índice municipal de CARs publicados em outra UF; lido somente na busca por CAR. */
+  car_fronteira?: "car_fronteira.json"
   /** "amostra" (dados/amostra), "publicada" (com o estados.json do Release dados), "RAIZ_DADOS" ou "api" */
   pasta: string
   /** quando os dados publicados foram montados */

@@ -2,6 +2,7 @@ import fs from "node:fs"
 import os from "node:os"
 import path from "node:path"
 import { gunzipSync, gzipSync } from "node:zlib"
+import { createHash } from "node:crypto"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { fonteAmostra } from "../dados/fonte-amostra"
 import { dadosRaiz } from "../vite-dados"
@@ -156,6 +157,46 @@ describe("build estático com geometrias comprimidas", () => {
     expect(lote.estado).toBe("ausente")
     expect(lote.base.creditos.p50).toBeNull()
     expect(lote.opcoes).toEqual([])
+  })
+
+  it("inclui o agregado nacional leve no índice e na saída, sem copiar coordenadas ou campos da entrada", async () => {
+    fs.writeFileSync(path.join(geo, "agregados_brasil.geojson"), "ARQUIVO_BRUTO_NAO_PUBLICAR")
+    fs.writeFileSync(path.join(geo, "potencial_indice.json"), JSON.stringify({ potencial: { PA: { arquivo: "potencial_PA.geojson.gz" } } }))
+    fs.writeFileSync(path.join(geo, "potencial_PA.geojson.gz"), gzipSync(JSON.stringify({ type: "FeatureCollection", metadados: {
+      contrato: "potencial_h3", versao: 1, resolucao: 5, metodo: "ponto_interior_estatistico", minimo_contribuintes: 5, cobertura: "parcial",
+    }, features: [{ type: "Feature", properties: { h3: "8581b16bfffffff", fazendas: 5, potencial_ha: 12, cod_imovel: CARS[0] },
+      geometry: { type: "Point", coordinates: [1, 1] } }] })))
+    const saida = await construir(0)
+    const item = json(saida, "geo/indice.json").agregados
+    expect(item.arquivo).toBe("agregados_brasil.geojson.gz")
+    const dado = fs.readFileSync(path.join(saida, "geo", item.arquivo))
+    expect(dado.length).toBe(item.bytes)
+    expect(item.normal.arquivo).toBe("agregados_brasil.geojson")
+    const normal = fs.readFileSync(path.join(saida, "geo", item.normal.arquivo))
+    expect(normal.length).toBe(item.normal.bytes)
+    expect(item.bytes_total).toBe(dado.length + normal.length)
+    expect(item.sha256).toBe(createHash("sha256").update(dado).digest("hex"))
+    expect(item.normal.sha256).toBe(createHash("sha256").update(normal).digest("hex"))
+    expect(normal.equals(gunzipSync(dado))).toBe(true)
+    const nacional = JSON.parse(gunzipSync(dado).toString())
+    expect(item.metadados).toEqual(nacional.metadados)
+    expect(nacional.features[0].properties).toEqual({ h3: "8581b16bfffffff", fazendas: 5, potencial_ha: 12 })
+    expect(nacional.features[0].geometry.type).toBe("Point")
+    expect(nacional.features[0].geometry.coordinates).not.toEqual([1, 1])
+    expect(JSON.stringify(nacional)).not.toContain(CARS[0])
+    const plugin = dadosRaiz({ repo, raizDados: "dados" })
+    let chamada: (req: unknown, res: unknown, next: () => void) => void
+    plugin.configureServer({ middlewares: { use: (fn: typeof chamada) => { chamada = fn } } } as never)
+    const resposta = await new Promise<{ tipo: unknown; corpo: Buffer }>((resolve, reject) => {
+      const cabecalhos: Record<string, unknown> = {}
+      chamada({ url: "/geo/agregados_brasil.geojson", headers: {} }, {
+        setHeader(chave: string, valor: unknown) { cabecalhos[chave] = valor },
+        end(corpo: Buffer) { resolve({ tipo: cabecalhos["Content-Type"], corpo }) },
+      }, () => reject(new Error("A URL normal precisa ser servida pelo projetor")))
+    })
+    expect(resposta.tipo).toBe("application/geo+json")
+    expect(resposta.corpo.equals(normal)).toBe(true)
+    expect(resposta.corpo.toString()).not.toContain("ARQUIVO_BRUTO_NAO_PUBLICAR")
   })
 
   it("ignora completamente snapshots financeiros de lotes presentes na pasta local", async () => {

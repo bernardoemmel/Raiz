@@ -20,6 +20,13 @@ comprova uma previsão de 365 dias só porque o calendário atual já ultrapasso
 tardias e eventos sem janela comprovada ficam fora; o painel não inventa tolerância nem converte ausência em zero.
 Essa regra reduz a cobertura até o aprendizado registrar períodos compatíveis de forma estruturada.
 
+O leitor de certidões usa a versão técnica `modelo|prompt_versao`, preservada no painel como duas partes
+não vazias, sem texto livre e com o mesmo limite de 120 caracteres. Essa forma é admitida somente para
+`leitor_certidao`; não altera a identificação dos outros modelos. O horizonte documental continua em 30 dias,
+e a sincronização conserva o dia real do gabarito. Uma certidão observada antes ou depois da data-alvo,
+sem cronologia comprovada ou em grupo com menos de cinco imóveis continua fora da projeção pública.
+Sincronizar a primeira certidão não promete uma nota imediata no site.
+
 A classificação **ao vivo** também exige os timestamps imutáveis `previsao.criada_em` e
 `gabarito.registrado_em`. A previsão precisa estar congelada em dia anterior à observação e antes do registro
 do gabarito; nenhum timestamp pode ser futuro. Congelamento no mesmo dia observado não prova a ordem dos fatos,
