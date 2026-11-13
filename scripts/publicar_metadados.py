@@ -382,7 +382,9 @@ def classe_armazem(prazo: float | None = None):
                     headers={"User-Agent": "raiz-catalogo"},
                     transport=transporte_com_retry(prazo, espera_total=espera_total),
                 )
-            super().__init__(*args, **kwargs)
+            # O catálogo já limita a espera somada dos clientes ao prazo da
+            # entrega. A camada comum só revalida ETags, sem uma segunda espera.
+            super().__init__(*args, **kwargs, cota_no_transporte=True)
 
         def _baixar_asset(self, nome, fresco=False):
             dados = super()._baixar_asset(nome, fresco=True)

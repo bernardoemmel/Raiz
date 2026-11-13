@@ -365,7 +365,7 @@ class ArmazemRelease:
     def __init__(self, repo: str = "bernardoemmel/raiz", tag: str = "dados", espelho: Path | None = None,
                  token: str | None = None, cliente=None, intervalo_s: float | None = None,
                  a_cada: int = 20, *, privado: bool = False,
-                 publico: ArmazemRelease | None = None):  # fmt: skip
+                 publico: ArmazemRelease | None = None, cota_no_transporte: bool = False):  # fmt: skip
         import httpx
 
         from raiz.executor.http_github import ClienteGitHub
@@ -377,9 +377,11 @@ class ArmazemRelease:
             raiz_espelho = raiz_espelho.with_name(raiz_espelho.name + "_privado")
         self.local = ArmazemLocal(espelho or raiz_espelho)
         self.token = token if token is not None else (os.environ.get("GH_TOKEN") or os.environ.get("GITHUB_TOKEN"))
-        self.cli = ClienteGitHub(cliente or httpx.Client(timeout=300, follow_redirects=True,
+        self.cli = cliente if isinstance(cliente, ClienteGitHub) else ClienteGitHub(
+                                cliente or httpx.Client(timeout=300, follow_redirects=True,
                                             headers={"User-Agent": "raiz-executor"}),
-                                espera_max_s=float(os.environ.get("RAIZ_GITHUB_ESPERA_MAX_S", "120")))  # fmt: skip
+                                espera_max_s=float(os.environ.get("RAIZ_GITHUB_ESPERA_MAX_S", "120")),
+                                gerenciar_cota=not cota_no_transporte)  # fmt: skip
         self.descricao = f"Release {tag} de {repo}"
         # de quanto em quanto tempo publica no meio da rodada (RAIZ_PUBLICAR_MIN; fatias de estado grande: 60)
         if intervalo_s is None:

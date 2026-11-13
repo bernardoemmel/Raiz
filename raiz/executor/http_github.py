@@ -22,11 +22,12 @@ class ClienteGitHub:
     nunca POST/DELETE de resultado incerto. URLs, corpos e credenciais não são logados.
     """
 
-    def __init__(self, cliente, *, espera_max_s: float = 120):
+    def __init__(self, cliente, *, espera_max_s: float = 120, gerenciar_cota: bool = True):
         if not 0 <= espera_max_s <= 3700:
             raise ValueError("espera da cota deve ficar entre zero e 3700 segundos")
         self.cliente = cliente
         self.espera_max_s = espera_max_s
+        self.gerenciar_cota = gerenciar_cota
         self._cache = OrderedDict()
         self._serial = threading.RLock()
         self._cota_ate = 0.0
@@ -95,7 +96,7 @@ class ClienteGitHub:
                 headers["If-None-Match"] = anterior[0]
         for tentativa in range(4):
             resposta = getattr(self.cliente, metodo)(url, headers=headers, **kwargs)
-            espera = self._espera(resposta, tentativa)
+            espera = self._espera(resposta, tentativa) if self.gerenciar_cota else None
             if espera is not None:
                 self._cota_ate = time.monotonic() + espera
                 self._cota_status = resposta.status_code
