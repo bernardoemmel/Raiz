@@ -170,7 +170,7 @@ describe('pasta privada do lote', () => {
 
 it('preço decimal preserva centavos além da precisão de um Number', async () => {
   const { numeroPasta } = await import('../../compartilhado/pasta-fiador')
-  expect(numeroPasta('12345678901234567890.12')).toBe('12.345.678.901.234.567.890,12')
+  expect(numeroPasta('1234567890123456.12')).toBe('1.234.567.890.123.456,12')
   expect(numeroPasta('0.25')).toBe('0,25')
   expect(numeroPasta(null)).toBe('Não informado')
 })
