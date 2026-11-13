@@ -522,23 +522,32 @@ def extrair(
             chave = _chave_bloco(bloco) + ":" + hashlib.sha256(identidade.encode()).hexdigest()[:16]
             ocorrencias[chave] = ocorrencias.get(chave, 0) + 1
             out.extend(_extrair(bloco, fonte, url, agora, f"{chave}:{ocorrencias[chave]}", anteriores))
-        # Preserva UIDs já publicados antes de separar atos homônimos, somente
-        # quando a identidade técnica e a data confirmam um único evento antigo.
+
+        # Preserva UIDs já publicados antes de separar atos homônimos. Retirar
+        # um identificador ambíguo também corrige o evento antigo, em vez de
+        # duplicá-lo e deixar a matrícula suspeita no histórico vigente.
+        def marco(e):
+            return e.fonte_id, e.fonte_url, e.tipo, e.referencia, e.marco, e.data
+
+        contagem_marcos = {}
+        for evento in out:
+            contagem_marcos[marco(evento)] = contagem_marcos.get(marco(evento), 0) + 1
         for i, evento in enumerate(out):
+            candidatos = [e for e in anteriores if marco(e) == marco(evento)]
             iguais = [
                 e
-                for e in anteriores
-                if e.fonte_id == evento.fonte_id
-                and e.fonte_url == evento.fonte_url
-                and e.tipo == evento.tipo
-                and e.referencia == evento.referencia
-                and e.marco == evento.marco
-                and e.data == evento.data
-                and e.codigos_car == evento.codigos_car
+                for e in candidatos
+                if e.codigos_car == evento.codigos_car
                 and e.cns == evento.cns
                 and e.matricula == evento.matricula
                 and e.sigef == evento.sigef
             ]
+            if (
+                not any((evento.codigos_car, evento.cns, evento.matricula, evento.sigef))
+                and len(candidatos) == 1
+                and contagem_marcos[marco(evento)] == 1
+            ):
+                iguais = candidatos
             if len(iguais) == 1:
                 out[i] = evento.model_copy(update={"id": iguais[0].id})
         return _deduplicar(out), max(0, sum(1 for b in blocos if _tipo(b, fonte)) - len(out))
