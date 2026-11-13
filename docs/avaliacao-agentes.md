@@ -202,6 +202,6 @@ com texto bruto. O sucesso desses testes valida o **avaliador**, não declara su
 
 O workflow manual/semanal, a pilha descartável, o segredo `ANTHROPIC_API_KEY`, os
 limites de consumo e os artefatos estão em [Medição no Actions](medicao-agentes-actions.md).
-O gabarito acima continua sendo o contrato: nenhuma ferramenta permitida foi
-ampliada para esconder limitações do fluxo assíncrono. A execução real depende
-da chave e do modelo disponíveis na conta Anthropic; testes do runner não são nota de agente.
+O gabarito v2 permite acompanhar apenas a operação criada na própria tentativa,
+conforme o contrato acima. A execução real depende da chave e do modelo disponíveis
+na conta Anthropic; testes do runner não são nota de agente.

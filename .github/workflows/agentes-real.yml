@@ -17,6 +17,21 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 120
     steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Preparar relatório de preparação incompleta
+        run: |
+          mkdir -p .cache/agentes-status
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          Path('.cache/agentes-status/relatorio.json').write_text(json.dumps({
+              'aprovado': False, 'estado': 'incompleta', 'etapa': 'preparacao_da_pilha',
+              'tarefas': 24, 'tentativas_planejadas': 96, 'tentativas_concluidas': 0,
+              'pass4': None, 'passos': 0, 'segundos': 0, 'chamadas_proibidas': 0,
+          }, ensure_ascii=False, indent=2) + '\n')
+          PY
       - name: Exigir a credencial do agente real
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -26,9 +41,6 @@ jobs:
             echo "::error::Configure o segredo ANTHROPIC_API_KEY no repositório. A medição real não foi executada."
             exit 1
           fi
-      - uses: actions/checkout@v4
-        with:
-          persist-credentials: false
       - uses: astral-sh/setup-uv@v6
         with:
           enable-cache: true
@@ -78,6 +90,17 @@ jobs:
             .cache/agentes-real/trace-*.json
             .cache/agentes-real/cassetes/*.yaml
             .cache/agentes-real/recursos.json
+          retention-days: 30
+          # Somente os arquivos conferidos acima; .cache não deve ocultar a evidência.
+          include-hidden-files: true
+          if-no-files-found: error
+      - name: Guardar diagnóstico quando a medição não chegou a iniciar
+        if: always() && hashFiles('.cache/agentes-real/relatorio.json') == ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: medicao-agente-nao-iniciada
+          path: .cache/agentes-status/relatorio.json
+          include-hidden-files: true
           retention-days: 30
           if-no-files-found: error
       - name: Encerrar a pilha local

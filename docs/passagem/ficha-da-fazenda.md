@@ -1,7 +1,7 @@
 # Passagem do chat "Ficha da fazenda"
 
 Atualização de 12/11/2026 (Brasília). Continuação implementada na branch
-`codex/ficha-compromissos-versoes`, com integração da main `cf30625`.
+`codex/ficha-compromissos-versoes`, com integração da main `c3bf907`.
 Entregas anteriores integradas pelos [PR #72](https://github.com/bernardoemmel/Raiz/pull/72)
 e [PR #80](https://github.com/bernardoemmel/Raiz/pull/80), commit `bea53bd`.
 Entrega anterior integrada: [PR #52](https://github.com/bernardoemmel/Raiz/pull/52).
@@ -29,7 +29,8 @@ não há novos campos exclusivos no Release público ou em arquivos estáticos d
 - Cobertura: `raiz prospeccao atualizar-base` descobre as UFs no manifesto privado;
   `reindexar` atualiza os derivados após mudança de fontes, mesmo sem CSV novo.
   Falhas da carga não avançam o checkpoint. O fluxo existente de sincronização
-  e vigilância local chama os mesmos hooks. Não recalcula o motor do Pará.
+  e vigilância local chama os mesmos hooks. A agenda Compose também atualiza a
+  base e confere buscas a cada 15 minutos. Não recalcula o motor do Pará.
 - Exportações: PDF com marca d'água em cada página e linha-sentinela; JSON e CSV
   com a mesma marca pseudônima, separada das medidas da terra. A marca não inclui
   nome, documento ou contato. Sem chave do servidor a exportação retorna 503;
@@ -58,27 +59,22 @@ avulso; permanece fechada até haver gestão real de ciclos. O simulador
 consumo e margem quando os custos são informados, sem persistir hipóteses ou
 chamar o Pix. Ver `docs/precos-e-receita.md`.
 
-A mesma entrega inclui `.github/workflows/medir-agentes.yml`: manual e segunda às
-06:00 de Brasília, 24 tarefas × quatro tentativas e segredo `ANTHROPIC_API_KEY`
-do repositório. PostGIS, Valkey, Keycloak, API e worker são descartáveis, com
-negócios sintéticos; OAuth Code + PKCE é real. O template Keycloak agora mapeia
-explicitamente `sub`, necessário para tokens leves passarem pelo verificador.
-A preparação não libera pagamentos nem contatos externos.
+A medição usa o workflow único `.github/workflows/agentes-real.yml`, integrado
+pelo PR #85: manual e segunda às 06:00 de Brasília, 24 tarefas × quatro tentativas,
+com `ANTHROPIC_API_KEY` apenas no Actions. A conciliação mantém seu runner, Compose,
+OAuth real, juiz, evidências sanitizadas e gabarito v2. Não adiciona segunda campanha
+semanal. Este PR garante também artefato de diagnóstico se a preparação falhar,
+e upload explícito dos arquivos conferidos que estão dentro de `.cache`.
 
-O artefato contém pass^4, passos, tempo, consumo, chamadas proibidas e completude,
-sem respostas brutas ou credenciais. Falta de chave/provedor não vira sucesso;
-limite por tentativa reprova seus critérios. Não há polling oculto para melhorar
-a nota. As divergências entre tarefas e ferramentas assíncronas permanecem
-visíveis. Ver `docs/medicao-agentes-actions.md` para ativar, custos e limites.
+A execução 43341704532 já iniciou na main e passou pela verificação do segredo.
+Seu resultado ainda precisa ser conferido; testes de contrato não são pass^4 real.
+Ver `docs/medicao-agentes-actions.md`. A pilha de produção não foi implantada.
 
-Validações locais: 2.227 testes Python aprovados e uma falha exclusiva da referência
-estadual sem snapshot privado; 230 testes do front; navegador/celular/axe; 681 dependências
-sem licença proibida; integração PostGIS de marcas, histórico e rollback; dez
-testes do runner e contrato/OAuth. A pilha real passou em seis cenários em 39,8 s,
-sem chamar o modelo. O teste estadual do Pará exige o snapshot privado preparado
-pelo job `referencia_para`; não se substitui por fixture pequena. O CI completo
-é obrigatório antes do merge. Nenhuma nota de agente real é presumida a partir
-desses testes.
+Validações locais antes da conciliação: 2.227 testes Python aprovados e uma falha
+exclusiva da referência estadual sem snapshot privado; 230 testes do front;
+navegador/celular/axe; integração PostGIS de marcas, histórico e rollback. O teste
+estadual exige o snapshot privado preparado pelo job `referencia_para`; não se
+substitui por fixture pequena. O CI completo é obrigatório antes do merge.
 
 ## Publicação aberta e arquivo privado
 

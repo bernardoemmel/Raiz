@@ -25,8 +25,9 @@ antes/depois da carga e refaz compromissos quando as fontes mudam. Falha na
 carga ou no processamento posterior deixa o checkpoint pendente para a próxima
 volta. Não é necessário recalcular o motor para preparar a ficha.
 
-No servidor, agende `atualizar-base` e `verificar-buscas` a cada 15 minutos, com
-trava de processo e arquivos `.env`/espelho privados. A coleta de compromissos
+Na pilha Compose, a agenda executa `atualizar-base` e `verificar-buscas` a cada
+15 minutos, com retomada após falha e arquivos `.env`/espelho privados. Fora da
+pilha, configure uma única agenda com trava de processo. A coleta de compromissos
 pode rodar semanalmente; a fase Verra é explícita para controlar o tráfego e
 pode ser repartida com `--limite-verra`. Para continuar uma coleta parcial,
 `--retomar-desde AAAA-MM-DD` pula projetos Verra persistidos com sucesso desde
@@ -175,7 +176,7 @@ serviços de iniciar. Não reverta schema automaticamente nem inicialize volumes
 Depois, confira `/saude`, descoberta OAuth/MCP, uma consulta autorizada, fila/outbox e recibo de aprovação de teste.
 
 A agenda `scripts/agendar_servicos.py` reutiliza as CLIs existentes: alertas a cada 15 minutos, ciclo dos pedidos
-por hora, buscas salvas a cada 30 minutos e Calendário diariamente às 06h47 no fuso `RAIZ_AGENDA_FUSO`
+por hora, atualização de fichas e buscas salvas a cada 15 minutos e Calendário diariamente às 06h47 no fuso `RAIZ_AGENDA_FUSO`
 (padrão `America/Sao_Paulo`). Ela mantém uma trava exclusiva e horários concluídos no volume `dados`, não duplica
 horário concluído após reinício e repete falhas depois de cinco minutos. Tarefas distintas podem executar juntas,
 mas a mesma tarefa nunca se sobrepõe. Instale somente uma agenda para esse volume; não deixe os mesmos trabalhos
@@ -965,9 +966,9 @@ nos eventos. Limites da auditoria e pendências estão em `docs/passagem/qualida
 
 ## Medição semanal de agentes
 
-O workflow **Medição de agentes (24 tarefas)** usa `ANTHROPIC_API_KEY` dos segredos
+O workflow **Agente real semanal** (`agentes-real.yml`) usa `ANTHROPIC_API_KEY` dos segredos
 do repositório, com acionamento manual e segunda às 06:00 de Brasília. Instruções
-de ativação, modelos, limites de consumo, artefatos e códigos de saída estão em
+de ativação, limites, artefatos e códigos de saída estão em
 [medicao-agentes-actions.md](medicao-agentes-actions.md). O banco da campanha é
 descartável e sintético; não depende do servidor de produção nem usa o arquivo
 privado. Sem a chave, o relatório indica campanha incompleta, não aprovação.

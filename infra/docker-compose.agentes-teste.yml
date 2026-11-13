@@ -14,6 +14,8 @@ x-teste-ambiente: &teste-ambiente
   RAIZ_OTEL_ENDPOINT: ""
   RAIZ_DADOS_PRIVADOS_URL: /app/dados/armazem
   RAIZ_DADOS_PRIVADOS_TOKEN: ""
+  RAIZ_PROTECAO_CHAVES: ""
+  RAIZ_PROTECAO_VERSAO: ""
 services:
   banco:
     ports:
