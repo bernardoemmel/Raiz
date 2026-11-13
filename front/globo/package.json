@@ -33,7 +33,7 @@
     "@radix-ui/react-tabs": "1.2.1",
     "echarts": "6.1.0",
     "h3-js": "4.5.0",
-    "lucide-react": "1.62.0",
+    "lucide-react": "1.70.0",
     "maplibre-gl": "6.15.0",
     "pmtiles": "4.5.0",
     "react": "^19.3.1",
@@ -58,7 +58,7 @@
     "pngjs": "7.0.0",
     "typescript": "~7.0.2",
     "vite": "^8.3.6",
-    "vitest": "5.0.5"
+    "vitest": "5.1.0"
   },
   "overrides": {
     "lighthouse": {
