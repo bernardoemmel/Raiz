@@ -11,9 +11,9 @@ Capturas reais de Chrome for Testing 157.0.8103.78, em 1440 × 1000 px no deskto
 | Brasil a 360 px | — | [Entrada móvel](brasil-360-depois.png) |
 | Processamento | — | [Ausência de telemetria no snapshot](processamento-depois.png) |
 
-O “antes” nacional foi capturado em `https://bernardoemmel.github.io/Raiz/`, em **12/11/2026 às 23:14:31, horário de Brasília**, com zero erros de rede ou JavaScript. Esse PNG permanece intacto. Os seis “depois” foram capturados em **13/11/2026 entre 10:55:35 e 10:55:42, horário de Brasília**, com o frontend `650db81`: fichas da rodada 12, painel de processamento, fundo sólido em CSS, dimensionamento único na criação do mapa e composição das camadas nacionais no estilo inicial. Os horários ISO em UTC e hashes estão em [snapshot.json](snapshot.json).
+O “antes” nacional foi capturado em `https://bernardoemmel.github.io/Raiz/`, em **12/11/2026 às 23:14:31, horário de Brasília**, com zero erros de rede ou JavaScript. Esse PNG permanece intacto. Os seis “depois” foram capturados em **13/11/2026 entre 14:21:00 e 14:21:06, horário de Brasília**, com o frontend `c1d42a4` (runtime `2384fd8`): fichas da rodada 12, painel de processamento, Supercluster em worker próprio e preparação gráfica da entrada nacional. Os horários ISO em UTC e hashes estão em [snapshot.json](snapshot.json).
 
-O Supercluster permanece no worker do MapLibre; só os grupos visíveis recebem botões HTML, com contagem, hectares, toque e teclado. A camada transparente mantém a consulta espacial sem compilar o programa gráfico dos círculos. A [entrada em 360 px](brasil-360-depois.png) usa contexto novo e enquadramento próprio, com uma legenda recolhível. O SVG permanece apenas no minimapa da barra lateral.
+O Supercluster usa um worker próprio, com a mesma implementação, parâmetros e somas da versão usada pelo MapLibre; só os grupos visíveis recebem botões HTML, com contagem, hectares, toque e teclado. A fonte invisível duplicada foi retirada do MapLibre. O roteiro observa os grupos retornados e os botões reais, sem alterar os dados. A [entrada em 360 px](brasil-360-depois.png) usa contexto novo e enquadramento próprio, com uma legenda recolhível. O SVG permanece apenas no minimapa da barra lateral.
 
 As demais imagens “antes” pertencem à [etapa histórica do mapa](../mapa/README.md), com suas próprias fontes e datas. O detalhe anterior e o atual mostram a mesma escala, mas não a mesma fazenda. Os hexágonos daquela etapa não são a visualização nacional desta rodada.
 
@@ -21,7 +21,7 @@ As demais imagens “antes” pertencem à [etapa histórica do mapa](../mapa/RE
 
 As seis imagens novas compartilham o snapshot público cujo índice cartográfico foi gerado em **12/11/2026 às 20:54:43, horário de Brasília**, com dados publicados às **20:46:50**: **444 municípios e 13 estados**. O índice, os agregados normal e gzip, o manifesto dos estados e a projeção de processamento foram conferidos byte a byte contra a fonte congelada. O exportador histórico do agregado é `6bc77c1`; essa referência não é a versão atual do painel.
 
-A entrada nacional usa **6.787 pontos públicos**, deduplicados globalmente, em **1.227.580 bytes no GeoJSON normal**, lido diretamente pelo worker. O fallback de publicações anteriores ocupa **215.591 bytes comprimidos**. São centros das células H3 já agregadas, nunca a localização individual de uma fazenda. O Supercluster soma contagens e hectares conhecidos, sem criar um segundo índice na interface.
+A entrada nacional usa **6.787 pontos públicos**, deduplicados globalmente, em **1.227.580 bytes no GeoJSON normal**, lido diretamente pelo worker próprio. O fallback de publicações anteriores ocupa **215.591 bytes comprimidos**. São centros das células H3 já agregadas, nunca a localização individual de uma fazenda. O Supercluster soma contagens e hectares conhecidos, sem criar um segundo índice na interface.
 
 O conjunto agrega **1.626.268 CARs** nas células publicadas; esse número não representa cobertura completa do território. As **3.717 células com medida** somam apenas áreas conhecidas, positivas e sem sobreposição detectada, com ao menos cinco contribuintes. Células suprimidas não entram nessa contagem. Grupos sem medida dizem “Sem medida”; a parcela desconhecida não vira zero. Os centros são uma alocação estatística e não desenham áreas de restauração.
 
@@ -31,7 +31,7 @@ O snapshot não contém observações de execução. O build consulta uma proje�
 
 ## Verificação
 
-O roteiro abriu Brasil e Pará, buscou Parauapebas e clicou no interior renderizado de uma fazenda pública sem sobreposição detectada. A seleção enquadrou o CAR efetivamente escolhido no zoom **14,32**. Foram **109 requisições no desktop e 56 na entrada móvel**, todas respondidas com **HTTP 200 ou 206**: zero 404, erros de JavaScript/console ou falhas de rede. Não houve cancelamento de requisição nessa captura. **Nove imagens reais de satélite** responderam HTTP 200.
+O roteiro abriu Brasil e Pará, buscou Parauapebas e clicou no interior renderizado de uma fazenda pública sem sobreposição detectada. A seleção enquadrou o CAR efetivamente escolhido no zoom **14,32**. Foram **103 requisições no desktop e 50 na entrada móvel**, todas respondidas com **HTTP 200 ou 206**: zero 404, erros de JavaScript/console ou falhas de rede. Não houve cancelamento de requisição nessa captura. **Nove imagens reais de satélite** responderam HTTP 200.
 
 Não houve interceptação de rede nem consulta a endpoints pagos ou exportações de pasta. Os PNGs não mostram nome, CPF ou contato de proprietário. O roteiro também conferiu o processamento local, a ausência de consulta ao RAW vivo e a posição das camadas do fundo e do satélite abaixo dos contornos e da máscara.
 
@@ -39,14 +39,34 @@ O detalhe conserva contornos de 1 px sem preenchimento, tracejado nos limites co
 
 Nenhuma hachura de restauração foi criada a partir do CAR. A fonte autorizada está vazia no mapa aberto; a ficha paga consulta a geometria real pela API quando disponível. A carga desse recorte no mapa geral continua pendente, portanto estas capturas não demonstram essa integração.
 
-O Playwright Pages passou com a revisão final. O roteiro confere grupos com medida ausente, soma e rótulos, abertura por Enter com foco preservado, reutilização do botão, transição para município e remoção dos marcadores no detalhe. Também verifica fallback gzip, alerta e ausência de marcadores quando o GeoJSON falha. As **sete verificações axe** da fixture terminaram sem violações WCAG 2.1 AA em 360 px, com teclado e gaveta móvel.
+O Playwright Pages passou com a revisão `c1d42a4`, nos caminhos `/Raiz/` e `/`. O roteiro confere grupos com medida ausente, soma e rótulos, abertura por Enter com foco preservado, reutilização do botão, transição para município e remoção dos marcadores no detalhe. Também verifica fallback gzip, alerta e ausência de marcadores quando o GeoJSON falha. As **sete verificações axe** da fixture terminaram sem violações WCAG 2.1 AA em 360 px, com teclado e gaveta móvel.
 
 ## Desempenho
 
-A única série fixa de três execuções Lighthouse mobile da revisão `650db81` com estes dados reais obteve **82, 90 e 90 em desempenho (mediana 90)** e **100 em acessibilidade nas três**. LCP: **0,758 / 1,797 / 0,753 s**; TBT: **716,1 / 341,5 / 407,5 ms**. A amostra 82 está preservada, sem descarte ou repetição para escolher nota. O resultado alcança exatamente o mínimo do portão por mediana, **sem folga**; não comprova que toda abertura individual chegue a 90.
+A única série fixa de três execuções Lighthouse mobile da revisão **`c1d42a4`** com estes dados reais obteve **84, 91 e 95 em desempenho (mediana 91)** e **100 em acessibilidade nas três**. LCP: **0,757 / 1,774 / 0,752 s**; TBT: **598,0 / 327,5 / 259,5 ms**. A amostra **84** está preservada, sem descarte ou repetição para escolher nota. A mediana passa com pouca folga; **não comprova que toda abertura individual chegue a 90**.
 
-A fixture sintética completa também passou suas **18 medições fixas**, três por rota: medianas **Brasil 90, entrar 98, novo pedido 97, prospecção 96, acerto 97 e produtor 100**. A série nacional da fixture foi **88/90/94**, preservada integralmente. Acessibilidade foi **100 nas 18 amostras**. Fixture e dados reais permanecem separados em [lighthouse.json](lighthouse.json).
+A fixture sintética completa passou suas **18 medições fixas**, três por rota: medianas **Brasil 92, entrar 98, novo pedido 97, prospecção 98, acerto 97 e produtor 100**. A série nacional foi **89/95/92**, incluindo a amostra **89** abaixo de 90. Acessibilidade foi **100 nas 18 amostras**; sete auditorias axe terminaram sem violações. A fixture inclui nome e cobertura estadual efetivamente desenhados. As duas séries permanecem separadas em [lighthouse.json](lighthouse.json), com todas as notas, datas e hashes dos relatórios.
 
-A revisão elimina um redimensionamento redundante do canvas e prepara as fontes/camadas nacionais no estilo inicial, mantendo a chegada dos dados pelos mesmos efeitos. A comparação controlada de 360 px com a revisão anterior teve **zero pixels diferentes**, enquadramento, fontes e ordem das camadas iguais. A série real intermediária, apenas com o ajuste de dimensionamento, deu **86/86/92 (mediana 86)** e foi reprovada; esse resultado continua no histórico. Não houve temporizador artificial, identificação do Lighthouse ou troca de motor de mapa.
+A revisão final conserva o enquadramento e as camadas. Distribui a inicialização em tarefas cooperativas, mantém o índice de grupos em worker próprio e prepara os programas gráficos nacionais fora da interface quando o navegador oferece suporte. O contexto WebGL solicita `desynchronized` pela API pública; a aceitação depende do navegador. A abertura também evita cálculos de datas enquanto não há calendário carregado. Não houve temporizador artificial, identificação do Lighthouse, troca de dados, redução do portão ou troca de motor de mapa.
 
-A série real foi executada com os arquivos exatos da revisão `650db81` antes de gravar o commit. Os hashes das três fontes foram conferidos no checkout e registrados nos metadados; os relatórios brutos não foram alterados. As imagens e medições correspondem ao build local e ao snapshot congelado, não à publicação diária mais recente. O CI e a inspeção do site publicado continuam verificações separadas.
+As séries abaixo pertencem a revisões anteriores. Os resultados reprovados foram preservados e não são atribuídos ao candidato final:
+
+| Revisão / ambiente | Nacional: três amostras | Mediana | Resultado daquele conjunto |
+|---|---|---|---|
+| CI inicial `43362021791`, fixture | 82 / 86 / 72 | 82 | Reprovado |
+| `d00ea94`, fixture no CI `43369596942` | 91 / 92 / 78 | 91 | Aprovado; nove jobs verdes naquela revisão |
+| `b35b490`, fixture no CI `43431157242` | 81 / 85 / 85 | 85 | Reprovado |
+| `acb140c`, snapshot real, dimensionamento isolado | 86 / 86 / 92 | 86 | Reprovado |
+| `650db81`, snapshot real, estilo inicial em lote | 82 / 90 / 90 | 90 | Aprovado localmente naquela revisão |
+| `dee13fe`, fixture no CI `43439869332` | 82 / 87 / 87 | 87 | Reprovado; oito dos nove jobs passaram |
+| `7be0b64`, fixture, cooperação e sessão leve | 88 / 89 / 92 | 89 | Reprovado; demais rotas não executadas |
+| `d082f43`, snapshot real, worker próprio | 82 / 83 / 91 | 83 | Reprovado; fixture nacional tinha mediana 92 |
+| `6e23883`, snapshot real, estados por URL e painel estável | 78 / 80 / 93 | 80 | Reprovado; fixture nacional tinha mediana 95 |
+| `4b72f85`, snapshot real, preparação dos rótulos | 78 / 82 / 82 | 82 | Reprovado; fixture nacional tinha mediana 92 |
+| `b52be9b`, fixture, preparação dos programas nacionais | 81 / 84 / 95 | 84 | Reprovado; demais rotas e série real não executadas |
+
+Acessibilidade foi 100 nas amostras dessa tabela. O JSON conserva também as séries locais mais antigas, as 18 medições das fixtures completas e a proveniência da revisão `650db81`, medida antes de seu commit. Cada mudança foi medida separadamente; não houve nova execução do mesmo candidato para selecionar uma nota melhor.
+
+As seis capturas finais usam o mesmo build da série real `c1d42a4`. Foram conferidos os hashes de 17 fontes, 64 artefatos compilados e seis arquivos de dados; os relatórios brutos não foram alterados. As imagens nacionais, móvel, de processamento e do detalhe são byte a byte iguais às da captura anterior; Pará e Parauapebas foram recapturados com pequenas diferenças de renderização. O PNG “antes” continua intacto.
+
+As imagens e medições correspondem ao **build local com snapshot congelado**, não à publicação diária mais recente. O CI remoto e a inspeção do site publicado continuam verificações separadas. A ausência de telemetria de processamento é real neste snapshot e não foi preenchida com atividade simulada.
