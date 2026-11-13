@@ -14,7 +14,8 @@ from sqlalchemy import text
 
 from raiz.aprendizado import arquivo_historico as A
 from raiz.aprendizado.arquivo_historico import arquivar
-from raiz.aprendizado.retratos import quadros, validar_retrato
+from raiz.aprendizado.compat_retratos import validar_retrato
+from raiz.aprendizado.retratos import quadros
 
 
 def importar_retrato(con, arquivo: Path) -> dict:
