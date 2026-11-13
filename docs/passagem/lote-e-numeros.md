@@ -365,3 +365,10 @@ Agora usa área restaurável positiva para formar a população invariante, e
 recalcula também a pequena com crédito central zero nos outros cenários. Três
 testes passaram, incluindo esse caso, seis chamadas de seleção e retomada com
 integridade das decisões. Nenhum piso de tamanho foi introduzido.
+
+Suíte integral após integrar main: 2.500 aprovados, 292 ignorados por ambiente,
+uma falha esperada e a única falha no cenário implícito da fixture CADT. Essa
+fixture foi corrigida e os 52 testes CADT passaram; a sensibilidade atualizada
+passou nos três testes focados. O replay privado PA144/345.870 passou dentro da
+suíte integral. Ruff e formatação dos 578 arquivos passaram. CI do PR ainda é
+o portão para merge; execução e publicação PA R12 ainda precisam ser conferidas.

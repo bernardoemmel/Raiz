@@ -557,3 +557,6 @@ A primeira execução no Actions identificou ausência de `rg` no runner; a veri
   o cenário explícito do exportador; 52 testes aprovados, sem alterar sua implementação.
 - [x] Sensibilidade preserva pequenas com crédito central zero na população a
   reavaliar; seleção continua sendo refeita a cada cenário. Três testes aprovados.
+- [x] Validação local R12: suíte integral com 2.500 aprovados e único erro na
+  fixture CADT, corrigido e coberto por 52 testes aprovados; replay estadual
+  privado aprovado; sensibilidade atualizada e Ruff aprovados. CI/merge pendentes.
