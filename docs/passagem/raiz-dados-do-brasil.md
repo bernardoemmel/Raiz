@@ -475,3 +475,16 @@ nem oculta outras falhas. A classe base do publicador e seu contrato de compatib
 
 O verificador portátil confere bytes reais, fichas, quantis, CADT e atestações dos dois escopos. CI, merge,
 execução retroativa e verificação remota integral ainda pendentes; os números acima são validação local.
+
+Verificador do Lote PA executado também nos cinco originais reais congelados: os **19 derivados foram
+reproduzidos com os mesmos hashes**, incluindo os três pacotes hubverse e os cinco períodos CAD Trust por
+opção. Foram conferidos **987 membros** nos quatro TARs, sem exigir um manifesto estadual inexistente
+no contrato do Lote. Prova agregada em `docs/medicoes/lote-pa-formatos-2026-11-12.json`; duração 152,41 s.
+Além dos 146 testes do catalogador/formatos, passaram 68 de conteúdo/derivados e 42 de snapshots,
+atestação e CLI. Publicação remota e assinaturas continuam pendentes; esta prova é local.
+
+Validação integral dos formatos: **2.835 testes passaram**, com PostGIS, LanguageTool e referência
+completa do Pará; dois casos de cartão/vídeo foram repetidos após preparar Takumi e os três testes
+desse módulo passaram. A divergência histórica de TIR permanece como xfail. Os 110 testes específicos
+do verificador foram executados após ampliar a conferência dos produtos finais do Lote PA.
+CI, merge e catálogo remoto seguem pendentes neste registro.

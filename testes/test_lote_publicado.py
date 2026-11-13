@@ -166,3 +166,33 @@ def test_referencia_remota_divergente_impede_qualquer_upload(tmp_path, monkeypat
     with pytest.raises(ValueError, match="referência imutável"):
         P.catalogar_lotes(arm, tmp_path)
     assert arm.uploads == []
+
+
+def test_verificador_reproduz_derivados_e_recusa_quantidade_adulterada(tmp_path):
+    from scripts import verificar_release_dados as V
+
+    m, arquivo, nome, pacotes = fontes(tmp_path / "fontes")
+    r = L.gerar(arquivo, nome, pacotes, tmp_path / "derivados", base_url=BASE_URL, data_inicio="2027-01-01")
+    caminhos = {nome: arquivo, **{m["arquivos"][k]["nome"]: p for k, p in pacotes.items()}, **r["arquivos"]}
+    arquivos = {n: (p, L.sha256(p), p.stat().st_size) for n, p in caminhos.items()}
+    assert V.validar_lote_publicado(nome, arquivos, BASE_URL)["derivados"] == 19
+    derivado = next(n for n in r["arquivos"] if n.endswith("_resumos_quantis.parquet"))
+    p = r["arquivos"][derivado]
+    p.write_bytes(p.read_bytes() + b"alterado")
+    arquivos[derivado] = (p, L.sha256(p), p.stat().st_size)
+    with pytest.raises(V.FalhaSegura, match="divergente_dos_originais"):
+        V.validar_lote_publicado(nome, arquivos, BASE_URL)
+
+
+def test_verificador_confere_membros_do_lote_sem_inventar_versoes_estaduais(tmp_path):
+    from raiz.metadados_lote import croissant_tar_csv
+    from scripts import verificar_release_dados as V
+
+    m, _, _, pacotes = fontes(tmp_path / "fontes")
+    for tipo, pacote in pacotes.items():
+        ref = m["arquivos"][tipo]
+        ficha = croissant_tar_csv(pacote, ref["nome"], {"url": BASE_URL + ref["nome"], **ref})
+        assert V.validar_contidos(ficha, pacote) > 0
+        ficha["distribution"][1]["sha256"] = "0" * 64
+        with pytest.raises(V.FalhaSegura, match="sha256_csv_contido_divergente"):
+            V.validar_contidos(ficha, pacote)

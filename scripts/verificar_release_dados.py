@@ -4,7 +4,8 @@
 Execute com ``uv run --extra metadados python -m scripts.verificar_release_dados``.
 GH_TOKEN é obrigatório; para um
 destino diferente, RAIZ_DADOS_PRIVADOS_TOKEN pode fornecer a credencial privada.
-Nenhum método de publicação, reparo, trava ou geração de metadados é chamado.
+Nenhum método de publicação, reparo ou trava é chamado. Os derivados do lote
+são reproduzidos somente em uma pasta temporária, para comparação dos hashes.
 """
 
 from __future__ import annotations
@@ -191,6 +192,7 @@ def atestacao(caminho, nome, digest, gh, *, privado=False):
 
 
 def validar_contidos(ficha, caminho, proveniencia=None, *, uf=None):
+    exige_versoes = uf is not None or proveniencia is not None
     descritos = [
         d
         for d in ficha.get("distribution", [])
@@ -205,10 +207,17 @@ def validar_contidos(ficha, caminho, proveniencia=None, *, uf=None):
     with tarfile.open(caminho, "r|gz") as tar:
         for membro in tar:
             partes = Path(membro.name).parts
-            exigir(membro.isfile() and not membro.name.startswith("/") and ".." not in partes, "membro_tar_invalido")
+            exigir(not membro.name.startswith("/") and ".." not in partes, "membro_tar_invalido")
+            if membro.isdir():
+                continue
+            exigir(membro.isfile(), "membro_tar_invalido")
             exigir(membro.name not in vistos, "membro_tar_duplicado")
             vistos.add(membro.name)
-            if ficha.get("isAccessibleForFree") is False and membro.name in {f"{uf}/_versoes.json" for uf in pastas}:
+            if (
+                exige_versoes
+                and ficha.get("isAccessibleForFree") is False
+                and membro.name in {f"{uf}/_versoes.json" for uf in pastas}
+            ):
                 with tar.extractfile(membro) as entrada:
                     dados = entrada.read()
                 exigir(isinstance(json.loads(dados), dict), "manifesto_versoes_invalido")
@@ -223,7 +232,7 @@ def validar_contidos(ficha, caminho, proveniencia=None, *, uf=None):
             exigir(h.hexdigest() == d.get("sha256"), "sha256_csv_contido_divergente")
             exigir(str(membro.size) == str(d.get("contentSize")), "tamanho_csv_contido_divergente")
     exigir(vistos - ({manifesto} if manifesto else set()) == set(contidos), "csv_descrito_ausente_do_tar")
-    if ficha.get("isAccessibleForFree") is False:
+    if exige_versoes and ficha.get("isAccessibleForFree") is False:
         exigir(manifesto is not None, "manifesto_versoes_ausente")
     return len(contidos)
 
@@ -888,6 +897,16 @@ def _executar_escopo(args, escopo, cache, relatorio, publicador, metadados, arma
         )
         indice = validar_fichas(armazem, arquivos, registrar, metadados, publicador.referencias)
         if privado:
+            from raiz.lote_publicado import eh_manifesto
+
+            for nome in sorted(n for n in arquivos if eh_manifesto(n)):
+                registrar(
+                    nome,
+                    "lote_publicado",
+                    lambda nome=nome: validar_lote_publicado(
+                        nome, arquivos, armazem.url_metadados(nome).removesuffix(nome)
+                    ),
+                )
             ufs = set(indice.get("estados", {}))
             for uf in ufs:
                 obrigatorios = {
@@ -970,6 +989,38 @@ def _executar_escopo(args, escopo, cache, relatorio, publicador, metadados, arma
         salvar()
 
 
+def validar_lote_publicado(nome, arquivos, base_url):
+    """Reproduz somente a conversão dos produtos publicados; nunca executa o motor."""
+    from raiz import lote_publicado as lote
+
+    caminho, digest, _ = arquivos[nome]
+    manifesto, conferido = lote.ler_manifesto(caminho, nome, base_url=base_url)
+    exigir(digest == conferido, "lote_digest_manifesto_divergente")
+    catalogo_nome = lote.namespace(digest) + "_catalogo.json"
+    exigir(catalogo_nome in arquivos, "lote_catalogo_ausente")
+    catalogo = ler_json(arquivos[catalogo_nome][0])
+    exigir(all(r["nome"] in arquivos for r in manifesto["arquivos"].values()), "lote_pacotes_ausentes")
+    pacotes = {tipo: arquivos[ref["nome"]][0] for tipo, ref in manifesto["arquivos"].items()}
+    with tempfile.TemporaryDirectory(prefix="raiz-conferir-lote-") as temporaria:
+        resultado = lote.gerar(
+            caminho, nome, pacotes, Path(temporaria), base_url=base_url, data_inicio=catalogo.get("data_inicio_cenario")
+        )
+        for derivado, esperado in resultado["arquivos"].items():
+            exigir(derivado in arquivos, "lote_derivado_ausente")
+            real, sha_real, tamanho = arquivos[derivado]
+            exigir(
+                tamanho == esperado.stat().st_size
+                and sha_real == lote.sha256(esperado)
+                and lote.sha256(real) == sha_real,
+                "lote_derivado_divergente_dos_originais",
+            )
+    return {
+        "manifesto_sha256": digest,
+        "derivados": len(resultado["arquivos"]),
+        "contagens": resultado["catalogo"]["contagens"],
+    }
+
+
 def conferir_snapshots_finais(args, cache, relatorio, publicador):
     """Reconfere também o primeiro canal após terminar de ler o segundo."""
     for escopo, saida in relatorio["escopos"].items():
@@ -1042,6 +1093,9 @@ def main(argv=None):
                 "raiz/metadados.py",
                 "raiz/quantis.py",
                 "raiz/cadt.py",
+                "raiz/lote_publicado.py",
+                "raiz/quantis_lote.py",
+                "raiz/metadados_lote.py",
             )
         }
         relatorio["filtro_infraestrutura"] = "scripts/publicar_metadados.py:arquivos_produto"

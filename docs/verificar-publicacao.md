@@ -31,8 +31,14 @@ os quantis e suas versões/configurações, os vínculos de proveniência, o cro
 CAD Trust e as assinaturas. Arquivos privados de infraestrutura e históricos
 seguem o filtro `arquivos_produto` do publicador: entram no inventário de
 estabilidade, mas não são baixados nem precisam de ficha. Infraestrutura no canal
-público é recusada. O pacote hubverse recebe conferência de hash e ficha; seus
+público é recusada. Os pacotes hubverse estaduais recebem conferência de hash e ficha; seus
 arquivos internos não passam por uma segunda validação semântica.
+
+Para o Lote PA final imutável, o verificador também confere cada membro dos quatro TARs e reproduz
+localmente os 19 derivados dos cinco originais. Compara os hashes dos três perfis hubverse, cartão,
+catálogo e CAD Trust, incluindo as lacunas de proveniência e diagnósticos. Essa conversão não executa
+o motor, não reotimiza a carteira e não interpola os cinco marcos publicados. Um derivado ausente ou
+modificado, mesmo com nova ficha e hash autoconsistentes, falha na comparação com a fonte.
 
 Os códigos de saída são: **0**, verificação completa; **1**, erro ou mudança
 observada; **2**, conferência de conteúdo sem assinaturas, solicitada por

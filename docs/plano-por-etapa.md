@@ -549,3 +549,16 @@ continua consultando a ref pública. O teste de referência estadual, agentes, s
 | Avaliação local primeiro/Haiku | **Feito no código; medição Haiku bloqueada:** `raiz modelos avaliar-cascata` registra acerto integral/por campo, revisão, tokens, custo real por documento e todas as chamadas. Exige documento real e revisão humana para medir acerto. A execução real parou antes das chamadas porque `ANTHROPIC_API_KEY` está ausente/vazia neste processo; custo/acerto Haiku não foram inventados. |
 | Vigilância de fazendas em lotes | **Feito no código; ativação pendente:** coleta diária DETER/MapBiomas/NOAA-20/21 recortada ao catálogo privado de pedidos, rascunhos por dono e painel autenticado. Ponte de 15 minutos renova catálogo/importa resultados. Sem servidor/banco real neste ambiente, sem catálogo privado disponível e sem credencial válida MapBiomas, a vigilância nacional não foi declarada ativa. Nenhum envio. |
 | Primeira certidão real | **Caminho pronto, dado real pendente:** upload PDF cifrado por empresa/pedido/CAR, validação isolada, previsão vigente congelada antes da leitura, comparação, gabarito humano imutável e sincronização E8. Ausência de previsão não vira erro do motor. Ainda não há certidão/gabarito real nem métrica de acerto; fixtures servem somente para testes funcionais. |
+
+Verificador do Lote PA executado também nos cinco originais reais congelados: os **19 derivados foram
+reproduzidos com os mesmos hashes**, incluindo os três pacotes hubverse e os cinco períodos CAD Trust por
+opção. Foram conferidos **987 membros** nos quatro TARs, sem exigir um manifesto estadual inexistente
+no contrato do Lote. Prova agregada em `docs/medicoes/lote-pa-formatos-2026-11-12.json`; duração 152,41 s.
+Além dos 146 testes do catalogador/formatos, passaram 68 de conteúdo/derivados e 42 de snapshots,
+atestação e CLI. Publicação remota e assinaturas continuam pendentes; esta prova é local.
+
+Validação integral dos formatos: **2.835 testes passaram**, com PostGIS, LanguageTool e referência
+completa do Pará; dois casos de cartão/vídeo foram repetidos após preparar Takumi e os três testes
+desse módulo passaram. A divergência histórica de TIR permanece como xfail. Os 110 testes específicos
+do verificador foram executados após ampliar a conferência dos produtos finais do Lote PA.
+CI, merge e catálogo remoto seguem pendentes neste registro.
