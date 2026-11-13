@@ -436,3 +436,19 @@ relatórios Lighthouse passaram pelo portão fixo. E9 real não foi calibrado e 
   teclado e axe a 360 px, sem 404. Pages também passou com publicação básica e zero erros no navegador.
   Revisões independentes da projeção e do acesso não encontraram vazamento. O rótulo “custo médio” distingue
   o custo estimado do preço de venda de US$ 55. E9 continua aguardando as cartas reais.
+
+## Continuação, entrega 5: acerto do modelo por versão (12/11/2026, Brasília)
+
+- O painel `#/acerto` compara previsões com observações elegíveis, separadas por modelo, versão, alvo,
+  horizonte e tipo de avaliação. Explica erro/viés, faixas e probabilidades na unidade adequada; não inventa
+  uma taxa geral nem elege um vencedor entre tarefas diferentes. WIS/Brier menores indicam menor erro.
+- API e exportador publicam somente agregados com pelo menos cinco imóveis distintos. CAR, resultados
+  individuais, fontes livres e medidas de grupos pequenos não entram no DTO aberto. O placar completo
+  permanece no endpoint operacional protegido. Cache público curto, fontes/data e limite de cobertura visíveis.
+- A avaliação exige valor/gabarito válidos e referência temporal compatível com a previsão. “Ao vivo” exige
+  prova de que a previsão foi congelada antes da observação; ausência de cronologia não vira comprovação.
+  A projeção não altera os retratos históricos nem os registros originais do aprendizado.
+- Ainda não há placar real anunciado no Release público. Sem `RAIZ_ACERTO_URL` ou API com dados elegíveis,
+  o site mostra ausência explícita, nunca 0% de acerto. O contrato e a operação estão em `docs/painel-acerto.md`.
+- Testes cobrem supressão, valores desconhecidos, proveniência e período. Playwright/axe passou em 1440/360 px
+  nas bases `/` e `/Raiz/`, sem 404. O painel também entra na série fixa de três medições Lighthouse no CI.

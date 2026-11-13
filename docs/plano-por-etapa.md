@@ -404,7 +404,7 @@ faz sem back-end.
 | Resumos abertos dos três lotes; composição, travas e desenho somente pela API autenticada | **feito no código**: projeção positiva do manifesto privado do #78; público só vê quantis de créditos, ha, quantidade de fazendas, custo médio e terra documentada. Detalhes pela API; demonstração optativa inteiramente fictícia e sem cobrança/contato |
 | Sensibilidade de preço, reserva, desconto e cenário pessimista | **pendente**: a rodada do Pará não calculou esses cenários; demonstração identificada enquanto faltar a saída real |
 | Pedido por estado, bioma ou Brasil com cobertura e lacunas explícitas | **pendente** |
-| Painel de acerto do modelo por versão e comparação observada | **pendente**; não apresentar ausência de avaliações como 0% de acerto |
+| Painel de acerto do modelo por versão e comparação observada | **feito no código**: métricas agregadas, período e proveniência verificados, mínimo de cinco imóveis; API/exportador disponíveis. **Pendente de dados reais elegíveis** no Release; ausência não é 0% de acerto |
 
 ## Telas e mapa: ficha visual da terra
 
