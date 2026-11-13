@@ -446,6 +446,24 @@ Entrega 3 da continuação de 12/11/2026, sobre a ficha paga do PR #52.
 | Acesso à imagem e ao desenho | **feito**: sessão individual e desbloqueio pago conferidos em todas as rotas, incluindo exclusividade. A imagem é buscada com Bearer, sem token na URL, com `private, no-store`; nenhuma lista ou imagem individual vai ao Pages. |
 | Calibração E9 com cartas reais | **pendente**: ainda não existe o conjunto de 30 cartas anonimizadas com avaliação de compreensão. Esta entrega não inicia contato com proprietários. |
 
+## Telas e mapa: fichas e gráficos da rodada 12 (13/11/2026 UTC)
+
+Esta entrega cobre a ficha privada do lote, a versão pública básica datada e os gráficos.
+A implementação está feita; a validação final da integração no CI e a publicação ainda estão pendentes.
+Contratos e limites em [ficha de crédito](ficha-credito.md), [ficha pública versionada](ficha-publica-versionada.md)
+e [gráficos](design/graficos-resultados.md).
+
+| Entrega | Situação |
+|---|---|
+| Ficha resumida de cada opção na área autorizada | **feito no código**: rota própria, tabela por hectare elegível e total com os mesmos quantis, horizonte, classe, métrica e composição. Área elegível exige evidência; não é inferida da área total nem da soma de exclusões. FLAG e crédito não se misturam; ausência não vira zero. |
+| Leitura para análise de crédito | **feito no código**: cinco seções fixas — Título, Método, Perdas, Garantias e Risco de não entrega — com fonte, referência e revisão técnica próprias. Data de publicação não substitui revisão. Tela e tabelas preparadas para 360 px, teclado e leitores de tela; verificação final integrada pendente. |
+| Evidência, identidade e fronteira paga | **feito no código**: autorização antes da leitura, documento ligado à revisão da opção, hash do conteúdo, projeção positiva e cache privado. Estimativa, verificação, emissão e entrega exigem fontes documentais e Método compatíveis; registro emitido/entregue é pontual, não faixa do motor renomeada. Sem dono, CPF, contato, CAR ou geometria no bloco agregado. |
+| Ficha pública básica com código datado, no formato inspirado no EPREL | **feito no código**: conteúdo congelado por código e rodada, URL própria e Markdown, fonte/data de corte separadas do registro da versão e aviso de rodada posterior. Usa o retrato histórico da carga; não recalcula o passado com regras atuais. Cada leitura exige aceite vigente, inclusive de versões antigas. Não publica números pagos, CAR completo, satélite ou contorno no retrato datado. Migração e publicação em produção pendentes. |
+| Contratado × emitido × entregue e faixa prevista × observado por método | **feito no código**: ECharts e Vega-Lite carregados somente ao abrir cada gráfico, com tabelas acessíveis sempre disponíveis. Fontes, unidade, área original, escopo, calendário e cronologia são conferidos contra a ficha; resultados posteriores à sua publicação ou de outro recorte são recusados. Licenças Apache-2.0/BSD-3-Clause registradas em `NOTICE.md`; runtime sem fontes externas. |
+| Dados reais compatíveis e demonstração | **parcial**: contrato e modo fictício optativo feitos. O resumo privado do PR #78 não comprova denominador elegível, exclusões e base de evidência comum; a API atual não entrega as séries reais nesse contrato. A ficha real permanece explicitamente indisponível até essas saídas existirem. A demonstração não lê o Release nem comprova emissão, entrega ou acerto real. |
+| Validação final da entrega | **pendente**: regressões de privacidade, vínculo temporal/documental e testes Playwright/axe da ficha e dos gráficos incorporados ao CI, com artefatos próprios. Ainda conferir a integração final, CI verde e publicação; nenhuma nota Lighthouse desta entrega foi declarada. |
+| Calibração E9 com pessoas | **pendente**: ainda não existe o conjunto de 30 cartas anonimizadas com avaliações de compreensão. Não houve validação humana dessa calibração nem contato com proprietários nesta entrega. |
+
 ## Qualidade e segurança (12/11/2026)
 
 | Entrega | Situação |
