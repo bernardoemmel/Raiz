@@ -1,6 +1,6 @@
 import type { EstadoDados, Estados, FunilMunicipio, PontoFazenda } from "../../../compartilhado/dados"
 import { doEstado, fmtHa, fmtInt, UFS } from "../../../compartilhado/formato"
-import { fraseDoBrasil, numerosDoBrasil } from "../../../compartilhado/funil-etapas"
+import { numerosDoBrasil } from "../../../compartilhado/funil-etapas"
 import { linkEstado, linkMunicipio } from "../rota"
 import { Estado } from "./Estado"
 import { MiniBrasil } from "./MiniBrasil"
@@ -40,14 +40,12 @@ export function PainelBrasil({ municipios, comLista, estados, uf, pontos, carreg
         <p>O mapa mostra os estados assim que o motor rodar o primeiro.</p>
       </Estado>
     )
-  const n = numerosDoBrasil(municipios)
-  const ufs = [...new Set(municipios.map((m) => UFS[m.uf] ?? m.uf))]
   const comDado = (estados?.estados ?? []).filter((e) => e.situacao !== "sem_dados")
   const semDado = (estados?.estados.length ?? 0) - comDado.length
   return (
     <div className="painel-conteudo">
       <TituloBrasil />
-      <p className="frase">{fraseDoBrasil(n, ufs, fmtInt)}</p>
+      <FraseResumo municipios={municipios} mostrarEstados />
       <Numeros municipios={municipios} />
       <PainelCobertura cobertura={cobertura} />
       {comDado.length > 0 && (
@@ -139,7 +137,7 @@ function PainelEstado({ uf, municipios, comLista, estados, cobertura }: Omit<Pro
       <PainelCobertura cobertura={cobertura} uf={uf} />
       {doUf.length > 0 ? (
         <>
-          <p className="frase">{fraseDoBrasil(numerosDoBrasil(doUf), [], fmtInt)}</p>
+          <FraseResumo municipios={doUf} />
           <Numeros municipios={doUf} />
           <TopMunicipios municipios={doUf} comLista={comLista} />
         </>
@@ -154,6 +152,21 @@ function PainelEstado({ uf, municipios, comLista, estados, cobertura }: Omit<Pro
       </p>
     </div>
   )
+}
+
+/** O resumo de aptidão e o cadastro cartográfico podem ter escopos e datas diferentes. */
+function FraseResumo({ municipios, mostrarEstados = false }: { municipios: FunilMunicipio[]; mostrarEstados?: boolean }) {
+  const n = numerosDoBrasil(municipios)
+  const ufs = new Set(municipios.map((m) => m.uf)).size
+  return <>
+    <p className="frase">
+      Resumo de aptidão disponível em {fmtInt(n.municipios)} {n.municipios === 1 ? "município" : "municípios"}
+      {mostrarEstados ? ` de ${fmtInt(ufs)} ${ufs === 1 ? "estado" : "estados"}` : ""}: {fmtInt(n.imoveis)} imóveis do Cadastro Ambiental Rural (CAR).
+      {" "}{fmtInt(n.prontas)} {n.prontas === 1 ? "fazenda está pronta" : "fazendas estão prontas"} para conversar
+      {n.faltaTitulo > 0 ? ` e ${n.faltaTitulo === 1 ? "outra" : "outras"} ${fmtInt(n.faltaTitulo)} ${n.faltaTitulo === 1 ? "passa" : "passam"} em tudo, mas ainda falta o título` : ""}.
+    </p>
+    <p className="legenda-frase">Fonte: resumos municipais do motor. A data específica desses resumos não foi informada no pacote. A cobertura atual dos desenhos pode abranger mais municípios.</p>
+  </>
 }
 
 /** urucum só no número que mais importa para a ação: a área que pode voltar a ser mata */
