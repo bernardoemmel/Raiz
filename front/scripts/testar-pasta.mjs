@@ -63,14 +63,16 @@ try {
   await page.getByRole('heading', { name: 'Pasta com pendências' }).waitFor()
   assert(await page.getByRole('button', { name: 'Baixar banco + comprador', exact: true }).isDisabled())
   await conferirPaginaAcessivel(page, AxeBuilder, 'pasta-pendente', saida)
+  const negadas = Promise.all([page.waitForResponse((r) => r.status() === 404 && r.url().includes('/teste-api/prospeccao/pastas/') && r.url().endsWith('/historico')), page.waitForResponse((r) => r.status() === 404 && r.url().includes('/teste-api/prospeccao/pastas/') && !r.url().endsWith('/historico'))])
   await page.evaluate(() => { localStorage.setItem('raiz.sessao', JSON.stringify({ token: 'cliente-b', email: 'teste-b@raiz.invalid' })); window.dispatchEvent(new Event('raiz-sessao')) })
+  await negadas
   await page.getByRole('alert').filter({ hasText: 'Pasta não encontrada.' }).waitFor()
   assert.equal(await page.locator('.tabulator-row').count(), 0)
   assert.equal(await page.getByText(car, { exact: true }).count(), 0)
   assert.equal(exportacoes, 1)
   assert(chamadas.every((c) => c.method === 'GET' && c.token))
-  assert.equal(erros.length, 2) // Duas recusas 404 esperadas da conta sem acesso.
-  assert(erros.every((e) => e.texto.includes('404 (Not Found)') && e.url.includes('/teste-api/prospeccao/pastas/')))
+  assert.equal(new Set(chamadas.filter((c) => c.token === 'Bearer cliente-b').map((c) => c.url)).size, 2)
+  assert(erros.every((e) => typeof e === 'object' && e.texto.includes('404 (Not Found)') && e.url.includes('/teste-api/prospeccao/pastas/')))
   fs.writeFileSync(path.join(saida, 'resultado.json'), JSON.stringify({ aprovado: true, exportacoes, desktop: 1440, celular: 360, contatos: 0 }, null, 2))
   console.log('Pasta: desktop, celular, teclado, axe, pendência e troca de sessão passaram.')
 } finally { await browser.close(); await servidor.close() }

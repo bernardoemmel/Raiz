@@ -245,7 +245,4 @@ def test_exportacao_mantem_centavos_alem_da_precisao_do_float():
     p.imoveis[0].preco.valor = Decimal("1234567890123456.12")
     z = zipfile.ZipFile(io.BytesIO(gerar(pacote(p), MarcaExportacao("RZP-teste-" + "a" * 32, "teste"))))
     assert b"1.234.567.890.123.456,12 BRL/tCO2e" in z.read("banco.html")
-    assert (
-        json.loads(z.read("dados-conferidos.json"))["dados"]["imoveis"][0]["preco"]["valor"]
-        == "1234567890123456.12"
-    )
+    assert json.loads(z.read("dados-conferidos.json"))["dados"]["imoveis"][0]["preco"]["valor"] == "1234567890123456.12"
