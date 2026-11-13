@@ -63,6 +63,8 @@ ausência e acesso recusado são anunciados por tecnologia assistiva.
 com uma ficha inteiramente fictícia. Confere a ordem fixa, as duas colunas na mesma
 base, as revisões por seção, rejeição de horizonte e revisão incompatíveis,
 documento ausente, navegação por teclado, saída da conta e bloqueio público.
+Também abre a ficha do transporte simulado com suas tabelas de resultados e
+confere que a demonstração não cria sessão real nem abre gráficos sozinha.
 O teste exige zero erro HTTP/JavaScript, zero violação axe WCAG 2.1 A/AA e ausência
 de transbordamento em 360 px. Capturas e relatórios ficam em
 `front/.cache/teste-ficha-credito/`. O build executa TypeScript e o verificador de
