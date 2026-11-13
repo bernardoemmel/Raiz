@@ -28,6 +28,7 @@ describe("demonstração explicitamente fictícia da área logada", () => {
     for (const o of p.opcoes) {
       expect(o.itens.every((i) => i.cod_imovel.startsWith("DEMONSTRACAO-") && i.geometria)).toBe(true)
       expect(o.destrava?.length).toBeGreaterThan(0)
+      expect(o.ficha_credito?.exemplo).toBe(true)
     }
     expect(await f.pedido(p.id)).toEqual(p)
     await expect(f.solicitarInteresse(p.id, "barata")).rejects.toThrow("409")
@@ -64,6 +65,7 @@ describe("demonstração explicitamente fictícia da área logada", () => {
     expect(p.opcoes[0].fazendas).toBe(1)
     expect(p.opcoes[0].hectares).toBe(opcao.hectares - item.hectares!)
     expect(p.opcoes[0].creditos.p50).toBe(opcao.creditos.p50 - item.creditos!.p50)
+    expect(p.opcoes[0].ficha_credito).toBeUndefined()
     const texto = JSON.stringify(p)
     expect(texto).not.toMatch(/[A-Z]{2}-\d{7}-[A-F0-9]{32}/)
     expect(texto).not.toMatch(/"(?:cpf|cnpj|nome_proprietario|telefone)"/)
