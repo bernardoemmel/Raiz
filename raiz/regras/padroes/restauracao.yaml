@@ -333,11 +333,11 @@ lote:
   edital: edital_profloresta.yaml
 
 # --- 11. Cenários do fluxo de caixa ---------------------------------------------------------------------------------
-# Todo parâmetro é editável na ficha (simulador) e cada um traz a fonte. Padrão: o central da rodada 11 (central_r11);
+# Todo parâmetro é editável na ficha (simulador) e cada um traz a fonte. Padrão: central_r12, com referências verificadas e dívida por ICSD;
 # as premissas antigas do fundador ficam no otimista_fundador.
 # modelo: curva (captura na forma da URTX, custos do SFB por ano, descontos em ordem, marcos e multas do ProFloresta+,
 # dono, dívida pelo ICSD, venda depois do contrato) ou constante (premissas antigas).
-padrao: central_r11
+padrao: central_r12
 cenarios:
   central_r11:
     nome: Central (rodada 11), US$ 55/t

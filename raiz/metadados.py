@@ -448,6 +448,13 @@ def _processar_lote(tarefa: str, dados: dict):
     from croissant_baker.metadata_generator import MetadataGenerator
 
     class CSVCompleto(CSVHandler):
+        @staticmethod
+        def _parse_conflict(msg):
+            # Arrow inclui Row #... na leitura sequencial. O baker 0.8.3
+            # só reconhece a mensagem paralela e converteria áreas em texto.
+            normalizada = re.sub(r"(In CSV column #\d+: )Row #\d+: ", r"\1", msg, count=1)
+            return CSVHandler._parse_conflict(normalizada)
+
         def _stream_csv(self, source, count_rows=False):
             # A inferência lê inclusive decimais/texto depois do primeiro bloco.
             # O extract continua aceitando CSV somente com cabeçalho.

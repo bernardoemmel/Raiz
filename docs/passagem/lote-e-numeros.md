@@ -291,3 +291,55 @@ real em Mg/ha foi calculado; controle sintético real depende de painel pré/pó
 harmonizado. Ecologia: contagens totais por fazenda continuam pendentes quando
 não há suporte comparável; as referências publicadas nunca preenchem esses
 campos com riqueza por parcela ou fustes.
+
+### PR 86 concluído e publicação em andamento — 13/11/2026 UTC
+
+PR #86 incorporado à main no merge `3a738792fa5138f9be0d8d3e4183a3a5522d136b`,
+com os nove checks do CI `43352104956` aprovados. A publicação do complemento
+privado foi disparada na execução `43355525759`, depois de verificar 13 jobs
+ativos e duas vagas. Ainda aguarda runner; não houve cancelamento ou desativação.
+
+A suíte R12 inicial: 2.270 aprovados, 254 dependentes do ambiente ignorados,
+uma falha esperada e três falhas a corrigir/verificar. O teste estadual terá replay
+com código R11 do commit original e SHA256, preservando dados e versão, enquanto
+a execução R12 terá previsões próprias. Nenhum hash antigo será renomeado.
+
+### Diagnóstico privado publicado e conferido
+
+Execução `43355525759`, tentativa 2, concluída. A tentativa 1 não obteve cota global;
+retomada após nova conferência de capacidade, sem cancelar ou desligar trabalhos.
+Release `dados-privados` ID 443383695 segue `draft=true`. Foram baixados novamente
+e conferidos os 13 arquivos (quatro formatos × três opções + manifesto interno).
+
+- Pacote `desbloqueio_lote_PA_b29eb3fe8887a676_0a70d5630caf807d.tar.gz`:
+  98.272 bytes, SHA256 `0a70d5630caf807d37c5294c7440afdabda666caa021ad0e86001226769ddf50`.
+- Manifesto correspondente `.json`: 246.834 bytes,
+  SHA256 `fc0b634b5ca7654e4ec7601a9dd2bb79c344e80cf4710107feca804783642bc6`.
+
+O código original das referências ecológicas está preservado em
+`docs/pesquisa/ecologia/`, com fontes, licenças, hashes e instruções de reprodução.
+
+A falha intermitente de metadados foi reproduzida: PyArrow inclui `Row #...`
+na mensagem da leitura sequencial, e o parser do croissant-baker 0.8.3 só
+reconhecia a forma sem número da linha. A correção mínima no adaptador de CSV
+preserva `Float64` para área decimal encontrada após o primeiro bloco; teste
+passa pelos dois modos de leitura. Não altera API, MCP ou front.
+
+R12 passa a ser o padrão dos novos cálculos, inclusive do processamento futuro.
+`central_r11` permanece explícito e histórico; testes financeiros legados o
+escolhem pelo nome. A dívida padrão segue a tranche fixa Mombak (2,30%, 36+264
+meses), com as outras operações disponíveis e 4,94% somente como estresse na R12.
+O replay estadual executa o motor R11 ancorado, sem migrar suas previsões.
+
+### Verificações adicionais da R12
+
+Wheel e sdist foram construídos e inspecionados: nenhum inclui `infra/scpi` nem
+uma dependência `scpi`. As dependências do serviço GPL continuam isoladas.
+Metadados corrigidos: 60 testes; controles de fila/replay/sensibilidade/finanças:
+104 testes; gado/credibilidade: 8 testes. A mudança de padrão para R12 está em
+nova validação integral antes do PR.
+
+A provisão fixa expôs um caso válido de TIR em área de 1 m²: o caminho com
+premissas centrais pode cair fora dos quantis Monte Carlo quando o fluxo muda
+mais de uma vez de sinal. O imóvel é preservado; os quantis reais não são
+forçados a conter a TIR central. Tipo e aviso acompanham a previsão.

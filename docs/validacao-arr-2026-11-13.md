@@ -93,7 +93,7 @@ continuarão na mesma série futura. Nenhum dado pessoal da carta foi copiado.
 
 Calibração só depois de pareamento compatível e avaliação em projetos separados
 dos usados no desenvolvimento. Não confundir vários vintages de um projeto com
-várias observações independentes. Nenhum coeficiente de captura foi alterado.
+várias observações independentes. Nesta etapa ARR, nenhum coeficiente de captura foi alterado. O ajuste inicial posterior com Mombak é descrito no complemento R12 abaixo.
 
 ## Reprodução
 

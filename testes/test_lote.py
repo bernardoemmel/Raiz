@@ -53,7 +53,7 @@ def test_um_so_calculo_da_fazenda_ao_lote(amostra):
 
 
 def test_fluxo_do_lote_preco_minimo_e_credito_alem_do_contrato():
-    c = R.cenario()
+    c = R.cenario("central_r11")
     H = int(c["horizonte_anos"])
     v = np.zeros(H + 1)
     v[[7, 12, 17, 22, 25]] = [10, 30, 40, 50, 70]  # créditos por ha vendidos em cada entrega
@@ -84,7 +84,7 @@ def test_fluxo_do_lote_preco_minimo_e_credito_alem_do_contrato():
 
 def test_lote_da_amostra_diz_o_que_falta_com_reserva_de_20_pct(lote):
     r = lote["resumo"]
-    assert r["cenario"] == "central_r11" and r["versao_premissas"].startswith("restauracao-2026d+")
+    assert r["cenario"] == "central_r12" and r["versao_premissas"].startswith("restauracao-2026d+")
     assert r["volume_creditos"] == 1_000_000 and r["chance_alvo"] == 0.9
     # quantos municípios entraram (a amostra tem 2 com imóveis, 1 com o valor para quem restaura)
     assert r["municipios"]["no_estado"] == 2 and r["municipios"]["lidos"] == 1 and r["municipios"]["no_lote"] == 1
@@ -115,7 +115,8 @@ def test_preco_minimo_para_12_e_15_por_cento(lote):
     pm = eco["preco_minimo_usd"]
     assert eco["fazendas_com_fluxo"] == lote["resumo"]["titulares"] + lote["resumo"]["reservas"]
     assert pm["15"]["alavancada"] > pm["12"]["alavancada"] > 0
-    assert pm["12"]["projeto"] > pm["12"]["alavancada"]  # o Fundo Clima barato baixa o preço que dá a TIR
+    assert eco["divida_fracao"] == 0  # sem caixa após carência, não inventar dívida
+    assert pm["12"]["projeto"] == pm["12"]["alavancada"]
     assert eco["tir_alavancada_pct"] < 12  # a US$ 55 o lote fica abaixo de 12%
     assert eco["preco_equilibrio_usd"] > lote["resumo"]["preco_contrato_usd"]
 
@@ -151,7 +152,7 @@ def test_certidoes_para_os_5_por_cento_homologados(lote):
 
 def test_avisa_quando_so_fecha_abaixo_do_equilibrio(lote):
     ab = lote["resumo"]["abaixo_equilibrio"]
-    assert ab["preco_usd"] == 55 and ab["fazendas"] > 0 and ab["so_fecha_com_elas"]
+    assert ab["preco_usd"] == 59.20 and ab["fazendas"] > 0 and ab["so_fecha_com_elas"]
     assert "só fecha com" in ab["aviso"] and "abaixo do equilíbrio" in ab["aviso"]
     t = lote["tabela"]
     no_lote = t[t.papel.isin(["titular", "reserva"])]
@@ -200,12 +201,13 @@ def test_numeros_do_dono_comparam_com_o_gado_e_o_aluguel():
     assert x["por_ha_ano"][1] == 300 and x["por_ha_ano"][0] < 300 < x["por_ha_ano"][2]
     assert x["por_ha_ano"][0] >= x["piso"] == 24  # o piso não cai com a floresta
     assert x["total_40_anos"][1] == pytest.approx(300 * 100 * 40)
-    assert x["aluguel_rs_ha_ano"] == 532 and x["aluguel_fonte"] == "municipio"
+    assert x["aluguel_rs_ha_ano"] == pytest.approx(842.83, abs=0.01)
+    assert "Censo 2017 corrigido" in x["aluguel_fonte"]
     assert x["pecuaria"]["receita_bruta_rs_ha_ano"] > x["pecuaria"]["sobra_referencia_rs_ha_ano"] > 0
 
 
 def test_lote_do_para_inteiro_fecha_ou_diz_o_que_falta(monkeypatch):
-    from scripts.testar_para_privado import conferir_preparado, executar_preparado
+    from scripts.testar_para_privado import conferir_preparado, executar_preparado, modelo_historico
 
     preparado = os.environ.get("RAIZ_TESTE_PA_PASTA")
     if not preparado:
@@ -226,8 +228,11 @@ def test_lote_do_para_inteiro_fecha_ou_diz_o_que_falta(monkeypatch):
         )
 
     monkeypatch.setattr(R, "calcular_municipio", nao_recalcular)
-    dados = L.ler_uf(pasta.parent, "PA")
-    lote = L.montar(dados)
+    with modelo_historico() as historico, monkeypatch.context() as contexto:
+        contexto.setattr(historico, "calcular_municipio", nao_recalcular)
+        contexto.setattr(L, "R", historico)
+        dados = L.ler_uf(pasta.parent, "PA")
+        lote = L.montar(dados)
     r = lote["resumo"]
     assert r["municipios"]["no_estado"] == 144 and r["municipios"]["lidos"] == 144
     if r["fecha_com_reserva"]:
@@ -282,7 +287,8 @@ def test_lote_traz_faixa_mme102_parcelas_e_sensibilidade(lote):
     por = {x["entrada"]: x for x in s}
     assert por["captura"]["tir_baixo"] < por["captura"]["tir_base"] < por["captura"]["tir_alto"]
     assert por["custo"]["tir_baixo"] > por["custo"]["tir_alto"]  # custo no P10 dá TIR maior
-    assert por["preco"]["tir_baixo"] == pytest.approx(r["economia"]["tir_alavancada_pct"], abs=0.1)  # US$ 55
+    assert por["preco"]["tir_baixo"] < r["economia"]["tir_alavancada_pct"]  # US$ 55 versus 59,20
+    assert por["preco"]["tir_base"] == pytest.approx(r["economia"]["tir_alavancada_pct"], abs=0.1)
 
 
 def test_rejeita_mistura_de_modelos_antigos():

@@ -1,8 +1,8 @@
 # Rodada 12 — evidências e integração do motor
 
 Trabalho em andamento em 12/11/2026 (horário de Brasília). Previsões da rodada 11
-continuam imutáveis. Implementações e fontes abaixo ainda precisam ser integradas
-ao recálculo dos três lotes; não são resultados novos do Pará.
+continuam imutáveis. Implementações e fontes abaixo estão integradas ao cenário
+R12, ainda sem recálculo estadual concluído; não são resultados novos do Pará.
 
 ## VCS 5511: reprodução contábil
 
@@ -40,7 +40,7 @@ relatório 350Solutions v1.2 de 06/11/2026, publicado em 12/11/2026:
 
 O ajuste inicial usa os dois acumulados, não os vintages rateados por área-mês.
 É uma aproximação regional pela idade do projeto, sem inventário por coorte.
-Preserva estoque no ano 7 e total no ano 40, e mantém a incerteza explícita do
+Preserva estoque no ano 10 e total no ano 40, e mantém a incerteza explícita do
 modelo: dois sítios não sustentam quantis empíricos regionais. A curva ajustada e
 as diferenças anterior/ajustada ficam versionadas, rotuladas **“estimativa regional,
 não medida na fazenda”**, sem alegar validação independente.
@@ -70,7 +70,7 @@ materialidade. O fator arredondado dá 105,336 e 35,568 t; o documento arredonda
 
 ## Ainda por concluir nesta rodada
 
-Implementados e integrados no cenário explícito `central_r12`: forma inicial de
+Implementados e integrados no cenário padrão `central_r12`: forma inicial de
 plantio amazônico, Fundo Clima por tranche fixa de referência, preço de US$ 59,20,
 arrendamento SFX de R$ 842,83 (“Censo 2017 corrigido”), provisão de certidão conjunta
 e georreferenciamento sobre a área integral disponível. Uma certidão por CAR sem
@@ -93,8 +93,7 @@ crédito automaticamente. Credibilidade calcula e divulga peso local/coorte;
 sem inventário local o peso é zero, nunca se inventam parcelas.
 
 Validação focada em 13/11 UTC (12/11 Brasília): **67 testes passaram**. Ainda faltam
-sensibilidade com nova seleção, referências ecológicas no produto,
-recálculo/publicação privada e comparação final dos três lotes, suíte integral,
+recálculo/publicação privada e comparação final dos três lotes, correções da suíte integral,
 PR e merge. O Dryad continua sem download acessível neste ambiente; não há MAE
 real calculado nem controle sintético real sem painel pré/pós disponível.
 

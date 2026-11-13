@@ -127,3 +127,33 @@ def test_lote_cobra_taxas_verra_uma_vez_e_nao_duplica_emissao():
     assert lote["F"][0] == -5250
     assert lote["F"][7] == pytest.approx(-5000 - 4600 + 2500)
     assert lote["taxas_verra"]["memoria"][7]["toneladas_liquidas_buffer"] == 20000
+
+
+def test_rodada12_e_padrao_novo_sem_substituir_cenario_historico():
+    from raiz import restauracao as R
+
+    c = R.cenario()
+    assert c["cenario"] == "central_r12" and c["rodada"] == 12
+    assert c["preco_usd_t"] == 59.20 and c["juros_ano"] == 0.023
+    assert c["sistema_amortizacao"] == "icsd_cvxpy"
+    assert R.cenario("central_r11")["preco_usd_t"] == 55
+    assert R.cenario("estresse_r12")["juros_ano"] == 0.0494
+
+
+def test_area_minima_de_um_metro_quadrado_e_preservada_sem_forcar_quantis_de_tir():
+    import numpy as np
+
+    from raiz import restauracao as R
+    from testes.test_restauracao import _linha
+
+    area = 0.0001
+    li = _linha(alem_RL_ha=area, pasto_ha=area, pasto_d3_ha=area)
+    x, detalhes = R.calcular(li)
+    assert x["restauracao_area_ha"] == area
+    assert x["financeiro_p50_tipo"] == "fluxo_com_premissas_centrais"
+    tir = detalhes["sim"]["tir_alavancada"][1:]
+    tir = np.where(np.isnan(tir), -1, tir) * 100
+    for q in (10, 90):
+        assert x[f"tir_alavancada_pct_p{q}"] == round(float(np.percentile(tir, q)), 1)
+    fora = not (x["tir_alavancada_pct_p10"] <= x["tir_alavancada_pct_p50"] <= x["tir_alavancada_pct_p90"])
+    assert x["tir_alavancada_central_fora_faixa"] == fora

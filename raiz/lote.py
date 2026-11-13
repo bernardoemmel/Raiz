@@ -422,8 +422,16 @@ def _resumo_lote(sel: dict, precisa50: float, precisa_alvo: float, volume: float
                 ),
                 np.zeros(int(c["horizonte_anos"]) + 1),
             )
-    cron_tit = R.cronograma_lote(c_tit, c, r, volume, acumulado_ano=perfis.get("tit")) if c_tit > 0 else None
-    cron_lote = R.cronograma_lote(c_lote, c, r, volume, acumulado_ano=perfis.get("lote")) if c_lote > 0 else None
+    cron_tit = (
+        R.cronograma_lote(c_tit, c, r, volume, **({"acumulado_ano": perfis["tit"]} if perfis else {}))
+        if c_tit > 0
+        else None
+    )
+    cron_lote = (
+        R.cronograma_lote(c_lote, c, r, volume, **({"acumulado_ano": perfis["lote"]} if perfis else {}))
+        if c_lote > 0
+        else None
+    )
     eco = _economia(lote, linhas, c, r, volume, cron_lote, partes_cache) if len(lote) else None
     ped_alvo = _pedido(sel["ped"].onde.ufs[0], precisa_alvo, c, sel["ped"].terra)
     return {

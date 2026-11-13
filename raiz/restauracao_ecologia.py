@@ -126,11 +126,11 @@ def projetar(linha: dict, modelo_versao: str) -> dict:
                 "ano": ano,
                 "referencia_regional_padronizada": ER.referencias(linha, ano),
                 "situacao": status,
-                "situacao_regional": "referencia_contextual_disponivel"
+                "situacao_regional": "projecao_documentada"
+                if entrada is not None
+                else "referencia_contextual_disponivel"
                 if ER.referencias(linha, ano)
-                else "pendente_harmonizacao_de_dados_abertos"
-                if entrada is None
-                else "projecao_documentada",
+                else "pendente_harmonizacao_de_dados_abertos",
                 "rotulo_regional": ROTULO_REGIONAL if entrada is None else None,
                 "pendencias_regionais": r["pendencias_regionais"] if entrada is None else [],
                 "incerteza": projecao["incerteza"] if entrada is not None else SEM_DADO,

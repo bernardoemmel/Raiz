@@ -518,3 +518,10 @@ A primeira execução no Actions identificou ausência de `rg` no runner; a veri
   ecológicas abertas e relatório 5511/Mombak/ARR integrados no branch; falta
   concluir suíte integral, CI/merge, recálculo dos 144 municípios e publicação
   privada com comparação de hectares e P10/P50/P90.
+- [x] Diagnóstico das travas PA publicado no arquivo privado: PR #86 mergeado
+  com CI verde; execução 43355525759/2 concluída, 13 arquivos recuperados e
+  SHA256 conferidos. Histórico R11 preservado, sem liberação automática de venda.
+- [ ] R12 como padrão dos novos cálculos: custos/curva/ICSD/fluxo do gado,
+  comparação ARR, nove cenários com nova seleção e contexto ecológico integrados;
+  código preservado remotamente. Falta validar o padrão global, CI/merge e
+  executar/publicar os três lotes PA com comparação à referência R11.

@@ -93,6 +93,22 @@
     "verra_fonte": "https://verra.org/new-verra-program-fee-schedule-faqs/",
     "muda_brl_min": 3.5,
     "muda_brl_max": 20.56,
-    "muda_fonte": "Faixa informada na pesquisa rodada 12; orçamento por espécie/viveiro pendente. Não somar ao SFB sem retirar componente já incluído."
+    "muda_fonte": "Referências de compras públicas de 2025 em SC e SP; não são cotação entregue no Pará nem quantis. Não somar ao SFB sem retirar o componente já incluído.",
+    "muda_referencias": [
+      {
+        "brl_unidade": 3.5,
+        "tipo": "homologado",
+        "fonte": "https://maravilha.sc.gov.br/uploads/sites/350/2025/10/Termo-de-Homologacao-e-Adjudicacao-unificado-1.pdf",
+        "recorte": "Maravilha/SC, dispensa 299/2025, item 3, 790 unidades, 03/10/2025; porte não especificado nessa linha.",
+        "licenca": "Ato oficial público; somente fatos e referência, sem reprodução do PDF."
+      },
+      {
+        "brl_unidade": 20.56,
+        "tipo": "estimativa_edital",
+        "fonte": "https://tambau.sp.gov.br/uploads/licitacao/EditalPE62-2025SRPMudasEspeciesNativa.pdf",
+        "recorte": "Tambaú/SP, edital 62/2025; 15.000 mudas Mata Atlântica/Cerrado, altura mínima 1,50 m, pelo menos 50 espécies. Não é preço adjudicado.",
+        "licenca": "Ato oficial público; somente fatos e referência, sem reprodução do PDF."
+      }
+    ]
   }
 }

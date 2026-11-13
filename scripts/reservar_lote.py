@@ -10,6 +10,7 @@ import argparse
 import os
 import re
 import sys
+import time
 from pathlib import Path
 
 MOTOR = Path(__file__).resolve().parents[1] / "motor"
@@ -49,13 +50,14 @@ def cotas(estado: dict, run_id: str) -> list[dict]:
     return reservas
 
 
-def reservar(maximo: int) -> int:
+def reservar(maximo: int, aguardar_minutos: float = 0) -> int:
     run_id, _ = contexto()
-    if os.environ["GITHUB_JOB"] != "preparar" or not 1 <= maximo <= F.TETO:
+    if os.environ["GITHUB_JOB"] != "preparar" or not 1 <= maximo <= F.TETO or not 0 <= aguardar_minutos <= 180:
         raise ValueError("a reserva inicial exige o preparo e limite entre 1 e 15")
     _, estado = F.Repositorio().ler()
     reservas = cotas(estado, run_id)
-    if not reservas:
+    prazo = time.monotonic() + aguardar_minutos * 60
+    while not reservas:
         F.reservar(
             candidatos=[f"{PREFIXO}{i}" for i in range(maximo)],
             pedidos=[],
@@ -69,6 +71,12 @@ def reservar(maximo: int) -> int:
         )
         _, estado = F.Repositorio().ler()
         reservas = cotas(estado, run_id)
+        if not reservas:
+            restante = prazo - time.monotonic()
+            if restante <= 0:
+                break
+            print("Fila global cheia; aguardando término natural, sem cancelar workflows.", flush=True)
+            time.sleep(min(30, restante))
     if not 1 <= len(reservas) <= maximo:
         raise RuntimeError("sem vaga global para o Lote; aguarde término natural e reexecute o workflow completo")
     confirmar(len(reservas))
@@ -97,9 +105,10 @@ def main() -> None:
     modo = parser.add_mutually_exclusive_group(required=True)
     modo.add_argument("--reservar", type=int, metavar="MAXIMO")
     modo.add_argument("--confirmar", type=int, metavar="VAGAS")
+    parser.add_argument("--aguardar-minutos", type=float, default=0)
     args = parser.parse_args()
     if args.reservar is not None:
-        vagas = reservar(args.reservar)
+        vagas = reservar(args.reservar, args.aguardar_minutos)
         with Path(os.environ["GITHUB_OUTPUT"]).open("a") as saida:
             saida.write(f"vagas={vagas}\n")
         print(f"Lote com {vagas} cotas na fila global de 15; nenhum trabalho foi cancelado.")

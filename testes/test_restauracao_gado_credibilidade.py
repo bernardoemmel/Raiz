@@ -104,6 +104,14 @@ def test_destino_exige_documentos_revisados_e_plano_da_propria_origem():
     p = G.planejar(*args)
     assert p["vazamento_pode_zerar"]
     assert G.mitigacao_comprovada(dict(cod_imovel="O", vazamento_plano_json=json.dumps(p)))
+    from raiz import restauracao as R
+    from testes.test_restauracao import _linha
+
+    li = _linha(cod_imovel="O", vazamento_plano_json=json.dumps(p))
+    previsao, _ = R.calcular(li, R.cenario("central_r12"), financeiro_p50=True)
+    assert previsao["vazamento_comprovado"]
+    assert previsao["vazamento_plano_json"] == li["vazamento_plano_json"]
+    assert G.mitigacao_comprovada({**li, **previsao})
     assert not G.mitigacao_comprovada(dict(cod_imovel="outra", vazamento_plano_json=json.dumps(p)))
     p["ua_atendidas"] = 100
     assert not G.mitigacao_comprovada(dict(cod_imovel="O", vazamento_plano_json=json.dumps(p)))

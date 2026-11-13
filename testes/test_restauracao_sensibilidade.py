@@ -91,3 +91,7 @@ def test_estudo_refaz_as_tres_selecoes_e_reusa_checkpoint_sem_perder_pequenas(tm
     assert len(list((tmp_path / "estudo").glob("decisoes_*.jsonl.gz"))) == 6
     monkeypatch.setattr(R, "calcular", lambda *a, **k: pytest.fail("checkpoint não deve recalcular"))
     assert S.executar(dados, tmp_path / "estudo", casos=casos, volume=1) == resultado
+    decisao = next((tmp_path / "estudo").glob("decisoes_*.jsonl.gz"))
+    decisao.write_bytes(b"adulterada")
+    with pytest.raises(ValueError, match="decisões concluídas foram alteradas"):
+        S.executar(dados, tmp_path / "estudo", casos=casos, volume=1)

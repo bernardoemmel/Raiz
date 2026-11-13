@@ -73,6 +73,9 @@ def executar(dados: dict, destino: Path, *, casos=None, volume: float | None = N
             anterior = json.loads(checkpoint.read_text())
             if anterior["prova"]["sha256"] != hashlib.sha256(caminho.read_bytes()).hexdigest():
                 raise ValueError("previsões concluídas foram alteradas")
+            for nome_decisao, digest in anterior["prova"]["decisoes_sha256"].items():
+                if hashlib.sha256((destino / nome_decisao).read_bytes()).hexdigest() != digest:
+                    raise ValueError("decisões concluídas foram alteradas")
             for opcao, ids in anterior["selecionadas"].items():
                 conjuntos_base.setdefault(opcao, set(ids))
             tabelas.extend(anterior["resultados"])
@@ -131,7 +134,7 @@ def executar(dados: dict, destino: Path, *, casos=None, volume: float | None = N
         precisa = R.contrato_para_marcos(volume, c, r)
         chance = L.premissas_lote(r)["chance_alvo_reserva"]
         alvo = precisa / R.fator_captura_alvo(chance, r)
-        selecionadas, resultados_caso = {}, []
+        selecionadas, resultados_caso, provas_decisoes = {}, [], {}
         for opcao in L.OPCOES:
             sel = L._selecionar(nova, dados["uf"], precisa, alvo, c, opcao=opcao)
             resumo = L._resumo_lote(sel, precisa, alvo, volume, c, r, linhas, cache)
@@ -141,6 +144,7 @@ def executar(dados: dict, destino: Path, *, casos=None, volume: float | None = N
             with gzip.open(decisoes, "wt", encoding="utf-8") as arquivo:
                 for decisao in L.decisoes_selecao(nova, sel, c, r, opcao, contexto=modelo):
                     arquivo.write(json.dumps(L.json_seguro(decisao), ensure_ascii=False) + "\n")
+            provas_decisoes[decisoes.name] = hashlib.sha256(decisoes.read_bytes()).hexdigest()
             base = conjuntos_base.setdefault(opcao, ids)
             row = {
                 "cenario": nome,
@@ -168,6 +172,7 @@ def executar(dados: dict, destino: Path, *, casos=None, volume: float | None = N
                 "versao": modelo,
                 "previsoes": caminho.name,
                 "sha256": hashlib.sha256(caminho.read_bytes()).hexdigest(),
+                "decisoes_sha256": provas_decisoes,
                 "candidatos_reavaliados": len(candidatos),
                 "segundos": time.monotonic() - inicio,
             }

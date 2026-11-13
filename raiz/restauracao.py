@@ -456,6 +456,10 @@ def custo(linha: dict, m: dict | None = None, r: dict | None = None, c: dict | N
 
         terra = F12.provisao_terra(linha, m["area_ha"])
         por_ha = terra["total_brl"] / m["area_ha"]
+        if not math.isfinite(por_ha):
+            raise ValueError(
+                "provisão por hectare excede precisão numérica; conferir unidade da área, sem excluir imóvel"
+            )
         out = {q: out[q] + por_ha for q in Q}
         vec[0] += por_ha
         det.append({"ajuste": "provisao_terra_r12", "brl_ha": por_ha, "memoria": terra})
@@ -1597,7 +1601,14 @@ def calcular(
         "restauracao_faltou": ",".join(faltou(linha)),
         "restauracao_cenario": c["cenario"],
         "restauracao_versao": r["versao_completa"],
+        "financeiro_p50_tipo": "fluxo_com_premissas_centrais",
     }
+    for tipo in ("projeto", "alavancada"):
+        out[f"tir_{tipo}_central_fora_faixa"] = (
+            None
+            if financeiro_p50
+            else not (out[f"tir_{tipo}_pct_p10"] <= out[f"tir_{tipo}_pct_p50"] <= out[f"tir_{tipo}_pct_p90"])
+        )
     if c.get("rodada") == 12:
         from raiz import restauracao_divida as D12
         from raiz import restauracao_financeiro as F12
@@ -1613,6 +1624,7 @@ def calcular(
             captura_curva_bruta_json=json.dumps(cap["bruto_ano"].tolist()),
             provisao_terra_json=json.dumps(F12.provisao_terra(linha, area), ensure_ascii=False),
             vazamento_comprovado=dsc["vazamento_mitigacao"],
+            vazamento_plano_json=linha.get("vazamento_plano_json"),
             vazamento_motivo=("destino_documentado" if dsc["vazamento_mitigacao"] else "destino_gado_pendente"),
         )
     out["restauracao_tipo_calculo"] = "sensibilidade_financeira_p50" if financeiro_p50 else "completo"

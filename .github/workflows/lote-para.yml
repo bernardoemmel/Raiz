@@ -31,7 +31,7 @@ concurrency:
 jobs:
   preparar:
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 200
     outputs:
       vagas: ${{ steps.reserva.outputs.vagas }}
       matriz: ${{ steps.plano.outputs.matriz }}
@@ -39,7 +39,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Reservar capacidade global antes de preparar os dados
         id: reserva
-        run: python scripts/reservar_lote.py --reservar 15
+        run: python scripts/reservar_lote.py --reservar 15 --aguardar-minutos 180
       - uses: astral-sh/setup-uv@v6
       - run: uv sync --frozen --extra motor
       - name: Recuperar a entrada privada congelada desta execução
