@@ -119,7 +119,8 @@ permite somente respostas já gravadas para `api.anthropic.com`; cassete ausente
 gravada não consumida falha. MCP, OAuth, banco e worker continuam reais. Não se ignora o corpo do pedido no matcher:
 a cassette guarda o hash do JSON canônico, que inclui os números de negócio, argumentos, mensagens e esquemas.
 O tempo de cada inferência é gravado e reproduzido com espera assíncrona: o polling não é antecipado artificialmente
-enquanto o worker real calcula. Se o resultado real divergir, o replay falha; ele não inventa um estado para casar
+enquanto o worker real calcula. Ao carregar a cassette, o filtro do VCR preserva a gravação já sanitizada;
+reaplicá-lo zerava a latência e foi corrigido após reproduzir cinco fluxos reais da campanha anterior. Se o resultado real divergir, o replay falha; ele não inventa um estado para casar
 a gravação. Portanto, o replay elimina o custo de novas inferências, mas não promete executar instantaneamente.
 
 Identificadores UUID e tokens de links gerados pela sessão recebem aliases e são reidratados com os valores da

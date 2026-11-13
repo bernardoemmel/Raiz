@@ -129,7 +129,29 @@ Primeira referência medida no [CI do PR #85](https://github.com/bernardoemmel/R
 em cinco amostras após os 24 cenários sintéticos: soma dos picos por contêiner de **1.192 MiB**, volumes
 de **177,8 MiB** e imagens de **3,18 GiB** sem deduplicar camadas. Os dados brutos estão no artefato
 `contratos-agentes/recursos.json`. Essa coleta curta, após o ensaio, não cobre o pico da campanha Claude;
-o workflow real amostra durante as 96 tentativas e fornecerá a base adicional para dimensionar a VPS.
+o workflow real amostra também enquanto o Claude executa as tarefas.
+
+Medições durante as campanhas reais no Actions (13/11/2026 UTC), com sete serviços ativos:
+
+| Campanha | Amostras | Pico simultâneo de RAM | Soma dos picos por serviço | Volumes | Imagens |
+|---|---:|---:|---:|---:|---:|
+| [1, interrompida após 35 tentativas](https://github.com/bernardoemmel/Raiz/actions/runs/43341704532) | 44 | 1.162,3 MiB | 1.181,9 MiB | 193,7 MiB | 3,18 GiB |
+| [2, interrompida após 17 tentativas](https://github.com/bernardoemmel/Raiz/actions/runs/43347357547) | 27 | 1.175,1 MiB | 1.186,4 MiB | 193,7 MiB | 3,18 GiB |
+| [3, interrompida após 64 tentativas](https://github.com/bernardoemmel/Raiz/actions/runs/43349634089) | 81 | 1.225,3 MiB | 1.276,4 MiB | 194,1 MiB | 3,18 GiB |
+
+As interrupções invalidam pass^4, mas não apagam as amostras de recursos: `recursos.json` está no artefato
+`medicao-agente-real` de cada execução. A terceira coleta cobriu 02h36min32s–02h53min15s UTC. A soma de CPU
+atingiu 153,58% nas três coletas (100% representa aproximadamente um núcleo). Os picos são amostrados,
+sem cobrir toda a inicialização; o runner Claude/juiz e o host não entram na RAM dos contêineres.
+
+Para um **piloto com carga equivalente**, o ponto inicial recomendado é **2 vCPU, 4 GiB de RAM e 40 GiB SSD**,
+com Docker overlay2. Isso é uma recomendação com margem, não capacidade concorrente comprovada. A RAM inclui
+folga acima dos 1,25 GiB de picos somados para sistema, proxy, WAL/cache e variação de carga. O disco reserva
+espaço para sistema, duas revisões de imagem, WAL, logs com rotação e backup temporário; backups duráveis ficam
+fora da VPS. Os limites individuais do Compose não são uma reserva conjunta de RAM e podem somar mais que 4 GiB.
+Antes de aumentar workers, carregar catálogo privado maior ou habilitar coletas reais, repita a medição com essa
+carga e dimensione os dados separadamente. O ensaio usa 60 ofertas sintéticas, uma sessão de agente por vez e
+agenda sem coleta/envio externo; não mede processamento estadual, OCR, documentos grandes ou operação nacional.
 
 
 ## Healthchecks (alerta fora do servidor)

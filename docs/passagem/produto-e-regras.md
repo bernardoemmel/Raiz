@@ -1,5 +1,21 @@
 # Passagem do chat "Produto e regras" (12/11/2026)
 
+## Preparação do replay diário
+
+A branch `produto-agentes-replay` implementa a regressão das 96 sessões contra MCP,
+OAuth, banco e worker reais, sem chave Anthropic. A referência exige campanha completa,
+meta atingida, zero chamadas proibidas e hashes íntegros. O agente é reproduzido pelo
+VCR; notas semânticas ficam congeladas e barreiras determinísticas são recalculadas.
+Isso não mede novamente o pass^4 do modelo. As cassetes integrais do agente e do juiz
+permanecem auditáveis, incluindo correções de citações.
+
+O diagnóstico com cinco fluxos gravados revelou que VCR reaplicava o filtro de resposta
+ao carregar a cassette e zerava sua latência. O carregamento agora preserva bytes e
+tempo gravados. Os cinco fluxos repetiram integralmente suas chamadas contra serviços
+reais, sem trocar estados nem respostas do MCP; são diagnóstico, não uma campanha
+aprovada. Passaram 46 testes do runner, replay e julgamento. A referência de 96 sessões
+ainda depende da campanha completa; o passo obrigatório do CI não foi publicado sem ela.
+
 ## Medição real e operação: PR #85 integrado, primeira campanha incompleta
 
 O [PR #85](https://github.com/bernardoemmel/Raiz/pull/85) foi mesclado em `c3bf907`, após integrar
