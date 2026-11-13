@@ -1,6 +1,11 @@
 name: Calendário diário da Raíz
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - "raiz/calendario/**"
+      - ".github/workflows/calendario.yml"
   schedule:
     - cron: "11 9 * * *" # 06h11 em Brasília
   workflow_dispatch:

@@ -57,7 +57,8 @@ Preparação não registra `verra_avisada`; envio e preenchimento cabem exclusiv
    CAR/CNS/SIGEF fica pendente. DJEN segue 403; DOE PA foi recuperado, diários selecionados pela cobertura real e PDFs/OCR isolados. Ver continuação abaixo.
    Ver `docs/calendario.md`. Site publica depois da coleta. No servidor, instalar o cron com
    `uv run python scripts/instalar_cron_alertas.py --tarefa calendario --instalar` após migrar o banco;
-   não foi instalado em produção por ausência de acesso. O servidor MCP pago existe; a função `proximos_eventos` ainda não está registrada nele.
+   não foi instalado em produção por ausência de acesso. `proximos_eventos` está registrada em `/mcp`, exige OAuth
+   com `consultar` e só acessa o calendário já público, sem cobrança/aquisição de ficha ou relatório privado.
 8. **Decisões já reservadas ao fundador:** SQLMesh/Dagster (o executor próprio continua nos E8 1/2/7); envio do
    convênio ONR (`docs/pedidos/onr-convenio.md`, E5 9); WhatsApp real e chaves de produção continuam adiados.
    MCGrad/mapaccuracy só após licença conferida; calibração e Olofsson próprios já implementados, sem depender deles.
@@ -181,3 +182,14 @@ As entregas desta continuação estão nos PRs [fontes #87](https://github.com/b
 [cascata #88](https://github.com/bernardoemmel/Raiz/pull/88),
 [vigilância #91](https://github.com/bernardoemmel/Raiz/pull/91) e
 [primeira certidão #92](https://github.com/bernardoemmel/Raiz/pull/92), nessa ordem.
+
+## Fechamento da integração MCP do calendário
+
+- `proximos_eventos` aparece na descoberta do SDK oficial; tipos, UF, período, CAR e limite são validados.
+  A ponte chama exclusivamente `GET /eventos`, com as mesmas proteções de OAuth/escopo/prazo do servidor.
+- Projeção positiva conferida pelo manifesto de fontes preserva UID e CAR íntegros. Não expõe CNS, matrícula,
+  SIGEF, CAR inferido, nome do proprietário nem textos livres; o nome institucional vem do manifesto revisado.
+- É a consulta do calendário já público, sem consumo de crédito ou liberação de ficha. Os requisitos comerciais
+  das demais ferramentas continuam sendo aplicados nas suas próprias rotas.
+- Alterações do coletor/workflow na main disparam uma rodada, além da agenda diária. Conferir seu resultado
+  publicado: indisponibilidade externa pode deixar o job vermelho depois de publicar o snapshot útil.
