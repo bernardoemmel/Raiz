@@ -1,8 +1,9 @@
 import type { EstadoDados, Estados, FunilMunicipio, PontoFazenda } from "../../../compartilhado/dados"
 import { doEstado, fmtHa, fmtInt, UFS } from "../../../compartilhado/formato"
-import { fraseDoBrasil, numerosDoBrasil } from "../../../compartilhado/funil-etapas"
+import { numerosDoBrasil } from "../../../compartilhado/funil-etapas"
 import { linkEstado, linkMunicipio } from "../rota"
 import { Estado } from "./Estado"
+import { MiniBrasil } from "./MiniBrasil"
 import { PainelCobertura } from "./PainelCobertura"
 import type { CoberturaMapa } from "../../../compartilhado/dados/cobertura-mapa"
 import type { ReactNode } from "react"
@@ -16,7 +17,9 @@ interface Props {
   /** fazendas aptas do estado escolhido, como estão no mapa */
   pontos: PontoFazenda[] | undefined
   carregando: boolean
+  carregandoResumo?: boolean
   cobertura?: CoberturaMapa
+  carregandoCobertura?: boolean
   andamento?: ReactNode
 }
 
@@ -24,6 +27,7 @@ interface Props {
 function situacaoDoEstado(e: EstadoDados): string {
   if (e.situacao === "sem_dados") return "Ainda não processado"
   if (e.situacao === "completo") return `Completo: todos os ${fmtInt(e.municipios_ibge)} municípios`
+  if (e.municipios >= e.municipios_ibge) return `Todos os ${fmtInt(e.municipios_ibge)} municípios com dados`
   return `${fmtInt(e.municipios)} de ${fmtInt(e.municipios_ibge)} municípios`
 }
 
@@ -31,26 +35,31 @@ function situacaoDoEstado(e: EstadoDados): string {
  * O Brasil na primeira tela (números do que a Raíz já leu, os estados e os municípios com mais área para restaurar) ou,
  * com um estado escolhido, o mesmo painel só daquele estado, dizendo se ele está completo.
  */
-export function PainelBrasil({ municipios, comLista, estados, uf, pontos, carregando, cobertura, andamento }: Props) {
+export function PainelBrasil({ municipios, comLista, estados, uf, pontos, carregando, carregandoResumo = carregando, cobertura, carregandoCobertura, andamento }: Props) {
   if (uf) return <PainelEstado uf={uf} municipios={municipios} comLista={comLista} estados={estados} pontos={pontos} cobertura={cobertura} andamento={andamento} />
-  if (!municipios) return <div className="painel-conteudo">{andamento}<Estado tipo="carregando" titulo="Lendo os municípios processados" /></div>
+  if (!municipios) return <div className="painel-conteudo">
+    <TituloBrasil />
+    <div className={carregandoResumo ? "resumo-brasil-carregando" : undefined}>
+      <Estado tipo={carregandoResumo ? "carregando" : "erro"} titulo={carregandoResumo ? "Lendo os municípios processados" : "Não foi possível ler o resumo dos municípios"} />
+    </div>
+    <PainelCobertura key="cobertura" cobertura={cobertura} carregando={carregandoCobertura} />
+    {andamento}
+  </div>
   if (!municipios.length)
     return (
-      <div className="painel-conteudo">{andamento}<Estado tipo="vazio" titulo="Nenhum município processado ainda.">
+      <div className="painel-conteudo"><TituloBrasil /><Estado tipo="vazio" titulo="Nenhum município processado ainda.">
         <p>O mapa mostra os estados assim que o motor rodar o primeiro.</p>
-      </Estado></div>
+      </Estado><PainelCobertura key="cobertura" cobertura={cobertura} carregando={carregandoCobertura} />{andamento}</div>
     )
-  const n = numerosDoBrasil(municipios)
-  const ufs = [...new Set(municipios.map((m) => UFS[m.uf] ?? m.uf))]
   const comDado = (estados?.estados ?? []).filter((e) => e.situacao !== "sem_dados")
   const semDado = (estados?.estados.length ?? 0) - comDado.length
   return (
     <div className="painel-conteudo">
-      <h1>Onde dá para restaurar, com dono e título</h1>
-      <p className="frase">{fraseDoBrasil(n, ufs, fmtInt)}</p>
+      <TituloBrasil />
+      <FraseResumo municipios={municipios} mostrarEstados />
       <Numeros municipios={municipios} />
+      <PainelCobertura key="cobertura" cobertura={cobertura} carregando={carregandoCobertura} />
       {andamento}
-      <PainelCobertura cobertura={cobertura} />
       {comDado.length > 0 && (
         <section className="secao-painel" aria-labelledby="estados-titulo">
           <h2 id="estados-titulo">Dados disponíveis no mapa</h2>
@@ -62,7 +71,7 @@ export function PainelBrasil({ municipios, comLista, estados, uf, pontos, carreg
                     <strong>{e.nome}</strong>
                     <small>{situacaoDoEstado(e)}</small>
                   </span>
-                  <span className={`selo ${e.situacao === "completo" ? "ok" : "neutro"}`}>{e.situacao === "completo" ? "Completo" : "Incompleto"}</span>
+                  <span className={`selo ${e.situacao === "completo" ? "ok" : "neutro"}`}>{e.situacao === "completo" ? "Completo" : "Dados parciais"}</span>
                 </a>
               </li>
             ))}
@@ -77,15 +86,19 @@ export function PainelBrasil({ municipios, comLista, estados, uf, pontos, carreg
       )}
       <TopMunicipios municipios={municipios} comLista={comLista} />
       <p className="legenda-frase">
-        No mapa, verde-claro é município já processado e cinza é o que a Raíz ainda não leu. Toque num estado para
-        aproximar e ver as fazendas aptas dele, agrupadas em círculos com o número dentro.
+        No mapa, verde-claro indica estados com municípios processados e cinza é o que a Raíz ainda não leu.
+        Toque num estado para aproximar e consultar os grupos de fazendas e hectares conhecidos.
       </p>
       {carregando && <span className="sr">Carregando</span>}
     </div>
   )
 }
 
-function PainelEstado({ uf, municipios, comLista, estados, pontos, cobertura, andamento }: Omit<Props, "uf" | "carregando"> & { uf: string }) {
+function TituloBrasil() {
+  return <div className="painel-titulo"><MiniBrasil uf={null} titulo="Onde estamos: Brasil" className="mini-titulo" /><h1>Onde dá para restaurar, com dono e título</h1></div>
+}
+
+function PainelEstado({ uf, municipios, comLista, estados, cobertura, andamento }: Omit<Props, "uf" | "carregando"> & { uf: string }) {
   const e = estados?.estados.find((x) => x.uf === uf)
   const nome = e?.nome ?? UFS[uf] ?? uf
   const migalhas = (
@@ -120,8 +133,7 @@ function PainelEstado({ uf, municipios, comLista, estados, pontos, cobertura, an
       </div>
     )
   const doUf = municipios.filter((m) => m.uf === uf)
-  const faltam = e.municipios_ibge - e.municipios
-  const noMapa = pontos?.reduce((s, p) => s + p.n, 0)
+  const faltam = Math.max(0, e.municipios_ibge - e.municipios)
   return (
     <div className="painel-conteudo">
       {migalhas}
@@ -130,15 +142,17 @@ function PainelEstado({ uf, municipios, comLista, estados, pontos, cobertura, an
       <p className={`estado-situacao ${e.situacao}`}>
         {e.situacao === "completo"
           ? `Completo: todos os ${fmtInt(e.municipios_ibge)} municípios ${doEstado(uf)} já foram processados.`
-          : `Incompleto: ${fmtInt(e.municipios)} de ${fmtInt(e.municipios_ibge)} municípios processados. ${
-              faltam === 1 ? "Falta 1, em cinza no mapa." : `Faltam ${fmtInt(faltam)}, em cinza no mapa.`
-            }`}
+          : faltam === 0
+            ? `Todos os ${fmtInt(e.municipios_ibge)} municípios têm dados. O Release ainda registra o conjunto estadual como parcial.`
+            : `${fmtInt(e.municipios)} de ${fmtInt(e.municipios_ibge)} municípios têm dados. ${
+                faltam === 1 ? "Falta 1, em cinza no mapa." : `Faltam ${fmtInt(faltam)}, em cinza no mapa.`
+              } O conjunto estadual é parcial.`}
         {e.atualizado_em && ` Dados de ${new Date(e.atualizado_em).toLocaleDateString("pt-BR")}.`}
       </p>
       <PainelCobertura cobertura={cobertura} uf={uf} />
       {doUf.length > 0 ? (
         <>
-          <p className="frase">{fraseDoBrasil(numerosDoBrasil(doUf), [], fmtInt)}</p>
+          <FraseResumo municipios={doUf} />
           <Numeros municipios={doUf} />
           <TopMunicipios municipios={doUf} comLista={comLista} />
         </>
@@ -148,12 +162,26 @@ function PainelEstado({ uf, municipios, comLista, estados, pontos, cobertura, an
         </p>
       )}
       <p className="legenda-frase">
-        Os círculos juntam as fazendas aptas do estado, com o número dentro
-        {noMapa !== undefined ? ` (${fmtInt(noMapa)} no mapa)` : ""}. Município sem o contorno das fazendas aparece num
-        círculo só, no meio dele. Toque num município para abrir o funil.
+        De longe, os grupos mostram contagem de fazendas e hectares conhecidos, com cobertura parcial. Ao aproximar, aparecem os limites
+        transparentes do CAR sobre o mosaico histórico. Toque num município para consultar seus dados.
       </p>
     </div>
   )
+}
+
+/** O resumo de aptidão e o cadastro cartográfico podem ter escopos e datas diferentes. */
+function FraseResumo({ municipios, mostrarEstados = false }: { municipios: FunilMunicipio[]; mostrarEstados?: boolean }) {
+  const n = numerosDoBrasil(municipios)
+  const ufs = new Set(municipios.map((m) => m.uf)).size
+  return <>
+    <p className="frase">
+      Resumo de aptidão disponível em {fmtInt(n.municipios)} {n.municipios === 1 ? "município" : "municípios"}
+      {mostrarEstados ? ` de ${fmtInt(ufs)} ${ufs === 1 ? "estado" : "estados"}` : ""}: {fmtInt(n.imoveis)} imóveis do Cadastro Ambiental Rural (CAR).
+      {" "}{fmtInt(n.prontas)} {n.prontas === 1 ? "fazenda está pronta" : "fazendas estão prontas"} para conversar
+      {n.faltaTitulo > 0 ? ` e ${n.faltaTitulo === 1 ? "outra" : "outras"} ${fmtInt(n.faltaTitulo)} ${n.faltaTitulo === 1 ? "passa" : "passam"} em tudo, mas ainda falta o título` : ""}.
+    </p>
+    <p className="legenda-frase">Fonte: resumos municipais do motor. A data específica desses resumos não foi informada no pacote. A cobertura atual dos desenhos pode abranger mais municípios.</p>
+  </>
 }
 
 /** urucum só no número que mais importa para a ação: a área que pode voltar a ser mata */

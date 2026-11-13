@@ -21,6 +21,7 @@ import { tituloDoPedido } from "./texto"
 import { lerPublicacaoLote } from "./release"
 import { fontePedidosSimulada } from "./simulado"
 import { resumirCoberturaMunicipal } from "./territorio"
+import { CHAVE_SESSAO, guarda, prepararSessaoPedidos, sessaoGuardada, type AmbientePedidos } from "./sessao"
 
 export interface FontePedidos {
   /** resposta de exemplo (sem back-end): a tela avisa */
@@ -44,47 +45,11 @@ export interface FontePedidos {
   pagarExemplo?(id: string): Promise<Cobranca>
 }
 
-// ---- guarda no navegador (sessão; e os pedidos, no exemplo) ----------------------------------------------------------
-
-/** localStorage pode não existir (aba anônima, bloqueio): cai na memória e a tela continua funcionando */
-function guarda() {
-  const memoria = new Map<string, string>()
-  return {
-    ler(chave: string): string | null {
-      try {
-        return localStorage.getItem(chave)
-      } catch {
-        return memoria.get(chave) ?? null
-      }
-    },
-    gravar(chave: string, valor: string | null) {
-      try {
-        if (valor === null) localStorage.removeItem(chave)
-        else localStorage.setItem(chave, valor)
-      } catch {
-        if (valor === null) memoria.delete(chave)
-        else memoria.set(chave, valor)
-      }
-    },
-  }
-}
-
-const CHAVE_SESSAO = "raiz.sessao"
-
-function sessaoGuardada(g: ReturnType<typeof guarda>, chave = CHAVE_SESSAO): Sessao | null {
-  try {
-    const s = JSON.parse(g.ler(chave) ?? "null") as Sessao | null
-    return s?.token && s.email ? s : null
-  } catch {
-    return null
-  }
-}
-
 // ---- API de verdade ---------------------------------------------------------------------------------------------------
 
-export function fontePedidosApi(api: string, opcoes: { transporte?: typeof fetch; chaveSessao?: string } = {}): FontePedidos {
+export function fontePedidosApi(api: string, opcoes: { transporte?: typeof fetch; chaveSessao?: string; armazenamento?: ReturnType<typeof guarda> } = {}): FontePedidos {
   const raiz = api.endsWith("/") ? api : api + "/"
-  const g = guarda()
+  const g = opcoes.armazenamento ?? guarda()
   const chaveSessao = opcoes.chaveSessao ?? CHAVE_SESSAO
   const transporte = opcoes.transporte ?? fetch
   async function pedir<T>(caminho: string, corpo?: unknown): Promise<T | null> {
@@ -372,9 +337,9 @@ export function fontePedidosRelease(base: string, fonte: FonteDeDados, agora: ()
 }
 
 /** Com API, o solver autenticado; sem ela, resumos públicos ou uma demonstração fictícia escolhida explicitamente. */
-export function escolherFontePedidos(env: { VITE_RAIZ_API?: string; VITE_RAIZ_DADOS_BASE?: string; BASE_URL?: string }, fonte: FonteDeDados): FontePedidos {
-  if (env.VITE_RAIZ_API) return fontePedidosApi(env.VITE_RAIZ_API)
-  if (typeof location !== "undefined" && new URLSearchParams(location.search).get("demonstracao") === "lotes") return fontePedidosSimulada()
+export function escolherFontePedidos(env: AmbientePedidos, fonte: FonteDeDados, sessao = prepararSessaoPedidos(env)): FontePedidos {
+  if (sessao.modo === "api" && sessao.api) return fontePedidosApi(sessao.api, { armazenamento: sessao.armazenamento })
+  if (sessao.modo === "demonstracao") return fontePedidosSimulada(sessao.armazenamento)
   return fontePedidosRelease(env.VITE_RAIZ_DADOS_BASE || env.BASE_URL || "/", fonte)
 }
 

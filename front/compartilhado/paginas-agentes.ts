@@ -4,6 +4,7 @@ import path from "node:path"
 import { num } from "./dados/colunas"
 import type { Estados, FunilMunicipio } from "./dados/tipos"
 import { mascarar } from "./privacidade"
+import { malhasPublicas, urlMalhaIbge, type MalhasMapa } from "./dados/malhas-mapa"
 
 interface Catalogo {
   estados: Estados
@@ -17,6 +18,7 @@ interface Opcoes {
   siteUrl?: string
   produtor?: boolean
   catalogo?: Catalogo
+  malhas?: MalhasMapa
 }
 
 const REPO = "https://github.com/bernardoemmel/Raiz"
@@ -253,6 +255,11 @@ O CAR é um cadastro ambiental e não comprova propriedade. Permitir a leitura p
 O CAR vem do SICAR/SFB; os embargos, do Ibama; PRODES, terras indígenas, unidades de conservação e hidrografia usam fontes públicas como INPE/TerraBrasilis, FUNAI e MMA/CNUC; a indicação de matrícula usa SIGEF/INCRA. O IBGE fornece códigos e limites de referência. Uso da terra e fogo incluem MapBiomas. O mapa base usa OpenStreetMap, distribuído por Protomaps.
 
 As versões e a disponibilidade variam por estado e tabela. Consulte o catálogo e a atualização de cada estado, sem assumir que um arquivo ausente significa valor zero. O momento do build não é a data de observação de todas as fontes.
+
+Os limites territoriais são simplificados para visualização e não definem propriedade nem demarcação legal. Onde a base TerraBrasilis ainda não contém um município publicado, todos os municípios de sua UF são substituídos juntos pela mesma edição da Malha Municipal Digital do IBGE, sob CC BY 4.0. A generalização altera os vetores originais. As demais UFs conservam sua fonte anterior; a edição abaixo não se aplica ao Brasil inteiro.
+${Object.entries(malhasPublicas(opcoes.malhas)).sort(([a], [b]) => a.localeCompare(b)).map(([uf, m]) => `\n- ${uf}: [IBGE, Malha Municipal Digital ${m.ano}](${urlMalhaIbge(uf, m.ano)}), simplificada. SHA-256 do ZIP de origem: ${m.sha256}.`).join("") || "\nNenhuma substituição por UF registrada nesta publicação."}
+
+[Condições técnicas e legais da edição 2025, páginas 6 a 9](https://www.ibge.gov.br/biblioteca/visualizacao/livros/liv102268.pdf).
 
 ${REGRAS}
 

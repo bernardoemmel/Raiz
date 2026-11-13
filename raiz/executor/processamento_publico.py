@@ -41,7 +41,7 @@ def sanitizar_processamento(uf: str, dado: object) -> dict | None:
     escopo, unidade = dado.get("escopo"), dado.get("unidade")
     if escopo not in ("uf", "unidade") or not isinstance(unidade, str):
         return None
-    if not re.fullmatch(rf"{uf}(?:-[1-9][0-9]?)?", unidade) or (escopo == "uf" and unidade != uf):
+    if not re.fullmatch(rf"{uf}(?:-[1-9][0-9]{{0,3}})?", unidade) or (escopo == "uf" and unidade != uf):
         return None
     total, municipios = dado.get("municipios_total"), dado.get("municipios")
     if not _inteiro(total) or not isinstance(municipios, dict):

@@ -339,7 +339,7 @@ def test_workflow_drena_fila_e_preserva_parametros_da_matriz():
 
     w = yaml.safe_load((MOTOR.parent / ".github/workflows/processar-estados.yml").read_text())
     evento = w.get("on", w.get(True))
-    assert {c["cron"] for c in evento["schedule"]} == {"23 5 * * 1", "*/15 * * * *"}
+    assert {c["cron"] for c in evento["schedule"]} == {"17 * * * *"}
     job = w["jobs"]["processar"]
     assert job["strategy"]["max-parallel"] == 15 and job["strategy"]["fail-fast"] is False
     assert job["concurrency"]["cancel-in-progress"] is False

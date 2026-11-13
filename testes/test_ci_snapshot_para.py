@@ -208,10 +208,14 @@ def test_referencia_privada_fica_fora_de_artifacts_e_caches(fluxo):
     assert destino.is_relative_to("/__temporario__") and destino != PurePosixPath("/__temporario__")
     for job, resultado in ((gerais, "resultado-pytest"), (privado, "resultado-para")):
         uploads = [p for p in job["steps"] if "upload-artifact@" in p.get("uses", "")]
-        assert len(uploads) == 1
-        assert uploads[0]["with"]["name"] == resultado
-        assert uploads[0]["with"]["path"] == f"{resultado}.xml"
-        assert _condicao(uploads[0]) == "always()"
+        permitidos = {resultado: f"{resultado}.xml"}
+        if job is gerais:
+            # HTML real com fixture sintética em memória, sem banco nem leitura do Release.
+            permitidos["ficha-publica-versionada"] = "front/.cache/teste-ficha-publica"
+            assert any(p.get("run") == "uv run node front/scripts/testar-ficha-publica.mjs" for p in job["steps"])
+        assert len(uploads) == len(permitidos)
+        assert {p["with"]["name"]: p["with"]["path"] for p in uploads} == permitidos
+        assert all(_condicao(p) == "always()" for p in uploads)
         for passo in job["steps"]:
             uso = passo.get("uses", "")
             # setup-uv também tem cache automático, sem usar uma action cujo nome contenha "cache".

@@ -33,7 +33,7 @@ import { ComparacaoLotes } from "../partes/pedido/ComparacaoLotes"
 import { AcessoDetalhesLote, AvisoPublicacao, BasePublicada, QuadroDestrava } from "../partes/pedido/PublicacaoPedido"
 import { CoberturaPedido } from "../partes/pedido/CoberturaPedido"
 import "../partes/pedido/pedido.css"
-import { linkFazenda, linkGrupo, linkPedidos, linkPasta } from "../rota"
+import { linkFazenda, linkFichaLote, linkGrupo, linkPedidos, linkPasta } from "../rota"
 
 const MapaLote = lazy(() => import("../mapa/MapaLote").then((m) => ({ default: m.MapaLote })))
 
@@ -187,6 +187,7 @@ export function PedidoTela({ id }: { id: string }) {
               {pedido.opcoes.map((o) => (
                 <Abas.Content key={o.id} value={o.id} className="aba-conteudo">
                   <NumerosOpcao opcao={o} meta={pedido.campos.meta.valor} unidade={unidade} exemplo={!!pedido.exemplo} versao={pedido.versao_modelo} />
+                  <p><a className="botao" href={linkFichaLote(pedido.id, o.id)}>Ficha resumida desta opção</a></p>
                   <TabelaLote opcao={o} andamento={andamento} escolher={setEscolhida} escolhida={escolhida} />
                 </Abas.Content>
               ))}

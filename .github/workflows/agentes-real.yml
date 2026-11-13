@@ -43,6 +43,7 @@ jobs:
           fi
       - uses: astral-sh/setup-uv@v6
         with:
+          version: "0.13.6"
           enable-cache: true
           cache-dependency-glob: uv.lock
       - name: Dependências travadas
