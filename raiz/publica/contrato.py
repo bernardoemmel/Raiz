@@ -18,6 +18,7 @@ consultar, pedir, reservar. Reservar nasce desabilitado e exige habilitação pe
 administrador da própria empresa. Não envie credenciais em URLs.
 
 Ferramentas:
+- proximos_eventos: consulta o calendário já público, sem cobrança, com fonte e cobertura; não libera ficha.
 - consultar_ficha: relê CAR já adquirido, com fontes/datas; sem nova tarifa nem desbloqueio implícito.
 - consultar_disponibilidade: totais do pedido e lacunas da base.
 - pedir_lote: submete cálculo durável; requer Idempotency-Key.
