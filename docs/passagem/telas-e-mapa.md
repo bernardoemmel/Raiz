@@ -102,16 +102,50 @@ mobile com portão Lighthouse e domínio configurável estão na main. Os result
 estão nos PRs acima. A revisão final também corrigiu totais Markdown incompletos e não encontrou outros
 problemas acionáveis de autorização da ficha, navegação ou caminhos do domínio.
 
-1. Conferir a publicação após a retomada coordenada com #72 e acompanhar as rodadas diárias: datas da cobertura,
-   municípios novos e caminhos públicos. As evidências locais da build com o Release real estão registradas acima.
-2. Aguardar o ponteiro `lote_PA_central_r11.json` no Release; a rotina diária já o incorpora quando existir.
-   Enquanto faltar, a tela mantém o aviso e não inventa os três lotes nem suas faixas de crédito/TIR.
+1. Publicação após #72 conferida na seção abaixo; acompanhar as rodadas diárias, datas da cobertura,
+   municípios novos e caminhos públicos. Não alterar o PR do chat Ficha da fazenda.
+2. Os três lotes do Pará foram concluídos no **Release privado**, conforme #78. O ponteiro completo não deve
+   voltar ao Release público. A próxima entrega publica somente uma projeção explícita dos resumos autorizados;
+   seleção de fazendas, desenho dos lotes, tabela individual, travas e “o que destrava” vêm da API autenticada.
 3. E9 passo 3: aguardar as 30 cartas reais anonimizadas e uma avaliação de compreensão, confirmadas como ainda
    indisponíveis pelo fundador. Depois calibrar o portão e gravar a nota no laudo. Contato com o dono somente na fase final.
 4. Quando houver domínio real, configurar DNS e Pages e preencher `RAIZ_DOMINIO`; conferir HTTPS, CNAME,
    `robots.txt` e `llms.txt` na raiz. Nenhum domínio real foi escolhido ou ativado nesta entrega.
 5. Continuar os demais itens E9 na ordem do plano: texto por fazenda no kit ONS/campos abertos, condicionais e
    extenso, KMZ e os demais. A geometria de reserva legal ainda não está nas camadas; não deduzir seu desenho de percentuais.
+
+## Continuação: publicação após #72 e fronteira aberto/pago (12/11/2026)
+
+- **Entrega 1 feita:** #72 já estava mesclado; não foi alterado por este chat. O workflow `publicar-site.yml`
+  estava ativo e a publicação [43311812890](https://github.com/bernardoemmel/Raiz/actions/runs/43311812890)
+  concluiu com sucesso após o conserto de downloads do #80. A publicação diária continua ativa, sem lista fixa.
+- Conferência independente no [site ao vivo](https://bernardoemmel.github.io/Raiz/): busca por Parauapebas,
+  contornos básicos coloridos, aproximação com fundo recebido por HTTP Range 206, novo pedido e tela de 360 px.
+  **Zero HTTP 404 e zero erros de JavaScript** nessas navegações. A cobertura publicada era de 365 municípios,
+  9 estados e 712.601 registros básicos; índice gerado em `2026-11-12T21:47:25+00:00`.
+- O artefato efetivamente publicado foi baixado novamente: 1.596 arquivos, 365 CSV básicos e 365 GeoJSON,
+  com 712.601 contornos. Cada CSV passou pela lista positiva; cada contorno contém somente CAR e geometria.
+  Não há ficha, certidão, tabela financeira individual, lote completo ou identificador de fazenda em agregado.
+  SHA256 do `artifact.tar`: `0965c217d1619fd830962d3e8c1eafff78997e94973e6093965c9248b00bb1d6`.
+- Também foram baixados e validados **todos os 36 assets** então presentes no Release público `dados`
+  (199.862.136 bytes), incluindo os novos estados e as fichas metodológicas Croissant. Todos passaram pela
+  função `validar_asset_publico`; nenhum pacote de camadas pagas ou de lotes completos estava publicado.
+  Contagens do Release mais recente podem superar as do site até a próxima publicação.
+- O cadastro básico de todas as fazendas permanece aberto, conforme #72. Isso não autoriza revelar quais
+  fazendas compõem um lote: os resumos comerciais terão contrato próprio, sem CAR nem geometria da seleção.
+  Respostas 404 ao tentar endereços antigos de camadas pagas são a retirada esperada, não falhas de navegação.
+- Uma atualização foi disparada e concluiu na execução
+  [43331843113](https://github.com/bernardoemmel/Raiz/actions/runs/43331843113), sobre a main `6f49dfc`.
+  A nova publicação incorporou automaticamente **444 municípios, 13 estados e 912.853 fazendas básicas**,
+  com índice de `2026-11-12T23:54:43+00:00`. A mesma navegação ao vivo passou novamente com zero 404/erros.
+  O novo artefato tem 1.849 arquivos, 444 CSV básicos e 444 geometrias; todos foram revalidados sem medidas pagas.
+  SHA256 do tar: `c0a32ce66a78872c417e850ede2ae930154796a75bc1730070ffe3eefc7dec52`.
+- Próximas entregas, nesta ordem: resumo aberto/detalhes por API; sensibilidade; pedido por UF, bioma ou Brasil;
+  painel de acerto por versão. A rodada privada do Pará não calculou sensibilidade (`sensibilidade_ligada=False`);
+  a demonstração ficará identificada até haver resultados reais. E9 continua aguardando as cartas reais.
+- O CI encontrou três falsos positivos no histórico de outra branch remota: hashes de código do atestado MCP
+  no commit `e7074b4a`. Foram comparados byte a byte aos arquivos versionados e permitidos somente pelos três
+  fingerprints exatos em `.gitleaksignore`. A varredura de todas as branches e as regras oficiais permanecem.
 
 ## Nova entrega 1: cena-alvo ligada ao Release (12/11/2026)
 
