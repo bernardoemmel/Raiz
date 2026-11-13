@@ -526,3 +526,9 @@ O navegador do CI #95 encontrou um 404 na ref pública de processamento, ainda i
 implantação. A fixture do build agora usa `./amostra/processamento.json`, servido pelo próprio site de teste.
 O Playwright exige as 27 UFs, ausência de erros e ausência de execução inventada; a configuração de produção
 continua consultando a ref pública. O teste de referência estadual, agentes, segurança, workflows e e2e já passaram.
+
+### Formatos dos produtos finais do Lote PA
+
+- Implementados em branch: Croissant dos membros/CSV, três perfis hubverse com versões históricas, cartão e CAD Trust dos cinco períodos; integração no catalogador e verificador portátil. Os cinco originais são preservados.
+- Validação real local: 19 derivados; 8.289.432 quantis de previsões, 3.629.238 das opções e nove dos resumos. Diagnósticos e lacunas de proveniência preservados.
+- Publicação, atestação e conferência integral remota dependem de CI/merge e execução do catálogo com vaga entre as 15; ainda não marcados como entregues em produção.

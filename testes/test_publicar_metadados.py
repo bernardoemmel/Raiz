@@ -15,6 +15,51 @@ from scripts import publicar_metadados as P
 from testes.test_armazem_release import GitHubFalso, _armazem
 
 
+def test_catalogo_repete_inventario_inteiro_apos_deslocamento_de_pagina(tmp_path, monkeypatch):
+    from raiz.executor.armazem import ArmazemRelease
+
+    chamadas, esperas = [], []
+
+    def consultar(self, rel):
+        chamadas.append(rel)
+        if len(chamadas) < 3:
+            raise RuntimeError("arquivos mudaram durante a paginação do Release; tente novamente")
+        return [{"name": "produto", "id": 2}]
+
+    monkeypatch.setattr(ArmazemRelease, "_assets", consultar)
+    monkeypatch.setattr(P.time, "sleep", esperas.append)
+    arm = P.classe_armazem()("exemplo/raiz", "dados-privados", tmp_path, privado=True, token="teste")
+    try:
+        assert arm._assets({"id": 1}) == [{"name": "produto", "id": 2}]
+        assert chamadas == [{"id": 1}] * 3 and esperas == [1, 2]
+    finally:
+        arm.cli.close()
+
+
+@pytest.mark.parametrize("outro_erro,expirado,esperadas", [(False, False, 4), (True, False, 1), (False, True, 1)])
+def test_catalogo_nao_mascara_falha_persistente_ou_prazo(tmp_path, monkeypatch, outro_erro, expirado, esperadas):
+    from raiz.executor.armazem import ArmazemRelease
+
+    chamadas = []
+
+    def consultar(self, rel):
+        chamadas.append(rel)
+        raise RuntimeError(
+            "outra falha" if outro_erro else "arquivos mudaram durante a paginação do Release; tente novamente"
+        )
+
+    monkeypatch.setattr(ArmazemRelease, "_assets", consultar)
+    monkeypatch.setattr(P.time, "sleep", lambda _: None)
+    prazo = P.time.monotonic() - 1 if expirado else None
+    arm = P.classe_armazem(prazo)("exemplo/raiz", "dados-privados", tmp_path, privado=True, token="teste")
+    try:
+        with pytest.raises(RuntimeError):
+            arm._assets({"id": 1})
+        assert len(chamadas) == esperadas
+    finally:
+        arm.cli.close()
+
+
 def test_catalogo_nao_consume_fila_nem_ultrapassa_teto():
     fila, rodar = P.modulos_fila()
     pedido_uf = {"id": "anterior/PA", "unidade": "PA", "refazer": "", "continuacao": 0, "ref": "a" * 40}

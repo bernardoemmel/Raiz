@@ -454,3 +454,24 @@ O navegador do CI #95 encontrou um 404 na ref pública de processamento, ainda i
 implantação. A fixture do build agora usa `./amostra/processamento.json`, servido pelo próprio site de teste.
 O Playwright exige as 27 UFs, ausência de erros e ausência de execução inventada; a configuração de produção
 continua consultando a ref pública. O teste de referência estadual, agentes, segurança, workflows e e2e já passaram.
+
+## Produtos finais imutáveis do Lote PA — integração preparada
+
+O catalogador reconhece o manifesto e os quatro TARs finais da retomada `43299409156`; exige IDs, tamanhos
+e SHA-256 registrados. Gera fichas Croissant 1.1 com todos os membros e esquemas dos CSVs, três perfis
+hubverse (resumos, previsões individuais e opções), cartão e CAD Trust dos cinco períodos publicados.
+Os cinco originais não são reenviados ou recalculados. As versões ausentes de tarefa/execução individual
+continuam nulas, com diagnóstico; origem e retomada conservam commits e execuções separados.
+
+Validação local com os bytes reais: 345.870 imóveis, 144 municípios, 8.289.432 linhas de quantis das previsões,
+3.629.238 das opções e nove dos resumos; 19 derivados em 61,09 s. Foram mantidos 3.981 diagnósticos,
+inclusive valores ausentes/faixas cruzadas; nenhum quantil foi reordenado. CADT conserva os cinco marcos
+e o total fracionário, com unidades inteiras por diferença dos acumulados arredondados; não interpola anos.
+A data de início de cenário é hipotética, não a implantação de um projeto nem emissão de créditos.
+
+A falha observada no catálogo `43346089594` motivou repetição limitada da listagem inteira quando um escritor
+concorrente desloca as páginas do Release. Quatro tentativas, com prazo preservado; nunca aceita lista parcial
+nem oculta outras falhas. A classe base do publicador e seu contrato de compatibilidade permanecem idênticos.
+
+O verificador portátil confere bytes reais, fichas, quantis, CADT e atestações dos dois escopos. CI, merge,
+execução retroativa e verificação remota integral ainda pendentes; os números acima são validação local.

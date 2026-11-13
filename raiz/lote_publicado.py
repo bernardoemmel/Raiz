@@ -261,8 +261,7 @@ def projetos_cadt(manifesto: dict, digest: str, *, data_inicio: str, base_url: s
                         for m in marcos
                     ],
                     "arredondamento": (
-                        "acumulados publicados à unidade mais próxima (meia para cima), "
-                        "depois diferenças entre marcos"
+                        "acumulados publicados à unidade mais próxima (meia para cima), depois diferenças entre marcos"
                     ),
                     "previsoes_recalculadas": False,
                     "carteira_reotimizada": False,
