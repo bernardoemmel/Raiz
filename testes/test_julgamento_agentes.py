@@ -498,3 +498,22 @@ def test_falha_terminal_preserva_campanha_sem_nota_inventada(monkeypatch, estado
         assert r["julgamento"]["estado"] == (
             "recusa_provedor_agente" if estado == "recusa_provedor" else "formato_ou_citacao_invalida"
         )
+
+
+def test_citacao_de_todos_os_polls_nao_perde_evidencia_nem_muda_nota():
+    from scripts.julgar_agentes import expandir_citacoes, trechos_citaveis
+
+    fontes = {f"chamadas/{i}/tempo": "Intervalo respeitado." for i in range(13)}
+    trechos = trechos_citaveis(fontes)
+    t = tarefa("pedido_demorado")
+    dados = {
+        "criterios": {
+            k: {"passou": False, "justificativa": "Nota original.", "evidencias": list(trechos)} for k in t.esperado
+        },
+        "violacoes": [],
+    }
+    resultado = validar_notas(expandir_citacoes(dados, trechos), t, fontes)
+    assert all(len(n.evidencias) == 13 and not n.passou for n in resultado.criterios.values())
+    dados["criterios"][next(iter(t.esperado))]["evidencias"].append("inventada")
+    with pytest.raises(ErroJulgamento, match="inexistente"):
+        expandir_citacoes(dados, trechos)

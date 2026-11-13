@@ -210,10 +210,11 @@ Medições durante as campanhas reais no Actions (13/11/2026 UTC), com sete serv
 | [1, interrompida após 35 tentativas](https://github.com/bernardoemmel/Raiz/actions/runs/43341704532) | 44 | 1.162,3 MiB | 1.181,9 MiB | 193,7 MiB | 3,18 GiB |
 | [2, interrompida após 17 tentativas](https://github.com/bernardoemmel/Raiz/actions/runs/43347357547) | 27 | 1.175,1 MiB | 1.186,4 MiB | 193,7 MiB | 3,18 GiB |
 | [3, interrompida após 64 tentativas](https://github.com/bernardoemmel/Raiz/actions/runs/43349634089) | 81 | 1.225,3 MiB | 1.276,4 MiB | 194,1 MiB | 3,18 GiB |
+| [5, interrompida após 20 tentativas](https://github.com/bernardoemmel/Raiz/actions/runs/43359802697) | 31 | 1.126,8 MiB | 1.137,8 MiB | 193,8 MiB | 3,18 GiB |
 
 As interrupções invalidam pass^4, mas não apagam as amostras de recursos: `recursos.json` está no artefato
 `medicao-agente-real` de cada execução. A terceira coleta cobriu 02h36min32s–02h53min15s UTC. A soma de CPU
-atingiu 153,58% nas três coletas (100% representa aproximadamente um núcleo). Os picos são amostrados,
+atingiu 153,58% nas coletas relacionadas (100% representa aproximadamente um núcleo). Os picos são amostrados,
 sem cobrir toda a inicialização; o runner Claude/juiz e o host não entram na RAM dos contêineres.
 
 Para um **piloto com carga equivalente**, o ponto inicial recomendado é **2 vCPU, 4 GiB de RAM e 40 GiB SSD**,

@@ -85,7 +85,8 @@ outra campanha integral. O runner recusa sobrescrever cassetes reais ou continua
 
 Um Claude em outra conversa, sem ferramentas, julga os critérios em JSON estrito. O juiz seleciona IDs
 de trechos previamente identificados; o esquema restringe a seleção aos IDs existentes. Todas as fontes
-entram integralmente e na ordem original, em blocos de até 1.600 caracteres. O instrumentador copia o trecho
+entram integralmente e na ordem original, em blocos de até 1.600 caracteres.
+O fim de um bloco não é truncamento da fonte; não há teto de oito citações por nota. O instrumentador copia o trecho
 selecionado literalmente, preservando notas e violações, e confere sua origem. Não pede ao juiz redigitar
 números ou citações nem seleciona apenas evidências favoráveis. Barreiras determinísticas conferem autorização, argumentos, efeitos
 no banco e tempos; podem reprovar a nota do juiz, nunca promover uma tentativa incompleta. Formato inválido, citação inexistente ou recusa do juiz são registrados como julgamento indisponível;
@@ -255,3 +256,9 @@ reais em conversas novas, 96 sessões e configuração congelada.
 uv run python -m scripts.reproduzir_agentes \
   --referencia testes/referencias/agente-real --saida .cache/agentes-replay
 ```
+
+A quinta campanha (`43359802697`) parou após 20 tentativas porque a continuidade
+foi sustentada por 13 citações e o limite local era oito. O v7 remove esse teto
+arbitrário, preservando todos os IDs e a verificação literal. O teste cobre 13
+fontes, notas negativas preservadas e rejeição de ID inventado. Não houve nova
+nota para as tentativas antigas; a configuração exige outra campanha completa.

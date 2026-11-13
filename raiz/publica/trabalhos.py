@@ -185,6 +185,8 @@ def _resumo_base(resultado: dict) -> dict:
 
 
 def _resumo_opcoes(resultado: dict) -> dict:
+    from raiz.publica.apresentacao import _versao
+
     opcoes = []
     for opcao in resultado.get("opcoes", []):
         if not isinstance(opcao, dict) or opcao.get("id") not in {"barata", "segura", "compacta"}:
@@ -226,7 +228,11 @@ def _resumo_opcoes(resultado: dict) -> dict:
             if isinstance(x, dict) and x.get("metodo") in METODOS
         ]
         opcoes.append(out)
-    return {"opcoes": opcoes, "referencia": "resumo_do_instante_do_calculo_sem_identificadores_de_fazendas"}
+    return {
+        "opcoes": opcoes,
+        "versao_modelo": _versao(resultado.get("versao_modelo")),
+        "referencia": "resumo_do_instante_do_calculo_sem_identificadores_de_fazendas",
+    }
 
 
 def _resumo_andamento(resultado: dict) -> dict:

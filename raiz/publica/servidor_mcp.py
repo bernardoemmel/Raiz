@@ -274,6 +274,7 @@ def criar_servidor(api: ApiRaiz | None = None, *, verificador: VerificadorKeyclo
         Exige sinal e contrato. Continue com acompanhar_contato usando o NOVO pedido_id da operação devolvida,
         até ler resultado; não use o ID comercial para esse acompanhamento. P90 de custo é cenário adverso;
         se exceder o teto, peça decisão humana sobre tolerância ao risco. Não presuma aceitação.
+        Informa versao_modelo do cálculo; null significa versão indisponível, não invente.
         Agrega as fazendas sem nome, CPF, contato ou lista de códigos do dono."""
         return await api.chamar(
             "POST",

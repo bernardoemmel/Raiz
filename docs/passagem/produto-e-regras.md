@@ -1,5 +1,24 @@
 # Passagem do chat "Produto e regras" (13/11/2026)
 
+## Quinta campanha e correção da quantidade de evidências
+
+A campanha `43359802697`, congelada em `ac020d3`/juiz v5, concluiu 20 tentativas
+sem chamada proibida nem violação crítica e parou na 21ª. O juiz citou 13 trechos
+válidos de polling, mas o Pydantic admitia apenas oito. A API de inferência não
+recebia esse limite local. Não há pass^4; as notas negativas originais permanecem.
+Custo/cronograma passou quatro vezes; disponibilidade, pequenas fazendas e comparação
+ainda tiveram falhas de comunicação/julgamento. O artefato `14007429943` foi preservado.
+
+O juiz v7 admite todas as citações verificáveis, sem teto arbitrário de oito;
+IDs inexistentes continuam inválidos. Explicita que uma fonte foi dividida em
+partes contíguas, evitando tratar o fim de um trecho como truncamento da resposta.
+Mantém indisponibilidade terminal do v6 e não corrige notas antigas. O MCP agora
+inclui `versao_modelo`, reutilizando a projeção da REST; texto livre vira null.
+O contrato orienta comunicar versão ausente e qualificar o alcance como estimado
+já no resumo inicial. Passaram 74 testes focados e Ruff. A nova campanha completa
+será iniciada com essa configuração e com as versões da ficha da main.
+
+
 ## Integração da main com versões da ficha
 
 A main `60e17b0` (PR #93) foi incorporada ao PR #96, preservando versões da ficha,

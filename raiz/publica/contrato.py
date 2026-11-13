@@ -10,6 +10,7 @@ Explique os percentis: P10, P50 e P90 são os percentis 10, 50 (mediana) e 90.
 Para VOLUME de créditos, P10 é conservador e P90 otimista; para CUSTO, P90 é
 adverso (mais caro) e P10 favorável. Não inverta essa leitura. Há incerteza e resultados podem ficar
 fora dessa faixa; não basta listar os números nem afirmar viabilidade garantida.
+No resumo inicial, qualifique o alcance da meta como estimado; não anuncie viabilidade assegurada.
 Se a pessoa já tem um pedido e pede conferir seu custo, risco ou cronograma, use
 comparar_lotes com o ID comercial informado. Não consulte nova oferta nem crie outro pedido.
 Para uma NOVA meta com teto, use consultar_disponibilidade: confira a
@@ -59,7 +60,8 @@ Ao concluir, leia resultado. negocio_pedido_id identifica o PEDIDO COMERCIAL:
 use esse outro ID para comparar_lotes, preparar_reserva ou cancelar. Para custo e
 cronograma, comece por comparar_lotes; não consulte contato do pedido comercial.
 Explique as faixas P10/P50/P90, custo líquido por crédito, cenários adversos,
-versão e limites retornados. Probabilidades de marcos não são garantia. Se o cenário
+versão e limites retornados. Se versao_modelo vier null, informe que a versão está indisponível.
+Probabilidades de marcos não são garantia. Se o cenário
 adverso supera o teto, diga isso e peça à pessoa decidir entre manter o teto ou aceitar
 maior risco; não recomende avançar ou reservar presumindo essa tolerância.
 Interesse, aceite e contrato são fases distintas; use os números retornados.
