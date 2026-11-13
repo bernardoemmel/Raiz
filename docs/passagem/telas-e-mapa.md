@@ -4,7 +4,46 @@ Sessão: https://claude.ai/code/session_01VGb88MJumyG9PHt2znaaKE. Branch: `claud
 
 ## Redesenho cartográfico e rodada 12: PR #90 (13/11/2026 UTC)
 
-- Revisão funcional atual: **`7fe3539`**, com 588 testes do front, TypeScript, lint, builds e Pages
+- **MapLibre mantido após a comparação corrigida com OpenLayers**. Nos dois imóveis reais, a
+  abertura do laboratório OL foi 41,28%/42,63% mais rápida, mas o imóvel com sobreposição reprovou
+  a interação: p95 de quadros 82,08 ms contra 20,12 ms e seleção 58,98 ms contra 34,81 ms.
+  A regra exigia os dois casos sem essa regressão, portanto não houve troca nem expansão para a
+  prova nacional. São proxies de render/RAF em Chrome 157/SwiftShader, não uma nota Lighthouse.
+  As 16 observações corrigidas foram preservadas; 12 terminaram antes do reinício do ambiente e
+  as quatro restantes completaram a ordem prevista, sem refazer as anteriores. O caso com
+  sobreposição inteiro antecede a interrupção. A primeira série, sem o plugin de céu transparente
+  do produto, fica explicitamente exploratória. A corrigida verifica os bytes do plugin, shader
+  e bundles, além de oito ensaios de paridade. O acabamento completo e a cena nacional não foram
+  avaliados; o resultado não autoriza migração. [Plano, amostras e prints](../design/evidencias/comparacao-openlayers-r12/README.md).
+- A revisão remota **`91e33ce` terminou com os nove jobs verdes** no
+  [CI `43485577728`](https://github.com/bernardoemmel/Raiz/actions/runs/43485577728): entrada nacional
+  **96/96/96**, seis medianas **96/99/98/98/98/100**, acessibilidade 100 nas 18 amostras e sete axe
+  sem violações. A auditoria para agentes foi **1,00**, com CLS **0,001758130519118656**.
+  **3.528 testes Python passaram**, com um deselecionado, um xfailed e nenhum skip; a referência do Pará
+  passou separadamente. As medições da fixture são distintas do snapshot real local reprovado abaixo.
+  A composição seguinte exige seu próprio CI e auditoria da publicação, registrados no PR. Nenhum run foi cancelado.
+- **`75d733c` corrige seleção entre municípios**: popup, hover, seleção e máscara são encerrados
+  antes da troca das geometrias e no teardown, inclusive quando fontes já foram removidas. O destaque
+  da tabela também é limpo. O teste novo reproduziu o defeito no build anterior: popup e seleção
+  antigos permaneciam, sem máscara. A correção passou em 588 testes, TSC/lint, builds e Pages em
+  `/` e `/Raiz/`, com reseleção, teclado, zero 404/erros e axe 360 sem violações. `c2e6677` faz o
+  roteiro esperar o enquadramento real antes de reprojetar o clique, sem atraso fixo.
+- **`bdfe2bb` corrige a publicação diária bloqueada pela malha antiga**. O run `43478574515` tinha
+  406 desenhos de Boa Esperança do Norte no Release, mas faltava seu código `5101837` na malha
+  TerraBrasilis de 5.570 municípios. O exportador agora identifica a UF com códigos ausentes e
+  substitui sua divisão inteira pela edição oficial mais recente do IBGE, incluindo os municípios
+  de origem. Não há lista fixa nem exceção para esse código. A prova com MT/2025 passou para **5.571
+  municípios únicos**, MT com 142, sem sobrepor o município novo a Sorriso/Nova Ubiratã e mantendo
+  as outras UFs idênticas. ZIPs, hashes, CARs e bases são preservados; retomada funciona sem rede.
+  O índice público ganha apenas `malhas`, contrato fechado por UF de fonte/ano/hash; fonte, edição
+  e generalização aparecem em `fontes.md`, sem atribuir 2025 a todo o país. A licença da edição foi
+  conferida na nota oficial, página 9: CC BY 4.0, inclusive comercial. Passaram 27 testes Python,
+  37 de front focados, TypeScript e Ruff. [Prova e fontes](../design/evidencias/malha-ibge-2025/README.md).
+  A composição com a seleção passou em **601 testes do front**, TSC, builds do painel/produtor,
+  verificador de design, lint e Pages `/Raiz/`: 199 pedidos, zero 404/erros e axe 360 sem violações.
+  Ruff passou no escopo completo do CI, com 637 arquivos formatados. Não houve Lighthouse adicional
+  para essas mudanças de interação/proveniência; o próximo CI e a publicação real são verificações próprias.
+- Referência funcional e de desempenho **`7fe3539`**, com 588 testes do front, TypeScript, lint, builds e Pages
   em **`/` e `/Raiz/`**, incluindo busca, overzoom, privacidade e zero 404/erros. A auditoria oficial
   do site para agentes passou com nota 100 e **CLS 0,001758**. A série móvel de 18 medições passou
   na fixture: medianas **94/98/98/98/98/100**, acessibilidade 100 e sete auditorias axe sem violações;

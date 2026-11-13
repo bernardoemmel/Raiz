@@ -2468,6 +2468,187 @@
       },
       "relatorio_jobs_sha256": "0e14a95f25566f26b1cef061cfb96f151c317f87775bb11eb4b62ded14bdfa73",
       "relatorio_python_sha256": "3c5f9933936d72918bf3cb21979a7512f6b05b02a812bcb47371954a223d442f"
+    },
+    "ci_91e33ce_43485577728": {
+      "head": "91e33cebedc968ed19f267b3a3df58cb2d88a843",
+      "run": "https://github.com/bernardoemmel/Raiz/actions/runs/43485577728",
+      "ambiente": "fixture no CI; não substitui o snapshot real local",
+      "front_resultado": "success",
+      "front_testes": 588,
+      "celular": {
+        "axe": [
+          {
+            "pagina": "brasil-360",
+            "regras": 32,
+            "violacoes": 0
+          },
+          {
+            "pagina": "municipio-360",
+            "regras": 31,
+            "violacoes": 0
+          },
+          {
+            "pagina": "entrada-erro-360",
+            "regras": 25,
+            "violacoes": 0
+          },
+          {
+            "pagina": "novo-pedido-360",
+            "regras": 27,
+            "violacoes": 0
+          },
+          {
+            "pagina": "novo-pedido-filtros-360",
+            "regras": 27,
+            "violacoes": 0
+          },
+          {
+            "pagina": "prospeccao-publica-360",
+            "regras": 27,
+            "violacoes": 0
+          },
+          {
+            "pagina": "produtor-360",
+            "regras": 13,
+            "violacoes": 0
+          }
+        ],
+        "lighthouse": [
+          {
+            "pagina": "brasil",
+            "performance": 96,
+            "accessibility": 100,
+            "amostras": [
+              {
+                "performance": 96,
+                "accessibility": 100
+              },
+              {
+                "performance": 96,
+                "accessibility": 100
+              },
+              {
+                "performance": 96,
+                "accessibility": 100
+              }
+            ]
+          },
+          {
+            "pagina": "entrar",
+            "performance": 99,
+            "accessibility": 100,
+            "amostras": [
+              {
+                "performance": 99,
+                "accessibility": 100
+              },
+              {
+                "performance": 99,
+                "accessibility": 100
+              },
+              {
+                "performance": 98,
+                "accessibility": 100
+              }
+            ]
+          },
+          {
+            "pagina": "novo-pedido",
+            "performance": 98,
+            "accessibility": 100,
+            "amostras": [
+              {
+                "performance": 98,
+                "accessibility": 100
+              },
+              {
+                "performance": 98,
+                "accessibility": 100
+              },
+              {
+                "performance": 98,
+                "accessibility": 100
+              }
+            ]
+          },
+          {
+            "pagina": "prospeccao",
+            "performance": 98,
+            "accessibility": 100,
+            "amostras": [
+              {
+                "performance": 98,
+                "accessibility": 100
+              },
+              {
+                "performance": 98,
+                "accessibility": 100
+              },
+              {
+                "performance": 97,
+                "accessibility": 100
+              }
+            ]
+          },
+          {
+            "pagina": "acerto",
+            "performance": 98,
+            "accessibility": 100,
+            "amostras": [
+              {
+                "performance": 98,
+                "accessibility": 100
+              },
+              {
+                "performance": 98,
+                "accessibility": 100
+              },
+              {
+                "performance": 93,
+                "accessibility": 100
+              }
+            ]
+          },
+          {
+            "pagina": "produtor",
+            "performance": 100,
+            "accessibility": 100,
+            "amostras": [
+              {
+                "performance": 100,
+                "accessibility": 100
+              },
+              {
+                "performance": 100,
+                "accessibility": 100
+              },
+              {
+                "performance": 100,
+                "accessibility": 100
+              }
+            ]
+          }
+        ]
+      },
+      "relatorio_celular_sha256": "69c89d9ce0f44d562e94053bd574435ce76a6219f3bdd7ff6e56d259db1d63c4",
+      "artefato_celular": 14068010846,
+      "site_para_agentes": {
+        "categoria": 1,
+        "cls": 0.001758130519118656,
+        "fetchTime": "2026-11-13T18:48:09.053Z",
+        "artefato": 14068205093,
+        "relatorio_sha256": "c4381d9d3c19def9a8fbdac0e1a276ca720c2e305eea5e5c86db0791c7ca0134"
+      },
+      "limite": "CI integral do head91e33ce; não comprova as revisões posteriores nem substitui o snapshot real local. Todos os resultados anteriores são preservados.",
+      "suite_global": {
+        "resultado": "success",
+        "jobs_aprovados": 9,
+        "python_passaram": 3528,
+        "python_deselected": 1,
+        "python_xfailed": 1,
+        "python_skipped": 0,
+        "referencia_para": "success"
+      }
     }
   },
   "lighthouse_versao": "13.6.0",

@@ -2,6 +2,19 @@
 
 **O desempenho com dados reais continua reprovado: 78/88/89, mediana 88, abaixo do portão 90.** As seis capturas desta revisão comprovam o percurso funcional; não aprovam o desempenho. A fixture sintética passou com mediana nacional 94 e acessibilidade 100.
 
+O [CI posterior `43485577728`](https://github.com/bernardoemmel/Raiz/actions/runs/43485577728),
+head `91e33ce`, terminou com **nove jobs verdes e 3.528 testes Python aprovados**:
+**96/96/96 na entrada**, medianas
+96/99/98/98/98/100 nas seis rotas, acessibilidade 100 nas 18 amostras e sete axe sem
+violações. A categoria para agentes foi 1,00, com CLS 0,001758. São dados da fixture
+do CI e não substituem a série real acima. Relatórios e hashes estão no histórico JSON.
+
+Depois dessas capturas, a [regressão de seleção entre municípios](selecao.json) foi
+reproduzida no build antigo e corrigida. A ida/volta, nova seleção e saída do mapa
+passaram nas duas bases, com zero 404/erros. A [atualização da malha de MT pelo IBGE](../malha-ibge-2025/README.md)
+também foi integrada; sua prova e seu crédito são posteriores às seis imagens abaixo.
+As capturas conservam seus hashes e a revisão original, sem serem reatribuídas ao novo build.
+
 Capturas reais de Chrome for Testing 157.0.8103.78, em 1440 × 1000 px no desktop e 360 × 800 px no celular, sem retoque. A entrada passa do SVG publicado para o MapLibre com Supercluster. Cada círculo mostra a quantidade de fazendas e os hectares conhecidos do agregado; ao aproximar, os grupos se abrem e dão lugar aos limites reais do CAR.
 
 | Escala | Antes | Depois |
