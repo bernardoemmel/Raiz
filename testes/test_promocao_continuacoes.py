@@ -237,7 +237,7 @@ def test_gatilho_unico_nao_confia_em_codigo_de_outro_run(mudanca, autorizado):
     funcoes = {"format": lambda modelo, valor: modelo.format(valor)}
     assert eval(" ".join(expressao.split()), {"__builtins__": {}}, funcoes) is autorizado
     checkout = workflow["jobs"]["catalogo"]["steps"][0]
-    assert checkout["uses"] == "actions/checkout@v4" and "with" not in checkout
+    assert checkout["uses"] == "actions/checkout@v7" and "with" not in checkout
 
 
 def _codigo_fechado(ref, tmp_path):
