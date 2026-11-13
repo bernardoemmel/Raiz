@@ -512,3 +512,11 @@ preservadas após recompor a chamada anterior da carga e que desenvolvedor
 tenha mudado com a R12; a prova histórica continua vinculada e inalterada.
 Setenta testes da auditoria, 70 de metadados e Ruff/formatação passaram.
 Nenhum destino de continuação nem resultado em execução foi modificado.
+
+CI nacional `43361045082`, head antigo `a1b88c2`: Python concluiu em 32min19s
+com 2.828 aprovados e três falhas. Duas expectativas de integração ainda fixavam
+o padrão R11; foram atualizadas para R12. A terceira procurava “789” inclusive
+nos microssegundos do horário do aviso. Agora confere o conteúdo protegido
+integralmente, excluindo apenas os metadados identificadores/temporais conhecidos.
+Os seis testes desses módulos/casos passaram com PostGIS real local em 51,23s.
+Nenhuma implementação de API, MCP ou front foi alterada por essas correções.
