@@ -1,0 +1,142 @@
+{
+  "$defs": {
+    "Estrato": {
+      "additionalProperties": false,
+      "properties": {
+        "municipio": {
+          "maximum": 9999999,
+          "minimum": 1000000,
+          "title": "Municipio",
+          "type": "integer"
+        },
+        "porte": {
+          "enum": [
+            "pequena",
+            "media",
+            "grande"
+          ],
+          "title": "Porte",
+          "type": "string"
+        },
+        "aptidao": {
+          "enum": [
+            "baixa",
+            "media",
+            "alta"
+          ],
+          "title": "Aptidao",
+          "type": "string"
+        }
+      },
+      "required": [
+        "municipio",
+        "porte",
+        "aptidao"
+      ],
+      "title": "Estrato",
+      "type": "object"
+    },
+    "MembroFunil": {
+      "additionalProperties": false,
+      "properties": {
+        "caso_id": {
+          "format": "uuid",
+          "title": "Caso Id",
+          "type": "string"
+        },
+        "estrato": {
+          "$ref": "#/$defs/Estrato"
+        },
+        "elegibilidade": {
+          "enum": [
+            "elegivel",
+            "inelegivel",
+            "desconhecida"
+          ],
+          "title": "Elegibilidade",
+          "type": "string"
+        },
+        "disposicao": {
+          "enum": [
+            "nao_abordado",
+            "incluido",
+            "recusa",
+            "sem_resposta",
+            "perda",
+            "inelegivel"
+          ],
+          "title": "Disposicao",
+          "type": "string"
+        },
+        "motivo": {
+          "enum": [
+            "nenhum",
+            "titulo",
+            "ambiental",
+            "aptidao",
+            "indisponivel",
+            "desconhecido"
+          ],
+          "title": "Motivo",
+          "type": "string"
+        }
+      },
+      "required": [
+        "caso_id",
+        "estrato",
+        "elegibilidade",
+        "disposicao",
+        "motivo"
+      ],
+      "title": "MembroFunil",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Só esquema de contagem. Não consulta, solicita nem guarda contatos.",
+  "properties": {
+    "coorte_id": {
+      "format": "uuid",
+      "title": "Coorte Id",
+      "type": "string"
+    },
+    "fixado_em": {
+      "format": "date-time",
+      "title": "Fixado Em",
+      "type": "string"
+    },
+    "corte_em": {
+      "format": "date-time",
+      "title": "Corte Em",
+      "type": "string"
+    },
+    "manifesto_ids_sha256": {
+      "pattern": "^[a-f0-9]{64}$",
+      "title": "Manifesto Ids Sha256",
+      "type": "string"
+    },
+    "denominador": {
+      "exclusiveMinimum": 0,
+      "title": "Denominador",
+      "type": "integer"
+    },
+    "membros": {
+      "items": {
+        "$ref": "#/$defs/MembroFunil"
+      },
+      "minItems": 1,
+      "title": "Membros",
+      "type": "array"
+    }
+  },
+  "required": [
+    "coorte_id",
+    "fixado_em",
+    "corte_em",
+    "manifesto_ids_sha256",
+    "denominador",
+    "membros"
+  ],
+  "title": "FunilFixo",
+  "type": "object"
+}

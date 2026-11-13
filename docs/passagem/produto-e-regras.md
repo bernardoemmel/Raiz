@@ -1,5 +1,21 @@
 # Passagem do chat "Produto e regras" (13/11/2026)
 
+## Retomada: correção do teste do agregador e main de avaliação
+
+O CI `43369152999` aprovou 2.936 testes Python, mas o teste do agregador ainda
+exigia a expressão antiga `always()`. Ele agora confere `always() && !cancelled()`,
+conservando todas as exigências sobre resultados, artefatos e o caso estadual.
+Front, e2e, segurança, segredos, workflows, agentes e referência estadual passaram.
+A main `6b9c377` (avaliação de carbono/equidade) foi incorporada, inclusive sua
+política de não cancelar o CI anterior e o histórico completo para auditoria.
+Passaram 70 testes focados e Ruff após a integração; o CI integral será repetido.
+
+A sétima campanha (`43368316000`, `ea25614`) terminou incompleta após 43 sessões;
+a descoberta MCP falhou na quarta tentativa de limite por empresa. O artefato
+`14012541009` conserva 90 arquivos sanitizados. Não existe pass^4 dessa campanha.
+O diagnóstico e a referência diária continuam na entrega seguinte.
+
+
 ## Integração com a pasta do banco e comprador
 
 O PR #96 incorporou a main `692663c` (PR #98), preservando a pasta com fontes,
