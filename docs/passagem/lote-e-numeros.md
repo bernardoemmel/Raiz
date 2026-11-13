@@ -224,3 +224,9 @@ A varredura de todos os ramos do PR #86 apontou três hashes SHA-256 de código 
 `e7074b4a170d745f34a4732072fcd954c0cad6f9`, linhas 3, 5 e 14 de `testes/mcp/sem_leitor_auditado.json`.
 Os hashes foram recalculados a partir dos arquivos daquele commit e conferem. A exceção restrita já preparada
 na frente de dados foi aplicada somente aos três fingerprints; nenhuma regra foi desativada nem arquivo MCP alterado.
+
+No PR #86, a referência estadual autenticada passou localmente com os 144 municípios e 345.870 imóveis
+(437,53 segundos, sem recalcular previsões). O CI `43336812571` aprovou testes Python com PostGIS,
+referência privada, front, e2e, segurança e workflows no código do diagnóstico. A única falha foi a varredura
+dos três hashes acima; a mesma varredura local de todos os ramos passou após as exceções restritas.
+O merge e a publicação dependem da nova execução verde no head que inclui essa correção.
