@@ -1,10 +1,10 @@
 {
-  "capturado_em": "2026-11-13T00:54:01.478964+00:00",
+  "capturado_em": "2026-11-13T01:14:40.355212+00:00",
   "viewport": {
     "largura": 1440,
     "altura": 1000
   },
-  "frontend": "f564bed",
+  "frontend": "fa7a83b",
   "gerador_h3": "486ef71",
   "dados_publicados_em": "2026-11-12T23:54:43+00:00",
   "h3_verificado_em": "2026-11-13T00:35:56Z",
@@ -13,14 +13,14 @@
   "celulas_h3_unicas": 6787,
   "celulas_com_medida": 3717,
   "rede": {
-    "requisicoes": 107,
+    "requisicoes": 108,
     "erros": [],
     "tiles_satelite": 9,
     "todos_tiles_http_200": true,
     "endpoints_pagos_solicitados": false
   },
   "render": {
-    "zoom": 14,
+    "zoom": 14.319882480562114,
     "mascara": 1,
     "fill": 0,
     "hachura": 0,
@@ -28,29 +28,40 @@
     "fundoAbaixo": true
   },
   "imagens": {
+    "brasil-depois.png": {
+      "sha256": "0d63451c8b7ed8fa31e5218e84ac05e98dc93f1f4f26908069b61d4e67971494",
+      "bytes": 329238
+    },
     "estado-antes.png": {
       "sha256": "36fcabc05e585b3643848b9c7efdfc92d2e31237cf6a48f86f7906961c20c8f1",
       "bytes": 504890
     },
-    "municipio-antes.png": {
-      "sha256": "7bbbae29e0496c5bde6446e330b2a1b3b51622c9cbfc1e42f60f10581c920708",
-      "bytes": 245587
+    "estado-depois.png": {
+      "sha256": "324b783e85440fb08fb5b0795eda09dda8421c6b6fea1e0de321df4a29f42487",
+      "bytes": 720254
     },
     "fazenda-antes.png": {
       "sha256": "f62defc42841b3f7ea1dc324a1b76adc2686e35758702bcf0ec95393a9c57e85",
       "bytes": 435954
     },
-    "estado-depois.png": {
-      "sha256": "2ca4e0bef39868d2c1e5c471492803b0c4e871fbaac48c4629289a9e3784f341",
-      "bytes": 709127
+    "fazenda-depois.png": {
+      "sha256": "67f4a59cd32dfc06005d4dd4c10484c4b0bee06e2bfef945a6966777cd925d96",
+      "bytes": 644204
+    },
+    "municipio-antes.png": {
+      "sha256": "7bbbae29e0496c5bde6446e330b2a1b3b51622c9cbfc1e42f60f10581c920708",
+      "bytes": 245587
     },
     "municipio-depois.png": {
-      "sha256": "c5745ce044b77e2b79fffe10e5ca4bcf0285a99edab20759755c9af2315d71a9",
-      "bytes": 265725
-    },
-    "fazenda-depois.png": {
-      "sha256": "abfb6af19e4dba190603cbebaf768e038929b601977d2369d086a348683f56ec",
-      "bytes": 716898
+      "sha256": "051551d9c67eacb3b863b5190e92bacd46020e58eb24e6deb10e10107fab1d8a",
+      "bytes": 266224
     }
+  },
+  "mapa_inicial_sem_svg_grande": true,
+  "navegacao_acerto": true,
+  "resumo_aptidao": {
+    "municipios": 365,
+    "estados": 9,
+    "data_propria": null
   }
 }
