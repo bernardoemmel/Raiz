@@ -436,10 +436,18 @@ def salvar(unidade: str, *, arm=None, raizes=None) -> dict:
         raise CheckpointInvalido("checkpoint_preservacao_falhou") from None
 
 
-def restaurar(unidade: str, *, arm=None, raizes=None) -> dict:
+def restaurar(unidade: str, *, arm=None, raizes=None, herdar_particao: bool = False) -> dict:
     """Ausência é normal; corrupção, destino público e conflito local falham sem sobrescrever."""
     try:
-        return _restaurar(unidade, arm, raizes)
+        resultado = _restaurar(unidade, arm, raizes)
+        if herdar_particao and resultado["situacao"] == "ausente":
+            from motor.raiz_situacao import unidade_ancestral
+
+            ancestral = unidade_ancestral(unidade)
+            if ancestral:
+                resultado = _restaurar(ancestral, arm, raizes)
+                resultado["herdado_de"] = ancestral
+        return resultado
     except CheckpointInvalido:
         raise
     except Exception:
@@ -450,6 +458,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("acao", choices=("salvar", "restaurar"))
     parser.add_argument("--unidade", required=True)
+    parser.add_argument("--herdar-particao", action="store_true")
     parser.add_argument(
         "--repositorio", type=Path, help="Checkout original quando o preservador roda em outro checkout"
     )
@@ -471,7 +480,10 @@ def main():
                 or Path(os.environ.get("RAIZ_HISTORICO_DIR", repo / "dados/historico_aprendizado")),
             }
             roots = {n: p if p.is_absolute() else repo / p for n, p in roots.items()}
-        resultado = (salvar if args.acao == "salvar" else restaurar)(args.unidade, raizes=roots)
+        if args.acao == "salvar":
+            resultado = salvar(args.unidade, raizes=roots)
+        else:
+            resultado = restaurar(args.unidade, raizes=roots, herdar_particao=args.herdar_particao)
     except CheckpointInvalido as erro:
         print(json.dumps({"situacao": "erro", "codigo": str(erro)}))
         raise SystemExit(1) from None

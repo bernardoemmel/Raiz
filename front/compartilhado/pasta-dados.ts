@@ -311,6 +311,25 @@ export function abrirPasta(opcoes: OpcoesPasta) {
     indicesBasicos.set(uf, { assinatura: marca, dado })
     return dado
   }
+  let memoriaFronteiras: { assinatura: string; dado: Record<string, string[]> } | undefined
+  /** Só relações municipais observadas nos básicos públicos, sem repetir CARs nem métricas no índice. */
+  function fronteirasBasicas(): Record<string, string[]> {
+    const publicados = ufs().flatMap(uf => comBasicos(uf).map(cod => ({ uf, cod })))
+    const marca = publicados.map(({ cod }) => { const st = fs.statSync(caminho(`imoveis_basicos_${cod}.csv`)!); return `${cod}:${st.size}:${st.mtimeMs}` }).join(";")
+    if (memoriaFronteiras?.assinatura === marca) return memoriaFronteiras.dado
+    const destinos = new Map<string, Set<string>>()
+    for (const { uf, cod } of publicados) {
+      for (const linha of basicos(cod)) {
+        const origem = linha.cod_imovel.slice(3, 10), ufOrigem = ufDoCodigo(origem)
+        if (!ufOrigem || linha.cod_imovel.slice(0, 2) !== ufOrigem || ufOrigem === uf) continue
+        if (!destinos.has(origem)) destinos.set(origem, new Set())
+        destinos.get(origem)!.add(cod)
+      }
+    }
+    const dado = Object.fromEntries([...destinos].sort(([a], [b]) => a.localeCompare(b)).map(([origem, cods]) => [origem, [...cods].sort()]))
+    memoriaFronteiras = { assinatura: marca, dado }
+    return dado
+  }
   function geoBasico(cod: string): Geo | null {
     const uf = ufDoCodigo(cod)
     if (!uf || !comBasicos(uf).includes(cod)) return null
@@ -324,7 +343,7 @@ export function abrirPasta(opcoes: OpcoesPasta) {
         const car = String(f.properties?.cod_imovel ?? "")
         const g = f.geometry
         if (!permitidos.has(car) || !g || !["Polygon", "MultiPolygon"].includes(g.type) || !coordenadasValidas(g.coordinates)) return []
-        return [{ type: "Feature" as const, properties: { cod_imovel: car }, geometry: { type: g.type, coordinates: g.coordinates } }]
+        return [{ type: "Feature" as const, properties: { cod_imovel: car, ...(typeof f.properties.sobreposto === "boolean" ? { sobreposto: f.properties.sobreposto } : {}) }, geometry: { type: g.type, coordinates: g.coordinates } }]
       }),
     }
   }
@@ -732,6 +751,7 @@ export function abrirPasta(opcoes: OpcoesPasta) {
     basicos,
     csvBasico,
     foraBasicos,
+    fronteirasBasicas,
     geoBasico,
     foraDoMunicipio,
     aquecer,

@@ -18,6 +18,7 @@
  */
 
 import type { Geo } from "../dados/tipos"
+import type { FichaCredito } from "../ficha-credito"
 
 /** O que conta na meta. */
 export type TipoMeta = "creditos" | "hectares" | "flag_t_ano"
@@ -167,6 +168,8 @@ export interface Opcao {
   /** Detalhes disponíveis apenas na API autenticada ou demonstração sintética. */
   destrava?: DestravadorPublicado[]
   o_que_falta?: string[]
+  /** Evidência agregada privada, vinculada à revisão efetiva do lote. Nunca consta no resumo aberto. */
+  ficha_credito?: FichaCredito
 }
 
 export type StatusPedido =

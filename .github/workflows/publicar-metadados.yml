@@ -54,6 +54,7 @@ jobs:
         run: python scripts/publicar_metadados.py --reservar
       - uses: astral-sh/setup-uv@v6
         with:
+          version: "0.13.6"
           enable-cache: true
       - name: Dependências dos metadados e do produto
         run: uv sync --frozen --all-extras

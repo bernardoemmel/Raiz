@@ -1,6 +1,7 @@
 """Publicação nacional do mapa sem depender de CAR/WFS no teste."""
 
 import gzip
+import hashlib
 import importlib.util
 import io
 import json
@@ -11,12 +12,13 @@ import threading
 from concurrent.futures import ThreadPoolExecutor
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from types import SimpleNamespace
 
 import geopandas as gpd
 import pytest
 from pmtiles.reader import Reader
 from pmtiles.tile import Compression
-from shapely.geometry import box, mapping
+from shapely.geometry import box, mapping, shape
 
 
 @pytest.fixture
@@ -300,6 +302,138 @@ def test_cache_nacional_parcial_nao_publica_uf_sem_fundo_e_pode_ser_refeito(geo)
     assert not bruto.exists()
     assert not (geo.SAIDA / "brasil_municipios.geojson").exists()
     assert not (geo.SAIDA / "brasil_estados.geojson").exists()
+
+
+@pytest.fixture
+def malha_desmembrada(geo, monkeypatch):
+    """Novo município ocupa partes dos dois anteriores; acrescentá-lo sozinho sobreporia os três."""
+    codigos = ["5107925", "5106240", "5101837"]
+    antigos = [
+        geo.feicao(box(0, 0, 2, 1), {"cod_ibge": codigos[0], "nome": "Origem A", "uf": "MT"}),
+        geo.feicao(box(2, 0, 4, 1), {"cod_ibge": codigos[1], "nome": "Origem B", "uf": "MT"}),
+        geo.feicao(box(10, 0, 11, 1), {"cod_ibge": "1505536", "nome": "Outra UF", "uf": "PA"}),
+    ]
+    geo.salvar("brasil_municipios.geojson", antigos)
+    geo.salvar("brasil_estados.geojson", [geo.feicao(box(0, 0, 4, 1), {"uf": "MT", "cod": "51"})])
+    for f in antigos[:2]:
+        geo.salvar(f"municipio_{f['properties']['cod_ibge']}.geojson", [f])
+        geo.salvar(f"municipio_{f['properties']['cod_ibge']}.geojson.gz", [f])
+    (geo.SAIDA / "imoveis_5107925.geojson.gz").write_bytes(b"CAR preservado")
+    (geo.SAIDA / "base_MT.pmtiles").write_bytes(b"base preservada")
+    pedidos = []
+    dados = gpd.GeoDataFrame(
+        {"CD_MUN": codigos, "NM_MUN": ["Origem A", "Origem B", "Novo"]},
+        geometry=[box(0, 0, 1, 1), box(3, 0, 4, 1), box(1, 0, 3, 1)],
+        crs=4674,
+    )
+
+    def baixar(url, **_kwargs):
+        pedidos.append(url)
+        if url == geo.MALHAS_IBGE:
+            return SimpleNamespace(text='<a href="municipio_2024/">2024</a><a href="municipio_2025/">2025</a>')
+        assert url.endswith("municipio_2025/UFs/MT/MT_Municipios_2025.zip")
+        return SimpleNamespace(content=b"ZIP oficial simulado")
+
+    monkeypatch.setattr(geo, "baixar", baixar)
+    monkeypatch.setattr(gpd, "read_file", lambda *_a, **_kw: dados.copy())
+    return codigos, antigos, dados, pedidos
+
+
+def test_municipio_novo_atualiza_uf_pais_recortes_e_proveniencia_sem_sobrepor(geo, malha_desmembrada, monkeypatch):
+    codigos, antigos, _, pedidos = malha_desmembrada
+    publicados = {cod: Path(f"imoveis_{cod}.csv") for cod in codigos}
+    geo.atualizar_malha_ibge(publicados)
+    fs = json.loads((geo.SAIDA / "brasil_municipios.geojson").read_text())["features"]
+    por_cod = {f["properties"]["cod_ibge"]: shape(f["geometry"]) for f in fs}
+    assert set(por_cod) == {*codigos, "1505536"}
+    assert next(f for f in fs if f["properties"]["uf"] == "PA") == json.loads(json.dumps(antigos[2]))
+    assert por_cod[codigos[2]].area == pytest.approx(2)
+    for pai in codigos[:2]:
+        assert por_cod[pai].intersection(por_cod[codigos[2]]).area == 0
+        recorte = json.loads((geo.SAIDA / f"municipio_{pai}.geojson").read_text())["features"][0]
+        assert shape(recorte["geometry"]).equals(por_cod[pai])
+        comprimido = json.loads(gzip.decompress((geo.SAIDA / f"municipio_{pai}.geojson.gz").read_bytes()))["features"][
+            0
+        ]
+        assert comprimido == recorte, "A variante gzip não pode sobrescrever o recorte novo no índice."
+    assert (geo.SAIDA / "imoveis_5107925.geojson.gz").read_bytes() == b"CAR preservado"
+    assert (geo.SAIDA / "base_MT.pmtiles").read_bytes() == b"base preservada"
+    geo.indice(codigos)
+    assert json.loads((geo.SAIDA / "indice.json").read_text())["malhas"] == {
+        "MT": {"fonte": "IBGE", "ano": 2025, "sha256": hashlib.sha256(b"ZIP oficial simulado").hexdigest()}
+    }
+    # Recriação da malha antiga/interrupção entre saídas: reaplica o ZIP conferido, sem rede e sem perder a UF nova.
+    geo.salvar("brasil_municipios.geojson", antigos)
+    geo.salvar("brasil_estados.geojson", [])
+    monkeypatch.setattr(geo, "baixar", lambda *_a, **_kw: pytest.fail("Retomada não deve consultar a rede"))
+    geo.atualizar_malha_ibge(publicados)
+    assert len(pedidos) == 2, "A retomada reaplica a edição conferida mesmo se o índice remoto estiver indisponível."
+    assert len(json.loads((geo.SAIDA / "brasil_municipios.geojson").read_text())["features"]) == 4
+    assert json.loads((geo.SAIDA / "brasil_estados.geojson").read_text())["features"][0]["properties"]["uf"] == "MT"
+    geo.atualizar_malha_ibge(publicados)
+    assert len(pedidos) == 2, "Rodada normal reutiliza fonte/ano/hash sem nova consulta."
+
+
+def test_municipio_novo_em_uf_ja_promovida_busca_edicao_mais_recente(geo, malha_desmembrada, monkeypatch):
+    codigos, _, dados, pedidos = malha_desmembrada
+    cache = geo.SAIDA / "cache"
+    cache.mkdir()
+    anterior = b"ZIP anterior confirmado"
+    (cache / "MT_Municipios_2024.zip").write_bytes(anterior)
+    (cache / "malhas-ibge-v1.json").write_text(
+        json.dumps({"MT": {"fonte": "IBGE", "ano": 2024, "sha256": hashlib.sha256(anterior).hexdigest()}})
+    )
+    monkeypatch.setattr(gpd, "read_file", lambda nome, **_kw: (dados.iloc[:2] if "2024" in nome else dados).copy())
+    geo.atualizar_malha_ibge({cod: Path("publicado.csv") for cod in codigos})
+    assert len(pedidos) == 2
+    assert (cache / "MT_Municipios_2024.zip").read_bytes() == anterior
+    assert json.loads((cache / "malhas-ibge-v1.json").read_text())["MT"]["ano"] == 2025
+    assert len(json.loads((geo.SAIDA / "brasil_municipios.geojson").read_text())["features"]) == 4
+
+
+@pytest.mark.parametrize("problema", ["parcial", "duplicado", "outra_uf", "sem_crs"])
+def test_malha_ibge_invalida_nao_substitui_saidas_nem_registra_edicao(geo, malha_desmembrada, monkeypatch, problema):
+    codigos, _, dados, _ = malha_desmembrada
+    if problema == "parcial":
+        dados = dados.iloc[2:]
+    elif problema == "duplicado":
+        dados.loc[1, "CD_MUN"] = codigos[0]
+    elif problema == "outra_uf":
+        dados.loc[1, "CD_MUN"] = "1505536"
+    else:
+        dados = dados.set_crs(None, allow_override=True)
+    monkeypatch.setattr(gpd, "read_file", lambda *_a, **_kw: dados.copy())
+    anteriores = {p: p.read_bytes() for p in geo.SAIDA.iterdir() if p.is_file()}
+    with pytest.raises((ValueError, RuntimeError), match="IBGE"):
+        geo.atualizar_malha_ibge({cod: Path("publicado.csv") for cod in codigos})
+    assert all(p.read_bytes() == conteudo for p, conteudo in anteriores.items())
+    assert not (geo.SAIDA / "cache" / "malhas-ibge-v1.json").exists()
+
+
+def test_malha_ibge_cache_com_hash_alterado_falha_sem_apagar_dados(geo, malha_desmembrada):
+    codigos, _, _, _ = malha_desmembrada
+    publicados = {cod: Path("publicado.csv") for cod in codigos}
+    geo.atualizar_malha_ibge(publicados)
+    zipado = geo.SAIDA / "cache" / "MT_Municipios_2025.zip"
+    zipado.write_bytes(b"bytes alterados")
+    anterior = (geo.SAIDA / "brasil_municipios.geojson").read_bytes()
+    with pytest.raises(ValueError, match="hash"):
+        geo.atualizar_malha_ibge(publicados)
+    assert zipado.read_bytes() == b"bytes alterados"
+    assert (geo.SAIDA / "brasil_municipios.geojson").read_bytes() == anterior
+
+
+def test_malha_ibge_retomada_sem_zip_exige_o_mesmo_hash(geo, malha_desmembrada, monkeypatch):
+    codigos, _, _, _ = malha_desmembrada
+    publicados = {cod: Path("publicado.csv") for cod in codigos}
+    geo.atualizar_malha_ibge(publicados)
+    (geo.SAIDA / "cache" / "MT_Municipios_2025.zip").unlink()
+    registro = geo.SAIDA / "cache" / "malhas-ibge-v1.json"
+    anterior = registro.read_bytes()
+    monkeypatch.setattr(geo, "baixar", lambda *_a, **_kw: SimpleNamespace(content=b"edicao modificada"))
+    with pytest.raises(ValueError, match="hash"):
+        geo.atualizar_malha_ibge(publicados)
+    assert registro.read_bytes() == anterior
 
 
 def test_servidor_sem_range_nao_e_aceito_como_pmtiles(geo, monkeypatch):

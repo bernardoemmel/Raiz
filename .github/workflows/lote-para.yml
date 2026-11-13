@@ -41,6 +41,8 @@ jobs:
         id: reserva
         run: python scripts/reservar_lote.py --reservar 15 --aguardar-minutos 180
       - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.13.6"
       - run: uv sync --frozen --extra motor
       - name: Recuperar a entrada privada congelada desta execução
         run: >-
@@ -90,6 +92,8 @@ jobs:
           VAGAS: ${{ needs.preparar.outputs.vagas }}
         run: python scripts/reservar_lote.py --confirmar "$VAGAS"
       - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.13.6"
       - run: uv sync --frozen --extra motor
       - name: Baixar a entrada congelada com autenticação
         run: >-
@@ -133,6 +137,8 @@ jobs:
           VAGAS: ${{ needs.preparar.outputs.vagas }}
         run: python scripts/reservar_lote.py --confirmar "$VAGAS"
       - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.13.6"
       - run: uv sync --frozen --extra motor
       - name: Baixar a entrada congelada com autenticação
         run: >-

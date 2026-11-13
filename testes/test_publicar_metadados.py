@@ -918,7 +918,7 @@ def test_workflow_finalizador_separa_checkout_e_preserva_executor_e_continuacao(
         "RAIZ_EXECUTOR_REF": "${{ matrix.ref }}",
         "RAIZ_PUBLICADOR_REF": "${{ github.workflow_sha }}",
     }
-    atestar = next(p for p in passos if p.get("uses", "").startswith("actions/attest-build-provenance"))
+    atestar = next(p for p in passos if p.get("uses") == "./.github/actions/atestar-com-retry")
     continuar = next(p for p in passos if '--continuar "$UNIDADE"' in p.get("run", ""))
     assert passos.index(final) < passos.index(atestar) < passos.index(continuar)
     assert "working-directory" not in continuar

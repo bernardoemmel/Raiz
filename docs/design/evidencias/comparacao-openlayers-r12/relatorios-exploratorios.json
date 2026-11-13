@@ -1,0 +1,104 @@
+{
+  "raw_directory": "/tmp/raiz-comparacao-openlayers/serie",
+  "raw_files_not_committed": "6,6 MB de eventos detalhados permanecem no laboratório local; todas as 16 observações estão integralmente resumidas em resultado.json e amostras.csv.",
+  "raw": {
+    "com-360-00-ml.json": {
+      "sha256": "ed7a77ca1b6c402194d46f6468ffb2501339bc92ab3d8a24977b90335dc196f0",
+      "bytes": 417559
+    },
+    "com-360-01-ol.json": {
+      "sha256": "31b5aeff75ede6bc869aee87d207edb21e24ca27abf0d4f0b8f2894160b0e82e",
+      "bytes": 408050
+    },
+    "com-360-02-ol.json": {
+      "sha256": "73a02615c72aa67c291b9a56ba33db8e0dfa57f74e33dfa9a1f09ceaf6492c98",
+      "bytes": 408501
+    },
+    "com-360-03-ml.json": {
+      "sha256": "811528058206f872014fa0b53a175cf13bb90da31daa96a1ab105babdd90eac6",
+      "bytes": 417028
+    },
+    "com-360-04-ml.json": {
+      "sha256": "961d5df5b7558adfa0757ba32af70f9e469994eaa84bb50e8558b8cbb4de2a4f",
+      "bytes": 416919
+    },
+    "com-360-05-ol.json": {
+      "sha256": "416d10b132b3cfdde93ba7c85ced09241c1b4c464ab69fa83197c74bd5c37c94",
+      "bytes": 407784
+    },
+    "com-360-06-ol.json": {
+      "sha256": "9398f426d9ece647e676329f78923a5dcf49cabf5f8e7a681129c7a924bd8041",
+      "bytes": 408069
+    },
+    "com-360-07-ml.json": {
+      "sha256": "dfc34935f01029c95ee9ca7e8e6bf1123a16766913d85891d79f992f6066b161",
+      "bytes": 417424
+    },
+    "sem-360-00-ml.json": {
+      "sha256": "acac15295b9e36b716e4abae52ffe5d268f7b31cc9bbb80df2ad3b1ff4cbd090",
+      "bytes": 416659
+    },
+    "sem-360-01-ol.json": {
+      "sha256": "6a76370a64cfc68407135a96da5b75e27140e9473a20e1fcfacaee5d7166ce49",
+      "bytes": 409160
+    },
+    "sem-360-02-ol.json": {
+      "sha256": "508e99e7286045ae39559ac0dffb3cb271d2e37aca46ea1da9d547a888a32646",
+      "bytes": 409574
+    },
+    "sem-360-03-ml.json": {
+      "sha256": "1dd7f8d9e8f701f6648f72e49f523818a793445909f485dc5661955b2a2ee4e7",
+      "bytes": 416525
+    },
+    "sem-360-04-ml.json": {
+      "sha256": "e32a8e021b0d78c7000602881800def480bd1d1d2dbf3fed83e5b8de2830fd12",
+      "bytes": 417019
+    },
+    "sem-360-05-ol.json": {
+      "sha256": "e1b397269ba30e7b282d92998c01e990afe8fa63dfc5843c386ad5016785f754",
+      "bytes": 409122
+    },
+    "sem-360-06-ol.json": {
+      "sha256": "928a30135a9345e2f1b0ec92bac492eaaa6786871133f1e905ad978826a65f1a",
+      "bytes": 409252
+    },
+    "sem-360-07-ml.json": {
+      "sha256": "b48e988ba6bfc56206b6374b6a940da51e8242f9d87d6c2d5460a926881cd6c5",
+      "bytes": 417221
+    }
+  },
+  "functional": {
+    "com-360-00-ml.json": {
+      "sha256": "547f0ed723f3a647b4f44f41202d1acb5bfa1dc016a9a0064427a372ef799dc2",
+      "bytes": 414999
+    },
+    "com-360-00-ol.json": {
+      "sha256": "ea163578fba373a3a84debb4d989b3acf884970253cbbfc6bdceec1e1ea7be17",
+      "bytes": 405438
+    },
+    "com-960-00-ml.json": {
+      "sha256": "8ba18d1f234f12e02bf788c7136951d1d06eff83d0369c4bdf8c0f8cf74eaf1e",
+      "bytes": 5776
+    },
+    "com-960-00-ol.json": {
+      "sha256": "08c8a01426e068c3afef73469ff0266bc8ea7dd047c000b1320fa2251e439e7d",
+      "bytes": 4704
+    },
+    "sem-360-00-ml.json": {
+      "sha256": "519bfe9e34d5d59a65531ce54895f2eebf81575d495497b420f6fc88fa579c6c",
+      "bytes": 415051
+    },
+    "sem-360-00-ol.json": {
+      "sha256": "7286fe23d86be32f45a28069aa87101d52f60210498562480683f63c58c2e430",
+      "bytes": 406608
+    },
+    "sem-960-00-ml.json": {
+      "sha256": "db6e16a515be49913eafce33eac7a46723884996ff7f4fc1bfd91a3d8bfb3ef7",
+      "bytes": 6134
+    },
+    "sem-960-00-ol.json": {
+      "sha256": "45062b40ba52c0b40b06643d8dc6e390c849a710f6b7f6bd0f44ee9a5477787f",
+      "bytes": 5057
+    }
+  }
+}
