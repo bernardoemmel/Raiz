@@ -312,7 +312,7 @@ não altera sua política nem equivale a aprovação dos testes de injeção pen
 
 ## Rodada 12 — medição do acerto e protocolo de mudança
 
-Entrega no [PR #100](https://github.com/bernardoemmel/Raiz/pull/100), atualizada com a main `60e17b0` (#93).
+Entrega no [PR #100](https://github.com/bernardoemmel/Raiz/pull/100), atualizada com a main `3b962e7` (#97).
 Os PRs #87, #88, #91 e #92 foram revistos e incorporados; o protocolo da rodada 12 permanece privado.
 
 - CRPS com properscoring, sorteios finitos e denominador `crps_n` no placar existente. Corrigido bug pequeno:
@@ -352,3 +352,9 @@ opcional no placar interno, com denominador próprio; não obriga um histórico 
 sorteios nem publica uma medida individual no resumo agregado. **96 testes focados passaram**, incluindo
 PostGIS e o painel real. A revisão dos novos caminhos públicos, proteção da ficha e arquivos privados
 continua no PR #76; a rodada 12 não remove nem substitui seus portões.
+
+
+O #97 também foi incorporado: calendário público no MCP e disparos de coleta/publicação revisados,
+sem alteração nas métricas ou nos arquivos privados da rodada 12. O snapshot autenticado do Pará já
+foi preparado localmente; as tentativas de suíte integral interrompidas pelo ambiente não contam como
+aprovação. Valem o XML de uma execução concluída e os checks verdes do commit final, sem skips ocultos.
