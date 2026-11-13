@@ -1,6 +1,7 @@
 """Retropreenchimento usa uma vaga global, preserva fontes e retoma por UF."""
 
 import base64
+import copy
 import hashlib
 import json
 from pathlib import Path
@@ -78,6 +79,62 @@ def test_reserva_auxiliar_recusa_sem_vaga_e_nao_enfileira(monkeypatch):
     assert chamadas[0]["pedidos"] == []
     assert chamadas[0]["candidatos"] == ["catalogo"]
     assert chamadas[0]["consumir_fila"] is False and chamadas[0]["repetir"] is False
+
+
+@pytest.mark.parametrize("rodada_terminou", [True, False])
+@pytest.mark.parametrize(
+    "origem,destino",
+    [
+        ("88860b64ee09f811b66e283f5c57997ebcdb3fd5", "be452620f868537251fa832a10cb14bfb5c8efe3"),
+        ("b624b108b0350135003e1099d9c928fa7cc24151", "be452620f868537251fa832a10cb14bfb5c8efe3"),
+        ("6a53cfbf514f369f694ea0bd3bc594ef8295a3b4", "be452620f868537251fa832a10cb14bfb5c8efe3"),
+        ("bea53bd06c7178daf2a53c392e5a9d54c55e7bc7", "be452620f868537251fa832a10cb14bfb5c8efe3"),
+        ("436c7b636f6a8867b47403a1dfad4e4c741dc150", "be452620f868537251fa832a10cb14bfb5c8efe3"),
+    ],
+)
+def test_catalogo_promove_ultima_continuacao_antes_do_gate_sem_admitir_motor(
+    tmp_path, monkeypatch, rodada_terminou, origem, destino
+):
+    fila, _ = P.modulos_fila()
+    estado = {**fila.vazio(), "fila": [{"id": "123/BA-1/1", "unidade": "BA-1", "ref": origem,
+                                      "continuacao": 1, "refazer": ""}]}  # fmt: skip
+    runs = {"123": _run(origem, status="completed" if rodada_terminou else "in_progress")}
+    _preflight(tmp_path, monkeypatch, runs, estado)
+    monkeypatch.setenv("GITHUB_ACTIONS", "true")
+    monkeypatch.setenv("GITHUB_JOB", "catalogo")
+    monkeypatch.setenv("GITHUB_RUN_ID", "456")
+    monkeypatch.setattr(fila.Repositorio, "ler", lambda self: ("anterior", copy.deepcopy(estado)))
+    etapas = []
+
+    def trocar(self, anterior, novo):
+        assert anterior == "anterior" and novo["reservas"] == []
+        estado.update(novo)
+        etapas.append("promocao_cas")
+        return True
+
+    def api(caminho):
+        etapas.append("gate")
+        assert estado["fila"][0]["ref"] == destino
+        dados = (P.RAIZ / "raiz/executor/armazem.py").read_bytes() if caminho.endswith(destino) else b"legado"
+        return {"encoding": "base64", "content": base64.b64encode(dados).decode()}
+
+    def reservar(**kwargs):
+        assert rodada_terminou and kwargs["consumir_fila"] is False
+        etapas.append("reserva_catalogo")
+        return [{"unidade": "catalogo"}]
+
+    monkeypatch.setattr(fila.Repositorio, "trocar", trocar)
+    monkeypatch.setattr(fila, "api", api)
+    monkeypatch.setattr(fila, "reservar", reservar)
+    if rodada_terminou:
+        P.reservar_vaga()
+        assert etapas == ["promocao_cas", "gate", "reserva_catalogo"]
+    else:
+        with pytest.raises(P.ProcessamentoInseguro, match="não cancele"):
+            P.reservar_vaga()
+        assert etapas[0] == "promocao_cas" and "reserva_catalogo" not in etapas
+    assert estado["fila"][0]["promocao_publicador"] == {"origem": origem, "destino": destino}
+    assert estado["reservas"] == []
 
 
 def test_release_com_mais_de_cem_assets_e_paginado(tmp_path):
