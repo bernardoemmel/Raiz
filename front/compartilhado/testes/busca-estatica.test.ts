@@ -71,6 +71,38 @@ describe("busca do site estático em subdiretório", () => {
     expect(pedidos.some((url) => url.includes("car_SP.json") || url.includes("imoveis_3550308"))).toBe(false)
   })
 
+  it.each(["ausente", "sem_dados"])("encontra CAR PB no recorte RN com PB %s, sem tentar arquivos inexistentes", async situacao => {
+    const car = "PB-2500106-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+    const rn = { uf: "RN", situacao: "incompleto", com_lista: ["2413409"] }
+    arquivos["estados.json"] = { acesso: "publico_basico", car_fronteira: "car_fronteira.json", estados: situacao === "ausente" ? [rn] : [rn, { uf: "PB", situacao, com_lista: [] }] }
+    arquivos["indice_RN.json"] = { arquivos: ["resumo_RN.csv", "imoveis_basicos_2413409.csv"] }
+    arquivos["resumo_RN.csv.gz"] = "cod_ibge,municipio,imoveis\n2413409,Serra Negra do Norte,6\n"
+    arquivos["car_fronteira.json"] = { "2500106": ["2413409", "2413409", "2499999", "2500106", "../../privado", null] }
+    arquivos["imoveis_basicos_2413409.csv.gz"] = `cod_imovel,cod_ibge,municipio,uf,situacao_basica,credito_p50\n${car},2413409,Serra Negra do Norte,RN,apto,999999\n`
+    const fonte = fonteAmostra("/Raiz/")
+    await fonte.estados()
+    await fonte.buscar("Serra Negra")
+    await fonte.buscar("2413409")
+    expect(pedidos.some(url => /car_|imoveis_/.test(url))).toBe(false)
+    for (const consulta of [car, "pb 2500106 aaaa.aaaa", car.slice(0, 15)]) {
+      const resultado = await fonte.buscar(consulta)
+      expect(resultado.situacao).toBe("ok")
+      expect(resultado.imoveis).toEqual([{ cod_imovel: car, cod_ibge: "2413409", municipio: "Serra Negra do Norte", uf: "RN", situacao_basica: "apto" }])
+    }
+    expect((await fonte.buscar(car.replace(/A/g, "B")))).toMatchObject({ situacao: "estado_nao_processado", imoveis: [] })
+    expect((await fonte.buscar("PB-25")).situacao).toBe("estado_nao_processado")
+    expect((await fonte.estados()).estados.find(e => e.uf === "PB")?.situacao).toBe(situacao === "ausente" ? undefined : "sem_dados")
+    expect(pedidos.filter(url => /car_|imoveis_|indice_PB/.test(url))).toEqual(["/Raiz/amostra/car_fronteira.json", "/Raiz/amostra/imoveis_basicos_2413409.csv.gz"])
+    expect(await fonte.ficha(car)).toBeNull()
+    expect(await fonte.certidoes(car)).toEqual([])
+  })
+
+  it.each([undefined, "../privado.json", "https://outro.example/indice.json"])("não presume nem segue anúncio inválido de fronteira: %s", async car_fronteira => {
+    arquivos["estados.json"] = { acesso: "publico_basico", car_fronteira, estados: [{ uf: "PA", situacao: "incompleto", com_lista: ["1505536"] }] }
+    expect((await fonteAmostra("/Raiz/").buscar("PB-2500106-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")).situacao).toBe("estado_nao_processado")
+    expect(pedidos.some(url => /car_|imoveis_|indice_PB/.test(url))).toBe(false)
+  })
+
   it("descarta consulta cancelada sem envenenar as leituras em cache", async () => {
     const fonte = fonteAmostra("/Raiz/")
     const controle = new AbortController()

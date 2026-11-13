@@ -111,17 +111,31 @@ export function fonteAmostra(base = "/"): FonteDeDados {
   // códigos do CAR que o motor pôs no arquivo de outro município (o plugin monta junto com os pontos do estado)
   const fora = memo(async (uf: string) => (await buscarJson<Record<string, string>>(urlAmostra(`car_${uf}.json`))) ?? {})
 
+  const fronteiras = memo(async () => {
+    const manifesto = await estados("")
+    if (manifesto.acesso !== "publico_basico" || manifesto.car_fronteira !== "car_fronteira.json") return null
+    return buscarJson<unknown>(urlAmostra("car_fronteira.json"))
+  })
+
   /** onde procurar um código do CAR (inteiro ou o começo com os 7 números): o município do código e as exceções */
   async function municipiosDoCar(car: string): Promise<string[]> {
     if ((await estados("")).acesso === "agregado") return []
     const m = /^([A-Z]{2})-(\d{7})/.exec(car)
     const uf = m ? ufDoCodigo(m[2]) : null
     if (!m || !uf) return []
-    const comLista = new Set((await estados("")).estados.find((e) => e.uf === uf)?.com_lista ?? [])
-    // Estados sem dados não têm car_<UF>.json publicado; não tente uma URL que o Pages devolveria como 404.
-    if (!comLista.size) return []
+    const manifesto = await estados("")
+    const doEstado = new Set(manifesto.estados.find((e) => e.uf === uf)?.com_lista ?? [])
+    const comLista = new Set(manifesto.estados.flatMap(e => e.com_lista))
     const cods = new Set([m[2]])
-    for (const [c, mun] of Object.entries(await fora(uf))) if (c.startsWith(car)) cods.add(mun)
+    // Publicações antigas não têm o índice novo; uma UF sem lista também não tem car_<UF>.json.
+    if (doEstado.size) for (const [c, mun] of Object.entries(await fora(uf))) if (c.startsWith(car) && doEstado.has(mun)) cods.add(mun)
+    const indice = await fronteiras("")
+    if (m[1] === uf && indice && typeof indice === "object" && !Array.isArray(indice) && Object.hasOwn(indice, m[2])) {
+      const destinos = (indice as Record<string, unknown>)[m[2]]
+      if (Array.isArray(destinos)) for (const destino of destinos) {
+        if (typeof destino === "string" && /^\d{7}$/.test(destino) && ufDoCodigo(destino) && ufDoCodigo(destino) !== uf && comLista.has(destino)) cods.add(destino)
+      }
+    }
     return [...cods].filter((c) => comLista.has(c))
   }
 

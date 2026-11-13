@@ -65,6 +65,7 @@ export function dadosRaiz(opcoes: { repo: string; raizDados?: string | null; cac
   const estadosPublicos = () => {
     const estados = pasta.estados()
     return { ...estados, acesso: pasta.publicacaoBasica() ? "publico_basico" as const : "agregado" as const,
+      ...(Object.keys(pasta.fronteirasBasicas()).length ? { car_fronteira: "car_fronteira.json" as const } : {}),
       estados: estados.estados.map((e) => ({ ...e, com_lista: pasta.comBasicos(e.uf) })) }
   }
   const colunasResumo = new Set([
@@ -301,9 +302,14 @@ export function dadosRaiz(opcoes: { repo: string; raizDados?: string | null; cac
           const uf = car?.slice(0, 2) ?? ""
           const cods = new Set(car && car.length >= 10 ? [car.slice(3, 10)] : [])
           if (car && car.length >= 10) for (const [codigo, cod] of Object.entries(pasta.foraBasicos(uf))) if (codigo.startsWith(car)) cods.add(cod)
+          if (car && car.length >= 10) for (const cod of pasta.fronteirasBasicas()[car.slice(3, 10)] ?? []) cods.add(cod)
           const basicos = [...cods].flatMap((cod) => pasta.basicos(cod).flatMap((l) => { const b = lerBasico(l); return b ? [b] : [] }))
           const resultado = buscar(q, { municipios: pasta.municipios(), imoveis: [], basicos, comImoveis: new Set(pasta.ufs().flatMap(pasta.comBasicos)) })
           return json(req, res, { ...resultado, municipios: resultado.municipios.map((m) => ({ ...m, imoveis: m.imoveis === null || m.imoveis < 5 ? null : m.imoveis })) })
+        }
+        if (url === "/amostra/car_fronteira.json") {
+          const fronteiras = pasta.fronteirasBasicas()
+          return Object.keys(fronteiras).length ? json(req, res, fronteiras) : naoAchou(res)
         }
         if (url === "/amostra/estados.json") return json(req, res, estadosPublicos())
         if (url === "/amostra/processamento.json") return json(req, res, pasta.processamento())
@@ -385,6 +391,8 @@ export function dadosRaiz(opcoes: { repo: string; raizDados?: string | null; cac
         fs.writeFileSync(path.join(dAmostra, `pontos_${uf}.json`), JSON.stringify(await pasta.pontosPublicos(uf)))
         if (pasta.publicacaoBasica(uf)) fs.writeFileSync(path.join(dAmostra, `car_${uf}.json`), JSON.stringify(pasta.foraBasicos(uf)))
       }
+      const fronteiras = pasta.fronteirasBasicas()
+      if (Object.keys(fronteiras).length) fs.writeFileSync(path.join(dAmostra, "car_fronteira.json"), JSON.stringify(fronteiras))
       fs.writeFileSync(path.join(dAmostra, "estados.json"), JSON.stringify(estadosPublicos()))
       fs.writeFileSync(path.join(dAmostra, "processamento.json"), JSON.stringify(pasta.processamento()))
       fs.writeFileSync(path.join(dAmostra, "lote_PA_central_r11.json"), JSON.stringify(lotePublicado()))
