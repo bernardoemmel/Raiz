@@ -158,6 +158,24 @@ describe("build estático com geometrias comprimidas", () => {
     expect(lote.opcoes).toEqual([])
   })
 
+  it("inclui o agregado nacional leve no índice e na saída, sem copiar coordenadas ou campos da entrada", async () => {
+    fs.writeFileSync(path.join(geo, "potencial_indice.json"), JSON.stringify({ potencial: { PA: { arquivo: "potencial_PA.geojson.gz" } } }))
+    fs.writeFileSync(path.join(geo, "potencial_PA.geojson.gz"), gzipSync(JSON.stringify({ type: "FeatureCollection", metadados: {
+      contrato: "potencial_h3", versao: 1, resolucao: 5, metodo: "ponto_interior_estatistico", minimo_contribuintes: 5, cobertura: "parcial",
+    }, features: [{ type: "Feature", properties: { h3: "8581b16bfffffff", fazendas: 5, potencial_ha: 12, cod_imovel: CARS[0] },
+      geometry: { type: "Point", coordinates: [1, 1] } }] })))
+    const saida = await construir(0)
+    const item = json(saida, "geo/indice.json").agregados
+    expect(item.arquivo).toBe("agregados_brasil.geojson.gz")
+    const dado = fs.readFileSync(path.join(saida, "geo", item.arquivo))
+    expect(dado.length).toBe(item.bytes)
+    const nacional = JSON.parse(gunzipSync(dado).toString())
+    expect(nacional.features[0].properties).toEqual({ h3: "8581b16bfffffff", fazendas: 5, potencial_ha: 12 })
+    expect(nacional.features[0].geometry.type).toBe("Point")
+    expect(nacional.features[0].geometry.coordinates).not.toEqual([1, 1])
+    expect(JSON.stringify(nacional)).not.toContain(CARS[0])
+  })
+
   it("ignora completamente snapshots financeiros de lotes presentes na pasta local", async () => {
     const lotes = path.join(repo, "dados/lotes")
     fs.mkdirSync(lotes, { recursive: true })

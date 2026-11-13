@@ -1,5 +1,31 @@
 # Potencial conhecido no mapa
 
+## Pontos nacionais para agrupamento na tela
+
+O build deriva `geo/agregados_brasil.geojson.gz` exclusivamente das coleções H3 públicas já aprovadas.
+O arquivo é anunciado em `geo/indice.json.agregados`, com nome e tamanho, e limitado a 560.000 bytes
+comprimidos. `FonteDeDados.geo.agregados()` baixa somente o índice e esse arquivo uma vez; se o índice
+não anunciar o agregado, retorna ausência sem tentar caminhos estaduais ou provocar 404.
+
+Cada ponto tem apenas `h3`, `fazendas` e `potencial_ha`. Sua coordenada é o centro da célula H3,
+reconstruído no build, e não a localização de uma fazenda. Cópias idênticas das células de fronteira
+entram uma única vez no nacional; valores conflitantes ou execuções misturadas impedem o build.
+O agrupamento na tela pode somar esses pontos sem duplicar os CARs contados entre estados.
+
+A contagem significa **fazendas no agregado**, não todas as fazendas do território. Células com menos
+de cinco CARs continuam omitidas. Hectares são somente o potencial conhecido, com cobertura parcial;
+um grupo deve preservar a contagem de células com valor desconhecido, sem transformar `null` em uma
+afirmação de área zero. Os metadados registram essas regras, a fonte/data, o número de células sem
+medida e a população representada. Não se publicam totais de hectares suprimidos.
+
+Conferência com a projeção pública das 13 UFs, de 13/11/2026: **215.591 bytes**, 6.787 pontos únicos,
+dos quais 3.717 têm hectares conhecidos; 1.626.268 fazendas representadas no agregado e
+1.572.045,21 ha conhecidos. A conversão conserva as contagens e medidas publicadas, sem nova leitura
+de dados privados. Os hexágonos permanecem a unidade interna de agregação; o arquivo nacional
+permite mostrar círculos agrupados sem baixar ou desenhar suas geometrias na entrada do site.
+
+## Fonte e cálculo do H3
+
 O mapa agrega o **potencial conhecido de regeneração além da reserva legal**, com cobertura parcial.
 A medida é `carbono_ha` do motor: o menor entre a área além da reserva legal e o pasto próximo da floresta.
 Não é a área total restaurável do desenvolvedor, um lote selecionado, a superfície disponível para venda

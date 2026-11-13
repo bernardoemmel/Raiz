@@ -148,7 +148,7 @@ export function dadosRaiz(opcoes: { repo: string; raizDados?: string | null; cac
         cobertura.com_desenho = Object.keys(municipios).filter((cod) => municipios[cod].imoveis).sort()
         cobertura.sem_desenho = [...new Set([...cobertura.sem_desenho, ...Object.keys(municipios)])].filter((cod) => !cobertura.com_desenho.includes(cod)).sort()
       }
-      return { brasil, municipios, cobertura, potencial: potencial().indice, potencial_metadados: potencial().metadados }
+      return { brasil, municipios, cobertura, potencial: potencial().indice, potencial_metadados: potencial().metadados, agregados: potencial().agregados }
     }
     // Compatibilidade com pastas antigas, antes do manifesto: só limites e bases com nome conhecido.
     for (const arquivo of listar(geo).filter(geoPermitido)) {
@@ -159,7 +159,7 @@ export function dadosRaiz(opcoes: { repo: string; raizDados?: string | null; cac
         brasil[arquivo === "base_brasil.pmtiles" ? "base" : arquivo.includes("municipios") ? "municipios" : "estados"] = item
     }
     adicionarGeometriasBasicas(municipios)
-    return { brasil, municipios, potencial: potencial().indice, potencial_metadados: potencial().metadados }
+    return { brasil, municipios, potencial: potencial().indice, potencial_metadados: potencial().metadados, agregados: potencial().agregados }
   }
   function arquivosGeo() {
     const indice = indiceGeoPublico()
@@ -332,7 +332,7 @@ export function dadosRaiz(opcoes: { repo: string; raizDados?: string | null; cac
           return fs.existsSync(arq) ? enviarArquivo(req, res, arq) : naoAchou(res)
         }
         if (url === "/geo/indice.json") return json(req, res, indiceGeoPublico())
-        if ((m = /^\/geo\/(potencial_[A-Z]{2}\.geojson\.gz)$/.exec(url))) {
+        if ((m = /^\/geo\/((?:potencial_[A-Z]{2}|agregados_brasil)\.geojson\.gz)$/.exec(url))) {
           const dado = potencial().arquivos[m[1]]
           if (!dado) return naoAchou(res)
           res.setHeader("Content-Type", "application/gzip")

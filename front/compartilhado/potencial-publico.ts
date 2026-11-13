@@ -3,10 +3,12 @@ import fs from "node:fs"
 import path from "node:path"
 import zlib from "node:zlib"
 import { createRequire } from "node:module"
+import { AVISO_AGREGADOS } from "./dados/agregados"
 
 // O módulo compartilhado fica fora de globo/node_modules e também participa do build do produtor.
-const { cellToBoundary, getResolution, isValidCell } = createRequire(new URL("../globo/package.json", import.meta.url))("h3-js") as {
+const { cellToBoundary, cellToLatLng, getResolution, isValidCell } = createRequire(new URL("../globo/package.json", import.meta.url))("h3-js") as {
   cellToBoundary(celula: string, geojson: boolean): [number, number][]
+  cellToLatLng(celula: string): [number, number]
   getResolution(celula: string): number
   isValidCell(celula: string): boolean
 }
@@ -42,12 +44,44 @@ export function projetarPotencial(valor: unknown) {
   } }
 }
 
+/** Nacional leve: deduplica fronteiras antes de contar e não reutiliza coordenadas da entrada. */
+export function projetarAgregados(colecoes: unknown[]) {
+  const celulas = new Map<string, ReturnType<typeof projetarPotencial>["features"][number]["properties"]>()
+  let meta: ReturnType<typeof projetarPotencial>["metadados"] | null = null
+  for (const colecao of colecoes) {
+    const p = projetarPotencial(colecao)
+    if (meta && JSON.stringify(meta) !== JSON.stringify(p.metadados)) throw new Error("Agregados nacionais misturam execuções")
+    meta = p.metadados
+    for (const f of p.features) {
+      const anterior = celulas.get(f.properties.h3)
+      if (anterior && (anterior.fazendas !== f.properties.fazendas || anterior.potencial_ha !== f.properties.potencial_ha)) throw new Error("Célula de fronteira contraditória no agregado nacional")
+      celulas.set(f.properties.h3, f.properties)
+    }
+  }
+  if (!meta) return null
+  const features = [...celulas.values()].sort((a, b) => a.h3.localeCompare(b.h3)).map(p => {
+    const [lat, lon] = cellToLatLng(p.h3)
+    return { type: "Feature", properties: { h3: p.h3, fazendas: p.fazendas, potencial_ha: p.potencial_ha }, geometry: { type: "Point", coordinates: [lon, lat] } }
+  })
+  const fazendas = features.reduce((s, f) => s + f.properties.fazendas, 0)
+  if (!Number.isSafeInteger(fazendas)) throw new Error("Contagem nacional fora do contrato público")
+  return { type: "FeatureCollection", features, metadados: {
+    contrato: "agregados_mapa", versao: 1, resolucao: 5, cobertura: "parcial", metodo: "centro_celula_h3", minimo_contribuintes: 5,
+    atualizado_em: meta.atualizado_em, fonte_mais_antiga_em: meta.fonte_mais_antiga_em, gerado_em: meta.gerado_em,
+    fonte: meta.fonte, aviso: AVISO_AGREGADOS,
+    contagens: { celulas: features.length, celulas_sem_medida: features.filter(f => f.properties.potencial_ha === null).length, fazendas_no_agregado: fazendas },
+    supressao: { minimo_car_por_celula: 5, minimo_contribuintes_positivos: 5, grupos_pequenos_omitidos: true },
+  } }
+}
+
 export function potencialPublicado(geo: string) {
   const arquivo = path.join(geo, "potencial_indice.json")
   const indice: Record<string, { arquivo: string; bytes: number }> = {}
   const arquivos: Record<string, Buffer> = {}
+  const colecoes: unknown[] = []
+  let agregados: { arquivo: string; bytes: number } | null = null
   let metadados: ReturnType<typeof projetarPotencial>["metadados"] | null = null
-  if (!fs.existsSync(arquivo)) return { indice, arquivos, metadados }
+  if (!fs.existsSync(arquivo)) return { indice, arquivos, metadados, agregados }
   const origem = objeto(JSON.parse(fs.readFileSync(arquivo, "utf8")))
   for (const [uf, item] of Object.entries(objeto(origem.potencial))) {
     if (!UFS.has(uf)) throw new Error("UF inválida no índice H3")
@@ -57,8 +91,16 @@ export function potencialPublicado(geo: string) {
     const projetado = projetarPotencial(JSON.parse(zlib.gunzipSync(bruto).toString("utf8")))
     if (metadados && JSON.stringify(metadados) !== JSON.stringify(projetado.metadados)) throw new Error("Células H3 misturam execuções")
     metadados = projetado.metadados
+    colecoes.push(projetado)
     arquivos[nome] = zlib.gzipSync(JSON.stringify(projetado), { level: 6 })
     indice[uf] = { arquivo: nome, bytes: arquivos[nome].length }
   }
-  return { indice, arquivos, metadados }
+  const nacional = projetarAgregados(colecoes)
+  if (nacional) {
+    const nome = "agregados_brasil.geojson.gz", dados = zlib.gzipSync(JSON.stringify(nacional), { level: 6 })
+    if (dados.length > 560_000) throw new Error("O agregado nacional excedeu o limite de 560 KB")
+    arquivos[nome] = dados
+    agregados = { arquivo: nome, bytes: dados.length }
+  }
+  return { indice, arquivos, metadados, agregados }
 }

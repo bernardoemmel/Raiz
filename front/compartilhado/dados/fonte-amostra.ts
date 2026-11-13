@@ -4,6 +4,7 @@
  */
 
 import { lerPotencialMapa } from "./potencial"
+import { lerAgregadosMapa } from "./agregados"
 import { lerBasico } from "./basico"
 import { n0, texto } from "./colunas"
 import { buscar, normalizarCar, pareceCar } from "./busca"
@@ -19,6 +20,7 @@ import type { CoberturaMapa } from "./cobertura-mapa"
 interface IndiceGeo {
   cobertura?: CoberturaMapa
   potencial?: Record<string, { arquivo: string; bytes: number }>
+  agregados?: { arquivo: string; bytes: number } | null
   brasil?: Partial<Record<"municipios" | "estados" | "base", { arquivo: string; bytes: number }>>
   municipios: Record<string, Partial<Record<CamadaGeo | "base", { arquivo: string; bytes: number }>>>
 }
@@ -94,6 +96,12 @@ export function fonteAmostra(base = "/"): FonteDeDados {
   }
 
   const geoNacional = memo(async (arquivo: string) => buscarJson<Geo>(urlGeo(arquivo)))
+  const agregadosNacionais = memo(async () => {
+    const item = (await indiceCompleto("")).agregados
+    if (!item || item.arquivo !== "agregados_brasil.geojson.gz") return null
+    const texto = await buscarTextoGz(urlGeo(item.arquivo))
+    return texto ? lerAgregadosMapa(JSON.parse(texto)) : null
+  })
 
   const municipiosComImoveis = async () => (await estados("")).estados.flatMap((e) => e.com_lista)
 
@@ -194,6 +202,7 @@ export function fonteAmostra(base = "/"): FonteDeDados {
     municipiosComImoveis,
     geo: {
       cobertura: async () => (await indiceCompleto("")).cobertura,
+      agregados: () => agregadosNacionais(""),
       potencial: memo(async (uf: string) => {
         if (!/^[A-Z]{2}$/.test(uf)) return null
         const item = (await indiceCompleto("")).potencial?.[uf]

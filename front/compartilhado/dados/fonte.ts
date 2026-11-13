@@ -12,6 +12,7 @@ import type { ImovelBasico } from "./basico"
 import type { RespostaBusca } from "./busca"
 import type { Ficha } from "./ficha"
 import type { PotencialMapa } from "./potencial"
+import type { AgregadosMapa } from "./agregados"
 import type { CoberturaMapa } from "./cobertura-mapa"
 import type { CamadaGeo, Estados, FunilMunicipio, Geo, Imovel, PontoFazenda } from "./tipos"
 
@@ -53,6 +54,8 @@ export interface FonteDeDados {
     cobertura(): Promise<CoberturaMapa | undefined>
     /** Potencial H3 agregado e revisado; null quando não publicado, sem estimar a partir do CAR. */
     potencial?(uf: string): Promise<PotencialMapa | null>
+    /** Pontos nacionais já agregados e deduplicados; ausência não gera pedidos de arquivos estaduais. */
+    agregados?(): Promise<AgregadosMapa | null>
     camada(cod_ibge: string, camada: CamadaGeo): Promise<Geo | null>
     /** municípios com o contorno de cada fazenda (imoveis_<cod>.geojson) */
     comContorno(): Promise<string[]>
