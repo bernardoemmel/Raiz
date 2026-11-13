@@ -54,6 +54,15 @@ const navegador = await chromium.launch({
   args: ["--use-gl=angle", "--use-angle=swiftshader", "--enable-unsafe-swiftshader"],
 })
 const pagina = await navegador.newPage({ viewport: { width: 1440, height: 900 }, reducedMotion: "reduce" })
+// Apenas o mosaico do teste é sintético. O raster percorre o protocolo real do MapLibre, sem acesso externo no CI.
+const tile = new PNG({ width: 256, height: 256 })
+for (let i = 0; i < tile.data.length; i += 4) tile.data.set([70, 100, 65, 255], i)
+const tilePng = PNG.sync.write(tile)
+const pedidosSatelite = []
+await pagina.route("https://tiles.maps.eox.at/**", (rota) => {
+  pedidosSatelite.push(rota.request().url())
+  return rota.fulfill({ status: 200, contentType: "image/png", body: tilePng, headers: { "Access-Control-Allow-Origin": "*" } })
+})
 pagina.on("request", (r) => pedidos.push(r.url()))
 pagina.on("pageerror", (e) => erros.push(e.message))
 pagina.on("response", (r) => { if (r.status() >= 400) erros.push(`${r.status()} ${r.url()}`) })
@@ -97,7 +106,8 @@ function conferirPublicacao() {
       assert.equal(geo.features.length, CARS.length, "CAR sem registro básico precisa ser excluído da geometria.")
       for (const f of geo.features) {
         assert.deepEqual(Object.keys(f).sort(), ["geometry", "properties", "type"])
-        assert.deepEqual(Object.keys(f.properties), ["cod_imovel"], "A geometria não pode carregar métricas pagas.")
+        assert(Object.keys(f.properties).every((k) => ["cod_imovel", "sobreposto"].includes(k)), "A geometria só pode carregar CAR e indicador topológico.")
+        if ("sobreposto" in f.properties) assert.equal(typeof f.properties.sobreposto, "boolean")
         assert(permitidos.has(f.properties.cod_imovel))
       }
       continue
@@ -146,6 +156,7 @@ try {
   })
   const baseNacional = await pagina.evaluate(() => { const fonte = document.querySelector(".mapa-brasil .mapa").__mapa.getStyle().sources.protomaps; return fonte.url ?? fonte.tiles?.[0] })
   assert(baseNacional.includes("base_brasil.pmtiles"), "A entrada precisa usar o PMTiles nacional.")
+  assert.equal(pedidosSatelite.length, 0, "A escala estadual não pode baixar imagens de satélite.")
   console.log("Buscando Parauapebas...")
   await buscar("Parauapebas", `#/municipio/${MUNICIPIO}`)
   await pagina.locator(".lista-basica").waitFor()
@@ -159,7 +170,17 @@ try {
   }, MUNICIPIO)
   assert.equal(await pagina.evaluate(() => { const fonte = document.querySelector(".mapa-brasil .mapa").__mapa.getStyle().sources.protomaps; return fonte.url ?? fonte.tiles?.[0] }), baseNacional,
     "O município precisa reutilizar a mesma base nacional.")
-  await pagina.screenshot({ path: path.join(resultado, "municipio-basico.png"), fullPage: true })
+  await pagina.evaluate(() => document.querySelector(".mapa-brasil .mapa").__mapa.jumpTo({ zoom: 11, center: [-49.9, -6.1] }))
+  await mapaPronto()
+  const distante = await pagina.evaluate(() => {
+    const m = document.querySelector(".mapa-brasil .mapa").__mapa
+    return { fazendas: m.queryRenderedFeatures({ layers: ["imoveis", "imoveis-linha", "imoveis-sobrepostos"] }).length,
+      h3: m.queryRenderedFeatures({ layers: ["potencial-h3"] }).length, preenchimento: m.getPaintProperty("imoveis", "fill-opacity") }
+  })
+  assert.equal(distante.fazendas, 0, "Nenhum imóvel é desenhado no zoom 11.")
+  assert(distante.h3 > 0, "O potencial H3 precisa aparecer na escala regional.")
+  assert.equal(distante.preenchimento, 0, "O CAR não recebe preenchimento em nenhum zoom.")
+  await pagina.screenshot({ path: path.join(resultado, "depois-regional-1440.png"), fullPage: true })
   // Usa o controle que o visitante usa; não pula direto para um estado interno do mapa.
   console.log("Aproximando pelo botão do mapa...")
   while (await pagina.evaluate(() => document.querySelector(".mapa-brasil .mapa").__mapa.getZoom()) < 13) {
@@ -177,7 +198,21 @@ try {
     return m.queryRenderedFeatures({ layers: ["imoveis"] }).map((f) => ({ car: f.properties.cod_imovel, g: m.getFeatureState({ source: "imoveis", id: f.properties.cod_imovel }).g }))
   })
   assert.deepEqual([...new Set(individuais.map((f) => f.car))].sort(), [...CARS].sort(), "Todos os polígonos básicos precisam aparecer.")
-  assert.deepEqual([...new Set(individuais.map((f) => f.g))].sort(), [0, 1, 2], "As três situações básicas precisam colorir o mapa.")
+  assert.deepEqual([...new Set(individuais.map((f) => f.g))].sort(), [0, 1, 2], "A situação básica deve continuar conhecida, mesmo sem preencher os imóveis.")
+  assert(pedidosSatelite.length > 0, "O detalhe precisa renderizar o raster, não um fundo vazio.")
+  const desenho = await pagina.evaluate(() => {
+    const m = document.querySelector(".mapa-brasil .mapa").__mapa
+    return { contorno: m.getPaintProperty("imoveis-linha", "line-width"), fill: m.getPaintProperty("imoveis", "fill-opacity"),
+      h3: m.queryRenderedFeatures({ layers: ["potencial-h3"] }).length,
+      sobrepostos: [...new Set(m.queryRenderedFeatures({ layers: ["imoveis-sobrepostos"] }).map(f => f.properties.cod_imovel))],
+      hachura: m.queryRenderedFeatures({ layers: ["restauracao-hachura"] }).length }
+  })
+  assert.equal(desenho.contorno, 1)
+  assert.equal(desenho.fill, 0)
+  assert.equal(desenho.h3, 0, "Hexágonos saem do detalhe para não encobrir o satélite.")
+  assert.equal(desenho.sobrepostos.length, 2, "Sobreposições confirmadas precisam aparecer tracejadas.")
+  assert.equal(desenho.hachura, 0, "Sem geometria de restauração autorizada, não se inventa hachura.")
+  await pagina.screenshot({ path: path.join(resultado, "depois-detalhe-1440.png"), fullPage: true })
   await pagina.waitForFunction((car) => {
     const m = document.querySelector(".mapa-brasil .mapa").__mapa
     return m.getFeatureState({ source: "imoveis", id: car }).emLeilao === true
@@ -197,6 +232,31 @@ try {
     return m.queryRenderedFeatures({ layers: ["imoveis"] }).every((f) => [1, 3].includes(m.getFeatureState({ source: "imoveis", id: f.properties.cod_imovel }).g))
   })
   await pagina.getByRole("combobox", { name: /^Situação básica/ }).selectOption("")
+  // Ao clicar no interior, a máscara apaga o resto e abre a ficha básica existente.
+  const pontoFazenda = await pagina.evaluate(() => {
+    const m = document.querySelector(".mapa-brasil .mapa").__mapa
+    const p = m.project([-49.925, -6.102])
+    const r = m.getCanvas().getBoundingClientRect()
+    return { x: r.x + p.x, y: r.y + p.y }
+  })
+  await pagina.mouse.click(pontoFazenda.x, pontoFazenda.y)
+  await pagina.locator(".maplibregl-popup").waitFor()
+  const mascara = await pagina.evaluate(async () => (await document.querySelector(".mapa-brasil .mapa").__mapa.getSource("mascara-fazenda").getData()).features)
+  assert.equal(mascara.length, 1)
+  assert.equal(mascara[0].geometry.coordinates.length, 2, "A máscara precisa ter um furo no imóvel escolhido.")
+  await pagina.getByRole("button", { name: "Close popup", exact: true }).click()
+  await pagina.setViewportSize({ width: 360, height: 800 })
+  await mapaPronto()
+  assert(await pagina.evaluate(() => document.documentElement.scrollWidth <= innerWidth), "O mapa não pode exceder 360 px.")
+  await pagina.screenshot({ path: path.join(resultado, "depois-detalhe-360.png"), fullPage: true })
+  await pagina.setViewportSize({ width: 1440, height: 900 })
+  await pagina.evaluate(() => {
+    const m = document.querySelector(".mapa-brasil .mapa").__mapa
+    m.jumpTo({ zoom: 13, center: [-49.9, -6.1] })
+    m.setLayoutProperty("sentinel-publico-2016", "visibility", "none")
+    m.setLayoutProperty("sentinel-publico-veu", "visibility", "none")
+  })
+  await mapaPronto()
   const corAgua = await pagina.evaluate(() => {
     const m = document.querySelector(".mapa-brasil .mapa").__mapa
     const contexto = document.createElement("canvas").getContext("2d")
@@ -214,7 +274,7 @@ try {
     `O MVT da fixture cobre a tela de água; o canvas precisa pintá-la: ${agua} pixels da cor ${corAgua}.`)
   assert(faixas.some((f) => f.arquivo.endsWith("base_brasil.pmtiles")), "A base precisa ser lida por HTTP Range.")
   assert(faixas.every((f) => f.arquivo.endsWith("base_brasil.pmtiles")), "A mesma base nacional deve atender o município.")
-  console.log(`ok: país e município desenhados; zoom ${zoom.toFixed(1)}, base visível com overzoom e polígonos básicos nas três situações.`)
+  console.log(`ok: país e município desenhados; zoom ${zoom.toFixed(1)}, base visível com overzoom e CARs transparentes, potencial H3 e satélite no detalhe.`)
 
   await buscar(SEM_DESENHO, `#/municipio/${SEM_DESENHO}`)
   await pagina.getByText("O desenho das fazendas deste município ainda não está disponível.", { exact: false }).waitFor()
