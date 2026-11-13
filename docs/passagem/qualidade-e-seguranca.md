@@ -312,7 +312,7 @@ não altera sua política nem equivale a aprovação dos testes de injeção pen
 
 ## Rodada 12 — medição do acerto e protocolo de mudança
 
-Entrega na branch `qualidade-avaliacao-modelos`, atualizada com a main `c65d7bb` (#92).
+Entrega no [PR #100](https://github.com/bernardoemmel/Raiz/pull/100), atualizada com a main `60e17b0` (#93).
 Os PRs #87, #88, #91 e #92 foram revistos e incorporados; o protocolo da rodada 12 permanece privado.
 
 - CRPS com properscoring, sorteios finitos e denominador `crps_n` no placar existente. Corrigido bug pequeno:
@@ -346,3 +346,9 @@ Os documentos gerados passaram em 10 testes com LibreOffice real. As regressões
 preservação das distribuições no PostGIS, passaram; CRPS de 20 mil sorteios exige a implementação Numba
 para evitar a alocação quadrática do fallback. Ruff, actionlint, esquemas, pacote construído e inventário
 de 867 dependências passaram nas verificações locais. O CI da revisão final continua obrigatório.
+
+Integração com #86, #89 e #93: preservado o contrato das métricas de faixa do painel público. CRPS é
+opcional no placar interno, com denominador próprio; não obriga um histórico de três quantis a inventar
+sorteios nem publica uma medida individual no resumo agregado. **96 testes focados passaram**, incluindo
+PostGIS e o painel real. A revisão dos novos caminhos públicos, proteção da ficha e arquivos privados
+continua no PR #76; a rodada 12 não remove nem substitui seus portões.

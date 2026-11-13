@@ -96,3 +96,16 @@ def test_placar_real_expoe_crps_e_seu_denominador_sem_imputar_quantis():
     assert nota(com)["crps"] == pytest.approx(2 / 9)
     relatorio = placar([r, com])[0]
     assert relatorio["crps_n"] == 1 and relatorio["com_gabarito"] == 2
+
+
+def test_crps_opcional_nao_quebra_painel_publico_das_faixas_legadas():
+    from raiz.aprendizado import painel
+    from testes.test_aprendizado_painel import AGORA, linhas
+
+    xs = linhas(alvo="carbono_tco2_ano", p10=1, p50=10, p90=20)
+    xs[0]["distribuicao"] = {"tipo": "empirica", "sorteios": [1.0, 10.0, 20.0]}
+    r = painel.resumir(xs, AGORA)["versoes"][0]
+    assert r["comparacoes"] == 5
+    assert set(r["metricas"]) == {"wis", "ae_mediana", "cobertura_80"}
+    # O CRPS interno tem denominador próprio; a amostra individual não é exposta no resumo público.
+    assert placar(xs)[0]["crps_n"] == 1

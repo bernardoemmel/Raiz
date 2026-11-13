@@ -83,7 +83,7 @@ def nota(r: dict) -> dict | None:
 
 
 METRICAS = {
-    "faixa": ("wis", "ae_mediana", "cobertura_80", "crps"),
+    "faixa": ("wis", "ae_mediana", "cobertura_80"),
     "numero": ("ae", "eq"),
     "chance": ("brier", "log_score", "acerto"),
     "categoria": ("acerto", "brier"),
@@ -109,7 +109,10 @@ def placar(linhas: list[dict]) -> list[dict]:
         tipo = tipos.pop() if len(tipos) == 1 else (None if not tipos else "misto")
         medias = {}
         if tipo in METRICAS:
-            for m in METRICAS[tipo]:
+            # CRPS exige sorteios originais. Não é uma nota garantida pelo contrato
+            # das faixas legadas, também consumido pelo painel público.
+            metricas = (*METRICAS[tipo], "crps") if tipo == "faixa" else METRICAS[tipo]
+            for m in metricas:
                 vals = [n[m] for n in g["notas"] if m in n]
                 medias[m] = round(sum(vals) / len(vals), 6) if vals else None
                 if m == "crps":
