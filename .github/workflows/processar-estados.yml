@@ -12,6 +12,39 @@ jobs:
       RAIZ_TOKEN: ${{ secrets.RAIZ_DADOS_PRIVADOS_TOKEN || github.token }}
       RAIZ_REPO: ${{ github.repository }}
     steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - name: Diagnosticar o mesmo cliente usado pelo executor, somente GET
+        env:
+          PYTHONPATH: .
+        run: |
+          uv run --no-project --with httpx==0.28.1 python - <<'PYTHON'
+          import json, os
+          from raiz.executor.armazem import ArmazemRelease
+          arm = ArmazemRelease(os.environ['RAIZ_REPO'], 'dados-privados', token=os.environ['RAIZ_TOKEN'], privado=True)
+          def observar(resposta):
+              resumo = {'cliente': 'executor', 'status': resposta.status_code}
+              caminho = resposta.request.url.path
+              resumo['recurso'] = 'tag' if '/releases/tags/' in caminho else ('releases' if '/releases' in caminho else 'repositorio')
+              for nome in ('x-ratelimit-limit', 'x-ratelimit-remaining', 'x-ratelimit-reset', 'retry-after'):
+                  valor = resposta.headers.get(nome, '')
+                  if valor.isdigit(): resumo[nome] = int(valor)
+              if resposta.status_code >= 400:
+                  resposta.read()
+                  try: mensagem = resposta.json().get('message', '').lower()
+                  except Exception: mensagem = ''
+                  resumo['categoria'] = ('cota' if 'rate limit' in mensagem else
+                                         'permissao' if 'resource not accessible' in mensagem else
+                                         'credencial' if 'bad credentials' in mensagem else 'outra')
+              print(json.dumps(resumo), flush=True)
+          arm.cli.event_hooks['response'].append(observar)
+          try:
+              rel = arm._exigir_privado()
+              print(json.dumps({'arquivo_privado_confirmado': bool(rel.get('draft'))}))
+          except Exception as ex:
+              print(json.dumps({'falha': type(ex).__name__}))
+          finally: arm.cli.close()
+          PYTHON
       - name: Conferir status e cota sem publicar dados nem valores de credenciais
         shell: python
         run: |
