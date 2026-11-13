@@ -5,7 +5,11 @@ function Data({ valor }: { valor: string }) {
   return <time dateTime={valor}>{fmtDataHoraBrasilia(valor)} (Brasília)</time>
 }
 
-export function PainelCobertura({ cobertura, uf }: { cobertura?: CoberturaMapa; uf?: string | null }) {
+export function PainelCobertura({ cobertura, uf, carregando = false }: { cobertura?: CoberturaMapa; uf?: string | null; carregando?: boolean }) {
+  if (!cobertura && carregando) return <section className="secao-painel cobertura-carregando" aria-labelledby="cobertura-titulo">
+    <h2 id="cobertura-titulo">Cobertura do mapa</h2>
+    <p role="status">Lendo a cobertura dos desenhos e as datas de atualização.</p>
+  </section>
   if (!cobertura) return <p className="legenda-frase">A cobertura dos desenhos e a data de atualização ainda não foram informadas.</p>
   const n = contarCobertura(cobertura, uf)
   const comparacao = cobertura.novos_desde

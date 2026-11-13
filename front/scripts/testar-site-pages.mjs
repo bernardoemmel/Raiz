@@ -7,7 +7,7 @@
 import assert from "node:assert/strict"
 import { createHash } from "node:crypto"
 import { conferirCicloMapa } from "./conferir-ciclo-mapa.mjs"
-import { conferirProcessamentoEstavel } from "./conferir-processamento-estavel.mjs"
+import { conferirEstabilidadePainelBrasil, conferirProcessamentoEstavel } from "./conferir-processamento-estavel.mjs"
 import { configurarPublicacao } from "./configurar-publicacao.mjs"
 import fs from "node:fs"
 import http from "node:http"
@@ -503,6 +503,7 @@ try {
   await semAgregados.close()
   await conferirCicloMapa(navegador, base)
   await conferirProcessamentoEstavel(navegador, base)
+  console.log("Estabilidade do painel nacional:", await conferirEstabilidadePainelBrasil(navegador, base))
   assert.deepEqual(ausentes, [], "Nenhum arquivo pode responder 404.")
   assert.deepEqual(erros, [], "Nenhum erro de rede, JavaScript ou renderização.")
   console.log("ok: busca por nome, IBGE e CAR, acesso pago pela lista e pelo CAR, produtor sem JavaScript, publicação somente básica, calendário e feed ICS, zero 404 e zero erro no navegador.")

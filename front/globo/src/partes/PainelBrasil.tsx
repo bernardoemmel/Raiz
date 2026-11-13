@@ -17,7 +17,9 @@ interface Props {
   /** fazendas aptas do estado escolhido, como estão no mapa */
   pontos: PontoFazenda[] | undefined
   carregando: boolean
+  carregandoResumo?: boolean
   cobertura?: CoberturaMapa
+  carregandoCobertura?: boolean
   andamento?: ReactNode
 }
 
@@ -33,14 +35,21 @@ function situacaoDoEstado(e: EstadoDados): string {
  * O Brasil na primeira tela (números do que a Raíz já leu, os estados e os municípios com mais área para restaurar) ou,
  * com um estado escolhido, o mesmo painel só daquele estado, dizendo se ele está completo.
  */
-export function PainelBrasil({ municipios, comLista, estados, uf, pontos, carregando, cobertura, andamento }: Props) {
+export function PainelBrasil({ municipios, comLista, estados, uf, pontos, carregando, carregandoResumo = carregando, cobertura, carregandoCobertura, andamento }: Props) {
   if (uf) return <PainelEstado uf={uf} municipios={municipios} comLista={comLista} estados={estados} pontos={pontos} cobertura={cobertura} andamento={andamento} />
-  if (!municipios) return <div className="painel-conteudo"><TituloBrasil />{andamento}<Estado tipo="carregando" titulo="Lendo os municípios processados" /></div>
+  if (!municipios) return <div className="painel-conteudo">
+    <TituloBrasil />
+    <div className={carregandoResumo ? "resumo-brasil-carregando" : undefined}>
+      <Estado tipo={carregandoResumo ? "carregando" : "erro"} titulo={carregandoResumo ? "Lendo os municípios processados" : "Não foi possível ler o resumo dos municípios"} />
+    </div>
+    <PainelCobertura key="cobertura" cobertura={cobertura} carregando={carregandoCobertura} />
+    {andamento}
+  </div>
   if (!municipios.length)
     return (
-      <div className="painel-conteudo"><TituloBrasil />{andamento}<Estado tipo="vazio" titulo="Nenhum município processado ainda.">
+      <div className="painel-conteudo"><TituloBrasil /><Estado tipo="vazio" titulo="Nenhum município processado ainda.">
         <p>O mapa mostra os estados assim que o motor rodar o primeiro.</p>
-      </Estado></div>
+      </Estado><PainelCobertura key="cobertura" cobertura={cobertura} carregando={carregandoCobertura} />{andamento}</div>
     )
   const comDado = (estados?.estados ?? []).filter((e) => e.situacao !== "sem_dados")
   const semDado = (estados?.estados.length ?? 0) - comDado.length
@@ -49,7 +58,7 @@ export function PainelBrasil({ municipios, comLista, estados, uf, pontos, carreg
       <TituloBrasil />
       <FraseResumo municipios={municipios} mostrarEstados />
       <Numeros municipios={municipios} />
-      <PainelCobertura cobertura={cobertura} />
+      <PainelCobertura key="cobertura" cobertura={cobertura} carregando={carregandoCobertura} />
       {andamento}
       {comDado.length > 0 && (
         <section className="secao-painel" aria-labelledby="estados-titulo">

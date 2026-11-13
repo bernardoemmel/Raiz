@@ -165,6 +165,9 @@ try {
   const { lhr, report } = resultado
   fs.writeFileSync(path.join(saida, "lighthouse.json"), report[0])
   fs.writeFileSync(path.join(saida, "lighthouse.html"), report[1])
+  for (const parte of ["Trace", "DevtoolsLog"]) {
+    if (resultado.artifacts?.[parte]) fs.writeFileSync(path.join(saida, `lighthouse-${parte}.json`), JSON.stringify(resultado.artifacts[parte]))
+  }
   const categoria = conferirAuditoriaAgentes(lhr)
   const resumo = {
     lighthouse: lhr.lighthouseVersion, navegador: lhr.environment.hostUserAgent,

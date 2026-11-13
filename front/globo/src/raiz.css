@@ -833,6 +833,10 @@
 .painel-conteudo {
   padding: var(--e5) var(--e5) var(--e7);
 }
+/* As consultas independentes ocupam sua posição definitiva desde a primeira pintura.
+   Reserva aproximada da frase/números e da cobertura; some no sucesso, vazio ou erro. */
+.resumo-brasil-carregando { min-block-size: 20rem; display: flow-root; }
+.cobertura-carregando { min-block-size: 24rem; }
 .painel-conteudo h1 {
   margin: 0;
   font-size: var(--t-titulo);
