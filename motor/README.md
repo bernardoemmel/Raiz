@@ -19,7 +19,7 @@ está completo quando tem, em todos os municípios, funil, filtros, MapBiomas, d
 escadinha. Os extras do Earth Engine e as certidões ficam de fora dessa conta (ver abaixo).
 
 <!-- painel:inicio -->
-Gerado do `estados.json` de 13/11/2026 10:45 (horário de Brasília). Brasil: 1.308 de 5.571 municípios com o funil pronto; 4 de 27 estados completos.
+Gerado do `estados.json` de 13/11/2026 12:55 (horário de Brasília). Brasil: 1.378 de 5.571 municípios com o funil pronto; 4 de 27 estados completos.
 
 | Estado | Municípios feitos/total | Situação | Última atualização | Motor |
 |---|---|---|---|---|
@@ -46,9 +46,9 @@ Gerado do `estados.json` de 13/11/2026 10:45 (horário de Brasília). Brasil: 1.
 | ES Espírito Santo | 0/78 | não começou | — | — |
 | RJ Rio de Janeiro | 0/92 | não começou | — | — |
 | SP São Paulo | 291/645 | falta funil 354, MapBiomas 1, direto 1, TMF e causas 1, FLAG 1, caminho da terra 1, ficha 1, desenvolvedor 1; 41 erro(s) na última rodada (6 fatias em jobs separados) | 13/11/2026 10:33 | [6e69cc0](https://github.com/bernardoemmel/Raiz/actions/runs/43427422930) |
-| PR Paraná | 84/399 | falta funil 315, MapBiomas 2, direto 2, TMF e causas 2, FLAG 2, caminho da terra 2, ficha 2, desenvolvedor 2 (4 fatias em jobs separados) | 13/11/2026 10:28 | manual |
-| SC Santa Catarina | 0/295 | não começou | — | — |
-| RS Rio Grande do Sul | 0/497 | não começou | — | — |
+| PR Paraná | 154/399 | falta funil 245, MapBiomas 3, direto 3, TMF e causas 3, FLAG 3, caminho da terra 3, ficha 3, desenvolvedor 3; 24 erro(s) na última rodada (4 fatias em jobs separados) | 13/11/2026 10:50 | [6e69cc0](https://github.com/bernardoemmel/Raiz/actions/runs/43403684811) |
+| SC Santa Catarina | 0/295 | falta funil 295 (3 fatias em jobs separados) | — | manual |
+| RS Rio Grande do Sul | 0/497 | falta funil 497 (APP a conferir na primeira rodada automática); falha nas fontes obrigatórias; 1 erro(s) na última rodada (5 fatias em jobs separados) | 13/11/2026 12:55 | [1c8a8d7](https://github.com/bernardoemmel/Raiz/actions/runs/43452405013) |
 | DF Distrito Federal | 0/1 | não começou | — | — |
 <!-- painel:fim -->
 
