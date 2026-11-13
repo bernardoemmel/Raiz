@@ -35,6 +35,19 @@ function manifesto() {
   }
 }
 
+function aberto() {
+  return {
+    contrato: "publico_lotes", versao: 1, estado: "publicado", uf: "PA", cenario: "central_r11",
+    modelo_versao: "modelo-teste", atualizado_em: "2026-11-12T18:00:00Z", volume_creditos: 1000000,
+    preco_contrato_usd: 55, cobertura: { municipios: 144, estados: 1, fazendas: 345870, hectares: null },
+    opcoes: ["barata", "segura", "compacta"].map(id => ({ id, creditos: { p10: 10, p50: 20, p90: 30 },
+      hectares: 100, fazendas: 10, custo_usd_credito: 17, terra_pronta: { creditos_p50: 0, fracao_meta: 0 },
+      itens: [{ cod_imovel: "CAR-PRIVADO" }], tir_p50: 91, destrava: [{ texto: "TRAVA-PRIVADA" }],
+    })),
+    arquivos: { pacote: "ARQUIVO-PRIVADO.tar.gz" }, aviso: "TEXTO-PRIVADO",
+  }
+}
+
 afterEach(() => vi.unstubAllGlobals())
 
 describe("publicação dos três lotes", () => {
@@ -52,6 +65,28 @@ describe("publicação dos três lotes", () => {
     expect(projetarPublicacaoLote(manifesto())).toEqual(esperado)
     expect(lerPublicacaoLote({ estado: "publicado", ...manifesto(), opcoes: [{ credito_p50: 999999 }] })).toEqual(esperado)
     expect(JSON.stringify(esperado)).not.toMatch(/PRIVAD|modelo-teste|\.tar\.gz|13\.2|350000/)
+  })
+
+  it("aceita somente o contrato revisado e remove todos os campos pagos extras", () => {
+    const p = lerPublicacaoLote(aberto())
+    expect(p.estado).toBe("publicado")
+    expect(p.opcoes).toHaveLength(3)
+    expect(p.opcoes[0]).toEqual({ id: "barata", creditos: { p10: 10, p50: 20, p90: 30 }, hectares: 100,
+      fazendas: 10, custo_usd_credito: 17, terra_pronta: { creditos_p50: 0, fracao_meta: 0 } })
+    expect(p.base.creditos.p50).toBeNull()
+    expect(JSON.stringify(p)).not.toMatch(/PRIVAD|tar\.gz|cod_imovel|tir_p50|destrava/)
+    expect(lerPublicacaoLote({ ...aberto(), versao: 2 }).estado).toBe("ausente")
+    expect(lerPublicacaoLote({ ...aberto(), opcoes: [aberto().opcoes[0], aberto().opcoes[0], aberto().opcoes[2]] }).estado).toBe("ausente")
+  })
+
+  it("conserva desconhecidos e suprime medidas de grupos menores que cinco", () => {
+    const a = aberto()
+    a.opcoes[0].fazendas = 4
+    a.opcoes[1].creditos.p10 = 999
+    const p = lerPublicacaoLote(a)
+    expect(p.opcoes[0]).toMatchObject({ fazendas: 4, creditos: null, hectares: null, custo_usd_credito: null,
+      terra_pronta: { creditos_p50: null, fracao_meta: null } })
+    expect(p.opcoes[1].creditos).toBeNull()
   })
 
   it("ignora também caches projetados antigos com três opções financeiras", () => {
@@ -90,20 +125,21 @@ describe("publicação dos três lotes", () => {
 })
 
 describe("consulta estática aos lotes", () => {
-  const campos = { ...CAMPOS_PADRAO, onde: { ...CAMPOS_PADRAO.onde, ufs: ["PA"] } }
+  const campos = { ...CAMPOS_PADRAO, onde: { ...CAMPOS_PADRAO.onde, biomas: [], ufs: ["PA"] } }
   const fonte = () => ({ municipios: vi.fn(async () => [
     { uf: "PA", cod_ibge: "1505536", imoveis: 7, ha_carbono: 20, linha: { imoveis: "7", ha_carbono: "20", dados_suprimidos: "false" } },
     { uf: "TO", cod_ibge: "1721000", imoveis: 100, ha_carbono: 1000, linha: { imoveis: "100", ha_carbono: "1000", dados_suprimidos: "false" } },
   ] as FunilMunicipio[]) }) as unknown as FonteDeDados
 
-  it("abre sem login fictício nem download de lotes e só soma a cobertura territorial real", async () => {
+  it("abre sem login fictício, lê somente o resumo público e soma a cobertura territorial real", async () => {
     const buscar = vi.fn(async () => new Response(JSON.stringify(projetarPublicacaoLote(null)), { headers: { "content-type": "application/json" } }))
     vi.stubGlobal("fetch", buscar)
     const f = fontePedidosRelease("/Raiz/", fonte())
     expect(f.publica).toBe(true)
     expect(f.sessao()).toBeNull()
     const p = await f.criar(campos)
-    expect(buscar).not.toHaveBeenCalled()
+    expect(buscar).toHaveBeenCalledTimes(1)
+    expect(String(buscar.mock.calls[0][0])).toContain("/Raiz/amostra/lote_PA_central_r11.json")
     expect(p.publicacao?.cobertura).toEqual({ municipios: 1, estados: 1, fazendas: 7, hectares: 20 })
     expect(p.publicacao?.base.creditos.p50).toBeNull()
     expect(p.exemplo).toBe(false)

@@ -72,6 +72,12 @@ dados/historico_aprendizado/
 # Relatórios locais de qualidade, sem artefatos grandes no git
 resultado-mcp/
 resultado-carga/
+
+# Resumo comercial aberto derivado do manifesto privado durante a publicação.
+dados/lotes-publicos/
+# Resumo do aprendizado, reconstruído da fonte configurada
+dados/acerto/
+
 # Segredos locais da pilha API/MCP
 .env.*
 !.env.example

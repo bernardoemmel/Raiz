@@ -166,6 +166,8 @@ legais anteriores permanecem, inclusive embargo sobreposto a TI, sem apagar sua 
 | 10 | Pedido de lote (docs/cena-alvo.md): oferta por fazenda (negocio.oferta, refeita a cada carga), pedido com os campos da cena-alvo, quanto existe na base por caminho da terra e interesse do dono com P10/P50/P90, o que falta e o que afrouxar, 3 opções do mesmo solver (HiGHS pelo scipy: mais barata, mais segura, mais compacta, com forma do lote e vazamento zero com fazenda de mitigação) e 10 a 20% de reserva, troca de fazenda, entrar sem senha, interesse do dono por nível (só o nível sai na API), ondas de contato dimensionadas pela chance de aceite (envio simulado), andamento, grupo pronto com aviso (painel, e-mail, WhatsApp), reserva com Pix da AbacatePay (modo de teste) e exclusividade de 60 dias, contrato com abatimento, vigia do pedido salvo e chance de aceite que aprende com cada contato | passos 6 e 9 | feito |
 | 10b | Rodada 11 unificada (um só arquivo de premissas e um só cálculo, com a branch premissas-rodada11: curva oficial da URTX, teto por bioma, P10/P90 de custo publicados, último marco a 100%, vazamento por vizinha VMD0054, renda do gado do Censo) e lote do ProFloresta+ por estado (`raiz lote montar`): titulares e reserva pela chance de 90% com erro comum da captura, fluxo do lote pela soma das fazendas, preço mínimo para TIR de 12% e 15%, o que destrava o lote (posse e assentamento), certidões para os 5% homologados, checklist do edital, relatório para o desenvolvedor e folha do dono; o otimizador põe a regeneração antes do plantio que o preço não paga | passos 6 e 10 | feito |
 | 10c | Lote e números: piso20 de reversão, três opções, preços TIR12/15 por fazenda, salvaguardas jurisdicionais/CLPI/partilha, decisões explicadas e revisão humana, previsões versionadas e comparação real; workflow PA144 com separação entre aberto e pago | 10b | **código e execução integral feitos**: PRs #49 e #55 com CI verde; retomada 43299409156 concluída, 144 municípios e 345.870 imóveis, dez fatias reutilizadas e somente cinco calculadas. Quatro pacotes e manifesto preservados no Release privado, com tamanho/SHA256 conferidos; nenhuma venda liberada automaticamente. Cancelamento anterior identificado e documentado; limite de quinze jobs respeitado, sem cancelar outros trabalhos. Fontes/licenças e quatro horizontes regionais auditados; quantis ecológicos pendentes de harmonização de parcelas, unidades e métodos (**parcial**, conforme autorização do fundador). Detalhes em `docs/passagem/lote-e-numeros.md` |
+| 10d | Diagnóstico dos três lotes do Pará: travas por selecionada, documento/conferência/marco, terra documentada versus pendente na meta, custo/preço e mediana das TIRs centrais; complemento privado sem recálculo | 10c | **gerador e conferência real feitos**; relatório versionado em JSON/CSV/Markdown/HTML, integrado às próximas gerações; workflow privado com uma cota global e integridade da origem. Publicação do complemento acompanhada na passagem |
+| 10e | Expansão incremental do lote para UF, bioma e Brasil, agrupamento de pequenas e benchmark em minutos; validação ARR por projeto/coorte/período; sensibilidade com nova seleção; ecologia regional aberta | 10d | **em andamento**; expansão de 786 municípios salva no PR #94 (rascunho), com pendências na passagem. Ordem atual: merge #86, complemento privado, ARR, sensibilidade e ecologia/rodada 12. Camadas pagas somente no arquivo privado; fontes de treino não contam como validação independente |
 | 11 | Ligar o envio de verdade das ondas (agente de aceite no WhatsApp com o termo, carta e parceiro local) e a chave de produção da AbacatePay; calibrar a chance de aceite e o valor da conexão com os primeiros pedidos | passo 10 e clientes | 6 a 10 |
 
 ## E4. Rebanho, metano e solo
@@ -332,6 +334,24 @@ Operação da entrega: PR #72 integrado com seis jobs verdes (1.626 testes Pytho
 Os cinco publicadores pausados foram reativados e a fila aponta para o commit
 protegido. O site real passou no build básico de 175 MB; sua republicação ganhou
 tentativas limitadas para falhas transitórias de rede, sem relaxar o contrato.
+O PR #80 foi integrado com seis jobs verdes (1.859 testes Python e 226 do front).
+A publicação 43311812890 concluiu; o site foi conferido com CSV básico de cinco
+colunas, geometria sem medidas pagas e 404 nos antigos caminhos de fichas completas.
+
+Nova continuação de Ficha da fazenda (12/11/2026):
+
+| Entrega | Situação |
+|---|---|
+| Terra já comprometida, com cruzamento geográfico, fonte, data, certeza e cobertura de cada registro | Feito: polígonos oficiais, indícios secundários e contexto jurisdicional separados; ausência de fonte não significa terra livre |
+| Versões imutáveis e mudanças desde a última consulta; avisos de pendência, embargo, desmate, fogo, terra e lotes da própria conta | Feito: snapshots antes/depois da carga, baseline por cliente, avisos deduplicados e acesso pago reavaliado |
+| Ficha automática para UFs atuais e futuras, com retomada da carga e atualização das fontes | Feito: descoberta pelo manifesto privado, backfill idempotente e falha mantida pendente para nova tentativa |
+| Marcas por cliente em PDF/JSON/CSV e alertas de varredura na API | Feito: HMAC versionado, sentinela separada dos dados, detecção persistida e consulta operacional dos alertas |
+| Três modalidades de créditos e conta de receita por cliente | Feito: por ficha, por lote e assinatura; preços a definir pelo fundador e simulação mensal/anual sem ativar vendas |
+| Medição real das 24 tarefas por agente Anthropic no GitHub Actions, manual e semanal | Feito: integrado ao workflow único agentes-real.yml (PR #85), pilha isolada, OAuth real e artefatos. Primeira campanha 43341704532 incompleta: 35/96 tentativas, falha na citação literal do juiz; nenhum pass^4 aprovado |
+
+O PR #93 corrige a citação inválida do juiz com uma única nova conversa, sem
+alterar notas válidas ou relaxar a conferência literal; consumo e tentativas
+ficam registrados. A correção exige nova campanha completa de 96 sessões.
 
 Site legível por agentes (12/11/2026): **feito** — `llms.txt`, `robots.txt`, páginas Markdown do Brasil, estados,
 municípios, produtor, serviço, fontes e privacidade; alternates no HTML; JSON-LD `Dataset`, `Service` e `Offer`
@@ -430,10 +450,10 @@ faz sem back-end.
 |---|---|
 | Publicação após #72, sem alterar o PR do outro chat | **feito** em 12/11/2026: workflow ativo; atualização 43331843113 concluída com 444 municípios em 13 estados; site ao vivo com busca, aproximação, pedido e 360 px sem 404 ou erros de JavaScript |
 | Conferir que arquivos pagos não ficaram públicos | **feito**: 36 assets do Release validados pela lista positiva; os dois artefatos foram conferidos, o mais recente com 1.849 arquivos, 444 CSV básicos e 444 geometrias sem medidas pagas. Evidências e hashes na passagem |
-| Resumos abertos dos três lotes; composição, travas e desenho somente pela API autenticada | **em andamento**: resultados reais do Pará estão no Release privado, conforme #78; o ponteiro completo não deve voltar ao público |
-| Sensibilidade de preço, reserva, desconto e cenário pessimista | **pendente**: a rodada do Pará não calculou esses cenários; demonstração identificada enquanto faltar a saída real |
-| Pedido por estado, bioma ou Brasil com cobertura e lacunas explícitas | **pendente** |
-| Painel de acerto do modelo por versão e comparação observada | **pendente**; não apresentar ausência de avaliações como 0% de acerto |
+| Resumos abertos dos três lotes; composição, travas e desenho somente pela API autenticada | **feito no código**: projeção positiva do manifesto privado do #78; público só vê quantis de créditos, ha, quantidade de fazendas, custo médio e terra documentada. Detalhes pela API; demonstração optativa inteiramente fictícia e sem cobrança/contato |
+| Sensibilidade de preço, reserva, desconto e cenário pessimista | **feito no código**: controles, comparação das três opções e grade privada vinculada à revisão do pedido; demonstração fictícia identificada. **Pendente de dados reais**: a rodada do Pará não calculou esses cenários |
+| Pedido por estado, bioma ou Brasil com cobertura e lacunas explícitas | **feito no código**: 27 UFs, seis biomas e Brasil; cobertura dinâmica do manifesto, estados parciais/faltantes e ausência explícita do recorte exato. Não extrapola os lotes do Pará |
+| Painel de acerto do modelo por versão e comparação observada | **feito no código**: métricas agregadas, período e proveniência verificados, mínimo de cinco imóveis; API/exportador disponíveis. **Pendente de dados reais elegíveis** no Release; ausência não é 0% de acerto |
 
 ## Telas e mapa: ficha visual da terra
 
@@ -504,6 +524,14 @@ A primeira execução no Actions identificou ausência de `rg` no runner; a veri
 
 - [x] Markdown do site preserva medidas ausentes e zeros explícitos; totais incompletos não são apresentados
   como totais completos. Regressões cobrem páginas estaduais/municipais e proteção de grupos pequenos.
+
+- [x] Medição: recusa explícita do provedor preservada como julgamento indisponível,
+  sem repetição nem troca de modelo; mantém a execução das demais tarefas e impede
+  aprovação/declaração de pass^4 completo quando faltar julgamento. Campanhas
+  incompletas anteriores continuam preservadas, sem selecionar apenas sucessos.
+- [x] Runner conserva recusas do próprio agente sem chamar o juiz para texto vazio;
+  julgamento malformado é indisponível e não interrompe as outras tarefas. Só
+  evidência válida pode compor pass^4 completo; integridade/modelo divergente falha.
 
 ## Continuação solicitada: fontes, cascata, vigilância e primeira certidão
 

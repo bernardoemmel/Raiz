@@ -1,5 +1,22 @@
 # Código e dados de terceiros
 
+## Fontes da camada de terra comprometida
+
+[Berkeley Carbon Trading Project, Voluntary Registry Offsets Database](https://gspp.berkeley.edu/berkeley-carbon-trading-project/offsets-database),
+versão v2026-08, **CC BY 4.0**. Usamos a seleção de projetos florestais brasileiros;
+nomes de projetos, proponentes e contatos não entram na ficha. A Raíz produz o
+cruzamento e suas conclusões, sem endosso dos autores.
+
+[An open-access database of nature-based carbon offset project boundaries](https://doi.org/10.5281/zenodo.11459391),
+Zenodo 11459391, **CC BY 4.0**, autores conforme ficha DOI. A seleção de polígonos
+brasileiros é tratada como indício secundário; pontos são descartados. Geometrias
+e dados brutos não são redistribuídos nesta entrega. Não copiamos código da pesquisa.
+
+Verra, SFB, ART e publicações estaduais são referências públicas para análise
+privada. Os documentos e limites sem licença expressa de redistribuição não são
+publicados no Release ou site. Consulte [fontes e limites](docs/terra-comprometida.md)
+e o catálogo versionado `raiz/terra_comprometida_fontes.json`.
+
 Cache calibrado da matrícula: MAPIE 1.6 (BSD-3-Clause, Copyright 2021 Vianney Taquet,
 Grégoire Martinon, Nicolas Brunel, Issam Ibnouhsein, François Deheeger e contribuidores),
 usado como dependência, sem copiar código. `BinaryClassificationController` controla a
