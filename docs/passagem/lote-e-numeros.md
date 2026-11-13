@@ -205,3 +205,18 @@ credibilidade, sensibilidade e ecologia; recalcular e publicar apenas no arquivo
 privado; comparar P10/P50/P90 e hectares com os lotes históricos. As 45 verificações
 de evidências/ARR/regeneração e quatro de controle sintético passaram; suíte global,
 CI, PR e merge desta rodada ainda pendentes. Não cancelar nem desativar workflows.
+
+## Checkpoint da integração R12 — 13/11/2026 UTC
+
+Branch `codex/lote-rodada12` preservado remotamente. 67 testes focados passaram:
+contabilidade 5511, curva Mombak, ARR, controle sintético, validação por município,
+finanças/ICSD, gado e credibilidade. Cenário `central_r12` integrado sem substituir
+os resultados R11 imutáveis. Custos de terra são provisões explícitas; taxa fixa
+BNDES é referência de tranche, não aprovação universal de financiamento.
+
+PR #86 atualizado com main `c65d7bb`, sem conflitos; novo head `9882aeb`,
+CI `43352104956` aguardando runners. Conferência registrou 15 jobs ativos; nenhum
+cancelamento/desativação. Merge e publicação do diagnóstico privado ainda faltam.
+O nacional de 786 municípios está salvo no PR #94 (draft). Depois: finalizar ARR,
+sensibilidade, ecologia, recalcular PA/R12 e publicar comparativo privado.
+Dryad: CC0 confirmado, CSV ainda bloqueado 401/403; não inventar erro por idade.

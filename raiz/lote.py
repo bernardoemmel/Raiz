@@ -280,6 +280,13 @@ def _economia(lote: pd.DataFrame, linhas: Linhas, c: dict, r: dict, volume: floa
     for x in partes:
         out["metodos"][x["metodo"]] += 1
     out["metodos"] = dict(out["metodos"])
+    if c.get("rodada") == 12:
+        from raiz import restauracao_financeiro as F12
+
+        out["taxas_verra"] = fl["taxas_verra"]
+        out["operacao_referencia"] = c["operacao_referencia"]
+        out["referencias_comprador"] = F12.referencias_comprador()
+        out["limite_tir_fazenda"] = "Taxas fixas Verra entram uma vez na TIR do lote; não são cobradas por fazenda."
     return out
 
 

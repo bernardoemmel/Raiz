@@ -70,7 +70,30 @@ materialidade. O fator arredondado dá 105,336 e 35,568 t; o documento arredonda
 
 ## Ainda por concluir nesta rodada
 
-Integração das curvas no cálculo; custos e operações Fundo Clima; dívida por ICSD
-com reserva; fluxo de gado em UA; credibilidade de amostras; sensibilidade com nova
-seleção; referências ecológicas; recálculo/publicação privada e comparação final dos
-três lotes. Manter versões e distinguir modelo, medição e emissão.
+Implementados e integrados no cenário explícito `central_r12`: forma inicial de
+plantio amazônico, Fundo Clima por tranche fixa de referência, preço de US$ 59,20,
+arrendamento SFX de R$ 842,83 (“Censo 2017 corrigido”), provisão de certidão conjunta
+e georreferenciamento sobre a área integral disponível. Uma certidão por CAR sem
+contagem de matrículas é somente provisão mínima; escopo topográfico fica pendente.
+Taxas Verra entram uma vez por projeto, com abatimento do adiantamento de emissão.
+A faixa de mudas é orçamento separado: não somar novamente ao custo SFB que já
+inclui implantação. R11 permanece cenário histórico explícito.
+
+CVXPY dimensiona dívida por ICSD e conta reserva. Sem caixa no primeiro período
+após a carência, juros positivos tornam impossível dívida positiva: retorna zero,
+sem capitalizar juros escondidos fora do prazo contratado. O motor anual declara
+sua aproximação; o módulo também aceita fluxos mensais.
+
+PuLP/NetworkX alocam UA sem duplicar capacidade entre origens, guardando lotação
+antes/depois. Encontrar vizinha não zera mais vazamento na R12: exige documentos
+com hash e revisão humana, capacidade seca e rastreio. O exemplo VCS 3743 reproduz
+2.500 UA em três destinos; sua capacidade regional histórica não é medição do mês
+seco destas fazendas. Sensibilidade de 12% da área/150 km nunca vira desconto de
+crédito automaticamente. Credibilidade calcula e divulga peso local/coorte;
+sem inventário local o peso é zero, nunca se inventam parcelas.
+
+Validação focada em 13/11 UTC (12/11 Brasília): **67 testes passaram**. Ainda faltam
+sensibilidade com nova seleção, referências ecológicas no produto,
+recálculo/publicação privada e comparação final dos três lotes, suíte integral,
+PR e merge. O Dryad continua sem download acessível neste ambiente; não há MAE
+real calculado nem controle sintético real sem painel pré/pós disponível.

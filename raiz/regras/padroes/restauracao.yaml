@@ -700,6 +700,66 @@ cenarios:
       valor: 74
       fonte: fundador, 12/11/2026 (teto da faixa do ProFloresta+)
 
+  central_r12:
+    nome: Rodada 12, referência mombak_angico_branco
+    herda: central_r11
+    rodada: 12
+    operacao_fundo_clima: mombak_angico_branco
+    estresse_financeiro: false
+    reserva_divida_meses: 6
+    preco_usd_t:
+      valor: 59.20
+      fonte: ProFloresta+ 1, média ponderada pelos volumes contratados (22/06/2026)
+    taxa_registro_usd_t:
+      valor: 0.23
+      fonte: Verra Program Fee Schedule; taxas fixas e adiantamento tratados no lote
+
+  central_r12_jequitiba:
+    nome: Rodada 12, referência regreen_jequitiba
+    herda: central_r11
+    rodada: 12
+    operacao_fundo_clima: regreen_jequitiba
+    estresse_financeiro: false
+    reserva_divida_meses: 6
+    preco_usd_t:
+      valor: 59.20
+      fonte: ProFloresta+ 1, média ponderada pelos volumes contratados (22/06/2026)
+    taxa_registro_usd_t:
+      valor: 0.23
+      fonte: Verra Program Fee Schedule; taxas fixas e adiantamento tratados no lote
+
+  central_r12_symbiosis:
+    nome: Rodada 12, referência symbiosis
+    herda: central_r11
+    rodada: 12
+    operacao_fundo_clima: symbiosis
+    estresse_financeiro: false
+    reserva_divida_meses: 6
+    preco_usd_t:
+      valor: 59.20
+      fonte: ProFloresta+ 1, média ponderada pelos volumes contratados (22/06/2026)
+    taxa_registro_usd_t:
+      valor: 0.23
+      fonte: Verra Program Fee Schedule; taxas fixas e adiantamento tratados no lote
+
+  estresse_r12:
+    nome: Rodada 12, referência mombak_angico_branco
+    herda: central_r11
+    rodada: 12
+    operacao_fundo_clima: mombak_angico_branco
+    estresse_financeiro: true
+    reserva_divida_meses: 6
+    preco_usd_t:
+      valor: 59.20
+      fonte: ProFloresta+ 1, média ponderada pelos volumes contratados (22/06/2026)
+    taxa_registro_usd_t:
+      valor: 0.23
+      fonte: Verra Program Fee Schedule; taxas fixas e adiantamento tratados no lote
+    linha_base_piso: {valor: 0.40, fonte: premissa pessimista Raíz}
+    vazamento: {valor: 0.40, fonte: premissa pessimista Raíz}
+    fracao_financiada: {valor: 0.35, fonte: premissa pessimista Raíz}
+    participacao_dono: {valor: 0.20, fonte: premissa pessimista Raíz}
+
 # Faixa P10-P90 do VPL, das TIRs, das entregas e das multas por imóvel: Monte Carlo com sorteios comuns a todos os
 # imóveis (semente fixa), o custo e a captura sorteados de forma independente numa normal de dois lados que respeita
 # os P10, P50 e P90. Os indicadores do P50 saem do caminho do meio (custo e captura no P50).

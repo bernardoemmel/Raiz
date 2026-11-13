@@ -488,3 +488,8 @@ A primeira execução no Actions identificou ausência de `rg` no runner; a veri
 
 - [x] Markdown do site preserva medidas ausentes e zeros explícitos; totais incompletos não são apresentados
   como totais completos. Regressões cobrem páginas estaduais/municipais e proteção de grupos pequenos.
+
+- [ ] Rodada 12 — **parcial, código preservado**: 67 testes focados aprovados;
+  cenário R12 com curva inicial, operações, provisões de terra, dívida por ICSD,
+  plano de gado em UA e credibilidade. Falta validação integral, recálculo do Pará,
+  sensibilidade, ecologia, publicação privada e merge; ver passagem Lote e números.

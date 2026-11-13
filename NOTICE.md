@@ -384,3 +384,13 @@ Dados e fatos científicos não herdam as licenças das bibliotecas:
   redistribuição localizada. Guardados fatos, referências e hashes, não cópias dos
   PDFs ou planilhas proprietários no produto.
 
+
+- Dados abertos BNDES, operações diretas/indiretas não automáticas: ODbL-1.0,
+  https://dadosabertos.bndes.gov.br/dataset/operacoes-financiamento. Somente fatos
+  financeiros das tranches de referência foram transcritos; não distribuímos
+  cadastro de tomadores. SIDRA/IBGE: fonte oficial e consulta identificada em
+  `rodada12_financeiro.json`; números do Censo 2017 corrigidos pelo IPCA.
+- O solver CBC, chamado pelo PuLP como executável separado, usa EPL-2.0
+  (https://github.com/coin-or/Cbc). Não foi copiado código do solver para a Raíz.
+- Embrapa, ASOP 25 e relatórios Verra: fatos, método e atribuição; implementação
+  própria, sem reproduzir integralmente textos ou dados sem licença aberta.

@@ -71,5 +71,38 @@
     "ano_referencia": 2023,
     "resolucao_m": 30,
     "uso": "idade de floresta secundária existente; não idade futura de plantio em pasto"
+  },
+  "gado_vcs3743": {
+    "url": "https://registry.verra.org/verra/public/program/VCS/projects/3743",
+    "documento": "VCS MR 3743 do Projeto 04OCT2022-15JUN2025_clean1.pdf, seção 5.3, tabelas 2–3 e figuras 19–21",
+    "sha256": "b58fdbafdac971d222841626006e58f89864c197ec8bf0cdf9756e416b0a888a",
+    "natureza": "rastreamento histórico verificado; capacidade regional Arantes 2018 não mede o mês seco de uma nova fazenda",
+    "destinos": [
+      {
+        "origem": "PAI001",
+        "destino": "PAI001_Farm1",
+        "ua_antes": 399,
+        "ua_recebidas": 1200,
+        "pasto_ha": 1300,
+        "capacidade_regional_ua_ha": 3.35
+      },
+      {
+        "origem": "PAI001",
+        "destino": "PAI001_Farm2",
+        "ua_antes": 30,
+        "ua_recebidas": 500,
+        "pasto_ha": 260,
+        "capacidade_regional_ua_ha": 2.75
+      },
+      {
+        "origem": "PAI002",
+        "destino": "PAI002_Farm1",
+        "ua_antes": 1000,
+        "ua_recebidas": 800,
+        "pasto_ha": 800,
+        "capacidade_regional_ua_ha": 3.28
+      }
+    ],
+    "licenca": "Fatos extraídos de documento público; PDF não redistribuído"
   }
 }

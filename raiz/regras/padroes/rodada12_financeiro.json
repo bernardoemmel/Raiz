@@ -1,0 +1,98 @@
+{
+  "versao": "financeiro-r12-2026a",
+  "operacoes": {
+    "regreen_jequitiba": {
+      "juros_ano": 0.012,
+      "carencia_meses": 36,
+      "amortizacao_meses": 264,
+      "contrato": "23901101",
+      "data_contratacao": "2024-03-28",
+      "natureza": "tranche de taxa fixa; não inclui outra tranche TLP e não é aprovação para a fazenda"
+    },
+    "mombak_angico_branco": {
+      "juros_ano": 0.023,
+      "carencia_meses": 36,
+      "amortizacao_meses": 264,
+      "contrato": "24900921",
+      "data_contratacao": "2025-01-27",
+      "natureza": "tranche de taxa fixa; não inclui outra tranche TLP e não é aprovação para a fazenda"
+    },
+    "symbiosis": {
+      "juros_ano": 0.023,
+      "carencia_meses": 60,
+      "amortizacao_meses": 240,
+      "contrato": "25900471",
+      "data_contratacao": "2025-08-29",
+      "natureza": "tranche de taxa fixa; não inclui outra tranche TLP e não é aprovação para a fazenda"
+    }
+  },
+  "estresse_juros_ano": 0.0494,
+  "fonte_operacoes": {
+    "url": "https://dadosabertos.bndes.gov.br/dataset/operacoes-financiamento",
+    "consulta": "2026-11-12",
+    "arquivo_sha256": "cf92cc06ebb0f5738abb2cc50b6c85e50b472d49a0a7c9e50ccac749209a4153",
+    "licenca": "ODbL-1.0",
+    "extracao": "três registros de condições financeiras de taxa fixa; sem identificadores pessoais"
+  },
+  "aluguel_sfx": {
+    "cod_ibge": 1507300,
+    "despesa_2017_brl": 1783000,
+    "area_arrendada_ha": 3354,
+    "ipca_destino": 7706.59,
+    "ipca_origem": 4860.83,
+    "rotulo": "Censo 2017 corrigido",
+    "fontes": [
+      "https://sidra.ibge.gov.br/tabela/6899",
+      "https://sidra.ibge.gov.br/tabela/6753",
+      "https://sidra.ibge.gov.br/tabela/1737"
+    ],
+    "licenca": "IBGE, atribuição; fatos agregados",
+    "nao_e_preco_mercado_2026": true,
+    "ipca_origem_periodo": "2017-09",
+    "ipca_destino_periodo": "2026-10",
+    "consulta": "2026-11-12",
+    "fontes_sha256": {
+      "despesa.json": "3c2aa46969afd1b8bfec2ba4fb1d147e0d09d278a78e768c14e210306e8c3c3a",
+      "area.json": "7af92fdeec2956e4f70191b218ae074c53d15929166e6c1eab1a1c9345f9e336",
+      "ipca.json": "6f5fe3b38406e0e5d3cac28ff68c9245cc0670ab091a12cab88da9dadf1313e2"
+    }
+  },
+  "profloresta_1": {
+    "precos_usd_t": [
+      55.33,
+      55.76,
+      73.82
+    ],
+    "volumes_t": [
+      2000000,
+      2000000,
+      1000000
+    ],
+    "fonte": "https://agenciadenoticias.bndes.gov.br/cultura/BNDES-e-Petrobras-anunciam-vencedores-do-ProFloresta-e-firmam-parceria-com-foco-em-minerais-criticos/",
+    "data": "2026-06-22"
+  },
+  "hectares_milhao": {
+    "raiz": 4400,
+    "regreen_hectares": 33000,
+    "regreen_creditos": 6500000,
+    "fonte": "https://re.green/projetos-parcerias-e-clientes/microsoft/",
+    "limite": "razões de planejamento com escopos e horizontes próprios, não fator universal de conversão"
+  },
+  "custos": {
+    "inteiro_teor_pa_brl": 66.32,
+    "conjunta_pa_brl": 196.25,
+    "cartorio_fonte": "https://cartoriosdopara.com.br/wp-content/uploads/2026/02/TABELA-DE-EMOLUMENTOS-2026-GRUPO-7-3-do-ISS-sobre-o-valor-dos-emolumentos-abatido-FRC-e-FRJ-1-1.pdf",
+    "georreferenciamento_brl_ha": 104.78,
+    "georreferenciamento_fonte": "https://www.gov.br/incra/pt-br/assuntos/governanca-fundiaria/portaria_12_2025_geo.pdf",
+    "georreferenciamento_limite": "Referência INCRA, dificuldade média (26–35 pontos), não orçamento de qualquer imóvel. Aplicar à área georreferenciada, não somente à restaurada.",
+    "verra_registro_usd": 3750,
+    "verra_listagem_usd": 1500,
+    "verra_verificacao_usd": 5000,
+    "verra_adiantamento_emissao_usd": 2500,
+    "verra_emissao_usd_t": 0.23,
+    "verra_fonte": "https://verra.org/new-verra-program-fee-schedule-faqs/",
+    "muda_brl_min": 3.5,
+    "muda_brl_max": 20.56,
+    "muda_fonte": "Faixa informada na pesquisa rodada 12; orçamento por espécie/viveiro pendente. Não somar ao SFB sem retirar componente já incluído."
+  }
+}
