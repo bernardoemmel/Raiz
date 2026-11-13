@@ -21,6 +21,69 @@ from testes.carga.contrato import exigir_local, retry_after_valido
 class ErroMCP(RuntimeError):
     """Mensagem estável: não inclui texto/credencial devolvido pelo servidor."""
 
+    def __init__(
+        self, mensagem: str, *, codigo: str = "mcp_invalido", status: int | None = None, motivo: str = "outro"
+    ):
+        super().__init__(mensagem)
+        self.codigo = codigo if codigo in CODIGOS_DIAGNOSTICO else "mcp_invalido"
+        self.status = status if type(status) is int and 100 <= status <= 599 else None
+        self.motivo = motivo if motivo in MOTIVOS_DIAGNOSTICO else "outro"
+
+    def diagnostico(self) -> dict:
+        return {"codigo": self.codigo, "status": self.status, "motivo": self.motivo}
+
+
+CODIGOS_DIAGNOSTICO = {
+    "mcp_invalido",
+    "http_inesperado",
+    "jsonrpc_invalido",
+    "ferramenta_reprovada",
+    "prazo",
+    "transporte",
+    "retry_after_invalido",
+    "limite_inesperado",
+    "erro_inesperado",
+}
+MOTIVOS_DIAGNOSTICO = {
+    "outro",
+    "ficha_indisponivel",
+    "idempotencia_conflito",
+    "cancelamento_ocupado",
+    "falha_interna",
+    "limite",
+    "limite_indisponivel",
+    "prazo_excedido",
+    "sem_credencial",
+    "escopo_insuficiente",
+}
+
+
+def _problema_ferramenta(resultado: dict) -> dict:
+    """Projeta apenas status e motivo de lista fechada; nunca retorna texto remoto."""
+    for bloco in (resultado.get("content") or [])[:16]:
+        texto = bloco.get("text") if isinstance(bloco, dict) else None
+        if not isinstance(texto, str) or len(texto) > 16384:
+            continue
+        # O SDK pode prefixar "Error executing tool ..." ao Problem Details.
+        inicio = texto.find("{")
+        if inicio < 0:
+            continue
+        try:
+            dado, _ = json.JSONDecoder().raw_decode(texto[inicio:])
+        except ValueError:
+            continue
+        if not isinstance(dado, dict):
+            continue
+        prefixo = "https://github.com/bernardoemmel/Raiz/blob/main/docs/agentes-ia.md#erro-"
+        tipo = dado.get("type")
+        motivo = tipo.removeprefix(prefixo) if isinstance(tipo, str) and tipo.startswith(prefixo) else "outro"
+        status = dado.get("status")
+        return {
+            "status": status if type(status) is int and 100 <= status <= 599 else None,
+            "motivo": motivo if motivo in MOTIVOS_DIAGNOSTICO else "outro",
+        }
+    return {}
+
 
 class LimiteMCP(ErroMCP):
     def __init__(self, espera: str | None):
@@ -62,7 +125,7 @@ def decodificar(resposta, identificador: int, inicio: float | None = None) -> di
     if not isinstance(dado, dict) or dado.get("jsonrpc") != "2.0" or dado.get("id") != identificador:
         raise ErroMCP("MCP respondeu identificador ou versão inválidos")
     if "error" in dado or not isinstance(dado.get("result"), dict):
-        raise ErroMCP("MCP devolveu erro JSON-RPC ou resultado inválido")
+        raise ErroMCP("MCP devolveu erro JSON-RPC ou resultado inválido", codigo="jsonrpc_invalido")
     return dado["result"]
 
 
@@ -105,23 +168,25 @@ class ClienteMCP:
                 self.url, json=corpo, headers=cabecalhos, timeout=4.9, allow_redirects=False, stream=True
             )
             if time.monotonic() - inicio >= 5:
-                raise ErroMCP("MCP demorou 5 segundos ou mais")
+                raise ErroMCP("MCP demorou 5 segundos ou mais", codigo="prazo")
             if resposta.status_code == 429:
                 espera = resposta.headers.get("Retry-After")
                 if not retry_after_valido(espera):
-                    raise ErroMCP("MCP respondeu 429 sem Retry-After válido")
+                    raise ErroMCP("MCP respondeu 429 sem Retry-After válido", codigo="retry_after_invalido", status=429)
                 raise LimiteMCP(espera)
             if notificar:
                 if resposta.status_code not in {200, 202, 204}:
                     raise ErroMCP("MCP recusou notificação initialized")
                 return {}
             if resposta.status_code != 200:
-                raise ErroMCP("MCP respondeu status HTTP inesperado")
+                raise ErroMCP(
+                    "MCP respondeu status HTTP inesperado", codigo="http_inesperado", status=resposta.status_code
+                )
             if sessao := resposta.headers.get("Mcp-Session-Id"):
                 self.cabecalhos["Mcp-Session-Id"] = sessao
             return decodificar(resposta, identificador, inicio)
         except (requests.RequestException, ValueError):
-            raise ErroMCP("MCP não concluiu a chamada HTTP/JSON válida em menos de 5 s") from None
+            raise ErroMCP("MCP não concluiu a chamada HTTP/JSON válida em menos de 5 s", codigo="transporte") from None
         finally:
             if resposta is not None:
                 resposta.close()
@@ -177,7 +242,9 @@ class ClienteMCP:
             raise ErroMCP("Inicialize a sessão MCP antes de chamar ferramentas")
         resultado = self._enviar("tools/call", {"name": nome, "arguments": argumentos})
         if resultado.get("isError"):
-            raise ErroMCP("Ferramenta MCP devolveu isError")
+            raise ErroMCP(
+                "Ferramenta MCP devolveu isError", codigo="ferramenta_reprovada", **_problema_ferramenta(resultado)
+            )
         if not isinstance(resultado.get("content"), list):
             raise ErroMCP("Ferramenta MCP não devolveu content")
         return resultado

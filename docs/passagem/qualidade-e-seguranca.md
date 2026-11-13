@@ -618,7 +618,7 @@ vermelho continuou sendo o corpus MCP sem agente leitor. Depois disso, o nome do
 
 A suíte local integral da entrega independente terminou com **2.079 aprovados, zero skips, um xfail executado**,
 em 1.390,97 s. O JUnit passou no portão obrigatório. Os resultados privados do filho foram apagados; o snapshot
-temporário usado para essa validação será removido após concluir a entrega.
+temporário usado para essa validação foi removido após a suíte integral final, conforme o fechamento abaixo.
 
 ### Entrega da referência real do Pará — #83 integrado
 
@@ -689,3 +689,30 @@ provou que eram SHA-256 de `raiz/api.py`, `raiz/publica/api.py` e `raiz/publica/
 ficam restritas ao commit `e7074b4`, arquivo e linhas exatos; não liberam hashes/chaves futuras nem o arquivo todo.
 Gitleaks passou nos 367 commits (30,55 MB). Um controle sintético em commit novo, no mesmo caminho e linha,
 continuou sendo detectado; o diretório temporário desse controle foi apagado.
+
+A suíte local integral do fechamento terminou com **2.395 aprovados, nenhum skip e um xfail conhecido executado**,
+em 1.530,95 s, com PostGIS, LanguageTool, Valkey e a referência real do Pará. O JUnit passou no portão obrigatório.
+As guardas posteriores da CLI tiveram o conjunto focal de 85 testes citado acima; o CI final executa a união
+atualizada. O snapshot privado temporário de aproximadamente 1,42 GB foi removido após conferir o resultado.
+
+O CI `43332886480` encontrou uma falha real no perfil normal do Locust MCP: 254 chamadas, sete falhas e exatamente
+30 consultas de ficha aprovadas. A quota específica de fichas é 30 por minuto por empresa e independe do orçamento
+geral configurado pelo ensaio. O aviso do corpus não ocultou a falha. A reprodução real confirmou 30 leituras
+aprovadas e recusa da 31ª. O perfil normal foi ajustado para seis usuários com intervalo de dois segundos e
+posições iniciais distribuídas; o teste com relógio virtual verifica todas as ferramentas em dez segundos e
+o orçamento em janelas de 60 segundos. A saturação continua com demanda alta, sem mudar limites do produto.
+
+O ensaio real corrigido passou: **30 chamadas normais**, todas aprovadas; **480 chamadas na saturação, 391 respostas
+429 válidas e zero falhas**. As sete ferramentas responderam nas duas fases; máximo isolado de **0,149 s** e
+máximo sob carga de **1,013 s**. O Locust espera até cinco segundos pelas chamadas em voo; interrupções não são
+contadas como conclusões, e exceções inesperadas viram falha fixa. Relatórios trazem somente etapa, ferramenta,
+código/status/motivo fechado e contagens, sem corpo remoto. O corpus segue parcial, conforme a autorização.
+
+Durante essa verificação, foi confirmado que avisos de conversão de `raiz/contrato.py` copiavam o valor recebido
+na exceção do parser para os diagnósticos persistidos e logs. A mensagem agora conserva apenas coluna e tipo
+conhecidos. Duas regressões com contato sintético falharam antes e passaram depois; o tratamento dos dados
+inválidos foi preservado. **96 testes focados passaram**, além de Ruff global (516 arquivos) e actionlint.
+
+O #82 foi rechecado até `720e21f`: o delta após `805904f` só registra os mesmos três falsos positivos de SHA-256
+com fingerprint exato e documentação. Não houve nova alteração operacional; o PR ainda não estava na main.
+O CI integral do fechamento e o resultado do merge ficam no [PR #76](https://github.com/bernardoemmel/Raiz/pull/76).

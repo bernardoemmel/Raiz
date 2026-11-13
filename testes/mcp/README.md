@@ -108,10 +108,20 @@ Essa ferramenta somente relê a ficha e não exige chave de idempotência. As ou
 intenção, preservada nas repetições de carga para não gerar novos trabalhos ou débitos.
 
 A carga repete intenções idempotentes sobre pedidos reais preparados no banco descartável, com seis usuários.
+Na fase normal, cada usuário inicia uma chamada a cada dois segundos (`constant_pacing`), com posições iniciais
+rotacionadas entre as sete ferramentas. São cerca de 26 leituras de ficha por minuto para a mesma empresa, abaixo
+da cota real de 30/min; as sete ferramentas continuam cobertas nos dez segundos do ensaio. A espera não entra no
+tempo da chamada, que continua menor que 5 s. Configurações manuais mais agressivas podem exceder legitimamente
+a cota. Não há alteração ou desligamento do limite do produto.
 Isso mede transporte, autorização, consultas e replay seguro; não é capacidade máxima de criação de novos lotes.
 A fase de saturação usa orçamento global menor e exige HTTP 429 com Retry-After válido; o orçamento por empresa
 fica alto nesse perfil para não confundir erro de ferramenta JSON-RPC com limite HTTP. A suíte Python testa
-separadamente as quotas por empresa compartilhadas entre REST e MCP.
+separadamente as quotas por empresa compartilhadas entre REST e MCP. Nessa fase permanece a espera curta de
+30–80 ms entre chamadas, para provocar saturação real.
+
+Chamadas interrompidas ao terminar o Locust são contadas separadamente, sem entrar em requisições concluídas ou
+sucessos. Exceções inesperadas são falhas. Relatórios de erro guardam somente etapa, ferramenta, código fixo,
+status numérico e motivo de lista fechada; nunca a exceção, corpo, argumentos ou credenciais recebidas.
 
 O runner salva `latencia.json`, `carga-normal.json` e `carga-limite.json` antes de tentar o corpus. Sem agente leitor,
 `integracao.json` informa o resultado parcial, a dependência e quais ensaios executaram. Nenhuma resposta,

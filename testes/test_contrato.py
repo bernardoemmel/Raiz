@@ -53,6 +53,24 @@ def test_coluna_que_nao_converte_nao_derruba(tmp_path):
     assert any("eudr_ok" in a for a in lt.avisos)
 
 
+@pytest.mark.parametrize("coluna", ["eudr_ok", "dat_criacao"])
+def test_aviso_de_conversao_nao_copia_conteudo_privado(tmp_path, coluna):
+    marcador = "contato@exemplo.invalid"
+    df = pd.read_csv(IMOVEIS, dtype=str).head(1)
+    df[coluna] = marcador
+    arquivo = tmp_path / "imoveis_1504950.csv"
+    df.to_csv(arquivo, index=False)
+
+    leitura = contrato.ler(arquivo)
+
+    assert marcador not in " ".join(leitura.avisos)
+    assert leitura.tipadas[contrato.coluna_banco(coluna)].isna().all()
+    assert leitura.atributos[0][coluna] == marcador
+    assert leitura.avisos == [
+        f"coluna {coluna} não converteu para {contrato.CONTRATOS['imoveis'][coluna]}; guardada em atributos"
+    ]
+
+
 def test_coluna_pessoal_e_removida(tmp_path):
     df = pd.read_csv(IMOVEIS, dtype=str).head(3)
     df["nome_proprietario"] = "Fulano"

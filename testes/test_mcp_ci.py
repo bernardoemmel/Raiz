@@ -158,6 +158,18 @@ def test_aviso_nao_encobre_falha_obrigatoria(tmp_path, capsys, fluxo_controlado,
     dado = json.loads((tmp_path / "integracao.json").read_text())
     assert dado["estado"] == "falha"
     assert "ensaios_executados" not in dado
+    assert (
+        dado["etapa"]
+        == {
+            "oauth": "integracao",
+            "latencia": "latencia",
+            "normal": "carga_normal",
+            "limite": "carga_limite",
+            "retry_after": "carga_limite",
+            "finalizacao": "integracao",
+            "corpus": "corpus",
+        }[defeito]
+    )
     if defeito == "corpus":
         assert etapas == ["oauth", "latencia", "normal", "limite", "corpus"]
 

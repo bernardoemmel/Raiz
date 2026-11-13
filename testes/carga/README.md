@@ -56,6 +56,24 @@ adquirido pela própria empresa mediante débito do crédito sintético da fixtu
 relê a ficha com saldo zerado, sem compra implícita. As demais ferramentas conservam a chave da mesma intenção
 durante os replays. A aprovação de tempo/carga não equivale à aprovação do corpus de leitura de documentos, que continua explicitamente pendente.
 
+O perfil **normal** usa seis usuários com `constant_pacing(2)`: cerca de 180 chamadas/min distribuídas pelas sete
+ferramentas, aproximadamente 26 leituras de ficha/min por empresa. A cota real de fichas continua 30/min.
+As posições iniciais são rotacionadas, mantendo todas as ferramentas cobertas no ensaio de dez segundos.
+Pacing é tempo entre inícios de chamadas, fora da medição de resposta; não relaxa o requisito de menos de 5 s.
+O perfil **limite** continua com espera de 30–80 ms e exige 429 com Retry-After; aumentar usuários ou a taxa manual
+na fase normal pode exceder legitimamente a cota do produto. Nenhum limite foi desabilitado.
+
+O CI identificou que o perfil normal anterior, sem pacing, podia fazer mais de 30 leituras de ficha no minuto:
+254 chamadas, sete falhas e exatamente 30 fichas aprovadas. A reprodução isolada confirmou 30 leituras válidas
+e recusa da 31ª pelo serviço real. A correção ajusta a demanda do perfil normal ao orçamento, preservando a fase
+de saturação. Chamadas interrompidas no término do Locust não contam mais como requisições concluídas/sucessos;
+aparecem em `interrompidas`. Exceções ordinárias inesperadas contam como falha. Os novos diagnósticos são
+agregados por ferramenta/código/status/motivo fechado, sem corpo nem texto de terceiros.
+O runner usa `--stop-timeout 5`, mantendo o prazo de resposta de 4,9 s: chamadas em voo podem concluir ou falhar
+antes do encerramento. O ensaio corrigido aprovou 30 chamadas normais e 480 na saturação (391 respostas 429),
+sem falhas e com todas as sete ferramentas nas duas fases. Os maiores tempos foram 0,284 s e 1,013 s,
+respectivamente; a medição isolada foi de até 0,149 s. Evidências locais: `/tmp/raiz-mcp-perfil-final/`.
+
 
 ## Integração disponível após #45/#69/#72
 

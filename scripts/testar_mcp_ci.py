@@ -17,6 +17,7 @@ import re
 import subprocess
 import sys
 import tomllib
+from contextlib import contextmanager
 from pathlib import Path
 
 RAIZ = Path(__file__).resolve().parents[1]
@@ -42,6 +43,23 @@ class CorpusPendente(RuntimeError):
     """Sinal de indisponibilidade; uma exceção não comprova os ensaios anteriores."""
 
 
+class FalhaEnsaioMCP(RuntimeError):
+    def __init__(self, etapa: str):
+        permitidas = {"integracao", "latencia", "carga_normal", "carga_limite", "corpus"}
+        self.etapa = etapa if etapa in permitidas else "integracao"
+        super().__init__("Ensaio MCP reprovado")
+
+
+@contextmanager
+def _etapa(nome: str):
+    try:
+        yield
+    except FalhaEnsaioMCP:
+        raise
+    except Exception:
+        raise FalhaEnsaioMCP(nome) from None
+
+
 def executar(resultado: Path) -> dict:
     from testes.carga.contrato import conferir_relatorio
     from testes.mcp.avaliacao import avaliar_injecoes
@@ -50,14 +68,15 @@ def executar(resultado: Path) -> dict:
     # A integração pertence ao produto: precisa iniciar OAuth/MCP/banco reais e
     # fornecer observadores independentes. Ausência desse módulo REPROVA se há MCP.
     modulo = importlib.import_module("testes.mcp.produto")
-    with modulo.integracao() as produto:
-        latencia = medir_latencia(produto.cliente, produto.casos)
+    with _etapa("integracao"), modulo.integracao() as produto:
+        with _etapa("latencia"):
+            latencia = medir_latencia(produto.cliente, produto.casos)
         (resultado / "latencia.json").write_text(json.dumps(latencia, ensure_ascii=False, indent=2))
         cargas = []
         for fase in ("normal", "limite"):
             arquivo = (resultado / f"carga-{fase}.json").resolve()
             # Cada contexto prepara dados descartáveis e o orçamento da fase.
-            with produto.carga(fase) as variaveis:
+            with _etapa(f"carga_{fase}"), produto.carga(fase) as variaveis:
                 env = {**os.environ, **variaveis, "RAIZ_CARGA_FASE": fase, "RAIZ_CARGA_RELATORIO": str(arquivo)}
                 r = subprocess.run(
                     [
@@ -73,6 +92,8 @@ def executar(resultado: Path) -> dict:
                         "6",
                         "--run-time",
                         "10s",
+                        "--stop-timeout",
+                        "5",
                         "--only-summary",
                     ],
                     cwd=RAIZ,
@@ -87,7 +108,9 @@ def executar(resultado: Path) -> dict:
                 if conferir_relatorio(dado, set(produto.casos)):
                     raise RuntimeError("Contrato da carga MCP reprovou")
                 cargas.append(dado)
-        if modulo.corpus_pendente(produto.ambiente, produto.inventario):
+        with _etapa("corpus"):
+            pendente = modulo.corpus_pendente(produto.ambiente, produto.inventario)
+        if pendente:
             # Exceção autorizada somente neste ponto, após todos os ensaios reais.
             # A saída do contexto ainda confere a vigília de rede; falha reprova.
             return {
@@ -101,7 +124,8 @@ def executar(resultado: Path) -> dict:
                 "latencia": latencia,
                 "carga": cargas,
             }
-        injecoes = asyncio.run(avaliar_injecoes(produto.ambiente))
+        with _etapa("corpus"):
+            injecoes = asyncio.run(avaliar_injecoes(produto.ambiente))
         return {"estado": "aprovado", "injecoes": injecoes, "latencia": latencia, "carga": cargas}
 
 
@@ -127,11 +151,12 @@ def main(argv=None) -> int:
             dado = executar(args.resultado)
             if dado["estado"] == "parcial":
                 print("::warning title=Corpus MCP pendente::" + dado["aviso"])
-    except Exception:
+    except Exception as ex:
         # Não ecoar exceções do adaptador, servidor, OAuth ou Locust.
         codigo = 1
         dado = {
             "estado": "falha",
+            "etapa": ex.etapa if type(ex) is FalhaEnsaioMCP else "integracao",
             "aviso": "MCP reprovado: falha na integração ou nos ensaios obrigatórios; consulte diagnóstico sanitizado.",
         }
         print("::error title=MCP reprovado::" + dado["aviso"])

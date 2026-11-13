@@ -250,9 +250,10 @@ def ler(arquivo: str | Path, tipo: str | None = None) -> Leitura:
             continue
         try:
             tipadas[coluna_banco(nome)] = converter(df[nome], tipo_col)
-        except (ValueError, TypeError) as ex:
+        except (ValueError, TypeError):
             nao_converteram.append(nome)
-            avisos.append(f"coluna {nome} não converteu para {tipo_col} ({str(ex)[:80]}); guardada em atributos")
+            # Parsers incluem o valor recebido na exceção; o aviso também vai para banco e logs.
+            avisos.append(f"coluna {nome} não converteu para {tipo_col}; guardada em atributos")
             tipadas[coluna_banco(nome)] = pd.Series([None] * len(df), index=df.index, dtype=object)
     chave = next(iter(contrato))
     if chave in nao_converteram or chave not in df:

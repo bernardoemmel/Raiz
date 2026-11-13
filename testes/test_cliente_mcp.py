@@ -133,3 +133,34 @@ def test_mcp_v2_stateless_descobre_e_envia_metadados_em_todas_as_chamadas(monkey
         finally:
             cliente.fechar()
     assert [metodo for metodo, _ in chamadas] == ["server/discover", "tools/list", "tools/call", "tools/list"]
+
+
+@pytest.mark.parametrize("prefixo", ["", "Error executing tool consultar_ficha: "])
+def test_diagnostico_de_ferramenta_preserva_so_status_e_motivo_fechado(monkeypatch, prefixo):
+    privado = "marcador-privado-exemplo"
+    problema = {
+        "status": 429,
+        "type": "https://github.com/bernardoemmel/Raiz/blob/main/docs/agentes-ia.md#erro-ficha_indisponivel",
+        "detail": privado,
+        "extra": {"token": privado},
+    }
+    cliente = ClienteMCP("http://localhost:8765/mcp", "token-local-descartavel")
+    cliente.iniciado = True
+    monkeypatch.setattr(
+        cliente, "_enviar", lambda *_: {"isError": True, "content": [{"text": prefixo + json.dumps(problema)}]}
+    )
+    with pytest.raises(ErroMCP) as falha:
+        cliente.chamar("consultar_ficha", {})
+    assert falha.value.diagnostico() == {
+        "codigo": "ferramenta_reprovada",
+        "status": 429,
+        "motivo": "ficha_indisponivel",
+    }
+    assert privado not in str(falha.value) + json.dumps(falha.value.diagnostico())
+    cliente.fechar()
+
+
+def test_diagnostico_recusa_codigo_status_e_motivo_livres():
+    privado = "marcador-privado-exemplo"
+    falha = ErroMCP("mensagem fixa", codigo=privado, status=privado, motivo=privado)
+    assert falha.diagnostico() == {"codigo": "mcp_invalido", "status": None, "motivo": "outro"}

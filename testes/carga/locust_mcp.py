@@ -6,6 +6,7 @@ ou casos reprovam o comando; nunca produz aprovação vazia.
 
 from __future__ import annotations
 
+import itertools
 import json
 import os
 import time
@@ -13,7 +14,7 @@ from collections import Counter
 from pathlib import Path
 
 from gevent import Timeout
-from locust import User, between, events, task
+from locust import User, between, constant_pacing, events, task
 
 from testes.carga.contrato import conferir_relatorio
 from testes.mcp.cliente import ClienteMCP, ErroMCP, LimiteMCP
@@ -22,6 +23,8 @@ FASE = os.environ.get("RAIZ_CARGA_FASE", "normal")
 CONTAGEM = Counter()
 SUCESSOS = Counter()
 MAX_MS = 0.0
+ERROS = Counter()
+USUARIOS = itertools.count()
 CASOS: dict[str, dict] = {}
 BASE: ClienteMCP | None = None
 
@@ -54,7 +57,16 @@ def medir(response_time, exception, **_):
 
 @events.quitting.add_listener
 def finalizar(environment, **_):
-    dado = {"fase": FASE, **CONTAGEM, "sucessos": dict(SUCESSOS), "max_ms": MAX_MS}
+    dado = {
+        "fase": FASE,
+        **CONTAGEM,
+        "sucessos": dict(SUCESSOS),
+        "max_ms": MAX_MS,
+        "falhas_por_tipo": [
+            {"ferramenta": ferramenta, "codigo": codigo, "status": status, "motivo": motivo, "quantidade": quantidade}
+            for (ferramenta, codigo, status, motivo), quantidade in sorted(ERROS.items(), key=lambda item: str(item[0]))
+        ],
+    }
     dado["erros"] = conferir_relatorio(dado, set(CASOS))
     if not CASOS:
         dado["erros"].append("MCP sem inventário real")
@@ -66,7 +78,9 @@ def finalizar(environment, **_):
 
 
 class MCPUsuario(User):
-    wait_time = between(0.03, 0.08)
+    # Seis usuários e sete ferramentas: ~26 fichas/min, abaixo da cota real 30/min.
+    # A espera fica fora do cronômetro de resposta. Saturação mantém alta demanda.
+    wait_time = constant_pacing(2) if FASE == "normal" else between(0.03, 0.08)
 
     def on_start(self):
         if BASE is None:
@@ -77,7 +91,8 @@ class MCPUsuario(User):
         self.cliente.identificadores = BASE.identificadores
         self.cliente.iniciado = True
         self.ferramentas = list(CASOS)
-        self.posicao = 0
+        # Distribui cobertura desde o início, mesmo no ensaio curto de dez segundos.
+        self.posicao = next(USUARIOS) % len(self.ferramentas)
 
     @task
     def ferramenta(self):
@@ -85,24 +100,38 @@ class MCPUsuario(User):
         self.posicao += 1
         inicio = time.monotonic()
         erro = None
+        concluida = False
         try:
-            with Timeout(4.9, ErroMCP("Ferramenta MCP excedeu prazo de 4,9 s")):
+            with Timeout(4.9, ErroMCP("Ferramenta MCP excedeu prazo de 4,9 s", codigo="prazo")):
                 self.cliente.chamar(nome, CASOS[nome]["argumentos"])
             SUCESSOS[nome] += 1
+            concluida = True
         except LimiteMCP:
             CONTAGEM["limitadas"] += 1
             if FASE != "limite":
-                erro = ErroMCP("429 abaixo do orçamento configurado")
+                erro = ErroMCP("429 abaixo do orçamento configurado", codigo="limite_inesperado", status=429)
+            concluida = True
         except ErroMCP as ex:
             erro = ex
+            concluida = True
+        except Exception:
+            erro = ErroMCP("Falha inesperada no transporte de carga MCP", codigo="erro_inesperado")
+            concluida = True
         finally:
-            self.environment.events.request.fire(
-                request_type="MCP",
-                name=nome,
-                response_time=(time.monotonic() - inicio) * 1000,
-                response_length=0,
-                exception=erro,
-            )
+            if concluida:
+                if erro is not None:
+                    d = erro.diagnostico()
+                    ERROS[(nome, d["codigo"], d["status"], d["motivo"])] += 1
+                self.environment.events.request.fire(
+                    request_type="MCP",
+                    name=nome,
+                    response_time=(time.monotonic() - inicio) * 1000,
+                    response_length=0,
+                    exception=erro,
+                )
+            else:
+                # Locust encerra greenlets ao terminar o tempo; não houve resposta.
+                CONTAGEM["interrompidas"] += 1
 
     def on_stop(self):
         self.cliente.fechar()
