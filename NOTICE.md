@@ -389,6 +389,7 @@ que não é aceita pelo projeto. A versão 10.78.0 evita essa dependência e man
 original do Lighthouse; sua compatibilidade é verificada com o teste de agentes e com eventos de telemetria
 capturados em transporte local, sem envio ao Sentry. Ao atualizar o Lighthouse ou esse pin, repetir essas
 verificações e a checagem integral de licenças; não liberar FSL nem instalar a CLI como exceção.
+
 # Rodada 12 — cálculo científico e fontes
 
 Integrações por API Python, sem código de terceiros copiado:
@@ -433,3 +434,14 @@ Dados e fatos científicos não herdam as licenças das bibliotecas:
   faixa em `ecologia_referencias_abertas.json`. Quantis foram calculados por
   código próprio. Cava (Zenodo 4941557, CC0) aparece como experimento rejeitado,
   sem promover a curva a previsão. Nenhum dado ou código NC foi incorporado.
+
+## Pasta do banco fiador e comprador
+
+Jinja2 **3.1.6**, Pallets ([documentação](https://jinja.palletsprojects.com/)),
+**BSD-3-Clause**: modelos próprios com StrictUndefined, sandbox e escape; não
+se aceita modelo fornecido por cliente ou terceiro. Biblioteca já travada no uv.lock.
+
+Tabulator **6.7.1**, Oli Folkerd ([código](https://github.com/olifolkerd/tabulator)),
+**MIT**, e `@types/tabulator-tables` **6.3.6**, DefinitelyTyped, **MIT**: grade da pasta
+no front. Instalação travada no npm, sem CDN, módulos de exportação ou código copiado.
+Adaptações de teclado/semântica ARIA estão no componente próprio da Raíz.

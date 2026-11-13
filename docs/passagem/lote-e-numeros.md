@@ -409,3 +409,10 @@ aprovados**, 294 skips de ambiente, um xfail e somente o replay PA desmarcado
 (aprovado separadamente no CI), em 658,63s. Os seis casos que exigem PostGIS passaram
 localmente após corrigir as expectativas. Nenhuma alteração de modelo ocorreu
 após congelar a execução PA R12 `43361839589`.
+
+Main `692663c` (pasta do banco/comprador) integrada; conflito no NOTICE resolvido
+preservando ambas as atribuições. 107 testes da nova pasta e auditoria da fila
+passaram com PostGIS real; Ruff e formatação dos 601 arquivos passaram. Modelo
+R12 permanece `restauracao-2026d+490ab152`. O CI anterior `43361791598` concluiu
+com apenas as duas expectativas R11 já corrigidas; novo head será enviado após
+essa conclusão natural. Oito fatias PA estavam concluídas neste registro.

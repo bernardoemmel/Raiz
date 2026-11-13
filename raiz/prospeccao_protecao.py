@@ -33,7 +33,18 @@ _VERSAO = r"[a-zA-Z0-9][a-zA-Z0-9_.]{0,23}"
 _MARCA = re.compile(rf"RZP-({_VERSAO})-([a-f0-9]{{32}})")
 _CAR = re.compile(r"[A-Z]{2}-\d{7}-[A-F0-9]{32}")
 _ACOES = frozenset(
-    ("ficha", "busca", "comparacao", "exportacao_pdf", "exportacao_json", "exportacao_csv", "visual", "historico")
+    (
+        "ficha",
+        "busca",
+        "comparacao",
+        "exportacao_pdf",
+        "exportacao_json",
+        "exportacao_csv",
+        "visual",
+        "historico",
+        "pasta",
+        "exportacao_pasta",
+    )
 )
 _CANAIS = frozenset(("site", "api", "mcp", "interno"))
 _ATIVA = contextvars.ContextVar("prospeccao_operacao_vigiada", default=None)
