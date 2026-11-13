@@ -6,15 +6,39 @@ from __future__ import annotations
 import contextlib
 import io
 import json
+import logging
 import time
 import traceback
 import uuid
 from dataclasses import dataclass, field
+from pathlib import Path
 
 from sqlalchemy import Engine, text
 
+from raiz import RAIZ_REPO
 from raiz.logs_seguros import sanitizar_estrutura, sanitizar_log
 from raiz.operacao.healthchecks import Healthchecks
+
+log = logging.getLogger(__name__)
+
+
+def _diagnostico(ex: Exception) -> dict:
+    """Localiza a falha sem mensagem livre, fonte, variáveis ou dados pessoais."""
+    quadros = []
+    tb = ex.__traceback__
+    while tb is not None:
+        arquivo = Path(tb.tb_frame.f_code.co_filename).resolve()
+        if arquivo.is_relative_to(RAIZ_REPO):
+            quadros.append({"arquivo": str(arquivo.relative_to(RAIZ_REPO)), "linha": tb.tb_lineno})
+        tb = tb.tb_next
+    motivo = None
+    if isinstance(ex, ValueError) and str(ex) in {
+        "embargo ativo sem geometria poligonal válida; cálculo bloqueado",
+        "embargo ativo com geometria ausente ou vazia; cálculo de restrições bloqueado",
+        "embargo ativo sem geometria poligonal após reparo; cálculo de restrições bloqueado",
+    }:
+        motivo = "embargo_ativo_sem_geometria_utilizavel"
+    return {"tipo": type(ex).__name__, "motivo": motivo, "quadros": quadros[-12:]}
 
 
 @dataclass
@@ -45,7 +69,8 @@ def lote(engine: Engine | None, hc: Healthchecks, tarefa: str, uf: str | None, c
     reg = Registro()
     try:
         yield reg
-    except Exception:
+    except Exception as ex:
+        log.warning("falha da tarefa %s %s %s: %s", tarefa, uf, cod_municipio, json.dumps(_diagnostico(ex)))
         fim = sanitizar_log(reg.saida.getvalue()[-4000:] + "\n" + traceback.format_exc()[-4000:])
         _fechar(engine, lote_id, "falha", reg, fim, t0)
         hc.falha(slug, rid, f"{tarefa} {uf} {cod_municipio} FALHOU\n{fim}")

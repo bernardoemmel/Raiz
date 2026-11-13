@@ -30,6 +30,14 @@ log = logging.getLogger(__name__)
 _REDE_PRIVADA = contextvars.ContextVar("raiz_rede_privada", default=False)
 
 
+class FalhaHTTPPrivada(RuntimeError):
+    """Status utilizável na retomada sem preservar URL, resposta ou credencial."""
+
+    def __init__(self, status: int, operacao: str):
+        self.status = status
+        super().__init__(f"falha HTTP {status} no arquivo privado ({operacao})")
+
+
 class _SemLogsDeRedePrivada(logging.Filter):
     def filter(self, record) -> bool:
         # HTTPX registra a URL final assinada em INFO; httpcore pode registrar headers em DEBUG.
@@ -393,7 +401,7 @@ class ArmazemRelease:
         try:
             yield
         except httpx.HTTPStatusError as ex:
-            raise RuntimeError(f"falha HTTP {ex.response.status_code} no arquivo privado ({operacao})") from None
+            raise FalhaHTTPPrivada(ex.response.status_code, operacao) from None
         except httpx.HTTPError:
             raise RuntimeError(f"falha de comunicação com o arquivo privado ({operacao})") from None
         finally:
@@ -422,10 +430,21 @@ class ArmazemRelease:
     def _baixar_asset(self, nome: str, fresco: bool = False) -> bytes | None:
         if self.privado:
             rel = self._exigir_privado()
-            for ativo in self._assets(rel):
-                if ativo.get("name") == nome:
-                    return self._baixar_ativo(ativo)
-            return None
+            for tentativa in range(4):
+                ativo = next((a for a in self._assets(rel) if a.get("name") == nome), None)
+                if ativo is None and tentativa == 0:
+                    return None
+                if ativo is not None:
+                    try:
+                        return self._baixar_ativo(ativo)
+                    except FalhaHTTPPrivada as ex:
+                        if ex.status != 404:
+                            raise
+                if tentativa < 3:
+                    # O upload substitui o ID: uma listagem válida pode envelhecer
+                    # antes do GET. Ausência após um 404 não significa estado vazio.
+                    time.sleep(0.25 * 2**tentativa)
+            raise RuntimeError("arquivo privado substituído durante a leitura; tente novamente")
         r = self.cli.get(self.url(nome), params={"t": str(time.time_ns())} if fresco else None)
         if r.status_code == 404:
             return None
