@@ -433,3 +433,83 @@ relatórios Lighthouse passaram pelo portão fixo. E9 real não foi calibrado e 
   não libera medidas de grupos cujo tamanho mínimo não pode ser confirmado. Dezenove testes focados passaram.
 - A atualização da main para o histórico automático foi incorporada; preservadas a nota do Calendário
   sobre o runner e a exceção exata de URL JDBC sem credenciais.
+
+## Continuação, entrega 2: lotes abertos e detalhes autenticados (13/11/2026 UTC)
+
+- `raiz.lotes_publicos` lê **somente o manifesto privado**, depois de conferir a visibilidade autenticada,
+  tamanho e hash. A projeção `publico_lotes` v1 publica apenas os sete indicadores autorizados; não baixa
+  os pacotes por fazenda. Token restrito ao passo do Actions, sem variável `VITE_`, cache ou artifact privado.
+  O build e o navegador reaplicam a lista positiva. O formato completo antigo é recusado.
+- Fonte real: rodada `central_r11`, modelo `restauracao-2026d+a84f9789`, publicada em
+  `2026-11-12T20:47:42Z`, 144 municípios e 345.870 fazendas calculadas no Pará. Pedido de referência:
+  um milhão de créditos, contrato de US$ 55 por crédito. Alterar os critérios não recalcula esse snapshot.
+- A comparação aberta usa o mesmo conjunto de titulares **e fazendas de reserva** em cada medida:
+
+| Opção | P10 / P50 / P90 de créditos | Hectares | Fazendas | Custo médio por crédito |
+|---|---|---:|---:|---:|
+| Mais barata | 1.298.148 / 1.871.150 / 2.309.231 | 9.561,3 | 95 | US$ 26,83 |
+| Mais segura | 1.310.708 / 1.891.833 / 2.332.670 | 9.942,8 | 270 | US$ 27,68 |
+| Mais compacta | 1.339.520 / 1.950.679 / 2.426.929 | 10.838,4 | 25 | US$ 33,29 |
+
+- **Terra documental pronta: zero créditos e 0% da meta nas três opções.** O indicador exige matrícula
+  conferida ou concessão; não usa a oferta estadual do solver, que também aceita matrícula a conferir.
+  Uma futura mistura sem quantis separados permanece desconhecida: não ratear créditos por hectares ou fazendas.
+  Isso não afirma que uma concessão ou matrícula por si só libera a venda; os lotes continuam sujeitos à diligência.
+- A tela aberta não mostra TIR, composição, CAR, mapa da seleção, tabela por fazenda, travas ou “o que destrava”.
+  O cadastro básico geral permanece aberto, separado da identidade das fazendas de cada lote.
+- Na área autenticada, os detalhes usam o transporte e o DTO da API. Sem servidor, a opção explícita
+  “Conhecer a demonstração da área logada” abre uma sessão separada e dados inteiramente fictícios, com IDs
+  `DEMONSTRACAO-*` e contornos artificiais. Não lê o Release privado, não libera fichas reais, não cobra e não
+  inicia contato. Uma API configurada sempre prevalece sobre essa demonstração.
+- Quadro “o que destrava” usa somente a opção consultada; sem dado específico, informa ausência. Não reutiliza
+  as estatísticas gerais como se fossem a diligência daquele lote. Pequenas fazendas continuam incluídas.
+- Verificação: seis testes do projetor privado, 233 testes do front, TypeScript, Ruff, design e actionlint;
+  Playwright integrou resumo ausente/legado/permitido, demonstração, três lotes autorizados, ficha bloqueada,
+  teclado e axe a 360 px, sem 404. Pages também passou com publicação básica e zero erros no navegador.
+  Revisões independentes da projeção e do acesso não encontraram vazamento. O rótulo “custo médio” distingue
+  o custo estimado do preço de venda de US$ 55. E9 continua aguardando as cartas reais.
+
+## Continuação, entrega 3: sensibilidade do lote (12/11/2026, Brasília)
+
+- A comparação autenticada ganha controles de preço do crédito, reserva contra reversão (mínimo 20%),
+  taxa de desconto e cenário pessimista. Mostra as três opções, quantis de créditos, área, fazendas, VPL e
+  TIR do projeto, com fonte, data, versão e premissas. Desconto altera VPL; não altera a TIR do mesmo fluxo.
+- O endpoint exige identidade, escopo, liberação e propriedade do pedido antes de ler qualquer arquivo.
+  A grade privada é exata, sem interpolação: combinações inexistentes respondem ausência explícita, sem 404.
+  Pedido, modelo, critérios e composição precisam corresponder à revisão do lote; uma edição invalida a
+  comparação antiga. O componente limpa resultados defasados e descarta respostas em voo de outra revisão.
+- A rodada real do Pará publicou `sensibilidade: []`. O quadro informa essa ausência; a demonstração optativa
+  usa composições e fluxos inteiramente fictícios, sem ler dados pagos nem registrar resultados no aprendizado.
+  Publicar a grade real continua pendente no motor; não apresentamos o exemplo como previsão calibrada.
+- Contrato operacional em `docs/sensibilidade-lote.md`. Testes cobrem limites, grade exata, autorização antes
+  da leitura, ausência, distinção entre desconto/TIR e invalidação após editar o lote. Playwright cobre os quatro
+  controles, teclado, axe/360 px e respostas indisponíveis sem 404.
+
+## Continuação, entrega 4: pedido por estado, bioma ou Brasil (12/11/2026, Brasília)
+
+- Novo pedido permite as 27 UFs, seis biomas ou Brasil inteiro. Trocar o alcance limpa município, desenho e
+  raio ocultos da seleção anterior. Nenhuma lista de estados processados é fixa: a disponibilidade vem do
+  manifesto atual, com data, municípios lidos/esperados, estados parciais, ausentes e desconhecidos.
+- Os critérios seguem para a API existente, que filtra as fazendas pelo recorte. No modo aberto, cobertura
+  estadual não vira oferta do bioma: totais de fazendas/hectares ficam desconhecidos quando o recorte exato
+  não foi publicado. Municípios são deduplicados e informação suprimida não vira zero.
+- O resumo do Pará continua identificado como cenário publicado; não é extrapolado para outro estado,
+  bioma, Brasil inteiro ou novos filtros financeiros. A demonstração também conserva seu aviso fictício.
+- Testes cobrem estado recém-processado, disponibilidade parcial, troca de alcance e ausência. Playwright
+  passou por estado, bioma e Brasil com teclado, axe em 1440/360 px e zero 404; entra no CI junto da cena-alvo.
+
+## Continuação, entrega 5: acerto do modelo por versão (12/11/2026, Brasília)
+
+- O painel `#/acerto` compara previsões com observações elegíveis, separadas por modelo, versão, alvo,
+  horizonte e tipo de avaliação. Explica erro/viés, faixas e probabilidades na unidade adequada; não inventa
+  uma taxa geral nem elege um vencedor entre tarefas diferentes. WIS/Brier menores indicam menor erro.
+- API e exportador publicam somente agregados com pelo menos cinco imóveis distintos. CAR, resultados
+  individuais, fontes livres e medidas de grupos pequenos não entram no DTO aberto. O placar completo
+  permanece no endpoint operacional protegido. Cache público curto, fontes/data e limite de cobertura visíveis.
+- A avaliação exige valor/gabarito válidos e referência temporal compatível com a previsão. “Ao vivo” exige
+  prova de que a previsão foi congelada antes da observação; ausência de cronologia não vira comprovação.
+  A projeção não altera os retratos históricos nem os registros originais do aprendizado.
+- Ainda não há placar real anunciado no Release público. Sem `RAIZ_ACERTO_URL` ou API com dados elegíveis,
+  o site mostra ausência explícita, nunca 0% de acerto. O contrato e a operação estão em `docs/painel-acerto.md`.
+- Testes cobrem supressão, valores desconhecidos, proveniência e período. Playwright/axe passou em 1440/360 px
+  nas bases `/` e `/Raiz/`, sem 404. O painel também entra na série fixa de três medições Lighthouse no CI.

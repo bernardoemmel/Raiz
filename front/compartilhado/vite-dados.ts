@@ -45,10 +45,11 @@ const TIPOS: Record<string, string> = {
 /** repo: raiz do repositório; raizDados e cache só para teste (o normal é ler RAIZ_DADOS do ambiente ou do .env) */
 export function dadosRaiz(opcoes: { repo: string; raizDados?: string | null; cache?: string }) {
   const geo = path.resolve(opcoes.repo, process.env.RAIZ_GEO || "front/geo")
-  const lotes = path.resolve(opcoes.repo, process.env.RAIZ_LOTES || "dados/lotes")
+  const lotes = path.resolve(opcoes.repo, "dados/lotes-publicos")
   function lotePublicado() {
-    // Marcador de compatibilidade: nunca ler ou projetar lotes financeiros reais para o site aberto.
-    return projetarPublicacaoLote(null)
+    // Pasta distinta do arquivo financeiro legado. O publicador gravou somente a lista positiva v1.
+    const arquivo = path.join(lotes, "lote_PA_central_r11.json")
+    return projetarPublicacaoLote(fs.existsSync(arquivo) ? JSON.parse(fs.readFileSync(arquivo, "utf8")) : null)
   }
   const pasta = abrirPasta({
     repo: opcoes.repo,

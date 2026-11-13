@@ -12,7 +12,7 @@ name: Publicar o site
 on:
   push:
     branches: [main]
-    paths: ["front/**", "raiz/potencial_publico.py", ".github/workflows/publicar-site.yml"]
+    paths: ["front/**", "raiz/potencial_publico.py", "raiz/lotes_publicos.py", ".github/workflows/publicar-site.yml"]
   schedule:
     - cron: "41 10 * * *"
   workflow_dispatch:
@@ -82,6 +82,12 @@ jobs:
           RAIZ_DADOS_PRIVADOS_TOKEN: ${{ github.token }}
         run: python -m raiz.potencial_publico
 
+      - name: Resumo aberto dos lotes, sem baixar composição ou pacotes pagos
+        env:
+          RAIZ_DADOS_PRIVADOS_URL: release-github://${{ github.repository }}/dados-privados
+          RAIZ_DADOS_PRIVADOS_TOKEN: ${{ github.token }}
+        run: python -m raiz.lotes_publicos
+
       - name: "Guardar as geometrias (mesmo as de uma rodada pela metade: o geo.py só baixa o que falta)"
         if: always()
         uses: actions/cache/save@v4
@@ -101,6 +107,7 @@ jobs:
           RAIZ_DADOS: dados/publicos
           # Variável vazia mantém o Pages de projeto. Um hostname publica / e grava site/CNAME.
           RAIZ_DOMINIO: ${{ vars.RAIZ_DOMINIO }}
+          RAIZ_ACERTO_URL: ${{ vars.RAIZ_ACERTO_URL }}
         run: front/scripts/construir-site.sh
 
       - name: Contar municípios novos desde o último site publicado

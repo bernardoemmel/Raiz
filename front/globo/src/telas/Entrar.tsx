@@ -71,7 +71,23 @@ export function Entrar({ token, volta }: { token: string | null; volta?: string 
       <Cabecalho atual="pedidos" />
       <main id="conteudo" tabIndex={-1} className="pagina pagina-estreita">
         <h1>Entrar na Raíz</h1>
-        {token ? (
+        {pedidos.exemplo && !token ? (
+          <section className="entrar-pronto" aria-label="Entrada na demonstração">
+            <AvisoExemplo ativo />
+            <p>Sem servidor conectado, esta entrada abre somente a demonstração local. Não pede e-mail nem dá acesso a dados pagos.</p>
+            <button type="button" className="botao principal" disabled={estado.tipo === "mandando"} onClick={async () => {
+              setEstado({ tipo: "mandando" })
+              try {
+                await pedidos.confirmar("demonstracao")
+                avisarSessao()
+                guardarVolta(null)
+                location.hash = "#/pedidos/demonstracao"
+              } catch (e) { setEstado({ tipo: "erro", erro: (e as Error).message }) }
+            }}>Abrir demonstração da área logada</button>
+            {estado.erro && <p role="alert">{estado.erro}</p>}
+            <p><a href={`${location.pathname}#/pedidos/novo`}>Voltar aos resumos públicos</a></p>
+          </section>
+        ) : token ? (
           confirmando === "confirmando" ? (
             <Estado tipo="carregando" titulo="Conferindo o link" />
           ) : (

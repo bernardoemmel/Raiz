@@ -2254,7 +2254,7 @@ button.link:hover {
   .topo > nav { margin-left: auto; }
   .topo .marca { gap: var(--e1); font-size: 18px; }
   .menu { gap: 0; }
-  .menu a { padding-inline: var(--e2); }
+  .menu a { padding-inline: var(--e1); }
   .gaveta-alca { height: 48px; }
   .opcao, .aba, summary { min-height: 48px; }
   :focus-visible { scroll-margin-block: 160px; }

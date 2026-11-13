@@ -90,7 +90,7 @@ try {
   await browser.close()
 
   chrome = await launch({ chromePath: executablePath, chromeFlags: ["--headless", ...args] })
-  for (const [nome, caminho] of [["brasil", ""], ["entrar", "#/entrar"], ["novo-pedido", "#/pedidos/novo"], ["prospeccao", "#/prospeccao"], ["produtor", "produtor/"]]) {
+  for (const [nome, caminho] of [["brasil", ""], ["entrar", "#/entrar"], ["novo-pedido", "#/pedidos/novo"], ["prospeccao", "#/prospeccao"], ["acerto", "#/acerto"], ["produtor", "produtor/"]]) {
     const amostras = []
     for (let rodada = 1; rodada <= 3; rodada++) {
       const resultado = await lighthouse(servidor.url + caminho, {

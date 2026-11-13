@@ -30,6 +30,7 @@ from pydantic import BaseModel, Field
 
 from raiz.pedidos import servico as S
 from raiz.pedidos.campos import CamposPedido
+from raiz.pedidos.sensibilidade import ParametrosSensibilidade
 from raiz.publica import apresentacao as AP
 from raiz.publica import chaves as K
 from raiz.publica import conta as CT
@@ -520,6 +521,41 @@ def criar(engine_de: Callable[[Request], Any], verificador=None) -> FastAPI:
         pedido = S.obter_pedido(engine_de(request), pedido_id, a.cliente_id)
         request.state.cods_expostos = [i["cod_imovel"] for o in pedido["opcoes"] for i in o.get("itens", [])]
         return ok(AP.pedido(pedido))
+
+    @app.post(
+        "/pedidos/{pedido_id}/sensibilidade",
+        tags=["Pedido de lote"],
+        summary="Comparar cenários publicados dos três lotes",
+    )
+    @limiter.shared_limit(LIMITE, scope="empresa")
+    def sensibilidade(
+        pedido_id: Pid,
+        parametros: ParametrosSensibilidade,
+        request: Request,
+        a: Acesso,
+        if_match: Annotated[str | None, Header()] = None,
+    ) -> JSONResponse:
+        from raiz.pedidos.sensibilidade import consultar
+        from raiz.publica.rotas_agentes import exigir_escopo
+
+        exigir_escopo(engine_de(request), a, "comparar_lotes")
+        CT.exigir_liberacao(engine_de(request), a.cliente_id)
+        pedido = S.obter_pedido(engine_de(request), pedido_id, a.cliente_id)
+        revisao = pedido.get("revisao_lote")
+        if not revisao or if_match != f'"{revisao}"':
+            raise HTTPException(
+                412,
+                {
+                    "slug": "lote_alterado",
+                    "mensagem": "O lote mudou ou não tem revisão válida.",
+                    "corrigir": "Atualize o pedido antes de consultar a sensibilidade.",
+                },
+            )
+        request.state.pedido_id = pedido_id
+        request.state.alcance = {"sensibilidade": parametros.model_dump(), "revisao_lote": revisao}
+        resposta = ok(consultar(pedido, parametros))
+        resposta.headers["Cache-Control"] = "private, no-store"
+        return resposta
 
     @app.get("/pedidos/{pedido_id}/alertas", tags=["Pedido de lote"])
     @limiter.shared_limit(LIMITE, scope="empresa")
