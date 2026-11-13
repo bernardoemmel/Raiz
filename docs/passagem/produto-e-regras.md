@@ -86,7 +86,10 @@ conservando todas as exigências sobre resultados, artefatos e o caso estadual.
 Front, e2e, segurança, segredos, workflows, agentes e referência estadual passaram.
 A main `6b9c377` (avaliação de carbono/equidade) foi incorporada, inclusive sua
 política de não cancelar o CI anterior e o histórico completo para auditoria.
-Passaram 70 testes focados e Ruff após a integração; o CI integral será repetido.
+Passaram 70 testes focados e Ruff após a integração. O CI seguinte parou na
+instalação do uv porque a consulta da versão mais recente atingiu a cota da API
+GitHub. CI e medição agora fixam uv 0.13.8, já usado na execução anterior,
+eliminando essa consulta e mantendo as dependências travadas. O CI será repetido.
 
 A sétima campanha (`43368316000`, `ea25614`) terminou incompleta após 43 sessões;
 a descoberta MCP falhou na quarta tentativa de limite por empresa. O artefato
