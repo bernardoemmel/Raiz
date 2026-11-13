@@ -26,20 +26,42 @@ E3, E5, E7, E8 e E9 têm a coluna Situação conferida contra a main; E1 e E2 ta
 
 Retomada em 12/11/2026, seguindo a passagem `docs/passagem/raiz-dados-do-brasil.md`.
 
-Validação da entrega de formatos: 1.511 testes na suíte completa com PostGIS, mais as verificações complementares
-da integração com API/MCP e Ficha; 681 licenças conferidas. Os 22 arquivos públicos e 39 canônicos privados tiveram
-bytes e hashes conferidos antes da catalogação. Publicação retroativa e verificação das atestações seguem após CI e merge.
+Formatos integrados pelo **#77**, com 1.859 testes no CI do PR; CI de push também verde. A validação local incluiu
+PostGIS, API/MCP, Ficha e 681 licenças. Os 22 arquivos públicos e 39 canônicos privados tiveram bytes e hashes
+conferidos antes da catalogação. A publicação retroativa e a verificação das atestações aguardam o término natural
+da rodada anterior ao novo publicador, sem cancelar jobs.
 
-A entrega seguinte das seis pendências E1/E2 passou em 1.588 testes com PostGIS (2 pulados e 1 xfail),
-preservando o limite compartilhado e o destino privado. A operação agendada da coleta ainda depende de Postgres permanente.
+As seis pendências E1/E2 foram integradas pelo **#79**, com 1.936 testes no CI do PR, preservando o limite
+compartilhado e o destino privado. A operação agendada da coleta ainda depende de Postgres permanente.
+
+O motor foi reativado com autorização do fundador. A entrega operacional promove apenas
+continuações/retentativas auditadas para o publicador seguro, mantém as reservas vivas e liga a catalogação ao
+término natural da rodada `43305564503`. Também corrige o retorno falso de sucesso quando a fonte MapBiomas
+falha antes do primeiro município: pedidos aceitos são retomados, a tentativa fica registrada e a fila deixa de
+disparar sucessivos jobs sem avanço. A integração protegida passou em **2.115 testes com PostGIS**, com dois
+skips locais (Pará inteiro e LanguageTool) e um xfail conhecido de TIR. As proteções do #81 foram incorporadas.
+Embargo ativo sem geometria válida bloqueia o cálculo, e a adoção exige versão comprovada e mantém a data original.
+Essas guardas permitem encaminhar as cinco origens auditadas para a referência fixa com E1/E2; versões alteradas
+são recalculadas pelo fluxo normal, sem atribuir versões novas a arquivos antigos ou mudar reservas vivas.
+O delta final de promoção/fila/catálogo passou em 285 testes, com Ruff e actionlint verdes. A confirmação
+em produção segue o merge desta correção.
+O CI anterior do #82 passou; antes do merge, a integração incorporou o #83, que exige a referência privada
+completa do Pará em um job separado e impede que esse teste seja pulado. Os 256 testes locais relacionados
+passaram; o CI dessa integração será conferido antes do merge.
+O Gitleaks também exigiu três exceções por ocorrência exata: hashes de código da auditoria MCP em uma branch
+externa, comprovados contra os bytes dos arquivos. A varredura completa passou localmente, sem ampliar regras.
+
+Oito pacotes reais adicionais ao RO foram validados offline: 2.696 CSVs, 57.863 campos Croissant e 4.283.214 linhas
+de quantis. Os diagnósticos de faixas cruzadas e ausência de produto foram preservados. Cinco UFs usam a regra
+histórica `restauracao-2026b+cenarios-2026b+dbc2776a`; sua recuperação fechada no Git antecederá os cronogramas CADT.
 
 | Ordem | Entrega | Situação |
 |---|---|---|
 | 1 | Limite global de 15 jobs de processamento, sem cancelar os existentes | **feito**: #43 e #46 mesclados com CI verde; admissão atômica na ref `raiz-fila-processamento`, incluindo pedidos manuais e continuações. A entrega de formatos amplia a mesma reserva ao catálogo e aos dois workflows do Lote PA, mantendo cotas até o fim da rodada e conferindo reruns antes dos dados. A retomada legada auditada ocupa cinco vagas; demais legados desconhecidos bloqueiam novas admissões. Falha de consulta bloqueia novas vagas. Pedidos do motor sem vaga ficam persistidos e são retomados a cada 15 minutos. Nenhum job foi cancelado pela retomada |
 | 2–3 | Fichas Croissant 1.1/schema.org e publicação no Release | **feito no publicador**: `raiz/metadados.py`, baker 0.8.3 e mlcroissant 1.1.1; fichas por pacote CSV, geometria, camadas e controle, com catálogos separados por acesso; o público recebe só fichas básicas, o privado recebe os derivados completos. SHA-256 dos bytes reais, leitura de tar testada e nenhuma licença de dados presumida. Baker e validador trabalham em subprocessos limitados por campos, preservando a ficha integral. A atualização retroativa de todos os assets será conferida na entrega final |
 | 4 | Quantis privados no formato hubverse, com versão do modelo | **feito no publicador**: Parquet longo, hub nativo por UF, tasks v6 e metadados por versão; data/versão ausentes geram diagnóstico. FLAG usa hipótese triangular explícita; P50 legado do desenvolvedor preserva o cenário central. Publicação retroativa pendente de execução |
-| 5 | Cartão do modelo | **feito**: `docs/modelo/cartao.md`, publicado como `cartao_modelo.md`; usos, dados, métodos, versões, métricas ainda sem validação de campo e limites |
-| 6 | Atestação dos arquivos publicados pelo Actions | **feito no workflow**: checksums dos uploads concluídos e `actions/attest-build-provenance@v2`, com OIDC e permissão de atestação. Finalizador da versão atual atende também execuções científicas fixadas em commits antigos. A execução e a verificação dos arquivos existentes serão registradas após o merge |
+| 5 | Cartão do modelo | **feito no código**: `docs/modelo/cartao.md`, preparado para publicação como `cartao_modelo.md`; usos, dados, métodos, versões, métricas ainda sem validação de campo e limites. A presença no Release será conferida após a execução retroativa |
+| 6 | Atestação dos arquivos publicados pelo Actions | **feito no workflow**: checksums dos uploads concluídos e `actions/attest-build-provenance@v2`, com OIDC e permissão de atestação. A integração do #81 identifica arquivos privados somente pelo hash do conteúdo e valida a lista antes da assinatura. Finalizador da versão atual atende também execuções científicas fixadas em commits antigos. A execução e a verificação dos arquivos existentes serão registradas após o merge |
 | 7 | Cronograma dos lotes no vocabulário CAD Trust | **feito no publicador**: cenários ProFloresta+ privados por UF, incrementos anuais inteiros cuja soma preserva o total P50; `cadt_lotes.json`, proveniência e diagnósticos. Âncora hipotética de 01/01/2027 configurável; não declara registro, certificação ou emissão |
 | 8 | Pendências E1/E2 da passagem, na ordem de dependência | **feito no código**: manifesto ArcGIS, assinaturas SIGEF/PRODES, CLI/replicação ArcGIS, Ibama no SCD2, alertas de qualidade e DuckDB/restrições no funil de produção; testes com PostGIS. A coleta continua dependendo de servidor e agendamento |
 
