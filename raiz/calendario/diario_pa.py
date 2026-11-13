@@ -16,7 +16,15 @@ def sementes(fonte: dict, hoje: dt.date) -> list[str] | None:
         return None
     desde = hoje - dt.timedelta(days=int(fonte.get("dias", 7)))
     base = fonte["urls"][0].rstrip("/")
-    return [f"{base}/{ano}/" for ano in sorted({hoje.year, desde.year}, reverse=True)]
+    indices = [f"{base}/{ano}/" for ano in sorted({hoje.year, desde.year}, reverse=True)]
+    # O índice pode falhar enquanto os PDFs oficiais continuam acessíveis. O
+    # padrão foi conferido nas próprias edições, sem intermediário nem login.
+    edicoes = [
+        f"{base}/{d.year}/{d:%Y.%m.%d}.DOE.pdf"
+        for i in range(int(fonte.get("dias", 7)))
+        for d in [hoje - dt.timedelta(days=i)]
+    ]
+    return indices + edicoes
 
 
 def links(texto: str, url: str, fonte: dict, hoje: dt.date) -> list[str] | None:

@@ -111,6 +111,8 @@ antigo por conexão via socket; preferir TCP e executar a suíte inteira, como n
 - HTTP transitório tem retentativas com espera; 401/403/CAPTCHA não têm contorno. PDF/OCR em RAM e subprocessos
   limitados; OCR sozinho e CAR de confrontante não confirmam vínculo. Identidade separa editais homônimos e praças.
 - **Pendências externas:** DJEN continua 403 na API e caderno oficiais; BA/MG/TO tiveram indisponibilidade.
+  A sondagem posterior também registrou leitura incompleta em AC/PI/RN/RO e restrição em RR. O índice PA oscilou;
+  há consulta direta de PDFs ordinários oficiais como alternativa, mantendo extras/cobertura parcial explícitos.
   Não substituir a API de produção pelo ambiente de homologação. Não marcar fonte saudável só porque o índice abre.
 - Evidência e limites em `docs/calendario.md`; resultado integrado em `/workspace/entregas/calendario-fontes/`, fora do git.
   Próximas entregas: avaliação/custo por documento, vigilância dos lotes e percurso da primeira certidão real.
