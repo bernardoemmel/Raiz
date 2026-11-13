@@ -312,7 +312,8 @@ não altera sua política nem equivale a aprovação dos testes de injeção pen
 
 ## Rodada 12 — medição do acerto e protocolo de mudança
 
-Entrega em preparação na branch `qualidade-avaliacao-modelos`, baseada na main `2b6e8af` (#84).
+Entrega na branch `qualidade-avaliacao-modelos`, atualizada com a main `c65d7bb` (#92).
+Os PRs #87, #88, #91 e #92 foram revistos e incorporados; o protocolo da rodada 12 permanece privado.
 
 - CRPS com properscoring, sorteios finitos e denominador `crps_n` no placar existente. Corrigido bug pequeno:
   distribuição estava fora do hash das previsões congeladas. Novo hash inclui o conteúdo; versão antiga não é
@@ -337,3 +338,11 @@ Pendências de outros chats, sem reescrever suas funcionalidades:
 | Fundador/infra de produção | Prover arquivo privado imutável, backup, relógio confiável e permissões segregadas. Um hash local não prova a veracidade das datas ou da medição. |
 
 Sem contato com dono, sem agendamento de revisão e sem dados individuais em Release/site/artefatos CI.
+
+Validação local da rodada 12: suíte completa com **2.342 aprovados, nenhum skip, 1 xfail conhecido de TIR
+e 1 falha** em 985,99 s. A falha é a ausência do snapshot estadual privado autenticado neste ambiente;
+não foi dispensada: o job `referencia_para` do CI precisa baixar e testar esse snapshot antes do merge.
+Os documentos gerados passaram em 10 testes com LibreOffice real. As regressões focadas, inclusive
+preservação das distribuições no PostGIS, passaram; CRPS de 20 mil sorteios exige a implementação Numba
+para evitar a alocação quadrática do fallback. Ruff, actionlint, esquemas, pacote construído e inventário
+de 867 dependências passaram nas verificações locais. O CI da revisão final continua obrigatório.
