@@ -664,7 +664,7 @@ Contrato: [docs/ficha-credito.md](../ficha-credito.md). Apresentação:
   voltam ao servidor sem cache reutilizável; uma cópia já baixada não pode ser recolhida.
 - A ficha atual preserva o portão anterior de CAR/satélite após aceite. Seu número compartilhável de hectares
   passa a ser apenas área do CAR, com projeção positiva para cartões e vídeos. Essa publicação básica não
-  abre a ficha privada do lote. A migração `0035_publico_eprel` cria a tabela e o bloqueio de alteração;
+  abre a ficha privada do lote. A migração `0036_publico_eprel` cria a tabela e o bloqueio de alteração;
   ainda deve ser aplicada no ambiente de publicação antes de servir a funcionalidade real.
 
 Contrato e operação: [docs/ficha-publica-versionada.md](../ficha-publica-versionada.md).
@@ -741,3 +741,20 @@ Contrato, acessibilidade e desenho: [docs/design/graficos-resultados.md](../desi
   medições Lighthouse locais (medianas 98/98/97/97/97/100, acessibilidade 100) e na série real
   82/95/95 (mediana 95, acessibilidade 100), mantendo todas as amostras. Os nove jobs do CI ainda
   precisam passar; esta integração não reaproveita notas anteriores nem interrompe processamento.
+- Integração da main `692663c` (PR #98, pasta do banco e comprador), a partir de `faf319a`: preservadas
+  a ficha resumida `/pedidos/{id}/ficha/{opcao}` e a pasta `/pedidos/{id}/pasta/{opcao}`, com login
+  obrigatório para a pasta e controles de conta, crédito e lote na API. A conferência documental da pasta
+  não alimenta por inferência os quantis ou gráficos da ficha R12: continuam valendo horizonte, evidência,
+  escopo e revisão próprios. Nenhum arquivo da pasta foi acrescentado à publicação estática.
+  A migração EPREL ainda não publicada foi renomeada para `0036_publico_eprel`, com pai `0035` (pasta),
+  evitando duas heads após `0034`. Um banco isolado novo passou por upgrade, downgrade à base e novo
+  upgrade; nenhuma migração de produção foi executada. Os conflitos de dependências, rotas e avisos foram
+  resolvidos preservando Tabulator, ECharts/Vega, Supercluster e seus testes. O registro de módulos do
+  ECharts recebeu apenas o alias `registrarECharts`, para o lint não confundir seu `use` com um Hook React.
+  Passaram 508 testes do front, 248 regressões Python, TypeScript, lint, Ruff, actionlint e a conferência
+  de 927 pacotes sem problema de licença. Os smokes da pasta, ficha de crédito, gráficos, prospecção e
+  ficha pública datada passaram com teclado e axe em celular, incluindo as recusas esperadas após retirar
+  o aceite e a troca de sessão.
+  O mapa, a entrada e as evidências não foram alterados nesta integração: os prints e notas Lighthouse
+  acima continuam atribuídos a `f0a7c96`; não representam uma medição do novo conjunto. O CI completo
+  medirá este HEAD antes de merge e publicação, sem cancelar workflows.

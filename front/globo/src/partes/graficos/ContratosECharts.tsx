@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from "react"
-import { init, use } from "echarts/core"
+import { init, use as registrarECharts } from "echarts/core"
 import { LineChart } from "echarts/charts"
 import { GridComponent, LegendComponent } from "echarts/components"
 import { SVGRenderer } from "echarts/renderers"
 import type { SerieContrato } from "../../../../compartilhado/graficos-resultados"
 import { opcaoContratos } from "./modelos"
 
-use([LineChart, GridComponent, LegendComponent, SVGRenderer])
+registrarECharts([LineChart, GridComponent, LegendComponent, SVGRenderer])
 export default function ContratosECharts({ serie }: { serie: SerieContrato }) {
   const elemento = useRef<HTMLDivElement>(null)
   const [erro, setErro] = useState(false)

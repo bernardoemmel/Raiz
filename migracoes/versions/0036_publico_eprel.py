@@ -1,13 +1,13 @@
 """Versão pública básica datada, com conteúdo imutável e sem dados pagos.
 
-Revision ID: 0035_publico_eprel
-Revises: 0034
+Revision ID: 0036_publico_eprel
+Revises: 0035
 """
 
 from alembic import op
 
-revision = "0035_publico_eprel"
-down_revision = "0034"
+revision = "0036_publico_eprel"
+down_revision = "0035"
 branch_labels = None
 depends_on = None
 

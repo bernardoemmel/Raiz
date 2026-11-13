@@ -445,3 +445,14 @@ As licenças dos pacotes instalados foram conferidas em 13/11/2026. Os textos in
 `front/globo/public/licencas/graficos.txt`, incluindo as dependências adicionadas; nenhum código-fonte foi copiado. Ambos os gráficos são carregados
 sob demanda, apenas quando o cliente abre o painel, e usam dados da ficha autenticada. O runtime
 Vega recebe somente valores locais e tem seu carregador de fontes externas bloqueado.
+
+## Pasta do banco fiador e comprador
+
+Jinja2 **3.1.6**, Pallets ([documentação](https://jinja.palletsprojects.com/)),
+**BSD-3-Clause**: modelos próprios com StrictUndefined, sandbox e escape; não
+se aceita modelo fornecido por cliente ou terceiro. Biblioteca já travada no uv.lock.
+
+Tabulator **6.7.1**, Oli Folkerd ([código](https://github.com/olifolkerd/tabulator)),
+**MIT**, e `@types/tabulator-tables` **6.3.6**, DefinitelyTyped, **MIT**: grade da pasta
+no front. Instalação travada no npm, sem CDN, módulos de exportação ou código copiado.
+Adaptações de teclado/semântica ARIA estão no componente próprio da Raíz.
