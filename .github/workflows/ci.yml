@@ -373,6 +373,8 @@ jobs:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
+          # O replay usa blobs auditados do motor R11; não renomeia previsões antigas.
+          fetch-depth: 0
       - uses: astral-sh/setup-uv@v7
         with:
           version: "0.13.6" # Pin compartilhado com os demais workflows; não consulta latest.

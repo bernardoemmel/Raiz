@@ -130,10 +130,11 @@ def test_catalogo_pa_tem144_municipios():
     assert len(RR.municipios_pa()) == 144
 
 
-def test_publicacao_so_atualiza_ponteiro_apos_todos_os_assets(tmp_path, monkeypatch):
+@pytest.mark.parametrize("cenario", ["central_r11", "central_r12"])
+def test_publicacao_so_atualiza_ponteiro_apos_todos_os_assets(tmp_path, monkeypatch, cenario):
     produto = tmp_path / "produto"
     produto.mkdir()
-    (produto / "manifesto.json").write_text(json.dumps({"municipios": 144}))
+    (produto / "manifesto.json").write_text(json.dumps({"municipios": 144, "cenario": cenario}))
     for nome in RR.OPCOES:
         (produto / nome).mkdir()
         (produto / nome / "lote.json").write_text("{}")
@@ -153,14 +154,14 @@ def test_publicacao_so_atualiza_ponteiro_apos_todos_os_assets(tmp_path, monkeypa
     with pytest.raises(RuntimeError, match="interrompido"):
         RR.publicar(tmp_path)
     assert all(c[1]["imutavel"] for c in chamadas)
-    assert not (tmp_path / "lote_PA_central_r11.json").exists()
+    assert not (tmp_path / f"lote_PA_{cenario}.json").exists()
     chamadas.clear()
     monkeypatch.setattr(RR, "enviar_arquivo", lambda nome, caminho, **kw: chamadas.append((nome, kw)))
     manifesto = RR.publicar(tmp_path)
     assert len(manifesto["arquivos"]) == 4
     assert len(chamadas) == 6
     assert all(c[1]["imutavel"] and c[1]["arm"] is arm for c in chamadas[:-1])
-    assert chamadas[-1][0] == "lote_PA_central_r11.json" and not chamadas[-1][1].get("imutavel")
+    assert chamadas[-1][0] == f"lote_PA_{cenario}.json" and not chamadas[-1][1].get("imutavel")
     assert all(a["acesso"] == "privado" and "url" not in a for a in manifesto["arquivos"].values())
     anterior = {nome: a["sha256"] for nome, a in manifesto["arquivos"].items()}
     assert anterior == {nome: a["sha256"] for nome, a in RR.publicar(tmp_path)["arquivos"].items()}

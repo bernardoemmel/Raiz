@@ -165,7 +165,17 @@ def test_ficha_deterministica_sem_horario_da_geracao(tmp_path):
     )
 
 
-def test_inferencia_le_tambem_os_blocos_posteriores(tmp_path):
+@pytest.mark.parametrize("threads", [False, True])
+def test_inferencia_le_tambem_os_blocos_posteriores(tmp_path, monkeypatch, threads):
+    import pyarrow.csv as csv_arrow
+
+    abrir = csv_arrow.open_csv
+
+    def ler(*args, **kwargs):
+        kwargs.setdefault("read_options", csv_arrow.ReadOptions()).use_threads = threads
+        return abrir(*args, **kwargs)
+
+    monkeypatch.setattr(csv_arrow, "open_csv", ler)
     # Arrow infere pelo primeiro MiB. Um decimal posterior não pode ficar
     # descrito como inteiro, senão o consumidor trunca a área do imóvel.
     (tmp_path / "imoveis_1504950.csv").write_text("cod_imovel,ha\n" + "CAR-A,3\n" * 160_000 + "CAR-B,2.5\n")

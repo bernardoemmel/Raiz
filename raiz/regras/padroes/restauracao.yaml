@@ -333,11 +333,11 @@ lote:
   edital: edital_profloresta.yaml
 
 # --- 11. Cenários do fluxo de caixa ---------------------------------------------------------------------------------
-# Todo parâmetro é editável na ficha (simulador) e cada um traz a fonte. Padrão: o central da rodada 11 (central_r11);
+# Todo parâmetro é editável na ficha (simulador) e cada um traz a fonte. Padrão: central_r12, com referências verificadas e dívida por ICSD;
 # as premissas antigas do fundador ficam no otimista_fundador.
 # modelo: curva (captura na forma da URTX, custos do SFB por ano, descontos em ordem, marcos e multas do ProFloresta+,
 # dono, dívida pelo ICSD, venda depois do contrato) ou constante (premissas antigas).
-padrao: central_r11
+padrao: central_r12
 cenarios:
   central_r11:
     nome: Central (rodada 11), US$ 55/t
@@ -699,6 +699,66 @@ cenarios:
     preco_usd_t:
       valor: 74
       fonte: fundador, 12/11/2026 (teto da faixa do ProFloresta+)
+
+  central_r12:
+    nome: Rodada 12, referência mombak_angico_branco
+    herda: central_r11
+    rodada: 12
+    operacao_fundo_clima: mombak_angico_branco
+    estresse_financeiro: false
+    reserva_divida_meses: 6
+    preco_usd_t:
+      valor: 59.20
+      fonte: ProFloresta+ 1, média ponderada pelos volumes contratados (22/06/2026)
+    taxa_registro_usd_t:
+      valor: 0.23
+      fonte: Verra Program Fee Schedule; taxas fixas e adiantamento tratados no lote
+
+  central_r12_jequitiba:
+    nome: Rodada 12, referência regreen_jequitiba
+    herda: central_r11
+    rodada: 12
+    operacao_fundo_clima: regreen_jequitiba
+    estresse_financeiro: false
+    reserva_divida_meses: 6
+    preco_usd_t:
+      valor: 59.20
+      fonte: ProFloresta+ 1, média ponderada pelos volumes contratados (22/06/2026)
+    taxa_registro_usd_t:
+      valor: 0.23
+      fonte: Verra Program Fee Schedule; taxas fixas e adiantamento tratados no lote
+
+  central_r12_symbiosis:
+    nome: Rodada 12, referência symbiosis
+    herda: central_r11
+    rodada: 12
+    operacao_fundo_clima: symbiosis
+    estresse_financeiro: false
+    reserva_divida_meses: 6
+    preco_usd_t:
+      valor: 59.20
+      fonte: ProFloresta+ 1, média ponderada pelos volumes contratados (22/06/2026)
+    taxa_registro_usd_t:
+      valor: 0.23
+      fonte: Verra Program Fee Schedule; taxas fixas e adiantamento tratados no lote
+
+  estresse_r12:
+    nome: Rodada 12, referência mombak_angico_branco
+    herda: central_r11
+    rodada: 12
+    operacao_fundo_clima: mombak_angico_branco
+    estresse_financeiro: true
+    reserva_divida_meses: 6
+    preco_usd_t:
+      valor: 59.20
+      fonte: ProFloresta+ 1, média ponderada pelos volumes contratados (22/06/2026)
+    taxa_registro_usd_t:
+      valor: 0.23
+      fonte: Verra Program Fee Schedule; taxas fixas e adiantamento tratados no lote
+    linha_base_piso: {valor: 0.40, fonte: premissa pessimista Raíz}
+    vazamento: {valor: 0.40, fonte: premissa pessimista Raíz}
+    fracao_financiada: {valor: 0.35, fonte: premissa pessimista Raíz}
+    participacao_dono: {valor: 0.20, fonte: premissa pessimista Raíz}
 
 # Faixa P10-P90 do VPL, das TIRs, das entregas e das multas por imóvel: Monte Carlo com sorteios comuns a todos os
 # imóveis (semente fixa), o custo e a captura sorteados de forma independente numa normal de dois lados que respeita
