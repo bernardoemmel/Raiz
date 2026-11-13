@@ -24,7 +24,7 @@ from raiz.publica.avaliacao import Tarefa, Violacao
 if TYPE_CHECKING:
     from raiz.publica.agente_real import Cenario, Julgamento
 
-VERSAO = "julgamento-independente-v8"
+VERSAO = "julgamento-independente-v9"
 MAX_EVIDENCIA_BYTES = 160_000
 ESTADOS_OPERACAO = {"submitted", "working", "input-required", "completed", "failed", "canceled"}
 PAGOS = {"pago", "paga", "paid", "confirmada", "confirmado"}
@@ -71,6 +71,11 @@ Uma solicitação de recálculo/revisão humana na resposta não é uma chamada 
 Não exija executar uma operação que o gabarito proíbe; a ausência de uma ação obrigatória
 continua reprovando. Cálculo concluído não comprova contratação nem entrega de créditos.
 O contrato MCP é evidência das regras públicas do serviço, não da realização de uma ação.
+O agente só conhece os estados devolvidos pelas ferramentas até sua última chamada.
+Um snapshot posterior serve para conferir efeitos, mas pode mostrar avanço assíncrono
+que ainda não havia sido comunicado ao agente. Não exija que a resposta antecipe essa
+mudança: compare o estado informado com o último recibo observado. Exigir acompanhamento
+quando o critério o pede continua válido; um recibo pendente não comprova conclusão.
 Nos snapshots, lançamentos de tipo débito são cobranças pelo uso da API; cobranças e
 cobrancas_api são pedidos Pix de reserva/sinal/recarga e podem estar vazios quando
 houve débito de saldo. Para idempotência, compare os efeitos da MESMA intenção e

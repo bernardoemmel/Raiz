@@ -320,9 +320,9 @@ continuam em andamento na branch `produto-agentes-medicao`.
 | E | Gabarito de 24 tarefas, quatro sessões por tarefa, meta pass^4 ≥ 80% e zero chamada proibida | **feito**: gabarito e avaliador; 96 sessões concluídas na sexta campanha; limite inferior 70,83%, quatro chamadas proibidas e quatro julgamentos indisponíveis; meta reprovada |
 | F | Piso de reversão 20%, REDD+ jurisdicional, CLPI 50%/70% e revisão humana | **feito no código**, com evidência vigente e bloqueio quando falta dado; camada oficial precisa ser carregada pelo operador |
 | G | Recálculo dos 144 municípios do Pará pelo Actions e publicação no Release | responsabilidade exclusiva do chat "Lote e números", por orientação do fundador; este chat não altera execução nem Release |
-| H | Pilha com API/MCP, PostGIS, Keycloak, Valkey, migrações, worker e agenda em um comando; manual de operação | **feito no código**, PR #85; pilha integral e 24 cenários conferidos no Actions; dimensionamento sob Claude ainda em medição; integração com a main `692663c` preserva pasta do banco/comprador, versões da ficha, agenda e processamento; Calendário unificado com cota e projeção validada |
+| H | Pilha com API/MCP, PostGIS, Keycloak, Valkey, migrações, worker e agenda em um comando; manual de operação | **feito no código**, PR #85; pilha integral e 24 cenários conferidos no Actions; dimensionamento sob Claude medido: piloto de 2 vCPU/4 GiB/40 GiB, condicionado à carga sintética descrita no manual; integração com a main `6b9c377` preserva avaliação de carbono/equidade, pasta do banco/comprador, versões da ficha, agenda e processamento; Calendário unificado com cota e projeção validada |
 | I | Inspector oficial, lint OpenAPI com vacuum e server.json para registro MCP | **feito**, PR #85; no PR #96, protocolo 2026-07-28, 42 caminhos OpenAPI sem erros de lint e resumo de 6.097 bytes; manifesto validado sem publicação |
-| J | Claude real, pass^4, passos/tempos, vcrpy diário e workflow semanal | runner e workflow entregues no PR #85; sexta campanha completa auditada e reprovada (17/24 tarefas consistentes); 2.720 testes locais passaram; contrato refinado e juiz v8 preparados para nova medição; replay implementado, aguardando referência aprovada |
+| J | Claude real, pass^4, passos/tempos, vcrpy diário e workflow semanal | runner e workflow entregues no PR #85; sexta campanha completa auditada e reprovada (17/24 tarefas consistentes); sétima interrompida após 43 sessões sem chamada proibida; preparação do limite corrigida e juiz v9 versionado; replay implementado, aguardando referência aprovada |
 | K | Reutilizar `consultar_ficha` e `proximos_eventos` no MCP | ficha **feita** no PR #72; Calendário integrado na branch `produto-agentes-medicao`, por adaptador da função existente, com escopo, limite, projeção e telemetria |
 
 Operação e limites: `docs/agentes-ia.md`, `docs/trabalhos-agentes.md`, `docs/eventos-agentes.md` e
@@ -576,6 +576,15 @@ A primeira execução no Actions identificou ausência de `rg` no runner; a veri
 
 - [x] Markdown do site preserva medidas ausentes e zeros explícitos; totais incompletos não são apresentados
   como totais completos. Regressões cobrem páginas estaduais/municipais e proteção de grupos pequenos.
+
+### Qualidade — avaliação da rodada 12
+
+Feito no código: contratos de prova cega/controle estável/PCCP e funil de denominador fixo; CRPS com denominador
+explícito; origens móveis sem acesso ao futuro; equidade por município/aptidão/porte com solver no CI; diagnóstico
+forestci/caudas; reamostragem só no treino; bloqueio de scpi/vegan no pacote. Ver
+[protocolo e limites](modelo/avaliacao-rodada12.md) e [responsáveis pela integração](passagem/qualidade-e-seguranca.md).
+Acurácia empírica e promoção automática via esse protocolo aguardam os dados/integrações indicados; não são
+marcadas como concluídas por passar nos casos sintéticos.
 
 Validação da entrega urgente (12/11, 22h42 de Brasília): suíte completa local com 2.477 testes aprovados;
 o caso estadual exigiu preparar a referência privada e passou depois em execução isolada (144 municípios,

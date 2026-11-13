@@ -3,6 +3,9 @@
 import copy
 import hashlib
 import json
+import subprocess
+import sys
+import tarfile
 from pathlib import Path
 
 import pytest
@@ -233,8 +236,7 @@ def test_gatilho_unico_nao_confia_em_codigo_de_outro_run(mudanca, autorizado):
     assert checkout["uses"] == "actions/checkout@v4" and "with" not in checkout
 
 
-def test_promocao_urgente_vincula_prova_anterior_e_codigo_corrigido(monkeypatch):
-    from raiz.executor import tarefas
+def test_promocao_urgente_vincula_prova_anterior_e_codigo_corrigido(tmp_path):
 
     prova = json.loads((RAIZ / "docs/passagem/auditoria-promocao-urgente.json").read_text())
     anterior = RAIZ / "docs/passagem/auditoria-promocao-publicador.json"
@@ -244,20 +246,39 @@ def test_promocao_urgente_vincula_prova_anterior_e_codigo_corrigido(monkeypatch)
     assert F.PROMOCOES_CONTINUACAO == {o: prova["destino"] for o in prova["origens"]}
     assert set(PROMOCOES) < set(prova["origens"])
     atual = prova["commits"][prova["destino"]]
-    # #93 mudou só a chamada da carga em rodar.py, que participa do hash das 11 tarefas.
-    # A fila continua no commit fechado anterior; não atribuir a versão da main aos seus resultados.
-    rodar = RAIZ / "raiz/funil/rodar.py"
-    novo = rodar.read_bytes()
-    chamada = b"depois_da_carga(eng, cod, estrito=True)"
-    assert novo.count(chamada) == 1
-    anterior_rodar = novo.replace(chamada, b"depois_da_carga(eng, cod)")
-    ler = Path.read_bytes
-    with monkeypatch.context() as m:
-        m.setattr(Path, "read_bytes", lambda p: anterior_rodar if p == rodar else ler(p))
-        assert atual["versoes_tarefas"] == {n: tarefas.versao(n) for n in tarefas.CODIGO}
-    assert all(atual["versoes_tarefas"][n] != tarefas.versao(n) for n in tarefas.CODIGO)
+    # A fila aponta para um commit fechado. Reexecutar essa referência impede
+    # atribuir aos resultados antigos os hashes do checkout atual, que pode evoluir.
+    ref = prova["destino"]
+    pacote = tmp_path / "codigo.tar"
+    with pacote.open("wb") as arquivo:
+        subprocess.run(["git", "archive", "--format=tar", ref], cwd=RAIZ, stdout=arquivo, check=True, timeout=30)
+    checkout = tmp_path / "checkout"
+    with tarfile.open(pacote) as arquivo:
+        arquivo.extractall(checkout, filter="data")
+    codigo = """
+import hashlib, json, sys
+from pathlib import Path
+raiz = Path(sys.argv[1]).resolve()
+sys.path.insert(0, str(raiz))
+from raiz.executor import tarefas
+versoes = {n: tarefas.versao(n) for n in tarefas.CODIGO}
+assert all(Path(m.__file__).resolve().is_relative_to(raiz)
+           for n, m in sys.modules.items() if (n == 'raiz' or n.startswith('raiz.')) and getattr(m, '__file__', None))
+digest = hashlib.sha256((raiz / 'raiz/executor/armazem.py').read_bytes()).hexdigest()
+print(json.dumps({'versoes': versoes, 'armazem': digest}))
+"""
+    resultado = subprocess.run(
+        [sys.executable, "-I", "-c", codigo, str(checkout)],
+        cwd=checkout,
+        capture_output=True,
+        text=True,
+        check=True,
+        timeout=60,
+    )
+    fechado = json.loads(resultado.stdout)
+    assert atual["versoes_tarefas"] == fechado["versoes"]
     assert atual["versoes_tarefas"] == prova["commits"][DESTINO]["versoes_tarefas"]
-    assert atual["armazem_sha256"] == hashlib.sha256((RAIZ / "raiz/executor/armazem.py").read_bytes()).hexdigest()
+    assert atual["armazem_sha256"] == fechado["armazem"]
     assert {p["origem"] for p in prova["comparacoes"]} == set(F.PROMOCOES_CONTINUACAO)
     for par in prova["comparacoes"]:
         origem = prova["commits"][par["origem"]]

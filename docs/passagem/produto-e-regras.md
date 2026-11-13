@@ -1,5 +1,32 @@
 # Passagem do chat "Produto e regras" (13/11/2026)
 
+## Sétima campanha: 43 sessões, interrupção reproduzida e corrigida
+
+A execução `43368316000`, congelada em `ea25614`/juiz v8, concluiu 43 sessões
+com zero chamada proibida e zero violação. A quarta tentativa de `limite_empresa`
+parou na descoberta MCP. Artefato `14012541009`, SHA-256 conferido, 90 arquivos
+sanitizados; números parciais em
+[`../medicoes/agentes-2026-11-13-campanha7.json`](../medicoes/agentes-2026-11-13-campanha7.json).
+Não há pass^4 válido nem referência aprovada dessa execução.
+
+O diagnóstico com API/MCP, PostGIS e Keycloak reais reproduziu o problema sem
+inferência: três sessões alcançaram o 429 empresarial; a quarta recebeu 429 global
+por IP na descoberta, com Retry-After de 57 s. As 30 leituras de preparação por
+empresa também consomem essa proteção. A fixture v2 aguarda 61 s antes de preparar
+cada tentativa desse cenário, preservando ambos os limites e o 429 empresarial.
+A espera precede a sessão do agente e entra somente na duração total da campanha.
+O diagnóstico corrigido completou as quatro sessões, cada uma descobrindo oito
+ferramentas e recebendo o 429 empresarial esperado, sem nova inferência.
+
+Na terceira tentativa de pedido demorado, o último recibo era `working`, mas o
+worker concluiu depois, antes do snapshot final. O juiz v9 explicita que o agente
+só conhece o último estado observado; snapshots posteriores continuam verificando
+efeitos, sem exigir antecipar uma mudança. Não altera notas antigas, gabarito,
+permissões ou metas. A próxima campanha começa novamente pelas 96 sessões.
+Passaram 127 testes focados; a suíte completa foi reiniciada após o reinício do
+ambiente, agora com a main `6b9c377` e suas dependências de avaliação.
+
+
 ## Sexta campanha completa: meta reprovada, próxima configuração preparada
 
 A [campanha 43362401481](https://github.com/bernardoemmel/Raiz/actions/runs/43362401481),
@@ -50,6 +77,21 @@ inclui `versao_modelo`, reutilizando a projeção da REST; texto livre vira null
 O contrato orienta comunicar versão ausente e qualificar o alcance como estimado
 já no resumo inicial. Passaram 74 testes focados e Ruff. A nova campanha completa
 será iniciada com essa configuração e com as versões da ficha da main.
+
+## Retomada: correção do teste do agregador e main de avaliação
+
+O CI `43369152999` aprovou 2.936 testes Python, mas o teste do agregador ainda
+exigia a expressão antiga `always()`. Ele agora confere `always() && !cancelled()`,
+conservando todas as exigências sobre resultados, artefatos e o caso estadual.
+Front, e2e, segurança, segredos, workflows, agentes e referência estadual passaram.
+A main `6b9c377` (avaliação de carbono/equidade) foi incorporada, inclusive sua
+política de não cancelar o CI anterior e o histórico completo para auditoria.
+Passaram 70 testes focados e Ruff após a integração; o CI integral será repetido.
+
+A sétima campanha (`43368316000`, `ea25614`) terminou incompleta após 43 sessões;
+a descoberta MCP falhou na quarta tentativa de limite por empresa. O artefato
+`14012541009` conserva 90 arquivos sanitizados. Não existe pass^4 dessa campanha.
+O diagnóstico e a referência diária continuam na entrega seguinte.
 
 
 ## Integração com a pasta do banco e comprador

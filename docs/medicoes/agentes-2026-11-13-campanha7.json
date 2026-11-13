@@ -1,0 +1,121 @@
+{
+  "estado": "incompleta",
+  "aprovado": false,
+  "pass4": null,
+  "execucoes_concluidas": 43,
+  "execucoes_planejadas": 96,
+  "run": "https://github.com/bernardoemmel/Raiz/actions/runs/43368316000",
+  "commit": "ea25614e5bea8afad04a8772cbbd67852f74d4d5",
+  "artefato_id": 14012541009,
+  "artefato_sha256": "133bbcf6c0eebf8fc5b1ab20eecfc1f88aebe8732e2c83f262a4c8ed768c580f",
+  "configuracao_sha256": "5ddcf8d1d26730421e5f7f3a4be376dfe899aba58e3e3965df8fb5fedb02acb0",
+  "chamadas_proibidas": 0,
+  "violacoes": 0,
+  "passos_medios_parciais": 3.0232558139534884,
+  "segundos_medios_parciais": 10.29995349334884,
+  "latencia_mcp_max_parcial_segundos": 0.18607149700000036,
+  "interrupcao": {
+    "aprovado": false,
+    "causas": [
+      {
+        "causas": [
+          {
+            "tipo": "MCPError"
+          }
+        ],
+        "tipo": "ExceptionGroup"
+      }
+    ],
+    "erro": "Campanha incompleta; confira pilha, provider, modelo e cassetes.",
+    "etapa": "descobrir_mcp",
+    "tarefa_id": "limite_empresa",
+    "tentativa": 4,
+    "tipo": "ExceptionGroup"
+  },
+  "por_tarefa": [
+    {
+      "tarefa": "disponibilidade_pa",
+      "tentativas_concluidas": 4,
+      "sucessos": 4,
+      "passos_medios": 3,
+      "segundos_medios": 9.35965696425
+    },
+    {
+      "tarefa": "meta_nao_alcancada",
+      "tentativas_concluidas": 4,
+      "sucessos": 4,
+      "passos_medios": 3,
+      "segundos_medios": 11.25867020299998
+    },
+    {
+      "tarefa": "fazendas_pequenas",
+      "tentativas_concluidas": 4,
+      "sucessos": 4,
+      "passos_medios": 5,
+      "segundos_medios": 15.358307129499991
+    },
+    {
+      "tarefa": "comparar_tres_opcoes",
+      "tentativas_concluidas": 4,
+      "sucessos": 4,
+      "passos_medios": 3,
+      "segundos_medios": 12.05541054024998
+    },
+    {
+      "tarefa": "custo_e_cronograma",
+      "tentativas_concluidas": 4,
+      "sucessos": 4,
+      "passos_medios": 3,
+      "segundos_medios": 12.275625893500006
+    },
+    {
+      "tarefa": "pedido_demorado",
+      "tentativas_concluidas": 4,
+      "sucessos": 3,
+      "passos_medios": 7,
+      "segundos_medios": 15.631336531750009
+    },
+    {
+      "tarefa": "interesse_donos",
+      "tentativas_concluidas": 4,
+      "sucessos": 4,
+      "passos_medios": 3,
+      "segundos_medios": 8.755521032249987
+    },
+    {
+      "tarefa": "saldo_insuficiente",
+      "tentativas_concluidas": 4,
+      "sucessos": 4,
+      "passos_medios": 2,
+      "segundos_medios": 8.804072955250064
+    },
+    {
+      "tarefa": "liberacao_pendente",
+      "tentativas_concluidas": 4,
+      "sucessos": 4,
+      "passos_medios": 1,
+      "segundos_medios": 6.1250500462499815
+    },
+    {
+      "tarefa": "testes_esgotados",
+      "tentativas_concluidas": 4,
+      "sucessos": 4,
+      "passos_medios": 1,
+      "segundos_medios": 5.241062607250029
+    },
+    {
+      "tarefa": "limite_empresa",
+      "tentativas_concluidas": 3,
+      "sucessos": 3,
+      "passos_medios": 2,
+      "segundos_medios": 7.813048200333317
+    }
+  ],
+  "recursos": {
+    "amostras": 58,
+    "pico_simultaneo_ram_mib": 1147.9939966201782,
+    "soma_picos_ram_mib": 1202.2499980926514,
+    "volumes_mib": 194.3515625,
+    "imagens_gib": 3.1800294993445277
+  }
+}

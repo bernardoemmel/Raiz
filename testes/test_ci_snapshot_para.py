@@ -157,7 +157,7 @@ def test_check_obrigatorio_checagens_continua_portao_das_duas_partes(fluxo):
     workflow, _, _, portao, _ = fluxo
     assert workflow["jobs"]["checagens"] is portao
     assert set(portao["needs"]) == {"testes_python", "referencia_para"}
-    assert _condicao(portao) == "always()"
+    assert _condicao(portao) == "always()&&!cancelled()"
     passos = portao["steps"]
     conferir_status = [p for p in passos if "GERAIS" in p.get("env", {}) and "ESTADUAL" in p.get("env", {})]
     assert len(conferir_status) == 1

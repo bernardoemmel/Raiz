@@ -281,3 +281,18 @@ humana. A revisão v8 do juiz distingue solicitação humana de recálculo de ex
 proibida de nova ferramenta; todas as barreiras permanecem. A recusa do juiz mantém a indisponibilidade; a recusa
 vazia/interrompida do agente passa a ser fracasso observado da tarefa, assim como
 limite de passos ou interrupção. Não há nova chamada para contornar a recusa.
+
+
+### Preparação da cota e ordem temporal das evidências
+
+A sétima campanha parou após 43 sessões: as 30 consultas de preparação da cota
+por empresa, repetidas rapidamente, esgotaram o limite global por IP antes da
+descoberta MCP na quarta sessão. A fixture v2 espera a janela global de 60 s
+expirar antes da preparação desse cenário. Os limites e o 429 empresarial não
+mudam; a espera não entra no tempo do agente nem nos passos, mas compõe a duração
+total da campanha. Não há retry de inferência nem seleção de tentativas.
+
+O juiz v9 considera a ordem dos fatos: o estado informado é confrontado com o
+último recibo observado pelo agente. Um snapshot posterior pode mostrar avanço
+do worker e serve para conferir efeitos; não implica que o agente já soubesse
+desse avanço. As notas das campanhas anteriores ficam preservadas.

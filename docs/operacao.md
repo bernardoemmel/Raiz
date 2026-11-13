@@ -212,6 +212,7 @@ Medições durante as campanhas reais no Actions (13/11/2026 UTC), com sete serv
 | [3, interrompida após 64 tentativas](https://github.com/bernardoemmel/Raiz/actions/runs/43349634089) | 81 | 1.225,3 MiB | 1.276,4 MiB | 194,1 MiB | 3,18 GiB |
 | [5, interrompida após 20 tentativas](https://github.com/bernardoemmel/Raiz/actions/runs/43359802697) | 31 | 1.126,8 MiB | 1.137,8 MiB | 193,8 MiB | 3,18 GiB |
 | [6, 96 sessões; comportamento reprovado](https://github.com/bernardoemmel/Raiz/actions/runs/43362401481) | 110 | 1.240,3 MiB | 1.289,0 MiB | 194,8 MiB | 3,18 GiB |
+| [7, interrompida após 43 tentativas](https://github.com/bernardoemmel/Raiz/actions/runs/43368316000) | 58 | 1.148,0 MiB | 1.202,2 MiB | 194,4 MiB | 3,18 GiB |
 
 As interrupções invalidam pass^4, mas não apagam as amostras de recursos: `recursos.json` está no artefato
 `medicao-agente-real` de cada execução. A terceira coleta cobriu 02h36min32s–02h53min15s UTC. A soma de CPU
@@ -1001,6 +1002,23 @@ SMTP e `RAIZ_API_PUBLICA_URL` configurados para o link de login voltar à origem
 A página reutiliza a sessão da empresa, o contrato e as cobranças existentes. Só um
 clique após ver os termos/valor aceita contrato ou gera Pix; abrir o link não paga nem
 confirma nada. A confirmação financeira continua exclusivamente no webhook do provedor.
+
+## Avaliação de modelos e arquivo cego (rodada 12)
+
+O procedimento, contratos e comandos estão em [avaliação da rodada 12](modelo/avaliacao-rodada12.md).
+Antes de treinar um candidato, o custodiante fixa plano, conjunto cego, previsões antigas, política de equidade
+e controle estável. O CLI exige recibo anterior e reprova dados insuficientes, mudança de denominador, regressão
+por subgrupo ou controle instável. Conservar o arquivo em armazenamento privado imutável com backup; separar a
+conta de treino da conta que lê gabaritos. O portão emite decisão, não altera automaticamente o campeão atual.
+A integração com a promoção e o retorno transacional é a pendência de Produto e regras indicada na passagem.
+
+O CI executa os ensaios sintéticos no pytest completo, inclusive o solver real nas três opções. O job `seguranca`
+confere os esquemas e constrói/inspeciona o wheel para bloquear scpi/vegan, inclusive dependências indiretas.
+Esses resultados demonstram o funcionamento das checagens; não são métricas de acerto empírico do carbono.
+O CI não cancela uma execução anterior ao chegar outro commit (`cancel-in-progress: false`).
+A auditoria de promoções reexecuta o commit histórico fechado em um checkout isolado. O job Python usa
+histórico Git completo; em clone local raso, execute `git fetch --unshallow` antes da suíte. Não substitua os
+hashes do registro antigo pelos hashes da main nem altere as referências dos executores em andamento.
 
 ## Medição semanal de agentes
 

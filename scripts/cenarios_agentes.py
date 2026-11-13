@@ -37,7 +37,7 @@ from raiz.publica import trabalhos as T
 from raiz.publica.avaliacao import GABARITO, carregar_gabarito
 from scripts.oauth_agentes_teste import KeycloakTeste
 
-VERSAO = "cenarios-postgis-keycloak-v1"
+VERSAO = "cenarios-postgis-keycloak-v2"
 NAMESPACE = uuid.UUID("54bfc2c2-1238-4fb6-b716-3b3122f36244")
 _MANIFESTOS: dict[str, dict] = {}
 COM_PEDIDO = {
@@ -393,6 +393,12 @@ class Provedor:
         oauth = sessao = None
         ids = None
         try:
+            if tarefa.id == "limite_empresa":
+                # As 30 leituras de preparação também consomem a proteção global por IP.
+                # Deixar sua janela de 60 s expirar ANTES de preparar a cota da empresa
+                # mantém o 429 empresarial real sem bloquear initialize/tools/list.
+                # A espera pertence à preparação, fora do tempo e das decisões do agente.
+                await asyncio.sleep(61)
             referencia = dt.datetime.now(dt.UTC).isoformat()
             env = configuracao()
             pilha = identidade_pilha()
