@@ -361,3 +361,26 @@ que não é aceita pelo projeto. A versão 10.78.0 evita essa dependência e man
 original do Lighthouse; sua compatibilidade é verificada com o teste de agentes e com eventos de telemetria
 capturados em transporte local, sem envio ao Sentry. Ao atualizar o Lighthouse ou esse pin, repetir essas
 verificações e a checagem integral de licenças; não liberar FSL nem instalar a CLI como exceção.
+# Rodada 12 — cálculo científico e fontes
+
+Integrações por API Python, sem código de terceiros copiado:
+
+- [pysyncon](https://github.com/sdfordham/pysyncon), MIT; controle sintético.
+- [CVXPY](https://github.com/cvxpy/cvxpy), Apache-2.0; otimização convexa.
+- [PuLP](https://github.com/coin-or/pulp), MIT; programação inteira.
+- [NetworkX](https://github.com/networkx/networkx), BSD-3-Clause; fluxo em redes.
+- [scpi](https://github.com/nppackages/scpi), GPL-3.0-only: dependência **apenas**
+  de `infra/scpi/requirements.txt`, ambiente separado de servidor. Não consta nas
+  dependências do produto nem no wheel; `infra/scpi` é excluído do sdist. A ponte
+  local é código próprio; nenhum código GPL foi incorporado ao pacote `raiz`.
+
+Dados e fatos científicos não herdam as licenças das bibliotecas:
+
+- Cardoso et al. 2026, DOI 10.5061/dryad.6t1g1jxdp: CC0-1.0. Metadados conferidos;
+  extração das observações ainda pendente de download. Não guardar a coluna
+  `responsible` em dados de ajuste ou resultados.
+- Bousfield e Edwards, Zenodo 15120870: CC-BY-4.0; idade da floresta em 2023.
+- Verra VCS 5511 e Isometric 84R7: documentos públicos sem licença aberta de
+  redistribuição localizada. Guardados fatos, referências e hashes, não cópias dos
+  PDFs ou planilhas proprietários no produto.
+

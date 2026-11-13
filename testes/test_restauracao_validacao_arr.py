@@ -122,6 +122,16 @@ def test_par_compativel_gera_metricas_sem_autorizar_calibracao():
     assert r["metricas"]["cobertura_p10_p90"]
     assert r["validacao_independente"]
     assert not r["calibracao_autorizada"]
+    assert r["comparador_versao"].startswith("validacao-arr-v1+")
+
+
+@pytest.mark.parametrize("projeto", [665, "665", "VCS665", "0665"])
+def test_alias_de_projeto_usado_no_desenvolvimento_nao_vira_validacao(projeto):
+    p, o = par()
+    p["projeto_id"] = o["projeto_id"] = projeto
+    r = comparar(p, o)
+    assert not r["validacao_independente"]
+    assert r["previsao"]["projeto_id"] == "VCS665"
 
 
 @pytest.mark.parametrize(

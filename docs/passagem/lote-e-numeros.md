@@ -186,3 +186,22 @@ A varredura de segredos com todos os ramos encontrou um falso positivo no PR #69
 A main incorporou em `.gitleaksignore` a exceção do fingerprint exato desse commit, arquivo, regra e linha;
 a continuação usa essa exceção existente, sem ampliar a allowlist. A varredura de todos os ramos permanece ativa.
 Nenhum valor de credencial foi exposto.
+
+## Rodada 12 em implementação — 12/11/2026 (Brasília)
+
+Branch `codex/lote-rodada12`, iniciada sobre `2b6e8af`. Inclui a comparação ARR
+Berkeley/Verra, a reprodução contábil do VCS 5511 com cada denominador, o ajuste
+regional inicial Mombak, validação por municípios e controle sintético sem mistura
+pré/pós. Fontes, limitações e pendências: `docs/restauracao-rodada12.md`.
+
+Os arquivos de evidência públicos estão em `/tmp/raiz-arr-fontes/5511` e
+`/tmp/raiz-rodada12-fontes`; não confundir pesquisa com publicação. Dryad: metadados
+CC0 e hashes conferidos, downloads 401/403; **sem erro real calculado ainda**.
+Scpi executou seis intervalos num painel sintético em ambiente separado
+`/tmp/raiz-scpi-servidor`; pandas deve ficar abaixo de 3 por compatibilidade do scpi 4.
+
+Antes da entrega: integrar parâmetros/curva/dívida/custos no motor, terminar gado,
+credibilidade, sensibilidade e ecologia; recalcular e publicar apenas no arquivo
+privado; comparar P10/P50/P90 e hectares com os lotes históricos. As 45 verificações
+de evidências/ARR/regeneração e quatro de controle sintético passaram; suíte global,
+CI, PR e merge desta rodada ainda pendentes. Não cancelar nem desativar workflows.

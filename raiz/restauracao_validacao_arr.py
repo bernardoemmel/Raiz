@@ -26,6 +26,10 @@ REFERENCIAS = Path(__file__).parent / "regras" / "padroes" / "arr_referencias_20
 _SHA = re.compile(r"[0-9a-f]{64}\Z")
 
 
+def versao_comparador() -> str:
+    return f"{ESQUEMA}+{hashlib.sha256(Path(__file__).read_bytes()).hexdigest()[:12]}"
+
+
 def _json(valor: object) -> str:
     return json.dumps(valor, ensure_ascii=False, sort_keys=True, separators=(",", ":"), allow_nan=False)
 
@@ -174,6 +178,10 @@ def comparar(previsao: dict, observado: dict) -> dict:
         raise ValueError("previsão requer modelo_versao e entradas_sha256 válido")
     if not observado.get("fonte_versao") or not _SHA.fullmatch(str(observado.get("fonte_sha256", ""))):
         raise ValueError("observação requer fonte_versao e fonte_sha256 válido")
+    previsao, observado = dict(previsao), dict(observado)
+    for registro in (previsao, observado):
+        if registro.get("projeto_id") is not None:
+            registro["projeto_id"] = _projeto(registro["projeto_id"])
     motivos = []
     campos = (
         "projeto_id",
@@ -238,7 +246,7 @@ def comparar(previsao: dict, observado: dict) -> dict:
         quantis = [_numero(q, "quantil", negativo=True) for q in quantis]
         if quantis != sorted(quantis):
             raise ValueError("esperado p10 <= p50 <= p90")
-    desenvolvimento = FONTES_DESENVOLVIMENTO | set(previsao.get("fontes_desenvolvimento") or [])
+    desenvolvimento = FONTES_DESENVOLVIMENTO | {_projeto(v) for v in previsao.get("fontes_desenvolvimento") or []}
     independente = observado.get("projeto_id") not in desenvolvimento
     independente = independente and observado.get("conjunto") == "validacao_independente"
     metricas = None
@@ -252,6 +260,7 @@ def comparar(previsao: dict, observado: dict) -> dict:
         }
     registro = {
         "esquema": ESQUEMA,
+        "comparador_versao": versao_comparador(),
         "modelo_versao": previsao["modelo_versao"],
         "entradas_sha256": previsao["entradas_sha256"],
         "status": "incomparavel" if motivos else "comparavel",
