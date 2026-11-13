@@ -673,3 +673,30 @@ de erro e a classe que transporta somente o status HTTP; o restante do armazém 
 A ciência do commit preservado não recebe a mudança de hash da carga da main #93. As auditorias
 históricas continuam intactas e reservas vivas não são alteradas. Validação: **66 testes** do leitor,
 diagnóstico, armazém, transferência e checkpoint; **182 testes** de integração da promoção/fila.
+
+
+Conferência complementar do impedimento Ibama: o geosserviço oficial PAMGIA devolveu os cinco
+termos da amostra RN sem WKT, mas quatro declaram `origem_geom=Ponto`, embora o formato tenha
+anéis, e um permanece sem geometria. Essa resposta não comprova cinco polígonos de área e
+não foi usada para liberar o município. Consulta restrita a identificador do termo, origem,
+código municipal, data geométrica e geometria; nenhum atributo de pessoa foi requisitado.
+Fonte: https://pamgia.ibama.gov.br/server/rest/services/01_Publicacoes_Bases/adm_embargos_ibama_a/FeatureServer/0.
+
+
+O run `43360973064` parou antes do planejamento em HTTP 403 no acesso privado. Uma execução
+estritamente de leitura (`43361940684`) conferiu a mesma seleção de credencial às 03h56 UTC:
+HTTP 200 no repositório e 4.001 chamadas restantes de 5.000. A causa específica do 403 anterior
+não ficou registrada; não foi classificada como permissão permanente nem como cota comprovada.
+O diagnóstico não publicou dados nem alterou permissões. A branch `codex/diagnostico-acesso-actions`
+contém apenas essa substituição temporária do workflow para consulta: **não abrir PR nem mesclar
+essa branch na main**. Os workflows de produção e jobs existentes permaneceram ativos.
+
+
+## Entrega urgente integrada — PR #95
+
+O PR #95 foi mesclado na main em `52118b5da31e7985394a74aa559376296b49efd3`, após os nove
+jobs do CI `43359990841` passarem. A integração com a main #93 preservou os registros de ambas
+as entregas e as versões fechadas da fila. Frontend local: 338 testes e build; o CI conferiu
+Python, referência real do Pará, navegador, agentes, ponta a ponta, segurança, segredos e workflows.
+O código da fila paralela, checkpoint, proteção dos retratos e painel está na main; a implantação
+do site ainda será conferida. A rodada 12 #99 segue no seu CI, sem cancelamentos automáticos por push.

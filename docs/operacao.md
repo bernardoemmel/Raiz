@@ -1079,3 +1079,21 @@ de erro e a classe que transporta somente o status HTTP; o restante do armazém 
 A ciência do commit preservado não recebe a mudança de hash da carga da main #93. As auditorias
 históricas continuam intactas e reservas vivas não são alteradas. Validação: **66 testes** do leitor,
 diagnóstico, armazém, transferência e checkpoint; **182 testes** de integração da promoção/fila.
+
+
+Conferência complementar do impedimento Ibama: o geosserviço oficial PAMGIA devolveu os cinco
+termos da amostra RN sem WKT, mas quatro declaram `origem_geom=Ponto`, embora o formato tenha
+anéis, e um permanece sem geometria. Essa resposta não comprova cinco polígonos de área e
+não foi usada para liberar o município. Consulta restrita a identificador do termo, origem,
+código municipal, data geométrica e geometria; nenhum atributo de pessoa foi requisitado.
+Fonte: https://pamgia.ibama.gov.br/server/rest/services/01_Publicacoes_Bases/adm_embargos_ibama_a/FeatureServer/0.
+
+
+### Alcance da regra contra interrupções
+
+O `AGENTS.md` proíbe todos os agentes/chats de desativar ou cancelar processamento sem nova ordem
+explícita do fundador. Isso não cria isolamento de permissões no GitHub: a mesma permissão
+`Actions: write` autoriza disparar e desativar workflows. Uma sessão com essa credencial continua
+tecnicamente capaz de chamar esses endpoints. Não foi retirada a permissão necessária à continuação
+automática; separar credenciais/políticas externas é necessário para impor um bloqueio técnico entre
+sessões. Fonte: [permissões dos endpoints de workflows](https://docs.github.com/en/rest/actions/workflows).
