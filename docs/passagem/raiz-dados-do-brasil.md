@@ -2,7 +2,7 @@
 
 Passagem original de 12/11/2026, 13h20 de Brasília. Retomada pelo Codex na mesma data, a partir da main.
 Formatos e procedência foram integrados pelo #77; as seis pendências E1/E2, pelo #79.
-Branch da entrega operacional: `codex/dados-operacao`.
+Entrega #82 integrada; correção urgente em `codex/dados-snapshot`.
 
 ## O que este chat fez
 
@@ -60,19 +60,32 @@ comparar escopo/versões, incluindo os erros e o tempo efetivo após a correçã
 - **Outras falhas PI-2:** HTTP 502 ao conferir o Release privado interrompeu uma publicação periódica; CHIRPS
   respondeu 429 em tarefas municipais. A exceção de publicação saía de `anota()` e encerrava o Pool de trabalho.
   O cache salvo pelo workflow contém fontes, mas não garante a preservação de todas as saídas e retratos locais.
-  Um checkpoint privado independente da catalogação está sendo implementado para fechar essa lacuna.
-- **Retratos:** o passo de preservação falhou na validação local. As tags diárias consultadas não comprovaram
-  preservação remota; a causa de normalização ainda está sendo reproduzida. Não chamar esses retratos de válidos
-  nem enfraquecer a validação. O checkpoint deve preservar os bytes sem afirmar validação científica.
+  O checkpoint privado independente da catalogação foi implementado: restaura antes do cálculo e salva com
+  `always()` antes de finalizar/publicar/atestar. Resultados, marcas, versões, sidecars e retratos opacos ficam
+  no arquivo privado. A presença do checkpoint não afirma validade científica do retrato.
+- **Retratos:** causa reproduzida em 28 das 56.217 geometrias de RN: vértice de fechamento repetido, removido
+  gradualmente pelo GEOS. O leitor aceita somente essa diferença exata após conferir bytes, hashes, JSON e
+  atributos originais; valida a cópia canônica e conserva o original. 67 testes e os 28 casos reais passaram.
+  As tags diárias anteriores não comprovaram preservação remota; não afirmar recuperação do que não foi salvo.
 - **Correção local da projeção:** 16 testes passaram; a validação dos pacotes reais preservou 185.791 registros
   em 130 CSVs de PI e 56.217 em 84 CSVs de RN, inclusive os dois identificadores de outra UF. Nenhum upload nessa prova.
 - **Cópia estável:** a publicação agora lê pacote, Croissant, quantis, CADT e projeção básica da mesma cópia privada.
   Fecha a corrida observada em RN (ficha com 44 CSVs, pacote com 41); outras lanes continuam no espelho original.
   Bytes e SHA do sidecar precisam corresponder antes da cópia. O preflight mantém comparação exata do publicador:
   publicadores antigos devem terminar naturalmente; não liberar o catálogo por uma exceção de compatibilidade.
-- **Ainda a fazer nesta urgência:** completar checkpoint/telemetria/painel, atualizar a promoção auditada para
-  a referência fixa corrigida, executar suíte/CI, merge e admissão das vagas disponíveis pela fila CAS. Conferir
-  dados realmente publicados, medir vazão e só então estimar estados por dia e conclusão do Brasil.
+- **Painel implementado:** 27 UFs, municípios prontos/em execução/com erro, pendentes/desconhecidos e última
+  mudança. Usa eventos municipais reais com lease, sem inferir municípios pelo número de jobs; expiração é
+  explícita. A ref pública dedicada só recebe códigos IBGE, contagens e metadados operacionais permitidos.
+  Ver `docs/processamento-por-estado.md`; primeira emissão em produção ainda pendente.
+- **Promoção fechada:** `auditoria-promocao-urgente.json` vincula a auditoria anterior sem alterá-la. Nove
+  origens reconhecidas convergem para `ebb13cae969c56f88619aab45e01088116eb347f`, com as 11 versões iguais
+  à base protegida do #82. Upgrades científicos das origens anteriores continuam declarados por par.
+  Reservas vivas e pedidos bloqueados não são reescritos. 179 testes de fila/promoção/catálogo passaram.
+- **Marcas:** saídas com hash, bytes ou versão divergentes voltam ao plano; não contam como prontas. A cópia
+  estável também exige correspondência entre marcas e arquivos. 20 testes de preservação/cópia passaram.
+- **Ainda a fazer nesta urgência:** suíte integrada/CI, PR/merge e admissão das vagas disponíveis pela fila
+  CAS. Conferir dados publicados, medir vazão e só então estimar estados por dia e conclusão do Brasil.
+  Workflow consultado ativo às 22h17 de Brasília em 12/11; nenhum cancelamento por este chat.
 
 ## O que falta, em ordem (formatos, após a prioridade urgente)
 

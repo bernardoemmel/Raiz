@@ -36,8 +36,12 @@ privada completa do Pará. O workflow do motor foi conferido como `active`. A fa
 projeção pública que confundia a UF de origem cadastral com a UF do recorte. A correção local preservou todos
 os **242.008 registros de 214 CSVs reais de RN/PI**, incluindo os dois CARs de outra UF, sem publicar dados.
 Também está corrigida localmente a corrida entre o pacote e seus metadados: uma cópia privada estável serve
-todos os produtos da publicação. Preservação independente do progresso, telemetria/painel e confirmação da
-retomada em produção seguem em andamento; não declarar essa urgência concluída pelo teste local.
+todos os produtos da publicação. **Implementados na entrega urgente:** checkpoint privado independente com
+restauração antes do cálculo e salvamento `always()`, proteção contra marcas divergentes, leitor de retratos
+legados com prova dos bytes originais e painel das 27 UFs com eventos municipais, lease e última mudança.
+A promoção auditada usa o commit fixo `ebb13cae`, preserva as 11 versões atuais e não altera reservas vivas.
+Faltam suíte integrada/CI, PR/merge, emissão do painel e retomada confirmada em produção; a estimativa nacional
+depende da vazão medida após a correção. Não declarar a urgência concluída pelo teste local.
 
 Formatos integrados pelo **#77**, com 1.859 testes no CI do PR; CI de push também verde. A validação local incluiu
 PostGIS, API/MCP, Ficha e 681 licenças. Os 22 arquivos públicos e 39 canônicos privados tiveram bytes e hashes
