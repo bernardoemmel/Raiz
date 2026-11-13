@@ -668,5 +668,5 @@ Contrato, acessibilidade e desenho: [docs/design/graficos-resultados.md](../desi
 - Integração com a main `60e17b0` (incluindo os PRs #86 e #93): a migração ainda inédita
   `0035_publico_eprel` passa a descender de `0034`, preservando a sequência da ficha individual. Banco vazio
   passou por upgrade, downgrade até a base e novo upgrade, com uma única cabeça. As 169 regressões de ficha,
-  versões, proteção, gráficos e autorização passaram; Ruff conferiu os 629 arquivos Python. Nenhuma migração
+  versões, proteção, gráficos e autorização passaram; Ruff conferiu o conjunto Python. Nenhuma migração
   foi aplicada em banco de produção nesta conferência.

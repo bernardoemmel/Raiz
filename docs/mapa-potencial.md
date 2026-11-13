@@ -38,6 +38,12 @@ dos quais 3.717 têm hectares conhecidos; 1.626.268 fazendas representadas no ag
 de dados privados. Os hexágonos permanecem a unidade interna de agregação; o arquivo nacional
 permite mostrar círculos agrupados sem baixar ou desenhar suas geometrias na entrada do site.
 
+O Supercluster incorporado ao MapLibre mantém o índice no worker. Somente os grupos visíveis ganham
+botões HTML ancorados no mapa, com contagem, hectares e nome acessível; a navegação por teclado abre
+o mesmo grupo. Os botões existentes são reutilizados e somem quando a fonte falha ou chega o detalhe
+de zoom 12. Isso evita compilar um programa gráfico só para os círculos, sem remover os dados da
+abertura. A legenda única começa recolhida e deixa as contagens visíveis também em 360 px.
+
 ## Fonte e cálculo do H3
 
 O mapa agrega o **potencial conhecido de regeneração além da reserva legal**, com cobertura parcial.
@@ -71,7 +77,7 @@ zero do motor também não são prova de ausência de potencial: algumas entrada
 
 O ponto interior é uma alocação estatística do imóvel inteiro. Portanto, a cor **não mede hectares
 fisicamente contidos dentro do hexágono** e não deve ser usada como densidade por área da célula.
-Na escala até zoom 11, o hexágono substitui os detalhes; nenhuma hachura de restauração é inventada.
+Na escala até zoom 11, grupos de pontos substituem os detalhes; nenhuma hachura de restauração é inventada.
 
 ## Contrato e proteção dos dados
 
@@ -85,7 +91,8 @@ Cada feição contém somente `h3`, `potencial_ha` (número ou `null`) e `fazend
 Não há CAR, tabela por imóvel, TIR, crédito, preço, dono ou vínculo com os três lotes nessa camada.
 Células na fronteira de UFs são repetidas integralmente, com os mesmos valores, nos arquivos das UFs
 correspondentes: o consumidor deduplica pelo identificador H3. Não há subtotal estadual da mesma célula.
-A escala de cores é fixa no país: limites em 0, 100, 1.000, 10.000 e 50.000 hectares.
+O contrato conserva a escala da visualização H3 anterior (0, 100, 1.000, 10.000 e 50.000 hectares).
+Na entrada atual, os grupos usam uma cor e escrevem o número de hectares, sem pintar cada célula.
 
 O build valida novamente o contrato e reconstrói a geometria a partir do identificador H3. Não copia uma
 geometria arbitrária da entrada, campos extras ou textos livres da fonte. Os totais de medidas suprimidas e
