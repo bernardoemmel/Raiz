@@ -118,3 +118,11 @@ uv run pytest testes/test_avaliacao_agentes.py -q
 Ele verifica cálculo de pass^4, reprovação com uma única chamada proibida, isolamento entre origem real e contrato,
 tarefas faltantes, duplicação de tentativa/trace/sessão, versões misturadas, JSON ambíguo, tipos incorretos e campos
 com texto bruto. O sucesso desses testes valida o **avaliador**, não declara sucesso de um agente nas 24 tarefas.
+
+## Campanha automatizada no Actions
+
+O workflow manual/semanal, a pilha descartável, o segredo `ANTHROPIC_API_KEY`, os
+limites de consumo e os artefatos estão em [Medição no Actions](medicao-agentes-actions.md).
+O gabarito acima continua sendo o contrato: nenhuma ferramenta permitida foi
+ampliada para esconder limitações do fluxo assíncrono. A execução real depende
+da chave e do modelo disponíveis na conta Anthropic; testes do runner não são nota de agente.

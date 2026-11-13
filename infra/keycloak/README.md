@@ -26,3 +26,8 @@ Nenhum cliente fictício, usuário, senha ou vínculo de empresa é criado pelo 
 Fontes: [release](https://github.com/keycloak/keycloak/releases/tag/26.8.2),
 [OAuth 2.1 e PKCE](https://www.keycloak.org/securing-apps/oidc-layers),
 [metadados de recurso do MCP](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization).
+
+O escopo `raiz-identidade` também mapeia explicitamente o sujeito (`sub`) no access
+token. O verificador exige esse claim, inclusive nos tokens leves do Keycloak.
+A avaliação do Actions confere o login real com PKCE e a chamada ao MCP; ver
+[medição](../../docs/medicao-agentes-actions.md).

@@ -10,6 +10,18 @@
 .grade-terra { margin-block: var(--e4); }
 .grade-terra dt { font-weight: 700; margin-bottom: var(--e2); }
 .grade-terra dd { margin: 0; }
+.compromissos-terra, .versoes-ficha, .mudancas-terra, .historico-ficha { min-width: 0; overflow-wrap: anywhere; }
+.mudancas-terra { list-style: none; padding: 0; }
+.mudancas-terra > li, .historico-ficha > li { margin-block: var(--e3); }
+.mudancas-terra summary, .historico-ficha summary { cursor: pointer; padding-block: var(--e3); min-height: 48px; }
+.antes-depois > div { min-width: 0; }
+.antes-depois > div > strong { display: block; margin-bottom: var(--e3); }
+.valores-mudanca { margin: var(--e2) 0; }
+.valores-mudanca > div { margin-block: var(--e3); }
+.valores-mudanca dt { font-weight: 600; }
+.valores-mudanca dd { margin: var(--e2) 0 0; }
+.condicoes-plano { flex-basis: 100%; }
+.mapa-ficha-terra .maplibregl-ctrl-attrib a { text-decoration: underline; }
 .medida-terra { display: flex; flex-direction: column; gap: var(--e1); }
 .medida-terra small { color: var(--pedra); font-size: var(--t-legenda); }
 .tabela-terra { overflow-x: auto; max-width: 100%; margin-block: var(--e4); }

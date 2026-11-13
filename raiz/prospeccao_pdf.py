@@ -12,28 +12,9 @@ from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import mm
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer
 
-# Lista positiva em todos os níveis. Acrescentar dados livres ao dicionário da
-# ficha não os inclui no PDF, mesmo que o chamador erre o contrato.
-MEDIDA = dict.fromkeys(("valor", "unidade", "fonte", "data_referencia", "data_corte", "estimado"))
-META = dict.fromkeys(("fonte", "data_referencia", "regra_versao", "origem"))
-ESQUEMA = {
-    **dict.fromkeys(("versao", "codigo_car", "municipio", "cod_ibge", "uf", "bioma", "data_corte")),
-    "area_total": MEDIDA,
-    "area_restauravel": MEDIDA,
-    "caminho_terra": {**dict.fromkeys(("codigo", "rotulo", "situacao")), **META},
-    "pendencias": [dict.fromkeys(("codigo", "texto"))],
-    "sobreposicoes": [{**dict.fromkeys(("codigo", "rotulo")), "area": MEDIDA}],
-    "embargos": {"area": MEDIDA, "situacao": None},
-    "serie_uso": [{"ano": None, **{uso: MEDIDA for uso in ("mata", "pasto", "lavoura", "agua")}}],
-    "perdas": [{**dict.fromkeys(("ano", "tipo", "rotulo")), "area": MEDIDA}],
-    "credito": {
-        **{p: MEDIDA for p in ("p10", "p50", "p90")},
-        **dict.fromkeys(("base", "metodo", "versao_modelo")),
-    },
-    "tir": {**{p: MEDIDA for p in ("p10", "p50", "p90")}, "tipo": None},
-    "risco": {"nivel": None, **META},
-    "agrupamento": {"pequena": None, "grupo_id": None, "imoveis": MEDIDA, "area": MEDIDA},
-}
+from raiz.prospeccao_contrato import ESQUEMA, MUDANCAS, filtrar_mudancas, projetar_ficha
+from raiz.prospeccao_protecao import SENTINELA, MarcaExportacao, validar_marca
+
 ROTULOS = {
     "versao": "Versão da ficha",
     "codigo_car": "Código do CAR",
@@ -75,11 +56,30 @@ def linhas(ficha: dict) -> list[tuple[int, str, str | None]]:
     """Cada medida preserva valor, unidade, fonte, referência, corte e estimativa."""
     saida = []
 
+    def fechado(valor, nivel):
+        if isinstance(valor, dict):
+            for chave, item in valor.items():
+                rotulo = ROTULOS.get(chave, chave.replace("_", " ").capitalize())
+                if isinstance(item, (dict, list)):
+                    saida.append((nivel, rotulo, None))
+                    fechado(item, nivel + 1)
+                else:
+                    saida.append((nivel, rotulo, _valor(item)))
+        elif isinstance(valor, list):
+            for indice, item in enumerate(valor, 1):
+                saida.append((nivel, f"Registro {indice}", None))
+                fechado(item, nivel + 1)
+        else:
+            saida.append((nivel, "Valor", _valor(valor)))
+
     def percorrer(dado, esquema, nivel=0):
         for chave, formato in esquema.items():
             rotulo = ROTULOS.get(chave, chave.replace("_", " ").capitalize())
             valor = dado.get(chave) if isinstance(dado, dict) else None
-            if isinstance(formato, dict):
+            if formato is MUDANCAS:
+                saida.append((nivel, rotulo, None))
+                fechado(filtrar_mudancas(valor), nivel + 1)
+            elif isinstance(formato, dict):
                 saida.append((nivel, rotulo, None))
                 percorrer(valor, formato, nivel + 1)
             elif isinstance(formato, list):
@@ -97,7 +97,11 @@ def linhas(ficha: dict) -> list[tuple[int, str, str | None]]:
     return saida
 
 
-def gerar_pdf(ficha: dict) -> bytes:
+filtrar_ficha = projetar_ficha
+
+
+def gerar_pdf(ficha: dict, *, marca: MarcaExportacao | None = None) -> bytes:
+    validar_marca(marca)
     destino = io.BytesIO()
     estilos = getSampleStyleSheet()
     corpo = ParagraphStyle(
@@ -128,6 +132,8 @@ def gerar_pdf(ficha: dict) -> bytes:
             corpo,
         ),
         Spacer(1, 4 * mm),
+        Paragraph(f"<b>{escape(SENTINELA)}</b><br/>{escape(marca.codigo)}", corpo),
+        Spacer(1, 4 * mm),
     ]
     for nivel, rotulo, valor in linhas(ficha):
         if valor is None:
@@ -138,8 +144,16 @@ def gerar_pdf(ficha: dict) -> bytes:
 
     def pagina(canvas, doc):
         canvas.saveState()
+        canvas.setFillColor(colors.Color(0.85, 0.85, 0.85))
+        canvas.setFont("Helvetica", 13)
+        canvas.translate(A4[0] / 2, A4[1] / 2)
+        canvas.rotate(35)
+        canvas.drawCentredString(0, 0, marca.codigo)
+        canvas.restoreState()
+        canvas.saveState()
         canvas.setFillColor(colors.black)
-        canvas.setFont("Helvetica", 8)
+        canvas.setFont("Helvetica", 7)
+        canvas.drawString(18 * mm, 14 * mm, marca.codigo)
         canvas.drawString(18 * mm, 10 * mm, f"Raíz | Ficha privada | Página {doc.page}")
         canvas.restoreState()
 

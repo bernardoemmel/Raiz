@@ -23,6 +23,10 @@ def acesso(monkeypatch):
     monkeypatch.setattr(servico.pedidos, "cliente_da_sessao", lambda _, token: 7 if token == "sessao-valida" else None)
     monkeypatch.setattr(servico.acesso, "exigir_desbloqueio", lambda _, cid, car: car)
     monkeypatch.setattr(servico, "_montar", lambda _, car: {"codigo_car": car})
+    monkeypatch.setattr(servico.prospeccao_versoes, "consultas", lambda _eng, _cid, fichas: nullcontext(fichas))
+    monkeypatch.setattr(
+        servico.prospeccao_protecao, "operacao_vigiada", lambda *args, **kwargs: nullcontext(lambda *_: None)
+    )
     return eventos
 
 
@@ -130,7 +134,8 @@ def test_pdf_preserva_fontes_datas_estimativas_e_ausencia_sem_campos_livres():
     ficha["nome_dono"] = "SEGREDO_PROIBIDO"
     ficha["area_total"]["contato"] = "SEGREDO_ANINHADO"
     ficha["sobreposicoes"][0]["cpf"] = "SEGREDO_DOCUMENTO"
-    pdf = prospeccao_pdf.gerar_pdf(ficha)
+    marca = servico.prospeccao_protecao.MarcaExportacao("RZP-teste-" + "a" * 32, "teste")
+    pdf = prospeccao_pdf.gerar_pdf(ficha, marca=marca)
     texto = "\n".join(p.extract_text() for p in PdfReader(io.BytesIO(pdf)).pages)
     assert pdf.startswith(b"%PDF-")
     for esperado in (

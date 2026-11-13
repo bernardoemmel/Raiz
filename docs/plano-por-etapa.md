@@ -303,6 +303,20 @@ Operação da entrega: PR #72 integrado com seis jobs verdes (1.626 testes Pytho
 Os cinco publicadores pausados foram reativados e a fila aponta para o commit
 protegido. O site real passou no build básico de 175 MB; sua republicação ganhou
 tentativas limitadas para falhas transitórias de rede, sem relaxar o contrato.
+O PR #80 foi integrado com seis jobs verdes (1.859 testes Python e 226 do front).
+A publicação 43311812890 concluiu; o site foi conferido com CSV básico de cinco
+colunas, geometria sem medidas pagas e 404 nos antigos caminhos de fichas completas.
+
+Nova continuação de Ficha da fazenda (12/11/2026):
+
+| Entrega | Situação |
+|---|---|
+| Terra já comprometida, com cruzamento geográfico, fonte, data, certeza e cobertura de cada registro | Feito: polígonos oficiais, indícios secundários e contexto jurisdicional separados; ausência de fonte não significa terra livre |
+| Versões imutáveis e mudanças desde a última consulta; avisos de pendência, embargo, desmate, fogo, terra e lotes da própria conta | Feito: snapshots antes/depois da carga, baseline por cliente, avisos deduplicados e acesso pago reavaliado |
+| Ficha automática para UFs atuais e futuras, com retomada da carga e atualização das fontes | Feito: descoberta pelo manifesto privado, backfill idempotente e falha mantida pendente para nova tentativa |
+| Marcas por cliente em PDF/JSON/CSV e alertas de varredura na API | Feito: HMAC versionado, sentinela separada dos dados, detecção persistida e consulta operacional dos alertas |
+| Três modalidades de créditos e conta de receita por cliente | Feito: por ficha, por lote e assinatura; preços a definir pelo fundador e simulação mensal/anual sem ativar vendas |
+| Medição real das 24 tarefas por agente Anthropic no GitHub Actions, manual e semanal | Feito: workflow manual/semanal, 96 tentativas, pilha isolada, OAuth real e relatório como artefato; execução com modelo depende do segredo ANTHROPIC_API_KEY do repositório, sem presumir pass^4 aprovado |
 
 Site legível por agentes (12/11/2026): **feito** — `llms.txt`, `robots.txt`, páginas Markdown do Brasil, estados,
 municípios, produtor, serviço, fontes e privacidade; alternates no HTML; JSON-LD `Dataset`, `Service` e `Offer`
