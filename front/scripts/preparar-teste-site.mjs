@@ -86,7 +86,7 @@ export function preparar() {
     "DTEND;VALUE=DATE:20991116", `SUMMARY:${evento.titulo}`, "END:VEVENT", "END:VCALENDAR", "",
   ].join("\r\n"))
   const salvar = (nome, conteudo) => fs.writeFileSync(path.join(geo, nome), JSON.stringify(conteudo))
-  const municipio = retangulo([-49.95, -6.15, -49.85, -6.05], { cod_ibge: MUNICIPIO, nome: "Parauapebas", uf: "PA" })
+  const municipio = retangulo([-50.05, -6.3, -49.84, -5.95], { cod_ibge: MUNICIPIO, nome: "Parauapebas", uf: "PA" })
   const semDesenho = retangulo([-49.7, -6.2, -49.6, -6.1], { cod_ibge: SEM_DESENHO, nome: "Curionópolis", uf: "PA" })
   salvar("brasil_municipios.geojson", colecao([municipio, semDesenho]))
   salvar("brasil_estados.geojson", colecao([retangulo([-58, -10, -46, 2], { uf: "PA", nome: "Pará" })]))
@@ -97,10 +97,13 @@ export function preparar() {
   ).concat(retangulo([-49.95, -6.11, -49.94, -6.10], { cod_imovel: `PA-${MUNICIPIO}-${"9".repeat(32)}`, certidao_ia: CANARIO_PRIVADO }))))
   salvar("potencial_PA.geojson", {
     ...colecao([{ type: "Feature", properties: { h3: "85814e6bfffffff", potencial_ha: 1000, fazendas: 6 },
-      geometry: { type: "Polygon", coordinates: [[[-49.8984495939181, -6.260471150530112], [-49.847870642465764, -6.178610266870429], [-49.89342649424477, -6.093467393596889], [-49.989516791316845, -6.090200910457667], [-50.04007122789514, -6.1720383434742745], [-49.994560011151954, -6.257165702980741], [-49.8984495939181, -6.260471150530112]]] } }]),
+      geometry: { type: "Polygon", coordinates: [[[-49.8984495939181, -6.260471150530112], [-49.847870642465764, -6.178610266870429], [-49.89342649424477, -6.093467393596889], [-49.989516791316845, -6.090200910457667], [-50.04007122789514, -6.1720383434742745], [-49.994560011151954, -6.257165702980741], [-49.8984495939181, -6.260471150530112]]] } },
+      { type: "Feature", properties: { h3: "85814ad3fffffff", potencial_ha: null, fazendas: 5 }, geometry: retangulo([-50, -6.1, -49.9, -6]).geometry }]),
     metadados: { contrato: "potencial_h3", versao: 1, resolucao: 5, minimo_contribuintes: 5, dominio_ha: [0,100,1000,10000,50000], atualizado_em: "2026-11-12T10:41:00Z", fonte: "Fixture fictícia de teste", metodo: "ponto_interior_estatistico", cobertura: "parcial" },
   })
   fs.writeFileSync(path.join(geo, "base_brasil.pmtiles"), basePmtiles())
+  // Letras reais dos números do cluster; snapshot pequeno e licenciado, sem rede no CI.
+  fs.cpSync(path.join(REPO, "front/scripts/fixtures/fontes"), path.join(geo, "fontes"), { recursive: true })
   fs.writeFileSync(path.join(geo, "potencial_PA.geojson.gz"), gzipSync(fs.readFileSync(path.join(geo, "potencial_PA.geojson"))))
   const item = (arquivo) => ({ arquivo, bytes: fs.statSync(path.join(geo, arquivo)).size })
   salvar("potencial_indice.json", { potencial: { PA: item("potencial_PA.geojson.gz") } })

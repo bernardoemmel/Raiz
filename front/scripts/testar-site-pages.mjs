@@ -15,6 +15,7 @@ import { CANARIO_PRIVADO, CAR, CARS, MUNICIPIO, REPO, SEM_DESENHO } from "./prep
 const require = createRequire(path.join(REPO, "front/globo/package.json"))
 const { chromium } = require("playwright")
 const { PNG } = require("pngjs")
+const { default: AxeBuilder } = require("@axe-core/playwright")
 const site = path.join(REPO, "site")
 const prefixo = configurarPublicacao(process.env).base
 assert(prefixo.startsWith("/") && prefixo.endsWith("/"), "RAIZ_BASE precisa começar e terminar em /.")
@@ -53,7 +54,8 @@ const navegador = await chromium.launch({
   ...(process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE } : {}),
   args: ["--use-gl=angle", "--use-angle=swiftshader", "--enable-unsafe-swiftshader"],
 })
-const pagina = await navegador.newPage({ viewport: { width: 1440, height: 900 }, reducedMotion: "reduce" })
+const contexto = await navegador.newContext({ viewport: { width: 1440, height: 900 }, reducedMotion: "reduce" })
+const pagina = await contexto.newPage()
 // Apenas o mosaico do teste é sintético. O raster percorre o protocolo real do MapLibre, sem acesso externo no CI.
 const tile = new PNG({ width: 256, height: 256 })
 for (let i = 0; i < tile.data.length; i += 4) tile.data.set([70, 100, 65, 255], i)
@@ -148,6 +150,38 @@ try {
   await pagina.getByText("1 município em 1 estado", { exact: true }).waitFor()
   await pagina.locator('time[datetime="2026-11-12T10:41:00Z"]').waitFor()
   await pagina.locator('time[datetime="2026-11-11T18:00:00Z"]').waitFor()
+  // Supercluster recebe somente células agregadas, antes de qualquer limite municipal ou CAR.
+  await pagina.waitForFunction(() => {
+    const m = document.querySelector(".mapa-brasil .mapa").__mapa
+    return m.queryRenderedFeatures({ layers: ["grupos-fazendas"] }).some(f => f.properties.fazendas === 11)
+  })
+  assert(!pedidos.some(url => /brasil_municipios|imoveis_\d|imoveis_basicos_/.test(url)), "A entrada não pode baixar milhares de polígonos nem tabelas individuais.")
+  const inicial = await pagina.evaluate(() => {
+    const m = document.querySelector(".mapa-brasil .mapa").__mapa
+    const f = m.queryRenderedFeatures({ layers: ["grupos-fazendas"] })[0]
+    return { propriedades: f.properties, hexagonos: !!m.getLayer("potencial-h3"), zoom: m.getZoom() }
+  })
+  assert.equal(inicial.hexagonos, false, "O H3 é só a agregação de entrada, não o desenho da escala nacional.")
+  assert.equal(inicial.propriedades.fazendas, 11)
+  assert.equal(inicial.propriedades.ha_conhecidos, 1000)
+  assert.equal(inicial.propriedades.sem_medida, 1)
+  assert.equal(inicial.propriedades.point_count, 2, "Dois pontos representam onze fazendas, não duas.")
+  assert.equal(pedidosSatelite.length, 0, "A entrada nacional não baixa imagens de satélite.")
+  await pagina.getByText("Explorar grupos com teclado", { exact: true }).click()
+  const listaGrupos = pagina.locator(".cartografia-grupos-lista")
+  await listaGrupos.getByRole("button").first().click()
+  await pagina.waitForFunction(zoom => document.querySelector(".mapa-brasil .mapa").__mapa.getZoom() > zoom, inicial.zoom)
+  await mapaPronto()
+  assert(await pagina.evaluate(() => document.querySelector(".mapa-brasil .mapa").__mapa.getZoom()) > inicial.zoom)
+  await listaGrupos.getByRole("button", { name: /^6 fazendas/ }).click()
+  await pagina.waitForURL(u => u.hash === `#/municipio/${MUNICIPIO}`)
+  await pagina.locator(".lista-basica").waitFor()
+  await mapaPronto()
+  assert(await pagina.evaluate(() => document.querySelector(".mapa-brasil .mapa").__mapa.getZoom()) >= 12,
+    "O município aberto por aproximação precisa preservar o detalhe, sem voltar ao país.")
+  await pagina.locator('.migalhas a[href="#/"]').first().click()
+  await mapaPronto()
+  pedidosSatelite.length = 0
   await pagina.locator('.lista-estados a[href="#/estado/PA"]').click()
   await mapaPronto()
   await pagina.waitForFunction(() => {
@@ -175,10 +209,10 @@ try {
   const distante = await pagina.evaluate(() => {
     const m = document.querySelector(".mapa-brasil .mapa").__mapa
     return { fazendas: m.queryRenderedFeatures({ layers: ["imoveis", "imoveis-linha", "imoveis-sobrepostos"] }).length,
-      h3: m.queryRenderedFeatures({ layers: ["potencial-h3"] }).length, preenchimento: m.getPaintProperty("imoveis", "fill-opacity") }
+      grupos: m.queryRenderedFeatures({ layers: ["grupos-fazendas"] }).length, preenchimento: m.getPaintProperty("imoveis", "fill-opacity") }
   })
   assert.equal(distante.fazendas, 0, "Nenhum imóvel é desenhado no zoom 11.")
-  assert(distante.h3 > 0, "O potencial H3 precisa aparecer na escala regional.")
+  assert(distante.grupos > 0, "Os grupos com contagem e hectares precisam aparecer na escala regional.")
   assert.equal(distante.preenchimento, 0, "O CAR não recebe preenchimento em nenhum zoom.")
   await pagina.screenshot({ path: path.join(resultado, "depois-regional-1440.png"), fullPage: true })
   // Usa o controle que o visitante usa; não pula direto para um estado interno do mapa.
@@ -205,17 +239,17 @@ try {
     const camadas = m.getStyle().layers
     const ordem = Object.fromEntries(camadas.map((camada, i) => [camada.id, i]))
     return { contorno: m.getPaintProperty("imoveis-linha", "line-width"), fill: m.getPaintProperty("imoveis", "fill-opacity"),
-      h3: m.queryRenderedFeatures({ layers: ["potencial-h3"] }).length,
+      grupos: m.queryRenderedFeatures({ layers: ["grupos-fazendas"] }).length,
       sobrepostos: [...new Set(m.queryRenderedFeatures({ layers: ["imoveis-sobrepostos"] }).map(f => f.properties.cod_imovel))],
       hachura: m.queryRenderedFeatures({ layers: ["restauracao-hachura"] }).length,
-      ordem, fundoDetalhadoAbaixo: camadas.every(camada => camada.source !== "protomaps-detalhe" || camada.type === "symbol" || ordem[camada.id] < ordem["potencial-h3"]) }
+      ordem, fundoDetalhadoAbaixo: camadas.every(camada => camada.source !== "protomaps-detalhe" || camada.type === "symbol" || ordem[camada.id] < ordem["brasil-mun"]) }
   })
   assert.equal(desenho.contorno, 1)
   assert.equal(desenho.fill, 0)
-  assert.equal(desenho.h3, 0, "Hexágonos saem do detalhe para não encobrir o satélite.")
+  assert.equal(desenho.grupos, 0, "Os grupos saem do detalhe para não encobrir o satélite e os CARs reais.")
   assert.equal(desenho.sobrepostos.length, 2, "Sobreposições confirmadas precisam aparecer tracejadas.")
   assert.equal(desenho.hachura, 0, "Sem geometria de restauração autorizada, não se inventa hachura.")
-  for (const overlay of ["potencial-h3", "brasil-mun-escolhido", "imoveis-linha", "imoveis-sobrepostos", "mascara-fazenda"]) {
+  for (const overlay of ["brasil-mun", "brasil-mun-escolhido", "imoveis-linha", "imoveis-sobrepostos", "mascara-fazenda"]) {
     assert(desenho.ordem["sentinel-publico-veu"] < desenho.ordem[overlay],
       `O satélite e o véu precisam ficar abaixo de ${overlay}; uma fonte carregada pode estar encoberta no canvas.`)
   }
@@ -256,6 +290,8 @@ try {
   await pagina.setViewportSize({ width: 360, height: 800 })
   await mapaPronto()
   assert(await pagina.evaluate(() => document.documentElement.scrollWidth <= innerWidth), "O mapa não pode exceder 360 px.")
+  const acessibilidade = await new AxeBuilder({ page: pagina }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze()
+  assert.deepEqual(acessibilidade.violations.map(v => ({ id: v.id, impacto: v.impact })), [], "A legenda e os controles do mapa devem funcionar a 360 px.")
   await pagina.screenshot({ path: path.join(resultado, "depois-detalhe-360.png"), fullPage: true })
   await pagina.setViewportSize({ width: 1440, height: 900 })
   await pagina.evaluate(() => {
@@ -282,7 +318,7 @@ try {
     `O MVT da fixture cobre a tela de água; o canvas precisa pintá-la: ${agua} pixels da cor ${corAgua}.`)
   assert(faixas.some((f) => f.arquivo.endsWith("base_brasil.pmtiles")), "A base precisa ser lida por HTTP Range.")
   assert(faixas.every((f) => f.arquivo.endsWith("base_brasil.pmtiles")), "A mesma base nacional deve atender o município.")
-  console.log(`ok: país e município desenhados; zoom ${zoom.toFixed(1)}, base visível com overzoom e CARs transparentes, potencial H3 e satélite no detalhe.`)
+  console.log(`ok: país e município desenhados; zoom ${zoom.toFixed(1)}, base visível com overzoom e CARs transparentes, grupos Supercluster e satélite no detalhe.`)
 
   await buscar(SEM_DESENHO, `#/municipio/${SEM_DESENHO}`)
   await pagina.getByText("O desenho das fazendas deste município ainda não está disponível.", { exact: false }).waitFor()

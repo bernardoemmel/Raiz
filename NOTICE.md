@@ -1,5 +1,16 @@
 # Código e dados de terceiros
 
+Agrupamento público do mapa: Supercluster, implementação `ClusterTileIndex` de
+`@maplibre/geojson-vt` 6.3.1, já utilizada pelo worker GeoJSON do MapLibre GL JS 6.15.0.
+Licença ISC (MapLibre contributors e Mapbox), conferida no LICENSE do pacote instalado.
+Usado como dependência transitiva, sem copiar código nem incluir um segundo índice na interface.
+Origem: https://github.com/maplibre/geojson-vt e https://github.com/mapbox/supercluster.
+
+A fixture de navegador inclui a faixa 0–255 dos glifos Noto Sans Regular distribuídos por
+protomaps/basemaps-assets (SIL OFL 1.1), para testar números reais dos grupos sem rede no CI.
+Arquivo e licença: `front/scripts/fixtures/fontes/`; licença da família Noto Sans conferida em
+https://github.com/google/fonts/blob/main/ofl/notosans/OFL.txt. Nenhuma alteração nos glifos.
+
 Cache calibrado da matrícula: MAPIE 1.6 (BSD-3-Clause, Copyright 2021 Vianney Taquet,
 Grégoire Martinon, Nicolas Brunel, Issam Ibnouhsein, François Deheeger e contribuidores),
 usado como dependência, sem copiar código. `BinaryClassificationController` controla a
