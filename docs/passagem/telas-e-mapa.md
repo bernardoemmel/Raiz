@@ -484,3 +484,18 @@ relatórios Lighthouse passaram pelo portão fixo. E9 real não foi calibrado e 
   o site mostra ausência explícita, nunca 0% de acerto. O contrato e a operação estão em `docs/painel-acerto.md`.
 - Testes cobrem supressão, valores desconhecidos, proveniência e período. Playwright/axe passou em 1440/360 px
   nas bases `/` e `/Raiz/`, sem 404. O painel também entra na série fixa de três medições Lighthouse no CI.
+
+## Integração das entregas 2 a 5 (12/11/2026, Brasília)
+
+- Reunidas no PR #89. A main foi incorporada, preservando a separação aberto/pago e os novos jobs do CI.
+  Os percursos integrados passaram em 13 auditorias axe, com teclado, 360 px, zero 404 e nenhum contato.
+- No CI, as seis páginas tiveram medianas de desempenho 100, 98, 98, 98, 98 e 100, com acessibilidade 100
+  em todas as medições. A abertura direta em MapLibre tem validação própria no PR #90; essas notas não a cobrem.
+- O E2E da API foi ajustado aos rótulos do formulário nacional, conservando as verificações de Pará, meta,
+  pagamento, autorização e privacidade. O fluxo inteiro passou localmente com API/PostGIS e novamente no CI.
+- A varredura completa do histórico encontrou outra URL JDBC interna no compose de avaliação do commit
+  `e0e8ccd`, linha 46: `KC_DB_URL`, host local e porta 5432, sem usuário nem senha na URL. A exceção é somente
+  esse fingerprint; as regras oficiais, a ocultação dos valores e a varredura de todas as branches continuam.
+- Rodada 12 recebida: Supercluster nacional/estadual, ficha de créditos com base de comparação explícita,
+  versão pública datada, sequência de risco e gráficos. Essa continuação conserva o MapLibre e o acesso pago;
+  não cancela nem desliga workflows. E9 permanece aguardando o conjunto de cartas reais.
