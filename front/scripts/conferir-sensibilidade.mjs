@@ -3,15 +3,17 @@ import assert from "node:assert/strict"
 import path from "node:path"
 import { conferirPaginaAcessivel } from "./conferir-acessibilidade.mjs"
 
-export async function conferirSensibilidade(pagina, AxeBuilder, resultado) {
+export async function conferirSensibilidade(pagina, AxeBuilder, resultado, pedido) {
   const chamadas = []
+  let revisao = pedido.revisao_lote
   await pagina.route("**/api/pedidos/fixture/sensibilidade", (rota) => {
     assert.equal(rota.request().headers().authorization, "Bearer sessao-fixture-cliente")
+    assert.equal(rota.request().headers()["if-match"], `"${revisao}"`)
     const parametros = rota.request().postDataJSON()
     chamadas.push(parametros)
     return rota.fulfill({ json: {
       estado: parametros.pessimista ? "indisponivel" : "disponivel", exemplo: false, parametros,
-      fonte: "API sintética do teste", atualizado_em: "2026-11-12T12:00:00Z", modelo_versao: "fixture-sensibilidade-v1",
+      fonte: "API sintética do teste", atualizado_em: "2026-11-12T12:00:00Z", modelo_versao: "fixture-sensibilidade-v1", revisao_lote: revisao,
       aviso: parametros.pessimista ? "O motor ainda não publicou estas premissas em conjunto." : "Resultado sintético do teste de sensibilidade.",
       opcoes: parametros.pessimista ? [] : ["barata", "segura", "compacta"].map((id, i) => ({
         id, creditos: { p10: 700_000 + i * 10_000, p50: 1_000_000 + i * 10_000, p90: 1_200_000 + i * 10_000 },
@@ -51,4 +53,42 @@ export async function conferirSensibilidade(pagina, AxeBuilder, resultado) {
   await conferirPaginaAcessivel(pagina, AxeBuilder, "sensibilidade-360", resultado)
   await pagina.screenshot({ path: path.join(resultado, "sensibilidade-360.png"), fullPage: true })
   await pagina.setViewportSize({ width: 1440, height: 960 })
+  // A mesma conta altera o lote enquanto o cenário anterior ainda está em voo.
+  let avisarInicio, liberar, avisarFim
+  const inicio = new Promise((r) => { avisarInicio = r })
+  const espera = new Promise((r) => { liberar = r })
+  const fim = new Promise((r) => { avisarFim = r })
+  const revisaoAntiga = revisao
+  await pagina.route("**/api/pedidos/fixture/sensibilidade", async (rota) => {
+    const parametros = rota.request().postDataJSON()
+    avisarInicio()
+    await espera
+    await rota.fulfill({ json: {
+      estado: "indisponivel", exemplo: false, parametros, revisao_lote: revisaoAntiga,
+      fonte: "API sintética do teste", atualizado_em: null, modelo_versao: null, opcoes: [],
+      aviso: "Resposta antiga não pode aparecer depois da remoção.",
+    } })
+    avisarFim()
+  }, { times: 1 })
+  await secao.getByRole("button", { name: "Consultar os três lotes", exact: true }).click()
+  await inicio
+  await pagina.route("**/api/pedidos/fixture/lote", (rota) => {
+    assert.equal(rota.request().postDataJSON().acao, "tirar")
+    revisao = "b".repeat(64)
+    const opcoes = pedido.opcoes.map((o, i) => i === 0 ? { ...o, itens: [], fazendas: 0 } : o)
+    return rota.fulfill({ json: { ...pedido, revisao_lote: revisao, opcoes } })
+  })
+  await pagina.locator(".tabela-lote button").first().click()
+  await pagina.getByRole("button", { name: "Tirar do lote", exact: true }).click()
+  await secao.getByText("A consulta depende da grade de cenários publicada pelo motor.", { exact: false }).waitFor()
+  assert.equal(await secao.locator("table").count(), 0)
+  liberar()
+  await fim
+  await secao.getByRole("button", { name: "Consultar os três lotes", exact: true }).click()
+  await secao.getByText("Resultado sintético do teste de sensibilidade.", { exact: true }).waitFor()
+  assert.equal(await secao.getByText("Resposta antiga não pode aparecer depois da remoção.", { exact: true }).count(), 0)
+  // Reabre a fixture inicial para os demais testes do mapa, sem mudar o cenário deles.
+  revisao = pedido.revisao_lote
+  await pagina.reload()
+  await pagina.getByRole("heading", { name: "Sensibilidade dos três lotes", exact: true }).waitFor()
 }

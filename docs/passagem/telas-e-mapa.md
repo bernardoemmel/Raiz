@@ -437,6 +437,35 @@ relatórios Lighthouse passaram pelo portão fixo. E9 real não foi calibrado e 
   Revisões independentes da projeção e do acesso não encontraram vazamento. O rótulo “custo médio” distingue
   o custo estimado do preço de venda de US$ 55. E9 continua aguardando as cartas reais.
 
+## Continuação, entrega 3: sensibilidade do lote (12/11/2026, Brasília)
+
+- A comparação autenticada ganha controles de preço do crédito, reserva contra reversão (mínimo 20%),
+  taxa de desconto e cenário pessimista. Mostra as três opções, quantis de créditos, área, fazendas, VPL e
+  TIR do projeto, com fonte, data, versão e premissas. Desconto altera VPL; não altera a TIR do mesmo fluxo.
+- O endpoint exige identidade, escopo, liberação e propriedade do pedido antes de ler qualquer arquivo.
+  A grade privada é exata, sem interpolação: combinações inexistentes respondem ausência explícita, sem 404.
+  Pedido, modelo, critérios e composição precisam corresponder à revisão do lote; uma edição invalida a
+  comparação antiga. O componente limpa resultados defasados e descarta respostas em voo de outra revisão.
+- A rodada real do Pará publicou `sensibilidade: []`. O quadro informa essa ausência; a demonstração optativa
+  usa composições e fluxos inteiramente fictícios, sem ler dados pagos nem registrar resultados no aprendizado.
+  Publicar a grade real continua pendente no motor; não apresentamos o exemplo como previsão calibrada.
+- Contrato operacional em `docs/sensibilidade-lote.md`. Testes cobrem limites, grade exata, autorização antes
+  da leitura, ausência, distinção entre desconto/TIR e invalidação após editar o lote. Playwright cobre os quatro
+  controles, teclado, axe/360 px e respostas indisponíveis sem 404.
+
+## Continuação, entrega 4: pedido por estado, bioma ou Brasil (12/11/2026, Brasília)
+
+- Novo pedido permite as 27 UFs, seis biomas ou Brasil inteiro. Trocar o alcance limpa município, desenho e
+  raio ocultos da seleção anterior. Nenhuma lista de estados processados é fixa: a disponibilidade vem do
+  manifesto atual, com data, municípios lidos/esperados, estados parciais, ausentes e desconhecidos.
+- Os critérios seguem para a API existente, que filtra as fazendas pelo recorte. No modo aberto, cobertura
+  estadual não vira oferta do bioma: totais de fazendas/hectares ficam desconhecidos quando o recorte exato
+  não foi publicado. Municípios são deduplicados e informação suprimida não vira zero.
+- O resumo do Pará continua identificado como cenário publicado; não é extrapolado para outro estado,
+  bioma, Brasil inteiro ou novos filtros financeiros. A demonstração também conserva seu aviso fictício.
+- Testes cobrem estado recém-processado, disponibilidade parcial, troca de alcance e ausência. Playwright
+  passou por estado, bioma e Brasil com teclado, axe em 1440/360 px e zero 404; entra no CI junto da cena-alvo.
+
 ## Continuação, entrega 5: acerto do modelo por versão (12/11/2026, Brasília)
 
 - O painel `#/acerto` compara previsões com observações elegíveis, separadas por modelo, versão, alvo,
