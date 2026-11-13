@@ -10,6 +10,7 @@ import { Protocol } from "pmtiles"
 import { COR, MAPA } from "../../../compartilhado/cores"
 import { CORES_MAPA, FILTRO_PAISES } from "../../../compartilhado/mapa-cores"
 import { fonteMapaBase } from "../../../compartilhado/mapa-base"
+import { camadasNacionais, fontesNacionais } from "./nacional"
 
 let pronto = false
 
@@ -34,9 +35,20 @@ export function estiloBase(base: string | null, opcoes: { rotulos?: boolean; nac
     sources: {},
     layers: [{ id: "background", type: "background", paint: { "background-color": SABOR_RAIZ.earth, ...(opcoes.nacional ? { "background-opacity": 0 } : {}) } }],
   }
+  if (opcoes.nacional) {
+    const baseNacional = base ? camadasBaseNacionais() : fundo.layers
+    const dadosNacionais = camadasNacionais()
+    // Registra o estilo uma vez; o fundo aparece enquanto estados e agregados chegam.
+    // Mantém fronteiras abaixo dos estados e nomes dos países abaixo dos rótulos de cobertura.
+    return { ...fundo, sources: { ...(base ? { protomaps: fonteMapaBase(base) } : {}), ...fontesNacionais() }, layers: [
+      ...baseNacional.filter(camada => camada.type !== "symbol"),
+      ...dadosNacionais.filter(camada => camada.type === "fill" || camada.type === "line"),
+      ...baseNacional.filter(camada => camada.type === "symbol"),
+      ...dadosNacionais.filter(camada => camada.type !== "fill" && camada.type !== "line"),
+    ] }
+  }
   if (!base) return fundo
-  // O primeiro frame pinta a geografia; os rótulos entram quando esse fundo estiver pronto.
-  const camadas = opcoes.nacional ? camadasBaseNacionais().filter((camada) => camada.type === "background" || camada.type === "fill") : camadasBase(opcoes.rotulos !== false)
+  const camadas = camadasBase(opcoes.rotulos !== false)
   return {
     version: 8,
     glyphs: glyphs(),

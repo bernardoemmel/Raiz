@@ -21,12 +21,12 @@ import { rotulosDeAreas } from "../../../compartilhado/rotulos-mapa"
 import { fonteMapaBase } from "../../../compartilhado/mapa-base"
 import { tituloDe } from "../filtros"
 import { linkCalendarioImovel, linkFazenda } from "../rota"
-import { camadasBase, camadasBaseNacionais, estiloBase, imagemHachura, prepararMapLibre } from "./estilo"
+import { camadasBase, estiloBase, imagemHachura, prepararMapLibre } from "./estilo"
 import { prepararGpu } from "./preparar-gpu"
 import { MarcadoresGrupos } from "./marcadores-grupos"
 
 import type { AgregadosMapa } from "../../../compartilhado/dados/agregados"
-import { CAMADA_GRUPOS, FONTE_GRUPOS, camadasGrupos, descreverGrupo, fonteGrupos, lerGrupo, prepararPontosAgregados, urlAgregadosPublica, type GrupoMapa } from "./grupos"
+import { CAMADA_GRUPOS, FONTE_GRUPOS, descreverGrupo, lerGrupo, prepararPontosAgregados, urlAgregadosPublica, type GrupoMapa } from "./grupos"
 import { adicionarSatelitePublico, SATELITE_PUBLICO, type EstadoSatelitePublico } from "./satelite-publico"
 import "./cartografia.css"
 import { camadasImoveis, ordenarImoveis, ZOOM_IMOVEIS } from "./cartografia"
@@ -79,8 +79,6 @@ interface Props {
 const BRASIL: [number, number, number, number] = [-74, -34, -34.5, 5.5]
 /** a partir deste zoom o município aparece por fazenda; abaixo, as fazendas aptas viram círculos com o número */
 const ZOOM_FAZENDAS = ZOOM_IMOVEIS
-/** o nome dos estados com a situação some quando o mapa já está dentro de um estado */
-const ZOOM_ROTULO_ESTADO = 6.5
 const SITUACAO_ESTADO = { completo: 2, incompleto: 1, sem_dados: 0 } as const
 
 /** A cobertura municipal acompanha o nome do estado no mapa. */
@@ -224,7 +222,6 @@ export function MapaBrasil(props: Props) {
       mapaRef.current = m
       marcadoresGrupos.current = new MarcadoresGrupos(m, grupo => { void aproximarGrupo(m, grupo) })
       m.once("load", () => {
-        montar(m, null, true)
         ligarEventos(m)
         setPronto(true)
         setZoom(m.getZoom())
@@ -244,13 +241,6 @@ export function MapaBrasil(props: Props) {
           if (cod && cod !== municipioPorZoom.current) {
             municipioPorZoom.current = cod
             atual.current.props.aoEscolherMunicipio(cod)
-          }
-        })
-        // Pinta os estados antes de preparar os rótulos adicionais do fundo.
-        m.once("idle", () => {
-          if (!m.getSource("protomaps")) return
-          for (const camada of camadasBaseNacionais()) {
-            if (!m.getLayer(camada.id)) m.addLayer(camada, camada.type === "symbol" ? "estados-rotulo-sem-dados" : "estados-preenchimento")
           }
         })
       })
@@ -284,7 +274,7 @@ export function MapaBrasil(props: Props) {
       else if (camada.type === "line" && camada.paint?.["line-dasharray"]) m.setPaintProperty(camada.id, "line-dasharray", camada.paint["line-dasharray"])
       antes = camada.id
     }
-    montar(m, brasil?.municipios ?? null, false)
+    montar(m, brasil?.municipios ?? null)
     // A base estadual usa o satélite como âncora; ambos devem ficar abaixo de toda a cartografia regional.
     limparSatelite.current = adicionarSatelitePublico(m, "brasil-mun", setSatelite)
     setRegional(true)
@@ -521,32 +511,20 @@ export function MapaBrasil(props: Props) {
     vis("terra-publica-linha", camada === "terra_publica")
   }, [camada, regional])
 
-  function montar(m: MapaGL, municipiosBrasil: Geo | null, nacional: boolean) {
+  function montar(m: MapaGL, municipiosBrasil: Geo | null) {
     const antesDosRotulos = m.getStyle().layers.find((l) => l.type === "symbol")?.id
-    const camadasNacionais = new Set(["estados-preenchimento", "estados-sem-dados", "estados-linha", "estado-sobre", "estado-escolhido", "estados-rotulo", "estados-rotulo-sem-dados", CAMADA_GRUPOS])
-    const fontesNacionais = new Set(["brasil-estados", "estados-rotulos", FONTE_GRUPOS])
     const add = (l: LayerSpecification, emCima = false) => {
-      if (!m.getLayer(l.id) && (!nacional || camadasNacionais.has(l.id))) m.addLayer(l, emCima ? undefined : antesDosRotulos)
+      if (!m.getLayer(l.id)) m.addLayer(l, emCima ? undefined : antesDosRotulos)
     }
     const fonte = (id: string, especificacao: SourceSpecification) => {
-      if (!m.getSource(id) && (!nacional || fontesNacionais.has(id))) m.addSource(id, especificacao)
+      if (!m.getSource(id)) m.addSource(id, especificacao)
     }
     // A hachura só representa um recorte medido e autorizado, nunca uma área inferida do limite ou da situação.
-    if (!nacional && !m.hasImage("hachura-restauracao")) m.addImage("hachura-restauracao", imagemHachura(COR.mata), { pixelRatio: 2 })
+    if (!m.hasImage("hachura-restauracao")) m.addImage("hachura-restauracao", imagemHachura(COR.mata), { pixelRatio: 2 })
     fonte("brasil-municipios", { type: "geojson", data: (municipiosBrasil ?? VAZIO) as never, promoteId: "cod_ibge" })
-    // O efeito publica a geometria já com cobertura; não envia o mesmo GeoJSON bruto antes disso.
-    fonte("brasil-estados", { type: "geojson", data: VAZIO as never, promoteId: "uf" })
-    fonte("estados-rotulos", { type: "geojson", data: VAZIO as never })
-    fonte(FONTE_GRUPOS, fonteGrupos())
     for (const id of ["municipio", "mascara", "ti", "uc", "nomes", "rios", "fogo-recente", "terra-publica", "restauracao-autorizada", "mascara-fazenda"])
       fonte(id, { type: "geojson", data: VAZIO as never })
     fonte("imoveis", { type: "geojson", data: VAZIO as never, promoteId: "cod_imovel" })
-    // As cores constantes reutilizam os programas gráficos do fundo. Os filtros são mutuamente exclusivos.
-    const processado = ["in", ["coalesce", ["get", "s"], -1], ["literal", [1, 2]]] as const
-    add({ id: "estados-preenchimento", type: "fill", source: "brasil-estados", filter: processado as never,
-      paint: { "fill-antialias": false, "fill-color": COR.restaurar, "fill-opacity": 0.35 } })
-    add({ id: "estados-sem-dados", type: "fill", source: "brasil-estados", filter: ["!", processado] as never,
-      paint: { "fill-antialias": false, "fill-color": COR.nevoa, "fill-opacity": 0.8 } })
     // A superfície invisível escolhe o município; nenhum preenchimento representa potencial por CAR.
     add({ id: "brasil-mun", type: "fill", source: "brasil-municipios", paint: { "fill-color": COR.nevoa, "fill-opacity": 0 } })
     add({
@@ -566,30 +544,10 @@ export function MapaBrasil(props: Props) {
         ],
       },
     })
-    // divisa dos estados; o estado sob o dedo ou o mouse (na escala do país) e o escolhido ganham o contorno em tinta
-    add({
-      id: "estados-linha",
-      type: "line",
-      source: "brasil-estados",
-      paint: {
-        "line-color": COR.pedra,
-        "line-width": 0.6,
-        "line-opacity": ["interpolate", ["linear"], ["zoom"], 4, 0.9, ZOOM_FAZENDAS, 0.5],
-      },
-    })
-    add({ id: "estado-sobre", type: "line", source: "brasil-estados", filter: ["==", ["get", "uf"], ""],
-      paint: { "line-color": COR.tinta, "line-width": 2, "line-opacity": ["interpolate", ["linear"], ["zoom"], 4, 0.9, ZOOM_FAZENDAS, 0.5] } })
-    add({
-      id: "estado-escolhido",
-      type: "line",
-      source: "brasil-estados",
-      filter: ["==", ["get", "uf"], ""],
-      paint: { "line-color": COR.tinta, "line-width": ["interpolate", ["linear"], ["zoom"], 4, 1.5, 8, 2.5] },
-    })
     // Dentro do município, o que não é fazenda do CAR fica em névoa lisa: área sem imóvel, terra indígena e unidade de
     // conservação. Vai embaixo da água e das estradas do mapa base, que continuam aparecendo por cima.
     const daAgua = m.getStyle().layers.find((l) => l.id === "water")?.id ?? antesDosRotulos
-    if (!nacional && !m.getLayer("municipio-fundo")) m.addLayer({ id: "municipio-fundo", type: "fill", source: "municipio", maxzoom: ZOOM_FAZENDAS, paint: { "fill-color": COR.nevoa, "fill-opacity": 0 } }, daAgua)
+    if (!m.getLayer("municipio-fundo")) m.addLayer({ id: "municipio-fundo", type: "fill", source: "municipio", maxzoom: ZOOM_FAZENDAS, paint: { "fill-color": COR.nevoa, "fill-opacity": 0 } }, daAgua)
     // terra indígena e unidade de conservação: só a divisa, fina e tracejada, e o nome por cima (camada "nomes")
     for (const id of ["ti", "uc"])
       add({
@@ -646,38 +604,6 @@ export function MapaBrasil(props: Props) {
       },
       true,
     )
-    // nome do estado e o que a Raíz já leu dele; o que ainda não foi processado em pedra
-    for (const semDados of [true, false]) add(
-      {
-        id: semDados ? "estados-rotulo-sem-dados" : "estados-rotulo",
-        type: "symbol",
-        source: "estados-rotulos",
-        filter: [semDados ? "==" : "!=", ["get", "s"], 0],
-        maxzoom: ZOOM_ROTULO_ESTADO,
-        layout: {
-          "text-field": [
-            "format",
-            ["get", "nome"],
-            { "font-scale": 1 },
-            "\n",
-            {},
-            ["get", "linha"],
-            { "font-scale": 0.85 },
-          ],
-          "text-font": ["Noto Sans Regular"],
-          "text-size": ["interpolate", ["linear"], ["zoom"], 3, 11, 6, 14],
-          "text-max-width": 9,
-          "text-padding": 2,
-          "symbol-sort-key": ["get", "ordem"],
-        },
-        paint: {
-          "text-color": semDados ? COR.pedra : COR.tinta,
-          "text-halo-color": COR.superficie,
-          "text-halo-width": 1.5,
-        },
-      },
-      true,
-    )
     add({
       id: "brasil-mun-escolhido",
       type: "line",
@@ -686,7 +612,6 @@ export function MapaBrasil(props: Props) {
       maxzoom: ZOOM_FAZENDAS,
       paint: { "line-color": COR.tinta, "line-width": 2 },
     })
-    for (const camada of camadasGrupos()) add(camada, true)
   }
 
   function atualizarGruposVisiveis(m: MapaGL) {
