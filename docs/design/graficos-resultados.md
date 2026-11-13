@@ -40,6 +40,11 @@ As tabelas são HTML, com cabeçalhos, unidades, fontes e datas. Podem ser perco
 horizontalmente em 360 px. Os desenhos SVG equivalentes são ocultos da árvore acessível para evitar repetição.
 Linhas, pontos e legendas diferenciam séries também por forma, sem depender apenas de cor. Não há animação.
 
+A faixa P10/P90 usa verde opaco com contraste mínimo de 3:1 contra o fundo. P50 circular e observado em
+losango têm halo opaco de 2 px, preservando o contraste de cada símbolo sobre a faixa (WCAG 2.1, 1.4.11).
+O teste de contraste calcula luminância e composição de opacidade das cores efetivamente declaradas no spec;
+o axe sozinho não confere essa distinção dentro do SVG.
+
 ECharts usa apenas linha, eixos, legenda e SVG. Vega-Lite usa `compile`, e Vega usa `parse`/`View`.
 Os módulos de gráficos são importações dinâmicas ativadas pelo botão de cada painel. Não entram na árvore
 estática da ficha nem do mapa inicial. Falhas no desenho conservam as tabelas e exibem aviso.

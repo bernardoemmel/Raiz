@@ -34,9 +34,10 @@ export function especificacaoFaixas(comparacoes: ComparacaoMetodo[], largura: nu
     data: { values: comparacoes.map((c, i) => ({ id: c.id, rotulo: `${nomeMetodo(c.metodo)} (${c.versao}; ${i + 1})`, p10: c.previsao.p10, p50: c.previsao.p50, p90: c.previsao.p90, real: c.observado.valor })) },
     encoding: { y: { field: "rotulo", type: "nominal", sort: null, axis: { title: null, labelLimit: largura < 500 ? 95 : 180 } } },
     layer: [
-      { mark: { type: "rule", strokeWidth: 8, color: COR.restaurar, opacity: .5 }, encoding: { x: { field: "p10", type: "quantitative", title: comparacoes[0]?.previsao.referencia.unidade ?? "Valor", scale: { zero: true } }, x2: { field: "p90" } } },
-      { mark: { type: "point", filled: true, size: 80, shape: "circle", color: COR.mataTexto }, encoding: { x: { field: "p50", type: "quantitative" } } },
-      { mark: { type: "point", filled: true, size: 100, shape: "diamond", color: COR.urucumTexto }, encoding: { x: { field: "real", type: "quantitative" } } },
+      { mark: { type: "rule", strokeWidth: 8, color: COR.mata, opacity: 1 }, encoding: { x: { field: "p10", type: "quantitative", title: comparacoes[0]?.previsao.referencia.unidade ?? "Valor", scale: { zero: true } }, x2: { field: "p90" } } },
+      // Halo opaco: os símbolos continuam distinguíveis quando ficam sobre a faixa verde (WCAG 1.4.11).
+      { mark: { type: "point", filled: true, size: 80, shape: "circle", color: COR.mataTexto, opacity: 1, stroke: COR.papel, strokeWidth: 2 }, encoding: { x: { field: "p50", type: "quantitative" } } },
+      { mark: { type: "point", filled: true, size: 100, shape: "diamond", color: COR.urucumTexto, opacity: 1, stroke: COR.papel, strokeWidth: 2 }, encoding: { x: { field: "real", type: "quantitative" } } },
     ],
     config: { background: COR.papel, font: "Atkinson Hyperlegible Next, sans-serif", view: { stroke: null }, axis: { labelColor: COR.pedra, titleColor: COR.tinta, labelFontSize: 14, titleFontSize: 14, gridColor: COR.nevoa, domainColor: COR.pedra, tickCount: largura < 500 ? 3 : 5 }, title: { color: COR.tinta } },
   }

@@ -16,6 +16,6 @@
 .legenda-resultados { display: flex; flex-wrap: wrap; gap: var(--e3); }
 .legenda-resultados > span { display: inline-flex; align-items: center; gap: var(--e2); }
 .legenda-resultados > span::before { content: ""; display: inline-block; flex: 0 0 auto; }
-.legenda-faixa::before { width: 24px; height: 8px; background: var(--restaurar); }
+.legenda-faixa::before { width: 24px; height: 8px; background: var(--mata); }
 .legenda-mediana::before { width: 10px; height: 10px; border-radius: 50%; background: var(--mata-texto); }
 .legenda-real::before { width: 10px; height: 10px; transform: rotate(45deg); background: var(--urucum-texto); }
