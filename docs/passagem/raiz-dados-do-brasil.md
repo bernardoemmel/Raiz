@@ -468,3 +468,16 @@ PostGIS, LanguageTool real e a referência estadual privada completa do Pará; d
 cartão/vídeo dependem da instalação local do Takumi e serão repetidas após prepará-lo. A divergência de
 TIR central r11 permanece como falha esperada já documentada. Ruff/formatação passaram; 862 pacotes
 conferidos sem problemas de licença. CI, merge e conferência dos novos marcadores em produção pendentes.
+
+Acompanhamento do PR #95 em 12/11 às 23h13 de Brasília: referência privada completa do Pará, agentes e
+workflows passaram no CI `43347013537`; demais jobs ainda em andamento/fila. Gitleaks apontou somente
+`KC_DB_URL` no commit `e0e8ccdd`, uma URL JDBC interna sem usuário/senha; exceção limitada ao fingerprint
+confirmado preparada. Varredura local de 492 commits passou após essa exceção. O push da correção aguarda
+o término natural do CI atual para não acionar seu cancelamento automático. Catálogo automático antigo
+`43346089594` terminou com falha: AC/RuntimeError e AP/ProcessamentoInseguro; a preservação do relatório
+falhou porque os assets mudaram durante a paginação. Nada foi cancelado; catálogo completo continua pendente.
+
+O navegador do CI #95 encontrou um 404 na ref pública de processamento, ainda inexistente antes da primeira
+implantação. A fixture do build agora usa `./amostra/processamento.json`, servido pelo próprio site de teste.
+O Playwright exige as 27 UFs, ausência de erros e ausência de execução inventada; a configuração de produção
+continua consultando a ref pública. O teste de referência estadual, agentes, segurança, workflows e e2e já passaram.
