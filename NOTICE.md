@@ -420,6 +420,23 @@ imagem `valkey/valkey:8.1.4`, fornece cache, fila e limites compartilhados, sob 
 ([valkey-io/valkey](https://github.com/valkey-io/valkey/blob/8.1.4/COPYING)). A configuração da Raíz é própria;
 nenhum código desses serviços foi copiado ou alterado. PostgreSQL 16 permanece serviço separado sob a licença
 PostgreSQL. Isso não autoriza substituir Valkey por Redis nem GlitchTip pelo servidor Sentry de licença restritiva.
+## Avaliação de modelos (rodada 12)
+
+Dependências usadas sem copiar código. Licenças conferidas nos metadados e arquivos dos pacotes travados:
+
+| Pacote | Versão | Licença | Uso e origem |
+|---|---|---|---|
+| properscoring | 0.1 | Apache-2.0 | CRPS de distribuições congeladas; https://github.com/properscoring/properscoring |
+| sktime | 1.3.0 | BSD-3-Clause | Origens móveis na avaliação; https://github.com/sktime/sktime |
+| aif360 | 0.6.1 | Apache-2.0 | Diferença de seleção por município, aptidão e porte; https://github.com/Trusted-AI/AIF360 |
+| imbalanced-learn | 0.14.2 | MIT | Reamostragem apenas no treino; https://github.com/scikit-learn-contrib/imbalanced-learn |
+| forestci | 0.9 | MIT | Variância IJ da floresta; https://github.com/scikit-learn-contrib/forest-confidence-interval |
+| probscale (mpl-probscale) | 0.3.0 | BSD-3-Clause | Caudas do erro em gráfico privado; https://github.com/matplotlib/mpl-probscale |
+
+Properscoring e seu backend Numba 0.68.1 (BSD-2-Clause) / llvmlite 0.50.0 (BSD-2-Clause,
+LLVM Apache-2.0 com exceção LLVM) entram nas dependências normais da aplicação; os demais são ferramentas de avaliação/treino
+no grupo de desenvolvimento. `scpi`, `scpi-pkg` e `vegan` não são dependências nem código incorporado. O CI
+confere o wheel e todas as dependências distribuíveis, inclusive extras e transitivas.
 
 ## Pasta do banco fiador e comprador
 

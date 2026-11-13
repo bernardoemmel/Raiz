@@ -841,7 +841,7 @@ class ArmazemRelease:
             }
         # Nenhum pacote aberto é substituído antes de todos os bytes e a entrada serem aprovados.
         for nome, dados in pacotes.items():
-            validar_asset_publico(nome, dados)
+            validar_asset_publico(nome, dados, repo=aberto.repo, tag=aberto.tag)
         validar_asset_publico(
             "estados.json",
             json.dumps(
@@ -853,6 +853,8 @@ class ArmazemRelease:
                     "estados": {uf: entrada},
                 }
             ).encode(),
+            repo=aberto.repo,
+            tag=aberto.tag,
         )
         with aberto._trava(f"trava-publicar-{uf}", 1800):
             for nome, dados in pacotes.items():

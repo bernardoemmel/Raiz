@@ -76,7 +76,7 @@ class _Coletor:
         return {}
 
     def _subir(self, release, nome, dados, tipo=None):
-        validar_asset_publico(nome, dados)
+        validar_asset_publico(nome, dados, repo=self.repo, tag=self.tag)
         arquivo = self.diretorio / m.nome_seguro(nome)
         arquivo.write_bytes(dados)
         self.arquivos[nome] = arquivo
@@ -147,9 +147,9 @@ def preparar(rel: dict, tag: str, diretorio: Path) -> dict[str, Path]:
     return coletor.arquivos
 
 
-def _verificar_publico(gh, repo, asset, arquivo, diretorio):
+def _verificar_publico(gh, repo, tag, asset, arquivo, diretorio):
     m.verificar_asset(gh, repo, asset, m.sha256(arquivo), diretorio)
-    validar_asset_publico(asset["name"], arquivo.read_bytes())
+    validar_asset_publico(asset["name"], arquivo.read_bytes(), repo=repo, tag=tag)
 
 
 def _conferir_origem(gh, rel, tag, arquivos, diretorio, *, ausentes, cache):
@@ -170,7 +170,7 @@ def _conferir_origem(gh, rel, tag, arquivos, diretorio, *, ausentes, cache):
                     raise ValueError("Asset novo não previsto na projeção; corte interrompido.")
                 marca = json.dumps(m.fingerprint(asset), sort_keys=True)
                 if marca not in cache:
-                    _verificar_publico(gh, rel["origem"], asset, arquivo, diretorio)
+                    _verificar_publico(gh, rel["origem"], tag, asset, arquivo, diretorio)
                     cache.add(marca)
             vivos[asset_id] = asset
     if set(originais) - vivos.keys() - ausentes:
@@ -268,7 +268,7 @@ def cortar(gh, rel, repo, tag, tag_publica, diretorio, *, executar=False, retoma
     for nome in sorted(arquivos, key=lambda n: (n == "estados.json", n)):
         conferir()
         arquivo = arquivos[nome]
-        validar_asset_publico(nome, arquivo.read_bytes())
+        validar_asset_publico(nome, arquivo.read_bytes(), repo=rel["origem"], tag=tag_publica)
         existente = _assets(gh, rel["origem"], release_publica).get(nome)
         if existente is not None:
             original = next((i for i in rel["assets"] if i["origem"]["id"] == existente["id"]), None)
@@ -276,12 +276,12 @@ def cortar(gh, rel, repo, tag, tag_publica, diretorio, *, executar=False, retoma
                 apagar(existente)
                 existente = None
             else:
-                _verificar_publico(gh, rel["origem"], existente, arquivo, diretorio)
+                _verificar_publico(gh, rel["origem"], tag_publica, existente, arquivo, diretorio)
         if existente is None:
             conferir()
             gh.subir(rel["origem"], tag_publica, arquivo, nome)
             existente = _assets(gh, rel["origem"], release_publica)[nome]
-            _verificar_publico(gh, rel["origem"], existente, arquivo, diretorio)
+            _verificar_publico(gh, rel["origem"], tag_publica, existente, arquivo, diretorio)
         preservar.add(existente["id"])
         resultado["publicados"].append(m.fingerprint(existente))
         m.gravar_json(diretorio / "corte-progresso.json", resultado)
