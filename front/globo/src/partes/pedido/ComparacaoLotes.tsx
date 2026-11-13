@@ -36,7 +36,7 @@ export function ComparacaoLotes({ opcoes, publicadas, selecionar }: { opcoes: Op
     { titulo: "Créditos líquidos P90 (t CO2e)", valor: (o) => numero(o?.creditos?.p90) },
     { titulo: "Área para restaurar", valor: (o) => numero(o?.hectares, fmtHa) },
     { titulo: "Fazendas (titulares e reservas)", valor: (o) => numero(o?.fazendas) },
-    { titulo: "Preço médio por crédito", valor: (o) => numero(o?.custo_usd_credito, fmtUsd) },
+    { titulo: "Custo médio por crédito", valor: (o) => numero(o?.custo_usd_credito, fmtUsd) },
     { titulo: "Meta com terra pronta", valor: (o) => o?.terra_pronta.fracao_meta === null || o?.terra_pronta.fracao_meta === undefined
       ? "Ainda não publicado" : `${fmtPct(o.terra_pronta.fracao_meta)} (${numero(o.terra_pronta.creditos_p50)} créditos P50)` },
   ]

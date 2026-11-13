@@ -401,3 +401,38 @@ relatórios Lighthouse passaram pelo portão fixo. E9 real não foi calibrado e 
   não libera medidas de grupos cujo tamanho mínimo não pode ser confirmado. Dezenove testes focados passaram.
 - A atualização da main para o histórico automático foi incorporada; preservadas a nota do Calendário
   sobre o runner e a exceção exata de URL JDBC sem credenciais.
+
+## Continuação, entrega 2: lotes abertos e detalhes autenticados (13/11/2026 UTC)
+
+- `raiz.lotes_publicos` lê **somente o manifesto privado**, depois de conferir a visibilidade autenticada,
+  tamanho e hash. A projeção `publico_lotes` v1 publica apenas os sete indicadores autorizados; não baixa
+  os pacotes por fazenda. Token restrito ao passo do Actions, sem variável `VITE_`, cache ou artifact privado.
+  O build e o navegador reaplicam a lista positiva. O formato completo antigo é recusado.
+- Fonte real: rodada `central_r11`, modelo `restauracao-2026d+a84f9789`, publicada em
+  `2026-11-12T20:47:42Z`, 144 municípios e 345.870 fazendas calculadas no Pará. Pedido de referência:
+  um milhão de créditos, contrato de US$ 55 por crédito. Alterar os critérios não recalcula esse snapshot.
+- A comparação aberta usa o mesmo conjunto de titulares **e fazendas de reserva** em cada medida:
+
+| Opção | P10 / P50 / P90 de créditos | Hectares | Fazendas | Custo médio por crédito |
+|---|---|---:|---:|---:|
+| Mais barata | 1.298.148 / 1.871.150 / 2.309.231 | 9.561,3 | 95 | US$ 26,83 |
+| Mais segura | 1.310.708 / 1.891.833 / 2.332.670 | 9.942,8 | 270 | US$ 27,68 |
+| Mais compacta | 1.339.520 / 1.950.679 / 2.426.929 | 10.838,4 | 25 | US$ 33,29 |
+
+- **Terra documental pronta: zero créditos e 0% da meta nas três opções.** O indicador exige matrícula
+  conferida ou concessão; não usa a oferta estadual do solver, que também aceita matrícula a conferir.
+  Uma futura mistura sem quantis separados permanece desconhecida: não ratear créditos por hectares ou fazendas.
+  Isso não afirma que uma concessão ou matrícula por si só libera a venda; os lotes continuam sujeitos à diligência.
+- A tela aberta não mostra TIR, composição, CAR, mapa da seleção, tabela por fazenda, travas ou “o que destrava”.
+  O cadastro básico geral permanece aberto, separado da identidade das fazendas de cada lote.
+- Na área autenticada, os detalhes usam o transporte e o DTO da API. Sem servidor, a opção explícita
+  “Conhecer a demonstração da área logada” abre uma sessão separada e dados inteiramente fictícios, com IDs
+  `DEMONSTRACAO-*` e contornos artificiais. Não lê o Release privado, não libera fichas reais, não cobra e não
+  inicia contato. Uma API configurada sempre prevalece sobre essa demonstração.
+- Quadro “o que destrava” usa somente a opção consultada; sem dado específico, informa ausência. Não reutiliza
+  as estatísticas gerais como se fossem a diligência daquele lote. Pequenas fazendas continuam incluídas.
+- Verificação: seis testes do projetor privado, 233 testes do front, TypeScript, Ruff, design e actionlint;
+  Playwright integrou resumo ausente/legado/permitido, demonstração, três lotes autorizados, ficha bloqueada,
+  teclado e axe a 360 px, sem 404. Pages também passou com publicação básica e zero erros no navegador.
+  Revisões independentes da projeção e do acesso não encontraram vazamento. O rótulo “custo médio” distingue
+  o custo estimado do preço de venda de US$ 55. E9 continua aguardando as cartas reais.

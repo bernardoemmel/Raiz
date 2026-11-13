@@ -12,7 +12,7 @@ name: Publicar o site
 on:
   push:
     branches: [main]
-    paths: ["front/**", ".github/workflows/publicar-site.yml"]
+    paths: ["front/**", "raiz/lotes_publicos.py", ".github/workflows/publicar-site.yml"]
   schedule:
     - cron: "41 10 * * *"
   workflow_dispatch:
