@@ -67,8 +67,11 @@ OAuth real, juiz, evidências sanitizadas e gabarito v2. Não adiciona segunda c
 semanal. Este PR garante também artefato de diagnóstico se a preparação falhar,
 e upload explícito dos arquivos conferidos que estão dentro de `.cache`.
 
-A execução 43341704532 já iniciou na main e passou pela verificação do segredo.
-Seu resultado ainda precisa ser conferido; testes de contrato não são pass^4 real.
+A execução 43341704532 chamou Claude e publicou o artefato 14000228551. Concluiu
+35 de 96 tentativas e parou ao julgar `liberacao_pendente`, tentativa 4: a citação
+da resposta omitiu marcadores Markdown e falhou na conferência literal. O relatório
+permanece incompleto (`aprovado=false`); não há pass^4 válido. A evidência da campanha
+deve ser preservada, e qualquer correção do juiz exige nova campanha integral.
 Ver `docs/medicao-agentes-actions.md`. A pilha de produção não foi implantada.
 
 Validações locais antes da conciliação: 2.227 testes Python aprovados e uma falha
