@@ -366,6 +366,18 @@ def aprendizado_acerto() -> None:
     typer.echo(json.dumps(placar(engine()), ensure_ascii=False, indent=1, default=str))
 
 
+@aprendizado.command("acerto-publico")
+def aprendizado_acerto_publico(
+    destino: Annotated[str, typer.Argument(help="JSON agregado, ex.: dados/acerto/placar.json")],
+) -> None:
+    """Exporta somente métricas de grupos com pelo menos cinco imóveis observados."""
+    from raiz.aprendizado.painel import exportar
+    from raiz.banco import engine
+
+    exportar(engine(), destino)
+    typer.echo("Resumo agregado do aprendizado exportado.")
+
+
 pessoal = typer.Typer(help="Dado pessoal cifrado (telefone e BSUID).", no_args_is_help=True)
 app.add_typer(pessoal, name="pessoal")
 

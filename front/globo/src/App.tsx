@@ -3,6 +3,7 @@ import { useRota } from "./rota"
 import { pedidos, useSessao } from "./pedidos"
 import { Explorar } from "./telas/Explorar"
 
+const AcertoModelo = lazy(() => import("./telas/AcertoModelo").then((m) => ({ default: m.AcertoModelo })))
 const Entrar = lazy(() => import("./telas/Entrar").then((m) => ({ default: m.Entrar })))
 const FichaTerra = lazy(() => import("./telas/FichaTerra").then((m) => ({ default: m.FichaTerra })))
 const Prospeccao = lazy(() => import("./telas/Prospeccao").then((m) => ({ default: m.Prospeccao })))
@@ -37,6 +38,7 @@ function TelaAtual() {
     return () => observer.disconnect()
   }, [rota])
   const sessao = useSessao()
+  if (rota.tela === "acerto") return <AcertoModelo />
   if (rota.tela === "calendario") return <Calendario key={rota.car || "todos"} car={rota.car} />
   if (rota.tela === "fazenda") return <FichaTerra key={`${rota.car}-${sessao?.token ?? "publica"}`} car={rota.car} />
   if (rota.tela === "prospeccao") return <Prospeccao key={sessao?.token ?? "publica"} />
