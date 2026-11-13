@@ -202,7 +202,7 @@ export function Explorar({ municipio, uf }: { municipio: string | null; uf: stri
                 pontos={undefined}
                 carregando={municipios.carregando || estados.carregando}
                 cobertura={coberturaMapa.dado}
-                andamento={<PainelProcessamentoEstados carga={processamento} uf={uf} />}
+                andamento={<PainelProcessamentoEstados key="processamento" carga={processamento} uf={uf} />}
               />
             )}</Suspense>
           </div>
