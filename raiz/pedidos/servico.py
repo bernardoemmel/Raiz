@@ -333,6 +333,8 @@ def _limpar_opcoes(
     out = []
     for o in ops:
         o = dict(o)
+        # Fichas derivadas pertencem ao documento privado da revisão atual, nunca à sugestão bruta.
+        o.pop("ficha_credito", None)
         itens = []
         for i in o.get("itens", []):
             cod = i["cod_imovel"]
@@ -390,7 +392,7 @@ def obter_pedido(engine: Engine, pedido_id: str, cliente_id: int | None) -> dict
             for item in opcao["itens"]:
                 if liberadas.get(item["cod_imovel"]) is not None:
                     item["geometria"] = liberadas[item["cod_imovel"]]
-        return {
+        pedido = {
             "id": str(p["id"]),
             "criado_em": p["criado_em"].isoformat(),
             "campos": p["campos"],
@@ -403,6 +405,11 @@ def obter_pedido(engine: Engine, pedido_id: str, cliente_id: int | None) -> dict
             "versao_modelo": s["premissas_versao"],
             "revisao_lote": revisao_lote(p["id"], p["campos"], s, opcoes),
         }
+    from raiz.pedidos.ficha_credito import consultar
+
+    for opcao in pedido["opcoes"]:
+        opcao["ficha_credito"] = consultar(pedido, opcao["id"])
+    return pedido
 
 
 def pedidos_do_cliente(engine: Engine, cliente_id: int) -> list[dict]:

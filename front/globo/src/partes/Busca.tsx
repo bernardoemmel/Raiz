@@ -29,7 +29,7 @@ function abrirImovel(car: string) {
   location.hash = linkFazenda(car)
 }
 
-/** os 5.570 municípios do contorno do Brasil, carregados uma vez (o mapa de entrada já pediu o mesmo arquivo) */
+/** Limites municipais carregados uma vez, quando a busca precisa consultar municípios ainda não processados. */
 let mapaBrasil: Promise<MunicipioDoMapa[]> | null = null
 const municipiosDoMapa = () =>
   (mapaBrasil ??= fonte.geo.brasil().then(

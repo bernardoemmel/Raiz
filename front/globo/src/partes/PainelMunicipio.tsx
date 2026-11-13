@@ -3,7 +3,6 @@ import { escreverCsv } from "../../../compartilhado/dados/csv"
 import type { FunilMunicipio, Imovel } from "../../../compartilhado/dados"
 import {
   MOTIVOS,
-  SITUACOES,
   etapaDe,
   etapasDoFunil,
   etapasDoResumo,
@@ -13,7 +12,7 @@ import {
   type Foco,
 } from "../../../compartilhado/funil-etapas"
 import { doEstado, fmtInt, UFS } from "../../../compartilhado/formato"
-import { ESCALA_FOGO, PERIODO_FOGO } from "../../../compartilhado/satelite"
+import { PERIODO_FOGO } from "../../../compartilhado/satelite"
 import { frenteDe, tituloDe } from "../filtros"
 import type { CamadaAssunto } from "../mapa/MapaBrasil"
 import { Estado } from "./Estado"
@@ -89,81 +88,11 @@ function baixarCsv(nome: string, lista: Imovel[]) {
 function Legenda({ camada, foco, imoveis }: { camada: CamadaAssunto; foco: Foco; imoveis: Imovel[] }) {
   if (foco?.lado === "fora") {
     const motivos = [...new Set(imoveis.filter((i) => noFoco(i, foco)).map((i) => etapaDe(i).motivo).filter(Boolean))]
-    return (
-      <ul className="legenda-lista" aria-label="Por que saíram">
-        {motivos.map((m) => (
-          <li key={m}>
-            <i style={{ background: MOTIVOS[m!].cor }} />
-            {MOTIVOS[m!].rotulo}
-          </li>
-        ))}
-        <li>
-          <i className="apagada" />
-          As outras fazendas, em branco
-        </li>
-        <li>
-          <i className="nevoa" />
-          Sem imóvel no CAR, terra indígena ou unidade de conservação (com o nome no mapa)
-        </li>
-      </ul>
-    )
+    return <p className="legenda-frase">Os contornos em urucum destacam as pendências filtradas: {motivos.map((m) => MOTIVOS[m!].rotulo).join(", ")}. As outras fazendas ficam apagadas, sem preenchimento.</p>
   }
-  if (camada === "titulo")
-    return (
-      <p className="legenda-frase">
-        Verde-escuro é matrícula no SIGEF, azul é terra pública sob concessão, verde-claro é lote de assentamento,
-        amarelo é posse em titulação, cor de terra é terra pública sem destinação e cinza é terra indígena ou
-        tradicional. Nenhuma fazenda sai do mapa por causa da terra.
-      </p>
-    )
-  if (camada === "terra_publica")
-    return (
-      <p className="legenda-frase">
-        Cor de terra tracejada: gleba pública não destinada ou floresta nacional ou estadual com área desmatada. Não se
-        origina com particular; é candidata a concessão.
-      </p>
-    )
-  if (camada === "fogo")
-    return (
-      <ul className="legenda-lista" aria-label={`Fogo, ${PERIODO_FOGO}`}>
-        <li>
-          <i className="contorno" style={{ borderColor: ESCALA_FOGO[0][1] }} />
-          Fogo em 1 a 2 anos ({PERIODO_FOGO})
-        </li>
-        <li>
-          <i className="contorno" style={{ borderColor: ESCALA_FOGO[1][1] }} />3 a 5 anos
-        </li>
-        <li>
-          <i className="contorno" style={{ borderColor: ESCALA_FOGO[2][1] }} />6 anos ou mais
-        </li>
-        <li>
-          <i className="circulo" />
-          Queimou em 2025, o tamanho é a área
-        </li>
-      </ul>
-    )
-  return (
-    <ul className="legenda-lista" aria-label="Situação">
-      {SITUACOES.map((s) => (
-        <li key={s.id}>
-          <i className={s.cruzada ? "cruzada" : undefined} style={{ background: s.cruzada ? undefined : s.cor }} />
-          <span>
-            <strong>{s.rotulo}</strong>: {s.texto}
-          </span>
-        </li>
-      ))}
-      {foco && (
-        <li>
-          <i className="apagada" />
-          Fora da etapa escolhida, em branco
-        </li>
-      )}
-        <li>
-          <i className="nevoa" />
-          Sem imóvel no CAR, terra indígena ou unidade de conservação (com o nome no mapa)
-        </li>
-    </ul>
-  )
+  if (camada === "terra_publica") return <p className="legenda-frase">Cor de terra tracejada: gleba pública não destinada ou floresta pública com área desmatada. Não se origina com particular; é candidata a concessão.</p>
+  if (camada === "fogo") return <p className="legenda-frase">Contorno escuro: registro de fogo em {PERIODO_FOGO}. Os círculos marcam fogo recente; o tamanho representa a área. Confira datas e medidas na tabela e na ficha.</p>
+  return <p className="legenda-frase">Ao aproximar, os limites do CAR ficam transparentes, com linha fina. Não aptas e fazendas fora do filtro ficam apagadas. A hachura verde é reservada à área de restauração medida e autorizada, nunca ao imóvel inteiro.</p>
 }
 
 export function PainelMunicipio(props: Props) {
@@ -285,7 +214,7 @@ export function PainelMunicipio(props: Props) {
               </div>
               {listaOrdenada.length ? (
                 <>
-                {!!props.emLeilao?.size && <p className="legenda-frase">Contorno tracejado no mapa: imóvel em leilão. <a href="#/calendario">Conferir no calendário</a>.</p>}
+                {!!props.emLeilao?.size && <p className="legenda-frase">O selo identifica imóvel em leilão. <a href="#/calendario">Conferir no calendário</a>.</p>}
                 <TabelaFazendas emLeilao={props.emLeilao} lista={listaOrdenada} aoPassar={aoPassar} valor={ordem !== "area"} />
                 </>
               ) : (

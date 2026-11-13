@@ -19,6 +19,8 @@ TETO = 15
 ESTADOS_ATIVOS = ("queued", "in_progress", "waiting", "pending", "requested")
 PASSO_EXECUTOR = "Rodar pelo executor (fontes, adoção, motor e tarefas do produto) e publicar no Release dados"
 MAX_FALHAS = 3
+ORDEM_FUNIL = ("TO", "MA", "MT", "AM", "GO", "MS", "BA", "PI", "CE", "RN", "SP", "PR", "MG",
+               "PA", "RO", "RR", "AC", "AP", "PB", "PE", "AL", "SE", "ES", "RJ", "SC", "RS", "DF")
 WORKFLOWS_LOTE = ("lote-para.yml", "retomar-lote-para.yml", "desbloqueio-lote.yml")
 # #55: workflow inteiro conferido neste commit imutável, max-parallel=5,
 # preparo e publicação sequenciais. Nenhum outro head herda esta exceção.
@@ -175,7 +177,26 @@ class Repositorio:
 
 def ocupada(unidade: str, ativas: set[str]) -> bool:
     uf = unidade.split("-", 1)[0]
-    return unidade in ativas or uf in ativas or ("-" not in unidade and any(u.startswith(uf + "-") for u in ativas))
+    if unidade in ativas or uf in ativas or ("-" not in unidade and any(u.startswith(uf + "-") for u in ativas)):
+        return True
+    sufixo = unidade.partition("-")[2]
+    numero = int(sufixo) if sufixo.isdigit() else 0
+    for ativa in ativas:
+        if not ativa.startswith(uf + "-"):
+            continue
+        sufixo_ativo = ativa.partition("-")[2]
+        if not sufixo_ativo.isdigit():
+            continue  # reservas auxiliares, como lote-pa-vaga-0, não são fatias de UF
+        outro = int(sufixo_ativo)
+        if (numero >= 1000 and numero // 1000 == outro) or (outro >= 1000 and outro // 1000 == numero):
+            return True
+    return False
+
+
+def _uf_do_funil(unidade: str) -> str | None:
+    """A prioridade das UFs não muda a admissão nem a versão de catálogo e lotes."""
+    uf = unidade.split("-", 1)[0]
+    return uf if uf in ORDEM_FUNIL else None
 
 
 def enfileirar(estado: dict, pedidos: list[dict]) -> None:
@@ -291,21 +312,48 @@ def admitir(
     manutencao=(),
     limite_manutencao: int = 4,
     consumir_fila: bool = True,
+    funis_prontos: set[str] | None = None,
+    ref_funil: str | None = None,
 ) -> list[dict]:
     ativas, legados = reconciliar(estado, runs, e_unidade)
     promover_continuacoes(estado)
+    if funis_prontos is not None:
+        anterior = estado.get("prioridade_funil", {})
+        frente = [uf for uf in anterior.get("frente", []) if uf not in funis_prontos]
+        for uf in ORDEM_FUNIL:
+            if len(frente) >= 3:
+                break
+            if uf not in funis_prontos and uf not in frente:
+                frente.append(uf)
+        estado["prioridade_funil"] = {
+            "prontos": sorted(funis_prontos), "frente": frente,
+            "ref": (anterior.get("ref") or ref_funil) if frente else None,
+        }
+    prioridade = estado.get("prioridade_funil", {})
+    frente = prioridade.get("frente")
+    ufs_ativas = {uf for u in ativas if (uf := _uf_do_funil(u)) is not None}
     livres = max(0, min(limite, TETO) - len(estado["reservas"]) - legados)
     if max_novos is not None:
         livres = min(livres, max_novos)
     escolhidos = []
     pendentes = {p["id"] for p in estado["fila"]}
-    bloqueadas = {p["unidade"] for p in estado["fila"] if p.get("bloqueado")}
+    bloqueadas = {p["unidade"] for p in estado["fila"] if p.get("bloqueado")
+                  and (not _uf_do_funil(p["unidade"]) or not frente
+                       or not prioridade.get("ref") or p.get("ref") == prioridade["ref"])}
     manut_ativas = sum(u in manutencao for u in ativas)
     for pedido in [*(estado["fila"] if consumir_fila else []), *candidatos]:
         if len(escolhidos) >= livres:
             break
         if pedido.get("bloqueado"):
             continue
+        uf = _uf_do_funil(pedido["unidade"])
+        if frente and uf is not None:
+            if uf not in frente or (uf not in ufs_ativas and len(ufs_ativas) >= 3):
+                continue
+            if pedido.get("refazer"):
+                continue  # preserva o pedido; nenhuma manutenção durante a conclusão dos funis
+            if prioridade.get("ref") and pedido.get("ref") != prioridade["ref"]:
+                continue  # pedidos antigos ficam guardados; as 27 UFs usam a versão fixada
         if pedido["unidade"] in bloqueadas and pedido["id"] not in pendentes:
             continue  # a rodada automática também não reabre cancelamento/erro persistente
         if ocupada(pedido["unidade"], ativas):
@@ -315,6 +363,8 @@ def admitir(
             continue
         estado["reservas"].append({"run_id": run_id, "unidade": pedido["unidade"], "pedido": pedido})
         ativas.add(pedido["unidade"])
+        if uf is not None:
+            ufs_ativas.add(uf)
         escolhidos.append(pedido)
         manut_ativas += manut
     ids = {p["id"] for p in escolhidos}
@@ -356,15 +406,22 @@ def reservar(
     consumir_fila: bool = True,
     repetir: bool = True,
     reserva_rodada: bool = False,
+    funis_prontos: set[str] | None = None,
 ) -> list[dict]:
     repo = Repositorio()
     run_id = os.environ["GITHUB_RUN_ID"]
     explicitos = [pedido(u, refazer, continuacao) for u in pedidos]
+    ref_funil = comando(["git", "rev-parse", "HEAD"]).strip() if funis_prontos is not None else None
 
     def registrar(estado):
         if run_id not in estado["planejadores"]:
             estado["planejadores"].append(run_id)
-        enfileirar(estado, explicitos)
+        fixada = (estado.get("prioridade_funil") or {}).get("ref")
+        if funis_prontos is not None and len(funis_prontos) == len(ORDEM_FUNIL):
+            fixada = None
+        enfileirar(estado, [
+            {**p, "ref": fixada} if _uf_do_funil(p["unidade"]) else p for p in explicitos
+        ] if fixada else explicitos)
 
     transacao(repo, registrar)  # o pedido existe antes de qualquer consulta/admissão que possa falhar
 
@@ -377,6 +434,11 @@ def reservar(
             incluir_lotes=True,
         )
         novos = [pedido(u, refazer, continuacao) for u in candidatos] if not pedidos else []
+        fixada = (estado.get("prioridade_funil") or {}).get("ref")
+        if funis_prontos is not None and len(funis_prontos) == len(ORDEM_FUNIL):
+            fixada = None
+        if fixada:
+            novos = [{**p, "ref": fixada} if _uf_do_funil(p["unidade"]) else p for p in novos]
         if not repetir:
             novos = [{**p, "repetir": False} for p in novos]
         if reserva_rodada:
@@ -385,7 +447,9 @@ def reservar(
                 raise ValueError("reserva da rodada exige tentativa válida e não pode consumir ou repetir pedidos")
             novos = [{**p, "escopo": "rodada", "tentativa": tentativa} for p in novos]
         escolhidos = admitir(
-            estado, runs, run_id, novos, e_unidade, limite, max_novos, manutencao, limite_manutencao, consumir_fila
+            estado, runs, run_id, novos, e_unidade, limite, max_novos, manutencao, limite_manutencao, consumir_fila,
+            funis_prontos=funis_prontos,
+            ref_funil=ref_funil,
         )
         return escolhidos, [p for p in estado["fila"] if p.get("bloqueado")]
 

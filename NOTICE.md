@@ -1,5 +1,19 @@
 # Código e dados de terceiros
 
+Agrupamento público do mapa: Supercluster, implementação `ClusterTileIndex` de
+`@maplibre/geojson-vt` 6.3.1, já utilizada pelo worker GeoJSON do MapLibre GL JS 6.15.0.
+Licenças MIT (MapLibre contributors, 2025) e ISC (Mapbox, 2024), conferidas no LICENSE do pacote instalado.
+O texto completo acompanha os dois sites em `licencas/supercluster.txt`.
+O Globo declara esse mesmo pacote como dependência direta: o índice público roda em um worker próprio e
+envia à interface apenas os grupos da janela visível. O mapa não cria uma segunda fonte GeoJSON para esses grupos.
+Nenhum código do agrupador foi copiado; limites do CAR continuam nas fontes próprias do MapLibre.
+Origem: https://github.com/maplibre/geojson-vt e https://github.com/mapbox/supercluster.
+
+A fixture de navegador inclui a faixa 0–255 dos glifos Noto Sans Regular distribuídos por
+protomaps/basemaps-assets (SIL OFL 1.1), para testar números reais dos grupos sem rede no CI.
+Arquivo e licença: `front/scripts/fixtures/fontes/`; licença da família Noto Sans conferida em
+https://github.com/google/fonts/blob/main/ofl/notosans/OFL.txt. Nenhuma alteração nos glifos.
+
 ## Fontes da camada de terra comprometida
 
 [Berkeley Carbon Trading Project, Voluntary Registry Offsets Database](https://gspp.berkeley.edu/berkeley-carbon-trading-project/offsets-database),
@@ -48,6 +62,11 @@ plataforma (maps.alerta.mapbiomas.org, camada dashboard-alert-shapefile, só ale
 do IBGE em CSV de https://github.com/kelvins/municipios-brasileiros (MIT), baixada para o cache, sem copiar código.
 
 Dependências usadas sem copiar código: `i_overlay` (MIT/Apache-2.0) e `serde_json` (MIT/Apache-2.0) no teste `motor/iovbench/`.
+
+H3 (`h3` para Python e `h3-js` somente no build): índice hexagonal e limites das células,
+Apache-2.0, Uber Technologies e contribuidores; https://github.com/uber/h3,
+https://github.com/uber/h3-py e https://github.com/uber/h3-js. Código usado como dependência,
+sem cópia ou alteração. A célula representa alocação estatística, não uma medida de restauração dentro do hexágono.
 
 Extensão `nativo/raiz_iov` (Rust, sem código copiado): `i_overlay` (MIT/Apache-2.0), `pyo3` (MIT/Apache-2.0),
 `numpy`/rust-numpy (BSD-2), `ndarray` (MIT/Apache-2.0), `rayon` (MIT/Apache-2.0). A conta da área segue o teste do
@@ -102,8 +121,16 @@ Distribuídas dentro do produto (vão no pacote que o navegador baixa), sem alte
 Gerados por `front/scripts/geo.py` e servidos junto (fora do git): recorte do mapa base do build diário do Protomaps,
 com dados © colaboradores do OpenStreetMap (ODbL 1.0, atribuição no canto do mapa); letras dos rótulos Noto Sans
 (SIL Open Font License 1.1) de protomaps/basemaps-assets; polígonos do CAR (SICAR/SFB) e camadas do INPE TerraBrasilis,
-inclusive o contorno dos 5.570 municípios da tela de entrada (camadas de municípios por bioma, juntadas pelo código
-IBGE) e o dos 27 estados (os mesmos municípios juntados por estado).
+inclusive contornos municipais por bioma, juntados pelo código IBGE, e os 27 estados. Quando um município publicado
+ainda não existe nessa divisão, o gerador substitui **toda a UF** pela mesma edição da Malha Municipal Digital do
+IBGE, incluindo seus municípios de origem. A edição é descoberta no
+[índice oficial](https://geoftp.ibge.gov.br/organizacao_do_territorio/malhas_territoriais/malhas_municipais/);
+UF, ano e SHA-256 do ZIP são registrados no índice público e em `fontes.md`. O cache conserva a origem conferida.
+A [nota técnica da edição 2025](https://www.ibge.gov.br/biblioteca/visualizacao/livros/liv102268.pdf), p. 9,
+declara licença compatível com **CC BY 4.0**, inclusive uso comercial. Os vetores são reprojetados e simplificados
+para visualização, alteração indicada no crédito e nas fontes. São limites de referência estatística, sem valor
+de demarcação ou comprovação de propriedade; as limitações estão nas p. 6–9 da nota. A atribuição da edição é por
+UF: não representa atualização homogênea de toda a base nacional.
 
 Removidos: o globo da abertura saiu do produto em novembro de 2026 (a tela de entrada passou a ser o mapa plano do
 Brasil). Foram apagados a biblioteca `cobe` 2.0.1 (MIT) e os componentes `cobe-globe.tsx` e `cobe-globe-demo.tsx`
@@ -114,8 +141,13 @@ Métodos reescritos, sem copiar código: frases comparativas por índice no esti
 (`front/compartilhado/comparacoes.ts`) e caixa de fatos no formato das "fact boxes" de comunicação de risco
 (`front/compartilhado/cenario.ts`). Dependências só de desenvolvimento: Vite, TypeScript, Vitest, Oxlint (MIT) e,
 no script, requests (Apache-2.0), shapely e pmtiles (BSD-3-Clause). Teste do site estático no Chromium:
-Playwright 1.65.0 (Apache-2.0) e pngjs 7.0.0 (MIT), usados como bibliotecas, sem código copiado. Auditoria
-Agentic Browsing: Lighthouse 13.6.0 (Apache-2.0), somente no desenvolvimento/CI. O arquivo llms.txt segue a
+Playwright 1.65.0 (Apache-2.0) e pngjs 7.0.0 (MIT), usados como bibliotecas, sem código copiado.
+
+Validação dos estilos internos no build/CI: `@maplibre/maplibre-gl-style-spec` 26.6.0,
+https://github.com/maplibre/maplibre-style-spec. O pacote declara ISC; seu `LICENSE.txt` preserva também
+os avisos BSD-3-Clause e MIT dos componentes incorporados. O MapLibre já inclui essa especificação no navegador.
+
+Auditoria Agentic Browsing: Lighthouse 13.6.0 (Apache-2.0), somente no desenvolvimento/CI. O arquivo llms.txt segue a
 proposta do llmstxt.org; JSON-LD usa o vocabulário schema.org, sem copiar código de implementação.
 
 ## OpenStreetMap pelos ladrilhos do Protomaps (cidades e estradas por imóvel)
@@ -134,6 +166,18 @@ proposta do llmstxt.org; JSON-LD usa o vocabulário schema.org, sem copiar códi
 - Fontes Noto Sans (SIL Open Font License 1.1) e sprites do protomaps/basemaps-assets, baixados por
   `raiz mapa atualizar` (licença dos sprites a conferir no repositório basemaps-assets antes de publicar).
 
+## Mosaico histórico no mapa público
+
+- Fundo público de aproximação: **EOxCloudless vintage 2016**, camada `s2cloudless_3857`, imagens Sentinel-2
+  de 2016/2017, **CC BY 4.0**. Licença e permissão de uso comercial do endpoint WMTS conferidas em 12/11/2026
+  nas fontes oficiais: [licença por ano](https://cloudless.eox.at/license-non-commercial) e
+  [FAQ de uso comercial e serviço](https://cloudless.eox.at/documentation/faq). Não usar os anos 2018 a 2025,
+  licenciados como não comerciais. A camada histórica tem 10 m; não prova a situação atual do imóvel.
+  Crédito visível: “EOxCloudless https://cloudless.eox.at by EOX IT Services GmbH (Contains modified Copernicus
+  Sentinel data 2016 & 2017)”. O serviço público aceita tráfego comercial razoável, sem SLA; a aplicação busca
+  somente os tiles visíveis a partir de z12, com overzoom após z14 e cache HTTP do navegador. Não distribui o
+  mosaico bruto como dataset nem copia os tiles para o Release. As capturas devem preservar o crédito.
+
 ## Imagens de satélite por fazenda
 
 - Sentinel-2 L2A: "Contains modified Copernicus Sentinel data [ano]" (licença Copernicus, uso livre inclusive
@@ -141,8 +185,8 @@ proposta do llmstxt.org; JSON-LD usa o vocabulário schema.org, sem copiar códi
   (metadados.json, cabeçalho X-Raiz-Credito).
 - Landsat 5 Collection 2 nível 2: domínio público, crédito "Landsat 5, cortesia do USGS", lido pelo Planetary
   Computer da Microsoft (token anônimo de leitura).
-- Pillow (HPND) para WebP e desenho; fonte DejaVu Sans do sistema para o selo "Simulação". Nada de EOX, Esri, Planet
-  NICFI, Google nem imagem gerada por IA.
+- Pillow (HPND) para WebP e desenho; fonte DejaVu Sans do sistema para o selo "Simulação". Nas imagens atuais da ficha,
+  não usar EOX, Esri, Planet NICFI, Google nem imagem gerada por IA.
 
 ## Cartão, adesivo e vídeo da fazenda
 
@@ -367,7 +411,7 @@ O modelo roda só no servidor, instalado do Release oficial com hash no `uv.lock
 
 ## Ferramentas de qualidade e segurança
 
-Gitleaks 8.24.3 (MIT, https://github.com/gitleaks/gitleaks) e actionlint 1.7.7
+Gitleaks 8.24.3 (MIT, https://github.com/gitleaks/gitleaks) e actionlint 1.7.12
 (MIT, https://github.com/rhysd/actionlint) verificam o repositório no CI. Playwright 1.65.0
 (Apache-2.0, https://github.com/microsoft/playwright) executa o navegador de teste. Usados como ferramentas,
 sem código-fonte copiado para o produto.
@@ -396,6 +440,49 @@ que não é aceita pelo projeto. A versão 10.78.0 evita essa dependência e man
 original do Lighthouse; sua compatibilidade é verificada com o teste de agentes e com eventos de telemetria
 capturados em transporte local, sem envio ao Sentry. Ao atualizar o Lighthouse ou esse pin, repetir essas
 verificações e a checagem integral de licenças; não liberar FSL nem instalar a CLI como exceção.
+
+## Preparação dos programas e correção do céu — MapLibre GL JS 6.15.0
+
+`front/globo/src/mapa/shader-simbolo.generated.ts` contém os shaders `symbolSDF` de Mercator do
+MapLibre GL JS **6.15.0**, sob **BSD-3-Clause**, gerados pelo preparador do próprio fornecedor.
+Versão, SHA-256 do pacote, defines e bytes finais são conferidos antes do build. A licença completa
+está em `front/terceiros/maplibre-gl.LICENSE.txt` e acompanha o site em `licencas/maplibre-gl.txt`.
+O worker compila essa variante para preparar o cache
+gráfico; o mapa mantém seus próprios programas e o caminho normal quando o aquecimento falha.
+
+`front/globo/src/mapa/preparar-programas-nacionais.ts` usa os construtores e o cache reais do mesmo
+pacote assim que houver um bucket, antes dos desenhos desse frame, somente no estilo nacional 2D
+com propriedades uniformes. O adaptador
+privado é limitado à versão/hash conferidos e restaura o renderizador original após preparar ou recusar
+o estilo. A configuração SDF estadual fixa conserva os bytes aquecidos no worker; as demais variantes
+preservam os nomes de macros/uniforms, mesmo quando a ordem das macros independentes muda. Não há
+substituição de desenhos, stencil, framebuffer ou eventos de prontidão. Os testes usam as classes
+originais do fornecedor, com a semântica de campos de classe de seu build restrita ao harness de testes.
+
+`front/compartilhado/vite-maplibre-ceu.ts` aplica, em memória durante build e desenvolvimento,
+uma correção pequena ao `drawSky` do pacote MapLibre GL JS **6.15.0**, sob **BSD-3-Clause**.
+Origem: https://github.com/maplibre/maplibre-gl-js, arquivos
+`src/webgl/draw/draw_sky.ts` e `src/shaders/glsl/sky.fragment.glsl`.
+O LICENSE e os avisos do pacote permanecem na distribuição; esta alteração é da Raíz.
+
+O fragment shader mistura as cores do céu e do horizonte. Se ambas têm alfa zero, o patch retorna
+antes de calcular uniforms ou compilar/desenhar o programa de céu, sem alterar céu visível, neblina,
+atmosfera, cartografia ou dados. O pacote original não é modificado em `node_modules`.
+A versão, o SHA-256 do módulo distribuído e o trecho são conferidos antes de qualquer transformação.
+Atualizações da biblioteca exigem nova revisão; o build falha caso não corresponda ao código conferido.
+O teste executa a função real alterada e verifica os casos transparente, opaco e parcialmente transparente.
+
+## Gráficos de resultados da ficha autorizada
+
+Apache ECharts **6.1.0** (Apache-2.0, <https://github.com/apache/echarts>) e seu renderizador
+zrender **6.1.0** (BSD-3-Clause, <https://github.com/ecomfe/zrender>) desenham contratado,
+emitido e entregue. Só os módulos de linha, eixos, legenda e SVG são registrados.
+Vega-Lite **6.5.0** (BSD-3-Clause, <https://github.com/vega/vega-lite>) e Vega **6.4.0**
+(BSD-3-Clause, <https://github.com/vega/vega>) desenham as faixas previstas e observações por método.
+As licenças dos pacotes instalados foram conferidas em 13/11/2026. Os textos integrais e o NOTICE do Apache ECharts são preservados em
+`front/globo/public/licencas/graficos.txt`, incluindo as dependências adicionadas; nenhum código-fonte foi copiado. Ambos os gráficos são carregados
+sob demanda, apenas quando o cliente abre o painel, e usam dados da ficha autenticada. O runtime
+Vega recebe somente valores locais e tem seu carregador de fontes externas bloqueado.
 
 ## Avaliação de modelos (rodada 12)
 

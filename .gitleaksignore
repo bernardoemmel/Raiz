@@ -12,3 +12,9 @@ e7074b4a170d745f34a4732072fcd954c0cad6f9:testes/mcp/sem_leitor_auditado.json:gen
 e7074b4a170d745f34a4732072fcd954c0cad6f9:testes/mcp/sem_leitor_auditado.json:generic-api-key:14
 # URL JDBC interna sem usuário ou senha, no Compose descartável removido na conciliação do PR #93.
 # KC_DB_URL referencia banco-oauth; exceção restrita ao commit/campo histórico, como no PR #69.
+e0e8ccdde14d0980ce33a1be48fde126ddeb1a31:infra/docker-compose.avaliacao.yml:generic-api-key:46
+
+# SHA-256 dos resumos Lighthouse final real e fixture, recalculados dos arquivos de evidência.
+# Não são tokens Sumo Logic; exceções restritas às duas linhas imutáveis do commit das capturas.
+cde6eee1b4d8d1eab58cb65cdc6ad0d6bb7029dc:docs/design/evidencias/mapa-r12/lighthouse.json:sumologic-access-token:1781
+cde6eee1b4d8d1eab58cb65cdc6ad0d6bb7029dc:docs/design/evidencias/mapa-r12/lighthouse.json:sumologic-access-token:1782

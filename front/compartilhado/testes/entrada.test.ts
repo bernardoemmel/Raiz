@@ -8,7 +8,7 @@ import { lerFunil, lerImovel } from "../dados/funil"
 import { fmtInt } from "../formato"
 import { etapasDoFunil, etapasDoResumo, fraseDoBrasil, noFoco, numerosDoBrasil } from "../funil-etapas"
 import { nomeProprio, pontoDentro, rotulosDeAreas } from "../rotulos-mapa"
-import { destinoDaBusca, lerRota, linkFazenda, linkMunicipio, municipiosSemDados, type MunicipioDoMapa } from "../../globo/src/rota"
+import { destinoDaBusca, lerRota, linkFazenda, linkFichaLote, linkGrupo, linkMunicipio, linkPasta, linkPedido, municipiosSemDados, type MunicipioDoMapa } from "../../globo/src/rota"
 
 const FRONT = path.resolve(__dirname, "../..")
 const AMOSTRA = path.resolve(FRONT, "../dados/amostra")
@@ -57,6 +57,17 @@ describe("rotas", () => {
     expect(lerRota("#/municipio/150730")).toEqual({ tela: "entrada" })
     const car = "PA-1507300-F293CD17B5FE4D4682CB436FF5B136D0"
     expect(lerRota(linkFazenda(car))).toEqual({ tela: "fazenda", car })
+  })
+
+  it("a pasta do banco e a ficha do lote conservam suas rotas e a opção escolhida", () => {
+    const id = "00000000-0000-4000-8000-000000000001"
+    for (const opcao of ["barata", "segura", "compacta"] as const) {
+      expect(lerRota(linkFichaLote(id, opcao))).toEqual({ tela: "ficha-lote", id, opcao })
+      expect(lerRota(linkPasta(id, opcao))).toEqual({ tela: "pasta", id, opcao })
+    }
+    expect(lerRota(linkPasta(id))).toEqual({ tela: "pasta", id })
+    expect(lerRota(linkGrupo(id))).toEqual({ tela: "grupo", id })
+    expect(lerRota(linkPedido(id))).toEqual({ tela: "pedido", id })
   })
 })
 

@@ -361,7 +361,9 @@ def _campos(x):
 
 
 def pedido(x):
-    return {
+    from raiz.pedidos.ficha_credito import projetar_resposta
+
+    out = {
         "id": _id(x.get("id")),
         "criado_em": _data(x.get("criado_em")),
         "campos": _campos(x.get("campos")),
@@ -376,6 +378,10 @@ def pedido(x):
         if re.fullmatch(r"[a-f0-9]{64}", str(x.get("revisao_lote", "")))
         else None,
     }
+    originais = {o.get("id"): o for o in _lista(x.get("opcoes")) if isinstance(o, dict)}
+    for opcao in out["opcoes"]:
+        opcao["ficha_credito"] = projetar_resposta(originais.get(opcao["id"], {}).get("ficha_credito"), x, opcao["id"])
+    return out
 
 
 def andamento(x):

@@ -3,6 +3,8 @@
  * de arquivos abertos. As listas e os contornos são lidos por município; camadas pagas usam a API de prospecção.
  */
 
+import { lerPotencialMapa } from "./potencial"
+import { lerAgregadosMapa, lerAgregadosMapaUrl } from "./agregados"
 import { lerBasico } from "./basico"
 import { n0, texto } from "./colunas"
 import { buscar, normalizarCar, pareceCar } from "./busca"
@@ -17,6 +19,8 @@ import type { CoberturaMapa } from "./cobertura-mapa"
 
 interface IndiceGeo {
   cobertura?: CoberturaMapa
+  potencial?: Record<string, { arquivo: string; bytes: number }>
+  agregados?: { arquivo: string; bytes: number; sha256?: string; bytes_total?: number; metadados?: unknown; normal?: { arquivo: string; bytes: number; sha256: string } } | null
   brasil?: Partial<Record<"municipios" | "estados" | "base", { arquivo: string; bytes: number }>>
   municipios: Record<string, Partial<Record<CamadaGeo | "base", { arquivo: string; bytes: number }>>>
 }
@@ -32,7 +36,11 @@ export function fonteAmostra(base = "/"): FonteDeDados {
   const indiceCompleto = memo(async () => (await buscarJson<IndiceGeo>(urlGeo("indice.json"))) ?? { municipios: {} })
   const indiceFichas = memo(async () => new Set((await buscarJson<{ codigos: string[] }>(urlAmostra("fichas/indice.json")))?.codigos ?? []))
   const indiceGeo = async (_: string) => (await indiceCompleto("")).municipios
-  const pontos = memo(async (uf: string) => lerPontos(await buscarJson(urlAmostra(`pontos_${uf}.json`))))
+  const pontos = memo(async (uf: string) => {
+    const estado = (await estados("")).estados.find((e) => e.uf === uf)
+    if (!estado || estado.situacao === "sem_dados") return []
+    return lerPontos(await buscarJson(urlAmostra(`pontos_${uf}.json`)))
+  })
 
   // o site estático guarda os CSV comprimidos (.csv.gz); o servidor de desenvolvimento serve os dois
   const csv = memo(async (arq: string) => {
@@ -56,7 +64,8 @@ export function fonteAmostra(base = "/"): FonteDeDados {
   const basicos = memo(async (cod: string) => {
     if ((await estados("")).acesso !== "publico_basico") return null
     const uf = ufDoCodigo(cod)
-    if (!uf || !(await indice(uf)).includes(`imoveis_basicos_${cod}.csv`)) return null
+    const estado = (await estados("")).estados.find((e) => e.uf === uf)
+    if (!uf || !estado?.com_lista.includes(cod) || !(await indice(uf)).includes(`imoveis_basicos_${cod}.csv`)) return null
     return ((await csv(`imoveis_basicos_${cod}.csv`)) ?? []).flatMap((linha) => {
       const basico = lerBasico(linha)
       return basico && basico.cod_ibge === cod && basico.uf === uf ? [basico] : []
@@ -86,10 +95,27 @@ export function fonteAmostra(base = "/"): FonteDeDados {
     return buscarJson<Geo>(urlGeo(item.arquivo))
   }
 
+  const geoNacional = memo(async (arquivo: string) => buscarJson<Geo>(urlGeo(arquivo)))
+  const agregadosNacionais = memo(async () => {
+    const item = (await indiceCompleto("")).agregados
+    if (!item || item.arquivo !== "agregados_brasil.geojson.gz") return null
+    const direto = typeof location === "undefined" ? null : lerAgregadosMapaUrl(item, raiz, location.origin,
+      typeof document === "undefined" ? location.href ?? location.origin : document.baseURI)
+    if (direto) return direto
+    const texto = await buscarTextoGz(urlGeo(item.arquivo))
+    return texto ? lerAgregadosMapa(JSON.parse(texto)) : null
+  })
+
   const municipiosComImoveis = async () => (await estados("")).estados.flatMap((e) => e.com_lista)
 
   // códigos do CAR que o motor pôs no arquivo de outro município (o plugin monta junto com os pontos do estado)
   const fora = memo(async (uf: string) => (await buscarJson<Record<string, string>>(urlAmostra(`car_${uf}.json`))) ?? {})
+
+  const fronteiras = memo(async () => {
+    const manifesto = await estados("")
+    if (manifesto.acesso !== "publico_basico" || manifesto.car_fronteira !== "car_fronteira.json") return null
+    return buscarJson<unknown>(urlAmostra("car_fronteira.json"))
+  })
 
   /** onde procurar um código do CAR (inteiro ou o começo com os 7 números): o município do código e as exceções */
   async function municipiosDoCar(car: string): Promise<string[]> {
@@ -97,11 +123,19 @@ export function fonteAmostra(base = "/"): FonteDeDados {
     const m = /^([A-Z]{2})-(\d{7})/.exec(car)
     const uf = m ? ufDoCodigo(m[2]) : null
     if (!m || !uf) return []
-    const comLista = new Set((await estados("")).estados.find((e) => e.uf === uf)?.com_lista ?? [])
-    // Estados sem dados não têm car_<UF>.json publicado; não tente uma URL que o Pages devolveria como 404.
-    if (!comLista.size) return []
+    const manifesto = await estados("")
+    const doEstado = new Set(manifesto.estados.find((e) => e.uf === uf)?.com_lista ?? [])
+    const comLista = new Set(manifesto.estados.flatMap(e => e.com_lista))
     const cods = new Set([m[2]])
-    for (const [c, mun] of Object.entries(await fora(uf))) if (c.startsWith(car)) cods.add(mun)
+    // Publicações antigas não têm o índice novo; uma UF sem lista também não tem car_<UF>.json.
+    if (doEstado.size) for (const [c, mun] of Object.entries(await fora(uf))) if (c.startsWith(car) && doEstado.has(mun)) cods.add(mun)
+    const indice = await fronteiras("")
+    if (m[1] === uf && indice && typeof indice === "object" && !Array.isArray(indice) && Object.hasOwn(indice, m[2])) {
+      const destinos = (indice as Record<string, unknown>)[m[2]]
+      if (Array.isArray(destinos)) for (const destino of destinos) {
+        if (typeof destino === "string" && /^\d{7}$/.test(destino) && ufDoCodigo(destino) && ufDoCodigo(destino) !== uf && comLista.has(destino)) cods.add(destino)
+      }
+    }
     return [...cods].filter((c) => comLista.has(c))
   }
 
@@ -185,14 +219,31 @@ export function fonteAmostra(base = "/"): FonteDeDados {
     municipiosComImoveis,
     geo: {
       cobertura: async () => (await indiceCompleto("")).cobertura,
-      async brasil() {
+      agregados: () => agregadosNacionais(""),
+      potencial: memo(async (uf: string) => {
+        if (!/^[A-Z]{2}$/.test(uf)) return null
+        const item = (await indiceCompleto("")).potencial?.[uf]
+        if (!item || !/^potencial_[A-Z]{2}\.geojson(?:\.gz)?$/.test(item.arquivo)) return null
+        const texto = await buscarTextoGz(urlGeo(item.arquivo))
+        return texto ? lerPotencialMapa(JSON.parse(texto)) : null
+      }),
+      async brasil(opcoes) {
         const indice = await indiceCompleto("")
         const b = indice.brasil ?? {}
         const [municipios, estados] = await Promise.all([
-          b.municipios ? buscarJson<Geo>(urlGeo(b.municipios.arquivo)) : null,
-          b.estados ? buscarJson<Geo>(urlGeo(b.estados.arquivo)) : null,
+          opcoes?.municipios !== false && b.municipios ? geoNacional(b.municipios.arquivo) : null,
+          b.estados ? geoNacional(b.estados.arquivo) : null,
         ])
-        return { municipios, estados, base: b.base ? new URL(urlGeo(b.base.arquivo), location.href).href : null, cobertura: indice.cobertura }
+        // A URL pública anunciada permite ao worker ler a geometria sem serializá-la de novo na interface.
+        // Fontes autenticadas ou formatos antigos continuam usando o objeto já lido.
+        let urlEstados: string | undefined
+        if (estados && b.estados?.arquivo === "brasil_estados.geojson" && typeof location !== "undefined") {
+          try {
+            const url = new URL(urlGeo(b.estados.arquivo), location.href)
+            if (url.origin === new URL(location.href).origin && !url.username && !url.password && !url.search && !url.hash) urlEstados = url.href
+          } catch { /* Mantém o objeto quando a raiz não formar uma URL pública válida. */ }
+        }
+        return { municipios, estados, ...(urlEstados ? { urlEstados } : {}), base: b.base ? new URL(urlGeo(b.base.arquivo), location.href).href : null, cobertura: indice.cobertura }
       },
       async comContorno() {
         return Object.entries(await indiceGeo(""))

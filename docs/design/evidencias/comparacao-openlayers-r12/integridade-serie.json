@@ -1,0 +1,12 @@
+{
+  "registrado_em": "2026-11-13T19:28:33.706641+00:00",
+  "observacoes": 16,
+  "identidades_exatas": true,
+  "comandos_por_observacao": 354,
+  "comandos_nao_confirmados": 0,
+  "metricas_finitas": true,
+  "erros_http_js_fonte": 0,
+  "manifesto_intacto": true,
+  "observacoes_pre_reinicio_intactas": 12,
+  "limite": "Conferência externa ao analisador congelado; não altera coleta, métricas ou regras de decisão."
+}

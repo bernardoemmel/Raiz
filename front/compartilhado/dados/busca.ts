@@ -118,15 +118,15 @@ export function buscar(qBruta: string, base: BaseBusca): RespostaBusca {
         "formato_invalido",
         "Código do CAR fora do formato. Ele tem a sigla do estado, os 7 números do município e 32 letras e números, por exemplo PA-1507300-F293CD17…",
       )
-    if (!ufsProcessadas.includes(uf))
-      return vazia(
-        "car",
-        "estado_nao_processado",
-        `${UFS[uf]} ainda não foi processado pela Raíz. Por enquanto: ${nomesUfs}.`,
-      )
-    if (cod.length < 10) return vazia("car", "curta", "Continue digitando: depois da sigla vêm os 7 números do município.")
+    const naoProcessado = () => vazia("car", "estado_nao_processado", `${UFS[uf]} ainda não foi processado pela Raíz. Por enquanto: ${nomesUfs}.`)
+    if (cod.length < 10) return ufsProcessadas.includes(uf) ? vazia("car", "curta", "Continue digitando: depois da sigla vêm os 7 números do município.") : naoProcessado()
     const completo = cod.length === 43
-    const basicos = (base.basicos ?? []).filter((i) => completo ? i.cod_imovel === cod : i.cod_imovel.startsWith(cod))
+    // Um CAR pode atravessar mais de um recorte. A busca abre a ficha pelo CAR, uma única vez.
+    const unicos = new Map<string, ImovelBasico>()
+    for (const i of base.basicos ?? []) {
+      if ((completo ? i.cod_imovel === cod : i.cod_imovel.startsWith(cod)) && !unicos.has(i.cod_imovel)) unicos.set(i.cod_imovel, i)
+    }
+    const basicos = [...unicos.values()]
     if (basicos.length) return { q, tipo: "car", situacao: "ok", mensagem: null, imoveis: basicos.sort((a, b) => a.cod_imovel.localeCompare(b.cod_imovel)).slice(0, MAX_IMOVEIS), municipios: [] }
     const lista = completo
       ? base.imoveis.filter((i) => i.cod_imovel === cod)
@@ -135,6 +135,7 @@ export function buscar(qBruta: string, base: BaseBusca): RespostaBusca {
       lista.sort((a, b) => b.carbono_ha - a.carbono_ha)
       return { q, tipo: "car", situacao: "ok", mensagem: null, imoveis: lista.slice(0, MAX_IMOVEIS).map(achado), municipios: [] }
     }
+    if (!ufsProcessadas.includes(uf)) return naoProcessado()
     // não achou: diz o porquê pelo município do código
     const codMun = cod.slice(3, 10)
     const mun = base.municipios.find((m) => m.cod_ibge === codMun)
