@@ -28,10 +28,7 @@ from raiz.versoes import motor_commit, motor_versao, regras_versao, sha256_arqui
 
 log = logging.getLogger(__name__)
 
-TIPOS_MUNICIPIO = (
-    "imoveis", "filtros", "extras", "extras_direto", "direto", "ajustes", "alertas", "certidoes", "flag", "ficha",
-    "desenvolvedor", "terra", "serie_uso", "matricula", "regularizacao", "titulo",
-)  # fmt: skip
+TIPOS_MUNICIPIO = ("imoveis", "filtros", "certidoes", "serie_uso", *contrato.COMPLEMENTOS)
 
 
 @dataclass
@@ -268,9 +265,37 @@ def carregar_municipio(
     arquivos = arquivos_do_municipio(pasta, cod)
     if "imoveis" not in arquivos:
         raise FileNotFoundError(f"falta imoveis_{cod}.csv em {pasta}")
+    from raiz.prospeccao_cobertura import fotografar_municipio, travar_municipio
+
+    travar_municipio(con, cod)
+    # Inclui entradas e saídas antes de adquirir os locks por CAR. A mesma ordem
+    # serve quando um cadastro muda de município e outra carga roda em paralelo.
+    novos = pd.read_csv(arquivos["imoveis"], usecols=["cod_imovel"], dtype=str).cod_imovel.dropna().tolist()
+    con.execute(
+        text("""insert into negocio.prospeccao_ficha_atual(cod_imovel)
+            select cod_imovel from (
+                select cod_imovel from funil.vigente where cod_municipio_ibge=:m
+                union select unnest(cast(:novos as text[]))
+            ) cs order by cod_imovel on conflict do nothing"""),
+        {"m": cod, "novos": novos},
+    )
+    con.execute(
+        text("""select cod_imovel from negocio.prospeccao_ficha_atual where cod_imovel in (
+                select cod_imovel from funil.vigente where cod_municipio_ibge=:m
+                union select unnest(cast(:novos as text[]))
+            ) order by cod_imovel for update"""),
+        {"m": cod, "novos": novos},
+    ).all()
+    anteriores = (
+        con.execute(text("select distinct rodada_id from funil.vigente where cod_municipio_ibge=:m"), {"m": cod})
+        .scalars()
+        .all()
+    )
+    fotografar_municipio(con, cod, origem="carga_antes")
     hashes, h = _hash_entradas(arquivos)
     if ex := _rodada_existente(con, h):
         atualizar_vigente(con, cod)
+        fotografar_municipio(con, cod, rodadas=[*anteriores, ex.id], atualizar=True)
         return ResultadoCarga(ex.id, False, ex.tipo, ex.uf, ex.cod_municipio, ex.imoveis or 0)
 
     leituras = {
@@ -336,19 +361,22 @@ def carregar_municipio(
 
     novas, faltando, avisos = _fechar_rodada(con, rid, n, list(leituras.values()), mb)
     atualizar_vigente(con, cod)  # só este município muda; as rodadas antigas ficam guardadas
+    fotografar_municipio(con, cod, rodadas=[*anteriores, rid], atualizar=True)
     log.info("município %s: rodada %s com %s imóveis", cod, rid, n)
     return ResultadoCarga(rid, True, "municipio", uf, cod, n, novas, faltando, avisos)
 
 
-def depois_da_carga(engine, cod: int) -> int | None:
+def depois_da_carga(engine, cod: int, *, estrito: bool = False) -> int | None:
     """O que se refaz quando um município entra no banco (depois do commit): a oferta do pedido de lote
-    (negocio.oferta). Falha aqui não desfaz a carga; fica no log."""
+    (negocio.oferta). O monitor usa estrito para repetir a carga até concluir a oferta."""
     try:
         from raiz.pedidos.oferta import atualizar
 
         return atualizar(engine, int(cod))
     except Exception as e:  # noqa: BLE001 - a carga já está gravada; a oferta se refaz na próxima
-        log.warning("oferta do município %s não refeita: %s", cod, e)
+        log.warning("oferta do município %s não refeita: %s", cod, type(e).__name__)
+        if estrito:
+            raise
         return None
 
 
@@ -385,7 +413,7 @@ def carregar_pasta(
                 r.lote_previsoes, novo, n = congelar_rodada(con, r.rodada_id)
                 r.previsoes_novas = n if novo else 0
             res.append(r)
-        depois_da_carga(engine, cod)
+        depois_da_carga(engine, cod, estrito=True)
     for p in sorted(pasta.glob("resumo_*.csv")):
         m = re.fullmatch(r"resumo_([A-Za-z]{2})\.csv", p.name)
         if m:

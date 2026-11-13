@@ -88,11 +88,12 @@ de trechos previamente identificados; o esquema restringe a seleção aos IDs ex
 entram integralmente e na ordem original, em blocos de até 1.600 caracteres. O instrumentador copia o trecho
 selecionado literalmente, preservando notas e violações, e confere sua origem. Não pede ao juiz redigitar
 números ou citações nem seleciona apenas evidências favoráveis. Barreiras determinísticas conferem autorização, argumentos, efeitos
-no banco e tempos; podem reprovar a nota do juiz, nunca promover uma tentativa incompleta. O JSONL não é escrito
-quando o juiz retorna um formato inválido ou uma citação inexistente para uma resposta completa.
+no banco e tempos; podem reprovar a nota do juiz, nunca promover uma tentativa incompleta. Formato inválido, citação inexistente ou recusa do juiz são registrados como julgamento indisponível;
+a campanha continua, mas o relatório fica com `pass4=null` e não pode aprovar a meta.
 Resposta vazia/interrompida do agente reprova todos os critérios por barreira determinística,
 com zero chamadas ao juiz. Não há nova tentativa de obter uma resposta bloqueada; a recusa
-do fornecedor permanece gravada e conta como fracasso, sem impedir as outras sessões.
+do fornecedor permanece gravada como indisponibilidade, sem impedir as outras sessões.
+O relatório apresenta também o limite inferior conservador, tratando as ausências como fracassos.
 
 `relatorio.json` contém pass^4, passos e chamadas MCP por tentativa, tempos de parede, latências de cada chamada,
 uso de tokens separado entre agente e juiz e SHA-256 de cada cassette e trace sanitizado. O hash da configuração inclui instruções,
@@ -224,6 +225,13 @@ A validação das fontes continua obrigatória e as notas não podem mudar; toda
 chamadas e o consumo são registrados. Três falhas de citação interrompem a campanha.
 A segunda execução, `43347357547`, concluiu 17 tentativas e teve uma chamada proibida;
 também não permite calcular pass^4. A mudança não reduz os 24 desafios nem a meta.
+
+## Campanha automatizada no Actions
+
+O workflow manual/semanal, a pilha descartável, o segredo `ANTHROPIC_API_KEY`, os
+limites de consumo e os artefatos estão em [Medição no Actions](medicao-agentes-actions.md).
+O gabarito v2 permite acompanhar apenas a operação criada na própria tentativa.
+Testes do runner não são nota de agente.
 
 ### Regressão diária com respostas gravadas
 

@@ -58,6 +58,8 @@ def _marcar(con, chave: str, ass: dict, rodada_id: int | None) -> None:
 
 
 def ufs_na_saida(saida: Path) -> list[str]:
+    if not saida.exists():
+        return []
     return sorted(p.name for p in saida.iterdir() if p.is_dir() and re.fullmatch(r"[A-Z]{2}", p.name))
 
 
@@ -70,6 +72,8 @@ def varrer(
     congelar: bool = True,
     estavel_s: float = ESTAVEL_S,
     hc=None,
+    reprocessar: bool = False,
+    reindexar_fontes: bool = True,
 ) -> dict:
     """Uma volta pela saída do motor. Devolve o que carregou, pulou, deixou esperando e o que falhou."""
     from raiz.aprendizado.congelar import congelar_rodada
@@ -85,8 +89,8 @@ def varrer(
         for cod in municipios_na_pasta(pasta):
             arqs = arquivos_do_municipio(pasta, cod)
             chave = f"{uf}/{cod}"
-            ass = assinatura(arqs)
-            if _vista(engine, chave) == ass:
+            ass = {**assinatura(arqs), "_pipeline_ficha": 1}
+            if not reprocessar and _vista(engine, chave) == ass:
                 res["pulados"] += 1
                 continue
             if not _estavel(arqs, agora, estavel_s):
@@ -99,9 +103,11 @@ def varrer(
                         if congelar and r.nova:
                             _, _, n = congelar_rodada(con, r.rodada_id)
                             reg.detalhe.update(previsoes=n)
+                    depois_da_carga(engine, cod, estrito=True)
+                    # Só confirma o checkpoint depois das tarefas pós-commit. A próxima
+                    # volta retoma a mesma rodada se a oferta falhar, sem perder a falha.
+                    with engine.begin() as con:
                         _marcar(con, chave, ass, r.rodada_id)
-                    if r.nova:
-                        depois_da_carga(engine, cod)
                     reg.detalhe.update(rodada=r.rodada_id, nova=r.nova, imoveis=r.imoveis)
                 if r.nova:
                     res["carregados"].append(
@@ -110,16 +116,27 @@ def varrer(
                 else:  # data do arquivo mudou, conteúdo igual (mesmo hash): nada a carregar
                     res["pulados"] += 1
             except Exception as ex:  # noqa: BLE001 - o lote já registrou e avisou; segue para o próximo
-                res["falhas"].append({"chave": chave, "erro": f"{type(ex).__name__}: {ex}"[:300]})
-                log.warning("carga %s: %s", chave, ex)
+                res["falhas"].append({"chave": chave, "erro": type(ex).__name__})
+                log.warning("carga %s: %s", chave, type(ex).__name__)
         resumo = pasta / f"resumo_{uf}.csv"
         if resumo.exists():
             chave, ass = f"{uf}/resumo", assinatura({"resumo": resumo})
             if _vista(engine, chave) != ass and _estavel({"r": resumo}, agora, estavel_s):
-                with engine.begin() as con:
-                    r = carregar_resumo(con, resumo, uf, data_corte)
-                    _marcar(con, chave, ass, r.rodada_id)
-                res["resumos"].append({"uf": uf, "rodada": r.rodada_id, "nova": r.nova})
+                try:
+                    with engine.begin() as con:
+                        r = carregar_resumo(con, resumo, uf, data_corte)
+                        _marcar(con, chave, ass, r.rodada_id)
+                    res["resumos"].append({"uf": uf, "rodada": r.rodada_id, "nova": r.nova})
+                except Exception as ex:  # noqa: BLE001 - mantém o checkpoint para tentar novamente
+                    res["falhas"].append({"chave": chave, "erro": type(ex).__name__})
+    if reindexar_fontes:
+        from raiz.prospeccao_cobertura import reindexar
+
+        res["fichas"] = reindexar(engine)
+        for falha in res["fichas"]["falhas"]:
+            res["falhas"].append({"chave": f"fichas/{falha['municipio']}", "erro": falha["erro"]})
+        if res["fichas"]["pendente"] and not res["fichas"]["falhas"]:
+            res["falhas"].append({"chave": "fichas", "erro": "ReindexacaoPendente"})
     return res
 
 

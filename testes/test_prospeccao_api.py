@@ -1,5 +1,8 @@
 """Fronteira HTTP: identidade, cobrança, privacidade, limites e filtros inválidos."""
 
+from contextlib import nullcontext
+from types import SimpleNamespace
+
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -11,7 +14,7 @@ CAR = "PA-1504950-" + "A" * 32
 
 @pytest.fixture
 def cliente(monkeypatch):
-    eng = object()
+    eng = SimpleNamespace(connect=lambda: nullcontext(None))
     eventos = []
     monkeypatch.setattr(api.servico.pedidos, "cliente_da_sessao", lambda _eng, t: 7 if t == "sessao-cliente" else None)
     monkeypatch.setattr(api.acesso, "limitar", lambda *args: eventos.append(("limite", args[1:])))
@@ -19,6 +22,11 @@ def cliente(monkeypatch):
     monkeypatch.setattr(api.servico.front_api, "versao", lambda *a: {"data_corte": "2026-11-12"})
     monkeypatch.setattr(api.servico.front_api, "do_banco", lambda *a: {})
     monkeypatch.setattr(api.servico.imovel_dados, "ficha_prospeccao", lambda *a: {"codigo_car": CAR, "area_total": 10})
+    monkeypatch.setattr(api.servico.terra_comprometida, "por_codigos", lambda *_: {})
+    monkeypatch.setattr(api.servico.prospeccao_versoes, "consultas", lambda _eng, _cid, fichas: nullcontext(fichas))
+    monkeypatch.setattr(
+        api.servico.prospeccao_protecao, "operacao_vigiada", lambda *args, **kwargs: nullcontext(lambda *_: None)
+    )
     app = FastAPI()
     app.include_router(api.roteador(lambda _: eng))
     with TestClient(app) as cl:
@@ -31,6 +39,8 @@ def cliente(monkeypatch):
         ("GET", "/busca", None),
         ("GET", "/saldo", None),
         ("GET", f"/fichas/{CAR}/pdf", None),
+        ("GET", f"/fichas/{CAR}/exportar?formato=csv", None),
+        ("GET", f"/fichas/{CAR}/historico", None),
         ("POST", "/comparar", {"codigos_car": [CAR, CAR + "B"]}),
         ("GET", "/buscas-salvas", None),
         ("POST", "/buscas-salvas", {"nome": "Pará", "filtros": {"uf": "PA"}}),

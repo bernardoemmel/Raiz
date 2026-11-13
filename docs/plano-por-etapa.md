@@ -269,9 +269,9 @@ continuam em andamento na branch `produto-agentes-medicao`.
 | E | Gabarito de 24 tarefas, quatro sessões por tarefa, meta pass^4 ≥ 80% e zero chamada proibida | **feito**: gabarito e avaliador; quatro campanhas reais incompletas, sem pass^4 válido |
 | F | Piso de reversão 20%, REDD+ jurisdicional, CLPI 50%/70% e revisão humana | **feito no código**, com evidência vigente e bloqueio quando falta dado; camada oficial precisa ser carregada pelo operador |
 | G | Recálculo dos 144 municípios do Pará pelo Actions e publicação no Release | responsabilidade exclusiva do chat "Lote e números", por orientação do fundador; este chat não altera execução nem Release |
-| H | Pilha com API/MCP, PostGIS, Keycloak, Valkey, migrações, worker e agenda em um comando; manual de operação | **feito no código**, PR #85; pilha integral e 24 cenários conferidos no Actions; dimensionamento sob Claude ainda em medição; integração com a main `3a73879` preserva certidões, vigilância, Calendário e pedido nacional |
+| H | Pilha com API/MCP, PostGIS, Keycloak, Valkey, migrações, worker e agenda em um comando; manual de operação | **feito no código**, PR #85; pilha integral e 24 cenários conferidos no Actions; dimensionamento sob Claude ainda em medição; integração com a main `60e17b0` preserva também versões da ficha e sua atualização na agenda |
 | I | Inspector oficial, lint OpenAPI com vacuum e server.json para registro MCP | **feito**, PR #85; no PR #96, protocolo 2026-07-28, 39 caminhos OpenAPI sem erros de lint e resumo de 5.431 bytes; manifesto validado sem publicação |
-| J | Claude real, pass^4, passos/tempos, vcrpy diário e workflow semanal | runner e workflow entregues no PR #85; campanhas incompletas: 35/17/64/3 tentativas, sete/uma/uma/zero chamadas proibidas; contrato refinado, juiz v5 com trechos identificados, evidência temporal/financeira e falha explícita para resposta interrompida; **pendentes** nova campanha completa e cassetes reais no CI diário; replay preparado na branch `produto-agentes-replay`, com integridade, notas congeladas e barreiras atuais |
+| J | Claude real, pass^4, passos/tempos, vcrpy diário e workflow semanal | runner e workflow entregues no PR #85; campanhas incompletas: 35/17/64/3 tentativas; quinta em execução; contrato refinado, juiz v6 com citações por IDs, evidência temporal/financeira e indisponibilidade explícita; **pendentes** nova campanha completa e cassetes reais no CI diário; replay preparado com integridade, notas congeladas e barreiras atuais |
 | K | Reutilizar `consultar_ficha` e `proximos_eventos` no MCP | ficha **feita** no PR #72; Calendário integrado na branch `produto-agentes-medicao`, por adaptador da função existente, com escopo, limite, projeção e telemetria |
 
 Operação e limites: `docs/agentes-ia.md`, `docs/trabalhos-agentes.md`, `docs/eventos-agentes.md` e
@@ -339,6 +339,24 @@ Operação da entrega: PR #72 integrado com seis jobs verdes (1.626 testes Pytho
 Os cinco publicadores pausados foram reativados e a fila aponta para o commit
 protegido. O site real passou no build básico de 175 MB; sua republicação ganhou
 tentativas limitadas para falhas transitórias de rede, sem relaxar o contrato.
+O PR #80 foi integrado com seis jobs verdes (1.859 testes Python e 226 do front).
+A publicação 43311812890 concluiu; o site foi conferido com CSV básico de cinco
+colunas, geometria sem medidas pagas e 404 nos antigos caminhos de fichas completas.
+
+Nova continuação de Ficha da fazenda (12/11/2026):
+
+| Entrega | Situação |
+|---|---|
+| Terra já comprometida, com cruzamento geográfico, fonte, data, certeza e cobertura de cada registro | Feito: polígonos oficiais, indícios secundários e contexto jurisdicional separados; ausência de fonte não significa terra livre |
+| Versões imutáveis e mudanças desde a última consulta; avisos de pendência, embargo, desmate, fogo, terra e lotes da própria conta | Feito: snapshots antes/depois da carga, baseline por cliente, avisos deduplicados e acesso pago reavaliado |
+| Ficha automática para UFs atuais e futuras, com retomada da carga e atualização das fontes | Feito: descoberta pelo manifesto privado, backfill idempotente e falha mantida pendente para nova tentativa |
+| Marcas por cliente em PDF/JSON/CSV e alertas de varredura na API | Feito: HMAC versionado, sentinela separada dos dados, detecção persistida e consulta operacional dos alertas |
+| Três modalidades de créditos e conta de receita por cliente | Feito: por ficha, por lote e assinatura; preços a definir pelo fundador e simulação mensal/anual sem ativar vendas |
+| Medição real das 24 tarefas por agente Anthropic no GitHub Actions, manual e semanal | Feito: integrado ao workflow único agentes-real.yml (PR #85), pilha isolada, OAuth real e artefatos. Primeira campanha 43341704532 incompleta: 35/96 tentativas, falha na citação literal do juiz; nenhum pass^4 aprovado |
+
+O PR #93 corrige a citação inválida do juiz com uma única nova conversa, sem
+alterar notas válidas ou relaxar a conferência literal; consumo e tentativas
+ficam registrados. A correção exige nova campanha completa de 96 sessões.
 
 Site legível por agentes (12/11/2026): **feito** — `llms.txt`, `robots.txt`, páginas Markdown do Brasil, estados,
 municípios, produtor, serviço, fontes e privacidade; alternates no HTML; JSON-LD `Dataset`, `Service` e `Offer`
@@ -501,6 +519,14 @@ A primeira execução no Actions identificou ausência de `rg` no runner; a veri
 
 - [x] Markdown do site preserva medidas ausentes e zeros explícitos; totais incompletos não são apresentados
   como totais completos. Regressões cobrem páginas estaduais/municipais e proteção de grupos pequenos.
+
+- [x] Medição: recusa explícita do provedor preservada como julgamento indisponível,
+  sem repetição nem troca de modelo; mantém a execução das demais tarefas e impede
+  aprovação/declaração de pass^4 completo quando faltar julgamento. Campanhas
+  incompletas anteriores continuam preservadas, sem selecionar apenas sucessos.
+- [x] Runner conserva recusas do próprio agente sem chamar o juiz para texto vazio;
+  julgamento malformado é indisponível e não interrompe as outras tarefas. Só
+  evidência válida pode compor pass^4 completo; integridade/modelo divergente falha.
 
 ## Continuação solicitada: fontes, cascata, vigilância e primeira certidão
 

@@ -440,7 +440,26 @@ def aprovar_licenca(engine: Engine, cliente_id: int) -> None:
 
 
 def alertas(engine: Engine, cliente_id: int | None = None) -> list[dict]:
-    filtro = "where cliente_id = :c" if cliente_id is not None else ""
+    from raiz.prospeccao_protecao import fechar_alerta
+
+    filtro = "where a.cliente_id = :c" if cliente_id is not None else ""
     with engine.connect() as con:
-        return [dict(r) for r in con.execute(text(f"select * from negocio.alerta_api {filtro} order by id"),
-                                             {"c": cliente_id}).mappings()]  # fmt: skip
+        protecao = con.execute(text("select to_regclass('negocio.prospeccao_alerta_protecao')")).scalar() is not None
+        campos, join = "a.*", ""
+        if protecao:
+            campos += """, case when p.id is not null then jsonb_build_object(
+                'id',p.id,'cliente_id',p.cliente_id,'regra',p.regra,'regras_versao',p.regras_versao,
+                'janela_inicio',p.janela_inicio,'metricas',p.metricas,'ocorrencias',p.ocorrencias,
+                'alerta_api_id',p.alerta_api_id,'criado_em',p.criado_em,'atualizado_em',p.atualizado_em
+                ) end as protecao"""
+            join = "left join negocio.prospeccao_alerta_protecao p on p.alerta_api_id=a.id"
+        resultado = []
+        for row in con.execute(
+            text(f"select {campos} from negocio.alerta_api a {join} {filtro} order by a.id"), {"c": cliente_id}
+        ).mappings():
+            dado = dict(row)
+            detalhe = dado.pop("protecao", None)
+            if detalhe is not None:
+                dado["protecao"] = fechar_alerta(detalhe)
+            resultado.append(dado)
+        return resultado

@@ -24,7 +24,7 @@ from raiz.publica.avaliacao import Tarefa, Violacao
 if TYPE_CHECKING:
     from raiz.publica.agente_real import Cenario, Julgamento
 
-VERSAO = "julgamento-independente-v5"
+VERSAO = "julgamento-independente-v6"
 MAX_EVIDENCIA_BYTES = 160_000
 ESTADOS_OPERACAO = {"submitted", "working", "input-required", "completed", "failed", "canceled"}
 PAGOS = {"pago", "paga", "paid", "confirmada", "confirmado"}
@@ -489,6 +489,27 @@ def expandir_citacoes(dados: dict, trechos: dict[str, dict[str, str]]) -> dict:
     return resultado
 
 
+def _indisponivel(tarefa, trace, limites, estado, chamadas, *, modelo=None, fontes=None, uso=None):
+    from raiz.publica.agente_real import Julgamento
+
+    trace["julgamento"] = {
+        "versao": VERSAO,
+        "modelo": modelo,
+        "estado": estado,
+        "fontes_sha256": hashlib.sha256(_json(fontes or {}).encode()).hexdigest(),
+        "uso": uso or {"input_tokens": 0, "output_tokens": 0},
+        "chamadas_modelo": chamadas,
+        "barreiras": sorted(limites.reprovados),
+        "motivos": limites.motivos,
+    }
+    return Julgamento(
+        criterios=dict.fromkeys(tarefa.esperado, False),
+        disponivel=False,
+        violacoes=sorted(limites.violacoes),
+        chamadas_nao_autorizadas=sorted(limites.chamadas_nao_autorizadas),
+    )
+
+
 async def julgar(tarefa: Tarefa, cenario: Cenario, trace: dict) -> Julgamento:
     from raiz.publica.agente_real import Julgamento, cliente_claude
 
@@ -496,6 +517,8 @@ async def julgar(tarefa: Tarefa, cenario: Cenario, trace: dict) -> Julgamento:
     # Resposta interrompida/vazia nunca pode satisfazer a tarefa. Registre a
     # reprovação conservadora e continue a campanha, sem contornar a recusa do
     # fornecedor nem inventar nota semântica ou solicitar outra resposta.
+    if trace.get("erro") == "recusa_provedor":
+        return _indisponivel(tarefa, trace, limites, "recusa_provedor_agente", 0)
     if trace.get("erro") or not str(trace.get("resposta", "")).strip():
         trace["julgamento"] = {
             "versao": VERSAO,
@@ -539,10 +562,19 @@ async def julgar(tarefa: Tarefa, cenario: Cenario, trace: dict) -> Julgamento:
             messages=[{"role": "user", "content": entrada}],
             output_config={"format": {"type": "json_schema", "schema": _esquema_api(esquema)}, "effort": "medium"},
         )
-        dados_notas = _ler_resposta(resultado, modelo)
-        hash_inicial = hashlib.sha256(_json(dados_notas).encode()).hexdigest()
         uso = {"input_tokens": resultado.usage.input_tokens, "output_tokens": resultado.usage.output_tokens}
-        notas = validar_notas(expandir_citacoes(dados_notas, trechos), tarefa, fontes)
+        if resultado.model != modelo:
+            raise ErroJulgamento("o juiz respondeu com outro modelo")
+        if resultado.stop_reason == "refusal":
+            return _indisponivel(tarefa, trace, limites, "recusa_provedor", 1, modelo=modelo, fontes=fontes, uso=uso)
+        try:
+            dados_notas = _ler_resposta(resultado, modelo)
+            notas = validar_notas(expandir_citacoes(dados_notas, trechos), tarefa, fontes)
+        except ErroJulgamento:
+            return _indisponivel(
+                tarefa, trace, limites, "formato_ou_citacao_invalida", 1, modelo=modelo, fontes=fontes, uso=uso
+            )
+        hash_inicial = hashlib.sha256(_json(dados_notas).encode()).hexdigest()
     trace["julgamento"] = {
         "versao": VERSAO,
         "modelo": modelo,
