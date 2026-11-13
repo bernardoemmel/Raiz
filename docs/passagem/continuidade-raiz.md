@@ -230,3 +230,31 @@ As entregas desta continuação estão nos PRs [fontes #87](https://github.com/b
   a correção do calendário não acrescenta migração. Na árvore atualizada passaram 205 testes de calendário/MCP,
   pasta e API, mais 341 testes do front e build. O teste local pulado requer `RAIZ_LANGUAGETOOL_URL_TESTE`;
   o CI fornece esse serviço e confere a suíte integral sem dispensar suas exigências.
+
+## Recuperação obrigatória do histórico e publicação REST — 13/11/2026
+
+- PR #103 integrado com CI verde (nove jobs; execução `43369502855`), main atualizada até #100 sem conflito.
+  A árvore do merge foi conferida. A execução automática `43430397574` passou pelo manifesto corrigido.
+- Duas tentativas foram bloqueadas na instalação do uv pelo limite de API do GitHub. O workflow fixa a versão
+  0.13.8 já validada, dispensando a consulta da versão mais recente. Na terceira tentativa, o coletor
+  consultou as fontes, mas `gh release view` tratou o Release existente como ausente: o histórico não foi carregado
+  e a tentativa de recriar o Release retornou 422. Os 44 eventos dessa rodada não foram publicados. O Release e
+  o site conservaram os 50 eventos anteriores, 11 futuros, com os hashes já conferidos.
+- O workflow passa a exigir o histórico pelo endereço público fixo, com limite de bytes, schema, contagem,
+  unicidade de UID e CPF/CNPJ conferidos. HTTP 404, indisponibilidade ou conteúdo inválido encerram a rodada;
+  nunca autorizam começar vazio. Campos extras são descartados e rótulos institucionais vêm do manifesto.
+  A recuperação real dessa versão confirmou 50 eventos e 33 entradas de cobertura, inclusive o histórico de MT.
+- Publicação usa somente REST e exige o Release público existente. Não usa descoberta de rascunhos nem
+  `gh release upload --clobber`. Envia os três arquivos sob nomes temporários e confere tamanho e SHA-256
+  retornados pelo GitHub antes de renomear qualquer arquivo vigente. Os originais ficam como reservas até a
+  promoção dos três novos. Falha na promoção tenta restaurar os nomes; se a conexão impedir a restauração,
+  as reservas conservam os bytes para recuperação. A substituição dos três nomes não é uma transação atômica.
+  Reservas ou temporários de uma tentativa interrompida não devem ser apagados sem conferir a recuperação.
+- A rodada no Actions registrou mais falhas de origem em MA/RN/CAIXA/BB, além de DJEN/BA/MG/TO. PA continuou
+  parcial. Não apresentar o sucesso de leitura de uma rodada local como disponibilidade permanente da fonte.
+- Testes específicos cobrem erro HTTP, arquivo truncado/inválido, CPF/CNPJ, fonte indevida, duplicatas, hash
+  incorreto, falha durante upload e restauração após falha na promoção. Não são documentos reais para aprendizado.
+- Validação local antes do PR: suíte integral com 3.009 aprovações, um skip do LanguageTool local e uma
+  divergência esperada, incluindo a referência real do Pará; mais 24 testes específicos da versão final.
+  Ruff, formatação, actionlint, privacidade, gitleaks e 869 licenças conferidos. Main #99 será incorporada
+  com verificação direcionada; o CI confere novamente a árvore final antes do merge.

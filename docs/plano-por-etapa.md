@@ -657,3 +657,20 @@ estadual incluída. Front com 338 testes e build aprovado na base #95; licenças
 conferidos. Main #98 incorporada preservando as duas entregas e a cabeça única 0035, sem migração nova do calendário.
 Na árvore atualizada: 205 testes de integração aprovados, 341 testes do front e build aprovado. O único skip local
 é do servidor LanguageTool, fornecido pelo CI. Nenhuma exigência do CI foi removida.
+
+### Calendário — preservar histórico e publicar por REST (13/11/2026)
+
+O PR #103 passou no CI e foi integrado. A verificação automática mostrou que a descoberta de Release por `gh`
+podia tratar o Release existente como ausente, deixando a coleta sem histórico e terminando em 422 ao recriá-lo.
+A rodada de 44 eventos não substituiu os 50 já publicados; site e Release permaneceram íntegros.
+
+**Feito no código:** uv fixado na versão 0.13.8 já validada, sem consultar a API para descobrir a versão;
+recuperação obrigatória do histórico público, limitada e validada antes de escrever;
+falha nunca vira agenda vazia. Publicação REST do Release público já existente, com upload temporário dos três
+arquivos e SHA-256/tamanho conferidos antes da promoção; cópias anteriores preservadas até os três nomes novos
+estarem publicados. Tentativa de restauração se a promoção falhar, sem prometer atomicidade entre três arquivos.
+Recuperação real confirmou os 50 eventos e o histórico de MT. Nenhuma migração nova ou envio externo.
+
+Validação: 3.009 testes na suíte integral, um skip local de LanguageTool e uma divergência esperada;
+referência real do Pará incluída. Os 24 testes específicos atuais passaram, assim como Ruff, formatação,
+actionlint, privacidade, gitleaks e 869 licenças. CI integral exigido novamente na árvore final do PR.
