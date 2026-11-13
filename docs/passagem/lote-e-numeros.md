@@ -354,3 +354,8 @@ não são alargados artificialmente para conter a curva; histórico recusa alter
 41 testes focados adicionais passaram. O processo da execução integral anterior
 terminou sem registrar conclusão (nenhum workflow cancelado); a bateria será
 repetida após sincronizar a main.
+
+A sincronização com a main `60e17b0` preservou as entregas do chat Ficha. O
+exportador CADT continua explicitamente em R11: sua fixture agora declara esse
+cenário ao gerar a amostra, em vez de herdar o novo padrão R12. Os 52 testes do
+CADT passaram; o exportador, a API, o MCP e o front não foram alterados.
