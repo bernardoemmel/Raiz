@@ -83,8 +83,11 @@ guardam apenas hashes opacos desses blocos. Cada tarefa começa sem memória das
 até 12 passos e 2.048 tokens de saída por passo. Alterar limites, modelo, ferramentas, fixture ou juiz exige
 outra campanha integral. O runner recusa sobrescrever cassetes reais ou continuar uma pasta de evidências usada.
 
-Um Claude em outra conversa, sem ferramentas, julga os critérios em JSON estrito. Cada afirmação tem citação
-literal verificada nas fontes da tentativa. Barreiras determinísticas conferem autorização, argumentos, efeitos
+Um Claude em outra conversa, sem ferramentas, julga os critérios em JSON estrito. O juiz seleciona IDs
+de trechos previamente identificados; o esquema restringe a seleção aos IDs existentes. Todas as fontes
+entram integralmente e na ordem original, em blocos de até 1.600 caracteres. O instrumentador copia o trecho
+selecionado literalmente, preservando notas e violações, e confere sua origem. Não pede ao juiz redigitar
+números ou citações nem seleciona apenas evidências favoráveis. Barreiras determinísticas conferem autorização, argumentos, efeitos
 no banco e tempos; podem reprovar a nota do juiz, nunca promover uma tentativa incompleta. O JSONL não é escrito
 quando o juiz retorna um formato inválido ou uma citação inexistente para uma resposta completa.
 Resposta vazia/interrompida do agente reprova todos os critérios por barreira determinística,

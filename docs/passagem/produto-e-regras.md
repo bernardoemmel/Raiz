@@ -21,6 +21,24 @@ incorporar o juiz v4, passaram 50 testes focados. O diagnóstico ampliado repeti
 16 cenários da terceira campanha, sem novas inferências. A referência de 96 sessões
 ainda depende da campanha completa; o passo obrigatório do CI não foi publicado sem ela.
 
+## Juiz com trechos identificados
+
+A quarta [campanha real](https://github.com/bernardoemmel/Raiz/actions/runs/43357340888),
+na revisão `553aa94`, concluiu três tentativas e parou por citação inexistente na quarta,
+mesmo após duas correções. A tentativa anterior `43355796771` foi cancelada ainda
+pendente, sem inferência, para isolar a execução por branch; nenhum trabalho de outro
+chat foi cancelado. Ainda não existe pass^4 válido.
+
+O juiz v5 seleciona IDs de trechos fornecidos pelo instrumentador, em enum no esquema.
+Todas as fontes são particionadas integralmente e na ordem original, sem filtrar
+passagens favoráveis. O código expande o ID no texto exato e valida a citação;
+não altera notas, justificativas ou violações. IDs inexistentes continuam sendo erro.
+Isso elimina a redigitação de números e frases pelo juiz e dispensa chamadas de
+correção. Resposta interrompida do agente continua sendo fracasso explícito, sem
+contornar a recusa. O gabarito, as 24 tarefas e a meta permanecem iguais.
+Passaram 96 testes focados na implementação e 48 após integrar com o replay.
+A nova campanha usará também a main `3a73879`, já incorporada.
+
 ## Medição real e operação: PR #85 integrado, primeira campanha incompleta
 
 O [PR #85](https://github.com/bernardoemmel/Raiz/pull/85) foi mesclado em `c3bf907`, após integrar
