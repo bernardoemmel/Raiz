@@ -27,6 +27,10 @@ instalar Takumi; um xfail conhecido e a referência privada do Pará no job pró
 Integração da main `3a73879`, 275 testes do front, build e Chromium/axe/celular
 aprovados, além de 170 testes focados após a integração. O CI da entrega reúne
 também o caso original do Pará e a pilha real.
+PR da pasta: [#98](https://github.com/bernardoemmel/Raiz/pull/98). Base da ficha
+integrada pelo [#93](https://github.com/bernardoemmel/Raiz/pull/93), CI completo
+verde com 2.577 testes Python. A branch da pasta incorpora explicitamente o merge
+`60e17b0`, sem alterar os arquivos de código já validados.
 
 ## Ordem geral
 
@@ -372,11 +376,15 @@ Nova continuação de Ficha da fazenda (12/11/2026):
 | Ficha automática para UFs atuais e futuras, com retomada da carga e atualização das fontes | Feito: descoberta pelo manifesto privado, backfill idempotente e falha mantida pendente para nova tentativa |
 | Marcas por cliente em PDF/JSON/CSV e alertas de varredura na API | Feito: HMAC versionado, sentinela separada dos dados, detecção persistida e consulta operacional dos alertas |
 | Três modalidades de créditos e conta de receita por cliente | Feito: por ficha, por lote e assinatura; preços a definir pelo fundador e simulação mensal/anual sem ativar vendas |
-| Medição real das 24 tarefas por agente Anthropic no GitHub Actions, manual e semanal | Feito: integrado ao workflow único agentes-real.yml (PR #85), pilha isolada, OAuth real e artefatos. Primeira campanha 43341704532 incompleta: 35/96 tentativas, falha na citação literal do juiz; nenhum pass^4 aprovado |
+| Medição real das 24 tarefas por agente Anthropic no GitHub Actions, manual e semanal | Feito: workflow único agentes-real.yml, pilha isolada, OAuth real e artefatos. Campanha 43354046452 concluiu 96/96; reprovada, 25 chamadas proibidas e cinco julgamentos indisponíveis. Pass^4 nulo, limite inferior 16,7%. As campanhas incompletas anteriores ficam preservadas |
 
 O PR #93 corrige a citação inválida do juiz com uma única nova conversa, sem
 alterar notas válidas ou relaxar a conferência literal; consumo e tentativas
-ficam registrados. A correção exige nova campanha completa de 96 sessões.
+ficam registrados. A campanha completa `43354046452` mediu o commit `e8c13f1`:
+190 passos, 109 chamadas MCP, 677,94 s de agente e 1.252,32 s incluindo pilha e juiz.
+Cinco violações foram classificadas como instrução de terceiro. O resultado não
+aprova o agente, nem mede as mudanças posteriores do PR #96. Ver
+[relatório e limites](medicao-agentes-actions.md).
 
 Site legível por agentes (12/11/2026): **feito** — `llms.txt`, `robots.txt`, páginas Markdown do Brasil, estados,
 municípios, produtor, serviço, fontes e privacidade; alternates no HTML; JSON-LD `Dataset`, `Service` e `Offer`
