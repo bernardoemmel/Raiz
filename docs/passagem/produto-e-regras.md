@@ -26,6 +26,22 @@ continuam exigindo citação literal. Os 24 desafios e as metas permanecem iguai
 Será rodada outra campanha completa, com cassetes novas e hashes da configuração congelados.
 O segredo ficou somente no GitHub Actions, sem ser trazido para o Cloud.
 
+A segunda [campanha](https://github.com/bernardoemmel/Raiz/actions/runs/43347357547),
+na revisão `3303cf3`, concluiu 17 tentativas e parou novamente por citação do juiz
+(inicial maiúscula trocada por minúscula). Teto de custo, pequenas fazendas e comparação
+tiveram quatro sucessos cada. Houve uma chamada proibida: consultar nova oferta quando
+a pessoa queria conferir o pedido existente. Ainda não há pass^4 válido. A próxima
+revisão dá prioridade explícita ao pedido existente e explica os percentis.
+O juiz v3 pode corrigir citações em até duas chamadas adicionais, com esquema que
+NÃO admite modificar notas, justificativas ou tipos de violação. Citação inexistente
+continua sendo erro; não há normalização de números ou troca silenciosa de julgamento.
+As interações originais e as correções ficam no VCR, com contagem e consumo acumulados.
+
+Validação desta etapa: suíte local com 2.305 testes aprovados, um xfail esperado e
+o caso estadual reservado ao job privado do CI; após o ajuste do juiz, 47 testes
+focados passaram. O Chromium validou login, contrato e geração de Pix só após clique.
+
+
 A preparação foi feita na branch `produto-agentes-validacao`. O gabarito v2 preserva os 24 desafios e a meta,
 mas permite consultar a operação assíncrona devolvida na própria tentativa; a versão anterior
 proibia esse acompanhamento e exigia seu resultado. A permissão não autoriza consultar outro pedido.

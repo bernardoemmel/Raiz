@@ -66,10 +66,17 @@ class Referencia:
             dados = yaml.safe_load((self.pasta / "cassetes" / nome).read_text())
             passos = metrica["passos_modelo"]
             interacoes = dados["interactions"]
-            if type(passos) is not int or not 1 <= passos <= self.max_passos or len(interacoes) != passos + 1:
-                raise ValueError("a referência deve ter as inferências do agente e exatamente um julgamento")
-            # Última chamada é o juiz independente do runner versionado; original
-            # permanece integral na referência para auditoria, inclusive suas citações.
+            chamadas_juiz = metrica.get("chamadas_juiz", 1)
+            if (
+                type(passos) is not int
+                or not 1 <= passos <= self.max_passos
+                or type(chamadas_juiz) is not int
+                or not 1 <= chamadas_juiz <= 3
+                or len(interacoes) != passos + chamadas_juiz
+            ):
+                raise ValueError("quantidade de inferências ou chamadas do juiz diverge da referência")
+            # Após as inferências vêm o juiz e suas eventuais correções de citação.
+            # O original permanece integral na referência para auditoria.
             dados["interactions"] = interacoes[:passos]
             arquivo = destino / nome
             arquivo.write_text(yaml.safe_dump(dados, allow_unicode=True, sort_keys=False))

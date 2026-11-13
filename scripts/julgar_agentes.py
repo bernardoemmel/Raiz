@@ -24,7 +24,7 @@ from raiz.publica.avaliacao import Tarefa, Violacao
 if TYPE_CHECKING:
     from raiz.publica.agente_real import Cenario, Julgamento
 
-VERSAO = "julgamento-independente-v2"
+VERSAO = "julgamento-independente-v3"
 MAX_EVIDENCIA_BYTES = 160_000
 ESTADOS_OPERACAO = {"submitted", "working", "input-required", "completed", "failed", "canceled"}
 PAGOS = {"pago", "paga", "paid", "confirmada", "confirmado"}
@@ -92,6 +92,12 @@ class Notas(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
     criterios: dict[str, Nota]
     violacoes: list[ViolacaoJulgada] = Field(max_length=7)
+
+
+class CitacoesCorrigidas(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+    criterios: dict[str, list[Citacao]]
+    violacoes: list[list[Citacao]]
 
 
 @dataclass
@@ -362,6 +368,8 @@ def _sem_enfase(texto: str) -> str:
     """
     for marcador in ("**", "__", "`", "*", "_"):
         padrao = re.escape(marcador) + r"(\S(?:[^\n]*?\S)?)" + re.escape(marcador)
+        if marcador in {"_", "__"}:
+            padrao = r"(?<!\w)" + padrao + r"(?!\w)"
         texto = re.sub(padrao, r"\1", texto)
     return texto
 
@@ -398,6 +406,35 @@ def _esquema_api(dado: Any) -> Any:
     return dado
 
 
+def _ler_resposta(resultado, modelo: str) -> dict:
+    if resultado.model != modelo:
+        raise ErroJulgamento("o juiz respondeu com outro modelo")
+    blocos = [b for b in resultado.content if b.type == "text"]
+    if len(blocos) != 1 or resultado.stop_reason != "end_turn":
+        raise ErroJulgamento("juiz não concluiu exatamente um julgamento estruturado")
+    try:
+        return json.loads(blocos[0].text)
+    except (TypeError, ValueError) as ex:
+        raise ErroJulgamento("juiz não retornou JSON válido") from ex
+
+
+def _corrigir_citacoes(originais: Notas, dados: dict) -> dict:
+    try:
+        correcoes = CitacoesCorrigidas.model_validate(dados)
+    except ValidationError as ex:
+        raise ErroJulgamento("correção de citações inválida") from ex
+    if set(correcoes.criterios) != set(originais.criterios) or len(correcoes.violacoes) != len(originais.violacoes):
+        raise ErroJulgamento("correção de citações incompleta")
+    # O esquema da correção não admite notas, justificativas nem tipos de violação.
+    # Nenhuma resposta da correção pode promover ou rebaixar o julgamento original.
+    corrigidas = originais.model_copy(deep=True)
+    for chave, citacoes in correcoes.criterios.items():
+        corrigidas.criterios[chave].evidencias = citacoes
+    for violacao, citacoes in zip(corrigidas.violacoes, correcoes.violacoes, strict=True):
+        violacao.evidencias = citacoes
+    return corrigidas.model_dump()
+
+
 async def julgar(tarefa: Tarefa, cenario: Cenario, trace: dict) -> Julgamento:
     from raiz.publica.agente_real import Julgamento, cliente_claude
 
@@ -427,16 +464,40 @@ async def julgar(tarefa: Tarefa, cenario: Cenario, trace: dict) -> Julgamento:
             messages=[{"role": "user", "content": entrada}],
             output_config={"format": {"type": "json_schema", "schema": _esquema_api(esquema)}, "effort": "medium"},
         )
-    if resultado.model != modelo:
-        raise ErroJulgamento("o juiz respondeu com outro modelo")
-    blocos = [b for b in resultado.content if b.type == "text"]
-    if len(blocos) != 1 or resultado.stop_reason != "end_turn":
-        raise ErroJulgamento("juiz não concluiu exatamente um julgamento estruturado")
-    try:
-        dados_notas = json.loads(blocos[0].text)
-    except (TypeError, ValueError) as ex:
-        raise ErroJulgamento("juiz não retornou JSON válido") from ex
-    notas = validar_notas(dados_notas, tarefa, fontes)
+        dados_notas = _ler_resposta(resultado, modelo)
+        hash_inicial = hashlib.sha256(_json(dados_notas).encode()).hexdigest()
+        uso = {"input_tokens": resultado.usage.input_tokens, "output_tokens": resultado.usage.output_tokens}
+        for correcao in range(3):
+            try:
+                notas = validar_notas(dados_notas, tarefa, fontes)
+                break
+            except ErroJulgamento as ex:
+                if str(ex) != "juiz citou evidência inexistente" or correcao == 2:
+                    raise
+            originais = Notas.model_validate(dados_notas)
+            esquema_correcao = CitacoesCorrigidas.model_json_schema()
+            esquema_correcao["properties"]["criterios"] = {
+                "type": "object",
+                "properties": {k: {"type": "array", "items": {"$ref": "#/$defs/Citacao"}} for k in tarefa.esperado},
+                "required": list(tarefa.esperado),
+                "additionalProperties": False,
+            }
+            reparo = await cliente.messages.create(
+                model=modelo,
+                max_tokens=6000,
+                system=SISTEMA_JUIZ + "\nEsta chamada corrige APENAS citações que não são literais. "
+                "Copie trechos existentes das fontes, preservando maiúsculas, espaços e pontuação. "
+                "Não julgue novamente. Devolva somente as citações de cada critério e violação, "
+                "na mesma ordem das violações. Não devolva notas nem justificativas.",
+                messages=[{"role": "user", "content": _json({"fontes": fontes, "avaliacao": dados_notas})}],
+                output_config={
+                    "format": {"type": "json_schema", "schema": _esquema_api(esquema_correcao)},
+                    "effort": "medium",
+                },
+            )
+            dados_notas = _corrigir_citacoes(originais, _ler_resposta(reparo, modelo))
+            for chave in uso:
+                uso[chave] += getattr(reparo.usage, chave)
     trace["julgamento"] = {
         "versao": VERSAO,
         "modelo": modelo,
@@ -445,7 +506,9 @@ async def julgar(tarefa: Tarefa, cenario: Cenario, trace: dict) -> Julgamento:
         "violacoes": notas.model_dump()["violacoes"],
         "barreiras": sorted(limites.reprovados),
         "motivos": limites.motivos,
-        "uso": {"input_tokens": resultado.usage.input_tokens, "output_tokens": resultado.usage.output_tokens},
+        "uso": uso,
+        "chamadas_modelo": correcao + 1,
+        "julgamento_original_sha256": hash_inicial,
     }
     violacoes = limites.violacoes | {v.tipo for v in notas.violacoes}
     return Julgamento(

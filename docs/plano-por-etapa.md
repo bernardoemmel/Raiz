@@ -269,7 +269,7 @@ continuam em andamento na branch `produto-agentes-medicao`.
 | G | Recálculo dos 144 municípios do Pará pelo Actions e publicação no Release | responsabilidade exclusiva do chat "Lote e números", por orientação do fundador; este chat não altera execução nem Release |
 | H | Pilha com API/MCP, PostGIS, Keycloak, Valkey, migrações, worker e agenda em um comando; manual de operação | **feito no código**, PR #85; pilha integral e 24 cenários conferidos no Actions; dimensionamento sob Claude ainda em medição |
 | I | Inspector oficial, lint OpenAPI com vacuum e server.json para registro MCP | **feito**, PR #85; protocolo 2026-07-28, 36 caminhos OpenAPI sem erros de lint e resumo de 3.138 bytes; manifesto validado sem publicação |
-| J | Claude real, pass^4, passos/tempos, vcrpy diário e workflow semanal | runner e workflow entregues no PR #85; primeira campanha incompleta: 35 tentativas, sete chamadas proibidas; correções de ferramentas/juiz em validação; **pendentes** nova campanha completa e cassetes reais no CI diário |
+| J | Claude real, pass^4, passos/tempos, vcrpy diário e workflow semanal | runner e workflow entregues no PR #85; campanhas incompletas: 35/17 tentativas, sete/uma chamadas proibidas; contrato refinado e juiz com correção de citações sem alterar notas; **pendentes** nova campanha completa e cassetes reais no CI diário |
 | K | Reutilizar `consultar_ficha` e `proximos_eventos` no MCP | ficha **feita** no PR #72; Calendário integrado na branch `produto-agentes-medicao`, por adaptador da função existente, com escopo, limite, projeção e telemetria |
 
 Operação e limites: `docs/agentes-ia.md`, `docs/trabalhos-agentes.md`, `docs/eventos-agentes.md` e
