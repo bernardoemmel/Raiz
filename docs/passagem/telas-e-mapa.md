@@ -436,3 +436,16 @@ relatórios Lighthouse passaram pelo portão fixo. E9 real não foi calibrado e 
   teclado e axe a 360 px, sem 404. Pages também passou com publicação básica e zero erros no navegador.
   Revisões independentes da projeção e do acesso não encontraram vazamento. O rótulo “custo médio” distingue
   o custo estimado do preço de venda de US$ 55. E9 continua aguardando as cartas reais.
+
+## Continuação, entrega 4: pedido por estado, bioma ou Brasil (12/11/2026, Brasília)
+
+- Novo pedido permite as 27 UFs, seis biomas ou Brasil inteiro. Trocar o alcance limpa município, desenho e
+  raio ocultos da seleção anterior. Nenhuma lista de estados processados é fixa: a disponibilidade vem do
+  manifesto atual, com data, municípios lidos/esperados, estados parciais, ausentes e desconhecidos.
+- Os critérios seguem para a API existente, que filtra as fazendas pelo recorte. No modo aberto, cobertura
+  estadual não vira oferta do bioma: totais de fazendas/hectares ficam desconhecidos quando o recorte exato
+  não foi publicado. Municípios são deduplicados e informação suprimida não vira zero.
+- O resumo do Pará continua identificado como cenário publicado; não é extrapolado para outro estado,
+  bioma, Brasil inteiro ou novos filtros financeiros. A demonstração também conserva seu aviso fictício.
+- Testes cobrem estado recém-processado, disponibilidade parcial, troca de alcance e ausência. Playwright
+  passou por estado, bioma e Brasil com teclado, axe em 1440/360 px e zero 404; entra no CI junto da cena-alvo.
