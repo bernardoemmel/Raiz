@@ -1,7 +1,9 @@
 """Publica e espelha retratos imutáveis, sem regravar os pacotes correntes do motor.
 
 Local/S3 usam historico/UF/município/hash.json.gz. O GitHub recebe lotes de até
-64 MiB em Releases diários separados. Só grava recibos após conferir o objeto
+64 MiB em Releases diários privados (rascunhos, ou repositório privado).
+O destino e cada Release são conferidos antes do acesso; não há leitura anônima.
+Só grava recibos após conferir o objeto
 remoto; nunca chama o método de substituição de assets do ArmazemRelease.
 Recibos evitam reenvio no mesmo executor. Sem recibo, um pacote determinístico
 pode ser repetido em outro dia ou agrupamento; os retratos continuam deduplicados
@@ -23,7 +25,8 @@ import tarfile
 import tempfile
 from pathlib import Path
 
-from raiz.aprendizado.retratos import MAX_COMPRIMIDO, descomprimir, validar_retrato
+from raiz.aprendizado.compat_retratos import validar_retrato
+from raiz.aprendizado.retratos import MAX_COMPRIMIDO, descomprimir
 from raiz.executor.armazem import Armazem, ArmazemLocal, ArmazemRelease, ArmazemS3
 
 MAX_PACOTE = 64 * 1024 * 1024
@@ -99,7 +102,7 @@ def _gravar_novo(raiz: Path, relativo: str, dados: bytes) -> bool:
 
 def _identidade(a: Armazem) -> str:
     if isinstance(a, ArmazemRelease):
-        valor = ["github", a.repo]
+        valor = ["github-privado-v1", a.repo, a.tag]
     elif isinstance(a, ArmazemS3):
         valor = ["s3", a.balde, a.prefixo, a.cli.meta.endpoint_url]
     elif isinstance(a, ArmazemLocal):
@@ -144,15 +147,41 @@ def _recibos(pasta: Path, a: Armazem):
 
 
 def _cabecalhos(a: ArmazemRelease, escrita: bool = False) -> dict:
-    if escrita and not a.token:
-        raise PermissionError("publicação histórica no GitHub exige GH_TOKEN ou GITHUB_TOKEN")
-    return {"Accept": "application/vnd.github+json", **({"Authorization": f"Bearer {a.token}"} if a.token else {})}
+    if not a.privado:
+        raise PermissionError("histórico por CAR exige o armazém privado configurado em RAIZ_DADOS_PRIVADOS_URL")
+    if not a.token:
+        raise PermissionError("histórico por CAR exige RAIZ_DADOS_PRIVADOS_TOKEN, inclusive para leitura")
+    return a._cabecalhos()
 
 
 def _ok(resposta, operacao: str):
     if not 200 <= resposta.status_code < 300:
         raise RuntimeError(f"{operacao} falhou (HTTP {resposta.status_code})")
     return resposta
+
+
+@contextlib.contextmanager
+def _acesso_privado(armazem: Armazem):
+    if isinstance(armazem, ArmazemRelease):
+        with armazem._erros_privados("histórico"):
+            _cabecalhos(armazem)
+            armazem._exigir_privado()
+            yield
+    else:
+        yield
+
+
+def _conferir_release(a: ArmazemRelease, release_id: int) -> dict:
+    """Confere visibilidade atual do alvo, também ao reaproveitar recibos locais."""
+    h = _cabecalhos(a)
+    repo = _ok(a.cli.get(f"{a.API}/repos/{a.repo}", headers=h), "verificação do arquivo histórico").json()
+    rel = _ok(
+        a.cli.get(f"{a.API}/repos/{a.repo}/releases/{int(release_id)}", headers=h),
+        "verificação do Release histórico",
+    ).json()
+    if repo.get("private") is not True and rel.get("draft") is not True:
+        raise PermissionError("Release histórico está aberto; dados por CAR exigem repositório privado ou rascunho")
+    return rel
 
 
 def _paginas(a: ArmazemRelease, sufixo: str):
@@ -177,13 +206,14 @@ def _assets(a: ArmazemRelease, ufs: set[str] | None = None) -> list[dict]:
     out = []
     for rel in _paginas(a, "releases"):
         tag = rel.get("tag_name", "")
-        if not isinstance(tag, str) or not TAG.fullmatch(tag) or rel.get("draft"):
+        if not isinstance(tag, str) or not TAG.fullmatch(tag):
             continue
         try:
             dt.date.fromisoformat(tag.removeprefix("historico-"))
             rid = int(rel["id"])
         except (ValueError, TypeError, KeyError):
             raise ValueError("metadados inválidos do Release histórico") from None
+        _conferir_release(a, rid)
         for asset in _paginas(a, f"releases/{rid}/assets"):
             m = ASSET.fullmatch(asset.get("name", ""))
             if m and (not ufs or m[1] in ufs) and asset.get("state") == "uploaded":
@@ -194,6 +224,7 @@ def _assets(a: ArmazemRelease, ufs: set[str] | None = None) -> list[dict]:
 def _baixar_asset(a: ArmazemRelease, asset: dict) -> bytes:
     if int(asset.get("size", 0)) > MAX_PACOTE:
         raise ValueError("pacote histórico excede o limite de transporte")
+    _conferir_release(a, int(asset["release_id"]))
     aid = int(asset["id"])
     with a.cli.stream(
         "GET",
@@ -278,7 +309,12 @@ def _indice(a: ArmazemRelease, r: dict, salvar, destino: Path, ufs: set[str] | N
             for nome, corpo in corpos.items():
                 _gravar_novo(destino, nome, corpo)
             membros = sorted(corpos)
-            r["assets"][sha] = {"asset_id": asset["id"], "tag": asset["tag"], "membros": membros}
+            r["assets"][sha] = {
+                "asset_id": asset["id"],
+                "release_id": asset["release_id"],
+                "tag": asset["tag"],
+                "membros": membros,
+            }
             salvar()
         for relativo in membros:
             arquivos[relativo] = asset
@@ -296,6 +332,12 @@ def _publicados_recebidos(a: ArmazemRelease, r: dict, selecionados: dict) -> set
         aid = recibo.get("asset_id")
         if not isinstance(aid, int):
             continue
+        rid = recibo.get("release_id")
+        if not isinstance(rid, int):
+            continue  # recibo antigo não comprova o destino privado; reconferir o pacote
+        rel = _conferir_release(a, rid)
+        if rel.get("tag_name") != recibo.get("tag"):
+            raise ValueError("Release diverge do recibo histórico")
         res = a.cli.get(f"{a.API}/repos/{a.repo}/releases/assets/{aid}", headers=_cabecalhos(a))
         if res.status_code == 404:
             continue
@@ -320,23 +362,36 @@ def _release_diario(a: ArmazemRelease) -> dict:
     tag = f"historico-{dt.datetime.now(dt.UTC).date().isoformat()}"
     url = f"{a.API}/repos/{a.repo}/releases"
     h = _cabecalhos(a, escrita=True)
-    r = a.cli.get(f"{url}/tags/{tag}", headers=h)
-    if r.status_code == 404:
+
+    def existente():
+        r = a.cli.get(f"{url}/tags/{tag}", headers=h)
+        if r.status_code != 404:
+            return _ok(r, "consulta do Release histórico").json()
+        # GitHub pode responder 404 por tag para rascunhos; a listagem autenticada os inclui.
+        return next((r for r in _paginas(a, "releases") if r.get("tag_name") == tag), None)
+
+    rel = existente()
+    if rel is None:
         r = a.cli.post(
             url,
             headers=h,
             json={
                 "tag_name": tag,
                 "name": tag,
-                "draft": False,
+                "draft": True,
                 "prerelease": False,
                 "make_latest": "false",
-                "body": "Retratos históricos públicos da Raíz, imutáveis e verificados por SHA-256.",
+                "body": "Retratos históricos privados da Raíz, imutáveis e verificados por SHA-256. "
+                "Não publicar este rascunho em repositório aberto.",
             },
         )
         if r.status_code == 422:  # outro executor criou o Release entre as duas chamadas
-            r = a.cli.get(f"{url}/tags/{tag}", headers=h)
-    return _ok(r, "criação do Release histórico").json()
+            rel = existente()
+            if rel is None:
+                raise RuntimeError("não foi possível localizar o Release histórico concorrente")
+        else:
+            rel = _ok(r, "criação do Release histórico privado").json()
+    return _conferir_release(a, int(rel["id"]))
 
 
 def _tar_bytes(arquivos: dict[str, bytes]) -> bytes:
@@ -375,6 +430,7 @@ def _subir_pacote(a: ArmazemRelease, rel: dict, uf: str, arquivos: dict[str, byt
     dados = _pacote(arquivos)
     sha = _sha(dados)
     nome = f"historico_{uf}_{sha}.tar.gz"
+    _conferir_release(a, int(rel["id"]))
     h = {**_cabecalhos(a, escrita=True), "Content-Type": "application/gzip"}
     res = a.cli.post(
         f"{a.UPLOADS}/repos/{a.repo}/releases/{int(rel['id'])}/assets", params={"name": nome}, headers=h, content=dados
@@ -388,7 +444,7 @@ def _subir_pacote(a: ArmazemRelease, rel: dict, uf: str, arquivos: dict[str, byt
         asset = _ok(res, "upload histórico").json()
     if asset.get("state") != "uploaded":
         raise RuntimeError("upload histórico ainda não concluído")
-    asset = {**asset, "sha256": sha, "uf": uf, "tag": rel["tag_name"]}
+    asset = {**asset, "sha256": sha, "uf": uf, "tag": rel["tag_name"], "release_id": int(rel["id"])}
     # Confere bytes reais, inclusive no primeiro upload e na corrida com outro executor.
     _abrir_pacote(_baixar_asset(a, asset), uf)
     return asset
@@ -453,7 +509,12 @@ def _ler_objeto(a: ArmazemLocal | ArmazemS3, relativo: str) -> bytes | None:
 
 
 def publicar(pasta: Path, armazem: Armazem, uf: str | None = None) -> dict:
-    """Publica somente retratos validados; retomar não apaga nem substitui objetos."""
+    """Publica somente no destino privado; retomar não apaga nem substitui objetos."""
+    with _acesso_privado(armazem):
+        return _publicar(pasta, armazem, uf)
+
+
+def _publicar(pasta: Path, armazem: Armazem, uf: str | None = None) -> dict:
     pasta = Path(pasta)
     selecionados = {}
     filtro = {uf.upper()} if uf else None
@@ -477,7 +538,12 @@ def publicar(pasta: Path, armazem: Armazem, uf: str | None = None) -> dict:
             for u, arquivos in _lotes(pendentes):
                 asset = _subir_pacote(armazem, rel, u, arquivos)
                 sha = asset["sha256"]
-                r["assets"][sha] = {"asset_id": asset["id"], "tag": asset["tag"], "membros": sorted(arquivos)}
+                r["assets"][sha] = {
+                    "asset_id": asset["id"],
+                    "release_id": asset["release_id"],
+                    "tag": asset["tag"],
+                    "membros": sorted(arquivos),
+                }
                 r["retratos"].update({k: sha for k in arquivos})
                 salvar()
                 resultado["publicados"] += len(arquivos)
@@ -492,7 +558,12 @@ def publicar(pasta: Path, armazem: Armazem, uf: str | None = None) -> dict:
 
 
 def sincronizar(armazem: Armazem, destino: Path, ufs: list[str] | None = None) -> list[Path]:
-    """Baixa todos os retratos históricos solicitados e devolve os caminhos válidos."""
+    """Baixa retratos autenticados e devolve caminhos válidos; legado aberto falha explicitamente."""
+    with _acesso_privado(armazem):
+        return _sincronizar(armazem, destino, ufs)
+
+
+def _sincronizar(armazem: Armazem, destino: Path, ufs: list[str] | None = None) -> list[Path]:
     destino = Path(destino)
     filtro = {u.upper() for u in ufs} if ufs else None
     encontrados = set()

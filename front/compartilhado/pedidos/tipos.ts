@@ -18,6 +18,7 @@
  */
 
 import type { Geo } from "../dados/tipos"
+import type { FichaCredito } from "../ficha-credito"
 
 /** O que conta na meta. */
 export type TipoMeta = "creditos" | "hectares" | "flag_t_ano"
@@ -103,11 +104,13 @@ export interface FazendaDoLote {
   municipio: string
   uf: string
   papel: PapelNoLote
-  hectares: number
-  creditos: Faixa
-  metodo: Metodo
-  caminho: CaminhoTerra
-  custo_usd_credito: number
+  /** A API retém as medidas individuais até o cliente liberar esta ficha. */
+  ficha_liberada: boolean
+  hectares: number | null
+  creditos: Faixa | null
+  metodo: Metodo | null
+  caminho: CaminhoTerra | null
+  custo_usd_credito: number | null
   /** pequena (até 4 módulos fiscais): entra agrupada com as vizinhas, nunca descartada */
   pequena: boolean
   interesse: NivelInteresse
@@ -162,6 +165,11 @@ export interface Opcao {
   falta: number
   /** o otimizador põe a regeneração antes do plantio que o preço não paga e avisa quando só fecha com ele */
   abaixo_equilibrio?: AbaixoEquilibrio
+  /** Detalhes disponíveis apenas na API autenticada ou demonstração sintética. */
+  destrava?: DestravadorPublicado[]
+  o_que_falta?: string[]
+  /** Evidência agregada privada, vinculada à revisão efetiva do lote. Nunca consta no resumo aberto. */
+  ficha_credito?: FichaCredito
 }
 
 export type StatusPedido =
@@ -193,6 +201,8 @@ export interface Pedido {
   alertas: Alerta[]
   /** versão do modelo e das premissas (para aprender depois com o que aconteceu) */
   versao_modelo: string
+  /** Identidade da sugestão e composição atuais, para rejeitar cálculos derivados antigos. */
+  revisao_lote?: string | null
   /** true na resposta de exemplo (sem back-end): a tela avisa */
   exemplo?: boolean
   /** Consulta pública ao cenário publicado. Não é uma execução do pedido nem libera detalhes das fazendas. */
@@ -211,23 +221,22 @@ export interface DestravadorPublicado {
   somavel: false
 }
 
-/** Métricas publicadas pelo chat Lote e números; ausência permanece nula. */
+/** Resumo aberto com lista positiva; a composição e a diligência pertencem à API autenticada. */
 export interface OpcaoPublicada {
   id: IdOpcao
   creditos: Faixa | null
-  /** TIR alavancada do fluxo agregado, em fração ao ano; não é média das TIRs das fazendas. */
-  tir_p50: number | null
+  /** Custo médio por crédito em US$, conforme o lote publicado. */
   custo_usd_credito: number | null
   hectares: number | null
+  /** Titulares e reservas; as três alternativas não são somáveis. */
   fazendas: number | null
-  pequenas: number | null
-  reservas: number | null
-  pendencias_terra: { caminho: CaminhoTerra; fazendas: number | null; hectares: number | null }[]
-  destrava: DestravadorPublicado[]
-  o_que_falta: string[]
+  /** Somente matrícula conferida ou concessão documentada, nunca matrícula a conferir. */
+  terra_pronta: { creditos_p50: number | null; fracao_meta: number | null }
 }
 
 export interface PublicacaoLote {
+  contrato: "publico_lotes"
+  versao: 1
   estado: "ausente" | "publicado"
   aviso: string
   fonte: string

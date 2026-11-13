@@ -70,18 +70,18 @@ tarefa não declara uma captura completa.
 O fluxo `processar-estados.yml` publica esses retratos na mesma cadência dos
 pacotes do executor e novamente em um passo `always()`, antes de continuar a
 fila. Os contratos das saídas, marcas, filas e `estados.json` permanecem iguais.
-Os retratos públicos são agrupados em pacotes de até 64 MiB no Release diário
+Os retratos privados são agrupados em pacotes de até 64 MiB no Release diário
 `historico-AAAA-MM-DD`, com nomes derivados do SHA-256 do pacote. Nenhum asset
 histórico é apagado ou substituído. Armazéns local e S3 usam o prefixo
 `historico/<UF>/<município>/`; no S3 a criação exige que o objeto ainda não exista.
 
-No repositório público, esses Releases históricos também são públicos: as
-entradas sanitizadas por código do CAR e as geometrias podem ser baixadas. Isso
-não equivale à distribuição de fichas confidenciais nem implementa a migração
-futura de derivados para armazenamento privado descrita em
-`docs/passagem/ficha-da-fazenda.md`. Quando houver exigência de confidencialidade,
-é necessário configurar um armazém privado. A exclusão de nomes e o mascaramento
-de CPF/CNPJ não transformam o Release público em armazenamento confidencial.
+O histórico por CAR é privado, mesmo sem nomes ou CPF. No GitHub, usa o destino
+configurado em `RAIZ_DADOS_PRIVADOS_URL` e token de `RAIZ_DADOS_PRIVADOS_TOKEN`.
+Cada Release diário é criado como draft e nunca deve ser publicado em repositório
+aberto. Leitura e escrita exigem autenticação e conferem o destino e a visibilidade
+atual de cada Release, inclusive quando há recibos locais. Um histórico legado
+aberto provoca erro explícito; não é tratado como cópia privada já concluída.
+O contrato e a migração estão em `docs/dados-publicados.md`.
 
 ```bash
 uv run raiz aprendizado publicar-retratos --uf PA
@@ -211,3 +211,25 @@ conhecidos depois. Nenhuma curva simulada é promovida a evidência de qualidade
 O otimizador mantém a chance beta-binomial por perfil enquanto o modelo temporal
 acumula e mede previsões reais. SQLMesh e Dagster continuam fora desta entrega;
 o executor próprio permanece conforme a decisão anterior.
+
+### Compatibilidade de retratos com fechamento geométrico repetido
+
+O transporte e a importação reconhecem uma falha específica do escritor legado:
+em polígonos 2D com o vértice de fechamento repetido, GEOS pode retirar uma única
+repetição por chamada de `normalize`. Assim, um retrato recém-gravado podia falhar
+na segunda normalização feita pelo validador. O caso foi reproduzido com um
+polígono sintético e em 28 de 56.217 geometrias do pacote privado de RN, cujo
+SHA-256 é `284868f127ceff0f1b46967bcaeed8c555a7e972d338d7bb39c3739014bc07ac`.
+
+O leitor `compat_retratos.py` primeiro usa a validação original. A exceção aceita
+somente repetições finais exatamente iguais ao primeiro vértice de cada anel,
+sem tolerância, reparo ou comparação apenas topológica. Gzip, nome e SHA-256,
+JSON canônico, metadados, hash original de cada linha, atributos e contexto
+continuam obrigatórios. Uma cópia com o fechamento estabilizado passa pelo
+validador completo em pasta temporária; ela não substitui o arquivo de origem.
+
+Publicação, recibos e importação conservam os bytes, o hash, a observação e as
+versões originais. Não há migração, data retroativa ou atribuição de versão nova
+à captura antiga. O escritor e os arquivos que formam as onze versões de tarefas
+permanecem iguais, permitindo retomar marcas já válidas. Uma correção futura da
+escrita precisará registrar sua mudança real de versão.

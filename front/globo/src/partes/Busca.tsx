@@ -1,3 +1,4 @@
+import { SITUACOES_BASICAS } from "../../../compartilhado/dados/basico"
 import { CircleAlert, Info } from "lucide-react"
 import { useEffect, useId, useRef, useState } from "react"
 import { CATEGORIAS, type RespostaBusca } from "../../../compartilhado/dados"
@@ -28,7 +29,7 @@ function abrirImovel(car: string) {
   location.hash = linkFazenda(car)
 }
 
-/** os 5.570 municípios do contorno do Brasil, carregados uma vez (o mapa de entrada já pediu o mesmo arquivo) */
+/** Limites municipais carregados uma vez, quando a busca precisa consultar municípios ainda não processados. */
 let mapaBrasil: Promise<MunicipioDoMapa[]> | null = null
 const municipiosDoMapa = () =>
   (mapaBrasil ??= fonte.geo.brasil().then(
@@ -125,9 +126,9 @@ export function Busca({ aoEscolher }: { aoEscolher?: () => void }) {
       ...(r?.imoveis ?? []).map((i) => ({
         id: "i" + i.cod_imovel,
         rotulo: abreviarCar(i.cod_imovel),
-        detalhe: `${i.municipio} (${i.uf}), ${fmtHa(i.ha)}`,
-        marca: i.apta ? `${fmtHa(i.carbono_ha)} aptos` : CATEGORIAS.find((c) => c.id === i.categoria)?.rotulo,
-        falta: !i.apta,
+        detalhe: "situacao_basica" in i ? `${i.municipio} (${i.uf})` : `${i.municipio} (${i.uf}), ${fmtHa(i.ha)}`,
+        marca: "situacao_basica" in i ? SITUACOES_BASICAS[i.situacao_basica] : i.apta ? `${fmtHa(i.carbono_ha)} aptos` : CATEGORIAS.find((c) => c.id === i.categoria)?.rotulo,
+        falta: "situacao_basica" in i ? i.situacao_basica !== "apto" : !i.apta,
         ir: () => {
           abrirImovel(i.cod_imovel)
           fechar()

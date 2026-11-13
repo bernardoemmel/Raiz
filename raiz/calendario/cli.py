@@ -10,7 +10,7 @@ from zoneinfo import ZoneInfo
 import typer
 from sqlalchemy import text
 
-from raiz.calendario import arquivos, banco, coleta
+from raiz.calendario import arquivos, banco, catalogo, coleta
 from raiz.calendario.modelos import Evento, FonteEstado
 
 app = typer.Typer(help="Calendário da Raíz: fontes oficiais, eventos e prazos.", no_args_is_help=True)
@@ -22,6 +22,9 @@ def coletar(
     anterior: Annotated[Path | None, typer.Option(help="estado.json da rodada anterior")] = None,
     fontes: Annotated[str | None, typer.Option(help="IDs de fontes, separados por vírgula")] = None,
     sem_banco: Annotated[bool, typer.Option(help="somente snapshot público, para o GitHub Actions")] = False,
+    manifesto_estados: Annotated[
+        Path | None, typer.Option(help="estados.json público; omitido, consulta o Release dados")
+    ] = None,
 ) -> None:
     """Busca prazos explícitos, preserva o estado anterior e publica JSON/.ics."""
     lista = coleta.fontes()
@@ -30,6 +33,13 @@ def coletar(
         if ids - {f["id"] for f in lista}:
             raise typer.BadParameter("fonte desconhecida")
         lista = [f for f in lista if f["id"] in ids]
+    else:
+        try:
+            manifesto = catalogo.carregar_manifesto(manifesto_estados)
+            lista = catalogo.selecionar(lista, manifesto)
+        except ValueError as ex:
+            raise typer.BadParameter(str(ex)) from None
+        typer.echo("Diários dos estados processados: " + ", ".join(sorted(catalogo.estados_processados(manifesto))))
     if sem_banco:
         antigos, fontes_antigas = arquivos.ler(anterior) if anterior else ([], [])
     else:

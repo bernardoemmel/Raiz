@@ -14,14 +14,17 @@ com regressões. Mudanças de contrato/arquitetura ficam para os chats responsá
 - Correções pequenas encontradas na revisão: rebanho zero, gabarito de certidão em revisão, índice WARC e alertas.
 - Procedimento manual da proteção da main em [operação](../operacao.md#proteção-da-main-o-fundador-ativa-à-mão).
 
-## Pendência explícita: zero testes pulados
+## Estado dos testes: Pará obrigatório e TIR pendente
 
-Nenhum teste foi retirado ou selecionado parcialmente para acelerar o CI. O teste opcional preexistente
-`test_lote_do_para_inteiro_fecha_ou_diz_o_que_falta` ainda depende das 144 tabelas reais `desenvolvedor` do Pará,
-que não existem no Release atual. Portanto a exigência literal de zero skips **não está concluída**.
-O chat Dados precisa publicar o conjunto versionado; então o CI deverá baixar/conferir/cachear o snapshot.
+Nenhum teste foi retirado para acelerar o CI. O teste estadual roda isolado em paralelo aos demais e o portão
+reúne os dois relatórios. O teste antes opcional
+`test_lote_do_para_inteiro_fecha_ou_diz_o_que_falta` passou a exigir o snapshot privado real de 144 municípios,
+publicado por **Lote e números**. A execução real foi demonstrada e a entrega independente abaixo integra a
+preparação autenticada no CI; sem snapshot ou com skip, o resultado falha. Dados financeiros por imóvel nunca
+entram em cache/artifact público. O GitHub recusou o token somente de leitura para acessar o draft; o acesso
+necessário fica restrito ao job estadual interno, e a aprovação integral do CI permanece exigida antes do merge.
 Além disso, permanece o `xfail` preexistente de TIR do plantio (`test_plantio_da_7_a_9_pct_no_central_r11`):
-o teste executa, mas a conta ainda diverge da referência de 7–9%; o chat Produto/regras deve resolver o critério
+o teste executa, mas a conta ainda diverge da referência de 7–9%; **Lote e números / Produto e regras** devem resolver o critério
 em `docs/restauracao-rodada11.md`. O portão de resultados recusa qualquer outro skip/xfail novo.
 O teste da cena-alvo usa a amostra real do repositório e já roda inteiro, sem esse pré-requisito nacional.
 
@@ -206,3 +209,204 @@ As entregas de aviso à Verra e lote/números também foram integradas antes de 
 foi resolvido mantendo ambas as passagens. O novo workflow `lote-para.yml` prepara a rodada real do Pará;
 o teste estadual ainda tem a pré-condição dos arquivos desenvolvedor e permanece como pendência até a rodada
 produzir um conjunto utilizável. Não foram disparados envios à Verra nem processamento de produção nesta auditoria.
+
+## Entrega independente de proveniência, cota e revisão contínua — 12/11/2026
+
+Revisão dos PRs #72/#77 sobre a main `b624b10`. Esta entrega fecha dois vazamentos pequenos e uma corrida de
+admissão: o importador e o catálogo podiam imprimir nomes/retornos privados ou mensagens de terceiros; nomes de
+assets privados também podiam chegar ao subject público da atestação; uma reexecução do catálogo podia perder
+sua reserva ao receber o término da tentativa anterior, admitindo indevidamente o 16º trabalho.
+
+As CLIs usam mensagens fixas, e os diagnósticos do validador Croissant preservam nível e falha sem mostrar o nome
+do Dataset. Subjects privados usam somente o SHA256 dos bytes, sem nome nem hash do nome; listas legadas são
+convertidas ou recusadas pelo portão dos workflows antes da atestação, inclusive em passos `always()`. A reserva
+do catálogo confirma por CAS o escopo e a tentativa atual, mantendo a cota global de 15 trabalhos.
+
+Os testes focados exercitam nomes/contatos e segredos sintéticos no retorno, nos caminhos, nas exceções e nos
+warnings; cobrem também listas de atestação legadas, aliases, versões de conteúdo e a corrida de reexecução.
+**190 testes focados passaram, sem skips**, em 31,17 s. Ruff e formatação globais, actionlint 1.7.12 e a conferência
+do diff passaram. O CI integral será exigido no PR antes do merge. Nenhum upload de dados ou processamento de produção foi
+disparado por esta validação.
+
+Os demais portões de qualidade dos dados, observabilidade, carga e a integração adversarial do MCP continuam no
+**PR #76**. O corpus desse PR permanece explicitamente bloqueado: **Produto e regras** precisa entregar o agente
+leitor de certidão, edital e arquivo. Esta entrega independente preserva `ci.yml`, MCP e a política do corpus;
+seu resultado não equivale a uma aprovação dos testes de injeção pendentes.
+
+### Revisão dos PRs #79 e #80
+
+Main atualizada até `bea53bd`, sem conflito. O diagnóstico de falha do SIGEF agora passa pelo sanitizador antes
+de ser persistido ou retornado: mensagens de rede, parser e banco podem conter nome, contato ou credencial.
+O filtro de embargos recusa geometria ausente, vazia ou sem componente poligonal depois do reparo, após selecionar o município e os termos ativos;
+antes, um WKT inválido convertido em `None` no espelho podia virar área de restrição zero. A guarda aceita
+polígonos reparáveis e mantém a exclusão de cancelados, desembargados e outros municípios.
+
+As regressões falharam antes das correções. **31 testes de SIGEF e E2 passaram**, sem skips; Ruff e formatação
+dos quatro arquivos passaram. O retry de download do #80 não apresentou novo achado confirmado: erros de
+validação continuam fora da repetição. A revisão não encontrou segredo real no diff; não equivale a uma
+auditoria dos novos assets externos ou dos serviços em produção. Não restou achado maior confirmado em #79/#80.
+
+O portão de atestação usa o checkout `publicador-atual` quando o executor está preso a uma referência antiga.
+O verificador não existe nessas referências: procurá-lo sempre na raiz bloqueava até a lista já convertida pelo
+finalizador atual. **31 testes de atestação passaram**, incluindo execução real do passo em checkout legado,
+recusa de subject legado e falha fechada quando o checkout atual falha; actionlint e Ruff passaram.
+
+O [PR #81](https://github.com/bernardoemmel/Raiz/pull/81) foi integrado na main `436c7b6` com os seis checks verdes
+no [CI 43315818208](https://github.com/bernardoemmel/Raiz/actions/runs/43315818208): **2.003 testes passaram,
+1 skip estadual herdado e 1 xfail de TIR**. A entrega abaixo elimina a exceção do skip estadual.
+
+### Estado atualizado da referência real do Pará
+
+A publicação privada integral já foi concluída por **Lote e números**, conforme sua passagem: 144 municípios e
+345.870 imóveis. A pendência histórica acima não é mais produzir as tabelas `desenvolvedor`. **Qualidade e segurança**
+integra a referência em entrega independente a partir de `436c7b6`, preservando toda a cobertura anterior em oito
+jobs. O job geral passa a se chamar `testes_python`, com 30 minutos; `referencia_para` executa o estadual e
+`checagens` passa a ser o portão final, mantendo o nome do check obrigatório antigo. Não há novas dependências.
+**Lote e números** mantém o contrato, modelo e futuros snapshots. Dados
+financeiros por imóvel não devem ir para cache ou artifact público; a recomendação histórica de cache está superada.
+
+A execução estadual real, com entradas, geometrias e sensibilidade completas, passou em **446,2 s**, com pico de
+RSS de **6.840,2 MiB**, cobrindo os 144 municípios e 345.870 imóveis. A cópia dos cinco arquivos de preparação,
+supervisão e regressões foi conferida por SHA-256. Não houve novo benchmark isolado; a suíte integral desta entrega
+inclui o caso estadual uma vez. A tentativa inicial de CI com `contents: read` foi recusada pelo GitHub, como registra
+o [run 43319627024 do #76](https://github.com/bernardoemmel/Raiz/actions/runs/43319627024): 2.327 outros testes
+passaram, o estadual falhou explicitamente por falta de preparação e a divergência conhecida de TIR continuou
+como xfail. O corpus MCP desse PR continua uma falha separada e não foi dispensado.
+
+A correção da permissão foi comprovada no [job estadual do CI 43324357697](https://github.com/bernardoemmel/Raiz/actions/runs/43324357697/job/131552929571):
+preparação autenticada aprovada, **1 teste estadual passou em 484,76 s**, e limpeza dos dados temporários aprovada.
+Isso comprova o acesso ao draft no job isolado, mas não substitui a aprovação da suíte completa e do CI desta
+entrega independente antes do merge.
+
+Releases em rascunho exigem acesso de escrita/push. Somente `referencia_para`, para código interno, recebe
+`contents: write`; os demais jobs mantêm leitura. Essa permissão alcança também as actions do job, não apenas
+o passo que recebe o token no ambiente. Não foi criada credencial estática nem adicionada operação de publicação.
+O checkout não persiste credenciais; o processo pytest recebe apenas a pasta preparada. Seu subprocesso usa
+ambiente restrito e diagnósticos/JUnit privados apagados ao terminar. O JUnit público recebe
+mensagem fixa em falhas; os dados temporários são apagados por `always()`. Sem preparação válida, caso ausente,
+duplicado, pulado ou falho, o portão recusa o resultado. O caso estadual é a única exclusão do job geral, pois
+é executado no job paralelo; uma regressão compara a coleção real com e sem esse seletor. O portão exige ambos
+os jobs aprovados e exatamente um estadual no conjunto dos dois XMLs, sem permitir que um relatório esconda
+falha do outro. O xfail conhecido de TIR também precisa executar: `xfail(run=False)` reprova.
+
+Fork não executa o job privilegiado e o portão sinaliza a validação privada ausente. Dependabot também pode
+receber token restrito a leitura; alterações revisadas precisam ser promovidas para uma branch confiável para
+essa validação. As opções administrativas de enviar escrita/segredos a forks não foram verificadas (consulta
+recusada com 403) nem alteradas; devem permanecer desativadas, conforme o guia manual. O workflow alterável
+por um PR não substitui essa fronteira do GitHub. Operação: [teste estadual privado](../operacao.md#teste-estadual-privado-do-pará).
+
+A primeira suíte local desta worktree foi interrompida pelo reinício do ambiente perto de 70%, depois de
+executar o estadual; ela não é contabilizada como suíte aprovada. O resultado aprovado é o da retomada abaixo,
+registrado em log persistente.
+
+A retomada integral terminou com **2.079 testes aprovados, nenhum skip e 1 xfail conhecido de TIR**, em
+**1.390,97 s (23 min 10 s)**, com PostGIS, LanguageTool e o snapshot estadual real. Após essa execução, a partição
+do CI foi atualizada para o job privado isolado e o portão conjunto; o corpo científico do teste, seu helper e
+os arquivos do snapshot permaneceram idênticos. **106 testes focados do preparador, supervisor, seleção e portão
+passaram**, em 6,29 s; Ruff global (473 arquivos), actionlint e diff passaram. O portão novo também aprovou o XML
+real da suíte integral, aceitando somente o xfail de TIR executado. O CI da entrega independente ainda é exigido
+antes do merge.
+
+Os demais portões, observabilidade, carga e corpus permanecem no PR #76. O corpus continua bloqueado; esta entrega
+não altera sua política nem equivale a aprovação dos testes de injeção pendentes.
+
+## Rodada 12 — medição do acerto e protocolo de mudança
+
+Entrega no [PR #100](https://github.com/bernardoemmel/Raiz/pull/100), atualizada com a main `692663c` (#98, após #95 e #97).
+Os PRs #87, #88, #91 e #92 foram revistos e incorporados; o protocolo da rodada 12 permanece privado.
+
+- CRPS com properscoring, sorteios finitos e denominador `crps_n` no placar existente. Corrigido bug pequeno:
+  distribuição estava fora do hash das previsões congeladas. Novo hash inclui o conteúdo; versão antiga não é
+  sobrescrita. Hashes legados com distribuição exigem atestação adicional, sem reescrever o histórico.
+- sktime separa origens pelo calendário e exige que evento, conhecimento e entradas já existissem no corte.
+  imbalanced-learn fica no fit da Pipeline; forestci e mpl-probscale são diagnósticos de avaliação, sem trocar modelo.
+- AIF360 mede todas as classes por município/aptidão. Política inicial de 5 pp e mínimo de 30 casos distintos:
+  a consulta sobre o limite foi feita ao fundador; na ausência de resposta, adotado 5 pp explicitamente.
+  CI tem contrafactuais no solver real e regressão que reprova viés local escondido na média nacional.
+- Plano PCCP, gabarito cego, controle estável e funil de denominador fixo têm contratos fechados sem identificação
+  civil/contato. CLI exige fixação anterior ao treino, arquiva ambas as versões e reprova regressões/insuficiência.
+  Formatos inspirados nas referências; sem alegar acreditação, aprovação FDA ou acerto empírico já medido.
+- CI confere esquemas e pacote distribuível contra scpi/vegan, inclusive extras/transitivas. Não cancela workflows.
+
+Pendências de outros chats, sem reescrever suas funcionalidades:
+
+| Dono | Integração/evidência necessária |
+|---|---|
+| Lote e números | Exportar e congelar os sorteios originais de cada previsão de carbono. Hoje o arquivo preserva quantis e parâmetros; não inventar distribuição com três quantis. Fornecer aptidão definida antes da escolha e resultados de inclusão para toda a coorte. |
+| Dados | Constituir gabarito independente, amostras cegas, rastreabilidade das medições e controles reais. Cobertura insuficiente não aprova modelo. Produzir retratos temporais com disponibilidade verificável e atestar lotes históricos com distribuição sob hash legado. |
+| Produto e regras | Ligar o portão privado à transação de `campeao.promover`/`voltar` e aos caminhos de recalibração, impedindo promoção sem protocolo aprovado. Preservar segregação entre custodiante do cego e treino. O CLI desta entrega decide/aponta retorno, mas não muda campeão. |
+| Fundador/infra de produção | Prover arquivo privado imutável, backup, relógio confiável e permissões segregadas. Um hash local não prova a veracidade das datas ou da medição. |
+
+Sem contato com dono, sem agendamento de revisão e sem dados individuais em Release/site/artefatos CI.
+
+Validação local da rodada 12: suíte completa com **2.342 aprovados, nenhum skip, 1 xfail conhecido de TIR
+e 1 falha** em 985,99 s. A falha é a ausência do snapshot estadual privado autenticado neste ambiente;
+não foi dispensada: o job `referencia_para` do CI precisa baixar e testar esse snapshot antes do merge.
+Os documentos gerados passaram em 10 testes com LibreOffice real. As regressões focadas, inclusive
+preservação das distribuições no PostGIS, passaram; CRPS de 20 mil sorteios exige a implementação Numba
+para evitar a alocação quadrática do fallback. Ruff, actionlint, esquemas, pacote construído e inventário
+de 867 dependências passaram nas verificações locais. O CI da revisão final continua obrigatório.
+
+Integração com #86, #89 e #93: preservado o contrato das métricas de faixa do painel público. CRPS é
+opcional no placar interno, com denominador próprio; não obriga um histórico de três quantis a inventar
+sorteios nem publica uma medida individual no resumo agregado. **96 testes focados passaram**, incluindo
+PostGIS e o painel real. A revisão dos novos caminhos públicos, proteção da ficha e arquivos privados
+continua no PR #76; a rodada 12 não remove nem substitui seus portões.
+
+
+O #97 também foi incorporado: calendário público no MCP e disparos de coleta/publicação revisados,
+sem alteração nas métricas ou nos arquivos privados da rodada 12. O snapshot autenticado do Pará já
+foi preparado localmente; as tentativas de suíte integral interrompidas pelo ambiente não contam como
+aprovação. Valem o XML de uma execução concluída e os checks verdes do commit final, sem skips ocultos.
+
+
+### Fechamento local da rodada 12 e revisão da main #95
+
+A suíte integral sobre a combinação #97 terminou com **2.758 aprovados, zero falhas, nenhum skip e um
+xfail conhecido de TIR executado**, em 2.096,60 s (34 min 56 s). PostGIS, LanguageTool, LibreOffice/OCR e
+snapshot estadual privado real estavam disponíveis. O XML confirma 2.759 casos; a indisponibilidade anterior
+do Pará foi resolvida, sem dispensar o teste. O CI do commit final continua obrigatório antes do merge.
+
+A main `52118b5` foi incorporada em seguida. A auditoria de promoção agora reexecuta o commit fechado em
+checkout temporário isolado, incluindo conferência da origem dos módulos, em lugar de comparar hashes antigos
+com código corrente. O job Python baixa o histórico para essa prova local; não modifica promoções, reservas
+vivas ou versões calculadas. Os portões de publicação mais estritos e suas integrações permanecem no PR #76.
+
+Achados maiores da revisão, com dono:
+
+- **Dados:** `ArmazemRelease.publicar` troca `self.local` pela cópia temporária. Escrita concorrente via o mesmo
+  objeto pode ser desviada e perdida quando a cópia acaba. Reprodução isolada com GitHub falso confirmou perda
+  da escrita de estado feita dentro de `_publicar_uf` após falha controlada. Separar leitura da publicação e
+  escrita persistente; não interromper executores nem descartar checkpoints. Detalhes da reprodução no PR #76.
+- **Produto e regras:** o corpus real do CI `43360286672` executou 12 variantes; 3 passaram e 9 reprovaram por
+  `resposta_json_invalido`, inclusive controles limpos. Os diagnósticos desta execução não apontaram tentativa
+  indevida ou efeito de estado, mas o ensaio continua reprovado por utilidade. A exceção de ausência expirou;
+  não renovar baseline nem transformar erro em aviso. Adequar o leitor ao contrato de resposta.
+
+
+Após incorporar #95, **442 testes focados passaram**, cobrindo avaliação da rodada 12, placar/painel,
+retratos, checkpoints, preservação do executor, publicação, metadados, telemetria e promoção histórica.
+Ruff e formatação passaram nos 589 arquivos; actionlint e diff também aprovaram. O CI completo da nova
+combinação continua sendo a condição de merge.
+
+
+### Revisão da main #98 — pasta privada do banco e comprador
+
+Main `692663c` revista e incorporada: autorização por pedido/conta e por todos os CARs, histórico imutável,
+revalidação de documentos, exportação com marca, modelo Jinja fechado e troca de sessão no navegador.
+Corrigido vazamento pequeno: `modelo_versao` aceitava CPF/CNPJ cru ou com prefixo de versão e os copiava
+para banco, tela e ZIP. A validação agora recusa documentos civis, nomes/contatos reconhecidos e credenciais
+antes da gravação, na leitura e na geração; erros não incluem o valor. Regressões usam documentos sintéticos
+calculados durante o teste, cobrem entrada/relatório/exportação e preservam versões técnicas legítimas.
+
+O corpus real do #76 permanece obrigatório. A campanha de produto registrada no #98 também está reprovada
+(`docs/medicao-agentes-actions.md`, execução `43354046452`): 25 chamadas fora do gabarito e cinco violações
+classificadas como instrução de terceiro. É evidência distinta do nosso corpus; a contagem não significa 25
+vazamentos. **Produto e regras** é dono da correção do leitor/continuidade e de nova campanha versionada.
+Nenhum resultado antigo foi reclassificado, nenhuma exceção de ausência foi renovada.
+
+Validação da combinação #98: **166 testes Python com PostGIS**, **341 testes do front**, TypeScript,
+Playwright da pasta (desktop/celular, teclado, axe, pendência e troca de sessão), Ruff e formatação
+(598 arquivos), actionlint, **1.114 arquivos sem CPF/CNPJ**, **869 licenças sem problema** e Gitleaks dos
+cinco commits novos passaram. Mantida a aprovação integral local anterior (2.758 testes); o CI completo
+do commit final ainda é condição de merge.

@@ -4,6 +4,7 @@ import path from "node:path"
 import { num } from "./dados/colunas"
 import type { Estados, FunilMunicipio } from "./dados/tipos"
 import { mascarar } from "./privacidade"
+import { malhasPublicas, urlMalhaIbge, type MalhasMapa } from "./dados/malhas-mapa"
 
 interface Catalogo {
   estados: Estados
@@ -17,12 +18,13 @@ interface Opcoes {
   siteUrl?: string
   produtor?: boolean
   catalogo?: Catalogo
+  malhas?: MalhasMapa
 }
 
 const REPO = "https://github.com/bernardoemmel/Raiz"
 const REGRAS = "Apta no funil: sem problema, área de carbono maior que zero e no máximo 5 ha desmatados depois de 2016. A indicação de matrícula exige também cobertura de pelo menos 50% do CAR por parcela particular do SIGEF com matrícula. Pequenas fazendas são agrupadas; não são excluídas pelo tamanho."
 const LIMITE = "São estimativas e triagens com dados públicos, sujeitas à data e à cobertura de cada fonte. Aptidão não é crédito de carbono certificado, garantia de receita, autorização para intervir na terra ou comprovação de propriedade."
-const PRIVACIDADE = "Nome, CPF, CNPJ e contato do dono não aparecem na ficha de prospecção. O contato passa pela Raíz. O site aberto publica somente agregados; a ficha completa exige conta de cliente e créditos pagos, com limites de consulta. O aceite não pode ser presumido a partir da presença no mapa."
+const PRIVACIDADE = "Nome, CPF, CNPJ e contato do dono não aparecem na ficha de prospecção. O contato passa pela Raíz. O site aberto publica agregados, CAR, contorno e situação básica (apto, com pendência ou não apto); a ficha completa exige conta de cliente e créditos pagos, com limites de consulta. O aceite não pode ser presumido a partir da presença no mapa."
 const numero = (n: number) => new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 2 }).format(Number.isFinite(n) ? n : 0)
 /** Nomes de lugares são texto; nunca podem criar HTML, links ou quebrar a tabela. */
 const md = (s: string) => mascarar(String(s)).replace(/[\r\n]+/g, " ").replace(/([\\`*_[\]<>|])/g, "\\$1")
@@ -106,7 +108,7 @@ Este documento geral não contém uma ficha individual nem pressupõe o aceite d
 
 ${cobertura}
 ${atualizado}
-O mapa mostra agregados para estudar áreas de restauração. É possível buscar pelo nome ou código IBGE do município. A busca por CAR e a comparação de fazendas ficam na área de clientes; a ficha completa usa créditos pagos. Pequenas fazendas continuam na busca para compor grupos.
+O mapa mostra agregados e a situação básica de cada imóvel para estudar áreas de restauração. É possível buscar pelo nome ou código IBGE do município e pelo CAR. Crédito, TIR, risco, certidão com IA, terra comprometida, valor e histórico detalhado ficam na ficha completa com créditos pagos. Pequenas fazendas continuam na busca para compor grupos.
 
 ${REGRAS}
 
@@ -220,7 +222,7 @@ O interesse do dono precisa ser registrado: sem contato, contatado, interessado,
 
 ## Consulta de fichas
 
-O agregado é aberto. A ficha completa por CAR exige conta de cliente e créditos pagos. O valor dos planos vem da configuração comercial do serviço autenticado. Reabrir uma ficha desbloqueada não cobra novamente. "Pedir contato" registra um pedido na Raíz para tratamento posterior.
+O agregado e a situação básica por imóvel são abertos. A ficha completa por CAR exige conta de cliente e créditos pagos. O valor dos planos vem da configuração comercial do serviço autenticado. Reabrir uma ficha desbloqueada não cobra novamente. "Pedir contato" registra um pedido na Raíz para tratamento posterior.
 
 ## Conexão por hectare
 
@@ -230,7 +232,7 @@ A conexão é cobrada sobre os hectares do grupo que assinou o contrato. O valor
 
 Quando o grupo está pronto, a reserva dá exclusividade por prazo definido na proposta. O valor pago é abatido da conexão quando o contrato fecha. Sem contrato ao fim do prazo, as fazendas voltam à base. Uma fazenda não pode participar de duas reservas simultâneas.
 
-Sem conexão com a Raíz, o site mostra somente agregados. Não efetiva contato, reserva ou cobrança real. Essas operações dependem do serviço autenticado e da proposta aceita.
+Sem conexão com a Raíz, o site mostra agregados e a camada básica publicada. Não efetiva contato, reserva ou cobrança real. Essas operações dependem do serviço autenticado e da proposta aceita.
 
 [Explorar o mapa](${link("")})
 
@@ -254,6 +256,11 @@ O CAR vem do SICAR/SFB; os embargos, do Ibama; PRODES, terras indígenas, unidad
 
 As versões e a disponibilidade variam por estado e tabela. Consulte o catálogo e a atualização de cada estado, sem assumir que um arquivo ausente significa valor zero. O momento do build não é a data de observação de todas as fontes.
 
+Os limites territoriais são simplificados para visualização e não definem propriedade nem demarcação legal. Onde a base TerraBrasilis ainda não contém um município publicado, todos os municípios de sua UF são substituídos juntos pela mesma edição da Malha Municipal Digital do IBGE, sob CC BY 4.0. A generalização altera os vetores originais. As demais UFs conservam sua fonte anterior; a edição abaixo não se aplica ao Brasil inteiro.
+${Object.entries(malhasPublicas(opcoes.malhas)).sort(([a], [b]) => a.localeCompare(b)).map(([uf, m]) => `\n- ${uf}: [IBGE, Malha Municipal Digital ${m.ano}](${urlMalhaIbge(uf, m.ano)}), simplificada. SHA-256 do ZIP de origem: ${m.sha256}.`).join("") || "\nNenhuma substituição por UF registrada nesta publicação."}
+
+[Condições técnicas e legais da edição 2025, páginas 6 a 9](https://www.ibge.gov.br/biblioteca/visualizacao/livros/liv102268.pdf).
+
 ${REGRAS}
 
 ${LIMITE}
@@ -267,7 +274,7 @@ Cada fonte mantém seus termos e sua licença. A permissão de leitura por robô
 
   const service = {
     "@type": "Service", "@id": absoluto("#servico"), name: "Conexão de grupos de fazendas para restauração",
-    description: "Identificação e agrupamento de áreas, busca do interesse dos donos e conexão por hectare contratado. O site aberto mostra agregados; a ficha exige conta e créditos pagos. A contratação depende do serviço autenticado e de proposta.",
+    description: "Identificação e agrupamento de áreas, busca do interesse dos donos e conexão por hectare contratado. O site aberto mostra agregados e situação básica; a ficha exige conta e créditos pagos. A contratação depende do serviço autenticado e de proposta.",
     provider: { "@id": absoluto("#organizacao") }, areaServed: { "@type": "Country", name: "Brasil" },
     serviceType: "Conexão para restauração", url: absoluto("servico.md"), termsOfService: absoluto("servico.md"),
     offers: [

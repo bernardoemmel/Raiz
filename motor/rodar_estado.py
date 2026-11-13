@@ -208,6 +208,8 @@ def motivo(e: dict | None, atual: dict, atual_exec: dict | None, unidade: str | 
         return "ainda não começou", False, "novo"
     total = e.get("total_ibge") or (S.TOTAL_IBGE.get(uf) if uf else 0)
     funil_ok = (e.get("municipios", 0) + (e.get("sem_imoveis") or 0)) >= (total or 0)
+    if not e.get("controle") and _rodada_da_unidade(e, i).get("falhou_fontes"):
+        return "fontes obrigatórias indisponíveis na última tentativa", False, "novo"
     if not e.get("controle"):
         return ("publicado antes do executor: adotar (com a APP pela escadinha onde faltar) e rodar o que falta", False,
                 "manutencao" if funil_ok else "novo")
@@ -219,6 +221,8 @@ def motivo(e: dict | None, atual: dict, atual_exec: dict | None, unidade: str | 
         mudou = [t for t, v in atual.items() if t != "extras" and (etapas.get(t) or {}).get("versao") not in (None, v)]
     if mudou:
         return "código mudou: " + ", ".join(S.NOME_TABELA.get(t, t) for t in mudou), True, "manutencao"
+    if _rodada_da_unidade(e, i).get("falhou_fontes"):
+        return "fontes obrigatórias indisponíveis na última tentativa", False, "manutencao" if funil_ok else "novo"
     fat = ((e.get("motor") or {}).get("fatias") or {}).get(str(i)) if i else None
     if i and fat is None and not e.get("completo"):  # fatia que nunca rodou sozinha
         return "fatia ainda não rodou", False, "manutencao" if funil_ok else "novo"
@@ -240,10 +244,23 @@ def planejar(pedidos: list[str], refazer: set[str], modo: str = "automatico", li
     incompleto) pega primeiro as vagas livres (VAGAS menos as unidades já rodando em outras rodadas); a fila
     'manutencao' (funil pronto: tarefa nova, código mudado, adoção, reconferência) pega só o que sobra, até
     VAGAS_MANUTENCAO ao mesmo tempo, e nunca segura vaga de estado novo. No modo 'proximo' (um job terminou e passa a
-    vez), entra no máximo uma unidade, e ficam de fora as tentadas há pouco. `liberou` é apenas informativo:
+    vez), repõe todas as vagas livres e ficam de fora as tentadas há pouco. O cron repõe só a fila nova.
+    `liberou` é apenas informativo:
     a vaga só fica livre quando a API confirma o job concluído, inclusive seus passos finais.
     No Actions a fila/reserva persistente serializa a admissão entre rodadas, sem cancelar jobs."""
     pub = S.ler_manifesto().get("estados", {})
+    prioridade_solicitada = os.environ.get("RAIZ_PRIORIDADE_FUNIL") == "1"
+    funis_prontos = {uf for uf, total in S.TOTAL_IBGE.items()
+                    if (pub.get(uf, {}).get("municipios", 0) + (pub.get(uf, {}).get("sem_imoveis") or 0)) >= total}
+    prioridade = prioridade_solicitada and len(funis_prontos) < len(S.TOTAL_IBGE)
+    if prioridade:
+        from fila_processamento import ORDEM_FUNIL
+        ordem = [uf for uf in ORDEM_FUNIL if uf in S.ORDEM]
+        pedidos = [u for u in pedidos if S.ler_unidade(u)[0] not in funis_prontos]
+        if refazer:
+            raise ValueError("manutenção suspensa até concluir os 27 funis; pedido de refazer preservado sem execução")
+    else:
+        ordem = S.ORDEM
     atual = S.versoes()
     atual_exec = versoes_executor()
     if refazer and not pedidos:
@@ -251,29 +268,30 @@ def planejar(pedidos: list[str], refazer: set[str], modo: str = "automatico", li
         S.acao_github("notice", "refazer", f"sem lista de estados: refaço {', '.join(sorted(refazer))} em todos os publicados")
     no_actions = os.environ.get("GITHUB_ACTIONS") == "true"
     ativas, planejando = (set(), 0) if no_actions else ufs_ativas()
-    inteiro_ativo = {u for u in ativas if "-" not in u}  # job antigo do estado inteiro: as fatias dele esperam
-
     def ocupada(u: str) -> bool:
-        uf, i, _ = S.ler_unidade(u)
-        return u in ativas or uf in inteiro_ativo or (i == 0 and any(a.startswith(uf + "-") for a in ativas))
+        from fila_processamento import ocupada as unidade_ocupada
+        return unidade_ocupada(u, ativas)
 
     manut_ativas = sum(1 for u in ativas if motivo(pub.get(S.ler_unidade(u)[0]), atual, atual_exec, u)[2] != "novo")
     vagas = max(0, min(VAGAS, 15) - len(ativas) - planejando)
-    if modo == "proximo":
-        vagas = min(vagas, 1)
     vagas_manut = vagas if pedidos else max(0, VAGAS_MANUTENCAO - manut_ativas)
     filas = {"novo": [], "manutencao": []}
     linhas, prontas = [], 0
-    for uf in S.ORDEM:
+    for uf in ordem:
         e = pub.get(uf)
         for u in S.unidades(uf):
+            if prioridade and uf in funis_prontos:
+                prontas += 1
+                continue
             if pedidos:
                 if u not in pedidos:
                     continue
                 razao, mudou, classe = "pedido" + (f" (refazer {', '.join(sorted(refazer))})" if refazer else ""), False, "novo"
             else:
                 razao, mudou, classe = motivo(e, atual, atual_exec, u)
-                if razao and modo == "proximo" and not mudou and e and tentado_ha_pouco(e, S.ler_unidade(u)[1]):
+                if prioridade:
+                    razao, mudou, classe = "completar o funil; manutenção suspensa", False, "novo"
+                if not prioridade and razao and modo == "proximo" and not mudou and e and tentado_ha_pouco(e, S.ler_unidade(u)[1]):
                     linhas.append((u, e, f"{razao} (tentada há pouco; fica para a rodada semanal)", None))
                     continue
             if razao and ocupada(u):
@@ -285,19 +303,33 @@ def planejar(pedidos: list[str], refazer: set[str], modo: str = "automatico", li
             filas[classe].append(u)
             linhas.append((u, e, razao, classe))
     escolhidas = filas["novo"][:vagas]
-    escolhidas += filas["manutencao"][:max(0, min(vagas - len(escolhidas), vagas_manut))]
+    if prioridade and not no_actions:
+        frente = [uf for uf in ordem if uf not in funis_prontos][:3]
+        ufs_ocupadas = {S.ler_unidade(u)[0] for u in ativas}
+        escolhidas = []
+        for u in filas["novo"]:
+            uf = S.ler_unidade(u)[0]
+            if uf not in frente or (uf not in ufs_ocupadas and len(ufs_ocupadas) >= 3):
+                continue
+            if len(escolhidas) >= vagas:
+                break
+            escolhidas.append(u)
+            ufs_ocupadas.add(uf)
+    if modo != "fila" and not prioridade:
+        escolhidas += filas["manutencao"][:max(0, min(vagas - len(escolhidas), vagas_manut))]
     matriz = escolhidas
     if no_actions:
         from fila_processamento import reservar
 
         manutencao = {u for uf in S.ORDEM for u in S.unidades(uf)
                      if motivo(pub.get(uf), atual, atual_exec, u)[2] == "manutencao"}
-        candidatos = [] if modo == "fila" else filas["novo"] + filas["manutencao"]
+        if prioridade:
+            manutencao = set()
+        candidatos = filas["novo"] if modo == "fila" else filas["novo"] + filas["manutencao"]
+        opcoes = {"funis_prontos": funis_prontos} if prioridade_solicitada else {}
         matriz = reservar(candidatos, pedidos, refazer, _e_unidade, VAGAS, continuacao,
-                          1 if modo == "proximo" else None, manutencao, VAGAS_MANUTENCAO)
+                          None, manutencao, 0 if prioridade else VAGAS_MANUTENCAO, **opcoes)
         escolhidas = [p["unidade"] for p in matriz]
-    elif modo == "fila":
-        escolhidas, matriz = [], []
     tabela = []
     for u, e, razao, classe in linhas:
         feitos = "—" if not e else f"{e.get('municipios', 0) + (e.get('sem_imoveis') or 0)}/{e.get('total_ibge') or S.TOTAL_IBGE[S.ler_unidade(u)[0]]}"
@@ -847,9 +879,13 @@ def rodar_executor(unidade: str, refazer: set[str], continuacao: int) -> dict:
         rel["faltam"] = sit["faltam"]
     est = ler_json(a, f"estado/{uf}.json") or {}
     rel["etapas"] = {t: {"versao": v} for t, v in (est.get("versoes") or ex.versoes()).items()}
+    falhou_fontes = any(e.get("etapa") == "fontes" for e in rel["erros"])
+    if falhou_fontes:
+        rel["completo"] = False  # arquivos antigos não provam que as fontes obrigatórias desta rodada foram lidas
     rel["fim"] = S.agora()
     grava()
     rodada = {k: rel[k] for k in ("url", "inicio", "fim", "continuacao", "parou_por_tempo", "progresso")}
+    rodada["falhou_fontes"] = falhou_fontes
     motor = {"commit": rel["commit"], "versao": rel["versao_motor"], "etapas": rel["etapas"], "rodada": rodada}
     if fatia is not None:  # cada fatia anota a sua; o armazém junta as fatias no estados.json
         motor["fatias"] = {str(i_fatia): {"rodada": rodada, "completo": rel["completo"], "faltam": rel.get("faltam"),
@@ -869,9 +905,20 @@ def rodar_executor(unidade: str, refazer: set[str], continuacao: int) -> dict:
             grava()
             raise
     else:
-        log(f"{unidade}: sem token do GitHub (ou nada no estado): não publico")
+        if getattr(a, "token", None) and hasattr(a, "_gravar_indice"):
+            # Falha antes do primeiro CSV também é uma tentativa: persiste o diagnóstico no índice PRIVADO,
+            # sem produzir pacotes vazios nem divulgar detalhes de execução no manifesto aberto.
+            from raiz.executor.rodadas import registrar_tentativa
+            registrar_tentativa(a, uf, extra[uf])
+            import painel
+            painel.atualizar_no_github(a.manifesto(fresco=True))
+            log(f"{unidade}: tentativa registrada sem pacote de dados")
+        else:
+            log(f"{unidade}: sem dados para publicar; a tentativa permanece no relatório local")
     resumo_executor(unidade, rel)
     log(f"{unidade}: fim. Avanço: {rel['progresso']}; completo: {rel['completo']}; parou pelo prazo: {rel['parou_por_tempo']}")
+    if rodada["falhou_fontes"]:
+        raise RuntimeError(f"{unidade}: falha nas fontes obrigatórias; execução incompleta, sem avanço científico")
     return rel
 
 
@@ -923,6 +970,9 @@ def continuar(uf: str) -> None:
         return
     rel = json.loads(arq.read_text(encoding="utf-8"))
     n = int(rel.get("continuacao") or 0)
+    if rel.get("erros") and (rel.get("progresso") or 0) <= 0:
+        log(f"{uf}: falhou sem avançar; não disparo outro job. A fila limita as novas tentativas e conserva o diagnóstico")
+        return
     if rel.get("completo"):
         log(f"{uf}: completo")
     elif not rel.get("parou_por_tempo"):

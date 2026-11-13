@@ -45,7 +45,7 @@ describe("cobertura do mapa publicado", () => {
     expect(html).toContain("Última atualização do mapa")
     expect(html).toContain('dateTime="2026-11-12T10:41:00Z"')
     expect(html).toContain('dateTime="2026-11-11T18:00:00Z"')
-    expect(html).toContain("desenhos individuais ficam na ficha com acesso pago")
+    expect(html).toContain("desenhos individuais exigem acesso pago")
   })
 })
 

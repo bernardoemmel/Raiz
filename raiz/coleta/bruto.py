@@ -12,13 +12,14 @@ from __future__ import annotations
 
 import datetime as dt
 import hashlib
+import re
 
 import dlt
 import geopandas as gpd
 import pandas as pd
 import shapely
 from dlt.destinations.adapters import postgres_adapter
-from sqlalchemy import Connection, text
+from sqlalchemy import Connection, create_engine, text
 from sqlalchemy.engine import make_url
 
 from raiz import RAIZ_REPO
@@ -52,7 +53,7 @@ def linhas(g: gpd.GeoDataFrame, chave: str, cod_municipio: int, volateis: tuple[
     estaveis = sorted(c for c in df.columns if c not in volateis)
     # pandas 3: astype(str) mantém o nulo como nulo; o hash precisa de texto em todas as células
     como_texto = pd.DataFrame({c: [("" if pd.isna(v) else str(v)) for v in df[c]] for c in estaveis}, index=df.index)
-    textos = como_texto.agg("|".join, axis=1) if estaveis else pd.Series([""] * len(df), index=df.index)
+    textos = como_texto.agg("|".join, axis=1) if estaveis and len(df) else pd.Series([""] * len(df), index=df.index)
     wkb = [b"" if x is None else shapely.to_wkb(x, output_dimension=2) for x in geoms]
     df["_hash"] = [hashlib.sha256(t.encode() + b"|" + w).hexdigest()[:32] for t, w in zip(textos, wkb, strict=True)]
     df["geom"] = [None if x is None else shapely.to_wkt(x, rounding_precision=-1) for x in geoms]
@@ -66,7 +67,32 @@ def linhas(g: gpd.GeoDataFrame, chave: str, cod_municipio: int, volateis: tuple[
     return df.reset_index(drop=True)
 
 
-def carregar(tabela: str, df: pd.DataFrame, extraido_em: dt.datetime, chave: str, url: str | None = None) -> dict:
+def carregar(
+    tabela: str,
+    df: pd.DataFrame,
+    extraido_em: dt.datetime,
+    chave: str,
+    url: str | None = None,
+    *,
+    cod_municipio: int | None = None,
+) -> dict:
+    if not re.fullmatch(r"[a-z][a-z0-9_]*", tabela):
+        raise ValueError("nome de tabela inválido")
+    if df.empty:
+        if cod_municipio is None:
+            raise ValueError("snapshot vazio exige cod_municipio explícito")
+    else:
+        municipios = set(df["cod_municipio_ibge"].dropna().astype(int))
+        if len(municipios) != 1 or df["cod_municipio_ibge"].isna().any():
+            raise ValueError("cada snapshot deve conter exatamente um município")
+        if cod_municipio is not None and municipios != {int(cod_municipio)}:
+            raise ValueError("município do snapshot difere do recorte declarado")
+    p = pipeline(url)
+    pendentes = _drenar_pendentes(p)
+    if df.empty:
+        resultado = _encerrar_municipio(tabela, int(cod_municipio), extraido_em, url)
+        resultado["pacotes"] = pendentes
+        return resultado
     recurso = dlt.resource(
         df.to_dict("records"),
         name=tabela,
@@ -79,8 +105,62 @@ def carregar(tabela: str, df: pd.DataFrame, extraido_em: dt.datetime, chave: str
         },
         columns={"cod_municipio_ibge": {"merge_key": True, "data_type": "bigint"}},
     )
-    info = pipeline(url).run(postgres_adapter(recurso, geometry="geom", srid=4674))
-    return {"pacotes": len(info.load_packages), "linhas": len(df)}
+    info = p.run(postgres_adapter(recurso, geometry="geom", srid=4674))
+    info.raise_on_failed_jobs()
+    if p.has_pending_data:
+        raise RuntimeError("histórico ainda tem pacotes pendentes após a carga")
+    return {"pacotes": pendentes + len(info.load_packages), "linhas": len(df)}
+
+
+def _drenar_pendentes(p) -> int:
+    """run(novos_dados) ignora os dados novos quando há pendências. Resolva-as antes, inclusive do vazio.
+
+    A primeira chamada também sincroniza o estado com o destino. Falha ou ausência de progresso impedem que o
+    hash do snapshot atual seja declarado como carregado por sincronizar_historico.
+    """
+    pacotes = 0
+    while True:
+        antes = (tuple(p.list_extracted_load_packages()), tuple(p.list_normalized_load_packages()))
+        info = p.run()
+        if info is not None:
+            info.raise_on_failed_jobs()
+            pacotes += len(info.load_packages)
+        if not p.has_pending_data:
+            return pacotes
+        depois = (tuple(p.list_extracted_load_packages()), tuple(p.list_normalized_load_packages()))
+        if antes == depois:
+            raise RuntimeError("histórico não avançou ao resolver pacotes pendentes")
+
+
+def _encerrar_municipio(tabela: str, cod: int, extraido_em: dt.datetime, url: str | None) -> dict:
+    """O dlt não produz merge_key para um lote vazio: encerra só o recorte explicitamente declarado.
+
+    Não cria uma linha fictícia nem toca outro município. É idempotente, inclusive antes da primeira carga.
+    """
+    eng = create_engine(url or config().banco_url)
+    try:
+        with eng.begin() as con:
+            if not con.execute(text("select to_regclass(:t)"), {"t": f"{DATASET}.{tabela}"}).scalar():
+                return {"pacotes": 0, "linhas": 0, "encerradas": 0}
+            posteriores = con.execute(
+                text(
+                    f"select count(*) from {DATASET}.{tabela} where cod_municipio_ibge = :cod "
+                    "and _dlt_valid_to is null and _dlt_valid_from > :data"
+                ),
+                {"cod": cod, "data": extraido_em},
+            ).scalar()
+            if posteriores:
+                raise ValueError("snapshot vazio anterior à versão vigente do município")
+            r = con.execute(
+                text(
+                    f"update {DATASET}.{tabela} set _dlt_valid_to = :data "
+                    "where cod_municipio_ibge = :cod and _dlt_valid_to is null"
+                ),
+                {"cod": cod, "data": extraido_em},
+            )
+            return {"pacotes": 0, "linhas": 0, "encerradas": r.rowcount}
+    finally:
+        eng.dispose()
 
 
 def garantir_view(con: Connection, tabela: str) -> None:

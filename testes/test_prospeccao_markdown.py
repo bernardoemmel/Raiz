@@ -14,7 +14,9 @@ def cliente(monkeypatch):
     cfg = type("C", (), {"api_token": SecretStr("operacao-markdown"), "api_origens": ""})()
     monkeypatch.setattr(api, "config", lambda: cfg)
     monkeypatch.setattr(
-        prospeccao_api.pedidos, "cliente_da_sessao", lambda _engine, token: 7 if token == "sessao-markdown" else None
+        prospeccao_api.servico.pedidos,
+        "cliente_da_sessao",
+        lambda _engine, token: 7 if token == "sessao-markdown" else None,
     )
     monkeypatch.setattr(prospeccao_acesso, "limitar", lambda *args: None)
 

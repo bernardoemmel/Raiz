@@ -2,7 +2,7 @@ import fs from "node:fs"
 import os from "node:os"
 import path from "node:path"
 import { gunzipSync } from "node:zlib"
-import { afterAll, describe, expect, it } from "vitest"
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest"
 import { abrirPasta } from "../pasta-dados"
 import { dadosRaiz } from "../vite-dados"
 import { lerCsv } from "../dados/csv"
@@ -15,7 +15,8 @@ const saida = path.join(repo, "site")
 fs.mkdirSync(dados, { recursive: true })
 fs.mkdirSync(geo, { recursive: true })
 fs.mkdirSync(saida, { recursive: true })
-afterAll(() => fs.rmSync(repo, { recursive: true, force: true }))
+beforeAll(() => vi.stubEnv("RAIZ_GEO", geo))
+afterAll(() => { vi.unstubAllEnvs(); fs.rmSync(repo, { recursive: true, force: true }) })
 
 const car = "PA-1504950-ABCDEF"
 fs.writeFileSync(path.join(dados, "resumo_PA.csv"), `cod_ibge,municipio,imoveis,aptas_carbono,ha_carbono,cod_imovel,observacao\n1504950,Cumaru do Norte,6,6,60,${car},informacao_individual\n1507300,São Félix do Xingu,3,3,30,${car},informacao_individual\n`)
@@ -101,6 +102,12 @@ describe("site aberto somente agregado", () => {
     const anterior = process.env.RAIZ_BUILD_DADOS
     process.env.RAIZ_BUILD_DADOS = "1"
     try {
+      const malhas = { MT: { fonte: "IBGE", ano: 2025, sha256: "b".repeat(64) } }
+      fs.writeFileSync(path.join(geo, "indice.json"), JSON.stringify({
+        brasil: { municipios: { arquivo: "brasil_municipios.geojson" }, base: { arquivo: "base_brasil.pmtiles" } },
+        municipios: { "1504950": { municipio: { arquivo: "municipio_1504950.geojson" } } }, malhas,
+        observacao_privada: "Não publicar este campo livre",
+      }))
       fs.mkdirSync(path.join(saida, "amostra", "fichas"), { recursive: true })
       fs.writeFileSync(path.join(saida, "amostra", "fichas", "antiga.json"), car)
       const plugin = dadosRaiz({ repo, raizDados: null })
@@ -117,6 +124,9 @@ describe("site aberto somente agregado", () => {
       expect(fs.existsSync(path.join(saida, "geo", "camadas_1504950.pmtiles"))).toBe(false)
       const indice = JSON.parse(fs.readFileSync(path.join(saida, "geo", "indice.json"), "utf8"))
       expect(indice.municipios["1504950"].imoveis).toBeUndefined()
+      expect(indice.malhas).toEqual(malhas)
+      expect(indice).not.toHaveProperty("observacao_privada")
+      expect(fs.readFileSync(path.join(saida, "fontes.md"), "utf8")).toContain("MT: [IBGE, Malha Municipal Digital 2025]")
       const estados = JSON.parse(fs.readFileSync(path.join(saida, "amostra", "estados.json"), "utf8"))
       expect(estados.acesso).toBe("agregado")
       expect(estados.estados.every((e: { com_lista: string[] }) => !e.com_lista.length)).toBe(true)

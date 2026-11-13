@@ -9,16 +9,16 @@ from __future__ import annotations
 
 import datetime as dt
 import hashlib
-import json
-import os
 import re
 import uuid
-from decimal import Decimal, InvalidOperation
 
 from sqlalchemy import Engine, text
 
+from raiz import prospeccao_precos as precos
 from raiz.busca import normalizar_codigo
 from raiz.pedidos import pix
+
+PRECOS_PADRAO = precos.PRECOS_PADRAO
 
 
 class ErroAcesso(ValueError):
@@ -30,49 +30,31 @@ class ErroAcesso(ValueError):
 
 
 def planos() -> dict:
-    """Catálogo comercial configurado por operação, sem tarifa presumida no código.
-
-    RAIZ_PROSPECCAO_PLANOS: [{"id":"avulsa","nome":"Avulsa","creditos":1,"valor_rs":...}].
-    A ausência de preços ou da chave Pix deixa o catálogo visível, sem criar cobrança.
-    """
+    """Três modalidades propostas; a assinatura aguarda implementação do ciclo."""
     try:
-        bruto = json.loads(os.environ.get("RAIZ_PROSPECCAO_PLANOS") or "[]")
-        if not isinstance(bruto, list):
-            raise ValueError
-        catalogo = []
-        ids = set()
-        for item in bruto:
-            ident = item["id"]
-            nome = item["nome"]
-            quantidade = item["creditos"]
-            valor = Decimal(str(item["valor_rs"]))
-            if (
-                not isinstance(ident, str)
-                or not re.fullmatch(r"[a-z0-9_-]{1,40}", ident)
-                or ident in ids
-                or not isinstance(nome, str)
-                or not nome.strip()
-                or len(nome) > 80
-                or type(quantidade) is not int
-                or not 1 <= quantidade <= 100_000
-                or not valor.is_finite()
-                or not Decimal("0.01") <= valor <= Decimal("99999999.99")
-                or valor != valor.quantize(Decimal("0.01"))
-            ):
-                raise ValueError
-            ids.add(ident)
-            catalogo.append({"id": ident, "nome": nome, "creditos": quantidade, "valor_rs": float(valor)})
-    except (ValueError, TypeError, KeyError, InvalidOperation) as ex:
+        catalogo = precos.carregar_catalogo(PRECOS_PADRAO)
+    except ValueError as ex:
         raise ErroAcesso(503, "O catálogo de créditos está temporariamente indisponível.") from ex
-    disponivel = bool(catalogo and pix.chave())
+    aprovada = catalogo["status"] == "aprovado"
+    for oferta in catalogo["planos"]:
+        oferta["pagamento_disponivel"] = bool(
+            aprovada
+            and oferta["status"] == "aprovado"
+            and oferta["cobranca_implementada"]
+            and pix.producao_habilitada()
+        )
+    disponivel = any(oferta["pagamento_disponivel"] for oferta in catalogo["planos"])
     return {
-        "planos": catalogo,
+        **catalogo,
         "custo_ficha": 1,
         "unidade": "crédito de consulta",
+        "pix_modo": pix.modo(),
         "pagamento_disponivel": disponivel,
         "mensagem": "Um crédito pago libera a ficha deste CAR; novas leituras não consomem crédito."
         if disponivel
-        else "A compra de créditos estará disponível quando os planos e o pagamento estiverem configurados.",
+        else "Preços a definir pelo fundador. Vendas desativadas até aprovar o catálogo e ativar o Pix de produção."
+        if not aprovada
+        else "Catálogo aprovado. Vendas exigem Pix de produção e uma modalidade com cobrança implementada.",
     }
 
 
@@ -147,7 +129,9 @@ def iniciar_compra(engine: Engine, cliente_id: int, plano: str, chave_idempotenc
         oferta = next((p for p in catalogo["planos"] if p["id"] == plano), None)
         if oferta is None:
             raise ErroAcesso(422, "Plano não encontrado.")
-        if not catalogo["pagamento_disponivel"]:
+        if oferta["modalidade"] == "assinatura":
+            raise ErroAcesso(503, "Assinatura em proposta: a cobrança por ciclo ainda não está disponível.")
+        if not catalogo["pagamento_disponivel"] or not oferta["pagamento_disponivel"]:
             raise ErroAcesso(503, "O pagamento está indisponível neste momento.")
         cob = pix.criar(oferta["valor_rs"], f"Raíz {oferta['creditos']} consultas", 3600)
         if cob.modo != "producao" or cob.externo_id.startswith("teste_"):

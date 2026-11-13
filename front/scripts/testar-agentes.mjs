@@ -20,7 +20,7 @@ const { default: lighthouse } = await import(pathToFileURL(require.resolve("ligh
 const { launch } = await import(pathToFileURL(require.resolve("chrome-launcher")).href)
 const site = path.join(repo, "site")
 const saida = path.join(repo, "front/.cache/teste-agentes")
-const prefixo = process.env.RAIZ_BASE || "/Raiz/"
+const prefixo = configurarPublicacao(process.env).base
 assert(prefixo.startsWith("/") && prefixo.endsWith("/"), "RAIZ_BASE precisa começar e terminar em /.")
 fs.mkdirSync(saida, { recursive: true })
 const tipos = { ".html": "text/html", ".js": "text/javascript", ".mjs": "text/javascript", ".css": "text/css",
@@ -165,6 +165,9 @@ try {
   const { lhr, report } = resultado
   fs.writeFileSync(path.join(saida, "lighthouse.json"), report[0])
   fs.writeFileSync(path.join(saida, "lighthouse.html"), report[1])
+  for (const parte of ["Trace", "DevtoolsLog"]) {
+    if (resultado.artifacts?.[parte]) fs.writeFileSync(path.join(saida, `lighthouse-${parte}.json`), JSON.stringify(resultado.artifacts[parte]))
+  }
   const categoria = conferirAuditoriaAgentes(lhr)
   const resumo = {
     lighthouse: lhr.lighthouseVersion, navegador: lhr.environment.hostUserAgent,

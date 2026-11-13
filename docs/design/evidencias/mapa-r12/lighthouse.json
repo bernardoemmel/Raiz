@@ -1,0 +1,2760 @@
+{
+  "commit": "7fe3539f63416258f0d91e1c4371fc4d52899aa6",
+  "runtime_fonte": "7fe3539f63416258f0d91e1c4371fc4d52899aa6",
+  "artefato_snapshot_historico": "43331843113",
+  "municipios": 444,
+  "estados": 13,
+  "projecao_processamento": {
+    "fonte": "amostra/processamento.json",
+    "sha256": "ab4a354a7d19b434fef0c10ad4d58ac4876ba345c5be9c43c4ee2b800c2d49f2",
+    "gerado_em": "2026-11-13T04:49:46.363Z",
+    "observacoes": 0,
+    "estados_sem_telemetria": 27,
+    "nota": "Projeção local criada para a comparação congelada. O snapshot não contém observações de execução; contagens e datas de observação permanecem null. gerado_em é a criação da projeção e não renova nem inventa observações.",
+    "estados_renderizados_sem_informacao": 27,
+    "contagens_renderizadas_nao_informadas": 81
+  },
+  "amostras": [
+    {
+      "rodada": 1,
+      "performance": 78,
+      "accessibility": 100,
+      "lcp": 755.1133,
+      "tbt": 966.2216749999998,
+      "iniciado_em": "2026-11-13T18:21:09.654Z",
+      "relatorio_sha256": "416e13341d58d8bf317baa3bce49fd0fbd0902d28c67c922c0daa62fca227af8",
+      "cls": 0,
+      "benchmark": 1994
+    },
+    {
+      "rodada": 2,
+      "performance": 88,
+      "accessibility": 100,
+      "lcp": 1665.5042,
+      "tbt": 438.9999999999998,
+      "iniciado_em": "2026-11-13T18:21:17.878Z",
+      "relatorio_sha256": "027e59c228baf48a1f54060332c525ff02aaa9fe53e2282897ac574d0eae1b52",
+      "cls": 0,
+      "benchmark": 2116.5
+    },
+    {
+      "rodada": 3,
+      "performance": 89,
+      "accessibility": 100,
+      "lcp": 754.0862,
+      "tbt": 428.0000000000002,
+      "iniciado_em": "2026-11-13T18:21:25.374Z",
+      "relatorio_sha256": "a262f95e072a228bc6515be4c4d92c6faa6856c751ec7d7921de6fb3ce5916ac",
+      "cls": 0,
+      "benchmark": 2228
+    }
+  ],
+  "mediana_desempenho": 88,
+  "minimo_acessibilidade": 100,
+  "metodo": "Lighthouse mobile 360 × 800, CPU/rede simuladas, três execuções consecutivas fixas em um Chrome, sem escolher a melhor amostra",
+  "limite": "REPROVADO no snapshot público congelado: série real 78/88/89, mediana 88 abaixo do portão 90. A fixture sintética e a auditoria para agentes passaram, mas não aprovam o desempenho com os dados reais. Nenhuma amostra foi descartada ou repetida; portão inalterado.",
+  "fixture": {
+    "axe": [
+      {
+        "pagina": "brasil-360",
+        "regras": 32,
+        "violacoes": 0,
+        "relatorio_sha256": "1912e4d75040537b358e6c0f2d69deb22e2c7a8dbf075b852406055487497cf8"
+      },
+      {
+        "pagina": "municipio-360",
+        "regras": 31,
+        "violacoes": 0,
+        "relatorio_sha256": "752b2d4daaba90c16d61fc65c58b85fc92495d653d7e73845a61e9ef1da575aa"
+      },
+      {
+        "pagina": "entrada-erro-360",
+        "regras": 25,
+        "violacoes": 0,
+        "relatorio_sha256": "d31cce759a40b925ddac2d599ed3e17915001fa7ac25e1af41c9c4d51e8ed8b1"
+      },
+      {
+        "pagina": "novo-pedido-360",
+        "regras": 27,
+        "violacoes": 0,
+        "relatorio_sha256": "f4e8bf8eade44e21be8c5ca1c5ba8de6bc4842571b6d20484d7f05af006cc9b7"
+      },
+      {
+        "pagina": "novo-pedido-filtros-360",
+        "regras": 27,
+        "violacoes": 0,
+        "relatorio_sha256": "6c7ff955efef543e1a8aab3ed5d59653697245a6f17d989aaac1d4e4f2441c6d"
+      },
+      {
+        "pagina": "prospeccao-publica-360",
+        "regras": 27,
+        "violacoes": 0,
+        "relatorio_sha256": "f376c1f88d36454abdd904cc9e622b9f6ee454e112eeb6d5912aa950deafacc3"
+      },
+      {
+        "pagina": "produtor-360",
+        "regras": 13,
+        "violacoes": 0,
+        "relatorio_sha256": "750f532b44eb7630b0f951e6376a77fd563506be99bcaea6daf5bf991fc2fd08"
+      }
+    ],
+    "lighthouse": [
+      {
+        "pagina": "brasil",
+        "performance": 94,
+        "accessibility": 100,
+        "amostras": [
+          {
+            "performance": 94,
+            "accessibility": 100,
+            "iniciado_em": "2026-11-13T18:18:31.790Z",
+            "relatorio_sha256": "903823573c3f37d8320a0b0bd93be6290905c02814093305f34b49073a9f07ba",
+            "cls": 0
+          },
+          {
+            "performance": 92,
+            "accessibility": 100,
+            "iniciado_em": "2026-11-13T18:18:39.637Z",
+            "relatorio_sha256": "171ff5891152497cac0d8eceab421fa4021df13647907cd8fdc870d6fee6cad1",
+            "cls": 0
+          },
+          {
+            "performance": 96,
+            "accessibility": 100,
+            "iniciado_em": "2026-11-13T18:18:46.817Z",
+            "relatorio_sha256": "5864306904bacfd5f01e0781fcafef5fa160a0a1c6c16b2edfd28e6cfda75bb1",
+            "cls": 0
+          }
+        ]
+      },
+      {
+        "pagina": "entrar",
+        "performance": 98,
+        "accessibility": 100,
+        "amostras": [
+          {
+            "performance": 98,
+            "accessibility": 100,
+            "iniciado_em": "2026-11-13T18:18:53.893Z",
+            "relatorio_sha256": "17b6c8c27216faadd957230d5151744f4b91aefaf37991168e9aa99badb1ca14",
+            "cls": 0
+          },
+          {
+            "performance": 98,
+            "accessibility": 100,
+            "iniciado_em": "2026-11-13T18:18:59.856Z",
+            "relatorio_sha256": "377c9cf047451a82c8a1a3c6feec28ff7008d7cbae695d56f01892d41f429041",
+            "cls": 0
+          },
+          {
+            "performance": 99,
+            "accessibility": 100,
+            "iniciado_em": "2026-11-13T18:19:05.678Z",
+            "relatorio_sha256": "2eda8e85b83c133477ab5f579eaa5e20c2679f1b785337fc611cd87561d78b23",
+            "cls": 0
+          }
+        ]
+      },
+      {
+        "pagina": "novo-pedido",
+        "performance": 98,
+        "accessibility": 100,
+        "amostras": [
+          {
+            "performance": 98,
+            "accessibility": 100,
+            "iniciado_em": "2026-11-13T18:19:11.436Z",
+            "relatorio_sha256": "ff01eee0e878f70313d7b7559e012c8a245d40406d54664166f6602103b7d607",
+            "cls": 0
+          },
+          {
+            "performance": 98,
+            "accessibility": 100,
+            "iniciado_em": "2026-11-13T18:19:17.805Z",
+            "relatorio_sha256": "f40fb74a233c7447c42266075683dbe23912b275c15272f7583249cc730db603",
+            "cls": 0
+          },
+          {
+            "performance": 98,
+            "accessibility": 100,
+            "iniciado_em": "2026-11-13T18:19:24.584Z",
+            "relatorio_sha256": "1adf0d6b634d4e1deec7ee5699817e09adf579aa964ff050aaf5fc6b35381581",
+            "cls": 0
+          }
+        ]
+      },
+      {
+        "pagina": "prospeccao",
+        "performance": 98,
+        "accessibility": 100,
+        "amostras": [
+          {
+            "performance": 98,
+            "accessibility": 100,
+            "iniciado_em": "2026-11-13T18:19:30.891Z",
+            "relatorio_sha256": "3cef26bcc2cffb083001ae23be7aa4dbbc9f68e9d93f42a9231a01852daa94a6",
+            "cls": 0
+          },
+          {
+            "performance": 98,
+            "accessibility": 100,
+            "iniciado_em": "2026-11-13T18:19:37.351Z",
+            "relatorio_sha256": "c8fc77d9af5c5f2823cc9625df6f03d5a000bdff0715445ef31b1cf30f35d8d4",
+            "cls": 0
+          },
+          {
+            "performance": 97,
+            "accessibility": 100,
+            "iniciado_em": "2026-11-13T18:19:43.920Z",
+            "relatorio_sha256": "6a65f9ce8c7c27d44f948b0c84b3ba36eae31ca2552358d5759575633e4dd6e1",
+            "cls": 0
+          }
+        ]
+      },
+      {
+        "pagina": "acerto",
+        "performance": 98,
+        "accessibility": 100,
+        "amostras": [
+          {
+            "performance": 93,
+            "accessibility": 100,
+            "iniciado_em": "2026-11-13T18:19:50.346Z",
+            "relatorio_sha256": "39ceb3080ccd73b2cafa2f7dc225b2c05659da1ef88746c8439940e61cfe4f4a",
+            "cls": 0.1317441666666667
+          },
+          {
+            "performance": 98,
+            "accessibility": 100,
+            "iniciado_em": "2026-11-13T18:19:56.700Z",
+            "relatorio_sha256": "0f66ca000fa8684bda3140692afe281745d434fd95338f59e7b918a1be7e3d9a",
+            "cls": 0
+          },
+          {
+            "performance": 98,
+            "accessibility": 100,
+            "iniciado_em": "2026-11-13T18:20:02.821Z",
+            "relatorio_sha256": "382d5f19cdc46dc04c2ed645bb1963922eec776fa41b888d20c51126d569dc9b",
+            "cls": 0
+          }
+        ]
+      },
+      {
+        "pagina": "produtor",
+        "performance": 100,
+        "accessibility": 100,
+        "amostras": [
+          {
+            "performance": 100,
+            "accessibility": 100,
+            "iniciado_em": "2026-11-13T18:20:09.061Z",
+            "relatorio_sha256": "0947224ff5b1d95e6ccf7d1c56f8bb0ce2d344edc2aafbda9c74ccdaf0fb0619",
+            "cls": 0.0085903125
+          },
+          {
+            "performance": 100,
+            "accessibility": 100,
+            "iniciado_em": "2026-11-13T18:20:14.949Z",
+            "relatorio_sha256": "7d1c8cd3b8580679ae2e73384a0ac94a9ec0a643a2e973eaacf3799c6566a032",
+            "cls": 0.0085903125
+          },
+          {
+            "performance": 100,
+            "accessibility": 100,
+            "iniciado_em": "2026-11-13T18:20:20.827Z",
+            "relatorio_sha256": "9daac31ceb5c0a2eb730d41aa323e170f31a0d9db0c5e95c412b554dfc3d5a88",
+            "cls": 0.0085903125
+          }
+        ]
+      }
+    ],
+    "commit": "7fe3539f63416258f0d91e1c4371fc4d52899aa6",
+    "commit_fonte": "7fe3539f63416258f0d91e1c4371fc4d52899aa6",
+    "dados": "Fixture sintética do CI, distinta do snapshot real de 444 municípios.",
+    "rotas": 6,
+    "amostras_por_rota": 3,
+    "resultado": "aprovado",
+    "relatorio_fixture_sha256": "7f2119f0993b8eacb444cf6e40e25e7f2d15d9f3a4d76bbf4335283d2b73d0ba"
+  },
+  "historico": {
+    "nota": "Séries anteriores preservadas como histórico, não como resultado do build final.",
+    "worker_antes_dom": [
+      78,
+      84,
+      90
+    ],
+    "dom_antes_legenda": [
+      91,
+      93,
+      97
+    ],
+    "integrado_1412642": [
+      88,
+      98,
+      92
+    ],
+    "integrado_f0a7c96": {
+      "commit": "f0a7c96055d26ee8a81461b6a77a6c308e132fd7",
+      "amostras": [
+        {
+          "rodada": 1,
+          "performance": 82,
+          "accessibility": 100,
+          "lcp": 1494.5418,
+          "tbt": 709.0000000000009,
+          "iniciado_em": "2026-11-13T04:50:02.805Z",
+          "relatorio_sha256": "3fa6130a83530eedf658027f19a045732f0452ad8620aa3dd3eff5a9f9ea2fcb"
+        },
+        {
+          "rodada": 2,
+          "performance": 95,
+          "accessibility": 100,
+          "lcp": 1425.5384,
+          "tbt": 232.49999999999955,
+          "iniciado_em": "2026-11-13T04:50:10.685Z",
+          "relatorio_sha256": "ae5f71e3e3284dac4389f54e2205747c51a7ab31abf8240da5ef015d66a5063b"
+        },
+        {
+          "rodada": 3,
+          "performance": 95,
+          "accessibility": 100,
+          "lcp": 1428.199,
+          "tbt": 261.00000000000045,
+          "iniciado_em": "2026-11-13T04:50:18.041Z",
+          "relatorio_sha256": "091360d6eae88fcb56b3b5ffdf9c208ed93e8446d90d033ad8bb891f2ccd30c1"
+        }
+      ],
+      "mediana_desempenho": 95,
+      "fixture_medianas": [
+        98,
+        98,
+        97,
+        97,
+        97,
+        100
+      ]
+    },
+    "resize_acb140c": {
+      "commit": "acb140c565d39637ad318344fe2ce8f5b91bb795",
+      "amostras_desempenho": [
+        86,
+        86,
+        92
+      ],
+      "mediana_desempenho": 86,
+      "resultado": "reprovado no snapshot real; não foi repetido para selecionar outra nota",
+      "amostras": [
+        {
+          "rodada": 1,
+          "performance": 86,
+          "accessibility": 100,
+          "lcp": 753.4401,
+          "tbt": 521.5,
+          "iniciado_em": "2026-11-13T13:35:57.724Z",
+          "relatorio_sha256": "0d39f9054af30ce99c41eadeb435f3ab9d95053e5d0a7c99cae177c51ff2bb60"
+        },
+        {
+          "rodada": 2,
+          "performance": 86,
+          "accessibility": 100,
+          "lcp": 751.4631999999999,
+          "tbt": 562.5,
+          "iniciado_em": "2026-11-13T13:36:06.166Z",
+          "relatorio_sha256": "25ee27666676d9a48f729ff122e2dbf029e9bc9f85fdfd21684b252cf16b7bbc"
+        },
+        {
+          "rodada": 3,
+          "performance": 92,
+          "accessibility": 100,
+          "lcp": 1424.6799,
+          "tbt": 340,
+          "iniciado_em": "2026-11-13T13:36:13.330Z",
+          "relatorio_sha256": "966277bde0698d0eb9e5266b477b9705e90e39f19171566381b0e36b5980d29e"
+        }
+      ],
+      "fixture": {
+        "axe": [
+          {
+            "pagina": "brasil-360",
+            "regras": 32,
+            "violacoes": 0
+          },
+          {
+            "pagina": "municipio-360",
+            "regras": 31,
+            "violacoes": 0
+          },
+          {
+            "pagina": "entrada-erro-360",
+            "regras": 25,
+            "violacoes": 0
+          },
+          {
+            "pagina": "novo-pedido-360",
+            "regras": 27,
+            "violacoes": 0
+          },
+          {
+            "pagina": "novo-pedido-filtros-360",
+            "regras": 27,
+            "violacoes": 0
+          },
+          {
+            "pagina": "prospeccao-publica-360",
+            "regras": 27,
+            "violacoes": 0
+          },
+          {
+            "pagina": "produtor-360",
+            "regras": 13,
+            "violacoes": 0
+          }
+        ],
+        "lighthouse": [
+          {
+            "pagina": "brasil",
+            "performance": 90,
+            "accessibility": 100,
+            "amostras": [
+              {
+                "performance": 90,
+                "accessibility": 100
+              },
+              {
+                "performance": 81,
+                "accessibility": 100
+              },
+              {
+                "performance": 95,
+                "accessibility": 100
+              }
+            ]
+          },
+          {
+            "pagina": "entrar",
+            "performance": 98,
+            "accessibility": 100,
+            "amostras": [
+              {
+                "performance": 98,
+                "accessibility": 100
+              },
+              {
+                "performance": 98,
+                "accessibility": 100
+              },
+              {
+                "performance": 98,
+                "accessibility": 100
+              }
+            ]
+          },
+          {
+            "pagina": "novo-pedido",
+            "performance": 97,
+            "accessibility": 100,
+            "amostras": [
+              {
+                "performance": 97,
+                "accessibility": 100
+              },
+              {
+                "performance": 97,
+                "accessibility": 100
+              },
+              {
+                "performance": 97,
+                "accessibility": 100
+              }
+            ]
+          },
+          {
+            "pagina": "prospeccao",
+            "performance": 96,
+            "accessibility": 100,
+            "amostras": [
+              {
+                "performance": 96,
+                "accessibility": 100
+              },
+              {
+                "performance": 96,
+                "accessibility": 100
+              },
+              {
+                "performance": 96,
+                "accessibility": 100
+              }
+            ]
+          },
+          {
+            "pagina": "acerto",
+            "performance": 97,
+            "accessibility": 100,
+            "amostras": [
+              {
+                "performance": 92,
+                "accessibility": 100
+              },
+              {
+                "performance": 97,
+                "accessibility": 100
+              },
+              {
+                "performance": 97,
+                "accessibility": 100
+              }
+            ]
+          },
+          {
+            "pagina": "produtor",
+            "performance": 100,
+            "accessibility": 100,
+            "amostras": [
+              {
+                "performance": 100,
+                "accessibility": 100
+              },
+              {
+                "performance": 100,
+                "accessibility": 100
+              },
+              {
+                "performance": 100,
+                "accessibility": 100
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "integrado_650db81": {
+      "commit": "650db81bd1bb489393817580d6a0588f21add2a9",
+      "amostras": [
+        {
+          "rodada": 1,
+          "performance": 82,
+          "accessibility": 100,
+          "lcp": 757.7979,
+          "tbt": 716.1010500000004,
+          "iniciado_em": "2026-11-13T13:47:20.586Z",
+          "relatorio_sha256": "c8dbdaa1a136fdd57dcb6851a940cbf59a2ad21742a0283e0a57fe93063b8bd3"
+        },
+        {
+          "rodada": 2,
+          "performance": 90,
+          "accessibility": 100,
+          "lcp": 1797.1969,
+          "tbt": 341.5,
+          "iniciado_em": "2026-11-13T13:47:28.604Z",
+          "relatorio_sha256": "b2fc28415e77f07f31d9c00fc9b8efa9e63ddd2729bbe9a64c6ddcf8b2013e7c"
+        },
+        {
+          "rodada": 3,
+          "performance": 90,
+          "accessibility": 100,
+          "lcp": 752.5773999999999,
+          "tbt": 407.5,
+          "iniciado_em": "2026-11-13T13:47:35.796Z",
+          "relatorio_sha256": "5ff8538096a0a6446de18f32a14e20789bc26ec7f7d210e91db00741cc31931b"
+        }
+      ],
+      "mediana_desempenho": 90,
+      "minimo_acessibilidade": 100,
+      "fixture": {
+        "commit": "650db81bd1bb489393817580d6a0588f21add2a9",
+        "dados": "Fixture sintética do CI, distinta do snapshot real de 444 municípios.",
+        "rotas": 6,
+        "amostras_por_rota": 3,
+        "axe": [
+          {
+            "pagina": "brasil-360",
+            "regras": 32,
+            "violacoes": 0
+          },
+          {
+            "pagina": "municipio-360",
+            "regras": 31,
+            "violacoes": 0
+          },
+          {
+            "pagina": "entrada-erro-360",
+            "regras": 25,
+            "violacoes": 0
+          },
+          {
+            "pagina": "novo-pedido-360",
+            "regras": 27,
+            "violacoes": 0
+          },
+          {
+            "pagina": "novo-pedido-filtros-360",
+            "regras": 27,
+            "violacoes": 0
+          },
+          {
+            "pagina": "prospeccao-publica-360",
+            "regras": 27,
+            "violacoes": 0
+          },
+          {
+            "pagina": "produtor-360",
+            "regras": 13,
+            "violacoes": 0
+          }
+        ],
+        "lighthouse": [
+          {
+            "pagina": "brasil",
+            "performance": 90,
+            "accessibility": 100,
+            "amostras": [
+              {
+                "performance": 88,
+                "accessibility": 100
+              },
+              {
+                "performance": 90,
+                "accessibility": 100
+              },
+              {
+                "performance": 94,
+                "accessibility": 100
+              }
+            ]
+          },
+          {
+            "pagina": "entrar",
+            "performance": 98,
+            "accessibility": 100,
+            "amostras": [
+              {
+                "performance": 98,
+                "accessibility": 100
+              },
+              {
+                "performance": 98,
+                "accessibility": 100
+              },
+              {
+                "performance": 98,
+                "accessibility": 100
+              }
+            ]
+          },
+          {
+            "pagina": "novo-pedido",
+            "performance": 97,
+            "accessibility": 100,
+            "amostras": [
+              {
+                "performance": 97,
+                "accessibility": 100
+              },
+              {
+                "performance": 97,
+                "accessibility": 100
+              },
+              {
+                "performance": 97,
+                "accessibility": 100
+              }
+            ]
+          },
+          {
+            "pagina": "prospeccao",
+            "performance": 96,
+            "accessibility": 100,
+            "amostras": [
+              {
+                "performance": 97,
+                "accessibility": 100
+              },
+              {
+                "performance": 96,
+                "accessibility": 100
+              },
+              {
+                "performance": 96,
+                "accessibility": 100
+              }
+            ]
+          },
+          {
+            "pagina": "acerto",
+            "performance": 97,
+            "accessibility": 100,
+            "amostras": [
+              {
+                "performance": 97,
+                "accessibility": 100
+              },
+              {
+                "performance": 97,
+                "accessibility": 100
+              },
+              {
+                "performance": 93,
+                "accessibility": 100
+              }
+            ]
+          },
+          {
+            "pagina": "produtor",
+            "performance": 100,
+            "accessibility": 100,
+            "amostras": [
+              {
+                "performance": 100,
+                "accessibility": 100
+              },
+              {
+                "performance": 100,
+                "accessibility": 100
+              },
+              {
+                "performance": 100,
+                "accessibility": 100
+              }
+            ]
+          }
+        ]
+      },
+      "proveniencia_fontes": {
+        "commit_fonte": "650db81bd1bb489393817580d6a0588f21add2a9",
+        "commit_na_medicao": "acb140c565d39637ad318344fe2ce8f5b91bb795",
+        "nota": "A medição foi feita com estes mesmos arquivos antes do commit; hashes preservados neste documento e conferidos contra o commit. Os relatórios Lighthouse brutos não foram alterados.",
+        "sha256": {
+          "front/globo/src/mapa/MapaBrasil.tsx": "4a16ddbc3c429d26dd8c8bf100ddf2825c82c7d747877884a5b2c5abccfc71f6",
+          "front/globo/src/mapa/estilo.ts": "be71cf597f9709c17f09c40f82d6a449430e6d09ba6f9bb6806ff53ffbce5df0",
+          "front/globo/src/mapa/nacional.ts": "238e89c96d230d330c6fe1163b77c06cb9f80a1f061802bebf1327e0e1f0183e"
+        }
+      },
+      "resultado": "aprovado localmente por mediana na revisão histórica; CI posterior reprovado, preservado abaixo"
+    },
+    "cooperacao_sessao_7be0b64": {
+      "commit": "7be0b6449edc0df4f0a997fd432c7c8f75049890",
+      "fixture": true,
+      "gate": "reprovado na mediana nacional, antes das outras cinco rotas",
+      "amostras": [
+        {
+          "rodada": 1,
+          "performance": 88.0,
+          "tbt": 455.5,
+          "lcp": 752.9489000000001,
+          "benchmark": 2294.5
+        },
+        {
+          "rodada": 2,
+          "performance": 89.0,
+          "tbt": 398,
+          "lcp": 1704.3732,
+          "benchmark": 2226
+        },
+        {
+          "rodada": 3,
+          "performance": 92.0,
+          "tbt": 359.99999999999955,
+          "lcp": 752.4755,
+          "benchmark": 1709
+        }
+      ],
+      "mediana": 89,
+      "acessibilidade": 100,
+      "amostras_completas": [
+        {
+          "rodada": 1,
+          "performance": 88,
+          "accessibility": 100,
+          "lcp": 752.9489000000001,
+          "tbt": 455.5,
+          "iniciado_em": "2026-11-13T14:33:00.376Z",
+          "relatorio_sha256": "5746c99896111697713b36067d4e4d06622de61164efbedf615a3b3d04ebf457"
+        },
+        {
+          "rodada": 2,
+          "performance": 89,
+          "accessibility": 100,
+          "lcp": 1704.3732,
+          "tbt": 398,
+          "iniciado_em": "2026-11-13T14:33:08.444Z",
+          "relatorio_sha256": "ef2d957bb208c711b1f2cf305c17abc97bf8733d8f6a69362a9f961bad3969bc"
+        },
+        {
+          "rodada": 3,
+          "performance": 92,
+          "accessibility": 100,
+          "lcp": 752.4755,
+          "tbt": 359.99999999999955,
+          "iniciado_em": "2026-11-13T14:33:15.904Z",
+          "relatorio_sha256": "a82ab25797624bfd473cd9f6e442497ae6bcda5c85c69f7fa110d7a131fbec1b"
+        }
+      ]
+    },
+    "worker_proprio_d082f43": {
+      "commit": "d082f43c9013121fe3f4c0c7786b8a38e822fc06",
+      "commit_na_medicao": "d082f43c9013121fe3f4c0c7786b8a38e822fc06",
+      "amostras": [
+        {
+          "rodada": 1,
+          "performance": 82,
+          "accessibility": 100,
+          "lcp": 756.2258999999999,
+          "tbt": 707.38705,
+          "iniciado_em": "2026-11-13T15:15:52.984Z",
+          "relatorio_sha256": "dc41fba76b3526b7163e0cc7bd43c0a0f175ca1bf665700c50a8680ad9ce88ea"
+        },
+        {
+          "rodada": 2,
+          "performance": 83,
+          "accessibility": 100,
+          "lcp": 1739.5247,
+          "tbt": 633.5,
+          "iniciado_em": "2026-11-13T15:16:01.124Z",
+          "relatorio_sha256": "c900445afd0f85e310a09047b61c867cbeef026d1b6616ddff90463414241165"
+        },
+        {
+          "rodada": 3,
+          "performance": 91,
+          "accessibility": 100,
+          "lcp": 751.1575,
+          "tbt": 386,
+          "iniciado_em": "2026-11-13T15:16:08.613Z",
+          "relatorio_sha256": "a3e4d6ab6cfdd8d54b84c5add9d79b305b707c2294c449e18ba932602452eefa"
+        }
+      ],
+      "mediana_desempenho": 83,
+      "minimo_acessibilidade": 100,
+      "resultado": "reprovado no snapshot real; série fixa integral preservada",
+      "fixture": {
+        "axe": [
+          {
+            "pagina": "brasil-360",
+            "regras": 32,
+            "violacoes": 0
+          },
+          {
+            "pagina": "municipio-360",
+            "regras": 31,
+            "violacoes": 0
+          },
+          {
+            "pagina": "entrada-erro-360",
+            "regras": 25,
+            "violacoes": 0
+          },
+          {
+            "pagina": "novo-pedido-360",
+            "regras": 27,
+            "violacoes": 0
+          },
+          {
+            "pagina": "novo-pedido-filtros-360",
+            "regras": 27,
+            "violacoes": 0
+          },
+          {
+            "pagina": "prospeccao-publica-360",
+            "regras": 27,
+            "violacoes": 0
+          },
+          {
+            "pagina": "produtor-360",
+            "regras": 13,
+            "violacoes": 0
+          }
+        ],
+        "lighthouse": [
+          {
+            "pagina": "brasil",
+            "performance": 92,
+            "accessibility": 100,
+            "amostras": [
+              {
+                "performance": 90,
+                "accessibility": 100
+              },
+              {
+                "performance": 92,
+                "accessibility": 100
+              },
+              {
+                "performance": 95,
+                "accessibility": 100
+              }
+            ]
+          },
+          {
+            "pagina": "entrar",
+            "performance": 98,
+            "accessibility": 100,
+            "amostras": [
+              {
+                "performance": 98,
+                "accessibility": 100
+              },
+              {
+                "performance": 99,
+                "accessibility": 100
+              },
+              {
+                "performance": 98,
+                "accessibility": 100
+              }
+            ]
+          },
+          {
+            "pagina": "novo-pedido",
+            "performance": 97,
+            "accessibility": 100,
+            "amostras": [
+              {
+                "performance": 97,
+                "accessibility": 100
+              },
+              {
+                "performance": 97,
+                "accessibility": 100
+              },
+              {
+                "performance": 97,
+                "accessibility": 100
+              }
+            ]
+          },
+          {
+            "pagina": "prospeccao",
+            "performance": 97,
+            "accessibility": 100,
+            "amostras": [
+              {
+                "performance": 98,
+                "accessibility": 100
+              },
+              {
+                "performance": 97,
+                "accessibility": 100
+              },
+              {
+                "performance": 97,
+                "accessibility": 100
+              }
+            ]
+          },
+          {
+            "pagina": "acerto",
+            "performance": 95,
+            "accessibility": 100,
+            "amostras": [
+              {
+                "performance": 93,
+                "accessibility": 100
+              },
+              {
+                "performance": 95,
+                "accessibility": 100
+              },
+              {
+                "performance": 98,
+                "accessibility": 100
+              }
+            ]
+          },
+          {
+            "pagina": "produtor",
+            "performance": 100,
+            "accessibility": 100,
+            "amostras": [
+              {
+                "performance": 100,
+                "accessibility": 100
+              },
+              {
+                "performance": 100,
+                "accessibility": 100
+              },
+              {
+                "performance": 100,
+                "accessibility": 100
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "estados_url_painel_6e23883": {
+      "commit": "6e23883efa9318bbc42a3f66710474ad2213b851",
+      "commit_na_medicao": "8064fe6e3099aba7347ddeb0c9baaae3cbfd6228",
+      "amostras": [
+        {
+          "rodada": 1,
+          "performance": 78,
+          "accessibility": 100,
+          "lcp": 757.9374,
+          "tbt": 973.5313000000006,
+          "iniciado_em": "2026-11-13T15:42:32.902Z",
+          "relatorio_sha256": "d1b6c1bc83f151f91e6ab82543ed5fe87ddb15f5a7e5d0e5194021040ae371f0"
+        },
+        {
+          "rodada": 2,
+          "performance": 80,
+          "accessibility": 100,
+          "lcp": 1694.5293,
+          "tbt": 774,
+          "iniciado_em": "2026-11-13T15:42:41.167Z",
+          "relatorio_sha256": "8e0e041abe56d1b4a51f4abd65e213efc51f01d348ca676e35b69bceb4c4d797"
+        },
+        {
+          "rodada": 3,
+          "performance": 93,
+          "accessibility": 100,
+          "lcp": 751.4739,
+          "tbt": 307,
+          "iniciado_em": "2026-11-13T15:42:48.637Z",
+          "relatorio_sha256": "01cd384df046dc958304be1974091ef7e1e2588a86a4b0ead7541a000bf94e8b"
+        }
+      ],
+      "mediana_desempenho": 80,
+      "minimo_acessibilidade": 100,
+      "resultado": "reprovado no snapshot real; série fixa integral preservada",
+      "fixture": {
+        "axe": [
+          {
+            "pagina": "brasil-360",
+            "regras": 32,
+            "violacoes": 0
+          },
+          {
+            "pagina": "municipio-360",
+            "regras": 31,
+            "violacoes": 0
+          },
+          {
+            "pagina": "entrada-erro-360",
+            "regras": 25,
+            "violacoes": 0
+          },
+          {
+            "pagina": "novo-pedido-360",
+            "regras": 27,
+            "violacoes": 0
+          },
+          {
+            "pagina": "novo-pedido-filtros-360",
+            "regras": 27,
+            "violacoes": 0
+          },
+          {
+            "pagina": "prospeccao-publica-360",
+            "regras": 27,
+            "violacoes": 0
+          },
+          {
+            "pagina": "produtor-360",
+            "regras": 13,
+            "violacoes": 0
+          }
+        ],
+        "lighthouse": [
+          {
+            "pagina": "brasil",
+            "performance": 95,
+            "accessibility": 100,
+            "amostras": [
+              {
+                "performance": 95,
+                "accessibility": 100
+              },
+              {
+                "performance": 93,
+                "accessibility": 100
+              },
+              {
+                "performance": 95,
+                "accessibility": 100
+              }
+            ]
+          },
+          {
+            "pagina": "entrar",
+            "performance": 98,
+            "accessibility": 100,
+            "amostras": [
+              {
+                "performance": 98,
+                "accessibility": 100
+              },
+              {
+                "performance": 98,
+                "accessibility": 100
+              },
+              {
+                "performance": 98,
+                "accessibility": 100
+              }
+            ]
+          },
+          {
+            "pagina": "novo-pedido",
+            "performance": 97,
+            "accessibility": 100,
+            "amostras": [
+              {
+                "performance": 97,
+                "accessibility": 100
+              },
+              {
+                "performance": 97,
+                "accessibility": 100
+              },
+              {
+                "performance": 97,
+                "accessibility": 100
+              }
+            ]
+          },
+          {
+            "pagina": "prospeccao",
+            "performance": 97,
+            "accessibility": 100,
+            "amostras": [
+              {
+                "performance": 96,
+                "accessibility": 100
+              },
+              {
+                "performance": 97,
+                "accessibility": 100
+              },
+              {
+                "performance": 97,
+                "accessibility": 100
+              }
+            ]
+          },
+          {
+            "pagina": "acerto",
+            "performance": 98,
+            "accessibility": 100,
+            "amostras": [
+              {
+                "performance": 98,
+                "accessibility": 100
+              },
+              {
+                "performance": 98,
+                "accessibility": 100
+              },
+              {
+                "performance": 98,
+                "accessibility": 100
+              }
+            ]
+          },
+          {
+            "pagina": "produtor",
+            "performance": 100,
+            "accessibility": 100,
+            "amostras": [
+              {
+                "performance": 100,
+                "accessibility": 100
+              },
+              {
+                "performance": 100,
+                "accessibility": 100
+              },
+              {
+                "performance": 100,
+                "accessibility": 100
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "simbolo_4b72f85": {
+      "commit": "4b72f853d34e6a91dd36683545a9f07d89e59359",
+      "commit_na_medicao": "4b72f853d34e6a91dd36683545a9f07d89e59359",
+      "amostras": [
+        {
+          "rodada": 1,
+          "performance": 78,
+          "accessibility": 100,
+          "lcp": 758.1463000000001,
+          "tbt": 978.4268500000001,
+          "iniciado_em": "2026-11-13T16:11:02.369Z",
+          "relatorio_sha256": "727de2ba31523754ed78b74772e21773cd67b1c412af51e19b95a9739d1df323"
+        },
+        {
+          "rodada": 2,
+          "performance": 82,
+          "accessibility": 100,
+          "lcp": 1697.3315,
+          "tbt": 656.5,
+          "iniciado_em": "2026-11-13T16:11:10.475Z",
+          "relatorio_sha256": "232e6ad3765cc56aa289161b408072f040649a87e2f266a67d58fb10f8618447"
+        },
+        {
+          "rodada": 3,
+          "performance": 82,
+          "accessibility": 100,
+          "lcp": 751.7954,
+          "tbt": 758.5,
+          "iniciado_em": "2026-11-13T16:11:18.055Z",
+          "relatorio_sha256": "048285c9d55c5077e4318e39e174e4b9632b41386aa424d9eee4db04d44214a2"
+        }
+      ],
+      "mediana_desempenho": 82,
+      "minimo_acessibilidade": 100,
+      "resultado": "reprovado no snapshot real; série fixa integral preservada",
+      "fixture": {
+        "axe": [
+          {
+            "pagina": "brasil-360",
+            "regras": 32,
+            "violacoes": 0
+          },
+          {
+            "pagina": "municipio-360",
+            "regras": 31,
+            "violacoes": 0
+          },
+          {
+            "pagina": "entrada-erro-360",
+            "regras": 25,
+            "violacoes": 0
+          },
+          {
+            "pagina": "novo-pedido-360",
+            "regras": 27,
+            "violacoes": 0
+          },
+          {
+            "pagina": "novo-pedido-filtros-360",
+            "regras": 27,
+            "violacoes": 0
+          },
+          {
+            "pagina": "prospeccao-publica-360",
+            "regras": 27,
+            "violacoes": 0
+          },
+          {
+            "pagina": "produtor-360",
+            "regras": 13,
+            "violacoes": 0
+          }
+        ],
+        "lighthouse": [
+          {
+            "pagina": "brasil",
+            "performance": 92,
+            "accessibility": 100,
+            "amostras": [
+              {
+                "performance": 92,
+                "accessibility": 100
+              },
+              {
+                "performance": 88,
+                "accessibility": 100
+              },
+              {
+                "performance": 94,
+                "accessibility": 100
+              }
+            ]
+          },
+          {
+            "pagina": "entrar",
+            "performance": 98,
+            "accessibility": 100,
+            "amostras": [
+              {
+                "performance": 99,
+                "accessibility": 100
+              },
+              {
+                "performance": 98,
+                "accessibility": 100
+              },
+              {
+                "performance": 98,
+                "accessibility": 100
+              }
+            ]
+          },
+          {
+            "pagina": "novo-pedido",
+            "performance": 97,
+            "accessibility": 100,
+            "amostras": [
+              {
+                "performance": 97,
+                "accessibility": 100
+              },
+              {
+                "performance": 97,
+                "accessibility": 100
+              },
+              {
+                "performance": 97,
+                "accessibility": 100
+              }
+            ]
+          },
+          {
+            "pagina": "prospeccao",
+            "performance": 98,
+            "accessibility": 100,
+            "amostras": [
+              {
+                "performance": 98,
+                "accessibility": 100
+              },
+              {
+                "performance": 98,
+                "accessibility": 100
+              },
+              {
+                "performance": 97,
+                "accessibility": 100
+              }
+            ]
+          },
+          {
+            "pagina": "acerto",
+            "performance": 98,
+            "accessibility": 100,
+            "amostras": [
+              {
+                "performance": 98,
+                "accessibility": 100
+              },
+              {
+                "performance": 98,
+                "accessibility": 100
+              },
+              {
+                "performance": 94,
+                "accessibility": 100
+              }
+            ]
+          },
+          {
+            "pagina": "produtor",
+            "performance": 100,
+            "accessibility": 100,
+            "amostras": [
+              {
+                "performance": 100,
+                "accessibility": 100
+              },
+              {
+                "performance": 100,
+                "accessibility": 100
+              },
+              {
+                "performance": 100,
+                "accessibility": 100
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "preflight_b52be9b": {
+      "commit": "b52be9bae18f16af3d72daf8fb8634fd7eff54fb",
+      "fixture": true,
+      "browser": "Chrome157.0.8103.78",
+      "resultado": "reprovado",
+      "mediana_brasil": 84,
+      "amostras": [
+        {
+          "arquivo": "brasil-1-lighthouse.json",
+          "performance": 81.0,
+          "accessibility": 100,
+          "tbt": 804.0000000000001,
+          "lcp": 752.4262000000001,
+          "benchmark": 2166,
+          "fetchTime": "2026-11-13T16:58:36.439Z"
+        },
+        {
+          "arquivo": "brasil-2-lighthouse.json",
+          "performance": 84.0,
+          "accessibility": 100,
+          "tbt": 578,
+          "lcp": 1835.3678,
+          "benchmark": 1468.5,
+          "fetchTime": "2026-11-13T16:58:44.951Z"
+        },
+        {
+          "arquivo": "brasil-3-lighthouse.json",
+          "performance": 95.0,
+          "accessibility": 100,
+          "tbt": 245.9370999999992,
+          "lcp": 751.7484,
+          "benchmark": 2156.5,
+          "fetchTime": "2026-11-13T16:58:52.650Z"
+        }
+      ],
+      "axe": [
+        {
+          "arquivo": "brasil-360-axe.json",
+          "violacoes": 0
+        },
+        {
+          "arquivo": "entrada-erro-360-axe.json",
+          "violacoes": 0
+        },
+        {
+          "arquivo": "municipio-360-axe.json",
+          "violacoes": 0
+        },
+        {
+          "arquivo": "novo-pedido-360-axe.json",
+          "violacoes": 0
+        },
+        {
+          "arquivo": "novo-pedido-filtros-360-axe.json",
+          "violacoes": 0
+        },
+        {
+          "arquivo": "produtor-360-axe.json",
+          "violacoes": 0
+        },
+        {
+          "arquivo": "prospeccao-publica-360-axe.json",
+          "violacoes": 0
+        }
+      ],
+      "rotas_lighthouse_posteriores": "não executadas, pois o portão interrompe na primeira rota reprovada",
+      "serie_real": "não executada após a reprovação da fixture",
+      "site_fixture": "/tmp/raiz-preflight-final-site-pages",
+      "snapshot_real_preparado": "/tmp/raiz-preflight-final-real-projecao.json",
+      "amostras_completas": [
+        {
+          "rodada": 1,
+          "performance": 81,
+          "accessibility": 100,
+          "lcp": 752.4262000000001,
+          "tbt": 804.0000000000001,
+          "iniciado_em": "2026-11-13T16:58:36.439Z",
+          "relatorio_sha256": "7615f39fc3115dc829770b0b44af6f9404c07bb8721040c0d6a440fadf8f0b42"
+        },
+        {
+          "rodada": 2,
+          "performance": 84,
+          "accessibility": 100,
+          "lcp": 1835.3678,
+          "tbt": 578,
+          "iniciado_em": "2026-11-13T16:58:44.951Z",
+          "relatorio_sha256": "e53b62149df3c2cf80c555134c97b319fd8e33abb585b4e126e1ce951f1e81d9"
+        },
+        {
+          "rodada": 3,
+          "performance": 95,
+          "accessibility": 100,
+          "lcp": 751.7484,
+          "tbt": 245.9370999999992,
+          "iniciado_em": "2026-11-13T16:58:52.650Z",
+          "relatorio_sha256": "060e1d3e27fea201e4431d43accc0d03af9e13d2115d5ef283f2361fcfe73df0"
+        }
+      ]
+    },
+    "ci_inicial_43362021791": {
+      "commit": null,
+      "run": "43362021791",
+      "url": "https://github.com/bernardoemmel/Raiz/actions/runs/43362021791",
+      "dados": "Fixture sintética do CI remoto",
+      "amostras": [
+        {
+          "rodada": 1,
+          "performance": 82,
+          "accessibility": 100,
+          "lcp": 754.6226999999999,
+          "tbt": 712,
+          "iniciado_em": "2026-11-13T04:12:33.949Z",
+          "relatorio_sha256": "019043981296423b7873dc3b87627b2706c98d0bf4e2f642bac573a96db11aaf"
+        },
+        {
+          "rodada": 2,
+          "performance": 86,
+          "accessibility": 100,
+          "lcp": 751.9312,
+          "tbt": 532,
+          "iniciado_em": "2026-11-13T04:12:41.917Z",
+          "relatorio_sha256": "a91f0368581792b193f837daed0288d007c0c8d73e969863f2a05953b0a706cf"
+        },
+        {
+          "rodada": 3,
+          "performance": 72,
+          "accessibility": 100,
+          "lcp": 4332.460800000001,
+          "tbt": 536.3464,
+          "iniciado_em": "2026-11-13T04:12:48.985Z",
+          "relatorio_sha256": "2545c6d70ffa499c8c4ddc7c06ec5c71c9ed944f9d14a36d70c7633814801008"
+        }
+      ],
+      "mediana_desempenho": 82,
+      "minimo_acessibilidade": 100,
+      "resultado": "reprovado",
+      "rotas_posteriores": "Não executadas após reprovação nacional."
+    },
+    "ci_d00ea94": {
+      "commit": "d00ea943c05167b3953709fe07b821c478d3cd4d",
+      "run": "43369596942",
+      "url": "https://github.com/bernardoemmel/Raiz/actions/runs/43369596942",
+      "dados": "Fixture sintética do CI remoto",
+      "amostras": [
+        {
+          "rodada": 1,
+          "performance": 91,
+          "accessibility": 100,
+          "lcp": 752.9357,
+          "tbt": 367.5,
+          "iniciado_em": "2026-11-13T05:30:46.984Z",
+          "relatorio_sha256": "5aeb589d4b16c7d564a0afaec872a1b6b56ead2d1f6b15af8eaa154f0de8b955"
+        },
+        {
+          "rodada": 2,
+          "performance": 92,
+          "accessibility": 100,
+          "lcp": 751.8783000000001,
+          "tbt": 356,
+          "iniciado_em": "2026-11-13T05:30:54.354Z",
+          "relatorio_sha256": "ab136f6317e559f3b1147985002b8881226ab37173b121417e6fe495226484cf"
+        },
+        {
+          "rodada": 3,
+          "performance": 78,
+          "accessibility": 100,
+          "lcp": 4267.84385,
+          "tbt": 337.00000000000045,
+          "iniciado_em": "2026-11-13T05:31:01.085Z",
+          "relatorio_sha256": "c303a3edb6e6fa8c9e068b7340b6e415ccdfa8bb518a04be6af440d3bc7f2108"
+        }
+      ],
+      "mediana_desempenho": 91,
+      "minimo_acessibilidade": 100,
+      "resultado": "aprovado",
+      "fixture": {
+        "axe": [
+          {
+            "pagina": "brasil-360",
+            "regras": 32,
+            "violacoes": 0
+          },
+          {
+            "pagina": "municipio-360",
+            "regras": 31,
+            "violacoes": 0
+          },
+          {
+            "pagina": "entrada-erro-360",
+            "regras": 25,
+            "violacoes": 0
+          },
+          {
+            "pagina": "novo-pedido-360",
+            "regras": 27,
+            "violacoes": 0
+          },
+          {
+            "pagina": "novo-pedido-filtros-360",
+            "regras": 27,
+            "violacoes": 0
+          },
+          {
+            "pagina": "prospeccao-publica-360",
+            "regras": 27,
+            "violacoes": 0
+          },
+          {
+            "pagina": "produtor-360",
+            "regras": 13,
+            "violacoes": 0
+          }
+        ],
+        "lighthouse": [
+          {
+            "pagina": "brasil",
+            "performance": 91,
+            "accessibility": 100,
+            "amostras": [
+              {
+                "performance": 91,
+                "accessibility": 100
+              },
+              {
+                "performance": 92,
+                "accessibility": 100
+              },
+              {
+                "performance": 78,
+                "accessibility": 100
+              }
+            ]
+          },
+          {
+            "pagina": "entrar",
+            "performance": 98,
+            "accessibility": 100,
+            "amostras": [
+              {
+                "performance": 98,
+                "accessibility": 100
+              },
+              {
+                "performance": 98,
+                "accessibility": 100
+              },
+              {
+                "performance": 98,
+                "accessibility": 100
+              }
+            ]
+          },
+          {
+            "pagina": "novo-pedido",
+            "performance": 97,
+            "accessibility": 100,
+            "amostras": [
+              {
+                "performance": 97,
+                "accessibility": 100
+              },
+              {
+                "performance": 97,
+                "accessibility": 100
+              },
+              {
+                "performance": 97,
+                "accessibility": 100
+              }
+            ]
+          },
+          {
+            "pagina": "prospeccao",
+            "performance": 96,
+            "accessibility": 100,
+            "amostras": [
+              {
+                "performance": 97,
+                "accessibility": 100
+              },
+              {
+                "performance": 96,
+                "accessibility": 100
+              },
+              {
+                "performance": 96,
+                "accessibility": 100
+              }
+            ]
+          },
+          {
+            "pagina": "acerto",
+            "performance": 97,
+            "accessibility": 100,
+            "amostras": [
+              {
+                "performance": 92,
+                "accessibility": 100
+              },
+              {
+                "performance": 97,
+                "accessibility": 100
+              },
+              {
+                "performance": 97,
+                "accessibility": 100
+              }
+            ]
+          },
+          {
+            "pagina": "produtor",
+            "performance": 100,
+            "accessibility": 100,
+            "amostras": [
+              {
+                "performance": 100,
+                "accessibility": 100
+              },
+              {
+                "performance": 100,
+                "accessibility": 100
+              },
+              {
+                "performance": 100,
+                "accessibility": 100
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "ci_b35b490": {
+      "commit": "b35b490fce4da3df85a3c4bd5260ea398319ae94",
+      "run": "43431157242",
+      "url": "https://github.com/bernardoemmel/Raiz/actions/runs/43431157242",
+      "dados": "Fixture sintética do CI remoto",
+      "amostras": [
+        {
+          "rodada": 1,
+          "performance": 81,
+          "accessibility": 100,
+          "lcp": 753.3613,
+          "tbt": 750.9999999999995,
+          "iniciado_em": "2026-11-13T13:16:10.353Z",
+          "relatorio_sha256": "0b21370520d2680629db91ce7ace27740af76f9dfaaf248c639ba12cca6382b3"
+        },
+        {
+          "rodada": 2,
+          "performance": 85,
+          "accessibility": 100,
+          "lcp": 752.645,
+          "tbt": 587.6612499999997,
+          "iniciado_em": "2026-11-13T13:16:18.515Z",
+          "relatorio_sha256": "b0a8a03ea9c6c9d54ba06aa4736e2da5be2812e3d52833c3c32702d70816c21f"
+        },
+        {
+          "rodada": 3,
+          "performance": 85,
+          "accessibility": 100,
+          "lcp": 753.0198,
+          "tbt": 605.4901,
+          "iniciado_em": "2026-11-13T13:16:25.926Z",
+          "relatorio_sha256": "5628deb781153820ce51902ddd668ee8112215a099adeda6b54d5c71bfbeeed3"
+        }
+      ],
+      "mediana_desempenho": 85,
+      "minimo_acessibilidade": 100,
+      "resultado": "reprovado",
+      "rotas_posteriores": "Não executadas após reprovação nacional."
+    },
+    "ci_dee13fe": {
+      "commit": "dee13fe9892affffd0621bae0cfff118501aaa3e",
+      "run": "43439869332",
+      "url": "https://github.com/bernardoemmel/Raiz/actions/runs/43439869332",
+      "dados": "Fixture sintética do CI remoto",
+      "amostras": [
+        {
+          "rodada": 1,
+          "performance": 82,
+          "accessibility": 100,
+          "lcp": 751.6918000000001,
+          "tbt": 699.5,
+          "iniciado_em": "2026-11-13T14:12:22.120Z",
+          "relatorio_sha256": "39d225c22e665830c9b92d1bace36aa291df1057b8afcea5a0cd2b009a0c6a8d"
+        },
+        {
+          "rodada": 2,
+          "performance": 87,
+          "accessibility": 100,
+          "lcp": 1578.3035,
+          "tbt": 484,
+          "iniciado_em": "2026-11-13T14:12:30.432Z",
+          "relatorio_sha256": "e513dce47d4dd76e124dae4f675197936b0cee598c80a7cde453a280ccc19a6b"
+        },
+        {
+          "rodada": 3,
+          "performance": 87,
+          "accessibility": 100,
+          "lcp": 752.8806999999999,
+          "tbt": 526.5,
+          "iniciado_em": "2026-11-13T14:12:38.187Z",
+          "relatorio_sha256": "6197b777e02b560ebe1de19485d4dda74200fb3217707605dcede80236b5d48b"
+        }
+      ],
+      "mediana_desempenho": 87,
+      "minimo_acessibilidade": 100,
+      "resultado": "reprovado",
+      "rotas_posteriores": "Não executadas após reprovação nacional."
+    },
+    "desynchronized_c1d42a4": {
+      "commit": "c1d42a42afe386f743b72b0210275b0baea0fe51",
+      "runtime_fonte": "2384fd88bcf4f9fbeb4be7be29a6133ed2e13bae",
+      "artefato_snapshot_historico": "43331843113",
+      "municipios": 444,
+      "estados": 13,
+      "projecao_processamento": {
+        "fonte": "amostra/processamento.json",
+        "sha256": "ab4a354a7d19b434fef0c10ad4d58ac4876ba345c5be9c43c4ee2b800c2d49f2",
+        "gerado_em": "2026-11-13T04:49:46.363Z",
+        "observacoes": 0,
+        "estados_sem_telemetria": 27,
+        "nota": "Projeção local criada para a comparação congelada. O snapshot não contém observações de execução; contagens e datas de observação permanecem null. gerado_em é a criação da projeção e não renova nem inventa observações.",
+        "estados_renderizados_sem_informacao": 27,
+        "contagens_renderizadas_nao_informadas": 81
+      },
+      "amostras": [
+        {
+          "rodada": 1,
+          "performance": 84,
+          "accessibility": 100,
+          "lcp": 757.3406,
+          "tbt": 598.0000000000005,
+          "iniciado_em": "2026-11-13T17:19:25.995Z",
+          "relatorio_sha256": "66ad3542aba92b92cdb43a7f6bf821829b2cf1036f5305230c5c0a7a816a64dc"
+        },
+        {
+          "rodada": 2,
+          "performance": 91,
+          "accessibility": 100,
+          "lcp": 1774.1823,
+          "tbt": 327.4999999999991,
+          "iniciado_em": "2026-11-13T17:19:34.242Z",
+          "relatorio_sha256": "84dbdcfc74386221b87021ad281c0f2885b2dcf597ab280fb182cb894ae9011f"
+        },
+        {
+          "rodada": 3,
+          "performance": 95,
+          "accessibility": 100,
+          "lcp": 752.2944,
+          "tbt": 259.5,
+          "iniciado_em": "2026-11-13T17:19:46.713Z",
+          "relatorio_sha256": "0b57efe6be75f5060df816a1c03d04c26c8027ea25e2b35b0bff3d96a9ab2a9a"
+        }
+      ],
+      "mediana_desempenho": 91,
+      "minimo_acessibilidade": 100,
+      "metodo": "Lighthouse mobile 360 × 800, CPU/rede simuladas, três execuções consecutivas fixas em um Chrome, sem escolher a melhor amostra",
+      "limite": "Snapshot público congelado. Mediana real 91, com pouca folga; amostra real 84 e amostra da fixture 89 preservadas. Não comprova 90 em toda abertura, nem substitui o CI remoto e a conferência do site publicado.",
+      "fixture": {
+        "commit": "c1d42a42afe386f743b72b0210275b0baea0fe51",
+        "dados": "Fixture sintética do CI, distinta do snapshot real de 444 municípios.",
+        "rotas": 6,
+        "amostras_por_rota": 3,
+        "axe": [
+          {
+            "pagina": "brasil-360",
+            "regras": 32,
+            "violacoes": 0,
+            "relatorio_sha256": "a3be24f7e8f8fa4746d293b829e1477fe890d6408637b459fdb7702a71240779"
+          },
+          {
+            "pagina": "municipio-360",
+            "regras": 31,
+            "violacoes": 0,
+            "relatorio_sha256": "a48f44082c1e0abd3e67993b366c32efc300e6178cc89562963a8dd8217518a2"
+          },
+          {
+            "pagina": "entrada-erro-360",
+            "regras": 25,
+            "violacoes": 0,
+            "relatorio_sha256": "3318a2dcb19c921a8f52cfc4f54d596c10345ec709853c11a8cfd6046adfddca"
+          },
+          {
+            "pagina": "novo-pedido-360",
+            "regras": 27,
+            "violacoes": 0,
+            "relatorio_sha256": "8dd260d8ca3789b18cefe9e6f140dc3f1ecb32a84a979f69756a34b6942df14a"
+          },
+          {
+            "pagina": "novo-pedido-filtros-360",
+            "regras": 27,
+            "violacoes": 0,
+            "relatorio_sha256": "69bc3a91afbc165b505c5d040a426ed7af1e7028ed8956bb8699b856e836c16b"
+          },
+          {
+            "pagina": "prospeccao-publica-360",
+            "regras": 27,
+            "violacoes": 0,
+            "relatorio_sha256": "0991fc4df7b0933d0828e6febc4fadc0dadd4cd119b25278fdaa7cdc4a5b5d55"
+          },
+          {
+            "pagina": "produtor-360",
+            "regras": 13,
+            "violacoes": 0,
+            "relatorio_sha256": "81366a2a8cba6ab8b1f474aa43acd8ca08959914d260c38d87804805fbd23835"
+          }
+        ],
+        "lighthouse": [
+          {
+            "pagina": "brasil",
+            "performance": 92,
+            "accessibility": 100,
+            "amostras": [
+              {
+                "performance": 89,
+                "accessibility": 100,
+                "iniciado_em": "2026-11-13T17:17:08.790Z",
+                "relatorio_sha256": "6c1ca175be98ec8d219828a37a6f98df93ab1b76680a54633e20a2664b0612d8"
+              },
+              {
+                "performance": 95,
+                "accessibility": 100,
+                "iniciado_em": "2026-11-13T17:17:16.705Z",
+                "relatorio_sha256": "d04e7c866b1ad401bdb3b09def3167c18b98292093ce2a7bab70e64e632acfb2"
+              },
+              {
+                "performance": 92,
+                "accessibility": 100,
+                "iniciado_em": "2026-11-13T17:17:23.786Z",
+                "relatorio_sha256": "8562f6154c612ddaffe43006e6fcfef23db056a17a488ea9b5d998ad9cfa3bbe"
+              }
+            ]
+          },
+          {
+            "pagina": "entrar",
+            "performance": 98,
+            "accessibility": 100,
+            "amostras": [
+              {
+                "performance": 98,
+                "accessibility": 100,
+                "iniciado_em": "2026-11-13T17:17:30.882Z",
+                "relatorio_sha256": "6681918d872a3b1077543b4a57bbc62483021843f1647dca53700d0e1353dafa"
+              },
+              {
+                "performance": 98,
+                "accessibility": 100,
+                "iniciado_em": "2026-11-13T17:17:37.212Z",
+                "relatorio_sha256": "5c02f4f9a70ad78a5ba758365339474618fe10beef2e01ec8c15c00edc023d4d"
+              },
+              {
+                "performance": 98,
+                "accessibility": 100,
+                "iniciado_em": "2026-11-13T17:17:43.524Z",
+                "relatorio_sha256": "e50e8afbb962adb747c5d236f2373cce59198195b13a331d612612a759c4a77d"
+              }
+            ]
+          },
+          {
+            "pagina": "novo-pedido",
+            "performance": 97,
+            "accessibility": 100,
+            "amostras": [
+              {
+                "performance": 97,
+                "accessibility": 100,
+                "iniciado_em": "2026-11-13T17:17:49.833Z",
+                "relatorio_sha256": "ad95fb38606387610f09db8ae5a02e9b678457d200953fb9dbd825c3bb653bc2"
+              },
+              {
+                "performance": 97,
+                "accessibility": 100,
+                "iniciado_em": "2026-11-13T17:17:56.594Z",
+                "relatorio_sha256": "8eda5a6f3ea0afb753affc7fe9e2c3e866a4afac82d2ee791fae4a9538d39b82"
+              },
+              {
+                "performance": 97,
+                "accessibility": 100,
+                "iniciado_em": "2026-11-13T17:18:03.758Z",
+                "relatorio_sha256": "388c5beadf9e424608e0b8d729f6f68a56b4a6472d32c1bcb1e0be67d6fa61b5"
+              }
+            ]
+          },
+          {
+            "pagina": "prospeccao",
+            "performance": 98,
+            "accessibility": 100,
+            "amostras": [
+              {
+                "performance": 96,
+                "accessibility": 100,
+                "iniciado_em": "2026-11-13T17:18:10.447Z",
+                "relatorio_sha256": "7c0d1d68045a27f9f6e28affe0a764091623ec7c9258e52f5c4fffd77ff7c474"
+              },
+              {
+                "performance": 98,
+                "accessibility": 100,
+                "iniciado_em": "2026-11-13T17:18:17.011Z",
+                "relatorio_sha256": "f347859edb95a0af8730299c09bc29c41355fbcea29bb61fe19e4f01dda333fc"
+              },
+              {
+                "performance": 98,
+                "accessibility": 100,
+                "iniciado_em": "2026-11-13T17:18:23.332Z",
+                "relatorio_sha256": "5f3fd84d8f9fae9c0c8bcfbce5dd358c5fda810afb5964cd0a30a86c9ad2610e"
+              }
+            ]
+          },
+          {
+            "pagina": "acerto",
+            "performance": 97,
+            "accessibility": 100,
+            "amostras": [
+              {
+                "performance": 98,
+                "accessibility": 100,
+                "iniciado_em": "2026-11-13T17:18:29.728Z",
+                "relatorio_sha256": "39110e4c43bf8b08f1896657d5a827a8e0731ddff73a176c4bda4d4206aaf55a"
+              },
+              {
+                "performance": 97,
+                "accessibility": 100,
+                "iniciado_em": "2026-11-13T17:18:36.009Z",
+                "relatorio_sha256": "958489d990788e1f4555f46fc5da6ed6f65259330c4eee85422fa1773cbbc546"
+              },
+              {
+                "performance": 97,
+                "accessibility": 100,
+                "iniciado_em": "2026-11-13T17:18:42.460Z",
+                "relatorio_sha256": "9594c32930a134deb4e5be138fbeeaab247251772cd015edfdc277a14e4b0892"
+              }
+            ]
+          },
+          {
+            "pagina": "produtor",
+            "performance": 100,
+            "accessibility": 100,
+            "amostras": [
+              {
+                "performance": 100,
+                "accessibility": 100,
+                "iniciado_em": "2026-11-13T17:18:48.836Z",
+                "relatorio_sha256": "9999cb2ace645bd88c6044bc9831dd695676e2bf291e9b99f29fbf087b996872"
+              },
+              {
+                "performance": 100,
+                "accessibility": 100,
+                "iniciado_em": "2026-11-13T17:18:54.844Z",
+                "relatorio_sha256": "36adbd6af52e0fa75c926e89b4aacf181da3f217fdbddc7d455f78b9aac6f615"
+              },
+              {
+                "performance": 100,
+                "accessibility": 100,
+                "iniciado_em": "2026-11-13T17:19:00.600Z",
+                "relatorio_sha256": "5aa088bdf6dbf353b3a34ba4137aa99501ca64fb64526bc1ccc7ee58b1af7cdb"
+              }
+            ]
+          }
+        ],
+        "commit_fonte": "c1d42a42afe386f743b72b0210275b0baea0fe51",
+        "runtime_fonte": "2384fd88bcf4f9fbeb4be7be29a6133ed2e13bae",
+        "site_preservado": "/tmp/raiz-desync-final-site-pages"
+      },
+      "lighthouse_versao": "13.6.0",
+      "navegador": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/157.0.0.0 Safari/537.36",
+      "browser_versao": "Chrome for Testing 157.0.8103.78",
+      "proveniencia_fontes": {
+        "commit_fonte": "c1d42a42afe386f743b72b0210275b0baea0fe51",
+        "runtime_fonte": "2384fd88bcf4f9fbeb4be7be29a6133ed2e13bae",
+        "front_tree": "bb6d882894bfbdfa2ea2edf759eb4fb33ce9bd6e",
+        "nota": "O build medido e capturado é o mesmo. Fontes, artefatos compilados e dados foram conferidos por SHA256; não houve nova série Lighthouse após a liberação para capturas.",
+        "sha256": {
+          "front/compartilhado/dados/fonte-amostra.ts": "ffb5397a64ae167589636dc19c5d3a71727dec255224bf6e7004527625b28d45",
+          "front/compartilhado/gerar-shader-simbolo.ts": "5015ff238229aabdb8209697ac715e6a852807c2207e2b729c103d229f5da7cd",
+          "front/globo/src/mapa/MapaBrasil.tsx": "eb2f4e4bc15dfd15af346843ab565e0197c528ccc6cef0b8dc7b228314cf246e",
+          "front/globo/src/mapa/aquecer-simbolo.ts": "091ecb051f887c73c7d5b4fd3a4933d2e71a027bfaf206cf91afdb54be7daf40",
+          "front/globo/src/mapa/estilo.ts": "bff951496753960bab113e4f98e8977fe6429b70e192bf0823356e358b3d8029",
+          "front/globo/src/mapa/grupos.ts": "d3d8ec1e311e5ac444e5d8f7a55d82507596dc1012c6fd0eedb046950bd712d3",
+          "front/globo/src/mapa/indice-grupos.ts": "9f76cc5e9b21d47646b41c621baade17ebcfa47b1476c7d40b0a2eb3dfdc4407",
+          "front/globo/src/mapa/nacional.ts": "5daa28f59108e486eec53777f2b23a3d9990f9dd15ff36b52e0ebcf53bfb1cef",
+          "front/globo/src/mapa/preparar-gpu.ts": "ceed50c460d30d024af16edd9ea668fe046f5b5e6ec1a95330147c9fce28e027",
+          "front/globo/src/mapa/preparar-gpu.worker.ts": "f6385d7eb8c2f149b70c49cf43336f355586d81254cca91dfd508c8b483c730f",
+          "front/globo/src/mapa/preparar-programas-nacionais.test.ts": "cca02831828ee498b10251f9eb9ee52b84747131888cf47cce5e9e50822b2ba8",
+          "front/globo/src/mapa/preparar-programas-nacionais.ts": "40747830a2ac09ed27a2b0c89f9c86d29b0ffa51dfc8d83011fa54e1e997d080",
+          "front/globo/src/mapa/servidor-grupos.ts": "e76951144a07f0121b7abde570adce655701945c28ae3689bea665c2d4d41261",
+          "front/globo/src/mapa/shader-simbolo.generated.ts": "433ff23343cb700dccaf15016e9b7b12574be7f12dcb7f41b0e9024bf70523a0",
+          "front/globo/src/mapa/worker-grupos.ts": "e013173eecea21a51fa5c85938961edb15d0db7492a595d69d45e79518970225",
+          "front/globo/src/partes/PainelProcessamentoEstados.tsx": "1abab7d3ef3c381f02ac91db31c1db54feccbbb5cf3050d29ba8ae93339bd7cb",
+          "front/globo/src/telas/Explorar.tsx": "98600da5cc58dcdd95caaf4d9907c3978402a085adc61191b2be5b7c46991eba"
+        },
+        "projecao_sha256": "a7630f16b59b6d36f636a8dedf014bc28048419784984688dfc2664ee4e45d73",
+        "relatorio_real_sha256": "66de2e501be71d03476a0b6b47f5aa1714cccf9bdef0fee33cfad51312c22b3c",
+        "relatorio_fixture_sha256": "f7e46ac55426a9159db697ffe4633f6eb36ee3ddc2ed60ff9bf6de13c7693ed5"
+      },
+      "resultado": "aprovado localmente naquela revisão; não atribuir ao candidato 7fe3539"
+    },
+    "cls_e3b7f09": {
+      "commit": "e3b7f09a4b1802ea1688b7046c083686c3cfbf7a",
+      "fixture": {
+        "axe": [
+          {
+            "pagina": "brasil-360",
+            "regras": 32,
+            "violacoes": 0,
+            "relatorio_sha256": "24715b4ca2e1d5ae1c4d1e281d70d1293b6d2e6a1246a1ea9557b35c97973065"
+          },
+          {
+            "pagina": "municipio-360",
+            "regras": 31,
+            "violacoes": 0,
+            "relatorio_sha256": "376c5de58a07bca053d97a2fd7a3306e7eedaec5d3a6a720216993c7373d7bef"
+          },
+          {
+            "pagina": "entrada-erro-360",
+            "regras": 25,
+            "violacoes": 0,
+            "relatorio_sha256": "85d5293531860ff6faac6a4eddfca6de2d9c3e8e4cec99303df85529681613d0"
+          },
+          {
+            "pagina": "novo-pedido-360",
+            "regras": 27,
+            "violacoes": 0,
+            "relatorio_sha256": "aec532499afe2903dd6f858596ea10699c66139f3d48a8962eb30e69f0885193"
+          },
+          {
+            "pagina": "novo-pedido-filtros-360",
+            "regras": 27,
+            "violacoes": 0,
+            "relatorio_sha256": "2b4b666d2e2f43c0be413624313937ef67a356e666636a8e0a34becb617f0a0d"
+          },
+          {
+            "pagina": "prospeccao-publica-360",
+            "regras": 27,
+            "violacoes": 0,
+            "relatorio_sha256": "5bbed800c24b6bf10c79a53fab948521310490bf173358aa087bfd2b9dc90524"
+          },
+          {
+            "pagina": "produtor-360",
+            "regras": 13,
+            "violacoes": 0,
+            "relatorio_sha256": "e7eda313de69fffd18ea380d4b7dd37f5b466bbec6d158c6ab42d0c03b498442"
+          }
+        ],
+        "lighthouse": [
+          {
+            "pagina": "brasil",
+            "performance": 94,
+            "accessibility": 100,
+            "amostras": [
+              {
+                "performance": 94,
+                "accessibility": 100,
+                "iniciado_em": "2026-11-13T17:49:20.239Z",
+                "relatorio_sha256": "e7149124d9838b6a458123358c69b4412d8c3bb4bf50298d667b127e30775575",
+                "cls": 0.0006574804687500001
+              },
+              {
+                "performance": 94,
+                "accessibility": 100,
+                "iniciado_em": "2026-11-13T17:49:28.192Z",
+                "relatorio_sha256": "b798beeadea767ad094fc7d4d5352d9b825ff3298b01cfb85940a98b7c30d67d",
+                "cls": 0
+              },
+              {
+                "performance": 95,
+                "accessibility": 100,
+                "iniciado_em": "2026-11-13T17:49:35.368Z",
+                "relatorio_sha256": "d2605fde5fee35e2b91cef3254f858e294c4ee7b803ffcc4e4e9280eb19c0632",
+                "cls": 0.0006574804687500001
+              }
+            ]
+          },
+          {
+            "pagina": "entrar",
+            "performance": 98,
+            "accessibility": 100,
+            "amostras": [
+              {
+                "performance": 98,
+                "accessibility": 100,
+                "iniciado_em": "2026-11-13T17:49:42.358Z",
+                "relatorio_sha256": "3a8a1eb0ec08c97210ea01e70ce3ab590c894d70970138a3dc8d763fb58a3e9f",
+                "cls": 0
+              },
+              {
+                "performance": 97,
+                "accessibility": 100,
+                "iniciado_em": "2026-11-13T17:49:48.683Z",
+                "relatorio_sha256": "a08cde19978c74bd26903937accbc0e907da0f0f6dc6cc34e09c102517cd8792",
+                "cls": 0
+              },
+              {
+                "performance": 98,
+                "accessibility": 100,
+                "iniciado_em": "2026-11-13T17:49:54.814Z",
+                "relatorio_sha256": "cc03dd7382e3828477a0f2e51d083059d0bff80f930ea42eb91228596aed533c",
+                "cls": 0
+              }
+            ]
+          },
+          {
+            "pagina": "novo-pedido",
+            "performance": 97,
+            "accessibility": 100,
+            "amostras": [
+              {
+                "performance": 97,
+                "accessibility": 100,
+                "iniciado_em": "2026-11-13T17:50:01.098Z",
+                "relatorio_sha256": "aa4913c87becaa77e21cff4b5e686922ed66bd33b3909cc42e69d7b9c84df1eb",
+                "cls": 0.0003573486328125
+              },
+              {
+                "performance": 97,
+                "accessibility": 100,
+                "iniciado_em": "2026-11-13T17:50:07.346Z",
+                "relatorio_sha256": "c21e653a65d2d08201c0b5d52e67dca07c71b31d2a610f442ae364670bcb818a",
+                "cls": 0.0003573486328125
+              },
+              {
+                "performance": 97,
+                "accessibility": 100,
+                "iniciado_em": "2026-11-13T17:50:13.730Z",
+                "relatorio_sha256": "84ceb3860bf27ed79e6260111a07136da38147ef691da3caa60761e8607f4269",
+                "cls": 0.0003573486328125
+              }
+            ]
+          },
+          {
+            "pagina": "prospeccao",
+            "performance": 97,
+            "accessibility": 100,
+            "amostras": [
+              {
+                "performance": 97,
+                "accessibility": 100,
+                "iniciado_em": "2026-11-13T17:50:20.041Z",
+                "relatorio_sha256": "4921a9424b9a29171b4aeabef556ba44dfe00923cde4a70f60c9a0c66a0bab94",
+                "cls": 0.02321722574869792
+              },
+              {
+                "performance": 97,
+                "accessibility": 100,
+                "iniciado_em": "2026-11-13T17:50:26.355Z",
+                "relatorio_sha256": "c6de53fae830976ef0d9a751d96d0689c7f234771878fb6307cca561f12d41cc",
+                "cls": 0.022859304199218753
+              },
+              {
+                "performance": 97,
+                "accessibility": 100,
+                "iniciado_em": "2026-11-13T17:50:32.578Z",
+                "relatorio_sha256": "4bc5cedb07594bc90e2ce84611de70c399a2d4ee5005c268df9cbf15d61faf2f",
+                "cls": 0.02321722574869792
+              }
+            ]
+          },
+          {
+            "pagina": "acerto",
+            "performance": 98,
+            "accessibility": 100,
+            "amostras": [
+              {
+                "performance": 93,
+                "accessibility": 100,
+                "iniciado_em": "2026-11-13T17:50:38.799Z",
+                "relatorio_sha256": "0b17bf86a1a8f385e9c8cc4b4fe2c19518b70971f238ffae622f5a1142e2f26a",
+                "cls": 0.1325886805555556
+              },
+              {
+                "performance": 98,
+                "accessibility": 100,
+                "iniciado_em": "2026-11-13T17:50:44.965Z",
+                "relatorio_sha256": "f904328ad2d9f25fb5135c6fbd36a7fd6d1d9d839e017df9594947f1fa5af5a9",
+                "cls": 0
+              },
+              {
+                "performance": 99,
+                "accessibility": 100,
+                "iniciado_em": "2026-11-13T17:50:51.035Z",
+                "relatorio_sha256": "b9b6f206b59525145a03b830d538023384ac536bb0a0468996b46a5195ace800",
+                "cls": 0
+              }
+            ]
+          },
+          {
+            "pagina": "produtor",
+            "performance": 100,
+            "accessibility": 100,
+            "amostras": [
+              {
+                "performance": 100,
+                "accessibility": 100,
+                "iniciado_em": "2026-11-13T17:50:57.338Z",
+                "relatorio_sha256": "7dc3d33532d59421775d684c67b67b3b73152b6e6b678dd94fd8277ec0f38c9c",
+                "cls": 0.0085903125
+              },
+              {
+                "performance": 100,
+                "accessibility": 100,
+                "iniciado_em": "2026-11-13T17:51:03.172Z",
+                "relatorio_sha256": "e52c7469610ad2c74f64cfb974ec98b25a7156b1cead5e8548c8e9e9c46317bd",
+                "cls": 0.0085903125
+              },
+              {
+                "performance": 100,
+                "accessibility": 100,
+                "iniciado_em": "2026-11-13T17:51:08.995Z",
+                "relatorio_sha256": "2afd67a618e147ecfaafba29692ca92393f6bffabb99eb0a4fe9f87a4aa480d2",
+                "cls": 0.0085903125
+              }
+            ]
+          }
+        ],
+        "commit": "e3b7f09a4b1802ea1688b7046c083686c3cfbf7a",
+        "commit_fonte": "e3b7f09a4b1802ea1688b7046c083686c3cfbf7a",
+        "dados": "Fixture sintética do CI, distinta do snapshot real de 444 municípios.",
+        "rotas": 6,
+        "amostras_por_rota": 3,
+        "resultado": "aprovado",
+        "relatorio_fixture_sha256": "3a9e3e2b283d775f28167b9e3c52a092f65a7e5f3cef175beb30ee1f5812ac04"
+      },
+      "commit_fonte": "e3b7f09a4b1802ea1688b7046c083686c3cfbf7a",
+      "snapshot": "/tmp/raiz-cls-real-projecao.json",
+      "site": "/tmp/raiz-cls-real-site",
+      "browser": "/tmp/raiz-chrome157/chrome-linux64/chrome",
+      "amostras": [
+        {
+          "rodada": 1,
+          "performance": 83,
+          "accessibility": 100,
+          "lcp": 757.692,
+          "tbt": 657.154,
+          "iniciado_em": "2026-11-13T17:51:33.904Z",
+          "relatorio_sha256": "f14855145867621279f891de909aea18c88b62eb49b72ec4f3a2ee1596405676",
+          "cls": 0.0006574804687500001,
+          "benchmark": 2252.5
+        },
+        {
+          "rodada": 2,
+          "performance": 87,
+          "accessibility": 100,
+          "lcp": 754.9522,
+          "tbt": 514.5000000000009,
+          "iniciado_em": "2026-11-13T17:51:42.100Z",
+          "relatorio_sha256": "a2d74bc1f748909a95527c3795ff73733a7139678744fe66ee07c5234835f80c",
+          "cls": 0.0006574804687500001,
+          "benchmark": 2132.5
+        },
+        {
+          "rodada": 3,
+          "performance": 95,
+          "accessibility": 100,
+          "lcp": 751.7393,
+          "tbt": 243.06517499999927,
+          "iniciado_em": "2026-11-13T17:51:49.514Z",
+          "relatorio_sha256": "d4d06f102fbc727f2be0d14a4d7e43febf6f5179fb957c61eb54c46715296378",
+          "cls": 0.0006574804687500001,
+          "benchmark": 2092.5
+        }
+      ],
+      "mediana_desempenho": 87,
+      "minimo_acessibilidade": 100,
+      "resultado": "reprovado",
+      "relatorio_real_sha256": "e910899892986f2e1bc5f73a378c9b697e582ecba80854a327299f2791ccd1a4",
+      "site_para_agentes": {
+        "lighthouse": "13.6.0",
+        "navegador": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/157.0.0.0 Safari/537.36",
+        "categoria": "agentic-browsing",
+        "score": 1,
+        "portao": {
+          "acessibilidade": 1,
+          "llms_txt": 1,
+          "cls_maximo": 0.1,
+          "nota_cls_minima": 0.9
+        },
+        "auditorias": [
+          {
+            "id": "agent-accessibility-tree",
+            "score": 1,
+            "modo": "binary"
+          },
+          {
+            "id": "webmcp-form-coverage",
+            "score": null,
+            "modo": "notApplicable"
+          },
+          {
+            "id": "webmcp-registered-tools",
+            "score": null,
+            "modo": "notApplicable"
+          },
+          {
+            "id": "webmcp-schema-validity",
+            "score": null,
+            "modo": "notApplicable"
+          },
+          {
+            "id": "cumulative-layout-shift",
+            "score": 1,
+            "modo": "numeric"
+          },
+          {
+            "id": "llms-txt",
+            "score": 1,
+            "modo": "binary"
+          },
+          {
+            "id": "ard-schema",
+            "score": null,
+            "modo": "notApplicable"
+          }
+        ],
+        "escopo": "Arquivos e links conferidos sob /Raiz/. Lighthouse executado em origem local com site na raiz; não comprova DNS ou a descoberta na origem pública. WebMCP e ARD apenas relatados.",
+        "cls": 0.001758130519118656,
+        "iniciado_em": "2026-11-13T17:48:36.503Z",
+        "relatorio_sha256": "abbd834a9d9605b343a90f94bd4a871f5647044d147efecd7529f14d92193efc",
+        "resultado": "aprovado",
+        "nota": "Categoria agentic-browsing; a pontuação não mede desempenho mobile."
+      },
+      "nota": "Série fixa preservada, mediana real 87 reprovada, apesar da fixture nacional 94 e do CLS corrigido."
+    },
+    "ci_03eccd8": {
+      "commit": "03eccd8e2a2e156f6ebf7ce238a7219fdfee8c91",
+      "run": "43473084402",
+      "url": "https://github.com/bernardoemmel/Raiz/actions/runs/43473084402",
+      "resultado": "reprovado; sete jobs verdes e dois reprovados",
+      "jobs": [
+        {
+          "nome": "testes_python",
+          "resultado": "success"
+        },
+        {
+          "nome": "e2e",
+          "resultado": "success"
+        },
+        {
+          "nome": "workflows",
+          "resultado": "success"
+        },
+        {
+          "nome": "seguranca",
+          "resultado": "success"
+        },
+        {
+          "nome": "referencia_para",
+          "resultado": "success"
+        },
+        {
+          "nome": "front",
+          "resultado": "failure"
+        },
+        {
+          "nome": "segredos",
+          "resultado": "failure"
+        },
+        {
+          "nome": "agentes",
+          "resultado": "success"
+        },
+        {
+          "nome": "checagens",
+          "resultado": "success"
+        }
+      ],
+      "lighthouse_mobile": {
+        "resultado": "skipped",
+        "amostras": [],
+        "nota": "Etapa não executada após falha no portão para agentes; nenhuma nota de desempenho mobile foi produzida."
+      },
+      "site_para_agentes": {
+        "categoria": "agentic-browsing",
+        "score": 0.93,
+        "cls": 0.13439512882520463,
+        "iniciado_em": "2026-11-13T17:31:03.893Z",
+        "resultado": "reprovado",
+        "relatorio_sha256": "a451c98535f5f309eaa87cbfe7b3998a8e912cb2fe29886d8049f858b6f67cb8",
+        "nota": "A categoria 0,93 não é uma nota de desempenho. O CLS de 0,134 excedeu o limite 0,1; correção no commit 56ab91d."
+      },
+      "segredos": {
+        "resultado": "reprovado",
+        "causa": "Dois SHA256 de relatórios no JSON foram confundidos com tokens pela regra sumologic-access-token; prova estática preservou valores e proveniência.",
+        "correcao": "437f08a: exceções estritas dos dois fingerprints históricos; as chaves correntes usam relatorio_real_sha256 e relatorio_fixture_sha256.",
+        "prova_sha256": "4e676079d2a99b28109e891c2524364cfac3adb621b1428f8f13d71e41ed94e0"
+      },
+      "testes_python": {
+        "job_id": 132049782731,
+        "conclusion": "success",
+        "passed": 3528,
+        "deselected": 1,
+        "xfailed": 1,
+        "skipped": 0,
+        "failed": 0,
+        "errors": 0,
+        "warnings": 807,
+        "duracao_pytest_segundos": 1749.57,
+        "duracao_pytest": "0:29:09"
+      },
+      "referencia_para": {
+        "job_id": 132049782987,
+        "status": "completed",
+        "conclusion": "success"
+      },
+      "relatorio_jobs_sha256": "0e14a95f25566f26b1cef061cfb96f151c317f87775bb11eb4b62ded14bdfa73",
+      "relatorio_python_sha256": "3c5f9933936d72918bf3cb21979a7512f6b05b02a812bcb47371954a223d442f"
+    },
+    "ci_91e33ce_43485577728": {
+      "head": "91e33cebedc968ed19f267b3a3df58cb2d88a843",
+      "run": "https://github.com/bernardoemmel/Raiz/actions/runs/43485577728",
+      "ambiente": "fixture no CI; não substitui o snapshot real local",
+      "front_resultado": "success",
+      "front_testes": 588,
+      "celular": {
+        "axe": [
+          {
+            "pagina": "brasil-360",
+            "regras": 32,
+            "violacoes": 0
+          },
+          {
+            "pagina": "municipio-360",
+            "regras": 31,
+            "violacoes": 0
+          },
+          {
+            "pagina": "entrada-erro-360",
+            "regras": 25,
+            "violacoes": 0
+          },
+          {
+            "pagina": "novo-pedido-360",
+            "regras": 27,
+            "violacoes": 0
+          },
+          {
+            "pagina": "novo-pedido-filtros-360",
+            "regras": 27,
+            "violacoes": 0
+          },
+          {
+            "pagina": "prospeccao-publica-360",
+            "regras": 27,
+            "violacoes": 0
+          },
+          {
+            "pagina": "produtor-360",
+            "regras": 13,
+            "violacoes": 0
+          }
+        ],
+        "lighthouse": [
+          {
+            "pagina": "brasil",
+            "performance": 96,
+            "accessibility": 100,
+            "amostras": [
+              {
+                "performance": 96,
+                "accessibility": 100
+              },
+              {
+                "performance": 96,
+                "accessibility": 100
+              },
+              {
+                "performance": 96,
+                "accessibility": 100
+              }
+            ]
+          },
+          {
+            "pagina": "entrar",
+            "performance": 99,
+            "accessibility": 100,
+            "amostras": [
+              {
+                "performance": 99,
+                "accessibility": 100
+              },
+              {
+                "performance": 99,
+                "accessibility": 100
+              },
+              {
+                "performance": 98,
+                "accessibility": 100
+              }
+            ]
+          },
+          {
+            "pagina": "novo-pedido",
+            "performance": 98,
+            "accessibility": 100,
+            "amostras": [
+              {
+                "performance": 98,
+                "accessibility": 100
+              },
+              {
+                "performance": 98,
+                "accessibility": 100
+              },
+              {
+                "performance": 98,
+                "accessibility": 100
+              }
+            ]
+          },
+          {
+            "pagina": "prospeccao",
+            "performance": 98,
+            "accessibility": 100,
+            "amostras": [
+              {
+                "performance": 98,
+                "accessibility": 100
+              },
+              {
+                "performance": 98,
+                "accessibility": 100
+              },
+              {
+                "performance": 97,
+                "accessibility": 100
+              }
+            ]
+          },
+          {
+            "pagina": "acerto",
+            "performance": 98,
+            "accessibility": 100,
+            "amostras": [
+              {
+                "performance": 98,
+                "accessibility": 100
+              },
+              {
+                "performance": 98,
+                "accessibility": 100
+              },
+              {
+                "performance": 93,
+                "accessibility": 100
+              }
+            ]
+          },
+          {
+            "pagina": "produtor",
+            "performance": 100,
+            "accessibility": 100,
+            "amostras": [
+              {
+                "performance": 100,
+                "accessibility": 100
+              },
+              {
+                "performance": 100,
+                "accessibility": 100
+              },
+              {
+                "performance": 100,
+                "accessibility": 100
+              }
+            ]
+          }
+        ]
+      },
+      "relatorio_celular_sha256": "69c89d9ce0f44d562e94053bd574435ce76a6219f3bdd7ff6e56d259db1d63c4",
+      "artefato_celular": 14068010846,
+      "site_para_agentes": {
+        "categoria": 1,
+        "cls": 0.001758130519118656,
+        "fetchTime": "2026-11-13T18:48:09.053Z",
+        "artefato": 14068205093,
+        "relatorio_sha256": "c4381d9d3c19def9a8fbdac0e1a276ca720c2e305eea5e5c86db0791c7ca0134"
+      },
+      "limite": "CI integral do head91e33ce; não comprova as revisões posteriores nem substitui o snapshot real local. Todos os resultados anteriores são preservados.",
+      "suite_global": {
+        "resultado": "success",
+        "jobs_aprovados": 9,
+        "python_passaram": 3528,
+        "python_deselected": 1,
+        "python_xfailed": 1,
+        "python_skipped": 0,
+        "referencia_para": "success"
+      }
+    }
+  },
+  "lighthouse_versao": "13.6.0",
+  "navegador": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/157.0.0.0 Safari/537.36",
+  "browser_versao": "Chrome for Testing 157.0.8103.78",
+  "proveniencia_fontes": {
+    "commit": "7fe3539f63416258f0d91e1c4371fc4d52899aa6",
+    "runtime_fonte": "7fe3539f63416258f0d91e1c4371fc4d52899aa6",
+    "front_tree": "6951762eca99cec80653104750d59573f0230d2d",
+    "fontes_front_sha256": {
+      "front/compartilhado/dados/fonte-amostra.ts": "ffb5397a64ae167589636dc19c5d3a71727dec255224bf6e7004527625b28d45",
+      "front/compartilhado/gerar-shader-simbolo.ts": "5015ff238229aabdb8209697ac715e6a852807c2207e2b729c103d229f5da7cd",
+      "front/globo/src/mapa/MapaBrasil.tsx": "eb2f4e4bc15dfd15af346843ab565e0197c528ccc6cef0b8dc7b228314cf246e",
+      "front/globo/src/mapa/aquecer-simbolo.ts": "091ecb051f887c73c7d5b4fd3a4933d2e71a027bfaf206cf91afdb54be7daf40",
+      "front/globo/src/mapa/estilo.ts": "bff951496753960bab113e4f98e8977fe6429b70e192bf0823356e358b3d8029",
+      "front/globo/src/mapa/grupos.ts": "d3d8ec1e311e5ac444e5d8f7a55d82507596dc1012c6fd0eedb046950bd712d3",
+      "front/globo/src/mapa/indice-grupos.ts": "9f76cc5e9b21d47646b41c621baade17ebcfa47b1476c7d40b0a2eb3dfdc4407",
+      "front/globo/src/mapa/nacional.ts": "5daa28f59108e486eec53777f2b23a3d9990f9dd15ff36b52e0ebcf53bfb1cef",
+      "front/globo/src/mapa/preparar-gpu.ts": "ceed50c460d30d024af16edd9ea668fe046f5b5e6ec1a95330147c9fce28e027",
+      "front/globo/src/mapa/preparar-gpu.worker.ts": "f6385d7eb8c2f149b70c49cf43336f355586d81254cca91dfd508c8b483c730f",
+      "front/globo/src/mapa/preparar-programas-nacionais.test.ts": "cca02831828ee498b10251f9eb9ee52b84747131888cf47cce5e9e50822b2ba8",
+      "front/globo/src/mapa/preparar-programas-nacionais.ts": "40747830a2ac09ed27a2b0c89f9c86d29b0ffa51dfc8d83011fa54e1e997d080",
+      "front/globo/src/mapa/servidor-grupos.ts": "e76951144a07f0121b7abde570adce655701945c28ae3689bea665c2d4d41261",
+      "front/globo/src/mapa/shader-simbolo.generated.ts": "433ff23343cb700dccaf15016e9b7b12574be7f12dcb7f41b0e9024bf70523a0",
+      "front/globo/src/mapa/worker-grupos.ts": "e013173eecea21a51fa5c85938961edb15d0db7492a595d69d45e79518970225",
+      "front/globo/src/partes/PainelProcessamentoEstados.tsx": "1abab7d3ef3c381f02ac91db31c1db54feccbbb5cf3050d29ba8ae93339bd7cb",
+      "front/globo/src/telas/Explorar.tsx": "2637e80aadda37885adc2c588ee464fbbb5e9c78267cfc65af05052e4965c274",
+      "front/globo/src/partes/PainelBrasil.tsx": "2ba77622e80e392552590da86901b790d9c897b738be4ad91f92e6a1eae9e561",
+      "front/globo/src/partes/PainelCobertura.tsx": "22674a52003e6a6193c7081c83cea8750294a0693558fb4657401b2c07f38df2",
+      "front/globo/src/raiz.css": "887a418b2dd6257bac32c760db349708ad6277c36574abff8846d4f2ece2f2ba",
+      "front/globo/index.html": "f2278e0ef736c771d5c773e034aa4909210baeb45ec7012761b9c4dd2a132b7f"
+    },
+    "projecao_sha256": "925fe12bfcb59596a527caee9583f060ef21082312a3ee79e4fa3667d1119523",
+    "relatorio_real_sha256": "3b50ac7276b73763ff1aab87a77a7ae370d30ee635e8728f7caefdab919df5c6",
+    "relatorio_fixture_sha256": "7f2119f0993b8eacb444cf6e40e25e7f2d15d9f3a4d76bbf4335283d2b73d0ba"
+  },
+  "resultado": "reprovado",
+  "site_para_agentes": {
+    "lighthouse": "13.6.0",
+    "navegador": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/157.0.0.0 Safari/537.36",
+    "categoria": "agentic-browsing",
+    "score": 1,
+    "portao": {
+      "acessibilidade": 1,
+      "llms_txt": 1,
+      "cls_maximo": 0.1,
+      "nota_cls_minima": 0.9
+    },
+    "auditorias": [
+      {
+        "id": "agent-accessibility-tree",
+        "score": 1,
+        "modo": "binary"
+      },
+      {
+        "id": "webmcp-form-coverage",
+        "score": null,
+        "modo": "notApplicable"
+      },
+      {
+        "id": "webmcp-registered-tools",
+        "score": null,
+        "modo": "notApplicable"
+      },
+      {
+        "id": "webmcp-schema-validity",
+        "score": null,
+        "modo": "notApplicable"
+      },
+      {
+        "id": "cumulative-layout-shift",
+        "score": 1,
+        "modo": "numeric"
+      },
+      {
+        "id": "llms-txt",
+        "score": 1,
+        "modo": "binary"
+      },
+      {
+        "id": "ard-schema",
+        "score": null,
+        "modo": "notApplicable"
+      }
+    ],
+    "escopo": "Arquivos e links conferidos sob /Raiz/. Lighthouse executado em origem local com site na raiz; não comprova DNS ou a descoberta na origem pública. WebMCP e ARD apenas relatados.",
+    "cls": 0.001758130519118656,
+    "iniciado_em": "2026-11-13T18:16:28.157Z",
+    "relatorio_sha256": "33cc9b5bf0f2edc97b8c1cfdc3e9f78c395b2c0cb227fa8c63afdb0093c951b8",
+    "resultado": "aprovado",
+    "nota": "Categoria agentic-browsing; a pontuação não mede desempenho mobile."
+  },
+  "benchmarks": [
+    1994,
+    2116.5,
+    2228
+  ],
+  "erro": "A mediana de desempenho precisa chegar a 90; recebeu 88.",
+  "preload_fontes": {
+    "familias": [
+      "Familjen Grotesk 600",
+      "Atkinson Hyperlegible Next 400",
+      "Atkinson Hyperlegible Next 700"
+    ],
+    "arquivos_iguais_ao_css": true,
+    "transferencias_por_arquivo": 1,
+    "relatorio_sha256": "0d74b5a605a5ca51b01c0480c53cb58a45fdfb8628df0b53bc597a70d4971fc7"
+  }
+}

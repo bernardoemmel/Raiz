@@ -1,6 +1,6 @@
-"""Publicação no Release `vigilancia` do GitHub (o repositório é público).
+"""Publicação autenticada no arquivo privado da Raíz.
 
-- Parte pública (alertas de imóvel, espelho do Ibama, fontes, rodadas): arquivos abertos, como os do Release dados.
+- Alertas de imóvel, espelho do Ibama, fontes e rodadas também ficam no Release privado: são histórico por CAR.
 - Parte privada (alertas de projeto, perdas, marcações, eventos): um pacote só, `privado.tar.gz.cifrado`, cifrado com
   Fernet (AES-128 + HMAC-SHA256, biblioteca cryptography) com a chave de RAIZ_VIGILANCIA_CHAVE. Sem a chave, a parte
   privada não sai da máquina (e a rodada avisa).
@@ -17,6 +17,7 @@ import hashlib
 import io
 import json
 import logging
+import os
 import shutil
 import tarfile
 from pathlib import Path
@@ -93,34 +94,37 @@ def desempacotar(dado: bytes, destino: Path) -> None:
 
 class Release:
     def __init__(self, cfg: Config | None = None, tag: str | None = None):
+        from raiz.executor.armazem import ArmazemRelease, destino_privado
+
         self.cfg = cfg or config()
-        self.repo = self.cfg.repo
-        self.tag = tag or self.cfg.tag_vigilancia
+        destino = destino_privado()
+        self.repo, self.tag = destino or (self.cfg.repo, tag or self.cfg.tag_vigilancia)
+        self.token = os.environ.get("RAIZ_DADOS_PRIVADOS_TOKEN") or self.cfg.token_github
+        self._arm = (
+            ArmazemRelease(
+                self.repo, self.tag, espelho=self.cfg.cache / "release_privado", token=self.token or "", privado=True
+            )
+            if destino
+            else None
+        )
         self._id: int | None = None
+
+    def _exigir_privado(self):
+        if self._arm is None:
+            raise PermissionError("a vigilância exige RAIZ_DADOS_PRIVADOS_URL e acesso autenticado ao arquivo privado")
+        self._arm._exigir_privado()
+        return self._arm
 
     def _h(self, extra: dict | None = None) -> dict:
         h = {"Accept": "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28"}
-        if self.cfg.token_github:
-            h["Authorization"] = f"Bearer {self.cfg.token_github}"
+        if self.token:
+            h["Authorization"] = f"Bearer {self.token}"
         h.update(extra or {})
         return h
 
     def id(self, criar: bool = False) -> int | None:
-        if self._id is not None:
-            return self._id
-        r = rede.pedir("GET", f"{API}/repos/{self.repo}/releases/tags/{self.tag}", ok=(200, 404), headers=self._h())
-        if r.status_code == 200:
-            self._id = int(r.json()["id"])
-        elif criar:
-            corpo = {
-                "tag_name": self.tag,
-                "target_commitish": "main",
-                "name": "Vigilância das fazendas e dos projetos (atualizada sozinha)",
-                "body": DESCRICAO_RELEASE,
-                "prerelease": True,
-            }
-            r = rede.pedir("POST", f"{API}/repos/{self.repo}/releases", ok=(201,), headers=self._h(), json=corpo)
-            self._id = int(r.json()["id"])
+        # Nunca cria ou publica automaticamente um Release: rascunho que virou público fecha o acesso.
+        self._id = int(self._exigir_privado()._release()["id"])
         return self._id
 
     def ativos(self) -> dict[str, dict]:
@@ -143,6 +147,7 @@ class Release:
             pagina += 1
 
     def baixar(self, ativo: dict) -> bytes:
+        self._exigir_privado()
         r = rede.pedir(
             "GET",
             f"{API}/repos/{self.repo}/releases/assets/{ativo['id']}",
@@ -153,7 +158,7 @@ class Release:
 
     def subir(self, nome: str, dado: bytes, tipo: str = "application/octet-stream") -> None:
         """Sobe com nome provisório, apaga o antigo e renomeia (o arquivo nunca fica faltando por muito tempo)."""
-        if not self.cfg.token_github:
+        if not self.token:
             raise RuntimeError("sem token do GitHub (RAIZ_GITHUB_TOKEN, GITHUB_TOKEN ou GH_TOKEN) para publicar")
         rid = self.id(criar=True)
         atuais = self.ativos()
@@ -180,6 +185,7 @@ class Release:
         )
 
     def apagar(self, ativo: dict) -> None:
+        self._exigir_privado()
         rede.pedir("DELETE", f"{API}/repos/{self.repo}/releases/assets/{ativo['id']}", ok=(204, 404), headers=self._h())
 
 

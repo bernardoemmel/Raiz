@@ -28,10 +28,12 @@ import { Estado } from "../partes/Estado"
 import { AvisoExemplo } from "../partes/pedido/AvisoExemplo"
 import { FaixaBarra } from "../partes/pedido/FaixaBarra"
 import { SeloStatus } from "../partes/pedido/SeloStatus"
+import { SensibilidadePedido } from "../partes/pedido/SensibilidadePedido"
 import { ComparacaoLotes } from "../partes/pedido/ComparacaoLotes"
-import { AvisoPublicacao, BasePublicada, QuadroDestrava } from "../partes/pedido/PublicacaoPedido"
+import { AcessoDetalhesLote, AvisoPublicacao, BasePublicada, QuadroDestrava } from "../partes/pedido/PublicacaoPedido"
+import { CoberturaPedido } from "../partes/pedido/CoberturaPedido"
 import "../partes/pedido/pedido.css"
-import { linkFazenda, linkGrupo, linkPedidos } from "../rota"
+import { linkFazenda, linkFichaLote, linkGrupo, linkPedidos, linkPasta } from "../rota"
 
 const MapaLote = lazy(() => import("../mapa/MapaLote").then((m) => ({ default: m.MapaLote })))
 
@@ -85,8 +87,9 @@ export function PedidoTela({ id }: { id: string }) {
   const opcao = pedido?.opcoes.find((o) => o.id === aba) ?? null
   const fazendas = useMemo<FazendaNoMapa[]>(() => {
     // Fora do acompanhamento, as três alternativas dividem o mesmo mapa, cada uma com sua cor.
+    if (pedido?.publicacao) return []
     return andamento ? andamento.fazendas : (pedido?.opcoes ?? []).flatMap((o) => o.itens.map((f) => ({ ...f, opcao: o.id })))
-  }, [pedido?.opcoes, andamento])
+  }, [pedido?.opcoes, pedido?.publicacao, andamento])
 
   const temFazendas = fazendas.length > 0
   const brasil = useCarga(() => temFazendas ? fonte.geo.brasil() : Promise.resolve(null), [temFazendas])
@@ -142,9 +145,11 @@ export function PedidoTela({ id }: { id: string }) {
               <ShieldCheck size={16} aria-hidden="true" /> {pedido.publicacao ? "Consulta salva neste navegador" : "Pedido salvo"}
             </span>
           </div>
+          {!pedido.publicacao && !pedido.exemplo && <p><a href={linkPasta(id, aba)}>Pasta do banco e do comprador</a></p>}
           {!pedido.publicacao && <Alertas pedido={pedido} />}
           <AvisoExemplo ativo={!!pedido.exemplo} />
           {pedido.publicacao && <AvisoPublicacao publicacao={pedido.publicacao} />}
+          <CoberturaPedido onde={pedido.campos.onde} />
           {erro && (
             <p className="erro-campo" role="alert">
               {erro}
@@ -154,9 +159,12 @@ export function PedidoTela({ id }: { id: string }) {
           {pedido.publicacao ? <BasePublicada publicacao={pedido.publicacao} /> : <QuadroBase pedido={pedido} unidade={unidade} />}
           <ComparacaoLotes opcoes={pedido.opcoes} publicadas={pedido.publicacao?.opcoes} selecionar={(id) => { setAba(id); setEscolhida(null) }} />
 
-          {item && (
+          {!pedido.publicacao && <SensibilidadePedido pedido={pedido} />}
+
+          {!pedido.publicacao && item && (
             <FazendaEscolhida
               item={item}
+              exemplo={!!pedido.exemplo}
               nivel={nivelNoAndamento ?? item.interesse}
               opcao={opcao!}
               podeMudar={!pedido.opcao_escolhida && !ocupado && !pedido.publicacao}
@@ -165,7 +173,7 @@ export function PedidoTela({ id }: { id: string }) {
             />
           )}
 
-          <section className="secao-painel" aria-labelledby="opcoes-titulo">
+          {!pedido.publicacao && <section className="secao-painel" aria-labelledby="opcoes-titulo">
             <h2 id="opcoes-titulo">O melhor agrupamento</h2>
             <Abas.Root value={aba} onValueChange={(v) => (setAba(v as IdOpcao), setEscolhida(null))}>
               <Abas.List className="abas" aria-label="Opções de lote">
@@ -179,13 +187,14 @@ export function PedidoTela({ id }: { id: string }) {
               {pedido.opcoes.map((o) => (
                 <Abas.Content key={o.id} value={o.id} className="aba-conteudo">
                   <NumerosOpcao opcao={o} meta={pedido.campos.meta.valor} unidade={unidade} exemplo={!!pedido.exemplo} versao={pedido.versao_modelo} />
+                  <p><a className="botao" href={linkFichaLote(pedido.id, o.id)}>Ficha resumida desta opção</a></p>
                   <TabelaLote opcao={o} andamento={andamento} escolher={setEscolhida} escolhida={escolhida} />
                 </Abas.Content>
               ))}
             </Abas.Root>
-          </section>
+          </section>}
 
-          <QuadroDestrava pedido={pedido} opcao={aba} />
+          {pedido.publicacao ? <AcessoDetalhesLote /> : <QuadroDestrava pedido={pedido} opcao={aba} />}
 
           {!pedido.opcao_escolhida ? (
             <section className="secao-painel" aria-labelledby="solicitar-titulo">
@@ -198,7 +207,8 @@ export function PedidoTela({ id }: { id: string }) {
             <PainelAndamento pedido={pedido} andamento={andamento} unidade={unidade} />
           )}
         </aside>
-        <div className={`pedido-mapa${!fazendas.length ? " pedido-mapa-pendente" : ""}`}>
+        {!pedido.publicacao && <div className={`pedido-mapa${!fazendas.length ? " pedido-mapa-pendente" : ""}`}>
+          {pedido.exemplo && <p className="pedido-cena-resumo"><strong>Mapa de demonstração: contornos fictícios.</strong> Não corresponde às fazendas selecionadas no Release.</p>}
           {!fazendas.length ? <h2>Mapa dos lotes</h2> : brasil.dado ? (
             <Suspense fallback={<p role="status">Abrindo o mapa dos lotes…</p>}><MapaLote base={brasil.dado.base} fazendas={fazendas} modo={andamento ? "interesse" : "opcoes"} escolhida={escolhida} aoEscolher={setEscolhida} aoEscolherOpcao={setAba} opcaoAtiva={aba} /></Suspense>
           ) : (
@@ -208,7 +218,7 @@ export function PedidoTela({ id }: { id: string }) {
           )}
           <LegendaLote andamento={!!andamento} />
           {!fazendas.length && <p className="aviso" role="status">Os desenhos dependem de consulta autorizada e cobertura geográfica. Quando o motor entregar os contornos autorizados, as três opções aparecerão nas cores da legenda.</p>}
-        </div>
+        </div>}
       </div>
     </Moldura>
   )
@@ -426,11 +436,8 @@ function NumerosOpcao({ opcao: o, meta, unidade, exemplo, versao }: { opcao: Opc
       <details className="como-calculamos-pedido">
         <summary>Ver como calculamos</summary>
         {exemplo ? <p>
-          Crédito líquido = potencial de captura do motor (carbono_tco2_ano) em {PREMISSAS.anos} anos, menos {fmtPct(PREMISSAS.desconto_liquido)} de linha
-          de base, vazamento e reserva de não permanência; faixa de {fmtPct(PREMISSAS.p10)} a {fmtPct(PREMISSAS.p90)} do P50. Custo por hectare
-          restaurado: regeneração assistida {fmtUsd(PREMISSAS.custo_ha_usd.regeneracao_assistida)}, semeadura direta{" "}
-          {fmtUsd(PREMISSAS.custo_ha_usd.semeadura_direta)}, plantio total {fmtUsd(PREMISSAS.custo_ha_usd.plantio_total)}, mais um custo fixo por
-          fazenda. A mais segura fecha a meta no P10. Valores exatos: {fmtInt(o.creditos.p10)}, {fmtInt(o.creditos.p50)} e {fmtInt(o.creditos.p90)} {unidade}.
+          Dados inventados para demonstrar o formato da API. Não há cálculo de crédito ou retorno a partir de imóveis reais neste exemplo.
+          Valores fictícios da opção: P10 {fmtInt(o.creditos.p10)}, P50 {fmtInt(o.creditos.p50)} e P90 {fmtInt(o.creditos.p90)} créditos.
         </p> : <p>Números entregues pelo motor, modelo {versao}. Créditos líquidos P10: {fmtInt(o.creditos.p10)}, P50: {fmtInt(o.creditos.p50)}, P90: {fmtInt(o.creditos.p90)}. As faixas de custo e retorno são as publicadas para este lote; não são calculadas pela tela.</p>}
       </details>
     </div>
@@ -442,7 +449,7 @@ function TabelaLote({ opcao, andamento, escolher, escolhida }: { opcao: Opcao; a
   const [todas, setTodas] = useState(false)
   const lista = todas ? opcao.itens : opcao.itens.slice(0, 12)
   return (
-    <div className="tabela-rolagem">
+    <div className="tabela-rolagem" role="region" aria-label="Fazendas da opção" tabIndex={0}>
       <table className="tabela-simples tabela-lote">
         <caption>Fazendas da opção (toque para ver a ficha)</caption>
         <thead>
@@ -457,7 +464,7 @@ function TabelaLote({ opcao, andamento, escolher, escolhida }: { opcao: Opcao; a
         </thead>
         <tbody>
           {lista.map((i) => {
-            const selo = seloDeNivel(i.caminho, nivel.get(i.cod_imovel) ?? i.interesse)
+            const selo = i.caminho ? seloDeNivel(i.caminho, nivel.get(i.cod_imovel) ?? i.interesse) : { classe: "", texto: "Ficha paga" }
             return (
               <tr key={i.cod_imovel} aria-selected={escolhida === i.cod_imovel}>
                 <th scope="row">
@@ -467,7 +474,7 @@ function TabelaLote({ opcao, andamento, escolher, escolhida }: { opcao: Opcao; a
                   <small>{i.municipio}</small>
                 </th>
                 <td>{i.papel === "lote" ? (i.trocou ? "Lote (troca)" : "Lote") : "Reserva"}</td>
-                <td className="num">{fmtInt(i.creditos.p50)}</td>
+                <td className="num">{i.creditos ? fmtInt(i.creditos.p50) : "Ficha paga"}</td>
                 <td>
                   <span className={`selo-nivel ${selo.classe}`}>{selo.texto}</span>
                 </td>
@@ -487,6 +494,7 @@ function TabelaLote({ opcao, andamento, escolher, escolhida }: { opcao: Opcao; a
 
 function FazendaEscolhida({
   item,
+  exemplo,
   nivel,
   opcao,
   podeMudar,
@@ -494,6 +502,7 @@ function FazendaEscolhida({
   fechar,
 }: {
   item: FazendaDoLote
+  exemplo: boolean
   nivel: NivelInteresse
   opcao: Opcao
   podeMudar: boolean
@@ -507,7 +516,7 @@ function FazendaEscolhida({
   useEffect(() => {
     secao.current?.scrollIntoView({ block: "nearest", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" })
   }, [item.cod_imovel])
-  const selo = seloDeNivel(item.caminho, nivel)
+  const selo = item.caminho ? seloDeNivel(item.caminho, nivel) : { classe: "", texto: "Ficha paga" }
   return (
     <section className="secao-painel fazenda-escolhida" aria-labelledby="fe-titulo" ref={secao}>
       <div className="secao-cabeca">
@@ -521,26 +530,27 @@ function FazendaEscolhida({
       <p>
         {item.papel === "lote" ? "No lote" : "De reserva"}, em {item.municipio} ({item.uf}). <span className={`selo-nivel ${selo.classe}`}>{selo.texto}</span>
       </p>
+      {item.ficha_liberada === false && <p>Os dados desta fazenda ficam na ficha paga. Abra a ficha para consultar os créditos e liberar o acesso.</p>}
       <dl className="ficha-numeros">
         <div>
           <dt>Pode voltar a ser mata</dt>
-          <dd>{fmtHa(item.hectares)}</dd>
+          <dd>{item.hectares === null ? "Disponível na ficha paga" : fmtHa(item.hectares)}</dd>
         </div>
         <div>
           <dt>Créditos líquidos</dt>
-          <dd>{fmtFaixa(item.creditos)}</dd>
+          <dd>{item.creditos ? fmtFaixa(item.creditos) : "Disponível na ficha paga"}</dd>
         </div>
         <div>
           <dt>Restauração</dt>
-          <dd>{ROTULO_METODO[item.metodo]}</dd>
+          <dd>{item.metodo ? ROTULO_METODO[item.metodo] : "Disponível na ficha paga"}</dd>
         </div>
         <div>
           <dt>Caminho da terra</dt>
-          <dd>{ROTULO_CAMINHO[item.caminho]}</dd>
+          <dd>{item.caminho ? ROTULO_CAMINHO[item.caminho] : "Disponível na ficha paga"}</dd>
         </div>
         <div>
           <dt>Custo por crédito</dt>
-          <dd>{fmtUsd(item.custo_usd_credito)}</dd>
+          <dd>{item.custo_usd_credito === null ? "Disponível na ficha paga" : fmtUsd(item.custo_usd_credito)}</dd>
         </div>
         <div>
           <dt>Interesse do dono</dt>
@@ -549,9 +559,9 @@ function FazendaEscolhida({
       </dl>
       {item.pequena && <p className="legenda-frase">Pequena propriedade: entra agrupada com as vizinhas.</p>}
       <div className="acoes">
-        <a className="botao" href={linkFazenda(item.cod_imovel)}>
+        {exemplo ? <p>Fazenda fictícia: não há ficha real para abrir.</p> : <a className="botao" href={linkFazenda(item.cod_imovel)}>
           Abrir a ficha
-        </a>
+        </a>}
         {podeMudar && item.papel === "lote" && (
           <>
             <button type="button" className="botao" onClick={() => mudar("tirar", item.cod_imovel)}>
@@ -568,7 +578,7 @@ function FazendaEscolhida({
           {reservas.map((r) => (
             <li key={r.cod_imovel}>
               <span>
-                <code>{abreviarCar(r.cod_imovel)}</code> <small>{fmtInt(r.creditos.p50)} créditos, {fmtUsd(r.custo_usd_credito)} por crédito</small>
+                <code>{abreviarCar(r.cod_imovel)}</code> <small>{r.creditos && r.custo_usd_credito !== null ? `${fmtInt(r.creditos.p50)} créditos, ${fmtUsd(r.custo_usd_credito)} por crédito` : "Disponível na ficha paga"}</small>
               </span>
               <button type="button" className="botao" onClick={() => mudar("trocar", item.cod_imovel, r.cod_imovel)}>
                 Trocar por esta

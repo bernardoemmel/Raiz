@@ -1,12 +1,17 @@
 name: Calendário diário da Raíz
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - "raiz/calendario/**"
+      - ".github/workflows/calendario.yml"
   schedule:
     - cron: "11 9 * * *" # 06h11 em Brasília
   workflow_dispatch:
     inputs:
       fontes:
-        description: "IDs de fontes separados por vírgula; vazio consulta todas"
+        description: "IDs de fontes; vazio consulta nacionais e diários dos estados processados"
         required: false
         default: ""
 
@@ -28,17 +33,38 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.13.6"
       - name: Dependências
         run: uv sync --frozen
+      - name: Leitura de PDFs e OCR dos documentos escaneados
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends poppler-utils tesseract-ocr tesseract-ocr-por
       - name: Recuperar o estado anterior
         run: |
           mkdir -p dados/calendario
-          if gh release view calendario --json tagName >/dev/null 2>/tmp/calendario-release-erro; then
-            gh release download calendario -p estado.json -D dados/calendario
+          if gh release view calendario -R "$GITHUB_REPOSITORY" --json tagName >/dev/null 2>/tmp/calendario-release-erro; then
+            gh release download calendario -R "$GITHUB_REPOSITORY" -p estado.json -D dados/calendario
           elif ! grep -Eqi 'release not found|HTTP 404|Not Found' /tmp/calendario-release-erro; then
             cat /tmp/calendario-release-erro >&2
             exit 1
           fi
+      - name: Conferir a cobertura pública dos estados
+        if: inputs.fontes == ''
+        run: |
+          uv run python - <<'PY'
+          import json
+          from pathlib import Path
+          from raiz.calendario.catalogo import carregar_manifesto
+
+          # A cobertura já é pública. Usa o mesmo leitor limitado e validado do CLI,
+          # sem depender da descoberta do Release pela API autenticada do GitHub.
+          dados = carregar_manifesto()
+          Path('dados/calendario/estados.json').write_text(
+              json.dumps(dados, ensure_ascii=False), encoding='utf-8'
+          )
+          PY
       - name: Coleta das fontes oficiais
         id: coleta
         env:
@@ -46,14 +72,18 @@ jobs:
         run: |
           args=(coletar --sem-banco --saida dados/calendario)
           [ ! -f dados/calendario/estado.json ] || args+=(--anterior dados/calendario/estado.json)
-          [ -z "$FONTES" ] || args+=(--fontes "$FONTES")
+          if [ -n "$FONTES" ]; then
+            args+=(--fontes "$FONTES")
+          else
+            args+=(--manifesto-estados dados/calendario/estados.json)
+          fi
           uv run raiz calendario "${args[@]}"
       - name: Publicar o que foi coletado, mesmo com uma fonte indisponível
         if: always() && steps.coleta.outputs.gerado == '1'
         run: |
-          gh release view calendario >/dev/null 2>&1 || gh release create calendario --prerelease --target main \
+          gh release view calendario -R "$GITHUB_REPOSITORY" >/dev/null 2>&1 || gh release create calendario -R "$GITHUB_REPOSITORY" --prerelease --target main \
             --title "Calendário da Raíz" --notes "Fontes oficiais e prazos extraídos automaticamente. Sem nomes, CPF/CNPJ ou texto bruto de editais. Consulte a situação de cada fonte no JSON."
-          gh release upload calendario dados/calendario/estado.json dados/calendario/eventos.json dados/calendario/eventos.ics --clobber
+          gh release upload calendario -R "$GITHUB_REPOSITORY" dados/calendario/estado.json dados/calendario/eventos.json dados/calendario/eventos.ics --clobber
       - name: Resumo da cobertura
         if: always() && steps.coleta.outputs.gerado == '1'
         run: |

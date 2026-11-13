@@ -43,7 +43,7 @@ export function MeusPedidos() {
             <Plus size={20} aria-hidden="true" /> Novo pedido
           </a>
         </div>
-        {pedidos.publica ? <p className="legenda-frase">Consultas ao Release salvas apenas neste navegador. Os critérios não iniciam contato nem reserva.</p> : <p className="legenda-frase">
+        {pedidos.publica ? <p className="legenda-frase">Critérios de consulta salvos apenas neste navegador. Os critérios não iniciam contato nem reserva.</p> : <p className="legenda-frase">
           Entrou como {sessao?.email}.{" "}
           <button
             type="button"
@@ -88,7 +88,7 @@ export function MeusPedidos() {
                     <small>Pedido de {dataLonga(p.criado_em)}</small>
                   </span>
                   <span className="lp-status">
-                    {pedidos.publica ? <span className="selo neutro">Consulta ao Release</span> : <SeloStatus status={p.status} reservadoAte={p.reservado_ate} />}
+                    {pedidos.publica ? <span className="selo neutro">Consulta territorial</span> : <SeloStatus status={p.status} reservadoAte={p.reservado_ate} />}
                     {p.com_interesse !== null && p.status === "buscando_interesse" && <small>{fmtPct(p.com_interesse)} da meta com dono interessado</small>}
                     {p.alertas > 0 && <small className="lp-alerta">{p.alertas === 1 ? "1 alerta" : `${p.alertas} alertas`}</small>}
                   </span>

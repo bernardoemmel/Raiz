@@ -5,23 +5,36 @@ Três telas, lendo as saídas do motor pelo nome das colunas (`docs/colunas.md`)
 ## Ficha da terra e prospecção
 
 `#/prospeccao` abre a busca nacional; `#/fazenda/<CAR>` abre a ficha de prospecção. O mapa continua nos mesmos
-componentes e recebe apenas agregados. A ficha mostra caminho da terra, pendências, sobreposições, embargos,
+componentes e recebe agregados e a situação básica de cada CAR (apto, com pendência ou não apto). A ficha mostra caminho da terra, pendências, sobreposições, embargos,
 histórico de uso e perdas, restauração, crédito líquido P10/P50/P90, TIR e risco. Cada medida mostra fonte e data;
 ausência de dado não vira zero. Nunca há nome, documento ou contato do proprietário.
 
 Com `VITE_RAIZ_API`, a prospecção usa `/prospeccao/*` e o token da sessão de cliente dos pedidos. O mapa continua
-lendo os agregados estáticos; nunca recebe o token operacional da API. O build recusa `VITE_RAIZ_API_TOKEN` e
-`VITE_RAIZ_TOKEN`. Sem API, somente o agregado está disponível: compras, débito e pedidos de contato não são
+lendo a publicação mínima estática; nunca recebe o token operacional da API. O build recusa `VITE_RAIZ_API_TOKEN` e
+`VITE_RAIZ_TOKEN`. Sem API, o mapa básico e os agregados estão disponíveis: compras, débito e pedidos de contato não são
 simulados no navegador.
 
 O agregado aberto aceita recortes territoriais e protege grupos com menos de cinco fazendas. Entrar libera a lista
-e os filtros de tamanho e crédito; abrir a ficha completa exige um crédito pago. O débito é feito no servidor,
+e o filtro de tamanho. Crédito, risco e caminho da terra exigem pagamento confirmado ou liberação auditada;
+filtrar não debita crédito, mas só as fichas liberadas exibem métricas individuais. Na busca autenticada, crédito
+e área restaurável agregados também somam apenas essas fichas, com cobertura explícita. Abrir uma ficha completa
+exige um crédito pago. O débito é feito no servidor,
 somente ao apertar "Desbloquear por 1 crédito". Reabrir a mesma ficha não cobra novamente. "Pedir contato" registra
 um pedido na Raíz para tratamento posterior, sem enviar mensagem ao proprietário. Planos aparecem com os valores
-configurados no servidor; nenhuma tarifa é inventada pelo front. Compras pendentes são recuperadas do histórico.
+configurados no servidor; nenhuma tarifa é inventada pelo front. Compras pendentes são recuperadas do histórico. Enquanto o catálogo estiver provisório, os pacotes de
+1, 10 e 50 consultas mostram “a definir pelo fundador” e não geram cobrança.
+
+Na mesma página, “Comparar fazendas” reúne de duas a cinco fichas previamente liberadas, sem novo débito e sem
+resultado parcial quando uma delas estiver bloqueada. A tabela conserva as fontes e datas de cada medida.
+A ficha liberada oferece PDF baixado com a sessão no cabeçalho, sem expor o token em links públicos.
+“Buscas salvas e avisos” guarda no servidor os filtros aplicados, aceita até 20 buscas por conta e permite reabrir
+ou excluir a busca. O primeiro snapshot não cria avisos para a base antiga. Novas correspondências aparecem no
+painel após o job de atualização; o painel consulta avisos a cada minuto enquanto está visível e oferece atualização
+manual e paginação. Marcar como lido não libera a ficha nem envia mensagem a proprietários. Ao trocar de conta,
+resultados, comparações e avisos da sessão anterior são descartados.
 
 Teste de navegador: `cd front/globo && npm run test:prospeccao`. Usa Chromium/Playwright com uma API de teste
-controlada e confere bloqueio, débito, contato, recompra, recuperação do Pix, troca de sessão e largura de 360 px.
+controlada e confere bloqueio, débito, contato, recompra, recuperação do Pix, preços provisórios, PDF, comparação, buscas salvas/avisos, troca de sessão e largura de 360 px.
 `RAIZ_PRINTS` escolhe a pasta dos prints (padrão `/tmp/raiz-ficha-prospeccao`).
 
 | Pasta | O que é | Tecnologia |
@@ -30,7 +43,7 @@ controlada e confere bloqueio, débito, contato, recompra, recuperação do Pix,
 | `produtor/` | Ficha leve para o produtor no celular: texto primeiro, mapa só ao tocar | Vite + Preact, MapLibre + PMTiles carregados sob demanda |
 | `compartilhado/` | Camada única de dados, regras do funil, formatos, comparações, caixa de fatos, privacidade | TypeScript sem dependência |
 | `scripts/geo.py` | Baixa as geometrias públicas, recorta o mapa base do Brasil, junta os municípios em estados e grava a lista de municípios do IBGE (`compartilhado/ibge-municipios.ts`) e o contorno dos estados do minimapa | Python (requests, shapely, pmtiles) |
-| `scripts/baixar-dados.mjs` | Roda sozinho antes do `npm run dev` (predev): baixa do Release "dados" os estados que o motor publicou para `dados/estados/` (fora do git), só o que mudou; sem internet, avisa e segue | Node, sem dependência |
+| `scripts/baixar-dados.mjs` | Roda sozinho antes do `npm run dev` (predev): baixa do Release "dados" os estados que o motor publicou para `dados/publicos/` (fora do git), só o que mudou; sem internet, avisa e segue | Node, sem dependência |
 | `referencia/` | Prints aprovados pelo fundador | |
 
 ## Rodar
@@ -38,7 +51,7 @@ controlada e confere bloqueio, débito, contato, recompra, recuperação do Pix,
 ```bash
 pip install requests shapely pmtiles
 node front/scripts/baixar-dados.mjs --geo --exigir
-python front/scripts/geo.py --dados dados/estados
+python front/scripts/geo.py --dados dados/publicos
 ```
 
 ```bash
@@ -57,19 +70,20 @@ O painel abre em `http://localhost:5173/` e a ficha do produtor em `http://local
 - **Estado** (`#/estado/<UF>`): tocar num estado aproxima e carrega só as fazendas aptas dele, agrupadas em círculos
   com o número; o painel diz se o estado está completo. Dentro do estado, tocar num município abre o município.
 - **Município** (`#/municipio/<código IBGE>`): o mapa voa até ele (sem passar por zoom de mundo), pinta as fazendas
-  pela situação e abre o painel com o funil em barras: tocar numa barra deixa só aquelas fazendas coloridas; tocar no
-  contorno mostra quem saiu, pela cor do motivo. No celular o painel é uma gaveta que sobe de baixo.
+  pela situação básica e abre a lista de CARs, com filtro por situação. Nenhuma fazenda é excluída por tamanho.
+  O clique no imóvel abre a ficha paga. No celular o painel é uma gaveta que sobe de baixo.
 - **Fazenda** (`#/fazenda/<código do CAR>`): a ficha de terra, com acesso pago no servidor e link para o município
   no mapa. "Fazendas" no menu abre a busca nacional e a entrada direta por CAR. A busca do topo mantém a navegação
   por município, inclusive em estado ainda não processado.
 
-- **Pedidos** (`#/pedidos`): sem API, consultas locais ao cenário real publicado no Release, sem login simulado.
+- **Pedidos** (`#/pedidos`): sem API, critérios locais e cobertura agregada por município/UF, sem login simulado.
   "Novo pedido" parte de um milhão de créditos no Pará e permite um teto de custo. A comparação informa
-  P10/P50/P90, TIR, hectares, fazendas, pendências e o que destrava. Com API, os pedidos usam a sessão do cliente.
+  P10/P50/P90, TIR, hectares, fazendas, pendências e o que destrava somente quando a API autenticada retorna
+  o pedido autorizado. O site aberto não lê cenários financeiros do Release.
   Contato com donos fica para a fase final; nenhum botão desta cena inicia contato agora.
 
 Testes: `cd front/globo && npm test` valida dados e contratos. `npm run test:pages` abre o build estático com
-busca, overzoom e zero 404; `npm run test:cena` verifica Release ausente/presente, três lotes autorizados em cores
+busca, overzoom e zero 404; `npm run test:cena` verifica cobertura pública, rejeição de snapshot financeiro legado e três lotes autorizados em cores
 com pixels reais, teclado e 360 px. As fixtures são isoladas, nunca publicadas como resultados reais.
 `npm run test:e2e` executa a entrada e essa mesma cena. O script antigo `testar-pedido.mjs`, com ondas e Pix
 simulados, permanece como referência da fase posterior e não integra a validação atual.
@@ -78,45 +92,39 @@ simulados, permanece como referência da fase posterior e não integra a valida�
 
 Tudo passa por `compartilhado/dados/` (`FonteDeDados`). As telas não sabem de onde vêm os números.
 
-- **Hoje (pasta do motor):** o plugin do Vite (`compartilhado/vite-dados.ts`, com a leitura em `pasta-dados.ts`)
-  serve os CSV como se fosse a API. De onde, nesta ordem:
-  1. a pasta da variável `RAIZ_DADOS` (no ambiente ou no `.env` da raiz), separada por estado como o motor grava:
-     `<pasta>/<UF>/imoveis_<cod>.csv`, `direto_`, `filtros_`, `extras_`, `mapbiomas_`, `certidoes_` e `resumo_<UF>.csv`;
-  2. sem ela, `dados/estados/`, que o `npm run dev` baixa sozinho do Release "dados" (`docs/dados-publicados.md`),
-     com o `estados.json` que diz, por estado, quantos municípios há, de quantos, e se está completo;
-  3. sem nenhuma das duas (por exemplo, sem internet), `dados/amostra/`, como sempre. `RAIZ_DADOS=dados/amostra`
-     força a amostra.
-
-  Rotas (iguais nos três casos; o nome do arquivo diz o estado): `/amostra/estados.json` (os 27 estados; com o
-  `estados.json` baixado, os números vêm dele, sem recontar; sem ele, conta os arquivos e compara com a lista do IBGE
-  em `compartilhado/ibge-municipios.ts`), `/amostra/indice_<UF>.json` (os CSV do estado), `/amostra/<arquivo>.csv`
-  (limpo: sem coluna pessoal, CPF e CNPJ mascarados), `/amostra/pontos_<UF>.json` (as aptas do estado para os
-  círculos do mapa), `/amostra/car_<UF>.json` (códigos do CAR que o motor pôs no arquivo de outro município; 0,6% no
-  Pará), `/amostra/fichas/<cod>.json` e `/busca?q=`. Nada é lido de uma vez: os pontos de cada estado são montados uma
-  vez (em segundo plano, logo que o servidor sobe; o Pará leva uns 8 s), guardados em `front/.cache/` (fora do git) e
-  refeitos só quando um CSV ou contorno daquele estado muda. Arquivo novo do motor aparece sozinho na tela; coluna nova
-  aparece em "Outros dados do motor" na ficha. As geometrias continuam em `front/geo/` (gerado pelo script, fora do git).
-
-  O `vite build` publica somente resumos municipais por uma lista de colunas permitidas, estados e pontos
-  agregados, limites municipais/estaduais e mapa base. Não publica fichas, códigos do CAR, CSV individuais nem
-  geometrias de imóveis. O plugin remove sobras de builds anteriores; o servidor de desenvolvimento aplica a mesma
-  restrição, inclusive ao acesso direto aos arquivos. Grupos com menos de cinco imóveis têm números suprimidos.
-  `RAIZ_BUILD_DADOS=0` não grava dados, mas mantém páginas explicativas em Markdown; `RAIZ_BASE` muda o caminho do site; `VITE_RAIZ_DADOS_BASE` escolhe a pasta dos
-  agregados. A ficha antiga do produtor não é reconstruída a partir de dados públicos.
+- **Publicação mínima:** `baixar-dados.mjs` aceita somente manifesto `versao_publicacao: 1`,
+  `escopo: "publico_basico"`, em `dados/publicos/`. Os pacotes por UF contêm resumos agregados,
+  `sem_imoveis_<UF>.csv` e `imoveis_basicos_<cod>.csv`, com apenas
+  `cod_imovel,cod_ibge,municipio,uf,situacao_basica`. Os GeoParquet separados contêm só CAR e geometria.
+  O downloader confere o manifesto, nomes de arquivos e cabeçalhos; pacotes legados são recusados.
+- **Fonte:** `RAIZ_DADOS` aponta a pasta explícita. Sem ela, usa `dados/publicos/`; sem publicação baixada,
+  a amostra local entrega somente agregados. Uma pasta explicitamente configurada e vazia não cai na amostra.
+- **Build e desenvolvimento:** o plugin publica os resumos por allowlist e os básicos somente com manifesto
+  público válido. As geometrias individuais passam por projeção para `cod_imovel` e contorno, cruzadas com a lista
+  básica. Índices `car_<UF>.json` guardam apenas as exceções de município já presentes nessa lista. Nenhum hectare,
+  área comprometida, crédito, TIR, risco, certidão ou histórico por CAR entra no pacote público. As fichas completas
+  são servidas pela API com sessão e saldo. Um novo campo do motor não entra automaticamente na publicação.
+- **Rotas estáticas:** `/amostra/estados.json`, `indice_<UF>.json`, `resumo_<UF>.csv.gz`,
+  `imoveis_basicos_<cod>.csv.gz`, `pontos_<UF>.json` e `car_<UF>.json`. O estado declara
+  `acesso: "publico_basico"`. A busca do topo consulta esses arquivos sem API e abre a ficha paga pelo CAR.
+  `FonteDeDados.basicos()` usa um tipo próprio; `imoveis()`, `ficha()` e `certidoes()` não leem dados completos
+  dessa publicação. Markdown/JSON-LD continuam apenas com agregados, sem fichas individuais.
+- `RAIZ_BUILD_DADOS=0` não grava dados, mas mantém páginas explicativas em Markdown. `RAIZ_BASE` muda o caminho
+  do site; `VITE_RAIZ_DADOS_BASE` escolhe a pasta pública. A ficha antiga do produtor não é reconstruída desses dados.
 
 ## Site público (GitHub Pages)
 
 `.github/workflows/publicar-site.yml` publica o painel em https://bernardoemmel.github.io/Raiz/ e a ficha do produtor
 em https://bernardoemmel.github.io/Raiz/produtor/?car=<código do CAR>. Roda a cada mudança do front na main, todo dia
 (dados novos do motor) e quando alguém dispara. O build baixa o Release "dados" com `baixar-dados.mjs --geo --exigir`, exporta os polígonos de todos os
-municípios com `geo.py --dados dados/estados` e gera fundos PMTiles compartilhados por estado. A base nacional
+municípios com `geo.py --dados dados/publicos` e gera fundos PMTiles compartilhados por estado. A base nacional
 continua por overzoom; o município cujo desenho não consta no Release recebe aviso. Falha de download ou de
 cobertura da base interrompe a publicação, preservando o site anterior. Uma vez só, no repositório: Settings, Pages, Source "GitHub Actions" (o token do Actions não liga
 o Pages sozinho).
 
 O build do site é um script só, `front/scripts/construir-site.sh` (npm ci, build do painel e da ficha, pasta `site/`).
 O CI de todo PR usa dados fictícios isolados em `RAIZ_DADOS`/`RAIZ_GEO`, executa o mesmo build e testa o artefato
-como Pages pelo Playwright (subcaminho `/Raiz/`, busca por Parauapebas, mapa agregado, zoom, Range e zero 404).
+como Pages pelo Playwright (subcaminho `/Raiz/`, busca por Parauapebas, mapa básico, três situações, geometrias sem campos pagos, zoom, Range e zero 404).
 Actionlint, lock fora de sincronia e erros de compilação também deixam o PR vermelho.
 
 O site oferece `llms.txt`, `robots.txt` e `index.md` ao lado dos dois HTMLs, com links alternativos. O catálogo em
@@ -159,10 +167,10 @@ RAIZ_BASE=/ RAIZ_DOMINIO=raiz.example npm run test:pages
 RAIZ_BASE=/ RAIZ_DOMINIO=raiz.example npm run test:agentes
 ```
 
-Os testes de navegador pressupõem a fixture preparada por `preparar-teste-site.mjs`, `RAIZ_DADOS`/`RAIZ_GEO`
+Os testes de navegador pressupõem a fixture preparada por `preparar-teste-site.mjs`, `RAIZ_DADOS`/`RAIZ_GEO`/`RAIZ_CALENDARIO_DADOS`
 apontando para ela no build e `VITE_RAIZ_TESTE_MAPA=1`.
 
-O que funciona sem back-end: mapa, estados, municípios e resumos agregados. Ficha completa, busca por fazenda,
+O que funciona sem back-end: mapa, CAR e situação básica, estados, municípios e resumos agregados. Ficha completa, busca com métricas pagas,
 créditos, Pix e pedidos de contato precisam do back-end (`raiz/`, FastAPI com PostgreSQL e PostGIS). Os componentes
 antigos de exemplos de pedidos continuam no código, mas não recebem listas individuais no site público.
 - **Depois (API):** defina `VITE_RAIZ_API` no `.env` do front (nunca no git). Rotas que a fonte da API espera, com
@@ -202,15 +210,20 @@ O contrato com o back-end está em `compartilhado/pedidos/tipos.ts` (rotas no co
 trocar), `POST /pedidos/{id}/solicitar-interesse`, `GET /pedidos/{id}/andamento`, `POST /pedidos/{id}/reservar` e
 `GET /pedidos/{id}/reserva`, com o token da sessão no cabeçalho. Com `VITE_RAIZ_API`, as telas falam com essas rotas.
 
-Sem API, `scripts/baixar-lotes.mjs` lê o ponteiro `lote_PA_central_r11.json` do Release `dados`, publicado
-pelo fluxo `restauracao_rodada`. `RAIZ_LOTES` escolhe a pasta de entrada (padrão `dados/lotes`, ignorada pelo git).
-O plugin de build projeta somente agregados para `amostra/lote_PA_central_r11.json`: não copia CARs, matrículas,
-folhas de contato ou os pacotes individuais. Ausência de publicação gera aviso com a cobertura territorial real;
-falhas de rede/formato interrompem a publicação. O cenário é uma referência: mudar teto de custo ou outro filtro
-exige recálculo pela API. Dado desconhecido permanece desconhecido, inclusive nos totais suprimidos.
+Sem API, o front salva os critérios no navegador e mostra a cobertura agregada por estado e município.
+O workflow projeta o manifesto privado com `python -m raiz.lotes_publicos`, usando token somente nesse passo.
+Somente o contrato `publico_lotes` v1 vai para `dados/lotes-publicos/lote_PA_central_r11.json`: três resumos
+com créditos P10/P50/P90, hectares, fazendas (titulares e reservas), custo médio e meta com terra documentada.
+Não baixa pacotes individuais. Build e navegador reaplicam uma lista positiva, sem TIR, CAR, desenhos, travas
+ou referências privadas. Os filtros do novo pedido não recalculam o snapshot. O build continua ignorando
+qualquer arquivo financeiro em `RAIZ_LOTES` ou `dados/lotes`; `scripts/baixar-lotes.mjs` permanece como
+compatibilidade sem rede nem leitura ou alteração de snapshots privados.
+A composição, os ganhos por pendência e os desenhos dos lotes vêm exclusivamente da API autenticada.
 
 As três opções têm cores e traços diferentes. Na API, a geometria vem junto do item apenas quando a ficha já foi
-desbloqueada pelo mesmo cliente ativo; a autorização e a exclusividade são revalidadas a cada leitura. Consultar
+desbloqueada pelo mesmo cliente ativo; medidas individuais de itens fechados chegam como `null`, com
+`ficha_liberada: false`, e a tela indica a ficha paga sem inventar zeros. A autorização e a exclusividade são
+revalidadas a cada leitura. Consultar
 o mapa não gera débito novo. Sem desenho autorizado, a tela mostra aviso e nunca busca contornos privados no Pages.
 A simulação antiga continua exportada somente para testes explícitos, sem ser o padrão da aplicação.
 

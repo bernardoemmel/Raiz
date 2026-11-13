@@ -12,8 +12,9 @@ from __future__ import annotations
 import contextlib
 import hmac
 import logging
+import os
 
-from fastapi import Depends, FastAPI, Header, HTTPException
+from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from pydantic import BaseModel
 from sqlalchemy import Engine, text
 
@@ -68,23 +69,32 @@ def criar_app(
 
     @contextlib.asynccontextmanager
     async def ciclo(app: FastAPI):
-        with contextlib.ExitStack() as pilha:
-            if app.state.grafo is None:
-                from raiz.agentes.memoria import checkpointer
-                from raiz.banco import engine as engine_padrao
-                from raiz.modelos.cascata import cascata_padrao
+        async with contextlib.AsyncExitStack() as assinc:
+            mcp = getattr(app.state, "mcp", None)
+            if mcp is not None:  # o servidor MCP por HTTP precisa do gerenciador de sessões rodando
+                await assinc.enter_async_context(mcp.session_manager.run())
+            with contextlib.ExitStack() as pilha:
+                if app.state.grafo is None:
+                    from raiz.agentes.memoria import checkpointer
+                    from raiz.banco import engine as engine_padrao
+                    from raiz.modelos.cascata import cascata_padrao
 
-                cp = pilha.enter_context(checkpointer())
-                app.state.engine = app.state.engine or engine_padrao()
-                app.state.grafo = aceite.construir(cp)
-                app.state.deps = aceite.Dependencias(app.state.engine, cascata_padrao())
-            yield
+                    cp = pilha.enter_context(checkpointer())
+                    app.state.engine = app.state.engine or engine_padrao()
+                    app.state.grafo = aceite.construir(cp)
+                    app.state.deps = aceite.Dependencias(app.state.engine, cascata_padrao())
+                yield
 
     app = FastAPI(title="Raíz", lifespan=ciclo)
     from raiz.privacidade import configurar_log
 
     configurar_log()
     app.state.engine, app.state.grafo, app.state.deps = engine, grafo, deps
+    from raiz.pedidos import servico as pedidos_servico
+    from raiz.publica.email_login import enviador
+
+    if pedidos_servico.ENVIO_LINK is None:
+        pedidos_servico.ENVIO_LINK = enviador()
     app.state.armazem = armazem  # arquivos do motor (raiz/executor/armazem.py); padrão: o da configuração
 
     if whatsapp:
@@ -232,6 +242,9 @@ def criar_app(
     from raiz.calendario import api as calendario_api
 
     app.include_router(calendario_api.roteador(_engine_do_app))
+    from raiz.documentos.certidao import api as certidao_api
+
+    app.include_router(certidao_api.roteador(_engine_do_app, _exigir_token))
     # processamento do motor dentro do produto (agente Dados) e números do Brasil e dos estados
     from raiz.executor import painel
 
@@ -243,20 +256,25 @@ def criar_app(
         return request.app.state.armazem
 
     app.include_router(painel.roteador(_engine_do_app, _armazem_do_app), dependencies=seguro)
-    app.include_router(painel.roteador_publico())
+    app.include_router(painel.roteador_publico(_armazem_do_app))
     # pedido de lote (docs/cena-alvo.md): rotas do cliente (sessão própria), internas (token da API) e o aviso de
     # pagamento do Pix (segredo do webhook)
     from raiz.pedidos import api as pedidos_api
 
     cfg = config()
-    base_login = getattr(cfg, "login_base_url", None) or getattr(cfg, "api_origens", "").split(",")[0].strip()
+    base_login = (
+        getattr(cfg, "login_base_url", None)
+        or os.environ.get("RAIZ_FRONT_URL")
+        or getattr(cfg, "api_origens", "").split(",")[0].strip()
+    )
     app.include_router(pedidos_api.roteador_cliente(_engine_do_app, base_url=base_login))
     app.include_router(pedidos_api.roteador_interno(_engine_do_app), dependencies=seguro)
     app.include_router(pedidos_api.roteador_webhook(_engine_do_app))
     # Ficha da terra: sessão individual e créditos pagos, separados do token operacional da API.
-    from raiz import prospeccao_api
+    from raiz import prospeccao_api, prospeccao_webhook
 
     app.include_router(prospeccao_api.roteador(_engine_do_app))
+    app.include_router(prospeccao_webhook.roteador(_engine_do_app))
     # backoffice do fundador, só leitura (saúde, custo do mês contra orçamento, filas, logs por fazenda) e
     # reconhecimento dos alertas de operação (raiz/operacao/backoffice.py, raiz/operacao/alertas.py)
     from raiz.operacao import backoffice
@@ -268,12 +286,63 @@ def criar_app(
 
     app.include_router(hub_acerto.roteador(_engine_do_app), dependencies=seguro)
     app.include_router(hub_acerto.roteador_publico())
+    from raiz.aprendizado import painel as painel_acerto
+
+    app.include_router(painel_acerto.roteador(_engine_do_app))
     # vigilância das fazendas e dos projetos (raiz/vigilancia): alertas por imóvel, perdas de projeto com o prazo da
     # Verra, rascunho do relatório de perda, avisos e marcação verdadeiro/falso. Lê o estado publicado no Release
     # vigilancia (parte privada com RAIZ_VIGILANCIA_CHAVE), não o PostGIS
     from raiz.vigilancia import api as vigilancia_api
 
     app.include_router(vigilancia_api.roteador(), dependencies=seguro)
+    # API pública (/v1) para as empresas clientes e os agentes de IA delas: chave por empresa ou login por e-mail,
+    # limite por chave, cada chamada gravada; OpenAPI em /v1/openapi.json. O servidor MCP fica em /mcp.
+    from raiz.publica import api as publica_api
+
+    def _engine_principal(request) -> Engine:
+        if app.state.engine is None:
+            from raiz.banco import engine as engine_padrao
+
+            app.state.engine = engine_padrao()
+        return app.state.engine
+
+    from fastapi.responses import PlainTextResponse
+
+    from raiz.publica.contrato import RESUMO
+    from raiz.publica.telemetria import TelemetriaMiddleware, configurar_telemetria
+
+    configurar_telemetria()
+
+    @app.get("/llms.txt", response_class=PlainTextResponse, include_in_schema=False)
+    def llms():
+        return RESUMO
+
+    verificador = None
+    if os.environ.get("RAIZ_OAUTH_ISSUER") and os.environ.get("RAIZ_MCP_RESOURCE"):
+        from raiz.publica.oauth import VerificadorKeycloak, rotas_metadados
+        from raiz.publica.rotas_agentes import base_publica
+        from raiz.publica.servidor_mcp import ApiRaiz, app_http
+
+        def eng():
+            return _engine_principal(None)
+
+        verificador = VerificadorKeycloak(eng)
+        app.state.mcp, mcp_app = app_http(
+            ApiRaiz(app=app, url=base_publica().removesuffix("/v1"), engine_de=eng),
+            config().mcp_hosts,
+            verificador=verificador,
+        )
+        app.router.routes.extend(rotas_metadados(verificador))
+        app.mount("/mcp", mcp_app)
+    else:
+
+        @app.post("/mcp/", include_in_schema=False)
+        def mcp_fechado():
+            from raiz.publica.problemas import problema
+
+            return problema(503, "oauth_nao_configurado", "MCP aguarda configuração do Keycloak", "avise a Raíz")
+
+    app.mount("/v1", publica_api.criar(_engine_principal, verificador))
     # link público, cartão e vídeo pelo código curto: sem token (só município, hectares, selo e código antes do aceite)
     from raiz import publico
 
@@ -288,6 +357,7 @@ def criar_app(
         exclude_content_types=(*DEFAULT_EXCLUDED_CONTENT_TYPES, "application/vnd.pmtiles"),
     )
     origens = [o.strip() for o in getattr(config(), "api_origens", "").split(",") if o.strip()]
+    from raiz.publica.oauth import acesso_interno
     from raiz.seguranca_api import SegurancaAPI
 
     app.add_middleware(
@@ -295,5 +365,8 @@ def criar_app(
         limite=getattr(config(), "api_limite_minuto", 120),
         login_limite=getattr(config(), "api_login_limite_minuto", 10),
         origens=origens,
+        autenticada_interna=lambda scope: acesso_interno(Request(scope)) is not None,
     )
+    # O último middleware fica por fora e registra também recusas do limite global.
+    app.add_middleware(TelemetriaMiddleware)
     return app

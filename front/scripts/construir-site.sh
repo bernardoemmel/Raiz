@@ -20,6 +20,7 @@ echo "::endgroup::"
 
 if [ "${RAIZ_BUILD_DADOS:-1}" != "0" ]; then
   node front/scripts/baixar-calendario.mjs
+  node front/scripts/baixar-acerto.mjs
 fi
 
 echo "::group::Build do painel"

@@ -1,6 +1,6 @@
 """Fila do processamento do Brasil (motor/rodar_estado.py --planejar): estados grandes em fatias por longitude que
 somam o estado; estados novos entram antes da manutenção (tarefa nova em estado já feito), que não passa do teto; job
-antigo do estado inteiro segura as fatias dele; o próximo da fila pega uma unidade só; continuação por fatia."""
+antigo do estado inteiro segura as fatias dele; o próximo da fila repõe as vagas livres; continuação por fatia."""
 
 import copy
 import datetime as dt
@@ -88,14 +88,14 @@ def test_job_antigo_do_estado_inteiro_segura_as_fatias(plano, monkeypatch):
     assert {"TO-1", "TO-2", "MG-2"} <= set(O.planejar([], set())) and "MG-1" not in O.planejar([], set())
 
 
-def test_proximo_da_fila_pega_uma_unidade_e_pula_a_tentada_ha_pouco(plano, monkeypatch):
+def test_proximo_da_fila_repoe_vagas_e_pula_a_tentada_ha_pouco(plano, monkeypatch):
     monkeypatch.setattr(O, "ufs_ativas", lambda: ({"MG-1"}, 0))
-    assert O.planejar([], set(), "proximo", liberou="MG-1") == ["MG-2"]  # MG-1 ainda guarda cache: continua ocupando
+    assert O.planejar([], set(), "proximo", liberou="MG-1") == [f"MG-{i}" for i in range(2, 9)]  # MG-1 segue ocupando
     # fatia que terminou dentro do prazo há pouco, mas com erro: fica para a rodada semanal
     plano["MG"] = {"municipios": 100, "total_ibge": 853, "completo": False, "faltam": {"imoveis": 753}, "controle": "x",
                    "motor": {"fatias": {"1": {"completo": False, "faltam": {"imoveis": 7},
                                               "rodada": {"fim": _agora(0.1), "parou_por_tempo": False}}}}}  # fmt: skip
-    assert O.planejar([], set(), "proximo", liberou="MG-1") == ["MG-2"]
+    assert O.planejar([], set(), "proximo", liberou="MG-1") == [f"MG-{i}" for i in range(2, 9)]
 
 
 def test_pedido_explicito_expande_o_estado_em_fatias(plano):
@@ -339,7 +339,7 @@ def test_workflow_drena_fila_e_preserva_parametros_da_matriz():
 
     w = yaml.safe_load((MOTOR.parent / ".github/workflows/processar-estados.yml").read_text())
     evento = w.get("on", w.get(True))
-    assert {c["cron"] for c in evento["schedule"]} == {"23 5 * * 1", "*/15 * * * *"}
+    assert {c["cron"] for c in evento["schedule"]} == {"17 * * * *"}
     job = w["jobs"]["processar"]
     assert job["strategy"]["max-parallel"] == 15 and job["strategy"]["fail-fast"] is False
     assert job["concurrency"]["cancel-in-progress"] is False
@@ -348,3 +348,39 @@ def test_workflow_drena_fila_e_preserva_parametros_da_matriz():
     assert checkout["with"]["ref"] == "${{ matrix.ref }}"
     assert job["env"]["RAIZ_REFAZER"] == "${{ matrix.refazer }}"
     assert any(s.get("name") == F.PASSO_EXECUTOR for s in job["steps"])
+
+
+@pytest.mark.parametrize("modo", ["proximo", "fila"])
+@pytest.mark.parametrize("ocupadas", [0, 7, 14, 15])
+def test_reposicao_automatica_enche_vagas_globais_em_varias_ufs(plano, monkeypatch, modo, ocupadas):
+    # Todas as UFs novas, RO apenas em manutenção. A contagem efetiva é da fila CAS.
+    plano.clear()
+    plano["RO"] = {**_completo("RO"), "completo": False, "faltam": {"ficha": 3}}
+    monkeypatch.setenv("GITHUB_ACTIONS", "true")
+    estado = {**F.vazio(), "planejadores": ["novo"]}
+    runs = {**(_legados(ocupadas) if ocupadas else {}), "novo": _run()}
+
+    def reservar(
+        candidatos, pedidos, refazer, e_unidade, limite, continuacao, max_novos, manutencao, limite_manutencao
+    ):
+        assert max_novos is None and not pedidos and not refazer
+        if modo == "fila":
+            assert "RO" not in candidatos
+        return F.admitir(
+            estado,
+            runs,
+            "novo",
+            [_pedido(u, "novo") for u in candidatos],
+            e_unidade,
+            limite,
+            max_novos,
+            manutencao,
+            limite_manutencao,
+        )
+
+    monkeypatch.setattr(F, "reservar", reservar)
+    escolhidas = O.planejar([], set(), modo)
+    assert len(escolhidas) == 15 - ocupadas
+    assert ocupadas + len(estado["reservas"]) == 15
+    if ocupadas < 14:
+        assert len({u.split("-")[0] for u in escolhidas}) > 1

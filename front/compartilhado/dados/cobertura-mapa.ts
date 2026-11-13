@@ -4,9 +4,11 @@ import { ufDoCodigo } from "../formato"
 export interface CoberturaMapa {
   gerado_em: string | null
   dados_publicados_em: string | null
+  /** Diferença conferida com o índice do site anteriormente publicado; ausência não significa zero. */
+  novos_desde?: { anterior_em: string; atual_em: string; municipios: string[] } | null
   com_desenho: string[]
   sem_desenho: string[]
-  /** O site aberto só mostra agregados; a geometria individual exige acesso à ficha. */
+  /** Básico aberto: CAR, situação e perímetro; camadas individuais detalhadas exigem ficha paga. */
   acesso: "restrito" | "aberto"
 }
 
