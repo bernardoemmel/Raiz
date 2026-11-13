@@ -19,7 +19,7 @@ está completo quando tem, em todos os municípios, funil, filtros, MapBiomas, d
 escadinha. Os extras do Earth Engine e as certidões ficam de fora dessa conta (ver abaixo).
 
 <!-- painel:inicio -->
-Gerado do `estados.json` de 13/11/2026 17:21 (horário de Brasília). Brasil: 1.480 de 5.571 municípios com o funil pronto; 4 de 27 estados completos.
+Gerado do `estados.json` de 13/11/2026 17:57 (horário de Brasília). Brasil: 1.481 de 5.571 municípios com o funil pronto; 4 de 27 estados completos.
 
 | Estado | Municípios feitos/total | Situação | Última atualização | Motor |
 |---|---|---|---|---|
@@ -28,8 +28,8 @@ Gerado do `estados.json` de 13/11/2026 17:21 (horário de Brasília). Brasil: 1.
 | RR Roraima | 15/15 | completo | 12/11/2026 11:17 | [9365d63](https://github.com/bernardoemmel/Raiz/actions/runs/43230460294) (parte manual) |
 | AC Acre | 22/22 | completo | 12/11/2026 11:38 | [9365d63](https://github.com/bernardoemmel/Raiz/actions/runs/43230460294) (parte manual) |
 | AP Amapá | 16/16 | completo | 12/11/2026 11:29 | [3537575](https://github.com/bernardoemmel/Raiz/actions/runs/43235780981) (parte manual) |
-| TO Tocantins | 100/139 | falta funil 39, MapBiomas 1, direto 1, TMF e causas 1, FLAG 1, caminho da terra 1, ficha 16, desenvolvedor 16; 50 erro(s) na última rodada (2 fatias em jobs separados) | 13/11/2026 14:01 | [bd751e8](https://github.com/bernardoemmel/Raiz/actions/runs/43237764443) (parte manual) |
-| MA Maranhão | 52/217 | falta funil 165, ficha 4, desenvolvedor 4; 171 erro(s) na última rodada (2 fatias em jobs separados) | 13/11/2026 17:19 | [e959023](https://github.com/bernardoemmel/Raiz/actions/runs/43492466362) |
+| TO Tocantins | 101/139 | falta funil 38, MapBiomas 1, direto 1, TMF e causas 1, FLAG 1, caminho da terra 1, ficha 16, desenvolvedor 16; 32 erro(s) na última rodada (2 fatias em jobs separados) | 13/11/2026 17:53 | [e959023](https://github.com/bernardoemmel/Raiz/actions/runs/43502960013) (parte manual) |
+| MA Maranhão | 52/217 | falta funil 165, ficha 4, desenvolvedor 4; 171 erro(s) na última rodada (2 fatias em jobs separados) | 13/11/2026 17:55 | [e959023](https://github.com/bernardoemmel/Raiz/actions/runs/43492466362) |
 | AM Amazonas | 0/62 | falta funil 62 | — | manual |
 | MT Mato Grosso | 12/142 | falta funil 130; 59 erro(s) na última rodada (2 fatias em jobs separados) | 13/11/2026 14:09 | [e959023](https://github.com/bernardoemmel/Raiz/actions/runs/43464184451) |
 | GO Goiás | 18/246 | falta funil 228, MapBiomas 1, direto 1, TMF e causas 1, FLAG 1, caminho da terra 1, ficha 1, desenvolvedor 1; 236 erro(s) na última rodada (3 fatias em jobs separados) | 13/11/2026 00:31 | [5e57203](https://github.com/bernardoemmel/Raiz/actions/runs/43244609528) |
