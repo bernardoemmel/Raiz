@@ -17,6 +17,7 @@ function LinhaEvento({ evento: e }: { evento: Evento }) {
       <p>{e.uf ? UFS[e.uf] || e.uf : "Abrangência geral"}{e.municipio && <>; <a href={linkMunicipio(e.municipio)}>ver município no mapa</a></>}
         {e.prazo && e.prazo !== e.data && <>. Evento em {formatarDia(e.data)}</>}.</p>
       {e.codigos_car.length > 0 && <ul className="calendario-cars" aria-label="Imóveis ligados ao evento">{e.codigos_car.map((car) => <li key={car}><a href={linkFazenda(car)}>CAR {abreviarCar(car)}</a></li>)}</ul>}
+      {e.codigos_car.length > 0 && e.car_fonte_url && <p><a href={e.car_fonte_url} target="_blank" rel="noopener noreferrer">Documento que informa o CAR</a></p>}
       <p className="calendario-fonte">Fonte: {e.fonte_url ? <a href={e.fonte_url} target="_blank" rel="noopener noreferrer">{e.fonte_nome}</a> : e.fonte_nome}.
         {e.coletado_em && <> Coletado em {formatarDia(e.coletado_em.slice(0, 10))}.</>} Confiança da leitura: {Math.round(e.confianca * 100)}%.</p>
     </div>

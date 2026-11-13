@@ -297,7 +297,12 @@ def _alertas(con, pedido_id) -> list[dict]:
             # desmatamento, embargo, matricula_cancelada, bloqueio, caminho_terra, saiu_da_base (fazenda_com_problema)
             "motivo": (r.detalhe or {}).get("motivo"),
             # fonte, data do evento, área, link da fonte, fazendas novas no lote (lote_melhorou); nada pessoal
-            "detalhe": {k: v for k, v in (r.detalhe or {}).items() if k not in ("texto", "chave", "motivo")},
+            # Rascunho privado só sai pela rota com sessão de pessoa e reconferência do dono congelado.
+            "detalhe": {
+                k: v
+                for k, v in (r.detalhe or {}).items()
+                if k not in ("texto", "chave", "motivo", "rascunho_vigilancia")
+            },
         }
         for r in rs
     ]
@@ -1579,7 +1584,10 @@ def vigiar(engine: Engine, fatos_de=None) -> dict:
                 if _alerta(con, p["id"], "fazenda_com_problema", cod, tx, det, chave):
                     out["fazenda_com_problema"] += 1
                     out["fatos"][det["motivo"]] = out["fatos"].get(det["motivo"], 0) + 1
-                    notificar(con, p["cliente_id"], p["id"], "fazenda_com_problema", tx, canais=canais)
+                    canais_do_fato = (
+                        ("painel",) if det.get("fonte") in {"deter", "firms", "mapbiomas_alerta"} else canais
+                    )
+                    notificar(con, p["cliente_id"], p["id"], "fazenda_com_problema", tx, canais=canais_do_fato)
         if p["estado"] not in ("lote_montado", "faltou"):
             continue
         b, ops, _ = Z.opcoes(oferta, c, nv, fora, hist, _pagamento(c))
