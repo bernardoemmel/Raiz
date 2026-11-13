@@ -244,7 +244,7 @@ try {
   const mascara = await pagina.evaluate(async () => (await document.querySelector(".mapa-brasil .mapa").__mapa.getSource("mascara-fazenda").getData()).features)
   assert.equal(mascara.length, 1)
   assert.equal(mascara[0].geometry.coordinates.length, 2, "A máscara precisa ter um furo no imóvel escolhido.")
-  await pagina.getByRole("button", { name: "Close popup", exact: true }).click()
+  await pagina.getByRole("button", { name: /^(Fechar ficha breve|Close popup)$/ }).click()
   await pagina.setViewportSize({ width: 360, height: 800 })
   await mapaPronto()
   assert(await pagina.evaluate(() => document.documentElement.scrollWidth <= innerWidth), "O mapa não pode exceder 360 px.")
