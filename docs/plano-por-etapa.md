@@ -359,6 +359,24 @@ Operação da entrega: PR #72 integrado com seis jobs verdes (1.626 testes Pytho
 Os cinco publicadores pausados foram reativados e a fila aponta para o commit
 protegido. O site real passou no build básico de 175 MB; sua republicação ganhou
 tentativas limitadas para falhas transitórias de rede, sem relaxar o contrato.
+O PR #80 foi integrado com seis jobs verdes (1.859 testes Python e 226 do front).
+A publicação 43311812890 concluiu; o site foi conferido com CSV básico de cinco
+colunas, geometria sem medidas pagas e 404 nos antigos caminhos de fichas completas.
+
+Nova continuação de Ficha da fazenda (12/11/2026):
+
+| Entrega | Situação |
+|---|---|
+| Terra já comprometida, com cruzamento geográfico, fonte, data, certeza e cobertura de cada registro | Feito: polígonos oficiais, indícios secundários e contexto jurisdicional separados; ausência de fonte não significa terra livre |
+| Versões imutáveis e mudanças desde a última consulta; avisos de pendência, embargo, desmate, fogo, terra e lotes da própria conta | Feito: snapshots antes/depois da carga, baseline por cliente, avisos deduplicados e acesso pago reavaliado |
+| Ficha automática para UFs atuais e futuras, com retomada da carga e atualização das fontes | Feito: descoberta pelo manifesto privado, backfill idempotente e falha mantida pendente para nova tentativa |
+| Marcas por cliente em PDF/JSON/CSV e alertas de varredura na API | Feito: HMAC versionado, sentinela separada dos dados, detecção persistida e consulta operacional dos alertas |
+| Três modalidades de créditos e conta de receita por cliente | Feito: por ficha, por lote e assinatura; preços a definir pelo fundador e simulação mensal/anual sem ativar vendas |
+| Medição real das 24 tarefas por agente Anthropic no GitHub Actions, manual e semanal | Feito: integrado ao workflow único agentes-real.yml (PR #85), pilha isolada, OAuth real e artefatos. Primeira campanha 43341704532 incompleta: 35/96 tentativas, falha na citação literal do juiz; nenhum pass^4 aprovado |
+
+O PR #93 corrige a citação inválida do juiz com uma única nova conversa, sem
+alterar notas válidas ou relaxar a conferência literal; consumo e tentativas
+ficam registrados. A correção exige nova campanha completa de 96 sessões.
 
 Site legível por agentes (12/11/2026): **feito** — `llms.txt`, `robots.txt`, páginas Markdown do Brasil, estados,
 municípios, produtor, serviço, fontes e privacidade; alternates no HTML; JSON-LD `Dataset`, `Service` e `Offer`
@@ -550,6 +568,13 @@ continua consultando a ref pública. O teste de referência estadual, agentes, s
 - Implementados em branch: Croissant dos membros/CSV, três perfis hubverse com versões históricas, cartão e CAD Trust dos cinco períodos; integração no catalogador e verificador portátil. Os cinco originais são preservados.
 - Validação real local: 19 derivados; 8.289.432 quantis de previsões, 3.629.238 das opções e nove dos resumos. Diagnósticos e lacunas de proveniência preservados.
 - Publicação, atestação e conferência integral remota dependem de CI/merge e execução do catálogo com vaga entre as 15; ainda não marcados como entregues em produção.
+- [x] Medição: recusa explícita do provedor preservada como julgamento indisponível,
+  sem repetição nem troca de modelo; mantém a execução das demais tarefas e impede
+  aprovação/declaração de pass^4 completo quando faltar julgamento. Campanhas
+  incompletas anteriores continuam preservadas, sem selecionar apenas sucessos.
+- [x] Runner conserva recusas do próprio agente sem chamar o juiz para texto vazio;
+  julgamento malformado é indisponível e não interrompe as outras tarefas. Só
+  evidência válida pode compor pass^4 completo; integridade/modelo divergente falha.
 
 ## Continuação solicitada: fontes, cascata, vigilância e primeira certidão
 
@@ -605,3 +630,46 @@ municipal e a leitura de assets com quatro tentativas/revalidação HTTP. São 1
 **245 testes** de fila, promoção e catálogo aprovados. As duas provas históricas permanecem intactas;
 a nova prova confere por AST que somente `_assets` mudou no armazém. A validação não relaxa o gate
 de compatibilidade dos publicadores ativos nem reescreve reservas.
+
+Acompanhamento em 13/11/2026, 00h33 de Brasília: o CI `43352641267` do PR #95 concluiu todos
+os nove jobs com sucesso. A main recebeu #86, #89 e #93 durante a execução; o conflito somente textual
+no plano foi resolvido preservando as duas entregas, antes de nova validação e novo CI. O run
+`43355236141` admitiu dez unidades junto de cinco reservas já existentes; seis unidades foram observadas
+no passo do executor simultaneamente. As leituras concorrentes de assets expuseram uma falha de paginação
+antes do executor em três unidades, corrigida e testada separadamente no PR #99. A ref pública de status
+recebe eventos municipais reais de RN, GO e MA. Erros no funil ainda impedem estimativa confiável de
+UFs/dia ou data nacional. Nenhum workflow foi cancelado/desativado; o teto compartilhado continua em 15.
+
+A integração do #93 acrescenta `estrito=True` à carga em `rodar.py`; esse arquivo participa do hash
+compartilhado e, por isso, as 11 versões na main mudam. A fila permanece no destino imutável `ebb13cae`
+com as versões originais: a prova agora recompõe exatamente a chamada anterior e confere todas as versões,
+sem alterar as reservas, as saídas ou o destino da promoção. Novos pedidos da main seguem a versão nova.
+
+
+## Falhas concorrentes e impedimento da fonte — 13/11/2026
+
+A rodada `43355236141` confirmou erro HTTP 404 na leitura de `estados.json` depois de
+substituição concorrente do asset. A leitura por nome agora relê a lista e o novo ID, até quatro
+tentativas. Ausência transitória depois de um 404 não vira manifesto vazio. Erros de acesso e
+formato continuam falhando; o download de um ID congelado não aceita outro arquivo. A paginação
+revalida o cache HTTP e reinicia todas as páginas ao detectar sobreposição.
+
+A reprodução do funil com o cache oficial confirmou **50 de 50** erros municipais examinados
+no RN: embargo ativo sem geometria utilizável. No arquivo de 117.197 termos, 92.033 são ativos
+pelo critério vigente e 40.270 não têm WKT. No RN, isso alcança 98 municípios; em GO, 195;
+no MA, 168. A presença de WKT, por si só, não atesta sua validade. A evidência agregada, sem
+termos nem pessoas, está em `docs/medicoes/ibama-impedimentos-2026-11-13.json`.
+
+A guarda permanece: não converter restrição desconhecida em área zero nem descartar os imóveis.
+Os logs sem banco/Healthchecks agora registram tipo, arquivo, linha e o motivo fixo
+`embargo_ativo_sem_geometria_utilizavel`, sem texto livre da exceção, variáveis ou geometrias.
+A conclusão nacional depende de resolver esses dados de origem; a janela observada não teve
+UF nova concluída e não permite estimar uma data de término. O processamento dos demais municípios
+e a preservação do progresso continuam.
+
+O destino fechado foi atualizado para `30ace967b885d07c2579c8625a9b5eb9cd4ec53b`, com **19 origens**
+e as 11 versões científicas preservadas. A prova por AST delimita três métodos de leitura/tratamento
+de erro e a classe que transporta somente o status HTTP; o restante do armazém é idêntico ao urgente.
+A ciência do commit preservado não recebe a mudança de hash da carga da main #93. As auditorias
+históricas continuam intactas e reservas vivas não são alteradas. Validação: **66 testes** do leitor,
+diagnóstico, armazém, transferência e checkpoint; **182 testes** de integração da promoção/fila.

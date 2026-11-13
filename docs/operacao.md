@@ -78,6 +78,77 @@ Conferência real concluída em 12/11/2026: **PI, 130 municípios e 185.791 imó
 56.217 imóveis**. DuckDB, SQLite e contagem de referência concordaram em todos os municípios. Os 242.008
 registros foram lidos de pacotes privados congelados e conferidos por SHA; nenhum dado foi publicado por esse
 ensaio. Evidência agregada: `docs/medicoes/ibis-contagens-rn-pi-2026-11-12.json`.
+## Ficha: fontes, versões, cobertura e rastreio
+
+Antes de iniciar esta continuação no servidor, aplique `uv run --env-file .env raiz
+banco migrar` até a ponta atual (0034 nesta entrega). A API, o sincronizador e os
+jobs precisam usar o mesmo PostGIS. As migrações 0032–0034 guardam fontes e
+compromissos privados, versões/observações da terra, baselines das contas, marcas
+de exportação e detecção de varredura. Não publicar esses dados no site ou em
+artifacts abertos do Actions.
+
+Com `RAIZ_DADOS_PRIVADOS_URL` e `RAIZ_DADOS_PRIVADOS_TOKEN` no ambiente do servidor:
+
+```bash
+uv run --env-file .env raiz prospeccao atualizar-base
+uv run --env-file .env raiz prospeccao coletar-compromissos
+uv run --env-file .env raiz prospeccao coletar-compromissos --fonte verra --limite-verra 25
+uv run --env-file .env raiz prospeccao verificar-buscas
+```
+
+`atualizar-base` lê o manifesto privado inteiro, descobre UFs novas e carrega
+somente o que mudou. `--ufs PA,RO` restringe uma intervenção manual; não usar uma
+lista fixa no job nacional. O mesmo fluxo do `raiz vigiar` preserva o estado
+antes/depois da carga e refaz compromissos quando as fontes mudam. Falha na
+carga ou no processamento posterior deixa o checkpoint pendente para a próxima
+volta. Não é necessário recalcular o motor para preparar a ficha.
+
+Na pilha Compose, a agenda executa `atualizar-base` e `verificar-buscas` a cada
+15 minutos, com retomada após falha e arquivos `.env`/espelho privados. Fora da
+pilha, configure uma única agenda com trava de processo. A coleta de compromissos
+pode rodar semanalmente; a fase Verra é explícita para controlar o tráfego e
+pode ser repartida com `--limite-verra`. Para continuar uma coleta parcial,
+`--retomar-desde AAAA-MM-DD` pula projetos Verra persistidos com sucesso desde
+esse dia UTC. Uma rodada nova sem esse argumento revisita os registros e pode
+identificar retiradas. Não tratar um checkpoint antigo como dispensa permanente
+de atualização. As fontes disponíveis e limites da cobertura estão em
+[terra-comprometida.md](terra-comprometida.md).
+
+`reindexar` refaz os derivados quando o catálogo de fontes ou os programas
+estaduais cadastrados mudarem, sem executar o motor. `--forcar` permite uma
+conferência completa. Um retorno `pendente` ou uma fonte indisponível exige
+acompanhar a próxima tentativa; não significa que a terra esteja livre.
+O sincronizador não publica dados pagos e nunca usa o pacote público reduzido
+como substituto do arquivo completo. A implantação e os agendamentos deste
+servidor não foram executados no ambiente de desenvolvimento.
+
+Para habilitar **exportações** (PDF/JSON/CSV), configure no cofre/ambiente:
+
+- `RAIZ_PROTECAO_CHAVES`: objeto JSON de versão para segredo aleatório de ao menos
+  32 bytes. Não reutilize segredos de teste nem coloque o valor em variável `VITE_`.
+- `RAIZ_PROTECAO_VERSAO`: chave ativa desse objeto. A rotação exige versão nova;
+  mantenha as antigas para conferência e preserve o registro privado das marcas.
+- `RAIZ_PROTECAO_REGRAS`: opcional, caminho privado do YAML de limiares e retenção.
+
+Sem chave, a exportação retorna 503; a leitura autenticada normal continua
+funcionando. A marca é um identificador pseudônimo, não o nome ou documento do
+cliente ou do dono. A sentinela é explicitamente administrativa: não é uma
+fazenda fictícia nem modifica hectares, créditos, TIR ou séries históricas.
+Ela permite rastrear uma cópia; não impede captura de tela ou remoção manual.
+
+```bash
+uv run --env-file .env raiz prospeccao alertas-protecao
+uv run --env-file .env raiz prospeccao alertas-protecao --apenas-ativos
+uv run --env-file .env raiz prospeccao rastrear-marca 'MARCA_ENCONTRADA_NA_COPIA'
+uv run --env-file .env raiz prospeccao limpar-eventos-protecao
+```
+
+Esses comandos são administrativos e exigem acesso ao ambiente privado do
+servidor. Os alertas registram regra, versão, janela, métricas e reavaliação;
+são indícios para análise e não prova de abuso. Uma licença de dados aprovada
+preserva o uso autorizado em volume. A retenção padrão dos eventos brutos é de
+90 dias; marcas e alertas auditados são preservados. O detector não envia
+mensagens externas nem muda automaticamente a licença comercial.
 
 ## Pilha API/MCP, OAuth e processamento
 
@@ -183,7 +254,7 @@ serviços de iniciar. Não reverta schema automaticamente nem inicialize volumes
 Depois, confira `/saude`, descoberta OAuth/MCP, uma consulta autorizada, fila/outbox e recibo de aprovação de teste.
 
 A agenda `scripts/agendar_servicos.py` reutiliza as CLIs existentes: alertas a cada 15 minutos, ciclo dos pedidos
-por hora, buscas salvas a cada 30 minutos e Calendário diariamente às 06h47 no fuso `RAIZ_AGENDA_FUSO`
+por hora, atualização de fichas e buscas salvas a cada 15 minutos e Calendário diariamente às 06h47 no fuso `RAIZ_AGENDA_FUSO`
 (padrão `America/Sao_Paulo`). Ela mantém uma trava exclusiva e horários concluídos no volume `dados`, não duplica
 horário concluído após reinício e repete falhas depois de cinco minutos. Tarefas distintas podem executar juntas,
 mas a mesma tarefa nunca se sobrepõe. Instale somente uma agenda para esse volume; não deixe os mesmos trabalhos
@@ -754,9 +825,18 @@ positivos, em reais, com até duas casas decimais. `creditos` é a quantidade de
 alterada no catálogo. Apontar `RAIZ_PRECOS_ARQUIVO` para esse arquivo. Não marcar o YAML provisório do repositório
 como aprovado apenas para testar o botão.
 
+O catálogo agora distingue `por_ficha`, `por_lote` e `assinatura`, com hipóteses de 1, 10 e 50 consultas;
+o ciclo mensal da assinatura também é proposto. Fórmulas de receita e parâmetros de simulação ficam em
+`docs/precos-e-receita.md`. A assinatura permanece indisponível mesmo com preço aprovado e Pix de produção:
+cobrança e direitos por ciclo ainda precisam ser implementados. Preencher o YAML não ativa recorrência nem
+autoriza tratar uma compra pontual de cinquenta consultas como assinatura. Conferir `pagamento_disponivel`
+por item, além do indicador geral do catálogo.
+
 O override `RAIZ_PROSPECCAO_PLANOS` aceita o mesmo envelope em JSON (`versao`, `status`, `aprovado_em`, `planos`).
 Uma lista JSON no formato antigo continua legível, mas permanece provisória. Aprovação sem data ou sem preço válido
-fecha o catálogo com erro; preço ausente nunca vira zero. A compra congela pacote, quantidade e valor no banco.
+para ficha ou lote fecha o catálogo com erro; preço ausente nunca vira zero. A assinatura ainda não vendável pode
+continuar sem preço. A compra congela pacote, quantidade e valor no banco, e a conciliação ou repetição idempotente
+de compras antigas independe da mudança dos IDs no catálogo.
 
 Na futura ativação autorizada, configurar os valores reais destas variáveis no servidor:
 
@@ -961,3 +1041,41 @@ Healthchecks, Langfuse e erros publicados pelo executor. Se a análise falhar, o
 padrão do Uvicorn fica desligado para não gravar tokens de links/webhooks nas URLs. Isso não autoriza registrar
 texto pessoal bruto: o reconhecimento de nomes tem falsos negativos. Mantenha apenas códigos internos e métricas
 nos eventos. Limites da auditoria e pendências estão em `docs/passagem/qualidade-e-seguranca.md`.
+
+## Medição semanal de agentes
+
+O workflow **Agente real semanal** (`agentes-real.yml`) usa `ANTHROPIC_API_KEY` dos segredos
+do repositório, com acionamento manual e segunda às 06:00 de Brasília. Instruções
+de ativação, limites, artefatos e códigos de saída estão em
+[medicao-agentes-actions.md](medicao-agentes-actions.md). O banco da campanha é
+descartável e sintético; não depende do servidor de produção nem usa o arquivo
+privado. Sem a chave, o relatório indica campanha incompleta, não aprovação.
+
+
+## Falhas concorrentes e impedimento da fonte — 13/11/2026
+
+A rodada `43355236141` confirmou erro HTTP 404 na leitura de `estados.json` depois de
+substituição concorrente do asset. A leitura por nome agora relê a lista e o novo ID, até quatro
+tentativas. Ausência transitória depois de um 404 não vira manifesto vazio. Erros de acesso e
+formato continuam falhando; o download de um ID congelado não aceita outro arquivo. A paginação
+revalida o cache HTTP e reinicia todas as páginas ao detectar sobreposição.
+
+A reprodução do funil com o cache oficial confirmou **50 de 50** erros municipais examinados
+no RN: embargo ativo sem geometria utilizável. No arquivo de 117.197 termos, 92.033 são ativos
+pelo critério vigente e 40.270 não têm WKT. No RN, isso alcança 98 municípios; em GO, 195;
+no MA, 168. A presença de WKT, por si só, não atesta sua validade. A evidência agregada, sem
+termos nem pessoas, está em `docs/medicoes/ibama-impedimentos-2026-11-13.json`.
+
+A guarda permanece: não converter restrição desconhecida em área zero nem descartar os imóveis.
+Os logs sem banco/Healthchecks agora registram tipo, arquivo, linha e o motivo fixo
+`embargo_ativo_sem_geometria_utilizavel`, sem texto livre da exceção, variáveis ou geometrias.
+A conclusão nacional depende de resolver esses dados de origem; a janela observada não teve
+UF nova concluída e não permite estimar uma data de término. O processamento dos demais municípios
+e a preservação do progresso continuam.
+
+O destino fechado foi atualizado para `30ace967b885d07c2579c8625a9b5eb9cd4ec53b`, com **19 origens**
+e as 11 versões científicas preservadas. A prova por AST delimita três métodos de leitura/tratamento
+de erro e a classe que transporta somente o status HTTP; o restante do armazém é idêntico ao urgente.
+A ciência do commit preservado não recebe a mudança de hash da carga da main #93. As auditorias
+históricas continuam intactas e reservas vivas não são alteradas. Validação: **66 testes** do leitor,
+diagnóstico, armazém, transferência e checkpoint; **182 testes** de integração da promoção/fila.

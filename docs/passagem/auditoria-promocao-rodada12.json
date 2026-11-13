@@ -1,6 +1,6 @@
 {
   "versao_auditoria": 1,
-  "destino": "6e7ca38da623e6c95d461c1528beabb408b34ee5",
+  "destino": "30ace967b885d07c2579c8625a9b5eb9cd4ec53b",
   "origens": [
     "88860b64ee09f811b66e283f5c57997ebcdb3fd5",
     "b624b108b0350135003e1099d9c928fa7cc24151",
@@ -18,12 +18,14 @@
     "91c993ec322fea64ca2e96098e212c0f5c2dc613",
     "e877e359689be7e813a0dfe06ba85d3013729491",
     "0f94767755f44655fb0a4c765230ff3f6ef41390",
-    "888add1e45d259463a708a9d32f1231f8754a7d7"
+    "888add1e45d259463a708a9d32f1231f8754a7d7",
+    "6e7ca38da623e6c95d461c1528beabb408b34ee5",
+    "be4e0801467e2a71302c1f9574ccc1fe074eb5af"
   ],
   "base_cientifica": "be452620f868537251fa832a10cb14bfb5c8efe3",
   "auditoria_anterior_sha256": "7a203dfe308bd6eae28f6ad5c1e13db4e76e2a05a2f371d3513cbf9caac4602a",
   "auditoria_urgente_sha256": "f0d6c24ac1cf21e52dc6af3a542e82b7b53ef894d2be6da46094e7c71e290ff7",
-  "script_sha256": "467b6d19f1dadc725d972d2c2d8726b198776b6a1786e31674ade301bfceb1eb",
+  "script_sha256": "65b847888e5a2606d0518df5d0e34669ef5b0e4bce8a126da24599ec62b8bcb4",
   "metodo": "Versões reais executadas em checkouts temporários com origem do módulo conferida. Hashes de dependências, árvore nativa e diff integral de produção por referência. A auditoria anterior permanece vinculada às cinco origens; esta extensão não a reescreve.",
   "contrato": "Só continuações e retentativas pendentes não bloqueadas. Reservas vivas não mudam. Nenhuma saída ganha versão nova sem executar. As duas origens pré-E1 recebem o upgrade científico documentado na auditoria anterior; as demais diferenças de tarefa são declaradas por par.",
   "deltas_operacionais": [
@@ -38,7 +40,7 @@
     "marcador municipal íntegro depois de conferir fontes versões sidecars e bytes",
     "tempos monotônicos municipais e estaduais em controles privados",
     "Ibis opcional só para conferir contagens; dependências anteriores e ingestão preservadas",
-    "listagem reinicia todas as páginas em corrida de publicação, no máximo quatro tentativas; demais métodos do armazém idênticos ao urgente"
+    "listagem revalidada e leitura por nome recomeçam após substituição concorrente; download por ID congelado não troca arquivo; escritas idênticas ao urgente; diagnóstico sem mensagens livres nem dados pessoais"
   ],
   "commits": {
     "88860b64ee09f811b66e283f5c57997ebcdb3fd5": {
@@ -3100,12 +3102,354 @@
       "modulo_temporario_conferido": true,
       "codigo_nativo_sha256": "f55d787caad693cadaf11dc084c03a928f465dbc8913adf1556aed77b31de12d",
       "armazem_sha256": "e126d2e3c4df13f0e5a67f55aba38e87f04b7c7c93fe0f27c5a7a0b4f57dce71"
+    },
+    "be4e0801467e2a71302c1f9574ccc1fe074eb5af": {
+      "versoes_tarefas": {
+        "funil": "funil-9222a79e7478",
+        "filtros": "filtros-f6a1b5d63913",
+        "direto": "direto-dd60b18775e7",
+        "mapbiomas": "mapbiomas-2df346dbb625",
+        "extras_direto": "extras_direto-49e961b4e835",
+        "flag": "flag-20a62662fdab",
+        "terra": "terra-578e392a6726",
+        "titulo": "titulo-f6c7bf3945f4",
+        "ficha": "ficha-a120ba6c5bb9",
+        "rebanho": "rebanho-47ef2fbebb24",
+        "desenvolvedor": "desenvolvedor-7662657eb966"
+      },
+      "codigo": {
+        "funil": [
+          "motor/raiz_estado.py",
+          "raiz/funil/rodar.py",
+          "raiz/funil/ponte.py",
+          "raiz/funil/duck.py",
+          "raiz/funil/novo.py"
+        ],
+        "filtros": [
+          "motor/raiz_filtros.py",
+          "motor/raiz_extras.py",
+          "raiz/funil/rodar.py",
+          "raiz/funil/filtros.py",
+          "raiz/funil/restricoes.py",
+          "raiz/funil/ponte.py",
+          "raiz/funil/duck.py",
+          "raiz/funil/novo.py"
+        ],
+        "direto": [
+          "motor/raiz_direto.py",
+          "motor/raiz_extras.py",
+          "raiz/funil/ponte.py"
+        ],
+        "mapbiomas": [
+          "motor/raiz_mapbiomas.py"
+        ],
+        "extras_direto": [
+          "motor/raiz_extras_direto.py",
+          "motor/raiz_extras.py"
+        ],
+        "flag": [
+          "raiz/flag.py"
+        ],
+        "terra": [
+          "raiz/terra.py"
+        ],
+        "titulo": [
+          "raiz/titulo/regularizacao.py",
+          "raiz/titulo/achados.py",
+          "raiz/titulo/nota.py",
+          "raiz/titulo/geometria.py",
+          "raiz/titulo/cadeia.py",
+          "raiz/titulo/contexto.py",
+          "raiz/titulo/triagem.py",
+          "raiz/titulo/tarefa.py"
+        ],
+        "ficha": [
+          "raiz/imovel_dados.py",
+          "raiz/osm.py",
+          "raiz/tiles.py",
+          "raiz/motivos.py",
+          "raiz/regras/padroes/faixas.yaml"
+        ],
+        "rebanho": [
+          "raiz/rebanho.py"
+        ],
+        "desenvolvedor": [
+          "raiz/restauracao.py",
+          "raiz/restauracao_geo.py",
+          "raiz/vazamento.py"
+        ]
+      },
+      "depende": {
+        "funil": [],
+        "filtros": [
+          "funil"
+        ],
+        "direto": [
+          "funil"
+        ],
+        "mapbiomas": [
+          "funil"
+        ],
+        "extras_direto": [
+          "funil"
+        ],
+        "flag": [
+          "funil",
+          "mapbiomas",
+          "direto"
+        ],
+        "terra": [
+          "funil",
+          "filtros"
+        ],
+        "titulo": [
+          "funil",
+          "filtros",
+          "terra"
+        ],
+        "ficha": [
+          "funil",
+          "filtros",
+          "mapbiomas",
+          "flag",
+          "terra"
+        ],
+        "rebanho": [
+          "funil",
+          "mapbiomas",
+          "direto"
+        ],
+        "desenvolvedor": [
+          "funil",
+          "filtros",
+          "mapbiomas",
+          "direto",
+          "ficha",
+          "terra",
+          "rebanho"
+        ]
+      },
+      "saidas": {
+        "funil": [
+          "imoveis_{cod}.csv",
+          "geo_{cod}.parquet",
+          "certidoes_{cod}.csv"
+        ],
+        "filtros": [
+          "filtros_{cod}.csv"
+        ],
+        "direto": [
+          "direto_{cod}.csv"
+        ],
+        "mapbiomas": [
+          "mapbiomas_{cod}.csv"
+        ],
+        "extras_direto": [
+          "extras_direto_{cod}.csv"
+        ],
+        "flag": [
+          "flag_{cod}.csv"
+        ],
+        "terra": [
+          "terra_{cod}.csv"
+        ],
+        "titulo": [
+          "titulo_{cod}.csv",
+          "regularizacao_{cod}.csv",
+          "achados_{cod}.csv"
+        ],
+        "ficha": [
+          "ficha_{cod}.csv",
+          "camadas_{cod}.parquet",
+          "camadas_{cod}.pmtiles"
+        ],
+        "rebanho": [
+          "rebanho_{cod}.csv"
+        ],
+        "desenvolvedor": [
+          "desenvolvedor_{cod}.csv"
+        ]
+      },
+      "modulo_temporario_conferido": true,
+      "codigo_nativo_sha256": "f55d787caad693cadaf11dc084c03a928f465dbc8913adf1556aed77b31de12d",
+      "armazem_sha256": "e126d2e3c4df13f0e5a67f55aba38e87f04b7c7c93fe0f27c5a7a0b4f57dce71"
+    },
+    "30ace967b885d07c2579c8625a9b5eb9cd4ec53b": {
+      "versoes_tarefas": {
+        "funil": "funil-9222a79e7478",
+        "filtros": "filtros-f6a1b5d63913",
+        "direto": "direto-dd60b18775e7",
+        "mapbiomas": "mapbiomas-2df346dbb625",
+        "extras_direto": "extras_direto-49e961b4e835",
+        "flag": "flag-20a62662fdab",
+        "terra": "terra-578e392a6726",
+        "titulo": "titulo-f6c7bf3945f4",
+        "ficha": "ficha-a120ba6c5bb9",
+        "rebanho": "rebanho-47ef2fbebb24",
+        "desenvolvedor": "desenvolvedor-7662657eb966"
+      },
+      "codigo": {
+        "funil": [
+          "motor/raiz_estado.py",
+          "raiz/funil/rodar.py",
+          "raiz/funil/ponte.py",
+          "raiz/funil/duck.py",
+          "raiz/funil/novo.py"
+        ],
+        "filtros": [
+          "motor/raiz_filtros.py",
+          "motor/raiz_extras.py",
+          "raiz/funil/rodar.py",
+          "raiz/funil/filtros.py",
+          "raiz/funil/restricoes.py",
+          "raiz/funil/ponte.py",
+          "raiz/funil/duck.py",
+          "raiz/funil/novo.py"
+        ],
+        "direto": [
+          "motor/raiz_direto.py",
+          "motor/raiz_extras.py",
+          "raiz/funil/ponte.py"
+        ],
+        "mapbiomas": [
+          "motor/raiz_mapbiomas.py"
+        ],
+        "extras_direto": [
+          "motor/raiz_extras_direto.py",
+          "motor/raiz_extras.py"
+        ],
+        "flag": [
+          "raiz/flag.py"
+        ],
+        "terra": [
+          "raiz/terra.py"
+        ],
+        "titulo": [
+          "raiz/titulo/regularizacao.py",
+          "raiz/titulo/achados.py",
+          "raiz/titulo/nota.py",
+          "raiz/titulo/geometria.py",
+          "raiz/titulo/cadeia.py",
+          "raiz/titulo/contexto.py",
+          "raiz/titulo/triagem.py",
+          "raiz/titulo/tarefa.py"
+        ],
+        "ficha": [
+          "raiz/imovel_dados.py",
+          "raiz/osm.py",
+          "raiz/tiles.py",
+          "raiz/motivos.py",
+          "raiz/regras/padroes/faixas.yaml"
+        ],
+        "rebanho": [
+          "raiz/rebanho.py"
+        ],
+        "desenvolvedor": [
+          "raiz/restauracao.py",
+          "raiz/restauracao_geo.py",
+          "raiz/vazamento.py"
+        ]
+      },
+      "depende": {
+        "funil": [],
+        "filtros": [
+          "funil"
+        ],
+        "direto": [
+          "funil"
+        ],
+        "mapbiomas": [
+          "funil"
+        ],
+        "extras_direto": [
+          "funil"
+        ],
+        "flag": [
+          "funil",
+          "mapbiomas",
+          "direto"
+        ],
+        "terra": [
+          "funil",
+          "filtros"
+        ],
+        "titulo": [
+          "funil",
+          "filtros",
+          "terra"
+        ],
+        "ficha": [
+          "funil",
+          "filtros",
+          "mapbiomas",
+          "flag",
+          "terra"
+        ],
+        "rebanho": [
+          "funil",
+          "mapbiomas",
+          "direto"
+        ],
+        "desenvolvedor": [
+          "funil",
+          "filtros",
+          "mapbiomas",
+          "direto",
+          "ficha",
+          "terra",
+          "rebanho"
+        ]
+      },
+      "saidas": {
+        "funil": [
+          "imoveis_{cod}.csv",
+          "geo_{cod}.parquet",
+          "certidoes_{cod}.csv"
+        ],
+        "filtros": [
+          "filtros_{cod}.csv"
+        ],
+        "direto": [
+          "direto_{cod}.csv"
+        ],
+        "mapbiomas": [
+          "mapbiomas_{cod}.csv"
+        ],
+        "extras_direto": [
+          "extras_direto_{cod}.csv"
+        ],
+        "flag": [
+          "flag_{cod}.csv"
+        ],
+        "terra": [
+          "terra_{cod}.csv"
+        ],
+        "titulo": [
+          "titulo_{cod}.csv",
+          "regularizacao_{cod}.csv",
+          "achados_{cod}.csv"
+        ],
+        "ficha": [
+          "ficha_{cod}.csv",
+          "camadas_{cod}.parquet",
+          "camadas_{cod}.pmtiles"
+        ],
+        "rebanho": [
+          "rebanho_{cod}.csv"
+        ],
+        "desenvolvedor": [
+          "desenvolvedor_{cod}.csv"
+        ]
+      },
+      "modulo_temporario_conferido": true,
+      "codigo_nativo_sha256": "f55d787caad693cadaf11dc084c03a928f465dbc8913adf1556aed77b31de12d",
+      "armazem_sha256": "28783a1e9031ca76a8f7f50ee001307ef0fb629373258328b80465ada162fc0d"
     }
   },
   "comparacoes": [
     {
       "origem": "88860b64ee09f811b66e283f5c57997ebcdb3fd5",
-      "destino": "6e7ca38da623e6c95d461c1528beabb408b34ee5",
+      "destino": "30ace967b885d07c2579c8625a9b5eb9cd4ec53b",
       "tarefas_alteradas": [
         "desenvolvedor",
         "direto",
@@ -3131,7 +3475,7 @@
         "pyproject.toml",
         ".github/workflows/processar-estados.yml"
       ],
-      "diff_sha256": "0e34529fa9d9c75050c9e3459f4b9e1c20c0706807fae2a7f23af4824eb29bd0",
+      "diff_sha256": "955cc594c5e743abb79bd263069e228497b93d51fd9dce558fe968f369fe6551",
       "arquivos_status": [
         "M\t.github/workflows/processar-estados.yml",
         "M\tmotor/README.md",
@@ -3212,6 +3556,7 @@
         "M\traiz/modelos/claude.py",
         "M\traiz/modelos/local.py",
         "M\traiz/modelos/rastro.py",
+        "M\traiz/operacao/lotes.py",
         "A\traiz/pedidos/revisao.py",
         "A\traiz/pedidos/sensibilidade.py",
         "M\traiz/pedidos/servico.py",
@@ -3244,7 +3589,7 @@
     },
     {
       "origem": "b624b108b0350135003e1099d9c928fa7cc24151",
-      "destino": "6e7ca38da623e6c95d461c1528beabb408b34ee5",
+      "destino": "30ace967b885d07c2579c8625a9b5eb9cd4ec53b",
       "tarefas_alteradas": [
         "desenvolvedor",
         "direto",
@@ -3270,7 +3615,7 @@
         "pyproject.toml",
         ".github/workflows/processar-estados.yml"
       ],
-      "diff_sha256": "6fa6e4a0e0ca71d213bcc3dec3a787b0ce4de2cdb02b2f31fabf274d48af2130",
+      "diff_sha256": "3434f6f61fa776b0584844413ecadf3b7349c57636312751a57fa763bc9dbab8",
       "arquivos_status": [
         "M\t.github/workflows/processar-estados.yml",
         "M\tmotor/README.md",
@@ -3349,6 +3694,7 @@
         "M\traiz/modelos/claude.py",
         "M\traiz/modelos/local.py",
         "M\traiz/modelos/rastro.py",
+        "M\traiz/operacao/lotes.py",
         "A\traiz/pedidos/revisao.py",
         "A\traiz/pedidos/sensibilidade.py",
         "M\traiz/pedidos/servico.py",
@@ -3374,7 +3720,7 @@
     },
     {
       "origem": "6a53cfbf514f369f694ea0bd3bc594ef8295a3b4",
-      "destino": "6e7ca38da623e6c95d461c1528beabb408b34ee5",
+      "destino": "30ace967b885d07c2579c8625a9b5eb9cd4ec53b",
       "tarefas_alteradas": [
         "filtros",
         "funil",
@@ -3401,7 +3747,7 @@
         "pyproject.toml",
         ".github/workflows/processar-estados.yml"
       ],
-      "diff_sha256": "0cc34db5fc7184686947bbba2e56e366c4061bf6ed563eae0e74fbff88ea4d40",
+      "diff_sha256": "e0f0524e21aa4ea7ffdbcb16f281f5724ac52fbf03f53549a84d01eade42d598",
       "arquivos_status": [
         "M\t.github/workflows/processar-estados.yml",
         "M\tmotor/README.md",
@@ -3464,6 +3810,7 @@
         "M\traiz/modelos/claude.py",
         "M\traiz/modelos/local.py",
         "M\traiz/modelos/rastro.py",
+        "M\traiz/operacao/lotes.py",
         "A\traiz/pedidos/revisao.py",
         "A\traiz/pedidos/sensibilidade.py",
         "M\traiz/pedidos/servico.py",
@@ -3489,7 +3836,7 @@
     },
     {
       "origem": "bea53bd06c7178daf2a53c392e5a9d54c55e7bc7",
-      "destino": "6e7ca38da623e6c95d461c1528beabb408b34ee5",
+      "destino": "30ace967b885d07c2579c8625a9b5eb9cd4ec53b",
       "tarefas_alteradas": [
         "filtros",
         "funil",
@@ -3516,7 +3863,7 @@
         "pyproject.toml",
         ".github/workflows/processar-estados.yml"
       ],
-      "diff_sha256": "0cc34db5fc7184686947bbba2e56e366c4061bf6ed563eae0e74fbff88ea4d40",
+      "diff_sha256": "e0f0524e21aa4ea7ffdbcb16f281f5724ac52fbf03f53549a84d01eade42d598",
       "arquivos_status": [
         "M\t.github/workflows/processar-estados.yml",
         "M\tmotor/README.md",
@@ -3579,6 +3926,7 @@
         "M\traiz/modelos/claude.py",
         "M\traiz/modelos/local.py",
         "M\traiz/modelos/rastro.py",
+        "M\traiz/operacao/lotes.py",
         "A\traiz/pedidos/revisao.py",
         "A\traiz/pedidos/sensibilidade.py",
         "M\traiz/pedidos/servico.py",
@@ -3604,7 +3952,7 @@
     },
     {
       "origem": "436c7b636f6a8867b47403a1dfad4e4c741dc150",
-      "destino": "6e7ca38da623e6c95d461c1528beabb408b34ee5",
+      "destino": "30ace967b885d07c2579c8625a9b5eb9cd4ec53b",
       "tarefas_alteradas": [
         "funil",
         "mapbiomas"
@@ -3631,7 +3979,7 @@
         "pyproject.toml",
         ".github/workflows/processar-estados.yml"
       ],
-      "diff_sha256": "2bc84e053aee74a114f4cd4be288817304be635714aaf7cbd2338fa55faaa5d9",
+      "diff_sha256": "0f55e8adceb7f1d52aa07b7407dc2b44f229c218d0f5f118bd31af23773495ad",
       "arquivos_status": [
         "M\t.github/workflows/processar-estados.yml",
         "M\tmotor/README.md",
@@ -3690,6 +4038,7 @@
         "M\traiz/modelos/claude.py",
         "M\traiz/modelos/local.py",
         "M\traiz/modelos/rastro.py",
+        "M\traiz/operacao/lotes.py",
         "A\traiz/pedidos/revisao.py",
         "A\traiz/pedidos/sensibilidade.py",
         "M\traiz/pedidos/servico.py",
@@ -3715,7 +4064,7 @@
     },
     {
       "origem": "be452620f868537251fa832a10cb14bfb5c8efe3",
-      "destino": "6e7ca38da623e6c95d461c1528beabb408b34ee5",
+      "destino": "30ace967b885d07c2579c8625a9b5eb9cd4ec53b",
       "tarefas_alteradas": [],
       "tarefas_preservadas": [
         "desenvolvedor",
@@ -3741,7 +4090,7 @@
         "pyproject.toml",
         ".github/workflows/processar-estados.yml"
       ],
-      "diff_sha256": "ff14e21eb973a31ed4d6fdd7b5dbd8e37013268728eb59a19fba7758e9be335e",
+      "diff_sha256": "8d27101cb11c257636b1592798b14abcad001816e50fb24cb8ba143168f5df83",
       "arquivos_status": [
         "M\t.github/workflows/processar-estados.yml",
         "M\tmotor/README.md",
@@ -3796,6 +4145,7 @@
         "M\traiz/modelos/claude.py",
         "M\traiz/modelos/local.py",
         "M\traiz/modelos/rastro.py",
+        "M\traiz/operacao/lotes.py",
         "A\traiz/pedidos/revisao.py",
         "A\traiz/pedidos/sensibilidade.py",
         "M\traiz/pedidos/servico.py",
@@ -3821,7 +4171,7 @@
     },
     {
       "origem": "6f49dfcfe680c7da204dd06818025e1ff47cbb7f",
-      "destino": "6e7ca38da623e6c95d461c1528beabb408b34ee5",
+      "destino": "30ace967b885d07c2579c8625a9b5eb9cd4ec53b",
       "tarefas_alteradas": [
         "funil",
         "mapbiomas"
@@ -3848,7 +4198,7 @@
         "pyproject.toml",
         ".github/workflows/processar-estados.yml"
       ],
-      "diff_sha256": "2bc84e053aee74a114f4cd4be288817304be635714aaf7cbd2338fa55faaa5d9",
+      "diff_sha256": "0f55e8adceb7f1d52aa07b7407dc2b44f229c218d0f5f118bd31af23773495ad",
       "arquivos_status": [
         "M\t.github/workflows/processar-estados.yml",
         "M\tmotor/README.md",
@@ -3907,6 +4257,7 @@
         "M\traiz/modelos/claude.py",
         "M\traiz/modelos/local.py",
         "M\traiz/modelos/rastro.py",
+        "M\traiz/operacao/lotes.py",
         "A\traiz/pedidos/revisao.py",
         "A\traiz/pedidos/sensibilidade.py",
         "M\traiz/pedidos/servico.py",
@@ -3932,7 +4283,7 @@
     },
     {
       "origem": "cf306256e0b562b1e05415b8ca0df1ca835c2155",
-      "destino": "6e7ca38da623e6c95d461c1528beabb408b34ee5",
+      "destino": "30ace967b885d07c2579c8625a9b5eb9cd4ec53b",
       "tarefas_alteradas": [],
       "tarefas_preservadas": [
         "desenvolvedor",
@@ -3958,7 +4309,7 @@
         "pyproject.toml",
         ".github/workflows/processar-estados.yml"
       ],
-      "diff_sha256": "fbcd7e40fc85f3a02f342698862888caeff7b4fc2a94b5a2830ff62d5ddff731",
+      "diff_sha256": "86211557da1b39c555de747be97ac279921aa4009e96f27c2837b29677bde521",
       "arquivos_status": [
         "M\t.github/workflows/processar-estados.yml",
         "M\tmotor/README.md",
@@ -4013,6 +4364,7 @@
         "M\traiz/modelos/claude.py",
         "M\traiz/modelos/local.py",
         "M\traiz/modelos/rastro.py",
+        "M\traiz/operacao/lotes.py",
         "A\traiz/pedidos/revisao.py",
         "A\traiz/pedidos/sensibilidade.py",
         "M\traiz/pedidos/servico.py",
@@ -4038,7 +4390,7 @@
     },
     {
       "origem": "c3bf907cd8838056d3b1c1633159b37df7133a82",
-      "destino": "6e7ca38da623e6c95d461c1528beabb408b34ee5",
+      "destino": "30ace967b885d07c2579c8625a9b5eb9cd4ec53b",
       "tarefas_alteradas": [],
       "tarefas_preservadas": [
         "desenvolvedor",
@@ -4064,7 +4416,7 @@
         "pyproject.toml",
         ".github/workflows/processar-estados.yml"
       ],
-      "diff_sha256": "5e86795088966646543eb2de43dd5b4f6f541542f30a86b09fed400527641ac6",
+      "diff_sha256": "a5f31ee18ef259c702a9db197fb69df1fad2e0ed4fd7859be090052ef75c8ecf",
       "arquivos_status": [
         "M\t.github/workflows/processar-estados.yml",
         "M\tmotor/README.md",
@@ -4119,6 +4471,7 @@
         "M\traiz/modelos/claude.py",
         "M\traiz/modelos/local.py",
         "M\traiz/modelos/rastro.py",
+        "M\traiz/operacao/lotes.py",
         "A\traiz/pedidos/revisao.py",
         "A\traiz/pedidos/sensibilidade.py",
         "M\traiz/pedidos/servico.py",
@@ -4141,7 +4494,7 @@
     },
     {
       "origem": "2b6e8af444cab964b6503c0a3365ecb9cbde8c89",
-      "destino": "6e7ca38da623e6c95d461c1528beabb408b34ee5",
+      "destino": "30ace967b885d07c2579c8625a9b5eb9cd4ec53b",
       "tarefas_alteradas": [],
       "tarefas_preservadas": [
         "desenvolvedor",
@@ -4167,7 +4520,7 @@
         "pyproject.toml",
         ".github/workflows/processar-estados.yml"
       ],
-      "diff_sha256": "5e86795088966646543eb2de43dd5b4f6f541542f30a86b09fed400527641ac6",
+      "diff_sha256": "a5f31ee18ef259c702a9db197fb69df1fad2e0ed4fd7859be090052ef75c8ecf",
       "arquivos_status": [
         "M\t.github/workflows/processar-estados.yml",
         "M\tmotor/README.md",
@@ -4222,6 +4575,7 @@
         "M\traiz/modelos/claude.py",
         "M\traiz/modelos/local.py",
         "M\traiz/modelos/rastro.py",
+        "M\traiz/operacao/lotes.py",
         "A\traiz/pedidos/revisao.py",
         "A\traiz/pedidos/sensibilidade.py",
         "M\traiz/pedidos/servico.py",
@@ -4244,7 +4598,7 @@
     },
     {
       "origem": "ebb13cae969c56f88619aab45e01088116eb347f",
-      "destino": "6e7ca38da623e6c95d461c1528beabb408b34ee5",
+      "destino": "30ace967b885d07c2579c8625a9b5eb9cd4ec53b",
       "tarefas_alteradas": [],
       "tarefas_preservadas": [
         "desenvolvedor",
@@ -4270,7 +4624,7 @@
         "pyproject.toml",
         ".github/workflows/processar-estados.yml"
       ],
-      "diff_sha256": "8c58a4b992720fb664f4537f8efa8a04b610912b6d35075e024b3e232717399a",
+      "diff_sha256": "3118e69e31eb90333ccc16329e81b08a8d8458d13004d4053ac9e13f6c9a331f",
       "arquivos_status": [
         "M\t.github/workflows/processar-estados.yml",
         "M\tmotor/README.md",
@@ -4314,6 +4668,7 @@
         "M\traiz/modelos/claude.py",
         "M\traiz/modelos/local.py",
         "M\traiz/modelos/rastro.py",
+        "M\traiz/operacao/lotes.py",
         "A\traiz/pedidos/revisao.py",
         "A\traiz/pedidos/sensibilidade.py",
         "M\traiz/pedidos/servico.py",
@@ -4336,7 +4691,7 @@
     },
     {
       "origem": "10a94d4278493c5b1776479b192ed62866007d13",
-      "destino": "6e7ca38da623e6c95d461c1528beabb408b34ee5",
+      "destino": "30ace967b885d07c2579c8625a9b5eb9cd4ec53b",
       "tarefas_alteradas": [],
       "tarefas_preservadas": [
         "desenvolvedor",
@@ -4362,7 +4717,7 @@
         "pyproject.toml",
         ".github/workflows/processar-estados.yml"
       ],
-      "diff_sha256": "8886a3ba79df679c1aa318ca66c52b0ff2ad1d8a202d92aac9ac62926aea5713",
+      "diff_sha256": "3add94a925ef55693c3658c1e15b2cd32fe15fae72b019fe22c7e406762f026d",
       "arquivos_status": [
         "M\tmotor/fila_processamento.py",
         "M\tpyproject.toml",
@@ -4377,6 +4732,7 @@
         "M\traiz/executor/processamento.py",
         "A\traiz/executor/tempos.py",
         "A\traiz/lotes_publicos.py",
+        "M\traiz/operacao/lotes.py",
         "A\traiz/pedidos/revisao.py",
         "A\traiz/pedidos/sensibilidade.py",
         "M\traiz/pedidos/servico.py",
@@ -4389,7 +4745,7 @@
     },
     {
       "origem": "c65d7bbe670f29e3074c71a659b4f0998f062be2",
-      "destino": "6e7ca38da623e6c95d461c1528beabb408b34ee5",
+      "destino": "30ace967b885d07c2579c8625a9b5eb9cd4ec53b",
       "tarefas_alteradas": [],
       "tarefas_preservadas": [
         "desenvolvedor",
@@ -4415,7 +4771,7 @@
         "pyproject.toml",
         ".github/workflows/processar-estados.yml"
       ],
-      "diff_sha256": "17f33038c79d57faed0da060bee9b3ccef919b837a57b0eac883372daf087a58",
+      "diff_sha256": "57ee7779b44a14a276d3dfd1ab958ce1239e7835827858dfeb0bc93a1e672eff",
       "arquivos_status": [
         "M\t.github/workflows/processar-estados.yml",
         "M\tmotor/README.md",
@@ -4444,6 +4800,7 @@
         "A\traiz/executor/tempos.py",
         "A\traiz/lotes_publicos.py",
         "M\traiz/metadados.py",
+        "M\traiz/operacao/lotes.py",
         "A\traiz/pedidos/revisao.py",
         "A\traiz/pedidos/sensibilidade.py",
         "M\traiz/pedidos/servico.py",
@@ -4456,7 +4813,7 @@
     },
     {
       "origem": "91c993ec322fea64ca2e96098e212c0f5c2dc613",
-      "destino": "6e7ca38da623e6c95d461c1528beabb408b34ee5",
+      "destino": "30ace967b885d07c2579c8625a9b5eb9cd4ec53b",
       "tarefas_alteradas": [],
       "tarefas_preservadas": [
         "desenvolvedor",
@@ -4482,7 +4839,7 @@
         "pyproject.toml",
         ".github/workflows/processar-estados.yml"
       ],
-      "diff_sha256": "0f851729ebe9ce54d4b1fd8f07e5e8beefb72a17a8374c7d4bbe2f7242b95220",
+      "diff_sha256": "cc9893fc145c4e062966255a723f18444a897dc1b8933adaf84b0879940b3288",
       "arquivos_status": [
         "M\tmotor/fila_processamento.py",
         "M\traiz/api.py",
@@ -4490,6 +4847,7 @@
         "M\traiz/cli.py",
         "M\traiz/executor/armazem.py",
         "A\traiz/lotes_publicos.py",
+        "M\traiz/operacao/lotes.py",
         "A\traiz/pedidos/revisao.py",
         "A\traiz/pedidos/sensibilidade.py",
         "M\traiz/pedidos/servico.py",
@@ -4501,7 +4859,7 @@
     },
     {
       "origem": "e877e359689be7e813a0dfe06ba85d3013729491",
-      "destino": "6e7ca38da623e6c95d461c1528beabb408b34ee5",
+      "destino": "30ace967b885d07c2579c8625a9b5eb9cd4ec53b",
       "tarefas_alteradas": [],
       "tarefas_preservadas": [
         "desenvolvedor",
@@ -4527,14 +4885,15 @@
         "pyproject.toml",
         ".github/workflows/processar-estados.yml"
       ],
-      "diff_sha256": "703b70b52b9ec2c562aeb2ef0b4571f7f1dcb3ecfe7666821fea5b24178494b4",
+      "diff_sha256": "5e36d62e0eb89986f5b1b87b2ff76d50a665b7abbc412b3a0ebf2fd1a4c7e46f",
       "arquivos_status": [
-        "M\traiz/executor/armazem.py"
+        "M\traiz/executor/armazem.py",
+        "M\traiz/operacao/lotes.py"
       ]
     },
     {
       "origem": "0f94767755f44655fb0a4c765230ff3f6ef41390",
-      "destino": "6e7ca38da623e6c95d461c1528beabb408b34ee5",
+      "destino": "30ace967b885d07c2579c8625a9b5eb9cd4ec53b",
       "tarefas_alteradas": [],
       "tarefas_preservadas": [
         "desenvolvedor",
@@ -4560,7 +4919,7 @@
         "pyproject.toml",
         ".github/workflows/processar-estados.yml"
       ],
-      "diff_sha256": "37ee6672fbff2d17a14fcefb835caa88bfa469a73ae71f8654537bfabc933570",
+      "diff_sha256": "d32abdbb9a26c38016779bf4246b9ca633373ac97931cf381faee57a0abdaf56",
       "arquivos_status": [
         "M\t.github/workflows/processar-estados.yml",
         "M\tmotor/README.md",
@@ -4586,12 +4945,13 @@
         "A\traiz/executor/status_publico.py",
         "A\traiz/executor/tempos.py",
         "M\traiz/metadados.py",
+        "M\traiz/operacao/lotes.py",
         "M\tuv.lock"
       ]
     },
     {
       "origem": "888add1e45d259463a708a9d32f1231f8754a7d7",
-      "destino": "6e7ca38da623e6c95d461c1528beabb408b34ee5",
+      "destino": "30ace967b885d07c2579c8625a9b5eb9cd4ec53b",
       "tarefas_alteradas": [],
       "tarefas_preservadas": [
         "desenvolvedor",
@@ -4617,17 +4977,92 @@
         "pyproject.toml",
         ".github/workflows/processar-estados.yml"
       ],
-      "diff_sha256": "87a4bd92178eba0fa4ec16a2fbe171f374699c77bd0f55cd020f2965ca21de6a",
+      "diff_sha256": "beda610a02dbe2bc25226887dedb92e583c32b3db7994bb65f6718b18c814218",
       "arquivos_status": [
-        "M\traiz/executor/armazem.py"
+        "M\traiz/executor/armazem.py",
+        "M\traiz/operacao/lotes.py"
+      ]
+    },
+    {
+      "origem": "6e7ca38da623e6c95d461c1528beabb408b34ee5",
+      "destino": "30ace967b885d07c2579c8625a9b5eb9cd4ec53b",
+      "tarefas_alteradas": [],
+      "tarefas_preservadas": [
+        "desenvolvedor",
+        "direto",
+        "extras_direto",
+        "ficha",
+        "filtros",
+        "flag",
+        "funil",
+        "mapbiomas",
+        "rebanho",
+        "terra",
+        "titulo"
+      ],
+      "pacotes_preservados": 244,
+      "pacotes_origem_sha256": "5b0f6d423d37a207b499c94f969b69f45850d27eec15b861a2d2e08d9a081925",
+      "dependencias_integralmente_preservadas": true,
+      "escopos": [
+        "motor",
+        "raiz",
+        "nativo",
+        "uv.lock",
+        "pyproject.toml",
+        ".github/workflows/processar-estados.yml"
+      ],
+      "diff_sha256": "f2560f7584ca250e8e07217d0070a7d7fdb28ae2f18a99d85b18f65662c0c12d",
+      "arquivos_status": [
+        "M\traiz/executor/armazem.py",
+        "M\traiz/operacao/lotes.py"
+      ]
+    },
+    {
+      "origem": "be4e0801467e2a71302c1f9574ccc1fe074eb5af",
+      "destino": "30ace967b885d07c2579c8625a9b5eb9cd4ec53b",
+      "tarefas_alteradas": [],
+      "tarefas_preservadas": [
+        "desenvolvedor",
+        "direto",
+        "extras_direto",
+        "ficha",
+        "filtros",
+        "flag",
+        "funil",
+        "mapbiomas",
+        "rebanho",
+        "terra",
+        "titulo"
+      ],
+      "pacotes_preservados": 244,
+      "pacotes_origem_sha256": "5b0f6d423d37a207b499c94f969b69f45850d27eec15b861a2d2e08d9a081925",
+      "dependencias_integralmente_preservadas": true,
+      "escopos": [
+        "motor",
+        "raiz",
+        "nativo",
+        "uv.lock",
+        "pyproject.toml",
+        ".github/workflows/processar-estados.yml"
+      ],
+      "diff_sha256": "d8cd89fd48992994bc260d88f61568cd39ec5786d198f4e5cb0e2282b915582f",
+      "arquivos_status": [
+        "M\tmotor/fila_processamento.py",
+        "M\traiz/executor/armazem.py",
+        "M\traiz/operacao/lotes.py"
       ]
     }
   ],
   "leitura_assets": {
     "origem": "ebb13cae969c56f88619aab45e01088116eb347f",
-    "destino": "6e7ca38da623e6c95d461c1528beabb408b34ee5",
-    "metodo_alterado": "ArmazemRelease._assets",
-    "restante_ast_sha256": "b1dfff7a94575ebd684bc8186a496f6d06fffe4adda7f84fe0e9cd5c344db85b",
+    "destino": "30ace967b885d07c2579c8625a9b5eb9cd4ec53b",
+    "metodos_alterados": [
+      "ArmazemRelease._assets",
+      "ArmazemRelease._baixar_asset",
+      "ArmazemRelease._erros_privados"
+    ],
+    "classe_status": "FalhaHTTPPrivada",
+    "restante_ast_sha256": "c3fd3a70ed8b2c02dbdb1775e4ada686131b118869a85558433c6bac2acba113",
     "restante_identico": true,
     "tentativas": 4,
     "revalidacao_http_sem_cache": true

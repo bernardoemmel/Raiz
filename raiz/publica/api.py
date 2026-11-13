@@ -720,7 +720,9 @@ def criar(engine_de: Callable[[Request], Any], verificador=None) -> FastAPI:
         CT.exigir_liberacao(eng, a.cliente_id)
         try:
             prospeccao_servico.limitar_consulta(eng, a.cliente_id)
-            ficha = prospeccao_servico.consultar_ficha(eng, a.cliente_id, cod_imovel)
+            ficha = prospeccao_servico.consultar_ficha(
+                eng, a.cliente_id, cod_imovel, canal="site" if a.via == "sessao" else a.via
+            )
         except ErroAcesso as ex:
             raise HTTPException(
                 ex.status,

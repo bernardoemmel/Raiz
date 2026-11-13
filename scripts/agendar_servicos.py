@@ -21,7 +21,8 @@ from zoneinfo import ZoneInfo
 TAREFAS = {
     "alertas": (15, ("operacao", "alertas")),
     "pedidos": (60, ("pedidos", "ciclo")),
-    "buscas": (30, ("prospeccao", "verificar-buscas")),
+    "fichas": (15, ("prospeccao", "atualizar-base")),
+    "buscas": (15, ("prospeccao", "verificar-buscas")),
     "calendario": (0, ("calendario", "coletar")),
 }
 SAUDE = Path("/tmp/raiz-agenda.saude")
