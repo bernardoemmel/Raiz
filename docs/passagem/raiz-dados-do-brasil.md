@@ -341,6 +341,10 @@ backups. Os produtos finais continuam elegíveis a ficha e atestação; o proces
 - O CI do #82 na referência `7ab4852` passou. Antes do merge, foi incorporado o #83 da main, que torna
   obrigatória a referência privada completa do Pará e exige sua execução exatamente uma vez no CI.
   Os 256 testes locais relacionados passaram após essa integração; o CI atualizado ainda será conferido.
+- O Gitleaks dessa rodada encontrou três SHA-256 de código no commit externo `e7074b4`, examinado por `--all`.
+  Cada valor foi conferido contra os bytes do arquivo correspondente. Foram incluídos somente os três
+  fingerprints exatos em `.gitleaksignore`; nenhuma regra foi desativada. A reprodução com Gitleaks 8.24.3
+  passou sem achados. O novo push espera o término natural do CI anterior, para não cancelá-lo por concorrência.
 - O #81 foi integrado antes da atualização final do PR #82: atestação privada identificada somente pelo digest
   dos bytes, sanitização de erros e reserva do catálogo por rodada/tentativa. O catálogo não libera uma vaga
   com base no término de uma tentativa anterior. A combinação passou em 174 testes focados; um cenário de

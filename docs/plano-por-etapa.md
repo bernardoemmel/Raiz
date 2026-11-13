@@ -48,6 +48,8 @@ em produção segue o merge desta correção.
 O CI anterior do #82 passou; antes do merge, a integração incorporou o #83, que exige a referência privada
 completa do Pará em um job separado e impede que esse teste seja pulado. Os 256 testes locais relacionados
 passaram; o CI dessa integração será conferido antes do merge.
+O Gitleaks também exigiu três exceções por ocorrência exata: hashes de código da auditoria MCP em uma branch
+externa, comprovados contra os bytes dos arquivos. A varredura completa passou localmente, sem ampliar regras.
 
 Oito pacotes reais adicionais ao RO foram validados offline: 2.696 CSVs, 57.863 campos Croissant e 4.283.214 linhas
 de quantis. Os diagnósticos de faixas cruzadas e ausência de produto foram preservados. Cinco UFs usam a regra
