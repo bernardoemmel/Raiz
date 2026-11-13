@@ -400,3 +400,18 @@ que não é aceita pelo projeto. A versão 10.78.0 evita essa dependência e man
 original do Lighthouse; sua compatibilidade é verificada com o teste de agentes e com eventos de telemetria
 capturados em transporte local, sem envio ao Sentry. Ao atualizar o Lighthouse ou esse pin, repetir essas
 verificações e a checagem integral de licenças; não liberar FSL nem instalar a CLI como exceção.
+
+## Correção local do céu transparente — MapLibre GL JS 6.15.0
+
+`front/compartilhado/vite-maplibre-ceu.ts` aplica, em memória durante build e desenvolvimento,
+uma correção pequena ao `drawSky` do pacote MapLibre GL JS **6.15.0**, sob **BSD-3-Clause**.
+Origem: https://github.com/maplibre/maplibre-gl-js, arquivos
+`src/webgl/draw/draw_sky.ts` e `src/shaders/glsl/sky.fragment.glsl`.
+O LICENSE e os avisos do pacote permanecem na distribuição; esta alteração é da Raíz.
+
+O fragment shader mistura as cores do céu e do horizonte. Se ambas têm alfa zero, o patch retorna
+antes de calcular uniforms ou compilar/desenhar o programa de céu, sem alterar céu visível, neblina,
+atmosfera, cartografia ou dados. O pacote original não é modificado em `node_modules`.
+A versão, o SHA-256 do módulo distribuído e o trecho são conferidos antes de qualquer transformação.
+Atualizações da biblioteca exigem nova revisão; o build falha caso não corresponda ao código conferido.
+O teste executa a função real alterada e verifica os casos transparente, opaco e parcialmente transparente.
