@@ -772,3 +772,12 @@ Contrato, acessibilidade e desenho: [docs/design/graficos-resultados.md](../desi
   cartão/vídeo foram pulados por ausência de Takumi/FFmpeg no ambiente retomado. O CI completo instala
   essas ferramentas e continua exigindo a suíte inteira, sem tratar esses skips locais como aprovação.
   Nenhum workflow foi cancelado; a política da main mantém `cancel-in-progress: false` no CI.
+
+- A main `6947f2d` (PR #103) também foi integrada, sem conflito: coleta do Calendário pelo manifesto
+  público validado e repositório explícito nos comandos de Release. Não altera o mapa ou o contrato pago.
+  No CI `43431157242`, cinco jobs pararam antes dos testes porque `setup-uv` consultou `latest` quando
+  a API do GitHub já estava no limite de requisições; os portões de código não foram flexibilizados.
+  O CI agora fixa `uv` **0.13.8**, exatamente a versão do CI aprovado `43369596942`. O código da action
+  confirma que a versão explícita dispensa a consulta à API de versões. Actionlint 1.7.12 passou com
+  os mesmos argumentos do CI. A execução em andamento é preservada até terminar, sem cancelamento;
+  a próxima revisão precisa concluir todos os nove jobs antes do merge.
