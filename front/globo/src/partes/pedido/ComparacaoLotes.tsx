@@ -30,32 +30,33 @@ export function ComparacaoLotes({ opcoes, publicadas, selecionar }: { opcoes: Op
         : "Sem caminho pendente informado"
     } },
   ]
-  const valorPublicado = (titulo: string, o: OpcaoPublicada | undefined): string => {
-    if (!o) return "Área autenticada"
-    if (titulo.startsWith("Créditos líquidos")) return numero(o.creditos?.[titulo.includes("P10") ? "p10" : titulo.includes("P90") ? "p90" : "p50"])
-    if (titulo === "TIR do cenário") return numero(o.tir_p50, fmtTir)
-    if (titulo.startsWith("TIR")) return "Ainda não publicado"
-    if (titulo === "Custo médio por crédito") return numero(o.custo_usd_credito, fmtUsd)
-    if (titulo === "Área para restaurar") return numero(o.hectares, fmtHa)
-    if (titulo === "Fazendas no lote") return numero(o.fazendas)
-    if (titulo === "Fazendas pequenas agrupadas") return numero(o.pequenas)
-    if (titulo === "Fazendas de reserva") return numero(o.reservas)
-    return o.pendencias_terra.length ? o.pendencias_terra.map((p) => `${ROTULO_CAMINHO[p.caminho]}: ${numero(p.fazendas)} fazendas, ${numero(p.hectares, fmtHa)}`).join("; ") : "Ainda não publicado"
-  }
+  const linhasPublicas: { titulo: string; valor: (opcao: OpcaoPublicada | undefined) => string }[] = [
+    { titulo: "Créditos líquidos P10 (t CO2e)", valor: (o) => numero(o?.creditos?.p10) },
+    { titulo: "Créditos líquidos P50 (t CO2e)", valor: (o) => numero(o?.creditos?.p50) },
+    { titulo: "Créditos líquidos P90 (t CO2e)", valor: (o) => numero(o?.creditos?.p90) },
+    { titulo: "Área para restaurar", valor: (o) => numero(o?.hectares, fmtHa) },
+    { titulo: "Fazendas (titulares e reservas)", valor: (o) => numero(o?.fazendas) },
+    { titulo: "Custo médio por crédito", valor: (o) => numero(o?.custo_usd_credito, fmtUsd) },
+    { titulo: "Meta com terra pronta", valor: (o) => o?.terra_pronta.fracao_meta === null || o?.terra_pronta.fracao_meta === undefined
+      ? "Ainda não publicado" : `${fmtPct(o.terra_pronta.fracao_meta)} (${numero(o.terra_pronta.creditos_p50)} créditos P50)` },
+  ]
   return (
     <section className="secao-painel comparacao-lotes" aria-labelledby="comparacao-lotes-titulo">
       <h2 id="comparacao-lotes-titulo">Compare os três lotes</h2>
-      <p className="legenda-frase">{publicadas && "Os números de cada lote são consultados na área autenticada. "}P10 é a estimativa conservadora, P50 a central e P90 a alta. As faixas não são promessa de entrega. TIR é a taxa interna de retorno.</p>
+      <p className="legenda-frase">P10 é a estimativa conservadora, P50 a central e P90 a alta. As faixas não são promessa de entrega. {publicadas ? "Os totais incluem titulares e fazendas de reserva do lote; essa reserva não é a retenção de créditos contra reversão. O resumo não identifica as fazendas selecionadas. Terra pronta se refere à conferência documental publicada; não é autorização de venda." : "TIR é a taxa interna de retorno."}</p>
+      <p className="legenda-frase">Deslize a tabela para comparar todas as opções. Pelo teclado, use as setas com a tabela em foco.</p>
       <div className="tabela-rolagem" role="region" aria-label="Comparação dos lotes, deslize para ver todas as opções" tabIndex={0}>
         <table className="tabela-simples tabela-comparacao">
-          <caption className="sr">Créditos, retorno, área e situação da terra por alternativa</caption>
+          <caption className="sr">{publicadas ? "Resumo público de créditos, área, fazendas, preço e terra pronta" : "Créditos, retorno, área e situação da terra por alternativa"}</caption>
           <thead><tr><th scope="col">Medida</th>{IDS.map((id) => (
             <th scope="col" key={id}><button type="button" className={`link opcao-marca opcao-${id}`} onClick={() => selecionar(id)}>
               <i aria-hidden="true" />{ROTULO_OPCAO[id].nome}
             </button></th>
           ))}</tr></thead>
-          <tbody>{linhas.map((linha) => <tr key={linha.titulo}>
-            <th scope="row">{linha.titulo}</th>{IDS.map((id) => <td key={id}>{publicadas ? valorPublicado(linha.titulo, doRelease.get(id)) : linha.valor(porId.get(id))}</td>)}
+          <tbody>{publicadas ? linhasPublicas.map((linha) => <tr key={linha.titulo}>
+            <th scope="row">{linha.titulo}</th>{IDS.map((id) => <td key={id}>{linha.valor(doRelease.get(id))}</td>)}
+          </tr>) : linhas.map((linha) => <tr key={linha.titulo}>
+            <th scope="row">{linha.titulo}</th>{IDS.map((id) => <td key={id}>{linha.valor(porId.get(id))}</td>)}
           </tr>)}</tbody>
         </table>
       </div>
