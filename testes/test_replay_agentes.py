@@ -1,6 +1,7 @@
 """Referências artificiais só para testar integridade; não são evidência de Claude."""
 
 import asyncio
+import copy
 import hashlib
 import json
 
@@ -9,7 +10,7 @@ import yaml
 
 from raiz.publica.agente_real import Cenario, hash_json
 from raiz.publica.avaliacao import Execucao, avaliar, carregar_gabarito
-from scripts.reproduzir_agentes import ProvedorReplay, Referencia
+from scripts.reproduzir_agentes import ProvedorReplay, Referencia, _chamadas_http
 from testes.test_avaliacao_agentes import _registros
 
 
@@ -32,7 +33,7 @@ def referencia(tmp_path):
         arquivo = pasta / "cassetes" / f"{nome}.yaml"
         interacao = {
             "request": {"headers": {}, "body": json.dumps({"raiz_requisicao_sha256": "a" * 64})},
-            "response": {"headers": {}, "body": {"string": json.dumps({"content": []})}},
+            "response": {"status": {"code": 200}, "headers": {}, "body": {"string": json.dumps({"content": []})}},
         }
         arquivo.write_text(yaml.safe_dump({"version": 1, "interactions": [interacao, interacao]}))
         trace = pasta / f"trace-{nome}.json"
@@ -122,3 +123,32 @@ def test_correcoes_do_juiz_nao_entram_no_replay_do_agente(referencia, tmp_path, 
     Referencia(referencia).cassetes_do_agente(destino)
     assert len(yaml.safe_load((destino / nome).read_text())["interactions"]) == 1
     assert len(yaml.safe_load(arquivo.read_text())["interactions"]) == 1 + chamadas_juiz
+
+
+def test_replay_preserva_erros_http_do_agente_sem_incluir_juiz(referencia, tmp_path):
+    relatorio = json.loads((referencia / "relatorio.json").read_text())
+    metrica = relatorio["metricas"][0]
+    nome = f"{metrica['tarefa_id']}-{metrica['tentativa']}.yaml"
+    arquivo = referencia / "cassetes" / nome
+    dados = yaml.safe_load(arquivo.read_text())
+    agente, juiz = dados["interactions"]
+    erro = copy.deepcopy(agente)
+    erro["response"]["status"]["code"] = 503
+    dados["interactions"] = [erro, agente, erro, erro, juiz]
+    arquivo.write_text(yaml.safe_dump(dados))
+    metrica.update(
+        retentativas_http_agente=1,
+        retentativas_http_juiz=2,
+        cassete_sha256=hashlib.sha256(arquivo.read_bytes()).hexdigest(),
+    )
+    (referencia / "relatorio.json").write_text(json.dumps(relatorio))
+    destino = tmp_path / "com-falhas-http"
+    Referencia(referencia).cassetes_do_agente(destino)
+    assert [i["response"]["status"]["code"] for i in yaml.safe_load((destino / nome).read_text())["interactions"]] == [
+        503,
+        200,
+    ]
+    assert len(yaml.safe_load(arquivo.read_text())["interactions"]) == 5
+    for invalidas in ([erro], [erro] * 3 + [agente], [erro, {**agente, "request": {"body": "outro"}}]):
+        with pytest.raises(ValueError):
+            _chamadas_http(invalidas)

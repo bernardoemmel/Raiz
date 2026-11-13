@@ -32,13 +32,15 @@ from urllib.parse import urlsplit
 from uuid import NAMESPACE_URL, uuid4, uuid5
 
 import httpx2 as httpx
-from anthropic import AsyncAnthropic
+from anthropic import APIStatusError, AsyncAnthropic
 from mcp import ClientSession
 from mcp.client.streamable_http import streamable_http_client
 
 from raiz.publica.avaliacao import FERRAMENTAS, GABARITO, Chamada, Execucao, Tarefa, avaliar, carregar_gabarito
 
-VERSAO = "claude-mcp-v1"
+VERSAO = "claude-mcp-v2"
+RETENTATIVAS_HTTP = 2
+HTTP_TRANSITORIOS = {500, 502, 503, 504}
 _UUID = re.compile(r"\b[0-9a-fA-F]{8}(?:-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}\b")
 _DATA = re.compile(r"\b\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})\b")
 _ALIAS = re.compile(r"__RAIZ_(?:UUID|DATA|TOKEN|PRAZO_(?:FUTURO|VENCIDO)_\d+M)_\d{4}__")
@@ -205,6 +207,33 @@ async def _marcar_inicio(request: httpx.Request) -> None:
         mapa.inicio_requisicao = time.monotonic()
 
 
+def _espera_http(cabecalhos, tentativa: int) -> float | None:
+    """Respeita Retry-After numérico; espera longa/inválida encerra, sem insistir."""
+    valor = cabecalhos.get("retry-after-ms", cabecalhos.get("retry-after"))
+    if valor is None:
+        return float(2**tentativa)
+    try:
+        segundos = float(valor) / (1000 if "retry-after-ms" in cabecalhos else 1)
+    except (ValueError, TypeError):
+        return None
+    return max(float(2**tentativa), segundos) if math.isfinite(segundos) and 0 <= segundos <= 60 else None
+
+
+async def mensagem_claude(cliente, *, transporte: list[dict], **pedido):
+    """Repete apenas erro HTTP transitório, nunca resposta, recusa ou nota do modelo."""
+    for tentativa in range(RETENTATIVAS_HTTP + 1):
+        try:
+            return await cliente.messages.create(**pedido)
+        except APIStatusError as erro:
+            if erro.status_code not in HTTP_TRANSITORIOS or tentativa == RETENTATIVAS_HTTP:
+                raise
+            espera = _espera_http(erro.response.headers, tentativa)
+            if espera is None:
+                raise
+            transporte.append({"status_http": erro.status_code, "espera_segundos": espera})
+            await asyncio.sleep(espera)
+
+
 def cliente_claude(*, modo: str = "real") -> AsyncAnthropic:
     """Cliente comum ao agente e ao juiz; replay não usa nem transmite credencial real."""
     chave = os.environ.get("ANTHROPIC_API_KEY") if modo == "real" else "replay-sem-credencial"
@@ -305,7 +334,11 @@ def gravacao(caminho: Path, *, modo: str, namespace: str, segredos: list[str] | 
             bruto = _sanitizar_resposta_modelo(mapa.normalizar(_ocultar_raciocinio(_sem_segredos(bruto, segredos))))
             response["body"]["string"] = _json(bruto).encode()
         duracao = time.monotonic() - mapa.inicio_requisicao if mapa.inicio_requisicao is not None else 0
+        cabecalhos = httpx.Headers({k: v[0] if isinstance(v, list) else v for k, v in response["headers"].items()})
+        espera = _espera_http(cabecalhos, 0)
         response["headers"] = {"content-type": ["application/json"], "x-raiz-inferencia-segundos": [str(duracao)]}
+        if response["status"]["code"] in HTTP_TRANSITORIOS and espera is not None:
+            response["headers"]["retry-after"] = [str(espera)]
         return response
 
     recorder = vcr.VCR(
@@ -349,6 +382,7 @@ async def conversar(
         "mensagens": mensagens,
         "chamadas": [],
         "passos_modelo": 0,
+        "retentativas_transporte": [],
         "duracao_segundos": 0.0,
         "erro": None,
         "uso": {"input_tokens": 0, "output_tokens": 0},
@@ -357,7 +391,9 @@ async def conversar(
     consultar_depois: dict[str, float] = {}
     for _ in range(max_passos):
         trace["passos_modelo"] += 1
-        resposta = await cliente.messages.create(
+        resposta = await mensagem_claude(
+            cliente,
+            transporte=trace["retentativas_transporte"],
             model=modelo,
             max_tokens=max_tokens,
             output_config={"effort": "medium"},
@@ -609,6 +645,8 @@ async def campanha(args, provedor: Provedor) -> dict:
                                     "modelo_juiz": args.modelo_juiz,
                                     "max_passos": args.max_passos,
                                     "max_tokens": args.max_tokens,
+                                    "retentativas_http_max": RETENTATIVAS_HTTP,
+                                    "status_http_retentaveis": sorted(HTTP_TRANSITORIOS),
                                     "effort": "medium",
                                     "thinking": "adaptive-default",
                                     "provedor": provedor.versao,
@@ -708,6 +746,8 @@ async def campanha(args, provedor: Provedor) -> dict:
                         "uso_agente": trace["uso"],
                         "uso_juiz": trace.get("julgamento", {}).get("uso", {}),
                         "chamadas_juiz": trace.get("julgamento", {}).get("chamadas_modelo", 1),
+                        "retentativas_http_agente": len(trace["retentativas_transporte"]),
+                        "retentativas_http_juiz": len(trace.get("julgamento", {}).get("retentativas_transporte", [])),
                         "cassete_sha256": hashlib.sha256(cassete.read_bytes()).hexdigest(),
                         "trace_sha256": hashlib.sha256(trace_arquivo.read_bytes()).hexdigest(),
                     }
@@ -722,6 +762,9 @@ async def campanha(args, provedor: Provedor) -> dict:
     relatorio = avaliar(execucoes, gabarito, gabarito_hash)
     relatorio["metricas"] = metricas
     relatorio["passos_medios"] = statistics.mean(m["passos_modelo"] for m in metricas)
+    relatorio["retentativas_http"] = {
+        papel: sum(m[f"retentativas_http_{papel}"] for m in metricas) for papel in ("agente", "juiz")
+    }
     relatorio["tempo_total_segundos"] = sum(m["duracao_segundos"] for m in metricas)
     relatorio["tempo_pilha_agente_juiz_segundos"] = time.monotonic() - inicio_campanha
     relatorio["latencia_mcp_max_segundos"] = max((v for m in metricas for v in m["latencias_mcp_segundos"]), default=0)

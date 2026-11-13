@@ -502,7 +502,7 @@ def expandir_citacoes(dados: dict, trechos: dict[str, dict[str, str]]) -> dict:
     return resultado
 
 
-def _indisponivel(tarefa, trace, limites, estado, chamadas, *, modelo=None, fontes=None, uso=None):
+def _indisponivel(tarefa, trace, limites, estado, chamadas, *, modelo=None, fontes=None, uso=None, transporte=None):
     from raiz.publica.agente_real import Julgamento
 
     trace["julgamento"] = {
@@ -512,6 +512,7 @@ def _indisponivel(tarefa, trace, limites, estado, chamadas, *, modelo=None, font
         "fontes_sha256": hashlib.sha256(_json(fontes or {}).encode()).hexdigest(),
         "uso": uso or {"input_tokens": 0, "output_tokens": 0},
         "chamadas_modelo": chamadas,
+        "retentativas_transporte": transporte or [],
         "barreiras": sorted(limites.reprovados),
         "motivos": limites.motivos,
     }
@@ -524,7 +525,7 @@ def _indisponivel(tarefa, trace, limites, estado, chamadas, *, modelo=None, font
 
 
 async def julgar(tarefa: Tarefa, cenario: Cenario, trace: dict) -> Julgamento:
-    from raiz.publica.agente_real import Julgamento, cliente_claude
+    from raiz.publica.agente_real import Julgamento, cliente_claude, mensagem_claude
 
     limites = barreiras(tarefa, cenario.dados, trace, token=cenario.access_token)
     # Resposta interrompida/vazia nunca pode satisfazer a tarefa. Registre a
@@ -567,7 +568,10 @@ async def julgar(tarefa: Tarefa, cenario: Cenario, trace: dict) -> Julgamento:
         "additionalProperties": False,
     }
     async with cliente_claude(modo=modo) as cliente:
-        resultado = await cliente.messages.create(
+        transporte = []
+        resultado = await mensagem_claude(
+            cliente,
+            transporte=transporte,
             model=modelo,
             max_tokens=6000,
             system=SISTEMA_JUIZ,
@@ -578,13 +582,31 @@ async def julgar(tarefa: Tarefa, cenario: Cenario, trace: dict) -> Julgamento:
         if resultado.model != modelo:
             raise ErroJulgamento("o juiz respondeu com outro modelo")
         if resultado.stop_reason == "refusal":
-            return _indisponivel(tarefa, trace, limites, "recusa_provedor", 1, modelo=modelo, fontes=fontes, uso=uso)
+            return _indisponivel(
+                tarefa,
+                trace,
+                limites,
+                "recusa_provedor",
+                1,
+                modelo=modelo,
+                fontes=fontes,
+                uso=uso,
+                transporte=transporte,
+            )
         try:
             dados_notas = _ler_resposta(resultado, modelo)
             notas = validar_notas(expandir_citacoes(dados_notas, trechos), tarefa, fontes)
         except ErroJulgamento:
             return _indisponivel(
-                tarefa, trace, limites, "formato_ou_citacao_invalida", 1, modelo=modelo, fontes=fontes, uso=uso
+                tarefa,
+                trace,
+                limites,
+                "formato_ou_citacao_invalida",
+                1,
+                modelo=modelo,
+                fontes=fontes,
+                uso=uso,
+                transporte=transporte,
             )
         hash_inicial = hashlib.sha256(_json(dados_notas).encode()).hexdigest()
     trace["julgamento"] = {
@@ -597,6 +619,7 @@ async def julgar(tarefa: Tarefa, cenario: Cenario, trace: dict) -> Julgamento:
         "motivos": limites.motivos,
         "uso": uso,
         "chamadas_modelo": 1,
+        "retentativas_transporte": transporte,
         "citacoes": "ids-de-trechos-v1",
         "julgamento_original_sha256": hash_inicial,
     }

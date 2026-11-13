@@ -28,6 +28,90 @@ def _resposta(conteudo, parada="end_turn"):
     }
 
 
+def test_retentativas_http_ficam_no_vcr_e_recusa_valida_nao_e_repetida(tmp_path, monkeypatch):
+    import vcr.patch
+    import yaml
+
+    from scripts.verificar_evidencias_agentes import verificar
+
+    pasta = tmp_path / "cassetes"
+    pasta.mkdir()
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "chave-sintetica")
+    rede, esperas = [], []
+
+    async def esperar(segundos):
+        esperas.append(segundos)
+
+    async def transporte(self, request):
+        rede.append(json.loads(request.content))
+        if len(rede) <= 2:
+            return httpx.Response(
+                500 if len(rede) == 1 else 503,
+                headers={} if len(rede) == 1 else {"Retry-After": "3"},
+                json={"type": "error", "error": {"type": "api_error", "message": "indisponível"}},
+                request=request,
+            )
+        return httpx.Response(200, json=_resposta([], "refusal"), request=request)
+
+    monkeypatch.setattr(A.asyncio, "sleep", esperar)
+    monkeypatch.setattr(vcr.patch, "_Httpx2AsyncHttpTransport_handle_async_request", transporte)
+
+    async def chamar(modo):
+        eventos = []
+        with A.gravacao(pasta / "http-1.yaml", modo=modo, namespace="http-1"):
+            async with A.cliente_claude(modo=modo) as cliente:
+                resposta = await A.mensagem_claude(
+                    cliente,
+                    transporte=eventos,
+                    model="claude-sonnet-5-5",
+                    max_tokens=256,
+                    messages=[{"role": "user", "content": "Consulta sintética."}],
+                )
+                assert resposta.stop_reason == "refusal"
+        return eventos
+
+    esperado = [{"status_http": 500, "espera_segundos": 1.0}, {"status_http": 503, "espera_segundos": 3.0}]
+    assert asyncio.run(chamar("real")) == esperado
+    assert esperas == [1.0, 3.0]
+    arquivo = pasta / "http-1.yaml"
+    preservado = arquivo.read_bytes()
+    dados = yaml.safe_load(preservado)
+    assert [i["response"]["status"]["code"] for i in dados["interactions"]] == [500, 503, 200]
+    assert dados["interactions"][1]["response"]["headers"]["retry-after"] == ["3.0"]
+    assert asyncio.run(chamar("replay")) == esperado
+    assert len(rede) == 3 and rede[0] == rede[1] == rede[2]
+    assert arquivo.read_bytes() == preservado
+
+    assert verificar(tmp_path, pasta) == 1
+
+
+@pytest.mark.parametrize(
+    "status,cabecalhos,quantidade", [(403, {}, 1), (429, {}, 1), (500, {}, 3), (503, {"Retry-After": "61"}, 1)]
+)
+def test_retentativas_sao_limitadas_e_nao_contornam_restricao(monkeypatch, status, cabecalhos, quantidade):
+    from anthropic import APIStatusError
+
+    chamadas, esperas = [], []
+
+    async def esperar(segundos):
+        esperas.append(segundos)
+
+    async def criar(**pedido):
+        chamadas.append(pedido)
+        resposta = httpx.Response(
+            status, headers=cabecalhos, request=httpx.Request("POST", "https://api.anthropic.com/v1/messages")
+        )
+        raise APIStatusError("Falha sintética", response=resposta, body={})
+
+    monkeypatch.setattr(A.asyncio, "sleep", esperar)
+    eventos = []
+    cliente = SimpleNamespace(messages=SimpleNamespace(create=criar))
+    with pytest.raises(APIStatusError):
+        asyncio.run(A.mensagem_claude(cliente, transporte=eventos, model="claude-sonnet-5-5"))
+    assert len(chamadas) == quantidade and len(eventos) == quantidade - 1
+    assert esperas == ([1.0, 2.0] if quantidade == 3 else [])
+
+
 def test_alias_reidrata_id_e_link_sem_guardar_token_na_cassete():
     mapa = A.MapaCassete("sessao")
     pedido = str(uuid4())

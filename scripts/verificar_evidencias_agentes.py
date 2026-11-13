@@ -79,8 +79,17 @@ def verificar(saida: Path, cassetes: Path, *, chave_api: str = "") -> int:
                 pedido, resposta = interacao.get("request", {}), interacao.get("response", {})
                 if set(pedido.get("headers", {})) - {"content-type"}:
                     raise ValueError("cabeçalhos inesperados na cassette")
-                if set(resposta.get("headers", {})) - {"content-type", "x-raiz-inferencia-segundos"}:
+                if set(resposta.get("headers", {})) - {"content-type", "x-raiz-inferencia-segundos", "retry-after"}:
                     raise ValueError("cabeçalhos inesperados na cassette")
+                if "retry-after" in resposta.get("headers", {}):
+                    valores = resposta["headers"]["retry-after"]
+                    if (
+                        not isinstance(valores, list)
+                        or len(valores) != 1
+                        or not re.fullmatch(r"[0-9]{1,2}(?:\.[0-9]{1,16})?", str(valores[0]))
+                        or not 0 <= float(valores[0]) <= 60
+                    ):
+                        raise ValueError("Retry-After fora do contrato sanitizado")
                 corpo = json.loads(pedido["body"])
                 if set(corpo) != {"raiz_requisicao_sha256"} or not re.fullmatch(
                     r"[a-f0-9]{64}", corpo["raiz_requisicao_sha256"]

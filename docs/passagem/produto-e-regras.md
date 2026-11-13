@@ -1,5 +1,28 @@
 # Passagem do chat "Produto e regras" (13/11/2026)
 
+## Transporte do fornecedor: falhas preservadas e retentativas limitadas
+
+A execução `43433142975` concluiu cinco sessões, todas aprovadas e sem chamada
+proibida/violação; o juiz da sexta recebeu HTTP 500. O artefato `14043390544`
+foi conferido pelo SHA-256
+`ce5c1d68b22e53f098b85bad4ffbd5865aea87544c155ab00237bfcbb38c397e`.
+Assim como a execução anterior (503 sem resposta), continua incompleta e sem pass^4.
+
+O runner `claude-mcp-v2` admite duas retentativas do mesmo pedido somente após
+HTTP 500/502/503/504. Espera 1 s e 2 s ou o Retry-After numérico, até 60 s;
+HTTP 403/429, recusa, resposta válida, nota negativa ou formato inválido não
+provocam repetição. O SDK permanece com retry automático desligado. Todas as
+interações HTTP ficam no VCR; esperas entram no tempo e as contagens separam
+transporte de passos do agente e chamadas do juiz. O replay confere a sequência,
+os pedidos idênticos e as contagens; reproduz também os erros HTTP do agente.
+
+A suíte da base `b8f6f57` passou com **3.014 testes**, um xfail esperado e o caso
+estadual separado, em 29min05s, sem skips. A mudança de transporte foi feita em
+worktree separado durante essa suíte e depois validada por **115 testes focados**
+e Ruff. A próxima campanha integral usará runner v2, juiz v9 e fixture v2;
+não aproveita respostas de campanhas interrompidas como referência aprovada.
+
+
 ## Indisponibilidade do fornecedor antes da primeira resposta
 
 A execução `43431732302` (`b8f6f57`, juiz v9/fixture v2) subiu a pilha saudável,

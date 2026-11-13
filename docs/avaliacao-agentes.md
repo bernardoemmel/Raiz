@@ -290,9 +290,29 @@ por empresa, repetidas rapidamente, esgotaram o limite global por IP antes da
 descoberta MCP na quarta sessão. A fixture v2 espera a janela global de 60 s
 expirar antes da preparação desse cenário. Os limites e o 429 empresarial não
 mudam; a espera não entra no tempo do agente nem nos passos, mas compõe a duração
-total da campanha. Não há retry de inferência nem seleção de tentativas.
+total da campanha. Não há repetição por conteúdo da resposta nem seleção de tentativas; a política
+de falhas HTTP do runner v2 está abaixo.
 
 O juiz v9 considera a ordem dos fatos: o estado informado é confrontado com o
 último recibo observado pelo agente. Um snapshot posterior pode mostrar avanço
 do worker e serve para conferir efeitos; não implica que o agente já soubesse
 desse avanço. As notas das campanhas anteriores ficam preservadas.
+
+
+### Falhas HTTP transitórias do fornecedor
+
+Desde `claude-mcp-v2`, o agente e o juiz podem repetir o MESMO pedido até duas
+vezes após HTTP 500/502/503/504. A política é fixada na configuração da campanha,
+com esperas de 1 s/2 s ou Retry-After numérico, até 60 s. Erro de conexão, timeout,
+403/429, espera inválida/maior, recusa, resposta interrompida, nota negativa e
+formato inválido não disparam essa repetição. Esgotar as duas retentativas
+interrompe a campanha, sem inventar resposta ou substituir tentativa.
+
+`retentativas_transporte` guarda status HTTP e espera em cada trace. As métricas
+separam `retentativas_http_agente`/`retentativas_http_juiz` dos passos e julgamentos.
+O tempo do agente inclui suas esperas HTTP; o total da campanha inclui também as
+do juiz. Uso de tokens cobre o que o fornecedor informou nas respostas recebidas.
+O VCR preserva cada interação e um Retry-After estritamente numérico sanitizado.
+O replay exige grupos de erros permitidos seguidos de uma resposta 200, com pedido
+idêntico e contagem correspondente; não ignora interações para chegar a uma nota.
+Respostas válidas e recusas do fornecedor continuam sendo avaliadas uma única vez.

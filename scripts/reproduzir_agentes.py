@@ -15,11 +15,29 @@ from pathlib import Path
 
 import yaml
 
-from raiz.publica.agente_real import Julgamento, hash_json
+from raiz.publica.agente_real import HTTP_TRANSITORIOS, RETENTATIVAS_HTTP, Julgamento, hash_json
 from raiz.publica.avaliacao import avaliar, carregar_gabarito, ler_execucoes
 from scripts.cenarios_agentes import Provedor as ProvedorCenarios
 from scripts.julgar_agentes import barreiras
 from scripts.verificar_evidencias_agentes import verificar
+
+
+def _chamadas_http(interacoes: list[dict]) -> list[list[dict]]:
+    """Retentativas preservam o pedido e terminam em resposta 200, sem escolher notas."""
+    chamadas, atual = [], []
+    for interacao in interacoes:
+        if atual and interacao["request"] != atual[0]["request"]:
+            raise ValueError("retentativa mudou o pedido ao modelo")
+        atual.append(interacao)
+        status = interacao["response"]["status"]["code"]
+        if status == 200:
+            chamadas.append(atual)
+            atual = []
+        elif status not in HTTP_TRANSITORIOS or len(atual) > RETENTATIVAS_HTTP:
+            raise ValueError("erro HTTP não reproduzível como retentativa")
+    if atual:
+        raise ValueError("referência termina sem resposta do modelo")
+    return chamadas
 
 
 class Referencia:
@@ -66,6 +84,7 @@ class Referencia:
             dados = yaml.safe_load((self.pasta / "cassetes" / nome).read_text())
             passos = metrica["passos_modelo"]
             interacoes = dados["interactions"]
+            chamadas_http = _chamadas_http(interacoes)
             chamadas_juiz = metrica.get("chamadas_juiz", 1)
             if (
                 type(passos) is not int
@@ -73,12 +92,15 @@ class Referencia:
                 or type(chamadas_juiz) is not int
                 or not 0 <= chamadas_juiz <= 3
                 or (chamadas_juiz == 0 and any(self.registros[chave].criterios.values()))
-                or len(interacoes) != passos + chamadas_juiz
+                or len(chamadas_http) != passos + chamadas_juiz
             ):
                 raise ValueError("quantidade de inferências ou chamadas do juiz diverge da referência")
+            for papel, chamadas in (("agente", chamadas_http[:passos]), ("juiz", chamadas_http[passos:])):
+                if sum(len(c) - 1 for c in chamadas) != metrica.get(f"retentativas_http_{papel}", 0):
+                    raise ValueError("quantidade de retentativas HTTP diverge da referência")
             # Após as inferências vêm o juiz e suas eventuais correções de citação.
             # O original permanece integral na referência para auditoria.
-            dados["interactions"] = interacoes[:passos]
+            dados["interactions"] = [i for chamada in chamadas_http[:passos] for i in chamada]
             arquivo = destino / nome
             arquivo.write_text(yaml.safe_dump(dados, allow_unicode=True, sort_keys=False))
             arquivo.chmod(0o600)
