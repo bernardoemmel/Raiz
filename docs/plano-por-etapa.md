@@ -807,3 +807,7 @@ O inventário local dos pares recompostos não foi enviado: o endpoint de upload
 HTTP 401 neste ambiente, tanto pelo cliente Python quanto pelo gh. Os dois blocos originais já estão
 no draft privado e permanecem intactos; o índice local não foi apresentado como checkpoint remoto
 concluído. Nenhum ponteiro ou marca de processamento foi alterado.
+
+Na integração dos formatos com #98 e a retomada atualizada, **311 testes** de quantis, Croissant,
+manifestos imutáveis, atestação/verificador, promoção e pasta fiador passaram com PostGIS real.
+A correção documental de privacidade não altera o detector nem o código do produto.
