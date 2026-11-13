@@ -99,6 +99,7 @@ try {
       if (caminho.endsWith("satelite")) return json({ disponivel: true, caixa: [-52.105, -6.705, -52.075, -6.675], data_cena: "2026-10-10", metodo: "cena", satelite: "Sentinel-2", credito: creditoTeste, largura: 4, altura: 4 })
       return json(visual)
     }
+    if (caminho === `fichas/${car}/pastas`) return json({ codigo_car: car, pastas: [{ pedido_id: "pedido-teste", opcao: "barata", pasta_id: "pasta-teste", versao_id: "versao-teste", numero: 1, pronto: false, data_corte: "2026-11-12", imovel: { codigo_car: car, titulo: { nivel: "documento_apresentado", situacao: "pendente", fontes: [] }, creditos: [] } }] })
     if (caminho.startsWith("fichas/")) return desbloqueada && req.headers().authorization === "Bearer cliente-a" ? json(ficha) : json({ detail: "Ficha precisa de crédito pago" }, 402)
     if (caminho === "contatos") { contatos++; assert.deepEqual(req.postDataJSON(), { codigo_car: car }); return json({ id: 7, estado: "recebido", criado_em: "2026-11-12", mensagem: "Pedido registrado na Raíz. O contato será tratado depois." }) }
     if (caminho === "busca" || caminho === "agregado") {
@@ -136,6 +137,10 @@ try {
   await page.getByRole("heading", { name: "Terra comprometida", exact: true }).waitFor()
   await page.getByText("Cobertura parcial. Escopo:", { exact: false }).waitFor()
   await page.getByText("Certeza: Polígono oficial.", { exact: false }).waitFor()
+  await page.getByRole("button", { name: "Ver a conferência nos meus lotes", exact: true }).click()
+  await page.getByText("Título em nível: Documento apresentado.", { exact: false }).waitFor()
+  assert.equal(await page.getByRole("link", { name: "Lote barata, versão 1", exact: true }).getAttribute("href"), "#/pedidos/pedido-teste/pasta/barata")
+  assert.equal(debitos, 1, "A pasta do próprio lote não compra outra ficha")
   const versoes = page.locator(".versoes-ficha")
   await versoes.locator("summary").filter({ hasText: /^Embargos$/ }).click()
   await versoes.getByText("IBAMA sintético", { exact: false }).waitFor()

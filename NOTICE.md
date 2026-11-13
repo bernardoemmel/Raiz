@@ -420,3 +420,14 @@ imagem `valkey/valkey:8.1.4`, fornece cache, fila e limites compartilhados, sob 
 ([valkey-io/valkey](https://github.com/valkey-io/valkey/blob/8.1.4/COPYING)). A configuração da Raíz é própria;
 nenhum código desses serviços foi copiado ou alterado. PostgreSQL 16 permanece serviço separado sob a licença
 PostgreSQL. Isso não autoriza substituir Valkey por Redis nem GlitchTip pelo servidor Sentry de licença restritiva.
+
+## Pasta do banco fiador e comprador
+
+Jinja2 **3.1.6**, Pallets ([documentação](https://jinja.palletsprojects.com/)),
+**BSD-3-Clause**: modelos próprios com StrictUndefined, sandbox e escape; não
+se aceita modelo fornecido por cliente ou terceiro. Biblioteca já travada no uv.lock.
+
+Tabulator **6.7.1**, Oli Folkerd ([código](https://github.com/olifolkerd/tabulator)),
+**MIT**, e `@types/tabulator-tables` **6.3.6**, DefinitelyTyped, **MIT**: grade da pasta
+no front. Instalação travada no npm, sem CDN, módulos de exportação ou código copiado.
+Adaptações de teclado/semântica ARIA estão no componente próprio da Raíz.

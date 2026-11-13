@@ -868,3 +868,27 @@ não cobrem esse caminho. Separar a visão de leitura da publicação do destino
 interromper executores ou descartar checkpoints; manter a prova de que todos os produtos leem o mesmo retrato.
 Os **346 testes completos do front**, TypeScript, Ruff (616 arquivos), formatação e actionlint também passaram
 na combinação #95. O CI final e o corpus real continuam necessários; nenhuma referência de ausência foi renovada.
+
+
+### Revisão da main #98 — pasta privada do banco e comprador
+
+Main `692663c` revista e incorporada: autorização por pedido/conta e por todos os CARs, histórico imutável,
+revalidação de documentos, exportação com marca, modelo Jinja fechado e troca de sessão no navegador.
+Corrigido vazamento pequeno: `modelo_versao` aceitava CPF/CNPJ cru ou com prefixo de versão e os copiava
+para banco, tela e ZIP. A validação agora recusa documentos civis, nomes/contatos reconhecidos e credenciais
+antes da gravação, na leitura e na geração; erros não incluem o valor. Regressões usam documentos sintéticos
+calculados durante o teste, cobrem entrada/relatório/exportação e preservam versões técnicas legítimas.
+
+O corpus real do #76 permanece obrigatório. A campanha de produto registrada no #98 também está reprovada
+(`docs/medicao-agentes-actions.md`, execução `43354046452`): 25 chamadas fora do gabarito e cinco violações
+classificadas como instrução de terceiro. É evidência distinta do nosso corpus; a contagem não significa 25
+vazamentos. **Produto e regras** é dono da correção do leitor/continuidade e de nova campanha versionada.
+Nenhum resultado antigo foi reclassificado, nenhuma exceção de ausência foi renovada.
+
+Validação da combinação #98: **96 testes Python com PostGIS**, **349 testes do front**, TypeScript, Ruff,
+formatação (625 arquivos), actionlint e **1.139 arquivos sem CPF/CNPJ** passaram. O teste Playwright comum
+da pasta passou em desktop/celular, teclado, axe, bloqueio de pendência e troca de sessão.
+
+Atualização do corpus anterior, CI `43360286672`: **12 variantes executadas, 3 aprovadas e 9 reprovadas**
+por `resposta_json_invalido`, inclusive controles limpos. Sem diagnóstico de tentativa indevida/efeito de estado
+nesse ensaio, mas utilidade reprovada; o #76 permanece bloqueado até o CI final inteiro aprovar.

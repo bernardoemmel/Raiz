@@ -264,3 +264,23 @@ def test_imagem_privada_tem_headers_e_verifica_exclusividade(cliente, monkeypatc
     assert r.headers["Cache-Control"] == "private, no-store"
     assert r.headers["Vary"] == "Authorization"
     assert checks == [(7, CAR)]
+
+
+def test_pasta_privada_sem_upload_ou_modelo_e_zip_nao_cacheavel(cliente, monkeypatch):
+    from uuid import uuid4
+
+    cl, _ = cliente
+    pid = uuid4()
+    rota = f"/prospeccao/pastas/{pid}/segura"
+    assert cl.get(rota).status_code == 401
+    cl.headers["Authorization"] = "Bearer sessao-cliente"
+    calls = []
+    monkeypatch.setattr(api.pastas, "exportar", lambda e, c, p, o: calls.append((c, p, o)) or b"ZIP-DE-TESTE")
+    r = cl.get(rota + "/exportar")
+    assert r.status_code == 200 and r.content == b"ZIP-DE-TESTE"
+    assert r.headers["Cache-Control"] == "private, no-store"
+    assert r.headers["Vary"] == "Authorization"
+    assert r.headers["Content-Type"] == "application/zip"
+    assert calls == [(7, pid, "segura")]
+    assert cl.post(rota, json={"modelo": "{{ 7 * 7 }}"}).status_code == 405
+    assert cl.get(f"/prospeccao/pastas/{pid}/modelo-externo").status_code == 422
