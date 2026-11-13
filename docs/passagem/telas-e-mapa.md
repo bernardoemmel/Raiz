@@ -436,3 +436,19 @@ relatórios Lighthouse passaram pelo portão fixo. E9 real não foi calibrado e 
   teclado e axe a 360 px, sem 404. Pages também passou com publicação básica e zero erros no navegador.
   Revisões independentes da projeção e do acesso não encontraram vazamento. O rótulo “custo médio” distingue
   o custo estimado do preço de venda de US$ 55. E9 continua aguardando as cartas reais.
+
+## Continuação, entrega 3: sensibilidade do lote (12/11/2026, Brasília)
+
+- A comparação autenticada ganha controles de preço do crédito, reserva contra reversão (mínimo 20%),
+  taxa de desconto e cenário pessimista. Mostra as três opções, quantis de créditos, área, fazendas, VPL e
+  TIR do projeto, com fonte, data, versão e premissas. Desconto altera VPL; não altera a TIR do mesmo fluxo.
+- O endpoint exige identidade, escopo, liberação e propriedade do pedido antes de ler qualquer arquivo.
+  A grade privada é exata, sem interpolação: combinações inexistentes respondem ausência explícita, sem 404.
+  Pedido, modelo, critérios e composição precisam corresponder à revisão do lote; uma edição invalida a
+  comparação antiga. O componente limpa resultados defasados e descarta respostas em voo de outra revisão.
+- A rodada real do Pará publicou `sensibilidade: []`. O quadro informa essa ausência; a demonstração optativa
+  usa composições e fluxos inteiramente fictícios, sem ler dados pagos nem registrar resultados no aprendizado.
+  Publicar a grade real continua pendente no motor; não apresentamos o exemplo como previsão calibrada.
+- Contrato operacional em `docs/sensibilidade-lote.md`. Testes cobrem limites, grade exata, autorização antes
+  da leitura, ausência, distinção entre desconto/TIR e invalidação após editar o lote. Playwright cobre os quatro
+  controles, teclado, axe/360 px e respostas indisponíveis sem 404.
