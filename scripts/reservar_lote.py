@@ -21,6 +21,10 @@ import rodar_estado as O  # noqa: E402
 PREFIXO = "lote-pa-vaga-"
 
 
+class SemVagaGlobal(RuntimeError):
+    """Admissão consultada com sucesso, mas as quinze cotas estão ocupadas."""
+
+
 def contexto() -> tuple[str, int]:
     if os.environ.get("GITHUB_ACTIONS") != "true" or os.environ.get("GITHUB_JOB") not in {
         "preparar",
@@ -78,7 +82,7 @@ def reservar(maximo: int, aguardar_minutos: float = 0) -> int:
             print("Fila global cheia; aguardando término natural, sem cancelar workflows.", flush=True)
             time.sleep(min(30, restante))
     if not 1 <= len(reservas) <= maximo:
-        raise RuntimeError("sem vaga global para o Lote; aguarde término natural e reexecute o workflow completo")
+        raise SemVagaGlobal("sem vaga global para o Lote; aguarde término natural e reexecute o workflow completo")
     confirmar(len(reservas))
     return len(reservas)
 
@@ -108,13 +112,27 @@ def main() -> None:
     parser.add_argument("--aguardar-minutos", type=float, default=0)
     args = parser.parse_args()
     if args.reservar is not None:
-        vagas = reservar(args.reservar, args.aguardar_minutos)
+        vagas = aguardar(args.reservar, args.aguardar_minutos)
         with Path(os.environ["GITHUB_OUTPUT"]).open("a") as saida:
             saida.write(f"vagas={vagas}\n")
         print(f"Lote com {vagas} cotas na fila global de 15; nenhum trabalho foi cancelado.")
     else:
         confirmar(args.confirmar)
         print("Cotas globais confirmadas antes de acessar os dados do Lote.")
+
+
+def aguardar(maximo: int, minutos: float = 0) -> int:
+    if not 0 <= minutos <= 240:
+        raise ValueError("Espera deve ficar entre zero e 240 minutos.")
+    prazo = time.monotonic() + minutos * 60
+    while True:
+        try:
+            return reservar(maximo)
+        except SemVagaGlobal:
+            if time.monotonic() >= prazo:
+                raise
+            print("Quinze cotas ocupadas; aguardando conclusão natural, sem cancelar trabalhos.", flush=True)
+            time.sleep(min(60, max(0, prazo - time.monotonic())))
 
 
 if __name__ == "__main__":

@@ -440,7 +440,6 @@ que não é aceita pelo projeto. A versão 10.78.0 evita essa dependência e man
 original do Lighthouse; sua compatibilidade é verificada com o teste de agentes e com eventos de telemetria
 capturados em transporte local, sem envio ao Sentry. Ao atualizar o Lighthouse ou esse pin, repetir essas
 verificações e a checagem integral de licenças; não liberar FSL nem instalar a CLI como exceção.
-
 # Rodada 12 — cálculo científico e fontes
 
 Integrações por API Python, sem código de terceiros copiado:
@@ -485,6 +484,7 @@ Dados e fatos científicos não herdam as licenças das bibliotecas:
   faixa em `ecologia_referencias_abertas.json`. Quantis foram calculados por
   código próprio. Cava (Zenodo 4941557, CC0) aparece como experimento rejeitado,
   sem promover a curva a previsão. Nenhum dado ou código NC foi incorporado.
+
 
 ## Preparação dos programas e correção do céu — MapLibre GL JS 6.15.0
 
