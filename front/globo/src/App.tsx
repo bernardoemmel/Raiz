@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useRef } from "react"
 import { useRota } from "./rota"
-import { pedidos, useSessao } from "./pedidos"
+import { pedidosPublicos, useSessao } from "./sessao"
 import { Explorar } from "./telas/Explorar"
 
 const AcertoModelo = lazy(() => import("./telas/AcertoModelo").then((m) => ({ default: m.AcertoModelo })))
@@ -48,7 +48,7 @@ function TelaAtual() {
   if (rota.tela === "entrar") return <Entrar token={rota.token} />
   if (rota.tela === "pedidos" || rota.tela === "pedido-novo" || rota.tela === "pedido" || rota.tela === "grupo" || rota.tela === "ficha-lote") {
     // sem sessão, entra primeiro e volta para onde ia
-    if (!sessao && (!pedidos.publica || rota.tela === "grupo")) return <Entrar token={null} volta={location.hash} />
+    if (!sessao && (!pedidosPublicos || rota.tela === "grupo")) return <Entrar token={null} volta={location.hash} />
     if (rota.tela === "pedidos") return <MeusPedidos key={sessao?.token ?? "publica"} />
     if (rota.tela === "pedido-novo") return <NovoPedido key={sessao?.token ?? "publica"} />
     if (rota.tela === "ficha-lote") return <FichaLote key={`${rota.id}-${rota.opcao}-${sessao?.token ?? "publica"}`} id={rota.id} opcao={rota.opcao} />

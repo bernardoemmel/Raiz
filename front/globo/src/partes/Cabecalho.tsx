@@ -1,4 +1,4 @@
-import { useSessao } from "../pedidos"
+import { useSessao } from "../sessao"
 import { linkCalendario, linkPedidos, linkProspeccao } from "../rota"
 import { Busca } from "./Busca"
 import { IconeRaiz, User } from "./Icones"

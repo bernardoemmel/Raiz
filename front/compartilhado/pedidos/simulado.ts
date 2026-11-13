@@ -4,9 +4,9 @@ import { CAMPOS_PADRAO } from "./exemplo"
 import type { CamposPedido, IdOpcao, MudancaLote, Opcao, Pedido } from "./tipos"
 import { tituloDoPedido } from "./texto"
 import { fichaCreditoDemonstracao } from "./ficha-credito-demonstracao"
+import { CHAVE_DEMONSTRACAO, type guarda } from "./sessao"
 
 const TOKEN = "demonstracao-local-sem-valor-de-autenticacao"
-const CHAVE = "raiz.demonstracao.sessao"
 const IDS: IdOpcao[] = ["barata", "segura", "compacta"]
 
 /** Contornos artificiais: não são os limites de imóveis reais nem IDs do CAR. */
@@ -44,7 +44,7 @@ export function pedidoDemonstracao(campos: CamposPedido = structuredClone(CAMPOS
   }
 }
 
-export function fontePedidosSimulada(): FontePedidos {
+export function fontePedidosSimulada(armazenamento?: ReturnType<typeof guarda>): FontePedidos {
   let pedido = pedidoDemonstracao()
   let iniciada = false
   const responder = (corpo: unknown, status = 200) => new Response(JSON.stringify(corpo), { status, headers: { "Content-Type": "application/json", "Cache-Control": "no-store" } })
@@ -87,6 +87,6 @@ export function fontePedidosSimulada(): FontePedidos {
     // Nem a demonstração inicia contato ou cobrança, ainda que chamada fora da interface.
     return responder({ erro: "Etapa indisponível na demonstração." }, 409)
   }
-  const api = fontePedidosApi("https://demonstracao.invalid/", { transporte, chaveSessao: CHAVE })
+  const api = fontePedidosApi("https://demonstracao.invalid/", { transporte, chaveSessao: CHAVE_DEMONSTRACAO, armazenamento })
   return { ...api, exemplo: true }
 }
