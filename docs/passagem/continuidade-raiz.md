@@ -122,3 +122,16 @@ antigo por conexão via socket; preferir TCP e executar a suíte inteira, como n
   da integração (403), portanto não prova presença nem ausência em produção. Nunca pedir ou imprimir seu valor.
 - Release `dados` agora contém somente cadastro básico/agregados. `dados-privados` e históricos completos são
   **rascunhos privados**; nunca publicar esses Releases nem usar `dados/amostra` como previsão real de certidão.
+
+## Entrega 2 — avaliação da cascata
+
+- `raiz modelos avaliar-cascata --documentos <manifesto-privado>` pronto. Qwen primeiro nas tarefas curtas
+  compatíveis; confiança baixa/sem corte aprovado chama Haiku. PDF visual/entrada longa registra o motivo da
+  rota direta. Toda tentativa/modelo/tokens/cache/preço/duração entra no custo por hash do documento.
+- Acerto exige gabarito humano integral com origem e data. Sem rótulo, acerto é `null`; uso ou preço não informado
+  deixa custo desconhecido. Custo da máquina local é separado da tarifa de API e não foi presumido gratuito.
+- As 120 tarefas de aceite continuam explicitamente um benchmark de tarefas, nunca um conjunto de certidões.
+  Tentativa real do comando em 12/11/2026 parou antes das chamadas: `ANTHROPIC_API_KEY` ausente/vazia;
+  `RAIZ_ANTHROPIC_API_KEY` também não encontrada. Nenhuma medição Haiku foi produzida.
+- Detalhes, contrato do manifesto privado e comando de retomada: `docs/avaliacao-cascata-documentos.md`.
+  Os cortes locais continuam vazios; nenhuma avaliação sintética os aprovou.

@@ -43,6 +43,7 @@ class Resposta:
     recusou: bool = False
     erro: str | None = None
     confianca: float | None = None  # 0 a 1, dos logprobs do modelo local (o Claude não devolve logprobs)
+    uso_informado: bool = True  # false quando a API não devolveu uso: zero tokens não é medição
 
     @property
     def ok(self) -> bool:
