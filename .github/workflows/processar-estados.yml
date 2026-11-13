@@ -37,7 +37,7 @@ on:
         default: "0"
   schedule:
     - cron: "23 5 * * 1" # segunda-feira, 02:23 em Brasília: refaz o que mudou e continua o que falta
-    - cron: "*/15 * * * *" # só drena pedidos/continuações persistidos; não começa rodada nova
+    - cron: "*/15 * * * *" # drena pedidos e preenche vagas com UFs incompletas; não inicia manutenção
 
 permissions:
   contents: write # subir no Release, trava do estados.json, painel do README
@@ -214,10 +214,6 @@ jobs:
             echo "sem mapas de projetos de carbono (frente ja_tem_projeto fica de fora)"
           fi
 
-      # Nome preservado: fila_processamento reconhece este passo ao retomar falhas posteriores ao cálculo.
-      - name: Rodar pelo executor (fontes, adoção, motor e tarefas do produto) e publicar no Release dados
-        run: uv run python motor/rodar_estado.py "$UNIDADE" --executor
-
       - name: Buscar o publicador do workflow para finalizar executores de versões anteriores
         id: publicador_checkout
         if: ${{ !cancelled() && steps.privacidade.outcome == 'success' && matrix.ref != github.workflow_sha }}
@@ -231,6 +227,27 @@ jobs:
         if: ${{ !cancelled() && steps.publicador_checkout.outcome == 'success' }}
         working-directory: publicador-atual
         run: uv sync --frozen --all-extras
+
+      - name: Recuperar resultados e marcas do checkpoint privado da unidade
+        id: checkpoint_restaurado
+        if: ${{ !cancelled() && steps.privacidade.outcome == 'success' && (matrix.ref == github.workflow_sha || steps.publicador_dependencias.outcome == 'success') }}
+        working-directory: ${{ steps.publicador_checkout.outcome == 'success' && 'publicador-atual' || '.' }}
+        run: >-
+          uv run --all-extras python -m raiz.executor.checkpoint restaurar
+          --unidade "$UNIDADE" --repositorio "$GITHUB_WORKSPACE"
+
+      # Nome preservado: fila_processamento reconhece este passo ao retomar falhas posteriores ao cálculo.
+      - name: Rodar pelo executor (fontes, adoção, motor e tarefas do produto) e publicar no Release dados
+        id: executor
+        run: uv run python motor/rodar_estado.py "$UNIDADE" --executor
+
+      - name: Preservar resultados e retratos opacos no checkpoint privado
+        if: ${{ always() && steps.privacidade.outcome == 'success' && steps.checkpoint_restaurado.outcome == 'success' && steps.executor.outcome != 'skipped' }}
+        timeout-minutes: 20
+        working-directory: ${{ steps.publicador_checkout.outcome == 'success' && 'publicador-atual' || '.' }}
+        run: >-
+          uv run --all-extras python -m raiz.executor.checkpoint salvar
+          --unidade "$UNIDADE" --repositorio "$GITHUB_WORKSPACE"
 
       - name: Finalizar metadados da UF com a mesma reserva do executor
         if: ${{ !cancelled() && steps.publicador_dependencias.outcome == 'success' }}

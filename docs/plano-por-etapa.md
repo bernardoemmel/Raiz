@@ -26,6 +26,28 @@ E3, E5, E7, E8 e E9 têm a coluna Situação conferida contra a main; E1 e E2 ta
 
 Retomada em 12/11/2026, seguindo a passagem `docs/passagem/raiz-dados-do-brasil.md`.
 
+**Prioridade urgente determinada pelo fundador em 12/11:** concluir a correção da publicação que interrompe
+RN/PI, preservar e retomar o progresso, preencher as vagas com várias UFs/fatias (teto global 15), e mostrar
+municípios prontos, em execução e com erro no painel, com última mudança. As extensões restantes dos formatos
+do Lote PA permanecem preservadas, mas aguardam essa correção operacional.
+Rodada 12 recebida: marcador municipal íntegro, tempos mediana/p95, ensaio de falha/retomada, conferência Ibis
+em dois mecanismos e camada bovina PA/2016 agregada por município/mês. Implementação e provas pendentes,
+com fontes e limites registrados na passagem; a prioridade segue sendo a fila dos 27 estados.
+
+O **#82 foi mesclado** em `cf306256`, após os oito checks do CI `43335410339` passarem, incluindo a referência
+privada completa do Pará. O workflow do motor foi conferido como `active`. A falha posterior de RN-1 veio da
+projeção pública que confundia a UF de origem cadastral com a UF do recorte. A correção local preservou todos
+os **242.008 registros de 214 CSVs reais de RN/PI**, incluindo os dois CARs de outra UF, sem publicar dados.
+Também está corrigida localmente a corrida entre o pacote e seus metadados: uma cópia privada estável serve
+todos os produtos da publicação. **Implementados na entrega urgente:** checkpoint privado independente com
+restauração antes do cálculo e salvamento `always()`, proteção contra marcas divergentes, leitor de retratos
+legados com prova dos bytes originais e painel das 27 UFs com eventos municipais, lease e última mudança.
+A promoção auditada usa o commit fixo `ebb13cae`, preserva as 11 versões atuais e não altera reservas vivas.
+O modo próximo repõe todas as vagas disponíveis; o cron de 15 minutos também repõe UFs incompletas, com
+prioridade aos pedidos persistidos e teto CAS global de 15. Nenhum dos caminhos cancela jobs.
+Faltam suíte integrada/CI, PR/merge, emissão do painel e retomada confirmada em produção; a estimativa nacional
+depende da vazão medida após a correção. Não declarar a urgência concluída pelo teste local.
+
 Formatos integrados pelo **#77**, com 1.859 testes no CI do PR; CI de push também verde. A validação local incluiu
 PostGIS, API/MCP, Ficha e 681 licenças. Os 22 arquivos públicos e 39 canônicos privados tiveram bytes e hashes
 conferidos antes da catalogação. A publicação retroativa e a verificação das atestações aguardam o término natural
@@ -264,7 +286,7 @@ O Compose completo subiu no CI do PR #85. O ensaio revelou e corrigiu a ausênci
 | Ordem | Entrega | Situação |
 |---|---|---|
 | A | API paga: 3 testes por empresa, sinal Pix e contrato, cobrança/estorno, limite SlowAPI, CLI e privacidade | **feito no código**, PR #45 com CI verde (1.072 testes Python); migração 0028 após o calendário |
-| B | MCP oficial Python 2.3.0/protocolo 2026-07-28 no mesmo app, sete ferramentas e resumo único até 8 KiB | **feito no código**, base do PR #69 com CI verde (1.384 testes Python), acrescida de `consultar_ficha` para releitura de CAR já adquirido, sem nova tarifa; descoberta e chamadas testadas com o cliente oficial |
+| B | MCP oficial Python 2.3.0/protocolo 2026-07-28 no mesmo app, oito ferramentas e resumo único até 8 KiB | **feito no código**, base do PR #69 com CI verde (1.384 testes Python), acrescida de `consultar_ficha` para releitura de CAR já adquirido, sem nova tarifa, e `proximos_eventos` para o calendário já público; descoberta e chamadas testadas com o cliente oficial |
 | C | OAuth 2.1/Keycloak; consultar/pedir/reservar, reserva desligada até administrador da empresa habilitar | **feito no código**; JWT, emissor, audiência, PKCE e isolamento testados; produção depende da configuração da instalação |
 | D | Fila durável, Idempotency-Key, Standard Webhooks, aprovação humana/Pix/JWS, OpenTelemetry | **feito no código**; testes de concorrência, queda do processo, assinatura e prazo; conta/API/worker precisam da mesma base e cofre |
 | E | Gabarito de 24 tarefas, quatro sessões por tarefa, meta pass^4 ≥ 80% e zero chamada proibida | **feito**: gabarito e avaliador; desempenho de agente real ainda não medido |
@@ -492,7 +514,7 @@ Entrega 3 da continuação de 12/11/2026, sobre a ficha paga do PR #52.
 | Eventos com tipo, data/prazo, UF/município, fonte/link, coleta e confiança | **feito**: esquema `calendario`, migração 0027 após 0022–0025 do título/aprendizado e 0026 da prospecção; histórico, UID e sequência preservados nas retificações |
 | Coleta diária de leilões rurais, penhoras, BNDES, ProFloresta+, Fundo Amazônia, concessões, crédito e SBCE/Verra/ICVCM/SBTi/EUDR | **feito**: 17 fontes oficiais em `raiz/calendario/fontes.yaml`, HTTP/PDF/Firecrawl opcional, workflow diário com snapshot no Release `calendario`; cobertura inicial e falhas explícitas, sem inventar prazos |
 | Vínculo de leilão/penhora ao CAR | **feito**: CAR explícito, CNS+matrícula vigente ou interseção SIGEF; sem corte por tamanho; vínculo insuficiente fica pendente; CAR inferido fica interno, só CAR explícito no edital aparece na consulta pública; nenhum nome ou documento pessoal persistido |
-| API e integração | **feito**: `GET /eventos` com tipo/estado/período/CAR, `GET /eventos.ics` e função Python `proximos_eventos` pronta; o calendário ainda não está registrado no transporte MCP, e o servidor pago oferece sete ferramentas, incluindo releitura de ficha já adquirida |
+| API e integração | **feito**: `GET /eventos` com tipo/estado/período/CAR, `GET /eventos.ics` e `proximos_eventos` registrada no MCP com OAuth/escopo `consultar`; consulta somente o calendário já público, sem cobrança ou aquisição de ficha. Projeção positiva preserva UID/CAR e oculta vínculos inferidos e identificadores privados |
 | Site e pedidos | **feito**: aba Calendário, filtros, fonte/data de coleta, feed, selos no mapa/ficha/tabela e aviso deduplicado aos lotes; ficha individual mantém acesso por créditos, e-mail/WhatsApp permanecem simulados. Publicação do site após a coleta |
 | Agenda no servidor | **feito no código**: `scripts/instalar_cron_alertas.py --tarefa calendario --instalar`, diário com banco, trava e `.env`; instalação em produção depende de acesso ao servidor |
 
@@ -504,6 +526,8 @@ ao retirar identificadores descartados; 118 testes do calendário passaram com P
 Coleta integral local posterior: **50 eventos, 11 futuros, 198 visitas e zero duplicatas exatas**. PA parcial;
 DJEN/BA/MG/TO em erro. Os 50 vínculos com CAR continuam pendentes; nenhum alerta foi atribuído por suposição.
 O teste local não comprova implantação no servidor; execução/publicação diária deve ser conferida na main.
+O workflow também coleta quando alterações do calendário chegam à main, mantendo a publicação alinhada ao leitor
+validado no CI. A ferramenta MCP registrada consulta esse calendário público, com OAuth e escopo `consultar`.
 
 - [x] Integração da entrega mobile com o Calendário: rota sob demanda, quatro links visíveis a 360 px, filtros
   com 48 px e teste CI de teclado/axe em três larguras; 186 testes do front e fluxos de ficha/lote aprovados.
@@ -521,6 +545,23 @@ A primeira execução no Actions identificou ausência de `rg` no runner; a veri
   cenário R12 com curva inicial, operações, provisões de terra, dívida por ICSD,
   plano de gado em UA e credibilidade. Falta validação integral, recálculo do Pará,
   sensibilidade, ecologia, publicação privada e merge; ver passagem Lote e números.
+
+Validação da entrega urgente (12/11, 22h42 de Brasília): suíte completa local com 2.477 testes aprovados;
+o caso estadual exigiu preparar a referência privada e passou depois em execução isolada (144 municípios,
+345.870 imóveis, 425,58 s). LanguageTool depende do servidor presente no CI; uma divergência de TIR já
+documentada permanece como falha esperada. Frontend: 292 testes e build; Ruff/actionlint verdes;
+857 pacotes com licenças conferidas. PR/CI/merge e confirmação operacional ainda pendentes neste registro.
+
+
+PR urgente #95 aberto; CI `43347013537` parcialmente aprovado em 12/11 às 23h13 de Brasília
+(incluindo referência estadual do Pará). Exceção estrita de falso positivo Gitleaks confirmada localmente;
+aguarda término natural do CI antes do push para evitar cancelamento automático. Catálogo automático antigo
+`43346089594` falhou e continua pendente. Nenhum workflow foi cancelado ou desativado por este chat.
+
+O navegador do CI #95 encontrou um 404 na ref pública de processamento, ainda inexistente antes da primeira
+implantação. A fixture do build agora usa `./amostra/processamento.json`, servido pelo próprio site de teste.
+O Playwright exige as 27 UFs, ausência de erros e ausência de execução inventada; a configuração de produção
+continua consultando a ref pública. O teste de referência estadual, agentes, segurança, workflows e e2e já passaram.
 - [x] Medição: recusa explícita do provedor preservada como julgamento indisponível,
   sem repetição nem troca de modelo; mantém a execução das demais tarefas e impede
   aprovação/declaração de pass^4 completo quando faltar julgamento. Campanhas
@@ -560,3 +601,23 @@ A primeira execução no Actions identificou ausência de `rg` no runner; a veri
 - [x] Validação local R12: suíte integral com 2.500 aprovados e único erro na
   fixture CADT, corrigido e coberto por 52 testes aprovados; replay estadual
   privado aprovado; sensibilidade atualizada e Ruff aprovados. CI/merge pendentes.
+
+
+Acompanhamento em 13/11/2026, 00h33 de Brasília: o CI `43352641267` do PR #95 concluiu todos
+os nove jobs com sucesso. A main recebeu #86, #89 e #93 durante a execução; o conflito somente textual
+no plano foi resolvido preservando as duas entregas, antes de nova validação e novo CI. O run
+`43355236141` admitiu dez unidades junto de cinco reservas já existentes; seis unidades foram observadas
+no passo do executor simultaneamente. As leituras concorrentes de assets expuseram uma falha de paginação
+antes do executor em três unidades, corrigida e testada separadamente no PR #99. A ref pública de status
+recebe eventos municipais reais de RN, GO e MA. Erros no funil ainda impedem estimativa confiável de
+UFs/dia ou data nacional. Nenhum workflow foi cancelado/desativado; o teto compartilhado continua em 15.
+
+A integração do #93 acrescenta `estrito=True` à carga em `rodar.py`; esse arquivo participa do hash
+compartilhado e, por isso, as 11 versões na main mudam. A fila permanece no destino imutável `ebb13cae`
+com as versões originais: a prova agora recompõe exatamente a chamada anterior e confere todas as versões,
+sem alterar as reservas, as saídas ou o destino da promoção. Novos pedidos da main seguem a versão nova.
+
+- [x] R12 sincronizada com main `52118b5`, preservando a versão científica
+  `490ab152` e as entregas dos outros chats; referência estadual aprovada no CI.
+- [ ] Publicação PA R12: execução `43361839589/2` com entradas congeladas e
+  cálculo iniciado; aguarda três lotes, sensibilidade e conferência privada.

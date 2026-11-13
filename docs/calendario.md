@@ -58,7 +58,14 @@ concessao, leilao_credito, sbce, verra, icvcm, sbti, eudr
 
 `GET /eventos.ics` aplica os mesmos filtros, usa dias inteiros, UID estável, sequência e cancelamento RFC 5545. Não embute token. Acima de 20 mil eventos pede filtro mais restrito em vez de truncar silenciosamente.
 
-`raiz.calendario.mcp.proximos_eventos(tipo, estado, dias, cod_imovel, limite)` usa a mesma consulta pública, somente leitura. A função do calendário ainda não está registrada em transporte MCP; o servidor pago em `/mcp` mantém seu catálogo próprio. O CLI `proximos` permite verificar a função imediatamente.
+`proximos_eventos(tipo, estado, dias, cod_imovel, limite)` está registrada no servidor `/mcp`, com OAuth e escopo
+`consultar`. Usa a mesma consulta pública de `GET /eventos`, sem cobrança ou aquisição de ficha. O período começa
+no dia atual em Brasília; `dias` aceita 1 a 3660 e `limite`, 1 a 1000. Fonte, cobertura, confiança e CAR explícito
+permanecem disponíveis; matrícula/CNS/SIGEF e CAR inferido ficam fora da resposta pública. Relatórios de projetos
+não fazem parte da ferramenta. A função Python em `raiz.calendario.mcp` e o CLI `proximos` usam a mesma consulta.
+
+Além da agenda diária, alterações do coletor ou do workflow integradas à main disparam uma coleta automaticamente.
+Assim a publicação usa o leitor atualizado; a fila mantém uma rodada por vez e não cancela a coleta em curso.
 
 ## Privacidade e validação
 

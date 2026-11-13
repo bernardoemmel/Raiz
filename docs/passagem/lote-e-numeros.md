@@ -372,3 +372,19 @@ fixture foi corrigida e os 52 testes CADT passaram; a sensibilidade atualizada
 passou nos três testes focados. O replay privado PA144/345.870 passou dentro da
 suíte integral. Ruff e formatação dos 578 arquivos passaram. CI do PR ainda é
 o portão para merge; execução e publicação PA R12 ainda precisam ser conferidas.
+
+### Integração da main e execução PA R12 — 13/11/2026 UTC
+
+PR #101 aberto, CI `43361791598` no head `6205807`: referência privada PA144,
+front, e2e, agentes, workflows, segurança e segredos aprovados; Python ainda
+em execução neste registro. A main `52118b5` foi integrada preservando ambas
+as passagens e a versão mais restrita do adaptador Arrow da main. A versão
+financeira permanece `restauracao-2026d+490ab152`.
+
+A execução PA `43361839589`, tentativa 2, congelou e guardou as entradas dos
+144 municípios; a primeira fatia foi observada calculando. A tentativa 1 falhou
+na admissão, antes dos dados e sem cotas reservadas; seu log expôs apenas
+RuntimeError, portanto a causa específica não foi atribuída à falta de vaga.
+A tentativa 2 recebeu 12 cotas, com 15 no total global. Nenhum workflow foi
+cancelado ou desativado. Aguardamos o CI ativo terminar antes de enviar o merge
+da main, pois um novo head dispararia cancelamento no CI compartilhado.
