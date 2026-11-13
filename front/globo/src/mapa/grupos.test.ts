@@ -15,7 +15,7 @@ describe("grupos públicos do mapa", () => {
     expect(geo.features.some(f => "cod_imovel" in f.properties)).toBe(false)
     const campos = Object.keys(fonteGrupos().clusterProperties ?? {})
     const indice = new Supercluster({ maxZoom: 11, radius: 112,
-      map: p => Object.fromEntries(campos.map(c => [c, p[c]])),
+      map: p => Object.fromEntries(campos.map(c => [c, p?.[c]])),
       reduce: (a, b) => { for (const c of campos) a[c] = Number(a[c]) + Number(b[c]) },
     })
     indice.load(geo.features as never)
@@ -28,6 +28,7 @@ describe("grupos públicos do mapa", () => {
   })
 
   it("não apresenta a identidade zero da soma como hectares conhecidos", () => {
+    expect(lerGrupo({ geometry: { type: "Point", coordinates: [-50, -6] }, properties: null })).toBeNull()
     const geo = prepararPontosAgregados({ type: "FeatureCollection", features: [ponto("a", 5, null), ponto("b", 4, 10)] })
     expect(geo.features).toHaveLength(1)
     const grupo = lerGrupo(geo.features[0])!

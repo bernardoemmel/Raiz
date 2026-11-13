@@ -55,8 +55,9 @@ export function camadasGrupos(): LayerSpecification[] {
   ]
 }
 
-export function lerGrupo(f: { properties: Record<string, unknown>; geometry: { type: string; coordinates?: unknown } }): GrupoMapa | null {
+export function lerGrupo(f: { properties: Record<string, unknown> | null; geometry: { type: string; coordinates?: unknown } }): GrupoMapa | null {
   const p = f.properties, c = f.geometry.coordinates
+  if (!p) return null
   if (f.geometry.type !== "Point" || !Array.isArray(c) || c.length !== 2 || !c.every(n => typeof n === "number" && Number.isFinite(n))) return null
   if (!Number.isSafeInteger(p.fazendas) || Number(p.fazendas) < 5) return null
   const cluster = p.cluster === true && typeof p.cluster_id === "number" ? p.cluster_id : undefined
