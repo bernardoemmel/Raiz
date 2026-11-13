@@ -6,6 +6,7 @@ import { fmtDataHoraBrasilia, fmtInt, UFS, ufDoCodigo } from "../../../compartil
 import type { Foco } from "../../../compartilhado/funil-etapas"
 import { fonte, useCarga } from "../dados"
 import type { CamadaAssunto, GeoMunicipio } from "../mapa/MapaBrasil"
+import { cederProcessamento } from "../../../compartilhado/ceder-processamento"
 import { Cabecalho } from "../partes/Cabecalho"
 import { useProcessamentoEstados } from "../processamento-estados"
 import { destinoTerritorialMapa, type FocoTerritorialMapa } from "../rota"
@@ -24,7 +25,14 @@ import "./explorar-v2.css"
 const PainelBrasil = lazy(() => import("../partes/PainelBrasil").then(m => ({ default: m.PainelBrasil })))
 const PainelProcessamentoEstados = lazy(() => import("../partes/PainelProcessamentoEstados").then(m => ({ default: m.PainelProcessamentoEstados })))
 const PainelPedidoMapaV2 = lazy(() => import("../partes/pedido/PainelPedidoMapaV2").then(m => ({ default: m.PainelPedidoMapaV2 })))
-const MapaBrasil = lazy(() => import("../mapa/MapaBrasil").then((m) => ({ default: m.MapaBrasil })))
+const MapaBrasil = lazy(async () => {
+  // Avaliar a biblioteca gráfica e montar o componente na mesma tarefa bloqueia a entrada.
+  // A dependência fica em cache; a continuação entrega a thread antes de avaliar o mapa.
+  await import("../mapa/estilo")
+  await cederProcessamento()
+  const m = await import("../mapa/MapaBrasil")
+  return { default: m.MapaBrasil }
+})
 const PainelMunicipio = lazy(() => import("../partes/PainelMunicipio").then((m) => ({ default: m.PainelMunicipio })))
 const PainelMunicipioBasico = lazy(() => import("../partes/PainelMunicipioBasico").then((m) => ({ default: m.PainelMunicipioBasico })))
 
