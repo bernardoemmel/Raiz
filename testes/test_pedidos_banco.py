@@ -469,7 +469,7 @@ def _canais(eng, pedido_id, tipo):
         )
 
 
-def test_vigia_avisa_fato_novo_do_grupo_em_todos_os_canais_sem_repetir(eng, chave):
+def test_vigia_guarda_vigilancia_so_no_painel_sem_repetir(eng, chave):
     from raiz.vigilancia.pedidos import Fato
 
     c, _ = S.criar_cliente(eng, "Cliente G")
@@ -510,13 +510,13 @@ def test_vigia_avisa_fato_novo_do_grupo_em_todos_os_canais_sem_repetir(eng, chav
         con.execute(text("update negocio.alerta_pedido set visto_em = now() where pedido_id = :p"), {"p": p["id"]})
     S.vigiar(eng, fatos_de=fatos_de)
     assert len([a for a in S.obter_pedido(eng, p["id"], c)["alertas"] if a["tipo"] == "fazenda_com_problema"]) == 3
-    # grupo em formação: fato novo vai também por WhatsApp (simulado)
+    # Mesmo no grupo em formação, vigilância não chama e-mail nem WhatsApp.
     S.solicitar_interesse(eng, p["id"], c, "barata")
     fatos.append(Fato(lote[1], "desmatamento", "vigilancia:t3", hoje, "Fazenda do grupo com derrubada: 1,0 ha.",
                       {"fonte": "mapbiomas_alerta"}))  # fmt: skip
     S.vigiar(eng, fatos_de=fatos_de)
     novos = [x for x in _canais(eng, p["id"], "fazenda_com_problema") if x[0] == "whatsapp"]
-    assert novos == [("whatsapp", "simulada")]
+    assert novos == []
 
 
 def test_vigia_le_a_vigilancia_e_as_certidoes(eng, chave, tmp_path, monkeypatch):

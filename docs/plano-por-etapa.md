@@ -474,7 +474,14 @@ Entrega 3 da continuação de 12/11/2026, sobre a ficha paga do PR #52.
 | Site e pedidos | **feito**: aba Calendário, filtros, fonte/data de coleta, feed, selos no mapa/ficha/tabela e aviso deduplicado aos lotes; ficha individual mantém acesso por créditos, e-mail/WhatsApp permanecem simulados. Publicação do site após a coleta |
 | Agenda no servidor | **feito no código**: `scripts/instalar_cron_alertas.py --tarefa calendario --instalar`, diário com banco, trava e `.env`; instalação em produção depende de acesso ao servidor |
 
-Limites verificados em 12/11/2026: DJEN/CNJ respondeu HTTP 403; diários estaduais começam por PA/MT; PDF escaneado sem texto ainda não tem OCR. Erro de fonte não elimina os eventos anteriores. Testes com trechos oficiais gravados e PostGIS; detalhes em `docs/calendario.md`.
+Limites da primeira entrega em 12/11/2026: DJEN/CNJ respondeu HTTP 403; cobertura inicial PA/MT. A ampliação e o OCR estão descritos na continuação abaixo. Erro de fonte não elimina os eventos anteriores. Testes com trechos oficiais gravados e PostGIS; detalhes em `docs/calendario.md`.
+
+Conferência posterior das fontes: retirada de matrícula/CAR ambíguo preserva o UID quando o ato corresponde a um
+único evento já publicado. Releitura real da Fomento Paraná manteve seus 11 eventos, sem duplicar quatro registros
+ao retirar identificadores descartados; 118 testes do calendário passaram com PostGIS.
+Coleta integral local posterior: **50 eventos, 11 futuros, 198 visitas e zero duplicatas exatas**. PA parcial;
+DJEN/BA/MG/TO em erro. Os 50 vínculos com CAR continuam pendentes; nenhum alerta foi atribuído por suposição.
+O teste local não comprova implantação no servidor; execução/publicação diária deve ser conferida na main.
 
 - [x] Integração da entrega mobile com o Calendário: rota sob demanda, quatro links visíveis a 360 px, filtros
   com 48 px e teste CI de teclado/axe em três larguras; 186 testes do front e fluxos de ficha/lote aprovados.
@@ -487,3 +494,13 @@ A primeira execução no Actions identificou ausência de `rg` no runner; a veri
 
 - [x] Markdown do site preserva medidas ausentes e zeros explícitos; totais incompletos não são apresentados
   como totais completos. Regressões cobrem páginas estaduais/municipais e proteção de grupos pequenos.
+
+## Continuação solicitada: fontes, cascata, vigilância e primeira certidão
+
+| Entrega | Situação em 12/11/2026 (Brasília) |
+|---|---|
+| Recuperar fontes e ampliar diários | **Parcial operacionalmente:** DOE PA recuperado por PDF oficial; seleção diária de AC/AP/BA/CE/GO/MA/MG/PA/PI/RN/RO/RR/TO pelo manifesto real, sem piso de municípios. HTTP com espera limitada, APIs/formulários públicos e PDF/OCR isolados. DJEN segue 403; BA/MG/TO indisponíveis nesta verificação. Falhas não apagam histórico nem interrompem fontes úteis. |
+| Leilões judiciais e extrajudiciais abertos | **Feito no código, cobertura parcial:** CAIXA CSV nacional, BB e TRT16, além das fontes existentes. Vínculo só com prova inequívoca do próprio imóvel; OCR/confrontante/ausência de CAR ficam pendentes. Feed, API e site mostram a fonte da prova quando confirmada; CPF/CNPJ e texto pessoal não são persistidos. |
+| Avaliação local primeiro/Haiku | **Feito no código; medição Haiku bloqueada:** `raiz modelos avaliar-cascata` registra acerto integral/por campo, revisão, tokens, custo real por documento e todas as chamadas. Exige documento real e revisão humana para medir acerto. A execução real parou antes das chamadas porque `ANTHROPIC_API_KEY` está ausente/vazia neste processo; custo/acerto Haiku não foram inventados. |
+| Vigilância de fazendas em lotes | **Feito no código; ativação pendente:** coleta diária DETER/MapBiomas/NOAA-20/21 recortada ao catálogo privado de pedidos, rascunhos por dono e painel autenticado. Ponte de 15 minutos renova catálogo/importa resultados. Sem servidor/banco real neste ambiente, sem catálogo privado disponível e sem credencial válida MapBiomas, a vigilância nacional não foi declarada ativa. Nenhum envio. |
+| Primeira certidão real | **Caminho pronto, dado real pendente:** upload PDF cifrado por empresa/pedido/CAR, validação isolada, previsão vigente congelada antes da leitura, comparação, gabarito humano imutável e sincronização E8. Ausência de previsão não vira erro do motor. Ainda não há certidão/gabarito real nem métrica de acerto; fixtures servem somente para testes funcionais. |

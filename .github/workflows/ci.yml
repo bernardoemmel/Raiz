@@ -269,11 +269,11 @@ jobs:
           cache-dependency-path: servicos/cartao/package-lock.json
       - name: Dependências (produto e motor)
         run: uv sync --frozen --all-extras
-      - name: Takumi, FFmpeg e LibreOffice (inclui testes de PDF)
+      - name: Takumi, FFmpeg, LibreOffice e OCR (inclui testes de PDF)
         run: |
           npm --prefix servicos/cartao ci --no-audit --no-fund
           sudo apt-get update -q
-          sudo apt-get install -y -q --no-install-recommends ffmpeg libreoffice-writer
+          sudo apt-get install -y -q --no-install-recommends ffmpeg libreoffice-writer poppler-utils tesseract-ocr tesseract-ocr-por
       - name: Cache do LanguageTool
         uses: actions/cache@v4
         with:
