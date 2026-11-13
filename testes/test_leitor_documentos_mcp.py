@@ -112,3 +112,17 @@ def test_diagnostico_distingue_formato_e_fatos_sem_expor_resposta():
     assert diagnosticar_resposta("certidao", "", '{"campo-privado": true}') == "resposta_campos_divergentes"
     errado = json.dumps({"comparacao": "regular", "evidencias_faltantes": ["confirmacao_matricula"]})
     assert diagnosticar_resposta("certidao", "", errado) == "resposta_fatos_divergentes"
+
+
+@pytest.mark.parametrize("fonte", ["certidao", "edital", "nome_arquivo"])
+def test_formato_estruturado_nao_entrega_os_fatos_do_gabarito(fonte):
+    from jsonschema import Draft202012Validator
+
+    from testes.mcp.leitor_documentos import _esquema_formato
+
+    esquema = _esquema_formato(fonte)
+    errado = {k: [] if v["type"] == "array" else "fato incorreto" for k, v in esquema["properties"].items()}
+    Draft202012Validator(esquema).validate(errado)
+    assert not conferir_resposta(fonte, "arquivo.pdf", json.dumps(errado))
+    assert "confirmacao_matricula" not in json.dumps(esquema)
+    assert "2026-11-30" not in json.dumps(esquema)

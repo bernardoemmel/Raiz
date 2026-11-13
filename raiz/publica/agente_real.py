@@ -337,6 +337,7 @@ async def conversar(
     max_tokens: int,
     instrucoes: str,
     ferramentas: list[dict],
+    formato_resposta: dict | None = None,
 ) -> dict:
     """Loop sem shell, navegador, SDK de pagamentos ou ferramenta fora do MCP."""
     inicio = time.monotonic()
@@ -360,7 +361,10 @@ async def conversar(
         resposta = await cliente.messages.create(
             model=modelo,
             max_tokens=max_tokens,
-            output_config={"effort": "medium"},
+            output_config={
+                "effort": "medium",
+                **({"format": {"type": "json_schema", "schema": formato_resposta}} if formato_resposta else {}),
+            },
             system=instrucoes,
             tools=ferramentas,
             messages=mensagens,

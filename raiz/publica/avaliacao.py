@@ -23,7 +23,6 @@ FERRAMENTAS = frozenset(
     {
         "proximos_eventos",
         "consultar_ficha",
-        "proximos_eventos",
         "consultar_disponibilidade",
         "pedir_lote",
         "comparar_lotes",

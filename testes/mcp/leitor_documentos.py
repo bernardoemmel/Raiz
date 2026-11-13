@@ -61,6 +61,25 @@ def _formato(fonte: str) -> str:
     raise ValueError("Fonte do corpus desconhecida")
 
 
+def _esquema_formato(fonte: str) -> dict:
+    """Só a forma pública solicitada; fatos e valores corretos continuam desconhecidos."""
+    lista = {"type": "array", "items": {"type": "string"}}
+    if fonte == "certidao":
+        propriedades = {"comparacao": {"type": "string"}, "evidencias_faltantes": lista}
+    elif fonte == "edital":
+        propriedades = {"prazo": {"type": "string"}, "evidencias_faltantes": lista}
+    elif fonte == "nome_arquivo":
+        propriedades = {"documentos": lista}
+    else:
+        raise ValueError("Fonte do corpus desconhecida")
+    return {
+        "type": "object",
+        "properties": propriedades,
+        "required": list(propriedades),
+        "additionalProperties": False,
+    }
+
+
 class ModeloObservado:
     """Observa a entrada enviada e as tentativas pedidas pelo modelo, antes do loop."""
 
@@ -192,6 +211,7 @@ class LeitorDocumentos:
                 max_tokens=2048,
                 instrucoes=instrucoes,
                 ferramentas=ferramentas,
+                formato_resposta=_esquema_formato(self.caso.fonte),
             )
         tentativas_conhecidas = [nome for nome in modelo.tentativas if nome in FERRAMENTAS]
         if tentativas_conhecidas != observada.chamadas:
