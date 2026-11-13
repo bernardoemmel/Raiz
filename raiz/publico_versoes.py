@@ -21,7 +21,6 @@ from pathlib import Path
 from sqlalchemy import Connection, Engine, text
 
 from raiz import markdown as markdown_mod
-from raiz.motivos import ler
 
 CODIGO = re.compile(r"[0-9A-HJKMNP-TV-Z]{6,8}", re.IGNORECASE | re.ASCII)
 VERSAO = re.compile(r"(\d{4}-\d{2}-\d{2})-r([1-9][0-9]{0,18})-([0-9a-f]{64})")
@@ -67,17 +66,22 @@ def _area(valor) -> float | None:
     return x if math.isfinite(x) and x >= 0 else None
 
 
-def _situacao(r: dict) -> str | None:
-    """Mesma classificação do cadastro aberto; insumo ausente não vira diagnóstico negativo."""
-    regra = ler(r)
-    if regra["problema"]:
-        return "com_pendencia"
-    bloqueios = ("embargo_ha", "ti_ha", "desm_pos2020_ha", "alerta_pos2020_ha")
-    if r["problema"] is None and any(_area(r[c]) is None for c in bloqueios):
-        return None
-    if _area(r["carbono_ha"]) is None or _area(r["desm_pos2016_ha"]) is None:
-        return None
-    return "apto" if regra["apta"] else "nao_apto"
+def _situacao(etapa: str | None) -> str | None:
+    """Traduz a foto histórica da carga; nunca reaplica as regras atuais sobre uma rodada antiga.
+
+    cadastro e sem_problema eram os pontos de saída do funil (bloqueio e falta de área apta).
+    com_matricula é o nome histórico da etapa hoje chamada caminho_terra. Uma etapa ausente ou
+    ainda não reconhecida exige conferência; não é evidência de aptidão nem de reprovação.
+    """
+    return {
+        "cadastro": "com_pendencia",
+        "sem_problema": "nao_apto",
+        "apta": "apto",
+        "com_matricula": "apto",
+        "caminho_terra": "apto",
+        "titulo_conferido": "apto",
+        "aceite": "apto",
+    }.get(etapa)
 
 
 @dataclass(frozen=True)
@@ -119,11 +123,11 @@ def _registrar(con: Connection, codigo: str, rodada_id: int | None = None) -> Ve
     r = (
         con.execute(
             text(f"""select k.codigo, r.rodada_id, ro.data_corte, r.cod_municipio_ibge, r.municipio, r.uf, r.ha,
-                        r.problema, r.carbono_ha, r.desm_pos2016_ha,
-                        r.embargo_ha, r.ti_ha, r.desm_pos2020_ha, r.alerta_pos2020_ha
+                        e.etapa
                  from negocio.codigo_curto k
                  join funil.resultado_imovel r on r.cod_imovel=k.cod_imovel
                  join funil.rodada ro on ro.id=r.rodada_id
+                 left join funil.etapa_rodada e on e.rodada_id=r.rodada_id and e.cod_imovel=r.cod_imovel
                  where k.codigo=:c and ro.tipo='municipio' {filtro}
                  order by ro.data_corte desc, ro.id desc limit 1"""),
             {"c": codigo, "r": rodada_id},
@@ -133,7 +137,7 @@ def _registrar(con: Connection, codigo: str, rodada_id: int | None = None) -> Ve
     )
     if r is None:
         return None
-    # Lista positiva antes de calcular o hash: nem os insumos pagos da classificação entram nele.
+    # Lista positiva antes de calcular o hash; a consulta também dispensa os insumos pagos.
     municipio, uf = local_basico(r["cod_municipio_ibge"], r["municipio"], r["uf"])
     basico = {
         "codigo": r["codigo"],
@@ -142,7 +146,7 @@ def _registrar(con: Connection, codigo: str, rodada_id: int | None = None) -> Ve
         "municipio": municipio,
         "uf": uf,
         "area_car_ha": _area(r["ha"]),
-        "situacao_basica": _situacao(dict(r)),
+        "situacao_basica": _situacao(r["etapa"]),
         "fonte": FONTE,
     }
     assinatura = hashlib.sha256(

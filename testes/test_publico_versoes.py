@@ -44,20 +44,21 @@ def test_lista_positiva_nunca_envia_coluna_nova_ao_cartao(tmp_path, monkeypatch)
 
 
 @pytest.mark.parametrize(
-    "problema,carbono,esperado",
+    "etapa,esperado",
     [
-        (False, 20, "apto"),
-        (True, 20, "com_pendencia"),
-        (False, 0, "nao_apto"),
-        (False, None, None),
-        (False, float("nan"), None),
-        (None, 20, None),
+        ("cadastro", "com_pendencia"),
+        ("sem_problema", "nao_apto"),
+        ("apta", "apto"),
+        ("com_matricula", "apto"),
+        ("caminho_terra", "apto"),
+        ("titulo_conferido", "apto"),
+        ("aceite", "apto"),
+        (None, None),
+        ("etapa_futura", None),
     ],
 )
-def test_situacao_basica_sem_detalhar_motivo_ou_confundir_ausencia(problema, carbono, esperado):
-    r = dict.fromkeys(("embargo_ha", "ti_ha", "desm_pos2020_ha", "alerta_pos2020_ha"))
-    r.update(problema=problema, carbono_ha=carbono, desm_pos2016_ha=0)
-    assert v._situacao(r) == esperado
+def test_situacao_basica_traduz_somente_etapa_historica_reconhecida(etapa, esperado):
+    assert v._situacao(etapa) == esperado
 
 
 @pytest.fixture
@@ -74,7 +75,9 @@ def banco(banco_url):
     eng.dispose()
 
 
-def rodada(eng, corte="2026-01-10", municipio="Parauapebas", ha=123.5, problema=False, carbono=19.87):
+def rodada(
+    eng, corte="2026-01-10", municipio="Parauapebas", ha=123.5, problema=False, carbono=19.87, etapa="caminho_terra"
+):
     with eng.begin() as con:
         numero = con.execute(
             text("""insert into funil.rodada(tipo,uf,cod_municipio,origem,arquivos,
@@ -103,6 +106,12 @@ def rodada(eng, corte="2026-01-10", municipio="Parauapebas", ha=123.5, problema=
                            do update set rodada_id=excluded.rodada_id"""),
             {"car": CAR, "r": numero},
         )
+        if etapa is not None:
+            con.execute(
+                text("""insert into funil.etapa_rodada(rodada_id,cod_imovel,etapa)
+                                values(:r,:car,:etapa)"""),
+                {"r": numero, "car": CAR, "etapa": etapa},
+            )
     return numero
 
 
@@ -114,7 +123,7 @@ def cliente(eng):
 
 @pytest.mark.banco
 def test_snapshot_basico_historico_nao_preenche_com_cadastro_atual(banco):
-    antigo = rodada(banco, municipio=None, ha=None, carbono=None)
+    antigo = rodada(banco, municipio=None, ha=None, carbono=None, etapa=None)
     novo = rodada(banco, "2026-02-10", "Parauapebas", 999)
     a = v.registrar(banco, CODIGO, antigo)
     n = v.registrar(banco, CODIGO)
@@ -151,6 +160,34 @@ def test_snapshot_basico_historico_nao_preenche_com_cadastro_atual(banco):
             json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"), allow_nan=False).encode()
         ).hexdigest()
     )
+
+
+@pytest.mark.banco
+def test_classificacao_usa_foto_da_rodada_mesmo_se_regras_atuais_divergirem(banco, monkeypatch):
+    from raiz import motivos
+
+    def regra_atual_nao_pode_ser_executada(_):
+        pytest.fail("Uma versão histórica não pode aplicar as regras atuais do motor")
+
+    monkeypatch.setattr(motivos, "ler", regra_atual_nao_pode_ser_executada)
+    # Os números privados deliberadamente divergem da classificação guardada em cada rodada.
+    antiga = rodada(banco, etapa="apta", problema=True, carbono=0)
+    nova = rodada(banco, "2026-02-10", etapa="cadastro", problema=False, carbono=500)
+    assert v.registrar(banco, CODIGO, antiga).situacao_basica == "apto"
+    assert v.registrar(banco, CODIGO, nova).situacao_basica == "com_pendencia"
+    sem_foto = rodada(banco, "2026-03-10", etapa=None, problema=False, carbono=500)
+    with banco.begin() as con:
+        # Outra fazenda na mesma rodada não é evidência sobre esta fazenda.
+        con.execute(
+            text("""insert into funil.etapa_rodada(rodada_id,cod_imovel,etapa)
+                            values(:r,'OUTRO-CAR-DE-TESTE','aceite')"""),
+            {"r": sem_foto},
+        )
+    sem = v.registrar(banco, CODIGO, sem_foto)
+    assert sem.situacao_basica is None
+    with cliente(banco) as cl:
+        assert "Ainda não conferida" in cl.get(sem.caminho).text
+        assert "Ainda não conferida" in cl.get(sem.caminho + ".md").text
 
 
 @pytest.mark.banco
