@@ -254,6 +254,9 @@ def criar_app(
     from raiz.calendario import api as calendario_api
 
     app.include_router(calendario_api.roteador(_engine_do_app))
+    from raiz.documentos.certidao import api as certidao_api
+
+    app.include_router(certidao_api.roteador(_engine_do_app, _exigir_token))
     # processamento do motor dentro do produto (agente Dados) e números do Brasil e dos estados
     from raiz.executor import painel
 

@@ -27,6 +27,7 @@ export interface Evento {
   municipio: string | null
   codigos_car: string[]
   fonte_url: string | null
+  car_fonte_url?: string | null
   fonte_nome: string
   coletado_em: string
   confianca: number
@@ -89,6 +90,7 @@ export function lerAgenda(valor: unknown): Agenda {
       municipio: typeof e.municipio === "string" && /^\d{7}$/.test(e.municipio) ? e.municipio : null,
       codigos_car: Array.isArray(e.codigos_car) ? e.codigos_car.filter((c): c is string => typeof c === "string" && CAR.test(c)) : [],
       fonte_url: link, fonte_nome: fonte?.nome ?? "Fonte oficial",
+      car_fonte_url: Array.isArray(e.codigos_car) && e.codigos_car.some((c) => typeof c === "string" && CAR.test(c)) ? linkPublico(e.car_fonte_url) : null,
       coletado_em: instante(e.coletado_em) ?? "",
       confianca: Math.max(0, Math.min(1, Number(e.confianca) || 0)),
       situacao: e.situacao === "cancelado" || e.situacao === "adiado" ? e.situacao : "previsto",

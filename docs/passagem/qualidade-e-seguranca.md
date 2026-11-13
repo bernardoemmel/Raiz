@@ -773,3 +773,16 @@ A varredura de todas as branches encontrou um falso positivo novo: URL JDBC inte
 nenhum padrão, arquivo inteiro ou valor futuro foi liberado. O corpus real continua obrigatório.
 Por orientação do fundador, o CI usa grupo por commit e `cancel-in-progress: false`: nem execução ativa nem
 pendente de outro commit do PR é substituída. Nenhum workflow foi desligado ou cancelado nesta entrega.
+
+### Integração e revisão de #87, #88, #91 e #92
+
+Main `c65d7bb` integrada: fontes e documentos públicos do calendário, avaliação privada da cascata,
+vigilância por lote e entrada da certidão com gabarito humano. Conferidos os diffs de API/autorização,
+projeção de campos, processos de PDF/OCR, saída de erros, arquivo cifrado e destinos de publicação.
+Os conflitos preservam o vínculo do documento que prova o CAR e as guardas anteriores de fonte/erro/privacidade.
+A lista de fontes confiáveis do front foi regenerada: o teste de integração detectou 15 fontes novas ausentes.
+Nenhuma ampliação genérica de hosts ou de exceções de segredo foi feita.
+
+O primeiro corpus real reprovou depois de OAuth, sete ferramentas e ambas as cargas aprovarem. O diagnóstico
+passa a registrar apenas caso/variante/motivo/critérios e classe de erro de listas fechadas; nenhum conteúdo,
+argumento, nome de arquivo recebido, resposta ou segredo é publicado. A falha continua obrigatória, sem aviso.

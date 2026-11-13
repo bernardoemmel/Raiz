@@ -87,6 +87,8 @@ class Evento(BaseModel):
     fonte_id: str = Field(pattern=r"^[a-z0-9_]+$")
     fonte_nome: str
     fonte_url: str
+    # Documento público ligado ao mesmo bem, quando o CAR está no anexo e não no aviso.
+    car_fonte_url: str | None = Field(default=None, max_length=2048)
     coletado_em: dt.datetime
     confianca: float = Field(ge=0, le=1)
     situacao: Literal["previsto", "cancelado", "adiado"] = "previsto"
@@ -98,10 +100,10 @@ class Evento(BaseModel):
     sequencia: int = Field(default=0, ge=0)
     atualizado_em: dt.datetime | None = None
 
-    @field_validator("fonte_url")
+    @field_validator("fonte_url", "car_fonte_url")
     @classmethod
     def validar_url(cls, v):
-        return url_publica(v)
+        return url_publica(v) if v is not None else None
 
     @field_validator("uf")
     @classmethod
@@ -140,6 +142,8 @@ class Evento(BaseModel):
     def conferir(self):
         if self.prazo and self.prazo < self.data:
             raise ValueError("prazo anterior ao início")
+        if self.car_fonte_url and (not self.codigos_car or self.vinculo not in ("car", "pendente")):
+            raise ValueError("fonte pública do CAR exige código explícito no documento")
         return self
 
     @property
@@ -163,6 +167,7 @@ class Evento(BaseModel):
             **d,
             "titulo": self.titulo,
             "codigos_car": self.codigos_car_publicos,
+            "car_fonte_url": self.car_fonte_url if self.codigos_car_publicos else None,
             "vinculo": "car" if self.codigos_car_publicos else "pendente",
         }
 

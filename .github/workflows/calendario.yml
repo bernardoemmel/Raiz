@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       fontes:
-        description: "IDs de fontes separados por vírgula; vazio consulta todas"
+        description: "IDs de fontes; vazio consulta nacionais e diários dos estados processados"
         required: false
         default: ""
 
@@ -33,6 +33,10 @@ jobs:
           cache-dependency-glob: uv.lock
       - name: Dependências
         run: uv sync --frozen
+      - name: Leitura de PDFs e OCR dos documentos escaneados
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends poppler-utils tesseract-ocr tesseract-ocr-por
       - name: Recuperar o estado anterior
         run: |
           mkdir -p dados/calendario
@@ -42,6 +46,9 @@ jobs:
             cat /tmp/calendario-release-erro >&2
             exit 1
           fi
+      - name: Conferir a cobertura pública dos estados
+        if: inputs.fontes == ''
+        run: gh release download dados -p estados.json -D dados/calendario
       - name: Coleta das fontes oficiais
         id: coleta
         env:
@@ -49,7 +56,11 @@ jobs:
         run: |
           args=(coletar --sem-banco --saida dados/calendario)
           [ ! -f dados/calendario/estado.json ] || args+=(--anterior dados/calendario/estado.json)
-          [ -z "$FONTES" ] || args+=(--fontes "$FONTES")
+          if [ -n "$FONTES" ]; then
+            args+=(--fontes "$FONTES")
+          else
+            args+=(--manifesto-estados dados/calendario/estados.json)
+          fi
           uv run raiz calendario "${args[@]}"
       - name: Validar estado, eventos e feed antes de publicar
         id: validar

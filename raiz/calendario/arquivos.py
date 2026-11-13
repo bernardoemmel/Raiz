@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from raiz.calendario.catalogo import COBERTURA_ID, COBERTURA_NOME
 from raiz.calendario.coleta import _permitida, fontes
 from raiz.calendario.feed import ics
 from raiz.calendario.modelos import Evento, FonteEstado, filtrar
@@ -36,10 +37,13 @@ def _ler(caminho: Path) -> tuple[list[Evento], list[FonteEstado]]:
         f = confiaveis.get(e.fonte_id)
         if f is None or not _permitida(e.fonte_url, f):
             raise ErroSnapshot("snapshot contém fonte fora do manifesto")
+        if e.car_fonte_url and not _permitida(e.car_fonte_url, f):
+            raise ErroSnapshot("snapshot contém documento do CAR fora do manifesto")
         # Nomes e textos de erro não vêm do arquivo remoto. Só rótulos institucionais
         # revisados no manifesto e mensagens fixas são publicados/importados.
         eventos.append(e.model_copy(update={"fonte_nome": f["nome"]}))
     estados = []
+    confiaveis[COBERTURA_ID] = {"nome": COBERTURA_NOME}
     for item in dados.get("fontes", []):
         s = FonteEstado.model_validate(item)
         if s.id not in confiaveis:

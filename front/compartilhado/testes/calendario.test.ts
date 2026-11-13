@@ -67,6 +67,18 @@ describe("calendário público", () => {
       expect((await fonte.listar()).disponivel).toBe(false)
     }
   })
+  it("mostra só prova segura associada a um CAR válido", () => {
+    const url = "https://www.in.gov.br/anexo-matricula.pdf"
+    const comProva = lerAgenda(envelope([{ ...evento, car_fonte_url: url }]))
+    expect(comProva.eventos[0].car_fonte_url).toBe(url)
+    for (const campos of [
+      { car_fonte_url: "javascript:alert(1)" },
+      { car_fonte_url: "https://usuario:senha@www.in.gov.br/anexo.pdf" },
+      { car_fonte_url: url, codigos_car: [] },
+    ]) {
+      expect(lerAgenda(envelope([{ ...evento, ...campos }])).eventos[0].car_fonte_url).toBeNull()
+    }
+  })
   it("filtra e pagina o snapshot, com feed completo, sem consultar a rede a cada filtro", async () => {
     const buscar = vi.fn().mockResolvedValue(resposta(envelope([evento, { ...evento, id: "b".repeat(24), uf: "MT" }])))
     const fonte = fonteCalendario({ base: "/Raiz/" }, buscar)

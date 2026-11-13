@@ -31,6 +31,7 @@ NOME_FONTE = {
     "deter": "DETER do INPE",
     "prodes": "PRODES do INPE",
     "ibama_embargo": "Ibama",
+    "firms": "NASA FIRMS (NOAA-20/21)",
 }
 
 
@@ -53,6 +54,14 @@ def _ha(x) -> str:
         return f"{float(x):,.1f}".replace(",", "X").replace(".", ",").replace("X", ".")
     except (TypeError, ValueError):
         return "?"
+
+
+def chave_alerta(alerta: dict) -> str:
+    """Mesma chave no vigia legado e no importador dos rascunhos; NOAA-20/21 agrupado por CAR/dia."""
+    evento = _data(alerta.get("data_evento"))
+    if alerta["fonte"] == "firms" and evento:
+        return f"vigilancia:firms:{alerta['alvo_id']}:{evento.isoformat()}"
+    return f"vigilancia:{alerta['alerta_id']}"
 
 
 def fatos_vigilancia(
@@ -99,7 +108,19 @@ def fatos_vigilancia(
             "confianca": float(a["confianca"]),
             "link": a.get("link") if isinstance(a.get("link"), str) else None,
         }
-        if tipo in TIPOS_DESMATAMENTO:
+        if tipo == "fogo":
+            out.append(
+                Fato(
+                    a["alvo_id"],
+                    "fogo",
+                    chave_alerta(a),
+                    evento,
+                    f"Foco de calor sobre fazenda do grupo, imagem de {_br(evento)} ({fonte}). "
+                    "Conferir: o pixel não confirma área queimada nem perda de carbono.",
+                    {**base, "tipo": tipo, "area_ha": None, "area_pixel_sobreposta_ha": base["area_ha"]},
+                )
+            )
+        elif tipo in TIPOS_DESMATAMENTO:
             nome = "derrubada" if tipo == "desmatamento" else "degradação da floresta"
             out.append(
                 Fato(
@@ -107,8 +128,8 @@ def fatos_vigilancia(
                     "desmatamento",
                     f"vigilancia:{a['alerta_id']}",
                     evento,
-                    f"Fazenda do grupo com {nome}: {_ha(a['area_sobreposta_ha'])} ha, imagem de {_br(evento)} "
-                    f"({fonte}).",
+                    f"Fazenda do grupo com indício de {nome}: {_ha(a['area_sobreposta_ha'])} ha, "
+                    f"imagem de {_br(evento)} ({fonte}).",
                     {**base, "tipo": tipo},
                 )
             )
@@ -124,7 +145,7 @@ def fatos_vigilancia(
                     {**base, "tipo": tipo},
                 )
             )
-    return out
+    return list({(f.cod_imovel, f.chave): f for f in out}.values())
 
 
 def fatos_matricula(cods: Iterable[str], achar=None) -> list[Fato]:
