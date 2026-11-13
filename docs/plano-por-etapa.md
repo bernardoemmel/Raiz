@@ -347,6 +347,10 @@ Nova continuação de Ficha da fazenda (12/11/2026):
 | Três modalidades de créditos e conta de receita por cliente | Feito: por ficha, por lote e assinatura; preços a definir pelo fundador e simulação mensal/anual sem ativar vendas |
 | Medição real das 24 tarefas por agente Anthropic no GitHub Actions, manual e semanal | Feito: integrado ao workflow único agentes-real.yml (PR #85), pilha isolada, OAuth real e artefatos. Primeira campanha 43341704532 incompleta: 35/96 tentativas, falha na citação literal do juiz; nenhum pass^4 aprovado |
 
+O PR #93 corrige a citação inválida do juiz com uma única nova conversa, sem
+alterar notas válidas ou relaxar a conferência literal; consumo e tentativas
+ficam registrados. A correção exige nova campanha completa de 96 sessões.
+
 Site legível por agentes (12/11/2026): **feito** — `llms.txt`, `robots.txt`, páginas Markdown do Brasil, estados,
 municípios, produtor, serviço, fontes e privacidade; alternates no HTML; JSON-LD `Dataset`, `Service` e `Offer`
 sem transformar premissa em preço comercial. API aceita `text/markdown` nas leituras, preservando Bearer e

@@ -1,7 +1,7 @@
 # Passagem do chat "Ficha da fazenda"
 
 Atualização de 12/11/2026 (Brasília). Continuação implementada na branch
-`codex/ficha-compromissos-versoes`, com integração da main `c3bf907`.
+`codex/ficha-compromissos-versoes`, com integração da main `2b6e8af`.
 PR desta continuação: [#93](https://github.com/bernardoemmel/Raiz/pull/93), aguardando CI e merge.
 Entregas anteriores integradas pelos [PR #72](https://github.com/bernardoemmel/Raiz/pull/72)
 e [PR #80](https://github.com/bernardoemmel/Raiz/pull/80), commit `bea53bd`.
@@ -72,6 +72,10 @@ A execução 43341704532 chamou Claude e publicou o artefato 14000228551. Conclu
 da resposta omitiu marcadores Markdown e falhou na conferência literal. O relatório
 permanece incompleto (`aprovado=false`); não há pass^4 válido. A evidência da campanha
 deve ser preservada, e qualquer correção do juiz exige nova campanha integral.
+Este PR inclui `julgamento-independente-v2`: instrução explícita sobre Markdown
+e uma única nova conversa quando a citação é inválida, com consumo e tentativas
+registrados. Não repete nota válida nem flexibiliza a verificação literal.
+Os 39 testes do runner/juiz passaram, incluindo falha repetida e nota negativa.
 Ver `docs/medicao-agentes-actions.md`. A pilha de produção não foi implantada.
 
 Validações locais antes da conciliação: 2.227 testes Python aprovados e uma falha

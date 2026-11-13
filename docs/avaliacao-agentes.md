@@ -86,7 +86,13 @@ outra campanha integral. O runner recusa sobrescrever cassetes reais ou continua
 Um Claude em outra conversa, sem ferramentas, julga os critérios em JSON estrito. Cada afirmação tem citação
 literal verificada nas fontes da tentativa. Barreiras determinísticas conferem autorização, argumentos, efeitos
 no banco e tempos; podem reprovar a nota do juiz, nunca promover uma tentativa incompleta. O JSONL não é escrito
-quando o juiz retorna um formato inválido ou uma citação inexistente.
+quando o juiz retorna um formato inválido ou uma citação inexistente. Na versão
+`julgamento-independente-v2`, uma citação inválida admite uma única nova conversa
+de julgamento com as mesmas evidências. A instrução exige preservar Markdown e
+copiar trechos contíguos. A conferência literal continua obrigatória; segunda
+falha encerra a campanha como incompleta. Notas válidas, inclusive negativas,
+nunca são repetidas. As duas chamadas ficam na cassette, seu consumo é somado e
+o trace registra `tentativas_juiz`. O agente não é executado novamente.
 
 `relatorio.json` contém pass^4, passos e chamadas MCP por tentativa, tempos de parede, latências de cada chamada,
 uso de tokens separado entre agente e juiz e SHA-256 de cada cassette e trace sanitizado. O hash da configuração inclui instruções,
