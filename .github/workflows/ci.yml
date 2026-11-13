@@ -99,6 +99,10 @@ jobs:
   front:
     runs-on: ubuntu-24.04
     timeout-minutes: 35
+    env:
+      # O build de CI usa a telemetria da fixture, como os demais dados locais.
+      # Não depende da existência da ref pública nem simula processamento real.
+      VITE_RAIZ_PROCESSAMENTO_URL: ./amostra/processamento.json
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

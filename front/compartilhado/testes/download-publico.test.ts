@@ -145,17 +145,17 @@ describe("compatibilidade estrita com a telemetria pública municipal", () => {
     processamento(),
     { ...processamento(), escopo: "unidade", unidade: "PA-2" },
     { ...processamento(), observado_em: "2020-01-01T08:00:00-03:00", ultima_mudanca_em: "2020-01-01T07:59:00-03:00", valido_ate: "2020-01-01T09:00:00-03:00" },
-  ])("valida o bloco e grava somente cobertura, inclusive uma observação vencida: %j", async (observacao) => {
+  ])("preserva a observação pública validada e seus horários, inclusive quando vencida: %j", async (observacao) => {
     preparar(basicos, { processamento: observacao })
     const destino = fs.mkdtempSync(path.join(temp, "telemetria-valida-"))
     expect((await baixar(destino)).sucesso).toBe(true)
     const salvo = JSON.parse(fs.readFileSync(path.join(destino, "estados.json"), "utf8"))
-    expect(salvo.estados.PA.processamento).toBeUndefined()
+    expect(salvo.estados.PA.processamento).toEqual(observacao)
     expect(salvo.estados.PA.municipios).toBe(1)
     expect(fs.readdirSync(path.join(destino, "PA"))).toEqual(["imoveis_basicos_1504950.csv"])
   })
 
-  it("retira telemetria do cache já existente sem baixar de novo o mesmo pacote", async () => {
+  it("preserva telemetria válida do cache existente sem baixar de novo o mesmo pacote", async () => {
     preparar(basicos)
     const destino = path.join(temp, "telemetria-no-cache")
     expect((await baixar(destino)).sucesso).toBe(true)
@@ -166,17 +166,17 @@ describe("compatibilidade estrita com a telemetria pública municipal", () => {
     preparar(basicos, { processamento: processamento() })
     expect((await baixar(destino)).sucesso).toBe(true)
     expect(pedidos).toEqual(["/estados.json"])
-    expect(JSON.parse(fs.readFileSync(arq, "utf8")).estados.PA.processamento).toBeUndefined()
+    expect(JSON.parse(fs.readFileSync(arq, "utf8")).estados.PA.processamento).toEqual(processamento())
   })
 
-  it("mantém zero cobertura sem URL e sem publicar a observação operacional", async () => {
+  it("mantém zero cobertura sem URL e preserva separadamente a observação operacional", async () => {
     preparar(basicos, { processamento: processamento(), municipios: 0, tamanho: 0, url: undefined })
     const destino = path.join(temp, "telemetria-sem-pacote")
     expect((await baixar(destino)).sucesso).toBe(true)
     expect(pedidos).toEqual(["/estados.json"])
     const salvo = JSON.parse(fs.readFileSync(path.join(destino, "estados.json"), "utf8"))
     expect(salvo.estados.PA.municipios).toBe(0)
-    expect(salvo.estados.PA.processamento).toBeUndefined()
+    expect(salvo.estados.PA.processamento).toEqual(processamento())
   })
 
   it("recusa cache inválido mesmo quando o manifesto remoto não oferece estados", async () => {

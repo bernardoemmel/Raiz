@@ -49,13 +49,25 @@ Sessão: https://claude.ai/code/session_01VGb88MJumyG9PHt2znaaKE. Branch: `claud
   novo pedido 97, prospecção 96, acerto 97 e produtor 100, sempre com acessibilidade mínima 100. As sete
   auditorias axe tiveram zero violações, incluindo teclado, gaveta mobile e produtor sem JavaScript.
   Os textos completos de MIT/ISC do agrupamento foram conferidos nos dois sites compilados.
-- A publicação posterior `43358821157` da main parou fechada: o Release passou a incluir `processamento`
-  em GO/MT/RN, antes desconhecido pelo leitor. O PR #90 valida os oito campos desse contrato público v1,
-  contagens, UF e cronologia, e descarta o bloco operacional antes de gravar o manifesto do site; não abre
-  passagem para campos livres. Cache inválido também interrompe, sem ecoar valores. Os 47 testes do downloader
-  passaram; o manifesto real de 22.659 bytes e 16 UFs foi validado sem baixar pacotes. Essa correção não muda
-  as contagens de cobertura nem antecipa o painel de processamento do PR #99. A última publicação bem-sucedida
-  até essa conferência é a auditada do PR #89. Nenhum workflow foi cancelado ou desativado.
+- A publicação posterior `43358821157` da main parou fechada quando o Release passou a incluir
+  `processamento` em GO/MT/RN, antes desconhecido pelo leitor. A correção inicial validou os oito campos
+  desse contrato público v1, contagens, UF e cronologia; seus 47 testes e o manifesto real de 22.659 bytes
+  e 16 UFs foram conferidos naquela etapa, antes do painel. A integração da main `52118b5` (PR #95)
+  agora preserva essa telemetria validada para o painel público, usando `lerProcessamentoPublicado` como
+  contrato único. Campos livres e cache inválido continuam interrompendo a leitura, sem ecoar valores.
+  A última publicação bem-sucedida até essa conferência é a auditada do PR #89. Nenhum workflow foi cancelado
+  ou desativado.
+- O painel integrado lista as 27 UFs e distingue execução observada, cobertura do mapa e aptidão. Mantém
+  as datas originais da fonte: atualizar o site ou baixar novamente não renova `valido_ate`; observação
+  vencida não sustenta a contagem “rodando agora”. Uma unidade/fatia não vira total estadual, e ausência
+  não vira zero. O manifesto atualiza ou remove a observação mesmo quando o pacote não mudou.
+  O fallback `amostra/processamento.json` sai de projeção positiva; o CI usa essa fixture nos builds
+  `/Raiz/` e `/`. A entrada continua em MapLibre com agregados públicos e minimapa pequeno, com cobertura
+  acima do andamento. A integração passou em 494 testes do front, 122 testes Python focados, Ruff e
+  actionlint. Os builds e o Playwright passaram nos dois caminhos, com 27 UFs, busca, camadas, calendário,
+  controles de acesso e zero 404 ou erros no navegador. O painel nacional passou em 360 px com teclado,
+  gaveta, 32 regras axe e zero violações WCAG 2.1 A/AA ou largura excedida. As notas Lighthouse acima
+  antecedem esta composição; a medição final e os nove jobs do CI continuam pendentes.
 - A transferência pública completa encontrou um CAR cadastrado na Paraíba no recorte de Serra Negra do Norte
   (RN). O leitor agora confere separadamente UF/IBGE do CAR e UF/IBGE do recorte, preservando o identificador.
   Os 49 testes do downloader e os 85 CSV do pacote RN passaram. A execução real terminou com 692 CSV básicos
@@ -701,3 +713,12 @@ Contrato, acessibilidade e desenho: [docs/design/graficos-resultados.md](../desi
   Passaram 205 testes focados de calendário/MCP, OAuth, telemetria, privacidade, EPREL e ficha de crédito,
   além de Ruff e actionlint dos workflows envolvidos. O CI já iniciado é preservado até terminar; só depois
   a branch é atualizada para a validação completa da integração, sem cancelar a execução anterior.
+- A integração seguinte incorpora a main `52118b5` (PR #95), com o painel de processamento municipal.
+  O leitor preserva telemetria pública válida, incluindo o cache com pacote inalterado, e mantém a recusa
+  dos metadados privados, das contagens incoerentes e das datas inválidas. Os testes de transporte UTF-8
+  com BOM, repetição limitada a falhas transitórias, cache inválido e CAR de fronteira foram conservados.
+  Os contratos integrados passaram em 494 testes do front e 122 testes Python, além de Ruff e actionlint.
+  Build e Playwright passaram em `/Raiz/` e `/`, com dados públicos, 27 UFs e zero 404/erros. O painel
+  nacional com as 27 UFs passou em teclado e axe a 360 px (32 regras, zero violações ou largura excedida).
+  A medição Lighthouse da composição final e os nove jobs do CI ainda precisam passar; esta integração
+  não reaproveita notas anteriores nem interrompe processamento.

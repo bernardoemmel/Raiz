@@ -28,6 +28,8 @@ import { complementosDe, juntarComplementos } from "./dados/complementos"
 import { escreverCsv, lerCsv, type Linha } from "./dados/csv"
 import { baseDoMunicipio, montarFicha, type BaseMunicipio, type FichaJson } from "./dados/ficha"
 import { aptidao, COLUNAS_APTIDAO, lerFunil, lerImovel } from "./dados/funil"
+import { lerProcessamentoEstados, situacaoProcessamento, type ProcessamentoEstado, type ProcessamentoEstados } from "./dados/processamento-estados"
+import { lerProcessamentoPublicado } from "./dados/processamento-publicado"
 import type { EstadoDados, Estados, FunilMunicipio, Geo, Imovel } from "./dados/tipos"
 import { UFS, ufDoCodigo } from "./formato"
 import { LISTA_IBGE, municipiosDoEstado } from "./ibge-municipios"
@@ -52,6 +54,7 @@ interface Manifesto {
       tabelas?: Record<string, number>
       versao?: string
       atualizado_em?: string
+      processamento?: unknown
     }
   >
 }
@@ -415,6 +418,24 @@ export function abrirPasta(opcoes: OpcoesPasta) {
     return dado
   }
 
+  /** Telemetria agregada publicada; cobertura de CSV e jobs não substituem uma observação válida. */
+  function processamento(agora = Date.now()): ProcessamentoEstados {
+    const publicado = lerManifesto()
+    const publico = publicado?.versao_publicacao === 1 && publicado.escopo === "publico_basico"
+    const estados = Object.keys(UFS).sort().map((uf): ProcessamentoEstado => {
+      const entrada = publico ? publicado.estados?.[uf] : undefined
+      const estado = entrada?.versao_publicacao === 1 && entrada.escopo === "publico_basico"
+        ? lerProcessamentoPublicado(entrada.processamento, uf) : null
+      if (estado) return { ...estado, situacao: situacaoProcessamento(estado, agora) }
+      return {
+        uf, escopo: "indisponivel", unidade: null, municipios_total: null,
+        municipios: { prontos: null, em_execucao: null, com_erro: null, pendentes: null, desconhecidos: null },
+        observado_em: null, ultima_mudanca_em: null, valido_ate: null, situacao: "sem_telemetria",
+      }
+    })
+    return lerProcessamentoEstados({ versao: 1, gerado_em: new Date(agora).toISOString(), estados })
+  }
+
   /**
    * Quais estados têm dado, quantos municípios cada um tem e se está completo. Com o estados.json baixado, os números
    * vêm dele (não reconta); sem ele, ou para estado que não está nele, conta os arquivos e compara com a lista do IBGE.
@@ -702,6 +723,7 @@ export function abrirPasta(opcoes: OpcoesPasta) {
     ficha,
     baseBusca,
     estados,
+    processamento,
     pontos,
     pontosTexto,
     pontosPublicos,

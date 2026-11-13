@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 /** Testa o site compilado: só arquivos e HTTP Range, sem API nem fallback do Vite.
  * Antes: preparar-teste-site.mjs e construir-site.sh com RAIZ_DADOS/RAIZ_GEO apontando à fixture,
- * RAIZ_CALENDARIO_DADOS apontando ao calendário da fixture, RAIZ_BASE=/Raiz/ e VITE_RAIZ_TESTE_MAPA=1. PLAYWRIGHT_CHROMIUM_EXECUTABLE é opcional no ambiente local.
+ * RAIZ_CALENDARIO_DADOS apontando ao calendário da fixture, RAIZ_BASE=/Raiz/, VITE_RAIZ_TESTE_MAPA=1
+ * e VITE_RAIZ_PROCESSAMENTO_URL=./amostra/processamento.json. PLAYWRIGHT_CHROMIUM_EXECUTABLE é opcional no ambiente local.
  */
 import assert from "node:assert/strict"
 import { configurarPublicacao } from "./configurar-publicacao.mjs"
@@ -147,6 +148,12 @@ try {
   await mapaPronto()
   assert.equal(await pagina.locator(".mapa-brasil svg").count(), 0, "A entrada abre no MapLibre, sem o SVG nacional.")
   await pagina.getByRole("heading", { name: "Cobertura do mapa", exact: true }).waitFor()
+  await pagina.waitForFunction(() => document.querySelectorAll(".processamento-estado").length === 27)
+  assert(pedidos.some((u) => new URL(u).pathname === `${prefixo}amostra/processamento.json`),
+    "O processamento no build de teste deve vir da fixture local, sem depender do Actions.")
+  assert.equal(await pagina.locator(".processamento-aviso").count(), 0)
+  assert((await pagina.locator(".processamento-situacao").allTextContents())
+    .every((texto) => texto === "Sem informação de processamento"), "A fixture não inventa execução municipal.")
   await pagina.getByText("1 município em 1 estado", { exact: true }).waitFor()
   await pagina.locator('time[datetime="2026-11-12T10:41:00Z"]').waitFor()
   await pagina.locator('time[datetime="2026-11-11T18:00:00Z"]').waitFor()

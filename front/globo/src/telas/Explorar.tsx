@@ -9,6 +9,8 @@ import type { CamadaAssunto, GeoMunicipio } from "../mapa/MapaBrasil"
 import { prepararGpu } from "../mapa/preparar-gpu"
 import { Cabecalho } from "../partes/Cabecalho"
 import { PainelBrasil } from "../partes/PainelBrasil"
+import { PainelProcessamentoEstados } from "../partes/PainelProcessamentoEstados"
+import { useProcessamentoEstados } from "../processamento-estados"
 import { linkEstado, linkMunicipio } from "../rota"
 
 const MapaBrasil = lazy(() => import("../mapa/MapaBrasil").then((m) => ({ default: m.MapaBrasil })))
@@ -33,6 +35,7 @@ function cobertura(altura: Altura): number {
  * o tempo todo: trocar de estado ou de município não recarrega nada além das camadas dele.
  */
 export function Explorar({ municipio, uf }: { municipio: string | null; uf: string | null }) {
+  const processamento = useProcessamentoEstados(!municipio)
   useEffect(() => {
     const preparacao = prepararGpu()
     return () => { void preparacao.then((liberar) => liberar()) }
@@ -199,6 +202,7 @@ export function Explorar({ municipio, uf }: { municipio: string | null; uf: stri
                 pontos={undefined}
                 carregando={municipios.carregando || estados.carregando}
                 cobertura={coberturaMapa.dado}
+                andamento={<PainelProcessamentoEstados carga={processamento} uf={uf} />}
               />
             )}</Suspense>
           </div>
