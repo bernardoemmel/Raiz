@@ -12,3 +12,6 @@ teclado, ausência de dados, separação público/pago, carregamento sob demanda
 As imagens registram o aspecto visual, não calibram o motor e não comprovam resultados de carbono.
 Os gráficos da primeira imagem continuam recolhidos até a abertura explícita. Os relatórios e capturas
 completas de cada execução ficam nos artifacts do CI.
+
+A faixa P10–P90 tem contraste de 6,20:1 contra o fundo. Círculo e losango usam halo opaco de 2 px,
+com contrastes de 8,50:1 e 6,33:1; formas, legenda e tabela conservam a informação sem depender apenas da cor.
