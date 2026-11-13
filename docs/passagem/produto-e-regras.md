@@ -1,4 +1,18 @@
-# Passagem do chat "Produto e regras" (12/11/2026)
+# Passagem do chat "Produto e regras" (13/11/2026)
+
+## Integração da main com versões da ficha
+
+A main `60e17b0` (PR #93) foi incorporada ao PR #96, preservando versões da ficha,
+proteção das exportações, preços e a atualização periódica da base na agenda.
+O juiz v6 concilia os trechos por IDs do v5 com o estado de indisponibilidade da main.
+Recusa do fornecedor fica registrada sem nova tentativa; erro de formato/citação do
+juiz também deixa `pass4=null`, com limite inferior conservador e bloqueio da aprovação.
+Os demais cenários continuam, sem inventar nota nem substituir tentativas. Passaram
+101 testes focados de runner, julgamento e agregação, mais 74 testes de API, MCP,
+ficha e pilha com PostGIS. Ruff e o teste de preservação da latência do VCR passaram. A campanha `43359802697` já
+estava congelada em `ac020d3`/v5; seus artefatos manterão essa proveniência original.
+O replay diário permanece na próxima entrega, condicionado à referência auditada.
+
 
 ## Medição real e operação: PR #85 integrado, primeira campanha incompleta
 

@@ -121,7 +121,23 @@ def test_vcr_httpx_grava_claude_e_reidrata_sem_segredo_raciocinio_ou_prompt(tmp_
     for segredo in ("chave-sintetica-nao-publicavel", antigo, token_antigo, "raciocinio privado", "assinatura-privada"):
         assert segredo not in bruto
     assert "__RAIZ_THINKING_SHA256_" in bruto and "raiz_requisicao_sha256" in bruto
+    import yaml
+
+    arquivo = tmp_path / "gravacao.yaml"
+    cassete = yaml.safe_load(arquivo.read_text())
+    for i, interacao in enumerate(cassete["interactions"]):
+        interacao["response"]["headers"]["x-raiz-inferencia-segundos"] = [str(1.25 + i)]
+    arquivo.write_text(yaml.safe_dump(cassete))
+    preservado = arquivo.read_bytes()
+    esperas = []
+
+    async def esperar(segundos):
+        esperas.append(segundos)
+
+    monkeypatch.setattr(A.asyncio, "sleep", esperar)
     asyncio.run(duas_chamadas("replay", atual, token_atual))
+    assert esperas == [1.25, 2.25]
+    assert arquivo.read_bytes() == preservado
     assert len(contador) == 2
     assert not (tmp_path / "gravacao.yaml").stat().st_mode & 0o077
 

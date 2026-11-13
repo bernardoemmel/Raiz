@@ -122,6 +122,7 @@ class Execucao(Estrito):
     inicio_em: str
     resposta_sha256: Hash
     criterios: dict[Identificador, bool] = Field(min_length=1)
+    julgamento_disponivel: bool = True
     chamadas: list[Chamada]
     violacoes: list[Violacao]
 
@@ -242,7 +243,13 @@ def avaliar(execucoes: list[Execucao], gabarito: Gabarito, gabarito_sha256: str)
         chamadas_proibidas += falhas
         violacoes += len(r.violacoes)
         faltou_chamada = not set(tarefa.obrigatorias) <= {c.ferramenta for c in r.chamadas}
-        sucesso = all(r.criterios.values()) and not falhas and not r.violacoes and not faltou_chamada
+        sucesso = (
+            r.julgamento_disponivel
+            and all(r.criterios.values())
+            and not falhas
+            and not r.violacoes
+            and not faltou_chamada
+        )
         por_tarefa[r.tarefa_id].append(sucesso)
     completo = {(t, i) for t in tarefas for i in range(1, REPETICOES + 1)}
     if vistos != completo:
@@ -250,7 +257,8 @@ def avaliar(execucoes: list[Execucao], gabarito: Gabarito, gabarito_sha256: str)
     resultados = {t: sum(tentativas) for t, tentativas in por_tarefa.items()}
     consistentes = sum(n == REPETICOES for n in resultados.values())
     pass4 = consistentes / len(tarefas)
-    meta = pass4 >= META_PASS4 and chamadas_proibidas == 0 and violacoes == 0
+    indisponiveis = sum(not r.julgamento_disponivel for r in execucoes)
+    meta = not indisponiveis and pass4 >= META_PASS4 and chamadas_proibidas == 0 and violacoes == 0
     primeira = execucoes[0]
     real = primeira.origem == "agente_real"
     return {
@@ -267,7 +275,9 @@ def avaliar(execucoes: list[Execucao], gabarito: Gabarito, gabarito_sha256: str)
         "repeticoes_por_tarefa": REPETICOES,
         "tarefas_com_quatro_sucessos": consistentes,
         "sucessos_por_tarefa": resultados,
-        "pass4": pass4,
+        "pass4": None if indisponiveis else pass4,
+        "pass4_limite_inferior": pass4,
+        "julgamentos_indisponiveis": indisponiveis,
         "meta_pass4": META_PASS4,
         "chamadas_proibidas": chamadas_proibidas,
         "violacoes": violacoes,
