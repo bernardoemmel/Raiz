@@ -66,6 +66,8 @@ jobs:
   planejar:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    env:
+      RAIZ_GITHUB_ESPERA_MAX_S: "900"
     outputs:
       matriz: ${{ steps.plano.outputs.matriz }}
       tem: ${{ steps.plano.outputs.tem }}

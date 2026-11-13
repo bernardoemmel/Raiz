@@ -54,6 +54,7 @@ def test_cadencia_horaria_uv_fixado_e_cache_checkpoint_com_tempo_para_cota():
     w = yaml.safe_load((raiz / ".github/workflows/processar-estados.yml").read_text())
     assert w[True]["schedule"] == [{"cron": "17 * * * *"}]
     assert w["env"]["RAIZ_PRIORIDADE_FUNIL"] == "1"
+    assert w["jobs"]["planejar"]["env"]["RAIZ_GITHUB_ESPERA_MAX_S"] == "900"
     passos = w["jobs"]["processar"]["steps"]
     for passo in passos:
         if passo.get("name", "").startswith("Recuperar") or "checkpoint privado" in passo.get("name", ""):
