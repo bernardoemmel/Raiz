@@ -4,6 +4,37 @@ Sessão: https://claude.ai/code/session_01VGb88MJumyG9PHt2znaaKE. Branch: `claud
 
 ## Redesenho cartográfico e rodada 12: PR #90 (13/11/2026 UTC)
 
+- Revisão funcional atual: **`7fe3539`**, com 588 testes do front, TypeScript, lint, builds e Pages
+  em **`/` e `/Raiz/`**, incluindo busca, overzoom, privacidade e zero 404/erros. A auditoria oficial
+  do site para agentes passou com nota 100 e **CLS 0,001758**. A série móvel de 18 medições passou
+  na fixture: medianas **94/98/98/98/98/100**, acessibilidade 100 e sete auditorias axe sem violações;
+  a entrada marcou **94/92/96**. Porém o snapshot real marcou **78/88/89, mediana 88**, acessibilidade
+  100 e CLS zero: **desempenho real reprovado**, sem descarte ou repetição para escolher nota.
+  As capturas desta revisão documentam o funcionamento; não representam aprovação desse desempenho.
+- O [CI `43473084402`](https://github.com/bernardoemmel/Raiz/actions/runs/43473084402), head `03eccd8`,
+  terminou com sete jobs verdes: **3.528 testes Python**, 1 deselected, 1 xfailed, nenhum skip, e a
+  referência do Pará aprovada separadamente. Falharam Gitleaks e o CLS desktop do site para agentes.
+  A etapa Lighthouse móvel foi pulada após o CLS; não há nota móvel remota desta execução.
+  Gitleaks confundiu dois SHA-256 de relatórios com tokens; os hashes foram recalculados e a correção
+  `437f08a` admite somente as duas linhas do commit histórico. A varredura redigida passou por 620
+  commits sem achados. Os metadados futuros usam nomes `relatorio_*_sha256`, preservando os valores.
+- O CLS foi corrigido em `56ab91d`: resumo e cobertura reservam espaço durante suas consultas
+  independentes, preservando a posição e a identidade do painel de processamento. Resumo tardio
+  reduziu CLS de **0,112004 para 0,001828**; cobertura e andamento deslocaram cerca de 23 px, e apenas
+  3 px com cobertura tardia. Foco, detalhes abertos, 27 linhas e rolagem permanecem estáveis. A reserva
+  termina em sucesso, vazio ou erro; o painel pronto permanece visualmente igual. O teste oficial
+  agora conserva Trace e DevtoolsLog também quando reprova.
+- `7fe3539` antecipa as três fontes já usadas na entrada: Familjen 600 e Atkinson 400/700. O ensaio
+  A/B/B/A antecipou sua descoberta de 103–131 ms para 14–17 ms e reduziu trabalho de layout, com
+  mesmos bytes, uma transferência por fonte e pixels iguais. FCP e tempo total se sobrepõem entre
+  amostras; não atribuir ganho total garantido ao preload. Vite resolve os caminhos nas duas bases.
+  MapLibre permanece no produto. A comparação com OpenLayers foi iniciada separadamente conforme a
+  condição do fundador: imóveis reais com e sem sobreposição, paridade visual e prova nacional antes
+  de qualquer troca. Uma comparação incompleta não autoriza substituir o motor.
+- A correção de CLS também passou em `e3b7f09` na fixture (**94/94/95**, mediana 94; seis rotas
+  **94/98/97/97/98/100**), mas reprovou no snapshot real em **83/87/95, mediana 87**. Acessibilidade
+  100 em todas. Os perfis variam entre pintura, importação e intervalos nativos sem CPU; não comprovam
+  uma regressão das reservas CSS. Todas as séries e os limites de atribuição foram preservados.
 - Entrega registrada no [PR #90](https://github.com/bernardoemmel/Raiz/pull/90), com implementação,
   evidências e resultados locais descritos abaixo. O resultado remoto do CI, merge e auditoria da
   publicação é registrado no próprio PR. A main `e959023` (PR #105) está integrada em `9a37e3b`:
@@ -22,7 +53,7 @@ Sessão: https://claude.ai/code/session_01VGb88MJumyG9PHt2znaaKE. Branch: `claud
   regressões novas, HTTP, hashes/Release concorrente, checkpoint, H3, status e pins, além de Ruff.
   Nenhum run, reserva viva ou dado publicado foi alterado durante a validação. As atualizações automáticas
   da main até `1b4a896` também foram integradas; alteram somente o painel em `motor/README.md`.
-- Validação final local do código **`c1d42a4` aprovada**: 587 testes do front, TypeScript, lint,
+- Validação local histórica do código **`c1d42a4` aprovada**: 587 testes do front, TypeScript, lint,
   build e Pages com zero 404/erros. As 18 medições fixas da fixture deram medianas
   **92/98/97/98/97/100**, acessibilidade 100, e sete auditorias axe/teclado sem violações a 360 px.
   A entrada marcou **89/95/92**; o snapshot real de 444 municípios/13 UFs marcou **84/91/95,

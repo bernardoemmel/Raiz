@@ -76,6 +76,12 @@ geometrias permanecem no mesmo canvas; os grupos HTML continuam ancorados pela p
 O ensaio com Chrome 157 preservou os pixels e o alinhamento após aproximar. Isso não garante o mesmo
 ganho em outros drivers nem sincronização perfeita entre canvas e HTML durante toda animação.
 
+As consultas de resumo e cobertura reservam espaço enquanto carregam, para não empurrar o painel de
+processamento já visível. Seus estados de carregamento são independentes; a cobertura e as 27 linhas
+mantêm a identidade quando chegam as respostas, com foco, detalhes abertos e rolagem preservados.
+A reserva termina também em vazio ou erro e não altera o painel pronto. As três faces usadas na
+entrada são antecipadas por `preload`, com os mesmos arquivos de fonte e reutilização pelo CSS.
+
 ## Fonte e cálculo do H3
 
 O mapa agrega o **potencial conhecido de regeneração além da reserva legal**, com cobertura parcial.
