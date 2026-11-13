@@ -213,7 +213,7 @@ export function MapaBrasil(props: Props) {
       if (import.meta.env.DEV || import.meta.env.VITE_RAIZ_TESTE_MAPA === "1") Object.assign(caixa.current, { __mapa: m })
       mapaRef.current = m
       m.once("load", () => {
-        montar(m, null, brasil.estados, true)
+        montar(m, null, true)
         ligarEventos(m)
         setPronto(true)
         setZoom(m.getZoom())
@@ -250,7 +250,7 @@ export function MapaBrasil(props: Props) {
       else if (camada.type === "symbol" && camada.layout?.["text-font"]) m.setLayoutProperty(camada.id, "text-font", camada.layout["text-font"])
       antes = camada.id
     }
-    montar(m, brasil?.municipios ?? null, brasil?.estados ?? null, false)
+    montar(m, brasil?.municipios ?? null, false)
     // A base estadual usa o satélite como âncora; ambos devem ficar abaixo de toda a cartografia regional.
     limparSatelite.current = adicionarSatelitePublico(m, "potencial-h3", setSatelite)
     setRegional(true)
@@ -276,7 +276,7 @@ export function MapaBrasil(props: Props) {
   // os estados pela situação: cor do contorno e o rótulo com a contagem (completo, incompleto, ainda não processado)
   useEffect(() => {
     const m = mapaRef.current
-    if (!m || !pronto || !brasil?.estados) return
+    if (!m || !pronto || !brasil?.estados || !estados) return
     const porUf = new Map((estados?.estados ?? []).map((e) => [e.uf, e]))
     const rotulos: Geo["features"] = []
     const fs = brasil.estados.features.map((f) => {
@@ -491,7 +491,7 @@ export function MapaBrasil(props: Props) {
     vis("terra-publica-linha", camada === "terra_publica")
   }, [camada, regional])
 
-  function montar(m: MapaGL, municipiosBrasil: Geo | null, estadosBrasil: Geo | null, nacional: boolean) {
+  function montar(m: MapaGL, municipiosBrasil: Geo | null, nacional: boolean) {
     const antesDosRotulos = m.getStyle().layers.find((l) => l.type === "symbol")?.id
     const camadasNacionais = new Set(["estados-preenchimento", "estados-sem-dados", "estados-linha", "estado-sobre", "estado-escolhido", "estados-rotulo", "estados-rotulo-sem-dados"])
     const fontesNacionais = new Set(["brasil-estados", "estados-rotulos"])
@@ -505,7 +505,8 @@ export function MapaBrasil(props: Props) {
     // parte 3). Ela entra quando o back-end entregar esse recorte por fazenda; aqui só a cruzada da fazenda não apta.
     if (!nacional && !m.hasImage("hachura-restauracao")) m.addImage("hachura-restauracao", imagemHachura(COR.mata), { pixelRatio: 2 })
     fonte("brasil-municipios", { type: "geojson", data: (municipiosBrasil ?? VAZIO) as never, promoteId: "cod_ibge" })
-    fonte("brasil-estados", { type: "geojson", data: (estadosBrasil ?? VAZIO) as never, promoteId: "uf" })
+    // O efeito publica a geometria já com cobertura; não envia o mesmo GeoJSON bruto antes disso.
+    fonte("brasil-estados", { type: "geojson", data: VAZIO as never, promoteId: "uf" })
     fonte("estados-rotulos", { type: "geojson", data: VAZIO as never })
     fonte("potencial", { type: "geojson", data: VAZIO as never, promoteId: "h3" })
     for (const id of ["municipio", "mascara", "ti", "uc", "nomes", "rios", "fogo-recente", "terra-publica", "restauracao-autorizada", "mascara-fazenda"])
