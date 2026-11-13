@@ -2,6 +2,9 @@ name: Publicar metadados do Release
 run-name: Metadados dos dados publicados (${{ inputs.somente_globais && 'somente arquivos globais' || inputs.ufs || 'todos os estados' }})
 
 on:
+  workflow_run:
+    workflows: ["Processar estados (motor)"]
+    types: [completed]
   workflow_dispatch:
     inputs:
       ufs:
@@ -22,6 +25,15 @@ permissions:
 
 jobs:
   catalogo:
+    # Preenchimento único após o término natural da rodada pré-publicador.
+    # O checkout padrão usa a main atual, nunca o código/artefatos do gatilho.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'workflow_run' &&
+       format('{0}', github.event.workflow_run.id) == '43305564503' &&
+       github.event.workflow_run.head_sha == '88860b64ee09f811b66e283f5c57997ebcdb3fd5' &&
+       github.event.workflow_run.head_branch == 'main' &&
+       github.event.workflow_run.head_repository.full_name == github.repository)
     name: catalogo
     runs-on: ubuntu-latest
     timeout-minutes: 345

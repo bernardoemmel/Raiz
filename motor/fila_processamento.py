@@ -23,6 +23,16 @@ WORKFLOWS_LOTE = ("lote-para.yml", "retomar-lote-para.yml", "desbloqueio-lote.ym
 # #55: workflow inteiro conferido neste commit imutável, max-parallel=5,
 # preparo e publicação sequenciais. Nenhum outro head herda esta exceção.
 CAPACIDADE_LEGADA_LOTE = {("retomar-lote-para.yml", "3546687c66ec07ef9bd875d181efcff57ff1d312"): 5}
+# Destino imutável com E1/E2 e guardas: upgrade científico intencional nas origens antigas.
+# A auditoria declara as versões e os deltas por origem, sem reetiquetar saídas legadas.
+# Só promove continuações/retentativas pendentes elegíveis; reservas vivas ficam intactas.
+PROMOCOES_CONTINUACAO = {
+    "88860b64ee09f811b66e283f5c57997ebcdb3fd5": "be452620f868537251fa832a10cb14bfb5c8efe3",
+    "b624b108b0350135003e1099d9c928fa7cc24151": "be452620f868537251fa832a10cb14bfb5c8efe3",
+    "6a53cfbf514f369f694ea0bd3bc594ef8295a3b4": "be452620f868537251fa832a10cb14bfb5c8efe3",
+    "bea53bd06c7178daf2a53c392e5a9d54c55e7bc7": "be452620f868537251fa832a10cb14bfb5c8efe3",
+    "436c7b636f6a8867b47403a1dfad4e4c741dc150": "be452620f868537251fa832a10cb14bfb5c8efe3",
+}
 
 
 def comando(args: list[str], entrada: str | None = None) -> str:
@@ -135,6 +145,33 @@ def enfileirar(estado: dict, pedidos: list[dict]) -> None:
             ids.add(p["id"])
 
 
+def promover_continuacoes(estado: dict) -> int:
+    """Só retomadas pendentes auditadas; reservas, bloqueios e outros commits ficam intactos.
+
+    Executado na própria transação de admissão, inclusive para pedidos que um
+    executor antigo enfileirar depois de uma migração manual da fila.
+    """
+    promovidos = 0
+    for pedido in estado["fila"]:
+        continuacao = pedido.get("continuacao", 0)
+        falhas = pedido.get("falhas", 0)
+        origem = pedido.get("ref")
+        destino = PROMOCOES_CONTINUACAO.get(origem)
+        if (
+            pedido.get("bloqueado")
+            or type(continuacao) is not int
+            or type(falhas) is not int
+            or min(continuacao, falhas) < 0
+            or not (continuacao > 0 or falhas > 0)
+            or destino is None
+        ):
+            continue
+        pedido["ref"] = destino
+        pedido["promocao_publicador"] = {"origem": origem, "destino": destino}
+        promovidos += 1
+    return promovidos
+
+
 def devolver_a_fila(estado: dict, reserva: dict, run: dict, jobs: list[dict]) -> None:
     pedido = dict(reserva["pedido"])
     if pedido.get("repetir") is False:
@@ -215,6 +252,7 @@ def admitir(
     consumir_fila: bool = True,
 ) -> list[dict]:
     ativas, legados = reconciliar(estado, runs, e_unidade)
+    promover_continuacoes(estado)
     livres = max(0, min(limite, TETO) - len(estado["reservas"]) - legados)
     if max_novos is not None:
         livres = min(livres, max_novos)
