@@ -621,3 +621,6 @@ sem alterar as reservas, as saídas ou o destino da promoção. Novos pedidos da
   `490ab152` e as entregas dos outros chats; referência estadual aprovada no CI.
 - [ ] Publicação PA R12: execução `43361839589/2` com entradas congeladas e
   cálculo iniciado; aguarda três lotes, sensibilidade e conferência privada.
+
+- [x] Auditoria histórica da fila compatível com a mudança intencional R12:
+  dez tarefas preservadas e desenvolvedor distinto; 70 testes aprovados.
