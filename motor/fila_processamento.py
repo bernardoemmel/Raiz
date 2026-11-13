@@ -193,6 +193,12 @@ def ocupada(unidade: str, ativas: set[str]) -> bool:
     return False
 
 
+def _uf_do_funil(unidade: str) -> str | None:
+    """A prioridade das UFs não muda a admissão nem a versão de catálogo e lotes."""
+    uf = unidade.split("-", 1)[0]
+    return uf if uf in ORDEM_FUNIL else None
+
+
 def enfileirar(estado: dict, pedidos: list[dict]) -> None:
     ids = {p["id"] for p in estado["fila"]} | {r["pedido"]["id"] for r in estado["reservas"]}
     for p in pedidos:
@@ -325,22 +331,23 @@ def admitir(
         }
     prioridade = estado.get("prioridade_funil", {})
     frente = prioridade.get("frente")
-    ufs_ativas = {u.split("-", 1)[0] for u in ativas}
+    ufs_ativas = {uf for u in ativas if (uf := _uf_do_funil(u)) is not None}
     livres = max(0, min(limite, TETO) - len(estado["reservas"]) - legados)
     if max_novos is not None:
         livres = min(livres, max_novos)
     escolhidos = []
     pendentes = {p["id"] for p in estado["fila"]}
     bloqueadas = {p["unidade"] for p in estado["fila"] if p.get("bloqueado")
-                  and (not frente or not prioridade.get("ref") or p.get("ref") == prioridade["ref"])}
+                  and (not _uf_do_funil(p["unidade"]) or not frente
+                       or not prioridade.get("ref") or p.get("ref") == prioridade["ref"])}
     manut_ativas = sum(u in manutencao for u in ativas)
     for pedido in [*(estado["fila"] if consumir_fila else []), *candidatos]:
         if len(escolhidos) >= livres:
             break
         if pedido.get("bloqueado"):
             continue
-        uf = pedido["unidade"].split("-", 1)[0]
-        if frente:
+        uf = _uf_do_funil(pedido["unidade"])
+        if frente and uf is not None:
             if uf not in frente or (uf not in ufs_ativas and len(ufs_ativas) >= 3):
                 continue
             if pedido.get("refazer"):
@@ -356,7 +363,8 @@ def admitir(
             continue
         estado["reservas"].append({"run_id": run_id, "unidade": pedido["unidade"], "pedido": pedido})
         ativas.add(pedido["unidade"])
-        ufs_ativas.add(uf)
+        if uf is not None:
+            ufs_ativas.add(uf)
         escolhidos.append(pedido)
         manut_ativas += manut
     ids = {p["id"] for p in escolhidos}
@@ -411,7 +419,9 @@ def reservar(
         fixada = (estado.get("prioridade_funil") or {}).get("ref")
         if funis_prontos is not None and len(funis_prontos) == len(ORDEM_FUNIL):
             fixada = None
-        enfileirar(estado, [{**p, "ref": fixada} for p in explicitos] if fixada else explicitos)
+        enfileirar(estado, [
+            {**p, "ref": fixada} if _uf_do_funil(p["unidade"]) else p for p in explicitos
+        ] if fixada else explicitos)
 
     transacao(repo, registrar)  # o pedido existe antes de qualquer consulta/admissão que possa falhar
 
@@ -428,7 +438,7 @@ def reservar(
         if funis_prontos is not None and len(funis_prontos) == len(ORDEM_FUNIL):
             fixada = None
         if fixada:
-            novos = [{**p, "ref": fixada} for p in novos]
+            novos = [{**p, "ref": fixada} if _uf_do_funil(p["unidade"]) else p for p in novos]
         if not repetir:
             novos = [{**p, "repetir": False} for p in novos]
         if reserva_rodada:

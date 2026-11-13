@@ -32,8 +32,10 @@ try {
   const erros = []
   page.on("pageerror", (erro) => erros.push(erro.message))
   await page.goto(servidor.url)
-  await page.getByRole("group", { name: "Mapa do Brasil por estado" }).waitFor()
+  await page.waitForFunction(() => document.querySelector(".mapa-brasil .mapa")?.__mapa?.loaded())
+  assert.equal(await page.locator(".mapa-nacional-leve").count(), 0, "A primeira tela deve abrir direto no MapLibre.")
   await page.getByRole("heading", { level: 1 }).waitFor()
+  await page.waitForFunction(() => document.querySelectorAll(".processamento-estado").length === 27)
   // Tab chega ao atalho e Enter transfere o foco para o conteúdo, sem mudar a rota.
   await page.keyboard.press("Tab")
   assert.equal(await page.locator(":focus").innerText(), "Pular para o conteúdo")
@@ -100,6 +102,11 @@ try {
       assert(resultado, `${nome}: Lighthouse não entregou relatório.`)
       fs.writeFileSync(path.join(saida, `${nome}-${rodada}-lighthouse.json`), resultado.report[0])
       fs.writeFileSync(path.join(saida, `${nome}-${rodada}-lighthouse.html`), resultado.report[1])
+      // A fixture é pública e sintética. Guarda o perfil da entrada para investigar travamentos
+      // no runner sem repetir a medição nem atribuir o custo apenas pelo nome do bundle.
+      if (nome === "brasil") for (const parte of ["Trace", "DevtoolsLog"]) {
+        if (resultado.artifacts?.[parte]) fs.writeFileSync(path.join(saida, `${nome}-${rodada}-${parte}.json`), JSON.stringify(resultado.artifacts[parte]))
+      }
       amostras.push(resultado.lhr)
     }
     const notas = conferirSerieLighthouseCelular(amostras)

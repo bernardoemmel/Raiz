@@ -1,0 +1,27 @@
+{
+  "url": "https://geoftp.ibge.gov.br/organizacao_do_territorio/malhas_territoriais/malhas_municipais/municipio_2025/UFs/MT/MT_Municipios_2025.zip",
+  "bytes": 9476597,
+  "sha256": "86f3cc662ff63c9742f095ba60fa201721f8faf1d9dc4cd3f59c20028cc9b7a0",
+  "last_modified": "Thu, 26 Feb 2026 20:02:50 GMT",
+  "etag": "\"9099f5-64bbf9ae80e80\"",
+  "feicoes": 142,
+  "crs": "EPSG:4674",
+  "municipios_conferidos": [
+    {
+      "CD_MUN": "5101837",
+      "NM_MUN": "Boa Esperança do Norte"
+    },
+    {
+      "CD_MUN": "5107925",
+      "NM_MUN": "Sorriso"
+    },
+    {
+      "CD_MUN": "5106240",
+      "NM_MUN": "Nova Ubiratã"
+    }
+  ],
+  "licenca": "CC BY 4.0",
+  "nota": "https://www.ibge.gov.br/biblioteca/visualizacao/livros/liv102268.pdf",
+  "nota_sha256": "bc88c44624c8852b4796b72b525f9092cd770415403c1a3486a8d48bcefc9e89",
+  "pagina_licenca": 9
+}

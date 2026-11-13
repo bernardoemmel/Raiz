@@ -11,6 +11,8 @@ export { comoLinha } from "./colunas"
 import type { ImovelBasico } from "./basico"
 import type { RespostaBusca } from "./busca"
 import type { Ficha } from "./ficha"
+import type { PotencialMapa } from "./potencial"
+import type { AgregadosMapa } from "./agregados"
 import type { CoberturaMapa } from "./cobertura-mapa"
 import type { CamadaGeo, Estados, FunilMunicipio, Geo, Imovel, PontoFazenda } from "./tipos"
 
@@ -50,13 +52,17 @@ export interface FonteDeDados {
   geo: {
     /** Contagem e datas do índice leve, sem baixar contornos municipais ou dados individuais. */
     cobertura(): Promise<CoberturaMapa | undefined>
+    /** Potencial H3 agregado e revisado; null quando não publicado, sem estimar a partir do CAR. */
+    potencial?(uf: string): Promise<PotencialMapa | null>
+    /** Pontos nacionais já agregados e deduplicados; ausência não gera pedidos de arquivos estaduais. */
+    agregados?(): Promise<AgregadosMapa | null>
     camada(cod_ibge: string, camada: CamadaGeo): Promise<Geo | null>
     /** municípios com o contorno de cada fazenda (imoveis_<cod>.geojson) */
     comContorno(): Promise<string[]>
     /** URL do mapa base em PMTiles do município, ou null se ainda não foi gerado */
     base(cod_ibge: string): Promise<string | null>
     /** o Brasil: contorno de todos os municípios, dos 27 estados e o mapa base único (do país ao município) */
-    brasil(): Promise<{ municipios: Geo | null; estados: Geo | null; base: string | null; cobertura?: CoberturaMapa }>
+    brasil(opcoes?: { municipios?: boolean }): Promise<{ municipios: Geo | null; estados: Geo | null; urlEstados?: string; base: string | null; cobertura?: CoberturaMapa }>
   }
   /**
    * URL pronta para <img> de um arquivo da fonte (a capa da ficha). Com token, baixa com o cabeçalho e devolve um

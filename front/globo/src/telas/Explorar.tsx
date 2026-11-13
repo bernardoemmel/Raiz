@@ -1,5 +1,4 @@
 import type { SituacaoBasica } from "../../../compartilhado/dados/basico"
-import { PainelMunicipioBasico } from "../partes/PainelMunicipioBasico"
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react"
 import { codigosEmLeilao } from "../../../compartilhado/calendario"
 import { calendario } from "../calendario"
@@ -7,15 +6,16 @@ import { ufDoCodigo } from "../../../compartilhado/formato"
 import type { Foco } from "../../../compartilhado/funil-etapas"
 import { fonte, useCarga } from "../dados"
 import type { CamadaAssunto, GeoMunicipio } from "../mapa/MapaBrasil"
-import { MapaNacionalLeve } from "../mapa/MapaNacionalLeve"
+import { prepararGpu } from "../mapa/preparar-gpu"
 import { Cabecalho } from "../partes/Cabecalho"
 import { PainelBrasil } from "../partes/PainelBrasil"
-import { PainelMunicipio } from "../partes/PainelMunicipio"
 import { PainelProcessamentoEstados } from "../partes/PainelProcessamentoEstados"
 import { useProcessamentoEstados } from "../processamento-estados"
 import { linkEstado, linkMunicipio } from "../rota"
 
 const MapaBrasil = lazy(() => import("../mapa/MapaBrasil").then((m) => ({ default: m.MapaBrasil })))
+const PainelMunicipio = lazy(() => import("../partes/PainelMunicipio").then((m) => ({ default: m.PainelMunicipio })))
+const PainelMunicipioBasico = lazy(() => import("../partes/PainelMunicipioBasico").then((m) => ({ default: m.PainelMunicipioBasico })))
 
 type Altura = "baixa" | "meia" | "alta"
 const ALTURAS: Altura[] = ["baixa", "meia", "alta"]
@@ -36,17 +36,22 @@ function cobertura(altura: Altura): number {
  */
 export function Explorar({ municipio, uf }: { municipio: string | null; uf: string | null }) {
   const processamento = useProcessamentoEstados(!municipio)
-  const [abriuDetalhe, setAbriuDetalhe] = useState(Boolean(municipio || uf))
-  if (!abriuDetalhe && (municipio || uf)) setAbriuDetalhe(true)
-  const brasil = useCarga(() => abriuDetalhe ? fonte.geo.brasil() : Promise.resolve({ municipios: null, estados: null, base: null }), [abriuDetalhe])
+  useEffect(() => {
+    const preparacao = prepararGpu()
+    return () => { void preparacao.then((liberar) => liberar()) }
+  }, [])
+  // O MapLibre abre desde a primeira tela. Os limites dos 5.571 municípios só entram ao aproximar.
+  const [aproximou, setAproximou] = useState(false)
+  const detalhe = Boolean(municipio || uf || aproximou)
+  const brasil = useCarga(() => fonte.geo.brasil({ municipios: detalhe }), [detalhe])
   const coberturaMapa = useCarga(() => fonte.geo.cobertura(), [])
   const estados = useCarga(() => fonte.estados(), [])
   const municipios = useCarga(() => fonte.municipios(), [])
   // o estado em foco: o escolhido, ou o do município aberto; os pontos são só dele
   const ufFoco = municipio ? ufDoCodigo(municipio) : uf
+  const agregados = useCarga(() => fonte.geo.agregados ? fonte.geo.agregados() : Promise.resolve(null), [])
   const leiloes = useCarga(() => municipio ? calendario.leiloes({ estado: ufFoco || undefined }) : Promise.resolve(null), [municipio, ufFoco])
-  const emLeilao = useMemo(() => codigosEmLeilao(leiloes.dado?.eventos ?? []), [leiloes.dado])
-  const pontos = useCarga(() => (ufFoco ? fonte.pontos(ufFoco) : Promise.resolve([])), [ufFoco])
+  const emLeilao = useMemo(() => leiloes.dado ? codigosEmLeilao(leiloes.dado.eventos) : new Set<string>(), [leiloes.dado])
   const funil = useCarga(() => (municipio ? fonte.municipio(municipio) : Promise.resolve(null)), [municipio])
   const imoveis = useCarga(() => (municipio ? fonte.imoveis(municipio) : Promise.resolve(null)), [municipio])
   const basicos = useCarga(() => (municipio && fonte.basicos ? fonte.basicos(municipio) : Promise.resolve(null)), [municipio])
@@ -79,6 +84,7 @@ export function Explorar({ municipio, uf }: { municipio: string | null; uf: stri
     setFoco(null)
     setSituacaoBasica(null)
     setCamada("situacao")
+    setDestaque(null)
     if (!municipio) setAltura("baixa")
     else if (altura === "baixa") setAltura("meia")
   }
@@ -159,7 +165,7 @@ export function Explorar({ municipio, uf }: { municipio: string | null; uf: stri
                 {listas.has(municipio) && " Os dados e a lista continuam disponíveis."}
               </p>
             )}
-            {municipio && estados.dado?.acesso === "publico_basico" ? (
+            <Suspense fallback={<p className="painel-conteudo" role="status">Abrindo o município…</p>}>{municipio && estados.dado?.acesso === "publico_basico" ? (
               <PainelMunicipioBasico
                 key={municipio}
                 nome={funil.dado?.municipio ?? (feicao?.properties.nome as string | undefined) ?? "Município"}
@@ -194,20 +200,26 @@ export function Explorar({ municipio, uf }: { municipio: string | null; uf: stri
                 comLista={listas}
                 estados={estados.dado}
                 uf={uf}
-                pontos={uf ? pontos.dado : undefined}
+                pontos={undefined}
                 carregando={municipios.carregando || estados.carregando}
+                carregandoResumo={municipios.carregando}
                 cobertura={coberturaMapa.dado}
-                andamento={<PainelProcessamentoEstados carga={processamento} uf={uf} />}
+                carregandoCobertura={coberturaMapa.carregando}
+                andamento={<PainelProcessamentoEstados key="processamento" carga={processamento} uf={uf} />}
               />
-            )}
+            )}</Suspense>
           </div>
         </aside>
-        {abriuDetalhe ? <Suspense fallback={<MapaNacionalLeve estados={estados.dado} carregandoDetalhe />}><MapaBrasil
+        <div className="mapa-area">
+        <Suspense fallback={<div className="mapa-brasil" aria-busy="true"><p className="mapa-aviso aviso" role="status">Abrindo o mapa do Brasil…</p></div>}><MapaBrasil
           brasil={brasil.dado}
           processados={processados}
           comLista={listas}
           estados={estados.dado}
-          pontos={pontos.dado ?? []}
+          agregados={agregados.dado ?? null}
+          agregadosCarregando={agregados.carregando}
+          agregadosErro={Boolean(agregados.erro)}
+          aoAproximar={() => setAproximou(true)}
           uf={uf}
           municipio={municipio}
           geoMunicipio={geoMunicipio.carregando ? null : (geoMunicipio.dado ?? null)}
@@ -221,7 +233,8 @@ export function Explorar({ municipio, uf }: { municipio: string | null; uf: stri
           margemBaixo={margem}
           aoEscolherMunicipio={(cod) => (location.hash = linkMunicipio(cod))}
           aoEscolherEstado={(sigla) => (location.hash = linkEstado(sigla))}
-        /></Suspense> : <MapaNacionalLeve estados={estados.dado} />}
+        /></Suspense>
+        </div>
       </main>
     </div>
   )

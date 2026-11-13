@@ -27,7 +27,7 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import FileResponse, HTMLResponse, Response
 from sqlalchemy import Engine, text
 
-from raiz import RAIZ_REPO
+from raiz import RAIZ_REPO, publico_versoes
 from raiz import markdown as markdown_mod
 from raiz.config import config
 
@@ -54,12 +54,12 @@ def dados(engine: Engine, codigo: str) -> dict | None:
     """O que pode ir a público para o código curto (e, à parte, o que só vale depois do aceite)."""
     with engine.connect() as con:
         r = con.execute(
-            text("""select k.codigo, v.cod_imovel, v.cod_busca, m.municipio, v.uf, r.ha, r.carbono_ha,
+            text("""select k.codigo, v.cod_imovel, v.cod_busca, r.municipio, r.uf, r.ha, r.rodada_id,
+                           r.cod_municipio_ibge,
                            a.estado as aceite, r.atributos
                     from negocio.codigo_curto k
                     join funil.vigente v on v.cod_imovel = k.cod_imovel
                     join funil.resultado_imovel r on r.rodada_id = v.rodada_id and r.cod_imovel = v.cod_imovel
-                    left join funil.municipio_busca m on m.cod_ibge = v.cod_municipio_ibge
                     left join negocio.aceite a on a.cod_imovel = v.cod_imovel
                     where k.codigo = :c"""),
             {"c": codigo.upper()},
@@ -69,25 +69,27 @@ def dados(engine: Engine, codigo: str) -> dict | None:
     aceito = r.aceite == "aceito"
     conferida = str((r.atributos or {}).get("matricula_conferida", "")).lower() in ("true", "1")
     selo = "ouro" if aceito else "prata" if conferida else "bronze"
-    restauravel = float(r.carbono_ha or 0)
-    ha = restauravel if restauravel > 0 else float(r.ha or 0)
+    ha = publico_versoes._area(r.ha)
+    municipio, uf = publico_versoes.local_basico(r.cod_municipio_ibge, r.municipio, r.uf)
     return {
         "codigo": r.codigo,
-        "municipio": r.municipio or "",
-        "uf": r.uf or "",
-        "hectares": fmt_ha(ha),
-        "frase": "podem voltar a ser mata" if restauravel > 0 else "de fazenda no Cadastro Ambiental Rural",
-        "frase_curta": "podem voltar a ser mata" if restauravel > 0 else "no CAR",
+        "municipio": municipio or "Não informado",
+        "uf": uf or "Não informado",
+        "hectares": fmt_ha(ha) if ha is not None else "Área não informada",
+        "frase": "de fazenda no Cadastro Ambiental Rural",
+        "frase_curta": "no CAR",
         "selo": selo,
         "aceito": aceito,
         # só depois do aceite (nunca vão ao Takumi nem à página antes disso)
         "_cod_imovel": r.cod_imovel,
         "_cod_busca": r.cod_busca,
+        "_rodada_id": r.rodada_id,
     }
 
 
 def _publico(d: dict) -> dict:
-    return {k: v for k, v in d.items() if not k.startswith("_")}
+    campos = ("codigo", "municipio", "uf", "hectares", "frase", "frase_curta", "selo", "aceito")
+    return {k: d[k] for k in campos if k in d}
 
 
 def _assinatura(d: dict) -> str:
@@ -96,6 +98,8 @@ def _assinatura(d: dict) -> str:
 
 def _cache(d: dict, nome: str) -> tuple[Path, bool]:
     """Caminho em cache e se ele ainda vale (selo, aceite e textos iguais aos de quando foi feito)."""
+    if not publico_versoes.codigo_valido(d["codigo"]) or Path(nome).name != nome or "\\" in nome:
+        raise ValueError("caminho público inválido")
     p = pasta() / d["codigo"]
     p.mkdir(parents=True, exist_ok=True)
     f = p / nome
@@ -230,6 +234,12 @@ def pagina(d: dict, base_url: str) -> str:
         depois = f'<p class="car">CAR {e(d["_cod_imovel"])}</p>'
         if _imagens_do_aceite(d).get("imagem"):
             depois += _foto(d, base)
+    if d.get("_versao"):
+        v = d["_versao"]
+        depois += (
+            f'<p><a href="{base}{e(v.caminho)}">Versão datada: '
+            f"{v.data_corte.strftime('%d/%m/%Y')}, rodada {v.rodada_id}</a></p>"
+        )
     return f"""<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>{e(titulo)} · Raíz</title>
@@ -274,35 +284,71 @@ def pagina_markdown(d: dict, base_url: str) -> str:
         partes.extend([f"CAR: {t(d['_cod_imovel'])}.", ""])
         if _imagens_do_aceite(d).get("imagem"):
             partes.extend([f"![Imagem de satélite da fazenda]({base}/p/{d['codigo']}/satelite.webp)", ""])
+    if d.get("_versao"):
+        v = d["_versao"]
+        partes.extend(
+            [f"[Versão datada: {v.data_corte.strftime('%d/%m/%Y')}, rodada {v.rodada_id}]({base}{v.caminho}).", ""]
+        )
     partes.append("Fonte: CAR (SICAR/SFB) e MapBiomas.")
     return "\n".join(partes) + "\n"
 
 
 def roteador(engine_de):
     """Rotas públicas, sem token (o código curto sorteado é a chave; não dá para adivinhar)."""
-    import re
-
     r = APIRouter()
-    codigo_ok = re.compile(r"^[0-9A-HJKMNP-TV-Za-hjkmnp-tv-z]{6,8}$")
 
     def achar(request, codigo: str) -> dict:
-        if not codigo_ok.match(codigo):
+        if not publico_versoes.codigo_valido(codigo):
             raise HTTPException(404, "código não existe")
         d = dados(engine_de(request), codigo)
         if d is None:
             raise HTTPException(404, "código não existe")
         return d
 
+    def ficha_atual(request: Request, codigo: str) -> dict:
+        d = achar(request, codigo)
+        if d["aceito"] and d.get("_rodada_id"):
+            versao = publico_versoes.registrar(engine_de(request), codigo, d["_rodada_id"])
+            if versao is None:
+                # O aceite pode ter sido revogado entre a primeira consulta e a revalidação.
+                # Nunca renderizar o CAR ou a imagem com o estado anterior de autorização.
+                raise HTTPException(404, "ficha não disponível", headers=publico_versoes.SEM_CACHE)
+            d = {**d, "_versao": versao}
+        return d
+
+    def ficha_datada(request: Request, codigo: str, versao: str, markdown: bool = False) -> Response:
+        achado = publico_versoes.obter(engine_de(request), codigo, versao)
+        if achado is None:
+            raise HTTPException(404, "versão não disponível", headers=publico_versoes.SEM_CACHE)
+        v, nova = achado
+        if markdown or markdown_mod.prefere_markdown(request.headers.get("accept"), "text/html"):
+            resposta = markdown_mod.resposta(publico_versoes.pagina_markdown(v, nova, str(request.base_url)))
+            resposta.headers.update(publico_versoes.SEM_CACHE)
+            return resposta
+        return HTMLResponse(publico_versoes.pagina(v, nova, str(request.base_url)), headers=publico_versoes.SEM_CACHE)
+
+    @r.get("/p/{codigo}/v/{versao}.md")
+    def p_datada_markdown(codigo: str, versao: str, request: Request) -> Response:
+        return ficha_datada(request, codigo, versao, markdown=True)
+
+    @r.get("/p/{codigo}/v/{versao}")
+    def p_datada(codigo: str, versao: str, request: Request) -> Response:
+        return ficha_datada(request, codigo, versao)
+
     @r.get("/p/{codigo}.md")
     def p_markdown(codigo: str, request: Request) -> Response:
-        return markdown_mod.resposta(pagina_markdown(achar(request, codigo), str(request.base_url)))
+        resposta = markdown_mod.resposta(pagina_markdown(ficha_atual(request, codigo), str(request.base_url)))
+        resposta.headers.update(publico_versoes.SEM_CACHE)
+        return resposta
 
     @r.get("/p/{codigo}", response_class=HTMLResponse)
     def p(codigo: str, request: Request) -> Response:
-        d = achar(request, codigo)
+        d = ficha_atual(request, codigo)
         if markdown_mod.prefere_markdown(request.headers.get("accept"), "text/html"):
-            return markdown_mod.resposta(pagina_markdown(d, str(request.base_url)))
-        return HTMLResponse(pagina(d, str(request.base_url)), headers={"Vary": "Accept"})
+            resposta = markdown_mod.resposta(pagina_markdown(d, str(request.base_url)))
+            resposta.headers.update(publico_versoes.SEM_CACHE)
+            return resposta
+        return HTMLResponse(pagina(d, str(request.base_url)), headers=publico_versoes.SEM_CACHE)
 
     @r.get("/p/{codigo}/satelite.webp")
     def satelite_publico(codigo: str, request: Request) -> Response:
@@ -310,7 +356,7 @@ def roteador(engine_de):
         img = _imagens_do_aceite(d).get("imagem")
         if not img:  # antes do aceite não há imagem da fazenda no link público
             raise HTTPException(404, "imagem só depois do aceite do dono")
-        return FileResponse(img, media_type="image/webp")
+        return FileResponse(img, media_type="image/webp", headers=publico_versoes.SEM_CACHE)
 
     @r.get("/cartao/{codigo}/{nome}")
     def cartao_rota(codigo: str, nome: str, request: Request) -> Response:
@@ -318,13 +364,13 @@ def roteador(engine_de):
         if ext not in CARTOES.get(tipo, {}):
             raise HTTPException(404, "cartão desconhecido (previa e retrato: .jpg ou .webp; adesivo: .png ou .webp)")
         f = cartao(achar(request, codigo), tipo, ext)
-        return FileResponse(f, media_type=TIPO_IMAGEM[ext], headers={"Cache-Control": "public, max-age=3600"})
+        return FileResponse(f, media_type=TIPO_IMAGEM[ext], headers=publico_versoes.SEM_CACHE)
 
     @r.get("/video/{nome}.mp4")
     def video_rota(nome: str, request: Request) -> Response:
         codigo, sufixo = (nome[:-5], "-720p") if nome.endswith("-720p") else (nome, "")
         f, meta = video(achar(request, codigo), sufixo)
-        h = {"Cache-Control": "public, max-age=3600"}
+        h = dict(publico_versoes.SEM_CACHE)
         if meta.get("aviso"):
             h["X-Raiz-Aviso"] = "sem voz"
         return FileResponse(f, media_type="video/mp4", headers=h)

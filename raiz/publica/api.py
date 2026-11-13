@@ -369,7 +369,9 @@ def criar(engine_de: Callable[[Request], Any], verificador=None) -> FastAPI:
     def ok(x: Any) -> JSONResponse:
         from raiz.publica.privacidade import para_resposta
 
-        return JSONResponse(para_resposta(x))
+        return JSONResponse(
+            para_resposta(x), headers={"Cache-Control": "private, no-store", "Vary": "Authorization, X-Chave-API"}
+        )
 
     Acesso = Annotated[K.Acesso, Depends(acesso)]
     Pessoa = Annotated[K.Acesso, Depends(pessoa)]

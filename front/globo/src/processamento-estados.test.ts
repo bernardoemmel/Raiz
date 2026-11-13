@@ -118,6 +118,24 @@ describe("painel por estado", () => {
     const antigo = renderToStaticMarkup(createElement(PainelBrasil, { municipios: undefined, comLista: new Set<string>(), estados: undefined, uf: null, pontos: undefined, carregando: true, andamento }))
     expect(antigo).toContain("Processamento dos municípios")
   })
+  it("encerra as reservas ao receber vazio ou erro, sem esconder a telemetria", () => {
+    const props = { municipios: undefined, comLista: new Set<string>(), estados: undefined, uf: null, pontos: undefined,
+      carregando: true, carregandoResumo: true, carregandoCobertura: true,
+      andamento: createElement(PainelProcessamentoEstados, { carga: carga() }) }
+    const pendente = renderToStaticMarkup(createElement(PainelBrasil, props))
+    expect(pendente).toContain("resumo-brasil-carregando")
+    expect(pendente).toContain("cobertura-carregando")
+    expect(pendente.indexOf("Cobertura do mapa")).toBeLessThan(pendente.indexOf("Processamento dos municípios"))
+    const erro = renderToStaticMarkup(createElement(PainelBrasil, { ...props, carregandoResumo: false, carregandoCobertura: false }))
+    expect(erro).toContain("Não foi possível ler o resumo dos municípios")
+    expect(erro).toContain("a data de atualização ainda não foram informadas")
+    expect(erro).not.toContain("resumo-brasil-carregando")
+    expect(erro).not.toContain("cobertura-carregando")
+    const vazio = renderToStaticMarkup(createElement(PainelBrasil, { ...props, municipios: [], carregandoResumo: false, carregandoCobertura: false }))
+    expect(vazio).toContain("Nenhum município processado ainda.")
+    expect(vazio).not.toContain("resumo-brasil-carregando")
+    expect(vazio).toContain("Processamento dos municípios")
+  })
   it("mostra zero real e mantém desconhecido como não informado", () => {
     const e = estado()
     e.municipios.prontos = null
