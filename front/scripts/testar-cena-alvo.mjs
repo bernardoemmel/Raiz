@@ -170,8 +170,18 @@ async function conferirPainelAutorizadoV2(base) {
   p.on("request", r => { if (/solicitar-interesse|reservar/.test(r.url())) contatos.push(r.url()) })
   let leiturasResumo = 0
   await p.route("**/amostra/lote_PA_central_r11.json", rota => { leiturasResumo++; return rota.fulfill({ json: publicado }) })
+  // Raster sintético somente neste teste; percorre o carregamento real sem depender da rede externa.
+  const tile = new PNG({ width: 256, height: 256 })
+  for (let i = 0; i < tile.data.length; i += 4) tile.data.set([70, 100, 65, 255], i)
+  const tilePng = PNG.sync.write(tile)
+  await p.route("https://tiles.maps.eox.at/**", rota => rota.fulfill({ status: 200, contentType: "image/png", body: tilePng, headers: { "Access-Control-Allow-Origin": "*" } }))
   await p.addInitScript(() => localStorage.setItem("raiz.sessao", JSON.stringify({ token: "sessao-fixture-cliente", email: "cliente@example.test" })))
   const comNegada = structuredClone(pedidoComFichaFechada)
+  // A fazenda sintética desta rota fica dentro do município sintético, para conferir o zoom até o perímetro.
+  comNegada.opcoes[0].itens[0].geometria = { type: "Polygon", coordinates: [[[-49.97, -6.15], [-49.94, -6.15], [-49.94, -6.12], [-49.97, -6.12], [-49.97, -6.15]]] }
+  comNegada.opcoes[0].itens[0].lon = -49.955
+  comNegada.opcoes[0].itens[0].lat = -6.135
+  const geometriaInicial = comNegada.opcoes[0].itens[0].geometria
   // Mesmo se o payload trouxer geometria por engano, ficha_liberada:false não passa ao mapa.
   comNegada.opcoes[0].itens[1].geometria = opcoes[1].itens[0].geometria
   await p.route("**/api/pedidos/fixture", rota => {
@@ -189,9 +199,25 @@ async function conferirPainelAutorizadoV2(base) {
   })
   const geometria = await sourcePronto.jsonValue()
   assert.equal(geometria.length, 1)
-  assert.deepEqual(geometria[0].geometry, opcoes[0].itens[0].geometria)
+  assert.deepEqual(geometria[0].geometry, geometriaInicial)
   assert(!JSON.stringify(geometria).includes(carFechado), "O item bloqueado nunca chegou ao source autorizado.")
   assert.equal(leiturasResumo, 0, "A rota autenticada não usa o resumo do Pará como fallback.")
+  await p.waitForFunction(() => document.querySelector(".mapa-brasil .mapa")?.__mapa?.getSource("brasil-municipios")?.serialize().data?.features?.length > 0)
+  await p.evaluate(() => {
+    const mapa = document.querySelector(".mapa-brasil .mapa").__mapa
+    mapa.stop()
+    mapa.jumpTo({ center: [-49.955, -6.135], zoom: 12 })
+  })
+  await p.waitForFunction(() => document.querySelector(".mapa-brasil .mapa")?.__mapa?.getSource("municipio")?.serialize().data?.features?.some(f => f.properties.cod_ibge === "1505536"))
+  assert.equal(new URL(p.url()).hash, "#/pedidos/fixture/mapa", "O idle de zoom12 deve carregar o município sem sair do pedido autenticado.")
+  assert.equal(await painel.count(), 1, "Aproximar não fecha o painel do pedido.")
+  await p.waitForFunction(() => {
+    const mapa = document.querySelector(".mapa-brasil .mapa")?.__mapa
+    return mapa?.getZoom() >= 11.9 && mapa.queryRenderedFeatures({ layers: ["lote-autorizado-linha"] }).length > 0
+  })
+  const depoisDoZoom = await p.evaluate(() => document.querySelector(".mapa-brasil .mapa").__mapa.getSource("lote-autorizado").serialize().data.features)
+  assert.deepEqual(depoisDoZoom.map(f => f.geometry), [geometriaInicial], "O contorno autorizado deve permanecer depois da carga municipal.")
+  await p.screenshot({ path: path.join(resultado, "painel-pedido-v2-api-zoom12.png") })
   await painel.locator(".pedido-mapa-v2-abas").getByRole("button", { name: "Mais seguro", exact: true }).click()
   await p.waitForFunction(esperado => {
     const fonte = document.querySelector(".mapa-brasil .mapa")?.__mapa?.getSource("lote-autorizado")
@@ -309,7 +335,7 @@ try {
   await conferirPainelAutorizadoV2(api.base)
   assert.deepEqual(contatos, [], "O teste tentou iniciar contato ou reserva.")
   assert.deepEqual(erros, [], "Há erro HTTP ou JavaScript.")
-  fs.writeFileSync(path.join(resultado, "resumo.json"), JSON.stringify({ cenarios: ["cobertura pública", "snapshot legado ignorado", "resumo público sem campos pagos", "painel V2 e passagem de critérios sem contato", "demonstração fictícia", "API autorizada", "item com ficha paga bloqueada"], cores, erros, contatos }, null, 2))
+  fs.writeFileSync(path.join(resultado, "resumo.json"), JSON.stringify({ cenarios: ["cobertura pública", "snapshot legado ignorado", "resumo público sem campos pagos", "painel V2 e passagem de critérios sem contato", "demonstração fictícia", "API autorizada", "painel V2 mantém pedido e perímetro autorizado no zoom12", "item com ficha paga bloqueada"], cores, erros, contatos }, null, 2))
   console.log("Cena-alvo: resumo público sem detalhes pagos, demonstração fictícia, três lotes coloridos autorizados, ficha bloqueada, teclado, 360 px e nenhum contato ou 404.")
 } catch (erro) {
   let paginaFalhou = 0

@@ -13,7 +13,8 @@ Pedidos que só o fundador faz, no dia 1: convênio com o ONR e pedidos por LAI 
   seleção pública sem composição e desenho reservado à resposta autorizada da API.
 - [x] Desenho de área transferido aos critérios do pedido; nenhum contato enviado.
 - [x] Guia V2 e verificador atualizados com exceções restritas aos rótulos mono.
-- [ ] Fechar comparação dos três prints, testes de navegador, desempenho e CI da entrega.
+- [x] Comparação dos três prints registrada, com diferenças de dados e acesso documentadas: [antes/depois e relatório público](design/evidencias-v2/README.md).
+- [ ] Fechar testes de navegador, desempenho e CI da entrega.
 
 Detalhes, fontes e evidências: [passagem de telas e mapa](passagem/telas-e-mapa.md).
 Os hexágonos públicos contam cadastros, não somente fazendas aptas; o cartão usa os

@@ -985,6 +985,12 @@ O pacote `raiz-visual-v2-telas.zip` substitui o redesenho anterior ainda não en
 incorporado em `docs/design/guia-front-v2.md`. A maquete não foi copiada para o produto:
 o fundo continua Protomaps e os dados continuam nos contratos públicos/autenticados.
 
+- [x] Comparação visual dos três prints registrada em [evidências V2](../design/evidencias-v2/README.md),
+  com [Brasil](../design/evidencias-v2/depois-brasil.png), [pedido público](../design/evidencias-v2/depois-pedido.png),
+  [celular](../design/evidencias-v2/depois-celular.png), antes/depois e [relatório de capturas](../design/evidencias-v2/relatorio-capturas.json).
+  As capturas registraram zero erros HTTP, JavaScript, console e requisições falhas.
+  Comparação visual concluída; desempenho e CI permanecem pendentes.
+
 A entrada ocupa a tela inteira, com base escura, fontes locais Bricolage Grotesque e
 JetBrains Mono, cartão territorial e pedido flutuantes. H3 r4 no Brasil e r5 ao aproximar
 substituem os círculos; a construção/consulta ocorre em worker. A escala identifica a
