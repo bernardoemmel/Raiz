@@ -775,3 +775,32 @@ A integração preserva o CI sem cancelamento da main #100. Os testes focados de
 fila, catálogo, privacidade e avaliação passaram (227; um caso condicional não executado).
 Ruff, formatação, actionlint e varredura de CPF/CNPJ passaram. O CI completo será conferido
 novamente antes do merge. Não há nova UF concluída comprovada nem previsão nacional válida.
+
+
+### Compatibilidade da publicação do Calendário — 13/11/2026
+
+O PR #97 foi integrado com CI verde: 2.580 testes Python, referência real do Pará e conferência final dos relatórios;
+129 testes de calendário/MCP também passaram na árvore combinada com a main. A primeira rodada automática revelou
+dois bloqueios operacionais: a API autenticada não encontrou o Release `dados`, embora o manifesto público estivesse
+acessível, e o site rejeitou o novo campo agregado `processamento` de GO.
+
+O PR #95, integrado enquanto essa verificação ocorria, corrigiu o leitor do site: contrato fechado de processamento,
+contagens e horários validados e distinção entre a UF cadastral do CAR e o recorte territorial. O download real dos
+16 pacotes públicos passou; 13 UFs têm municípios processados. Essa compatibilidade já está na main.
+
+**Feito no código nesta continuação:** a coleta usa o leitor público de cobertura já limitado e validado pelo CLI,
+no endereço público do manifesto. As operações do Release fixam o repositório do workflow. Conserva o estado
+anterior e interrompe a coleta quando a cobertura não pode ser conferida. A publicação é verificada nas execuções automáticas da main.
+
+A rodada real de 13/11 produziu 50 eventos, 11 futuros e nenhum CAR confirmado: 31 fontes consultadas,
+191 visitas, cobertura dos 13 estados processados e histórico anterior preservado. JSON/ICS/estado não têm
+CPF/CNPJ expostos ou duplicatas exatas. PA parcial; DJEN/BA/MG/TO em erro. O upload local recebeu 401;
+a execução operacional `43366965069` restaurou os três arquivos no Release público. Os hashes remotos
+correspondem aos locais; nenhum dado privado foi publicado. O site foi publicado em `43367227736`: JSON e ICS
+conferidos byte a byte, 50 eventos e 11 futuros já acessíveis.
+
+Validação local: 2.890 testes Python aprovados, um teste opcional pulado e uma divergência esperada; referência real
+estadual incluída. Front com 338 testes e build aprovado na base #95; licenças, privacidade, Ruff e actionlint
+conferidos. Main #98 incorporada preservando as duas entregas e a cabeça única 0035, sem migração nova do calendário.
+Na árvore atualizada: 205 testes de integração aprovados, 341 testes do front e build aprovado. O único skip local
+é do servidor LanguageTool, fornecido pelo CI. Nenhuma exigência do CI foi removida.
