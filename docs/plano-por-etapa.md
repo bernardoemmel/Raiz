@@ -567,3 +567,5 @@ A primeira execução no Actions identificou ausência de `rg` no runner; a veri
 - [x] Benchmark nacional repetido na R12: 7 milhões sintéticos, 80% pequenas,
   três seleções e auditoria em 67,43 s; preparo 10,71 s, pico 2.386 MiB. Não mede
   coleta ou previsão municipal. Publicação real permanece pendente.
+- [x] Suíte nacional integrada: 2.539 testes aprovados, 292 skips de ambiente,
+  um xfail; replay estadual aprovado separadamente na R12; Ruff/formatação aprovados.

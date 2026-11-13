@@ -451,3 +451,16 @@ com testes concorrentes. Seletor `lote-nacional-1+63098e6a63a3`; modelo
 59 testes nacionais/fila aprovados após integrar R12. CI do PR #94 no commit
 `a1b88c2` está na fila; não enviar novo head enquanto estiver ativo para evitar
 cancelamento automático pelo CI compartilhado.
+
+Suíte nacional completa sem o replay estadual duplicado: **2.539 aprovados,
+292 skips de ambiente, um xfail**, em 609,65 s; código de saída zero.
+O replay estadual do mesmo motor passou na suíte integral R12. Ruff e formatação
+dos 593 arquivos passaram. Um reinício do ambiente interrompeu a tentativa local
+anterior; esta execução concluída está em
+`/tmp/raiz-nacional-r12-integral-final.log`. Não houve cancelamento de Actions.
+
+R12 está no PR #101, head `6205807`, CI `43361791598`. A execução PA
+`43361839589` falhou na admissão da tentativa 1, antes de baixar dados e sem
+reservar cotas (log não expôs a causa específica do RuntimeError). Após consulta
+completa da fila, a tentativa 2 reservou **12 cotas**, total global **15**, congelou
+as mesmas entradas e segue para cálculo. Nenhuma fatia foi repetida.
