@@ -246,3 +246,41 @@ def test_exportacao_mantem_centavos_alem_da_precisao_do_float():
     z = zipfile.ZipFile(io.BytesIO(gerar(pacote(p), MarcaExportacao("RZP-teste-" + "a" * 32, "teste"))))
     assert b"1.234.567.890.123.456,12 BRL/tCO2e" in z.read("banco.html")
     assert json.loads(z.read("dados-conferidos.json"))["dados"]["imoveis"][0]["preco"]["valor"] == "1234567890123456.12"
+
+
+@pytest.mark.parametrize("tipo", ["cpf", "cnpj", "cnpj_alfa", "nome_rotulado", "credencial"])
+@pytest.mark.parametrize("prefixo", ["", "modelo-", "modelo_2026/"])
+def test_versao_da_pasta_recusa_dado_pessoal_antes_de_gravar_ou_exportar(tipo, prefixo, tmp_path, capsys):
+    from raiz.pasta_fiador.operacao import main
+    from testes.test_privacidade import CNPJ, CNPJ_ALFA, CPF
+
+    valor = (
+        prefixo
+        + {
+            "cpf": CPF,
+            "cnpj": CNPJ,
+            "cnpj_alfa": CNPJ_ALFA,
+            "nome_rotulado": "dono:PESSOA-SINTETICA",
+            "credencial": "token:valor-sintetico",
+        }[tipo]
+    )
+    pasta = dados_pasta().model_dump(mode="json")
+    pasta["imoveis"][0]["creditos"][0]["modelo_versao"] = valor
+    with pytest.raises(ValidationError) as erro:
+        Pasta.model_validate(pasta)
+    assert valor not in str(erro.value)
+    entrada, relatorio = tmp_path / "entrada.json", tmp_path / "relatorio.json"
+    entrada.write_text(json.dumps({"tipo": "inclusao", "motivo": "entrada_conferida", "dados": pasta}))
+    assert main([str(entrada), "--relatorio", str(relatorio)]) == 2
+    assert not json.loads(relatorio.read_text())["pronto"]
+    assert valor not in relatorio.read_text() + capsys.readouterr().out
+    # A geração revalida até um dicionário legado que se declare pronto.
+    with pytest.raises(ValidationError):
+        gerar({"dados": pasta, "validacao": {"pronto": True}}, MarcaExportacao("RZP-teste-" + "a" * 32, "teste"))
+
+
+@pytest.mark.parametrize("versao", ["raiz-2026a", "restauracao-2026d", "modelo-2026.11", "teste", "modelo-v1.2.3"])
+def test_versao_tecnica_da_pasta_continua_valida(versao):
+    pasta = dados_pasta()
+    pasta.imoveis[0].creditos[0].modelo_versao = versao
+    assert validar(pasta, agora=AGORA).pronto

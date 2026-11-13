@@ -693,3 +693,44 @@ concluído. Nenhum ponteiro ou marca de processamento foi alterado.
 Na integração dos formatos com #98 e a retomada atualizada, **311 testes** de quantis, Croissant,
 manifestos imutáveis, atestação/verificador, promoção e pasta fiador passaram com PostGIS real.
 A correção documental de privacidade não altera o detector nem o código do produto.
+
+
+
+## Integração da main de avaliação — 13/11/2026
+
+O CI do #99 no commit `c89d0ac` passou nos nove jobs. A main recebeu #100 durante a pausa;
+a integração preserva sua conferência de versões em checkouts históricos isolados e a aplica
+às provas urgente e da rodada 12. As versões e os hashes agora são calculados diretamente nos
+commits imutáveis de cada auditoria, sem normalizar o código corrente nem alterar os destinos
+já em execução. A prova AST do leitor também usa o arquivo do destino histórico. Nenhuma
+prova anterior, reserva ou versão de resultado foi reescrita.
+
+
+## Continuações com carga estrita — 13/11/2026, 10h14 de Brasília
+
+O workflow permanece ativo. A consulta do Actions às 13h13 UTC confirmou oito unidades
+executando o motor simultaneamente em PR, SC e SP, dentro de 15 reservas globais. Havia
+38 pedidos bloqueados, preservados para correção; reservas não equivalem a runners ativos.
+A branch `codex/dados-snapshot`, usada por continuações antigas, avançou sem force-push
+para `c89d0ac`, já aprovado nos nove jobs do CI. Jobs admitidos mantêm seus commits.
+
+A auditoria adicional limita a promoção de `6e69cc0` a `c89d0ac`: 11 versões de tarefas,
+239 dependências, código nativo e chamada de carga estrita idênticos. A parte do armazém
+fora dos três métodos de leitura/tratamento de erro também é idêntica. Essa origem não
+volta ao destino anterior à carga estrita. Somente continuações/retentativas elegíveis
+mudam durante a admissão CAS; pedidos iniciais, bloqueados e reservas vivas não mudam.
+As provas anteriores permanecem intactas. O teste reexecuta ambos os commits em checkouts
+isolados e confere os arquivos reais, incluindo versões, dependências e AST.
+
+A integração preserva o CI sem cancelamento da main #100. Os testes focados de promoção,
+fila, catálogo, privacidade e avaliação passaram (227; um caso condicional não executado).
+Ruff, formatação, actionlint e varredura de CPF/CNPJ passaram. O CI completo será conferido
+novamente antes do merge. Não há nova UF concluída comprovada nem previsão nacional válida.
+
+
+Integração dos formatos com a main #100/#103 e a retomada atualizada: **451 testes** passaram,
+sem skips, com PostGIS real. As novas provas históricas, metadados do Lote, verificador,
+privacidade e avaliação foram conferidos juntos. Ruff, formatação, actionlint, varredura
+de CPF/CNPJ e **874 licenças** passaram. O teste de registro que não rodou sem banco no #99
+passou nesta árvore integrada. O CI anterior do #102 terminou; a correção do link que
+acionava o detector segue agora junto da integração, sem cancelar jobs.

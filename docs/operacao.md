@@ -1116,6 +1116,23 @@ padrão do Uvicorn fica desligado para não gravar tokens de links/webhooks nas 
 texto pessoal bruto: o reconhecimento de nomes tem falsos negativos. Mantenha apenas códigos internos e métricas
 nos eventos. Limites da auditoria e pendências estão em `docs/passagem/qualidade-e-seguranca.md`.
 
+## Avaliação de modelos e arquivo cego (rodada 12)
+
+O procedimento, contratos e comandos estão em [avaliação da rodada 12](modelo/avaliacao-rodada12.md).
+Antes de treinar um candidato, o custodiante fixa plano, conjunto cego, previsões antigas, política de equidade
+e controle estável. O CLI exige recibo anterior e reprova dados insuficientes, mudança de denominador, regressão
+por subgrupo ou controle instável. Conservar o arquivo em armazenamento privado imutável com backup; separar a
+conta de treino da conta que lê gabaritos. O portão emite decisão, não altera automaticamente o campeão atual.
+A integração com a promoção e o retorno transacional é a pendência de Produto e regras indicada na passagem.
+
+O CI executa os ensaios sintéticos no pytest completo, inclusive o solver real nas três opções. O job `seguranca`
+confere os esquemas e constrói/inspeciona o wheel para bloquear scpi/vegan, inclusive dependências indiretas.
+Esses resultados demonstram o funcionamento das checagens; não são métricas de acerto empírico do carbono.
+O CI não cancela uma execução anterior ao chegar outro commit (`cancel-in-progress: false`).
+A auditoria de promoções reexecuta o commit histórico fechado em um checkout isolado. O job Python usa
+histórico Git completo; em clone local raso, execute `git fetch --unshallow` antes da suíte. Não substitua os
+hashes do registro antigo pelos hashes da main nem altere as referências dos executores em andamento.
+
 ## Medição semanal de agentes
 
 O workflow **Agente real semanal** (`agentes-real.yml`) usa `ANTHROPIC_API_KEY` dos segredos

@@ -575,6 +575,15 @@ A primeira execução no Actions identificou ausência de `rg` no runner; a veri
 - [x] Markdown do site preserva medidas ausentes e zeros explícitos; totais incompletos não são apresentados
   como totais completos. Regressões cobrem páginas estaduais/municipais e proteção de grupos pequenos.
 
+### Qualidade — avaliação da rodada 12
+
+Feito no código: contratos de prova cega/controle estável/PCCP e funil de denominador fixo; CRPS com denominador
+explícito; origens móveis sem acesso ao futuro; equidade por município/aptidão/porte com solver no CI; diagnóstico
+forestci/caudas; reamostragem só no treino; bloqueio de scpi/vegan no pacote. Ver
+[protocolo e limites](modelo/avaliacao-rodada12.md) e [responsáveis pela integração](passagem/qualidade-e-seguranca.md).
+Acurácia empírica e promoção automática via esse protocolo aguardam os dados/integrações indicados; não são
+marcadas como concluídas por passar nos casos sintéticos.
+
 Validação da entrega urgente (12/11, 22h42 de Brasília): suíte completa local com 2.477 testes aprovados;
 o caso estadual exigiu preparar a referência privada e passou depois em execução isolada (144 municípios,
 345.870 imóveis, 425,58 s). LanguageTool depende do servidor presente no CI; uma divergência de TIR já
@@ -811,3 +820,73 @@ concluído. Nenhum ponteiro ou marca de processamento foi alterado.
 Na integração dos formatos com #98 e a retomada atualizada, **311 testes** de quantis, Croissant,
 manifestos imutáveis, atestação/verificador, promoção e pasta fiador passaram com PostGIS real.
 A correção documental de privacidade não altera o detector nem o código do produto.
+
+
+
+## Integração da main de avaliação — 13/11/2026
+
+O CI do #99 no commit `c89d0ac` passou nos nove jobs. A main recebeu #100 durante a pausa;
+a integração preserva sua conferência de versões em checkouts históricos isolados e a aplica
+às provas urgente e da rodada 12. As versões e os hashes agora são calculados diretamente nos
+commits imutáveis de cada auditoria, sem normalizar o código corrente nem alterar os destinos
+já em execução. A prova AST do leitor também usa o arquivo do destino histórico. Nenhuma
+prova anterior, reserva ou versão de resultado foi reescrita.
+
+
+## Continuações com carga estrita — 13/11/2026, 10h14 de Brasília
+
+O workflow permanece ativo. A consulta do Actions às 13h13 UTC confirmou oito unidades
+executando o motor simultaneamente em PR, SC e SP, dentro de 15 reservas globais. Havia
+38 pedidos bloqueados, preservados para correção; reservas não equivalem a runners ativos.
+A branch `codex/dados-snapshot`, usada por continuações antigas, avançou sem force-push
+para `c89d0ac`, já aprovado nos nove jobs do CI. Jobs admitidos mantêm seus commits.
+
+A auditoria adicional limita a promoção de `6e69cc0` a `c89d0ac`: 11 versões de tarefas,
+239 dependências, código nativo e chamada de carga estrita idênticos. A parte do armazém
+fora dos três métodos de leitura/tratamento de erro também é idêntica. Essa origem não
+volta ao destino anterior à carga estrita. Somente continuações/retentativas elegíveis
+mudam durante a admissão CAS; pedidos iniciais, bloqueados e reservas vivas não mudam.
+As provas anteriores permanecem intactas. O teste reexecuta ambos os commits em checkouts
+isolados e confere os arquivos reais, incluindo versões, dependências e AST.
+
+A integração preserva o CI sem cancelamento da main #100. Os testes focados de promoção,
+fila, catálogo, privacidade e avaliação passaram (227; um caso condicional não executado).
+Ruff, formatação, actionlint e varredura de CPF/CNPJ passaram. O CI completo será conferido
+novamente antes do merge. Não há nova UF concluída comprovada nem previsão nacional válida.
+
+
+### Compatibilidade da publicação do Calendário — 13/11/2026
+
+O PR #97 foi integrado com CI verde: 2.580 testes Python, referência real do Pará e conferência final dos relatórios;
+129 testes de calendário/MCP também passaram na árvore combinada com a main. A primeira rodada automática revelou
+dois bloqueios operacionais: a API autenticada não encontrou o Release `dados`, embora o manifesto público estivesse
+acessível, e o site rejeitou o novo campo agregado `processamento` de GO.
+
+O PR #95, integrado enquanto essa verificação ocorria, corrigiu o leitor do site: contrato fechado de processamento,
+contagens e horários validados e distinção entre a UF cadastral do CAR e o recorte territorial. O download real dos
+16 pacotes públicos passou; 13 UFs têm municípios processados. Essa compatibilidade já está na main.
+
+**Feito no código nesta continuação:** a coleta usa o leitor público de cobertura já limitado e validado pelo CLI,
+no endereço público do manifesto. As operações do Release fixam o repositório do workflow. Conserva o estado
+anterior e interrompe a coleta quando a cobertura não pode ser conferida. A publicação é verificada nas execuções automáticas da main.
+
+A rodada real de 13/11 produziu 50 eventos, 11 futuros e nenhum CAR confirmado: 31 fontes consultadas,
+191 visitas, cobertura dos 13 estados processados e histórico anterior preservado. JSON/ICS/estado não têm
+CPF/CNPJ expostos ou duplicatas exatas. PA parcial; DJEN/BA/MG/TO em erro. O upload local recebeu 401;
+a execução operacional `43366965069` restaurou os três arquivos no Release público. Os hashes remotos
+correspondem aos locais; nenhum dado privado foi publicado. O site foi publicado em `43367227736`: JSON e ICS
+conferidos byte a byte, 50 eventos e 11 futuros já acessíveis.
+
+Validação local: 2.890 testes Python aprovados, um teste opcional pulado e uma divergência esperada; referência real
+estadual incluída. Front com 338 testes e build aprovado na base #95; licenças, privacidade, Ruff e actionlint
+conferidos. Main #98 incorporada preservando as duas entregas e a cabeça única 0035, sem migração nova do calendário.
+Na árvore atualizada: 205 testes de integração aprovados, 341 testes do front e build aprovado. O único skip local
+é do servidor LanguageTool, fornecido pelo CI. Nenhuma exigência do CI foi removida.
+
+
+Integração dos formatos com a main #100/#103 e a retomada atualizada: **451 testes** passaram,
+sem skips, com PostGIS real. As novas provas históricas, metadados do Lote, verificador,
+privacidade e avaliação foram conferidos juntos. Ruff, formatação, actionlint, varredura
+de CPF/CNPJ e **874 licenças** passaram. O teste de registro que não rodou sem banco no #99
+passou nesta árvore integrada. O CI anterior do #102 terminou; a correção do link que
+acionava o detector segue agora junto da integração, sem cancelar jobs.
