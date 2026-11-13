@@ -19,6 +19,7 @@ import json
 import logging
 import os
 import socket
+import threading
 import time
 import traceback
 from collections.abc import Callable
@@ -82,6 +83,7 @@ class Executor:
         self.resumo = resumo
         self.motor_versao = motor_versao or (lambda: "")
         self._versoes: dict[str, str] | None = None
+        self._processamento: dict | None = None
 
     # --- versões e marcas ---------------------------------------------------------------------------------------
 
@@ -154,6 +156,32 @@ class Executor:
                 out.append(t.nome)
         return out
 
+    def _conclusao_comprovada(self, uf: str, cod: int) -> bool:
+        """Telemetria não confunde marca existente com saídas íntegras da versão atual."""
+        marca = self.marca(uf, cod)
+        local = getattr(self.a, "local", self.a)
+        for tarefa in self.tarefas:
+            if any((marca["tarefas"].get(d) or {}).get("vazio") for d in tarefa.depende):
+                continue
+            feito = marca["tarefas"].get(tarefa.nome) or {}
+            if feito.get("erro") or feito.get("versao") != self.versoes()[tarefa.nome]:
+                return False
+            saidas = feito.get("saidas") or {}
+            if not saidas and not (feito.get("vazio") and tarefa.pode_ficar_vazio):
+                return False
+            for arquivo, digest in saidas.items():
+                chave = self.chave_saida(uf, arquivo)
+                meta = self.a.meta(chave) or {}
+                if meta.get("sha256") != digest or meta.get("versao") != self.versoes()[tarefa.nome]:
+                    return False
+                if hasattr(local, "_p"):
+                    try:
+                        if sha256_arquivo(local._p(chave)) != digest:
+                            return False
+                    except OSError:
+                        return False
+        return True
+
     # --- um município ---------------------------------------------------------------------------------------------
 
     def _garantir_local(self, uf: str, marca: dict, t: Tarefa) -> None:
@@ -167,6 +195,16 @@ class Executor:
                         raise FileNotFoundError(f"{arq} não está no armazém ({self.a.descricao})")
 
     def processar_municipio(self, uf: str, cod: int, refazer: bool = False) -> dict:
+        if self._processamento is None:
+            return self._processar_municipio(uf, cod, refazer)
+        from raiz.executor.processamento import acompanhar
+
+        with acompanhar(self._processamento, cod) as evento:
+            resultado = self._processar_municipio(uf, cod, refazer)
+            evento["erro"] = resultado["erro"] is not None
+            return resultado
+
+    def _processar_municipio(self, uf: str, cod: int, refazer: bool = False) -> dict:
         uf = uf.upper()
         pasta = self.pasta(uf)
         m = self.marca(uf, cod)
@@ -273,6 +311,47 @@ class Executor:
         por_json(self.a, self.chave_estado(uf), estado)
         pendentes = [c for c in cods if refazer or self.plano(uf, c)]
         estado["feitos"] = len(cods) - len(pendentes)
+        from raiz.executor import processamento
+
+        self._processamento = processamento.contexto(self.trabalho, uf)
+        sem_tarefa_pendente = set(cods) - set(pendentes)
+        prontos_antes = {cod for cod in sem_tarefa_pendente if self._conclusao_comprovada(uf, cod)}
+        self._processamento["nao_comprovados"] = sem_tarefa_pendente - prontos_antes
+        publicacao_bloqueada = False
+        ultimo_painel = 0.0
+        trava_andamento = threading.Lock()
+        estado["publicacao"] = {"pendente": False, "falhas": 0}
+
+        def registrar_andamento(*, forcar_painel=False):
+            nonlocal ultimo_painel
+            estado["processamento"] = processamento.resumir(self._processamento, cods, prontos_antes)
+            por_json(self.a, self.chave_estado(uf), estado)
+            habilitado = (os.environ.get("GITHUB_ACTIONS") == "true" and os.environ.get("GITHUB_JOB") == "processar"
+                          and os.environ.get("UNIDADE") == self._processamento["unidade"])  # fmt: skip
+            if habilitado and (forcar_painel or time.monotonic() - ultimo_painel >= 90):
+                ultimo_painel = time.monotonic()
+                try:
+                    from raiz import RAIZ_REPO
+                    from raiz.executor.status_publico import publicar_eventos
+
+                    publicar_eventos(processamento.eventos_publicos(self._processamento, cods, prontos_antes),
+                                     repositorio=RAIZ_REPO, tentativas=4)  # fmt: skip
+                except Exception as ex:  # noqa: BLE001 - painel não interrompe cálculo nem persistência
+                    log.warning("painel de processamento pendente (%s)", type(ex).__name__)
+
+        def andamento(*, forcar_painel=False):
+            with trava_andamento:
+                registrar_andamento(forcar_painel=forcar_painel)
+
+        def falha_publicacao(ex: Exception):
+            nonlocal publicacao_bloqueada
+            publicacao_bloqueada = True
+            estado["publicacao"].update(pendente=True, erro_tipo=type(ex).__name__, atualizado_em=_agora())
+            estado["publicacao"]["falhas"] += 1
+            andamento()
+            log.warning("publicação pendente (%s); cálculo e marcas locais continuam preservados", type(ex).__name__)
+
+        andamento(forcar_painel=True)
         if preparar and pendentes:
             preparar(uf, sorted({t for c in pendentes[:50] for t in self.plano(uf, c, refazer)}))
 
@@ -283,9 +362,14 @@ class Executor:
             if r["erro"]:
                 estado["erros"].append({"cod": r["cod"], **r["erro"]})
             estado["atualizado_em"] = _agora()
-            por_json(self.a, self.chave_estado(uf), estado)
-            if hasattr(self.a, "talvez_publicar"):
-                if self.a.talvez_publicar(uf):  # os retratos usam a mesma cadência, em pacotes separados
+            andamento()
+            if hasattr(self.a, "talvez_publicar") and not publicacao_bloqueada:
+                try:
+                    publicou = self.a.talvez_publicar(uf)
+                except Exception as ex:  # noqa: BLE001 - transporte não interrompe tarefas científicas em curso
+                    falha_publicacao(ex)
+                    return
+                if publicou:  # os retratos usam a mesma cadência, em pacotes separados
                     from raiz.aprendizado.retratos import pasta_padrao
                     from raiz.aprendizado.transporte import publicar
 
@@ -301,11 +385,28 @@ class Executor:
 
         parou = False
         if lanes <= 1 or len(pendentes) <= 1:
-            for c in pendentes:
-                if not no_prazo():
-                    parou = True
-                    break
-                anota(self.processar_municipio(uf, c, refazer))
+            # Mesmo o último município pode levar horas. O pai acompanha o heartbeat
+            # sem abrir outro worker e sem esperar o cálculo terminar para publicar.
+            parar_monitor = threading.Event()
+
+            def acompanhar_serial():
+                while not parar_monitor.wait(processamento.INTERVALO_S):
+                    try:
+                        andamento()
+                    except Exception as ex:  # noqa: BLE001 - telemetria não interrompe ciência
+                        log.warning("andamento local pendente (%s)", type(ex).__name__)
+
+            monitor = threading.Thread(target=acompanhar_serial, daemon=True)
+            monitor.start()
+            try:
+                for c in pendentes:
+                    if not no_prazo():
+                        parou = True
+                        break
+                    anota(self.processar_municipio(uf, c, refazer))
+            finally:
+                parar_monitor.set()
+                monitor.join()
         else:
             import multiprocessing as mp
 
@@ -316,13 +417,17 @@ class Executor:
                 it = pool.imap_unordered(_trabalhador, [(uf, c, refazer) for c in pendentes])
                 while True:
                     try:
-                        r = next(it) if limite is None else it.next(timeout=max(limite + graca - time.time(), 1))
+                        espera = 30 if limite is None else min(30, max(limite + graca - time.time(), 0.1))
+                        r = it.next(timeout=espera)
                     except StopIteration:
                         break
-                    except mp.TimeoutError:  # passou do prazo e da folga sem nenhum município terminar
-                        parou = True
-                        pool.terminate()
-                        break
+                    except mp.TimeoutError:
+                        andamento()
+                        if limite is not None and time.time() >= limite + graca:
+                            parou = True
+                            pool.terminate()
+                            break
+                        continue
                     anota(r)
                     if not no_prazo():
                         parou = True
@@ -336,11 +441,23 @@ class Executor:
                     self.a.por(self.chave_saida(uf, Path(f).name), Path(f), meta)
             except Exception as e:  # noqa: BLE001
                 estado["erros"].append({"cod": None, "tarefa": "resumo", "erro": sanitizar_log(str(e))[:500]})
+        processamento.encerrar(self._processamento)
         estado["situacao"] = "parado_no_prazo" if parou else ("com_erro" if estado["erros"] else "pronto")
         estado["fim"] = _agora()
-        por_json(self.a, self.chave_estado(uf), estado)
+        andamento(forcar_painel=True)
         if hasattr(self.a, "publicar") and getattr(self.a, "token", None):
-            self.a.publicar(uf)
+            try:
+                self.a.publicar(uf)
+            except Exception as ex:  # noqa: BLE001 - o workflow always preserva checkpoint privado independente
+                falha_publicacao(ex)
+                self._processamento = None
+                raise RuntimeError(
+                    "cálculo registrado localmente; publicação pendente, recuperar checkpoint privado"
+                ) from None
+            estado["publicacao"]["pendente"] = False
+            estado["publicacao"]["confirmada_em"] = _agora()
+            andamento()
+        self._processamento = None
         return estado
 
     def adotar(self, uf: str, cods: list[int] | None = None) -> dict:
