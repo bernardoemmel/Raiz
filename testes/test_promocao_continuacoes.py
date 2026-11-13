@@ -233,17 +233,9 @@ def test_gatilho_unico_nao_confia_em_codigo_de_outro_run(mudanca, autorizado):
     assert checkout["uses"] == "actions/checkout@v4" and "with" not in checkout
 
 
-def test_promocao_urgente_vincula_prova_anterior_e_codigo_corrigido(monkeypatch):
+def _conferir_versoes_antes_da_carga_estrita(esperadas, monkeypatch):
     from raiz.executor import tarefas
 
-    prova = json.loads((RAIZ / "docs/passagem/auditoria-promocao-urgente.json").read_text())
-    anterior = RAIZ / "docs/passagem/auditoria-promocao-publicador.json"
-    assert prova["auditoria_anterior_sha256"] == hashlib.sha256(anterior.read_bytes()).hexdigest()
-    assert prova["base_cientifica"] == DESTINO
-    assert prova["destino"] == F.DESTINO_URGENTE_PR95
-    assert F.PROMOCOES_URGENTE_PR95 == {o: prova["destino"] for o in prova["origens"]}
-    assert set(PROMOCOES) < set(prova["origens"])
-    atual = prova["commits"][prova["destino"]]
     # #93 mudou só a chamada da carga em rodar.py, que participa do hash das 11 tarefas.
     # A fila continua no commit fechado anterior; não atribuir a versão da main aos seus resultados.
     rodar = RAIZ / "raiz/funil/rodar.py"
@@ -254,8 +246,20 @@ def test_promocao_urgente_vincula_prova_anterior_e_codigo_corrigido(monkeypatch)
     ler = Path.read_bytes
     with monkeypatch.context() as m:
         m.setattr(Path, "read_bytes", lambda p: anterior_rodar if p == rodar else ler(p))
-        assert atual["versoes_tarefas"] == {n: tarefas.versao(n) for n in tarefas.CODIGO}
-    assert all(atual["versoes_tarefas"][n] != tarefas.versao(n) for n in tarefas.CODIGO)
+        assert esperadas == {n: tarefas.versao(n) for n in tarefas.CODIGO}
+    assert all(esperadas[n] != tarefas.versao(n) for n in tarefas.CODIGO)
+
+
+def test_promocao_urgente_vincula_prova_anterior_e_codigo_corrigido(monkeypatch):
+    prova = json.loads((RAIZ / "docs/passagem/auditoria-promocao-urgente.json").read_text())
+    anterior = RAIZ / "docs/passagem/auditoria-promocao-publicador.json"
+    assert prova["auditoria_anterior_sha256"] == hashlib.sha256(anterior.read_bytes()).hexdigest()
+    assert prova["base_cientifica"] == DESTINO
+    assert prova["destino"] == F.DESTINO_URGENTE_PR95
+    assert F.PROMOCOES_URGENTE_PR95 == {o: prova["destino"] for o in prova["origens"]}
+    assert set(PROMOCOES) < set(prova["origens"])
+    atual = prova["commits"][prova["destino"]]
+    _conferir_versoes_antes_da_carga_estrita(atual["versoes_tarefas"], monkeypatch)
     assert atual["versoes_tarefas"] == prova["commits"][DESTINO]["versoes_tarefas"]
     assert len(atual["armazem_sha256"]) == 64  # bytes históricos; o leitor mudou na rodada 12
     assert {p["origem"] for p in prova["comparacoes"]} == set(F.PROMOCOES_URGENTE_PR95)
@@ -270,9 +274,7 @@ def test_promocao_urgente_vincula_prova_anterior_e_codigo_corrigido(monkeypatch)
         assert set(par["tarefas_preservadas"]) == set(atual["versoes_tarefas"]) - mudaram
 
 
-def test_promocao_rodada12_preserva_ciencia_e_vincula_as_duas_provas():
-    from raiz.executor import tarefas
-
+def test_promocao_rodada12_preserva_ciencia_e_vincula_as_duas_provas(monkeypatch):
     prova = json.loads((RAIZ / "docs/passagem/auditoria-promocao-rodada12.json").read_text())
     for chave, nome in (
         ("auditoria_anterior_sha256", "auditoria-promocao-publicador.json"),
@@ -282,7 +284,7 @@ def test_promocao_rodada12_preserva_ciencia_e_vincula_as_duas_provas():
     assert prova["destino"] == F.DESTINO_CONTINUACAO
     assert F.PROMOCOES_CONTINUACAO == {o: prova["destino"] for o in prova["origens"]}
     destino = prova["commits"][prova["destino"]]
-    assert destino["versoes_tarefas"] == {n: tarefas.versao(n) for n in tarefas.CODIGO}
+    _conferir_versoes_antes_da_carga_estrita(destino["versoes_tarefas"], monkeypatch)
     assert destino["armazem_sha256"] == hashlib.sha256((RAIZ / "raiz/executor/armazem.py").read_bytes()).hexdigest()
     assert {p["origem"] for p in prova["comparacoes"]} == set(F.PROMOCOES_CONTINUACAO)
     anterior = json.loads((RAIZ / "docs/passagem/auditoria-promocao-urgente.json").read_text())
@@ -305,8 +307,12 @@ def test_armazem_so_altera_leitura_na_prova_rodada12():
     prova = json.loads((RAIZ / "docs/passagem/auditoria-promocao-rodada12.json").read_text())
     arvore = ast.parse((RAIZ / "raiz/executor/armazem.py").read_text())
     classe = next(n for n in arvore.body if isinstance(n, ast.ClassDef) and n.name == "ArmazemRelease")
-    classe.body = [n for n in classe.body if not (isinstance(n, ast.FunctionDef) and n.name == "_assets")]
+    alterados = {"_assets", "_baixar_asset", "_erros_privados"}
+    classe.body = [n for n in classe.body if not (isinstance(n, ast.FunctionDef) and n.name in alterados)]
+    arvore.body = [n for n in arvore.body if not (isinstance(n, ast.ClassDef) and n.name == "FalhaHTTPPrivada")]
     guarda = prova["leitura_assets"]
+    assert set(guarda["metodos_alterados"]) == {f"ArmazemRelease.{n}" for n in alterados}
+    assert guarda["classe_status"] == "FalhaHTTPPrivada"
     assert guarda["origem"] == F.DESTINO_URGENTE_PR95 and guarda["destino"] == F.DESTINO_CONTINUACAO
     assert guarda["restante_identico"] and guarda["tentativas"] == 4
     assert (
