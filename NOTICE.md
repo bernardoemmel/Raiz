@@ -415,3 +415,15 @@ atmosfera, cartografia ou dados. O pacote original não é modificado em `node_m
 A versão, o SHA-256 do módulo distribuído e o trecho são conferidos antes de qualquer transformação.
 Atualizações da biblioteca exigem nova revisão; o build falha caso não corresponda ao código conferido.
 O teste executa a função real alterada e verifica os casos transparente, opaco e parcialmente transparente.
+
+## Gráficos de resultados da ficha autorizada
+
+Apache ECharts **6.1.0** (Apache-2.0, <https://github.com/apache/echarts>) e seu renderizador
+zrender **6.1.0** (BSD-3-Clause, <https://github.com/ecomfe/zrender>) desenham contratado,
+emitido e entregue. Só os módulos de linha, eixos, legenda e SVG são registrados.
+Vega-Lite **6.5.0** (BSD-3-Clause, <https://github.com/vega/vega-lite>) e Vega **6.4.0**
+(BSD-3-Clause, <https://github.com/vega/vega>) desenham as faixas previstas e observações por método.
+As licenças dos pacotes instalados foram conferidas em 13/11/2026. Os textos integrais e o NOTICE do Apache ECharts são preservados em
+`front/globo/public/licencas/graficos.txt`, incluindo as dependências adicionadas; nenhum código-fonte foi copiado. Ambos os gráficos são carregados
+sob demanda, apenas quando o cliente abre o painel, e usam dados da ficha autenticada. O runtime
+Vega recebe somente valores locais e tem seu carregador de fontes externas bloqueado.

@@ -539,3 +539,110 @@ relatórios Lighthouse passaram pelo portão fixo. E9 real não foi calibrado e 
 - Rodada 12 recebida: Supercluster nacional/estadual, ficha de créditos com base de comparação explícita,
   versão pública datada, sequência de risco e gráficos. Essa continuação conserva o MapLibre e o acesso pago;
   não cancela nem desliga workflows. E9 permanece aguardando o conjunto de cartas reais.
+
+## Rodada 12: fichas privadas, versão pública datada e gráficos (13/11/2026 UTC)
+
+A implementação destas três partes está integrada. **O CI final da entrega e a publicação ainda estão
+pendentes.** Os resultados de CI e Lighthouse da seção anterior pertencem à entrega anterior; não são
+notas desta rodada. Este registro trata das fichas e dos gráficos, cuja validação usa dados sintéticos.
+
+### Ficha privada e base de comparação
+
+- O pedido autorizado abre `#/pedidos/{id}/ficha/{barata|segura|compacta}` pelo botão **Ficha resumida desta
+  opção**. A tela recebe `opcao.ficha_credito` pela API. A fonte pública bloqueia a consulta antes do GET e
+  continua exibindo somente o resumo aberto dos lotes. A ficha agregada não contém identificação ou desenho
+  das fazendas nem dá acesso implícito a fichas individuais.
+- A tabela **Fatos do lote**, inspirada na organização de um rótulo nutricional, compara P10/P50/P90 por
+  hectare elegível e para o total da mesma opção. Não há selo de aprovação de órgão regulador. As duas colunas
+  têm a mesma classe de ativo/evidência, métrica, método, versão, horizonte e composição declarada
+  (`titulares` ou `titulares_e_reservas`). Por hectare é a divisão dos mesmos quantis por um denominador
+  elegível fixo e documentado. Área total do CAR não substitui esse denominador. Exclusões podem se sobrepor;
+  não se somam nem se subtraem para fabricar área elegível. Desconhecido permanece diferente de zero.
+- A sequência é sempre **Título → Método → Perdas → Garantias → Risco de não entrega**. Cada seção conserva
+  fonte, data de referência e revisão técnica próprias. Publicação e hash do documento aparecem separados;
+  uma data de consulta, build ou publicação nunca preenche revisão ausente.
+- Fontes e conclusões usam catálogos fechados. Estimativa exige origem do motor; verificado exige relatório
+  de verificação; emitido exige registro de emissão; entregue exige registro de entrega. O Método precisa
+  concordar com a classe, origem e data dos números. Revisão técnica da terra não verifica crédito de carbono.
+  Quantidade emitida ou entregue é pontual, com P10=P50=P90; faixas do motor não recebem outro rótulo para
+  parecer emissão. FLAG permanece separado e não recebe estado emitido/entregue de crédito.
+- O servidor lê somente depois de conferir a conta dona do pedido. O arquivo privado é
+  `$RAIZ_FICHAS_CREDITO_DIRETORIO/<pedido UUID>/<revisao_lote>/<opcao>.json`. Critério, composição ou sugestão
+  alterados invalidam o documento anterior. O hash abrange o conteúdo validado, incluindo gráficos, opção e
+  revisão; identifica o documento, mas não substitui armazenamento histórico imutável. O histórico pago da
+  ficha individual continua sendo contrato separado do chat Ficha da fazenda. A projeção REST revalida o
+  documento e usa `private, no-store`, sem publicar a pasta privada ou arquivos do Release privado.
+
+Contrato: [docs/ficha-credito.md](../ficha-credito.md). Apresentação:
+[docs/design/ficha-credito.md](../design/ficha-credito.md). Arquivos principais:
+`raiz/pedidos/ficha_credito.py`, `front/compartilhado/ficha-credito.ts` e
+`front/globo/src/telas/FichaLote.tsx`.
+
+### Código público datado
+
+- `/p/{codigo}` oferece a versão datada quando há aceite vigente. O endereço é
+  `/p/{codigo}/v/{AAAA-MM-DD}-r{rodada_id}-{sha256}`, também disponível em `.md` ou por negociação Markdown.
+  O retrato básico contém somente código curto, município/UF, área do CAR, situação básica, rodada, fonte e
+  data de corte. A data de registro aparece separada: registrar hoje uma rodada antiga não prova que a página
+  existia naquela data. O retrato não inclui CAR completo, imagem, contorno, carbono, área elegível, TIR ou
+  outros números pagos. O hash também não contém esses campos.
+- A versão usa a linha histórica de `resultado_imovel` e a foto de `etapa_rodada` preservada na carga. Não
+  completa ausências com o cadastro atual nem reaplica regras atuais ao passado. Rótulos de município e UF
+  precisam corresponder ao catálogo IBGE; nomes livres, divergências e etapas desconhecidas permanecem não
+  informados. O conteúdo congelado não aceita UPDATE/DELETE; correções exigem outra rodada. Uma versão antiga
+  avisa de outra posterior pela data de corte e, em empate, pelo id da rodada, sem alterar seus fatos.
+- Toda leitura confere `negocio.aceite.estado = 'aceito'`, inclusive links antigos. Revogação ou ausência
+  bloqueiam a consulta. Não foi inventado prazo de consentimento a partir de login, reserva ou Pix. A ficha
+  atual também falha fechada se o aceite mudar durante sua consulta. Respostas, cartões, vídeo e imagem
+  voltam ao servidor sem cache reutilizável; uma cópia já baixada não pode ser recolhida.
+- A ficha atual preserva o portão anterior de CAR/satélite após aceite. Seu número compartilhável de hectares
+  passa a ser apenas área do CAR, com projeção positiva para cartões e vídeos. Essa publicação básica não
+  abre a ficha privada do lote. A migração `0035_publico_eprel` cria a tabela e o bloqueio de alteração;
+  ainda deve ser aplicada no ambiente de publicação antes de servir a funcionalidade real.
+
+Contrato e operação: [docs/ficha-publica-versionada.md](../ficha-publica-versionada.md).
+Implementação: `raiz/publico_versoes.py`, `raiz/publico.py` e `testes/test_publico_versoes.py`.
+
+### Gráficos com evidência documental
+
+- ECharts mostra contratado, emitido e entregue como três séries acumuladas, sem empilhar ou somar etapas.
+  Cada número exige natureza documental, fonte do catálogo, data e registro compatíveis. Banco de aprendizado
+  não comprova contrato, emissão ou entrega. Ausência deixa lacuna; zero continua visível.
+- Vega-Lite mostra P10/P90, P50 e observado por método. Cada par deve ter a mesma classe, métrica, unidade,
+  escala, área, escopo e período. Avaliação ao vivo exige previsão congelada antes do dia observado, com a
+  observação na data-alvo exata; backtest fica declarado. Não se anuncia vencedor nem se interpreta o placar
+  público agregado como observações individuais.
+- O envelope inteiro é conferido contra a ficha: geração e registros não podem ser posteriores à publicação;
+  classe, métrica, calendário, horizonte, escopo e área elegível devem coincidir. A escala por hectare mantém
+  a área original da carteira, além da base 1. Calendário ou denominador desconhecidos impedem acompanhar
+  o lote. Um estudo de outra área/período não pode ser anexado como acompanhamento desta opção.
+- Tabelas HTML, cabeçalhos, fontes e datas ficam disponíveis antes do desenho. Cada gráfico só carrega
+  bibliotecas quando a pessoa pede para abri-lo; falhas conservam a tabela. Os gráficos não entram no pacote
+  inicial da ficha ou do mapa. O runtime Vega rejeita fontes externas, e a API não aceita URLs, expressões ou
+  especificações executáveis de gráfico.
+- ECharts 6.1.0 usa Apache-2.0; zrender 6.1.0, Vega-Lite 6.5.0 e Vega 6.4.0 usam BSD-3-Clause. Atribuições em
+  `NOTICE.md` e textos completos em `front/globo/public/licencas/graficos.txt`. Não há exceção para licença
+  restritiva nesta entrega.
+
+Contrato, acessibilidade e desenho: [docs/design/graficos-resultados.md](../design/graficos-resultados.md).
+
+### Dados reais, testes e continuidade
+
+- O resumo privado do PR #78 tem quantis, versões, hectares de titulares/carteira e marcos de cronograma.
+  Ainda não declara a base comum de evidência, elegibilidade e exclusões exigida pela ficha. `ha_lote` inclui
+  reservas; último marco não comprova o horizonte de todos os números. Portanto a ficha real permanece
+  indisponível até existir documento compatível. A API atual também não entrega as séries reais de contrato,
+  emissão, entrega e pares por método neste formato. Não converter notas agregadas de acerto em observações.
+- `?demonstracao=lotes` é optativo: números, fontes, documentos e datas são fictícios, sem leitura do Release.
+  A ficha e os gráficos compartilham área/período do exemplo, mas não comprovam resultado real. Retirar uma
+  fazenda invalida a ficha simulada, sem inventar outra revisão. Nenhum contato ou cobrança é iniciado.
+- As regressões cobrem autorização, campos pessoais, revisão/hash adulterados, denominador/horizonte
+  incompatíveis, inflação de classe de evidência e anexo futuro ou de outra carteira. Playwright/axe da ficha
+  e dos gráficos foi incorporado ao CI, com teclado, 360 px, ausência, bloqueio público e erros HTTP/JavaScript.
+  Comandos: `node front/scripts/testar-ficha-credito.mjs` e `node front/scripts/testar-graficos.mjs`.
+  Os artefatos do CI ficam em `front/.cache/teste-ficha-credito` e `front/.cache/teste-graficos`. Os testes de
+  navegador usam fixtures sintéticas; não comprovam disponibilidade de dados reais nem substituem Lighthouse
+  do conjunto final. **A validação final integrada/CI e a publicação ainda precisam ser concluídas.**
+- E9 continua sem as 30 cartas reais anonimizadas e avaliações de compreensão. Não houve calibração humana
+  nem contato com proprietários nesta rodada. Após CI verde e merge, conferir a publicação autorizada sem
+  expor arquivos privados; registrar as evidências efetivamente obtidas, sem reaproveitar notas antigas.

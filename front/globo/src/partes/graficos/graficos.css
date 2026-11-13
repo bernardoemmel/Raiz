@@ -1,0 +1,21 @@
+.graficos-lote { min-width: 0; }
+.graficos-lote > section { margin-block: var(--e6); }
+.graficos-lote .campo { max-width: 100%; }
+.graficos-lote select { width: 100%; min-width: 0; }
+.painel-grafico { margin-block: var(--e4); }
+.painel-grafico > .botao { min-height: 48px; max-width: 100%; text-align: left; white-space: normal; }
+.resultado-grafico { width: 100%; min-width: 0; overflow: hidden; }
+.contratos-grafico { height: 320px; }
+.faixas-grafico svg { max-width: 100%; }
+.resultado-referencia { color: var(--pedra); }
+.tabela-resultados { max-width: 100%; overflow-x: auto; }
+.tabela-resultados table { min-width: 600px; font-variant-numeric: tabular-nums; }
+.tabela-resultados td, .tabela-resultados th { padding: var(--e3) var(--e2); vertical-align: top; text-align: left; }
+.tabela-resultados small { display: block; font-weight: 400; margin-top: var(--e2); }
+.tabela-resultados code { overflow-wrap: anywhere; }
+.legenda-resultados { display: flex; flex-wrap: wrap; gap: var(--e3); }
+.legenda-resultados > span { display: inline-flex; align-items: center; gap: var(--e2); }
+.legenda-resultados > span::before { content: ""; display: inline-block; flex: 0 0 auto; }
+.legenda-faixa::before { width: 24px; height: 8px; background: var(--restaurar); }
+.legenda-mediana::before { width: 10px; height: 10px; border-radius: 50%; background: var(--mata-texto); }
+.legenda-real::before { width: 10px; height: 10px; transform: rotate(45deg); background: var(--urucum-texto); }

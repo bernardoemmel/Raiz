@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react"
 import type { RespostaBusca } from "../../compartilhado/dados"
 import { normalizar, UFS } from "../../compartilhado/formato"
+import type { IdOpcao } from "../../compartilhado/pedidos/tipos"
 
 /** Entrada (o Brasil), um estado, um município, a ficha de uma fazenda e a área logada (entrar e pedidos de lote). */
 export type Rota =
@@ -15,6 +16,7 @@ export type Rota =
   | { tela: "pedidos" }
   | { tela: "pedido-novo" }
   | { tela: "pedido"; id: string }
+  | { tela: "ficha-lote"; id: string; opcao: IdOpcao }
   | { tela: "grupo"; id: string }
 
 export function lerRota(hash: string): Rota {
@@ -27,6 +29,8 @@ export function lerRota(hash: string): Rota {
   if (partes[0] === "pedidos") {
     if (!partes[1]) return { tela: "pedidos" }
     if (partes[1] === "novo") return { tela: "pedido-novo" }
+    if (/^[a-z0-9-]+$/i.test(partes[1]) && partes[2] === "ficha" && ["barata", "segura", "compacta"].includes(partes[3]))
+      return { tela: "ficha-lote", id: partes[1], opcao: partes[3] as IdOpcao }
     if (/^[a-z0-9-]+$/i.test(partes[1])) return partes[2] === "grupo" ? { tela: "grupo", id: partes[1] } : { tela: "pedido", id: partes[1] }
   }
   if (partes[0] === "municipio" && /^\d{7}$/.test(partes[1] ?? "")) return { tela: "municipio", municipio: partes[1] }
@@ -42,6 +46,7 @@ export const linkPedidos = "#/pedidos"
 export const linkProspeccao = "#/prospeccao"
 export const linkNovoPedido = "#/pedidos/novo"
 export const linkPedido = (id: string) => `#/pedidos/${encodeURIComponent(id)}`
+export const linkFichaLote = (id: string, opcao: IdOpcao) => `${linkPedido(id)}/ficha/${opcao}`
 export const linkGrupo = (id: string) => `#/pedidos/${encodeURIComponent(id)}/grupo`
 export const linkMunicipio = (cod: string) => `#/municipio/${cod}`
 export const linkFazenda = (car: string) => `#/fazenda/${encodeURIComponent(car)}`

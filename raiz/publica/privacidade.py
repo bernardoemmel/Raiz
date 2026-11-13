@@ -257,7 +257,9 @@ def para_resposta(x: Any, *, _campo: str = "", _pai: str = "") -> Any:
 
         # Registros anteriores também não podem ecoar o cabeçalho livre fornecido pelo cliente.
         return x if re.fullmatch(r"sha256:[a-f0-9]{64}", x) else "sha256:" + hashlib.sha256(x.encode()).hexdigest()
-    if (_campo.endswith("_sha256") or _campo in {"hash", "leitura_hash"}) and re.fullmatch(r"[a-fA-F0-9]{64}", x):
+    if (
+        _campo.endswith("_sha256") or _campo in {"hash", "leitura_hash", "documento_versao", "revisao_lote"}
+    ) and re.fullmatch(r"[a-fA-F0-9]{64}", x):
         return x
     if _campo in _LINKS:
         return x if _link_pagamento(x) else None

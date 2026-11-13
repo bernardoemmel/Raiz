@@ -1,0 +1,43 @@
+import { COR } from "../../../../compartilhado/cores"
+import type { ComparacaoMetodo, SerieContrato } from "../../../../compartilhado/graficos-resultados"
+import type { EChartsCoreOption } from "echarts/core"
+import type { TopLevelSpec } from "vega-lite"
+
+export const TITULOS_SERIES = ["Contratado", "Emitido", "Entregue"] as const
+const CAMPOS = ["contratado", "emitido", "entregue"] as const
+export const numeroResultado = (n: number) => new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 2 }).format(n)
+export const dataResultado = (d: string) => new Date(`${d.slice(0, 10)}T12:00:00Z`).toLocaleDateString("pt-BR", { timeZone: "UTC" })
+export function nomeMetodo(metodo: string): string {
+  return ({ regeneracao_assistida: "Regeneração assistida", semeadura_direta: "Semeadura direta", plantio_total: "Plantio total", agrofloresta: "Agrofloresta", silvipastoril: "Silvipastoril", regra: "Método da regra", plantio: "Plantio", regeneracao_e_plantio: "Regeneração e plantio" } as Record<string, string>)[metodo] ?? metodo.replaceAll("_", " ")
+}
+/** Sem preenchimento e sem interpolar ausências: null produz uma lacuna, zero continua sendo zero. */
+export function opcaoContratos(serie: SerieContrato): EChartsCoreOption {
+  return {
+    animation: false,
+    textStyle: { fontFamily: "Atkinson Hyperlegible Next, sans-serif", color: COR.tinta, fontSize: 14 },
+    grid: { left: 12, right: 16, top: 64, bottom: 12, containLabel: true },
+    legend: { top: 0, textStyle: { color: COR.tinta, fontSize: 14 }, itemWidth: 26, itemHeight: 12 },
+    xAxis: { type: "category", data: serie.marcos.map((m) => dataResultado(m.data)), axisLabel: { hideOverlap: true, color: COR.pedra }, axisLine: { lineStyle: { color: COR.pedra } } },
+    yAxis: { type: "value", name: serie.referencia.unidade, min: 0, splitNumber: 4, axisLabel: { formatter: numeroResultado, color: COR.pedra }, splitLine: { lineStyle: { color: COR.nevoa } }, nameTextStyle: { color: COR.pedra } },
+    series: CAMPOS.map((campo, i) => ({
+      type: "line", name: TITULOS_SERIES[i], data: serie.marcos.map((m) => m[campo]?.valor ?? null),
+      connectNulls: false, smooth: false, symbol: ["circle", "diamond", "rect"][i], symbolSize: 8,
+      lineStyle: { width: 2, type: ["dashed", "dotted", "solid"][i] },
+      itemStyle: { color: [COR.pedra, COR.aguaTexto, COR.mataTexto][i] },
+    })),
+  }
+}
+/** Só valores internos: não aceita spec, expressão, URL nem transformação vinda da API. */
+export function especificacaoFaixas(comparacoes: ComparacaoMetodo[], largura: number): TopLevelSpec {
+  return {
+    width: Math.max(160, largura), height: Math.max(160, comparacoes.length * 52), autosize: { type: "fit-x", contains: "padding" },
+    data: { values: comparacoes.map((c, i) => ({ id: c.id, rotulo: `${nomeMetodo(c.metodo)} (${c.versao}; ${i + 1})`, p10: c.previsao.p10, p50: c.previsao.p50, p90: c.previsao.p90, real: c.observado.valor })) },
+    encoding: { y: { field: "rotulo", type: "nominal", sort: null, axis: { title: null, labelLimit: largura < 500 ? 95 : 180 } } },
+    layer: [
+      { mark: { type: "rule", strokeWidth: 8, color: COR.restaurar, opacity: .5 }, encoding: { x: { field: "p10", type: "quantitative", title: comparacoes[0]?.previsao.referencia.unidade ?? "Valor", scale: { zero: true } }, x2: { field: "p90" } } },
+      { mark: { type: "point", filled: true, size: 80, shape: "circle", color: COR.mataTexto }, encoding: { x: { field: "p50", type: "quantitative" } } },
+      { mark: { type: "point", filled: true, size: 100, shape: "diamond", color: COR.urucumTexto }, encoding: { x: { field: "real", type: "quantitative" } } },
+    ],
+    config: { background: COR.papel, font: "Atkinson Hyperlegible Next, sans-serif", view: { stroke: null }, axis: { labelColor: COR.pedra, titleColor: COR.tinta, labelFontSize: 14, titleFontSize: 14, gridColor: COR.nevoa, domainColor: COR.pedra, tickCount: largura < 500 ? 3 : 5 }, title: { color: COR.tinta } },
+  }
+}
