@@ -69,6 +69,27 @@ def test_primeiro_arquivo_ainda_sem_sidecar_nao_ganha_proveniencia(tmp_path):
         pytest.fail("arquivo novo ainda sem metadados não está pronto para publicar")
 
 
+def test_marca_copiada_antes_de_novos_bytes_impede_publicacao(tmp_path, monkeypatch):
+    local = ArmazemLocal(tmp_path)
+    chave = "saida/RN/imoveis_2400604.csv"
+    anterior = local.por_bytes(chave, b"anterior", {"versao": "v1"})
+    marca = {"tarefas": {"funil": {"versao": "v1", "saidas": {"imoveis_2400604.csv": anterior["sha256"]}}}}
+    local.por_bytes("marcas/RN/2400604.json", json.dumps(marca).encode())
+    ler = local.ler
+
+    def avancar(entrada):
+        dados = ler(entrada)
+        if entrada == chave:
+            local.por_bytes(chave, b"novo", {"versao": "v2"})
+        return dados
+
+    monkeypatch.setattr(local, "ler", avancar)
+    with pytest.raises(RuntimeError, match="marca e saídas mudaram"), congelar(local, "RN"):
+        pytest.fail("a marca anterior não conclui bytes da próxima execução")
+    assert local.meta(chave)["versao"] == "v2"
+    assert json.loads(ler("marcas/RN/2400604.json")) == marca
+
+
 def test_tar_ficha_quantis_cadt_e_projecao_usam_mesmo_conjunto(tmp_path, monkeypatch):
     gh = GitHubFalso()
     a = _armazem(gh, tmp_path / "espelho")

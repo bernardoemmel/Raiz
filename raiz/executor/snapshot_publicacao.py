@@ -9,6 +9,7 @@ from __future__ import annotations
 import contextlib
 import hashlib
 import json
+import re
 import tempfile
 import time
 
@@ -53,4 +54,13 @@ def congelar(local, uf: str):
                 lateral = destino.with_name(destino.name + ".meta.json")
                 lateral.write_text(json.dumps(meta, ensure_ascii=False), encoding="utf-8")
                 lateral.chmod(0o600)
+        for chave in copia.listar(f"marcas/{uf}/"):
+            marca = json.loads(copia.ler(chave))
+            for tarefa in marca.get("tarefas", {}).values():
+                for nome, digest in (tarefa.get("saidas") or {}).items():
+                    if not isinstance(nome, str) or not re.fullmatch(r"[A-Za-z0-9_.-]+", nome):
+                        raise RuntimeError("marca com saída fora do contrato da publicação")
+                    meta = copia.meta(f"saida/{uf}/{nome}") or {}
+                    if meta.get("sha256") != digest:
+                        raise RuntimeError("marca e saídas mudaram durante a cópia; nenhum produto foi enviado")
         yield copia

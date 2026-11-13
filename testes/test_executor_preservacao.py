@@ -90,16 +90,27 @@ def test_municipio_com_erro_nao_conta_como_pronto(tmp_path):
     }
 
 
-def test_marca_sem_bytes_integros_nao_comprova_pronto(tmp_path):
+@pytest.mark.parametrize("dano", ["bytes", "ausente", "versao"])
+def test_marca_sem_bytes_integros_recalcula_antes_de_declarar_pronto(tmp_path, dano):
     arm = ArmazemLocal(tmp_path / "arm")
     ex = Executor(arm, tmp_path / "motor", [tarefa()])
     ex.rodar_uf("PA", [1500001])
-    arm._p("saida/PA/imoveis_1500001.csv").write_text("alterado\n")
+    chave = "saida/PA/imoveis_1500001.csv"
+    if dano == "bytes":
+        arm._p(chave).write_text("alterado\n")
+    elif dano == "ausente":
+        arm._p(chave).unlink()
+    else:
+        arm.por_bytes(chave, arm.ler(chave), {"versao": "outra"})
     novo = Executor(arm, tmp_path / "motor", [tarefa()])
-    assert novo.plano("PA", 1500001) == []  # não altera política científica; evidencia a falta de prova no painel
+    assert novo.plano("PA", 1500001) == ["funil"]
+    assert not novo._conclusao_comprovada("PA", 1500001)
     estado = novo.rodar_uf("PA", [1500001])
-    assert estado["processamento"]["municipios"]["prontos"] == 0
-    assert estado["processamento"]["municipios"]["desconhecidos"] == 1
+    assert estado["rodados"] == 1
+    assert estado["processamento"]["municipios"]["prontos"] == 1
+    assert arm.ler(chave) == b"coluna\n1\n"
+    assert arm.meta(chave)["versao"] == "t1"
+    assert novo.plano("PA", 1500001) == []
 
 
 def test_falha_do_painel_nao_interrompe_publicacao(tmp_path, monkeypatch, caplog):

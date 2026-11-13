@@ -138,6 +138,27 @@ class Executor:
         saidas = self._saidas_adotaveis(t, uf, cod)
         return bool(saidas) and feito.get("versao") == self.versoes()[t.nome] and feito.get("saidas") == saidas
 
+    def _saidas_marcadas_comprovadas(self, t: Tarefa, uf: str, feito: dict) -> bool:
+        """Uma marca antiga não conclui arquivos trocados durante outra publicação."""
+        if feito.get("versao") != self.versoes()[t.nome]:
+            return False
+        saidas = feito.get("saidas") or {}
+        if not saidas:
+            return bool(feito.get("vazio") and t.pode_ficar_vazio)
+        local = getattr(self.a, "local", self.a)
+        for arquivo, digest in saidas.items():
+            chave = self.chave_saida(uf, arquivo)
+            meta = self.a.meta(chave) or {}
+            if meta.get("sha256") != digest or meta.get("versao") != self.versoes()[t.nome]:
+                return False
+            if hasattr(local, "_p"):
+                try:
+                    if sha256_arquivo(local._p(chave)) != digest:
+                        return False
+                except OSError:
+                    return False
+        return True
+
     def plano(self, uf: str, cod: int, refazer: bool = False) -> list[str]:
         """Tarefas que rodariam agora (supondo que as anteriores saiam iguais). Para o painel e para decidir."""
         m = self.marca(uf, cod)
@@ -151,6 +172,7 @@ class Executor:
                 or not feito
                 or feito.get("erro")
                 or not self._adocao_comprovada(t, uf, cod, feito)
+                or not self._saidas_marcadas_comprovadas(t, uf, feito)
                 or feito.get("assinatura") != self.assinatura(t, uf, cod, m)
             ):
                 out.append(t.nome)
@@ -159,27 +181,12 @@ class Executor:
     def _conclusao_comprovada(self, uf: str, cod: int) -> bool:
         """Telemetria não confunde marca existente com saídas íntegras da versão atual."""
         marca = self.marca(uf, cod)
-        local = getattr(self.a, "local", self.a)
         for tarefa in self.tarefas:
             if any((marca["tarefas"].get(d) or {}).get("vazio") for d in tarefa.depende):
                 continue
             feito = marca["tarefas"].get(tarefa.nome) or {}
-            if feito.get("erro") or feito.get("versao") != self.versoes()[tarefa.nome]:
+            if feito.get("erro") or not self._saidas_marcadas_comprovadas(tarefa, uf, feito):
                 return False
-            saidas = feito.get("saidas") or {}
-            if not saidas and not (feito.get("vazio") and tarefa.pode_ficar_vazio):
-                return False
-            for arquivo, digest in saidas.items():
-                chave = self.chave_saida(uf, arquivo)
-                meta = self.a.meta(chave) or {}
-                if meta.get("sha256") != digest or meta.get("versao") != self.versoes()[tarefa.nome]:
-                    return False
-                if hasattr(local, "_p"):
-                    try:
-                        if sha256_arquivo(local._p(chave)) != digest:
-                            return False
-                    except OSError:
-                        return False
         return True
 
     # --- um município ---------------------------------------------------------------------------------------------
@@ -222,6 +229,7 @@ class Executor:
                 and feito
                 and not feito.get("erro")
                 and self._adocao_comprovada(t, uf, cod, feito)
+                and self._saidas_marcadas_comprovadas(t, uf, feito)
                 and feito.get("assinatura") == a
             ):
                 res["puladas"].append(t.nome)
