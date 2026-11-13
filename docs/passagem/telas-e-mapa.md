@@ -533,6 +533,15 @@ relatórios Lighthouse passaram pelo portão fixo. E9 real não foi calibrado e 
   Os percursos integrados passaram em 13 auditorias axe, com teclado, 360 px, zero 404 e nenhum contato.
 - No CI, as seis páginas tiveram medianas de desempenho 100, 98, 97, 97, 92 e 100, com acessibilidade 100
   em todas as medições. A abertura direta em MapLibre tem validação própria no PR #90; essas notas não a cobrem.
+- A publicação `43355137460` terminou com sucesso. O artefato `14006865531` foi aberto e conferido:
+  2.345 arquivos, 608 CSV básicos, 608 geometrias e 1.299.160 fazendas/contornos em 13 UFs, sem município
+  publicado sem desenho. O resumo aberto do Pará passou na lista positiva; composição, travas, certidões e
+  demais arquivos pagos não estavam no pacote. Os 380 Markdown não continham códigos CAR completos.
+  SHA-256 do tar: `099c97b291d7a72d5b42a2a5ebcf639fc7568adcbe71bca0924d631d387b2b95`.
+  Às 03:33 UTC de 13/11, sete arquivos públicos responderam 200 e eram idênticos ao artefato; o PMTiles
+  respondeu 206 ao pedido de intervalo. Três caminhos antigos de arquivos pagos responderam 404, recusas
+  esperadas verificadas separadamente dos percursos normais. O índice traz atualização 03:06:59 UTC e fonte
+  pública 00:05:47 UTC. Essa auditoria antecede a publicação do novo mapa do PR #90.
 - O E2E da API foi ajustado aos rótulos do formulário nacional, conservando as verificações de Pará, meta,
   pagamento, autorização e privacidade. O fluxo inteiro passou localmente com API/PostGIS e novamente no CI.
 - A varredura completa do histórico encontrou outra URL JDBC interna no compose de avaliação do commit
@@ -656,3 +665,8 @@ Contrato, acessibilidade e desenho: [docs/design/graficos-resultados.md](../desi
 - E9 continua sem as 30 cartas reais anonimizadas e avaliações de compreensão. Não houve calibração humana
   nem contato com proprietários nesta rodada. Após CI verde e merge, conferir a publicação autorizada sem
   expor arquivos privados; registrar as evidências efetivamente obtidas, sem reaproveitar notas antigas.
+- Integração com a main `60e17b0` (incluindo os PRs #86 e #93): a migração ainda inédita
+  `0035_publico_eprel` passa a descender de `0034`, preservando a sequência da ficha individual. Banco vazio
+  passou por upgrade, downgrade até a base e novo upgrade, com uma única cabeça. As 169 regressões de ficha,
+  versões, proteção, gráficos e autorização passaram; Ruff conferiu os 629 arquivos Python. Nenhuma migração
+  foi aplicada em banco de produção nesta conferência.
