@@ -206,3 +206,45 @@ def test_excluir_invalidos_nao_libera_grupo_com_menos_de_cinco_imoveis():
     entradas[-1]["observado_em"] = "2025-01-02"
     assert P.resumir(entradas, AGORA)["versoes"] == []
     assert P.resumir(linhas(horizonte_em="2026-01-02", observado_em="2026-01-02"), AGORA)["versoes"] == []
+
+
+def test_versao_oficial_do_leitor_preserva_prompt_sem_afrouxar_evidencia():
+    from raiz.documentos.certidao.esquema import versao_prompt
+
+    versao = f"claude-haiku-4-5-20251001|{versao_prompt()}"
+    entradas = linhas(
+        modelo="leitor_certidao",
+        modelo_versao=versao,
+        alvo="titulo_matricula_situacao",
+        horizonte_dias=30,
+        valor_num=None,
+        real_num=None,
+        valor_texto="conferida",
+        real_texto="conferida",
+    )
+    grupo = P.resumir(entradas, AGORA)["versoes"][0]
+    assert grupo["versao"] == versao
+    assert grupo["metricas"] == {"acerto": 1, "brier": 0}
+    assert grupo["imoveis_observados"] == 5
+    assert "IMOVEL-INTERNO" not in json.dumps(grupo)
+    assert P.resumir(entradas[:4], AGORA)["versoes"] == []
+    assert P.resumir([{**r, "observado_em": "2025-01-02"} for r in entradas], AGORA)["versoes"] == []
+    assert P.resumir([{**r, "previsao_criada_em": "2025-01-31T12:00:00Z"} for r in entradas], AGORA)["versoes"] == []
+    assert P.resumir([{**r, "modelo": "motor"} for r in entradas], AGORA)["versoes"] == []
+
+
+@pytest.mark.parametrize(
+    "versao",
+    [
+        "modelo|",
+        "|prompt",
+        "modelo||prompt",
+        "modelo|prompt|outro",
+        "modelo|texto livre",
+        "modelo|prompt\n",
+        "modelo|<script>",
+        "modelo|" + "p" * 114,
+    ],
+)
+def test_versao_composta_recusa_texto_livre_partes_vazias_e_excesso_de_tamanho(versao):
+    assert P.resumir(linhas(modelo="leitor_certidao", modelo_versao=versao), AGORA)["versoes"] == []

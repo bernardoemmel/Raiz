@@ -30,6 +30,12 @@ export interface ResumoAcerto {
 export const ACERTO_AUSENTE: ResumoAcerto = { schema: "raiz.acerto.publico.v1", gerado_em: null, fonte: "Banco de aprendizado da Raíz", minimo_imoveis: 5, versoes: [] }
 const inteiro = (v: unknown): v is number => typeof v === "number" && Number.isSafeInteger(v) && v >= 0
 const id = (v: unknown): v is string => typeof v === "string" && /^[a-z0-9][a-z0-9_.+:-]{0,119}$/i.test(v)
+const versaoValida = (modelo: unknown, v: unknown): v is string => {
+  if (id(v)) return true
+  if (modelo !== "leitor_certidao" || typeof v !== "string" || v.length > 120) return false
+  const partes = v.split("|")
+  return partes.length === 2 && partes.every(p => id(p) && p.trim() === p)
+}
 const dia = (v: unknown): v is string => typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v) && Number.isFinite(Date.parse(v)) && new Date(v).toISOString().slice(0, 10) === v
 const objeto = (v: unknown): Record<string, unknown> => v && typeof v === "object" && !Array.isArray(v) ? v as Record<string, unknown> : {}
 
@@ -41,7 +47,7 @@ export function lerResumoAcerto(valor: unknown): ResumoAcerto {
   if (r.gerado_em === null && r.versoes.length) throw new Error("As observações precisam da data de publicação.")
   const versoes = r.versoes.map((valor) => {
     const v = objeto(valor)
-    if ((v.avaliacao !== "ao_vivo" && v.avaliacao !== "backtest") || !id(v.modelo) || !id(v.versao) || !id(v.alvo) || (!inteiro(v.horizonte_dias) || v.horizonte_dias === 0) || typeof v.tipo !== "string" || !Object.hasOwn(POR_TIPO, v.tipo) || !inteiro(v.comparacoes) || !inteiro(v.imoveis_observados) || v.imoveis_observados < (r.minimo_imoveis as number) || v.comparacoes < v.imoveis_observados || !dia(v.primeiro_corte) || !dia(v.ultimo_corte) || !dia(v.ultima_observacao) || v.primeiro_corte > v.ultimo_corte || v.ultima_observacao <= v.primeiro_corte) throw new Error("Grupo do resumo de acerto inválido ou pequeno demais.")
+    if ((v.avaliacao !== "ao_vivo" && v.avaliacao !== "backtest") || !id(v.modelo) || !versaoValida(v.modelo, v.versao) || !id(v.alvo) || (!inteiro(v.horizonte_dias) || v.horizonte_dias === 0) || typeof v.tipo !== "string" || !Object.hasOwn(POR_TIPO, v.tipo) || !inteiro(v.comparacoes) || !inteiro(v.imoveis_observados) || v.imoveis_observados < (r.minimo_imoveis as number) || v.comparacoes < v.imoveis_observados || !dia(v.primeiro_corte) || !dia(v.ultimo_corte) || !dia(v.ultima_observacao) || v.primeiro_corte > v.ultimo_corte || v.ultima_observacao <= v.primeiro_corte) throw new Error("Grupo do resumo de acerto inválido ou pequeno demais.")
     if (v.criterio_temporal !== "observacao_na_data_alvo" || v.cronologia !== (v.avaliacao === "ao_vivo" ? "congelada_antes_da_observacao" : "backtest_declarado")) throw new Error("O grupo não comprova a referência temporal da avaliação.")
     const dataAlvo = Date.parse(v.ultimo_corte) + v.horizonte_dias * 86400000
     if (Date.parse(v.ultima_observacao) !== dataAlvo) throw new Error("A observação não corresponde ao horizonte avaliado.")
