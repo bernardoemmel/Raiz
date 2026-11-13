@@ -230,3 +230,14 @@ No PR #86, a referência estadual autenticada passou localmente com os 144 munic
 referência privada, front, e2e, segurança e workflows no código do diagnóstico. A única falha foi a varredura
 dos três hashes acima; a mesma varredura local de todos os ramos passou após as exceções restritas.
 O merge e a publicação dependem da nova execução verde no head que inclui essa correção.
+
+Na execução `43342797534`, os testes Python, referência integral do Pará, front, e2e, segurança,
+workflows e agentes passaram. A varredura global encontrou uma ocorrência nova em outro ramo:
+`e0e8ccdde14d0980ce33a1be48fde126ddeb1a31:infra/docker-compose.avaliacao.yml:generic-api-key:46`.
+Conferido: é `KC_DB_URL`, URL JDBC interna sem usuário ou senha. Foi acrescentado somente esse
+fingerprint; a varredura local dos 493 commits passou. Nenhum workflow foi cancelado ou desligado.
+
+A expansão nacional (786 municípios) está preservada no PR **#94, rascunho**, branch
+`codex/lote-nacional`, commit `aea5d25`. O salvamento inclui as pendências de teste integral,
+integração com a main e publicação. Ordem atual: concluir #86 e publicação privada; concluir ARR,
+sensibilidade e ecologia, incorporando as evidências solicitadas na rodada 12.
