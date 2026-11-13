@@ -465,6 +465,10 @@ Entrega 3 da continuação de 12/11/2026, sobre a ficha paga do PR #52.
 
 Limites da primeira entrega em 12/11/2026: DJEN/CNJ respondeu HTTP 403; cobertura inicial PA/MT. A ampliação e o OCR estão descritos na continuação abaixo. Erro de fonte não elimina os eventos anteriores. Testes com trechos oficiais gravados e PostGIS; detalhes em `docs/calendario.md`.
 
+Conferência posterior das fontes: retirada de matrícula/CAR ambíguo preserva o UID quando o ato corresponde a um
+único evento já publicado. Releitura real da Fomento Paraná manteve seus 11 eventos, sem duplicar quatro registros
+ao retirar identificadores descartados; 118 testes do calendário passaram com PostGIS.
+
 - [x] Integração da entrega mobile com o Calendário: rota sob demanda, quatro links visíveis a 360 px, filtros
   com 48 px e teste CI de teclado/axe em três larguras; 186 testes do front e fluxos de ficha/lote aprovados.
 

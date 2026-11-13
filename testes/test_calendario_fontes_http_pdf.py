@@ -294,3 +294,29 @@ def test_retificacao_em_outro_pdf_preserva_uid_so_com_correspondencia_unica():
     duas_pracas = antigos + [antigos[0].model_copy(update={"id": "outra-praca", "data": dt.date(2026, 12, 1)})]
     ambiguos, _ = coleta.extrair(novo, fonte, fonte["urls"][0] + "/retificacao.pdf", AGORA, "pdf", duas_pracas)
     assert ambiguos[0].id not in {e.id for e in duas_pracas}
+
+
+def test_retirada_de_identificador_ambiguo_corrige_evento_publicado_sem_duplicar():
+    from raiz.calendario.banco import combinar
+
+    url = FONTE["urls"][0] + "/edital.pdf"
+    texto = f"EDITAL DE LEILÃO RURAL Nº 7/2026\nCAR {CAR}. Matrícula 5178. Leilão em 30/11/2026."
+    antigos, _ = coleta.extrair(texto, FONTE, url, AGORA, "pdf")
+    # A releitura constata que o identificador pertencia a um confrontante.
+    novos, _ = coleta.extrair(texto + " Identificador do confrontante.", FONTE, url, AGORA, "pdf", antigos)
+    resultado = combinar(antigos, novos)
+    assert len(resultado) == 1 and resultado[0].id == antigos[0].id
+    assert resultado[0].codigos_car == [] and resultado[0].matricula is None
+    assert resultado[0].vinculo == "pendente" and resultado[0].sequencia == 1
+
+
+def test_retirada_de_identificador_nao_escolhe_entre_atos_homonimos():
+    url = FONTE["urls"][0] + "/edital.pdf"
+    texto = f"EDITAL DE LEILÃO RURAL Nº 7/2026\nCAR {CAR}. Leilão em 30/11/2026."
+    antigos, _ = coleta.extrair(texto + "\n" + texto.replace(CAR, OUTRO), FONTE, url, AGORA, "pdf")
+    assert len(antigos) == 2
+    novo = texto + " CAR de confrontante."
+    eventos, _ = coleta.extrair(novo, FONTE, url, AGORA, "pdf", antigos)
+    assert eventos[0].id not in {e.id for e in antigos}
+    dois, _ = coleta.extrair(novo + "\n" + novo, FONTE, url, AGORA, "pdf", antigos[:1])
+    assert all(e.id != antigos[0].id for e in dois)
