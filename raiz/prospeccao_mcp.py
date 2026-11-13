@@ -90,9 +90,9 @@ def executar(
         raise ErroAcesso(422, "Argumentos inválidos para a ferramenta.") from ex
     with autorizar_detalhes(engine, contexto, nome, codigos):
         if nome == "consultar_ficha":
-            dado = servico.consultar_ficha(engine, cliente_id, codigos[0])
+            dado = servico.consultar_ficha(engine, cliente_id, codigos[0], canal="mcp")
         else:
-            dado = servico.comparar_fichas(engine, cliente_id, list(codigos))
+            dado = servico.comparar_fichas(engine, cliente_id, list(codigos), canal="mcp")
     return {
         "content": [{"type": "text", "text": json.dumps(dado, ensure_ascii=False, allow_nan=False)}],
         "structuredContent": dado,
