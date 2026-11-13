@@ -130,3 +130,18 @@ def test_api_independente_da_vigilancia_tambem_protegida(monkeypatch):
     r = cliente.get("/vigilancia/projetos")
     assert r.headers["x-frame-options"] == "DENY"
     assert cliente.get("/vigilancia/projetos").status_code == 429
+
+
+def test_preflight_aceita_revisao_otimista_do_lote():
+    origem = "https://painel.example.org"
+    cliente = TestClient(app_teste(origens=[origem]))
+    r = cliente.options(
+        "/pedidos/exemplo/sensibilidade",
+        headers={
+            "Origin": origem,
+            "Access-Control-Request-Method": "POST",
+            "Access-Control-Request-Headers": "authorization,content-type,if-match",
+        },
+    )
+    assert r.status_code == 200
+    assert "if-match" in r.headers["access-control-allow-headers"].lower()

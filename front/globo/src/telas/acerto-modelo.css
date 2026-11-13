@@ -1,0 +1,16 @@
+.acerto-modelo { max-width: 1180px; }
+.acerto-modelo .frase { max-width: 70ch; }
+.acerto-filtros { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: var(--e4); margin-block: var(--e6); }
+.acerto-grupos { display: grid; gap: var(--e6); }
+.acerto-grupo, .acerto-leitura { border-top: var(--linha); padding-block: var(--e6); }
+.acerto-grupo h2 { overflow-wrap: anywhere; }
+.acerto-grupo h2 span { font-weight: 400; }
+.acerto-medidas { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: var(--e5); }
+.acerto-medidas dt { font-weight: 600; }
+.acerto-medidas dd { margin: var(--e2) 0 0; }
+.acerto-medidas strong { display: block; font-family: var(--fonte-texto); font-size: var(--t-subtitulo); }
+.acerto-medidas small, .acerto-fonte { color: var(--pedra); font-size: var(--t-legenda); }
+.acerto-medidas small { display: block; margin-top: var(--e2); }
+.acerto-modelo p { overflow-wrap: anywhere; }
+
+@media (max-width: 700px) { .acerto-medidas small, .acerto-fonte { font-size: var(--t-texto); } }
