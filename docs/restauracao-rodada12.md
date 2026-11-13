@@ -79,6 +79,15 @@ Taxas Verra entram uma vez por projeto, com abatimento do adiantamento de emiss�
 A faixa de mudas é orçamento separado: não somar novamente ao custo SFB que já
 inclui implantação. R11 permanece cenário histórico explícito.
 
+Referências para o comprador: **4.400 a 5.076,92 ha por milhão de créditos**
+(premissa Raíz e 33 mil ha / 6,5 milhões de créditos da parceria
+[re.green–Microsoft](https://re.green/projetos-parcerias-e-clientes/microsoft/)).
+São referências de escopo e horizonte próprios, não uma garantia de área para
+um lote novo. Os preços observados no ProFloresta+ 1 são US$ 55,33, US$ 55,76 e
+US$ 73,82, ponderados por 2, 2 e 1 milhão de créditos: **US$ 59,20/crédito**.
+`restauracao_financeiro.referencias_comprador()` conserva essa conta, as fontes
+e sua versão; os hectares efetivamente selecionados são os do lote publicado.
+
 CVXPY dimensiona dívida por ICSD e conta reserva. Sem caixa no primeiro período
 após a carência, juros positivos tornam impossível dívida positiva: retorna zero,
 sem capitalizar juros escondidos fora do prazo contratado. O motor anual declara
