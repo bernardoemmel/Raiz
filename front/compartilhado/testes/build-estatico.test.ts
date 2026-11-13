@@ -176,4 +176,23 @@ describe("build estático com geometrias comprimidas", () => {
     expect(lote.base.creditos).toEqual({ p10: null, p50: null, p90: null })
     expect(JSON.stringify(lote)).not.toMatch(/Dado privado|cod_imovel|individual.tar.gz|nome_dono/)
   })
+
+  it("publica apenas o contrato de resumo aprovado, sem campos pagos extras", async () => {
+    const lotes = path.join(repo, "dados/lotes-publicos")
+    fs.mkdirSync(lotes, { recursive: true })
+    fs.writeFileSync(path.join(lotes, "lote_PA_central_r11.json"), JSON.stringify({
+      contrato: "publico_lotes", versao: 1, estado: "publicado", uf: "PA", cenario: "central_r11",
+      modelo_versao: "modelo-teste", atualizado_em: "2026-11-12T18:00:00Z", volume_creditos: 1000000,
+      preco_contrato_usd: 55, opcoes: ["barata", "segura", "compacta"].map(id => ({ id, fazendas: 10,
+        creditos: { p10: 10, p50: 20, p90: 30 }, hectares: 100, custo_usd_credito: 17,
+        terra_pronta: { creditos_p50: 0, fracao_meta: 0 }, itens: [{ cod_imovel: CARS[0] }],
+        geometria: { type: "Polygon" }, destrava: [{ texto: "Diligência privada" }], tir_p50: 91,
+      })),
+      arquivo_privado: "https://exemplo.invalid/individual.tar.gz",
+    }))
+    const saida = await construir(0), lote = json(saida, "amostra/lote_PA_central_r11.json")
+    expect(lote.estado).toBe("publicado")
+    expect(lote.opcoes).toHaveLength(3)
+    expect(JSON.stringify(lote)).not.toMatch(/cod_imovel|Polygon|Diligência|tir_p50|tar\.gz/)
+  })
 })

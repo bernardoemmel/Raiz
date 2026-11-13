@@ -1,0 +1,50 @@
+name: Diagnóstico privado de desbloqueio do lote
+
+on:
+  workflow_dispatch:
+    inputs:
+      manifesto:
+        description: Manifesto imutável do lote no arquivo privado
+        required: true
+        default: lote_PA_central_r11_retomada_43299409156_1_b29eb3fe8887a676.json
+        type: string
+      sha256:
+        description: SHA256 conferido do manifesto de origem
+        required: true
+        default: b29eb3fe8887a676bbf5ad1ea7a040c68a0cc90d0863b27c5d3bd6e9ff34854c
+        type: string
+
+permissions:
+  contents: write
+  actions: read
+
+concurrency:
+  group: lote-para-central-r11
+  cancel-in-progress: false
+
+env:
+  GH_TOKEN: ${{ github.token }}
+  RAIZ_DADOS_PRIVADOS_URL: ${{ vars.RAIZ_DADOS_PRIVADOS_URL || format('release-github://{0}/dados-privados', github.repository) }}
+  RAIZ_DADOS_PRIVADOS_TOKEN: ${{ secrets.RAIZ_DADOS_PRIVADOS_TOKEN || github.token }}
+  OPENBLAS_NUM_THREADS: "1"
+  OMP_NUM_THREADS: "1"
+
+jobs:
+  preparar:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Reservar uma cota global antes de acessar os dados
+        run: python scripts/reservar_lote.py --reservar 1
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: false
+      - run: uv sync --frozen --extra motor
+      - name: Conferir a origem e publicar o diagnóstico sem recalcular previsões
+        env:
+          MANIFESTO: ${{ inputs.manifesto }}
+          MANIFESTO_SHA256: ${{ inputs.sha256 }}
+        run: >-
+          uv run python -m raiz.restauracao_complementos
+          --manifesto "$MANIFESTO" --sha256 "$MANIFESTO_SHA256" --destino complemento

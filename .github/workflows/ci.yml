@@ -137,8 +137,12 @@ jobs:
         run: cd front/globo && npm run test:prospeccao
       - name: Calendário no navegador (filtros, teclado, axe e celular)
         run: cd front/globo && npm run test:calendario
+      - name: Acerto do modelo (versões, privacidade, teclado e celular)
+        run: cd front/globo && npm run test:acerto
       - name: Cena-alvo (cobertura pública, bloqueio de lote legado e três lotes autorizados)
         run: cd front/globo && npm run test:cena
+      - name: Pedido nacional (estados, biomas, cobertura, teclado e celular)
+        run: cd front/globo && node ../scripts/testar-pedido-nacional.mjs
       - name: Evidências da cena-alvo
         if: always()
         uses: actions/upload-artifact@v4
