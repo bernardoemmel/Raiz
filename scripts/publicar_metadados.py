@@ -511,6 +511,108 @@ def arquivos_produto(armazem) -> list[dict]:
     ]
 
 
+def catalogar_lotes(armazem, pasta: Path) -> list[dict]:
+    """Produtos finais imutáveis: só publica derivados, sob a trava global do chamador."""
+    from raiz import lote_publicado as lote
+    from raiz import metadados
+    from raiz.atestacao import registrar
+    from raiz.metadados_lote import croissant_tar_csv
+
+    if not armazem.privado:
+        raise PermissionError("produtos completos do lote exigem arquivo privado")
+    armazem._exigir_privado()
+    ativos = {a["name"]: a for a in arquivos_produto(armazem)}
+    resultados = []
+    for nome in sorted(n for n in ativos if lote.eh_manifesto(n)):
+        with tempfile.TemporaryDirectory(prefix="lote-", dir=pasta) as temp:
+            raiz = Path(temp)
+
+            def baixar(ativo, destino):
+                dados = armazem._baixar_ativo(ativo)
+                digest = hashlib.sha256(dados).hexdigest()
+                if ativo.get("digest") != "sha256:" + digest:
+                    raise ValueError("digest do produto imutável não confirmado")
+                destino.write_bytes(dados)
+                destino.chmod(0o600)
+                registrar(ativo["name"], dados, privado=True)
+
+            arquivo_manifesto = raiz / "manifesto.json"
+            baixar(ativos[nome], arquivo_manifesto)
+            base_url = armazem.url_metadados(nome).removesuffix(nome)
+            manifesto, digest = lote.ler_manifesto(arquivo_manifesto, nome, base_url=base_url)
+            pacotes = {}
+            for tipo, ref in manifesto["arquivos"].items():
+                ativo = ativos.get(ref["nome"], {})
+                if (
+                    ativo.get("id") != ref["asset_id"]
+                    or ativo.get("size") != ref["bytes"]
+                    or ativo.get("digest") != "sha256:" + ref["sha256"]
+                ):
+                    raise ValueError("referência imutável do pacote não confirmada")
+                pacotes[tipo] = raiz / (tipo + ".tar.gz")
+                baixar(ativo, pacotes[tipo])
+            gerado = lote.gerar(
+                arquivo_manifesto,
+                nome,
+                pacotes,
+                raiz / "derivados",
+                base_url=base_url,
+                data_inicio=os.environ.get("RAIZ_CADT_INICIO_CENARIO", ""),
+            )
+            # Todos os derivados e as fichas passam pela validação local antes
+            # do primeiro upload. Os cinco originais não são reenviados.
+            fichas = {
+                nome: metadados.ficha_arquivo(
+                    nome,
+                    base_url + nome,
+                    digest,
+                    arquivo_manifesto.stat().st_size,
+                    escopo="privado",
+                    formato="application/json",
+                    repo=armazem.repo_codigo,
+                )
+            }
+            for tipo, pacote in pacotes.items():
+                ref = manifesto["arquivos"][tipo]
+                fichas[ref["nome"]] = croissant_tar_csv(
+                    pacote,
+                    ref["nome"],
+                    {
+                        "url": base_url + ref["nome"],
+                        "sha256": ref["sha256"],
+                        "bytes": ref["bytes"],
+                        "versao": manifesto["modelo_versao"],
+                        "repo_codigo": armazem.repo_codigo,
+                    },
+                )
+            for ficha in fichas.values():
+                metadados.validar(ficha)
+            referencias_lote = {}
+            rel = armazem._release()
+            for original, ficha in fichas.items():
+                nome_ficha = f"croissant_{original}.json"
+                dados = lote.json_bytes(ficha)
+                armazem._subir(rel, nome_ficha, dados, "application/ld+json")
+                referencias_lote[original] = {
+                    "url": base_url + nome_ficha,
+                    "sha256": hashlib.sha256(dados).hexdigest(),
+                    "arquivo_sha256": ficha["distribution"][0]["sha256"],
+                }
+            formatos = {
+                ".json": "application/json",
+                ".md": "text/markdown",
+                ".parquet": "application/vnd.apache.parquet",
+                ".gz": "application/gzip",
+            }
+            for arquivo, caminho in sorted(gerado["arquivos"].items()):
+                referencias_lote[arquivo] = armazem._publicar_auxiliar(
+                    rel, arquivo, caminho.read_bytes(), formatos.get(caminho.suffix, "application/octet-stream")
+                )
+            armazem._gravar_indice({}, fichas_adicionais=referencias_lote)
+            resultados.append({"manifesto_sha256": digest, "arquivos": len(referencias_lote)})
+    return resultados
+
+
 def checksums(*, privado: bool = False) -> dict[str, str]:
     caminho = Path(os.environ["RUNNER_TEMP"]) / ("atestar-privado.txt" if privado else "atestar.txt")
     if not caminho.exists():
@@ -760,6 +862,8 @@ def publicar(
                     with geral._trava():
                         etapa = "seguranca_processamento"
                         conferir_processamento_seguro(relatorio)
+                        etapa, arquivo_atual = "catalogar_lotes", None
+                        relatorio["lotes"] = catalogar_lotes(geral, raiz_temp)
                         etapa, arquivo_atual = "publicar_globais", "estados.json"
                         geral._gravar_indice({})  # cartão, CAD Trust agregado e ficha do índice
                         etapa = "reler_indice"
