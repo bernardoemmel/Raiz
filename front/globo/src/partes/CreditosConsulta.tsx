@@ -69,8 +69,16 @@ export function CreditosConsulta({ revisao = 0 }: { revisao?: number }) {
     {!prospeccao.disponivel ? <p>Compras e fichas completas estarão disponíveis quando a conexão com a Raíz estiver ativa.</p> : <>
       {planos?.mensagem && <p>{planos.mensagem}</p>}
       {!!planos?.planos.length && <ul className="planos-consulta">{planos.planos.map((p) => <li key={p.id}>
-        <strong>{p.nome}</strong><span>{numeroTerra(p.creditos)} {p.creditos === 1 ? "crédito" : "créditos"}{p.valor_rs == null || p.status === "provisorio" ? ": preço a definir pelo fundador" : ` por ${p.valor_rs.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}`}</span>{p.aviso_preco && <small>{p.aviso_preco}</small>}
-        <button className="botao" type="button" disabled={!sessao || !planos.pagamento_disponivel || p.valor_rs == null || p.status === "provisorio" || !historicoCarregado || ocupado} onClick={() => comprar(p.id)}>Comprar pelo Pix</button>
+        <strong>{p.nome}</strong><span>{numeroTerra(p.creditos)} {p.creditos === 1 ? "crédito" : "créditos"}{p.valor_rs == null || p.status === "provisorio" ? ": preço a definir pelo fundador" : ` por ${p.valor_rs.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}`}</span>
+        {p.status_quantidade === "proposta" && <small>Quantidade proposta, sujeita à definição pelo fundador.</small>}
+        {p.aviso_preco && <small>{p.aviso_preco}</small>}
+        {p.modalidade === "assinatura" && <div className="condicoes-plano">
+          <p>Proposta: {numeroTerra(p.creditos_por_ciclo ?? p.creditos)} créditos por ciclo de {numeroTerra(p.ciclo_meses ?? null)} {p.ciclo_meses === 1 ? "mês" : "meses"}. Ciclo sujeito à definição pelo fundador.</p>
+          <p>{p.aviso_modalidade || "Cobrança por ciclo ainda não disponível."}{p.renovacao_automatica === false ? " Sem renovação automática." : ""}</p>
+          <p>Validade: {p.validade_creditos_dias == null ? "a definir pelo fundador" : `${numeroTerra(p.validade_creditos_dias)} dias`}. Acúmulo: {p.acumula_creditos == null ? "a definir pelo fundador" : p.acumula_creditos ? "permitido" : "não permitido"}.</p>
+          <p>Excedentes: {p.regra_excedentes ?? "a definir pelo fundador"}. Cancelamento: {p.regra_cancelamento ?? "a definir pelo fundador"}. Reembolso: {p.regra_reembolso ?? "a definir pelo fundador"}.</p>
+        </div>}
+        <button className="botao" type="button" disabled={!sessao || !planos.pagamento_disponivel || p.pagamento_disponivel === false || p.cobranca_implementada === false || p.valor_rs == null || p.status === "provisorio" || !historicoCarregado || ocupado} onClick={() => comprar(p.id)}>{p.status === "provisorio" || p.cobranca_implementada === false ? "Compra ainda indisponível" : "Comprar pelo Pix"}</button>
       </li>)}</ul>}
       {!!sessao && !historicoCarregado && <p>Conferindo compras anteriores antes de criar outro Pix. {erro && <button className="botao" type="button" onClick={() => setTentativaHistorico((n) => n + 1)}>Tentar carregar minhas compras</button>}</p>}
       {!sessao && <a href="#/entrar">Entrar para comprar créditos</a>}

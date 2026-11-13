@@ -13,3 +13,6 @@ e0e8ccdde14d0980ce33a1be48fde126ddeb1a31:infra/docker-compose.avaliacao.yml:gene
 e7074b4a170d745f34a4732072fcd954c0cad6f9:testes/mcp/sem_leitor_auditado.json:generic-api-key:3
 e7074b4a170d745f34a4732072fcd954c0cad6f9:testes/mcp/sem_leitor_auditado.json:generic-api-key:5
 e7074b4a170d745f34a4732072fcd954c0cad6f9:testes/mcp/sem_leitor_auditado.json:generic-api-key:14
+# URL JDBC interna sem usuário ou senha, no Compose descartável removido na conciliação do PR #93.
+# KC_DB_URL referencia banco-oauth; exceção restrita ao commit/campo histórico, como no PR #69.
+e0e8ccdde14d0980ce33a1be48fde126ddeb1a31:infra/docker-compose.avaliacao.yml:generic-api-key:46
