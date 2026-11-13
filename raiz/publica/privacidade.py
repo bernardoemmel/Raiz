@@ -87,7 +87,9 @@ def _link_pagamento(valor: str) -> bool:
                 or (url.scheme == "http" and url.hostname in {"localhost", "127.0.0.1", "testserver"})
             ):
                 return False
-        return bool(re.fullmatch(r"/(?:v1/)?(?:reservas/confirmar|cobrancas)/[A-Za-z0-9_-]{24,128}", url.path))
+        return url.path == "/v1/conta/gerenciar" or bool(
+            re.fullmatch(r"/(?:v1/)?(?:reservas/confirmar|cobrancas)/[A-Za-z0-9_-]{24,128}", url.path)
+        )
     except ValueError:
         return False
 
@@ -249,6 +251,8 @@ def para_resposta(x: Any, *, _campo: str = "", _pai: str = "") -> Any:
     if not isinstance(x, str):
         return x
     if _campo in _IDS and _uuid(x):
+        return x
+    if _campo == "evento_id" and re.fullmatch(r"[a-f0-9]{24}", x):
         return x
     if _campo in {"cod_imovel", "codigo_car"}:
         return x if _CAR.fullmatch(x) else None

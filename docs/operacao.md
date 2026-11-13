@@ -236,7 +236,7 @@ mesmo checkout. A imagem final roda como usuário sem privilégios, com sistema 
 Com Docker Engine, Compose **2.24.4 ou superior** e Python 3.12:
 
 ```bash
-python scripts/pilha_agentes.py teste
+python3 scripts/pilha_agentes.py teste
 ```
 
 O comando gera `.env.agentes-teste` com permissões `0600` e segredos aleatórios, constrói a imagem, sobe as
@@ -254,9 +254,9 @@ O modo `--desenvolvimento` monta fontes do checkout somente para depuração e �
 reais. A chave Anthropic pertence ao runner fora dos contêineres: não entra na imagem, API, worker ou arquivo de teste.
 
 ```bash
-python scripts/pilha_agentes.py medir --teste --amostras 12 --intervalo 5 \
+python3 scripts/pilha_agentes.py medir --teste --amostras 12 --intervalo 5 \
   --saida dados/operacao/recursos-agentes.json
-python scripts/pilha_agentes.py parar --teste
+python3 scripts/pilha_agentes.py parar --teste
 ```
 
 `parar` conserva os volumes. Não use `down -v` em uma instalação com dados. O teste de recursos traz RAM e CPU por
@@ -298,7 +298,7 @@ credenciais ou dados de empresas. Um catálogo sintético não dimensiona o proc
 7. Com o `.env` pronto e o proxy configurado, um comando constrói e sobe a pilha completa:
 
    ```bash
-   python scripts/pilha_agentes.py subir --env-file producao.env
+   python3 scripts/pilha_agentes.py subir --env-file producao.env
    ```
 
    O comando recusa placeholders de domínio, HTTP e Pix simulado na produção; exige as credenciais do provedor. Ele espera os healthchecks e a migração
@@ -348,6 +348,12 @@ completa ou recomendação numérica de VPS é atribuída a essa tentativa. A ca
 congelada e amostra recursos durante as tarefas, incluindo identificação das imagens. Para dimensionar
 uma VPS, some margem de sistema operacional, PostgreSQL/WAL, concorrência dos workers e crescimento dos dados;
 repita a medição com o catálogo e a simultaneidade pretendidos. Esta entrega não contrata nem publica servidor.
+
+Primeira referência medida no [CI do PR #85](https://github.com/bernardoemmel/Raiz/actions/runs/43339076294),
+em cinco amostras após os 24 cenários sintéticos: soma dos picos por contêiner de **1.192 MiB**, volumes
+de **177,8 MiB** e imagens de **3,18 GiB** sem deduplicar camadas. Os dados brutos estão no artefato
+`contratos-agentes/recursos.json`. Essa coleta curta, após o ensaio, não cobre o pico da campanha Claude;
+o workflow real amostra durante as 96 tentativas e fornecerá a base adicional para dimensionar a VPS.
 
 
 ## Healthchecks (alerta fora do servidor)
@@ -1275,6 +1281,14 @@ dos achados maiores. Correção pequena precisa de regressão e PR com todos os 
 
 Por decisão do fundador, ficam somente as checagens por push, sem automação horária. Checagens por push não são
 apresentadas como revisão automática de lógica por um agente. A proteção da main continua sendo ativada à mão.
+### Conta e liberação por uma pessoa
+
+`/v1/conta/gerenciar` é o destino humano dos erros 402 e de liberação pendente. Exige
+SMTP e `RAIZ_API_PUBLICA_URL` configurados para o link de login voltar à origem oficial.
+A página reutiliza a sessão da empresa, o contrato e as cobranças existentes. Só um
+clique após ver os termos/valor aceita contrato ou gera Pix; abrir o link não paga nem
+confirma nada. A confirmação financeira continua exclusivamente no webhook do provedor.
+
 ## Avaliação de modelos e arquivo cego (rodada 12)
 
 O procedimento, contratos e comandos estão em [avaliação da rodada 12](modelo/avaliacao-rodada12.md).
