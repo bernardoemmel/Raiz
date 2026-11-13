@@ -11,7 +11,7 @@ import http from "node:http"
 import { createRequire } from "node:module"
 import path from "node:path"
 import zlib from "node:zlib"
-import { CANARIO_PRIVADO, CAR, CARS, MUNICIPIO, REPO, SEM_DESENHO } from "./preparar-teste-site.mjs"
+import { CANARIO_PRIVADO, CAR, CAR_FRONTEIRA, CARS, MUNICIPIO, MUNICIPIOS_FRONTEIRA, REPO, SEM_DESENHO } from "./preparar-teste-site.mjs"
 
 const require = createRequire(path.join(REPO, "front/globo/package.json"))
 const { chromium } = require("playwright")
@@ -93,7 +93,7 @@ function conferirPublicacao() {
       permitidos.add(campos[0])
     }
   }
-  assert.equal(permitidos.size, CARS.length + 1, "A publicação básica inclui todas as fazendas da fixture.")
+  assert.equal(permitidos.size, CARS.length + 2, "A publicação básica inclui todas as fazendas da fixture.")
   for (const arquivo of todos) {
     const nome = path.relative(site, arquivo)
     assert(!/(?:^|\/)(?:imoveis_\d{7}\.csv|filtros_|ficha_|certidoes_|desenvolvedor_)/.test(nome), `Camada paga publicada: ${nome}`)
@@ -178,6 +178,21 @@ try {
   assert.equal(inicial.propriedades.point_count, 2, "Dois pontos representam onze fazendas, não duas.")
   assert.equal(pedidosSatelite.length, 0, "A entrada nacional não baixa imagens de satélite.")
   assert.equal(await pagina.evaluate(() => document.querySelector(".mapa-brasil .mapa").__mapa.getPaintProperty("boundaries_country", "line-dasharray")), undefined, "Fronteiras iniciais contínuas reutilizam o programa dos estados.")
+  // CAR cadastrado na PB, publicado em dois recortes do RN: uma opção, sem consultar arquivos da PB.
+  const inicioFronteira = pedidos.length
+  const buscaFronteira = pagina.locator(".topo .busca input")
+  await buscaFronteira.fill(CAR_FRONTEIRA)
+  const opcaoFronteira = pagina.locator('.busca [role="option"]').filter({ hasText: "Município de fronteira (RN)" })
+  await opcaoFronteira.waitFor()
+  assert.equal(await pagina.locator('.busca [role="option"]').count(), 1, "O mesmo CAR em dois recortes não pode duplicar a opção nem seu ID acessível.")
+  const estadosPublicados = JSON.parse(fs.readFileSync(path.join(site, "amostra/estados.json"), "utf8"))
+  assert.equal(estadosPublicados.estados.find(e => e.uf === "PB").situacao, "sem_dados")
+  assert.equal(estadosPublicados.car_fronteira, "car_fronteira.json")
+  assert.deepEqual(pedidos.slice(inicioFronteira).filter(url => /imoveis_basicos_/.test(url)).sort(),
+    MUNICIPIOS_FRONTEIRA.map(cod => new URL(`amostra/imoveis_basicos_${cod}.csv.gz`, base).href).sort())
+  assert(!pedidos.some(url => /(?:car_PB|indice_PB|imoveis_basicos_2500106)/.test(url)), "Nenhuma URL inexistente da UF cadastral pode ser tentada.")
+  await buscaFronteira.fill("")
+  await buscaFronteira.press("Escape")
   const marcadorInicial = pagina.locator("button.cartografia-grupo").filter({ hasText: "1.000 ha" })
   await marcadorInicial.waitFor({ state: "visible" })
   assert.equal(await marcadorInicial.innerText(), "11\n1.000 ha")

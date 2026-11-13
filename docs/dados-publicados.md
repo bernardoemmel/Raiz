@@ -33,6 +33,28 @@ arquivos antigos completos como alternativa.
 A camada H3 de potencial conhecido usa o contrato e os limites de supressão descritos em
 [`mapa-potencial.md`](mapa-potencial.md). A fonte é privada; somente células agregadas e contagens globais chegam ao site.
 
+### Busca por CAR entre recortes estaduais
+
+O município cadastral gravado no CAR pode estar em outra UF que a do recorte
+territorial publicado. O código original é preservado. Encontrar esse imóvel
+num recorte vizinho não torna a UF cadastral processada.
+
+Quando existem essas exceções, o build do site anuncia
+`car_fronteira: "car_fronteira.json"` no seu `amostra/estados.json` e grava
+`amostra/car_fronteira.json`. O índice contém somente código municipal cadastral
+→ lista ordenada, sem repetição, de municípios territoriais de outra UF com
+CSV básico publicado. Ele é derivado desses CSVs; não contém CAR completo,
+situação, nome de proprietário, medidas ou dados pagos. Códigos cadastrais
+históricos preservam o prefixo de UF válido sem depender do catálogo municipal
+atual. O índice não é publicado no contrato agregado.
+
+O navegador só lê esse arquivo depois de uma busca por CAR com os sete dígitos
+municipais. Consulta somente as listas territoriais candidatas e confirma o CAR
+na projeção básica; o mesmo CAR aparece uma vez nos resultados. Publicações sem
+o anúncio não provocam requisição a um arquivo novo. O índice `car_<UF>.json`
+continua atendendo às exceções entre municípios da mesma UF. Desenvolvimento e
+site estático usam as mesmas relações, sem liberar fichas completas.
+
 ### Resumo aberto das três opções de lote
 
 O site também oferece o contrato separado `publico_lotes`, versão 1, em

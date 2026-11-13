@@ -12,6 +12,8 @@ export const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "
 export const FIXTURE = path.join(REPO, "front/.cache/teste-site")
 export const MUNICIPIO = "1505536"
 export const SEM_DESENHO = "1502772"
+export const MUNICIPIOS_FRONTEIRA = ["2400109", "2413409"]
+export const CAR_FRONTEIRA = `PB-2500106-${"D".repeat(32)}`
 export const CAR = `PA-${MUNICIPIO}-${"A".repeat(32)}`
 export const CAR_PENDENTE = `PA-${MUNICIPIO}-${"B".repeat(32)}`
 export const CANARIO_PRIVADO = "certidao_PRIVADA_nao_publicar"
@@ -118,9 +120,16 @@ export function preparar() {
   })
   fs.writeFileSync(path.join(FIXTURE, "dados/estados.json"), JSON.stringify({
     versao_publicacao: 1, escopo: "publico_basico", gerado_em: "2026-11-12T00:00:00Z",
-    estados: { PA: { versao_publicacao: 1, escopo: "publico_basico", municipios: 2, total_ibge: 144, completo: false } },
+    estados: { PA: { versao_publicacao: 1, escopo: "publico_basico", municipios: 2, total_ibge: 144, completo: false },
+      RN: { versao_publicacao: 1, escopo: "publico_basico", municipios: 2, total_ibge: 167, completo: false } },
   }))
   const basico = "cod_imovel,cod_ibge,municipio,uf,situacao_basica\n"
+  // O mesmo CAR cadastrado na PB cruza dois recortes RN; a PB continua sem dados próprios.
+  const rn = path.join(FIXTURE, "dados/RN")
+  fs.mkdirSync(rn, { recursive: true })
+  for (const cod of MUNICIPIOS_FRONTEIRA) fs.writeFileSync(path.join(rn, `imoveis_basicos_${cod}.csv`),
+    basico + `${CAR_FRONTEIRA},${cod},Município de fronteira,RN,apto\n`)
+  fs.writeFileSync(path.join(rn, "resumo_RN.csv"), "cod_ibge,municipio,imoveis\n" + MUNICIPIOS_FRONTEIRA.map(cod => `${cod},Município de fronteira,1\n`).join(""))
   fs.writeFileSync(path.join(dados, `imoveis_basicos_${MUNICIPIO}.csv`), basico + CARS.map((car, i) =>
     `${car},${MUNICIPIO},Parauapebas,PA,${["apto", "com_pendencia", "nao_apto"][i % 3]}\n`,
   ).join(""))
