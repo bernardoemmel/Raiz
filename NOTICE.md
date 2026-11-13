@@ -115,6 +115,18 @@ proposta do llmstxt.org; JSON-LD usa o vocabulário schema.org, sem copiar códi
 - Fontes Noto Sans (SIL Open Font License 1.1) e sprites do protomaps/basemaps-assets, baixados por
   `raiz mapa atualizar` (licença dos sprites a conferir no repositório basemaps-assets antes de publicar).
 
+## Mosaico histórico no mapa público
+
+- Fundo público de aproximação: **EOxCloudless vintage 2016**, camada `s2cloudless_3857`, imagens Sentinel-2
+  de 2016/2017, **CC BY 4.0**. Licença e permissão de uso comercial do endpoint WMTS conferidas em 12/11/2026
+  nas fontes oficiais: [licença por ano](https://cloudless.eox.at/license-non-commercial) e
+  [FAQ de uso comercial e serviço](https://cloudless.eox.at/documentation/faq). Não usar os anos 2018 a 2025,
+  licenciados como não comerciais. A camada histórica tem 10 m; não prova a situação atual do imóvel.
+  Crédito visível: “EOxCloudless https://cloudless.eox.at by EOX IT Services GmbH (Contains modified Copernicus
+  Sentinel data 2016 & 2017)”. O serviço público aceita tráfego comercial razoável, sem SLA; a aplicação busca
+  somente os tiles visíveis a partir de z12, com overzoom após z14 e cache HTTP do navegador. Não distribui o
+  mosaico bruto como dataset nem copia os tiles para o Release. As capturas devem preservar o crédito.
+
 ## Imagens de satélite por fazenda
 
 - Sentinel-2 L2A: "Contains modified Copernicus Sentinel data [ano]" (licença Copernicus, uso livre inclusive
@@ -122,8 +134,8 @@ proposta do llmstxt.org; JSON-LD usa o vocabulário schema.org, sem copiar códi
   (metadados.json, cabeçalho X-Raiz-Credito).
 - Landsat 5 Collection 2 nível 2: domínio público, crédito "Landsat 5, cortesia do USGS", lido pelo Planetary
   Computer da Microsoft (token anônimo de leitura).
-- Pillow (HPND) para WebP e desenho; fonte DejaVu Sans do sistema para o selo "Simulação". Nada de EOX, Esri, Planet
-  NICFI, Google nem imagem gerada por IA.
+- Pillow (HPND) para WebP e desenho; fonte DejaVu Sans do sistema para o selo "Simulação". Nas imagens atuais da ficha,
+  não usar EOX, Esri, Planet NICFI, Google nem imagem gerada por IA.
 
 ## Cartão, adesivo e vídeo da fazenda
 
