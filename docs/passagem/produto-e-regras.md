@@ -1,5 +1,17 @@
 # Passagem do chat "Produto e regras" (13/11/2026)
 
+## Indisponibilidade do fornecedor antes da primeira resposta
+
+A execução `43431732302` (`b8f6f57`, juiz v9/fixture v2) subiu a pilha saudável,
+mas a primeira chamada ao Claude recebeu HTTP 503. O artefato `14042200020`
+conserva a única interação (503), sem resposta do modelo nem sessão concluída;
+SHA-256 `240353babf994ee04ca0780c7fbf0877c6dd08dec759646c94407e7717d583a0`.
+Foi iniciada `43433142975` na mesma revisão, novamente com todas as 96 sessões.
+É repetição após indisponibilidade de transporte, sem substituição de respostas
+ruins, mudança de modelo, critérios ou permissões. A execução incompleta permanece
+registrada e não é uma referência de pass^4.
+
+
 ## Sétima campanha: 43 sessões, interrupção reproduzida e corrigida
 
 A execução `43368316000`, congelada em `ea25614`/juiz v8, concluiu 43 sessões
