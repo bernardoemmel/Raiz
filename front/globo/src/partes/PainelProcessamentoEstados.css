@@ -1,7 +1,7 @@
 .processamento-estados { margin-bottom: var(--e6); }
 .processamento-legenda, .processamento-total, .processamento-parcial, .processamento-datas { margin: var(--e2) 0; color: var(--pedra); font-size: var(--t-legenda); }
 .processamento-lista { list-style: none; padding: 0; margin: var(--e4) 0 0; }
-.processamento-estado { border-top: var(--linha); padding: var(--e4) 0; }
+.processamento-estado { border-top: var(--borda); padding: var(--e4) 0; }
 .processamento-cabecalho { display: flex; flex-wrap: wrap; gap: var(--e2); align-items: center; justify-content: space-between; }
 .processamento-cabecalho a { display: inline-flex; align-items: center; min-height: 48px; color: var(--tinta); font-weight: 700; }
 .processamento-situacao { color: var(--pedra); font-size: var(--t-legenda); }

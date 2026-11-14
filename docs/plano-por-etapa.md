@@ -3,6 +3,27 @@
 Gerado da rodada 8 de pesquisa (12/11/2026). Ordem geral: E1 → E2 → E5 → E7 (em paralelo) → E3/E4 → E6 → E8 → E9.
 Pedidos que só o fundador faz, no dia 1: convênio com o ONR e pedidos por LAI ao SFB e ao INCRA.
 
+## Visual V2 aprovado: mapa e pedido
+
+- [x] Mapa MapLibre na tela inteira, Protomaps escuro, H3 em worker (r4/r5),
+  transição para contornos reais e satélite histórico ao aproximar; círculos antigos removidos.
+- [x] Bricolage Grotesque e JetBrains Mono locais, topo flutuante, cartão do território,
+  legenda e gaveta mobile; dados extensos em Sobre os dados. Produtor conserva o tema claro.
+- [x] Três lotes com números reais da publicação, P10/P50/P90 em escala comum,
+  seleção pública sem composição e desenho reservado à resposta autorizada da API.
+- [x] Desenho de área transferido aos critérios do pedido; nenhum contato enviado.
+- [x] Guia V2 e verificador atualizados com exceções restritas aos rótulos mono.
+- [x] Comparação dos três prints registrada, com diferenças de dados e acesso documentadas: [antes/depois e relatório público](design/evidencias-v2/README.md).
+- [x] 647 testes do front, Playwright, teclado/axe, verificador de design e portão
+  Lighthouse local (Brasil 94, acessibilidade 100; todas as seis rotas ≥ 90).
+- [ ] Lighthouse ≥ 90 com o retrato público completo: última mediana 84;
+  acessibilidade 100. Séries e diferença do cenário do CI registradas nas evidências.
+- [ ] CI da revisão final e merge do [PR #107](https://github.com/bernardoemmel/Raiz/pull/107).
+
+Detalhes, fontes e evidências: [passagem de telas e mapa](passagem/telas-e-mapa.md).
+Os hexágonos públicos contam cadastros, não somente fazendas aptas; o cartão usa os
+resumos de aptidão. Bioma, título e tamanho não são inferidos dos agregados.
+
 ## Rodada 12: ficha e pasta do banco fiador
 
 - [x] Pasta privada com duas saídas Jinja do mesmo lote, referências de valores e

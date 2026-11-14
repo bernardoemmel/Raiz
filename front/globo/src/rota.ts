@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react"
 import type { RespostaBusca } from "../../compartilhado/dados"
-import { normalizar, UFS } from "../../compartilhado/formato"
+import { normalizar, UFS, ufDoCodigo } from "../../compartilhado/formato"
 import type { IdOpcao } from "../../compartilhado/pedidos/tipos"
 
 /** Entrada (o Brasil), um estado, um município, a ficha de uma fazenda e a área logada (entrar e pedidos de lote). */
@@ -16,6 +16,7 @@ export type Rota =
   | { tela: "pedidos" }
   | { tela: "pedido-novo" }
   | { tela: "pedido"; id: string }
+  | { tela: "pedido-mapa"; id: string }
   | { tela: "ficha-lote"; id: string; opcao: IdOpcao }
   | { tela: "grupo"; id: string }
   | { tela: "pasta"; id: string; opcao?: string }
@@ -30,6 +31,7 @@ export function lerRota(hash: string): Rota {
   if (partes[0] === "pedidos") {
     if (!partes[1]) return { tela: "pedidos" }
     if (partes[1] === "novo") return { tela: "pedido-novo" }
+    if (/^[a-z0-9-]+$/i.test(partes[1]) && partes[2] === "mapa") return { tela: "pedido-mapa", id: partes[1] }
     if (/^[a-z0-9-]+$/i.test(partes[1]) && partes[2] === "ficha" && ["barata", "segura", "compacta"].includes(partes[3]))
       return { tela: "ficha-lote", id: partes[1], opcao: partes[3] as IdOpcao }
     if (/^[a-z0-9-]+$/i.test(partes[1])) return partes[2] === "pasta" ? { tela: "pasta", id: partes[1], ...(["barata", "segura", "compacta"].includes(partes[3]) ? { opcao: partes[3] } : {}) } : partes[2] === "grupo" ? { tela: "grupo", id: partes[1] } : { tela: "pedido", id: partes[1] }
@@ -47,10 +49,22 @@ export const linkPedidos = "#/pedidos"
 export const linkProspeccao = "#/prospeccao"
 export const linkNovoPedido = "#/pedidos/novo"
 export const linkPedido = (id: string) => `#/pedidos/${encodeURIComponent(id)}`
+export const linkPedidoMapa = (id: string) => `${linkPedido(id)}/mapa`
 export const linkFichaLote = (id: string, opcao: IdOpcao) => `${linkPedido(id)}/ficha/${opcao}`
 export const linkGrupo = (id: string) => `#/pedidos/${encodeURIComponent(id)}/grupo`
 export const linkMunicipio = (cod: string) => `#/municipio/${cod}`
 export const linkFazenda = (car: string) => `#/fazenda/${encodeURIComponent(car)}`
+
+export type FocoTerritorialMapa = { municipio: string | null; uf: string | null }
+
+/** Aproximar um lote conserva a rota do pedido; o foco local usa as mesmas cargas municipais do mapa aberto. */
+export function destinoTerritorialMapa(pedidoId: string | undefined, territorio: { municipio: string } | { uf: string }):
+  { tipo: "foco"; foco: FocoTerritorialMapa } | { tipo: "rota"; hash: string } {
+  if (pedidoId) return { tipo: "foco", foco: "municipio" in territorio
+    ? { municipio: territorio.municipio, uf: ufDoCodigo(territorio.municipio) }
+    : { municipio: null, uf: territorio.uf } }
+  return { tipo: "rota", hash: "municipio" in territorio ? linkMunicipio(territorio.municipio) : linkEstado(territorio.uf) }
+}
 
 /** Município do contorno do Brasil (os 5.570), processado ou não. */
 export interface MunicipioDoMapa {

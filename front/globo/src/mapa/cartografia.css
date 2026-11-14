@@ -1,36 +1,95 @@
-.cartografia-legenda {
+/* Controles cartográficos discretos; a legenda principal pertence ao shell V2. */
+.cartografia-ajuda {
   position: absolute;
-  top: var(--e3);
-  left: var(--e3);
-  right: 64px;
-  max-width: 340px;
-  max-height: 32%;
+  top: 84px;
+  left: 16px;
+  right: auto;
+  bottom: auto;
+  z-index: 4;
+  max-width: 320px;
+  max-height: min(60vh, 560px);
   overflow: auto;
-  z-index: 2;
-  background: var(--papel);
-  padding: var(--e3);
-  border: var(--linha);
-  font-size: var(--t-texto);
+  border: var(--borda);
+  border-radius: 12px;
+  background: var(--vidro);
+  color: var(--tinta);
+  font-size: 12px;
 }
-.cartografia-legenda p { margin: var(--e1) 0; }
-.cartografia-legenda summary { min-height: 48px; display: flex; align-items: center; cursor: pointer; text-decoration: underline; }
-.cartografia-resumo > summary { text-decoration: none; }
-.cartografia-grupos-lista { list-style: none; margin: 8px 0 0; padding: 0; }
-.cartografia-grupos-lista button { min-height: 48px; width: 100%; text-align: left; padding: 8px; border: 1px solid var(--nevoa); background: var(--superficie); color: var(--tinta); font: inherit; }
-.cartografia-grupo {
-  width: var(--diametro-grupo);
-  height: var(--diametro-grupo);
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  padding: 0;
-  border: 2px solid var(--superficie);
-  border-radius: 50%;
-  background: var(--mata);
-  color: var(--superficie);
-  font: 400 16px/1.25 var(--fonte-texto);
-  white-space: nowrap;
-  cursor: pointer;
+.cartografia-ajuda > summary { padding: 8px 12px; min-height: 36px; cursor: pointer; }
+.cartografia-ajuda[open] { padding: 12px; }
+.cartografia-ajuda[open] > summary { padding: 0; min-height: 32px; }
+.cartografia-ajuda p { margin: 8px 0; }
+.cartografia-alerta {
+  position: absolute;
+  top: 84px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 3;
+  max-width: min(90vw, 420px);
+  padding: 10px 14px;
+  background: var(--vidro);
+  border: var(--borda);
+  border-radius: 12px;
+  font-size: 13px;
 }
-.cartografia-grupo:focus-visible { outline: 3px solid var(--tinta); outline-offset: 2px; }
+.cartografia-hexagonos-lista { list-style: none; margin: 8px 0 0; padding: 0; }
+.cartografia-hexagonos-lista button { min-height: 44px; width: 100%; text-align: left; padding: 8px; border: var(--borda); background: var(--superficie); color: var(--tinta); font: inherit; }
+.cartografia-desenho {
+  position: absolute;
+  top: 80px;
+  left: 16px;
+  z-index: 5;
+  max-width: min(420px, calc(100% - 32px));
+  padding: 12px;
+  background: var(--vidro);
+  border: var(--borda);
+  border-radius: 12px;
+}
+.cartografia-desenho p { margin: 0 0 8px; font-size: 13px; }
+.cartografia-desenho button { min-height: 44px; margin: 2px; border: var(--borda); border-radius: 8px; padding: 6px 10px; background: var(--superficie); color: var(--tinta); }
+.hexagono-dica .maplibregl-popup-content { padding: 10px 12px; font: 500 12px/1.5 var(--fonte-codigo); }
+@media (max-width: 700px) {
+  .cartografia-ajuda { top: 84px; left: 12px; right: auto; bottom: auto; max-width: calc(100vw - 24px); max-height: 40vh; }
+  .cartografia-ajuda > summary { min-height: 44px; }
+  .cartografia-desenho { left: 8px; right: 8px; max-width: none; }
+}
+
+.mapa-brasil .maplibregl-ctrl-top-right { top: 76px; right: 8px; }
+.mapa-brasil .maplibregl-ctrl-group { background: var(--vidro); border: var(--borda); border-radius: 12px; box-shadow: none; }
+.mapa-brasil .maplibregl-ctrl-group button { width: 36px; height: 36px; }
+.mapa-brasil .maplibregl-ctrl-group button + button { border-top: var(--borda); }
+.mapa-brasil .maplibregl-ctrl-icon { filter: invert(1); }
+/* O CSS do MapLibre também chega pelo chunk do mapa. A especificidade inclui os estados compactos
+   para manter a paleta independentemente da ordem de carregamento, sem ocultar os créditos. */
+.mapa-brasil .maplibregl-ctrl.maplibregl-ctrl-attrib {
+  box-sizing: border-box; max-width: min(320px, calc(100vw - 24px)); min-height: 44px;
+  padding: 8px 48px 8px 12px; border: var(--borda); border-radius: 12px;
+  background: var(--vidro); color: var(--tinta); font: 400 11px/1.5 var(--fonte-codigo);
+}
+.mapa-brasil .maplibregl-ctrl-attrib:not(.maplibregl-compact-show) { min-width: 44px; padding: 0; }
+.mapa-brasil .maplibregl-ctrl-attrib .maplibregl-ctrl-attrib-inner { white-space: normal; overflow-wrap: anywhere; }
+.mapa-brasil .maplibregl-ctrl-attrib a { color: var(--tinta); text-decoration: underline; text-underline-offset: 2px; }
+.mapa-brasil .maplibregl-ctrl-attrib .maplibregl-ctrl-attrib-button {
+  display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; min-height: 44px;
+  color: var(--tinta); background: none; filter: none; border-radius: 11px;
+}
+.mapa-brasil .maplibregl-ctrl-attrib-button::before {
+  content: "i"; display: grid; place-items: center; width: 18px; height: 18px;
+  border: 1.5px solid currentColor; border-radius: 50%; font: 700 13px/1 var(--fonte-codigo);
+}
+.mapa-brasil .maplibregl-ctrl :is(button, summary, a):focus-visible { outline: 2px solid var(--lima); outline-offset: 3px; }
+.mapa-brasil .maplibregl-ctrl.maplibregl-ctrl-scale {
+  padding: 3px 6px; color: var(--tinta); background: var(--vidro); border-color: var(--pedra);
+  font: 500 11px/1.5 var(--fonte-codigo);
+}
+@media (max-width: 700px) {
+  .mapa-brasil .maplibregl-ctrl-top-right { top: 66px; right: 0; }
+  .mapa-brasil .maplibregl-ctrl-group button { width: 48px; height: 48px; }
+  .mapa-brasil .maplibregl-ctrl.maplibregl-ctrl-attrib { min-height: 48px; padding-right: 52px; font-size: 12px; }
+  .mapa-brasil .maplibregl-ctrl-attrib:not(.maplibregl-compact-show) { min-width: 48px; padding: 0; }
+  .mapa-brasil .maplibregl-ctrl-attrib .maplibregl-ctrl-attrib-button { width: 48px; height: 48px; min-height: 48px; }
+}
+
+.mapa-lote-etiqueta { padding: 4px 8px; border-radius: 8px; background: var(--urucum); color: var(--v2-texto-acao); font: 700 12px var(--fonte-codigo); white-space: nowrap; }
+
+.explorar-v2 .mapa-aviso { top: 80px; }

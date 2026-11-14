@@ -87,10 +87,15 @@ const navegador = await chromium.launch({
 async function servidor(api) {
   const vite = await createServer({ root: globo, configFile: path.join(globo, "vite.config.ts"),
     define: { "import.meta.env.VITE_RAIZ_API": JSON.stringify(api ? "/api/" : "") },
-    server: { host: "127.0.0.1", port: 0 }, logLevel: "error",
+    server: { host: "127.0.0.1", port: 0, hmr: false, watch: null }, logLevel: "error",
   })
   await vite.listen()
   return { vite, base: vite.resolvedUrls.local[0] }
+}
+async function celular(p, width = 360, height = 800) {
+  await p.setViewportSize({ width, height })
+  // O cabeçalho troca o input pela busca compacta em resposta ao matchMedia.
+  await p.getByRole("button", { name: "Buscar CAR, município ou estado", exact: true }).waitFor()
 }
 async function pagina(base, publicacao, autenticada = false, pedidoApi = pedido) {
   const contexto = await navegador.newContext({ viewport: { width: 1440, height: 960 }, reducedMotion: "reduce" })
@@ -123,6 +128,114 @@ async function pagina(base, publicacao, autenticada = false, pedidoApi = pedido)
   return p
 }
 
+/** O painel novo lê o snapshot de teste, preserva o portão pago e leva critérios reais ao formulário. */
+async function conferirPainelMapaV2(base) {
+  const contexto = await navegador.newContext({ viewport: { width: 1440, height: 900 }, reducedMotion: "reduce" })
+  const p = await contexto.newPage()
+  p.on("pageerror", (erro) => erros.push(erro.message))
+  p.on("response", (r) => { if (r.status() >= 400) erros.push(`${r.status()} ${r.url()}`) })
+  p.on("request", (r) => { if (/solicitar-interesse|reservar/.test(r.url())) contatos.push(r.url()) })
+  const snapshot = { ...publicado, volume_creditos: 700_000, preco_contrato_usd: 39 }
+  await p.route("**/amostra/lote_PA_central_r11.json", rota => rota.fulfill({ json: snapshot }))
+  await p.goto(base)
+  await p.getByRole("button", { name: "Fazer pedido", exact: true }).click()
+  const painel = p.locator(".pedido-mapa-v2")
+  await painel.getByRole("heading", { name: /700 mil créditos/ }).waitFor()
+  assert.equal(await painel.locator(".pedido-mapa-v2-lote").count(), 3)
+  assert.equal(await painel.getByText("resumo público", { exact: true }).count(), 3)
+  assert(!/CAR-FIXTURE|Conferir o georreferenciamento|reserva de 20%|no mapa/.test(await painel.innerText()), "Resumo aberto não inventa localização, reserva ou diligência.")
+  await painel.locator(".pedido-mapa-v2-abas").getByRole("button", { name: "Mais seguro", exact: true }).click()
+  assert.equal(await painel.locator(".pedido-mapa-v2-lote.ativo h3").innerText(), "Mais seguro")
+  assert.equal(await painel.locator(".pedido-mapa-v2-faixa-barra").count(), 3)
+  await painel.getByRole("button", { name: "Buscar interesse dos donos", exact: true }).click()
+  await painel.getByText("Contato somente na fase final", { exact: true }).waitFor()
+  assert.equal(contatos.length, 0, "Abrir a etapa de interesse não envia contatos.")
+  await celular(p, 390, 844)
+  await conferirPaginaAcessivel(p, AxeBuilder, "painel-pedido-v2-390", resultado)
+  await painel.getByRole("link", { name: "Editar critérios do pedido", exact: true }).click()
+  await p.getByRole("heading", { name: "Novo pedido", exact: true }).waitFor()
+  assert.equal(await p.getByLabel("Quantidade (créditos)").inputValue(), "700.000", "A meta veio da publicação, não do padrão anterior nem da maquete.")
+  assert.equal(await p.getByLabel("Custo máximo (US$ por crédito)").inputValue(), "", "Preço de venda não vira teto de custo.")
+  await p.locator(".mais-filtros summary").click()
+  assert.equal(await p.getByLabel("Preço de venda (US$ por crédito)").inputValue(), "39")
+  assert.match(await p.locator(".pedido-cena-resumo").innerText(), /critérios vieram do mapa/)
+  await contexto.close()
+}
+
+async function conferirPainelAutorizadoV2(base) {
+  const contexto = await navegador.newContext({ viewport: { width: 1440, height: 900 }, reducedMotion: "reduce" })
+  const p = await contexto.newPage()
+  p.on("pageerror", erro => erros.push(erro.message))
+  p.on("response", r => { if (r.status() >= 400) erros.push(`${r.status()} ${r.url()}`) })
+  p.on("request", r => { if (/solicitar-interesse|reservar/.test(r.url())) contatos.push(r.url()) })
+  let leiturasResumo = 0
+  await p.route("**/amostra/lote_PA_central_r11.json", rota => { leiturasResumo++; return rota.fulfill({ json: publicado }) })
+  // Raster sintético somente neste teste; percorre o carregamento real sem depender da rede externa.
+  const tile = new PNG({ width: 256, height: 256 })
+  for (let i = 0; i < tile.data.length; i += 4) tile.data.set([70, 100, 65, 255], i)
+  const tilePng = PNG.sync.write(tile)
+  await p.route("https://tiles.maps.eox.at/**", rota => rota.fulfill({ status: 200, contentType: "image/png", body: tilePng, headers: { "Access-Control-Allow-Origin": "*" } }))
+  await p.addInitScript(() => localStorage.setItem("raiz.sessao", JSON.stringify({ token: "sessao-fixture-cliente", email: "cliente@example.test" })))
+  const comNegada = structuredClone(pedidoComFichaFechada)
+  // A fazenda sintética desta rota fica dentro do município sintético, para conferir o zoom até o perímetro.
+  comNegada.opcoes[0].itens[0].geometria = { type: "Polygon", coordinates: [[[-49.97, -6.15], [-49.94, -6.15], [-49.94, -6.12], [-49.97, -6.12], [-49.97, -6.15]]] }
+  comNegada.opcoes[0].itens[0].lon = -49.955
+  comNegada.opcoes[0].itens[0].lat = -6.135
+  const geometriaInicial = comNegada.opcoes[0].itens[0].geometria
+  // Mesmo se o payload trouxer geometria por engano, ficha_liberada:false não passa ao mapa.
+  comNegada.opcoes[0].itens[1].geometria = opcoes[1].itens[0].geometria
+  await p.route("**/api/pedidos/fixture", rota => {
+    assert.equal(rota.request().headers().authorization, "Bearer sessao-fixture-cliente")
+    return rota.fulfill({ json: comNegada })
+  })
+  await p.goto(`${base}#/pedidos/fixture/mapa`)
+  const painel = p.locator(".pedido-mapa-v2")
+  await painel.getByRole("heading", { name: /1 milhão de créditos/ }).waitFor()
+  const sourcePronto = await p.waitForFunction(() => {
+    const fonte = document.querySelector(".mapa-brasil .mapa")?.__mapa?.getSource("lote-autorizado")
+    if (!fonte) return false
+    const features = fonte.serialize().data?.features
+    return features?.length === 1 ? features : false
+  })
+  const geometria = await sourcePronto.jsonValue()
+  assert.equal(geometria.length, 1)
+  assert.deepEqual(geometria[0].geometry, geometriaInicial)
+  assert(!JSON.stringify(geometria).includes(carFechado), "O item bloqueado nunca chegou ao source autorizado.")
+  assert.equal(leiturasResumo, 0, "A rota autenticada não usa o resumo do Pará como fallback.")
+  await p.waitForFunction(() => document.querySelector(".mapa-brasil .mapa")?.__mapa?.getSource("brasil-municipios")?.serialize().data?.features?.length > 0)
+  await p.evaluate(() => {
+    const mapa = document.querySelector(".mapa-brasil .mapa").__mapa
+    mapa.stop()
+    mapa.jumpTo({ center: [-49.955, -6.135], zoom: 12 })
+  })
+  await p.waitForFunction(() => document.querySelector(".mapa-brasil .mapa")?.__mapa?.getSource("municipio")?.serialize().data?.features?.some(f => f.properties.cod_ibge === "1505536"))
+  assert.equal(new URL(p.url()).hash, "#/pedidos/fixture/mapa", "O idle de zoom12 deve carregar o município sem sair do pedido autenticado.")
+  assert.equal(await painel.count(), 1, "Aproximar não fecha o painel do pedido.")
+  await p.waitForFunction(() => {
+    const mapa = document.querySelector(".mapa-brasil .mapa")?.__mapa
+    return mapa?.getZoom() >= 11.9 && mapa.queryRenderedFeatures({ layers: ["lote-autorizado-linha"] }).length > 0
+  })
+  const depoisDoZoom = await p.evaluate(() => document.querySelector(".mapa-brasil .mapa").__mapa.getSource("lote-autorizado").serialize().data.features)
+  assert.deepEqual(depoisDoZoom.map(f => f.geometry), [geometriaInicial], "O contorno autorizado deve permanecer depois da carga municipal.")
+  const ordemCamadas = await p.evaluate(() => document.querySelector(".mapa-brasil .mapa").__mapa.getStyle().layers.map(l => l.id))
+  assert(ordemCamadas.indexOf("lote-autorizado-linha") > ordemCamadas.indexOf("sentinel-publico-veu"), "O contorno autorizado precisa ficar por cima do satélite e do véu.")
+  await p.screenshot({ path: path.join(resultado, "painel-pedido-v2-api-zoom12.png") })
+  await painel.locator(".pedido-mapa-v2-abas").getByRole("button", { name: "Mais seguro", exact: true }).click()
+  await p.waitForFunction(esperado => {
+    const fonte = document.querySelector(".mapa-brasil .mapa")?.__mapa?.getSource("lote-autorizado")
+    return fonte && JSON.stringify(fonte.serialize().data?.features?.[0]?.geometry) === JSON.stringify(esperado)
+  }, opcoes[1].itens[0].geometria)
+  await painel.getByRole("button", { name: "Fechar pedido", exact: true }).click()
+  await p.waitForFunction(() => {
+    const fonte = document.querySelector(".mapa-brasil .mapa")?.__mapa?.getSource("lote-autorizado")
+    return fonte && fonte.serialize().data?.features?.length === 0
+  })
+  await p.evaluate(() => { localStorage.removeItem("raiz.sessao"); window.dispatchEvent(new Event("storage")) })
+  await p.getByRole("heading", { name: "Entrar na Raíz", exact: true }).waitFor()
+  assert.equal(await p.locator(".mapa-brasil").count(), 0, "O mapa autorizado é desmontado quando a sessão sai.")
+  await contexto.close()
+}
+
 let publico, api
 try {
   publico = await servidor(false)
@@ -139,7 +252,7 @@ try {
   assert.equal(await p.locator(".tabela-lote").count(), 0, "A consulta pública não expõe lotes individuais.")
   assert.equal(snapshots.length, 2, "O site lê somente a projeção pública, nunca o pacote privado.")
   await p.screenshot({ path: path.join(resultado, "snapshot-legado-ignorado-1440.png") })
-  await p.setViewportSize({ width: 360, height: 800 })
+  await celular(p)
   assert(await p.evaluate(() => document.documentElement.scrollWidth <= innerWidth), "A página ultrapassou 360 px.")
   await conferirPaginaAcessivel(p, AxeBuilder, "cobertura-publica-360", resultado)
   await p.context().close()
@@ -148,7 +261,7 @@ try {
   for (const valor of ["900.000", "1.100.000", "1.300.000", "5.000 ha", "40%", "400.000"]) assert(resumo.includes(valor), `Resumo público incompleto: ${valor}`)
   assert(!/TIR|Pendências|Fazendas de reserva|8 fazendas|Conferir o georreferenciamento/.test(resumo), "O resumo público expôs uma coluna paga.")
   assert.equal(await p.locator(".quadro-destrava, .tabela-lote, .mapa-lote, .pedido-mapa").count(), 0, "O público não renderiza os detalhes nem o mapa de seleção.")
-  await p.setViewportSize({ width: 360, height: 800 })
+  await celular(p)
   await conferirPaginaAcessivel(p, AxeBuilder, "resumo-publico-360", resultado)
   assert(await p.evaluate(() => document.documentElement.scrollWidth <= innerWidth))
   await p.screenshot({ path: path.join(resultado, "resumo-publico-360.png"), fullPage: true })
@@ -163,6 +276,7 @@ try {
   assert(await p.evaluate(() => document.documentElement.scrollWidth <= innerWidth))
   await p.screenshot({ path: path.join(resultado, "demonstracao-360.png"), fullPage: true })
   await p.context().close()
+  await conferirPainelMapaV2(publico.base)
   await publico.vite.close()
   publico = null
 
@@ -197,7 +311,7 @@ try {
   await p.getByRole("tab", { name: "Mais segura", exact: true }).and(p.locator('[aria-selected="true"]')).waitFor()
   assert.equal(await p.getByRole("tab", { name: "Mais segura", exact: true }).getAttribute("aria-selected"), "true")
   await p.screenshot({ path: path.join(resultado, "lotes-autorizados-1440.png") })
-  await p.setViewportSize({ width: 360, height: 800 })
+  await celular(p)
   assert(await p.evaluate(() => document.documentElement.scrollWidth <= innerWidth), "Os lotes autorizados ultrapassaram 360 px.")
   await conferirPaginaAcessivel(p, AxeBuilder, "lotes-autorizados-360", resultado)
   await p.context().close()
@@ -216,14 +330,27 @@ try {
   assert(!/\bNaN\b|undefined|(?:^|\s)0(?:[,.]0+)?(?:\s|%|$)/.test(medidasFechadas.join("\n")), "A ficha bloqueada inventou zero ou exibiu dado inválido.")
   assert.equal(await detalheFechado.getByRole("link", { name: "Abrir a ficha", exact: true }).getAttribute("href"), `#/fazenda/${carFechado}`)
   await p.screenshot({ path: path.join(resultado, "lote-com-ficha-bloqueada-1440.png") })
-  await p.setViewportSize({ width: 360, height: 800 })
+  await celular(p)
   assert(await p.evaluate(() => document.documentElement.scrollWidth <= innerWidth), "A ficha bloqueada ultrapassou 360 px.")
   await conferirPaginaAcessivel(p, AxeBuilder, "lote-com-ficha-bloqueada-360", resultado)
   await p.context().close()
+  await conferirPainelAutorizadoV2(api.base)
   assert.deepEqual(contatos, [], "O teste tentou iniciar contato ou reserva.")
   assert.deepEqual(erros, [], "Há erro HTTP ou JavaScript.")
-  fs.writeFileSync(path.join(resultado, "resumo.json"), JSON.stringify({ cenarios: ["cobertura pública", "snapshot legado ignorado", "resumo público sem campos pagos", "demonstração fictícia", "API autorizada", "item com ficha paga bloqueada"], cores, erros, contatos }, null, 2))
+  fs.writeFileSync(path.join(resultado, "resumo.json"), JSON.stringify({ cenarios: ["cobertura pública", "snapshot legado ignorado", "resumo público sem campos pagos", "painel V2 e passagem de critérios sem contato", "demonstração fictícia", "API autorizada", "painel V2 mantém pedido e perímetro autorizado no zoom12", "item com ficha paga bloqueada"], cores, erros, contatos }, null, 2))
   console.log("Cena-alvo: resumo público sem detalhes pagos, demonstração fictícia, três lotes coloridos autorizados, ficha bloqueada, teclado, 360 px e nenhum contato ou 404.")
+} catch (erro) {
+  let paginaFalhou = 0
+  for (const contexto of navegador.contexts()) for (const pagina of contexto.pages()) {
+    const nome = `falha-${++paginaFalhou}`
+    await pagina.screenshot({ path: path.join(resultado, `${nome}.png`), fullPage: true }).catch(() => {})
+    const diagnostico = await pagina.evaluate(() => ({
+      url: location.href, largura: innerWidth, larguraDocumento: document.documentElement.scrollWidth,
+      transbordam: [...document.querySelectorAll("body *")].map(el => ({ elemento: el.tagName, classe: el.className, x: el.getBoundingClientRect().x, direita: el.getBoundingClientRect().right })).filter(el => el.direita > innerWidth + 1 || el.x < -1).slice(0, 30),
+    })).catch(() => null)
+    fs.writeFileSync(path.join(resultado, `${nome}.json`), JSON.stringify(diagnostico, null, 2))
+  }
+  throw erro
 } finally {
   await navegador.close()
   await publico?.vite.close()

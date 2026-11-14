@@ -52,6 +52,8 @@ try {
   const cabecalho = page.getByRole('columnheader', { name: 'CAR', exact: true })
   await cabecalho.focus(); await page.keyboard.press('Enter')
   assert.equal(await cabecalho.getAttribute('aria-sort'), 'ascending')
+  // O Tabulator traz fundo claro próprio inclusive no hover; o tema V2 precisa sobrescrever ambos.
+  await cabecalho.hover()
   await conferirPaginaAcessivel(page, AxeBuilder, 'pasta-desktop', saida)
   const download = page.waitForEvent('download')
   await page.getByRole('button', { name: 'Baixar banco + comprador', exact: true }).click()

@@ -1,11 +1,36 @@
-/* Painel da Raíz, na base do guia (docs/design/guia-front-v1.md, item 1): cores só por variável, sem cartão com
-   sombra, sem caixa alta, raio por função (botão e campo 6 px, selo em pílula, mapa 2 px, seção sem raio). */
+/* Visual V2 do analista e comprador. A base compartilhada conserva o produtor claro. */
 @import "../../compartilhado/base.css";
 @import "./fontes.css";
 
+:root {
+  --chao: #0D1311; --vidro: #101714EB; --linha: #26312C;
+  --tinta: #EEF2EC; --pedra: #8E9A92; --mata: #7CC47A; --lima: #C9E88F; --urucum: #E8713A;
+  --t: "Bricolage Grotesque", system-ui, sans-serif;
+  --n: "JetBrains Mono", ui-monospace, monospace;
+  --borda: 1px solid var(--linha);
+  --papel: var(--chao); --superficie: #101714; --nevoa: #1B2621;
+  --mata-texto: var(--mata); --urucum-texto: #F48A59;
+  --agua: #8CC5E9; --agua-texto: var(--agua); --terra: #DBB06B; --terra-texto: var(--terra);
+  --situacao-apta: #7CC47A; --situacao-pendencia: #E3A21A; --situacao-nao-apta: #C9C4BA; --restaurar: #7CC47A;
+  --fonte-titulo: var(--t); --fonte-texto: var(--t); --fonte-codigo: var(--n);
+  --t-texto: 15px; --t-legenda: 13px;
+  --v2-linha: var(--linha); --v2-superficie: var(--nevoa);
+  --v2-lote-selecionado: #E8713A12; --v2-faixa: #C9E88F59; --v2-texto-acao: #1A0D05;
+  --v2-mascara: #0D1311B8;
+}
+html { color-scheme: dark; }
+body { font-family: var(--t); }
+h1, h2, h3 { font-weight: 700; letter-spacing: -.02em; }
+.numero, .num { font-family: var(--n); font-variant-numeric: tabular-nums; }
+.rot { font: 500 11px/1.5 var(--n); text-transform: uppercase; letter-spacing: .08em; color: var(--pedra); }
+@media (max-width: 700px) {
+  :root { --t-texto: 16px; --t-legenda: 16px; }
+}
+
+
 /* Ficha de prospecção: a mesma tipografia e as mesmas cores do mapa. */
 .pagina.prospeccao, .pagina.ficha-terra { max-width: 1180px; }
-.prospeccao section, .ficha-terra section, .filtros-prospeccao { padding-block: var(--e6); border-bottom: var(--linha); }
+.prospeccao section, .ficha-terra section, .filtros-prospeccao { padding-block: var(--e6); border-bottom: var(--borda); }
 .grade-filtros, .grade-terra { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 230px), 1fr)); gap: var(--e4); }
 .grade-terra { margin-block: var(--e4); }
 .grade-terra dt { font-weight: 700; margin-bottom: var(--e2); }
@@ -32,7 +57,7 @@
 .acoes-prospeccao { margin-block: var(--e4); align-items: center; }
 .abrir-car .campo { flex: 1; min-width: min(100%, 250px); }
 .planos-consulta { list-style: none; margin: 0; padding: 0; }
-.planos-consulta li { display: flex; align-items: center; gap: var(--e4); flex-wrap: wrap; padding-block: var(--e3); border-bottom: var(--linha); }
+.planos-consulta li { display: flex; align-items: center; gap: var(--e4); flex-wrap: wrap; padding-block: var(--e3); border-bottom: var(--borda); }
 .compra-consulta { margin-top: var(--e4); }
 .grupos-prospeccao li { margin-block: var(--e3); }
 
@@ -47,7 +72,7 @@
   min-height: 64px;
   padding: var(--e2) var(--e6);
   background: var(--superficie);
-  border-bottom: var(--linha);
+  border-bottom: var(--borda);
 }
 .marca {
   display: flex;
@@ -100,7 +125,7 @@
   place-items: center;
   width: 40px;
   height: 40px;
-  border: var(--linha);
+  border: var(--borda);
   border-radius: 50%;
   color: var(--tinta);
 }
@@ -284,7 +309,7 @@
 .mapa-caixa {
   position: relative;
   height: 640px;
-  border: var(--linha);
+  border: var(--borda);
   border-radius: var(--raio-imagem);
   overflow: hidden;
   background: var(--nevoa);
@@ -307,7 +332,7 @@
   padding: var(--e3) var(--e4);
   list-style: none;
   background: var(--superficie);
-  border: var(--linha);
+  border: var(--borda);
   border-radius: var(--raio-imagem);
   font-size: var(--t-legenda);
 }
@@ -506,7 +531,7 @@
   padding-top: 0;
 }
 .grande + .grande {
-  border-top: var(--linha);
+  border-top: var(--borda);
 }
 .grande-rotulo {
   font-weight: 700;
@@ -627,7 +652,7 @@
 /* blocos da ficha: seções separadas por espaço e linha */
 .bloco {
   padding: var(--e5) 0 var(--e7);
-  border-top: var(--linha);
+  border-top: var(--borda);
 }
 .bloco h2 {
   margin: 0 0 var(--e3);
@@ -657,7 +682,7 @@
   padding: var(--e2) 0;
 }
 .motivos li + li {
-  border-top: var(--linha);
+  border-top: var(--borda);
 }
 .motivo-icone {
   flex-shrink: 0;
@@ -720,7 +745,7 @@
 .certidoes td {
   padding: var(--e1);
   text-align: left;
-  border-bottom: var(--linha);
+  border-bottom: var(--borda);
 }
 .certidoes td {
   font-family: var(--fonte-codigo);
@@ -756,7 +781,7 @@
   word-break: break-all;
 }
 .outros tr + tr > * {
-  border-top: var(--linha);
+  border-top: var(--borda);
 }
 
 /* o que o satélite mostra */
@@ -819,7 +844,7 @@
   flex-direction: column;
   min-height: 0;
   background: var(--superficie);
-  border-right: var(--linha);
+  border-right: var(--borda);
 }
 .gaveta-alca {
   display: none;
@@ -860,7 +885,7 @@
   gap: var(--e3);
   margin: 0;
   padding: var(--e4) 0 0;
-  border-top: var(--linha);
+  border-top: var(--borda);
 }
 .numeros dt {
   font-size: var(--t-legenda);
@@ -878,7 +903,7 @@
 .secao-painel {
   margin-top: var(--e6);
   padding-top: var(--e5);
-  border-top: var(--linha);
+  border-top: var(--borda);
 }
 .secao-painel h2,
 .funil-barras h2 {
@@ -902,7 +927,7 @@
   list-style: none;
 }
 .lista-municipios li + li {
-  border-top: var(--linha);
+  border-top: var(--borda);
 }
 .lista-municipios a {
   display: flex;
@@ -1010,7 +1035,7 @@
 .funil-barras {
   margin-top: var(--e6);
   padding-top: var(--e5);
-  border-top: var(--linha);
+  border-top: var(--borda);
 }
 .fb-cabeca {
   display: flex;
@@ -1133,7 +1158,7 @@ button.link:hover {
   padding: var(--e2) var(--e1);
   text-align: left;
   vertical-align: top;
-  border-bottom: var(--linha);
+  border-bottom: var(--borda);
 }
 .tabela-fazendas thead th {
   font-weight: 700;
@@ -1221,7 +1246,7 @@ button.link:hover {
   top: var(--e3);
   left: var(--e3);
   z-index: 2;
-  border: var(--linha);
+  border: var(--borda);
   border-radius: var(--raio-imagem);
 }
 
@@ -1436,7 +1461,7 @@ button.link:hover {
 .formulario section,
 .formulario > details {
   padding-top: var(--e5);
-  border-top: var(--linha);
+  border-top: var(--borda);
 }
 .formulario h2 {
   margin: 0 0 var(--e3);
@@ -1584,7 +1609,7 @@ button.link:hover {
 }
 .desenho .mapa-desenho {
   height: 360px;
-  border: var(--linha);
+  border: var(--borda);
   border-radius: var(--raio-imagem);
 }
 .entrar-pronto {
@@ -1608,10 +1633,10 @@ button.link:hover {
   margin: var(--e4) 0 0;
   padding: 0;
   list-style: none;
-  border-top: var(--linha);
+  border-top: var(--borda);
 }
 .lista-pedidos li {
-  border-bottom: var(--linha);
+  border-bottom: var(--borda);
 }
 .lista-pedidos a {
   display: flex;
@@ -1660,7 +1685,7 @@ button.link:hover {
   max-height: calc(100vh - 64px);
   overflow: auto;
   padding: var(--e5) var(--e5) var(--e8);
-  border-right: var(--linha);
+  border-right: var(--borda);
   background: var(--superficie);
 }
 .pedido-painel h1 {
@@ -1782,7 +1807,7 @@ button.link:hover {
 .tabela-simples th,
 .tabela-simples td {
   padding: var(--e1) var(--e1) var(--e1) 0;
-  border-bottom: var(--linha);
+  border-bottom: var(--borda);
   text-align: left;
   font-weight: 400;
   vertical-align: top;
@@ -1929,7 +1954,7 @@ button.link:hover {
   align-items: center;
   gap: var(--e2);
   padding-bottom: var(--e2);
-  border-bottom: var(--linha);
+  border-bottom: var(--borda);
 }
 .lista-trocas small {
   display: block;
@@ -2112,7 +2137,7 @@ button.link:hover {
   grid-template-columns: minmax(160px, 1fr) 2fr;
   gap: var(--e1) var(--e4);
   align-items: center;
-  border-top: var(--linha);
+  border-top: var(--borda);
   padding-top: var(--e3);
 }
 .faixa-linha dt {
@@ -2167,7 +2192,7 @@ button.link:hover {
 .marcos td {
   text-align: left;
   padding: var(--e1) var(--e2);
-  border-bottom: var(--linha);
+  border-bottom: var(--borda);
 }
 .marcos td.num {
   text-align: right;
@@ -2187,7 +2212,7 @@ button.link:hover {
 }
 .ordem-restauro select {
   min-height: 40px;
-  border: var(--linha);
+  border: var(--borda);
   border-radius: var(--raio-botao);
   background: var(--superficie);
   padding: 0 var(--e2);
@@ -2273,7 +2298,7 @@ button.link:hover {
 .calendario-filtros input, .calendario-filtros select { min-width: 0; min-height: 48px; width: 100%; padding: var(--e2); border: 1px solid var(--pedra); background: var(--superficie); border-radius: var(--raio-botao); }
 .calendario-lista { padding: 0; list-style: none; }
 .calendario-evento h2 { font-size: var(--t-subtitulo); margin: var(--e2) 0; }
-.calendario-evento { display: grid; grid-template-columns: 140px 1fr; gap: var(--e5); border-top: var(--linha); padding: var(--e5) 0; }
+.calendario-evento { display: grid; grid-template-columns: 140px 1fr; gap: var(--e5); border-top: var(--borda); padding: var(--e5) 0; }
 .calendario-evento p { margin: var(--e2) 0; }
 .calendario-dia { font-variant-numeric: tabular-nums; font-weight: 700; }
 .calendario-dia small { display: block; font-weight: 400; }
@@ -2286,3 +2311,7 @@ button.link:hover {
   .calendario-evento { grid-template-columns: 1fr; gap: var(--e2); }
   .calendario-dia { display: flex; gap: var(--e2); }
 }
+
+/* A ação mantém contraste AA no tema escuro; os selos continuam usando forma e texto. */
+.botao.principal, .botao.principal:hover { color: var(--v2-texto-acao); }
+.selo.conferir, .selo.ruim { color: var(--chao); }
