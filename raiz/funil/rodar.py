@@ -292,6 +292,10 @@ def preparar_estado(op: Opcoes) -> None:
     deixam seguir sem (no computador). Os processos não pedem de novo cada um (RAIZ_MB_BAIXAR=0)."""
     global _MB_ARQ, _TMF, _CAUSAS
     uf = op.uf.upper()
+    if "funil" in op.tarefas and op.espelho is None:
+        from raiz.coleta.car_nacional import preparar
+
+        preparar(uf)
     if "funil" in op.tarefas and hasattr(_R, "garantir_alertas"):
         try:
             _R.garantir_alertas(uf)

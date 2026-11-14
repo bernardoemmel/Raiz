@@ -25,12 +25,14 @@ from raiz.executor.executor import Tarefa, assinatura_arquivo, sha_texto
 CODIGO = {
     "funil": (
         "motor/raiz_estado.py",
+        "raiz/coleta/car_nacional.py",
         "raiz/funil/rodar.py",
         "raiz/funil/ponte.py",
         "raiz/funil/duck.py",
         "raiz/funil/novo.py",
     ),
     "filtros": (
+        "motor/raiz_estado.py",
         "motor/raiz_filtros.py",
         "motor/raiz_extras.py",
         "raiz/funil/rodar.py",
@@ -199,8 +201,14 @@ def externas(nome: str):
     def f(uf: str, cod: int, marca: dict) -> dict:
         esp = _espelho()
         if nome == "funil":
+            from raiz.coleta.car_nacional import GEOBR_ARQUIVO, VERSAO, arquivo_estado
+
             return {
-                "car": assinatura_arquivo(esp / "car" / uf / f"{cod}.parquet", conteudo=True),
+                "car": {
+                    "base": VERSAO,
+                    "estado": assinatura_arquivo(arquivo_estado(uf, _cache_motor())),
+                    "limites": assinatura_arquivo(_cache_motor() / "car_nacional" / GEOBR_ARQUIVO),
+                },
                 "sigef": assinatura_arquivo(esp / "sigef" / uf / f"{cod}.parquet", conteudo=True),
                 "ibama": assinatura_arquivo(esp / "ibama" / uf / f"{cod}.parquet", conteudo=True),
                 "alertas": _alertas_na_caixa(uf, marca.get("caixa")),

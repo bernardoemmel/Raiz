@@ -31,10 +31,12 @@ services:
   migrar:
     environment: *teste-ambiente
   api:
+    command: [python, -m, scripts.agentes_car_teste, api, --host, 0.0.0.0, --porta, "8000"]
     environment: *teste-ambiente
     network_mode: service:keycloak
     ports: !reset []
   worker:
+    command: [python, -m, scripts.agentes_car_teste, api, worker]
     environment: *teste-ambiente
     network_mode: service:keycloak
     depends_on:

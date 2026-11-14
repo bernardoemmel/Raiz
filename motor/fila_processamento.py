@@ -314,24 +314,23 @@ def admitir(
     consumir_fila: bool = True,
     funis_prontos: set[str] | None = None,
     ref_funil: str | None = None,
+    falhas_funil: dict[str, str] | None = None,
+    versao_funil: str | None = None,
 ) -> list[dict]:
     ativas, legados = reconciliar(estado, runs, e_unidade)
     promover_continuacoes(estado)
     if funis_prontos is not None:
         anterior = estado.get("prioridade_funil", {})
-        frente = [uf for uf in anterior.get("frente", []) if uf not in funis_prontos]
-        for uf in ORDEM_FUNIL:
-            if len(frente) >= 3:
-                break
-            if uf not in funis_prontos and uf not in frente:
-                frente.append(uf)
+        frente = [uf for uf in ORDEM_FUNIL if uf not in funis_prontos]
         estado["prioridade_funil"] = {
             "prontos": sorted(funis_prontos), "frente": frente,
             "ref": (anterior.get("ref") or ref_funil) if frente else None,
+            "versao_funil": (anterior.get("versao_funil") or (
+                versao_funil if anterior.get("ref") in (None, ref_funil) else None
+            )) if frente else None,
         }
     prioridade = estado.get("prioridade_funil", {})
     frente = prioridade.get("frente")
-    ufs_ativas = {uf for u in ativas if (uf := _uf_do_funil(u)) is not None}
     livres = max(0, min(limite, TETO) - len(estado["reservas"]) - legados)
     if max_novos is not None:
         livres = min(livres, max_novos)
@@ -341,14 +340,27 @@ def admitir(
                   and (not _uf_do_funil(p["unidade"]) or not frente
                        or not prioridade.get("ref") or p.get("ref") == prioridade["ref"])}
     manut_ativas = sum(u in manutencao for u in ativas)
-    for pedido in [*(estado["fila"] if consumir_fila else []), *candidatos]:
+    pedidos = [*(estado["fila"] if consumir_fila else []), *candidatos]
+    tentadas = {(p["unidade"], p.get("ref")) for p in estado["fila"] if p.get("falhas")}
+    if frente:
+        falhas = {(_uf_do_funil(u), ref) for u, ref in tentadas}
+        if prioridade.get("versao_funil"):
+            falhas.update((uf, prioridade["ref"]) for uf, versao in (falhas_funil or {}).items()
+                          if versao == prioridade["versao_funil"])
+        # Uma UF com erro passa a vez. Só retenta depois das candidatas sem erro;
+        # erro em versão anterior não impede executar uma correção aprovada.
+        pedidos.sort(key=lambda p: (
+            (_uf_do_funil(p["unidade"]), p.get("ref")) in falhas,
+            ORDEM_FUNIL.index(uf) if (uf := _uf_do_funil(p["unidade"])) else len(ORDEM_FUNIL),
+        ))
+    for pedido in pedidos:
         if len(escolhidos) >= livres:
             break
         if pedido.get("bloqueado"):
             continue
         uf = _uf_do_funil(pedido["unidade"])
         if frente and uf is not None:
-            if uf not in frente or (uf not in ufs_ativas and len(ufs_ativas) >= 3):
+            if uf not in frente:
                 continue
             if pedido.get("refazer"):
                 continue  # preserva o pedido; nenhuma manutenção durante a conclusão dos funis
@@ -356,6 +368,8 @@ def admitir(
                 continue  # pedidos antigos ficam guardados; as 27 UFs usam a versão fixada
         if pedido["unidade"] in bloqueadas and pedido["id"] not in pendentes:
             continue  # a rodada automática também não reabre cancelamento/erro persistente
+        if frente and (pedido["unidade"], pedido.get("ref")) in tentadas and pedido["id"] not in pendentes:
+            continue  # conserva a contagem de falhas; candidato automático não cria tentativa zerada
         if ocupada(pedido["unidade"], ativas):
             continue
         manut = pedido["unidade"] in manutencao
@@ -363,8 +377,6 @@ def admitir(
             continue
         estado["reservas"].append({"run_id": run_id, "unidade": pedido["unidade"], "pedido": pedido})
         ativas.add(pedido["unidade"])
-        if uf is not None:
-            ufs_ativas.add(uf)
         escolhidos.append(pedido)
         manut_ativas += manut
     ids = {p["id"] for p in escolhidos}
@@ -407,6 +419,8 @@ def reservar(
     repetir: bool = True,
     reserva_rodada: bool = False,
     funis_prontos: set[str] | None = None,
+    falhas_funil: dict[str, str] | None = None,
+    versao_funil: str | None = None,
 ) -> list[dict]:
     repo = Repositorio()
     run_id = os.environ["GITHUB_RUN_ID"]
@@ -450,6 +464,8 @@ def reservar(
             estado, runs, run_id, novos, e_unidade, limite, max_novos, manutencao, limite_manutencao, consumir_fila,
             funis_prontos=funis_prontos,
             ref_funil=ref_funil,
+            falhas_funil=falhas_funil,
+            versao_funil=versao_funil,
         )
         return escolhidos, [p for p in estado["fila"] if p.get("bloqueado")]
 
