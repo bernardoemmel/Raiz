@@ -533,6 +533,10 @@ def _gh_com_commits_de_trava(gh, criado_em):
 
     def handler(req):
         p = req.url.path
+        if p.endswith("/git/trees") and req.method == "POST":
+            arvore = json.loads(req.content)["tree"]
+            assert [a["path"] for a in arvore] == ["trava.txt"]  # nunca a árvore do repositório
+            return httpx.Response(201, json={"sha": "c" * 40})
         if "/git/commits" in p:
             if req.method == "POST":
                 return httpx.Response(201, json={"sha": "n" * 40})

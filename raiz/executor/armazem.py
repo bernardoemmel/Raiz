@@ -856,16 +856,19 @@ class ArmazemRelease:
 
     def _commit_da_trava(self, h: dict, nome: str, sha: str) -> str:
         """Commit próprio da trava, cuja mensagem diz quando e por qual job ela foi tomada. É o que permite
-        confirmar depois que o dono morreu. Se a API recusar, segue com o commit de base (formato antigo)."""
+        confirmar depois que o dono morreu. A árvore tem só um arquivo com essa linha: um commit sem pai com a
+        árvore do repositório faria a varredura de segredos reler o projeto inteiro com outro SHA. Se a API
+        recusar, segue com o commit de base (formato antigo)."""
         try:
-            base = self.cli.get(f"{self.API}/repos/{self.repo}/git/commits/{sha}", headers=h)
-            arvore = (base.json().get("tree") or {}).get("sha") if base.status_code == 200 else None
-            if not arvore:
-                return sha
             dono = f"{os.environ.get('GITHUB_RUN_ID', 'local')}-{os.environ.get('GITHUB_JOB', '')}"
+            linha = f"raiz-trava {nome} {int(time.time())} {dono}"
+            arvore = self.cli.post(f"{self.API}/repos/{self.repo}/git/trees", headers=h,
+                                   json={"tree": [{"path": "trava.txt", "mode": "100644", "type": "blob",
+                                                   "content": linha + "\n"}]})  # fmt: skip
+            if arvore.status_code != 201 or not arvore.json().get("sha"):
+                return sha
             r = self.cli.post(f"{self.API}/repos/{self.repo}/git/commits", headers=h,
-                              json={"message": f"raiz-trava {nome} {int(time.time())} {dono}",
-                                    "tree": arvore, "parents": []})  # fmt: skip
+                              json={"message": linha, "tree": arvore.json()["sha"], "parents": []})  # fmt: skip
             return r.json().get("sha") or sha if r.status_code == 201 else sha
         except Exception:
             return sha
