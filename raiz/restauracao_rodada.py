@@ -402,7 +402,8 @@ def reunir(entradas: Path, calculados: Path, destino: Path) -> dict:
     resumos = {}
     for nome in OPCOES:
         print(f"Montando a opção {nome}", flush=True)
-        lote = L.montar(dados, opcao=nome, c=c, r=r, sensibilidade_ligada=False)
+        # Reexecução do retrato científico congelado. Novos lotes passam por L.montar com WFS atual.
+        lote = L.montar(dados, opcao=nome, c=c, r=r, sensibilidade_ligada=False, conferir_car=False)
         lote["resumo"]["trilha_decisoes_entrada"] = "decisoes_entrada.jsonl, no pacote de previsões da rodada"
         LR.gravar_lote(lote, produto / nome, c=c, r=r)
         resumos[nome] = lote["resumo"]

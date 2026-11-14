@@ -206,6 +206,27 @@ def _pagamento(c: CamposPedido) -> str:
     return "participacao"
 
 
+def _conferir_car(engine: Engine, oferta: pd.DataFrame, codigos: set[str]) -> None:
+    from raiz.coleta.car_conferencia import conferir_banco
+
+    selecionadas = oferta[oferta.cod_imovel.isin(codigos)]
+    if set(selecionadas.cod_imovel) != codigos or selecionadas[["uf", "cod_ibge"]].isna().any().any():
+        raise ErroPedido("CAR selecionado sem município para conferência")
+    conferir_banco(engine, selecionadas)
+
+
+def _opcoes_conferidas(engine: Engine, c: CamposPedido, nv, fora, hist):
+    vistos: set[str] = set()
+    while True:
+        oferta = _oferta(engine, c)
+        b, ops, f = Z.opcoes(oferta, c, nv, fora, hist, _pagamento(c))
+        novas = {i["cod_imovel"] for o in ops for i in o["itens"]} - vistos
+        if not novas:
+            return b, ops, f
+        _conferir_car(engine, oferta, novas)
+        vistos.update(novas)
+
+
 # --- pedido ---------------------------------------------------------------------------------------------------------
 
 
@@ -237,7 +258,7 @@ def criar_pedido(engine: Engine, cliente_id: int, campos: CamposPedido | dict) -
     with engine.connect() as con:
         nv, fora = niveis(con), fora_para(con, cliente_id)
         hist = A.historico_do_banco(con)
-    b, ops, _ = Z.opcoes(_oferta(engine, c), c, nv, fora, hist, _pagamento(c))
+    b, ops, _ = _opcoes_conferidas(engine, c, nv, fora, hist)
     pid = uuid.uuid4()
     with engine.begin() as con:
         con.execute(
@@ -311,6 +332,9 @@ def _alertas(con, pedido_id) -> list[dict]:
 
 
 _ITEM_BASICO = (
+    "car_conferido_em",
+    "car_conferencia",
+    "car_situacao",
     "cod_imovel",
     "cod_ibge",
     "municipio",
@@ -474,6 +498,9 @@ def mudar_lote(engine: Engine, pedido_id: str, cliente_id: int, mudanca: dict) -
         lote.append(entra)
         trocas[entra] = cod
     oferta = _oferta(engine, c)
+    _conferir_car(engine, oferta, set(lote + reserva))
+    oferta = _oferta(engine, c)
+    oferta = oferta[oferta.elegivel & ~oferta.problema]
     f = oferta[oferta.cod_imovel.isin(lote + reserva)].reset_index(drop=True)
     idx = {k: i for i, k in enumerate(f.cod_imovel)}
     chance = A.chances(f, nv, None, _pagamento(c))
@@ -1600,7 +1627,7 @@ def vigiar(engine: Engine, fatos_de=None) -> dict:
                     notificar(con, p["cliente_id"], p["id"], "fazenda_com_problema", tx, canais=canais_do_fato)
         if p["estado"] not in ("lote_montado", "faltou"):
             continue
-        b, ops, _ = Z.opcoes(oferta, c, nv, fora, hist, _pagamento(c))
+        b, ops, _ = _opcoes_conferidas(engine, c, nv, fora, hist)
         antigo = {o["id"]: o for o in s["opcoes"]}
         for o in ops:
             a = antigo.get(o["id"])

@@ -21,7 +21,7 @@ from raiz.publica import conta as CT
 from raiz.publica import recibos
 from testes.conftest import AMOSTRA
 
-pytestmark = pytest.mark.banco
+pytestmark = [pytest.mark.banco, pytest.mark.usefixtures("car_conferido_sintetico")]
 TOKEN = "token-interno-de-teste"
 TODA_TERRA = ["matricula_conferida", "matricula_a_conferir", "concessao", "assentamento", "posse_em_titulacao"]
 CAMPOS = {"meta": {"tipo": "creditos", "valor": 400_000}, "onde": {"ufs": ["PA"], "biomas": ["Amazônia"]},

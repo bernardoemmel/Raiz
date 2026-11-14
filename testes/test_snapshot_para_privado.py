@@ -541,8 +541,9 @@ def test_estadual_filho_confere_antes_de_ler_e_proibe_recalculo(tmp_path, monkey
         chamadas.append("ler")
         return dados
 
-    def montar(recebido):
+    def montar(recebido, *, conferir_car):
         assert recebido is dados and chamadas == ["conferir", "ler"]
+        assert conferir_car is False  # Retrato histórico não consulta o cadastro atual.
         chamadas.append("montar")
         return {
             "resumo": {

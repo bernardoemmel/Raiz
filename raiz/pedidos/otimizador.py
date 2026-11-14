@@ -454,6 +454,7 @@ def _faixa_ponderada(f: pd.DataFrame, col: str, peso: np.ndarray) -> float | Non
 
 def fazenda_do_lote(li: dict, papel: str, nivel: str, trocou: str | None = None) -> dict:
     return {
+        **{k: li.get(k) for k in ("car_conferido_em", "car_conferencia", "car_situacao")},
         "cod_imovel": li["cod_imovel"], "cod_ibge": str(li["cod_ibge"]) if li["cod_ibge"] is not None else "",
         "municipio": li.get("municipio") or "", "uf": li.get("uf") or "", "papel": papel,
         "hectares": round(float(li["area_ha"]), 2),

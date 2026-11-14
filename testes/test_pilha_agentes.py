@@ -19,6 +19,21 @@ pilha = _modulo("pilha_agentes")
 agenda = _modulo("agendar_servicos")
 
 
+@pytest.mark.parametrize(
+    "url",
+    [
+        "postgresql://localhost/raiz",
+        "postgresql://externo/raiz_agentes_teste",
+        "postgresql://banco/producao",
+    ],
+)
+def test_car_sintetico_recusa_banco_fora_da_pilha_descartavel(url):
+    from scripts.agentes_car_teste import validar_url
+
+    with pytest.raises(ValueError, match="base descartável"):
+        validar_url(url)
+
+
 def test_bootstrap_gera_segredos_privados_distintos_e_preserva_reinicio(tmp_path):
     a, b = tmp_path / "a.env", tmp_path / "b.env"
     pilha.ambiente_teste(a)

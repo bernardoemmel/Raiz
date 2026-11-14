@@ -123,6 +123,13 @@ test("login único → conta paga → milhão no Pará → contato bloqueado →
   expect(pedido.campos.onde.ufs).toEqual(["PA"])
   expect(pedido.base.alcanca_meta).toBe(true)
   expect(pedido.opcoes).toHaveLength(3)
+  for (const opcao of pedido.opcoes) {
+    for (const fazenda of opcao.itens) {
+      expect(fazenda.car_situacao).toBe("conferido")
+      expect(fazenda.car_conferido_em).toBeTruthy()
+      expect(fazenda.car_conferencia).toMatch(/^CAR conferido em \d{4}-\d{2}-\d{2}$/)
+    }
+  }
   await expect(page.getByRole("heading", { name: "Quanto existe na nossa base" })).toBeVisible()
   await expect(page.getByRole("tab")).toHaveText(["Mais barata", "Mais segura", "Mais compacta"])
   for (const nome of ["Mais barata", "Mais segura", "Mais compacta"]) {

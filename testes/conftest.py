@@ -42,3 +42,11 @@ def con(banco_url):
     with eng.begin() as c:
         yield c
     eng.dispose()
+
+
+@pytest.fixture
+def car_conferido_sintetico(monkeypatch):
+    """Cenários de pedidos com amostra congelada; o WFS e a carga têm testes próprios."""
+    from raiz.pedidos import servico
+
+    monkeypatch.setattr(servico, "_conferir_car", lambda *a: None)

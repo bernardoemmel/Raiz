@@ -30,7 +30,7 @@ def amostra(tmp_path_factory):
 
 @pytest.fixture(scope="module")
 def lote(amostra):
-    return L.montar(amostra)
+    return L.montar(amostra, conferir_car=False)
 
 
 def test_um_so_calculo_da_fazenda_ao_lote(amostra):
@@ -232,7 +232,7 @@ def test_lote_do_para_inteiro_fecha_ou_diz_o_que_falta(monkeypatch):
         contexto.setattr(historico, "calcular_municipio", nao_recalcular)
         contexto.setattr(L, "R", historico)
         dados = L.ler_uf(pasta.parent, "PA")
-        lote = L.montar(dados)
+        lote = L.montar(dados, conferir_car=False)
     r = lote["resumo"]
     assert r["municipios"]["no_estado"] == 144 and r["municipios"]["lidos"] == 144
     if r["fecha_com_reserva"]:
@@ -294,7 +294,7 @@ def test_lote_traz_faixa_mme102_parcelas_e_sensibilidade(lote):
 def test_rejeita_mistura_de_modelos_antigos():
     antigos = L.ler_pasta(AMOSTRA, "PA")
     with pytest.raises(ValueError, match="outra versão"):
-        L.montar(antigos)
+        L.montar(antigos, conferir_car=False)
 
 
 def test_tres_opcoes_auditadas_e_sem_dupla_mitigacao(amostra, monkeypatch):
@@ -307,7 +307,7 @@ def test_tres_opcoes_auditadas_e_sem_dupla_mitigacao(amostra, monkeypatch):
         return resolver(f, ped, opcao, chance, **kw)
 
     monkeypatch.setattr(L.Z, "resolver", conferir)
-    opcoes = L.montar_opcoes(amostra, sensibilidade_ligada=False)
+    opcoes = L.montar_opcoes(amostra, sensibilidade_ligada=False, conferir_car=False)
     assert set(opcoes) == set(chamadas) == {"barata", "segura", "compacta"}
     for opcao, lote in opcoes.items():
         resumo = lote["resumo"]
@@ -332,7 +332,7 @@ def test_sobreposicao_confirmada_sai_do_lote_sem_apagar_potencial(amostra):
     cod = dados["oferta"].loc[candidata, "cod_imovel"]
     dados["oferta"].loc[candidata, "salvaguardas_planejamento"] = False
     dados["oferta"].loc[candidata, "salvaguardas_pendencias"] = "jurisdicional_sobreposicao"
-    lote = L.montar(dados, sensibilidade_ligada=False)
+    lote = L.montar(dados, sensibilidade_ligada=False, conferir_car=False)
     assert cod not in set(lote["tabela"].query("papel in ['titular', 'reserva']").cod_imovel)
     assert any(d["cod_imovel"] == cod and "salvaguarda" in d["texto"] for d in lote["decisoes"])
     assert lote["resumo"]["oferta"]["fazendas"] == len(amostra["oferta"])

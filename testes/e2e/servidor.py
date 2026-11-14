@@ -10,9 +10,13 @@ import datetime as dt
 import json
 import os
 import secrets
+import shutil
 from pathlib import Path
 
+import geopandas as gpd
+import pandas as pd
 import uvicorn
+from shapely.geometry import box
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import make_url
 
@@ -35,6 +39,7 @@ def banco():
 def responder_interesses(pedido_id: str) -> None:
     """Substitui somente as respostas externas dos donos, usando o serviço real."""
     engine = create_engine(banco())
+    car_sintetico()
     try:
         for cod in servico.contatados_do_pedido(engine, pedido_id):
             servico.registrar_resposta(
@@ -44,6 +49,37 @@ def responder_interesses(pedido_id: str) -> None:
             raise RuntimeError("A oferta da amostra não fechou o grupo de um milhão de créditos")
     finally:
         engine.dispose()
+
+
+def car_sintetico() -> None:
+    """Simula só o WFS; conferência, marcas, carga e seleção continuam reais."""
+    from raiz.coleta import car_conferencia
+    from raiz.executor import sincronizar
+
+    banco()  # Esta substituição só existe no servidor de teste com banco local descartável.
+    espelho = Path(os.environ["RAIZ_E2E_ESTADO"]) / "car"
+    pasta = espelho / "saida" / "PA"
+    pasta.mkdir(parents=True, exist_ok=True)
+    for arquivo in (RAIZ_REPO / "dados" / "amostra").glob("*.csv"):
+        destino = pasta / arquivo.name
+        if not destino.exists():
+            shutil.copyfile(arquivo, destino)
+    quadros = []
+    for arquivo in pasta.glob("imoveis_*.csv"):
+        t = pd.read_csv(arquivo, low_memory=False)
+        g = gpd.GeoDataFrame(t, geometry=[box(-47, -1, -46.99, -0.99)] * len(t), crs=4674)
+        geo = pasta / arquivo.name.replace("imoveis_", "geo_").replace(".csv", ".parquet")
+        if not geo.exists():
+            g[["cod_imovel", "geometry"]].to_parquet(geo)
+        quadros.append(g)
+    atual = gpd.GeoDataFrame(pd.concat(quadros, ignore_index=True), crs=4674)
+
+    def consultar(uf, codigos):
+        assert uf == "PA" and codigos <= set(atual.cod_imovel)
+        return atual[atual.cod_imovel.isin(codigos)].copy()
+
+    sincronizar.espelho_local = lambda: espelho
+    car_conferencia.consultar = consultar
 
 
 def evidencias_sinteticas(engine) -> None:
@@ -81,6 +117,7 @@ def servir() -> None:
     desfazer(url)
     migrar(url)
     engine = create_engine(url)
+    car_sintetico()
     carregar_pasta(engine, RAIZ_REPO / "dados" / "amostra", dt.date(2026, 11, 12))
     evidencias_sinteticas(engine)
 

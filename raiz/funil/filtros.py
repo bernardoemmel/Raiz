@@ -9,33 +9,15 @@ from __future__ import annotations
 
 import geopandas as gpd
 import pandas as pd
-import shapely
 
 from raiz.funil import restricoes
 
 
 def embargos_ativos(df: pd.DataFrame, cod: int) -> gpd.GeoDataFrame:
-    """Somente geometria dos termos ativos do município; os atributos do termo não entram na saída."""
-    exigidas = {"COD_MUNICIPIO", "SIT_CANCELADO", "SIT_DESEMBARGO"}
-    faltam = exigidas - set(df.columns)
-    if faltam:
-        raise ValueError(f"embargos sem colunas obrigatórias: {sorted(faltam)}")
-    codigos = pd.to_numeric(df.COD_MUNICIPIO, errors="coerce")
-    ativos = df.loc[(codigos == cod) & (df.SIT_CANCELADO != "S") & (df.SIT_DESEMBARGO != "S")]
-    if isinstance(ativos, gpd.GeoDataFrame):
-        geoms = ativos.geometry
-        g = gpd.GeoDataFrame(geometry=geoms, crs=ativos.crs).to_crs(4674)
-    else:
-        if "GEOM_AREA_EMBARGADA" not in ativos:
-            raise ValueError("embargos sem geometria")
-        # Erro de WKT não deve produzir um falso zero de restrição.
-        geoms = shapely.from_wkt(ativos.GEOM_AREA_EMBARGADA.where(ativos.GEOM_AREA_EMBARGADA.notna(), None))
-        g = gpd.GeoDataFrame(geometry=geoms, crs=4674)
-    if g.geometry.isna().any() or g.geometry.is_empty.any():
-        raise ValueError("embargo ativo com geometria ausente ou vazia; cálculo de restrições bloqueado")
-    if any(restricoes._poligonos(geom).is_empty for geom in g.geometry):
-        raise ValueError("embargo ativo sem geometria poligonal após reparo; cálculo de restrições bloqueado")
-    return g
+    """Polígonos ativos e pendências localizadas, com a mesma regra do funil."""
+    from motor.raiz_estado import embargos_municipio
+
+    return embargos_municipio(df, cod)
 
 
 def calcular(g: gpd.GeoDataFrame, motor_filtros, embargos: gpd.GeoDataFrame, con=None) -> pd.DataFrame:
@@ -45,6 +27,7 @@ def calcular(g: gpd.GeoDataFrame, motor_filtros, embargos: gpd.GeoDataFrame, con
     a conexão tanto nos cruzamentos brutos quanto no cruzamento da camada limpa.
     """
     t = motor_filtros.filtros(g)
+    pendencias = motor_filtros.R.marcar_embargos_a_conferir(g, embargos)
     base = g.to_crs(4674)
     if len(base):
         x0, y0, x1, y1 = base.total_bounds
@@ -65,4 +48,8 @@ def calcular(g: gpd.GeoDataFrame, motor_filtros, embargos: gpd.GeoDataFrame, con
     base.geometry = base.geometry.map(restricoes._poligonos)
     areas = restricoes.por_imovel(base, limpas, con).add_prefix("restricao_")
     areas["restricao_total_ha"] = areas.sum(axis=1)
-    return t.merge(areas, left_on="cod_imovel", right_index=True, how="left", validate="one_to_one")
+    t = t.merge(areas, left_on="cod_imovel", right_index=True, how="left", validate="one_to_one")
+    t = t.merge(pendencias, left_on="cod_imovel", right_index=True, how="left", validate="one_to_one")
+    t.loc[t.embargo_a_conferir, "filtro_territorial"] = "bloqueio"
+    t.loc[t.embargo_a_conferir, ["restricao_embargo_ha", "restricao_total_ha"]] = float("nan")
+    return t

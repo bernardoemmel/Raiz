@@ -253,6 +253,8 @@ def planejar(pedidos: list[str], refazer: set[str], modo: str = "automatico", li
     funis_prontos = {uf for uf, total in S.TOTAL_IBGE.items()
                     if (pub.get(uf, {}).get("municipios", 0) + (pub.get(uf, {}).get("sem_imoveis") or 0)) >= total}
     prioridade = prioridade_solicitada and len(funis_prontos) < len(S.TOTAL_IBGE)
+    falhas_funil = {uf: (e.get("versoes") or {}).get("funil") for uf, e in pub.items()
+                   if e.get("erros") or any(f.get("erros") for f in ((e.get("motor") or {}).get("fatias") or {}).values())}
     if prioridade:
         from fila_processamento import ORDEM_FUNIL
         ordem = [uf for uf in ORDEM_FUNIL if uf in S.ORDEM]
@@ -303,18 +305,6 @@ def planejar(pedidos: list[str], refazer: set[str], modo: str = "automatico", li
             filas[classe].append(u)
             linhas.append((u, e, razao, classe))
     escolhidas = filas["novo"][:vagas]
-    if prioridade and not no_actions:
-        frente = [uf for uf in ordem if uf not in funis_prontos][:3]
-        ufs_ocupadas = {S.ler_unidade(u)[0] for u in ativas}
-        escolhidas = []
-        for u in filas["novo"]:
-            uf = S.ler_unidade(u)[0]
-            if uf not in frente or (uf not in ufs_ocupadas and len(ufs_ocupadas) >= 3):
-                continue
-            if len(escolhidas) >= vagas:
-                break
-            escolhidas.append(u)
-            ufs_ocupadas.add(uf)
     if modo != "fila" and not prioridade:
         escolhidas += filas["manutencao"][:max(0, min(vagas - len(escolhidas), vagas_manut))]
     matriz = escolhidas
@@ -326,7 +316,8 @@ def planejar(pedidos: list[str], refazer: set[str], modo: str = "automatico", li
         if prioridade:
             manutencao = set()
         candidatos = filas["novo"] if modo == "fila" else filas["novo"] + filas["manutencao"]
-        opcoes = {"funis_prontos": funis_prontos} if prioridade_solicitada else {}
+        opcoes = {"funis_prontos": funis_prontos, "falhas_funil": falhas_funil,
+                  "versao_funil": (atual_exec or {}).get("funil")} if prioridade_solicitada else {}
         matriz = reservar(candidatos, pedidos, refazer, _e_unidade, VAGAS, continuacao,
                           None, manutencao, 0 if prioridade else VAGAS_MANUTENCAO, **opcoes)
         escolhidas = [p["unidade"] for p in matriz]
