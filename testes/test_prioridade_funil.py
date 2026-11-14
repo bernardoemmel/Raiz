@@ -166,3 +166,13 @@ def test_plano_ignora_manutencao_mesmo_pedida_ou_com_codigo_novo(monkeypatch):
     assert all(not u.startswith("AC") for u in O.planejar(["AC", "TO-1001"], set()))
     with pytest.raises(ValueError, match="manutenção suspensa"):
         O.planejar(["TO-1001"], {"funil"})
+
+
+def test_conserto_de_infraestrutura_com_mesma_ciencia_chega_aos_jobs():
+    guardado = {**_pedido("TO-1001"), "ref": "a" * 40, "falhas": 1}
+    estado = {**F.vazio(), "planejadores": ["1"], "fila": [guardado],
+              "prioridade_funil": {"ref": "a" * 40, "versao_funil": "funil-v2", "frente": ["TO"]}}  # fmt: skip
+    escolhidos = F.admitir(estado, {"1": _run()}, "1", [], O._e_unidade, funis_prontos=set(),
+                          ref_funil="b" * 40, versao_funil="funil-v2")  # fmt: skip
+    assert estado["prioridade_funil"]["ref"] == "b" * 40
+    assert escolhidos == [{**guardado, "ref": "b" * 40}]
