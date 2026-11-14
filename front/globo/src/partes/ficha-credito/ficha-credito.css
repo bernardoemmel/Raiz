@@ -6,7 +6,7 @@
 .ficha-lote-identidade { margin-block: var(--e5); overflow-wrap: anywhere; }
 .ficha-lote-identidade dt { font-weight: 700; }
 .ficha-lote-identidade dd { margin: var(--e1) 0 var(--e3); }
-.secao-ficha-banco { margin-block: var(--e7); padding-top: var(--e4); border-top: var(--linha); }
+.secao-ficha-banco { margin-block: var(--e7); padding-top: var(--e4); border-top: var(--borda); }
 .secao-ficha-banco h2 { margin: 0; }
 .revisao-ficha, .fonte-ficha { color: var(--pedra); }
 .revisao-ficha { margin-top: var(--e2); }

@@ -6,6 +6,10 @@
 .pasta-pagina dd{margin-left:16px}.pasta-grade{max-width:100%;font:inherit;border-color:var(--nevoa)}
 .pasta-grade.tabulator{background:var(--papel)}
 .pasta-grade.tabulator .tabulator-header{color:var(--tinta);background:var(--nevoa)}.pasta-grade .tabulator-row{color:var(--tinta);background:var(--superficie)}
+.pasta-grade.tabulator .tabulator-header .tabulator-col{color:var(--tinta);background:var(--nevoa);border-color:var(--linha)}
+.pasta-grade.tabulator .tabulator-header .tabulator-col.tabulator-sortable.tabulator-col-sorter-element:hover{background:var(--superficie)}
+.pasta-grade.tabulator .tabulator-header .tabulator-col[aria-sort="none"] .tabulator-arrow,.pasta-grade.tabulator .tabulator-header .tabulator-col[aria-sort="ascending"] .tabulator-arrow{border-bottom-color:var(--pedra)}
+.pasta-grade.tabulator .tabulator-header .tabulator-col[aria-sort="descending"] .tabulator-arrow{border-top-color:var(--pedra)}
 .pasta-grade .tabulator-row.tabulator-row-even{background:var(--papel)}.pasta-grade .tabulator-cell{white-space:normal}
 .pasta-pagina a:focus-visible,.pasta-pagina button:focus-visible,.pasta-pagina select:focus-visible,.pasta-pagina summary:focus-visible{outline:3px solid var(--mata);outline-offset:3px}
 @media(max-width:600px){.pasta-pagina{padding:16px}.pasta-comandos{display:grid}.pasta-comandos select,.pasta-comandos button{width:100%}}

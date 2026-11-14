@@ -1,7 +1,8 @@
 /** Cartografia nacional preparada em um único estilo; as fontes recebem dados quando chegarem. */
 import type { ExpressionSpecification, LayerSpecification, SourceSpecification } from "maplibre-gl"
+import { COR_MAPA_V2 } from "../../../compartilhado/cores"
 import type { Geo } from "../../../compartilhado/dados"
-import { COR } from "../../../compartilhado/cores"
+
 import { ZOOM_IMOVEIS } from "./cartografia"
 
 const ZOOM_FAZENDAS = ZOOM_IMOVEIS
@@ -28,28 +29,28 @@ export function camadasNacionais(processadas: readonly string[] = []): LayerSpec
   // As cores constantes reutilizam os programas gráficos do fundo. Os filtros são mutuamente exclusivos.
   const processado = filtroEstadosProcessados(processadas)
   add({ id: "estados-preenchimento", type: "fill", source: "brasil-estados", filter: processado as never,
-    paint: { "fill-antialias": false, "fill-color": COR.restaurar, "fill-opacity": 0.35 } })
+    paint: { "fill-antialias": false, "fill-color": COR_MAPA_V2.terra, "fill-opacity": 0 } })
   add({ id: "estados-sem-dados", type: "fill", source: "brasil-estados", filter: ["!", processado] as never,
-    paint: { "fill-antialias": false, "fill-color": COR.nevoa, "fill-opacity": 0.8 } })
+    paint: { "fill-antialias": false, "fill-color": COR_MAPA_V2.terra, "fill-opacity": 0 } })
   // divisa dos estados; o estado sob o dedo ou o mouse (na escala do país) e o escolhido ganham o contorno em tinta
   add({
     id: "estados-linha",
     type: "line",
     source: "brasil-estados",
     paint: {
-      "line-color": COR.pedra,
-      "line-width": 0.6,
+      "line-color": COR_MAPA_V2.estado,
+      "line-width": 0.8,
       "line-opacity": ["interpolate", ["linear"], ["zoom"], 4, 0.9, ZOOM_FAZENDAS, 0.5],
     },
   })
   add({ id: "estado-sobre", type: "line", source: "brasil-estados", filter: ["==", ["get", "uf"], ""],
-    paint: { "line-color": COR.tinta, "line-width": 2, "line-opacity": ["interpolate", ["linear"], ["zoom"], 4, 0.9, ZOOM_FAZENDAS, 0.5] } })
+    paint: { "line-color": COR_MAPA_V2.destaque, "line-width": 2, "line-opacity": ["interpolate", ["linear"], ["zoom"], 4, 0.9, ZOOM_FAZENDAS, 0.5] } })
   add({
     id: "estado-escolhido",
     type: "line",
     source: "brasil-estados",
     filter: ["==", ["get", "uf"], ""],
-    paint: { "line-color": COR.tinta, "line-width": ["interpolate", ["linear"], ["zoom"], 4, 1.5, 8, 2.5] },
+    paint: { "line-color": COR_MAPA_V2.destaque, "line-width": ["interpolate", ["linear"], ["zoom"], 4, 1.5, 8, 2.5] },
   })
   // nome do estado e o que a Raíz já leu dele; o que ainda não foi processado em pedra
   for (const semDados of [true, false]) add(
@@ -58,7 +59,7 @@ export function camadasNacionais(processadas: readonly string[] = []): LayerSpec
       type: "symbol",
       source: "estados-rotulos",
       filter: [semDados ? "==" : "!=", ["get", "s"], 0],
-      maxzoom: ZOOM_ROTULO_ESTADO,
+      minzoom: 5, maxzoom: ZOOM_ROTULO_ESTADO,
       layout: {
         "text-field": [
           "format",
@@ -76,8 +77,8 @@ export function camadasNacionais(processadas: readonly string[] = []): LayerSpec
         "symbol-sort-key": ["get", "ordem"],
       },
       paint: {
-        "text-color": semDados ? COR.pedra : COR.tinta,
-        "text-halo-color": COR.superficie,
+        "text-color": semDados ? COR_MAPA_V2.rotulo : COR_MAPA_V2.destaque,
+        "text-halo-color": COR_MAPA_V2.terra,
         "text-halo-width": 1.5,
       },
     },

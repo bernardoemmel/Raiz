@@ -1,9 +1,9 @@
 /** Regras do mapa de levantamento: potencial agregado de longe, limites transparentes de perto. */
 import type { ExpressionSpecification, LayerSpecification } from "maplibre-gl"
-import { COR } from "../../../compartilhado/cores"
+import { COR, COR_MAPA_V2 } from "../../../compartilhado/cores"
 import type { Geo } from "../../../compartilhado/dados"
 
-export const ZOOM_IMOVEIS = 12
+export const ZOOM_IMOVEIS = 9
 
 /** Área em coordenadas usada somente para ordenar o desenho, nunca apresentada como hectares. */
 function areaAnel(anel: number[][]): number {
@@ -28,6 +28,9 @@ export function ordenarImoveis(geo: Geo | null | undefined): Geo {
 
 export function camadasImoveis(): LayerSpecification[] {
   const apagada: ExpressionSpecification = ["in", ["coalesce", ["feature-state", "g"], -1], ["literal", [-1, 2, 3]]]
+  const cor: ExpressionSpecification = ["interpolate", ["linear"], ["zoom"],
+    11, ["case", ["boolean", ["feature-state", "pendenciaFiltrada"], false], COR_MAPA_V2.acao, COR_MAPA_V2.rotulo],
+    12, ["case", ["boolean", ["feature-state", "pendenciaFiltrada"], false], COR_MAPA_V2.acao, COR.tinta]]
   return [
     // O preenchimento transparente permite tocar no interior, sem pintar ou acumular cor em sobreposições.
     { id: "imoveis", type: "fill", source: "imoveis", minzoom: ZOOM_IMOVEIS,
@@ -35,13 +38,13 @@ export function camadasImoveis(): LayerSpecification[] {
     { id: "imoveis-linha", type: "line", source: "imoveis", minzoom: ZOOM_IMOVEIS,
       filter: ["!=", ["get", "sobreposto"], true],
       layout: { "line-sort-key": ["get", "ordem_desenho"] },
-      paint: { "line-color": ["case", ["boolean", ["feature-state", "pendenciaFiltrada"], false], COR.urucum, COR.tinta],
+      paint: { "line-color": cor,
         "line-width": 1, "line-opacity": ["case", apagada, 0.12, 0.8] } } as LayerSpecification,
     { id: "imoveis-sobrepostos", type: "line", source: "imoveis", minzoom: ZOOM_IMOVEIS,
       filter: ["==", ["get", "sobreposto"], true], layout: { "line-sort-key": ["get", "ordem_desenho"] },
-      paint: { "line-color": ["case", ["boolean", ["feature-state", "pendenciaFiltrada"], false], COR.urucum, COR.tinta], "line-width": 1, "line-dasharray": [3, 3], "line-opacity": ["case", apagada, 0.12, 0.8] } },
+      paint: { "line-color": cor, "line-width": 1, "line-dasharray": [3, 3], "line-opacity": ["case", apagada, 0.12, 0.8] } },
     { id: "imoveis-destaque", type: "line", source: "imoveis", minzoom: ZOOM_IMOVEIS,
-      paint: { "line-color": COR.mata, "line-width": 2.5,
+      paint: { "line-color": COR_MAPA_V2.destaque, "line-width": 2.5,
         "line-opacity": ["case", ["any", ["boolean", ["feature-state", "destaque"], false], ["boolean", ["feature-state", "sobre"], false], ["boolean", ["feature-state", "selecionado"], false]], 1, 0] } },
   ]
 }

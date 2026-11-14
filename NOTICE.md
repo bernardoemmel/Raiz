@@ -1,12 +1,10 @@
 # Código e dados de terceiros
 
-Agrupamento público do mapa: Supercluster, implementação `ClusterTileIndex` de
-`@maplibre/geojson-vt` 6.3.1, já utilizada pelo worker GeoJSON do MapLibre GL JS 6.15.0.
+O mapa V2 desenha os agregados públicos em hexágonos H3. Supercluster, implementação
+`ClusterTileIndex` de `@maplibre/geojson-vt` 6.3.1, continua como dependência transitiva do worker
+GeoJSON do MapLibre GL JS 6.15.0, sem agrupador próprio na interface da Raíz.
 Licenças MIT (MapLibre contributors, 2025) e ISC (Mapbox, 2024), conferidas no LICENSE do pacote instalado.
 O texto completo acompanha os dois sites em `licencas/supercluster.txt`.
-O Globo declara esse mesmo pacote como dependência direta: o índice público roda em um worker próprio e
-envia à interface apenas os grupos da janela visível. O mapa não cria uma segunda fonte GeoJSON para esses grupos.
-Nenhum código do agrupador foi copiado; limites do CAR continuam nas fontes próprias do MapLibre.
 Origem: https://github.com/maplibre/geojson-vt e https://github.com/mapbox/supercluster.
 
 A fixture de navegador inclui a faixa 0–255 dos glifos Noto Sans Regular distribuídos por
@@ -63,10 +61,11 @@ do IBGE em CSV de https://github.com/kelvins/municipios-brasileiros (MIT), baixa
 
 Dependências usadas sem copiar código: `i_overlay` (MIT/Apache-2.0) e `serde_json` (MIT/Apache-2.0) no teste `motor/iovbench/`.
 
-H3 (`h3` para Python e `h3-js` somente no build): índice hexagonal e limites das células,
+H3 (`h3` para Python e `h3-js` 4.5.0 no worker do navegador): índice hexagonal e limites das células,
 Apache-2.0, Uber Technologies e contribuidores; https://github.com/uber/h3,
 https://github.com/uber/h3-py e https://github.com/uber/h3-js. Código usado como dependência,
-sem cópia ou alteração. A célula representa alocação estatística, não uma medida de restauração dentro do hexágono.
+sem cópia ou alteração. LICENSE e NOTICE do h3-js acompanham o site em `licencas/h3-js.txt`.
+A célula representa alocação estatística, não uma medida de restauração dentro do hexágono.
 
 Extensão `nativo/raiz_iov` (Rust, sem código copiado): `i_overlay` (MIT/Apache-2.0), `pyo3` (MIT/Apache-2.0),
 `numpy`/rust-numpy (BSD-2), `ndarray` (MIT/Apache-2.0), `rayon` (MIT/Apache-2.0). A conta da área segue o teste do
@@ -111,7 +110,8 @@ Distribuídas dentro do produto (vão no pacote que o navegador baixa), sem alte
 | @protomaps/basemaps 5.7.2 (camadas do mapa base) | `front/globo`, `front/produtor` | BSD-3-Clause |
 | React 19, React DOM | `front/globo` | MIT |
 | Preact 10.29.8 | `front/produtor` | MIT |
-| Fontes Familjen Grotesk, Atkinson Hyperlegible Next e IBM Plex Mono (@fontsource 5.3.0, só woff2 latino) | `front/globo`; o produtor usa só a Atkinson | SIL Open Font License 1.1 |
+| Bricolage Grotesque (400/500/600/700/800) e JetBrains Mono (400/500/700), @fontsource 5.3.0, somente woff2 latino e hospedagem própria | `front/globo`; textos integrais em `front/globo/public/licencas/bricolage-grotesque.txt` e `jetbrains-mono.txt` | SIL Open Font License 1.1 |
+| Atkinson Hyperlegible Next (@fontsource 5.3.0, woff2 latino) | `front/produtor`, mantido no tema claro | SIL Open Font License 1.1 |
 | Ícones Lucide (lucide-react e lucide-preact 1.62.0, importados um a um) | `front/globo`, `front/produtor` | ISC |
 | Radix Primitives: @radix-ui/react-tabs 1.2.1 e @radix-ui/react-dialog 1.3.1 (abas das opções do lote e janela do Pix; e as dependências deles: aria-hidden, react-remove-scroll, use-callback-ref, use-sidecar, get-nonce, detect-node-es, MIT; tslib, 0BSD) | `front/globo` | MIT |
 | NumberFlow (@number-flow/react 0.6.2 e number-flow, esm-env) nos números do andamento | `front/globo` | MIT |
@@ -488,21 +488,26 @@ Dados e fatos científicos não herdam as licenças das bibliotecas:
 
 ## Preparação dos programas e correção do céu — MapLibre GL JS 6.15.0
 
-`front/globo/src/mapa/shader-simbolo.generated.ts` contém os shaders `symbolSDF` de Mercator do
-MapLibre GL JS **6.15.0**, sob **BSD-3-Clause**, gerados pelo preparador do próprio fornecedor.
-Versão, SHA-256 do pacote, defines e bytes finais são conferidos antes do build. A licença completa
-está em `front/terceiros/maplibre-gl.LICENSE.txt` e acompanha o site em `licencas/maplibre-gl.txt`.
-O worker compila essa variante para preparar o cache
-gráfico; o mapa mantém seus próprios programas e o caminho normal quando o aquecimento falha.
+`front/compartilhado/vite-maplibre-programas.ts` extrai, durante o build, somente os programas
+`clippingMask`, `fill`, `line` e `symbolSDF` de Mercator usados na primeira vista nacional V2 do
+MapLibre GL JS **6.15.0**, sob **BSD-3-Clause**. Origem: https://github.com/maplibre/maplibre-gl-js,
+`src/shaders/shaders.ts`, `src/shaders/glsl/` e `src/webgl/program.ts` do pacote instalado.
+O adaptador usa o preparador original; não mantém arquivos GLSL gerados na árvore do produto.
+Versão e SHA-256 das fontes são conferidos no build; testes comparam os bytes e a ordem de defines
+com as chamadas `shaderSource` capturadas no renderizador real. As sete variantes cobrem as ordens
+de macros efetivamente produzidas por `ProgramConfiguration` nas camadas nacionais e H3, com
+testes usando as classes originais do fornecedor nos zooms 3,1, 3,85 e 5,5. A licença completa está em
+`front/terceiros/maplibre-gl.LICENSE.txt` e acompanha o site em `licencas/maplibre-gl.txt`.
 
-`front/globo/src/mapa/preparar-programas-nacionais.ts` usa os construtores e o cache reais do mesmo
-pacote assim que houver um bucket, antes dos desenhos desse frame, somente no estilo nacional 2D
-com propriedades uniformes. O adaptador
-privado é limitado à versão/hash conferidos e restaura o renderizador original após preparar ou recusar
-o estilo. A configuração SDF estadual fixa conserva os bytes aquecidos no worker; as demais variantes
-preservam os nomes de macros/uniforms, mesmo quando a ordem das macros independentes muda. Não há
-substituição de desenhos, stencil, framebuffer ou eventos de prontidão. Os testes usam as classes
-originais do fornecedor, com a semântica de campos de classe de seu build restrita ao harness de testes.
+`front/globo/src/mapa/preparar-contexto.worker.ts` prepara essas variantes no contexto auxiliar
+já existente, antes de liberar a criação do contexto principal. Isso evita que consultas síncronas
+do contexto principal disputem a fila gráfica com compilações do worker. O DOM e os dados seguem
+independentes; não há temporizador nem condição de auditoria na liberação do trabalho concluído.
+O contexto e os programas válidos permanecem vivos até a desmontagem; falhas de compilação liberam
+os recursos e conservam a compilação nativa do MapLibre. O worker conclui a fila gráfica com
+`finish()` antes de reter os programas; falha nessa etapa também conserva o caminho nativo.
+Não há substituição de resultados de
+compilação, desenhos, stencil, framebuffer ou dados. O produtor não inclui esse adaptador.
 
 `front/compartilhado/vite-maplibre-ceu.ts` aplica, em memória durante build e desenvolvimento,
 uma correção pequena ao `drawSky` do pacote MapLibre GL JS **6.15.0**, sob **BSD-3-Clause**.

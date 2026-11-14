@@ -5,8 +5,8 @@
  * e VITE_RAIZ_PROCESSAMENTO_URL=./amostra/processamento.json. PLAYWRIGHT_CHROMIUM_EXECUTABLE é opcional no ambiente local.
  */
 import assert from "node:assert/strict"
-import { createHash } from "node:crypto"
 import { conferirCicloMapa } from "./conferir-ciclo-mapa.mjs"
+import { conferirAtribuicaoCompacta } from "./conferir-atribuicao.mjs"
 import { conferirEstabilidadePainelBrasil, conferirProcessamentoEstavel } from "./conferir-processamento-estavel.mjs"
 import { configurarPublicacao } from "./configurar-publicacao.mjs"
 import fs from "node:fs"
@@ -60,31 +60,6 @@ const navegador = await chromium.launch({
 })
 const contexto = await navegador.newContext({ viewport: { width: 1440, height: 900 }, reducedMotion: "reduce" })
 const pagina = await contexto.newPage()
-// Observa o GLSL enviado ao driver no mapa real, sem substituir compilação ou desenho.
-await pagina.addInitScript(() => {
-  const fontes = new WeakMap(), programas = new WeakMap()
-  window.__shadersMapa = []
-  window.__compilacoesMapa = []
-  let desenhos = 0
-  const proto = WebGL2RenderingContext.prototype
-  for (const nome of ["shaderSource", "attachShader", "linkProgram", "drawElements", "drawArrays"]) {
-    const original = proto[nome]
-    proto[nome] = function (...args) {
-      if (nome === "shaderSource") fontes.set(args[0], { fonte: args[1], tipo: this.getShaderParameter(args[0], this.SHADER_TYPE) })
-      if (nome === "attachShader") {
-        const lista = programas.get(args[0]) ?? []
-        lista.push(fontes.get(args[1]))
-        programas.set(args[0], lista)
-      }
-      if (nome === "linkProgram") {
-        window.__shadersMapa.push(programas.get(args[0]) ?? [])
-        window.__compilacoesMapa.push({ desenhosAnteriores: desenhos })
-      }
-      if (nome === "drawElements" || nome === "drawArrays") desenhos++
-      return original.apply(this, args)
-    }
-  }
-})
 // Apenas o mosaico do teste é sintético. O raster percorre o protocolo real do MapLibre, sem acesso externo no CI.
 const tile = new PNG({ width: 256, height: 256 })
 for (let i = 0; i < tile.data.length; i += 4) tile.data.set([70, 100, 65, 255], i)
@@ -155,7 +130,18 @@ function conferirPublicacao() {
   }
 }
 
+async function abrirDados() {
+  const dialogo = pagina.locator(".dados-mapa-v2")
+  if (!await dialogo.count() || !await dialogo.evaluate(el => el.open)) await pagina.getByRole("button", { name: /^Sobre os dados/ }).click()
+}
+async function fecharDados() {
+  if (await pagina.locator(".dados-mapa-v2").count() && await pagina.locator(".dados-mapa-v2").evaluate(el => el.open)) await pagina.getByRole("button", { name: "Fechar dados", exact: true }).click()
+}
+async function abrirMenu() {
+  if (!await pagina.locator(".topo-conta").evaluate(el => el.open)) await pagina.locator(".topo-conta > summary").click()
+}
 async function buscar(texto, destino) {
+  await fecharDados()
   const busca = pagina.locator(".topo .busca input")
   await busca.fill(texto)
   await pagina.locator('.busca [role="option"]').first().waitFor()
@@ -206,25 +192,12 @@ try {
     const m = document.querySelector(".mapa-brasil .mapa").__mapa
     return { solicitada: m._canvasContextAttributes.desynchronized, efetiva: m.getCanvas().getContext("webgl2").getContextAttributes().desynchronized }
   })
-  assert.equal(apresentacao.solicitada, true, "O mapa solicita apresentação desynchronized pela opção pública do MapLibre.")
-  console.log(`Apresentação desynchronized solicitada; atributo efetivo do navegador: ${apresentacao.efetiva}.`)
+  assert.equal(apresentacao.solicitada, false, "O mapa preserva a composição normal pela opção pública do MapLibre.")
+  assert.equal(apresentacao.efetiva, false, "O navegador compõe mapa e cartões no mesmo ciclo de apresentação.")
   assert.equal(pedidos.filter(url => url === new URL("geo/brasil_estados.geojson", base).href).length, 2,
     "A geometria é lida para enquadramento e pela URL no worker; o navegador pode reutilizar o cache HTTP.")
-  assert(pedidos.some(url => /\/fontes\/Noto(?:%20| )Sans(?:%20| )Regular\/0-255\.pbf$/.test(url)), "A fixture nacional precisa desenhar rótulos reais com os glyphs licenciados.")
-  const rotulos = await pagina.evaluate(() => document.querySelector(".mapa-brasil .mapa").__mapa
-    .queryRenderedFeatures({ layers: ["estados-rotulo"] }).map(f => f.properties))
-  assert(rotulos.some(p => p.nome === "Pará" && /municípios/.test(p.linha)), "Nome e cobertura do Pará devem aparecer no mapa inicial.")
-  const simbolos = (await pagina.evaluate(() => window.__shadersMapa)).filter(fontes => fontes.some(s => s.fonte.includes("u_is_halo")))
-  assert(simbolos.length > 0, "O teste deve exercer o programa symbolSDF no contexto real do mapa.")
-  const compilacoes = await pagina.evaluate(() => window.__compilacoesMapa)
-  assert.equal(compilacoes.length, 4, "O nacional usa clipping, fill, line e symbolSDF, sem variantes extras.")
-  assert(compilacoes.every(c => c.desenhosAnteriores === 0), "Na fixture nacional, os quatro programas devem estar prontos antes do primeiro draw real.")
-  for (const fontes of simbolos) {
-    const hash = tipo => createHash("sha256").update(fontes.find(s => s.tipo === tipo).fonte).digest("hex")
-    assert.equal(hash(35632), "3cc8044beb3c42bdac74105917f0125ed32a9e3773c12be108fd8236f04af4bf", "Fragmento nacional precisa coincidir com o aquecido no worker.")
-    assert.equal(hash(35633), "6f6019ae07a2e2c610c7f80ad95bd2a1dd8e8f4abb3db1c3845484e19039c283", "Vértice nacional precisa coincidir com o aquecido no worker.")
-  }
   assert.equal(await pagina.locator(".mapa-brasil svg").count(), 0, "A entrada abre no MapLibre, sem o SVG nacional.")
+  await abrirDados()
   await pagina.getByRole("heading", { name: "Cobertura do mapa", exact: true }).waitFor()
   await pagina.waitForFunction(() => document.querySelectorAll(".processamento-estado").length === 27)
   assert(pedidos.some((u) => new URL(u).pathname === `${prefixo}amostra/processamento.json`),
@@ -233,30 +206,35 @@ try {
   assert((await pagina.locator(".processamento-situacao").allTextContents())
     .every((texto) => texto === "Sem informação de processamento"), "A fixture não inventa execução municipal.")
   await pagina.getByText("1 município em 1 estado", { exact: true }).waitFor()
-  await pagina.locator('time[datetime="2026-11-12T10:41:00Z"]').waitFor()
-  await pagina.locator('time[datetime="2026-11-11T18:00:00Z"]').waitFor()
-  // Supercluster recebe somente células agregadas, antes de qualquer limite municipal ou CAR.
+  await pagina.locator('time[datetime="2026-11-12T10:41:00Z"]').first().waitFor()
+  await pagina.locator('time[datetime="2026-11-11T18:00:00Z"]').first().waitFor()
+  await fecharDados()
+  // H3 recebe somente células agregadas, antes de qualquer limite municipal ou CAR.
   await pagina.waitForFunction(() => {
-    return document.querySelector(".mapa-brasil .mapa").__grupos?.some(grupo => grupo.fazendas === 11)
+    return document.querySelector(".mapa-brasil .mapa").__hexagonos?.reduce((s, h) => s + h.fazendas, 0) === 11
   })
   assert(!pedidos.some(url => /brasil_municipios|imoveis_\d|imoveis_basicos_/.test(url)), "A entrada não pode baixar milhares de polígonos nem tabelas individuais.")
   const inicial = await pagina.evaluate(() => {
     const m = document.querySelector(".mapa-brasil .mapa").__mapa
-    const grupo = document.querySelector(".mapa-brasil .mapa").__grupos[0]
-    return { grupo, hexagonos: !!m.getLayer("potencial-h3"), zoom: m.getZoom(), fonteDuplicada: !!m.getSource("agregados-nacionais"), circulo: !!m.getLayer("grupos-fazendas") }
+    const hexagonos = document.querySelector(".mapa-brasil .mapa").__hexagonos
+    return { hexagonos, camada: m.getLayer("hexagonos").type, zoom: m.getZoom(), fonteDuplicada: !!m.getSource("agregados-nacionais"),
+      poligonos: m.queryRenderedFeatures({ layers: ["hexagonos"] }).map(f => f.geometry.type),
+      fundo: m.getPaintProperty("background", "background-color") }
   })
-  // O worker próprio lê a projeção pública; o mapa recebe somente grupos e não recria a fonte bruta.
+  // O worker próprio calcula e devolve polígonos, sem trazer composição de imóveis.
   assert(pedidos.includes(new URL("geo/agregados_brasil.geojson", base).href), "O mapa deve carregar a projeção normal anunciada para o worker.")
-  assert(!pedidos.some(url => url.endsWith("/agregados_brasil.geojson.gz")), "A publicação nova não precisa baixar também o agregado legado.")
-  assert.equal(inicial.hexagonos, false, "O H3 é só a agregação de entrada, não o desenho da escala nacional.")
-  assert.equal(inicial.grupo.fazendas, 11)
-  assert.equal(inicial.grupo.hectares, 1000)
-  assert.equal(inicial.grupo.semMedida, 1)
-  assert.equal(typeof inicial.grupo.cluster, "number", "Os dois pontos formam um grupo com onze fazendas.")
-  assert.equal(inicial.fonteDuplicada, false, "O GeoJSON agregado não pode voltar à main como uma fonte MapLibre.")
-  assert.equal(inicial.circulo, false, "Os botões não precisam de círculos invisíveis no renderizador.")
+  assert(!pedidos.some(url => url.endsWith("/agregados_brasil.geojson.gz")), "A publicação nova não baixa também o agregado legado.")
+  assert.equal(inicial.camada, "fill", "Hexágonos reais substituem círculos por pixels.")
+  assert(inicial.poligonos.length > 0 && inicial.poligonos.every(t => t === "Polygon"))
+  assert.equal(inicial.hexagonos.reduce((s, h) => s + h.fazendas, 0), 11)
+  assert.equal(inicial.hexagonos.reduce((s, h) => s + (h.hectares ?? 0), 0), 1000)
+  assert.equal(inicial.hexagonos.reduce((s, h) => s + h.semMedida, 0), 1)
+  assert(inicial.hexagonos.every(h => h.resolucao === 4))
+  assert.equal(inicial.fundo, "#111815", "A base inicial usa a paleta escura aprovada.")
+  assert.equal(inicial.fonteDuplicada, false, "O GeoJSON bruto não se duplica numa fonte MapLibre.")
+  assert.equal(await pagina.locator("button.cartografia-grupo").count(), 0)
   assert.equal(pedidosSatelite.length, 0, "A entrada nacional não baixa imagens de satélite.")
-  assert.equal(await pagina.evaluate(() => document.querySelector(".mapa-brasil .mapa").__mapa.getPaintProperty("boundaries_country", "line-dasharray")), undefined, "Fronteiras iniciais contínuas reutilizam o programa dos estados.")
+  await pagina.screenshot({ path: path.join(resultado, "depois-nacional-1440.png"), fullPage: true })
   // CAR cadastrado na PB, publicado em dois recortes do RN: uma opção, sem consultar arquivos da PB.
   const inicioFronteira = pedidos.length
   const buscaFronteira = pagina.locator(".topo .busca input")
@@ -272,39 +250,30 @@ try {
   assert(!pedidos.some(url => /(?:car_PB|indice_PB|imoveis_basicos_2500106)/.test(url)), "Nenhuma URL inexistente da UF cadastral pode ser tentada.")
   await buscaFronteira.fill("")
   await buscaFronteira.press("Escape")
-  const marcadorInicial = pagina.locator("button.cartografia-grupo").filter({ hasText: "1.000 ha" })
-  await marcadorInicial.waitFor({ state: "visible" })
-  assert.equal(await marcadorInicial.innerText(), "11\n1.000 ha")
-  assert.match(await marcadorInicial.getAttribute("aria-label"), /^11 1\.000 ha\. 11 fazendas.*Cobertura parcial.*Aproximar/)
-  await marcadorInicial.evaluate(botao => {
-    window.__grupoInicial = botao
-    const m = document.querySelector(".mapa-brasil .mapa").__mapa
-    m.fire("idle"); m.fire("idle")
-  })
-  assert(await marcadorInicial.evaluate(botao => botao === window.__grupoInicial), "Atualizar o mapa preserva o mesmo botão, sem duplicar nem perder o foco.")
-  await marcadorInicial.focus()
+  const ajuda = pagina.locator(".cartografia-ajuda > summary")
+  await ajuda.focus()
   await pagina.keyboard.press("Enter")
-  await pagina.waitForFunction(zoom => document.querySelector(".mapa-brasil .mapa").__mapa.getZoom() > zoom, inicial.zoom)
+  await pagina.getByText("Explorar hexágonos com teclado", { exact: true }).click()
+  const listaHexagonos = pagina.locator(".cartografia-hexagonos-lista")
+  await listaHexagonos.getByRole("button", { name: /^6 fazendas cadastradas/ }).focus()
+  await pagina.keyboard.press("Enter")
+  await pagina.waitForFunction(() => document.querySelector(".mapa-brasil .mapa").__hexagonos?.some(h => h.resolucao === 5))
   await mapaPronto()
-  assert(await pagina.locator(".maplibregl-canvas").evaluate(el => el === document.activeElement), "O teclado permanece no mapa após a divisão do grupo.")
-  assert.equal(new URL(pagina.url()).hash, "", "O botão não pode propagar clique para escolher o estado sob ele.")
-  await pagina.locator(".cartografia-resumo > summary").click()
-  await pagina.getByText("Explorar grupos com teclado", { exact: true }).click()
-  const listaGrupos = pagina.locator(".cartografia-grupos-lista")
-  assert(await pagina.evaluate(() => document.querySelector(".mapa-brasil .mapa").__mapa.getZoom()) > inicial.zoom)
-  await listaGrupos.getByRole("button", { name: /^6 fazendas/ }).click()
+  assert(await pagina.locator(".maplibregl-canvas").evaluate(el => el === document.activeElement), "A expansão devolve o teclado ao mapa.")
+  assert.equal(new URL(pagina.url()).hash, "", "O clique H3 não escolhe um estado indiretamente.")
+  await listaHexagonos.getByRole("button", { name: /^6 fazendas cadastradas/ }).click()
   await pagina.waitForURL(u => u.hash === `#/municipio/${MUNICIPIO}`)
+  await abrirDados()
   await pagina.locator(".lista-basica").waitFor()
+  await fecharDados()
   await mapaPronto()
-  assert(await pagina.evaluate(() => document.querySelector(".mapa-brasil .mapa").__mapa.getZoom()) >= 12,
-    "O município aberto por aproximação precisa preservar o detalhe, sem voltar ao país.")
-  assert.equal(await pagina.locator("button.cartografia-grupo").count(), 0, "No detalhe da fazenda não ficam marcadores antigos sobre o satélite.")
-  await pagina.locator('.migalhas a[href="#/"]').first().click()
+  assert(await pagina.evaluate(() => document.querySelector(".mapa-brasil .mapa").__mapa.getZoom()) >= 9,
+    "O município aberto pelo H3 preserva o detalhe.")
+  await ajuda.click()
+  await pagina.getByRole("link", { name: "Raíz, abrir mapa", exact: true }).click()
   await mapaPronto()
   pedidosSatelite.length = 0
-  await pagina.locator('.lista-estados a[href="#/estado/PA"]').click()
-  await pagina.waitForURL(u => u.hash === "#/estado/PA")
-  await pagina.getByRole("heading", { name: "Pará", exact: true }).waitFor()
+  await buscar("Pará", "#/estado/PA")
   await mapaPronto()
   await pagina.waitForFunction(() => {
     const m = document.querySelector(".mapa-brasil .mapa").__mapa
@@ -313,13 +282,15 @@ try {
   const baseNacional = await pagina.evaluate(() => { const fonte = document.querySelector(".mapa-brasil .mapa").__mapa.getStyle().sources.protomaps; return fonte.url ?? fonte.tiles?.[0] })
   assert(baseNacional.includes("base_brasil.pmtiles"), "A entrada precisa usar o PMTiles nacional.")
   assert.equal(pedidosSatelite.length, 0, "A escala estadual não pode baixar imagens de satélite.")
-  assert(await pagina.evaluate(() => !!document.querySelector(".mapa-brasil .mapa").__mapa.getPaintProperty("boundaries_country", "line-dasharray")), "O estilo regional restaura o tracejado das fronteiras.")
+
   console.log("Buscando Parauapebas...")
   await buscar("Parauapebas", `#/municipio/${MUNICIPIO}`)
+  await abrirDados()
   await pagina.locator(".lista-basica").waitFor()
   const leilaoNaLista = pagina.locator(".lista-basica").getByRole("link", { name: "Em leilão", exact: true })
   await leilaoNaLista.waitFor()
   assert.equal(await leilaoNaLista.getAttribute("href"), `#/calendario/${encodeURIComponent(CAR)}`)
+  await fecharDados()
   await mapaPronto()
   await pagina.waitForFunction((cod) => {
     const m = document.querySelector(".mapa-brasil .mapa").__mapa
@@ -327,17 +298,16 @@ try {
   }, MUNICIPIO)
   assert.equal(await pagina.evaluate(() => { const fonte = document.querySelector(".mapa-brasil .mapa").__mapa.getStyle().sources.protomaps; return fonte.url ?? fonte.tiles?.[0] }), baseNacional,
     "O município precisa reutilizar a mesma base nacional.")
-  await pagina.evaluate(() => document.querySelector(".mapa-brasil .mapa").__mapa.jumpTo({ zoom: 11, center: [-49.9, -6.1] }))
+  await pagina.evaluate(() => document.querySelector(".mapa-brasil .mapa").__mapa.jumpTo({ zoom: 8, center: [-49.9, -6.1] }))
   await mapaPronto()
-  await pagina.locator("button.cartografia-grupo").first().waitFor()
+  await pagina.waitForFunction(() => document.querySelector(".mapa-brasil .mapa").__mapa.queryRenderedFeatures({ layers: ["hexagonos"] }).length > 0)
   const distante = await pagina.evaluate(() => {
     const m = document.querySelector(".mapa-brasil .mapa").__mapa
     return { fazendas: m.queryRenderedFeatures({ layers: ["imoveis", "imoveis-linha", "imoveis-sobrepostos"] }).length,
-      grupos: document.querySelectorAll("button.cartografia-grupo").length, preenchimento: m.getPaintProperty("imoveis", "fill-opacity") }
+      hexagonos: m.queryRenderedFeatures({ layers: ["hexagonos"] }).length, preenchimento: m.getPaintProperty("imoveis", "fill-opacity") }
   })
-  assert.equal(distante.fazendas, 0, "Nenhum imóvel é desenhado no zoom 11.")
-  assert(distante.grupos > 0, "Os grupos com contagem e hectares precisam aparecer na escala regional.")
-  assert(await pagina.locator("button.cartografia-grupo:visible").count() > 0, "Os grupos do worker precisam corresponder a botões desenhados.")
+  assert.equal(distante.fazendas, 0, "Nenhum imóvel é desenhado no zoom 8.")
+  assert(distante.hexagonos > 0, "Polígonos H3 precisam aparecer na escala regional.")
   assert.equal(distante.preenchimento, 0, "O CAR não recebe preenchimento em nenhum zoom.")
   await pagina.screenshot({ path: path.join(resultado, "depois-regional-1440.png"), fullPage: true })
   // Usa o controle que o visitante usa; não pula direto para um estado interno do mapa.
@@ -364,14 +334,14 @@ try {
     const camadas = m.getStyle().layers
     const ordem = Object.fromEntries(camadas.map((camada, i) => [camada.id, i]))
     return { contorno: m.getPaintProperty("imoveis-linha", "line-width"), fill: m.getPaintProperty("imoveis", "fill-opacity"),
-      grupos: document.querySelectorAll("button.cartografia-grupo").length,
+      opacidadeH3: m.getPaintProperty("hexagonos", "fill-opacity"),
       sobrepostos: [...new Set(m.queryRenderedFeatures({ layers: ["imoveis-sobrepostos"] }).map(f => f.properties.cod_imovel))],
       hachura: m.queryRenderedFeatures({ layers: ["restauracao-hachura"] }).length,
       ordem, fundoDetalhadoAbaixo: camadas.every(camada => camada.source !== "protomaps-detalhe" || camada.type === "symbol" || ordem[camada.id] < ordem["brasil-mun"]) }
   })
   assert.equal(desenho.contorno, 1)
   assert.equal(desenho.fill, 0)
-  assert.equal(desenho.grupos, 0, "Os grupos saem do detalhe para não encobrir o satélite e os CARs reais.")
+  assert.equal(desenho.opacidadeH3, 0, "H3 sai do detalhe para não encobrir satélite e CARs reais.")
   assert.equal(desenho.sobrepostos.length, 2, "Sobreposições confirmadas precisam aparecer tracejadas.")
   assert.equal(desenho.hachura, 0, "Sem geometria de restauração autorizada, não se inventa hachura.")
   for (const overlay of ["brasil-mun", "brasil-mun-escolhido", "imoveis-linha", "imoveis-sobrepostos", "mascara-fazenda"]) {
@@ -391,14 +361,16 @@ try {
   }, CARS)
   assert.deepEqual(destaqueLeilao.tracejado, [2, 2], "O contorno do leilão precisa ser tracejado.")
   assert.deepEqual(destaqueLeilao.marcados, [CAR], "O calendário marca somente o imóvel vinculado ao evento.")
+  await abrirDados()
   assert.equal(await pagina.locator(".lista-basica li").count(), 6)
-  await pagina.getByRole("combobox", { name: /^Situação básica/ }).selectOption("com_pendencia")
+  await pagina.locator(".dados-mapa-v2").getByRole("combobox", { name: /^Situação básica/ }).selectOption("com_pendencia")
   assert.equal(await pagina.locator(".lista-basica li").count(), 2)
   await pagina.waitForFunction(() => {
     const m = document.querySelector(".mapa-brasil .mapa").__mapa
     return m.queryRenderedFeatures({ layers: ["imoveis"] }).every((f) => [1, 3].includes(m.getFeatureState({ source: "imoveis", id: f.properties.cod_imovel }).g))
   })
-  await pagina.getByRole("combobox", { name: /^Situação básica/ }).selectOption("")
+  await pagina.locator(".dados-mapa-v2").getByRole("combobox", { name: /^Situação básica/ }).selectOption("")
+  await fecharDados()
   // Ao clicar no interior, a máscara apaga o resto e abre a ficha básica existente.
   const pontoFazenda = await pagina.evaluate(() => {
     const m = document.querySelector(".mapa-brasil .mapa").__mapa
@@ -422,7 +394,9 @@ try {
   assert.equal(selecaoAntes.selecionados.length, 1, "O clique seleciona exatamente um CAR.")
   assert(selecaoAntes.sobre.length > 0, "O percurso também precisa exercer o hover real da fazenda.")
   await buscar(SEM_DESENHO, `#/municipio/${SEM_DESENHO}`)
+  await abrirDados()
   await pagina.getByText("O desenho das fazendas deste município ainda não está disponível.", { exact: false }).waitFor()
+  await fecharDados()
   await mapaPronto()
   const conferirSelecaoLimpa = async () => {
     const estado = await pagina.evaluate(async cars => {
@@ -446,7 +420,9 @@ try {
   const pedidoDivisa = pagina.waitForRequest(divisaUrl)
   try {
     await buscar("Parauapebas", `#/municipio/${MUNICIPIO}`)
+    await abrirDados()
     await pagina.locator(".lista-basica").waitFor()
+    await fecharDados()
     await pedidoDivisa
     await pagina.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))))
     await mapaPronto()
@@ -475,6 +451,7 @@ try {
   await pagina.getByRole("button", { name: /^(Fechar ficha breve|Close popup)$/ }).click()
   await pagina.setViewportSize({ width: 360, height: 800 })
   await mapaPronto()
+  await conferirAtribuicaoCompacta(pagina)
   assert(await pagina.evaluate(() => document.documentElement.scrollWidth <= innerWidth), "O mapa não pode exceder 360 px.")
   const acessibilidade = await new AxeBuilder({ page: pagina }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze()
   fs.writeFileSync(path.join(resultado, "axe-mapa-360.json"), JSON.stringify(acessibilidade.violations, null, 2))
@@ -505,15 +482,20 @@ try {
     `O MVT da fixture cobre a tela de água; o canvas precisa pintá-la: ${agua} pixels da cor ${corAgua}.`)
   assert(faixas.some((f) => f.arquivo.endsWith("base_brasil.pmtiles")), "A base precisa ser lida por HTTP Range.")
   assert(faixas.every((f) => f.arquivo.endsWith("base_brasil.pmtiles")), "A mesma base nacional deve atender o município.")
-  console.log(`ok: país e município desenhados; zoom ${zoom.toFixed(1)}, base visível com overzoom e CARs transparentes, grupos Supercluster e satélite no detalhe.`)
+  console.log(`ok: país e município desenhados; zoom ${zoom.toFixed(1)}, base visível com overzoom e CARs transparentes, hexágonos H3 e satélite no detalhe.`)
 
   await buscar(SEM_DESENHO, `#/municipio/${SEM_DESENHO}`)
+  await abrirDados()
   await pagina.getByText("O desenho das fazendas deste município ainda não está disponível.", { exact: false }).waitFor()
+  await fecharDados()
   await buscar(MUNICIPIO, `#/municipio/${MUNICIPIO}`)
+  await abrirDados()
   await pagina.locator(".lista-basica").waitFor()
+  await fecharDados()
   const pontoAntesDaSaida = await pontoDaFazenda(selecaoAntes.camera, selecaoAntes.selecionados[0], "saida")
   await pagina.mouse.click(pontoAntesDaSaida.x, pontoAntesDaSaida.y)
   await pagina.locator(".maplibregl-popup").waitFor()
+  await abrirDados()
   await pagina.locator('.lista-basica a[href^="#/fazenda/"]').first().focus()
   await pagina.waitForFunction(() => {
     const car = decodeURIComponent(document.activeElement.getAttribute("href").slice("#/fazenda/".length))
@@ -534,6 +516,7 @@ try {
   await pagina.getByText("A ficha exige créditos pagos e conexão com a Raíz.", { exact: false }).waitFor()
   await buscar(CAR.toLowerCase().replaceAll("-", ""), `#/fazenda/${CAR}`)
   // A entrada manual de CAR continua disponível fora do mapa.
+  await abrirMenu()
   await pagina.getByRole("link", { name: "Fazendas", exact: true }).click()
   await pagina.getByRole("heading", { name: "Prospectar terras no Brasil" }).waitFor()
   await pagina.getByLabel("Abrir ficha pelo código do CAR").fill(CAR)
@@ -547,6 +530,7 @@ try {
   await pagina.waitForLoadState("networkidle")
   assert.equal(await pagina.getByRole("link", { name: "Em leilão: conferir edital e prazo", exact: true }).count(), 0,
     "A ficha bloqueada não expõe os vínculos individuais do calendário.")
+  await abrirMenu()
   await pagina.getByRole("link", { name: "Calendário", exact: true }).click()
   await pagina.getByRole("heading", { name: "Calendário da Raíz" }).waitFor()
   await pagina.getByRole("heading", { name: "Leilão fictício para teste do Pages" }).waitFor()
@@ -589,7 +573,7 @@ try {
   })
   await legado.goto(base)
   await legado.waitForFunction(() => {
-    return document.querySelector(".mapa-brasil .mapa")?.__grupos?.some(grupo => grupo.fazendas === 11 && grupo.hectares === 1000 && grupo.semMedida === 1)
+    const h = document.querySelector(".mapa-brasil .mapa")?.__hexagonos; return h?.reduce((s, x) => s + x.fazendas, 0) === 11 && h.reduce((s, x) => s + (x.hectares ?? 0), 0) === 1000 && h.some(x => x.hectares === null)
   })
   assert(pedidosLegados.some(url => url.endsWith("/agregados_brasil.geojson.gz")), "Índice antigo usa o gzip legado.")
   assert(!pedidosLegados.some(url => url.endsWith("/agregados_brasil.geojson")), "Índice antigo não presume um arquivo novo não anunciado.")
@@ -605,7 +589,7 @@ try {
   await semAgregados.getByRole("alert").filter({ hasText: "Não foi possível carregar os agregados" }).waitFor()
   await semAgregados.waitForFunction(() => document.querySelector(".mapa-brasil .mapa")?.__mapa?.loaded())
   await semAgregados.evaluate(() => document.querySelector(".mapa-brasil .mapa").__mapa.fire("idle"))
-  assert.equal(await semAgregados.locator("button.cartografia-grupo").count(), 0)
+  assert.equal(await semAgregados.evaluate(() => document.querySelector(".mapa-brasil .mapa").__hexagonos?.length ?? 0), 0)
   await semAgregados.close()
   await conferirCicloMapa(navegador, base)
   await conferirProcessamentoEstavel(navegador, base)

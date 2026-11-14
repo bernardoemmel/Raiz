@@ -1,11 +1,17 @@
 # Guia do front da Raíz, v1
 
+> **Analista e comprador:** o [guia v2](guia-front-v2.md), aprovado em 13/11/2026, substitui os itens 1.1, 1.2,
+> 2.1 (somente a base do mapa) e 3.2b abaixo. O layout, as medidas e os rótulos mono definidos no v2 também
+> prevalecem nos conflitos. As demais regras permanecem. **O produtor continua claro e segue este v1.**
+
 Redesenho do front da Raíz (pesquisa de design, rodada 1). Isto é o resumo do que aplicar, já com as escolhas feitas. Aplicar em front/globo (analista, React) e front/produtor (produtor, Preact). Todo texto da interface em português do Brasil.
 
 OBJETIVO
 Hoje as telas têm cara de "feito por IA": cartões brancos iguais com sombra, Inter em tudo, raio 14 px em tudo, números grandes soltos, tudo com o mesmo peso, e o mapa mostra o polígono sozinho num fundo liso. A direção nova é "Cartografia de campo": a Raíz parece um bom mapa de levantamento de campo, não um painel de software. A primeira tela é o mapa plano do Brasil, já com fazendas e números, sem animação nem clique (item 3).
 
 1. BASE (fazer primeiro, muda todas as telas de uma vez)
+**1.1 Substituído no analista pelo guia v2, itens 4 e 5. Mantido no produtor.**
+
 1.1 Trocar as variáveis de raiz.css e estilo.css por estas (apagar as antigas, inclusive --sombra e --raio 14):
 ```css
 :root {
@@ -24,6 +30,8 @@ body { background: var(--papel); color: var(--tinta); font: 400 var(--t-texto)/1
 .numero, table td.num { font-variant-numeric: tabular-nums; }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition-duration: 0ms !important; animation-duration: 0ms !important; } }
 ```
+**1.2 Substituído no analista pelo guia v2, item 4. Mantido no produtor.**
+
 1.2 Fontes (todas SIL OFL 1.1, servir woff2 só do subconjunto latino, font-display: swap, hospedadas pela própria Raíz, via @fontsource):
 - Familjen Grotesk 500 e 600 nos títulos (letter-spacing -0,01em).
 - Atkinson Hyperlegible Next 400 e 700 no texto e em todos os números (tabular-nums em tabela e caixa de fatos).
@@ -44,6 +52,8 @@ body { background: var(--papel); color: var(--tinta); font: 400 var(--t-texto)/1
 1.8 Estados vazio, carregando e erro desenhados em todas as telas (inclusive "sem internet" na ficha do produtor, que mostra a última versão salva, e "município sem fazendas aptas").
 
 2. MAPA (todas as telas com mapa)
+**2.1 Base substituída no analista pelo guia v2, item 3. Satélite, hachuras e demais camadas permanecem.**
+
 2.1 Camadas, de baixo para cima:
 (1) Fundo: no painel do município, base vetorial Protomaps (recorte do Brasil em PMTiles, estilo "white" recolorido com a paleta: terra #F1F2EE, água #CADDE6, rio #7FAFC4 com 0,6 px no zoom 8, 1,4 no 12 e 3 no 15; estrada #D2D4CE com miolo branco), com rios, estradas e nomes de cidade. Fontes e sprites do protomaps/basemaps-assets servidos junto do PMTiles. Crédito "© OpenStreetMap" visível. Na ficha da fazenda (zoom 12 a 16), recorte de satélite Sentinel-2 recente e sem nuvem da própria fazenda (o back-end gera; ver o outro bloco), cor natural levemente dessaturada (raster-saturation, raster-contrast), com o crédito "Contains modified Copernicus Sentinel data [ano]".
 (2) Máscara fora do imóvel: polígono "mundo com furo" com #0F1A14 a 45% sobre satélite ou #F1F2EE a 60% sobre a base clara. Vizinhos continuam visíveis, apagados.
@@ -62,6 +72,8 @@ body { background: var(--papel); color: var(--tinta); font: 400 var(--t-texto)/1
 3. TELA DE ENTRADA (mapa do Brasil)
 3.1 A primeira tela é o mapa plano do Brasil (base do item 2.1, Protomaps recolorido) com a busca "Código do CAR ou município" fixa no topo. Quem chega já vê fazendas e números, sem animação nem clique. A Raíz só trabalha no Brasil: a primeira tela não gasta tempo para dizer isso.
 3.2 Sem busca: o Brasil inteiro, pintado por estado. Município já processado com preenchimento leve em mata; o que ainda não foi lido em névoa (cinza). Cada estado tem o nome e, embaixo, o que a Raíz já leu dele: "todos os 144 municípios" (completo), "5 de 246 municípios" (incompleto, a contagem contra a lista do IBGE) ou "ainda não processado" (em pedra). Na disputa de espaço entre rótulos ganha o estado com dado e, entre iguais, o de mais municípios. Nenhuma fazenda carrega na escala do país. Ao lado (embaixo, no celular), uma frase com número real do banco ("A Raíz já leu 256 municípios, em 6 estados: ..."; até três estados, pelo nome), três números, a lista dos estados com dado (selo "Completo" ou "Incompleto" e a contagem) e os municípios com mais área para restaurar.
+**3.2b Agregação em círculos substituída pelos hexágonos do guia v2, item 2. Navegação e avisos de cobertura permanecem.**
+
 3.2b Tocar num estado aproxima até ele (fitBounds, mesma curva do item 3.3) e carrega só as fazendas aptas dele, agrupadas em círculos com o número dentro ("5,4 mil", nunca "5.4k") até a escala do município; polígonos só a partir dela. Município sem o contorno das fazendas vira um círculo só, no meio dele, com a soma. O painel do estado diz se ele está completo ("Completo: todos os 144 municípios do Pará já foram processados" ou "Incompleto: 8 de 139 municípios processados. Faltam 131, em cinza no mapa"); estado sem dado mostra o aviso e quantos municípios vão aparecer. Dentro do estado, tocar num município faz o mesmo que buscar por ele; tocar em outro estado troca de estado. O caminho no topo do painel (Brasil / estado / município) volta a cada nível.
 3.3 Busca de município: o mapa vai até ele com flyTo (speed 1.2, curve 1.42, maxDuration 2.500 ms; acima disso o MapLibre pula direto), sem passar por zoom de mundo. As fazendas aparecem pintadas pela situação (apta, com pendência, não apta com hachura cruzada; item 2.2), o município escolhido perde o preenchimento e os círculos dele somem (quem fala ali é cada fazenda). Abre o painel do município (item 4), com a frase antes de qualquer número e o funil em barras ligado ao mapa. Município só com o resumo mostra o funil sem a lista; município de estado ainda não processado mostra onde fica e diz que ainda não foi lido. A busca acha também os municípios sem dados pelo nome (estão no contorno do Brasil).
 3.4 Busca de código do CAR: direto para a ficha da fazenda. Do município à fazenda: fitBounds com padding 48 px em 900 a 1.200 ms; só depois do moveend acender máscara e contorno em 250 a 300 ms. Total abaixo de 4 s.

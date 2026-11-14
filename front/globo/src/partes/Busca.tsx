@@ -1,10 +1,11 @@
 import { SITUACOES_BASICAS } from "../../../compartilhado/dados/basico"
-import { CircleAlert, Info } from "lucide-react"
+import { CircleAlert, Info, Search } from "lucide-react"
 import { useEffect, useId, useRef, useState } from "react"
 import { CATEGORIAS, type RespostaBusca } from "../../../compartilhado/dados"
-import { abreviarCar, fmtHa, fmtInt } from "../../../compartilhado/formato"
+import { abreviarCar, fmtHa, fmtInt, normalizar } from "../../../compartilhado/formato"
 import { fonte } from "../dados"
-import { destinoDaBusca, linkFazenda, linkMunicipio, municipiosSemDados, pedirVoo, type MunicipioDoMapa } from "../rota"
+import { estadosDaBusca } from "./busca-estados"
+import { destinoDaBusca, linkEstado, linkFazenda, linkMunicipio, municipiosSemDados, pedirVoo, type MunicipioDoMapa } from "../rota"
 
 interface Opcao {
   id: string
@@ -23,6 +24,7 @@ type Estado =
   | { fase: "erro"; q: string }
 
 const ESPERA_MS = 250
+
 
 function abrirImovel(car: string) {
   pedirVoo(car)
@@ -50,7 +52,7 @@ const abrirMunicipio = (cod: string) => {
  * quando o site é estático, espera o usuário parar de digitar e cancela a busca anterior. Imóvel abre a ficha com o mapa voando até o
  * município; município abre o painel dele.
  */
-export function Busca({ aoEscolher }: { aoEscolher?: () => void }) {
+export function Busca({ aoEscolher, atalho = true }: { aoEscolher?: () => void; atalho?: boolean }) {
   const [texto, setTexto] = useState("")
   const [estado, setEstado] = useState<Estado>({ fase: "parado" })
   const [aberta, setAberta] = useState(false)
@@ -64,6 +66,18 @@ export function Busca({ aoEscolher }: { aoEscolher?: () => void }) {
   useEffect(() => {
     doMapaRef.current = doMapa
   }, [doMapa])
+
+  const fechar = () => {
+    setTexto("")
+    setAberta(false)
+    abrirAoChegar.current = false
+    entrada.current?.blur()
+    aoEscolher?.()
+  }
+  const fecharRef = useRef(fechar)
+  useEffect(() => {
+    fecharRef.current = fechar
+  })
 
   // busca com espera e cancelamento
   useEffect(() => {
@@ -79,7 +93,10 @@ export function Busca({ aoEscolher }: { aoEscolher?: () => void }) {
           if (abrirAoChegar.current) {
             abrirAoChegar.current = false
             const semDados = municipiosSemDados(q, doMapaRef.current, new Set(r.municipios.map((m) => m.cod_ibge)))
-            const destino = destinoDaBusca(r, semDados)
+            const estados = estadosDaBusca(q)
+            const estadoExato = estados.find((e) => normalizar(e.uf) === normalizar(q) || normalizar(e.nome) === normalizar(q))
+            const unicoEstado = estados.length === 1 && !r.imoveis.length && !r.municipios.length && !semDados.length
+            const destino = estadoExato ? linkEstado(estadoExato.uf) : unicoEstado ? linkEstado(estados[0].uf) : destinoDaBusca(r, semDados)
             if (destino) {
               if (r.imoveis.length === 1) pedirVoo(r.imoveis[0].cod_imovel)
               location.hash = destino
@@ -98,6 +115,7 @@ export function Busca({ aoEscolher }: { aoEscolher?: () => void }) {
 
   // "/" em qualquer lugar leva para a busca
   useEffect(() => {
+    if (!atalho) return
     const tecla = (e: KeyboardEvent) => {
       const alvo = e.target as HTMLElement
       if (e.key === "/" && !/INPUT|TEXTAREA|SELECT/.test(alvo.tagName)) {
@@ -107,22 +125,22 @@ export function Busca({ aoEscolher }: { aoEscolher?: () => void }) {
     }
     window.addEventListener("keydown", tecla)
     return () => window.removeEventListener("keydown", tecla)
-  }, [])
+  }, [atalho])
 
-  const fechar = () => {
-    setTexto("")
-    setAberta(false)
-    abrirAoChegar.current = false
-    entrada.current?.blur()
-    aoEscolher?.()
-  }
-  const fecharRef = useRef(fechar)
-  useEffect(() => {
-    fecharRef.current = fechar
-  })
+
 
   function opcoesDe(r: RespostaBusca | null): Opcao[] {
     return [
+      ...estadosDaBusca(q).map((e) => ({
+        id: "uf" + e.uf,
+        rotulo: `${e.nome} (${e.uf})`,
+        detalhe: "Estado; confira a cobertura no mapa",
+        marca: "ver estado",
+        ir: () => {
+          location.hash = linkEstado(e.uf)
+          fechar()
+        },
+      })),
       ...(r?.imoveis ?? []).map((i) => ({
         id: "i" + i.cod_imovel,
         rotulo: abreviarCar(i.cod_imovel),
@@ -166,7 +184,7 @@ export function Busca({ aoEscolher }: { aoEscolher?: () => void }) {
   const mensagem =
     r?.situacao === "nao_encontrado" && semDados.length
       ? `${semDados.length === 1 ? `${semDados[0].nome} ainda não foi processado` : "Estes municípios ainda não foram processados"} pela Raíz. Dá para ver onde ${semDados.length === 1 ? "fica" : "ficam"} no mapa.`
-      : r?.mensagem
+      : estadosDaBusca(q).length && r?.situacao === "nao_encontrado" ? undefined : r?.mensagem
   const mostrar = aberta && q.length >= 2
   // ocupado: há consulta e a resposta para ela ainda não chegou (inclui a espera de 250 ms)
   const ocupado = q.length >= 2 && !((estado.fase === "pronto" || estado.fase === "erro") && estado.q === q)
@@ -180,8 +198,9 @@ export function Busca({ aoEscolher }: { aoEscolher?: () => void }) {
       }}
     >
       <label className="sr" htmlFor={idLista + "-q"}>
-        Código do CAR ou município
+        Código do CAR, município ou estado
       </label>
+      <Search className="busca-lupa" size={18} aria-hidden="true" />
       <input
         id={idLista + "-q"}
         ref={entrada}
@@ -193,7 +212,7 @@ export function Busca({ aoEscolher }: { aoEscolher?: () => void }) {
         aria-activedescendant={mostrar && opcoes[ativo] ? idLista + opcoes[ativo].id : undefined}
         autoComplete="off"
         spellCheck={false}
-        placeholder="Código do CAR ou município"
+        placeholder="CAR, município ou estado"
         value={texto}
         onChange={(e) => {
           setTexto(e.target.value)
@@ -205,19 +224,22 @@ export function Busca({ aoEscolher }: { aoEscolher?: () => void }) {
           if (!doMapa.length) municipiosDoMapa().then(setDoMapa)
         }}
         onKeyDown={(e) => {
-          if (e.key === "ArrowDown") setAtivo((a) => Math.min(a + 1, opcoes.length - 1))
+          if (e.key === "ArrowDown") setAtivo((a) => Math.max(0, Math.min(a + 1, opcoes.length - 1)))
           else if (e.key === "ArrowUp") setAtivo((a) => Math.max(a - 1, 0))
           else if (e.key === "Enter") {
             if (!ocupado && opcoes[ativo]) opcoes[ativo].ir()
             else if (ocupado) abrirAoChegar.current = true
-          } else if (e.key === "Escape") setAberta(false)
+          } else if (e.key === "Escape") {
+            if (!mostrar) return // sem lista aberta, Escape pertence ao diálogo de busca
+            setAberta(false)
+          }
           else return
           e.preventDefault()
         }}
       />
       {ocupado && <span className="busca-girando" aria-hidden="true" />}
       {mostrar && (
-        <div className="busca-caixa" role="region" aria-live="polite">
+        <div className="busca-caixa" role="region" aria-label="Resultados da busca" aria-live="polite" tabIndex={0}>
           {ocupado && (
             <p className="busca-estado estado-linha">
               <span className="girando" aria-hidden="true" /> Buscando “{q}”…
