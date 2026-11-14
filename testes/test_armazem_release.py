@@ -525,3 +525,49 @@ def test_fatias_do_mesmo_estado_em_jobs_diferentes_nao_se_apagam(gh, tmp_path, s
     # o primeiro job publica de novo (fim da rodada dele): nada do segundo some
     a.publicar("PA")
     assert {f"PA/filtros_{c}.csv" for c in (C1, C2, C3, C4)} <= set(gh.membros("raiz_PA.tar.gz"))
+
+
+def _gh_com_commits_de_trava(gh, criado_em):
+    msg = f"raiz-trava trava-publicar-TO-dados {int(criado_em)} 1-job"
+    commits = {"t" * 40: {"message": msg, "tree": {"sha": "b" * 40}}}
+
+    def handler(req):
+        p = req.url.path
+        if "/git/commits" in p:
+            if req.method == "POST":
+                return httpx.Response(201, json={"sha": "n" * 40})
+            return httpx.Response(200, json=commits.get(p.rsplit("/", 1)[1], {"tree": {"sha": "b" * 40}}))
+        if "/git/ref/tags/" in p and req.method == "GET":
+            ref = "refs/tags/" + p.split("/git/ref/tags/", 1)[1]
+            if ref in gh.refs:
+                return httpx.Response(200, json={"object": {"sha": "t" * 40}})
+            return httpx.Response(404)
+        return gh(req)
+
+    return handler
+
+
+def test_trava_abandonada_por_job_morto_e_liberada(gh, tmp_path, monkeypatch):
+    import time as _t
+
+    gh.refs.add("refs/tags/trava-publicar-TO-dados")
+    monkeypatch.setattr("raiz.executor.armazem.time.sleep", lambda s: None)
+    handler = _gh_com_commits_de_trava(gh, _t.time() - 2 * 3600)
+    cli = httpx.Client(transport=httpx.MockTransport(handler))
+    a = ArmazemRelease(REPO, TAG, tmp_path / "espelho", token="segredo", cliente=cli, privado=True)
+    with a._trava("trava-publicar-TO", velha_s=60):
+        assert "refs/tags/trava-publicar-TO-dados" in gh.refs  # agora é a nossa
+    assert gh.refs == set()
+
+
+def test_trava_recente_de_outro_job_continua_respeitada(gh, tmp_path, monkeypatch):
+    import time as _t
+
+    gh.refs.add("refs/tags/trava-publicar-TO-dados")
+    monkeypatch.setattr("raiz.executor.armazem.time.sleep", lambda s: None)
+    handler = _gh_com_commits_de_trava(gh, _t.time() - 60)
+    cli = httpx.Client(transport=httpx.MockTransport(handler))
+    a = ArmazemRelease(REPO, TAG, tmp_path / "espelho", token="segredo", cliente=cli, privado=True)
+    with pytest.raises(TimeoutError), a._trava("trava-publicar-TO", velha_s=0):
+        pytest.fail("trava viva não pode ser tomada")
+    assert gh.refs == {"refs/tags/trava-publicar-TO-dados"}
