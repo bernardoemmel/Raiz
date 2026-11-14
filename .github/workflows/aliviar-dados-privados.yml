@@ -1,0 +1,33 @@
+name: Aliviar o arquivo privado (limite de 1000 arquivos)
+
+# Com 1000 arquivos no Release dados-privados o GitHub recusa todo upload (HTTP 422) e nenhum estado
+# publica. A cada hora, move para um Release rascunho historico-AAAA-MM-DD o que o processamento não lê
+# mais (relatórios de catálogo, cópias de migração e checkpoints soltos). Nada sai sem cópia conferida.
+# Autorizado pelo fundador em 14/11/2026.
+on:
+  schedule:
+    - cron: "47 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: aliviar-dados-privados
+  cancel-in-progress: false
+
+jobs:
+  aliviar:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v7
+        with:
+          version: "0.13.6"
+      - name: Instalar dependências
+        run: uv sync --frozen
+      - name: Mover arquivos antigos para o histórico
+        run: uv run python scripts/aliviar_dados_privados.py --executar
