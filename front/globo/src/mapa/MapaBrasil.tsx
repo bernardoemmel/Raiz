@@ -31,6 +31,7 @@ import { WorkerHexagonos } from "./worker-hexagonos"
 import { prepararContextoMapa } from "./preparar-contexto"
 import { FonteGeojsonBlob } from "./fonte-geojson-blob"
 import { completarEstiloNacional, separarEstiloNacional } from "./estilo-progressivo"
+import { recolherAtribuicaoInicialNoCelular } from "./atribuicao-inicial"
 import { aplicarEscalaHexagonos, camadasHexagonos, descreverHexagono, fontePublicaHexagonos } from "./camadas-hexagonos"
 import { desenhoDePontos, poligonoDesenhado } from "./desenho-area"
 import { filtroEstadosProcessados, type DadosNacionais } from "./nacional"
@@ -309,6 +310,7 @@ export function MapaBrasil(props: Props) {
         m.once("render", () => {
           if (removido) return
           m.addControl(new AttributionControl({ compact: true }), "bottom-right")
+          m.once("remove", recolherAtribuicaoInicialNoCelular(m.getContainer()))
           m.addControl(new ScaleControl({ unit: "metric" }), "bottom-right")
         })
         if (import.meta.env.DEV || import.meta.env.VITE_RAIZ_TESTE_MAPA === "1") Object.assign(caixa.current!, { __mapa: m })

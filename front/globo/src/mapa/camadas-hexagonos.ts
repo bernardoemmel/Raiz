@@ -36,13 +36,13 @@ export function camadasHexagonos(): LayerSpecification[] {
     { id: "hexagonos", type: "fill", source: "hexagonos", paint: { "fill-color": CORES_H3_V2[0], "fill-opacity": 0, "fill-antialias": false } },
     ...fills,
     { id: "hexagonos-linha", type: "line", source: "hexagonos", paint: {
-      "line-color": COR_MAPA_V2.terra, "line-width": 0.5, "line-opacity-transition": { duration: 300 },
+      "line-color": COR_MAPA_V2.terra, "line-width": 0.5, "line-opacity": 1, "line-opacity-transition": { duration: 300 },
     } },
     { id: "hexagonos-selecionados", type: "line", source: "hexagonos", filter: ["==", ["get", "selecionado"], true], paint: {
-      "line-color": COR_MAPA_V2.acao, "line-width": 2.2, "line-opacity-transition": { duration: 300 },
+      "line-color": COR_MAPA_V2.acao, "line-width": 2.2, "line-opacity": 0, "line-opacity-transition": { duration: 300 },
     } },
     { id: "hexagonos-sobre", type: "line", source: "hexagonos", filter: ["==", ["get", "h3"], ""], paint: {
-      "line-color": COR_MAPA_V2.destaque, "line-width": 1.5, "line-opacity-transition": { duration: 300 },
+      "line-color": COR_MAPA_V2.destaque, "line-width": 1.5, "line-opacity": 1, "line-opacity-transition": { duration: 300 },
     } },
   ]
 }

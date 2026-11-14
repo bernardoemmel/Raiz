@@ -6,6 +6,7 @@
  */
 import assert from "node:assert/strict"
 import { conferirCicloMapa } from "./conferir-ciclo-mapa.mjs"
+import { conferirAtribuicaoCompacta } from "./conferir-atribuicao.mjs"
 import { conferirEstabilidadePainelBrasil, conferirProcessamentoEstavel } from "./conferir-processamento-estavel.mjs"
 import { configurarPublicacao } from "./configurar-publicacao.mjs"
 import fs from "node:fs"
@@ -450,6 +451,7 @@ try {
   await pagina.getByRole("button", { name: /^(Fechar ficha breve|Close popup)$/ }).click()
   await pagina.setViewportSize({ width: 360, height: 800 })
   await mapaPronto()
+  await conferirAtribuicaoCompacta(pagina)
   assert(await pagina.evaluate(() => document.documentElement.scrollWidth <= innerWidth), "O mapa não pode exceder 360 px.")
   const acessibilidade = await new AxeBuilder({ page: pagina }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze()
   fs.writeFileSync(path.join(resultado, "axe-mapa-360.json"), JSON.stringify(acessibilidade.violations, null, 2))

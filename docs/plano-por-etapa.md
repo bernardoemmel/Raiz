@@ -14,7 +14,11 @@ Pedidos que só o fundador faz, no dia 1: convênio com o ONR e pedidos por LAI 
 - [x] Desenho de área transferido aos critérios do pedido; nenhum contato enviado.
 - [x] Guia V2 e verificador atualizados com exceções restritas aos rótulos mono.
 - [x] Comparação dos três prints registrada, com diferenças de dados e acesso documentadas: [antes/depois e relatório público](design/evidencias-v2/README.md).
-- [ ] Fechar testes de navegador, desempenho e CI da entrega.
+- [x] 647 testes do front, Playwright, teclado/axe, verificador de design e portão
+  Lighthouse local (Brasil 94, acessibilidade 100; todas as seis rotas ≥ 90).
+- [ ] Lighthouse ≥ 90 com o retrato público completo: última mediana 84;
+  acessibilidade 100. Séries e diferença do cenário do CI registradas nas evidências.
+- [ ] CI da revisão final e merge do [PR #107](https://github.com/bernardoemmel/Raiz/pull/107).
 
 Detalhes, fontes e evidências: [passagem de telas e mapa](passagem/telas-e-mapa.md).
 Os hexágonos públicos contam cadastros, não somente fazendas aptas; o cartão usa os

@@ -989,7 +989,8 @@ o fundo continua Protomaps e os dados continuam nos contratos públicos/autentic
   com [Brasil](../design/evidencias-v2/depois-brasil.png), [pedido público](../design/evidencias-v2/depois-pedido.png),
   [celular](../design/evidencias-v2/depois-celular.png), antes/depois e [relatório de capturas](../design/evidencias-v2/relatorio-capturas.json).
   As capturas registraram zero erros HTTP, JavaScript, console e requisições falhas.
-  Comparação visual concluída; desempenho e CI permanecem pendentes.
+  Capturas finais `site-v2-13`, em 13/11/2026 às 21:09 de Brasília, Chromium 158;
+  mesmo viewport/DPR das referências. Desempenho detalhado abaixo; CI final pendente.
 
 A entrada ocupa a tela inteira, com base escura, fontes locais Bricolage Grotesque e
 JetBrains Mono, cartão territorial e pedido flutuantes. H3 r4 no Brasil e r5 ao aproximar
@@ -1012,29 +1013,44 @@ Reserva não informada continua ausente, em vez de copiar os 20% ilustrativos.
 Desenhar área cria um critério editável; não recalcula os resumos estáticos nem envia
 mensagem aos donos. E9 continua pendente das cartas reais, ainda não fornecidas.
 
-As capturas iniciais com dados reais encontraram zero 404/erros de JavaScript, mas
-apontaram dois erros de expressão cartográfica, enquadramento mobile e ajustes no
-foco da busca. Foram corrigidos antes da conferência final. Evidências finais e CI
-serão registrados ao concluir esta entrega; esta seção não declara aprovação antecipada.
+Validação da revisão final do [PR #107](https://github.com/bernardoemmel/Raiz/pull/107):
 
+- **647 testes do front em 62 arquivos**, TypeScript, build e verificador de design
+  passaram. Main `a32523d` incorporada, preservando catálogo, API/MCP, produtor Preact
+  e atualizações de dependências. A nova busca encontra estado, município e CAR;
+  não depende da rota `/busca` do Pages.
+- Playwright Pages completo: H3 r4/r5, Parauapebas, zoom, base com overzoom,
+  satélite, filtros, hover, máscara, fontes atrasadas e privacidade; zero 404/JS.
+  Entrada: 45 verificações, teclado e telas 360/390 px. Créditos recolhidos em botão
+  de 48 px no celular, acessíveis por toque/teclado, sem esconder as fontes.
+- Cena-alvo pública e autenticada passou: comparação em 390 px, axe, área transferida
+  ao pedido, polígonos somente da API autorizada, bloqueio de ficha não liberada,
+  troca de opção, fechamento e logout. Zoom 12 mantém o pedido e a autorização.
+  Zero erros HTTP/JavaScript e zero envios de contato.
+- Calendário, agentes, pasta, Acerto, pedido nacional, ficha de crédito e gráficos
+  passaram, com 17 relatórios axe sem violações. Acerto foi novamente validado após
+  estabilizar a ajuda durante o carregamento; teclado, versões e resposta atrasada.
+- O portão Lighthouse local configurado no CI passou nas seis rotas, três amostras
+  fixas por rota: medianas **Brasil 94, entrar 96, novo pedido 95, prospecção 95,
+  Acerto 96, produtor 100**; acessibilidade mínima **100**. Esse portão usa a amostra
+  controlada dos testes; não representa toda a base pública.
+- Com o **retrato público completo**, a série final marcou **84/86/81** em desempenho
+  (mediana **84**) e **100** em acessibilidade. A meta de 90 nesse cenário permanece
+  pendente. As oito séries, incluindo as falhas, estão em
+  [lighthouse-series.json](../design/evidencias-v2/lighthouse-series.json).
+  Não houve redução do portão, cancelamento de workflow ou mudança das flags para
+  favorecer a medição.
 
-Validação intermediária V2: 620 testes do front passaram após integrar a main
-`e0521a9`; conflitos em package/lock resolvidos preservando as fontes V2 e as
-atualizações de Lucide/Vitest. Ruff passou em 640 arquivos. A execução Python local
-teve 3.241 aprovações, 319 skips (316 sem banco, dois sem mídia, um sem LanguageTool),
-um xfail e uma falha por falta de `RAIZ_TESTE_PA_PASTA`. Não equivale a suíte verde:
-o CI obrigatório executa esses serviços e a referência privada do Pará.
+As otimizações mantêm mapa e dados disponíveis desde a abertura: GeoJSON serializado
+no worker e lido por Blob pelo MapLibre; preparação das variantes gráficas reais;
+montagem progressiva do estilo com a mesma ordem final; conteúdo extenso montado só
+quando aberto. Os testes conferem estilo equivalente e cancelamento imediato dos
+workers da aplicação. O dispatcher global nativo do MapLibre é reutilizado, sem
+crescimento a cada navegação.
 
-O teste completo da cena-alvo passou, incluindo o overlay público em 390 px, axe,
-critérios transferidos ao formulário e a rota autenticada do mapa, com bloqueio de
-ficha não liberada, troca de opção, fechamento e logout. Zero erros HTTP/JavaScript
-e zero envios de contato. As falhas iniciais de seletores/espera do teste novo foram
-preservadas antes da execução final, sem flexibilizar a verificação de acesso.
-
-A primeira série Lighthouse com snapshot público real reprovou: desempenho
-71/75/75, acessibilidade 96. Identificou sobreposição de Camadas/zoom no celular,
-montagem desnecessária do diálogo fechado e variantes gráficas extras na abertura.
-Foram corrigidos os controles, o conteúdo do diálogo passou a montar sob demanda,
-e os seis intervalos H3 usam preenchimentos constantes sobre a mesma fonte. O mapa,
-os agregados e o cartão continuam carregando imediatamente. Nenhuma amostra foi
-apagada; a nova série será registrada separadamente.
+Ruff passou em 640 arquivos. A execução Python local registrou 3.241 aprovações,
+319 skips, um xfail e uma falha pela ausência de `RAIZ_TESTE_PA_PASTA`. O CI da
+revisão anterior do mesmo PR executou os serviços: **3.560 testes passaram**, um
+excluído e um xfail; referência privada do Pará também passou. Esses resultados
+não substituem o CI da revisão final. O merge permanece condicionado a todos os
+checks verdes no HEAD enviado, sem force-push na main.

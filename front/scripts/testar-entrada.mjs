@@ -10,6 +10,7 @@ import path from "node:path"
 import { fileURLToPath, pathToFileURL } from "node:url"
 import { gzipSync } from "node:zlib"
 import { CAR, MUNICIPIO } from "./preparar-teste-site.mjs"
+import { conferirAtribuicaoCompacta } from "./conferir-atribuicao.mjs"
 
 const GLOBO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../globo")
 const doGlobo = createRequire(path.join(GLOBO, "package.json"))
@@ -174,6 +175,8 @@ try {
     const { p, erros } = await pagina({ viewport: { width: largura, height: 844 }, isMobile: true, hasTouch: true })
     await p.goto(URL_BASE)
     await p.locator("#territorio-v2-titulo").waitFor()
+    await conferirAtribuicaoCompacta(p)
+    conferir(true, `${largura}px: os créditos começam compactos e abrem/recolhem por teclado sem perder fontes`)
     const botaoBusca = p.getByRole("button", { name: "Buscar CAR, município ou estado" })
     const busca = await botaoBusca.boundingBox()
     conferir(busca.y < 76 && busca.width >= 48 && busca.height >= 48, `${largura}px: a busca tem alvo de toque de 48 px`)

@@ -184,7 +184,296 @@
       ],
       "aprovado": false,
       "erro": "A mediana de desempenho precisa chegar a 90; recebeu 79."
+    },
+    {
+      "serie": 7,
+      "snapshot": "site-v2-12",
+      "navegador": "Chromium 158.0.8127.18, versão do Playwright fixado no CI",
+      "amostras": [
+        {
+          "performance": 50,
+          "accessibility": 100,
+          "lcp": 8653.50825,
+          "tbt": 1286,
+          "cls": 0.00806215277777778
+        },
+        {
+          "performance": 58,
+          "accessibility": 100,
+          "lcp": 8925.883199999998,
+          "tbt": 686.1028000000001,
+          "cls": 0.00806215277777778
+        },
+        {
+          "performance": 54,
+          "accessibility": 100,
+          "lcp": 8920.7215,
+          "tbt": 894.9999999999999,
+          "cls": 0.00806215277777778
+        }
+      ],
+      "aprovado": false,
+      "erro": "A mediana de desempenho precisa chegar a 90; recebeu 54."
+    },
+    {
+      "serie": 8,
+      "snapshot": "site-v2-13",
+      "navegador": "Chromium 158.0.8127.18, versão do Playwright fixado no CI",
+      "amostras": [
+        {
+          "performance": 84,
+          "accessibility": 100,
+          "lcp": 758.5334,
+          "tbt": 619.9999999999994,
+          "cls": 1.548611111111111e-05
+        },
+        {
+          "performance": 86,
+          "accessibility": 100,
+          "lcp": 753.2451000000001,
+          "tbt": 487.5,
+          "cls": 0.00806215277777778
+        },
+        {
+          "performance": 81,
+          "accessibility": 100,
+          "lcp": 754.5463,
+          "tbt": 793.72685,
+          "cls": 0.00806215277777778
+        }
+      ],
+      "aprovado": false,
+      "erro": "A mediana de desempenho precisa chegar a 90; recebeu 84."
     }
   ],
-  "situacao": "Desempenho ainda pendente; nenhuma série aprovada."
+  "situacao": "O portão configurado passou localmente com a fixture do CI. O retrato público completo permanece abaixo de 90: série 8 com mediana 84 e acessibilidade 100; nenhuma série completa aprovada.",
+  "medicao_fixture_ci": {
+    "execucao": "Local, com o comando e a fixture configurados para o CI; não é um resultado do GitHub Actions nem do retrato completo.",
+    "comando": "node front/scripts/testar-acessibilidade.mjs",
+    "dados": "Fixture pública e sintética do teste de publicação.",
+    "navegador": "Chromium 158.0.8127.18, versão do Playwright fixado no CI",
+    "inicio_utc": "2026-11-14T00:09:54.270Z",
+    "fim_utc": "2026-11-14T00:11:43.854Z",
+    "metodo": "Três navegações por página; desempenho pela mediana, acessibilidade pelo mínimo. Mobile 360×800, DPR 1, CPU e rede simulate, SwiftShader.",
+    "paginas": [
+      {
+        "pagina": "brasil",
+        "performance_mediana": 94,
+        "acessibilidade_minima": 100,
+        "amostras": [
+          {
+            "performance": 89,
+            "accessibility": 100,
+            "lcp": 751.8406,
+            "tbt": 449.5,
+            "cls": 1.597222222222222e-05
+          },
+          {
+            "performance": 96,
+            "accessibility": 100,
+            "lcp": 752.2474,
+            "tbt": 234,
+            "cls": 0
+          },
+          {
+            "performance": 94,
+            "accessibility": 100,
+            "lcp": 752.5971,
+            "tbt": 274,
+            "cls": 0.00806263888888889
+          }
+        ]
+      },
+      {
+        "pagina": "entrar",
+        "performance_mediana": 96,
+        "acessibilidade_minima": 100,
+        "amostras": [
+          {
+            "performance": 96,
+            "accessibility": 100,
+            "lcp": 2831.3202,
+            "tbt": 57,
+            "cls": 0.0001452083333333333
+          },
+          {
+            "performance": 96,
+            "accessibility": 100,
+            "lcp": 2743.0191499999996,
+            "tbt": 0,
+            "cls": 0.0001452083333333333
+          },
+          {
+            "performance": 97,
+            "accessibility": 100,
+            "lcp": 2507.443,
+            "tbt": 6,
+            "cls": 0.0001452083333333333
+          }
+        ]
+      },
+      {
+        "pagina": "novo-pedido",
+        "performance_mediana": 95,
+        "acessibilidade_minima": 100,
+        "amostras": [
+          {
+            "performance": 95,
+            "accessibility": 100,
+            "lcp": 2905.2662,
+            "tbt": 30.933449999999993,
+            "cls": 0.0003795703125
+          },
+          {
+            "performance": 95,
+            "accessibility": 100,
+            "lcp": 2891.6759999999995,
+            "tbt": 0,
+            "cls": 0.0003795703125
+          },
+          {
+            "performance": 95,
+            "accessibility": 100,
+            "lcp": 2904.8536000000004,
+            "tbt": 3,
+            "cls": 0.0003795703125
+          }
+        ]
+      },
+      {
+        "pagina": "prospeccao",
+        "performance_mediana": 95,
+        "acessibilidade_minima": 100,
+        "amostras": [
+          {
+            "performance": 95,
+            "accessibility": 100,
+            "lcp": 2903.4912000000004,
+            "tbt": 0,
+            "cls": 0.02854630859375
+          },
+          {
+            "performance": 95,
+            "accessibility": 100,
+            "lcp": 2908.9398,
+            "tbt": 5,
+            "cls": 0.02854630859375
+          },
+          {
+            "performance": 95,
+            "accessibility": 100,
+            "lcp": 2907.8086,
+            "tbt": 4,
+            "cls": 0.02854630859375
+          }
+        ]
+      },
+      {
+        "pagina": "acerto",
+        "performance_mediana": 96,
+        "acessibilidade_minima": 100,
+        "amostras": [
+          {
+            "performance": 96,
+            "accessibility": 100,
+            "lcp": 2805.2541999999994,
+            "tbt": 3,
+            "cls": 0.00646875
+          },
+          {
+            "performance": 96,
+            "accessibility": 100,
+            "lcp": 2809.7118,
+            "tbt": 7,
+            "cls": 0
+          },
+          {
+            "performance": 97,
+            "accessibility": 100,
+            "lcp": 2504.0062,
+            "tbt": 2,
+            "cls": 0
+          }
+        ]
+      },
+      {
+        "pagina": "produtor",
+        "performance_mediana": 100,
+        "acessibilidade_minima": 100,
+        "amostras": [
+          {
+            "performance": 100,
+            "accessibility": 100,
+            "lcp": 750.8296,
+            "tbt": 2.292599999999993,
+            "cls": 0.0085903125
+          },
+          {
+            "performance": 100,
+            "accessibility": 100,
+            "lcp": 750.9783,
+            "tbt": 0,
+            "cls": 0.0085903125
+          },
+          {
+            "performance": 100,
+            "accessibility": 100,
+            "lcp": 750.9639999999999,
+            "tbt": 0,
+            "cls": 0.0085903125
+          }
+        ]
+      }
+    ],
+    "axe": [
+      {
+        "pagina": "brasil-360",
+        "regras": 25,
+        "violacoes": 0
+      },
+      {
+        "pagina": "sobre-os-dados-360",
+        "regras": 22,
+        "violacoes": 0
+      },
+      {
+        "pagina": "busca-360",
+        "regras": 21,
+        "violacoes": 0
+      },
+      {
+        "pagina": "municipio-360",
+        "regras": 22,
+        "violacoes": 0
+      },
+      {
+        "pagina": "entrada-erro-360",
+        "regras": 25,
+        "violacoes": 0
+      },
+      {
+        "pagina": "novo-pedido-360",
+        "regras": 24,
+        "violacoes": 0
+      },
+      {
+        "pagina": "novo-pedido-filtros-360",
+        "regras": 24,
+        "violacoes": 0
+      },
+      {
+        "pagina": "prospeccao-publica-360",
+        "regras": 23,
+        "violacoes": 0
+      },
+      {
+        "pagina": "produtor-360",
+        "regras": 13,
+        "violacoes": 0
+      }
+    ],
+    "teclado_e_360px": "Aprovados pelo comando completo.",
+    "aprovado": true,
+    "limite": "A aprovação da fixture não substitui a meta de desempenho do retrato completo."
+  }
 }

@@ -10,7 +10,7 @@ export async function conferirCicloMapa(navegador, base) {
     window.__ativos = ativos
     window.__pendentes = []
     window.Worker = class extends Original {
-      constructor(...args) { super(...args); ativos.add(this) }
+      constructor(...args) { super(...args); this.__origemTeste = String(args[0]); ativos.add(this) }
       terminate() { ativos.delete(this); super.terminate() }
     }
     Object.defineProperty(globalThis, "scheduler", { configurable: true,
@@ -37,8 +37,11 @@ export async function conferirCicloMapa(navegador, base) {
   await pagina.evaluate(() => window.__pendentes.splice(0).forEach(resolve => resolve()))
   assert.equal(await pagina.locator("canvas").count(), 0)
   assert.equal(await pagina.evaluate(() => window.__ativos.size), 0)
-  // As duas continuações seguintes constroem linhas e símbolos. Sair em qualquer
-  // uma precisa remover o canvas e os workers antes de liberar o trabalho pendente.
+  // As duas continuações seguintes constroem linhas e símbolos. Depois de criar
+  // Style, o fornecedor mantém um dispatcher RTL global: deve ser o mesmo worker
+  // entre remontagens. Os workers H3/preparo e o canvas precisam sair imediatamente.
+  // MapLibre 6.15: style/style.ts chama rtlMainThreadPluginFactory(); a fábrica em
+  // source/rtl_text_plugin_main_thread.ts mantém getGlobalDispatcher() de util/dispatcher.ts.
   for (const pausa of [2, 3]) {
     await pagina.evaluate(() => { location.hash = "#/" })
     for (let etapa = 0; etapa <= pausa; etapa++) {
@@ -51,7 +54,15 @@ export async function conferirCicloMapa(navegador, base) {
     await pagina.evaluate(() => { location.hash = "#/entrar" })
     await pagina.getByRole("heading", { name: "Entrar na Raíz" }).waitFor()
     assert.equal(await pagina.locator("canvas").count(), 0)
-    assert.equal(await pagina.evaluate(() => window.__ativos.size), 0)
+    const trabalhadores = await pagina.evaluate(() => [...window.__ativos].map(worker => worker.__origemTeste))
+    assert.equal(trabalhadores.length, 1, "Só o dispatcher global do fornecedor permanece depois de Style existir.")
+    assert.match(trabalhadores[0], /\/maplibre-gl-worker-[\w-]+\.mjs$/)
+    assert(await pagina.evaluate(() => {
+      const worker = [...window.__ativos][0]
+      const reutilizado = !window.__workerGlobal || window.__workerGlobal === worker
+      window.__workerGlobal = worker
+      return reutilizado
+    }), "O worker global deve ser reutilizado, nunca recriado ou acumulado pelas fases abortadas.")
     await pagina.evaluate(() => window.__pendentes.splice(0).forEach(resolve => resolve()))
     assert.equal(await pagina.locator("canvas").count(), 0)
   }

@@ -1,11 +1,11 @@
 {
   "escopo": "Três capturas públicas anônimas do build local visual V2, sem API autenticada; não mede Lighthouse.",
   "captura": {
-    "inicio_utc": "2026-11-13T23:10:57.949Z",
-    "fim_utc": "2026-11-13T23:11:09.245Z",
+    "inicio_utc": "2026-11-14T00:09:32.574Z",
+    "fim_utc": "2026-11-14T00:09:41.730Z",
     "fuso_apresentacao": "America/Sao_Paulo",
-    "build": "site-v2-6",
-    "navegador": "Chrome for Testing 157.0.8103.78",
+    "build": "site-v2-13",
+    "navegador": "Chrome for Testing 158.0.8127.18",
     "dispositivo": "Playwright, viewport CSS explícito, DPR 2 desktop e DPR 3 celular, movimento reduzido"
   },
   "origem_dados": {
@@ -49,9 +49,9 @@
     }
   ],
   "resultado": {
-    "respostas_http": 147,
+    "respostas_http": 151,
     "por_status": {
-      "200": 131,
+      "200": 135,
       "206": 16
     },
     "http_404": 0,
@@ -69,11 +69,6 @@
     },
     {
       "tela": "desktop",
-      "caminho": "/assets/index-XEgl4vO9.css",
-      "status": 200
-    },
-    {
-      "tela": "desktop",
       "caminho": "/assets/bricolage-grotesque-latin-400-normal-A6LyuA6R.woff2",
       "status": 200
     },
@@ -85,6 +80,16 @@
     {
       "tela": "desktop",
       "caminho": "/assets/jetbrains-mono-latin-700-normal-BYuf6tUa.woff2",
+      "status": 200
+    },
+    {
+      "tela": "desktop",
+      "caminho": "/assets/index-Ajj19jCp.css",
+      "status": 200
+    },
+    {
+      "tela": "desktop",
+      "caminho": "/assets/basico-BPvEuUCc.js",
       "status": 200
     },
     {
@@ -109,37 +114,17 @@
     },
     {
       "tela": "desktop",
-      "caminho": "/assets/basico-BPvEuUCc.js",
-      "status": 200
-    },
-    {
-      "tela": "desktop",
       "caminho": "/assets/createLucideIcon-DCmTx4gI.js",
       "status": 200
     },
     {
       "tela": "desktop",
-      "caminho": "/assets/index-C_cPH3Nx.js",
+      "caminho": "/assets/index-BUBu1pjF.js",
       "status": 200
     },
     {
       "tela": "desktop",
-      "caminho": "/assets/MapaBrasil-sYubXQIC.js",
-      "status": 200
-    },
-    {
-      "tela": "desktop",
-      "caminho": "/assets/estilo-qvkd0SPb.css",
-      "status": 200
-    },
-    {
-      "tela": "desktop",
-      "caminho": "/assets/MapaBrasil-CVs43rZY.css",
-      "status": 200
-    },
-    {
-      "tela": "desktop",
-      "caminho": "/assets/filtros-BdFNlDVe.js",
+      "caminho": "/geo/indice.json",
       "status": 200
     },
     {
@@ -149,17 +134,12 @@
     },
     {
       "tela": "desktop",
-      "caminho": "/assets/preparar-contexto.worker-BfBaqcn4.js",
-      "status": 200
-    },
-    {
-      "tela": "desktop",
       "caminho": "/favicon.svg",
       "status": 200
     },
     {
       "tela": "desktop",
-      "caminho": "/geo/indice.json",
+      "caminho": "/assets/preparar-contexto.worker-CBoNKTkt.js",
       "status": 200
     },
     {
@@ -170,6 +150,16 @@
     {
       "tela": "desktop",
       "caminho": "/amostra/indice_AP.json",
+      "status": 200
+    },
+    {
+      "tela": "desktop",
+      "caminho": "/amostra/indice_MT.json",
+      "status": 200
+    },
+    {
+      "tela": "desktop",
+      "caminho": "/amostra/indice_MG.json",
       "status": 200
     },
     {
@@ -190,16 +180,6 @@
     {
       "tela": "desktop",
       "caminho": "/amostra/indice_MA.json",
-      "status": 200
-    },
-    {
-      "tela": "desktop",
-      "caminho": "/amostra/indice_MT.json",
-      "status": 200
-    },
-    {
-      "tela": "desktop",
-      "caminho": "/amostra/indice_MG.json",
       "status": 200
     },
     {
@@ -254,7 +234,7 @@
     },
     {
       "tela": "desktop",
-      "caminho": "/amostra/resumo_GO.csv.gz",
+      "caminho": "/amostra/resumo_MT.csv.gz",
       "status": 200
     },
     {
@@ -269,37 +249,12 @@
     },
     {
       "tela": "desktop",
-      "caminho": "/amostra/resumo_MA.csv.gz",
-      "status": 200
-    },
-    {
-      "tela": "desktop",
-      "caminho": "/amostra/resumo_MT.csv.gz",
-      "status": 200
-    },
-    {
-      "tela": "desktop",
-      "caminho": "/assets/jetbrains-mono-latin-500-normal-BWZEU5yA.woff2",
-      "status": 200
-    },
-    {
-      "tela": "desktop",
-      "caminho": "/assets/bricolage-grotesque-latin-500-normal-DEDBoLFO.woff2",
-      "status": 200
-    },
-    {
-      "tela": "desktop",
-      "caminho": "/assets/jetbrains-mono-latin-400-normal-V6pRDFza.woff2",
-      "status": 200
-    },
-    {
-      "tela": "desktop",
-      "caminho": "/assets/bricolage-grotesque-latin-700-normal-gtcctNPv.woff2",
-      "status": 200
-    },
-    {
-      "tela": "desktop",
       "caminho": "/amostra/resumo_MG.csv.gz",
+      "status": 200
+    },
+    {
+      "tela": "desktop",
+      "caminho": "/amostra/resumo_GO.csv.gz",
       "status": 200
     },
     {
@@ -329,6 +284,11 @@
     },
     {
       "tela": "desktop",
+      "caminho": "/amostra/resumo_MA.csv.gz",
+      "status": 200
+    },
+    {
+      "tela": "desktop",
       "caminho": "/amostra/resumo_SP.csv.gz",
       "status": 200
     },
@@ -339,22 +299,62 @@
     },
     {
       "tela": "desktop",
-      "caminho": "/assets/estilo-D6tVXtsa.js",
+      "caminho": "/assets/bricolage-grotesque-latin-500-normal-DEDBoLFO.woff2",
       "status": 200
     },
     {
       "tela": "desktop",
-      "caminho": "/assets/hexagonos.worker-Bs7reM1C.js",
+      "caminho": "/assets/jetbrains-mono-latin-500-normal-BWZEU5yA.woff2",
       "status": 200
     },
     {
       "tela": "desktop",
-      "caminho": "/geo/agregados_brasil.geojson",
+      "caminho": "/assets/bricolage-grotesque-latin-700-normal-gtcctNPv.woff2",
+      "status": 200
+    },
+    {
+      "tela": "desktop",
+      "caminho": "/assets/jetbrains-mono-latin-400-normal-V6pRDFza.woff2",
+      "status": 200
+    },
+    {
+      "tela": "desktop",
+      "caminho": "/assets/estilo-LIk-EftL.js",
+      "status": 200
+    },
+    {
+      "tela": "desktop",
+      "caminho": "/assets/MapaBrasil-bXHS2lOo.css",
+      "status": 200
+    },
+    {
+      "tela": "desktop",
+      "caminho": "/assets/maplibre-gl-qvkd0SPb.css",
+      "status": 200
+    },
+    {
+      "tela": "desktop",
+      "caminho": "/assets/filtros-ZmSglhDR.js",
       "status": 200
     },
     {
       "tela": "desktop",
       "caminho": "/assets/bricolage-grotesque-latin-600-normal-nxTgbNFE.woff2",
+      "status": 200
+    },
+    {
+      "tela": "desktop",
+      "caminho": "/assets/MapaBrasil-CnjUFJ3u.js",
+      "status": 200
+    },
+    {
+      "tela": "desktop",
+      "caminho": "/assets/hexagonos.worker-f71mHYPe.js",
+      "status": 200
+    },
+    {
+      "tela": "desktop",
+      "caminho": "/geo/agregados_brasil.geojson",
       "status": 200
     },
     {
@@ -404,6 +404,11 @@
     },
     {
       "tela": "desktop",
+      "caminho": "http://127.0.0.1:43989/e7903814-6c20-4156-bbe2-c73960f13a92",
+      "status": 200
+    },
+    {
+      "tela": "desktop",
       "caminho": "/assets/PainelPedidoMapaV2-D7mHSH0U.css",
       "status": 200
     },
@@ -419,7 +424,7 @@
     },
     {
       "tela": "desktop",
-      "caminho": "/assets/PainelPedidoMapaV2-HKnlsbpt.js",
+      "caminho": "/assets/PainelPedidoMapaV2-BVlxBQrG.js",
       "status": 200
     },
     {
@@ -468,8 +473,23 @@
       "status": 206
     },
     {
+      "tela": "desktop",
+      "caminho": "http://127.0.0.1:43989/187d4c2c-acc5-42c9-864d-e3e977ac69f9",
+      "status": 200
+    },
+    {
+      "tela": "desktop",
+      "caminho": "http://127.0.0.1:43989/baf1ce27-7b42-404f-ac9c-edd367bfacd0",
+      "status": 200
+    },
+    {
       "tela": "celular",
       "caminho": "/",
+      "status": 200
+    },
+    {
+      "tela": "celular",
+      "caminho": "/assets/index-Ajj19jCp.css",
       "status": 200
     },
     {
@@ -479,17 +499,7 @@
     },
     {
       "tela": "celular",
-      "caminho": "/assets/index-XEgl4vO9.css",
-      "status": 200
-    },
-    {
-      "tela": "celular",
       "caminho": "/assets/bricolage-grotesque-latin-800-normal-J50vIsBe.woff2",
-      "status": 200
-    },
-    {
-      "tela": "celular",
-      "caminho": "/assets/react-sySUN5R7.js",
       "status": 200
     },
     {
@@ -499,7 +509,7 @@
     },
     {
       "tela": "celular",
-      "caminho": "/assets/formato-CnQc5Kmn.js",
+      "caminho": "/assets/react-sySUN5R7.js",
       "status": 200
     },
     {
@@ -514,27 +524,22 @@
     },
     {
       "tela": "celular",
-      "caminho": "/assets/createLucideIcon-DCmTx4gI.js",
-      "status": 200
-    },
-    {
-      "tela": "celular",
       "caminho": "/assets/privacidade-B9VTsV33.js",
       "status": 200
     },
     {
       "tela": "celular",
-      "caminho": "/assets/index-C_cPH3Nx.js",
+      "caminho": "/assets/formato-CnQc5Kmn.js",
       "status": 200
     },
     {
       "tela": "celular",
-      "caminho": "/assets/estilo-qvkd0SPb.css",
+      "caminho": "/assets/createLucideIcon-DCmTx4gI.js",
       "status": 200
     },
     {
       "tela": "celular",
-      "caminho": "/assets/MapaBrasil-CVs43rZY.css",
+      "caminho": "/assets/index-BUBu1pjF.js",
       "status": 200
     },
     {
@@ -544,17 +549,7 @@
     },
     {
       "tela": "celular",
-      "caminho": "/assets/filtros-BdFNlDVe.js",
-      "status": 200
-    },
-    {
-      "tela": "celular",
       "caminho": "/assets/jetbrains-mono-latin-500-normal-BWZEU5yA.woff2",
-      "status": 200
-    },
-    {
-      "tela": "celular",
-      "caminho": "/assets/MapaBrasil-sYubXQIC.js",
       "status": 200
     },
     {
@@ -574,7 +569,12 @@
     },
     {
       "tela": "celular",
-      "caminho": "/assets/preparar-contexto.worker-BfBaqcn4.js",
+      "caminho": "/assets/estilo-LIk-EftL.js",
+      "status": 200
+    },
+    {
+      "tela": "celular",
+      "caminho": "/assets/preparar-contexto.worker-CBoNKTkt.js",
       "status": 200
     },
     {
@@ -600,11 +600,6 @@
     {
       "tela": "celular",
       "caminho": "/amostra/indice_CE.json",
-      "status": 200
-    },
-    {
-      "tela": "celular",
-      "caminho": "/assets/estilo-D6tVXtsa.js",
       "status": 200
     },
     {
@@ -674,6 +669,21 @@
     },
     {
       "tela": "celular",
+      "caminho": "/assets/MapaBrasil-bXHS2lOo.css",
+      "status": 200
+    },
+    {
+      "tela": "celular",
+      "caminho": "/assets/maplibre-gl-qvkd0SPb.css",
+      "status": 200
+    },
+    {
+      "tela": "celular",
+      "caminho": "/assets/filtros-ZmSglhDR.js",
+      "status": 200
+    },
+    {
+      "tela": "celular",
       "caminho": "/amostra/resumo_AC.csv.gz",
       "status": 200
     },
@@ -700,6 +710,11 @@
     {
       "tela": "celular",
       "caminho": "/amostra/resumo_MG.csv.gz",
+      "status": 200
+    },
+    {
+      "tela": "celular",
+      "caminho": "/assets/MapaBrasil-CnjUFJ3u.js",
       "status": 200
     },
     {
@@ -739,17 +754,17 @@
     },
     {
       "tela": "celular",
-      "caminho": "/assets/hexagonos.worker-Bs7reM1C.js",
+      "caminho": "/assets/bricolage-grotesque-latin-600-normal-nxTgbNFE.woff2",
+      "status": 200
+    },
+    {
+      "tela": "celular",
+      "caminho": "/assets/hexagonos.worker-f71mHYPe.js",
       "status": 200
     },
     {
       "tela": "celular",
       "caminho": "/geo/agregados_brasil.geojson",
-      "status": 200
-    },
-    {
-      "tela": "celular",
-      "caminho": "/assets/bricolage-grotesque-latin-600-normal-nxTgbNFE.woff2",
       "status": 200
     },
     {
@@ -796,6 +811,11 @@
       "tela": "celular",
       "caminho": "/geo/fontes/Noto%20Sans%20Italic/0-255.pbf",
       "status": 200
+    },
+    {
+      "tela": "celular",
+      "caminho": "http://127.0.0.1:43989/bbe36519-f0d0-4b36-838a-32688b33e043",
+      "status": 200
     }
   ],
   "imagens": [
@@ -815,24 +835,24 @@
     },
     {
       "arquivo": "depois-brasil.png",
-      "bytes": 927556,
+      "bytes": 938354,
       "largura_px": 2880,
       "altura_px": 1800,
-      "sha256": "ae18e4e48be02c1cfd72a9a7f2957ba12d42e4a0fc47d1365b4366bec41a492b"
+      "sha256": "a88fbbaa466bb24a6d299e6d7de144c80e8e728638eb64187e64eea9ddbce9d3"
     },
     {
       "arquivo": "depois-pedido.png",
-      "bytes": 1666353,
+      "bytes": 1670868,
       "largura_px": 2880,
       "altura_px": 1800,
-      "sha256": "e53d2e90174cd43067d33473a779c6c9f1497375c29498330d36ea569fb7b327"
+      "sha256": "afe13e42736e53d7519e7885af9d952f7889ef705cedf0557302154e0d8d19d2"
     },
     {
       "arquivo": "depois-celular.png",
-      "bytes": 866000,
+      "bytes": 862684,
       "largura_px": 1170,
       "altura_px": 2532,
-      "sha256": "d7300a3cdccbee1820b0b73b39102edf8f3a6ab2d7f6c4a0d5b86bb5f89d75ee"
+      "sha256": "6ab567834f3e2f45119a8c3bf466808672903067affad4b13ef12254d8b42015"
     }
   ],
   "tratamento_relatorio": "Origem localhost e caminho temporário do build removidos. Mantidos caminho público, status, métricas e datas da captura. PNGs preservados byte a byte, sem edição."
