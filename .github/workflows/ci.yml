@@ -262,8 +262,8 @@ jobs:
 
   testes_python:
     runs-on: ubuntu-24.04
-    # Versões antes/depois da carga acrescentam gravações PostGIS à suíte integral.
-    timeout-minutes: 45
+    # R12 e qualidade ampliam a suíte PostGIS; inclui margem para preparo e caches.
+    timeout-minutes: 60
     services:
       banco:
         image: postgis/postgis:16-3.5
