@@ -20,6 +20,7 @@ import os
 import random
 import sys
 import time
+from datetime import datetime
 from functools import wraps
 from pathlib import Path
 from typing import Protocol
@@ -807,6 +808,8 @@ class ArmazemRelease:
             sha = r.json().get("sha")
         if not sha:
             raise RuntimeError("não consegui identificar o commit para adquirir a trava de publicação")
+        if self.privado:  # travas presas aconteceram no arquivo privado, onde o commit é nosso
+            sha = self._commit_da_trava(h, nome, sha)
         t0 = time.monotonic()
         ocupada = False
         while True:
@@ -818,7 +821,11 @@ class ArmazemRelease:
                     ocupada = False
                 else:
                     existente.raise_for_status()
-                    if time.monotonic() - t0 >= velha_s:
+                    esgotou = time.monotonic() - t0 >= velha_s
+                    if self._liberar_trava_abandonada(h, nome, existente.json(), esgotou):
+                        ocupada = False
+                        continue
+                    if esgotou:
                         raise TimeoutError(
                             f"trava {nome} ocupada; não publico nem removo uma trava sem confirmar seu dono"
                         )
@@ -842,6 +849,62 @@ class ArmazemRelease:
         finally:
             self._travas.discard(nome)
             self.cli.delete(f"{self.API}/repos/{self.repo}/git/refs/tags/{nome}", headers=h).raise_for_status()
+
+    # Uma publicação real leva minutos. Trava parada além disso é de um job que morreu (cancelado, máquina
+    # reciclada, erro de rede no DELETE final) e prendia o estado inteiro para sempre.
+    TRAVA_ABANDONADA_S = 3600
+
+    def _commit_da_trava(self, h: dict, nome: str, sha: str) -> str:
+        """Commit próprio da trava, cuja mensagem diz quando e por qual job ela foi tomada. É o que permite
+        confirmar depois que o dono morreu. Se a API recusar, segue com o commit de base (formato antigo)."""
+        try:
+            base = self.cli.get(f"{self.API}/repos/{self.repo}/git/commits/{sha}", headers=h)
+            arvore = (base.json().get("tree") or {}).get("sha") if base.status_code == 200 else None
+            if not arvore:
+                return sha
+            dono = f"{os.environ.get('GITHUB_RUN_ID', 'local')}-{os.environ.get('GITHUB_JOB', '')}"
+            r = self.cli.post(f"{self.API}/repos/{self.repo}/git/commits", headers=h,
+                              json={"message": f"raiz-trava {nome} {int(time.time())} {dono}",
+                                    "tree": arvore, "parents": []})  # fmt: skip
+            return r.json().get("sha") or sha if r.status_code == 201 else sha
+        except Exception:
+            return sha
+
+    def _liberar_trava_abandonada(self, h: dict, nome: str, ref: dict, esgotou: bool) -> bool:
+        """Remove só a trava cujo dono comprovadamente parou: a marca de tempo do próprio commit da trava passou
+        de TRAVA_ABANDONADA_S. Trava no formato antigo (sem marca) só sai depois de esperar a janela inteira e se
+        o commit dela for mais velho que esse limite. Sem data confiável, não remove."""
+        alvo = (ref.get("object") or {}).get("sha") if isinstance(ref, dict) else None
+        if not alvo:
+            return False
+        try:
+            c = self.cli.get(f"{self.API}/repos/{self.repo}/git/commits/{alvo}", headers=h)
+            if c.status_code != 200:
+                return False
+            dados = c.json()
+            partes = str(dados.get("message") or "").split()
+            if len(partes) >= 3 and partes[0] == "raiz-trava" and partes[1] == nome and partes[2].isdigit():
+                idade = time.time() - int(partes[2])
+            elif esgotou:
+                quando = ((dados.get("committer") or {}).get("date") or "").replace("Z", "+00:00")
+                if not quando:
+                    return False
+                idade = time.time() - datetime.fromisoformat(quando).timestamp()
+            else:
+                return False
+        except Exception:
+            return False
+        if idade < self.TRAVA_ABANDONADA_S:
+            return False
+        atual = self.cli.get(f"{self.API}/repos/{self.repo}/git/ref/tags/{nome}", headers=h)
+        if atual.status_code != 200 or ((atual.json().get("object") or {}).get("sha")) != alvo:
+            return False
+        self.cli.delete(f"{self.API}/repos/{self.repo}/git/refs/tags/{nome}", headers=h)
+        print(
+            f"trava {nome} abandonada há {int(idade // 60)} min: removida para o estado voltar a publicar", flush=True
+        )
+        time.sleep(random.uniform(1, 5))
+        return True
 
     def publicar(self, uf: str | None = None, extra: dict | None = None) -> dict:
         """Empacota o estado a partir do espelho e sobe: pacotes, controle e por último o estados.json. O estados.json
