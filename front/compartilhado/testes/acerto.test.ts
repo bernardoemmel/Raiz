@@ -66,3 +66,14 @@ describe("resumo de acerto real", () => {
     expect(() => lerResumoAcerto(r)).toThrow(/Grupo/)
   })
 })
+
+it("rejeita documento civil usado como identificador de modelo ou versão", () => {
+  const cpf = ["123", "456", "789"].join("") + "09"
+  const cnpj = ["11", "222", "333", "0001", "81"].join("")
+  for (const documento of [cpf, cnpj, `${cpf.slice(0, 3)}.${cpf.slice(3, 6)}.${cpf.slice(6, 9)}-${cpf.slice(9)}`]) {
+    for (const campo of ["modelo", "versao", "alvo"]) {
+      const r = resumoAcertoTeste(); Object.assign(r.versoes[0], { [campo]: `modelo-${documento}` })
+      expect(() => lerResumoAcerto(r)).toThrow(/Grupo/)
+    }
+  }
+})

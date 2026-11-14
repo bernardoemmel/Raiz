@@ -486,6 +486,36 @@ Dados e fatos científicos não herdam as licenças das bibliotecas:
   sem promover a curva a previsão. Nenhum dado ou código NC foi incorporado.
 
 
+## Contratos de dados, carga e clientes de operação
+
+Dependências Python instaladas pelo `uv.lock`, usadas como bibliotecas ou ferramentas sem copiar nem modificar
+seu código. Versões e licenças conferidas nos arquivos de licença dos wheels e nas fontes oficiais:
+
+| Pacote | Uso | Licença e fonte |
+|---|---|---|
+| Pandera 0.27.1, extra `pandas` | validação dos contratos de entrada e saída de dados | MIT, [pacote oficial](https://pypi.org/project/pandera/0.27.1/) |
+| Locust 2.47.0 | teste de carga local/CI | MIT, [locustio/locust](https://github.com/locustio/locust/blob/master/LICENSE) |
+| redis-py 6.4.0 (`redis` no PyPI) | cliente Python do Valkey para limites compartilhados | MIT, [redis/redis-py](https://github.com/redis/redis-py/blob/master/LICENSE) |
+| sentry-sdk 2.75.0 | cliente Python de eventos para o GlitchTip | MIT, [getsentry/sentry-python](https://github.com/getsentry/sentry-python/blob/master/LICENSE) |
+| zope.event 6.2 e zope.interface 8.7 | dependências do gevent usado pelo Locust | ZPL-2.1, [zope.event](https://github.com/zopefoundation/zope.event/blob/master/LICENSE.txt) e [zope.interface](https://github.com/zopefoundation/zope.interface/blob/master/LICENSE.txt) |
+
+A Zope Public License 2.1 permite uso e redistribuição, inclusive comercial, com preservação dos avisos;
+não é GPL. Apenas seu identificador exato `ZPL-2.1` foi acrescentado ao verificador após essa conferência.
+As demais novas dependências transitivas declaram MIT, Apache-2.0, BSD, MPL-2.0 ou MIT com PSF-2.0; o CI
+continua verificando o inventário completo, sem dispensas manuais.
+
+O pacote Python `redis` é somente o cliente MIT; não instala nem autoriza o servidor Redis sob licença
+restritiva. Da mesma forma, `sentry-sdk` é o cliente MIT usado com GlitchTip e não instala o servidor Sentry
+nem sua CLI FSL. As imagens dos serviços têm licenças próprias e precisam de conferência separada.
+
+## Serviços de observabilidade
+
+GlitchTip **5.2.0** é usado como serviço de erros na imagem `glitchtip/glitchtip:v5.2.0`, sob MIT
+([LICENSE da versão](https://gitlab.com/glitchtip/glitchtip-backend/-/raw/v5.2.0/LICENSE)). Valkey **8.1.4**,
+imagem `valkey/valkey:8.1.4`, fornece cache, fila e limites compartilhados, sob BSD-3-Clause
+([valkey-io/valkey](https://github.com/valkey-io/valkey/blob/8.1.4/COPYING)). A configuração da Raíz é própria;
+nenhum código desses serviços foi copiado ou alterado. PostgreSQL 16 permanece serviço separado sob a licença
+PostgreSQL. Isso não autoriza substituir Valkey por Redis nem GlitchTip pelo servidor Sentry de licença restritiva.
 ## Preparação dos programas e correção do céu — MapLibre GL JS 6.15.0
 
 `front/compartilhado/vite-maplibre-programas.ts` extrai, durante o build, somente os programas

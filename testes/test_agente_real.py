@@ -169,7 +169,8 @@ def test_replay_rejeita_mudanca_numerica_sem_fazer_chamada_real(tmp_path, monkey
     assert len(chamadas) == 1
 
 
-def test_loop_nao_entrega_gabarito_registra_desconhecida_e_preserva_dialogo_real():
+@pytest.mark.parametrize("formato", [None, {"type": "object", "additionalProperties": False, "properties": {}}])
+def test_loop_nao_entrega_gabarito_registra_desconhecida_e_preserva_dialogo_real(formato):
     tarefa = carregar_gabarito()[0].tarefas[0]
     vistos = []
 
@@ -213,6 +214,7 @@ def test_loop_nao_entrega_gabarito_registra_desconhecida_e_preserva_dialogo_real
             max_tokens=512,
             instrucoes="Contrato MCP público.",
             ferramentas=[{"name": "consultar_disponibilidade", "input_schema": {"type": "object"}}],
+            formato_resposta=formato,
         )
     )
     assert trace["passos_modelo"] == 2 and trace["chamadas"][0]["ferramenta"] == "pagar"
@@ -220,7 +222,10 @@ def test_loop_nao_entrega_gabarito_registra_desconhecida_e_preserva_dialogo_real
     primeiro = json.dumps(vistos[0])
     assert "esperado" not in primeiro and "obrigatorias" not in primeiro
     assert "segredo-nao-passa" not in primeiro and "temperature" not in vistos[0]
-    assert vistos[0]["output_config"] == {"effort": "medium"}
+    config = {"effort": "medium"}
+    if formato:
+        config["format"] = {"type": "json_schema", "schema": formato}
+    assert all(v["output_config"] == config for v in vistos)
     assert "cadeia somente em memoria" in json.dumps(vistos[1])
     assert "cadeia somente em memoria" not in json.dumps(trace)
 

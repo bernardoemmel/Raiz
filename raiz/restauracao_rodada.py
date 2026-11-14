@@ -502,6 +502,8 @@ def publicar(destino: Path) -> dict:
     }
     imutavel = destino / f"{base}.json"
     _json(imutavel, manifesto)
+    # Arquivo bruto privado para auditoria/reprocessamento; não é projeção pública aprovada.
+    # enviar_arquivo confere a visibilidade privada novamente antes de cada transferência.
     for f in [*arquivos, imutavel]:
         enviar_arquivo(f.name, f, imutavel=True, arm=arm)
     atual = destino / f"lote_PA_{cenario}.json"

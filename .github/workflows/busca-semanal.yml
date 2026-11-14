@@ -28,12 +28,14 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: actions/setup-python@v5
+      - uses: astral-sh/setup-uv@v7
         with:
-          python-version: "3.12"
+          version: "0.13.6"
+          enable-cache: true
+          cache-dependency-glob: uv.lock
 
       - name: Instalar
-        run: pip install -r raiz/documentos/requirements.txt
+        run: uv sync --frozen --no-dev
 
       - name: Trazer o estado da semana passada
         run: |
@@ -42,23 +44,36 @@ jobs:
 
       - name: Buscar
         id: busca
-        run: python -m raiz.documentos busca semanal
+        run: uv run --frozen --no-dev python -m raiz.documentos busca semanal
+
+      - name: Validar SQLite, lista e relatório antes de qualquer publicação
+        env:
+          ARQUIVO_MD: ${{ steps.busca.outputs.arquivo_md }}
+          ARQUIVO_CSV: ${{ steps.busca.outputs.arquivo_csv }}
+        run: uv run --frozen --no-dev python -m raiz.qualidade_busca dados/documentos/busca/busca.sqlite "$ARQUIVO_MD" "$ARQUIVO_CSV"
 
       - name: Guardar o estado e a lista no Release busca
+        env:
+          ARQUIVO_MD: ${{ steps.busca.outputs.arquivo_md }}
+          ARQUIVO_CSV: ${{ steps.busca.outputs.arquivo_csv }}
         run: |
           gh release view busca >/dev/null 2>&1 || gh release create busca --prerelease --target main \
             --title "Busca semanal de registros e editais" \
             --notes "Estado da busca semanal (raiz/documentos/busca). Só dado público. Não editar à mão."
           gh release upload busca dados/documentos/busca/busca.sqlite --clobber
-          gh release upload busca "${{ steps.busca.outputs.arquivo_md }}" "${{ steps.busca.outputs.arquivo_csv }}" --clobber
+          gh release upload busca "$ARQUIVO_MD" "$ARQUIVO_CSV" --clobber
 
       - name: Resumo
-        run: cat "${{ steps.busca.outputs.arquivo_md }}" >> "$GITHUB_STEP_SUMMARY"
+        env:
+          ARQUIVO_MD: ${{ steps.busca.outputs.arquivo_md }}
+        run: cat "$ARQUIVO_MD" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Abrir issue com as novidades
         if: steps.busca.outputs.tem_novidade == '1'
+        env:
+          ARQUIVO_MD: ${{ steps.busca.outputs.arquivo_md }}
         run: |
           gh label create busca-semanal --color 2E7D32 --description "Registros e editais novos" --force
           gh issue create --label busca-semanal \
             --title "Registros e editais novos: semana de $(date +%d/%m/%Y)" \
-            --body-file "${{ steps.busca.outputs.arquivo_md }}"
+            --body-file "$ARQUIVO_MD"

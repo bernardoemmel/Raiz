@@ -82,7 +82,9 @@ def test_403_do_sdk_real_conta_como_chamada_nao_autorizada():
         marcador = auth_context_var.set(AuthenticatedUser(token))
         try:
             async with Client(criar_servidor()) as cliente:
-                resultado = await cliente.call_tool("consultar_disponibilidade", {"campos": {}})
+                resultado = await cliente.call_tool(
+                    "consultar_disponibilidade", {"campos": {}, "idempotency_key": "julgar-escopo"}
+                )
                 return resultado.model_dump(mode="json", by_alias=True, exclude_none=True)
         finally:
             auth_context_var.reset(marcador)

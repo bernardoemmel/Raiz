@@ -6,11 +6,12 @@ import datetime as dt
 import hashlib
 import re
 from typing import Literal
-from urllib.parse import parse_qsl, unquote, urlsplit
+from urllib.parse import urlsplit
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from raiz.privacidade import cnpj_valido, cpf_valido, mascarar
+from raiz.qualidade_calendario import validar_url_publica
 
 Tipo = Literal[
     "leilao_imovel",
@@ -62,21 +63,14 @@ def normalizar_car(codigo: str) -> str:
 
 
 def url_publica(url: str) -> str:
-    """Recusa credenciais, fragmentos de texto e documentos pessoais dentro do link."""
-    p = urlsplit(url)
-    if p.scheme not in ("https", "http") or not p.hostname or p.username or p.password:
-        raise ValueError("link público inválido")
-    documentos = re.findall(
-        r"(?<![A-Z0-9])(?:[0-9A-Z]{2}\.[0-9A-Z]{3}\.[0-9A-Z]{3}/[0-9A-Z]{4}-\d{2}|"
-        r"\d{3}\.\d{3}\.\d{3}-\d{2}|[0-9A-Z]{12}\d{2}|\d{11})(?![A-Z0-9])",
-        unquote(url),
-        re.I,
-    )
-    if mascarar(unquote(url)) != unquote(url) or any(cpf_valido(d) or cnpj_valido(d) for d in documentos):
-        raise ValueError("link com documento pessoal")
-    if any(k.lower() in {"cpf", "cnpj", "nome", "email", "token", "senha", "password"} for k, _ in parse_qsl(p.query)):
-        raise ValueError("link com parâmetro pessoal")
-    return p._replace(fragment="").geturl()
+    """Recusa documento, contato e credencial antes de persistir o link ou expô-lo.
+
+    O coletor e a importação conferem o host contra a fonte do manifesto. Aqui
+    aplica-se a mesma validação de privacidade do Release, inclusive codificação
+    repetida, nomes de parâmetros e fragmentos, sem depender do front.
+    """
+    host = urlsplit(url).hostname
+    return validar_url_publica(url, [host] if host else [])
 
 
 class Evento(BaseModel):

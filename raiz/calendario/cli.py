@@ -13,7 +13,18 @@ from sqlalchemy import text
 from raiz.calendario import arquivos, banco, catalogo, coleta
 from raiz.calendario.modelos import Evento, FonteEstado
 
-app = typer.Typer(help="Calendário da Raíz: fontes oficiais, eventos e prazos.", no_args_is_help=True)
+app = typer.Typer(
+    help="Calendário da Raíz: fontes oficiais, eventos e prazos.",
+    no_args_is_help=True,
+    pretty_exceptions_show_locals=False,
+)
+
+
+def _ler_snapshot(caminho: Path):
+    try:
+        return arquivos.ler(caminho)
+    except arquivos.ErroSnapshot as erro:
+        raise typer.BadParameter(str(erro)) from None
 
 
 @app.command("coletar")
@@ -41,7 +52,7 @@ def coletar(
             raise typer.BadParameter(str(ex)) from None
         typer.echo("Diários dos estados processados: " + ", ".join(sorted(catalogo.estados_processados(manifesto))))
     if sem_banco:
-        antigos, fontes_antigas = arquivos.ler(anterior) if anterior else ([], [])
+        antigos, fontes_antigas = _ler_snapshot(anterior) if anterior else ([], [])
     else:
         from raiz.banco import engine
 
@@ -82,7 +93,7 @@ def importar(arquivo: Annotated[Path, typer.Argument(help="estado.json do Releas
     """Carrega a coleta publicada, cruza CAR/SIGEF e prepara os avisos dos lotes."""
     from raiz.banco import engine
 
-    eventos, estados = arquivos.ler(arquivo)
+    eventos, estados = _ler_snapshot(arquivo)
     with engine().begin() as con:
         alterados = banco.gravar(con, eventos, estados)
         avisos = banco.avisar_pedidos(con, dt.datetime.now(ZoneInfo("America/Sao_Paulo")).date())

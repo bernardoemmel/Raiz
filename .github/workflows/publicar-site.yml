@@ -55,12 +55,20 @@ jobs:
         with:
           ref: ${{ github.event.repository.default_branch }}
           persist-credentials: false
-      - uses: actions/setup-python@v5
+      - uses: astral-sh/setup-uv@v7
         with:
-          python-version: "3.12"
+          version: "0.13.6"
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+      - name: Dependências de publicação travadas
+        run: uv sync --frozen --no-dev
       - uses: actions/setup-node@v7
         with:
           node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            front/globo/package-lock.json
+            front/produtor/package-lock.json
 
       - name: Pacotes públicos mínimos e polígonos (manifesto publico_basico v1)
         run: node front/scripts/baixar-dados.mjs --geo --exigir
@@ -74,20 +82,19 @@ jobs:
 
       - name: Desenhos de todos os municípios publicados e fundo compartilhado por estado
         run: |
-          pip install --quiet requests shapely pmtiles geopandas pyarrow httpx 'h3>=4.2,<5'
-          python front/scripts/geo.py --dados dados/publicos
+          uv run --frozen --no-dev python front/scripts/geo.py --dados dados/publicos
 
       - name: Potencial conhecido por célula, sem publicar medidas por fazenda
         env:
           RAIZ_DADOS_PRIVADOS_URL: release-github://${{ github.repository }}/dados-privados
           RAIZ_DADOS_PRIVADOS_TOKEN: ${{ github.token }}
-        run: python -m raiz.potencial_publico
+        run: uv run --frozen --no-dev python -m raiz.potencial_publico
 
       - name: Resumo aberto dos lotes, sem baixar composição ou pacotes pagos
         env:
           RAIZ_DADOS_PRIVADOS_URL: release-github://${{ github.repository }}/dados-privados
           RAIZ_DADOS_PRIVADOS_TOKEN: ${{ github.token }}
-        run: python -m raiz.lotes_publicos
+        run: uv run --frozen --no-dev python -m raiz.lotes_publicos
 
       - name: "Guardar as geometrias (mesmo as de uma rodada pela metade: o geo.py só baixa o que falta)"
         if: always()

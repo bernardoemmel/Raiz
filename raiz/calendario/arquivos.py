@@ -58,23 +58,43 @@ def recuperar_publico(caminho: Path) -> int:
         raise ValueError("não foi possível recuperar e validar o histórico público do calendário") from None
 
 
+class ErroSnapshot(ValueError):
+    """Diagnóstico publicável: nunca inclui valores, bytes ou caminho da entrada."""
+
+
 def ler(caminho: Path) -> tuple[list[Evento], list[FonteEstado]]:
-    return validar(json.loads(caminho.read_text(encoding="utf-8")))
+    try:
+        return validar(json.loads(caminho.read_text(encoding="utf-8")))
+    except ErroSnapshot:
+        raise
+    except (ValueError, TypeError, KeyError, AttributeError, OSError):
+        # O CLI nunca publica os bytes, valores pessoais ou caminho da entrada inválida.
+        raise ErroSnapshot("snapshot do calendário inválido; conteúdo omitido") from None
 
 
 def validar(dados: dict) -> tuple[list[Evento], list[FonteEstado]]:
-    """Valida dados de arquivo ou resposta, sem confiar em nomes/textos recebidos."""
-    if not isinstance(dados, dict):
-        raise ValueError("snapshot deve ser um objeto")
+    """Valida arquivo ou resposta sem expor valores da entrada nos diagnósticos."""
+    try:
+        return _validar(dados)
+    except ErroSnapshot:
+        raise
+    except (ValueError, TypeError, KeyError, AttributeError):
+        # ValidationError do Pydantic contém input_value; não propagá-lo à API nem aos logs.
+        raise ErroSnapshot("snapshot do calendário inválido; conteúdo omitido") from None
+
+
+def _validar(dados: dict) -> tuple[list[Evento], list[FonteEstado]]:
+    if not isinstance(dados, dict) or any(not isinstance(dados.get(c), list) for c in ("eventos", "fontes")):
+        raise ErroSnapshot("snapshot do calendário inválido; conteúdo omitido")
     confiaveis = {f["id"]: f for f in fontes()}
     eventos = []
     for item in dados.get("eventos", []):
         e = Evento.model_validate(item)
         f = confiaveis.get(e.fonte_id)
         if f is None or not _permitida(e.fonte_url, f):
-            raise ValueError("snapshot contém fonte fora do manifesto")
+            raise ErroSnapshot("snapshot contém fonte fora do manifesto")
         if e.car_fonte_url and not _permitida(e.car_fonte_url, f):
-            raise ValueError("snapshot contém documento do CAR fora do manifesto")
+            raise ErroSnapshot("snapshot contém documento do CAR fora do manifesto")
         # Nomes e textos de erro não vêm do arquivo remoto. Só rótulos institucionais
         # revisados no manifesto e mensagens fixas são publicados/importados.
         eventos.append(e.model_copy(update={"fonte_nome": f["nome"]}))
@@ -83,7 +103,7 @@ def validar(dados: dict) -> tuple[list[Evento], list[FonteEstado]]:
     for item in dados.get("fontes", []):
         s = FonteEstado.model_validate(item)
         if s.id not in confiaveis:
-            raise ValueError("snapshot contém fonte desconhecida")
+            raise ErroSnapshot("snapshot contém fonte desconhecida")
         estados.append(
             s.model_copy(
                 update={

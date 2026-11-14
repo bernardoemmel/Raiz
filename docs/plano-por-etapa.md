@@ -600,7 +600,7 @@ e [gráficos](design/graficos-resultados.md).
 |---|---|
 | Auditoria PRs #35–#44 integrados e revisão preventiva #45 ainda aberto; correções pequenas com regressões; Release completo e amostra do site | **feito**; evidência e limites em `docs/passagem/qualidade-e-seguranca.md` |
 | Playwright no CI: link, milhão de créditos no Pará, 3 opções, interesse e Pix de teste com API/PostGIS | **feito**; serviços externos controlados, sem pagamento real |
-| Dependabot, Gitleaks no histórico, licenças Python/npm/Rust obrigatórias, cabeçalhos, limite de chamadas e Presidio nos logs | **feito**; limite por processo e restrições operacionais na passagem |
+| Dependabot, Gitleaks no histórico, licenças Python/npm/Rust obrigatórias, cabeçalhos, limite de chamadas e Presidio nos logs | **feito**; opção Valkey compartilhada, Presidio e restrições operacionais na passagem |
 | CI paralelo com cache uv/npm/Chromium/LanguageTool, build público e coleção completa de testes | **feito**; zero skips ainda **parcial**: falta conjunto real de 144 tabelas desenvolvedor do Pará; demais dependências opcionais instaladas no CI |
 | Instruções para proteger a main | **feito** em `docs/operacao.md`; ativação manual pelo fundador |
 
@@ -632,6 +632,16 @@ DJEN/BA/MG/TO em erro. Os 50 vínculos com CAR continuam pendentes; nenhum alert
 O teste local não comprova implantação no servidor; execução/publicação diária deve ser conferida na main.
 O workflow também coleta quando alterações do calendário chegam à main, mantendo a publicação alinhada ao leitor
 validado no CI. A ferramenta MCP registrada consulta esse calendário público, com OAuth e escopo `consultar`.
+
+## Continuidade de qualidade e segurança (12/11/2026)
+
+| Entrega | Situação |
+|---|---|
+| Portões de dados/privacidade antes de publicar, Pandera MIT, colunas obrigatórias, faixas, áreas e saltos municipais | **feito**; resultados inválidos e arquivos privados sem contrato ficam bloqueados; Dados corrige/recalcula a origem |
+| Locust MIT no CI com API/PostGIS real, latência, 429/Retry-After e recuperação | **feito**; perfil curto não é capacidade máxima de produção |
+| Logs JSON com Presidio, /saude, limite compartilhado Valkey e GlitchTip próprio MIT | **feito**; testado localmente, configuração de produção documentada em operação |
+| Injeção/latência/carga das ferramentas MCP | **feito no código**; MCP/OAuth, sete ferramentas, tempo e Locust reais. O #85 trouxe o leitor e encerrou o aviso: seis ataques e seis controles ligados ao loop Claude/MCP, com modelo real obrigatório no CI e observadores independentes; resultados finais no PR #76 |
+| Revisão contínua dos novos merges | PRs #53/#56/#67/#54/#68/#70/#71/#73/#74 revisados e pequenos bugs corrigidos com teste; CI por push ativo, revisão horária não ativada por decisão do fundador |
 
 - [x] Integração da entrega mobile com o Calendário: rota sob demanda, quatro links visíveis a 360 px, filtros
   com 48 px e teste CI de teclado/axe em três larguras; 186 testes do front e fluxos de ficha/lote aprovados.

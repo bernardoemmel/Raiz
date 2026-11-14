@@ -14,6 +14,8 @@ import re
 from datetime import datetime
 from pathlib import Path
 
+from raiz.privacidade import documento_em_identificador
+
 OPCOES = ("barata", "segura", "compacta")
 CAMINHOS = ("matricula_conferida", "matricula_a_conferir", "concessao", "assentamento", "posse_em_titulacao")
 NOME_PUBLICO = "lote_PA_central_r11.json"
@@ -63,7 +65,11 @@ def projetar(manifesto: dict, publicado_em: str) -> dict:
     if set(resumos) != set(OPCOES):
         raise ValueError("A publicação exige as três opções completas.")
     modelo = manifesto.get("modelo_versao")
-    if not isinstance(modelo, str) or not re.fullmatch(r"[A-Za-z0-9_.+-]{1,100}", modelo):
+    if (
+        not isinstance(modelo, str)
+        or not re.fullmatch(r"[A-Za-z0-9_.+-]{1,100}", modelo)
+        or documento_em_identificador(modelo)
+    ):
         raise ValueError("Versão de modelo inválida.")
     datetime.fromisoformat(publicado_em.replace("Z", "+00:00"))
     metas = {_numero(resumos[o].get("volume_creditos")) for o in OPCOES}

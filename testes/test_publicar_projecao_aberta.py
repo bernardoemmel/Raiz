@@ -40,7 +40,7 @@ class GitHubFalso:
             ArmazemRelease._tar(
                 "PA",
                 {
-                    "imoveis_1505536.csv": f"cod_imovel,municipio,credito_p50\n{CAR},Paragominas,999\n".encode(),
+                    "imoveis_1505536.csv": f"cod_imovel,municipio,credito_p50\n{CAR},Parauapebas,999\n".encode(),
                     "ficha_1505536.csv": f"cod_imovel,credito_p50\n{CAR},999\n".encode(),
                     "desconhecido.csv": b"campo\nnao-publicar\n",
                 },
@@ -122,18 +122,20 @@ def inventario(gh, tmp_path):
     return m.inventariar(gh, gh.repo, tmp_path / "snapshot", paralelos=1)
 
 
-def executar(gh, rel, tmp_path, **kwargs):
-    return corte.cortar(gh, rel, gh.repo, gh.tag, "dados", tmp_path / "corte", **kwargs)
+def executar(gh, rel, tmp_path, *, tag_publica="dados", **kwargs):
+    return corte.cortar(gh, rel, gh.repo, gh.tag, tag_publica, tmp_path / "corte", **kwargs)
 
 
-def test_prepara_sem_rede_allowlist_estados_parciais_e_sem_historico(tmp_path):
+@pytest.mark.parametrize("tag_publica", ["dados", "publico-teste"])
+def test_prepara_sem_rede_allowlist_estados_parciais_e_sem_historico(tmp_path, tag_publica):
     gh = GitHubFalso()
+    gh.releases[1]["tag_name"] = tag_publica
     rel = inventario(gh, tmp_path)
-    plano = executar(gh, rel, tmp_path)
+    plano = executar(gh, rel, tmp_path, tag_publica=tag_publica)
     assert not plano["executado"]
     assert not any(e[0] in {"apagar", "subir"} for e in gh.eventos)
     for arquivo in (tmp_path / "corte" / "publico").iterdir():
-        validar_asset_publico(arquivo.name, arquivo.read_bytes())
+        validar_asset_publico(arquivo.name, arquivo.read_bytes(), repo=gh.repo, tag=tag_publica)
     indice = json.loads((tmp_path / "corte" / "publico" / "estados.json").read_bytes())
     assert set(indice["estados"]) == {"PA", "AM"}
     assert indice["estados"]["AM"]["municipios"] == 0
@@ -160,7 +162,7 @@ def test_backup_inteiro_verificado_antes_primeiro_delete_e_indice_por_ultimo(tmp
     assert not gh.assets[3]
     assert {a["id"] for a in gh.assets[1]}.isdisjoint(gh.ids_originais)
     for a in gh.assets[1]:
-        validar_asset_publico(a["name"], gh.bytes[a["id"]])
+        validar_asset_publico(a["name"], gh.bytes[a["id"]], repo=gh.repo, tag="dados")
     prova = json.loads(gh.bytes[backups[plano["inventario_privado"]]["id"]])
     assert all("arquivo_local" not in item for item in prova["assets"])
     assert any(a["name"].startswith("corte-") and "concluido" in a["name"] for a in gh.assets[2])

@@ -66,24 +66,36 @@ def criar_app(
     armazem=None,
 ) -> FastAPI:
     """Com grafo e deps prontos (testes), usa-os; senão abre o checkpointer cifrado no Postgres."""
+    from raiz.limites import do_config as limite_do_config
+    from raiz.observabilidade import do_config as erros_do_config
+
+    cfg = config()
+    limite = limite_do_config(cfg)
+    erros = erros_do_config(cfg)
 
     @contextlib.asynccontextmanager
     async def ciclo(app: FastAPI):
-        async with contextlib.AsyncExitStack() as assinc:
-            mcp = getattr(app.state, "mcp", None)
-            if mcp is not None:  # o servidor MCP por HTTP precisa do gerenciador de sessões rodando
-                await assinc.enter_async_context(mcp.session_manager.run())
-            with contextlib.ExitStack() as pilha:
-                if app.state.grafo is None:
-                    from raiz.agentes.memoria import checkpointer
-                    from raiz.banco import engine as engine_padrao
-                    from raiz.modelos.cascata import cascata_padrao
+        try:
+            async with contextlib.AsyncExitStack() as assinc:
+                mcp = getattr(app.state, "mcp", None)
+                if mcp is not None:
+                    await assinc.enter_async_context(mcp.session_manager.run())
+                with contextlib.ExitStack() as pilha:
+                    if app.state.grafo is None:
+                        from raiz.agentes.memoria import checkpointer
+                        from raiz.banco import engine as engine_padrao
+                        from raiz.modelos.cascata import cascata_padrao
 
-                    cp = pilha.enter_context(checkpointer())
-                    app.state.engine = app.state.engine or engine_padrao()
-                    app.state.grafo = aceite.construir(cp)
-                    app.state.deps = aceite.Dependencias(app.state.engine, cascata_padrao())
-                yield
+                        cp = pilha.enter_context(checkpointer())
+                        app.state.engine = app.state.engine or engine_padrao()
+                        app.state.grafo = aceite.construir(cp)
+                        app.state.deps = aceite.Dependencias(app.state.engine, cascata_padrao())
+                    yield
+        finally:
+            if limite is not None:
+                await limite.fechar()
+            if erros is not None:
+                erros.fechar()
 
     app = FastAPI(title="Raíz", lifespan=ciclo)
     from raiz.privacidade import configurar_log
@@ -112,7 +124,7 @@ def criar_app(
                 con.execute(text("select 1"))
             return {"ok": True}
         except Exception as ex:  # noqa: BLE001
-            raise HTTPException(503, f"banco fora do ar: {type(ex).__name__}") from ex
+            raise HTTPException(503, "serviço temporariamente indisponível") from ex
 
     seguro = [Depends(_exigir_token)]
 
@@ -261,7 +273,6 @@ def criar_app(
     # pagamento do Pix (segredo do webhook)
     from raiz.pedidos import api as pedidos_api
 
-    cfg = config()
     base_login = (
         getattr(cfg, "login_base_url", None)
         or os.environ.get("RAIZ_FRONT_URL")
@@ -365,6 +376,8 @@ def criar_app(
         limite=getattr(config(), "api_limite_minuto", 120),
         login_limite=getattr(config(), "api_login_limite_minuto", 10),
         origens=origens,
+        backend=limite,
+        erros=erros,
         autenticada_interna=lambda scope: acesso_interno(Request(scope)) is not None,
     )
     # O último middleware fica por fora e registra também recusas do limite global.

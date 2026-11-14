@@ -16,6 +16,7 @@ from raiz.publica import trabalhos as T
 from raiz.publica.avaliacao import carregar_gabarito
 from scripts.cenarios_agentes import (
     _conta,
+    _corpo_smoke,
     _ofertas,
     _pedido,
     _semeiar_oferta,
@@ -24,6 +25,24 @@ from scripts.cenarios_agentes import (
     identificadores,
 )
 from scripts.oauth_agentes_teste import _local
+
+
+def test_cenarios_deterministicos_respeitam_o_esquema_real_de_cada_ferramenta():
+    from jsonschema import Draft202012Validator
+    from mcp.client.client import Client
+
+    from raiz.publica.servidor_mcp import criar_servidor
+
+    async def catalogo():
+        async with Client(criar_servidor()) as cliente:
+            return {t.name: t.input_schema for t in (await cliente.list_tools()).tools}
+
+    esquemas = asyncio.run(catalogo())
+    gabarito, _ = carregar_gabarito()
+    for tarefa in gabarito.tarefas:
+        if tarefa.obrigatorias:
+            corpo = _corpo_smoke(tarefa, identificadores(tarefa.id, 1))
+            Draft202012Validator(esquemas[tarefa.obrigatorias[0]]).validate(corpo)
 
 
 @pytest.mark.parametrize(

@@ -1,10 +1,14 @@
 """Falha real do transporte Valkey/Redis recusa a operação rapidamente, sem banco do produto."""
 
+import asyncio
 import copy
+import os
+import secrets
 import socket
 import threading
 import time
 
+import httpx
 import pytest
 from fastapi.testclient import TestClient
 from mcp.server.auth.provider import AccessToken
@@ -136,3 +140,68 @@ def test_memory_preserva_quota_por_empresa(monkeypatch):
         assert r.status_code == 429 and "retry-after" in r.headers
         assert cliente.get("/conta", headers={"X-Chave-API": "raiz_teste2"}).status_code == 200
     assert chamadas == [1, 1, 2]
+
+
+def test_valkey_compartilha_quota_empresa_entre_apps_concorrentes_e_reinicio(monkeypatch):
+    """SlowAPI usa o Valkey real; só autenticação/auditoria do banco de produto são substituídas."""
+    uri = os.environ.get("RAIZ_VALKEY_URL_TESTE", "redis://127.0.0.1:6379/15")
+    prefixo = "teste-empresa-" + secrets.token_hex(16)
+    monkeypatch.setenv("RATELIMIT_KEY_PREFIX", prefixo)
+    apps = []
+
+    def nova_app():
+        app, _ = app_sem_banco(monkeypatch, uri, limite=7)
+        assert app.state.limiter._key_prefix == prefixo
+        apps.append(app)
+        return app
+
+    def recusada(resposta):
+        assert resposta.status_code == 429
+        assert 1 <= int(resposta.headers["retry-after"]) <= 60
+        assert resposta.headers["content-type"].startswith("application/problem+json")
+        assert resposta.json()["status"] == 429
+
+    async def executar():
+        async with (
+            httpx.AsyncClient(transport=httpx.ASGITransport(app=nova_app()), base_url="http://teste") as primeira,
+            httpx.AsyncClient(transport=httpx.ASGITransport(app=nova_app()), base_url="http://teste") as segunda,
+        ):
+            clientes = (primeira, segunda)
+            empresa = {"X-Chave-API": "raiz_teste1"}
+            # Ambas as instâncias atendem antes da rajada; sobram cinco chamadas no orçamento comum.
+            for cliente in clientes:
+                assert (await cliente.get("/conta", headers=empresa)).status_code == 200
+            respostas = await asyncio.gather(*(clientes[i % 2].get("/conta", headers=empresa) for i in range(24)))
+            assert sum(r.status_code == 200 for r in respostas) == 5
+            negadas = [r for r in respostas if r.status_code != 200]
+            assert len(negadas) == 19
+            for resposta in negadas:
+                recusada(resposta)
+
+            # A segunda empresa tem seus próprios sete créditos de chamadas, entre as mesmas duas apps.
+            outra = {"X-Chave-API": "raiz_teste2"}
+            for i in range(7):
+                assert (await clientes[i % 2].get("/conta", headers=outra)).status_code == 200
+            recusada(await primeira.get("/conta", headers=outra))
+            recusada(await segunda.get("/conta", headers=outra))
+
+        # Uma instância nova não recupera a cota de nenhuma empresa: o estado está no Valkey.
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=nova_app()), base_url="http://teste"
+        ) as reiniciada:
+            recusada(await reiniciada.get("/conta", headers=empresa))
+            recusada(await reiniciada.get("/conta", headers=outra))
+
+    try:
+        asyncio.run(executar())
+    finally:
+        if apps:
+            armazenamento = apps[0].state.limiter._storage
+            padrao = armazenamento.prefixed_key(f"LIMITER/{prefixo}/*")
+            # Nunca usar flushdb/reset: este banco também atende outros testes e processos.
+            chaves = list(armazenamento.storage.scan_iter(match=padrao))
+            if chaves:
+                armazenamento.storage.delete(*chaves)
+            for app in apps:
+                app.state.limiter._storage.storage.close()
+                app.state.limiter._storage.storage.connection_pool.disconnect()

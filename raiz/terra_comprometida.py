@@ -58,7 +58,13 @@ def _data(v):
 
 
 def _id(v):
-    return v if isinstance(v, str) and re.fullmatch(r"[A-Za-z0-9_.:/-]{1,160}", v) else None
+    from raiz.privacidade import documento_em_identificador
+
+    return (
+        v
+        if isinstance(v, str) and re.fullmatch(r"[A-Za-z0-9_.:/-]{1,160}", v) and not documento_em_identificador(v)
+        else None
+    )
 
 
 def _url(v):
@@ -90,7 +96,12 @@ def _url(v):
         or not any(p.hostname == h or (p.hostname or "").endswith("." + h) for h in hosts)
     ):
         return None
-    return urlunsplit((p.scheme, p.netloc, p.path, "", ""))
+    from raiz.qualidade_calendario import validar_url_publica
+
+    try:
+        return validar_url_publica(urlunsplit((p.scheme, p.netloc, p.path, "", "")), [p.hostname])
+    except ValueError:
+        return None
 
 
 def _numero(v):

@@ -9,10 +9,12 @@
 
 from __future__ import annotations
 
+import json
 import logging
 import re
 from collections.abc import Iterable
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from pathlib import Path
 
 # --- validação ---------------------------------------------------------------------------------------------------
@@ -104,6 +106,18 @@ def documento_em_identificador(texto: str) -> bool:
 # --- log ---------------------------------------------------------------------------------------------------------
 
 
+class FiltroSanitizacao(logging.Filter):
+    """Descarta logs internos produzidos pelo NLP enquanto limpa outro registro."""
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        from raiz.logs_seguros import sanitizacao_ativa
+
+        return not sanitizacao_ativa()
+
+
+_FILTRO_SANITIZACAO = FiltroSanitizacao()
+
+
 class FormatadorSeguro(logging.Formatter):
     """Passa o resultado final pelo Presidio (mensagem, argumentos e traceback)."""
 
@@ -113,20 +127,58 @@ class FormatadorSeguro(logging.Formatter):
         return sanitizar_log(super().format(record))
 
 
+class FormatadorJSON(logging.Formatter):
+    """Uma linha JSON válida; campos extras livres não entram no log do servidor."""
+
+    def format(self, record: logging.LogRecord) -> str:
+        try:
+            return self._formatar(record)
+        except Exception:
+            # logging.handleError imprimiria record.msg/args em claro se o formatador levantasse erro.
+            return '{"nivel":"ERROR","mensagem":"[log suprimido: formatação indisponível]"}'
+
+    def _formatar(self, record: logging.LogRecord) -> str:
+        from raiz.logs_seguros import sanitizar_log
+
+        dado = {
+            "tempo": datetime.fromtimestamp(record.created, UTC).isoformat(),
+            "nivel": record.levelname,
+            "logger": sanitizar_log(record.name),
+            "mensagem": sanitizar_log(record.getMessage()),
+        }
+        if record.exc_info:
+            dado["excecao"] = sanitizar_log(self.formatException(record.exc_info))
+        for chave in ("evento", "metodo", "rota", "status", "duracao_ms", "requisicao_id"):
+            valor = getattr(record, chave, None)
+            if chave == "requisicao_id":
+                # UUID gerado pelo servidor: validar o contrato evita falso PERSON e perda da correlação.
+                if isinstance(valor, str) and re.fullmatch(r"[0-9a-f]{32}", valor):
+                    dado[chave] = valor
+                continue
+            if isinstance(valor, str):
+                dado[chave] = sanitizar_log(valor)
+            elif isinstance(valor, int | float):
+                dado[chave] = valor
+        return json.dumps(dado, ensure_ascii=False, allow_nan=False)
+
+
 def configurar_log(nivel: int = logging.INFO) -> None:
     raiz = logging.getLogger()
     raiz.setLevel(nivel)
     for h in raiz.handlers:
-        h.setFormatter(FormatadorSeguro(h.formatter._fmt if h.formatter else None))
+        h.addFilter(_FILTRO_SANITIZACAO)
+        h.setFormatter(FormatadorJSON())
     if not raiz.handlers:
         h = logging.StreamHandler()
-        h.setFormatter(FormatadorSeguro("%(asctime)s %(levelname)s %(name)s: %(message)s"))
+        h.addFilter(_FILTRO_SANITIZACAO)
+        h.setFormatter(FormatadorJSON())
         raiz.addHandler(h)
     # Uvicorn pode ter handlers próprios que não propagam até a raiz.
     for nome in ("uvicorn", "uvicorn.error", "uvicorn.access"):
         for h in logging.getLogger(nome).handlers:
-            h.setFormatter(FormatadorSeguro("%(levelname)s %(name)s: %(message)s"))
-    for barulhento in ("alembic", "httpx", "httpcore", "urllib3"):
+            h.addFilter(_FILTRO_SANITIZACAO)
+            h.setFormatter(FormatadorJSON())
+    for barulhento in ("alembic", "httpx", "httpx2", "httpcore", "urllib3"):
         logging.getLogger(barulhento).setLevel(logging.WARNING)
 
 

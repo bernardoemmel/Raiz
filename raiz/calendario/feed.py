@@ -1,8 +1,12 @@
 """iCalendar RFC 5545, UID estável, retificações e cancelamentos, sem bibliotecas novas."""
 
-import datetime as dt
+from __future__ import annotations
 
-from raiz.calendario.modelos import Evento
+import datetime as dt
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from raiz.calendario.modelos import Evento
 
 
 def _texto(v: str) -> str:

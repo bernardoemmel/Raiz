@@ -74,9 +74,9 @@ export function preparar() {
   fs.mkdirSync(dados, { recursive: true })
   fs.mkdirSync(calendario, { recursive: true })
   const evento = {
-    id: "a".repeat(24), tipo: "leilao_imovel", titulo: "Leilão fictício para teste do Pages",
+    id: "a".repeat(24), tipo: "leilao_imovel", titulo: "Leilão de imóvel rural: data do evento", marco: "evento",
     data: "2099-11-15", prazo: null, uf: "PA", municipio: MUNICIPIO, codigos_car: [CAR],
-    fonte_url: "https://example.test/leilao", fonte_nome: "Fonte fictícia de teste",
+    fonte_id: "dou", fonte_url: "https://www.in.gov.br/web/dou/-/edital-ficticio", fonte_nome: "Diário Oficial da União",
     coletado_em: "2026-11-12T12:00:00Z", confianca: 0.9, situacao: "previsto",
   }
   fs.writeFileSync(path.join(calendario, "eventos.json"), JSON.stringify({
