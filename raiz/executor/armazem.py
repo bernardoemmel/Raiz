@@ -808,7 +808,8 @@ class ArmazemRelease:
             sha = r.json().get("sha")
         if not sha:
             raise RuntimeError("não consegui identificar o commit para adquirir a trava de publicação")
-        sha = self._commit_da_trava(h, nome, sha)
+        if self.privado:  # travas presas aconteceram no arquivo privado, onde o commit é nosso
+            sha = self._commit_da_trava(h, nome, sha)
         t0 = time.monotonic()
         ocupada = False
         while True:
