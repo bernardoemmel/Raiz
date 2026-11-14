@@ -36,6 +36,7 @@ from raiz import RAIZ_REPO
 from raiz.banco import desfazer, migrar
 from raiz.config import Config, config
 from raiz.pessoal import gerar_chave
+from testes.mcp.car import fonte_sintetica, validar_banco
 from testes.mcp.cliente import ClienteMCP
 
 AVISO_INJECOES = (
@@ -127,18 +128,7 @@ def _ambiente_corpus(*, engine, mcp):
 
 
 def _url_banco() -> str:
-    bruto = os.environ.get("RAIZ_BANCO_URL_MCP_TESTE", "")
-    if not bruto:
-        raise RuntimeError("Defina RAIZ_BANCO_URL_MCP_TESTE para PostGIS local descartável")
-    url = make_url(bruto)
-    if (
-        url.drivername not in {"postgresql", "postgresql+psycopg"}
-        or url.host not in {"localhost", "127.0.0.1"}
-        or url.database != "raiz_mcp_teste"
-        or url.query  # host/hostaddr/dbname/service na query podem substituir o destino visto na URL.
-    ):
-        raise RuntimeError("O ensaio MCP exige banco local chamado raiz_mcp_teste")
-    return bruto
+    return validar_banco(os.environ.get("RAIZ_BANCO_URL_MCP_TESTE", ""))
 
 
 def _gravar_json(caminho: Path, dado) -> None:
@@ -277,7 +267,8 @@ def integracao():
         from raiz.carga import carregar_pasta
         from raiz.publica import conta
 
-        carregar_pasta(engine, RAIZ_REPO / "dados" / "amostra", dt.date(2026, 11, 12))
+        amostra = pilha.enter_context(fonte_sintetica(url, pasta / "car"))
+        carregar_pasta(engine, amostra, dt.date(2026, 11, 12))
         regras = yaml.safe_load(conta.ARQ.read_text())
         regras["limites"] = {"por_minuto": 100000, "por_dia": 1000000, "por_mes": 10000000}
         regra_arquivo = pasta / "orcamento.yaml"
@@ -309,6 +300,7 @@ def integracao():
                 {
                     "fase": fase,
                     "banco": url,
+                    "car_espelho": str(pasta / "car"),
                     "chave_pessoal": chave_pessoal,
                     "api_token": secrets.token_urlsafe(24),
                     "origem": origem,

@@ -55,6 +55,34 @@ def test_configuracao_de_provedor_nao_chega_ao_adaptador(monkeypatch):
     assert os.environ["RAIZ_ABACATEPAY_CHAVE"] == "credencial-sintetica-nao-utilizavel"
 
 
+def test_car_da_amostra_passa_pela_conferencia_real_sem_rede(tmp_path, monkeypatch):
+    import pandas as pd
+
+    from raiz.coleta import car_conferencia
+    from testes.mcp.car import fonte_sintetica
+    from testes.mcp.servidor import rede_local
+
+    def recalculo_indevido(*args):
+        pytest.fail("A geometria congelada da amostra não deve disparar recálculo")
+
+    monkeypatch.setattr(car_conferencia, "recalcular", recalculo_indevido)
+    fonte_original = car_conferencia.consultar
+    with (
+        fonte_sintetica("postgresql://localhost/raiz_mcp_teste", tmp_path / "car") as pasta,
+        rede_local(tmp_path / "rede.txt"),
+    ):
+        arquivo = next(pasta.glob("imoveis_*.csv"))
+        cod = int(arquivo.stem.removeprefix("imoveis_"))
+        codigos = set(pd.read_csv(arquivo).cod_imovel.head(2))
+        marcas = car_conferencia.conferir_pasta(pasta, "PA", cod, codigos)
+        assert set(marcas) == codigos
+        assert all(m["car_situacao"] == "conferido" and not m["car_geometria_alterada"] for m in marcas.values())
+        with pytest.raises(ValueError, match="só aceita os imóveis da amostra"):
+            car_conferencia.consultar("PA", {"PA-0000000-fora-da-amostra"})
+    assert car_conferencia.consultar is fonte_original
+    assert not (tmp_path / "rede.txt").exists()
+
+
 def test_dns_externo_e_bloqueado_antes_do_resolvedor(tmp_path, monkeypatch):
     import socket
 

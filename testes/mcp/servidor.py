@@ -21,6 +21,7 @@ from raiz.config import Config, config
 from raiz.privacidade import configurar_log
 from raiz.publica import conta
 from raiz.seguranca_api import SegurancaAPI
+from testes.mcp.car import fonte_sintetica
 
 
 @contextlib.contextmanager
@@ -89,6 +90,7 @@ def executar(caminho: Path) -> None:
     with (
         patch("raiz.config.Config", return_value=cfg),
         patch.object(conta, "ARQ", Path(dado["regras"])),
+        fonte_sintetica(dado["banco"], Path(dado["car_espelho"])),
         rede_local(Path(dado["rede_bloqueada"])),
     ):
         config.cache_clear()
