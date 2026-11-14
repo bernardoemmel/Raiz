@@ -29,6 +29,9 @@ function TelaAtual() {
     const focar = () => {
       const principal = document.querySelector<HTMLElement>('main:not([aria-busy="true"])')
       if (!principal) return false
+      // Uma navegação atrasada não pode fechar a busca que a pessoa já começou.
+      const ativo = document.activeElement
+      if (ativo instanceof HTMLElement && ativo.matches('input, textarea, select, [contenteditable="true"]')) return true
       principal.tabIndex = -1
       principal.focus({ preventScroll: true })
       window.scrollTo(0, 0)

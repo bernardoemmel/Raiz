@@ -64,6 +64,8 @@ try {
   assert.equal(await page.locator(".topo-dialogo-busca[open]").count(), 0)
   assert(await page.getByRole("button", { name: "Buscar CAR, município ou estado" }).evaluate(el => el === document.activeElement))
   await page.keyboard.press("/")
+  await page.getByRole("dialog", { name: "Buscar no mapa" }).waitFor()
+  await page.waitForFunction(() => document.activeElement?.getAttribute("role") === "combobox")
   await page.keyboard.type("Parauapebas")
   await page.getByRole("option").first().waitFor()
   resumo.axe.push(await conferirPaginaAcessivel(page, AxeBuilder, "busca-360", saida))
