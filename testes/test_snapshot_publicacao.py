@@ -84,8 +84,10 @@ def test_marca_copiada_antes_de_novos_bytes_impede_publicacao(tmp_path, monkeypa
         return dados
 
     monkeypatch.setattr(local, "ler", avancar)
-    with pytest.raises(RuntimeError, match="marca e saídas mudaram"), congelar(local, "RN"):
-        pytest.fail("a marca anterior não conclui bytes da próxima execução")
+    with congelar(local, "RN", tentativas=2) as copia:
+        # A marca anterior não conclui bytes da próxima execução; o resto do estado publica.
+        assert json.loads(copia.ler("marcas/RN/2400604.json"))["tarefas"] == {}
+        assert copia.meta(chave)["versao"] == "v2"
     assert local.meta(chave)["versao"] == "v2"
     assert json.loads(ler("marcas/RN/2400604.json")) == marca
 
