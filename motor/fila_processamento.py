@@ -322,6 +322,13 @@ def admitir(
     if funis_prontos is not None:
         anterior = estado.get("prioridade_funil", {})
         frente = [uf for uf in ORDEM_FUNIL if uf not in funis_prontos]
+        velha = anterior.get("ref")
+        if (frente and velha and ref_funil and velha != ref_funil and versao_funil
+                and anterior.get("versao_funil") == versao_funil):
+            # Mesma ciência (versão do funil igual), código de infraestrutura novo: a fila passa a rodar o commit
+            # novo, senão um conserto da publicação nunca chega aos jobs. Pedidos guardados levam junto as falhas.
+            anterior = {**anterior, "ref": ref_funil}
+            estado["fila"] = [{**p, "ref": ref_funil} if p.get("ref") == velha else p for p in estado["fila"]]
         estado["prioridade_funil"] = {
             "prontos": sorted(funis_prontos), "frente": frente,
             "ref": (anterior.get("ref") or ref_funil) if frente else None,
