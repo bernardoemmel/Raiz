@@ -19,7 +19,7 @@ está completo quando tem, em todos os municípios, funil, filtros, MapBiomas, d
 escadinha. Os extras do Earth Engine e as certidões ficam de fora dessa conta (ver abaixo).
 
 <!-- painel:inicio -->
-Gerado do `estados.json` de 15/11/2026 09:11 (horário de Brasília). Brasil: 782 de 5.571 municípios com o funil pronto; 1 de 27 estados completos.
+Gerado do `estados.json` de 15/11/2026 09:22 (horário de Brasília). Brasil: 782 de 5.571 municípios com o funil pronto; 1 de 27 estados completos.
 
 | Estado | Municípios feitos/total | Situação | Última atualização | Motor |
 |---|---|---|---|---|
@@ -36,8 +36,8 @@ Gerado do `estados.json` de 15/11/2026 09:11 (horário de Brasília). Brasil: 78
 | MS Mato Grosso do Sul | 79/79 | falta MapBiomas 1, TMF e causas 1, FLAG 1, caminho da terra 1, ficha 1, desenvolvedor 1; 46 erro(s) na última rodada | 14/11/2026 21:48 | [2668be6](https://github.com/bernardoemmel/Raiz/actions/runs/43652868465) |
 | MG Minas Gerais | 0/853 | não começou | — | — |
 | BA Bahia | 0/417 | não começou | — | — |
-| PI Piauí | 224/224 | completo; 27 erro(s) na última rodada (2 fatias em jobs separados) | 15/11/2026 09:04 | [b93a055](https://github.com/bernardoemmel/Raiz/actions/runs/43704090424) |
-| CE Ceará | 151/184 | falta funil 33, ficha 1, desenvolvedor 2; 80 erro(s) na última rodada (2 fatias em jobs separados) | 15/11/2026 09:01 | [b93a055](https://github.com/bernardoemmel/Raiz/actions/runs/43706165367) |
+| PI Piauí | 224/224 | completo; 8 erro(s) na última rodada (2 fatias em jobs separados) | 15/11/2026 09:14 | [b93a055](https://github.com/bernardoemmel/Raiz/actions/runs/43700122063) |
+| CE Ceará | 151/184 | falta funil 33, ficha 1, desenvolvedor 2; 80 erro(s) na última rodada (2 fatias em jobs separados) | 15/11/2026 09:13 | [b93a055](https://github.com/bernardoemmel/Raiz/actions/runs/43706165367) |
 | RN Rio Grande do Norte | 31/167 | falta funil 136; 3 erro(s) na última rodada (2 fatias em jobs separados) | 15/11/2026 00:51 | [021cf9b](https://github.com/bernardoemmel/Raiz/actions/runs/43670724970) |
 | PB Paraíba | 0/223 | não começou | — | — |
 | PE Pernambuco | 0/185 | não começou | — | — |
