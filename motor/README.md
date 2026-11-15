@@ -19,7 +19,7 @@ está completo quando tem, em todos os municípios, funil, filtros, MapBiomas, d
 escadinha. Os extras do Earth Engine e as certidões ficam de fora dessa conta (ver abaixo).
 
 <!-- painel:inicio -->
-Gerado do `estados.json` de 14/11/2026 20:58 (horário de Brasília). Brasil: 381 de 5.571 municípios com o funil pronto; 0 de 27 estados completos.
+Gerado do `estados.json` de 14/11/2026 21:02 (horário de Brasília). Brasil: 381 de 5.571 municípios com o funil pronto; 0 de 27 estados completos.
 
 | Estado | Municípios feitos/total | Situação | Última atualização | Motor |
 |---|---|---|---|---|
@@ -33,10 +33,10 @@ Gerado do `estados.json` de 14/11/2026 20:58 (horário de Brasília). Brasil: 38
 | AM Amazonas | 0/62 | não começou | — | — |
 | MT Mato Grosso | 111/142 | falta funil 31, ficha 16, desenvolvedor 16 (2 fatias em jobs separados) | 14/11/2026 20:38 | manual |
 | GO Goiás | 155/246 | falta funil 91, MapBiomas 4, direto 4, TMF e causas 4, FLAG 4, caminho da terra 4, ficha 4, desenvolvedor 6; 76 erro(s) na última rodada (3 fatias em jobs separados) | 14/11/2026 20:54 | [2668be6](https://github.com/bernardoemmel/Raiz/actions/runs/43643388876) |
-| MS Mato Grosso do Sul | 79/79 | falta MapBiomas 1, TMF e causas 1, FLAG 1, caminho da terra 1, ficha 1, desenvolvedor 1 | 14/11/2026 20:35 | manual |
+| MS Mato Grosso do Sul | 79/79 | falta MapBiomas 1, TMF e causas 1, FLAG 1, caminho da terra 1, ficha 1, desenvolvedor 1 | 14/11/2026 20:57 | manual |
 | MG Minas Gerais | 0/853 | não começou | — | — |
 | BA Bahia | 0/417 | não começou | — | — |
-| PI Piauí | 36/224 | falta funil 188, MapBiomas 1, direto 1, TMF e causas 1, FLAG 1, caminho da terra 1, ficha 1, desenvolvedor 1 (2 fatias em jobs separados) | 14/11/2026 20:54 | manual |
+| PI Piauí | 36/224 | falta funil 188, MapBiomas 1, direto 1, TMF e causas 1, FLAG 1, caminho da terra 1, ficha 1, desenvolvedor 1; 11 erro(s) na última rodada (2 fatias em jobs separados) | 14/11/2026 21:00 | [2668be6](https://github.com/bernardoemmel/Raiz/actions/runs/43650899322) |
 | CE Ceará | 0/184 | não começou | — | — |
 | RN Rio Grande do Norte | 0/167 | não começou | — | — |
 | PB Paraíba | 0/223 | não começou | — | — |
