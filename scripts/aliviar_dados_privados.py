@@ -45,6 +45,11 @@ class GitHub:
         r.raise_for_status()
         return r.json()
 
+    def estados_publicos(self) -> dict:
+        r = self.cli.get(f"https://github.com/{self.repo}/releases/download/dados/estados.json")
+        r.raise_for_status()
+        return r.json().get("estados", {})
+
     def assets(self, rel_id: int) -> list[dict]:
         todos = []
         for pagina in range(1, 20):
@@ -96,12 +101,20 @@ def _idade_h(asset: dict, agora: dt.datetime) -> float:
     return (agora - quando).total_seconds() / 3600
 
 
-def escolher(gh: GitHub, assets: list[dict], idade_min: float, agora: dt.datetime) -> list[dict]:
-    """Arquivos que o processamento não lê mais, do mais velho para o mais novo."""
+def _uf(nome: str) -> str | None:
+    m = re.match(r"(?:checkpoint-|cache_motor_unidade_)([A-Z]{2})(?:[-.]|$)", nome)
+    return m.group(1) if m else None
+
+
+def escolher(gh: GitHub, assets: list[dict], idade_min: float, agora: dt.datetime,
+             prontas: frozenset[str] = frozenset()) -> list[dict]:  # fmt: skip
+    """Arquivos que o processamento não lê mais, do mais velho para o mais novo. Estado com o funil
+    completo (prontas) não roda mais na conclusão dos 27: seu checkpoint e seu cache (opcionais na
+    retomada) também saem. Cada escolhido leva "_livre" quando sai sem esperar a meta de excesso."""
     por_nome = {a["name"]: a for a in assets}
     mantidos: set[str] = set()
     for a in assets:
-        if LATEST.fullmatch(a["name"]):
+        if LATEST.fullmatch(a["name"]) and _uf(a["name"]) not in prontas:
             mantidos.add(a["name"])
             manifesto = (json.loads(gh.ler(a["id"])) or {}).get("manifesto")
             if manifesto:
@@ -114,12 +127,13 @@ def escolher(gh: GitHub, assets: list[dict], idade_min: float, agora: dt.datetim
     escolhidos = []
     for a in assets:
         nome = a["name"]
-        livre = nome.startswith(PREFIXOS_LIVRES) and _idade_h(a, agora) >= 1
+        da_pronta = _uf(nome) in prontas and not OBJETO.fullmatch(nome)
+        livre = (nome.startswith(PREFIXOS_LIVRES) or da_pronta) and _idade_h(a, agora) >= 1
         velho = _idade_h(a, agora) >= idade_min
         solto = (VERSAO.fullmatch(nome) and nome not in mantidos) or (OBJETO.fullmatch(nome)
                                                                         and nome not in objetos_usados)  # fmt: skip
         if livre or (solto and velho):
-            escolhidos.append(a)
+            escolhidos.append({**a, "_livre": livre})
     return sorted(escolhidos, key=lambda a: a["updated_at"])
 
 
@@ -144,6 +158,7 @@ def main() -> None:
     p.add_argument("--tag", default="dados-privados")
     p.add_argument("--manter-abaixo", type=int, default=800, help="move até a origem ficar com isto")
     p.add_argument("--idade-min", type=float, default=6.0, help="horas mínimas para checkpoint solto")
+    p.add_argument("--so-acima", type=int, default=0, help="não faz nada se a origem tiver menos que isto")
     p.add_argument("--executar", action="store_true")
     a = p.parse_args()
     gh = GitHub(a.repo, os.environ["GH_TOKEN"])
@@ -151,11 +166,20 @@ def main() -> None:
     releases = gh.releases()
     origem = next(r for r in releases if r.get("tag_name") == a.tag)
     assets = gh.assets(origem["id"])
-    candidatos = escolher(gh, assets, a.idade_min, agora)
+    if len(assets) < a.so_acima:
+        print(f"origem: {len(assets)} arquivos; abaixo de {a.so_acima}, nada a fazer", flush=True)
+        return
+    prontas = frozenset(
+        uf
+        for uf, e in gh.estados_publicos().items()
+        if e.get("municipios", 0) + (e.get("sem_imoveis") or 0) >= (e.get("total_ibge") or 10**9)
+    )
+    print(f"estados com funil completo: {', '.join(sorted(prontas)) or 'nenhum'}", flush=True)
+    candidatos = escolher(gh, assets, a.idade_min, agora, prontas)
     # Sempre leva relatórios e cópias de migração; checkpoint solto só até ficar abaixo da meta.
     excesso = max(0, len(assets) - a.manter_abaixo)
-    livres = [c for c in candidatos if c["name"].startswith(PREFIXOS_LIVRES)]
-    soltos = [c for c in candidatos if not c["name"].startswith(PREFIXOS_LIVRES)]
+    livres = [c for c in candidatos if c["_livre"]]
+    soltos = [c for c in candidatos if not c["_livre"]]
     mover = livres + soltos[: max(0, excesso - len(livres))]
     print(f"origem: {len(assets)} arquivos; candidatos: {len(candidatos)}; movendo: {len(mover)}", flush=True)
     if not a.executar or not mover:
@@ -169,25 +193,28 @@ def main() -> None:
                 rel, vagas = destino(gh, releases, agora, len(mover) - movidos)
                 existentes = {x["name"]: x for x in gh.assets(rel["id"])}
             arquivo = Path(tmp) / "arquivo"
-            digest = gh.baixar(asset["id"], arquivo)
-            if asset.get("digest") and asset["digest"] != f"sha256:{digest}":
-                print(f"pulei {asset['name']}: download não confere", flush=True)
-                continue
-            feito = existentes.get(asset["name"])
-            if not feito or feito.get("digest") != f"sha256:{digest}":
-                if feito:
-                    gh.apagar(feito["id"])
-                feito = gh.subir(rel["id"], asset["name"], arquivo)
-                vagas -= 1
-            if (
-                feito.get("digest", f"sha256:{digest}") != f"sha256:{digest}"
-                or int(feito["size"]) != arquivo.stat().st_size
-            ):
-                print(f"pulei {asset['name']}: cópia não confere; origem mantida", flush=True)
-                continue
-            gh.apagar(asset["id"])
-            movidos += 1
-            arquivo.unlink()
+            try:
+                digest = gh.baixar(asset["id"], arquivo)
+                if asset.get("digest") and asset["digest"] != f"sha256:{digest}":
+                    print(f"pulei {asset['name']}: download não confere", flush=True)
+                    continue
+                feito = existentes.get(asset["name"])
+                if not feito or feito.get("digest") != f"sha256:{digest}":
+                    if feito:
+                        gh.apagar(feito["id"])
+                    feito = gh.subir(rel["id"], asset["name"], arquivo)
+                    vagas -= 1
+                confere = feito.get("digest", f"sha256:{digest}") == f"sha256:{digest}"
+                if not confere or int(feito["size"]) != arquivo.stat().st_size:
+                    print(f"pulei {asset['name']}: cópia não confere; origem mantida", flush=True)
+                    continue
+                gh.apagar(asset["id"])
+                movidos += 1
+            except httpx.HTTPStatusError as ex:
+                # Outro planejador pode ter movido o mesmo arquivo ao mesmo tempo: segue com os demais.
+                print(f"pulei {asset['name']}: HTTP {ex.response.status_code}", flush=True)
+            finally:
+                arquivo.unlink(missing_ok=True)
     print(f"movidos para o histórico: {movidos}; origem agora ~{len(assets) - movidos}", flush=True)
 
 
