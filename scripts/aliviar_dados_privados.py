@@ -10,6 +10,10 @@ processamento não lê mais:
 
 Cada arquivo é copiado, conferido pelo SHA-256 no destino e só então removido da origem.
 O padrão é só listar; com --executar ele move. Nenhum conteúdo é impresso.
+
+Com --migrar-checkpoints, move todos os checkpoints para o Release próprio `<tag>-checkpoints`, onde os
+jobs passam a gravá-los (objetos e manifestos antes, ponteiros por último; ponteiro que já existe no
+destino é mais novo e fica). Com --tag `<tag>-checkpoints`, alivia o Release dos checkpoints.
 """
 
 from __future__ import annotations
@@ -91,7 +95,7 @@ class GitHub:
     def criar_rascunho(self, tag: str) -> dict:
         r = self.cli.post(f"{API}/repos/{self.repo}/releases", headers=self.h,
                           json={"tag_name": tag, "name": tag, "draft": True,
-                                "body": "Arquivos antigos movidos do dados-privados (limite de 1000)."})  # fmt: skip
+                                "body": "Arquivos privados da Raíz (limite de 1000 por Release)."})  # fmt: skip
         r.raise_for_status()
         return r.json()
 
@@ -152,6 +156,59 @@ def destino(gh: GitHub, releases: list[dict], agora: dt.datetime, precisa: int) 
     raise RuntimeError("sem Release de histórico com espaço")
 
 
+def _ordem_migracao(assets: list[dict]) -> list[dict]:
+    """Checkpoints a migrar: objetos, depois manifestos, depois ponteiros (o ponteiro só muda de lugar quando
+    o que ele aponta já está no destino ou ainda na origem, que a retomada também lê)."""
+    peso = {"objeto": 0, "versao": 1, "latest": 2}
+    escolhidos = []
+    for x in assets:
+        nome = x["name"]
+        tipo = "objeto" if OBJETO.fullmatch(nome) else "versao" if VERSAO.fullmatch(nome) else (
+            "latest" if LATEST.fullmatch(nome) else None)  # fmt: skip
+        if tipo:
+            escolhidos.append((peso[tipo], x["updated_at"], x))
+    return [x for *_, x in sorted(escolhidos, key=lambda t: (t[0], t[1]))]
+
+
+def migrar_checkpoints(gh: GitHub, releases: list[dict], assets: list[dict], tag: str, executar: bool) -> None:
+    mover = _ordem_migracao(assets)
+    print(f"checkpoints a migrar para {tag}: {len(mover)}", flush=True)
+    if not executar or not mover:
+        return
+    rel = next((r for r in releases if r.get("tag_name") == tag), None) or gh.criar_rascunho(tag)
+    existentes = {x["name"]: x for x in gh.assets(rel["id"])}
+    movidos = mantidos = 0
+    with tempfile.TemporaryDirectory(prefix="raiz-migra-") as tmp:
+        arquivo = Path(tmp) / "arquivo"
+        for asset in mover:
+            nome = asset["name"]
+            try:
+                if LATEST.fullmatch(nome) and nome in existentes:
+                    mantidos += 1  # o job novo já gravou um ponteiro mais novo no destino
+                    continue
+                digest = gh.baixar(asset["id"], arquivo)
+                if asset.get("digest") and asset["digest"] != f"sha256:{digest}":
+                    print(f"pulei {nome}: download não confere", flush=True)
+                    continue
+                feito = existentes.get(nome)
+                if not feito or feito.get("digest") not in (None, f"sha256:{digest}"):
+                    if feito:
+                        gh.apagar(feito["id"])
+                    feito = gh.subir(rel["id"], nome, arquivo)
+                if feito.get("digest", f"sha256:{digest}") != f"sha256:{digest}" or int(feito["size"]) != (
+                    arquivo.stat().st_size
+                ):
+                    print(f"pulei {nome}: cópia não confere; origem mantida", flush=True)
+                    continue
+                gh.apagar(asset["id"])
+                movidos += 1
+            except httpx.HTTPStatusError as ex:
+                print(f"pulei {nome}: HTTP {ex.response.status_code}", flush=True)
+            finally:
+                arquivo.unlink(missing_ok=True)
+    print(f"migrados: {movidos}; ponteiros mais novos já no destino: {mantidos}", flush=True)
+
+
 def main() -> None:
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--repo", default=os.environ.get("GITHUB_REPOSITORY", "bernardoemmel/Raiz"))
@@ -160,12 +217,19 @@ def main() -> None:
     p.add_argument("--idade-min", type=float, default=1.5, help="horas mínimas para checkpoint solto")
     p.add_argument("--so-acima", type=int, default=0, help="não faz nada se a origem tiver menos que isto")
     p.add_argument("--executar", action="store_true")
+    p.add_argument("--migrar-checkpoints", action="store_true", help="move os checkpoints ao Release próprio")
     a = p.parse_args()
     gh = GitHub(a.repo, os.environ["GH_TOKEN"])
     agora = dt.datetime.now(dt.UTC)
     releases = gh.releases()
-    origem = next(r for r in releases if r.get("tag_name") == a.tag)
+    origem = next((r for r in releases if r.get("tag_name") == a.tag), None)
+    if origem is None:
+        print(f"Release {a.tag} ainda não existe; nada a fazer", flush=True)
+        return
     assets = gh.assets(origem["id"])
+    if a.migrar_checkpoints:
+        migrar_checkpoints(gh, releases, assets, a.tag + "-checkpoints", a.executar)
+        return
     if len(assets) < a.so_acima:
         print(f"origem: {len(assets)} arquivos; abaixo de {a.so_acima}, nada a fazer", flush=True)
         return
