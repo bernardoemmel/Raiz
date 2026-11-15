@@ -90,7 +90,7 @@ jobs:
         timeout-minutes: 15
         env:
           GH_TOKEN: ${{ github.token }}
-        run: uv run python scripts/aliviar_dados_privados.py --executar --so-acima 900
+        run: uv run python scripts/aliviar_dados_privados.py --executar --so-acima 800
       - name: Escolher os estados (lê o estados.json publicado e as versões das tarefas do executor)
         id: plano
         env:

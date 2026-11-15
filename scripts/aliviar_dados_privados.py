@@ -157,7 +157,7 @@ def main() -> None:
     p.add_argument("--repo", default=os.environ.get("GITHUB_REPOSITORY", "bernardoemmel/Raiz"))
     p.add_argument("--tag", default="dados-privados")
     p.add_argument("--manter-abaixo", type=int, default=800, help="move até a origem ficar com isto")
-    p.add_argument("--idade-min", type=float, default=6.0, help="horas mínimas para checkpoint solto")
+    p.add_argument("--idade-min", type=float, default=1.5, help="horas mínimas para checkpoint solto")
     p.add_argument("--so-acima", type=int, default=0, help="não faz nada se a origem tiver menos que isto")
     p.add_argument("--executar", action="store_true")
     a = p.parse_args()

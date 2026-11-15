@@ -22,7 +22,9 @@ from raiz import RAIZ_REPO
 from raiz.executor import transferencia_privada as T
 
 FORMATO = 1
-LOTE_BYTES = 256 * 1024 * 1024
+# Lotes maiores = menos arquivos no Release privado (limite de 1000). Comprimido fica abaixo do
+# teto de 2 GB por arquivo (transferencia_privada.MAX_ASSET_BYTES).
+LOTE_BYTES = 1536 * 1024 * 1024
 _SHA = re.compile(r"[a-f0-9]{64}")
 _UFS = set("AC AL AP AM BA CE DF ES GO MA MT MS MG PA PB PR PE PI RJ RN RS RO RR SC SP SE TO".split())
 _CSV = set(
