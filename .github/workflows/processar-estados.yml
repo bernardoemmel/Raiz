@@ -65,7 +65,7 @@ env:
 jobs:
   planejar:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 35
     env:
       RAIZ_GITHUB_ESPERA_MAX_S: "900"
     outputs:
@@ -84,6 +84,13 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: uv run python -c "from raiz.executor.armazem import do_config; do_config().verificar_publicacao()"
+      - name: Abrir espaço no arquivo privado (limite de 1000 arquivos do GitHub)
+        # Sem espaço, todo upload volta HTTP 422 e nenhum job publica. Move antigos para historico-AAAA-MM-DD.
+        continue-on-error: true
+        timeout-minutes: 15
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: uv run python scripts/aliviar_dados_privados.py --executar --so-acima 900
       - name: Escolher os estados (lê o estados.json publicado e as versões das tarefas do executor)
         id: plano
         env:
