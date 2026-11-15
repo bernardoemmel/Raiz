@@ -52,3 +52,15 @@ def test_estado_pronto_libera_checkpoint_e_cache():
     escolhidos = A.escolher(gh, assets, 6, AGORA, frozenset({"PI"}))
     assert {a["name"] for a in escolhidos} == {"checkpoint-PI-1-latest.json", "cache_motor_unidade_PI-1.tar.gz"}
     assert all(a["_livre"] for a in escolhidos)
+
+
+def test_migracao_leva_objetos_e_manifestos_antes_dos_ponteiros():
+    assets = [
+        {"name": "checkpoint-BA-2-latest.json", "updated_at": "2026-11-15T10:00:00Z"},
+        {"name": "checkpoint-BA-2-9-1-" + "a" * 64 + ".json", "updated_at": "2026-11-15T11:00:00Z"},
+        {"name": "checkpoint-objeto-" + "b" * 64 + ".tar.gz", "updated_at": "2026-11-15T12:00:00Z"},
+        {"name": "estado_BA.json", "updated_at": "2026-11-15T09:00:00Z"},
+        {"name": "cache_motor_unidade_BA-2.tar.gz", "updated_at": "2026-11-15T09:00:00Z"},
+    ]
+    nomes = [a["name"] for a in A._ordem_migracao(assets)]
+    assert nomes == [assets[2]["name"], assets[1]["name"], assets[0]["name"]]

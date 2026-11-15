@@ -3,6 +3,7 @@ name: Aliviar o arquivo privado (limite de 1000 arquivos)
 # Com 1000 arquivos no Release dados-privados o GitHub recusa todo upload (HTTP 422) e nenhum estado
 # publica. A cada hora, move para um Release rascunho historico-AAAA-MM-DD o que o processamento não lê
 # mais (relatórios de catálogo, cópias de migração e checkpoints soltos). Nada sai sem cópia conferida.
+# Checkpoints ficam num Release próprio (dados-privados-checkpoints), aliviado do mesmo jeito.
 # Autorizado pelo fundador em 14/11/2026.
 on:
   schedule:
@@ -29,5 +30,9 @@ jobs:
           version: "0.13.6"
       - name: Instalar dependências
         run: uv sync --frozen
+      - name: Levar os checkpoints ao Release próprio (dados-privados-checkpoints)
+        run: uv run python scripts/aliviar_dados_privados.py --executar --migrar-checkpoints
       - name: Mover arquivos antigos para o histórico
         run: uv run python scripts/aliviar_dados_privados.py --executar
+      - name: Mover checkpoints soltos para o histórico
+        run: uv run python scripts/aliviar_dados_privados.py --executar --tag dados-privados-checkpoints

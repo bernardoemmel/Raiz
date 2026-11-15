@@ -365,3 +365,32 @@ def test_cli_repositorio_original_independe_do_checkout_do_publicador(tmp_path, 
         )
     ]
     assert json.loads(capsys.readouterr().out)["situacao"] == "ausente"
+
+
+def test_checkpoint_no_release_proprio_e_retomada_le_o_mais_novo_dos_dois(tmp_path, monkeypatch):
+    """Checkpoints novos vão ao Release próprio; os antigos, ainda no arquivo geral, continuam retomáveis,
+    e vale o ponteiro de run mais novo, com manifesto e objetos achados em qualquer dos dois."""
+    roots = raizes(tmp_path / "origem")
+    fontes(roots)
+    esperado = bytes_arquivos(roots)
+    gh_velho, gh_novo = GitHubFalso(), GitHubFalso()
+    velho, novo = _armazem(gh_velho, tmp_path / "v"), _armazem(gh_novo, tmp_path / "n")
+    monkeypatch.setattr(C.T, "arquivo_privado", lambda: velho)
+    monkeypatch.setattr(C.T, "arquivo_checkpoints", lambda: novo)
+    monkeypatch.setenv("GITHUB_RUN_ID", "100")
+    C.salvar("PA-1", arm=velho, raizes=roots)  # checkpoint antigo, de antes da separação
+    destino = raizes(tmp_path / "d1")
+    assert C.restaurar("PA-1", raizes=destino)["situacao"] == "restaurado"
+    assert bytes_arquivos(destino) == esperado
+    monkeypatch.setenv("GITHUB_RUN_ID", "200")
+    C.salvar("PA-1", raizes=roots)
+    assert "checkpoint-PA-1-latest.json" in gh_novo.assets
+    ptr, m = manifesto(gh_novo)
+    assert ptr["run"] == "200"
+    # Objeto movido de volta ao arquivo antigo no meio da migração: ainda se acha.
+    nome = m["pacotes"][0]["nome"]
+    gh_velho.assets[nome] = gh_novo.assets.pop(nome)
+    destino = raizes(tmp_path / "d2")
+    out = C.restaurar("PA-1", raizes=destino)
+    assert out["situacao"] == "restaurado" and out["manifesto_sha256"] == ptr["sha256"]
+    assert bytes_arquivos(destino) == esperado
