@@ -19,14 +19,14 @@ está completo quando tem, em todos os municípios, funil, filtros, MapBiomas, d
 escadinha. Os extras do Earth Engine e as certidões ficam de fora dessa conta (ver abaixo).
 
 <!-- painel:inicio -->
-Gerado do `estados.json` de 15/11/2026 18:44 (horário de Brasília). Brasil: 2.277 de 5.571 municípios com o funil pronto; 4 de 27 estados completos.
+Gerado do `estados.json` de 15/11/2026 18:55 (horário de Brasília). Brasil: 2.277 de 5.571 municípios com o funil pronto; 4 de 27 estados completos.
 
 | Estado | Municípios feitos/total | Situação | Última atualização | Motor |
 |---|---|---|---|---|
-| PA Pará | 144/144 | falta FLAG 22, caminho da terra 22, ficha 59, desenvolvedor 60; 25 erro(s) na última rodada (2 fatias em jobs separados) | 15/11/2026 18:37 | [86a3389](https://github.com/bernardoemmel/Raiz/actions/runs/43744627162) |
+| PA Pará | 144/144 | falta FLAG 2, caminho da terra 2, ficha 45, desenvolvedor 45; 25 erro(s) na última rodada (2 fatias em jobs separados) | 15/11/2026 18:45 | [86a3389](https://github.com/bernardoemmel/Raiz/actions/runs/43744627162) |
 | RO Rondônia | 52/52 | completo; 14 erro(s) na última rodada | 15/11/2026 18:41 | [71937dc](https://github.com/bernardoemmel/Raiz/actions/runs/43758164130) |
 | RR Roraima | 15/15 | completo | 15/11/2026 18:29 | [728fa5b](https://github.com/bernardoemmel/Raiz/actions/runs/43762040577) |
-| AC Acre | 22/22 | completo | 15/11/2026 18:38 | manual |
+| AC Acre | 22/22 | completo | 15/11/2026 18:53 | [1d87b4e](https://github.com/bernardoemmel/Raiz/actions/runs/43763591020) |
 | AP Amapá | 0/16 | não começou | — | — |
 | TO Tocantins | 0/139 | não começou | — | — |
 | MA Maranhão | 0/217 | não começou | — | — |
@@ -37,7 +37,7 @@ Gerado do `estados.json` de 15/11/2026 18:44 (horário de Brasília). Brasil: 2.
 | MG Minas Gerais | 337/853 | falta funil 516, ficha 3, desenvolvedor 5; 36 erro(s) na última rodada (8 fatias em jobs separados) | 15/11/2026 16:40 | [33d69e1](https://github.com/bernardoemmel/Raiz/actions/runs/43727698257) |
 | BA Bahia | 0/417 | não começou | — | — |
 | PI Piauí | 224/224 | completo; 5 erro(s) na última rodada (2 fatias em jobs separados) | 15/11/2026 09:24 | [b93a055](https://github.com/bernardoemmel/Raiz/actions/runs/43705807265) |
-| CE Ceará | 151/184 | falta funil 33, ficha 1, desenvolvedor 2; 49 erro(s) na última rodada (2 fatias em jobs separados) | 15/11/2026 17:05 | [6eaac61](https://github.com/bernardoemmel/Raiz/actions/runs/43755160150) |
+| CE Ceará | 151/184 | falta funil 33, ficha 1, desenvolvedor 2; 49 erro(s) na última rodada (2 fatias em jobs separados) | 15/11/2026 18:46 | [6eaac61](https://github.com/bernardoemmel/Raiz/actions/runs/43755160150) |
 | RN Rio Grande do Norte | 31/167 | falta funil 136; 3 erro(s) na última rodada (2 fatias em jobs separados) | 15/11/2026 00:51 | [021cf9b](https://github.com/bernardoemmel/Raiz/actions/runs/43670724970) |
 | PB Paraíba | 0/223 | não começou | — | — |
 | PE Pernambuco | 0/185 | não começou | — | — |
