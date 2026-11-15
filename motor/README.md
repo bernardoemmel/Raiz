@@ -19,7 +19,7 @@ está completo quando tem, em todos os municípios, funil, filtros, MapBiomas, d
 escadinha. Os extras do Earth Engine e as certidões ficam de fora dessa conta (ver abaixo).
 
 <!-- painel:inicio -->
-Gerado do `estados.json` de 15/11/2026 12:33 (horário de Brasília). Brasil: 1.330 de 5.571 municípios com o funil pronto; 1 de 27 estados completos.
+Gerado do `estados.json` de 15/11/2026 13:02 (horário de Brasília). Brasil: 1.330 de 5.571 municípios com o funil pronto; 1 de 27 estados completos.
 
 | Estado | Municípios feitos/total | Situação | Última atualização | Motor |
 |---|---|---|---|---|
@@ -32,7 +32,7 @@ Gerado do `estados.json` de 15/11/2026 12:33 (horário de Brasília). Brasil: 1.
 | MA Maranhão | 0/217 | não começou | — | — |
 | AM Amazonas | 0/62 | não começou | — | — |
 | MT Mato Grosso | 111/142 | falta funil 31, ficha 16, desenvolvedor 16; 34 erro(s) na última rodada (2 fatias em jobs separados) | 14/11/2026 21:14 | [2668be6](https://github.com/bernardoemmel/Raiz/actions/runs/43643808387) |
-| GO Goiás | 186/246 | falta funil 60, MapBiomas 2, direto 2, TMF e causas 2, FLAG 2, caminho da terra 2, ficha 4, desenvolvedor 6; 5 erro(s) na última rodada (3 fatias em jobs separados) | 15/11/2026 12:26 | [3af1dbc](https://github.com/bernardoemmel/Raiz/actions/runs/43721572905) |
+| GO Goiás | 186/246 | falta funil 60, MapBiomas 2, direto 2, TMF e causas 2, FLAG 2, caminho da terra 2, ficha 4, desenvolvedor 6; 5 erro(s) na última rodada (3 fatias em jobs separados) | 15/11/2026 12:40 | [3af1dbc](https://github.com/bernardoemmel/Raiz/actions/runs/43721572905) |
 | MS Mato Grosso do Sul | 79/79 | falta MapBiomas 1, TMF e causas 1, FLAG 1, caminho da terra 1, ficha 1, desenvolvedor 1; 46 erro(s) na última rodada | 14/11/2026 21:48 | [2668be6](https://github.com/bernardoemmel/Raiz/actions/runs/43652868465) |
 | MG Minas Gerais | 0/853 | não começou | — | — |
 | BA Bahia | 0/417 | não começou | — | — |
@@ -45,7 +45,7 @@ Gerado do `estados.json` de 15/11/2026 12:33 (horário de Brasília). Brasil: 1.
 | SE Sergipe | 0/75 | não começou | — | — |
 | ES Espírito Santo | 0/78 | não começou | — | — |
 | RJ Rio de Janeiro | 0/92 | não começou | — | — |
-| SP São Paulo | 548/645 | falta funil 97, ficha 1, desenvolvedor 1; 27 erro(s) na última rodada (6 fatias em jobs separados) | 15/11/2026 12:20 | [abf59ad](https://github.com/bernardoemmel/Raiz/actions/runs/43712850907) |
+| SP São Paulo | 548/645 | falta funil 97, ficha 1, desenvolvedor 1; 71 erro(s) na última rodada (6 fatias em jobs separados) | 15/11/2026 12:51 | [3af1dbc](https://github.com/bernardoemmel/Raiz/actions/runs/43721572905) |
 | PR Paraná | 0/399 | não começou | — | — |
 | SC Santa Catarina | 0/295 | não começou | — | — |
 | RS Rio Grande do Sul | 0/497 | não começou | — | — |
