@@ -527,12 +527,20 @@ def test_fatias_do_mesmo_estado_em_jobs_diferentes_nao_se_apagam(gh, tmp_path, s
     assert {f"PA/filtros_{c}.csv" for c in (C1, C2, C3, C4)} <= set(gh.membros("raiz_PA.tar.gz"))
 
 
-def _gh_com_commits_de_trava(gh, criado_em):
-    msg = f"raiz-trava trava-publicar-TO-dados {int(criado_em)} 1-job"
+def _gh_com_commits_de_trava(gh, criado_em, dono="1-job", runs=None):
+    msg = f"raiz-trava trava-publicar-TO-dados {int(criado_em)} {dono}"
     commits = {"t" * 40: {"message": msg, "tree": {"sha": "b" * 40}}}
+    runs = runs or {}
 
     def handler(req):
         p = req.url.path
+        if "/actions/runs/" in p and req.method == "GET":
+            run = p.split("/actions/runs/", 1)[1].split("/")[0]
+            if run not in runs:
+                return httpx.Response(404)
+            if p.endswith("/jobs"):
+                return httpx.Response(200, json={"jobs": runs[run]["jobs"]})
+            return httpx.Response(200, json={"status": runs[run]["status"]})
         if p.endswith("/git/trees") and req.method == "POST":
             arvore = json.loads(req.content)["tree"]
             assert [a["path"] for a in arvore] == ["trava.txt"]  # nunca a árvore do repositório
@@ -574,4 +582,37 @@ def test_trava_recente_de_outro_job_continua_respeitada(gh, tmp_path, monkeypatc
     a = ArmazemRelease(REPO, TAG, tmp_path / "espelho", token="segredo", cliente=cli, privado=True)
     with pytest.raises(TimeoutError), a._trava("trava-publicar-TO", velha_s=0):
         pytest.fail("trava viva não pode ser tomada")
+    assert gh.refs == {"refs/tags/trava-publicar-TO-dados"}
+
+
+def _tomar_com_dono(gh, tmp_path, monkeypatch, runs, velha_s):
+    import time as _t
+
+    gh.refs.add("refs/tags/trava-publicar-TO-dados")
+    monkeypatch.setattr("raiz.executor.armazem.time.sleep", lambda s: None)
+    handler = _gh_com_commits_de_trava(gh, _t.time() - 600, dono="77-processar TO-1002", runs=runs)
+    cli = httpx.Client(transport=httpx.MockTransport(handler))
+    a = ArmazemRelease(REPO, TAG, tmp_path / "espelho", token="segredo", cliente=cli, privado=True)
+    return a._trava("trava-publicar-TO", velha_s=velha_s)
+
+
+def test_trava_de_job_cancelado_sai_sem_esperar_uma_hora(gh, tmp_path, monkeypatch):
+    """O job dono terminou (cancelado por tempo) mas a execução segue com outras fatias: a trava sai já."""
+    runs = {"77": {"status": "in_progress", "jobs": [{"name": "TO-1002", "status": "completed"},
+                                                     {"name": "TO-1001", "status": "in_progress"}]}}  # fmt: skip
+    with _tomar_com_dono(gh, tmp_path, monkeypatch, runs, velha_s=60):
+        assert "refs/tags/trava-publicar-TO-dados" in gh.refs
+    assert gh.refs == set()
+
+
+def test_trava_de_job_ainda_rodando_continua_respeitada(gh, tmp_path, monkeypatch):
+    runs = {"77": {"status": "in_progress", "jobs": [{"name": "TO-1002", "status": "in_progress"}]}}
+    with pytest.raises(TimeoutError), _tomar_com_dono(gh, tmp_path, monkeypatch, runs, velha_s=0):
+        pytest.fail("trava de job vivo não pode ser tomada")
+    assert gh.refs == {"refs/tags/trava-publicar-TO-dados"}
+
+
+def test_trava_sem_acesso_ao_actions_continua_respeitada(gh, tmp_path, monkeypatch):
+    with pytest.raises(TimeoutError), _tomar_com_dono(gh, tmp_path, monkeypatch, {}, velha_s=0):
+        pytest.fail("sem confirmar o dono, a trava fica")
     assert gh.refs == {"refs/tags/trava-publicar-TO-dados"}

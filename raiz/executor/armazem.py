@@ -18,6 +18,7 @@ import json
 import logging
 import os
 import random
+import re
 import sys
 import time
 from datetime import datetime
@@ -861,7 +862,10 @@ class ArmazemRelease:
         recusar, segue com o commit de base (formato antigo)."""
         try:
             dono = f"{os.environ.get('GITHUB_RUN_ID', 'local')}-{os.environ.get('GITHUB_JOB', '')}"
+            unidade = os.environ.get("UNIDADE", "").strip()
             linha = f"raiz-trava {nome} {int(time.time())} {dono}"
+            if re.fullmatch(r"[A-Z]{2}(?:-[0-9]{1,4})?", unidade):
+                linha += f" {unidade}"  # nome do job da matriz: permite ver no Actions se ele já terminou
             arvore = self.cli.post(f"{self.API}/repos/{self.repo}/git/trees", headers=h,
                                    json={"tree": [{"path": "trava.txt", "mode": "100644", "type": "blob",
                                                    "content": linha + "\n"}]})  # fmt: skip
@@ -873,6 +877,36 @@ class ArmazemRelease:
         except Exception:
             return sha
 
+    # Uma trava só é conferida no Actions depois deste tempo: evita consultar a API a cada espera curta.
+    TRAVA_DONO_MIN_S = 120
+
+    def _dono_terminou(self, h: dict, alvo: str, run: str, unidade: str) -> bool:
+        """True só quando o Actions confirma que o job (ou a execução inteira) que tomou a trava já terminou.
+        Um job cancelado por tempo deixava a trava presa por uma hora, e as outras fatias do estado desistiam
+        depois de 30 min de espera. Qualquer dúvida (sem permissão, erro de rede, rerun em andamento) dá False."""
+        if not run.isdigit():
+            return False
+        cache = self.__dict__.setdefault("_donos_conferidos", {})
+        agora = time.monotonic()
+        if alvo in cache and agora - cache[alvo][0] < 60:
+            return cache[alvo][1]
+        terminou = False
+        try:
+            repo = os.environ.get("GITHUB_REPOSITORY") or self.repo
+            r = self.cli.get(f"{self.API}/repos/{repo}/actions/runs/{run}", headers=h)
+            if r.status_code == 200:
+                terminou = r.json().get("status") == "completed"
+                if not terminou and unidade:
+                    j = self.cli.get(f"{self.API}/repos/{repo}/actions/runs/{run}/jobs", headers=h,
+                                     params={"per_page": 100, "filter": "latest"})  # fmt: skip
+                    if j.status_code == 200:
+                        jobs = [x for x in j.json().get("jobs", []) if x.get("name") == unidade]
+                        terminou = bool(jobs) and all(x.get("status") == "completed" for x in jobs)
+        except Exception:
+            terminou = False
+        cache[alvo] = (agora, terminou)
+        return terminou
+
     def _liberar_trava_abandonada(self, h: dict, nome: str, ref: dict, esgotou: bool) -> bool:
         """Remove só a trava cujo dono comprovadamente parou: a marca de tempo do próprio commit da trava passou
         de TRAVA_ABANDONADA_S. Trava no formato antigo (sem marca) só sai depois de esperar a janela inteira e se
@@ -880,6 +914,7 @@ class ArmazemRelease:
         alvo = (ref.get("object") or {}).get("sha") if isinstance(ref, dict) else None
         if not alvo:
             return False
+        morto = False
         try:
             c = self.cli.get(f"{self.API}/repos/{self.repo}/git/commits/{alvo}", headers=h)
             if c.status_code != 200:
@@ -888,6 +923,10 @@ class ArmazemRelease:
             partes = str(dados.get("message") or "").split()
             if len(partes) >= 3 and partes[0] == "raiz-trava" and partes[1] == nome and partes[2].isdigit():
                 idade = time.time() - int(partes[2])
+                run = partes[3].split("-")[0] if len(partes) >= 4 else ""
+                unidade = partes[4] if len(partes) >= 5 else ""
+                # Job cancelado ou morto: a trava ficou para trás e não precisa esperar a hora inteira.
+                morto = idade >= self.TRAVA_DONO_MIN_S and self._dono_terminou(h, alvo, run, unidade)
             elif esgotou:
                 quando = ((dados.get("committer") or {}).get("date") or "").replace("Z", "+00:00")
                 if not quando:
@@ -897,14 +936,16 @@ class ArmazemRelease:
                 return False
         except Exception:
             return False
-        if idade < self.TRAVA_ABANDONADA_S:
+        if idade < self.TRAVA_ABANDONADA_S and not morto:
             return False
         atual = self.cli.get(f"{self.API}/repos/{self.repo}/git/ref/tags/{nome}", headers=h)
         if atual.status_code != 200 or ((atual.json().get("object") or {}).get("sha")) != alvo:
             return False
         self.cli.delete(f"{self.API}/repos/{self.repo}/git/refs/tags/{nome}", headers=h)
         print(
-            f"trava {nome} abandonada há {int(idade // 60)} min: removida para o estado voltar a publicar", flush=True
+            f"trava {nome} abandonada há {int(idade // 60)} min{' (job dono já terminou)' if morto else ''}: "
+            "removida para o estado voltar a publicar",
+            flush=True,
         )
         time.sleep(random.uniform(1, 5))
         return True
