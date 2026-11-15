@@ -19,12 +19,12 @@ está completo quando tem, em todos os municípios, funil, filtros, MapBiomas, d
 escadinha. Os extras do Earth Engine e as certidões ficam de fora dessa conta (ver abaixo).
 
 <!-- painel:inicio -->
-Gerado do `estados.json` de 15/11/2026 17:55 (horário de Brasília). Brasil: 2.240 de 5.571 municípios com o funil pronto; 2 de 27 estados completos.
+Gerado do `estados.json` de 15/11/2026 18:19 (horário de Brasília). Brasil: 2.240 de 5.571 municípios com o funil pronto; 2 de 27 estados completos.
 
 | Estado | Municípios feitos/total | Situação | Última atualização | Motor |
 |---|---|---|---|---|
 | PA Pará | 144/144 | falta FLAG 28, caminho da terra 28, ficha 66, desenvolvedor 67 (2 fatias em jobs separados) | 15/11/2026 16:07 | manual |
-| RO Rondônia | 52/52 | completo | 15/11/2026 17:45 | manual |
+| RO Rondônia | 52/52 | completo; 5 erro(s) na última rodada | 15/11/2026 18:16 | [6179ef8](https://github.com/bernardoemmel/Raiz/actions/runs/43757096812) |
 | RR Roraima | 0/15 | não começou | — | — |
 | AC Acre | 0/22 | não começou | — | — |
 | AP Amapá | 0/16 | não começou | — | — |
