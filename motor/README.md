@@ -19,7 +19,7 @@ está completo quando tem, em todos os municípios, funil, filtros, MapBiomas, d
 escadinha. Os extras do Earth Engine e as certidões ficam de fora dessa conta (ver abaixo).
 
 <!-- painel:inicio -->
-Gerado do `estados.json` de 15/11/2026 11:59 (horário de Brasília). Brasil: 1.329 de 5.571 municípios com o funil pronto; 1 de 27 estados completos.
+Gerado do `estados.json` de 15/11/2026 12:17 (horário de Brasília). Brasil: 1.329 de 5.571 municípios com o funil pronto; 1 de 27 estados completos.
 
 | Estado | Municípios feitos/total | Situação | Última atualização | Motor |
 |---|---|---|---|---|
@@ -45,7 +45,7 @@ Gerado do `estados.json` de 15/11/2026 11:59 (horário de Brasília). Brasil: 1.
 | SE Sergipe | 0/75 | não começou | — | — |
 | ES Espírito Santo | 0/78 | não começou | — | — |
 | RJ Rio de Janeiro | 0/92 | não começou | — | — |
-| SP São Paulo | 547/645 | falta funil 98, ficha 1, desenvolvedor 1; 24 erro(s) na última rodada (6 fatias em jobs separados) | 15/11/2026 11:47 | [915a1f4](https://github.com/bernardoemmel/Raiz/actions/runs/43714946591) |
+| SP São Paulo | 547/645 | falta funil 98, ficha 1, desenvolvedor 1; 25 erro(s) na última rodada (6 fatias em jobs separados) | 15/11/2026 12:03 | [3af1dbc](https://github.com/bernardoemmel/Raiz/actions/runs/43721451153) |
 | PR Paraná | 0/399 | não começou | — | — |
 | SC Santa Catarina | 0/295 | não começou | — | — |
 | RS Rio Grande do Sul | 0/497 | não começou | — | — |
