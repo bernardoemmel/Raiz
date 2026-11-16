@@ -72,8 +72,13 @@ def coletar(
     typer.echo(f"{len(eventos)} eventos guardados; {avisos} avisos preparados (envio externo simulado).")
     for estado in estados:
         typer.echo(f"{estado.id}: {estado.situacao}, {estado.eventos} eventos, {estado.paginas} páginas")
-    # Snapshot útil é salvo antes de deixar o job vermelho por fonte quebrada.
-    if any(s.situacao == "erro" for s in estados):
+    # O snapshot útil já foi salvo. Fonte fora do ar vira aviso (anotação do Actions e linha no resumo); só a
+    # coleta inteira quebrada, sem uma única fonte lida, deixa o job vermelho.
+    for s in estados:
+        if s.situacao == "erro":
+            typer.echo(f"::warning title=Calendário: {s.id}::{s.erro or 'fonte indisponível'}")
+    if coleta.coleta_quebrada(estados):
+        typer.echo("Nenhuma fonte pôde ser lida nesta rodada; o estado anterior foi preservado.", err=True)
         raise typer.Exit(1)
 
 

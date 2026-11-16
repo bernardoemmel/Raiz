@@ -213,3 +213,45 @@ def test_roraima_formulario_publico_mesma_edicao_sem_gravar_dados_da_sessao():
     with pytest.raises(ValueError, match="documento público"):
         diarios.pedido(f, links[0].replace("2026%2F11%2Fdoe-20261111.pdf", "..%2F..%2Fsegredo"), texto)
     assert diarios.preparacao(f, f["urls"][0]) is None
+
+
+def _estado(id_, situacao):
+    return coleta.FonteEstado(
+        id=id_, nome=id_, coletado_em=dt.datetime(2026, 11, 16, 9, tzinfo=dt.UTC), situacao=situacao,
+        erro="fora do ar" if situacao == "erro" else None,
+    )  # fmt: skip
+
+
+def test_fonte_fora_do_ar_vira_aviso_e_so_a_coleta_inteira_quebrada_falha(tmp_path, monkeypatch):
+    chamadas = []
+
+    def simular(estados):
+        monkeypatch.setattr(coleta, "coletar", lambda lista, **_: ([], estados))
+        r = CliRunner().invoke(app, ["coletar", "--sem-banco", "--saida", str(tmp_path / f"s{len(chamadas)}"),
+                                     "--fontes", "doe_pa"])  # fmt: skip
+        chamadas.append(r)
+        return r
+
+    algumas = simular([_estado("doe_ma", "erro"), _estado("doe_pa", "parcial"), _estado(catalogo.COBERTURA_ID, "erro")])
+    assert algumas.exit_code == 0, algumas.output
+    assert "::warning title=Calendário: doe_ma::fora do ar" in algumas.output
+    todas = simular([_estado("doe_ma", "erro"), _estado("doe_mg", "erro"), _estado(catalogo.COBERTURA_ID, "ok")])
+    assert todas.exit_code == 1 and "Nenhuma fonte pôde ser lida" in todas.output
+    assert simular([_estado(catalogo.COBERTURA_ID, "erro")]).exit_code == 0  # a cobertura sozinha não é fonte
+
+
+def test_excecao_inesperada_numa_fonte_nao_derruba_as_outras(monkeypatch):
+    boas, ruins = fonte("doe_pa"), fonte("doe_ma")
+    original = coleta.coletar_fonte
+
+    def instavel(f, *args, **kwargs):
+        if f["id"] == "doe_ma":
+            raise RuntimeError("trecho de documento com dado pessoal")
+        return original(f, *args, **kwargs)
+
+    monkeypatch.setattr(coleta, "coletar_fonte", instavel)
+    monkeypatch.setattr(coleta, "baixar", lambda *a, **k: (_ for _ in ()).throw(coleta.FalhaDownload("fora")))
+    _, estados = coleta.coletar([boas, ruins])
+    por_id = {e.id: e for e in estados}
+    assert por_id["doe_ma"].situacao == "erro" and "RuntimeError" in por_id["doe_ma"].erro
+    assert "dado pessoal" not in por_id["doe_ma"].erro and "doe_pa" in por_id

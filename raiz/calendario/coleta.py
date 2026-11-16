@@ -848,8 +848,28 @@ def coletar_fonte(fonte: dict, agora: dt.datetime, obter=None, anteriores=()) ->
     return list(eventos.values()), estado
 
 
+def _isolada(fonte: dict, agora: dt.datetime, obter, anteriores) -> tuple[list[Evento], FonteEstado]:
+    """Uma fonte que quebra de um jeito inesperado vira só o seu próprio estado "erro"; as outras seguem."""
+    try:
+        return coletar_fonte(fonte, agora, obter, anteriores)
+    except Exception as ex:  # noqa: BLE001 - nunca grava o texto da exceção (pode trazer trecho de documento)
+        return [], FonteEstado(
+            id=fonte["id"],
+            nome=fonte["nome"],
+            coletado_em=agora,
+            situacao="erro",
+            erro=f"falha inesperada ao ler a fonte ({type(ex).__name__}); consulte a fonte oficial.",
+        )
+
+
+def coleta_quebrada(estados: list[FonteEstado]) -> bool:
+    """Verdadeiro só quando nenhuma fonte de verdade foi lida (a cobertura dos diários não é uma fonte)."""
+    reais = [s for s in estados if s.id != catalogo.COBERTURA_ID]
+    return bool(reais) and all(s.situacao == "erro" for s in reais)
+
+
 def coletar(lista: list[dict] | None = None, agora: dt.datetime | None = None, obter=None, anteriores=()):
     agora = agora or dt.datetime.now(dt.UTC)
     with ThreadPoolExecutor(max_workers=4) as pool:
-        resultados = list(pool.map(lambda f: coletar_fonte(f, agora, obter, anteriores), lista or fontes()))
+        resultados = list(pool.map(lambda f: _isolada(f, agora, obter, anteriores), lista or fontes()))
     return [e for es, _ in resultados for e in es], [s for _, s in resultados]
