@@ -1,0 +1,35 @@
+# Triagem em lote para o desenvolvedor de restauração: lista de CAR -> ranking com nota 0 a 100 e o motivo de cada nota
+# (raiz/triagem_desenvolvedor/nota.py). Premissas PROVISÓRIAS: calibrar com a primeira carteira real e com o que o
+# desenvolvedor comprar. Mudou este arquivo, muda a versão gravada em cada ranking.
+versao: triagem-desenvolvedor-2026a
+
+# peso de cada parte da nota (somam 1). Parte sem dado sai da conta e o peso se reparte entre as outras.
+pesos: {custo: 0.35, tir: 0.25, credito: 0.20, terra: 0.20}
+
+# de 0 (pior ponta) a 1 (melhor ponta), em linha reta entre as pontas
+faixas:
+  custo_credito_usd: {melhor: 8.0, pior: 25.0}   # US$ por crédito líquido; menor é melhor
+  tir_pct: {melhor: 15.0, pior: 0.0}             # TIR com financiamento (ou do projeto); maior é melhor
+  credito_tco2_ha: {melhor: 150.0, pior: 20.0}   # crédito líquido P50 até o fim do contrato, por ha restaurado
+
+# parte da terra: pelo risco do caminho (raiz/terra.py); sem risco calculado vale o pior
+terra: {baixo: 1.0, medio: 0.6, alto: 0.25, sem_risco: 0.25}
+
+# nunca descartam a fazenda da lista: ela fica no ranking, em "nao_segue", com a nota limitada e o motivo
+travas:
+  nota_max: 30
+  caminhos_que_nao_originam: [publica_sem_destinacao, terra_indigena_ou_tradicional]
+  # coluna de área em ha acima de zero trava
+  areas_ha:
+    embargo_ha: embargo ativo
+    ti_ha: terra indígena
+    ti_funai_ha: terra indígena (FUNAI)
+    uc_protecao_integral_ha: unidade de conservação de proteção integral
+    desm_pos2020_ha: desmatamento depois de 2020
+    alerta_ultimo_ano: alerta de desmatamento no último ano
+
+# ressalvas não travam, mas tiram a fazenda de "recomendada"
+ressalvas:
+  status_sobreposicao: {risco_sobreposicao: "indício de sobreposição com projeto ou concessão"}
+
+faixas_nota: {recomendada: 70}   # nota >= 70 e sem ressalva; abaixo disso, com_ressalvas

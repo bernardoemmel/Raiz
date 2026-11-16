@@ -1426,6 +1426,89 @@ def terra_editais() -> None:
     typer.echo(f"{len(r['novos'])} novos, {r['total']} links guardados")
 
 
+triagem_cli = typer.Typer(
+    help="Triagem em lote para o desenvolvedor: lista de códigos do CAR -> ranking em CSV e PDF.", no_args_is_help=True
+)
+app.add_typer(triagem_cli, name="triagem")
+
+
+@triagem_cli.command("lote")
+def triagem_lote(
+    entrada: Annotated[
+        str | None, typer.Option(help="CSV com os códigos do CAR (só a coluna do código é lida)")
+    ] = None,
+    entrada_privada: Annotated[str | None, typer.Option(help="nome do CSV no arquivo privado (enviar-entrada)")] = None,
+    codigos: Annotated[
+        str | None, typer.Option(help="códigos separados por espaço ou vírgula (aparece no log do job)")
+    ] = None,
+    pasta: Annotated[
+        str | None, typer.Option(help="saida/ do motor (com <UF>/); sem ela, baixa os estados do arquivo privado")
+    ] = None,
+    saida: Annotated[str, typer.Option(help="pasta do CSV e do PDF")] = "dados/documentos/triagem",
+    nome: Annotated[str, typer.Option(help="nome do ranking (minúsculas, números e hífen)")] = "triagem",
+    enviar: Annotated[bool, typer.Option(help="enviar o CSV e o PDF ao arquivo privado")] = False,
+) -> None:
+    """Ranking de fazendas com nota, números e o motivo de cada nota. Só imprime contagens, nunca códigos."""
+    import re
+    import tempfile
+    from pathlib import Path
+
+    from raiz.triagem_desenvolvedor import dados as D
+    from raiz.triagem_desenvolvedor import entrada as E
+    from raiz.triagem_desenvolvedor import relatorio as RL
+    from raiz.triagem_desenvolvedor import resumo, triar
+
+    if not re.fullmatch(r"[a-z0-9][a-z0-9-]{0,40}", nome):
+        raise typer.BadParameter("nome: minúsculas, números e hífen")
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp = Path(tmp)
+        if entrada_privada:
+            from raiz.executor.transferencia_privada import baixar_arquivo
+
+            baixar_arquivo(entrada_privada, tmp / "entrada.csv")
+            origem = (tmp / "entrada.csv").read_bytes()
+        elif entrada:
+            origem = Path(entrada).read_bytes()
+        elif codigos:
+            origem = codigos.replace(",", "\n").replace(";", "\n")
+        else:
+            raise typer.BadParameter("informe --entrada, --entrada-privada ou --codigos")
+        lista, invalidas = E.ler(origem)
+        if not lista:
+            raise typer.BadParameter(f"nenhum código do CAR válido ({len(invalidas)} linhas inválidas)")
+        if pasta is None:
+            from raiz.executor.transferencia_privada import baixar_arquivo, extrair
+
+            for uf in sorted({c[:2] for c in lista}):
+                pacote = tmp / f"raiz_{uf}.tar.gz"
+                if baixar_arquivo(f"raiz_{uf}.tar.gz", pacote, opcional=True):
+                    extrair(pacote, tmp / "estados")
+            pasta = str(tmp / "estados")
+        linhas = triar(lista, D.das_pastas(lista, pasta))
+        arquivos = RL.gravar(linhas, saida, nome)
+        if enviar:
+            from raiz.executor.transferencia_privada import enviar_arquivo
+
+            for tipo, f in arquivos.items():
+                enviar_arquivo(f"triagem_{nome}.{tipo}", f)
+    typer.echo(f"{len(lista)} fazendas ({len(invalidas)} linhas inválidas): {resumo(linhas)}")
+    typer.echo(f"ranking em {saida}/{nome}.csv e {nome}.pdf" + (" e no arquivo privado" if enviar else ""))
+
+
+@triagem_cli.command("enviar-entrada")
+def triagem_enviar_entrada(
+    arquivo: Annotated[str, typer.Argument(help="CSV com os códigos do CAR")],
+    nome: Annotated[str, typer.Option(help="nome no arquivo privado")],
+) -> None:
+    """Põe a lista no arquivo privado (a lista da empresa não deve aparecer no Actions de um repositório aberto)."""
+    from pathlib import Path
+
+    from raiz.executor.transferencia_privada import enviar_arquivo
+
+    enviar_arquivo(nome, Path(arquivo))
+    typer.echo(f"enviado como {nome}")
+
+
 comprometida_cli = typer.Typer(
     help="Terra já comprometida no processamento: coleta dos limites públicos e status por CAR.", no_args_is_help=True
 )
