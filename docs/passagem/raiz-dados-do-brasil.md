@@ -734,3 +734,71 @@ privacidade e avaliação foram conferidos juntos. Ruff, formatação, actionlin
 de CPF/CNPJ e **874 licenças** passaram. O teste de registro que não rodou sem banco no #99
 passou nesta árvore integrada. O CI anterior do #102 terminou; a correção do link que
 acionava o detector segue agora junto da integração, sem cancelar jobs.
+
+
+## Retomada de 16/11/2026 — paradas de AM, TO, MA, MT, MS e MG (Claude, este chat)
+
+Diagnóstico feito antes de rodar de novo, sobre os logs de 284 jobs de processamento de 15–16/11, o
+`estados.json` público, o privado (`dados-privados`) e a fila `raiz-fila-processamento`.
+Nenhum job foi cancelado e nenhum cron foi criado. Um único PR junta as mudanças de código.
+
+**Causas encontradas**
+
+1. **Fila bloqueada para sempre.** AM, TO, MA, MT (14/11) e MS e MG (15/11) falharam 3 vezes: checkpoint com
+   HTTP 422 quando o Release privado bateu 1.000 arquivos (consertado no #115), trava ocupada e trava com 403.
+   O #110 leva os pedidos guardados para cada commit novo da main (mesma ciência), mas levava junto o bloqueio:
+   nenhum conserto chegava a essas unidades. Por isso ficaram sem nada novo desde 14–15/11.
+2. **Continuação recusada pelo GitHub.** A tag da fila apontava para o HEAD do job. Num commit fixado, com workflow
+   diferente do alvo anterior, o push volta "refusing to allow a GitHub App to create or update workflow"; o job
+   falhava no fim e somava falha (MG-1 e MG-3 em 15/11).
+3. **Painel "não começou" em TO, MA e AM.** Os pacotes privados subiram em 14/11 às 02h, mas o `estados.json` privado
+   (fonte do painel) não tem essas UFs; o público ficou com 138/142/18. As travas
+   `trava-publicar-{TO,MA,AM}-dados-privados` ficaram presas no formato antigo (apontam para um commit da main,
+   sem dono registrado); cada job novo esperaria 90 min antes de liberá-las. Este ambiente não tem permissão
+   para apagar refs; o código passa a liberá-las sozinho (item 3 abaixo).
+4. **MG: público com 3, privado com 337.** As 8 fatias publicam o mesmo pacote (~400 MB) sob uma trava; a
+   leitura do começo do job esperava 30 min e morria antes de calcular (11 jobs), e a última publicação privada
+   caiu com 403 na trava antes da projeção aberta. MS e PA contavam como "prontos" (79/79 e 144/144) e a
+   prioridade do funil suspendia o que faltava neles.
+5. **Falhas de job (284 jobs):** trava do estado ocupada 71; máquina do Actions desligada ("runner has received a
+   shutdown signal") 35, mais 27 sem log — BA em 38 de 79 jobs, SC 6/13, MG 5/19, PR 5/11, mesmo com o swap do
+   #119; 403 na trava 22 (consertado no #120); 422 no upload 17 (#115); "arquivo privado substituído durante a
+   leitura" 15 (fatias do RS em 16/11, o leitor desistia em menos de 2 s).
+6. **Erros municipais (248 no índice privado):** 212 são "integridade: fontes, versões ou saídas mudaram durante a
+   execução" (PB 49, SP 45, MT 28, ES 16, RJ 16, MS 15, PA 11). Causa: no primeiro funil de um município a marca
+   não tem a caixa; a assinatura dos alertas usa o arquivo do estado inteiro; ao terminar, a caixa é gravada e a
+   conferência final recalcula só com os alertas da caixa. Todo município novo virava erro e rodava o funil de
+   novo. Os demais: ficha com GEOSException 11 (desenho dos ladrilhos, `raiz/tiles.py:59`), direto
+   RasterioIOError 9, funil CPLE_AppDefinedError 8, publicação pendente 4.
+
+**Consertos (PR desta retomada; versões científicas das 11 tarefas conferidas iguais, nada pronto é refeito)**
+
+1. `motor/fila_processamento.py`: conserto de infraestrutura com a mesma versão do funil desbloqueia pedidos
+   bloqueados por falha, zerando a contagem (fica `falhas_anteriores` e `desbloqueado`); cancelamento continua
+   bloqueado; um pedido por unidade. A tag da fila mantém o commit alvo anterior (só o JSON muda).
+   Ordem nova: AM, MT, TO, MA, PA, RO, RR, AC, AP e depois o resto.
+2. `motor/rodar_estado.py`: na Amazônia Legal a UF só sai da frente com o produto completo (o resto do PA);
+   em qualquer UF, só sem falta de filtros, MapBiomas, direto ou TMF (MS). BA, MG, SC, PR, RS, PE e SP rodam
+   com 2 lanes. `--sincronizar-aberto` refaz a projeção aberta de uma UF atrasada em relação ao privado.
+3. `raiz/executor/armazem.py`: trava privada legada (commit comum com mais de 24 h) sai na hora; o Release
+   aberto também usa o commit próprio da trava (dono conferível); leitura do começo do job espera a trava
+   até 10 min e depois lê sem ela; publicação periódica tenta por 2 min e fica para depois; leitor privado
+   espera ~2 min a troca de pacote grande; `defasados_no_aberto`/`sincronizar_aberto`.
+4. `raiz/executor/executor.py`: depois de gravar a caixa, a assinatura do funil é regravada com ela, só se as
+   fontes não mudaram durante o cálculo.
+5. `processar-estados.yml`: job `projecao-aberta`, em paralelo ao `preparar`, refaz a projeção aberta de um
+   estado atrasado por rodada (MG e PA estavam atrasados), sem recalcular e sem segurar a rodada.
+
+**Pendências conhecidas**
+
+- Ficha com GEOSException em ~1% dos municípios (GO e PA): consertar `raiz/tiles.py` muda a versão da ficha e
+  refaria todas as fichas do Brasil. Decidir junto com a próxima mudança científica da ficha.
+- Quedas do runner em BA: medir depois das 2 lanes; se continuar, considerar 1 lane só em BA.
+- O Release `dados-privados-checkpoints` está com ~800 arquivos; o alívio do planejar move os antigos acima de 800.
+
+**Como conferir**
+
+- Fila: `git fetch origin refs/tags/raiz-fila-processamento && git cat-file -p FETCH_HEAD` (reservas e pedidos;
+  depois do merge, o próximo planejamento muda a `ref` da prioridade e desbloqueia).
+- Público: `curl -sSL https://github.com/bernardoemmel/raiz/releases/download/dados/estados.json`.
+- Painel em `motor/README.md` (lê o índice privado): TO, MA e AM voltam quando a primeira fatia de cada um publicar.

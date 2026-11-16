@@ -320,6 +320,30 @@ def test_git_lease_rejeita_escritor_atrasado_e_preserva_main(tmp_path, monkeypat
     assert F.comando(["git", "ls-remote", "origin", "refs/heads/main"]) == antes_main
 
 
+def test_fila_mantem_o_commit_alvo_quando_o_job_roda_em_outro_commit(tmp_path, monkeypatch):
+    """Trocar o alvo da tag por um commit com outro workflow é recusado pelo GitHub para o token do Actions."""
+    remoto = tmp_path / "remoto.git"
+    local = tmp_path / "local"
+    subprocess.run(["git", "init", "--bare", str(remoto)], check=True, capture_output=True)
+    subprocess.run(["git", "clone", str(remoto), str(local)], check=True, capture_output=True)
+    monkeypatch.chdir(local)
+    F.comando(["git", "config", "user.name", "Teste"])
+    F.comando(["git", "config", "user.email", "teste@raiz.invalid"])
+    F.comando(["git", "checkout", "-b", "main"])
+    F.comando(["git", "commit", "--allow-empty", "-m", "Primeiro"])
+    primeiro_commit = F.comando(["git", "rev-parse", "HEAD"]).strip()
+    F.comando(["git", "push", "origin", "main"])
+    repo = F.Repositorio()
+    anterior, estado = repo.ler()
+    assert repo.trocar(anterior, {**estado, "fila": [_pedido("AM-1001")]})
+    F.comando(["git", "commit", "--allow-empty", "-m", "Job em outro commit"])
+    anterior, estado = repo.ler()
+    assert repo.trocar(anterior, {**estado, "fila": [_pedido("AM-1002")]})
+    alvo = F.comando(["git", "ls-remote", "origin", F.REF + "^{}"]).split()[0]
+    assert alvo == primeiro_commit
+    assert [p["unidade"] for p in repo.ler()[1]["fila"]] == ["AM-1002"]
+
+
 def test_continuacao_persistida_dispara_so_dreno_sem_duplicar(tmp_path, monkeypatch):
     pasta = tmp_path / "saida" / "MG"
     pasta.mkdir(parents=True)

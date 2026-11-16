@@ -636,3 +636,100 @@ def test_trava_espera_limite_da_api_em_vez_de_derrubar_o_job(gh, tmp_path, monke
     a = ArmazemRelease(REPO, TAG, tmp_path / "espelho", token="segredo", cliente=cli)
     with a._trava("trava-publicar-TO", velha_s=600):
         assert recusas["n"] == 2
+
+
+def _gh_com_trava_legada(gh, commit_em):
+    """Trava no formato antigo: aponta para um commit comum da main (com pai), sem dono registrado."""
+    import datetime as _dt
+
+    quando = _dt.datetime.fromtimestamp(commit_em, _dt.UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+    commits = {"t" * 40: {"message": "Painel do motor atualizado pelo GitHub Actions", "parents": [{"sha": "p" * 40}],
+                          "committer": {"date": quando}, "tree": {"sha": "b" * 40}}}  # fmt: skip
+    handler = _gh_com_commits_de_trava(gh, commit_em)
+
+    def h(req):
+        p = req.url.path
+        if "/git/commits/" in p and req.method == "GET":
+            return httpx.Response(200, json=commits.get(p.rsplit("/", 1)[1], {"tree": {"sha": "b" * 40}}))
+        return handler(req)
+
+    return h
+
+
+def test_trava_privada_legada_de_mais_de_um_dia_sai_sem_esperar(gh, tmp_path, monkeypatch):
+    """TO/MA/AM ficaram de 14 a 16/11 com travas antigas: cada job esperava a janela inteira antes de publicar."""
+    import time as _t
+
+    gh.refs.add("refs/tags/trava-publicar-TO-dados")
+    esperas = []
+    monkeypatch.setattr("raiz.executor.armazem.time.sleep", esperas.append)
+    cli = httpx.Client(transport=httpx.MockTransport(_gh_com_trava_legada(gh, _t.time() - 3 * 86400)))
+    a = ArmazemRelease(REPO, TAG, tmp_path / "espelho", token="segredo", cliente=cli, privado=True)
+    with a._trava("trava-publicar-TO", velha_s=5400):
+        assert "refs/tags/trava-publicar-TO-dados" in gh.refs
+    assert gh.refs == set()
+    assert sum(esperas) < 60  # nada de 90 min de espera
+
+
+def test_trava_privada_legada_recente_continua_respeitada(gh, tmp_path, monkeypatch):
+    import time as _t
+
+    gh.refs.add("refs/tags/trava-publicar-TO-dados")
+    monkeypatch.setattr("raiz.executor.armazem.time.sleep", lambda s: None)
+    cli = httpx.Client(transport=httpx.MockTransport(_gh_com_trava_legada(gh, _t.time() - 3600)))
+    a = ArmazemRelease(REPO, TAG, tmp_path / "espelho", token="segredo", cliente=cli, privado=True)
+    with pytest.raises(TimeoutError), a._trava("trava-publicar-TO", velha_s=0):
+        pytest.fail("trava legada recente não pode ser tomada sem esperar")
+    assert gh.refs == {"refs/tags/trava-publicar-TO-dados"}
+
+
+def test_leitura_inicial_com_estado_ocupado_le_sem_a_trava(gh, tmp_path, monkeypatch):
+    """Fatia nova não morre no começo esperando outra fatia publicar (MG, 15/11): lê sem a trava e segue."""
+    gh.refs.add("refs/tags/trava-publicar-MG-dados")
+    monkeypatch.setattr("raiz.executor.armazem.time.sleep", lambda s: None)
+    a = _armazem(gh, tmp_path / "espelho")
+    a.ESPERA_TRAVA_LEITURA_S = 0
+    lidos = []
+    monkeypatch.setattr(a, "_baixar_uf", lidos.append)
+    a.garantir_uf("MG")
+    assert lidos == ["MG"]
+    assert gh.refs == {"refs/tags/trava-publicar-MG-dados"}  # a trava do outro job fica
+
+
+def test_releitura_para_publicar_continua_exigindo_a_trava(gh, tmp_path, monkeypatch):
+    gh.refs.add("refs/tags/trava-publicar-MG-dados")
+    monkeypatch.setattr("raiz.executor.armazem.time.sleep", lambda s: None)
+    a = _armazem(gh, tmp_path / "espelho")
+    a.ESPERA_TRAVA_UF_S = 0
+    monkeypatch.setattr(a, "_baixar_uf", lambda uf: pytest.fail("não relê para publicar sem a trava"))
+    with pytest.raises(TimeoutError):
+        a.garantir_uf("MG", forcar=True)
+
+
+def test_publicacao_periodica_com_estado_ocupado_fica_para_depois(gh, tmp_path, monkeypatch):
+    """No meio da rodada não para o cálculo esperando a trava: tenta de novo no próximo intervalo."""
+    gh.refs.add("refs/tags/trava-publicar-MG-dados")
+    monkeypatch.setattr("raiz.executor.armazem.time.sleep", lambda s: None)
+    a = _armazem(gh, tmp_path / "espelho")
+    a.ESPERA_TRAVA_PERIODICA_S = 0
+    monkeypatch.setattr(a, "verificar_publicacao", lambda: None)
+    a._sujos["MG"] = 1
+    a.intervalo_s = 0
+    assert a.talvez_publicar("MG") is False
+    assert a._sujos["MG"] == 1 and not gh.uploads
+
+
+def test_detecta_estado_com_projecao_aberta_atrasada(gh, tmp_path, monkeypatch):
+    """MG: 337 municípios no privado (15/11) e 3 no aberto (12/11). GO, com minutos de diferença, não conta."""
+    a = _armazem(gh, tmp_path / "espelho")
+    a.publico = _armazem(gh, tmp_path / "aberto", privado=False)
+    monkeypatch.setattr(a, "_exigir_privado", lambda: {"id": 7})
+    privado = {"MG": {"municipios": 337, "atualizado_em": "2026-11-15T19:40:07+00:00"},
+               "GO": {"municipios": 186, "atualizado_em": "2026-11-16T18:26:49+00:00"},
+               "PA": {"municipios": 144, "atualizado_em": "2026-11-15T21:55:18+00:00"}}  # fmt: skip
+    aberto = {"MG": {"municipios": 3, "atualizado_em": "2026-11-12T17:42:02+00:00"},
+              "GO": {"municipios": 186, "atualizado_em": "2026-11-16T18:17:37+00:00"},
+              "PA": {"municipios": 144, "atualizado_em": "2026-11-15T18:21:36+00:00"}}  # fmt: skip
+    monkeypatch.setattr(a, "manifesto", lambda fresco=False: {"estados": privado})
+    monkeypatch.setattr(a.publico, "manifesto", lambda fresco=False: {"estados": aberto})
+    assert a.defasados_no_aberto() == ["MG", "PA"]  # o mais atrasado primeiro
