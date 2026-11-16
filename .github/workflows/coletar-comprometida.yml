@@ -35,7 +35,6 @@ jobs:
     timeout-minutes: 120
     env:
       GH_TOKEN: ${{ github.token }}
-      SAIDA: ${{ runner.temp }}/comprometida
       LIMITE_VERRA: ${{ inputs.limite_verra }}
     steps:
       - uses: actions/checkout@v7
@@ -43,7 +42,9 @@ jobs:
         with:
           version: "0.13.6"
       - name: Instalar dependências
-        run: uv sync --frozen
+        run: |
+          uv sync --frozen
+          echo "SAIDA=$RUNNER_TEMP/comprometida" >> "$GITHUB_ENV"
 
       - name: Coletar os limites públicos
         run: |
