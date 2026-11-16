@@ -17,6 +17,7 @@ import { malhasPublicas } from "./dados/malhas-mapa"
 import { UFS } from "./formato"
 import { abrirPasta, nomeSeguro, pastaPadrao } from "./pasta-dados"
 import { paginasAgentes } from "./paginas-agentes"
+import { codificarGeometria } from "./geometria-delta"
 import { projetarResumoNacional } from "./pedidos/lote-nacional"
 import { projetarPublicacaoLote } from "./pedidos/release"
 import { potencialPublicado } from "./potencial-publico"
@@ -106,12 +107,13 @@ export function dadosRaiz(opcoes: { repo: string; raizDados?: string | null; cac
     const csv = pasta.caminho(`imoveis_basicos_${cod}.csv`)
     if (!csv || !fs.existsSync(origem)) return null
     const identidade = [origem, csv].map((arq) => `${fs.statSync(arq).size}-${fs.statSync(arq).mtimeMs}`).join("_")
-    const arq = path.join(pasta.cache, `publico_basico_${cod}_${identidade}.geojson.gz`)
+    const arq = path.join(pasta.cache, `publico_basico_delta1_${cod}_${identidade}.geojson.gz`)
     if (!fs.existsSync(arq)) {
       const dado = pasta.geoBasico(cod)
       if (!dado) return null
       fs.mkdirSync(pasta.cache, { recursive: true })
-      fs.writeFileSync(arq, zlib.gzipSync(JSON.stringify(dado), { level: 6 }))
+      // Em deltas inteiros (sem perda, ver geometria-delta.ts): o site passou de 950 MB com GeoJSON decimal.
+      fs.writeFileSync(arq, zlib.gzipSync(JSON.stringify(codificarGeometria(dado) ?? dado), { level: 9 }))
     }
     return arq
   }
