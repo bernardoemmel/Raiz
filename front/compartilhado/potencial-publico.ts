@@ -61,7 +61,8 @@ export function projetarAgregados(colecoes: unknown[]) {
   }
   if (!meta) return null
   const features = [...celulas.values()].sort((a, b) => a.h3.localeCompare(b.h3)).map(p => {
-    const [lat, lon] = cellToLatLng(p.h3)
+    // Centro estatístico da célula: 5 casas (~1 m) bastam e mantêm o arquivo nacional leve.
+    const [lat, lon] = cellToLatLng(p.h3).map((c) => Math.round(c * 1e5) / 1e5)
     return { type: "Feature", properties: { h3: p.h3, fazendas: p.fazendas, potencial_ha: p.potencial_ha }, geometry: { type: "Point", coordinates: [lon, lat] } }
   })
   const fazendas = features.reduce((s, f) => s + f.properties.fazendas, 0)
@@ -100,9 +101,9 @@ export function potencialPublicado(geo: string) {
   const nacional = projetarAgregados(colecoes)
   if (nacional) {
     const nomeNormal = "agregados_brasil.geojson", normal = Buffer.from(JSON.stringify(nacional))
-    if (normal.length > LIMITE_AGREGADOS_NORMAL) throw new Error("O agregado nacional excedeu o limite de 2,5 MB sem compressão")
+    if (normal.length > LIMITE_AGREGADOS_NORMAL) throw new Error("O agregado nacional excedeu o limite de 7 MB sem compressão")
     const nome = `${nomeNormal}.gz`, dados = zlib.gzipSync(normal, { level: 6 })
-    if (dados.length > LIMITE_AGREGADOS_GZIP || dados.length + normal.length > LIMITE_AGREGADOS_TOTAL) throw new Error("O agregado nacional excedeu o limite de 560 KB comprimidos ou 3,06 MB somados")
+    if (dados.length > LIMITE_AGREGADOS_GZIP || dados.length + normal.length > LIMITE_AGREGADOS_TOTAL) throw new Error("O agregado nacional excedeu o limite de 1,6 MB comprimidos ou 8,6 MB somados")
     const sha256 = (b: Buffer) => createHash("sha256").update(b).digest("hex")
     arquivos[nome] = dados
     arquivos[nomeNormal] = normal

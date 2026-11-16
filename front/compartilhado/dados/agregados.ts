@@ -1,8 +1,9 @@
 import type { Geo } from "./tipos"
 
 export const AVISO_AGREGADOS = "Cobertura parcial. Cada ponto representa uma célula estatística, nunca a posição de uma fazenda. A contagem reúne as fazendas presentes no agregado; células com menos de cinco CARs foram omitidas. Os hectares conhecidos somam somente contribuintes positivos sem sobreposição detectada, com pelo menos cinco por célula. Sem medida suficiente, o valor permanece desconhecido. Não representa toda a área ou todas as fazendas do território, nem disponibilidade para venda."
-export const LIMITE_AGREGADOS_GZIP = 560_000
-export const LIMITE_AGREGADOS_NORMAL = 2_500_000
+// Dimensionado para o Brasil inteiro: até ~34 mil células H3 de resolução 5 com ~160 bytes cada.
+export const LIMITE_AGREGADOS_GZIP = 1_600_000
+export const LIMITE_AGREGADOS_NORMAL = 7_000_000
 export const LIMITE_AGREGADOS_TOTAL = LIMITE_AGREGADOS_GZIP + LIMITE_AGREGADOS_NORMAL
 
 export interface AgregadosMapa {
