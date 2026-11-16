@@ -616,3 +616,23 @@ def test_trava_sem_acesso_ao_actions_continua_respeitada(gh, tmp_path, monkeypat
     with pytest.raises(TimeoutError), _tomar_com_dono(gh, tmp_path, monkeypatch, {}, velha_s=0):
         pytest.fail("sem confirmar o dono, a trava fica")
     assert gh.refs == {"refs/tags/trava-publicar-TO-dados"}
+
+
+def test_trava_espera_limite_da_api_em_vez_de_derrubar_o_job(gh, tmp_path, monkeypatch):
+    """403 de limite da API ao tentar a trava: espera e tenta de novo, sem FalhaHTTPPrivada."""
+    monkeypatch.setattr("raiz.executor.armazem.time.sleep", lambda s: None)
+    recusas = {"n": 0}
+
+    def handler(req):
+        if req.url.path.endswith("/git/refs") and req.method == "POST" and recusas["n"] < 2:
+            recusas["n"] += 1
+            return httpx.Response(403, json={"message": "You have exceeded a secondary rate limit"})
+        return gh(req)
+
+    from raiz.executor.http_github import ClienteGitHub
+
+    # Sem a espera do cliente: aqui se testa a espera da própria trava.
+    cli = ClienteGitHub(httpx.Client(transport=httpx.MockTransport(handler)), gerenciar_cota=False)
+    a = ArmazemRelease(REPO, TAG, tmp_path / "espelho", token="segredo", cliente=cli)
+    with a._trava("trava-publicar-TO", velha_s=600):
+        assert recusas["n"] == 2

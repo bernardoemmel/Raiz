@@ -818,6 +818,9 @@ class ArmazemRelease:
                 # Revalidar a ref não modificada com ETag evita gastar a cota
                 # repetindo POST enquanto outro executor mantém a mesma trava.
                 existente = self.cli.get(f"{self.API}/repos/{self.repo}/git/ref/tags/{nome}", headers=h)
+                if self._limite_secundario(existente):
+                    self._esperar_limite(existente, t0, velha_s, nome)
+                    continue
                 if existente.status_code == 404:
                     ocupada = False
                 else:
@@ -830,12 +833,16 @@ class ArmazemRelease:
                         raise TimeoutError(
                             f"trava {nome} ocupada; não publico nem removo uma trava sem confirmar seu dono"
                         )
-                    time.sleep(random.uniform(5, 15))
+                    # Muitas fatias esperando ao mesmo tempo: consultar devagar evita o limite secundário da API.
+                    time.sleep(random.uniform(20, 40))
                     continue
             r = self.cli.post(f"{self.API}/repos/{self.repo}/git/refs", headers=h,
                               json={"ref": f"refs/tags/{nome}", "sha": sha})  # fmt: skip
             if r.status_code == 201:
                 break
+            if self._limite_secundario(r):
+                self._esperar_limite(r, t0, velha_s, nome)
+                continue
             if r.status_code == 422 and "already exists" in r.text.lower():
                 ocupada = True
                 if time.monotonic() - t0 >= velha_s:
@@ -850,6 +857,25 @@ class ArmazemRelease:
         finally:
             self._travas.discard(nome)
             self.cli.delete(f"{self.API}/repos/{self.repo}/git/refs/tags/{nome}", headers=h).raise_for_status()
+
+    @staticmethod
+    def _limite_secundario(r) -> bool:
+        """403/429 de limite de uso da API (não de permissão): esperar e tentar de novo, sem perder o job."""
+        if r.status_code not in (403, 429):
+            return False
+        if r.status_code == 429 or r.headers.get("retry-after") or r.headers.get("x-ratelimit-remaining") == "0":
+            return True
+        return "rate limit" in (r.text or "").lower()
+
+    @staticmethod
+    def _esperar_limite(r, t0: float, velha_s: float, nome: str) -> None:
+        if time.monotonic() - t0 >= velha_s:
+            raise TimeoutError(f"trava {nome}: limite da API do GitHub durante toda a espera")
+        try:
+            pausa = float(r.headers.get("retry-after") or 0)
+        except ValueError:
+            pausa = 0
+        time.sleep(min(300.0, max(pausa, random.uniform(60, 120))))
 
     # Uma publicação real leva minutos. Trava parada além disso é de um job que morreu (cancelado, máquina
     # reciclada, erro de rede no DELETE final) e prendia o estado inteiro para sempre.
