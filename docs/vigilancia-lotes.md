@@ -13,7 +13,13 @@ carbono ficam a preencher pelo desenvolvedor. O cliente interno identifica o don
 O workflow `vigilancia.yml` roda às **6h17 de Brasília** com `rodar --lotes`. Usa `RAIZ_BANCO_URL`, se configurada;
 senão, lê `lotes-vigilancia.json` no arquivo privado autenticado. O snapshot vale 36 horas. Catálogo ausente,
 vencido ou inválido interrompe a rodada sem trocar o recorte por todas as fazendas ou apagar estado anterior.
-Catálogo vazio significa zero alvos, não o Brasil inteiro. Cenários CAD Trust por UF não substituem o catálogo:
+Catálogo vazio significa zero alvos, não o Brasil inteiro.
+
+**Sem servidor e sem `lotes-vigilancia.json`:** a rodada usa os lotes que o workflow do lote nacional publicou no
+arquivo privado (`lote_nacional_atual.json`, uma lista `cars.csv` por consulta e opção, pacotes conferidos por SHA-256).
+Esses lotes não têm dono: vigiam e geram alerta no arquivo privado, mas não preparam rascunho nem aviso a cliente.
+Se nenhuma fonte publicou fazendas ainda, a rodada termina com `situacao: sem_catalogo` e um aviso no resumo, sem
+coletar nada e sem ficar vermelha. Erro de acesso, pacote divergente ou catálogo inválido continuam falhando. Cenários CAD Trust por UF não substituem o catálogo:
 não identificam o desenvolvedor dono de um pedido.
 
 Polígonos e catálogo usam `RAIZ_DADOS_PRIVADOS_URL`. O consumidor reconfere repositório privado ou Release draft.
