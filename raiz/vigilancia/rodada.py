@@ -122,12 +122,6 @@ def rodar(
                 res["fontes"] = {}
                 res["publico"] = {"hoje": hoje.isoformat(), "regra": regras.versao, "lotes": res["lotes"]}
                 return res  # caixa vazia jamais significa consultar o Brasil inteiro
-        except lotes_mod.SemLotes as ex:
-            # Nenhum lote ativo: nada a vigiar hoje. Continua fechado (não amplia para o Brasil inteiro).
-            res["lotes"] = {"situacao": "sem_lotes", "lotes": 0, "aviso": str(ex)}
-            res["fontes"] = {}
-            res["publico"] = {"hoje": hoje.isoformat(), "regra": regras.versao, "lotes": res["lotes"]}
-            return res
         except Exception as ex:  # noqa: BLE001
             # Não coletar todas as fazendas como substituto de um catálogo indisponível e não apagar estado antigo.
             res["lotes"] = {"situacao": "erro", "erro": lotes_mod.diagnostico(ex)}
@@ -358,8 +352,6 @@ def resumo_markdown(res: dict) -> str:
         )
         if lote.get("erro"):
             linhas.append(f"- Catálogo/rascunhos dos lotes: {lote['erro']}")
-        if lote.get("situacao") == "sem_lotes":
-            linhas.append("- Nenhum lote ativo ainda: nada a vigiar hoje (não é falha).")
     if res.get("sem_chave"):
         linhas.append("- Sem RAIZ_VIGILANCIA_CHAVE: a parte privada (projetos, perdas, marcações) não foi guardada.")
     pub = res.get("publicar") or {}

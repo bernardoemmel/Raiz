@@ -34,10 +34,6 @@ class ErroLotes(ValueError):
     """Diagnóstico controlado, sem valor de variável, dado pessoal ou corpo remoto."""
 
 
-class SemLotes(ErroLotes):
-    """Nenhum lote ativo publicado ainda (nenhum cliente reservou): não há o que vigiar, e isso não é falha."""
-
-
 def diagnostico(erro: Exception) -> str:
     if isinstance(erro, ErroLotes):
         return str(erro)
@@ -150,7 +146,7 @@ def carregar_catalogo(cfg: Config, engine=None, agora: dt.datetime | None = None
         release = Release(cfg)
         ativos = release.ativos()  # reconfere visibilidade privada antes de ler
         if ARQUIVO not in ativos:
-            raise SemLotes("sem catálogo privado dos lotes: nenhum lote ativo publicado ainda")
+            raise ErroLotes("sem catálogo privado dos lotes: configure RAIZ_BANCO_URL ou exportar-lotes --publicar")
         dados = json.loads(release.baixar(ativos[ARQUIVO]))
         origem = "arquivo_privado"
     return validar_catalogo(dados, agora), {"origem": origem, "gerado_em": dados["gerado_em"]}
