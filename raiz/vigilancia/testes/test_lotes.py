@@ -213,3 +213,86 @@ def test_cli_catalogo_nao_imprime_corpo_de_erro_do_banco(monkeypatch, capsys):
         assert cli.main(comando) == 1
         saida = capsys.readouterr().out
         assert "ValueError" in saida and "detalhe privado" not in saida
+
+
+def _zip_lote(cars):
+    import io
+    import zipfile
+
+    b = io.BytesIO()
+    with zipfile.ZipFile(b, "w") as z:
+        z.writestr("cars.csv", "papel,cod_imovel,grupo_id\n" + "".join(f"lote,{c},g1\n" for c in cars))
+        z.writestr("raio-x/ignorado.pdf", b"%PDF")
+    return b.getvalue()
+
+
+class ArquivoFalso:
+    """Arquivo privado com o ponteiro do lote nacional e dois pacotes "lote pronto" (um repetido)."""
+
+    def __init__(self, ponteiro=True, sha_errado=False):
+        import hashlib
+
+        self.ativos = {}
+        pacote = _zip_lote([COD_A, COD_B])
+        sha = hashlib.sha256(pacote).hexdigest()
+        ref = {"nome": "lote_pronto_barata_x.zip", "sha256": "0" * 64 if sha_errado else sha, "bytes": len(pacote)}
+        self.ativos[ref["nome"]] = pacote
+        outro = _zip_lote([COD_B])
+        ref2 = {"nome": "lote_pronto_segura_y.zip", "sha256": hashlib.sha256(outro).hexdigest(), "bytes": len(outro)}
+        self.ativos[ref2["nome"]] = outro
+        if ponteiro:
+            consultas = {
+                "PA": {"lote_pronto": {"barata": ref, "compacta": ref}},
+                "Brasil": {"lote_pronto": {"segura": ref2, "barata": {**ref, "nome": "outro_nome.zip"}}},
+            }
+            self.ativos["outro_nome.zip"] = pacote
+            self.ativos[lotes.PONTEIRO_NACIONAL] = json.dumps(
+                {"acesso": "privado", "ufs": {}, "consultas": consultas}
+            ).encode()
+
+    def _baixar_asset(self, nome, fresco=False):
+        return self.ativos.get(nome)
+
+
+def test_lote_nacional_vira_catalogo_sem_dono_e_sem_filtro_de_tamanho():
+    lotes_nacional = lotes.catalogo_do_lote_nacional(ArquivoFalso(), AGORA)
+    # PA/barata e PA/compacta repetem o mesmo pacote (mesmo sha): leitura única, um lote por consulta e opção
+    assert len(lotes_nacional) == 4
+    assert {lt.cliente_id for lt in lotes_nacional} == {lotes.SEM_CLIENTE}
+    assert {c for lt in lotes_nacional for c in lt.imoveis} == {COD_A, COD_B}
+    assert len({lt.pedido_id for lt in lotes_nacional}) == 4  # ids estáveis e distintos
+    assert lotes.catalogo_do_lote_nacional(ArquivoFalso(), AGORA)[0].pedido_id == lotes_nacional[0].pedido_id
+
+
+def test_lote_nacional_sem_ponteiro_e_pacote_divergente():
+    assert lotes.catalogo_do_lote_nacional(ArquivoFalso(ponteiro=False), AGORA) == []
+    with pytest.raises(lotes.ErroLotes, match="divergente"):
+        lotes.catalogo_do_lote_nacional(ArquivoFalso(sha_errado=True), AGORA)
+
+
+def test_sem_servidor_usa_o_lote_nacional_e_sem_nada_vira_aviso(monkeypatch, cfg, poligonos):
+    from raiz.vigilancia import publicacao
+
+    class Release:
+        def __init__(self, configuracao):
+            pass
+
+        def ativos(self):
+            return {}
+
+    monkeypatch.setattr(publicacao, "Release", Release)
+    carregados, origem = lotes.carregar_catalogo(cfg, agora=AGORA, arquivo=ArquivoFalso())
+    assert origem["origem"] == "lote_nacional" and carregados
+    # nada publicado em lugar nenhum: aviso (verde), nunca "vigiar tudo"
+    monkeypatch.setattr(lotes, "catalogo_do_lote_nacional", lambda *a, **k: [])
+    monkeypatch.setattr(lotes, "engine_configurado", lambda: None)
+    monkeypatch.setattr(rodada, "_ler", lambda *args: pytest.fail("não deve coletar sem catálogo"))
+    res = rodada.rodar(cfg, HOJE, ["deter"], poligonos=poligonos, lotes=True)
+    assert res["lotes"]["situacao"] == "sem_catalogo" and res["fontes"] == {}
+    assert "Aviso" in rodada.resumo_markdown(res)
+
+
+def test_lote_nacional_nao_prepara_rascunho_sem_dono(cfg):
+    arm = Armazem(cfg.estado)
+    sem_dono = lotes.Lote(PEDIDO, lotes.SEM_CLIENTE, dt.date(2026, 11, 1), (COD_B,))
+    assert lotes.preparar_rascunhos(arm, [sem_dono], HOJE, {COD_B}) == []

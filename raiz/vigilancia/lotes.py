@@ -6,12 +6,15 @@ proponente, causa e perda de carbono continuam a preencher pelo desenvolvedor. N
 
 from __future__ import annotations
 
+import csv
 import datetime as dt
 import hashlib
+import io
 import json
 import os
 import re
 import uuid
+import zipfile
 from dataclasses import dataclass
 from urllib.parse import urlsplit
 
@@ -25,6 +28,8 @@ from raiz.vigilancia.poligonos import uf_mun_do_codigo
 from raiz.vigilancia.privacidade import mascarar
 
 ARQUIVO = "lotes-vigilancia.json"
+PONTEIRO_NACIONAL = "lote_nacional_atual.json"  # raiz/restauracao_nacional_rodada.py
+SEM_CLIENTE = 0  # lote nacional não tem dono: vigia e alerta, mas não prepara rascunho
 VALIDADE = dt.timedelta(hours=36)
 FONTES = frozenset({"deter", "mapbiomas_alerta", "firms"})
 CAR = re.compile(r"^[A-Z]{2}-[0-9]{7}-[0-9A-F]{32}$")
@@ -32,6 +37,10 @@ CAR = re.compile(r"^[A-Z]{2}-[0-9]{7}-[0-9A-F]{32}$")
 
 class ErroLotes(ValueError):
     """Diagnóstico controlado, sem valor de variável, dado pessoal ou corpo remoto."""
+
+
+class SemCatalogo(ErroLotes):
+    """Nenhuma fonte de lotes publicou nada ainda: não há o que vigiar, e isso nunca amplia a vigilância."""
 
 
 def diagnostico(erro: Exception) -> str:
@@ -135,7 +144,9 @@ def engine_configurado():
     return engine(os.environ["RAIZ_BANCO_URL"])
 
 
-def carregar_catalogo(cfg: Config, engine=None, agora: dt.datetime | None = None) -> tuple[list[Lote], dict]:
+def carregar_catalogo(
+    cfg: Config, engine=None, agora: dt.datetime | None = None, arquivo=None
+) -> tuple[list[Lote], dict]:
     """Falha fechada: ausência de banco/snapshot privado nunca amplia a vigilância a todos os imóveis."""
     from raiz.vigilancia.publicacao import Release
 
@@ -146,10 +157,64 @@ def carregar_catalogo(cfg: Config, engine=None, agora: dt.datetime | None = None
         release = Release(cfg)
         ativos = release.ativos()  # reconfere visibilidade privada antes de ler
         if ARQUIVO not in ativos:
-            raise ErroLotes("sem catálogo privado dos lotes: configure RAIZ_BANCO_URL ou exportar-lotes --publicar")
+            # Sem servidor: os lotes que a Raíz já montou e publicou no arquivo privado (lote nacional).
+            lotes = catalogo_do_lote_nacional(arquivo, agora)
+            if not lotes:
+                raise SemCatalogo(
+                    "sem catálogo dos lotes: nem o banco, nem o arquivo privado dos pedidos, nem o lote nacional "
+                    "publicaram fazendas ainda; nada a vigiar"
+                )
+            return lotes, {
+                "origem": "lote_nacional",
+                "gerado_em": (agora or dt.datetime.now(dt.UTC)).isoformat(),
+            }
         dados = json.loads(release.baixar(ativos[ARQUIVO]))
         origem = "arquivo_privado"
     return validar_catalogo(dados, agora), {"origem": origem, "gerado_em": dados["gerado_em"]}
+
+
+def _cars_do_zip(dado: bytes) -> set[str]:
+    """CARs da lista cars.csv de um pacote "lote pronto" (raiz/lote_pronto.py); o resto do ZIP nem é lido."""
+    with zipfile.ZipFile(io.BytesIO(dado)) as z:
+        nomes = [n for n in z.namelist() if n.rsplit("/", 1)[-1] == "cars.csv"]
+        if not nomes:
+            raise ErroLotes("pacote do lote nacional sem cars.csv")
+        with z.open(nomes[0]) as f:
+            leitor = csv.DictReader(io.TextIOWrapper(f, encoding="utf-8"))
+            return {_car(linha["cod_imovel"]) for linha in leitor if linha.get("cod_imovel")}
+
+
+def catalogo_do_lote_nacional(arm=None, agora: dt.datetime | None = None) -> list[Lote]:
+    """Lotes que a Raíz publicou no arquivo privado (ponteiro do lote nacional), uma lista por consulta e opção.
+
+    Vazio quando o ponteiro ainda não existe. Não filtra por tamanho: as fazendas pequenas do lote entram.
+    O lote não tem dono (cliente_id 0): os alertas ficam no arquivo privado, sem rascunho nem aviso ao cliente."""
+    from raiz.executor.transferencia_privada import arquivo_privado
+
+    agora = agora or dt.datetime.now(dt.UTC)
+    try:
+        arm = arm or arquivo_privado()
+        bruto = arm._baixar_asset(PONTEIRO_NACIONAL, fresco=True)
+    except PermissionError as ex:
+        raise ErroLotes("sem acesso ao arquivo privado do lote nacional (RAIZ_DADOS_PRIVADOS_URL)") from ex
+    if not bruto:
+        return []
+    ponteiro = json.loads(bruto)
+    if ponteiro.get("acesso") != "privado":
+        raise ErroLotes("ponteiro do lote nacional fora do contrato privado")
+    lotes, lidos = [], {}
+    for nome in sorted(ponteiro.get("consultas") or {}):
+        consulta = ponteiro["consultas"][nome]
+        for opcao, ref in sorted((consulta.get("lote_pronto") or {}).items()):
+            if ref["sha256"] not in lidos:
+                dado = arm._baixar_asset(ref["nome"], fresco=True)
+                if dado is None or hashlib.sha256(dado).hexdigest() != ref["sha256"]:
+                    raise ErroLotes("pacote do lote nacional ausente ou divergente da referência imutável")
+                lidos[ref["sha256"]] = _cars_do_zip(dado)
+            if lidos[ref["sha256"]]:
+                pedido = str(uuid.uuid5(uuid.NAMESPACE_URL, f"raiz/lote-nacional/{nome}/{opcao}/{ref['sha256']}"))
+                lotes.append(Lote(pedido, SEM_CLIENTE, agora.date(), tuple(sorted(lidos[ref["sha256"]]))))
+    return lotes
 
 
 def exportar_catalogo(cfg: Config, engine, agora: dt.datetime | None = None) -> dict:
@@ -324,6 +389,8 @@ def preparar_rascunhos(arm: Armazem, lotes: list[Lote], hoje: dt.date, presentes
             existentes[identificador] = documento
             retirados.append(documento)
     for lote in lotes:
+        if lote.cliente_id == SEM_CLIENTE:
+            continue  # lote nacional: sem dono para receber rascunho
         candidatos = alertas[alertas.alvo_id.isin(set(lote.imoveis) & presentes)]
         for alerta in candidatos.to_dict("records"):
             if (
