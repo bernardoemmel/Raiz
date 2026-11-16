@@ -2,8 +2,8 @@
 #
 # O site é estático: o build baixa do Release "dados" o que o motor publicou (front/scripts/baixar-dados.mjs) e grava
 # somente agregados e CAR/situação básica, comprimidos e validados por allowlist (vite-dados.ts). As geometrias
-# do mapa saem de front/scripts/geo.py, guardadas em cache entre as rodadas. Roda a cada mudança do front na main, todo
-# dia (dados novos do motor), após a coleta do Calendário e quando alguém dispara (Actions, "Publicar o site").
+# do mapa saem de front/scripts/geo.py, guardadas em cache entre as rodadas. Roda a cada mudança do front na main, a cada
+# 3 horas (dados novos do motor), após a coleta do Calendário e quando alguém dispara (Actions, "Publicar o site").
 #
 # Uma vez só, no repositório: Settings > Pages > Build and deployment > Source: "GitHub Actions". O token do Actions não
 # consegue ligar o Pages sozinho; sem isso, o passo "publicar" falha com o aviso do GitHub.
@@ -14,7 +14,7 @@ on:
     branches: [main]
     paths: ["front/**", "raiz/potencial_publico.py", "raiz/lotes_publicos.py", ".github/workflows/publicar-site.yml"]
   schedule:
-    - cron: "41 10 * * *"
+    - cron: "41 */3 * * *" # a cada 3 h: o motor publica estados novos o dia todo
   workflow_dispatch:
   workflow_run:
     workflows: ["Calendário diário da Raíz"]
