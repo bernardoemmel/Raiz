@@ -28,6 +28,8 @@ from raiz.pedidos.premissas import premissas
 UFS = tuple("AC AL AP AM BA CE DF ES GO MA MT MS MG PA PB PR PE PI RJ RN RS RO RR SC SP SE TO".split())
 BIOMAS = ("Amazônia", "Caatinga", "Cerrado", "Mata Atlântica", "Pampa", "Pantanal")
 OPCOES = ("barata", "segura", "compacta")
+EM_ESPERA = ("posse_em_titulacao", "assentamento")  # terra que ainda depende de título: nunca entra calada no lote
+AMAZONIA_LEGAL = ("AC", "AP", "AM", "MA", "MT", "PA", "RO", "RR", "TO")
 
 
 @dataclass(frozen=True)
@@ -76,7 +78,9 @@ def _filtro_recorte(recorte: Recorte) -> str:
     return " AND ".join(filtros) or "true"
 
 
-def _regras_pedido(pedido: CamposPedido, modelo: str, cenario: str, comercializaveis: bool) -> list[tuple[str, str]]:
+def _regras_pedido(
+    pedido: CamposPedido, modelo: str, cenario: str, comercializaveis: bool, sobreposicao: bool = False
+) -> list[tuple[str, str]]:
     f = [
         ("Versão financeira diferente ou ausente", f"restauracao_versao={_sql(modelo)}"),
         ("Cenário diferente ou ausente", f"restauracao_cenario={_sql(cenario)}"),
@@ -92,6 +96,8 @@ def _regras_pedido(pedido: CamposPedido, modelo: str, cenario: str, comercializa
     f.append(("Quantidade positiva não estimada; sem piso de tamanho", f"{quantidade}>0"))
     for ex in pedido.exclusoes:
         f.append((f"Exclusão solicitada: {ex}", f"not {ex}"))
+    if sobreposicao:  # camada "já comprometida" presente no catálogo: sai do lote
+        f.append(("Terra já comprometida com outro projeto ou contrato", "not coalesce(ja_comprometida, false)"))
     if comercializaveis:
         f.append(("Salvaguardas para comercialização pendentes", "salvaguardas_comercializavel"))
     if pedido.dinheiro.custo_max_usd_credito is not None:
@@ -120,18 +126,20 @@ def _regras_pedido(pedido: CamposPedido, modelo: str, cenario: str, comercializa
     return f
 
 
-def _filtro_pedido(pedido: CamposPedido, modelo: str, cenario: str, comercializaveis: bool) -> str:
+def _filtro_pedido(
+    pedido: CamposPedido, modelo: str, cenario: str, comercializaveis: bool, sobreposicao: bool = False
+) -> str:
     return (
         "coalesce(("
-        + " AND ".join(q for _, q in _regras_pedido(pedido, modelo, cenario, comercializaveis))
+        + " AND ".join(q for _, q in _regras_pedido(pedido, modelo, cenario, comercializaveis, sobreposicao))
         + "), false)"
     )
 
 
-def _motivos_pedido(pedido, modelo, cenario, comercializaveis):
+def _motivos_pedido(pedido, modelo, cenario, comercializaveis, sobreposicao=False):
     casos = [
         f"case when not coalesce(({q}),false) then {_sql(texto)} end"
-        for texto, q in _regras_pedido(pedido, modelo, cenario, comercializaveis)
+        for texto, q in _regras_pedido(pedido, modelo, cenario, comercializaveis, sobreposicao)
     ]
     return "concat_ws('; '," + ",".join(casos) + ")"
 
@@ -254,25 +262,27 @@ def _prior_sql(p):
     )
 
 
+ACOES_TERRA = {
+    "privada_matricula": "Inteiro teor e certidão de ônus atuais; conferir titular, limites e direitos de carbono.",
+    "posse_em_titulacao": (
+        "Concluir titulação no órgão competente e conferir título registrado; protocolo não libera venda."
+    ),
+    "assentamento": "Conferir título ou concessão, anuência do INCRA e direitos de uso e carbono.",
+    "publica_concessao": "Conferir concessão vigente, anuência do ente público e direito contratual sobre carbono.",
+    "publica_sem_destinacao": "Definir destinação legal pelo ente competente; sem contrato de carbono antes disso.",
+    "terra_indigena_ou_tradicional": (
+        "Consulta livre, prévia e informada, representação legítima e regra de 50%; conferir regime jurídico aplicável."
+    ),
+}
+
+
 def _quadro_terra(con):
     """Todo imóvel do recorte aparece, inclusive posse e previsão ausente.
 
     Créditos históricos ficam separados por versão/cenário. A área é potencial
     restaurável, não área titulada; soma de quantis não é quantil de carteira.
     """
-    acoes = {
-        "privada_matricula": "Inteiro teor e certidão de ônus atuais; conferir titular, limites e direitos de carbono.",
-        "posse_em_titulacao": (
-            "Concluir titulação no órgão competente e conferir título registrado; protocolo não libera venda."
-        ),
-        "assentamento": "Conferir título ou concessão, anuência do INCRA e direitos de uso e carbono.",
-        "publica_concessao": "Conferir concessão vigente, anuência do ente público e direito contratual sobre carbono.",
-        "publica_sem_destinacao": "Definir destinação legal pelo ente competente; sem contrato de carbono antes disso.",
-        "terra_indigena_ou_tradicional": (
-            "Consulta livre, prévia e informada, representação legítima e regra de 50%; "
-            "conferir regime jurídico aplicável."
-        ),
-    }
+    acoes = ACOES_TERRA
     consulta = """select uf, coalesce(caminho_terra,'nao_classificada') caminho_terra,
         situacao_previsao, restauracao_versao modelo_origem, restauracao_cenario cenario_origem,
         count(*) fazendas, count(*) filter(where pequena) pequenas,
@@ -303,6 +313,81 @@ def _quadro_terra(con):
         )
         quadro.append(item)
     return quadro
+
+
+def ordem_recortes(nomes) -> list[str]:
+    """Amazônia primeiro (o bioma, depois os estados da Amazônia Legal), depois os outros estados, os outros biomas
+    e o Brasil por último."""
+    nomes = list(nomes)
+
+    def chave(n):
+        if n == "Amazônia":
+            return (0, 0, n)
+        if n in AMAZONIA_LEGAL:
+            return (1, AMAZONIA_LEGAL.index(n), n)
+        if n in UFS:
+            return (2, 0, n)
+        if n in BIOMAS:
+            return (3, 0, n)
+        return (4, 0, n)  # "Brasil" e recortes de pedido
+
+    return sorted(nomes, key=chave)
+
+
+def _terra_em_espera(con, pedido, modelo, cenario, comercializaveis, sobreposicao):
+    """Terra que cumpre o pedido em tudo, menos no caminho da terra: posse em titulação e assentamento.
+
+    Fica separada da terra pronta e nunca muda o pedido do cliente em silêncio: para incluí-la, o cliente
+    escolhe "posse_em_titulacao" e/ou "assentamento" em `terra`. Soma de quantis não é quantil de carteira.
+    """
+    fora = [c for c in EM_ESPERA if c not in pedido.terra]
+    if not fora:
+        return {"incluida_no_pedido": True, "grupos": [], "como_incluir": None}
+    regras = [
+        q
+        for texto, q in _regras_pedido(pedido, modelo, cenario, comercializaveis, sobreposicao)
+        if not texto.startswith("Caminho da terra")
+    ]
+    filtro = "coalesce((" + " AND ".join(regras) + "), false)"
+    cursor = con.execute(
+        f"""select uf, caminho, count(*) fazendas, count(*) filter(where pequena) pequenas,
+        coalesce(sum(area_ha),0) hectares, coalesce(sum(credito_p10),0) soma_creditos_p10,
+        coalesce(sum(credito_p50),0) soma_creditos_p50, coalesce(sum(credito_p90),0) soma_creditos_p90
+        from recorte where caminho in (select unnest({_lista(fora)})) and {filtro}
+        group by all order by uf, caminho"""
+    )
+    nomes = [c[0] for c in cursor.description]
+    grupos = [dict(zip(nomes, linha, strict=True)) for linha in cursor.fetchall()]
+    for g in grupos:
+        g["o_que_destrava"] = ACOES_TERRA[g["caminho"]]
+        g["habilita_venda"] = False
+        g["faixa_tipo"] = "soma_dos_quantis_individuais_nao_quantis_de_carteira"
+    return {
+        "incluida_no_pedido": False,
+        "fazendas": sum(g["fazendas"] for g in grupos),
+        "pequenas": sum(g["pequenas"] for g in grupos),
+        "hectares": sum(g["hectares"] for g in grupos),
+        "soma_creditos_p50": sum(g["soma_creditos_p50"] for g in grupos),
+        "grupos": grupos,
+        "como_incluir": "Inclua posse_em_titulacao e/ou assentamento em `terra` no pedido; o pedido não foi alterado.",
+        "aviso": "Terra em espera: depende de título ou concessão. Não é terra pronta e não habilita venda.",
+    }
+
+
+def _sobreposicao(con, colunas, selecionadas_sql="escolhidos"):
+    """Situação da camada 'já comprometida' sobre o catálogo desta consulta."""
+    if "ja_comprometida" not in colunas:
+        return {
+            "situacao": "nao_verificada",
+            "aviso": "Sobreposição não verificada: o catálogo ainda não traz a camada 'já comprometida'. "
+            "Ausência de indício não é terra livre; conferir antes de contratar.",
+        }
+    n = con.sql("select count(*) filter(where coalesce(ja_comprometida,false)) from recorte").fetchone()[0]
+    return {
+        "situacao": "verificada",
+        "excluidas_ja_comprometidas": int(n),
+        "aviso": "Fazendas já comprometidas saíram do lote; fazendas com risco de sobreposição estão marcadas.",
+    }
 
 
 def _agregar_grupos(con, pedido):
@@ -521,10 +606,14 @@ def montar_tres_opcoes(
             con.register("oferta", pa.Table.from_pylist([], schema=C.SCHEMA))
         con.sql(f"CREATE TEMP VIEW recorte AS SELECT * FROM oferta WHERE {_filtro_recorte(recorte)}")
         _espacial(con, pedido)
-        filtro = _filtro_pedido(pedido, modelo, cenario, somente_comercializaveis)
+        colunas = {r[0] for r in con.sql("describe oferta").fetchall()}
+        com_camada = "ja_comprometida" in colunas
+        filtro = _filtro_pedido(pedido, modelo, cenario, somente_comercializaveis, com_camada)
         con.sql(f"CREATE TEMP VIEW elegiveis AS SELECT * FROM recorte WHERE {filtro}")
         cobertura = _cobertura(catalogo_dados, recorte, con, modelo, cenario)
         quadro_terra = _quadro_terra(con)
+        terra_em_espera = _terra_em_espera(con, pedido, modelo, cenario, somente_comercializaveis, com_camada)
+        sobreposicao = _sobreposicao(con, colunas)
         t = time.monotonic()
         pontos = con.sql("select cod_imovel,lon,lat,pequena,local_aproximado from elegiveis").fetchdf()
         agrupados = S.agrupar_oferta(
@@ -564,6 +653,15 @@ def montar_tres_opcoes(
                 .fetchdf()
                 .iloc[0]
                 .to_dict()
+            )
+            marcadas = (
+                int(
+                    con.sql(
+                        "select count(*) filter(where coalesce(risco_sobreposicao,false)) from escolhidos"
+                    ).fetchone()[0]
+                )
+                if "risco_sobreposicao" in colunas
+                else None
             )
             tabela_info = _gravar_parquet(
                 con, "select * from escolhidos order by cod_imovel", pasta / f"{opcao}.parquet"
@@ -614,6 +712,8 @@ def montar_tres_opcoes(
                 fazendas=int(totais["fazendas"]),
                 pequenas=int(totais["pequenas"]),
                 area_ha=float(totais["area_ha"]),
+                sobreposicao_situacao=sobreposicao["situacao"],
+                marcadas_risco_sobreposicao=marcadas,
             )
             resultados[opcao].update(extras)
             rotulos.extend({"grupo_id": x["grupo_id"], "opcao": opcao, "papel": x["papel"]} for x in linhas)
@@ -629,7 +729,7 @@ def montar_tres_opcoes(
             {_sql(chave)} consulta_id, true revisao_humana_disponivel,
             'LGPD art. 20' fundamento_revisao,
             case when not ({filtro}) then
-                {_motivos_pedido(pedido, modelo, cenario, somente_comercializaveis)}
+                {_motivos_pedido(pedido, modelo, cenario, somente_comercializaveis, com_camada)}
                 else 'Grupo indivisível avaliado por custo/risco/compacidade. Busca limitada; sem corte por tamanho.'
                 end criterio_texto,
             {_sql(criterios)} parametros_texto,
@@ -660,6 +760,8 @@ def montar_tres_opcoes(
         "auditoria": auditoria,
         "pendencias": pendencias,
         "quadro_terra": quadro_terra,
+        "terra_em_espera": terra_em_espera,
+        "sobreposicao": sobreposicao,
         "tempos": tempos,
         "cronograma_contratual_validado": regra is not None,
         "aviso": "Planejamento sobre cobertura disponível. Consulte os marcos e pendências antes de contratar. "
