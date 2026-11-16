@@ -275,6 +275,53 @@ def fontes_selecionadas(arm, atual, resultado, trabalho, cache):
     return {int(c): cache[int(c)] for c in selecionadas.cod_ibge}
 
 
+def resumo_consulta(resultado: dict) -> dict:
+    """O que cabe no ponteiro (sem fazenda nem CAR): as três opções, a terra em espera e a sobreposição."""
+    espera = resultado.get("terra_em_espera") or {}
+    return {
+        "opcoes": {
+            nome: {
+                "fazendas": op["fazendas"],
+                "pequenas": op["pequenas"],
+                "hectares": op["area_ha"],
+                "creditos": op["creditos"],
+                "fecha_meta": op.get("fecha_meta"),
+                "sobreposicao": op.get("sobreposicao_situacao"),
+            }
+            for nome, op in resultado["opcoes"].items()
+        },
+        "terra_em_espera": {
+            k: espera.get(k) for k in ("incluida_no_pedido", "fazendas", "pequenas", "hectares", "soma_creditos_p50")
+        },
+        "sobreposicao": (resultado.get("sobreposicao") or {}).get("situacao"),
+    }
+
+
+def conferir_consultas(atual: dict, *, brasil: bool = True) -> dict:
+    """Confere o que foi publicado no ponteiro: toda UF com dados, cada bioma e o Brasil têm as três opções.
+
+    Devolve a lista de faltas e de lotes vazios (com a terra em espera que explica o vazio); não calcula nada.
+    """
+    consultas = atual.get("consultas", {})
+    esperados = [*atual.get("ufs", {}), *(N.BIOMAS if brasil else ()), *(["Brasil"] if brasil else ())]
+    faltam = [n for n in esperados if n not in consultas]
+    sem_opcoes, sem_resumo, vazios = [], [], []
+    for nome in N.ordem_recortes(consultas):
+        item = consultas[nome]
+        ops = (item.get("resumo") or {}).get("opcoes") or {}
+        if item.get("pacote") and not ops:
+            sem_resumo.append(nome)  # publicada antes do resumo no ponteiro: refeita na próxima atualização
+            continue
+        if not item.get("pacote") or set(ops) != set(N.OPCOES):
+            sem_opcoes.append(nome)
+            continue
+        if all(not op["fazendas"] for op in ops.values()):
+            espera = item["resumo"].get("terra_em_espera") or {}
+            vazios.append({"recorte": nome, "terra_em_espera_fazendas": espera.get("fazendas") or 0})
+    return {"esperados": len(esperados), "publicados": len(consultas), "faltam": faltam, "sem_tres_opcoes": sem_opcoes,
+            "sem_resumo": sem_resumo, "lotes_vazios": vazios}  # fmt: skip
+
+
 def publicar_consulta(arm, resultado: dict, trabalho: Path) -> dict:
     """Pacote portátil com previsões, decisões revisáveis e resultado financeiro agregado."""
     pasta = Path(resultado["auditoria"]["caminho"]).parent
@@ -322,6 +369,7 @@ def publicar_consulta(arm, resultado: dict, trabalho: Path) -> dict:
         "pacote": ref,
         "tempos": resultado["tempos"],
         "cobertura": resultado["cobertura"],
+        "resumo": resumo_consulta(resultado),
     }
 
 
@@ -342,7 +390,8 @@ def consultar(arm, atual, trabalho, *, recortes=None, pedido=None) -> dict:
     }
     cache, publicadas = {}, 0
     id_catalogo = json.loads(catalogo.read_text())["id"]
-    for nome, recorte in recortes.items():
+    for nome in N.ordem_recortes(recortes):  # Amazônia primeiro
+        recorte = recortes[nome]
         normalizado = pedido.model_copy(deep=True)
         normalizado.onde.ufs, normalizado.onde.biomas = list(recorte.ufs), list(recorte.biomas)
         normalizado.onde.municipios = [str(m) for m in recorte.municipios]
@@ -352,6 +401,7 @@ def consultar(arm, atual, trabalho, *, recortes=None, pedido=None) -> dict:
             and anterior.get("otimizador_versao") == N.versao_nacional()
             and anterior.get("publicador_versao") == versao_publicador()
             and anterior.get("pedido") == normalizado.model_dump()
+            and anterior.get("resumo")
         ):
             continue
         argumentos = dict(modelo=R.versao(), cenario=cenario["cenario"], destino=trabalho / "consultas")
@@ -413,8 +463,15 @@ def main() -> None:
     p.add_argument("--uf", action="append")
     p.add_argument("--bioma", action="append")
     p.add_argument("--brasil", action="store_true")
+    p.add_argument("--conferir", action="store_true", help="só confere o que está publicado no ponteiro")
     p.add_argument("--pedido", type=Path, help="JSON CamposPedido; o recorte vem de --uf/--bioma/--brasil")
     args = p.parse_args()
+    if args.conferir:
+        laudo = conferir_consultas(_ler_atual(arquivo_privado()))
+        print(json.dumps(laudo, ensure_ascii=False, indent=2))
+        if laudo["sem_tres_opcoes"]:
+            raise SystemExit("Há consultas publicadas sem as três opções.")
+        return
     with tempfile.TemporaryDirectory(prefix="lote-nacional-") as td:
         arm, trabalho = arquivo_privado(), args.trabalho or Path(td)
         # Serializa ponteiro, manutenção e consultas também entre execuções fora do workflow.

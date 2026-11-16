@@ -144,3 +144,56 @@ def test_pedido_parcial_herda_cenario_sem_trocar_preco_explicito():
     explicito = CamposPedido(dinheiro={"preco_venda_usd": 55})
     with pytest.raises(ValueError, match="reavaliar a oferta"):
         N.preparar_contrato(explicito, R.versao(), "central_r12")
+
+
+def _catalogo_posse(tmp_path):
+    fonte, indice = tmp_path / "fonte_ba", tmp_path / "indice_ba"
+    criar_fonte(fonte, uf="BA", cod=2927408, n=3, bioma="Caatinga")
+    terra = pd.read_csv(fonte / "terra_2927408.csv")
+    terra["caminho_terra"] = "posse_em_titulacao"
+    terra.to_csv(fonte / "terra_2927408.csv", index=False)
+    particao = C.indexar_municipio(fonte, "BA", 2927408, indice, modelo="modelo-teste", cenario="central_r11")
+    return C.consolidar_catalogo([particao], indice, municipios_esperados={"BA": [2927408]})
+
+
+def test_posse_em_titulacao_aparece_como_terra_em_espera_sem_mudar_o_pedido(tmp_path):
+    cat = _catalogo_posse(tmp_path)
+    r = rodar(cat, tmp_path, N.normalizar_recorte(ufs=["BA"]))
+    assert all(o["fazendas"] == 0 for o in r["opcoes"].values())  # o pedido padrão exclui a terra em espera
+    espera = r["terra_em_espera"]
+    assert not espera["incluida_no_pedido"]
+    assert espera["fazendas"] == 3 and espera["pequenas"] == 3 and espera["soma_creditos_p50"] > 0
+    assert espera["grupos"][0]["caminho"] == "posse_em_titulacao" and not espera["grupos"][0]["habilita_venda"]
+    assert "posse_em_titulacao" in espera["como_incluir"]
+    assert r["pedido"]["terra"] == CamposPedido(meta={"valor": 20}).terra  # pedido do cliente intacto
+    assert r["sobreposicao"]["situacao"] == "nao_verificada"
+    assert all(o["sobreposicao_situacao"] == "nao_verificada" for o in r["opcoes"].values())
+
+
+def test_cliente_que_pede_posse_recebe_o_lote_e_a_espera_some(tmp_path):
+    cat = _catalogo_posse(tmp_path)
+    pedido = CamposPedido(meta={"valor": 20}, cronograma="livre", terra=["posse_em_titulacao"])
+    r = N.montar_tres_opcoes(
+        cat,
+        pedido,
+        N.normalizar_recorte(ufs=["BA"]),
+        modelo="modelo-teste",
+        cenario="central_r11",
+        destino=tmp_path / "saida2",
+        limites=S.LimitesSelecao(2, 10, 1),
+    )
+    assert r["terra_em_espera"]["incluida_no_pedido"] is False or r["terra_em_espera"]["grupos"] == []
+    assert any(o["fazendas"] > 0 for o in r["opcoes"].values())
+
+
+def test_camada_ja_comprometida_vira_regra_so_quando_existe():
+    pedido = CamposPedido(meta={"valor": 20})
+    sem = [t for t, _ in N._regras_pedido(pedido, "m", "c", False)]
+    com = [t for t, _ in N._regras_pedido(pedido, "m", "c", False, True)]
+    assert "Terra já comprometida com outro projeto ou contrato" in com and set(sem) < set(com)
+
+
+def test_amazonia_primeiro_e_brasil_por_ultimo():
+    ordem = N.ordem_recortes(["Brasil", "SP", "Cerrado", "PA", "BA", "Amazônia", "AC", "Pampa", "MA"])
+    assert ordem[0] == "Amazônia" and ordem[-1] == "Brasil"
+    assert ordem.index("AC") < ordem.index("MA") < ordem.index("PA") < ordem.index("BA") < ordem.index("Cerrado")
