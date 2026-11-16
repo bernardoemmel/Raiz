@@ -62,7 +62,11 @@ export function projetarAgregados(colecoes: unknown[]) {
   if (!meta) return null
   const features = [...celulas.values()].sort((a, b) => a.h3.localeCompare(b.h3)).map(p => {
     const [lat, lon] = cellToLatLng(p.h3)
-    return { type: "Feature", properties: { h3: p.h3, fazendas: p.fazendas, potencial_ha: p.potencial_ha }, geometry: { type: "Point", coordinates: [lon, lat] } }
+    // Nível Brasil compacto: o centro da célula (~8 km de aresta) com 3 casas decimais (~110 m) e hectares com 1 casa.
+    // O h3 continua inteiro, então nenhuma célula some e o detalhe por estado segue exato.
+    const casas = (n: number, k: number) => Math.round(n * 10 ** k) / 10 ** k
+    const ha = p.potencial_ha === null ? null : Math.max(0.1, casas(p.potencial_ha, 1))
+    return { type: "Feature", properties: { h3: p.h3, fazendas: p.fazendas, potencial_ha: ha }, geometry: { type: "Point", coordinates: [casas(lon, 3), casas(lat, 3)] } }
   })
   const fazendas = features.reduce((s, f) => s + f.properties.fazendas, 0)
   if (!Number.isSafeInteger(fazendas)) throw new Error("Contagem nacional fora do contrato público")
@@ -100,9 +104,9 @@ export function potencialPublicado(geo: string) {
   const nacional = projetarAgregados(colecoes)
   if (nacional) {
     const nomeNormal = "agregados_brasil.geojson", normal = Buffer.from(JSON.stringify(nacional))
-    if (normal.length > LIMITE_AGREGADOS_NORMAL) throw new Error("O agregado nacional excedeu o limite de 2,5 MB sem compressão")
+    if (normal.length > LIMITE_AGREGADOS_NORMAL) throw new Error(`O agregado nacional excedeu o limite de ${LIMITE_AGREGADOS_NORMAL / 1e6} MB sem compressão (${normal.length} bytes, ${nacional.features.length} células)`)
     const nome = `${nomeNormal}.gz`, dados = zlib.gzipSync(normal, { level: 6 })
-    if (dados.length > LIMITE_AGREGADOS_GZIP || dados.length + normal.length > LIMITE_AGREGADOS_TOTAL) throw new Error("O agregado nacional excedeu o limite de 560 KB comprimidos ou 3,06 MB somados")
+    if (dados.length > LIMITE_AGREGADOS_GZIP || dados.length + normal.length > LIMITE_AGREGADOS_TOTAL) throw new Error(`O agregado nacional excedeu o limite de ${LIMITE_AGREGADOS_GZIP / 1000} KB comprimidos ou ${LIMITE_AGREGADOS_TOTAL / 1e6} MB somados (${dados.length} e ${normal.length} bytes)`)
     const sha256 = (b: Buffer) => createHash("sha256").update(b).digest("hex")
     arquivos[nome] = dados
     arquivos[nomeNormal] = normal

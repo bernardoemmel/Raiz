@@ -297,6 +297,21 @@ def resumo_consulta(resultado: dict) -> dict:
     }
 
 
+def publicar_pacotes_lote(arm, resultado: dict, trabalho: Path) -> dict:
+    """Um ZIP "lote pronto" por opção com fazendas, no arquivo privado (raiz/lote_pronto.py)."""
+    from raiz import lote_pronto as LP
+
+    refs = {}
+    for opcao, item in resultado["opcoes"].items():
+        if not item["fazendas"]:
+            continue
+        zip_local = trabalho / "lote_pronto" / f"{resultado['id']}_{opcao}.zip"
+        info = LP.montar_pacote(resultado, opcao, zip_local)
+        refs[opcao] = {**F.publicar(arm, zip_local, f"lote_pronto_{opcao}", ".zip"), "fazendas": info["fazendas"]}
+        zip_local.unlink(missing_ok=True)  # o arquivo privado guarda a cópia; o runner não fica com ela
+    return refs
+
+
 def conferir_consultas(atual: dict, *, brasil: bool = True) -> dict:
     """Confere o que foi publicado no ponteiro: toda UF com dados, cada bioma e o Brasil têm as três opções.
 
@@ -305,7 +320,7 @@ def conferir_consultas(atual: dict, *, brasil: bool = True) -> dict:
     consultas = atual.get("consultas", {})
     esperados = [*atual.get("ufs", {}), *(N.BIOMAS if brasil else ()), *(["Brasil"] if brasil else ())]
     faltam = [n for n in esperados if n not in consultas]
-    sem_opcoes, sem_resumo, vazios = [], [], []
+    sem_opcoes, sem_resumo, sem_pacote, vazios = [], [], [], []
     for nome in N.ordem_recortes(consultas):
         item = consultas[nome]
         ops = (item.get("resumo") or {}).get("opcoes") or {}
@@ -318,8 +333,10 @@ def conferir_consultas(atual: dict, *, brasil: bool = True) -> dict:
         if all(not op["fazendas"] for op in ops.values()):
             espera = item["resumo"].get("terra_em_espera") or {}
             vazios.append({"recorte": nome, "terra_em_espera_fazendas": espera.get("fazendas") or 0})
+        elif set(item.get("lote_pronto") or {}) != {o for o, op in ops.items() if op["fazendas"]}:
+            sem_pacote.append(nome)
     return {"esperados": len(esperados), "publicados": len(consultas), "faltam": faltam, "sem_tres_opcoes": sem_opcoes,
-            "sem_resumo": sem_resumo, "lotes_vazios": vazios}  # fmt: skip
+            "sem_resumo": sem_resumo, "sem_lote_pronto": sem_pacote, "lotes_vazios": vazios}  # fmt: skip
 
 
 def publicar_consulta(arm, resultado: dict, trabalho: Path) -> dict:
@@ -402,6 +419,7 @@ def consultar(arm, atual, trabalho, *, recortes=None, pedido=None) -> dict:
             and anterior.get("publicador_versao") == versao_publicador()
             and anterior.get("pedido") == normalizado.model_dump()
             and anterior.get("resumo")
+            and anterior.get("lote_pronto") is not None
         ):
             continue
         argumentos = dict(modelo=R.versao(), cenario=cenario["cenario"], destino=trabalho / "consultas")
@@ -411,6 +429,7 @@ def consultar(arm, atual, trabalho, *, recortes=None, pedido=None) -> dict:
             N.montar_tres_opcoes(catalogo, pedido, recorte, origens=origens, **argumentos) if origens else selecionado
         )
         atual["consultas"][nome] = publicar_consulta(arm, completo, trabalho)
+        atual["consultas"][nome]["lote_pronto"] = publicar_pacotes_lote(arm, completo, trabalho)
         _gravar_atual(arm, atual, trabalho)
         publicadas += 1
         print(json.dumps({"consulta_publicada": nome, "segundos": completo["tempos"]["total_s"]}), flush=True)

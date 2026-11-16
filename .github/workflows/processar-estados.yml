@@ -103,6 +103,26 @@ jobs:
           RAIZ_SO_FILA: ${{ github.event_name == 'schedule' && github.event.schedule == '17 * * * *' && '1' || '0' }}
         run: uv run python motor/rodar_estado.py --planejar
 
+  projecao-aberta:
+    # Refaz a projeção do Release aberto de um estado em que ela ficou para trás do arquivo privado (MG ficou com 3
+    # municípios no aberto e 337 no privado). Em paralelo ao preparar, sem segurar a rodada; não recalcula nada.
+    needs: planejar
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.13.6"
+          enable-cache: true
+      - run: uv sync --frozen --all-extras
+      - name: Refazer a projeção aberta atrasada
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RAIZ_GITHUB_ESPERA_MAX_S: "900"
+        run: uv run python motor/rodar_estado.py --sincronizar-aberto
+
   preparar:
     needs: planejar
     if: needs.planejar.outputs.tem == '1'

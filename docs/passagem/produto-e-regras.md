@@ -397,3 +397,17 @@ uv run ruff check raiz && uv run ruff format --check raiz
 ```
 
 Se o banco de teste travar na migração 0020, recriar o `raiz_teste` (drop, create e `create extension postgis`).
+
+## Adendo de 16/11/2026: lote nacional e pacote "lote pronto"
+
+- [PR #124](https://github.com/bernardoemmel/Raiz/pull/124), mesclado: `lote-nacional.yml` na main (trazido do branch
+  `codex/lote-nacional-preservado-r12`, que só tinha esse arquivo além do que já estava na main), terra em espera separada da
+  pronta (`terra_em_espera`, sem mudar o pedido), sobreposição `nao_verificada` até o catálogo trazer `ja_comprometida` (com a
+  coluna, a consulta tira as comprometidas e marca `risco_sobreposicao`), Amazônia primeiro e `--conferir` no fim do workflow.
+- [PR #128](https://github.com/bernardoemmel/Raiz/pull/128): `raiz/lote_pronto.py`, um ZIP por opção (CARs, reservas, tabela,
+  mapa, Raio-X em PDF por CAR, sobreposição, manifesto), gerado no workflow e guardado no arquivo privado.
+- Não rodei o workflow no Actions (precisa do arquivo privado): dispare `Lotes privados por estado, bioma e Brasil` e confira
+  `python -m raiz.restauracao_nacional_rodada --conferir`. O site continua só com o PA: falta o chat Telas e mapa ler o
+  `resumo` por consulta do ponteiro. A camada `ja_comprometida` no catálogo (coluna nova) depende do chat Documentos e IA.
+- Falha de CI que não era do PR: Lighthouse do job `front` (89 contra 90); passou na reexecução.
+- Testes: `uv run pytest testes/test_lote_pronto.py testes/test_restauracao_nacional*.py -q`.
