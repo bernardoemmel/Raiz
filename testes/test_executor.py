@@ -295,7 +295,8 @@ def test_producao_tem_todas_as_tarefas_em_ordem():
     from raiz.funil.rodar import TAREFAS
 
     nomes = [t.nome for t in ordenar(T.tarefas_producao())]
-    assert set(nomes) == set(TAREFAS) - {"carga"}  # a carga é do back-end, a partir do armazém
+    # a carga é do back-end, a partir do armazém; "comprometida" é só do executor (não passa por funil/rodar.py)
+    assert set(nomes) == (set(TAREFAS) - {"carga"}) | {"comprometida"}
     assert nomes.index("funil") == 0 and nomes.index("terra") < nomes.index("ficha") < nomes.index("desenvolvedor")
     v = {t.nome: t.versao() for t in T.tarefas_producao()}
     assert all(x.startswith(n + "-") for n, x in v.items())

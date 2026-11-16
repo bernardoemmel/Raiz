@@ -71,3 +71,35 @@ Dados brutos, polígonos e versões completas não pertencem ao Release público
 ao front estático ou a artefatos abertos de CI. Berkeley e a base científica
 exigem atribuição; fontes sem licença expressa de redistribuição são usadas
 como referência e análise privada, sem publicar documentos originais.
+
+## No processamento, sem servidor (arquivo por município)
+
+A mesma camada roda no processamento dos estados, sem banco, como tarefa própria do executor (`comprometida`, só
+depende do funil e ninguém depende dela). Duas peças:
+
+1. **Coleta diária** (`.github/workflows/coletar-comprometida.yml`, 04h23 de Brasília): `raiz comprometida coletar`
+   baixa o KML oficial de cada projeto Verra brasileiro do catálogo Berkeley (floresta e uso da terra: ARR, REDD,
+   IFM), os limites das concessões do SFB e a base científica do Zenodo (só indício). Publica no Release `insumos`:
+   `comprometida_limites.parquet`, `comprometida_cobertura.json` (o que cada fonte cobriu e quando) e
+   `projetos_carbono.tar.gz`, que o `processar-estados.yml` já baixa e o motor lê: com ele, `projeto_carbono_ha`
+   deixa de sair sempre 0. Só entram nesse pacote limites oficiais e ativos da Verra, nunca indício nem concessão.
+   Se nenhuma fonte cobrir, o workflow falha e o Release mantém a coleta anterior. Para pausar, desative o workflow.
+2. **Status por CAR** (`raiz/comprometida/status.py`): `comprometida_<mun>.csv` (colunas em `docs/colunas.md`).
+   `livre` só quando alguma fonte cobriu a área; sem fonte, `nao_verificado`. Reaproveita o cruzamento do servidor
+   (`terra_comprometida.cruzar`): união das interseções em EPSG:5880, retirada e prazo encerrado não confirmam,
+   indício desconta a área já confirmada.
+
+Versão própria: a versão da tarefa junta o código de `status.py` e `terra_comprometida.py` com a assinatura da coleta.
+Coleta nova ou regra nova refaz só esta tarefa, município por município (`raiz comprometida recalcular` ou o
+executor); o funil dos municípios prontos não muda. A tarefa não passa por `raiz/funil/rodar.py`, que entra no hash
+de todas as tarefas. No servidor, `raiz comprometida baixar` traz os arquivos do Release para `cache/comprometida/`.
+
+**Público só agregado.** O Release `insumos` é aberto e guarda os limites coletados; o status por imóvel fica no
+arquivo privado e fora da projeção aberta. O que pode ser público é a contagem por município e status
+(`raiz comprometida resumo`). No mapa da área logada, a fazenda `ja_comprometida` fica em cinza.
+
+**Licença dos limites.** Os KML da Verra e os limites do SFB não declaram licença de redistribuição (ver tabela
+acima). Publicá-los no Release aberto `insumos` foi decisão do fundador, para o motor ler sem gancho novo; se a
+decisão mudar, basta apagar os três arquivos do Release e pôr o `projetos_carbono.tar.gz` no armazém privado.
+Berkeley e Zenodo (CC BY 4.0) levam atribuição no manifesto. Fora do escopo: Gold Standard, averbação na matrícula
+e cota vendida.
