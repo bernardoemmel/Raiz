@@ -19,7 +19,7 @@ está completo quando tem, em todos os municípios, funil, filtros, MapBiomas, d
 escadinha. Os extras do Earth Engine e as certidões ficam de fora dessa conta (ver abaixo).
 
 <!-- painel:inicio -->
-Gerado do `estados.json` de 15/11/2026 21:14 (horário de Brasília). Brasil: 2.714 de 5.571 municípios com o funil pronto; 5 de 27 estados completos.
+Gerado do `estados.json` de 15/11/2026 21:23 (horário de Brasília). Brasil: 2.748 de 5.571 municípios com o funil pronto; 5 de 27 estados completos.
 
 | Estado | Municípios feitos/total | Situação | Última atualização | Motor |
 |---|---|---|---|---|
@@ -37,9 +37,9 @@ Gerado do `estados.json` de 15/11/2026 21:14 (horário de Brasília). Brasil: 2.
 | MG Minas Gerais | 337/853 | falta funil 516, ficha 3, desenvolvedor 5; 36 erro(s) na última rodada (8 fatias em jobs separados) | 15/11/2026 16:40 | [33d69e1](https://github.com/bernardoemmel/Raiz/actions/runs/43727698257) |
 | BA Bahia | 0/417 | não começou | — | — |
 | PI Piauí | 224/224 | completo; 5 erro(s) na última rodada (2 fatias em jobs separados) | 15/11/2026 09:24 | [b93a055](https://github.com/bernardoemmel/Raiz/actions/runs/43705807265) |
-| CE Ceará | 151/184 | falta funil 33, ficha 1, desenvolvedor 2; 34 erro(s) na última rodada (2 fatias em jobs separados) | 15/11/2026 21:08 | [3ead1f4](https://github.com/bernardoemmel/Raiz/actions/runs/43770477521) |
+| CE Ceará | 151/184 | falta funil 33, ficha 1, desenvolvedor 2; 34 erro(s) na última rodada (2 fatias em jobs separados) | 15/11/2026 21:17 | [3ead1f4](https://github.com/bernardoemmel/Raiz/actions/runs/43770477521) |
 | RN Rio Grande do Norte | 143/167 | falta funil 24, MapBiomas 1, direto 1, TMF e causas 1, FLAG 1, caminho da terra 1, ficha 2, desenvolvedor 2 (2 fatias em jobs separados) | 15/11/2026 20:52 | [cb1d94d](https://github.com/bernardoemmel/Raiz/actions/runs/43774696969) |
-| PB Paraíba | 125/223 | falta funil 98, MapBiomas 3, direto 3, TMF e causas 3, FLAG 3, caminho da terra 3, ficha 5, desenvolvedor 9 (2 fatias em jobs separados) | 15/11/2026 21:06 | manual |
+| PB Paraíba | 159/223 | falta funil 64, MapBiomas 3, direto 3, TMF e causas 3, FLAG 3, caminho da terra 3, ficha 4, desenvolvedor 7 (2 fatias em jobs separados) | 15/11/2026 21:13 | manual |
 | PE Pernambuco | 184/185 | falta funil 1, MapBiomas 1, direto 1, TMF e causas 1, FLAG 1, caminho da terra 1, ficha 1, desenvolvedor 1 (2 fatias em jobs separados) | 15/11/2026 20:55 | manual |
 | AL Alagoas | 0/102 | não começou | — | — |
 | SE Sergipe | 0/75 | não começou | — | — |
