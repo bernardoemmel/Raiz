@@ -208,6 +208,14 @@ def test_excluir_invalidos_nao_libera_grupo_com_menos_de_cinco_imoveis():
     assert P.resumir(linhas(horizonte_em="2026-01-02", observado_em="2026-01-02"), AGORA)["versoes"] == []
 
 
+@pytest.mark.parametrize("campo", ["modelo", "modelo_versao", "alvo"])
+def test_rotulos_tecnicos_nao_publicam_documentos_civis(campo):
+    from testes.test_privacidade import CNPJ, CPF
+
+    for documento in (CPF, CNPJ, "".join(c for c in CPF if c.isdigit()), "".join(c for c in CNPJ if c.isalnum())):
+        assert P.resumir(linhas(**{campo: "modelo-" + documento}), AGORA)["versoes"] == []
+
+
 def test_versao_oficial_do_leitor_preserva_prompt_sem_afrouxar_evidencia():
     from raiz.documentos.certidao.esquema import versao_prompt
 

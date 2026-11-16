@@ -1,0 +1,96 @@
+# Instância própria: GlitchTip 5.2.0 (MIT), Valkey 8.1.4 (BSD-3) e PostgreSQL 16.
+# Guia: docs/operacao.md. Não expõe o banco; web e contador somente no loopback.
+# Variáveis secretas sem valor padrão. Não usar Redis servidor (licença não permitida).
+name: raiz-observabilidade
+
+x-glitchtip: &glitchtip
+  image: glitchtip/glitchtip:v5.2.0
+  restart: unless-stopped
+  environment: &ambiente
+    DATABASE_URL: postgresql://glitchtip:${RAIZ_GLITCHTIP_BANCO_SENHA:?defina no ambiente}@banco:5432/glitchtip
+    SECRET_KEY: ${RAIZ_GLITCHTIP_SECRET_KEY:?defina no ambiente}
+    VALKEY_URL: redis://:${RAIZ_VALKEY_SENHA:?defina no ambiente}@valkey:6379/1
+    GLITCHTIP_DOMAIN: ${RAIZ_GLITCHTIP_DOMAIN:-http://localhost:8001}
+    ALLOWED_HOSTS: ${RAIZ_GLITCHTIP_HOSTS:-localhost,127.0.0.1}
+    CSRF_TRUSTED_ORIGINS: ${RAIZ_GLITCHTIP_DOMAIN:-http://localhost:8001}
+    ENABLE_USER_REGISTRATION: "false"
+    ENABLE_SOCIAL_APPS_USER_REGISTRATION: "false"
+    ENABLE_ORGANIZATION_CREATION: "false"
+    GLITCHTIP_MAX_EVENT_LIFE_DAYS: "30"
+    # Nenhum email pessoal no console, nem envio externo automático.
+    EMAIL_BACKEND: django.core.mail.backends.dummy.EmailBackend
+    SENTRY_DSN: ""
+    SENTRY_FRONTEND_DSN: ""
+  depends_on:
+    banco:
+      condition: service_healthy
+    valkey:
+      condition: service_healthy
+    migrar:
+      condition: service_completed_successfully
+
+services:
+  banco:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: glitchtip
+      POSTGRES_USER: glitchtip
+      POSTGRES_PASSWORD: ${RAIZ_GLITCHTIP_BANCO_SENHA:?defina no ambiente}
+    volumes:
+      - banco:/var/lib/postgresql/data
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U glitchtip -d glitchtip"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  valkey:
+    image: valkey/valkey:8.1.4
+    restart: unless-stopped
+    environment:
+      VALKEY_PASSWORD: ${RAIZ_VALKEY_SENHA:?defina no ambiente}
+    # noeviction é essencial: descartar contador ativo permitiria burlar o teto.
+    command: [sh, -c, 'exec valkey-server --appendonly yes --appendfsync everysec --maxmemory 128mb --maxmemory-policy noeviction --requirepass "$$VALKEY_PASSWORD"']
+    ports:
+      - "127.0.0.1:${RAIZ_VALKEY_PORTA:-6380}:6379"
+    volumes:
+      - valkey:/data
+    healthcheck:
+      test: [CMD-SHELL, 'REDISCLI_AUTH="$$VALKEY_PASSWORD" valkey-cli ping | grep -q PONG']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  migrar:
+    <<: *glitchtip
+    restart: "no"
+    command: [./manage.py, migrate, --noinput]
+    depends_on:
+      banco:
+        condition: service_healthy
+      valkey:
+        condition: service_healthy
+
+  web:
+    <<: *glitchtip
+    ports:
+      - "127.0.0.1:${RAIZ_GLITCHTIP_PORTA:-8001}:8080"
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://localhost:8080/_health/', timeout=2)"]
+      interval: 15s
+      timeout: 3s
+      start_period: 45s
+      retries: 5
+
+  worker:
+    <<: *glitchtip
+    environment:
+      <<: *ambiente
+      SERVER_ROLE: worker_with_beat
+      CELERY_WORKER_CONCURRENCY: "1"
+      CELERY_WORKER_POOL: threads
+
+volumes:
+  banco:
+  valkey:

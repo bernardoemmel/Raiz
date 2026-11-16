@@ -67,6 +67,12 @@ export function mascarar(texto: string): string {
     .replace(CPF_NU, (m) => (cpfValido(m) ? mascaraCpf(m) : m))
 }
 
+/** Um prefixo de versão não torna documento civil um identificador publicável. */
+export function documentoEmIdentificador(texto: string): boolean {
+  return mascarar(texto) !== texto || /\d{3}\.\d{3}\.\d{3}-\d{2}|[0-9A-Z]{2}\.[0-9A-Z]{3}\.[0-9A-Z]{3}\/[0-9A-Z]{4}-\d{2}/i.test(texto)
+    || texto.split(/[_.+:/-]/).some((p) => cpfValido(p) || cnpjValido(p))
+}
+
 const PESSOAL = new RegExp(
   "cpf|cnpj|nome|^nom_|_nom_|e_?mail|telefone|celular|^fone|_fone|whats|endereco|endereço|logradouro|" +
     "^rg$|^rg_|_rg$|^nis|pis_pasep|titulo_eleitor|nasc|^mae|nome_mae|filiacao|^cep$|_cep$|propriet|dono|titular",

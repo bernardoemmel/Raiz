@@ -87,6 +87,9 @@ def test_inspector_tem_config_privada_e_reporta_somente_metadados(monkeypatch):
         assert config["protocolEra"] == "modern"
         configuracoes.append(arquivo)
         metodo = comando[comando.index("--method") + 1]
+        if metodo == "tools/call":
+            argumentos = json.loads(comando[comando.index("--tool-args-json") + 1])
+            assert argumentos.get("idempotency_key"), "Inspector deve preservar a chave da intenção"
         resposta = {
             "initialize": {"protocolVersion": conferencia.PROTOCOLO, "instructions": RESUMO},
             "tools/list": {"tools": [{"name": n} for n in ESCOPOS_FERRAMENTAS]},

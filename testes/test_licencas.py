@@ -173,3 +173,11 @@ def test_cargo_usa_lock_e_nao_ignora_dependencia_local(tmp_path, monkeypatch):
     monkeypatch.setattr(subprocess, "run", rodar)
     ps = avaliar(pacotes_cargo(manifesto), {"conferidas": {}, "gpl_no_servidor": {}})
     assert [p.nome for p in falhas(ps)] == ["externa"]
+
+
+def test_zpl_conferida_nao_libera_outras_versoes_ou_restricoes():
+    assert classificar("ZPL-2.1")[0] == "ok"
+    assert classificar("ZPL-2.0")[0] == "desconhecida"
+    assert classificar("ZPL-3.0")[0] == "desconhecida"
+    assert classificar("ZPL-2.1 AND AGPL-3.0-only")[0] == "proibida"
+    assert classificar("ZPL-2.1-NC")[0] == "proibida"

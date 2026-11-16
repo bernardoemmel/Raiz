@@ -89,6 +89,7 @@ def rpc(cl, token, metodo, parametros=None, *, headers=None):
 
 
 def ferramenta(sistema, empresa, nome, argumentos, *, token=None):
+    argumentos = {"idempotency_key": str(uuid.uuid4()), **argumentos}
     r = rpc(sistema.cl, token or sistema.token(empresa), "tools/call", {"name": nome, "arguments": argumentos})
     assert r.status_code == 200, r.text
     return r.json()["result"]

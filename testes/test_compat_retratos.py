@@ -32,17 +32,17 @@ def _legado(pasta, repeticoes=2, multipoligono=False):
     cap.fonte(
         "car",
         gpd.GeoDataFrame(
-            {"cod_imovel": ["PA-TESTE-LEGADO"], "status_imovel": ["AT"], "tipo_imovel": ["IRU"],
-             "municipio": ["Município de teste"], "m_fiscal": [0.3], "_hash": ["car-original"]},
+            {"cod_imovel": ["PA-1504950-" + "A" * 32], "status_imovel": ["AT"], "tipo_imovel": ["IRU"],
+             "municipio": ["Nova Esperança do Piriá"], "m_fiscal": [0.3], "_hash": ["a" * 64]},
             geometry=[geom], crs=4674,
         ),
     )  # fmt: skip
     cap.fonte(
         "regeneracao",
-        pd.DataFrame([{"cod_imovel": "PA-TESTE-LEGADO", "car_hash": "car-original", "pasto_ha": 0.3,
+        pd.DataFrame([{"cod_imovel": "PA-1504950-" + "A" * 32, "car_hash": "a" * 64, "pasto_ha": 0.3,
                        "secundaria_ha": 0.0, "pasto_ate1km_ha": 0.1}]),
     )  # fmt: skip
-    cap.entrada("flag", {"cod_imovel": "PA-TESTE-LEGADO", "ha": 0.3})
+    cap.entrada("flag", {"cod_imovel": "PA-1504950-" + "A" * 32, "ha": 0.3})
     r = R.guardar(cap, "funil", pasta)
     return pasta / "PA" / "1504950" / f"{r['retrato_hash']}.json.gz"
 

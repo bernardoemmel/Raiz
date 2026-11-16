@@ -73,6 +73,18 @@ def quadros(dados: dict) -> dict[str, pd.DataFrame]:
     return out
 
 
+def _privacidade(dados: dict) -> None:
+    """Coluna pública não torna um valor pessoal publicável; geometria já é canônica."""
+    from raiz.qualidade_dados import ErroQualidade, validar_json
+
+    try:
+        for linhas in dados.values():
+            for linha in linhas:
+                validar_json({k: v for k, v in linha.items() if k != "geom"})
+    except ErroQualidade:
+        raise HistoricoInsuficiente("retrato contém conteúdo fora do contrato de privacidade") from None
+
+
 def validar_retrato(caminho: Path) -> dict:
     """Confere formato, integridade e lista positiva de dados antes de usar/publicar."""
     if caminho.stat().st_size > MAX_COMPRIMIDO:
@@ -114,6 +126,7 @@ def validar_retrato(caminho: Path) -> dict:
     normalizado = {n: sorted(rs, key=lambda x: x["_chave"]) for n, rs in normalizado.items()}
     if canonico({**obj, "dados": normalizado}) != bruto:
         raise HistoricoInsuficiente("retrato fora do contrato público canônico")
+    _privacidade(normalizado)
     return obj
 
 
@@ -124,6 +137,7 @@ def guardar(captura, tarefa: str, pasta: Path | None = None) -> dict:
     if not dados:
         return {"situacao": "sem_captura", "indisponiveis": sorted(captura.indisponiveis)}
     normalizado = _normalizar(dados, exigir_completo=False)
+    _privacidade(normalizado)
     arquivos = ("retratos.py", "captura.py", "arquivo_historico.py", "reexecucao.py")
     codigo = b"".join((Path(__file__).parent / nome).read_bytes() for nome in arquivos)
     obj = {

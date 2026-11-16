@@ -24,8 +24,8 @@ const navegador = await chromium.launch({ executablePath: executavel, args: ["--
 const base = servidor.resolvedUrls.local[0]
 const car = `PA-1504950-${"A".repeat(32)}`
 const eventos = [
-  { id: "leilao-teste", tipo: "leilao_imovel", titulo: "Leilão de imóvel rural", data: "2099-11-15", prazo: null, uf: "PA", municipio: "1504950", codigos_car: [car], fonte_url: "https://www.in.gov.br/edital", fonte_nome: "DOU", coletado_em: new Date().toISOString(), confianca: 0.9, situacao: "previsto" },
-  { id: "verra-teste", tipo: "verra", titulo: "Prazo da Verra", data: "2099-11-16", prazo: "2099-11-18", uf: null, municipio: null, codigos_car: [], fonte_url: "https://verra.org/", fonte_nome: "Verra", coletado_em: new Date().toISOString(), confianca: 1, situacao: "previsto" },
+  { id: "a".repeat(24), tipo: "leilao_imovel", titulo: "Leilão de imóvel rural", data: "2099-11-15", prazo: null, uf: "PA", municipio: "1504950", codigos_car: [car], fonte_url: "https://www.in.gov.br/edital", fonte_nome: "DOU", coletado_em: new Date().toISOString(), confianca: 0.9, situacao: "previsto" },
+  { id: "b".repeat(24), tipo: "verra", titulo: "Prazo da Verra", data: "2099-11-16", prazo: "2099-11-18", uf: null, municipio: null, codigos_car: [], fonte_url: "https://verra.org/", fonte_nome: "Verra", coletado_em: new Date().toISOString(), confianca: 1, situacao: "previsto" },
 ]
 try {
   for (const largura of [1440, 768, 360]) {

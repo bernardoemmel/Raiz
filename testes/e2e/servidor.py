@@ -31,7 +31,12 @@ from raiz.pessoal import gerar_chave
 def banco():
     url = os.environ["RAIZ_BANCO_URL_TESTE"]
     destino = make_url(url)
-    if destino.host not in {"localhost", "127.0.0.1"} or not (destino.database or "").endswith("_e2e"):
+    if (
+        destino.host not in {"localhost", "127.0.0.1"}
+        or not (destino.database or "").endswith("_e2e")
+        or destino.query
+        or destino.get_backend_name() != "postgresql"
+    ):
         raise RuntimeError("O Playwright precisa de banco local descartável com nome terminado em _e2e")
     return url
 

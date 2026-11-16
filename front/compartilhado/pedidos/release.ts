@@ -1,5 +1,6 @@
 /** Apenas o contrato revisado publico_lotes v1; snapshots completos ou antigos permanecem privados. */
 import type { Faixa, IdOpcao, OpcaoPublicada, PublicacaoLote } from "./tipos"
+import { documentoEmIdentificador } from "../privacidade"
 
 const IDS: IdOpcao[] = ["barata", "segura", "compacta"]
 const objeto = (v: unknown): Record<string, unknown> => v && typeof v === "object" && !Array.isArray(v) ? v as Record<string, unknown> : {}
@@ -28,6 +29,7 @@ export function projetarPublicacaoLote(valor: unknown): PublicacaoLote {
   const v = objeto(valor), vazio = ausente()
   if (v.contrato !== "publico_lotes" || v.versao !== 1 || v.estado !== "publicado" || v.uf !== "PA" || v.cenario !== "central_r11") return vazio
   if (typeof v.modelo_versao !== "string" || !/^[A-Za-z0-9_.+-]{1,100}$/.test(v.modelo_versao)
+    || documentoEmIdentificador(v.modelo_versao)
     || typeof v.atualizado_em !== "string" || !/^\d{4}-\d{2}-\d{2}T/.test(v.atualizado_em) || !Number.isFinite(Date.parse(v.atualizado_em))) return vazio
   if (!Array.isArray(v.opcoes) || v.opcoes.length !== IDS.length || new Set(v.opcoes.map(o => objeto(o).id)).size !== IDS.length) return vazio
   const meta = numero(v.volume_creditos)

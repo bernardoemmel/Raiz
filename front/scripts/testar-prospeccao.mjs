@@ -60,7 +60,7 @@ try {
     const json = (body, status = 200) => route.fulfill({ status, contentType: "application/json", body: JSON.stringify(body) })
     if (caminho === "planos" && precosProvisorios) return json({ planos: ["por_ficha", "por_lote", "assinatura"].map((id, i) => ({ id, modalidade: id, nome: ["Por ficha", "Por lote", "Assinatura"][i], creditos: [1, 10, 50][i], status_quantidade: "proposta", valor_rs: null, status: "provisorio", aviso_preco: "a definir pelo fundador", pagamento_disponivel: false, cobranca_implementada: i !== 2, renovacao_automatica: false, ...(i === 2 ? { creditos_por_ciclo: 50, ciclo_meses: 1, status_ciclo: "proposta", aviso_modalidade: "Proposta de assinatura. Cobrança por ciclo ainda não implementada." } : {}) })), custo_ficha: 1, unidade: "crédito de consulta", pagamento_disponivel: false, status: "provisorio", mensagem: "Preços a definir pelo fundador. Vendas desativadas." })
     if (url.pathname === "/teste-api/eventos") return json({
-      eventos: [{ id: "leilao-teste", tipo: "leilao_imovel", titulo: "Leilão fictício para teste da ficha", data: "2099-11-15", prazo: null,
+      eventos: [{ id: "a".repeat(24), tipo: "leilao_imovel", titulo: "Leilão fictício para teste da ficha", data: "2099-11-15", prazo: null,
         uf: "PA", municipio: "1507300", codigos_car: [car], fonte_url: "https://example.test/leilao", fonte_nome: "Fonte fictícia de teste",
         coletado_em: "2026-11-12T12:00:00Z", confianca: 0.9, situacao: "previsto" }],
       total: 1, coletado_em: "2026-11-12T12:00:00Z", fontes: [],

@@ -11,7 +11,7 @@ import json
 import os
 from typing import Annotated, Any
 from urllib.parse import quote
-from uuid import UUID, uuid4
+from uuid import UUID
 
 import httpx
 from mcp.server import MCPServer
@@ -241,8 +241,12 @@ def criar_servidor(api: ApiRaiz | None = None, *, verificador: VerificadorKeyclo
             "GET", "/eventos", "proximos_eventos", ctx, params={k: v for k, v in params.items() if v is not None}
         )
 
-    @mcp.tool(annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=False, openWorldHint=False))
-    async def consultar_disponibilidade(campos: CamposPedido, ctx: Context) -> dict[str, Any]:
+    @mcp.tool(
+        annotations=ToolAnnotations(readOnlyHint=False, idempotentHint=True, destructiveHint=False, openWorldHint=False)
+    )
+    async def consultar_disponibilidade(
+        campos: CamposPedido, idempotency_key: ChaveIdempotencia, ctx: Context
+    ) -> dict[str, Any]:
         """Consulta a viabilidade de uma NOVA meta/teto em P10/P50/P90 antes de criar um pedido. Para conferir
         um pedido já existente, use comparar_lotes com o ID comercial informado. Usa um dos 3 testes
         da empresa ou cobra o preço vigente. Preserve os limites pedidos; omita filtros não especificados.
@@ -254,7 +258,7 @@ def criar_servidor(api: ApiRaiz | None = None, *, verificador: VerificadorKeyclo
             "consultar_disponibilidade",
             ctx,
             _campos_json(campos),
-            idempotency_key=str(uuid4()),
+            idempotency_key=idempotency_key,
         )
 
     @mcp.tool(annotations=ToolAnnotations(idempotentHint=True, destructiveHint=False, openWorldHint=False))
@@ -268,8 +272,10 @@ def criar_servidor(api: ApiRaiz | None = None, *, verificador: VerificadorKeyclo
             "POST", "/agentes/pedir_lote", "pedir_lote", ctx, _campos_json(campos), idempotency_key=idempotency_key
         )
 
-    @mcp.tool(annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=False, openWorldHint=False))
-    async def comparar_lotes(pedido_id: UUID, ctx: Context) -> dict[str, Any]:
+    @mcp.tool(
+        annotations=ToolAnnotations(readOnlyHint=False, idempotentHint=True, destructiveHint=False, openWorldHint=False)
+    )
+    async def comparar_lotes(pedido_id: UUID, idempotency_key: ChaveIdempotencia, ctx: Context) -> dict[str, Any]:
         """Obtém P10/P50/P90, custo líquido, risco e cronograma do pedido COMERCIAL (negocio_pedido_id).
         Exige sinal e contrato. Continue com acompanhar_contato usando o NOVO pedido_id da operação devolvida,
         até ler resultado; não use o ID comercial para esse acompanhamento. P90 de custo é cenário adverso;
@@ -281,11 +287,13 @@ def criar_servidor(api: ApiRaiz | None = None, *, verificador: VerificadorKeyclo
             "comparar_lotes",
             ctx,
             {"pedido_id": str(pedido_id)},
-            idempotency_key=str(uuid4()),
+            idempotency_key=idempotency_key,
         )
 
-    @mcp.tool(annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=False, openWorldHint=False))
-    async def acompanhar_contato(pedido_id: UUID, ctx: Context) -> dict[str, Any]:
+    @mcp.tool(
+        annotations=ToolAnnotations(readOnlyHint=False, idempotentHint=True, destructiveHint=False, openWorldHint=False)
+    )
+    async def acompanhar_contato(pedido_id: UUID, idempotency_key: ChaveIdempotencia, ctx: Context) -> dict[str, Any]:
         """Com pedido_id de OPERAÇÃO devolvido por outra ferramenta: consulta gratuita do cálculo. Continue
         até completed/input-required/failed/canceled, respeitando consultar_apos_segundos. submitted/working
         não são o estado do negócio. Leia resultado; não peça nova confirmação para concluir a tarefa.
@@ -304,7 +312,7 @@ def criar_servidor(api: ApiRaiz | None = None, *, verificador: VerificadorKeyclo
             "acompanhar_contato",
             ctx,
             {"pedido_id": str(pedido_id)},
-            idempotency_key=str(uuid4()),
+            idempotency_key=idempotency_key,
         )
 
     @mcp.tool(annotations=ToolAnnotations(idempotentHint=True, destructiveHint=False, openWorldHint=False))

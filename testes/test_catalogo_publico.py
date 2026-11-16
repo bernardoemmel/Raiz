@@ -38,7 +38,9 @@ def test_catalogo_basico_preserva_bytes_e_trata_estado_sem_csv(tmp_path, monkeyp
     monkeypatch.setenv("RUNNER_TEMP", str(tmp_path))
     github, armazem = _aberto(tmp_path)
     csv = (
-        "cod_imovel,cod_ibge,municipio,uf,situacao_basica\nRO-1100015-" + "A" * 32 + ",1100015,Alta Floresta,RO,apto\n"
+        "cod_imovel,cod_ibge,municipio,uf,situacao_basica\nRO-1100015-"
+        + "A" * 32
+        + ",1100015,Alta Floresta D'Oeste,RO,apto\n"
     ).encode()
     github.assets["raiz_RO.tar.gz"] = ArmazemRelease._tar("RO", {"imoveis_basicos_1100015.csv": csv})
     github.assets["raiz_AM.tar.gz"] = ArmazemRelease._tar("AM", {})

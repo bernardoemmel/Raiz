@@ -1007,11 +1007,10 @@ New branch ruleset**. Dê o nome `main protegida`, selecione **Active** e inclua
 1. Exija pull request antes de integrar. Para o fundador trabalhar sozinho, não exija aprovação de uma segunda
    pessoa; exija resolver todas as conversas abertas. Se houver revisor, pode exigir uma aprovação e invalidá-la
    quando o código mudar.
-2. Em **Require status checks to pass**, selecione os oito checks do workflow **CI**: `workflows`, `segredos`,
-   `front`, `seguranca`, `testes_python`, `referencia_para`, `checagens` e `e2e`. O check obrigatório antigo
-   `checagens` agora é o portão final: reúne os dois relatórios e exige a aprovação estadual, preservando a
-   proteção de quem já o exigia antes da divisão. Prefira a origem
-   **GitHub Actions**, quando disponível. Marque
+2. Em **Require status checks to pass**, selecione os onze checks do workflow **CI**: `workflows`, `segredos`,
+   `front`, `seguranca`, `testes_python`, `referencia_para`, `checagens`, `e2e`, `carga`, `mcp` e `agentes`.
+   O nome `checagens` foi preservado no portão completo: regras existentes continuam exigindo a suíte inteira.
+   Prefira a origem **GitHub Actions**, quando disponível. Marque
    **Require branches to be up to date before merging**. Os nomes só aparecem depois de uma execução.
 3. Ative **Block force pushes** e **Restrict deletions**. Mantenha a lista de bypass vazia, incluindo para
    administradores, salvo uma política de emergência explícita. Não habilite merge automático do Dependabot
@@ -1024,10 +1023,10 @@ A automação atual do motor atualiza `motor/README.md` por push direto. A prote
 Dados/operação precisa transformar a atualização em PR. Não conceda bypass geral ao token para contornar isso.
 Esta entrega documenta a configuração; não altera as regras da conta do fundador.
 
-Em **Settings → Actions → General**, mantenha desabilitado o envio de tokens de escrita e de segredos para
-workflows de PRs de forks, se essas opções forem oferecidas. A consulta administrativa dessa configuração
-retornou 403 para a integração usada nesta entrega; seu estado não foi confirmado nem alterado. A guarda no
-workflow não substitui a restrição de permissões do GitHub, porque um PR pode alterar seu próprio workflow.
+Em **Settings → Actions → General**, mantenha desativado o envio de tokens de escrita e segredos a workflows
+de forks, quando essas opções forem oferecidas. A conta desta auditoria não pôde consultar essa configuração
+administrativa (403); o fundador deve confirmá-la. O YAML de um PR pode ser alterado pelo autor e não substitui
+essa restrição do GitHub. Não usar `pull_request_target` para executar código do PR com acesso ao arquivo privado.
 
 Em **Settings → Code security**, habilite **Dependabot alerts**, **Dependabot security updates** e, quando
 oferecidos pelo plano, **Secret scanning** e **Push protection**. `.github/dependabot.yml` já agenda atualizações
@@ -1042,18 +1041,18 @@ retirá-la do último commit não a apaga do histórico.
 
 ## CI e controles de segurança
 
-São oito jobs: os testes gerais e o caso estadual rodam em paralelo; o portão final reúne seus resultados.
-Não há filtro de caminhos nem retirada de testes. `setup-uv` guarda cache pelo
+Dez jobs rodam em paralelo; `checagens` reúne as duas partes da suíte Python ao final. Não há filtro
+de caminhos nem teste retirado da execução. `setup-uv` guarda cache pelo
 `uv.lock`, `setup-node` guarda o cache npm pelos locks, e o Chromium/LanguageTool têm caches separados. A instalação
 continua travada (`uv sync --frozen --all-extras`, `npm ci`). Não se reutiliza `node_modules` de outro lock.
 
 - `front` constrói o mesmo site público e executa os testes unitários, com geometrias de teste determinísticas.
-- `testes_python` executa os testes Python gerais, inclusive PostGIS, Rust, cartão, vídeo, PDF e LanguageTool. Seu
-  único `--deselect` é o caso estadual executado em `referencia_para`; uma regressão confere a seleção real para
-  impedir que esse seletor esconda um teste vizinho. O corpo original do teste estadual é preservado.
-- `checagens` exige os dois jobs aprovados e confere seus JUnits juntos: exatamente um estadual aprovado,
-  nenhum caso duplicado, resultado ausente, falha ou skip novo. Permanece somente o xfail conhecido de TIR,
-  que precisa ter executado; `xfail(run=False)` também reprova.
+- `testes_python` executa os testes Python de PostGIS, Rust, cartão, vídeo, PDF e LanguageTool. Só o caso estadual é
+  separado com `--deselect` e executado em paralelo por `referencia_para`. A regressão de coleta verifica que a
+  diferença é exatamente esse nó, sem excluir testes com nomes parecidos.
+- `checagens` exige sucesso nos dois jobs e confere ambos os JUnits. Exige o caso estadual exatamente uma
+  vez, aprovado, e recusa relatórios ausentes, casos duplicados e novos skips/xfails;
+  a divergência conhecida de TIR continua executada como `xfail`, detalhada na passagem.
 - `e2e` abre Chromium e usa API/PostGIS reais: link de entrada, milhão de créditos no Pará, três opções, interesse
   e reserva Pix local. E-mail e respostas dos donos são controlados; nenhuma credencial de pagamento real é
   aceita. Veja `testes/e2e/README.md`. Não há trace com tokens nos artefatos.
@@ -1104,12 +1103,13 @@ A execução real de referência levou **446,2 s (7 min 26 s)**, com pico de RSS
 levaram 9,4 s e 8 s, respectivamente; o conjunto preparado ocupou cerca de 1,42 GB. `testes_python` mantém o limite
 de **30 minutos**; `referencia_para` tem **25 minutos**, em paralelo, e o portão `checagens` tem 5 minutos. A suíte anterior
 levou 13 min 29 s; isolar o caso estadual evita somar seus 7 min 26 s ao caminho dos testes gerais. Essas medições
-locais orientam o orçamento; o CI da entrega precisa confirmar o acesso ao draft e a duração no runner.
+locais orientam o orçamento. O CI do #83 confirmou o acesso ao draft e aprovou o estadual em 336,65 s,
+com os oito jobs então existentes verdes e sem skips no conjunto dos testes.
 
 A API acrescenta cabeçalhos de proteção e `no-store` nas respostas autenticadas e de pedidos. Por padrão, há
 120 chamadas por minuto/IP e 10 chamadas de login por minuto/IP; ajuste `RAIZ_API_LIMITE_MINUTO` e
-`RAIZ_API_LOGIN_LIMITE_MINUTO`. O excesso retorna 429 com `Retry-After`. A contagem é por processo: com vários
-workers/réplicas, configure também limite compartilhado no proxy. O proxy deve preservar corretamente o IP;
+`RAIZ_API_LOGIN_LIMITE_MINUTO`. O excesso retorna 429 com `Retry-After`. Sem armazenamento configurado, a contagem é por processo. Para vários
+workers/réplicas, configure Valkey compartilhado como descrito abaixo. O proxy deve preservar corretamente o IP;
 encaminhamentos arbitrários do visitante não devem ser confiados. HSTS depende de HTTPS reconhecido pela API.
 
 Configure `RAIZ_LOGIN_BASE_URL=https://seu-dominio/Raiz/` para o destino canônico do link de entrada; sem ela,
@@ -1122,6 +1122,165 @@ padrão do Uvicorn fica desligado para não gravar tokens de links/webhooks nas 
 texto pessoal bruto: o reconhecimento de nomes tem falsos negativos. Mantenha apenas códigos internos e métricas
 nos eventos. Limites da auditoria e pendências estão em `docs/passagem/qualidade-e-seguranca.md`.
 
+
+## Observabilidade e limite compartilhado
+
+A API e o servidor independente da vigilância escrevem uma linha JSON por registro. Campos fixos: `tempo`,
+`nivel`, `logger`, `mensagem`; exceções recebem `excecao`. O log de HTTP tem `evento`, `metodo`, `rota`, `status`,
+`duracao_ms` e `requisicao_id` gerado pelo servidor (também em `X-Request-ID`). A rota é o molde do roteador,
+como `/pedidos/{pedido_id}`; não registra IP, URL real, query, corpo, cookie ou cabeçalho. O acesso bruto do Uvicorn
+continua desligado. Presidio português é aplicado antes de serializar/escrever mensagem e traceback; falha de
+NER ou de formatação suprime o original. Extras arbitrários não entram no JSON. Não acrescentar texto de
+certidão, dono ou contato aos logs: NER é proteção adicional, não prova de anonimização universal.
+
+`GET /saude` mantém `{"ok": true}` quando consegue consultar o banco. Falha responde 503 com texto genérico;
+não expõe DSN nem exceção do driver. A rota também passa pelo limite compartilhado: se o Valkey estiver fora,
+responde 503 com `Retry-After: 1`; se o orçamento foi consumido, responde 429. Configure a sonda com IP próprio,
+intervalo de 30 s e timeout de 5 s, sem token nem parâmetros pessoais. Logs são JSON no stdout/stderr: encaminhe
+pelo journald ou coletor de sua operação, restrinja leitura e defina retenção; não publicar esse fluxo no site.
+
+### Valkey para vários workers
+
+Em desenvolvimento, o contador é local ao processo. Antes de usar vários workers/réplicas, configure todos com:
+
+- `RAIZ_API_LIMITE_STORAGE_URL=redis://:<senha>@127.0.0.1:6380/0` (o protocolo chama-se Redis; o servidor é Valkey BSD-3).
+- `RAIZ_API_LIMIT_STORAGE_URI=redis://:<senha>@127.0.0.1:6380/0`: configure também o limite da API paga por empresa (SlowAPI). Sem esta variável, esse contador continua em memória por worker, mesmo com o limite global compartilhado. As duas implementações usam namespaces distintos.
+- `RAIZ_API_LIMITE_CHAVE`: segredo aleatório comum, com pelo menos 32 bytes; gere com `python -c 'import secrets; print(secrets.token_hex(32))'`.
+- `RAIZ_API_LIMITE_MINUTO=120` e `RAIZ_API_LOGIN_LIMITE_MINUTO=10`, ou tetos acordados para a operação.
+
+A contagem de limite geral/login ocorre na mesma operação atômica. Chaves guardam HMAC do IP, nunca o IP em claro,
+e expiram após 60 s. Não trocar o segredo a cada processo: isso separaria os orçamentos. Se o Valkey não responde,
+o serviço recusa com 503 e `Retry-After: 1`, sem liberar tráfego por um contador local. Timeout de conexão/comando
+é 1 s, sem tentativas automáticas. 429 sempre tem `Retry-After`. A política `noeviction` evita expulsar um contador
+ativo para aceitar uma rajada. O AOF persiste o contador; ele não substitui o banco de cobrança/créditos.
+
+O IP é o endereço de conexão visto pelo ASGI. Atrás de um proxy, configure `--forwarded-allow-ips` somente com IPs
+dos proxies confiáveis e sobrescreva `X-Forwarded-For` no proxy com o IP observado; nunca confie em `*` nem no
+cabeçalho que o visitante forneceu. Use HTTPS no proxy e `rediss://` com validação TLS ao acessar Valkey fora da
+máquina/rede privada. Desligue o access log bruto do proxy, ou use formato que não contenha URL/query/IP pessoal.
+
+### GlitchTip próprio
+
+Configuração em `infra/docker-compose.observabilidade.yml`, separada dos dados do produto. Versões:
+[GlitchTip 5.2.0 MIT](https://gitlab.com/glitchtip/glitchtip-backend/-/blob/v5.2.0/LICENSE), Valkey 8.1.4 BSD-3 e
+PostgreSQL 16 (licença PostgreSQL). O cliente Python `sentry-sdk` é MIT; não se instala o servidor Sentry nem CLI FSL.
+
+1. Guarde no `.env` (fora do git, modo 600) `RAIZ_GLITCHTIP_BANCO_SENHA`, `RAIZ_GLITCHTIP_SECRET_KEY` e
+   `RAIZ_VALKEY_SENHA`. Gere cada um separadamente com o comando acima. Hexadecimal evita caracteres que precisem
+   de escape na URL. Não usar os valores ilustrativos de testes.
+2. Defina `RAIZ_GLITCHTIP_DOMAIN=https://erros.seu-dominio`, `RAIZ_GLITCHTIP_HOSTS=erros.seu-dominio,localhost,127.0.0.1`.
+   Proteja o host com HTTPS e acesso administrativo restrito. A publicação do Compose é somente `127.0.0.1:8001`;
+   o banco não publica porta. `RAIZ_GLITCHTIP_PORTA` e `RAIZ_VALKEY_PORTA` permitem mudar as portas locais.
+3. `docker compose --env-file .env -f infra/docker-compose.observabilidade.yml up -d`.
+   O serviço `migrar` precisa concluir antes do web/worker. Confira `ps` e o `/_health/` local do GlitchTip.
+4. Crie o administrador com `docker compose --env-file .env -f infra/docker-compose.observabilidade.yml exec web ./manage.py createsuperuser`.
+   Cadastro público e criação pública de organizações estão desligados. Crie organização/projeto da API no painel.
+   Copie o DSN do projeto para `RAIZ_GLITCHTIP_DSN` no ambiente da API e reinicie os workers.
+5. Sem DSN, a API não cria o cliente nem envia eventos. As integrações automáticas do SDK, tracing, perfil,
+   corpo, cabeçalhos, usuário, breadcrumbs, variáveis locais e trechos de código estão desligados. Só erros não
+   tratados são capturados; antes do transporte, uma allowlist reconstrói tipo da exceção e arquivo/linha do
+   código da Raíz. Mensagem da exceção é omitida, inclusive se nela houver dado que o NER não reconheça.
+6. Retenção configurada em 30 dias. Faça backup do volume PostgreSQL conforme a política privada. Email está no
+   backend nulo: nenhum email de usuário vai para o console e nenhum alerta é enviado automaticamente. Se quiser
+   alertas, configure SMTP no serviço sob a política da operação; não usar `consolemail://` em produção.
+
+O serviço e os segredos ainda precisam ser ligados no servidor pelo operador: esta entrega prepara e testa a
+configuração, não provisiona DNS/TLS nem envia dados a um serviço remoto.
+
+
+
+## Carga da API no CI e no servidor
+
+Usamos Locust 2.47.0, MIT (https://pypi.org/project/locust/2.47.0/ e https://github.com/locustio/locust/blob/2.47.0/LICENSE). Nenhum k6 ou pacote de serviço Locust Cloud foi adicionado. O Locust é dependência de desenvolvimento travada no uv.lock.
+
+```bash
+# Banco criado previamente no PostGIS local, exclusivamente para este ensaio.
+export RAIZ_BANCO_URL_CARGA=postgresql+psycopg://raiz:raiz@localhost:5432/raiz_carga
+uv run python -m testes.carga.rodar --resultado resultado-carga
+```
+
+O comando apaga e migra **somente banco local com sufixo `_carga`**. Recusa `raiz`, `raiz_teste`, `_e2e` e destinos remotos. Usa a amostra versionada do repositório, API/FastAPI e consultas PostGIS reais; credenciais, token e chave pessoal são descartáveis, configurações `.env`/integrações externas ficam fora do servidor do teste. Nenhum WhatsApp, Pix, modelo remoto ou e-mail é acionado. O token fica apenas no ambiente do subprocesso e não aparece nos argumentos nem nos relatórios.
+
+A carga consulta `/saude`, `/municipios` e `/municipios/1504950/imoveis` com seis usuários concorrentes. Duas fases de dez segundos: orçamento alto para medir respostas reais sem 429, depois orçamento de seis chamadas por janela de dois segundos para demonstrar saturação. Essa janela curta é injetada somente no servidor de teste; a configuração do produto não é alterada. Ao final, o teste provoca outro 429, espera exatamente o Retry-After mais 100 ms e exige retorno 200.
+
+Reprova se houver menos de 20 requisições por fase, rota sem resposta válida, erro de conteúdo/status, qualquer resposta de 5 s ou mais, 429 na fase normal, ausência de 429 na saturação, Retry-After ausente/inválido ou ausência de recuperação. Os 429 esperados contam como controles atendidos, sem mascarar os outros erros. O teste de regressão também demonstra que um servidor que apenas bloqueia tudo não passa.
+
+`--usuarios N --segundos N` permite ampliar o ensaio no servidor local. O perfil do CI é uma verificação curta de desempenho e dos controles; **não é estimativa de capacidade máxima nem SLA de produção**. O CI publica somente os JSON agregados, sem corpos, tokens, IPs, nomes ou contatos. Logs do servidor são locais e não devem virar artefato público.
+
+
+## Testes de agentes e ferramentas MCP
+
+O corpus de injeção, os controles limpos, o contrato dos observadores de efeitos e os comandos estão em
+[`testes/mcp/README.md`](../testes/mcp/README.md). O auditor exige preservar a tarefa legítima e nenhuma ação
+indevida; tentativas recusadas também são examinadas. Cada ferramenta precisa responder em menos de 5 s,
+com o inventário completo de `tools/list`, sem selecionar apenas as rápidas.
+
+A main agora inclui o MCP OAuth dos PRs #45/#69 e a ficha do #72. O job testa HTTP, RS256/JWKS local, vínculo de empresa,
+as sete ferramentas, prazo e carga com PostGIS descartável. Seu retorno rápido pode ser admissão de trabalho
+assíncrono; não é promessa de cálculo completo em cinco segundos. As intenções da carga são idempotentes.
+
+O #85 trouxe `raiz.publica.agente_real`: o agente recebe texto anexado de terceiro e usa o MCP real.
+A exceção autorizada em 12/11/2026 **expirou**. O adaptador `testes.mcp.leitor_documentos.integracao` executa
+os seis ataques e seis controles pelo mesmo loop, com Claude Sonnet 5.5, empresa e sessão novas por variante.
+A fonte é o contexto textual existente; não se afirma testar extração de PDF, que esse runner não oferece.
+
+O job `mcp` usa o secret `ANTHROPIC_API_KEY` somente no passo do ensaio. A chave fica no cliente do modelo,
+fora dos processos da API/MCP, dos relatórios e do contexto enviado ao agente. Sem chave, modelo ou adaptador
+funcionando, ou com ataque que vira ação, o CI falha; não volta ao aviso. As chamadas ao modelo usam apenas
+fontes sintéticas. API/MCP não podem acessar rede externa, enviar mensagens ou efetuar pagamentos reais.
+Os relatórios guardam apenas identificadores de casos, tempos, contagens e resultados; não guardam respostas
+ou documentos. Esta suíte curta não substitui a campanha pass^4 de Produto e regras.
+
+O observador confere leitura na entrada do modelo, tentativas de ferramentas, chamadas reais, banco e arquivos.
+O gabarito exige fatos corretos e consulta de andamento aprovada; recusar tudo não passa. O registro de acesso
+`negocio.chamada_api` é a única tabela excluída da fotografia de negócio. Saldo, exposição, fila, reservas e
+outbox continuam monitorados. O ponto canônico `raiz.publica.agente_documentos` continua aceito para leitores
+futuros. A referência histórica de ausência não foi renovada nem pode ser usada para desligar o leitor atual.
+
+O código e os requisitos estão em [`testes/mcp/README.md`](../testes/mcp/README.md). As regressões do auditor
+não comprovam resistência de um agente de produção. A carga usa `testes/carga/locust_mcp.py`, com credenciais
+somente de teste; instruções em [`testes/carga/README.md`](../testes/carga/README.md).
+
+## Portões antes da publicação
+
+O contrato completo, faixas, formatos e triagem de saltos municipais estão em
+[`docs/qualidade-dados.md`](qualidade-dados.md). Pandera verifica colunas obrigatórias, área de componentes
+contra o CAR, quantis e porcentagens; formatos desconhecidos e violações de privacidade impedem o upload.
+O erro informa a regra e o nome técnico do arquivo, sem imprimir a célula. Não truncar áreas nem apagar fazendas
+para liberar uma rodada. O chat **Dados** corrige a origem e recalcula; históricos já publicados não são alterados
+por este controle. O produtor deve manter a coluna e representar fonte ausente por nulo.
+
+- Motor/executor: arquiva os originais no destino privado autenticado e valida todos os bytes da projeção
+  `publico_basico` antes do primeiro upload aberto da UF. O fluxo legado segue a mesma divisão; não envia o pacote
+  completo ao Release público. `uv run python -m raiz.qualidade_dados dados-entrada` confere as tabelas completas
+  para revisão científica, sem autorizar sua exposição. O contrato básico está em `docs/colunas.md`.
+- Vigilância: verifica o conjunto de alertas e o resumo antes de arquivar no destino privado; dados de projeto,
+  perdas e marcações também exigem cifra. O #72 retirou a publicação aberta de histórico por CAR.
+- Busca: `uv run python -m raiz.qualidade_busca caminho/busca.sqlite caminho/novidades_DATA.md caminho/novidades_DATA.csv`.
+  Confere os três arquivos, o esquema e a correspondência dos resultados; recompõe o SQLite aprovado para remover
+  restos de linhas apagadas. O workflow executa o portão antes do Release, resumo e issue. Nome rotulado como autor
+  não recebe liberação automática. Não foram disparados envios nem issues nesta entrega.
+- Calendário: `python3 -m raiz.qualidade_calendario --pasta dados/calendario` valida os originais `estado.json`,
+  `eventos.json` e `eventos.ics`, sua correspondência e os campos conhecidos antes do upload. O workflow só publica
+  quando esse passo teve sucesso, inclusive quando a coleta parcial termina com erro. O site reconstrói JSON/ICS
+  a partir dos campos aprovados e revalida o cache; não copia os bytes remotos. O portão do site usa somente a
+  biblioteca padrão do Python, sem instalar as dependências científicas no job do front.
+- Rodada do Pará: `raiz.restauracao_rodada.publicar` arquiva lotes, previsões e folhas somente no destino privado;
+  a visibilidade é conferida antes de cada transferência. Arquivar o original para auditoria/reprocessamento não
+  significa aprovar sua qualidade ou exposição. `raiz.qualidade_rodada` conserva a validação quantitativa do antigo
+  contrato público e recusa HTML/folhas individuais; esse contrato não reabre o publicador retirado pelo #72.
+
+Os workflows de publicação do site e da busca também usam dependências travadas pelo `uv.lock`, com cache.
+A validação impede nova publicação irregular; não é limpeza retroativa de Releases, bancos ou logs externos.
+
+## Revisão contínua da main
+
+Cada push da main executa os onze jobs de CI, incluindo segredos, licenças, privacidade, testes e carga. A revisão
+semântica de cada PR integrado fica registrada em `docs/passagem/qualidade-e-seguranca.md`, com commit e chat dono
+dos achados maiores. Correção pequena precisa de regressão e PR com todos os checks verdes.
+
+Por decisão do fundador, ficam somente as checagens por push, sem automação horária. Checagens por push não são
+apresentadas como revisão automática de lógica por um agente. A proteção da main continua sendo ativada à mão.
 ### Conta e liberação por uma pessoa
 
 `/v1/conta/gerenciar` é o destino humano dos erros 402 e de liberação pendente. Exige

@@ -1,4 +1,5 @@
 /** Contrato público: nenhum imóvel, linha de observação ou dado de proprietário. */
+import { documentoEmIdentificador } from "./privacidade"
 export const METRICAS_ACERTO = {
   wis: { nome: "Erro da faixa (WIS)", ajuda: "Combina largura e erros fora de P10 a P90. Menor é melhor; na unidade do alvo.", percentual: false },
   ae_mediana: { nome: "Erro absoluto da mediana", ajuda: "Distância entre P50 e o observado. Menor é melhor; na unidade do alvo.", percentual: false },
@@ -29,7 +30,7 @@ export interface ResumoAcerto {
 }
 export const ACERTO_AUSENTE: ResumoAcerto = { schema: "raiz.acerto.publico.v1", gerado_em: null, fonte: "Banco de aprendizado da Raíz", minimo_imoveis: 5, versoes: [] }
 const inteiro = (v: unknown): v is number => typeof v === "number" && Number.isSafeInteger(v) && v >= 0
-const id = (v: unknown): v is string => typeof v === "string" && /^[a-z0-9][a-z0-9_.+:-]{0,119}$/i.test(v)
+const id = (v: unknown): v is string => typeof v === "string" && /^[a-z0-9][a-z0-9_.+:-]{0,119}$/i.test(v) && !documentoEmIdentificador(v)
 const versaoValida = (modelo: unknown, v: unknown): v is string => {
   if (id(v)) return true
   if (modelo !== "leitor_certidao" || typeof v !== "string" || v.length > 120) return false

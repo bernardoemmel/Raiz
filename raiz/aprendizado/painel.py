@@ -24,6 +24,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy import Engine, text
 
 from raiz.aprendizado import acerto
+from raiz.privacidade import documento_em_identificador
 
 MINIMO_IMOVEIS = 5
 IDENTIFICADOR = re.compile(r"[A-Za-z][A-Za-z0-9_.+:-]{0,119}\Z")
@@ -125,6 +126,8 @@ def resumir(linhas: Iterable[Mapping], agora: dt.datetime | None = None) -> dict
         if not IDENTIFICADOR.fullmatch(ids[0]) or not IDENTIFICADOR.fullmatch(ids[2]):
             continue
         if not _versao_valida(ids[0], ids[1]):
+            continue
+        if any(documento_em_identificador(v) for v in ids):
             continue
         avaliacao = r.get("tipo")
         if avaliacao not in {"ao_vivo", "backtest"}:

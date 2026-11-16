@@ -49,7 +49,7 @@ PERMITIDAS = re.compile(
     r"|MPL-2\.0|Mozilla Public License 2\.0 \(MPL 2\.0\)|OFL-1\.1|SIL Open Font License 1\.1 \(OFL 1\.1\)"
     r"|CNRI-Python|PSF-2\.0|Python-2\.0|Python Software Foundation License|PostgreSQL(?: License)?"
     r"|CC BY(?:-SA)? [234]\.0|CC0-1\.0|CC-BY(?:-SA)?-[234]\.0|Unlicense|The Unlicense \(Unlicense\)|Public Domain"
-    r"|Zlib|zlib/libpng License|HPND|Historical Permission Notice and Disclaimer \(HPND\)"
+    r"|ZPL-2\.1|Zlib|zlib/libpng License|HPND|Historical Permission Notice and Disclaimer \(HPND\)"
     r"|Unicode-(?:DFS-2016|3\.0)|BlueOak-1\.0\.0|BSL-1\.0|Boost Software License 1\.0 \(BSL-1\.0\))",
     re.I,
 )

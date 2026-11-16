@@ -1,0 +1,237 @@
+[
+  {
+    "id": "djen",
+    "nome": "Diário de Justiça Eletrônico Nacional (CNJ)",
+    "hosts": [
+      "comunicaapi.pje.jus.br"
+    ]
+  },
+  {
+    "id": "trf2",
+    "nome": "Justiça Federal da 2ª Região",
+    "hosts": [
+      "www.trf2.jus.br"
+    ]
+  },
+  {
+    "id": "fomento_pr",
+    "nome": "Fomento Paraná",
+    "hosts": [
+      "www.fomento.pr.gov.br"
+    ]
+  },
+  {
+    "id": "dou",
+    "nome": "Diário Oficial da União",
+    "hosts": [
+      "www.in.gov.br"
+    ]
+  },
+  {
+    "id": "doe_pa",
+    "nome": "Diário Oficial do Pará",
+    "hosts": [
+      "www.ioepa.com.br"
+    ]
+  },
+  {
+    "id": "doe_mt",
+    "nome": "Diário Oficial de Mato Grosso",
+    "hosts": [
+      "www.iomat.mt.gov.br"
+    ]
+  },
+  {
+    "id": "bndes",
+    "nome": "BNDES Florestas",
+    "hosts": [
+      "florestas.bndes.gov.br"
+    ]
+  },
+  {
+    "id": "profloresta",
+    "nome": "BNDES ProFloresta+",
+    "hosts": [
+      "agenciadenoticias.bndes.gov.br",
+      "florestas.bndes.gov.br",
+      "www.bndes.gov.br"
+    ]
+  },
+  {
+    "id": "fundo_amazonia",
+    "nome": "Fundo Amazônia",
+    "hosts": [
+      "www.fundoamazonia.gov.br"
+    ]
+  },
+  {
+    "id": "sfb",
+    "nome": "Serviço Florestal Brasileiro",
+    "hosts": [
+      "www.gov.br"
+    ]
+  },
+  {
+    "id": "ideflor_bio",
+    "nome": "Ideflor-Bio",
+    "hosts": [
+      "ideflorbio.pa.gov.br"
+    ]
+  },
+  {
+    "id": "bndes_creditos",
+    "nome": "BNDES Créditos de Carbono",
+    "hosts": [
+      "www.bndes.gov.br"
+    ]
+  },
+  {
+    "id": "sbce",
+    "nome": "Ministério da Fazenda (SBCE)",
+    "hosts": [
+      "brasilparticipativo.presidencia.gov.br",
+      "www.gov.br"
+    ]
+  },
+  {
+    "id": "verra",
+    "nome": "Verra",
+    "hosts": [
+      "verra.org"
+    ]
+  },
+  {
+    "id": "icvcm",
+    "nome": "ICVCM",
+    "hosts": [
+      "icvcm.org"
+    ]
+  },
+  {
+    "id": "sbti",
+    "nome": "SBTi",
+    "hosts": [
+      "sciencebasedtargets.org"
+    ]
+  },
+  {
+    "id": "eudr",
+    "nome": "Comissão Europeia (EUDR)",
+    "hosts": [
+      "environment.ec.europa.eu",
+      "green-forum.ec.europa.eu"
+    ]
+  },
+  {
+    "id": "doe_ac",
+    "nome": "Diário Oficial do Acre",
+    "hosts": [
+      "diario.ac.gov.br",
+      "www.diario.ac.gov.br"
+    ]
+  },
+  {
+    "id": "doe_ap",
+    "nome": "Diário Oficial do Amapá",
+    "hosts": [
+      "diofe.portal.ap.gov.br"
+    ]
+  },
+  {
+    "id": "doe_ba",
+    "nome": "Diário Oficial da Bahia",
+    "hosts": [
+      "www2.egba.ba.gov.br"
+    ]
+  },
+  {
+    "id": "doe_ce",
+    "nome": "Diário Oficial do Ceará",
+    "hosts": [
+      "imagens.seplag.ce.gov.br"
+    ]
+  },
+  {
+    "id": "doe_go",
+    "nome": "Diário Oficial de Goiás",
+    "hosts": [
+      "diariooficial.abc.go.gov.br"
+    ]
+  },
+  {
+    "id": "doe_ma",
+    "nome": "Diário Oficial do Maranhão",
+    "hosts": [
+      "diariooficial.ma.gov.br",
+      "www.diariooficial.ma.gov.br"
+    ]
+  },
+  {
+    "id": "doe_mg",
+    "nome": "Diário Oficial de Minas Gerais",
+    "hosts": [
+      "jornalminasgerais.mg.gov.br",
+      "www.jornalminasgerais.mg.gov.br"
+    ]
+  },
+  {
+    "id": "doe_pi",
+    "nome": "Diário Oficial do Piauí",
+    "hosts": [
+      "www.diario.pi.gov.br"
+    ]
+  },
+  {
+    "id": "doe_rn",
+    "nome": "Diário Oficial do Rio Grande do Norte",
+    "hosts": [
+      "diariooficial.rn.gov.br",
+      "webdisk.diariooficial.rn.gov.br",
+      "www.diariooficial.rn.gov.br"
+    ]
+  },
+  {
+    "id": "doe_ro",
+    "nome": "Diário Oficial de Rondônia",
+    "hosts": [
+      "diof.ro.gov.br"
+    ]
+  },
+  {
+    "id": "doe_rr",
+    "nome": "Diário Oficial de Roraima",
+    "hosts": [
+      "imprensaoficial.rr.gov.br",
+      "www.imprensaoficial.rr.gov.br"
+    ]
+  },
+  {
+    "id": "doe_to",
+    "nome": "Diário Oficial do Tocantins",
+    "hosts": [
+      "diariooficial.to.gov.br"
+    ]
+  },
+  {
+    "id": "caixa_imoveis",
+    "nome": "CAIXA Imóveis à Venda",
+    "hosts": [
+      "venda-imoveis.caixa.gov.br"
+    ]
+  },
+  {
+    "id": "bb_imoveis",
+    "nome": "Banco do Brasil — Seu Imóvel BB",
+    "hosts": [
+      "seuimovelbb.com.br",
+      "www.seuimovelbb.com.br"
+    ]
+  },
+  {
+    "id": "trt16_leiloes",
+    "nome": "Leilões judiciais do TRT da 16ª Região",
+    "hosts": [
+      "www.trt16.jus.br"
+    ]
+  }
+]

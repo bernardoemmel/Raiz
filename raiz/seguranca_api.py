@@ -1,19 +1,24 @@
 """Cabeçalhos e limite por IP, sem guardar IP, corpo, token ou URL em logs.
 
-O limite é por processo: use um worker ou aplique também um limite no proxy quando houver réplicas.
+O limite pode ser compartilhado entre workers pelo Valkey; sem backend, é por processo.
 Só o endereço de conexão é usado; cabeçalhos enviados pelo visitante não mudam a chave.
 """
 
 from __future__ import annotations
 
+import logging
 import math
 import time
+import uuid
 from collections import OrderedDict
 from collections.abc import Callable
 
+from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import MutableHeaders
 from starlette.middleware.cors import CORSMiddleware
 from starlette.responses import JSONResponse
+
+log = logging.getLogger(__name__)
 
 
 class SegurancaAPI:
@@ -25,12 +30,15 @@ class SegurancaAPI:
         janela: int = 60,
         max_clientes: int = 10000,
         origens: list[str] | None = None,
+        backend=None,
+        erros=None,
         autenticada_interna: Callable[[dict], bool] | None = None,
     ):
         self.app = app
         self.limite, self.login_limite = limite, login_limite
         self.janela, self.max_clientes = janela, max_clientes
         self.clientes: OrderedDict[str, tuple[float, int, int]] = OrderedDict()
+        self.backend, self.erros = backend, erros
         # Somente uma ponte ASGI autenticada pelo app pode dispensar a segunda contagem por IP.
         # O chamador valida uma sentinela em memória; nunca aceitar cabeçalho/rede como prova.
         self.autenticada_interna = autenticada_interna
@@ -89,9 +97,16 @@ class SegurancaAPI:
         if scope["type"] != "http":
             return await self.app(scope, receive, send)
 
+        inicio = time.monotonic()
+        requisicao_id = uuid.uuid4().hex
+        status = 500
+
         async def enviar(mensagem):
+            nonlocal status
             if mensagem["type"] == "http.response.start":
+                status = mensagem["status"]
                 headers = MutableHeaders(scope=mensagem)
+                headers["X-Request-ID"] = requisicao_id
                 headers["X-Content-Type-Options"] = "nosniff"
                 headers["X-Frame-Options"] = "DENY"
                 headers["Referrer-Policy"] = "no-referrer"
@@ -113,7 +128,24 @@ class SegurancaAPI:
                     headers["Cache-Control"] = "no-store"
             await send(mensagem)
 
-        await self.atender(scope, receive, enviar)
+        try:
+            await self.atender(scope, receive, enviar)
+        finally:
+            # A rota vem do roteador, nunca do path/query/header que o visitante controla.
+            rota = getattr(scope.get("route"), "path", "[sem rota]")
+            # Presidio e a escrita do handler são síncronos; não devem bloquear I/O/timeout dos outros pedidos.
+            await run_in_threadpool(
+                log.info,
+                "chamada HTTP",
+                extra={
+                    "evento": "http",
+                    "metodo": scope.get("method", ""),
+                    "rota": rota,
+                    "status": status,
+                    "duracao_ms": round((time.monotonic() - inicio) * 1000, 2),
+                    "requisicao_id": requisicao_id,
+                },
+            )
 
     async def _atender(self, scope, receive, send):
         iniciado = False
@@ -125,8 +157,25 @@ class SegurancaAPI:
             await send(mensagem)
 
         ip = (scope.get("client") or ("desconhecido", 0))[0]
+        login = scope["path"].rstrip("/") in {"/entrar", "/entrar/confirmar"}
         interna = self.autenticada_interna is not None and self.autenticada_interna(scope) is True
-        espera = 0 if interna else self._espera(ip, scope["path"].rstrip("/") in {"/entrar", "/entrar/confirmar"})
+        try:
+            espera = 0
+            if not interna:
+                espera = (
+                    await self.backend.espera(ip, login, self.limite, self.login_limite, self.janela)
+                    if self.backend is not None
+                    else self._espera(ip, login)
+                )
+        except Exception:
+            # Não registrar URL/credencial/mensagem da conexão; não desabilitar o limite em uma falha.
+            await run_in_threadpool(log.error, "armazenamento do limite de chamadas indisponível")
+            return await _problema(
+                503,
+                "Serviço temporariamente indisponível",
+                "serviço temporariamente indisponível",
+                headers={"Retry-After": "1", "Cache-Control": "no-store"},
+            )(scope, receive, enviar)
         if espera:
             resposta = _problema(
                 429,
@@ -137,7 +186,12 @@ class SegurancaAPI:
             return await resposta(scope, receive, enviar)
         try:
             await self.app(scope, receive, enviar)
-        except Exception:
+        except Exception as erro:
+            if self.erros is not None:
+                try:
+                    self.erros.capturar(erro)
+                except Exception:
+                    await run_in_threadpool(log.error, "monitoramento de erros indisponível")
             # O ServerErrorMiddleware externo não passa pelo middleware ao criar o 500.
             if not iniciado:
                 await _problema(500, "Erro interno", "erro interno")(scope, receive, enviar)

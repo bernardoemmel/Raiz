@@ -262,8 +262,8 @@ jobs:
 
   testes_python:
     runs-on: ubuntu-24.04
-    # Versões antes/depois da carga acrescentam gravações PostGIS à suíte integral.
-    timeout-minutes: 45
+    # R12 e qualidade ampliam a suíte PostGIS; inclui margem para preparo e caches.
+    timeout-minutes: 60
     services:
       banco:
         image: postgis/postgis:16-3.5
@@ -275,9 +275,16 @@ jobs:
         options: >-
           --health-cmd "pg_isready -U raiz -d raiz_teste"
           --health-interval 5s --health-timeout 5s --health-retries 20
+      valkey:
+        image: valkey/valkey:8.1.4
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "valkey-cli ping"
+          --health-interval 5s --health-timeout 5s --health-retries 20
     env:
       RAIZ_BANCO_URL_TESTE: postgresql+psycopg://raiz:raiz@localhost:5432/raiz_teste
       RAIZ_LANGUAGETOOL_URL_TESTE: http://localhost:8010
+      RAIZ_VALKEY_URL_TESTE: redis://localhost:6379/15
     steps:
       - uses: actions/checkout@v7
         with:
@@ -479,3 +486,85 @@ jobs:
         run: node front/scripts/testar-aprovacao.mjs
       - name: Conta humana e recarga por decisão explícita (rede simulada)
         run: node front/scripts/testar-conta.mjs
+
+  carga:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    services:
+      banco:
+        image: postgis/postgis:16-3.5
+        env:
+          POSTGRES_USER: raiz
+          POSTGRES_PASSWORD: raiz
+          POSTGRES_DB: raiz_carga
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U raiz -d raiz_carga"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+    env:
+      RAIZ_BANCO_URL_CARGA: postgresql+psycopg://raiz:raiz@localhost:5432/raiz_carga
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v7
+        with:
+          version: "0.13.6"
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+      - name: Dependências travadas
+        run: uv sync --frozen --all-extras
+      - name: Locust na API real (latência, saturação e recuperação)
+        run: uv run python -m testes.carga.rodar --resultado resultado-carga
+      - name: Medições de carga sem conteúdo pessoal
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: resultado-carga
+          path: resultado-carga/*.json
+          if-no-files-found: error
+          retention-days: 7
+
+  mcp:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    services:
+      banco:
+        image: postgis/postgis:16-3.5
+        env:
+          POSTGRES_USER: raiz
+          POSTGRES_PASSWORD: raiz
+          POSTGRES_DB: raiz_mcp_teste
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U raiz -d raiz_mcp_teste"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+    env:
+      RAIZ_BANCO_URL_MCP_TESTE: postgresql+psycopg://raiz:raiz@localhost:5432/raiz_mcp_teste
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Detectar MCP (ausência gera aviso explícito, não aprovação dos ensaios)
+        id: detectar
+        run: python3 scripts/testar_mcp_ci.py --detectar
+      - if: steps.detectar.outputs.disponivel == 'true'
+        uses: astral-sh/setup-uv@v7
+        with:
+          version: "0.13.6"
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+      - if: steps.detectar.outputs.disponivel == 'true'
+        name: Dependências travadas
+        run: uv sync --frozen --all-extras
+      - if: steps.detectar.outputs.disponivel == 'true'
+        name: Injeções, todas as ferramentas abaixo de 5 s e Locust MCP
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: uv run python scripts/testar_mcp_ci.py
+      - name: Estado explícito e evidências MCP
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: resultado-mcp
+          path: resultado-mcp/*.json
+          if-no-files-found: error
+          retention-days: 7

@@ -179,7 +179,7 @@ def conferir_mcp(url: str, token: str, *, prazo_trabalho: float = 45) -> dict:
             "--tool-name",
             "consultar_disponibilidade",
             "--tool-args-json",
-            '{"campos":{"onde":{"ufs":["PA"]}}}',
+            '{"campos":{"onde":{"ufs":["PA"]}},"idempotency_key":"inspector-consulta"}',
         )
         if resposta.get("isError") or not resposta.get("structuredContent", {}).get("pedido_id"):
             raise ValueError("a consulta MCP não devolveu um pedido rastreável")
@@ -193,7 +193,7 @@ def conferir_mcp(url: str, token: str, *, prazo_trabalho: float = 45) -> dict:
                 "--tool-name",
                 "acompanhar_contato",
                 "--tool-args-json",
-                json.dumps({"pedido_id": recibo["pedido_id"]}),
+                json.dumps({"pedido_id": recibo["pedido_id"], "idempotency_key": "inspector-andamento"}),
             )
             if acompanhamento.get("isError"):
                 raise ValueError("não foi possível acompanhar a consulta MCP")

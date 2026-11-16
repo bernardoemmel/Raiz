@@ -51,14 +51,30 @@ def criar_app(servico: Vigilancia | None = None, baixar: bool | None = None) -> 
                 log.info("estado da vigilância: %s", sincronizar())
             except Exception as ex:  # noqa: BLE001 (sobe com o estado local)
                 log.warning("não baixei o estado publicado: %s", type(ex).__name__)
-        yield
+        try:
+            yield
+        finally:
+            if limite is not None:
+                await limite.fechar()
+            if erros is not None:
+                erros.fechar()
 
     app = FastAPI(title="Raíz: vigilância", lifespan=ciclo)
+    from raiz.config import config
+    from raiz.limites import do_config as limite_do_config
+    from raiz.observabilidade import do_config as erros_do_config
     from raiz.privacidade import configurar_log
     from raiz.seguranca_api import SegurancaAPI
 
     configurar_log()
-    app.add_middleware(SegurancaAPI, limite=int(os.environ.get("RAIZ_API_LIMITE_MINUTO", "120")))
+    limite = limite_do_config(config())
+    erros = erros_do_config(config())
+    app.add_middleware(
+        SegurancaAPI,
+        limite=int(os.environ.get("RAIZ_API_LIMITE_MINUTO", "120")),
+        backend=limite,
+        erros=erros,
+    )
     seguro = [Depends(_exigir_token)]
     app.include_router(api.roteador(s), dependencies=seguro)
 

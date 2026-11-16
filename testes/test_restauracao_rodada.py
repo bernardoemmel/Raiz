@@ -181,3 +181,33 @@ def test_preparar_le_ids_imutaveis_do_arquivo_privado(tmp_path, monkeypatch):
     assert snapshot["acesso"] == "privado" and snapshot["cobertura"]["total"] == 1
     assert set(gh.downloads) == {*RR.PACOTES, "estados.json"}
     assert all("api.github.com" in f["url"] for f in snapshot["fontes"].values())
+
+
+@pytest.mark.parametrize("cenario", ["central_r11", "central_r12"])
+def test_publicacao_recusa_destino_aberto_antes_primeiro_upload(tmp_path, monkeypatch, cenario):
+    from testes.test_armazem_release import GitHubFalso, _armazem
+
+    gh = GitHubFalso()
+    gh.privado = gh.rascunho = False
+    arm = _armazem(gh, tmp_path / "cache")
+    monkeypatch.setattr(RR, "arquivo_privado", lambda: arm)
+    produto = tmp_path / "produto"
+    produto.mkdir()
+    (produto / "manifesto.json").write_text(json.dumps({"municipios": 144, "cenario": cenario}))
+    for nome in RR.OPCOES:
+        (produto / nome).mkdir()
+    monkeypatch.setenv("GITHUB_RUN_ID", "12345")
+    with pytest.raises(PermissionError):
+        RR.publicar(tmp_path)
+    assert gh.uploads == []
+    assert not (tmp_path / f"lote_PA_{cenario}.json").exists()
+
+
+def test_portao_publico_reprova_manifesto_incompleto(tmp_path):
+    from raiz.qualidade_dados import ErroQualidade
+    from raiz.qualidade_rodada import validar_publicacao
+    from testes.test_qualidade_rodada import montar
+
+    pacotes, referencias, _ = montar(tmp_path)
+    with pytest.raises(ErroQualidade, match="manifesto sem contrato"):
+        validar_publicacao(pacotes, referencias, {"municipios": 144})

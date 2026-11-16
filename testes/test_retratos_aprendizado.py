@@ -215,3 +215,33 @@ def test_gzip_nao_transporta_metadados_ou_membros_ocultos(tmp_path, monkeypatch,
     arquivo.write_bytes(adulterado)
     with pytest.raises(HistoricoInsuficiente, match="gzip"):
         R.validar_retrato(arquivo)
+
+
+@pytest.mark.parametrize("valor", ["teste@exemplo.invalid", "nome: Pessoa de Teste", "(11) 90000-0000"])
+def test_coluna_permitida_nao_autoriza_dado_pessoal(tmp_path, valor):
+    cap = Captura("PA", MUNICIPIO)
+    cap.entrada("flag", {"cod_imovel": valor, "ha": 0.3})
+    with pytest.raises(HistoricoInsuficiente, match="privacidade") as erro:
+        R.guardar(cap, "flag", tmp_path)
+    assert valor not in str(erro.value)
+    assert not list(tmp_path.rglob("*.json.gz"))
+
+
+def test_retrato_legado_com_contato_nao_chega_ao_release(tmp_path, monkeypatch):
+    from raiz.aprendizado import transporte
+    from testes.test_transporte_historico import GitHubHistoricoFalso, _github
+
+    arquivo = _guardar(tmp_path / "origem", monkeypatch)
+    objeto = R.validar_retrato(arquivo)
+    objeto["dados"]["entrada_flag"][0]["cod_imovel"] = "teste@exemplo.invalid"
+    # Recalcula o contrato/hash como faria um produtor antigo: integridade não prova privacidade.
+    normalizado = A._normalizar(R.quadros(objeto["dados"]), exigir_completo=False)
+    objeto["dados"] = {n: sorted(linhas, key=lambda x: x["_chave"]) for n, linhas in normalizado.items()}
+    bruto = R.canonico(objeto)
+    hostil = arquivo.with_name(hashlib.sha256(bruto).hexdigest() + ".json.gz")
+    hostil.write_bytes(gzip.compress(bruto, mtime=0))
+    arquivo.unlink()
+    falso = GitHubHistoricoFalso()
+    with pytest.raises(ValueError, match="inválido"):
+        transporte.publicar(tmp_path / "origem", _github(tmp_path / "remoto", falso))
+    assert falso.uploads == 0

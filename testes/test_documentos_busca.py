@@ -201,3 +201,21 @@ def test_fontes_json_tem_as_quatro_fontes():
     cfg = F.config()
     assert {"verra", "sfb", "ideflor_bio", "dou"} <= set(cfg)
     assert all('"' in t for t in cfg["dou"]["termos"])  # termos entre aspas: busca pela frase, não palavra solta
+
+
+def test_cli_nao_grava_erro_pessoal_antes_do_portao(tmp_path, monkeypatch, capsys):
+    from raiz.documentos.cli import cmd_busca
+
+    monkeypatch.delenv("GITHUB_OUTPUT", raising=False)
+    rel = semanal.Relatorio(
+        dt.date(2026, 11, 12),
+        [F.ResultadoFonte("sfb", erro="nome=Pessoa Sintética, contato@example.invalid; token=segredo-sintetico")],
+        arquivo_md=tmp_path / "novidades_2026-11-12.md",
+        arquivo_csv=tmp_path / "novidades_2026-11-12.csv",
+    )
+    monkeypatch.setattr(semanal, "rodar", lambda **_: rel)
+    assert cmd_busca(SimpleNamespace(fontes=None, sem_firecrawl=True)) == 0
+    salvo = capsys.readouterr().out
+    assert "sfb: erro" in salvo
+    for pessoal in ("Pessoa Sintética", "contato@example.invalid", "segredo-sintetico"):
+        assert pessoal not in salvo

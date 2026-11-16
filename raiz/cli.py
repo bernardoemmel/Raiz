@@ -15,7 +15,11 @@ from raiz.coleta.arcgis_cli import coletar_arcgis
 from raiz.privacidade import configurar_log, varrer
 from raiz.prospeccao_operacao import registrar as registrar_prospeccao
 
-app = typer.Typer(help="Raíz: coleta, funil, título, agentes e aprendizado em cima do motor.", no_args_is_help=True)
+app = typer.Typer(
+    help="Raíz: coleta, funil, título, agentes e aprendizado em cima do motor.",
+    no_args_is_help=True,
+    pretty_exceptions_show_locals=False,
+)
 privacidade = typer.Typer(help="Guarda de CPF/CNPJ.", no_args_is_help=True)
 banco = typer.Typer(help="Banco PostgreSQL + PostGIS.", no_args_is_help=True)
 app.add_typer(privacidade, name="privacidade")
