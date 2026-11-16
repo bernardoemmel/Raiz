@@ -19,7 +19,7 @@ está completo quando tem, em todos os municípios, funil, filtros, MapBiomas, d
 escadinha. Os extras do Earth Engine e as certidões ficam de fora dessa conta (ver abaixo).
 
 <!-- painel:inicio -->
-Gerado do `estados.json` de 16/11/2026 03:51 (horário de Brasília). Brasil: 3.543 de 5.571 municípios com o funil pronto; 7 de 27 estados completos.
+Gerado do `estados.json` de 16/11/2026 03:54 (horário de Brasília). Brasil: 3.543 de 5.571 municípios com o funil pronto; 7 de 27 estados completos.
 
 | Estado | Municípios feitos/total | Situação | Última atualização | Motor |
 |---|---|---|---|---|
@@ -49,7 +49,7 @@ Gerado do `estados.json` de 16/11/2026 03:51 (horário de Brasília). Brasil: 3.
 | PR Paraná | 377/399 | falta funil 22, MapBiomas 3, direto 3, TMF e causas 4, FLAG 4, caminho da terra 4, ficha 5, desenvolvedor 5; 1 erro(s) na última rodada (4 fatias em jobs separados) | 15/11/2026 14:38 | [bab7419](https://github.com/bernardoemmel/Raiz/actions/runs/43735135067) |
 | SC Santa Catarina | 292/295 | falta funil 3, MapBiomas 3, direto 3, TMF e causas 3, FLAG 3, caminho da terra 3, ficha 4, desenvolvedor 4 (3 fatias em jobs separados) | 16/11/2026 02:28 | manual |
 | RS Rio Grande do Sul | 77/497 | falta funil 420, MapBiomas 2, direto 1, TMF e causas 2, FLAG 2, caminho da terra 2, ficha 2, desenvolvedor 7 (5 fatias em jobs separados) | 16/11/2026 03:35 | manual |
-| DF Distrito Federal | 1/1 | completo | 16/11/2026 03:49 | manual |
+| DF Distrito Federal | 1/1 | completo; 1 erro(s) na última rodada | 16/11/2026 03:49 | [8c208b5](https://github.com/bernardoemmel/Raiz/actions/runs/43814922902) |
 <!-- painel:fim -->
 
 ## Como roda sozinho
