@@ -566,7 +566,7 @@ class ArmazemRelease:
         uf = uf.upper()
         if uf in self._ufs and not forcar:
             return
-        trava = self._trava(f"trava-publicar-{uf}", 1800) if self.token else contextlib.nullcontext()
+        trava = self._trava(f"trava-publicar-{uf}", self.ESPERA_TRAVA_UF_S) if self.token else contextlib.nullcontext()
         with trava:
             self._baixar_uf(uf)
         self._ufs.add(uf)
@@ -854,6 +854,10 @@ class ArmazemRelease:
     # Uma publicação real leva minutos. Trava parada além disso é de um job que morreu (cancelado, máquina
     # reciclada, erro de rede no DELETE final) e prendia o estado inteiro para sempre.
     TRAVA_ABANDONADA_S = 3600
+    # Quanto uma fatia espera a vez do estado. Fatias grandes (BA) seguram a trava mais de 30 min para juntar e
+    # publicar os pacotes; com 30 min de espera, as outras desistiam e perdiam o job. Passa do limite de
+    # abandono, para quem espera também conseguir tirar a trava de um job que morreu.
+    ESPERA_TRAVA_UF_S = 5400
 
     def _commit_da_trava(self, h: dict, nome: str, sha: str) -> str:
         """Commit próprio da trava, cuja mensagem diz quando e por qual job ela foi tomada. É o que permite
@@ -959,7 +963,7 @@ class ArmazemRelease:
         ufs = [uf.upper()] if uf else sorted(u for u in self._sujos if u != "_global")
         feito = {}
         for u in ufs:
-            with self._trava(f"trava-publicar-{u}", 1800):
+            with self._trava(f"trava-publicar-{u}", self.ESPERA_TRAVA_UF_S):
                 self.garantir_uf(u, forcar=True)  # junta o que outras fatias do estado já publicaram
                 from raiz.executor.snapshot_publicacao import congelar
 
@@ -1000,7 +1004,7 @@ class ArmazemRelease:
         pacote = self._tar(uf, basicos)
         entrada = entrada_publica(info, uf=uf)
         entrada.update(url=aberto.url(f"raiz_{uf}.tar.gz"), tamanho=len(pacote), versao=sha256_bytes(pacote)[:16])
-        with aberto._trava(f"trava-publicar-{uf}", 1800):
+        with aberto._trava(f"trava-publicar-{uf}", self.ESPERA_TRAVA_UF_S):
             aberto._subir(aberto._release(), f"raiz_{uf}.tar.gz", pacote, "application/gzip")
             if geos:
                 geo = self._tar(uf, geos)
