@@ -279,7 +279,15 @@ class Executor:
                     "vazio": vazio,
                 }
                 if t.nome == self.tarefas[0].nome and not vazio:
+                    caixa_anterior = self.assinatura(t, uf, cod, m)  # com a caixa de antes (ou nenhuma)
                     m["caixa"] = _caixa(pasta, cod)
+                    # A assinatura dos alertas depende da caixa: sem ela usa o arquivo do estado inteiro, com ela só os
+                    # alertas que caem no município. Gravar a assinatura de antes da caixa fazia a conferência final
+                    # ver "fontes mudaram" em todo município novo (212 erros de integridade em PB, SP, MT, ES, RJ,
+                    # MS e PA em 15-16/11) e rodar o funil de novo na rodada seguinte.
+                    # Só quando as fontes não mudaram durante o cálculo (com a caixa anterior, a assinatura é a mesma).
+                    if caixa_anterior == a and m.get("caixa"):
+                        m["tarefas"][t.nome]["assinatura"] = self.assinatura(t, uf, cod, m)
                 res["rodadas"].append(t.nome)
                 res["vazio"] = res["vazio"] or vazio
             except Exception as e:  # noqa: BLE001 - registra e segue para o próximo município

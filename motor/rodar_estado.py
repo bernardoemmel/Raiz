@@ -237,6 +237,37 @@ def motivo(e: dict | None, atual: dict, atual_exec: dict | None, unidade: str | 
     return None, False, "manutencao"
 
 
+# Amazônia Legal: o produto (ficha, desenvolvedor, FLAG, caminho da terra) também precisa estar pronto, porque os
+# desenvolvedores do ProFloresta+ procuram terra privada na Amazônia agora.
+AMAZONIA_LEGAL = ("AC", "AM", "AP", "MA", "MT", "PA", "RO", "RR", "TO")
+ETAPAS_DO_FUNIL = ("filtros", "mapbiomas", "direto", "extras_direto")
+
+
+# Estados de CAR grande em que a máquina do Actions caiu ("The runner has received a shutdown signal") com 3 lanes,
+# mesmo com 12 GB de swap: BA em 38 de 79 jobs de 15-16/11, SC 6 de 13, MG 5 de 19, PR 5 de 11, RS e PE também.
+LANES_REDUZIDAS = {"BA": 2, "MG": 2, "SC": 2, "PR": 2, "RS": 2, "PE": 2, "SP": 2}
+
+
+def lanes(uf: str) -> str:
+    """Lanes do executor: o LANES do workflow (padrão 3), com menos nos estados que derrubaram a máquina."""
+    base = int(os.environ.get("LANES", "3"))
+    return str(max(1, min(base, LANES_REDUZIDAS.get(uf, base))))
+
+
+def pronto_para_prioridade(uf: str, e: dict | None) -> bool:
+    """Estado sai da frente de prioridade quando todos os municípios têm o funil e as etapas obrigatórias dele
+    (MS 79/79 ficou parado faltando MapBiomas e TMF de 1 município). Na Amazônia Legal, também o produto (o resto do
+    PA: ficha e desenvolvedor). Sem `faltam` (índice antigo), vale só a contagem de municípios."""
+    if not e:
+        return False
+    if (e.get("municipios", 0) + (e.get("sem_imoveis") or 0)) < S.TOTAL_IBGE[uf]:
+        return False
+    falta = {k for k, v in (e.get("faltam") or {}).items() if v}
+    if falta & set(ETAPAS_DO_FUNIL):
+        return False
+    return not (uf in AMAZONIA_LEGAL and falta)
+
+
 def planejar(pedidos: list[str], refazer: set[str], modo: str = "automatico", liberou: str | None = None,
              continuacao: int = 0) -> list[str]:
     """Unidades que precisam rodar (estado inteiro, ou fatia de estado grande), na ordem de S.ORDEM, em duas filas.
@@ -250,8 +281,7 @@ def planejar(pedidos: list[str], refazer: set[str], modo: str = "automatico", li
     No Actions a fila/reserva persistente serializa a admissão entre rodadas, sem cancelar jobs."""
     pub = S.ler_manifesto().get("estados", {})
     prioridade_solicitada = os.environ.get("RAIZ_PRIORIDADE_FUNIL") == "1"
-    funis_prontos = {uf for uf, total in S.TOTAL_IBGE.items()
-                    if (pub.get(uf, {}).get("municipios", 0) + (pub.get(uf, {}).get("sem_imoveis") or 0)) >= total}
+    funis_prontos = {uf for uf in S.TOTAL_IBGE if pronto_para_prioridade(uf, pub.get(uf))}
     prioridade = prioridade_solicitada and len(funis_prontos) < len(S.TOTAL_IBGE)
     falhas_funil = {uf: (e.get("versoes") or {}).get("funil") for uf, e in pub.items()
                    if e.get("erros") or any(f.get("erros") for f in ((e.get("motor") or {}).get("fatias") or {}).values())}
@@ -339,6 +369,28 @@ def planejar(pedidos: list[str], refazer: set[str], modo: str = "automatico", li
     gh_output(matriz=json.dumps(matriz), tem="1" if escolhidas else "0",
               dia=dt.datetime.now(dt.timezone.utc).strftime("%Y%m%d"))
     return escolhidas
+
+
+# ---------------------------------------------------------------- projeção aberta atrasada
+
+def sincronizar_aberto(maximo: int = 1) -> list[str]:
+    """No job planejar: refaz a projeção básica do Release aberto dos estados em que ela ficou para trás do arquivo
+    privado (a publicação privada passou e a aberta falhou). Não recalcula nada; um estado por rodada."""
+    from raiz.executor.armazem import do_config
+
+    a = do_config()
+    if not getattr(a, "privado", False) or getattr(a, "publico", None) is None:
+        log("projeção aberta: sem arquivo privado configurado; nada a sincronizar")
+        return []
+    feitos = []
+    for uf in a.defasados_no_aberto()[:maximo]:
+        try:
+            r = a.sincronizar_aberto(uf)
+            log(f"projeção aberta de {uf}: {r}")
+            feitos.append(uf)
+        except TimeoutError:
+            log(f"projeção aberta de {uf}: estado ocupado por outra publicação; fica para a próxima rodada")
+    return feitos
 
 
 # ---------------------------------------------------------------- preparar (cache comum)
@@ -816,7 +868,7 @@ def rodar_executor(unidade: str, refazer: set[str], continuacao: int) -> dict:
         else:
             raiz_bin = shutil.which("raiz")
             cmd = ([raiz_bin] if raiz_bin else [sys.executable, "-c", "from raiz.cli import app; app()"]) + [
-                "executor", "rodar", "--ufs", uf, "--lanes", os.environ.get("LANES", "3")]
+                "executor", "rodar", "--ufs", uf, "--lanes", lanes(uf)]
             if ate != float("inf"):
                 cmd += ["--ate-minutos", f"{ate:.0f}"]
             env = dict(os.environ, PYTHONUNBUFFERED="1", RAIZ_SEM_BANCO="1")
@@ -992,6 +1044,8 @@ def main() -> None:
     p.add_argument("--planejar", action="store_true")
     p.add_argument("--fila", action="store_true", help="planejar somente pedidos já persistidos, sem rodada nova")
     p.add_argument("--preparar", action="store_true")
+    p.add_argument("--sincronizar-aberto", action="store_true",
+                   help="refaz a projeção do Release aberto de um estado que ficou para trás do privado")
     p.add_argument("--continuar", action="store_true")
     p.add_argument("--refazer", default=os.environ.get("RAIZ_REFAZER", ""))
     p.add_argument("--etapas", default=os.environ.get("RAIZ_ETAPAS", ""), help="só estas etapas (vírgula)")
@@ -1009,6 +1063,8 @@ def main() -> None:
     if a.planejar:
         modo = "fila" if a.fila or cont == "fila" or os.environ.get("RAIZ_SO_FILA") == "1" else ("proximo" if proximo else "automatico")
         planejar(ufs, refazer, modo, liberou, continuacao)
+    elif a.sincronizar_aberto:
+        sincronizar_aberto()
     elif a.preparar:
         preparar()
     elif a.continuar:

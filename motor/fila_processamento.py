@@ -19,8 +19,10 @@ TETO = 15
 ESTADOS_ATIVOS = ("queued", "in_progress", "waiting", "pending", "requested")
 PASSO_EXECUTOR = "Rodar pelo executor (fontes, adoção, motor e tarefas do produto) e publicar no Release dados"
 MAX_FALHAS = 3
-ORDEM_FUNIL = ("TO", "MA", "MT", "AM", "GO", "MS", "BA", "PI", "CE", "RN", "SP", "PR", "MG",
-               "PA", "RO", "RR", "AC", "AP", "PB", "PE", "AL", "SE", "ES", "RJ", "SC", "RS", "DF")
+# Amazônia Legal primeiro (desenvolvedores do ProFloresta+ precisam de terra privada na Amazônia): AM, MT, TO, MA e o
+# resto do PA; depois o resto do Brasil.
+ORDEM_FUNIL = ("AM", "MT", "TO", "MA", "PA", "RO", "RR", "AC", "AP", "GO", "MS", "BA", "PI", "CE", "RN", "SP", "PR",
+               "MG", "PB", "PE", "AL", "SE", "ES", "RJ", "SC", "RS", "DF")
 WORKFLOWS_LOTE = ("lote-para.yml", "retomar-lote-para.yml", "desbloqueio-lote.yml")
 # #55: workflow inteiro conferido neste commit imutável, max-parallel=5,
 # preparo e publicação sequenciais. Nenhum outro head herda esta exceção.
@@ -140,6 +142,9 @@ class Repositorio:
         comando(["git", "fetch", "--no-tags", "origin", REF])
         sha = comando(["git", "rev-parse", "FETCH_HEAD"]).strip()
         objeto = comando(["git", "cat-file", "-p", sha])
+        primeira = objeto.split("\n", 1)[0]
+        if primeira.startswith("object "):
+            self.alvo = primeira.split()[1]
         try:
             estado = json.loads(objeto.split("\n\n", 1)[1])
             if estado["versao"] != 1 or any(
@@ -152,8 +157,14 @@ class Repositorio:
             raise RuntimeError("fila de processamento inválida; nenhuma vaga será aberta") from ex
         return sha, estado
 
+    alvo: str | None = None
+
     def trocar(self, anterior: str, estado: dict) -> bool:
-        commit = comando(["git", "rev-parse", "HEAD"]).strip()
+        # A tag aponta sempre para o mesmo commit que já apontava; só a mensagem (o estado) muda. Apontar para o
+        # HEAD do job fazia o GitHub recusar a troca ("refusing to allow a GitHub App to create or update workflow")
+        # quando o job roda num commit fixado cujo workflow difere do alvo anterior: a continuação se perdia, o job
+        # falhava e a unidade acabava bloqueada depois de 3 falhas (AM, TO, MA, MT e MG em 14-15/11).
+        commit = self.alvo or comando(["git", "rev-parse", "HEAD"]).strip()
         objeto = (
             f"object {commit}\ntype commit\ntag raiz-fila-processamento\n"
             f"tagger Raiz Actions <actions@raiz.invalid> {int(time.time())} +0000\n\n"
@@ -240,7 +251,7 @@ def devolver_a_fila(estado: dict, reserva: dict, run: dict, jobs: list[dict]) ->
         return  # catálogo auxiliar: uma falha não vira uma unidade da matriz do motor
     pedido["falhas"] = int(pedido.get("falhas", 0)) + 1
     if run.get("conclusion") == "cancelled" or any(j.get("conclusion") == "cancelled" for j in jobs):
-        pedido["bloqueado"] = "Execução cancelada: só um novo pedido explícito pode retomar."
+        pedido["bloqueado"] = f"{CANCELADO}: só um novo pedido explícito pode retomar."
     elif pedido["falhas"] >= MAX_FALHAS:
         pedido["bloqueado"] = f"{MAX_FALHAS} execuções falharam: corrigir o erro e fazer novo pedido explícito."
     if jobs and all(
@@ -250,6 +261,34 @@ def devolver_a_fila(estado: dict, reserva: dict, run: dict, jobs: list[dict]) ->
         # O cálculo terminou; falhou cache, assinatura ou continuação. Retomar pelas marcas.
         pedido["refazer"] = ""
     estado["fila"].append(pedido)
+
+
+CANCELADO = "Execução cancelada"
+
+
+def desbloquear_por_conserto(estado: dict, velha: str, nova: str) -> int:
+    """Conserto de infraestrutura com a mesma ciência chegou: o bloqueio por 3 falhas era do código anterior.
+
+    Antes, o pedido bloqueado ia para o commit novo levando o bloqueio, e AM, TO, MA, MT, MS e MG ficaram sem nenhuma
+    tentativa de 14 a 16/11 apesar dos consertos. Agora volta a valer com a contagem zerada (o histórico fica no
+    pedido). Cancelamento continua bloqueado: só um pedido explícito reabre. Uma unidade fica com um pedido só."""
+    desbloqueados, vistos, fila = 0, set(), []
+    for p in estado["fila"]:
+        motivo = p.get("bloqueado") or ""
+        if p.get("ref") == nova and motivo and not motivo.startswith(CANCELADO) and p.get("unidade"):
+            p = {k: v for k, v in p.items() if k != "bloqueado"}
+            p["falhas_anteriores"] = int(p.get("falhas_anteriores", 0)) + int(p.get("falhas", 0))
+            p["falhas"] = 0
+            p["desbloqueado"] = {"de": velha, "para": nova}
+            desbloqueados += 1
+        chave = (p.get("unidade"), p.get("ref"), p.get("refazer") or "")
+        if not p.get("bloqueado") and chave in vistos:
+            continue  # pedido repetido da mesma unidade: rodar uma vez basta, as marcas retomam o resto
+        if not p.get("bloqueado"):
+            vistos.add(chave)
+        fila.append(p)
+    estado["fila"] = fila
+    return desbloqueados
 
 
 def reconciliar(estado: dict, runs: dict[str, dict], e_unidade) -> tuple[set[str], int]:
@@ -329,6 +368,7 @@ def admitir(
             # novo, senão um conserto da publicação nunca chega aos jobs. Pedidos guardados levam junto as falhas.
             anterior = {**anterior, "ref": ref_funil}
             estado["fila"] = [{**p, "ref": ref_funil} if p.get("ref") == velha else p for p in estado["fila"]]
+            desbloquear_por_conserto(estado, velha, ref_funil)
         estado["prioridade_funil"] = {
             "prontos": sorted(funis_prontos), "frente": frente,
             "ref": (anterior.get("ref") or ref_funil) if frente else None,

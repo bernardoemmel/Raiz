@@ -33,7 +33,7 @@ def test_leitura_por_nome_revalida_apenas_404_sem_confundir_com_estado_vazio(tmp
         if modo in {"persistente", "sumiu"}:
             with pytest.raises(RuntimeError, match="substituído durante a leitura"):
                 arm.manifesto(fresco=True)
-            assert paginas == 4 and esperas == [0.25, 0.5, 1]
+            assert paginas == 9 and esperas == [0.5, 1, 2, 4, 8, 16, 32, 60]  # ~2 min: troca de pacote grande
         elif modo == "proibido":
             with pytest.raises(FalhaHTTPPrivada, match="HTTP 403") as erro:
                 arm._baixar_asset("estados.json")

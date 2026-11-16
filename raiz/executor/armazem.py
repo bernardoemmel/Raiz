@@ -437,7 +437,8 @@ class ArmazemRelease:
     def _baixar_asset(self, nome: str, fresco: bool = False) -> bytes | None:
         if self.privado:
             rel = self._exigir_privado()
-            for tentativa in range(4):
+            tentativas = self.TENTATIVAS_LEITURA
+            for tentativa in range(tentativas):
                 # A resposta do Release pode conter o asset procurado. Só uma
                 # presença inequívoca dispensa a paginação; ausência nunca prova
                 # que o arquivo não existe. Após 404, consulte a lista de novo.
@@ -455,10 +456,12 @@ class ArmazemRelease:
                     except FalhaHTTPPrivada as ex:
                         if ex.status != 404:
                             raise
-                if tentativa < 3:
+                if tentativa < tentativas - 1:
                     # O upload substitui o ID: uma listagem válida pode envelhecer
                     # antes do GET. Ausência após um 404 não significa estado vazio.
-                    time.sleep(0.25 * 2**tentativa)
+                    # Trocar um pacote grande (RS, BA, MG: centenas de MB) leva minutos; com 4 tentativas em menos
+                    # de 2 s, as fatias do RS caíram 15 vezes em 16/11. Agora espera até uns 3 min no total.
+                    time.sleep(min(60.0, 0.5 * 2**tentativa))
             raise RuntimeError("arquivo privado substituído durante a leitura; tente novamente")
         r = self.cli.get(self.url(nome), params={"t": str(time.time_ns())} if fresco else None)
         if r.status_code == 404:
@@ -566,9 +569,21 @@ class ArmazemRelease:
         uf = uf.upper()
         if uf in self._ufs and not forcar:
             return
-        trava = self._trava(f"trava-publicar-{uf}", self.ESPERA_TRAVA_UF_S) if self.token else contextlib.nullcontext()
-        with trava:
+        if not self.token:
             self._baixar_uf(uf)
+        elif forcar:
+            with self._trava(f"trava-publicar-{uf}", self.ESPERA_TRAVA_UF_S):
+                self._baixar_uf(uf)
+        else:
+            # Leitura do começo da rodada: com 8 fatias do MG publicando o mesmo pacote, a fatia nova morria aqui antes
+            # de calcular nada. Espera pouco e, se o estado seguir ocupado, lê sem a trava: o leitor repete enquanto o
+            # pacote é trocado, e a publicação final relê tudo dentro da trava (forcar) antes de subir.
+            try:
+                with self._trava(f"trava-publicar-{uf}", self.ESPERA_TRAVA_LEITURA_S):
+                    self._baixar_uf(uf)
+            except TimeoutError:
+                log.warning("estado %s ocupado por outra publicação; leio sem a trava", uf)
+                self._baixar_uf(uf)
         self._ufs.add(uf)
 
     def _baixar_uf(self, uf: str) -> None:
@@ -776,7 +791,14 @@ class ArmazemRelease:
         if not n or not self.token:
             return False
         if n >= self.a_cada * 4 or time.time() - self._ultima.get(uf, 0) >= self.intervalo_s:
-            self.publicar(uf)
+            # Publicação do meio da rodada: se outra fatia está publicando o estado, fica para a próxima vez em vez de
+            # parar o cálculo esperando a trava (a publicação final espera o tempo todo).
+            try:
+                self.publicar(uf, espera_s=self.ESPERA_TRAVA_PERIODICA_S)
+            except TimeoutError:
+                self._ultima[uf] = time.time()
+                log.warning("estado %s ocupado por outra publicação; publico mais tarde", uf)
+                return False
             return True
         return False
 
@@ -809,8 +831,9 @@ class ArmazemRelease:
             sha = r.json().get("sha")
         if not sha:
             raise RuntimeError("não consegui identificar o commit para adquirir a trava de publicação")
-        if self.privado:  # travas presas aconteceram no arquivo privado, onde o commit é nosso
-            sha = self._commit_da_trava(h, nome, sha)
+        # Sempre o commit próprio da trava (com hora, run e unidade): no Release aberto a trava apontava para o
+        # GITHUB_SHA, sem dono conferível, e uma trava largada só saía depois da espera inteira (90 min por job).
+        sha = self._commit_da_trava(h, nome, sha)
         t0 = time.monotonic()
         ocupada = False
         while True:
@@ -880,10 +903,14 @@ class ArmazemRelease:
     # Uma publicação real leva minutos. Trava parada além disso é de um job que morreu (cancelado, máquina
     # reciclada, erro de rede no DELETE final) e prendia o estado inteiro para sempre.
     TRAVA_ABANDONADA_S = 3600
+    TRAVA_LEGADA_S = 24 * 3600
+    TENTATIVAS_LEITURA = 9
     # Quanto uma fatia espera a vez do estado. Fatias grandes (BA) seguram a trava mais de 30 min para juntar e
     # publicar os pacotes; com 30 min de espera, as outras desistiam e perdiam o job. Passa do limite de
     # abandono, para quem espera também conseguir tirar a trava de um job que morreu.
     ESPERA_TRAVA_UF_S = 5400
+    ESPERA_TRAVA_LEITURA_S = 600
+    ESPERA_TRAVA_PERIODICA_S = 120
 
     def _commit_da_trava(self, h: dict, nome: str, sha: str) -> str:
         """Commit próprio da trava, cuja mensagem diz quando e por qual job ela foi tomada. É o que permite
@@ -957,11 +984,17 @@ class ArmazemRelease:
                 unidade = partes[4] if len(partes) >= 5 else ""
                 # Job cancelado ou morto: a trava ficou para trás e não precisa esperar a hora inteira.
                 morto = idade >= self.TRAVA_DONO_MIN_S and self._dono_terminou(h, alvo, run, unidade)
-            elif esgotou:
+            elif esgotou or self.privado:
                 quando = ((dados.get("committer") or {}).get("date") or "").replace("Z", "+00:00")
                 if not quando:
                     return False
                 idade = time.time() - datetime.fromisoformat(quando).timestamp()
+                # Trava privada no formato antigo aponta para o HEAD da main no momento em que foi tomada (a main
+                # recebe o painel a cada poucos minutos). Apontar para um commit de mais de um dia só acontece com
+                # trava largada: TO, MA e AM ficaram presos assim de 14 a 16/11, com cada job esperando 90 min.
+                morto = self.privado and idade >= self.TRAVA_LEGADA_S
+                if not (esgotou or morto):
+                    return False
             else:
                 return False
         except Exception:
@@ -980,7 +1013,7 @@ class ArmazemRelease:
         time.sleep(random.uniform(1, 5))
         return True
 
-    def publicar(self, uf: str | None = None, extra: dict | None = None) -> dict:
+    def publicar(self, uf: str | None = None, extra: dict | None = None, espera_s: float | None = None) -> dict:
         """Empacota o estado a partir do espelho e sobe: pacotes, controle e por último o estados.json. O estados.json
         é relido do Release e regravado dentro da trava, trocando só as entradas destes estados (vários jobs publicam
         ao mesmo tempo no GitHub Actions). extra: campos a mais por estado ({uf: {...}}), ex.: a rodada e os erros que
@@ -989,7 +1022,7 @@ class ArmazemRelease:
         ufs = [uf.upper()] if uf else sorted(u for u in self._sujos if u != "_global")
         feito = {}
         for u in ufs:
-            with self._trava(f"trava-publicar-{u}", self.ESPERA_TRAVA_UF_S):
+            with self._trava(f"trava-publicar-{u}", self.ESPERA_TRAVA_UF_S if espera_s is None else espera_s):
                 self.garantir_uf(u, forcar=True)  # junta o que outras fatias do estado já publicaram
                 from raiz.executor.snapshot_publicacao import congelar
 
@@ -1012,6 +1045,54 @@ class ArmazemRelease:
                 self.catalogar_arquivo("raiz_controle.json", json.dumps(glob, ensure_ascii=False).encode(),
                                        "application/json")  # fmt: skip
         return feito
+
+    def defasados_no_aberto(self, margem_s: float = 7200) -> list[str]:
+        """Estados cuja projeção aberta ficou para trás do arquivo privado (a publicação privada passou e a aberta
+        falhou depois: MG ficou com 3 municípios no Release público de 12 a 16/11, com 337 no privado)."""
+        from datetime import datetime
+
+        self._exigir_privado()
+        privado = self.manifesto(fresco=True).get("estados", {})
+        aberto = self.publico.manifesto(fresco=True).get("estados", {}) if self.publico else {}
+
+        def quando(e):
+            try:
+                return datetime.fromisoformat((e or {}).get("atualizado_em") or "").timestamp()
+            except ValueError:
+                return 0.0
+
+        def atrasado(uf: str, e: dict) -> bool:
+            publicado = aberto.get(uf) or {}
+            return quando(e) - quando(publicado) > margem_s or (e.get("municipios") or 0) > publicado.get(
+                "municipios", 0
+            )
+
+        return sorted((uf for uf, e in privado.items() if atrasado(uf, e)), key=lambda uf: quando(aberto.get(uf)))
+
+    def sincronizar_aberto(self, uf: str) -> dict:
+        """Refaz a projeção básica do estado a partir do pacote privado já publicado, sem recalcular nada."""
+        self._exigir_privado()
+        if self.publico is None:
+            raise ValueError("sem destino aberto configurado")
+        uf = uf.upper()
+        info = self.manifesto(fresco=True).get("estados", {}).get(uf)
+        if not info:
+            raise ValueError(f"{uf} não está no índice privado")
+        with self._trava(f"trava-publicar-{uf}", self.ESPERA_TRAVA_PERIODICA_S):
+            if uf not in self.defasados_no_aberto():
+                return {"uf": uf, "pulado": "outro job já atualizou o aberto"}
+            info = self.manifesto(fresco=True).get("estados", {}).get(uf) or info
+            self.garantir_uf(uf, forcar=True)
+            from raiz.executor.snapshot_publicacao import congelar
+
+            original = self.local
+            with congelar(original, uf) as copia:
+                self.local = copia
+                try:
+                    self._publicar_aberto(uf, info)
+                finally:
+                    self.local = original
+        return {"uf": uf, "municipios": info.get("municipios")}
 
     def _publicar_aberto(self, uf: str, info: dict, *, catalogar: bool = True) -> None:
         from raiz.executor.publicacao_aberta import ESCOPO, entrada_publica, projetar_csvs, projetar_geo
