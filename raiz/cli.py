@@ -1426,6 +1426,93 @@ def terra_editais() -> None:
     typer.echo(f"{len(r['novos'])} novos, {r['total']} links guardados")
 
 
+comprometida_cli = typer.Typer(
+    help="Terra já comprometida no processamento: coleta dos limites públicos e status por CAR.", no_args_is_help=True
+)
+app.add_typer(comprometida_cli, name="comprometida")
+
+
+@comprometida_cli.command("coletar")
+def comprometida_coletar(
+    saida: Annotated[str, typer.Option(help="pasta onde gravar os arquivos que vão ao Release insumos")],
+    fontes: Annotated[str, typer.Option(help="verra, sfb_concessoes e limites_pesquisa, separadas por vírgula")] = (
+        "verra,sfb_concessoes,limites_pesquisa"
+    ),
+    limite_verra: Annotated[int | None, typer.Option(help="só os N primeiros projetos Verra (teste)")] = None,
+) -> None:
+    """Coleta os limites públicos (Verra, SFB, Zenodo) e grava limites, cobertura e o pacote do motor."""
+    from raiz.comprometida import coleta as CL
+
+    r = CL.coletar(tuple(x.strip() for x in fontes.split(",") if x.strip()), limite_verra=limite_verra)
+    m = CL.gravar(r, saida)
+    typer.echo(f"{m['limites']} limites ({m['por_fonte']}); {m['projetos_motor']} projetos para o motor")
+    for c in m["cobertura"]:
+        typer.echo(f"  {c['fonte_id']}: {c['estado']}")
+    for e in m["erros"][:10]:
+        typer.echo(f"  aviso: {e}")
+
+
+@comprometida_cli.command("baixar")
+def comprometida_baixar(
+    tag: Annotated[str, typer.Option(help="Release de onde baixar")] = "insumos",
+    repo: Annotated[str, typer.Option(help="dono/repositório")] = "bernardoemmel/Raiz",
+) -> None:
+    """Baixa do Release insumos os limites e a cobertura para a pasta que a tarefa lê."""
+    import httpx
+
+    from raiz.comprometida import coleta as CL
+    from raiz.comprometida import status as ST
+
+    pasta = ST.pasta_limites()
+    pasta.mkdir(parents=True, exist_ok=True)
+    for nome in CL.NOMES[:2]:
+        r = httpx.get(f"https://github.com/{repo}/releases/download/{tag}/{nome}", follow_redirects=True, timeout=300)
+        r.raise_for_status()
+        (pasta / nome).write_bytes(r.content)
+        typer.echo(f"{nome}: {len(r.content) / 1e6:.1f} MB")
+
+
+@comprometida_cli.command("recalcular")
+def comprometida_recalcular(
+    saida: Annotated[str | None, typer.Option(help="pasta saida/ do motor")] = None,
+    ufs: Annotated[str | None, typer.Option(help="só estas UFs, separadas por vírgula")] = None,
+) -> None:
+    """Refaz comprometida_<mun>.csv dos municípios cuja versão mudou (sem refazer o funil)."""
+    from pathlib import Path
+
+    import pandas as pd
+
+    from raiz.comprometida import status as ST
+    from raiz.funil.rodar import dir_trabalho
+
+    pasta = Path(saida) if saida else dir_trabalho() / "saida"
+    lista = {u.strip().upper() for u in ufs.split(",")} if ufs else None
+    limites, cobertura = ST.carregar_limites()
+    v = f"{ST.VERSAO}+{ST.assinatura() or 'sem_limites'}"
+    feitos = em_dia = 0
+    for uf in sorted(p for p in pasta.iterdir() if p.is_dir() and (not lista or p.name.upper() in lista)):
+        for g in sorted(uf.glob("geo_*.parquet")):
+            cod = int(g.stem.split("_")[1])
+            f = uf / f"comprometida_{cod}.csv"
+            if f.exists() and v in set(pd.read_csv(f, usecols=["comprometida_versao"]).comprometida_versao):
+                em_dia += 1
+                continue
+            ST.escrever_municipio(uf, cod, limites=limites, cobertura=cobertura)
+            feitos += 1
+    typer.echo(f"versão {v}: {feitos} municípios refeitos, {em_dia} já em dia")
+
+
+@comprometida_cli.command("resumo")
+def comprometida_resumo(arquivo: Annotated[str, typer.Argument(help="comprometida_<mun>.csv")]) -> None:
+    """Contagem de imóveis por status de sobreposição (o agregado, que é o que pode ser público)."""
+    import pandas as pd
+
+    from raiz.comprometida import status as ST
+
+    for k, n in ST.resumo(pd.read_csv(arquivo)).items():
+        typer.echo(f"{k:20} {n}")
+
+
 titulo_cli = typer.Typer(
     help="Título (E5): regularização da posse, achados de título e quem confirmou cada um.", no_args_is_help=True
 )
