@@ -10,6 +10,7 @@ import pandas as pd
 import pytest
 from pydantic import SecretStr
 
+from raiz.documentos.simulacao import cpf_ficticio
 from raiz.triagem_desenvolvedor import dados as D
 from raiz.triagem_desenvolvedor import entrada as E
 from raiz.triagem_desenvolvedor import mcp as M
@@ -18,6 +19,7 @@ from raiz.triagem_desenvolvedor import relatorio as RL
 from raiz.triagem_desenvolvedor import resumo, triar
 
 COD = 1504950
+CPF = cpf_ficticio()  # montado na hora: nunca escrito no arquivo
 
 
 def car(letra: str) -> str:
@@ -73,7 +75,7 @@ def pasta(tmp_path):
         c = car(k)
         im.append(dict(cod_imovel=c, municipio="Nova Esperança do Piriá", uf="PA", cod_municipio_ibge=COD, ha=f["ha"],
                        m_fiscal=f["m_fiscal"], embargo_ha=f.get("embargo_ha", 0.0), ti_ha=0.0, desm_pos2020_ha=0.0,
-                       alerta_ultimo_ano=0.0, proprietario="NOME QUE NUNCA SAI", cpf="123.456.789-09"))  # fmt: skip
+                       alerta_ultimo_ano=0.0, proprietario="NOME QUE NUNCA SAI", cpf=CPF))  # fmt: skip
         if f["custo"] is not None:
             ds.append(dict(cod_imovel=c, modo_restauracao="regeneracao_assistida", restauracao_area_ha=f["ha"] * 0.5,
                            credito_liquido_tco2_ha_contrato_p50=f["credito"], custo_credito_usd=f["custo"],
@@ -93,8 +95,8 @@ def pasta(tmp_path):
 def test_entrada_le_so_o_codigo_e_nao_repete_o_que_nao_e_codigo():
     csv_ = (
         "nome,cod_imovel,cpf\n"
-        f"Fulano de Tal,{car('A').lower()},123.456.789-09\n"
-        "Beltrana,123.456.789-09,111\n"  # CPF na coluna do código: inválido, nunca repetido
+        f"Fulano de Tal,{car('A').lower()},{CPF}\n"
+        f"Beltrana,{CPF},111\n"  # CPF na coluna do código: inválido, nunca repetido
         f"x,{car('A')},y\n"  # repetido
         f"x,pa{COD}{'b' * 32},y\n"  # sem traços
     )
@@ -202,7 +204,7 @@ def test_csv_e_pdf_sem_nome_nem_cpf(pasta):
 
     texto = "\n".join(p.extract_text() for p in PdfReader(io.BytesIO(pdf)).pages)
     assert "Triagem de fazendas" in texto and "premissas provisórias" in texto
-    for proibido in ("NOME QUE NUNCA SAI", "123.456.789-09"):  # as colunas pessoais do arquivo de entrada nunca saem
+    for proibido in ("NOME QUE NUNCA SAI", CPF):  # as colunas pessoais do arquivo de entrada nunca saem
         assert proibido not in bruto and proibido not in texto
 
 
