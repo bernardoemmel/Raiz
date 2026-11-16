@@ -186,7 +186,7 @@ def imoveis(cod: str, uf: str | None = None) -> None:
             g = shape(f["geometry"])
             if not g.is_valid:
                 g = shapely.make_valid(g)
-            g = arredondar(g.simplify(0.00002, preserve_topology=True), 6)
+            g = arredondar(g.simplify(0.00005, preserve_topology=True), 5)
             if g.is_empty:
                 continue
             props = {k: p.get(k) for k in ("cod_imovel", "area", "m_fiscal", "status_imovel")}
@@ -968,8 +968,9 @@ def exportar_geometria(csv_imoveis: Path, cache: dict) -> tuple[int, int]:
         geom = so_poligonos(valido(bruto))
         if geom.is_empty:
             continue
-        menor = arredondar(geom.simplify(0.00002, preserve_topology=True), 6)
-        # A simplificação nunca pode eliminar uma fazenda pequena.
+        # ~5 m de simplificação e 5 casas (~1 m): invisível no mapa e cabe no limite de 1 GB do Pages com o Brasil
+        # inteiro. A simplificação nunca pode eliminar uma fazenda pequena.
+        menor = arredondar(geom.simplify(0.00005, preserve_topology=True), 5)
         feicoes.append(feicao(menor if not menor.is_empty else geom, {"cod_imovel": car}))
         vistos.add(car)
     if existentes and not feicoes:
@@ -1006,7 +1007,8 @@ def do_release(dados: Path, sem_base: bool = False) -> None:
     publicados = municipios_publicados(dados)
     if not publicados:
         raise RuntimeError(f"nenhum município publicado em {dados}; o site não será substituído pela amostra")
-    caminho_cache = SAIDA / "cache" / "exportacao-v1.json"
+    # v2: 5 casas e simplificação de ~5 m; a v1 (6 casas) refaz todos os municípios uma vez.
+    caminho_cache = SAIDA / "cache" / "exportacao-v2.json"
     caminho_cache.parent.mkdir(exist_ok=True)
     cache = json.loads(caminho_cache.read_text()) if caminho_cache.exists() else {}
     falhas = {}
