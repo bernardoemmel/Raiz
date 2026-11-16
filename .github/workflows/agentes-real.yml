@@ -1,8 +1,8 @@
 name: Agente real semanal
 
+# Agenda semanal desligada enquanto a Raíz não tem servidor no ar (decisão do fundador, 16/11/2026): sem servidor a
+# medição falha toda semana e gasta créditos da API. Religar o schedule quando o servidor subir; à mão continua valendo.
 on:
-  schedule:
-    - cron: "0 9 * * 1" # segunda-feira, 06h em America/Sao_Paulo (UTC-3)
   workflow_dispatch:
 
 permissions:
