@@ -19,7 +19,7 @@ está completo quando tem, em todos os municípios, funil, filtros, MapBiomas, d
 escadinha. Os extras do Earth Engine e as certidões ficam de fora dessa conta (ver abaixo).
 
 <!-- painel:inicio -->
-Gerado do `estados.json` de 16/11/2026 09:36 (horário de Brasília). Brasil: 4.012 de 5.571 municípios com o funil pronto; 7 de 27 estados completos.
+Gerado do `estados.json` de 16/11/2026 09:53 (horário de Brasília). Brasil: 4.012 de 5.571 municípios com o funil pronto; 7 de 27 estados completos.
 
 | Estado | Municípios feitos/total | Situação | Última atualização | Motor |
 |---|---|---|---|---|
@@ -32,7 +32,7 @@ Gerado do `estados.json` de 16/11/2026 09:36 (horário de Brasília). Brasil: 4.
 | MA Maranhão | 0/217 | não começou | — | — |
 | AM Amazonas | 0/62 | não começou | — | — |
 | MT Mato Grosso | 111/142 | falta funil 31, ficha 16, desenvolvedor 16; 34 erro(s) na última rodada (2 fatias em jobs separados) | 14/11/2026 21:14 | [2668be6](https://github.com/bernardoemmel/Raiz/actions/runs/43643808387) |
-| GO Goiás | 186/246 | falta funil 60, MapBiomas 2, direto 2, TMF e causas 2, FLAG 2, caminho da terra 2, ficha 4, desenvolvedor 6; 2 erro(s) na última rodada (3 fatias em jobs separados) | 16/11/2026 09:31 | [7808fde](https://github.com/bernardoemmel/Raiz/actions/runs/43857757208) |
+| GO Goiás | 186/246 | falta funil 60, MapBiomas 2, direto 2, TMF e causas 2, FLAG 2, caminho da terra 2, ficha 4, desenvolvedor 6; 3 erro(s) na última rodada (3 fatias em jobs separados) | 16/11/2026 09:48 | [27611a4](https://github.com/bernardoemmel/Raiz/actions/runs/43862626827) |
 | MS Mato Grosso do Sul | 79/79 | falta MapBiomas 1, TMF e causas 1, FLAG 1, caminho da terra 1, ficha 1, desenvolvedor 1; 46 erro(s) na última rodada | 14/11/2026 21:48 | [2668be6](https://github.com/bernardoemmel/Raiz/actions/runs/43652868465) |
 | MG Minas Gerais | 337/853 | falta funil 516, ficha 3, desenvolvedor 5; 36 erro(s) na última rodada (8 fatias em jobs separados) | 15/11/2026 16:40 | [33d69e1](https://github.com/bernardoemmel/Raiz/actions/runs/43727698257) |
 | BA Bahia | 252/417 | falta funil 165, ficha 4, desenvolvedor 8; 1 erro(s) na última rodada (4 fatias em jobs separados) | 16/11/2026 08:35 | [f6444b6](https://github.com/bernardoemmel/Raiz/actions/runs/43821076499) |
