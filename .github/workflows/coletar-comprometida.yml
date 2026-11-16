@@ -1,0 +1,79 @@
+name: Terra comprometida (coleta diária dos limites públicos)
+
+# Coleta sozinha, sem download manual: KML da Verra dos projetos brasileiros do catálogo Berkeley, limites das
+# concessões do SFB e a base científica do Zenodo (CC BY, só como indício). Publica no Release "insumos":
+#   comprometida_limites.parquet e comprometida_cobertura.json  (a tarefa "comprometida" do executor lê)
+#   projetos_carbono.tar.gz                                       (o motor lê: frente ja_tem_projeto)
+# Não mexe no processar-estados.yml: ele já baixa o projetos_carbono.tar.gz do Release insumos. Município pronto não
+# refaz o funil: só a tarefa "comprometida" muda de versão quando a coleta muda (raiz/comprometida/status.py).
+# Para pausar: desative este workflow na aba Actions. Fora do escopo: Gold Standard, averbação na matrícula, cota vendida.
+
+on:
+  schedule:
+    - cron: "23 7 * * *" # 04h23 em Brasília
+  workflow_dispatch:
+    inputs:
+      limite_verra:
+        description: "só os N primeiros projetos Verra (teste); vazio = todos"
+        required: false
+        default: ""
+      publicar:
+        description: "publicar no Release insumos"
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+
+concurrency:
+  group: coletar-comprometida
+  cancel-in-progress: false
+
+jobs:
+  coletar:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    env:
+      GH_TOKEN: ${{ github.token }}
+      LIMITE_VERRA: ${{ inputs.limite_verra }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v7
+        with:
+          version: "0.13.6"
+      - name: Instalar dependências
+        run: |
+          uv sync --frozen
+          echo "SAIDA=$RUNNER_TEMP/comprometida" >> "$GITHUB_ENV"
+
+      - name: Coletar os limites públicos
+        run: |
+          args=(--saida "$SAIDA")
+          if [ -n "$LIMITE_VERRA" ]; then args+=(--limite-verra "$LIMITE_VERRA"); fi
+          uv run raiz comprometida coletar "${args[@]}"
+
+      - name: Conferir antes de publicar
+        run: |
+          uv run python - <<'PY'
+          import json, os, sys
+          m = json.load(open(os.environ["SAIDA"] + "/comprometida_cobertura.json", encoding="utf-8"))
+          cobriu = [c["fonte_id"] for c in m["cobertura"] if c["estado"] in ("consultado", "parcial")]
+          print("fontes que cobriram:", cobriu, "| limites:", m["limites"], "| projetos para o motor:", m["projetos_motor"])
+          for c in m["cobertura"]:
+              print(" ", c["fonte_id"], c["estado"], c.get("projetos_com_poligono"), "de", c.get("projetos_esperados"))
+          if not m["limites"] or not cobriu:
+              print("::error::nenhuma fonte cobriu: não publico (o Release mantém a coleta anterior)")
+              sys.exit(1)
+          PY
+
+      - name: Publicar no Release insumos
+        if: github.event_name == 'schedule' || inputs.publicar
+        run: |
+          if ! gh release view insumos -R "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release create insumos -R "$GITHUB_REPOSITORY" --title "insumos" \
+              --notes "Insumos opcionais do processamento (ver motor/README.md e docs/terra-comprometida.md)."
+          fi
+          arquivos=("$SAIDA/comprometida_limites.parquet" "$SAIDA/comprometida_cobertura.json")
+          if [ -f "$SAIDA/projetos_carbono.tar.gz" ]; then arquivos+=("$SAIDA/projetos_carbono.tar.gz"); fi
+          gh release upload insumos "${arquivos[@]}" -R "$GITHUB_REPOSITORY" --clobber
+          echo "publicado: ${arquivos[*]}"

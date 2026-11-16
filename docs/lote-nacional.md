@@ -33,6 +33,35 @@ Sem recorte explícito, a automação publica cada UF disponível, os seis bioma
 ou Brasil não herda o filtro Amazônia do formulário legado. Preço ou dívida diferentes das previsões exigem
 reavaliar a oferta; o programa recusa reutilizar a TIR original como se fosse sensibilidade.
 
+## Terra em espera, sobreposição e ordem
+
+Em BA, CE, PI e RN quase toda a terra é `posse_em_titulacao`, e o pedido padrão a exclui: sem este tratamento o lote
+sairia vazio sem explicação. Toda consulta traz agora `terra_em_espera`, separada da terra pronta: fazendas, pequenas,
+hectares e soma dos créditos P50 (soma de quantis individuais, não quantil de carteira) de quem cumpre o pedido em tudo,
+menos no caminho da terra, com o que destrava e `habilita_venda: false`. O pedido do cliente não muda em silêncio: para
+incluir essa terra, ele escolhe `posse_em_titulacao` e/ou `assentamento` em `terra`.
+
+A camada "já comprometida" ainda não faz parte do catálogo nacional (a coleta nacional não rodou). Enquanto a coluna
+`ja_comprometida` não existir, toda opção e a consulta dizem `sobreposicao: nao_verificada`. Quando o catálogo trouxer
+`ja_comprometida`, a consulta tira essas fazendas do lote (e do critério gravado na decisão) e, com `risco_sobreposicao`,
+conta as marcadas em cada opção.
+
+Ordem de publicação: bioma Amazônia, estados da Amazônia Legal, demais estados, demais biomas e Brasil. O ponteiro guarda,
+por consulta, um `resumo` sem CAR (as três opções, a terra em espera e a sobreposição). O passo final do workflow roda
+`python -m raiz.restauracao_nacional_rodada --conferir`: acusa UF, bioma ou Brasil sem consulta, consulta sem as três
+opções, e lista os lotes vazios com a terra em espera que os explica.
+
+## Pacote "lote pronto"
+
+Para cada UF, bioma e Brasil, e para cada opção com fazendas, o workflow gera sozinho um ZIP no arquivo privado
+(`lote_pronto_<opcao>_<sha>.zip`, referenciado no ponteiro em `consultas.<recorte>.lote_pronto`), com `raiz/lote_pronto.py`:
+`cars.csv` (titulares e reservas), `reservas.csv`, `tabela_lote.csv` (ha, créditos P10/P50/P90, custo, TIR, caminho da terra),
+`sobreposicao.csv`, `mapa.svg` e `mapa.geojson` (pontos, sem contorno), um Raio-X em PDF por CAR em `raio-x/` (a ficha da
+página do produtor, pelo mesmo gerador do PDF da ficha, com marca de rastreio da consulta e da opção), `resumo.json`,
+`LEIAME.md` e `manifesto.json` com o SHA-256 de cada arquivo. Pequenas fazendas ficam, agrupadas; o mesmo lote gera o mesmo
+ZIP, byte a byte. Fora do pacote: aceite, contrato e Pix; ele não libera venda. Ao entregar a um cliente, os PDFs devem ser
+refeitos com a marca dele.
+
 ## Seleção, incerteza e diligência
 
 Pequenas vizinhas formam grupos indivisíveis, inclusive atravessando limites municipais/estaduais. Não há piso

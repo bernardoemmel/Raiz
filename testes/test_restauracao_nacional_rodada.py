@@ -115,3 +115,21 @@ def test_preco_diferente_nao_reusa_tir_da_previsao(cronograma):
         N.preparar_contrato(
             CamposPedido(cronograma=cronograma, dinheiro={"preco_venda_usd": 40}), A.R.versao(), "central_r11"
         )
+
+
+def test_conferir_consultas_aponta_faltas_e_lotes_vazios():
+    from raiz import restauracao_nacional_rodada as RR
+
+    op = {"fazendas": 2, "pequenas": 2, "hectares": 4.0, "creditos": {}, "fecha_meta": True, "sobreposicao": "x"}
+    vazio = {**op, "fazendas": 0}
+    cheio = {"pacote": {"nome": "a"}, "resumo": {"opcoes": {o: op for o in RR.N.OPCOES}}}
+    ba = {
+        "pacote": {"nome": "b"},
+        "resumo": {"opcoes": {o: vazio for o in RR.N.OPCOES}, "terra_em_espera": {"fazendas": 7}},
+    }
+    antigo = {"pacote": {"nome": "c"}}
+    atual = {"ufs": {"PA": {}, "BA": {}, "CE": {}}, "consultas": {"PA": cheio, "BA": ba, "CE": antigo}}
+    laudo = RR.conferir_consultas(atual)
+    assert "Brasil" in laudo["faltam"] and "Amazônia" in laudo["faltam"] and "PA" not in laudo["faltam"]
+    assert laudo["lotes_vazios"] == [{"recorte": "BA", "terra_em_espera_fazendas": 7}]
+    assert laudo["sem_resumo"] == ["CE"] and laudo["sem_tres_opcoes"] == []
