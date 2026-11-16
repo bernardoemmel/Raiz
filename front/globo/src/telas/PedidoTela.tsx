@@ -30,7 +30,7 @@ import { FaixaBarra } from "../partes/pedido/FaixaBarra"
 import { SeloStatus } from "../partes/pedido/SeloStatus"
 import { SensibilidadePedido } from "../partes/pedido/SensibilidadePedido"
 import { ComparacaoLotes } from "../partes/pedido/ComparacaoLotes"
-import { AcessoDetalhesLote, AvisoPublicacao, BasePublicada, QuadroDestrava } from "../partes/pedido/PublicacaoPedido"
+import { AcessoDetalhesLote, AvisoPublicacao, BasePublicada, LotesDoRecorte, QuadroDestrava } from "../partes/pedido/PublicacaoPedido"
 import { CoberturaPedido } from "../partes/pedido/CoberturaPedido"
 import "../partes/pedido/pedido.css"
 import { linkFazenda, linkFichaLote, linkGrupo, linkPedidos, linkPasta, linkPedidoMapa } from "../rota"
@@ -149,7 +149,7 @@ export function PedidoTela({ id }: { id: string }) {
           {!pedido.publicacao && !pedido.exemplo && <p><a href={linkPedidoMapa(id)}>Comparar lotes no mapa inteiro</a></p>}
           {!pedido.publicacao && <Alertas pedido={pedido} />}
           <AvisoExemplo ativo={!!pedido.exemplo} />
-          {pedido.publicacao && <AvisoPublicacao publicacao={pedido.publicacao} />}
+          {pedido.publicacao && <AvisoPublicacao publicacao={pedido.publicacao} recorte={pedido.nacional?.recorte} />}
           <CoberturaPedido onde={pedido.campos.onde} />
           {erro && (
             <p className="erro-campo" role="alert">
@@ -158,7 +158,10 @@ export function PedidoTela({ id }: { id: string }) {
           )}
 
           {pedido.publicacao ? <BasePublicada publicacao={pedido.publicacao} /> : <QuadroBase pedido={pedido} unidade={unidade} />}
-          <ComparacaoLotes opcoes={pedido.opcoes} publicadas={pedido.publicacao?.opcoes} selecionar={(id) => { setAba(id); setEscolhida(null) }} />
+          {pedido.publicacao && pedido.nacional && <LotesDoRecorte nacional={pedido.nacional} />}
+          {/* O resumo do PA só aparece como referência quando não há resumo do recorte escolhido (ou quando o recorte é o PA). */}
+          {(!pedido.publicacao || !pedido.nacional?.recorte || pedido.nacional.recorte.nome === pedido.publicacao.uf) &&
+            <ComparacaoLotes opcoes={pedido.opcoes} publicadas={pedido.publicacao?.opcoes} selecionar={(id) => { setAba(id); setEscolhida(null) }} />}
 
           {!pedido.publicacao && <SensibilidadePedido pedido={pedido} />}
 
