@@ -1,0 +1,58 @@
+name: Triagem em lote para o desenvolvedor
+
+# Lista de códigos do CAR -> ranking com nota, números e o motivo de cada nota, em CSV e PDF. O resultado vai só para o
+# arquivo privado (Release de rascunho dados-privados): nada de artifact, nada de log com código de fazenda.
+# A lista da empresa mostra quais fazendas ela está olhando; este repositório é aberto, então prefira entrada_privada
+# (o CSV enviado antes com `uv run raiz triagem enviar-entrada lista.csv --nome entrada-empresa.csv`) a colar
+# os códigos em "codigos", que ficam visíveis na página da execução.
+# Fora do escopo: certidão e contato com o dono. A mesma função é o endpoint POST /triagem/desenvolvedor da API
+# e a ferramenta triar_fazendas do MCP (raiz/triagem_desenvolvedor/mcp.py), para quando o servidor subir.
+
+on:
+  workflow_dispatch:
+    inputs:
+      nome:
+        description: "nome do ranking (minúsculas, números e hífen); vira triagem_<nome>.csv e .pdf no arquivo privado"
+        required: true
+        type: string
+      entrada_privada:
+        description: "nome do CSV de códigos no arquivo privado (preferido)"
+        required: false
+        type: string
+      codigos:
+        description: "ou os códigos do CAR separados por espaço ou vírgula (ficam visíveis nesta execução)"
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: triagem-desenvolvedor
+  cancel-in-progress: false
+
+env:
+  RAIZ_DADOS_PRIVADOS_URL: ${{ vars.RAIZ_DADOS_PRIVADOS_URL || format('release-github://{0}/dados-privados', github.repository) }}
+  RAIZ_DADOS_PRIVADOS_TOKEN: ${{ secrets.RAIZ_DADOS_PRIVADOS_TOKEN || github.token }}
+
+jobs:
+  triar:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v7
+        with:
+          version: "0.13.6"
+          enable-cache: false
+      - run: uv sync --frozen
+      - name: Triar e enviar ao arquivo privado
+        env:
+          NOME: ${{ inputs.nome }}
+          ENTRADA_PRIVADA: ${{ inputs.entrada_privada }}
+          CODIGOS: ${{ inputs.codigos }}
+        run: |
+          args=(--nome "$NOME" --saida "$RUNNER_TEMP/triagem" --enviar)
+          if [ -n "$ENTRADA_PRIVADA" ]; then args+=(--entrada-privada "$ENTRADA_PRIVADA"); fi
+          if [ -n "$CODIGOS" ]; then args+=(--codigos "$CODIGOS"); fi
+          uv run raiz triagem lote "${args[@]}"

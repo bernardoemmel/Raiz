@@ -40,6 +40,10 @@ class TextoDono(BaseModel):
     texto: str
 
 
+class LoteTriagem(BaseModel):
+    codigos_car: list[str]
+
+
 class Decisao(BaseModel):
     quem: str
 
@@ -115,6 +119,18 @@ def criar_app(
             raise HTTPException(503, f"banco fora do ar: {type(ex).__name__}") from ex
 
     seguro = [Depends(_exigir_token)]
+
+    @app.post("/triagem/desenvolvedor", dependencies=seguro)
+    def triagem_desenvolvedor(corpo: LoteTriagem) -> dict:
+        """Triagem em lote para o desenvolvedor (docs/triagem-desenvolvedor.md): ranking com nota e motivo."""
+        from raiz.triagem_desenvolvedor.mcp import triar_codigos
+
+        if not corpo.codigos_car:
+            raise HTTPException(422, "informe ao menos um código do CAR")
+        try:
+            return triar_codigos(corpo.codigos_car, engine=app.state.engine)
+        except ValueError as ex:
+            raise HTTPException(422, str(ex)) from ex
 
     @app.post("/aceites/{cod_imovel}/iniciar", dependencies=seguro)
     def iniciar(cod_imovel: str, corpo: Inicio) -> dict:
