@@ -4,7 +4,12 @@ import { fmtCompacto, fmtHa, fmtInt } from "../../../compartilhado/formato"
 import { numerosDoBrasil } from "../../../compartilhado/funil-etapas"
 import { RotuloMono } from "./RotuloMono"
 
-const numeroGrande = new Intl.NumberFormat("pt-BR", { notation: "compact", maximumFractionDigits: 1 })
+/** Número grande do cartão com a unidade por extenso: "22,8" + "milhões de ha" (o "mi" abreviado se lia como "mil"). */
+function medidaGrande(ha: number): { numero: string; unidade: string } {
+  const [numero, ...resto] = fmtCompacto(ha).split(" ")
+  const palavra = resto.join(" ")
+  return { numero, unidade: !palavra ? "ha" : palavra === "mil" ? "mil ha" : `${palavra} de ha` }
+}
 
 /** O cartão usa o resumo do motor. A cobertura cartográfica é uma medida separada. */
 export function CartaoTerritorioV2({ nome, municipios, carregando, aoAbrirDados, ampliado, aoAlternar, aoArrastar, aoSoltar }: {
@@ -24,7 +29,7 @@ export function CartaoTerritorioV2({ nome, municipios, carregando, aoAbrirDados,
       onPointerDown={e => { aoArrastar(e.clientY); e.currentTarget.setPointerCapture(e.pointerId) }} onPointerUp={e => aoSoltar(e.clientY)}><span /></button>
     <h1 id="territorio-v2-titulo"><RotuloMono partes={[nome, "terra para restaurar"]} /></h1>
     <div className="cartao-v2-medida" aria-label={n ? `${fmtHa(n.ha)} com potencial no resumo` : undefined}>
-      <strong>{n ? numeroGrande.format(n.ha) : "n/d"}</strong>{n && <span>ha</span>}
+      <strong>{n ? medidaGrande(n.ha).numero : "n/d"}</strong>{n && <span>{medidaGrande(n.ha).unidade}</span>}
     </div>
     <p className="cartao-v2-frase">{n ? <>podem voltar a ser mata nos imóveis avaliados. <span className="cartao-v2-frase-detalhe"> Desses, <strong>{fmtCompacto(n.prontas)}</strong> têm área apta e matrícula identificada.</span></> : carregando ? "Lendo os resumos publicados do motor…" : "O resumo deste território ainda não foi publicado."}</p>
     <dl className="cartao-v2-numeros">
