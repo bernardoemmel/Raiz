@@ -19,7 +19,7 @@ está completo quando tem, em todos os municípios, funil, filtros, MapBiomas, d
 escadinha. Os extras do Earth Engine e as certidões ficam de fora dessa conta (ver abaixo).
 
 <!-- painel:inicio -->
-Gerado do `estados.json` de 16/11/2026 13:51 (horário de Brasília). Brasil: 4.086 de 5.571 municípios com o funil pronto; 8 de 27 estados completos.
+Gerado do `estados.json` de 16/11/2026 13:58 (horário de Brasília). Brasil: 4.086 de 5.571 municípios com o funil pronto; 8 de 27 estados completos.
 
 | Estado | Municípios feitos/total | Situação | Última atualização | Motor |
 |---|---|---|---|---|
@@ -35,7 +35,7 @@ Gerado do `estados.json` de 16/11/2026 13:51 (horário de Brasília). Brasil: 4.
 | GO Goiás | 186/246 | falta funil 60, MapBiomas 2, direto 2, TMF e causas 2, FLAG 2, caminho da terra 2, ficha 4, desenvolvedor 6; 2 erro(s) na última rodada (3 fatias em jobs separados) | 16/11/2026 12:35 | [75f2b22](https://github.com/bernardoemmel/Raiz/actions/runs/43889305152) |
 | MS Mato Grosso do Sul | 79/79 | falta MapBiomas 1, TMF e causas 1, FLAG 1, caminho da terra 1, ficha 1, desenvolvedor 1; 46 erro(s) na última rodada | 14/11/2026 21:48 | [2668be6](https://github.com/bernardoemmel/Raiz/actions/runs/43652868465) |
 | MG Minas Gerais | 337/853 | falta funil 516, ficha 3, desenvolvedor 5; 36 erro(s) na última rodada (8 fatias em jobs separados) | 15/11/2026 16:40 | [33d69e1](https://github.com/bernardoemmel/Raiz/actions/runs/43727698257) |
-| BA Bahia | 324/417 | falta funil 93, ficha 2, desenvolvedor 6; 53 erro(s) na última rodada (4 fatias em jobs separados) | 16/11/2026 13:13 | [229d69c](https://github.com/bernardoemmel/Raiz/actions/runs/43836041347) |
+| BA Bahia | 324/417 | falta funil 93, ficha 2, desenvolvedor 6; 52 erro(s) na última rodada (4 fatias em jobs separados) | 16/11/2026 13:39 | [75f2b22](https://github.com/bernardoemmel/Raiz/actions/runs/43889305152) |
 | PI Piauí | 224/224 | completo; 5 erro(s) na última rodada (2 fatias em jobs separados) | 15/11/2026 09:24 | [b93a055](https://github.com/bernardoemmel/Raiz/actions/runs/43705807265) |
 | CE Ceará | 184/184 | completo; 47 erro(s) na última rodada (2 fatias em jobs separados) | 16/11/2026 13:05 | [75f2b22](https://github.com/bernardoemmel/Raiz/actions/runs/43889305152) |
 | RN Rio Grande do Norte | 167/167 | completo; 30 erro(s) na última rodada (2 fatias em jobs separados) | 16/11/2026 00:53 | [337a721](https://github.com/bernardoemmel/Raiz/actions/runs/43794022132) |
