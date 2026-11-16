@@ -17,6 +17,8 @@ import { malhasPublicas } from "./dados/malhas-mapa"
 import { UFS } from "./formato"
 import { abrirPasta, nomeSeguro, pastaPadrao } from "./pasta-dados"
 import { paginasAgentes } from "./paginas-agentes"
+import { codificarGeometria } from "./geometria-delta"
+import { projetarResumoNacional } from "./pedidos/lote-nacional"
 import { projetarPublicacaoLote } from "./pedidos/release"
 import { potencialPublicado } from "./potencial-publico"
 
@@ -51,6 +53,10 @@ export function dadosRaiz(opcoes: { repo: string; raizDados?: string | null; cac
     // Pasta distinta do arquivo financeiro legado. O publicador gravou somente a lista positiva v1.
     const arquivo = path.join(lotes, "lote_PA_central_r11.json")
     return projetarPublicacaoLote(fs.existsSync(arquivo) ? JSON.parse(fs.readFileSync(arquivo, "utf8")) : null)
+  }
+  function resumoNacionalPublicado() {
+    const arquivo = path.join(lotes, "lote_nacional_resumo.json")
+    return projetarResumoNacional(fs.existsSync(arquivo) ? JSON.parse(fs.readFileSync(arquivo, "utf8")) : null)
   }
   const pasta = abrirPasta({
     repo: opcoes.repo,
@@ -101,12 +107,13 @@ export function dadosRaiz(opcoes: { repo: string; raizDados?: string | null; cac
     const csv = pasta.caminho(`imoveis_basicos_${cod}.csv`)
     if (!csv || !fs.existsSync(origem)) return null
     const identidade = [origem, csv].map((arq) => `${fs.statSync(arq).size}-${fs.statSync(arq).mtimeMs}`).join("_")
-    const arq = path.join(pasta.cache, `publico_basico_${cod}_${identidade}.geojson.gz`)
+    const arq = path.join(pasta.cache, `publico_basico_delta1_${cod}_${identidade}.geojson.gz`)
     if (!fs.existsSync(arq)) {
       const dado = pasta.geoBasico(cod)
       if (!dado) return null
       fs.mkdirSync(pasta.cache, { recursive: true })
-      fs.writeFileSync(arq, zlib.gzipSync(JSON.stringify(dado), { level: 6 }))
+      // Em deltas inteiros (sem perda, ver geometria-delta.ts): o site passou de 950 MB com GeoJSON decimal.
+      fs.writeFileSync(arq, zlib.gzipSync(JSON.stringify(codificarGeometria(dado) ?? dado), { level: 9 }))
     }
     return arq
   }
@@ -315,6 +322,7 @@ export function dadosRaiz(opcoes: { repo: string; raizDados?: string | null; cac
         if (url === "/amostra/estados.json") return json(req, res, estadosPublicos())
         if (url === "/amostra/processamento.json") return json(req, res, pasta.processamento())
         if (url === "/amostra/lote_PA_central_r11.json") return json(req, res, lotePublicado())
+        if (url === "/amostra/lote_nacional_resumo.json") return json(req, res, resumoNacionalPublicado())
         if ((m = /^\/amostra\/indice_([A-Z]{2})\.json$/.exec(url))) return json(req, res, { uf: m[1], arquivos: arquivosPublicos(m[1]) })
         if ((m = /^\/amostra\/pontos_([A-Z]{2})\.json$/.exec(url))) {
           pasta.pontosPublicos(m[1]).then((t) => (t ? json(req, res, t) : naoAchou(res)), falhou)
@@ -398,6 +406,7 @@ export function dadosRaiz(opcoes: { repo: string; raizDados?: string | null; cac
       fs.writeFileSync(path.join(dAmostra, "estados.json"), JSON.stringify(estadosPublicos()))
       fs.writeFileSync(path.join(dAmostra, "processamento.json"), JSON.stringify(pasta.processamento()))
       fs.writeFileSync(path.join(dAmostra, "lote_PA_central_r11.json"), JSON.stringify(lotePublicado()))
+      fs.writeFileSync(path.join(dAmostra, "lote_nacional_resumo.json"), JSON.stringify(resumoNacionalPublicado()))
       fs.writeFileSync(path.join(dGeo, "indice.json"), JSON.stringify(indiceGeoPublico()))
       for (const [nome, dado] of Object.entries(potencial().arquivos)) fs.writeFileSync(path.join(dGeo, nome), dado)
       for (const f of arquivosGeo()) {

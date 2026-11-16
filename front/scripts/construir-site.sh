@@ -38,6 +38,9 @@ touch site/.nojekyll
 node front/scripts/configurar-publicacao.mjs --cname site/CNAME
 # O Pages limita o site a 1 GB. Folga para metadados e variações da próxima rodada.
 bytes_site=$(du -sb site | cut -f1)
+# De onde vem o tamanho (as maiores pastas do site), para um estouro futuro já mostrar a origem no log.
+echo "Maiores pastas do site:"
+du -sb site/* site/*/* 2>/dev/null | sort -rn | head -8 | awk '{printf "  %7.1f MB  %s\n", $1/1e6, $2}'
 if [ "$bytes_site" -gt 950000000 ]; then
   echo "::error::Site com $bytes_site bytes: excedeu 950 MB. Mover as geometrias para PMTiles por estado antes de publicar."
   exit 1
