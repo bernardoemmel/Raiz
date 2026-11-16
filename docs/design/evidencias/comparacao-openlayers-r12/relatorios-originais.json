@@ -1,0 +1,70 @@
+{
+  "raw_directory": "/tmp/raiz-comparacao-openlayers-corrigida/serie",
+  "raw_files_not_committed": "Eventos detalhados ficam no laboratório local; todas as16observações estão resumidas sem descarte em resultado.json e amostras.csv.",
+  "raw": {
+    "com-360-00-ml.json": {
+      "sha256": "09bcd441ff797c76a7b6570db451a01d3c72860f74ff2805f9923e6bf04ca0bb",
+      "bytes": 417046
+    },
+    "com-360-01-ol.json": {
+      "sha256": "74cf32a6e112eb323f145f089b8299f9c3c5ac942cd5f7980ddb22ec57224504",
+      "bytes": 407846
+    },
+    "com-360-02-ol.json": {
+      "sha256": "cf467d7023506a771790c6529ada2692ef8751a69d88f5b7ea7fdab5b8771f2f",
+      "bytes": 408241
+    },
+    "com-360-03-ml.json": {
+      "sha256": "d2cfb5bb7f3d5a9298261037ab487026f94c627f3abadc7d479b11850905c4e0",
+      "bytes": 417080
+    },
+    "com-360-04-ml.json": {
+      "sha256": "6dc2b0793734dc355ace285ab96f779ac6b1e692850736195c51515fdb19241f",
+      "bytes": 417054
+    },
+    "com-360-05-ol.json": {
+      "sha256": "09c87453f2024fe8c5da77dfde00f5d83d98064bf1241f6c5de3aae7c4c6d102",
+      "bytes": 408721
+    },
+    "com-360-06-ol.json": {
+      "sha256": "32efffb51e8c0cad7a5c7483e93d6ad8c4d0c830df60f36f3ec375ee83f43755",
+      "bytes": 407484
+    },
+    "com-360-07-ml.json": {
+      "sha256": "95f22ae0b66100a599b563c8feb5d4c14bae09f900ff0f1617d64e6321f9cae6",
+      "bytes": 417475
+    },
+    "sem-360-00-ml.json": {
+      "sha256": "9a3a51fe04ec09f93968026ba71f5a506e7c3362efc88d03ceb653d03b8ddf5e",
+      "bytes": 417545
+    },
+    "sem-360-01-ol.json": {
+      "sha256": "23a384e16713cfdffe50fa78364a78eb99d24e8eba539358e27d34334a2c98ba",
+      "bytes": 409671
+    },
+    "sem-360-02-ol.json": {
+      "sha256": "96ad7b0bd5a06135af62c0e5d747c6208580c5356d2514e6d41421ffdd409d23",
+      "bytes": 408970
+    },
+    "sem-360-03-ml.json": {
+      "sha256": "68c273ee59bd4e47450bd2acadc5c82c15df6f8c396cfc49508dedaed302eb76",
+      "bytes": 416839
+    },
+    "sem-360-04-ml.json": {
+      "sha256": "d3569a463c686891e8cb359b5a9085ea1f706bbf77f01cd8eeac034f521d4559",
+      "bytes": 417035
+    },
+    "sem-360-05-ol.json": {
+      "sha256": "1fff84e5a625e51bcb06c1bbea4dafdd9d6e1926b913246c1265823ee31ab19a",
+      "bytes": 409262
+    },
+    "sem-360-06-ol.json": {
+      "sha256": "1bad6acd61466c119de4c858b94d6611614c29163ad5c347f2b305a6f9be68c6",
+      "bytes": 409416
+    },
+    "sem-360-07-ml.json": {
+      "sha256": "2635e2ba3e0e3ef44e413df450a17488b5de4f3f695383ca433e6c4ac0824e5a",
+      "bytes": 417307
+    }
+  }
+}

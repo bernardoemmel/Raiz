@@ -1,0 +1,322 @@
+[
+  {
+    "nome": "estados.json",
+    "asset_id": "RA_kwDOVrdiUs4sJDgu",
+    "tamanho_indice": 48626,
+    "tamanho_baixado": 48626,
+    "sha256": "b60601c875700404dffa200ef2b862922a898e9fed667ffc85a38a15bcb4eca0",
+    "atualizado_em": "2026-11-12T18:18:04Z"
+  },
+  {
+    "nome": "raiz_AC.tar.gz",
+    "asset_id": "RA_kwDOVrdiUs4sGOye",
+    "tamanho_indice": 36125677,
+    "tamanho_baixado": 36125677,
+    "sha256": "65650f055f14df8ccd75f89c4af0ba8c1c98d2d136a2d8a2704f80000d8de288",
+    "atualizado_em": "2026-11-12T14:38:59Z"
+  },
+  {
+    "nome": "raiz_AP.tar.gz",
+    "asset_id": "RA_kwDOVrdiUs4sGHDA",
+    "tamanho_indice": 7914856,
+    "tamanho_baixado": 7914856,
+    "sha256": "e11bda1b06422b742112ba6760bda67ba7ea3ba4b3f6dd5fcaea581436915f54",
+    "atualizado_em": "2026-11-12T14:29:36Z"
+  },
+  {
+    "nome": "raiz_camadas_AC.tar.gz",
+    "asset_id": "RA_kwDOVrdiUs4sGO5F",
+    "tamanho_indice": 121339671,
+    "tamanho_baixado": 121339671,
+    "sha256": "77829b993c32a298b5c22c1ea7c2f73e6340deb55cc0ae34ff52d2bf21da7c03",
+    "atualizado_em": "2026-11-12T14:39:11Z"
+  },
+  {
+    "nome": "raiz_camadas_AP.tar.gz",
+    "asset_id": "RA_kwDOVrdiUs4sGHFK",
+    "tamanho_indice": 34716757,
+    "tamanho_baixado": 34716757,
+    "sha256": "92d78ada28b0e1f68102c0620e0224ea07ef48a068be81b8d15d0065f347dbfc",
+    "atualizado_em": "2026-11-12T14:29:40Z"
+  },
+  {
+    "nome": "raiz_camadas_GO.tar.gz",
+    "asset_id": "RA_kwDOVrdiUs4sH710",
+    "tamanho_indice": 10622436,
+    "tamanho_baixado": 10622436,
+    "sha256": "92324345e4cb5a99e38902b6dfeb39444a0c1000d317ce1b4630759077f5b40a",
+    "atualizado_em": "2026-11-12T16:51:44Z"
+  },
+  {
+    "nome": "raiz_camadas_MA.tar.gz",
+    "asset_id": "RA_kwDOVrdiUs4sHOqE",
+    "tamanho_indice": 2598088,
+    "tamanho_baixado": 2598088,
+    "sha256": "6f8c1bc8ebd7ec6da28e89acfdaca641e5481c09e055d395dcb4b577969096e6",
+    "atualizado_em": "2026-11-12T15:58:06Z"
+  },
+  {
+    "nome": "raiz_camadas_MG.tar.gz",
+    "asset_id": "RA_kwDOVrdiUs4sIl4D",
+    "tamanho_indice": 3211451,
+    "tamanho_baixado": 3211451,
+    "sha256": "f8f0df3e63dece34349922c68a7957cddb267fe16c37e9be4999cba0ab73f728",
+    "atualizado_em": "2026-11-12T17:42:06Z"
+  },
+  {
+    "nome": "raiz_camadas_RO.tar.gz",
+    "asset_id": "RA_kwDOVrdiUs4sGX-N",
+    "tamanho_indice": 303753959,
+    "tamanho_baixado": 303753959,
+    "sha256": "e405cae52775f178ced9fb93fc9d891650204512ac3e7eb2b64b306caec77681",
+    "atualizado_em": "2026-11-12T14:51:32Z"
+  },
+  {
+    "nome": "raiz_camadas_RR.tar.gz",
+    "asset_id": "RA_kwDOVrdiUs4sF9YU",
+    "tamanho_indice": 71780915,
+    "tamanho_baixado": 71780915,
+    "sha256": "fb01aee77332b1f9a86720d7af1c65a72eb9f3f94f241d1804214665aa8a214f",
+    "atualizado_em": "2026-11-12T14:18:06Z"
+  },
+  {
+    "nome": "raiz_camadas_TO.tar.gz",
+    "asset_id": "RA_kwDOVrdiUs4sIPV-",
+    "tamanho_indice": 177914855,
+    "tamanho_baixado": 177914855,
+    "sha256": "8ad7421cdb34a7ed6e9233bdc2be3d9a5f636047b8502a8544269c4bf990642d",
+    "atualizado_em": "2026-11-12T17:15:44Z"
+  },
+  {
+    "nome": "raiz_controle_AC.json",
+    "asset_id": "RA_kwDOVrdiUs4sGO-X",
+    "tamanho_indice": 71620,
+    "tamanho_baixado": 71620,
+    "sha256": "463933f99e6557b696fabebdbc3caa0c62d97487cb83f999a4b76756df709e56",
+    "atualizado_em": "2026-11-12T14:39:12Z"
+  },
+  {
+    "nome": "raiz_controle_AM.json",
+    "asset_id": "RA_kwDOVrdiUs4sHwXj",
+    "tamanho_indice": 26520,
+    "tamanho_baixado": 26520,
+    "sha256": "f032305142092143d431cc5563d260992086841a7cc08871eab243a3d91d2006",
+    "atualizado_em": "2026-11-12T16:37:59Z"
+  },
+  {
+    "nome": "raiz_controle_AP.json",
+    "asset_id": "RA_kwDOVrdiUs4sGHG3",
+    "tamanho_indice": 52216,
+    "tamanho_baixado": 52216,
+    "sha256": "2a74f5997bf4d36985d978036227c9e0fe3be4dfe9adb765d2aa02e7bc3df138",
+    "atualizado_em": "2026-11-12T14:29:41Z"
+  },
+  {
+    "nome": "raiz_controle_GO.json",
+    "asset_id": "RA_kwDOVrdiUs4sH73U",
+    "tamanho_indice": 118296,
+    "tamanho_baixado": 118296,
+    "sha256": "784a411c4f87a3e9cedea9ad2389a68e396d7ebda9aa501dda0e5ab93f3e168a",
+    "atualizado_em": "2026-11-12T16:51:45Z"
+  },
+  {
+    "nome": "raiz_controle_MA.json",
+    "asset_id": "RA_kwDOVrdiUs4sI86H",
+    "tamanho_indice": 76656,
+    "tamanho_baixado": 76656,
+    "sha256": "129593886bd2ca0f4bc5a7deacdf8f7f10a1fe66d32f1223ddaa8ba0144c680e",
+    "atualizado_em": "2026-11-12T18:10:09Z"
+  },
+  {
+    "nome": "raiz_controle_MG.json",
+    "asset_id": "RA_kwDOVrdiUs4sIl5T",
+    "tamanho_indice": 264688,
+    "tamanho_baixado": 264688,
+    "sha256": "964a4d2865e25cb8778280856390e0231e2e384bb6d85c0faaa37b110c56eb9a",
+    "atualizado_em": "2026-11-12T17:42:07Z"
+  },
+  {
+    "nome": "raiz_controle_MS.json",
+    "asset_id": "RA_kwDOVrdiUs4sJDeA",
+    "tamanho_indice": 33627,
+    "tamanho_baixado": 33627,
+    "sha256": "1bcd1354af36fa5dcc129318c7faf8d207ae73d68806a56f6bbbd1572326b1e4",
+    "atualizado_em": "2026-11-12T18:18:02Z"
+  },
+  {
+    "nome": "raiz_controle_MT.json",
+    "asset_id": "RA_kwDOVrdiUs4sIYtz",
+    "tamanho_indice": 47063,
+    "tamanho_baixado": 47063,
+    "sha256": "a711e04751db03104c0842dd39182c3de8ae6d8c3dd4212d263492d7610f42be",
+    "atualizado_em": "2026-11-12T17:27:00Z"
+  },
+  {
+    "nome": "raiz_controle_PA.json",
+    "asset_id": "RA_kwDOVrdiUs4sHcFB",
+    "tamanho_indice": 28,
+    "tamanho_baixado": 28,
+    "sha256": "cfc0342c2e5c74e4394e86a7c467c0d82844fb5079422c459f62799ca6bce32a",
+    "atualizado_em": "2026-11-12T16:13:08Z"
+  },
+  {
+    "nome": "raiz_controle_RO.json",
+    "asset_id": "RA_kwDOVrdiUs4sHJjv",
+    "tamanho_indice": 169871,
+    "tamanho_baixado": 169871,
+    "sha256": "00fa020ce258ab050c2e1c4843c561bc3914dcde3d8d9beb2f105fbcd8e5ff65",
+    "atualizado_em": "2026-11-12T15:51:20Z"
+  },
+  {
+    "nome": "raiz_controle_RR.json",
+    "asset_id": "RA_kwDOVrdiUs4sF9aj",
+    "tamanho_indice": 46082,
+    "tamanho_baixado": 46082,
+    "sha256": "927992bdfd870c9411d91b0842c32a6b7d7fa5ccb659595e7174a99ab96fa90b",
+    "atualizado_em": "2026-11-12T14:18:07Z"
+  },
+  {
+    "nome": "raiz_controle_TO.json",
+    "asset_id": "RA_kwDOVrdiUs4sIPbz",
+    "tamanho_indice": 334016,
+    "tamanho_baixado": 334016,
+    "sha256": "a0dbf3b2b3420842ae034a4ed09166eb58435883fad34947c3c2f18749f7ec99",
+    "atualizado_em": "2026-11-12T17:15:45Z"
+  },
+  {
+    "nome": "raiz_geo_AC.tar.gz",
+    "asset_id": "RA_kwDOVrdiUs4sDk39",
+    "tamanho_indice": 10926541,
+    "tamanho_baixado": 10926541,
+    "sha256": "615bd4e1671b37b708454a349337570f541ab1fb53ff7c66d2761a11d41bc454",
+    "atualizado_em": "2026-11-12T10:58:26Z"
+  },
+  {
+    "nome": "raiz_geo_AP.tar.gz",
+    "asset_id": "RA_kwDOVrdiUs4sDk4-",
+    "tamanho_indice": 4135472,
+    "tamanho_baixado": 4135472,
+    "sha256": "cda22a3fd8356873c520be5d224ad4d48f959d43ababdf5f7aa9ad7f9b514e56",
+    "atualizado_em": "2026-11-12T10:58:28Z"
+  },
+  {
+    "nome": "raiz_geo_GO.tar.gz",
+    "asset_id": "RA_kwDOVrdiUs4sH7z1",
+    "tamanho_indice": 2404759,
+    "tamanho_baixado": 2404759,
+    "sha256": "63d184cd001d0251bf895876d8dbc90068d6e141177d339534700274e120bef0",
+    "atualizado_em": "2026-11-12T16:51:41Z"
+  },
+  {
+    "nome": "raiz_geo_MA.tar.gz",
+    "asset_id": "RA_kwDOVrdiUs4sI847",
+    "tamanho_indice": 383248,
+    "tamanho_baixado": 383248,
+    "sha256": "69862a2f0e9dfd80149dae44662ee4a009675e75db740bbc4e866c4dbc37771e",
+    "atualizado_em": "2026-11-12T18:10:08Z"
+  },
+  {
+    "nome": "raiz_geo_MG.tar.gz",
+    "asset_id": "RA_kwDOVrdiUs4sIl2o",
+    "tamanho_indice": 877156,
+    "tamanho_baixado": 877156,
+    "sha256": "f8ed57f47c4fbb338f4487ef225479a84b8e89a1b7c01c92e26a93df0ba99cce",
+    "atualizado_em": "2026-11-12T17:42:04Z"
+  },
+  {
+    "nome": "raiz_geo_PA.tar.gz",
+    "asset_id": "RA_kwDOVrdiUs4sDk5d",
+    "tamanho_indice": 82983280,
+    "tamanho_baixado": 82983280,
+    "sha256": "a788c5379011d4b2295f096a0e132479eb10f66d0f5fd1b2b41513f0131367ce",
+    "atualizado_em": "2026-11-12T10:58:30Z"
+  },
+  {
+    "nome": "raiz_geo_RO.tar.gz",
+    "asset_id": "RA_kwDOVrdiUs4sDoJ3",
+    "tamanho_indice": 27031154,
+    "tamanho_baixado": 27031154,
+    "sha256": "c42e388ab54a987aff7476476f0ede5ede90578cf7fe8e41aa1c0ecb5e2679ee",
+    "atualizado_em": "2026-11-12T11:03:01Z"
+  },
+  {
+    "nome": "raiz_geo_RR.tar.gz",
+    "asset_id": "RA_kwDOVrdiUs4sDk7i",
+    "tamanho_indice": 4556615,
+    "tamanho_baixado": 4556615,
+    "sha256": "3293bf36c3d155b8fc8009bfe61fedfb0bf2dc0dffde05583d8e83301c9c20f8",
+    "atualizado_em": "2026-11-12T10:58:31Z"
+  },
+  {
+    "nome": "raiz_geo_TO.tar.gz",
+    "asset_id": "RA_kwDOVrdiUs4sIPOF",
+    "tamanho_indice": 33352564,
+    "tamanho_baixado": 33352564,
+    "sha256": "41f25d51ee297ad8cdac189726b477a59a85ed8b720520025d36a039fbecb9b6",
+    "atualizado_em": "2026-11-12T17:15:31Z"
+  },
+  {
+    "nome": "raiz_GO.tar.gz",
+    "asset_id": "RA_kwDOVrdiUs4sH7yZ",
+    "tamanho_indice": 2520081,
+    "tamanho_baixado": 2520081,
+    "sha256": "6e751a9e1acacfae93b201f1f3416fb46b448b15cdcd18dca86e5f584adc86d6",
+    "atualizado_em": "2026-11-12T16:51:40Z"
+  },
+  {
+    "nome": "raiz_MA.tar.gz",
+    "asset_id": "RA_kwDOVrdiUs4sI84O",
+    "tamanho_indice": 1177794,
+    "tamanho_baixado": 1177794,
+    "sha256": "f126c92d596603ea347e644cd3d58bf091cbb29b3414d17496765eea93a228cd",
+    "atualizado_em": "2026-11-12T18:10:07Z"
+  },
+  {
+    "nome": "raiz_MG.tar.gz",
+    "asset_id": "RA_kwDOVrdiUs4sIl1f",
+    "tamanho_indice": 997861,
+    "tamanho_baixado": 997861,
+    "sha256": "3687f8f3a04bf56e69e47283c095ce53b3536c0da230ff83bd5086376d6c59d9",
+    "atualizado_em": "2026-11-12T17:42:03Z"
+  },
+  {
+    "nome": "raiz_PA.tar.gz",
+    "asset_id": "RA_kwDOVrdiUs4sHcAg",
+    "tamanho_indice": 107518125,
+    "tamanho_baixado": 107518125,
+    "sha256": "3fafd8e1e177e2fc11d6429fdb2b5e46bbf756834f97675b6cb751dcfafb7c2a",
+    "atualizado_em": "2026-11-12T16:13:07Z"
+  },
+  {
+    "nome": "raiz_RO.tar.gz",
+    "asset_id": "RA_kwDOVrdiUs4sHJbV",
+    "tamanho_indice": 109467143,
+    "tamanho_baixado": 109467143,
+    "sha256": "2f487cda4c36a34697f4aec45c69ca2c98488d51008e78e3180dbf0031fd610d",
+    "atualizado_em": "2026-11-12T15:51:11Z"
+  },
+  {
+    "nome": "raiz_RR.tar.gz",
+    "asset_id": "RA_kwDOVrdiUs4sF9VH",
+    "tamanho_indice": 14850311,
+    "tamanho_baixado": 14850311,
+    "sha256": "65128d717e73061739aa2ea01f8e09fd78ea8ea51af6e09078236ad547950c68",
+    "atualizado_em": "2026-11-12T14:18:00Z"
+  },
+  {
+    "nome": "raiz_TO.tar.gz",
+    "asset_id": "RA_kwDOVrdiUs4sIPLG",
+    "tamanho_indice": 31150084,
+    "tamanho_baixado": 31150084,
+    "sha256": "16271d9992b64c76fd848a725019a1560490cf2e63c2a29b90162548c408eef6",
+    "atualizado_em": "2026-11-12T17:15:27Z"
+  },
+  {
+    "nome": "URTX.kml",
+    "asset_id": "RA_kwDOVrdiUs4sDwM6",
+    "tamanho_indice": 723983,
+    "tamanho_baixado": 723983,
+    "sha256": "14bdeb242b8c338524def195c2bed78554e1e1c01a20a13b4d82894acefdfe6f",
+    "atualizado_em": "2026-11-12T11:13:46Z"
+  }
+]

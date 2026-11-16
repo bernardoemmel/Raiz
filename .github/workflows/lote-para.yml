@@ -1,0 +1,180 @@
+name: Lote do Pará (cenário versionado)
+
+on:
+  workflow_dispatch:
+    inputs:
+      cenario:
+        description: R12 usa as mesmas entradas congeladas da R11
+        type: choice
+        required: true
+        default: central_r12
+        options:
+          - central_r12
+          - central_r11
+          - estresse_r12
+
+permissions:
+  contents: write
+  actions: read
+
+env:
+  GH_TOKEN: ${{ github.token }}
+  RAIZ_DADOS_PRIVADOS_URL: ${{ vars.RAIZ_DADOS_PRIVADOS_URL || format('release-github://{0}/dados-privados', github.repository) }}
+  RAIZ_DADOS_PRIVADOS_TOKEN: ${{ secrets.RAIZ_DADOS_PRIVADOS_TOKEN || github.token }}
+
+concurrency:
+  group: lote-para-central-r11
+  cancel-in-progress: false
+
+# Dados completos nunca entram em artifacts ou cache do Actions de repositório aberto.
+# A entrada congelada e os checkpoints privados são preservados entre tentativas da mesma execução.
+jobs:
+  preparar:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 200
+    outputs:
+      vagas: ${{ steps.reserva.outputs.vagas }}
+      matriz: ${{ steps.plano.outputs.matriz }}
+    steps:
+      - uses: actions/checkout@v7
+      - name: Reservar capacidade global antes de preparar os dados
+        id: reserva
+        run: python scripts/reservar_lote.py --reservar 15 --aguardar-minutos 180
+      - uses: astral-sh/setup-uv@v7
+        with:
+          version: "0.13.6"
+      - run: uv sync --frozen --extra motor
+      - name: Recuperar a entrada privada congelada desta execução
+        run: >-
+          uv run python -m raiz.executor.transferencia_privada baixar-pasta
+          --nome "lote_PA_entradas_${GITHUB_RUN_ID}.tar.gz" --caminho rodada/entradas --opcional
+      - name: Congelar os dados dos 144 municípios
+        env:
+          CENARIO: ${{ inputs.cenario || 'central_r11' }}
+        run: |
+          if [ ! -f rodada/entradas/snapshot.json ]; then
+            uv run python -m raiz.restauracao_rodada preparar --destino rodada/entradas --cenario "$CENARIO"
+          fi
+      - name: Distribuir os municípios por quantidade de imóveis
+        id: plano
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          plano = json.loads(Path('rodada/entradas/snapshot.json').read_text())['plano']
+          matriz = {'include': [{'fatia': p['fatia']} for p in plano]}
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+              f.write('matriz=' + json.dumps(matriz) + '\n')
+          PY
+      - name: Guardar a entrada congelada somente no arquivo privado
+        run: >-
+          uv run python -m raiz.executor.transferencia_privada enviar-pasta
+          --nome "lote_PA_entradas_${GITHUB_RUN_ID}.tar.gz" --caminho rodada/entradas --imutavel
+
+  calcular:
+    needs: preparar
+    runs-on: ubuntu-24.04
+    timeout-minutes: 240
+    strategy:
+      fail-fast: false
+      max-parallel: ${{ fromJSON(needs.preparar.outputs.vagas) }}
+      matrix: ${{ fromJSON(needs.preparar.outputs.matriz) }}
+    env:
+      OPENBLAS_NUM_THREADS: "1"
+      OMP_NUM_THREADS: "1"
+      FATIA: ${{ matrix.fatia }}
+    steps:
+      - uses: actions/checkout@v7
+      - name: Confirmar as cotas globais antes dos dados e das dependências
+        id: reserva
+        env:
+          VAGAS: ${{ needs.preparar.outputs.vagas }}
+        run: python scripts/reservar_lote.py --confirmar "$VAGAS"
+      - uses: astral-sh/setup-uv@v7
+        with:
+          version: "0.13.6"
+      - run: uv sync --frozen --extra motor
+      - name: Baixar a entrada congelada com autenticação
+        run: >-
+          uv run python -m raiz.executor.transferencia_privada baixar-pasta
+          --nome "lote_PA_entradas_${GITHUB_RUN_ID}.tar.gz" --caminho rodada/entradas
+      - name: Restaurar municípios concluídos da mesma entrada e versão
+        run: >-
+          uv run python -m raiz.executor.transferencia_privada baixar-pasta
+          --nome "lote_PA_checkpoint_${GITHUB_RUN_ID}_${FATIA}.tar.gz"
+          --caminho rodada/fatia/resultado --opcional
+      - name: Calcular todas as fazendas da fatia
+        run: >-
+          uv run python -m raiz.restauracao_rodada calcular
+          --entradas rodada/entradas --destino rodada/fatia --fatia "$FATIA"
+      - name: Guardar municípios concluídos no arquivo privado mesmo se a fatia parar
+        if: always() && steps.reserva.outcome == 'success'
+        run: |
+          if [ -d rodada/fatia/resultado ]; then
+            uv run python -m raiz.executor.transferencia_privada enviar-pasta \
+              --nome "lote_PA_checkpoint_${GITHUB_RUN_ID}_${FATIA}.tar.gz" --caminho rodada/fatia/resultado
+          fi
+      - name: Guardar a fatia calculada no arquivo privado
+        run: >-
+          uv run python -m raiz.executor.transferencia_privada enviar-arquivo
+          --nome "lote_PA_calculado_${GITHUB_RUN_ID}_${FATIA}.tar.gz"
+          --caminho "rodada/fatia/calculado_${FATIA}.tar.gz"
+
+  publicar:
+    needs: [preparar, calcular]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 240
+    env:
+      OPENBLAS_NUM_THREADS: "1"
+      OMP_NUM_THREADS: "1"
+      RAIZ_PESQUISA_ONLINE: "1"
+    steps:
+      - uses: actions/checkout@v7
+      - name: Confirmar as cotas globais antes dos dados e das dependências
+        id: reserva
+        env:
+          VAGAS: ${{ needs.preparar.outputs.vagas }}
+        run: python scripts/reservar_lote.py --confirmar "$VAGAS"
+      - uses: astral-sh/setup-uv@v7
+        with:
+          version: "0.13.6"
+      - run: uv sync --frozen --extra motor
+      - name: Baixar a entrada congelada com autenticação
+        run: >-
+          uv run python -m raiz.executor.transferencia_privada baixar-pasta
+          --nome "lote_PA_entradas_${GITHUB_RUN_ID}.tar.gz" --caminho rodada/entradas
+      - name: Baixar somente as fatias previstas na entrada congelada
+        run: |
+          uv run python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          from raiz.executor.transferencia_privada import arquivo_privado, baixar_arquivo
+          arm = arquivo_privado()
+          plano = json.loads(Path('rodada/entradas/snapshot.json').read_text())['plano']
+          for item in plano:
+              fatia = item['fatia']
+              if not fatia.isdigit():
+                  raise ValueError('Fatia inválida')
+              nome = f"lote_PA_calculado_{os.environ['GITHUB_RUN_ID']}_{fatia}.tar.gz"
+              baixar_arquivo(nome, Path(f'rodada/calculados/calculado_{fatia}.tar.gz'), arm=arm)
+          PY
+      - name: Recuperar cenários de sensibilidade já concluídos nesta execução
+        run: >-
+          uv run python -m raiz.executor.transferencia_privada baixar-pasta
+          --nome "lote_PA_sensibilidade_${GITHUB_RUN_ID}.tar.gz"
+          --caminho rodada/entrega/produto/sensibilidade --opcional
+      - name: Conferir os 144 municípios e montar os três lotes
+        run: >-
+          uv run python -m raiz.restauracao_rodada reunir
+          --entradas rodada/entradas --calculados rodada/calculados --destino rodada/entrega
+      - name: Preservar sensibilidade no arquivo privado mesmo se a reunião parar
+        if: always() && steps.reserva.outcome == 'success'
+        run: |
+          if [ -d rodada/entrega/produto/sensibilidade ]; then
+            uv run python -m raiz.executor.transferencia_privada enviar-pasta \
+              --nome "lote_PA_sensibilidade_${GITHUB_RUN_ID}.tar.gz" --caminho rodada/entrega/produto/sensibilidade
+          fi
+      - name: Guardar lotes e previsões versionadas somente no arquivo privado
+        run: uv run python -m raiz.restauracao_rodada publicar --destino rodada/entrega

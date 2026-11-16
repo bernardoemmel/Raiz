@@ -234,7 +234,18 @@ def n_fatias(uf: str) -> int:
 def unidades(uf: str) -> list[str]:
     """Unidades de trabalho do estado: 'PA' (inteiro) ou 'MG-1', 'MG-2'... (fatias)."""
     k = n_fatias(uf)
+    if os.environ.get("RAIZ_PRIORIDADE_FUNIL") == "1" and k < 5 and TOTAL_IBGE[uf] >= 5:
+        # Identidades novas não reinterpretam TO-1/TO-2 nem seus checkpoints.
+        return [f"{uf}-{i * 1000 + j}" for i in range(1, k + 1)
+                for j in range(1, 5 // k + (i <= 5 % k) + 1)]
     return [uf] if k == 1 else [f"{uf}-{i}" for i in range(1, k + 1)]
+
+
+def unidade_ancestral(unidade: str) -> str | None:
+    uf, i, _ = ler_unidade(unidade)
+    if i < 1000:
+        return None
+    return uf if n_fatias(uf) == 1 else f"{uf}-{i // 1000}"
 
 
 def ler_unidade(u: str) -> tuple[str, int, int]:
@@ -249,6 +260,13 @@ def municipios_da_fatia(uf: str, i: int) -> list[str]:
     """Municípios da fatia i (1..k): o estado em faixas de longitude com o mesmo número de municípios, para cada job
     baixar só os blocos (TerraBrasilis, MapBiomas) da faixa dele. Fatia 0: o estado inteiro."""
     k = n_fatias(uf)
+    if i >= 1000:
+        pai, parte = divmod(i, 1000)
+        quantidade = 5 // k + (pai <= 5 % k)
+        if not (k < 5 and 1 <= pai <= k and 1 <= parte <= quantidade):
+            raise ValueError("subdivisão de processamento inválida")
+        antigos = municipios_da_fatia(uf, pai)
+        return antigos[(parte - 1) * len(antigos) // quantidade:parte * len(antigos) // quantidade]
     lista = sorted((r for r in _lista_municipios() if r.get("codigo_uf") == str(COD_UF[uf])),
                    key=lambda r: (float(r.get("longitude") or 0), r["codigo_ibge"]))
     cods = [r["codigo_ibge"] for r in lista]
@@ -318,6 +336,10 @@ def _tem_gh() -> bool:
 def ler_manifesto(tentativas: int = 4) -> dict:
     """estados.json publicado no Release. {} se ainda não existe; erro se não conseguir ler (para não tratar o Brasil
     inteiro como vazio por causa de uma falha de rede)."""
+    if os.environ.get("RAIZ_DADOS_PRIVADOS_URL") or os.environ.get("RAIZ_DADOS_PRIVADOS_REPO"):
+        # Planejamento/retomada usam o snapshot completo; o manifesto aberto não carrega marcas privadas.
+        from raiz.executor.armazem import do_config
+        return do_config().manifesto(fresco=True)
     ultimo = None
     for i in range(tentativas):
         if _tem_gh():  # pela API: sempre a versão mais nova, sem cache no caminho

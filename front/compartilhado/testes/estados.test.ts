@@ -276,11 +276,11 @@ describe("sem RAIZ_DADOS e sem internet: a amostra", () => {
   it("RAIZ_DADOS vem do ambiente ou do .env; sem ela, dados/estados se já tiver estado; senão, nada", () => {
     expect(lerRaizDados(repoFalso, {})).toBeNull()
     expect(pastaPadrao(repoFalso, {})).toBeNull()
-    fs.mkdirSync(path.join(repoFalso, "dados", "estados"), { recursive: true })
-    expect(pastaPadrao(repoFalso, {}), "pasta baixada vazia não conta").toBeNull()
-    fs.mkdirSync(path.join(repoFalso, "dados", "estados", "AP"))
-    fs.writeFileSync(path.join(repoFalso, "dados", "estados", "AP", "resumo_AP.csv"), "cod_ibge\n")
-    expect(pastaPadrao(repoFalso, {})).toBe("dados/estados")
+    fs.mkdirSync(path.join(repoFalso, "dados", "publicos"), { recursive: true })
+    expect(pastaPadrao(repoFalso, {}), "pasta pública vazia não volta à amostra").toBe("dados/publicos")
+    fs.mkdirSync(path.join(repoFalso, "dados", "publicos", "AP"))
+    fs.writeFileSync(path.join(repoFalso, "dados", "publicos", "AP", "resumo_AP.csv"), "cod_ibge\n")
+    expect(pastaPadrao(repoFalso, {})).toBe("dados/publicos")
     fs.writeFileSync(path.join(repoFalso, ".env"), 'MAPBIOMAS_ALERTA_EMAIL=x\nRAIZ_DADOS="motor/saida"\n')
     expect(pastaPadrao(repoFalso, {})).toBe("motor/saida")
     expect(pastaPadrao(repoFalso, { RAIZ_DADOS: "/outra" })).toBe("/outra")
@@ -290,7 +290,7 @@ describe("sem RAIZ_DADOS e sem internet: a amostra", () => {
 
   it("sem a variável, com pasta que não existe ou pedindo dados/amostra, lê a amostra como sempre", () => {
     const avisos: string[] = []
-    for (const raizDados of [null, "/pasta/que/nao/existe", "dados/amostra"]) {
+    for (const raizDados of [null, "dados/amostra"]) {
       const p = abrirPasta({ repo: REPO, raizDados, geo: GEO, cache: CACHE, avisar: (m) => avisos.push(m) })
       expect(p.modo).toBe("amostra")
       const e = p.estados()
@@ -303,7 +303,9 @@ describe("sem RAIZ_DADOS e sem internet: a amostra", () => {
       })
       expect(e.estados.filter((x) => x.situacao === "sem_dados")).toHaveLength(26)
     }
-    expect(avisos.join(" ")).toMatch(/não existe/)
+    const vazia = abrirPasta({ repo: REPO, raizDados: "/pasta/que/nao/existe", avisar: (m) => avisos.push(m) })
+    expect(vazia.ufs()).toEqual([])
+    expect(avisos.join(" ")).toMatch(/nenhum dado será servido/)
   })
 
   it("o predev sem internet avisa e segue (sai sem erro), e o front abre com a amostra", async () => {
@@ -314,15 +316,14 @@ describe("sem RAIZ_DADOS e sem internet: a amostra", () => {
       timeout: 30_000,
     })
     expect(r.status).toBe(0)
-    expect(r.stderr).toMatch(/\[dados\] não consegui ler o estados\.json publicado/)
+    expect(r.stderr).toMatch(/\[dados\] não consegui ler o estados\.json público/)
     expect(fs.existsSync(destino)).toBe(false)
-    // o plugin com a mesma RAIZ_DADOS: a pasta não existe, então serve a amostra
+    // RAIZ_DADOS explícita nunca cai na amostra se a publicação estiver ausente
     const servir = conectar(dadosRaiz({ repo: REPO, raizDados: destino, cache: path.join(temp, "cache-predev") }))
     const e = JSON.parse((await servir("/amostra/estados.json")).corpo)
-    expect(e.pasta).toBe("amostra")
-    expect(e.estados.find((x: { uf: string }) => x.uf === "PA").situacao).toBe("completo")
-    const pontos = JSON.parse((await servir("/amostra/pontos_PA.json")).corpo)
-    expect(pontos.fazendas).toBe(196136)
+    expect(e.pasta).toBe("RAIZ_DADOS")
+    expect(e.estados.find((x: { uf: string }) => x.uf === "PA").situacao).toBe("sem_dados")
+    expect((await servir("/amostra/pontos_PA.json")).status).toBe(404)
   }, 60_000)
 
   it("RAIZ_SEM_DOWNLOAD=1 pula o download sem tentar a rede", () => {
@@ -344,53 +345,40 @@ describe("o que o plugin serve", () => {
     const e = JSON.parse((await servir("/amostra/estados.json")).corpo)
     expect(e.estados.find((x: { uf: string }) => x.uf === "GO").municipios).toBe(5)
     const i = JSON.parse((await servir("/amostra/indice_AP.json")).corpo)
-    expect(i.arquivos).toContain(`imoveis_${COM_LISTA}.csv`)
+    expect(i.arquivos).not.toContain(`imoveis_${COM_LISTA}.csv`)
+    expect(e.acesso).toBe("agregado")
+    expect(e.estados.every((x: { com_lista: string[] }) => x.com_lista.length === 0)).toBe(true)
     expect(i.arquivos).toContain("resumo_AP.csv")
     expect(JSON.parse((await servir("/amostra/indice_GO.json")).corpo).arquivos).toEqual(["resumo_GO.csv"])
     expect(JSON.parse((await servir("/amostra/pontos_GO.json")).corpo).uf).toBe("GO")
     expect((await servir("/amostra/pontos_TO.json")).status).toBe(404)
   })
 
-  it("CPF e CNPJ continuam mascarados e coluna pessoal não sai, no CSV, na ficha e na busca", async () => {
-    const csv = (await servir(`/amostra/extras_${COM_LISTA}.csv`)).corpo
-    expect(csv).not.toContain("nome_proprietario")
-    expect(csv).not.toContain("Nome de teste")
-    expect(csv).not.toContain(CPF)
-    expect(csv).not.toContain(CPF.slice(0, 3) + "." + CPF.slice(3, 6))
-    expect(csv).toContain("***.456.789-**")
-    const car = ler("imoveis_1504950.csv")
-      .linhas.find((l) => l.cod_imovel.startsWith("PA-1504950-"))!
-      .cod_imovel.replace("PA-1504950-", `AP-${COM_LISTA}-`)
-    const ficha = (await servir(`/amostra/fichas/${car}.json`)).corpo
-    expect(JSON.parse(ficha).imovel.cod_imovel).toBe(car)
-    expect(ficha).not.toContain(CPF)
-    expect(ficha).not.toContain("nome_proprietario")
+  it("não serve ficha, CSV por imóvel, índice CAR ou busca individual no site aberto", async () => {
+    const car = ler("imoveis_1504950.csv").linhas[0].cod_imovel
+    for (const url of [
+      `/amostra/extras_${COM_LISTA}.csv`, `/amostra/imoveis_${COM_LISTA}.csv.gz`,
+      `/amostra/fichas/${car}.json`, "/amostra/car_PA.json", `/geo/imoveis_${COM_LISTA}.geojson`,
+      `/@fs/${DADOS}/AP/imoveis_${COM_LISTA}.csv`,
+    ]) expect((await servir(url)).status, url).toBe(404)
     const busca = JSON.parse((await servir(`/busca?q=${car.slice(0, 16)}`)).corpo)
-    expect(busca.situacao).toBe("ok")
-    expect(busca.imoveis[0].cod_ibge).toBe(COM_LISTA)
+    expect(busca.imoveis).toEqual([])
+    expect(JSON.parse((await servir("/busca?q=Município")).corpo).municipios.length).toBeGreaterThan(0)
   })
 
-  it("acha a fazenda cujo código do CAR diz um município e que o motor pôs no arquivo de outro", async () => {
-    // na amostra, Cumaru do Norte tem fazendas com código de outros municípios do Pará (no Pará todo são 2.035)
+  it("a leitura interna ainda acha CAR que o motor pôs no município vizinho", async () => {
     const doVizinho = ler("imoveis_1504950.csv").linhas.find((l) => !l.cod_imovel.startsWith("PA-1504950-"))!.cod_imovel
-    const servirAmostra = conectar(dadosRaiz({ repo: REPO, raizDados: null, cache: path.join(temp, "cache-vizinho") }))
-    const fora = JSON.parse((await servirAmostra("/amostra/car_PA.json")).corpo)
-    expect(fora[doVizinho]).toBe("1504950")
-    expect(JSON.parse((await servirAmostra(`/amostra/fichas/${doVizinho}.json`)).corpo).imovel.cod_imovel).toBe(doVizinho)
-    const busca = JSON.parse((await servirAmostra(`/busca?q=${doVizinho}`)).corpo)
-    expect(busca.situacao).toBe("ok")
-    expect(busca.imoveis[0]).toMatchObject({ cod_imovel: doVizinho, cod_ibge: "1504950" })
-    // pelo começo do código também
-    const comeco = JSON.parse((await servirAmostra(`/busca?q=${doVizinho.slice(0, 15)}`)).corpo)
-    expect(comeco.imoveis.map((i: { cod_imovel: string }) => i.cod_imovel)).toContain(doVizinho)
+    const pasta = abrirPasta({ repo: REPO, raizDados: null, cache: path.join(temp, "cache-vizinho") })
+    expect((await pasta.foraDoMunicipio("PA"))[doVizinho]).toBe("1504950")
+    expect((await pasta.ficha(doVizinho))?.imovel.cod_imovel).toBe(doVizinho)
   })
 
   it("o CSV também sai comprimido (.csv.gz, como o site estático guarda), limpo do mesmo jeito", async () => {
-    const r = await servir(`/amostra/extras_${COM_LISTA}.csv.gz`)
+    const r = await servir("/amostra/resumo_AP.csv.gz")
     expect(r.status).toBe(200)
     expect([r.bruto[0], r.bruto[1]]).toEqual([0x1f, 0x8b])
     const texto = gunzipSync(r.bruto).toString("utf8")
-    expect(texto).toBe((await servir(`/amostra/extras_${COM_LISTA}.csv`)).corpo)
+    expect(texto).toBe((await servir("/amostra/resumo_AP.csv")).corpo)
     expect(texto).not.toContain(CPF)
     expect((await servir("/amostra/resumo_XX.csv.gz")).status).toBe(404)
   })

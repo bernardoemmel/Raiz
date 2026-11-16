@@ -1,0 +1,61 @@
+{
+  "manifesto_sha256": "b29eb3fe8887a676bbf5ad1ea7a040c68a0cc90d0863b27c5d3bd6e9ff34854c",
+  "derivados": 19,
+  "contagens": {
+    "resumos": {
+      "linhas": 9,
+      "registros_lidos": 3,
+      "registros_com_quantis": 3,
+      "fontes": 3,
+      "modelos": 3
+    },
+    "previsoes": {
+      "linhas": 8289432,
+      "registros_lidos": 345870,
+      "registros_com_quantis": 345870,
+      "fontes": 144,
+      "modelos": 1
+    },
+    "opcoes": {
+      "linhas": 3629238,
+      "registros_lidos": 604894,
+      "registros_com_quantis": 604873,
+      "fontes": 3,
+      "modelos": 3
+    },
+    "diagnosticos": 3981
+  },
+  "membros": {
+    "barata": 100,
+    "segura": 275,
+    "compacta": 30,
+    "previsoes": 582
+  },
+  "segundos": 152.411,
+  "escopo": "validacao_local_sem_publicacao_ou_atestacao",
+  "data": "2026-11-12",
+  "conversao_reproduzida_sem_recalcular_ciencia": true,
+  "fontes": {
+    "barata": {
+      "sha256": "387255d9db78dbcf674960155ece1c5a6138175d9f7abbe0369e2721e4df69a7",
+      "bytes": 81877508,
+      "asset_id": 741026329
+    },
+    "segura": {
+      "sha256": "f9a00ea18159548f75a77e9f9a6f3b23b8ff82358afa6aa5b342c28c346db54e",
+      "bytes": 81949402,
+      "asset_id": 741027168
+    },
+    "compacta": {
+      "sha256": "0d4b6f7925a4f23854588edaf02f3a50a561df7e8cd0a177a9d5691c4ebbdec6",
+      "bytes": 81947222,
+      "asset_id": 741028120
+    },
+    "previsoes": {
+      "sha256": "50dd1bd0501054dc39bac8f1283db41f45f8eefb9d8af91ef5dd618f45f9dc83",
+      "bytes": 143253367,
+      "asset_id": 741030043
+    }
+  },
+  "modelo_versao": "restauracao-2026d+a84f9789"
+}

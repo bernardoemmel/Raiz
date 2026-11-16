@@ -169,3 +169,17 @@ export const INTERESSE = {
   recusou: COR.situacaoNaoApta,
   sem_resposta: COR.situacaoNaoApta,
 } as const
+
+/** Visual V2 exclusivo do globo; não modifica a paleta clara usada pelo produtor. */
+export const COR_MAPA_V2 = {
+  terra: "#111815", agua: "#0A0F0E", estado: "#3A4A42", pais: "#56665D",
+  rotulo: "#8E9A92", texto: "#EEF2EC", destaque: "#C9E88F", acao: "#E8713A", rio: "#3B5A58",
+} as const
+export const CORES_H3_V2 = ["#163A2A", "#1E5E3C", "#2C8050", "#49A363", "#7CC47A", "#C9E88F"] as const
+
+/** ECharts e Vega recebem cores explícitas; esta paleta acompanha o tema escuro somente no analista. */
+export const COR_GRAFICO_V2 = {
+  fundo: "#0D1311", texto: "#EEF2EC", secundario: "#8E9A92", grade: "#26312C",
+  contratado: "#8E9A92", emitido: "#8CC5E9", entregue: "#7CC47A",
+  faixa: "#7CC47A", mediana: "#C9E88F", observado: "#F48A59",
+} as const

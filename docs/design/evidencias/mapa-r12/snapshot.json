@@ -1,0 +1,512 @@
+{
+  "capturado_em": "2026-11-13T18:37:00.742Z",
+  "viewport": {
+    "largura": 1440,
+    "altura": 1000
+  },
+  "frontend": "7fe3539f63416258f0d91e1c4371fc4d52899aa6",
+  "exportador": "6bc77c1",
+  "antes": {
+    "url": "https://bernardoemmel.github.io/Raiz/",
+    "capturado_em": "2026-11-13T02:14:31.344Z",
+    "svg_inicial": 1,
+    "erros": [],
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    }
+  },
+  "dados_publicados_em": "2026-11-12T23:46:50+00:00",
+  "municipios": 444,
+  "estados": 13,
+  "agregado": {
+    "arquivo": "agregados_brasil.geojson",
+    "bytes": 1227580,
+    "celulas": 6787,
+    "celulas_numericas": 3717,
+    "fazendas_no_agregado": 1626268,
+    "hectares_conhecidos": 1572045.2084039983,
+    "atualizado_em": "2026-11-13T00:35:56.000Z",
+    "ufs": 13,
+    "fallback_gzip_bytes": 215591,
+    "sha256": "c55dd9c937f3bca2f97f51c21862b69ac4d846a48b5b3781bc495ea15b64f422",
+    "fallback_gzip_sha256": "5ad92a2138b0c78dc8ea7bfe9bd16bcedbebf095f05c80a8262737025fc04816"
+  },
+  "mapa_inicial": "MapLibre; Supercluster em worker próprio, com botões apenas para os grupos visíveis; sem SVG nacional grande e sem fonte invisível duplicada no MapLibre.",
+  "rede": {
+    "requisicoes_desktop": 103,
+    "requisicoes_celular": 50,
+    "respostas_desktop": {
+      "200": 67,
+      "206": 36
+    },
+    "respostas_celular": {
+      "200": 47,
+      "206": 3
+    },
+    "erros": [],
+    "cancelamentos_naturais": 0,
+    "tiles_satelite": 9,
+    "todos_tiles_http_200": true,
+    "endpoints_pagos_solicitados": false,
+    "fonte_processamento": "amostra/processamento.json",
+    "raw_vivo_solicitado": false,
+    "escopo": "Build local medido, com snapshot congelado; não comprova a publicação ao vivo.",
+    "roteiro_sha256": "e08016a6a760706a8fb8e147b25a659a1eaa4a1f379e5d313bd76930154ee1d0",
+    "registro_sha256": "5e3323eec302c44a015854445b9ff5ca83b1fd663ead0cd2306fdb2386f4e391"
+  },
+  "render": {
+    "zoom": 14.319882480562114,
+    "mascara": 1,
+    "fill": 0,
+    "hachura": 0,
+    "sateliteAbaixo": true,
+    "fundoAbaixo": true
+  },
+  "imagens": {
+    "brasil-360-depois.png": {
+      "sha256": "71db67a4340c68d38ff5800842f5fe0a2f2a84ff41dcf5ce16ee0edbe74cf22c",
+      "bytes": 82578,
+      "capturado_em": "2026-11-13T18:36:55.096Z"
+    },
+    "brasil-antes.png": {
+      "sha256": "fd7942bd28a0ac1e486a8d8d57a9a85e92d11e43545ed4f0f31093c7bb1fb794",
+      "bytes": 220015,
+      "capturado_em": "2026-11-13T02:14:31.344Z"
+    },
+    "brasil-depois.png": {
+      "sha256": "f61c42bad997c6812e54d7b761dc1f1ffb757b1b9fa361def1fb1d1a5024f99f",
+      "bytes": 336821,
+      "capturado_em": "2026-11-13T18:36:54.061Z"
+    },
+    "estado-depois.png": {
+      "sha256": "466b55e9267171c5a4efffe14b3a530f58de3f1b1983527911e42ba6c4c8160b",
+      "bytes": 484393,
+      "capturado_em": "2026-11-13T18:36:57.466Z"
+    },
+    "fazenda-depois.png": {
+      "sha256": "0681e9c9b73760b224ece45dfcf0fef64a678b9a39fabe37a18534744df44a2e",
+      "bytes": 637195,
+      "capturado_em": "2026-11-13T18:37:00.742Z"
+    },
+    "municipio-depois.png": {
+      "sha256": "9e35b8956260ccfc3ca4ce10ffd74628263d1075fceba918b66b12b6b11c4f2c",
+      "bytes": 215498,
+      "capturado_em": "2026-11-13T18:36:58.856Z"
+    },
+    "processamento-depois.png": {
+      "sha256": "b014750d1781ec2efef07e9c5188670471be70fe4aca159079ded061a7130654",
+      "bytes": 295716,
+      "capturado_em": "2026-11-13T18:36:55.321Z"
+    }
+  },
+  "index_sha256": "88e2c6a24e4a9ef5753d659cde399772afbdb2d859f9a7e6cada3675c506d096",
+  "renderer": "307755d",
+  "legenda": "1412642",
+  "viewport_celular": {
+    "largura": 360,
+    "altura": 800
+  },
+  "lighthouse": {
+    "arquivo": "lighthouse.json",
+    "performance_mediana": 88,
+    "acessibilidade_minima": 100,
+    "amostras": 3,
+    "amostras_desempenho": [
+      78,
+      88,
+      89
+    ],
+    "fixture_rotas": 6,
+    "fixture_amostras": 18,
+    "fixture_nacional": [
+      94,
+      92,
+      96
+    ],
+    "fixture_mediana_nacional": 94,
+    "resultado": "reprovado",
+    "portao_desempenho": 90,
+    "nota": "Prints são evidência funcional; mediana real 88 não aprova o desempenho."
+  },
+  "exportador_nota": "Origem histórica do agregado público congelado; não é a versão do painel de processamento.",
+  "indice_cartografico_gerado_em": "2026-11-12T23:54:43+00:00",
+  "resumo_aptidao": {
+    "municipios": 365,
+    "estados": 9,
+    "data_propria_informada": false
+  },
+  "fundo_css": "ce9f24f",
+  "painel_processamento": "2c0eaf8",
+  "build_env": {
+    "RAIZ_BASE": "/Raiz/",
+    "VITE_RAIZ_TESTE_MAPA": "1",
+    "VITE_RAIZ_PROCESSAMENTO_URL": "./amostra/processamento.json"
+  },
+  "processamento": {
+    "fonte": "amostra/processamento.json",
+    "sha256": "ab4a354a7d19b434fef0c10ad4d58ac4876ba345c5be9c43c4ee2b800c2d49f2",
+    "gerado_em": "2026-11-13T04:49:46.363Z",
+    "observacoes": 0,
+    "estados_sem_telemetria": 27,
+    "nota": "Projeção local criada para a comparação congelada. O snapshot não contém observações de execução; contagens e datas de observação permanecem null. gerado_em é a criação da projeção e não renova nem inventa observações.",
+    "estados_renderizados_sem_informacao": 27,
+    "contagens_renderizadas_nao_informadas": 81
+  },
+  "arquivos_fonte_confirmados": {
+    "geo/indice.json": {
+      "sha256": "fd7641f8d96632f9c362e0e87613b965f2eb219598d6fea84716e6838fb96fff",
+      "bytes": 94758,
+      "identico_ao_snapshot_congelado": true
+    },
+    "geo/agregados_brasil.geojson": {
+      "sha256": "c55dd9c937f3bca2f97f51c21862b69ac4d846a48b5b3781bc495ea15b64f422",
+      "bytes": 1227580,
+      "identico_ao_snapshot_congelado": true
+    },
+    "geo/agregados_brasil.geojson.gz": {
+      "sha256": "5ad92a2138b0c78dc8ea7bfe9bd16bcedbebf095f05c80a8262737025fc04816",
+      "bytes": 215591,
+      "identico_ao_snapshot_congelado": true
+    },
+    "amostra/estados.json": {
+      "sha256": "9d893685e8e7e4951bec713868d6b3284cdb94b1e7e1d61427fe6d4f86510aae",
+      "bytes": 11827,
+      "identico_ao_snapshot_congelado": true
+    },
+    "amostra/processamento.json": {
+      "sha256": "ab4a354a7d19b434fef0c10ad4d58ac4876ba345c5be9c43c4ee2b800c2d49f2",
+      "bytes": 7327,
+      "identico_ao_snapshot_congelado": true
+    },
+    "geo/brasil_estados.geojson": {
+      "sha256": "a06b69786ddcf2bac743c63b0fe9a09f4ae858325acc839add99ccaed02063b7",
+      "bytes": 275212,
+      "identico_ao_snapshot_congelado": true
+    }
+  },
+  "browser": "Chrome for Testing 157.0.8103.78",
+  "resize_unico": "acb140c565d39637ad318344fe2ce8f5b91bb795",
+  "estilo_nacional_em_lote": "650db81bd1bb489393817580d6a0588f21add2a9",
+  "fontes_do_front_conferidas": {
+    "front/compartilhado/dados/fonte-amostra.ts": "ffb5397a64ae167589636dc19c5d3a71727dec255224bf6e7004527625b28d45",
+    "front/compartilhado/gerar-shader-simbolo.ts": "5015ff238229aabdb8209697ac715e6a852807c2207e2b729c103d229f5da7cd",
+    "front/globo/src/mapa/MapaBrasil.tsx": "eb2f4e4bc15dfd15af346843ab565e0197c528ccc6cef0b8dc7b228314cf246e",
+    "front/globo/src/mapa/aquecer-simbolo.ts": "091ecb051f887c73c7d5b4fd3a4933d2e71a027bfaf206cf91afdb54be7daf40",
+    "front/globo/src/mapa/estilo.ts": "bff951496753960bab113e4f98e8977fe6429b70e192bf0823356e358b3d8029",
+    "front/globo/src/mapa/grupos.ts": "d3d8ec1e311e5ac444e5d8f7a55d82507596dc1012c6fd0eedb046950bd712d3",
+    "front/globo/src/mapa/indice-grupos.ts": "9f76cc5e9b21d47646b41c621baade17ebcfa47b1476c7d40b0a2eb3dfdc4407",
+    "front/globo/src/mapa/nacional.ts": "5daa28f59108e486eec53777f2b23a3d9990f9dd15ff36b52e0ebcf53bfb1cef",
+    "front/globo/src/mapa/preparar-gpu.ts": "ceed50c460d30d024af16edd9ea668fe046f5b5e6ec1a95330147c9fce28e027",
+    "front/globo/src/mapa/preparar-gpu.worker.ts": "f6385d7eb8c2f149b70c49cf43336f355586d81254cca91dfd508c8b483c730f",
+    "front/globo/src/mapa/preparar-programas-nacionais.test.ts": "cca02831828ee498b10251f9eb9ee52b84747131888cf47cce5e9e50822b2ba8",
+    "front/globo/src/mapa/preparar-programas-nacionais.ts": "40747830a2ac09ed27a2b0c89f9c86d29b0ffa51dfc8d83011fa54e1e997d080",
+    "front/globo/src/mapa/servidor-grupos.ts": "e76951144a07f0121b7abde570adce655701945c28ae3689bea665c2d4d41261",
+    "front/globo/src/mapa/shader-simbolo.generated.ts": "433ff23343cb700dccaf15016e9b7b12574be7f12dcb7f41b0e9024bf70523a0",
+    "front/globo/src/mapa/worker-grupos.ts": "e013173eecea21a51fa5c85938961edb15d0db7492a595d69d45e79518970225",
+    "front/globo/src/partes/PainelProcessamentoEstados.tsx": "1abab7d3ef3c381f02ac91db31c1db54feccbbb5cf3050d29ba8ae93339bd7cb",
+    "front/globo/src/telas/Explorar.tsx": "2637e80aadda37885adc2c588ee464fbbb5e9c78267cfc65af05052e4965c274",
+    "front/globo/src/partes/PainelBrasil.tsx": "2ba77622e80e392552590da86901b790d9c897b738be4ad91f92e6a1eae9e561",
+    "front/globo/src/partes/PainelCobertura.tsx": "22674a52003e6a6193c7081c83cea8750294a0693558fb4657401b2c07f38df2",
+    "front/globo/src/raiz.css": "887a418b2dd6257bac32c760db349708ad6277c36574abff8846d4f2ece2f2ba",
+    "front/globo/index.html": "f2278e0ef736c771d5c773e034aa4909210baeb45ec7012761b9c4dd2a132b7f"
+  },
+  "historico_evidencia_anterior": {
+    "frontend": "650db81bd1bb489393817580d6a0588f21add2a9",
+    "capturado_em": "2026-11-13T13:55:42.192Z",
+    "medicao_antes_do_commit": {
+      "base": "acb140c565d39637ad318344fe2ce8f5b91bb795",
+      "fonte_final": "650db81bd1bb489393817580d6a0588f21add2a9",
+      "nota": "A série real foi medida com os arquivos exatos da revisão 650db81 antes de gravar o commit. Seus hashes foram conferidos no checkout; relatórios brutos preservados."
+    },
+    "fontes_do_front_conferidas": {
+      "front/globo/src/mapa/MapaBrasil.tsx": "4a16ddbc3c429d26dd8c8bf100ddf2825c82c7d747877884a5b2c5abccfc71f6",
+      "front/globo/src/mapa/estilo.ts": "be71cf597f9709c17f09c40f82d6a449430e6d09ba6f9bb6806ff53ffbce5df0",
+      "front/globo/src/mapa/nacional.ts": "238e89c96d230d330c6fe1163b77c06cb9f80a1f061802bebf1327e0e1f0183e"
+    },
+    "nota": "Proveniência da revisão histórica 650db81; suas medições permanecem no histórico de lighthouse.json."
+  },
+  "runtime_fonte": "7fe3539f63416258f0d91e1c4371fc4d52899aa6",
+  "front_tree": "6951762eca99cec80653104750d59573f0230d2d",
+  "index_sha256_nota": "SHA256 do index.html compilado. O índice cartográfico geo/indice.json tem hash separado em arquivos_fonte_confirmados.",
+  "artefatos_compilados_conferidos": {
+    "assets/AcertoModelo-Cb-ji0Ms.js": "32a22e5373b20850a142b580fb4008d7025c6dfeb819a3ed36c04a0e675d8c77",
+    "assets/AcertoModelo-TczuErcJ.css": "029f82e1e818b12d06a075af84ccc9536ba831867b84d1db0db4d06249948c0d",
+    "assets/AvisoExemplo-ChzqqoA2.js": "93c5fb0888f5b62f07b80e16d314fb08efa96ae05054b68d085fde0dd4d42942",
+    "assets/Calendario-Dt8aQRxG.js": "24b0d1a4d47ff9f19894738c12984d5720ee311409cdbd1e434af88ea5943b35",
+    "assets/ContratosECharts-C7qb77mk.js": "59004c652e998e40d06ab97d6fe09c534eaa6eb751aa7a37f204be47a09ca7f0",
+    "assets/Entrar-CMAxjbAG.js": "82ee24c320b076692731a53418fbb749b6a0dc72fd9440967f6d244f5fc0e717",
+    "assets/FaixasVega-BIhSOW4N.js": "cd21058e8aee2ad4737eb54e104c4787120f6ee5ff575e90d4b7cc110d9e4e05",
+    "assets/FichaLote-Czpgk2oe.css": "9b5c2d41076b1d1c1a488408d8917ebc88725b5d5e61264a26339c78ef857d77",
+    "assets/FichaLote-DU9XQEeb.js": "ce24414779770ea9ae536dcbc55f83269fc9cf76555eaa7daa3632e5f2fc62bb",
+    "assets/FichaTerra-vKpucF4H.js": "1cc374be1ee03b8c3a3039b4985d3d49ec55a49285bc505d6749c954113648c8",
+    "assets/Grupo-D4zy12TK.js": "c654bda5d8bad8bec62f6661c7e53abb13b71cfb1340e9ecd1abda16df90650e",
+    "assets/MapaBrasil-D50RAhC5.js": "6098e7ce80a6a72fabeb6dbfb0a0a7c38f2bc5fd85c21c01eeac6eed92b845c8",
+    "assets/MapaBrasil-DjXion7f.css": "06aa528450495e696b02798806529852bcf6870bb076bdc95874948c4db22785",
+    "assets/MapaDesenho-xYHnHPmz.js": "5ea1d685c16e81e57bb0e202f2090a372ab14f2bc5b314e62e2bd088581ca831",
+    "assets/MapaFichaTerra-B-mQg13f.js": "8ad0d4f9ea846a358ab41b44eb0b163ad3ead27209fea1b1ae7e8354290db1b9",
+    "assets/MapaFichaTerra-CRGQ5sI7.css": "f632b0273496b69fb58be6bca5f333088dc85b7022790c6bc6dac67aebeac74e",
+    "assets/MapaLote-B7ahUCaL.js": "abecf1bfc9ba80c09d5f1628e70da9c487788ff51ef5de7c4c3f1a35f60ca42b",
+    "assets/MeusPedidos-CvyO-ad4.js": "fdccb98b5630fcdb91f81ab4db6aa35cd9617f4a3b5d303ef635b3c22ad8cd41",
+    "assets/NovoPedido-uIUfrJP8.js": "9c1e0fd45d48bc2a983733137a79d2910b7275a0182381276b6f8c2603305189",
+    "assets/PainelMunicipio-CGDY3XSN.js": "e34a8af095386cdef515f7bb85e70d20f3cf77c507b07a3e16a9d12a823e929a",
+    "assets/PainelMunicipioBasico-CQcnurlN.js": "d6ccc79622e02bd2d9af98da93ad564b59bddf0a2b2eb4c850070e3ea2004064",
+    "assets/PastaFiador-BneRLqPb.css": "749535f5fe85d93a8a6dd1e07dd50cfa3a2c3c21c7fda5f75c93376934454f55",
+    "assets/PastaFiador-CHNQ065p.js": "959b19baf7d887ec81920b9a2077e15fad50f5a28477ba16f959889a4524b28b",
+    "assets/PedidoTela-BImeK6cd.css": "4e0fc43a4b877682149892122ad0e65efaa4e065b6b5f2fc1b7f25e30fd45228",
+    "assets/PedidoTela-oMY1duEs.js": "66c67348215f3e0f35c101c0ead0e24a93042b97c2dcda7a05c2117e17bf67c9",
+    "assets/Prospeccao-DpvEfSYS.js": "dd4ab480fd8ed6f17ad307fcf5438c658e7694a87729c0ffafbb36993f35dee9",
+    "assets/Prospeccao-F-zGHjJ8.css": "2dc3b868993dde67d558a228fd464b8a85fd4f2a86296bb97af5caa56eab55b0",
+    "assets/SeloStatus-B1a_lfYH.js": "af7ea69c190243dd51a011d2b3ea44509b59a91ba844ccb7533792f8c05d0d97",
+    "assets/VersoesFicha-MMbF1bOu.js": "ffe4675594a3f6518563ce086dc78b2be1a71b416674a6fae7864830767a3988",
+    "assets/atkinson-hyperlegible-next-latin-400-normal-FfmJh7DR.woff2": "5cb240a4d99ab7e6fc3a4d4e6d11d89789fdffe9c86a8384000d662c53283f6f",
+    "assets/atkinson-hyperlegible-next-latin-700-normal-Dpiyiu63.woff2": "0dbe07ed7679407db9d90f747d5ca3bd1b2bb7ccbcbe41c8246cfc6d2c7bc3bc",
+    "assets/bell-DbQfdkV_.js": "8307b0a778e6479bc7db96ab54ccbd3d51745b87da8b4bb0d9b5b1bd4cba0cf9",
+    "assets/colunas-BEaDYMqv.js": "75323bdcb392f2c882a8858a4038309c4bf9482f7828bf022df3074d572f24c9",
+    "assets/dist-Y88zgBF6.js": "58affc5ffa7ec99b969876a2c09a8e38802d994b4b12104fa57e81034ca4912a",
+    "assets/estilo-Y-Qo4G_g.js": "76e5473ab6b0cae293b28412c85cac9089653d58e8b3ec320a2183345ac64f47",
+    "assets/estilo-qvkd0SPb.css": "280f62458bee97adaab9c817e977cc89e02cc34d07a3107ba4a545c17c41976d",
+    "assets/familjen-grotesk-latin-500-normal-BASv1Bog.woff2": "490e3a95d21896ee66c4d7888b1f8e2e4413c1e910a97f197ad1690491ef5f40",
+    "assets/familjen-grotesk-latin-600-normal-DR8FYmV8.woff2": "4becdcd6d182685a5bc7f961e49f8991538cd42acabf4ffbba72654f26743620",
+    "assets/filtros-CPxiaI4a.js": "9678f0cfed545faee915dc16de6f8b7b54ceed22145d90a4b2f72e9c658d27cb",
+    "assets/grupos.worker-Cd8-QurJ.js": "b9a588ee15dc5d6b7c2f25d22a9a4224f93c1263e32cc54cff2926b2f01fcd9e",
+    "assets/ibm-plex-mono-latin-400-normal-DMJ8VG8y.woff2": "08949f728dc52d528e69b1667d15c89a5686a4ee9a296ff90983985f99c380f7",
+    "assets/index-D1VSDPhE.js": "e505f5d38bcb77e571652099c3206bed6ce3eba5411ac3ea4a3505fc21866e70",
+    "assets/index-DDN5-iJP.css": "0c302d8717209ffef7d629395c66252e9274e2bad34044ba7150255e68dc7aa4",
+    "assets/jsx-runtime-DoKp3O4K.js": "43983cdf994ecea013e6133a72d5ea220077699521d4371bb04ba15ce1b3fee6",
+    "assets/maplibre-gl-worker-BrB25tGK.mjs": "1c69066368331aae63967ed24a9affcf962cf55fcc6d8f532a8b040f736dbcfa",
+    "assets/pasta-fiador-DTobh_gT.js": "da7e1529432c0e83f362863dbef03f0b46007f45b699bd98d68a58bd9b05fd01",
+    "assets/pedido-CgFryFx3.js": "4d4b012223126fcd6ea7a5be2280f4f54cf77c4f5612ffeb11a4e0c359d62420",
+    "assets/pedido-DtkDMFJU.css": "7c371a338ed347f3d34ad9058060555bbf044bd1ab250005657504d871d5a771",
+    "assets/pedidos-CL_fT64e.js": "d991c365762f6b8a488161d44c1b1b64362fdb594ee8215222a5ab8f25b8a467",
+    "assets/preparar-gpu.worker-n1ayu5St.js": "e29c8fcbac5d4b1af56c77c622610537c03da4730b8e5bd01c3d1bf92033e78a",
+    "assets/privacidade-Bni_wNpf.js": "2ec63c2bb9bd77a2f1dc51e3e850a527339034a8b55d67f616d04ba1906f3b7f",
+    "assets/prospeccao-B4avYoyu.js": "96b6dc3c4d990f4a95d2bdf9940be61a1d45d0c711ef2da25ebbf5899eebfd5f",
+    "assets/x-fZ2GSW0a.js": "890cdbef04da38eeba2378a7c02fb5fe04b67977f3e1948cd57f80f8ab2c7a19",
+    "produtor/assets/Ficha-CLs6TgtR.js": "81ff7e0c7bda842e9bdb65ff636dbf21598429a382a9edb6b1bc530d4986ff0b",
+    "produtor/assets/atkinson-hyperlegible-next-latin-400-normal-FfmJh7DR.woff2": "5cb240a4d99ab7e6fc3a4d4e6d11d89789fdffe9c86a8384000d662c53283f6f",
+    "produtor/assets/atkinson-hyperlegible-next-latin-700-normal-Dpiyiu63.woff2": "0dbe07ed7679407db9d90f747d5ca3bd1b2bb7ccbcbe41c8246cfc6d2c7bc3bc",
+    "produtor/assets/index-1c0SjLz_.css": "83e3703b71833f2611c6af40f1f9ca43c3553265ccb901b5efa5e3c955c9547c",
+    "produtor/assets/index-DHAdO_qv.js": "eb01fbc2fa47f91a30f15ca1644fe8ef543b84c7577a8e6b17b64055cb46b032",
+    "produtor/assets/mapa-BtFOsqkR.js": "8b574c800bd844cbebeac5c18c831a2f707c3491d63a567f43ef325582f87ab6",
+    "produtor/assets/mapa-Bzo4XL0D.css": "ff3162deb0503c9fef3daf19e60122905a5ef55eca7ccc4b36b65d4924d73bd4",
+    "produtor/assets/maplibre-gl-worker-BrB25tGK.mjs": "1c69066368331aae63967ed24a9affcf962cf55fcc6d8f532a8b040f736dbcfa",
+    "produtor/assets/preact.module-CXliyE0D.js": "cbc0b78640d4572e4a70eb23ee9c80ecbc9dace053d63bf1fa18e4547ac3ab99",
+    "index.html": "88e2c6a24e4a9ef5753d659cde399772afbdb2d859f9a7e6cada3675c506d096",
+    "produtor/index.html": "12f9c7317f005cf6caff775a40a8cd1769f591e637fb9d2ac65f2a65c9458395"
+  },
+  "preparacao_grafica": {
+    "preflight": "Aquece o shader SDF dos rótulos em worker quando o navegador oferece o contexto necessário e prepara quatro variantes nacionais no cache do renderizador, na thread principal, antes dos desenhos; o mapa mantém fallback.",
+    "desynchronized": "Solicita menor latência pela API pública WebGL; suporte é decisão do navegador.",
+    "guarda_calendario": "Evita calcular datas antes de existir calendário carregado.",
+    "nota": "Sem detecção de Lighthouse, espera artificial, troca de dados ou redução do portão.",
+    "estabilidade_painel": "Reserva explícita durante carregamento do resumo e da cobertura, preservando a identidade do painel, foco e rolagem; correção CLS 56ab91d.",
+    "fontes_antecipadas": "Preload dos três arquivos de fontes da primeira tela em 7fe3539; cada arquivo foi transferido uma vez."
+  },
+  "historico_capturas": [
+    {
+      "frontend": "c1d42a42afe386f743b72b0210275b0baea0fe51",
+      "runtime_fonte": "2384fd88bcf4f9fbeb4be7be29a6133ed2e13bae",
+      "front_tree": "bb6d882894bfbdfa2ea2edf759eb4fb33ce9bd6e",
+      "capturado_em": "2026-11-13T17:21:06.856Z",
+      "imagens": {
+        "brasil-360-depois.png": {
+          "sha256": "71db67a4340c68d38ff5800842f5fe0a2f2a84ff41dcf5ce16ee0edbe74cf22c",
+          "bytes": 82578,
+          "capturado_em": "2026-11-13T17:21:01.438Z"
+        },
+        "brasil-antes.png": {
+          "sha256": "fd7942bd28a0ac1e486a8d8d57a9a85e92d11e43545ed4f0f31093c7bb1fb794",
+          "bytes": 220015,
+          "capturado_em": "2026-11-13T02:14:31.344Z"
+        },
+        "brasil-depois.png": {
+          "sha256": "f61c42bad997c6812e54d7b761dc1f1ffb757b1b9fa361def1fb1d1a5024f99f",
+          "bytes": 336821,
+          "capturado_em": "2026-11-13T17:21:00.267Z"
+        },
+        "estado-depois.png": {
+          "sha256": "466b55e9267171c5a4efffe14b3a530f58de3f1b1983527911e42ba6c4c8160b",
+          "bytes": 484393,
+          "capturado_em": "2026-11-13T17:21:03.684Z"
+        },
+        "fazenda-depois.png": {
+          "sha256": "0681e9c9b73760b224ece45dfcf0fef64a678b9a39fabe37a18534744df44a2e",
+          "bytes": 637195,
+          "capturado_em": "2026-11-13T17:21:06.856Z"
+        },
+        "municipio-depois.png": {
+          "sha256": "29f5b95e019a2db15fef1065d7ec057a61b127999c18612fcbc73a1097fca367",
+          "bytes": 215505,
+          "capturado_em": "2026-11-13T17:21:05.029Z"
+        },
+        "processamento-depois.png": {
+          "sha256": "b014750d1781ec2efef07e9c5188670471be70fe4aca159079ded061a7130654",
+          "bytes": 295716,
+          "capturado_em": "2026-11-13T17:21:01.643Z"
+        }
+      },
+      "index_sha256": "455436a199d0ad0d34f21f6c5d78594ddfc7905b5ee5e37dd3fdb1f84e797ab9",
+      "rede": {
+        "requisicoes_desktop": 103,
+        "requisicoes_celular": 50,
+        "respostas_desktop": {
+          "200": 67,
+          "206": 36
+        },
+        "respostas_celular": {
+          "200": 47,
+          "206": 3
+        },
+        "erros": [],
+        "cancelamentos_naturais": 0,
+        "tiles_satelite": 9,
+        "todos_tiles_http_200": true,
+        "endpoints_pagos_solicitados": false,
+        "fonte_processamento": "amostra/processamento.json",
+        "raw_vivo_solicitado": false,
+        "escopo": "Build local medido, com snapshot congelado; não comprova a publicação ao vivo.",
+        "roteiro_sha256": "e08016a6a760706a8fb8e147b25a659a1eaa4a1f379e5d313bd76930154ee1d0",
+        "registro_sha256": "86a891c223f961cc1baedb9bc5b725d8b4baeff5c667df751dd5e51e58716e17"
+      },
+      "lighthouse": {
+        "arquivo": "lighthouse.json",
+        "performance_mediana": 91,
+        "acessibilidade_minima": 100,
+        "amostras": 3,
+        "amostras_desempenho": [
+          84,
+          91,
+          95
+        ],
+        "fixture_rotas": 6,
+        "fixture_amostras": 18,
+        "fixture_nacional": [
+          89,
+          95,
+          92
+        ],
+        "fixture_mediana_nacional": 92
+      },
+      "fontes_do_front_conferidas": {
+        "front/compartilhado/dados/fonte-amostra.ts": "ffb5397a64ae167589636dc19c5d3a71727dec255224bf6e7004527625b28d45",
+        "front/compartilhado/gerar-shader-simbolo.ts": "5015ff238229aabdb8209697ac715e6a852807c2207e2b729c103d229f5da7cd",
+        "front/globo/src/mapa/MapaBrasil.tsx": "eb2f4e4bc15dfd15af346843ab565e0197c528ccc6cef0b8dc7b228314cf246e",
+        "front/globo/src/mapa/aquecer-simbolo.ts": "091ecb051f887c73c7d5b4fd3a4933d2e71a027bfaf206cf91afdb54be7daf40",
+        "front/globo/src/mapa/estilo.ts": "bff951496753960bab113e4f98e8977fe6429b70e192bf0823356e358b3d8029",
+        "front/globo/src/mapa/grupos.ts": "d3d8ec1e311e5ac444e5d8f7a55d82507596dc1012c6fd0eedb046950bd712d3",
+        "front/globo/src/mapa/indice-grupos.ts": "9f76cc5e9b21d47646b41c621baade17ebcfa47b1476c7d40b0a2eb3dfdc4407",
+        "front/globo/src/mapa/nacional.ts": "5daa28f59108e486eec53777f2b23a3d9990f9dd15ff36b52e0ebcf53bfb1cef",
+        "front/globo/src/mapa/preparar-gpu.ts": "ceed50c460d30d024af16edd9ea668fe046f5b5e6ec1a95330147c9fce28e027",
+        "front/globo/src/mapa/preparar-gpu.worker.ts": "f6385d7eb8c2f149b70c49cf43336f355586d81254cca91dfd508c8b483c730f",
+        "front/globo/src/mapa/preparar-programas-nacionais.test.ts": "cca02831828ee498b10251f9eb9ee52b84747131888cf47cce5e9e50822b2ba8",
+        "front/globo/src/mapa/preparar-programas-nacionais.ts": "40747830a2ac09ed27a2b0c89f9c86d29b0ffa51dfc8d83011fa54e1e997d080",
+        "front/globo/src/mapa/servidor-grupos.ts": "e76951144a07f0121b7abde570adce655701945c28ae3689bea665c2d4d41261",
+        "front/globo/src/mapa/shader-simbolo.generated.ts": "433ff23343cb700dccaf15016e9b7b12574be7f12dcb7f41b0e9024bf70523a0",
+        "front/globo/src/mapa/worker-grupos.ts": "e013173eecea21a51fa5c85938961edb15d0db7492a595d69d45e79518970225",
+        "front/globo/src/partes/PainelProcessamentoEstados.tsx": "1abab7d3ef3c381f02ac91db31c1db54feccbbb5cf3050d29ba8ae93339bd7cb",
+        "front/globo/src/telas/Explorar.tsx": "98600da5cc58dcdd95caaf4d9907c3978402a085adc61191b2be5b7c46991eba"
+      },
+      "artefatos_compilados_conferidos": {
+        "assets/AcertoModelo-BZ2o5ccN.js": "806f20f30fff4b83d2d3bb6b6f623442a8529c0b158d9100993891be716dbbe9",
+        "assets/AcertoModelo-TczuErcJ.css": "029f82e1e818b12d06a075af84ccc9536ba831867b84d1db0db4d06249948c0d",
+        "assets/AvisoExemplo-DiydLi2l.js": "87ca405d83f8ec4bba7a1c171beb2e7a1ddf7121c724b6b20956c07ae5b7d98d",
+        "assets/Calendario-BK8N5kPX.js": "a888be51704e2cda153c415d43f04faeaeab39dea3e3ee31adc00dc7ddd34737",
+        "assets/ContratosECharts-5Ss2oLi-.js": "b605a35231886f04e544de3f2b8175051101f8567e14a2680ca8450598f69c69",
+        "assets/Entrar-Ba0lXvUE.js": "8576aff3474f0e9eb7ef246351e20fbd8e1c8fd6aa7b2941a831628590946a8d",
+        "assets/FaixasVega-8Q8QLnS6.js": "88967fa28650605f847c3f47efdd87aec55c3c36e19bdb712e22c6cec4d7df68",
+        "assets/FichaLote-Bojweufe.js": "ef1d5656bb9348f11a502a19c77e5409102617527350171871ce45d7216fcff4",
+        "assets/FichaLote-Czpgk2oe.css": "9b5c2d41076b1d1c1a488408d8917ebc88725b5d5e61264a26339c78ef857d77",
+        "assets/FichaTerra-eWAGBWhf.js": "40b99eca5d8c251811604b938b294aa744bb2215cae281b0acfecac1c66b9973",
+        "assets/Grupo-DQaSN4lO.js": "d3d802454d0f872b3a1924dd3a9f9c77a9ccfa05ea34c3bf2ca91a913f82aef0",
+        "assets/MapaBrasil-CifuCjyz.js": "b63eedee79bdce3b193d8b3607ad8bedb3d2a19e353ecd5f8fbe10bc69efb925",
+        "assets/MapaBrasil-DjXion7f.css": "06aa528450495e696b02798806529852bcf6870bb076bdc95874948c4db22785",
+        "assets/MapaDesenho-xYHnHPmz.js": "5ea1d685c16e81e57bb0e202f2090a372ab14f2bc5b314e62e2bd088581ca831",
+        "assets/MapaFichaTerra-CRGQ5sI7.css": "f632b0273496b69fb58be6bca5f333088dc85b7022790c6bc6dac67aebeac74e",
+        "assets/MapaFichaTerra-CjcRBhFA.js": "d122f49936ae6f3871567b7e9fc0c3f52006ba35dfaa0933cf72b0ad16588c23",
+        "assets/MapaLote-B7ahUCaL.js": "abecf1bfc9ba80c09d5f1628e70da9c487788ff51ef5de7c4c3f1a35f60ca42b",
+        "assets/MeusPedidos-DN6pMrk5.js": "6176c9b9759a6ed643c80c037008f9e93b2da69ce6d93ba6647b4cd24828ffc7",
+        "assets/NovoPedido-DBErQLpY.js": "9f332a6ccf0f381842a3d714022d1bb9a10c923268af8c31d5e247d2b56bd88c",
+        "assets/PainelMunicipio-Dk9hX9mO.js": "6837d9004043441cd711017851b346176073a49d5568e9a85eb3ff0a51ac3c05",
+        "assets/PainelMunicipioBasico-tuQb4ePu.js": "39379a745365be20ca6b36cfc6cf8e1389df556aebe1c9167f8c4ee13f564307",
+        "assets/PastaFiador-BWD8HBvZ.js": "b99ec278a214a33b9a26fbf70e1bc95fede08226285aa286441951d2413d650e",
+        "assets/PastaFiador-BneRLqPb.css": "749535f5fe85d93a8a6dd1e07dd50cfa3a2c3c21c7fda5f75c93376934454f55",
+        "assets/PedidoTela-BImeK6cd.css": "4e0fc43a4b877682149892122ad0e65efaa4e065b6b5f2fc1b7f25e30fd45228",
+        "assets/PedidoTela-tJ1naAzy.js": "1b264fb4f2e2798771e53d018e6818cebc553ac600975c24b356e68beb4805da",
+        "assets/Prospeccao-F-zGHjJ8.css": "2dc3b868993dde67d558a228fd464b8a85fd4f2a86296bb97af5caa56eab55b0",
+        "assets/Prospeccao-naPQ1fQe.js": "07c80dad4913343607ed96d3662d6a8e20d3eed9f03c57a1b011d419c3d93727",
+        "assets/SeloStatus-DhuUoFRb.js": "55730777a1ebe6cbb4541c7d8df71fa7a3fe1f4385c8f4251184d4857a39f792",
+        "assets/VersoesFicha-DZlWNMVP.js": "c778dafb87af60969e98225621ce43d14dda66fe4fdc87c80b9dd8634de72303",
+        "assets/atkinson-hyperlegible-next-latin-400-normal-FfmJh7DR.woff2": "5cb240a4d99ab7e6fc3a4d4e6d11d89789fdffe9c86a8384000d662c53283f6f",
+        "assets/atkinson-hyperlegible-next-latin-700-normal-Dpiyiu63.woff2": "0dbe07ed7679407db9d90f747d5ca3bd1b2bb7ccbcbe41c8246cfc6d2c7bc3bc",
+        "assets/bell-Bd9REgSg.js": "865d6914a577755e789e179429162bd09dff1390bb672804b8feb8b919d33750",
+        "assets/colunas-BEaDYMqv.js": "75323bdcb392f2c882a8858a4038309c4bf9482f7828bf022df3074d572f24c9",
+        "assets/dist-BrtEwUOf.js": "e7b88c950291f90335d60e30317446c3f85b164428b8a19e99ae9b5169992777",
+        "assets/estilo-Y-Qo4G_g.js": "76e5473ab6b0cae293b28412c85cac9089653d58e8b3ec320a2183345ac64f47",
+        "assets/estilo-qvkd0SPb.css": "280f62458bee97adaab9c817e977cc89e02cc34d07a3107ba4a545c17c41976d",
+        "assets/familjen-grotesk-latin-500-normal-BASv1Bog.woff2": "490e3a95d21896ee66c4d7888b1f8e2e4413c1e910a97f197ad1690491ef5f40",
+        "assets/familjen-grotesk-latin-600-normal-DR8FYmV8.woff2": "4becdcd6d182685a5bc7f961e49f8991538cd42acabf4ffbba72654f26743620",
+        "assets/filtros-SfYm6WHO.js": "1d1834b00240385cdcc113860f3fedc52a104be32443d4f6b4ce3933f827caed",
+        "assets/grupos.worker-Cd8-QurJ.js": "b9a588ee15dc5d6b7c2f25d22a9a4224f93c1263e32cc54cff2926b2f01fcd9e",
+        "assets/ibm-plex-mono-latin-400-normal-DMJ8VG8y.woff2": "08949f728dc52d528e69b1667d15c89a5686a4ee9a296ff90983985f99c380f7",
+        "assets/index-BVqnARm4.css": "a6c69565613aaa7e07da50e435b3fb4b84d2cdb1fb53e2bfa1477a0e380801a2",
+        "assets/index-DULh2TJq.js": "4a7307c6b5affd619b0ac93f1a921d8cedc41504d8568c38f08d804e7e98fe97",
+        "assets/jsx-runtime-DoKp3O4K.js": "43983cdf994ecea013e6133a72d5ea220077699521d4371bb04ba15ce1b3fee6",
+        "assets/maplibre-gl-worker-BrB25tGK.mjs": "1c69066368331aae63967ed24a9affcf962cf55fcc6d8f532a8b040f736dbcfa",
+        "assets/pasta-fiador-DTobh_gT.js": "da7e1529432c0e83f362863dbef03f0b46007f45b699bd98d68a58bd9b05fd01",
+        "assets/pedido-CzKIHp9G.js": "2021ec7a09fce747ed8b4b4ce363660da04e3172d671e537c3e9102e16034634",
+        "assets/pedido-DtkDMFJU.css": "7c371a338ed347f3d34ad9058060555bbf044bd1ab250005657504d871d5a771",
+        "assets/pedidos-CgzrNRm0.js": "2d3aff58e3ebae774a76eb9e47e8c5518ccb23dbef7b9519ed27aaac16a57918",
+        "assets/preparar-gpu.worker-n1ayu5St.js": "e29c8fcbac5d4b1af56c77c622610537c03da4730b8e5bd01c3d1bf92033e78a",
+        "assets/privacidade-Bni_wNpf.js": "2ec63c2bb9bd77a2f1dc51e3e850a527339034a8b55d67f616d04ba1906f3b7f",
+        "assets/prospeccao-CGpX8PPm.js": "d863ca8b77445b4ed9e9d2c77fe3018ef0d4751bb61e1d62a1262ac8ab400d19",
+        "assets/x-CNbjnkhE.js": "80c5c832d511d449d20238584d4bced2e7d13a0f8825b6279fba6f6c31838969",
+        "index.html": "455436a199d0ad0d34f21f6c5d78594ddfc7905b5ee5e37dd3fdb1f84e797ab9",
+        "produtor/assets/Ficha-CLs6TgtR.js": "81ff7e0c7bda842e9bdb65ff636dbf21598429a382a9edb6b1bc530d4986ff0b",
+        "produtor/assets/atkinson-hyperlegible-next-latin-400-normal-FfmJh7DR.woff2": "5cb240a4d99ab7e6fc3a4d4e6d11d89789fdffe9c86a8384000d662c53283f6f",
+        "produtor/assets/atkinson-hyperlegible-next-latin-700-normal-Dpiyiu63.woff2": "0dbe07ed7679407db9d90f747d5ca3bd1b2bb7ccbcbe41c8246cfc6d2c7bc3bc",
+        "produtor/assets/index-1c0SjLz_.css": "83e3703b71833f2611c6af40f1f9ca43c3553265ccb901b5efa5e3c955c9547c",
+        "produtor/assets/index-DHAdO_qv.js": "eb01fbc2fa47f91a30f15ca1644fe8ef543b84c7577a8e6b17b64055cb46b032",
+        "produtor/assets/mapa-BtFOsqkR.js": "8b574c800bd844cbebeac5c18c831a2f707c3491d63a567f43ef325582f87ab6",
+        "produtor/assets/mapa-Bzo4XL0D.css": "ff3162deb0503c9fef3daf19e60122905a5ef55eca7ccc4b36b65d4924d73bd4",
+        "produtor/assets/maplibre-gl-worker-BrB25tGK.mjs": "1c69066368331aae63967ed24a9affcf962cf55fcc6d8f532a8b040f736dbcfa",
+        "produtor/assets/preact.module-CXliyE0D.js": "cbc0b78640d4572e4a70eb23ee9c80ecbc9dace053d63bf1fa18e4547ac3ab99",
+        "produtor/index.html": "12f9c7317f005cf6caff775a40a8cd1769f591e637fb9d2ac65f2a65c9458395"
+      },
+      "commit_evidencias": "22428e9",
+      "nota": "Capturas e metadados anteriores preservados no histórico Git; hashes permitem recuperar cada PNG daquela revisão."
+    }
+  ],
+  "verificacao_funcional": {
+    "resultado": "aprovado no roteiro local de captura",
+    "limite": "Não equivale à aprovação do desempenho nem à inspeção do site publicado.",
+    "pages": {
+      "commit": "7fe3539f63416258f0d91e1c4371fc4d52899aa6",
+      "bases": [
+        "/",
+        "/Raiz/"
+      ],
+      "resultado": "aprovado",
+      "logs_sha256": {
+        "raiz": "d1c461fa09c3db4649eabdd7d0c7b9dbad64200bf2766fa26de65cea17f0fc8d",
+        "subdiretorio": "d1c461fa09c3db4649eabdd7d0c7b9dbad64200bf2766fa26de65cea17f0fc8d"
+      }
+    },
+    "preload_fontes": {
+      "familias": [
+        "Familjen Grotesk 600",
+        "Atkinson Hyperlegible Next 400",
+        "Atkinson Hyperlegible Next 700"
+      ],
+      "arquivos_iguais_ao_css": true,
+      "transferencias_por_arquivo": 1,
+      "relatorio_sha256": "0d74b5a605a5ca51b01c0480c53cb58a45fdfb8628df0b53bc597a70d4971fc7"
+    },
+    "site_para_agentes": {
+      "categoria": "agentic-browsing",
+      "score": 1,
+      "cls": 0.001758130519118656,
+      "resultado": "aprovado"
+    }
+  }
+}

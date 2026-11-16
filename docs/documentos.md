@@ -191,8 +191,8 @@ dados são os da `dados/amostra/`. O teste das 3 páginas da folha roda quando o
   Diário Oficial do Pará (onde o Ideflor-Bio publica) ainda não entra: acrescentar em `paginas` quando houver busca
   pública estável.
 - **CNS**: muita certidão não imprime o CNS do cartório; aí a conferência é pelo número e pede confirmação.
-- **Selo prata no back-end**: a máscara já vem de `raiz/privacidade.py`, mas a carga (`raiz/carga.py`) ainda não lê o
-  `matricula_<mun>.csv`; enquanto isso o `matricula_conferida` não chega ao `selo_prata` de `raiz/terra.py` nem ao
-  caminho `matricula_conferida` do pedido de lote. Falta pôr `matricula` nas tabelas da carga e do contrato.
+- **Selo prata no back-end**: ligado. O `matricula_<mun>.csv` entra na carga como complemento (na pasta do município
+  ou na saída destes documentos), o caminho da terra dá risco baixo à matrícula conferida e a oferta usa o caminho
+  `matricula_conferida`; os motivos de cada certidão viram achados de título (`raiz/titulo`, `docs/titulo.md`).
 - **ONR**: quando o convênio sair (E5 passo 9), as certidões podem chegar pelo Monitor Registral e entrar em
   `certidao lote` sem passo manual.

@@ -1,0 +1,267 @@
+[
+  {
+    "name": "@petamoriken/float16",
+    "version": "3.9.3",
+    "license": "MIT",
+    "files": [
+      {
+        "file": "LICENSE",
+        "sha256": "3b833441ea7e5766f591a927e9f26960be46670a8fbc302732b72afd5623c0e9"
+      }
+    ]
+  },
+  {
+    "name": "@types/rbush",
+    "version": "4.0.0",
+    "license": "MIT",
+    "files": [
+      {
+        "file": "LICENSE",
+        "sha256": "c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383"
+      }
+    ]
+  },
+  {
+    "name": "@zarrita/storage",
+    "version": "0.2.0",
+    "license": "MIT",
+    "files": [
+      {
+        "file": "LICENSE",
+        "sha256": "5cf6038da98164b5e3de3c38b6361b81a3cfd3bee73e56c9dae28798dbe19892"
+      }
+    ]
+  },
+  {
+    "name": "earcut",
+    "version": "3.2.4",
+    "license": "ISC",
+    "files": [
+      {
+        "file": "LICENSE",
+        "sha256": "0b348fff56384b43dbb37593906904e56d0f9deb51eae590d4dc6d427fbf1808"
+      }
+    ]
+  },
+  {
+    "name": "fflate",
+    "version": "0.8.3",
+    "license": "MIT",
+    "files": [
+      {
+        "file": "LICENSE",
+        "sha256": "0a1df3a083d0c010560aa342e87959c8c1070e6fd54545741f083f22d0c8b551"
+      }
+    ]
+  },
+  {
+    "name": "geotiff",
+    "version": "3.1.0-beta.0",
+    "license": "MIT",
+    "files": [
+      {
+        "file": "LICENSE",
+        "sha256": "da0811089f254e909f69f75fa496ca97e5167a8eaa945d9a6bffdd8499b47a49"
+      }
+    ]
+  },
+  {
+    "name": "lerc",
+    "version": "3.0.0",
+    "license": "Apache-2.0",
+    "files": [
+      {
+        "file": "LercDecode.js (cabeçalho Apache-2.0)",
+        "sha256": "20a115a2ff426372eac84e062c520d1abdc650618ce4dcca402868c36241f99c"
+      }
+    ]
+  },
+  {
+    "name": "numcodecs",
+    "version": "0.3.2",
+    "license": "MIT",
+    "files": [
+      {
+        "file": "LICENSE",
+        "sha256": "785e5823c2471046f06ae8f64f0374557f1a14ec786febf690e2dbc65e804ce7"
+      }
+    ]
+  },
+  {
+    "name": "ol",
+    "version": "10.11.0",
+    "license": "BSD-2-Clause",
+    "files": [
+      {
+        "file": "LICENSE.md",
+        "sha256": "6c4347b83a8c9feef18d57b18e3b6c44cf901b3c344a4a1fbd837e421555ab8e"
+      }
+    ]
+  },
+  {
+    "name": "pako",
+    "version": "2.2.0",
+    "license": "(MIT AND Zlib)",
+    "files": [
+      {
+        "file": "LICENSE",
+        "sha256": "a04665b3b2de56c66730c1f720f528175739e4104f79073614aa611da1e85539"
+      }
+    ]
+  },
+  {
+    "name": "parse-headers",
+    "version": "2.0.6",
+    "license": "MIT",
+    "files": [
+      {
+        "file": "LICENCE",
+        "sha256": "b1c5db90de223cc6ca40bab4ade764220f86c5b0335f56f1ab3baa6e62fe18bd"
+      }
+    ]
+  },
+  {
+    "name": "pbf",
+    "version": "5.1.2",
+    "license": "BSD-3-Clause",
+    "files": [
+      {
+        "file": "LICENSE",
+        "sha256": "fdf1d5279107d760c7df8c6edab1faab2b72ba17528273a8b417b08f1e12ebbe"
+      }
+    ]
+  },
+  {
+    "name": "protocol-buffers-schema",
+    "version": "3.6.1",
+    "license": "MIT",
+    "files": [
+      {
+        "file": "LICENSE",
+        "sha256": "3fe8d55a98dbf260eace67c00cf9bc53edb46234e840098a0b93df3096b97fb6"
+      }
+    ]
+  },
+  {
+    "name": "quick-lru",
+    "version": "6.1.2",
+    "license": "MIT",
+    "files": [
+      {
+        "file": "license",
+        "sha256": "5c932d88256b4ab958f64a856fa48e8bd1f55bc1d96b8149c65689e0c61789d3"
+      }
+    ]
+  },
+  {
+    "name": "quickselect",
+    "version": "3.0.0",
+    "license": "ISC",
+    "files": [
+      {
+        "file": "LICENSE",
+        "sha256": "238ddb00e12a420a54e060afa19bdab4f70bf49e0e2a8ebb1a5e851f9ef447df"
+      }
+    ]
+  },
+  {
+    "name": "rbush",
+    "version": "4.0.1",
+    "license": "MIT",
+    "files": [
+      {
+        "file": "LICENSE",
+        "sha256": "bf20b07b8e41f306d22b73bfa6b0e248e81ee8caaa6a04285acb0b8e963c01ec"
+      }
+    ]
+  },
+  {
+    "name": "reference-spec-reader",
+    "version": "0.2.0",
+    "license": "MIT",
+    "files": [
+      {
+        "file": "LICENSE",
+        "sha256": "5944274cc3522057cd8d96ba2767340dd7a8aa8987ccf8836985f21496b7d86c"
+      }
+    ]
+  },
+  {
+    "name": "resolve-protobuf-schema",
+    "version": "2.1.0",
+    "license": "MIT",
+    "files": [
+      {
+        "file": "LICENSE",
+        "sha256": "c0993ca46cd47c09710a977d3a3d51602cff96f19e8d2eb8d5887aa20a7beead"
+      }
+    ]
+  },
+  {
+    "name": "unzipit",
+    "version": "2.0.0",
+    "license": "MIT",
+    "files": [
+      {
+        "file": "LICENSE.md",
+        "sha256": "aca087d5c608c0bac12db2fc9e7b5743d4ac99ed43bb00be5a8719703c12139f"
+      }
+    ]
+  },
+  {
+    "name": "web-worker",
+    "version": "1.5.0",
+    "license": "Apache-2.0",
+    "files": [
+      {
+        "file": "LICENSE",
+        "sha256": "43070e2d4e532684de521b885f385d0841030efa2b1a20bafb76133a5e1379c1"
+      }
+    ]
+  },
+  {
+    "name": "xml-utils",
+    "version": "1.10.2",
+    "license": "CC0-1.0",
+    "files": [
+      {
+        "file": "LICENSE",
+        "sha256": "a2010f343487d3f7618affe54f789f5487602331c0a8d03f49e9a7c547cf0499"
+      }
+    ]
+  },
+  {
+    "name": "zarrita",
+    "version": "0.7.5",
+    "license": "MIT",
+    "files": [
+      {
+        "file": "LICENSE",
+        "sha256": "5cf6038da98164b5e3de3c38b6361b81a3cfd3bee73e56c9dae28798dbe19892"
+      }
+    ]
+  },
+  {
+    "name": "zstddec",
+    "version": "0.2.0",
+    "license": "MIT AND BSD-3-Clause",
+    "files": [
+      {
+        "file": "LICENSE",
+        "sha256": "8d078b49fc02bd63c1beaf4ddc629a8b48e4ba6a435415408c8209e2a5c3aacf"
+      }
+    ]
+  },
+  {
+    "name": "maplibre-gl",
+    "version": "6.15.0",
+    "license": "BSD-3-Clause",
+    "files": [
+      {
+        "file": "LICENSE.txt",
+        "sha256": "ee5fc05a0677eaf69601d2c7db0d9ecd6cc27c3abc1d0733bc9ed34707cf8ef2"
+      }
+    ],
+    "note": "Dependência existente do produto; não instalada nem alterada por este laboratório."
+  }
+]

@@ -1,0 +1,32 @@
+{
+  "arquivos": {
+    "edital_profloresta.yaml": {
+      "caminho_origem": "raiz/regras/padroes/edital_profloresta.yaml",
+      "git_blob": "863e9c5bb0e45aa76f2fef865c0bfb975fe7130a",
+      "sha256": "ea40b41930b2246548aafbb4cee35d8d3a4f219590eeef18be4474d964095b49"
+    },
+    "restauracao.yaml": {
+      "caminho_origem": "raiz/regras/padroes/restauracao.yaml",
+      "git_blob": "281dcfc092f0b0e0e8005a2eae8ea61eeafbdd50",
+      "sha256": "7fc23355e24be18d66c44c6449c919a20e4c123fe8dbfbf440f5812712b7de20"
+    },
+    "restauracao_cambio.yaml": {
+      "caminho_origem": "raiz/regras/padroes/restauracao_cambio.yaml",
+      "git_blob": "737380681c2fec5f910bf7bda64a089879b4f702",
+      "sha256": "527e402b823bc3b5afd023ed041a18aa4ad2987ba63a3ebbd56f5b91ce1ff6fd"
+    }
+  },
+  "arquivos_combinados": [
+    "restauracao.yaml",
+    "restauracao_cambio.yaml"
+  ],
+  "calibracao": {
+    "arquivo": "restauracao_calibracao.yaml",
+    "presente": false
+  },
+  "commit": "8eebc6a90bc20bce585520cee81bbebdd1ff93df",
+  "separador_hex": "0a2d2d0a",
+  "sha256_combinado": "421970fd238e3771fb423b808dca31eadf9efee51a14bd7ded6e98d1d6b49edd",
+  "versao": "restauracao-2026c+421970fd",
+  "versao_tarefa": "desenvolvedor-59f38ae40fcd"
+}

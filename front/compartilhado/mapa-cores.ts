@@ -3,7 +3,8 @@ export { SABOR_MAPA as CORES_MAPA } from "./cores"
 
 export const ATRIBUICAO_MAPA =
   '<a href="https://openstreetmap.org/copyright" target="_blank" rel="noopener">© OpenStreetMap</a>, ' +
-  '<a href="https://protomaps.com" target="_blank" rel="noopener">Protomaps</a>, CAR/SICAR, INPE TerraBrasilis'
+  '<a href="https://protomaps.com" target="_blank" rel="noopener">Protomaps</a>, CAR/SICAR, INPE TerraBrasilis, ' +
+  '<a href="https://www.ibge.gov.br/geociencias/organizacao-do-territorio/malhas-territoriais/15774-malhas.html" target="_blank" rel="noopener">IBGE (limites simplificados)</a>'
 
 /**
  * Rótulo de país sem o do Brasil: a Raíz só trabalha no Brasil, e o nome "Brasil" caía em cima do Pará. Os vizinhos

@@ -65,6 +65,15 @@ def aceito() -> str:
     return "Pronto, seu aceite foi registrado. A Raíz vai entrar em contato com os próximos passos."
 
 
+def pedido_sede() -> str:
+    """Pede a localização da sede (E5 passo 6). Vai com o botão "Enviar localização" do WhatsApp."""
+    return (
+        "Mais um pedido. Quando estiver na sede da fazenda, toque no botão abaixo e mande a sua localização. "
+        "Assim a Raíz confere se a terra é a mesma do mapa. Guardamos só se o ponto cai dentro da fazenda. "
+        "O ponto em si não fica guardado."
+    )
+
+
 def recusado() -> str:
     return "Tudo bem, obrigado pela resposta. Se mudar de ideia, é só escrever para este número."
 
@@ -89,6 +98,7 @@ def exemplos() -> dict[str, str]:
         "codigo": pedir_codigo("4821"),
         "codigo_errado": codigo_errado(),
         "aceito": aceito(),
+        "pedido_sede": pedido_sede(),
         "recusa": recusado(),
         "duvida": duvida_recebida(),
         "em_analise": em_analise(),

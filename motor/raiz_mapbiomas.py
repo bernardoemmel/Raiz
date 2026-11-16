@@ -5,7 +5,7 @@ Uso:
   python raiz_mapbiomas.py PA            # todos os municípios já rodados em saida/PA/
   python raiz_mapbiomas.py PA 1504950    # um município
 
-Como funciona: pede à plataforma, de uma vez, a exportação em GeoTIFF de cada tema para o ESTADO inteiro (sem login;
+Como funciona: pede à plataforma a exportação em GeoTIFF de cada tema para o ESTADO inteiro (sem login;
 cabeçalho tenant-id: mapbiomas; estado = categoria 214). São 5 pedidos por estado (135 no Brasil), em vez de 5 por
 município (cada pedido leva de segundos a cerca de 15 min na fila deles). Baixa uma vez para cache/mapbiomas/ e soma
 por imóvel lendo só a janela de cada grupo de imóveis (raiz_extras.zonal_janela). Cada exportação fica disponível por
@@ -49,24 +49,32 @@ SILVICULTURA = {9}
 #  no Pará, a classe 4 soma cerca de 190 mil ha em 2025, coerente com o PRODES)
 
 
-def _pedido(metodo, url, tentativas=8, **kw):
-    """Pedido à API com espera crescente: 429 (limite de pedidos), 403 e 5xx esperam o Retry-After ou 30 s, 1, 2, 4...
-    até 10 min; cada tentativa fica no log."""
+def _esperar(segundos, prazo):
+    if prazo is not None and time.time() + segundos >= prazo:
+        raise RuntimeError('MapBiomas: prazo de espera esgotado; pedidos aceitos ficam guardados para a próxima rodada')
+    time.sleep(segundos)
+
+
+def _pedido(metodo, url, tentativas=8, prazo=None, **kw):
+    """Repete só falhas transitórias de transporte/HTTP, dentro do prazo da chamada."""
     ultimo = ''
     for t in range(tentativas):
+        restante = prazo - time.time() if prazo is not None else 120
+        if restante <= 0:
+            raise RuntimeError('MapBiomas: prazo de espera esgotado; pedidos aceitos ficam guardados')
         espera = min(30 * 2 ** t, 600)
         try:
-            r = requests.request(metodo, url, headers=H, timeout=120, **kw)
+            r = requests.request(metodo, url, headers=H, timeout=min(120, restante), **kw)
             if r.status_code not in (403, 429) and r.status_code < 500: return r
             ra = r.headers.get('Retry-After', '')
             if ra.isdigit(): espera = min(int(ra), 900)
             ultimo = f'HTTP {r.status_code}'
         except requests.RequestException as ex:
-            ultimo = str(ex)[:120]
+            ultimo = type(ex).__name__  # não registra URLs assinadas nem o corpo remoto
         if t < tentativas - 1:
             print(f'  API MapBiomas: tentativa {t + 1}/{tentativas} falhou ({ultimo}); espero {espera} s', flush=True)
-            time.sleep(espera)
-    raise RuntimeError(f'API MapBiomas não respondeu ({ultimo}): {url}')
+            _esperar(espera, prazo)
+    raise RuntimeError(f'API MapBiomas não respondeu ({ultimo})')
 
 
 def _get(url, **kw):
@@ -88,18 +96,86 @@ def territorio(nome, uf, cod):
     raise RuntimeError(f'município {nome}/{uf} não achado na plataforma')
 
 
-def estado(uf):
-    r = _get(f'{API}/territories?categoryId={CAT_ESTADO}&pageSize=40').json()
+def estado(uf, prazo=None):
+    r = _get(f'{API}/territories?categoryId={CAT_ESTADO}&pageSize=40', prazo=prazo).json()
     for t in r['territories']:
         if t['name'] == NOME_UF[uf]: return t['id']
     raise RuntimeError(f'estado {uf} não achado na plataforma')
 
 
+def _quota_exportacao(r):
+    """422 também pode ser validação: só repetimos quando a resposta indica limite de geração.
+
+    A interface oficial traduz 422 deste endpoint como request_limit, mas isso sozinho não comprova o motivo.
+    Não guardamos nem mostramos o corpo, que pode conter detalhes da conta ou identificadores do pedido.
+    """
+    if r.status_code != 422: return False
+    try:
+        corpo = r.json()
+    except ValueError:
+        return False
+    def normalizar(valor):
+        return unicodedata.normalize('NFKD', str(valor)).encode('ascii', 'ignore').decode().lower().strip()
+
+    def sinal(objeto):
+        if not isinstance(objeto, dict): return False
+        codigos = {'request_limit', 'export_limit', 'export_limit_exceeded', 'export_quota_exceeded', 'quota_exceeded'}
+        for campo, valor in objeto.items():
+            if isinstance(valor, dict) and sinal(valor): return True
+            if not isinstance(valor, str): continue
+            texto = normalizar(valor)
+            if campo.lower() in ('code', 'errorcode', 'error_code', 'error') and texto in codigos: return True
+            if campo.lower() not in ('message', 'errormessage', 'error', 'description'): continue
+            if texto in codigos: return True
+            # Quantidade de anos ou campos inválidos não são falta de capacidade do serviço.
+            if any(x in texto for x in ('invalid', 'invalido', 'validation', 'must be', 'field', 'years', 'anos')): continue
+            if any(x in texto for x in ('request limit reached', 'request limit exceeded',
+                                        'export limit reached', 'export limit exceeded',
+                                        'export quota exceeded', 'limite de exportacao atingido',
+                                        'limite de exportacao excedido')): return True
+            if 'too many' in texto and any(x in texto for x in ('exports', 'maps', 'requests')): return True
+            if 'muitos mapas' in texto and any(x in texto for x in ('gerados', 'geracao')): return True
+        return False
+
+    return sinal(corpo)
+
+
+
+def _geotiff(conteudo):
+    """Valida um único GeoTIFF (clássico ou BigTIFF), inclusive quando a API o entrega em ZIP."""
+    import rasterio
+    from rasterio.io import MemoryFile
+    if conteudo[:2] == b'PK':
+        with zipfile.ZipFile(io.BytesIO(conteudo)) as z:
+            nomes = [n for n in z.namelist() if n.lower().endswith(('.tif', '.tiff'))]
+            if len(nomes) != 1:
+                raise RuntimeError('MapBiomas: ZIP deve conter exatamente um GeoTIFF para o ano solicitado')
+            conteudo = z.read(nomes[0])
+    if conteudo[:4] not in (b'II\x2a\x00', b'MM\x00\x2a', b'II\x2b\x00', b'MM\x00\x2b'):
+        raise RuntimeError('MapBiomas: download não é TIFF nem BigTIFF')
+    try:
+        with MemoryFile(conteudo) as mem, mem.open() as src:
+            if src.driver != 'GTiff' or not src.crs or src.transform.is_identity or not src.count or not src.width or not src.height:
+                raise RuntimeError('MapBiomas: GeoTIFF sem georreferência ou bandas válidas')
+            # Também verifica o fim do arquivo: o primeiro pixel não detecta TIFF truncado num tile posterior.
+            # Janelas limitadas evitam materializar um raster estadual inteiro em memória.
+            for banda in src.indexes:
+                for linha in range(0, src.height, 512):
+                    for coluna in range(0, src.width, 512):
+                        src.read(banda, window=((linha, min(linha + 512, src.height)),
+                                                (coluna, min(coluna + 512, src.width))))
+    except rasterio.errors.RasterioError as ex:
+        raise RuntimeError('MapBiomas: GeoTIFF inválido ou incompleto') from ex
+    return conteudo
+
+
 def exporta_uf(uf, espera=6 * 3600, temas=None):
-    """Pede os temas do estado de uma vez (todos, ou só os de `temas`), espera e baixa. Devolve {tema: GeoTIFF}.
-    O número de cada pedido fica em cache/mapbiomas/<UF>/pedidos.json: se o job acabar antes de a exportação ficar pronta,
-    a próxima rodada reaproveita o pedido em vez de entrar de novo na fila (e de gastar o limite de pedidos da API).
-    Com RAIZ_PRAZO (segundos desde 1970), para de esperar perto do prazo do job e deixa para a próxima rodada."""
+    """Consome pedidos aceitos antes de criar outro; mantém os cinco produtos/anos do catálogo.
+
+    Os IDs persistem em pedidos.json até o GeoTIFF ser validado. Novos pedidos são sequenciais: a geração anterior
+    termina antes de usar outra vaga da plataforma. Quota explícita tem no máximo oito tentativas, limitadas também
+    por espera e RAIZ_PRAZO. Uma resposta 422 sem sinal de quota falha visivelmente, sem repetição cega.
+    """
     T = {k: v for k, v in TEMAS.items() if temas is None or k in temas}
     arq = {k: f'{CACHE}/{uf}/{uf}_{k}_{ano}.tif' for k, (ch, ano) in T.items()}
     falta = {k: v for k, v in T.items() if not os.path.exists(arq[k])}
@@ -107,43 +183,77 @@ def exporta_uf(uf, espera=6 * 3600, temas=None):
     os.makedirs(f'{CACHE}/{uf}', exist_ok=True)
     fp = f'{CACHE}/{uf}/pedidos.json'
     pedidos = json.load(open(fp)) if os.path.exists(fp) else {}
+    t0 = time.time()
+    prazo_job = float(os.environ.get('RAIZ_PRAZO', 0) or 0)
+    limite = min(t0 + espera, prazo_job - 120) if prazo_job else t0 + espera
 
     def guarda():
         open(fp + '.tmp', 'w').write(json.dumps(pedidos)); os.replace(fp + '.tmp', fp)
 
-    tid = None; pend = {}
+    avisados = set()
+
+    def consulta(pend):
+        for k, eid in list(pend.items()):
+            r = _get(f'{API}/maps/exports/{eid}', prazo=limite)
+            if r.status_code == 404:
+                pedidos.pop(k, None); guarda()
+                raise RuntimeError(f'{uf} {k}: pedido aceito não existe mais; será renovado na próxima rodada')
+            if not r.ok:
+                raise RuntimeError(f'{uf} {k}: consulta do pedido falhou (HTTP {r.status_code})')
+            situacao = r.json().get('status')
+            if situacao == 'READY':
+                r = _get(f'{API}/maps/exports/{eid}/download', allow_redirects=True, prazo=limite)
+                if not r.ok:
+                    raise RuntimeError(f'{uf} {k}: download falhou (HTTP {r.status_code}); pedido preservado')
+                b = _geotiff(r.content)
+                open(arq[k] + '.tmp', 'wb').write(b); os.replace(arq[k] + '.tmp', arq[k])
+                pedidos.pop(k, None); guarda(); del pend[k]
+                print(f'  {uf} {k}: pronto em {time.time() - t0:.0f} s, {len(b) / 1e6:.0f} MB', flush=True)
+            elif situacao in ('FAILED', 'EXPIRED'):
+                pedidos.pop(k, None); guarda()
+                raise RuntimeError(f'{uf} {k}: geração encerrou como {situacao}; será renovada na próxima rodada')
+            elif not isinstance(situacao, str) or not situacao.strip():
+                raise RuntimeError(f'{uf} {k}: resposta sem situação de exportação; pedido preservado')
+            elif k not in avisados:
+                # O catálogo não documenta todos os estados transitórios. Só READY/FAILED/EXPIRED são terminais.
+                print(f'  {uf} {k}: pedido ainda não pronto; aguardo até o prazo, com ID preservado', flush=True)
+                avisados.add(k)
+
+    pend = {}
+    novos = {}
     for k, (ch, ano) in falta.items():
         antigo = pedidos.get(k)
-        if antigo and antigo.get('chave') == ch and antigo.get('ano') == ano and time.time() - antigo.get('em', 0) < 30 * 86400:
-            pend[k] = antigo['id']; print(f'  {uf} {k}: reaproveito o pedido {antigo["id"]}', flush=True); continue
-        tid = tid or estado(uf)
-        r = _pedido('POST', f'{API}/maps/exports', json={'territoryId': tid, 'subthemeKey': ch, 'years': [ano], 'exportType': 'range'})
-        r.raise_for_status(); pend[k] = r.json()['exports'][0]['id']
-        pedidos[k] = {'id': pend[k], 'chave': ch, 'ano': ano, 'em': time.time()}; guarda()
-    t0 = time.time()
-    prazo = float(os.environ.get('RAIZ_PRAZO', 0) or 0)
+        if antigo and antigo.get('chave') == ch and antigo.get('ano') == ano and antigo.get('id'):
+            pend[k] = antigo['id']; print(f'  {uf} {k}: reaproveito o pedido aceito', flush=True)
+        else:
+            novos[k] = (ch, ano)
+    # Primeiro consome TODAS as solicitações anteriores, inclusive a cobertura pronta que antes ficava atrás do 422.
     while pend:
-        for k, eid in list(pend.items()):
-            r = _get(f'{API}/maps/exports/{eid}')
-            if r.status_code == 404:  # pedido velho sumiu do lado deles: pede de novo na próxima rodada
-                pedidos.pop(k, None); guarda(); raise RuntimeError(f'{uf} {k}: pedido {eid} não existe mais')
-            e = r.json()
-            if e['status'] == 'READY':
-                b = _get(f'{API}/maps/exports/{eid}/download', allow_redirects=True).content
-                if b[:2] == b'PK':  # às vezes vem em ZIP com o .tif dentro
-                    z = zipfile.ZipFile(io.BytesIO(b)); b = z.read([n for n in z.namelist() if n.endswith('.tif')][0])
-                os.makedirs(os.path.dirname(arq[k]), exist_ok=True)
-                open(arq[k] + '.tmp', 'wb').write(b); os.replace(arq[k] + '.tmp', arq[k])
-                print(f'  {uf} {k}: pronto em {time.time() - t0:.0f} s, {len(b) / 1e6:.0f} MB', flush=True); del pend[k]
-                pedidos.pop(k, None); guarda()
-            elif e['status'] in ('FAILED', 'EXPIRED'):
-                pedidos.pop(k, None); guarda()
-                raise RuntimeError(f'{uf} {k}: {e.get("errorMessage")}')
-        if pend:
-            if time.time() - t0 > espera: raise RuntimeError(f'{uf}: {list(pend)} passaram de {espera} s na fila')
-            if prazo and time.time() > prazo - 120:
-                raise RuntimeError(f'{uf}: {list(pend)} ainda na fila do MapBiomas no fim do prazo; o pedido fica guardado para a próxima rodada')
-            time.sleep(30)
+        consulta(pend)
+        if pend: _esperar(30, limite)
+    tid = None
+    for k, (ch, ano) in novos.items():
+        if limite <= time.time():
+            raise RuntimeError(f'{uf} {k}: prazo esgotado antes de criar exportação')
+        if tid is None: tid = estado(uf, prazo=limite)
+        for tentativa in range(8):
+            r = _pedido('POST', f'{API}/maps/exports', prazo=limite,
+                        json={'territoryId': tid, 'subthemeKey': ch, 'years': [ano], 'exportType': 'range'})
+            if r.ok: break
+            if not _quota_exportacao(r):
+                raise RuntimeError(f'{uf} {k}: exportação recusada (HTTP {r.status_code}; quota não confirmada); conferir contrato/payload')
+            if tentativa == 7:
+                raise RuntimeError(f'{uf} {k}: quota de exportação permaneceu após oito tentativas')
+            espera_quota = min(30 * 2 ** tentativa, 300)
+            ra = r.headers.get('Retry-After', '')
+            if ra.isdigit(): espera_quota = min(max(int(ra), 1), 900)
+            print(f'  {uf} {k}: quota de exportação; tentativa {tentativa + 1}/8, espero {espera_quota} s', flush=True)
+            _esperar(espera_quota, limite)
+        pend[k] = r.json()['exports'][0]['id']
+        pedidos[k] = {'id': pend[k], 'chave': ch, 'ano': ano, 'em': time.time()}; guarda()
+        while pend:
+            consulta(pend)
+            if pend: _esperar(30, limite)
     return arq
 
 

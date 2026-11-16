@@ -1,0 +1,47 @@
+{
+  "versao": "2026-11-12.1",
+  "verificado_em": "2026-11-12",
+  "fontes": {
+    "berkeley": {
+      "url": "https://gspp.berkeley.edu/berkeley-carbon-trading-project/offsets-database",
+      "arquivo": "https://gspp.berkeley.edu/assets/uploads/page/Voluntary-Registry-Offsets-Database--v2026-08.xlsx",
+      "versao": "v2026-08",
+      "data_referencia": "2026-08-31",
+      "licenca": "CC BY 4.0 — Berkeley Carbon Trading Project, Voluntary Registry Offsets Database v2026-08",
+      "cobertura": "Catálogo Brasil: ACR, ART, CAR, Gold Standard, Isometric e Verra. Não contém limites de projetos; nunca comprova vínculo ao CAR.",
+      "acesso": "XLSX público; preservar atribuição e versão. Entradas Archive preservadas como inativas."
+    },
+    "verra": {
+      "url": "https://verra.org/registry/overview/",
+      "licenca": "Termos do Verra Registry; licença de redistribuição dos documentos não declarada. Uso de referência e análise privada.",
+      "cobertura": "Detalhes e polígonos oficiais por projeto. API do Digital Gateway exige acesso contratado; página pública não garante API estável.",
+      "acesso": "Consulta pública por identificador e documento público; sem contornar autenticação."
+    },
+    "sfb_concessoes": {
+      "url": "https://www.gov.br/florestal/pt-br/assuntos/concessoes-e-monitoramento/concessoes-florestais-em-andamento",
+      "licenca": "Contratos: CC BY-ND 3.0, portal SFB. Serviço geográfico: licença não declarada; análise e derivado privados, sem redistribuir fonte.",
+      "cobertura": "Concessões federais; geometria das UMFs não abrange todos os contratos. Concessão florestal não comprova exclusividade de carbono."
+    },
+    "art_jurisdicional": {
+      "url": "https://artredd.org/art-september-2026-newsletter/",
+      "licenca": "Publicações públicas ART; licença de redistribuição não declarada. Referência factual.",
+      "cobertura": "Programas jurisdicionais AC/AP/MA/MT/PA/TO. Contexto estadual, nunca prova compromisso individual de CAR."
+    },
+    "ideflor_concessoes": {
+      "url": "https://ideflorbio.pa.gov.br/unidade-de-recuperacao-triunfo-do-xingu/",
+      "licenca": "Publicação oficial Ideflor-Bio; licença de redistribuição não declarada. Derivado privado.",
+      "cobertura": "Concessões estaduais publicadas com limites explícitos. Não usar unidade de conservação inteira como limite contratual."
+    },
+    "limites_pesquisa": {
+      "url": "https://doi.org/10.5281/zenodo.11459391",
+      "licenca": "CC BY 4.0 — An open-access database of nature-based carbon offset project boundaries, Zenodo 11459391.",
+      "cobertura": "Base científica parcial; limites secundários são indício, nunca polígono oficial confirmado automaticamente.",
+      "verificacao": "Índice CSV 41 projetos Brasil: 34 polígonos Verra, 6 EcoRegistry e 1 ponto ACR (excluído de área). A fonte secundária não garante status atual."
+    },
+    "redd_estadual": {
+      "url": "https://redd.mma.gov.br/pt/",
+      "licenca": "Cadastro geográfico privado Raíz de publicações oficiais; licença conforme fonte de cada programa.",
+      "cobertura": "Programas cadastrados em geo.redd_programa. Interseção do perímetro indica contexto jurisdicional, nunca vínculo contratual individual."
+    }
+  }
+}

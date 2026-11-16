@@ -70,6 +70,8 @@ def marcar(
     observado_em: str | None = None,
     nota: str | None = None,
     armazem: Armazem | None = None,
+    leitura_integral: bool | None = None,
+    amostra_aleatoria_cache: bool = False,
 ) -> dict:
     """Marca a leitura como confirmada ou desmentida pela certidão real. Devolve o que foi gravado.
 
@@ -81,9 +83,26 @@ def marcar(
         raise ValueError(f"leitura {leitura_id} não existe")
     if situacao_real is not None and situacao_real not in SITUACOES:
         raise ValueError(f"situação deve ser uma de {', '.join(SITUACOES)}")
-    if confirma is None and situacao_real is None and not campos:
+    if confirma is None and situacao_real is None and not campos and leitura_integral is None:
         raise ValueError("diga se confirma, a situação real ou os campos conferidos")
+    if amostra_aleatoria_cache and leitura_integral is None:
+        raise ValueError("a amostra do cache exige conferência integral da leitura")
     gravado = {}
+    if leitura_integral is not None:
+        if fonte not in {"cartorio", "onr", "conferencia_humana"}:
+            raise ValueError("conferência integral exige fonte cartorio, onr ou conferencia_humana")
+        if lt.erro:
+            raise ValueError("leitura com erro não pode receber conferência integral")
+        armazem.gravar_gabarito(
+            lt.chave,
+            "leitura_integral",
+            fonte,
+            confirma=leitura_integral,
+            leitura_id=leitura_id,
+            observado_em=observado_em,
+            nota="amostra_aleatoria_cache" if amostra_aleatoria_cache else None,
+        )
+        gravado["leitura_integral"] = dict(confirma=leitura_integral, amostra_aleatoria=amostra_aleatoria_cache)
     prevista = situacao_prevista(armazem, leitura_id)
     if confirma is not None or situacao_real is not None:
         real = situacao_real or (prevista if confirma else None)
@@ -231,6 +250,11 @@ CHAVE_GABARITO = ("cod_imovel", "alvo", "observado_em", "fonte", "referencia", "
 def data_corte(lt) -> str:
     """Data de corte da previsão = emissão da certidão (a informação que o leitor viu); sem ela, o dia anterior à
     leitura. Na E8 o gabarito só casa com a previsão quando é observado depois do corte."""
+    capturada = (lt.derivados or {}).get("comparacao_capturada_em")
+    if capturada:
+        # A primeira certidão enviada congela a previsão na entrada. A emissão do
+        # PDF não pode retrodatá-la. Folds exigem gabarito observado após este dia.
+        return dt.datetime.fromisoformat(capturada).date().isoformat()
     lido = dt.date.fromisoformat((lt.lido_em or dt.date.today().isoformat())[:10])
     try:
         d = dt.date.fromisoformat(str(((lt.dados or {}).get("documento") or {}).get("data_emissao"))[:10])
@@ -251,6 +275,10 @@ def previsoes_e_gabaritos(armazem: Armazem | None = None) -> tuple[list[dict], l
         if not c["cod_imovel"]:
             continue
         lt = armazem.leitura(c["leitura_id"])
+        if (lt.derivados or {}).get("comparacao_disponivel") is False:
+            # Sem previsão anterior, a ausência de comparação não prova erro do
+            # motor. Campos e leitura integral continuam no placar do leitor/cache.
+            continue
         corte = data_corte(lt)
         ref = f"leitura:{lt.id}"
         motor = Path(c["motor_arquivo"]).name if c["motor_arquivo"] else "motor"
@@ -313,7 +341,7 @@ def exportar(pasta: Path, armazem: Armazem | None = None) -> tuple[Path, Path]:
     return a, b
 
 
-def enviar_ao_banco(armazem: Armazem | None = None, con=None) -> str:
+def enviar_ao_banco(armazem: Armazem | None = None, con=None, *, referencia_prefixo: str = "") -> str:
     """Registra em aprendizado.previsao (um lote congelado por leitura) e aprendizado.gabarito. Pode rodar de novo:
     o que já está no banco não entra outra vez. Sem `con`, abre a conexão do back-end (RAIZ_BANCO_URL)."""
     from sqlalchemy import text
@@ -324,8 +352,11 @@ def enviar_ao_banco(armazem: Armazem | None = None, con=None) -> str:
         from raiz.banco import engine
 
         with engine().begin() as c:
-            return enviar_ao_banco(armazem, c)
+            return enviar_ao_banco(armazem, c, referencia_prefixo=referencia_prefixo)
     prevs, gabs = previsoes_e_gabaritos(armazem)
+    if referencia_prefixo:
+        for registro in [*prevs, *gabs]:
+            registro["referencia"] = referencia_prefixo + registro["referencia"]
     ja = {
         tuple(str(x) for x in r)
         for r in con.execute(

@@ -27,12 +27,12 @@ import logging
 import sys
 from pathlib import Path
 
-from raiz.vigilancia.privacidade import mascarar
-
 
 class _LogSeguro(logging.Formatter):
     def format(self, record):
-        return mascarar(super().format(record))
+        from raiz.logs_seguros import sanitizar_log
+
+        return sanitizar_log(super().format(record))
 
 
 def _log() -> None:
@@ -62,6 +62,16 @@ def main(argv: list[str] | None = None) -> int:
     r.add_argument("--hoje", help="data da rodada (AAAA-MM-DD); padrão: hoje em Brasília")
     r.add_argument("--resumo", help="arquivo onde acrescentar o resumo em Markdown (ex.: $GITHUB_STEP_SUMMARY)")
     r.add_argument("--detalhe", action="store_true", help="mostrar também os projetos (não usar em log público)")
+    r.add_argument("--lotes", action="store_true", help="vigiar só CAR de lotes ativos do catálogo privado")
+    e_lotes = sub.add_parser("exportar-lotes", help="renovar o catálogo dos lotes atuais no arquivo privado")
+    e_lotes.add_argument("--publicar", action="store_true", help="publicar no destino privado autenticado")
+    ciclo_lotes = sub.add_parser("lotes-ciclo", help="ponte automática dos lotes entre banco, Actions e painel")
+    ciclo_lotes.add_argument(
+        "--publicar",
+        action="store_true",
+        required=True,
+        help="renovar o catálogo privado e importar rascunhos, sem enviar mensagens",
+    )
 
     i = sub.add_parser("imovel")
     i.add_argument("cod")
@@ -77,6 +87,12 @@ def main(argv: list[str] | None = None) -> int:
     rel.add_argument("perda")
     rel.add_argument("--idioma", default="pt", choices=["pt", "en"])
     rel.add_argument("--kml", action="store_true", help="mostrar o KML da área afetada no lugar do relatório")
+
+    av = sub.add_parser("aviso-verra", help="preparar o e-mail inicial, sem enviar nem quitar o prazo")
+    av.add_argument("projeto")
+    av.add_argument("perda")
+    av.add_argument("--prazo-informado", help="AAAA-MM-DD para um prazo informado ainda não registrado no projeto")
+    av.add_argument("--saida", help="gravar o rascunho .eml no caminho indicado")
 
     m = sub.add_parser("marcar")
     m.add_argument("alerta_id")
@@ -108,6 +124,32 @@ def main(argv: list[str] | None = None) -> int:
 
     args = ap.parse_args(argv)
 
+    if args.cmd in {"exportar-lotes", "lotes-ciclo"}:
+        from raiz.vigilancia import lotes
+        from raiz.vigilancia.config import config
+
+        try:
+            eng = lotes.engine_configurado()
+            if eng is None:
+                raise lotes.ErroLotes("defina RAIZ_BANCO_URL para ler os lotes atuais")
+            if args.cmd == "lotes-ciclo":
+                _imprimir(lotes.ciclo(config(), eng))
+            elif args.publicar:
+                _imprimir(lotes.exportar_catalogo(config(), eng))
+            else:
+                catalogo = lotes.catalogo_do_banco(eng)
+                _imprimir(
+                    {
+                        "lotes": len(catalogo["lotes"]),
+                        "publicado": False,
+                        "aviso": "use --publicar para atualizar o snapshot privado; não exporta clientes no log",
+                    }
+                )
+        except Exception as ex:  # noqa: BLE001
+            _imprimir({"erro": lotes.diagnostico(ex), "envios_externos": 0})
+            return 1
+        return 0
+
     if args.cmd == "chave":
         from raiz.vigilancia.publicacao import gerar_chave
 
@@ -119,7 +161,7 @@ def main(argv: list[str] | None = None) -> int:
 
         from raiz.vigilancia.servidor import criar_app
 
-        uvicorn.run(criar_app(), host=args.host, port=args.porta)
+        uvicorn.run(criar_app(), host=args.host, port=args.porta, log_config=None, access_log=False)
         return 0
 
     if args.cmd == "rodar":
@@ -131,18 +173,48 @@ def main(argv: list[str] | None = None) -> int:
             baixar=args.baixar,
             publicar=args.publicar,
             ufs=[u.strip().upper() for u in args.ufs.split(",")] if args.ufs else None,
+            lotes=args.lotes,
         )
         _imprimir(res if args.detalhe else {k: res[k] for k in ("publico", "entradas") if k in res})
         if args.resumo:
             with open(args.resumo, "a", encoding="utf-8") as f:
                 f.write(resumo_markdown(res))
-        erro = any(f.get("situacao") == "erro" for f in res.get("fontes", {}).values())
+        falhas = {"erro", "parcial", "sem_credencial"} if args.lotes else {"erro", "parcial"}
+        erro = any(f.get("situacao") in falhas for f in res.get("fontes", {}).values())
         erro = erro or bool((res.get("publicar") or {}).get("erro")) or bool((res.get("baixar") or {}).get("erro"))
+        erro = erro or (res.get("lotes") or {}).get("situacao") in {"erro", "parcial"}
         return 1 if erro else 0
 
     from raiz.vigilancia.servico import Vigilancia
 
     v = Vigilancia()
+    if args.cmd == "aviso-verra":
+        from raiz.vigilancia.aviso_verra import eml, preparar
+        from raiz.vigilancia.servico import hoje_brasil
+
+        if args.projeto not in v.projetos:
+            _imprimir({"erro": "projeto não cadastrado"})
+            return 2
+        try:
+            d = v.aviso_verra(args.projeto, args.perda)
+            prazo = _data(args.prazo_informado)
+            if d is not None and prazo is not None and prazo.isoformat() != d["prazo"]:
+                raise ValueError("prazo informado diverge do prazo registrado no projeto")
+            if d is None:
+                d = preparar(v.projetos[args.projeto], args.perda, v.regras, hoje_brasil(), prazo_informado=prazo)
+        except ValueError as ex:
+            _imprimir({"erro": str(ex)})
+            return 2
+        if args.saida:
+            if not d["pode_exportar"]:
+                _imprimir(d)
+                return 2
+            destino = Path(args.saida)
+            destino.parent.mkdir(parents=True, exist_ok=True)
+            destino.write_text(eml(d), encoding="utf-8")
+            destino.chmod(0o600)
+        _imprimir(d)
+        return 0
     if args.cmd == "imovel":
         from raiz.vigilancia.api import normalizar_cod
 

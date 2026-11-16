@@ -1,0 +1,553 @@
+{
+  "$defs": {
+    "ControleEstavel": {
+      "additionalProperties": false,
+      "properties": {
+        "controle_id": {
+          "format": "uuid",
+          "title": "Controle Id",
+          "type": "string"
+        },
+        "fixado_em": {
+          "format": "date-time",
+          "title": "Fixado Em",
+          "type": "string"
+        },
+        "procedimento_sha256": {
+          "pattern": "^[a-f0-9]{64}$",
+          "title": "Procedimento Sha256",
+          "type": "string"
+        },
+        "referencia_sha256": {
+          "pattern": "^[a-f0-9]{64}$",
+          "title": "Referencia Sha256",
+          "type": "string"
+        },
+        "centro": {
+          "title": "Centro",
+          "type": "number"
+        },
+        "desvio_padrao": {
+          "exclusiveMinimum": 0,
+          "title": "Desvio Padrao",
+          "type": "number"
+        },
+        "multiplicador": {
+          "exclusiveMinimum": 0,
+          "title": "Multiplicador",
+          "type": "number"
+        },
+        "minimo_referencia": {
+          "minimum": 20,
+          "title": "Minimo Referencia",
+          "type": "integer"
+        },
+        "referencia_n": {
+          "minimum": 20,
+          "title": "Referencia N",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "controle_id",
+        "fixado_em",
+        "procedimento_sha256",
+        "referencia_sha256",
+        "centro",
+        "desvio_padrao",
+        "multiplicador",
+        "minimo_referencia",
+        "referencia_n"
+      ],
+      "title": "ControleEstavel",
+      "type": "object"
+    },
+    "Estrato": {
+      "additionalProperties": false,
+      "properties": {
+        "municipio": {
+          "maximum": 9999999,
+          "minimum": 1000000,
+          "title": "Municipio",
+          "type": "integer"
+        },
+        "porte": {
+          "enum": [
+            "pequena",
+            "media",
+            "grande"
+          ],
+          "title": "Porte",
+          "type": "string"
+        },
+        "aptidao": {
+          "enum": [
+            "baixa",
+            "media",
+            "alta"
+          ],
+          "title": "Aptidao",
+          "type": "string"
+        }
+      },
+      "required": [
+        "municipio",
+        "porte",
+        "aptidao"
+      ],
+      "title": "Estrato",
+      "type": "object"
+    },
+    "GabaritoCego": {
+      "additionalProperties": false,
+      "properties": {
+        "caso_id": {
+          "format": "uuid",
+          "title": "Caso Id",
+          "type": "string"
+        },
+        "estrato": {
+          "$ref": "#/$defs/Estrato"
+        },
+        "unidade": {
+          "const": "tco2e_ha_ano",
+          "default": "tco2e_ha_ano",
+          "title": "Unidade",
+          "type": "string"
+        },
+        "valor": {
+          "title": "Valor",
+          "type": "number"
+        },
+        "incerteza_padrao": {
+          "minimum": 0,
+          "title": "Incerteza Padrao",
+          "type": "number"
+        },
+        "horizonte_em": {
+          "format": "date-time",
+          "title": "Horizonte Em",
+          "type": "string"
+        },
+        "medido_em": {
+          "format": "date-time",
+          "title": "Medido Em",
+          "type": "string"
+        },
+        "registrado_em": {
+          "format": "date-time",
+          "title": "Registrado Em",
+          "type": "string"
+        },
+        "revelado_em": {
+          "format": "date-time",
+          "title": "Revelado Em",
+          "type": "string"
+        },
+        "laboratorio_id": {
+          "format": "uuid",
+          "title": "Laboratorio Id",
+          "type": "string"
+        },
+        "amostra_cega_id": {
+          "format": "uuid",
+          "title": "Amostra Cega Id",
+          "type": "string"
+        },
+        "procedimento_sha256": {
+          "pattern": "^[a-f0-9]{64}$",
+          "title": "Procedimento Sha256",
+          "type": "string"
+        },
+        "evidencia_sha256": {
+          "pattern": "^[a-f0-9]{64}$",
+          "title": "Evidencia Sha256",
+          "type": "string"
+        },
+        "metodo": {
+          "enum": [
+            "campo_independente",
+            "laboratorio_independente"
+          ],
+          "title": "Metodo",
+          "type": "string"
+        },
+        "controle_id": {
+          "format": "uuid",
+          "title": "Controle Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "caso_id",
+        "estrato",
+        "valor",
+        "incerteza_padrao",
+        "horizonte_em",
+        "medido_em",
+        "registrado_em",
+        "revelado_em",
+        "laboratorio_id",
+        "amostra_cega_id",
+        "procedimento_sha256",
+        "evidencia_sha256",
+        "metodo",
+        "controle_id"
+      ],
+      "title": "GabaritoCego",
+      "type": "object"
+    },
+    "Inclusao": {
+      "additionalProperties": false,
+      "properties": {
+        "caso_id": {
+          "format": "uuid",
+          "title": "Caso Id",
+          "type": "string"
+        },
+        "decisao_id": {
+          "format": "uuid",
+          "title": "Decisao Id",
+          "type": "string"
+        },
+        "municipio": {
+          "maximum": 9999999,
+          "minimum": 1000000,
+          "title": "Municipio",
+          "type": "integer"
+        },
+        "modulos_fiscais": {
+          "exclusiveMinimum": 0,
+          "title": "Modulos Fiscais",
+          "type": "number"
+        },
+        "aptidao": {
+          "enum": [
+            "baixa",
+            "media",
+            "alta"
+          ],
+          "title": "Aptidao",
+          "type": "string"
+        },
+        "entrou": {
+          "title": "Entrou",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "caso_id",
+        "decisao_id",
+        "municipio",
+        "modulos_fiscais",
+        "aptidao",
+        "entrou"
+      ],
+      "title": "Inclusao",
+      "type": "object"
+    },
+    "MedicaoControle": {
+      "additionalProperties": false,
+      "properties": {
+        "controle_id": {
+          "format": "uuid",
+          "title": "Controle Id",
+          "type": "string"
+        },
+        "procedimento_sha256": {
+          "pattern": "^[a-f0-9]{64}$",
+          "title": "Procedimento Sha256",
+          "type": "string"
+        },
+        "medido_em": {
+          "format": "date-time",
+          "title": "Medido Em",
+          "type": "string"
+        },
+        "valor": {
+          "title": "Valor",
+          "type": "number"
+        }
+      },
+      "required": [
+        "controle_id",
+        "procedimento_sha256",
+        "medido_em",
+        "valor"
+      ],
+      "title": "MedicaoControle",
+      "type": "object"
+    },
+    "PlanoMudanca": {
+      "additionalProperties": false,
+      "properties": {
+        "plano_id": {
+          "format": "uuid",
+          "title": "Plano Id",
+          "type": "string"
+        },
+        "fixado_em": {
+          "format": "date-time",
+          "title": "Fixado Em",
+          "type": "string"
+        },
+        "inicio_treino_em": {
+          "format": "date-time",
+          "title": "Inicio Treino Em",
+          "type": "string"
+        },
+        "modelo_anterior_sha256": {
+          "pattern": "^[a-f0-9]{64}$",
+          "title": "Modelo Anterior Sha256",
+          "type": "string"
+        },
+        "receita_candidata_sha256": {
+          "pattern": "^[a-f0-9]{64}$",
+          "title": "Receita Candidata Sha256",
+          "type": "string"
+        },
+        "previsoes_anteriores_sha256": {
+          "pattern": "^[a-f0-9]{64}$",
+          "title": "Previsoes Anteriores Sha256",
+          "type": "string"
+        },
+        "conjunto_cego_sha256": {
+          "pattern": "^[a-f0-9]{64}$",
+          "title": "Conjunto Cego Sha256",
+          "type": "string"
+        },
+        "controle_sha256": {
+          "pattern": "^[a-f0-9]{64}$",
+          "title": "Controle Sha256",
+          "type": "string"
+        },
+        "politica_equidade_sha256": {
+          "pattern": "^[a-f0-9]{64}$",
+          "title": "Politica Equidade Sha256",
+          "type": "string"
+        },
+        "coorte_inclusao_sha256": {
+          "pattern": "^[a-f0-9]{64}$",
+          "title": "Coorte Inclusao Sha256",
+          "type": "string"
+        },
+        "mudancas": {
+          "items": {
+            "enum": [
+              "calibracao",
+              "pesos",
+              "variaveis"
+            ],
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Mudancas",
+          "type": "array"
+        },
+        "tolerancias": {
+          "items": {
+            "$ref": "#/$defs/Tolerancia"
+          },
+          "minItems": 1,
+          "title": "Tolerancias",
+          "type": "array"
+        },
+        "condicao_retorno": {
+          "const": "qualquer_subgrupo_ou_controle_fora_da_tolerancia",
+          "title": "Condicao Retorno",
+          "type": "string"
+        }
+      },
+      "required": [
+        "plano_id",
+        "fixado_em",
+        "inicio_treino_em",
+        "modelo_anterior_sha256",
+        "receita_candidata_sha256",
+        "previsoes_anteriores_sha256",
+        "conjunto_cego_sha256",
+        "controle_sha256",
+        "politica_equidade_sha256",
+        "coorte_inclusao_sha256",
+        "mudancas",
+        "tolerancias",
+        "condicao_retorno"
+      ],
+      "title": "PlanoMudanca",
+      "type": "object"
+    },
+    "PrevisaoCarbono": {
+      "additionalProperties": false,
+      "properties": {
+        "caso_id": {
+          "format": "uuid",
+          "title": "Caso Id",
+          "type": "string"
+        },
+        "modelo_sha256": {
+          "pattern": "^[a-f0-9]{64}$",
+          "title": "Modelo Sha256",
+          "type": "string"
+        },
+        "entradas_sha256": {
+          "pattern": "^[a-f0-9]{64}$",
+          "title": "Entradas Sha256",
+          "type": "string"
+        },
+        "receita_sha256": {
+          "pattern": "^[a-f0-9]{64}$",
+          "title": "Receita Sha256",
+          "type": "string"
+        },
+        "tipo": {
+          "default": "ao_vivo",
+          "enum": [
+            "ao_vivo",
+            "backtest"
+          ],
+          "title": "Tipo",
+          "type": "string"
+        },
+        "emitida_em": {
+          "format": "date-time",
+          "title": "Emitida Em",
+          "type": "string"
+        },
+        "decisao_em": {
+          "format": "date-time",
+          "title": "Decisao Em",
+          "type": "string"
+        },
+        "entradas_disponiveis_em": {
+          "format": "date-time",
+          "title": "Entradas Disponiveis Em",
+          "type": "string"
+        },
+        "horizonte_em": {
+          "format": "date-time",
+          "title": "Horizonte Em",
+          "type": "string"
+        },
+        "unidade": {
+          "const": "tco2e_ha_ano",
+          "default": "tco2e_ha_ano",
+          "title": "Unidade",
+          "type": "string"
+        },
+        "sorteios": {
+          "items": {
+            "type": "number"
+          },
+          "maxItems": 100000,
+          "minItems": 2,
+          "title": "Sorteios",
+          "type": "array"
+        }
+      },
+      "required": [
+        "caso_id",
+        "modelo_sha256",
+        "entradas_sha256",
+        "receita_sha256",
+        "emitida_em",
+        "decisao_em",
+        "entradas_disponiveis_em",
+        "horizonte_em",
+        "sorteios"
+      ],
+      "title": "PrevisaoCarbono",
+      "type": "object"
+    },
+    "Tolerancia": {
+      "additionalProperties": false,
+      "properties": {
+        "estrato": {
+          "$ref": "#/$defs/Estrato"
+        },
+        "minimo": {
+          "minimum": 2,
+          "title": "Minimo",
+          "type": "integer"
+        },
+        "aumento_crps_max": {
+          "minimum": 0,
+          "title": "Aumento Crps Max",
+          "type": "number"
+        },
+        "crps_max": {
+          "minimum": 0,
+          "title": "Crps Max",
+          "type": "number"
+        }
+      },
+      "required": [
+        "estrato",
+        "minimo",
+        "aumento_crps_max",
+        "crps_max"
+      ],
+      "title": "Tolerancia",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "plano": {
+      "$ref": "#/$defs/PlanoMudanca"
+    },
+    "anteriores": {
+      "items": {
+        "$ref": "#/$defs/PrevisaoCarbono"
+      },
+      "minItems": 1,
+      "title": "Anteriores",
+      "type": "array"
+    },
+    "candidatas": {
+      "items": {
+        "$ref": "#/$defs/PrevisaoCarbono"
+      },
+      "minItems": 1,
+      "title": "Candidatas",
+      "type": "array"
+    },
+    "gabaritos": {
+      "items": {
+        "$ref": "#/$defs/GabaritoCego"
+      },
+      "minItems": 1,
+      "title": "Gabaritos",
+      "type": "array"
+    },
+    "controle": {
+      "$ref": "#/$defs/ControleEstavel"
+    },
+    "medicoes_controle": {
+      "items": {
+        "$ref": "#/$defs/MedicaoControle"
+      },
+      "minItems": 1,
+      "title": "Medicoes Controle",
+      "type": "array"
+    },
+    "inclusoes": {
+      "items": {
+        "$ref": "#/$defs/Inclusao"
+      },
+      "minItems": 1,
+      "title": "Inclusoes",
+      "type": "array"
+    }
+  },
+  "required": [
+    "plano",
+    "anteriores",
+    "candidatas",
+    "gabaritos",
+    "controle",
+    "medicoes_controle",
+    "inclusoes"
+  ],
+  "title": "Ensaio",
+  "type": "object"
+}

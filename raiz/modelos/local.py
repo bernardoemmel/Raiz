@@ -1,7 +1,10 @@
 """Modelo local no llama.cpp (llama-server, MIT): Qwen3-4B-Instruct-2507 (Apache-2.0), roda em CPU.
 
-O JSON sai por gramática: o servidor converte o JSON Schema do pedido numa gramática GBNF e só deixa o modelo gerar
-texto que cabe nela (response_format json_schema). Temperatura 0 para o voto ser reprodutível.
+O JSON sai por gramática: o servidor converte o JSON Schema do pedido (response_format json_schema) em gramática e só
+deixa o modelo gerar texto que cabe nela. Compilado com llguidance (infra/llama/Dockerfile), o esquema vai direto ao
+llguidance; sem ele, vira GBNF. Temperatura 0 para o voto ser reprodutível.
+A resposta traz os logprobs de cada token: a confiança (raiz/modelos/confianca.py) decide na cascata se a resposta
+fica no Qwen ou sobe de modelo.
 Subir o servidor: ver infra/docker-compose.yml (serviço llama).
 """
 
@@ -13,6 +16,7 @@ import httpx
 
 from raiz.config import config
 from raiz.modelos.base import Cronometro, Pedido, Resposta, Uso, valida_esquema
+from raiz.modelos.confianca import confianca
 from raiz.modelos.custo import custo
 
 
@@ -36,6 +40,8 @@ class LlamaCpp:
             "messages": [{"role": "system", "content": pedido.sistema}, {"role": "user", "content": pedido.mensagem}],
             "max_tokens": pedido.max_tokens,
             "temperature": 0,
+            "logprobs": True,
+            "top_logprobs": 3,
             "response_format": {
                 "type": "json_schema",
                 "json_schema": {"name": "saida", "strict": True, "schema": pedido.esquema},
@@ -48,21 +54,53 @@ class LlamaCpp:
                 r = self._cliente.post(f"{self.url}/v1/chat/completions", json=self.corpo(pedido))
                 r.raise_for_status()
                 j = r.json()
-            except (httpx.HTTPError, ValueError) as ex:
-                return Resposta(None, self.nome, self.provedor, erro=f"llama.cpp: {str(ex)[:200]}")
+                if not isinstance(j, dict):
+                    raise ValueError("resposta não é objeto")
+            except httpx.HTTPStatusError as ex:
+                return Resposta(
+                    None,
+                    self.nome,
+                    self.provedor,
+                    erro=f"llama.cpp: HTTP {ex.response.status_code}",
+                    uso_informado=False,
+                )
+            except (httpx.HTTPError, ValueError):
+                return Resposta(
+                    None,
+                    self.nome,
+                    self.provedor,
+                    erro="llama.cpp: falha de conexão ou resposta JSON",
+                    uso_informado=False,
+                )
         u = j.get("usage") or {}
-        uso = Uso(entrada=u.get("prompt_tokens", 0), saida=u.get("completion_tokens", 0))
-        valor, fonte = custo(uso, self.nome, self.provedor)
+        if not isinstance(u, dict):
+            u = {}
+        informado = all(
+            isinstance(u.get(c), int) and not isinstance(u[c], bool) and u[c] >= 0
+            for c in ("prompt_tokens", "completion_tokens")
+        )
+        uso = Uso(
+            entrada=u.get("prompt_tokens", 0) if informado else 0,
+            saida=u.get("completion_tokens", 0) if informado else 0,
+        )
+        valor, fonte = custo(uso, self.nome, self.provedor) if informado else (None, "sem_uso")
         base = dict(
-            modelo=self.nome, provedor=self.provedor, uso=uso, custo_usd=valor, custo_fonte=fonte, duracao_ms=t.ms
+            modelo=self.nome,
+            provedor=self.provedor,
+            uso=uso,
+            custo_usd=valor,
+            custo_fonte=fonte,
+            duracao_ms=t.ms,
+            uso_informado=informado,
         )
         try:
             escolha = j["choices"][0]
             if escolha.get("finish_reason") == "length":
                 return Resposta(None, erro="resposta cortada (max_tokens)", **base)
             dados = json.loads(escolha["message"]["content"])
-        except (KeyError, IndexError, TypeError, json.JSONDecodeError) as ex:
-            return Resposta(None, erro=f"resposta ilegível: {ex}", **base)
+        except (KeyError, IndexError, TypeError, json.JSONDecodeError):
+            return Resposta(None, erro="resposta ilegível", **base)
         if err := valida_esquema(dados, pedido.esquema):
-            return Resposta(None, erro=f"fora do esquema: {err}", **base)
-        return Resposta(dados, **base)
+            return Resposta(None, erro="fora do esquema" if pedido.pessoal else f"fora do esquema: {err}", **base)
+        tokens = (escolha.get("logprobs") or {}).get("content")
+        return Resposta(dados, confianca=confianca(tokens, dados), **base)

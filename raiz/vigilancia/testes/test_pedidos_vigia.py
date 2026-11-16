@@ -82,12 +82,14 @@ def test_fatos_da_vigilancia(tmp_path, poligonos, regras):
     assert por == {
         (COD_A, "desmatamento", "desmatamento"),
         (COD_A, "desmatamento", "degradacao"),
+        (COD_A, "fogo", "fogo"),
         (COD_B, "embargo", "embargo"),  # o 777 está ativo; o 888 foi desembargado
     }
     d = next(x for x in f if x.detalhe.get("tipo") == "desmatamento")
     assert d.chave.startswith("vigilancia:") and d.data == dt.date(2026, 11, 3)
     assert "derrubada" in d.texto and "03/11/2026" in d.texto and "DETER" in d.texto
     assert d.detalhe["fonte"] == "deter" and d.detalhe["area_ha"] > 0
+    assert "não confirma área queimada" in next(x.texto for x in f if x.motivo == "fogo")
     # mesma leitura de novo: mesmas chaves (o vigia não repete)
     assert [x.chave for x in fatos_vigilancia([COD_A, COD_B], DESDE, arm)] == [x.chave for x in f]
     # a fazenda fora do pedido não entra; pedido salvo depois de tudo não vê nada
@@ -120,4 +122,4 @@ def test_fatos_juntos_e_fonte_fora_do_ar(tmp_path, poligonos, regras):
         raise OSError("disco fora")
 
     f = fatos([COD_A, COD_B], DESDE, armazem=arm, achar=quebrado)  # certidões fora: a vigilância continua
-    assert {x.motivo for x in f} == {"desmatamento", "embargo"}
+    assert {x.motivo for x in f} == {"desmatamento", "embargo", "fogo"}

@@ -6,10 +6,12 @@ import { COR, MAPA } from "../../../compartilhado/cores"
 import type { Geo } from "../../../compartilhado/dados"
 import { fmtHa } from "../../../compartilhado/formato"
 import { rotulosDeAreas } from "../../../compartilhado/rotulos-mapa"
+import { linkCalendarioImovel } from "../rota"
 import { MiniBrasil } from "../partes/MiniBrasil"
 import { estiloBase, prepararMapLibre } from "./estilo"
 
 interface Props {
+  emLeilao?: boolean
   aneis: [number, number][][]
   cod: string
   /** área do imóvel, para a escala de leigo embaixo do mapa */
@@ -45,7 +47,7 @@ function limitesDe(g: Geo | null): LngLatBounds | null {
  * rios. A imagem de satélite da fazenda entra no lugar do mapa base quando o
  * back-end gerar (GET /imoveis/{cod}/imagem/hoje.webp); enquanto isso, a base clara.
  */
-export function MapaImovel({ aneis, cod, ha, uf, municipioNome, municipio, voar, base, vizinhos, ti, rios }: Props) {
+export function MapaImovel({ aneis, cod, ha, uf, municipioNome, municipio, voar, base, vizinhos, ti, rios, emLeilao }: Props) {
   const caixa = useRef<HTMLDivElement>(null)
   useEffect(() => {
     if (!caixa.current || !aneis.length) return
@@ -137,7 +139,7 @@ export function MapaImovel({ aneis, cod, ha, uf, municipioNome, municipio, voar,
         id: "imovel-dentro",
         type: "line",
         source: "imovel",
-        paint: { "line-color": MAPA.contornoClaro, "line-width": 2.5, "line-opacity": acesa, "line-opacity-transition": { duration: 280 } },
+        paint: { "line-color": emLeilao ? COR.urucumTexto : MAPA.contornoClaro, "line-width": 2.5, "line-dasharray": emLeilao ? [2, 2] : [1, 0], "line-opacity": acesa, "line-opacity-transition": { duration: 280 } },
       })
       if (comVoo)
         m.once("idle", () => {
@@ -151,7 +153,7 @@ export function MapaImovel({ aneis, cod, ha, uf, municipioNome, municipio, voar,
         })
     })
     return () => m.remove()
-  }, [aneis, cod, municipio, voar, base, vizinhos, ti, rios])
+  }, [aneis, cod, municipio, voar, base, vizinhos, ti, rios, emLeilao])
 
   let x0 = Infinity,
     y0 = Infinity,
@@ -173,6 +175,7 @@ export function MapaImovel({ aneis, cod, ha, uf, municipioNome, municipio, voar,
         {!aneis.length && <div className="mapa-carregando">O perímetro deste imóvel ainda não foi baixado.</div>}
         <MiniBrasil uf={uf} lon={centro.lon} lat={centro.lat} titulo={`Fica em ${municipioNome}`} />
         <ul className="legenda">
+          {emLeilao && <li><a href={linkCalendarioImovel(cod)}>Em leilão: ver prazo e fonte</a></li>}
           <li>
             <i className="imovel-duplo" />
             Limite do imóvel no CAR

@@ -35,3 +35,9 @@ projetos:
     classes_projeto: [Plantio área total, Regeneração ativa, Regeneração passiva]
     classes_entorno: [Aceiro 10m, Estrada]
     vcus_emitidos: null
+    # Prazo informado pelo cliente. A Raíz não é proponente e nunca envia este aviso.
+    # Não pressupõe alertas, geometria de perda nem estado privado do URTX.
+    avisos_verra_informados:
+      - perda_id: URTX_LE1
+        prazo: 2026-11-15
+        informado_em: 2026-11-12

@@ -301,3 +301,6 @@ footer {
   border-top: var(--linha);
   color: var(--pedra);
 }
+
+/* O aviso só aparece se o carregamento opcional da ficha falhar. */
+.aviso[hidden] { display: none; }

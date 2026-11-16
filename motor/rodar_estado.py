@@ -62,9 +62,10 @@ RE_OK = re.compile(r"(\d{7})\b.*(imóveis|APP 30 m|nenhum imóvel)")
 ERROS_SEGUIDOS = int(os.environ.get("RAIZ_ERROS_SEGUIDOS", 8))
 MAX_CONTINUACOES = int(os.environ.get("RAIZ_MAX_CONTINUACOES", 40))
 ESPERAS_FONTE_MIN = (10, 30)
-# jobs de estado ao mesmo tempo, somando todas as rodadas do workflow (repositório público: até 20 jobs no GitHub;
-# 18 deixa folga para o planejamento das rodadas e para o CI)
-VAGAS = int(os.environ.get("RAIZ_VAGAS", 18))
+# jobs de estado ao mesmo tempo, somando todas as rodadas do workflow. O GitHub dá no máximo 20 máquinas ao mesmo
+# tempo para o repositório inteiro: 15 para o processamento deixa 5 livres para o CI dos PRs, o site e o planejamento
+# das rodadas. Vale para o próximo planejamento; os jobs que já rodam não são interrompidos.
+VAGAS = max(0, min(15, int(os.environ.get("RAIZ_VAGAS", 15))))
 # fila de manutenção (tarefa nova, código mudado ou reconferência em estado com o funil pronto): no máximo isto, e só
 # com as vagas que sobram dos estados novos
 VAGAS_MANUTENCAO = int(os.environ.get("RAIZ_VAGAS_MANUTENCAO", 4))
@@ -137,31 +138,23 @@ def _e_unidade(nome: str) -> bool:
 
 def ufs_ativas() -> tuple[set[str], int]:
     """Unidades (estado inteiro ou fatia) com job deste workflow rodando ou na fila em outras rodadas, e quantas rodadas
-    ainda estão planejando (cada uma conta como uma vaga ocupada). Sem acesso à API, devolve vazio (e avisa)."""
+    ainda estão planejando. Plano legado sem matriz reserva conservadoramente 15 vagas.
+    Falha de consulta interrompe o planejamento em vez de presumir que as máquinas estão livres."""
+    from fila_processamento import TETO, rodadas
+
     eu = os.environ.get("GITHUB_RUN_ID")
     repo = os.environ.get("GITHUB_REPOSITORY", S.REPO)
-    try:
-        r = subprocess.run(["gh", "run", "list", "-R", repo, "--workflow", WORKFLOW, "--limit", "50",
-                            "--json", "databaseId,status"], capture_output=True, text=True, timeout=120)
-        if r.returncode:
-            raise RuntimeError(r.stderr.strip()[:200])
-        ativas, planejando = set(), 0
-        for run in json.loads(r.stdout):
-            if str(run["databaseId"]) == eu or run["status"] == "completed":
-                continue
-            j = subprocess.run(["gh", "run", "view", str(run["databaseId"]), "-R", repo, "--json", "jobs"],
-                               capture_output=True, text=True, timeout=120)
-            jobs = json.loads(j.stdout).get("jobs", []) if j.returncode == 0 else []
-            ufs = {x["name"] for x in jobs if _e_unidade(x.get("name", "")) and x.get("status") != "completed"}
-            feitos = {x["name"] for x in jobs if _e_unidade(x.get("name", ""))}
-            ativas |= ufs
-            if not feitos:
-                planejando += 1
-        return ativas, planejando
-    except Exception as ex:
-        if os.environ.get("GITHUB_ACTIONS"):
-            S.acao_github("warning", "planejar", f"não consegui ver as rodadas em andamento ({ex}); conto zero")
-        return set(), 0
+    ativas, planejando = set(), 0
+    for identificador, run in rodadas(repo, WORKFLOW).items():
+        if identificador == eu or run["status"] == "completed":
+            continue
+        jobs = [x for x in run["jobs"] if _e_unidade(x.get("name", ""))]
+        ufs = [x["name"] for x in jobs if x["status"] != "completed"]
+        planejando += len(ufs) - len(set(ufs) - ativas)  # jobs duplicados também ocupam vagas
+        ativas.update(ufs)
+        if not jobs:
+            planejando += TETO
+    return ativas, planejando
 
 
 def dias_desde_a_rodada(e: dict) -> float | None:
@@ -215,6 +208,8 @@ def motivo(e: dict | None, atual: dict, atual_exec: dict | None, unidade: str | 
         return "ainda não começou", False, "novo"
     total = e.get("total_ibge") or (S.TOTAL_IBGE.get(uf) if uf else 0)
     funil_ok = (e.get("municipios", 0) + (e.get("sem_imoveis") or 0)) >= (total or 0)
+    if not e.get("controle") and _rodada_da_unidade(e, i).get("falhou_fontes"):
+        return "fontes obrigatórias indisponíveis na última tentativa", False, "novo"
     if not e.get("controle"):
         return ("publicado antes do executor: adotar (com a APP pela escadinha onde faltar) e rodar o que falta", False,
                 "manutencao" if funil_ok else "novo")
@@ -226,6 +221,8 @@ def motivo(e: dict | None, atual: dict, atual_exec: dict | None, unidade: str | 
         mudou = [t for t, v in atual.items() if t != "extras" and (etapas.get(t) or {}).get("versao") not in (None, v)]
     if mudou:
         return "código mudou: " + ", ".join(S.NOME_TABELA.get(t, t) for t in mudou), True, "manutencao"
+    if _rodada_da_unidade(e, i).get("falhou_fontes"):
+        return "fontes obrigatórias indisponíveis na última tentativa", False, "manutencao" if funil_ok else "novo"
     fat = ((e.get("motor") or {}).get("fatias") or {}).get(str(i)) if i else None
     if i and fat is None and not e.get("completo"):  # fatia que nunca rodou sozinha
         return "fatia ainda não rodou", False, "manutencao" if funil_ok else "novo"
@@ -240,71 +237,106 @@ def motivo(e: dict | None, atual: dict, atual_exec: dict | None, unidade: str | 
     return None, False, "manutencao"
 
 
-def planejar(pedidos: list[str], refazer: set[str], modo: str = "automatico", liberou: str | None = None) -> list[str]:
+def planejar(pedidos: list[str], refazer: set[str], modo: str = "automatico", liberou: str | None = None,
+             continuacao: int = 0) -> list[str]:
     """Unidades que precisam rodar (estado inteiro, ou fatia de estado grande), na ordem de S.ORDEM, em duas filas.
     Pedido explícito (campo ufs, ou continuação): roda essas. Senão, a fila 'novo' (estado que não começou ou com funil
     incompleto) pega primeiro as vagas livres (VAGAS menos as unidades já rodando em outras rodadas); a fila
     'manutencao' (funil pronto: tarefa nova, código mudado, adoção, reconferência) pega só o que sobra, até
     VAGAS_MANUTENCAO ao mesmo tempo, e nunca segura vaga de estado novo. No modo 'proximo' (um job terminou e passa a
-    vez), entra no máximo uma unidade, e ficam de fora as tentadas há pouco; `liberou` é a unidade do job que passou a
-    vez (ainda aparece rodando, mas a vaga dela já está livre)."""
+    vez), repõe todas as vagas livres e ficam de fora as tentadas há pouco. O cron repõe só a fila nova.
+    `liberou` é apenas informativo:
+    a vaga só fica livre quando a API confirma o job concluído, inclusive seus passos finais.
+    No Actions a fila/reserva persistente serializa a admissão entre rodadas, sem cancelar jobs."""
     pub = S.ler_manifesto().get("estados", {})
+    prioridade_solicitada = os.environ.get("RAIZ_PRIORIDADE_FUNIL") == "1"
+    funis_prontos = {uf for uf, total in S.TOTAL_IBGE.items()
+                    if (pub.get(uf, {}).get("municipios", 0) + (pub.get(uf, {}).get("sem_imoveis") or 0)) >= total}
+    prioridade = prioridade_solicitada and len(funis_prontos) < len(S.TOTAL_IBGE)
+    falhas_funil = {uf: (e.get("versoes") or {}).get("funil") for uf, e in pub.items()
+                   if e.get("erros") or any(f.get("erros") for f in ((e.get("motor") or {}).get("fatias") or {}).values())}
+    if prioridade:
+        from fila_processamento import ORDEM_FUNIL
+        ordem = [uf for uf in ORDEM_FUNIL if uf in S.ORDEM]
+        pedidos = [u for u in pedidos if S.ler_unidade(u)[0] not in funis_prontos]
+        if refazer:
+            raise ValueError("manutenção suspensa até concluir os 27 funis; pedido de refazer preservado sem execução")
+    else:
+        ordem = S.ORDEM
     atual = S.versoes()
     atual_exec = versoes_executor()
     if refazer and not pedidos:
         pedidos = [u for uf in S.ORDEM if uf in pub for u in S.unidades(uf)]
         S.acao_github("notice", "refazer", f"sem lista de estados: refaço {', '.join(sorted(refazer))} em todos os publicados")
-    ativas, planejando = (set(), 0) if pedidos else ufs_ativas()
-    ativas.discard(liberou)
-    inteiro_ativo = {u for u in ativas if "-" not in u}  # job antigo do estado inteiro: as fatias dele esperam
-
+    no_actions = os.environ.get("GITHUB_ACTIONS") == "true"
+    ativas, planejando = (set(), 0) if no_actions else ufs_ativas()
     def ocupada(u: str) -> bool:
-        uf, i, _ = S.ler_unidade(u)
-        return u in ativas or uf in inteiro_ativo or (i == 0 and any(a.startswith(uf + "-") for a in ativas))
+        from fila_processamento import ocupada as unidade_ocupada
+        return unidade_ocupada(u, ativas)
 
     manut_ativas = sum(1 for u in ativas if motivo(pub.get(S.ler_unidade(u)[0]), atual, atual_exec, u)[2] != "novo")
-    vagas = len(pedidos) if pedidos else max(0, VAGAS - len(ativas) - planejando)
-    if modo == "proximo":
-        vagas = min(vagas, 1)
+    vagas = max(0, min(VAGAS, 15) - len(ativas) - planejando)
     vagas_manut = vagas if pedidos else max(0, VAGAS_MANUTENCAO - manut_ativas)
     filas = {"novo": [], "manutencao": []}
     linhas, prontas = [], 0
-    for uf in S.ORDEM:
+    for uf in ordem:
         e = pub.get(uf)
         for u in S.unidades(uf):
+            if prioridade and uf in funis_prontos:
+                prontas += 1
+                continue
             if pedidos:
                 if u not in pedidos:
                     continue
                 razao, mudou, classe = "pedido" + (f" (refazer {', '.join(sorted(refazer))})" if refazer else ""), False, "novo"
             else:
                 razao, mudou, classe = motivo(e, atual, atual_exec, u)
-                if razao and ocupada(u):
-                    linhas.append((u, e, f"{razao} (já rodando)", None))
-                    continue
-                if razao and modo == "proximo" and not mudou and e and tentado_ha_pouco(e, S.ler_unidade(u)[1]):
+                if prioridade:
+                    razao, mudou, classe = "completar o funil; manutenção suspensa", False, "novo"
+                if not prioridade and razao and modo == "proximo" and not mudou and e and tentado_ha_pouco(e, S.ler_unidade(u)[1]):
                     linhas.append((u, e, f"{razao} (tentada há pouco; fica para a rodada semanal)", None))
                     continue
+            if razao and ocupada(u):
+                linhas.append((u, e, f"{razao} (já rodando)", None))
+                continue
             if not razao:
                 prontas += 1
                 continue
             filas[classe].append(u)
             linhas.append((u, e, razao, classe))
     escolhidas = filas["novo"][:vagas]
-    escolhidas += filas["manutencao"][:max(0, min(vagas - len(escolhidas), vagas_manut))]
+    if modo != "fila" and not prioridade:
+        escolhidas += filas["manutencao"][:max(0, min(vagas - len(escolhidas), vagas_manut))]
+    matriz = escolhidas
+    if no_actions:
+        from fila_processamento import reservar
+
+        manutencao = {u for uf in S.ORDEM for u in S.unidades(uf)
+                     if motivo(pub.get(uf), atual, atual_exec, u)[2] == "manutencao"}
+        if prioridade:
+            manutencao = set()
+        candidatos = filas["novo"] if modo == "fila" else filas["novo"] + filas["manutencao"]
+        opcoes = {"funis_prontos": funis_prontos, "falhas_funil": falhas_funil,
+                  "versao_funil": (atual_exec or {}).get("funil")} if prioridade_solicitada else {}
+        matriz = reservar(candidatos, pedidos, refazer, _e_unidade, VAGAS, continuacao,
+                          None, manutencao, 0 if prioridade else VAGAS_MANUTENCAO, **opcoes)
+        escolhidas = [p["unidade"] for p in matriz]
     tabela = []
     for u, e, razao, classe in linhas:
         feitos = "—" if not e else f"{e.get('municipios', 0) + (e.get('sem_imoveis') or 0)}/{e.get('total_ibge') or S.TOTAL_IBGE[S.ler_unidade(u)[0]]}"
         acao = "**agora**" if u in escolhidas else ("na fila" if classe else "")
         tabela.append(f"| {u} | {feitos} | {classe or ''} | {razao} | {acao} |")
+    ocupacao = ("Admissão conferida na fila persistente, incluindo reservas e jobs legados" if no_actions else
+                f"Rodando em outras rodadas: {', '.join(sorted(ativas)) or 'nenhuma'}"
+                f"{f' (mais {planejando} vagas reservadas por planejamentos)' if planejando else ''}")
     texto = (f"### Plano desta rodada ({'pedido' if pedidos else modo})\n\n"
-             f"Rodando em outras rodadas: {', '.join(sorted(ativas)) or 'nenhuma'}"
-             f"{f' (mais {planejando} planejando)' if planejando else ''}. Vagas: {VAGAS} "
+             f"{ocupacao}. Vagas: {VAGAS} "
              f"(manutenção até {VAGAS_MANUTENCAO}). Começam agora: {len(escolhidas)}. Prontas: {prontas}.\n\n"
              "| Unidade | Municípios do estado | Fila | O que fazer | |\n|---|---|---|---|---|\n" + "\n".join(tabela))
     texto += f"\n\nVersão das tarefas: {', '.join(f'{v}' for v in (atual_exec or atual).values())}"
     print(texto)
     S.resumo_github(texto)
-    gh_output(matriz=json.dumps(escolhidas), tem="1" if escolhidas else "0",
+    gh_output(matriz=json.dumps(matriz), tem="1" if escolhidas else "0",
               dia=dt.datetime.now(dt.timezone.utc).strftime("%Y%m%d"))
     return escolhidas
 
@@ -838,9 +870,13 @@ def rodar_executor(unidade: str, refazer: set[str], continuacao: int) -> dict:
         rel["faltam"] = sit["faltam"]
     est = ler_json(a, f"estado/{uf}.json") or {}
     rel["etapas"] = {t: {"versao": v} for t, v in (est.get("versoes") or ex.versoes()).items()}
+    falhou_fontes = any(e.get("etapa") == "fontes" for e in rel["erros"])
+    if falhou_fontes:
+        rel["completo"] = False  # arquivos antigos não provam que as fontes obrigatórias desta rodada foram lidas
     rel["fim"] = S.agora()
     grava()
     rodada = {k: rel[k] for k in ("url", "inicio", "fim", "continuacao", "parou_por_tempo", "progresso")}
+    rodada["falhou_fontes"] = falhou_fontes
     motor = {"commit": rel["commit"], "versao": rel["versao_motor"], "etapas": rel["etapas"], "rodada": rodada}
     if fatia is not None:  # cada fatia anota a sua; o armazém junta as fatias no estados.json
         motor["fatias"] = {str(i_fatia): {"rodada": rodada, "completo": rel["completo"], "faltam": rel.get("faltam"),
@@ -860,9 +896,20 @@ def rodar_executor(unidade: str, refazer: set[str], continuacao: int) -> dict:
             grava()
             raise
     else:
-        log(f"{unidade}: sem token do GitHub (ou nada no estado): não publico")
+        if getattr(a, "token", None) and hasattr(a, "_gravar_indice"):
+            # Falha antes do primeiro CSV também é uma tentativa: persiste o diagnóstico no índice PRIVADO,
+            # sem produzir pacotes vazios nem divulgar detalhes de execução no manifesto aberto.
+            from raiz.executor.rodadas import registrar_tentativa
+            registrar_tentativa(a, uf, extra[uf])
+            import painel
+            painel.atualizar_no_github(a.manifesto(fresco=True))
+            log(f"{unidade}: tentativa registrada sem pacote de dados")
+        else:
+            log(f"{unidade}: sem dados para publicar; a tentativa permanece no relatório local")
     resumo_executor(unidade, rel)
     log(f"{unidade}: fim. Avanço: {rel['progresso']}; completo: {rel['completo']}; parou pelo prazo: {rel['parou_por_tempo']}")
+    if rodada["falhou_fontes"]:
+        raise RuntimeError(f"{unidade}: falha nas fontes obrigatórias; execução incompleta, sem avanço científico")
     return rel
 
 
@@ -914,6 +961,9 @@ def continuar(uf: str) -> None:
         return
     rel = json.loads(arq.read_text(encoding="utf-8"))
     n = int(rel.get("continuacao") or 0)
+    if rel.get("erros") and (rel.get("progresso") or 0) <= 0:
+        log(f"{uf}: falhou sem avançar; não disparo outro job. A fila limita as novas tentativas e conserva o diagnóstico")
+        return
     if rel.get("completo"):
         log(f"{uf}: completo")
     elif not rel.get("parou_por_tempo"):
@@ -925,7 +975,13 @@ def continuar(uf: str) -> None:
     elif n + 1 > MAX_CONTINUACOES:
         S.acao_github("warning", f"{uf} continuações", f"chegou a {n} continuações seguidas; paro aqui")
     else:
-        if disparar({"ufs": uf, "continuacao": n + 1}, f"a continuação {n + 1} de {uf}"):
+        campos = {"ufs": uf, "continuacao": n + 1}
+        if os.environ.get("GITHUB_ACTIONS") == "true":
+            from fila_processamento import guardar_continuacao
+
+            guardar_continuacao(uf, n + 1)
+            campos = {"continuacao": "fila"}  # só acorda a fila; não duplica o pedido sob outro run_id
+        if disparar(campos, f"a continuação {n + 1} de {uf}"):
             return
     disparar({"continuacao": f"proximo-{uf}"}, "o próximo estado da fila")
 
@@ -934,6 +990,7 @@ def main() -> None:
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("ufs", nargs="*")
     p.add_argument("--planejar", action="store_true")
+    p.add_argument("--fila", action="store_true", help="planejar somente pedidos já persistidos, sem rodada nova")
     p.add_argument("--preparar", action="store_true")
     p.add_argument("--continuar", action="store_true")
     p.add_argument("--refazer", default=os.environ.get("RAIZ_REFAZER", ""))
@@ -950,7 +1007,8 @@ def main() -> None:
     liberou = cont.split("-", 1)[1].upper() if proximo and "-" in cont else None  # unidade: "PA" ou "MG-3"
     continuacao = int(cont) if cont.isdigit() else 0
     if a.planejar:
-        planejar(ufs, refazer, "proximo" if proximo else "automatico", liberou)
+        modo = "fila" if a.fila or cont == "fila" or os.environ.get("RAIZ_SO_FILA") == "1" else ("proximo" if proximo else "automatico")
+        planejar(ufs, refazer, modo, liberou, continuacao)
     elif a.preparar:
         preparar()
     elif a.continuar:

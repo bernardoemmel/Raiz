@@ -1,0 +1,4 @@
+# Ambiente exclusivo de servidor; não incluir em pyproject.toml/uv.lock/wheel.
+scpi-pkg==4.0.0
+# scpi 4.0 usa a semântica de MultiIndex do pandas 2.
+pandas>=2.2,<3

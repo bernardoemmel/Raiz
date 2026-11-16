@@ -65,15 +65,16 @@ def limpar(camadas: dict[str, gpd.GeoDataFrame], crs: int = 5880, maxv: int = 51
     return gpd.GeoDataFrame(df, geometry="geometry", crs=crs)
 
 
-def por_imovel(base: gpd.GeoDataFrame, limpas: gpd.GeoDataFrame) -> pd.DataFrame:
+def por_imovel(base: gpd.GeoDataFrame, limpas: gpd.GeoDataFrame, con=None) -> pd.DataFrame:
     """Hectares de cada restrição (já sem sobreposição) por imóvel, pelo caminho novo (iOverlay)."""
-    from raiz.funil.novo import areas_iov, pares
+    from raiz.funil.duck import pares
+    from raiz.funil.novo import areas_iov
 
     cols = [f"{n}_ha" for n in PRIORIDADE]
     if not len(limpas) or not len(base):
         return pd.DataFrame(0.0, index=pd.Index(base.cod_imovel, name="cod_imovel"), columns=cols)
     base = base.to_crs(limpas.crs)
-    ib, il = pares(base, limpas)
+    ib, il = pares(base, limpas, con)
     a = areas_iov(base.geometry.values, limpas.geometry.values, ib, il) / 1e4
     t = pd.DataFrame({"cod_imovel": base.cod_imovel.values[ib], "r": limpas.restricao.values[il], "ha": a})
     t = t.pivot_table(index="cod_imovel", columns="r", values="ha", aggfunc="sum").rename(columns=lambda c: f"{c}_ha")

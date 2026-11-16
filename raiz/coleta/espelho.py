@@ -11,8 +11,10 @@ de a função hash() do DuckDB ser igual entre versões.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
+import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -47,6 +49,7 @@ class Diferenca:
     travado: bool = False  # mudou demais: o arquivo novo NÃO foi gravado (espera liberação)
     fracao: float = 0.0
     pelo_resumo: bool = False  # nada mudou e nem foi preciso comparar imóvel a imóvel
+    alertas: list[dict] = field(default_factory=list)  # apenas nomes de colunas e contagens, nunca valores
 
     @property
     def mudou(self) -> bool:
@@ -88,7 +91,7 @@ class Espelho:
         if novo.crs is not None:
             novo = novo.to_crs(4674)
         atual = self.ler(camada, uf, cod)
-        dif = Diferenca(removidas_pessoais=pessoais)
+        dif = Diferenca(removidas_pessoais=pessoais, alertas=_qualidade(atual, novo, volateis, limite))
         cols = [c for c in novo.columns if c != GEOM]
         if atual is not None:
             cols = cols + [c for c in atual.columns if c != GEOM and c not in cols]
@@ -98,9 +101,9 @@ class Espelho:
         con.register("_novo", _tabela(novo, cols))
         con.execute("create table novo as select * from _novo")
         so_novo = [c for c in novo.columns if c != GEOM and c != chave and c not in volateis]
-        expr = ", ".join([f'"{chave}"', "_wkb"] + [f'cast("{c}" as varchar)' for c in so_novo])
-        n, resumo = con.execute(f"select count(*), coalesce(bit_xor(hash({expr})), 0) from novo").fetchone()
-        assinatura = {"n": int(n), "resumo": str(resumo), "colunas": so_novo, "duckdb": duckdb.__version__}
+        expr = ", ".join([f'cast("{chave}" as varchar)', "hex(_wkb)"] + [f'cast("{c}" as varchar)' for c in so_novo])
+        n, resumo = _resumo(con, chave, expr)
+        assinatura = {"n": n, "resumo": resumo, "colunas": so_novo, "algoritmo": "sha256-json-ordenado-v1"}
         fr = self.caminho_resumo(camada, uf, cod)
         if atual is not None and fr.exists() and json.loads(fr.read_text()) == assinatura:
             con.close()
@@ -113,7 +116,8 @@ class Espelho:
             con.execute("create table atual as select * from novo where false")
 
         def h(lado: str) -> str:
-            return "hash(" + ", ".join([f"{lado}._wkb"] + [f'cast({lado}."{c}" as varchar)' for c in estaveis]) + ")"
+            campos = [f"hex({lado}._wkb)"] + [f'cast({lado}."{c}" as varchar)' for c in estaveis]
+            return "sha256(to_json(row(" + ", ".join(campos) + ")))"
 
         try:
             acoes = self._merge(con, chave, h)
@@ -131,7 +135,8 @@ class Espelho:
         if atual is not None and len(atual):
             mudancas = len(dif.novos) + len(dif.mudaram) + len(dif.sumiram)
             dif.fracao = mudancas / len(atual)
-            if dif.fracao > limite and mudancas >= MINIMO_TRAVA and not liberar:
+            perdeu_coluna = any(a["tipo"] in ("coluna_vazia", "coluna_removida") for a in dif.alertas)
+            if ((dif.fracao > limite and mudancas >= MINIMO_TRAVA) or perdeu_coluna) and not liberar:
                 dif.travado = True
                 con.close()
                 return dif
@@ -159,6 +164,68 @@ class Espelho:
         tmp = f.with_suffix(f".{os.getpid()}.tmp")
         g.to_parquet(tmp, index=False)
         os.replace(tmp, f)
+
+
+def _preenchidos(coluna: pd.Series) -> int:
+    if isinstance(coluna, gpd.GeoSeries):
+        return int((~shapely.is_missing(coluna.array) & ~shapely.is_empty(coluna.array)).sum())
+    preenchido = coluna.notna()
+    if pd.api.types.is_string_dtype(coluna.dtype) or coluna.dtype == object:
+        preenchido &= coluna.map(lambda v: not isinstance(v, str) or bool(v.strip()))
+    return int(preenchido.sum())
+
+
+def _resumo(con, chave: str, expr: str) -> tuple[int, str]:
+    """Hash de linhas ordenadas, sem cancelamento XOR e sem concatenar células de modo ambíguo."""
+    h, n = hashlib.sha256(), 0
+    cursor = con.execute(f'select {expr} from novo order by cast("{chave}" as varchar)')
+    while linhas := cursor.fetchmany(4096):
+        for linha in linhas:
+            h.update(json.dumps(linha, ensure_ascii=False, separators=(",", ":")).encode())
+            h.update(b"\n")
+        n += len(linhas)
+    return n, h.hexdigest()
+
+
+def _qualidade(
+    atual: gpd.GeoDataFrame | None, novo: gpd.GeoDataFrame, volateis: tuple[str, ...], limite: float
+) -> list[dict]:
+    if atual is None or not len(atual):
+        return []
+    alertas = []
+    queda = (len(atual) - len(novo)) / len(atual)
+    if queda > limite:
+        alertas.append({"tipo": "queda_contagem", "antes": len(atual), "depois": len(novo), "fracao": round(queda, 6)})
+    # O último registro pode sair legitimamente. Sem linhas não há evidência independente de perda de coluna;
+    # a queda de contagem acima e a trava de tamanho continuam valendo para o snapshot vazio.
+    if not len(novo):
+        return alertas
+    for c in sorted(set(atual.columns) - set(volateis)):
+        antes = _preenchidos(atual[c])
+        if not antes:
+            continue
+        if c not in novo.columns:
+            alertas.append({"tipo": "coluna_removida", "coluna": c, "antes": antes, "depois": 0})
+        elif not _preenchidos(novo[c]):
+            alertas.append({"tipo": "coluna_vazia", "coluna": c, "antes": antes, "depois": 0})
+    return alertas
+
+
+def registrar_alertas(con, fonte: str, recorte: str, dif: Diferenca, hc=None) -> None:
+    """Propaga as guardas ao histórico de eventos e ao check de qualidade; não contém valores da fonte."""
+    if not dif.alertas:
+        return
+    from raiz.coleta.replicacao import evento
+    from raiz.operacao.healthchecks import Healthchecks
+
+    for alerta in dif.alertas:
+        evento(con, fonte, recorte, "alerta", detalhe={"qualidade": alerta, "travado": dif.travado})
+    hc = hc or Healthchecks()
+    hc.falha(
+        hc.slug("coleta-qualidade"),
+        str(uuid.uuid4()),
+        json.dumps({"fonte": fonte, "recorte": recorte, "travado": dif.travado, "alertas": dif.alertas}),
+    )
 
 
 def _tabela(g: gpd.GeoDataFrame, cols: list[str]) -> pd.DataFrame:

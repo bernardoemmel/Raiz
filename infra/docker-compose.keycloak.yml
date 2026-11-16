@@ -1,0 +1,44 @@
+# OAuth 2.1 do MCP. Os domínios e segredos vêm do .env; TLS termina no proxy da instalação.
+# docker compose --env-file .env -f infra/docker-compose.keycloak.yml up -d
+name: raiz-oauth
+services:
+  banco-oauth:
+    image: postgres:16.11
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: keycloak
+      POSTGRES_DB: keycloak
+      POSTGRES_PASSWORD: ${RAIZ_KEYCLOAK_BANCO_SENHA:?defina a senha do banco OAuth}
+    volumes:
+      - oauth-banco:/var/lib/postgresql/data
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U keycloak"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.8.2
+    restart: unless-stopped
+    command: [start, --import-realm]
+    depends_on:
+      banco-oauth:
+        condition: service_healthy
+    environment:
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://banco-oauth:5432/keycloak
+      KC_DB_USERNAME: keycloak
+      KC_DB_PASSWORD: ${RAIZ_KEYCLOAK_BANCO_SENHA:?defina a senha do banco OAuth}
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${RAIZ_KEYCLOAK_ADMIN:?defina o administrador inicial}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${RAIZ_KEYCLOAK_ADMIN_SENHA:?defina a senha inicial}
+      KC_HOSTNAME: ${RAIZ_KEYCLOAK_URL:?URL HTTPS externa do Keycloak}
+      KC_HTTP_ENABLED: "true"
+      KC_PROXY_HEADERS: xforwarded
+      KC_HEALTH_ENABLED: "true"
+      RAIZ_MCP_RESOURCE: ${RAIZ_MCP_RESOURCE:?URL HTTPS do recurso MCP, terminando em /mcp}
+      RAIZ_OAUTH_REDIRECT_URI: ${RAIZ_OAUTH_REDIRECT_URI:?callback HTTPS exato do cliente OAuth}
+    ports:
+      - "127.0.0.1:8180:8080"
+    volumes:
+      - ./keycloak/raiz-realm.json:/opt/keycloak/data/import/raiz-realm.json:ro
+volumes:
+  oauth-banco:

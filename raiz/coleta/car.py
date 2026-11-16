@@ -21,7 +21,7 @@ import requests
 from sqlalchemy import Connection
 
 from raiz.coleta import wfs
-from raiz.coleta.espelho import Diferenca, Espelho
+from raiz.coleta.espelho import Diferenca, Espelho, registrar_alertas
 from raiz.coleta.manifesto import carregar
 from raiz.coleta.replicacao import atualizar, estado, evento
 
@@ -102,9 +102,11 @@ def coletar_municipio(
             novo = wfs.ler(s, c, "cod_imovel", cql, pagina)
         liberar = bool(e is not None and getattr(e, "liberado", False))
         dif = espelho.gravar("car", uf, cod, novo, "cod_imovel", VOLATEIS, liberar=liberar)
+        registrar_alertas(con, FONTE, recorte, dif)
         if dif.travado:
             msg = (
-                f"versão travada: {dif.fracao:.0%} dos imóveis mudou de uma vez; conferir e liberar com "
+                f"versão travada por mudança de {dif.fracao:.0%} ou perda de conteúdo em colunas; "
+                "conferir e liberar com "
                 f"'raiz coleta liberar {FONTE} {recorte}'"
             )
             atualizar(con, FONTE, recorte, sujo=True, ultimo_erro=msg, verificado_em=agora)

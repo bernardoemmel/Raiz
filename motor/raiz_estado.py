@@ -227,6 +227,11 @@ def gj(r):
 
 
 def car_mun(uf, cod):
+    from raiz.coleta.car_nacional import ler
+    return ler(uf, cod, car_mun_wfs, CACHE)
+
+
+def car_mun_wfs(uf, cod):
     out, start = [], 0
     while True:
         r = get(CAR_WFS, dict(service='WFS', version='2.0.0', request='GetFeature',
@@ -235,7 +240,9 @@ def car_mun(uf, cod):
         g = gj(r); out.append(g)
         if len(g) < 10000: break
         start += 10000
-    g = pd.concat(out).drop_duplicates('cod_imovel')
+    g = pd.concat(out)
+    if not len(g): return gpd.GeoDataFrame(geometry=[], crs=4674)
+    g = g.drop_duplicates('cod_imovel')
     return g.set_crs(4674, allow_override=True)
 
 
@@ -506,6 +513,80 @@ def alertas(uf, bbox):
     return a.cx[bbox[0]:bbox[2], bbox[1]:bbox[3]] if len(a) else a
 
 
+def embargos_municipio(embargos, cod):
+    """Separa polígonos utilizáveis e termos que exigem conferência por imóvel.
+
+    As pendências guardam somente CAR e localização, sem nome, documento ou texto
+    do termo. Um ponto localiza uma pendência; nunca substitui a área embargada.
+    """
+    exigidas = {'COD_MUNICIPIO', 'SIT_CANCELADO', 'SIT_DESEMBARGO'}
+    if not exigidas <= set(embargos.columns):
+        raise ValueError('embargos sem colunas obrigatórias; cálculo bloqueado')
+    codigos = pd.to_numeric(embargos.COD_MUNICIPIO, errors='coerce')
+    ativos = embargos.loc[(codigos == int(cod)) & (embargos.SIT_CANCELADO != 'S') &
+                          (embargos.SIT_DESEMBARGO != 'S')].reset_index(drop=True)
+    if isinstance(ativos, gpd.GeoDataFrame):
+        g = gpd.GeoDataFrame(geometry=ativos.geometry, crs=ativos.crs).to_crs(4674)
+    else:
+        geoms = []
+        for bruto in ativos.get('GEOM_AREA_EMBARGADA', pd.Series(None, index=ativos.index)):
+            try:
+                geoms.append(wkt.loads(bruto) if isinstance(bruto, str) and bruto.strip() else None)
+            except Exception:
+                geoms.append(None)  # não imprime WKT ou atributos pessoais do termo
+        g = gpd.GeoDataFrame(geometry=geoms, crs=4674)
+    validos = []
+    for geom in g.geometry:
+        try:
+            reparada = geom if geom.is_valid else geom.buffer(0)
+            validos.append(bool(np.isfinite(reparada.area) and reparada.area > 0))
+        except Exception:
+            validos.append(False)
+    validos = pd.Series(validos, index=g.index, dtype=bool)
+    # Mantém a validação métrica e o reparo anteriores, inclusive para áreas pequenas.
+    reparadas = fix(g.loc[validos], sub=False)
+    validos &= g.index.isin(reparadas.index[np.isfinite(reparadas.area) & (reparadas.area > 0)])
+    pendencias = []
+    for i in g.index[~validos]:
+        linha, geom = ativos.iloc[i], g.geometry.iloc[i]
+        car = next((str(linha[k]).strip() for k in ('cod_imovel', 'COD_IMOVEL', 'NUM_CAR', 'COD_CAR')
+                    if k in linha and pd.notna(linha[k]) and str(linha[k]).strip()), '')
+        if geom is None or geom.is_empty or not np.isfinite(geom.bounds).all():
+            geom = None
+            try:
+                lon = float(str(linha.get('NUM_LONGITUDE_TAD', '')).replace(',', '.'))
+                lat = float(str(linha.get('NUM_LATITUDE_TAD', '')).replace(',', '.'))
+                if np.isfinite([lon, lat]).all() and -180 <= lon <= 180 and -90 <= lat <= 90:
+                    from shapely.geometry import Point
+                    geom = Point(lon, lat)
+            except (TypeError, ValueError):
+                pass
+        pendencias.append((car, geom))
+    out = g.loc[validos].copy()
+    out.attrs['embargos_a_conferir'] = pendencias
+    return out
+
+
+def marcar_embargos_a_conferir(car, embargos):
+    """Marca só CAR identificado no termo ou atingido pela sua localização disponível."""
+    base = car.to_crs(4674)
+    codigos = base.cod_imovel.astype(str).str.upper().str.replace(r'[^A-Z0-9]', '', regex=True)
+    marcados = np.zeros(len(base), dtype=bool)
+    sem_vinculo = 0
+    for codigo, geom in embargos.attrs.get('embargos_a_conferir', []):
+        normalizado = ''.join(c for c in codigo.upper() if c.isascii() and c.isalnum())
+        afetados = codigos.eq(normalizado).to_numpy() if normalizado else np.zeros(len(base), dtype=bool)
+        if geom is not None:
+            afetados[base.sindex.query(geom, predicate='intersects')] = True
+        marcados |= afetados
+        sem_vinculo += not afetados.any()
+    # Termo sem vínculo não acusa todas as fazendas do município nem desaparece do diagnóstico.
+    return pd.DataFrame({'embargo_a_conferir': marcados,
+                         'embargo_situacao': np.where(marcados, 'embargo a conferir', ''),
+                         'embargos_sem_vinculo_municipio': int(sem_vinculo)},
+                        index=pd.Index(car.cod_imovel, name='cod_imovel'))
+
+
 def municipio(uf, cod, EMB, out='.'):
     global PROJ
     if PROJ is None: PROJ = projetos_carbono()
@@ -514,6 +595,8 @@ def municipio(uf, cod, EMB, out='.'):
     if len(car) == 0: return None, nome  # o SICAR devolve zero imóveis (ex.: Uiramutã, RR): sem colunas para filtrar
     car = car[(car.status_imovel != 'CA') & (car.tipo_imovel == 'IRU')]
     if len(car) == 0: return None, nome
+    e = embargos_municipio(EMB, cod)
+    pendencias_embargo = marcar_embargos_a_conferir(car, e)
     bbox = [round(v, 4) for v in car.total_bounds]
     print(f'  {nome}: {len(car)} imóveis; baixando PRODES, TI, UC, SIGEF...')
     L, toca = camadas(uf, bbox)
@@ -524,10 +607,6 @@ def municipio(uf, cod, EMB, out='.'):
     yd = fix(yd)
     if 'main_class' in yd: yd = yd[yd.main_class.str.upper() == 'DESMATAMENTO']
     if 'year' not in yd: yd['year'] = pd.Series(dtype=float)  # fora do bioma Amazônia o PRODES desta camada vem vazio
-    e = EMB[EMB.COD_MUNICIPIO == str(cod)]
-    e = e[(e.SIT_CANCELADO != 'S') & (e.SIT_DESEMBARGO != 'S') & e.GEOM_AREA_EMBARGADA.notna()].copy()
-    e['geometry'] = e.GEOM_AREA_EMBARGADA.apply(lambda s: wkt.loads(s) if isinstance(s, str) and s.strip() else None)
-    e = gpd.GeoDataFrame(e[e.geometry.notna()], geometry='geometry', crs=4674)
     c = car.set_index('cod_imovel')
     c['desm_pos2008_ha'] = ov(base, yd[yd.year >= 2009])
     c['desm_pos2020_ha'] = ov(base, yd[yd.year >= 2021])
@@ -573,6 +652,9 @@ def municipio(uf, cod, EMB, out='.'):
     else:
         c['app_desmatada_ha'] = 0
     c = c.fillna(0)
+    for coluna in pendencias_embargo:
+        c[coluna] = pendencias_embargo[coluna]
+    c.loc[c.embargo_a_conferir, 'embargo_ha'] = np.nan  # a área desconhecida não é zero
     if '_app5' in c:
         mf = c.m_fiscal
         c['app_escadinha_ha'] = np.select([mf <= 1, mf <= 2, mf <= 4, mf <= 10], [c._app5, c._app8, c._app15, c._app20], c.app_desmatada_ha)
@@ -598,7 +680,7 @@ def municipio(uf, cod, EMB, out='.'):
     c['pct_RL_alem'] = np.where(c.pct_RL == 80, PCT_ALEM, c.pct_RL)
     c['deficit_RL_ha'] = (c.pct_RL / 100 * eleg - c.floresta_rem_ha).clip(lower=0)
     c['deficit_RL_alem_ha'] = (c.pct_RL_alem / 100 * eleg - c.floresta_rem_ha).clip(lower=0)
-    c['problema'] = (c.embargo_ha > 1) | (c.ti_ha > 1) | (c.desm_pos2020_ha > 1) | (c.alerta_pos2020_ha > 1)
+    c['problema'] = c.embargo_a_conferir | (c.embargo_ha > 1) | (c.ti_ha > 1) | (c.desm_pos2020_ha > 1) | (c.alerta_pos2020_ha > 1)
     c['alem_RL_ha'] = (c.desm_total_ha - c.deficit_RL_alem_ha).clip(lower=0)
     c.loc[c.m_fiscal <= 4, 'alem_RL_ha'] = c.desm_total_ha  # até 4 MF: não deve RL (art. 67)
     c['f_matricula'] = c.matricula_ha / c.ha
@@ -654,7 +736,7 @@ def frentes(c):
     f[alem & (c.f_matricula >= .5)] = 'carbono'
     if 'desm_pos2016_ha' in c: f[(f == 'carbono') & (c.desm_pos2016_ha > 5)] = 'carbono_revisar_desm10anos'
     if 'projeto_carbono_ha' in c: f[(f == 'carbono') & (c.projeto_carbono_ha >= 10)] = 'ja_tem_projeto'
-    f[(c.embargo_ha > 1) | (c.desm_pos2020_ha > 1)] = 'desbloqueio'
+    f[(c.embargo_ha > 1) | (c.desm_pos2020_ha > 1) | c.get('embargo_a_conferir', False)] = 'desbloqueio'
     f[c.ti_ha > 1] = 'fora_TI'
     return f
 

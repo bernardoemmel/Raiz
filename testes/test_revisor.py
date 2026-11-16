@@ -1,6 +1,8 @@
 """Revisor de estilo e legibilidade (raiz/revisor.py) contra um servidor do LanguageTool falso, com respostas no
 formato da API v2: só os avisos de estilo ficam, servidor fora do ar não trava a mensagem e sem URL não chama nada."""
 
+import os
+
 import httpx
 import pytest
 
@@ -75,7 +77,10 @@ def test_fora_do_ar_nao_trava_e_tenta_de_novo(monkeypatch):
     revisor._revisar_em_cache.cache_clear()
 
 
-@pytest.mark.skipif(not revisor.url_padrao(), reason="sem RAIZ_LANGUAGETOOL_URL (servidor próprio do LanguageTool)")
+URL_TESTE = os.environ.get("RAIZ_LANGUAGETOOL_URL_TESTE") or revisor.url_padrao()
+
+
+@pytest.mark.skipif(not URL_TESTE, reason="sem RAIZ_LANGUAGETOOL_URL_TESTE (servidor próprio do LanguageTool)")
 def test_servidor_de_verdade():
-    r = revisor.revisar("Ele subiu para cima. " * 3)
+    r = revisor.revisar("Ele subiu para cima. " * 3, URL_TESTE)
     assert r and "erro" not in r and any(a["regra"] == "REDUNDANCY_SUBIR" for a in r["avisos"])

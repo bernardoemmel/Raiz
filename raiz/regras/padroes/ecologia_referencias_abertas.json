@@ -1,0 +1,814 @@
+{
+  "rotulo": "estimativa regional, não medida na fazenda",
+  "criterio_n_minimo": {
+    "n": 20,
+    "natureza": "decisão operacional, não limiar inferencial universal"
+  },
+  "referencias": [
+    {
+      "fonte": "boeschoten2026",
+      "bioma": "Mata Atlântica",
+      "uf": "SP",
+      "fisionomia": "Seasonally dry forest",
+      "metodo_restauracao": "plantio_biodiverso",
+      "dap": {
+        "operador": ">",
+        "cm": 5
+      },
+      "area_amostral_m2": 900,
+      "taxa": "Hill0 fornecido pelos autores; não restringir a espécies nativas sem microdados",
+      "n_parcelas_estrato_com_idade": 132,
+      "n_parcelas_estrato_sem_idade": 0,
+      "idade_alvo_anos": 3,
+      "intervalo_idade_inclusivo_anos": [
+        1,
+        5
+      ],
+      "idade_observada_min": 1.0,
+      "idade_observada_max": 5.0,
+      "n_parcelas": 23,
+      "n_sitios": null,
+      "n_por_sitio": {},
+      "linhas_fonte_1_based_com_cabecalho": [
+        227,
+        228,
+        231,
+        232,
+        233,
+        235,
+        265,
+        266,
+        267,
+        277,
+        278,
+        306,
+        307,
+        308,
+        309,
+        338,
+        339,
+        340,
+        342,
+        343,
+        344,
+        345,
+        346
+      ],
+      "indicador": "riqueza_taxonomica_por_900m2",
+      "metodo": "quantis_empiricos_tipo7_amostra_em_janela_idade_mais_ou_menos_2",
+      "status": "referencia_descritiva_regional",
+      "p10": 2.2,
+      "p50": 11.0,
+      "p90": 18.8,
+      "previsao_validada_em_fazenda": false,
+      "densidade_arvores_ha": null,
+      "riqueza_total_fazenda": null,
+      "ic95_amostral_bootstrap_quantis": {
+        "p10": [
+          2.0,
+          5.0
+        ],
+        "p50": [
+          5.0,
+          13.0
+        ],
+        "p90": [
+          13.8,
+          28.000000000000007
+        ]
+      },
+      "bootstrap": {
+        "n": 5000,
+        "semente": 20261115,
+        "unidade": "parcela",
+        "limite": "Não cobre viés de seleção, erro taxonômico/idade ou transferência para nova região/fazenda. Boeschoten não publica chave geográfica para reamostragem por região."
+      },
+      "fonte_documentada": {
+        "id": "boeschoten2026",
+        "titulo": "All Reforestation Methods Can Support Tropical Tree Diversity Recovery, but Drivers and Species Composition Vary",
+        "doi_dados": "https://doi.org/10.5281/zenodo.18244528",
+        "doi_conceito": "https://doi.org/10.5281/zenodo.18244527",
+        "doi_artigo": "https://doi.org/10.1111/gcb.70721",
+        "licenca_dados": "CC-BY-4.0",
+        "licenca_url": "https://creativecommons.org/licenses/by/4.0/",
+        "licenca_prova": "https://zenodo.org/api/records/18244528",
+        "arquivo": "Boeschoten_etal_2026_GCB_reforestation.csv",
+        "url_download": "https://zenodo.org/api/records/18244528/files/Boeschoten_etal_2026_GCB_reforestation.csv/content",
+        "transformacao": "Recorte de Reg/Rest; exclusão de idade/Hill0 NA; janelas inclusivas±2anos; quantis tipo7; nenhum coeficiente do artigo reutilizado.",
+        "bytes": 113662,
+        "sha256": "54ee5ffe92b95718498a21417bbd7ee5e10295b4d4feaa979d85565b5fb5333b"
+      },
+      "calculo_versao": "ecologia-referencia-2026c+445f5cdc68dd",
+      "rotulo": "estimativa regional, não medida na fazenda",
+      "aplicabilidade": "contexto regional; exige comparar fisionomia, uso anterior e protocolo antes de inferir a fazenda"
+    },
+    {
+      "fonte": "boeschoten2026",
+      "bioma": "Mata Atlântica",
+      "uf": "SP",
+      "fisionomia": "Seasonally dry forest",
+      "metodo_restauracao": "plantio_biodiverso",
+      "dap": {
+        "operador": ">",
+        "cm": 5
+      },
+      "area_amostral_m2": 900,
+      "taxa": "Hill0 fornecido pelos autores; não restringir a espécies nativas sem microdados",
+      "n_parcelas_estrato_com_idade": 132,
+      "n_parcelas_estrato_sem_idade": 0,
+      "idade_alvo_anos": 5,
+      "intervalo_idade_inclusivo_anos": [
+        3,
+        7
+      ],
+      "idade_observada_min": 3.0,
+      "idade_observada_max": 7.0,
+      "n_parcelas": 26,
+      "n_sitios": null,
+      "n_por_sitio": {},
+      "linhas_fonte_1_based_com_cabecalho": [
+        222,
+        227,
+        228,
+        231,
+        232,
+        233,
+        234,
+        265,
+        266,
+        267,
+        306,
+        307,
+        308,
+        309,
+        336,
+        337,
+        338,
+        339,
+        340,
+        341,
+        342,
+        343,
+        344,
+        345,
+        346,
+        351
+      ],
+      "indicador": "riqueza_taxonomica_por_900m2",
+      "metodo": "quantis_empiricos_tipo7_amostra_em_janela_idade_mais_ou_menos_2",
+      "status": "referencia_descritiva_regional",
+      "p10": 3.0,
+      "p50": 12.0,
+      "p90": 19.5,
+      "previsao_validada_em_fazenda": false,
+      "densidade_arvores_ha": null,
+      "riqueza_total_fazenda": null,
+      "ic95_amostral_bootstrap_quantis": {
+        "p10": [
+          2.0,
+          5.5
+        ],
+        "p50": [
+          7.0,
+          14.0
+        ],
+        "p90": [
+          15.5,
+          28.5
+        ]
+      },
+      "bootstrap": {
+        "n": 5000,
+        "semente": 20261117,
+        "unidade": "parcela",
+        "limite": "Não cobre viés de seleção, erro taxonômico/idade ou transferência para nova região/fazenda. Boeschoten não publica chave geográfica para reamostragem por região."
+      },
+      "fonte_documentada": {
+        "id": "boeschoten2026",
+        "titulo": "All Reforestation Methods Can Support Tropical Tree Diversity Recovery, but Drivers and Species Composition Vary",
+        "doi_dados": "https://doi.org/10.5281/zenodo.18244528",
+        "doi_conceito": "https://doi.org/10.5281/zenodo.18244527",
+        "doi_artigo": "https://doi.org/10.1111/gcb.70721",
+        "licenca_dados": "CC-BY-4.0",
+        "licenca_url": "https://creativecommons.org/licenses/by/4.0/",
+        "licenca_prova": "https://zenodo.org/api/records/18244528",
+        "arquivo": "Boeschoten_etal_2026_GCB_reforestation.csv",
+        "url_download": "https://zenodo.org/api/records/18244528/files/Boeschoten_etal_2026_GCB_reforestation.csv/content",
+        "transformacao": "Recorte de Reg/Rest; exclusão de idade/Hill0 NA; janelas inclusivas±2anos; quantis tipo7; nenhum coeficiente do artigo reutilizado.",
+        "bytes": 113662,
+        "sha256": "54ee5ffe92b95718498a21417bbd7ee5e10295b4d4feaa979d85565b5fb5333b"
+      },
+      "calculo_versao": "ecologia-referencia-2026c+445f5cdc68dd",
+      "rotulo": "estimativa regional, não medida na fazenda",
+      "aplicabilidade": "contexto regional; exige comparar fisionomia, uso anterior e protocolo antes de inferir a fazenda"
+    },
+    {
+      "fonte": "boeschoten2026",
+      "bioma": "Mata Atlântica",
+      "uf": "SP",
+      "fisionomia": "Seasonally dry forest",
+      "metodo_restauracao": "plantio_biodiverso",
+      "dap": {
+        "operador": ">",
+        "cm": 5
+      },
+      "area_amostral_m2": 900,
+      "taxa": "Hill0 fornecido pelos autores; não restringir a espécies nativas sem microdados",
+      "n_parcelas_estrato_com_idade": 132,
+      "n_parcelas_estrato_sem_idade": 0,
+      "idade_alvo_anos": 10,
+      "intervalo_idade_inclusivo_anos": [
+        8,
+        12
+      ],
+      "idade_observada_min": 8.0,
+      "idade_observada_max": 12.0,
+      "n_parcelas": 48,
+      "n_sitios": null,
+      "n_por_sitio": {},
+      "linhas_fonte_1_based_com_cabecalho": [
+        216,
+        217,
+        218,
+        219,
+        220,
+        221,
+        223,
+        224,
+        229,
+        230,
+        243,
+        249,
+        250,
+        251,
+        252,
+        256,
+        261,
+        262,
+        269,
+        281,
+        286,
+        287,
+        310,
+        311,
+        312,
+        313,
+        314,
+        315,
+        316,
+        317,
+        318,
+        319,
+        320,
+        321,
+        322,
+        323,
+        324,
+        325,
+        326,
+        327,
+        328,
+        329,
+        347,
+        348,
+        349,
+        350,
+        356,
+        357
+      ],
+      "indicador": "riqueza_taxonomica_por_900m2",
+      "metodo": "quantis_empiricos_tipo7_amostra_em_janela_idade_mais_ou_menos_2",
+      "status": "referencia_descritiva_regional",
+      "p10": 12.0,
+      "p50": 19.0,
+      "p90": 33.300000000000004,
+      "previsao_validada_em_fazenda": false,
+      "densidade_arvores_ha": null,
+      "riqueza_total_fazenda": null,
+      "ic95_amostral_bootstrap_quantis": {
+        "p10": [
+          9.7,
+          13.7
+        ],
+        "p50": [
+          16.0,
+          22.0
+        ],
+        "p90": [
+          27.0,
+          46.60000000000001
+        ]
+      },
+      "bootstrap": {
+        "n": 5000,
+        "semente": 20261122,
+        "unidade": "parcela",
+        "limite": "Não cobre viés de seleção, erro taxonômico/idade ou transferência para nova região/fazenda. Boeschoten não publica chave geográfica para reamostragem por região."
+      },
+      "fonte_documentada": {
+        "id": "boeschoten2026",
+        "titulo": "All Reforestation Methods Can Support Tropical Tree Diversity Recovery, but Drivers and Species Composition Vary",
+        "doi_dados": "https://doi.org/10.5281/zenodo.18244528",
+        "doi_conceito": "https://doi.org/10.5281/zenodo.18244527",
+        "doi_artigo": "https://doi.org/10.1111/gcb.70721",
+        "licenca_dados": "CC-BY-4.0",
+        "licenca_url": "https://creativecommons.org/licenses/by/4.0/",
+        "licenca_prova": "https://zenodo.org/api/records/18244528",
+        "arquivo": "Boeschoten_etal_2026_GCB_reforestation.csv",
+        "url_download": "https://zenodo.org/api/records/18244528/files/Boeschoten_etal_2026_GCB_reforestation.csv/content",
+        "transformacao": "Recorte de Reg/Rest; exclusão de idade/Hill0 NA; janelas inclusivas±2anos; quantis tipo7; nenhum coeficiente do artigo reutilizado.",
+        "bytes": 113662,
+        "sha256": "54ee5ffe92b95718498a21417bbd7ee5e10295b4d4feaa979d85565b5fb5333b"
+      },
+      "calculo_versao": "ecologia-referencia-2026c+445f5cdc68dd",
+      "rotulo": "estimativa regional, não medida na fazenda",
+      "aplicabilidade": "contexto regional; exige comparar fisionomia, uso anterior e protocolo antes de inferir a fazenda"
+    },
+    {
+      "fonte": "boeschoten2026",
+      "bioma": "Mata Atlântica",
+      "uf": "SP",
+      "fisionomia": "Seasonally dry forest",
+      "metodo_restauracao": "plantio_biodiverso",
+      "dap": {
+        "operador": ">",
+        "cm": 5
+      },
+      "area_amostral_m2": 900,
+      "taxa": "Hill0 fornecido pelos autores; não restringir a espécies nativas sem microdados",
+      "n_parcelas_estrato_com_idade": 132,
+      "n_parcelas_estrato_sem_idade": 0,
+      "idade_alvo_anos": 15,
+      "intervalo_idade_inclusivo_anos": [
+        13,
+        17
+      ],
+      "idade_observada_min": 13.0,
+      "idade_observada_max": 17.0,
+      "n_parcelas": 32,
+      "n_sitios": null,
+      "n_por_sitio": {},
+      "linhas_fonte_1_based_com_cabecalho": [
+        225,
+        226,
+        238,
+        242,
+        244,
+        245,
+        246,
+        258,
+        259,
+        260,
+        263,
+        268,
+        272,
+        273,
+        274,
+        275,
+        276,
+        279,
+        280,
+        282,
+        283,
+        284,
+        288,
+        289,
+        290,
+        304,
+        305,
+        335,
+        354,
+        366,
+        367,
+        368
+      ],
+      "indicador": "riqueza_taxonomica_por_900m2",
+      "metodo": "quantis_empiricos_tipo7_amostra_em_janela_idade_mais_ou_menos_2",
+      "status": "referencia_descritiva_regional",
+      "p10": 13.2,
+      "p50": 23.5,
+      "p90": 38.800000000000004,
+      "previsao_validada_em_fazenda": false,
+      "densidade_arvores_ha": null,
+      "riqueza_total_fazenda": null,
+      "ic95_amostral_bootstrap_quantis": {
+        "p10": [
+          10.0,
+          18.3
+        ],
+        "p50": [
+          21.5,
+          28.0
+        ],
+        "p90": [
+          32.60000000000001,
+          47.0
+        ]
+      },
+      "bootstrap": {
+        "n": 5000,
+        "semente": 20261127,
+        "unidade": "parcela",
+        "limite": "Não cobre viés de seleção, erro taxonômico/idade ou transferência para nova região/fazenda. Boeschoten não publica chave geográfica para reamostragem por região."
+      },
+      "fonte_documentada": {
+        "id": "boeschoten2026",
+        "titulo": "All Reforestation Methods Can Support Tropical Tree Diversity Recovery, but Drivers and Species Composition Vary",
+        "doi_dados": "https://doi.org/10.5281/zenodo.18244528",
+        "doi_conceito": "https://doi.org/10.5281/zenodo.18244527",
+        "doi_artigo": "https://doi.org/10.1111/gcb.70721",
+        "licenca_dados": "CC-BY-4.0",
+        "licenca_url": "https://creativecommons.org/licenses/by/4.0/",
+        "licenca_prova": "https://zenodo.org/api/records/18244528",
+        "arquivo": "Boeschoten_etal_2026_GCB_reforestation.csv",
+        "url_download": "https://zenodo.org/api/records/18244528/files/Boeschoten_etal_2026_GCB_reforestation.csv/content",
+        "transformacao": "Recorte de Reg/Rest; exclusão de idade/Hill0 NA; janelas inclusivas±2anos; quantis tipo7; nenhum coeficiente do artigo reutilizado.",
+        "bytes": 113662,
+        "sha256": "54ee5ffe92b95718498a21417bbd7ee5e10295b4d4feaa979d85565b5fb5333b"
+      },
+      "calculo_versao": "ecologia-referencia-2026c+445f5cdc68dd",
+      "rotulo": "estimativa regional, não medida na fazenda",
+      "aplicabilidade": "contexto regional; exige comparar fisionomia, uso anterior e protocolo antes de inferir a fazenda"
+    },
+    {
+      "fonte": "rozendaal2019",
+      "bioma": "Amazônia",
+      "uf": [
+        "PA",
+        "AM"
+      ],
+      "fisionomia": "floresta_secundaria",
+      "metodo_restauracao": "regeneracao",
+      "dap": {
+        "operador": ">=",
+        "cm": 5
+      },
+      "esforco_amostral_fustes": 25,
+      "area_amostral_m2": null,
+      "n_parcelas_total_estrato": 118,
+      "taxa": "árvores, palmeiras e arbustos; riqueza rarefeita para25fustes no CSV CC0",
+      "idade_alvo_anos": 5,
+      "intervalo_idade_inclusivo_anos": [
+        3,
+        7
+      ],
+      "idade_observada_min": 5.0,
+      "idade_observada_max": 7.0,
+      "n_parcelas": 23,
+      "n_sitios": 6,
+      "n_por_sitio": {
+        "Eastern Pará 1": 3,
+        "Eastern Pará 2": 5,
+        "Eastern Pará 3": 1,
+        "Manaus (Cecropia pathway)": 3,
+        "Middle Madeira River (anthropogenic soil)": 5,
+        "Middle Madeira River (oxisol)": 6
+      },
+      "linhas_fonte_1_based_com_cabecalho": [
+        56,
+        57,
+        58,
+        71,
+        72,
+        73,
+        74,
+        75,
+        96,
+        104,
+        105,
+        106,
+        157,
+        158,
+        159,
+        160,
+        161,
+        179,
+        180,
+        181,
+        182,
+        183,
+        184
+      ],
+      "indicador": "riqueza_rarefeita_por_25_fustes",
+      "metodo": "quantis_empiricos_tipo7_amostra_em_janela_idade_mais_ou_menos_2",
+      "status": "referencia_descritiva_regional",
+      "p10": 5.798065250326708,
+      "p50": 8.97932218707968,
+      "p90": 11.87720720418042,
+      "previsao_validada_em_fazenda": false,
+      "densidade_arvores_ha": null,
+      "riqueza_total_fazenda": null,
+      "ic95_amostral_bootstrap_quantis": {
+        "p10": [
+          2.77674426494621,
+          8.47725539548407
+        ],
+        "p50": [
+          6.88551585342343,
+          9.85357275129153
+        ],
+        "p90": [
+          9.746414610551714,
+          12.6551485961153
+        ]
+      },
+      "bootstrap": {
+        "n": 5000,
+        "semente": 20261117,
+        "unidade": "sitio_depois_parcela",
+        "limite": "Não cobre viés de seleção, erro taxonômico/idade ou transferência para nova região/fazenda. Boeschoten não publica chave geográfica para reamostragem por região."
+      },
+      "sensibilidade_remocao_um_sitio": {
+        "Eastern Pará 1": [
+          5.555490054705774,
+          8.94397519928299,
+          11.82849158734739
+        ],
+        "Eastern Pará 2": [
+          5.407451707584762,
+          8.594708194413101,
+          11.94878597706938
+        ],
+        "Eastern Pará 3": [
+          5.713787239296495,
+          8.94397519928299,
+          11.649770166342613
+        ],
+        "Manaus (Cecropia pathway)": [
+          6.844193201937929,
+          8.993369729647045,
+          11.91034596025446
+        ],
+        "Middle Madeira River (anthropogenic soil)": [
+          6.333029295714699,
+          9.10894968310762,
+          11.90007036023635
+        ],
+        "Middle Madeira River (oxisol)": [
+          5.333432534024256,
+          9.00741727221441,
+          11.96800598547684
+        ]
+      },
+      "fonte_documentada": {
+        "id": "rozendaal2019",
+        "titulo": "Biodiversity recovery of Neotropical secondary forests",
+        "doi_dados": "https://doi.org/10.17026/DANS-XH8-GH92",
+        "doi_artigo": "https://doi.org/10.1126/sciadv.aau3114",
+        "licenca_dados": "CC0-1.0",
+        "licenca_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+        "arquivo": "rozendaal2019_CC0.csv",
+        "versao_dados": "DANS v1.0; DATA.csv original do arquivo14467",
+        "prova_licenca": "https://lifesciences.datastations.nl/api/datasets/:persistentId/?persistentId=doi:10.17026/DANS-XH8-GH92",
+        "url_download": "https://lifesciences.datastations.nl/api/access/datafile/14467?format=original",
+        "transformacao": "Somente SPrich_abs CC0; filtro Brazil+lista explícita7sítios Amazônia; riqueza por25fustes; janelas inclusivas±2anos; quantis tipo7; bootstrap por sítio e parcela.",
+        "bytes": 94605,
+        "sha256": "ff060d7f969a1a25882b1f3ee526a4686ebf4e522fdc9bb0945c2763b7ac1201"
+      },
+      "calculo_versao": "ecologia-referencia-2026c+445f5cdc68dd",
+      "rotulo": "estimativa regional, não medida na fazenda",
+      "aplicabilidade": "contexto regional; exige comparar fisionomia, uso anterior e protocolo antes de inferir a fazenda"
+    },
+    {
+      "fonte": "rozendaal2019",
+      "bioma": "Amazônia",
+      "uf": [
+        "PA",
+        "AM"
+      ],
+      "fisionomia": "floresta_secundaria",
+      "metodo_restauracao": "regeneracao",
+      "dap": {
+        "operador": ">=",
+        "cm": 5
+      },
+      "esforco_amostral_fustes": 25,
+      "area_amostral_m2": null,
+      "n_parcelas_total_estrato": 118,
+      "taxa": "árvores, palmeiras e arbustos; riqueza rarefeita para25fustes no CSV CC0",
+      "idade_alvo_anos": 10,
+      "intervalo_idade_inclusivo_anos": [
+        8,
+        12
+      ],
+      "idade_observada_min": 8.0,
+      "idade_observada_max": 11.0,
+      "n_parcelas": 30,
+      "n_sitios": 7,
+      "n_por_sitio": {
+        "Eastern Pará 1": 5,
+        "Eastern Pará 2": 7,
+        "Eastern Pará 3": 1,
+        "Manaus (Cecropia pathway)": 3,
+        "Manaus (Vismia pathway)": 3,
+        "Middle Madeira River (anthropogenic soil)": 6,
+        "Middle Madeira River (oxisol)": 5
+      },
+      "linhas_fonte_1_based_com_cabecalho": [
+        59,
+        60,
+        61,
+        62,
+        63,
+        76,
+        77,
+        78,
+        79,
+        80,
+        81,
+        82,
+        97,
+        107,
+        108,
+        109,
+        118,
+        119,
+        120,
+        162,
+        163,
+        164,
+        165,
+        166,
+        167,
+        185,
+        186,
+        187,
+        188,
+        189
+      ],
+      "indicador": "riqueza_rarefeita_por_25_fustes",
+      "metodo": "quantis_empiricos_tipo7_amostra_em_janela_idade_mais_ou_menos_2",
+      "status": "referencia_descritiva_regional",
+      "p10": 5.667100625903924,
+      "p50": 9.539066398756631,
+      "p90": 13.45168100338842,
+      "previsao_validada_em_fazenda": false,
+      "densidade_arvores_ha": null,
+      "riqueza_total_fazenda": null,
+      "ic95_amostral_bootstrap_quantis": {
+        "p10": [
+          4.15895372233399,
+          7.56262421622397
+        ],
+        "p50": [
+          6.55175217047714,
+          11.3167739483498
+        ],
+        "p90": [
+          11.288437620715861,
+          15.0996761891298
+        ]
+      },
+      "bootstrap": {
+        "n": 5000,
+        "semente": 20261122,
+        "unidade": "sitio_depois_parcela",
+        "limite": "Não cobre viés de seleção, erro taxonômico/idade ou transferência para nova região/fazenda. Boeschoten não publica chave geográfica para reamostragem por região."
+      },
+      "sensibilidade_remocao_um_sitio": {
+        "Eastern Pará 1": [
+          5.142351528862194,
+          9.2734956426905,
+          13.70807349133252
+        ],
+        "Eastern Pará 2": [
+          4.951031962627474,
+          9.07628446899367,
+          12.52589560507558
+        ],
+        "Eastern Pará 3": [
+          5.562150806495578,
+          9.2734956426905,
+          13.502959500977239
+        ],
+        "Manaus (Cecropia pathway)": [
+          6.276573280562299,
+          9.82038410600165,
+          13.60551649615488
+        ],
+        "Manaus (Vismia pathway)": [
+          5.827790663058186,
+          9.82038410600165,
+          13.60551649615488
+        ],
+        "Middle Madeira River (anthropogenic soil)": [
+          5.037401709453848,
+          9.812510630412206,
+          12.59091084439545
+        ],
+        "Middle Madeira River (oxisol)": [
+          5.142351528862194,
+          9.13491428839073,
+          13.70807349133252
+        ]
+      },
+      "fonte_documentada": {
+        "id": "rozendaal2019",
+        "titulo": "Biodiversity recovery of Neotropical secondary forests",
+        "doi_dados": "https://doi.org/10.17026/DANS-XH8-GH92",
+        "doi_artigo": "https://doi.org/10.1126/sciadv.aau3114",
+        "licenca_dados": "CC0-1.0",
+        "licenca_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+        "arquivo": "rozendaal2019_CC0.csv",
+        "versao_dados": "DANS v1.0; DATA.csv original do arquivo14467",
+        "prova_licenca": "https://lifesciences.datastations.nl/api/datasets/:persistentId/?persistentId=doi:10.17026/DANS-XH8-GH92",
+        "url_download": "https://lifesciences.datastations.nl/api/access/datafile/14467?format=original",
+        "transformacao": "Somente SPrich_abs CC0; filtro Brazil+lista explícita7sítios Amazônia; riqueza por25fustes; janelas inclusivas±2anos; quantis tipo7; bootstrap por sítio e parcela.",
+        "bytes": 94605,
+        "sha256": "ff060d7f969a1a25882b1f3ee526a4686ebf4e522fdc9bb0945c2763b7ac1201"
+      },
+      "calculo_versao": "ecologia-referencia-2026c+445f5cdc68dd",
+      "rotulo": "estimativa regional, não medida na fazenda",
+      "aplicabilidade": "contexto regional; exige comparar fisionomia, uso anterior e protocolo antes de inferir a fazenda"
+    },
+    {
+      "fonte": "giles2024",
+      "bioma": "Amazônia",
+      "uf": [
+        "AM"
+      ],
+      "fisionomia": "Terra firme em Tefé e Alvarães, AM; agricultura itinerante de mandioca",
+      "metodo_restauracao": "regeneracao",
+      "idade_alvo_anos": 5,
+      "n_parcelas": 35,
+      "n_sitios": 5,
+      "indicador": "densidade_fustes_ha",
+      "p10": 1228.0,
+      "p50": 1880.0,
+      "p90": 2620.0,
+      "protocolo": {
+        "dap_cm": 5,
+        "operador_dap_original": ">",
+        "operador_sintese_giles": ">=",
+        "ambiguidade_limiar": "Não há dados individuais para reconciliar observações exatamente a 5 cm.",
+        "area_parcela_ha": 0.05,
+        "unidade_amostral": "Uma parcela de 10 × 50 m por capoeira",
+        "objeto": "fustes de árvores, arbustos e palmeiras",
+        "campo": "densidade_fustes_ha",
+        "conversao_para_arvores_distintas": null,
+        "protocolo_url": "https://doi.org/10.1111/1365-2745.12298",
+        "protocolo_espelho_institucional": "https://wiki.dpi.inpe.br/lib/exe/fetch.php?media=ser301:wiki_pessoal_mikha:jakovac_et_al-2015-journal_of_ecology.pdf"
+      },
+      "fonte_documentada": {
+        "autores": "Giles et al. (2024), dados de Jakovac et al. (2015)",
+        "doi": "10.5281/zenodo.13970371",
+        "url": "https://zenodo.org/api/records/13970371/files/data_plot.csv/content",
+        "licenca": "CC-BY-4.0",
+        "sha256": "977eb5df8e0b71854877103de7d22d9897981fffd2025d89b182d2801d8d88b0",
+        "filtro": "site == BR_Jakovac_Tefe; todas as 35 linhas disponíveis, sem seleção por resultado",
+        "n_csv_completo": 514,
+        "n_reconstruido_fustes": 3262,
+        "diferenca_coorte": "Estudo original tem 38 capoeiras; CSV público tem 35, incluindo somente 3 das 6 de São Francisco. Motivo da ausência não documentado; referência condicionada às disponíveis."
+      },
+      "calculo_versao": "ecologia-fustes-tefe-2026a+79137fab99dc",
+      "rotulo": "estimativa regional, não medida na fazenda",
+      "aplicabilidade": "Referência contextual local; não calibrada para qualquer fazenda do bioma ou do Pará.",
+      "ic95_amostral_bootstrap_quantis": {
+        "p10": [
+          690.0,
+          1600.0
+        ],
+        "p50": [
+          1540.0,
+          2280.0
+        ],
+        "p90": [
+          2231.95,
+          3100.0
+        ]
+      },
+      "validacao": {
+        "validacao_interna": {
+          "metodo": "Deixar uma comunidade inteira fora, prever pela distribuição das outras quatro",
+          "n_comunidades": 5,
+          "n_parcelas": 35,
+          "cobertura_p10_p90": 0.685714,
+          "mae_mediana_fustes_ha": 492.2857,
+          "limite": "Diagnóstico de transferência entre comunidades deste estudo; não valida extrapolação para outro sítio, bioma, método ou idade."
+        }
+      },
+      "status": "referencia_descritiva_regional"
+    }
+  ],
+  "limite": "Quantis descritivos de parcelas; não são contagem total de espécies nem árvores distintas da fazenda.",
+  "experimentos_rejeitados": [
+    {
+      "fonte": "https://zenodo.org/records/4941557",
+      "licenca": "CC0-1.0",
+      "modelo_versao": "cava_log1p_idade_loo_aninhado_v1_2026-11-13",
+      "aprovado": false,
+      "motivo": "MAE 298,26 indivíduos/ha, pior que constante 186,29; não promover ao motor.",
+      "auditoria_sha256": "7fee1cae58e8431cea5d9f036504e2755b7cbebb09e9af343d9e696b7952a52f"
+    }
+  ],
+  "pendencias": {
+    "densidade_arvores": "Fustes, árvores/arbustos e indivíduos clonais não são árvores distintas; sem inventário harmonizado por fazenda.",
+    "riqueza_fazenda": "Riqueza por parcela/esforço padronizado não determina total de espécies na fazenda.",
+    "cava_cerrado": "29 sítios CC0 disponíveis, modelo de idade rejeitado na validação; não usar adensamento como meta de savana.",
+    "caatinga": "15 parcelas abertas MIT com diâmetro no solo >=3 cm; amostra insuficiente por idade (1/3/2/1).",
+    "ifn": "Dados biofísicos públicos não fornecem idade/método comparáveis; coordenadas catalogadas como Other (Not Open).",
+    "xingu": "Protocolos disponíveis; microdados de contagem sob pedido, não enviados nem presumidos.",
+    "poorter": "Recuperação relativa não determina abundância absoluta por fazenda.",
+    "pacto": "Protocolo de referência, sem copiar material NC ou inventar distribuição de recuperação."
+  }
+}

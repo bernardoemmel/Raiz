@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Laudo de título {{ i.cod_curto }}</title>
+<style>
+  :root { --tinta: #1f2a24; --fraca: #5b6b62; --linha: #d9e0db; --fundo: #ffffff; --faixa: #f3f6f4;
+          --ok: #2f6b45; --conferir: #8a5a00; --reprova: #a12a2a; }
+  body { font-family: "Helvetica Neue", Arial, sans-serif; color: var(--tinta); background: var(--fundo);
+         margin: 0 auto; max-width: 860px; padding: 24px 16px; font-size: 14px; line-height: 1.45; }
+  h1 { font-size: 22px; margin: 0 0 4px; } h2 { font-size: 16px; margin: 28px 0 8px; border-bottom: 1px solid var(--linha);
+  padding-bottom: 4px; } h3 { font-size: 14px; margin: 16px 0 6px; }
+  .sub { color: var(--fraca); margin: 0 0 16px; }
+  .caixa { background: var(--faixa); border: 1px solid var(--linha); border-radius: 6px; padding: 12px 14px; }
+  .nota { font-size: 28px; font-weight: 700; } .grade { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 24px; }
+  table { border-collapse: collapse; width: 100%; margin: 6px 0; } th, td { text-align: left; vertical-align: top;
+  padding: 5px 6px; border-bottom: 1px solid var(--linha); } th { font-size: 12px; color: var(--fraca); font-weight: 600; }
+  .ok { color: var(--ok); } .conferir, .confirmar, .falta { color: var(--conferir); } .reprova, .impede { color: var(--reprova); }
+  .pequeno { font-size: 12px; color: var(--fraca); } code { font-size: 12px; }
+  @media print { body { max-width: none; } h2 { break-after: avoid; } tr { break-inside: avoid; } }
+</style>
+</head>
+<body>
+<h1>Laudo de título</h1>
+<p class="sub">Imóvel {{ i.cod_imovel }}{% if i.municipio %} · {{ i.municipio }} ({{ i.uf }}){% endif %}{% if i.ha %} · {{ i.ha|num }} ha{% endif %} · gerado em {{ gerado_em }}</p>
+
+<div class="caixa">
+  <div class="grade">
+    <div><div class="pequeno">Nota de risco do título (1 = em ordem, 5 = não segue)</div>
+      <div class="nota">{{ t.titulo_nota if t.titulo_nota is not none else "–" }}</div>
+      <div>{{ t.titulo_decisao_texto or "" }}</div></div>
+    <div><div class="pequeno">Triagem</div>
+      <div><strong>{{ triagem_nome }}</strong></div>
+      {% if t.titulo_triagem_motivos %}<div>Por quê: {{ t.titulo_triagem_motivos }}</div>{% endif %}
+      {% if t.titulo_triagem_pedir %}<div>O que pedir: {{ t.titulo_triagem_pedir }}</div>{% endif %}</div>
+  </div>
+</div>
+
+<h2>Caminho da terra</h2>
+<table>
+  <tr><th>Caminho</th><td>{{ i.caminho_terra_rotulo or i.caminho_terra or "–" }}</td></tr>
+  <tr><th>Risco</th><td>{{ nomes_risco.get(i.risco_terra, i.risco_terra) or "–" }}{% if i.risco_terra_motivo %}: {{ i.risco_terra_motivo }}{% endif %}</td></tr>
+  {% if r %}
+  <tr><th>Regularização da posse</th><td>{{ r.regularizacao_rotulo or r.regularizacao_classe }}{% if r.regularizacao_orgao %} · {{ r.regularizacao_orgao }}{% endif %}</td></tr>
+  {% if r.regularizacao_proximo_passo %}<tr><th>Próximo passo</th><td>{{ r.regularizacao_proximo_passo }}</td></tr>{% endif %}
+  {% if r.regularizacao_pendencias %}<tr><th>Pendências</th><td>{{ r.regularizacao_pendencias }}</td></tr>{% endif %}
+  {% if r.chance_12m is not none %}<tr><th>Chance de título em 12 meses</th><td>{{ pct(r.chance_12m) }} (a priori, a calibrar){% if r.prazo_meses_p50 %}; prazo provável {{ r.prazo_meses_p50 }} meses (de {{ r.prazo_meses_p10 }} a {{ r.prazo_meses_p90 }}){% endif %}</td></tr>{% endif %}
+  {% endif %}
+  {% if sede %}<tr><th>Localização da sede</th><td>{{ sede.mensagem }} <span class="pequeno">({{ sede.criado_em|data }})</span></td></tr>{% endif %}
+</table>
+{% if t.titulo_bandeiras %}<p><strong>Bandeiras:</strong> {{ t.titulo_bandeiras }}</p>{% endif %}
+{% if t.titulo_condicoes %}<p><strong>Condições:</strong> {{ t.titulo_condicoes }}</p>{% endif %}
+
+<h2>Achados por fase</h2>
+{% for fase, lista in fases %}
+<h3>{{ nomes_fase[fase] }}</h3>
+<table>
+  <tr><th style="width:18%">Situação</th><th>O que se viu</th><th style="width:26%">Fonte</th></tr>
+  {% for a in lista %}
+  <tr><td class="{{ a.gravidade }}">{{ nomes_situacao.get(a.situacao, a.situacao) }}{% if a.gravidade != "info" %} · {{ a.gravidade }}{% endif %}
+      {% if a.confirmacao_decisao %}<div class="pequeno">{{ a.confirmacao_decisao }} por {{ a.confirmado_por }}</div>{% endif %}</td>
+      <td>{{ a.mensagem }}{% if a.base %}<div class="pequeno">Base: {{ a.base }}</div>{% endif %}</td>
+      <td class="pequeno">{{ a.fonte or "" }}<br><code>{{ a.regra }}</code></td></tr>
+  {% endfor %}
+</table>
+{% else %}
+<p>Nenhum achado registrado.</p>
+{% endfor %}
+
+<h2>Cadeia dominial</h2>
+{% for m in cadeia %}
+<h3>Matrícula {{ m.matricula }} · cartório {{ m.cns }}</h3>
+<p class="pequeno">{% if m.situacao %}situação {{ m.situacao }}{% endif %}{% if m.conferencia %} · conferência {{ m.conferencia }}{% endif %}{% if m.area_ha %} · {{ m.area_ha|num }} ha{% endif %}{% if m.origem_situacao %} · origem: {{ nomes_origem.get(m.origem_situacao, m.origem_situacao) }}{% endif %}{% if m.modelo %} · lida por {{ m.modelo }}{% endif %}</p>
+{% if m.atos %}
+<table>
+  <tr><th>Ato</th><th>Data</th><th>O que faz</th><th>Partes (sem nome)</th></tr>
+  {% for a in m.atos %}
+  <tr><td>{{ a.numero }}{% if a.quebra %}<div class="reprova pequeno">quebra</div>{% endif %}</td><td>{{ a.data|data }}</td>
+      <td>{{ a.resumo or a.natureza }}{% if a.cancelado_por %}<div class="pequeno">cancelado por {{ a.cancelado_por }}</div>{% endif %}</td>
+      <td class="pequeno">{% for p in a.partes %}{{ p.papel }} {{ p.rotulo }} ({{ nomes_parte.get(p.tipo, p.tipo) }}{% if p.documento %}, {{ p.documento }}{% endif %}{% if p.instituicao %}, {{ p.instituicao }}{% endif %}){% if not loop.last %}<br>{% endif %}{% endfor %}</td></tr>
+  {% endfor %}
+</table>
+{% else %}<p class="pequeno">Certidão ainda não lida.</p>{% endif %}
+{% else %}
+<p>Nenhuma matrícula ligada ao imóvel pelo SIGEF.</p>
+{% endfor %}
+
+<h2>Consultas públicas usadas</h2>
+{% if consultas %}
+<table>
+  <tr><th>Quando</th><th>O quê</th><th>Resposta</th><th>Prova (SHA-256 do WARC)</th></tr>
+  {% for c in consultas %}
+  <tr><td class="pequeno">{{ c.em|data }}</td><td>{{ c.motivo }}<div class="pequeno">{{ c.url }}</div></td>
+      <td class="pequeno">{{ c.status or c.erro }} · {{ c.bytes }} bytes</td><td class="pequeno"><code>{{ c.sha256_warc[:16] }}…</code></td></tr>
+  {% endfor %}
+</table>
+<p class="pequeno">Cada consulta está guardada em WARC cifrado (raiz titulo warc abrir).</p>
+{% else %}<p class="pequeno">Nenhuma consulta pública gravada para este imóvel.</p>{% endif %}
+
+<h2>Como ler este laudo</h2>
+<ul>
+{% for k, v in explicacoes %}<li><strong>{{ k }}</strong>: {{ v }}</li>{% endfor %}
+</ul>
+<p class="pequeno">Versões: {{ versoes }}. Nomes e CPFs não aparecem: as pessoas são P1, P2… e documentos vêm mascarados.</p>
+</body>
+</html>

@@ -1,0 +1,62 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "controle_id": {
+      "format": "uuid",
+      "title": "Controle Id",
+      "type": "string"
+    },
+    "fixado_em": {
+      "format": "date-time",
+      "title": "Fixado Em",
+      "type": "string"
+    },
+    "procedimento_sha256": {
+      "pattern": "^[a-f0-9]{64}$",
+      "title": "Procedimento Sha256",
+      "type": "string"
+    },
+    "referencia_sha256": {
+      "pattern": "^[a-f0-9]{64}$",
+      "title": "Referencia Sha256",
+      "type": "string"
+    },
+    "centro": {
+      "title": "Centro",
+      "type": "number"
+    },
+    "desvio_padrao": {
+      "exclusiveMinimum": 0,
+      "title": "Desvio Padrao",
+      "type": "number"
+    },
+    "multiplicador": {
+      "exclusiveMinimum": 0,
+      "title": "Multiplicador",
+      "type": "number"
+    },
+    "minimo_referencia": {
+      "minimum": 20,
+      "title": "Minimo Referencia",
+      "type": "integer"
+    },
+    "referencia_n": {
+      "minimum": 20,
+      "title": "Referencia N",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "controle_id",
+    "fixado_em",
+    "procedimento_sha256",
+    "referencia_sha256",
+    "centro",
+    "desvio_padrao",
+    "multiplicador",
+    "minimo_referencia",
+    "referencia_n"
+  ],
+  "title": "ControleEstavel",
+  "type": "object"
+}

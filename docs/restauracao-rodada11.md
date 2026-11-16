@@ -1,5 +1,9 @@
 # Valor para quem restaura: rodada 11 unificada (cenário central_r11)
 
+> Revisão Lote e números (12/11/2026): os números abaixo são históricos, com piso de 12%.
+> O modelo `restauracao-2026d` adota piso de 20% e preços TIR12/15 por fazenda; ver
+> `docs/passagem/lote-e-numeros.md` para o recálculo, salvaguardas e publicação integral.
+
 Resultado da rodada 11 depois de juntar as duas implementações (esta e a da branch claude/premissas-rodada11) num só
 arquivo de premissas, raiz/regras/padroes/restauracao.yaml (regras, cenários, Monte Carlo, aluguel do Censo, renda do
 gado e lote), e num só cálculo, raiz/restauracao.py (12/11/2026). As premissas antigas seguem no cenário
@@ -55,6 +59,15 @@ fazendas com TIR acima da WACC e 157 que o preço de US$ 55 paga. Vazamento: 34 
 Lote do ProFloresta+ só com Nova Esperança (a amostra do CI): fecha os marcos no P50 com 28 titulares, mas a terra
 pronta (42 fazendas com matrícula a conferir) não dá a reserva para 90% de chance; com a posse em titulação e o
 assentamento destravados, fecha com reserva (201 fazendas, custo médio de US$ 34 por crédito, TIR do lote de 8,4%).
+
+## Reserva de não permanência por fazenda (E3 passo 4)
+
+A reserva de cada fazenda sobe com a perda esperada em 40 anos por fogo (MapBiomas Fogo, com a queima de manejo do
+pasto acabando na área restaurada e aceiro e brigada) e por derrubada da vegetação secundária no município (MapBiomas
+desmatamento, com contrato averbado e monitoramento), mais 2% de risco interno e externo; nunca fica abaixo dos 12% do
+cenário. A fazenda de referência fica nos 12%. Em Nova Esperança: reserva média de 14,9% (mediana 12%, máxima 39,7%);
+TIR com Fundo Clima, mediana: plantio 1,4%, regeneração 11,8%, semeadura 7,8% (o plantio cai mais porque a regra de
+pontos manda para o plantio o pasto com fogo frequente); 9,8 milhões de créditos líquidos até o ano 25.
 
 ## Pagamento ao dono
 

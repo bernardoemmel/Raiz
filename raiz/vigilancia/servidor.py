@@ -54,6 +54,11 @@ def criar_app(servico: Vigilancia | None = None, baixar: bool | None = None) -> 
         yield
 
     app = FastAPI(title="Raíz: vigilância", lifespan=ciclo)
+    from raiz.privacidade import configurar_log
+    from raiz.seguranca_api import SegurancaAPI
+
+    configurar_log()
+    app.add_middleware(SegurancaAPI, limite=int(os.environ.get("RAIZ_API_LIMITE_MINUTO", "120")))
     seguro = [Depends(_exigir_token)]
     app.include_router(api.roteador(s), dependencies=seguro)
 

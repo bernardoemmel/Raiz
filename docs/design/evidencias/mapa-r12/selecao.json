@@ -1,0 +1,185 @@
+{
+  "commit_codigo": "eb8af5f2c18e133dddb2513b0f2c3c951ae3dbea",
+  "commit_roteiro": "c77036d5caceb98f8ac83de326a6f4330d59f697",
+  "chrome": "157.0.8103.78",
+  "node": "v24.22.1",
+  "baseline": {
+    "frontend": "7fe3539f63416258f0d91e1c4371fc4d52899aa6",
+    "resultado": "reprovado no novo teste de troca de municipio",
+    "estado_observado": {
+      "mesmaInstancia": true,
+      "selecionados": 1,
+      "destacados": 1,
+      "mascara": 0,
+      "popup": 1
+    }
+  },
+  "testes": {
+    "arquivos": 55,
+    "passaram": 588
+  },
+  "builds_tsc": [
+    "/Raiz/",
+    "/"
+  ],
+  "lint": "aprovado com avisos preexistentes",
+  "pages": [
+    {
+      "base": "/Raiz/",
+      "resultado": "aprovado",
+      "pedidos": 199,
+      "faixas_http": 107,
+      "erros": [],
+      "ausentes": [],
+      "axe_violacoes": 0,
+      "selecao_volta": {
+        "antes": {
+          "center": [
+            -49.94500000000005,
+            -6.125028679225224
+          ],
+          "zoom": 10.529546189247464
+        },
+        "depois": {
+          "center": [
+            -49.90000000000066,
+            -6.1000000000002785
+          ],
+          "zoom": 13
+        },
+        "ponto": {
+          "x": 648.7288888962835,
+          "y": 505.4344193444868
+        },
+        "feicoes": [
+          {
+            "source": "imoveis",
+            "car": "PA-1505536-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+          },
+          {
+            "source": "imoveis",
+            "car": "PA-1505536-BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB"
+          }
+        ]
+      },
+      "selecao_saida": {
+        "antes": {
+          "center": [
+            -49.94499999999999,
+            -6.125028679225224
+          ],
+          "zoom": 10.52954618924734
+        },
+        "depois": {
+          "center": [
+            -49.90000000000066,
+            -6.1000000000002785
+          ],
+          "zoom": 13
+        },
+        "ponto": {
+          "x": 648.7288888962835,
+          "y": 505.4344193444868
+        },
+        "feicoes": [
+          {
+            "source": "imoveis",
+            "car": "PA-1505536-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+          },
+          {
+            "source": "imoveis",
+            "car": "PA-1505536-BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB"
+          }
+        ]
+      }
+    },
+    {
+      "base": "/",
+      "resultado": "aprovado",
+      "pedidos": 203,
+      "faixas_http": 106,
+      "erros": [],
+      "ausentes": [],
+      "axe_violacoes": 0,
+      "selecao_volta": {
+        "antes": {
+          "center": [
+            -49.94500000000005,
+            -6.125028679225224
+          ],
+          "zoom": 10.529546189247464
+        },
+        "depois": {
+          "center": [
+            -49.90000000000066,
+            -6.1000000000002785
+          ],
+          "zoom": 13
+        },
+        "ponto": {
+          "x": 648.7288888962835,
+          "y": 505.4344193444868
+        },
+        "feicoes": [
+          {
+            "source": "imoveis",
+            "car": "PA-1505536-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+          },
+          {
+            "source": "imoveis",
+            "car": "PA-1505536-BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB"
+          }
+        ]
+      },
+      "selecao_saida": {
+        "antes": {
+          "center": [
+            -49.94499999999999,
+            -6.125028679225224
+          ],
+          "zoom": 10.52954618924734
+        },
+        "depois": {
+          "center": [
+            -49.90000000000066,
+            -6.1000000000002785
+          ],
+          "zoom": 13
+        },
+        "ponto": {
+          "x": 648.7288888962835,
+          "y": 505.4344193444868
+        },
+        "feicoes": [
+          {
+            "source": "imoveis",
+            "car": "PA-1505536-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+          },
+          {
+            "source": "imoveis",
+            "car": "PA-1505536-BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB"
+          }
+        ]
+      }
+    }
+  ],
+  "lighthouse_extra": false,
+  "fontes": {
+    "front/globo/src/mapa/MapaBrasil.tsx": "b05300d78feac1520dfc2041a895d4975a7fbcb23c0cc75c4296486fc4269962",
+    "front/globo/src/telas/Explorar.tsx": "98b54e68854813c9830aa427ee8d5293bed41dd72ada970b72587ae48a46a534",
+    "front/scripts/testar-site-pages.mjs": "e124d5522e20017a0c2a8715dc50b7989ad54dbb7fba54a6454d84e221aaf625"
+  },
+  "logs": {
+    "pages-raiz-final.log": "fce8e53a9f67cbe8913ab8b1db76c80d9e02a4212625f8f22de0eaca2f94f77e",
+    "baseline-antigo.log": "147c91ee8240003635355fbb49bf2406cbe4d68b9b4b720625209e0a10a199bc",
+    "pages-raiz.log": "83e9aff76c7a44b9e23a34306fb748c94c795a7113b894334ffd39fd549ba1cc",
+    "pages-raiz-estavel.log": "fbb680bcd444513215b9024dd071ddd16a9e900af5be601716f114ab8f6af0e2",
+    "pages-root-completo.log": "d1c461fa09c3db4649eabdd7d0c7b9dbad64200bf2766fa26de65cea17f0fc8d",
+    "pages-raiz-diagnostico.log": "e7372c137a478322f8732884e406059ba4dc0a44623468248c91f9d94a614edf",
+    "build-raiz.log": "e6de63c3d528e7a237276dc07be54b9e9a69add0dcda55c061948136afcc7906",
+    "build-root.log": "142a1ef08b74c9f736c5f77588609dd15da1b118963ab681f537fbc8ef3bc80e",
+    "testes.log": "5b2cf4aa2c1de46e284ce76124b7922936a563c9cbef00025522d4ed3d6c85dd",
+    "lint.log": "f436f77ff821023840b192278f28849ce3d0f9ea0fec7156e7373e464c13ef11",
+    "pages-raiz-completo.log": "d1c461fa09c3db4649eabdd7d0c7b9dbad64200bf2766fa26de65cea17f0fc8d"
+  }
+}

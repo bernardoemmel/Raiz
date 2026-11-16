@@ -13,20 +13,14 @@ from functools import lru_cache
 from typing import Any
 
 from raiz.config import config
+from raiz.logs_seguros import sanitizar_estrutura
 from raiz.modelos.base import Pedido, Resposta
-from raiz.privacidade import mascarar
 
 log = logging.getLogger(__name__)
 
 
 def _mascara(*, data: Any, **_: Any) -> Any:
-    if isinstance(data, str):
-        return mascarar(data)
-    if isinstance(data, dict):
-        return {k: _mascara(data=v) for k, v in data.items()}
-    if isinstance(data, list | tuple):
-        return [_mascara(data=v) for v in data]
-    return data
+    return sanitizar_estrutura(data)
 
 
 @lru_cache
@@ -88,10 +82,12 @@ def fechar(g, pedido: Pedido, resp: Resposta) -> str | None:
                 "output": resp.uso.saida,
                 "cache_read_input_tokens": resp.uso.cache_leitura,
                 "cache_creation_input_tokens": resp.uso.cache_escrita,
-            },
+            }
+            if resp.uso_informado
+            else None,
             cost_details={"total": float(resp.custo_usd)} if resp.custo_usd is not None else None,
             level="ERROR" if resp.erro else ("WARNING" if resp.recusou else "DEFAULT"),
-            status_message=resp.erro,
+            status_message=("falha de modelo em entrada pessoal" if pedido.pessoal and resp.erro else resp.erro),
         )
         return cliente_langfuse().get_current_trace_id()
     except Exception as ex:  # noqa: BLE001 - rastro nunca derruba a tarefa

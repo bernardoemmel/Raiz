@@ -362,6 +362,7 @@ function ordenar(contas: Conta[], id: IdOpcao, campos: CamposPedido): Conta[] {
 function item(k: Conta, papel: "lote" | "reserva", trocou: string | null = null): FazendaDoLote {
   return {
     cod_imovel: k.c.cod_imovel,
+    ficha_liberada: true,
     cod_ibge: k.c.cod_ibge,
     municipio: k.c.municipio,
     uf: k.c.uf,

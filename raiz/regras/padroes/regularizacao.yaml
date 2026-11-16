@@ -1,0 +1,165 @@
+# Regularização da posse (E5): para cada imóvel em posse (caminho_terra = posse_em_titulacao) ou assentamento, o que
+# falta para o título sair, com o que dá para conferir por dado público e a evidência de ocupação por satélite.
+# Calculado pelo produto (raiz/titulo/regularizacao.py), gravado em regularizacao_<mun>.csv e achados_<mun>.csv com a
+# versão deste arquivo + hash (regularizacao_regra_versao).
+#
+# A posse é o maior gargalo dos lotes (no primeiro lote, 623 de 702 fazendas): saber quais estão perto do título
+# destrava estoque. Nunca chamar posse de propriedade; nada de nome ou CPF (os requisitos pessoais ficam "conferir").
+#
+# conferido: false = base legal transcrita pela Raíz e ainda não conferida pelo jurídico ou pelo fundador. O texto
+# para o dono e o contrato só podem citar a base depois de conferida. As chances e os prazos são A PRIORI, a calibrar
+# com as previsões congeladas (aprendizado.previsao, alvo titulo_regularizado_12m).
+versao: regularizacao-2026a
+adotado_em: "2026-11-12"
+
+base_legal:
+  lei_11952_marco:
+    texto: >-
+      Lei 11.952/2009, art. 5º, IV (redação da Lei 13.465/2017): ocupação e exploração direta, mansa e pacífica, por
+      si ou por antecessores, anterior a 22 de julho de 2008.
+    conferido: false
+  lei_11952_area:
+    texto: "Lei 11.952/2009, art. 6º, § 1º (redação da Lei 13.465/2017): regularização de áreas de até 2.500 ha."
+    conferido: false
+  lei_11952_gratuita:
+    texto: "Lei 11.952/2009, art. 11: ocupação de até 1 módulo fiscal é titulada de graça."
+    conferido: false
+  lei_11952_onerosa:
+    texto: "Lei 11.952/2009, art. 12: acima de 1 módulo fiscal, a titulação é paga pelo valor da tabela do INCRA."
+    conferido: false
+  lei_11952_vedacoes:
+    texto: >-
+      Lei 11.952/2009, art. 4º: não se regulariza ocupação em terra indígena, unidade de conservação, floresta pública
+      (Lei 11.284/2006) ou área reservada à União.
+    conferido: false
+  lei_11952_requisitos_pessoais:
+    texto: >-
+      Lei 11.952/2009, art. 5º: brasileiro, sem outro imóvel rural e sem ter sido beneficiado antes por reforma agrária
+      ou regularização (o dono declara; a Raíz não usa CPF para conferir).
+    conferido: false
+  lei_10267_georreferenciamento:
+    texto: >-
+      Lei 10.267/2001 e Decreto 4.449/2002: o título só se registra com o georreferenciamento certificado pelo INCRA
+      (SIGEF).
+    conferido: false
+  cf_191_usucapiao_especial:
+    texto: >-
+      Constituição, art. 191: usucapião especial rural de até 50 ha, com 5 anos de posse sem oposição, moradia e
+      trabalho, para quem não tem outro imóvel; não vale em terra pública.
+    conferido: true
+  cc_1238_usucapiao_extraordinaria:
+    texto: >-
+      Código Civil, art. 1.238: usucapião em 15 anos de posse sem oposição, ou 10 anos com moradia ou obra produtiva;
+      não vale em terra pública (Constituição, art. 191, parágrafo único).
+    conferido: true
+  lei_6015_216a:
+    texto: "Lei 6.015/1973, art. 216-A: usucapião pode ser feita no cartório de imóveis, sem processo judicial."
+    conferido: true
+  lei_8629_assentamento:
+    texto: >-
+      Lei 8.629/1993, art. 18: o assentado recebe do INCRA o contrato de concessão de uso e depois o título de
+      domínio ou a concessão de direito real de uso.
+    conferido: false
+
+# Órgão de terras de cada estado (a gleba pode ser federal, do INCRA, ou estadual). A conferir antes de citar ao dono.
+orgaos_estaduais:
+  PA: Iterpa
+  MT: Intermat
+  TO: Itertins
+  MA: Iterma
+  AC: Iteracre
+  RR: Iteraima
+  AM: ITEAM
+  AP: Amapá Terras
+
+amazonia_legal: [AC, AM, AP, MA, MT, PA, RO, RR, TO]
+
+limiares:
+  ocupacao_min_ha: 1.0  # área aberta até 2008 (PRODES) que conta como evidência de uso
+  ocupacao_min_fracao: 0.05  # ... ou 5% do imóvel, o que for maior
+  sobreposicao_impede_ha: 1.0  # terra indígena, quilombo, UC de domínio público ou floresta pública a partir de 1 ha
+  embargo_ha: 1.0
+  desmatamento_recente_ha: 1.0  # depois de 2020 (PRODES)
+  area_max_federal_ha: 2500
+  modulos_gratuita: 1.0
+  usucapiao_especial_max_ha: 50
+
+# Requisitos, na ordem em que aparecem para o operador. gravidade_falta: impede (não se regulariza), falta (resolve e
+# segue) ou confirmar (gente confere com o dono ou no órgão).
+requisitos:
+  sobreposicao_tradicional:
+    nome: Fora de terra indígena e quilombo
+    base: [lei_11952_vedacoes]
+    gravidade_falta: impede
+  sobreposicao_publica:
+    nome: Fora de unidade de conservação e floresta pública
+    base: [lei_11952_vedacoes]
+    gravidade_falta: impede
+  georreferenciamento:
+    nome: Georreferenciamento certificado no SIGEF
+    base: [lei_10267_georreferenciamento]
+    gravidade_falta: falta
+  ocupacao_antes_marco:
+    nome: Ocupação antes de 22/07/2008
+    base: [lei_11952_marco]
+    gravidade_falta: confirmar
+  area_limite:
+    nome: Área de até 2.500 ha
+    base: [lei_11952_area]
+    gravidade_falta: confirmar
+  sem_embargo:
+    nome: Sem embargo do Ibama
+    base: []
+    gravidade_falta: falta
+  sem_desmatamento_recente:
+    nome: Sem desmatamento depois de 2020
+    base: []
+    gravidade_falta: falta
+  car_ativo:
+    nome: CAR ativo
+    base: []
+    gravidade_falta: falta
+  requisitos_pessoais:
+    nome: Declaração do dono (sem outro imóvel, sem benefício anterior)
+    base: [lei_11952_requisitos_pessoais]
+    gravidade_falta: confirmar
+
+# Classes, da mais perto do título para a mais longe. chance_12m = chance a priori de o título sair em 12 meses;
+# prazo_meses = P10, P50 e P90 a priori até o título. A calibrar com o aprendizado.
+classes:
+  em_titulacao:
+    nome: Em titulação
+    chance_12m: 0.30
+    prazo_meses: [6, 14, 30]
+    passo: >-
+      Pedir ao dono o número do processo de titulação e acompanhar no órgão ({orgao}). A parcela já está em titulação
+      no SIGEF.
+  pronta_para_pedir:
+    nome: Pronta para pedir o título
+    chance_12m: 0.12
+    prazo_meses: [12, 24, 48]
+    passo: >-
+      Pedir a titulação ao órgão ({orgao}): o georreferenciamento está certificado, o satélite mostra uso antes de
+      22/07/2008 e não há impedimento. Falta só a declaração do dono.
+  falta_georreferenciamento:
+    nome: Falta o georreferenciamento
+    chance_12m: 0.04
+    prazo_meses: [18, 36, 60]
+    passo: >-
+      Contratar o georreferenciamento e a certificação no SIGEF (profissional credenciado no INCRA). O resto que dá
+      para ver por satélite e cadastro já atende.
+  pendente:
+    nome: Com pendências
+    chance_12m: 0.02
+    prazo_meses: [24, 48, 84]
+    passo: "Resolver primeiro: {pendencia}."
+  impedida:
+    nome: Não se regulariza
+    chance_12m: 0.0
+    prazo_meses: [null, null, null]
+    passo: "Fica fora da originação: {pendencia}."
+  nao_se_aplica:
+    nome: Não se aplica
+    chance_12m: null
+    prazo_meses: [null, null, null]
+    passo: ""

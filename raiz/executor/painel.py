@@ -8,7 +8,10 @@ GET /estados                 o mesmo por estado, com a situação do processamen
 
 from __future__ import annotations
 
+import datetime as dt
 import json
+import threading
+import time
 
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, Response
@@ -152,11 +155,53 @@ def roteador(engine_de, armazem_de) -> APIRouter:
     return r
 
 
-def roteador_publico() -> APIRouter:
+def roteador_publico(armazem_de=None) -> APIRouter:
     r = APIRouter()
+    trava = threading.Lock()
+    cache: dict = {}
+
+    if armazem_de is not None:
+
+        @r.get("/processamento/publico")
+        def processamento_aberto(request: Request) -> Response:
+            from raiz.executor.processamento_publico import ler_painel
+
+            # Um GET público não deve multiplicar consultas autenticadas ao Release.
+            with trava:
+                if time.monotonic() >= cache.get("ate", 0):
+                    try:
+                        cache["dado"] = ler_painel(armazem_de(request))
+                    except Exception:  # noqa: BLE001
+                        # A mensagem da origem pode conter caminhos ou identificadores privados.
+                        return Response(
+                            '{"erro":"observacao_indisponivel"}',
+                            status_code=503,
+                            media_type="application/json",
+                            headers={"Cache-Control": "no-store"},
+                        )
+                    cache["ate"] = time.monotonic() + 15
+                return Response(
+                    json.dumps(_expirar_observacoes(cache["dado"]), ensure_ascii=False),
+                    media_type="application/json",
+                    headers={"Cache-Control": "no-store"},
+                )
 
     @r.get("/painel/processamento", response_class=HTMLResponse)
     def pagina() -> HTMLResponse:
         return HTMLResponse(PAGINA)
 
     return r
+
+
+def _expirar_observacoes(dado: dict) -> dict:
+    """O cache HTTP não estende a prova de uma execução em andamento."""
+    import copy
+
+    out = copy.deepcopy(dado)
+    agora = dt.datetime.now(dt.UTC)
+    for estado in out["estados"]:
+        validade = estado.get("valido_ate")
+        if validade and dt.datetime.fromisoformat(validade) <= agora:
+            estado["situacao"] = "desatualizado"
+            estado["municipios"]["em_execucao"] = None
+    return out

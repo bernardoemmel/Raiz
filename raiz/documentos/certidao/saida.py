@@ -1,6 +1,8 @@
 """Saídas por município, lidas pelo front e pelo back-end pelo nome das colunas (docs/colunas.md).
 
 matricula_conferencia_<mun>.csv  uma linha por (imóvel, matrícula) do certidoes_<mun>.csv, com a última conferência;
+cadeia_<mun>.csv                 um ato por linha da leitura vigente de cada matrícula (cadeia dominial, para o
+                                 Postgres: titulo.matricula, titulo.ato e titulo.ato_parte);
 matricula_<mun>.csv              uma linha por imóvel, com matricula_conferida (True quando todas as matrículas do
                                  imóvel foram lidas e conferidas; False quando alguma foi lida e não conferiu; vazio
                                  quando falta ler). O selo "Matrícula conferida" do front lê esta coluna.
@@ -39,6 +41,7 @@ COLS_CONF = [
     "modelo",
     "leitor_versao",
     "regras_versao",
+    "motivos_json",
 ]
 
 
@@ -89,6 +92,7 @@ def conferencias_do_municipio(cod_municipio: int, armazem: Armazem | None = None
                 "modelo": c["modelo"],
                 "leitor_versao": f"{c['leitor_versao']}+{c['prompt_versao']}",
                 "regras_versao": c["regras_versao"],
+                "motivos_json": c["motivos_json"],
             }
         )
     return pd.DataFrame(linhas, columns=COLS_CONF)
@@ -132,11 +136,25 @@ def por_imovel(conf: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(linhas)
 
 
-def gravar_municipio(cod_municipio: int, armazem: Armazem | None = None) -> tuple[Path, Path]:
+def cadeia_do_municipio(cod_municipio: int, armazem: Armazem | None = None) -> pd.DataFrame:
+    """Atos das leituras vigentes das matrículas do município (raiz/documentos/certidao/cadeia.py)."""
+    from raiz.documentos.certidao.cadeia import cadeia_das_conferencias
+
+    armazem = armazem or Armazem()
+    motor = tabelas.ler("certidoes", cod_municipio)
+    if motor is None:
+        raise FileNotFoundError(f"certidoes_{cod_municipio}.csv não encontrado nas pastas de entrada")
+    return cadeia_das_conferencias(armazem.conferencias_vigentes(list(motor.cod_imovel.unique())))
+
+
+def gravar_municipio(cod_municipio: int, armazem: Armazem | None = None) -> tuple[Path, Path, Path]:
+    armazem = armazem or Armazem()
     conf = conferencias_do_municipio(cod_municipio, armazem)
     pasta = tabelas.pasta_saida(cod_municipio)
     a = pasta / f"matricula_conferencia_{cod_municipio}.csv"
     b = pasta / f"matricula_{cod_municipio}.csv"
+    c = pasta / f"cadeia_{cod_municipio}.csv"
     conf.to_csv(a, index=False)
     por_imovel(conf).to_csv(b, index=False)
-    return a, b
+    cadeia_do_municipio(cod_municipio, armazem).to_csv(c, index=False)
+    return a, b, c

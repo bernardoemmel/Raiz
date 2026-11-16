@@ -1,0 +1,148 @@
+{
+  "arquivos": {
+    "cenarios_restauracao.yaml": {
+      "caminho_origem": "raiz/regras/padroes/cenarios_restauracao.yaml",
+      "git_blob": "fca5c7ae14cfe7510e428897d7b83f5352c47984",
+      "sha256": "23540c79f924883a149fda4fdfb3ed731f54a4fe89ca44bb1d88cd4f0a45f581"
+    },
+    "restauracao.yaml": {
+      "caminho_origem": "raiz/regras/padroes/restauracao.yaml",
+      "git_blob": "ecb4911a0577177c393e6de5c093d742947b4f83",
+      "sha256": "d68e879f7edca44f06d166caf5cff5168b3a4f9327f39fb26544260a851d8c14"
+    },
+    "restauracao_cambio.yaml": {
+      "caminho_origem": "raiz/regras/padroes/restauracao_cambio.yaml",
+      "git_blob": "737380681c2fec5f910bf7bda64a089879b4f702",
+      "sha256": "527e402b823bc3b5afd023ed041a18aa4ad2987ba63a3ebbd56f5b91ce1ff6fd"
+    }
+  },
+  "arquivos_combinados": [
+    "restauracao.yaml",
+    "cenarios_restauracao.yaml",
+    "restauracao_cambio.yaml"
+  ],
+  "ast": {
+    "algoritmo": "sha256(ast.dump(no_funcao, include_attributes=False).encode())",
+    "arquivo": "raiz/restauracao.py",
+    "funcoes_sha256": {
+      "_bioma": "fe8279d6cac9d409ce53be5eda84e556754e4891c8ab66c3395c4053fb739c6e",
+      "_cal": "1789f8c13f382d0199d5b02f0052b9c4edcc5468597ec1d91bd4f716d0e700f0",
+      "_com_teto": "950784efbd0b9a3b001126482d62ae73ad38e4b7d7f969542e872d506801fc52",
+      "_dois_lados": "85c6972c789f0795c950b52ad4eb5e104ddd547505e3f20af410d8f841690249",
+      "_ler": "df4d546853dcf5bafcb819d1802d93c3fdcc9772d61de04c00afc39b389d879a",
+      "_normalizar": "0891f299ca2ac223fe18cf5cbf670eae80d89d959caf8d7f3ccf9d4e4f3de467",
+      "_num": "1d569bc0aedc4b83b14f6a8b487f96e1a7aeb29700e004fc9d5c7a318c70512f",
+      "_pesos": "8f6e342a7a0a4a734fdf051a3404c023f4258025d53a9413f24a77288a42fcd6",
+      "_sorteios": "6649fedafe301ac0560bc0b40b3b2cdde8fc6cc15baf6c1ebc78a0c181b0ac3e",
+      "area_restauravel": "ef1f66e5984deb262408acbc5e26a29b4be61e9384b99314361c640b102ed5c8",
+      "calcular": "096ae67a12eb963528df83b8fffbf0eae4df22cbb6c063bd97f98f53c8341335",
+      "captura": "4fdea5cb7e3241ccd64ebc15884e8957eb16d8435b6807186e8abff5d6bbb377",
+      "cenario": "1777b6790f5547a58d22cbefd2a9ae2cb62a1953eb3412702aa94e4ef1d6a09c",
+      "descontos": "1585d4ad432f60b16760f424412897be8b9ed3c37933f9c65839659d5b8e292a",
+      "fator_captura": "0dea82b76b335d0171a6e21e14525923c980da139f128d0e13b9831d2da8d174",
+      "forma_curva": "e71f4b8aeb2cf68782fffffaf20b41d6e3f101b1837054158227815c23ca2c13",
+      "fracoes_distancia": "f1a194542f41ae64928846029fefadad1080c28b72ae0f2d5d3a503e1805704b",
+      "modos": "40e564937d527868f0523338b65e0c766ee1d2e28cc6a8aaec0db21a0864293e",
+      "regra": "4c3a33dcebdedb699d048a03b9ef1f92c1e17df611d8c20225f78a1e6dc9b72f",
+      "simular_fluxos": "d19321b32b2fa322b3bd20c2f169ddbecb420a799a85507c9d264cb4fc01edc0"
+    },
+    "python": "3.12.14"
+  },
+  "auditoria_historica": {
+    "blobs_distintos_por_arquivo": {
+      "cenarios_restauracao.yaml": [
+        "fca5c7ae14cfe7510e428897d7b83f5352c47984"
+      ],
+      "raiz/executor/tarefas.py": [
+        "b88aa9aa79ac033d9288e40d0a38c7cd1a560578"
+      ],
+      "raiz/restauracao.py": [
+        "705ffeea80ec63939fcf67aa2a55507d9c7b06a4"
+      ],
+      "raiz/restauracao_geo.py": [
+        "875098b9541180d7f9ad9ecca3b36eeb34ef9128"
+      ],
+      "restauracao.yaml": [
+        "ecb4911a0577177c393e6de5c093d742947b4f83"
+      ],
+      "restauracao_cambio.yaml": [
+        "737380681c2fec5f910bf7bda64a089879b4f702"
+      ]
+    },
+    "calibracao_presente_em_compativeis": false,
+    "comando_alcance": "git rev-list --all",
+    "commits_compativeis": [
+      "1e6d6f61bd8564f0546dbb453339e102b5531f54",
+      "9d37a0e2e79371834b09ed12b49f3ccc436fe729",
+      "fc3950a011d56136cc8213ceb3e605db82d63165",
+      "7c4bdb72ba4d00046a1485825e649bf5d17202e4",
+      "b12c187bd2ed0e57a01b787087cec21307eb8c7e",
+      "03fb394d59857e1801bd0a96727ddfc934924ecb",
+      "bd751e809dcc77f6e7f77f99e1862668293e73b6",
+      "353757577d6162b6fe7ded96266880f365f7b542",
+      "9365d63f0fc1913a4d96d62ab24dc819d810c5fc",
+      "20e0dc7585d3ebada3f9e2f108b61285aa1e7418",
+      "df11ab9257d3582c89d8aa29a63796daf3fa13f2",
+      "d370f85a1476ee6397e5f86bc0d0cacb4f3a84e1",
+      "6216b03c7dd7d4a4073bea6c51fa9ac93483f532",
+      "2a15ac67c4591517c806d506c1d09414d0abbba3",
+      "03bc05ab2416aff96f798b1c8c8e70a35a8572bd",
+      "b806303aa76dfafa63febc54d7a97c4068c9b3c0",
+      "8b047349b96ee83d2fb552445cb879b57d226228",
+      "0d580ba2cfd9c52fe9e3f51aa4000a65181e3268",
+      "2a80f3e5e44433d3a2805929ec6c746ce19f9251",
+      "17b0a48027e9d22396bc73757f7c9cec98790c28",
+      "81efbad6fea8f86af9f7f6996d4d9adb33997c78",
+      "ddc57ad818caee750caae8d490e3ca8f24747a62",
+      "deec7a776378056509b2cd37e0894f4d00922b84"
+    ],
+    "commits_examinados": 525,
+    "data": "2026-11-12",
+    "edital_presente_em_compativeis": false,
+    "head": "56a6354a610e91d1526baef9cf91f78294c88f14",
+    "limite": "Retrato do histórico local no momento da auditoria, não dos commits posteriores, referências não obtidas ou código sem commit. O hash de premissas não inclui Python: o consumidor deve conferir versao_tarefa_referencia no _versoes.json do artefato original.",
+    "metodo": "Leitura das árvores e blobs de todos os commits alcançáveis pelas referências locais; recomposição dos hashes sem executar módulos históricos. Os 23 commits compartilham integralmente os três YAMLs e os três arquivos de código registrados; assim, também coincidem a curva, a captura e seus chamadores.",
+    "refs_locais": 19,
+    "sha256_combinados_distintos": [
+      "dbc2776aee416750bf0665599421640101ba3aed46386bb15a703b4ccf787dd4"
+    ],
+    "total_compativeis": 23,
+    "versoes_tarefa_distintas": [
+      "desenvolvedor-4e142d4bfca2"
+    ]
+  },
+  "calibracao": {
+    "arquivo": "restauracao_calibracao.yaml",
+    "presente": false
+  },
+  "codigo": {
+    "raiz/executor/tarefas.py": {
+      "caminho_origem": "raiz/executor/tarefas.py",
+      "git_blob": "b88aa9aa79ac033d9288e40d0a38c7cd1a560578",
+      "sha256": "5779d90bd25e9c2bc02f023b47ac936c0cb474dd390d0ad55ab847a8c1b82ea4"
+    },
+    "raiz/restauracao.py": {
+      "caminho_origem": "raiz/restauracao.py",
+      "git_blob": "705ffeea80ec63939fcf67aa2a55507d9c7b06a4",
+      "sha256": "7620c73e6fbeff00db6545ca010d0893a5ad4cc30831505e63b80d0e712d35b3"
+    },
+    "raiz/restauracao_geo.py": {
+      "caminho_origem": "raiz/restauracao_geo.py",
+      "git_blob": "875098b9541180d7f9ad9ecca3b36eeb34ef9128",
+      "sha256": "5baec759fe2cd5b3a7af3cdb4de015889d095fc02996b6bde313d1ce1022d417"
+    }
+  },
+  "commit": "deec7a776378056509b2cd37e0894f4d00922b84",
+  "edital": {
+    "arquivo": "edital_profloresta.yaml",
+    "presente": false
+  },
+  "formula_hash_premissas": "sha256(restauracao.yaml + b\"\\n--\\n\" + cenarios_restauracao.yaml + b\"\\n--\\n\" + restauracao_cambio.yaml); versao = regra.versao + \"+\" + cenarios.versao + \"+\" + sha256[:8]",
+  "formula_hash_tarefa": "sha256(b\"raiz/restauracao.py\" + bytes_restauracao_py + b\"raiz/restauracao_geo.py\" + bytes_restauracao_geo_py + versao.encode()); versao_tarefa = \"desenvolvedor-\" + sha256[:12]",
+  "perfil": "separado_2026b",
+  "separador_hex": "0a2d2d0a",
+  "sha256_combinado": "dbc2776aee416750bf0665599421640101ba3aed46386bb15a703b4ccf787dd4",
+  "sha256_tarefa": "4e142d4bfca2df0af9cc24d332c1984e4c4eed7f6be165ac267c60dea3f39750",
+  "versao": "restauracao-2026b+cenarios-2026b+dbc2776a",
+  "versao_tarefa": "desenvolvedor-4e142d4bfca2"
+}

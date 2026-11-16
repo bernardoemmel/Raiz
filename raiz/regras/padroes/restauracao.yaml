@@ -6,7 +6,7 @@
 # (`fonte`). Quando um cliente informa o real (`raiz restauracao informar`), `raiz restauracao recalibrar` compara
 # com o que a Raíz previu e propõe os fatores em restauracao_calibracao.yaml. Cada cálculo grava a versão deste
 # arquivo + hash (restauracao_versao); mudou a versão, `raiz restauracao recalcular` refaz.
-versao: restauracao-2026c
+versao: restauracao-2026d
 aviso: >-
   Estimativa da Raíz para orientar a conversa com o desenvolvedor, não é orçamento nem promessa de crédito. Custos,
   captura e linha de base são premissas a calibrar com dados reais.
@@ -333,11 +333,11 @@ lote:
   edital: edital_profloresta.yaml
 
 # --- 11. Cenários do fluxo de caixa ---------------------------------------------------------------------------------
-# Todo parâmetro é editável na ficha (simulador) e cada um traz a fonte. Padrão: o central da rodada 11 (central_r11);
+# Todo parâmetro é editável na ficha (simulador) e cada um traz a fonte. Padrão: central_r12, com referências verificadas e dívida por ICSD;
 # as premissas antigas do fundador ficam no otimista_fundador.
 # modelo: curva (captura na forma da URTX, custos do SFB por ano, descontos em ordem, marcos e multas do ProFloresta+,
 # dono, dívida pelo ICSD, venda depois do contrato) ou constante (premissas antigas).
-padrao: central_r11
+padrao: central_r12
 cenarios:
   central_r11:
     nome: Central (rodada 11), US$ 55/t
@@ -510,8 +510,17 @@ cenarios:
       valor: 0.0
       fonte: fundador, rodada 11 (zero só com fazenda vizinha de mitigação no lote; coluna mitigacao_vizinha)
     reserva_risco:
-      valor: 0.12
-      fonte: fundador, rodada 11 (reserva de não permanência)
+      valor: 0.20
+      fonte: >-
+        Piso conservador Raíz de 20% por fazenda, adotando a alternativa ICVCM 9.4(a)(5)(i).
+        O critério 9.4 também admite contribuição ajustada ao risco; 9.3 exige monitoramento e compensação
+        por pelo menos 40 anos. Não é certificação nem substitui a avaliação do programa.
+        https://icvcm.org/wp-content/uploads/2024/05/CCP-Section-4-V3-FINAL-10May24.pdf
+    reserva_por_fazenda:
+      valor: true
+      fonte: >-
+        E3 passo 4: a reserva de cada fazenda sobe com a perda esperada por fogo e por derrubada (seção
+        nao_permanencia); nunca fica abaixo da reserva do cenário
     incerteza:
       valor: 0.10
       fonte: fundador, rodada 11 (incerteza ex-ante)
@@ -678,8 +687,8 @@ cenarios:
       valor: 0
       fonte: fundador
     reserva_risco:
-      valor: 0.12
-      fonte: motor (raiz_ajustes.py, reserva mínima NPRT v5.0)
+      valor: 0.20
+      fonte: política Raíz de reserva mínima de 20% (ICVCM 9.4(a)(5)(i)), inclusive nos cenários antigos
     incerteza:
       valor: 0.10
       fonte: motor (raiz_ajustes.py, VM0047)
@@ -690,6 +699,66 @@ cenarios:
     preco_usd_t:
       valor: 74
       fonte: fundador, 12/11/2026 (teto da faixa do ProFloresta+)
+
+  central_r12:
+    nome: Rodada 12, referência mombak_angico_branco
+    herda: central_r11
+    rodada: 12
+    operacao_fundo_clima: mombak_angico_branco
+    estresse_financeiro: false
+    reserva_divida_meses: 6
+    preco_usd_t:
+      valor: 59.20
+      fonte: ProFloresta+ 1, média ponderada pelos volumes contratados (22/06/2026)
+    taxa_registro_usd_t:
+      valor: 0.23
+      fonte: Verra Program Fee Schedule; taxas fixas e adiantamento tratados no lote
+
+  central_r12_jequitiba:
+    nome: Rodada 12, referência regreen_jequitiba
+    herda: central_r11
+    rodada: 12
+    operacao_fundo_clima: regreen_jequitiba
+    estresse_financeiro: false
+    reserva_divida_meses: 6
+    preco_usd_t:
+      valor: 59.20
+      fonte: ProFloresta+ 1, média ponderada pelos volumes contratados (22/06/2026)
+    taxa_registro_usd_t:
+      valor: 0.23
+      fonte: Verra Program Fee Schedule; taxas fixas e adiantamento tratados no lote
+
+  central_r12_symbiosis:
+    nome: Rodada 12, referência symbiosis
+    herda: central_r11
+    rodada: 12
+    operacao_fundo_clima: symbiosis
+    estresse_financeiro: false
+    reserva_divida_meses: 6
+    preco_usd_t:
+      valor: 59.20
+      fonte: ProFloresta+ 1, média ponderada pelos volumes contratados (22/06/2026)
+    taxa_registro_usd_t:
+      valor: 0.23
+      fonte: Verra Program Fee Schedule; taxas fixas e adiantamento tratados no lote
+
+  estresse_r12:
+    nome: Rodada 12, referência mombak_angico_branco
+    herda: central_r11
+    rodada: 12
+    operacao_fundo_clima: mombak_angico_branco
+    estresse_financeiro: true
+    reserva_divida_meses: 6
+    preco_usd_t:
+      valor: 59.20
+      fonte: ProFloresta+ 1, média ponderada pelos volumes contratados (22/06/2026)
+    taxa_registro_usd_t:
+      valor: 0.23
+      fonte: Verra Program Fee Schedule; taxas fixas e adiantamento tratados no lote
+    linha_base_piso: {valor: 0.40, fonte: premissa pessimista Raíz}
+    vazamento: {valor: 0.40, fonte: premissa pessimista Raíz}
+    fracao_financiada: {valor: 0.35, fonte: premissa pessimista Raíz}
+    participacao_dono: {valor: 0.20, fonte: premissa pessimista Raíz}
 
 # Faixa P10-P90 do VPL, das TIRs, das entregas e das multas por imóvel: Monte Carlo com sorteios comuns a todos os
 # imóveis (semente fixa), o custo e a captura sorteados de forma independente numa normal de dois lados que respeita
@@ -737,3 +806,33 @@ sensibilidade:
   fonte: >-
     câmbio 10% para cada lado da PTAX (Banco Central); preço na faixa do ProFloresta+ (US$ 55 a 74, rodada 11); custo e
     captura nos P10 e P90 das próprias premissas (custo_sfb_rs_ha e captura_curva.incerteza_captura)
+
+
+# --- 13. Não permanência por fazenda (E3 passo 4) --------------------------------------------------------------------
+# Perda esperada em 40 anos = 1 − exp(−40 × (λ_fogo × severidade × (1 − mitigação) + λ_derrubada × severidade ×
+# (1 − mitigação))), frequência vezes severidade como no aggregate. Reserva da fazenda = risco interno e externo +
+# perda esperada, nunca abaixo do piso Raíz de 20% nem da reserva do cenário.
+# O teto limita o componente estimado; não reduz uma reserva maior pedida no cenário.
+nao_permanencia:
+  anos_serie_fogo: 40  # fogo_anos_media: anos com fogo por pixel no MapBiomas Fogo, 1985 a 2024
+  severidade_fogo: 0.5
+  mitigacao_fogo: 0.6
+  severidade_derrubada: 1.0
+  mitigacao_derrubada: 0.8
+  risco_interno_externo: 0.02
+  piso_vcs: 0.10
+  piso_raiz: 0.20
+  teto: 0.60
+  horizonte_anos: 40
+  fonte: >-
+    Estrutura da Verra, AFOLU Non-Permanence Risk Tool (VT0001 v4.2): risco natural = probabilidade vezes
+    significância, menos a mitigação, somado ao risco interno e externo, com reserva VCS mínima de 10%.
+    A Raíz adota piso superior de 20% por fazenda, alternativa ICVCM 9.4(a)(5)(i); riscos maiores elevam a reserva.
+    O ICVCM admite também reserva ajustada ao risco e não exige 20% universalmente em cada projeto.
+    Fonte: https://icvcm.org/wp-content/uploads/2024/05/CCP-Section-4-V3-FINAL-10May24.pdf, páginas 83 e 84.
+    Frequência do fogo:
+    MapBiomas Fogo (anos com fogo por pixel, 1985 a 2024, fogo_anos_media). Derrubada: taxa anual de supressão da
+    vegetação secundária no município, MapBiomas desmatamento v5 (mb_supressao_secundaria_<ano>_ha dividido por
+    mb_veg_secundaria_<ano>_ha). Severidade (metade do carbono numa queimada da floresta jovem; toda a área na
+    derrubada), mitigação (o fogo do MapBiomas no pasto é em boa parte queima de manejo, que acaba na área restaurada; com aceiro e brigada, 60% a menos; contrato averbado e monitoramento cortam a
+    derrubada em 80%) e risco interno e externo de 2%: premissas Raíz a calibrar com a perda real dos projetos (E8)

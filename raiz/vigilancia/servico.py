@@ -15,7 +15,7 @@ from zoneinfo import ZoneInfo
 import pandas as pd
 import shapely
 
-from raiz.vigilancia import aprendizado, aviso, perdas, projetos, publicacao, relatorio
+from raiz.vigilancia import aprendizado, aviso, aviso_verra, perdas, projetos, publicacao, relatorio
 from raiz.vigilancia import regras as regras_mod
 from raiz.vigilancia.armazem import TIPOS_EVENTO, Armazem
 from raiz.vigilancia.config import Config, config
@@ -228,14 +228,16 @@ class Vigilancia:
     def perdas(self, pid: str, hoje: dt.date | None = None) -> tuple[list[dict], pd.DataFrame]:
         hoje = hoje or hoje_brasil()
         p = self.projetos[pid]
-        try:
-            areas = self.areas(pid)
-        except Exception as ex:  # noqa: BLE001
-            log.warning("áreas do projeto %s indisponíveis: %s", pid, ex)
-            areas = None
+        alertas = self.arm.alertas("projeto", pid)
+        areas = None
+        if len(alertas):
+            try:
+                areas = self.areas(pid)
+            except Exception as ex:  # noqa: BLE001
+                log.warning("áreas do projeto %s indisponíveis: %s", pid, ex)
         return perdas.calcular(
             p,
-            self.arm.alertas("projeto", pid),
+            alertas,
             self.marcacoes(),
             self.eventos(),
             self.arm.registro_perdas(),
@@ -259,6 +261,10 @@ class Vigilancia:
                 "pt": f"/vigilancia/projeto/{pid}/perdas/{pe['perda_id']}/relatorio?idioma=pt",
                 "en": f"/vigilancia/projeto/{pid}/perdas/{pe['perda_id']}/relatorio?idioma=en",
                 "kml": f"/vigilancia/projeto/{pid}/perdas/{pe['perda_id']}/kml",
+            }
+            pe["aviso_verra"] = {
+                "rascunho": f"/vigilancia/projeto/{pid}/perdas/{pe['perda_id']}/aviso-verra",
+                "eml": f"/vigilancia/projeto/{pid}/perdas/{pe['perda_id']}/aviso-verra.eml",
             }
         al = self.arm.alertas("projeto", pid)
         vig = aprendizado.vigentes(self.marcacoes()).set_index("alerta_id")
@@ -304,6 +310,7 @@ class Vigilancia:
                 "base": v["base"],
             },
             "perdas": lista,
+            "avisos_verra_informados": self.avisos_verra_informados(hoje, pid),
             "alertas": [
                 self._alerta_json(a, vig)
                 for _, a in al.sort_values("data_evento", ascending=False, na_position="last").head(limite).iterrows()
@@ -330,6 +337,44 @@ class Vigilancia:
     def kml(self, pid: str, perda_id: str) -> str | None:
         pe = self._perda(pid, perda_id)
         return relatorio.kml_da_perda(self.projetos[pid], pe) if pe else None
+
+    def aviso_verra(self, pid: str, perda_id: str, hoje: dt.date | None = None) -> dict | None:
+        hoje = hoje or hoje_brasil()
+        if pid not in self.projetos:
+            return None
+        pe = self._perda(pid, perda_id, hoje) if len(self.arm.alertas("projeto", pid)) else None
+        prazo = aviso_verra.prazo_registrado(self.projetos[pid], perda_id)
+        if pe is None and prazo is None:
+            return None
+        ev = self.eventos()
+        confirmado = perdas._ultimo_evento(ev, perda_id, ("verra_avisada",))
+        encerramento = perdas._ultimo_evento(ev, perda_id, ("perda_descartada", "perda_reaberta", "relatorio_enviado"))
+        d = aviso_verra.preparar(
+            self.projetos[pid],
+            perda_id,
+            self.regras,
+            hoje,
+            perda=pe,
+            prazo_informado=prazo,
+            envio_confirmado_em=_data(confirmado["data"]) if confirmado else None,
+            encerrado=bool(encerramento and encerramento["tipo"] in ("perda_descartada", "relatorio_enviado")),
+        )
+        if pe is None:
+            d["origem_prazo"] = "informado_pelo_cliente_e_registrado_no_projeto"
+        return d
+
+    def avisos_verra_informados(self, hoje: dt.date | None = None, pid: str | None = None) -> list[dict]:
+        hoje = hoje or hoje_brasil()
+        out = []
+        for projeto in self.projetos.values():
+            if pid is not None and projeto.id != pid:
+                continue
+            for registro in projeto.get("avisos_verra_informados") or []:
+                d = self.aviso_verra(projeto.id, registro["perda_id"], hoje)
+                if d:
+                    base = f"/vigilancia/projeto/{projeto.id}/perdas/{registro['perda_id']}"
+                    out.append({**d, "rascunho": f"{base}/aviso-verra", "eml": f"{base}/aviso-verra.eml"})
+        return out
 
     def avisos(self, estado: str | None = None, hoje: dt.date | None = None) -> list[dict]:
         hoje = hoje or hoje_brasil()

@@ -8,6 +8,7 @@
     flag    raiz.flag.calcular_municipio (meta FLAG pela GHG LSR, fora do motor)   -> flag_<mun>.csv
     terra   raiz.terra (caminho da terra e risco, fora do motor)                   -> terra_<mun>.csv
     ficha   raiz.imovel_dados (design v1 do front: colunas e camadas no imóvel)   -> ficha_, camadas_<mun>
+    rebanho raiz.rebanho (rebanho por fazenda pela PPM e metano, E4, fora do motor) -> rebanho_<mun>.csv
     desenvolvedor raiz.restauracao (valor para quem restaura, fora do motor)      -> desenvolvedor_<mun>.csv
     carga   raiz.carga.carregar_municipio + congelamento das previsões (versão do motor confirmada)
 
@@ -36,7 +37,9 @@ from raiz.config import config
 log = logging.getLogger(__name__)
 
 TAREFAS = (
-    "funil", "filtros", "direto", "mapbiomas", "extras_direto", "flag", "terra", "ficha", "desenvolvedor", "carga",
+    "funil", "filtros", "direto", "mapbiomas", "extras_direto", "flag", "terra", "titulo", "ficha", "rebanho",
+    "desenvolvedor",
+    "carga",
 )  # fmt: skip
 
 
@@ -94,7 +97,7 @@ def _escrever_csv(df, caminho: Path, **kw) -> None:
 
 def rodar_municipio(cod: int, op: Opcoes, hc=None) -> dict:
     """Roda as tarefas pedidas para um município. Devolve {tarefa: estado}."""
-    from raiz.funil.ponte import ponte
+    from raiz.funil.ponte import ler_local, ponte, ponte_vetorial
     from raiz.operacao.healthchecks import Healthchecks
     from raiz.operacao.lotes import lote
 
@@ -105,8 +108,10 @@ def rodar_municipio(cod: int, op: Opcoes, hc=None) -> dict:
     pasta = Path(f"saida/{uf}")
     pasta.mkdir(parents=True, exist_ok=True)
     res: dict[str, str] = {}
+    captura = None
 
     def executar(tarefa: str, saida: Path | None, fn) -> bool:
+        nonlocal captura
         if tarefa not in op.tarefas:
             return True
         try:
@@ -115,7 +120,18 @@ def rodar_municipio(cod: int, op: Opcoes, hc=None) -> dict:
                     reg.pulado = True
                     reg.nota(f"{saida.name} já existe")
                 else:
-                    fn(reg)
+                    from raiz.aprendizado.captura import Captura
+
+                    captura = Captura(uf, cod)
+                    with captura.modelos() if captura else contextlib.nullcontext():
+                        fn(reg)
+                    if eng is not None:
+                        with eng.begin() as con:
+                            reg.detalhe["historico_aprendizado"] = captura.publicar(con)
+                    else:
+                        from raiz.aprendizado.retratos import guardar
+
+                        reg.detalhe["historico_aprendizado"] = guardar(captura, tarefa)
             res[tarefa] = "pulado" if reg.pulado else "sucesso"
             return True
         except Exception as ex:  # noqa: BLE001 - o lote já registrou e pingou a falha
@@ -124,7 +140,8 @@ def rodar_municipio(cod: int, op: Opcoes, hc=None) -> dict:
 
     def funil(reg):
         with ponte(R, uf, cod, op.espelho) as origem:
-            c, nome = R.municipio(uf, cod, _EMB, str(pasta))
+            with captura.motor(R, _EMB) if captura else contextlib.nullcontext():
+                c, nome = R.municipio(uf, cod, _EMB, str(pasta))
         reg.detalhe.update(origem=origem)
         if c is None:
             reg.nota(f"{cod}: nenhum imóvel IRU ativo")
@@ -137,7 +154,14 @@ def rodar_municipio(cod: int, op: Opcoes, hc=None) -> dict:
         import raiz_filtros
         from raiz_extras import geometria
 
-        t = raiz_filtros.filtros(geometria(uf, cod, str(pasta)))
+        from raiz.funil.filtros import calcular, embargos_ativos
+        from raiz.funil.ponte import espelho_padrao
+
+        espelho = Path(op.espelho) if op.espelho else espelho_padrao()
+        embargos = ler_local(espelho, "ibama", uf, cod)
+        if embargos is None:
+            embargos = _EMB if _EMB is not None else R.embargos()
+        t = calcular(geometria(uf, cod, str(pasta)), raiz_filtros, embargos_ativos(embargos, cod), conexao_vetorial())
         _escrever_csv(t, pasta / f"filtros_{cod}.csv", index=False)
         reg.detalhe.update(imoveis=len(t), bloqueio=int((t.filtro_territorial == "bloqueio").sum()))
 
@@ -159,7 +183,7 @@ def rodar_municipio(cod: int, op: Opcoes, hc=None) -> dict:
         with eng.begin() as con:
             r = carregar_municipio(con, pasta.resolve(), cod, op.data_corte, motor_confirmado=True)
             lh, novo, n = congelar_rodada(con, r.rodada_id)
-        depois_da_carga(eng, cod)
+        depois_da_carga(eng, cod, estrito=True)
         reg.detalhe.update(rodada=r.rodada_id, nova=r.nova, previsoes=n if novo else 0, colunas_novas=r.colunas_novas)
 
     def mapbiomas(reg):
@@ -200,10 +224,30 @@ def rodar_municipio(cod: int, op: Opcoes, hc=None) -> dict:
             return
         reg.detalhe.update(T.escrever_municipio(pasta, cod, Path("cache")), regra=T.versao())
 
+    def titulo(reg):
+        from raiz.titulo import tarefa as TT
+
+        f = pasta / f"titulo_{cod}.csv"
+        if f.exists() and not op.refazer and TT.versao_do_arquivo(f) == TT.versao():
+            reg.pulado = True
+            reg.nota(f"{f.name} já está na versão {TT.versao()}")
+            return
+        reg.detalhe.update(TT.escrever_municipio(pasta, cod), versao=TT.versao())
+
     def ficha(reg):
         from raiz.imovel_dados import escrever_municipio
 
         reg.detalhe.update(escrever_municipio(pasta, cod, Path("cache")))
+
+    def rebanho(reg):
+        from raiz import rebanho as RB
+
+        f = pasta / f"rebanho_{cod}.csv"
+        if f.exists() and not op.refazer and RB.versao_do_arquivo(f) == RB.versao():
+            reg.pulado = True
+            reg.nota(f"{f.name} já está na versão {RB.versao()}")
+            return
+        reg.detalhe.update(RB.escrever_municipio(pasta, cod))
 
     def desenvolvedor(reg):
         from raiz import restauracao as RS
@@ -215,18 +259,22 @@ def rodar_municipio(cod: int, op: Opcoes, hc=None) -> dict:
             return
         reg.detalhe.update(RS.escrever_municipio(pasta, cod, Path("cache")), versao=RS.versao())
 
-    imoveis = pasta / f"imoveis_{cod}.csv"
-    if not executar("funil", imoveis, funil) or not imoveis.exists():
-        return res
-    executar("filtros", pasta / f"filtros_{cod}.csv", filtros)
-    executar("direto", pasta / f"direto_{cod}.csv", direto)
-    executar("mapbiomas", pasta / f"mapbiomas_{cod}.csv", mapbiomas)
-    executar("extras_direto", pasta / f"extras_direto_{cod}.csv", extras_direto)
-    executar("flag", None, flag)  # refaz quando a versão da regra muda
-    executar("terra", None, terra)  # caminho da terra; refaz quando a regra ou as concessões mudam
-    executar("ficha", pasta / f"ficha_{cod}.csv", ficha)
-    executar("desenvolvedor", None, desenvolvedor)  # refaz quando a versão das premissas ou do cenário muda
-    executar("carga", None, carga)
+    vetorial = ponte_vetorial(R) if {"funil", "filtros"} & set(op.tarefas) else contextlib.nullcontext()
+    with vetorial as conexao_vetorial:
+        imoveis = pasta / f"imoveis_{cod}.csv"
+        if not executar("funil", imoveis, funil) or not imoveis.exists():
+            return res
+        executar("filtros", pasta / f"filtros_{cod}.csv", filtros)
+        executar("direto", pasta / f"direto_{cod}.csv", direto)
+        executar("mapbiomas", pasta / f"mapbiomas_{cod}.csv", mapbiomas)
+        executar("extras_direto", pasta / f"extras_direto_{cod}.csv", extras_direto)
+        executar("flag", None, flag)  # refaz quando a versão da regra muda
+        executar("terra", None, terra)  # caminho da terra; refaz quando a regra ou as concessões mudam
+        executar("titulo", None, titulo)  # regularização da posse e achados de título; refaz quando a regra muda
+        executar("ficha", pasta / f"ficha_{cod}.csv", ficha)
+        executar("rebanho", None, rebanho)  # rebanho por fazenda (E4); refaz quando a PPM ou as premissas mudam
+        executar("desenvolvedor", None, desenvolvedor)  # refaz quando a versão das premissas ou do cenário muda
+        executar("carga", None, carga)
     return res
 
 
@@ -244,6 +292,10 @@ def preparar_estado(op: Opcoes) -> None:
     deixam seguir sem (no computador). Os processos não pedem de novo cada um (RAIZ_MB_BAIXAR=0)."""
     global _MB_ARQ, _TMF, _CAUSAS
     uf = op.uf.upper()
+    if "funil" in op.tarefas and op.espelho is None:
+        from raiz.coleta.car_nacional import preparar
+
+        preparar(uf)
     if "funil" in op.tarefas and hasattr(_R, "garantir_alertas"):
         try:
             _R.garantir_alertas(uf)
@@ -275,7 +327,7 @@ def rodar(op: Opcoes, cods: list[int] | None = None, lanes: int | None = None) -
     """Roda vários municípios (todos da UF se `cods` vier vazio), `lanes` ao mesmo tempo."""
     import multiprocessing as mp
 
-    R = preparar_motor(carregar_embargos="funil" in op.tarefas)
+    R = preparar_motor(carregar_embargos=bool({"funil", "filtros"} & set(op.tarefas)))
     cods = cods or R.lista_municipios(op.uf.upper())
     preparar_estado(op)
     lanes = lanes or int(os.environ.get("LANES", "3"))

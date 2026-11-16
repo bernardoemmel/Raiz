@@ -43,12 +43,14 @@ def ler_local(espelho: Path, camada: str, uf: str, cod: int) -> gpd.GeoDataFrame
 @contextlib.contextmanager
 def ponte(R, uf: str, cod: int, espelho: Path | None = None):
     """R = módulo raiz_estado já importado. Devolve um dicionário com a origem usada para cada camada."""
+    car_explicito = espelho is not None
     espelho = Path(espelho) if espelho else espelho_padrao()
     car_original, sigef_original = R.car_mun, R.sigef
     origem: dict[str, str] = {}
 
     def car_mun(uf_, cod_):
-        g = ler_local(espelho, "car", uf_, cod_)
+        # Espelho explícito preserva reexecuções históricas. A produção usa a base nacional.
+        g = ler_local(espelho, "car", uf_, cod_) if car_explicito else None
         if g is None:
             origem["car"] = "download"
             return car_original(uf_, cod_)
@@ -70,6 +72,37 @@ def ponte(R, uf: str, cod: int, espelho: Path | None = None):
         yield origem
     finally:
         R.car_mun, R.sigef = car_original, sigef_original
+
+
+@contextlib.contextmanager
+def ponte_vetorial(R):
+    """Usa DuckDB + iOverlay no ov do motor, com uma conexão preguiçosa por município.
+
+    A conexão não atravessa o fork, e tanto ela quanto a função original são restauradas no finally,
+    inclusive se o motor ou uma tarefa posterior falhar. O chamador pode reutilizá-la nas restrições.
+    """
+    from raiz.funil import duck
+
+    original, con = R.ov, None
+
+    def conexao():
+        nonlocal con
+        if con is None:
+            con = duck.conectar()
+        return con
+
+    def ov(base, layer):
+        if not len(base) or not len(layer):
+            return duck.ov(base, layer)
+        return duck.ov(base, layer, conexao())
+
+    R.ov = ov
+    try:
+        yield conexao
+    finally:
+        R.ov = original
+        if con is not None:
+            con.close()
 
 
 @contextlib.contextmanager

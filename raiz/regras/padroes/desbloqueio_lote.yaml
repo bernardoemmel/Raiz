@@ -1,0 +1,132 @@
+versao: desbloqueio-lote-2026a
+verificado_em: '2026-11-12'
+escopo: >-
+  Diligência das fazendas selecionadas, sem certificar a terra, registrar créditos ou liberar venda.
+  Referência a um documento não equivale a documento conferido. Prazos são marcos operacionais;
+  não há promessa de dias de atendimento por cartório, órgão público, comunidade ou certificadora.
+fontes:
+  lei_15042: https://www2.camara.leg.br/legin/fed/lei/2024/lei-15042-11-dezembro-2024-796690-normaatualizada-pl.html
+  lgpd: https://www2.camara.leg.br/legin/fed/lei/2018/lei-13709-14-agosto-2018-787077-normaatualizada-pl.html
+  contrato_profloresta: https://www.bndes.gov.br/arquivos/bndes-florestas/profloresta-minuta-contratual.pdf
+  especificacao_profloresta: https://www.bndes.gov.br/arquivos/bndes-florestas/profloresta-minuta-contratual-especificacao-tecnica.pdf
+  vcs: https://verra.org/programs/verified-carbon-standard/
+  vm0047: https://verra.org/documents/vm0047-afforestation-reforestation-and-revegetation-v1-1/
+  vmd0054: https://verra.org/methodologies/vmd0054-estimating-leakage-from-the-displacement-of-agricultural-activities-v1-1/
+travas:
+  titulo_terra:
+    nome: Conferência da terra e do direito de operar
+    natureza: diligencia_documental
+    documento: Matrícula e ônus atualizados ou instrumento de concessão; cadeia de direitos e limites da área do projeto.
+    conferencia: Conferir autenticidade, vigência, titularidade ou poder de contratar, ônus e compatibilidade espacial; CAR e número SIGEF não comprovam domínio.
+    responsavel: Equipe jurídica e fundiária, com cartório ou órgão concedente.
+    marco: Antes de vincular a área ao projeto e contratar seus direitos de carbono; observar também o marco de homologação do edital.
+    fundamento: Diligência prevista na minuta ProFloresta+, cláusulas 15.2 e 3.1.2.
+    fontes: [contrato_profloresta]
+  jurisdicional_a_conferir:
+    nome: Compatibilidade com programa jurisdicional não comprovada
+    natureza: evidencia_nao_comprovada
+    documento: Camada e período contábil vigentes, com fonte; comprovação de ausência de sobreposição ou comunicação documental de exclusão para o período dos créditos.
+    conferencia: Cruzar a área elegível com a cobertura vigente e conferir o período de geração; ausência de camada não prova ausência de sobreposição.
+    responsavel: Equipe geoespacial e jurídica, com os responsáveis pelo programa jurisdicional.
+    marco: Antes de ofertar os créditos; a geração abrangida pela exclusão deve respeitar a data da comunicação prevista na regra.
+    fundamento: Lei 15.042/2024, art. 43, §§ 6º, 7º, 11 e 13.
+    fontes: [lei_15042]
+  dupla_contagem_jurisdicional:
+    nome: Sobreposição jurisdicional sinalizada
+    natureza: sobreposicao_sinalizada
+    documento: Comprovação da comunicação de exclusão e delimitação do período de geração, ou correção fundamentada da interseção.
+    conferencia: Revisar interseção, fonte e vigência; não liberar a mesma remoção nos dois sistemas.
+    responsavel: Equipe geoespacial e jurídica, com os responsáveis pelo programa jurisdicional.
+    marco: Antes da oferta; pedido ainda pendente não equivale a exclusão documentada.
+    fundamento: Lei 15.042/2024, art. 43, §§ 6º, 7º, 11 e 13.
+    fontes: [lei_15042]
+  clpi:
+    nome: Consulta livre, prévia e informada
+    natureza: direito_coletivo
+    documento: Protocolo da comunidade e registro do processo e do consentimento, respeitando representação e confidencialidade.
+    conferencia: Conferir consulta livre e anterior à implementação, conforme protocolo comunitário; consentimento recusado não se torna autorização por decurso de prazo.
+    responsavel: Desenvolvedor, que custeia a consulta, e comunidade por suas instituições representativas.
+    marco: Prévia à implementação que afete os direitos da comunidade; calendário definido pelo processo e pelo protocolo comunitário.
+    fundamento: Lei 15.042/2024, art. 47, I, a e b.
+    fontes: [lei_15042]
+  reparticao_comunidade:
+    nome: Partilha e gestão dos créditos da comunidade
+    natureza: direito_coletivo
+    documento: Cláusula de repartição, governança participativa e conta específica; mínimo aplicável à modalidade de crédito.
+    conferencia: Conferir no mínimo 50% dos créditos de remoção ou 70% de REDD+ de mercado, sem confundir crédito da comunidade com desconto físico de carbono.
+    responsavel: Comunidade, desenvolvedor e equipe jurídica.
+    marco: Antes da contratação e comercialização dos créditos abrangidos.
+    fundamento: Lei 15.042/2024, art. 47, II e parágrafo único.
+    fontes: [lei_15042]
+  criterio_risco_terra:
+    nome: Justificativa e revisão da nota de risco da terra
+    natureza: revisao_de_decisao
+    documento: Critério textual, parâmetros, fontes e versão da nota; protocolo da revisão requerida.
+    conferencia: Conferir a origem da nota e permitir correção ou contestação; revisão não libera crédito automaticamente.
+    responsavel: Equipe responsável pelo modelo e revisor humano.
+    marco: Antes de usar a nota sem ressalva na diligência; atender a revisão segundo o procedimento aplicável.
+    fundamento: LGPD, art. 20 e § 1º; revisão humana como compromisso do produto.
+    fontes: [lgpd]
+  criterio_titulo_nota:
+    nome: Justificativa e revisão da nota do título
+    natureza: revisao_de_decisao
+    documento: Critério textual, parâmetros, fontes e versão da nota do título.
+    conferencia: Conferir a origem da decisão e registrar a revisão humana requerida.
+    responsavel: Equipe responsável pelo modelo e revisor humano.
+    marco: Antes de usar a nota sem ressalva na diligência.
+    fundamento: LGPD, art. 20 e § 1º; revisão humana como compromisso do produto.
+    fontes: [lgpd]
+  criterio_reserva_risco:
+    nome: Histórico e justificativa da reserva contra reversão
+    natureza: revisao_de_decisao
+    documento: Histórico de fogo e supressão, hipóteses de mitigação, fonte e versão da fórmula usada.
+    conferencia: Conferir o histórico efetivo; o piso de 20% não transforma histórico ausente em risco zero.
+    responsavel: Equipe técnica, responsável pelo risco e revisor humano.
+    marco: Antes de apresentar a reserva como verificada e antes da certificação.
+    fundamento: Critérios e revisão da nota de risco conforme LGPD, art. 20; reserva do projeto sujeita ao padrão escolhido.
+    fontes: [lgpd, vcs]
+  aceite_direito_carbono:
+    nome: Aceite e instrumentos dos direitos de carbono
+    natureza: evidencia_nao_comprovada
+    documento: Aceite do titular autorizado e instrumento válido de uso da terra e cessão dos direitos de carbono, com prazo e assinaturas.
+    conferencia: Conferir poderes, assinaturas, área, direitos cedidos e duração; parâmetros do cenário não comprovam contrato assinado.
+    responsavel: Titular ou representante autorizado, desenvolvedor e equipe jurídica.
+    marco: Antes da contratação e uso dos direitos; observar a exigência de cessão e o marco de assinatura do edital.
+    fundamento: Minuta ProFloresta+, cláusulas 3.6.2 e 15.2.
+    fontes: [contrato_profloresta]
+  linha_base_controles:
+    nome: Linha de base e controles do projeto
+    natureza: evidencia_nao_comprovada
+    documento: Delimitação elegível, linha de base e controles pareados documentados segundo a metodologia aplicável.
+    conferencia: Conferir adicionalidade, controles e período; premissa municipal do motor não substitui validação do projeto.
+    responsavel: Equipe técnica do projeto e organismo validador.
+    marco: Na validação e nas verificações exigidas pela metodologia, antes de reconhecer créditos verificados.
+    fundamento: Aplicação e validação da metodologia ARR selecionada.
+    fontes: [vm0047, vcs]
+  permanencia_buffer:
+    nome: Plano de permanência e reserva do projeto
+    natureza: evidencia_nao_comprovada
+    documento: Avaliação de risco aplicável ao projeto, plano de prevenção e monitoramento e comprovação do tratamento da reserva pelo padrão.
+    conferencia: Conferir risco, responsabilidades, duração e reserva; percentual calculado pelo motor não equivale a buffer depositado ou certificado.
+    responsavel: Desenvolvedor, equipe de risco e organismo validador ou verificador.
+    marco: Na validação e em cada verificação ou emissão conforme o padrão aplicável.
+    fundamento: Requisitos de permanência e risco do programa de certificação adotado.
+    fontes: [vcs]
+  vazamento_mitigacao:
+    nome: Acordo e laudo da área de mitigação do gado
+    natureza: evidencia_nao_comprovada
+    documento: Identificação da área receptora, acordo e laudo de capacidade de suporte, adicionais ao vínculo calculado pelo motor.
+    conferencia: Conferir deslocamento e suporte efetivo do rebanho, duração, ausência de dupla utilização da área receptora e versão aplicável do módulo; este relatório não atualiza a metodologia do snapshot.
+    responsavel: Desenvolvedor, responsáveis pelas áreas e equipe técnica.
+    marco: Antes de usar a mitigação na contabilidade do projeto e durante o período exigido pela metodologia.
+    fundamento: Comprovação da mitigação do vazamento ARR; vínculo geográfico sozinho não é prova.
+    fontes: [vmd0054, vcs]
+  certificacao_emissao:
+    nome: Validação, verificação e emissão dos créditos
+    natureza: evidencia_nao_comprovada
+    documento: Documentação do projeto, validação e registro; relatórios de monitoramento e verificação; extrato de emissão e titularidade dos créditos para a transação.
+    conferencia: Distinguir projeção, registro de projeto, crédito verificado e crédito efetivamente emitido, com vintage e ausência de dupla venda.
+    responsavel: Desenvolvedor, organismo validador ou verificador e registro do padrão.
+    marco: Antes de afirmar que o crédito está emitido e disponível para entrega; contratação futura deve explicitar suas condições.
+    fundamento: Ciclo de desenvolvimento, verificação e emissão do padrão de carbono escolhido.
+    fontes: [vcs]

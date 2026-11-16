@@ -37,9 +37,14 @@ services:
 
   # Modelo local: Qwen3-4B-Instruct-2507 (Apache-2.0) no llama-server (llama.cpp, MIT), em CPU.
   # Baixe o GGUF (Q4_K_M, ~2,5 GB) da página do modelo no Hugging Face para infra/modelos/ e confira a licença.
-  # O JSON sai por gramática: o servidor converte o JSON Schema do pedido (response_format) em gramática GBNF.
+  # O JSON sai por gramática: o servidor é compilado com llguidance (infra/llama/Dockerfile) e o JSON Schema do pedido
+  # (response_format) vai direto a ele. Depois de subir ou trocar o modelo: `raiz modelos calibrar` (teste próprio).
   llama:
-    image: ghcr.io/ggml-org/llama.cpp:server
+    build:
+      context: ./llama
+      args:
+        LLAMA_TAG: b12300
+    image: raiz/llama-server:b12300-llguidance
     restart: unless-stopped
     command: >-
       -m /modelos/qwen3-4b-instruct-2507-q4_k_m.gguf

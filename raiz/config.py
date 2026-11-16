@@ -19,12 +19,21 @@ class Config(BaseSettings):
     banco_url: str = "postgresql+psycopg://raiz:raiz@localhost:5432/raiz"
     # banco descartável dos testes (é zerado a cada rodada de testes)
     banco_url_teste: str | None = None
+    # servidor MCP remoto (/mcp): hosts aceitos, separados por vírgula (vazio: o host de RAIZ_MCP_RESOURCE;
+    # OAuth da empresa é exigido em toda chamada). Ex.: "api.raiz.com.br,localhost:8000"
+    mcp_hosts: str | None = None
     # chave para cifrar o esquema pessoal (telefone, BSUID); sem ela, nada pessoal é gravado
     chave_pessoal: SecretStr | None = None
     # Healthchecks (https://healthchecks.io ou instância própria fora do servidor da Raíz)
     healthchecks_url: str = "https://hc-ping.com"
     healthchecks_chave_ping: SecretStr | None = None
     healthchecks_modelo_slug: str = "raiz-{tarefa}"  # campos: {tarefa}, {uf}, {cod}
+    # escalonamento dos alertas de operação (raiz/operacao/alertas.py): ntfy (aplicativo no celular) e, havendo
+    # segunda pessoa de plantão, GoAlert. Sem tópico nem URL, o envio é simulado e fica registrado no alerta.
+    ntfy_url: str = "https://ntfy.sh"
+    ntfy_topico: SecretStr | None = None  # o nome do tópico funciona como senha: escolher um longo e aleatório
+    ntfy_token: SecretStr | None = None
+    goalert_url: SecretStr | None = None  # URL da integração genérica (já traz o token)
     # pasta onde o motor trabalha (cache/, saida/, mapbiomas/...); padrão: motor/
     motor_dir_trabalho: str | None = None
     # espelho local da coleta (E1), em Parquet por município: <espelho>/car/<UF>/<mun>.parquet, sigef/...
@@ -91,6 +100,12 @@ class Config(BaseSettings):
     api_token: SecretStr | None = None
     # origens do front que podem chamar a API pelo navegador (CORS), separadas por vírgula; vazio = nenhuma
     api_origens: str = ""
+    # URL pública canônica do painel (inclua /Raiz/ se houver subpasta); nunca vem do Origin do visitante.
+    # Sem ela, o login usa a primeira origem explicitamente permitida em api_origens.
+    login_base_url: str | None = None
+    # Limites por IP e por processo, em janelas de 60 segundos; não podem ser desligados por engano.
+    api_limite_minuto: int = Field(default=120, ge=1)
+    api_login_limite_minuto: int = Field(default=10, ge=1)
 
 
 @lru_cache

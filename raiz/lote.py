@@ -20,6 +20,8 @@ Unificado com a branch claude/premissas-rodada11 (lote, checklist do edital, rel
 from __future__ import annotations
 
 import datetime as dt
+import hashlib
+import json
 import math
 from collections import defaultdict
 from pathlib import Path
@@ -34,17 +36,49 @@ from raiz.pedidos import oferta as O
 from raiz.pedidos import otimizador as Z
 from raiz.pedidos.campos import CamposPedido
 from raiz.pedidos.premissas import versao_modelo
+from raiz.regras import salvaguardas_lote as S
 
 PRONTA = ("matricula_conferida", "matricula_a_conferir", "concessao")
 EM_ESPERA = ("posse_em_titulacao", "assentamento")
 HOMOLOGADA = ("matricula_conferida", "concessao")  # direito documentado: certidão conferida ou contrato de concessão
 METODOS = ["regeneracao_assistida", "semeadura_direta", "plantio_total"]
+OPCOES = {"barata": "mais barata", "segura": "mais segura", "compacta": "mais compacta"}
+COLUNAS_FINANCEIRAS = tuple(
+    f"preco_minimo_tir_{alvo}_{tipo}_usd_t" for alvo in (12, 15) for tipo in ("projeto", "alavancada")
+)
 COLUNAS_TABELA = (
     "papel", "cod_imovel", "cod_ibge", "municipio", "area_ha", "ha", "pequena", "modo", "metodo",
     "regeneracao_ha", "semeadura_ha", "plantio_ha", "credito_p10", "credito_p50", "credito_p90", "custo_credito_usd",
     "preco_equilibrio_usd", "abaixo_equilibrio", "tir_p50", "caminho", "caminho_terra", "risco_terra", "matriculas",
     "pedir_certidao", "vazamento_motivo", "vazamento_mitigacao_imovel", "grupo_id", "restauracao_versao",
 )  # fmt: skip
+COLUNAS_TABELA += COLUNAS_FINANCEIRAS + (
+    "car_conferido_em",
+    "car_conferencia",
+    "car_situacao",
+    "car_geometria_alterada",
+    "tir_p10",
+    "tir_p90",
+    "tir_projeto",
+    "salvaguardas_comercializavel",
+    "salvaguardas_pendencias",
+    "consulta_livre_previa_informada",
+    "fracao_creditos_comunidade_minima",
+)
+
+
+def versao_lote(c: dict) -> str:
+    """Identidade do algoritmo, pesos, salvaguardas e cenário efetivamente usados na escolha."""
+    from raiz.coleta import car_conferencia
+
+    conteudo = (
+        Path(__file__).read_bytes()
+        + Path(Z.__file__).read_bytes()
+        + Path(car_conferencia.__file__).read_bytes()
+        + S.regra()["versao_completa"].encode()
+        + json.dumps(c, sort_keys=True, ensure_ascii=False).encode()
+    )
+    return f"{versao_modelo()}+lote-{hashlib.sha256(conteudo).hexdigest()[:12]}"
 
 
 def premissas_lote(r: dict | None = None) -> dict:
@@ -88,18 +122,59 @@ def ler_pasta(pasta: str | Path, uf: str, municipios: list[int] | None = None) -
     lidos = sorted({_cod_mun(f) for f in pasta.glob("desenvolvedor_*.csv")} & set(estado))
     if municipios:
         lidos = [m for m in lidos if m in set(int(x) for x in municipios)]
-    regs, mats = [], {}
-    for cod in lidos:
+    regs, mats, decisoes = [], {}, []
+    versao = R.versao()
+    for cod in (m for m in estado if not municipios or m in municipios):
         pts = O.pontos_da_pasta(pasta, cod)
-        for li in O.linhas_da_pasta(pasta, cod, so_restauracao=True):
+        jurisdicional = pasta / f"jurisdicional_{cod}.csv"
+        camada = {}
+        if jurisdicional.exists():
+            jt = pd.read_csv(jurisdicional, dtype={"cod_imovel": str}).replace({np.nan: None})
+            if not jt.cod_imovel.is_unique:
+                raise ValueError(f"Camada jurisdicional duplicada no município {cod}")
+            camada = {li["cod_imovel"]: li for li in jt.to_dict("records")}
+        for li in O.linhas_da_pasta(pasta, cod):
+            li = {**li, **camada.get(str(li["cod_imovel"]), {})}
+            sg = S.avaliar({**li, "uf": uf.upper()}, versao)
+            decisoes.extend(sg["decisoes"])
             o = O.de_linha(li, *(pts.get(str(li["cod_imovel"])) or (None, None)))
-            if o is not None:
+            if o is not None and o["area_ha"] > 0:
+                o.update({k: li.get(k) for k in COLUNAS_FINANCEIRAS})
+                o.update(
+                    {
+                        "salvaguardas_planejamento": sg["elegivel_planejamento"],
+                        "salvaguardas_comercializavel": sg["comercializavel"],
+                        "salvaguardas_pendencias": "; ".join(p["codigo"] for p in sg["pendencias"]),
+                        "consulta_livre_previa_informada": sg["consulta_livre_previa_informada"]["situacao"],
+                        "fracao_creditos_comunidade_minima": sg["fracao_creditos_comunidade_minima"],
+                    }
+                )
                 regs.append(o)
+            else:
+                decisoes.append(
+                    S.decisao(
+                        str(li["cod_imovel"]),
+                        "exclusao",
+                        "area_restauravel",
+                        "Sem estimativa positiva de área restaurável; conferir pasto, RL e APP. "
+                        "Dado ausente é pendência, não prova de ausência de potencial. Não há corte por tamanho.",
+                        versao,
+                    )
+                )
         mats.update(matriculas(pasta, cod))
     oferta = O.tabela(regs)
+    for col in (
+        *COLUNAS_FINANCEIRAS,
+        "salvaguardas_planejamento",
+        "salvaguardas_comercializavel",
+        "salvaguardas_pendencias",
+        "consulta_livre_previa_informada",
+        "fracao_creditos_comunidade_minima",
+    ):
+        oferta[col] = pd.Series([li.get(col) for li in regs], index=oferta.index, dtype=object)
     oferta["uf"] = oferta.uf.fillna(uf.upper())
     return {"uf": uf.upper(), "pasta": pasta, "oferta": oferta, "municipios_estado": estado,
-            "municipios_lidos": lidos, "matriculas": mats}  # fmt: skip
+            "municipios_lidos": lidos, "matriculas": mats, "decisoes_entrada": decisoes}  # fmt: skip
 
 
 def ler_uf(saida: str | Path, uf: str, municipios: list[int] | None = None) -> dict:
@@ -167,14 +242,17 @@ def _creditos_regeneracao(x: pd.DataFrame, r: dict) -> float:
 
 
 def _selecionar(oferta: pd.DataFrame, uf: str, precisa50: float, precisa_alvo: float, c: dict,
-                terra=PRONTA) -> dict:  # fmt: skip
-    """Titulares e reserva pelo otimizador dos pedidos (opção mais barata)."""
+                terra=PRONTA, opcao: str = "barata") -> dict:  # fmt: skip
+    """Titulares e reserva pelo mesmo solver, com os pesos da opção escolhida."""
     ped = _pedido(uf, precisa50, c, terra)
     f = Z.filtrar(oferta, ped).reset_index(drop=True)
+    if "salvaguardas_planejamento" in f:
+        f = f[f.salvaguardas_planejamento.eq(True)].reset_index(drop=True)
     if not len(f):
         return {"f": f, "tit": f, "res": f, "estado": "sem_fazenda", "ped": ped}
     chance = A.chances(f, {}, None, "participacao")
-    rs = Z.resolver(f, ped, "barata", chance, reserva_meta=max(precisa_alvo - precisa50, 0.0))
+    # O crédito já tem o vazamento por fazenda. O bônus genérico do solver duplicaria a mitigação na compacta.
+    rs = Z.resolver(f.assign(mitigacao=False), ped, opcao, chance, reserva_meta=max(precisa_alvo - precisa50, 0.0))
     return {"f": f, "tit": f.iloc[list(rs["sel"])].copy(), "res": f.iloc[list(rs["reserva"])].copy(),
             "estado": rs["estado"], "ped": ped}  # fmt: skip
 
@@ -187,6 +265,8 @@ def _economia(lote: pd.DataFrame, linhas: Linhas, c: dict, r: dict, volume: floa
     for cod, li in linhas.entradas(faltam).items():
         partes_cache[cod] = R.fluxo_p50(li, c, r)
     partes = [partes_cache[x] for x in cods if x in partes_cache]
+    if len(partes) != len(cods):
+        raise ValueError("Faltam entradas de fazendas selecionadas; não publicar fluxo financeiro parcial.")
     multas = {int(m["ano"]) + 1: m["multa_esperada_rs"] for m in (cron or {}).get("marcos", [])}
     fl = R.fluxo_lote(partes, c, multas, volume=volume)
     t = R.tir_lote(fl, c)
@@ -207,6 +287,13 @@ def _economia(lote: pd.DataFrame, linhas: Linhas, c: dict, r: dict, volume: floa
     for x in partes:
         out["metodos"][x["metodo"]] += 1
     out["metodos"] = dict(out["metodos"])
+    if c.get("rodada") == 12:
+        from raiz import restauracao_financeiro as F12
+
+        out["taxas_verra"] = fl["taxas_verra"]
+        out["operacao_referencia"] = c["operacao_referencia"]
+        out["referencias_comprador"] = F12.referencias_comprador()
+        out["limite_tir_fazenda"] = "Taxas fixas Verra entram uma vez na TIR do lote; não são cobradas por fazenda."
     return out
 
 
@@ -245,6 +332,8 @@ def _certidoes(lote: pd.DataFrame, mats: dict[str, int], fracao: float) -> dict:
 def _em_espera(oferta: pd.DataFrame, uf: str, c: dict, r: dict) -> dict:
     ped = _pedido(uf, 1.0, c, EM_ESPERA)
     esp = Z.filtrar(oferta, ped)
+    if "salvaguardas_planejamento" in esp:
+        esp = esp[esp.salvaguardas_planejamento.eq(True)]
     out = {"fazendas": int(len(esp)), "ha": round(float(esp.area_ha.sum()), 1), "por_caminho": {}}
     for cam in EM_ESPERA:
         x = esp[esp.caminho == cam]
@@ -257,6 +346,14 @@ def _em_espera(oferta: pd.DataFrame, uf: str, c: dict, r: dict) -> dict:
         }  # fmt: skip
     out["ha_regeneracao"] = round(sum(v["ha_regeneracao"] for v in out["por_caminho"].values()), 1)
     out["creditos_regeneracao"] = round(sum(v["creditos_regeneracao"] for v in out["por_caminho"].values()), 0)
+    # quão perto do título está cada uma (raiz/titulo/regularizacao.py): o que dá para destravar primeiro
+    out["por_regularizacao"] = {}
+    if "regularizacao_classe" in esp.columns:
+        for cl, x in esp.groupby(esp.regularizacao_classe.fillna("sem_calculo")):
+            out["por_regularizacao"][str(cl)] = {
+                "fazendas": int(len(x)), "ha": round(float(x.area_ha.sum()), 1),
+                "creditos": round(float(x.credito_p50.sum()), 0),
+            }  # fmt: skip
     return {**out, "tabela": esp}
 
 
@@ -319,8 +416,29 @@ def _resumo_lote(sel: dict, precisa50: float, precisa_alvo: float, volume: float
     tit, res = sel["tit"], sel["res"]
     lote = pd.concat([tit, res], ignore_index=True)
     c_tit, c_lote = float(tit.credito_p50.sum()), float(lote.credito_p50.sum())
-    cron_tit = R.cronograma_lote(c_tit, c, r, volume) if c_tit > 0 else None
-    cron_lote = R.cronograma_lote(c_lote, c, r, volume) if c_lote > 0 else None
+    perfis = {}
+    if c.get("rodada") == 12:
+        faltam = [str(x) for x in lote.cod_imovel if str(x) not in partes_cache]
+        for cod, li in linhas.entradas(faltam).items():
+            partes_cache[cod] = R.fluxo_p50(li, c, r)
+        for nome, tabela in (("tit", tit), ("lote", lote)):
+            perfis[nome] = sum(
+                (
+                    partes_cache[str(cod)]["area_ha"] * partes_cache[str(cod)]["credito_acumulado_ha"]
+                    for cod in tabela.cod_imovel
+                ),
+                np.zeros(int(c["horizonte_anos"]) + 1),
+            )
+    cron_tit = (
+        R.cronograma_lote(c_tit, c, r, volume, **({"acumulado_ano": perfis["tit"]} if perfis else {}))
+        if c_tit > 0
+        else None
+    )
+    cron_lote = (
+        R.cronograma_lote(c_lote, c, r, volume, **({"acumulado_ano": perfis["lote"]} if perfis else {}))
+        if c_lote > 0
+        else None
+    )
     eco = _economia(lote, linhas, c, r, volume, cron_lote, partes_cache) if len(lote) else None
     ped_alvo = _pedido(sel["ped"].onde.ufs[0], precisa_alvo, c, sel["ped"].terra)
     return {
@@ -343,34 +461,53 @@ def _resumo_lote(sel: dict, precisa50: float, precisa_alvo: float, volume: float
         "abaixo_equilibrio": Z.abaixo_equilibrio(sel["f"], lote, ped_alvo),
         "municipios_no_lote": int(lote.cod_ibge.nunique()) if len(lote) else 0,
         "solver": sel["estado"],
+        "criterio_meta_marcos": "dimensionamento conservador pela curva mais lenta; cronograma pela mistura selecionada"
+        if c.get("rodada") == 12 else "curva de referência comum",
     }  # fmt: skip
 
 
 def montar(dados: dict, volume: float | None = None, c: dict | None = None, r: dict | None = None,
-           chance_alvo: float | None = None, sensibilidade_ligada: bool = True) -> dict:  # fmt: skip
+           chance_alvo: float | None = None, sensibilidade_ligada: bool = True,
+           opcao: str = "barata", conferir_car: bool = True) -> dict:  # fmt: skip
     """O lote do estado com reserva, marcos, preço mínimo, o que destrava o lote, certidões e o checklist."""
+    if conferir_car:
+        return montar_atual(
+            dados,
+            volume=volume,
+            c=c,
+            r=r,
+            chance_alvo=chance_alvo,
+            sensibilidade_ligada=sensibilidade_ligada,
+            opcao=opcao,
+        )
     r = r or R.regra()
     c = c or R.cenario(r=r)
+    if opcao not in OPCOES:
+        raise ValueError(f"Opção desconhecida: {opcao}")
     lt = premissas_lote(r)
     volume = float(volume or lt["creditos"])
     chance = float(chance_alvo or lt["chance_alvo_reserva"])
     uf, oferta = dados["uf"], dados["oferta"]
+    if len(oferta) and not oferta.restauracao_versao.eq(r["versao_completa"]).all():
+        raise ValueError("Há previsões de outra versão. Recalcule a restauração antes de montar o lote.")
     linhas = Linhas(dados["pasta"], oferta)
     partes: dict[str, dict] = {}
     precisa50 = R.contrato_para_marcos(volume, c, r)
     fator = R.fator_captura_alvo(chance, r)
     precisa_alvo = precisa50 / fator
-    sel = _selecionar(oferta, uf, precisa50, precisa_alvo, c)
+    sel = _selecionar(oferta, uf, precisa50, precisa_alvo, c, opcao=opcao)
     resumo = _resumo_lote(sel, precisa50, precisa_alvo, volume, c, r, linhas, partes)
     # o que destrava o lote: posse em titulação e assentamento como se virassem título ou parceria
     esp = _em_espera(oferta, uf, c, r)
     destravada = None
+    decisoes_contrafactuais = []
     if esp["fazendas"]:
         o2 = oferta.copy()
         vira = o2.cod_imovel.isin(esp["tabela"].cod_imovel)
         o2.loc[vira, "caminho"] = "matricula_a_conferir"
         o2.loc[vira, "risco_terra"] = "medio"
-        sel2 = _selecionar(o2, uf, precisa50, precisa_alvo, c)
+        sel2 = _selecionar(o2, uf, precisa50, precisa_alvo, c, opcao=opcao)
+        decisoes_contrafactuais = decisoes_selecao(o2, sel2, c, r, opcao, contexto="terra_destravada")
         r2 = _resumo_lote(sel2, precisa50, precisa_alvo, volume, c, r, linhas, partes)
         usa = pd.concat([sel2["tit"], sel2["res"]]).cod_imovel.isin(esp["tabela"].cod_imovel)
         destravada = {k: r2[k] for k in ("titulares", "reservas", "ha_lote", "creditos_lote", "fecha_no_p50",
@@ -399,8 +536,10 @@ def montar(dados: dict, volume: float | None = None, c: dict | None = None, r: d
     tabela = tabela[[k for k in COLUNAS_TABELA if k in tabela.columns]]
     em_lote = set(lote.cod_ibge.dropna().astype(int))
     resumo.update({
-        "uf": uf, "data": dt.date.today().isoformat(), "cenario": c["cenario"],
+        "uf": uf, "data": dt.date.today().isoformat(), "cenario": c["cenario"], "opcao": opcao,
+        "opcao_texto": OPCOES[opcao],
         "versao_premissas": r["versao_completa"], "versao_otimizador": versao_modelo(),
+        "versao_modelo_lote": versao_lote(c),
         "versao_edital": edital(r).get("versao"), "volume_creditos": volume, "chance_alvo": chance,
         "fator_captura_alvo": round(fator, 4), "creditos_precisa_p50": round(precisa50, 0),
         "creditos_precisa_com_reserva": round(precisa_alvo, 0),
@@ -416,9 +555,132 @@ def montar(dados: dict, volume: float | None = None, c: dict | None = None, r: d
                    "creditos_terra_pronta": round(float(sel["f"].credito_p50.sum()), 0) if len(sel["f"]) else 0.0},
         "mitigacao": int(len(mit)), "em_espera": esp, "terra_destravada": destravada, "certidoes": cert,
     })  # fmt: skip
+    resumo["o_que_destrava"] = quadro_pendencias(oferta)
+    liberadas = lote.get("salvaguardas_comercializavel", pd.Series(False, index=lote.index)).eq(True)
+    resumo["comercializacao"] = {
+        "situacao": "pendente",  # título, aceite e certificação ainda precisam ser conferidos
+        "fazendas_sem_pendencia_salvaguarda": int(liberadas.sum()),
+        "creditos_sem_pendencia_salvaguarda": float(lote.loc[liberadas, "credito_p50"].sum()),
+        "aviso": "Lote potencial para diligência. Os créditos não estão liberados para venda. "
+        "Exclusão jurisdicional, CLPI, título, aceite e certificação devem ser comprovados.",
+    }
     resumo["o_que_falta"] = o_que_falta(resumo)
     resumo["checklist"] = checklist(resumo, tabela, c, r)
-    return {"resumo": resumo, "tabela": tabela, "linhas": linhas}
+    return {
+        "resumo": resumo,
+        "tabela": tabela,
+        "linhas": linhas,
+        "decisoes": [
+            *dados.get("decisoes_entrada", []),
+            *decisoes_selecao(oferta, sel, c, r, opcao),
+            *decisoes_contrafactuais,
+        ],
+    }
+
+
+def montar_atual(dados: dict, **kwargs) -> dict:
+    """Entrada de produção: verifica selecionadas no WFS e refaz a seleção após mudanças."""
+    from raiz.coleta.car_conferencia import ConferenciaPendente, conferir_pasta
+
+    vistos: set[str] = set()
+    sensibilidade_ligada = kwargs.pop("sensibilidade_ligada", True)
+    while True:
+        previa = montar(dados, **kwargs, sensibilidade_ligada=False, conferir_car=False)
+        t = previa["tabela"]
+        selecionadas = t[t.papel.isin(["titular", "reserva"])]
+        if selecionadas.cod_ibge.isna().any():
+            raise ConferenciaPendente("Fazenda selecionada sem município para conferir o CAR")
+        novas = set(selecionadas.cod_imovel) - vistos
+        if not novas:
+            return montar(dados, **kwargs, sensibilidade_ligada=sensibilidade_ligada, conferir_car=False)
+        for cod, g in selecionadas[selecionadas.cod_imovel.isin(novas)].groupby("cod_ibge"):
+            conferir_pasta(dados["pasta"], dados["uf"], int(cod), set(g.cod_imovel))
+        vistos.update(novas)
+        dados = ler_pasta(dados["pasta"], dados["uf"], dados["municipios_lidos"])
+
+
+def montar_opcoes(dados: dict, **kwargs) -> dict[str, dict]:
+    """Três alternativas mutuamente exclusivas; não somar seus créditos nem reservar duas vezes a mesma fazenda."""
+    return {opcao: montar(dados, opcao=opcao, **kwargs) for opcao in OPCOES}
+
+
+def quadro_pendencias(oferta: pd.DataFrame) -> list[dict]:
+    """Potencial retido por pendência; uma fazenda pode aparecer em mais de uma linha (não somar linhas)."""
+    grupos = {}
+    for cam in (*PRONTA, *EM_ESPERA):
+        grupos[f"terra:{cam}"] = oferta.caminho.eq(cam)
+    if "salvaguardas_pendencias" in oferta:
+        codigos = {p for ps in oferta.salvaguardas_pendencias.fillna("") for p in str(ps).split("; ") if p}
+        for codigo in sorted(codigos):
+            grupos[codigo] = oferta.salvaguardas_pendencias.fillna("").map(
+                lambda x, cd=codigo: cd in str(x).split("; ")
+            )
+    return [
+        {
+            "pendencia": nome,
+            "fazendas": int(mask.sum()),
+            "ha": round(float(oferta.loc[mask, "area_ha"].sum()), 2),
+            "creditos": {q: round(float(oferta.loc[mask, f"credito_{q}"].sum()), 2) for q in ("p10", "p50", "p90")},
+            "somavel": False,
+        }
+        for nome, mask in grupos.items()
+        if mask.any()
+    ]
+
+
+def decisoes_selecao(
+    oferta: pd.DataFrame, sel: dict, c: dict, r: dict, opcao: str, contexto: str = "terra_atual"
+) -> list[dict]:
+    """Explica todo descarte e todo escore de risco usado pelo lote (LGPD art. 20)."""
+    out = []
+    candidatas = set(sel["f"].cod_imovel)
+    usadas = set(sel["tit"].cod_imovel) | set(sel["res"].cod_imovel)
+    p = Z.premissas()
+    versao = versao_lote(c)
+    chances = A.chances(oferta, {}, None, "participacao") if len(oferta) else []
+    riscos = Z._risco_usd(oferta, np.asarray(chances), p) if len(oferta) else []
+    for li, chance, risco in zip(oferta.to_dict("records"), chances, riscos, strict=True):
+        cod = str(li["cod_imovel"])
+        texto_risco = (
+            f"Risco em US$/crédito={risco:.4f}; terra={li['risco_terra']} "
+            f"(pesos {p['otimizador']['risco_terra']}), chance de marcos={li['marcos_todos']}, "
+            f"chance de aceite={chance:.4f}; penalidades por falha/recusa="
+            f"{p['otimizador']['risco_marcos_usd']}/{p['otimizador']['risco_aceite_usd']}. "
+            "Aceite é estimativa, sem contato registrado."
+        )
+        out.append(S.decisao(cod, "risco", f"{opcao}:{contexto}:risco_solver", texto_risco, versao))
+        if cod in usadas:
+            continue
+        motivos = []
+        if not li["elegivel"]:
+            motivos.append("inelegível pela área, caminho da terra ou bloqueio territorial")
+        if li["problema"]:
+            motivos.append("problema ambiental sinalizado pelo motor")
+        for ex in sel["ped"].exclusoes:
+            if li.get(ex):
+                motivos.append(ex)
+        if li["caminho"] not in PRONTA:
+            motivos.append(f"caminho da terra em espera: {li['caminho']}")
+        if "salvaguardas_planejamento" in li and not O._verdade(li["salvaguardas_planejamento"]):
+            motivos.append(f"salvaguarda: {li.get('salvaguardas_pendencias')}")
+        if li.get("bioma") != "Amazônia":
+            motivos.append(f"bioma fora do pedido: {li.get('bioma')}")
+        if cod in candidatas:
+            motivos = [
+                f"Não escolhida na opção {opcao}; objetivo com pesos {p['otimizador']['pesos'][opcao]}, "
+                f"meta {sel['ped'].meta.valor:.2f}; estado do solver {sel['estado']}. "
+                "Permanece candidata a outro lote; tamanho não é critério de exclusão."
+            ]
+        out.append(
+            S.decisao(
+                cod,
+                "exclusao",
+                f"{opcao}:{contexto}:selecao",
+                "; ".join(motivos) or "Sem quantidade positiva de créditos compatível com o pedido.",
+                versao,
+            )
+        )
+    return out
 
 
 def _br(x: float, nd: int = 0) -> str:
@@ -444,6 +706,12 @@ def o_que_falta(res: dict) -> list[str]:
             out.append(f"Fecha se a terra em espera destravar: {_br(esp['fazendas'])} fazendas em posse em titulação "
                        f"e assentamento ({_br(esp['ha'])} ha, {_br(esp['ha_regeneracao'])} ha de regeneração); o lote "
                        f"usaria {_br(td['fazendas_destravadas_no_lote'])} delas.")  # fmt: skip
+        pr = esp.get("por_regularizacao") or {}
+        perto = sum(pr.get(k, {}).get("fazendas", 0) for k in ("em_titulacao", "pronta_para_pedir"))
+        geo = pr.get("falta_georreferenciamento", {}).get("fazendas", 0)
+        if perto or geo:
+            out.append(f"Da terra em espera, {_br(perto)} fazendas já estão em titulação ou prontas para pedir o "
+                       f"título e {_br(geo)} só precisam do georreferenciamento certificado no SIGEF.")  # fmt: skip
         else:
             out.append(f"Nem com a terra em espera destravada fecha: faltariam {_br(td['falta_reserva'])} créditos de "
                        "reserva; é preciso outro estado ou mais municípios calculados.")  # fmt: skip
@@ -486,8 +754,11 @@ def checagens(res: dict, tabela: pd.DataFrame, c: dict, r: dict) -> dict[str, di
     anos = int(c["horizonte_anos"])
     out["cessao_carbono"] = _item("pendente", f"cada dono assina a cessão irrevogável do carbono no aceite ({anos} "
                                               "anos), pela Raíz")  # fmt: skip
-    out["sem_sobreposicao"] = _item("ok", "fazenda sobre projeto de carbono registrado não entra no lote (exclusão "
-                                          "padrão do pedido)")  # fmt: skip
+    out["sem_sobreposicao"] = _item(
+        "pendente",
+        "Projetos registrados são excluídos. Conferir a camada jurisdicional e a exclusão documentada "
+        "do programa estadual antes de vender; ausência de camada não comprova ausência de sobreposição.",
+    )
     out["contrato_40_anos"] = _item("ok" if anos >= 40 else "falha",
                                     f"contrato com o dono de {anos} anos (longevidade da Verra: 40)")  # fmt: skip
     out["sem_desmatamento"] = _item("ok", "só entram fazendas sem embargo, terra indígena, UC de proteção integral ou "

@@ -1,0 +1,35 @@
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+  - package-ecosystem: uv
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+  - package-ecosystem: npm
+    directories:
+      - /front/globo
+      - /front/produtor
+      - /servicos/cartao
+    schedule:
+      interval: weekly
+    groups:
+      atualizacoes-compativeis:
+        update-types: [minor, patch]
+    open-pull-requests-limit: 5
+  - package-ecosystem: cargo
+    directory: /nativo/raiz_iov
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+  - package-ecosystem: docker
+    directories:
+      - /infra/llama
+      - /infra/languagetool
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5

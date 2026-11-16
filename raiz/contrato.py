@@ -141,7 +141,12 @@ CERTIDOES: dict[str, str] = {
 #  flag = meta FLAG pela GHG LSR, calculada pelo produto em raiz/flag.py; ficha = colunas do design v1 do front,
 #  raiz/imovel_dados.py; desenvolvedor = valor para quem restaura com crédito de carbono, raiz/restauracao.py;
 #  terra = caminho da terra e risco, raiz/terra.py)
-COMPLEMENTOS = ("extras", "extras_direto", "direto", "ajustes", "alertas", "flag", "ficha", "desenvolvedor", "terra")
+COMPLEMENTOS = (
+    "extras", "extras_direto", "direto", "ajustes", "alertas", "flag", "ficha", "desenvolvedor", "terra",
+    "rebanho", "matricula", "regularizacao", "titulo", "jurisdicional",
+)  # fmt: skip
+# matricula = conferência das certidões (raiz/documentos); regularizacao = o que falta para o título da posse
+# (raiz/titulo/regularizacao.py); titulo = nota de risco de título e decisão (raiz/titulo/nota.py)
 
 CONTRATOS: dict[str, dict[str, str]] = {
     "imoveis": IMOVEIS,

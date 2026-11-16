@@ -127,7 +127,7 @@ function MapaSobDemanda({ ficha }: { ficha: DadosFicha }) {
       // MapLibre e PMTiles só chegam aqui, no toque
       const [{ montarMapa }, base] = await Promise.all([
         import("./mapa"),
-        fonte.geo.brasil().then(async (b) => b.base ?? (await fonte.geo.base(ficha.imovel.cod_ibge))),
+        fonte.geo.base(ficha.imovel.cod_ibge).then(async (base) => base ?? (await fonte.geo.brasil()).base),
       ])
       setEstado("aberto")
       requestAnimationFrame(() => caixa.current && montarMapa(caixa.current, ficha.aneis, base))

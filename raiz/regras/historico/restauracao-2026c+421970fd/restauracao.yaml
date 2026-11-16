@@ -1,0 +1,699 @@
+# Valor de cada fazenda para quem restaura com crédito de carbono (desenvolvedor: Systemica, re.green, brCarbon,
+# Mombak, Biomas...). Calculado pelo produto em raiz/restauracao.py, fora do motor, e gravado em
+# desenvolvedor_<mun>.csv (docs/colunas.md).
+#
+# TODO número daqui é PREMISSA a calibrar com custo e captura reais de cliente. Cada premissa diz de onde veio
+# (`fonte`). Quando um cliente informa o real (`raiz restauracao informar`), `raiz restauracao recalibrar` compara
+# com o que a Raíz previu e propõe os fatores em restauracao_calibracao.yaml. Cada cálculo grava a versão deste
+# arquivo + hash (restauracao_versao); mudou a versão, `raiz restauracao recalcular` refaz.
+versao: restauracao-2026c
+aviso: >-
+  Estimativa da Raíz para orientar a conversa com o desenvolvedor, não é orçamento nem promessa de crédito. Custos,
+  captura e linha de base são premissas a calibrar com dados reais.
+
+modos: [regeneracao_assistida, semeadura_direta, plantio_total]
+nomes_modos:
+  regeneracao_assistida: Regeneração assistida
+  semeadura_direta: Semeadura direta (muvuca)
+  plantio_total: Plantio total de mudas
+
+# Área que o desenvolvedor pode restaurar: pasto aberto fora da reserva legal e da APP (o mesmo pasto livre da conta
+# FLAG; são usos alternativos do mesmo hectare, nunca somados). Reserva legal e APP a recompor são obrigação legal e
+# ficam de fora até a adicionalidade ser conferida caso a caso.
+area:
+  regra: pasto aberto fora da reserva legal e da APP (alem_RL_ha menos app_recompor_ha, limitado ao pasto)
+  remanescente_mapbiomas: [3, 4, 5, 6, 49]  # formação florestal, savânica, mangue, floresta alagável, restinga arbórea
+  aberto_mapbiomas: [15]  # pastagem
+
+# --- 1. Modo de restauração --------------------------------------------------------------------------------------
+# Regra por pontos. A distância ao remanescente vale pixel a pixel (cada faixa de distância do pasto do imóvel
+# recebe o seu modo); idade e vigor do pasto, fogo e declividade valem para o imóvel inteiro. O modo do imóvel
+# (modo_restauracao) é o da maior parte da área; a área de cada modo sai em restauracao_<modo>_ha.
+regra_modo:
+  texto: >-
+    Pontos = distância do pasto à mata (até 100 m: 3; 100 a 300 m: 2; 300 m a 1 km: 1; mais de 1 km: 0) + idade do
+    pasto (até 10 anos: +1; mais de 30: -1) + vigor do pasto (alto, braquiária fechada que abafa a muda: -1) + fogo
+    (média de anos com fogo por pixel desde 1985: até 0,25: +1; acima de 1,5: -2) + declividade média (acima de 30%:
+    +1). Com 3 pontos ou mais, regeneração assistida; 1 ou 2, semeadura direta; 0 ou menos, plantio total.
+  distancia_m: [100, 300, 1000]  # limites das faixas d0 (até 100 m), d1, d2, d3 (acima de 1 km)
+  pontos_distancia: [3, 2, 1, 0]
+  idade_pasto:
+    jovem_ate_anos: 10
+    pontos_jovem: 1
+    velho_acima_anos: 30
+    pontos_velho: -1
+  vigor_pasto:  # classes do MapBiomas Pastagem: 1 baixo, 2 médio, 3 alto
+    pontos: {1: 0, 2: 0, 3: -1}
+  fogo:  # fogo_anos_media (extras_<mun>.csv): anos com fogo por pixel, 1985 a 2024
+    pouco_ate: 0.25
+    pontos_pouco: 1
+    muito_acima: 1.5
+    pontos_muito: -2
+  declividade:
+    ingreme_acima_pct: 30
+    pontos_ingreme: 1
+  corte:
+    regeneracao_assistida: 3  # pontos >= 3
+    semeadura_direta: 1  # 1 <= pontos < 3; abaixo, plantio total
+  fonte: >-
+    premissa Raíz. Direção de cada fator: distância à mata e histórico de uso (idade do pasto, fogo) como os
+    principais freios da regeneração (Crouzeilles et al. 2017, Science Advances; Heinrich et al. 2021, Nature
+    Communications, só comparação); encosta íngreme regenera mais (Molin et al. 2018, Journal of Applied Ecology).
+    Limiares a calibrar.
+
+# --- 2. Custo de restauração (R$/ha, P10/P50/P90 por modo) --------------------------------------------------------
+# Duas tabelas; o cenário escolhe (tabela_custo). sfb_bom_futuro: custos oficiais do SFB por ano (cenário central da
+# rodada 11); faixa_mercado: faixas de mercado do fundador, tudo no ano 0 (cenário otimista).
+custo_sfb_rs_ha:
+  plantio_total:
+    implantacao: 15830
+    manutencao_inicial: [1772, 1772]  # anos 1 e 2: R$ 3.544/ha no total
+    p10: 14500
+    p90: 24800
+    fonte: >-
+      Implantação: SFB, Relatório de Avaliação Econômico-Financeira Referencial da concessão de restauração da Flona
+      do Bom Futuro (RO), preços de dez/2023, revisado pelo TCU (Acórdão 2285/2025), Tabelas 37 a 39. Manutenção dos
+      anos 1 e 2: R$ 1.771,88/ha por ano (SFB e BNDES, Plano de Negócios Referencial da Flona de Altamira, set/2026,
+      tabela 101) vezes 2 = R$ 3.544 (fundador, rodada 11). P10: Altamira, R$ 14,5 a 15,5 mil/ha em 3 anos (tabelas
+      101 e 110). P90: concessão Triunfo do Xingu da Systemica, R$ 24,8 mil/ha (R$ 257 a 258 milhões em 40 anos para
+      10.346 ha; Agência iNFRA e B3), investimento total de 40 anos usado como teto.
+  regeneracao_assistida:
+    implantacao: 4230
+    manutencao_inicial: [400, 400]  # anos 1 e 2: R$ 800/ha no total
+    p10: 2430
+    p90: 6096
+    fonte: >-
+      Implantação: SFB, Bom Futuro (Tabelas 40 a 42, condução da regeneração natural, R$ 4.229,88). Manutenção dos
+      anos 1 e 2: fundador, rodada 11 (R$ 800/ha). P10 e P90: Instituto Escolhas, Restauração no Cerrado (preços de
+      2023, mar/2026): condução da regeneração natural R$ 2.430/ha e condução com enriquecimento R$ 6.096/ha.
+  semeadura_direta:
+    implantacao: 10030
+    manutencao_inicial: [1086, 1086]
+    p10: 8465
+    p90: 15448
+    fonte: >-
+      premissa Raíz: média do plantio total e da condução da regeneração (implantação, manutenção, P10 e P90), como o
+      SFB faz para o plantio de enriquecimento no mesmo relatório; a rodada 11 não tem custo publicado da semeadura
+      direta. A conferir com redes de sementes e clientes.
+
+custo_rs_ha:
+  regeneracao_assistida:
+    p10: 2000
+    p50: 3500
+    p90: 5000
+    fonte: fundador, 12/11/2026 (faixa de mercado de R$ 2 a 5 mil/ha; cerca, aceiro, controle de capim, enriquecimento)
+  semeadura_direta:
+    p10: 6000
+    p50: 9000
+    p90: 13000
+    fonte: >-
+      premissa Raíz: entre a regeneração e o plantio (o fundador pediu faixa intermediária); a semeadura direta
+      (muvuca) dispensa viveiro e plantio de muda, a conferir com redes de sementes e clientes
+  plantio_total:
+    p10: 14000
+    p50: 20000
+    p90: 30000
+    fonte: fundador, 12/11/2026 (faixa de mercado de R$ 14 a 30 mil/ha, com manutenção dos primeiros anos)
+
+ajustes_custo:
+  acesso:
+    estrada_livre_km: 2  # até aqui da estrada de acesso, sem acréscimo
+    estrada_por_km: 0.01  # +1% por km além disso
+    estrada_teto: 1.20
+    cidade_livre_km: 30
+    cidade_por_km: 0.002  # +0,2% por km além de 30 km da cidade mais próxima
+    cidade_teto: 1.15
+    fonte: >-
+      premissa Raíz (frete de muda, semente e insumo e deslocamento da equipe); distâncias do OpenStreetMap
+      (ficha_<mun>.csv: estrada_acesso_km, cidade_proxima_km)
+  declividade:  # média do imóvel, em %, do Copernicus GLO-30
+    limites_pct: [8, 20, 45]
+    fatores: [1.0, 1.10, 1.25, 1.45]
+    fonte: >-
+      classes de relevo da Embrapa (plano a suave ondulado até 8%, ondulado até 20%, forte ondulado até 45%,
+      montanhoso acima); fatores são premissa Raíz (acima de 20% a máquina rende menos; acima de 45% é tudo manual)
+  degradacao:
+    vigor_baixo: 1.15  # pasto de baixo vigor: preparo de solo e adubação
+    fogo_frequente: 1.05  # fogo_anos_media acima do limite de muito fogo: aceiros e brigada
+    fonte: premissa Raíz (MapBiomas Pastagem, vigor; fogo do histórico do motor)
+
+# --- 3. Captura -------------------------------------------------------------------------------------------------
+# Duas formas; o cenário escolhe (modelo). curva: total em 40 anos por modo, na forma da URTX (cenário central da
+# rodada 11); constante: tCO2/ha/ano igual todo ano (cenário otimista).
+captura_curva:
+  anos: 40
+  # remoção por ha em cada ano (tCO2/ha/ano), interpolada em linha reta entre os pontos e escalada para o total de 40
+  # anos de cada método: o total vem do método, a curva só diz quando o carbono entra
+  pontos: [[0, 0.0], [1, 0.0], [2, 0.0], [7, 13.44], [10, 26.71], [14, 30.29], [20, 26.50], [30, 17.74], [40, 11.04]]
+  fonte_pontos: >-
+    IDEFLOR-Bio, concessão de restauração Unidade de Recuperação Triunfo do Xingu (PA), Anexo 20, tabela 1 (curva
+    anual oficial de remoção por ha)
+  total_tco2_ha:  # 40 anos, com raízes, serapilheira e solo
+    plantio_total: 588.8
+    regeneracao_assistida: 442.8
+    semeadura_direta: 515.8
+  fonte: >-
+    SFB, Bom Futuro: 588,82 tCO2/ha em 40 anos no plantio total (14,72 por ano em média, já com 23,17% de raiz, 5% de
+    serapilheira e carbono do solo; Altamira dá 583,64) e 442,79 na condução da regeneração natural (11,01 por ano).
+    Semeadura direta no meio dos dois (premissa Raíz).
+  # vale o menor entre o total do método (com chuva e solo) e o teto do bioma
+  teto_tco2_ha:
+    Amazônia: 588.8
+    Cerrado: 99.8
+    Mata Atlântica: 237.2
+    Caatinga: 181.2
+    Pantanal: 317.0
+    Pampa: 226.5
+  teto_publicado: {Amazônia: true, Cerrado: true, Mata Atlântica: true, Caatinga: false, Pantanal: false, Pampa: false}
+  teto_fonte: >-
+    Amazônia: Bom Futuro (o próprio total do plantio no sul da Amazônia). Cerrado: cerradão com 22,1 Mg C/ha acima do
+    solo (artigo da UnB, CC BY 4.0) vezes 1,2317 de raiz vezes 44/12, sem solo. Mata Atlântica: floresta de
+    referência em Sergipe com 64,68 Mg C/ha em árvores, raízes, serapilheira e solo (Fernandes et al. 2025, Scientia
+    Forestalis) vezes 44/12. Caatinga, Pantanal e Pampa sem curva publicada (rodada 11): premissa anterior da Raíz,
+    plantio de 4, 7 e 5 contra 13 t/ha/ano na Amazônia, vezes 588,8.
+  # fator do total (P10 e P90 em relação ao P50), sorteado em comum: o erro da curva não se cancela entre fazendas
+  incerteza_captura: {p10: 0.6, p90: 1.3}
+  incerteza_fonte: >-
+    VCS 665 (Cotriguaçu, MT, 415 parcelas): de 2015 a 2020 mediu cerca de 8,6 tCO2/ha/ano contra o dobro previsto
+    antes; faixa anterior da Raíz para a regeneração (0,6 a 1,4)
+
+captura_tco2_ha_ano:
+  regeneracao_assistida:
+    # P50 = taxa do motor (taxa_tco2_ha_ano: Heinrich 2021 por região na Amazônia, provisória fora dela) vezes o
+    # ganho da assistência; P10 = Elias et al. 2022 na Amazônia (1,2 tC/ha/ano, com raízes), fator nos outros biomas
+    taxa_do_motor: true
+    ganho_assistencia: 1.10
+    p10_elias_tc_ha_ano: 1.2
+    fator_p10: 0.6
+    fator_p90: 1.4
+    fonte: >-
+      motor (raiz_estado.py: Heinrich et al. 2021, Nature Communications, por região; Elias et al. 2022 no leste do
+      Pará como conservador, raiz_ajustes.py; YbYrá para a idade). Ganho de 10% da assistência é premissa Raíz.
+      Heinrich 2021 é CC BY-NC: só comparação, fora de treino.
+  semeadura_direta:
+    Amazônia: {p10: 6.0, p50: 10.0, p90: 14.0}
+    Cerrado: {p10: 3.0, p50: 5.0, p90: 8.0}
+    Mata Atlântica: {p10: 5.0, p50: 9.0, p90: 13.0}
+    Caatinga: {p10: 1.5, p50: 3.0, p90: 5.0}
+    Pantanal: {p10: 3.0, p50: 5.0, p90: 8.0}
+    Pampa: {p10: 2.0, p50: 4.0, p90: 6.0}
+    fonte: >-
+      premissa Raíz por bioma, entre a regeneração e o plantio; ordem de grandeza a conferir com Bernal et al. 2018
+      (Carbon Balance and Management 13:22) e com medição de cliente
+  plantio_total:
+    Amazônia: {p10: 9.0, p50: 13.0, p90: 18.0}
+    Cerrado: {p10: 4.0, p50: 7.0, p90: 10.0}
+    Mata Atlântica: {p10: 7.0, p50: 11.0, p90: 16.0}
+    Caatinga: {p10: 2.0, p50: 4.0, p90: 6.0}
+    Pantanal: {p10: 4.0, p50: 7.0, p90: 10.0}
+    Pampa: {p10: 3.0, p50: 5.0, p90: 8.0}
+    fonte: >-
+      premissa Raíz por bioma; na Amazônia perto dos 12,8 t/ha/ano do caso de referência do fundador; ordem de
+      grandeza a conferir com Bernal et al. 2018 e com medição de cliente
+  bioma_padrao: Amazônia
+
+ajustes_captura:
+  chuva:  # CHIRPS v3, média anual 2015 a 2024 no ponto do imóvel
+    referencia_mm:
+      Amazônia: 2200
+      Cerrado: 1500
+      Mata Atlântica: 1400
+      Caatinga: 750
+      Pantanal: 1200
+      Pampa: 1500
+    elasticidade: 0.5  # fator = (chuva / referência) ^ 0,5
+    minimo: 0.75
+    maximo: 1.15
+    fonte: >-
+      premissa Raíz; direção da relação em Poorter et al. 2016 (Nature 530:211): a água disponível é o que mais
+      explica a velocidade de recuperação da biomassa. CHIRPS v3 (Climate Hazards Center, domínio público)
+  solo:  # SoilGrids 2.0, capacidade de troca de cátions média de 0 a 30 cm, em cmol(c)/kg
+    referencia_cec: 10
+    por_unidade: 0.01  # +1% por cmol(c)/kg acima da referência
+    minimo: 0.90
+    maximo: 1.10
+    fonte: >-
+      premissa Raíz; Poorter et al. 2016 acharam efeito pequeno da fertilidade, por isso o teto de 10%. SoilGrids 2.0
+      (ISRIC, CC BY 4.0)
+
+# --- 4. Linha de base dinâmica (VM0047) -------------------------------------------------------------------------
+# Quanto do pasto viraria mata sozinho, sem projeto. Estimado pelos pixels parecidos do mesmo município (mesma faixa
+# de distância à mata): a fração do pasto que rebrotou e ficou de pé nos últimos `janela_anos` (YbYrá, vegetação
+# secundária com até essa idade) vira uma taxa por ano. Onde a mata volta sozinha o crédito líquido cai: mostrar,
+# nunca esconder.
+linha_base:
+  metodo: >-
+    VM0047 (área, linha de base dinâmica): estimativa da Raíz pela fração de pixels de pasto parecidos (mesma faixa
+    de distância à mata, mesmo município) que rebrotaram sozinhos e seguem de pé
+  janela_anos: 10
+  taxa_ano_padrao: [0.015, 0.008, 0.003, 0.0005]  # por faixa d0..d3, quando não há YbYrá do município
+  taxa_ano_maxima: 0.10
+  persistencia: 1.0  # a taxa medida já desconta o que rebrotou e foi derrubado de novo na janela
+  fonte: >-
+    taxas medidas no YbYrá-BR v8.1 (vegetação secundária, idade) sobre o MapBiomas cobertura; taxas padrão são
+    premissa Raíz para quando faltar o raster
+
+# --- 5. Do bruto ao líquido -------------------------------------------------------------------------------------
+# Os valores ficam no cenário (linha_base_piso, vazamento, reserva_risco, incerteza); aqui, a ordem e a regra.
+liquido:
+  ordem: [linha_base, vazamento, reserva_risco, incerteza]
+  regra: >-
+    crédito líquido = captura x (1 - linha de base) x (1 - vazamento) x (1 - reserva) x (1 - incerteza), nesta
+    ordem; a linha de base é a medida no YbYrá (parte da captura que a mata faria sozinha), nunca abaixo do piso do
+    cenário
+  fonte: >-
+    rodada 11 do fundador (ordem e valores do central e do estresse); reserva de não permanência e incerteza ex-ante
+    iguais às do motor (raiz_ajustes.py: reserva mínima NPRT v5.0 e VM0047); vazamento pelo VMD0054 (gado deslocado),
+    zero só com fazenda vizinha de mitigação no lote
+
+# --- 7. Agrupamento de fazendas vizinhas --------------------------------------------------------------------------
+agrupamento:
+  diametro_max_km: 15  # fazendas cujo ponto central cabe num círculo de ~15 km formam um lote
+  contrato_creditos: 1000000
+  fonte: >-
+    premissa Raíz (uma equipe de campo e um viveiro atendem um raio curto); contrato de referência do fundador: 1
+    milhão de créditos pede cerca de 3,5 a 4,5 mil ha
+  regra: >-
+    entra no lote toda fazenda com área para restaurar e sem bloqueio (embargo, terra indígena, desmatamento depois
+    de 2020); pequena nunca é descartada, soma com as vizinhas
+
+
+# --- 8. Vazamento: área de mitigação vizinha (VMD0054, seção 5.2) -----------------------------------------------
+# Fazenda que entra em projeto procura uma vizinha que intensifique o pasto e receba o gado deslocado; achou, o
+# vazamento dela vai a zero e a vizinha entra no lote como área de mitigação (raiz/vazamento.py).
+mitigacao:
+  raio_km: 15
+  lotacao_alvo_cab_ha: 2.19
+  vigor_minimo: 2
+  lotacao_quando_falta_rebanho:  # cab/ha, quando o motor ainda não estimou o rebanho do imóvel (rebanho_cabecas)
+    por_municipio: {1507300: 1.00}
+    por_uf: {PA: 0.99}
+    fonte: >-
+      Censo Agro 2017, tabela 6910 (efetivo de bovinos) sobre o pasto da tabela 6881: Pará 0,99 cab/ha, São Félix do
+      Xingu 1,00. Toda fazenda do município fica com a lotação média; a coluna rebanho_fonte avisa.
+  fonte: >-
+    raio igual ao do lote (uma equipe atende); lotação alvo = maior lotação da fazenda modal do Campo Futuro 2022 na
+    Amazônia (2,19 UA/ha em Santana do Araguaia, PA, integração lavoura-pecuária; CNA), tratada como cabeças por ha;
+    vigor do pasto médio ou alto (MapBiomas Pastagem). Premissa a calibrar: a vizinha precisa assinar acordo de 5 anos
+    ou mais e ter laudo de técnico independente (VMD0054).
+
+# --- 9. Dono da terra: aluguel de referência e renda do gado na mesma área -------------------------------------
+dono_aluguel_censo:
+  por_municipio_rs_ha_ano:
+    1507300: 532  # São Félix do Xingu (PA)
+    1504208: 289  # Marabá (PA)
+    1505502: 124  # Paragominas (PA)
+  por_uf_rs_ha_ano: {PA: 212, MT: 349, MS: 560, PR: 1140, SP: 2209}
+  brasil_rs_ha_ano: 727
+  fonte: >-
+    IBGE, Censo Agropecuário 2017, SIDRA tabela 6899 (despesa com arrendamento de terras) dividida pela tabela 6753
+    (área arrendada), valores de 2017 sem correção (rodada 11)
+pecuaria:
+  arquivo: censo_agro_2017_pecuaria.csv  # por município: pasto_ha, bovinos_cab, venda_bovinos_mil_rs
+  ipca_fator: 1.5675  # IPCA de jan/2018 a out/2026 (Banco Central, série 433), para levar 2017 a hoje
+  ipca_ate: 2026-10
+  margem_liquida_referencia: 0.027
+  fonte: >-
+    IBGE, Censo Agropecuário 2017, SIDRA tabelas 6910 (valor da venda de bovinos: até 50 cabeças, matrizes, cria e
+    recria, abate) e 6881 (pastagens naturais e plantadas, boas e más): receita bruta da venda de gado por ha de pasto
+    no município, corrigida pelo IPCA. Margem de referência: CNA Campo Futuro, julho de 2024 (expectativa de margem da
+    recria e engorda no Pará, 2,7% da receita bruta); fazenda modelo de Paragominas teve R$ 1.321/ha de margem
+    líquida em 2022 (ciclo completo, CNA). A folha do dono compara com a receita bruta e cita a margem.
+
+# --- 10. Lote para o ProFloresta+ (raiz/lote.py) ------------------------------------------------------------------
+lote:
+  creditos: 1000000
+  area_minima_ha: 3000
+  area_homologada_assinatura: 0.05  # parte da área do lote homologada (certidão conferida) na assinatura
+  chance_alvo_reserva: 0.9
+  fonte: >-
+    BNDES, minuta do contrato de compra do ProFloresta+ (cláusula 3.6.1: 5% da área homologada na assinatura) e
+    especificação técnica (área mínima de 3.000 ha por projeto na fase 1); chance alvo da reserva: P90 dos leilões de
+    energia e dos bancos (Portaria MME 102/2016; régua do BNDES)
+  edital: edital_profloresta.yaml
+
+# --- 11. Cenários do fluxo de caixa ---------------------------------------------------------------------------------
+# Todo parâmetro é editável na ficha (simulador) e cada um traz a fonte. Padrão: o central da rodada 11 (central_r11);
+# as premissas antigas do fundador ficam no otimista_fundador.
+# modelo: curva (captura na forma da URTX, custos do SFB por ano, descontos em ordem, marcos e multas do ProFloresta+,
+# dono, dívida pelo ICSD, venda depois do contrato) ou constante (premissas antigas).
+padrao: central_r11
+cenarios:
+  central_r11:
+    nome: Central (rodada 11), US$ 55/t
+    modelo:
+      valor: curva
+      fonte: fundador, rodada 11 (12/11/2026)
+    tabela_custo:
+      valor: sfb_bom_futuro
+      fonte: fundador, rodada 11 (custos oficiais do SFB na concessão da Flona do Bom Futuro)
+    preco_usd_t:
+      valor: 55
+      fonte: fundador, rodada 11 (ProFloresta+ do BNDES compra entre US$ 55 e 74/t)
+    prazo_anos:
+      valor: 25
+      fonte: fundador, rodada 11 (contrato de 25 anos do ProFloresta+)
+    horizonte_anos:
+      valor: 40
+      fonte: fundador, rodada 11 (pagamento ao dono por 40 anos; a curva vai até o ano 40)
+    entregas_anos:
+      valor: [7, 12, 17, 22, 25]
+      fonte: fundador, rodada 11 (marcos do ProFloresta+)
+    marcos_pct:
+      valor: [12, 30, 50, 70, 100]
+      fonte: fundador, rodada 11 (parte acumulada do volume contratado em cada marco)
+    tolerancia_ultimo_marco:
+      valor: 0.0
+      fonte: >-
+        BNDES, minuta do ProFloresta+ (leitura da Raíz sobre a cláusula 13): no ano 25 vale 100% do volume; a
+        tolerância é só dos marcos intermediários
+    tolerancia_marco:
+      valor: 0.25
+      fonte: fundador, rodada 11 (o marco conta como cumprido com 75% do volume)
+    multa_credito_dia_rs:
+      valor: 0.03
+      fonte: fundador, rodada 11 (R$ 0,03 por crédito em falta por dia, depois da carência)
+    multa_carencia_dias:
+      valor: 180
+      fonte: fundador, rodada 11 (a multa por crédito começa 180 dias depois do marco)
+    multa_marco_dia_rs:
+      valor: 1000
+      fonte: >-
+        fundador, rodada 11 (R$ 1.000 por dia de marco atrasado, por contrato; rateado por hectare pela parte do imóvel
+        no contrato de referência de 1 milhão de créditos)
+    multas_no_fluxo:
+      valor: false
+      fonte: >-
+        rodada 11: a fazenda entra num lote com reserva, que cobre a falta de uma delas; a multa, a rescisão e a chance
+        com a reserva se medem no lote inteiro (raiz/lote.py). Por fazenda fica a chance de cada marco e a multa se
+        ela fechasse o contrato sozinha
+    rescisao_atraso_marco_dias:
+      valor: 180
+      fonte: BNDES, minuta do ProFloresta+ (rescisão com marco atrasado mais de 180 dias)
+    rescisao_multa_fracao:
+      valor: 0.20
+      fonte: >-
+        fundador, rodada 11 (rescisão quando as multas chegam a 20% do valor do contrato; depois dela, o que faltar
+        entregar é vendido no mercado ao preço depois do contrato)
+    volume_contratado:
+      valor: 1.0
+      fonte: premissa Raíz (contrata o P50 dos créditos líquidos até o fim do contrato; 0,9 contrata 90% do P50)
+    preco_pos_contrato_usd_t:
+      valor: 30
+      fonte: fundador, rodada 11 (venda depois do ano 25 a US$ 30)
+    entregas_pos_contrato_anos:
+      valor: [30, 35, 40]
+      fonte: premissa Raíz (verificação e venda a cada 5 anos depois do contrato)
+    fracao_financiada:
+      valor: 0.50
+      fonte: fundador, rodada 11 (Fundo Clima de 35 a 50% do investimento; aqui o teto)
+    fracao_financiada_minima:
+      valor: 0.35
+      fonte: fundador, rodada 11 (piso da faixa do Fundo Clima; abaixo dele a ficha avisa)
+    juros_ano:
+      valor: 0.0494
+      fonte: fundador, rodada 11 (Fundo Clima a 4,94% ao ano)
+    carencia_anos:
+      valor: 8
+      fonte: fundador, rodada 11 (carência de até 8 anos)
+    juros_carencia:
+      valor: capitalizados
+      fonte: >-
+        premissa Raíz: sem receita até o ano 7, os juros da carência entram no saldo (o modelo do SFB para a Flona do
+        Bom Futuro também tem carência de juros); "pagos" põe os juros no caixa do dono do projeto
+    amortizacao_anos:
+      valor: 17
+      fonte: premissa Raíz (a dívida termina no ano 25, junto com o contrato)
+    sistema_amortizacao:
+      valor: icsd
+      fonte: >-
+        fundador, rodada 11 (dívida máxima pelo ICSD 1,3): parcelas esculpidas no caixa do P50 de cada ano (caixa /
+        1,3) e dívida = menor entre o teto da fração e o que o ICSD permite
+    icsd_minimo:
+      valor: 1.3
+      fonte: fundador, rodada 11 (o mesmo do modelo do SFB para a Flona do Bom Futuro)
+    taxa_desconto:
+      valor: 0.092
+      fonte: fundador, rodada 11 (WACC real de 9,2%)
+    cambio_brl_usd:
+      valor: 5.40
+      fonte: >-
+        premissa marcada pelo fundador (R$ 5,40), usada enquanto não houver PTAX gravada; o simulador da ficha aceita
+        outro valor
+    cambio_ptax:
+      valor: true
+      fonte: >-
+        fundador, rodada 11 (melhor ainda: PTAX automática). Com a PTAX gravada (`raiz restauracao cambio --gravar`,
+        restauracao_cambio.yaml) ela substitui os R$ 5,40; a versão das premissas muda e o recalcular refaz
+    desembolso_custo:
+      valor: [1.0]
+      fonte: premissa Raíz (só para o modelo constante; no modelo curva o custo sai por ano da tabela do SFB)
+    manutencao_rs_ha_ano:
+      valor: 0
+      fonte: fundador, rodada 11 (a manutenção depois do ano 2 vem em dólar, na linha de baixo)
+    manutencao_usd_ha_ano:
+      valor: 40
+      fonte: fundador, rodada 11 (US$ 40/ha/ano depois da manutenção dos anos 1 e 2)
+    manutencao_desde_ano:
+      valor: 3
+      fonte: fundador, rodada 11 (anos 1 e 2 estão no custo do SFB)
+    monitoramento_rs_ha_ano:
+      valor: 40
+      fonte: premissa marcada pelo fundador (satélite e parcelas permanentes)
+    verificacao_rs_ha_entrega:
+      valor: 120
+      fonte: premissa marcada pelo fundador (auditoria de verificação em cada entrega, rateada por ha)
+    taxa_registro_usd_t:
+      valor: 0.20
+      fonte: premissa marcada pelo fundador (taxa de emissão por crédito na Verra)
+    registro_venda_receita:
+      valor: 0.10
+      fonte: fundador, rodada 11 (custo de registro e venda de 10% da receita)
+    tributos_receita:
+      valor: 0.0925
+      fonte: premissa marcada pelo fundador (PIS e Cofins não cumulativos, 9,25%; o modelo do SFB usa o mesmo)
+    pagamento_dono:
+      valor: participacao
+      fonte: >-
+        fundador, rodada 11 (padrão: parte do crédito + piso baixo, por 40 anos). Outras formas, para comparar:
+        arrendamento (aluguel fixo do Censo Agro 2017) e duas_fases (pagamento pequeno até o resultado do leilão,
+        depois o contrato firme)
+    participacao_dono:
+      valor: 0.15
+      fonte: fundador, rodada 11 (10 a 20% do crédito; aqui o meio da faixa)
+    piso_dono_rs_ha_ano:
+      valor: 24
+      fonte: >-
+        piso baixo pago todo ano além da parte do crédito: o pagamento inicial dos contratos eólicos do Nordeste, R$ 1 a
+        2 por ha ao mês (estudo do Inesc com o Plano Nordeste Potência, 50 contratos)
+    arrendamento_rs_ha_ano:
+      valor: 0
+      fonte: >-
+        premissa Raíz (com pagamento_dono = arrendamento e valor 0, usa o aluguel do Censo Agro 2017 do município
+        ou do estado, na tabela abaixo)
+    fase1_rs_ha_ano:
+      valor: 24
+      fonte: >-
+        aceite em duas fases: opção de R$ 2 por ha ao mês até o resultado do leilão (o mesmo pagamento inicial dos
+        contratos eólicos, Inesc); ganhou, vira contrato firme na parte do crédito; perdeu, o desenvolvedor perde só
+        a opção
+    fase1_anos:
+      valor: 1
+      fonte: premissa Raíz (12 meses do aceite ao resultado do leilão)
+    linha_base_piso:
+      valor: 0.10
+      fonte: fundador, rodada 11 (a medida do YbYrá vale, mas o desconto nunca fica abaixo de 10%)
+    vazamento:
+      valor: 0.10
+      fonte: fundador, rodada 11 (VMD0054, gado deslocado, 10% no central)
+    vazamento_com_mitigacao:
+      valor: 0.0
+      fonte: fundador, rodada 11 (zero só com fazenda vizinha de mitigação no lote; coluna mitigacao_vizinha)
+    reserva_risco:
+      valor: 0.12
+      fonte: fundador, rodada 11 (reserva de não permanência)
+    incerteza:
+      valor: 0.10
+      fonte: fundador, rodada 11 (incerteza ex-ante)
+
+  central_r11_74:
+    nome: Central (rodada 11), US$ 74/t
+    herda: central_r11
+    preco_usd_t:
+      valor: 74
+      fonte: fundador, rodada 11 (teto da faixa do ProFloresta+)
+
+  estresse_r11:
+    nome: Estresse (rodada 11), US$ 55/t
+    herda: central_r11
+    fracao_financiada:
+      valor: 0.35
+      fonte: Fundo Clima Florestas Nativas, piso da faixa lida (re.green 35,4%)
+    participacao_dono:
+      valor: 0.20
+      fonte: fundador, rodada 11 (teto da faixa de 10 a 20% do crédito)
+    linha_base_piso:
+      valor: 0.40
+      fonte: "fundador, rodada 11 (estresse da linha de base: 40%)"
+    vazamento:
+      valor: 0.40
+      fonte: "fundador, rodada 11 (estresse do vazamento: 40%)"
+
+  so_contrato_25:
+    nome: Só o contrato de 25 anos, sem venda depois (rodada 11)
+    herda: central_r11
+    entregas_pos_contrato_anos:
+      valor: []
+      fonte: rodada 11 (sem venda depois do contrato; dono e manutenção seguem até o ano 40)
+
+  otimista_fundador:
+    nome: Otimista do fundador, US$ 55/t
+    modelo:
+      valor: constante
+      fonte: fundador, 12/11/2026 (premissas antes da rodada 11)
+    tabela_custo:
+      valor: faixa_mercado
+      fonte: fundador, 12/11/2026 (faixas de mercado por modo)
+    preco_usd_t:
+      valor: 55
+      fonte: fundador, 12/11/2026 (ProFloresta+ do BNDES compra entre US$ 55 e 74/t)
+    prazo_anos:
+      valor: 25
+      fonte: fundador (contrato do ProFloresta+)
+    horizonte_anos:
+      valor: 25
+      fonte: fundador (só o prazo do contrato)
+    entregas_anos:
+      valor: [7, 12, 17, 22, 25]
+      fonte: fundador (primeira entrega no ano 7, depois a cada 5 anos)
+    marcos_pct:
+      valor: [12, 30, 50, 70, 100]
+      fonte: fundador (marcos do ProFloresta+; no otimista sem multa)
+    tolerancia_marco:
+      valor: 0.25
+      fonte: fundador
+    multa_credito_dia_rs:
+      valor: 0
+      fonte: fundador (o otimista não conta multa)
+    multa_carencia_dias:
+      valor: 180
+      fonte: fundador
+    multa_marco_dia_rs:
+      valor: 0
+      fonte: fundador (o otimista não conta multa)
+    rescisao_multa_fracao:
+      valor: 0.20
+      fonte: fundador
+    volume_contratado:
+      valor: null
+      fonte: fundador (entrega todo o crédito ao preço do contrato, sem volume fixo)
+    preco_pos_contrato_usd_t:
+      valor: 30
+      fonte: fundador
+    entregas_pos_contrato_anos:
+      valor: []
+      fonte: fundador (sem venda depois do contrato)
+    fracao_financiada:
+      valor: 0.8
+      fonte: fundador (80% financiado)
+    fracao_financiada_minima:
+      valor: 0.0
+      fonte: fundador
+    juros_ano:
+      valor: 0.023
+      fonte: fundador (Fundo Clima, cerca de 2,3% ao ano)
+    carencia_anos:
+      valor: 5
+      fonte: fundador (5 anos de carência, juros pagos na carência)
+    juros_carencia:
+      valor: pagos
+      fonte: fundador (juros pagos na carência)
+    amortizacao_anos:
+      valor: 20
+      fonte: fundador (20 anos de amortização)
+    sistema_amortizacao:
+      valor: sac
+      fonte: premissa Raíz (o BNDES costuma usar o sistema de amortização constante)
+    icsd_minimo:
+      valor: 1.3
+      fonte: fundador (não usado no sistema sac)
+    taxa_desconto:
+      valor: 0.12
+      fonte: fundador (VPL a 12%)
+    cambio_brl_usd:
+      valor: 5.40
+      fonte: premissa Raíz (trocar pela PTAX do dia)
+    desembolso_custo:
+      valor: [1.0]
+      fonte: premissa Raíz (o custo por ha, com a manutenção dos primeiros anos, sai na implantação, ano 0)
+    manutencao_rs_ha_ano:
+      valor: 150
+      fonte: premissa Raíz (aceiro, formiga e cerca depois da implantação)
+    manutencao_usd_ha_ano:
+      valor: 0
+      fonte: premissa Raíz (manutenção em reais, na linha de cima)
+    manutencao_desde_ano:
+      valor: 3
+      fonte: premissa Raíz (até o ano 2 a manutenção está dentro do custo de implantação)
+    monitoramento_rs_ha_ano:
+      valor: 40
+      fonte: premissa Raíz (satélite e parcelas permanentes)
+    verificacao_rs_ha_entrega:
+      valor: 120
+      fonte: premissa Raíz (auditoria de verificação em cada entrega, rateada por ha)
+    taxa_registro_usd_t:
+      valor: 0.20
+      fonte: premissa Raíz (taxa de emissão por crédito na Verra; conferir na tabela de taxas vigente)
+    registro_venda_receita:
+      valor: 0
+      fonte: fundador (sem custo de venda)
+    tributos_receita:
+      valor: 0.0925
+      fonte: premissa Raíz (PIS e Cofins não cumulativos sobre a venda; conferir com a Lei 15.042/2024)
+    pagamento_dono:
+      valor: arrendamento
+      fonte: fundador (sem pagamento ao dono; preencha o arrendamento se o desenvolvedor paga por ha)
+    participacao_dono:
+      valor: 0
+      fonte: fundador
+    piso_dono_rs_ha_ano:
+      valor: 0
+      fonte: fundador
+    arrendamento_rs_ha_ano:
+      valor: 0
+      fonte: premissa Raíz (sem arrendamento; preencha se o desenvolvedor paga ao dono por ha)
+    fase1_rs_ha_ano:
+      valor: 0
+      fonte: fundador
+    fase1_anos:
+      valor: 0
+      fonte: fundador
+    linha_base_piso:
+      valor: 0
+      fonte: fundador (a medida do YbYrá, sem piso)
+    vazamento:
+      valor: 0
+      fonte: fundador (vazamento pendente, fora da conta)
+    vazamento_com_mitigacao:
+      valor: 0
+      fonte: fundador
+    reserva_risco:
+      valor: 0.12
+      fonte: motor (raiz_ajustes.py, reserva mínima NPRT v5.0)
+    incerteza:
+      valor: 0.10
+      fonte: motor (raiz_ajustes.py, VM0047)
+
+  otimista_fundador_74:
+    nome: Otimista do fundador, US$ 74/t
+    herda: otimista_fundador
+    preco_usd_t:
+      valor: 74
+      fonte: fundador, 12/11/2026 (teto da faixa do ProFloresta+)
+
+# Faixa P10-P90 do VPL, das TIRs, das entregas e das multas por imóvel: Monte Carlo com sorteios comuns a todos os
+# imóveis (semente fixa), o custo e a captura sorteados de forma independente numa normal de dois lados que respeita
+# os P10, P50 e P90. Os indicadores do P50 saem do caminho do meio (custo e captura no P50).
+monte_carlo:
+  sorteios: 400
+  semente: 2026

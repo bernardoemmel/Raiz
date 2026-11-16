@@ -1,0 +1,44 @@
+name: Atestar com retomada de falhas transitórias
+description: Conserva os mesmos digests e repete a ação oficial sem repetir o cálculo.
+inputs:
+  subject-checksums:
+    required: true
+    description: Lista de hashes já validada pelo publicador.
+  token:
+    required: true
+    description: Token do job para atestação e consulta da cota.
+runs:
+  using: composite
+  steps:
+    - name: Esperar a cota antes de assinar
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.token }}
+      run: python3 "${{ github.action_path }}/../../../scripts/esperar_cota_github.py"
+    - id: primeira
+      uses: actions/attest-build-provenance@v2
+      continue-on-error: true
+      with:
+        subject-checksums: ${{ inputs.subject-checksums }}
+        github-token: ${{ inputs.token }}
+        show-summary: false
+    - if: steps.primeira.outcome == 'failure'
+      shell: bash
+      run: sleep 60
+    - id: segunda
+      if: steps.primeira.outcome == 'failure'
+      uses: actions/attest-build-provenance@v2
+      continue-on-error: true
+      with:
+        subject-checksums: ${{ inputs.subject-checksums }}
+        github-token: ${{ inputs.token }}
+        show-summary: false
+    - if: steps.segunda.outcome == 'failure'
+      shell: bash
+      run: sleep 60
+    - if: steps.segunda.outcome == 'failure'
+      uses: actions/attest-build-provenance@v2
+      with:
+        subject-checksums: ${{ inputs.subject-checksums }}
+        github-token: ${{ inputs.token }}
+        show-summary: false

@@ -1,7 +1,14 @@
 # Motor de dados da Raíz
 
-Funil por imóvel do CAR, município por município, para o Brasil inteiro. Roda sozinho no GitHub Actions e publica no
-Release [`dados`](https://github.com/bernardoemmel/raiz/releases/tag/dados), de onde o front baixa. Ninguém precisa
+> Publicação atual (12/11/2026): dados completos e históricos por CAR ficam no
+> arquivo privado autenticado, configurado por `RAIZ_DADOS_PRIVADOS_URL` e
+> `RAIZ_DADOS_PRIVADOS_TOKEN`. O Release público contém somente agregados e
+> situação básica do CAR; não publicar camadas detalhadas, vigilância por CAR,
+> artifacts ou caches completos no público. Ver [contrato de publicação](../docs/dados-publicados.md).
+
+
+Funil por imóvel do CAR, município por município, para o Brasil inteiro. Roda sozinho no GitHub Actions e preserva o resultado completo no arquivo privado.
+O Release [`dados`](https://github.com/bernardoemmel/raiz/releases/tag/dados), de onde o front baixa, recebe apenas a projeção básica. Ninguém precisa
 baixar nem subir nada à mão. O que cada coluna significa está em [`docs/colunas.md`](../docs/colunas.md).
 
 ## Painel
@@ -12,37 +19,37 @@ está completo quando tem, em todos os municípios, funil, filtros, MapBiomas, d
 escadinha. Os extras do Earth Engine e as certidões ficam de fora dessa conta (ver abaixo).
 
 <!-- painel:inicio -->
-Gerado do `estados.json` de 12/11/2026 11:50 (horário de Brasília). Brasil: 262 de 5.571 municípios com o funil pronto; 4 de 27 estados completos.
+Gerado do `estados.json` de 16/11/2026 15:14 (horário de Brasília). Brasil: 4.086 de 5.571 municípios com o funil pronto; 8 de 27 estados completos.
 
 | Estado | Municípios feitos/total | Situação | Última atualização | Motor |
 |---|---|---|---|---|
-| PA Pará | 144/144 | completo (APP a conferir na primeira rodada automática) | 12/11/2026 07:52 | manual |
-| RO Rondônia | 52/52 | completo | 12/11/2026 11:50 | [9365d63](https://github.com/bernardoemmel/Raiz/actions/runs/43230460294) (parte manual) |
-| RR Roraima | 15/15 | completo | 12/11/2026 11:17 | [9365d63](https://github.com/bernardoemmel/Raiz/actions/runs/43230460294) (parte manual) |
-| AC Acre | 22/22 | completo | 12/11/2026 11:38 | [9365d63](https://github.com/bernardoemmel/Raiz/actions/runs/43230460294) (parte manual) |
-| AP Amapá | 16/16 | completo | 12/11/2026 11:29 | [3537575](https://github.com/bernardoemmel/Raiz/actions/runs/43235780981) (parte manual) |
-| TO Tocantins | 13/139 | falta funil 126, TMF e causas 1, FLAG 1, caminho da terra 1, ficha 4, desenvolvedor 4 | 12/11/2026 11:50 | manual |
+| PA Pará | 144/144 | falta FLAG 2, caminho da terra 2, ficha 45, desenvolvedor 45; 42 erro(s) na última rodada (2 fatias em jobs separados) | 15/11/2026 18:55 | [86a3389](https://github.com/bernardoemmel/Raiz/actions/runs/43744627162) |
+| RO Rondônia | 52/52 | completo; 14 erro(s) na última rodada | 15/11/2026 18:41 | [71937dc](https://github.com/bernardoemmel/Raiz/actions/runs/43758164130) |
+| RR Roraima | 15/15 | completo | 15/11/2026 18:29 | [728fa5b](https://github.com/bernardoemmel/Raiz/actions/runs/43762040577) |
+| AC Acre | 22/22 | completo | 15/11/2026 19:01 | [1d87b4e](https://github.com/bernardoemmel/Raiz/actions/runs/43763591020) |
+| AP Amapá | 16/16 | completo | 15/11/2026 19:01 | manual |
+| TO Tocantins | 0/139 | não começou | — | — |
 | MA Maranhão | 0/217 | não começou | — | — |
 | AM Amazonas | 0/62 | não começou | — | — |
-| MT Mato Grosso | 0/142 | não começou | — | — |
-| GO Goiás | 0/246 | não começou | — | — |
-| MS Mato Grosso do Sul | 0/79 | não começou | — | — |
-| MG Minas Gerais | 0/853 | não começou | — | — |
-| BA Bahia | 0/417 | não começou | — | — |
-| PI Piauí | 0/224 | não começou | — | — |
-| CE Ceará | 0/184 | não começou | — | — |
-| RN Rio Grande do Norte | 0/167 | não começou | — | — |
-| PB Paraíba | 0/223 | não começou | — | — |
-| PE Pernambuco | 0/185 | não começou | — | — |
-| AL Alagoas | 0/102 | não começou | — | — |
-| SE Sergipe | 0/75 | não começou | — | — |
-| ES Espírito Santo | 0/78 | não começou | — | — |
-| RJ Rio de Janeiro | 0/92 | não começou | — | — |
-| SP São Paulo | 0/645 | não começou | — | — |
-| PR Paraná | 0/399 | não começou | — | — |
-| SC Santa Catarina | 0/295 | não começou | — | — |
-| RS Rio Grande do Sul | 0/497 | não começou | — | — |
-| DF Distrito Federal | 0/1 | não começou | — | — |
+| MT Mato Grosso | 111/142 | falta funil 31, ficha 16, desenvolvedor 16; 34 erro(s) na última rodada (2 fatias em jobs separados) | 14/11/2026 21:14 | [2668be6](https://github.com/bernardoemmel/Raiz/actions/runs/43643808387) |
+| GO Goiás | 186/246 | falta funil 60, MapBiomas 2, direto 2, TMF e causas 2, FLAG 2, caminho da terra 2, ficha 4, desenvolvedor 6; 2 erro(s) na última rodada (3 fatias em jobs separados) | 16/11/2026 15:09 | [3bf77ad](https://github.com/bernardoemmel/Raiz/actions/runs/43916112990) |
+| MS Mato Grosso do Sul | 79/79 | falta MapBiomas 1, TMF e causas 1, FLAG 1, caminho da terra 1, ficha 1, desenvolvedor 1; 46 erro(s) na última rodada | 14/11/2026 21:48 | [2668be6](https://github.com/bernardoemmel/Raiz/actions/runs/43652868465) |
+| MG Minas Gerais | 337/853 | falta funil 516, ficha 3, desenvolvedor 5; 36 erro(s) na última rodada (8 fatias em jobs separados) | 15/11/2026 16:40 | [33d69e1](https://github.com/bernardoemmel/Raiz/actions/runs/43727698257) |
+| BA Bahia | 324/417 | falta funil 93, ficha 2, desenvolvedor 6; 52 erro(s) na última rodada (4 fatias em jobs separados) | 16/11/2026 13:39 | [75f2b22](https://github.com/bernardoemmel/Raiz/actions/runs/43889305152) |
+| PI Piauí | 224/224 | completo; 5 erro(s) na última rodada (2 fatias em jobs separados) | 15/11/2026 09:24 | [b93a055](https://github.com/bernardoemmel/Raiz/actions/runs/43705807265) |
+| CE Ceará | 184/184 | completo; 3 erro(s) na última rodada (2 fatias em jobs separados) | 16/11/2026 14:12 | [75f2b22](https://github.com/bernardoemmel/Raiz/actions/runs/43889305152) |
+| RN Rio Grande do Norte | 167/167 | completo; 30 erro(s) na última rodada (2 fatias em jobs separados) | 16/11/2026 00:53 | [337a721](https://github.com/bernardoemmel/Raiz/actions/runs/43794022132) |
+| PB Paraíba | 219/223 | falta funil 4, MapBiomas 4, direto 4, TMF e causas 4, FLAG 4, caminho da terra 4, ficha 6, desenvolvedor 6; 130 erro(s) na última rodada (2 fatias em jobs separados) | 15/11/2026 22:13 | [41911dc](https://github.com/bernardoemmel/Raiz/actions/runs/43773289256) |
+| PE Pernambuco | 184/185 | falta funil 1, MapBiomas 1, direto 1, TMF e causas 1, FLAG 1, caminho da terra 1, ficha 1, desenvolvedor 1; 1 erro(s) na última rodada (2 fatias em jobs separados) | 15/11/2026 22:11 | [d61b616](https://github.com/bernardoemmel/Raiz/actions/runs/43776400571) |
+| AL Alagoas | 84/102 | falta funil 18; 55 erro(s) na última rodada | 15/11/2026 23:06 | [0e177fb](https://github.com/bernardoemmel/Raiz/actions/runs/43783860298) |
+| SE Sergipe | 74/75 | falta funil 1, MapBiomas 1, direto 1, TMF e causas 1, FLAG 1, caminho da terra 1, ficha 1, desenvolvedor 1; 53 erro(s) na última rodada | 16/11/2026 00:26 | [bde2693](https://github.com/bernardoemmel/Raiz/actions/runs/43789289906) |
+| ES Espírito Santo | 62/78 | falta funil 16, MapBiomas 3, direto 3, TMF e causas 3, FLAG 3, caminho da terra 3, ficha 3, desenvolvedor 3; 64 erro(s) na última rodada | 16/11/2026 00:54 | [ebf1993](https://github.com/bernardoemmel/Raiz/actions/runs/43789944397) |
+| RJ Rio de Janeiro | 90/92 | falta funil 2, MapBiomas 2, direto 2, TMF e causas 2, FLAG 2, caminho da terra 2, ficha 2, desenvolvedor 2; 36 erro(s) na última rodada | 16/11/2026 01:15 | [eba63df](https://github.com/bernardoemmel/Raiz/actions/runs/43799143038) |
+| SP São Paulo | 548/645 | falta funil 97, ficha 1, desenvolvedor 1; 98 erro(s) na última rodada (6 fatias em jobs separados) | 16/11/2026 15:00 | [75f2b22](https://github.com/bernardoemmel/Raiz/actions/runs/43889305152) |
+| PR Paraná | 377/399 | falta funil 22, MapBiomas 3, direto 3, TMF e causas 4, FLAG 4, caminho da terra 4, ficha 5, desenvolvedor 5; 1 erro(s) na última rodada (4 fatias em jobs separados) | 16/11/2026 14:41 | [bab7419](https://github.com/bernardoemmel/Raiz/actions/runs/43735135067) |
+| SC Santa Catarina | 295/295 | falta ficha 1, desenvolvedor 1; 7 erro(s) na última rodada (3 fatias em jobs separados) | 16/11/2026 08:41 | [229d69c](https://github.com/bernardoemmel/Raiz/actions/runs/43839670359) |
+| RS Rio Grande do Sul | 291/497 | falta funil 206, MapBiomas 2, direto 2, TMF e causas 2, FLAG 2, caminho da terra 2, ficha 3, desenvolvedor 6 (5 fatias em jobs separados) | 16/11/2026 09:07 | manual |
+| DF Distrito Federal | 1/1 | completo; 1 erro(s) na última rodada | 16/11/2026 03:49 | [8c208b5](https://github.com/bernardoemmel/Raiz/actions/runs/43814922902) |
 <!-- painel:fim -->
 
 ## Como roda sozinho
@@ -62,10 +69,12 @@ O `rodar_estado.py` organiza a rodada em volta dele:
    - **manutenção**: funil pronto, mas falta tarefa nova do produto, o código de uma tarefa mudou, o estado é de antes
      do executor (adotar) ou não roda há 6 dias ou mais (o executor refaz só o que mudou nas fontes: CAR, alertas,
      MapBiomas). Só usa as vagas que sobram, e no máximo 4 ao mesmo tempo: nunca segura vaga de estado novo.
-   São até 18 jobs ao mesmo tempo, somando todas as rodadas do workflow (o GitHub dá 20 a repositório público; 2 ficam
-   para o planejamento das rodadas e o CI).
+   O modo próximo repõe todas as vagas livres; o cron de 15 minutos drena pedidos persistidos e repõe UFs
+   incompletas, sem começar manutenção. A admissão CAS inclui motor, lotes e catálogo no teto global de 15.
+   São até 15 jobs ao mesmo tempo (o GitHub dá no máximo 20 máquinas ao mesmo
+   tempo para o repositório inteiro; 5 ficam livres para o CI dos PRs, o site e o planejamento das rodadas).
 2. **Preparar** (`rodar_estado.py --preparar`): baixa uma vez por dia os arquivos nacionais (lista de municípios,
-   embargos do Ibama, biomas, geobr, TMF, causas da perda) e guarda no cache comum do Actions.
+   embargos do Ibama, biomas, geobr, TMF, causas da perda) e guarda no cache comum privado autenticado.
 3. **Um job por unidade** (`rodar_estado.py <UF ou fatia, ex. MG-3> --executor`):
    - baixa as fontes do estado (MapBiomas Alerta, os 5 temas do MapBiomas, geobr, TMF, causas) antes de tudo, para a
      assinatura de cada município no executor já nascer com elas;
@@ -84,6 +93,19 @@ O `rodar_estado.py` organiza a rodada em volta dele:
 4. **Prazo de 5h30 por job**: se a unidade parou pelo prazo e avançou, o job dispara o workflow de novo só para ela; se
    terminou, passa a vez ao próximo da fila. Unidade que parou sem avançar nenhum município não se dispara de novo
    (a rodada semanal tenta outra vez).
+
+### Preservação e retomada
+
+Antes do cálculo, o workflow restaura o checkpoint privado da unidade. Ao sair do executor, mesmo com falha de
+publicação, salva resultados, marcas, sidecars originais e retratos opacos antes de finalizar metadados e atestações.
+O salvamento confere cada pacote por download e hash. Nenhum dado completo é enviado a artifacts públicos.
+Uma falha periódica de publicação deixa o cálculo continuar; a falha final continua visível no resultado do job.
+A retomada confere bytes, hashes, versões e assinaturas: resultados íntegros são pulados e saídas divergentes
+são recalculadas. O checkpoint não valida cientificamente um retrato e não recupera o que nunca foi salvo.
+O prazo do executor reserva tempo para esses passos finais; uma perda abrupta do runner antes deles ainda
+depende da última publicação/checkpoint concluído.
+
+O painel municipal está documentado em `docs/processamento-por-estado.md`.
 
 ### Quando uma fonte recusa o GitHub
 

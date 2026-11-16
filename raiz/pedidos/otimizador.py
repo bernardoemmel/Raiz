@@ -454,6 +454,7 @@ def _faixa_ponderada(f: pd.DataFrame, col: str, peso: np.ndarray) -> float | Non
 
 def fazenda_do_lote(li: dict, papel: str, nivel: str, trocou: str | None = None) -> dict:
     return {
+        **{k: li.get(k) for k in ("car_conferido_em", "car_conferencia", "car_situacao")},
         "cod_imovel": li["cod_imovel"], "cod_ibge": str(li["cod_ibge"]) if li["cod_ibge"] is not None else "",
         "municipio": li.get("municipio") or "", "uf": li.get("uf") or "", "papel": papel,
         "hectares": round(float(li["area_ha"]), 2),
@@ -465,6 +466,8 @@ def fazenda_do_lote(li: dict, papel: str, nivel: str, trocou: str | None = None)
         "pequena": bool(li["pequena"]), "interesse": nivel, "trocou": trocou,
         "lon": li["lon"], "lat": li["lat"], "local_aproximado": bool(li["local_aproximado"]),
         "risco_terra": li["risco_terra"],
+        "salvaguardas": li.get("salvaguardas") or {"estado": "nao_verificado"},
+        "revisao_humana": "/pedidos/{pedido_id}/revisoes",
     }  # fmt: skip
 
 

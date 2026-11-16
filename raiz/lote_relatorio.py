@@ -182,6 +182,18 @@ def _bloco_preco(res: dict) -> str:
     return "".join(corpo)
 
 
+ORDEM_REGULARIZACAO = ("em_titulacao", "pronta_para_pedir", "falta_georreferenciamento", "pendente", "impedida",
+                       "sem_calculo")  # fmt: skip
+NOMES_REGULARIZACAO = {
+    "em_titulacao": "Em titulação no SIGEF",
+    "pronta_para_pedir": "Pronta para pedir o título",
+    "falta_georreferenciamento": "Só falta o georreferenciamento",
+    "pendente": "Com pendência (embargo, desmatamento recente, CAR, ocupação sem prova)",
+    "impedida": "Não se regulariza (sobreposição)",
+    "sem_calculo": "Ainda sem cálculo",
+}
+
+
 def _bloco_faixa(res: dict) -> str:
     """Faixa do lote lado a lado (soma e carteira), os campos da Portaria MME 102/2016 e as parcelas de campo."""
     fl, mm, pc = res.get("faixa"), res.get("mme102"), res.get("parcelas") or {}
@@ -284,6 +296,21 @@ def _bloco_destrava(res: dict) -> str:
             f'<td class="n">{_n(x["creditos"])}</td><td class="n">{_n(x["creditos_regeneracao"])}</td></tr>'
         )
     corpo.append("</table>")
+    pr = esp.get("por_regularizacao") or {}
+    if pr:  # quão perto do título está a terra em espera (raiz/titulo/regularizacao.py)
+        corpo.append("<p>Quão perto do título está a terra em espera (o que falta, pelo que se vê em satélite e "
+                     "cadastro):</p>"
+                     '<table><tr><th>Situação</th><th class="n">Fazendas</th><th class="n">ha para restaurar</th>'
+                     '<th class="n">Créditos até o ano 25</th></tr>')  # fmt: skip
+        for cl in ORDEM_REGULARIZACAO:
+            if cl in pr:
+                x = pr[cl]
+                nome = _e(NOMES_REGULARIZACAO.get(cl, cl))
+                corpo.append(
+                    f'<tr><td>{nome}</td><td class="n">{_n(x["fazendas"])}</td>'
+                    f'<td class="n">{_n(x["ha"])}</td><td class="n">{_n(x["creditos"])}</td></tr>'
+                )
+        corpo.append("</table>")
     if td:
         eco0, eco1 = res.get("economia") or {}, td.get("economia") or {}
         pm0 = (eco0.get("preco_minimo_usd") or {}).get("12") or {}
@@ -366,7 +393,7 @@ def relatorio_lote(lote: dict, c: dict | None = None, r: dict | None = None) -> 
     mun = res["municipios"]
     eco = res.get("economia") or {}
     corpo = [
-        f'<div class="pagina"><h1>Lote pronto para proposta: {_e(res["uf"])}</h1>'
+        f'<div class="pagina"><h1>Lote potencial para proposta: {_e(res["uf"])}</h1>'
         f'<div class="sub">ProFloresta+ e registro Verra VM0047. {_n(res["volume_creditos"])} créditos. Cenário '
         f"{_e(res['cenario'])}, premissas {_e(res['versao_premissas'])}, otimizador "
         f"{_e(res['versao_otimizador'])}, {_e(res['data'])}.</div>"
@@ -375,6 +402,24 @@ def relatorio_lote(lote: dict, c: dict | None = None, r: dict | None = None) -> 
         f"lote). Oferta: {_n(res['oferta']['fazendas'])} fazendas com área para restaurar "
         f"({_n(res['oferta']['ha'])} ha); {_n(res['oferta']['fazendas_terra_pronta'])} com a terra pronta.</p>"
     ]
+    comercializacao = res.get("comercializacao") or {}
+    corpo.append(f'<p class="alerta">{_e(comercializacao.get("aviso", "Estimativa sujeita a diligência."))}</p>')
+    corpo.append(f"<p>Opção: {_e(res.get('opcao_texto', 'mais barata'))}. Alternativas não se somam.</p>")
+    pendencias = res.get("o_que_destrava") or []
+    if pendencias:
+        corpo.append(
+            "<h2>O que destrava: terra e salvaguardas</h2><p>Potencial condicionado; uma fazenda pode ter "
+            "várias pendências, por isso as linhas não se somam.</p><table><tr><th>Pendência</th>"
+            "<th>Fazendas</th><th>Hectares</th><th>P10</th><th>P50</th><th>P90</th></tr>"
+        )
+        for item in pendencias:
+            cr = item["creditos"]
+            corpo.append(
+                f"<tr><td>{_e(item['pendencia'])}</td><td>{_n(item['fazendas'])}</td>"
+                f"<td>{_n(item['ha'])}</td><td>{_n(cr['p10'])}</td><td>{_n(cr['p50'])}</td>"
+                f"<td>{_n(cr['p90'])}</td></tr>"
+            )
+        corpo.append("</table>")
     corpo.append(
         '<div class="numeros">'
         f'<div class="numero"><b>{_n(res["ha_lote"])} ha</b><span>{res["titulares"]} titulares e {res["reservas"]} de '
@@ -615,6 +660,22 @@ def gravar_lote(lote: dict, pasta: str | Path, c: dict | None = None, r: dict | 
     Path(out["json"]).write_text(json.dumps(L.json_seguro(lote["resumo"]), ensure_ascii=False, indent=1),
                                  encoding="utf-8")  # fmt: skip
     Path(out["relatorio"]).write_text(relatorio_lote(lote, c, r), encoding="utf-8")
+    from raiz import restauracao_ecologia as E
+    from raiz.regras import salvaguardas_lote as S
+
+    out["decisoes"] = str(pasta / f"decisoes_{uf}.jsonl")
+    S.gravar_decisoes(out["decisoes"], lote.get("decisoes", []))
+    t = lote["tabela"]
+    cods = list(t[t.papel.isin(["titular", "reserva"])].cod_imovel.astype(str))
+    ecologia = E.tabela(lote["linhas"].completas(cods).values(), r["versao_completa"])
+    out["ecologia"] = str(pasta / f"ecologia_{uf}.json")
+    Path(out["ecologia"]).write_text(
+        json.dumps(L.json_seguro(ecologia), ensure_ascii=False, indent=1), encoding="utf-8"
+    )
+    from raiz import restauracao_desbloqueio as D
+
+    for nome, caminho in D.gravar(D.relatorio(t, lote["resumo"]), pasta).items():
+        out[f"desbloqueio_{nome}"] = caminho
     n = 0
     if folhas:
         t = lote["tabela"]

@@ -19,7 +19,8 @@ import "maplibre-gl/dist/maplibre-gl.css"
 import workerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?url"
 import { Protocol } from "pmtiles"
 import { COR, MAPA } from "../../compartilhado/cores"
-import { ATRIBUICAO_MAPA, CORES_MAPA, FILTRO_PAISES } from "../../compartilhado/mapa-cores"
+import { CORES_MAPA, FILTRO_PAISES } from "../../compartilhado/mapa-cores"
+import { fonteMapaBase } from "../../compartilhado/mapa-base"
 
 const SABOR: Flavor = { ...namedFlavor("white"), ...CORES_MAPA, landcover: { ...CORES_MAPA.landcover } }
 
@@ -48,7 +49,7 @@ function estilo(base: string | null): StyleSpecification {
   return {
     version: 8,
     glyphs,
-    sources: { protomaps: { type: "vector", url: "pmtiles://" + base, attribution: ATRIBUICAO_MAPA } },
+    sources: { protomaps: fonteMapaBase(base) },
     layers: camadas(),
   }
 }

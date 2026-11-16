@@ -92,14 +92,25 @@ def mascarar(texto: str) -> str:
     return texto
 
 
+def documento_em_identificador(texto: str) -> bool:
+    """CPF/CNPJ não vira rótulo público ao receber prefixo de versão e separador."""
+    if mascarar(texto) != texto or re.search(
+        r"\d{3}\.\d{3}\.\d{3}-\d{2}|[0-9A-Z]{2}\.[0-9A-Z]{3}\.[0-9A-Z]{3}/[0-9A-Z]{4}-\d{2}", texto, re.I
+    ):
+        return True
+    return any(cpf_valido(p) or cnpj_valido(p) for p in re.split(r"[_.+:/-]", texto))
+
+
 # --- log ---------------------------------------------------------------------------------------------------------
 
 
 class FormatadorSeguro(logging.Formatter):
-    """Formata normalmente e mascara o resultado final (mensagem, argumentos e traceback)."""
+    """Passa o resultado final pelo Presidio (mensagem, argumentos e traceback)."""
 
     def format(self, record: logging.LogRecord) -> str:
-        return mascarar(super().format(record))
+        from raiz.logs_seguros import sanitizar_log
+
+        return sanitizar_log(super().format(record))
 
 
 def configurar_log(nivel: int = logging.INFO) -> None:
@@ -111,6 +122,10 @@ def configurar_log(nivel: int = logging.INFO) -> None:
         h = logging.StreamHandler()
         h.setFormatter(FormatadorSeguro("%(asctime)s %(levelname)s %(name)s: %(message)s"))
         raiz.addHandler(h)
+    # Uvicorn pode ter handlers próprios que não propagam até a raiz.
+    for nome in ("uvicorn", "uvicorn.error", "uvicorn.access"):
+        for h in logging.getLogger(nome).handlers:
+            h.setFormatter(FormatadorSeguro("%(levelname)s %(name)s: %(message)s"))
     for barulhento in ("alembic", "httpx", "httpcore", "urllib3"):
         logging.getLogger(barulhento).setLevel(logging.WARNING)
 

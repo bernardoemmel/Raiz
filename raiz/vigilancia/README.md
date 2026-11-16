@@ -1,7 +1,14 @@
 # Vigilância das fazendas e dos projetos (`raiz/vigilancia/`)
 
-Todo dia, às 06:17 de Brasília, o GitHub Actions lê os alertas públicos, cruza com os polígonos do CAR publicados no
-Release `dados` e com os polígonos dos projetos, e publica o resultado no Release `vigilancia`. Cada alerta é
+> Publicação atual (12/11/2026): dados completos e históricos por CAR ficam no
+> arquivo privado autenticado, configurado por `RAIZ_DADOS_PRIVADOS_URL` e
+> `RAIZ_DADOS_PRIVADOS_TOKEN`. O Release público contém somente agregados e
+> situação básica do CAR; não publicar camadas detalhadas, vigilância por CAR,
+> artifacts ou caches completos no público. Ver [contrato de publicação](../../docs/dados-publicados.md).
+
+
+Todo dia, às 06:17 de Brasília, o GitHub Actions lê os alertas públicos, cruza com os polígonos completos do CAR no
+arquivo privado e com os polígonos dos projetos, e guarda o resultado no mesmo destino autenticado. Cada alerta é
 guardado com a versão da regra que o gerou e pode ser marcado depois como verdadeiro ou falso. Perda dentro da área
 de carbono de um projeto vira evento de perda com o prazo da Verra, rascunho do relatório de perda e aviso ao cliente.
 
@@ -18,18 +25,18 @@ de carbono de um projeto vira evento de perda com o prazo da Verra, rascunho do 
 Fonte fora do ar não para as outras: fica registrada como erro em `fontes.json`, a rodada publica o que deu certo e
 termina vermelha (o GitHub avisa por e-mail). Fonte sem credencial só avisa.
 
-## O que vai para o Release `vigilancia`
+## O que vai para o arquivo privado de vigilância
 
-O repositório é público, então o Release também é.
+O destino precisa ser repositório privado ou Release draft não publicado. A privacidade é conferida antes de cada leitura e escrita.
 
 | Arquivo | Aberto ou cifrado | O que é |
 |---|---|---|
-| `alertas_AAAA-MM.parquet` | aberto | alertas de imóvel do mês em que a Raíz os viu (só dado público cruzado com o CAR) |
-| `ibama_espelho.parquet` | aberto | `seq_tad`, hash, ativo, cancelado, desembargado (sem nome nem CPF/CNPJ) |
-| `fontes.json`, `rodadas.jsonl` | aberto | situação de cada fonte e contagens de cada rodada |
-| `privado.tar.gz.cifrado` | cifrado (Fernet, chave `RAIZ_VIGILANCIA_CHAVE`) | alertas de projeto, marcações, eventos do fundador, número fixo de cada evento de perda, rascunhos dos relatórios, KML, avisos e acerto |
+| `alertas_AAAA-MM.parquet` | privado, token do servidor | alertas de imóvel do mês em que a Raíz os viu (só dado público cruzado com o CAR) |
+| `ibama_espelho.parquet` | privado, token do servidor | `seq_tad`, hash, ativo, cancelado, desembargado (sem nome nem CPF/CNPJ) |
+| `fontes.json`, `rodadas.jsonl` | privado, token do servidor | situação de cada fonte e contagens de cada rodada |
+| `privado.tar.gz.cifrado` | privado e cifrado (Fernet, chave `RAIZ_VIGILANCIA_CHAVE`) | alertas de projeto, marcações, eventos do fundador, número fixo de cada evento de perda, rascunhos dos relatórios, KML, avisos e acerto |
 | `entrada_*.cifrado` | cifrado | marcações e eventos feitos pela API, que a rodada seguinte junta e apaga |
-| `vigilancia.json` | aberto | manifesto (sha256 de cada arquivo), sobe por último |
+| `vigilancia.json` | privado, token do servidor | manifesto (sha256 de cada arquivo), sobe por último |
 
 Sem a chave, a rodada roda, mas a parte privada não é guardada (o resumo da execução avisa).
 
@@ -197,3 +204,15 @@ aqui por falta de credencial neste ambiente.
 | `perdas.py`, `relatorio.py`, `aviso.py` | regra da Verra, rascunho do relatório e KML, aviso ao cliente |
 | `armazem.py`, `publicacao.py` | estado em arquivos e publicação no Release (privado cifrado) |
 | `rodada.py`, `servico.py`, `api.py`, `servidor.py`, `__main__.py` | rodada diária, respostas das rotas, rotas, servidor avulso, linha de comando |
+
+## Aviso inicial à Verra
+
+O e-mail inicial é separado do relatório de perda. A Raíz prepara o rascunho para o desenvolvedor cliente;
+o preenchimento e o envio cabem ao proponente, nunca à Raíz. A rodada diária grava `<evento>_aviso_verra.eml`
+na pasta dos rascunhos (publicada somente no pacote cifrado). As rotas `GET
+/vigilancia/projeto/{id}/perdas/{evento}/aviso-verra` e `/aviso-verra.eml` usam a autenticação existente.
+`python -m raiz.vigilancia aviso-verra URTX URTX_LE1 --saida /caminho/rascunhos/aviso.eml` usa o prazo
+**15/11/2026** já registrado em `projetos.yaml`, sem exigir estado privado do URTX. Campos ausentes:
+“a preencher pelo proponente”. O prazo também aparece em `avisos_verra_informados` do projeto e nos alertas
+internos. Preparar nunca registra `verra_avisada`; evento encerrado ou com envio confirmado bloqueia nova
+exportação. Ver `docs/pedidos/urtx-le1-aviso-verra.md`.

@@ -1,9 +1,10 @@
+import { normalizarCar } from "../../../compartilhado/calendario"
 import { useState } from "react"
 import type { Imovel } from "../../../compartilhado/dados"
 import { SITUACOES, situacaoDe } from "../../../compartilhado/funil-etapas"
 import { abreviarCar, fmtDestaque, fmtHa, fmtInt } from "../../../compartilhado/formato"
 import { fmtReais, lerRestauracao } from "../../../compartilhado/restauracao"
-import { linkFazenda } from "../rota"
+import { linkCalendarioImovel, linkFazenda } from "../rota"
 
 const PASSO = 40
 const TOM = { apta: "ok", pendencia: "conferir", nao_apta: "ruim" } as const
@@ -13,13 +14,14 @@ const TOM = { apta: "ok", pendencia: "conferir", nao_apta: "ruim" } as const
  * "Total da seleção", que acompanha o funil. Passar o mouse numa linha acende o polígono no mapa.
  */
 interface Props {
+  emLeilao?: Set<string>
   lista: Imovel[]
   aoPassar: (cod: string | null) => void
   /** mostrar a coluna do valor para quem restaura (quando a lista está ordenada por ele) */
   valor?: boolean
 }
 
-export function TabelaFazendas({ lista, aoPassar, valor = false }: Props) {
+export function TabelaFazendas({ lista, aoPassar, valor = false, emLeilao }: Props) {
   const [pagina, setPagina] = useState({ lista, quantas: PASSO })
   if (pagina.lista !== lista) setPagina({ lista, quantas: PASSO })
   const quantas = pagina.lista === lista ? pagina.quantas : PASSO
@@ -72,6 +74,7 @@ export function TabelaFazendas({ lista, aoPassar, valor = false }: Props) {
                 )}
                 <td>
                   <span className={"selo " + TOM[s]}>{SITUACOES.find((x) => x.id === s)!.rotulo}</span>
+                  {emLeilao?.has(normalizarCar(i.cod_imovel)) && <a className="selo conferir" href={linkCalendarioImovel(i.cod_imovel)}>Em leilão</a>}
                 </td>
               </tr>
             )

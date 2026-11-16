@@ -1,9 +1,9 @@
-"""Rodada da coleta do CAR (e do SIGEF dos municípios que mudaram), com fila, histórico e alerta:
+"""Rodada da coleta do CAR e do SIGEF, com filas independentes, histórico e alerta:
 
 1. verifica a assinatura de todos os municípios das UFs do dia (2 pedidos pequenos cada) e marca os sujos;
 2. a fila escolhe o que baixar (até 200 sujos; disjuntor >15% roda completo; reconciliação mensal força tudo);
-3. cada município baixado vira um lote vigiado (Healthchecks + operacao.lote): espelho por município, histórico
-   scd2 no PostGIS (bruto.car_imovel, bruto.sigef_parcela) e SIGEF do município;
+3. depois do CAR aceito, verifica também o SIGEF de todos os recortes, mesmo quando o CAR não mudou;
+   cada download vira lote vigiado (Healthchecks + operacao.lote), espelho e histórico scd2 no PostGIS;
 4. a lista dos municípios que mudaram sai no resultado (base da fila de recálculo do funil, E8 passo 3).
 """
 
@@ -15,7 +15,7 @@ import logging
 import requests
 from sqlalchemy import Engine
 
-from raiz.coleta import bruto, car, sigef
+from raiz.coleta import bruto, car, ibama, sigef
 from raiz.coleta.espelho import Espelho
 from raiz.coleta.fila import planejar, registrar_reconciliacao
 from raiz.funil import manifesto_blocos
@@ -60,24 +60,11 @@ def rodada_car(
                         reg.detalhe.update(novos=len(d.novos), mudaram=len(d.mudaram), sumiram=len(d.sumiram))
                         if d.mudou:
                             resumo["mudaram"].append(cod)
-                    if (d is not None and d.mudou) or not espelho.caminho("sigef", uf, cod).exists():
-                        ds = sigef.coletar_municipio(s_sigef or s, espelho, uf, cod)
-                        if ds is not None:
-                            reg.detalhe.update(sigef_total=ds.total, sigef_mudou=ds.mudou)
                 resumo["baixados"] += 1
             except Exception as ex:  # noqa: BLE001 - o lote já registrou e avisou; segue para o próximo município
                 resumo["falhas"] += 1
                 log.warning("%s %s: %s", uf, cod, ex)
-        # município com CAR no espelho e sem SIGEF (rodada anterior falhou antes dele): coleta agora
-        for cod in cods:
-            if espelho.caminho("car", uf, cod).exists() and not espelho.caminho("sigef", uf, cod).exists():
-                try:
-                    with lote(engine, hc, "coleta-sigef", uf, cod) as reg:
-                        ds = sigef.coletar_municipio(s_sigef or s, espelho, uf, cod)
-                        reg.detalhe.update(sigef_total=ds.total if ds else 0)
-                except Exception as ex:  # noqa: BLE001
-                    resumo["falhas"] += 1
-                    log.warning("SIGEF %s %s: %s", uf, cod, ex)
+        _rodada_sigef(engine, s_sigef or s, espelho, uf, cods, hc, resumo)
         if plano.modo == "reconciliacao":
             with engine.begin() as con:
                 registrar_reconciliacao(con, car.FONTE)
@@ -92,6 +79,50 @@ def rodada_car(
                 if con.exec_driver_sql(f"select to_regclass('bruto.{t}')").scalar():
                     bruto.garantir_view(con, t)
     return resumo
+
+
+def _rodada_sigef(
+    engine: Engine,
+    s: requests.Session,
+    espelho: Espelho,
+    uf: str,
+    cods: list[int],
+    hc: Healthchecks,
+    resumo: dict,
+) -> None:
+    """Fila própria: uma aprovação/cancelamento no INCRA independe de mudança no CAR."""
+    candidatos = [cod for cod in cods if espelho.caminho("car", uf, cod).exists()]
+    if not candidatos:
+        return
+    with engine.begin() as con:
+        for cod in candidatos:
+            sigef.verificar_municipio(s, con, espelho, uf, cod)
+            resumo["sigef_verificados"] = resumo.get("sigef_verificados", 0) + 1
+        plano = planejar(con, sigef.FONTE, [f"{uf}/{cod}" for cod in candidatos], recorte_reconciliacao=uf)
+    resumo.setdefault("modo_sigef", {})[uf] = f"{plano.modo} ({len(plano.recortes)} de {plano.total})"
+    falhas = 0
+    for recorte in plano.recortes:
+        cod = int(recorte.split("/")[1])
+        try:
+            with lote(engine, hc, "coleta-sigef", uf, cod) as reg:
+                with engine.begin() as con:
+                    r = sigef.atualizar_municipio(s, con, espelho, uf, cod, forcar=plano.modo == "reconciliacao")
+                if r.acao in ("falha", "travado"):
+                    raise RuntimeError(r.erro)
+                reg.detalhe.update(acao=r.acao, contagem=r.contagem)
+                if r.diferenca is not None:
+                    reg.detalhe.update(sigef_total=r.diferenca.total, sigef_mudou=r.diferenca.mudou)
+                    if r.diferenca.mudou and cod not in resumo["mudaram"]:
+                        resumo["mudaram"].append(cod)
+                if r.acao == "completo":
+                    resumo["sigef_baixados"] = resumo.get("sigef_baixados", 0) + 1
+        except Exception as ex:  # noqa: BLE001 - assinatura não avança; próxima rodada tenta de novo
+            falhas += 1
+            resumo["falhas"] += 1
+            log.warning("SIGEF %s %s: %s", uf, cod, ex)
+    if plano.modo == "reconciliacao" and not falhas:
+        with engine.begin() as con:
+            registrar_reconciliacao(con, sigef.FONTE, recorte=uf)
 
 
 LIMITE_UF = 0.15  # mais que isto dos municípios da UF mudando numa rodada trava a publicação (rodada 10)
@@ -130,6 +161,7 @@ def _uf_travada(engine: Engine, hc: Healthchecks, uf: str, cods: list[int], resu
 CAMADAS_HISTORICO = (
     ("car", car.FONTE, "car_imovel", "cod_imovel", car.VOLATEIS),
     ("sigef", sigef.FONTE, "sigef_parcela", "parcela_codigo", ()),
+    ("ibama", ibama.FONTE, "ibama_embargo", "SEQ_TAD", ()),
 )
 
 
@@ -162,8 +194,10 @@ def sincronizar_historico(
             try:
                 with lote(engine, hc, "historico", uf, cod) as reg:
                     g = espelho.ler(camada, uf, cod)
-                    bruto.carregar(tabela, bruto.linhas(g, chave, cod, volateis), agora, chave, url)
+                    bruto.carregar(tabela, bruto.linhas(g, chave, cod, volateis), agora, chave, url, cod_municipio=cod)
                     with engine.begin() as con:
+                        if con.exec_driver_sql(f"select to_regclass('bruto.{tabela}')").scalar():
+                            bruto.garantir_view(con, tabela)
                         extra = {} if e is not None else {"sujo": False}
                         atualizar(con, fonte, recorte, hash_conteudo=h, **extra)
                     reg.detalhe.update(tabela=tabela, linhas=len(g))

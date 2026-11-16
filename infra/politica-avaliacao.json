@@ -1,0 +1,8 @@
+{
+  "versao": 1,
+  "equidade_diferenca_maxima": 0.05,
+  "equidade_minimo_por_classe": 30,
+  "classes_modulos_fiscais": {"pequena_ate": 4, "media_ate": 15},
+  "regra": "comparar todas as classes dentro de municipio e aptidao; cobertura insuficiente reprova",
+  "natureza": "politica da Raiz; referencias metodologicas nao prescrevem estes limiares"
+}

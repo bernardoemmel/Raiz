@@ -248,12 +248,12 @@ def test_reconferir_sem_nova_leitura():
 
 def test_saida_do_municipio_liga_o_selo_do_front():
     _ler(leitura_exemplo(), cod_imovel=IMOVEL)
-    a, b = saida.gravar_municipio(1504950)
+    a, b, _ = saida.gravar_municipio(1504950)
     imv = pd.read_csv(b).set_index("cod_imovel").loc[IMOVEL]
     assert imv.matriculas_total == 2 and imv.matriculas_lidas == 1 and imv.matricula_situacao == "a_conferir"
     assert pd.isna(imv.matricula_conferida)  # falta ler a 5177
     _ler(leitura_exemplo(matricula="5177", area_valor=40), cod_imovel=IMOVEL)
-    a, b = saida.gravar_municipio(1504950)
+    a, b, _ = saida.gravar_municipio(1504950)
     imv = pd.read_csv(b).set_index("cod_imovel").loc[IMOVEL]
     assert bool(imv.matricula_conferida) is True and imv.matricula_situacao == "conferida"
     conf = pd.read_csv(a)

@@ -78,13 +78,44 @@ def pares(
     base: gpd.GeoDataFrame, layer: gpd.GeoDataFrame, con: duckdb.DuckDBPyConnection | None = None
 ) -> tuple[np.ndarray, np.ndarray]:
     """Mesmos pares que novo.pares (índice espacial), achados pela junção espacial do DuckDB. Ordem (imóvel, camada)."""
-    con = conectar(con)
-    _tabela(con, "a", base.geometry.values)
-    _tabela(con, "b", layer.to_crs(base.crs).geometry.values if layer.crs != base.crs else layer.geometry.values)
-    if not tem_juncao_espacial(con, SQL_PARES):  # pragma: no cover - guarda contra mudança do otimizador
-        raise RuntimeError("o DuckDB não montou SPATIAL_JOIN para os pares; o cruzamento viraria produto cartesiano")
-    r = con.sql(SQL_PARES + " ORDER BY ia, ib").fetchnumpy()
-    return r["ia"].astype(np.int64), r["ib"].astype(np.int64)
+    if not len(base) or not len(layer):
+        return np.empty(0, dtype=np.int64), np.empty(0, dtype=np.int64)
+    propria = con is None
+    con = conectar() if propria else con
+    try:
+        _tabela(con, "a", base.geometry.values)
+        _tabela(con, "b", layer.to_crs(base.crs).geometry.values if layer.crs != base.crs else layer.geometry.values)
+        if not tem_juncao_espacial(con, SQL_PARES):  # pragma: no cover - guarda contra mudança do otimizador
+            raise RuntimeError(
+                "o DuckDB não montou SPATIAL_JOIN para os pares; o cruzamento viraria produto cartesiano"
+            )
+        r = con.sql(SQL_PARES + " ORDER BY ia, ib").fetchnumpy()
+        return r["ia"].astype(np.int64), r["ib"].astype(np.int64)
+    finally:
+        if propria:
+            con.close()
+
+
+def ov(base: gpd.GeoDataFrame, layer: gpd.GeoDataFrame, con=None) -> pd.Series:
+    """Contrato de raiz_estado.ov: soma hectares por CAR, sem apagar sobreposições da camada original.
+
+    O DuckDB encontra os pares; o iOverlay calcula a área. A base deve estar em coordenadas métricas,
+    como a EPSG:5880 usada pelo motor. Sem iOverlay compilado, areas_iov usa GEOS.
+    """
+    from raiz.funil.novo import areas_iov
+
+    if not len(base) or not len(layer):
+        return pd.Series(dtype=float)
+    if base.crs is None or not base.crs.is_projected:
+        raise ValueError("áreas do funil exigem uma base projetada em metros")
+    if any(e.unit_conversion_factor != 1 for e in base.crs.axis_info[:2]):
+        raise ValueError("áreas do funil exigem uma base projetada em metros")
+    layer = layer.to_crs(base.crs) if layer.crs != base.crs else layer
+    ib, il = pares(base, layer, con)
+    if not len(ib):
+        return pd.Series(dtype=float)
+    areas = areas_iov(base.geometry.values, layer.geometry.values, ib, il) / 1e4
+    return pd.Series(areas).groupby(base.cod_imovel.values[ib]).sum()
 
 
 def sql_arquivos(base: str, camada: str, onde: str | None = None) -> str:

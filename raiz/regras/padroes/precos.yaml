@@ -1,0 +1,38 @@
+# Hipóteses comerciais para decisão do fundador; não autorizam cobrança real.
+formato: 2
+versao: precos-2026b-provisorio
+status: provisorio
+aprovado_em: null
+observacao: a definir pelo fundador
+moeda: BRL
+planos:
+  - id: por_ficha
+    modalidade: por_ficha
+    nome: Por ficha
+    creditos: 1
+    status_quantidade: proposta
+    valor_rs: null
+    aviso_preco: a definir pelo fundador
+  - id: por_lote
+    modalidade: por_lote
+    nome: Por lote
+    creditos: 10
+    status_quantidade: proposta
+    valor_rs: null
+    aviso_preco: a definir pelo fundador
+  - id: assinatura
+    modalidade: assinatura
+    nome: Assinatura
+    creditos: 50
+    creditos_por_ciclo: 50
+    ciclo_meses: 1
+    status_quantidade: proposta
+    status_ciclo: proposta
+    renovacao_automatica: false
+    validade_creditos_dias: null
+    acumula_creditos: null
+    regra_excedentes: a definir pelo fundador
+    regra_cancelamento: a definir pelo fundador
+    regra_reembolso: a definir pelo fundador
+    valor_rs: null
+    aviso_preco: a definir pelo fundador

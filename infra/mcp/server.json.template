@@ -1,0 +1,22 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.bernardoemmel/raiz",
+  "title": "Raíz: lotes de restauração",
+  "description": "Consulte e prepare lotes de créditos de restauração; reservas exigem aprovação humana.",
+  "version": "2.0.0",
+  "repository": {
+    "url": "https://github.com/bernardoemmel/Raiz",
+    "source": "github"
+  },
+  "websiteUrl": "https://github.com/bernardoemmel/Raiz",
+  "remotes": [
+    {"type": "streamable-http", "url": "${RAIZ_API_URL}/mcp/"}
+  ],
+  "_meta": {
+    "io.modelcontextprotocol.registry/publisher-provided": {
+      "protocolVersion": "2026-07-28",
+      "authorization": "OAuth 2.1; consultar, pedir e reservar. Reservar depende do administrador da empresa.",
+      "publication": "Preparado para conferência; publicar somente após domínio e servidor verificados."
+    }
+  }
+}

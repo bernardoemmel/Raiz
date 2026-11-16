@@ -1,0 +1,47 @@
+# Nota de risco de título por imóvel (E5 passo 4), de 1 (título em ordem) a 5 (não segue), com bandeiras (padrão
+# Collateral Underwriter) e decisão em quatro saídas (padrão subscrição de seguro). Calculada pelo produto
+# (raiz/titulo/nota.py), gravada em titulo_<mun>.csv com a versão deste arquivo + hash.
+versao: nota-titulo-2026a
+
+# nota de partida pelo caminho da terra e pelo risco (raiz/terra.py) ou pela classe da regularização da posse
+base:
+  privada_matricula: {baixo: 1, medio: 2, alto: 4}
+  publica_concessao: {baixo: 1, medio: 2, alto: 3}
+  posse_em_titulacao:
+    em_titulacao: 3
+    pronta_para_pedir: 3
+    falta_georreferenciamento: 3
+    pendente: 4
+    impedida: 5
+  assentamento:
+    em_titulacao: 3
+    pronta_para_pedir: 3
+    falta_georreferenciamento: 4
+    pendente: 4
+    impedida: 5
+  publica_sem_destinacao: 5
+  terra_indigena_ou_tradicional: 5
+  sem_caminho: 4
+
+# o que sobe a nota
+soma:
+  por_fase_reprovada: 1  # cada fase com achado que reprova e ninguém confirmou ou descartou
+  max_reprova: 2
+  onus_grave: 1
+  geometria: {D5: 1, D6: 2}
+  # nota mínima (piso), qualquer que seja a base
+  piso_matricula_cancelada: 5
+  piso_matricula_divergente: 4
+
+# decisão: a primeira que vale, nesta ordem
+decisao:
+  recusar: {nota_min: 5}
+  analise_humana: {nota_min: 4}
+  aceitar: {nota_max: 2, sem_reprova: true, sem_confirmar: true}
+  aceitar_com_condicoes: {nota_max: 3}
+
+textos:
+  aceitar: "Segue: título em ordem pelo que se vê em cadastro, SIGEF e certidão."
+  aceitar_com_condicoes: "Segue com condições: {condicoes}."
+  analise_humana: "Gente olha antes de seguir: {motivos}."
+  recusar: "Não segue: {motivos}."

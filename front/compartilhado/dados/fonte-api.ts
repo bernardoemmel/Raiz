@@ -103,6 +103,8 @@ export function fonteApi(api: string, token?: string): FonteDeDados {
       return (await municipios("")).filter((m) => m.linha.tem_imoveis !== "False").map((m) => m.cod_ibge)
     },
     geo: {
+      // A API ainda não fornece o manifesto de desenhos. Não confundir municípios processados com contornos existentes.
+      cobertura: async () => undefined,
       async brasil() {
         const [municipios, estados] = await Promise.all([json<Geo>("geo/brasil/municipios.geojson"), json<Geo>("geo/brasil/estados.geojson")])
         return { municipios, estados, base: `${raiz}geo/brasil/base.pmtiles` }

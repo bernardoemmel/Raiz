@@ -1,0 +1,5 @@
+# PTAX gravada por `raiz restauracao cambio --gravar`. Os cenários com cambio_ptax usam este valor no lugar
+# do câmbio fixo; mudar este arquivo muda a versão das premissas e o recalcular refaz os municípios.
+ptax: 5.5606
+data: '2026-11-11'
+fonte: Banco Central do Brasil, PTAX de venda (olinda.bcb.gov.br)

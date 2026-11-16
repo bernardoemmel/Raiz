@@ -48,3 +48,27 @@ def test_limpar_respeita_chaves_seguras():
         chaves_seguras={"municipio"},
     )
     assert d == {"municipio": "São Félix do Xingu", "resumo": "[nome] vende", "lista": ["[nome]"]}
+
+
+def test_log_independente_documentos_preserva_protecao_presidio(monkeypatch):
+    import io
+    import logging
+
+    from raiz.documentos.privacidade import FormatadorSeguro, configurar_log
+
+    saida = io.StringIO()
+    raiz = logging.getLogger()
+    with monkeypatch.context() as mp:
+        mp.setattr(raiz, "handlers", [logging.StreamHandler(saida)])
+        mp.setattr(raiz, "level", raiz.level)
+        configurar_log()
+        try:
+            raise ValueError("nome=Pessoa Sintética, contato@example.org")
+        except ValueError:
+            raiz.exception("falhou documento: %s", "telefone +55 (11) 91234-5678")
+    salvo = saida.getvalue()
+    assert "ValueError" in salvo
+    for pessoal in ("Pessoa Sintética", "contato@example.org", "91234-5678"):
+        assert pessoal not in salvo
+    rec = logging.LogRecord("documentos", logging.INFO, __file__, 1, "%s", ("contato@example.org",), None)
+    assert "contato@example.org" not in FormatadorSeguro().format(rec)

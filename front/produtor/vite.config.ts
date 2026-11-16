@@ -1,6 +1,7 @@
 import { fileURLToPath } from 'node:url'
 import { defineConfig } from 'vite'
 import { dadosRaiz } from '../compartilhado/vite-dados'
+import { maplibreCeuTransparente } from '../compartilhado/vite-maplibre-ceu'
 
 // raiz do repositório: os dados ficam em dados/amostra/ e as geometrias em front/geo/
 const repo = fileURLToPath(new URL('../..', import.meta.url))
@@ -9,7 +10,7 @@ const repo = fileURLToPath(new URL('../..', import.meta.url))
 export default defineConfig({
   base: './',
   oxc: { jsx: { runtime: 'automatic', importSource: 'preact' } },
-  plugins: [dadosRaiz({ repo })],
+  plugins: [maplibreCeuTransparente(), dadosRaiz({ repo })],
   server: { port: 5174, fs: { allow: [repo] } },
   build: { target: 'es2020', reportCompressedSize: true },
 })

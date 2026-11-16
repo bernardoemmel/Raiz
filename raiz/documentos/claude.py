@@ -19,7 +19,6 @@ import time
 from dataclasses import dataclass, field
 
 from raiz.documentos import config
-from raiz.documentos.privacidade import mascarar
 
 log = logging.getLogger(__name__)
 
@@ -56,6 +55,7 @@ class Resultado:
     duracao_ms: int = 0
     erro: str | None = None
     recusou: bool = False
+    uso_informado: bool = True
 
     @property
     def ok(self) -> bool:
@@ -111,8 +111,8 @@ class LeitorClaude:
             try:
                 enviado = self.cliente.files.upload(file=("documento.pdf", pdf, "application/pdf"))
                 arquivo_id = enviado.id
-            except Exception as ex:  # noqa: BLE001 - qualquer falha de envio vira erro da leitura
-                return Resultado(None, self.modelo, erro=f"envio do PDF grande falhou: {mascarar(str(ex))[:200]}")
+            except Exception:  # noqa: BLE001 - respostas podem ecoar o texto pessoal do PDF
+                return Resultado(None, self.modelo, erro="envio do PDF grande falhou", uso_informado=False)
             fonte = {"type": "file", "file_id": arquivo_id}
         else:
             fonte = {"type": "base64", "media_type": "application/pdf", "data": base64.standard_b64encode(pdf).decode()}
@@ -123,7 +123,7 @@ class LeitorClaude:
                 try:
                     self.cliente.files.delete(arquivo_id)
                 except Exception:  # noqa: BLE001
-                    log.warning("não consegui apagar o PDF enviado à Files API (%s)", arquivo_id)
+                    log.warning("não consegui apagar o PDF enviado à Files API")
 
     def ler_texto(self, texto: str, sistema: str, pedido: str, esquema: dict) -> Resultado:
         conteudo = [{"type": "text", "text": f"<documento>\n{texto}\n</documento>"}, {"type": "text", "text": pedido}]
@@ -153,20 +153,20 @@ class LeitorClaude:
                 fluxo = self.cliente.messages.stream(**params)
             with fluxo as s:
                 r = s.get_final_message()
-        except anthropic.BadRequestError as ex:
-            return self._erro(f"pedido recusado pela API (400): {mascarar(str(ex))[:300]}", t0)
+        except anthropic.BadRequestError:
+            return self._erro("pedido recusado pela API (400)", t0)
         except anthropic.AuthenticationError:
             return self._erro("credencial da Anthropic inválida: confira ANTHROPIC_API_KEY", t0)
         except anthropic.PermissionDeniedError:
             return self._erro("a chave da Anthropic não tem permissão para este modelo", t0)
         except anthropic.NotFoundError:
             return self._erro(f"modelo não encontrado: {self.modelo}", t0)
-        except anthropic.RateLimitError as ex:
-            return self._erro(f"limite de uso da API: {mascarar(str(ex))[:200]}", t0)
+        except anthropic.RateLimitError:
+            return self._erro("limite de uso da API (429)", t0)
         except anthropic.APIStatusError as ex:
-            return self._erro(f"API {ex.status_code}: {mascarar(str(ex))[:200]}", t0)
-        except anthropic.APIConnectionError as ex:
-            return self._erro(f"sem conexão com a API: {mascarar(str(ex))[:200]}", t0)
+            return self._erro(f"API indisponível (HTTP {int(ex.status_code)})", t0)
+        except anthropic.APIConnectionError:
+            return self._erro("sem conexão com a API", t0)
         except TypeError as ex:  # o SDK levanta TypeError quando não acha credencial nenhuma
             if "auth" not in str(ex).lower() and "api_key" not in str(ex).lower():
                 raise
@@ -175,32 +175,48 @@ class LeitorClaude:
 
     def _erro(self, msg: str, t0: float) -> Resultado:
         log.warning("leitura falhou: %s", msg)
-        return Resultado(None, self.modelo, erro=msg, duracao_ms=int((time.perf_counter() - t0) * 1000))
+        return Resultado(
+            None, self.modelo, erro=msg, duracao_ms=int((time.perf_counter() - t0) * 1000), uso_informado=False
+        )
 
     def _resposta(self, r, t0: float) -> Resultado:
-        u = r.usage
+        u = getattr(r, "usage", None)
+        informado = u is not None and all(
+            isinstance(getattr(u, k, None), int) and not isinstance(getattr(u, k, None), bool) and getattr(u, k) >= 0
+            for k in ("input_tokens", "output_tokens")
+        )
+
+        def contador(nome):
+            valor = getattr(u, nome, None)
+            return valor if isinstance(valor, int) and not isinstance(valor, bool) and valor >= 0 else 0
+
         uso = Uso(
-            entrada=getattr(u, "input_tokens", 0) or 0,
-            saida=getattr(u, "output_tokens", 0) or 0,
-            cache_leitura=getattr(u, "cache_read_input_tokens", 0) or 0,
-            cache_escrita=getattr(u, "cache_creation_input_tokens", 0) or 0,
+            entrada=contador("input_tokens"),
+            saida=contador("output_tokens"),
+            cache_leitura=contador("cache_read_input_tokens"),
+            cache_escrita=contador("cache_creation_input_tokens"),
         )
         modelo = getattr(r, "model", None) or self.modelo
         base = dict(
-            modelo=modelo, uso=uso, custo_usd=custo(uso, modelo), duracao_ms=int((time.perf_counter() - t0) * 1000)
+            modelo=modelo,
+            uso=uso,
+            custo_usd=custo(uso, modelo) if informado else None,
+            duracao_ms=int((time.perf_counter() - t0) * 1000),
+            uso_informado=informado,
         )
-        log.info(
-            "leitura: modelo=%s entrada=%d saida=%d cache=%d ms=%d",
-            modelo,
-            uso.entrada,
-            uso.saida,
-            uso.cache_leitura,
-            base["duracao_ms"],
-        )
+        if informado:
+            log.info(
+                "leitura: modelo=%s entrada=%d saida=%d cache=%d ms=%d",
+                modelo,
+                uso.entrada,
+                uso.saida,
+                uso.cache_leitura,
+                base["duracao_ms"],
+            )
+        else:
+            log.info("leitura: uso de tokens e custo não informados pelo provedor")
         if r.stop_reason == "refusal":
-            det = getattr(r, "stop_details", None)
-            cat = getattr(det, "category", None) if det else None
-            return Resultado(None, recusou=True, erro=f"recusa do modelo ({cat or 'sem categoria'})", **base)
+            return Resultado(None, recusou=True, erro="recusa do modelo", **base)
         if r.stop_reason == "max_tokens":
             return Resultado(
                 None, erro="resposta cortada (max_tokens): documento longo demais para uma leitura", **base

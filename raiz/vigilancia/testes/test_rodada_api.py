@@ -67,7 +67,12 @@ def test_rodada_guarda_alertas_perdas_e_relatorios(rodado, cfg):
     assert f["deter"]["alertas_novos_projeto"] == 1 and f["firms"]["alertas_novos_projeto"] == 1
     assert rodado["projetos"]["PTESTE"]["perdas_abertas"] == 1
     rel = cfg.estado / "privado" / "relatorios"
-    assert {p.name for p in rel.iterdir()} == {"PTESTE_LE1_pt.md", "PTESTE_LE1_en.md", "PTESTE_LE1.kml"}
+    assert {p.name for p in rel.iterdir()} == {
+        "PTESTE_LE1_pt.md",
+        "PTESTE_LE1_en.md",
+        "PTESTE_LE1.kml",
+        "PTESTE_LE1_aviso_verra.eml",
+    }
     md = rodada.resumo_markdown(rodado)
     assert "PTESTE" not in md and "deter" in md  # o resumo público não fala de projeto
 
@@ -192,3 +197,36 @@ def test_servidor_avulso_pede_token(rodado, cfg, poligonos, lista_projetos, regr
         assert c.get("/vigilancia/saude").status_code == 401
         ok = c.get(f"/vigilancia/imovel/{COD_A}", headers={"Authorization": "Bearer segredo"})
         assert ok.status_code == 200 and ok.json()["cod_imovel"] == COD_A
+
+
+def test_api_prepara_sem_quitar_prazo(cliente):
+    base = "/vigilancia/projeto/PTESTE/perdas/PTESTE_LE1"
+    antes = cliente.get("/vigilancia/projeto/PTESTE").json()["perdas"][0]
+    resposta = cliente.get(base + "/aviso-verra")
+    assert resposta.status_code == 200
+    d = resposta.json()
+    assert d["prazo"] == antes["prazo"]["aviso_verra_ate"]
+    assert d["origem_prazo"] == "estado_do_evento" and d["enviado"] is False
+    assert "9999" in d["corpo"] and "Preliminary affected area" in d["corpo"]
+    eml = cliente.get(base + "/aviso-verra.eml")
+    assert eml.status_code == 200 and "message/rfc822" in eml.headers["content-type"]
+    depois = cliente.get("/vigilancia/projeto/PTESTE").json()["perdas"][0]
+    assert depois["prazo"] == antes["prazo"]
+    assert cliente.get("/vigilancia/projeto/OUTRO/perdas/PTESTE_LE1/aviso-verra").status_code == 404
+    assert cliente.get("/vigilancia/projeto/PTESTE/perdas/PTESTE_LE99/aviso-verra").status_code == 404
+
+
+def test_aviso_ja_enviado_exige_conferencia(cliente):
+    base = "/vigilancia/projeto/PTESTE/perdas/PTESTE_LE1"
+    cliente.post(base + "/eventos", json={"tipo": "verra_avisada", "quem": "fundador", "data": "2026-11-12"})
+    d = cliente.get(base + "/aviso-verra").json()
+    assert any("aviso já registrado" in p for p in d["pendencias"])
+    assert d["aviso_registrado_em"] == "2026-11-12"
+    assert cliente.get(base + "/aviso-verra.eml").status_code == 409
+
+
+def test_rodada_remove_rascunho_de_evento_encerrado(rodado, cfg, poligonos, lista_projetos, regras):
+    v = Vigilancia(cfg, None, regras, lista_projetos, poligonos)
+    v.evento("perda", "PTESTE_LE1", "perda_descartada", HOJE, "fundador", "revisão")
+    rodada.rodar(cfg=cfg, hoje=HOJE, poligonos=poligonos, lista_projetos=lista_projetos)
+    assert not (cfg.estado / "privado" / "relatorios" / "PTESTE_LE1_aviso_verra.eml").exists()

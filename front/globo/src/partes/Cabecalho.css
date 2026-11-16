@@ -1,0 +1,65 @@
+/* Navegação V2: controles acima do mapa e menu compacto com os mesmos destinos. */
+.topo.topo-v2 { gap: 10px; padding: 12px 16px; min-height: 68px; flex-wrap: nowrap; border-bottom: var(--borda); }
+.topo.topo-v2.topo-v2-mapa { position: fixed; inset: 16px 16px auto; z-index: 20; min-height: 44px; padding: 0; border: 0; background: transparent; }
+.topo-v2 .marca { flex: none; gap: 8px; padding: 0 14px 0 6px; font: 800 22px/1 var(--t); letter-spacing: -.02em; white-space: nowrap; min-height: 44px; }
+.topo-v2 .marca svg { color: var(--lima); }
+.topo-v2 .busca { width: auto; min-width: 150px; flex: 0 1 380px; }
+.topo-v2 .busca input { height: 44px; padding: 0 16px 0 42px; border: var(--borda); border-radius: 22px; background: var(--vidro); color: var(--tinta); font-size: 15px; }
+.topo-v2 .busca-lupa { position: absolute; top: 13px; left: 16px; color: var(--pedra); pointer-events: none; }
+.topo-v2 .busca-caixa { border: var(--borda); border-radius: 14px; background: var(--superficie); left: 0; right: auto; width: min(430px, calc(100vw - 32px)); }
+.topo-v2 .busca-girando { top: 13px; right: 15px; }
+.topo-v2 .busca li { min-height: 48px; }
+.topo-v2 .busca li strong { font-weight: 600; }
+.topo-v2 .busca li small, .topo-v2 .busca li em { white-space: normal; }
+.topo-filtros, .topo-atalhos { display: flex; align-items: center; gap: 10px; flex: none; }
+.topo-espaco { flex: 1; min-width: 0; }
+.topo-pilula, .topo-icone, .topo-acao { display: inline-flex; align-items: center; justify-content: center; flex: none; gap: 8px; min-height: 44px; border: var(--borda); border-radius: 22px; padding: 0 16px; background: var(--vidro); color: var(--tinta); font-weight: 500; line-height: 1.2; white-space: nowrap; cursor: pointer; text-decoration: none; }
+.topo-pilula:hover, .topo-icone:hover { background: var(--nevoa); }
+.topo-icone { width: 44px; padding: 0; }
+.topo-acao { border-color: var(--urucum); padding-inline: 20px; font-weight: 700; background: var(--urucum); color: var(--v2-texto-acao); }
+.topo-acao:hover { background: var(--urucum-texto); border-color: var(--urucum-texto); }
+.topo-conta { flex: none; position: relative; }
+.topo-conta > summary { list-style: none; cursor: pointer; }
+.topo-conta > summary::-webkit-details-marker { display: none; }
+.topo-menu { position: absolute; top: calc(100% + 10px); right: 0; width: 280px; max-height: calc(100dvh - 90px); overflow: auto; padding: 10px; border: var(--borda); border-radius: 14px; background: var(--superficie); }
+.topo-menu nav { display: flex; flex-direction: column; }
+.topo-menu nav > a, .topo-menu nav > button, .topo-menu nav > span { display: flex; justify-content: space-between; align-items: center; min-height: 44px; padding: 8px 12px; border: 0; border-radius: 8px; background: transparent; text-decoration: none; color: var(--tinta); font: inherit; text-align: left; }
+.topo-menu nav > a:hover, .topo-menu nav > button:hover { background: var(--nevoa); }
+.topo-menu nav > [aria-current="page"] { background: var(--nevoa); color: var(--lima); }
+.topo-menu nav > [aria-disabled] { color: var(--pedra); gap: 12px; }
+.topo-menu small { font-size: 12px; }
+.topo-menu-filtros { display: grid; gap: 10px; border-top: var(--borda); padding-top: 12px; margin-top: 10px; }
+.topo-menu-filtros h2 { font-size: 16px; margin: 4px 12px; }
+.topo-dialogo { width: min(480px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); overflow: auto; border: var(--borda); border-radius: 18px; padding: 22px; background: var(--superficie); color: var(--tinta); }
+.topo-dialogo::backdrop { background: var(--v2-mascara); }
+.topo-dialogo-cabeca { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
+.topo-dialogo-cabeca h2 { margin: 0; font-size: 22px; }
+.topo-dialogo .busca { width: 100%; }
+.topo-dialogo .busca-caixa { position: static; margin-top: 10px; width: 100%; max-height: 60dvh; }
+@media (max-width: 1400px) {
+  .topo.topo-v2 { gap: 8px; }
+  .topo-atalhos, .topo-filtros { gap: 8px; }
+  .topo-pilula { padding-inline: 12px; }
+}
+@media (max-width: 700px) {
+  .topo.topo-v2 { min-height: 68px; gap: 10px; padding: 10px; }
+  .topo.topo-v2.topo-v2-mapa { inset: 10px 10px auto; padding: 0; min-height: 48px; }
+  .topo-v2 .marca-desktop { display: none; }
+  .topo-v2 .topo-conta { order: -1; }
+  .topo-v2 .marca { min-height: 48px; font-size: 22px; gap: 8px; padding: 0 4px; }
+  .topo-pilula, .topo-icone, .topo-acao { min-height: 48px; font-size: 16px; border-radius: 24px; }
+  .topo-icone { width: 48px; }
+  .topo-acao { padding-inline: 18px; }
+  .topo-menu { left: 0; right: auto; width: min(330px, calc(100vw - 20px)); }
+  .topo-menu nav > a, .topo-menu nav > button, .topo-menu nav > span { min-height: 48px; font-size: 16px; }
+  .topo-menu small { font-size: 14px; }
+  .topo-v2 .busca input { min-height: 48px; padding-left: 42px; font-size: 16px; }
+  .topo-v2 .busca-lupa, .topo-v2 .busca-girando { top: 15px; }
+  .topo-v2 .busca input:placeholder-shown { padding-left: 42px; }
+  .topo-dialogo { padding: 16px; }
+  .topo-dialogo-busca { margin-top: 76px; }
+}
+@media (min-width: 1181px) {
+  /* O texto identifica cada filtro; a seta repetida consumia o espaço da busca no topo aprovado. */
+  .topo-v2 .topo-filtros .filtro-v2 > .lucide { display: none; }
+}

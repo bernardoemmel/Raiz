@@ -86,7 +86,7 @@ export function Satelite({ imovel: i }: { imovel: Imovel }) {
             {(floresta !== null || pasto !== null) && (
               <p className="num">
                 {floresta !== null && <>Floresta: {fmtHa(floresta)}</>}
-                {floresta !== null && pasto !== null && " · "}
+                {floresta !== null && pasto !== null && ", "}
                 {pasto !== null && <>Pasto: {fmtHa(pasto)}</>}
               </p>
             )}

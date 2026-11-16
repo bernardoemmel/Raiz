@@ -1,0 +1,108 @@
+{
+  "versao": "evidencias-r12-2026a",
+  "data_consulta": "2026-11-12",
+  "vcs5511": {
+    "url": "https://registry.verra.org/verra/public/program/VCS/projects/5511",
+    "documento": "VCS5511_BrazilARR_ExPost_20260303.xlsx",
+    "sha256": "8bef1b5fff8b23a9c7d2b902bd086f80bcd832546a8eb8d4fab42cbb918d1a53",
+    "licenca": "Documento público; licença aberta de redistribuição não localizada. Apenas fatos e referência.",
+    "periodo_inicio": "2022-08-18",
+    "periodo_fim": "2025-05-31",
+    "bioma": "Cerrado",
+    "verificador": "AENOR",
+    "bruto_tco2e": 329303.66,
+    "linha_base_fracao": 0.1657553,
+    "incerteza_fracao": 0.0481216,
+    "vazamento_tco2e": 0,
+    "reserva_historica_fracao": 0.12,
+    "emitido_referencia_tco2e": 230119.9,
+    "celulas": "VCUs!F4, I4, G4, J4, E14, G14",
+    "fracao_liquida_arredondada": 0.6988,
+    "limite_transferencia": "Instância de 16.940,6 ha: 14.097,2 ha de Eucalyptus e 2.843,4 ha de restauração nativa. Referência de contabilidade VM0047, não curva de crescimento de plantio nativo amazônico."
+  },
+  "mombak": {
+    "url": "https://registry.isometric.com/project/prj_1KA95092G1S093EM",
+    "documento": "Três Irmãos & Vale do Candiru Verification Report, v1.2, 06/11/2026, publicação 12/11/2026",
+    "sha256": "d51f567764f8dc2a3c46852cef1a88fa75826c4433daf6d4b6fdbf51841f2948",
+    "licenca": "Documento público; licença aberta de redistribuição não localizada. Apenas fatos e referência.",
+    "verificador": "350Solutions",
+    "pools": [
+      "biomassa_lenhosa_aerea",
+      "biomassa_lenhosa_subterranea"
+    ],
+    "base_contabil": "remocao_liquida_verificada_antes_da_reserva",
+    "mudas_ha": 1667,
+    "mitigacao_tco2e_cabeca": 0.228,
+    "mitigacao_excluida_no_relatorio_por_materialidade": true,
+    "sitios": [
+      {
+        "id": "vale_do_candiru",
+        "municipio": "Ipixuna do Pará",
+        "area_ha": 768.5,
+        "periodo_inicio": "2024-04-30",
+        "periodo_fim": "2026-08-11",
+        "remocao_tco2e": 20255.66,
+        "gado_cabecas": 462
+      },
+      {
+        "id": "tres_irmaos",
+        "municipio": "Tomé-Açu",
+        "area_ha": 259.5,
+        "periodo_inicio": "2023-09-28",
+        "periodo_fim": "2026-08-11",
+        "remocao_tco2e": 8372.55,
+        "gado_cabecas": 156
+      }
+    ],
+    "limites": [
+      "Idade desde início do projeto, não idade individual de cada coorte.",
+      "Remoções por vintage são rateio área-mês, não inventário anual.",
+      "Dois sítios usados na calibração, não validação independente.",
+      "Carbono no solo e serapilheira não fazem parte desta verificação."
+    ]
+  },
+  "conservador_plantio_pasto": {
+    "fracao_liquida": 0.57,
+    "natureza": "premissa conservadora Raíz, não medição"
+  },
+  "zenodo_idade": {
+    "doi": "10.5281/zenodo.15120870",
+    "licenca": "CC-BY-4.0",
+    "ano_referencia": 2023,
+    "resolucao_m": 30,
+    "uso": "idade de floresta secundária existente; não idade futura de plantio em pasto"
+  },
+  "gado_vcs3743": {
+    "url": "https://registry.verra.org/verra/public/program/VCS/projects/3743",
+    "documento": "VCS MR 3743 do Projeto 04OCT2022-15JUN2025_clean1.pdf, seção 5.3, tabelas 2–3 e figuras 19–21",
+    "sha256": "b58fdbafdac971d222841626006e58f89864c197ec8bf0cdf9756e416b0a888a",
+    "natureza": "rastreamento histórico verificado; capacidade regional Arantes 2018 não mede o mês seco de uma nova fazenda",
+    "destinos": [
+      {
+        "origem": "PAI001",
+        "destino": "PAI001_Farm1",
+        "ua_antes": 399,
+        "ua_recebidas": 1200,
+        "pasto_ha": 1300,
+        "capacidade_regional_ua_ha": 3.35
+      },
+      {
+        "origem": "PAI001",
+        "destino": "PAI001_Farm2",
+        "ua_antes": 30,
+        "ua_recebidas": 500,
+        "pasto_ha": 260,
+        "capacidade_regional_ua_ha": 2.75
+      },
+      {
+        "origem": "PAI002",
+        "destino": "PAI002_Farm1",
+        "ua_antes": 1000,
+        "ua_recebidas": 800,
+        "pasto_ha": 800,
+        "capacidade_regional_ua_ha": 3.28
+      }
+    ],
+    "licenca": "Fatos extraídos de documento público; PDF não redistribuído"
+  }
+}
