@@ -4,6 +4,7 @@
  */
 
 import { lerPotencialMapa } from "./potencial"
+import { decodificarGeometria } from "../geometria-delta"
 import { lerAgregadosMapa, lerAgregadosMapaUrl } from "./agregados"
 import { lerBasico } from "./basico"
 import { n0, texto } from "./colunas"
@@ -90,7 +91,7 @@ export function fonteAmostra(base = "/"): FonteDeDados {
     if (!item) return null
     if (item.arquivo.endsWith(".gz")) {
       const texto = await buscarTextoGz(urlGeo(item.arquivo))
-      return texto ? JSON.parse(texto) as Geo : null
+      return texto ? decodificarGeometria(JSON.parse(texto)) : null
     }
     return buscarJson<Geo>(urlGeo(item.arquivo))
   }

@@ -18,6 +18,7 @@ import {
 } from "./exemplo"
 import type { Andamento, CamposPedido, Cobranca, IdOpcao, MudancaLote, Pedido, PublicacaoLote, ResumoPedido, Sessao } from "./tipos"
 import { tituloDoPedido } from "./texto"
+import { ausenteNacional, projetarResumoNacional, recorteDoPedido, type ResumoNacional } from "./lote-nacional"
 import { lerPublicacaoLote } from "./release"
 import { fontePedidosSimulada } from "./simulado"
 import { resumirCoberturaMunicipal } from "./territorio"
@@ -309,8 +310,21 @@ export function fontePedidosRelease(base: string, fonte: FonteDeDados, agora: ()
     publicado.catch(() => { publicado = null })
     return publicado
   }
+  // O resumo por UF, bioma e Brasil é opcional: sem ele (404, rede, arquivo quebrado) a tela cai no resumo do PA.
+  let nacional: Promise<ResumoNacional> | null = null
+  function resumoNacional(): Promise<ResumoNacional> {
+    nacional ??= (async () => {
+      const raiz = base.endsWith("/") ? base : base + "/"
+      try {
+        const resposta = await fetch(raiz + "amostra/lote_nacional_resumo.json")
+        return resposta.ok ? projetarResumoNacional(await resposta.json()) : ausenteNacional()
+      } catch { return ausenteNacional() }
+    })()
+    return nacional
+  }
   async function montar(c: Consulta): Promise<Pedido> {
     const publicacao = structuredClone(await resumo())
+    const resumoDosRecortes = await resumoNacional()
     {
       publicacao.cobertura = resumirCoberturaMunicipal(c.campos.onde, await fonte.municipios())
     }
@@ -319,6 +333,7 @@ export function fontePedidosRelease(base: string, fonte: FonteDeDados, agora: ()
       // Compatibilidade do envelope da API. A UI pública usa exclusivamente publicacao (nulos são desconhecidos).
       base: { fazendas: 0, hectares: 0, creditos: { p10: 0, p50: 0, p90: 0 }, por_caminho: [], por_interesse: [], alcanca_meta: false, falta: 0, afrouxar: [], observacao: publicacao.aviso },
       opcoes: [], opcao_escolhida: null, reservado_ate: null, alertas: [],
+      nacional: { resumo: resumoDosRecortes, recorte: recorteDoPedido(resumoDosRecortes, c.campos.onde) },
       versao_modelo: "consulta-territorial-publica", exemplo: false,
     }
   }
