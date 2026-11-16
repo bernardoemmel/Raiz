@@ -72,8 +72,12 @@ def coletar(
     typer.echo(f"{len(eventos)} eventos guardados; {avisos} avisos preparados (envio externo simulado).")
     for estado in estados:
         typer.echo(f"{estado.id}: {estado.situacao}, {estado.eventos} eventos, {estado.paginas} páginas")
-    # Snapshot útil é salvo antes de deixar o job vermelho por fonte quebrada.
-    if any(s.situacao == "erro" for s in estados):
+    # Snapshot útil já foi salvo. Fonte oficial fora do ar vira aviso; o job só fica vermelho quando
+    # nenhuma fonte respondeu, porque aí o calendário deixou de ser atualizado de verdade.
+    com_erro = [s.id for s in estados if s.situacao == "erro"]
+    if com_erro:
+        typer.echo("::warning::fontes com erro nesta coleta (seguem no histórico): " + ", ".join(com_erro))
+    if estados and len(com_erro) == len(estados):
         raise typer.Exit(1)
 
 

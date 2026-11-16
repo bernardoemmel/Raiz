@@ -105,6 +105,16 @@ def test_catalogo_indisponivel_preserva_estado_e_nao_expande_universo(monkeypatc
     assert "anterior" in arm.ler_privado_json("rascunhos_lotes.json", {})
 
 
+def test_sem_lote_ativo_nao_e_falha_e_nao_expande_universo(monkeypatch, cfg, poligonos):
+    monkeypatch.setattr(lotes, "engine_configurado", lambda: None)
+    monkeypatch.setattr(lotes, "carregar_catalogo", lambda *args: (_ for _ in ()).throw(lotes.SemLotes("nenhum lote")))
+    monkeypatch.setattr(rodada, "_ler", lambda *args: pytest.fail("não deve coletar sem lote ativo"))
+    res = rodada.rodar(cfg, HOJE, ["deter"], poligonos=poligonos, lotes=True)
+    assert res["lotes"]["situacao"] == "sem_lotes"
+    assert res["fontes"] == {}
+    assert "não é falha" in rodada.resumo_markdown(res)
+
+
 def test_noaa20_e21_no_mesmo_car_e_dia_tem_um_rascunho_sem_soma_de_area(monkeypatch, cfg, poligonos):
     lote = lotes.Lote(PEDIDO, 1, dt.date(2026, 11, 1), (COD_B,))
     oc = ocorrencias(
