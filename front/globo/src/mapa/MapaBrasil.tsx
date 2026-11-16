@@ -78,6 +78,8 @@ interface Props {
   camada: CamadaAssunto
   destaque: string | null
   emLeilao?: Set<string>
+  /** CAR com status_sobreposicao "ja_comprometida" (comprometida_<mun>.csv, só área logada): contorno cinza */
+  comprometidas?: Set<string>
   /** espaço que a gaveta ocupa embaixo, no celular (o voo enquadra o município acima dela) */
   margemBaixo: number
   margemDireita?: number
@@ -219,7 +221,7 @@ function textoPopup(i: Imovel, emLeilao = false): string {
 }
 
 export function MapaBrasil(props: Props) {
-  const { brasil, estados, processados, comLista, uf, municipio, geoMunicipio, imoveis, basicos, situacaoBasica, foco, camada, destaque, margemBaixo, emLeilao } =
+  const { brasil, estados, processados, comLista, uf, municipio, geoMunicipio, imoveis, basicos, situacaoBasica, foco, camada, destaque, margemBaixo, emLeilao, comprometidas } =
     props
   const caixa = useRef<HTMLDivElement>(null)
   const mapaRef = useRef<MapaGL | null>(null)
@@ -521,7 +523,7 @@ export function MapaBrasil(props: Props) {
         const basico = atual.current.basicosPorCod.get(cod)
         const codigo = !basico || (situacaoBasica && basico.situacao_basica !== situacaoBasica)
           ? G.apagada : { apto: G.apta, com_pendencia: G.pendencia, nao_apto: G.naoApta }[basico.situacao_basica]
-        m.setFeatureState({ source: "imoveis", id: cod }, { g: codigo, pendenciaFiltrada: situacaoBasica === "com_pendencia" && basico?.situacao_basica === "com_pendencia", emLeilao: !!emLeilao?.has(normalizarCar(cod)), fogo: 0 })
+        m.setFeatureState({ source: "imoveis", id: cod }, { g: codigo, pendenciaFiltrada: situacaoBasica === "com_pendencia" && basico?.situacao_basica === "com_pendencia", emLeilao: !!emLeilao?.has(normalizarCar(cod)), comprometida: !!comprometidas?.has(normalizarCar(cod)), fogo: 0 })
       }
       ;(m.getSource("fogo-recente") as GeoJSONSource).setData(VAZIO as never)
       return
@@ -555,10 +557,10 @@ export function MapaBrasil(props: Props) {
           }
         }
       }
-      m.setFeatureState({ source: "imoveis", id: cod }, { g: codigo, pendenciaFiltrada: foco?.lado === "fora" && codigo !== G.apagada, emLeilao: !!emLeilao?.has(normalizarCar(cod)), fogo: i && camada === "fogo" && noFoco(i, foco) ? (i.fogo_anos_max ?? 0) : 0 })
+      m.setFeatureState({ source: "imoveis", id: cod }, { g: codigo, pendenciaFiltrada: foco?.lado === "fora" && codigo !== G.apagada, emLeilao: !!emLeilao?.has(normalizarCar(cod)), comprometida: !!comprometidas?.has(normalizarCar(cod)), fogo: i && camada === "fogo" && noFoco(i, foco) ? (i.fogo_anos_max ?? 0) : 0 })
     }
     ;(m.getSource("fogo-recente") as GeoJSONSource).setData({ type: "FeatureCollection", features: fogo } as never)
-  }, [regional, geoMunicipio, imoveis, basicos, situacaoBasica, foco, camada, emLeilao])
+  }, [regional, geoMunicipio, imoveis, basicos, situacaoBasica, foco, camada, emLeilao, comprometidas])
 
   // voo até o município (curva e duração do guia, item 3.2), ou de volta ao Brasil; sem passar por zoom de mundo
   const primeiraVez = useRef(true)

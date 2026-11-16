@@ -28,9 +28,11 @@ export function ordenarImoveis(geo: Geo | null | undefined): Geo {
 
 export function camadasImoveis(): LayerSpecification[] {
   const apagada: ExpressionSpecification = ["in", ["coalesce", ["feature-state", "g"], -1], ["literal", [-1, 2, 3]]]
+  // fazenda já comprometida (área logada): cinza em qualquer zoom; o público só recebe o agregado
+  const comprometida: ExpressionSpecification = ["boolean", ["feature-state", "comprometida"], false]
   const cor: ExpressionSpecification = ["interpolate", ["linear"], ["zoom"],
-    11, ["case", ["boolean", ["feature-state", "pendenciaFiltrada"], false], COR_MAPA_V2.acao, COR_MAPA_V2.rotulo],
-    12, ["case", ["boolean", ["feature-state", "pendenciaFiltrada"], false], COR_MAPA_V2.acao, COR.tinta]]
+    11, ["case", comprometida, COR_MAPA_V2.comprometida, ["boolean", ["feature-state", "pendenciaFiltrada"], false], COR_MAPA_V2.acao, COR_MAPA_V2.rotulo],
+    12, ["case", comprometida, COR_MAPA_V2.comprometida, ["boolean", ["feature-state", "pendenciaFiltrada"], false], COR_MAPA_V2.acao, COR.tinta]]
   return [
     // O preenchimento transparente permite tocar no interior, sem pintar ou acumular cor em sobreposições.
     { id: "imoveis", type: "fill", source: "imoveis", minzoom: ZOOM_IMOVEIS,
