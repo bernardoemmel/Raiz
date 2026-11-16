@@ -19,7 +19,7 @@ está completo quando tem, em todos os municípios, funil, filtros, MapBiomas, d
 escadinha. Os extras do Earth Engine e as certidões ficam de fora dessa conta (ver abaixo).
 
 <!-- painel:inicio -->
-Gerado do `estados.json` de 15/11/2026 22:45 (horário de Brasília). Brasil: 2.952 de 5.571 municípios com o funil pronto; 5 de 27 estados completos.
+Gerado do `estados.json` de 15/11/2026 22:52 (horário de Brasília). Brasil: 2.952 de 5.571 municípios com o funil pronto; 5 de 27 estados completos.
 
 | Estado | Municípios feitos/total | Situação | Última atualização | Motor |
 |---|---|---|---|---|
@@ -38,11 +38,11 @@ Gerado do `estados.json` de 15/11/2026 22:45 (horário de Brasília). Brasil: 2.
 | BA Bahia | 0/417 | não começou | — | — |
 | PI Piauí | 224/224 | completo; 5 erro(s) na última rodada (2 fatias em jobs separados) | 15/11/2026 09:24 | [b93a055](https://github.com/bernardoemmel/Raiz/actions/runs/43705807265) |
 | CE Ceará | 151/184 | falta funil 33, ficha 1, desenvolvedor 2; 34 erro(s) na última rodada (2 fatias em jobs separados) | 15/11/2026 21:17 | [3ead1f4](https://github.com/bernardoemmel/Raiz/actions/runs/43770477521) |
-| RN Rio Grande do Norte | 143/167 | falta funil 24, MapBiomas 1, direto 1, TMF e causas 1, FLAG 1, caminho da terra 1, ficha 2, desenvolvedor 2 (2 fatias em jobs separados) | 15/11/2026 20:52 | [cb1d94d](https://github.com/bernardoemmel/Raiz/actions/runs/43774696969) |
+| RN Rio Grande do Norte | 143/167 | falta funil 24, MapBiomas 1, direto 1, TMF e causas 1, FLAG 1, caminho da terra 1, ficha 2, desenvolvedor 2 (2 fatias em jobs separados) | 15/11/2026 22:46 | [cb1d94d](https://github.com/bernardoemmel/Raiz/actions/runs/43774696969) |
 | PB Paraíba | 219/223 | falta funil 4, MapBiomas 4, direto 4, TMF e causas 4, FLAG 4, caminho da terra 4, ficha 6, desenvolvedor 6; 130 erro(s) na última rodada (2 fatias em jobs separados) | 15/11/2026 22:13 | [41911dc](https://github.com/bernardoemmel/Raiz/actions/runs/43773289256) |
 | PE Pernambuco | 184/185 | falta funil 1, MapBiomas 1, direto 1, TMF e causas 1, FLAG 1, caminho da terra 1, ficha 1, desenvolvedor 1; 1 erro(s) na última rodada (2 fatias em jobs separados) | 15/11/2026 22:11 | [d61b616](https://github.com/bernardoemmel/Raiz/actions/runs/43776400571) |
-| AL Alagoas | 84/102 | falta funil 18; 15 erro(s) na última rodada | 15/11/2026 22:41 | [55a8418](https://github.com/bernardoemmel/Raiz/actions/runs/43782670751) |
-| SE Sergipe | 60/75 | falta funil 15, MapBiomas 3, direto 2, TMF e causas 3, FLAG 3, caminho da terra 3, ficha 4, desenvolvedor 5 | 15/11/2026 22:37 | manual |
+| AL Alagoas | 84/102 | falta funil 18; 15 erro(s) na última rodada | 15/11/2026 22:46 | [55a8418](https://github.com/bernardoemmel/Raiz/actions/runs/43782670751) |
+| SE Sergipe | 60/75 | falta funil 15, MapBiomas 3, direto 2, TMF e causas 3, FLAG 3, caminho da terra 3, ficha 4, desenvolvedor 5; 10 erro(s) na última rodada | 15/11/2026 22:50 | [fb035ba](https://github.com/bernardoemmel/Raiz/actions/runs/43785301070) |
 | ES Espírito Santo | 0/78 | não começou | — | — |
 | RJ Rio de Janeiro | 0/92 | não começou | — | — |
 | SP São Paulo | 548/645 | falta funil 97, ficha 1, desenvolvedor 1; 71 erro(s) na última rodada (6 fatias em jobs separados) | 15/11/2026 12:51 | [3af1dbc](https://github.com/bernardoemmel/Raiz/actions/runs/43721572905) |
