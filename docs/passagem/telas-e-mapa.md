@@ -1080,3 +1080,35 @@ Também passaram 647 testes do front e Ruff (683 arquivos formatados). O pytest
 local foi interrompido na coleta por dependências ausentes (`cvxpy`, `pulp`,
 `pysyncon`) no ambiente reutilizado; a suíte Python completa permanece obrigatória
 no CI com o ambiente travado. Não foram alterados código nem dependências do motor.
+
+## Continuação 16/11/2026: site de volta ao ar e pedido no Brasil inteiro (PRs #131 e #134)
+
+Onde parou: as duas entregas pedidas estão na main. A entrega 3 (UX: mapa menos travado, telas por perfil, menos cara de
+IA) NÃO foi começada, por ordem do fundador, que vai melhorar o visual com outra ferramenta.
+
+- **#131:** o agregado nacional (`compartilhado/potencial-publico.ts`, `dados/agregados.ts`) ficou compacto (centro com
+  3 casas, hectares com 1) e o limite passou a ser dimensionado pelo máximo geográfico (34 mil células H3 res. 5).
+- **#134, tamanho do site:** o build seguinte parou em "Site com 1104835864 bytes: excedeu 950 MB" (limite do Pages: 1 GB).
+  `compartilhado/geometria-delta.ts` guarda a geometria dos imóveis em deltas inteiros em micrograus, sem perda
+  (cai para GeoJSON comum se algum valor não fechar em 6 casas). Medido: 71% e 79% do tamanho em dois municípios reais.
+  O leitor é `camadaGeo` em `dados/fonte-amostra.ts`; o escritor, `geometriaBasicaPublicada` em `vite-dados.ts`.
+- **#134, pedido no Brasil:** `raiz/lotes_publicos.py` (`projetar_nacional`) grava `lote_nacional_resumo.json` a partir do
+  ponteiro privado; o front lê em `compartilhado/pedidos/lote-nacional.ts` e mostra em `LotesDoRecorte`
+  (`globo/src/partes/pedido/PublicacaoPedido.tsx`): terra pronta, terra em espera separada, sobreposição "não verificada".
+
+### O que falta, em ordem
+
+1. Conferir a rodada do "Publicar o site" disparada pelo merge do #134 (commit `e99d47d`). Se ainda passar de 950 MB, o
+   log lista as maiores pastas ("Maiores pastas do site"); o próximo passo seria PMTiles por estado para as geometrias
+   (muda o mapa, que lê as fazendas como GeoJSON com seleção e destaque).
+2. Depois do deploy, conferir no site os ~4 mil municípios e o Lighthouse no celular (mediana >= 90). O passo "Celular,
+   teclado, WCAG 2.1 AA e Lighthouse" do CI oscila em runner carregado: uma vez deu 88 e passou ao refazer só esse job.
+3. Conferir no arquivo publicado se `lote_nacional_resumo.json` tem recortes. Eu não tinha o ponteiro privado: com ele
+   vazio ou ausente, a tela cai no resumo do PA.
+4. Entrega 3 (UX) só se o fundador pedir de novo.
+
+### Cuidados
+
+- O `testes_python` do CI leva 15 a 25 minutos por causa da fila de runners; não cancele rodadas dos estados.
+- Para refazer só o que oscilou: `rerun_failed_jobs` na rodada, em vez de empurrar commit vazio.
+- Não confie no SHA digitado de cabeça para `expectedHeadSha`: use `git rev-parse HEAD`.
