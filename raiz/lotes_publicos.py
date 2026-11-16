@@ -19,6 +19,11 @@ from raiz.privacidade import documento_em_identificador
 OPCOES = ("barata", "segura", "compacta")
 CAMINHOS = ("matricula_conferida", "matricula_a_conferir", "concessao", "assentamento", "posse_em_titulacao")
 NOME_PUBLICO = "lote_PA_central_r11.json"
+NOME_NACIONAL = "lote_nacional_resumo.json"
+PONTEIRO = "lote_nacional_atual.json"
+UFS = tuple("AC AL AP AM BA CE DF ES GO MA MT MS MG PA PB PR PE PI RJ RN RS RO RR SC SP SE TO".split())
+BIOMAS = ("Amazônia", "Caatinga", "Cerrado", "Mata Atlântica", "Pampa", "Pantanal")
+SITUACOES_SOBREPOSICAO = ("nao_verificada", "verificada")
 PADRAO_MANIFESTO = re.compile(r"lote_PA_central_r11_(?:retomada_)?[0-9]+_[0-9]+(?:_[a-f0-9]{16})?\.json")
 
 
@@ -140,6 +145,103 @@ def baixar_resumo(arm) -> dict:
     return projetar(json.loads(dados), ativo["updated_at"])
 
 
+def _situacao(valor) -> str:
+    """Sobreposição só vira "verificada" quando o catálogo disse isso; qualquer outra coisa é "não verificada"."""
+    return valor if valor in SITUACOES_SOBREPOSICAO else "nao_verificada"
+
+
+def _opcao_nacional(r: dict) -> dict:
+    n = _numero(r.get("fazendas"), inteiro=True)
+    suficiente = n is not None and n >= 5  # a mesma supressão do resumo do PA: grupo com menos de 5 não mostra medida
+    fecha = r.get("fecha_meta")
+    return {
+        "fazendas": n,
+        "pequenas": _numero(r.get("pequenas"), inteiro=True) if suficiente else None,
+        "hectares": _numero(r.get("hectares")) if suficiente else None,
+        "creditos": _faixa(r.get("creditos")) if suficiente else None,
+        "fecha_meta": fecha if isinstance(fecha, bool) and suficiente else None,
+        "sobreposicao": _situacao(r.get("sobreposicao")),
+    }
+
+
+def _espera_nacional(e: dict) -> dict:
+    n = _numero(e.get("fazendas"), inteiro=True)
+    suficiente = n is not None and n >= 5
+    return {
+        "incluida_no_pedido": e.get("incluida_no_pedido") if isinstance(e.get("incluida_no_pedido"), bool) else None,
+        "fazendas": n,
+        "pequenas": _numero(e.get("pequenas"), inteiro=True) if suficiente else None,
+        "hectares": _numero(e.get("hectares")) if suficiente else None,
+        "creditos_p50": _numero(e.get("soma_creditos_p50")) if suficiente else None,
+        # a terra em espera nunca vende: precisa de título, concessão ou regularização antes
+        "habilita_venda": False,
+    }
+
+
+def projetar_nacional(ponteiro: dict, publicado_em: str) -> dict:
+    """Resumo por UF, bioma e Brasil do ponteiro do lote nacional, sem fazenda, CAR, caminho nem pacote.
+
+    Lista positiva: só entram as três opções (contagens e medidas), a terra em espera separada da pronta e a situação
+    da sobreposição. Recorte que não é UF, bioma nem Brasil é ignorado. Grupos com menos de 5 fazendas escondem as
+    medidas, como no resumo do PA.
+    """
+    if ponteiro.get("acesso") != "privado":
+        raise ValueError("Ponteiro do lote nacional fora do contrato privado.")
+    datetime.fromisoformat(publicado_em.replace("Z", "+00:00"))
+    recortes = []
+    for nome, item in (ponteiro.get("consultas") or {}).items():
+        tipo = "uf" if nome in UFS else "bioma" if nome in BIOMAS else "brasil" if nome == "Brasil" else None
+        resumo = (item or {}).get("resumo") if isinstance(item, dict) else None
+        if tipo is None or not isinstance(resumo, dict):
+            continue
+        ops = resumo.get("opcoes") or {}
+        if set(ops) != set(OPCOES):
+            continue
+        opcoes = {o: _opcao_nacional(ops[o]) for o in OPCOES}
+        recortes.append(
+            {
+                "nome": nome,
+                "tipo": tipo,
+                "opcoes": opcoes,
+                "terra_em_espera": _espera_nacional(resumo.get("terra_em_espera") or {}),
+                "sobreposicao": _situacao(resumo.get("sobreposicao")),
+                "vazio": all(not (o["fazendas"] or 0) for o in opcoes.values()),
+            }
+        )
+    ordem = {"brasil": 0, "bioma": 1, "uf": 2}
+    recortes.sort(key=lambda r: (ordem[r["tipo"]], r["nome"]))
+    return {
+        "contrato": "publico_lotes_nacional",
+        "versao": 1,
+        "estado": "publicado" if recortes else "ausente",
+        "atualizado_em": publicado_em,
+        "aviso": "Resumo por recorte do lote nacional. Pronta é a terra que cumpre o pedido em tudo; em espera é a que "
+        'cumpre tudo menos o caminho da terra e não habilita venda. Sobreposição "não verificada" significa que a '
+        "camada de terra já comprometida ainda não foi cruzada: ausência de indício não é terra livre.",
+        "recortes": recortes,
+    }
+
+
+def baixar_nacional(arm) -> dict:
+    """Lê o ponteiro privado (visibilidade reconferida pelo armazém) e projeta o resumo público."""
+    from datetime import UTC
+
+    arm._exigir_privado()
+    dados = arm._baixar_asset(PONTEIRO, fresco=True)
+    agora = datetime.now(UTC).isoformat(timespec="seconds")
+    if not dados:
+        return {
+            "contrato": "publico_lotes_nacional",
+            "versao": 1,
+            "estado": "ausente",
+            "atualizado_em": agora,
+            "recortes": [],
+        }
+    if len(dados) > 50_000_000:
+        raise ValueError("Ponteiro do lote nacional excede o limite de tamanho.")
+    return projetar_nacional(json.loads(dados), agora)
+
+
 def main():
     from raiz.executor.transferencia_privada import arquivo_privado
 
@@ -152,6 +254,25 @@ def main():
     temporario.write_text(json.dumps(resultado, ensure_ascii=False, allow_nan=False), encoding="utf-8")
     temporario.replace(args.destino)
     print(f"Resumo público dos lotes: {resultado['estado']}; nenhum pacote individual foi baixado.")
+    # O resumo nacional nunca derruba a publicação do site: sem ponteiro ou com erro, o arquivo sai "ausente".
+    arm = arquivo_privado()
+    try:
+        nacional = baixar_nacional(arm)
+    except Exception as erro:  # noqa: BLE001
+        print(f"Resumo nacional dos lotes indisponível ({type(erro).__name__}); publicado como ausente.")
+        nacional = {
+            "contrato": "publico_lotes_nacional",
+            "versao": 1,
+            "estado": "ausente",
+            "atualizado_em": resultado.get("atualizado_em")
+            or datetime.now().astimezone().isoformat(timespec="seconds"),
+            "recortes": [],
+        }
+    alvo = args.destino.with_name(NOME_NACIONAL)
+    temporario = alvo.with_suffix(".tmp")
+    temporario.write_text(json.dumps(nacional, ensure_ascii=False, allow_nan=False), encoding="utf-8")
+    temporario.replace(alvo)
+    print(f"Resumo nacional dos lotes: {nacional['estado']}, {len(nacional['recortes'])} recortes.")
 
 
 if __name__ == "__main__":

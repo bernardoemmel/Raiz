@@ -3,6 +3,12 @@
 Gerado da rodada 8 de pesquisa (12/11/2026). Ordem geral: E1 → E2 → E5 → E7 (em paralelo) → E3/E4 → E6 → E8 → E9.
 Pedidos que só o fundador faz, no dia 1: convênio com o ONR e pedidos por LAI ao SFB e ao INCRA.
 
+## Correção do CI após #107
+
+- [x] Preservar a busca ativa na troca de rota e cobrir a corrida no Playwright Pages.
+- [x] Passo completo local: 360 px, teclado, WCAG e Lighthouse (94–100; acessibilidade 100).
+- [ ] Confirmar o CI da correção antes do merge.
+
 ## Visual V2 aprovado: mapa e pedido
 
 - [x] Mapa MapLibre na tela inteira, Protomaps escuro, H3 em worker (r4/r5),

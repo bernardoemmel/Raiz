@@ -191,3 +191,18 @@ def test_area_muito_pequena_nao_arredonda_para_zero():
         e.areas[car] = 0.000001
     _, cs, _, _ = agregar(e)
     assert cs["PA"]["features"][0]["properties"]["potencial_ha"] == pytest.approx(0.000005)
+
+
+def test_uf_que_muda_em_todas_as_leituras_fica_de_fora_sem_derrubar_o_site(monkeypatch):
+    from raiz import potencial_publico as p
+
+    arm = Mock()
+    arm._assets.return_value = [
+        {"name": n, "size": 3, "id": i, "digest": "sha256:x"}
+        for i, n in enumerate(["raiz_MT.tar.gz", "raiz_geo_MT.tar.gz"])
+    ]
+    arm._baixar_ativo.side_effect = RuntimeError("publicação concorrente")
+    monkeypatch.setattr(p.time, "sleep", lambda _: None)
+    result = ler_privado(arm)
+    assert result.areas == {}
+    assert arm._baixar_ativo.call_count == 12

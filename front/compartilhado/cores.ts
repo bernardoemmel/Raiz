@@ -174,6 +174,8 @@ export const INTERESSE = {
 export const COR_MAPA_V2 = {
   terra: "#111815", agua: "#0A0F0E", estado: "#3A4A42", pais: "#56665D",
   rotulo: "#8E9A92", texto: "#EEF2EC", destaque: "#C9E88F", acao: "#E8713A", rio: "#3B5A58",
+  /** fazenda já comprometida com projeto de carbono ou concessão (raiz/comprometida): cinza, sem chamar atenção */
+  comprometida: "#7A827D",
 } as const
 export const CORES_H3_V2 = ["#163A2A", "#1E5E3C", "#2C8050", "#49A363", "#7CC47A", "#C9E88F"] as const
 

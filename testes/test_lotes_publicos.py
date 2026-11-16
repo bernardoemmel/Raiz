@@ -147,3 +147,125 @@ def test_identificador_de_modelo_nao_publica_documento_civil(prefixo):
         m["modelo_versao"] = prefixo + documento
         with pytest.raises(ValueError, match="Versão de modelo inválida"):
             projetar(m, "2026-11-12T20:00:00Z")
+
+
+# --- resumo nacional por UF, bioma e Brasil ---------------------------------------------------------------------
+
+
+def _opcao(fazendas=12, hectares=900.5, sob="nao_verificada"):
+    return {
+        "fazendas": fazendas,
+        "pequenas": 3,
+        "hectares": hectares,
+        "creditos": {"p10": 800, "p50": 1200, "p90": 1500},
+        "fecha_meta": True,
+        "sobreposicao": sob,
+    }
+
+
+def _consulta(fazendas=12, espera=40):
+    return {
+        "pacote": {"nome": "privado.tar.gz", "url": "https://privado.invalid/x"},
+        "pedido": {"segredo": "SEGREDO-PRIVADO"},
+        "resumo": {
+            "opcoes": {o: _opcao(fazendas) for o in OPCOES},
+            "terra_em_espera": {
+                "incluida_no_pedido": False,
+                "fazendas": espera,
+                "pequenas": 9,
+                "hectares": 5000,
+                "soma_creditos_p50": 77000,
+            },
+            "sobreposicao": "nao_verificada",
+        },
+    }
+
+
+def ponteiro():
+    return {
+        "acesso": "privado",
+        "ufs": {"PA": {"fontes": "PRIVADO"}},
+        "consultas": {
+            "PA": _consulta(),
+            "BA": _consulta(fazendas=0, espera=300),
+            "Cerrado": _consulta(),
+            "Brasil": _consulta(),
+            "Recorte Estranho": _consulta(),
+        },
+    }
+
+
+def test_nacional_lista_positiva_por_uf_bioma_e_brasil():
+    from raiz.lotes_publicos import projetar_nacional
+
+    p = projetar_nacional(ponteiro(), "2026-11-16T20:00:00Z")
+    assert p["estado"] == "publicado" and p["contrato"] == "publico_lotes_nacional"
+    assert [(r["tipo"], r["nome"]) for r in p["recortes"]] == [
+        ("brasil", "Brasil"),
+        ("bioma", "Cerrado"),
+        ("uf", "BA"),
+        ("uf", "PA"),
+    ]  # o recorte desconhecido fica de fora
+    texto = json.dumps(p)
+    assert not any(x in texto for x in ("PRIVADO", "privado.invalid", "SEGREDO", "tar.gz", "cod_imovel"))
+    pa = next(r for r in p["recortes"] if r["nome"] == "PA")
+    assert set(pa) == {"nome", "tipo", "opcoes", "terra_em_espera", "sobreposicao", "vazio"}
+    assert pa["opcoes"]["barata"]["creditos"] == {"p10": 800, "p50": 1200, "p90": 1500}
+    # terra em espera separada da pronta e nunca habilita venda
+    assert pa["terra_em_espera"]["fazendas"] == 40 and pa["terra_em_espera"]["habilita_venda"] is False
+    assert pa["terra_em_espera"]["creditos_p50"] == 77000
+    # sobreposição: enquanto o catálogo não trouxer a camada, não verificada
+    assert pa["sobreposicao"] == "nao_verificada" and pa["opcoes"]["segura"]["sobreposicao"] == "nao_verificada"
+
+
+def test_nacional_lote_vazio_mostra_a_terra_em_espera_que_o_explica():
+    from raiz.lotes_publicos import projetar_nacional
+
+    ba = next(r for r in projetar_nacional(ponteiro(), "2026-11-16T20:00:00Z")["recortes"] if r["nome"] == "BA")
+    assert ba["vazio"] is True and ba["terra_em_espera"]["fazendas"] == 300
+
+
+def test_nacional_esconde_medida_de_grupo_pequeno_e_so_aceita_situacao_conhecida():
+    from raiz.lotes_publicos import projetar_nacional
+
+    pt = ponteiro()
+    pt["consultas"]["PA"]["resumo"]["opcoes"]["barata"] = _opcao(fazendas=4, sob="qualquer-coisa")
+    p = projetar_nacional(pt, "2026-11-16T20:00:00Z")
+    o = next(r for r in p["recortes"] if r["nome"] == "PA")["opcoes"]["barata"]
+    assert o["fazendas"] == 4 and o["hectares"] is None and o["creditos"] is None and o["fecha_meta"] is None
+    assert o["sobreposicao"] == "nao_verificada"  # texto desconhecido nunca vira "verificada"
+
+
+def test_nacional_ponteiro_fora_do_contrato_e_ausente():
+    from raiz.lotes_publicos import baixar_nacional, projetar_nacional
+
+    with pytest.raises(ValueError):
+        projetar_nacional({"acesso": "publico", "consultas": {}}, "2026-11-16T20:00:00Z")
+    arm = Mock()
+    arm._baixar_asset.return_value = b""
+    assert baixar_nacional(arm)["estado"] == "ausente"
+    arm._baixar_asset.return_value = json.dumps(ponteiro()).encode()
+    assert baixar_nacional(arm)["estado"] == "publicado"
+    arm._exigir_privado.assert_called()
+
+
+def test_nacional_acompanha_o_formato_real_do_ponteiro():
+    """O resumo que o ponteiro grava (resumo_consulta) é o que a projeção lê."""
+    from raiz.lotes_publicos import BIOMAS, UFS, projetar_nacional
+    from raiz.restauracao_nacional import BIOMAS as B
+    from raiz.restauracao_nacional import UFS as U
+    from raiz.restauracao_nacional_rodada import resumo_consulta
+
+    assert (UFS, BIOMAS) == (U, B)
+    resultado = {
+        "opcoes": {o: {"fazendas": 8, "pequenas": 2, "area_ha": 123.4, "creditos": {"p10": 1, "p50": 2, "p90": 3},
+                       "fecha_meta": False, "sobreposicao_situacao": "nao_verificada"} for o in OPCOES},
+        "terra_em_espera": {"incluida_no_pedido": False, "fazendas": 7, "pequenas": 1, "hectares": 55.0,
+                            "soma_creditos_p50": 10.0},
+        "sobreposicao": {"situacao": "nao_verificada", "aviso": "x"},
+    }  # fmt: skip
+    p = projetar_nacional(
+        {"acesso": "privado", "consultas": {"PA": {"resumo": resumo_consulta(resultado)}}}, "2026-11-16T20:00:00Z"
+    )
+    r = p["recortes"][0]
+    assert r["opcoes"]["barata"]["hectares"] == 123.4 and r["terra_em_espera"]["fazendas"] == 7

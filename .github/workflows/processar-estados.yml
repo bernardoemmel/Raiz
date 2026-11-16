@@ -65,7 +65,7 @@ env:
 jobs:
   planejar:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 35
     env:
       RAIZ_GITHUB_ESPERA_MAX_S: "900"
     outputs:
@@ -84,6 +84,15 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: uv run python -c "from raiz.executor.armazem import do_config; do_config().verificar_publicacao()"
+      - name: Abrir espaço no arquivo privado (limite de 1000 arquivos do GitHub)
+        # Sem espaço, todo upload volta HTTP 422 e nenhum job publica. Move antigos para historico-AAAA-MM-DD.
+        continue-on-error: true
+        timeout-minutes: 15
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          uv run python scripts/aliviar_dados_privados.py --executar --so-acima 800
+          uv run python scripts/aliviar_dados_privados.py --executar --so-acima 800 --tag dados-privados-checkpoints
       - name: Escolher os estados (lê o estados.json publicado e as versões das tarefas do executor)
         id: plano
         env:
@@ -93,6 +102,26 @@ jobs:
           RAIZ_CONTINUACAO: ${{ inputs.continuacao }}
           RAIZ_SO_FILA: ${{ github.event_name == 'schedule' && github.event.schedule == '17 * * * *' && '1' || '0' }}
         run: uv run python motor/rodar_estado.py --planejar
+
+  projecao-aberta:
+    # Refaz a projeção do Release aberto de um estado em que ela ficou para trás do arquivo privado (MG ficou com 3
+    # municípios no aberto e 337 no privado). Em paralelo ao preparar, sem segurar a rodada; não recalcula nada.
+    needs: planejar
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.13.6"
+          enable-cache: true
+      - run: uv sync --frozen --all-extras
+      - name: Refazer a projeção aberta atrasada
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RAIZ_GITHUB_ESPERA_MAX_S: "900"
+        run: uv run python motor/rodar_estado.py --sincronizar-aberto
 
   preparar:
     needs: planejar
@@ -178,6 +207,18 @@ jobs:
         run: |
           sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL || true
           df -h /
+
+      - name: Memória extra (swap) para estados grandes
+        # Fatias da BA derrubavam a máquina ("runner has received a shutdown signal") no cálculo e ao juntar os
+        # pacotes do estado na memória. Com swap no disco temporário, a máquina fica lenta em vez de cair.
+        continue-on-error: true
+        run: |
+          free -m
+          sudo fallocate -l 12G /mnt/raiz-swap
+          sudo chmod 600 /mnt/raiz-swap
+          sudo mkswap /mnt/raiz-swap
+          sudo swapon /mnt/raiz-swap
+          free -m
 
       - uses: astral-sh/setup-uv@v6
         with:

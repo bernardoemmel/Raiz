@@ -173,7 +173,8 @@ def ler_privado(arm) -> Entradas:
     e = Entradas()
     for uf in ufs:
         nomes = [f"raiz_{uf}.tar.gz", f"raiz_geo_{uf}.tar.gz"]
-        for tentativa in range(5):
+        tentativas = 12
+        for tentativa in range(tentativas):
             try:
                 por_nome = listar()
                 if any(n not in por_nome for n in nomes):
@@ -204,13 +205,19 @@ def ler_privado(arm) -> Entradas:
                 print(f"Potencial: fonte privada de {uf} lida; nenhum dado individual será publicado.", flush=True)
                 break
             except RuntimeError:
-                if tentativa == 4:
-                    raise RuntimeError(f"Não foi possível obter um par estável de pacotes privados de {uf}.") from None
+                if tentativa == tentativas - 1:
+                    # Com dezenas de jobs publicando, um estado grande pode mudar a cada leitura. Ele fica de fora
+                    # só desta camada nesta rodada (cobertura indisponível); o resto do site sai atualizado.
+                    print(
+                        f"Potencial: {uf} mudou durante todas as leituras; fica de fora desta rodada do site.",
+                        flush=True,
+                    )
+                    break
                 print(
                     f"Potencial: repetindo leitura de {uf} após atualização concorrente ou falha transitória.",
                     flush=True,
                 )
-                time.sleep(min(2**tentativa, 8))
+                time.sleep(min(5 * 2**tentativa, 60))
     return e
 
 

@@ -2,8 +2,8 @@
 #
 # O site é estático: o build baixa do Release "dados" o que o motor publicou (front/scripts/baixar-dados.mjs) e grava
 # somente agregados e CAR/situação básica, comprimidos e validados por allowlist (vite-dados.ts). As geometrias
-# do mapa saem de front/scripts/geo.py, guardadas em cache entre as rodadas. Roda a cada mudança do front na main, todo
-# dia (dados novos do motor), após a coleta do Calendário e quando alguém dispara (Actions, "Publicar o site").
+# do mapa saem de front/scripts/geo.py, guardadas em cache entre as rodadas. Roda a cada mudança do front na main, a cada
+# 3 horas (dados novos do motor), após a coleta do Calendário e quando alguém dispara (Actions, "Publicar o site").
 #
 # Uma vez só, no repositório: Settings > Pages > Build and deployment > Source: "GitHub Actions". O token do Actions não
 # consegue ligar o Pages sozinho; sem isso, o passo "publicar" falha com o aviso do GitHub.
@@ -14,7 +14,7 @@ on:
     branches: [main]
     paths: ["front/**", "raiz/potencial_publico.py", "raiz/lotes_publicos.py", ".github/workflows/publicar-site.yml"]
   schedule:
-    - cron: "41 10 * * *"
+    - cron: "41 */3 * * *" # a cada 3 h: o motor publica estados novos o dia todo
   workflow_dispatch:
   workflow_run:
     workflows: ["Calendário diário da Raíz"]
@@ -49,26 +49,18 @@ jobs:
         github.event.workflow_run.event == 'workflow_dispatch' ||
         github.event.workflow_run.event == 'push'))
     runs-on: ubuntu-24.04
-    timeout-minutes: 90
+    timeout-minutes: 180
     steps:
       - uses: actions/checkout@v7
         with:
           ref: ${{ github.event.repository.default_branch }}
           persist-credentials: false
-      - uses: astral-sh/setup-uv@v7
+      - uses: actions/setup-python@v5
         with:
-          version: "0.13.6"
-          enable-cache: true
-          cache-dependency-glob: uv.lock
-      - name: Dependências de publicação travadas
-        run: uv sync --frozen --no-dev
+          python-version: "3.12"
       - uses: actions/setup-node@v7
         with:
           node-version: 22
-          cache: npm
-          cache-dependency-path: |
-            front/globo/package-lock.json
-            front/produtor/package-lock.json
 
       - name: Pacotes públicos mínimos e polígonos (manifesto publico_basico v1)
         run: node front/scripts/baixar-dados.mjs --geo --exigir
@@ -82,19 +74,20 @@ jobs:
 
       - name: Desenhos de todos os municípios publicados e fundo compartilhado por estado
         run: |
-          uv run --frozen --no-dev python front/scripts/geo.py --dados dados/publicos
+          pip install --quiet requests shapely pmtiles geopandas pyarrow httpx 'h3>=4.2,<5'
+          python front/scripts/geo.py --dados dados/publicos
 
       - name: Potencial conhecido por célula, sem publicar medidas por fazenda
         env:
           RAIZ_DADOS_PRIVADOS_URL: release-github://${{ github.repository }}/dados-privados
           RAIZ_DADOS_PRIVADOS_TOKEN: ${{ github.token }}
-        run: uv run --frozen --no-dev python -m raiz.potencial_publico
+        run: python -m raiz.potencial_publico
 
       - name: Resumo aberto dos lotes, sem baixar composição ou pacotes pagos
         env:
           RAIZ_DADOS_PRIVADOS_URL: release-github://${{ github.repository }}/dados-privados
           RAIZ_DADOS_PRIVADOS_TOKEN: ${{ github.token }}
-        run: uv run --frozen --no-dev python -m raiz.lotes_publicos
+        run: python -m raiz.lotes_publicos
 
       - name: "Guardar as geometrias (mesmo as de uma rodada pela metade: o geo.py só baixa o que falta)"
         if: always()

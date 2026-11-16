@@ -128,19 +128,25 @@ async function baixarBytes(url, rotulo) {
 async function baixarEExtrair(url, uf, destino, geo = false, permiteVazio = false) {
   const bytes = await baixarBytes(urlPacote(url, uf, geo), `pacote ${uf}`)
   const tmp = path.join(destino, `pacote${geo ? "-geo" : ""}.tar.gz`)
+  const extraido = fs.mkdtempSync(path.join(os.tmpdir(), `raiz-tar-${uf}-`))
   fs.writeFileSync(tmp, bytes)
   try {
     const nomes = execFileSync("tar", ["-tzf", tmp], { encoding: "utf8", maxBuffer: 16 * 1024 * 1024 }).trim().split("\n").filter(Boolean)
     const detalhes = execFileSync("tar", ["-tvzf", tmp], { encoding: "utf8", maxBuffer: 16 * 1024 * 1024 }).trim().split("\n").filter(Boolean)
     if ((!nomes.length && !permiteVazio) || new Set(nomes).size !== nomes.length || nomes.some((n) => !arquivoPermitido(n, uf, geo)) || detalhes.length !== nomes.length || detalhes.some((l) => !l.startsWith("-")))
       throw new Error(`${uf}: pacote contém caminho, link ou arquivo fora do contrato público`)
-    // Extração apenas por stdout: nenhum caminho ou link contido no tar pode escrever no workspace.
+    // Nomes e tipos já conferidos acima (só arquivos comuns "UF/nome" da allowlist, sem link nem "..").
+    // Uma extração única numa pasta isolada: extrair arquivo por arquivo descomprimia o pacote inteiro a cada
+    // município e levava mais de uma hora com o Brasil todo.
+    execFileSync("tar", ["-xzf", tmp, "-C", extraido, "--no-same-owner", "--no-same-permissions", "--", ...nomes], { maxBuffer: 16 * 1024 * 1024 })
     for (const nome of nomes) {
-      const dado = execFileSync("tar", ["-xOzf", tmp, "--", nome], { maxBuffer: 512 * 1024 * 1024 })
+      const origem = path.join(extraido, nome)
+      if (!fs.lstatSync(origem).isFile()) throw new Error(`${uf}: pacote contém caminho, link ou arquivo fora do contrato público`)
+      const dado = fs.readFileSync(origem)
       if (!geo) validarCsv(path.basename(nome), dado, uf)
       fs.writeFileSync(path.join(destino, path.basename(nome)), dado)
     }
-  } finally { fs.rmSync(tmp, { force: true }) }
+  } finally { fs.rmSync(tmp, { force: true }); fs.rmSync(extraido, { recursive: true, force: true }) }
 }
 function pastaConforme(uf, info) {
   const dir = path.join(DESTINO, uf)

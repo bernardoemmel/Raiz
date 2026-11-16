@@ -103,7 +103,7 @@ jobs:
           from pathlib import Path
           d = json.loads(Path('dados/calendario/eventos.json').read_text())
           print(f"Calendário: {d['total']} eventos. Envio de avisos externos permanece simulado.\n")
-          print('| Fonte | Situação | Eventos |\n|---|---|---|')
+          print('| Fonte | Situação | Eventos | Aviso |\n|---|---|---|---|')
           for f in d['fontes']:
-              print(f"| {f['nome']} | {f['situacao']} | {f['eventos']} |")
+              print(f"| {f['nome']} | {f['situacao']} | {f['eventos']} | {f.get('erro') or ''} |")
           PY

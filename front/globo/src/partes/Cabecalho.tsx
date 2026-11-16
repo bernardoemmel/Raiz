@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from "react"
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react"
 import { Search, X } from "lucide-react"
 import { useSessao } from "../sessao"
 import { linkCalendario, linkNovoPedido, linkPedidos, linkProspeccao } from "../rota"
@@ -47,7 +47,7 @@ export function Cabecalho({ atual, linkMapa = "#/", modoMapa = false, aoAbrirPed
   const servicoDialogo = useRef<HTMLDialogElement>(null)
   const botaoBusca = useRef<HTMLButtonElement>(null)
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const dialogo = buscaDialogo.current
     if (buscaAberta && celular) {
       dialogo?.showModal()
@@ -118,7 +118,7 @@ export function Cabecalho({ atual, linkMapa = "#/", modoMapa = false, aoAbrirPed
           {compacto && filtros && <section className="topo-menu-filtros" aria-label="Filtros do mapa"><h2>Filtros do mapa</h2>{filtros}</section>}
         </div>
       </details>
-      <dialog ref={buscaDialogo} className="topo-dialogo topo-dialogo-busca" aria-labelledby="titulo-busca-v2" onCancel={e => { e.preventDefault(); fecharBusca() }} onClose={() => setBuscaAberta(false)}>
+      <dialog ref={buscaDialogo} className="topo-dialogo topo-dialogo-busca" aria-labelledby="titulo-busca-v2" onCancel={e => { e.preventDefault(); fecharBusca() }} onClose={e => { if (!e.currentTarget.open) setBuscaAberta(false) }}>
         <div className="topo-dialogo-cabeca"><h2 id="titulo-busca-v2">Buscar no mapa</h2><button className="topo-icone" type="button" onClick={fecharBusca} aria-label="Fechar busca"><X size={20} aria-hidden="true" /></button></div>
         {celular && <Busca atalho={false} aoEscolher={fecharBusca} />}
       </dialog>

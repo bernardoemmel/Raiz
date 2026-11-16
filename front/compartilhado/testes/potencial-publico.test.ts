@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest"
-import { projetarPotencial } from "../potencial-publico"
+import { gzipSync } from "node:zlib"
+import { polygonToCells } from "../../globo/node_modules/h3-js"
+import { LIMITE_AGREGADOS_GZIP, LIMITE_AGREGADOS_NORMAL } from "../dados/agregados"
+import { projetarAgregados, projetarPotencial } from "../potencial-publico"
 
 const exemplo = () => ({ type: "FeatureCollection", metadados: {
   contrato: "potencial_h3", versao: 1, resolucao: 5, minimo_contribuintes: 5,
@@ -30,4 +33,24 @@ describe("projeção aberta do potencial H3", () => {
     q.features[0].properties.h3 = "CAR-PRIVADO"
     expect(() => projetarPotencial(q)).toThrow("contrato anônimo")
   })
+})
+
+describe("agregado nacional com o Brasil inteiro", () => {
+  it("34 mil células, o máximo geográfico, cabem nos limites sem cortar nenhuma", () => {
+    const base = exemplo()
+    const celulas = polygonToCells([[-5, -74], [-5, -34], [-34, -34], [-34, -74], [-5, -74]], 5).slice(0, 34_000)
+    expect(celulas.length).toBe(34_000)
+    const porUf = [celulas.slice(0, 17_000), celulas.slice(17_000)]
+    const colecoes = porUf.map(lista => ({ ...base, features: lista.map((h3, i) => ({ type: "Feature",
+      properties: { h3, potencial_ha: i % 7 === 0 ? null : 1234.5678 + i, fazendas: 5 + (i % 400) }, geometry: { type: "Point", coordinates: [0, 0] } })) }))
+    const nacional = projetarAgregados(colecoes.map(projetarPotencial))!
+    expect(nacional.features).toHaveLength(34_000)
+    const normal = Buffer.from(JSON.stringify(nacional))
+    expect(normal.length).toBeLessThan(LIMITE_AGREGADOS_NORMAL)
+    expect(gzipSync(normal, { level: 6 }).length).toBeLessThan(LIMITE_AGREGADOS_GZIP)
+    // o centro tem 3 casas e os hectares 1; o h3 segue inteiro
+    const f = nacional.features.find(x => x.properties.potencial_ha !== null)!
+    expect(String(f.geometry.coordinates[0]).split(".")[1]?.length ?? 0).toBeLessThanOrEqual(3)
+    expect(Number.isInteger(f.properties.potencial_ha! * 10)).toBe(true)
+  }, 120_000)
 })

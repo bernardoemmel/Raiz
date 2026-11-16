@@ -200,6 +200,8 @@ def test_trava_ocupada_revalida_sem_repetir_escrita_ate_liberacao(tmp_path, relo
     monkeypatch.setenv("GITHUB_SHA", "a" * 40)
 
     def servidor(req):
+        if req.url.path.endswith(("/git/trees", "/git/commits")):
+            return httpx.Response(404)  # sem o commit próprio da trava: segue com o commit de base
         metodos.append(req.method)
         if req.method == "POST":
             if metodos.count("POST") == 1:

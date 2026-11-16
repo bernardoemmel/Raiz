@@ -270,8 +270,15 @@ try {
   assert(await pagina.evaluate(() => document.querySelector(".mapa-brasil .mapa").__mapa.getZoom()) >= 9,
     "O município aberto pelo H3 preserva o detalhe.")
   await ajuda.click()
-  await pagina.getByRole("link", { name: "Raíz, abrir mapa", exact: true }).click()
+  // Reproduz a corrida: voltar ao Brasil e começar a busca antes do efeito da rota.
+  await pagina.evaluate(() => {
+    location.hash = "#/"
+    document.querySelector(".topo .busca input").focus()
+  })
+  await pagina.waitForURL(u => u.hash === "#/")
   await mapaPronto()
+  assert(await pagina.locator(".topo .busca input").evaluate(el => el === document.activeElement),
+    "A mudança de rota não pode roubar o foco de quem já começou uma busca.")
   pedidosSatelite.length = 0
   await buscar("Pará", "#/estado/PA")
   await mapaPronto()

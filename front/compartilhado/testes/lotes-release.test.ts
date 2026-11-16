@@ -138,8 +138,10 @@ describe("consulta estática aos lotes", () => {
     expect(f.publica).toBe(true)
     expect(f.sessao()).toBeNull()
     const p = await f.criar(campos)
-    expect(buscar).toHaveBeenCalledTimes(1)
-    expect(String(buscar.mock.calls[0][0])).toContain("/Raiz/amostra/lote_PA_central_r11.json")
+    // só os dois resumos públicos: o do PA e o nacional (UF, bioma e Brasil); nenhum pacote nem arquivo por fazenda
+    expect(buscar.mock.calls.map((c) => String(c[0])).sort()).toEqual(["/Raiz/amostra/lote_PA_central_r11.json", "/Raiz/amostra/lote_nacional_resumo.json"])
+    expect(p.nacional?.resumo.estado).toBe("ausente") // arquivo de outro contrato: desconhecido, não zero
+    expect(p.nacional?.recorte).toBeNull()
     expect(p.publicacao?.cobertura).toEqual({ municipios: 1, estados: 1, fazendas: 7, hectares: 20 })
     expect(p.publicacao?.base.creditos.p50).toBeNull()
     expect(p.exemplo).toBe(false)

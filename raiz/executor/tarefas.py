@@ -65,6 +65,8 @@ CODIGO = {
         "raiz/regras/padroes/faixas.yaml",
     ),  # fmt: skip
     "rebanho": ("raiz/rebanho.py",),
+    # tarefa própria, folha do grafo: mexer aqui ou receber coleta nova refaz só ela (o funil fica)
+    "comprometida": ("raiz/comprometida/status.py", "raiz/terra_comprometida.py"),
     "desenvolvedor": ("raiz/restauracao.py", "raiz/restauracao_geo.py", "raiz/vazamento.py"),
 }
 DEPENDE = {
@@ -78,6 +80,7 @@ DEPENDE = {
     "titulo": ("funil", "filtros", "terra"),
     "ficha": ("funil", "filtros", "mapbiomas", "flag", "terra"),
     "rebanho": ("funil", "mapbiomas", "direto"),
+    "comprometida": ("funil",),
     "desenvolvedor": ("funil", "filtros", "mapbiomas", "direto", "ficha", "terra", "rebanho"),
 }
 SAIDAS = {
@@ -91,6 +94,7 @@ SAIDAS = {
     "titulo": ("titulo_{cod}.csv", "regularizacao_{cod}.csv", "achados_{cod}.csv"),
     "ficha": ("ficha_{cod}.csv", "camadas_{cod}.parquet", "camadas_{cod}.pmtiles"),
     "rebanho": ("rebanho_{cod}.csv",),
+    "comprometida": ("comprometida_{cod}.csv",),
     "desenvolvedor": ("desenvolvedor_{cod}.csv",),
 }
 
@@ -127,6 +131,10 @@ def versao(nome: str) -> str:
         from raiz.titulo import tarefa
 
         extra = tarefa.versao()
+    elif nome == "comprometida":
+        from raiz.comprometida import status
+
+        extra = status.versao()
     # A captura é parte do contrato da tarefa: mudança nela precisa de nova
     # execução, mesmo quando o CSV final teria os mesmos números.
     historico = (
@@ -240,6 +248,10 @@ def externas(nome: str):
                     "matricula": _documentos(uf, cod, "matricula"),
                     "cadeia": _documentos(uf, cod, "cadeia"),
                     "sigef": assinatura_arquivo(esp / "sigef" / uf / f"{cod}.parquet", conteudo=True)}  # fmt: skip
+        if nome == "comprometida":
+            from raiz.comprometida import status
+
+            return {"limites": status.assinatura()}
         if nome in ("ficha", "desenvolvedor"):
             return _rasters_uf(uf, "cobertura")
         return {}
@@ -268,6 +280,14 @@ def rodar(nome: str):
     return f
 
 
+def rodar_comprometida(uf: str, cod: int, pasta: Path) -> None:
+    """Cruza os CAR do município com os limites coletados. Não passa por raiz/funil/rodar.py: esse arquivo entra no
+    hash de todas as tarefas, e mexer nele refaria o funil dos municípios prontos."""
+    from raiz.comprometida import status
+
+    status.escrever_municipio(pasta, int(cod))
+
+
 def tarefas_producao() -> list[Tarefa]:
     return [
         Tarefa(
@@ -275,7 +295,7 @@ def tarefas_producao() -> list[Tarefa]:
             depende=DEPENDE[n],
             saidas=SAIDAS[n],
             versao=lambda n=n: versao(n),
-            rodar=rodar(n),
+            rodar=rodar_comprometida if n == "comprometida" else rodar(n),
             externas=externas(n),
             pode_ficar_vazio=(n == "funil"),
         )  # fmt: skip

@@ -4,6 +4,7 @@ import { thumbHashToDataURL } from "thumbhash"
 import { BASE_HA, caixaDeFatos, PRAZO_ANOS } from "../../compartilhado/cenario"
 import { boisPorAno, camposDeFutebol } from "../../compartilhado/comparacoes"
 import { escolherFonte, type Ficha as DadosFicha } from "../../compartilhado/dados"
+import { mailtoContato, raioX } from "../../compartilhado/raio-x"
 import { abreviarCar, fmtCompacto, fmtDestaque, fmtInt, fmtPct, UFS } from "../../compartilhado/formato"
 import { COR, MAPA } from "../../compartilhado/cores"
 import { svgMiniBrasil } from "../../compartilhado/mini-brasil"
@@ -11,7 +12,8 @@ import { motivos } from "../../compartilhado/motivos"
 import { situacaoTitulo } from "../../compartilhado/titulo"
 
 const fonte = escolherFonte(import.meta.env)
-const CONTATO: string | undefined = import.meta.env.VITE_RAIZ_CONTATO
+const API: string | undefined = import.meta.env.VITE_RAIZ_API
+const EMAIL: string | undefined = import.meta.env.VITE_RAIZ_EMAIL
 
 const maiuscula = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
 const numero = (n: number) => (n >= 10_000 ? fmtCompacto(n) : fmtInt(n))
@@ -145,6 +147,65 @@ function MapaSobDemanda({ ficha }: { ficha: DadosFicha }) {
       </button>
       <p class="miudo">{estado === "erro" ? "Não deu para abrir o mapa agora. Tente de novo com sinal melhor." : "O mapa usa mais internet; o desenho acima não gasta nada."}</p>
     </>
+  )
+}
+
+/**
+ * Pedido de contato, sempre visível (sem CPF, nome ou telefone). Com o back-end (VITE_RAIZ_API), grava o pedido pela
+ * API; sem ele, ou se a API não aceitar, abre um e-mail para a Raíz com o código do CAR já preenchido.
+ */
+function BarraContato({ ficha }: { ficha: DadosFicha }) {
+  const [estado, setEstado] = useState<"parado" | "enviando" | "gravado">("parado")
+  const i = ficha.imovel
+  const abrirEmail = () => {
+    location.href = mailtoContato(i.cod_imovel, i.municipio, i.uf, EMAIL)
+  }
+  const pedir = async () => {
+    if (!API) return abrirEmail()
+    setEstado("enviando")
+    try {
+      const r = await fetch(`${API.replace(/\/$/, "")}/imoveis/${encodeURIComponent(i.cod_imovel)}/contato`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: "{}",
+      })
+      if (!r.ok) throw new Error(String(r.status))
+      setEstado("gravado")
+    } catch {
+      setEstado("parado")
+      abrirEmail()
+    }
+  }
+  return (
+    <div class="contato-fixo" role="region" aria-label="Quero ser contatado">
+      {estado === "gravado" ? (
+        <p class="miudo" role="status">Pedido recebido. A Raíz vai procurar você.</p>
+      ) : (
+        <button type="button" class="botao" onClick={pedir} disabled={estado === "enviando"}>
+          {estado === "enviando" ? "Enviando…" : "Quero ser contatado"}
+        </button>
+      )}
+    </div>
+  )
+}
+
+/** Raio-X (guia, item 6.3): hectares, faixa de valor e o botão de contato, logo no começo da ficha. */
+function RaioX({ ficha }: { ficha: DadosFicha }) {
+  const r = raioX(ficha.imovel.carbono_ha, ficha.paraQuemRestaura)
+  return (
+    <section class="cartao raio-x" aria-labelledby="raio-x">
+      <h2 id="raio-x">Raio-X da sua terra</h2>
+      <dl>
+        <div>
+          <dt>Hectares que podem voltar a ser mata</dt>
+          <dd class="num grande">{fmtInt(r.hectares)} ha</dd>
+        </div>
+        <div>
+          <dt>Faixa de valor</dt>
+          <dd>{r.valor}</dd>
+        </div>
+      </dl>
+    </section>
   )
 }
 
@@ -305,6 +366,8 @@ export function Ficha() {
           </>
         )}
 
+        <RaioX ficha={ficha} />
+
         {i.apta && i.carbono_tco2_ano > 0 && (
           <section class="cartao">
             <h2>Se a mata voltar</h2>
@@ -395,11 +458,7 @@ export function Ficha() {
           <MapaSobDemanda ficha={ficha} />
         </section>
 
-        {CONTATO && (
-          <a class="botao" href={CONTATO}>
-            Quero conversar com a Raíz
-          </a>
-        )}
+        <BarraContato ficha={ficha} />
 
         <footer>
           <p>

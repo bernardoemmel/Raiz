@@ -304,3 +304,37 @@ footer {
 
 /* O aviso só aparece se o carregamento opcional da ficha falhar. */
 .aviso[hidden] { display: none; }
+
+/* Raio-X: dois números lado a lado, a faixa de valor embaixo */
+.raio-x dl {
+  margin: 0;
+}
+.raio-x dl > div + div {
+  margin-top: var(--e3);
+}
+.raio-x dt {
+  font-size: 16px;
+  opacity: 0.85;
+}
+.raio-x dd {
+  margin: 4px 0 0;
+}
+
+/* botão de contato: sempre na tela, no pé da ficha */
+main {
+  padding-bottom: 96px;
+}
+.contato-fixo {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 10;
+  padding: var(--e3) var(--e4) calc(var(--e3) + env(safe-area-inset-bottom));
+  background: var(--superficie);
+  border-top: var(--linha);
+}
+.contato-fixo .botao {
+  width: 100%;
+  margin: 0;
+}

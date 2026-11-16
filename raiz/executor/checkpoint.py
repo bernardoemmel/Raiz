@@ -22,12 +22,14 @@ from raiz import RAIZ_REPO
 from raiz.executor import transferencia_privada as T
 
 FORMATO = 1
-LOTE_BYTES = 256 * 1024 * 1024
+# Lotes maiores = menos arquivos no Release privado (limite de 1000). Comprimido fica abaixo do
+# teto de 2 GB por arquivo (transferencia_privada.MAX_ASSET_BYTES).
+LOTE_BYTES = 1536 * 1024 * 1024
 _SHA = re.compile(r"[a-f0-9]{64}")
 _UFS = set("AC AL AP AM BA CE DF ES GO MA MT MS MG PA PB PR PE PI RJ RN RS RO RR SC SP SE TO".split())
 _CSV = set(
     "imoveis filtros direto mapbiomas extras extras_direto flag terra titulo regularizacao "
-    "achados ficha rebanho desenvolvedor certidoes jurisdicional".split()
+    "achados ficha rebanho desenvolvedor certidoes jurisdicional comprometida".split()
 )
 
 
@@ -188,7 +190,7 @@ def _enviar_verificado(nome, caminho, arm, trabalho, *, imutavel=True):
 
 def _salvar(unidade, arm, raizes):
     unidade, uf = _unidade(unidade)
-    arm = arm or T.arquivo_privado()
+    arm = arm or T.arquivo_checkpoints()
     _exigir(getattr(arm, "privado", False), "checkpoint_destino_nao_privado")
     arm._exigir_privado()
     raizes = _raizes(raizes)
@@ -317,24 +319,56 @@ def _salvar(unidade, arm, raizes):
         }
 
 
+def _arquivos_de_checkpoint() -> list:
+    """Release próprio dos checkpoints primeiro; o arquivo privado geral guarda os checkpoints antigos."""
+    return [T.arquivo_checkpoints(), T.arquivo_privado()]
+
+
+def _ponteiro_mais_novo(unidade: str, arms: list, destino: Path) -> tuple[dict | None, object]:
+    """O ponteiro de maior (run, tentativa) entre os arquivos; empate fica com o primeiro (o novo)."""
+    melhor, dono, chave_melhor = None, None, None
+    for arm in arms:
+        tmp = destino.with_name(destino.name + ".lido")
+        if not T.baixar_arquivo(f"checkpoint-{unidade}-latest.json", tmp, opcional=True, arm=arm):
+            continue
+        ponteiro = _ler_json(tmp)
+        run, tentativa = str(ponteiro.get("run", "")), str(ponteiro.get("attempt", ""))
+        chave = (int(run), int(tentativa)) if run.isdigit() and tentativa.isdigit() else (-1, -1)
+        if melhor is None or chave > chave_melhor:
+            melhor, dono, chave_melhor = ponteiro, arm, chave
+            tmp.replace(destino)
+    return melhor, dono
+
+
 def _restaurar(unidade, arm, raizes):
     unidade, uf = _unidade(unidade)
-    arm = arm or T.arquivo_privado()
-    _exigir(getattr(arm, "privado", False), "checkpoint_destino_nao_privado")
-    arm._exigir_privado()
+    arms = [arm] if arm else _arquivos_de_checkpoint()
+    for a in arms:
+        _exigir(getattr(a, "privado", False), "checkpoint_destino_nao_privado")
+        a._exigir_privado()
     raizes = _raizes(raizes)
     with tempfile.TemporaryDirectory(prefix="raiz-retomar-") as td:
         trabalho = Path(td)
         p = trabalho / "latest.json"
-        if not T.baixar_arquivo(f"checkpoint-{unidade}-latest.json", p, opcional=True, arm=arm):
+        ponteiro, arm = _ponteiro_mais_novo(unidade, arms, p)
+        if ponteiro is None:
             return {"situacao": "ausente", "unidade": unidade, "arquivos": 0}
-        ponteiro = _ler_json(p)
+        reservas = [a for a in arms if a is not arm]
+
+        def baixar(nome, destino):
+            # Manifesto e objetos ficam no arquivo do ponteiro; durante a migração podem estar no outro.
+            if T.baixar_arquivo(nome, destino, opcional=bool(reservas), arm=arm):
+                return
+            for i, outro in enumerate(reservas):
+                if T.baixar_arquivo(nome, destino, opcional=i < len(reservas) - 1, arm=outro):
+                    return
+
         _exigir(ponteiro["formato"] == FORMATO and ponteiro["unidade"] == unidade and ponteiro["uf"] == uf)
         sha = ponteiro["sha256"]
         _exigir(isinstance(sha, str) and _SHA.fullmatch(sha))
         _exigir(ponteiro["manifesto"] == f"checkpoint-{unidade}-{ponteiro['run']}-{ponteiro['attempt']}-{sha}.json")
         m = trabalho / "manifesto.json"
-        T.baixar_arquivo(ponteiro["manifesto"], m, arm=arm)
+        baixar(ponteiro["manifesto"], m)
         _exigir(_hash(m) == sha, "checkpoint_manifesto_corrompido")
         manifesto = _ler_json(m)
         _exigir(all(manifesto[k] == ponteiro[k] for k in ("formato", "unidade", "uf", "run", "attempt")))
@@ -368,7 +402,7 @@ def _restaurar(unidade, arm, raizes):
             _exigir(nome not in nomes_pacotes and 0 <= pacote["brutos"] <= LOTE_BYTES)
             nomes_pacotes.add(nome)
             arq = trabalho / "pacote.tar.gz"
-            T.baixar_arquivo(nome, arq, arm=arm)
+            baixar(nome, arq)
             _exigir(
                 arq.stat().st_size == pacote["bytes"] <= T.MAX_ASSET_BYTES and _hash(arq) == pacote["sha256"],
                 "checkpoint_pacote_corrompido",

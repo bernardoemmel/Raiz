@@ -20,6 +20,8 @@
 import type { Geo } from "../dados/tipos"
 import type { FichaCredito } from "../ficha-credito"
 
+import type { RecorteNacional, ResumoNacional } from "./lote-nacional"
+
 /** O que conta na meta. */
 export type TipoMeta = "creditos" | "hectares" | "flag_t_ano"
 export type Cronograma = "profloresta" | "livre" | "proprio"
@@ -207,6 +209,8 @@ export interface Pedido {
   exemplo?: boolean
   /** Consulta pública ao cenário publicado. Não é uma execução do pedido nem libera detalhes das fazendas. */
   publicacao?: PublicacaoLote
+  /** Resumo do lote nacional (UF, bioma, Brasil) e o recorte que responde a este pedido; null = sem resumo para ele. */
+  nacional?: { resumo: ResumoNacional; recorte: RecorteNacional | null }
 }
 
 export interface DestravadorPublicado {

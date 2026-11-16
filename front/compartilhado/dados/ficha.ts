@@ -11,6 +11,7 @@ import { comoLinha } from "./colunas"
 import type { Linha } from "./csv"
 import { lerImovel } from "./funil"
 import type { Geo, Imovel } from "./tipos"
+import type { ParaQuemRestaura } from "../raio-x"
 
 export interface ContextoMunicipio {
   cod_ibge: string
@@ -46,6 +47,8 @@ export interface FichaJson {
   caixa: [number, number, number, number] | null
   /** só com o back-end, quando a foto de satélite já existe */
   capa?: Capa | null
+  /** a conta do dono (faixa de valor do Raio-X); sem ela, a tela diz que a faixa ainda não foi calculada */
+  para_quem_restaura?: ParaQuemRestaura | null
 }
 
 export interface Ficha {
@@ -54,6 +57,7 @@ export interface Ficha {
   aneis: [number, number][][]
   caixa: [number, number, number, number] | null
   capa: Capa | null
+  paraQuemRestaura: ParaQuemRestaura | null
 }
 
 type Feicao = Geo["features"][number]
@@ -140,5 +144,6 @@ export function lerFicha(json: FichaJson): Ficha {
     aneis: (json.perimetro ?? []).map((p) => decodificar(p)),
     caixa: json.caixa,
     capa: json.capa?.thumbhash && json.capa.caminho ? json.capa : null,
+    paraQuemRestaura: json.para_quem_restaura ?? null,
   }
 }

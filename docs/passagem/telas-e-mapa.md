@@ -1054,3 +1054,29 @@ revisão anterior do mesmo PR executou os serviços: **3.560 testes passaram**, 
 excluído e um xfail; referência privada do Pará também passou. Esses resultados
 não substituem o CI da revisão final. O merge permanece condicionado a todos os
 checks verdes no HEAD enviado, sem force-push na main.
+
+## Correção do CI após #107 (14/11/2026)
+
+A execução `43533354039` da main anterior (`22e825c`, antes do visual V2) falhou
+no Lighthouse com mediana 85. A execução `43536277877` do merge #107 (`59dac98`)
+falhou antes, no teste Pages: a busca por Pará perdeu o foco e fechou os resultados
+enquanto o efeito de navegação terminava. O passo Lighthouse foi ignorado nessa execução.
+
+A correção preserva o foco em campos que a pessoa já está usando quando a rota
+termina de carregar. Pages reproduz explicitamente a volta ao Brasil com foco na
+busca antes do efeito da rota e exige que ele seja mantido. Limites, amostras e
+configuração do Lighthouse permanecem intactos; nenhum arquivo de `motor/` mudou.
+
+Na busca móvel, o foco é instalado junto com a abertura do diálogo, antes da
+próxima pintura. Um evento `close` antigo não fecha um diálogo que já foi reaberto.
+O teste de teclado aguarda o campo efetivamente focado antes de digitar.
+
+Validação local da correção: Pages passou com zero 404/erros e o passo completo
+de 360 px, teclado, axe e Lighthouse passou. Medianas: Brasil 94, entrar 96,
+novo pedido 95, prospecção 95, Acerto 96 e produtor 100; acessibilidade mínima 100.
+O CI do novo PR deve confirmar a revisão antes do merge.
+
+Também passaram 647 testes do front e Ruff (683 arquivos formatados). O pytest
+local foi interrompido na coleta por dependências ausentes (`cvxpy`, `pulp`,
+`pysyncon`) no ambiente reutilizado; a suíte Python completa permanece obrigatória
+no CI com o ambiente travado. Não foram alterados código nem dependências do motor.

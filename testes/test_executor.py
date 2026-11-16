@@ -295,8 +295,32 @@ def test_producao_tem_todas_as_tarefas_em_ordem():
     from raiz.funil.rodar import TAREFAS
 
     nomes = [t.nome for t in ordenar(T.tarefas_producao())]
-    assert set(nomes) == set(TAREFAS) - {"carga"}  # a carga é do back-end, a partir do armazém
+    # a carga é do back-end, a partir do armazém; "comprometida" é só do executor (não passa por funil/rodar.py)
+    assert set(nomes) == (set(TAREFAS) - {"carga"}) | {"comprometida"}
     assert nomes.index("funil") == 0 and nomes.index("terra") < nomes.index("ficha") < nomes.index("desenvolvedor")
     v = {t.nome: t.versao() for t in T.tarefas_producao()}
     assert all(x.startswith(n + "-") for n, x in v.items())
     assert len(T.municipios_da_uf("PA")) == 144 and sum(len(T.municipios_da_uf(u)) for u in T.UFS) == 5571
+
+
+def test_municipio_novo_nao_vira_erro_de_integridade_pela_caixa(tmp_path, monkeypatch):
+    """A assinatura dos alertas muda quando a caixa do município aparece (depois do primeiro funil). Antes, todo
+    município novo terminava com 'fontes, versões ou saídas mudaram' e rodava o funil de novo na rodada seguinte."""
+    from raiz.executor import executor as E
+
+    monkeypatch.setattr(E, "_caixa", lambda pasta, cod: [0.0, 0.0, 1.0, 1.0])
+    chamadas = []
+
+    def funil(uf, cod, pasta):
+        chamadas.append(cod)
+        (pasta / f"imoveis_{cod}.csv").write_text("cod_imovel,ha\nx,1\n")
+
+    def externas_funil(uf, cod, marca):
+        return {"alertas": "caixa" if marca.get("caixa") else "estado inteiro"}
+
+    tarefas = [Tarefa("funil", (), ("imoveis_{cod}.csv",), lambda: "funil-1", funil, externas_funil, True)]
+    ex = Executor(ArmazemLocal(tmp_path / "armazem"), tmp_path / "trabalho", tarefas)
+    r = ex.processar_municipio("PA", 1)
+    assert r["erro"] is None and r["rodadas"] == ["funil"]
+    assert ex.plano("PA", 1) == []
+    assert ex.processar_municipio("PA", 1)["puladas"] == ["funil"] and chamadas == [1]

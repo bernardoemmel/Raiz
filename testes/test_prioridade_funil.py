@@ -29,9 +29,9 @@ def test_prioridade_enche_quinze_sem_limitar_numero_de_ufs(monkeypatch):
     runs = {str(i): _run() for i in (1, 2)}
     escolhidos = F.admitir(estado, runs, "1", candidatos, O._e_unidade, funis_prontos=set())
     assert len(escolhidos) == 15
-    assert {p["unidade"].split("-")[0] for p in escolhidos} == {"TO", "MA", "MT"}
+    assert {p["unidade"].split("-")[0] for p in escolhidos} == {"AM", "MT", "TO"}  # Amazônia Legal primeiro
     runs["1"] = _run(*(p["unidade"] for p in escolhidos), status="completed", conclusion="success")
-    proxima = _pedido("AM-1001", "2")
+    proxima = _pedido("MA-1001", "2")
     assert F.admitir(estado, runs, "2", [proxima], O._e_unidade, funis_prontos=set()) == [proxima]
     assert estado["prioridade_funil"]["frente"] == list(F.ORDEM_FUNIL)
 
@@ -42,7 +42,7 @@ def test_quatro_ufs_legadas_nao_impedem_preencher_as_quinze_vagas(monkeypatch):
     runs = {"legado": _run("SP-1", "PR-1", "SC-1", "RS-1"), "novo": _run()}
     candidatos = [_pedido(u) for uf in F.ORDEM_FUNIL for u in S.unidades(uf)]
     escolhidos = F.admitir(estado, runs, "novo", candidatos, O._e_unidade, funis_prontos=set())
-    assert len(escolhidos) == 11 and escolhidos[0]["unidade"].startswith("TO-")
+    assert len(escolhidos) == 11 and escolhidos[0]["unidade"].startswith("AM-")
     assert runs["legado"]["status"] == "in_progress"
 
 
@@ -153,7 +153,7 @@ def test_fatia_antiga_e_subdivisao_nao_rodam_juntas(ativa, proxima):
 
 def test_plano_ignora_manutencao_mesmo_pedida_ou_com_codigo_novo(monkeypatch):
     estados = {uf: _completo(uf) for uf in S.TOTAL_IBGE if uf not in {"TO", "MA", "MT", "AM"}}
-    estados["AC"].update(completo=False, versoes={"funil": "antiga"}, faltam={"ficha": 22})
+    estados["SC"].update(completo=False, versoes={"funil": "antiga"}, faltam={"ficha": 22})
     monkeypatch.setenv("RAIZ_PRIORIDADE_FUNIL", "1")
     monkeypatch.delenv("GITHUB_ACTIONS", raising=False)
     monkeypatch.delenv("GITHUB_OUTPUT", raising=False)
@@ -161,8 +161,55 @@ def test_plano_ignora_manutencao_mesmo_pedida_ou_com_codigo_novo(monkeypatch):
     monkeypatch.setattr(S, "ler_manifesto", lambda: {"estados": estados})
     monkeypatch.setattr(O, "versoes_executor", lambda: {"funil": "nova"})
     monkeypatch.setattr(O, "ufs_ativas", lambda: (set(), 0))
-    assert {u.split("-")[0] for u in O.planejar([], set())} == {"TO", "MA", "MT"}
+    assert {u.split("-")[0] for u in O.planejar([], set())} == {"AM", "MT", "TO"}
     assert len(O.planejar([], set())) == 15
-    assert all(not u.startswith("AC") for u in O.planejar(["AC", "TO-1001"], set()))
+    assert all(not u.startswith("SC") for u in O.planejar(["SC", "TO-1001"], set()))
     with pytest.raises(ValueError, match="manutenção suspensa"):
         O.planejar(["TO-1001"], {"funil"})
+
+
+def test_conserto_de_infraestrutura_com_mesma_ciencia_chega_aos_jobs():
+    guardado = {**_pedido("TO-1001"), "ref": "a" * 40, "falhas": 1}
+    estado = {**F.vazio(), "planejadores": ["1"], "fila": [guardado],
+              "prioridade_funil": {"ref": "a" * 40, "versao_funil": "funil-v2", "frente": ["TO"]}}  # fmt: skip
+    escolhidos = F.admitir(estado, {"1": _run()}, "1", [], O._e_unidade, funis_prontos=set(),
+                          ref_funil="b" * 40, versao_funil="funil-v2")  # fmt: skip
+    assert estado["prioridade_funil"]["ref"] == "b" * 40
+    assert escolhidos == [{**guardado, "ref": "b" * 40}]
+
+
+def test_amazonia_legal_so_sai_da_frente_com_o_produto_pronto():
+    """O resto do PA (ficha e desenvolvedor) e o MS faltando MapBiomas de 1 município não ficam suspensos."""
+    pa = {"municipios": 144, "faltam": {"ficha": 45, "desenvolvedor": 45}}
+    ms = {"municipios": 79, "faltam": {"mapbiomas": 1, "ficha": 1}}
+    sc = {"municipios": 295, "faltam": {"ficha": 1}}
+    assert not O.pronto_para_prioridade("PA", pa)
+    assert not O.pronto_para_prioridade("MS", ms)
+    assert O.pronto_para_prioridade("SC", sc)  # fora da Amazônia, só o funil e suas etapas
+    assert O.pronto_para_prioridade("PA", {"municipios": 144, "faltam": {}})
+    assert not O.pronto_para_prioridade("AM", None)
+
+
+def test_conserto_de_infraestrutura_desbloqueia_falhas_mas_nao_cancelamento():
+    """AM, TO e MA ficaram de 14 a 16/11 sem tentativa: o bloqueio de 3 falhas ia junto para cada commit novo."""
+    bloqueado = {**_pedido("AM-1001"), "ref": "a" * 40, "falhas": 3, "bloqueado": "3 execuções falharam: corrigir"}
+    repetido = {**_pedido("AM-1001", "9"), "ref": "a" * 40, "falhas": 3, "bloqueado": "3 execuções falharam: corrigir"}
+    cancelado = {**_pedido("MT-1001"), "ref": "a" * 40, "falhas": 1,
+                 "bloqueado": "Execução cancelada: só um novo pedido explícito pode retomar."}  # fmt: skip
+    estado = {**F.vazio(), "planejadores": ["1"], "fila": [bloqueado, repetido, cancelado],
+              "prioridade_funil": {"ref": "a" * 40, "versao_funil": "funil-v2", "frente": ["AM", "MT"]}}  # fmt: skip
+    escolhidos = F.admitir(estado, {"1": _run()}, "1", [], O._e_unidade, funis_prontos=set(),
+                          ref_funil="b" * 40, versao_funil="funil-v2")  # fmt: skip
+    assert [p["unidade"] for p in escolhidos] == ["AM-1001"]
+    assert escolhidos[0]["falhas"] == 0 and escolhidos[0]["falhas_anteriores"] == 3
+    assert escolhidos[0]["desbloqueado"] == {"de": "a" * 40, "para": "b" * 40}
+    assert [p["unidade"] for p in estado["fila"]] == ["MT-1001"] and estado["fila"][0]["bloqueado"]
+
+
+def test_ciencia_nova_nao_desbloqueia():
+    bloqueado = {**_pedido("AM-1001"), "ref": "a" * 40, "falhas": 3, "bloqueado": "3 execuções falharam: corrigir"}
+    estado = {**F.vazio(), "planejadores": ["1"], "fila": [bloqueado],
+              "prioridade_funil": {"ref": "a" * 40, "versao_funil": "funil-v2", "frente": ["AM"]}}  # fmt: skip
+    F.admitir(estado, {"1": _run()}, "1", [], O._e_unidade, funis_prontos=set(), ref_funil="b" * 40,
+              versao_funil="funil-v3")  # fmt: skip
+    assert estado["fila"] == [bloqueado]

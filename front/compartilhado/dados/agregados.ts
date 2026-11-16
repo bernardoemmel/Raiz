@@ -1,8 +1,14 @@
 import type { Geo } from "./tipos"
 
 export const AVISO_AGREGADOS = "Cobertura parcial. Cada ponto representa uma célula estatística, nunca a posição de uma fazenda. A contagem reúne as fazendas presentes no agregado; células com menos de cinco CARs foram omitidas. Os hectares conhecidos somam somente contribuintes positivos sem sobreposição detectada, com pelo menos cinco por célula. Sem medida suficiente, o valor permanece desconhecido. Não representa toda a área ou todas as fazendas do território, nem disponibilidade para venda."
-export const LIMITE_AGREGADOS_GZIP = 560_000
-export const LIMITE_AGREGADOS_NORMAL = 2_500_000
+/**
+ * Limites dimensionados pela geografia, não pelo que já foi processado: o Brasil tem no máximo ~34 mil células H3 de
+ * resolução 5 (8,5 milhões de km² / ~252 km² por célula). Com ~150 bytes por feição compacta (centro com 3 casas
+ * decimais e hectares com 1), o nível Brasil inteiro cabe em ~5,1 MB sem compressão e ~1,1 MB comprimido. Assim o
+ * build não quebra mais quando entram novos municípios.
+ */
+export const LIMITE_AGREGADOS_GZIP = 1_300_000
+export const LIMITE_AGREGADOS_NORMAL = 6_000_000
 export const LIMITE_AGREGADOS_TOTAL = LIMITE_AGREGADOS_GZIP + LIMITE_AGREGADOS_NORMAL
 
 export interface AgregadosMapa {
