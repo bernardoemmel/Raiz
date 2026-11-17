@@ -1,0 +1,53 @@
+# Fontes complementares na triagem (raiz/complementares/status.py): crédito rural (SICOR/BCB), localidades e
+# comunidades quilombolas (IBGE Censo 2022 e Fundação Palmares), territórios tradicionais do MPF e projetos de
+# restauração fora dos registros de carbono (Observatório da Restauração e Restor). Cada imóvel recebe "exclusao"
+# (sai do lote), "ressalva" (fica no lote, marcado, com o motivo), "livre" (fontes essenciais consultadas e nada
+# cruzou) ou "nao_verificado". Ausência de dado nunca vira "livre". Mudou este arquivo: a versão da tarefa
+# "complementares" muda e só ela refaz. Critérios explicados em docs/fontes-complementares.md.
+#
+# Nunca descartar imóvel por tamanho: os limiares medem a SOBREPOSIÇÃO (ha ou fração do imóvel), não a fazenda.
+# LGPD: sem nome, CPF, CNPJ ou valor de crédito. O SICOR chega aqui só como código do CAR, datas e áreas.
+versao: complementares-2026a
+adotado_em: "2026-11-17"
+
+# Sobreposição que conta (as duas regras: a primeira que bater). Iguais às restrições nacionais.
+limiar_ha: 1.0
+limiar_fracao: 0.05
+tolerancia_ha: 0.1
+
+# Sem estas o imóvel nunca é "livre". MPF, Observatório e Restor dependem de autorização: entram quando chegarem.
+fontes_essenciais: [sicor, ibge_quilombolas]
+
+sicor:
+  # gleba emitida nos últimos N anos = uso agrícola recente (área produtiva: custo de oportunidade maior)
+  anos_uso_recente: 3
+
+quilombolas:
+  # localidade quilombola do IBGE a até N km do imóvel (fora dele) = ressalva; dentro = exclusão
+  raio_km: 2.0
+
+motivos:
+  exclusao:
+    localidade_quilombola_dentro: >-
+      Localidade quilombola do Censo 2022 (IBGE) dentro do imóvel: território tradicional em uso; restauração só com
+      consulta livre, prévia e informada (OIT 169; Lei 15.042/2024, art. 47).
+    territorio_tradicional_mpf: >-
+      Território tradicional da Plataforma de Territórios Tradicionais (MPF/CNPCT) cobre parte relevante do imóvel.
+  ressalva:
+    localidade_quilombola_proxima: >-
+      Localidade quilombola do Censo 2022 a menos de 2 km do imóvel: conferir em campo se o uso da comunidade chega
+      à área e se há processo na Fundação Palmares ou no INCRA.
+    territorio_tradicional_mpf_borda: Território tradicional do MPF só na borda do imóvel.
+    credito_rural_ativo: >-
+      Crédito rural ativo (SICOR/BCB) ligado ao CAR ou em gleba sobre o imóvel: a área pode estar dada em garantia
+      (cédula com hipoteca ou penhor na matrícula) e em uso agrícola financiado; conferir com o dono e na certidão.
+    uso_agricola_recente: >-
+      Gleba de crédito rural dos últimos 3 anos sobre o imóvel (SICOR/BCB): uso agrícola recente, custo de
+      oportunidade maior para restaurar ali.
+    credito_rural_floresta: >-
+      Crédito rural para florestamento, recuperação ambiental ou integração com floresta (SICOR/BCB): a área pode
+      já estar em restauração financiada; conferir adicionalidade e dupla contagem.
+    restauracao_existente: >-
+      Projeto de restauração fora dos registros de carbono (Observatório da Restauração ou Restor) sobre o imóvel:
+      conferir adicionalidade, dupla contagem e quem já restaura ali (pode ser parceiro).
+    restauracao_existente_borda: Projeto de restauração fora dos registros de carbono só na borda do imóvel.

@@ -73,3 +73,6 @@ Outras fontes (estaduais, IBGE, SICOR...) seguem o mesmo desenho: coleta sem dad
 `insumos` com um `*_cobertura.json`; tarefa folha do executor que grava `<camada>_<mun>.csv` com status por imóvel
 (`exclusao | ressalva | livre | nao_verificado`), motivos em códigos com o texto num YAML de `raiz/regras/padroes/`,
 e o nome do arquivo em `raiz/contrato.py` (`COMPLEMENTOS`) para chegar à oferta e ao lote.
+
+Primeira camada que segue este padrão: fontes complementares (SICOR, localidades quilombolas do IBGE e da Fundação
+Palmares, territórios do MPF, Observatório da Restauração e Restor), em `docs/fontes-complementares.md`.

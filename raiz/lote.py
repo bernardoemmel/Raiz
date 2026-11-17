@@ -658,6 +658,8 @@ def decisoes_selecao(
             motivos.append("problema ambiental sinalizado pelo motor")
         if li.get("restricao_nacional") == "exclusao":
             motivos.append(f"restrição nacional: {li.get('restricao_motivos')}")
+        if li.get("complementar_status") == "exclusao":
+            motivos.append(f"fonte complementar: {li.get('complementar_motivos')}")
         for ex in sel["ped"].exclusoes:
             if li.get(ex):
                 motivos.append(ex)
@@ -753,6 +755,40 @@ def restricoes_do_lote(lote: pd.DataFrame) -> dict:
     return _item("ok" if not len(res) and not sem else "pendente", " ".join(partes))
 
 
+def complementares_do_lote(lote: pd.DataFrame) -> dict:
+    """SICOR, localidades quilombolas (IBGE/Palmares), MPF e restauração fora dos registros nas fazendas do lote
+    (raiz/complementares/status.py). Exclusão já saiu antes (bloqueio); aqui ficam ressalvas e o que faltou."""
+    if "complementar_status" not in lote or not len(lote):
+        return _item("pendente", "fontes complementares ainda não calculadas nestes municípios (crédito rural do "
+                                 "SICOR, localidades quilombolas, territórios do MPF, restauração fora dos "
+                                 "registros): conferir antes de contratar")  # fmt: skip
+    st = lote.complementar_status
+    sem = int(st.isna().sum() + (st == "nao_verificado").sum())
+    res = lote[st == "ressalva"]
+    motivos = res.complementar_motivos.dropna().str.split("|").explode().value_counts() if len(res) else pd.Series()
+    partes = [f"{_br(len(res))} fazendas com ressalva"] if len(res) else ["nenhuma fazenda com ressalva"]
+    if len(motivos):
+        partes.append("(" + ", ".join(f"{k}: {int(v)}" for k, v in motivos.items()) + ")")
+    if sem:
+        partes.append(f"; {_br(sem)} sem verificação completa")
+    return _item("ok" if not len(res) and not sem else "pendente", " ".join(partes))
+
+
+def cnib_saec_do_lote(lote: pd.DataFrame) -> dict:
+    """CNIB e certidão de inteiro teor pelo SAEC (raiz/documentos/certidao/onr.py): só com autorização do dono."""
+    if "cnib_situacao" not in lote or not len(lote):
+        return _item("pendente", "CNIB (indisponibilidade de bens) e certidão de inteiro teor pelo SAEC: pedir a "
+                                 "autorização de cada dono e consultar antes de contratar")  # fmt: skip
+    st = lote.cnib_situacao
+    com = int((st == "com_ordem").sum())
+    falta = int((~st.isin(["sem_ordem", "com_ordem"])).sum())
+    if com:
+        return _item("falha", f"{_br(com)} fazendas com ordem de indisponibilidade na CNIB")
+    if falta:
+        return _item("pendente", f"{_br(falta)} fazendas sem consulta à CNIB (falta autorização ou convênio)")
+    return _item("ok", "CNIB consultada em todas as fazendas, sem ordem de indisponibilidade")
+
+
 def checagens(res: dict, tabela: pd.DataFrame, c: dict, r: dict) -> dict[str, dict]:
     """O que dá para conferir com os dados da Raíz. situação: ok, falha, pendente (falta dado ou ação de alguém)."""
     lt = premissas_lote(r)
@@ -784,6 +820,8 @@ def checagens(res: dict, tabela: pd.DataFrame, c: dict, r: dict) -> dict[str, di
     out["sem_desmatamento"] = _item("ok", "só entram fazendas sem embargo, terra indígena, UC de proteção integral ou "
                                           "bloqueio territorial do motor")  # fmt: skip
     out["restricoes_nacionais"] = restricoes_do_lote(lote)
+    out["fontes_complementares"] = complementares_do_lote(lote)
+    out["cnib_saec"] = cnib_saec_do_lote(lote)
     out["metodologia"] = _item("ok", "VM0047 v1.1 da Verra, aprovada pelo ICVCM (CCP)")
     out["creditos_liquidos"] = _item(
         "ok" if float(c["incerteza"]) >= 0.10 else "falha",

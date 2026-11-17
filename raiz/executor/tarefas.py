@@ -69,6 +69,8 @@ CODIGO = {
     "comprometida": ("raiz/comprometida/status.py", "raiz/terra_comprometida.py"),
     # restrições nacionais (SICAR completo, SIGMINE, autos do Ibama, Lista Suja): também folha, mesma lógica
     "restricoes": ("raiz/restricoes/status.py", "raiz/restricoes/coleta.py"),
+    # fontes complementares (SICOR, quilombolas IBGE/Palmares, MPF, Observatório e Restor): também folha
+    "complementares": ("raiz/complementares/status.py", "raiz/complementares/coleta.py"),
     "desenvolvedor": ("raiz/restauracao.py", "raiz/restauracao_geo.py", "raiz/vazamento.py"),
 }
 DEPENDE = {
@@ -84,6 +86,7 @@ DEPENDE = {
     "rebanho": ("funil", "mapbiomas", "direto"),
     "comprometida": ("funil",),
     "restricoes": ("funil",),
+    "complementares": ("funil",),
     "desenvolvedor": ("funil", "filtros", "mapbiomas", "direto", "ficha", "terra", "rebanho"),
 }
 SAIDAS = {
@@ -99,6 +102,7 @@ SAIDAS = {
     "rebanho": ("rebanho_{cod}.csv",),
     "comprometida": ("comprometida_{cod}.csv",),
     "restricoes": ("restricoes_{cod}.csv",),
+    "complementares": ("complementares_{cod}.csv",),
     "desenvolvedor": ("desenvolvedor_{cod}.csv",),
 }
 
@@ -143,6 +147,10 @@ def versao(nome: str) -> str:
         from raiz.restricoes import status as restricoes_status
 
         extra = restricoes_status.versao()
+    elif nome == "complementares":
+        from raiz.complementares import status as complementares_status
+
+        extra = complementares_status.versao()
     # A captura é parte do contrato da tarefa: mudança nela precisa de nova
     # execução, mesmo quando o CSV final teria os mesmos números.
     historico = (
@@ -264,6 +272,10 @@ def externas(nome: str):
             from raiz.restricoes import status as restricoes_status
 
             return {"camadas": restricoes_status.assinatura()}
+        if nome == "complementares":
+            from raiz.complementares import status as complementares_status
+
+            return {"camadas": complementares_status.assinatura()}
         if nome in ("ficha", "desenvolvedor"):
             return _rasters_uf(uf, "cobertura")
         return {}
@@ -315,7 +327,26 @@ def rodar_restricoes(uf: str, cod: int, pasta: Path) -> None:
     status.escrever_municipio(pasta, int(cod), camadas=_CAMADAS_RESTRICOES[1])
 
 
-_RODAR_PROPRIO = {"comprometida": rodar_comprometida, "restricoes": rodar_restricoes}
+_CAMADAS_COMPLEMENTARES = None
+
+
+def rodar_complementares(uf: str, cod: int, pasta: Path) -> None:
+    """Cruza os CAR do município com as fontes complementares (SICOR, quilombolas, MPF, restauração fora dos
+    registros). Folha do grafo, como a "restricoes"; camadas lidas uma vez por processo."""
+    global _CAMADAS_COMPLEMENTARES
+    from raiz.complementares import status
+
+    marca = status.assinatura()
+    if _CAMADAS_COMPLEMENTARES is None or _CAMADAS_COMPLEMENTARES[0] != marca:
+        _CAMADAS_COMPLEMENTARES = (marca, status.Camadas())
+    status.escrever_municipio(pasta, int(cod), camadas=_CAMADAS_COMPLEMENTARES[1])
+
+
+_RODAR_PROPRIO = {
+    "comprometida": rodar_comprometida,
+    "restricoes": rodar_restricoes,
+    "complementares": rodar_complementares,
+}
 
 
 def tarefas_producao() -> list[Tarefa]:
