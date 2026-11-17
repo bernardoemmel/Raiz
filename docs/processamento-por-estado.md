@@ -46,3 +46,6 @@ npm test -- src/processamento-estados.test.ts ../compartilhado/testes/processame
 Os testes de concorrência usam dois repositórios e um remoto bare temporário,
 todos locais. Eles conferem a retenção das duas observações e a ausência de
 histórico encadeado, sem enviar dados ao GitHub.
+
+Para refazer os estados com regras novas sem trocar o que está no ar antes da hora, ver
+[`reprocessamento-progressivo.md`](reprocessamento-progressivo.md).

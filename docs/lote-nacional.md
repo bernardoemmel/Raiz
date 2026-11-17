@@ -41,10 +41,10 @@ hectares e soma dos créditos P50 (soma de quantis individuais, não quantil de 
 menos no caminho da terra, com o que destrava e `habilita_venda: false`. O pedido do cliente não muda em silêncio: para
 incluir essa terra, ele escolhe `posse_em_titulacao` e/ou `assentamento` em `terra`.
 
-A camada "já comprometida" ainda não faz parte do catálogo nacional (a coleta nacional não rodou). Enquanto a coluna
-`ja_comprometida` não existir, toda opção e a consulta dizem `sobreposicao: nao_verificada`. Quando o catálogo trouxer
-`ja_comprometida`, a consulta tira essas fazendas do lote (e do critério gravado na decisão) e, com `risco_sobreposicao`,
-conta as marcadas em cada opção.
+A camada "já comprometida" entra no índice a partir de `comprometida_<mun>.csv` (refeito na própria rodada quando o
+pacote do estado não traz ou traz coleta velha). A consulta tira `ja_comprometida` do lote (e do critério gravado na
+decisão), conta `risco_sobreposicao` e as não verificadas em cada opção e diz `verificada`, `parcial` ou
+`nao_verificada`. Fazenda sem status fica nula, nunca livre. Detalhes em `docs/terra-comprometida.md`.
 
 Ordem de publicação: bioma Amazônia, estados da Amazônia Legal, demais estados, demais biomas e Brasil. O ponteiro guarda,
 por consulta, um `resumo` sem CAR (as três opções, a terra em espera e a sobreposição). O passo final do workflow roda

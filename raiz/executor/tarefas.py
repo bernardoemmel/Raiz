@@ -5,11 +5,13 @@ premissas de restauração). Mexeu em motor/raiz_filtros.py: só filtros (e o qu
 roda de novo; o funil fica.
 fontes externas por município (assinatura barata):
   funil      CAR, SIGEF e embargos do espelho do município (sha256), alertas do MapBiomas do estado recortados na caixa
-             do município, cobertura e desmatamento do MapBiomas do estado (tamanho e data)
+             do município, cobertura e desmatamento do MapBiomas do estado (tamanho e data), mapas de projetos de
+             carbono (Release insumos) que tocam a caixa do município
   filtros    terras indígenas, quilombos e unidades de conservação (arquivos nacionais do cache)
   mapbiomas  os GeoTIFFs do estado (coleção nova muda tudo, uma vez por ano)
   terra      SIGEF do espelho, Cadastro Nacional de Florestas Públicas do estado, UC, TI e quilombos
   ficha e desenvolvedor: cobertura do MapBiomas do estado
+  ambiental  mapa de vegetação do IBGE e TerraClass (coleta no Release insumos) e cobertura do MapBiomas do estado
 A tarefa "carga" não entra aqui: o back-end carrega a partir do armazém (raiz/executor/sincronizar.py).
 """
 
@@ -71,6 +73,13 @@ CODIGO = {
     "restricoes": ("raiz/restricoes/status.py", "raiz/restricoes/coleta.py"),
     # fontes complementares (SICOR, quilombolas IBGE/Palmares, MPF, Observatório e Restor): também folha
     "complementares": ("raiz/complementares/status.py", "raiz/complementares/coleta.py"),
+    # vegetação e relevo (RL pelo mapa do IBGE, Lei da Mata Atlântica, TerraClass, APP de relevo do ANADEM): folha
+    "ambiental": (
+        "raiz/ambiental/status.py",
+        "raiz/ambiental/vegetacao.py",
+        "raiz/ambiental/relevo.py",
+        "raiz/ambiental/terraclass.py",
+    ),  # fmt: skip
     "desenvolvedor": ("raiz/restauracao.py", "raiz/restauracao_geo.py", "raiz/vazamento.py"),
 }
 DEPENDE = {
@@ -87,7 +96,8 @@ DEPENDE = {
     "comprometida": ("funil",),
     "restricoes": ("funil",),
     "complementares": ("funil",),
-    "desenvolvedor": ("funil", "filtros", "mapbiomas", "direto", "ficha", "terra", "rebanho"),
+    "ambiental": ("funil", "mapbiomas"),
+    "desenvolvedor": ("funil", "filtros", "mapbiomas", "direto", "ficha", "terra", "rebanho", "ambiental"),
 }
 SAIDAS = {
     "funil": ("imoveis_{cod}.csv", "geo_{cod}.parquet", "certidoes_{cod}.csv"),
@@ -103,6 +113,7 @@ SAIDAS = {
     "comprometida": ("comprometida_{cod}.csv",),
     "restricoes": ("restricoes_{cod}.csv",),
     "complementares": ("complementares_{cod}.csv",),
+    "ambiental": ("ambiental_{cod}.csv",),
     "desenvolvedor": ("desenvolvedor_{cod}.csv",),
 }
 
@@ -151,6 +162,10 @@ def versao(nome: str) -> str:
         from raiz.complementares import status as complementares_status
 
         extra = complementares_status.versao()
+    elif nome == "ambiental":
+        from raiz.ambiental import status as ambiental_status
+
+        extra = ambiental_status.versao()
     # A captura é parte do contrato da tarefa: mudança nela precisa de nova
     # execução, mesmo quando o CSV final teria os mesmos números.
     historico = (
@@ -221,6 +236,43 @@ def _alertas_na_caixa(uf: str, caixa) -> str | None:
     return sha_texto(*sorted(sub.geometry.to_wkb().map(lambda b: hashlib.sha256(b).hexdigest())))
 
 
+@lru_cache(maxsize=4)
+def _caixas_projetos(pasta: str, marca_pasta: str) -> tuple:
+    """(nome, sha256, caixa) de cada mapa de projeto de carbono da pasta (lidos uma vez por processo e versão)."""
+    import geopandas as gpd
+
+    out = []
+    for f in sorted(Path(pasta).iterdir()):
+        if not f.is_file() or f.suffix.lower() not in (".kml", ".geojson", ".json", ".gpkg", ".shp"):
+            continue
+        try:
+            g = gpd.read_file(f)
+            g = g.set_crs(4674) if g.crs is None else g.to_crs(4674)
+            caixa = tuple(float(x) for x in g.total_bounds) if len(g) else None
+        except Exception:  # noqa: BLE001 - mapa ilegível conta pelo conteúdo, em todo município
+            caixa = None
+        out.append((f.name, assinatura_arquivo(f, conteudo=True), caixa))
+    return tuple(out)
+
+
+def _projetos_na_caixa(caixa) -> str | None:
+    """Assinatura dos mapas de projetos de carbono (motor/projetos_carbono/, do Release insumos) que tocam a caixa do
+    município. Sem ela, a frente ja_tem_projeto do funil não era refeita quando a coleta de projetos chegava ou mudava:
+    a sobreposição ficava de fora dos municípios já processados. Projeto novo em outro canto não refaz este."""
+    from raiz.funil.rodar import dir_trabalho
+
+    pasta = dir_trabalho() / "projetos_carbono"
+    if not pasta.is_dir():
+        return None
+    marca = sha_texto(*(f"{f.name}:{f.stat().st_size}" for f in sorted(pasta.iterdir()) if f.is_file()))
+    itens = _caixas_projetos(str(pasta), marca)
+    if caixa:
+        x0, y0, x1, y1 = caixa
+        itens = tuple(i for i in itens if i[2] is None or not (i[2][2] < x0 or i[2][0] > x1 or i[2][3] < y0
+                                                                 or i[2][1] > y1))  # fmt: skip
+    return sha_texto(*(f"{n}:{h}" for n, h, _ in itens))
+
+
 def externas(nome: str):
     def f(uf: str, cod: int, marca: dict) -> dict:
         esp = _espelho()
@@ -237,6 +289,7 @@ def externas(nome: str):
                 "ibama": assinatura_arquivo(esp / "ibama" / uf / f"{cod}.parquet", conteudo=True),
                 "alertas": _alertas_na_caixa(uf, marca.get("caixa")),
                 "mapbiomas": {k: v for k, v in _rasters_uf(uf).items() if "_cobertura_" in k or "_desmat_" in k},
+                "projetos_carbono": _projetos_na_caixa(marca.get("caixa")),
             }
         if nome == "filtros":
             local = esp / "ibama" / uf / f"{cod}.parquet"
@@ -276,6 +329,10 @@ def externas(nome: str):
             from raiz.complementares import status as complementares_status
 
             return {"camadas": complementares_status.assinatura()}
+        if nome == "ambiental":
+            from raiz.ambiental import status as ambiental_status
+
+            return {"camadas": ambiental_status.assinatura(), **_rasters_uf(uf, "cobertura")}
         if nome in ("ficha", "desenvolvedor"):
             return _rasters_uf(uf, "cobertura")
         return {}
@@ -342,9 +399,25 @@ def rodar_complementares(uf: str, cod: int, pasta: Path) -> None:
     status.escrever_municipio(pasta, int(cod), camadas=_CAMADAS_COMPLEMENTARES[1])
 
 
+_CAMADAS_AMBIENTAL = None
+
+
+def rodar_ambiental(uf: str, cod: int, pasta: Path) -> None:
+    """Vegetação e relevo do município. Como a "comprometida", não passa por raiz/funil/rodar.py (mexer nele refaria o
+    funil). As camadas são lidas uma vez por processo."""
+    global _CAMADAS_AMBIENTAL
+    from raiz.ambiental import status
+
+    marca = status.assinatura()
+    if _CAMADAS_AMBIENTAL is None or _CAMADAS_AMBIENTAL[0] != marca:
+        _CAMADAS_AMBIENTAL = (marca, status.Camadas())
+    status.escrever_municipio(pasta, int(cod), camadas=_CAMADAS_AMBIENTAL[1])
+
+
 _RODAR_PROPRIO = {
     "comprometida": rodar_comprometida,
     "restricoes": rodar_restricoes,
+    "ambiental": rodar_ambiental,
     "complementares": rodar_complementares,
 }
 

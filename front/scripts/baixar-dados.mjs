@@ -6,6 +6,7 @@ import os from "node:os"
 import path from "node:path"
 import { fileURLToPath } from "node:url"
 import { lerProcessamentoPublicado } from "../compartilhado/dados/processamento-publicado.ts"
+import { lerReprocessamento } from "../compartilhado/dados/reprocessamento.ts"
 import { municipiosDoEstado } from "../compartilhado/ibge-municipios.ts"
 
 const RAIZ_REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..")
@@ -104,12 +105,17 @@ function arquivoPermitido(nome, uf, geo) {
   return geo ? new RegExp(`^${uf}/geo_\\d{7}\\.parquet$`).test(nome)
     : new RegExp(`^${uf}/(resumo_${uf}|sem_imoveis_${uf}|imoveis_basicos_\\d{7})\\.csv$`).test(nome)
 }
-/** Repete somente a transferência GET; JSON, tar e o contrato são validados uma única vez depois. */
+/** Repete somente a transferência GET; JSON, tar e o contrato são validados uma única vez depois.
+ * 403 e 429 vêm do limite de downloads do GitHub (muitos pacotes em sequência no Actions) e passam
+ * em segundos: esperam mais (Retry-After quando vier) e têm mais tentativas que as falhas de rede. */
+const ESPERA_MS = Math.max(0, Number(process.env.RAIZ_DOWNLOAD_ESPERA_MS) || 1000)
+const LIMITADO = new Set([403, 429])
 async function baixarBytes(url, rotulo) {
   const endereco = new URL(url)
   if (!["http:", "https:"].includes(endereco.protocol)) throw new Error(`${rotulo}: endereço de download inválido`)
-  for (let tentativa = 1; tentativa <= 3; tentativa++) {
-    let resposta, falha
+  let maximo = 3
+  for (let tentativa = 1; tentativa <= maximo; tentativa++) {
+    let resposta, falha, espera = tentativa * ESPERA_MS
     try {
       resposta = await fetch(endereco, { redirect: "follow" })
       if (resposta.ok) return Buffer.from(await resposta.arrayBuffer())
@@ -118,11 +124,16 @@ async function baixarBytes(url, rotulo) {
       // Libera a conexão antes de tentar outra vez; o corpo de erro não é um pacote.
       await resposta.body?.cancel().catch(() => {})
       falha = new Error(`${rotulo}: HTTP ${resposta.status}`)
-      if (![408, 429].includes(resposta.status) && !(resposta.status >= 500 && resposta.status <= 599)) throw falha
+      if (![408, ...LIMITADO].includes(resposta.status) && !(resposta.status >= 500 && resposta.status <= 599)) throw falha
+      if (LIMITADO.has(resposta.status)) {
+        maximo = 5
+        const pedido = Number(resposta.headers.get("retry-after"))
+        espera = Number.isFinite(pedido) && pedido > 0 ? Math.min(pedido, 120) * 1000 : tentativa * 15 * ESPERA_MS
+      }
     }
-    if (tentativa === 3) throw falha
-    console.warn(`[dados] ${rotulo}: transferência interrompida; nova tentativa ${tentativa + 1}/3.`)
-    await new Promise((resolver) => setTimeout(resolver, tentativa * 1000))
+    if (tentativa >= maximo) throw falha
+    console.warn(`[dados] ${rotulo}: transferência interrompida; nova tentativa ${tentativa + 1}/${maximo}.`)
+    await new Promise((resolver) => setTimeout(resolver, espera))
   }
 }
 async function baixarEExtrair(url, uf, destino, geo = false, permiteVazio = false) {
@@ -155,6 +166,22 @@ function pastaConforme(uf, info) {
     arquivoPermitido(`${uf}/${f.name}`, uf, false) || (info.geo && arquivoPermitido(`${uf}/${f.name}`, uf, true))
   ))
 }
+/** Andamento do reprocessamento estado por estado (docs/reprocessamento-progressivo.md). Opcional: sem ele, o site
+ * mostra todos os estados como "regras antigas". Falha de rede preserva o arquivo anterior; 404 o retira. */
+async function baixarReprocessamento() {
+  const destino = path.join(DESTINO, "reprocessamento.json")
+  try {
+    const bytes = await baixarBytes(`${URL_BASE}/reprocessamento.json`, "andamento do reprocessamento")
+    const doc = lerReprocessamento(JSON.parse(new TextDecoder().decode(bytes)))
+    if (!doc) throw new Error("reprocessamento.json fora do contrato público")
+    fs.mkdirSync(DESTINO, { recursive: true })
+    fs.writeFileSync(destino, JSON.stringify({ escopo: "publico_basico", versao_publicacao: 1, ...doc }, null, 1))
+  } catch (e) {
+    if (/HTTP 404/.test(e.message)) fs.rmSync(destino, { force: true })
+    else console.warn(`[dados] andamento do reprocessamento indisponível (${e.message}); mantenho o anterior`)
+  }
+}
+
 async function main() {
   if (process.env.RAIZ_SEM_DOWNLOAD === "1") return
   let remoto
@@ -227,6 +254,7 @@ async function main() {
     fs.mkdirSync(DESTINO, { recursive: true })
     fs.writeFileSync(arqLocal, JSON.stringify({ ...remoto, estados: local.estados }, null, 1))
   }
+  await baixarReprocessamento()
   if (exigir && falhas.length) throw new Error(`não consegui atualizar os estados: ${falhas.join(", ")}`)
   console.log(`[dados] pacotes públicos em ${path.relative(RAIZ_REPO, DESTINO) || DESTINO}: ${Object.keys(local.estados).join(", ")}`)
 }

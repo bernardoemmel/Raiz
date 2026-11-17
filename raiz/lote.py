@@ -755,6 +755,26 @@ def restricoes_do_lote(lote: pd.DataFrame) -> dict:
     return _item("ok" if not len(res) and not sem else "pendente", " ".join(partes))
 
 
+def ambiental_do_lote(lote: pd.DataFrame) -> dict:
+    """Reserva legal pela vegetação do IBGE, Lei da Mata Atlântica, TerraClass e APP de relevo do ANADEM nas fazendas
+    do lote (raiz/ambiental/status.py). Nada aqui tira a fazenda do lote: são ressalvas para a validação humana."""
+    if "ambiental_status" not in lote or not len(lote):
+        return _item("pendente", "vegetação e relevo ainda não calculados nestes municípios (reserva legal pelo mapa "
+                                 "do IBGE, Lei da Mata Atlântica, TerraClass, APP de declividade e topo de morro): "
+                                 "conferir antes de contratar")  # fmt: skip
+    st = lote.ambiental_status
+    sem = int(st.isna().sum() + (st == "nao_verificado").sum())
+    res = lote[st == "ressalva"]
+    motivos = res.ambiental_motivos.dropna().str.split("|").explode().value_counts() if len(res) else pd.Series()
+    partes = [f"{_br(len(res))} fazendas com ressalva de vegetação ou relevo"] if len(res) else [
+        "nenhuma ressalva de vegetação ou relevo"]  # fmt: skip
+    if len(motivos):
+        partes.append("(" + ", ".join(f"{k}: {int(v)}" for k, v in motivos.items()) + ")")
+    if sem:
+        partes.append(f"; {_br(sem)} sem verificação completa")
+    return _item("ok" if not len(res) and not sem else "pendente", " ".join(partes))
+
+
 def complementares_do_lote(lote: pd.DataFrame) -> dict:
     """SICOR, localidades quilombolas (IBGE/Palmares), MPF e restauração fora dos registros nas fazendas do lote
     (raiz/complementares/status.py). Exclusão já saiu antes (bloqueio); aqui ficam ressalvas e o que faltou."""
@@ -822,6 +842,7 @@ def checagens(res: dict, tabela: pd.DataFrame, c: dict, r: dict) -> dict[str, di
     out["restricoes_nacionais"] = restricoes_do_lote(lote)
     out["fontes_complementares"] = complementares_do_lote(lote)
     out["cnib_saec"] = cnib_saec_do_lote(lote)
+    out["vegetacao_relevo"] = ambiental_do_lote(lote)
     out["metodologia"] = _item("ok", "VM0047 v1.1 da Verra, aprovada pelo ICVCM (CCP)")
     out["creditos_liquidos"] = _item(
         "ok" if float(c["incerteza"]) >= 0.10 else "falha",

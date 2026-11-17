@@ -1,0 +1,58 @@
+# Fontes estaduais da Bahia. Testado em 17/11/2026: GeoBahia/SEIA (geobahia.seia.ba.gov.br, seia.ba.gov.br) e
+# o site da CDA (cda.ba.gov.br) recusam conexão desta nuvem (fora do Brasil). Ficam com acesso
+# "bloqueado_fora_brasil": a coleta roda a partir do Brasil (computador do fundador ou runner no Brasil) e,
+# até lá, os imóveis da BA ficam "nao_verificado" nessas fontes (ausência de dado nunca vira livre).
+uf: BA
+verificado_em: "2026-11-17"
+fontes:
+  - id: ba_fundo_fecho_pasto
+    nome: Comunidades de fundo e fecho de pasto (certificadas e em certificação)
+    tema: territorio_tradicional
+    orgao: SEPROMI / CDA-BA (dados no GeoBahia/SEIA)
+    acesso: bloqueado_fora_brasil
+    tipo: wfs
+    url: http://geobahia.seia.ba.gov.br/geoserver/ows
+    camada: a_confirmar_do_brasil
+    efeito: exclusao
+    motivo: fundo_fecho_pasto
+    criterio: >-
+      Território de fundo ou fecho de pasto (Constituição da BA art. 178; Lei estadual 12.910/2013) acima do
+      limiar = exclusão (uso comum tradicional; CLPI); só na borda = ressalva. Sem a camada: todo imóvel nos
+      municípios com comunidade certificada vai para o checklist "conferir fundo e fecho de pasto".
+    lgpd: Sem dado pessoal esperado.
+    situacao: {testado_em: "2026-11-17", resultado: "geobahia.seia.ba.gov.br: túnel recusado (502); provável bloqueio fora do Brasil"}
+    alternativa: >-
+      Plataforma de Territórios Tradicionais do MPF (fonte nacional, em outro thread) traz parte das comunidades;
+      há cópias de terceiros no ArcGIS Online (ex.: JZ_Comunidades_FundoFecho_Pasto_pol), que só valem como indício.
+
+  - id: ba_cefir_embargos_ucs
+    nome: INEMA, embargos estaduais e UCs estaduais (SEIA)
+    tema: embargo_estadual
+    orgao: INEMA-BA
+    acesso: bloqueado_fora_brasil
+    tipo: wfs
+    url: http://geobahia.seia.ba.gov.br/geoserver/ows
+    camada: a_confirmar_do_brasil
+    efeito: exclusao
+    motivo: embargo_estadual
+    criterio: Mesmo critério das outras UFs (embargo e UC de proteção integral = exclusão; uso sustentável = ressalva).
+    lgpd: Apagar nome e documento na entrada, como em MG e GO.
+    situacao: {testado_em: "2026-11-17", resultado: "seia.ba.gov.br e geobahia: recusados daqui"}
+    alternativa: UCs pelo CNUC nacional (já no motor); embargos só do Ibama até a coleta rodar do Brasil.
+
+  - id: ba_cda_devolutas
+    nome: CDA, terras devolutas, ações discriminatórias e títulos estaduais
+    tema: terra_devoluta
+    orgao: CDA-BA (Coordenação de Desenvolvimento Agrário)
+    acesso: bloqueado_fora_brasil
+    tipo: pendente
+    url: https://www.cda.ba.gov.br/
+    efeito: conferir
+    motivo: terra_devoluta_a_conferir
+    criterio: >-
+      Imóvel em área de discriminatória estadual ou sem título de origem estadual no oeste baiano = ressalva
+      (domínio pode ser público). Sem camada pública conhecida: entra no checklist dos municípios do MATOPIBA
+      baiano.
+    lgpd: —
+    situacao: {testado_em: "2026-11-17", resultado: "cda.ba.gov.br: túnel recusado daqui (o http respondeu uma vez; o https não)"}
+    alternativa: Pedido por LAI à CDA; SIGEF nacional mostra o que já foi certificado.

@@ -1,0 +1,159 @@
+# Fontes estaduais de São Paulo para a triagem (testadas desta nuvem em 17/11/2026).
+# DataGEO (SEMIL/CETESB/Fundação Florestal): GeoServer com WFS só no espaço "datageo"
+# (o /geoserver/ows geral responde "Service WFS is disabled").
+uf: SP
+verificado_em: "2026-11-17"
+fontes:
+  - id: sp_sare
+    nome: SARE, projetos de restauração ecológica em execução
+    tema: restauracao_existente
+    orgao: SEMIL-SP (Sistema Informatizado de Apoio à Restauração Ecológica)
+    acesso: aberto
+    tipo: wfs
+    url: https://datageo.ambiente.sp.gov.br/geoserver/datageo/wfs
+    camada: datageo:VWM_SARE_GEODADOS_CFA_POL
+    srs: EPSG:4674
+    geometria: poligono
+    manter: [Numero_SARE, Cadastro_do_Imovel, Motivacao, Situacao, Tipo_da_Area, Metodologia, Area_Calculada, Inicio_da_Execucao, Bioma]
+    descartar: []
+    efeito: ressalva
+    motivo: restauracao_em_execucao
+    regra_efeito:
+      - campo: Motivacao
+        padrao: "(?i)exig|minist|judicial|multa|repara"
+        motivo: restauracao_obrigatoria
+    criterio: >-
+      Polígono do SARE dentro do imóvel (limiar comum: 1 ha ou 5% do imóvel). Projeto voluntário ou com
+      financiamento público = restauração já em curso (risco de dupla contagem; adicionalidade a conferir).
+      Exigência da CETESB, acordo com o MP, decisão judicial ou conversão de multa = obrigação legal de restaurar
+      (não gera crédito adicional nessa área). Cadastro_do_Imovel é o código do CAR-SP/SICAR e liga direto ao imóvel.
+    lgpd: Sem nome nem documento na camada.
+    licenca: Dado público do Governo de SP (DataGEO); licença de redistribuição não declarada. Uso interno.
+    situacao: {testado_em: "2026-11-17", resultado: "ok, 10.288 polígonos (6.414 exigência CETESB, 1.039 voluntários)"}
+
+  - id: sp_painel_verde_restauracao
+    nome: Painel Verde, restauração ecológica (por ano)
+    tema: restauracao_existente
+    orgao: SEMIL-SP (Painel Verde / CFA)
+    acesso: aberto
+    tipo: wfs
+    url: https://datageo.ambiente.sp.gov.br/geoserver/datageo/wfs
+    camada: "datageo:VWM_PAINEL_VERDE_RESTAURACAO_CFA_{ano}_POL"
+    anos: [ANTERIOR_A_2019, 2019, 2020, 2021, 2022, 2023, 2024, 2025, 2026]
+    srs: EPSG:4674
+    geometria: poligono
+    manter: [Classificacao, Categoria, Dado, Ano_Referencia, Tipo_Referencia, TipoIntervencao, TipoArea, AreaHA, Situacao_Status, Codibge]
+    descartar: []
+    efeito: ressalva
+    motivo: restauracao_em_execucao
+    criterio: Restauração registrada pelo Estado dentro do imóvel (mesmo limiar). Sobrepõe parte do SARE; o cruzamento conta a área uma vez.
+    lgpd: Sem nome nem documento.
+    licenca: Dado público do Governo de SP (DataGEO).
+    situacao: {testado_em: "2026-11-17", resultado: "ok, 981 polígonos em 2025"}
+
+  - id: sp_tcra
+    nome: Termos de Compromisso de Recuperação Ambiental (TCRA) de autos de infração
+    tema: obrigacao_recuperar
+    orgao: SEMIL-SP (CFA)
+    acesso: aberto
+    tipo: wfs
+    url: https://datageo.ambiente.sp.gov.br/geoserver/datageo/wfs
+    camada: "datageo:VWM_TCRA_GEODADOS_CFA_{ano}_PTO"
+    anos: [ATE_2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025, 2026]
+    srs: EPSG:4674
+    geometria: ponto
+    manter: [Numero_TCRA, Ano_TCRA, Tipo_TCRA, Area_Recuperar_ha, Situacao_TCRA, Classe_Infracao, Tipo_Infracao, Codigo_IBGE]
+    descartar: [NIS, IdProcDet]
+    efeito: ressalva
+    motivo: tcra_recuperacao_obrigatoria
+    criterio: >-
+      Ponto de TCRA dentro do imóvel. A área a recuperar é obrigação assinada com o Estado: restaurar ali não é
+      adicional e o crédito precisa excluir essa área. Checklist: pedir o TCRA e o polígono da área a recuperar.
+    lgpd: Ponto sem nome; o número do processo fica só no arquivo privado.
+    licenca: Dado público do Governo de SP (DataGEO).
+    situacao: {testado_em: "2026-11-17", resultado: "ok, 4.235 pontos em 2025"}
+
+  - id: sp_autos
+    nome: Autos de infração ambiental (AIA) estaduais
+    tema: autos_infracao
+    orgao: SEMIL-SP (CFA / Polícia Ambiental)
+    acesso: aberto
+    tipo: wfs
+    url: https://datageo.ambiente.sp.gov.br/geoserver/datageo/wfs
+    camada: "datageo:VWM_AIA_GEOVALID_SIGAM_{ano}_PTO"
+    anos: [ATE_2006, 2007_2008, 2009_2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025, 2026]
+    srs: EPSG:4674
+    geometria: ponto
+    campo_data: Ano_Processo
+    manter: [Numero_Auto, Ano_Processo, Situacao, Fase, Status, Natureza, Classe_Infracao, Tipo_Infracao, Cod_IBGE]
+    descartar: [NIS, Numero_Boletim]
+    efeito: ressalva
+    motivo: auto_estadual
+    regra_efeito:
+      - campo: Classe_Infracao
+        padrao: "(?i)flora"
+        recente_anos: 5
+        motivo: auto_estadual_flora_recente
+    criterio: Auto de infração estadual dentro do imóvel; de Flora nos últimos 5 anos vira ressalva mais forte (histórico de desmate recente afeta linha de base e risco).
+    lgpd: Camada sem nome nem documento do autuado.
+    licenca: Dado público do Governo de SP (DataGEO).
+    situacao: {testado_em: "2026-11-17", resultado: "ok, 15.554 autos em 2025"}
+
+  - id: sp_uc_protecao_integral
+    nome: Unidades de conservação estaduais de proteção integral (SIAP)
+    tema: unidade_conservacao
+    orgao: Fundação Florestal / SEMIL-SP
+    acesso: aberto
+    tipo: wfs
+    url: https://datageo.ambiente.sp.gov.br/geoserver/datageo/wfs
+    camada: datageo:Areas_Protegidas_PI_DG_UCs_Protecao_Integral
+    srs: EPSG:4674
+    geometria: poligono
+    manter: [Unidade, Categoria, OrgaoGestor]
+    descartar: []
+    efeito: exclusao
+    motivo: uc_estadual_protecao_integral
+    criterio: UC estadual de proteção integral cruzando o imóvel acima do limiar = posse e domínio públicos (exclusão); só na borda = ressalva.
+    lgpd: Sem dado pessoal.
+    licenca: Dado público do Governo de SP (DataGEO).
+    situacao: {testado_em: "2026-11-17", resultado: "ok (GetFeature devolve feições; resultType=hits devolve 0, contar pela leitura)"}
+
+  - id: sp_uc_uso_sustentavel
+    nome: Unidades de conservação estaduais de uso sustentável (SIAP)
+    tema: unidade_conservacao
+    orgao: Fundação Florestal / SEMIL-SP
+    acesso: aberto
+    tipo: wfs
+    url: https://datageo.ambiente.sp.gov.br/geoserver/datageo/wfs
+    camada: datageo:Areas_Protegidas_US_DG_UCs_Uso_Sustentavel
+    srs: EPSG:4674
+    geometria: poligono
+    manter: [Unidade, Categoria, OrgaoGestor]
+    descartar: []
+    efeito: ressalva
+    motivo: uc_estadual_uso_sustentavel
+    criterio: APA e demais UCs de uso sustentável permitem imóvel privado; ressalva para conferir plano de manejo e zoneamento.
+    lgpd: Sem dado pessoal.
+    licenca: Dado público do Governo de SP (DataGEO).
+    situacao: {testado_em: "2026-11-17", resultado: "ok"}
+
+  - id: sp_programa_nascentes
+    nome: Áreas prioritárias para restauração (Programa Nascentes, Res. SEMIL 02/2024)
+    tema: prioridade_restauracao
+    orgao: SEMIL-SP (Programa Nascentes)
+    acesso: aberto
+    tipo: wfs
+    url: https://datageo.ambiente.sp.gov.br/geoserver/datageo/wfs
+    camada: datageo:RES_SEMIL_02_PROG_NASCENTES_2024_POL
+    srs: EPSG:4674
+    geometria: poligono
+    manter: [Municipio, PercVegNat, Classe_pri]
+    descartar: []
+    efeito: informativo
+    motivo: prioridade_nascentes
+    criterio: >-
+      Não restringe. Marca a classe de prioridade do Programa Nascentes (mercado de compensação e restauração
+      de SP), que ajuda a vender a restauração e a achar comprador obrigado.
+    lgpd: Sem dado pessoal.
+    licenca: Dado público do Governo de SP (DataGEO).
+    situacao: {testado_em: "2026-11-17", resultado: "ok, 645 polígonos"}

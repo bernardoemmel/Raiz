@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
 // @ts-expect-error: script de CI em JavaScript puro, sem tipos
-import { conferirLighthouseCelular, conferirSerieLighthouseCelular } from "../../scripts/conferir-acessibilidade.mjs"
-const relatorio = () => ({ categories: { performance: { score: 0.9 }, accessibility: { score: 1 } }, configSettings: { formFactor: "mobile", screenEmulation: { width: 360 }, throttlingMethod: "simulate" } })
+import { conferirLighthouseCelular, conferirSerieLighthouseCelular, fatorCpuCalibrado } from "../../scripts/conferir-acessibilidade.mjs"
+const relatorio = () => ({ categories: { performance: { score: 0.9 }, accessibility: { score: 1 } }, configSettings: { formFactor: "mobile", screenEmulation: { width: 360 }, throttlingMethod: "simulate", throttling: { cpuSlowdownMultiplier: 4 } } })
 describe("portão Lighthouse do celular", () => {
   it("aceita 90 em desempenho e 100 em acessibilidade", () => {
     expect(conferirLighthouseCelular(relatorio())).toEqual({ performance: 90, accessibility: 100 })
@@ -35,5 +35,22 @@ describe("três medições fixas de Lighthouse", () => {
   it("exige três coletas, sem descartar erro de execução", () => {
     expect(() => conferirSerieLighthouseCelular([amostra(1)])).toThrow(/três/)
     expect(() => conferirSerieLighthouseCelular([amostra(1), { ...amostra(1), runtimeError: { message: "Erro" } }, amostra(1)])).toThrow(/não concluiu/)
+  })
+})
+
+describe("CPU calibrada pelo runner", () => {
+  it("simula sempre o mesmo celular: runner rápido ganha fator maior, lento ganha fator menor", () => {
+    expect(fatorCpuCalibrado(2700)).toBe(4)
+    expect(fatorCpuCalibrado(1800)).toBeCloseTo(2.67, 2)
+    expect(fatorCpuCalibrado(2835)).toBeGreaterThan(4)
+  })
+  it("limita entre 2x e 8x e recusa CPU não medida", () => {
+    expect(fatorCpuCalibrado(500)).toBe(2)
+    expect(fatorCpuCalibrado(99999)).toBe(8)
+    for (const indice of [0, NaN, undefined]) expect(() => fatorCpuCalibrado(indice)).toThrow(/CPU/)
+  })
+  it("recusa medição com fator fora da calibração", () => {
+    const r = { ...relatorio(), configSettings: { ...relatorio().configSettings, throttling: { cpuSlowdownMultiplier: 1 } } }
+    expect(() => conferirSerieLighthouseCelular([r, r, r])).toThrow(/calibração/)
   })
 })

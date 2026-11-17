@@ -1,0 +1,179 @@
+# Fontes estaduais de Rondônia: WFS público do Geoportal da SEDAM (COGEO), geoportal.sedam.ro.gov.br/geoserver/ows,
+# 408 camadas. Testado desta nuvem em 17/11/2026 (abre de fora do Brasil).
+uf: RO
+verificado_em: "2026-11-17"
+fontes:
+  - id: ro_embargos
+    nome: Embargos estaduais ativos (COPAM)
+    tema: embargo_estadual
+    orgao: SEDAM-RO
+    acesso: aberto
+    tipo: wfs
+    url: https://geoportal.sedam.ro.gov.br/geoserver/ows
+    camada: copam:embargos_ativos_mv_public
+    geometria: poligono
+    campo_data: data
+    manter: [id, origem, municipio, area, data, ano, car, enqua_boa, tipo_embar, embargo_tipo, termo_emba]
+    descartar: [num_bo_boa, link]
+    efeito: exclusao
+    motivo: embargo_estadual
+    criterio: Embargo estadual ativo acima do limiar = exclusão; só na borda = ressalva.
+    lgpd: Sem nome nem documento na camada pública; boletim de ocorrência e link apagados.
+    licenca: Dado público do governo de Rondônia (Geoportal SEDAM, camada "Público").
+    situacao: {testado_em: "2026-11-17", resultado: "ok, 5.659 polígonos"}
+
+  - id: ro_autos
+    nome: Áreas autuadas pelo estado (COPAM)
+    tema: autos_infracao
+    orgao: SEDAM-RO
+    acesso: aberto
+    tipo: wfs
+    url: https://geoportal.sedam.ro.gov.br/geoserver/ows
+    camada: copam:vw_area_copam_autuadas
+    geometria: poligono
+    efeito: ressalva
+    motivo: auto_estadual
+    criterio: Área autuada pelo estado acima do limiar = ressalva (histórico de infração).
+    lgpd: A camada pública não tem atributos.
+    licenca: Dado público do governo de Rondônia (Geoportal SEDAM).
+    situacao: {testado_em: "2026-11-17", resultado: "ok, 8.079 polígonos sem atributos"}
+
+  - id: ro_uc_estaduais
+    nome: Unidades de conservação estaduais (CUC)
+    tema: uc_estadual
+    orgao: SEDAM-RO
+    acesso: aberto
+    tipo: wfs
+    url: https://geoportal.sedam.ro.gov.br/geoserver/ows
+    camada: cuc:limites_ucs_estaduais
+    geometria: poligono
+    manter: [uc_id, cd_cnuc, nome_uc, grupo, categoria, cria_ato, situacao, ha_total]
+    efeito: exclusao
+    motivo: uc_estadual_protecao_integral
+    regra_efeito:
+      - campo: grupo
+        padrao: "(?i)uso sustent"
+        efeito: ressalva
+        motivo: uc_estadual_uso_sustentavel
+    criterio: >-
+      Proteção integral acima do limiar = exclusão; uso sustentável = ressalva. A camada da SEDAM traz as UCs que a
+      LC 999/2018 revogou e a Justiça restabeleceu quando o estado as mantém ativas; o CNUC nacional pode atrasar.
+    lgpd: Sem dado pessoal.
+    licenca: Dado público do governo de Rondônia (Geoportal SEDAM).
+    situacao: {testado_em: "2026-11-17", resultado: "ok, 49 UCs"}
+
+  - id: ro_zona_amortecimento
+    nome: Zonas de amortecimento das UCs estaduais
+    tema: uc_estadual
+    orgao: SEDAM-RO
+    acesso: aberto
+    tipo: wfs
+    url: https://geoportal.sedam.ro.gov.br/geoserver/ows
+    camada: cuc:zona_amortecimento_uc_estadual
+    geometria: poligono
+    manter: [nome, nome_usual, portaria]
+    permitir: [nome, nome_usual]
+    efeito: ressalva
+    motivo: zona_amortecimento_uc
+    criterio: Imóvel na zona de amortecimento acima do limiar = ressalva (o plano de manejo pode limitar o uso).
+    lgpd: "Sem dado pessoal: nome e nome_usual são o nome da UC."
+    licenca: Dado público do governo de Rondônia (Geoportal SEDAM).
+    situacao: {testado_em: "2026-11-17", resultado: "ok, 47 polígonos"}
+
+  - id: ro_zsee
+    nome: Zoneamento Socioeconômico-Ecológico, 2ª aproximação (LC 233/2000)
+    tema: zee
+    orgao: SEDAM-RO
+    acesso: aberto
+    tipo: wfs
+    url: https://geoportal.sedam.ro.gov.br/geoserver/ows
+    camada: cogeo:ZSEE_2Aprox_2005_312_SIRGAS2000_4674
+    geometria: poligono
+    manter: [SUBZONA, SPRNOME_1]
+    permitir: [SPRNOME_1]
+    efeito: informativo
+    motivo: zsee_ro_zona_1
+    regra_efeito:
+      - {campo: SPRNOME_1, padrao: "(?i)zona\\s*2", motivo: zsee_ro_zona_2}
+      - {campo: SPRNOME_1, padrao: "(?i)zona\\s*3", motivo: zsee_ro_zona_3}
+    criterio: >-
+      Informativo: a zona do ZSEE decide a reserva legal para recompor (zona 1, de uso consolidado: 50% para
+      recompor, art. 13 I da Lei 12.651; zonas 2 e 3: 80%). Fica em estadual_informacoes; a regra de reserva está
+      em docs/regras-estaduais.md.
+    lgpd: Sem dado pessoal.
+    licenca: Dado público do governo de Rondônia (Geoportal SEDAM).
+    situacao: {testado_em: "2026-11-17", resultado: "ok, 107 polígonos (subzonas 1.1 a 3.3)"}
+
+  - id: ro_servidao_ambiental
+    nome: Servidões ambientais aprovadas no CAR (COMRAR)
+    tema: servidao_ambiental
+    orgao: SEDAM-RO
+    acesso: aberto
+    tipo: wfs
+    url: https://geoportal.sedam.ro.gov.br/geoserver/ows
+    camada: comrar:vw_car_servidao_ambiental_aprovada
+    geometria: poligono
+    manter: [recibo, dt_finalizacao, area]
+    efeito: ressalva
+    motivo: servidao_ambiental
+    criterio: Servidão ambiental aprovada acima do limiar = ressalva (área já comprometida com outra reserva legal).
+    lgpd: Sem dado pessoal.
+    licenca: Dado público do governo de Rondônia (Geoportal SEDAM).
+    situacao: {testado_em: "2026-11-17", resultado: "ok, 73 servidões"}
+
+  - id: ro_pra
+    nome: Termos de compromisso do Programa de Regularização Ambiental (PRA)
+    tema: pra
+    orgao: SEDAM-RO
+    acesso: aberto
+    tipo: wfs
+    url: https://geoportal.sedam.ro.gov.br/geoserver/ows
+    camada: pra:vw_pra
+    geometria: poligono
+    juncao: cod_imovel
+    campo_cod_imovel: cod_imovel
+    campo_data: dt_compromisso
+    manter: [cod_imovel, dt_compromisso, ano_termo, nu_rl_minima_exigida_lei, nu_rl_registrada,
+             num_reserva_legal_recompor, num_reserva_legal_compensar, num_area_preservacao_permanente_recompor]
+    descartar: [nom_imovel, sei, num_termo, cod_controle]
+    efeito: ressalva
+    motivo: pra_assinado
+    criterio: >-
+      Imóvel (pelo número do CAR) com termo de compromisso do PRA = ressalva: a recomposição de reserva legal e APP
+      do termo já é obrigação assumida e não conta como adicional. Os hectares a recompor ficam na coleta.
+    lgpd: Nome do imóvel e números de processo apagados na entrada.
+    licenca: Dado público do governo de Rondônia (Geoportal SEDAM, "PRA Público").
+    situacao: {testado_em: "2026-11-17", resultado: "ok, 798 termos"}
+
+  - id: ro_area_bloqueada_madeira
+    nome: Área bloqueada das usinas do rio Madeira (SAE)
+    tema: area_bloqueada
+    orgao: SEDAM-RO
+    acesso: aberto
+    tipo: wfs
+    url: https://geoportal.sedam.ro.gov.br/geoserver/ows
+    camada: sae:area_bloqueada_sae_10_2021_epsg4674
+    geometria: poligono
+    manter: [AREA_BLOQ]
+    efeito: exclusao
+    motivo: area_bloqueada_estadual
+    criterio: Área bloqueada para os reservatórios do Madeira acima do limiar = exclusão; só na borda = ressalva.
+    lgpd: Sem dado pessoal.
+    licenca: Dado público do governo de Rondônia (Geoportal SEDAM).
+    situacao: {testado_em: "2026-11-17", resultado: "ok, 1 polígono de 61 mil ha"}
+
+  - id: ro_glebas_estaduais_cnfp
+    nome: Florestas públicas estaduais não destinadas (CNFP 2025)
+    tema: terra_devoluta
+    orgao: SFB (CNFP)
+    acesso: aberto
+    tipo: cnfp
+    url: https://www.gov.br/florestal/pt-br/assuntos/cadastro-nacional-de-florestas-publicas
+    geometria: poligono
+    manter: [categoria, tipo, governo, orgao, protecao]
+    efeito: ressalva
+    motivo: gleba_estadual
+    criterio: Floresta pública estadual não destinada acima do limiar = ressalva (posse em terra do estado).
+    lgpd: Sem dado pessoal.
+    licenca: Dado aberto do governo federal (Decreto 8.777/2016).
+    situacao: {testado_em: "2026-11-17", resultado: ok}

@@ -3,22 +3,23 @@
 @import "./fontes.css";
 
 :root {
-  --chao: #0D1311; --vidro: #101714EB; --linha: #26312C;
-  --tinta: #EEF2EC; --pedra: #8E9A92; --mata: #7CC47A; --lima: #C9E88F; --urucum: #E8713A;
+  --chao: #F3F4F0; --vidro: #FFFFFFF2; --linha: #D9DED6;
+  --tinta: #15231B; --pedra: #555D56; --mata: #1D6B44; --lima: #16543A; --urucum: #C2521A;
+  --mapa-destaque: #E4F2A8; --mapa-terra: #F1F2EE; --mapa-brasil: #DCEAD6; --mapa-estado: #8FA88C; --barra: #0F3B27; --barra-texto: #FFFFFF; --barra-suave: #CFE3D5; --barra-linha: #2C5A43;
   --t: "Bricolage Grotesque", system-ui, sans-serif;
   --n: "JetBrains Mono", ui-monospace, monospace;
   --borda: 1px solid var(--linha);
-  --papel: var(--chao); --superficie: #101714; --nevoa: #1B2621;
-  --mata-texto: var(--mata); --urucum-texto: #F48A59;
-  --agua: #8CC5E9; --agua-texto: var(--agua); --terra: #DBB06B; --terra-texto: var(--terra);
-  --situacao-apta: #7CC47A; --situacao-pendencia: #E3A21A; --situacao-nao-apta: #C9C4BA; --restaurar: #7CC47A;
+  --papel: var(--chao); --superficie: #FFFFFF; --nevoa: #E7EAE4;
+  --mata-texto: #16543A; --urucum-texto: #9E3F0E;
+  --agua: #1D69A6; --agua-texto: #175A8C; --terra: #A8741A; --terra-texto: #7E5510;
+  --situacao-apta: #1D6B44; --situacao-pendencia: #E3A21A; --situacao-nao-apta: #C9C4BA; --restaurar: #5FA36E;
   --fonte-titulo: var(--t); --fonte-texto: var(--t); --fonte-codigo: var(--n);
   --t-texto: 15px; --t-legenda: 13px;
   --v2-linha: var(--linha); --v2-superficie: var(--nevoa);
-  --v2-lote-selecionado: #E8713A12; --v2-faixa: #C9E88F59; --v2-texto-acao: #1A0D05;
-  --v2-mascara: #0D1311B8;
+  --v2-lote-selecionado: #C2521A14; --v2-faixa: #5FA36E40; --v2-texto-acao: #FFFFFF;
+  --v2-mascara: #15231B80;
 }
-html { color-scheme: dark; }
+html { color-scheme: light; }
 body { font-family: var(--t); }
 h1, h2, h3 { font-weight: 700; letter-spacing: -.02em; }
 .numero, .num { font-family: var(--n); font-variant-numeric: tabular-nums; }
@@ -2312,6 +2313,19 @@ button.link:hover {
   .calendario-dia { display: flex; gap: var(--e2); }
 }
 
-/* A ação mantém contraste AA no tema escuro; os selos continuam usando forma e texto. */
+/* A ação mantém contraste AA no tema claro; os selos continuam usando forma e texto. */
 .botao.principal, .botao.principal:hover { color: var(--v2-texto-acao); }
-.selo.conferir, .selo.ruim { color: var(--chao); }
+.selo.conferir, .selo.ruim { color: var(--tinta); }
+
+/* reprocessamento estado por estado (docs/reprocessamento-progressivo.md): selo das regras ao lado do de cobertura */
+.selos-estado { display: inline-flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--e1); }
+.estado-regras { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--e2); margin: var(--e2) 0; }
+
+/* Prévia do Brasil (PreviaBrasil.tsx) no mesmo centro e zoom iniciais do MapLibre:
+   desktop -49,2/-15 z3,5; celular -53/-13,5 z3,1 (Web Mercator, 512 px por mundo em z0). */
+.previa-brasil { position: absolute; inset: 0; overflow: hidden; pointer-events: none; background: var(--mapa-terra); }
+.previa-brasil svg { position: absolute; left: calc(50% - 398.8px); top: calc(50% - 329.1px); width: 630.6px; height: 662.4px; }
+.previa-brasil path { fill: var(--mapa-brasil); stroke: var(--mapa-estado); stroke-width: 1; vector-effect: non-scaling-stroke; }
+@media (max-width: 640px) {
+  .previa-brasil svg { left: calc(50% - 255.9px); top: calc(50% - 230.5px); width: 477.9px; height: 502px; }
+}

@@ -1,0 +1,217 @@
+# Fontes estaduais de Minas Gerais (IDE-Sisema). Testadas desta nuvem em 17/11/2026.
+# O GeoServer certo é geoserver.meioambiente.mg.gov.br/IDE/ows (o idesisema.../geoserver devolve 404);
+# o catálogo (GeoNetwork/CSW) fica em idesisema.meioambiente.mg.gov.br/geonetwork.
+uf: MG
+verificado_em: "2026-11-17"
+fontes:
+  - id: mg_embargos_sisema
+    nome: Áreas embargadas pelo Sisema
+    tema: embargo_estadual
+    orgao: SEMAD/IEF/IGAM/FEAM (Sisema)
+    acesso: aberto
+    tipo: wfs
+    url: https://geoserver.meioambiente.mg.gov.br/IDE/ows
+    camada: IDE:ide_2304_mg_areas_embargadas_sisema_pol
+    srs: EPSG:4674
+    geometria: poligono
+    manter: [num_ai, data_fisca, local_fisc, atividade_, decreto, artigo, codigo]
+    descartar: [fiscalizad, doc_fiscal]
+    efeito: exclusao
+    motivo: embargo_estadual
+    criterio: >-
+      Embargo estadual cruzando o imóvel acima do limiar = exclusão (mesma regra do embargo do Ibama no funil:
+      área embargada não pode ser vendida nem restaurada para crédito até o desembargo). Só na borda = ressalva.
+    lgpd: A camada traz nome e CPF/CNPJ do autuado (fiscalizad, doc_fiscal); os dois são apagados na entrada.
+    licenca: licenceUnrestricted (metadado da IDE-Sisema).
+    situacao: {testado_em: "2026-11-17", resultado: "ok, 11.470 polígonos, atualizado 24/09/2026"}
+
+  - id: mg_uc_estaduais
+    nome: Unidades de conservação estaduais
+    tema: unidade_conservacao
+    orgao: IEF-MG
+    acesso: aberto
+    tipo: wfs
+    url: https://geoserver.meioambiente.mg.gov.br/IDE/ows
+    camada: IDE:ide_2010_mg_unidades_conservacao_estaduais_pol
+    srs: EPSG:4674
+    geometria: poligono
+    manter: [nome_uc, categoria, grupo, ato_legal, area_ofic]
+    descartar: []
+    efeito: ressalva
+    motivo: uc_estadual_uso_sustentavel
+    regra_efeito:
+      - campo: grupo
+        padrao: "(?i)prote..o integral"
+        efeito: exclusao
+        motivo: uc_estadual_protecao_integral
+    criterio: Proteção integral acima do limiar = exclusão; uso sustentável = ressalva (conferir zoneamento).
+    lgpd: Sem dado pessoal.
+    licenca: licenceUnrestricted (IDE-Sisema).
+    situacao: {testado_em: "2026-11-17", resultado: "ok, 95 UCs"}
+
+  - id: mg_uc_municipais
+    nome: Unidades de conservação municipais
+    tema: unidade_conservacao
+    orgao: IEF-MG (cadastro estadual)
+    acesso: aberto
+    tipo: wfs
+    url: https://geoserver.meioambiente.mg.gov.br/IDE/ows
+    camada: IDE:ide_2010_mg_unidades_conservacao_municipais_pol
+    srs: EPSG:4674
+    geometria: poligono
+    manter: [nome_uc, categoria, grupo]
+    descartar: []
+    efeito: ressalva
+    motivo: uc_municipal
+    regra_efeito:
+      - campo: grupo
+        padrao: "(?i)prote..o integral"
+        efeito: exclusao
+        motivo: uc_municipal_protecao_integral
+    criterio: Como as estaduais. O CNUC nacional não traz todas as municipais de MG.
+    lgpd: Sem dado pessoal.
+    licenca: licenceUnrestricted (IDE-Sisema).
+    situacao: {testado_em: "2026-11-17", resultado: "camada listada no GetCapabilities"}
+
+  - id: mg_rppn
+    nome: Reservas Particulares do Patrimônio Natural (RPPN)
+    tema: unidade_conservacao
+    orgao: IEF-MG / ICMBio
+    acesso: aberto
+    tipo: wfs
+    url: https://geoserver.meioambiente.mg.gov.br/IDE/ows
+    camada: IDE:ide_2010_mg_reservas_particulares_patrimonio_natural_pol
+    srs: EPSG:4674
+    geometria: poligono
+    manter: [categoria, esfera]
+    descartar: [proprietar, proprietario, nome_propr]
+    efeito: ressalva
+    motivo: rppn
+    criterio: >-
+      RPPN é perpétua e averbada na matrícula: a área já está protegida e não conta como reserva legal nova nem
+      como restauração adicional sem conferir. Ressalva com a área sobreposta.
+    lgpd: Nome do proprietário, se vier, é apagado na entrada.
+    licenca: licenceUnrestricted (IDE-Sisema).
+    situacao: {testado_em: "2026-11-17", resultado: "ok, 351 RPPNs"}
+
+  - id: mg_terras_quilombolas
+    nome: Terras quilombolas (camada estadual)
+    tema: territorio_tradicional
+    orgao: SEMAD-MG
+    acesso: aberto
+    tipo: wfs
+    url: https://geoserver.meioambiente.mg.gov.br/IDE/ows
+    camada: IDE:ide_2005_mg_terras_quilombolas_pol
+    srs: EPSG:4674
+    geometria: poligono
+    manter: [fase, municipio]
+    descartar: []
+    efeito: exclusao
+    motivo: territorio_quilombola_estadual
+    criterio: Território quilombola acima do limiar = exclusão (CLPI, OIT 169, Lei 15.042/2024 art. 47); borda = ressalva. Complementa a camada nacional do INCRA.
+    lgpd: Sem dado pessoal.
+    licenca: licenceUnrestricted (IDE-Sisema).
+    situacao: {testado_em: "2026-11-17", resultado: "ok, 29 polígonos"}
+
+  - id: mg_restauracao
+    nome: Restauração, recuperação vegetal e plantios do Tratado da Mata Atlântica
+    tema: restauracao_existente
+    orgao: SEMAD-MG / IEF-MG
+    acesso: aberto
+    tipo: wfs
+    url: https://geoserver.meioambiente.mg.gov.br/IDE/ows
+    camadas:
+      - IDE:ide_250102_mg_restauracao_pol
+      - IDE:ide_250101_mg_recuperacao_vegetal_2020_pol
+      - IDE:ide_2410_mg_areas_tratado_mata_atlantica_pol
+    srs: EPSG:4674
+    geometria: poligono
+    manter: [classe, descricao, nm_projeto, num_area, periodo, entidade]
+    descartar: []
+    efeito: ressalva
+    motivo: restauracao_em_execucao
+    criterio: Área já restaurada ou em restauração por programa público ou compensação (Tratado da Mata Atlântica) dentro do imóvel; risco de dupla contagem.
+    lgpd: Sem dado pessoal (entidade executora é pessoa jurídica pública ou ONG).
+    licenca: licenceUnrestricted (IDE-Sisema).
+    situacao: {testado_em: "2026-11-17", resultado: "ok, 35 + 48 + 36 polígonos"}
+
+  - id: mg_imoveis_compensacao_uc
+    nome: Imóveis dentro de UC estadual disponíveis para compensação ambiental (regularização fundiária)
+    tema: terra_publica_pendente
+    orgao: IEF-MG
+    acesso: aberto
+    tipo: wfs
+    url: https://geoserver.meioambiente.mg.gov.br/IDE/ows
+    camada: IDE:ide_2104_mg_imoveis_disponiveis_compensacao_ambiental_pto
+    srs: EPSG:4674
+    geometria: ponto
+    manter: [registro, status, unidade_co, area_ha, bioma]
+    descartar: []
+    efeito: ressalva
+    motivo: imovel_em_uc_a_desapropriar
+    criterio: >-
+      Imóvel privado dentro de UC de proteção integral, oferecido para compensação (Lei 9.985 art. 36 e Lei
+      11.428): o destino é virar terra pública. Não serve para projeto de longo prazo; serve como oferta de
+      compensação. Ponto dentro do imóvel = ressalva forte.
+    lgpd: Traz nome da fazenda e matrícula (não é dado pessoal); sem nome de dono.
+    licenca: licenceUnrestricted (IDE-Sisema).
+    situacao: {testado_em: "2026-11-17", resultado: "ok, 404 imóveis"}
+
+  - id: mg_rios_preservacao
+    nome: Rios de preservação permanente (Lei estadual 15.082/2004)
+    tema: restricao_uso
+    orgao: SEMAD-MG
+    acesso: aberto
+    tipo: wfs
+    url: https://geoserver.meioambiente.mg.gov.br/IDE/ows
+    camada: IDE:ide_2009_mg_rios_preservacao_permanente_pol
+    srs: EPSG:4674
+    geometria: poligono
+    manter: [lei]
+    descartar: []
+    efeito: ressalva
+    motivo: rio_preservacao_permanente_mg
+    criterio: Trecho com restrição estadual extra de uso; conferir o que a lei proíbe na faixa.
+    lgpd: Sem dado pessoal.
+    licenca: licenceUnrestricted (IDE-Sisema).
+    situacao: {testado_em: "2026-11-17", resultado: "ok, 30.906 polígonos"}
+
+  - id: mg_protecao_especial
+    nome: Áreas de proteção especial (mananciais)
+    tema: restricao_uso
+    orgao: SEMAD-MG
+    acesso: aberto
+    tipo: wfs
+    url: https://geoserver.meioambiente.mg.gov.br/IDE/ows
+    camada: IDE:ide_2010_mg_areas_protecao_especial_pol
+    srs: EPSG:4674
+    geometria: poligono
+    manter: [ato_legal]
+    descartar: []
+    efeito: ressalva
+    motivo: area_protecao_especial
+    criterio: Área de proteção especial estadual sobre o imóvel; conferir o decreto.
+    lgpd: Sem dado pessoal.
+    licenca: licenceUnrestricted (IDE-Sisema).
+    situacao: {testado_em: "2026-11-17", resultado: "ok, 19 polígonos"}
+
+  - id: mg_prioridade_restauracao
+    nome: Áreas prioritárias para restauração (PSCRMG e ZEE-MG)
+    tema: prioridade_restauracao
+    orgao: SEMAD-MG
+    acesso: aberto
+    tipo: wfs
+    url: https://geoserver.meioambiente.mg.gov.br/IDE/ows
+    camadas:
+      - IDE:ide_2411_mg_prioritarias_restauracao_pol
+      - IDE:ide_2401_mg_areas_prioritarias_recuperacao_pol
+    srs: EPSG:4674
+    geometria: poligono
+    manter: [classe, prioridade, importanc]
+    descartar: []
+    efeito: informativo
+    motivo: prioridade_restauracao_mg
+    criterio: Não restringe; marca prioridade estadual (ajuda a vender e a achar compensação).
+    lgpd: Sem dado pessoal.
+    licenca: licenceUnrestricted (IDE-Sisema).
+    situacao: {testado_em: "2026-11-17", resultado: "camadas listadas no GetCapabilities"}

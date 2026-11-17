@@ -240,6 +240,12 @@ def _risco(cam: str, e: dict, r: dict) -> tuple[str, str]:
         if c.get("situacao") == "contratada":
             return "baixo", f"Contrato de concessão assinado em {c.get('data', '')}."
         return "medio", "Concessão ainda em edital: depende do resultado da licitação."
+    if cam in ("assentamento", "posse_em_titulacao") and fr(e["publica"]) >= L["sobreposicao_alerta"]:
+        # gleba pública não destinada (CNFP/SIGEF) sob parte do CAR: quem ocupa não origina essa parte sozinho
+        return "alto", (
+            f"{_pct(e['publica'], ha)} do CAR sobre gleba pública não destinada ou unidade de conservação de domínio "
+            "público; conferir com o órgão fundiário antes de contratar."
+        )
     if cam == "assentamento":
         if e["assentamento_titulado"] > 0 and fr(e["assentamento_titulado"]) >= L["fracao_caminho"]:
             return "medio", "Lote titulado no SIGEF; depende de aval do INCRA."
@@ -264,6 +270,26 @@ def _risco(cam: str, e: dict, r: dict) -> tuple[str, str]:
         texto = "; ".join(motivos)
         return "medio", texto[:1].upper() + texto[1:] + "."
     return "baixo", "Matrícula conferida no cartório, em 90% ou mais do CAR."
+
+
+def gleba_federal(linha: dict, r: dict | None = None) -> dict:
+    """Gleba pública federal não destinada no CAR: hectares, fração e se passa do limiar (10%).
+
+    acima_limiar é None quando não foi medido (sem CNFP no processamento): ausência de dado nunca vira "fora".
+    """
+    r = r or regra()
+    lim = float(r["limiares"].get("gleba_federal_fracao", 0.10))
+    ha_g = _num(linha, "terra_gleba_federal_ha")
+    ha = _num(linha, "ha") or _num(linha, "area")
+    if ha_g is None:
+        return {"gleba_federal_ha": None, "gleba_federal_fracao": None, "gleba_federal": None, "limiar": lim}
+    fr = min(ha_g / ha, 1.0) if ha and ha > 0 else None
+    return {
+        "gleba_federal_ha": round(ha_g, 4),
+        "gleba_federal_fracao": None if fr is None else round(fr, 4),
+        "gleba_federal": None if fr is None else fr > lim,
+        "limiar": lim,
+    }
 
 
 MOTIVO_ETAPA = {
@@ -479,6 +505,13 @@ def camadas_de_terra(caixa, cache_motor: Path | None, cnfp: Path | None, r: dict
         fp = recorta(Path(cnfp))
         if fp is not None and "tipo" in fp:
             out["cnfp_nao_destinada"] = fp[fp["tipo"].astype(str).str.upper().isin(["B", "C", "TIPO B", "TIPO C"])]
+            gov = fp["governo"].astype(str).str.upper() if "governo" in fp else None
+            # vazia (não None) quando o CNFP existe e não há gleba federal: mede 0, que é diferente de não medido
+            out["cnfp_federal_nao_destinada"] = (
+                out["cnfp_nao_destinada"][gov.loc[out["cnfp_nao_destinada"].index].eq("FEDERAL")]
+                if gov is not None
+                else None
+            )
     return out
 
 
@@ -509,6 +542,12 @@ def sobreposicoes(imoveis, sigef, camadas: dict) -> dict[str, dict]:
     publicas = [g[["geometry"]].to_crs(4674) for g in fontes_publicas if g is not None and len(g)]
     grava("terra_publica_ha", gpd.GeoDataFrame(pd.concat(publicas), crs=4674) if publicas else None)
     grava("terra_uc_publica_ha", camadas.get("uc_publica"))
+    # Gleba federal não destinada só pelo CNFP (governo federal, tipo B/C). Sem o CNFP fica vazio, nunca 0.
+    if camadas.get("cnfp_federal_nao_destinada") is not None:
+        grava("terra_gleba_federal_ha", camadas["cnfp_federal_nao_destinada"])
+    else:
+        for c in cods:
+            por[c]["terra_gleba_federal_ha"] = None
     grava("terra_tradicional_ha", camadas.get("tradicional"))
     conc = camadas.get("concessoes")
     if conc is not None and len(conc):

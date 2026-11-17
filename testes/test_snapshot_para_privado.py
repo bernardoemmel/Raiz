@@ -87,7 +87,7 @@ def test_redirect_fora_da_fronteira_e_rejeitado_antes_da_segunda_requisicao(url)
     assert url not in str(erro.value) and SEGREDO not in str(erro.value)
 
 
-def test_ciclo_de_redirect_tem_limite_e_erro_http_nao_expoe_resposta():
+def test_ciclo_de_redirect_tem_limite_e_erro_http_nao_expoe_resposta(monkeypatch):
     cliente, pedidos = _cliente(), []
 
     def abrir(pedido, **kwargs):
@@ -102,10 +102,67 @@ def test_ciclo_de_redirect_tem_limite_e_erro_http_nao_expoe_resposta():
     def recusado(*args, **kwargs):
         raise urllib.error.HTTPError(f"https://api.github.com/?token={SEGREDO}", 403, SEGREDO, {}, io.BytesIO())
 
+    monkeypatch.setattr(P, "ESPERA_BASE_S", 0)
     cliente.opener = SimpleNamespace(open=recusado)
     with pytest.raises(P.FalhaPrivada) as erro:
         cliente._api("releases/1")
     assert SEGREDO not in str(erro.value)
+
+
+def test_recusa_transitoria_do_github_e_repetida_com_credencial(monkeypatch):
+    """403 em rajada (limite secundário) derrubava o check referencia_para; agora repete do início."""
+    monkeypatch.setattr(P, "ESPERA_BASE_S", 0)
+    cliente = _cliente()
+    pedidos = []
+
+    def abrir(pedido, timeout):
+        pedidos.append(pedido.get_header("Authorization"))
+        if len(pedidos) < 3:
+            raise urllib.error.HTTPError("https://api.github.com", 403, SEGREDO, {}, io.BytesIO())
+        return io.BytesIO(b"{}")
+
+    cliente.opener = SimpleNamespace(open=abrir)
+    assert cliente._api("releases/1") == {}
+    assert len(pedidos) == 3 and all(pedidos)
+
+
+def test_cota_esgotada_espera_o_reset_informado(monkeypatch):
+    esperas = []
+    monkeypatch.setattr(P.time, "sleep", esperas.append)
+    monkeypatch.setattr(P.time, "time", lambda: 1000.0)
+    cliente = _cliente()
+    pedidos = []
+
+    def abrir(pedido, timeout):
+        pedidos.append(1)
+        if len(pedidos) == 1:
+            raise urllib.error.HTTPError(
+                "https://api.github.com",
+                403,
+                SEGREDO,
+                {"x-ratelimit-remaining": "0", "x-ratelimit-reset": "1120"},
+                io.BytesIO(),
+            )
+        return io.BytesIO(b"{}")
+
+    cliente.opener = SimpleNamespace(open=abrir)
+    assert cliente._api("releases/1") == {}
+    assert esperas == [122.0]
+
+
+def test_404_nao_e_repetido(monkeypatch):
+    monkeypatch.setattr(P, "ESPERA_BASE_S", 0)
+    cliente = _cliente()
+    pedidos = []
+
+    def abrir(pedido, timeout):
+        pedidos.append(1)
+        raise urllib.error.HTTPError("https://api.github.com", 404, SEGREDO, {}, io.BytesIO())
+
+    cliente.opener = SimpleNamespace(open=abrir)
+    with pytest.raises(P.FalhaPrivada):
+        cliente._api("releases/1")
+    assert len(pedidos) == 1
 
 
 @pytest.mark.parametrize("muda", [{"draft": False}, {"id": 1}, {"tag_name": "publico"}])

@@ -16,7 +16,14 @@ let pacote: Buffer
 let base: string
 const pedidos: string[] = []
 let responder: ((req: http.IncomingMessage, res: http.ServerResponse) => boolean) | null = null
+// O andamento do reprocessamento é opcional e lido à parte (docs/reprocessamento-progressivo.md).
+let reprocessamento: unknown = null
 const servidor = http.createServer((req, res) => {
+  if (req.url === "/reprocessamento.json") {
+    if (reprocessamento === null) { res.statusCode = 404; res.end() }
+    else { res.setHeader("content-type", "application/json"); res.end(JSON.stringify(reprocessamento)) }
+    return
+  }
   pedidos.push(req.url ?? "")
   if (responder?.(req, res)) return
   if (req.url === "/estados.json") { res.setHeader("content-type", "application/json"); res.end(JSON.stringify(manifesto)) }
@@ -44,10 +51,11 @@ function preparar(arquivos: Record<string, string>, extras: Record<string, unkno
   } } }
   pedidos.length = 0
   responder = null
+  reprocessamento = null
 }
 async function baixar(destino: string) {
   try {
-    const r = await executar(process.execPath, [script, "--exigir"], { env: { ...process.env, RAIZ_SEM_DOWNLOAD: "", RAIZ_DADOS: destino, RAIZ_DADOS_URL: base } })
+    const r = await executar(process.execPath, [script, "--exigir"], { env: { ...process.env, RAIZ_SEM_DOWNLOAD: "", RAIZ_DOWNLOAD_ESPERA_MS: "20", RAIZ_DADOS: destino, RAIZ_DADOS_URL: base } })
     return { sucesso: true, texto: r.stdout + r.stderr }
   } catch (e) {
     const r = e as { stdout: string; stderr: string }
@@ -62,6 +70,22 @@ const processamento = () => ({
 })
 
 describe("download fechado ao contrato público", () => {
+  it("guarda o andamento do reprocessamento só quando está dentro do contrato", async () => {
+    preparar(basicos)
+    reprocessamento = { escopo: "publico_basico", versao_publicacao: 1, geracao_vigente: "2026-11-17",
+      estados: { PA: { situacao: "reprocessando", prontos: 3, total: 144 } } }
+    const destino = path.join(temp, "andamento")
+    expect((await baixar(destino)).sucesso).toBe(true)
+    expect(JSON.parse(fs.readFileSync(path.join(destino, "reprocessamento.json"), "utf8")).estados.PA.prontos).toBe(3)
+    reprocessamento = { ...(reprocessamento as object), estados: { PA: { situacao: "reprocessando", cod_imovel: car } } }
+    const r = await baixar(destino)
+    expect(r.sucesso).toBe(true) // o andamento é opcional: o pacote continua valendo
+    expect(r.texto).toContain("andamento do reprocessamento indisponível")
+    expect(fs.readFileSync(path.join(destino, "reprocessamento.json"), "utf8")).not.toContain(car)
+    reprocessamento = null
+    await baixar(destino)
+    expect(fs.existsSync(path.join(destino, "reprocessamento.json"))).toBe(false)
+  })
   it("baixa somente básicos e mantém todos os portes sem medidas privadas", async () => {
     preparar(basicos)
     const destino = path.join(temp, "valido")
@@ -278,7 +302,7 @@ describe("novas tentativas apenas para transporte e HTTP transitório", () => {
     expect(fs.readFileSync(path.join(destino, "PA", "imoveis_basicos_1504950.csv"), "utf8")).toContain(car)
   }, 8000)
 
-  it.each([408, 429, 503])("repete HTTP %s e publica somente o pacote válido da nova tentativa", async (status) => {
+  it.each([403, 408, 429, 503])("repete HTTP %s e publica somente o pacote válido da nova tentativa", async (status) => {
     preparar(basicos)
     let tentativas = 0
     responder = (req, res) => {

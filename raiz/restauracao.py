@@ -273,7 +273,8 @@ def area_restauravel(linha: dict) -> float:
     A área física do imóvel limita a estimativa quando conhecida; não há tamanho mínimo.
     Zero com `pasto_ha` em `restauracao_faltou` é estimativa pendente, não prova de ausência de potencial.
     """
-    alem = _num(linha, "alem_RL_ha") or 0.0
+    # reserva legal pela vegetação do IBGE (raiz/ambiental) quando a tarefa "ambiental" já rodou; senão a do motor
+    alem = _primeiro(linha, "alem_RL_vegetacao_ha", "alem_RL_ha") or 0.0
     app = _primeiro(linha, "app_recompor_ha", "app_desmatada_ha") or 0.0
     livre = max(alem - app, 0.0)
     pasto = _num(linha, "pasto_ha")
@@ -1712,7 +1713,7 @@ def colunas_do_lote(df, cod_municipio: int, c: dict, r: dict | None = None):
 
 # --- por município (saida/<UF>/desenvolvedor_<mun>.csv) ----------------------------------------------------------
 
-ENTRADAS = ("filtros", "mapbiomas", "extras", "direto", "ficha", "terra", "rebanho")
+ENTRADAS = ("filtros", "mapbiomas", "extras", "direto", "ficha", "terra", "rebanho", "ambiental")
 COLS_FICHA = ("estrada_acesso_km", "cidade_proxima_km")
 
 

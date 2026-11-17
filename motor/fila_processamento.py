@@ -23,7 +23,7 @@ MAX_FALHAS = 3
 # resto do PA; depois o resto do Brasil.
 ORDEM_FUNIL = ("AM", "MT", "TO", "MA", "PA", "RO", "RR", "AC", "AP", "GO", "MS", "BA", "PI", "CE", "RN", "SP", "PR",
                "MG", "PB", "PE", "AL", "SE", "ES", "RJ", "SC", "RS", "DF")
-WORKFLOWS_LOTE = ("lote-para.yml", "retomar-lote-para.yml", "desbloqueio-lote.yml")
+WORKFLOWS_LOTE = ("lote-para.yml", "retomar-lote-para.yml", "desbloqueio-lote.yml", "lote-nacional.yml")
 # #55: workflow inteiro conferido neste commit imutável, max-parallel=5,
 # preparo e publicação sequenciais. Nenhum outro head herda esta exceção.
 CAPACIDADE_LEGADA_LOTE = {("retomar-lote-para.yml", "3546687c66ec07ef9bd875d181efcff57ff1d312"): 5}
@@ -355,6 +355,7 @@ def admitir(
     ref_funil: str | None = None,
     falhas_funil: dict[str, str] | None = None,
     versao_funil: str | None = None,
+    limite_reprocessamento: int = 0,
 ) -> list[dict]:
     ativas, legados = reconciliar(estado, runs, e_unidade)
     promover_continuacoes(estado)
@@ -387,6 +388,9 @@ def admitir(
                   and (not _uf_do_funil(p["unidade"]) or not frente
                        or not prioridade.get("ref") or p.get("ref") == prioridade["ref"])}
     manut_ativas = sum(u in manutencao for u in ativas)
+    # Reprocessamento progressivo (docs/reprocessamento-progressivo.md): durante a conclusão dos funis, estados com o
+    # funil pronto podem ser refeitos com as regras novas, no código atual (sem a versão fixada), até este limite.
+    reproc_ativas = sum(1 for u in ativas if frente and (x := _uf_do_funil(u)) and x not in frente)
     pedidos = [*(estado["fila"] if consumir_fila else []), *candidatos]
     tentadas = {(p["unidade"], p.get("ref")) for p in estado["fila"] if p.get("falhas")}
     if frente:
@@ -406,9 +410,12 @@ def admitir(
         if pedido.get("bloqueado"):
             continue
         uf = _uf_do_funil(pedido["unidade"])
-        if frente and uf is not None:
-            if uf not in frente:
+        reproc = False
+        if frente and uf is not None and uf not in frente:
+            if not pedido.get("reprocessar") or pedido.get("refazer") or reproc_ativas >= limite_reprocessamento:
                 continue
+            reproc = True
+        elif frente and uf is not None:
             if pedido.get("refazer"):
                 continue  # preserva o pedido; nenhuma manutenção durante a conclusão dos funis
             if prioridade.get("ref") and pedido.get("ref") != prioridade["ref"]:
@@ -426,6 +433,7 @@ def admitir(
         ativas.add(pedido["unidade"])
         escolhidos.append(pedido)
         manut_ativas += manut
+        reproc_ativas += reproc
     ids = {p["id"] for p in escolhidos}
     estado["fila"] = [p for p in estado["fila"] if p["id"] not in ids]
     return escolhidos
@@ -468,10 +476,22 @@ def reservar(
     funis_prontos: set[str] | None = None,
     falhas_funil: dict[str, str] | None = None,
     versao_funil: str | None = None,
+    reprocessar=(),
+    limite_reprocessamento: int = 0,
 ) -> list[dict]:
+    """reprocessar: unidades de estados com o funil pronto a refazer com as regras novas (pedido explícito ou
+    candidato automático), marcadas com "reprocessar" e nunca presas à versão fixada da prioridade."""
     repo = Repositorio()
     run_id = os.environ["GITHUB_RUN_ID"]
-    explicitos = [pedido(u, refazer, continuacao) for u in pedidos]
+    reprocessar = set(reprocessar)
+
+    def marcar(p: dict) -> dict:
+        return {**p, "reprocessar": True} if p["unidade"] in reprocessar else p
+
+    def fixar(p: dict, fixada: str) -> dict:
+        return {**p, "ref": fixada} if _uf_do_funil(p["unidade"]) and not p.get("reprocessar") else p
+
+    explicitos = [marcar(pedido(u, refazer if u not in reprocessar else (), continuacao)) for u in pedidos]
     ref_funil = comando(["git", "rev-parse", "HEAD"]).strip() if funis_prontos is not None else None
 
     def registrar(estado):
@@ -480,9 +500,7 @@ def reservar(
         fixada = (estado.get("prioridade_funil") or {}).get("ref")
         if funis_prontos is not None and len(funis_prontos) == len(ORDEM_FUNIL):
             fixada = None
-        enfileirar(estado, [
-            {**p, "ref": fixada} if _uf_do_funil(p["unidade"]) else p for p in explicitos
-        ] if fixada else explicitos)
+        enfileirar(estado, [fixar(p, fixada) for p in explicitos] if fixada else explicitos)
 
     transacao(repo, registrar)  # o pedido existe antes de qualquer consulta/admissão que possa falhar
 
@@ -494,12 +512,12 @@ def reservar(
             adicionais,
             incluir_lotes=True,
         )
-        novos = [pedido(u, refazer, continuacao) for u in candidatos] if not pedidos else []
+        novos = [marcar(pedido(u, refazer if u not in reprocessar else (), continuacao)) for u in candidatos] if not pedidos else []
         fixada = (estado.get("prioridade_funil") or {}).get("ref")
         if funis_prontos is not None and len(funis_prontos) == len(ORDEM_FUNIL):
             fixada = None
         if fixada:
-            novos = [{**p, "ref": fixada} if _uf_do_funil(p["unidade"]) else p for p in novos]
+            novos = [fixar(p, fixada) for p in novos]
         if not repetir:
             novos = [{**p, "repetir": False} for p in novos]
         if reserva_rodada:
@@ -513,6 +531,7 @@ def reservar(
             ref_funil=ref_funil,
             falhas_funil=falhas_funil,
             versao_funil=versao_funil,
+            limite_reprocessamento=limite_reprocessamento,
         )
         return escolhidos, [p for p in estado["fila"] if p.get("bloqueado")]
 
@@ -530,4 +549,6 @@ def reservar(
 
 def guardar_continuacao(unidade: str, continuacao: int) -> None:
     p = pedido(unidade, (), continuacao)
+    if os.environ.get("RAIZ_REPROCESSAR") in ("1", "true", "True"):
+        p["reprocessar"] = True  # a continuação de um reprocessamento continua fora da versão fixada
     transacao(Repositorio(), lambda estado: enfileirar(estado, [p]))

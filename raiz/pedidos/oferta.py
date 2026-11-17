@@ -32,6 +32,7 @@ COLUNAS = (
     "vazamento_mitigacao_imovel", "regularizacao_classe", "salvaguardas", "elegivel_sem_salvaguardas",
     "car_conferido_em", "car_conferencia", "car_situacao", "car_geometria_alterada", "restricao_nacional",
     "restricao_exclusao", "restricao_ressalva", "restricao_motivos", "complementar_status", "complementar_motivos",
+    "ambiental_status", "ambiental_motivos", "pct_RL_vegetacao",
 )  # fmt: skip
 
 
@@ -196,6 +197,19 @@ def de_linha(linha: dict, lon: float | None = None, lat: float | None = None) ->
         "complementar_motivos": linha.get("complementar_motivos")
         if isinstance(linha.get("complementar_motivos"), str)
         else None,
+        # vegetação e relevo (raiz/ambiental): só ressalva, nunca bloqueio; nulo = tarefa ainda não rodou no município
+        **_ambiental(linha),
+    }
+
+
+def _ambiental(linha: dict) -> dict:
+    st = linha.get("ambiental_status")
+    mot = linha.get("ambiental_motivos")
+    pct = linha.get("pct_RL_vegetacao")
+    return {
+        "ambiental_status": st if isinstance(st, str) else None,
+        "ambiental_motivos": mot if isinstance(mot, str) else None,
+        "pct_RL_vegetacao": float(pct) if isinstance(pct, int | float) and pct == pct else None,
     }
 
 

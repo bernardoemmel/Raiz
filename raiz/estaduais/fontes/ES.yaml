@@ -1,0 +1,126 @@
+# Fontes estaduais do Espírito Santo. GeoBases (IDE do ES, GeoNode): ide.geobases.es.gov.br/geoserver/ows.
+# As camadas vêm em SIRGAS 2000 UTM 24S (EPSG:31984). O site reflorestar.es.gov.br corta a conexão daqui,
+# mas as áreas do Reflorestar estão no GeoBases. Testado em 17/11/2026.
+uf: ES
+verificado_em: "2026-11-17"
+fontes:
+  - id: es_reflorestar
+    nome: Reflorestar, áreas apoiadas (PSA e restauração)
+    tema: psa_vigente
+    orgao: SEAMA-ES (Programa Reflorestar)
+    acesso: aberto
+    tipo: wfs
+    url: https://ide.geobases.es.gov.br/geoserver/ows
+    camada: geonode:seama_reflorestar_areas_apoiadas
+    srs: EPSG:31984
+    geometria: poligono
+    manter: [id, edital, poligono, modalidade, area, status]
+    descartar: [requerente]
+    efeito: ressalva
+    motivo: psa_estadual_vigente
+    criterio: >-
+      Área apoiada pelo Reflorestar (floresta em pé, recuperação, sistemas agroflorestais) dentro do imóvel: já
+      recebe pagamento e assistência do Estado; risco de dupla contagem. Status "Em monitoramento" = contrato vigente.
+    lgpd: Nome do requerente apagado na entrada.
+    licenca: Dado público do Governo do ES (GeoBases); licença não declarada.
+    situacao: {testado_em: "2026-11-17", resultado: "ok, 18.548 polígonos"}
+
+  - id: es_legitimacao_terras
+    nome: Legitimação de terras devolutas (IDAF)
+    tema: terra_devoluta
+    orgao: IDAF-ES
+    acesso: aberto
+    tipo: wfs
+    url: https://ide.geobases.es.gov.br/geoserver/ows
+    camada: geonode:idaf_subgeo_legitimacao_terras
+    srs: EPSG:31984
+    geometria: poligono
+    manter: [municipio, localidade, comarca, situacao, data_planta, data_ed]
+    descartar: [proprietario, req_inicial]
+    efeito: informativo
+    motivo: terra_legitimada_es
+    regra_efeito:
+      - campo: situacao
+        padrao: "(?i)grilagem|anulado"
+        efeito: exclusao
+        motivo: terra_devoluta_grilagem
+      - campo: situacao
+        padrao: "(?i)proc\\. aberto|condicional|sem registro|sem informa"
+        efeito: ressalva
+        motivo: terra_devoluta_em_legitimacao
+    criterio: >-
+      Polígono sobre o imóvel: "Grilagem" ou "Anulado por decisão judicial" = exclusão; legitimação em aberto,
+      condicional ou sem registro no RGI = ressalva (domínio ainda público); "Legítimo" = informação (título
+      estadual já dado).
+    lgpd: Nome do proprietário apagado na entrada.
+    licenca: Dado público do Governo do ES (GeoBases).
+    situacao: {testado_em: "2026-11-17", resultado: "ok, 33.333 polígonos (30.471 legítimos, 703 em aberto, 3 grilagem)"}
+
+  - id: es_fiscalizacao_idaf
+    nome: Fiscalização ambiental do IDAF (2018–2024)
+    tema: autos_infracao
+    orgao: IDAF-ES
+    acesso: aberto
+    tipo: wfs
+    url: https://ide.geobases.es.gov.br/geoserver/ows
+    camada: geonode:idaf_gelcof_fiscalizacao_2018_2024
+    srs: EPSG:31984
+    geometria: ponto
+    filtro: "item <> 'Sem autuação'"
+    campo_data: dt_vistor
+    manter: [num_fisc, classific, tp_infrac, item, subitem, dt_vistor, municipio, n_iuf_mlt, n_iuf_embg, area_m2]
+    descartar: [processo, sep_edocs]
+    efeito: ressalva
+    motivo: auto_estadual
+    regra_efeito:
+      - campo: n_iuf_embg
+        padrao: "."
+        motivo: embargo_estadual_ponto
+    criterio: Vistoria com autuação dentro do imóvel = ressalva; com termo de embargo = ressalva mais forte (ponto, não mede área).
+    lgpd: Sem nome nem documento; número de processo apagado.
+    licenca: Dado público do Governo do ES (GeoBases).
+    situacao: {testado_em: "2026-11-17", resultado: "ok, 8.598 vistorias"}
+
+  - id: es_uc_estaduais
+    nome: Unidades de conservação estaduais (IEMA)
+    tema: unidade_conservacao
+    orgao: IEMA-ES
+    acesso: aberto
+    tipo: wfs
+    url: https://ide.geobases.es.gov.br/geoserver/ows
+    camada: geonode:_2019_10_25_iema_ucs_estaduais
+    srs: EPSG:31984
+    geometria: poligono
+    manter: [NOM_UNIDAD, TIP_UNIDAD, DCR_LEGISL]
+    permitir: [NOM_UNIDAD]
+    descartar: []
+    efeito: ressalva
+    motivo: uc_estadual_uso_sustentavel
+    regra_efeito:
+      - campo: TIP_UNIDAD
+        padrao: "(?i)parque|reserva biol|esta..o ecol|monumento|ref.gio"
+        efeito: exclusao
+        motivo: uc_estadual_protecao_integral
+    criterio: Parque, reserva biológica, estação ecológica, monumento natural e refúgio = proteção integral (exclusão acima do limiar); APA, ARIE e RDS = ressalva.
+    lgpd: Sem dado pessoal.
+    licenca: Dado público do IEMA (GeoBases).
+    situacao: {testado_em: "2026-11-17", resultado: "ok, 17 UCs (camada de 2019)"}
+
+  - id: es_plantio_nativas
+    nome: Plantios de nativas requeridos ao IDAF
+    tema: restauracao_existente
+    orgao: IDAF-ES
+    acesso: aberto
+    tipo: wfs
+    url: https://ide.geobases.es.gov.br/geoserver/ows
+    camada: geonode:idaf_cad_plantio_nativas_req
+    srs: EPSG:31984
+    geometria: ponto
+    manter: [municipio, tp_plantio, nm_cientif, num_planta, area_ha, dt_plantio]
+    descartar: [proprietar, nm_prop, talhao]
+    efeito: ressalva
+    motivo: restauracao_em_execucao
+    criterio: Plantio de nativas cadastrado dentro do imóvel; conferir se já está comprometido.
+    lgpd: Nome do proprietário e da propriedade apagados (pode ser pessoa física).
+    licenca: Dado público do IDAF (GeoBases).
+    situacao: {testado_em: "2026-11-17", resultado: "ok, 288 pontos"}

@@ -61,6 +61,7 @@ env:
     motor/cache/*.parquet
     motor/cache/drivers
     motor/cache/tmf
+    dados/terra_publica/cnfp_*.parquet
 
 jobs:
   planejar:
@@ -102,6 +103,12 @@ jobs:
           RAIZ_CONTINUACAO: ${{ inputs.continuacao }}
           RAIZ_SO_FILA: ${{ github.event_name == 'schedule' && github.event.schedule == '17 * * * *' && '1' || '0' }}
         run: uv run python motor/rodar_estado.py --planejar
+      - name: Situação do reprocessamento estado por estado (só leitura)
+        continue-on-error: true
+        timeout-minutes: 10
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: uv run python -m raiz.executor.reprocessamento
 
   projecao-aberta:
     # Refaz a projeção do Release aberto de um estado em que ela ficou para trás do arquivo privado (MG ficou com 3
@@ -152,6 +159,18 @@ jobs:
       - name: Baixar os arquivos nacionais (lista de municípios, embargos, biomas, geobr, TMF, causas da perda)
         if: steps.hoje.outputs.cache-hit != 'true'
         run: uv run python motor/rodar_estado.py --preparar
+      # Glebas públicas federais e estaduais não destinadas (CNFP do SFB, ~230 MB, um GeoParquet por UF). Sem ele a
+      # etapa terra só via a "Gleba Pública" do SIGEF e a gleba federal não destinada passava como posse.
+      - name: Cadastro Nacional de Florestas Públicas (glebas não destinadas)
+        if: steps.hoje.outputs.cache-hit != 'true'
+        run: |
+          if ls dados/terra_publica/cnfp_*.parquet >/dev/null 2>&1; then
+            echo "CNFP já no cache comum"
+          elif uv run raiz terra preparar-cnfp; then
+            rm -f dados/terra_publica/CNFP_2025.zip
+          else
+            echo "::warning::CNFP indisponível: gleba não destinada só pelo SIGEF nesta rodada"
+          fi
       - name: Guardar o cache comum somente no arquivo privado
         if: steps.hoje.outputs.cache-hit != 'true'
         run: >-
@@ -188,6 +207,8 @@ jobs:
       RAIZ_RASTER_CACHE_GB: "5"
       RAIZ_CONTINUACAO: ${{ matrix.continuacao }}
       RAIZ_REFAZER: ${{ matrix.refazer }}
+      # pedido de reprocessamento com as regras novas (docs/reprocessamento-progressivo.md): a continuação também é
+      RAIZ_REPROCESSAR: ${{ matrix.reprocessar && '1' || '' }}
       CACHE_UF: |
         motor/cache/car_nacional
         motor/cache/tb
@@ -277,6 +298,26 @@ jobs:
           if gh release download insumos -R "$GITHUB_REPOSITORY" -D motor/cache/comprometida --clobber \
                -p comprometida_limites.parquet -p comprometida_cobertura.json 2>/dev/null; then
             echo "limites da terra já comprometida: ok"
+            # O job roda o commit preservado na fila (matrix.ref). Se a coleta já traz uma fonte que esse código não
+            # conhece, cobertura_segura() derruba o município inteiro ("Fonte territorial desconhecida"). Nesse caso
+            # usa o caminho que o código já tem para "sem limites": a tarefa fica nao_verificado (nunca "livre") e
+            # refaz sozinha quando o pedido rodar no código atual (a assinatura da coleta muda).
+            if ! uv run python - <<'PY'
+          import json, sys
+          import geopandas as gpd
+          from raiz.terra_comprometida import FONTES
+          base = "motor/cache/comprometida/"
+          cob = json.load(open(base + "comprometida_cobertura.json", encoding="utf-8")).get("cobertura", [])
+          fontes = {c.get("fonte_id") for c in cob} | set(gpd.read_parquet(base + "comprometida_limites.parquet").fonte_id)
+          novas = sorted(str(f) for f in fontes - set(FONTES))
+          if novas:
+              print("fontes da coleta que este commit não conhece: " + ", ".join(novas))
+              sys.exit(1)
+          PY
+            then
+              rm -f motor/cache/comprometida/comprometida_*
+              echo "::warning::limites da terra já comprometida mais novos que o código deste pedido; tarefa comprometida fica nao_verificado"
+            fi
           else
             rm -f motor/cache/comprometida/comprometida_*
             echo "sem limites da terra já comprometida (tarefa comprometida fica nao_verificado)"
@@ -305,6 +346,18 @@ jobs:
           else
             echo "sem fontes complementares coletadas (tarefa complementares fica nao_verificado nessas fontes)"
           fi
+          # Vegetação e relevo (coletar-ambiental.yml): mapa do IBGE classificado para a reserva legal e TerraClass.
+          # Sem eles a tarefa "ambiental" marca a vegetação como não verificada (nunca "livre"); o ANADEM é lido direto.
+          mkdir -p motor/cache/ambiental/terraclass
+          if gh release download insumos -R "$GITHUB_REPOSITORY" -D motor/cache/ambiental --clobber \
+               -p ambiental_vegetacao.parquet -p ambiental_cobertura.json 2>/dev/null; then
+            echo "vegetação do IBGE: ok"
+          else
+            rm -f motor/cache/ambiental/ambiental_*
+            echo "sem vegetação do IBGE coletada (tarefa ambiental fica nao_verificado na vegetação)"
+          fi
+          gh release download insumos -R "$GITHUB_REPOSITORY" -D motor/cache/ambiental/terraclass --clobber \
+            -p 'terraclass_*' 2>/dev/null || echo "sem TerraClass (complemento; a tarefa ambiental segue sem ele)"
 
       - name: Buscar o publicador do workflow para finalizar executores de versões anteriores
         id: publicador_checkout
