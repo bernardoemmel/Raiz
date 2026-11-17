@@ -18,6 +18,8 @@ const observacao = () => ({
 let manifesto: Record<string, unknown>, base: string, pacote: Buffer
 const pedidos: string[] = []
 const servidor = http.createServer((req, res) => {
+  // O andamento do reprocessamento é lido à parte (reprocessamento.json); aqui só contam manifesto e pacotes.
+  if (req.url === "/reprocessamento.json") { res.statusCode = 404; res.end(); return }
   pedidos.push(req.url ?? "")
   if (req.url === "/estados.json") res.end(JSON.stringify(manifesto))
   else if (req.url === "/raiz_PA.tar.gz") res.end(pacote)
