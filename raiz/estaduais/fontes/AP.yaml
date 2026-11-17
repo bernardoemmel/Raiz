@@ -1,0 +1,39 @@
+# Fontes estaduais de AP. Testado em 17/11/2026: imap.ap.gov.br e sema.ap.gov.br não entregam dado desta nuvem. As glebas que a União
+# transferiu ao estado aparecem como floresta pública estadual no CNFP 2025 (automático) e, quando certificadas,
+# no SIGEF (nacional).
+uf: AP
+verificado_em: "2026-11-17"
+fontes:
+  - id: ap_glebas_transferidas
+    nome: Glebas da União transferidas ao Amapá (Lei 10.304/2001 e decretos de transferência)
+    tema: terra_devoluta
+    orgao: IMAP (Amapá Terras)
+    acesso: bloqueado_fora_brasil
+    tipo: pendente
+    url: https://imap.ap.gov.br/
+    efeito: conferir
+    motivo: gleba_transferida_a_conferir
+    criterio: >-
+      Imóvel em gleba transferida pela União ao estado = ressalva até o título estadual (a posse não tem título;
+      regularização no órgão de terras do estado). Sem camada: item do checklist de todo imóvel de AP.
+    lgpd: —
+    situacao: {testado_em: "2026-11-17", resultado: "imap.ap.gov.br: sem resposta útil desta nuvem"}
+    alternativa: ap_glebas_estaduais_cnfp (CNFP 2025) e glebas públicas do SIGEF (nacional); LAI ao IMAP (Amapá Terras).
+
+  - id: ap_glebas_estaduais_cnfp
+    nome: Florestas públicas estaduais não destinadas (CNFP 2025)
+    tema: terra_devoluta
+    orgao: SFB (CNFP), com dado do IMAP (Amapá Terras)
+    acesso: aberto
+    tipo: cnfp
+    url: https://www.gov.br/florestal/pt-br/assuntos/cadastro-nacional-de-florestas-publicas
+    geometria: poligono
+    manter: [categoria, tipo, governo, orgao, protecao]
+    efeito: ressalva
+    motivo: gleba_estadual
+    criterio: >-
+      Floresta pública estadual não destinada (tipo B, governo estadual) acima do limiar = ressalva: posse em terra
+      do estado; o caminho é a regularização no IMAP (Amapá Terras). Inclui as glebas transferidas pela União já cadastradas no CNFP.
+    lgpd: Sem dado pessoal.
+    licenca: Dado aberto do governo federal (Decreto 8.777/2016).
+    situacao: {testado_em: "2026-11-17", resultado: "ok (CNFP 2025 do SFB, abre de fora do Brasil)"}

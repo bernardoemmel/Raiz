@@ -69,3 +69,32 @@ regras:
       do provimento for lido do Brasil.
     fonte: https://jornalgrandebahia.com.br/2021/10/capitulo-lix-do-caso-faroeste-a-analise-juridica-sobre-o-provimento-conjunto-no-08-2021-do-pjba/
     pendente: texto integral do provimento (tjba.jus.br responde daqui, mas o DJe precisa de busca manual).
+
+  - id: tjpa_matriculas_acima_do_limite
+    uf: PA
+    uf_inteira: true
+    area_minima_ha: 2500
+    tribunal: TJPA, Corregedoria de Justiça das Comarcas do Interior, e Corregedoria Nacional de Justiça (CNJ)
+    ato: >-
+      Provimento 13/2006-CJCI (bloqueio de matrículas rurais acima do limite constitucional) e decisão do CNJ no
+      Pedido de Providências 0001943-67.2009.2.00.0000 (2010), que mandou cancelar cerca de 5.500 matrículas
+      rurais irregulares no Pará; parte das decisões teve efeito suspenso no STF para quem não foi ouvido.
+    data: "2010-08-16"
+    municipios: {}
+    periodos:
+      # limite para alienar terra pública sem autorização do Congresso/Senado na época da abertura da matrícula
+      - {de: "1934-07-16", ate: "1964-11-08", limite_ha: 10000} # Constituições de 1934, 1937 e 1946 (art. 156 §2º)
+      - {de: "1964-11-09", ate: "1988-10-04", limite_ha: 3000} # Emenda Constitucional 10/1964
+      - {de: "1988-10-05", ate: null, limite_ha: 2500} # CF/1988, art. 49 XVII e art. 188 §1º
+    efeito: ressalva
+    motivo: matricula_acima_limite_tjpa
+    criterio: >-
+      Todo imóvel do Pará leva o item do checklist (conferir bloqueio ou cancelamento na certidão de inteiro teor e
+      no CNIB). Imóvel com mais de 2.500 ha (o menor limite) vira ressalva na triagem. Com a certidão (fluxo de
+      documentos, com autorização do dono), `raiz.estaduais.matricula.avaliar` compara a data de abertura e a área
+      com o limite da época; acima dele, a matrícula é suspeita e o imóvel sai do lote até a conferência.
+    fonte: https://www.cnj.jus.br/corregedoria-cancela-registros-imobiliarios-irregulares-no-para-ouca-a-entrevista/
+    pendente: >-
+      Texto integral do Provimento 13/2006-CJCI e situação atual do PP 0001943-67.2009 (o site do TJPA abre daqui,
+      o DJe precisa de busca manual). Os limites por época seguem as Constituições; conferir se o provimento usa as
+      mesmas datas de corte.

@@ -1,0 +1,70 @@
+# Fontes estaduais de Mato Grosso. Testado em 17/11/2026: todo *.mt.gov.br (SEMA, SIMCAR, INTERMAT, geoportal)
+# fecha a conexão desta nuvem ("connection reset"): bloqueio de acesso de fora do Brasil. A coleta automática
+# fica para rodar do Brasil; até lá os imóveis de MT ficam "nao_verificado" nessas fontes e entram no checklist.
+uf: MT
+verificado_em: "2026-11-17"
+fontes:
+  - id: mt_sema_embargos
+    nome: Áreas embargadas e autos de infração da SEMA-MT
+    tema: embargo_estadual
+    orgao: SEMA-MT
+    acesso: bloqueado_fora_brasil
+    tipo: wfs
+    url: https://geo.sema.mt.gov.br/geoserver/ows
+    camada: a_confirmar_do_brasil
+    efeito: exclusao
+    motivo: embargo_estadual
+    criterio: Embargo estadual acima do limiar = exclusão; só na borda = ressalva; auto sem embargo = ressalva.
+    lgpd: A lista pública de embargos da SEMA-MT traz nome e CPF/CNPJ; apagar na entrada (descartar) como em MG e GO.
+    situacao: {testado_em: "2026-11-17", resultado: "geo.sema.mt.gov.br, geoportal.sema.mt.gov.br e www.sema.mt.gov.br: conexão fechada daqui"}
+    alternativa: >-
+      Embargos e autos do Ibama (nacional) cobrem parte. Do Brasil: `python -m raiz.estaduais coletar --ufs MT`
+      depois de achar o nome da camada no GetCapabilities do geoserver da SEMA (ou no ArcGIS do geoportal).
+
+  - id: mt_simcar
+    nome: SIMCAR, situação do CAR estadual (análise, pendência, cancelamento) e áreas declaradas
+    tema: car_estadual
+    orgao: SEMA-MT
+    acesso: bloqueado_fora_brasil
+    tipo: pendente
+    url: https://monitoramento.sema.mt.gov.br/simcar/
+    efeito: conferir
+    motivo: car_estadual_a_conferir
+    criterio: >-
+      MT tem CAR próprio (SIMCAR) com análise antes do SICAR nacional: CAR cancelado ou com pendência no SIMCAR =
+      ressalva. Sem acesso: item do checklist de todo imóvel de MT.
+    lgpd: Consulta por número do CAR; não guardar nome nem documento do declarante.
+    situacao: {testado_em: "2026-11-17", resultado: "monitoramento.sema.mt.gov.br: conexão fechada daqui"}
+    alternativa: Situação do CAR pelo SICAR nacional (fonte nacional sicar_car); a camada sicar_imoveis_mt espelhada no geoserver da SEDAM-RO abre daqui.
+
+  - id: mt_intermat_terras
+    nome: Terras devolutas, glebas e títulos estaduais (INTERMAT)
+    tema: terra_devoluta
+    orgao: INTERMAT
+    acesso: bloqueado_fora_brasil
+    tipo: pendente
+    url: https://www.intermat.mt.gov.br/
+    efeito: conferir
+    motivo: terra_devoluta_a_conferir
+    criterio: Título estadual ou gleba estadual sobre o imóvel = ressalva (conferir cláusulas e domínio).
+    lgpd: —
+    situacao: {testado_em: "2026-11-17", resultado: "www.intermat.mt.gov.br: conexão fechada daqui"}
+    alternativa: mt_glebas_estaduais_cnfp (CNFP 2025) e glebas do SIGEF (nacional); LAI ao INTERMAT.
+
+  - id: mt_glebas_estaduais_cnfp
+    nome: Florestas públicas estaduais não destinadas (CNFP 2025)
+    tema: terra_devoluta
+    orgao: SFB (CNFP), com dado do INTERMAT
+    acesso: aberto
+    tipo: cnfp
+    url: https://www.gov.br/florestal/pt-br/assuntos/cadastro-nacional-de-florestas-publicas
+    geometria: poligono
+    manter: [categoria, tipo, governo, orgao, protecao]
+    efeito: ressalva
+    motivo: gleba_estadual
+    criterio: >-
+      Floresta pública estadual não destinada (tipo B, governo estadual) acima do limiar = ressalva: posse em terra
+      do estado; o caminho é a regularização no INTERMAT. Complementa o INTERMAT enquanto ele não abre daqui.
+    lgpd: Sem dado pessoal.
+    licenca: Dado aberto do governo federal (Decreto 8.777/2016).
+    situacao: {testado_em: "2026-11-17", resultado: "ok (CNFP 2025 do SFB, abre de fora do Brasil)"}

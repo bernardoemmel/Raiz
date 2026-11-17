@@ -132,15 +132,84 @@ Corregedoria do TJPI (fev/2012, comarcas de Avelino Lopes, Gilbués e Parnaguá,
 da Vara Agrária de Bom Jesus (Serra das Confusões) entram como ressalva nesses municípios. A reserva legal de 30%
 no cerrado piauiense continua pendente em `docs/regras-estaduais.md`.
 
-## Rodar do Brasil (BA e PI)
+## Amazônia Legal (PA, RO, MT, MA, AM, AC, AP, RR, TO)
+
+Em toda UF da Amazônia entra, automática, a camada **floresta pública estadual não destinada** do CNFP 2025 do
+SFB (tipo B, governo estadual): é onde aparecem as glebas arrecadadas e devolutas dos institutos de terras
+(ITERPA, ITERMA, INTERMAT, ITERTINS) e as glebas que a União transferiu a AP e RR. Sobreposição acima do limiar
+= ressalva `gleba_estadual` (posse em terra do estado; caminho é a regularização estadual). O CNFP abre de fora
+do Brasil; os sites dos institutos, quase nunca.
+
+Duas junções novas, usadas aqui e disponíveis para qualquer UF:
+
+- **pelo número do CAR** (`campo_cod_imovel`): quando o órgão já ligou o dado ao recibo do CAR, vale o número e
+  não o desenho (PRA de RO, LDI do PA). A área cruzada é a que o órgão informa (`campo_ha`); sem ela, conta o
+  imóvel inteiro. `juncao: cod_imovel_ou_geometria` usa o CAR quando há e a geometria no resto.
+- **arquivo por URL** (`tipo: arquivo`, GeoJSON, shapefile zipado, KML), para portais que publicam o arquivo
+  sem WFS.
+
+### PA — SEMAS aberta, ITERPA fechado
+
+| fonte | efeito | critério |
+|---|---|---|
+| Lista de Desmatamento Ilegal (LDI, Decreto 838/2013): 5.128 áreas com recibo do CAR + 1.265 sem CAR | exclusão | desmate ilegal ligado ao CAR acima do limiar (pelo "Desmate em CAR" que a SEMAS informa); abaixo = `_borda`; área sem CAR com ponto dentro do imóvel = `_ponto` (ressalva). Recompor é obrigação do dono, não crédito. |
+| Territórios quilombolas inscritos no CAR (Portal Análises do CAR, 60) | exclusão | mesmo critério do território quilombola das outras UFs |
+| Territórios pesqueiros por portaria (15) | ressalva | consulta às comunidades antes de restaurar margens |
+| Servidões ambientais no CAR (2.988) | ressalva | área já compensa reserva de outro imóvel; não se vende de novo |
+| Glebas estaduais (CNFP 2025) | ressalva | ver acima |
+| ITERPA (SICARF) | checklist | `iterpa.pa.gov.br` não abre daqui; alternativa CNFP + LAI |
+| Embargos da SEMAS fora da LDI | checklist | mapa público sem download |
+| Matrícula (TJPA e CNJ) | ressalva acima de 2.500 ha + checklist de todo imóvel | ver abaixo |
+
+**LGPD na LDI.** O CSV "com CAR" traz a razão social e o CPF/CNPJ do proprietário. As duas colunas são apagadas
+na leitura (antes de qualquer gravação) e a coleta confere que nenhum documento sobrou. O recibo do CAR é público.
+
+**Matrícula no Pará.** Não há lista pública das matrículas bloqueadas (Provimento 13/2006-CJCI) nem das ~5.500
+canceladas pelo CNJ (PP 0001943-67.2009, 2010). A regra fica em `raiz/estaduais/matriculas.yaml`
+(`tjpa_matriculas_acima_do_limite`): todo imóvel do PA leva o item do checklist; acima de 2.500 ha (o menor
+limite) vira ressalva na triagem, sem sair do lote. Com a certidão de inteiro teor (só com autorização do dono),
+`raiz.estaduais.matricula.avaliar(uf, aberta_em, area_ha)` compara com o limite da época: 10.000 ha de 1934 a
+08/11/1964, 3.000 ha até 04/10/1988 (EC 10/1964) e 2.500 ha depois (CF/1988, art. 188 §1º). Acima do limite =
+"suspeita". Pendente: ler o texto do provimento e a situação atual do PP no CNJ (parte teve efeito suspenso no
+STF para quem não foi ouvido).
+
+### RO — Geoportal da SEDAM (WFS aberto, 408 camadas)
+
+`geoportal.sedam.ro.gov.br/geoserver/ows`. Embargos estaduais ativos (5.659, exclusão), áreas autuadas (8.079,
+ressalva), UCs estaduais (49; proteção integral = exclusão, uso sustentável = ressalva; inclui as que a LC
+999/2018 revogou e a Justiça restabeleceu), zonas de amortecimento (ressalva), ZSEE 2ª aproximação
+(informativo: a zona 1 permite recompor a reserva a 50%), servidões ambientais aprovadas (ressalva), termos do
+PRA pelo número do CAR (798, ressalva: recomposição já é obrigação), área bloqueada das usinas do Madeira
+(exclusão) e glebas estaduais do CNFP. O mesmo servidor espelha o CAR de AC, AM e MT (`comrar:sicar_imoveis_*`),
+o CNFP e as camadas do INCRA, úteis como reserva quando a fonte original cair.
+
+### MT, TO, AM, AC, AP, RR — bloqueadas fora do Brasil
+
+Todo `*.mt.gov.br` (SEMA, SIMCAR, INTERMAT), `*.to.gov.br` (NATURATINS, ITERTINS, geoportal da SEPLAN), SEMA-AM,
+IPAAM, SDS, `car.ac.gov.br`, SEMA-AP/IMAP e o governo de RR fecham a conexão desta nuvem ("connection reset" ou
+túnel recusado). As fontes ficam no catálogo com `acesso: bloqueado_fora_brasil` e alternativa: até rodar do
+Brasil, os imóveis dessas UFs ficam `nao_verificado` nelas e o checklist pede a conferência (embargo estadual,
+CAR estadual do SIMCAR, terra devoluta, gleba transferida). O CNFP estadual entra automático em todas.
+
+- **AM**: os projetos REDD+ em UCs estaduais já entram pela camada de terra comprometida (Verra e bases
+  secundárias); fica o item de conferir o programa estadual (Lei 4.266/2015).
+- **AC**: o estado inteiro está no programa jurisdicional (SISA, ISA Carbono): item do checklist de todo imóvel
+  (crédito de projeto precisa de aninhamento). O ZEE só tem PDFs no repositório da SEMA-AC: pedir o shapefile.
+
+### MA — SEMA aberta sem camada útil; ITERMA e ZEE fechados
+
+A SEMA-MA abre, mas só publica as bases para retificar o CAR (UCs estaduais com botão de download dinâmico).
+ITERMA, IMESC e o portal do ZEE fecham a conexão. Fica CNFP estadual automático + checklist.
+
+## Rodar do Brasil (BA, PI e as UFs da Amazônia)
 
 O runner do GitHub Actions fica fora do Brasil. Em qualquer máquina com IP brasileiro e o repositório:
 
 ```
-uv run python -m raiz.estaduais coletar --saida estaduais_br --ufs BA,PI
+uv run python -m raiz.estaduais coletar --saida estaduais_br --ufs BA,PI,MT,TO,AM,AC,AP,RR,MA,PA
 ```
 
-Antes, preencher `camada` das fontes da BA e do PI com os nomes do GetCapabilities (o arquivo marca
+Antes, preencher `camada` das fontes bloqueadas com os nomes do GetCapabilities (o arquivo marca
 `a_confirmar_do_brasil`) e trocar `acesso` para `aberto`. Depois subir `estaduais_*` no Release `insumos`
 (`gh release upload insumos estaduais_br/estaduais_* --clobber`).
 
