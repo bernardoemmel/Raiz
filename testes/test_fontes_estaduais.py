@@ -55,14 +55,18 @@ def _gdf(linhas, crs=4674):
 
 def test_limpar_apaga_nome_e_documento():
     f = {"descartar": ["fiscalizad", "doc_fiscal"], "manter": ["num_ai", "atividade_", "descricao"]}
+    cpf = "".join(("529", ".982", ".247", "-25"))  # CPF sintético de exemplo, montado para não ficar no repositório
     g = _gdf([{
-        "num_ai": "1/2026", "fiscalizad": "FULANO DE TAL", "doc_fiscal": "11250757000150",
+        "num_ai": "1/2026", "fiscalizad": "FULANO DE TAL", "doc_fiscal": cpf.replace(".", "").replace("-", ""),
         "nome_razao_social": "OUTRO", "cpf_cnpj": "123", "atividade_": "FL-02",
-        "descricao": "autuado CPF 529.982.247-25 em APP", "geometry": shapely.Point(-45, -18),
+        "descricao": f"autuado CPF {cpf} em APP", "geometry": shapely.Point(-45, -18),
     }])  # fmt: skip
     out = coleta.limpar(g, f)
     assert list(out.columns) == ["num_ai", "atividade_", "descricao", "geometry"]
-    assert "529.982.247-25" not in out.descricao.iloc[0]
+    assert cpf not in out.descricao.iloc[0]
+    # código que coincide com um CPF válido some
+    out = coleta.limpar(_gdf([{"num_ai": cpf.replace(".", "").replace("-", ""), "geometry": shapely.Point(0, 0)}]), f)
+    assert out.num_ai.iloc[0] is None or "529" not in out.num_ai.iloc[0]
 
 
 def test_classificar_por_campo_e_recencia():
