@@ -199,8 +199,13 @@ def calcular_municipio(pasta: str | Path, cod: int, camadas: Camadas | None = No
     exc_geo = [[] for _ in range(n)]
     res_geo = [[] for _ in range(n)]
     conferir, nao_verificadas, essenciais = [], [], []
+    fontes_uf = catalogo([uf]) if uf else []
+    if not fontes_uf:  # Estado sem catálogo: nada foi verificado (nunca "livre")
+        conferir.append("estadual_sem_catalogo")
+        nao_verificadas.append(f"estadual_{uf.lower() or 'sem_uf'}")
+        essenciais.extend(nao_verificadas)
 
-    for fonte in catalogo([uf]) if uf else []:
+    for fonte in fontes_uf:
         fid = fonte["id"]
         if fonte.get("acesso") == "regra":  # regra estadual ainda pendente: só checklist
             conferir.append(fonte["motivo"])
@@ -216,6 +221,8 @@ def calcular_municipio(pasta: str | Path, cod: int, camadas: Camadas | None = No
         if not camadas.coberta(fid):
             nao_verificadas.append(fid)
             continue
+        if (camadas.cobertura.get(fid) or {}).get("estado") == "parcial":
+            nao_verificadas.append(fid)  # parcial: o que veio marca, mas a fonte não libera ninguém
         g = camadas.camada(fid)
         if g is None or not len(g) or not len(base):
             continue

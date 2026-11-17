@@ -81,7 +81,7 @@ fontes:
     tipo: wfs
     url: https://datageo.ambiente.sp.gov.br/geoserver/datageo/wfs
     camada: "datageo:VWM_AIA_GEOVALID_SIGAM_{ano}_PTO"
-    anos: [ATE_2006, 2007_2008, 2009_2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025, 2026]
+    anos: [ATE_2006, "2007_2008", "2009_2010", 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025, 2026]
     srs: EPSG:4674
     geometria: ponto
     campo_data: Ano_Processo
