@@ -96,6 +96,11 @@ class CamposPedido(BaseModel):
     forma: Forma = Field(default_factory=Forma)
     interesse: FiltroInteresse = "qualquer"
     exclusoes: list[Exclusao] = Field(default_factory=lambda: list(EXCLUSOES))
+    gleba_federal: Literal["excluir", "ressalva"] = Field(
+        "excluir",
+        description="Imóvel com mais de 10% do CAR em gleba pública federal não destinada (CNFP): excluir sai do "
+        "lote; ressalva fica no lote, marcado para conferir com o órgão fundiário.",
+    )
     reserva_dias: int = Field(60, gt=0, le=365)
 
     @field_validator("metodos", "terra")
