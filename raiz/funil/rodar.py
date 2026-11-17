@@ -95,6 +95,24 @@ def _escrever_csv(df, caminho: Path, **kw) -> None:
     os.replace(tmp, caminho)
 
 
+def _guardar_retrato(captura, tarefa: str, uf: str, cod: int) -> dict:
+    """Cópia para o aprendizado, sem banco (Actions). Retrato recusado não derruba o município.
+
+    O resultado da tarefa já foi calculado e conferido; o retrato é um extra. Quando a captura não passa
+    no contrato do histórico (por exemplo, a trava de privacidade), nada é gravado no disco e a tarefa
+    segue: perder um retrato é melhor do que travar o reprocessamento do estado inteiro. O motivo fica
+    no detalhe do lote, sem o conteúdo recusado.
+    """
+    from raiz.aprendizado.reexecucao import HistoricoInsuficiente
+    from raiz.aprendizado.retratos import guardar
+
+    try:
+        return guardar(captura, tarefa)
+    except HistoricoInsuficiente as ex:
+        log.warning("%s %s %s: retrato do aprendizado recusado (%s); tarefa segue sem ele", uf, cod, tarefa, ex)
+        return {"situacao": "retrato_recusado", "motivo": str(ex)}
+
+
 def rodar_municipio(cod: int, op: Opcoes, hc=None) -> dict:
     """Roda as tarefas pedidas para um município. Devolve {tarefa: estado}."""
     from raiz.funil.ponte import ler_local, ponte, ponte_vetorial
@@ -129,9 +147,7 @@ def rodar_municipio(cod: int, op: Opcoes, hc=None) -> dict:
                         with eng.begin() as con:
                             reg.detalhe["historico_aprendizado"] = captura.publicar(con)
                     else:
-                        from raiz.aprendizado.retratos import guardar
-
-                        reg.detalhe["historico_aprendizado"] = guardar(captura, tarefa)
+                        reg.detalhe["historico_aprendizado"] = _guardar_retrato(captura, tarefa, uf, cod)
             res[tarefa] = "pulado" if reg.pulado else "sucesso"
             return True
         except Exception as ex:  # noqa: BLE001 - o lote já registrou e pingou a falha
