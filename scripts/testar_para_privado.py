@@ -120,6 +120,14 @@ class _SemRedirecionar(urllib.request.HTTPRedirectHandler):
         return None
 
 
+ESPERAS_TRANSITORIAS = 4
+ESPERA_BASE_S = 10.0
+
+
+class _Transitoria(Exception):
+    """Recusa temporária do GitHub; a mensagem pública continua sem detalhes da resposta."""
+
+
 class ClientePrivado:
     def __init__(self, ambiente: dict[str, str] | None = None):
         ambiente = dict(os.environ) if ambiente is None else ambiente
@@ -132,6 +140,18 @@ class ClientePrivado:
         self.opener = urllib.request.build_opener(_SemRedirecionar())
 
     def _abrir(self, endpoint: str, *, binario: bool = False):
+        # 403/429/5xx do GitHub em rajadas de downloads (limite secundário) passam em segundos;
+        # antes derrubavam o check referencia_para em ~1 de cada 7 rodadas. 401/404 não se repetem.
+        for repeticao in range(ESPERAS_TRANSITORIAS + 1):
+            try:
+                return self._abrir_uma_vez(endpoint, binario=binario)
+            except _Transitoria:
+                if repeticao == ESPERAS_TRANSITORIAS:
+                    break
+                time.sleep(ESPERA_BASE_S * (repeticao + 1))
+        raise FalhaPrivada("FALHA: acesso autenticado ao snapshot privado recusado.")
+
+    def _abrir_uma_vez(self, endpoint: str, *, binario: bool = False):
         url = f"https://api.github.com/repos/{REPO}/{endpoint}"
         for tentativa in range(4):
             destino = urllib.parse.urlsplit(url)
@@ -153,7 +173,11 @@ class ClientePrivado:
                     if binario and erro.code in (301, 302, 303, 307, 308) and erro.headers.get("Location"):
                         url = urllib.parse.urljoin(url, erro.headers["Location"])
                         continue
+                    if erro.code in (403, 408, 429) or 500 <= erro.code <= 599:
+                        raise _Transitoria() from None
                 raise FalhaPrivada("FALHA: acesso autenticado ao snapshot privado recusado.") from None
+            except (urllib.error.URLError, TimeoutError, ConnectionError):
+                raise _Transitoria() from None
         raise FalhaPrivada("FALHA: redirecionamento do download privado recusado.")
 
     def _api(self, endpoint: str) -> dict:
