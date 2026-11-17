@@ -733,6 +733,26 @@ def _item(st: str, texto: str) -> dict:
     return {"situacao": st, "detalhe": texto}
 
 
+def ambiental_do_lote(lote: pd.DataFrame) -> dict:
+    """Reserva legal pela vegetação do IBGE, Lei da Mata Atlântica, TerraClass e APP de relevo do ANADEM nas fazendas
+    do lote (raiz/ambiental/status.py). Nada aqui tira a fazenda do lote: são ressalvas para a validação humana."""
+    if "ambiental_status" not in lote or not len(lote):
+        return _item("pendente", "vegetação e relevo ainda não calculados nestes municípios (reserva legal pelo mapa "
+                                 "do IBGE, Lei da Mata Atlântica, TerraClass, APP de declividade e topo de morro): "
+                                 "conferir antes de contratar")  # fmt: skip
+    st = lote.ambiental_status
+    sem = int(st.isna().sum() + (st == "nao_verificado").sum())
+    res = lote[st == "ressalva"]
+    motivos = res.ambiental_motivos.dropna().str.split("|").explode().value_counts() if len(res) else pd.Series()
+    partes = [f"{_br(len(res))} fazendas com ressalva de vegetação ou relevo"] if len(res) else [
+        "nenhuma ressalva de vegetação ou relevo"]  # fmt: skip
+    if len(motivos):
+        partes.append("(" + ", ".join(f"{k}: {int(v)}" for k, v in motivos.items()) + ")")
+    if sem:
+        partes.append(f"; {_br(sem)} sem verificação completa")
+    return _item("ok" if not len(res) and not sem else "pendente", " ".join(partes))
+
+
 def checagens(res: dict, tabela: pd.DataFrame, c: dict, r: dict) -> dict[str, dict]:
     """O que dá para conferir com os dados da Raíz. situação: ok, falha, pendente (falta dado ou ação de alguém)."""
     lt = premissas_lote(r)
@@ -763,6 +783,7 @@ def checagens(res: dict, tabela: pd.DataFrame, c: dict, r: dict) -> dict[str, di
                                     f"contrato com o dono de {anos} anos (longevidade da Verra: 40)")  # fmt: skip
     out["sem_desmatamento"] = _item("ok", "só entram fazendas sem embargo, terra indígena, UC de proteção integral ou "
                                           "bloqueio territorial do motor")  # fmt: skip
+    out["vegetacao_relevo"] = ambiental_do_lote(lote)
     out["metodologia"] = _item("ok", "VM0047 v1.1 da Verra, aprovada pelo ICVCM (CCP)")
     out["creditos_liquidos"] = _item(
         "ok" if float(c["incerteza"]) >= 0.10 else "falha",
