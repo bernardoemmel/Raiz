@@ -67,8 +67,12 @@ histórico de infração.
 - **RL e APP declaradas**: a base de downloads do SICAR fica atrás de captcha. O pedido de LAI 02303.031114/2026-60
   ao SFB pede a coleta em lote. `converter_car_temas()` já lê os shapefiles; até lá `car_temas` aparece em
   `restricoes_nao_verificadas` (não impede o "livre", é complemento).
-- **SIGMINE**: o portal da ANM recusa conexões da nuvem de teste desta sessão; a coleta tenta o shapefile por UF e o
-  serviço ArcGIS. A primeira coleta no GitHub Actions confirma; UF que falhar fica `nao_verificado`.
+- **SIGMINE**: na primeira coleta no GitHub Actions (17/11/2026) as 27 UFs falharam. O portal `app.anm.gov.br`
+  derruba a conexão vinda de fora do Brasil (reset), e o ArcGIS `geo.anm.gov.br` manda o certificado sem o
+  intermediário ("unable to get local issuer certificate"). A coleta agora completa a cadeia pelo endereço do emissor
+  gravado no certificado (AIA), com a verificação ligada, e desiste cedo de um servidor que cai em duas UFs seguidas
+  (a primeira rodada levou 85 minutos só em tentativas). Se o ArcGIS ainda falhar, o SIGMINE fica `nao_verificado` e
+  precisa de uma coleta a partir do Brasil.
 
 ## Teste com dado real (São Félix do Xingu, 17/11/2026)
 

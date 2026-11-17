@@ -170,25 +170,101 @@ def normalizar_sigmine(g: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
     return out[COLUNAS_SIGMINE].reset_index(drop=True)
 
 
-def baixar_sigmine(s, ufs=UFS, *, pasta_tmp: Path | None = None) -> tuple[gpd.GeoDataFrame, dict]:
-    """Shapefile por UF do portal da ANM; a UF que falhar tenta o serviço ArcGIS. Devolve (camada, cobertura)."""
-    partes, ok, falhas = [], [], []
-    for uf in ufs:
-        try:
-            r = s.get(URL_SIGMINE_UF.format(uf=uf), timeout=900)
-            r.raise_for_status()
-            with tempfile.TemporaryDirectory(dir=pasta_tmp) as d:
-                f = Path(d) / f"{uf}.zip"
-                f.write_bytes(r.content)
-                partes.append(normalizar_sigmine(gpd.read_file(f"zip://{f}")))
-            ok.append(uf)
+def _erro_de_conexao(ex: Exception) -> bool:
+    """Falha do servidor ou da rede (recusa, reset, certificado), não de uma UF: as outras UFs vão falhar igual."""
+    import requests
+
+    return isinstance(ex, requests.exceptions.ConnectionError | requests.exceptions.SSLError)
+
+
+def cadeia_com_intermediario(url: str, pasta: Path) -> str | None:
+    """Pacote de CAs (certifi + certificado intermediário que o servidor deixou de mandar) para verificar o TLS.
+
+    O geo.anm.gov.br manda só o certificado final, sem o intermediário ("unable to get local issuer certificate").
+    O navegador completa a cadeia pelo endereço do emissor gravado no próprio certificado (AIA, caIssuers); aqui é o
+    mesmo: o intermediário é baixado desse endereço e a verificação continua ligada, contra as raízes do certifi.
+    Devolve o caminho do pacote, ou None se não houver o que completar.
+    """
+    import socket
+    import ssl
+    from urllib.parse import urlsplit
+
+    import certifi
+    import requests
+    from cryptography import x509
+    from cryptography.hazmat.primitives.serialization import Encoding
+    from cryptography.x509.oid import AuthorityInformationAccessOID, ExtensionOID
+
+    host = urlsplit(url).hostname
+    ctx = ssl.create_default_context()
+    ctx.check_hostname, ctx.verify_mode = False, ssl.CERT_NONE  # só para LER o certificado; nada é enviado
+    with socket.create_connection((host, 443), timeout=30) as sock, ctx.wrap_socket(sock, server_hostname=host) as t:
+        folha = x509.load_der_x509_certificate(t.getpeercert(binary_form=True))
+    try:
+        aia = folha.extensions.get_extension_for_oid(ExtensionOID.AUTHORITY_INFORMATION_ACCESS).value
+    except x509.ExtensionNotFound:
+        return None
+    pems = []
+    for d in aia:
+        if d.access_method != AuthorityInformationAccessOID.CA_ISSUERS:
             continue
-        except Exception as ex:  # noqa: BLE001 - qualquer falha da fonte vira reserva/indisponível
-            log.warning("SIGMINE %s pelo portal falhou (%s); tentando o ArcGIS", uf, type(ex).__name__)
+        r = requests.get(d.access_location.value, timeout=60)
+        r.raise_for_status()
         try:
-            partes.append(_sigmine_arcgis(s, uf))
+            certs = [x509.load_der_x509_certificate(r.content)]
+        except ValueError:
+            certs = x509.load_pem_x509_certificates(r.content)
+        pems += [c.public_bytes(Encoding.PEM) for c in certs]
+    if not pems:
+        return None
+    pasta.mkdir(parents=True, exist_ok=True)
+    pacote = pasta / f"ca_{host}.pem"
+    pacote.write_bytes(Path(certifi.where()).read_bytes() + b"\n" + b"".join(pems))
+    return str(pacote)
+
+
+def baixar_sigmine(s, ufs=UFS, *, pasta_tmp: Path | None = None) -> tuple[gpd.GeoDataFrame, dict]:
+    """Shapefile por UF do portal da ANM; a UF que falhar tenta o serviço ArcGIS. Devolve (camada, cobertura).
+
+    Servidor que cai por conexão (reset, recusa, certificado) em duas UFs seguidas é dado como fora para as demais:
+    sem isso, 27 UFs x 2 servidores x 5 tentativas levavam 85 minutos para dizer "indisponível". Certificado sem o
+    intermediário no ArcGIS da ANM é completado pelo AIA (cadeia_com_intermediario), com verificação ligada."""
+    partes, ok, falhas = [], [], []
+    erros = {"portal": 0, "arcgis": 0}
+    verificar = None  # pacote de CAs do ArcGIS, quando a cadeia precisar ser completada
+    for uf in ufs:
+        if erros["portal"] < 2:
+            try:
+                r = s.get(URL_SIGMINE_UF.format(uf=uf), timeout=900)
+                r.raise_for_status()
+                with tempfile.TemporaryDirectory(dir=pasta_tmp) as d:
+                    f = Path(d) / f"{uf}.zip"
+                    f.write_bytes(r.content)
+                    partes.append(normalizar_sigmine(gpd.read_file(f"zip://{f}")))
+                ok.append(uf)
+                erros["portal"] = 0
+                continue
+            except Exception as ex:  # noqa: BLE001 - qualquer falha da fonte vira reserva/indisponível
+                erros["portal"] += _erro_de_conexao(ex)
+                log.warning("SIGMINE %s pelo portal falhou (%s); tentando o ArcGIS", uf, type(ex).__name__)
+        if erros["arcgis"] >= 2:
+            falhas.append(uf)
+            continue
+        try:
+            try:
+                partes.append(_sigmine_arcgis(s, uf, verificar=verificar))
+            except Exception as ex:  # noqa: BLE001
+                if verificar is not None or "CERTIFICATE_VERIFY_FAILED" not in str(ex):
+                    raise
+                verificar = cadeia_com_intermediario(URL_SIGMINE_ARCGIS, Path(pasta_tmp or tempfile.gettempdir()))
+                if verificar is None:
+                    raise
+                log.warning("SIGMINE: cadeia do certificado do ArcGIS completada pelo AIA")
+                partes.append(_sigmine_arcgis(s, uf, verificar=verificar))
             ok.append(uf)
+            erros["arcgis"] = 0
         except Exception as ex:  # noqa: BLE001
+            erros["arcgis"] += _erro_de_conexao(ex)
             log.warning("SIGMINE %s indisponível (%s)", uf, type(ex).__name__)
             falhas.append(uf)
     g = (
@@ -200,7 +276,7 @@ def baixar_sigmine(s, ufs=UFS, *, pasta_tmp: Path | None = None) -> tuple[gpd.Ge
     return g, {"estado": estado, "ufs": ok, "ufs_falharam": falhas, "n": int(len(g)), "url": URL_SIGMINE_UF}
 
 
-def _sigmine_arcgis(s, uf: str, pagina: int = 1000) -> gpd.GeoDataFrame:
+def _sigmine_arcgis(s, uf: str, pagina: int = 1000, verificar: str | None = None) -> gpd.GeoDataFrame:
     partes, inicio = [], 0
     while True:
         r = s.get(
@@ -215,6 +291,7 @@ def _sigmine_arcgis(s, uf: str, pagina: int = 1000) -> gpd.GeoDataFrame:
                 "resultRecordCount": pagina,
             },  # fmt: skip
             timeout=300,
+            **({"verify": verificar} if verificar else {}),
         )
         r.raise_for_status()
         g = gpd.read_file(io.BytesIO(r.content))
