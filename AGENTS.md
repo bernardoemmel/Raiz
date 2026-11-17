@@ -7,6 +7,9 @@ Resumo do que não pode faltar:
 - Português do Brasil em tudo que o fundador lê.
 - Norte do produto: `docs/cena-alvo.md`. Roteiro: `docs/plano-por-etapa.md` (marque "feito" o que entregar).
 - Contrato de dados: `docs/colunas.md`; dados grandes nunca entram no git; Release `dados` só contém agregados e CAR/situação básica. Camadas completas ficam no arquivo privado autenticado (`docs/dados-publicados.md`).
+- Merge: PR com arquivo crítico (`motor/`, `.github/`, dados publicados, publicação do site; lista em
+  `docs/politica-de-merge.md`) só entra depois que o fundador põe o rótulo `aprovado-bernardo`. Agente nunca põe nem
+  tira esse rótulo; abra o PR, avise com o link e siga com outra tarefa.
 - Nunca descartar fazenda por tamanho; CPF e CNPJ sempre mascarados; segredos só em variáveis de ambiente.
 - Licenças: sem AGPL, EUPL, SSPL, BSL ou NC; registrar código de terceiros em `NOTICE.md`.
 - Testes (iguais ao CI): `uv run ruff check raiz testes scripts migracoes`, `uv run ruff format --check raiz testes scripts migracoes` e `uv run pytest -q` antes de abrir o PR.

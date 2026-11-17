@@ -1,0 +1,33 @@
+# Trava de merge em áreas críticas (docs/politica-de-merge.md). Check obrigatório `aprovacao`.
+# pull_request_target: roda SEMPRE o código da main (o PR não consegue afrouxar a própria trava) e nunca executa
+# código do PR; só lê pela API a lista de arquivos, os rótulos e quem os pôs.
+name: Aprovação de áreas críticas
+
+on:
+  pull_request_target:
+    types: [opened, reopened, synchronize, labeled, unlabeled, ready_for_review]
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: write # pôr e tirar os rótulos aguardando-bernardo / aprovado-bernardo
+  issues: write
+
+concurrency:
+  group: aprovacao-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  aprovacao:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.base.sha }} # código da main, nunca o do PR
+          persist-credentials: false
+      - name: Conferir arquivos críticos e aprovação do fundador
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RAIZ_APROVADORES: ${{ vars.RAIZ_APROVADORES }}
+        run: python3 -m raiz.operacao.aprovacao_merge
