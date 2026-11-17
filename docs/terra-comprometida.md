@@ -58,6 +58,11 @@ motivos, ambos corrigidos:
    encerrava a fila. Agora só falhas da fonte (rede, 429, 5xx, com 3 tentativas e espera) contam, e a fila para
    depois de 5 seguidas. Há pausa de 0,5 s entre chamadas.
 
+Na conferência com a coleta real (17/11) apareceram mais três falhas do mesmo tipo, também corrigidas: um polígono
+inválido do SFB (Amapá UMF IV) fazia sumirem todas as 22 UMFs; um polígono da base científica (Zenodo 11459391)
+derrubava a base inteira; e um KML com anel em laço (VCS1382) virava coleção com linha. Agora cada geometria é
+consertada e fica só a parte com área; o que não tiver área sai sozinho, sem levar o resto junto.
+
 As duas bases secundárias entram na coleta diária como **indício**: sozinhas deixam o imóvel em
 `risco_sobreposicao` (nunca `ja_comprometida`); com o KML oficial e ativo da Verra, o imóvel vira `ja_comprometida`
 e o indício não conta a mesma terra de novo. Elas cobrem o que o registro deixa de fora (KML ilegível, projeto só com
