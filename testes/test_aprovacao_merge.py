@@ -95,3 +95,84 @@ def test_workflow_roda_codigo_da_main_e_nunca_o_do_pr():
     assert checkout["with"]["ref"] == "${{ github.event.pull_request.base.sha }}"
     assert checkout["with"]["persist-credentials"] is False
     assert "contents" in fluxo["permissions"] and fluxo["permissions"]["contents"] == "read"
+
+
+def _arquivo(nome: str, sha: str | None, status: str = "modified", antes: str | None = None) -> dict:
+    f = {"filename": nome, "sha": sha, "status": status}
+    if antes:
+        f["previous_filename"] = antes
+    return f
+
+
+def _base(mapa: dict[str, str]):
+    return lambda caminho: {mapa.get(caminho)}
+
+
+def test_push_que_so_junta_a_main_mantem_aprovacao():
+    arquivos = [
+        _arquivo("motor/a.py", "s1"),
+        _arquivo("docs/x.md", "qualquer"),
+        _arquivo("raiz/novo.py", "s9", "added"),
+    ]
+    so_base = am.push_so_juntou_a_base("ahead", arquivos, _base({"motor/a.py": "s1"}))
+    assert so_base[0]
+    d = am.decidir(
+        ["motor/fila.sh"], [_rotulado("bernardoemmel")], [am.ROTULO_APROVADO], APROVADORES, "synchronize", so_base
+    )
+    assert d.passa and "juntou a main" in d.motivo
+
+
+def test_push_que_muda_arquivo_critico_derruba_aprovacao():
+    arquivos = [_arquivo("motor/a.py", "do-agente")]
+    so_base = am.push_so_juntou_a_base("ahead", arquivos, _base({"motor/a.py": "da-main"}))
+    assert not so_base[0] and "motor/a.py" in so_base[1]
+    d = am.decidir(
+        ["motor/a.py"], [_rotulado("bernardoemmel")], [am.ROTULO_APROVADO], APROVADORES, "synchronize", so_base
+    )
+    assert not d.passa
+
+
+def test_push_que_cria_ou_apaga_critico_fora_da_main_derruba():
+    assert not am.push_so_juntou_a_base("ahead", [_arquivo("motor/novo.py", "x", "added")], _base({}))[0]
+    assert not am.push_so_juntou_a_base("ahead", [_arquivo("motor/a.py", None, "removed")], _base({"motor/a.py": "s"}))[
+        0
+    ]
+    # a main apagou o arquivo: o push só trouxe a remoção
+    assert am.push_so_juntou_a_base("ahead", [_arquivo("motor/a.py", None, "removed")], _base({}))[0]
+
+
+def test_renomear_critico_conta_o_caminho_antigo():
+    arquivos = [_arquivo("docs/a.py", "s1", "renamed", antes="motor/a.py")]
+    assert not am.push_so_juntou_a_base("ahead", arquivos, _base({"motor/a.py": "s0"}))[0]
+
+
+def test_push_que_reescreve_historico_derruba():
+    assert not am.push_so_juntou_a_base("diverged", [], _base({}))[0]
+
+
+def test_comparacao_cortada_nao_vale():
+    arquivos = [_arquivo(f"docs/{i}.md", "s") for i in range(am.LIMITE_ARQUIVOS_COMPARACAO)]
+    assert not am.push_so_juntou_a_base("ahead", arquivos, _base({}))[0]
+
+
+def test_push_so_base_sem_rotulo_continua_bloqueado():
+    d = am.decidir(["motor/a.py"], [], [], APROVADORES, "synchronize", (True, "o push só juntou a main"))
+    assert not d.passa
+
+
+def test_conferir_push_usa_ponta_da_main_e_base_do_evento():
+    class Falso:
+        def comparar(self, antes, depois):
+            assert (antes, depois) == ("A", "B")
+            return "ahead", [_arquivo("motor/a.py", "novo")]
+
+        def ponta(self, ramo):
+            assert ramo == "main"
+            return "PONTA"
+
+        def blob(self, caminho, ref):
+            return {"PONTA": "novo", "BASE": "velho"}[ref]
+
+    evento = {"before": "A", "after": "B", "pull_request": {"base": {"ref": "main", "sha": "BASE"}}}
+    assert am.conferir_push(Falso(), evento)[0]
+    assert not am.conferir_push(Falso(), {"before": None, "after": "B", "pull_request": {}})[0]
