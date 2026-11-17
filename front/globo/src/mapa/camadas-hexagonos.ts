@@ -25,18 +25,21 @@ export function aplicarEscalaHexagonos(m: MapaGL, legenda: LegendaHexagonos, sel
     m.setFilter(`hexagonos-${lote ? "lote-" : ""}faixa-${faixa}`, filtroFaixaHexagonos(legenda, faixa, lote, selecionados))
 }
 
+/** Translúcido: o satélite continua sendo o protagonista e o hexágono só tinge o terreno. */
+export const OPACIDADE_HEXAGONOS = 0.62
+
 export function camadasHexagonos(): LayerSpecification[] {
   const fills: LayerSpecification[] = []
   for (let faixa = 0; faixa < 6; faixa++) for (const lote of [false, true]) fills.push({
     id: `hexagonos-${lote ? "lote-" : ""}faixa-${faixa}`, type: "fill", source: "hexagonos", filter: ["==", ["get", "h3"], ""],
-    paint: { "fill-color": CORES_H3_V2[faixa], "fill-opacity": lote ? 0 : 0.92, "fill-antialias": false, "fill-opacity-transition": { duration: 300 } },
+    paint: { "fill-color": CORES_H3_V2[faixa], "fill-opacity": lote ? 0 : OPACIDADE_HEXAGONOS, "fill-antialias": false, "fill-opacity-transition": { duration: 300 } },
   })
   return [
     // Superfície transparente só para toque/hover. As seis cores constantes compartilham o programa gráfico da base.
     { id: "hexagonos", type: "fill", source: "hexagonos", paint: { "fill-color": CORES_H3_V2[0], "fill-opacity": 0, "fill-antialias": false } },
     ...fills,
     { id: "hexagonos-linha", type: "line", source: "hexagonos", paint: {
-      "line-color": COR_MAPA_V2.terra, "line-width": 0.5, "line-opacity": 1, "line-opacity-transition": { duration: 300 },
+      "line-color": COR_MAPA_V2.texto, "line-width": 0.4, "line-opacity": 0.35, "line-opacity-transition": { duration: 300 },
     } },
     { id: "hexagonos-selecionados", type: "line", source: "hexagonos", filter: ["==", ["get", "selecionado"], true], paint: {
       "line-color": COR_MAPA_V2.acao, "line-width": 2.2, "line-opacity": 0, "line-opacity-transition": { duration: 300 },

@@ -7,7 +7,7 @@ import { layers, namedFlavor, type Flavor } from "@protomaps/basemaps"
 import { addProtocol, setWorkerUrl, type LayerSpecification, type StyleSpecification } from "maplibre-gl"
 import workerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?url"
 import { Protocol } from "pmtiles"
-import { COR, COR_MAPA_V2 } from "../../../compartilhado/cores"
+import { COR, COR_MAPA_V2, SABOR_MAPA } from "../../../compartilhado/cores"
 import { fonteMapaBase } from "../../../compartilhado/mapa-base"
 import { camadasNacionais, fontesNacionais, type DadosNacionais } from "./nacional"
 
@@ -23,12 +23,8 @@ export function prepararMapLibre() {
 export { COR_MAPA_V2 } from "../../../compartilhado/cores"
 
 /** Paleta exclusiva do globo. O produtor conserva seu estilo claro compartilhado. */
-export const SABOR_RAIZ: Flavor = {
-  ...namedFlavor("black"), background: COR_MAPA_V2.terra, earth: COR_MAPA_V2.terra, water: COR_MAPA_V2.agua,
-  boundaries: COR_MAPA_V2.pais, country_label: COR_MAPA_V2.rotulo, city_label: COR_MAPA_V2.rotulo,
-  city_label_halo: COR_MAPA_V2.terra, state_label: COR_MAPA_V2.rotulo, state_label_halo: COR_MAPA_V2.terra,
-  subplace_label: COR_MAPA_V2.rotulo, subplace_label_halo: COR_MAPA_V2.terra, ocean_label: COR_MAPA_V2.rotulo,
-}
+/** Mapa claro de cartografia (o mesmo sabor do produtor): terra cinza clara, água azul, nomes em tinta. */
+export const SABOR_RAIZ: Flavor = { ...namedFlavor("white"), ...SABOR_MAPA, landcover: { ...SABOR_MAPA.landcover } }
 
 /** URL das letras dos rótulos (geradas por front/scripts/geo.py em front/geo/fontes). */
 const glyphs = () => location.origin + import.meta.env.BASE_URL + "geo/fontes/{fontstack}/{range}.pbf"
@@ -43,13 +39,15 @@ export function estiloBase(base: string | null, opcoes: { rotulos?: boolean; nac
   }
   if (opcoes.nacional) {
     const baseNacional = base ? camadasBaseNacionais() : fundo.layers
+    const [fundoNacional, ...restoNacional] = baseNacional[0]?.type === "background" ? baseNacional : [fundo.layers[0], ...baseNacional]
     const dadosNacionais = camadasNacionais(opcoes.dadosNacionais?.processadas)
     // Registra o estilo uma vez; o fundo aparece enquanto estados e agregados chegam.
     // Mantém fronteiras abaixo dos estados e nomes dos países abaixo dos rótulos de cobertura.
     return { ...fundo, sources: { ...(base ? { protomaps: fonteMapaBase(base) } : {}), ...fontesNacionais(opcoes.dadosNacionais) }, layers: [
-      ...baseNacional.filter(camada => camada.type !== "symbol"),
+      fundoNacional,
+      ...restoNacional.filter(camada => camada.type !== "symbol"),
       ...dadosNacionais.filter(camada => camada.type === "fill" || camada.type === "line"),
-      ...baseNacional.filter(camada => camada.type === "symbol"),
+      ...restoNacional.filter(camada => camada.type === "symbol"),
       ...dadosNacionais.filter(camada => camada.type !== "fill" && camada.type !== "line"),
     ] }
   }
@@ -65,11 +63,14 @@ export function estiloBase(base: string | null, opcoes: { rotulos?: boolean; nac
 
 /** No país cabem terra, água, fronteiras e nomes. Estradas e usos locais entram quando a pessoa aproxima. */
 export function camadasBaseNacionais(): LayerSpecification[] {
-  const ids = new Set(["background", "earth", "water", "boundaries_country", "water_label_ocean", "places_country"])
+  // Terra, água, divisas e nomes de países e das maiores cidades, como num atlas.
+  const ids = new Set(["background", "earth", "water", "boundaries_country", "water_label_ocean", "places_country", "places_locality"])
   return camadasBase().filter((camada) => ids.has(camada.id)).map(camada => {
     // O container já tem exatamente a cor do chão. Evita um draw redundante enquanto tiles chegam.
     if (camada.type === "background") return { ...camada, paint: { ...camada.paint, "background-opacity": 0 } }
     if (camada.type === "fill") return { ...camada, paint: { ...camada.paint, "fill-antialias": false } }
+    // Nomes de cidades só a partir do enquadramento do computador; no celular o país abre mais leve.
+    if (camada.id === "places_locality") return { ...camada, minzoom: Math.max(camada.minzoom ?? 0, 3.3) }
     if (camada.type === "line") {
       const paint = { ...camada.paint }
       delete paint["line-dasharray"]
@@ -84,8 +85,10 @@ export function camadasBaseNacionais(): LayerSpecification[] {
  * e 3 no 15; nomes de cidade sem o ícone (não servimos sprite); rótulos com halo de 1,5 px da cor do fundo; sem pontos
  * de interesse, endereços e prédios.
  */
-export function camadasBase(rotulos = true): LayerSpecification[] {
+export function camadasBase(rotulos = true, sobreSatelite = false): LayerSpecification[] {
   return layers("protomaps", SABOR_RAIZ, { lang: "pt" }).flatMap((l): LayerSpecification[] => {
+    // Sobre o satélite, nenhum preenchimento opaco de terra, uso do solo ou água esconde o terreno.
+    if (sobreSatelite && (l.type === "background" || (l.type === "fill" && !l.id.startsWith("buildings")))) return []
     if (l.id === "pois" || l.id.startsWith("address") || l.id === "buildings") return []
     // nome de estado sai do mapa base: a tela de entrada escreve o dela, com o que a Raíz já leu de cada um
     if (l.id === "places_region") return []

@@ -29,6 +29,16 @@ export function fonteSatelitePublico(): RasterSourceSpecification {
   }
 }
 
+export const ID_SATELITE_BASE = "satelite-base"
+
+/**
+ * O mesmo mosaico como chão do mapa desde o país inteiro (página inicial): o terreno real é o protagonista. No país
+ * são poucos tiles JPEG; a partir do z12 a camada de detalhe abaixo assume, com o véu e o aviso de falha.
+ */
+export function fonteSateliteBase(): RasterSourceSpecification {
+  return { type: "raster", tiles: [SATELITE_PUBLICO.tile], tileSize: 256, minzoom: 0, maxzoom: 14, attribution: SATELITE_PUBLICO.credito }
+}
+
 /** Só requisita tiles visíveis no detalhe. Se o serviço aberto falhar, a base vetorial permanece utilizável. */
 export function adicionarSatelitePublico(mapa: Map, antes?: string, estado?: (valor: EstadoSatelitePublico) => void) {
   const id = SATELITE_PUBLICO.id
