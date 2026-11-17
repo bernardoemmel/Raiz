@@ -2,8 +2,8 @@
 
 Pedido do desenvolvedor ("lotes em <município>") -> dossiê já filtrado, com lotes por vizinhança, ressalvas claras e o
 checklist do que ainda precisa de gente. Lê só o que o processamento já calculou (imoveis, filtros, terra, comprometida,
-desenvolvedor e geo do município) e os limites de projetos de carbono do Release `insumos`; não recalcula o funil nem
-as previsões. Regras e limiares: raiz/regras/padroes/dossie_lote.yaml; critérios em docs/lote.md.
+restricoes, desenvolvedor e geo do município) e os limites de projetos de carbono do Release `insumos`; não recalcula o
+funil nem as previsões. Regras e limiares: raiz/regras/padroes/dossie_lote.yaml; critérios em docs/lote.md.
 
 Modos (pedido do fundador, 17/11/2026):
   estrito  sobreposição real com projeto de carbono e gleba federal não destinada acima de 10% do CAR tiram do lote;
@@ -12,6 +12,7 @@ Modos (pedido do fundador, 17/11/2026):
 Em qualquer modo saem: PRODES desde 2016, alerta MapBiomas, embargo, TI, UC, quilombo, assentamento e terra pública.
 KML regional (agrupado ou acima de 500 mil ha) nunca exclui: vira "risco de sobreposição a conferir", com a distância
 até a instância pública conhecida do mesmo projeto. Limite a menos de 100 m, sem cruzar: ressalva leve.
+Restrições nacionais: exclusão (Lista Suja, lavra, território tradicional) sai em qualquer modo; ressalvas por peso.
 Nenhum imóvel sai por tamanho. Nada de nome, CPF ou CNPJ: só o código público do CAR e números.
 """
 
@@ -231,6 +232,39 @@ def _area_restauravel(linha: dict) -> tuple[float | None, str]:
     return None, "sem estimativa"
 
 
+@lru_cache(maxsize=1)
+def _textos_restricoes() -> dict[str, str]:
+    from raiz.restricoes import status as RS
+
+    m = RS.regra()["motivos"]
+    return {k: " ".join(str(v).split()).rstrip(".") for grupo in ("exclusao", "ressalva") for k, v in m[grupo].items()}
+
+
+def _restricoes(linha: dict, r: dict, fora: list, forte: list, media: list, leve: list) -> None:
+    """Restrições nacionais (SICAR completo, SIGMINE, autos do Ibama, Lista Suja): exclusão sai em qualquer modo."""
+    st = linha.get("restricao_nacional")
+    if st not in ("exclusao", "ressalva", "livre"):
+        media.append("restrições nacionais não verificadas (SICAR completo, SIGMINE, Ibama, Lista Suja)")
+        return
+    motivos = [m for m in str(linha.get("restricao_motivos") or "").split("|") if m]
+    textos, peso = _textos_restricoes(), r.get("restricoes") or {}
+    for m in motivos:
+        txt = f"restrição nacional: {textos.get(m, m.replace('_', ' '))}"
+        if st == "exclusao" and m in RS_EXCLUSAO:
+            fora.append(txt)
+        elif m in peso.get("fortes", ()):
+            forte.append(txt)
+        elif m in peso.get("leves", ()):
+            leve.append(txt)
+        elif m not in RS_EXCLUSAO:
+            media.append(txt)
+    if st == "exclusao" and not any(m in RS_EXCLUSAO for m in motivos):
+        fora.append("restrição nacional (motivo não informado)")
+
+
+RS_EXCLUSAO = ("lista_suja", "mineracao_lavra", "territorio_tradicional")
+
+
 def avaliar(linha: dict, carb: dict | None, modo: str = "normal", r: dict | None = None) -> dict:
     """Situação de um imóvel no dossiê: fora (com os motivos) ou no lote (com as ressalvas por peso)."""
     if modo not in MODOS:
@@ -284,6 +318,7 @@ def avaliar(linha: dict, carb: dict | None, modo: str = "normal", r: dict | None
                 leve.append(f"divisa com o {x['projeto']} ({num(x['borda_ha'], 2)} ha de borda entre as bases)")
             else:
                 leve.append(f"divisa a {x['distancia_m']} m do {x['projeto']}")
+    _restricoes(linha, r, fora, forte, media, leve)
     # matrícula
     if mat["situacao"] == "so_certificado":
         media.append("só certificado no SIGEF: pedir inteiro teor")
@@ -470,7 +505,7 @@ def montar(pasta: str | Path, cod: int, *, modo: str = "normal", limites=None, l
         "validacao_humana": list(r["validacao_humana"]),
         "versoes": {
             k: sorted({str(li[k]) for li in linhas if li.get(k)})[:3]
-            for k in ("terra_regra_versao", "comprometida_versao", "restauracao_versao")
+            for k in ("terra_regra_versao", "comprometida_versao", "restricoes_versao", "restauracao_versao")
         },  # fmt: skip
     }
 

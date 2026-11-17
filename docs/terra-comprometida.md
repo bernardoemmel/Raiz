@@ -24,6 +24,10 @@ achados comprovam acesso às fontes, não uma coleta nacional concluída. As fon
 mudam e cada execução registra sua própria cobertura. Não existe promessa de
 cobertura integral de todos os registros.
 
+Projetos de restauração **fora dos registros de carbono** (Observatório da Restauração e Restor) não entram nesta
+camada: viram ressalva `restauracao_existente` das fontes complementares (`docs/fontes-complementares.md`), porque não
+confirmam compromisso de carbono, só que alguém já restaura ali.
+
 ## Como interpretar a ficha
 
 - **Sobreposição confirmada:** interseção com limite oficial de objeto ativo,

@@ -143,11 +143,13 @@ CERTIDOES: dict[str, str] = {
 #  terra = caminho da terra e risco, raiz/terra.py; restricoes = SICAR completo, SIGMINE, autos do Ibama e Lista
 #  Suja, raiz/restricoes/status.py; estaduais = embargos, autos, UCs, restauração/PSA já registrados, terras
 #  devolutas e bloqueios de matrícula dos Estados, raiz/estaduais/cruzamento.py; ambiental = reserva legal pela
-#  vegetação do IBGE, Lei da Mata Atlântica, TerraClass e APP de relevo do ANADEM, raiz/ambiental/status.py)
+#  vegetação do IBGE, Lei da Mata Atlântica, TerraClass e APP de relevo do ANADEM, raiz/ambiental/status.py;
+#  complementares = SICOR, localidades quilombolas IBGE/Palmares, territórios do MPF e restauração fora dos
+#  registros, raiz/complementares/status.py)
 COMPLEMENTOS = (
     "extras", "extras_direto", "direto", "ajustes", "alertas", "flag", "ficha", "desenvolvedor", "terra",
     "rebanho", "matricula", "regularizacao", "titulo", "comprometida", "jurisdicional", "ambiental",
-    "restricoes", "estaduais",
+    "restricoes", "estaduais", "complementares",
 )  # fmt: skip
 # matricula = conferência das certidões (raiz/documentos); regularizacao = o que falta para o título da posse
 # (raiz/titulo/regularizacao.py); titulo = nota de risco de título e decisão (raiz/titulo/nota.py)

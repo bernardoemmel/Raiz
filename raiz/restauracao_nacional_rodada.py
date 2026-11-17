@@ -28,6 +28,7 @@ from raiz import restauracao_nacional_pa as PA
 from raiz.comprometida import status as ST
 from raiz.executor.transferencia_privada import arquivo_privado, empacotar, enviar_arquivo, extrair
 from raiz.pedidos.campos import CamposPedido
+from raiz.restricoes import status as RS
 
 PONTEIRO = "lote_nacional_atual.json"
 
@@ -171,6 +172,38 @@ def completar_comprometida(fonte: Path, *, limites=None, cobertura=None, hoje: s
     return {"situacao": "ok", "versao": versao, "refeitos": refeitos, "em_dia": em_dia, "sem_geometria": sem_geo}
 
 
+def completar_restricoes(fonte: Path, *, camadas=None) -> dict:
+    """Garante restricoes_<mun>.csv atual em cada município da UF antes de indexar (SICAR completo, SIGMINE, autos
+    do Ibama e Lista Suja, raiz/restricoes/status.py).
+
+    Mesma lógica da terra já comprometida: refaz só o que falta ou está velho, a partir de geo_<mun>.parquet e da coleta
+    do Release insumos, sem refazer o funil. Sem coleta, nada é escrito: a fazenda fica não verificada (nunca livre).
+    """
+    camadas = camadas if camadas is not None else RS.Camadas()
+    assinatura = RS.assinatura(camadas.pasta)
+    if not assinatura:
+        return {"situacao": "sem_coleta", "refeitos": 0, "em_dia": 0, "sem_geometria": 0}
+    versao = f"{RS.versao()}+{assinatura}"
+    refeitos = em_dia = sem_geo = 0
+    for arquivo in sorted(fonte.glob("imoveis_*.csv")):
+        cod = int(arquivo.stem.rsplit("_", 1)[1])
+        atual = fonte / f"restricoes_{cod}.csv"
+        if atual.exists():
+            try:
+                vs = set(pd.read_csv(atual, usecols=["restricoes_versao"]).restricoes_versao.dropna())
+            except ValueError:
+                vs = set()
+            if vs == {versao}:
+                em_dia += 1
+                continue
+        if not (fonte / f"geo_{cod}.parquet").exists():
+            sem_geo += 1  # sem polígono: o índice deixa a fazenda não verificada
+            continue
+        RS.escrever_municipio(fonte, cod, camadas=camadas)
+        refeitos += 1
+    return {"situacao": "ok", "versao": versao, "refeitos": refeitos, "em_dia": em_dia, "sem_geometria": sem_geo}
+
+
 def _vazios(pasta: Path, uf: str) -> list[int]:
     arquivo = pasta / f"sem_imoveis_{uf}.csv"
     if not arquivo.exists():
@@ -193,6 +226,7 @@ def atualizar(arm, trabalho: Path, *, max_ufs: int = 27, limite_minutos: float =
     estado = arm.manifesto(fresco=True)
     novas, inicio = [], time.monotonic()
     limites, cobertura = ST.carregar_limites()  # uma leitura para todas as UFs
+    restricoes = RS.Camadas()  # idem para as restrições nacionais
     for uf in N.UFS:
         rodada = rodada_pa if uf == "PA" else None
         nomes = (f"raiz_{uf}.tar.gz", f"raiz_geo_{uf}.tar.gz")
@@ -213,6 +247,8 @@ def atualizar(arm, trabalho: Path, *, max_ufs: int = 27, limite_minutos: float =
             "importador_pa": hashlib.sha256(Path(PA.__file__).read_bytes()).hexdigest() if rodada else None,
             # coleta nova da terra já comprometida reindexa a UF (só a camada muda; previsões ficam)
             "comprometida": f"{ST.versao()}+{ST.assinatura() or 'sem_limites'}",
+            # idem para as restrições nacionais (SICAR completo, SIGMINE, autos do Ibama, Lista Suja)
+            "restricoes": f"{RS.versao()}+{RS.assinatura(restricoes.pasta) or 'sem_coleta'}",
         }
         chave = hashlib.sha256(C._json(identidade)).hexdigest()
         anterior = atual["ufs"].get(uf)
@@ -231,7 +267,11 @@ def atualizar(arm, trabalho: Path, *, max_ufs: int = 27, limite_minutos: float =
         else:
             captura = F.capturar_uf(arm, uf, pasta / "captura")
             fonte = pasta / "captura/saida" / uf
-        captura = {**captura, "comprometida": completar_comprometida(fonte, limites=limites, cobertura=cobertura)}
+        captura = {
+            **captura,
+            "comprometida": completar_comprometida(fonte, limites=limites, cobertura=cobertura),
+            "restricoes": completar_restricoes(fonte, camadas=restricoes),
+        }
         partes = []
         for arquivo in sorted(fonte.glob("imoveis_*.csv")):
             cod = int(arquivo.stem.rsplit("_", 1)[1])
@@ -330,6 +370,8 @@ def resumo_consulta(resultado: dict) -> dict:
                 "marcadas_risco_sobreposicao": op.get("marcadas_risco_sobreposicao"),
                 "sobreposicao_nao_verificadas": op.get("sobreposicao_nao_verificadas"),
                 "marcadas_gleba_federal": op.get("marcadas_gleba_federal"),
+                "marcadas_restricao_ressalva": op.get("marcadas_restricao_ressalva"),
+                "restricao_nao_verificadas": op.get("restricao_nao_verificadas"),
             }
             for nome, op in resultado["opcoes"].items()
         },
@@ -338,6 +380,10 @@ def resumo_consulta(resultado: dict) -> dict:
         },
         "sobreposicao": (resultado.get("sobreposicao") or {}).get("situacao"),
         "excluidas_ja_comprometidas": (resultado.get("sobreposicao") or {}).get("excluidas_ja_comprometidas"),
+        "restricoes_nacionais": {
+            k: (resultado.get("restricoes_nacionais") or {}).get(k)
+            for k in ("situacao", "excluidas", "ressalvas", "nao_verificadas", "motivos")
+        },
         "gleba_federal": {
             k: (resultado.get("gleba_federal") or {}).get(k)
             for k in ("situacao", "modo", "acima_do_limiar", "nao_medidas")
