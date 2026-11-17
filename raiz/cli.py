@@ -1451,6 +1451,10 @@ def triagem_lote(
     saida: Annotated[str, typer.Option(help="pasta do CSV e do PDF")] = "dados/documentos/triagem",
     nome: Annotated[str, typer.Option(help="nome do ranking (minúsculas, números e hífen)")] = "triagem",
     enviar: Annotated[bool, typer.Option(help="enviar o CSV e o PDF ao arquivo privado")] = False,
+    gleba_federal: Annotated[
+        str | None,
+        typer.Option(help="mais de 10% do CAR em gleba federal não destinada: trava (padrão da regra) ou ressalva"),
+    ] = None,
 ) -> None:
     """Ranking de fazendas com nota, números e o motivo de cada nota. Só imprime contagens, nunca códigos."""
     import re
@@ -1488,7 +1492,7 @@ def triagem_lote(
                 if baixar_arquivo(f"raiz_{uf}.tar.gz", pacote, opcional=True):
                     extrair(pacote, tmp / "estados")
             pasta = str(tmp / "estados")
-        linhas = triar(lista, D.das_pastas(lista, pasta))
+        linhas = triar(lista, D.das_pastas(lista, pasta), modo_gleba=gleba_federal)
         arquivos = RL.gravar(linhas, saida, nome)
         if enviar:
             from raiz.executor.transferencia_privada import enviar_arquivo

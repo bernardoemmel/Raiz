@@ -87,6 +87,9 @@ limiares:
   sobreposicao_alerta: 0.05  # sobreposição menor que o caminho, mas que sobe o risco
   matricula_firme: 0.9  # matrícula em 90% do CAR ou mais
   sem_sigef_ha: 101  # 101 ha ou mais sem SIGEF certificado (Decreto 12.689/2025, mesma regra do motor)
+  # gleba pública FEDERAL não destinada (CNFP do SFB, tipo B/C, governo federal): acima desta fração do CAR o imóvel
+  # sai do lote ou vira ressalva, conforme o modo do pedido (lote nacional) ou da triagem (fundador, 17/11/2026)
+  gleba_federal_fracao: 0.10
 
 # Unidades de conservação pelo domínio da terra (categoria do CNUC, cache do motor conservationunits_*.parquet)
 uc:

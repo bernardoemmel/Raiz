@@ -74,6 +74,8 @@ REAIS = (
     "fracao_creditos_comunidade_minima",
     "sobreposicao_ha",
     "sobreposicao_indicio_ha",
+    "gleba_federal_ha",
+    "gleba_federal_fracao",
     *PRECOS,
 )
 BOOLEANOS = (
@@ -91,7 +93,7 @@ BOOLEANOS = (
 )
 # Camada "já comprometida" (comprometida_<mun>.csv, raiz/comprometida/status.py). Nulo = não verificado: ausência
 # de dado nunca vira terra livre nem False.
-BOOLEANOS_NULOS = ("ja_comprometida", "risco_sobreposicao")
+BOOLEANOS_NULOS = ("ja_comprometida", "risco_sobreposicao", "gleba_federal")
 STATUS_SOBREPOSICAO = ("livre", "ja_comprometida", "risco_sobreposicao", "nao_verificado")
 SCHEMA = pa.schema(
     [(c, pa.string()) for c in TEXTOS]
@@ -190,6 +192,14 @@ def sobreposicao_da_linha(li: dict) -> dict:
     }
 
 
+def gleba_federal_da_linha(li: dict) -> dict:
+    """Gleba federal não destinada (terra_<mun>.csv): gleba_federal = mais de 10% do CAR; nulo = não medido."""
+    from raiz import terra as T
+
+    g = T.gleba_federal(li)
+    return {k: g[k] for k in ("gleba_federal_ha", "gleba_federal_fracao", "gleba_federal")}
+
+
 def _registro(li, uf, cod, pontos, modelo, cenario):
     car = str(li["cod_imovel"])
     origem = str(li.get("restauracao_versao") or "")
@@ -260,6 +270,7 @@ def _registro(li, uf, cod, pontos, modelo, cenario):
         fracao_creditos_comunidade_minima=aval["fracao_creditos_comunidade_minima"],
         nivel_interesse=str(li.get("nivel_interesse") or "sem_contato"),
         **sobreposicao_da_linha(li),
+        **gleba_federal_da_linha(li),
     )
     for c in TEXTOS:
         registro[c] = str(registro[c]) if registro[c] is not None else None

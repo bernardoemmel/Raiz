@@ -156,12 +156,38 @@ Em Paragominas o Bot Agro montou o lote cruzando carbono, matrícula e gleba pú
    como `dados/terra_publica/cnfp_<UF>.parquet`). Antes ele nunca existia no Actions e só a "Gleba Pública" do SIGEF
    contava. Com 50% ou mais do CAR em gleba não destinada (CNFP tipo B/C) ou UC de domínio público, o caminho é
    `publica_sem_destinacao` e o imóvel não entra em lote. Posse ou assentamento com 5% ou mais nessa terra fica com
-   `risco_terra` alto e o motivo escrito. A assinatura do CNFP entra na versão da tarefa `terra`: só ela (e o que
+   `risco_terra` alto e o motivo escrito. Gleba **federal** acima de 10% do CAR tem critério próprio (seção abaixo). A assinatura do CNFP entra na versão da tarefa `terra`: só ela (e o que
    depende dela) refaz; o funil não.
 6. **KML gigante não compromete ninguém.** Limite acima de 500 mil ha vira só indício; acima de 5 milhões de ha fica
    fora do cruzamento (tabela acima, PR #146).
 
 Pequenas fazendas continuam no lote, agrupadas: nenhuma regra acima corta por tamanho.
+
+## Gleba pública federal não destinada: critério de 10% (17/11/2026)
+
+**Critério.** Mais de 10% do CAR em gleba pública **federal** não destinada (Cadastro Nacional de Florestas Públicas
+do SFB, tipo B/C, `governo = FEDERAL`) tira o imóvel do lote ou o marca com ressalva, conforme o modo. Exatamente 10%
+não passa. A fração é do próprio CAR: imóvel pequeno conta igual, ninguém sai por tamanho. Gleba estadual continua
+como terra pública (caminho e risco da terra), mas não entra neste critério.
+
+| Onde | Coluna / opção | Excluir (padrão) | Ressalva |
+|---|---|---|---|
+| Etapa terra (`raiz/terra.py`) | `terra_gleba_federal_ha` em `terra_<mun>.csv`; vazia sem CNFP (nunca 0) | — | — |
+| Limiar | `gleba_federal_fracao: 0.10` em `raiz/regras/padroes/caminho_terra.yaml` | — | — |
+| Lote nacional | pedido `gleba_federal: "excluir" \| "ressalva"` (`CamposPedido`) | sai do lote, com o motivo na trilha | fica, e a opção conta `marcadas_gleba_federal` |
+| Triagem | `gleba_federal: {modo: trava}` na regra; `raiz triagem lote --gleba-federal ressalva` | `nao_segue` (nota até 30) | `com_ressalvas` |
+
+O índice do lote grava `gleba_federal_ha`, `gleba_federal_fracao` e `gleba_federal` (nulo = não medido). A consulta
+devolve `gleba_federal` com `situacao` (`medida`, `parcial`, `nao_medida`), `modo`, `acima_do_limiar` e
+`nao_medidas`. O pacote "lote pronto" leva `gleba_federal_ressalva` e `gleba_federal_fracao` em `sobreposicao.csv`; a
+triagem leva `gleba_federal_pct` no ranking. Sem medição nada é cortado e o texto diz "gleba federal não medida".
+
+**Conferência com Paragominas (D4386947 e CE800C8A, 17/11/2026).** Com os polígonos do Release `dados`
+(`raiz_geo_PA.tar.gz`) e o CNFP 2025: nenhuma gleba federal não destinada toca os dois CAR (0%), e o SIGEF do INCRA
+mostra os dois 100% dentro de parcela particular registrada (Fazenda Santa Lucia, 1.266 ha; Fazenda Transprogresso II,
+1.094 ha). Pelo critério, **os dois ficam no lote**. A base REDD+ do Pará (Zenodo 23929936) também não traz gleba
+sobre eles. O teste `testes/test_gleba_federal.py::test_paragominas_d4386947_e_ce800c8a` refaz a conta quando os
+arquivos estão na máquina (`RAIZ_TESTE_GEO_PARAGOMINAS`).
 
 ## Coletar e atualizar no servidor privado
 

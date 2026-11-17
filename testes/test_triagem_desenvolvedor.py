@@ -176,7 +176,7 @@ def test_ranking_nunca_descarta_pequena_nem_perde_codigo(pasta):
     assert resumo(linhas) == {"recomendada": 2, "com_ressalvas": 2, "nao_segue": 2, "sem_dados": 1, "nao_encontrada": 1,
                               "total": 8}  # fmt: skip
     assert por[car("C")]["embargo_ha"] == 12.5 and por[car("D")]["projeto_id"] == "VCS665"
-    assert linhas[0]["regra_versao"].startswith("triagem-desenvolvedor-2026a+")
+    assert linhas[0]["regra_versao"].startswith("triagem-desenvolvedor-2026b+")
 
 
 def test_csv_e_pdf_sem_nome_nem_cpf(pasta):

@@ -266,6 +266,10 @@ def montar_pacote(resultado: dict, opcao: str, saida: Path, *, com_raio_x: bool 
     for li in linhas:
         li["metodo"] = li.get("metodo") or li.get("modo")
         li["sobreposicao"] = situacao_sobreposicao(li)
+        g = str(li.get("gleba_federal"))  # bool, numpy.bool_, None ou pd.NA
+        li["gleba_federal_ressalva"] = (
+            "acima_de_10pct" if g == "True" else "abaixo_de_10pct" if g == "False" else "nao_medida"
+        )
     recorte = resultado["recorte"]
     nome_recorte = (
         recorte["ufs"][0] if len(recorte["ufs"]) == 1 and not recorte["biomas"]
@@ -305,7 +309,9 @@ def montar_pacote(resultado: dict, opcao: str, saida: Path, *, com_raio_x: bool 
         "cars.csv": _csv(linhas, ("cod_imovel", "papel", "grupo_id", "uf", "municipio", "pequena")),
         "reservas.csv": _csv([li for li in linhas if li.get("papel") == "reserva"], COLUNAS_TABELA),
         "tabela_lote.csv": _csv(linhas, COLUNAS_TABELA),
-        "sobreposicao.csv": _csv(linhas, ("cod_imovel", "papel", "sobreposicao")),
+        "sobreposicao.csv": _csv(
+            linhas, ("cod_imovel", "papel", "sobreposicao", "gleba_federal_ressalva", "gleba_federal_fracao")
+        ),
         "mapa.svg": mapa_svg(t, f"Lote {OPCOES[opcao]}: {nome_recorte}, {item['fazendas']} fazendas").encode(),
         "mapa.geojson": json.dumps(_geojson(t), ensure_ascii=False).encode(),
     }

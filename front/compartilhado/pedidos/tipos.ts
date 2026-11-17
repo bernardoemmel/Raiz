@@ -73,6 +73,8 @@ export interface CamposPedido {
   forma: { distancia_max_km: number | null; max_donos: number | null; area_min_contigua_ha: number | null }
   interesse: FiltroInteresse
   exclusoes: Exclusao[]
+  /** Mais de 10% do CAR em gleba pública federal não destinada: sai do lote ("excluir", padrão) ou fica marcada. */
+  gleba_federal?: "excluir" | "ressalva"
 }
 
 /** Uma faixa de simulação: P10, P50 e P90. */

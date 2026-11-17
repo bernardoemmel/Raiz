@@ -329,6 +329,7 @@ def resumo_consulta(resultado: dict) -> dict:
                 "sobreposicao": op.get("sobreposicao_situacao"),
                 "marcadas_risco_sobreposicao": op.get("marcadas_risco_sobreposicao"),
                 "sobreposicao_nao_verificadas": op.get("sobreposicao_nao_verificadas"),
+                "marcadas_gleba_federal": op.get("marcadas_gleba_federal"),
             }
             for nome, op in resultado["opcoes"].items()
         },
@@ -337,6 +338,10 @@ def resumo_consulta(resultado: dict) -> dict:
         },
         "sobreposicao": (resultado.get("sobreposicao") or {}).get("situacao"),
         "excluidas_ja_comprometidas": (resultado.get("sobreposicao") or {}).get("excluidas_ja_comprometidas"),
+        "gleba_federal": {
+            k: (resultado.get("gleba_federal") or {}).get(k)
+            for k in ("situacao", "modo", "acima_do_limiar", "nao_medidas")
+        },
     }
 
 

@@ -96,8 +96,19 @@ def _regras_pedido(
     f.append(("Quantidade positiva não estimada; sem piso de tamanho", f"{quantidade}>0"))
     for ex in pedido.exclusoes:
         f.append((f"Exclusão solicitada: {ex}", f"not {ex}"))
-    if sobreposicao:  # camada "já comprometida" presente no catálogo: sai do lote
+    # `sobreposicao`: True (só a camada "já comprometida") ou o conjunto de camadas presentes no catálogo
+    camadas = (
+        sobreposicao if isinstance(sobreposicao, set | frozenset) else ({"ja_comprometida"} if sobreposicao else set())
+    )
+    if "ja_comprometida" in camadas:  # camada "já comprometida" presente no catálogo: sai do lote
         f.append(("Terra já comprometida com outro projeto ou contrato", "not coalesce(ja_comprometida, false)"))
+    if "gleba_federal" in camadas and pedido.gleba_federal == "excluir":
+        f.append(
+            (
+                "Mais de 10% do CAR em gleba pública federal não destinada",
+                "not coalesce(gleba_federal, false)",
+            )
+        )
     if comercializaveis:
         f.append(("Salvaguardas para comercialização pendentes", "salvaguardas_comercializavel"))
     if pedido.dinheiro.custo_max_usd_credito is not None:
@@ -409,6 +420,31 @@ def _sobreposicao(con, colunas, selecionadas_sql="escolhidos"):
     return out
 
 
+def _gleba_federal(con, colunas, pedido):
+    """Gleba pública federal não destinada (CNFP) no recorte: quantas passam de 10% do CAR e quantas sem medição."""
+    if "gleba_federal" not in colunas:
+        return {
+            "situacao": "nao_medida",
+            "modo": pedido.gleba_federal,
+            "aviso": "Gleba federal não medida: o catálogo ainda não traz a camada. Conferir antes de contratar.",
+        }
+    acima, nm, total = con.sql(
+        "select count(*) filter(where coalesce(gleba_federal,false)), count(*) filter(where gleba_federal is null), "
+        "count(*) from recorte"
+    ).fetchone()
+    situacao = "nao_medida" if total and nm == total else ("parcial" if nm else "medida")
+    acao = "saíram do lote" if pedido.gleba_federal == "excluir" else "ficam no lote com ressalva"
+    return {
+        "situacao": situacao,
+        "modo": pedido.gleba_federal,
+        "limiar_fracao": 0.10,
+        "acima_do_limiar": int(acima),
+        "nao_medidas": int(nm),
+        "aviso": f"Fazendas com mais de 10% do CAR em gleba pública federal não destinada {acao}."
+        + (f" {int(nm)} sem medição (sem polígono ou sem o cadastro de florestas públicas)." if nm else ""),
+    }
+
+
 def _agregar_grupos(con, pedido):
     p = premissas()
     o = p["otimizador"]
@@ -627,11 +663,13 @@ def montar_tres_opcoes(
         _espacial(con, pedido)
         colunas = {r[0] for r in con.sql("describe oferta").fetchall()}
         com_camada = "ja_comprometida" in colunas
-        filtro = _filtro_pedido(pedido, modelo, cenario, somente_comercializaveis, com_camada)
+        camadas = frozenset(colunas & {"ja_comprometida", "gleba_federal"})
+        filtro = _filtro_pedido(pedido, modelo, cenario, somente_comercializaveis, camadas)
         con.sql(f"CREATE TEMP VIEW elegiveis AS SELECT * FROM recorte WHERE {filtro}")
         cobertura = _cobertura(catalogo_dados, recorte, con, modelo, cenario)
         quadro_terra = _quadro_terra(con)
-        terra_em_espera = _terra_em_espera(con, pedido, modelo, cenario, somente_comercializaveis, com_camada)
+        terra_em_espera = _terra_em_espera(con, pedido, modelo, cenario, somente_comercializaveis, camadas)
+        gleba = _gleba_federal(con, colunas, pedido)
         sobreposicao = _sobreposicao(con, colunas)
         t = time.monotonic()
         pontos = con.sql("select cod_imovel,lon,lat,pequena,local_aproximado from elegiveis").fetchdf()
@@ -736,6 +774,15 @@ def montar_tres_opcoes(
                 sobreposicao_situacao=sobreposicao["situacao"],
                 marcadas_risco_sobreposicao=marcadas,
                 sobreposicao_nao_verificadas=sem_verificar,
+                marcadas_gleba_federal=(
+                    int(
+                        con.sql(
+                            "select count(*) filter(where coalesce(gleba_federal,false)) from escolhidos"
+                        ).fetchone()[0]
+                    )
+                    if "gleba_federal" in colunas
+                    else None
+                ),
             )
             resultados[opcao].update(extras)
             rotulos.extend({"grupo_id": x["grupo_id"], "opcao": opcao, "papel": x["papel"]} for x in linhas)
@@ -751,7 +798,7 @@ def montar_tres_opcoes(
             {_sql(chave)} consulta_id, true revisao_humana_disponivel,
             'LGPD art. 20' fundamento_revisao,
             case when not ({filtro}) then
-                {_motivos_pedido(pedido, modelo, cenario, somente_comercializaveis, com_camada)}
+                {_motivos_pedido(pedido, modelo, cenario, somente_comercializaveis, camadas)}
                 else 'Grupo indivisível avaliado por custo/risco/compacidade. Busca limitada; sem corte por tamanho.'
                 end criterio_texto,
             {_sql(criterios)} parametros_texto,
@@ -784,6 +831,7 @@ def montar_tres_opcoes(
         "quadro_terra": quadro_terra,
         "terra_em_espera": terra_em_espera,
         "sobreposicao": sobreposicao,
+        "gleba_federal": gleba,
         "tempos": tempos,
         "cronograma_contratual_validado": regra is not None,
         "aviso": "Planejamento sobre cobertura disponível. Consulte os marcos e pendências antes de contratar. "
