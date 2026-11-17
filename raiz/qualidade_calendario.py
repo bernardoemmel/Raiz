@@ -21,6 +21,10 @@ from raiz import RAIZ_REPO
 from raiz.calendario.feed import ics
 from raiz.privacidade import cnpj_valido, cpf_valido, mascarar
 
+# Estado de cobertura dos diários que a coleta publica junto das fontes (sem URL própria).
+COBERTURA_ID = "cobertura_diarios"
+COBERTURA_NOME = "Cobertura dos diários estaduais"
+
 DOCUMENTO_URL = re.compile(
     r"(?<![A-Z0-9])(?:[0-9A-Z]{2}\.[0-9A-Z]{3}\.[0-9A-Z]{3}/[0-9A-Z]{4}-\d{2}|"
     r"\d{3}\.\d{3}\.\d{3}-\d{2}|[0-9A-Z]{12}\d{2}|\d{11})(?![A-Z0-9])",
@@ -227,6 +231,8 @@ def projetar_snapshot(dados: dict) -> dict:
         _falhar()
     manifesto = json.loads((RAIZ_REPO / "front/compartilhado/calendario-fontes.json").read_text(encoding="utf-8"))
     fontes = {f["id"]: f for f in manifesto}
+    # A coleta publica também o estado de cobertura dos diários (raiz/calendario/arquivos.py aceita o mesmo id).
+    fontes.setdefault(COBERTURA_ID, {"id": COBERTURA_ID, "nome": COBERTURA_NOME})
     eventos = [_evento(e, fontes) for e in dados["eventos"]]
     estados = [_estado(e, fontes) for e in dados["fontes"]]
     if len({e["id"] for e in eventos}) != len(eventos) or len({e["id"] for e in estados}) != len(estados):
