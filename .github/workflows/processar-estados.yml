@@ -290,6 +290,26 @@ jobs:
           if gh release download insumos -R "$GITHUB_REPOSITORY" -D motor/cache/comprometida --clobber \
                -p comprometida_limites.parquet -p comprometida_cobertura.json 2>/dev/null; then
             echo "limites da terra já comprometida: ok"
+            # O job roda o commit preservado na fila (matrix.ref). Se a coleta já traz uma fonte que esse código não
+            # conhece, cobertura_segura() derruba o município inteiro ("Fonte territorial desconhecida"). Nesse caso
+            # usa o caminho que o código já tem para "sem limites": a tarefa fica nao_verificado (nunca "livre") e
+            # refaz sozinha quando o pedido rodar no código atual (a assinatura da coleta muda).
+            if ! uv run python - <<'PY'
+          import json, sys
+          import geopandas as gpd
+          from raiz.terra_comprometida import FONTES
+          base = "motor/cache/comprometida/"
+          cob = json.load(open(base + "comprometida_cobertura.json", encoding="utf-8")).get("cobertura", [])
+          fontes = {c.get("fonte_id") for c in cob} | set(gpd.read_parquet(base + "comprometida_limites.parquet").fonte_id)
+          novas = sorted(str(f) for f in fontes - set(FONTES))
+          if novas:
+              print("fontes da coleta que este commit não conhece: " + ", ".join(novas))
+              sys.exit(1)
+          PY
+            then
+              rm -f motor/cache/comprometida/comprometida_*
+              echo "::warning::limites da terra já comprometida mais novos que o código deste pedido; tarefa comprometida fica nao_verificado"
+            fi
           else
             rm -f motor/cache/comprometida/comprometida_*
             echo "sem limites da terra já comprometida (tarefa comprometida fica nao_verificado)"
