@@ -33,6 +33,26 @@ describe("geometria em deltas inteiros", () => {
     expect(codificarGeometria(naoPoligono)).toBeNull()
   })
 
+  it("com 5 casas usa a escala 1e5 (números menores) e volta exato", () => {
+    const g = geo()
+    for (const f of g.features) {
+      const arred = (v: unknown): unknown => Array.isArray(v) ? v.map(arred) : Math.round((v as number) * 1e5) / 1e5
+      const geom = f.geometry as unknown as { coordinates: unknown }
+      geom.coordinates = arred(geom.coordinates)
+    }
+    const codificado = codificarGeometria(g) as { delta_escala?: number; delta_1e6?: boolean }
+    expect(codificado.delta_escala).toBe(1e5)
+    expect(codificado.delta_1e6).toBeUndefined()
+    expect(decodificarGeometria(JSON.parse(JSON.stringify(codificado)))).toEqual(g)
+  })
+
+  it("arquivo antigo em delta_1e6 continua abrindo", () => {
+    const original = geo()
+    const antigo = codificarGeometria(original) as { delta_1e6?: boolean }
+    expect(antigo.delta_1e6).toBe(true)
+    expect(decodificarGeometria(JSON.parse(JSON.stringify(antigo)))).toEqual(original)
+  })
+
   it("GeoJSON comum passa direto no leitor, então arquivos antigos continuam abrindo", () => {
     const g = geo()
     expect(decodificarGeometria(g)).toBe(g)
