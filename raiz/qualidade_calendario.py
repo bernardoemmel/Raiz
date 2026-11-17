@@ -25,6 +25,29 @@ from raiz.privacidade import cnpj_valido, cpf_valido, mascarar
 COBERTURA_ID = "cobertura_diarios"
 COBERTURA_NOME = "Cobertura dos diários estaduais"
 
+# Avisos padronizados por fonte. A coleta monta o campo "erro" só com estas frases, nesta ordem,
+# separadas por um espaço; a validação aceita exatamente essa gramática e nada de texto livre.
+AVISO_PUBLICO = "Fonte com leitura incompleta; consulte a publicação oficial."
+AVISO_PAGINAS = "{n} página(s) não puderam ser lidas; consulte a fonte oficial."
+AVISO_RESTRITO = "Fonte restringiu o acesso ou pediu espera; consultas interrompidas sem contornar a restrição."
+AVISO_SEM_DATA = "Há atos cuja data ou vínculo com o imóvel não pôde ser confirmado."
+AVISO_LIMITE = "Limite de páginas da rodada atingido; cobertura parcial."
+AVISO_COBERTURA_PARCIAL = "A fonte cobre parte das publicações; confira também seu portal oficial."
+AVISO_SEM_ADAPTADOR = "Diário ainda sem adaptador: {ufs}"
+AVISO_FALHA_INESPERADA = "falha inesperada ao ler a fonte ({tipo}); consulte a fonte oficial."
+_UF = "[A-Z]{2}"  # a coleta só lista UFs válidas; a forma basta para recusar texto livre
+_FRASES_ERRO = (
+    re.escape(AVISO_PAGINAS).replace(re.escape("{n}"), r"[0-9]{1,5}"),
+    re.escape(AVISO_RESTRITO),
+    re.escape(AVISO_SEM_DATA),
+    re.escape("Há atos cuja data não pôde ser confirmada."),  # texto antigo, ainda presente no histórico
+    re.escape(AVISO_LIMITE),
+    re.escape(AVISO_COBERTURA_PARCIAL),
+    re.escape(AVISO_SEM_ADAPTADOR).replace(re.escape("{ufs}"), _UF + "(?:, " + _UF + ")*"),
+    re.escape(AVISO_FALHA_INESPERADA).replace(re.escape("{tipo}"), r"[A-Za-z_][A-Za-z0-9_]{0,63}"),
+)
+_ERRO_COLETA = re.compile("(?:" + "|".join(_FRASES_ERRO) + ")(?: (?:" + "|".join(_FRASES_ERRO) + "))*")
+
 DOCUMENTO_URL = re.compile(
     r"(?<![A-Z0-9])(?:[0-9A-Z]{2}\.[0-9A-Z]{3}\.[0-9A-Z]{3}/[0-9A-Z]{4}-\d{2}|"
     r"\d{3}\.\d{3}\.\d{3}-\d{2}|[0-9A-Z]{12}\d{2}|\d{11})(?![A-Z0-9])",
@@ -216,9 +239,7 @@ def _estado(item: dict, fontes: dict) -> dict:
         "nome": fontes[item["id"]]["nome"],
         "coletado_em": _instante(item.get("coletado_em")).isoformat(),
         "situacao": situacao,
-        "erro": (
-            "Fonte com leitura incompleta; consulte a publicação oficial." if situacao in {"erro", "parcial"} else None
-        ),
+        "erro": AVISO_PUBLICO if situacao in {"erro", "parcial"} else None,
         **{campo: _inteiro(item.get(campo, 0)) for campo in ("paginas", "eventos", "sem_data")},
     }
 
@@ -267,18 +288,10 @@ def _normalizar_instantes(dado: dict) -> dict:
 
 
 def _erro_fonte_conhecido(erro) -> None:
-    if erro is None or erro == "Fonte com leitura incompleta; consulte a publicação oficial.":
+    """Aceita só os avisos padronizados que a coleta escreve (raiz/calendario/coleta.py usa as mesmas frases)."""
+    if erro is None or erro == AVISO_PUBLICO:
         return
-    if (
-        not isinstance(erro, str)
-        or not erro
-        or not re.fullmatch(
-            r"(?:[0-9]{1,5} página\(s\) não puderam ser lidas; consulte a fonte oficial\.(?: )?)?"
-            r"(?:Há atos cuja data não pôde ser confirmada\.(?: )?)?"
-            r"(?:Limite de páginas da rodada atingido; cobertura parcial\.)?",
-            erro,
-        )
-    ):
+    if not isinstance(erro, str) or not erro or len(erro) > 2000 or not _ERRO_COLETA.fullmatch(erro):
         _falhar()
 
 
