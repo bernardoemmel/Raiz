@@ -71,14 +71,14 @@ jobs:
           fi
       - name: Atestar os arquivos básicos públicos
         if: always() && steps.atestar.outputs.publico == '1'
-        uses: actions/attest-build-provenance@v2
+        uses: actions/attest-build-provenance@v4
         with:
           subject-checksums: ${{ runner.temp }}/atestar.txt
           show-summary: false
       # Só hashes, identificadores derivados do conteúdo e proveniência ficam públicos; nunca nomes privados.
       - name: Atestar os hashes dos arquivos completos mantidos privados
         if: always() && steps.atestar.outputs.privado == '1'
-        uses: actions/attest-build-provenance@v2
+        uses: actions/attest-build-provenance@v4
         with:
           subject-checksums: ${{ runner.temp }}/atestar-privado.txt
           show-summary: false
