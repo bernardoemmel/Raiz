@@ -1054,6 +1054,12 @@ continua travada (`uv sync --frozen --all-extras`, `npm ci`). Não se reutiliza 
 - `testes_python` executa os testes Python de PostGIS, Rust, cartão, vídeo, PDF e LanguageTool. Só o caso estadual é
   separado com `--deselect` e executado em paralelo por `referencia_para`. A regressão de coleta verifica que a
   diferença é exatamente esse nó, sem excluir testes com nomes parecidos.
+  Desde 17/11/2026 a suíte roda em 4 partes paralelas (`testes_python (parte k de 4)`, ~8 min cada em vez de
+  ~30 min). Cada arquivo de teste vai inteiro para uma parte, equilibrada pelo tempo medido em
+  `testes/duracoes_ci.json` (`testes/particao.py`). O job `testes_python` só aprova com as 4 partes verdes e com a
+  soma dos testes executados igual à suíte inteira (`scripts/juntar_partes_pytest.py`); depois publica o JUnit
+  juntado como `resultado-pytest`. Para reequilibrar, regenerar a tabela a partir desse JUnit.
+  Em PR, um push novo cancela a rodada anterior do mesmo PR; na main nenhuma rodada é cancelada.
 - `checagens` exige sucesso nos dois jobs e confere ambos os JUnits. Exige o caso estadual exatamente uma
   vez, aprovado, e recusa relatórios ausentes, casos duplicados e novos skips/xfails;
   a divergência conhecida de TIR continua executada como `xfail`, detalhada na passagem.
