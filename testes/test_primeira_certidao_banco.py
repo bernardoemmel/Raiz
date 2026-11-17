@@ -11,6 +11,7 @@ from fastapi import FastAPI, Header, HTTPException
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, text
 
+from raiz.busca import atualizar_vigente
 from raiz.carga import carregar_pasta
 from raiz.documentos.certidao import api
 from raiz.documentos.certidao import entrada as E
@@ -38,7 +39,16 @@ def eng(banco_url):
 
 
 def test_sessao_real_nao_acessa_pedido_alheio_e_snapshot_nao_muda(eng, tmp_path, monkeypatch):
-    carregar_pasta(eng, AMOSTRA, dt.date(2026, 11, 12))
+    cargas = carregar_pasta(eng, AMOSTRA, dt.date(2026, 11, 12))
+    # Outros testes gravam rodadas do mesmo município com data de corte mais nova e sem certidões. Dentro da
+    # transação revertida, a amostra passa a ser a rodada vigente, seja qual for a ordem em que a suíte rodou.
+    with eng.begin() as con:
+        for carga in cargas:
+            if carga.tipo == "municipio" and carga.cod_municipio:
+                con.execute(
+                    text("update funil.rodada set data_corte = '2999-12-31' where id = :r"), {"r": carga.rodada_id}
+                )
+                atualizar_vigente(con, carga.cod_municipio)
     cf = Cofre(gerar_chave())
     a, sa = S.criar_cliente(eng, "Teste funcional primeira certidão A")
     b, sb = S.criar_cliente(eng, "Teste funcional primeira certidão B")
