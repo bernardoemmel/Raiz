@@ -242,7 +242,9 @@ def validar_asset_publico(nome: str, dados: bytes, *, repo: str = "bernardoemmel
                 raise ValueError("estado sem marca de projeção")
             if "processamento" in info and info["processamento"] != projetada.get("processamento"):
                 raise ValueError("processamento público contém campos não permitidos ou observação inválida")
-            base = f"https://github.com/{repo}/releases/download/{tag}"
+            from raiz.metadados import base_release
+
+            base = base_release(repo, tag, escopo=ESCOPO).rstrip("/")
             if info.get("url") != f"{base}/raiz_{uf}.tar.gz":
                 raise ValueError("pacote deve apontar ao Release público do manifesto")
             if geo := info.get("geo"):

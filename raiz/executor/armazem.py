@@ -277,11 +277,39 @@ class ArmazemS3:
 PADRAO = "release-github://bernardoemmel/raiz/dados"
 
 
+def privado_em_balde() -> bool:
+    """True quando o arquivo completo está num balde S3 (RAIZ_DADOS_PRIVADOS_URL=s3://...)."""
+    return os.environ.get("RAIZ_DADOS_PRIVADOS_URL", "").strip().startswith("s3://")
+
+
+def arquivo_privado_configurado(
+    sufixo: str = "", *, espelho: Path | None = None, token: str | None = None, publico: Armazem | None = None
+) -> ArmazemRelease | None:
+    """O arquivo completo configurado, seja Release em rascunho ou balde S3; None sem configuração.
+
+    `sufixo` separa arquivos irmãos (ex.: "-checkpoints"): no Release vira outra tag; no balde, outro prefixo."""
+    url = os.environ.get("RAIZ_DADOS_PRIVADOS_URL", "").strip()
+    if url.startswith("s3://"):
+        from raiz.executor.armazem_balde import ArmazemBalde
+
+        return ArmazemBalde(url.rstrip("/") + sufixo, privado=True, espelho=espelho, publico=publico, token=token)
+    destino = destino_privado()
+    if not destino:
+        return None
+    t = token if token is not None else os.environ.get("RAIZ_DADOS_PRIVADOS_TOKEN", "")
+    return ArmazemRelease(destino[0], destino[1] + sufixo, espelho=espelho, token=t, privado=True, publico=publico)
+
+
 def destino_privado() -> tuple[str, str] | None:
-    """Destino completo por variável; nunca deriva um destino privado do Release aberto."""
+    """Destino completo por variável; nunca deriva um destino privado do Release aberto.
+
+    Com o arquivo num balde S3 não há Release privado: devolve None, e quem ainda só sabe falar com Release falha
+    fechado (use `arquivo_privado_configurado`)."""
     url = os.environ.get("RAIZ_DADOS_PRIVADOS_URL", "").strip()
     repo = os.environ.get("RAIZ_DADOS_PRIVADOS_REPO", "").strip()
     tag = os.environ.get("RAIZ_DADOS_PRIVADOS_TAG", "dados").strip()
+    if url.startswith("s3://"):
+        return None
     if url:
         if not url.startswith("release-github://"):
             raise ValueError("RAIZ_DADOS_PRIVADOS_URL deve usar release-github://dono/repositorio/tag")
@@ -301,7 +329,8 @@ def destino_privado() -> tuple[str, str] | None:
 def do_config(url: str | None = None) -> Armazem:
     """O armazém configurado em RAIZ_ARMAZEM_URL:
     release-github://dono/repo/tag   o Release do GitHub (padrão: o Release "dados" deste repositório);
-    s3://balde/prefixo               compatível com S3 (opção futura: Cloudflare R2; ou SeaweedFS);
+    s3://balde/prefixo               compatível com S3; com RAIZ_DADOS_PRIVADOS_URL=s3://..., vira o balde aberto
+                                     da projeção básica e o completo vai para o balde privado (docs/armazenamento.md);
     uma pasta                        local (desenvolvimento e testes)."""
     from raiz import RAIZ_REPO
     from raiz.config import config
@@ -311,6 +340,8 @@ def do_config(url: str | None = None) -> Armazem:
     if url.startswith("release-github://"):
         dono, repo, *resto = url[len("release-github://") :].strip("/").split("/")
         aberto = ArmazemRelease(f"{dono}/{repo}", resto[0] if resto else "dados")
+        if privado_em_balde():  # fase 1: completo no balde privado, projeção aberta ainda no Release público
+            return arquivo_privado_configurado(publico=aberto)
         privado = destino_privado()
         if privado:
             if privado[0].lower() == aberto.repo.lower() and privado[1] == aberto.tag:
@@ -319,6 +350,11 @@ def do_config(url: str | None = None) -> Armazem:
                 *privado, token=os.environ.get("RAIZ_DADOS_PRIVADOS_TOKEN", ""), privado=True, publico=aberto
             )
         return aberto  # sem configuração privada, leitura básica; publicar detalhamento é proibido
+    if url and url.startswith("s3://") and privado_em_balde():
+        # fase 2: projeção aberta num balde público (lido por RAIZ_PUBLICO_URL_BASE) e completo no balde privado
+        from raiz.executor.armazem_balde import ArmazemBalde
+
+        return arquivo_privado_configurado(publico=ArmazemBalde(url, privado=False))
     if url and url.startswith("s3://"):
         resto = url[len("s3://") :]
         balde, _, prefixo = resto.partition("/")

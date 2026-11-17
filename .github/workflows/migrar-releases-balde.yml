@@ -1,0 +1,59 @@
+name: Migrar Releases para o balde privado
+
+# Copia os Releases (inclusive rascunhos) para o balde S3 privado e confere SHA-256. Nunca apaga nada do GitHub.
+# Repetível: cada rodada retoma do que falta. Ver docs/armazenamento.md.
+on:
+  workflow_dispatch:
+    inputs:
+      fase:
+        description: "Mostrar o plano, copiar ou só verificar"
+        required: true
+        type: choice
+        default: plano
+        options: [plano, copiar, verificar]
+
+permissions:
+  contents: write # rascunhos de Release só são listados com permissão de escrita
+
+concurrency:
+  group: migrar-releases-balde
+  cancel-in-progress: false
+
+jobs:
+  migrar:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 350
+    strategy:
+      fail-fast: false
+      matrix:
+        grupo: [dados-privados, dados-privados-checkpoints, historico, publicos]
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RAIZ_DADOS_PRIVADOS_TOKEN: ${{ github.token }}
+      RAIZ_DADOS_PRIVADOS_URL: ${{ vars.RAIZ_BALDE_PRIVADO_URL }}
+      RAIZ_S3_ENDPOINT: ${{ vars.RAIZ_S3_ENDPOINT }}
+      RAIZ_S3_ACCESS_KEY_ID: ${{ secrets.RAIZ_S3_ACCESS_KEY_ID }}
+      RAIZ_S3_SECRET_ACCESS_KEY: ${{ secrets.RAIZ_S3_SECRET_ACCESS_KEY }}
+    steps:
+      - name: Exigir balde configurado
+        run: |
+          test -n "$RAIZ_DADOS_PRIVADOS_URL" || { echo "Falta a variável RAIZ_BALDE_PRIVADO_URL (ex.: s3://raiz-privado/dados)."; exit 1; }
+          test -n "$RAIZ_S3_ENDPOINT" || { echo "Falta a variável RAIZ_S3_ENDPOINT."; exit 1; }
+          test -n "$RAIZ_S3_ACCESS_KEY_ID" || { echo "Falta o segredo RAIZ_S3_ACCESS_KEY_ID."; exit 1; }
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v7
+        with:
+          version: "0.13.6"
+      - name: Instalar dependências
+        run: uv sync --frozen --all-extras
+      - name: Inventariar Releases
+        run: uv run python scripts/migrar_releases_para_balde.py inventariar --diretorio /tmp/raiz-balde
+      - name: Mostrar o que seria copiado
+        if: inputs.fase == 'plano'
+        run: uv run python scripts/migrar_releases_para_balde.py copiar --grupo "${{ matrix.grupo }}" --diretorio /tmp/raiz-balde
+      - name: Copiar e conferir SHA-256
+        if: inputs.fase == 'copiar'
+        run: uv run python scripts/migrar_releases_para_balde.py copiar --grupo "${{ matrix.grupo }}" --diretorio /tmp/raiz-balde --executar
+      - name: Verificar o balde
+        if: inputs.fase != 'plano'
+        run: uv run python scripts/migrar_releases_para_balde.py verificar --grupo "${{ matrix.grupo }}" --diretorio /tmp/raiz-balde

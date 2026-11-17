@@ -68,6 +68,10 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
           RAIZ_DADOS_PRIVADOS_URL: ${{ vars.RAIZ_DADOS_PRIVADOS_URL || format('release-github://{0}/dados-privados', github.repository) }}
           RAIZ_DADOS_PRIVADOS_TOKEN: ${{ secrets.RAIZ_DADOS_PRIVADOS_TOKEN || github.token }}
+          # Balde S3 do arquivo privado (docs/armazenamento.md): só vale quando RAIZ_DADOS_PRIVADOS_URL=s3://...
+          RAIZ_S3_ENDPOINT: ${{ vars.RAIZ_S3_ENDPOINT }}
+          RAIZ_S3_ACCESS_KEY_ID: ${{ secrets.RAIZ_S3_ACCESS_KEY_ID }}
+          RAIZ_S3_SECRET_ACCESS_KEY: ${{ secrets.RAIZ_S3_SECRET_ACCESS_KEY }}
           FONTES: ${{ inputs.fontes }}
           UFS: ${{ inputs.ufs }}
         run: |

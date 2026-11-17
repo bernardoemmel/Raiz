@@ -100,6 +100,9 @@ Nunca são fornecidos nome, CPF ou contato do dono.
 
 ## Armazenamento privado e publicação
 
+> Saída dos Releases para um balde S3 privado (Cloudflare R2), com o mesmo contrato e plano de migração:
+> [`armazenamento.md`](armazenamento.md). Enquanto `RAIZ_DADOS_PRIVADOS_URL` não for `s3://...`, vale o texto abaixo.
+
 O destino desta migração é o Release **não publicado** `dados-privados` de
 `bernardoemmel/Raiz` (ID 443383695). É um draft autenticado: **não publicar esse
 Release**. A credencial de implantação não permitiu criar um repositório privado;
