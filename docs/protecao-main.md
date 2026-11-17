@@ -8,6 +8,8 @@ inclusive para administradores. Não há aprovação humana obrigatória (fundad
 agentes, workflows, segredos, front, seguranca, testes_python, referencia_para, checagens, e2e, carga, mcp.
 
 `strict` desligado: o PR não precisa estar em dia com a main para mergear (evita rebase em fila entre chats).
+`testes_python` é o agregador das 4 partes paralelas (`testes_python (parte k de 4)`); as partes não precisam
+entrar na lista, porque o agregador só aprova com todas verdes e completas.
 Quem renomear ou remover um job do CI precisa atualizar esta lista na proteção, senão os PRs ficam presos esperando
 um check que não existe mais.
 
