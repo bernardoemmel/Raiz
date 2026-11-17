@@ -617,10 +617,22 @@ export function MapaBrasil(props: Props) {
     m.fitBounds(alvoRef.current, { padding: { top: 88, left: 48 + (props.margemEsquerda ?? 0), right: 48 + (props.margemDireita ?? 0), bottom: 48 + margemBaixo }, absolutePadding: true, duration: 200 })
   }, [margemBaixo, props.margemDireita, pronto])
 
+  // Fundo do país e círculos entram depois do primeiro quadro completo: a abertura no celular não espera por eles.
+  const [extrasProntos, setExtrasProntos] = useState(false)
+  useEffect(() => {
+    const m = mapaRef.current
+    if (!m || !pronto || extrasProntos) return
+    let espera: ReturnType<typeof setTimeout> | undefined
+    const liberar = () => { espera = setTimeout(() => setExtrasProntos(true), 600) }
+    m.once("idle", liberar)
+    m.triggerRepaint()
+    return () => { m.off("idle", liberar); if (espera) clearTimeout(espera) }
+  }, [pronto, extrasProntos])
+
   // O Brasil em verde claro sobre o atlas, como na referência aprovada (contorno IBGE simplificado).
   useEffect(() => {
     const m = mapaRef.current
-    if (!m || !pronto || m.getSource("brasil-fundo")) return
+    if (!m || !pronto || !extrasProntos || m.getSource("brasil-fundo")) return
     let cancelado = false
     void (async () => {
       const geo = await fetch(import.meta.env.BASE_URL + "mapa/brasil_contorno.geojson").then(r => r.ok ? r.json() as Promise<Geo> : null).catch(() => null)
@@ -630,13 +642,13 @@ export function MapaBrasil(props: Props) {
       m.addLayer({ id: "brasil-fundo", type: "fill", source: "brasil-fundo", maxzoom: 12, paint: { "fill-color": COR_MAPA_V2.brasil, "fill-opacity": ["interpolate", ["linear"], ["zoom"], 6, 1, 11, 0.4] } }, antes)
     })()
     return () => { cancelado = true }
-  }, [pronto])
+  }, [pronto, extrasProntos])
 
   // Círculos de oportunidade: cada município na sede, somados em grupos pelo próprio MapLibre conforme o zoom.
   const sedes = useRef<Record<string, [number, number]> | null>(null)
   useEffect(() => {
     const m = mapaRef.current
-    if (!m || !pronto) return
+    if (!m || !pronto || !extrasProntos) return
     let cancelado = false
     void (async () => {
       sedes.current ??= await fetch(import.meta.env.BASE_URL + "mapa/sedes_municipios.json").then(r => r.ok ? r.json() : {}).catch(() => ({}))
@@ -664,7 +676,7 @@ export function MapaBrasil(props: Props) {
         paint: { "text-color": COR.superficie } })
     })()
     return () => { cancelado = true }
-  }, [pronto, props.oportunidades, uf])
+  }, [pronto, extrasProntos, props.oportunidades, uf])
 
   useEffect(() => {
     const m = mapaRef.current
