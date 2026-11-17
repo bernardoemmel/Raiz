@@ -1539,6 +1539,10 @@ def comprometida_coletar(
     typer.echo(f"{m['limites']} limites ({m['por_fonte']}); {m['projetos_motor']} projetos para o motor")
     for c in m["cobertura"]:
         typer.echo(f"  {c['fonte_id']}: {c['estado']}")
+    if m.get("limites_amplos"):
+        typer.echo(f"  limite inválido (> 5 milhões de ha, fora do cruzamento): {', '.join(m['limites_amplos'])}")
+    if m.get("limites_suspeitos"):
+        typer.echo(f"  limite suspeito (> 500 mil ha, só indício): {', '.join(m['limites_suspeitos'])}")
     for e in m["erros"][:10]:
         typer.echo(f"  aviso: {e}")
 

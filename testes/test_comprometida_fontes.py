@@ -231,3 +231,16 @@ def test_kml_com_anel_que_se_cruza_fica_so_com_a_area():
     )
     g = CR.ler_kml(kml)
     assert g.geom_type in ("Polygon", "MultiPolygon") and g.area == pytest.approx(0.5)
+
+
+def test_limite_suspeito_so_vale_como_indicio(tmp_path, monkeypatch):
+    # REDD grande de verdade (VCS1811 tem ~909 mil ha): acima de 500 mil ha só alerta, nunca ja_comprometida
+    grande = {**_reg("verra", "VCS1811", box(-48.5, -3.32, -45.5, -3.0), "poligono_oficial", "ativo"),
+              "fonte_url": "https://registry.verra.org/verra/public/program/VCS/projects/1811"}  # fmt: skip
+    it = _coleta({"registros": [grande], "cobertura": _cob("verra", "parcial", "projeto", "VCS1811")})
+    m = CL.gravar(CL.coletar(("verra",), observado_em=HOJE, iterador=it), tmp_path / "l")
+    assert m["limites_suspeitos"] == ["VCS1811"] and m["limites_amplos"] == [] and m["projetos_motor"] == 0
+    monkeypatch.setenv("RAIZ_COMPROMETIDA_DIR", str(tmp_path / "l"))
+    pasta, c = _municipio(tmp_path, {"A": IMOVEL}, {"A": 3263.0})
+    a = ST.calcular_municipio(pasta, COD, hoje=HOJE).iloc[0]
+    assert a.status_sobreposicao == "risco_sobreposicao" and a.projeto_id == "VCS1811"

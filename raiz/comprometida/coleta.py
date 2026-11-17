@@ -9,8 +9,12 @@ Fontes (as mesmas de raiz/coleta/compromissos_*.py, sem banco):
   para_redd_zenodo      limites dos projetos REDD+ do Pará (Zenodo 23929936, CC BY 4.0), indício.
 Indício confere o registro oficial e cobre o que ele deixa de fora (KML ilegível, registro fora do ar): o imóvel vira
 risco_sobreposicao, nunca ja_comprometida só por ele.
-Limite amplo (mais de 1 milhão de ha: "área geográfica" de projeto agrupado ou programa, ex. VCS3380) fica marcado
-em limite_amplo e não compromete imóvel nenhum nem entra no pacote do motor: estar dentro dele não é compromisso.
+Filtro de sanidade do tamanho (cada caso sai no log e no manifesto):
+  limite_suspeito  mais de 500 mil ha: pode ser projeto REDD grande de verdade (VCS1811, ~909 mil ha) ou área
+                   geográfica de agrupado. Vale só como indício (risco_sobreposicao, nunca ja_comprometida) e não entra
+                   no pacote do motor.
+  limite_amplo     mais de 5 milhões de ha: "área geográfica" de projeto agrupado ou programa (VCS3380 e VCS4137 têm
+                   ~210 milhões de ha). Inválido como limite: fica no parquet marcado, fora de todo cruzamento.
 Saída, numa pasta que o workflow publica no Release "insumos":
   comprometida_limites.parquet   um polígono por linha: fonte, objeto, registro, tipo, situação, certeza, UF, datas;
   comprometida_cobertura.json    o que cada fonte cobriu (estado, bbox, data, contagens) e as versões;
@@ -26,6 +30,7 @@ import datetime as dt
 import hashlib
 import io
 import json
+import logging
 import tarfile
 from pathlib import Path
 
@@ -37,11 +42,13 @@ from raiz import terra_comprometida as tc
 
 VERSAO = "comprometida-coleta-2026b"
 FONTES_PADRAO = ("verra", "sfb_concessoes", "limites_pesquisa", "infoamazonia_carbono", "para_redd_zenodo")
-LIMITE_AMPLO_HA = 1_000_000
+LIMITE_SUSPEITO_HA = 500_000
+LIMITE_AMPLO_HA = 5_000_000
+log = logging.getLogger(__name__)
 BBOX_BRASIL = (-74.0, -34.0, -34.0, 6.0)
 NOMES = ("comprometida_limites.parquet", "comprometida_cobertura.json", "projetos_carbono.tar.gz")
 COLUNAS = ["fonte_id", "objeto_id", "registro", "tipo", "situacao", "certeza", "uf", "fonte_url", "data_referencia",
-           "observado_em", "inicio", "fim", "area_ha", "limite_amplo"]  # fmt: skip
+           "observado_em", "inicio", "fim", "area_ha", "limite_suspeito", "limite_amplo"]  # fmt: skip
 
 
 def _cobertura_da_fonte(fonte: str, itens: list[dict], com_geometria: int, esperados: int | None, hoje: str) -> dict:
@@ -108,8 +115,9 @@ def area_ha(geom) -> float:
     return float(shapely.ops.transform(tc._AREA, geom).area / 10000)
 
 
-def amplo(r: dict) -> bool:
-    return area_ha(r["geometry"]) > LIMITE_AMPLO_HA
+def suspeito(r: dict) -> bool:
+    """Acima de 500 mil ha (inclui os amplos): nunca confirma compromisso sozinho."""
+    return area_ha(r["geometry"]) > LIMITE_SUSPEITO_HA
 
 
 def para_geodataframe(registros: list[dict]) -> gpd.GeoDataFrame:
@@ -117,7 +125,12 @@ def para_geodataframe(registros: list[dict]) -> gpd.GeoDataFrame:
     for r in registros:
         g = shapely.make_valid(r["geometry"])
         ha = area_ha(g)
-        linhas.append({**{c: r.get(c) for c in COLUNAS}, "area_ha": round(ha, 2), "limite_amplo": ha > LIMITE_AMPLO_HA})
+        linhas.append({**{c: r.get(c) for c in COLUNAS}, "area_ha": round(ha, 2),
+                       "limite_suspeito": ha > LIMITE_SUSPEITO_HA, "limite_amplo": ha > LIMITE_AMPLO_HA})  # fmt: skip
+        if ha > LIMITE_SUSPEITO_HA:
+            log.warning("%s %s: limite de %.0f ha %s", r["fonte_id"], r["objeto_id"], ha,
+                        "inválido (área geográfica), fora do cruzamento" if ha > LIMITE_AMPLO_HA
+                        else "suspeito, só indício")  # fmt: skip
         geoms.append(g)
     return gpd.GeoDataFrame(linhas, columns=COLUNAS, geometry=geoms, crs=4326)
 
@@ -128,7 +141,12 @@ def pacote_motor(registros: list[dict]) -> bytes:
     n = 0
     with tarfile.open(fileobj=buf, mode="w:gz", compresslevel=6) as tar:
         for r in sorted(registros, key=lambda x: x["objeto_id"]):
-            if r["fonte_id"] != "verra" or r["certeza"] != "poligono_oficial" or r["situacao"] != "ativo" or amplo(r):
+            if (
+                r["fonte_id"] != "verra"
+                or r["certeza"] != "poligono_oficial"
+                or r["situacao"] != "ativo"
+                or suspeito(r)
+            ):
                 continue
             feicao = {
                 "type": "Feature",
@@ -168,9 +186,14 @@ def gravar(resultado: dict, pasta: str | Path) -> dict:
                 (gdf.fonte_id == "verra")
                 & (gdf.certeza == "poligono_oficial")
                 & (gdf.situacao == "ativo")
-                & ~gdf.limite_amplo.astype(bool)
+                & ~gdf.limite_suspeito.astype(bool)
             )
         ),  # fmt: skip
+        "limites_suspeitos": sorted(
+            gdf.loc[gdf.limite_suspeito.astype(bool) & ~gdf.limite_amplo.astype(bool), "objeto_id"].unique().tolist()
+        )
+        if len(gdf)
+        else [],
         "limites_amplos": sorted(gdf.loc[gdf.limite_amplo.astype(bool), "objeto_id"].unique().tolist())
         if len(gdf)
         else [],

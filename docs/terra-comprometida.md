@@ -70,10 +70,24 @@ e o indício não conta a mesma terra de novo. Elas cobrem o que o registro deix
 `350f832`, sha256 dos quatro arquivos do shapefile; Zenodo: md5 e tamanho publicados). Arquivo mudou = coleta da
 fonte vira `indisponivel`, nunca terra livre.
 
-**Limite amplo.** Projetos agrupados e programas (ex.: VCS3380, VCS3713, VCS4137, VCS4849, VCS5184) publicam uma
-"área geográfica" de milhões de hectares. Estar dentro dela não é compromisso. Limite acima de 1 milhão de ha fica
-com `limite_amplo = true` no parquet, sai do cruzamento por CAR e do pacote do motor, e aparece em
-`limites_amplos` no manifesto.
+**Filtro de sanidade do tamanho.** Projetos agrupados e programas publicam uma "área geográfica" enorme (VCS3380 e
+VCS4137 têm ~210 milhões de ha; VCS4796, VCS5117, VCS5938 passam de 10 milhões). Estar dentro dela não é
+compromisso. Mas há REDD grande de verdade (VCS1811, ~909 mil ha, confirmado por três bases). Por isso dois degraus,
+e cada caso sai no log da coleta e no manifesto:
+
+| Área do limite | Coluna no parquet | Efeito |
+|---|---|---|
+| até 500 mil ha | — | normal |
+| mais de 500 mil ha | `limite_suspeito` | só indício: imóvel dentro fica `risco_sobreposicao`, nunca `ja_comprometida`; fora do pacote do motor; lista `limites_suspeitos` |
+| mais de 5 milhões de ha | `limite_amplo` | inválido como limite: fora de todo cruzamento e do motor; lista `limites_amplos` |
+
+**Municípios prontos recebem o status novo sem refazer o funil.** `projeto_carbono_ha` é calculado dentro do
+funil e só muda quando o município é reprocessado. A resposta que vale para o comprador é a tarefa `comprometida`
+(folha do grafo, depende só do funil): a versão dela mudou neste conserto (`comprometida-2026b`), então o
+`processar-estados.yml` põe todos os estados prontos na fila de manutenção e o executor refaz só
+`comprometida_<mun>.csv`, município por município. Coletas diárias seguintes entram pela assinatura dos limites
+(externa da tarefa) quando o estado roda de novo. Para refazer na mão, sem funil: `raiz comprometida baixar` e
+`raiz comprometida recalcular`.
 
 **Onde a tarefa lê os limites.** O `processar-estados.yml` baixa `comprometida_limites.parquet` e
 `comprometida_cobertura.json` do Release `insumos` para `motor/cache/comprometida/`. Antes não baixava, e a tarefa

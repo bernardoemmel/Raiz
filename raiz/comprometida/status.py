@@ -17,7 +17,8 @@ Regras:
   ja_comprometida: limite oficial e ativo cobre pelo menos 1 ha ou 5% do imóvel (imóvel pequeno conta pela fração).
   risco_sobreposicao: só indício (limite secundário: base científica, InfoAmazonia, REDD+ do Pará) ou limite oficial
     menor que isso (borda, erro de contorno).
-  Limite amplo (limite_amplo, mais de 1 milhão de ha: área geográfica de projeto agrupado) não entra no cruzamento.
+  Filtro de tamanho (coleta.py): limite_amplo (> 5 milhões de ha, área geográfica de agrupado) não entra no
+    cruzamento; limite_suspeito (> 500 mil ha) entra só como indício, mesmo se for KML oficial.
 Confirma sobreposição geométrica, não titularidade nem exclusividade do carbono (docs/terra-comprometida.md).
 Nunca nome, CPF ou proponente: só identificador público do projeto.
 """
@@ -62,6 +63,8 @@ def carregar_limites(pasta: Path | None = None):
     g = g.set_crs(4326) if g.crs is None else g.to_crs(4326)
     if "limite_amplo" in g.columns:  # coleta antiga não tem a coluna
         g = g[~g.limite_amplo.fillna(False).astype(bool)].reset_index(drop=True)
+    if "limite_suspeito" in g.columns:
+        g.loc[g.limite_suspeito.fillna(False).astype(bool), "certeza"] = "poligono_secundario"
     cob = json.loads(m.read_text(encoding="utf-8")).get("cobertura", [])
     return g, cob
 
