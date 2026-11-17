@@ -220,6 +220,7 @@ def test_api_inclui_ambos_lotes_so_quando_solicitado(monkeypatch):
     assert any("/retomar-lote-para.yml/" in u for u in consultados)
     assert any("/lote-para.yml/" in u for u in consultados)
     assert any("/desbloqueio-lote.yml/" in u for u in consultados)
+    assert any("/lote-nacional.yml/" in u for u in consultados)
 
 
 def test_falha_consulta_lote_nao_vira_zero(monkeypatch):
@@ -275,3 +276,13 @@ def test_fila_cheia_espera_vaga_sem_cancelar_ou_consumir_fila(monkeypatch):
     assert L.reservar(15, aguardar_minutos=1) == 1
     assert esperas == [30] and len(tentativas) == 2
     assert all(t["consumir_fila"] is False and t["limite"] == 15 for t in tentativas)
+
+
+def test_lote_nacional_tem_admissao_reconhecida(monkeypatch):
+    """O Lote nacional reserva a cota com o mesmo script; antes caía em "workflow do Lote não confirmado"."""
+    _ambiente(monkeypatch)
+    monkeypatch.setenv("GITHUB_JOB", "preparar")
+    monkeypatch.setenv("GITHUB_WORKFLOW_REF", "exemplo/raiz/.github/workflows/lote-nacional.yml@refs/heads/main")
+    assert L.contexto() == ("123", 2)
+    texto = (Path(__file__).parents[1] / ".github/workflows/lote-nacional.yml").read_text()
+    assert "scripts/reservar_lote.py --reservar" in texto

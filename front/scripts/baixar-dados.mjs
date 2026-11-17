@@ -104,12 +104,17 @@ function arquivoPermitido(nome, uf, geo) {
   return geo ? new RegExp(`^${uf}/geo_\\d{7}\\.parquet$`).test(nome)
     : new RegExp(`^${uf}/(resumo_${uf}|sem_imoveis_${uf}|imoveis_basicos_\\d{7})\\.csv$`).test(nome)
 }
-/** Repete somente a transferência GET; JSON, tar e o contrato são validados uma única vez depois. */
+/** Repete somente a transferência GET; JSON, tar e o contrato são validados uma única vez depois.
+ * 403 e 429 vêm do limite de downloads do GitHub (muitos pacotes em sequência no Actions) e passam
+ * em segundos: esperam mais (Retry-After quando vier) e têm mais tentativas que as falhas de rede. */
+const ESPERA_MS = Math.max(0, Number(process.env.RAIZ_DOWNLOAD_ESPERA_MS) || 1000)
+const LIMITADO = new Set([403, 429])
 async function baixarBytes(url, rotulo) {
   const endereco = new URL(url)
   if (!["http:", "https:"].includes(endereco.protocol)) throw new Error(`${rotulo}: endereço de download inválido`)
-  for (let tentativa = 1; tentativa <= 3; tentativa++) {
-    let resposta, falha
+  let maximo = 3
+  for (let tentativa = 1; tentativa <= maximo; tentativa++) {
+    let resposta, falha, espera = tentativa * ESPERA_MS
     try {
       resposta = await fetch(endereco, { redirect: "follow" })
       if (resposta.ok) return Buffer.from(await resposta.arrayBuffer())
@@ -118,11 +123,16 @@ async function baixarBytes(url, rotulo) {
       // Libera a conexão antes de tentar outra vez; o corpo de erro não é um pacote.
       await resposta.body?.cancel().catch(() => {})
       falha = new Error(`${rotulo}: HTTP ${resposta.status}`)
-      if (![408, 429].includes(resposta.status) && !(resposta.status >= 500 && resposta.status <= 599)) throw falha
+      if (![408, ...LIMITADO].includes(resposta.status) && !(resposta.status >= 500 && resposta.status <= 599)) throw falha
+      if (LIMITADO.has(resposta.status)) {
+        maximo = 5
+        const pedido = Number(resposta.headers.get("retry-after"))
+        espera = Number.isFinite(pedido) && pedido > 0 ? Math.min(pedido, 120) * 1000 : tentativa * 15 * ESPERA_MS
+      }
     }
-    if (tentativa === 3) throw falha
-    console.warn(`[dados] ${rotulo}: transferência interrompida; nova tentativa ${tentativa + 1}/3.`)
-    await new Promise((resolver) => setTimeout(resolver, tentativa * 1000))
+    if (tentativa >= maximo) throw falha
+    console.warn(`[dados] ${rotulo}: transferência interrompida; nova tentativa ${tentativa + 1}/${maximo}.`)
+    await new Promise((resolver) => setTimeout(resolver, espera))
   }
 }
 async function baixarEExtrair(url, uf, destino, geo = false, permiteVazio = false) {
