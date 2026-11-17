@@ -122,9 +122,10 @@ def _wfs(s: requests.Session, url: str, nome: str, cql: str | None) -> gpd.GeoDa
 
     c = wfs.Camada(url=url, nome=nome, versao="2.0.0", srs="EPSG:4674")
     campos = wfs.campos(s, c)
-    sem_geo = sorted(campos - {"geom", "geometry", "the_geom"})
-    # camada só com geometria (ex.: áreas autuadas de RO): sem sortBy, o GeoServer pagina na ordem da chave interna
-    ordem = next((k for k in CHAVES_ORDEM if k in campos), None) or (sem_geo[0] if sem_geo else None)
+    sem_geo = sorted(campos - {"geom", "geometry", "the_geom", "shape", "SHAPE"})
+    por_minuscula = {k.lower(): k for k in sorted(campos)}
+    ordem = next((por_minuscula[k.lower()] for k in CHAVES_ORDEM if k.lower() in por_minuscula), None)
+    ordem = ordem or (sem_geo[0] if sem_geo else None)
     if ordem is None:
         # visão sem chave primária (ex.: áreas autuadas de RO): o GeoServer não pagina; lê tudo de uma vez
         import io

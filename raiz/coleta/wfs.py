@@ -183,6 +183,8 @@ def paginas(
         if len(feats) < pagina:
             break
         inicio += pagina
+    if total == 0 and recebidas:
+        total = None  # GeoServer com totalFeatures 0 e feições na resposta (DataGEO): contagem não informada
     if total is not None and recebidas != total:
         raise LeituraIncompleta(f"{c.nome}: recebidas {recebidas} de {total} linhas")
 
