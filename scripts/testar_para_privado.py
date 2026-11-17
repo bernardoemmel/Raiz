@@ -120,12 +120,26 @@ class _SemRedirecionar(urllib.request.HTTPRedirectHandler):
         return None
 
 
-ESPERAS_TRANSITORIAS = 4
+ESPERAS_TRANSITORIAS = 6
 ESPERA_BASE_S = 10.0
+ESPERA_TOTAL_S = 15 * 60.0
 
 
 class _Transitoria(Exception):
     """Recusa temporária do GitHub; a mensagem pública continua sem detalhes da resposta."""
+
+    def __init__(self, codigo, cabecalhos):
+        super().__init__()
+        self.codigo, self.restante, self.espera = codigo, "?", None
+        if cabecalhos is None:
+            return
+        restante = str(cabecalhos.get("x-ratelimit-remaining") or "?")
+        self.restante = restante if restante.isdigit() else "?"
+        pedido, reset = str(cabecalhos.get("retry-after") or ""), str(cabecalhos.get("x-ratelimit-reset") or "")
+        if pedido.isdigit():
+            self.espera = float(pedido) + 1
+        elif self.restante == "0" and reset.isdigit():
+            self.espera = max(1.0, int(reset) - time.time() + 2)
 
 
 class ClientePrivado:
@@ -140,15 +154,22 @@ class ClientePrivado:
         self.opener = urllib.request.build_opener(_SemRedirecionar())
 
     def _abrir(self, endpoint: str, *, binario: bool = False):
-        # 403/429/5xx do GitHub em rajadas de downloads (limite secundário) passam em segundos;
-        # antes derrubavam o check referencia_para em ~1 de cada 7 rodadas. 401/404 não se repetem.
+        # 403/429/5xx do GitHub passam sozinhos: limite secundário (segundos) ou a cota horária do
+        # GITHUB_TOKEN, que é do repositório inteiro e acaba quando o motor roda muitos jobs. Espera o
+        # Retry-After ou o reset da cota (até ESPERA_TOTAL_S no total); 401/404 falham na hora.
+        prazo = time.monotonic() + ESPERA_TOTAL_S
         for repeticao in range(ESPERAS_TRANSITORIAS + 1):
             try:
                 return self._abrir_uma_vez(endpoint, binario=binario)
-            except _Transitoria:
-                if repeticao == ESPERAS_TRANSITORIAS:
+            except _Transitoria as recusa:
+                espera = recusa.espera if recusa.espera is not None else ESPERA_BASE_S * (repeticao + 1)
+                restante = prazo - time.monotonic()
+                # Só o código e a cota restante: nenhum corpo, URL ou cabeçalho com credencial.
+                print(f"GitHub recusou temporariamente (HTTP {recusa.codigo}, cota restante {recusa.restante}); "
+                      f"nova tentativa em {min(espera, max(restante, 0)):.0f} s.", file=sys.stderr, flush=True)
+                if repeticao == ESPERAS_TRANSITORIAS or restante <= 0:
                     break
-                time.sleep(ESPERA_BASE_S * (repeticao + 1))
+                time.sleep(min(espera, restante))
         raise FalhaPrivada("FALHA: acesso autenticado ao snapshot privado recusado.")
 
     def _abrir_uma_vez(self, endpoint: str, *, binario: bool = False):
@@ -174,10 +195,10 @@ class ClientePrivado:
                         url = urllib.parse.urljoin(url, erro.headers["Location"])
                         continue
                     if erro.code in (403, 408, 429) or 500 <= erro.code <= 599:
-                        raise _Transitoria() from None
+                        raise _Transitoria(erro.code, erro.headers) from None
                 raise FalhaPrivada("FALHA: acesso autenticado ao snapshot privado recusado.") from None
             except (urllib.error.URLError, TimeoutError, ConnectionError):
-                raise _Transitoria() from None
+                raise _Transitoria("rede", None) from None
         raise FalhaPrivada("FALHA: redirecionamento do download privado recusado.")
 
     def _api(self, endpoint: str) -> dict:

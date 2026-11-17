@@ -126,6 +126,25 @@ def test_recusa_transitoria_do_github_e_repetida_com_credencial(monkeypatch):
     assert len(pedidos) == 3 and all(pedidos)
 
 
+def test_cota_esgotada_espera_o_reset_informado(monkeypatch):
+    esperas = []
+    monkeypatch.setattr(P.time, "sleep", esperas.append)
+    monkeypatch.setattr(P.time, "time", lambda: 1000.0)
+    cliente = _cliente()
+    pedidos = []
+
+    def abrir(pedido, timeout):
+        pedidos.append(1)
+        if len(pedidos) == 1:
+            raise urllib.error.HTTPError("https://api.github.com", 403, SEGREDO,
+                                         {"x-ratelimit-remaining": "0", "x-ratelimit-reset": "1120"}, io.BytesIO())
+        return io.BytesIO(b"{}")
+
+    cliente.opener = SimpleNamespace(open=abrir)
+    assert cliente._api("releases/1") == {}
+    assert esperas == [122.0]
+
+
 def test_404_nao_e_repetido(monkeypatch):
     monkeypatch.setattr(P, "ESPERA_BASE_S", 0)
     cliente = _cliente()
