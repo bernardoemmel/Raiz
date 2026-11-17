@@ -190,8 +190,19 @@ def limpar(g: gpd.GeoDataFrame, f: dict) -> gpd.GeoDataFrame:
     g = g[[*dict.fromkeys(manter), "geometry"]].copy()
     for c in manter:
         if g[c].dtype == object:
-            g[c] = g[c].map(lambda v: mascarar(v) if isinstance(v, str) else v)
+            g[c] = g[c].map(_sem_documento)
     return g
+
+
+def _sem_documento(v):
+    """Máscara de CPF/CNPJ em texto; código que coincide com um CPF ou CNPJ válido (número de processo, auto)
+    vira vazio: na dúvida, perde-se o código, nunca se publica um documento."""
+    from raiz.privacidade import documento_em_identificador
+
+    if not isinstance(v, str):
+        return v
+    v = mascarar(v)
+    return None if documento_em_identificador(v) else v
 
 
 def _ano(v) -> float:
@@ -407,6 +418,7 @@ def coletar_fonte(s: requests.Session, f: dict, hoje: dt.date | None = None) -> 
     for c in g.columns:  # páginas e anos diferentes trazem tipos misturados (data como texto e como data)
         if c != "geometry" and (g[c].dtype == object or str(g[c].dtype).startswith("datetime")):
             g[c] = g[c].map(lambda v: None if v is None or (not isinstance(v, str) and pd.isna(v)) else str(v))
+            g[c] = g[c].map(_sem_documento)
     g = _raio(classificar(g, f, hoje), f.get("raio_m"))
     g.insert(0, "fonte_id", f["id"])
     n = len(camadas_da_fonte(f))
