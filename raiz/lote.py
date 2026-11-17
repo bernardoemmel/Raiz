@@ -660,6 +660,8 @@ def decisoes_selecao(
             motivos.append(f"restrição nacional: {li.get('restricao_motivos')}")
         if li.get("complementar_status") == "exclusao":
             motivos.append(f"fonte complementar: {li.get('complementar_motivos')}")
+        if li.get("estadual_status") == "exclusao":
+            motivos.append(f"fonte estadual: {li.get('estadual_motivos')}")
         for ex in sel["ped"].exclusoes:
             if li.get(ex):
                 motivos.append(ex)
@@ -755,6 +757,30 @@ def restricoes_do_lote(lote: pd.DataFrame) -> dict:
     return _item("ok" if not len(res) and not sem else "pendente", " ".join(partes))
 
 
+def estaduais_do_lote(lote: pd.DataFrame) -> dict:
+    """Embargos, autos, UCs, restauração e PSA já registrados, terras devolutas e bloqueios de matrícula dos Estados
+    nas fazendas do lote (raiz/estaduais/cruzamento.py). Exclusão já saiu (bloqueio); aqui ficam as ressalvas, o que
+    não foi verificado e o que a pessoa precisa conferir à mão."""
+    if "estadual_status" not in lote or not len(lote):
+        return _item("pendente", "fontes estaduais ainda não calculadas nestes municípios (embargos e autos "
+                                 "estaduais, UCs, PSA, terras devolutas, bloqueios de matrícula): conferir antes "
+                                 "de contratar")  # fmt: skip
+    st = lote.estadual_status
+    sem = int(st.isna().sum() + (st == "nao_verificado").sum())
+    res = lote[st == "ressalva"]
+    motivos = res.estadual_motivos.dropna().str.split("|").explode().value_counts() if len(res) else pd.Series()
+    partes = [f"{_br(len(res))} fazendas com ressalva estadual"] if len(res) else ["nenhuma ressalva estadual"]
+    if len(motivos):
+        partes.append("(" + ", ".join(f"{k}: {int(v)}" for k, v in motivos.items()) + ")")
+    if sem:
+        partes.append(f"; {_br(sem)} sem verificação completa")
+    conferir = lote.get("estadual_conferir")
+    itens = conferir.dropna().str.split("|").explode().unique() if conferir is not None else []
+    if len(itens):
+        partes.append("; conferir à mão: " + ", ".join(sorted(itens)))
+    return _item("ok" if not len(res) and not sem and not len(itens) else "pendente", " ".join(partes))
+
+
 def ambiental_do_lote(lote: pd.DataFrame) -> dict:
     """Reserva legal pela vegetação do IBGE, Lei da Mata Atlântica, TerraClass e APP de relevo do ANADEM nas fazendas
     do lote (raiz/ambiental/status.py). Nada aqui tira a fazenda do lote: são ressalvas para a validação humana."""
@@ -842,6 +868,7 @@ def checagens(res: dict, tabela: pd.DataFrame, c: dict, r: dict) -> dict[str, di
     out["restricoes_nacionais"] = restricoes_do_lote(lote)
     out["fontes_complementares"] = complementares_do_lote(lote)
     out["cnib_saec"] = cnib_saec_do_lote(lote)
+    out["fontes_estaduais"] = estaduais_do_lote(lote)
     out["vegetacao_relevo"] = ambiental_do_lote(lote)
     out["metodologia"] = _item("ok", "VM0047 v1.1 da Verra, aprovada pelo ICVCM (CCP)")
     out["creditos_liquidos"] = _item(

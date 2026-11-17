@@ -29,7 +29,7 @@ _SHA = re.compile(r"[a-f0-9]{64}")
 _UFS = set("AC AL AP AM BA CE DF ES GO MA MT MS MG PA PB PR PE PI RJ RN RS RO RR SC SP SE TO".split())
 _CSV = set(
     "imoveis filtros direto mapbiomas extras extras_direto flag terra titulo regularizacao "
-    "achados ficha rebanho desenvolvedor certidoes jurisdicional comprometida restricoes ambiental "
+    "achados ficha rebanho desenvolvedor certidoes jurisdicional comprometida restricoes estaduais ambiental "
     "complementares".split()
 )
 

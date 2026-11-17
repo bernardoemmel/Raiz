@@ -31,7 +31,9 @@ COLUNAS = (
     "elegivel", "restauracao_versao", "cambio", "regeneracao_ha", "semeadura_ha", "plantio_ha", "vazamento_motivo",
     "vazamento_mitigacao_imovel", "regularizacao_classe", "salvaguardas", "elegivel_sem_salvaguardas",
     "car_conferido_em", "car_conferencia", "car_situacao", "car_geometria_alterada", "restricao_nacional",
-    "restricao_exclusao", "restricao_ressalva", "restricao_motivos", "complementar_status", "complementar_motivos",
+    "restricao_exclusao", "restricao_ressalva", "restricao_motivos", "estadual_status", "estadual_exclusao",
+    "estadual_ressalva", "estadual_motivos", "estadual_conferir", "estadual_ressalva_ha",
+    "complementar_status", "complementar_motivos",
     "ambiental_status", "ambiental_motivos", "pct_RL_vegetacao",
 )  # fmt: skip
 
@@ -119,6 +121,10 @@ def de_linha(linha: dict, lon: float | None = None, lat: float | None = None) ->
     complementar = linha.get("complementar_status") if isinstance(linha.get("complementar_status"), str) else None
     if complementar == "exclusao":
         bloqueio = True
+    # fontes estaduais (raiz/estaduais/cruzamento.py): mesma regra, exclusão sai e ressalva fica marcada
+    estadual = linha.get("estadual_status") if isinstance(linha.get("estadual_status"), str) else None
+    if estadual == "exclusao":
+        bloqueio = True
     from raiz.salvaguardas import avaliar
 
     elegivel_sem_salvaguardas = area > 0 and caminho is not None and caminho_terra not in NAO_ORIGINA and not bloqueio
@@ -197,6 +203,15 @@ def de_linha(linha: dict, lon: float | None = None, lat: float | None = None) ->
         "complementar_motivos": linha.get("complementar_motivos")
         if isinstance(linha.get("complementar_motivos"), str)
         else None,
+        # nulo = fontes estaduais ainda não calculadas no município (nunca vira "livre")
+        "estadual_status": estadual,
+        "estadual_exclusao": (estadual == "exclusao") if estadual else None,
+        "estadual_ressalva": (estadual == "ressalva") if estadual else None,
+        **{
+            c: linha.get(c) if isinstance(linha.get(c), str) else None
+            for c in ("estadual_motivos", "estadual_conferir")
+        },
+        "estadual_ressalva_ha": _num(linha.get("estadual_ressalva_ha")),
         # vegetação e relevo (raiz/ambiental): só ressalva, nunca bloqueio; nulo = tarefa ainda não rodou no município
         **_ambiental(linha),
     }

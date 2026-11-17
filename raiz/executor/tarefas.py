@@ -73,6 +73,8 @@ CODIGO = {
     "restricoes": ("raiz/restricoes/status.py", "raiz/restricoes/coleta.py"),
     # fontes complementares (SICOR, quilombolas IBGE/Palmares, MPF, Observatório e Restor): também folha
     "complementares": ("raiz/complementares/status.py", "raiz/complementares/coleta.py"),
+    # fontes estaduais (embargos, autos, UCs, PSA, terras devolutas, bloqueios de matrícula): também folha
+    "estaduais": ("raiz/estaduais/cruzamento.py", "raiz/estaduais/coleta.py"),
     # vegetação e relevo (RL pelo mapa do IBGE, Lei da Mata Atlântica, TerraClass, APP de relevo do ANADEM): folha
     "ambiental": (
         "raiz/ambiental/status.py",
@@ -96,6 +98,7 @@ DEPENDE = {
     "comprometida": ("funil",),
     "restricoes": ("funil",),
     "complementares": ("funil",),
+    "estaduais": ("funil",),
     "ambiental": ("funil", "mapbiomas"),
     "desenvolvedor": ("funil", "filtros", "mapbiomas", "direto", "ficha", "terra", "rebanho", "ambiental"),
 }
@@ -113,6 +116,7 @@ SAIDAS = {
     "comprometida": ("comprometida_{cod}.csv",),
     "restricoes": ("restricoes_{cod}.csv",),
     "complementares": ("complementares_{cod}.csv",),
+    "estaduais": ("estaduais_{cod}.csv",),
     "ambiental": ("ambiental_{cod}.csv",),
     "desenvolvedor": ("desenvolvedor_{cod}.csv",),
 }
@@ -162,6 +166,10 @@ def versao(nome: str) -> str:
         from raiz.complementares import status as complementares_status
 
         extra = complementares_status.versao()
+    elif nome == "estaduais":
+        from raiz.estaduais import cruzamento
+
+        extra = cruzamento.versao()
     elif nome == "ambiental":
         from raiz.ambiental import status as ambiental_status
 
@@ -329,6 +337,10 @@ def externas(nome: str):
             from raiz.complementares import status as complementares_status
 
             return {"camadas": complementares_status.assinatura()}
+        if nome == "estaduais":
+            from raiz.estaduais import cruzamento
+
+            return {"camadas": cruzamento.assinatura()}
         if nome == "ambiental":
             from raiz.ambiental import status as ambiental_status
 
@@ -399,6 +411,21 @@ def rodar_complementares(uf: str, cod: int, pasta: Path) -> None:
     status.escrever_municipio(pasta, int(cod), camadas=_CAMADAS_COMPLEMENTARES[1])
 
 
+_CAMADAS_ESTADUAIS = None
+
+
+def rodar_estaduais(uf: str, cod: int, pasta: Path) -> None:
+    """Cruza os CAR do município com as fontes estaduais (raiz/estaduais). Folha como a "restricoes"; a coleta é
+    lida uma vez por processo e reaproveitada enquanto a assinatura não muda."""
+    global _CAMADAS_ESTADUAIS
+    from raiz.estaduais import cruzamento
+
+    marca = cruzamento.assinatura()
+    if _CAMADAS_ESTADUAIS is None or _CAMADAS_ESTADUAIS[0] != marca:
+        _CAMADAS_ESTADUAIS = (marca, cruzamento.Camadas())
+    cruzamento.escrever_municipio(pasta, int(cod), camadas=_CAMADAS_ESTADUAIS[1], uf=(uf or "").upper() or None)
+
+
 _CAMADAS_AMBIENTAL = None
 
 
@@ -417,6 +444,7 @@ def rodar_ambiental(uf: str, cod: int, pasta: Path) -> None:
 _RODAR_PROPRIO = {
     "comprometida": rodar_comprometida,
     "restricoes": rodar_restricoes,
+    "estaduais": rodar_estaduais,
     "ambiental": rodar_ambiental,
     "complementares": rodar_complementares,
 }
