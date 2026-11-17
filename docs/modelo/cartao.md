@@ -24,7 +24,7 @@ As regras de referência estão em
 [`restauracao.yaml`](https://github.com/bernardoemmel/Raiz/blob/main/raiz/regras/padroes/restauracao.yaml),
 [`ghg_lsr.yaml`](https://github.com/bernardoemmel/Raiz/blob/main/raiz/regras/padroes/ghg_lsr.yaml) e
 [`caminho_terra.yaml`](https://github.com/bernardoemmel/Raiz/blob/main/raiz/regras/padroes/caminho_terra.yaml).
-Os nomes de referência atuais são `restauracao-2026d`, `ghg-lsr-1.1` e `caminho-terra-2026a`;
+Os nomes de referência atuais são `restauracao-2026d`, `ghg-lsr-1.1` e `caminho-terra-2026b`;
 o hash registrado no arquivo identifica a versão efetivamente usada. Uma atualização do código não altera a
 proveniência de uma previsão antiga.
 

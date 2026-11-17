@@ -3,8 +3,8 @@
 # arquivo + hash (terra_regra_versao); mudou a regra, `raiz terra recalcular` refaz.
 #
 # Cuidados de texto: nunca chamar posse de propriedade; nada de nome ou CPF.
-versao: caminho-terra-2026a
-adotado_em: "2026-11-12"
+versao: caminho-terra-2026b  # 2026b: sem SIGEF no espelho, a matrícula vem da tabela de imóveis
+adotado_em: "2026-11-17"
 
 # Base legal conferida pelo fundador (12/11/2026). Vai também para docs/colunas.md junto das colunas.
 base_legal:

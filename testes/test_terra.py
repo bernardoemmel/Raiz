@@ -265,3 +265,49 @@ def test_urtx_poligono_exato_classifica_o_imovel(tmp_path, monkeypatch):
     assert dentro["terra_concessao"] == "ur_triunfo_do_xingu" and dentro["terra_concessao_link"].startswith("https")
     fora = T.caminho({"cod_imovel": "ESTRADA", "uf": "PA", "ha": ha, **por["ESTRADA"]})
     assert fora["caminho_terra"] != "publica_concessao"
+
+
+# --- sem SIGEF no espelho: nunca apagar a matrícula (auditoria 17/11/2026) ---------------------------------------
+
+
+def test_sem_sigef_no_espelho_nao_apaga_matricula():
+    im = gpd.GeoDataFrame({"cod_imovel": ["M", "P"]}, geometry=[_quadrado(-47.0, -2.0), _quadrado(-46.9, -2.0)],
+                          crs=4674)  # fmt: skip
+    por = T.sobreposicoes(im, None, {})
+    for v in por.values():
+        assert v["terra_sigef_disponivel"] is False
+        assert all(v[c] is None for c in T.SIGEF_COLUNAS)  # vazio, nunca 0
+        assert v["terra_publica_ha"] == 0  # as camadas continuam medidas
+    ha = im.to_crs(5880).area.iloc[0] / 1e4
+    m = T.caminho(_linha(cod_imovel="M", ha=ha, matricula_ha=0.9 * ha, f_matricula=0.9, sigef_ha=ha, **por["M"]))
+    assert m["caminho_terra"] == "privada_matricula" and m["terra_fonte"] == "sobreposicao_sem_sigef"
+    assert "tabela de imóveis" in m["caminho_terra_motivo"]
+    p = T.caminho(_linha(cod_imovel="P", ha=ha, **por["P"]))
+    assert p["caminho_terra"] == "posse_em_titulacao"
+
+
+def test_arquivo_antigo_com_zeros_usa_a_matricula_do_motor():
+    zeros = {c: 0.0 for c in T.SIGEF_COLUNAS}
+    antigo = _linha(matricula_ha=80, f_matricula=0.8, sigef_ha=85, terra_publica_ha=0.0, **zeros)
+    assert not T.sigef_medido(antigo)
+    assert T.caminho(antigo)["caminho_terra"] == "privada_matricula"
+    # SIGEF medido de verdade (coluna nova): a medida do espelho vale, mesmo divergindo do motor
+    medido = {**antigo, "terra_sigef_disponivel": True}
+    assert T.sigef_medido(medido) and T.caminho(medido)["caminho_terra"] == "posse_em_titulacao"
+    # e o motor também sem SIGEF: zeros continuam valendo (posse)
+    assert T.sigef_medido(_linha(terra_publica_ha=0.0, **zeros))
+
+
+def test_municipio_sem_sigef_no_espelho(tmp_path):
+    pasta = tmp_path / "PA"
+    pasta.mkdir()
+    for f in ("imoveis", "filtros"):
+        shutil.copy(AMOSTRA / f"{f}_1504950.csv", pasta / f"{f}_1504950.csv")
+    im = pd.read_csv(pasta / "imoveis_1504950.csv", low_memory=False)
+    geo = [_quadrado(-52.0 + 0.02 * (i % 50), -6.5 + 0.02 * (i // 50)) for i in range(len(im))]
+    gpd.GeoDataFrame({"cod_imovel": im.cod_imovel.astype(str)}, geometry=geo, crs=4674).to_parquet(
+        pasta / "geo_1504950.parquet")  # fmt: skip
+    t = T.calcular_municipio(pasta, 1504950, espelho=tmp_path / "espelho_vazio")
+    assert (~t.terra_sigef_disponivel.astype(bool)).all() and t.terra_sigef_registrada_ha.isna().all()
+    assert (t.caminho_terra == "privada_matricula").sum() >= 0.9 * (im.f_matricula >= 0.5).sum()
+    assert (t.caminho_terra == "posse_em_titulacao").mean() < 0.95

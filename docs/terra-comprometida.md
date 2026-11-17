@@ -103,3 +103,34 @@ acima). Publicá-los no Release aberto `insumos` foi decisão do fundador, para 
 decisão mudar, basta apagar os três arquivos do Release e pôr o `projetos_carbono.tar.gz` no armazém privado.
 Berkeley e Zenodo (CC BY 4.0) levam atribuição no manifesto. Fora do escopo: Gold Standard, averbação na matrícula
 e cota vendida.
+
+## Caminho da terra sem SIGEF no espelho (correção de 17/11/2026)
+
+**O problema.** A etapa `terra` (raiz/terra.py) mede a sobreposição do CAR com o SIGEF do espelho
+(`sigef/<UF>/<mun>.parquet`). O funil não depende desse arquivo: quando ele falta, o motor baixa o SIGEF pela caixa
+do município e grava `matricula_ha`, `sigef_ha` e `f_matricula` na tabela de imóveis. A etapa de terra, sem o
+arquivo, gravava **0** em todas as colunas `terra_sigef_*_ha`, e o 0 medido ganhava da coluna do motor. Resultado no
+Pará: 98,8% dos imóveis viraram `posse_em_titulacao` e nenhum `privada_matricula`, embora o motor mostrasse quase
+38 mil com matrícula; essas fazendas saíam do lote (só a privada com matrícula é pronta agora).
+
+**A regra agora (caminho-terra-2026b).**
+
+- Falta de SIGEF nunca apaga matrícula. Sem o SIGEF do espelho, `terra_sigef_*_ha` ficam **vazias** (nunca 0) e a
+  nova coluna `terra_sigef_disponivel` fica `False`.
+- Sem SIGEF medido, matrícula, posse e assentamento vêm da tabela de imóveis do motor (`matricula_ha`, ou
+  `f_matricula × ha`; `sigef_ha`; `assentamento_ha`), a fonte mais confiável nesse caso. As camadas que não dependem
+  do SIGEF (florestas públicas, UC, terras indígenas, quilombos, concessões) continuam medidas.
+- `terra_fonte` ganha o valor `sobreposicao_sem_sigef` (camadas medidas, matrícula do motor), e o motivo da privada
+  com matrícula diz "cobertura da tabela de imóveis do motor".
+- Arquivos `terra_<mun>.csv` antigos (sem `terra_sigef_disponivel`) com todas as `terra_sigef_*_ha` em 0, num imóvel
+  onde o motor achou SIGEF ou matrícula, são lidos como "SIGEF ausente", não como "sem matrícula".
+- Com o SIGEF medido de verdade (`terra_sigef_disponivel = True`), a medida do espelho continua valendo.
+- A etapa avisa no log quando um município rodou sem SIGEF e devolve `sem_sigef` no resumo.
+
+**Reprocessamento.** Só a etapa `terra` (e o que lê a saída dela, se mudar) roda de novo: a versão da tarefa é o
+hash de raiz/terra.py mais a versão da regra, que subiu para `caminho-terra-2026b`. O funil dos municípios prontos
+não é refeito. Para refazer só a terra à mão: `raiz terra recalcular --ufs PA`.
+
+**Teste.** `testes/test_terra.py` cobre o município da amostra (1504950) rodando sem SIGEF no espelho: antes da
+correção, 880 de 880 imóveis saíam como posse; agora os 55 com matrícula em metade do CAR ou mais voltam a
+`privada_matricula` e os 57 lotes de assentamento voltam a `assentamento`.
