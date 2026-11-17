@@ -172,16 +172,17 @@ export const INTERESSE = {
 
 /** Visual V2 exclusivo do globo; não modifica a paleta clara usada pelo produtor. */
 export const COR_MAPA_V2 = {
-  terra: "#111815", agua: "#0A0F0E", estado: "#3A4A42", pais: "#56665D",
-  rotulo: "#8E9A92", texto: "#EEF2EC", destaque: "#C9E88F", acao: "#E8713A", rio: "#3B5A58",
+  terra: "#F1F2EE", agua: "#CADDE6", estado: "#8FA88C", pais: "#A9B0A8", brasil: "#DCEAD6",
+  rotulo: "#15231B", texto: "#FFFFFF", destaque: "#E4F2A8", acao: "#E8713A", rio: "#7FAFC4",
   /** fazenda já comprometida com projeto de carbono ou concessão (raiz/comprometida): cinza, sem chamar atenção */
   comprometida: "#7A827D",
 } as const
-export const CORES_H3_V2 = ["#163A2A", "#1E5E3C", "#2C8050", "#49A363", "#7CC47A", "#C9E88F"] as const
+/** Sobre o satélite: do verde médio ao lima, translúcidos (camadas-hexagonos.ts), para o terreno continuar visível. */
+export const CORES_H3_V2 = ["#2E6B47", "#3F8A55", "#5DA862", "#86C47A", "#B5DD8F", "#E4F2A8"] as const
 
-/** ECharts e Vega recebem cores explícitas; esta paleta acompanha o tema escuro somente no analista. */
+/** ECharts e Vega recebem cores explícitas; esta paleta acompanha o tema claro do analista. */
 export const COR_GRAFICO_V2 = {
-  fundo: "#0D1311", texto: "#EEF2EC", secundario: "#8E9A92", grade: "#26312C",
-  contratado: "#8E9A92", emitido: "#8CC5E9", entregue: "#7CC47A",
-  faixa: "#7CC47A", mediana: "#C9E88F", observado: "#F48A59",
+  fundo: "#FFFFFF", texto: "#15231B", secundario: "#555D56", grade: "#E7EAE4",
+  contratado: "#555D56", emitido: "#1D69A6", entregue: "#1D6B44",
+  faixa: "#5FA36E", mediana: "#16543A", observado: "#C2521A",
 } as const

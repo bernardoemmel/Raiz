@@ -1,4 +1,4 @@
-import { SITUACOES_BASICAS, type SituacaoBasica } from "../../../compartilhado/dados/basico"
+import type { SituacaoBasica } from "../../../compartilhado/dados/basico"
 import { lazy, Suspense, useEffect, useMemo, useRef, useState, type CSSProperties } from "react"
 import { codigosEmLeilao } from "../../../compartilhado/calendario"
 import { calendario } from "../calendario"
@@ -12,7 +12,7 @@ import { useProcessamentoEstados } from "../processamento-estados"
 import { destinoTerritorialMapa, type FocoTerritorialMapa } from "../rota"
 import type { Geo } from "../../../compartilhado/dados"
 import { contarCobertura } from "../../../compartilhado/dados/cobertura-mapa"
-import { Layers, X, ChevronDown } from "lucide-react"
+import { X } from "lucide-react"
 import type { LegendaHexagonos } from "../mapa/hexagonos"
 import { prepararContextoMapa } from "../mapa/preparar-contexto"
 import { CartaoTerritorioV2 } from "../partes/CartaoTerritorioV2"
@@ -20,6 +20,8 @@ import { RotuloMono } from "../partes/RotuloMono"
 import type { SelecaoPedidoMapaV2 } from "../partes/pedido/PainelPedidoMapaV2"
 import type { Pedido } from "../../../compartilhado/pedidos/tipos"
 import { sessaoPedidos, useSessao } from "../sessao"
+import { PainelFiltrosMapa, ROTULO_OFERTA, type Bioma, type Oferta, type TipoArea } from "../partes/PainelFiltrosMapa"
+import { SATELITE_PUBLICO } from "../mapa/satelite-publico"
 import "./explorar-v2.css"
 
 const PainelBrasil = lazy(() => import("../partes/PainelBrasil").then(m => ({ default: m.PainelBrasil })))
@@ -36,7 +38,30 @@ const MapaBrasil = lazy(async () => {
 const PainelMunicipio = lazy(() => import("../partes/PainelMunicipio").then((m) => ({ default: m.PainelMunicipio })))
 const PainelMunicipioBasico = lazy(() => import("../partes/PainelMunicipioBasico").then((m) => ({ default: m.PainelMunicipioBasico })))
 
-/** Mapa contínuo, com controles e resumos sobrepostos. Dados extensos só abrem sob demanda. */
+/** Ponto dentro de Polygon ou MultiPolygon (par-ímpar, anéis internos incluídos). */
+function dentroDe([x, y]: [number, number], g: Geo["features"][number]["geometry"]): boolean {
+  const poligonos = (g.type === "Polygon" ? [g.coordinates] : g.type === "MultiPolygon" ? g.coordinates : []) as number[][][][]
+  let dentro = false
+  for (const aneis of poligonos) for (const anel of aneis)
+    for (let i = 0, j = anel.length - 1; i < anel.length; j = i++) {
+      const [xi, yi] = anel[i], [xj, yj] = anel[j]
+      if ((yi > y) !== (yj > y) && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) dentro = !dentro
+    }
+  return dentro
+}
+
+function useMedia(consulta: string) {
+  const [ativa, setAtiva] = useState(() => matchMedia(consulta).matches)
+  useEffect(() => {
+    const media = matchMedia(consulta)
+    const mudar = () => setAtiva(media.matches)
+    media.addEventListener("change", mudar)
+    return () => media.removeEventListener("change", mudar)
+  }, [consulta])
+  return ativa
+}
+
+/** Mapa de satélite em tela cheia, filtros à esquerda, legenda embaixo. Dados extensos só abrem sob demanda. */
 export function Explorar({ municipio: municipioRota, uf: ufRota, pedidoId }: { municipio: string | null; uf: string | null; pedidoId?: string }) {
   const [focoNoPedido, setFocoNoPedido] = useState<FocoTerritorialMapa>({ municipio: null, uf: null })
   const municipio = pedidoId ? focoNoPedido.municipio : municipioRota
@@ -108,10 +133,31 @@ export function Explorar({ municipio: municipioRota, uf: ufRota, pedidoId }: { m
   const [margem, setMargem] = useState(0)
   const [margemDireita, setMargemDireita] = useState(0)
   const [areaDesenhada, setAreaDesenhada] = useState<Geo | null>(null)
-  const [avisoFiltro, setAvisoFiltro] = useState("")
   const dadosDialogo = useRef<HTMLDialogElement>(null)
-  const camadasDialogo = useRef<HTMLDialogElement>(null)
-  const filtrosDialogo = useRef<HTMLDialogElement>(null)
+  const celular = useMedia("(max-width: 700px)")
+  const [filtrosAbertos, setFiltrosAbertos] = useState(() => !matchMedia("(max-width: 700px)").matches && innerHeight >= 760)
+  const [bioma, setBioma] = useState<Bioma | null>(null)
+  const [areasOcultas, setAreasOcultas] = useState<ReadonlySet<TipoArea>>(new Set())
+  const [oferta, setOferta] = useState<Oferta>("aptas")
+  // Bioma de cada município pela sede (IBGE): carregado só quando a pessoa escolhe um bioma.
+  const biomaDosMunicipios = useCarga<Map<string, string> | null>(async () => {
+    if (!bioma) return null
+    const base = import.meta.env.BASE_URL + "mapa/"
+    const [sedes, todos] = await Promise.all([fetch(base + "sedes_municipios.json").then(r => r.json()) as Promise<Record<string, [number, number]>>, fetch(base + "biomas.geojson").then(r => r.json()) as Promise<Geo>])
+    const mapa = new Map<string, string>()
+    for (const [cod, ponto] of Object.entries(sedes)) {
+      const achado = todos.features.find(f => dentroDe(ponto, f.geometry))
+      if (achado) mapa.set(cod, String(achado.properties.nome))
+    }
+    return mapa
+  }, [Boolean(bioma)])
+  const biomas = useCarga<Geo | null>(async () => {
+    if (!bioma) return null
+    const r = await fetch(import.meta.env.BASE_URL + "mapa/biomas.geojson")
+    if (!r.ok) throw new Error("Contorno dos biomas indisponível.")
+    const todos = await r.json() as Geo
+    return { type: "FeatureCollection", features: todos.features.filter(f => f.properties.nome === bioma) }
+  }, [bioma])
   const cartao = useRef<HTMLDivElement>(null)
   const arraste = useRef<number | null>(null)
   useEffect(() => { dadosDialogo.current?.close() }, [municipio, uf])
@@ -123,7 +169,7 @@ export function Explorar({ municipio: municipioRota, uf: ufRota, pedidoId }: { m
     const aplicarMargens = () => {
       const celular = matchMedia("(max-width: 700px)").matches
       setMargem(celular && !pedidoAberto ? alturaCartao + 8 : 0)
-      setMargemDireita(!celular && pedidoAberto ? 462 : 0)
+      setMargemDireita(!celular ? pedidoAberto ? 462 : 400 : 0)
     }
     aplicarMargens()
     // O navegador entrega a medida após o layout; não força uma leitura síncrona
@@ -164,34 +210,48 @@ export function Explorar({ municipio: municipioRota, uf: ufRota, pedidoId }: { m
   const funilAtual = funil.dado?.cod_ibge === municipio ? funil.dado : null
   const nomeMunicipio = funilAtual?.municipio ?? String(feicao?.properties.nome ?? municipio ?? "Município")
   const carregandoFunilAtual = funil.carregando || Boolean(funil.dado && !funilAtual)
-  const nome = municipio ? `Brasil / ${UFS[ufFoco ?? ""] ?? ufFoco ?? ""} / ${nomeMunicipio}` : ufExibida ? `Brasil / ${UFS[ufExibida] ?? ufExibida}` : "Brasil"
-  const resumo = useMemo(() => municipio ? (carregandoFunilAtual ? undefined : funilAtual ? [funilAtual] : []) : municipios.dado?.filter(m => !ufExibida || m.uf === ufExibida), [municipio, funilAtual, carregandoFunilAtual, municipios.dado, ufExibida])
+  const nome = municipio ? `Brasil / ${UFS[ufFoco ?? ""] ?? ufFoco ?? ""} / ${nomeMunicipio}` : ufExibida ? `Brasil / ${UFS[ufExibida] ?? ufExibida}${bioma ? ` / ${bioma}` : ""}` : bioma ? `Brasil / ${bioma}` : "Brasil"
+  // Os filtros recortam a oferta: estado e bioma tiram municípios; a situação muda o que cada bola soma.
+  const municipiosFiltrados = useMemo(() => municipios.dado?.filter(m => (!ufExibida || m.uf === ufExibida)
+    && (!bioma || biomaDosMunicipios.dado?.get(m.cod_ibge) === bioma)), [municipios.dado, ufExibida, bioma, biomaDosMunicipios.dado])
+  const resumo = useMemo(() => municipio ? (carregandoFunilAtual ? undefined : funilAtual ? [funilAtual] : []) : municipiosFiltrados, [municipio, funilAtual, carregandoFunilAtual, municipiosFiltrados])
+  const oportunidades = useMemo(() => bioma && !biomaDosMunicipios.dado ? null : municipiosFiltrados?.map(m => ({ cod_ibge: m.cod_ibge, uf: m.uf,
+    aptas: oferta === "matricula" ? m.aptas_com_matricula : oferta === "agrupar" ? m.para_agrupar : m.aptas_carbono,
+    ha: oferta === "matricula" ? m.ha_carbono_matricula : oferta === "agrupar" ? -1 : m.ha_carbono })) ?? null, [municipiosFiltrados, oferta, bioma, biomaDosMunicipios.dado])
   const contagem = coberturaMapa.dado ? contarCobertura(coberturaMapa.dado) : null
-  const abrirFiltro = (mensagem: string) => { setAvisoFiltro(mensagem); filtrosDialogo.current?.showModal() }
-  const filtros = <>
-    <button className="topo-pilula filtro-v2" onClick={() => abrirFiltro("Os agregados publicados ainda não têm bioma por célula. Para fazer um pedido por bioma, use os critérios do pedido.")}>Bioma <span>todos</span><ChevronDown size={12} /></button>
-    <button className="topo-pilula filtro-v2" onClick={() => abrirFiltro(municipio ? "Filtre a situação básica dos imóveis deste município. Os hexágonos continuam sendo o total cadastrado." : "A situação individual está disponível ao abrir um município. O agregado nacional conta todos os cadastros, sem inferir aptidão.")}>Situação <span>{situacaoBasica ? SITUACOES_BASICAS[situacaoBasica] : "todas"}</span><ChevronDown size={12} /></button>
-    <button className="topo-pilula filtro-v2" onClick={() => abrirFiltro("O resumo aberto não contém o título de cada fazenda. A análise documental é consultada na ficha autorizada.")}>Título <span>qualquer</span><ChevronDown size={12} /></button>
-    <button className="topo-pilula filtro-v2" onClick={() => abrirFiltro("Os agregados não separam o tamanho dos imóveis. Fazendas pequenas também entram na base e podem formar projetos agrupados.")}>Tamanho <span>todas</span><ChevronDown size={12} /></button>
-  </>
-  const escolherCamada = (valor: CamadaAssunto | "uso" | "vizinhos") => {
-    if (valor === "situacao") { setCamada(valor); return }
-    if (municipio && imoveis.dado?.length && valor === "titulo") { setCamada(valor); return }
-    camadasDialogo.current?.close()
-    abrirFiltro(valor === "fogo" ? "Os recortes de desmatamento não estão neste agregado. Dados de queimadas não substituem a perda de floresta; consulte a ficha autorizada quando essa camada estiver disponível." : valor === "uso" ? "O uso da terra e a área para restaurar são recortes medidos, disponíveis na ficha autorizada quando publicados. O agregado H3 não representa essa geometria." : valor === "vizinhos" ? "A proximidade entre imóveis é analisada no pedido autorizado. O resumo aberto não revela a composição dos lotes." : "Esta camada detalhada depende dos dados do município e do acesso à ficha. Nenhuma classificação foi presumida no mapa aberto.")
-  }
-  const camadas = <div className="camadas-v2-opcoes" role="group" aria-label="Assunto do mapa">{([
-    ["situacao", "Fazendas cadastradas"], ["uso", "Uso da terra"], ["titulo", "Título"], ["fogo", "Desmatamento"], ["vizinhos", "Vizinhos"],
-  ] as const).map(([id, rotulo]) => <button type="button" key={id} aria-pressed={camada === id} onClick={() => escolherCamada(id)}><span>{rotulo}</span><i className={id === "situacao" ? "camada-v2-espectro" : ""} aria-hidden="true"><b /><b /><b /><b /></i></button>)}</div>
-  const escala = legenda && zoom < 9 ? <div className="legenda-v2" aria-label={legenda.titulo}>
-    <RotuloMono>{legenda.unidade} por hexágono (cada um ~{fmtInt(legenda.areaAproximadaKm2)} km²)</RotuloMono>
+  const escala = legenda && zoom < 9 && pedidoAberto && selecaoPedido ? <div className="legenda-mapa-bloco legenda-mapa-escala">
+    <RotuloMono>{legenda.unidade} por hexágono (~{fmtInt(legenda.areaAproximadaKm2)} km²)</RotuloMono>
     <div className="legenda-v2-escala">{legenda.limites.map((n, i) => <div key={i}><i style={{ backgroundColor: legenda.cores[i] }} /><span>{fmtInt(n)}{i === 5 ? "+" : ""}</span></div>)}</div>
   </div> : null
+  const legendaMapa = <div className="legenda-mapa" aria-label="Legenda do mapa">
+    {escala}
+    <ul className="legenda-mapa-bloco legenda-mapa-itens">
+      <li><i className="amostra-linha-estado" aria-hidden="true" />Limite de estado</li>
+      {!municipio && <li><i className="amostra-oportunidade" aria-hidden="true" /><span><strong>{ROTULO_OFERTA[oferta]}</strong>{oferta === "agrupar" ? " (número de imóveis)" : " e hectares que podem voltar a ser mata"}. Toque para aproximar.</span></li>}
+      {bioma && <li><i className="amostra-linha-bioma" aria-hidden="true" />Bioma {bioma}</li>}
+      {municipio && <>
+        <li><i className="amostra-situacao apta" aria-hidden="true" />Apta</li>
+        <li><i className="amostra-situacao pendencia" aria-hidden="true" />Com pendência</li>
+        <li><i className="amostra-situacao nao-apta" aria-hidden="true" />Não apta</li>
+      </>}
+    </ul>
+    <div className="legenda-mapa-bloco legenda-mapa-fonte">
+      <span>Satélite Sentinel-2 {SATELITE_PUBLICO.periodo} ao aproximar ({SATELITE_PUBLICO.licenca})</span>
+      <span><RotuloMono partes={contagem ? [`${fmtInt(contagem.municipios)} municípios`, `${fmtInt(contagem.estados)} estados`] : ["Lendo a cobertura"]} />{coberturaMapa.dado?.gerado_em && <> <time dateTime={coberturaMapa.dado.gerado_em}>atualizado {fmtDataHoraBrasilia(coberturaMapa.dado.gerado_em)}</time></>}</span>
+    </div>
+  </div>
+  const painelFiltros = <PainelFiltrosMapa aberto={filtrosAbertos} celular={celular} aoAlternar={() => setFiltrosAbertos(v => !v)}
+    bioma={bioma} aoBioma={setBioma}
+    uf={ufExibida ?? null} aoEstado={sigla => { if (sigla) escolherTerritorio({ uf: sigla }); else if (!pedidoId) location.hash = "#/"; else setFocoNoPedido({ municipio: null, uf: null }) }}
+    ocultos={areasOcultas} aoTipo={(tipo, visivel) => setAreasOcultas(atual => { const novo = new Set(atual); if (visivel) novo.delete(tipo); else novo.add(tipo); return novo })}
+    situacao={situacaoBasica} aoSituacao={setSituacaoBasica} municipioAberto={Boolean(municipio)}
+    oferta={oferta} aoOferta={setOferta}
+    aoLimpar={() => { setBioma(null); setOferta("aptas"); setAreasOcultas(new Set()); setSituacaoBasica(null); if (ufExibida || municipio) { if (pedidoId) setFocoNoPedido({ municipio: null, uf: null }); else location.hash = "#/" } }} />
   const soltar = (y: number) => { const inicio = arraste.current; arraste.current = null; if (inicio !== null) setAmpliado(Math.abs(inicio - y) < 8 ? !ampliado : inicio > y) }
 
   return (
     <div className={`explorar explorar-v2${pedidoAberto ? " com-pedido" : ""}`}>
-      <Cabecalho atual="mapa" linkMapa="#/" modoMapa aoAbrirPedido={() => setPedidoAberto(v => !v)} pedidoAberto={pedidoAberto} filtros={filtros} />
+      <Cabecalho atual="mapa" linkMapa="#/" modoMapa aoAbrirPedido={() => setPedidoAberto(v => !v)} pedidoAberto={pedidoAberto} />
       <main id="conteudo" tabIndex={-1} className="explorar-v2-mapa" style={{ "--altura-gaveta": `${margem}px` } as CSSProperties}>
         <div className="mapa-area">
         <Suspense fallback={<div className="mapa-brasil" aria-busy="true"><p className="mapa-aviso aviso" role="status">Abrindo o mapa do Brasil…</p></div>}><MapaBrasil
@@ -215,6 +275,11 @@ export function Explorar({ municipio: municipioRota, uf: ufRota, pedidoId }: { m
           emLeilao={emLeilao}
           margemBaixo={margem}
           margemDireita={margemDireita}
+          margemEsquerda={!celular && filtrosAbertos && !pedidoAberto ? 300 : 0}
+          bioma={biomas.dado ?? null}
+          areasOcultas={areasOcultas}
+          oportunidades={oportunidades}
+          hexagonosVisiveis={pedidoAberto && Boolean(selecaoPedido)}
           aoMudarLegenda={setLegenda}
           geometriaLoteAutorizada={geometriaLoteAutorizada}
           rotuloLoteAutorizado={geometriaLoteAutorizada?.features.length && selecaoPedido ? `Lote ${selecaoPedido.rotulo.toLowerCase()}` : null}
@@ -228,10 +293,8 @@ export function Explorar({ municipio: municipioRota, uf: ufRota, pedidoId }: { m
         </div>
         {!desenhando && <div ref={cartao} className="cartao-v2-posicao"><CartaoTerritorioV2 nome={nome} municipios={resumo} carregando={municipio ? carregandoFunilAtual : municipios.carregando} aoAbrirDados={() => { setDadosAbertos(true); dadosDialogo.current?.showModal() }} ampliado={ampliado} aoAlternar={() => setAmpliado(v => !v)} aoArrastar={y => { arraste.current = y }} aoSoltar={soltar} /></div>}
         {!pedidoAberto && !desenhando && <>
-          <nav className="camadas-v2" aria-label="Camadas do mapa">{camadas}</nav>
-          <button type="button" className="camadas-v2-abrir" onClick={() => camadasDialogo.current?.showModal()}><Layers size={18} aria-hidden="true" />Camadas</button>
-          <div className="legenda-v2-posicao">{escala}</div>
-          <div className="status-mapa-v2"><RotuloMono partes={contagem ? [`${fmtInt(contagem.municipios)} municípios`, `${fmtInt(contagem.estados)} estados`] : ["Lendo a cobertura"]} /><br />{coberturaMapa.dado?.gerado_em && <time dateTime={coberturaMapa.dado.gerado_em}>atualizado {fmtDataHoraBrasilia(coberturaMapa.dado.gerado_em)}</time>}</div>
+          <div className={`filtros-mapa-posicao${filtrosAbertos ? " aberto" : ""}`}>{painelFiltros}{celular && filtrosAbertos && legendaMapa}</div>
+          {!celular && <div className="legenda-mapa-posicao">{legendaMapa}</div>}
         </>}
         {pedidoAberto && <Suspense fallback={null}><PainelPedidoMapaV2 aberto={pedidoAberto} onFechar={() => { setPedidoAberto(false); setSelecaoPedido(null) }} onSelecionar={setSelecaoPedido} onDesenhar={() => { setDesenhando(true); setPedidoAberto(false) }} areaDesenhada={areaDesenhada}
           pedidoSolicitado={Boolean(pedidoId)} pedidoAutenticado={!pedidoApi.carregando && !pedidoApi.erro ? pedidoApi.dado : null}
@@ -292,11 +355,6 @@ export function Explorar({ municipio: municipioRota, uf: ufRota, pedidoId }: { m
               />
             )}</Suspense></>}
 
-        </dialog>
-        <dialog ref={camadasDialogo} className="dialogo-mapa-v2" aria-labelledby="titulo-camadas-v2"><header><h2 id="titulo-camadas-v2">Camadas do mapa</h2><button aria-label="Fechar camadas" onClick={() => camadasDialogo.current?.close()}><X size={20} /></button></header>{camadas}{escala}</dialog>
-        <dialog ref={filtrosDialogo} className="dialogo-mapa-v2" aria-labelledby="titulo-filtros-v2"><header><h2 id="titulo-filtros-v2">Dados disponíveis</h2><button aria-label="Fechar informação" onClick={() => filtrosDialogo.current?.close()}><X size={20} /></button></header><p>{avisoFiltro}</p>
-          {municipio && <label className="campo">Situação básica<select value={situacaoBasica ?? ""} onChange={e => { setSituacaoBasica(e.target.value as SituacaoBasica || null); filtrosDialogo.current?.close() }}><option value="">Todas as situações</option>{Object.entries(SITUACOES_BASICAS).map(([id, rotulo]) => <option key={id} value={id}>{rotulo}</option>)}</select></label>}
-          <a href="#/pedidos/novo">Abrir critérios de um pedido</a>
         </dialog>
       </main>
     </div>
