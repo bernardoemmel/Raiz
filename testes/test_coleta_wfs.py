@@ -139,6 +139,9 @@ def test_checagem_avisa_mudanca_e_falta(banco_url):
             "geobr_territorios",
             "jrc_tmf",
             "wri_causas_perda",
+            "sigmine",  # fontes da triagem nacional (raiz/restricoes/coleta.py)
+            "ibama_autos",
+            "lista_suja",
         }
         n = c.execute(text("select count(*) from coleta.evento where tipo = 'mudaram'")).scalar()
         assert n == sum(1 for x in segunda if x.mudou)
