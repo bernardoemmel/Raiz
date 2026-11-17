@@ -136,8 +136,13 @@ def test_cota_esgotada_espera_o_reset_informado(monkeypatch):
     def abrir(pedido, timeout):
         pedidos.append(1)
         if len(pedidos) == 1:
-            raise urllib.error.HTTPError("https://api.github.com", 403, SEGREDO,
-                                         {"x-ratelimit-remaining": "0", "x-ratelimit-reset": "1120"}, io.BytesIO())
+            raise urllib.error.HTTPError(
+                "https://api.github.com",
+                403,
+                SEGREDO,
+                {"x-ratelimit-remaining": "0", "x-ratelimit-reset": "1120"},
+                io.BytesIO(),
+            )
         return io.BytesIO(b"{}")
 
     cliente.opener = SimpleNamespace(open=abrir)

@@ -165,8 +165,12 @@ class ClientePrivado:
                 espera = recusa.espera if recusa.espera is not None else ESPERA_BASE_S * (repeticao + 1)
                 restante = prazo - time.monotonic()
                 # Só o código e a cota restante: nenhum corpo, URL ou cabeçalho com credencial.
-                print(f"GitHub recusou temporariamente (HTTP {recusa.codigo}, cota restante {recusa.restante}); "
-                      f"nova tentativa em {min(espera, max(restante, 0)):.0f} s.", file=sys.stderr, flush=True)
+                print(
+                    f"GitHub recusou temporariamente (HTTP {recusa.codigo}, cota restante {recusa.restante}); "
+                    f"nova tentativa em {min(espera, max(restante, 0)):.0f} s.",
+                    file=sys.stderr,
+                    flush=True,
+                )
                 if repeticao == ESPERAS_TRANSITORIAS or restante <= 0:
                     break
                 time.sleep(min(espera, restante))
