@@ -33,6 +33,7 @@ COLUNAS = (
     "car_conferido_em", "car_conferencia", "car_situacao", "car_geometria_alterada", "restricao_nacional",
     "restricao_exclusao", "restricao_ressalva", "restricao_motivos", "estadual_status", "estadual_exclusao",
     "estadual_ressalva", "estadual_motivos", "estadual_conferir", "estadual_ressalva_ha",
+    "complementar_status", "complementar_motivos",
     "ambiental_status", "ambiental_motivos", "pct_RL_vegetacao",
 )  # fmt: skip
 
@@ -115,6 +116,11 @@ def de_linha(linha: dict, lon: float | None = None, lat: float | None = None) ->
     restricao = linha.get("restricao_nacional") if isinstance(linha.get("restricao_nacional"), str) else None
     if restricao == "exclusao":
         bloqueio = True
+    # fontes complementares (raiz/complementares/status.py): mesma lógica (localidade quilombola dentro do imóvel,
+    # território tradicional do MPF); crédito rural e restauração existente só marcam ressalva
+    complementar = linha.get("complementar_status") if isinstance(linha.get("complementar_status"), str) else None
+    if complementar == "exclusao":
+        bloqueio = True
     # fontes estaduais (raiz/estaduais/cruzamento.py): mesma regra, exclusão sai e ressalva fica marcada
     estadual = linha.get("estadual_status") if isinstance(linha.get("estadual_status"), str) else None
     if estadual == "exclusao":
@@ -192,6 +198,10 @@ def de_linha(linha: dict, lon: float | None = None, lat: float | None = None) ->
         "restricao_ressalva": (restricao == "ressalva") if restricao else None,
         "restricao_motivos": linha.get("restricao_motivos")
         if isinstance(linha.get("restricao_motivos"), str)
+        else None,
+        "complementar_status": complementar,
+        "complementar_motivos": linha.get("complementar_motivos")
+        if isinstance(linha.get("complementar_motivos"), str)
         else None,
         # nulo = fontes estaduais ainda não calculadas no município (nunca vira "livre")
         "estadual_status": estadual,

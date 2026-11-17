@@ -618,6 +618,21 @@ Tabulator **6.7.1**, Oli Folkerd ([código](https://github.com/olifolkerd/tabula
 no front. Instalação travada no npm, sem CDN, módulos de exportação ou código copiado.
 Adaptações de teclado/semântica ARIA estão no componente próprio da Raíz.
 
+## Fontes complementares da triagem (crédito rural, quilombos, restauração)
+
+[SICOR, microdados do crédito rural](https://dadosabertos.bcb.gov.br/dataset/matrizdadoscreditorural), Banco Central
+do Brasil, **ODbL**. Os arquivos derivados que o workflow `coletar-complementares.yml` publica no Release `insumos`
+(`complementares_sicor_car.parquet`, `complementares_sicor_glebas_<UF>.parquet`) são bases derivadas e seguem sob
+ODbL, com atribuição ao BCB. O documento do tomador nunca é lido; valores em reais não saem.
+
+[Localidades quilombolas do Censo 2022](https://geoftp.ibge.gov.br/organizacao_do_territorio/estrutura_territorial/localidades/localidades_quilombolas_2022/),
+IBGE, uso livre com citação da fonte. [Comunidades certificadas](https://www.gov.br/palmares/pt-br/departamentos/protecao-preservacao-e-articulacao/certificacao-quilombola),
+Fundação Cultural Palmares, dado público (só a contagem por município sai da coleta).
+
+Plataforma de Territórios Tradicionais (MPF), Observatório da Restauração e Reflorestamento (Coalizão Brasil) e Restor
+só entram por importação com autorização escrita, registrada no `complementares_<fonte>_meta.json`; a Restor proíbe
+copiar dados sem permissão nos termos de uso. Nenhum código de terceiros foi copiado.
+
 ## Mapa da página inicial
 
 `front/globo/public/mapa/biomas.geojson`: limites dos biomas do IBGE

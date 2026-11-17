@@ -1875,6 +1875,116 @@ def restricoes_resumo(arquivo: Annotated[str, typer.Argument(help="restricoes_<m
         typer.echo(f"{k:16} {n}")
 
 
+complementares_cli = typer.Typer(
+    help="Fontes complementares na triagem: SICOR, localidades quilombolas (IBGE/Palmares), MPF, Observatório, Restor.",
+    no_args_is_help=True,
+)
+app.add_typer(complementares_cli, name="complementares")
+
+
+@complementares_cli.command("coletar")
+def complementares_coletar(
+    saida: Annotated[str, typer.Option(help="pasta onde gravar os arquivos que vão ao Release insumos")],
+    fontes: Annotated[str, typer.Option(help="sicor, ibge_quilombolas, palmares (e as importadas), por vírgula")] = (
+        "sicor,ibge_quilombolas,palmares,mpf_territorios,observatorio,restor"
+    ),
+) -> None:
+    """Coleta as fontes abertas (sem nome, CPF, CNPJ ou valor de crédito na saída) e grava a cobertura."""
+    from raiz.complementares import coleta as CC
+
+    lista = tuple(x.strip() for x in fontes.split(",") if x.strip())
+    lista += tuple(f for f in CC.FONTES_IMPORTADAS if f not in lista)  # importadas sempre entram na cobertura
+    m = CC.coletar(saida, lista)
+    for nome, c in m["fontes"].items():
+        extra = {k: v for k, v in c.items() if k not in ("estado", "url", "consultado_em", "ufs", "pendente")}
+        typer.echo(f"  {nome}: {c['estado']} {extra}")
+
+
+@complementares_cli.command("importar")
+def complementares_importar(
+    arquivo: Annotated[str, typer.Argument(help="zip do shapefile, GeoPackage, GeoJSON ou KML recebido")],
+    fonte: Annotated[str, typer.Option(help="mpf_territorios, observatorio ou restor")],
+    saida: Annotated[str, typer.Option(help="pasta da coleta (a mesma do coletar)")],
+    autorizacao: Annotated[str, typer.Option(help="quem autorizou, quando e por qual meio")],
+    licenca: Annotated[str | None, typer.Option(help="licença ou condição de uso")] = None,
+) -> None:
+    """Importa uma fonte que depende de autorização. Só id, categoria, situação, ano, área e polígono entram."""
+    from raiz.complementares import coleta as CC
+
+    m = CC.importar(arquivo, fonte, saida, autorizacao, licenca)
+    typer.echo(f"{fonte}: {m['n']} polígonos, {m['area_ha']:.0f} ha")
+
+
+@complementares_cli.command("baixar")
+def complementares_baixar(
+    ufs: Annotated[str | None, typer.Option(help="glebas do SICOR só destas UFs, por vírgula")] = None,
+    tag: Annotated[str, typer.Option(help="Release de onde baixar")] = "insumos",
+    repo: Annotated[str, typer.Option(help="dono/repositório")] = "bernardoemmel/Raiz",
+) -> None:
+    """Baixa do Release insumos as camadas e a cobertura para a pasta que a tarefa lê."""
+    import httpx
+
+    from raiz.complementares import coleta as CC
+    from raiz.complementares import status as CS
+
+    pasta = CS.pasta_camadas()
+    pasta.mkdir(parents=True, exist_ok=True)
+    nomes = list(CC.NOMES.values()) + [CC.META_IMPORTADA.format(fonte=f) for f in CC.FONTES_IMPORTADAS]
+    nomes += [CC.GLEBAS.format(uf=u.strip().upper()) for u in (ufs.split(",") if ufs else CC.UFS)]
+    for nome in nomes:
+        r = httpx.get(f"https://github.com/{repo}/releases/download/{tag}/{nome}", follow_redirects=True, timeout=900)
+        if r.status_code == 404:
+            continue
+        r.raise_for_status()
+        (pasta / nome).write_bytes(r.content)
+        typer.echo(f"{nome}: {len(r.content) / 1e6:.1f} MB")
+
+
+@complementares_cli.command("recalcular")
+def complementares_recalcular(
+    saida: Annotated[str | None, typer.Option(help="pasta saida/ do motor")] = None,
+    ufs: Annotated[str | None, typer.Option(help="só estas UFs, separadas por vírgula")] = None,
+    municipios: Annotated[str | None, typer.Option(help="só estes códigos IBGE, separados por vírgula")] = None,
+) -> None:
+    """Refaz complementares_<mun>.csv dos municípios cuja versão mudou (sem refazer o funil)."""
+    from pathlib import Path
+
+    import pandas as pd
+
+    from raiz.complementares import status as CS
+    from raiz.funil.rodar import dir_trabalho
+
+    pasta = Path(saida) if saida else dir_trabalho() / "saida"
+    lista = {u.strip().upper() for u in ufs.split(",")} if ufs else None
+    so = {int(x) for x in municipios.split(",")} if municipios else None
+    camadas = CS.Camadas()
+    v = f"{CS.versao()}+{CS.assinatura() or 'sem_coleta'}"
+    feitos = em_dia = 0
+    for uf in sorted(p for p in pasta.iterdir() if p.is_dir() and (not lista or p.name.upper() in lista)):
+        for g in sorted(uf.glob("geo_*.parquet")):
+            cod = int(g.stem.split("_")[1])
+            if so and cod not in so:
+                continue
+            f = uf / f"complementares_{cod}.csv"
+            if f.exists() and v in set(pd.read_csv(f, usecols=["complementares_versao"]).complementares_versao):
+                em_dia += 1
+                continue
+            CS.escrever_municipio(uf, cod, camadas=camadas)
+            feitos += 1
+    typer.echo(f"versão {v}: {feitos} municípios refeitos, {em_dia} já em dia")
+
+
+@complementares_cli.command("resumo")
+def complementares_resumo(arquivo: Annotated[str, typer.Argument(help="complementares_<mun>.csv")]) -> None:
+    """Contagem por status e por motivo (o agregado, que é o que pode ser público)."""
+    import pandas as pd
+
+    from raiz.complementares import status as CS
+
+    for k, n in CS.resumo(pd.read_csv(arquivo)).items():
+        typer.echo(f"{k:16} {n}")
+
+
 titulo_cli = typer.Typer(
     help="Título (E5): regularização da posse, achados de título e quem confirmou cada um.", no_args_is_help=True
 )

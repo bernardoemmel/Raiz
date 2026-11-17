@@ -332,6 +332,20 @@ jobs:
             rm -f motor/cache/restricoes/restricoes_*
             echo "sem restrições nacionais coletadas (tarefa restricoes fica nao_verificado nessas fontes)"
           fi
+          # Fontes complementares (coletar-complementares.yml): SICOR, localidades quilombolas IBGE/Palmares, MPF,
+          # Observatório e Restor. Das glebas do SICOR só a da UF. Sem elas a tarefa "complementares" fica
+          # nao_verificado nessas fontes (nunca "livre").
+          mkdir -p motor/cache/complementares
+          rm -f motor/cache/complementares/complementares_*
+          if gh release download insumos -R "$GITHUB_REPOSITORY" -D motor/cache/complementares --clobber \
+               -p 'complementares_cobertura.json' -p 'complementares_sicor_car.parquet' \
+               -p 'complementares_ibge_quilombolas.parquet' -p 'complementares_palmares_municipios.csv' \
+               -p 'complementares_mpf_territorios*' -p 'complementares_restauracao_*' -p 'complementares_*_meta.json' \
+               -p "complementares_sicor_glebas_${UF}.parquet" 2>/dev/null; then
+            echo "fontes complementares: $(find motor/cache/complementares -maxdepth 1 -type f | wc -l) arquivos"
+          else
+            echo "sem fontes complementares coletadas (tarefa complementares fica nao_verificado nessas fontes)"
+          fi
           # Fontes estaduais (coletar-estaduais.yml): embargos, autos, UCs, PSA, terras devolutas por UF. Sem elas a
           # tarefa "estaduais" marca as fontes da UF como não verificadas (nunca "livre").
           mkdir -p motor/cache/estaduais

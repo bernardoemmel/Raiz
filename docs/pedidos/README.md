@@ -8,6 +8,8 @@ campos entre colchetes na hora de enviar e **não** grave nome, CPF ou CNPJ nest
 | `onr-convenio.md` | ONR (Operador Nacional do Registro Eletrônico de Imóveis) | e-mail para oficioeletronico@onr.org.br | sem prazo legal; cobrar em 15 dias |
 | `lai-sfb.md` | Serviço Florestal Brasileiro (SICAR) | Fala.BR (falabr.cgu.gov.br), pedido de acesso à informação | 20 dias, prorrogáveis por mais 10 (Lei 12.527/2011, art. 11) |
 | `lai-incra.md` | INCRA (SIGEF e acervo fundiário) | Fala.BR, pedido de acesso à informação | 20 dias, prorrogáveis por mais 10 |
+| `mpf-territorios.md` | MPF, Plataforma de Territórios Tradicionais (Conselho Gestor) | e-mail para 6ccr-plataformaterritorios@mpf.mp.br | sem prazo legal; cobrar em 15 dias |
+| `restor.md` | Restor (limites de projetos de restauração) | e-mail para support@restor.eco (em inglês) | sem prazo; cobrar em 15 dias |
 
 No Fala.BR, se o Serviço Florestal Brasileiro não aparecer como órgão, escolha o Ministério do Meio Ambiente e
 Mudança do Clima e cite o SFB no texto. Guarde o número de protocolo de cada pedido em `operacao` quando o backoffice
