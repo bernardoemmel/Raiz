@@ -294,6 +294,18 @@ jobs:
             rm -f motor/cache/comprometida/comprometida_*
             echo "sem limites da terra já comprometida (tarefa comprometida fica nao_verificado)"
           fi
+          # Vegetação e relevo (coletar-ambiental.yml): mapa do IBGE classificado para a reserva legal e TerraClass.
+          # Sem eles a tarefa "ambiental" marca a vegetação como não verificada (nunca "livre"); o ANADEM é lido direto.
+          mkdir -p motor/cache/ambiental/terraclass
+          if gh release download insumos -R "$GITHUB_REPOSITORY" -D motor/cache/ambiental --clobber \
+               -p ambiental_vegetacao.parquet -p ambiental_cobertura.json 2>/dev/null; then
+            echo "vegetação do IBGE: ok"
+          else
+            rm -f motor/cache/ambiental/ambiental_*
+            echo "sem vegetação do IBGE coletada (tarefa ambiental fica nao_verificado na vegetação)"
+          fi
+          gh release download insumos -R "$GITHUB_REPOSITORY" -D motor/cache/ambiental/terraclass --clobber \
+            -p 'terraclass_*' 2>/dev/null || echo "sem TerraClass (complemento; a tarefa ambiental segue sem ele)"
 
       - name: Buscar o publicador do workflow para finalizar executores de versões anteriores
         id: publicador_checkout
