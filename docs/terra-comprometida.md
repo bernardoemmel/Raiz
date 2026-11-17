@@ -13,6 +13,8 @@ dos proprietários. O catálogo versionado fica em
 | [Serviço Florestal Brasileiro](https://www.gov.br/florestal/pt-br/assuntos/concessoes-e-monitoramento/concessoes-florestais-em-andamento) | Interseção de UMFs com concessões federais | Nem todos os contratos têm geometria; concessão não comprova exclusividade de carbono |
 | [ART](https://artredd.org/art-september-2026-newsletter/) e `geo.redd_programa` | Contexto jurisdicional dos programas REDD+ | Não soma área comprometida individual nem afirma vínculo contratual de cada CAR |
 | [Base científica de limites](https://doi.org/10.5281/zenodo.11459391), CC BY 4.0 | Polígonos secundários do Brasil, incluindo EcoRegistry | Indício, nunca confirmação automática; pontos são excluídos; status atual desconhecido |
+| [InfoAmazonia, "Carbono sujo"](https://github.com/InfoAmazonia/unid_geojornalismo/tree/main/2025_06-carbono_sujo) (2025) | Limites de 111 projetos na Amazônia (Verra e Cercarbono), a partir dos KML dos registros | Indício; status da época da reportagem; repositório sem licença declarada: uso interno com crédito, sem redistribuir o bruto; CNPJ e empresa nunca são lidos |
+| [REDD+ no Pará](https://doi.org/10.5281/zenodo.23929936), Paim, West & Silva, CC BY 4.0 (nov/2026) | Limites de 24 projetos REDD+ no Pará (linhas "KML Projeto") | Indício; sem status atual; os recortes de sobreposição com CAR, SIGEF e glebas não são lidos |
 
 Na verificação de desenvolvimento, Berkeley continha 433 projetos brasileiros,
 219 de florestas e uso da terra, incluindo 206 VCS. Foi possível consultar o
@@ -40,6 +42,63 @@ jurisdicionais são mostrados separadamente, com área individual `null`. Datas 
 registro, início e término de projeto não substituem a data da geometria.
 Uma fonte parcial que omite um projeto não apaga sua evidência anterior;
 retirada/inatividade explícita muda o estado. A alteração fica no histórico.
+
+## Fontes secundárias e o caso YBYRÁ (17/11/2026)
+
+O imóvel PA-1505502-A5BAFA27 (Paragominas) tem ~1.469 ha (45% do CAR) dentro do YBYRÁ REDD+ (VCS4681, registrado
+na Verra, um KML oficial "Project Boundary"). Três bases independentes confirmam: o KML da Verra, a InfoAmazonia e o
+GeoPackage REDD+ do Pará (que lista o próprio CAR com 1.458 ha). A Raíz marcava `projeto_carbono_ha = 0` por dois
+motivos, ambos corrigidos:
+
+1. **A coleta nunca terminou.** Em 16/11, um KML de outro projeto trazia prefixo XML sem declaração (`gx:`), o
+   leitor levantava `ParseError` (não é `ValueError`) e o workflow caía depois de 22 min, sem publicar nada. Sem o
+   Release `insumos`, o motor não tinha mapa nenhum e todo imóvel saía com 0. Agora o KML é relido sem os prefixos;
+   o que continuar ilegível vira "projeto sem geometria" e a fila segue.
+2. **O primeiro erro parava a Verra inteira.** Qualquer projeto com problema próprio (sem polígono, fora do Brasil)
+   encerrava a fila. Agora só falhas da fonte (rede, 429, 5xx, com 3 tentativas e espera) contam, e a fila para
+   depois de 5 seguidas. Há pausa de 0,5 s entre chamadas.
+
+Na conferência com a coleta real (17/11) apareceram mais três falhas do mesmo tipo, também corrigidas: um polígono
+inválido do SFB (Amapá UMF IV) fazia sumirem todas as 22 UMFs; um polígono da base científica (Zenodo 11459391)
+derrubava a base inteira; e um KML com anel em laço (VCS1382) virava coleção com linha. Agora cada geometria é
+consertada e fica só a parte com área; o que não tiver área sai sozinho, sem levar o resto junto.
+
+As duas bases secundárias entram na coleta diária como **indício**: sozinhas deixam o imóvel em
+`risco_sobreposicao` (nunca `ja_comprometida`); com o KML oficial e ativo da Verra, o imóvel vira `ja_comprometida`
+e o indício não conta a mesma terra de novo. Elas cobrem o que o registro deixa de fora (KML ilegível, projeto só com
+"Other", registro fora do ar). Cada uma é baixada de endereço fixo e conferida por checksum (InfoAmazonia: commit
+`350f832`, sha256 dos quatro arquivos do shapefile; Zenodo: md5 e tamanho publicados). Arquivo mudou = coleta da
+fonte vira `indisponivel`, nunca terra livre.
+
+**Filtro de sanidade do tamanho.** Projetos agrupados e programas publicam uma "área geográfica" enorme (VCS3380 e
+VCS4137 têm ~210 milhões de ha; VCS4796, VCS5117, VCS5938 passam de 10 milhões). Estar dentro dela não é
+compromisso. Mas há REDD grande de verdade (VCS1811, ~909 mil ha, confirmado por três bases). Por isso dois degraus,
+e cada caso sai no log da coleta e no manifesto:
+
+| Área do limite | Coluna no parquet | Efeito |
+|---|---|---|
+| até 500 mil ha | — | normal |
+| mais de 500 mil ha | `limite_suspeito` | só indício: imóvel dentro fica `risco_sobreposicao`, nunca `ja_comprometida`; fora do pacote do motor; lista `limites_suspeitos` |
+| mais de 5 milhões de ha | `limite_amplo` | inválido como limite: fora de todo cruzamento e do motor; lista `limites_amplos` |
+
+**Municípios prontos recebem o status novo sem refazer o funil.** `projeto_carbono_ha` é calculado dentro do
+funil e só muda quando o município é reprocessado. A resposta que vale para o comprador é a tarefa `comprometida`
+(folha do grafo, depende só do funil): a versão dela mudou neste conserto (`comprometida-2026b`), então o
+`processar-estados.yml` põe todos os estados prontos na fila de manutenção e o executor refaz só
+`comprometida_<mun>.csv`, município por município. Coletas diárias seguintes entram pela assinatura dos limites
+(externa da tarefa) quando o estado roda de novo. Para refazer na mão, sem funil: `raiz comprometida baixar` e
+`raiz comprometida recalcular`.
+
+**Onde a tarefa lê os limites.** O `processar-estados.yml` baixa `comprometida_limites.parquet` e
+`comprometida_cobertura.json` do Release `insumos` para `motor/cache/comprometida/`. Antes não baixava, e a tarefa
+marcava todo imóvel como `nao_verificado`. A tarefa continua folha do grafo: coleta nova refaz só ela, município por
+município; o funil dos prontos não muda (o `projetos_carbono.tar.gz` não entra na versão do funil, então
+`projeto_carbono_ha` só muda num município reprocessado; a resposta certa para o comprador está em
+`status_sobreposicao`).
+
+O pacote manual de 16/11 (`pacote_limites_carbono_leve.zip`, 389 polígonos de 227 projetos) serviu para conferir a
+coleta automática; não entra no git nem no Release (a InfoAmazonia e a Verra não declaram licença de redistribuição).
+A tabela CAR × projeto do Pará (Zenodo 23929936) também não é publicada: o cruzamento geométrico já a reproduz.
 
 ## Coletar e atualizar no servidor privado
 
@@ -79,7 +138,8 @@ depende do funil e ninguém depende dela). Duas peças:
 
 1. **Coleta diária** (`.github/workflows/coletar-comprometida.yml`, 04h23 de Brasília): `raiz comprometida coletar`
    baixa o KML oficial de cada projeto Verra brasileiro do catálogo Berkeley (floresta e uso da terra: ARR, REDD,
-   IFM), os limites das concessões do SFB e a base científica do Zenodo (só indício). Publica no Release `insumos`:
+   IFM), os limites das concessões do SFB e, só como indício, a base científica do Zenodo, a InfoAmazonia e a base
+   REDD+ do Pará. Publica no Release `insumos`:
    `comprometida_limites.parquet`, `comprometida_cobertura.json` (o que cada fonte cobriu e quando) e
    `projetos_carbono.tar.gz`, que o `processar-estados.yml` já baixa e o motor lê: com ele, `projeto_carbono_ha`
    deixa de sair sempre 0. Só entram nesse pacote limites oficiais e ativos da Verra, nunca indício nem concessão.
@@ -101,7 +161,9 @@ arquivo privado e fora da projeção aberta. O que pode ser público é a contag
 **Licença dos limites.** Os KML da Verra e os limites do SFB não declaram licença de redistribuição (ver tabela
 acima). Publicá-los no Release aberto `insumos` foi decisão do fundador, para o motor ler sem gancho novo; se a
 decisão mudar, basta apagar os três arquivos do Release e pôr o `projetos_carbono.tar.gz` no armazém privado.
-Berkeley e Zenodo (CC BY 4.0) levam atribuição no manifesto. Fora do escopo: Gold Standard, averbação na matrícula
+Os limites da InfoAmazonia (sem licença declarada, derivados dos KML dos registros) seguem a mesma decisão dos KML
+da Verra. Berkeley, as duas bases do Zenodo (CC BY 4.0) e a InfoAmazonia levam atribuição no manifesto. O parquet publicado
+traz só identificador, situação, UF e geometria dos limites: nada de CNPJ, empresa ou CAR. Fora do escopo: Gold Standard, averbação na matrícula
 e cota vendida.
 
 ## Caminho da terra sem SIGEF no espelho (correção de 17/11/2026)

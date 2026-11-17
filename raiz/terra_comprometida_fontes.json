@@ -1,6 +1,6 @@
 {
-  "versao": "2026-11-12.1",
-  "verificado_em": "2026-11-12",
+  "versao": "2026-11-17.1",
+  "verificado_em": "2026-11-17",
   "fontes": {
     "berkeley": {
       "url": "https://gspp.berkeley.edu/berkeley-carbon-trading-project/offsets-database",
@@ -42,6 +42,18 @@
       "url": "https://redd.mma.gov.br/pt/",
       "licenca": "Cadastro geográfico privado Raíz de publicações oficiais; licença conforme fonte de cada programa.",
       "cobertura": "Programas cadastrados em geo.redd_programa. Interseção do perímetro indica contexto jurisdicional, nunca vínculo contratual individual."
+    },
+    "infoamazonia_carbono": {
+      "url": "https://github.com/InfoAmazonia/unid_geojornalismo/tree/main/2025_06-carbono_sujo",
+      "licenca": "Repositório público da InfoAmazonia sem licença declarada. Uso interno de análise, com crédito, sem redistribuir o arquivo bruto.",
+      "cobertura": "Reportagem 'Carbono sujo' (2025): 111 projetos na Amazônia (Verra e Cercarbono), limites a partir dos KML dos registros. Indício, nunca polígono oficial; status da época da reportagem.",
+      "acesso": "Shapefile consolidado num commit fixo (350f832, 12/03/2026), conferido por sha256. Colunas de CNPJ e empresa nunca são lidas."
+    },
+    "para_redd_zenodo": {
+      "url": "https://doi.org/10.5281/zenodo.23929936",
+      "licenca": "CC BY 4.0 — Paim, West & Silva, Where Carbon Credits Overlap with Rights: REDD+ in Pará, Zenodo 23929936.",
+      "cobertura": "Limites de 24 projetos REDD+ no Pará (linhas 'KML Projeto' do database_v1.3.gpkg), a partir dos KML da Verra. Indício; sem status atual.",
+      "acesso": "GeoPackage pela API do Zenodo, conferido por md5 e tamanho publicados. Recortes de sobreposição com CAR, SIGEF e glebas não são lidos."
     }
   }
 }

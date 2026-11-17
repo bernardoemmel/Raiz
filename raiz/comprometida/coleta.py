@@ -4,7 +4,17 @@ Fontes (as mesmas de raiz/coleta/compromissos_*.py, sem banco):
   verra            KML oficial de cada projeto brasileiro do catálogo Berkeley (floresta e uso da terra: ARR,
                    REDD, IFM);
   sfb_concessoes   limites das UMFs das concessões federais;
-  limites_pesquisa base científica do Zenodo (CC BY 4.0), só como indício (nunca polígono oficial).
+  limites_pesquisa base científica do Zenodo (CC BY 4.0), só como indício (nunca polígono oficial);
+  infoamazonia_carbono  limites da reportagem "Carbono sujo" da InfoAmazonia (Amazônia, Verra e Cercarbono), indício;
+  para_redd_zenodo      limites dos projetos REDD+ do Pará (Zenodo 23929936, CC BY 4.0), indício.
+Indício confere o registro oficial e cobre o que ele deixa de fora (KML ilegível, registro fora do ar): o imóvel vira
+risco_sobreposicao, nunca ja_comprometida só por ele.
+Filtro de sanidade do tamanho (cada caso sai no log e no manifesto):
+  limite_suspeito  mais de 500 mil ha: pode ser projeto REDD grande de verdade (VCS1811, ~909 mil ha) ou área
+                   geográfica de agrupado. Vale só como indício (risco_sobreposicao, nunca ja_comprometida) e não entra
+                   no pacote do motor.
+  limite_amplo     mais de 5 milhões de ha: "área geográfica" de projeto agrupado ou programa (VCS3380 e VCS4137 têm
+                   ~210 milhões de ha). Inválido como limite: fica no parquet marcado, fora de todo cruzamento.
 Saída, numa pasta que o workflow publica no Release "insumos":
   comprometida_limites.parquet   um polígono por linha: fonte, objeto, registro, tipo, situação, certeza, UF, datas;
   comprometida_cobertura.json    o que cada fonte cobriu (estado, bbox, data, contagens) e as versões;
@@ -20,19 +30,25 @@ import datetime as dt
 import hashlib
 import io
 import json
+import logging
 import tarfile
 from pathlib import Path
 
 import geopandas as gpd
 import shapely
+import shapely.ops
 
 from raiz import terra_comprometida as tc
 
-VERSAO = "comprometida-coleta-2026a"
+VERSAO = "comprometida-coleta-2026b"
+FONTES_PADRAO = ("verra", "sfb_concessoes", "limites_pesquisa", "infoamazonia_carbono", "para_redd_zenodo")
+LIMITE_SUSPEITO_HA = 500_000
+LIMITE_AMPLO_HA = 5_000_000
+log = logging.getLogger(__name__)
 BBOX_BRASIL = (-74.0, -34.0, -34.0, 6.0)
 NOMES = ("comprometida_limites.parquet", "comprometida_cobertura.json", "projetos_carbono.tar.gz")
 COLUNAS = ["fonte_id", "objeto_id", "registro", "tipo", "situacao", "certeza", "uf", "fonte_url", "data_referencia",
-           "observado_em", "inicio", "fim"]  # fmt: skip
+           "observado_em", "inicio", "fim", "area_ha", "limite_suspeito", "limite_amplo"]  # fmt: skip
 
 
 def _cobertura_da_fonte(fonte: str, itens: list[dict], com_geometria: int, esperados: int | None, hoje: str) -> dict:
@@ -64,7 +80,7 @@ def _cobertura_da_fonte(fonte: str, itens: list[dict], com_geometria: int, esper
     }
 
 
-def coletar(fontes=("verra", "sfb_concessoes"), *, observado_em: str | None = None, limite_verra: int | None = None,
+def coletar(fontes=FONTES_PADRAO, *, observado_em: str | None = None, limite_verra: int | None = None,
             iterador=None) -> dict:  # fmt: skip
     """Roda os coletores e devolve {"registros": [...com geometria], "cobertura": [...], "erros": [...]}.
     iterador: troca o coletor de rede (testes e páginas gravadas)."""
@@ -75,7 +91,7 @@ def coletar(fontes=("verra", "sfb_concessoes"), *, observado_em: str | None = No
     if "verra" in fontes and "berkeley" not in fontes:
         fontes = ["berkeley", *fontes]  # o catálogo dá os IDs; ele mesmo não é cobertura de área
     registros, por_fonte, esperados, erros = [], {}, None, []
-    for res in iterador(fontes=fontes, bbox=BBOX_BRASIL, limite_verra=limite_verra):
+    for res in iterador(fontes=fontes, bbox=BBOX_BRASIL, limite_verra=limite_verra):  # cada projeto/fonte isolado
         cob = res.get("cobertura") or {}
         f = cob.get("fonte_id")
         if f == "berkeley":
@@ -95,9 +111,27 @@ def coletar(fontes=("verra", "sfb_concessoes"), *, observado_em: str | None = No
             "projetos_catalogo": esperados}  # fmt: skip
 
 
+def area_ha(geom) -> float:
+    return float(shapely.ops.transform(tc._AREA, geom).area / 10000)
+
+
+def suspeito(r: dict) -> bool:
+    """Acima de 500 mil ha (inclui os amplos): nunca confirma compromisso sozinho."""
+    return area_ha(r["geometry"]) > LIMITE_SUSPEITO_HA
+
+
 def para_geodataframe(registros: list[dict]) -> gpd.GeoDataFrame:
-    linhas = [{c: r.get(c) for c in COLUNAS} for r in registros]
-    geoms = [shapely.make_valid(r["geometry"]) for r in registros]
+    linhas, geoms = [], []
+    for r in registros:
+        g = shapely.make_valid(r["geometry"])
+        ha = area_ha(g)
+        linhas.append({**{c: r.get(c) for c in COLUNAS}, "area_ha": round(ha, 2),
+                       "limite_suspeito": ha > LIMITE_SUSPEITO_HA, "limite_amplo": ha > LIMITE_AMPLO_HA})  # fmt: skip
+        if ha > LIMITE_SUSPEITO_HA:
+            log.warning("%s %s: limite de %.0f ha %s", r["fonte_id"], r["objeto_id"], ha,
+                        "inválido (área geográfica), fora do cruzamento" if ha > LIMITE_AMPLO_HA
+                        else "suspeito, só indício")  # fmt: skip
+        geoms.append(g)
     return gpd.GeoDataFrame(linhas, columns=COLUNAS, geometry=geoms, crs=4326)
 
 
@@ -107,7 +141,12 @@ def pacote_motor(registros: list[dict]) -> bytes:
     n = 0
     with tarfile.open(fileobj=buf, mode="w:gz", compresslevel=6) as tar:
         for r in sorted(registros, key=lambda x: x["objeto_id"]):
-            if r["fonte_id"] != "verra" or r["certeza"] != "poligono_oficial" or r["situacao"] != "ativo":
+            if (
+                r["fonte_id"] != "verra"
+                or r["certeza"] != "poligono_oficial"
+                or r["situacao"] != "ativo"
+                or suspeito(r)
+            ):
                 continue
             feicao = {
                 "type": "Feature",
@@ -143,15 +182,29 @@ def gravar(resultado: dict, pasta: str | Path) -> dict:
         "por_fonte": {f"{a}:{b}": int(n) for (a, b), n in contagem.items()},
         "projetos_catalogo_verra": resultado.get("projetos_catalogo"),
         "projetos_motor": int(
-            sum((gdf.fonte_id == "verra") & (gdf.certeza == "poligono_oficial") & (gdf.situacao == "ativo"))
+            sum(
+                (gdf.fonte_id == "verra")
+                & (gdf.certeza == "poligono_oficial")
+                & (gdf.situacao == "ativo")
+                & ~gdf.limite_suspeito.astype(bool)
+            )
         ),  # fmt: skip
+        "limites_suspeitos": sorted(
+            gdf.loc[gdf.limite_suspeito.astype(bool) & ~gdf.limite_amplo.astype(bool), "objeto_id"].unique().tolist()
+        )
+        if len(gdf)
+        else [],
+        "limites_amplos": sorted(gdf.loc[gdf.limite_amplo.astype(bool), "objeto_id"].unique().tolist())
+        if len(gdf)
+        else [],
         "cobertura": [
             tc.cobertura_segura(c) | {k: c[k] for k in ("projetos_esperados", "projetos_com_poligono")}
             for c in resultado["cobertura"]
         ],  # fmt: skip
         "erros": resultado["erros"][:50],
         "atribuicao": "Catálogo: Berkeley Carbon Trading Project (CC BY 4.0). Limites: Verra Registry, SFB e, como "
-        "indício, base científica Zenodo 11459391 (CC BY 4.0).",
+        "indício, base científica Zenodo 11459391 (CC BY 4.0), InfoAmazonia 'Carbono sujo' (2025) e REDD+ no Pará, "
+        "Paim, West & Silva, Zenodo 23929936 (CC BY 4.0).",
     }
     (pasta / NOMES[1]).write_text(json.dumps(manifesto, ensure_ascii=False, indent=2), encoding="utf-8")
     return manifesto

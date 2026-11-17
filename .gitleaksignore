@@ -17,3 +17,7 @@ e0e8ccdde14d0980ce33a1be48fde126ddeb1a31:infra/docker-compose.avaliacao.yml:gene
 # Não são tokens Sumo Logic; exceções restritas às duas linhas imutáveis do commit das capturas.
 cde6eee1b4d8d1eab58cb65cdc6ad0d6bb7029dc:docs/design/evidencias/mapa-r12/lighthouse.json:sumologic-access-token:1781
 cde6eee1b4d8d1eab58cb65cdc6ad0d6bb7029dc:docs/design/evidencias/mapa-r12/lighthouse.json:sumologic-access-token:1782
+# Os mesmos três SHA-256 após o squash do PR #76 na main (commit d33d3bf).
+d33d3bf4311696cc09b3a75a5416a9493ebf2fa6:testes/mcp/sem_leitor_auditado.json:generic-api-key:3
+d33d3bf4311696cc09b3a75a5416a9493ebf2fa6:testes/mcp/sem_leitor_auditado.json:generic-api-key:5
+d33d3bf4311696cc09b3a75a5416a9493ebf2fa6:testes/mcp/sem_leitor_auditado.json:generic-api-key:14
