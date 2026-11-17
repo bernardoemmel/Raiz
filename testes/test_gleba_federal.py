@@ -3,7 +3,6 @@
 Nunca corta por tamanho: a fração é do próprio CAR, pequeno ou grande. Sem medição (sem CNFP), nada é cortado e a
 consulta e a triagem dizem "não medida"."""
 
-import os
 from pathlib import Path
 
 import geopandas as gpd
@@ -123,20 +122,24 @@ def test_triagem_trava_ou_ressalva():
         TN.avaliar(_linha_triagem(), modo_gleba="ignorar")
 
 
-# Conferência com dados reais (17/11/2026): os dois imóveis de Paragominas que o fundador pediu para testar.
-# Polígonos do Release `dados` (raiz_geo_PA.tar.gz, PA/geo_1505502.parquet) e CNFP 2025 do SFB
-# (`raiz terra preparar-cnfp`). Roda só com os arquivos na máquina: dados grandes não entram no git.
-GEO = os.environ.get("RAIZ_TESTE_GEO_PARAGOMINAS")
-CNFP = Path(__file__).resolve().parents[1] / "dados" / "terra_publica" / "cnfp_PA.parquet"
+# Conferência com dados reais (17/11/2026): os dois imóveis de Paragominas que o fundador pediu para testar e os dois
+# que de fato estão na gleba Croatá. Polígonos do Release `dados` (PA/geo_1505502.parquet) e CNFP 2025 do SFB,
+# recortados em volta dos CARs (testes/fixtures/paragominas_*.geojson, poucos KB).
+FIXTURES = Path(__file__).resolve().parent / "fixtures"
 
 
-@pytest.mark.skipif(not (GEO and Path(GEO).exists() and CNFP.exists()), reason="sem os dados reais de Paragominas")
-def test_paragominas_d4386947_e_ce800c8a():
-    g = gpd.read_parquet(GEO)
-    s = g[g.cod_imovel.astype(str).str.contains("D4386947|CE800C8A")].to_crs(4674)
-    assert len(s) == 2
-    por = T.sobreposicoes(s, None, T.camadas_de_terra(tuple(s.total_bounds), None, CNFP))
-    for c, area in zip(s.cod_imovel, s.to_crs(5880).area / 1e4, strict=True):
+def test_paragominas_croata_no_cnfp_2025(tmp_path):
+    g = gpd.read_file(FIXTURES / "paragominas_cars.geojson")
+    cnfp = tmp_path / "cnfp_PA.parquet"
+    gpd.read_file(FIXTURES / "paragominas_cnfp.geojson").to_parquet(cnfp)
+    por = T.sobreposicoes(g, None, T.camadas_de_terra(tuple(g.total_bounds), None, cnfp))
+    fr = {}
+    for c, area in zip(g.cod_imovel, g.to_crs(5880).area / 1e4, strict=True):
         gf = T.gleba_federal({"ha": area, **por[c]})
-        # Nenhuma gleba federal não destinada do CNFP 2025 toca os dois CAR: ficam no lote.
-        assert gf["gleba_federal"] is False and gf["gleba_federal_ha"] == 0
+        fr[next(k for k in ("D4386947", "CE800C8A", "0A690BF4", "011CEC9E", "A5BAFA27", "A79C0259") if k in c)] = gf
+    # Nenhuma gleba federal não destinada do CNFP 2025 toca D4386947 e CE800C8A: ficam no lote.
+    for k in ("D4386947", "CE800C8A"):
+        assert fr[k]["gleba_federal"] is False and fr[k]["gleba_federal_ha"] == 0
+    # Quem está na gleba Croatá é outro CAR: passa dos 10% e sai do lote (ou vira ressalva).
+    assert fr["0A690BF4"]["gleba_federal"] is True and 0.45 < fr["0A690BF4"]["gleba_federal_fracao"] < 0.6
+    assert fr["011CEC9E"]["gleba_federal"] is True and 0.2 < fr["011CEC9E"]["gleba_federal_fracao"] < 0.4

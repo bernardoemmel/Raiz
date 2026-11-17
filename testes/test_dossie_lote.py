@@ -2,13 +2,12 @@
 
 Casos reais de Paragominas (17/11/2026): A5BAFA27 cruza o VCS4681 (YBYRÁ) em ~45% do CAR; CE800C8A e A79C0259 têm
 divisa a menos de 100 m (VCS4681 e VCS1953); os quatro estão dentro do KML regional do VCS4137, que nunca exclui;
-D4386947 e CE800C8A não têm gleba federal não destinada no CNFP 2025. Os testes com dado real só rodam com
-RAIZ_TESTE_GEO_PARAGOMINAS (geo_1505502.parquet) e RAIZ_TESTE_LIMITES (comprometida_limites.parquet)."""
+D4386947 e CE800C8A não têm gleba federal não destinada no CNFP 2025. Os dados reais vêm recortados em
+testes/fixtures/paragominas_*.geojson."""
 
-import os
+from pathlib import Path
 
 import geopandas as gpd
-import pytest
 import shapely
 
 from raiz import dossie_lote as D
@@ -159,18 +158,19 @@ def test_estrito_tira_e_normal_mantem_no_montar(tmp_path):
     assert [(x["n"], x["prontidao"]) for x in n["lotes"]] == [(1, "alta"), (1, "baixa")]
 
 
-GEO = os.environ.get("RAIZ_TESTE_GEO_PARAGOMINAS")
-LIM = os.environ.get("RAIZ_TESTE_LIMITES")
+FIXTURES = Path(__file__).resolve().parent / "fixtures"
 
 
-@pytest.mark.skipif(not (GEO and LIM), reason="precisa do geo de Paragominas e dos limites do Release insumos")
 def test_paragominas_quatro_cars_reais():
-    geo = gpd.read_parquet(GEO)
+    """Polígonos reais (Release dados) e limites reais (Release insumos), recortados em volta dos CARs."""
+    geo = gpd.read_file(FIXTURES / "paragominas_cars.geojson")
     alvo = {"D4386947", "CE800C8A", "A5BAFA27", "A79C0259"}
     chave = {c: next(a for a in alvo if a in c.replace(".", "").replace("-", "")) for c in geo.cod_imovel.astype(str)
              if any(a in c.replace(".", "").replace("-", "") for a in alvo)}  # fmt: skip
     assert set(chave.values()) == alvo
-    carb = D.carbono(geo[geo.cod_imovel.astype(str).isin(chave)], gpd.read_parquet(LIM))
+    carb = D.carbono(
+        geo[geo.cod_imovel.astype(str).isin(chave)], gpd.read_file(FIXTURES / "paragominas_limites_carbono.geojson")
+    )
     por = {chave[c]: v for c, v in carb.items()}
     assert "VCS4681" in por["A5BAFA27"]["projetos"] and 1300 < por["A5BAFA27"]["oficial_ha"] < 1600
     assert {x["projeto"]: x["distancia_m"] for x in por["CE800C8A"]["divisas"]}.get("VCS4681", 999) < 100
