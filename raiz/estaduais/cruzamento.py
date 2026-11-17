@@ -30,7 +30,7 @@ import pandas as pd
 import shapely
 import yaml
 
-from raiz.estaduais.coleta import COBERTURA, catalogo
+from raiz.estaduais.coleta import COBERTURA, TIPOS_AUTOMATICOS, catalogo
 
 REGRA = Path(__file__).parents[1] / "regras" / "padroes" / "fontes_estaduais.yaml"
 MATRICULAS = Path(__file__).with_name("matriculas.yaml")
@@ -137,7 +137,39 @@ def _medir(base: gpd.GeoDataFrame, g: gpd.GeoDataFrame) -> pd.DataFrame:
 
 
 def regras_matricula(uf: str, cod: int) -> list[dict]:
-    return [m for m in matriculas() if m.get("uf") == uf and int(cod) in {int(k) for k in (m.get("municipios") or {})}]
+    """Regras do tribunal que valem no município: lista de municípios ou a UF inteira (`uf_inteira`)."""
+    return [
+        m
+        for m in matriculas()
+        if m.get("uf") == uf and (m.get("uf_inteira") or int(cod) in {int(k) for k in (m.get("municipios") or {})})
+    ]
+
+
+def _por_cod_imovel(base: gpd.GeoDataFrame, g: gpd.GeoDataFrame, fonte: dict, ha: dict, r: dict) -> list:
+    """(posição do imóvel, efeito, motivo) para as linhas da fonte ligadas pelo número do CAR. A área cruzada é a
+    que o órgão informa (`campo_ha`); sem ela, conta o imóvel inteiro (o órgão ligou o dado ao CAR todo)."""
+    campo = fonte["campo_cod_imovel"]
+    lig = g[g[campo].notna()]
+    if not len(lig):
+        return []
+    pos = {c: i for i, c in enumerate(base.cod_imovel)}
+    out = []
+    for (cod, efeito, motivo), grupo in lig.groupby([lig[campo].astype(str), "efeito", "motivo"]):
+        i = pos.get(cod)
+        if i is None:
+            continue
+        x = None
+        if fonte.get("campo_ha") in grupo.columns:
+            x = float(pd.to_numeric(grupo[fonte["campo_ha"]], errors="coerce").fillna(0).sum())
+        x = x if x else float(ha.get(cod) or 0)
+        if efeito == "exclusao":
+            if _passa(x, ha.get(cod), r):
+                out.append((i, "exclusao", motivo))
+            elif x >= r["tolerancia_ha"]:
+                out.append((i, "ressalva", f"{motivo}_borda"))
+        elif efeito in ("ressalva", "informativo"):
+            out.append((i, efeito, motivo))
+    return out
 
 
 def calcular_municipio(pasta: str | Path, cod: int, camadas: Camadas | None = None, uf: str | None = None):
@@ -173,7 +205,7 @@ def calcular_municipio(pasta: str | Path, cod: int, camadas: Camadas | None = No
         if fonte.get("acesso") == "regra":  # regra estadual ainda pendente: só checklist
             conferir.append(fonte["motivo"])
             continue
-        if fonte.get("acesso") != "aberto" or fonte["tipo"] not in ("wfs", "arcgis"):
+        if fonte.get("acesso") != "aberto" or fonte["tipo"] not in TIPOS_AUTOMATICOS:
             # sem camada (bloqueada fora do Brasil, sem download): não verificada e item do checklist
             nao_verificadas.append(fid)
             essenciais.append(fid)
@@ -187,7 +219,24 @@ def calcular_municipio(pasta: str | Path, cod: int, camadas: Camadas | None = No
         g = camadas.camada(fid)
         if g is None or not len(g) or not len(base):
             continue
+        if fonte.get("campo_cod_imovel") and fonte["campo_cod_imovel"] in g.columns:
+            # o órgão já ligou o dado ao CAR (PRA, LDI): vale o número do recibo, não a geometria
+            ligados = _por_cod_imovel(base, g, fonte, ha, r)
+            for i, efeito, motivo in ligados:
+                (exc[i] if efeito == "exclusao" else res[i] if efeito == "ressalva" else info[i]).append(motivo)
+                if fid not in fontes_cruzadas[i]:
+                    fontes_cruzadas[i].append(fid)
+            if fonte.get("juncao", "cod_imovel") == "cod_imovel":
+                continue
+            ja = {i for i, _, _ in ligados}
+            g = g[g[fonte["campo_cod_imovel"]].isna()].reset_index(drop=True)  # o resto vai pela geometria
+            if not len(g):
+                continue
+        else:
+            ja = set()
         pares = _medir(base, g)
+        if ja and len(pares):
+            pares = pares[~pares.i.isin(ja)]
         if not len(pares):
             continue
         pares["efeito"] = g.efeito.values[pares.c.values.astype(int)]
@@ -228,8 +277,10 @@ def calcular_municipio(pasta: str | Path, cod: int, camadas: Camadas | None = No
 
     for m in regras_matricula(uf, cod):
         conferir.append(m["motivo"])
+        minimo = m.get("area_minima_ha")
         for i in range(n):
-            res[i].append(m["motivo"])
+            if minimo is None or (ha.get(base.cod_imovel[i]) or 0) > float(minimo):
+                res[i].append(m["motivo"])
 
     linhas = []
     sem_cobertura = set(nao_verificadas) & set(essenciais)
