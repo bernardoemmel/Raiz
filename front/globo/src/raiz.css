@@ -5,7 +5,7 @@
 :root {
   --chao: #F3F4F0; --vidro: #FFFFFFF2; --linha: #D9DED6;
   --tinta: #15231B; --pedra: #555D56; --mata: #1D6B44; --lima: #16543A; --urucum: #C2521A;
-  --mapa-destaque: #E4F2A8; --barra: #0F3B27; --barra-texto: #FFFFFF; --barra-suave: #CFE3D5; --barra-linha: #2C5A43;
+  --mapa-destaque: #E4F2A8; --mapa-terra: #F1F2EE; --mapa-brasil: #DCEAD6; --mapa-estado: #8FA88C; --barra: #0F3B27; --barra-texto: #FFFFFF; --barra-suave: #CFE3D5; --barra-linha: #2C5A43;
   --t: "Bricolage Grotesque", system-ui, sans-serif;
   --n: "JetBrains Mono", ui-monospace, monospace;
   --borda: 1px solid var(--linha);
@@ -2320,3 +2320,12 @@ button.link:hover {
 /* reprocessamento estado por estado (docs/reprocessamento-progressivo.md): selo das regras ao lado do de cobertura */
 .selos-estado { display: inline-flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--e1); }
 .estado-regras { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--e2); margin: var(--e2) 0; }
+
+/* Prévia do Brasil (PreviaBrasil.tsx) no mesmo centro e zoom iniciais do MapLibre:
+   desktop -49,2/-15 z3,5; celular -53/-13,5 z3,1 (Web Mercator, 512 px por mundo em z0). */
+.previa-brasil { position: absolute; inset: 0; overflow: hidden; pointer-events: none; background: var(--mapa-terra); }
+.previa-brasil svg { position: absolute; left: calc(50% - 398.8px); top: calc(50% - 329.1px); width: 630.6px; height: 662.4px; }
+.previa-brasil path { fill: var(--mapa-brasil); stroke: var(--mapa-estado); stroke-width: 1; vector-effect: non-scaling-stroke; }
+@media (max-width: 640px) {
+  .previa-brasil svg { left: calc(50% - 255.9px); top: calc(50% - 230.5px); width: 477.9px; height: 502px; }
+}

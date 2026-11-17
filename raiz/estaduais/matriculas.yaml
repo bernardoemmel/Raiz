@@ -1,0 +1,100 @@
+# Matrículas bloqueadas ou canceladas por tribunal estadual (corregedorias). Não há lista pública por matrícula:
+# a regra marca os imóveis dos municípios atingidos para conferir a certidão de inteiro teor (≤ 30 dias) e a
+# cadeia dominial antes de qualquer contrato. Nunca exclui sozinha: vira item do checklist e ressalva.
+versao: "2026-11-17.1"
+regras:
+  - id: tjpi_bloqueio_sul_piaui_2012
+    uf: PI
+    tribunal: TJPI, Corregedoria Geral da Justiça
+    ato: Decisão e provimento da Corregedora Geral Des. Eulália Pinheiro (fev/2012) que bloqueou matrículas de mais de 500 mil ha nas comarcas de Avelino Lopes, Gilbués e Parnaguá
+    data: "2012-02-08"
+    municipios:
+      2201101: Avelino Lopes
+      2204402: Gilbués
+      2207603: Parnaguá
+    efeito: ressalva
+    motivo: matricula_bloqueio_tjpi
+    criterio: >-
+      Imóvel com matrícula aberta nos cartórios dessas comarcas: conferir na certidão de inteiro teor se há
+      averbação de bloqueio e se a cadeia passa pelas matrículas investigadas. A Corregedoria mandou verificar
+      também matrículas de outras comarcas do Estado.
+    fonte: https://www.cnj.jus.br/bloqueadas-matriculas-de-terras-griladas-no-pi/
+    pendente: número do provimento e lista das matrículas (tjpi.jus.br recusa esta nuvem; buscar do Brasil no DJe).
+
+  - id: tjpi_vara_agraria_bom_jesus
+    uf: PI
+    tribunal: TJPI, Vara Agrária de Bom Jesus
+    ato: Bloqueio judicial de matrículas ligadas a ~85 mil ha sobre o Parque Nacional da Serra das Confusões (ação do MP)
+    municipios:
+      2201903: Bom Jesus
+    efeito: ressalva
+    motivo: matricula_bloqueio_tjpi
+    criterio: "Imóvel com cadeia dominial em Bom Jesus ou na região da Serra das Confusões: conferir bloqueio na certidão e no CNIB."
+    fonte: https://www.irib.org.br/?p=103612
+    pendente: lista de matrículas e municípios do entorno (Caracol, Guaribas, Cristino Castro) a confirmar.
+
+  - id: tjba_formosa_rio_preto_726_727
+    uf: BA
+    tribunal: TJBA, Corregedoria das Comarcas do Interior
+    ato: Bloqueio (2011) das matrículas 726 e 727 do CRI de Formosa do Rio Preto e das delas decorrentes; Portaria 105/2015 anulada pelo CNJ (2019); bloqueio mantido pela Corregedoria (caso ligado à Operação Faroeste)
+    municipios:
+      2911105: Formosa do Rio Preto
+    efeito: ressalva
+    motivo: matricula_bloqueio_tjba
+    criterio: >-
+      Imóvel com matrícula no CRI de Formosa do Rio Preto: conferir na certidão de inteiro teor se a cadeia passa
+      pelas matrículas 726/727 (ou pela 1037) e se há averbação de bloqueio. Se passar, o imóvel sai até decisão final.
+    fonte: https://www.bahianoticias.com.br/justica/noticia/72298-conflito-fundiario-na-bahia-faz-tj-ba-manter-bloqueio-de-matriculas-de-imoveis-em-formosa-do-rio-preto
+    pendente: situação atual no DJe do TJBA e nos processos do CNJ (PP 7396-96 e 7368-31).
+
+  - id: tjba_provimento_conjunto_08_2021
+    uf: BA
+    tribunal: TJBA, Corregedoria Geral e Corregedoria das Comarcas do Interior
+    ato: Provimento Conjunto CGJ/CCI 08/2021 (18/10/2021), que prevê pedir ao juiz corregedor o bloqueio e eventual cancelamento de matrículas rurais irregulares
+    municipios:
+      2911105: Formosa do Rio Preto
+      2928406: Santa Rita de Cássia
+      2928901: São Desidério
+      2909307: Correntina
+      2903201: Barreiras
+      2919553: Luís Eduardo Magalhães
+      2917359: Jaborandi
+      2908101: Cocos
+    efeito: ressalva
+    motivo: matricula_oeste_baiano_conferir
+    criterio: >-
+      Oeste baiano (MATOPIBA) concentra matrículas sob correição: certidão de inteiro teor recente, cadeia
+      dominial até o destaque do patrimônio público e consulta ao CNIB entram no checklist de todo imóvel desses
+      municípios. A lista de municípios é a área de maior incidência dos casos noticiados; ampliar quando o texto
+      do provimento for lido do Brasil.
+    fonte: https://jornalgrandebahia.com.br/2021/10/capitulo-lix-do-caso-faroeste-a-analise-juridica-sobre-o-provimento-conjunto-no-08-2021-do-pjba/
+    pendente: texto integral do provimento (tjba.jus.br responde daqui, mas o DJe precisa de busca manual).
+
+  - id: tjpa_matriculas_acima_do_limite
+    uf: PA
+    uf_inteira: true
+    area_minima_ha: 2500
+    tribunal: TJPA, Corregedoria de Justiça das Comarcas do Interior, e Corregedoria Nacional de Justiça (CNJ)
+    ato: >-
+      Provimento 13/2006-CJCI (bloqueio de matrículas rurais acima do limite constitucional) e decisão do CNJ no
+      Pedido de Providências 0001943-67.2009.2.00.0000 (2010), que mandou cancelar cerca de 5.500 matrículas
+      rurais irregulares no Pará; parte das decisões teve efeito suspenso no STF para quem não foi ouvido.
+    data: "2010-08-16"
+    municipios: {}
+    periodos:
+      # limite para alienar terra pública sem autorização do Congresso/Senado na época da abertura da matrícula
+      - {de: "1934-07-16", ate: "1964-11-08", limite_ha: 10000} # Constituições de 1934, 1937 e 1946 (art. 156 §2º)
+      - {de: "1964-11-09", ate: "1988-10-04", limite_ha: 3000} # Emenda Constitucional 10/1964
+      - {de: "1988-10-05", ate: null, limite_ha: 2500} # CF/1988, art. 49 XVII e art. 188 §1º
+    efeito: ressalva
+    motivo: matricula_acima_limite_tjpa
+    criterio: >-
+      Todo imóvel do Pará leva o item do checklist (conferir bloqueio ou cancelamento na certidão de inteiro teor e
+      no CNIB). Imóvel com mais de 2.500 ha (o menor limite) vira ressalva na triagem. Com a certidão (fluxo de
+      documentos, com autorização do dono), `raiz.estaduais.matricula.avaliar` compara a data de abertura e a área
+      com o limite da época; acima dele, a matrícula é suspeita e o imóvel sai do lote até a conferência.
+    fonte: https://www.cnj.jus.br/corregedoria-cancela-registros-imobiliarios-irregulares-no-para-ouca-a-entrevista/
+    pendente: >-
+      Texto integral do Provimento 13/2006-CJCI e situação atual do PP 0001943-67.2009 (o site do TJPA abre daqui,
+      o DJe precisa de busca manual). Os limites por época seguem as Constituições; conferir se o provimento usa as
+      mesmas datas de corte.

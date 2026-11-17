@@ -1,0 +1,169 @@
+# Fontes estaduais de Goiás. O SIEG (sieg.go.gov.br, IMB) recusa conexão desta nuvem (502 no túnel; provável
+# bloqueio fora do Brasil). As camadas de fiscalização da SEMAD estão no SIGA-GO, que responde daqui:
+# siga.meioambiente.go.gov.br/geoserver (GeoNode). Testado em 17/11/2026.
+uf: GO
+verificado_em: "2026-11-17"
+fontes:
+  - id: go_embargos
+    nome: Embargos estaduais (INÃ/SGA), polígonos e pontos
+    tema: embargo_estadual
+    orgao: SEMAD-GO
+    acesso: aberto
+    tipo: wfs
+    url: https://siga.meioambiente.go.gov.br/geoserver/ows
+    camadas:
+      - geonode:vw_embargo_ina_sga_poligono_publico
+      - geonode:vw_embargo_ina_sga_ponto_publico
+    srs: EPSG:4674
+    geometria: poligono_ou_ponto
+    manter: [codigo, data_criacao, codigo_processo, codigo_infracao, categoria, sub_categoria, area, origem]
+    descartar: [nome_razao_social, cpf_cnpj, numero_processo_sei_sga]
+    excluir_se_em: {fonte: go_desembargos, campo: codigo_processo}
+    efeito: exclusao
+    motivo: embargo_estadual
+    criterio: >-
+      Polígono de embargo estadual acima do limiar = exclusão; ponto de embargo dentro do imóvel = ressalva forte
+      (sem polígono não dá para medir a área). Embargo cujo processo aparece na camada de desembargos não conta.
+    lgpd: Nome e CPF/CNPJ (já mascarado pela SEMAD) são apagados na entrada.
+    licenca: Dado público da SEMAD-GO (camadas "público" do SIGA-GO); licença não declarada.
+    situacao: {testado_em: "2026-11-17", resultado: "ok, 21.726 polígonos e 1.600 pontos"}
+    alternativa: SIEG (sieg.go.gov.br) a partir do Brasil, se o SIGA sair do ar.
+
+  - id: go_desembargos
+    nome: Desembargos estaduais (INÃ/SGA)
+    tema: embargo_estadual
+    orgao: SEMAD-GO
+    acesso: aberto
+    tipo: wfs
+    url: https://siga.meioambiente.go.gov.br/geoserver/ows
+    camadas:
+      - geonode:vw_desembargos_ina_sga_poligono_publico
+      - geonode:vw_desembargos_ina_sga_ponto_publico
+    srs: EPSG:4674
+    geometria: poligono_ou_ponto
+    manter: [codigo_processo, data_criacao, categoria]
+    descartar: [nome_razao_social, cpf_cnpj, numero_processo_sei_sga]
+    efeito: informativo
+    motivo: desembargo_estadual
+    criterio: Só serve para tirar da lista de embargos os processos já desembargados (histórico fica como informação).
+    lgpd: Nome e CPF/CNPJ apagados na entrada.
+    licenca: Dado público da SEMAD-GO.
+    situacao: {testado_em: "2026-11-17", resultado: "ok, 6.174 polígonos"}
+
+  - id: go_autos
+    nome: Autos de infração ambiental estaduais (INÃ/SGA)
+    tema: autos_infracao
+    orgao: SEMAD-GO
+    acesso: aberto
+    tipo: wfs
+    url: https://siga.meioambiente.go.gov.br/geoserver/ows
+    camadas:
+      - geonode:vw_autos_ina_sga_poligono_publico
+      - geonode:vw_autos_ina_sga_ponto_publico
+    srs: EPSG:4674
+    geometria: poligono_ou_ponto
+    campo_data: data_criacao
+    manter: [codigo_processo, data_criacao, categoria, sub_categoria, status, area, origem]
+    descartar: [nome_razao_social, cpf_cnpj, numero_processo_sei_sga]
+    efeito: ressalva
+    motivo: auto_estadual
+    regra_efeito:
+      - campo: categoria
+        padrao: "(?i)desmat|supress|flora|vegeta|reserva legal|preserva..o permanente"
+        recente_anos: 5
+        motivo: auto_estadual_flora_recente
+    criterio: Auto estadual dentro do imóvel = ressalva; desmatamento/supressão nos últimos 5 anos = ressalva mais forte.
+    lgpd: Nome e CPF/CNPJ apagados na entrada.
+    licenca: Dado público da SEMAD-GO.
+    situacao: {testado_em: "2026-11-17", resultado: "ok, 31.657 polígonos e 8.590 pontos"}
+
+  - id: go_psa_cerrado_em_pe
+    nome: PSA Cerrado em Pé, áreas autorizadas para pagamento e imóveis inscritos
+    tema: psa_vigente
+    orgao: SEMAD-GO
+    acesso: aberto
+    tipo: wfs
+    url: https://siga.meioambiente.go.gov.br/geoserver/ows
+    camadas:
+      - geonode:psa_area_autorizada
+      - geonode:vw_psa_imovel
+    srs: EPSG:4674
+    geometria: poligono
+    manter: [codigo, area_autorizada_ha, tipo_area_psa, area_m2]
+    descartar: [proponente, cpf_cnpj_proponente, proponente_nome, created_by, last_modified_by, identificacao, chave_pai, imovel_uuid, uuid]
+    efeito: ressalva
+    motivo: psa_estadual_vigente
+    criterio: >-
+      Área já recebe pagamento por serviço ambiental do Estado: risco de dupla remuneração e o contrato de PSA pode
+      impedir outro compromisso na mesma área. Checklist: conferir o contrato e o prazo.
+    lgpd: A camada de imóveis expõe CPF sem máscara em created_by; esses campos e o nome do proponente são apagados na entrada.
+    licenca: Dado público da SEMAD-GO.
+    situacao: {testado_em: "2026-11-17", resultado: "ok, 427 áreas autorizadas e 2.146 imóveis"}
+
+  - id: go_prad_compensatorio
+    nome: PRADs aprovados e plantios compensatórios (servidão ambiental)
+    tema: obrigacao_recuperar
+    orgao: SEMAD-GO
+    acesso: aberto
+    tipo: wfs
+    url: https://siga.meioambiente.go.gov.br/geoserver/ows
+    camadas:
+      - geonode:prads_aprovados
+      - geonode:vw_servidao_ambiental_ipe
+      - geonode:vw_recuperacao_dai
+    srs: EPSG:4674
+    geometria: poligono
+    manter: [n_proc_sei, dt_autoriz, area_ha, municipio, feicao, status, statusprocesso, municipioibge]
+    descartar: [funci_resp, nomeempreendedor, cpfcnpjempreendedor, identificacao]
+    efeito: ressalva
+    motivo: recuperacao_obrigatoria
+    criterio: Área com PRAD ou plantio compensatório é obrigação legal de recuperar; não é adicional e não pode ser vendida como restauração voluntária.
+    lgpd: Nome e documento do empreendedor e do servidor apagados na entrada.
+    licenca: Dado público da SEMAD-GO.
+    situacao: {testado_em: "2026-11-17", resultado: "ok, 157 PRADs e 2.653 plantios compensatórios"}
+
+  - id: go_uc_estaduais
+    nome: Unidades de conservação estaduais (CEUC) e RPPN estaduais
+    tema: unidade_conservacao
+    orgao: SEMAD-GO
+    acesso: aberto
+    tipo: wfs
+    url: https://siga.meioambiente.go.gov.br/geoserver/ows
+    camadas:
+      - geonode:ceuc_estadual
+      - geonode:vw_rppn_estadual
+      - geonode:vw_uc_municipal
+    srs: EPSG:4674
+    geometria: poligono
+    manter: [nomeunidade, grupo, categoria, area_ha, esferaadministrativa]
+    descartar: []
+    efeito: ressalva
+    motivo: uc_estadual_uso_sustentavel
+    regra_efeito:
+      - campo: grupo
+        padrao: "(?i)prote..o integral|- PI"
+        efeito: exclusao
+        motivo: uc_estadual_protecao_integral
+    criterio: Proteção integral acima do limiar = exclusão; uso sustentável e RPPN = ressalva.
+    lgpd: Sem dado pessoal.
+    licenca: Dado público da SEMAD-GO.
+    situacao: {testado_em: "2026-11-17", resultado: "ok, 27 UCs estaduais, 36 RPPNs"}
+
+  - id: go_imoveis_compensacao_uc
+    nome: Imóveis disponíveis para compensação ambiental
+    tema: terra_publica_pendente
+    orgao: SEMAD-GO
+    acesso: aberto
+    tipo: wfs
+    url: https://siga.meioambiente.go.gov.br/geoserver/ows
+    camada: geonode:imoveis_disponiveis_para_compensacao_ambiental
+    srs: EPSG:4674
+    geometria: poligono
+    manter: []
+    descartar: [proprietario, nome, cpf, cnpj, cpf_cnpj]
+    efeito: ressalva
+    motivo: imovel_em_uc_a_desapropriar
+    criterio: Imóvel em UC oferecido para compensação; o destino é virar terra pública.
+    lgpd: Campos de pessoa apagados na entrada.
+    licenca: Dado público da SEMAD-GO.
+    situacao: {testado_em: "2026-11-17", resultado: "ok, 175 imóveis"}

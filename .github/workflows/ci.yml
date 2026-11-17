@@ -9,9 +9,14 @@ on:
 permissions:
   contents: read
 
+# Em PR, um push novo cancela a rodada antiga do mesmo PR (só a última revisão importa para o merge).
+# Na main, cada commit tem grupo próprio e nunca é cancelado.
 concurrency:
-  group: ci-${{ github.event.pull_request.number || github.ref }}-${{ github.sha }}
-  cancel-in-progress: false
+  group: >-
+    ci-${{ github.event_name == 'pull_request'
+    && format('pr-{0}', github.event.pull_request.number)
+    || format('{0}-{1}', github.ref, github.sha) }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   agentes:
@@ -260,10 +265,17 @@ jobs:
           uv run python scripts/conferir_pacote.py "$RUNNER_TEMP"/pacote-raiz/raiz-*.whl
 
 
-  testes_python:
+  # A suíte geral roda em 4 partes paralelas (arquivos equilibrados por tempo, testes/particao.py).
+  # O check obrigatório continua sendo o job `testes_python`, que só aprova com as 4 partes completas.
+  testes_python_partes:
+    name: testes_python (parte ${{ matrix.parte }} de 4)
     runs-on: ubuntu-24.04
-    # R12 e qualidade ampliam a suíte PostGIS; inclui margem para preparo e caches.
-    timeout-minutes: 60
+    # Cada parte leva ~8 min de testes; a margem cobre preparo, caches e máquina lenta.
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        parte: [1, 2, 3, 4]
     services:
       banco:
         image: postgis/postgis:16-3.5
@@ -309,19 +321,24 @@ jobs:
           npm --prefix servicos/cartao ci --no-audit --no-fund
           sudo apt-get update -q
           sudo apt-get install -y -q --no-install-recommends ffmpeg libreoffice-writer poppler-utils tesseract-ocr tesseract-ocr-por
+      # O smoke visual não é pytest: roda uma vez só, na parte 1.
       - name: Dependências do smoke visual da ficha pública
+        if: matrix.parte == 1
         run: npm --prefix front/globo ci --no-audit --no-fund
       - name: Cache do Chromium da ficha pública
+        if: matrix.parte == 1
         uses: actions/cache@v4
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ hashFiles('front/globo/package-lock.json') }}
       - name: Chromium para a ficha pública
+        if: matrix.parte == 1
         run: cd front/globo && npx playwright install --with-deps chromium
       - name: Ficha pública datada (HTML real, aviso de versão, teclado, axe e celular; sem banco)
+        if: matrix.parte == 1
         run: uv run node front/scripts/testar-ficha-publica.mjs
       - name: Evidências da ficha pública datada
-        if: always()
+        if: always() && matrix.parte == 1
         uses: actions/upload-artifact@v7
         with:
           name: ficha-publica-versionada
@@ -352,7 +369,48 @@ jobs:
           done
           curl --fail --silent http://localhost:8010/v2/languages > /dev/null
       - name: Testes Python com PostGIS; o caso estadual roda no job paralelo
-        run: uv run pytest -q --deselect=testes/test_lote.py::test_lote_do_para_inteiro_fecha_ou_diz_o_que_falta --junitxml=resultado-pytest.xml
+        run: >-
+          uv run pytest -q -p testes.particao --parte=${{matrix.parte}}/4
+          --deselect=testes/test_lote.py::test_lote_do_para_inteiro_fecha_ou_diz_o_que_falta
+          --junitxml=resultado-pytest-${{matrix.parte}}.xml
+      - name: Resultado dos testes gerais (sem dados do arquivo privado)
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: resultado-pytest-${{ matrix.parte }}
+          path: resultado-pytest-${{ matrix.parte }}.xml
+          retention-days: 7
+
+  # Nome preservado: a proteção da main exige o check `testes_python`. Ele só passa com as 4 partes
+  # aprovadas e com a soma dos testes executados igual à suíte inteira.
+  testes_python:
+    needs: [testes_python_partes]
+    # Sem always(), uma parte reprovada deixaria este check "pulado", e pulado conta como aprovado.
+    if: always() && !cancelled()
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Exigir as 4 partes aprovadas
+        env:
+          PARTES: ${{ needs.testes_python_partes.result }}
+        run: |
+          if [ "$PARTES" != success ]; then
+            echo '::error::Alguma parte da suíte Python reprovou ou não terminou.'
+            exit 1
+          fi
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: resultado-pytest-*
+          path: partes
+          merge-multiple: true
+      - name: Juntar as partes e conferir que nenhum teste ficou de fora
+        run: >-
+          python3 scripts/juntar_partes_pytest.py --partes 4 --saida resultado-pytest.xml
+          partes/resultado-pytest-1.xml partes/resultado-pytest-2.xml
+          partes/resultado-pytest-3.xml partes/resultado-pytest-4.xml
       - name: Resultado dos testes gerais (sem dados do arquivo privado)
         if: always()
         uses: actions/upload-artifact@v7

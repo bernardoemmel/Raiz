@@ -1,0 +1,53 @@
+# Fontes estaduais do Amazonas. Testado em 17/11/2026: SEMA-AM, IPAAM e SDS fecham a conexão desta nuvem; o
+# portal amazonas.am.gov.br abre, sem dado geográfico. Os projetos REDD+ em UCs estaduais (Juma, Uatumã, Bolsa
+# Floresta...) já entram pela camada de terra comprometida (Verra e bases secundárias, docs/terra-comprometida.md).
+uf: AM
+verificado_em: "2026-11-17"
+fontes:
+  - id: am_sema_redd_ucs
+    nome: Projetos e programa de REDD+ em UCs estaduais (SEMA-AM, Lei estadual 4.266/2015)
+    tema: redd_jurisdicional
+    orgao: SEMA-AM
+    acesso: bloqueado_fora_brasil
+    tipo: pendente
+    url: https://www.sema.am.gov.br/
+    efeito: conferir
+    motivo: redd_estadual_a_conferir
+    criterio: >-
+      Imóvel dentro ou ao lado de UC estadual com projeto ou concessão de REDD+ = conferir dupla contagem com o
+      programa estadual. Os limites dos projetos registrados já vêm da camada de terra comprometida.
+    lgpd: —
+    situacao: {testado_em: "2026-11-17", resultado: "www.sema.am.gov.br, www.ipaam.am.gov.br e www.sds.am.gov.br: conexão fechada daqui"}
+    alternativa: Terra comprometida (Verra, InfoAmazonia, base científica) e UCs estaduais pelo CNUC.
+
+  - id: am_ipaam_embargos
+    nome: Embargos e autos estaduais do IPAAM
+    tema: embargo_estadual
+    orgao: IPAAM
+    acesso: bloqueado_fora_brasil
+    tipo: pendente
+    url: https://www.ipaam.am.gov.br/
+    efeito: conferir
+    motivo: embargo_estadual_a_conferir
+    criterio: Embargo estadual acima do limiar = exclusão quando a camada chegar; até lá, checklist.
+    lgpd: Apagar nome e documento na entrada.
+    situacao: {testado_em: "2026-11-17", resultado: "www.ipaam.am.gov.br: conexão fechada daqui"}
+    alternativa: Embargos e autos do Ibama (nacional).
+
+  - id: am_glebas_estaduais_cnfp
+    nome: Florestas públicas estaduais não destinadas (CNFP 2025)
+    tema: terra_devoluta
+    orgao: SFB (CNFP), com dado do ITERAM (hoje SECT/Terras do AM)
+    acesso: aberto
+    tipo: cnfp
+    url: https://www.gov.br/florestal/pt-br/assuntos/cadastro-nacional-de-florestas-publicas
+    geometria: poligono
+    manter: [categoria, tipo, governo, orgao, protecao]
+    efeito: ressalva
+    motivo: gleba_estadual
+    criterio: >-
+      Floresta pública estadual não destinada (tipo B, governo estadual) acima do limiar = ressalva: posse em terra
+      do estado; o caminho é a regularização no ITERAM (hoje SECT/Terras do AM). No AM a maior parte da floresta pública estadual não destinada está no CNFP.
+    lgpd: Sem dado pessoal.
+    licenca: Dado aberto do governo federal (Decreto 8.777/2016).
+    situacao: {testado_em: "2026-11-17", resultado: "ok (CNFP 2025 do SFB, abre de fora do Brasil)"}

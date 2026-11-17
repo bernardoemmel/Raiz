@@ -1,0 +1,92 @@
+name: Fontes estaduais (coleta semanal)
+
+# Coleta sozinha, sem download manual, as camadas do catálogo raiz/estaduais/fontes/<UF>.yaml (embargos e autos
+# estaduais, UCs, restauração e PSA já registrados, terras devolutas, territórios tradicionais). Nome, CPF e CNPJ
+# são apagados na entrada e conferidos antes de publicar. Publica no Release "insumos":
+#   estaduais_<fonte>.parquet e estaduais_cobertura.json
+# A tarefa "estaduais" do executor lê esses arquivos; município pronto não refaz o funil.
+# Fontes que bloqueiam acesso de fora do Brasil (BA, PI) ficam "bloqueado_fora_brasil" na cobertura: o runner do
+# GitHub também fica fora do Brasil. Rodar do Brasil: `python -m raiz.estaduais coletar --saida PASTA --ufs BA,PI`
+# e subir os arquivos no Release (docs/fontes-estaduais.md).
+# Para pausar: desative este workflow na aba Actions.
+
+on:
+  schedule:
+    - cron: "17 9 * * 3" # quartas, 06h17 em Brasília (depois das restrições nacionais)
+  workflow_dispatch:
+    inputs:
+      ufs:
+        description: "UFs por vírgula; vazio = todas do catálogo"
+        required: false
+        default: ""
+      publicar:
+        description: "publicar no Release insumos"
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+
+concurrency:
+  group: coletar-estaduais
+  cancel-in-progress: false
+
+jobs:
+  coletar:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 240
+    env:
+      GH_TOKEN: ${{ github.token }}
+      UFS: ${{ inputs.ufs }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v7
+        with:
+          version: "0.13.6"
+      - name: Instalar dependências
+        run: |
+          uv sync --frozen
+          echo "SAIDA=$RUNNER_TEMP/estaduais" >> "$GITHUB_ENV"
+
+      - name: Conferir o catálogo
+        run: uv run python -m raiz.estaduais validar
+
+      - name: Coletar as fontes estaduais
+        run: uv run python -m raiz.estaduais coletar --saida "$SAIDA" --ufs "$UFS"
+
+      - name: Conferir antes de publicar
+        run: |
+          uv run python - <<'PY'
+          import json, os, sys
+          m = json.load(open(os.environ["SAIDA"] + "/estaduais_cobertura.json", encoding="utf-8"))
+          ok = [n for n, c in m["fontes"].items() if c["estado"] in ("consultado", "parcial")]
+          for nome, c in sorted(m["fontes"].items()):
+              print(" ", c.get("uf"), nome, c["estado"], c.get("feicoes", ""))
+          if not ok:
+              print("::error::nenhuma fonte estadual cobriu: não publico (o Release mantém a coleta anterior)")
+              sys.exit(1)
+          PY
+          uv run python -c "import os, sys, pathlib; from raiz.estaduais.coleta import conferir_sem_documento as c; r = c(pathlib.Path(os.environ['SAIDA'])); print(len(r), 'achados'); sys.exit(1 if r else 0)"
+
+      - name: Publicar no Release insumos
+        if: github.event_name == 'schedule' || inputs.publicar
+        run: |
+          if ! gh release view insumos -R "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release create insumos -R "$GITHUB_REPOSITORY" --title "insumos" \
+              --notes "Insumos opcionais do processamento (ver motor/README.md e docs/lote.md)."
+          fi
+          # a cobertura de uma coleta parcial (só algumas UFs) se junta à anterior para não apagar as outras UFs
+          if gh release download insumos -R "$GITHUB_REPOSITORY" -p estaduais_cobertura.json -D "$RUNNER_TEMP/antes" 2>/dev/null; then
+            uv run python - <<'PY'
+          import json, os
+          antes = json.load(open(os.environ["RUNNER_TEMP"] + "/antes/estaduais_cobertura.json", encoding="utf-8"))
+          agora_p = os.environ["SAIDA"] + "/estaduais_cobertura.json"
+          agora = json.load(open(agora_p, encoding="utf-8"))
+          antes["fontes"].update(agora["fontes"])
+          antes["gerado_em"] = agora.get("gerado_em")
+          json.dump(antes, open(agora_p, "w", encoding="utf-8"), ensure_ascii=False, indent=2, sort_keys=True)
+          PY
+          fi
+          mapfile -t arquivos < <(find "$SAIDA" -maxdepth 1 -type f -name 'estaduais_*' | sort)
+          gh release upload insumos "${arquivos[@]}" -R "$GITHUB_REPOSITORY" --clobber
+          echo "publicado: ${arquivos[*]}"
