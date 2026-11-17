@@ -59,8 +59,21 @@ jobs:
           version: "0.13.6"
           enable-cache: false
       - run: uv sync --frozen --extra motor
+      # Limites da terra já comprometida (coletar-comprometida.yml). Com eles, a rodada refaz comprometida_<mun>.csv
+      # que falte ou esteja velho e o lote tira as fazendas já comprometidas; sem eles, tudo fica "não verificada".
+      - name: Baixar os limites da terra já comprometida (Release insumos)
+        run: |
+          mkdir -p "$RUNNER_TEMP/comprometida"
+          if gh release download insumos -R "$GITHUB_REPOSITORY" -D "$RUNNER_TEMP/comprometida" --clobber \
+               -p comprometida_limites.parquet -p comprometida_cobertura.json; then
+            echo "limites da terra já comprometida: ok"
+          else
+            rm -f "$RUNNER_TEMP"/comprometida/comprometida_*
+            echo "::warning::sem limites da terra já comprometida: o lote sai com sobreposição não verificada"
+          fi
       - name: Atualizar índices e publicar consultas somente no arquivo privado
         env:
+          RAIZ_COMPROMETIDA_DIR: ${{ runner.temp }}/comprometida
           INPUT_UFS: ${{ inputs.ufs }}
           INPUT_BIOMA: ${{ inputs.bioma }}
           INPUT_BRASIL: ${{ inputs.brasil }}

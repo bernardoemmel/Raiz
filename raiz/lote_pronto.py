@@ -92,10 +92,15 @@ def situacao_sobreposicao(linha: dict) -> str:
     """nao_verificada enquanto o catálogo não traz a camada 'já comprometida' (ausência de coluna não é terra livre)."""
     if "risco_sobreposicao" not in linha and "ja_comprometida" not in linha:
         return "nao_verificada"
-    if linha.get("ja_comprometida") is True:
+    # str(): o valor pode chegar como bool, numpy.bool_, None, NaN ou pd.NA conforme quem leu o parquet
+    ja, risco = str(linha.get("ja_comprometida")), str(linha.get("risco_sobreposicao"))
+    if ja == "True":
         return "ja_comprometida"
-    if linha.get("risco_sobreposicao") is True:
+    if risco == "True":
         return "risco_sobreposicao"
+    # nulo = imóvel sem verificação (sem limites coletados ou sem polígono do CAR): nunca vira "sem indício"
+    if ("ja_comprometida" in linha and ja != "False") or linha.get("status_sobreposicao") == "nao_verificado":
+        return "nao_verificada"
     return "sem_indicio_nas_fontes_consultadas"
 
 

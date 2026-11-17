@@ -25,6 +25,7 @@ from raiz import restauracao_desbloqueio as D
 from raiz import restauracao_nacional as N
 from raiz import restauracao_nacional_fontes as F
 from raiz import restauracao_nacional_pa as PA
+from raiz.comprometida import status as ST
 from raiz.executor.transferencia_privada import arquivo_privado, empacotar, enviar_arquivo, extrair
 from raiz.pedidos.campos import CamposPedido
 
@@ -135,6 +136,41 @@ def _importar_pa_historico(arm, pasta: Path) -> tuple[Path, dict]:
     }
 
 
+def completar_comprometida(fonte: Path, *, limites=None, cobertura=None, hoje: str | None = None) -> dict:
+    """Garante comprometida_<mun>.csv atual em cada município da UF antes de indexar.
+
+    O pacote do estado pode não trazer o arquivo (estados processados antes da coleta, o Pará histórico) ou trazer
+    uma versão de coleta antiga. Aqui ele é refeito só com geo_<mun>.parquet e os limites do Release insumos, sem
+    refazer o funil. Sem limites coletados, nada é escrito: o imóvel fica não verificado (nunca livre).
+    """
+    from raiz.comprometida import status as ST
+
+    if limites is None and cobertura is None:
+        limites, cobertura = ST.carregar_limites()
+    assinatura = ST.assinatura()
+    if limites is None or not assinatura:
+        return {"situacao": "sem_limites", "refeitos": 0, "em_dia": 0, "sem_geometria": 0}
+    versao = f"{ST.versao()}+{assinatura}"
+    refeitos = em_dia = sem_geo = 0
+    for arquivo in sorted(fonte.glob("imoveis_*.csv")):
+        cod = int(arquivo.stem.rsplit("_", 1)[1])
+        atual = fonte / f"comprometida_{cod}.csv"
+        if atual.exists():
+            try:
+                vs = set(pd.read_csv(atual, usecols=["comprometida_versao"]).comprometida_versao.dropna())
+            except ValueError:
+                vs = set()
+            if vs == {versao}:
+                em_dia += 1
+                continue
+        if not (fonte / f"geo_{cod}.parquet").exists():
+            sem_geo += 1  # sem polígono: o índice deixa a fazenda não verificada
+            continue
+        ST.escrever_municipio(fonte, cod, limites=limites, cobertura=cobertura, hoje=hoje)
+        refeitos += 1
+    return {"situacao": "ok", "versao": versao, "refeitos": refeitos, "em_dia": em_dia, "sem_geometria": sem_geo}
+
+
 def _vazios(pasta: Path, uf: str) -> list[int]:
     arquivo = pasta / f"sem_imoveis_{uf}.csv"
     if not arquivo.exists():
@@ -156,6 +192,7 @@ def atualizar(arm, trabalho: Path, *, max_ufs: int = 27, limite_minutos: float =
     rodada_pa = PA.referencia(arm, ativos)
     estado = arm.manifesto(fresco=True)
     novas, inicio = [], time.monotonic()
+    limites, cobertura = ST.carregar_limites()  # uma leitura para todas as UFs
     for uf in N.UFS:
         rodada = rodada_pa if uf == "PA" else None
         nomes = (f"raiz_{uf}.tar.gz", f"raiz_geo_{uf}.tar.gz")
@@ -174,6 +211,8 @@ def atualizar(arm, trabalho: Path, *, max_ufs: int = 27, limite_minutos: float =
             "cenario": R.cenario()["cenario"],
             "indice": C.versao_indice(),
             "importador_pa": hashlib.sha256(Path(PA.__file__).read_bytes()).hexdigest() if rodada else None,
+            # coleta nova da terra já comprometida reindexa a UF (só a camada muda; previsões ficam)
+            "comprometida": f"{ST.versao()}+{ST.assinatura() or 'sem_limites'}",
         }
         chave = hashlib.sha256(C._json(identidade)).hexdigest()
         anterior = atual["ufs"].get(uf)
@@ -192,6 +231,7 @@ def atualizar(arm, trabalho: Path, *, max_ufs: int = 27, limite_minutos: float =
         else:
             captura = F.capturar_uf(arm, uf, pasta / "captura")
             fonte = pasta / "captura/saida" / uf
+        captura = {**captura, "comprometida": completar_comprometida(fonte, limites=limites, cobertura=cobertura)}
         partes = []
         for arquivo in sorted(fonte.glob("imoveis_*.csv")):
             cod = int(arquivo.stem.rsplit("_", 1)[1])
@@ -287,6 +327,8 @@ def resumo_consulta(resultado: dict) -> dict:
                 "creditos": op["creditos"],
                 "fecha_meta": op.get("fecha_meta"),
                 "sobreposicao": op.get("sobreposicao_situacao"),
+                "marcadas_risco_sobreposicao": op.get("marcadas_risco_sobreposicao"),
+                "sobreposicao_nao_verificadas": op.get("sobreposicao_nao_verificadas"),
             }
             for nome, op in resultado["opcoes"].items()
         },
@@ -294,6 +336,7 @@ def resumo_consulta(resultado: dict) -> dict:
             k: espera.get(k) for k in ("incluida_no_pedido", "fazendas", "pequenas", "hectares", "soma_creditos_p50")
         },
         "sobreposicao": (resultado.get("sobreposicao") or {}).get("situacao"),
+        "excluidas_ja_comprometidas": (resultado.get("sobreposicao") or {}).get("excluidas_ja_comprometidas"),
     }
 
 

@@ -202,6 +202,12 @@ def _risco(cam: str, e: dict, r: dict) -> tuple[str, str]:
         if c.get("situacao") == "contratada":
             return "baixo", f"Contrato de concessão assinado em {c.get('data', '')}."
         return "medio", "Concessão ainda em edital: depende do resultado da licitação."
+    if cam in ("assentamento", "posse_em_titulacao") and fr(e["publica"]) >= L["sobreposicao_alerta"]:
+        # gleba pública não destinada (CNFP/SIGEF) sob parte do CAR: quem ocupa não origina essa parte sozinho
+        return "alto", (
+            f"{_pct(e['publica'], ha)} do CAR sobre gleba pública não destinada ou unidade de conservação de domínio "
+            "público; conferir com o órgão fundiário antes de contratar."
+        )
     if cam == "assentamento":
         if e["assentamento_titulado"] > 0 and fr(e["assentamento_titulado"]) >= L["fracao_caminho"]:
             return "medio", "Lote titulado no SIGEF; depende de aval do INCRA."

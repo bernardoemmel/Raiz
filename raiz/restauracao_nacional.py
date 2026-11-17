@@ -375,19 +375,38 @@ def _terra_em_espera(con, pedido, modelo, cenario, comercializaveis, sobreposica
 
 
 def _sobreposicao(con, colunas, selecionadas_sql="escolhidos"):
-    """Situação da camada 'já comprometida' sobre o catálogo desta consulta."""
+    """Situação da camada 'já comprometida' sobre o catálogo desta consulta.
+
+    verificada: todo imóvel do recorte tem status; parcial: parte ficou sem verificação (sem limites coletados ou sem
+    geometria do CAR); nao_verificada: nenhum. As já comprometidas saem do lote em qualquer caso.
+    """
+    aviso_nv = (
+        "Sobreposição não verificada: o catálogo ainda não traz a camada 'já comprometida'. "
+        "Ausência de indício não é terra livre; conferir antes de contratar."
+    )
     if "ja_comprometida" not in colunas:
-        return {
-            "situacao": "nao_verificada",
-            "aviso": "Sobreposição não verificada: o catálogo ainda não traz a camada 'já comprometida'. "
-            "Ausência de indício não é terra livre; conferir antes de contratar.",
-        }
-    n = con.sql("select count(*) filter(where coalesce(ja_comprometida,false)) from recorte").fetchone()[0]
-    return {
-        "situacao": "verificada",
+        return {"situacao": "nao_verificada", "aviso": aviso_nv}
+    n, risco, nv, total = con.sql(
+        "select count(*) filter(where coalesce(ja_comprometida,false)), "
+        "count(*) filter(where coalesce(risco_sobreposicao,false)), "
+        "count(*) filter(where ja_comprometida is null), count(*) from recorte"
+    ).fetchone()
+    situacao = "nao_verificada" if total and nv == total else ("parcial" if nv else "verificada")
+    out = {
+        "situacao": situacao,
         "excluidas_ja_comprometidas": int(n),
+        "risco_sobreposicao": int(risco),
+        "nao_verificadas": int(nv),
         "aviso": "Fazendas já comprometidas saíram do lote; fazendas com risco de sobreposição estão marcadas.",
     }
+    if situacao == "nao_verificada":
+        out["aviso"] = aviso_nv
+    elif situacao == "parcial":
+        out["aviso"] += (
+            f" {int(nv)} fazendas do recorte ficaram sem verificação (sem limites ou sem polígono): "
+            "conferir antes de contratar."
+        )
+    return out
 
 
 def _agregar_grupos(con, pedido):
@@ -601,7 +620,7 @@ def montar_tres_opcoes(
         duckdb.connect(config={"memory_limit": "1GB", "threads": 2, "temp_directory": spill}) as con,
     ):
         if arquivos:
-            con.from_parquet(arquivos).create_view("oferta")
+            con.from_parquet(arquivos, union_by_name=True).create_view("oferta")
         else:
             con.register("oferta", pa.Table.from_pylist([], schema=C.SCHEMA))
         con.sql(f"CREATE TEMP VIEW recorte AS SELECT * FROM oferta WHERE {_filtro_recorte(recorte)}")
@@ -654,14 +673,16 @@ def montar_tres_opcoes(
                 .iloc[0]
                 .to_dict()
             )
-            marcadas = (
-                int(
-                    con.sql(
-                        "select count(*) filter(where coalesce(risco_sobreposicao,false)) from escolhidos"
-                    ).fetchone()[0]
+            marcadas, sem_verificar = (
+                tuple(
+                    int(x)
+                    for x in con.sql(
+                        "select count(*) filter(where coalesce(risco_sobreposicao,false)), "
+                        "count(*) filter(where ja_comprometida is null) from escolhidos"
+                    ).fetchone()
                 )
-                if "risco_sobreposicao" in colunas
-                else None
+                if com_camada
+                else (None, None)
             )
             tabela_info = _gravar_parquet(
                 con, "select * from escolhidos order by cod_imovel", pasta / f"{opcao}.parquet"
@@ -714,6 +735,7 @@ def montar_tres_opcoes(
                 area_ha=float(totais["area_ha"]),
                 sobreposicao_situacao=sobreposicao["situacao"],
                 marcadas_risco_sobreposicao=marcadas,
+                sobreposicao_nao_verificadas=sem_verificar,
             )
             resultados[opcao].update(extras)
             rotulos.extend({"grupo_id": x["grupo_id"], "opcao": opcao, "papel": x["papel"]} for x in linhas)

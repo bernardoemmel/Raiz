@@ -265,3 +265,18 @@ def test_urtx_poligono_exato_classifica_o_imovel(tmp_path, monkeypatch):
     assert dentro["terra_concessao"] == "ur_triunfo_do_xingu" and dentro["terra_concessao_link"].startswith("https")
     fora = T.caminho({"cod_imovel": "ESTRADA", "uf": "PA", "ha": ha, **por["ESTRADA"]})
     assert fora["caminho_terra"] != "publica_concessao"
+
+
+def test_posse_ou_assentamento_com_parte_em_gleba_publica_sobe_o_risco():
+    c = T.caminho
+    # 20% do CAR em gleba pública não destinada: não muda o caminho (abaixo de 50%), mas o risco vira alto
+    r = c(_linha(terra_sigef_registrada_ha=0, terra_sigef_titulacao_ha=60, terra_publica_ha=20))
+    assert r["caminho_terra"] == "posse_em_titulacao" and r["risco_terra"] == "alto"
+    assert "gleba pública não destinada" in r["risco_terra_motivo"]
+    a = c(_linha(tipo_imovel="AST", terra_sigef_registrada_ha=0, terra_sigef_assentamento_titulado_ha=80,
+                 terra_publica_ha=10))  # fmt: skip
+    assert a["caminho_terra"] == "assentamento" and a["risco_terra"] == "alto"
+    # abaixo de 5% não pesa
+    assert c(_linha(terra_sigef_registrada_ha=0, terra_sigef_titulacao_ha=60, terra_publica_ha=2))["risco_terra"] == (
+        "medio"
+    )
