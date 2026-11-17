@@ -44,7 +44,7 @@ COM_CAR = (
     "Desmate em CAR - APRT(ha);Município(s);Sobreposição CAR-CodList;Latitude;Longitude;Fonte;"
     "Proc. Punitivo com CAR;Área Car (ha);Razão Social;Proprietário - CPF/CNPJ;Município CAR;\n"
     'C-18-03-00141;935;PA-1507805-AAAA;Pendente;2015;26,09;26,09000;Senador José Porfírio;"935";'
-    "03º43'39,07\" S;51º47'00,53\" S;RVD/SAD;1781;120,5;FAZENDA EXEMPLO LTDA;***.123.456-**;Altamira;\n"
+    "03º43'39,07\" S;51º47'00,53\" S;RVD/SAD;1781;120,5;FAZENDA \"EXEMPLO; LTDA;***.123.456-**;Altamira;\n"
     ';;;-;2018;14,11;-;Altamira;"-";06º05\'44,32" S;53º41\'59,16" S;CIMAM;2020/00000330;-;-;-;-;\n'
 )
 SEM_CAR = (

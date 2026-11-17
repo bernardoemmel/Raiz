@@ -19,6 +19,7 @@ from __future__ import annotations
 import datetime as dt
 import json
 import logging
+import os
 import re
 from collections.abc import Iterable
 from pathlib import Path
@@ -41,6 +42,9 @@ TIPOS_AUTOMATICOS = ("wfs", "arcgis", "arquivo", "ldi_pa", "cnfp")
 CHAVES_ORDEM = ("fid", "id", "gid", "objectid", "OBJECTID", "ogc_fid", "OID")
 CRS_METRICO = 5880
 log = logging.getLogger(__name__)
+# polígonos estaduais enormes (ex.: área bloqueada das usinas do Madeira, 61 mil ha num só objeto) passam do limite
+# padrão do leitor GeoJSON do GDAL (200 MB por objeto)
+os.environ.setdefault("OGR_GEOJSON_MAX_OBJ_SIZE", "0")
 
 
 # --- catálogo ----------------------------------------------------------------------------------------------------
@@ -118,7 +122,21 @@ def _wfs(s: requests.Session, url: str, nome: str, cql: str | None) -> gpd.GeoDa
 
     c = wfs.Camada(url=url, nome=nome, versao="2.0.0", srs="EPSG:4674")
     campos = wfs.campos(s, c)
-    ordem = next((k for k in CHAVES_ORDEM if k in campos), None) or sorted(campos - {"geom", "geometry", "the_geom"})[0]
+    sem_geo = sorted(campos - {"geom", "geometry", "the_geom"})
+    # camada só com geometria (ex.: áreas autuadas de RO): sem sortBy, o GeoServer pagina na ordem da chave interna
+    ordem = next((k for k in CHAVES_ORDEM if k in campos), None) or (sem_geo[0] if sem_geo else None)
+    if ordem is None:
+        # visão sem chave primária (ex.: áreas autuadas de RO): o GeoServer não pagina; lê tudo de uma vez
+        import io
+
+        p = {"service": "WFS", "version": "2.0.0", "request": "GetFeature", "typeNames": nome,
+             "outputFormat": "application/json", "srsName": "EPSG:4674"}  # fmt: skip
+        if cql:
+            p["CQL_FILTER"] = cql
+        r = s.get(url, params=p, timeout=900)
+        r.raise_for_status()
+        g = gpd.read_file(io.BytesIO(r.content), engine="pyogrio")
+        return g.set_crs(4674, allow_override=True)
     return wfs.ler(s, c, ordenar_por=ordem, cql=cql, pagina=5000)
 
 
@@ -298,19 +316,24 @@ def _numero_br(v) -> float | None:
 
 
 def _csv_ldi(conteudo: bytes) -> pd.DataFrame:
-    """CSV da LDI: 3 linhas de cabeçalho, separador ';'. Razão social e CPF/CNPJ saem aqui, na leitura."""
-    import io
-
+    """CSV da LDI: 3 linhas de cabeçalho, separador ';'. As colunas de razão social e CPF/CNPJ ficam no fim da linha
+    e às vezes têm ';' dentro: a linha é cortada antes da primeira coluna pessoal, que nunca chega a ser lida."""
     try:
         texto = conteudo.decode("utf-8")
     except UnicodeDecodeError:
         texto = conteudo.decode("latin-1")
     linhas = texto.splitlines()
     ini = next(i for i, x in enumerate(linhas) if x.startswith(("Nº do processo", "CodLDI")))
-    df = pd.read_csv(io.StringIO("\n".join(linhas[ini:])), sep=";", dtype=str, keep_default_na=False)
-    df = df.loc[:, [c for c in df.columns if c and not c.startswith("Unnamed")]]
-    fora = [c for c in df.columns if re.search(r"raz[aã]o social|cpf|cnpj|propriet", c, re.I)]
-    return df.drop(columns=fora)
+    # split simples: o único campo entre aspas ("Sobreposição CAR-CodList") separa por vírgula, não por ';', e um
+    # nome com aspas soltas não pode engolir as linhas seguintes
+    leitor = (x.split(";") for x in linhas[ini:])
+    cab = next(leitor)
+    pessoal = [i for i, c in enumerate(cab) if re.search(r"raz[aã]o social|cpf|cnpj|propriet", c, re.I)]
+    corte = min(pessoal) if pessoal else len(cab)
+    cab = [c.strip() for c in cab[:corte]]
+    dados = [(r[:corte] + [""] * corte)[:corte] for r in leitor if any(x.strip() for x in r)]
+    df = pd.DataFrame(dados, columns=cab).apply(lambda c: c.str.strip().str.strip('"'))
+    return df.loc[:, [c for c in df.columns if c]]
 
 
 def ldi_pa(com_car: bytes, sem_car: bytes | None = None) -> gpd.GeoDataFrame:
