@@ -92,10 +92,15 @@ def situacao_sobreposicao(linha: dict) -> str:
     """nao_verificada enquanto o catálogo não traz a camada 'já comprometida' (ausência de coluna não é terra livre)."""
     if "risco_sobreposicao" not in linha and "ja_comprometida" not in linha:
         return "nao_verificada"
-    if linha.get("ja_comprometida") is True:
+    # str(): o valor pode chegar como bool, numpy.bool_, None, NaN ou pd.NA conforme quem leu o parquet
+    ja, risco = str(linha.get("ja_comprometida")), str(linha.get("risco_sobreposicao"))
+    if ja == "True":
         return "ja_comprometida"
-    if linha.get("risco_sobreposicao") is True:
+    if risco == "True":
         return "risco_sobreposicao"
+    # nulo = imóvel sem verificação (sem limites coletados ou sem polígono do CAR): nunca vira "sem indício"
+    if ("ja_comprometida" in linha and ja != "False") or linha.get("status_sobreposicao") == "nao_verificado":
+        return "nao_verificada"
     return "sem_indicio_nas_fontes_consultadas"
 
 
@@ -261,6 +266,10 @@ def montar_pacote(resultado: dict, opcao: str, saida: Path, *, com_raio_x: bool 
     for li in linhas:
         li["metodo"] = li.get("metodo") or li.get("modo")
         li["sobreposicao"] = situacao_sobreposicao(li)
+        g = str(li.get("gleba_federal"))  # bool, numpy.bool_, None ou pd.NA
+        li["gleba_federal_ressalva"] = (
+            "acima_de_10pct" if g == "True" else "abaixo_de_10pct" if g == "False" else "nao_medida"
+        )
     recorte = resultado["recorte"]
     nome_recorte = (
         recorte["ufs"][0] if len(recorte["ufs"]) == 1 and not recorte["biomas"]
@@ -300,7 +309,9 @@ def montar_pacote(resultado: dict, opcao: str, saida: Path, *, com_raio_x: bool 
         "cars.csv": _csv(linhas, ("cod_imovel", "papel", "grupo_id", "uf", "municipio", "pequena")),
         "reservas.csv": _csv([li for li in linhas if li.get("papel") == "reserva"], COLUNAS_TABELA),
         "tabela_lote.csv": _csv(linhas, COLUNAS_TABELA),
-        "sobreposicao.csv": _csv(linhas, ("cod_imovel", "papel", "sobreposicao")),
+        "sobreposicao.csv": _csv(
+            linhas, ("cod_imovel", "papel", "sobreposicao", "gleba_federal_ressalva", "gleba_federal_fracao")
+        ),
         "mapa.svg": mapa_svg(t, f"Lote {OPCOES[opcao]}: {nome_recorte}, {item['fazendas']} fazendas").encode(),
         "mapa.geojson": json.dumps(_geojson(t), ensure_ascii=False).encode(),
     }

@@ -46,6 +46,8 @@ TEXTOS = (
     "pendencias",
     "consulta_livre_previa_informada",
     "nivel_interesse",
+    "status_sobreposicao",
+    "sobreposicao_projetos",
 )
 REAIS = (
     "lon",
@@ -70,6 +72,10 @@ REAIS = (
     "semeadura_ha",
     "plantio_ha",
     "fracao_creditos_comunidade_minima",
+    "sobreposicao_ha",
+    "sobreposicao_indicio_ha",
+    "gleba_federal_ha",
+    "gleba_federal_fracao",
     *PRECOS,
 )
 BOOLEANOS = (
@@ -85,11 +91,16 @@ BOOLEANOS = (
     "salvaguardas_planejamento",
     "salvaguardas_comercializavel",
 )
+# Camada "já comprometida" (comprometida_<mun>.csv, raiz/comprometida/status.py). Nulo = não verificado: ausência
+# de dado nunca vira terra livre nem False.
+BOOLEANOS_NULOS = ("ja_comprometida", "risco_sobreposicao", "gleba_federal")
+STATUS_SOBREPOSICAO = ("livre", "ja_comprometida", "risco_sobreposicao", "nao_verificado")
 SCHEMA = pa.schema(
     [(c, pa.string()) for c in TEXTOS]
     + [("cod_ibge", pa.int64())]
     + [(c, pa.float64()) for c in REAIS]
     + [(c, pa.bool_()) for c in BOOLEANOS]
+    + [(c, pa.bool_()) for c in BOOLEANOS_NULOS]
     + [("metodos", pa.list_(pa.string()))],
     metadata={b"acesso": b"privado", b"esquema": ESQUEMA.encode()},
 )
@@ -163,6 +174,32 @@ def _numero(x):
         return None
 
 
+def sobreposicao_da_linha(li: dict) -> dict:
+    """Colunas da camada 'já comprometida' no índice, a partir de comprometida_<mun>.csv já unido à linha.
+
+    ja_comprometida sai do lote; risco_sobreposicao fica marcado; nao_verificado (ou sem arquivo) deixa as duas nulas.
+    """
+    status = li.get("status_sobreposicao")
+    status = status if status in STATUS_SOBREPOSICAO else "nao_verificado"
+    verificado = status != "nao_verificado"
+    return {
+        "status_sobreposicao": status,
+        "ja_comprometida": (status == "ja_comprometida") if verificado else None,
+        "risco_sobreposicao": (status == "risco_sobreposicao") if verificado else None,
+        "sobreposicao_ha": _numero(li.get("sobreposicao_ha")) if verificado else None,
+        "sobreposicao_indicio_ha": _numero(li.get("sobreposicao_indicio_ha")) if verificado else None,
+        "sobreposicao_projetos": (str(li["projeto_id"]) if verificado and li.get("projeto_id") else None),
+    }
+
+
+def gleba_federal_da_linha(li: dict) -> dict:
+    """Gleba federal não destinada (terra_<mun>.csv): gleba_federal = mais de 10% do CAR; nulo = não medido."""
+    from raiz import terra as T
+
+    g = T.gleba_federal(li)
+    return {k: g[k] for k in ("gleba_federal_ha", "gleba_federal_fracao", "gleba_federal")}
+
+
 def _registro(li, uf, cod, pontos, modelo, cenario):
     car = str(li["cod_imovel"])
     origem = str(li.get("restauracao_versao") or "")
@@ -232,6 +269,8 @@ def _registro(li, uf, cod, pontos, modelo, cenario):
         consulta_livre_previa_informada=aval["consulta_livre_previa_informada"]["situacao"],
         fracao_creditos_comunidade_minima=aval["fracao_creditos_comunidade_minima"],
         nivel_interesse=str(li.get("nivel_interesse") or "sem_contato"),
+        **sobreposicao_da_linha(li),
+        **gleba_federal_da_linha(li),
     )
     for c in TEXTOS:
         registro[c] = str(registro[c]) if registro[c] is not None else None
@@ -425,7 +464,8 @@ def consolidar_catalogo(
             raise ValueError("Município vazio fora da cobertura esperada.")
     if caminhos:
         with duckdb.connect(config={"memory_limit": "1GB", "threads": 2}) as con:
-            con.from_parquet(caminhos).create_view("oferta")
+            # union_by_name: índices de versões anteriores (sem a camada "já comprometida") ainda somam
+            con.from_parquet(caminhos, union_by_name=True).create_view("oferta")
             n, distintos = con.sql("select count(*), count(distinct cod_imovel) from oferta").fetchone()
             if n != distintos:
                 raise ValueError("CAR repetido entre partições; conciliar fontes antes de somar créditos.")

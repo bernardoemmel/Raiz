@@ -23,7 +23,7 @@ MAX_FALHAS = 3
 # resto do PA; depois o resto do Brasil.
 ORDEM_FUNIL = ("AM", "MT", "TO", "MA", "PA", "RO", "RR", "AC", "AP", "GO", "MS", "BA", "PI", "CE", "RN", "SP", "PR",
                "MG", "PB", "PE", "AL", "SE", "ES", "RJ", "SC", "RS", "DF")
-WORKFLOWS_LOTE = ("lote-para.yml", "retomar-lote-para.yml", "desbloqueio-lote.yml")
+WORKFLOWS_LOTE = ("lote-para.yml", "retomar-lote-para.yml", "desbloqueio-lote.yml", "lote-nacional.yml")
 # #55: workflow inteiro conferido neste commit imutável, max-parallel=5,
 # preparo e publicação sequenciais. Nenhum outro head herda esta exceção.
 CAPACIDADE_LEGADA_LOTE = {("retomar-lote-para.yml", "3546687c66ec07ef9bd875d181efcff57ff1d312"): 5}

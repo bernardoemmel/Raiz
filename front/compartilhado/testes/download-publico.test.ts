@@ -47,7 +47,7 @@ function preparar(arquivos: Record<string, string>, extras: Record<string, unkno
 }
 async function baixar(destino: string) {
   try {
-    const r = await executar(process.execPath, [script, "--exigir"], { env: { ...process.env, RAIZ_SEM_DOWNLOAD: "", RAIZ_DADOS: destino, RAIZ_DADOS_URL: base } })
+    const r = await executar(process.execPath, [script, "--exigir"], { env: { ...process.env, RAIZ_SEM_DOWNLOAD: "", RAIZ_DOWNLOAD_ESPERA_MS: "20", RAIZ_DADOS: destino, RAIZ_DADOS_URL: base } })
     return { sucesso: true, texto: r.stdout + r.stderr }
   } catch (e) {
     const r = e as { stdout: string; stderr: string }
@@ -278,7 +278,7 @@ describe("novas tentativas apenas para transporte e HTTP transitório", () => {
     expect(fs.readFileSync(path.join(destino, "PA", "imoveis_basicos_1504950.csv"), "utf8")).toContain(car)
   }, 8000)
 
-  it.each([408, 429, 503])("repete HTTP %s e publica somente o pacote válido da nova tentativa", async (status) => {
+  it.each([403, 408, 429, 503])("repete HTTP %s e publica somente o pacote válido da nova tentativa", async (status) => {
     preparar(basicos)
     let tentativas = 0
     responder = (req, res) => {

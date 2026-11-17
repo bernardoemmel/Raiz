@@ -1,0 +1,70 @@
+name: Vegetação e relevo (coleta mensal do mapa do IBGE)
+
+# Coleta sozinha, sem download manual: Mapa de Vegetação do IBGE 1:250 000 (versão 2026), classificado para a reserva
+# legal (floresta, cerrado, campos, transição) e marcado na área da Lei da Mata Atlântica. Confere se o ANADEM (relevo,
+# lido por janela direto do servidor da ANA) responde e baixa o TerraClass só se houver link direto em
+# raiz/regras/padroes/ambiental.yaml. Publica no Release "insumos":
+#   ambiental_vegetacao.parquet e ambiental_cobertura.json  (a tarefa "ambiental" do executor lê)
+# Município pronto não refaz o funil: só a tarefa "ambiental" muda de versão quando a coleta muda
+# (raiz/ambiental/status.py). Para pausar: desative este workflow na aba Actions. Critérios: docs/vegetacao-relevo.md.
+
+on:
+  schedule:
+    - cron: "41 8 3 * *" # dia 3 de cada mês, 05h41 em Brasília
+  workflow_dispatch:
+    inputs:
+      publicar:
+        description: "publicar no Release insumos"
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+
+concurrency:
+  group: coletar-ambiental
+  cancel-in-progress: false
+
+jobs:
+  coletar:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v7
+        with:
+          version: "0.13.6"
+      - name: Instalar dependências
+        run: |
+          uv sync --frozen
+          echo "SAIDA=$RUNNER_TEMP/ambiental" >> "$GITHUB_ENV"
+
+      - name: Coletar vegetação, relevo e TerraClass
+        run: uv run raiz ambiental coletar --saida "$SAIDA"
+
+      - name: Conferir antes de publicar
+        run: |
+          uv run python - <<'PY'
+          import json, os, sys
+          m = json.load(open(os.environ["SAIDA"] + "/ambiental_cobertura.json", encoding="utf-8"))
+          for k, v in m["fontes"].items():
+              print(k, v["estado"], v.get("poligonos", ""), v.get("erro", "") or v.get("motivo", ""))
+          veg = m["fontes"]["vegetacao"]
+          if veg["estado"] != "consultado" or veg.get("poligonos", 0) < 50000:
+              print("::error::mapa de vegetação não veio inteiro: não publico (o Release mantém a coleta anterior)")
+              sys.exit(1)
+          PY
+
+      - name: Publicar no Release insumos
+        if: github.event_name == 'schedule' || inputs.publicar
+        run: |
+          if ! gh release view insumos -R "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release create insumos -R "$GITHUB_REPOSITORY" --title "insumos" \
+              --notes "Insumos opcionais do processamento (ver motor/README.md e docs/vegetacao-relevo.md)."
+          fi
+          arquivos=("$SAIDA/ambiental_vegetacao.parquet" "$SAIDA/ambiental_cobertura.json")
+          for f in "$SAIDA"/terraclass_*; do [ -f "$f" ] && arquivos+=("$f"); done
+          gh release upload insumos "${arquivos[@]}" -R "$GITHUB_REPOSITORY" --clobber
+          echo "publicado: ${arquivos[*]}"
