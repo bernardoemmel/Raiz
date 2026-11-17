@@ -6,7 +6,7 @@ import fs from "node:fs"
 import { createRequire } from "node:module"
 import path from "node:path"
 import { fileURLToPath, pathToFileURL } from "node:url"
-import { conferirSerieLighthouseCelular, conferirPaginaAcessivel } from "./conferir-acessibilidade.mjs"
+import { conferirSerieLighthouseCelular, conferirPaginaAcessivel, fatorCpuCalibrado } from "./conferir-acessibilidade.mjs"
 import { servirPublicacao } from "./servidor-publicacao.mjs"
 
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..")
@@ -15,6 +15,7 @@ const { chromium } = require("playwright")
 const { default: AxeBuilder } = await import(pathToFileURL(require.resolve("@axe-core/playwright")).href)
 const { default: lighthouse } = await import(pathToFileURL(require.resolve("lighthouse")).href)
 const { launch } = await import(pathToFileURL(require.resolve("chrome-launcher")).href)
+const { throttling: perfisRede } = await import(pathToFileURL(require.resolve("lighthouse/core/config/constants.js")).href)
 const base = configurarPublicacao(process.env).base
 assert(base.startsWith("/") && base.endsWith("/"), "RAIZ_BASE deve começar e terminar em /.")
 const saida = path.join(repo, "front/.cache/teste-acessibilidade")
@@ -110,14 +111,21 @@ try {
   await browser.close()
 
   chrome = await launch({ chromePath: executablePath, chromeFlags: ["--headless", ...args] })
+  const medir = (caminho, cpuSlowdownMultiplier) => lighthouse(servidor.url + caminho, {
+    port: chrome.port, onlyCategories: ["performance", "accessibility"], output: ["json", "html"], logLevel: "error",
+    locale: "pt-BR", formFactor: "mobile", screenEmulation: { mobile: true, width: 360, height: 800, deviceScaleFactor: 1, disabled: false },
+    throttlingMethod: "simulate", throttling: { ...perfisRede.mobileSlow4G, cpuSlowdownMultiplier },
+  })
   for (const [nome, caminho] of [["brasil", ""], ["entrar", "#/entrar"], ["novo-pedido", "#/pedidos/novo"], ["prospeccao", "#/prospeccao"], ["acerto", "#/acerto"], ["produtor", "produtor/"]]) {
+    // Rodada de aquecimento (fora da nota): a primeira carga de cada página paga cache frio do Chromium e mede a
+    // CPU do runner. O fator das três rodadas que contam sai dessa medida (ver fatorCpuCalibrado).
+    const aquecimento = await medir(caminho, 4)
+    assert(aquecimento, `${nome}: Lighthouse não entregou o aquecimento.`)
+    const fator = fatorCpuCalibrado(aquecimento.lhr.environment?.benchmarkIndex)
+    console.log(`Lighthouse mobile ${nome}: CPU do runner ${Math.round(aquecimento.lhr.environment.benchmarkIndex)}, fator ${fator}x (celular alvo fixo).`)
     const amostras = []
     for (let rodada = 1; rodada <= 3; rodada++) {
-      const resultado = await lighthouse(servidor.url + caminho, {
-        port: chrome.port, onlyCategories: ["performance", "accessibility"], output: ["json", "html"], logLevel: "error",
-        locale: "pt-BR", formFactor: "mobile", screenEmulation: { mobile: true, width: 360, height: 800, deviceScaleFactor: 1, disabled: false },
-        throttlingMethod: "simulate",
-      })
+      const resultado = await medir(caminho, fator)
       assert(resultado, `${nome}: Lighthouse não entregou relatório.`)
       fs.writeFileSync(path.join(saida, `${nome}-${rodada}-lighthouse.json`), resultado.report[0])
       fs.writeFileSync(path.join(saida, `${nome}-${rodada}-lighthouse.html`), resultado.report[1])
@@ -129,7 +137,7 @@ try {
       amostras.push(resultado.lhr)
     }
     const notas = conferirSerieLighthouseCelular(amostras)
-    resumo.lighthouse.push({ pagina: nome, ...notas })
+    resumo.lighthouse.push({ pagina: nome, cpuRunner: Math.round(aquecimento.lhr.environment.benchmarkIndex), fatorCpu: fator, ...notas })
     console.log(`Lighthouse mobile ${nome}: mediana de desempenho ${notas.performance}, acessibilidade mínima ${notas.accessibility}.`)
   }
   fs.writeFileSync(path.join(saida, "resumo.json"), JSON.stringify(resumo, null, 2) + "\n")
