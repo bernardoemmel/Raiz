@@ -1,0 +1,33 @@
+# Fontes estaduais do Piauí. Testado em 17/11/2026: interpi.pi.gov.br, portalgeo.seplan.pi.gov.br e
+# tjpi.jus.br recusam ou bloqueiam esta nuvem (conexão cortada ou 403). Coleta fica para rodar do Brasil.
+uf: PI
+verificado_em: "2026-11-17"
+fontes:
+  - id: pi_interpi_terras
+    nome: INTERPI, terras públicas estaduais, arrecadações e títulos de regularização
+    tema: terra_devoluta
+    orgao: INTERPI
+    acesso: bloqueado_fora_brasil
+    tipo: pendente
+    url: https://www.interpi.pi.gov.br/
+    efeito: conferir
+    motivo: terra_devoluta_a_conferir
+    criterio: >-
+      Imóvel sobre terra arrecadada pelo Estado ou em regularização = ressalva (domínio público até o título);
+      título estadual recente = conferir cláusulas. Sem camada: checklist nos municípios do sul do PI (cerrado).
+    lgpd: —
+    situacao: {testado_em: "2026-11-17", resultado: "www.interpi.pi.gov.br: conexão cortada (reset); geoportal não resolve"}
+    alternativa: Pedido por LAI ao INTERPI; SIGEF nacional e Cadastro Nacional de Florestas Públicas (CNFP) cobrem parte.
+
+  - id: pi_reserva_legal_30
+    nome: Reserva legal de 30% no cerrado do Piauí (regra estadual)
+    tema: regra_estadual
+    orgao: Lei estadual 5.699/2007
+    acesso: regra
+    tipo: pendente
+    url: null
+    efeito: conferir
+    motivo: rl_estadual_pi_a_confirmar
+    criterio: Já registrada em docs/regras-estaduais.md como pendente; o motor segue os 20% federais até confirmar o texto.
+    lgpd: —
+    situacao: {testado_em: "2026-11-17", resultado: "legislacao.pi.gov.br não responde daqui"}

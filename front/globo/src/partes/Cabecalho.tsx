@@ -46,13 +46,11 @@ export function Cabecalho({ atual, linkMapa = "#/", modoMapa = false, aoAbrirPed
   const celular = useMediaQuery("(max-width: 700px)")
   const compacto = useMediaQuery("(max-width: 1180px)")
   const [buscaAberta, setBuscaAberta] = useState(false)
-  const [secao, setSecao] = useState<"Minha cadeia" | "Carteira" | null>(null)
   const [comoFunciona, setComoFunciona] = useState(false)
   const comoDialogo = useRef<HTMLDialogElement>(null)
   const cabecalho = useRef<HTMLElement>(null)
   const menu = useRef<HTMLDetailsElement>(null)
   const buscaDialogo = useRef<HTMLDialogElement>(null)
-  const servicoDialogo = useRef<HTMLDialogElement>(null)
   const botaoBusca = useRef<HTMLButtonElement>(null)
 
   useLayoutEffect(() => {
@@ -67,10 +65,6 @@ export function Cabecalho({ atual, linkMapa = "#/", modoMapa = false, aoAbrirPed
     if (comoFunciona) comoDialogo.current?.showModal()
     else comoDialogo.current?.close()
   }, [comoFunciona])
-  useEffect(() => {
-    if (secao) servicoDialogo.current?.showModal()
-    else servicoDialogo.current?.close()
-  }, [secao])
   useEffect(() => {
     const fecharMenu = (evento: PointerEvent) => {
       if (menu.current?.open && !menu.current.contains(evento.target as Node)) menu.current.open = false
@@ -96,7 +90,6 @@ export function Cabecalho({ atual, linkMapa = "#/", modoMapa = false, aoAbrirPed
 
   const fecharBusca = () => { buscaDialogo.current?.close(); setBuscaAberta(false); botaoBusca.current?.focus() }
   const fecharMenu = () => { if (menu.current) menu.current.open = false }
-  const abrirSecao = (nome: "Minha cadeia" | "Carteira") => { fecharMenu(); setSecao(nome) }
   const marca = <><IconeRaiz tamanho={22} /><span>Raíz</span></>
   const abrirComo = () => { fecharMenu(); setComoFunciona(true) }
 
@@ -125,9 +118,8 @@ export function Cabecalho({ atual, linkMapa = "#/", modoMapa = false, aoAbrirPed
             <a href={linkMapa} aria-current={atual === "mapa" ? "page" : undefined} onClick={fecharMenu}>Mapa</a>
             {MENU.map((m) => <a key={m.id} href={m.href} aria-current={atual === m.id ? "page" : undefined} onClick={fecharMenu}>{m.rotulo}</a>)}
             <button onClick={abrirComo}>Como funciona</button>
-            <span aria-disabled="true">Projetos agrupados <small>Em construção</small></span>
-            <button onClick={() => abrirSecao("Minha cadeia")}>Minha cadeia</button>
-            <button onClick={() => abrirSecao("Carteira")}>Carteira</button>
+            {/* Áreas ainda sem conteúdo ficam visíveis, mas não abrem uma tela vazia. */}
+            {["Projetos agrupados", "Minha cadeia", "Carteira"].map(nome => <span key={nome} aria-disabled="true">{nome} <small>Em breve</small></span>)}
             <a href={sessao ? linkPedidos : "#/entrar"} onClick={fecharMenu}>{sessao ? "Seus pedidos" : "Entrar"}</a>
           </nav>
         </div>
@@ -141,11 +133,6 @@ export function Cabecalho({ atual, linkMapa = "#/", modoMapa = false, aoAbrirPed
         <ol className="como-passos">{PASSOS.map((p, i) => <li key={p.titulo}><span className="como-numero" aria-hidden="true">{i + 1}</span><div><h3>{p.titulo}</h3><p>{p.texto}</p></div></li>)}</ol>
         <p className="como-nota">Fazendas pequenas nunca ficam de fora: a Raíz as agrupa em um mesmo projeto.</p>
         <a className="topo-acao" href={linkNovoPedido} onClick={() => setComoFunciona(false)}>Fazer um pedido</a>
-      </dialog>
-      <dialog ref={servicoDialogo} className="topo-dialogo" aria-labelledby="titulo-servico-v2" onCancel={() => setSecao(null)} onClose={() => setSecao(null)}>
-        <div className="topo-dialogo-cabeca"><h2 id="titulo-servico-v2">{secao}</h2><button className="topo-icone" type="button" onClick={() => setSecao(null)} aria-label="Fechar"><X size={20} aria-hidden="true" /></button></div>
-        <p>Esta área ainda está em construção. Você pode consultar os lotes, acompanhar seus pedidos e abrir os documentos disponíveis em Pedidos.</p>
-        <a className="botao principal" href={linkPedidos} onClick={() => setSecao(null)}>Ver pedidos</a>
       </dialog>
     </header>
   )

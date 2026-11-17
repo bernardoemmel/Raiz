@@ -24,7 +24,7 @@ def fluxo():
     privado = jobs["referencia_para"]
     preparadores = [p for p in privado["steps"] if "--preparar" in shlex.split(p.get("run", ""))]
     assert len(preparadores) == 1
-    return workflow, jobs["testes_python"], privado, jobs["checagens"], preparadores[0]
+    return workflow, jobs["testes_python_partes"], privado, jobs["checagens"], preparadores[0]
 
 
 def _condicao(passo):
@@ -32,6 +32,7 @@ def _condicao(passo):
 
 
 def _caminho(valor):
+    valor = re.sub(r"\$\{\{\s*matrix\.parte\s*\}\}", "N", valor)
     valor = re.sub(r"\$\{\{\s*runner\.temp\s*\}\}|\$\{?RUNNER_TEMP\}?", "/__temporario__", valor)
     valor = re.sub(r"\$\{\{\s*github\.workspace\s*\}\}|\$\{?GITHUB_WORKSPACE\}?", "/__checkout__", valor)
     return PurePosixPath(valor.replace("~/", "/__usuario__/", 1))
@@ -58,7 +59,7 @@ def test_escrita_fica_apenas_no_job_privado_e_checkout_nao_persiste_credencial(f
     for nome, job in workflow["jobs"].items():
         permissoes = job.get("permissions", workflow["permissions"])
         assert permissoes == {"contents": "write" if nome == "referencia_para" else "read"}
-    for job in (gerais, privado, portao):
+    for job in (gerais, privado, portao, workflow["jobs"]["testes_python"]):
         checkouts = [p for p in job["steps"] if p.get("uses", "").startswith("actions/checkout@")]
         assert checkouts
         assert all(p.get("with", {}).get("persist-credentials") is False for p in checkouts)
@@ -95,9 +96,14 @@ def test_particao_executa_apenas_o_caso_estadual_no_job_privado(fluxo):
         "run",
         "pytest",
         "-q",
+        "-p",
+        "testes.particao",
+        "--parte=${{matrix.parte}}/4",
         f"--deselect={NO_ESTADUAL}",
-        "--junitxml=resultado-pytest.xml",
+        "--junitxml=resultado-pytest-${{matrix.parte}}.xml",
     ]
+    assert gerais["strategy"]["matrix"]["parte"] == [1, 2, 3, 4]
+    assert gerais["strategy"]["fail-fast"] is False
     assert shlex.split(teste_privado["run"]) == [
         "uv",
         "run",
@@ -206,16 +212,24 @@ def test_referencia_privada_fica_fora_de_artifacts_e_caches(fluxo):
     workflow, gerais, privado, _, preparador = fluxo
     destino = _destino(preparador)
     assert destino.is_relative_to("/__temporario__") and destino != PurePosixPath("/__temporario__")
-    for job, resultado in ((gerais, "resultado-pytest"), (privado, "resultado-para")):
+    agregador = workflow["jobs"]["testes_python"]
+    casos = (
+        (gerais, "resultado-pytest-${{ matrix.parte }}"),
+        (privado, "resultado-para"),
+        (agregador, "resultado-pytest"),
+    )
+    for job, resultado in casos:
         uploads = [p for p in job["steps"] if "upload-artifact@" in p.get("uses", "")]
         permitidos = {resultado: f"{resultado}.xml"}
+        condicoes = {resultado: "always()"}
         if job is gerais:
-            # HTML real com fixture sintética em memória, sem banco nem leitura do Release.
+            # HTML real com fixture sintética em memória, sem banco nem leitura do Release; só na parte 1.
             permitidos["ficha-publica-versionada"] = "front/.cache/teste-ficha-publica"
+            condicoes["ficha-publica-versionada"] = "always()&&matrix.parte==1"
             assert any(p.get("run") == "uv run node front/scripts/testar-ficha-publica.mjs" for p in job["steps"])
         assert len(uploads) == len(permitidos)
         assert {p["with"]["name"]: p["with"]["path"] for p in uploads} == permitidos
-        assert all(_condicao(p) == "always()" for p in uploads)
+        assert all(_condicao(p) == condicoes[p["with"]["name"]] for p in uploads)
         for passo in job["steps"]:
             uso = passo.get("uses", "")
             # setup-uv também tem cache automático, sem usar uma action cujo nome contenha "cache".
@@ -234,3 +248,34 @@ def test_referencia_privada_fica_fora_de_artifacts_e_caches(fluxo):
                 if not base.is_absolute():
                     base = PurePosixPath("/__checkout__") / base
                 assert not destino.is_relative_to(base), "artifact/cache abrange o diretório privado"
+
+
+def test_check_obrigatorio_testes_python_so_aprova_com_todas_as_partes(fluxo):
+    workflow, gerais, _, _, _ = fluxo
+    agregador = workflow["jobs"]["testes_python"]
+    assert agregador["needs"] == ["testes_python_partes"]
+    # Sem always(), uma parte reprovada pularia o agregador, e check pulado conta como aprovado.
+    assert _condicao(agregador) == "always()&&!cancelled()"
+    assert not agregador.get("continue-on-error", False)
+    passos = agregador["steps"]
+    status = [p for p in passos if "PARTES" in p.get("env", {})]
+    assert len(status) == 1
+    assert status[0]["env"] == {"PARTES": "${{ needs.testes_python_partes.result }}"}
+    assert '"$PARTES" != success' in status[0]["run"] and "exit 1" in status[0]["run"]
+    juntar = [p for p in passos if "scripts/juntar_partes_pytest.py" in shlex.split(p.get("run", ""))]
+    assert len(juntar) == 1
+    argumentos = shlex.split(juntar[0]["run"])
+    partes = gerais["strategy"]["matrix"]["parte"]
+    assert argumentos[argumentos.index("--partes") + 1] == str(len(partes))
+    assert [a for a in argumentos if a.startswith("partes/")] == [f"partes/resultado-pytest-{k}.xml" for k in partes]
+    assert all(not p.get("continue-on-error", False) and "|| true" not in p.get("run", "") for p in passos)
+
+
+def test_concorrencia_cancela_so_rodada_antiga_do_mesmo_pr():
+    workflow = yaml.safe_load((RAIZ / ".github/workflows/ci.yml").read_text())
+    concorrencia = workflow["concurrency"]
+    grupo = re.sub(r"\s+", "", concorrencia["group"])
+    assert "format('pr-{0}',github.event.pull_request.number)" in grupo
+    # Na main o grupo inclui o commit: nenhum push da main cancela ou substitui outro.
+    assert "format('{0}-{1}',github.ref,github.sha)" in grupo
+    assert re.sub(r"\s+", "", concorrencia["cancel-in-progress"]) == "${{github.event_name=='pull_request'}}"

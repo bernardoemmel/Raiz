@@ -1,0 +1,68 @@
+# Fontes estaduais do Paraná. GeoServer do Estado (Celepar): geoserver.pr.gov.br/geoserver/ows.
+# Testado desta nuvem em 17/11/2026.
+uf: PR
+verificado_em: "2026-11-17"
+fontes:
+  - id: pr_autos_iat
+    nome: Autos de infração ambiental do IAT (SIA, versão pública)
+    tema: autos_infracao
+    orgao: IAT (antigo IAP)
+    acesso: aberto
+    tipo: wfs
+    url: https://geoserver.pr.gov.br/geoserver/ows
+    camada: sema_iap:sia_infracao_ambiental_publico_pto_p4674
+    srs: EPSG:4674
+    geometria: ponto
+    filtro: "situacao <> 'Insubsistente'"
+    campo_data: ano
+    manter: [num_aia, data, ano, municipio, motivo, valor_multa, grupo_enquadramento, termo, situacao]
+    descartar: [descricao, protocolo]
+    efeito: ressalva
+    motivo: auto_estadual
+    regra_efeito:
+      - campo: grupo_enquadramento
+        padrao: "(?i)flora"
+        recente_anos: 5
+        motivo: auto_estadual_flora_recente
+      - campo: termo
+        padrao: "(?i)embarg"
+        motivo: embargo_estadual_ponto
+    criterio: >-
+      Auto do IAT dentro do imóvel (exceto insubsistente) = ressalva; Flora nos últimos 5 anos ou com termo de
+      embargo = ressalva mais forte. O IAT não publica polígono de embargo: o ponto não mede área, por isso não exclui.
+    lgpd: Sem nome nem documento; a descrição livre é apagada porque às vezes cita pessoas.
+    licenca: Dado público do Governo do PR; licença não declarada.
+    situacao: {testado_em: "2026-11-17", resultado: "ok, 140.773 pontos (1993–2026)"}
+
+  - id: pr_supressao_autorizada
+    nome: Supressões de vegetação autorizadas (SINAFLOR)
+    tema: supressao_autorizada
+    orgao: IAT
+    acesso: aberto
+    tipo: wfs
+    url: https://geoserver.pr.gov.br/geoserver/ows
+    camada: sema_iap:sinaflor_autorizada_supressao_pol_p4674
+    srs: EPSG:4674
+    geometria: poligono
+    manter: []
+    descartar: [nome, cpf, cnpj, requerente, proprietario]
+    efeito: ressalva
+    motivo: supressao_autorizada_recente
+    criterio: Supressão legal autorizada sobre o imóvel muda a linha de base e o uso planejado; ressalva para conferir a área e a validade.
+    lgpd: Campos de pessoa apagados na entrada.
+    licenca: Dado público do Governo do PR.
+    situacao: {testado_em: "2026-11-17", resultado: "camada listada no GetCapabilities"}
+
+  - id: pr_terras_devolutas
+    nome: Terras devolutas e áreas em discriminatória (ITCG, hoje no IAT)
+    tema: terra_devoluta
+    orgao: IAT / ITCG
+    acesso: sem_download
+    tipo: pendente
+    url: null
+    efeito: conferir
+    motivo: terra_devoluta_a_conferir
+    criterio: Sem camada pública. Enquanto não houver, imóvel em faixa de fronteira do PR entra no checklist (ratificação de título em faixa de fronteira, Lei 13.178/2015).
+    lgpd: —
+    situacao: {testado_em: "2026-11-17", resultado: "não há camada de terras devolutas no geoserver.pr.gov.br nem no GetCapabilities do IAT"}
+    alternativa: Pedido por LAI ao IAT (acervo fundiário do antigo ITCG); faixa de fronteira já é camada nacional.

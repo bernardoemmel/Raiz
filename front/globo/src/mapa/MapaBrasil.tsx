@@ -89,7 +89,7 @@ interface Props {
   /** bioma escolhido no filtro: contorno e véu fora dele */
   bioma?: Geo | null
   /** oportunidade por município (fazendas aptas e hectares que podem voltar a ser mata), agrupada em círculos */
-  oportunidades?: { cod_ibge: string; uf: string; aptas: number; ha: number }[] | null
+  oportunidades?: { cod_ibge: string; uf: string; nome: string; aptas: number; ha: number }[] | null
   /** tipos de área desligados no filtro (fazendas, ti, uc) */
   areasOcultas?: ReadonlySet<string>
   hexagonosVisiveis?: boolean
@@ -108,6 +108,10 @@ interface Props {
 }
 
 const BRASIL: [number, number, number, number] = [-74, -34, -34.5, 5.5]
+// Sedes municipais (IBGE, MIT): baixadas uma vez, em paralelo com a montagem do mapa.
+let sedesPromessa: Promise<Record<string, [number, number, number?]>> | null = null
+const lerSedes = () => sedesPromessa ??= fetch(import.meta.env.BASE_URL + "mapa/sedes_municipios.json").then(r => r.ok ? r.json() : {}).catch(() => ({}))
+
 /** No detalhe entram os limites reais; abaixo deles, somente agregados públicos H3. */
 const ZOOM_FAZENDAS = ZOOM_IMOVEIS
 const SITUACAO_ESTADO = { completo: 2, incompleto: 1, sem_dados: 0 } as const
@@ -262,12 +266,32 @@ export function MapaBrasil(props: Props) {
   const escolhido = useRef<string | null>(null)
   atual.current.props = props
 
+  // Hexágonos aparecem com um pedido aberto ou lote autorizado. Fora disso, o agregado H3 (alguns MB) fica fora da
+  // abertura: no computador entra depois que o mapa e o navegador ficam ociosos; no celular ou com economia de dados,
+  // só quando um pedido precisa dele.
+  const precisaHexagonos = Boolean(props.hexagonosVisiveis || props.geometriaLoteAutorizada || props.destaqueH3Autorizado)
+  const [hexagonosAoFundo, setHexagonosAoFundo] = useState(false)
   useEffect(() => {
-    let worker: WorkerHexagonos
-    try { worker = new WorkerHexagonos() }
+    const m = mapaRef.current
+    const economia = (navigator as Navigator & { connection?: { saveData?: boolean } }).connection?.saveData
+    if (!m || !pronto || hexagonosAoFundo || economia || matchMedia("(max-width: 700px)").matches) return
+    let espera: number | undefined
+    const ocioso = () => { espera = (window.requestIdleCallback ?? ((f: () => void) => window.setTimeout(f, 1500)))(() => setHexagonosAoFundo(true), { timeout: 4000 }) }
+    m.once("idle", ocioso)
+    return () => { m.off("idle", ocioso); if (espera !== undefined) (window.cancelIdleCallback ?? window.clearTimeout)(espera) }
+  }, [pronto, hexagonosAoFundo])
+  const carregarHexagonos = precisaHexagonos || hexagonosAoFundo
+  const [comWorker, setComWorker] = useState(false)
+  const [listaAberta, setListaAberta] = useState(false)
+  const [comHexagonos, setComHexagonos] = useState(false)
+  useEffect(() => {
+    if (!carregarHexagonos || workerHexagonos.current) return
+    try { workerHexagonos.current = new WorkerHexagonos() }
     catch { setErroAgregadosNoMapa(true); return }
-    workerHexagonos.current = worker
-    return () => { worker.encerrar(); workerHexagonos.current = null; geracaoHexagonos.current++; consultaHexagonos.current++ }
+    setComWorker(true)
+  }, [carregarHexagonos])
+  useEffect(() => () => {
+    workerHexagonos.current?.encerrar(); workerHexagonos.current = null; geracaoHexagonos.current++; consultaHexagonos.current++
   }, [])
 
   // cria o mapa uma vez, quando o mapa base do Brasil chega
@@ -442,6 +466,7 @@ export function MapaBrasil(props: Props) {
     void worker.carregar(dadosDosHexagonos(props.agregados)).then(() => {
       if (!ativo || workerHexagonos.current !== worker || geracaoHexagonos.current !== geracao) return
       hexagonosProntos.current = true
+      setComHexagonos(true)
       if (mapaRef.current?.getSource("hexagonos")) agendarHexagonosVisiveis(mapaRef.current)
     }).catch(() => {
       if (!ativo || workerHexagonos.current !== worker || geracaoHexagonos.current !== geracao) return
@@ -449,7 +474,7 @@ export function MapaBrasil(props: Props) {
       setErroAgregadosNoMapa(true)
     })
     return () => { ativo = false }
-  }, [props.agregados])
+  }, [props.agregados, comWorker])
 
   // os estados pela situação: cor do contorno e o rótulo com a contagem (completo, incompleto, ainda não processado)
   useEffect(() => {
@@ -617,45 +642,19 @@ export function MapaBrasil(props: Props) {
     m.fitBounds(alvoRef.current, { padding: { top: 88, left: 48 + (props.margemEsquerda ?? 0), right: 48 + (props.margemDireita ?? 0), bottom: 48 + margemBaixo }, absolutePadding: true, duration: 200 })
   }, [margemBaixo, props.margemDireita, pronto])
 
-  // Fundo do país e círculos entram depois do primeiro quadro completo: a abertura no celular não espera por eles.
-  const [extrasProntos, setExtrasProntos] = useState(false)
-  useEffect(() => {
-    const m = mapaRef.current
-    if (!m || !pronto || extrasProntos) return
-    let espera: ReturnType<typeof setTimeout> | undefined
-    const liberar = () => { espera = setTimeout(() => setExtrasProntos(true), 600) }
-    m.once("idle", liberar)
-    m.triggerRepaint()
-    return () => { m.off("idle", liberar); if (espera) clearTimeout(espera) }
-  }, [pronto, extrasProntos])
-
-  // O Brasil em verde claro sobre o atlas, como na referência aprovada (contorno IBGE simplificado).
-  useEffect(() => {
-    const m = mapaRef.current
-    if (!m || !pronto || !extrasProntos || m.getSource("brasil-fundo")) return
-    let cancelado = false
-    void (async () => {
-      const geo = await fetch(import.meta.env.BASE_URL + "mapa/brasil_contorno.geojson").then(r => r.ok ? r.json() as Promise<Geo> : null).catch(() => null)
-      if (cancelado || !geo || m.getSource("brasil-fundo")) return
-      const antes = m.getStyle().layers.find(l => l.type === "line")?.id
-      m.addSource("brasil-fundo", { type: "geojson", data: geo as never })
-      m.addLayer({ id: "brasil-fundo", type: "fill", source: "brasil-fundo", maxzoom: 12, paint: { "fill-color": COR_MAPA_V2.brasil, "fill-opacity": ["interpolate", ["linear"], ["zoom"], 6, 1, 11, 0.4] } }, antes)
-    })()
-    return () => { cancelado = true }
-  }, [pronto, extrasProntos])
-
   // Círculos de oportunidade: cada município na sede, somados em grupos pelo próprio MapLibre conforme o zoom.
-  const sedes = useRef<Record<string, [number, number]> | null>(null)
+  const sedes = useRef<Record<string, [number, number, number?]> | null>(null)
+  useEffect(() => { void lerSedes() }, [])
   useEffect(() => {
     const m = mapaRef.current
-    if (!m || !pronto || !extrasProntos) return
+    if (!m || !pronto || !props.oportunidades) return
     let cancelado = false
     void (async () => {
-      sedes.current ??= await fetch(import.meta.env.BASE_URL + "mapa/sedes_municipios.json").then(r => r.ok ? r.json() : {}).catch(() => ({}))
+      sedes.current ??= await lerSedes()
       if (cancelado || !sedes.current) return
       const features = (props.oportunidades ?? []).filter(o => o.aptas > 0 && sedes.current![o.cod_ibge] && (!uf || o.uf === uf)).map(o => ({
         type: "Feature" as const, properties: { cod_ibge: o.cod_ibge, aptas: o.aptas, ha: Math.round(o.ha) },
-        geometry: { type: "Point" as const, coordinates: sedes.current![o.cod_ibge] },
+        geometry: { type: "Point" as const, coordinates: sedes.current![o.cod_ibge].slice(0, 2) },
       }))
       const dados = { type: "FeatureCollection", features }
       const fonte = m.getSource("oportunidades") as GeoJSONSource | undefined
@@ -676,7 +675,7 @@ export function MapaBrasil(props: Props) {
         paint: { "text-color": COR.superficie } })
     })()
     return () => { cancelado = true }
-  }, [pronto, extrasProntos, props.oportunidades, uf])
+  }, [pronto, props.oportunidades, uf])
 
   useEffect(() => {
     const m = mapaRef.current
@@ -778,7 +777,7 @@ export function MapaBrasil(props: Props) {
       }
     })
     return () => { ativo = false; etiquetaLote.current?.remove(); etiquetaLote.current = null }
-  }, [pronto, props.geometriaLoteAutorizada, props.rotuloLoteAutorizado])
+  }, [pronto, comWorker, props.geometriaLoteAutorizada, props.rotuloLoteAutorizado])
 
   useEffect(() => {
     if (props.desenhandoArea) setPontosDesenho([])
@@ -1142,24 +1141,26 @@ export function MapaBrasil(props: Props) {
     : undefined
   const nomeUf = !municipio && uf ? estados?.estados.find((e) => e.uf === uf)?.nome : undefined
   const falhaNosAgregados = props.agregadosErro || erroAgregadosNoMapa
+  const listaOportunidades = (props.oportunidades ?? []).filter(o => o.aptas > 0 && (!uf || o.uf === uf)).sort((a, b) => b.aptas - a.aptas).slice(0, 40)
   return (
     <div className="mapa-brasil" role="region" aria-label={nomeMun ? `Mapa de ${nomeMun}` : nomeUf ? `Mapa de ${nomeUf}` : "Mapa do Brasil"}>
-      <div className="mapa" ref={caixa} style={{ backgroundColor: COR_MAPA_V2.terra }} />
+      <div className="mapa" ref={caixa} />
       {erroLote && <p className="cartografia-alerta" role="alert">Não foi possível desenhar a geometria autorizada deste lote.</p>}
-      {brasil && (falhaNosAgregados || props.agregadosCarregando) && <p className="cartografia-alerta" role={falhaNosAgregados ? "alert" : "status"}>
+      {brasil && carregarHexagonos && (falhaNosAgregados || (precisaHexagonos && props.agregadosCarregando)) && <p className="cartografia-alerta" role={falhaNosAgregados ? "alert" : "status"}>
         {falhaNosAgregados ? "Não foi possível carregar os agregados. Confira a conexão e recarregue." : "Carregando os hexágonos…"}
       </p>}
       {brasil && <details className="cartografia-ajuda">
         <summary>Como ler o mapa</summary>
         {zoom < ZOOM_FAZENDAS ? <>
           <p>Cada círculo soma as fazendas do filtro nos municípios daquela região; o número de baixo são os hectares. Não é uma avaliação da qualidade da terra. Toque para aproximar.</p>
-          {props.agregados?.metadados.contagens.celulas ? <>
-            <p>{props.agregados.metadados.aviso}</p><p>Fonte: {props.agregados.metadados.fonte}. Atualização: {props.agregados.metadados.atualizado_em ? new Date(props.agregados.metadados.atualizado_em).toLocaleDateString("pt-BR") : "não informada"}.</p>
-            <details onToggle={e => { listaHexagonosAberta.current = e.currentTarget.open; if (e.currentTarget.open) setHexagonosLista(hexagonosAtuais.current) }}>
-              <summary>Explorar regiões com teclado</summary>
-              <ul className="cartografia-hexagonos-lista">{hexagonosLista.map(hex => <li key={hex.h3}><button type="button" onClick={() => { if (mapaRef.current) aproximarHexagono(mapaRef.current, hex) }}>{descreverHexagono(hex)} Aproximar.</button></li>)}</ul>
-            </details>
-          </> : <p>Agregados ainda não publicados. A ausência não significa área zero.</p>}
+          {props.agregados?.metadados.contagens.celulas && comHexagonos ? <details onToggle={e => { listaHexagonosAberta.current = e.currentTarget.open; if (e.currentTarget.open) setHexagonosLista(hexagonosAtuais.current) }}>
+            <summary>Explorar regiões com teclado</summary>
+            <ul className="cartografia-hexagonos-lista">{hexagonosLista.map(hex => <li key={hex.h3}><button type="button" onClick={() => { if (mapaRef.current) aproximarHexagono(mapaRef.current, hex) }}>{descreverHexagono(hex)} Aproximar.</button></li>)}</ul>
+          </details> : listaOportunidades.length > 0 && <details onToggle={e => setListaAberta(e.currentTarget.open)}>
+            <summary>Explorar regiões com teclado</summary>
+            {listaAberta && <ul className="cartografia-hexagonos-lista">{listaOportunidades.map(o => <li key={o.cod_ibge}><button type="button" onClick={() => props.aoEscolherMunicipio(o.cod_ibge)}>
+              {o.nome} ({o.uf}): {fmtInt(o.aptas)} {o.aptas === 1 ? "fazenda" : "fazendas"}{o.ha > 0 ? `, ${fmtInt(Math.round(o.ha))} ha` : ""}. Abrir o município.</button></li>)}</ul>}
+          </details>}
         </> : <>
           <p>Contornos finos: limites declarados do CAR. Tracejado: sobreposição. Os limites podem ter erro.</p>
           <p>{zoom < 12 ? "O satélite histórico aparece ao aproximar mais." : satelite === "indisponivel" ? "Satélite indisponível; a base vetorial continua visível." : `${SATELITE_PUBLICO.titulo}, ${SATELITE_PUBLICO.resolucao}, ${SATELITE_PUBLICO.licenca}. Não mostra a situação atual da terra.`}</p>
