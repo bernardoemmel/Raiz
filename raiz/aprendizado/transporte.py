@@ -160,9 +160,21 @@ def _ok(resposta, operacao: str):
     return resposta
 
 
+def _sem_balde(armazem: Armazem) -> Armazem:
+    """No balde privado, os retratos são objetos por chave (historico/UF/município/hash.json.gz), sem Release."""
+    from raiz.executor.armazem_balde import cru
+
+    return cru(armazem)
+
+
 @contextlib.contextmanager
 def _acesso_privado(armazem: Armazem):
-    if isinstance(armazem, ArmazemRelease):
+    from raiz.executor.armazem_balde import ArmazemBalde
+
+    if isinstance(armazem, ArmazemBalde):
+        armazem._exigir_privado()  # confere que o balde segue privado; depois grava por chave no balde cru
+        yield
+    elif isinstance(armazem, ArmazemRelease):
         with armazem._erros_privados("histórico"):
             _cabecalhos(armazem)
             armazem._exigir_privado()
@@ -511,7 +523,7 @@ def _ler_objeto(a: ArmazemLocal | ArmazemS3, relativo: str) -> bytes | None:
 def publicar(pasta: Path, armazem: Armazem, uf: str | None = None) -> dict:
     """Publica somente no destino privado; retomar não apaga nem substitui objetos."""
     with _acesso_privado(armazem):
-        return _publicar(pasta, armazem, uf)
+        return _publicar(pasta, _sem_balde(armazem), uf)
 
 
 def _publicar(pasta: Path, armazem: Armazem, uf: str | None = None) -> dict:
@@ -560,7 +572,7 @@ def _publicar(pasta: Path, armazem: Armazem, uf: str | None = None) -> dict:
 def sincronizar(armazem: Armazem, destino: Path, ufs: list[str] | None = None) -> list[Path]:
     """Baixa retratos autenticados e devolve caminhos válidos; legado aberto falha explicitamente."""
     with _acesso_privado(armazem):
-        return _sincronizar(armazem, destino, ufs)
+        return _sincronizar(_sem_balde(armazem), destino, ufs)
 
 
 def _sincronizar(armazem: Armazem, destino: Path, ufs: list[str] | None = None) -> list[Path]:

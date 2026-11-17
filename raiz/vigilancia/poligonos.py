@@ -62,23 +62,18 @@ def _extrair(pacote: Path, destino: Path) -> None:
 
 class Poligonos:
     def __init__(self, cfg: Config | None = None, ufs: list[str] | None = None):
-        from raiz.executor.armazem import ArmazemRelease, destino_privado
+        from raiz.executor.armazem import arquivo_privado_configurado, privado_em_balde
 
         self.cfg = cfg or config()
         self.pasta = self.cfg.cache / "poligonos"
         self.pasta.mkdir(parents=True, exist_ok=True)
         self._so = set(ufs) if ufs else None
-        destino = destino_privado()
-        self._privado = (
-            ArmazemRelease(
-                *destino,
-                espelho=self.pasta / "arquivo_privado",
-                privado=True,
-                token=os.environ.get("RAIZ_DADOS_PRIVADOS_TOKEN") or self.cfg.token_github or "",
-            )
-            if destino
-            else None
+        token = (
+            (os.environ.get("GH_TOKEN") or os.environ.get("GITHUB_TOKEN") or self.cfg.token_github)
+            if privado_em_balde()
+            else (os.environ.get("RAIZ_DADOS_PRIVADOS_TOKEN") or self.cfg.token_github or "")
         )
+        self._privado = arquivo_privado_configurado(espelho=self.pasta / "arquivo_privado", token=token)
         self.manifesto = self._manifesto()
 
     def _manifesto(self) -> dict:

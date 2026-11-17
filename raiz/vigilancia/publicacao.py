@@ -94,9 +94,15 @@ def desempacotar(dado: bytes, destino: Path) -> None:
 
 class Release:
     def __init__(self, cfg: Config | None = None, tag: str | None = None):
-        from raiz.executor.armazem import ArmazemRelease, destino_privado
+        from raiz.executor.armazem import ArmazemRelease, arquivo_privado_configurado, destino_privado, privado_em_balde
 
         self.cfg = cfg or config()
+        # Arquivo completo num balde S3 (docs/armazenamento.md): os mesmos nomes, no prefixo privado do balde.
+        self._balde = (
+            arquivo_privado_configurado(espelho=self.cfg.cache / "balde_privado", token="")
+            if privado_em_balde()
+            else None
+        )
         destino = destino_privado()
         self.repo, self.tag = destino or (self.cfg.repo, tag or self.cfg.tag_vigilancia)
         self.token = os.environ.get("RAIZ_DADOS_PRIVADOS_TOKEN") or self.cfg.token_github
@@ -110,6 +116,9 @@ class Release:
         self._id: int | None = None
 
     def _exigir_privado(self):
+        if self._balde is not None:
+            self._balde._exigir_privado()
+            return self._balde
         if self._arm is None:
             raise PermissionError("a vigilância exige RAIZ_DADOS_PRIVADOS_URL e acesso autenticado ao arquivo privado")
         self._arm._exigir_privado()
@@ -124,10 +133,15 @@ class Release:
 
     def id(self, criar: bool = False) -> int | None:
         # Nunca cria ou publica automaticamente um Release: rascunho que virou público fecha o acesso.
+        if self._balde is not None:
+            self._exigir_privado()
+            return 0  # o balde não tem ID de Release; as operações usam o nome do arquivo
         self._id = int(self._exigir_privado()._release()["id"])
         return self._id
 
     def ativos(self) -> dict[str, dict]:
+        if self._balde is not None:
+            return {a["name"]: a for a in self._balde._assets()}
         rid = self.id()
         if rid is None:
             return {}
@@ -148,6 +162,8 @@ class Release:
 
     def baixar(self, ativo: dict) -> bytes:
         self._exigir_privado()
+        if self._balde is not None:
+            return self._balde._baixar_ativo(ativo)
         r = rede.pedir(
             "GET",
             f"{API}/repos/{self.repo}/releases/assets/{ativo['id']}",
@@ -157,7 +173,11 @@ class Release:
         return r.content
 
     def subir(self, nome: str, dado: bytes, tipo: str = "application/octet-stream") -> None:
-        """Sobe com nome provisório, apaga o antigo e renomeia (o arquivo nunca fica faltando por muito tempo)."""
+        """Sobe com nome provisório, apaga o antigo e renomeia (o arquivo nunca fica faltando por muito tempo).
+        No balde, a troca de um objeto já é atômica."""
+        if self._balde is not None:
+            self._balde._subir(self._balde._exigir_privado(), nome, dado, tipo)
+            return
         if not self.token:
             raise RuntimeError("sem token do GitHub (RAIZ_GITHUB_TOKEN, GITHUB_TOKEN ou GH_TOKEN) para publicar")
         rid = self.id(criar=True)
@@ -186,6 +206,9 @@ class Release:
 
     def apagar(self, ativo: dict) -> None:
         self._exigir_privado()
+        if self._balde is not None:
+            self._balde.apagar_arquivo(ativo["name"])
+            return
         rede.pedir("DELETE", f"{API}/repos/{self.repo}/releases/assets/{ativo['id']}", ok=(204, 404), headers=self._h())
 
 

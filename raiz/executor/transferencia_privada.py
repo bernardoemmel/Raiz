@@ -18,12 +18,16 @@ from pathlib import Path, PurePosixPath
 
 import httpx
 
-from raiz.executor.armazem import ArmazemRelease, destino_privado
+from raiz.executor.armazem import ArmazemRelease, arquivo_privado_configurado, destino_privado, privado_em_balde
 
 MAX_ASSET_BYTES = 2_000_000_000  # margem conservadora para o limite de um asset no GitHub
 
 
 def arquivo_privado() -> ArmazemRelease:
+    if privado_em_balde():
+        arm = arquivo_privado_configurado(espelho=Path(tempfile.gettempdir()) / "raiz-transferencia-privada")
+        arm._exigir_privado()
+        return arm
     destino = destino_privado()
     if not destino:
         raise PermissionError("transferência de dados completos exige RAIZ_DADOS_PRIVADOS_URL")
@@ -41,10 +45,17 @@ SUFIXO_CHECKPOINTS = "-checkpoints"
 
 
 def arquivo_checkpoints() -> ArmazemRelease:
-    """Release rascunho só dos checkpoints (`<tag privada>-checkpoints`), no mesmo repositório privado.
+    """Arquivo só dos checkpoints: Release rascunho `<tag privada>-checkpoints` ou prefixo `<prefixo>-checkpoints`
+    no balde privado.
 
     O GitHub recusa qualquer upload num Release com 1000 arquivos. Checkpoints são a parte que mais cresce;
-    separados, não travam a publicação dos estados. Cria o rascunho se ainda não existir."""
+    separados, não travam a publicação dos estados. Cria o rascunho se ainda não existir (o balde não precisa)."""
+    if privado_em_balde():
+        arm = arquivo_privado_configurado(
+            SUFIXO_CHECKPOINTS, espelho=Path(tempfile.gettempdir()) / "raiz-transferencia-checkpoints"
+        )
+        arm._exigir_privado()
+        return arm
     destino = destino_privado()
     if not destino:
         raise PermissionError("transferência de dados completos exige RAIZ_DADOS_PRIVADOS_URL")

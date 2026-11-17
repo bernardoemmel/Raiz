@@ -101,9 +101,26 @@ def base_release(repo: str, tag: str, *, escopo: str) -> str:
     _escopo(escopo)
     if not re.fullmatch(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+", repo) or not re.fullmatch(r"[A-Za-z0-9_.-]+", tag):
         raise ValueError("destino do catálogo inválido")
+    if tag.startswith("balde-"):
+        return _base_balde(escopo)
     if escopo == "privado":
         return f"release-github://{repo}/{tag}/"
     return f"https://github.com/{repo}/releases/download/{tag}/"
+
+
+def _base_balde(escopo: str) -> str:
+    """Destino em balde S3 (docs/armazenamento.md): privado por URI s3://, aberto pelo endereço HTTPS público."""
+    import os
+
+    from raiz.executor.armazem_balde import partes_s3, url_publica_valida
+
+    if escopo == "privado":
+        balde, prefixo = partes_s3(os.environ.get("RAIZ_DADOS_PRIVADOS_URL", "").strip())
+        return f"s3://{balde}/" + (f"{prefixo}/" if prefixo else "")
+    base = url_publica_valida(os.environ.get("RAIZ_PUBLICO_URL_BASE"))
+    if not base:
+        raise ValueError("balde aberto exige RAIZ_PUBLICO_URL_BASE")
+    return base + "/"
 
 
 def _url_acesso(url: str, *, escopo: str) -> None:
@@ -112,8 +129,11 @@ def _url_acesso(url: str, *, escopo: str) -> None:
     if u.username or u.password or u.query or u.fragment or not u.netloc:
         raise ValueError("endereço de acesso inválido ou contém credencial")
     if escopo == "privado":
-        if not re.fullmatch(r"release-github://[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+", url):
-            raise ValueError("arquivo privado exige URI release-github sem segredo")
+        if not (
+            re.fullmatch(r"release-github://[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+", url)
+            or re.fullmatch(r"s3://[a-z0-9][a-z0-9.-]{1,61}[a-z0-9](?:/[A-Za-z0-9_.-]+)+", url)
+        ):
+            raise ValueError("arquivo privado exige URI release-github ou s3 sem segredo")
     elif u.scheme != "https":
         raise ValueError("arquivo público exige URL HTTPS")
 
@@ -786,6 +806,12 @@ def validar_ficha_publica(nome: str, dados: bytes, *, repo: str = REPO, tag: str
 
     def url_publica(valor, asset):
         exigir(isinstance(valor, str))
+        if tag.startswith("balde-"):
+            try:
+                exigir(valor == base_release(repo, tag, escopo="publico_basico") + asset)
+            except ValueError:
+                raise ValueError(erro) from None
+            return valor
         m = re.fullmatch(
             r"https://github\.com/([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)/releases/download/([A-Za-z0-9_.-]+)/([^/?#]+)",
             valor,
