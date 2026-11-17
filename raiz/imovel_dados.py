@@ -107,6 +107,19 @@ def _ha_pixel(lat: float, res: float) -> float:
     return m * m * math.cos(math.radians(lat)) / 1e4
 
 
+def _valida(geoms):
+    """Conserta só a topologia (anel que se cruza, buraco solto) de polígonos inválidos, sem mudar a área útil.
+
+    Polígonos do PRODES e do CAR às vezes chegam inválidos e o GEOS aborta union/intersection com
+    GEOSException (TO, AM e MA ficaram sem ficha em 17/11). "structure" devolve só a parte poligonal."""
+    arr = np.asarray(geoms, dtype=object)
+    ruins = ~shapely.is_valid(arr) & ~shapely.is_missing(arr)
+    if ruins.any():
+        arr = arr.copy()
+        arr[ruins] = shapely.make_valid(arr[ruins], method="structure", keep_collapsed=False)
+    return arr
+
+
 def _hidrografia(caixa, cache_tb: Path):
     """Polígonos de água do PRODES que o motor guardou em cache/tb (blocos de 0,5 grau)."""
     import geopandas as gpd
@@ -121,7 +134,9 @@ def _hidrografia(caixa, cache_tb: Path):
             partes.append(gpd.read_parquet(f))
     if not partes:
         return None
-    return gpd.GeoDataFrame(pd.concat(partes), geometry="geometry").to_crs(4674)
+    hidro = gpd.GeoDataFrame(pd.concat(partes), geometry="geometry").to_crs(4674)
+    hidro["geometry"] = _valida(hidro.geometry.values)
+    return hidro
 
 
 def camadas_e_composicao(
@@ -191,8 +206,8 @@ def camadas_e_composicao(
                     mf = _num(linha, "m_fiscal") or 0.0
                     faixa = P.escadinha_m(mf)
                     a = gpd.GeoSeries(agua.geometry.values, crs=4674).to_crs(5880)
-                    im = gpd.GeoSeries([geom], crs=4674).to_crs(5880).iloc[0]
-                    ag = shapely.union_all(a.values)
+                    im = _valida([gpd.GeoSeries([geom], crs=4674).to_crs(5880).iloc[0]])[0]
+                    ag = shapely.union_all(_valida(a.values))
                     app = shapely.intersection(shapely.difference(ag.buffer(faixa), ag), im)
                     if not app.is_empty:
                         app4674 = gpd.GeoSeries([app], crs=5880).to_crs(4674).iloc[0]
