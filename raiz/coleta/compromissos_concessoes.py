@@ -21,6 +21,7 @@ from datetime import UTC, date, datetime
 
 import requests
 from bs4 import BeautifulSoup
+from shapely import make_valid
 from shapely.errors import GEOSException
 from shapely.geometry import box, shape
 
@@ -193,6 +194,12 @@ def coletar_sfb(bbox: tuple[float, float, float, float], *, sessao=None, observa
                 sem_contrato = True
                 continue  # Limite sem contrato não prova comprometimento atual.
             geom = shape(item["geometry"])
+            if not geom.is_empty and not geom.is_valid:
+                # Anel que se toca (ex.: Amapá UMF IV em 17/11/2026) é conserto de contorno, não limite novo.
+                # Antes, um só polígono assim derrubava todas as UMFs (cobertura parcial sem geometria nenhuma).
+                from raiz.coleta.compromissos_registros import so_area
+
+                geom = so_area(make_valid(geom)) or geom
             if geom.is_empty or not geom.is_valid or geom.geom_type not in {"Polygon", "MultiPolygon"}:
                 raise ValueError("Geometria oficial ausente ou inválida.")
             minx, miny, maxx, maxy = geom.bounds

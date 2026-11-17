@@ -271,6 +271,16 @@ jobs:
           else
             echo "sem mapas de projetos de carbono (frente ja_tem_projeto fica de fora)"
           fi
+          # Limites da terra já comprometida (coletar-comprometida.yml). Sem eles a tarefa "comprometida" marca tudo
+          # nao_verificado; com eles, só essa tarefa refaz quando a coleta muda (o funil dos prontos não muda).
+          mkdir -p motor/cache/comprometida
+          if gh release download insumos -R "$GITHUB_REPOSITORY" -D motor/cache/comprometida --clobber \
+               -p comprometida_limites.parquet -p comprometida_cobertura.json 2>/dev/null; then
+            echo "limites da terra já comprometida: ok"
+          else
+            rm -f motor/cache/comprometida/comprometida_*
+            echo "sem limites da terra já comprometida (tarefa comprometida fica nao_verificado)"
+          fi
 
       - name: Buscar o publicador do workflow para finalizar executores de versões anteriores
         id: publicador_checkout

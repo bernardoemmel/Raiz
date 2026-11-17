@@ -52,6 +52,15 @@ def ler_limites(arquivo: Path, *, bbox=None, observado_em=None) -> dict:
         geom = row.geometry
         if row["Geometry Type"] != "Polygon" or geom is None or geom.geom_type not in ("Polygon", "MultiPolygon"):
             continue
+        # make_valid de anel com laço vira coleção com linha: fica só a área; sem área, o projeto fica de fora.
+        # Antes, um só polígono assim derrubava a base inteira (coleta de 17/11/2026).
+        from shapely import make_valid
+
+        from raiz.coleta.compromissos_registros import so_area
+
+        geom = so_area(make_valid(geom))
+        if geom is None:
+            continue
         registros.append(
             normalizar(
                 {

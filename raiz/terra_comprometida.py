@@ -28,8 +28,11 @@ FONTES = {
     "redd_estadual",
     "ideflor_concessoes",
     "limites_pesquisa",
+    "infoamazonia_carbono",
+    "para_redd_zenodo",
 }
-REGISTROS = {"REDD_ESTADUAL", "VCS", "ACR", "CAR", "ART", "GS", "ISO", "SFB", "IDEFLOR", "BIOCARBON", "ECOREGISTRY"}
+REGISTROS = {"REDD_ESTADUAL", "VCS", "ACR", "CAR", "ART", "GS", "ISO", "SFB", "IDEFLOR", "BIOCARBON", "ECOREGISTRY",
+             "CERCARBONO"}  # fmt: skip
 TIPOS = {"projeto_carbono", "concessao_florestal", "concessao_restauracao", "programa_jurisdicional"}
 SITUACOES = {"ativo", "em_validacao", "retirado", "inativo", "desconhecido"}
 CERTEZAS = {"poligono_oficial", "poligono_secundario", "catalogo_sem_geometria", "contexto_jurisdicional"}
