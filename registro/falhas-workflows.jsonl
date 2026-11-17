@@ -1,0 +1,1 @@
+{"acao": "nada", "caminho": ".github/workflows/processar-estados.yml", "commit": "752653d", "conclusao": "success", "execucao": 729, "motivo": "passou e não havia issue aberta", "registrado_em": "2026-11-17T04:03:43+00:00", "tentativa": 1, "url": "https://github.com/bernardoemmel/Raiz/actions/runs/44013278607", "workflow": "Processar estados: rodada semanal"}
