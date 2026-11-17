@@ -1,5 +1,9 @@
 # Operação: como saber na hora quando algo parou
 
+Falha de workflow crítico do GitHub Actions (processar estados, terra comprometida, vigilância, calendário,
+publicar o site) abre uma issue `falha-workflow` sozinha e fecha quando volta a passar: ver
+[`conferidor-workflows.md`](conferidor-workflows.md).
+
 ## Medição do processamento dos estados — rodada 12
 
 `uv run python -m raiz.executor.tempos controles/raiz_controle_*.json --saida tempos.json`
