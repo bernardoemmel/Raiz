@@ -43,7 +43,7 @@ jobs:
           echo "RAIZ_VIGILANCIA_DIR=$RUNNER_TEMP/vigilancia/estado" >> "$GITHUB_ENV"
           echo "RAIZ_VIGILANCIA_CACHE=$RUNNER_TEMP/vigilancia/cache" >> "$GITHUB_ENV"
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
           cache: pip
