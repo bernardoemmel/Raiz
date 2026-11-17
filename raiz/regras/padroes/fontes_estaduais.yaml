@@ -1,7 +1,7 @@
 # Fontes estaduais na triagem (raiz/estaduais/cruzamento.py). Catálogo das camadas em raiz/estaduais/fontes/<UF>.yaml;
 # bloqueios de matrícula por tribunal em raiz/estaduais/matriculas.yaml. Mesmo desenho das restrições nacionais
 # (raiz/regras/padroes/restricoes_nacionais.yaml): exclusao | ressalva | livre | nao_verificado.
-versao: "2026-11-17.1"
+versao: "2026-11-17.2"
 
 # Sobreposição conta quando passa de limiar_ha OU de limiar_fracao do imóvel (imóvel pequeno conta pela fração;
 # ninguém sai por tamanho). Abaixo de tolerancia_ha é ruído de contorno.
@@ -11,6 +11,7 @@ tolerancia_ha: 0.1
 
 # Texto de cada motivo (vai para a decisão explicada e para o checklist do lote).
 motivos:
+  estadual_sem_catalogo: Estado ainda sem fontes estaduais no catálogo da Raíz; conferir embargos, UCs e terras devolutas do Estado.
   embargo_estadual: Área embargada pelo órgão ambiental estadual dentro do imóvel; sai do lote até o desembargo.
   embargo_estadual_borda: Embargo estadual encosta no imóvel; conferir o limite do embargo.
   embargo_estadual_ponto: Termo de embargo estadual registrado como ponto dentro do imóvel; pedir o polígono embargado.

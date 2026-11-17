@@ -140,4 +140,10 @@ Antes, preencher `camada` das fontes da BA e do PI com os nomes do GetCapabiliti
 
 - `coletar-estaduais.yml` coleta e publica `estaduais_<fonte>.parquet` + `estaduais_cobertura.json` no Release
   `insumos` (coleta parcial de algumas UFs se junta à cobertura anterior).
-- O cruzamento fica pronto para o próximo processamento; os municípios **não** foram recalculados agora.
+- `processar-estados.yml` baixa `estaduais_*` para `motor/cache/estaduais`; a tarefa `estaduais` do executor (folha,
+  depende só do funil) grava `estaduais_<mun>.csv`. Coleta nova ou catálogo novo refaz só esta tarefa.
+- Na oferta, `estadual_status = exclusao` vira bloqueio (a decisão explicada cita o motivo); a ressalva segue marcada
+  e o checklist do lote ganha o item `fontes_estaduais` com as ressalvas, o que não foi verificado e o que conferir à mão.
+- UF ainda sem catálogo fica `nao_verificado` com `estadual_sem_catalogo` no checklist (nunca `livre`).
+- Os municípios **não** foram recalculados agora: entram no próximo processamento
+  (`python -m raiz.estaduais recalcular` para adiantar).

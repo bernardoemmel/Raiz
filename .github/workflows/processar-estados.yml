@@ -304,6 +304,16 @@ jobs:
             rm -f motor/cache/restricoes/restricoes_*
             echo "sem restrições nacionais coletadas (tarefa restricoes fica nao_verificado nessas fontes)"
           fi
+          # Fontes estaduais (coletar-estaduais.yml): embargos, autos, UCs, PSA, terras devolutas por UF. Sem elas a
+          # tarefa "estaduais" marca as fontes da UF como não verificadas (nunca "livre").
+          mkdir -p motor/cache/estaduais
+          if gh release download insumos -R "$GITHUB_REPOSITORY" -D motor/cache/estaduais --clobber \
+               -p 'estaduais_*' 2>/dev/null; then
+            echo "fontes estaduais: $(find motor/cache/estaduais -maxdepth 1 -type f -name 'estaduais_*' | wc -l) arquivos"
+          else
+            rm -f motor/cache/estaduais/estaduais_*
+            echo "sem fontes estaduais coletadas (tarefa estaduais fica nao_verificado)"
+          fi
           # Vegetação e relevo (coletar-ambiental.yml): mapa do IBGE classificado para a reserva legal e TerraClass.
           # Sem eles a tarefa "ambiental" marca a vegetação como não verificada (nunca "livre"); o ANADEM é lido direto.
           mkdir -p motor/cache/ambiental/terraclass

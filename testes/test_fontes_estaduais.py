@@ -223,3 +223,66 @@ def test_resumo_publico_sem_imovel(tmp_path, uf):
 
 def test_yaml_regra_carrega():
     assert yaml.safe_load(cruzamento.REGRA.read_text(encoding="utf-8"))["limiar_ha"] == 1.0
+
+
+def test_estado_sem_catalogo_nunca_vira_livre(tmp_path):
+    # Florianópolis: SC ainda sem catálogo estadual
+    cod = 4205407
+    pasta, camadas = _montar(tmp_path, cod, {})
+    df = cruzamento.calcular_municipio(pasta, cod, camadas=camadas)
+    assert set(df.estadual_status) == {"nao_verificado"}
+    assert df.estadual_conferir.iloc[0] == "estadual_sem_catalogo"
+    assert df.estaduais_nao_verificadas.iloc[0] == "estadual_sc"
+
+
+def test_tarefa_estaduais_folha_e_grava_o_csv(tmp_path, monkeypatch):
+    from raiz.contrato import COMPLEMENTOS
+    from raiz.executor import tarefas as T
+
+    t = next(x for x in T.tarefas_producao() if x.nome == "estaduais")
+    assert t.depende == ("funil",) and t.saidas == ("estaduais_{cod}.csv",)
+    assert all("estaduais" not in x.depende for x in T.tarefas_producao())
+    assert "estaduais" in COMPLEMENTOS
+    cod = 3106200
+    pasta, camadas = _montar(tmp_path, cod, {"mg_embargos_sisema": [{"geometry": _quadrado(X + 100, Y + 100, 300)}]})
+    monkeypatch.setenv("RAIZ_ESTADUAIS_DIR", str(camadas.pasta))
+    antes = T.externas("estaduais")("MG", cod, {})
+    T.rodar_estaduais("mg", cod, pasta)
+    df = pd.read_csv(pasta / f"estaduais_{cod}.csv").set_index("cod_imovel")
+    assert df.loc["A", "estadual_status"] == "exclusao"
+    (camadas.pasta / coleta.COBERTURA).write_text("{}")
+    assert T.externas("estaduais")("MG", cod, {}) != antes
+
+
+@pytest.mark.parametrize(
+    ("status", "bloqueia"), [("exclusao", True), ("ressalva", False), ("livre", False), (None, False)]
+)
+def test_oferta_exclusao_estadual_bloqueia(status, bloqueia, monkeypatch):
+    from raiz import salvaguardas
+    from raiz.pedidos import oferta as O
+
+    monkeypatch.setattr(salvaguardas, "avaliar", lambda li, v=None: {"pode_originar": True})
+    linha = {"cod_imovel": "MG-3106200-A", "cod_municipio_ibge": 3106200, "modo_restauracao": "regeneracao_assistida",
+             "restauracao_area_ha": 100.0, "caminho_terra": "privada_matricula", "ha": 500.0,
+             "estadual_status": status, "estadual_motivos": "embargo_estadual" if status else None,
+             "estadual_ressalva_ha": 2.5}  # fmt: skip
+    o = O.de_linha(linha, -44.0, -19.9)
+    assert o["bloqueio"] is bloqueia and o["elegivel"] is (not bloqueia)
+    assert o["estadual_status"] == status
+    assert o["estadual_ressalva"] == ((status == "ressalva") if status else None)
+    assert set(O.COLUNAS) >= {"estadual_status", "estadual_motivos", "estadual_conferir"}
+
+
+def test_checagem_do_lote_fontes_estaduais():
+    from raiz.lote import estaduais_do_lote
+
+    assert estaduais_do_lote(pd.DataFrame({"x": [1]}))["situacao"] == "pendente"
+    lote = pd.DataFrame({"estadual_status": ["livre", "ressalva", None],
+                         "estadual_motivos": [None, "psa_estadual_vigente", None],
+                         "estadual_conferir": [None, "matricula_bloqueio_tjba", None]})  # fmt: skip
+    r = estaduais_do_lote(lote)
+    assert r["situacao"] == "pendente"
+    assert "psa_estadual_vigente: 1" in r["detalhe"] and "1 sem verificação completa" in r["detalhe"]
+    assert "matricula_bloqueio_tjba" in r["detalhe"]
+    ok = pd.DataFrame({"estadual_status": ["livre"], "estadual_motivos": [None], "estadual_conferir": [None]})
+    assert estaduais_do_lote(ok)["situacao"] == "ok"
