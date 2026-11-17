@@ -228,3 +228,26 @@ def test_rotas_de_camadas_e_ficha(api):
     )
     assert not any(ch in "ILOU" for c in codigos for ch in c)
     shapely.box(0, 0, 1, 1)  # (shapely importado para os testes de geometria acima)
+
+
+def test_app_com_agua_invalida_do_prodes_nao_derruba_a_ficha(tmp_path):
+    """Água do PRODES com anel que se cruza abortava a ficha inteira (GEOSException em TO, AM e MA, 17/11)."""
+    import geopandas as gpd
+    import shapely
+
+    from raiz import imovel_dados as I
+    from raiz.funil import grade
+
+    imovel = shapely.box(-48.30, -10.30, -48.20, -10.20)
+    # "gravata": o rio cruza a si mesmo dentro do imóvel; inválido para o GEOS
+    gravata = shapely.Polygon([(-48.29, -10.29), (-48.21, -10.21), (-48.21, -10.29), (-48.29, -10.21)])
+    assert not gravata.is_valid
+    rio2 = shapely.box(-48.26, -10.30, -48.255, -10.20)
+    for ch in grade.blocos_tocados(imovel):
+        gpd.GeoDataFrame(geometry=[gravata, rio2], crs=4674).to_parquet(
+            tmp_path / f"prodes-legal-amz__hydrography__{ch}.parquet"
+        )
+    geo = gpd.GeoDataFrame({"cod_imovel": ["TO-1"]}, geometry=[imovel], crs=4674)
+    feicoes, _ = I.camadas_e_composicao(geo, {"TO-1": {"ha": 1000.0, "m_fiscal": 2.0}}, None, tmp_path)
+    app = [f for f in feicoes if f["camada"] == "app"]
+    assert len(app) == 1 and app[0]["ha"] > 0 and app[0]["geometry"].is_valid
