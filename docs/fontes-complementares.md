@@ -98,5 +98,9 @@ escopo (`cnib`, `saec`), com o hash do termo ou aceite como evidência, validade
   Nenhuma em Paragominas ou São Félix do Xingu (os 6 CARs da conferência de Paragominas ficam a mais de 110 km da
   mais próxima).
 - Palmares: 3.662 certidões em 1.125 municípios; 3.525 sem título.
+- Município inteiro com dado real: Lagarto (SE, 2803500), 7.295 CARs de imóvel rural do CAR nacional, SICOR de
+  2025–2026 e glebas de 2026: 3 exclusões (localidade quilombola dentro do imóvel), 1.886 ressalvas (1.624 crédito
+  rural ativo, 300 localidade quilombola a até 2 km), 5.406 livres, 0 não verificados; cerca de 1 s para o município.
+  Coleta completa desses dois anos: cerca de 5 minutos (operações 13 s, glebas 2 min, vínculo com o CAR 3 min).
 - O BCB às vezes responde com uma página "Requisição inválida!" e código 200: a coleta confere o início do gzip e
   trata como falha da fonte (o ano fica em `anos_falharam`, a cobertura fica `parcial`).
