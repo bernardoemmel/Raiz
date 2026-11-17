@@ -321,17 +321,58 @@ fontes:
     pendente: conferir robots e termos do servicodados.ibge.gov.br antes de ligar o gatilho
 
   - id: sigmine
-    nome: SIGMINE (processos minerários)
+    nome: SIGMINE (processos minerários), coletado por raiz/restricoes/coleta.py
     orgao: ANM
     tipo: arquivo
     densidade: esparsa
-    url: null
-    recorte: brasil
+    url: https://app.anm.gov.br/dadosabertos/SIGMINE/PROCESSOS_MINERARIOS/{arquivo}
+    arquivos: [AC.zip, AL.zip, AP.zip, AM.zip, BA.zip, CE.zip, DF.zip, ES.zip, GO.zip, MA.zip, MT.zip, MS.zip, MG.zip, PA.zip, PB.zip, PR.zip, PE.zip, PI.zip, RJ.zip, RN.zip, RS.zip, RO.zip, RR.zip, SC.zip, SP.zip, SE.zip, TO.zip]
+    # reserva: serviço ArcGIS https://geo.anm.gov.br/arcgis/rest/services/SIGMINE/dados_anm/MapServer/0/query
+    recorte: uf
     sinal: {tipo: etag}
-    calendario: {dias_semana: [3]}
+    calendario: {dias_semana: [2]}
     licenca: dado aberto do governo federal (Decreto 8.777/2016)
     pode_treinar: true
-    pendente: endereço do conjunto em dadosabertos.anm.gov.br (o SIGMINE mudou para lá)
+    pessoal: o titular (NOME) sai na entrada
+
+  - id: ibama_autos
+    nome: Autos de infração do Ibama (SIFISC), coletado por raiz/restricoes/coleta.py
+    orgao: Ibama
+    tipo: arquivo
+    densidade: esparsa
+    url: https://dadosabertos.ibama.gov.br/dados/SIFISC/auto_infracao/auto_infracao/auto_infracao_csv.zip
+    recorte: brasil
+    sinal: {tipo: etag}
+    calendario: {dias_semana: [2]}
+    licenca: dado aberto do governo federal (Decreto 8.777/2016)
+    pode_treinar: true
+    pessoal: nome e CPF/CNPJ do infrator saem na entrada (o documento só serve, em memória, para a Lista Suja)
+
+  - id: lista_suja
+    nome: Cadastro de Empregadores (Lista Suja do trabalho escravo), coletado por raiz/restricoes/coleta.py
+    orgao: MTE
+    tipo: arquivo
+    densidade: tabela
+    url: https://www.gov.br/trabalho-e-emprego/pt-br/assuntos/inspecao-do-trabalho/areas-de-atuacao/cadastro_de_empregadores.pdf
+    recorte: brasil
+    sinal: {tipo: hash}
+    calendario: {dias_semana: [2]}
+    licenca: publicação obrigatória (Portaria Interministerial MTE/MDHC/MIR nº 18/2024)
+    pode_treinar: false
+    pessoal: nome, CPF/CNPJ e endereço nunca saem da coleta; só vínculo geográfico e contagem por município
+
+  - id: sicar_temas
+    nome: Reserva legal e APP declaradas no CAR (base de downloads do SICAR)
+    orgao: SFB
+    tipo: arquivo
+    densidade: esparsa
+    url: null # a página https://consultapublica.car.gov.br/publico/estados/downloads pede captcha
+    recorte: municipio
+    sinal: {tipo: hash}
+    calendario: {rodizio_uf: true}
+    licenca: dado aberto do governo federal (Decreto 8.777/2016)
+    pode_treinar: true
+    pendente: base atrás de captcha; pedido de LAI 02303.031114/2026-60 ao SFB (coleta automática em lote)
 
 referencias:
   # dados de pesquisa usados pelas contas; não são coletados, mas a licença decide o uso

@@ -17,7 +17,8 @@ def test_manifesto_valido():
     # Heinrich 2021 é não comercial: só comparação
     assert m.pode_treinar("heinrich_2021") is False and m.pode_treinar("groa") is True
     # fonte sem endereço não é coletada, só fica a pendência
-    assert not m.fonte("sigmine").ativa and m.fonte("sigmine").pendente
+    assert not m.fonte("sicar_temas").ativa and m.fonte("sicar_temas").pendente
+    assert m.fonte("sigmine").ativa
 
 
 def test_licenca_nao_comercial_nao_treina():
