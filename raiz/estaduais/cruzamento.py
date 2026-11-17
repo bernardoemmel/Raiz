@@ -189,6 +189,8 @@ def calcular_municipio(pasta: str | Path, cod: int, camadas: Camadas | None = No
         if not camadas.coberta(fid):
             nao_verificadas.append(fid)
             continue
+        if (camadas.cobertura.get(fid) or {}).get("estado") == "parcial":
+            nao_verificadas.append(fid)  # parcial: o que veio marca, mas a fonte não libera ninguém
         g = camadas.camada(fid)
         if g is None or not len(g) or not len(base):
             continue

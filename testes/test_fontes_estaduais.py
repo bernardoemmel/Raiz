@@ -286,3 +286,46 @@ def test_checagem_do_lote_fontes_estaduais():
     assert "matricula_bloqueio_tjba" in r["detalhe"]
     ok = pd.DataFrame({"estadual_status": ["livre"], "estadual_motivos": [None], "estadual_conferir": [None]})
     assert estaduais_do_lote(ok)["situacao"] == "ok"
+
+
+def test_anos_do_catalogo_viram_nome_de_camada_certo():
+    # YAML 1.1 lê 2007_2008 como o inteiro 20072008: o nome da camada do DataGEO tem de manter o "_"
+    sp = {f["id"]: f for f in coleta.catalogo(["SP"])}
+    nomes = coleta.camadas_da_fonte(sp["sp_autos"])
+    assert "datageo:VWM_AIA_GEOVALID_SIGAM_2007_2008_PTO" in nomes
+    for f in coleta.catalogo():
+        for a in f.get("anos") or []:
+            assert not (isinstance(a, int) and a > 9999), (f["id"], a)
+
+
+def test_wfs_total_zero_com_feicoes_nao_e_leitura_incompleta(monkeypatch):
+    from raiz.coleta import wfs
+
+    corpo = {"type": "FeatureCollection", "totalFeatures": 0, "features": [
+        {"type": "Feature", "properties": {"OBJECTID": 1}, "geometry": {"type": "Point", "coordinates": [-46.6, -23.5]}}
+    ]}  # fmt: skip
+
+    class R:
+        content = json.dumps(corpo).encode()
+
+        def raise_for_status(self):
+            pass
+
+        def json(self):
+            return corpo
+
+    class S:
+        def get(self, *a, **k):
+            return R()
+
+    c = wfs.Camada(url="https://exemplo/wfs", nome="x:y", versao="2.0.0", srs="EPSG:4674")
+    assert sum(len(g) for g in wfs.paginas(S(), c, ordenar_por="OBJECTID", pagina=10)) == 1
+
+
+def test_fonte_parcial_marca_mas_nao_libera(tmp_path):
+    cod = 3106200
+    pasta, camadas = _montar(tmp_path, cod, {})
+    camadas.cobertura["mg_embargos_sisema"]["estado"] = "parcial"
+    df = cruzamento.calcular_municipio(pasta, cod, camadas=camadas)
+    assert set(df.estadual_status) == {"nao_verificado"}
+    assert "mg_embargos_sisema" in df.estaduais_nao_verificadas.iloc[0]

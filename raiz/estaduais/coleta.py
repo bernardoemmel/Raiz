@@ -108,7 +108,9 @@ def _wfs(s: requests.Session, url: str, nome: str, cql: str | None) -> gpd.GeoDa
 
     c = wfs.Camada(url=url, nome=nome, versao="2.0.0", srs="EPSG:4674")
     campos = wfs.campos(s, c)
-    ordem = next((k for k in CHAVES_ORDEM if k in campos), None) or sorted(campos - {"geom", "geometry", "the_geom"})[0]
+    por_minuscula = {k.lower(): k for k in sorted(campos)}
+    ordem = next((por_minuscula[k.lower()] for k in CHAVES_ORDEM if k.lower() in por_minuscula), None)
+    ordem = ordem or sorted(campos - {"geom", "geometry", "the_geom", "shape", "SHAPE"})[0]
     return wfs.ler(s, c, ordenar_por=ordem, cql=cql, pagina=5000)
 
 

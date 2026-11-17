@@ -60,6 +60,10 @@ e o motivo, e decide.
 
 ## Situação por UF (testado em 17/11/2026 desta nuvem, fora do Brasil)
 
+Primeira coleta no GitHub Actions (17/11/2026): ES 59.131 feições, GO 75.335, MG 1.485.667 (1,44 milhão são as
+prioridades de restauração), MS 6.154, PR 135.274, SP 617.767 (sem as UCs, que falharam na contagem do servidor e voltam na próxima coleta). Nenhum CPF ou CNPJ nos arquivos. Fonte `parcial`
+marca o que veio, mas não libera ninguém (o imóvel fica `nao_verificado` se nada cruzar).
+
 ### SP — DataGEO (WFS aberto)
 
 | fonte | efeito | critério |
@@ -89,6 +93,10 @@ O SIEG (`sieg.go.gov.br`) recusa esta nuvem; as camadas de fiscalização da SEM
 (`siga.meioambiente.go.gov.br/geoserver`). Embargos estaduais (21.726 polígonos + 1.600 pontos; desembargos
 tirados pelo número do processo), autos (31.657 + 8.590), PSA Cerrado em Pé, PRADs e plantios compensatórios,
 UCs estaduais, municipais e RPPN estaduais, imóveis para compensação.
+
+A camada de imóveis inscritos no PSA (`vw_psa_imovel`) quebra no próprio servidor (geometria inválida: "Must have
+at least 2 spatial dimensions") e corta a resposta no meio; a fonte fica `parcial` com as áreas autorizadas
+(`psa_area_autorizada`). Alternativa: pedir à SEMAD a correção da geometria ou o arquivo por LAI.
 
 ### MS — PIN-MS (ArcGIS aberto)
 
