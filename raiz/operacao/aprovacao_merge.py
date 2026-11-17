@@ -5,7 +5,9 @@ da main, nunca com o do PR). Regras:
 
     PR sem arquivo crítico   passa sozinho (documentação, testes, telas, correções pontuais de CI fora da lista)
     PR com arquivo crítico   só passa com o rótulo `aprovado-bernardo` posto por um aprovador humano pela página
-                             do GitHub, depois do último push. Push novo no PR tira o rótulo e o check volta a falhar.
+                             do GitHub. Push novo no PR tira o rótulo e o check volta a falhar, EXCETO quando o
+                             push só junta a main: todo arquivo crítico que o push mudou ficou idêntico ao da main.
+                             Nesse caso o que o fundador aprovou não mudou e a aprovação continua valendo.
 
 Enquanto falta a aprovação, o PR recebe o rótulo `aguardando-bernardo` (lista única do que espera o fundador).
 
@@ -108,18 +110,58 @@ def aprovacao_valida(eventos: list[dict], rotulos_atuais: list[str], aprovadores
     return True, f"aprovado por `{quem}`"
 
 
+LIMITE_ARQUIVOS_COMPARACAO = 300  # a API de comparação corta a lista em 300 arquivos; acima disso, não confiar
+
+
+def push_so_juntou_a_base(
+    situacao: str,
+    arquivos_do_push: list[dict],
+    blob_na_base,
+) -> tuple[bool, str]:
+    """Diz se um push (antes → depois) só trouxe conteúdo da main para os arquivos críticos.
+
+    `situacao` é o `status` da comparação antes...depois na API (`ahead` = o push só acrescentou commits).
+    `arquivos_do_push` é a lista `files` dessa comparação (filename, previous_filename, status, sha do blob depois).
+    `blob_na_base(caminho)` devolve os shas do blob na main (vazio/None = arquivo não existe lá).
+
+    Vale só se nenhum histórico foi reescrito e cada arquivo crítico tocado pelo push ficou exatamente igual ao da
+    main. Resolver conflito à mão num arquivo crítico deixa o arquivo diferente dos dois lados: a aprovação cai.
+    """
+    if situacao != "ahead":
+        return False, f"o push reescreveu o histórico do PR (comparação `{situacao}`)"
+    if len(arquivos_do_push) >= LIMITE_ARQUIVOS_COMPARACAO:
+        return False, "o push mudou arquivos demais para conferir um a um"
+    for f in arquivos_do_push:
+        caminhos = [(f["filename"], None if f.get("status") == "removed" else f.get("sha"))]
+        if f.get("previous_filename"):
+            caminhos.append((f["previous_filename"], None))
+        for caminho, blob_depois in caminhos:
+            if not motivo_critico(caminho):
+                continue
+            if blob_depois not in blob_na_base(caminho):
+                return False, f"o push mudou `{caminho}` de um jeito que não veio da main"
+    return True, "o push só juntou a main; os arquivos críticos aprovados não mudaram"
+
+
 def decidir(
     arquivos: list[str],
     eventos: list[dict],
     rotulos_atuais: list[str],
     aprovadores: set[str],
     acao: str,
+    push_so_base: tuple[bool, str] | None = None,
 ) -> Decisao:
     criticos = arquivos_criticos(arquivos)
     if not criticos:
         return Decisao(True, {}, "nenhum arquivo crítico: merge livre com o CI verde")
     if acao == "synchronize":
-        return Decisao(False, criticos, "push novo em área crítica: a aprovação anterior caiu, aprovar de novo")
+        so_base, porque = push_so_base or (False, "push novo")
+        if not so_base:
+            return Decisao(
+                False, criticos, f"push novo em área crítica ({porque}): a aprovação anterior caiu, aprovar de novo"
+            )
+        ok, motivo = aprovacao_valida(eventos, rotulos_atuais, aprovadores)
+        return Decisao(ok, criticos, f"{porque}; {motivo}" if ok else motivo)
     ok, motivo = aprovacao_valida(eventos, rotulos_atuais, aprovadores)
     return Decisao(ok, criticos, motivo)
 
@@ -172,6 +214,25 @@ class GitHub:
                 return itens
             pagina += 1
 
+    def comparar(self, antes: str, depois: str) -> tuple[str, list[dict]]:
+        dados, _ = self._pedir("GET", f"/compare/{antes}...{depois}")
+        assert isinstance(dados, dict)
+        return str(dados.get("status", "")), list(dados.get("files") or [])
+
+    def blob(self, caminho: str, ref: str) -> str | None:
+        try:
+            dados, _ = self._pedir("GET", f"/contents/{urllib.parse.quote(caminho)}?ref={ref}")
+        except urllib.error.HTTPError as erro:
+            if erro.code == 404:
+                return None
+            raise
+        return dados.get("sha") if isinstance(dados, dict) else None
+
+    def ponta(self, ramo: str) -> str:
+        dados, _ = self._pedir("GET", f"/branches/{urllib.parse.quote(ramo)}")
+        assert isinstance(dados, dict)
+        return str(dados["commit"]["sha"])
+
     def por_rotulo(self, numero: int, rotulo: str) -> None:
         self._pedir("POST", f"/issues/{numero}/labels", {"labels": [rotulo]})
 
@@ -189,6 +250,27 @@ def _tentar(descricao: str, funcao, *args) -> None:
         funcao(*args)
     except urllib.error.HTTPError as erro:
         print(f"aviso: não consegui {descricao} (HTTP {erro.code})", file=sys.stderr)
+
+
+def conferir_push(gh: GitHub, evento: dict) -> tuple[bool, str]:
+    """Compara o push (antes → depois) com a main: a ponta atual e a base registrada no evento."""
+    antes, depois = evento.get("before"), evento.get("after")
+    if not antes or not depois:
+        return False, "o evento não trouxe o commit anterior"
+    try:
+        situacao, arquivos = gh.comparar(antes, depois)
+        pr = evento["pull_request"]
+        refs = list(dict.fromkeys([gh.ponta(pr["base"]["ref"]), pr["base"]["sha"]]))
+        cache: dict[str, set[str | None]] = {}
+
+        def blob_na_base(caminho: str) -> set[str | None]:
+            if caminho not in cache:
+                cache[caminho] = {gh.blob(caminho, ref) for ref in refs}
+            return cache[caminho]
+
+        return push_so_juntou_a_base(situacao, arquivos, blob_na_base)
+    except (urllib.error.HTTPError, urllib.error.URLError, KeyError, AssertionError) as erro:
+        return False, f"não consegui conferir o push ({erro})"
 
 
 def rodar_no_actions() -> int:
@@ -209,9 +291,13 @@ def rodar_no_actions() -> int:
     rotulos = [r["name"] for r in gh.lista(f"/issues/{numero}/labels")]
     eventos = gh.lista(f"/issues/{numero}/events")
 
-    decisao = decidir(arquivos, eventos, rotulos, aprovadores, acao)
+    push_so_base = None
+    if acao == "synchronize" and ROTULO_APROVADO in rotulos and arquivos_criticos(arquivos):
+        push_so_base = conferir_push(gh, evento)
 
-    if decisao.criticos and acao == "synchronize" and ROTULO_APROVADO in rotulos:
+    decisao = decidir(arquivos, eventos, rotulos, aprovadores, acao, push_so_base)
+
+    if decisao.criticos and acao == "synchronize" and ROTULO_APROVADO in rotulos and not decisao.passa:
         _tentar("tirar o rótulo de aprovação", gh.tirar_rotulo, numero, ROTULO_APROVADO)
     if decisao.criticos and not decisao.passa:
         _tentar("pôr o rótulo de espera", gh.por_rotulo, numero, ROTULO_AGUARDANDO)

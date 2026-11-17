@@ -23,10 +23,30 @@ export function conferirLighthouseCelular(lhr) {
   return notas
 }
 
+/**
+ * O Lighthouse simula o celular dividindo a velocidade da máquina por um fator fixo (4x). Os runners do GitHub
+ * não são iguais: o mesmo código mediu índice de CPU ~2700 e nota 94-98 num runner e índice ~1800 e nota 79-82
+ * em outro. Com 4x fixo, o celular simulado muda conforme o runner sorteado e a nota oscila sem mudança no site.
+ * A documentação do Lighthouse manda calibrar o fator pelo `benchmarkIndex` (docs/throttling.md, "Calibrating
+ * the CPU slowdown"). Aqui o celular alvo é fixo: índice 675, a faixa "Mid-Tier Mobile" da tabela do Lighthouse,
+ * que é o celular que o portão sempre mediu (4x no runner típico de ~2700). Runner rápido recebe fator maior,
+ * runner lento recebe fator menor; a nota mínima continua 90.
+ */
+export const CELULAR_ALVO_BENCHMARK = 675
+
+export function fatorCpuCalibrado(benchmarkIndex) {
+  assert(Number.isFinite(benchmarkIndex) && benchmarkIndex > 0, `Lighthouse não mediu a CPU do runner (${benchmarkIndex}).`)
+  return Math.min(8, Math.max(2, Math.round((benchmarkIndex / CELULAR_ALVO_BENCHMARK) * 100) / 100))
+}
+
 /** Três execuções fixas reduzem ruído do runner. Todas ficam no artefato; nenhum retry escolhe a melhor nota. */
 export function conferirSerieLighthouseCelular(amostras) {
   assert.equal(amostras.length, 3, "O portão usa exatamente três medições por página.")
   const notas = amostras.map(conferirColetaCelular)
+  for (const lhr of amostras) {
+    const fator = lhr.configSettings?.throttling?.cpuSlowdownMultiplier
+    assert(Number.isFinite(fator) && fator >= 2 && fator <= 8, `Fator de CPU fora da calibração: ${fator}.`)
+  }
   for (const lhr of amostras)
     assert(lhr.categories.accessibility.score >= 0.9, "Acessibilidade precisa chegar a 90 em todas as medições.")
   const desempenho = amostras.map((lhr) => lhr.categories.performance.score).sort((a, b) => a - b)[1]
